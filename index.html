@@ -122,9 +122,8 @@ body{background:var(--paper);
 .picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:13px;
   background:rgba(0,0,0,.2);padding:4px;border-radius:13px}
 .pick{border:none;background:none;color:rgba(255,255,255,.62);cursor:pointer;
-  padding:10px 6px;border-radius:11px;font-weight:800;font-size:.86rem;
+  padding:13px 6px;border-radius:11px;font-weight:800;font-size:.9rem;
   transition:background .2s,color .2s;line-height:1.3}
-.pick small{display:block;font-size:.65rem;opacity:.75;font-weight:700;margin-top:1px}
 .pick.on{background:rgba(255,255,255,.16);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
 
 /* הכרטיס המרחף — השקף הראשון של השבוע, בפרספקטיבה */
@@ -190,15 +189,15 @@ body{background:var(--paper);
 
 /* ---------- עיגולי סטטיסטיקה ---------- */
 .rings{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
-.ring{position:relative;width:112px;height:112px;border-radius:50%;flex:none;
+.ring{position:relative;width:136px;height:136px;border-radius:50%;flex:none;
   display:flex;align-items:center;justify-content:center;background:conic-gradient(from 210deg,var(--gold-l),var(--gold) 55%,var(--gold-l))}
 .ring.b{background:conic-gradient(from 210deg,var(--blue-l),var(--blue) 55%,var(--blue-l))}
-.ring:before{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--paper)}
-.ring .in{position:relative;text-align:center;padding:0 12px}
-.ring .n{font-size:1.7rem;font-weight:800;line-height:1;letter-spacing:-.04em;
+.ring:before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--paper)}
+.ring .in{position:relative;text-align:center;padding:0 14px}
+.ring .n{font-size:2.05rem;font-weight:800;line-height:1;letter-spacing:-.04em;
   font-variant-numeric:tabular-nums;color:var(--gold)}
 .ring.b .n{color:var(--blue)}
-.ring .t{font-size:.7rem;font-weight:800;color:var(--ink-3);margin-top:5px;line-height:1.35}
+.ring .t{font-size:.75rem;font-weight:800;color:var(--ink-3);margin-top:6px;line-height:1.35}
 
 /* ---------- מי כבר בפנים ---------- */
 .inbox{background:var(--surface);border-radius:var(--r);padding:16px;
@@ -223,7 +222,11 @@ body{background:var(--paper);
 .opt2{display:grid;gap:9px}
 .o2{background:var(--surface);border:2px solid transparent;border-radius:var(--r-s);
   padding:15px;cursor:pointer;text-align:start;width:100%;color:inherit;box-shadow:var(--sh-1)}
-.o2 b{display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.o2 b{display:flex;align-items:baseline;justify-content:space-between;gap:9px;
+  font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.o2 b em{font-style:normal;font-size:.86rem;font-weight:800;color:var(--green-d);
+  white-space:nowrap;letter-spacing:-.01em}
+.o2 b em s{color:var(--ink-3);font-weight:700;font-size:.78rem;margin-inline-start:3px}
 .o2 span{display:block;font-size:.81rem;color:var(--ink-2);font-weight:600;
   margin-top:4px;line-height:1.55}
 .o2.sel{border-color:var(--blue);background:var(--accent-soft)}
@@ -520,6 +523,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .sf .body{padding:16px 18px;display:grid;gap:10px}
 .sf .body p{font-size:.9rem;color:var(--ink-2);line-height:1.68}
 .sf .rhythm{font-size:.72rem;font-weight:800;color:var(--gold);letter-spacing:.06em}
+.sf .tag-p{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sf .tag-p b{font-size:1.5rem;font-weight:800;color:var(--green-d);letter-spacing:-.03em}
+.sf .tag-p s{color:var(--ink-3);font-size:.9rem;font-weight:700}
+.sf .tag-p i{font-style:normal;font-size:.75rem;color:var(--ink-3);font-weight:700}
 .sf .ph{background:var(--sunk);border:1.5px dashed var(--rule);border-radius:var(--r-s);
   padding:26px;text-align:center;color:var(--ink-3);font-size:.79rem;font-weight:700}
 .price{display:flex;align-items:baseline;gap:10px;justify-content:center;flex-wrap:wrap;
@@ -583,10 +590,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .pad button:active{transform:scale(.94)}
 
 /* ---------- ניהול ---------- */
-.tabs{display:flex;gap:5px;background:var(--sunk);padding:4px;border-radius:12px;
-  overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tabs button{flex:1;min-width:78px;border:none;background:none;color:var(--ink-3);
+/* שש לשוניות לא נכנסות בשורה אחת בטלפון. גלילה אופקית מסתירה
+   מקטעים שלמים, ולכן הן נשברות לשתי שורות — הכול גלוי תמיד. */
+.tabs{display:flex;flex-wrap:wrap;gap:5px;background:var(--sunk);padding:4px;
+  border-radius:12px}
+.tabs button{flex:1 1 96px;border:none;background:none;color:var(--ink-3);
   padding:10px 8px;border-radius:9px;font-size:.83rem;font-weight:800;cursor:pointer;
   white-space:nowrap;transition:background .15s,color .15s}
 .tabs button.on{background:var(--surface);color:var(--blue);box-shadow:var(--sh-1)}
@@ -713,7 +721,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div class="rule"></div>
         <div class="sub">שתי מהדורות, שתי דרכי לימוד. כל ישיבה בוחרת את המתאים לה.</div>
       </div>
-      <div class="price"><b>15 ₪</b><s>25 ₪</s><span>לחוברת, בהזמנה מרוכזת</span></div>
+      <div class="price" id="sfarim-price"></div>
       <div id="sfarim-list" style="display:grid;gap:13px"></div>
       <div class="card">
         <h3>הציבו לעצמכם יעד</h3>
@@ -791,7 +799,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '5.1.1';
+var APP_VERSION = '5.2.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -897,8 +905,7 @@ function renderHome() {
           '<div class="picker">';
   TRACKS.forEach(function (t) {
     s += '<button class="pick' + (t.id === homeTrack ? ' on' : '') +
-         '" onclick="pickTrack(\'' + t.id + '\')">מסכת ' + esc(t.masechet) +
-         '<small>' + esc(t.gradeFull) + '</small></button>';
+         '" onclick="pickTrack(\'' + t.id + '\')">מסכת ' + esc(t.masechet) + '</button>';
   });
   s += '</div><div class="eyebrow">' + esc(when) + '<s></s>' +
        (row[2] && row[2] !== 'סיום' ? 'דף ' + esc(row[2]) : '') + '</div>' +
@@ -952,9 +959,10 @@ function renderHome() {
       return '<div class="st ' + cls + '"><i></i><b>' + esc(ph.t) + '</b>' +
              '<small>' + esc(ph.sub) + '</small></div>';
     }).join('') + '</div>' +
-    '<div class="here"><em>עכשיו</em><span>' + esc(PHASES[nowIdx].t) +
-    (nowIdx === 0 ? ' — נרשמים, מעריכים כמה תלמידים, ומזמינים גמרות במחיר מוזל.'
-                  : ' · ' + esc(PHASES[nowIdx].sub)) + '</span></div>';
+    // שם השלב כבר מודגש בסטפר שמעליו, ולכן כאן רק מה שעושים בו בפועל
+    '<div class="here"><em>עכשיו</em><span>' +
+    (nowIdx === 0 ? 'נרשמים, מעריכים כמה תלמידים, ומזמינים גמרות במחיר מוזל.'
+                  : esc(PHASES[nowIdx].t) + ' · ' + esc(PHASES[nowIdx].sub)) + '</span></div>';
 
   /* ---- פס ההרשמה ---- */
   var joined = INSTITUTIONS.filter(function (i) { return i.joined; }).length;
@@ -981,12 +989,16 @@ function renderHome() {
     '</div><div class="note">הרשימה מתעדכנת בכל הרשת — כל ישיבה שנרשמת מופיעה כאן.</div></div>';
 
   /* ---- קריאה לפעולה, אחרי ההוכחה ולא לפניה ---- */
+  var u = uniformPrice(), ve = priceOf('veshinantam');
+  var offer = u ? 'הגמרות במחיר מוזל, ' + shek(u.price) + ' במקום ' + shek(u.list)
+            : ve.off ? 'ושננתם במחיר מוזל, ' + shek(ve.price) + ' במקום ' + shek(ve.list)
+            : 'הזמנה מרוכזת לכל הישיבה';
   document.getElementById('cta').innerHTML =
     '<button class="btn gd" onclick="show(\'reg\')">להרשמה ולהזמנת גמרות</button>' +
     '<p style="font-size:.8rem;color:var(--ink-3);font-weight:700;text-align:center;' +
     'margin-top:9px;line-height:1.5">' +
-    (mine ? 'כבר שלחתם הרשמה — אפשר לעדכן אותה'
-          : 'דקה אחת · הגמרות במחיר מוזל, 15 ₪ במקום 25 ₪') + '</p>';
+    (mine ? 'אם כבר שלחתם הרשמה — אפשר לעדכן אותה'
+          : 'דקה אחת · ' + offer) + '</p>';
 
   reveal();
 }
@@ -1019,7 +1031,7 @@ function renderReg() {
 
   var total = (reg.z || 0) + (reg.ch || 0);
   var SEF = [
-    ['veshinantam', 'ושננתם', 'מול כל עמוד גמרא — עמוד ביאור מאיר עיניים. מתאים לשתי ישיבות לימוד בשבוע.'],
+    ['veshinantam', 'ושננתם', 'מתאים לתלמידים שמעדיפים לימוד מרוכז יותר, עם עמוד שלם בכל מפגש.'],
     ['sugya', 'הסוגיה היומית', 'החוברת הצבעונית, פורסת את הדף לסוגיות קצרות. מתאים למי שלומד מעט בכל יום.'],
     ['later', 'עוד נחליט', 'נרשמים עכשיו, ובוחרים מהדורה בהמשך.']
   ];
@@ -1049,18 +1061,18 @@ function renderReg() {
       numRow('z',  'כיתות ז׳', 'מסכת תענית') +
       numRow('ch', 'כיתות ח׳', 'מסכת מגילה') +
     '</div>' +
-    (total ? '<div class="total" style="margin-top:12px"><div class="n">' +
-             (total * SFARIM_PRICE.group).toLocaleString('he-IL') + ' ₪</div>' +
-             '<div class="t">' + total + ' גמרות × 15 ₪ · חסכון של ' +
-             (total * (SFARIM_PRICE.normal - SFARIM_PRICE.group)).toLocaleString('he-IL') +
-             ' ₪ מול המחיר הרגיל</div></div>' : '') +
-
     '<div class="step-n"><i>3</i><b>איזו גמרא מתאימה לכם?</b></div><div class="opt2">' +
     SEF.map(function (s) {
+      var p = s[0] === 'later' ? null : priceOf(s[0]);
       return '<button class="o2' + (reg.sefer === s[0] ? ' sel' : '') +
              '" onclick="regSet(\'sefer\',\'' + s[0] + '\')">' +
-             '<b>' + s[1] + '</b><span>' + s[2] + '</span></button>';
+             '<b>' + s[1] + (p ? '<em>' + shek(p.price) +
+                                 (p.off ? ' <s>' + shek(p.list) + '</s>' : '') + '</em>' : '') +
+             '</b><span>' + s[2] + '</span></button>';
     }).join('') + '</div>' +
+
+    /* הסיכום יושב אחרי בחירת המהדורה ולא לפניה — המחיר תלוי בה */
+    regTotal(total) +
 
     '<div class="step-n"><i>4</i><b>עוד משהו שכדאי שנדע?</b></div>' +
     '<textarea id="r-note" rows="2" placeholder="לא חובה" onchange="regSet(\'note\',this.value)">' +
@@ -1073,6 +1085,25 @@ function renderReg() {
     '<div id="r-done"></div>';
 
   document.getElementById('reg-body').innerHTML = h;
+}
+/* קופסת הסיכום. כל עוד לא נבחרה מהדורה אי אפשר לנקוב בסכום,
+   ולכן מוצג טווח — ולא מספר שיתברר כלא נכון. */
+function regTotal(total) {
+  if (!total) return '';
+  var p = (reg.sefer && reg.sefer !== 'later') ? priceOf(reg.sefer) : null;
+  var n, t;
+  if (p) {
+    n = shek(total * p.price);
+    t = total + ' גמרות × ' + shek(p.price) +
+        (p.off ? ' · חסכון של ' + shek(total * (p.list - p.price)) + ' מול המחיר הרגיל' : '');
+  } else {
+    var r = priceRange();
+    n = r.min === r.max ? shek(total * r.min)
+                        : 'בין ' + shek(total * r.min) + ' ל־' + shek(total * r.max);
+    t = total + ' גמרות · הסכום המדויק ייקבע לפי המהדורה שתבחרו';
+  }
+  return '<div class="total" style="margin-top:14px"><div class="n">' + n +
+         '</div><div class="t">' + t + '</div></div>';
 }
 function numRow(k, label, sub) {
   return '<div class="num"><div class="lbl">' + label + '<small>' + sub + '</small></div><span></span>' +
@@ -1400,11 +1431,23 @@ function sendQuiz() {
 
 /* ---------- ספרים / מוסדות ---------- */
 function renderSfarim() {
+  /* כותרת המחיר: הנחה אחידה מוצגת פעם אחת למעלה; כשהמחירים
+     נבדלים אין מה להכריז, והמחיר יושב על הכרטיס של כל מהדורה. */
+  var u = uniformPrice();
+  document.getElementById('sfarim-price').innerHTML = u
+    ? '<b>' + shek(u.price) + '</b><s>' + shek(u.list) + '</s>' +
+      '<span>לחוברת, בהזמנה מרוכזת</span>'
+    : '<span>המחיר לחוברת נקבע לפי המהדורה — בהזמנה מרוכזת</span>';
+
   var h = '';
   SFARIM.forEach(function (s) {
+    var p = priceOf(s.id);
     h += '<div class="sf ' + s.tone + '"><div class="top"><b>' + esc(s.name) +
          '</b><span>' + esc(s.tag) + '</span></div><div class="body">' +
          '<div class="ph">תמונת הספר — תתווסף</div>' +
+         '<div class="tag-p"><b>' + shek(p.price) + '</b>' +
+         (p.off ? '<s>' + shek(p.list) + '</s><i>בהזמנה מרוכזת</i>'
+                : '<i>לחוברת</i>') + '</div>' +
          '<div class="rhythm">קצב הלימוד · ' + esc(s.rhythm) + '</div>' +
          '<p>' + esc(s.desc) + '</p><p><b>למי מתאים:</b> ' + esc(s.who) + '</p></div></div>';
   });
@@ -1617,8 +1660,30 @@ function applyCfg() {
   if (CFG.sugya)    { for (var t in CFG.sugya) SUGYA[t] = CFG.sugya[t]; }
   if (CFG.joined)   INSTITUTIONS.forEach(function (i) {
                       if (CFG.joined[i.code] != null) i.joined = !!CFG.joined[i.code]; });
+  if (CFG.prices)   { for (var p in CFG.prices) PRICES[p] = CFG.prices[p]; }
 }
 applyCfg();
+
+/* ============================================================
+   מחירים.
+   ההנחה אינה אחידה: כרגע היא על "ושננתם" בלבד. כל מסך שמציג
+   מחיר עובר דרך שתי הפונקציות האלה, ולכן שינוי במסך הניהול
+   מתגלגל לכל האפליקציה בלי לגעת בטקסטים.
+   ============================================================ */
+function priceOf(id) {
+  var p = PRICES[id] || { price:SFARIM_PRICE.group, list:SFARIM_PRICE.normal };
+  return { price:p.price, list:p.list, off:p.list > p.price };
+}
+/* אם כל המהדורות באותו מחיר מוזל — אפשר להציג הנחה אחת לכולם */
+function uniformPrice() {
+  var a = SFARIM.map(function (s) { return priceOf(s.id); });
+  return a.every(function (p) { return p.off && p.price === a[0].price; }) ? a[0] : null;
+}
+function priceRange() {
+  var a = SFARIM.map(function (s) { return priceOf(s.id).price; });
+  return { min:Math.min.apply(null, a), max:Math.max.apply(null, a) };
+}
+function shek(n) { return n.toLocaleString('he-IL') + ' ₪'; }
 
 
 /* ============================================================
@@ -1722,7 +1787,7 @@ var admTab = 'reg';
 
 function renderAdmin() {
   var TABS = [['reg','הרשמות'],['inst','מוסדות'],['calls','שיחות'],
-              ['sugya','הסוגיה'],['set','הגדרות']];
+              ['price','מחירים'],['sugya','הסוגיה'],['set','הגדרות']];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -1749,6 +1814,7 @@ function admPane() {
       '<div id="calls-body"></div>';
     return renderCalls();
   }
+  if (admTab === 'price') return admPrice(el);
   if (admTab === 'sugya') return admSugya(el);
   if (admTab === 'set')   return admSet(el);
 }
@@ -1765,10 +1831,18 @@ function admReg(el) {
     return;
   }
   var tot = list.reduce(function (a, r) { return a + (r.total || 0); }, 0);
+  /* כל הרשמה לפי המהדורה שנבחרה בה; מי שטרם בחר מוערך במחיר המוזל */
+  var some = false;
+  var sum = list.reduce(function (a, r) {
+    var known = r.sefer && r.sefer !== 'later' && PRICES[r.sefer];
+    if (!known) some = true;
+    return a + (r.total || 0) * (known ? priceOf(r.sefer).price : priceRange().min);
+  }, 0);
   el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>' + list.length +
     ' הרשמות · ' + tot + ' גמרות</h4><p class="h" style="margin:0">' +
-    'סה"כ להזמנה: ' + (tot * SFARIM_PRICE.group).toLocaleString('he-IL') + ' ₪</p></div>' +
+    'סה"כ להזמנה: ' + shek(sum) + ' · לפי המהדורה שנבחרה בכל הרשמה' +
+    (some ? '. הרשמות בלי מהדורה חושבו במחיר המוזל' : '') + '</p></div>' +
     list.map(function (r) {
       return '<div class="adm-card" style="margin-bottom:9px"><h4>' + esc(r.inst) + '</h4>' +
         '<p class="h" style="margin-bottom:8px">' + esc(r.who || '') +
@@ -1801,6 +1875,50 @@ function admToggle(code) {
   j[code] = !(cur && cur.joined);
   cfgSet('joined', j);
   admPane();
+}
+
+/* ---- מחירים ----
+   ההנחה סוכמה על "ושננתם" בלבד, ולכן המחיר אינו אחיד. המתג הוא
+   קיצור דרך שמזיז את השדות, והשדות הם מקור האמת היחיד — כך אין
+   שני מצבים שיכולים לסתור זה את זה.                              */
+function admPrice(el) {
+  var sug = priceOf('sugya');
+  el.innerHTML =
+    '<div class="adm-card" style="margin-bottom:11px"><h4>הנחה מרוכזת גם על הסוגיה היומית</h4>' +
+    '<p class="h">כבוי — ההנחה על "ושננתם" בלבד, והסוגיה היומית במחיר מלא. ' +
+    'דלוק — שתי המהדורות באותו מחיר מוזל, ומסך הבית ומסך הספרים חוזרים ' +
+    'להכריז על הנחה אחת לכולם.</p>' +
+    '<div class="row"><div>הסוגיה היומית במחיר מוזל' +
+    '<div class="sub">' + shek(sug.price) + ' לחוברת כרגע</div></div>' +
+    '<button class="sw' + (sug.off ? ' on' : '') +
+    '" onclick="admSugyaDiscount()" aria-label="הנחה"></button></div></div>' +
+
+    '<div class="adm-card"><h4>מחיר לחוברת</h4>' +
+    '<p class="h">משפיע על מסך הבית, מסך ההרשמה, מסך הספרים וסיכום ההרשמות. ' +
+    'מחיר מוזל השווה למחיר המלא — לא תוצג הנחה.</p>' +
+    SFARIM.map(function (s) {
+      var p = priceOf(s.id);
+      return '<div class="fld"><div class="label">' + esc(s.name) + ' — מחיר מוזל</div>' +
+        '<input type="tel" value="' + p.price + '" onchange="admPriceSet(\'' + s.id +
+        '\',\'price\',this.value)"></div>' +
+        '<div class="fld"><div class="label">' + esc(s.name) + ' — מחיר מלא</div>' +
+        '<input type="tel" value="' + p.list + '" onchange="admPriceSet(\'' + s.id +
+        '\',\'list\',this.value)"></div>';
+    }).join('') + '</div>';
+}
+function admPriceSet(id, k, v) {
+  v = parseInt(v, 10);
+  if (!(v > 0)) { alert('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
+  var c = CFG.prices || {};
+  c[id] = { price:priceOf(id).price, list:priceOf(id).list };
+  c[id][k] = v;
+  if (c[id].price > c[id].list) c[id].list = c[id].price;   // מוזל לא גבוה ממלא
+  cfgSet('prices', c);
+  admPane();
+}
+function admSugyaDiscount() {
+  var p = priceOf('sugya');
+  admPriceSet('sugya', 'price', p.off ? p.list : SFARIM_PRICE.group);
 }
 
 /* ---- הסוגיה היומית ---- */
