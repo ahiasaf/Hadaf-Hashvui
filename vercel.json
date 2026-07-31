@@ -5,7 +5,7 @@
   ],
   "headers": [
     {
-      "source": "/(index.html|data.js|links.js|sw.js)",
+      "source": "/(index.html|masa.html|masa.js|data.js|links.js|sw.js)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {
