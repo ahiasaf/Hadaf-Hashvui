@@ -529,6 +529,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .sf .tag-p i{font-style:normal;font-size:.75rem;color:var(--ink-3);font-weight:700}
 .sf .ph{background:var(--sunk);border:1.5px dashed var(--rule);border-radius:var(--r-s);
   padding:26px;text-align:center;color:var(--ink-3);font-size:.79rem;font-weight:700}
+/* גלריית הספר — גלילה אופקית, שתי תמונות צרות מדי זו לצד זו בנייד */
+.pics{display:flex;gap:9px;overflow-x:auto;margin:0 -18px;padding:0 18px 2px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.pics::-webkit-scrollbar{display:none}
+.pics figure{flex:0 0 auto;width:64%;max-width:224px;scroll-snap-align:center;margin:0}
+/* גובה אחיד לכריכה הזקופה ולפריסה הרחבה, כדי שהשורה לא תיראה שבורה */
+.pics img{width:100%;height:150px;object-fit:contain;display:block;padding:5px;
+  border-radius:var(--r-s);background:var(--sunk);box-shadow:0 2px 10px rgba(11,37,80,.13)}
+.pics figcaption{font-size:.7rem;color:var(--ink-3);font-weight:700;
+  text-align:center;margin-top:5px}
+/* תנאי ההנחה — נוכח אך שקט, ואף פעם לא רחוק מהמחיר */
+.cond{background:var(--sunk);border-radius:var(--r-s);padding:11px 13px;
+  font-size:.78rem;color:var(--ink-2);font-weight:600;line-height:1.62}
+.cond b{font-weight:800;color:var(--ink)}
+.cond em{font-style:normal;color:var(--ok);font-weight:800}
 .price{display:flex;align-items:baseline;gap:10px;justify-content:center;flex-wrap:wrap;
   background:var(--surface);border-radius:var(--r-m);padding:16px;box-shadow:var(--sh-1)}
 .price b{font-size:2rem;font-weight:800;color:var(--green-d);letter-spacing:-.03em}
@@ -799,7 +814,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '5.2.0';
+var APP_VERSION = '5.3.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -989,10 +1004,19 @@ function renderHome() {
     '</div><div class="note">הרשימה מתעדכנת בכל הרשת — כל ישיבה שנרשמת מופיעה כאן.</div></div>';
 
   /* ---- קריאה לפעולה, אחרי ההוכחה ולא לפניה ---- */
-  var u = uniformPrice(), ve = priceOf('veshinantam');
-  var offer = u ? 'הגמרות במחיר מוזל, ' + shek(u.price) + ' במקום ' + shek(u.list)
-            : ve.off ? 'ושננתם במחיר מוזל, ' + shek(ve.price) + ' במקום ' + shek(ve.list)
-            : 'הזמנה מרוכזת לכל הישיבה';
+  /* מחיר אחיד לכולן → מספר אחד; מחירים שונים → החל מהזול שבהם;
+     אם ההנחה חלה רק על חלקן → נוקבים בשם המהדורה המוזלת. */
+  var u = uniformPrice();
+  var disc = SFARIM.filter(function (s) { return priceOf(s.id).off; });
+  var offer;
+  if (u) offer = 'הגמרות במחיר מוזל, ' + shek(u.price) + ' במקום ' + shek(u.list);
+  else if (disc.length > 1)
+    offer = 'הגמרות במחיר מוזל, החל מ־' + shek(priceRange().min) +
+            ' במקום ' + shek(priceOf(disc[0].id).list);
+  else if (disc.length === 1)
+    offer = esc(disc[0].name) + ' במחיר מוזל, ' + shek(priceOf(disc[0].id).price) +
+            ' במקום ' + shek(priceOf(disc[0].id).list);
+  else offer = 'הזמנה מרוכזת לכל הישיבה';
   document.getElementById('cta').innerHTML =
     '<button class="btn gd" onclick="show(\'reg\')">להרשמה ולהזמנת גמרות</button>' +
     '<p style="font-size:.8rem;color:var(--ink-3);font-weight:700;text-align:center;' +
@@ -1103,7 +1127,12 @@ function regTotal(total) {
     t = total + ' גמרות · הסכום המדויק ייקבע לפי המהדורה שתבחרו';
   }
   return '<div class="total" style="margin-top:14px"><div class="n">' + n +
-         '</div><div class="t">' + t + '</div></div>';
+         '</div><div class="t">' + t + '</div></div>' +
+         (p ? (p.off ? condNote(sefName(reg.sefer), p.min) : '') : condAll());
+}
+function sefName(id) {
+  for (var i = 0; i < SFARIM.length; i++) if (SFARIM[i].id === id) return SFARIM[i].name;
+  return '';
 }
 function numRow(k, label, sub) {
   return '<div class="num"><div class="lbl">' + label + '<small>' + sub + '</small></div><span></span>' +
@@ -1444,10 +1473,17 @@ function renderSfarim() {
     var p = priceOf(s.id);
     h += '<div class="sf ' + s.tone + '"><div class="top"><b>' + esc(s.name) +
          '</b><span>' + esc(s.tag) + '</span></div><div class="body">' +
-         '<div class="ph">תמונת הספר — תתווסף</div>' +
+         (s.pics && s.pics.length
+           ? '<div class="pics">' + s.pics.map(function (pic) {
+               return '<figure><img loading="lazy" src="' + esc(pic.src) + '" alt="' +
+                      esc(s.name + ' — ' + pic.cap) + '"><figcaption>' +
+                      esc(pic.cap) + '</figcaption></figure>';
+             }).join('') + '</div>'
+           : '<div class="ph">תמונת הספר — תתווסף</div>') +
          '<div class="tag-p"><b>' + shek(p.price) + '</b>' +
          (p.off ? '<s>' + shek(p.list) + '</s><i>בהזמנה מרוכזת</i>'
                 : '<i>לחוברת</i>') + '</div>' +
+         (p.off ? condNote(s.name, p.min) : '') +
          '<div class="rhythm">קצב הלימוד · ' + esc(s.rhythm) + '</div>' +
          '<p>' + esc(s.desc) + '</p><p><b>למי מתאים:</b> ' + esc(s.who) + '</p></div></div>';
   });
@@ -1660,19 +1696,42 @@ function applyCfg() {
   if (CFG.sugya)    { for (var t in CFG.sugya) SUGYA[t] = CFG.sugya[t]; }
   if (CFG.joined)   INSTITUTIONS.forEach(function (i) {
                       if (CFG.joined[i.code] != null) i.joined = !!CFG.joined[i.code]; });
-  if (CFG.prices)   { for (var p in CFG.prices) PRICES[p] = CFG.prices[p]; }
+  /* מיזוג ולא החלפה: הגדרה ישנה שנשמרה במכשיר בלי `min` לא תמחק
+     את הכמות המינימלית שהגיעה מ-data.js. */
+  if (CFG.prices) for (var p in CFG.prices) {
+    PRICES[p] = PRICES[p] || {};
+    for (var f in CFG.prices[p])
+      if (CFG.prices[p][f] != null) PRICES[p][f] = CFG.prices[p][f];
+  }
 }
 applyCfg();
 
 /* ============================================================
    מחירים.
-   ההנחה אינה אחידה: כרגע היא על "ושננתם" בלבד. כל מסך שמציג
-   מחיר עובר דרך שתי הפונקציות האלה, ולכן שינוי במסך הניהול
+   ההנחה אינה אחידה: 15 ₪ בושננתם, 22 ₪ בהסוגיה היומית. כל מסך
+   שמציג מחיר עובר דרך הפונקציות האלה, ולכן שינוי במסך הניהול
    מתגלגל לכל האפליקציה בלי לגעת בטקסטים.
+
+   ההנחה מותנית בכמות מינימלית (min), ולכן כל מקום שמציג מחיר
+   מוזל מציג לצידו גם את התנאי — אחרת מבטיחים מחיר שטרם הובטח.
    ============================================================ */
 function priceOf(id) {
   var p = PRICES[id] || { price:SFARIM_PRICE.group, list:SFARIM_PRICE.normal };
-  return { price:p.price, list:p.list, off:p.list > p.price };
+  return { price:p.price, list:p.list, off:p.list > p.price, min:p.min || 0 };
+}
+/* ההערה למהדורה אחת */
+function condNote(name, min) {
+  if (!min) return '';
+  return '<div class="cond">המחיר המסובסד מותנה בכך שנגיע ל־<b>' + min +
+         ' הזמנות</b> של ' + esc(name) + '. <em>אל דאגה, בעזרת ה׳ נגיע לכך!</em></div>';
+}
+/* הערה אחת שמכסה את כל המהדורות המוזלות, כשמוצגים כמה מחירים יחד */
+function condAll() {
+  var t = SFARIM.filter(function (s) { var p = priceOf(s.id); return p.off && p.min; });
+  if (!t.length) return '';
+  return '<div class="cond">המחירים המוזלים מותנים בהזמנה מרוכזת — ' +
+    t.map(function (s) { return '<b>' + priceOf(s.id).min + ' עותקים</b> ב' + esc(s.name); })
+     .join(', ') + '. <em>אל דאגה, בעזרת ה׳ נגיע לכך!</em></div>';
 }
 /* אם כל המהדורות באותו מחיר מוזל — אפשר להציג הנחה אחת לכולם */
 function uniformPrice() {
@@ -1878,24 +1937,16 @@ function admToggle(code) {
 }
 
 /* ---- מחירים ----
-   ההנחה סוכמה על "ושננתם" בלבד, ולכן המחיר אינו אחיד. המתג הוא
-   קיצור דרך שמזיז את השדות, והשדות הם מקור האמת היחיד — כך אין
-   שני מצבים שיכולים לסתור זה את זה.                              */
+   ההנחה אינה אחידה — 15 ₪ בושננתם, 22 ₪ בהסוגיה היומית — וכל אחת
+   מותנית בכמות מינימלית משלה. שלושת השדות הם מקור האמת היחיד, ולכן
+   אין כאן מתגים שיכולים לסתור אותם.                                */
 function admPrice(el) {
-  var sug = priceOf('sugya');
   el.innerHTML =
-    '<div class="adm-card" style="margin-bottom:11px"><h4>הנחה מרוכזת גם על הסוגיה היומית</h4>' +
-    '<p class="h">כבוי — ההנחה על "ושננתם" בלבד, והסוגיה היומית במחיר מלא. ' +
-    'דלוק — שתי המהדורות באותו מחיר מוזל, ומסך הבית ומסך הספרים חוזרים ' +
-    'להכריז על הנחה אחת לכולם.</p>' +
-    '<div class="row"><div>הסוגיה היומית במחיר מוזל' +
-    '<div class="sub">' + shek(sug.price) + ' לחוברת כרגע</div></div>' +
-    '<button class="sw' + (sug.off ? ' on' : '') +
-    '" onclick="admSugyaDiscount()" aria-label="הנחה"></button></div></div>' +
-
     '<div class="adm-card"><h4>מחיר לחוברת</h4>' +
     '<p class="h">משפיע על מסך הבית, מסך ההרשמה, מסך הספרים וסיכום ההרשמות. ' +
-    'מחיר מוזל השווה למחיר המלא — לא תוצג הנחה.</p>' +
+    'מחיר מוזל השווה למחיר המלא — לא תוצג הנחה. ' +
+    '"כמות מינימלית" היא התנאי של ההוצאה, והיא מוצגת לראשי החטיבות ' +
+    'ליד כל מחיר מוזל. אפס — ההערה לא תופיע.</p>' +
     SFARIM.map(function (s) {
       var p = priceOf(s.id);
       return '<div class="fld"><div class="label">' + esc(s.name) + ' — מחיר מוזל</div>' +
@@ -1903,22 +1954,22 @@ function admPrice(el) {
         '\',\'price\',this.value)"></div>' +
         '<div class="fld"><div class="label">' + esc(s.name) + ' — מחיר מלא</div>' +
         '<input type="tel" value="' + p.list + '" onchange="admPriceSet(\'' + s.id +
-        '\',\'list\',this.value)"></div>';
+        '\',\'list\',this.value)"></div>' +
+        '<div class="fld"><div class="label">' + esc(s.name) + ' — כמות מינימלית להנחה</div>' +
+        '<input type="tel" value="' + p.min + '" onchange="admPriceSet(\'' + s.id +
+        '\',\'min\',this.value)"></div>';
     }).join('') + '</div>';
 }
 function admPriceSet(id, k, v) {
   v = parseInt(v, 10);
-  if (!(v > 0)) { alert('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
-  var c = CFG.prices || {};
-  c[id] = { price:priceOf(id).price, list:priceOf(id).list };
+  if (k === 'min') { if (!(v >= 0)) v = 0; }
+  else if (!(v > 0)) { alert('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
+  var cur = priceOf(id), c = CFG.prices || {};
+  c[id] = { price:cur.price, list:cur.list, min:cur.min };   // נשמרים גם השדות שלא נגעו בהם
   c[id][k] = v;
   if (c[id].price > c[id].list) c[id].list = c[id].price;   // מוזל לא גבוה ממלא
   cfgSet('prices', c);
   admPane();
-}
-function admSugyaDiscount() {
-  var p = priceOf('sugya');
-  admPriceSet('sugya', 'price', p.off ? p.list : SFARIM_PRICE.group);
 }
 
 /* ---- הסוגיה היומית ---- */
