@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>לימוד אינטראקטיבי — הדף השבועי</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<style>
+/* ============================================================
+   לימוד אינטראקטיבי — המסך של התלמיד.
+
+   מה שמנחה את המסך הזה: התוכנית נועדה מראש גם לתלמיד שקשה לו
+   ללמוד גמרא. שני הקשיים הראשונים שלו אינם הארמית — הם "איפה
+   אני נמצא על הדף" ו"איפה הקטע הזה נגמר". לכן:
+
+   * הדף נשאר דף. לא כרטיסיות ולא טקסט מועתק — התלמיד רואה את
+     צורת הדף האמיתית, כפי שהיא בגמרא שלפניו, ולומד למצוא בה את
+     מקומו. מה שמשתנה הוא רק מה מואר.
+
+   * העמימות היא הלב. שאר הדף אינו נעלם — הוא מעומעם. התלמיד
+     רואה בכל רגע שהקטע שלו הוא חלק ממשהו גדול יותר, ובכל זאת
+     אינו צריך להחליט היכן להתחיל לקרוא.
+
+   * בנייד אי אפשר להראות דף וילנה שלם וגם לקרוא אותו. לכן החלון
+     נע: הזום נקבע לפי הקטע הנוכחי ומעט מסביבו, והמעבר בין
+     הקטעים הוא תנועה על הדף ולא קפיצה בין מסכים.
+
+   * החברותא היא מגירה, ולא כפתור לכל קטע. תלמיד שהחליט לפתוח
+     אותה — היא רצה איתו עד סוף הדף. תלמיד שלא — המסך שלם בלעדיה.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E3B44A;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --ink-3:#96A0B2; --rule:#E5DAC3; --ok:#3B7D57;
+  --bar:64px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);overflow:hidden;
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  display:flex;flex-direction:column}
+
+/* ---------- כותרת ---------- */
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 9px) 14px 0;flex:0 0 auto}
+.hrow{display:flex;align-items:center;gap:12px;padding-bottom:9px}
+.back{color:#fff;text-decoration:none;font-weight:800;font-size:.82rem;opacity:.85;
+  border:1px solid rgba(255,255,255,.32);border-radius:9px;padding:6px 10px;white-space:nowrap}
+.ttl{flex:1;min-width:0;line-height:1.25}
+.ttl b{display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.ttl span{display:block;font-size:.74rem;font-weight:700;opacity:.72}
+#count{font-size:.74rem;font-weight:800;opacity:.8;white-space:nowrap}
+.prog{height:3px;background:rgba(255,255,255,.2)}
+.prog i{display:block;height:100%;width:0;background:var(--gold-l);
+  transition:width .35s ease}
+
+/* ---------- הבמה ---------- */
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+.stage{position:relative;overflow:hidden;background:#fff;
+  touch-action:manipulation;cursor:pointer}
+#holder{position:absolute;top:0;left:0;width:100%;transform-origin:0 0;
+  transition:transform .5s cubic-bezier(.33,.1,.2,1);line-height:0}
+#page{width:100%;display:block}
+#ov{position:absolute;inset:0;width:100%;height:100%}
+
+.veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--paper);z-index:5;padding:24px;text-align:center}
+.veil.off{display:none}
+.veil div{max-width:30ch}
+.veil b{display:block;font-size:1rem;font-weight:800}
+.veil small{display:block;margin-top:8px;font-size:.82rem;color:var(--ink-2);
+  font-weight:700;line-height:1.6}
+.spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+  border:3px solid var(--rule);border-top-color:var(--gold);
+  animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- מגירת החברותא ---------- */
+.chav{display:none;background:var(--surface);border-inline-start:1px solid var(--rule);
+  flex-direction:column;min-height:0}
+body.chav-on .chav{display:flex}
+body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
+.chd{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-bottom:1px solid var(--rule);font-weight:800;font-size:.84rem;color:var(--blue)}
+.chd .sp{flex:1}
+.chd button{border:0;background:none;font-size:1rem;color:var(--ink-3);cursor:pointer;
+  font-weight:800;padding:2px 6px}
+.chb{flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;
+  font-family:Georgia,"Times New Roman",serif;font-size:1.04rem;line-height:1.9}
+.chb p{margin:0 0 12px}
+.chb b{color:var(--blue-d)}
+.chb .none{font-family:system-ui,sans-serif;font-size:.82rem;font-weight:700;
+  color:var(--ink-3);line-height:1.7}
+
+@media (max-width:820px){
+  body.chav-on main{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+  .chav{border-inline-start:0;border-top:1px solid var(--rule);
+    box-shadow:0 -8px 22px rgba(37,29,12,.10)}
+  .chb{font-size:1rem;padding:12px 14px 18px}
+}
+
+/* ---------- שורת הניווט ---------- */
+nav{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
+  background:var(--surface);border-top:1px solid var(--rule);
+  box-shadow:0 -3px 14px rgba(37,29,12,.06)}
+nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
+  border:1px solid var(--rule);border-radius:10px;padding:10px 13px;
+  background:#fff;color:var(--ink);white-space:nowrap}
+nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:#fff;border-color:transparent;padding:10px 18px}
+nav button.on{background:var(--blue);color:#fff;border-color:transparent}
+nav button:disabled{opacity:.38;cursor:default}
+nav .sp{flex:1}
+@media (max-width:420px){
+  nav{gap:6px;padding-inline:8px}
+  nav button{padding:10px 10px;font-size:.8rem}
+  nav button.p{padding:10px 14px}
+}
+
+/* ---------- כרטיסים צפים ---------- */
+.sheet{position:fixed;inset:0;z-index:20;display:none;
+  align-items:center;justify-content:center;padding:22px;
+  background:rgba(11,37,80,.55);backdrop-filter:blur(3px)}
+.sheet.on{display:flex}
+.card{background:var(--surface);border-radius:18px;padding:24px 22px;max-width:26rem;
+  width:100%;box-shadow:0 18px 50px rgba(11,37,80,.3);text-align:center}
+.card h2{margin:0 0 6px;font-size:1.5rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--blue-d)}
+.card p{margin:0 0 14px;font-size:.9rem;font-weight:700;color:var(--ink-2);
+  line-height:1.75}
+.card .btn{display:block;width:100%;margin-top:9px;text-align:center;text-decoration:none;
+  font-family:inherit;font-weight:800;font-size:.92rem;cursor:pointer;border:1px solid var(--rule);
+  border-radius:12px;padding:13px;background:#fff;color:var(--ink)}
+.card .btn.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:#fff;border-color:transparent}
+.card .how{text-align:right;margin:0 0 4px}
+.card .how li{font-size:.86rem;font-weight:700;color:var(--ink-2);line-height:1.8;
+  margin-bottom:7px}
+.seal{font-size:2.4rem;line-height:1;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <a class="back" href="./" id="back">▸ יציאה</a>
+    <div class="ttl"><b id="t-daf">לימוד אינטראקטיבי</b><span id="t-sub"></span></div>
+    <!-- המונה יושב בכותרת ולא בשורת הכפתורים: שם הוא רק תופס
+         את המקום שהכפתורים צריכים בטלפון צר, וכאן הוא ממילא
+         ליד פס ההתקדמות שאומר את אותו דבר בעין. -->
+    <span id="count"></span>
+  </div>
+  <div class="prog"><i id="bar"></i></div>
+</header>
+
+<main>
+  <section class="stage" id="stage">
+    <div id="holder">
+      <img id="page" alt="צורת הדף">
+      <svg id="ov" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="veil" id="veil"><div>
+      <div class="spin"></div>
+      <b id="veil-t">מביא את הדף…</b>
+      <small id="veil-s">רגע אחד</small>
+    </div></div>
+  </section>
+
+  <aside class="chav" id="chav">
+    <div class="chd"><span>חברותא</span><span class="sp"></span>
+      <span id="chnum" style="font-weight:700;color:var(--ink-3);font-size:.78rem"></span>
+      <button id="chclose" title="סגירה">✕</button></div>
+    <div class="chb" id="chb"></div>
+  </aside>
+</main>
+
+<nav>
+  <button id="prev">▸ הקודם</button>
+  <span class="sp"></span>
+  <button id="chtog">חברותא</button>
+  <button id="whole" title="הדף כולו">כל הדף</button>
+  <button class="p" id="next">הבא ◂</button>
+</nav>
+
+<div class="sheet" id="intro"><div class="card">
+  <h2>הדף, קטע אחר קטע</h2>
+  <ul class="how">
+    <li><b>הקטע המואר</b> הוא מה שלומדים עכשיו. שאר הדף מעומעם — כדי
+        שתמיד יהיה ברור איפה אנחנו.</li>
+    <li><b>לחיצה על הדף</b> מקדמת לקטע הבא. "הקודם" חוזר אחורה.</li>
+    <li><b>חברותא</b> פותח את הביאור לצד הדף. מי שפתח אותו — הוא
+        נשאר פתוח עד סוף הדף.</li>
+  </ul>
+  <button class="btn p" id="intro-go">מתחילים</button>
+</div></div>
+
+<div class="sheet" id="done"><div class="card">
+  <div class="seal">✡</div>
+  <h2>ישר כוח!</h2>
+  <p id="done-sub"></p>
+  <a class="btn p" id="to-quiz" href="./">לשאלה השבועית</a>
+  <button class="btn" id="again">מהתחלה</button>
+  <a class="btn" href="./">חזרה לתוכנית</a>
+</div></div>
+
+<!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
+     עצמה נשענת עליהם. אין כאן מאגר נפרד. -->
+<script src="data.js"></script>
+<script src="links.js"></script>
+<script type="module">
+  import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+  window.dispatchEvent(new Event('pdfjs-ready'));
+</script>
+<script>
+/* ============================================================
+   מאיפה מגיעים הנתונים.
+
+   הסימונים נעשו בסטודיו ונשמרו בגיליון, בלשונית "סימוני הדף":
+   מסכת | דף | עמוד | נתונים, כשהנתונים הם JSON של עמוד אחד —
+   האזורים, השורות והקטעים, הכל ביחס לרוחב ולגובה התמונה (0–1).
+   בזכות הנרמול הזה אפשר לצייר כאן את הדף בכל רוחב שנוח, והסימון
+   ייפול במקומו.
+
+   צורת הדף עצמה מגיעה מהדרייב של הרכז דרך אותו Apps Script —
+   דפדפן אינו יכול למשוך אותה ישירות, כי גוגל אינה שולחת CORS.
+   ============================================================ */
+var MARK_TAB = 'סימוני הדף';
+var MAS_NAME = { taanit:'תענית', megila:'מגילה' };
+var TARGET_W = 1600;         /* רוחב הציור. הקואורדינטות מנורמלות
+                                ולכן זו החלטה של חדות בלבד. */
+var API = '';
+
+var S = { mas:'', daf:'', week:-1 };
+var PAGES = [];   /* [{pg, d}] — נתוני עמוד, לפי סדר העמודים */
+var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
+var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1;
+
+function $(id) { return document.getElementById(id); }
+function esc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; });
+}
+function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
+function fileId(url) { var m = /\/d\/([-\w]{20,})/.exec(url || ''); return m ? m[1] : null; }
+
+function veil(title, sub, spin) {
+  $('veil').className = 'veil';
+  $('veil-t').textContent = title;
+  $('veil-s').innerHTML = sub || '';
+  $('veil').querySelector('.spin').style.display = spin === false ? 'none' : '';
+}
+function unveil() { $('veil').className = 'veil off'; }
+
+/* ============================================================
+   הגיליון.
+   ============================================================ */
+function sheetCsv(tab, cols) {
+  var id = window.SHEET_ID;
+  try {
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (cfg.sheetId) id = cfg.sheetId;
+  } catch (e) {}
+  if (!id) return Promise.resolve(null);
+  var u = 'https://docs.google.com/spreadsheets/d/' + id +
+          '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab) +
+          (cols ? '&tq=' + encodeURIComponent('select ' + cols) : '') +
+          '&t=' + Date.now();
+  return fetch(u).then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) { return t ? csvRows(t) : null; })
+    .catch(function () { return null; });
+}
+function csvRows(text) {
+  var rows = [], row = [], f = '', q = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (q) {
+      if (c === '"' && text[i+1] === '"') { f += '"'; i++; }
+      else if (c === '"') q = false; else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(function (r) { return r.join('').trim() !== ''; });
+}
+
+/* ============================================================
+   גיאומטריה — אותו חשבון שבסטודיו, במידות מנורמלות.
+
+   שורה היא מלבן על פני האזור שלה; קטע נפתח בנקודה בתוך שורה
+   ונסגר בנקודה בתוך שורה, ולכן ההדגשה נראית כמו בחירת טקסט:
+   מהנקודה עד קצה השורה, שורות מלאות באמצע, ובאחרונה עד הנקודה.
+   x=0 הוא הקצה הימני — שם מתחילה הקריאה.
+   ============================================================ */
+function flatLines(d) {
+  var out = [];
+  (d.zones || []).forEach(function (z) {
+    (z.lines || []).forEach(function (l) {
+      out.push({ t:l[0], b:l[1], a:z.a, x2:z.b });
+    });
+  });
+  return out.sort(function (p, q) { return p.t - q.t; });
+}
+function shapes(d, g) {
+  var ls = flatLines(d), out = [];
+  if (!g) return out;
+  var i0 = Math.min(g.from.line, g.to.line), i1 = Math.max(g.from.line, g.to.line);
+  var xa = g.from.line <= g.to.line ? g.from.x : g.to.x;
+  var xb = g.from.line <= g.to.line ? g.to.x : g.from.x;
+  for (var i = i0; i <= i1 && i < ls.length; i++) {
+    var l = ls[i], w = l.x2 - l.a;
+    var from = (i === i0) ? l.x2 - w * xa : l.x2;
+    var to   = (i === i1) ? l.x2 - w * xb : l.a;
+    out.push([Math.min(from, to), l.t, Math.abs(to - from), l.b - l.t]);
+  }
+  return out;
+}
+function lineH(d) {
+  var ls = flatLines(d);
+  if (!ls.length) return .02;
+  var v = ls.map(function (l) { return l.b - l.t; }).sort(function (a, b) { return a - b; });
+  return v[v.length >> 1] || .02;
+}
+
+/* ============================================================
+   הציור.
+
+   העמימות נעשית במסכה ולא בהדגשה: מלבן על כל הדף בצבע הנייר,
+   ובתוכו חורים בצורת הקטע. כך הדיו של הקטע נשאר הדיו המקורי
+   ולא נצבע — מה שחשוב במיוחד בגמרא, שכל האותיות בה שחורות.
+   ============================================================ */
+function paint() {
+  var st = FLAT[IDX], ov = $('ov');
+  if (!st) { ov.innerHTML = ''; return; }
+  var d = PAGES[st.p].d;
+  var VW = 1000, VH = Math.round(1000 * R);
+  var pad = 0.004 * VW;
+  var sh = shapes(d, st.g).map(function (r) {
+    return { x: r[0] * VW - pad, y: r[1] * VH - pad,
+             w: r[2] * VW + pad * 2, h: r[3] * VH + pad * 2 };
+  });
+  var holes = sh.map(function (r) {
+    return '<rect x="' + r.x.toFixed(1) + '" y="' + r.y.toFixed(1) +
+           '" width="' + r.w.toFixed(1) + '" height="' + r.h.toFixed(1) +
+           '" rx="3" fill="#000"/>';
+  }).join('');
+  var glow = sh.map(function (r) {
+    return '<rect x="' + r.x.toFixed(1) + '" y="' + r.y.toFixed(1) +
+           '" width="' + r.w.toFixed(1) + '" height="' + r.h.toFixed(1) +
+           '" rx="3" fill="none" stroke="#C08F2B" stroke-width="1.6" opacity=".55"/>';
+  }).join('');
+
+  ov.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH);
+  ov.innerHTML =
+    '<defs><mask id="hole">' +
+      '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' + holes +
+    '</mask></defs>' +
+    '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" opacity="' +
+      (WHOLE ? .74 : .80) + '" mask="url(#hole)"/>' + glow;
+}
+
+/* ההתמקדות: חלון נע על הדף.
+
+   רוחב החלון הוא הטור שבו הקטע יושב — לא הדף ולא הגוש המרכזי.
+   זו הנקודה שבה נופל או עומד המסך בטלפון: השדרה תופסת כשליש
+   מרוחב הדף, וחלון ברוחב הגוש כולו מותיר את הגמרא זעירה. ברוחב
+   הטור היא ממלאת את המסך, ושולי הטורים השכנים עדיין מציצים
+   מהצדדים — מספיק כדי לזכור שזה דף.
+
+   גובה החלון הוא הקטע ועוד כשתי שורות מכל צד, כדי שהעין תראה
+   מאיפה באנו ולאן ממשיכים. */
+function focus() {
+  var st = FLAT[IDX];
+  var stage = $('stage'), sw = stage.clientWidth, sh = stage.clientHeight;
+  if (!sw || !sh) return;
+  var fx, fy, fw, fh;
+
+  if (WHOLE || !st) {
+    fx = 0; fy = 0; fw = 1; fh = 1;
+  } else {
+    var d = PAGES[st.p].d;
+    var rs = shapes(d, st.g);
+    var lh = lineH(d);
+    var top = 1, bot = 0;
+    rs.forEach(function (r) { top = Math.min(top, r[1]); bot = Math.max(bot, r[1] + r[3]); });
+    if (!rs.length) { top = 0; bot = 1; }
+    var padY = lh * 2.2;
+    fy = Math.max(0, top - padY);
+    fh = Math.min(1 - fy, (bot - top) + padY * 2);
+    /* קטע של שורה אחת לא יימתח על כל המסך: מינימום של שבע שורות
+       שומר על יחס קריא ועל תחושת מקום בדף. */
+    var minH = lh * 7;
+    if (fh < minH) { fy = Math.max(0, top - (minH - (bot - top)) / 2); fh = Math.min(1 - fy, minH); }
+
+    /* הרוחב נלקח מהשורות עצמן ולא מהצורות: הצורה נחתכת בתוך
+       השורה, והחלון צריך את הטור השלם. קטע שחוצה את המקום שבו
+       הגמרא מתרחבת מקבל את איחוד השניים. */
+    var ls = flatLines(d), x0 = 1, x1 = 0;
+    for (var i = Math.min(st.g.from.line, st.g.to.line);
+         i <= Math.max(st.g.from.line, st.g.to.line) && i < ls.length; i++) {
+      x0 = Math.min(x0, ls[i].a); x1 = Math.max(x1, ls[i].x2);
+    }
+    if (x1 <= x0) {
+      x0 = (d.core && d.core[0] != null) ? d.core[0] : 0;
+      x1 = (d.core && d.core[1] != null) ? d.core[1] : 1;
+    }
+    var m = (x1 - x0) * .06;
+    fx = Math.max(0, x0 - m); fw = Math.min(1 - fx, (x1 - x0) + m * 2);
+  }
+
+  /* בהתמקדות הדף ממלא לפחות את רוחב המסך — חלון שקטן ממנו רק
+     מבזבז מקום. ב"כל הדף" מותר לו להתכווץ, שאם לא כן הדף לא
+     ייכנס לגובה וזה בדיוק מה שהכפתור נועד לו. */
+  var disp = Math.min(sw / fw, sh / (fh * R));
+  disp = Math.max(WHOLE ? 0 : sw, Math.min(disp, sw * 4.5));
+  var dh = disp * R;
+  var tx = sw / 2 - (fx + fw / 2) * disp;
+  var ty = sh / 2 - (fy + fh / 2) * dh;
+  tx = disp > sw ? Math.max(sw - disp, Math.min(0, tx)) : (sw - disp) / 2;
+  ty = dh > sh ? Math.max(sh - dh, Math.min(0, ty)) : (sh - dh) / 2;
+  $('holder').style.transform =
+    'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + (disp / sw).toFixed(4) + ')';
+}
+
+/* ============================================================
+   צורת הדף — משיכה מהדרייב וציור.
+   ============================================================ */
+var BYTES = null, DOC = null, IMG = {};
+
+function pdfReady() {
+  if (window.pdfjsLib) return Promise.resolve();
+  return new Promise(function (ok) {
+    window.addEventListener('pdfjs-ready', function () { ok(); }, { once:true });
+  });
+}
+function jsonp(url) {
+  return new Promise(function (ok, fail) {
+    var n = '__lrn' + Date.now(), sc = document.createElement('script');
+    var done = function (v) {
+      try { delete window[n]; } catch (e) { window[n] = undefined; }
+      clearTimeout(t); sc.remove(); v ? ok(v) : fail(new Error('timeout'));
+    };
+    var t = setTimeout(function () { done(null); }, 60000);
+    window[n] = done;
+    sc.onerror = function () { done(null); };
+    sc.src = url + '&callback=' + n;
+    document.body.appendChild(sc);
+  });
+}
+function grab(id) {
+  var url = API + (API.indexOf('?') < 0 ? '?' : '&') + 'file=' + encodeURIComponent(id);
+  return fetch(url).then(function (r) { return r.json(); })
+    .catch(function () { return jsonp(url); })
+    .then(function (d) {
+      if (!d || d.status !== 'ok' || !d.data) throw new Error('no data');
+      var bin = atob(d.data), buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return buf;
+    });
+}
+
+function loadGemara() {
+  var links = ((window.DAF_LINKS || {})[S.mas] || {})[dafKey(S.daf)] || [];
+  var id = fileId(links[0]);
+  if (!id) return Promise.reject(new Error('no file'));
+  if (!API) return Promise.reject(new Error('no api'));
+  return grab(id).then(function (buf) { BYTES = buf; });
+}
+
+/* עמוד אחד מצויר פעם אחת ונשמר כתמונה. דף שבו הקטעים חוצים את
+   שני העמודים מחליף ביניהם הלוך ושוב, וציור מחדש בכל מעבר היה
+   עוצר את הלימוד לשנייה בכל פעם. */
+function showPage(n) {
+  if (IMG[n]) return setImg(IMG[n]);
+  return pdfReady()
+    .then(function () {
+      if (DOC) return DOC;
+      return pdfjsLib.getDocument({ data: BYTES.slice(0) }).promise
+        .then(function (doc) { DOC = doc; return doc; });
+    })
+    .then(function (doc) { return doc.getPage(Math.min(n, doc.numPages)); })
+    .then(function (pg) {
+      var base = pg.getViewport({ scale:1 });
+      var vp = pg.getViewport({ scale: TARGET_W / base.width });
+      var c = document.createElement('canvas');
+      c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise
+        .then(function () {
+          IMG[n] = c.toDataURL('image/webp', 0.86);
+          return setImg(IMG[n]);
+        });
+    });
+}
+function setImg(src) {
+  return new Promise(function (ok) {
+    var im = $('page');
+    if (im.src === src) return ok();
+    im.onload = function () {
+      R = im.naturalHeight / im.naturalWidth;
+      ok();
+    };
+    im.src = src;
+  });
+}
+
+/* ============================================================
+   חברותא.
+
+   בכל קטע כבר שמור הטקסט שסומן לו, ולכן המגירה עובדת גם בלי
+   רשת. אבל בקובץ המקורי המילים הפותחות — אלה שמצטטות את לשון
+   הגמרא — מודגשות, והן בדיוק מה שמאפשר לתלמיד למצוא את עצמו.
+   לכן בפתיחה הראשונה נטען הקובץ ברקע ומשוחזרת ההדגשה. נכשל,
+   או שההתאמה אינה מדויקת — נשארים עם הטקסט השמור, בלי הודעה.
+   ============================================================ */
+var CHV = null, CHV_TRIED = false;
+
+function chavItems(pg) {
+  return pg.getTextContent().then(function (tc) {
+    return tc.items.filter(function (it) { return it.str.trim() !== ''; });
+  });
+}
+function bodyHeight(items) {
+  var hist = {};
+  items.forEach(function (it) {
+    var h = Math.round(it.height * 20) / 20;
+    hist[h] = (hist[h] || 0) + it.str.length;
+  });
+  var best = 0, n = -1;
+  for (var h in hist) if (hist[h] > n) { n = hist[h]; best = +h; }
+  return best;
+}
+function chavBuild(items, body) {
+  var lim = body * 1.10, paras = [], cur = null, lastY = null, prev = null;
+  items.forEach(function (it) {
+    var y = Math.round(it.transform[5]), x = it.transform[4];
+    var bold = it.height >= lim;
+    if (lastY === null || lastY - y > 26 || y > lastY + 8) {
+      cur = { runs: [] }; paras.push(cur); prev = null;
+    }
+    var gap = '';
+    if (prev) {
+      if (y !== prev.y) gap = ' ';
+      else if (prev.x - (x + it.width) > it.height * 0.15) gap = ' ';
+    }
+    prev = { x:x, y:y }; lastY = y;
+    var last = cur.runs[cur.runs.length - 1];
+    if (last && last.b === bold) last.t += gap + it.str;
+    else { if (last && gap) last.t += gap; cur.runs.push({ t:it.str, b:bold }); }
+  });
+  return paras.filter(function (p) {
+    return p.runs.map(function (r) { return r.t; }).join('').trim().length > 1;
+  });
+}
+function loadChav() {
+  if (CHV_TRIED) return Promise.resolve();
+  CHV_TRIED = true;
+  var links = ((window.DAF_LINKS || {})[S.mas] || {})[dafKey(S.daf)] || [];
+  var id = fileId(links[1]);
+  if (!id || !API) return Promise.resolve();
+  return grab(id)
+    .then(function (buf) { return pdfReady().then(function () { return buf; }); })
+    .then(function (buf) { return pdfjsLib.getDocument({ data: buf.slice(0) }).promise; })
+    .then(function (doc) {
+      var jobs = [];
+      for (var i = 1; i <= doc.numPages; i++) jobs.push(doc.getPage(i).then(chavItems));
+      return Promise.all(jobs);
+    })
+    .then(function (pages) {
+      var all = [].concat.apply([], pages);
+      var body = bodyHeight(all);
+      CHV = [].concat.apply([], pages.map(function (it) { return chavBuild(it, body); }));
+      paintChav();
+    })
+    .catch(function () {});
+}
+function bare(t) { return String(t || '').replace(/\s+/g, ''); }
+function paintChav() {
+  var st = FLAT[IDX], box = $('chb');
+  $('chnum').textContent = st ? 'קטע ' + (IDX + 1) : '';
+  if (!st) { box.innerHTML = ''; return; }
+  var html = '';
+  if (CHV && st.c && st.c.from != null) {
+    var got = [], plain = '';
+    for (var i = st.c.from; i <= st.c.to && i < CHV.length; i++) {
+      got.push(CHV[i]);
+      plain += CHV[i].runs.map(function (r) { return r.t; }).join('') + ' ';
+    }
+    /* בדיקה לפני שסומכים על האינדקסים: אם הקובץ שהתקבל אינו זהה
+       לזה שעליו נעשה הסימון, המספרים מצביעים על פסקאות אחרות. */
+    if (got.length && bare(plain) === bare(st.c.text)) {
+      html = got.map(function (p) {
+        return '<p>' + p.runs.map(function (r) {
+          return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t); }).join('') + '</p>';
+      }).join('');
+    }
+  }
+  if (!html) {
+    html = st.c && st.c.text
+      ? '<p>' + esc(st.c.text) + '</p>'
+      : '<div class="none">לקטע הזה לא צורף ביאור.</div>';
+  }
+  box.innerHTML = html;
+  box.scrollTop = 0;
+}
+function drawer(on) {
+  document.body.classList.toggle('chav-on', on);
+  $('chtog').classList.toggle('on', on);
+  try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
+  if (on) { loadChav(); paintChav(); }
+  /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
+  setTimeout(focus, 30);
+}
+
+/* ============================================================
+   ניווט.
+   ============================================================ */
+function go(i) {
+  if (i < 0) return;
+  if (i >= FLAT.length) { finish(); return; }
+  IDX = i;
+  var st = FLAT[IDX];
+  var render = (SHOWN === st.p) ? Promise.resolve() : showPage(PAGES[st.p].pg);
+  render.then(function () {
+    SHOWN = st.p;
+    paint(); focus(); paintChav(); bar();
+  }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
+}
+function buttons(on) {
+  ['next', 'prev', 'chtog', 'whole'].forEach(function (b) { $(b).disabled = !on; });
+}
+function bar() {
+  $('count').textContent = 'קטע ' + (IDX + 1) + ' מתוך ' + FLAT.length;
+  $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
+  $('prev').disabled = IDX === 0;
+  $('next').textContent = IDX === FLAT.length - 1 ? 'סיום ◂' : 'הבא ◂';
+}
+function finish() {
+  var key = S.mas + '-' + (S.week + 1);
+  var q = window.QUIZ && QUIZ[key];
+  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + ' — ' + FLAT.length +
+    ' קטעים, מתחילת הדף ועד סופו.';
+  var a = $('to-quiz');
+  if (q) { a.style.display = ''; a.href = './#quiz=' + key; }
+  else a.style.display = 'none';
+  $('done').className = 'sheet on';
+}
+
+/* ============================================================
+   הרכבה.
+   ============================================================ */
+function weekIndex() {
+  if (!window.PROGRAM) return -1;
+  var start = new Date(PROGRAM.startDate + 'T00:00:00');
+  var now = new Date(); now.setHours(0, 0, 0, 0);
+  var days = Math.floor((now - start) / 86400000);
+  if (days < 0) return -1;
+  return Math.min(Math.floor(days / 7), (window.CAL_TAANIT || []).length - 1);
+}
+function calOf(mas) { return mas === 'megila' ? (window.CAL_MEGILA || []) : (window.CAL_TAANIT || []); }
+
+function pickDaf() {
+  var p = new URLSearchParams(location.search);
+  var mas = p.get('mas') || 'taanit';
+  if (!MAS_NAME[mas]) mas = 'taanit';
+  var daf = p.get('daf') || '';
+  var cal = calOf(mas), wk = -1;
+  if (daf) {
+    for (var i = 0; i < cal.length; i++) if (dafKey(cal[i][2]) === dafKey(daf)) { wk = i; break; }
+  } else {
+    wk = Math.max(0, weekIndex());
+    daf = (cal[wk] || [])[2] || '';
+  }
+  return { mas:mas, daf:daf, week:wk };
+}
+
+function loadMarks() {
+  return sheetCsv(MARK_TAB).then(function (rows) {
+    if (!rows || rows.length < 2) return 0;
+    var out = [];
+    rows.slice(1).forEach(function (r) {
+      if (r[0] !== S.mas || dafKey(r[1]) !== dafKey(S.daf)) return;
+      /* עמודה "עמוד" נשמרה כ-"מקור|עמוד"; מקור 0 הוא צורת הדף. */
+      var a = String(r[2] || '').split('|');
+      if (a[0] !== '0') return;
+      try {
+        var d = JSON.parse(r[3]);
+        if (d && d.steps && d.steps.length) out.push({ pg:+a[1] || 1, d:d });
+      } catch (e) {}
+    });
+    out.sort(function (p, q) { return p.pg - q.pg; });
+    PAGES = out;
+    FLAT = [];
+    PAGES.forEach(function (p, i) {
+      p.d.steps.forEach(function (s) { FLAT.push({ p:i, g:s.g, c:s.c }); });
+    });
+    return FLAT.length;
+  });
+}
+
+function boot() {
+  API = (window.APPS_SCRIPT_URL || '').trim();
+  try {
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (cfg.api) API = cfg.api;
+  } catch (e) {}
+
+  S = pickDaf();
+  $('t-daf').textContent = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
+  $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
+    ((calOf(S.mas)[S.week] || [])[1] || '') : '';
+  document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
+
+  veil('מביא את הדף…', 'צורת הדף והסימונים');
+  buttons(false);
+  Promise.all([loadMarks().catch(function () { return 0; }), loadGemara()])
+    .then(function (res) {
+      if (!res[0]) {
+        veil('הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע',
+             'אפשר ללמוד אותו כרגיל מצורת הדף ומהחברותא שבעמוד השבוע.', false);
+        return;
+      }
+      return showPage(PAGES[0].pg).then(function () {
+        SHOWN = 0;
+        unveil(); buttons(true);
+        try { if (localStorage.getItem('df:chav') === '1') drawer(true); } catch (e) {}
+        go(0);
+        var seen = false;
+        try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
+        if (!seen) $('intro').className = 'sheet on';
+      });
+    })
+    .catch(function () {
+      veil('לא הצלחתי להביא את הדף',
+           'צריך חיבור לרשת. נסו שוב בעוד רגע.', false);
+    });
+}
+
+window.addEventListener('DOMContentLoaded', function () {
+  $('next').onclick  = function () { go(IDX + 1); };
+  $('prev').onclick  = function () { go(IDX - 1); };
+  /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
+     שמעדיף אותו. ב"כל הדף" ההקשה כבויה: שם התלמיד מסתכל סביב,
+     ולא היה נעים שכל מבט יקפיץ אותו קדימה. */
+  $('stage').onclick = function () { if (FLAT.length && !WHOLE) go(IDX + 1); };
+  $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
+  $('chclose').onclick = function () { drawer(false); };
+  $('whole').onclick = function () {
+    WHOLE = !WHOLE;
+    $('whole').classList.toggle('on', WHOLE);
+    $('whole').textContent = WHOLE ? 'התמקדות' : 'כל הדף';
+    paint(); focus();
+  };
+  $('intro-go').onclick = function () {
+    $('intro').className = 'sheet';
+    try { localStorage.setItem('df:learn-intro', '1'); } catch (e) {}
+  };
+  $('again').onclick = function () { $('done').className = 'sheet'; go(0); };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { go(IDX - 1); e.preventDefault(); }
+  });
+  var t = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(t); t = setTimeout(focus, 120);
+  });
+  boot();
+});
+</script>
+</body>
+</html>
