@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>סטודיו הדף — זיהוי אזורים ושורות</title>
+<!-- אפליקציה בפני עצמה, עם אייקון משלה. הסטודיו נמסר לעוזרי
+     עריכה נוספים, ומי שעובד בו כמה שעות ביום צריך אותו על מסך
+     הבית ולא בתוך כרטיסייה. ה-id הנפרד הוא מה שגורם למערכת לראות
+     בו אפליקציה שלישית לצד האפליקציה ומסך הניהול, ולא להחליף
+     אחת מהן. -->
+<link rel="manifest" href="studio-manifest.json">
+<link rel="icon" href="icon-studio-192.png">
+<link rel="apple-touch-icon" href="icon-studio-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-studio-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="סטודיו הדף">
+<meta name="theme-color" content="#0B2550">
 <style>
 /* ============================================================
    סטודיו הדף.
@@ -114,7 +127,10 @@ body.mark .bar{display:flex}
 .bar .gh{color:#fff;font-size:.78rem;font-weight:800;opacity:.9;
   white-space:nowrap;overflow:hidden;min-width:0;flex:0 1 auto}
 .bar .add{flex:0 0 auto}
-#unsaved{background:#A5382D;color:#fff;font-size:.76rem;padding:9px 11px}
+/* התזכורת היא סימן ולא משפט. משפט שלם דחק את הכפתור הראשי אל
+   מחוץ למסך, וזה מחיר גבוה מדי לתזכורת. */
+#unsaved{background:#A5382D;color:#fff;font-weight:900;font-size:1rem;
+  width:40px;padding:9px 0;text-align:center;flex:0 0 auto}
 /* כוונון הסוף מופיע רק כשיש מה לכוונן */
 .fg{display:none;align-items:center;gap:3px;color:#fff;font-size:.74rem;font-weight:800}
 body.mark.gsel .fg{display:flex}
@@ -129,6 +145,24 @@ body.mark.gsel #clearsel{display:inline-block}
 .menu.on{display:flex}
 .menu button{width:100%;text-align:start;padding:12px 14px;font-size:.87rem}
 .menu hr{border:0;border-top:1px solid var(--rule);margin:2px 6px}
+/* גיליון הפיצול */
+.splitbox{position:fixed;inset:0;z-index:70;display:none;align-items:center;
+  justify-content:center;padding:20px;background:rgba(11,37,80,.55)}
+.splitbox.on{display:flex}
+.splitbox .sh{background:var(--surface);border-radius:16px;padding:18px;
+  max-width:34rem;width:100%;max-height:80vh;overflow:auto;
+  box-shadow:0 16px 50px rgba(11,37,80,.4)}
+.splitbox b{display:block;font-size:1rem;font-weight:800;color:var(--blue-d)}
+.splitbox p{margin:6px 0 12px;font-size:.83rem;color:var(--ink-2);font-weight:700}
+.splitbox .s0{font-size:.9rem;line-height:1.8;color:var(--ink-3);
+  padding:9px 11px;border-inline-start:3px solid var(--rule);margin-bottom:6px}
+.splitbox .sp{display:block;width:100%;text-align:start;margin-bottom:6px;
+  padding:11px 12px;font-size:.9rem;line-height:1.75;font-weight:600;
+  border:1px solid var(--rule);border-radius:10px;background:#fff}
+.splitbox .sp:hover{border-color:var(--gold);background:#FFFBF2}
+.splitbox .cl{margin-top:8px;width:100%;padding:11px;font-weight:800}
+/* במצב פיצול הפסקאות מזמינות הקשה אחרת */
+body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
 .mstate{padding:8px 14px 10px;font-size:.78rem;font-weight:700;color:var(--ink-2);
   line-height:1.5;border-bottom:1px solid var(--rule);margin-bottom:3px}
 #ver{font-size:.7rem;font-weight:700;opacity:.5;color:#fff;white-space:nowrap}
@@ -275,13 +309,14 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 
 <div class="bar">
   <button id="more" title="עוד פעולות">⋯</button>
+  <button id="unsaved" title="יש שינויים שטרם נשמרו בגיליון — לחצו לשמירה"
+          style="display:none">!</button>
   <button id="undo" title="ביטול הקטע האחרון">↶</button>
   <span class="fg">סוף
     <button data-nudge="end,-1" title="מילה אחורה">◂</button>
     <button data-nudge="end,1" title="מילה קדימה">▸</button></span>
   <button id="clearsel" title="ניקוי הסימון">✕</button>
   <span class="gap"></span>
-  <button id="unsaved" title="שמירה בגיליון" style="display:none">●</button>
   <span class="gh" id="ghint"></span>
   <button class="add" id="addstep2">הוספת הקטע</button>
 </div>
@@ -294,6 +329,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <hr>
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
+  <button id="splitpara">✂ פיצול פסקה בחברותא</button>
   <hr>
   <button class="p" id="save2">שמירה בגיליון</button>
 </div>
@@ -1235,7 +1271,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.8.0';
+var STUDIO_VER = '6.9.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1605,7 +1641,7 @@ function markPanel() {
   var db = document.getElementById('unsaved');
   if (db) {
     db.style.display = d ? '' : 'none';
-    db.textContent = '● ' + d + ' לא נשמרו';
+    db.title = d + ' קטעים טרם נשמרו בגיליון — לחצו לשמירה';
   }
   var sv = document.getElementById('save2');
   if (sv) sv.textContent = d ? 'שמירה בגיליון (' + d + ')' : 'שמירה בגיליון';
@@ -1760,9 +1796,9 @@ function loadChav() {
            לא יסיט אותו. */
         var all = [].concat.apply([], pages);
         var body = bodyHeight(all);
-        CHV = [].concat.apply([], pages.map(function (it) {
+        CHV = applySplits([].concat.apply([], pages.map(function (it) {
           return chavBuild(it, body);
-        }));
+        })));
         box.innerHTML = chavHtml(CHV);
         document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
         chavBind(); paintChav(1);
@@ -1998,9 +2034,123 @@ function nextStart() {
   return { i: USED_G.line, x: USED_G.x };
 }
 
+/* ============================================================
+   פיצול פסקה בחברותא.
+
+   לפעמים נשכח אנטר בקובץ המקור: הגמרא עוברת לקטע חדש, והביאור
+   של שני הקטעים דחוס בפסקה אחת. זה נדיר, אבל כשזה קורה אין דרך
+   לחבר כל חצי לקטע שלו.
+
+   הפיצול נעשה במשפטים, כי שם עובר הגבול בפועל. הוא נשמר ברשומת
+   העמוד (`splits`) ומוחל מחדש בכל בנייה של החברותא, אחרת הוא היה
+   נעלם בטעינה הבאה והאינדקסים היו זזים תחת הקטעים ששמורים.
+
+   ומותר לפצל רק **קדימה**, מהפסקה הבאה ואילך: הסימון רץ ברצף,
+   וכל מה שכבר שובץ מקובע לאינדקס שלו. פיצול לאחור היה מזיז את
+   כולם ושובר את מה שכבר נשמר.
+   ============================================================ */
+var SPLIT_MODE = false;
+
+function allSplits() {
+  var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+  var out = [];
+  for (var k in BOOK)
+    if (k.indexOf(pre) === 0) out = out.concat(BOOK[k].splits || []);
+  /* מהסוף להתחלה, כדי שפיצול לא יזיז את זה שאחריו */
+  return out.sort(function (a, b) { return b[0] - a[0] || b[1] - a[1]; });
+}
+
+/* חותכים את רשימת הריצות במיקום תו נתון בתוך הפסקה */
+function cutRuns(runs, at) {
+  var a = [], b = [], n = 0;
+  runs.forEach(function (r) {
+    var len = r.t.length;
+    if (n + len <= at) a.push(r);
+    else if (n >= at) b.push(r);
+    else {
+      a.push({ t: r.t.slice(0, at - n), b: r.b });
+      b.push({ t: r.t.slice(at - n), b: r.b });
+    }
+    n += len;
+  });
+  return [{ runs: a }, { runs: b }];
+}
+
+function applySplits(list) {
+  allSplits().forEach(function (sp) {
+    var i = sp[0];
+    if (!list[i]) return;
+    var two = cutRuns(list[i].runs, sp[1]);
+    if (!two[0].runs.length || !two[1].runs.length) return;
+    list.splice(i, 1, two[0], two[1]);
+  });
+  return list;
+}
+
+function paraText(i) {
+  return (CHV[i].runs || []).map(function (r) { return r.t; }).join('');
+}
+
+/* המשפטים שבפסקה, עם מיקום ההתחלה של כל אחד */
+function sentences(t) {
+  var out = [], at = 0, re = /[.!?]["'\)\]]*\s+/g, m;
+  while ((m = re.exec(t))) {
+    out.push([at, t.slice(at, m.index + m[0].length).trim()]);
+    at = m.index + m[0].length;
+  }
+  if (at < t.length) out.push([at, t.slice(at).trim()]);
+  return out;
+}
+
+function splitSheet(i) {
+  var t = paraText(i), ss = sentences(t);
+  var box = document.getElementById('splitbox');
+  if (ss.length < 2) {
+    box.innerHTML = '<div class="sh"><b>אין מה לפצל</b>' +
+      '<p>בפסקה הזו אין יותר ממשפט אחד.</p>' +
+      '<button class="cl">סגירה</button></div>';
+  } else {
+    box.innerHTML = '<div class="sh"><b>היכן מתחילה הפסקה החדשה?</b>' +
+      '<p>הקישו על המשפט שממנו יתחיל הביאור של הקטע הבא.</p>' +
+      ss.map(function (v, k) {
+        return k === 0 ? '<div class="s0">' + esc(v[1]) + '</div>'
+          : '<button class="sp" data-at="' + v[0] + '">' + esc(v[1]) + '</button>';
+      }).join('') + '<button class="cl">ביטול</button></div>';
+  }
+  box.className = 'splitbox on';
+  [].forEach.call(box.querySelectorAll('.sp'), function (b) {
+    b.onclick = function () { doSplit(i, +b.dataset.at); };
+  });
+  [].forEach.call(box.querySelectorAll('.cl'), function (b) {
+    b.onclick = function () { box.className = 'splitbox'; };
+  });
+}
+
+function doSplit(i, at) {
+  document.getElementById('splitbox').className = 'splitbox';
+  SPLIT_MODE = false;
+  document.body.classList.remove('splitting');
+  if (!CHV || !CHV[i]) return;
+  var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
+  (rec.splits = rec.splits || []).push([i, at]);
+  var two = cutRuns(CHV[i].runs, at);
+  CHV.splice(i, 1, two[0], two[1]);
+  document.getElementById('chb').innerHTML = chavHtml(CHV);
+  document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
+  chavBind(); paintChav(); markPanel();
+  touched();
+  say('הפסקה פוצלה · ' + CHV.length + ' פסקאות');
+}
+
 function chavBind() {
   [].forEach.call(document.querySelectorAll('#chb p.cp'), function (el) {
-    el.onclick = function () { pickPara(+el.dataset.p); };
+    el.onclick = function () {
+      var i = +el.dataset.p;
+      if (SPLIT_MODE) {
+        if (i <= USED_C) { say('אפשר לפצל רק פסקה שטרם שובצה.', 1); return; }
+        splitSheet(i);
+      } else pickPara(i);
+    };
   });
 }
 function pickPara(i) {
@@ -2145,6 +2295,12 @@ document.getElementById('addstep2').onclick = function () {
 
 /* תפריט הפעולות הנדירות */
 document.getElementById('unsaved').onclick = function () { saveToSheet(); };
+document.getElementById('splitpara').onclick = function () {
+  if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  SPLIT_MODE = true;
+  document.body.classList.add('splitting');
+  say('הקישו על הפסקה שצריך לפצל.');
+};
 
 /* אזהרה לפני סגירה, כשיש עבודה שלא נשמרה בגיליון */
 window.addEventListener('beforeunload', function (e) {
