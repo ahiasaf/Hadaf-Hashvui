@@ -919,7 +919,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.9.0';
+var APP_VERSION = '6.9.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1613,7 +1613,12 @@ function notYet() { alert('הקישור יתווסף בקרוב.'); return false
    הדף מחולק לקטעים, וכל קטע מחובר לביאור שלו. החלוקה נעשית ביד
    בסטודיו ונשמרת בגיליון, ולכן היא קיימת רק לדפים שכבר עברו שם.
    נשאלות רק שתי העמודות הראשונות — הנתונים עצמם כבדים, ולעמוד
-   השבוע די לדעת אילו דפים מוכנים. */
+   השבוע די לדעת אילו דפים מוכנים.
+
+   INTER_PUBLIC כבוי: המערכת קיימת ועובדת, אך אינה מוצגת מתוך
+   האפליקציה. היא תוצג בנפרד ובהסכמה, ולא כחלק מובנה. להחזרה —
+   להעביר לערך true, וזה כל השינוי הדרוש. */
+var INTER_PUBLIC = false;
 var MARKED = null;
 function loadMarked() {
   if (MARKED) return Promise.resolve(MARKED);
@@ -1639,6 +1644,7 @@ function loadMarked() {
 function paintInter(id, daf) {
   var box = document.getElementById('w-inter');
   if (!box) return;
+  if (!INTER_PUBLIC) { box.innerHTML = ''; return; }
   var draw = function (m) {
     var el = document.getElementById('w-inter');
     if (!el || !m) return;
