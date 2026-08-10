@@ -1092,6 +1092,15 @@ function onDaf() {
   if (fileId(c.links[1])) opts.push(['1', 'חברותא']);
   fillSel(document.getElementById('src'), opts);
   onSrc();
+  /* החלפת דף בתוך מסך הסימון החליפה רק את התמונה: החברותא נשארה
+     של הדף הקודם, והסימונים של הדף החדש כלל לא נטענו מהגיליון —
+     כך שגם קובץ ה-JSON יצא ובו הדף הקודם. שניהם נטענים עכשיו. */
+  if (MODE === 'mark') { loadChav(); loadFromSheet().then(afterSheet); }
+}
+function afterSheet(n) {
+  if (!n) return;
+  PKEY = ''; loadPageState(); paintChav(); markDraw();
+  say('נטענו סימונים קודמים מ-' + n + ' עמודים');
 }
 function onSrc() {
   var c = curDaf();
@@ -1228,6 +1237,28 @@ function pageKey() {
 }
 function LIB_OK() { return !!(window.DAF_LINKS && document.getElementById('mas').options.length); }
 
+/* עד היכן הגיעה החברותא.
+
+   השורות הן ביחס לעמוד, ולכן במעבר עמוד מתחילים מחדש משורה 0.
+   החברותא היא ההפך: קובץ אחד רציף לשני עמודי הדף, ולעיתים קרובות
+   הפסקה שחוצה את המעבר היא בדיוק זו ששייכת לשורה הראשונה של
+   העמוד הבא. איפוס המונה בכל מעבר עמוד גרם לכך שהקטע הראשון של
+   עמוד ב׳ בלע מחדש את כל פסקאות עמוד א׳ — 57 פסקאות בדף ב׳,
+   ומשם הגיע ההסבר שלא התאים לשורה שעל המסך.
+
+   לכן: אין קטעים בעמוד הזה — ממשיכים מהעמוד הקודם של אותו דף. */
+function lastChav() {
+  var last = STEPS[STEPS.length - 1];
+  if (last) return last.c.to;
+  var pg = +selVal('pg') || 1;
+  for (var p = pg - 1; p >= 1; p--) {
+    var rec = BOOK[[selVal('mas'), selVal('daf'), selVal('src'), p].join('|')];
+    var st = rec && rec.steps;
+    if (st && st.length) return st[st.length - 1].c.to;
+  }
+  return -1;
+}
+
 function loadPageState() {
   var k = pageKey();
   if (k === PKEY) return;
@@ -1236,12 +1267,17 @@ function loadPageState() {
   STEPS = rec ? rec.steps : [];
   var last = STEPS[STEPS.length - 1];
   USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
-  USED_C = last ? last.c.to : -1;
+  USED_C = lastChav();
   GSEL = null; CSEL_P = null;
 }
 function keepPageState() {
   if (!PKEY || !S) return;
-  BOOK[PKEY] = { w:S.w, h:S.h, label: shown,
+  /* השם נשמר עם העמוד ולא רק עם הדף. בלעדיו רשומה בגיליון אינה
+     מעידה על עצמה, וכשמשהו לא מסתדר אי אפשר לדעת מהנתונים אם
+     מדובר בעמוד א׳ או ב׳ בלי לספור שורות. */
+  var pgn = +selVal('pg') || 1;
+  BOOK[PKEY] = { w:S.w, h:S.h,
+    label: shown + (pgn === 1 ? ' · ע״א' : pgn === 2 ? ' · ע״ב' : ' · עמוד ' + pgn),
     core:[S.core[0]/S.w, S.core[1]/S.w],
     zones: S.zones.map(function (z) {
       return { y0:z.y0/S.h, y1:z.y1/S.h, a:z.a/S.w, b:z.b/S.w,
@@ -1438,7 +1474,7 @@ function removeStep(i) {
   STEPS.splice(i, 1);
   var last = STEPS[STEPS.length - 1];
   USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
-  USED_C = last ? last.c.to : -1;
+  USED_C = lastChav();
   keepPageState();
   paintChav(); markDraw();
 }
@@ -1451,10 +1487,7 @@ function setMode(m) {
   if (m === 'mark') {
     loadChav();
     /* מה שכבר סומן בדף הזה בפעם קודמת חוזר מהגיליון */
-    loadFromSheet().then(function (n) {
-      if (n) { PKEY = ''; loadPageState(); paintChav(); markDraw();
-               say('נטענו סימונים קודמים מ-' + n + ' עמודים'); }
-    });
+    loadFromSheet().then(afterSheet);
     markDraw();
   } else if (S) draw();
   markPanel();
@@ -1468,6 +1501,7 @@ function loadChav() {
   if (!id) { document.getElementById('chb').innerHTML =
     '<div class="hint">אין קובץ חברותא לדף הזה.</div>'; return; }
   var box = document.getElementById('chb');
+  CHV = null;                    /* שלא יישאר טקסט של הדף הקודם */
   box.innerHTML = '<div class="hint">טוען את החברותא…</div>';
   var render = function (buf) {
     pdfReady()
