@@ -23,7 +23,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v6.6.0';
+var CACHE_NAME = 'hadaf-v6.6.1';
 var CORE = ['./', './index.html', './data.js', './links.js', './logo.js',
             './learn.html',
             './manifest.json', './admin-manifest.json',

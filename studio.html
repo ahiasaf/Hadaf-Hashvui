@@ -128,6 +128,9 @@ body.mark.gsel #clearsel{display:inline-block}
 .menu.on{display:flex}
 .menu button{width:100%;text-align:start;padding:12px 14px;font-size:.87rem}
 .menu hr{border:0;border-top:1px solid var(--rule);margin:2px 6px}
+.mstate{padding:8px 14px 10px;font-size:.78rem;font-weight:700;color:var(--ink-2);
+  line-height:1.5;border-bottom:1px solid var(--rule);margin-bottom:3px}
+#ver{font-size:.7rem;font-weight:700;opacity:.5;color:#fff;white-space:nowrap}
 
 /* פסקאות החברותא נבחרות בהקשה. בלי גרירה — גרירה באצבע נלחמת
    בגלילה, וזו הייתה הסיבה שאי אפשר היה לסמן כלום בנייד. */
@@ -212,6 +215,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 
 <header>
   <h1>סטודיו הדף</h1>
+  <span id="ver"></span>
   <select id="mas"></select>
   <select id="daf"></select>
   <select id="src"></select>
@@ -282,6 +286,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 
 <!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
 <div class="menu" id="menu">
+  <div class="mstate" id="gstate"></div>
   <button id="pgprev">▸ העמוד הקודם</button>
   <button id="pgnext">העמוד הבא ◂</button>
   <hr>
@@ -1214,7 +1219,11 @@ function jsonp(url) {
   });
 }
 
+/* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
+   החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
+var STUDIO_VER = '6.6.1';
 window.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   CAL = { taanit: window.CAL_TAANIT || [], megila: window.CAL_MEGILA || [] };
   API = (window.APPS_SCRIPT_URL || '').trim();
   try {
@@ -1249,7 +1258,11 @@ function run() {
   S = analyse(D.m, D.w, D.h) || analyseSimple(D.m, D.w, D.h);
   if (!S) { say('לא זיהיתי טקסט בעמוד הזה.', 1); return; }
   relines(); sel = 0;
-  if (MODE === 'mark') markDraw(); else draw();
+  /* גם החברותא מצוירת מחדש. `loadPageState` כבר הזיז את המונה
+     לעמוד החדש, אבל בלי הציור הזה הסימון בחברותא — מה שכבר שובץ
+     ואיזו פסקה הבאה — נשאר של העמוד הקודם, והחלון לא גלל למקום
+     הנכון. זה מה שנראה כאילו מעבר העמוד "לא עובד". */
+  if (MODE === 'mark') { paintChav(); markDraw(); } else draw();
   /* לא לדרוס את שם הדף בזמן הריצה — זו התשובה לבחירה, והיא
      צריכה להישאר על המסך. */
   say((shown ? shown + ' · ' : '') +
@@ -1378,6 +1391,10 @@ function selShapes(sel) {
 }
 
 function markDraw() {
+  /* אפשר להיכנס לסימון לפני שהדף הגיע — למשל כשהמשיכה מהדרייב
+     איטית או נכשלה. בלי המשמר הזה נזרקה חריגה, וכל מה שבא אחריה
+     ב-setMode לא רץ: הפאנל נשאר ריק והמסך נראה תקוע. */
+  if (!S) { markPanel(); return; }
   var ov = document.getElementById('ov');
   ov.setAttribute('viewBox', '0 0 ' + S.w + ' ' + S.h);
   var s = '';
@@ -1501,13 +1518,18 @@ function markPanel() {
   }
   var b1 = document.getElementById('addstep');
   if (b1) b1.disabled = !ready;
+  /* מצב המנגנון, במילים. כשמשהו לא מסתדר זה מה שמכריע — ובלעדיו
+     אי אפשר לדעת מצילום מסך אם המונה במקום הנכון. מופיע גם בפס
+     התחתון, כי בטלפון הלוח הצדדי מוסתר. */
+  var state = 'עמוד ' + (+selVal('pg') === 1 ? 'א׳' : +selVal('pg') === 2 ? 'ב׳' : selVal('pg')) +
+    ' · ממשיכים משורה ' + (nextStart().i + 1) + ' ומפסקה ' + (USED_C + 2);
   var mc = document.getElementById('mcur');
-  /* מהיכן ממשיכה החברותא — כתוב במפורש. מונה שגוי הוא הדבר שהכי
-     קשה לראות ממה שעל המסך, והוא זה שגורם לקטע לבלוע דף שלם. */
   if (mc) mc.innerHTML =
     '<div class="' + (g ? 'ok' : 'no') + '">גמרא: ' + (g ? 'שורות ' + g : 'טרם נבחר') + '</div>' +
     '<div class="' + (c ? 'ok' : 'no') + '">חברותא: ' + (c ? 'פסקה ' + c : 'טרם נבחר') + '</div>' +
-    '<div class="no">ממשיכים מפסקה ' + (USED_C + 2) + '</div>';
+    '<div class="no">' + state + '</div>';
+  var sb = document.getElementById('gstate');
+  if (sb) sb.textContent = state;
   var mh = document.getElementById('mhelp');
   if (mh) mh.innerHTML = 'הקשה על שורה בגמרא ועל פסקה בחברותא — הקטע ממשיך ' +
     'מהמקום שהקודם נגמר. <b>הקשה על שורה אחרת מזיזה את הסוף</b>, ולכן ' +
