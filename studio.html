@@ -1461,11 +1461,21 @@ function addStep() {
   var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
   var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
   var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
-  STEPS.push({ g: { from: { line: i0, x: +xa.toFixed(3) },
+  /* הקטעים רצים לפי סדר השורות, ולכן קטע חדש נכנס במקומו ולא
+     בהכרח בסוף. בלי זה, תיקון של קטע אחד באמצע הדף חייב פירוק של
+     כל מה שאחריו: מוחקים אותו, ומה שמוסיפים במקומו נופל בסוף. */
+  var step = { g: { from: { line: i0, x: +xa.toFixed(3) },
                     to:   { line: i1, x: +xb.toFixed(3) } },
-               c: { from: CSEL_P.a, to: CSEL_P.b, text: chavText() } });
-  USED_G = { line: i1, x: +xb.toFixed(3) };
-  USED_C = CSEL_P.b;
+               c: { from: CSEL_P.a, to: CSEL_P.b, text: chavText() } };
+  var at = STEPS.length;
+  for (var i = 0; i < STEPS.length; i++) {
+    var f = STEPS[i].g.from;
+    if (f.line > i0 || (f.line === i0 && f.x >= xa)) { at = i; break; }
+  }
+  STEPS.splice(at, 0, step);
+  var end = STEPS[STEPS.length - 1];
+  USED_G = { line: end.g.to.line, x: end.g.to.x };
+  USED_C = end.c.to;
   keepPageState();
   GSEL = null; CSEL_P = null;
   paintChav(); markDraw();
