@@ -86,10 +86,23 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .chd .sp{flex:1}
 .chd button{border:0;background:none;font-size:1rem;color:var(--ink-3);cursor:pointer;
   font-weight:800;padding:2px 6px}
+/* ---------- הגופן של החברותא ----------
+   היה כאן גופן סריפי, והוא לא החזיק: בעברית על מסך טלפון הסריפים
+   נעשים קווים דקים, והעין נאבקת בהם לפני שהיא מגיעה למילה. הביאור
+   נקרא ברצף ולא בעיון, ולכן הוא עובר לגופן המערכת — Roboto/Noto
+   באנדרואיד, San Francisco באייפון — שנבנו בדיוק לקריאה על מסך,
+   ומגיעים מותקנים ולכן אינם נטענים מרשת חיצונית.
+
+   בנוסף, גם הגופן הנוח ביותר אינו נוח לכולם: יש כפתורי א−/א+
+   שמזיזים את הגודל, והבחירה נשמרת. */
 .chb{flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;
-  font-family:Georgia,"Times New Roman",serif;font-size:1.04rem;line-height:1.9}
-.chb p{margin:0 0 12px}
-.chb b{color:var(--blue-d)}
+  font-size:calc(1.05rem * var(--cz,1));line-height:1.85;
+  letter-spacing:.005em;color:#22314D}
+.chb p{margin:0 0 13px}
+.chb b{color:var(--blue-d);font-weight:700}
+.chd .zoom{display:flex;gap:4px}
+.chd .zoom button{border:1px solid var(--rule);border-radius:7px;padding:2px 8px;
+  font-size:.86rem;color:var(--ink-2);line-height:1.5}
 .chb .none{font-family:system-ui,sans-serif;font-size:.82rem;font-weight:700;
   color:var(--ink-3);line-height:1.7}
 
@@ -170,7 +183,10 @@ nav .sp{flex:1}
   </section>
 
   <aside class="chav" id="chav">
-    <div class="chd"><span>חברותא</span><span class="sp"></span>
+    <div class="chd"><span>חברותא</span>
+      <span class="zoom"><button id="czm" title="הקטנת הטקסט">א−</button>
+        <button id="czp" title="הגדלת הטקסט">א+</button></span>
+      <span class="sp"></span>
       <span id="chnum" style="font-weight:700;color:var(--ink-3);font-size:.78rem"></span>
       <button id="chclose" title="סגירה">✕</button></div>
     <div class="chb" id="chb"></div>
@@ -238,7 +254,7 @@ var API = '';
 var S = { mas:'', daf:'', week:-1 };
 var PAGES = [];   /* [{pg, d}] — נתוני עמוד, לפי סדר העמודים */
 var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
-var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1;
+var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1, HEAD = '';
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -313,13 +329,57 @@ function shapes(d, g) {
   var i0 = Math.min(g.from.line, g.to.line), i1 = Math.max(g.from.line, g.to.line);
   var xa = g.from.line <= g.to.line ? g.from.x : g.to.x;
   var xb = g.from.line <= g.to.line ? g.to.x : g.from.x;
+  /* כרסום קטן פנימה בשני הגבולות שנופלים בתוך שורה. הנקודה
+     שנשמרה יושבת ברווח שבין שתי מילים, והרווח צר — כך שקצה
+     מדויק תופס חצי אות מהמילה השכנה. שישית מגובה השורה קטנה
+     מרווח בין מילים וגדולה מהסטייה, ולכן היא חותכת בתוך הרווח
+     בלי לגעת באות הראשונה של הקטע. */
+  var nip = lineH(d) * R * 0.16;
   for (var i = i0; i <= i1 && i < ls.length; i++) {
     var l = ls[i], w = l.x2 - l.a;
-    var from = (i === i0) ? l.x2 - w * xa : l.x2;
-    var to   = (i === i1) ? l.x2 - w * xb : l.a;
+    var from = (i === i0) ? l.x2 - w * xa - (xa > 0.001 ? nip : 0) : l.x2;
+    var to   = (i === i1) ? l.x2 - w * xb + (xb < 0.999 ? nip : 0) : l.a;
+    if (to > from) to = from;
     out.push([Math.min(from, to), l.t, Math.abs(to - from), l.b - l.t]);
   }
   return out;
+}
+
+/* רצועות רציפות: הגבול בין שתי שורות עובר באמצע הרווח שביניהן.
+   בלי זה נשארים פסי עמימות בין שורות הקטע, והמסגרת מתפרקת
+   למסגרת קטנה סביב כל שורה — וזה מה שמעמיס על העין. מסגרת אחת
+   חיצונית אומרת את אותו דבר בשקט. */
+function bands(d, g) {
+  var rs = shapes(d, g);
+  if (!rs.length) return [];
+  var b = rs.map(function (r) {
+    return { x0:r[0], x1:r[0] + r[2], y0:r[1], y1:r[1] + r[3] };
+  });
+  for (var i = 0; i < b.length - 1; i++) {
+    var mid = (b[i].y1 + b[i+1].y0) / 2;
+    b[i].y1 = mid; b[i+1].y0 = mid;
+  }
+  /* אוויר קטן מעל הראשונה ומתחת לאחרונה, כדי שהמסגרת לא תשב על
+     קוצי האותיות. */
+  b[0].y0 -= rs[0][3] * 0.22;
+  b[b.length - 1].y1 += rs[rs.length - 1][3] * 0.22;
+  return b;
+}
+
+/* קו המתאר של איחוד הרצועות — מדרגה מימין למטה, מדרגה משמאל
+   למעלה. פוליגון פשוט, ולכן הוא משמש גם כחור במסכה וגם כמסגרת. */
+function outline(b) {
+  var n = b.length, i, p = ['M' + b[0].x1 + ',' + b[0].y0];
+  for (i = 0; i < n; i++) {
+    p.push('L' + b[i].x1 + ',' + b[i].y1);
+    if (i < n - 1) p.push('L' + b[i+1].x1 + ',' + b[i].y1);
+  }
+  p.push('L' + b[n-1].x0 + ',' + b[n-1].y1);
+  for (i = n - 1; i >= 0; i--) {
+    p.push('L' + b[i].x0 + ',' + b[i].y0);
+    if (i > 0) p.push('L' + b[i-1].x0 + ',' + b[i].y0);
+  }
+  return p.join('') + 'Z';
 }
 function lineH(d) {
   var ls = flatLines(d);
@@ -340,29 +400,23 @@ function paint() {
   if (!st) { ov.innerHTML = ''; return; }
   var d = PAGES[st.p].d;
   var VW = 1000, VH = Math.round(1000 * R);
-  var pad = 0.004 * VW;
-  var sh = shapes(d, st.g).map(function (r) {
-    return { x: r[0] * VW - pad, y: r[1] * VH - pad,
-             w: r[2] * VW + pad * 2, h: r[3] * VH + pad * 2 };
+  var b = bands(d, st.g).map(function (r) {
+    return { x0: +(r.x0 * VW).toFixed(1), x1: +(r.x1 * VW).toFixed(1),
+             y0: +(r.y0 * VH).toFixed(1), y1: +(r.y1 * VH).toFixed(1) };
   });
-  var holes = sh.map(function (r) {
-    return '<rect x="' + r.x.toFixed(1) + '" y="' + r.y.toFixed(1) +
-           '" width="' + r.w.toFixed(1) + '" height="' + r.h.toFixed(1) +
-           '" rx="3" fill="#000"/>';
-  }).join('');
-  var glow = sh.map(function (r) {
-    return '<rect x="' + r.x.toFixed(1) + '" y="' + r.y.toFixed(1) +
-           '" width="' + r.w.toFixed(1) + '" height="' + r.h.toFixed(1) +
-           '" rx="3" fill="none" stroke="#C08F2B" stroke-width="1.6" opacity=".55"/>';
-  }).join('');
-
   ov.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH);
+  if (!b.length) { ov.innerHTML = ''; return; }
+  var path = outline(b);
+
   ov.innerHTML =
     '<defs><mask id="hole">' +
-      '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' + holes +
+      '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' +
+      '<path d="' + path + '" fill="#000"/>' +
     '</mask></defs>' +
     '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" opacity="' +
-      (WHOLE ? .74 : .80) + '" mask="url(#hole)"/>' + glow;
+      (WHOLE ? .74 : .80) + '" mask="url(#hole)"/>' +
+    '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' +
+      'stroke-linejoin="round" opacity=".5"/>';
 }
 
 /* ההתמקדות: חלון נע על הדף.
@@ -608,6 +662,16 @@ function paintChav() {
   box.innerHTML = html;
   box.scrollTop = 0;
 }
+/* גודל הטקסט. חמישה שלבים, נשמר במכשיר. */
+var CZ = 2, CZS = [.86, .93, 1, 1.12, 1.28];
+function chavZoom(d) {
+  CZ = Math.max(0, Math.min(CZS.length - 1, CZ + d));
+  document.documentElement.style.setProperty('--cz', CZS[CZ]);
+  $('czm').disabled = CZ === 0;
+  $('czp').disabled = CZ === CZS.length - 1;
+  if (d) { try { localStorage.setItem('df:chav-size', CZ); } catch (e) {} }
+}
+
 function drawer(on) {
   document.body.classList.toggle('chav-on', on);
   $('chtog').classList.toggle('on', on);
@@ -634,7 +698,13 @@ function go(i) {
 function buttons(on) {
   ['next', 'prev', 'chtog', 'whole'].forEach(function (b) { $(b).disabled = !on; });
 }
+/* איזה עמוד מוצג — ולא רק איזה דף. עמוד שגוי הוא התקלה הכי קלה
+   לפספס וגם הכי קלה לראות, אם רק כתוב מה אמור להיות על המסך. */
+function amud(pg) { return pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : 'עמוד ' + pg; }
+
 function bar() {
+  var st = FLAT[IDX];
+  if (st) $('t-daf').textContent = HEAD + ' ' + amud(PAGES[st.p].pg);
   $('count').textContent = 'קטע ' + (IDX + 1) + ' מתוך ' + FLAT.length;
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0;
@@ -710,8 +780,15 @@ function boot() {
     if (cfg.api) API = cfg.api;
   } catch (e) {}
 
+  try {
+    var cz = localStorage.getItem('df:chav-size');
+    if (cz !== null) CZ = +cz;
+  } catch (e) {}
+  chavZoom(0);
+
   S = pickDaf();
-  $('t-daf').textContent = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
+  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
+  $('t-daf').textContent = HEAD;
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';
   document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
@@ -750,6 +827,8 @@ window.addEventListener('DOMContentLoaded', function () {
   $('stage').onclick = function () { if (FLAT.length && !WHOLE) go(IDX + 1); };
   $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
   $('chclose').onclick = function () { drawer(false); };
+  $('czm').onclick = function () { chavZoom(-1); };
+  $('czp').onclick = function () { chavZoom(1); };
   $('whole').onclick = function () {
     WHOLE = !WHOLE;
     $('whole').classList.toggle('on', WHOLE);
