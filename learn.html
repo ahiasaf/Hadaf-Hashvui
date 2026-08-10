@@ -111,7 +111,10 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
     grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
   .chav{border-inline-start:0;border-top:1px solid var(--rule);
     box-shadow:0 -8px 22px rgba(37,29,12,.10)}
-  .chb{font-size:1rem;padding:12px 14px 18px}
+  /* גם כאן דרך המשתנה. בלי זה הכלל הזה דרס את הגודל שנבחר,
+     וכפתורי א−/א+ פעלו במחשב ולא עשו דבר בטלפון — כלומר בדיוק
+     במקום שבו הם נחוצים. */
+  .chb{font-size:calc(1rem * var(--cz,1));padding:12px 14px 18px}
 }
 
 /* ---------- שורת הניווט ---------- */
@@ -329,16 +332,22 @@ function shapes(d, g) {
   var i0 = Math.min(g.from.line, g.to.line), i1 = Math.max(g.from.line, g.to.line);
   var xa = g.from.line <= g.to.line ? g.from.x : g.to.x;
   var xb = g.from.line <= g.to.line ? g.to.x : g.from.x;
-  /* כרסום קטן פנימה בשני הגבולות שנופלים בתוך שורה. הנקודה
-     שנשמרה יושבת ברווח שבין שתי מילים, והרווח צר — כך שקצה
-     מדויק תופס חצי אות מהמילה השכנה. שישית מגובה השורה קטנה
-     מרווח בין מילים וגדולה מהסטייה, ולכן היא חותכת בתוך הרווח
-     בלי לגעת באות הראשונה של הקטע. */
+  /* הזזה קטנה שמאלה בשני הגבולות שנופלים בתוך שורה.
+
+     אותה נקודה משמשת פעמיים: היא הסוף של קטע אחד וההתחלה של
+     הבא, והיא יושבת בגבול שבין המילה שלנו לשכנה — נוטה מעט אל
+     צד השכנה. לכן שני הגבולות זזים לאותו כיוון, שמאלה:
+     בהתחלה זה מוריד את זנב המילה הקודמת, ובסוף זה נותן אוויר
+     לאות האחרונה במקום לחתוך אותה. הזזה לכיוון ההפוך בסוף היא
+     שחנקה את האות. שישית מגובה השורה קטנה מרווח בין מילים,
+     ולכן הקצה נוחת בתוך הרווח ולא על השכנה.
+
+     ומכיוון ששני הקטעים זזים יחד, הם נשארים צמודים זה לזה. */
   var nip = lineH(d) * R * 0.16;
   for (var i = i0; i <= i1 && i < ls.length; i++) {
     var l = ls[i], w = l.x2 - l.a;
     var from = (i === i0) ? l.x2 - w * xa - (xa > 0.001 ? nip : 0) : l.x2;
-    var to   = (i === i1) ? l.x2 - w * xb + (xb < 0.999 ? nip : 0) : l.a;
+    var to   = (i === i1) ? l.x2 - w * xb - (xb < 0.999 ? nip : 0) : l.a;
     if (to > from) to = from;
     out.push([Math.min(from, to), l.t, Math.abs(to - from), l.b - l.t]);
   }
