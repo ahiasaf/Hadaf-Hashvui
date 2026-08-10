@@ -114,6 +114,7 @@ body.mark .bar{display:flex}
 .bar .gh{color:#fff;font-size:.78rem;font-weight:800;opacity:.9;
   white-space:nowrap;overflow:hidden;min-width:0;flex:0 1 auto}
 .bar .add{flex:0 0 auto}
+#unsaved{background:#A5382D;color:#fff;font-size:.76rem;padding:9px 11px}
 /* כוונון הסוף מופיע רק כשיש מה לכוונן */
 .fg{display:none;align-items:center;gap:3px;color:#fff;font-size:.74rem;font-weight:800}
 body.mark.gsel .fg{display:flex}
@@ -280,6 +281,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
     <button data-nudge="end,1" title="מילה קדימה">▸</button></span>
   <button id="clearsel" title="ניקוי הסימון">✕</button>
   <span class="gap"></span>
+  <button id="unsaved" title="שמירה בגיליון" style="display:none">●</button>
   <span class="gh" id="ghint"></span>
   <button class="add" id="addstep2">הוספת הקטע</button>
 </div>
@@ -1229,9 +1231,12 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.7.0';
+var STUDIO_VER = '6.7.1';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
+  /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
+     נקרא — כך שכרטיסייה שנסגרה באמצע אינה עולה בעבודה. */
+  loadLocal();
   CAL = { taanit: window.CAL_TAANIT || [], megila: window.CAL_MEGILA || [] };
   API = (window.APPS_SCRIPT_URL || '').trim();
   try {
@@ -1424,16 +1429,27 @@ function markDraw() {
      נקודת ההמשך האמיתית הייתה בשורה 45. גם החברותא נראתה כולה
      מעומעמת, כי כל 125 הפסקאות באמת כבר שובצו.
 
-     הכל היה נכון ובלתי נראה. עכשיו הקטעים מצוירים בירוק עמום,
-     בשני גוונים לסירוגין כדי ששכנים ייבדלו זה מזה, והמצב של
-     העמוד ניכר במבט אחד.
+     הניסיון הראשון צבע את הקטעים עצמם, וזה נקרא הפוך: עמוד מסומן
+     נראה כמו דף שמשהו השתבש בו, ולא כמו עמוד שיש בו עשרים קטעים.
+     צבע על אותיות אינו אומר "אלה הקטעים שלך" — הוא אומר "משהו לא
+     בסדר".
+
+     לכן הסימון ירד מהטקסט אל השוליים: פס אנכי צר במרזב שבין
+     הגמרא לשכנתה, אחד לכל קטע, בשני גוונים לסירוגין. הדף נשאר
+     נקי וקריא, והעין סופרת את הקטעים במבט אחד — כמו סרגל בצד
+     של מסמך.
      ============================================================ */
   STEPS.forEach(function (st, k) {
-    selShapes({ a: { i: st.g.from.line, x: st.g.from.x },
-                b: { i: st.g.to.line,   x: st.g.to.x } }).forEach(function (r) {
-      s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
-           '" fill="rgba(59,125,87,' + (k % 2 ? .09 : .15) + ')"/>';
-    });
+    var sh = selShapes({ a: { i: st.g.from.line, x: st.g.from.x },
+                         b: { i: st.g.to.line,   x: st.g.to.x } });
+    if (!sh.length) return;
+    var top = sh[0][1], bot = sh[sh.length - 1][1] + sh[sh.length - 1][3];
+    var li = ls[Math.min(st.g.from.line, st.g.to.line)];
+    var x = li ? li.x2 : sh[0][0] + sh[0][2];        /* הקצה הימני של הטור */
+    var w = Math.max(6, Math.round(S.w * 0.006));
+    s += '<rect x="' + (x + w * 0.7) + '" y="' + top + '" width="' + w +
+         '" height="' + (bot - top) + '" rx="' + (w / 2) + '" fill="' +
+         (k % 2 ? '#8FBFA3' : '#3B7D57') + '" opacity=".9"/>';
   });
 
   selShapes(GSEL).forEach(function (r) {
@@ -1568,6 +1584,17 @@ function markPanel() {
     '<div class="no">' + state + '</div>';
   var sb = document.getElementById('gstate');
   if (sb) sb.textContent = state;
+
+  /* "לא נשמר" — גלוי בפס עצמו. אבדן שעת עבודה בגלל כפתור שלא
+     נלחץ הוא כישלון של המסך, לא של המשתמש. */
+  var d = dirtyCount();
+  var db = document.getElementById('unsaved');
+  if (db) {
+    db.style.display = d ? '' : 'none';
+    db.textContent = '● ' + d + ' לא נשמרו';
+  }
+  var sv = document.getElementById('save2');
+  if (sv) sv.textContent = d ? 'שמירה בגיליון (' + d + ')' : 'שמירה בגיליון';
   var mh = document.getElementById('mhelp');
   if (mh) mh.innerHTML = 'הקשה על שורה בגמרא ועל פסקה בחברותא — הקטע ממשיך ' +
     'מהמקום שהקודם נגמר. <b>הקשה על שורה אחרת מזיזה את הסוף</b>, ולכן ' +
@@ -1649,7 +1676,7 @@ function addStep(cont) {
   var end = STEPS[STEPS.length - 1];
   USED_G = { line: end.g.to.line, x: end.g.to.x };
   USED_C = end.c.to;
-  keepPageState();
+  touched();
   GSEL = null; CSEL_P = null;
   paintChav(); markDraw();
 }
@@ -1658,7 +1685,7 @@ function removeStep(i) {
   var last = STEPS[STEPS.length - 1];
   USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
   USED_C = lastChav();
-  keepPageState();
+  touched();
   paintChav(); markDraw();
 }
 
@@ -1731,6 +1758,52 @@ function loadChav() {
    ============================================================ */
 var MARK_TAB = 'סימוני הדף';
 
+/* ============================================================
+   מה שלא נשמר עדיין.
+
+   שתי תקלות אמיתיות באו מכאן. האחת: מעבר לכיול וחזרה לסימון
+   מחק את מה שסומן — `setMode('mark')` קורא לגיליון, והגיליון
+   דרס בזיכרון עמוד שהעבודה בו טרם נשמרה. השנייה: מי שלא לחץ
+   "שמירה" איבד שעה של עבודה, בלי שדבר על המסך אמר לו שיש מה
+   לאבד.
+
+   התשובה בשתי שכבות. **מקומית** — כל שינוי נכתב מיד ל-
+   localStorage. זה מיידי, בחינם, בלי שרת ובלי מכסה, ומחזיר את
+   העבודה גם אחרי סגירת הכרטיסייה. **בגיליון** — נשאר מפורש,
+   כי כתיבה לשם כותבת את הלשונית כולה מחדש, ואינני רוצה שהיא
+   תרוץ בשקט תוך כדי קריאה ותתנגש בעצמה. במקום זה יש סימן
+   שאי אפשר לפספס.
+   ============================================================ */
+var DIRTY = {};                 /* מפתחות עם שינוי שטרם נשמר בגיליון */
+var LKEY = 'df:studio';
+
+function keepLocal() {
+  try {
+    localStorage.setItem(LKEY, JSON.stringify(
+      { at: Date.now(), book: BOOK, dirty: DIRTY }));
+  } catch (e) {}                /* אין מקום — הגיליון עדיין קיים */
+}
+function loadLocal() {
+  try {
+    var v = JSON.parse(localStorage.getItem(LKEY) || 'null');
+    if (!v || !v.book) return 0;
+    var n = 0;
+    for (var k in (v.dirty || {})) if (v.book[k]) { BOOK[k] = v.book[k]; DIRTY[k] = 1; n++; }
+    return n;
+  } catch (e) { return 0; }
+}
+function dirtyCount() {
+  var n = 0;
+  for (var k in DIRTY) n += ((BOOK[k] || {}).steps || []).length;
+  return n;
+}
+/* נקרא אחרי כל שינוי אמיתי, ורק אחריו */
+function touched() {
+  DIRTY[PKEY] = 1;
+  keepPageState();
+  keepLocal();
+}
+
 function sheetCsv(tab) {
   var id = (window.CFG && CFG.sheetId) || window.SHEET_ID;
   if (!id) return Promise.resolve(null);
@@ -1778,6 +1851,7 @@ function saveToSheet() {
         cols: JSON.stringify(COLS), rows: JSON.stringify(keep) }) })
       .then(function () {
         var n = 0; for (var q in BOOK) n += (BOOK[q].steps || []).length;
+        DIRTY = {}; keepLocal(); markPanel();
         say('נשמר בגיליון · ' + n + ' קטעים · לשונית "' + MARK_TAB + '"');
         return true;
       });
@@ -1790,7 +1864,12 @@ function loadFromSheet() {
     var mas = selVal('mas'), daf = selVal('daf'), n = 0;
     rows.slice(1).forEach(function (r) {
       if (r[0] !== mas || r[1] !== daf) return;
-      try { BOOK[r[0] + '|' + r[1] + '|' + r[2]] = JSON.parse(r[3]); n++; } catch (e) {}
+      var k = r[0] + '|' + r[1] + '|' + r[2];
+      /* עמוד שיש בו עבודה שטרם נשמרה — לא נוגעים. זה מה שמחק
+         סימונים במעבר לכיול וחזרה: הטעינה מהגיליון החזירה את
+         הגרסה הישנה על גבי החדשה. */
+      if (DIRTY[k]) return;
+      try { BOOK[k] = JSON.parse(r[3]); n++; } catch (e) {}
     });
     return n;
   }).catch(function () { return 0; });
@@ -1923,7 +2002,13 @@ function seeIn(box, el) {
 }
 function seeChav() {
   var box = document.getElementById('chb');
-  seeIn(box, box && box.querySelector('p.cp.hot, p.cp.nextup'));
+  if (!box) return;
+  /* כשיש בחירה הולכים אל **סופה** ולא אל תחילתה. `querySelector`
+     מחזיר את הראשון במסמך, ולכן הקשה על הפסקה השלישית גררה את
+     החלון בחזרה אל הראשונה — בדיוק הפוך ממה שצריך, כי המקום
+     שממנו ממשיכים לבחור הוא הסוף. */
+  var hot = box.querySelectorAll('p.cp.hot');
+  seeIn(box, hot.length ? hot[hot.length - 1] : box.querySelector('p.cp.nextup'));
 }
 function seeGem() {
   var st = stage(), img = document.getElementById('page');
@@ -2002,6 +2087,13 @@ document.getElementById('addstep2').onclick = function () {
 };
 
 /* תפריט הפעולות הנדירות */
+document.getElementById('unsaved').onclick = function () { saveToSheet(); };
+
+/* אזהרה לפני סגירה, כשיש עבודה שלא נשמרה בגיליון */
+window.addEventListener('beforeunload', function (e) {
+  if (dirtyCount()) { e.preventDefault(); e.returnValue = ''; }
+});
+
 (function () {
   var m = document.getElementById('menu'), b = document.getElementById('more');
   b.onclick = function (e) { e.stopPropagation(); m.classList.toggle('on'); };
