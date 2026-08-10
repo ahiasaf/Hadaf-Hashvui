@@ -1229,7 +1229,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.6.2';
+var STUDIO_VER = '6.7.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   CAL = { taanit: window.CAL_TAANIT || [], megila: window.CAL_MEGILA || [] };
@@ -1413,6 +1413,29 @@ function markDraw() {
          '" width="' + (l.x2 - l.a) + '" height="' + (l.b - l.t) +
          '" fill="rgba(30,120,225,.07)" style="cursor:pointer"/>';
   });
+
+  /* ============================================================
+     מה שכבר סומן בעמוד הזה — נראה על הדף.
+
+     קודם צוירו רק הבחירה הנוכחית וקו דק במקום שממנו ימשיך הקטע
+     הבא, ולכן עמוד שכבר סומן במלואו נראה בדיוק כמו עמוד ריק:
+     הרכז עבר לעמוד ב׳ שכבר היו בו עשרים קטעים מהגיליון, ראה דף
+     נקי, הקיש על השורה השנייה — והמערכת סימנה אותה לבדה, כי
+     נקודת ההמשך האמיתית הייתה בשורה 45. גם החברותא נראתה כולה
+     מעומעמת, כי כל 125 הפסקאות באמת כבר שובצו.
+
+     הכל היה נכון ובלתי נראה. עכשיו הקטעים מצוירים בירוק עמום,
+     בשני גוונים לסירוגין כדי ששכנים ייבדלו זה מזה, והמצב של
+     העמוד ניכר במבט אחד.
+     ============================================================ */
+  STEPS.forEach(function (st, k) {
+    selShapes({ a: { i: st.g.from.line, x: st.g.from.x },
+                b: { i: st.g.to.line,   x: st.g.to.x } }).forEach(function (r) {
+      s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
+           '" fill="rgba(59,125,87,' + (k % 2 ? .09 : .15) + ')"/>';
+    });
+  });
+
   selShapes(GSEL).forEach(function (r) {
     s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
          '" fill="rgba(240,150,20,.45)" stroke="#C08F2B" stroke-width="2"/>';
@@ -1516,9 +1539,15 @@ function markPanel() {
   var cont = !CSEL_P && canContinue();
   var hint = document.getElementById('ghint');
   /* רמז קצר ובשורה אחת. הכפתור הראשי אומר ממילא מה קורה, ורמז
-     ארוך רק דחק אותו מהמסך. */
-  if (hint) hint.textContent = (cont || ready) ? ''
-    : (g ? 'עכשיו בחברותא' : 'סמנו בגמרא');
+     ארוך רק דחק אותו מהמסך.
+
+     ומה שחשוב מכולם: עמוד שכבר סומן עד סופו אומר זאת במפורש.
+     בלי זה הוא נראה כמו עמוד שלא נענה להקשות. */
+  var done = STEPS.length && nextStart().i >= flatLines().length;
+  if (hint) hint.textContent = done ? '✓ העמוד כולו מסומן · ' + STEPS.length + ' קטעים'
+    : (cont || ready) ? ''
+    : (g ? 'עכשיו בחברותא'
+         : (STEPS.length ? STEPS.length + ' קטעים · המשך בגמרא' : 'סמנו בגמרא'));
   var b2 = document.getElementById('addstep2');
   if (b2) {
     b2.textContent = cont ? '↩ המשך הקטע' : 'הוספת הקטע';
