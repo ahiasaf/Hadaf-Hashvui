@@ -919,7 +919,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.10.0';
+var APP_VERSION = '6.10.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2236,26 +2236,59 @@ function fetchSheet(id, tab) {
 }
 var YES = /^(TRUE|כן|V|✓|1)$/i;
 
-/* מוסדות מהגיליון הציבורי: code | name | last | joined */
+/* ------------------------------------------------------------
+   מוסדות מהגיליון הציבורי: code | name | last | joined
+
+   הרשימה שבקוד היא הרשימה האמיתית, והגיליון רק מעדכן אותה.
+   לכן הכלל כאן הוא: בספק — לא נוגעים.
+
+   הסיבה שזה נכתב: gviz אינה מודיעה על לשונית שאינה קיימת. היא
+   פשוט מגישה את הלשונית הראשונה בגיליון. וכך, כשלשונית
+   "מוסדות" לא נמצאה, חזרו שורות של לשונית אחרת לגמרי, הקוד
+   קיבל אותן כרשימת מוסדות, דרס עליהן 24 ישיבות, ושמר את
+   התוצאה במטמון — ארבע שורות זהות במקום הרשימה כולה. בלי שום
+   הודעה, בשני המכשירים, כי המטמון עבר איתן.
+
+   instFromRows בודקת שמה שחזר אכן נראה כמו רשימת מוסדות. מה
+   שנופל בבדיקה נזרק, והרשימה שבקוד נשארת.
+   ------------------------------------------------------------ */
+var INST_BUILTIN = INSTITUTIONS.slice();
+var INST_SRC = 'code';
+
+function instFromRows(rows) {
+  if (!rows || rows.length < 2) return { ok:false, why:'הגיליון ריק' };
+  var out = [], seen = {}, odd = 0;
+  rows.slice(1).forEach(function (r) {
+    var code = (r[0] || '').trim(), name = (r[1] || '').trim();
+    if (!code || !name) return;
+    if (seen[code]) { odd++; return; }        // קוד חוזר — שורה כפולה
+    seen[code] = 1;
+    /* קוד אמיתי הוא מזהה באנגלית: avir, lapid. עברית או רווח
+       בעמודה הזו פירושם שאלה בכלל לא מוסדות. */
+    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(code)) { odd++; return; }
+    out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
+               joined:YES.test((r[3] || '').trim()) });
+  });
+  if (!out.length)     return { ok:false, why:'לא נמצאו מוסדות בלשונית' };
+  if (odd > out.length) return { ok:false, why:'הלשונית אינה נראית כרשימת מוסדות' };
+  return { ok:true, list:out };
+}
+
 function loadInstitutions() {
   return fetchSheet(CFG.sheetId || SHEET_ID, CFG.sheetTab || SHEET_TAB)
     .then(function (rows) {
-      if (!rows || rows.length < 2) return false;
-      var out = [];
-      rows.slice(1).forEach(function (r) {
-        var code = (r[0] || '').trim(), name = (r[1] || '').trim();
-        if (!code || !name) return;
-        out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
-                   joined:YES.test((r[3] || '').trim()) });
-      });
-      if (!out.length) return false;
+      var r = instFromRows(rows);
+      if (!r.ok) { INST_SRC = 'code:' + r.why; return false; }
       INSTITUTIONS.length = 0;
-      out.forEach(function (i) { INSTITUTIONS.push(i); });
-      applyCfg();                       // מתגים מהניהול דורסים את הגיליון
+      r.list.forEach(function (i) { INSTITUTIONS.push(i); });
+      INST_SRC = 'sheet';
+      applyCfg();
       Store.set('instCache', INSTITUTIONS);
       return true;
-    });
+    })
+    .catch(function () { INST_SRC = 'code:הגיליון לא נענה'; return false; });
 }
+
 /* המלל שפורסם, מלשונית "טקסטים": key | value.
    נשמר גם במטמון, כדי שפתיחה בלי רשת לא תחזיר את הנוסח הישן. */
 function loadTexts() {
@@ -2424,7 +2457,20 @@ function admReg(el) {
 
 /* ---- מוסדות: מי בפנים ---- */
 function admInst(el) {
-  el.innerHTML = '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
+  /* מאיפה הרשימה. בלי השורה הזו אי אפשר לדעת שהגיליון נכשל,
+     וזה בדיוק מה שאיפשר לרשימה להתחלף בלי שאיש ישים לב. */
+  var src = INST_SRC === 'sheet'
+    ? '<div class="done-box" style="margin-bottom:11px">' + INSTITUTIONS.length +
+      ' מוסדות · נטענו מלשונית "' + esc(CFG.sheetTab || SHEET_TAB) + '"</div>'
+    : '<div class="cond" style="margin-bottom:11px"><b>' + INSTITUTIONS.length +
+      ' מוסדות · מהרשימה שבקוד.</b><br>' +
+      esc(INST_SRC.indexOf(':') > 0 ? INST_SRC.split(':').slice(1).join(':') : 'הגיליון טרם נקרא') +
+      ' — הרשימה שבקוד מוצגת, ושום דבר לא אבד.' +
+      '<div style="margin-top:8px"><button class="btn g" style="margin:0" ' +
+      'onclick="loadInstitutions().then(function(){renderHome();admPane();})">' +
+      'ניסיון טעינה מחדש</button></div></div>';
+
+  el.innerHTML = src + '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
     '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה.</p>' +
     INSTITUTIONS.map(function (i) {
       return '<div class="row"><div>' + esc(i.name) +
@@ -3034,12 +3080,22 @@ function registerSW() {
 }
 
 (function boot() {
-  // נפתחים מיד מהמטמון, ומתרעננים מהגיליון ברקע
+  /* נפתחים מיד מהמטמון, ומתרעננים מהגיליון ברקע — אבל המטמון
+     עובר את אותה בדיקה כמו הגיליון. מכשיר שכבר שמר אצלו רשימה
+     פגומה היה ממשיך להציג אותה לנצח, כי היא נטענת לפני שהרשת
+     בכלל נשאלת. */
   var cached = Store.get('instCache');
   if (cached && cached.length) {
-    INSTITUTIONS.length = 0;
-    cached.forEach(function (i) { INSTITUTIONS.push(i); });
-    applyCfg();
+    var head = [['code','name','last','joined']].concat(cached.map(function (i) {
+      return [i.code, i.name, i.last ? 'TRUE' : '', i.joined ? 'TRUE' : ''];
+    }));
+    if (instFromRows(head).ok) {
+      INSTITUTIONS.length = 0;
+      cached.forEach(function (i) { INSTITUTIONS.push(i); });
+      applyCfg();
+    } else {
+      Store.set('instCache', null);   // רשימה פגומה — נזרקת, והקוד חוזר
+    }
   }
   renderHome(); paintQueue(); paintNet(); flush(); registerSW(); initInstall();
   loadInstitutions().then(function (ok) { if (ok) renderHome(); }).catch(function () {});
