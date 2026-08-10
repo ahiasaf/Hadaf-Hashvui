@@ -14,9 +14,10 @@
    בקוד האפליקציה בלבד.
 
    *** לגבי הגיליון — זו הפריסה האחרונה שנדרשת ממך. ***
-   (גרסה 4 כן דרשה פריסה נוספת, כי היא פותחת יכולת חדשה ולא
-   משנה נתונים: קריאת קבצים מהדרייב בשביל הסטודיו. הכלל נשאר
-   בתוקף לכל מה שנוגע לכתיבה לגיליון.)
+   (גרסאות 4 ו-5 כן דרשו פריסה נוספת, כי הן פותחות יכולת חדשה
+   ואינן משנות נתונים: 4 — קריאת קבצים מהדרייב בשביל הסטודיו,
+   5 — קריאת לשונית פרטית בשביל מוקד השיחות. הכלל נשאר בתוקף
+   לכל מה שנוגע לכתיבה לגיליון.)
 
    מה זה עושה
    ----------
@@ -71,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 4;
+var SCRIPT_VERSION = 5;
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -138,6 +139,29 @@ function doGet(e) {
       res = { status: 'error', message: String(err) };
     }
     return reply_(e, res);
+  }
+
+  /* ---- קריאת לשונית ----
+     אנשי הקשר של הישיבות הם טלפונים של אנשים אחרים, ולכן הם לא
+     יושבים בקוד ולא בגיליון שמשותף "לכל מי שיש לו הקישור".
+     הסקריפט הזה רץ בחשבון שלך, ולכן הוא יכול לקרוא לשונית פרטית
+     לגמרי. ss אופציונלי — בלעדיו קוראים מהגיליון שאליו הסקריפט
+     מחובר.
+
+     getDisplayValues ולא getValues: מספר טלפון שמתחיל באפס הוא
+     מספר בעיני הגיליון, ו-getValues היה מחזיר 527997944. */
+  if (e && e.parameter && e.parameter.read) {
+    var rd;
+    try {
+      var book = e.parameter.ss ? SpreadsheetApp.openById(String(e.parameter.ss))
+                                : SpreadsheetApp.getActiveSpreadsheet();
+      var tab = book.getSheetByName(String(e.parameter.read));
+      rd = { status: 'ok', tab: String(e.parameter.read),
+             rows: tab && tab.getLastRow() ? tab.getDataRange().getDisplayValues() : [] };
+    } catch (err) {
+      rd = { status: 'error', message: String(err) };
+    }
+    return reply_(e, rd);
   }
 
   var out = { status: 'ok', version: SCRIPT_VERSION, tabs: [] };

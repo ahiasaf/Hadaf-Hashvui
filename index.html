@@ -919,7 +919,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.9.1';
+var APP_VERSION = '6.10.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1804,6 +1804,125 @@ function contacts()      { try { return JSON.parse(localStorage.getItem('dfConta
                            catch (e) { return []; } }
 function saveContacts(c) { localStorage.setItem('dfContacts', JSON.stringify(c)); }
 
+/* ------------------------------------------------------------
+   איפה חיים הנתונים.
+
+   עד כאן הרשימה והתיעוד ישבו על המכשיר בלבד, וזו הייתה טעות:
+   ניקוי נתוני הדפדפן, מעבר למכשיר אחר, או פינוי אחסון על ידי
+   המערכת — וכל סבב השיחות נמחק בלי שריד. עכשיו הגיליון הוא
+   המקור, והמכשיר הוא רק עותק מהיר שמאפשר לתעד גם באמצע שיחה
+   בלי קליטה.
+
+   הטלפונים אינם בקוד ואינם בגיליון המשותף. הם בלשונית פרטית
+   שרק הסקריפט — שרץ בחשבון שלך — יכול לקרוא. הריפו ציבורי,
+   ואלה מספרים של אנשים אחרים.
+   ------------------------------------------------------------ */
+var CONTACT_TAB = 'אנשי קשר';    // שם | תפקידים | טלפון | טלפון2 | תשפ"ו
+var CALL_TAB    = 'יומן שיחות';  // שם | סטטוס | הערה | מתי
+var callSync    = { state:'', at:0 };
+
+function scriptGet(params) {
+  var url = (CFG.api || API || '').trim();
+  if (!url) return Promise.reject(new Error('אין כתובת שרת'));
+  var q = Object.keys(params).map(function (k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  }).join('&');
+  return pingScript(url + (url.indexOf('?') < 0 ? '?' : '&') + q);
+}
+
+function callSay(s) { callSync.state = s; callSync.at = Date.now();
+                      var el = document.getElementById('call-sync');
+                      if (el) el.textContent = s; }
+
+/* הרשימה מהלשונית הפרטית, ועליה התיעוד מהיומן. השמות הם המפתח,
+   ולכן שינוי שם ישיבה בגיליון מנתק אותה מהתיעוד שלה — לכן
+   ההשוואה מתעלמת מרווחים כפולים ומגרשיים. */
+function nameKey(s) {
+  return String(s || '').replace(/["'״׳]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function pullCalls() {
+  callSay('טוען מהגיליון…');
+  var ss = (CFG.contactsSheet || '').trim();
+  var ask = function (tab) {
+    var p = { read: tab };
+    if (ss) p.ss = ss;
+    return scriptGet(p).then(function (d) {
+      return (d && d.status === 'ok' && d.rows) ? d.rows : null;
+    }).catch(function () { return null; });
+  };
+
+  return Promise.all([ask(CONTACT_TAB), ask(CALL_TAB)]).then(function (r) {
+    var people = r[0], log = r[1];
+    if (!people || people.length < 2) {
+      callSay('לא נמצאה לשונית "' + CONTACT_TAB + '".');
+      return false;
+    }
+    var out = [];
+    people.slice(1).forEach(function (row) {
+      var c = rowToContact(row);
+      if (c) out.push(c);
+    });
+    if (!out.length) { callSay('הלשונית ריקה.'); return false; }
+
+    /* התיעוד: מהיומן קודם, ומה שעל המכשיר גובר עליו רק אם הוא
+       חדש יותר — כך ששיחה שתועדה במטוס לא נדרסת בטעינה. */
+    var was = {};
+    (log || []).slice(1).forEach(function (r2) {
+      if (r2[0]) was[nameKey(r2[0])] = { stage:r2[1] || 'new', note:r2[2] || '', at:r2[3] || '' };
+    });
+    var mine = {};
+    contacts().forEach(function (c) { mine[nameKey(c.name)] = c; });
+
+    out.forEach(function (c) {
+      var k = nameKey(c.name), s = was[k], m = mine[k];
+      if (s) { c.stage = s.stage; c.note = s.note; c.at = s.at; }
+      if (m && m.at && (!c.at || m.at > c.at)) { c.stage = m.stage; c.note = m.note; c.at = m.at; }
+    });
+
+    saveContacts(out);
+    callSay(out.length + ' ישיבות · מסונכרן');
+    return true;
+  });
+}
+
+/* כתיבה חזרה. נדחית בשנייה וחצי, כי בזמן שיחה לוחצים סטטוס
+   ומקלידים הערה ברצף, ואין טעם בשלוש כתיבות. */
+var callTimer = null;
+function pushCalls(now) {
+  clearTimeout(callTimer);
+  var go = function () {
+    if (!API && !CFG.api) { callSay('נשמר על המכשיר · אין כתובת שרת'); return; }
+    var rows = contacts().filter(function (c) { return c.stage !== 'new' || c.note; })
+      .map(function (c) { return [c.name, c.stage, c.note || '', c.at || '']; });
+    callSay('שומר…');
+    fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'table', tab: CALL_TAB,
+        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי']),
+        rows: JSON.stringify(rows) }) })
+      .then(function () { callSay(rows.length + ' שיחות · נשמר בגיליון'); })
+      .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
+  };
+  now ? go() : (callTimer = setTimeout(go, 1500));
+}
+
+/* שורה מהגיליון → איש קשר. העמודות אינן קבועות בסדר שלהן, כי
+   הגיליון נערך ביד: מזהים לפי צורה — מה שנראה כמספר הוא טלפון,
+   TRUE הוא "היה בתשפ"ו", והראשון שאינו אלה הוא שם הישיבה. */
+function rowToContact(row) {
+  var name = '', people = [], phones = [], last = false;
+  (row || []).forEach(function (v) {
+    var c = String(v == null ? '' : v).trim().replace(/⁩|⁦/g, '');
+    if (YES.test(c)) { last = true; return; }
+    if (/^(FALSE|לא)$/i.test(c) || !c || c === 'X' || c === 'x') return;
+    if (/^[0-9\-\+\(\)\s]{9,}$/.test(c)) { phones.push(c); return; }
+    if (!name) name = c; else people.push(c);
+  });
+  if (!name) return null;
+  return { name:name, who:people.join(' · '), phone:phones[0] || '',
+           phone2:phones[1] || '', last:last, stage:'new', note:'', at:'' };
+}
+
 // מנקה מספר לחיוג ולוואטסאפ
 function digits(p) { return String(p || '').replace(/[^0-9]/g, ''); }
 function waNum(p) {
@@ -1819,19 +1938,8 @@ function parseContacts(text) {
     if (!line.trim()) return;
     var cells = line.split('\t');
     if (cells.length < 2) cells = line.split(/\s{2,}|,/);
-    cells = cells.map(function (c) { return c.trim().replace(/⁩|⁦/g, ''); });
-
-    var name = '', people = [], phones = [], last = false;
-    cells.forEach(function (c) {
-      if (/^(TRUE|כן|V|✓)$/i.test(c)) { last = true; return; }
-      if (/^(FALSE|לא)$/i.test(c)) return;
-      if (!c || c === 'X' || c === 'x') return;
-      if (/^[0-9\-\+\(\)\s]{9,}$/.test(c)) { phones.push(c); return; }
-      if (!name) name = c; else people.push(c);
-    });
-    if (!name) return;
-    out.push({ name:name, who:people.join(' · '), phone:phones[0] || '',
-               phone2:phones[1] || '', last:last, stage:'new', note:'' });
+    var c = rowToContact(cells);
+    if (c) out.push(c);
   });
   return out;
 }
@@ -1844,12 +1952,18 @@ function renderCalls() {
     el.innerHTML =
       '<div class="hero" style="padding:22px 20px"><span class="glow g1"></span>' +
       '<span class="glow g3"></span><h2 style="font-size:1.35rem">מוקד שיחות</h2>' +
-      '<div class="rule"></div><div class="sub">כדי להתחיל, הדביקו את רשימת המוסדות ' +
-      'מגיליון הגוגל. הרשימה נשמרת על המכשיר הזה בלבד ואינה נשלחת לשום מקום.</div></div>' +
-      '<div class="card"><h3>איך מדביקים</h3><p>בגיליון — סמנו את השורות ' +
-      '(בלי שורת הכותרת), העתיקו, והדביקו כאן. כל עמודה בנפרד.</p></div>' +
-      '<textarea id="paste" rows="7" placeholder="הדביקו כאן…"></textarea>' +
-      '<button class="btn p" onclick="importContacts()">ייבוא הרשימה</button>';
+      '<div class="rule"></div><div class="sub">הרשימה נטענת מלשונית "' + CONTACT_TAB +
+      '" שבגיליון הפרטי. היא אינה בקוד ואינה בגיליון המשותף.</div></div>' +
+      '<button class="btn p" onclick="pullCalls().then(renderCalls)">טעינה מהגיליון</button>' +
+      '<div id="call-sync" class="msg" style="margin-top:10px">' + esc(callSync.state) + '</div>' +
+      '<div class="card"><h3>אם הלשונית עוד לא קיימת</h3>' +
+      '<p>בגיליון הפרטי, לשונית בשם <b>' + CONTACT_TAB + '</b>. שורה ראשונה כותרות, ' +
+      'ואחריה שורה לכל ישיבה: שם, אנשי קשר, טלפון, וטור TRUE למי שהיה בתשפ"ו. ' +
+      'סדר העמודות אינו חשוב.</p>' +
+      '<p style="margin-top:8px">אפשר גם להדביק ישירות, אבל אז התיעוד חי על ' +
+      'המכשיר הזה בלבד — וזה מה שנמחק בפעם הקודמת.</p></div>' +
+      '<textarea id="paste" rows="5" placeholder="או הדביקו כאן מהגיליון…"></textarea>' +
+      '<button class="btn g" onclick="importContacts()">ייבוא בהדבקה</button>';
     return;
   }
 
@@ -1862,7 +1976,9 @@ function renderCalls() {
           '<span class="glow g3"></span><h2 style="font-size:1.3rem">מוקד שיחות</h2>' +
           '<div class="rule"></div><div class="sub">' + counts.joined +
           ' מתוך ' + list.length + ' ישיבות הצטרפו · ' +
-          (list.length - counts.new) + ' שיחות בוצעו</div></div>';
+          (list.length - counts.new) + ' שיחות בוצעו</div></div>' +
+          '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
+          esc(callSync.state || 'נשמר על המכשיר') + '</div>';
 
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
@@ -1915,6 +2031,9 @@ function renderCalls() {
 
   h += '<button class="btn g" style="margin-top:8px" onclick="exportCalls()">' +
        'העתקת סיכום לוואטסאפ</button>' +
+       '<button class="btn g" onclick="pushCalls(1)">שמירה לגיליון עכשיו</button>' +
+       '<button class="btn g" onclick="pullCalls().then(renderCalls)">' +
+       'רענון מהגיליון</button>' +
        '<button class="btn g" onclick="wipeContacts()">מחיקת הרשימה מהמכשיר</button>';
   el.innerHTML = h;
 }
@@ -1925,15 +2044,17 @@ function importContacts() {
   if (!parsed.length) { alert('לא זוהו שורות. ודאו שהעתקתם מהגיליון.'); return; }
   saveContacts(parsed);
   renderCalls();
+  pushCalls(1);
 }
 function setStage(i, k) {
   var l = contacts(); if (!l[i]) return;
   l[i].stage = k; l[i].at = new Date().toISOString();
-  saveContacts(l); renderCalls();
+  saveContacts(l); renderCalls(); pushCalls();
 }
 function setNote(i, v) {
   var l = contacts(); if (!l[i]) return;
-  l[i].note = v; saveContacts(l);
+  l[i].note = v; l[i].at = new Date().toISOString();
+  saveContacts(l); pushCalls();
 }
 function exportCalls() {
   var l = contacts();
@@ -1949,8 +2070,10 @@ function exportCalls() {
   alert('הסיכום הועתק. אפשר להדביק בוואטסאפ.');
 }
 function wipeContacts() {
-  if (!confirm('למחוק את רשימת אנשי הקשר מהמכשיר? הסטטוסים וההערות יימחקו גם הם.')) return;
+  if (!confirm('למחוק את הרשימה מהמכשיר הזה?\n\nהגיליון אינו נמחק — לשונית "' +
+               CALL_TAB + '" נשארת, ורענון מהגיליון יחזיר הכל.')) return;
   localStorage.removeItem('dfContacts');
+  callSay('');
   renderCalls();
 }
 
@@ -2164,23 +2287,15 @@ function loadContactsFromSheet() {
     }
     var out = [];
     rows.slice(1).forEach(function (r) {
-      var cells = r.map(function (c) { return (c || '').trim(); });
-      var name = '', people = [], phones = [], last = false;
-      cells.forEach(function (c) {
-        if (YES.test(c)) { last = true; return; }
-        if (/^(FALSE|לא)$/i.test(c) || !c || c === 'X' || c === 'x') return;
-        if (/^[0-9\-\+\(\)\s]{9,}$/.test(c)) { phones.push(c); return; }
-        if (!name) name = c; else people.push(c);
-      });
-      if (!name) return;
-      out.push({ name:name, who:people.join(' · '), phone:phones[0] || '',
-                 phone2:phones[1] || '', last:last, stage:'new', note:'' });
+      var c = rowToContact(r);
+      if (c) out.push(c);
     });
     // שומרים סטטוסים והערות קיימים לפי שם
     var old = {};
-    contacts().forEach(function (c) { old[c.name] = c; });
+    contacts().forEach(function (c) { old[nameKey(c.name)] = c; });
     out.forEach(function (c) {
-      if (old[c.name]) { c.stage = old[c.name].stage; c.note = old[c.name].note; }
+      var o = old[nameKey(c.name)];
+      if (o) { c.stage = o.stage; c.note = o.note; c.at = o.at; }
     });
     saveContacts(out);
     renderCalls();
@@ -2232,10 +2347,11 @@ function admPane() {
   if (admTab === 'reg')   return admReg(el);
   if (admTab === 'inst')  return admInst(el);
   if (admTab === 'calls') {
-    el.innerHTML = '<button class="btn g" style="margin-bottom:11px" ' +
-      'onclick="loadContactsFromSheet()">טעינת אנשי הקשר מהגיליון</button>' +
-      '<div id="calls-body"></div>';
-    return renderCalls();
+    el.innerHTML = '<div id="calls-body"></div>';
+    renderCalls();
+    /* מרעננים מהגיליון בכל כניסה למסך: זה מביא תיעוד שנעשה
+       ממכשיר אחר, ומחזיר את הרשימה אם האחסון המקומי נוקה. */
+    return pullCalls().then(renderCalls).catch(function () {});
   }
   if (admTab === 'text')  return admText(el);
   if (admTab === 'price') return admPrice(el);
