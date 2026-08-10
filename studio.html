@@ -1172,8 +1172,10 @@ function onPage() {
 /* משיכת הקובץ דרך הסקריפט. מנסים fetch, ואם ה-CORS חוסם נופלים
    ל-JSONP — בדיוק כמו בבדיקת החיבור שבמסך הניהול. */
 var CACHE = {};
+var NAMES = {};         /* שם הקובץ בדרייב, לפי מזהה */
 var reqId = 0;          /* כל בקשה מקבלת מספר; רק האחרונה מתקבלת */
 var shown = '';         /* מה מוצג בפועל, כדי שאי-התאמה תיראה */
+var shownFile = '';     /* ושם הקובץ שהגיע בפועל */
 
 function fetchDaf(id, label) {
   /* בלי המספר הזה, החלפת דף בזמן שהקודם עדיין בדרך הציגה את מי
@@ -1183,6 +1185,7 @@ function fetchDaf(id, label) {
   var done = function (buf) {
     if (mine !== reqId) return;               /* בחירה חדשה גברה */
     shown = label || '';
+    shownFile = NAMES[id] || '';
     openPdfBytes(buf);
   };
   if (CACHE[id]) return done(CACHE[id]);
@@ -1196,6 +1199,11 @@ function fetchDaf(id, label) {
       var bin = atob(d.data), buf = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       CACHE[id] = buf;
+      /* שם הקובץ שבדרייב מוצג לצד שם הדף שביקשנו. קישור שמצביע
+         על הקובץ הלא נכון הוא תקלת נתונים שאי אפשר לראות מהמסך —
+         הדף נטען, הכל עובד, ופשוט מוצגת מסכת אחרת. שני השמות זה
+         לצד זה הופכים את זה לגלוי בשנייה. */
+      if (d.name) NAMES[id] = String(d.name).replace(/\.pdf$/i, '');
       done(buf);
     })
     .catch(function () {
@@ -1221,7 +1229,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.6.1';
+var STUDIO_VER = '6.6.2';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   CAL = { taanit: window.CAL_TAANIT || [], megila: window.CAL_MEGILA || [] };
@@ -1266,6 +1274,7 @@ function run() {
   /* לא לדרוס את שם הדף בזמן הריצה — זו התשובה לבחירה, והיא
      צריכה להישאר על המסך. */
   say((shown ? shown + ' · ' : '') +
+      (shownFile ? '«' + shownFile + '» · ' : '') +
       'זוהה ב-' + Math.round(performance.now() - t) + 'ms');
 }
 
