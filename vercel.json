@@ -9,7 +9,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {
-      "source": "/(slides|sfarim)/(.*)",
+      "source": "/(slides|sfarim|daf)/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
   ]

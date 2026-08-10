@@ -289,8 +289,8 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 <!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
 <div class="menu" id="menu">
   <div class="mstate" id="gstate"></div>
-  <button id="pgprev">▸ העמוד הקודם</button>
-  <button id="pgnext">העמוד הבא ◂</button>
+  <button id="pgprev">▸ הקודם (עמוד או דף)</button>
+  <button id="pgnext">הבא (עמוד או דף) ◂</button>
   <hr>
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
@@ -949,7 +949,11 @@ function renderDoc(buf) {
     }
     fillSel(document.getElementById('pg'), pages);
     document.getElementById('pg').style.display = '';
-    return showPdfPage(1);
+    /* מי שהגיע לכאן בדרך אחורה רוצה את סופו של הדף, לא את ראשו */
+    var at = WANT_LAST ? pages.length : 1;
+    WANT_LAST = false;
+    document.getElementById('pg').value = at - 1;
+    return showPdfPage(at);
   }).catch(function () {
     say('לא הצלחתי לפתוח את הקובץ.', 1);
   });
@@ -1231,7 +1235,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.7.1';
+var STUDIO_VER = '6.8.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1438,6 +1442,11 @@ function markDraw() {
      הגמרא לשכנתה, אחד לכל קטע, בשני גוונים לסירוגין. הדף נשאר
      נקי וקריא, והעין סופרת את הקטעים במבט אחד — כמו סרגל בצד
      של מסמך.
+
+     הגוון כחול ולא ירוק. הירוק שמור לדבר אחד בלבד — המקום שממנו
+     ימשיך הקטע הבא — ושני ירוקים על אותו מסך לא נבדלים זה מזה
+     במבט. "מה שהיה" ו"איפה ממשיכים" הם שתי שאלות שונות, ומגיע
+     להן שני צבעים.
      ============================================================ */
   STEPS.forEach(function (st, k) {
     var sh = selShapes({ a: { i: st.g.from.line, x: st.g.from.x },
@@ -1449,12 +1458,13 @@ function markDraw() {
     var w = Math.max(6, Math.round(S.w * 0.006));
     s += '<rect x="' + (x + w * 0.7) + '" y="' + top + '" width="' + w +
          '" height="' + (bot - top) + '" rx="' + (w / 2) + '" fill="' +
-         (k % 2 ? '#8FBFA3' : '#3B7D57') + '" opacity=".9"/>';
+         (k % 2 ? '#7FA6D9' : '#17468F') + '" opacity=".85" pointer-events="none"/>';
   });
 
   selShapes(GSEL).forEach(function (r) {
     s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
-         '" fill="rgba(240,150,20,.45)" stroke="#C08F2B" stroke-width="2"/>';
+         '" fill="rgba(240,150,20,.45)" stroke="#C08F2B" stroke-width="2"' +
+         ' pointer-events="none"/>';
   });
   /* ידיות לכוונון בתוך השורה */
   if (GSEL) {
@@ -1472,8 +1482,12 @@ function markDraw() {
     if (nx) {
       /* אם נותר חצי שורה, מסמנים בדיוק את החצי הזה */
       var w2 = nx.x2 - nx.a, from = nx.x2 - w2 * st2.x;
+      /* pointer-events:none — בלעדיו המלבן הזה יושב מעל השורה
+         וחוטף את ההקשה, וקטע קצר שנופל בדיוק באזור ההתחלה לא
+         היה ניתן לסימון כלל: אפשר היה לסמן רק את השורה שמתחתיו. */
       s += '<rect x="' + nx.a + '" y="' + nx.t + '" width="' + (from - nx.a) +
-           '" height="' + (nx.b - nx.t) + '" fill="rgba(59,125,87,.22)"/>';
+           '" height="' + (nx.b - nx.t) + '" fill="rgba(59,125,87,.30)"' +
+           ' stroke="#3B7D57" stroke-width="1.5" pointer-events="none"/>';
     }
   }
   ov.innerHTML = s;
@@ -1600,9 +1614,10 @@ function markPanel() {
     'מהמקום שהקודם נגמר. <b>הקשה על שורה אחרת מזיזה את הסוף</b>, ולכן ' +
     'סימנתם שורה אחת יותר מדי — הקישו על הקודמת. הקשה ארוכה מתחילה מחדש.';
 
-  var el = document.getElementById('pg');
-  document.getElementById('pgprev').disabled = +el.value <= 0;
-  document.getElementById('pgnext').disabled = +el.value >= el.options.length - 1;
+  var el = document.getElementById('pg'), df = document.getElementById('daf');
+  document.getElementById('pgprev').disabled = +el.value <= 0 && +df.value <= 0;
+  document.getElementById('pgnext').disabled =
+    +el.value >= el.options.length - 1 && +df.value >= df.options.length - 1;
   var cnt = document.getElementById('mcount');
   if (cnt) cnt.textContent = STEPS.length ? '· ' + STEPS.length : '';
   var box = document.getElementById('steps');
@@ -1647,6 +1662,23 @@ function prevStep() {
     var st = BOOK[k].steps || [];
     if (st.length) { best = st[st.length - 1]; bestPg = p; }
   }
+  /* בראש דף — ממשיכים מהדף הקודם. הסוגיה חוצה גם את גבול הדף,
+     ואז הביאור נלקח מקובץ החברותא של הדף הקודם; הטקסט נשמר
+     בקטע עצמו, ולכן הוא נשאר נכון גם כשהקובץ מתחלף. */
+  if (!best && pg === 1) {
+    var el = document.getElementById('daf');
+    var it = el._items && el._items[+el.value - 1];
+    if (it) {
+      var pre2 = [selVal('mas'), it[0], selVal('src')].join('|') + '|';
+      var hi = 0;
+      for (var q in BOOK) {
+        if (q.indexOf(pre2) !== 0) continue;
+        var p2 = +q.slice(pre2.length) || 1;
+        var st2 = BOOK[q].steps || [];
+        if (st2.length && p2 > hi) { hi = p2; best = st2[st2.length - 1]; }
+      }
+    }
+  }
   return best;
 }
 function canContinue() {
@@ -1664,8 +1696,10 @@ function addStep(cont) {
      כל מה שאחריו: מוחקים אותו, ומה שמוסיפים במקומו נופל בסוף. */
   var step = { g: { from: { line: i0, x: +xa.toFixed(3) },
                     to:   { line: i1, x: +xb.toFixed(3) } },
-               c: cont ? { from: prev.c.from, to: prev.c.to, text: prev.c.text }
-                       : { from: CSEL_P.a, to: CSEL_P.b, text: chavText() } };
+               c: cont ? { from: prev.c.from, to: prev.c.to,
+                           text: prev.c.text, h: prev.c.h }
+                       : { from: CSEL_P.a, to: CSEL_P.b,
+                           text: chavText(), h: chavRich() } };
   if (cont) step.cont = 1;
   var at = STEPS.length;
   for (var i = 0; i < STEPS.length; i++) {
@@ -1678,7 +1712,7 @@ function addStep(cont) {
   USED_C = end.c.to;
   touched();
   GSEL = null; CSEL_P = null;
-  paintChav(); markDraw();
+  paintChav(1); markDraw();
 }
 function removeStep(i) {
   STEPS.splice(i, 1);
@@ -1686,7 +1720,7 @@ function removeStep(i) {
   USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
   USED_C = lastChav();
   touched();
-  paintChav(); markDraw();
+  paintChav(1); markDraw();
 }
 
 function setMode(m) {
@@ -1731,7 +1765,7 @@ function loadChav() {
         }));
         box.innerHTML = chavHtml(CHV);
         document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
-        chavBind(); paintChav();
+        chavBind(); paintChav(1);
       })
       .catch(function () { box.innerHTML = '<div class="hint">לא הצלחתי לקרוא.</div>'; });
   };
@@ -1981,7 +2015,7 @@ function pickPara(i) {
     CSEL_P = { a: CSEL_P.a, b: i };
     if (CSEL_P.b < CSEL_P.a) { CSEL_P = { a: i, b: i }; }
   }
-  paintChav(); markPanel();
+  paintChav(1); markPanel();
 }
 /* ============================================================
    שני החלונות עוקבים אחרי הסימון.
@@ -2021,14 +2055,18 @@ function seeGem() {
   st.scrollTop = y - st.clientHeight * 0.5;
 }
 
-function paintChav() {
+/* `scroll` רק כשהמשתמש עשה משהו. מעבר עמוד מחליף את צורת הדף
+   בלבד — קובץ החברותא הוא אחד לשני העמודים, והעין כבר ממוקמת
+   במקום שהיא עובדת בו. גלילה אוטומטית שם הקפיצה אותה ממקומה
+   בלי שביקש. */
+function paintChav(scroll) {
   [].forEach.call(document.querySelectorAll('#chb p.cp'), function (el) {
     var i = +el.dataset.p;
     el.classList.toggle('hot', !!CSEL_P && i >= CSEL_P.a && i <= CSEL_P.b);
     el.classList.toggle('used', i <= USED_C);
     el.classList.toggle('nextup', !CSEL_P && i === USED_C + 1);
   });
-  seeChav();
+  if (scroll) seeChav();
 }
 function chavText() {
   if (!CSEL_P || !CHV) return '';
@@ -2036,6 +2074,25 @@ function chavText() {
   for (var i = CSEL_P.a; i <= CSEL_P.b && i < CHV.length; i++)
     out.push(CHV[i].runs.map(function (r) { return r.t; }).join(''));
   return out.join(' ');
+}
+
+/* אותו טקסט, עם ההדגשה שמורה.
+
+   המילים המודגשות הן אלה שמצטטות את לשון הגמרא, והן מה שמאפשר
+   לתלמיד למצוא את עצמו בביאור. עד עכשיו נשמר רק טקסט חלק, ומסך
+   הלימוד היה מושך את קובץ החברותא מהדרייב רק כדי לשחזר אותן —
+   קריאה כבדה דרך ה-Apps Script בכל פתיחה של המגירה. מרגע ששומרים
+   כאן את המבנה, הלימוד אינו צריך את הקובץ כלל, והמסך כולו נעשה
+   סטטי. */
+function chavRich() {
+  if (!CSEL_P || !CHV) return '';
+  var out = [];
+  for (var i = CSEL_P.a; i <= CSEL_P.b && i < CHV.length; i++)
+    out.push('<p>' + CHV[i].runs.map(function (r) {
+      var t = esc(r.t);
+      return r.b ? '<b>' + t + '</b>' : t;
+    }).join('') + '</p>');
+  return out.join('');
 }
 
 /* ============================================================
@@ -2112,10 +2169,28 @@ document.getElementById('undo').onclick = function () {
 document.getElementById('clearsel').onclick = function () {
   GSEL = null; markDraw();
 };
+/* ============================================================
+   רצף אחד על פני המסכת.
+
+   סוגיה אינה עוצרת בסוף הדף יותר משהיא עוצרת בסוף העמוד: ד׳ ע"ב
+   ממשיך לה׳ ע"א. לכן "העמוד הבא" ממשיך אל הדף הבא כשנגמרים
+   עמודיו של הנוכחי, ו"הקודם" נוחת על עמודו האחרון של הדף שלפניו.
+   סדר הדפים נלקח מבורר הדפים עצמו, שנבנה מלוח השנה.
+   ============================================================ */
+function stepDaf(d, last) {
+  var el = document.getElementById('daf');
+  var i = +el.value + d;
+  if (i < 0 || i >= el.options.length) return false;
+  WANT_LAST = !!last;                /* לנחות על עמוד ב׳ ולא על א׳ */
+  el.value = i; el.dispatchEvent(new Event('change'));
+  return true;
+}
+var WANT_LAST = false;
+
 function stepPage(d) {
   var el = document.getElementById('pg');
   var i = +el.value + d;
-  if (i < 0 || i >= el.options.length) return;
+  if (i < 0 || i >= el.options.length) return stepDaf(d, d < 0);
   el.value = i; el.dispatchEvent(new Event('change'));
 }
 document.getElementById('pgprev').onclick = function () { stepPage(-1); };

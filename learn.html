@@ -528,7 +528,37 @@ function grab(id) {
     });
 }
 
+/* ============================================================
+   צורת הדף: מהאתר קודם, ומהדרייב רק אם אינה שם.
+
+   מסך התלמידים אינו יכול להישען על ה-Apps Script של הרכז: הוא
+   מוגבל בריצות מקבילות, כל בקשה קוראת PDF של מגבייט ומקודדת
+   אותו, והכל רץ על חשבון גוגל אחד. שיעור שבו שלושים תלמידים
+   פותחים את הדף באותה דקה נתקע.
+
+   `tools/build-library.py` ממיר את הדפים פעם אחת לתמונות תחת
+   `daf/`, והן מוגשות מה-CDN של האתר: בלי מכסה, בלי צוואר, עובדות
+   אופליין דרך ה-Service Worker, ומהירות בהרבה — 350KB במקום PDF
+   של 2MB שצריך לצייר בדפדפן.
+
+   הנפילה לדרייב נשארת כדי שדף שטרם הומר ימשיך לעבוד.
+   ============================================================ */
+var LIB = null;
+
+function libSrc(pg) {
+  var m = LIB && LIB[S.mas];
+  var a = m && m[dafKey(S.daf)];
+  if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
+  return 'daf/' + S.mas + '/' + dafKey(S.daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
+}
+function loadLib() {
+  return fetch('daf/index.json').then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { LIB = j || {}; }).catch(function () { LIB = {}; });
+}
+
 function loadGemara() {
+  /* יש תמונות לדף הזה — אין צורך ב-PDF כלל */
+  if (libSrc(1)) return Promise.resolve();
   var links = ((window.DAF_LINKS || {})[S.mas] || {})[dafKey(S.daf)] || [];
   var id = fileId(links[0]);
   if (!id) return Promise.reject(new Error('no file'));
@@ -541,6 +571,8 @@ function loadGemara() {
    עוצר את הלימוד לשנייה בכל פעם. */
 function showPage(n) {
   if (IMG[n]) return setImg(IMG[n]);
+  var src = libSrc(n);
+  if (src) { IMG[n] = src; return setImg(src); }
   return pdfReady()
     .then(function () {
       if (DOC) return DOC;
@@ -648,7 +680,11 @@ function paintChav() {
   $('chnum').textContent = st ? 'קטע ' + (IDX + 1) : '';
   if (!st) { box.innerHTML = ''; return; }
   var html = '';
-  if (CHV && st.c && st.c.from != null) {
+  /* המבנה נשמר בסימון עצמו, ולכן אין צורך בקובץ החברותא כלל —
+     לא מהדרייב ולא דרך הסקריפט. סימונים ישנים שנשמרו לפני כן
+     עדיין נשענים על הקובץ, וזה מה שהענף הבא מטפל בו. */
+  if (st.c && st.c.h) html = st.c.h;
+  if (!html && CHV && st.c && st.c.from != null) {
     var got = [], plain = '';
     for (var i = st.c.from; i <= st.c.to && i < CHV.length; i++) {
       got.push(CHV[i]);
@@ -681,11 +717,15 @@ function chavZoom(d) {
   if (d) { try { localStorage.setItem('df:chav-size', CZ); } catch (e) {} }
 }
 
+function needChav() {
+  return FLAT.some(function (v) { return !(v.c && v.c.h); });
+}
 function drawer(on) {
   document.body.classList.toggle('chav-on', on);
   $('chtog').classList.toggle('on', on);
   try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
-  if (on) { loadChav(); paintChav(); }
+  /* הקובץ נטען רק אם יש קטע שנשמר לפני שהמבנה נשמר יחד איתו */
+  if (on) { if (needChav()) loadChav(); paintChav(); }
   /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
   setTimeout(focus, 30);
 }
@@ -822,7 +862,10 @@ function boot() {
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
-  Promise.all([loadMarks().catch(function () { return 0; }), loadGemara()])
+  loadLib()
+    .then(function () {
+      return Promise.all([loadMarks().catch(function () { return 0; }), loadGemara()]);
+    })
     .then(function (res) {
       if (!res[0]) {
         veil('הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע',
