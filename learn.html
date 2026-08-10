@@ -257,7 +257,7 @@ var API = '';
 var S = { mas:'', daf:'', week:-1 };
 var PAGES = [];   /* [{pg, d}] — נתוני עמוד, לפי סדר העמודים */
 var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
-var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1, HEAD = '';
+var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -714,15 +714,17 @@ function amud(pg) { return pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : 'עמוד
 function bar() {
   var st = FLAT[IDX];
   if (st) $('t-daf').textContent = HEAD + ' ' + amud(PAGES[st.p].pg);
-  $('count').textContent = 'קטע ' + (IDX + 1) + ' מתוך ' + FLAT.length;
+  $('count').textContent = 'קטע ' + (st ? st.n : 1) + ' מתוך ' + GROUPS +
+    (st && st.parts > 1 ? ' · חלק ' + st.part + ' מ-' + st.parts : '');
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0;
-  $('next').textContent = IDX === FLAT.length - 1 ? 'סיום ◂' : 'הבא ◂';
+  $('next').textContent = IDX === FLAT.length - 1 ? 'סיום ◂'
+    : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
 }
 function finish() {
   var key = S.mas + '-' + (S.week + 1);
   var q = window.QUIZ && QUIZ[key];
-  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + ' — ' + FLAT.length +
+  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + ' — ' + GROUPS +
     ' קטעים, מתחילת הדף ועד סופו.';
   var a = $('to-quiz');
   if (q) { a.style.display = ''; a.href = './#quiz=' + key; }
@@ -776,8 +778,24 @@ function loadMarks() {
     PAGES = out;
     FLAT = [];
     PAGES.forEach(function (p, i) {
-      p.d.steps.forEach(function (s) { FLAT.push({ p:i, g:s.g, c:s.c }); });
+      p.d.steps.forEach(function (s) {
+        FLAT.push({ p:i, g:s.g, c:s.c, cont: !!s.cont });
+      });
     });
+    /* קטע שחוצה את מעבר העמוד נשמר כשני חלקים עם אותו ביאור,
+       והשני מסומן `cont`. כאן הם מקבלים מספר קטע אחד: התלמיד
+       רואה קודם את הזנב שבסוף עמוד א׳ ואחר כך את הראש שבעמוד ב׳,
+       והמונה לא קופץ. בלי זה מחצית הקטע נבלעת — הלימוד היה מדלג
+       ישר לעמוד הבא ומשאיר את מה שנאמר לפני המעבר. */
+    var num = 0;
+    FLAT.forEach(function (v, i) {
+      if (v.cont && i) { v.n = FLAT[i-1].n; } else { v.n = ++num; }
+    });
+    FLAT.forEach(function (v) {
+      v.parts = FLAT.filter(function (q) { return q.n === v.n; }).length;
+      v.part = FLAT.filter(function (q) { return q.n === v.n; }).indexOf(v) + 1;
+    });
+    GROUPS = num;
     return FLAT.length;
   });
 }

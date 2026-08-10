@@ -52,8 +52,9 @@ label.alt{font-size:.8rem;font-weight:800;cursor:pointer;opacity:.75;
 .stage{background:var(--surface);border-radius:var(--r);padding:10px;
   box-shadow:0 2px 4px rgba(37,29,12,.06),0 10px 26px rgba(37,29,12,.08);
   overflow:auto;position:relative}
-#holder{position:relative;display:inline-block;line-height:0}
-#page{max-width:100%;height:auto;display:block}
+/* הרוחב הוא מה שמשתנה בזום, ולכן .stage מקבל גלילה אמיתית */
+#holder{position:relative;display:block;width:100%;line-height:0}
+#page{width:100%;max-width:none;height:auto;display:block}
 #ov{position:absolute;inset:0;width:100%;height:100%}
 
 aside{background:var(--surface);border-radius:var(--r);padding:14px;
@@ -80,7 +81,6 @@ button.c.hot{background:linear-gradient(140deg,var(--gold-l),var(--gold));
 /* זום: התמונה מוגדלת בטרנספורם ולא בשינוי גודל, כדי שהקואורדינטות
    של הסימון יישארו זהות. פינץ' ושתי אצבעות מזיזים; הקשה אחת
    נשארת בחירה, ולכן אין התנגשות. */
-#holder{transform-origin:0 0}
 .stage{touch-action:pan-x pan-y pinch-zoom}
 .zbar{position:absolute;inset-inline-end:10px;top:10px;z-index:5;display:flex;
   flex-direction:column;gap:5px}
@@ -237,6 +237,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
     <span class="gh" id="ghint"></span>
     <button id="swap" title="החלפת צדדים">⇄</button>
     <button id="layout">מסך מלא</button>
+    <button id="contstep" title="הקטע התחיל בעמוד הקודם">↩ המשך הקטע</button>
     <button class="add" id="addstep2">הוספת הקטע</button>
     <button class="p" id="save2">שמירה</button>
   </div>
@@ -1250,13 +1251,19 @@ function LIB_OK() { return !!(window.DAF_LINKS && document.getElementById('mas')
 function lastChav() {
   var last = STEPS[STEPS.length - 1];
   if (last) return last.c.to;
-  var pg = +selVal('pg') || 1;
-  for (var p = pg - 1; p >= 1; p--) {
-    var rec = BOOK[[selVal('mas'), selVal('daf'), selVal('src'), p].join('|')];
-    var st = rec && rec.steps;
-    if (st && st.length) return st[st.length - 1].c.to;
+  /* סורקים את כל עמודי הדף שלפני העמוד הנוכחי ולוקחים את הפסקה
+     הגבוהה ביותר ששובצה. סריקה ולא "העמוד הקודם בלבד": עמוד אחד
+     יכול להיעדר מהזיכרון ברגע הלא נכון, ואז המונה חזר לאפס
+     והקטע הראשון של העמוד החדש בלע את כל הדף. */
+  var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+  var pg = +selVal('pg') || 1, best = -1;
+  for (var k in BOOK) {
+    if (k.indexOf(pre) !== 0) continue;
+    if ((+k.slice(pre.length) || 1) >= pg) continue;
+    var st = BOOK[k].steps || [];
+    for (var i = 0; i < st.length; i++) best = Math.max(best, st[i].c.to);
   }
-  return -1;
+  return best;
 }
 
 function loadPageState() {
@@ -1270,14 +1277,23 @@ function loadPageState() {
   USED_C = lastChav();
   GSEL = null; CSEL_P = null;
 }
+/* התווית נגזרת מהמפתח שנכתב, ולא מהבוררים שעל המסך.
+   `keepPageState` שומר תמיד את העמוד **הקודם** — זה כל תפקידו —
+   ובזמן שהוא רץ הבוררים כבר מצביעים על העמוד החדש. תווית שנבנתה
+   מהם יצאה על שם דף אחר ועמוד אחר, ורשומה שאינה מעידה על עצמה
+   גרועה מרשומה בלי תווית. */
+function keyLabel(k) {
+  var a = String(k).split('|');
+  var mas = (MAS.filter(function (m) { return m[0] === a[0]; })[0] || [])[1] || a[0];
+  var pg = +a[3] || 1;
+  if (a.length < 4) return k;                    /* קובץ מקומי, בלי מסכת */
+  return mas + ' · דף ' + a[1] + ' · ' + (a[2] === '1' ? 'חברותא' : 'צורת הדף') +
+         ' · ' + (pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : 'עמוד ' + pg);
+}
+
 function keepPageState() {
   if (!PKEY || !S) return;
-  /* השם נשמר עם העמוד ולא רק עם הדף. בלעדיו רשומה בגיליון אינה
-     מעידה על עצמה, וכשמשהו לא מסתדר אי אפשר לדעת מהנתונים אם
-     מדובר בעמוד א׳ או ב׳ בלי לספור שורות. */
-  var pgn = +selVal('pg') || 1;
-  BOOK[PKEY] = { w:S.w, h:S.h,
-    label: shown + (pgn === 1 ? ' · ע״א' : pgn === 2 ? ' · ע״ב' : ' · עמוד ' + pgn),
+  BOOK[PKEY] = { w:S.w, h:S.h, label: keyLabel(PKEY),
     core:[S.core[0]/S.w, S.core[1]/S.w],
     zones: S.zones.map(function (z) {
       return { y0:z.y0/S.h, y1:z.y1/S.h, a:z.a/S.w, b:z.b/S.w,
@@ -1421,10 +1437,15 @@ function markPanel() {
   ['addstep','addstep2'].forEach(function (id) {
     var b = document.getElementById(id); if (b) b.disabled = !ready;
   });
+  var cb = document.getElementById('contstep');
+  if (cb) cb.disabled = !canContinue();
   var mc = document.getElementById('mcur');
+  /* מהיכן ממשיכה החברותא — כתוב במפורש. מונה שגוי הוא הדבר שהכי
+     קשה לראות ממה שעל המסך, והוא זה שגורם לקטע לבלוע דף שלם. */
   if (mc) mc.innerHTML =
     '<div class="' + (g ? 'ok' : 'no') + '">גמרא: ' + (g ? 'שורות ' + g : 'טרם נבחר') + '</div>' +
-    '<div class="' + (c ? 'ok' : 'no') + '">חברותא: ' + (c ? 'פסקה ' + c : 'טרם נבחר') + '</div>';
+    '<div class="' + (c ? 'ok' : 'no') + '">חברותא: ' + (c ? 'פסקה ' + c : 'טרם נבחר') + '</div>' +
+    '<div class="no">ממשיכים מפסקה ' + (USED_C + 2) + '</div>';
   var mh = document.getElementById('mhelp');
   if (mh) mh.innerHTML = 'הקשה על שורה בגמרא ועל פסקה בחברותא — הקטע ממשיך ' +
     'מהמקום שהקודם נגמר. <b>הקשה על שורה אחרת מזיזה את הסוף</b>, ולכן ' +
@@ -1456,8 +1477,41 @@ function markPanel() {
   if (u) u.disabled = !STEPS.length;
 }
 
-function addStep() {
-  if (!GSEL || !CSEL_P) return;
+/* ============================================================
+   קטע שחוצה את מעבר העמוד.
+
+   סוגיה אינה עוצרת בתחתית עמוד א׳: משפט מתחיל שם ונגמר בראש
+   עמוד ב׳, והביאור אחד. עד עכשיו לא היה לזה מקום במודל — קטע
+   שייך לעמוד אחד, ומספרי השורות מתאפסים במעבר.
+
+   הפתרון: הקטע נשמר כשני חלקים, אחד בכל עמוד, עם אותו ביאור,
+   והשני מסומן `cont`. כל חלק נשאר תקין ביחס לעמוד שלו — השורות
+   נשארות מקומיות ואין צורך לגעת בשום דבר אחר — והלימוד מציג את
+   שניהם כקטע אחד: קודם החלק שבסוף עמוד א׳, אחר כך זה שבראשו של
+   ב׳, ורק אז מתקדם. כך התלמיד רואה את שני צדי המעבר.
+
+   בסטודיו: מסמנים את הזנב בעמוד א׳ ומוסיפים כרגיל; עוברים
+   עמוד, מסמנים את הראש, ולוחצים "המשך הקטע" — בלי לבחור
+   חברותא, כי היא כבר נבחרה. ============================================================ */
+function prevStep() {
+  var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+  var pg = +selVal('pg') || 1, best = null, bestPg = 0;
+  for (var k in BOOK) {
+    if (k.indexOf(pre) !== 0) continue;
+    var p = +k.slice(pre.length) || 1;
+    if (p >= pg || p < bestPg) continue;
+    var st = BOOK[k].steps || [];
+    if (st.length) { best = st[st.length - 1]; bestPg = p; }
+  }
+  return best;
+}
+function canContinue() {
+  return !!(GSEL && !STEPS.length && prevStep());
+}
+
+function addStep(cont) {
+  var prev = cont ? prevStep() : null;
+  if (!GSEL || (cont ? !prev : !CSEL_P)) return;
   var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
   var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
   var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
@@ -1466,7 +1520,9 @@ function addStep() {
      כל מה שאחריו: מוחקים אותו, ומה שמוסיפים במקומו נופל בסוף. */
   var step = { g: { from: { line: i0, x: +xa.toFixed(3) },
                     to:   { line: i1, x: +xb.toFixed(3) } },
-               c: { from: CSEL_P.a, to: CSEL_P.b, text: chavText() } };
+               c: cont ? { from: prev.c.from, to: prev.c.to, text: prev.c.text }
+                       : { from: CSEL_P.a, to: CSEL_P.b, text: chavText() } };
+  if (cont) step.cont = 1;
   var at = STEPS.length;
   for (var i = 0; i < STEPS.length; i++) {
     var f = STEPS[i].g.from;
@@ -1624,57 +1680,64 @@ function loadFromSheet() {
 }
 
 /* ============================================================
-   זום ופאן.
-   הקשה נשארת בחירה, ולכן הזום חייב להיות פינץ' או כפתורים —
-   לא גרירה. הטרנספורם על המכל בלבד, כדי שהקואורדינטות של
-   הסימון לא ישתנו.
+   זום ותזוזה.
+
+   הזום משנה את **הרוחב בפועל** ולא רק את הטרנספורם. עם
+   `transform: scale()` תיבת הפריסה נשארת בגודלה המקורי, ולכן
+   ל-`.stage` לא היה מה לגלול: התזוזה הייתה אפשרית רק דרך
+   PANX/PANY של הפינץ', והגיעה עד גבול שרירותי. התמונה נראתה
+   "תקועה" — אי אפשר היה למשוך אותה למטה כדי לראות את השורות
+   שמעל. עכשיו הגלילה היא גלילה רגילה של הדפדפן, בשני הצירים,
+   באצבע אחת ובגלגלת.
+
+   הקשה נשארת בחירה, ולכן הזום עצמו הוא פינץ' או כפתורים.
    ============================================================ */
-var ZOOM = 1, PANX = 0, PANY = 0;
-function applyZoom() {
-  var h = document.getElementById('holder');
-  h.style.transform = 'translate(' + PANX + 'px,' + PANY + 'px) scale(' + ZOOM + ')';
-}
+var ZOOM = 1;
+function stage() { return document.querySelector('.stage'); }
+
 function setZoom(z, cx, cy) {
-  var st = document.querySelector('.stage'), r = st.getBoundingClientRect();
+  var st = stage(), h = document.getElementById('holder');
+  var r = st.getBoundingClientRect();
   cx = cx === undefined ? r.width / 2 : cx;
   cy = cy === undefined ? r.height / 2 : cy;
-  var k = Math.max(1, Math.min(6, z)) / ZOOM;
-  PANX = cx - (cx - PANX) * k;
-  PANY = cy - (cy - PANY) * k;
+  var old = ZOOM;
   ZOOM = Math.max(1, Math.min(6, z));
-  if (ZOOM === 1) { PANX = PANY = 0; }
-  applyZoom();
+  /* הנקודה שמתחת לאצבע נשארת במקומה */
+  var fx = (st.scrollLeft + cx) / old, fy = (st.scrollTop + cy) / old;
+  h.style.width = (ZOOM * 100) + '%';
+  st.scrollLeft = fx * ZOOM - cx;
+  st.scrollTop  = fy * ZOOM - cy;
 }
 function zoomToSel() {
   var sh = selShapes(GSEL); if (!sh.length) return;
-  var st = document.querySelector('.stage'), r = st.getBoundingClientRect();
+  var st = stage();
   var top = sh[0][1], bot = sh[sh.length - 1][1] + sh[sh.length - 1][3];
   var img = document.getElementById('page');
-  var base = img.clientWidth / S.w;                 /* פיקסל תמונה → מסך */
-  var want = Math.min(4, r.height / ((bot - top) * base * 2.2));
-  ZOOM = Math.max(1, want);
-  PANX = 0;
-  PANY = -((top + bot) / 2 * base * ZOOM) + r.height / 2;
-  applyZoom();
+  var base = img.clientWidth / ZOOM / S.w;          /* פיקסל תמונה → מסך ב-100% */
+  var want = Math.min(4, st.clientHeight / ((bot - top) * base * 2.2));
+  setZoom(Math.max(1, want));
+  st.scrollTop = (top + bot) / 2 / S.h * document.getElementById('holder').offsetHeight
+                 - st.clientHeight / 2;
 }
 document.getElementById('zin').onclick  = function () { setZoom(ZOOM * 1.5); };
 document.getElementById('zout').onclick = function () { setZoom(ZOOM / 1.5); };
 document.getElementById('zfit').onclick = function () { setZoom(1); };
 (function pinch() {
-  var st = document.querySelector('.stage'), pts = {}, base = null;
+  /* רק הפינץ' מטופל כאן. תזוזה באצבע אחת היא גלילה של הדפדפן
+     ואינה צריכה קוד — וזה גם מה שהופך אותה לחלקה ובלי גבול. */
+  var st = stage(), pts = {}, base = null;
   st.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'mouse') return;
     pts[e.pointerId] = e;
     var k = Object.keys(pts);
     if (k.length === 2) {
       var a = pts[k[0]], b = pts[k[1]];
-      base = { d: Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY), z: ZOOM,
-               x: PANX, y: PANY };
+      base = { d: Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY), z: ZOOM };
     }
   });
   st.addEventListener('pointermove', function (e) {
     if (!pts[e.pointerId]) return;
-    var was = pts[e.pointerId]; pts[e.pointerId] = e;
+    pts[e.pointerId] = e;
     var k = Object.keys(pts);
     if (k.length === 2 && base) {
       var a = pts[k[0]], b = pts[k[1]];
@@ -1682,9 +1745,6 @@ document.getElementById('zfit').onclick = function () { setZoom(1); };
       var r = st.getBoundingClientRect();
       setZoom(base.z * d / base.d, (a.clientX+b.clientX)/2 - r.left,
                                    (a.clientY+b.clientY)/2 - r.top);
-    } else if (k.length === 1 && ZOOM > 1) {
-      PANX += e.clientX - was.clientX; PANY += e.clientY - was.clientY;
-      applyZoom();
     }
   });
   var drop = function (e) { delete pts[e.pointerId]; if (Object.keys(pts).length < 2) base = null; };
@@ -1787,8 +1847,10 @@ document.getElementById('mode').onclick = function () {
   setMode(MODE === 'mark' ? 'cal' : 'mark');
 };
 ['addstep','addstep2'].forEach(function (id) {
-  var b = document.getElementById(id); if (b) b.onclick = addStep;
+  var b = document.getElementById(id);
+  if (b) b.onclick = function () { addStep(); };
 });
+document.getElementById('contstep').onclick = function () { addStep(true); };
 document.getElementById('undo').onclick = function () {
   if (STEPS.length) removeStep(STEPS.length - 1);
 };
