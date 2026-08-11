@@ -260,6 +260,11 @@ body{background:var(--paper);
   padding:8px 2px;border-radius:10px}
 /* הערכת מספר התלמידים. שורה רחבה ולא כרטיס בתוך רשימה: זו
    שאלה אחת שנשאלת פעם אחת, והמספר שלה מכוון את כל מה שאחריו. */
+/* "אין חובה להזמין" — נאמר לפני הגמרות ולא אחריהן, אחרת הוא
+   קורא כמו נסיגה. שורה אחת, בלי הבטחות ובלי חלופות. */
+.nooblig{font-size:.85rem;color:var(--ink-2);font-weight:600;line-height:1.65;
+  margin-bottom:12px}
+
 .sizebox{background:var(--surface);border-radius:var(--r-s);padding:15px 16px;
   box-shadow:var(--sh-1);margin-bottom:16px;
   display:grid;grid-template-columns:1fr auto;gap:5px 11px;align-items:center}
@@ -941,7 +946,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.11.0';
+var APP_VERSION = '6.11.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1236,6 +1241,11 @@ function renderReg() {
      ונסרקה בלי להשאיר רושם.
      אחריה ישר לעניין: במה בוחרים, כמה זה עולה, ובסוף שם וטלפון. */
   var h = fitBlock() +
+    /* כמה תלמידים — כאן, מיד אחרי הרצועה. הרצועה מראה חבורה,
+       אב ובן, ולומד יחיד; מי שקרא אותה כבר לא סופר את השיעור
+       שלו אלא את הישיבה. וזו שאלת השתתפות, לא שאלת רכישה —
+       ולכן היא לפני הגמרות ולא בתוכן. */
+    sizeRow() +
     /* הרשמה שכבר במכשיר ממלאת את הטופס מראש. אומרים את זה במפורש,
        אחרת המספרים נראים כמו ברירת מחדל שהאפליקציה המציאה. */
     (saved ? '<p class="jump">' + esc(UI.savedNote) + ' · ' +
@@ -1245,11 +1255,8 @@ function renderReg() {
              esc(UI.savedNew) + '</a></p>' : '') +
 
     '<div class="step-n"><i>1</i><b>' + esc(UI.s2) + '</b></div>' +
+    '<p class="nooblig">' + esc(UI.orderNote) + '</p>' +
     recBlocks() +
-
-    /* כמה תלמידים — לפני הכמויות ולא אחריהן. זה המספר שממנו
-       נגזר כל השאר, וכשהוא על המסך ההזמנה מפסיקה להיות ניחוש. */
-    sizeRow() +
 
     '<div class="step-n"><i>2</i><b>' + esc(UI.s3) + '</b></div>' +
     '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' +
