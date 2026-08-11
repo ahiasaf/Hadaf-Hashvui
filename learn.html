@@ -354,10 +354,22 @@ function shapes(d, g) {
 
      ומכיוון ששני הקטעים זזים יחד, הם נשארים צמודים זה לזה. */
   var nip = lineH(d) * R * 0.16;
+
+  /* אוויר בצדי הטור. המסגרת ישבה בדיוק על גבול הטור, כלומר על
+     האות הראשונה ועל האחרונה, ובלי מרווח היא נראית כאילו היא
+     לוחצת על הטקסט.
+
+     האוויר נוסף רק בקצה שהוא גבול הטור. קצה שנופל באמצע שורה
+     הוא נקודת התפר בין שני קטעים — הסוף של אחד וההתחלה של הבא —
+     ומרווח שם היה גורם לשניהם לחפוף. */
+  var air = lineH(d) * R * 0.22;   /* כמו האוויר שמעל ומתחת */
   for (var i = i0; i <= i1 && i < ls.length; i++) {
     var l = ls[i], w = l.x2 - l.a;
-    var from = (i === i0) ? l.x2 - w * xa - (xa > 0.001 ? nip : 0) : l.x2;
-    var to   = (i === i1) ? l.x2 - w * xb - (xb < 0.999 ? nip : 0) : l.a;
+    var cutA = (i === i0) && xa > 0.001;      /* ההתחלה באמצע שורה */
+    var cutB = (i === i1) && xb < 0.999;      /* הסוף באמצע שורה */
+    var from = cutA ? l.x2 - w * xa - nip : (i === i0 ? l.x2 : l.x2) + air;
+    var to   = cutB ? l.x2 - w * xb - nip : (i === i1 ? l.a : l.a) - air;
+    from = Math.min(1, from); to = Math.max(0, to);
     if (to > from) to = from;
     out.push([Math.min(from, to), l.t, Math.abs(to - from), l.b - l.t]);
   }
