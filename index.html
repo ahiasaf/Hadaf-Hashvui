@@ -258,6 +258,23 @@ body{background:var(--paper);
 .num .ctl button:active{transform:scale(.92)}
 .num .ctl input{width:58px;text-align:center;font-size:1.1rem;font-weight:800;
   padding:8px 2px;border-radius:10px}
+/* הערכת מספר התלמידים. שורה רחבה ולא כרטיס בתוך רשימה: זו
+   שאלה אחת שנשאלת פעם אחת, והמספר שלה מכוון את כל מה שאחריו. */
+.sizebox{background:var(--surface);border-radius:var(--r-s);padding:15px 16px;
+  box-shadow:var(--sh-1);margin-bottom:16px;
+  display:grid;grid-template-columns:1fr auto;gap:5px 11px;align-items:center}
+.sizebox .lbl{font-size:.98rem;font-weight:800;line-height:1.45}
+.sizebox .side{text-align:center}
+.sizebox .ctl{display:flex;align-items:center;gap:6px}
+.sizebox .ctl button{width:38px;height:38px;border-radius:11px;border:none;
+  background:var(--sunk);color:var(--blue);font-size:1.2rem;font-weight:800;cursor:pointer}
+.sizebox .ctl button:active{transform:scale(.92)}
+.sizebox .ctl input{width:62px;text-align:center;font-size:1.15rem;font-weight:800;
+  padding:8px 2px;border-radius:10px}
+.sizebox .unit{font-size:.76rem;color:var(--ink-3);font-weight:700;margin-top:5px}
+.sizebox .hint{grid-column:1/-1;margin:7px 0 0;font-size:.79rem;color:var(--ink-3);
+  font-weight:600;line-height:1.6}
+
 .total{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
   border-radius:var(--r-m);padding:17px;text-align:center;box-shadow:var(--sh-2)}
 .total .n{font-size:1.9rem;font-weight:800;letter-spacing:-.04em;line-height:1.1}
@@ -584,12 +601,17 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .rec.blue .pr b{color:var(--blue-d)}
 .rec.green .pr b{color:var(--green-d)}
 .rec .pr s{color:var(--ink-3);font-weight:700}
-/* הפריסה הפתוחה ברוחב מלא — ממנה מתרשמים. הכריכה מעליה בגודלה
-   הטבעי: מתיחה מעבר לו רק מרככת אותה. לחיצה מגדילה כל תמונה. */
+/* ההמלצה והכריכה זו לצד זו: הטקסט תחילה — כלומר מימין — והכריכה
+   הקטנה לצידו. הכריכה רק מזהה את הספר, ואילו הפריסה הפתוחה היא
+   מה שמשכנע, ולכן היא לבדה מקבלת את הרוחב המלא מתחת. */
+.rec .head{display:flex;gap:14px;align-items:flex-start;margin-bottom:13px}
+.rec .head p{flex:1;margin:0}
+.rec .cover{flex:0 0 88px;width:88px;height:auto;display:block;cursor:zoom-in;
+  border-radius:10px;background:var(--sunk);box-shadow:0 3px 12px rgba(11,37,80,.18)}
 .pics{display:grid;gap:10px;justify-items:center}
 .pics img{width:100%;height:auto;display:block;cursor:zoom-in;
   border-radius:var(--r-s);background:var(--sunk);box-shadow:0 3px 14px rgba(11,37,80,.16)}
-.pics img.sm{width:auto;max-width:100%;max-height:240px}
+@media (max-width:360px){ .rec .cover{flex-basis:72px;width:72px} }
 /* שכבת ההגדלה. התמונה נפתחת בגודלה המקורי ולא מוקטנת למסך —
    בנייד "התאמה למסך" הייתה מחזירה אותה כמעט לגודל שבכרטיס, ואז
    ההגדלה לא מוסיפה כלום. גדולה מהמסך → גוללים אליה. */
@@ -919,7 +941,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.10.1';
+var APP_VERSION = '6.11.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1085,28 +1107,36 @@ function renderHome() {
                   : esc(PHASES[nowIdx].t) + ' · ' + esc(PHASES[nowIdx].sub)) + '</span></div>';
 
   /* ---- פס ההרשמה ---- */
-  var joined = INSTITUTIONS.filter(function (i) { return i.joined; }).length;
   var mine = regSaved();
 
-  /* ---- עיגולי הסטטיסטיקה ---- */
+  /* ---- עיגולי הסטטיסטיקה ----
+     מה שמוצג בעיגול הישיבות אינו מובן מאליו: לפני שהישיבות
+     אישרו רשמית, "כבר בתוכנית תשפ״ז" הוא מספר שאי אפשר לעמוד
+     מאחוריו. לכן ברירת המחדל היא מי שהיה בתשפ״ו — אמת מלאה
+     שגם משכנעת — והמתג בניהול מעביר לתשפ״ז כשיגיע הזמן. */
+  var showNow = CFG.roster === 'now';
+  var inList  = INSTITUTIONS.filter(function (i) { return showNow ? i.joined : i.last; });
+  var openN   = INSTITUTIONS.length - inList.length;
+
   document.getElementById('rings').innerHTML =
     '<div class="rings">' +
       '<div class="ring"><div class="in"><div class="n">' + PROGRAM.lastYear.students +
-        '</div><div class="t">תלמידים למדו<br>מסכת ' + PROGRAM.lastYear.masechet +
-        ' בתשפ"ו</div></div></div>' +
-      '<div class="ring b"><div class="in"><div class="n">' + joined + '</div>' +
-        '<div class="t">ישיבות כבר<br>בתוכנית תשפ"ז</div></div></div>' +
+        '</div><div class="t">' +
+        UI.ringStudents.replace('{mas}', esc(PROGRAM.lastYear.masechet)) +
+        '</div></div></div>' +
+      '<div class="ring b"><div class="in"><div class="n">' + inList.length + '</div>' +
+        '<div class="t">' + (showNow ? UI.ringInstNow : UI.ringInstLast) +
+        '</div></div></div>' +
     '</div>';
 
-  /* ---- מי כבר בפנים — גלוי, כדי לעודד למלא את השורות ---- */
-  var inList = INSTITUTIONS.filter(function (i) { return i.joined; });
-  var openN  = INSTITUTIONS.length - inList.length;
+  /* ---- הרשימה עצמה, גלויה, כדי לעודד למלא את השורות ---- */
   document.getElementById('inbox').innerHTML =
-    '<div class="inbox"><div class="hd"><b>מי כבר בפנים</b>' +
-    '<span>' + joined + ' מתוך ' + INSTITUTIONS.length + '</span></div><div class="joined">' +
+    '<div class="inbox"><div class="hd"><b>' +
+    esc(showNow ? UI.inTitleNow : UI.inTitleLast) + '</b>' +
+    '<span>' + inList.length + ' מתוך ' + INSTITUTIONS.length + '</span></div><div class="joined">' +
     inList.map(function (i) { return '<span class="jp">' + esc(i.name) + '</span>'; }).join('') +
-    (openN ? '<span class="jp open">ועוד ' + openN + ' מקומות פתוחים</span>' : '') +
-    '</div><div class="note">הרשימה מתעדכנת בכל הרשת — כל ישיבה שנרשמת מופיעה כאן.</div></div>';
+    (openN ? '<span class="jp open">' + esc(UI.inOpen.replace('{n}', openN)) + '</span>' : '') +
+    '</div><div class="note">' + esc(UI.inNote) + '</div></div>';
 
   /* ---- קריאה לפעולה, אחרי ההוכחה ולא לפניה ---- */
   /* מחיר אחיד לכולן → מספר אחד; מחירים שונים → החל מהזול שבהם;
@@ -1144,7 +1174,7 @@ function openFromHome(i) {
    ============================================================ */
 /* qty — כמות לכל צירוף של מסכת ומהדורה, במפתח 'מסכת-מהדורה'.
    זו גם התשובה ל"כמה תלמידים", ולכן אין שאלה נפרדת. */
-var reg = { inst:'', instOther:'', who:'', phone:'', qty:{} };
+var reg = { inst:'', instOther:'', who:'', phone:'', size:0, qty:{} };
 
 function regSaved() {
   try { return JSON.parse(localStorage.getItem('dfReg') || 'null'); } catch (e) { return null; }
@@ -1193,6 +1223,7 @@ function renderReg() {
   var saved = regSaved();
   if (saved && !reg.inst) {
     reg.inst = saved.code || ''; reg.who = saved.who || ''; reg.phone = saved.phone || '';
+    reg.size = saved.size || 0;
     reg.qty = regMigrate(saved);
     reg.instOther = saved.instOther || '';
   }
@@ -1215,6 +1246,10 @@ function renderReg() {
 
     '<div class="step-n"><i>1</i><b>' + esc(UI.s2) + '</b></div>' +
     recBlocks() +
+
+    /* כמה תלמידים — לפני הכמויות ולא אחריהן. זה המספר שממנו
+       נגזר כל השאר, וכשהוא על המסך ההזמנה מפסיקה להיות ניחוש. */
+    sizeRow() +
 
     '<div class="step-n"><i>2</i><b>' + esc(UI.s3) + '</b></div>' +
     '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' +
@@ -1278,17 +1313,26 @@ function fitBlock() {
    את העבודה, ולכן הפריסה הפתוחה מוצגת ברוחב מלא: זו התמונה שצריך
    להתרשם ממנה. הכריכה בגודלה הטבעי מעליה, רק כדי לזהות את הספר.
    תנאי ההנחה יושב כאן, צמוד למחיר של המהדורה שלו. */
+/* הכריכה קטנה ולצד ההמלצה, והפריסה הפתוחה לבדה מתחת ברוחב מלא.
+   הכריכה רק מזהה את הספר — שתי שורות טקסט מספיקות לה — ואילו
+   הפריסה הפתוחה היא מה שבאמת משכנע, ולכן היא זו שמקבלת רוחב. */
 function recBlocks() {
+  var img = function (s, pic, cls) {
+    return '<img loading="lazy" class="' + cls + '" src="' + esc(pic.src) +
+           '" alt="' + esc(s.name) + '" onclick="zoom(\'' + esc(pic.src) +
+           '\',\'' + esc(pic.hi || '') + '\')">';
+  };
   return '<div style="display:grid;gap:13px">' + SFARIM.map(function (s) {
-    var p = priceOf(s.id);
-    return '<div class="rec ' + s.tone + '"><p>' + s.rec + '</p>' +
-      (s.pics && s.pics.length
-        ? '<div class="pics">' + s.pics.map(function (pic) {
-            return '<img loading="lazy"' + (pic.small ? ' class="sm"' : '') +
-                   ' src="' + esc(pic.src) + '" alt="' + esc(s.name) +
-                   '" onclick="zoom(\'' + esc(pic.src) + '\',\'' +
-                   esc(pic.hi || '') + '\')">';
-          }).join('') + '</div>'
+    var p = priceOf(s.id), pics = s.pics || [];
+    var cover = pics.filter(function (q) { return q.small; })[0];
+    var open  = pics.filter(function (q) { return !q.small; });
+
+    return '<div class="rec ' + s.tone + '">' +
+      '<div class="head"><p>' + s.rec + '</p>' +
+      (cover ? img(s, cover, 'cover') : '') + '</div>' +
+      (open.length
+        ? '<div class="pics">' + open.map(function (q) { return img(s, q, ''); }).join('') +
+          '</div>'
         : '') +
       '<div class="pr"><b>' + shek(p.price) + '</b> לחוברת' +
       (p.off ? ' <s>' + shek(p.list) + '</s>' : '') + '</div>' +
@@ -1336,9 +1380,11 @@ function orderRows() {
   return '<div style="display:grid;gap:16px">' + TRACKS.map(function (t) {
     return '<div><div class="mtitle">מסכת ' + esc(t.masechet) + '</div>' +
       '<div style="display:grid;gap:9px">' +
+      /* רק המחיר. מה כל מהדורה נותנת כבר נאמר בסעיף שמעל, ושם
+         גם המקום להחליט; כאן רק מקלידים כמות, והתיאור החוזר
+         מעמיס ומאיץ בהחלטה שהיא ממילא אישית. */
       SFARIM.map(function (s) {
-        return numRow(qk(t.id, s.id), s.name,
-                      s.fit + ' · ' + shek(priceOf(s.id).price) + ' לחוברת');
+        return numRow(qk(t.id, s.id), s.name, shek(priceOf(s.id).price) + ' לחוברת');
       }).join('') + '</div></div>';
   }).join('') + '</div>';
 }
@@ -1358,6 +1404,21 @@ function regTotal() {
          (save ? '<div class="t">' + fill(UI.saving, { sum:shek(save) }) + '</div>' : '') +
          '</div>';
 }
+/* הערכת מספר התלמידים.
+   בקפיצות של חמש, מאותה סיבה שהכמויות קופצות בחמש: מי שסופר
+   אחד-אחד עוצר מוקדם. מי שרוצה מספר אחר לוחץ על השדה וכותב. */
+function sizeRow() {
+  return '<div class="sizebox"><div class="lbl">' + esc(UI.sizeLabel) + '</div>' +
+    '<div class="side"><div class="ctl"><button onclick="sizeStep(-5)">−</button>' +
+    '<input type="tel" id="r-size" value="' + (reg.size || 0) +
+    '" onchange="sizeSet(this.value)">' +
+    '<button onclick="sizeStep(5)">+</button></div>' +
+    '<div class="unit">' + esc(UI.sizeUnit) + '</div></div>' +
+    '<p class="hint">' + esc(UI.sizeHint) + '</p></div>';
+}
+function sizeSet(v) { reg.size = Math.max(0, parseInt(v, 10) || 0); renderReg(); }
+function sizeStep(d) { sizeSet((reg.size || 0) + d); }
+
 function numRow(id, label, sub) {
   return '<div class="num"><div class="lbl">' + esc(label) +
     '<small>' + esc(sub) + '</small></div><span></span>' +
@@ -1394,7 +1455,7 @@ function sendReg() {
   /* עמודה לכל צירוף מסכת-מהדורה בגיליון, ולצידה שורת סיכום
      קריאה לאדם — כדי שההזמנה תהיה ברורה גם בלי לפענח מפתחות. */
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
-                  total:total, at:new Date().toISOString() };
+                  size:reg.size || 0, total:total, at:new Date().toISOString() };
   TRACKS.forEach(function (t) {
     SFARIM.forEach(function (s) { payload[qk(t.id, s.id)] = reg.qty[qk(t.id, s.id)] || 0; });
   });
@@ -1411,6 +1472,7 @@ function sendReg() {
     'ישיבה: ' + name + '\n' +
     'איש קשר: ' + reg.who + '\n' +
     'טלפון: ' + reg.phone + '\n' +
+    (reg.size ? 'תלמידים (הערכה): ' + reg.size + '\n' : '') +
     TRACKS.map(function (t) {
       return 'מסכת ' + t.masechet + ':\n' + SFARIM.map(function (s) {
         return '  ' + s.name + ': ' + (reg.qty[qk(t.id, s.id)] || 0);
@@ -1436,7 +1498,8 @@ function sendReg() {
 /* העמודות בגיליון ההרשמות, לפי הסדר. מקור האמת היחיד לשמות שלהן. */
 function regCols(name, total, summary) {
   var cols = [['ישיבה', name], ['קוד', reg.inst],
-              ['איש קשר', reg.who], ['טלפון', reg.phone]];
+              ['איש קשר', reg.who], ['טלפון', reg.phone],
+              ['תלמידים (הערכה)', reg.size || '']];
   TRACKS.forEach(function (t) {
     SFARIM.forEach(function (s) {
       cols.push([t.masechet + ' · ' + s.name, reg.qty[qk(t.id, s.id)] || 0]);
@@ -2470,8 +2533,25 @@ function admInst(el) {
       'onclick="loadInstitutions().then(function(){renderHome();admPane();})">' +
       'ניסיון טעינה מחדש</button></div></div>';
 
-  el.innerHTML = src + '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
-    '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה.</p>' +
+  var now = CFG.roster === 'now';
+  el.innerHTML = src +
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
+    '<p class="h">כל עוד הישיבות לא אישרו רשמית, המספר היחיד שאפשר ' +
+    'לעמוד מאחוריו הוא של אשתקד.</p>' +
+    '<div class="row"><div>הישיבות שהיו בתשפ"ו' +
+    '<div class="sub">' + INSTITUTIONS.filter(function (i) { return i.last; }).length +
+    ' ישיבות</div></div>' +
+    '<button class="sw' + (now ? '' : ' on') + '" onclick="cfgSet(\'roster\',\'last\');' +
+    'renderHome();admPane()" aria-label="תשפו"></button></div>' +
+    '<div class="row"><div>מי שאישר לתשפ"ז' +
+    '<div class="sub">' + INSTITUTIONS.filter(function (i) { return i.joined; }).length +
+    ' ישיבות · לפי המתגים למטה</div></div>' +
+    '<button class="sw' + (now ? ' on' : '') + '" onclick="cfgSet(\'roster\',\'now\');' +
+    'renderHome();admPane()" aria-label="תשפז"></button></div></div>' +
+
+    '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
+    '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה, ' +
+    'כשהתצוגה למעלה היא של תשפ"ז.</p>' +
     INSTITUTIONS.map(function (i) {
       return '<div class="row"><div>' + esc(i.name) +
         (i.last ? '<div class="sub">למדו בתשפ"ו</div>' : '') + '</div>' +
