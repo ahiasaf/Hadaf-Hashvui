@@ -984,7 +984,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.14.0';
+var APP_VERSION = '6.14.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2020,21 +2020,53 @@ function pushCalls(now) {
   now ? go() : (callTimer = setTimeout(go, 1500));
 }
 
+/* מוסד לפי שם. ההשוואה סלחנית בגרשיים וברווחים, כי אותה ישיבה
+   נכתבת בגיליון ובקוד בכמה כתיבים. */
+function instByName(s) {
+  var k = nameKey(s);
+  if (!k) return null;
+  var hit = INSTITUTIONS.filter(function (i) { return nameKey(i.name) === k; })[0];
+  if (hit) return hit;
+  /* הכלה: "יב״ע חדרה — חטיבה" מול "יב״ע חדרה" */
+  return INSTITUTIONS.filter(function (i) {
+    var n = nameKey(i.name);
+    return n.length > 4 && (k.indexOf(n) === 0 || n.indexOf(k) === 0);
+  })[0] || null;
+}
+
 /* שורה מהגיליון → איש קשר. העמודות אינן קבועות בסדר שלהן, כי
-   הגיליון נערך ביד: מזהים לפי צורה — מה שנראה כמספר הוא טלפון,
-   TRUE הוא "היה בתשפ"ו", והראשון שאינו אלה הוא שם הישיבה. */
+   הגיליון נערך ביד, ולכן מזהים לפי צורה: מה שנראה כמספר הוא
+   טלפון, ו-TRUE הוא סימון.
+
+   מי הישיבה ומי האדם: לא "התא הראשון". בגיליון האמיתי שם הרב
+   מופיע לפני שם הישיבה, וההנחה ההיא הפכה את "הרב יחזקאל רפאלי"
+   לשם המוסד — ומשם נשבר גם המיון, גם הסימון של תשפ"ו וגם
+   ההצמדה לתיעוד. הישיבה מזוהה מול רשימת המוסדות שכבר יש לנו,
+   וכל השאר הם אנשי הקשר. */
 function rowToContact(row) {
-  var name = '', people = [], phones = [], last = false;
+  var text = [], phones = [], flag = false;
   (row || []).forEach(function (v) {
-    var c = String(v == null ? '' : v).trim().replace(/⁩|⁦/g, '');
-    if (YES.test(c)) { last = true; return; }
+    var c = String(v == null ? '' : v).trim().replace(/\u2069|\u2066/g, '');
+    if (YES.test(c)) { flag = true; return; }
     if (/^(FALSE|לא)$/i.test(c) || !c || c === 'X' || c === 'x') return;
     if (/^[0-9\-\+\(\)\s]{9,}$/.test(c)) { phones.push(c); return; }
-    if (!name) name = c; else people.push(c);
+    text.push(c);
   });
-  if (!name) return null;
-  return { name:name, who:people.join(' · '), phone:phones[0] || '',
-           phone2:phones[1] || '', last:last, stage:'new', note:'', at:'' };
+  if (!text.length) return null;
+
+  var name = '', inst = null, people = [];
+  text.forEach(function (t) {
+    var hit = inst ? null : instByName(t);
+    if (hit) { inst = hit; name = t; } else people.push(t);
+  });
+  if (!inst) { name = text[0]; people = text.slice(1); }
+
+  return { name:name, code: inst ? inst.code : '', who:people.join(' · '),
+           phone:phones[0] || '', phone2:phones[1] || '',
+           /* מי היה בתשפ"ו נקבע ברשימת המוסדות, ולא בעמודה שאולי
+              קיימת בגיליון ואולי לא */
+           last: inst ? !!inst.last : flag,
+           stage:'new', note:'', at:'' };
 }
 
 // מנקה מספר לחיוג ולוואטסאפ
@@ -2085,6 +2117,9 @@ function renderCalls() {
   STAGES.forEach(function (s) {
     counts[s.k] = list.filter(function (c) { return c.stage === s.k; }).length;
   });
+  /* הממשיכים מאשתקד הם השיחות הראשונות, ולכן הם קבוצה לעצמם
+     ולא רק סדר מיון: אפשר לראות רק אותם ולעבור עליהם. */
+  counts.last = list.filter(function (c) { return c.last; }).length;
 
   var h = '<div class="hero" style="padding:20px"><span class="glow g1"></span>' +
           '<span class="glow g3"></span><h2 style="font-size:1.3rem">מוקד שיחות</h2>' +
@@ -2097,6 +2132,9 @@ function renderCalls() {
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
        '" onclick="callFilter(\'all\')"><b>' + counts.all + '</b><span>הכל</span></div>' +
+       '<div class="cb' + (state.filter === 'last' ? ' on' : '') +
+       '" onclick="callFilter(\'last\')"><b>' + counts.last +
+       '</b><span>תשפ״ו</span></div>' +
        '<div class="cb' + (state.filter === 'new' ? ' on' : '') +
        '" onclick="callFilter(\'new\')"><b>' + counts.new + '</b><span>לא דיברתי</span></div>' +
        '<div class="cb' + (state.filter === 'warm' ? ' on' : '') +
@@ -2107,10 +2145,18 @@ function renderCalls() {
 
   // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
   var shown = list.map(function (c, i) { return { c:c, i:i }; })
-    .filter(function (o) { return state.filter === 'all' || o.c.stage === state.filter; })
+    .filter(function (o) {
+      if (state.filter === 'all')  return true;
+      if (state.filter === 'last') return !!o.c.last;
+      return o.c.stage === state.filter;
+    })
     .sort(function (a, b) { return (b.c.last ? 1 : 0) - (a.c.last ? 1 : 0); });
 
-  if (!shown.length) h += '<div class="msg">אין מוסדות בקטגוריה הזו.</div>';
+  if (!shown.length) h += '<div class="msg">' +
+    (state.filter === 'last'
+      ? 'אף שם ברשימה לא זוהה כישיבה שהייתה בתשפ"ו. בדקו ששמות ' +
+        'הישיבות בגיליון זהים לאלה שבמסך "מוסדות".'
+      : 'אין מוסדות בקטגוריה הזו.') + '</div>';
 
   shown.forEach(function (o) {
     var c = o.c, i = o.i;
@@ -2464,7 +2510,9 @@ function renderAdmin() {
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
           esc(PROGRAM.contact.coord) + ' · גרסה ' + APP_VERSION + '</div></div>' +
-          '<button class="back" onclick="admExit()">לאפליקציה →</button></div>' +
+          '<div style="display:flex;gap:7px;align-items:center">' +
+          '<a class="back" style="text-decoration:none" href="studio.html">סטודיו ↗</a>' +
+          '<button class="back" onclick="admExit()">לאפליקציה →</button></div></div>' +
           '<div class="tabs" style="margin-top:12px">' +
           TABS.map(function (t) {
             return '<button class="' + (admTab === t[0] ? 'on' : '') +
