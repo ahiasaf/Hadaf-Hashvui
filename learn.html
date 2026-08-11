@@ -500,7 +500,9 @@ function focus() {
 /* ============================================================
    צורת הדף — משיכה מהדרייב וציור.
    ============================================================ */
-var BYTES = null, DOC = null, IMG = {};
+/* מפתחות לפי דף ולא רק לפי עמוד: שיעור יכול לגלוש אל הדף הבא,
+   ואז שני דפים שונים מוצגים באותו מסך. */
+var BYTES = {}, DOCS = {}, IMG = {};
 
 function pdfReady() {
   if (window.pdfjsLib) return Promise.resolve();
@@ -551,39 +553,45 @@ function grab(id) {
    ============================================================ */
 var LIB = null;
 
-function libSrc(pg) {
+function libSrc(daf, pg) {
   var m = LIB && LIB[S.mas];
-  var a = m && m[dafKey(S.daf)];
+  var a = m && m[dafKey(daf)];
   if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
-  return 'daf/' + S.mas + '/' + dafKey(S.daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
+  return 'daf/' + S.mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
 }
 function loadLib() {
   return fetch('daf/index.json').then(function (r) { return r.ok ? r.json() : null; })
     .then(function (j) { LIB = j || {}; }).catch(function () { LIB = {}; });
 }
 
-function loadGemara() {
+function loadGemara(daf) {
+  daf = daf || S.daf;
+  var k = dafKey(daf);
   /* יש תמונות לדף הזה — אין צורך ב-PDF כלל */
-  if (libSrc(1)) return Promise.resolve();
-  var links = ((window.DAF_LINKS || {})[S.mas] || {})[dafKey(S.daf)] || [];
+  if (libSrc(daf, 1)) return Promise.resolve();
+  if (BYTES[k]) return Promise.resolve();
+  var links = ((window.DAF_LINKS || {})[S.mas] || {})[k] || [];
   var id = fileId(links[0]);
   if (!id) return Promise.reject(new Error('no file'));
   if (!API) return Promise.reject(new Error('no api'));
-  return grab(id).then(function (buf) { BYTES = buf; });
+  return grab(id).then(function (buf) { BYTES[k] = buf; });
 }
 
 /* עמוד אחד מצויר פעם אחת ונשמר כתמונה. דף שבו הקטעים חוצים את
    שני העמודים מחליף ביניהם הלוך ושוב, וציור מחדש בכל מעבר היה
    עוצר את הלימוד לשנייה בכל פעם. */
-function showPage(n) {
-  if (IMG[n]) return setImg(IMG[n]);
-  var src = libSrc(n);
-  if (src) { IMG[n] = src; return setImg(src); }
-  return pdfReady()
+function showPage(daf, n) {
+  var dk = dafKey(daf), key = dk + '|' + n;
+  if (IMG[key]) return setImg(IMG[key]);
+  var src = libSrc(daf, n);
+  if (src) { IMG[key] = src; return setImg(src); }
+  return loadGemara(daf)
+    .then(pdfReady)
     .then(function () {
-      if (DOC) return DOC;
-      return pdfjsLib.getDocument({ data: BYTES.slice(0) }).promise
-        .then(function (doc) { DOC = doc; return doc; });
+      if (DOCS[dk]) return DOCS[dk];
+      if (!BYTES[dk]) throw new Error('no bytes');
+      return pdfjsLib.getDocument({ data: BYTES[dk].slice(0) }).promise
+        .then(function (doc) { DOCS[dk] = doc; return doc; });
     })
     .then(function (doc) { return doc.getPage(Math.min(n, doc.numPages)); })
     .then(function (pg) {
@@ -593,8 +601,8 @@ function showPage(n) {
       c.width = Math.round(vp.width); c.height = Math.round(vp.height);
       return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise
         .then(function () {
-          IMG[n] = c.toDataURL('image/webp', 0.86);
-          return setImg(IMG[n]);
+          IMG[key] = c.toDataURL('image/webp', 0.86);
+          return setImg(IMG[key]);
         });
     });
 }
@@ -744,7 +752,8 @@ function go(i) {
   if (i >= FLAT.length) { finish(); return; }
   IDX = i;
   var st = FLAT[IDX];
-  var render = (SHOWN === st.p) ? Promise.resolve() : showPage(PAGES[st.p].pg);
+  var render = (SHOWN === st.p) ? Promise.resolve()
+             : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
     paint(); focus(); paintChav(); bar();
@@ -759,7 +768,14 @@ function amud(pg) { return pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : 'עמוד
 
 function bar() {
   var st = FLAT[IDX];
-  if (st) $('t-daf').textContent = HEAD + ' ' + amud(PAGES[st.p].pg);
+  /* כשהשיעור גולש אל הדף הבא, הכותרת אומרת את הדף האמיתי
+     שעל המסך. תלמיד שרואה "דף ג׳ ע״א" יודע איפה לפתוח. */
+  if (st) {
+    var pp = PAGES[st.p];
+    $('t-daf').textContent = (dafKey(pp.daf) === dafKey(S.daf)
+      ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) +
+      ' ' + amud(pp.pg);
+  }
   $('count').textContent = 'קטע ' + (st ? st.n : 1) + ' מתוך ' + GROUPS +
     (st && st.parts > 1 ? ' · חלק ' + st.part + ' מ-' + st.parts : '');
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
@@ -809,25 +825,43 @@ function pickDaf() {
 function loadMarks() {
   return sheetCsv(MARK_TAB).then(function (rows) {
     if (!rows || rows.length < 2) return 0;
-    var out = [];
+    var mine = [], tail = null;
     rows.slice(1).forEach(function (r) {
-      if (r[0] !== S.mas || dafKey(r[1]) !== dafKey(S.daf)) return;
+      if (r[0] !== S.mas) return;
       /* עמודה "עמוד" נשמרה כ-"מקור|עמוד"; מקור 0 הוא צורת הדף. */
       var a = String(r[2] || '').split('|');
       if (a[0] !== '0') return;
-      try {
-        var d = JSON.parse(r[3]);
-        if (d && d.steps && d.steps.length) out.push({ pg:+a[1] || 1, d:d });
-      } catch (e) {}
+      var d;
+      try { d = JSON.parse(r[3]); } catch (e) { return; }
+      if (!d || !d.steps || !d.steps.length) return;
+      var pg = +a[1] || 1;
+
+      if (dafKey(r[1]) === dafKey(S.daf)) { mine.push({ daf:S.daf, pg:pg, d:d }); return; }
+      /* דף אחר שהצהיר שתחילתו שייכת לדף שלנו — זה הזנב.
+         הוא תמיד בעמוד א׳, כי שם נגמר משפט שגלש מהדף הקודם. */
+      if (pg === 1 && d.prev > 0 && dafKey(d.prevDaf || '') === dafKey(S.daf))
+        tail = { daf:r[1], pg:1, d:d, take:d.prev };
     });
-    out.sort(function (p, q) { return p.pg - q.pg; });
-    PAGES = out;
+    mine.sort(function (p, q) { return p.pg - q.pg; });
+
+    /* הזנב של הדף שלפנינו כבר נלמד שם, ולכן הוא יורד מכאן */
+    var skip = 0;
+    if (mine.length && mine[0].pg === 1 && mine[0].d.prev > 0) skip = mine[0].d.prev;
+
+    PAGES = mine.slice();
+    if (tail) PAGES.push(tail);
+
     FLAT = [];
     PAGES.forEach(function (p, i) {
-      p.d.steps.forEach(function (s) {
+      var st = p.d.steps;
+      if (p === tail) st = st.slice(0, tail.take);
+      else if (i === 0 && skip) st = st.slice(skip);
+      st.forEach(function (s) {
         FLAT.push({ p:i, g:s.g, c:s.c, cont: !!s.cont });
       });
     });
+    /* קטע ראשון שנותר אחרי הדילוג אינו "המשך" של דבר */
+    if (FLAT.length) FLAT[0].cont = false;
     /* קטע שחוצה את מעבר העמוד נשמר כשני חלקים עם אותו ביאור,
        והשני מסומן `cont`. כאן הם מקבלים מספר קטע אחד: התלמיד
        רואה קודם את הזנב שבסוף עמוד א׳ ואחר כך את הראש שבעמוד ב׳,
@@ -878,7 +912,7 @@ function boot() {
              'אפשר ללמוד אותו כרגיל מצורת הדף ומהחברותא שבעמוד השבוע.', false);
         return;
       }
-      return showPage(PAGES[0].pg).then(function () {
+      return showPage(PAGES[0].daf, PAGES[0].pg).then(function () {
         SHOWN = 0;
         unveil(); buttons(true);
         try { if (localStorage.getItem('df:chav') === '1') drawer(true); } catch (e) {}

@@ -330,9 +330,14 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
+  <button id="stoppt">⌁ נקודת עצירה — סוף הדף הקודם</button>
   <hr>
   <button class="p" id="save2">שמירה בגיליון</button>
 </div>
+
+<!-- יריעת הבחירה של הפעולות הנדירות: פיצול פסקה בחברותא,
+     וקביעת נקודת עצירה. התוכן נבנה בכל פתיחה. -->
+<div class="splitbox" id="splitbox"></div>
 
 <!-- לוח השנה וקישורי הדפים — אותם קבצים שהאפליקציה משתמשת בהם.
      הבורר נשען עליהם ואינו מחזיק רשימה משלו. -->
@@ -1271,7 +1276,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.9.0';
+var STUDIO_VER = '6.14.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1408,6 +1413,10 @@ function keyLabel(k) {
 
 function keepPageState() {
   if (!PKEY || !S) return;
+  /* מה שאינו נגזר מהמסך — פיצולי פסקאות, נקודת עצירה — חייב
+     לשרוד. הכתיבה כאן בונה את הרשומה מחדש, ובלי ההעברה למטה
+     כל פיצול שנעשה נמחק ברגע שעוברים עמוד. */
+  var was = BOOK[PKEY] || {};
   BOOK[PKEY] = { w:S.w, h:S.h, label: keyLabel(PKEY),
     core:[S.core[0]/S.w, S.core[1]/S.w],
     zones: S.zones.map(function (z) {
@@ -1415,6 +1424,8 @@ function keepPageState() {
                lines:(z.lines||[]).map(function(l){ return [l[0]/S.h, l[1]/S.h]; }) };
     }),
     steps: STEPS };
+  if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
+  if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
 }
 var GSEL = null;         // { a:{i,x}, b:{i,x} } לפי אינדקס שורה
 function flatLines() {
@@ -1610,7 +1621,12 @@ function markPanel() {
      ומה שחשוב מכולם: עמוד שכבר סומן עד סופו אומר זאת במפורש.
      בלי זה הוא נראה כמו עמוד שלא נענה להקשות. */
   var done = STEPS.length && nextStart().i >= flatLines().length;
-  if (hint) hint.textContent = done ? '✓ העמוד כולו מסומן · ' + STEPS.length + ' קטעים'
+  /* נקודת עצירה קיימת נאמרת כאן, אחרת היא סימון בלתי נראה
+     שאי אפשר לדעת שנקבע ואי אפשר לזכור שצריך לבטל. */
+  var pv = (BOOK[PKEY] || {}).prev;
+  if (hint) hint.textContent =
+      pv ? '⌁ ' + pv + ' קטעים ראשונים → דף ' + ((BOOK[PKEY] || {}).prevDaf || '')
+    : done ? '✓ העמוד כולו מסומן · ' + STEPS.length + ' קטעים'
     : (cont || ready) ? ''
     : (g ? 'עכשיו בחברותא'
          : (STEPS.length ? STEPS.length + ' קטעים · המשך בגמרא' : 'סמנו בגמרא'));
@@ -2293,8 +2309,87 @@ document.getElementById('addstep2').onclick = function () {
   addStep(this.dataset.cont === '1');
 };
 
+/* ============================================================
+   נקודת עצירה.
+
+   העמוד היומי אינו נגמר תמיד בסוף הדף. לפעמים המשפט נמשך עוד
+   כמה שורות אל הדף הבא, ואז שיעור של דף ב׳ צריך להימשך אל תוך
+   דף ג׳ עד לאותה נקודה — ולימוד של דף ג׳ צריך להתחיל אחריה.
+
+   הסימון נעשה כאן, בדף שאליו גלש הקטע, כי רק כשמסמנים אותו
+   רואים היכן הוא באמת נגמר. נשמר על הדף הזה ולא על הקודם:
+   `prev` — כמה מהקטעים הראשונים שייכים לדף שלפני, ו-`prevDaf`
+   שמו של אותו דף. כך מסך הלימוד מוצא את הזנב בלי לדעת דבר על
+   סדר הדפים במסכת.
+
+   בלי סימון — שום דבר לא משתנה.
+   ============================================================ */
+function prevDafName() {
+  var el = document.getElementById('daf');
+  var it = el && el._items && el._items[+el.value - 1];
+  return it ? it[0] : '';
+}
+
+function stopSheet() {
+  var box = document.getElementById('splitbox');
+  var pg = +selVal('pg') || 1;
+  var pd = prevDafName();
+  var rec = BOOK[PKEY] || {};
+  var cur = rec.prev || 0;
+
+  if (pg !== 1) {
+    box.innerHTML = '<div class="sh"><b>רק בעמוד א׳</b>' +
+      '<p>נקודת העצירה מסמנת היכן נגמר שיעור הדף הקודם, ולכן ' +
+      'היא נקבעת בעמוד א׳ של הדף שאליו הוא גלש.</p>' +
+      '<button class="cl">סגירה</button></div>';
+  } else if (!pd) {
+    box.innerHTML = '<div class="sh"><b>זה הדף הראשון</b>' +
+      '<p>אין לפניו דף שאליו אפשר לצרף קטעים.</p>' +
+      '<button class="cl">סגירה</button></div>';
+  } else if (!STEPS.length) {
+    box.innerHTML = '<div class="sh"><b>עוד אין קטעים בעמוד</b>' +
+      '<p>סמנו קודם את הקטעים, ואז אפשר לקבוע עד היכן נמשך ' +
+      'השיעור של דף ' + esc(pd) + '.</p>' +
+      '<button class="cl">סגירה</button></div>';
+  } else {
+    box.innerHTML = '<div class="sh"><b>עד היכן נמשך דף ' + esc(pd) + '?</b>' +
+      '<p>הקטעים שתבחרו יילמדו בסוף דף ' + esc(pd) + ', ולא ' +
+      'בתחילת הדף הזה.</p>' +
+      '<button class="sp" data-n="0">' +
+      (cur ? 'ביטול — הדף נגמר בגבול הרגיל' : '◂ אין המשך (ברירת המחדל)') +
+      '</button>' +
+      STEPS.map(function (st, k) {
+        var n = k + 1;
+        return '<button class="sp" data-n="' + n + '"' +
+          (n === cur ? ' style="border-color:var(--gold);background:#FFFBF2"' : '') +
+          '>עד קטע ' + n + (n === cur ? ' · מסומן כעת' : '') + '</button>';
+      }).join('') +
+      '<button class="cl">ביטול</button></div>';
+  }
+  box.className = 'splitbox on';
+  [].forEach.call(box.querySelectorAll('.sp'), function (b) {
+    b.onclick = function () { setStop(+b.dataset.n, pd); };
+  });
+  [].forEach.call(box.querySelectorAll('.cl'), function (b) {
+    b.onclick = function () { box.className = 'splitbox'; };
+  });
+}
+
+function setStop(n, pd) {
+  document.getElementById('splitbox').className = 'splitbox';
+  keepPageState();                       /* קודם המצב, אחרת ידרוס */
+  var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
+  if (n > 0) { rec.prev = n; rec.prevDaf = pd; }
+  else { delete rec.prev; delete rec.prevDaf; }
+  touched();
+  markPanel();
+  say(n ? n + ' קטעים ראשונים שייכים לדף ' + pd + '.'
+        : 'נקודת העצירה בוטלה — הדף נגמר בגבול הרגיל.');
+}
+
 /* תפריט הפעולות הנדירות */
 document.getElementById('unsaved').onclick = function () { saveToSheet(); };
+document.getElementById('stoppt').onclick = function () { stopSheet(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
   SPLIT_MODE = true;
