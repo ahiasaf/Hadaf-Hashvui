@@ -651,10 +651,83 @@ function analyse(m, w, h, pit0) {
     return Math.abs(z.pitch - gpit) <= Math.abs(z.pitch - cpit);
   });
 
+  snapZones(m, w, zones, gpit, bx0, gA, gB, bx1);
+
   return { w:w, h:h, sc:sc, bbox:[x0,y0,x1,y1],
            outer:[bx0,bx1], inner:[gA,gB],
            core:[bx0,bx1], spine:[gA,gB],
            gpitch:gpit, cpitch:cpit, zones:zones, grid:[bx0, gA, gB, bx1] };
+}
+
+/* ============================================================
+   הצמדת גבול האזור לתפר האמיתי.
+
+   גבול האזורים נמצא מתוך ממוצע נע על אותות המרזבים, ולכן הוא
+   נופל בקירוב: המעבר מזוהה כשחצי מהחלון כבר עבר, וזה בערך חצי
+   שורה מוקדם מדי. בפועל זה קרה שוב ושוב באותו מקום — בדיוק
+   במעבר שבו השורות מתרחבות — והשורה הצרה האחרונה נבלעה באזור
+   הרחב ונראתה שם כשורה חצי ריקה.
+
+   כאן זה נקבע במדידה ולא בהערכה. השורה שיושבת על הגבול נבחנת
+   ישירות: אם הדיו שלה נעצר במסגרת הפנימית היא שייכת לאזור הצר,
+   ואם הוא נמשך אל השוליים — לאזור הרחב. הגבול זז אל התפר שבין
+   השורות, ולא לתוך שורה.
+
+   ההזזה חסומה לשורה וחצי. מעבר לזה כבר לא מדובר בסטייה של
+   ההחלקה אלא בזיהוי שגוי, ואז עדיף להשאיר את מה שנמצא ולתת
+   לעורך לתקן ביד.
+   ============================================================ */
+function inkIn(m, w, x0, x1, t, b) {
+  if (x1 - x0 < 3 || b <= t) return 0;
+  var s = 0;
+  for (var y = t; y < b; y++) s += rowMean(m, w, y, x0, x1);
+  return s / (b - t);
+}
+
+function snapZones(m, w, zones, pit, bx0, gA, gB, bx1) {
+  for (var i = 0; i < zones.length - 1; i++) {
+    var up = zones[i], dn = zones[i+1];
+    if (up.k === dn.k) continue;
+
+    var wide = (up.b - up.a) >= (dn.b - dn.a) ? up : dn;
+    var narrow = wide === up ? dn : up;
+    /* הרצועות שקיימות ברחב ואינן בצר — שם מכריעים */
+    var L = [Math.min(wide.a, narrow.a), Math.max(wide.a, narrow.a)];
+    var R = [Math.min(wide.b, narrow.b), Math.max(wide.b, narrow.b)];
+    if (L[1] - L[0] < 3 && R[1] - R[0] < 3) continue;
+
+    var bnd = up.y1;
+    var lines = linesIn(m, w, wide.a, wide.b,
+                        Math.max(0, bnd - Math.round(pit * 2.5)),
+                        bnd + Math.round(pit * 2.5), pit, true);
+    if (!lines.length) continue;
+
+    /* השורה שהגבול חוצה, ואם אין כזו — הקרובה לו */
+    var hit = null;
+    for (var j = 0; j < lines.length; j++) {
+      var l = lines[j];
+      if (l[0] <= bnd && bnd <= l[1]) { hit = l; break; }
+    }
+    if (!hit) {
+      var best = Infinity;
+      lines.forEach(function (l) {
+        var d = Math.min(Math.abs(l[0] - bnd), Math.abs(l[1] - bnd));
+        if (d < best) { best = d; hit = l; }
+      });
+      if (best > pit) continue;
+    }
+
+    var core = inkIn(m, w, Math.max(gA, wide.a), Math.min(gB, wide.b), hit[0], hit[1]);
+    if (core < .01) continue;                     /* שורה ריקה — אין מה למדוד */
+    var out = Math.max(inkIn(m, w, L[0], L[1], hit[0], hit[1]),
+                       inkIn(m, w, R[0], R[1], hit[0], hit[1]));
+    var isWide = out > core * .25;
+
+    /* לאיזה אזור השורה שייכת, ומשם היכן הגבול */
+    var y = (isWide === (wide === up)) ? hit[1] : hit[0] - 1;
+    if (Math.abs(y - bnd) > pit * 1.5) continue;
+    up.y1 = y; dn.y0 = y + 1;
+  }
 }
 
 /* חברותא אינו דף וילנא אלא A4 בטור אחד עם פסקאות. אין בו מרזבים
@@ -1287,7 +1360,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.16.0';
+var STUDIO_VER = '6.19.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
