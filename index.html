@@ -277,6 +277,28 @@ body{background:var(--paper);
 .wp.on::after{content:'מחייגים אליו';margin-inline-start:auto;font-size:.7rem;
   font-weight:800;color:var(--blue)}
 
+/* עריכת כרטיס */
+.ct .edit{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
+  width:30px;height:30px;font-size:.9rem;color:var(--ink-2);cursor:pointer;flex:none}
+#cedit{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
+  background:rgba(11,22,45,.45)}
+#cedit.on{display:flex}
+#cedit .sh{background:var(--surface);width:100%;max-height:88vh;overflow:auto;
+  border-radius:18px 18px 0 0;padding:15px 16px calc(15px + env(safe-area-inset-bottom))}
+#cedit .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#cedit .hd b{font-size:1rem;font-weight:800}
+#cedit .hd button{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
+  padding:6px 11px;font-size:.78rem;font-weight:800;color:var(--ink-2);cursor:pointer}
+#cedit .ce-last{display:flex;align-items:center;gap:8px;margin-top:10px;
+  font-size:.9rem;font-weight:700}
+#cedit .ce-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;
+  align-items:center;margin-bottom:6px}
+#cedit .ce-row .ce-p{grid-column:1/3}
+#cedit .ce-row input{font:inherit;font-size:.88rem;font-weight:700;padding:9px 10px;
+  border:1px solid var(--rule);border-radius:9px;background:#fff;min-width:0}
+#cedit .ce-x{grid-row:1/3;border:1px solid var(--rule);background:var(--sunk);
+  border-radius:9px;width:34px;height:100%;color:var(--stop);font-weight:800;cursor:pointer}
+
 .sizebox{background:var(--surface);border-radius:var(--r-s);padding:15px 16px;
   box-shadow:var(--sh-1);margin-bottom:16px;
   display:grid;grid-template-columns:1fr auto;gap:5px 11px;align-items:center}
@@ -1004,7 +1026,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.19.0';
+var APP_VERSION = '6.20.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1998,9 +2020,14 @@ function pullCalls() {
       callSay('לא נמצאה לשונית "' + CONTACT_TAB + '".');
       return false;
     }
+    /* שורת הכותרות היא הראשונה — אלא אם יש בה טלפון, ואז אין
+       בגיליון כותרות בכלל והשורה הזו היא כבר נתונים. */
+    var hasPhone = people[0].some(function (v) { return isPhone(String(v || '').trim()); });
+    var head = hasPhone ? [] : people[0];
+    var body = hasPhone ? people : people.slice(1);
     var out = [];
-    people.slice(1).forEach(function (row) {
-      var c = rowToContact(row, people[0]);
+    body.forEach(function (row) {
+      var c = rowToContact(row, head);
       if (c) out.push(c);
     });
     if (!out.length) { callSay('הלשונית ריקה.'); return false; }
@@ -2010,15 +2037,25 @@ function pullCalls() {
     var was = {};
     (log || []).slice(1).forEach(function (r2) {
       if (r2[0]) was[nameKey(r2[0])] = { stage:r2[1] || 'new', note:r2[2] || '',
-                                         at:r2[3] || '', who:r2[4] || '' };
+                                         at:r2[3] || '', who:r2[4] || '',
+                                         ed:r2[5] || '' };
     });
     var mine = {};
-    contacts().forEach(function (c) { mine[nameKey(c.name)] = c; });
+    contacts().forEach(function (c) { mine[nameKey(c.key || c.name)] = c; });
 
     out.forEach(function (c) {
-      var k = nameKey(c.name), s = was[k], m = mine[k];
+      var k = nameKey(c.key || c.name), s = was[k], m = mine[k];
       if (s) {
         c.stage = s.stage; c.note = s.note; c.at = s.at;
+        /* עריכה ידנית גוברת על מה שנקרא מהגיליון */
+        if (s.ed) {
+          try {
+            var e = JSON.parse(s.ed);
+            if (e.name) c.name = e.name;
+            if (e.people && e.people.length) c.people = e.people;
+            c.last = !!e.last; c.edited = 1;
+          } catch (err) {}
+        }
         if (s.who) {
           var at = peopleOf(c).map(function (q) { return nameKey(q.name); })
                               .indexOf(nameKey(s.who));
@@ -2050,15 +2087,22 @@ function pushCalls(now) {
   var go = function () {
     if (!API && !CFG.api) { callSay('נשמר על המכשיר · אין כתובת שרת'); return; }
     var rows = contacts()
-      .filter(function (c) { return c.stage !== 'new' || c.note || c.primary; })
+      .filter(function (c) {
+        return c.stage !== 'new' || c.note || c.primary || c.edited;
+      })
       .map(function (c) {
         var me = mainOf(c);
-        return [c.name, c.stage, c.note || '', c.at || '', me ? me.name : ''];
+        /* העריכה נשמרת כ-JSON בעמודה משלה. עמודה אחת ולא חמש,
+           כי המבנה עוד ישתנה והגיליון לא צריך לרדוף אחריו. */
+        var ed = c.edited ? JSON.stringify({ name:c.name, last:!!c.last,
+                                             people: peopleOf(c) }) : '';
+        return [c.key || c.name, c.stage, c.note || '', c.at || '',
+                me ? me.name : '', ed];
       });
     callSay('שומר…');
     fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
       body: JSON.stringify({ action:'table', tab: CALL_TAB,
-        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר']),
+        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה']),
         rows: JSON.stringify(rows) }) })
       .then(function () { callSay(rows.length + ' שיחות · נשמר בגיליון'); })
       .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
@@ -2085,16 +2129,34 @@ function isPhone(c) {
 
 /* מוסד לפי שם. ההשוואה סלחנית בגרשיים וברווחים, כי אותה ישיבה
    נכתבת בגיליון ובקוד בכמה כתיבים. */
+/* השוואת שמות ישיבות. הכתיב בגיליון ובקוד אינו זהה: גרשיים,
+   מקפים, "יב״ע" שלפעמים כתוב ולפעמים לא, ותוספות כמו "חטיבה".
+   לכן ההשוואה היא על המילים המשמעותיות בלבד. */
+var INST_SKIP = /^(יבע|ישיבת|ישיבה|בני|עקיבא|תיכונית|חטיבת|חטיבה|ע|ה)$/;
+function instWords(s) {
+  return String(s || '').replace(/[^א-ת\s]/g, ' ').split(/\s+/)
+    .filter(function (w) { return w && !INST_SKIP.test(w); });
+}
+/* תואר בראש התא — זה אדם, לא מוסד. בלי הבדיקה הזו "הרב חיים
+   גורן" נמצא כישיבה בגלל המילה המשותפת "חיים" עם "נתיבות חיים",
+   ואז שם הרב הופך לשם המוסד. */
+var PERSON = /^(הרב|רב|הרה"ג|הרה״ג|ר'|ר׳|מר|הגאון)\s/;
 function instByName(s) {
   var k = nameKey(s);
-  if (!k) return null;
+  if (!k || PERSON.test(String(s).trim())) return null;
   var hit = INSTITUTIONS.filter(function (i) { return nameKey(i.name) === k; })[0];
   if (hit) return hit;
-  /* הכלה: "יב״ע חדרה — חטיבה" מול "יב״ע חדרה" */
-  return INSTITUTIONS.filter(function (i) {
-    var n = nameKey(i.name);
-    return n.length > 4 && (k.indexOf(n) === 0 || n.indexOf(k) === 0);
-  })[0] || null;
+  /* מילה משמעותית משותפת אחת מספיקה — "הדרום", "הראל", "חדרה".
+     כשיש כמה מועמדים בוחרים את בעל החפיפה הגדולה ביותר. */
+  var mine = instWords(s);
+  if (!mine.length) return null;
+  var best = null, bestN = 0;
+  INSTITUTIONS.forEach(function (i) {
+    var his = instWords(i.name);
+    var n = mine.filter(function (w) { return his.indexOf(w) >= 0; }).length;
+    if (n > bestN) { bestN = n; best = i; }
+  });
+  return bestN ? best : null;
 }
 
 /* שורה מהגיליון → ישיבה ואנשי הקשר שלה.
@@ -2165,12 +2227,17 @@ function rowToContact(row, head) {
   var pri = 0;
   for (var j = 0; j < people.length; j++) if (people[j].phone) { pri = j; break; }
 
-  return { name:name, code: inst ? inst.code : '',
+  return { name:name,
+           /* השם כפי שנקרא מהגיליון, ולעולם לא נערך. הוא המפתח
+              שמחבר בין השורה בגיליון ליומן — שינוי שם בעריכה היה
+              מנתק את הכרטיס מהתיעוד שלו. */
+           key:name,
+           code: inst ? inst.code : '',
            people:people, primary:pri,
-           /* הסימון שבגיליון קודם — הוא מה שהרכז רואה מול העיניים
-              ומה שהוא מתחזק. רשימת המוסדות היא הגיבוי, לשורות
-              שאין בהן עמודת סימון בכלל. */
-           last: flag || (inst ? !!inst.last : false),
+           /* מי היה בתשפ"ו — לפי רשימת המוסדות שבאפליקציה, שהיא
+              המקור המוסמך. עמודת סימון בגיליון משמשת רק לשורות
+              שלא זוהו מול הרשימה, ובכרטיס עצמו יש דריסה ידנית. */
+           last: inst ? !!inst.last : flag,
            stage:'new', note:'', at:'' };
 }
 
@@ -2293,40 +2360,42 @@ function renderCalls() {
 
   shown.forEach(function (o) {
     var c = o.c, i = o.i;
-    var ps = peopleOf(c), me = mainOf(c);
+    var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
 
     h += '<div class="ct s-' + c.stage + '"><div class="h"><div>' +
          '<div class="nm">' + esc(c.name) + '</div>' +
-         '</div>' + (c.last ? '<span class="last">תשפ"ו</span>' : '') + '</div>';
+         '</div><div style="display:flex;gap:6px;align-items:center">' +
+         (c.last ? '<span class="last">תשפ"ו</span>' : '') +
+         '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
+         '</div></div>';
 
-    /* יותר מאדם אחד — ראש הישיבה מפנה לרכז, ואז צריך לדעת אל מי
-       מחייגים. השורה הנבחרת היא זו שהכפתורים מצייתים לה, והבחירה
-       נשמרת כדי שהשיחה הבאה תלך ישר לשם. */
-    if (ps.length > 1) {
+    /* שורה לכל איש קשר, תמיד — גם כשהוא אחד. ראש החטיבה מעמיד
+       רכז, ואז צריך לדעת בוודאות של מי המספר שמחייגים אליו.
+       ההקשה בוחרת את מי שהכפתורים מצייתים לו, והבחירה נשמרת. */
+    if (ps.length) {
       h += '<div class="whos">';
       ps.forEach(function (q, k) {
-        h += '<button class="wp' + (k === (c.primary || 0) ? ' on' : '') +
+        h += '<button class="wp' + (k === pi ? ' on' : '') +
           '" onclick="setMain(' + i + ',' + k + ')">' +
-          '<b>' + esc(q.name) + '</b>' +
+          '<b>' + esc(q.name || 'ללא שם') + '</b>' +
           (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
           (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>';
       });
       h += '</div>';
-    } else if (ps[0] && ps[0].name && ps[0].name !== c.name) {
-      h += '<div class="who">' + esc(ps[0].name) +
-           (ps[0].role ? ' · ' + esc(ps[0].role) : '') + '</div>';
     }
 
+    /* הכפתורים נושאים את השם, כדי שלא יהיה ספק לאן הם מחייגים */
+    var dial = function (name, ph, faint) {
+      return '<div class="acts"' + (faint ? ' style="margin-top:8px"' : '') + '>' +
+        '<a class="call"' + (faint ? ' style="opacity:.82"' : '') +
+        ' href="tel:' + digits(ph) + '">📞 ' + esc(name) + '</a>' +
+        '<a class="wa"' + (faint ? ' style="opacity:.82"' : '') +
+        ' href="https://wa.me/' + waNum(ph) + '" target="_blank" rel="noopener">וואטסאפ</a></div>';
+    };
+
     if (me && me.phone) {
-      h += '<div class="acts">' +
-           '<a class="call" href="tel:' + digits(me.phone) + '">📞 חייג</a>' +
-           '<a class="wa" href="https://wa.me/' + waNum(me.phone) +
-           '" target="_blank" rel="noopener">וואטסאפ</a></div>';
-      if (me.phone2)
-        h += '<div class="acts" style="margin-top:8px"><a class="call" style="opacity:.8" href="tel:' +
-             digits(me.phone2) + '">📞 מספר נוסף</a>' +
-             '<a class="wa" style="opacity:.8" href="https://wa.me/' + waNum(me.phone2) +
-             '" target="_blank" rel="noopener">וואטסאפ</a></div>';
+      h += dial(me.name || 'חייג', me.phone, false);
+      if (me.phone2) h += dial((me.name || '') + ' · נוסף', me.phone2, true);
     } else {
       h += '<div style="font-size:.83rem;color:var(--stop);font-weight:800;margin-top:10px">' +
            'אין מספר טלפון</div>';
@@ -2363,6 +2432,81 @@ function setStage(i, k) {
   l[i].stage = k; l[i].at = new Date().toISOString();
   saveContacts(l); renderCalls(); pushCalls();
 }
+/* ============================================================
+   עריכת כרטיס.
+
+   הרשימה מגיעה מהגיליון, ורוב הזמן היא נקראת נכון. אבל גיליון
+   שנערך ביד מפתיע: עמודה שהוזזה, ראש חטיבה שהעמיד רכז חדש,
+   ישיבה ששמה נכתב אחרת. עד עכשיו כל תיקון כזה היה דורש שינוי
+   בקוד — וזה לא סביר.
+
+   כאן הכל נערך במקום: שם הישיבה, אנשי הקשר, הטלפונים, מי היה
+   בתשפ"ו. העריכה נשמרת ביומן השיחות כ-JSON בעמודה משלה, ולכן
+   היא שורדת טעינה מחדש וגוברת על מה שנקרא מהגיליון. מה שלא
+   נערך ממשיך לבוא מהגיליון כרגיל.
+   ============================================================ */
+var EDIT_AT = -1;
+
+function editContact(i) {
+  var l = contacts(), c = l[i];
+  if (!c) return;
+  EDIT_AT = i;
+  var ps = peopleOf(c);
+  var box = document.getElementById('cedit') ||
+            document.body.appendChild(Object.assign(document.createElement('div'),
+              { id:'cedit' }));
+  box.innerHTML =
+    '<div class="sh"><div class="hd"><b>עריכת כרטיס</b>' +
+    '<button onclick="editClose()">סגירה</button></div>' +
+    '<div class="fld"><div class="label">שם הישיבה</div>' +
+    '<input id="ce-name" type="text" value="' + esc(c.name) + '"></div>' +
+    '<label class="ce-last"><input id="ce-last" type="checkbox"' +
+    (c.last ? ' checked' : '') + '> הייתה בתוכנית תשפ"ו</label>' +
+    '<div class="label" style="margin-top:12px">אנשי קשר</div>' +
+    '<div id="ce-people">' + ps.map(function (q, k) { return cePerson(q, k); }).join('') +
+    '</div>' +
+    '<button class="btn g" style="margin-top:6px" onclick="ceAdd()">＋ איש קשר</button>' +
+    '<button class="btn p" style="margin-top:10px" onclick="editSave()">שמירה</button>' +
+    '</div>';
+  box.className = 'on';
+}
+function cePerson(q, k) {
+  return '<div class="ce-row" data-k="' + k + '">' +
+    '<input class="ce-n" type="text" placeholder="שם" value="' + esc(q.name || '') + '">' +
+    '<input class="ce-r" type="text" placeholder="תפקיד" value="' + esc(q.role || '') + '">' +
+    '<input class="ce-p" type="tel" dir="ltr" placeholder="טלפון" value="' +
+    esc(q.phone || '') + '">' +
+    '<button class="ce-x" onclick="this.parentNode.remove()" title="הסרה">✕</button></div>';
+}
+function ceAdd() {
+  var w = document.getElementById('ce-people');
+  w.insertAdjacentHTML('beforeend', cePerson({}, w.children.length));
+}
+function editClose() {
+  EDIT_AT = -1;
+  var b = document.getElementById('cedit');
+  if (b) b.className = '';
+}
+function editSave() {
+  var l = contacts(), c = l[EDIT_AT];
+  if (!c) { editClose(); return; }
+  var people = [];
+  [].forEach.call(document.querySelectorAll('#ce-people .ce-row'), function (r) {
+    var n = r.querySelector('.ce-n').value.trim();
+    var ro = r.querySelector('.ce-r').value.trim();
+    var ph = r.querySelector('.ce-p').value.trim();
+    if (n || ph) people.push({ name:n, role:ro, phone:ph, phone2:'' });
+  });
+  c.name = document.getElementById('ce-name').value.trim() || c.name;
+  c.last = document.getElementById('ce-last').checked;
+  c.people = people;
+  c.primary = Math.min(c.primary || 0, Math.max(0, people.length - 1));
+  c.edited = 1;                       /* מכאן ואילך הגיליון לא דורס */
+  c.at = new Date().toISOString();
+  saveContacts(l);
+  editClose(); renderCalls(); pushCalls(1);
+}
+
 /* איש הקשר שהכפתורים מצייתים לו. נשמר ומסונכרן כמו הסטטוס —
    ראש ישיבה שהפנה לרכז לא צריך להיות מופנה שוב בשיחה הבאה. */
 function setMain(i, k) {

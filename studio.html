@@ -646,9 +646,13 @@ function analyse(m, w, h, pit0) {
      מתחתיה. אזור שמרווח השורה בו קרוב לפירוש ולא לגמרא אינו
      גמרא — גם אם הוא לא האחרון. 33 מול 29-30, ולכן משווים
      לשני העוגנים ולא לסף שרירותי. */
+  /* הסף אינו סימטרי, בכוונה. אזור עודף הוא לחיצה אחת של מחיקה;
+     אזור שנעלם אינו ניתן להחזרה בלי לזהות מחדש את כל העמוד —
+     וזה בדיוק מה שקרה בדף שבו הגוש הרחב שבתחתית לא הופיע. לכן
+     אזור נזרק רק כשהוא **בבירור** פירוש ולא גמרא. */
   zones = zones.filter(function (z) {
     if (z.k !== 0) return true;                 /* טור צר — ודאי גמרא */
-    return Math.abs(z.pitch - gpit) <= Math.abs(z.pitch - cpit);
+    return Math.abs(z.pitch - gpit) <= Math.abs(z.pitch - cpit) * 1.35;
   });
 
   snapZones(m, w, zones, gpit, bx0, gA, gB, bx1);
@@ -882,6 +886,8 @@ function ctrls(i) {
       t('bup', '▲ שורה') + t('bdown', '▼ שורה') + '</div>' +
     '<div class="cg"><span></span>' +
       t('split', 'פיצול') + t('del', 'מחיקה') + '</div>' +
+    '<div class="cg"><span>אזור חסר</span>' +
+      t('add', '＋ מתחת') + '</div>' +
     '</div>';
 }
 function row(k, v) { return '<div class="stat"><span>'+k+'</span><b>'+v+'</b></div>'; }
@@ -939,6 +945,18 @@ function act(a, i) {
     if (mid === null) return;
     S.zones.splice(i+1, 0, { y0:mid, y1:z.y1, inA:z.inA, inB:z.inB, a:z.a, b:z.b });
     z.y1 = mid - 1;
+  }
+  /* אזור שהזיהוי פספס. נוצר בדיוק בחלל שמתחת לאזור הזה — עד
+     האזור הבא או עד תחתית הדף — ולכן אין מה למדוד ואין מה
+     לנחש: מה שרואים על המסך הוא מה שמתקבל. */
+  if (a === 'add') {
+    var top = z.y1 + 1;
+    var bot = next ? next.y0 - 1 : S.bbox[3];
+    if (bot - top < S.gpitch) return;
+    S.zones.splice(i+1, 0, { y0:top, y1:bot, k:z.k,
+                             inA:z.inA, inB:z.inB, a:z.a, b:z.b,
+                             pitch: z.pitch || S.gpitch });
+    sel = i + 1;
   }
   if (a === 'del') {
     if (S.zones.length < 2) return;
@@ -1360,7 +1378,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.19.0';
+var STUDIO_VER = '6.20.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
