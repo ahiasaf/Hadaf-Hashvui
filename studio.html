@@ -1378,7 +1378,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.20.1';
+var STUDIO_VER = '6.22.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2014,12 +2014,22 @@ function keepLocal() {
       { at: Date.now(), book: BOOK, dirty: DIRTY }));
   } catch (e) {}                /* אין מקום — הגיליון עדיין קיים */
 }
+/* האחסון המקומי הוא עותק של **כל** מה שנעשה במכשיר הזה, ולא רק
+   של מה שטרם נשמר.
+
+   קודם הוא החזיר את הרשומות שסומנו "לא נשמר" בלבד, מתוך הנחה
+   שכל השאר יגיע מהגיליון. ההנחה נשברת בדיוק במקום שבו כואב:
+   שמירה שנכשלה בשקט מנקה את סימון ה"לא נשמר", ואז הרשומה אינה
+   בגיליון וגם אינה נטענת מקומית — והכיול נעלם בלי זכר.
+
+   עכשיו נטען הכל, וסימוני ה"לא נשמר" חוזרים על גביו. */
 function loadLocal() {
   try {
     var v = JSON.parse(localStorage.getItem(LKEY) || 'null');
     if (!v || !v.book) return 0;
+    for (var k in v.book) if (!BOOK[k]) BOOK[k] = v.book[k];
     var n = 0;
-    for (var k in (v.dirty || {})) if (v.book[k]) { BOOK[k] = v.book[k]; DIRTY[k] = 1; n++; }
+    for (var d in (v.dirty || {})) if (BOOK[d]) { DIRTY[d] = 1; n++; }
     return n;
   } catch (e) { return 0; }
 }
@@ -2086,7 +2096,27 @@ function saveToSheet() {
     return fetch(API, { method:'POST', mode:'no-cors',
       body: JSON.stringify({ action:'table', tab: MARK_TAB,
         cols: JSON.stringify(COLS), rows: JSON.stringify(keep) }) })
-      .then(function () {
+      /* no-cors מחזיר תשובה אטומה: גם כשהסקריפט דחה את הכתיבה
+         ה-fetch "מצליח". עד עכשיו סימון ה"לא נשמר" נוקה על סמך
+         ההצלחה המדומה הזו, וזה בדיוק המצב שבו העבודה נעלמת —
+         לא בגיליון, וכבר לא מוגנת מקומית. לכן קוראים חזרה
+         ומוודאים שהעמודים באמת שם. */
+      .then(function () { return new Promise(function (ok) { setTimeout(ok, 1200); }); })
+      .then(function () { return sheetCsv(MARK_TAB); })
+      .then(function (back) {
+        var have = {};
+        (back || []).slice(1).forEach(function (r2) {
+          have[r2[0] + '|' + r2[1] + '|' + r2[2]] = 1;
+        });
+        var missing = [];
+        for (var q2 in BOOK) if (!have[q2]) missing.push(q2);
+        if (missing.length) {
+          keepLocal();                       /* נשאר מוגן מקומית */
+          say('הגיליון לא אישר ' + missing.length + ' עמודים — ' +
+              'העבודה שמורה במכשיר. נסו שוב.', 1);
+          markPanel();
+          return false;
+        }
         var n = 0; for (var q in BOOK) n += (BOOK[q].steps || []).length;
         DIRTY = {}; keepLocal(); markPanel();
         say('נשמר בגיליון · ' + n + ' קטעים · לשונית "' + MARK_TAB + '"');
@@ -2106,7 +2136,18 @@ function loadFromSheet() {
          סימונים במעבר לכיול וחזרה: הטעינה מהגיליון החזירה את
          הגרסה הישנה על גבי החדשה. */
       if (DIRTY[k]) return;
-      try { BOOK[k] = JSON.parse(r[3]); n++; } catch (e) {}
+      try {
+        var rec = JSON.parse(r[3]), was = BOOK[k];
+        /* שורה בגיליון שנכתבה לפני שהכיול נשמר בכלל אינה מכילה
+           אותו, ודריסה מלאה מחקה כיול תקין שנעשה כאן. מה שקיים
+           מקומית ואינו בשורה — נשאר. */
+        if (was) {
+          if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
+          if (!rec.splits && was.splits) rec.splits = was.splits;
+          if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
+        }
+        BOOK[k] = rec; n++;
+      } catch (e) {}
     });
     return n;
   }).catch(function () { return 0; });
