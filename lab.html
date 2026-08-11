@@ -115,7 +115,7 @@ header button.p{background:var(--gold)}
   window.dispatchEvent(new Event('pdfjs-ready'));
 </script>
 <script>
-var LAB_VER = '0.2';
+var LAB_VER = '0.3';
 document.getElementById('ver').textContent = 'v' + LAB_VER;
 
 var TARGET_W = 1500;          // רוחב העיבוד. מספיק לזיהוי, מהיר לצייר.
@@ -379,10 +379,19 @@ function detect() {
   /* המוטה של שורה הוא הרצף האופקי הארוך ביותר שלה, ולא הקצה
      השמאלי והימני ביותר: אות בודדת בשולי הדף אינה מרחיבה אותה. */
   lines.forEach(function (ln) {
+    /* המוטה נמדד מהמפה הגולמית ולא מזו המורחבת. ההרחבה נועדה
+       למצוא שורות ולעמוד בפני רעש, אבל היא מוסיפה רצועה לכל צד
+       — ובגבול הטור זה נראה כאילו המסגרת נכנסת לתוך רש"י. */
     var use = new Uint8Array(NS);
     for (var y3 = ln[0]; y3 < ln[1]; y3++) {
       var o3 = y3 * NS;
-      for (var i3 = 0; i3 < NS; i3++) if (solid[o3+i3]) use[i3] = 1;
+      for (var i3 = 0; i3 < NS; i3++) if (big[o3+i3]) use[i3] = 1;
+    }
+    /* רצועה בודדת אינה קצה של טור */
+    for (var i5 = 0; i5 < NS; i5++) {
+      if (!use[i5]) continue;
+      if ((i5 > 0 && use[i5-1]) || (i5 < NS-1 && use[i5+1])) continue;
+      use[i5] = 0;
     }
     var bs = -1, be = -1, cs = -1;
     for (var i4 = 0; i4 <= NS; i4++) {
@@ -413,13 +422,17 @@ function detect() {
   var out = [], cz = null;
   lines.forEach(function (ln) {
     if (ln[3] <= ln[2]) return;
-    if (cz && overlap(cz.sp, [ln[2], ln[3]]) >= 0.78 && ln[0] - cz.last < pit * 2.2) {
+    var hcz = cz ? median(cz.hs) : 0, hln = ln[1] - ln[0];
+    if (cz && overlap(cz.sp, [ln[2], ln[3]]) >= 0.78 && ln[0] - cz.last < pit * 2.2 &&
+        Math.abs(hcz - hln) <= Math.max(hcz, hln) * 0.35) {
       cz.y1 = y0 + ln[1]; cz.last = ln[1]; cz.n++;
+      cz.hs.push(ln[1] - ln[0]);
       cz.sp[0] = Math.min(cz.sp[0], ln[2]); cz.sp[1] = Math.max(cz.sp[1], ln[3]);
       return;
     }
     if (cz) out.push(cz);
-    cz = { y0: y0 + ln[0], y1: y0 + ln[1], last: ln[1], n:1, sp:[ln[2], ln[3]] };
+    cz = { y0: y0 + ln[0], y1: y0 + ln[1], last: ln[1], n:1,
+           sp:[ln[2], ln[3]], hs:[ln[1] - ln[0]] };
   });
   if (cz) out.push(cz);
 
@@ -460,7 +473,13 @@ function detect() {
       var A = out[q2], B = out[q2+1];
       if (overlap(A.sp, B.sp) < 0.78) continue;
       if (B.y0 - A.y1 > pit * 2.5) continue;
+      /* וגם גובה השורה חייב להתאים. גוש גמרא רחב ופירוש רחב
+         שמתחתיו תופסים את אותו רוחב בדיוק, ובלי המבחן הזה הם
+         מתאחדים לאזור אחד — והמסגרת בולעת את הפירוש. */
+      var ha = median(A.hs), hb = median(B.hs);
+      if (Math.abs(ha - hb) > Math.max(ha, hb) * 0.25) continue;
       A.y1 = Math.max(A.y1, B.y1); A.n += B.n;
+      A.hs = A.hs.concat(B.hs);
       A.sp = [Math.min(A.sp[0], B.sp[0]), Math.max(A.sp[1], B.sp[1])];
       out.splice(q2+1, 1); merged = true; q2--;
     }
