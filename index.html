@@ -486,6 +486,10 @@ body.tk-sheeting #tk-bar{display:none}
 .lnk.dim{opacity:.5}
 .lnk.sug .ic{background:linear-gradient(140deg,#8FBF4A,#4F8A1E);color:#fff}
 .lnk.sug{border-inline-start:3px solid var(--green)}
+/* הדף האינטראקטיבי — אותה שורה כמו השאר, בזהב, כי הוא הדבר
+   היחיד ברשימה שאינו קובץ אלא לימוד. */
+.lnk.inter .ic{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff}
+.lnk.inter{border-inline-start:3px solid var(--gold)}
 .msg{text-align:center;color:var(--ink-3);font-size:.9rem;padding:34px 12px;font-weight:600}
 
 /* ---------- מסך שבוע ---------- */
@@ -1000,7 +1004,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.16.0';
+var APP_VERSION = '6.17.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1686,14 +1690,16 @@ function openWeek(id, i) {
   h += '<div class="sec" style="margin-top:16px"><b>הדף עצמו</b><i></i></div><div class="links">' +
        lnk(lk[0], '⤓', 'צורת הדף', 'הדף להדפסה') +
        lnk(lk[1], 'פ', 'פירוש חברותא', 'ביאור על הדף') +
-       lnk(sgHref, '◆', 'הסוגיה היומית',
-           sgPage ? 'דלגו לעמוד ' + sgPage + ' בחוברת' : 'החוברת הדיגיטלית', 'sug') +
+       /* הלימוד האינטראקטיבי הוא עוד דרך ללמוד את אותו דף, ולכן
+          מקומו כאן ולא כגוש נפרד. הוא נכנס מאוחר, אחרי שהגיליון
+          עונה — כפתור שמבטיח לימוד ומגיע למסך ריק גרוע מכפתור
+          שאינו קיים — ולכן הוא תא ריק שממתין. */
+       '<div id="w-inter"></div>' +
+       (showRow('sugya')
+         ? lnk(sgHref, '◆', 'הסוגיה היומית',
+               sgPage ? 'דלגו לעמוד ' + sgPage + ' בחוברת' : 'החוברת הדיגיטלית', 'sug')
+         : '') +
        '</div>';
-
-  /* 1ב. לימוד אינטראקטיבי — רק לדף שכבר סומן.
-     הכפתור נמסר מאוחר, אחרי שהגיליון עונה: כפתור שמבטיח לימוד
-     ומגיע למסך ריק גרוע מכפתור שאינו קיים. */
-  h += '<div id="w-inter"></div>';
 
   /* 2. החידה */
   if (q) h += '<div class="sec" style="margin-top:18px"><b>החידה השבועית</b><i></i></div>' +
@@ -1745,10 +1751,16 @@ function notYet() { alert('הקישור יתווסף בקרוב.'); return false
    נשאלות רק שתי העמודות הראשונות — הנתונים עצמם כבדים, ולעמוד
    השבוע די לדעת אילו דפים מוכנים.
 
-   INTER_PUBLIC כבוי: המערכת קיימת ועובדת, אך אינה מוצגת מתוך
-   האפליקציה. היא תוצג בנפרד ובהסכמה, ולא כחלק מובנה. להחזרה —
-   להעביר לערך true, וזה כל השינוי הדרוש. */
+   מה שמוצג בשורת "הדף עצמו" נקבע בניהול ← מוסדות, ולא בקוד:
+   הלימוד האינטראקטיבי ממתין להסדרת הזכויות, והסוגיה היומית
+   תלויה בחוברת. INTER_PUBLIC הוא ברירת המחדל בלבד — כבוי —
+   ומה שנבחר בניהול גובר עליו. */
 var INTER_PUBLIC = false;
+var ROW_DEF = { inter:false, sugya:true };
+function showRow(k) {
+  var v = (CFG.rows || {})[k];
+  return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
+}
 var MARKED = null;
 function loadMarked() {
   if (MARKED) return Promise.resolve(MARKED);
@@ -1774,18 +1786,16 @@ function loadMarked() {
 function paintInter(id, daf) {
   var box = document.getElementById('w-inter');
   if (!box) return;
-  if (!INTER_PUBLIC) { box.innerHTML = ''; return; }
+  if (!showRow('inter')) { box.innerHTML = ''; return; }
   var draw = function (m) {
     var el = document.getElementById('w-inter');
     if (!el || !m) return;
     if (!(m[id] || {})[dafKey(daf)]) { el.innerHTML = ''; return; }
     el.innerHTML =
-      '<div class="sec" style="margin-top:18px"><b>לימוד אינטראקטיבי</b><i></i></div>' +
-      '<a class="btn p" style="display:block;text-align:center;text-decoration:none" href="learn.html?mas=' +
-      encodeURIComponent(id) + '&daf=' + encodeURIComponent(daf) + '">' +
-      'ללמוד את הדף — קטע אחר קטע</a>' +
-      '<p style="font-size:.79rem;color:var(--ink-3);text-align:center;margin-top:8px;font-weight:600">' +
-      'הדף מואר קטע-קטע, והביאור של חברותא לצידו.</p>';
+      '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
+      '&daf=' + encodeURIComponent(daf) + '">' +
+      '<span class="ic">◈</span><span>דף אינטראקטיבי' +
+      '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
   };
   draw(MARKED || Store.get('markedCache'));
   loadMarked().then(draw).catch(function () {});
@@ -2689,6 +2699,7 @@ function paintAdmChip() {
 
 function admPane() {
   var el = document.getElementById('adm-pane');
+  if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
   if (admTab === 'reg')   return admReg(el);
   if (admTab === 'inst')  return admInst(el);
   if (admTab === 'calls') {
@@ -2798,6 +2809,17 @@ function admInst(el) {
     '<button class="sw' + (now ? ' on' : '') + '" onclick="cfgSet(\'roster\',\'now\');' +
     'renderHome();admPane()" aria-label="תשפז"></button></div></div>' +
 
+    /* מה נכנס לרשימת "הדף עצמו" בעמוד השבוע. שני אלה בלבד:
+       צורת הדף והחברותא הם הליבה ואינם ניתנים לכיבוי. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד השבוע</h4>' +
+    '<p class="h">שורות ברשימת "הדף עצמו". צורת הדף והחברותא תמיד מוצגות.</p>' +
+    ROW_KEYS.map(function (r) {
+      return '<div class="row"><div>' + esc(r[1]) +
+        '<div class="sub">' + esc(r[2]) + '</div></div>' +
+        '<button class="sw' + (showRow(r[0]) ? ' on' : '') +
+        '" onclick="rowToggle(\'' + r[0] + '\')" aria-label="' + esc(r[1]) + '"></button></div>';
+    }).join('') + '</div>' +
+
     '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
     '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה, ' +
     'כשהתצוגה למעלה היא של תשפ"ז.</p>' +
@@ -2807,6 +2829,16 @@ function admInst(el) {
         '<button class="sw' + (i.joined ? ' on' : '') +
         '" onclick="admToggle(\'' + i.code + '\')" aria-label="שיוך"></button></div>';
     }).join('') + '</div>';
+}
+var ROW_KEYS = [
+  ['inter', 'דף אינטראקטיבי', 'ללמוד את הדף שלב אחר שלב · מוצג רק לדף שסומן'],
+  ['sugya', 'הסוגיה היומית',  'החוברת הדיגיטלית']
+];
+function rowToggle(k) {
+  var r = CFG.rows || {};
+  r[k] = !showRow(k);
+  cfgSet('rows', r);
+  admPane();
 }
 function admToggle(code) {
   var j = CFG.joined || {};
