@@ -1000,7 +1000,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.15.0';
+var APP_VERSION = '6.15.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2022,7 +2022,12 @@ function pullCalls() {
     });
 
     saveContacts(out);
-    callSay(out.length + ' ישיבות · מסונכרן');
+    /* כמה מהן באמת ניתנות לחיוג. בלי המספר הזה אפשר לראות
+       רשימה מלאה ולגלות רק בשיחה שאין ממה לחייג. */
+    var withP = out.filter(function (c) {
+      return peopleOf(c).some(function (q) { return q.phone; });
+    }).length;
+    callSay(out.length + ' ישיבות · ' + withP + ' עם טלפון · מסונכרן');
     return true;
   });
 }
@@ -2049,6 +2054,13 @@ function pushCalls(now) {
       .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
   };
   now ? go() : (callTimer = setTimeout(go, 1500));
+}
+
+/* מה נחשב טלפון. לפחות תשע ספרות, ומותרים מפרידים — כך
+   054-1234567, ‎+972 52 999 8888 ו-03/9998887 כולם נקראים. */
+function isPhone(c) {
+  return /^[+(]?[\d][\d\-\+\(\)\s./]{7,}$/.test(c) &&
+         String(c).replace(/\D/g, '').length >= 9;
 }
 
 /* מוסד לפי שם. ההשוואה סלחנית בגרשיים וברווחים, כי אותה ישיבה
@@ -2080,19 +2092,18 @@ function instByName(s) {
    "רכז" הופכת ל"רכז" שמופיע לצד השם. */
 function rowToContact(row, head) {
   head = head || [];
-  var inst = null, name = '', people = [], loose = [], flag = false, cur = null;
+  var inst = null, name = '', people = [], phones = [], flag = false, cur = null;
 
   (row || []).forEach(function (v, i) {
-    var c = String(v == null ? '' : v).trim().replace(/\u2069|\u2066/g, '');
+    /* סימני כיווניות שגוגל מוסיפה סביב מספרים בעברית — בלי
+       ההסרה הזו התא אינו נראה כמספר טלפון והמספר נעלם. */
+    var c = String(v == null ? '' : v)
+      .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+      .replace(/^'/, '').trim();
     if (YES.test(c)) { flag = true; return; }
     if (/^(FALSE|לא)$/i.test(c) || !c || c === 'X' || c === 'x') return;
 
-    if (/^[0-9\-\+\(\)\s]{9,}$/.test(c)) {
-      if (!cur) { loose.push(c); return; }
-      if (!cur.phone) cur.phone = c; else if (!cur.phone2) cur.phone2 = c;
-      else loose.push(c);
-      return;
-    }
+    if (isPhone(c)) { phones.push({ v:c, at: cur }); return; }
     if (!inst) {
       var hit = instByName(c);
       if (hit) { inst = hit; name = c; cur = null; return; }
@@ -2104,8 +2115,31 @@ function rowToContact(row, head) {
   if (!inst && !people.length) return null;
   /* לא זוהתה ישיבה — הראשון שנמצא משמש כשם, כמו קודם */
   if (!inst && people.length) { name = people[0].name; people = people.slice(1); }
-  if (!people.length && loose.length)
-    people.push({ name:name, role:'', phone:loose.shift(), phone2:loose.shift() || '' });
+  if (!people.length) people.push({ name:name, role:'', phone:'', phone2:'' });
+
+  /* הזיווג בין אדם לטלפון.
+
+     כשמספר הטלפונים שווה למספר האנשים, הצמדה לפי סדר היא
+     הנכונה תמיד — בין אם העמודות משולבות (שם, טלפון, שם,
+     טלפון) ובין אם הן מופרדות (טלפון, טלפון, שם, שם). זה
+     המקרה השכיח, וזה גם מה שנשבר: בגיליון שבו הטלפונים
+     קודמים לשמות הם לא נצמדו לאיש ופשוט נזרקו.
+
+     אחרת נשארים עם הקִרבה — כל טלפון לשם שלפניו — ומה שלא
+     נצמד מחולק למי שעדיין בלי מספר. שום מספר אינו נופל. */
+  if (phones.length === people.length) {
+    people.forEach(function (q, k) { q.phone = phones[k].v; });
+  } else {
+    phones.forEach(function (ph) {
+      var t = ph.at || people.filter(function (q) { return !q.phone; })[0] || people[0];
+      if (!t.phone) t.phone = ph.v;
+      else if (!t.phone2) t.phone2 = ph.v;
+      else {
+        var free = people.filter(function (q) { return !q.phone; })[0];
+        if (free) free.phone = ph.v;
+      }
+    });
+  }
 
   /* מי שיש לו טלפון הוא ברירת המחדל לחיוג */
   var pri = 0;
@@ -2198,7 +2232,14 @@ function renderCalls() {
           ' מתוך ' + list.length + ' ישיבות הצטרפו · ' +
           (list.length - counts.new) + ' שיחות בוצעו</div></div>' +
           '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
-          esc(callSync.state || 'נשמר על המכשיר') + '</div>';
+          esc(callSync.state || 'נשמר על המכשיר') +
+          (list.filter(function (c) {
+             return !peopleOf(c).some(function (q) { return q.phone; });
+           }).length
+            ? ' · ' + list.filter(function (c) {
+                return !peopleOf(c).some(function (q) { return q.phone; });
+              }).length + ' בלי טלפון'
+            : '') + '</div>';
 
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
