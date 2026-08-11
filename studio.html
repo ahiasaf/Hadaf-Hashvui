@@ -1378,7 +1378,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.20.0';
+var STUDIO_VER = '6.20.1';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2417,13 +2417,22 @@ function chavRich() {
    גבולות המילים מזוהים באותה שיטה כמו הכול כאן: הטלת דיו, והפער
    בין מילים הוא רווח. הכוונון נצמד למילה ולא למקום שהאצבע נחתה בו.
    ============================================================ */
+/* גבולות המילים בשורה — לפי רווחים בין אותיות.
+
+   הסריקה האנכית מצומצמת ללב השורה ולא לכל גובהה. שורה ראשונה
+   באזור רחב נוגעת אנכית בשורה האחרונה של הפירוש שלצידה, וכשגם
+   היא נכנסת לספירה כל עמודה נראית מלאה: לא נמצא אף רווח, לא
+   נמצא אף גבול מילה, וההזזה קפצה עד קצה השורה. זה נראה כאילו
+   כל השורה נמחקה בבת אחת. */
 function wordEdges(li) {
   var ls = flatLines(), l = ls[li];
   if (!l) return [];
+  var trim = Math.round((l.b - l.t) * 0.18);
+  var t = l.t + trim, bt = Math.max(t + 1, l.b - trim);
   var gapMin = Math.max(3, Math.round(S.gpitch * 0.18)), col = [];
   for (var x = l.a; x < l.x2; x++) {
     var any = 0;
-    for (var y = l.t; y < l.b && !any; y++) if (D.m[y*D.w+x]) any = 1;
+    for (var y = t; y < bt && !any; y++) if (D.m[y*D.w+x]) any = 1;
     col.push(any);
   }
   var edges = [l.x2], run = 0;
@@ -2435,19 +2444,33 @@ function wordEdges(li) {
   return edges.map(function (x) { return (l.x2 - x) / (l.x2 - l.a); })
               .sort(function (p, q) { return p - q; });
 }
+/* הזזת קצה במילה. שני כללים שאין לחרוג מהם: הקצה אינו עובר את
+   הקצה השני של אותה שורה, וכשלא נמצא גבול מילה מתקדמים בצעד
+   קבוע — עדיף לזוז מעט מדי מאשר לקפוץ לקצה השורה ולאבד את
+   הבחירה כולה. */
 function nudge(which, dir) {
   if (!GSEL) return;
   var first = GSEL.a.i <= GSEL.b.i ? GSEL.a : GSEL.b;
   var last  = GSEL.a.i <= GSEL.b.i ? GSEL.b : GSEL.a;
   var pt = which === 'start' ? first : last;
-  var es = wordEdges(pt.i);
-  if (!es.length) return;
+  var same = first.i === last.i;
+  var MIN = 0.02, STEP = 0.035;
+
+  var lo = 0, hi = 1;
+  if (same) {
+    if (which === 'end') lo = first.x + MIN; else hi = last.x - MIN;
+  }
+  if (hi <= lo) return;
+
   var cur = pt.x, best = null;
-  es.forEach(function (e) {
+  wordEdges(pt.i).forEach(function (e) {
+    if (e < lo - 1e-9 || e > hi + 1e-9) return;
     if (dir > 0 && e > cur + 0.005 && (best === null || e < best)) best = e;
     if (dir < 0 && e < cur - 0.005 && (best === null || e > best)) best = e;
   });
-  if (best === null) return;
+  if (best === null) best = cur + dir * STEP;          /* אין גבול — צעד קבוע */
+  best = Math.max(lo, Math.min(hi, best));
+  if (Math.abs(best - cur) < 1e-9) return;
   pt.x = best;
   markDraw();
 }

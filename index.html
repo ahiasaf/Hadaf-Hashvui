@@ -1026,7 +1026,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.20.0';
+var APP_VERSION = '6.20.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1102,7 +1102,10 @@ function backToWeek()  { openWeek(state.track.id, state.week); }
    בשלוש השניות הראשונות — לא תיאור שלו, ולא שני כפתורים
    שמאחוריהם מסתתר הכול.
    ============================================================ */
-var homeTrack = localStorage.getItem('dfHomeTrack') || 'megila';
+/* ברירת המחדל היא המסכת שהחומרים שלה מוכנים יותר. תלמיד שנכנס
+   בפעם הראשונה צריך לנחות על מסלול מלא, לא על אחד שבהכנה.
+   מי שבחר בעצמו — בחירתו נשמרת וגוברת. */
+var homeTrack = localStorage.getItem('dfHomeTrack') || 'taanit';
 
 function weekOf(tr) { var wi = weekIndex(); return wi < 0 ? 0 : wi; }
 function contentFor(id) {
