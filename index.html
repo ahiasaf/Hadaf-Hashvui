@@ -1000,7 +1000,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.15.1';
+var APP_VERSION = '6.16.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2056,6 +2056,16 @@ function pushCalls(now) {
   now ? go() : (callTimer = setTimeout(go, 1500));
 }
 
+/* סימון "כן" בעמודה. תיבת סימון בגיליון מוצגת כ-TRUE, אבל
+   רשימה שנערכה ביד מסומנת בכל מיני צורות של וי — וכל אחת מהן
+   נראית לעין כמו סימון ולכן חייבת להיחשב כזה.
+
+   שניים אינם כאן בכוונה. ספרה בודדת — "1" בעמודת מספר סידורי
+   היה מסמן את כל השורות, וסימון שנדלק לכולם גרוע מסימון שלא
+   נדלק. ו-X — בעמודה אחת הוא וי ובאחרת הוא בדיוק ההפך, ולכן
+   הוא נשאר מה שהיה: תא ריק. */
+var MARK = /^(TRUE|כן|כ|יש|V|✓|✔|✅|√|●|•|\+)$/i;
+
 /* מה נחשב טלפון. לפחות תשע ספרות, ומותרים מפרידים — כך
    054-1234567, ‎+972 52 999 8888 ו-03/9998887 כולם נקראים. */
 function isPhone(c) {
@@ -2100,8 +2110,8 @@ function rowToContact(row, head) {
     var c = String(v == null ? '' : v)
       .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
       .replace(/^'/, '').trim();
-    if (YES.test(c)) { flag = true; return; }
-    if (/^(FALSE|לא)$/i.test(c) || !c || c === 'X' || c === 'x') return;
+    if (MARK.test(c)) { flag = true; return; }
+    if (/^(FALSE|לא|-|—|X)$/i.test(c) || !c) return;
 
     if (isPhone(c)) { phones.push({ v:c, at: cur }); return; }
     if (!inst) {
@@ -2147,9 +2157,10 @@ function rowToContact(row, head) {
 
   return { name:name, code: inst ? inst.code : '',
            people:people, primary:pri,
-           /* מי היה בתשפ"ו נקבע ברשימת המוסדות, ולא בעמודה שאולי
-              קיימת בגיליון ואולי לא */
-           last: inst ? !!inst.last : flag,
+           /* הסימון שבגיליון קודם — הוא מה שהרכז רואה מול העיניים
+              ומה שהוא מתחזק. רשימת המוסדות היא הגיבוי, לשורות
+              שאין בהן עמודת סימון בכלל. */
+           last: flag || (inst ? !!inst.last : false),
            stage:'new', note:'', at:'' };
 }
 

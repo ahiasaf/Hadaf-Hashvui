@@ -873,7 +873,7 @@ function act(a, i) {
     if (prev && next) prev.y1 = next.y0 - 1;
     sel = Math.max(0, i - 1);
   }
-  relines(); draw();
+  relines(); draw(); touched();
 }
 
 function scrollToZone() {
@@ -914,6 +914,7 @@ function bindHandles() {
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
         stage.style.overflow = wasOverflow;
+        touched();                 /* בשחרור, לא בכל תזוזה */
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
@@ -923,7 +924,17 @@ function bindHandles() {
 }
 
 
-document.getElementById('reset').onclick = function () { if (D) run(); };
+/* "זיהוי מחדש" הוא עכשיו באמת מחדש: הכיול השמור נזרק והזיהוי
+   האוטומטי רץ. זו הדרך לחזור אחורה מתיקון ידני שהשתבש. */
+document.getElementById('reset').onclick = function () {
+  if (!D) return;
+  if (BOOK[PKEY] && BOOK[PKEY].cal &&
+      !confirm('לזרוק את הכיול הידני של העמוד הזה ולזהות מחדש?')) return;
+  /* הזריקה עצמה קורית בתוך run, אחרי ש-keepPageState כבר רץ —
+     אחרת הוא כותב את הכיול הנוכחי בחזרה ואין מה לזרוק. */
+  FRESH = true;
+  run();
+};
 
 document.getElementById('save').onclick = function () {
   keepPageState();
@@ -1276,7 +1287,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.14.0';
+var STUDIO_VER = '6.16.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1313,9 +1324,20 @@ function run() {
   var t = performance.now();
   keepPageState();
   loadPageState();
-  S = analyse(D.m, D.w, D.h) || analyseSimple(D.m, D.w, D.h);
-  if (!S) { say('לא זיהיתי טקסט בעמוד הזה.', 1); return; }
-  relines(); sel = 0;
+  /* כיול שמור קודם לזיהוי מחדש. זו הייתה תקלה שקטה: כל חזרה
+     לעמוד הריצה את הזיהוי האוטומטי מחדש, וכל תיקון ידני —
+     גבול אזור שהוזז, עמודה שהוכנסה או הוצאה — נמחק בלי הודעה. */
+  if (FRESH) {
+    FRESH = false;
+    if (BOOK[PKEY]) { delete BOOK[PKEY].cal; delete BOOK[PKEY].zones; }
+  }
+  var back = restoreCal();
+  if (!back) {
+    S = analyse(D.m, D.w, D.h) || analyseSimple(D.m, D.w, D.h);
+    if (!S) { say('לא זיהיתי טקסט בעמוד הזה.', 1); return; }
+    relines();
+  }
+  sel = 0;
   /* גם החברותא מצוירת מחדש. `loadPageState` כבר הזיז את המונה
      לעמוד החדש, אבל בלי הציור הזה הסימון בחברותא — מה שכבר שובץ
      ואיזו פסקה הבאה — נשאר של העמוד הקודם, והחלון לא גלל למקום
@@ -1326,6 +1348,29 @@ function run() {
   say((shown ? shown + ' · ' : '') +
       (shownFile ? '«' + shownFile + '» · ' : '') +
       'זוהה ב-' + Math.round(performance.now() - t) + 'ms');
+}
+
+/* הכיול ששמור לעמוד הזה, בחזרה לפיקסלים של התמונה הנוכחית.
+   מוחזר false כשאין מה להחזיר, ואז הזיהוי רץ כרגיל. */
+function restoreCal() {
+  var rec = BOOK[PKEY];
+  if (!rec || !rec.cal || !rec.zones || !rec.zones.length) return false;
+  var w = D.w, h = D.h, c = rec.cal;
+  S = {
+    w:w, h:h, sc: w / REF_W, simple: !!c.simple,
+    bbox: (c.bbox || [0,0,1,1]).map(function (v, i) { return v * (i % 2 ? h : w); }),
+    gpitch: (c.gpitch || 0) * h, cpitch: (c.cpitch || 0) * h,
+    core: [rec.core[0] * w, rec.core[1] * w],
+    spine: (c.spine || []).map(function (v) { return v * w; }),
+    grid:  (c.grid  || []).map(function (v) { return v * w; }),
+    zones: rec.zones.map(function (z) {
+      return { y0: z.y0 * h, y1: z.y1 * h, a: z.a * w, b: z.b * w,
+               inA: !!z.inA, inB: !!z.inB, pitch: (c.gpitch || 0) * h,
+               lines: (z.lines || []).map(function (l) { return [l[0]*h, l[1]*h]; }) };
+    })
+  };
+  S.outer = S.inner = S.core;
+  return true;
 }
 
 /* ============================================================
@@ -1339,6 +1384,7 @@ function run() {
    החברותא היא טקסט אמיתי, ולכן שם הבחירה היא בחירת טקסט רגילה.
    ============================================================ */
 var MODE = 'cal';
+var FRESH = false;             // "זיהוי מחדש" נלחץ
 var CHV = null;          // פסקאות החברותא
 var STEPS = [];
 
@@ -1421,8 +1467,16 @@ function keepPageState() {
     core:[S.core[0]/S.w, S.core[1]/S.w],
     zones: S.zones.map(function (z) {
       return { y0:z.y0/S.h, y1:z.y1/S.h, a:z.a/S.w, b:z.b/S.w,
+               inA: !!z.inA, inB: !!z.inB,
                lines:(z.lines||[]).map(function(l){ return [l[0]/S.h, l[1]/S.h]; }) };
     }),
+    /* מה שדרוש כדי להחזיר את הכיול בדיוק כפי שהושאר. בלי זה
+       הזיהוי רץ מחדש בכל חזרה לעמוד, וכל תיקון ידני נמחק. */
+    cal: { bbox: S.bbox.map(function (v, i) { return v / (i % 2 ? S.h : S.w); }),
+           gpitch: S.gpitch / S.h, cpitch: S.cpitch / S.h,
+           spine: (S.spine || []).map(function (v) { return v / S.w; }),
+           grid: (S.grid || []).map(function (v) { return v / S.w; }),
+           simple: !!S.simple },
     steps: STEPS };
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
@@ -1657,7 +1711,7 @@ function markPanel() {
   var db = document.getElementById('unsaved');
   if (db) {
     db.style.display = d ? '' : 'none';
-    db.title = d + ' קטעים טרם נשמרו בגיליון — לחצו לשמירה';
+    db.title = d + ' עמודים טרם נשמרו בגיליון — לחצו לשמירה';
   }
   var sv = document.getElementById('save2');
   if (sv) sv.textContent = d ? 'שמירה בגיליון (' + d + ')' : 'שמירה בגיליון';
@@ -1878,9 +1932,15 @@ function loadLocal() {
     return n;
   } catch (e) { return 0; }
 }
+/* כמה עמודים ממתינים לשמירה — ולא כמה קטעים. עמוד שכוילו בו
+   גבולות ועדיין אין בו קטעים הוא עבודה לכל דבר, וספירה לפי
+   קטעים החזירה עליו אפס: בלי סימון אדום, ובלי אזהרה ביציאה. */
 function dirtyCount() {
   var n = 0;
-  for (var k in DIRTY) n += ((BOOK[k] || {}).steps || []).length;
+  for (var k in DIRTY) {
+    var r = BOOK[k] || {};
+    if ((r.steps && r.steps.length) || r.cal) n++;
+  }
   return n;
 }
 /* נקרא אחרי כל שינוי אמיתי, ורק אחריו */
