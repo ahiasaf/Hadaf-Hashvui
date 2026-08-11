@@ -836,8 +836,8 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
       <!-- שלב ג׳ · ראשי החטיבות — חזרה לקרקע -->
       <section class="sec-b rv">
-        <div class="zlabel"><span class="tag a">לראשי החטיבות</span>
-          <span>הצטרפות לתוכנית והזמנת הגמרות.</span></div>
+        <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
+          <span id="z-sub">הצטרפות לתוכנית והזמנת הגמרות.</span></div>
         <div id="rings"></div>
         <div id="inbox"></div>
         <div id="cta" style="margin-top:16px"></div>
@@ -946,7 +946,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.11.1';
+var APP_VERSION = '6.12.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1063,15 +1063,15 @@ function renderHome() {
     s += '<div class="showcase"><div class="frame" onclick="openFromHome(0)">' +
          '<img src="' + slideSrc(c, 1) + '" alt="השקף הראשון"></div></div>' +
          '<div class="acts">' +
-         '<button class="go" onclick="openFromHome(0)">▶ הצגה על המסך</button>' +
-         '<button class="alt" onclick="openWeek(\'' + homeTrack + '\',' + w.i + ')">הדף</button>' +
+         '<button class="go" onclick="openFromHome(0)">' + esc(UI.deckGo) + '</button>' +
+         '<button class="alt" onclick="openWeek(\'' + homeTrack + '\',' + w.i + ')">' + esc(UI.deckAlt) + '</button>' +
          '</div>';
   } else {
     s += '<div class="showcase"><div class="frame"><div class="empty">' +
-         '<span>המצגת לשבוע זה בהכנה</span></div></div></div>' +
+         '<span>' + esc(UI.deckSoon) + '</span></div></div></div>' +
          '<div class="acts"><button class="go" onclick="openWeek(\'' +
-         homeTrack + '\',' + w.i + ')">לדף ולחומרי הלימוד</button>' +
-         '<button class="alt" onclick="openTrack(\'' + homeTrack + '\')">המסלול</button></div>';
+         homeTrack + '\',' + w.i + ')">' + esc(UI.weekGo) + '</button>' +
+         '<button class="alt" onclick="openTrack(\'' + homeTrack + '\')">' + esc(UI.trackBtn) + '</button></div>';
   }
   document.getElementById('stage').innerHTML = s + '</div>';
 
@@ -1087,11 +1087,11 @@ function renderHome() {
   });
   document.getElementById('mini').innerHTML =
     '<div class="mini" onclick="openTrack(\'' + homeTrack + '\')" style="cursor:pointer">' +
-    '<div class="cap"><b>המסלול השנתי — מסכת ' + esc(tr.masechet) + '</b>' +
+    '<div class="cap"><b>' + fill(UI.trackCap, { mas:esc(tr.masechet) }) + '</b>' +
     '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' +
     '<div class="rail">' + rail + '</div>' +
     '<div style="font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:10px">' +
-    'דף בשבוע — וסיום המסכת בא׳ סיוון ←</div></div>';
+    esc(UI.trackNote) + '</div></div>';
 
   /* ---- לוח שלבי השנה ---- */
   var today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1149,20 +1149,26 @@ function renderHome() {
   var u = uniformPrice();
   var disc = SFARIM.filter(function (s) { return priceOf(s.id).off; });
   var offer;
-  if (u) offer = 'הגמרות במחיר מוזל, ' + shek(u.price) + ' במקום ' + shek(u.list);
+  if (u) offer = fill(UI.offerAll, { p:shek(u.price), list:shek(u.list) });
   else if (disc.length > 1)
-    offer = 'הגמרות במחיר מוזל, החל מ־' + shek(priceRange().min) +
-            ' במקום ' + shek(priceOf(disc[0].id).list);
+    offer = fill(UI.offerFrom, { p:shek(priceRange().min),
+                                 list:shek(priceOf(disc[0].id).list) });
   else if (disc.length === 1)
-    offer = esc(disc[0].name) + ' במחיר מוזל, ' + shek(priceOf(disc[0].id).price) +
-            ' במקום ' + shek(priceOf(disc[0].id).list);
-  else offer = 'הזמנה מרוכזת לכל הישיבה';
+    offer = fill(UI.offerOne, { name:esc(disc[0].name),
+                                p:shek(priceOf(disc[0].id).price),
+                                list:shek(priceOf(disc[0].id).list) });
+  else offer = esc(UI.offerNone);
   document.getElementById('cta').innerHTML =
-    '<button class="btn gd" onclick="show(\'reg\')">להרשמה ולהזמנת גמרות</button>' +
+    '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>' +
     '<p style="font-size:.8rem;color:var(--ink-3);font-weight:700;text-align:center;' +
     'margin-top:9px;line-height:1.5">' +
-    (mine ? 'אם כבר שלחתם הרשמה — אפשר לעדכן אותה'
-          : 'דקה אחת · ' + offer) + '</p>';
+    (mine ? esc(UI.ctaSubAgain) : fill(UI.ctaSub, { offer:offer })) + '</p>';
+
+  /* הרצועה של ראשי החטיבות יושבת ב-HTML הסטטי, ולכן היא
+     מתעדכנת כאן ולא נבנית מחדש. */
+  var zt = document.getElementById('z-tag'), zs = document.getElementById('z-sub');
+  if (zt) zt.textContent = UI.zoneTag;
+  if (zs) zs.textContent = UI.zoneSub;
 
   reveal();
 }
@@ -1255,7 +1261,7 @@ function renderReg() {
              esc(UI.savedNew) + '</a></p>' : '') +
 
     '<div class="step-n"><i>1</i><b>' + esc(UI.s2) + '</b></div>' +
-    '<p class="nooblig">' + esc(UI.orderNote) + '</p>' +
+    (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + '</p>' : '') +
     recBlocks() +
 
     '<div class="step-n"><i>2</i><b>' + esc(UI.s3) + '</b></div>' +
@@ -1669,8 +1675,8 @@ function openWeek(id, i) {
   } else {
     state.deck = [];
     h += '<div class="card" style="margin-top:14px;text-align:center">' +
-         '<h3>חומרי הלימוד לדף זה בהכנה</h3>' +
-         '<p>המצגת והחידה יעלו לקראת השבוע הזה.</p></div>';
+         '<h3>' + esc(UI.weekSoonT) + '</h3>' +
+         '<p>' + esc(UI.weekSoonP) + '</p></div>';
   }
 
   document.getElementById('week-body').innerHTML = h;
