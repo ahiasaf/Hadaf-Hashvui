@@ -280,6 +280,44 @@ body{background:var(--paper);
 .sizebox .hint{grid-column:1/-1;margin:7px 0 0;font-size:.79rem;color:var(--ink-3);
   font-weight:600;line-height:1.6}
 
+/* ---------- עריכה על המסך ---------- */
+body.tediting{padding-bottom:74px}
+/* מסגרת ולא רקע: רקע צבעוני משנה את מה שבאים לשפוט, וכל העניין
+   כאן הוא לראות את הנוסח כפי שהוא ייראה באמת. */
+.tk-hot{outline:1.5px dashed rgba(192,143,43,.75);outline-offset:3px;
+  border-radius:5px;cursor:text}
+.tk-on{outline:2px solid var(--gold);outline-offset:3px;
+  background:rgba(227,180,74,.14)}
+
+#tk-bar{position:fixed;left:0;right:0;bottom:0;z-index:130;display:flex;
+  align-items:center;gap:7px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--blue-d);box-shadow:0 -6px 22px rgba(11,37,80,.3)}
+#tk-bar button{border:none;border-radius:10px;padding:9px 12px;font-size:.83rem;
+  font-weight:800;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+#tk-bar button.done{background:var(--gold);margin-inline-start:auto}
+#tk-bar span{font-size:.72rem;color:rgba(255,255,255,.6);font-weight:700}
+
+#tk-sheet{position:fixed;left:0;right:0;bottom:0;z-index:140;display:none;
+  background:var(--surface);border-radius:18px 18px 0 0;padding:14px 16px
+  calc(14px + env(safe-area-inset-bottom));box-shadow:0 -10px 34px rgba(11,37,80,.28)}
+#tk-sheet.on{display:block;animation:tkup .18s ease}
+/* היריעה והסרגל חולקים את תחתית המסך. פתוחה — היא מכסה, ולכן
+   הסרגל יורד; יש בה כפתור סגירה משלה, אז אין מבוי סתום. */
+body.tk-sheeting #tk-bar{display:none}
+@keyframes tkup{from{transform:translateY(16px);opacity:.4}to{transform:none;opacity:1}}
+#tk-sheet .hd{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:9px}
+#tk-sheet .hd b{font-size:.9rem;font-weight:800}
+#tk-sheet .hd button,#tk-sheet .ft button{border:1px solid var(--rule);
+  background:var(--sunk);border-radius:9px;padding:6px 11px;font-size:.78rem;
+  font-weight:800;color:var(--ink-2);cursor:pointer}
+#tk-sheet textarea{width:100%;font:inherit;font-size:.95rem;font-weight:600;
+  line-height:1.6;padding:11px;border-radius:11px;border:1px solid var(--rule);
+  background:#fff;resize:vertical}
+#tk-sheet .ft{display:flex;align-items:center;justify-content:space-between;
+  margin-top:9px}
+#tk-sheet .ft span{font-size:.74rem;color:var(--ink-3);font-weight:700}
+
 .total{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
   border-radius:var(--r-m);padding:17px;text-align:center;box-shadow:var(--sh-2)}
 .total .n{font-size:1.9rem;font-weight:800;letter-spacing:-.04em;line-height:1.1}
@@ -946,7 +984,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.12.0';
+var APP_VERSION = '6.13.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2597,6 +2635,9 @@ function admText(el) {
     'שדה ריק חוזר לנוסח שבקוד.</p>' +
     '<div class="row" style="padding:8px 0"><span>שינויים שטרם פורסמו</span>' +
     '<b' + (dirty ? '' : ' style="color:var(--ink-3)"') + '>' + dirty + '</b></div>' +
+    '<button class="btn gd" onclick="tkStart()">עריכה על המסך</button>' +
+    '<p class="h" style="margin:8px 0 12px">פותח את האפליקציה עצמה. כל נוסח ' +
+    'שניתן לעריכה מסומן, והשינוי נראה מיד במקומו.</p>' +
     '<button class="btn gr" onclick="admTextPublish()">פרסום לכל המשתמשים</button>' +
     '<button class="btn" style="margin-top:8px" onclick="admTextReset()">' +
     'שחזור כל הנוסחים שבקוד</button>' +
@@ -2638,7 +2679,168 @@ function admTextReset() {
 function repaintTexts() {
   renderHome();
   if (document.getElementById('reg-body').innerHTML) renderReg();
+  tkScan();
 }
+
+/* ============================================================
+   עריכה על המסך.
+
+   טופס של חמישים שדות אומר לך מה שמו של כל נוסח, אבל לא איפה
+   הוא יושב ואיך הוא נראה לצד מה שסביבו — וזה כל מה שחשוב
+   כשמנסחים. כאן עורכים את האפליקציה עצמה: כל נוסח שניתן
+   לעריכה מסומן, הקשה עליו פותחת אותו, וכל הקלדה מצטיירת מיד
+   במקום הנכון.
+
+   איך נמצא כל נוסח: לא בתגיות שנשתלו בקוד — היו נדרשות חמישים
+   עריכות, וכל שדה חדש היה נשכח — אלא בחיפוש. לכל שדה בונים
+   ביטוי מהערך הנוכחי שלו, ומחפשים במסך את האלמנט הקטן ביותר
+   שתוכנו תואם. שדה שיתווסף מחר יעבוד בלי שורת קוד.
+   ============================================================ */
+var TEDIT = false, TK_OPEN = '';
+
+/* התגיות נמחקות ולא מוחלפות ברווח, כי כך גם הדפדפן: textContent
+   של <br> אינו רווח, ו"למדו<br>מסכת" הוא "למדומסכת". שני הצדדים
+   של ההשוואה חייבים להתנהג אותו דבר. */
+function tkNorm(s) {
+  return String(s == null ? '' : s)
+    .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+/* {n} ו-{mas} מוחלפים בזמן אמת, ולכן הם חורים בביטוי ולא טקסט */
+function tkRe(v) {
+  var parts = tkNorm(v).split(/\{\w+\}/).map(function (x) {
+    return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+  return new RegExp('^' + parts.join('[\\s\\S]*?') + '$');
+}
+
+function tkScan() {
+  var was = document.querySelectorAll('[data-tk]');
+  for (var i = 0; i < was.length; i++) {
+    was[i].removeAttribute('data-tk');
+    was[i].classList.remove('tk-hot', 'tk-on');
+  }
+  if (!TEDIT) return;
+  var view = document.querySelector('.view.on');
+  if (!view) return;
+  var els = view.getElementsByTagName('*');
+
+  TEXT_FIELDS.forEach(function (f) {
+    if (!f.k) return;
+    var v = tkNorm(textGet(f.k));
+    if (!v) return;
+    var re = tkRe(v), best = null, bestN = 1e9;
+    for (var j = 0; j < els.length; j++) {
+      var el = els[j];
+      if (el.getAttribute('data-tk')) continue;
+      if (!re.test(tkNorm(el.textContent))) continue;
+      var n = el.getElementsByTagName('*').length;   /* הקטן ביותר שתואם */
+      if (n < bestN) { best = el; bestN = n; }
+    }
+    if (best) {
+      best.setAttribute('data-tk', f.k);
+      best.classList.add('tk-hot');
+      if (f.k === TK_OPEN) best.classList.add('tk-on');
+    }
+  });
+}
+
+function tkGo(where) {
+  if (where === 'week') {
+    var w = contentFor(homeTrack);
+    openWeek(homeTrack, w.i < 0 ? 0 : w.i);
+  } else { show(where); }
+  tkScan();
+}
+
+function tkStart() {
+  TEDIT = true;
+  document.body.classList.add('tediting');
+  tkBar();
+  show('home');
+  tkScan();
+}
+function tkStop() {
+  TEDIT = false; TK_OPEN = '';
+  document.body.classList.remove('tediting', 'tk-sheeting');
+  var b = document.getElementById('tk-bar'); if (b) b.remove();
+  tkClose();
+  tkScan();
+  show('admin'); admTab = 'text'; renderAdmin();
+}
+
+function tkBar() {
+  if (document.getElementById('tk-bar')) return;
+  var b = document.createElement('div');
+  b.id = 'tk-bar';
+  b.innerHTML =
+    '<button onclick="tkGo(\'home\')">בית</button>' +
+    '<button onclick="tkGo(\'reg\')">הרשמה</button>' +
+    '<button onclick="tkGo(\'week\')">שבוע</button>' +
+    '<span>הקישו על טקסט כדי לערוך</span>' +
+    '<button class="done" onclick="tkStop()">סיום</button>';
+  document.body.appendChild(b);
+}
+
+function tkOpen(k) {
+  var f = TEXT_FIELDS.filter(function (x) { return x.k === k; })[0];
+  if (!f) return;
+  TK_OPEN = k;
+  var s = document.getElementById('tk-sheet');
+  if (!s) { s = document.createElement('div'); s.id = 'tk-sheet';
+            document.body.appendChild(s); }
+  var t = CFG.texts || {};
+  var changed = t[k] != null && t[k] !== TEXT_BASE[k];
+  s.innerHTML =
+    '<div class="hd"><b>' + esc(f.lbl) + '</b>' +
+    '<button onclick="tkClose()">סגירה</button></div>' +
+    '<textarea id="tk-in" rows="' + (f.ml ? 4 : 2) + '" ' +
+    'oninput="tkType(this.value)">' + esc(textGet(k)) + '</textarea>' +
+    '<div class="ft"><span>' + (changed ? 'שונה מהנוסח שבקוד' : 'הנוסח שבקוד') +
+    '</span><button onclick="tkReset()">שחזור</button></div>';
+  s.classList.add('on');
+  document.body.classList.add('tk-sheeting');
+  var ta = document.getElementById('tk-in');
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+  tkScan();
+  var host = document.querySelector('[data-tk="' + k + '"]');
+  if (host) host.scrollIntoView({ block:'center', behavior:'smooth' });
+}
+function tkClose() {
+  TK_OPEN = '';
+  var s = document.getElementById('tk-sheet');
+  if (s) s.classList.remove('on');
+  document.body.classList.remove('tk-sheeting');
+  tkScan();
+}
+/* כל הקלדה נשמרת ומצטיירת. הגיליון אינו מעורב — פרסום נשאר
+   פעולה נפרדת ומכוונת, בדיוק כמו בטופס. */
+function tkType(v) {
+  if (!TK_OPEN) return;
+  var t = CFG.texts || {}, k = TK_OPEN;
+  if (String(v).trim() === '' || v === TEXT_BASE[k]) delete t[k]; else t[k] = v;
+  resetTexts();
+  cfgSet('texts', t);
+  repaintTexts();
+}
+function tkReset() {
+  if (!TK_OPEN) return;
+  var k = TK_OPEN, t = CFG.texts || {};
+  delete t[k];
+  resetTexts(); cfgSet('texts', t); repaintTexts();
+  tkOpen(k);
+}
+
+/* בשלב לכידה, כדי שהקשה על כפתור תפתח אותו לעריכה במקום להפעיל
+   אותו. הסרגל והיריעה עצמם פטורים, אחרת אי אפשר לצאת. */
+document.addEventListener('click', function (e) {
+  if (!TEDIT) return;
+  if (e.target.closest('#tk-bar') || e.target.closest('#tk-sheet')) return;
+  e.preventDefault(); e.stopPropagation();
+  var host = e.target.closest('[data-tk]');
+  if (host) tkOpen(host.getAttribute('data-tk')); else tkClose();
+}, true);
+
 /* פרסום: שורה לכל מפתח שהשתנה, ללשונית "טקסטים" בגיליון.
    ההרשמות נשלחות באותו מנגנון, ולכן אין כאן תשתית חדשה. */
 function admTextPublish() {
@@ -2850,6 +3052,18 @@ function admRefresh() {
   Promise.all(jobs).then(done).catch(done);
 }
 
+function admCopyStudio() {
+  var url = location.origin + '/studio';
+  var m = document.getElementById('adm-studio-msg');
+  var show = function (cls, txt) {
+    m.innerHTML = '<div class="' + cls + '" style="margin-top:8px">' + esc(txt) + '</div>';
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url)
+      .then(function () { show('done-box', 'הועתק · ' + url); })
+      .catch(function () { show('cond', url); });
+  } else { show('cond', url); }
+}
 function admCopyLink() {
   var url = location.origin + '/#admin';
   var m = document.getElementById('adm-inst-msg');
@@ -2889,6 +3103,17 @@ function admSet(el) {
     esc(CFG.api || API) + '" onchange="cfgSet(\'api\',this.value.trim())"></div>' +
     '<button class="btn g" onclick="admPing()">בדיקת חיבור</button>' +
     '<div id="adm-ping"></div></div>' +
+
+    /* הסטודיו נגיש רק מכאן. הוא אינו מקושר מהאפליקציה ואינו
+       במניפסט, ומי שלא נכנס לניהול אינו אמור לדעת עליו. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>סטודיו הסימון</h4>' +
+    '<p class="h">חלוקת הדף לקטעים וקישורם לביאור חברותא. ' +
+    'נפתח כאפליקציה נפרדת, עם אייקון משלה.</p>' +
+    '<a class="btn gd" style="display:block;text-align:center;text-decoration:none" ' +
+    'href="studio.html">פתיחת הסטודיו</a>' +
+    '<button class="btn g" style="margin-top:8px" onclick="admCopyStudio()">' +
+    'העתקת הקישור — לעוזרי עריכה</button>' +
+    '<div id="adm-studio-msg"></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>הניהול כאפליקציה</h4>' +
     '<p class="h">אייקון זהב נפרד במסך הבית, שנפתח ישר כאן. הוא חי לצד ' +
