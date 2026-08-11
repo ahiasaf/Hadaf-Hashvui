@@ -115,7 +115,7 @@ header button.p{background:var(--gold)}
   window.dispatchEvent(new Event('pdfjs-ready'));
 </script>
 <script>
-var LAB_VER = '0.1';
+var LAB_VER = '0.2';
 document.getElementById('ver').textContent = 'v' + LAB_VER;
 
 var TARGET_W = 1500;          // רוחב העיבוד. מספיק לזיהוי, מהיר לצייר.
@@ -314,6 +314,11 @@ function detect() {
   if (have.length < 6) return null;
 
   var sp = split2(have.map(function (s) { return s.hm; }));
+  /* הסף אינו באמצע בין שני האשכולות אלא נוטה אל הגבוה. הפרש
+     הגבהים בדף אמיתי הוא כ-1.6 ולא כפול, ולאותיות ארוכות של
+     רש"י — ל, ק, ך — יש זנב שמגיע לאמצע. סף באמצע צבע כמעט
+     את כל הדף כגמרא. */
+  sp.cut = sp.lo + (sp.hi - sp.lo) * 0.62;
   strips.forEach(function (s) { s.big = s.n >= 4 && s.hm >= sp.cut; });
 
   /* --- לכל שורה: היכן הכתב גדול ---
@@ -322,56 +327,148 @@ function detect() {
      שקורה כשהפירוש נגמר והגמרא מתרחבת — וסיווג של רצועה שלמה
      היה מפספס בדיוק את הגוש הרחב שאותו באנו למצוא.
      החציון של הרצועות משמש רק כדי למצוא את הסף. */
-  var big = new Uint8Array((y1 - y0) * strips.length);
+  var NS = strips.length, NH = y1 - y0;
+  var big = new Uint8Array(NH * NS);
   strips.forEach(function (s, si) {
-    s.runs.forEach(function (r) {
-      if (r[1] - r[0] < sp.cut) return;
-      for (var y = r[0]; y < r[1]; y++) big[(y - y0) * strips.length + si] = 1;
+    var hs = s.runs.map(function (r) { return r[1] - r[0]; });
+    s.runs.forEach(function (r, ri) {
+      /* לא גובה הרצף לבדו אלא הגובה שלו ושל שכניו בטור.
+         ברש"י אות ארוכה — ל, ק, ך — עומדת בין נמוכות, ובגמרא
+         כל השורות גבוהות. בלי ההשוואה לשכנים אחת מכל שש אותיות
+         פירוש נספרה כגמרא, ושורות שלמות נצבעו בטעות. */
+      var h3 = median([hs[ri-2], hs[ri-1], hs[ri], hs[ri+1], hs[ri+2]]
+                      .filter(function (v) { return v != null; }));
+      if (h3 < sp.cut) return;
+      for (var y = Math.max(y0, r[0]); y < Math.min(y1, r[1]); y++)
+        big[(y - y0) * NS + si] = 1;
     });
   });
 
-  /* הרצף האופקי הארוך ביותר בכל שורה */
-  var span = [];
-  for (var y = y0; y < y1; y++) {
-    var base = (y - y0) * strips.length, bs = -1, be = -1, cs = -1;
-    for (var i = 0; i <= strips.length; i++) {
-      var on = i < strips.length && big[base + i];
-      if (on && cs < 0) cs = i;
+  /* אות בודדת גבוהה אינה עמודה של גמרא. רצועה נחשבת רק כששתיים
+     משלוש הרצועות סביבה מסכימות איתה. */
+  var solid = new Uint8Array(NH * NS);
+  for (var yy = 0; yy < NH; yy++) {
+    var b0 = yy * NS;
+    for (var si2 = 0; si2 < NS; si2++) {
+      var n2 = (big[b0+si2] ? 1 : 0) +
+               (si2 > 0 ? big[b0+si2-1] : 0) +
+               (si2 < NS-1 ? big[b0+si2+1] : 0);
+      solid[b0+si2] = n2 >= 2 ? 1 : 0;
+    }
+  }
+
+  /* --- שורות הגמרא, ולכל אחת המוטה שלה ---
+     הרכבת אזורים ישירות משורות פיקסלים דרשה שהמוטה יהיה זהה
+     בעשרות שורות רצופות. בדף אמיתי הוא רוטט בין שורה לשורה,
+     ולכן שום אזור לא שרד והמסך יצא ריק. היחידה הנכונה היא
+     שורת טקסט, לא שורת פיקסלים. */
+  var MINW = Math.max(3, Math.round(NS * 0.04));
+  var lines = [], st = null;
+  for (var y2 = 0; y2 < NH; y2++) {
+    /* שורת גמרא פרושה על רצועות רבות. סף כמותי כאן הוא מה שמונע
+       מזוג רצועות דביקות — פינה של פירוש שגובהה מקרי — להחזיק
+       "שורה" פתוחה לאורך כל הדף ולמחוק את כל מבנה השורות. */
+    var cnt = 0, o2 = y2 * NS;
+    for (var i2 = 0; i2 < NS; i2++) if (solid[o2+i2]) cnt++;
+    var any = cnt >= MINW;
+    if (any && st === null) st = y2;
+    else if (!any && st !== null) { if (y2 - st >= 3) lines.push([st, y2]); st = null; }
+  }
+  if (st !== null && NH - st >= 3) lines.push([st, NH]);
+
+  /* המוטה של שורה הוא הרצף האופקי הארוך ביותר שלה, ולא הקצה
+     השמאלי והימני ביותר: אות בודדת בשולי הדף אינה מרחיבה אותה. */
+  lines.forEach(function (ln) {
+    var use = new Uint8Array(NS);
+    for (var y3 = ln[0]; y3 < ln[1]; y3++) {
+      var o3 = y3 * NS;
+      for (var i3 = 0; i3 < NS; i3++) if (solid[o3+i3]) use[i3] = 1;
+    }
+    var bs = -1, be = -1, cs = -1;
+    for (var i4 = 0; i4 <= NS; i4++) {
+      var on = i4 < NS && use[i4];
+      if (on && cs < 0) cs = i4;
       else if (!on && cs >= 0) {
-        if (be < 0 || i - cs > be - bs) { bs = cs; be = i; }
+        if (be < 0 || i4 - cs > be - bs) { bs = cs; be = i4; }
         cs = -1;
       }
     }
-    span.push(bs < 0 ? null : [bs, be]);
-  }
-
-  /* --- אזורים: רצף שורות שהמוטה שלהן אינו משתנה --- */
-  var zones = [], cur = null;
-  var same = function (a, b) {
-    return a && b && Math.abs(a[0]-b[0]) <= 1 && Math.abs(a[1]-b[1]) <= 1;
-  };
-  for (var k = 0; k < span.length; k++) {
-    var s2 = span[k];
-    if (!s2) { if (cur) { zones.push(cur); cur = null; } continue; }
-    if (cur && same(cur.sp, s2)) { cur.y1 = y0 + k; continue; }
-    if (cur) zones.push(cur);
-    cur = { y0: y0 + k, y1: y0 + k, sp: s2 };
-  }
-  if (cur) zones.push(cur);
-
-  /* איחוד: פערים קצרים בין אזורים זהים הם רעש, לא גבול */
-  var pit = median(strips.filter(function (s) { return s.big; })
-                         .map(function (s) { return s.hm; })) * 2.2 || 20;
-  var out = [];
-  zones.forEach(function (z) {
-    var last = out[out.length - 1];
-    if (last && same(last.sp, z.sp) && z.y0 - last.y1 < pit * 1.6) { last.y1 = z.y1; return; }
-    out.push(z);
+    ln.push(bs, be);                             /* [t, b, s0, s1] */
   });
-  out = out.filter(function (z) { return z.y1 - z.y0 >= pit * .9; });
+  lines = lines.filter(function (ln) { return ln[2] >= 0; });
+
+  var pit = median(lines.map(function (l) { return l[1] - l[0]; })) * 2.2 || 20;
+
+  /* --- אזורים: שורות רצופות שהמוטה שלהן דומה --- */
+  /* שתי שורות שייכות לאותו אזור כשהמוטות שלהן חופפות ברובן.
+     השוואת קצוות במספר רצועות קבוע נכשלה: אותיות אינן מתחילות
+     בדיוק באותו מקום בכל שורה, והריטוט הזה — שתיים-שלוש רצועות
+     — פירק אזור אחד לשלושה. חפיפה יחסית אינה תלויה ברוחב ולכן
+     היא מבחינה בין ריטוט לבין מעבר אמיתי מטור צר לרוחב מלא. */
+  var overlap = function (a, b) {
+    var lo = Math.max(a[0], b[0]), hi = Math.min(a[1], b[1]);
+    var big2 = Math.max(a[1] - a[0], b[1] - b[0]);
+    return big2 > 0 ? Math.max(0, hi - lo) / big2 : 0;
+  };
+  var out = [], cz = null;
+  lines.forEach(function (ln) {
+    if (ln[3] <= ln[2]) return;
+    if (cz && overlap(cz.sp, [ln[2], ln[3]]) >= 0.78 && ln[0] - cz.last < pit * 2.2) {
+      cz.y1 = y0 + ln[1]; cz.last = ln[1]; cz.n++;
+      cz.sp[0] = Math.min(cz.sp[0], ln[2]); cz.sp[1] = Math.max(cz.sp[1], ln[3]);
+      return;
+    }
+    if (cz) out.push(cz);
+    cz = { y0: y0 + ln[0], y1: y0 + ln[1], last: ln[1], n:1, sp:[ln[2], ln[3]] };
+  });
+  if (cz) out.push(cz);
+
+  /* שורה קצרה — סוף פסקה — מוטה שלה צר בהרבה משל שכנותיה, והיא
+     קטעה את האזור לשניים. אזור בן שורה או שתיים שהמוטה שלו כלוא
+     בתוך זה שלפניו או שאחריו נבלע בו. אזור אמיתי, גם צר, מחזיק
+     שלוש שורות ומעלה ולכן אינו נבלע — וכך המעבר מטור צר לרוחב
+     מלא נשאר מעבר. */
+  var inside = function (a, b) {          /* a בתוך b */
+    return a[0] >= b[0] - 1 && a[1] <= b[1] + 1;
+  };
+  for (var q = 0; q < out.length; q++) {
+    var z = out[q];
+    if (z.n >= 3) continue;
+    var pv = out[q-1], nx = out[q+1];
+    var host = (pv && inside(z.sp, pv.sp)) ? pv
+             : (nx && inside(z.sp, nx.sp)) ? nx : null;
+    if (!host) continue;
+    host.y0 = Math.min(host.y0, z.y0);
+    host.y1 = Math.max(host.y1, z.y1);
+    host.n += z.n;
+    out.splice(q, 1); q--;
+  }
+
+  out = out.filter(function (z) { return z.n >= 3; });   /* שלוש שורות ומעלה */
+  /* איחוד סופי — ואחרי הסינון, לא לפניו.
+
+     האיחוד ההדרגתי לא הספיק: הוא משווה כל שורה למוטה שהלך וגדל
+     תוך כדי, ושורה קצרה באמצע פתחה אזור חדש שכבר לא חזר
+     להתאחד. וכאן היה הכשל השני, הפחות גלוי — בין שני חלקי
+     הגמרא ישבו שברירים זעירים משולי הדף, ולכן שני החלקים
+     מעולם לא נבדקו זה מול זה. הסינון מסלק את השברירים, ורק
+     אז השכנות אומרת משהו. */
+  var merged = true;
+  while (merged) {
+    merged = false;
+    for (var q2 = 0; q2 < out.length - 1; q2++) {
+      var A = out[q2], B = out[q2+1];
+      if (overlap(A.sp, B.sp) < 0.78) continue;
+      if (B.y0 - A.y1 > pit * 2.5) continue;
+      A.y1 = Math.max(A.y1, B.y1); A.n += B.n;
+      A.sp = [Math.min(A.sp[0], B.sp[0]), Math.max(A.sp[1], B.sp[1])];
+      out.splice(q2+1, 1); merged = true; q2--;
+    }
+  }
+
   out.forEach(function (z) {
     z.a = strips[z.sp[0]].x0;
-    z.b = strips[Math.min(z.sp[1], strips.length) - 1].x1;
+    z.b = strips[Math.min(z.sp[1], NS) - 1].x1;
   });
 
   return { strips:strips, split:sp, zones:out, bbox:[x0,y0,x1,y1], sw:SW, pitch:pit };
