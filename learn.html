@@ -203,7 +203,7 @@ nav .sp{flex:1}
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
   <button id="chtog">חברותא</button>
-  <button id="whole" title="הדף כולו">כל הדף</button>
+  <button id="whole" title="הצגת הדף בלי עמעום">בלי עמעום</button>
   <button class="p" id="next">הבא ◂</button>
 </nav>
 
@@ -263,7 +263,11 @@ var API = '';
 var S = { mas:'', daf:'', week:-1 };
 var PAGES = [];   /* [{pg, d}] — נתוני עמוד, לפי סדר העמודים */
 var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
-var IDX = 0, WHOLE = false, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
+/* DIM=false — הדף מוצג בלי הצללה. ההתמקדות, המסגרת, ההתקדמות
+   והחברותא ממשיכות בדיוק כפי שהן; רק השכבה שמכהה את שאר הדף
+   יורדת. תלמיד שרוצה לראות מה כתוב בתוספות שליד, או שפשוט
+   נוח לו כך, מקבל את זה בלי לוותר על שום דבר אחר. */
+var IDX = 0, DIM = true, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -428,8 +432,8 @@ function paint() {
       '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' +
       '<path d="' + path + '" fill="#000"/>' +
     '</mask></defs>' +
-    '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" opacity="' +
-      (WHOLE ? .74 : .80) + '" mask="url(#hole)"/>' +
+    (DIM ? '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" ' +
+           'opacity=".80" mask="url(#hole)"/>' : '') +
     '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' +
       'stroke-linejoin="round" opacity=".5"/>';
 }
@@ -450,7 +454,7 @@ function focus() {
   if (!sw || !sh) return;
   var fx, fy, fw, fh;
 
-  if (WHOLE || !st) {
+  if (!st) {
     fx = 0; fy = 0; fw = 1; fh = 1;
   } else {
     var d = PAGES[st.p].d;
@@ -483,11 +487,9 @@ function focus() {
     fx = Math.max(0, x0 - m); fw = Math.min(1 - fx, (x1 - x0) + m * 2);
   }
 
-  /* בהתמקדות הדף ממלא לפחות את רוחב המסך — חלון שקטן ממנו רק
-     מבזבז מקום. ב"כל הדף" מותר לו להתכווץ, שאם לא כן הדף לא
-     ייכנס לגובה וזה בדיוק מה שהכפתור נועד לו. */
+  /* הדף ממלא לפחות את רוחב המסך — חלון שקטן ממנו רק מבזבז מקום. */
   var disp = Math.min(sw / fw, sh / (fh * R));
-  disp = Math.max(WHOLE ? 0 : sw, Math.min(disp, sw * 4.5));
+  disp = Math.max(sw, Math.min(disp, sw * 4.5));
   var dh = disp * R;
   var tx = sw / 2 - (fx + fw / 2) * disp;
   var ty = sh / 2 - (fy + fh / 2) * dh;
@@ -915,7 +917,14 @@ function boot() {
       return showPage(PAGES[0].daf, PAGES[0].pg).then(function () {
         SHOWN = 0;
         unveil(); buttons(true);
-        try { if (localStorage.getItem('df:chav') === '1') drawer(true); } catch (e) {}
+        try {
+          if (localStorage.getItem('df:chav') === '1') drawer(true);
+          if (localStorage.getItem('df:dim') === '0') {
+            DIM = false;
+            $('whole').classList.add('on');
+            $('whole').textContent = 'עם עמעום';
+          }
+        } catch (e) {}
         go(0);
         var seen = false;
         try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
@@ -932,18 +941,18 @@ window.addEventListener('DOMContentLoaded', function () {
   $('next').onclick  = function () { go(IDX + 1); };
   $('prev').onclick  = function () { go(IDX - 1); };
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
-     שמעדיף אותו. ב"כל הדף" ההקשה כבויה: שם התלמיד מסתכל סביב,
-     ולא היה נעים שכל מבט יקפיץ אותו קדימה. */
-  $('stage').onclick = function () { if (FLAT.length && !WHOLE) go(IDX + 1); };
+     שמעדיף אותו. */
+  $('stage').onclick = function () { if (FLAT.length) go(IDX + 1); };
   $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
   $('chclose').onclick = function () { drawer(false); };
   $('czm').onclick = function () { chavZoom(-1); };
   $('czp').onclick = function () { chavZoom(1); };
   $('whole').onclick = function () {
-    WHOLE = !WHOLE;
-    $('whole').classList.toggle('on', WHOLE);
-    $('whole').textContent = WHOLE ? 'התמקדות' : 'כל הדף';
-    paint(); focus();
+    DIM = !DIM;
+    $('whole').classList.toggle('on', !DIM);
+    $('whole').textContent = DIM ? 'בלי עמעום' : 'עם עמעום';
+    try { localStorage.setItem('df:dim', DIM ? '1' : '0'); } catch (e) {}
+    paint();
   };
   $('intro-go').onclick = function () {
     $('intro').className = 'sheet';
