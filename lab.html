@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מעבדת הזיהוי — הדף השבועי</title>
+<meta name="theme-color" content="#0B2550">
+<meta name="robots" content="noindex">
+<style>
+/* ============================================================
+   מעבדת הזיהוי.
+
+   למה היא קיימת בנפרד: הסטודיו עובד, ואסור לשבור אותו כדי
+   לנסות שיטה חדשה. כאן אפשר לרוץ על דפים אקראיים, לראות מה
+   נתפס ומה לא, ולספור — בלי שאף סימון אמיתי יהיה בסכנה.
+   הקובץ הזה אינו כותב לשום מקום ואינו מקושר מהאפליקציה.
+
+   מה נבדק כאן
+   -----------
+   הזיהוי שבסטודיו מחפש **מרזבים**: שני רווחים אנכיים שמשני צדי
+   הגמרא. זה עובד ברוב הדפים ונופל בקצוות — מילה מרחפת ששוברת
+   את המרזב, פירוש שנגמר באמצע, גוש רחב שמרווח השורות בו דומה
+   לפירוש.
+
+   כאן נבדקת שיטה אחרת, שהיא מה שהעין עושה בשנייה: **הגמרא
+   כתובה גדול יותר**. לא רווח, לא מרזב — גודל. מודדים את גובה
+   רצפי הדיו בכל רצועה אנכית, מפרידים ל"גדול" ו"קטן", ומה
+   שגדול הוא הגמרא. הגבולות נופלים מעצמם, כולל הגוש הרחב.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E3B44A;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --ink-3:#96A0B2; --rule:#E5DAC3; --ok:#2F7D4F; --bad:#A5382D;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,
+  "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;height:100dvh}
+
+header{background:var(--blue-d);color:#fff;padding:calc(env(safe-area-inset-top) + 9px) 12px 10px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+header b{font-size:.9rem;font-weight:800;margin-inline-end:auto}
+header .v{font-size:.68rem;opacity:.55;font-weight:700}
+select,header button{font:inherit;font-size:.8rem;font-weight:800;border-radius:9px;
+  border:none;padding:8px 10px;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+select option{color:#111}
+header button.p{background:var(--gold)}
+#stat{width:100%;font-size:.74rem;font-weight:700;opacity:.85;line-height:1.5}
+#stat.bad{color:#FFC9C2}
+
+.stage{flex:1;overflow:auto;background:#EEE8DA;-webkit-overflow-scrolling:touch}
+.holder{position:relative;width:100%;margin:0 auto}
+.holder img{width:100%;display:block}
+.holder svg{position:absolute;inset:0;width:100%;height:100%}
+
+.panel{background:var(--surface);border-top:1px solid var(--rule);
+  padding:11px 13px calc(11px + env(safe-area-inset-bottom));max-height:44vh;overflow:auto}
+.panel h4{margin:0 0 7px;font-size:.86rem;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:7px}
+.stat{background:var(--paper);border-radius:9px;padding:7px 9px}
+.stat span{display:block;font-size:.66rem;color:var(--ink-3);font-weight:700}
+.stat b{font-size:1rem;font-weight:800;font-variant-numeric:tabular-nums}
+.score{display:flex;gap:7px;margin-top:9px}
+.score button{flex:1;font:inherit;font-size:.82rem;font-weight:800;border-radius:10px;
+  padding:11px;border:1px solid var(--rule);background:var(--paper);cursor:pointer}
+.score button.y{background:#EAF5EE;border-color:var(--ok);color:var(--ok)}
+.score button.n{background:#FCEEEC;border-color:var(--bad);color:var(--bad)}
+.tally{margin-top:9px;font-size:.76rem;color:var(--ink-2);font-weight:700}
+.tally b{color:var(--ink)}
+.hint{font-size:.73rem;color:var(--ink-3);font-weight:600;line-height:1.6;margin-top:8px}
+.hist{display:flex;align-items:flex-end;gap:1px;height:38px;margin-top:8px}
+.hist i{flex:1;background:var(--blue);opacity:.35;border-radius:1px 1px 0 0}
+.hist i.big{background:var(--gold);opacity:.9}
+</style>
+</head>
+<body>
+
+<header>
+  <b>מעבדת הזיהוי</b>
+  <span class="v" id="ver"></span>
+  <select id="mas"></select>
+  <select id="daf"></select>
+  <select id="pg"></select>
+  <button id="prev">▸ הקודם</button>
+  <button class="p" id="next">הבא ◂</button>
+  <div id="stat">בוחרים מסכת ודף.</div>
+</header>
+
+<div class="stage"><div class="holder" id="holder">
+  <img id="page" alt="">
+  <svg id="ov" preserveAspectRatio="none"></svg>
+</div></div>
+
+<div class="panel">
+  <h4>מה נמדד</h4>
+  <div class="grid" id="stats"></div>
+  <div class="hist" id="hist"></div>
+  <div class="score">
+    <button class="y" id="hit">✓ תפס</button>
+    <button class="n" id="miss">✗ פספס</button>
+  </div>
+  <div class="tally" id="tally"></div>
+  <p class="hint">זהב — מה שנמצא, לפי גודל הכתב בלבד. ירוק מקווקו —
+     גבולות הדף אחרי הסרת השוליים. העמודות הן גובה האותיות לאורך
+     רוחב הדף, והזהובות הן הרצועות שרובן גמרא.
+     <br>"תפס / פספס" נשמר על המכשיר, וכך יש מספר ולא תחושה.</p>
+</div>
+
+<script src="data.js"></script>
+<script src="links.js"></script>
+<script type="module">
+  import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+  window.dispatchEvent(new Event('pdfjs-ready'));
+</script>
+<script>
+var LAB_VER = '0.1';
+document.getElementById('ver').textContent = 'v' + LAB_VER;
+
+var TARGET_W = 1500;          // רוחב העיבוד. מספיק לזיהוי, מהיר לצייר.
+var API = (window.APPS_SCRIPT_URL || '').trim();
+try {
+  var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+  if (cfg.api) API = cfg.api;
+  var a2 = localStorage.getItem('dfApi');
+  if (a2) API = a2;
+} catch (e) {}
+
+var D = null, PDF = null, CACHE = {};
+function $(id) { return document.getElementById(id); }
+function say(t, bad) { var e = $('stat'); e.className = bad ? 'bad' : ''; e.textContent = t; }
+function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
+function fileId(u) { var m = /\/d\/([-\w]{20,})/.exec(u || ''); return m ? m[1] : null; }
+
+function fillSel(el, items) {
+  el._items = items;
+  el.innerHTML = items.map(function (v, i) {
+    return '<option value="' + i + '">' + v[1] + '</option>';
+  }).join('');
+  el.disabled = items.length < 2;
+}
+function selVal(id) {
+  var el = $(id), it = el._items && el._items[+el.value];
+  return it ? it[0] : '';
+}
+
+/* ---------- טעינת הדף ---------- */
+function jsonp(url) {
+  return new Promise(function (ok, fail) {
+    var n = '__lab' + Date.now(), sc = document.createElement('script');
+    var done = function (v) {
+      try { delete window[n]; } catch (e) { window[n] = undefined; }
+      clearTimeout(t); sc.remove(); v ? ok(v) : fail(new Error('timeout'));
+    };
+    var t = setTimeout(function () { done(null); }, 60000);
+    window[n] = done;
+    sc.onerror = function () { done(null); };
+    sc.src = url + '&callback=' + n;
+    document.body.appendChild(sc);
+  });
+}
+function grab(id) {
+  if (CACHE[id]) return Promise.resolve(CACHE[id]);
+  if (!API) return Promise.reject(new Error('אין כתובת שרת'));
+  var url = API + (API.indexOf('?') < 0 ? '?' : '&') + 'file=' + encodeURIComponent(id);
+  return fetch(url).then(function (r) { return r.json(); })
+    .catch(function () { return jsonp(url); })
+    .then(function (d) {
+      if (!d || d.status !== 'ok' || !d.data) throw new Error('no data');
+      var bin = atob(d.data), buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      CACHE[id] = buf;
+      return buf;
+    });
+}
+function pdfReady() {
+  if (window.pdfjsLib) return Promise.resolve();
+  return new Promise(function (ok) {
+    window.addEventListener('pdfjs-ready', function () { ok(); }, { once:true });
+  });
+}
+function openDaf() {
+  var mas = selVal('mas'), daf = selVal('daf');
+  var links = ((window.DAF_LINKS || {})[mas] || {})[dafKey(daf)] || [];
+  var id = fileId(links[0]);
+  if (!id) { say('אין קובץ צורת הדף לדף הזה.', 1); return; }
+  say('מביא ' + daf + '…');
+  grab(id)
+    .then(function (buf) { return pdfReady().then(function () { return buf; }); })
+    .then(function (buf) { return pdfjsLib.getDocument({ data: buf.slice(0) }).promise; })
+    .then(function (doc) {
+      PDF = doc;
+      var pages = [];
+      for (var i = 1; i <= doc.numPages; i++)
+        pages.push([i, doc.numPages === 2 ? (i === 1 ? 'ע״א' : 'ע״ב') : 'עמוד ' + i]);
+      fillSel($('pg'), pages);
+      return showPage(1);
+    })
+    .catch(function (e) { say('לא הצלחתי: ' + e.message, 1); });
+}
+function showPage(n) {
+  if (!PDF) return Promise.resolve();
+  say('מצייר…');
+  return PDF.getPage(n).then(function (pg) {
+    var base = pg.getViewport({ scale:1 });
+    var vp = pg.getViewport({ scale: TARGET_W / base.width });
+    var c = document.createElement('canvas');
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    return pg.render({ canvasContext: c.getContext('2d', {willReadFrequently:true}),
+                       viewport: vp }).promise.then(function () {
+      var px = c.getContext('2d', {willReadFrequently:true})
+                .getImageData(0, 0, c.width, c.height).data;
+      D = { m: ink(px, c.width, c.height), w: c.width, h: c.height };
+      $('page').src = c.toDataURL('image/webp', 0.85);
+      run();
+    });
+  });
+}
+function ink(data, w, h) {
+  var m = new Uint8Array(w * h);
+  for (var i = 0, p = 0; i < m.length; i++, p += 4)
+    m[i] = (data[p]*.299 + data[p+1]*.587 + data[p+2]*.114) < 150 ? 1 : 0;
+  return m;
+}
+
+/* ============================================================
+   השיטה הנבדקת: גודל הכתב.
+
+   הרעיון במשפט: הגמרא כתובה גדול, הפירושים קטן, וזה ההבדל
+   שהעין תופסת ברגע. לכן לא מחפשים רווחים אלא מודדים.
+
+   1. הדף נחתך לרצועות אנכיות דקות.
+   2. בכל רצועה מוצאים את רצפי הדיו האנכיים — אלה השורות — ומודדים
+      את גובהם.
+   3. גובה חציוני של רצועה הוא הסטטיסטיקה היחידה שמעניינת:
+      ברצועת גמרא הוא גדול, ברצועת פירוש הוא קטן. ההפרדה נעשית
+      בשתי אשכולות, ולכן אין כאן סף שרירותי שנשבר בדף אחר.
+   4. שורה שבה הרצועות ה"גדולות" רצופות היא שורת גמרא, והקצוות
+      שלה הם גבולות הגמרא באותו גובה. אזור הוא רצף שורות שגבולותיו
+      אינם משתנים.
+
+   מה זה פותר מעצמו: מילה מרחפת אינה משנה גובה אותיות, ולכן היא
+   אינה שוברת כלום. גוש רחב בתחתית הדף נמצא כמו כל השאר, כי הוא
+   כתוב באותו גודל. ואין צורך לדעת מראש היכן המרזבים.
+   ============================================================ */
+function median(a) {
+  if (!a.length) return 0;
+  var v = a.slice().sort(function (p, q) { return p - q; });
+  return v[v.length >> 1];
+}
+
+/* רצפי דיו אנכיים ברצועה אחת */
+function stripRuns(m, w, x0, x1, y0, y1) {
+  var out = [], s = null;
+  for (var y = y0; y < y1; y++) {
+    var n = 0;
+    for (var x = x0; x < x1; x++) if (m[y*w+x]) n++;
+    var on = n > (x1 - x0) * 0.06;
+    if (on && s === null) s = y;
+    else if (!on && s !== null) { if (y - s >= 3) out.push([s, y]); s = null; }
+  }
+  if (s !== null && y1 - s >= 3) out.push([s, y1]);
+  return out;
+}
+
+/* שני אשכולות על ציר אחד. שתי איטרציות מספיקות לחלוטין כשההפרש
+   בין הקבוצות גדול, וזה בדיוק המקרה כאן. */
+function split2(vals) {
+  if (vals.length < 2) return { cut: 0, lo: 0, hi: 0 };
+  var v = vals.slice().sort(function (a, b) { return a - b; });
+  var lo = v[Math.floor(v.length * .2)], hi = v[Math.floor(v.length * .8)];
+  for (var it = 0; it < 12; it++) {
+    var A = [], B = [];
+    v.forEach(function (x) {
+      (Math.abs(x - lo) <= Math.abs(x - hi) ? A : B).push(x);
+    });
+    var nlo = A.length ? median(A) : lo, nhi = B.length ? median(B) : hi;
+    if (nlo === lo && nhi === hi) break;
+    lo = nlo; hi = nhi;
+  }
+  return { cut: (lo + hi) / 2, lo: lo, hi: hi };
+}
+
+function detect() {
+  var m = D.m, w = D.w, h = D.h;
+
+  /* --- גבולות הדף: מסירים שוליים לבנים --- */
+  var rows = new Uint32Array(h), cols = new Uint32Array(w);
+  for (var y = 0; y < h; y++) {
+    var o = y * w, n = 0;
+    for (var x = 0; x < w; x++) if (m[o+x]) { n++; cols[x]++; }
+    rows[y] = n;
+  }
+  var lim = w * 0.004;
+  var y0 = 0, y1 = h - 1, x0 = 0, x1 = w - 1;
+  while (y0 < h && rows[y0] < lim) y0++;
+  while (y1 > y0 && rows[y1] < lim) y1--;
+  var clim = (y1 - y0) * 0.004;
+  while (x0 < w && cols[x0] < clim) x0++;
+  while (x1 > x0 && cols[x1] < clim) x1--;
+  if (x1 - x0 < 50 || y1 - y0 < 50) return null;
+
+  /* --- רצועות וגובה חציוני בכל אחת --- */
+  var SW = Math.max(6, Math.round((x1 - x0) / 90));
+  var strips = [];
+  for (var sx = x0; sx + SW <= x1; sx += SW) {
+    var rs = stripRuns(m, w, sx, sx + SW, y0, y1);
+    var hs = rs.map(function (r) { return r[1] - r[0]; })
+               .filter(function (v) { return v >= 3 && v < (y1-y0) * .1; });
+    strips.push({ x0:sx, x1:sx + SW, runs:rs, hm: median(hs), n: hs.length });
+  }
+  var have = strips.filter(function (s) { return s.n >= 4; });
+  if (have.length < 6) return null;
+
+  var sp = split2(have.map(function (s) { return s.hm; }));
+  strips.forEach(function (s) { s.big = s.n >= 4 && s.hm >= sp.cut; });
+
+  /* --- לכל שורה: היכן הכתב גדול ---
+     ההכרעה היא על כל רצף בנפרד ולא על הרצועה כולה. רצועה אחת
+     יכולה להיות פירוש בחלקה העליון וגמרא בתחתון — בדיוק מה
+     שקורה כשהפירוש נגמר והגמרא מתרחבת — וסיווג של רצועה שלמה
+     היה מפספס בדיוק את הגוש הרחב שאותו באנו למצוא.
+     החציון של הרצועות משמש רק כדי למצוא את הסף. */
+  var big = new Uint8Array((y1 - y0) * strips.length);
+  strips.forEach(function (s, si) {
+    s.runs.forEach(function (r) {
+      if (r[1] - r[0] < sp.cut) return;
+      for (var y = r[0]; y < r[1]; y++) big[(y - y0) * strips.length + si] = 1;
+    });
+  });
+
+  /* הרצף האופקי הארוך ביותר בכל שורה */
+  var span = [];
+  for (var y = y0; y < y1; y++) {
+    var base = (y - y0) * strips.length, bs = -1, be = -1, cs = -1;
+    for (var i = 0; i <= strips.length; i++) {
+      var on = i < strips.length && big[base + i];
+      if (on && cs < 0) cs = i;
+      else if (!on && cs >= 0) {
+        if (be < 0 || i - cs > be - bs) { bs = cs; be = i; }
+        cs = -1;
+      }
+    }
+    span.push(bs < 0 ? null : [bs, be]);
+  }
+
+  /* --- אזורים: רצף שורות שהמוטה שלהן אינו משתנה --- */
+  var zones = [], cur = null;
+  var same = function (a, b) {
+    return a && b && Math.abs(a[0]-b[0]) <= 1 && Math.abs(a[1]-b[1]) <= 1;
+  };
+  for (var k = 0; k < span.length; k++) {
+    var s2 = span[k];
+    if (!s2) { if (cur) { zones.push(cur); cur = null; } continue; }
+    if (cur && same(cur.sp, s2)) { cur.y1 = y0 + k; continue; }
+    if (cur) zones.push(cur);
+    cur = { y0: y0 + k, y1: y0 + k, sp: s2 };
+  }
+  if (cur) zones.push(cur);
+
+  /* איחוד: פערים קצרים בין אזורים זהים הם רעש, לא גבול */
+  var pit = median(strips.filter(function (s) { return s.big; })
+                         .map(function (s) { return s.hm; })) * 2.2 || 20;
+  var out = [];
+  zones.forEach(function (z) {
+    var last = out[out.length - 1];
+    if (last && same(last.sp, z.sp) && z.y0 - last.y1 < pit * 1.6) { last.y1 = z.y1; return; }
+    out.push(z);
+  });
+  out = out.filter(function (z) { return z.y1 - z.y0 >= pit * .9; });
+  out.forEach(function (z) {
+    z.a = strips[z.sp[0]].x0;
+    z.b = strips[Math.min(z.sp[1], strips.length) - 1].x1;
+  });
+
+  return { strips:strips, split:sp, zones:out, bbox:[x0,y0,x1,y1], sw:SW, pitch:pit };
+}
+
+/* ---------- ציור ---------- */
+var R = null;
+function run() {
+  var t = performance.now();
+  R = detect();
+  var ov = $('ov');
+  ov.setAttribute('viewBox', '0 0 ' + D.w + ' ' + D.h);
+  if (!R) { ov.innerHTML = ''; say('לא זוהה דבר.', 1); return; }
+
+  var s = '';
+  s += '<rect x="'+R.bbox[0]+'" y="'+R.bbox[1]+'" width="'+(R.bbox[2]-R.bbox[0])+
+       '" height="'+(R.bbox[3]-R.bbox[1])+'" fill="none" stroke="#3B7D57" ' +
+       'stroke-width="2" stroke-dasharray="14 10" opacity=".5"/>';
+  R.zones.forEach(function (z, i) {
+    s += '<rect x="'+z.a+'" y="'+z.y0+'" width="'+(z.b-z.a)+'" height="'+(z.y1-z.y0)+
+         '" fill="rgba(192,143,43,.15)" stroke="#C08F2B" stroke-width="5"/>' +
+         '<text x="'+((z.a+z.b)/2)+'" y="'+(z.y0 + R.pitch*1.2)+'" text-anchor="middle" ' +
+         'font-size="'+(R.pitch*1.3)+'" font-weight="700" fill="#8A5A00">'+(i+1)+'</text>';
+  });
+  ov.innerHTML = s;
+
+  $('stats').innerHTML =
+    st('אזורים', R.zones.length) +
+    st('רצועות', R.strips.length) +
+    st('גובה גמרא', Math.round(R.split.hi)) +
+    st('גובה פירוש', Math.round(R.split.lo)) +
+    st('יחס', (R.split.hi / (R.split.lo || 1)).toFixed(2)) +
+    st('זמן', Math.round(performance.now() - t) + 'ms');
+
+  $('hist').innerHTML = R.strips.map(function (x) {
+    var mx = R.split.hi * 1.6;
+    return '<i class="' + (x.big ? 'big' : '') + '" style="height:' +
+      Math.max(4, Math.min(100, (x.hm / mx) * 100)) + '%"></i>';
+  }).join('');
+
+  say(selVal('mas') + ' · דף ' + selVal('daf') + ' · ' +
+      R.zones.length + ' אזורים · יחס גדלים ' +
+      (R.split.hi / (R.split.lo || 1)).toFixed(2));
+  paintTally();
+}
+function st(k, v) {
+  return '<div class="stat"><span>' + k + '</span><b>' + v + '</b></div>';
+}
+
+/* ---------- ניקוד ידני, כדי שיהיה מספר ולא תחושה ---------- */
+function tallyKey() { return 'df:lab'; }
+function tally() {
+  try { return JSON.parse(localStorage.getItem(tallyKey()) || '{}'); }
+  catch (e) { return {}; }
+}
+function mark(good) {
+  var t = tally();
+  t[selVal('mas') + '|' + dafKey(selVal('daf')) + '|' + selVal('pg')] = good ? 1 : 0;
+  localStorage.setItem(tallyKey(), JSON.stringify(t));
+  paintTally();
+  step(1);
+}
+function paintTally() {
+  var t = tally(), n = 0, y = 0;
+  for (var k in t) { n++; if (t[k]) y++; }
+  var me = t[selVal('mas') + '|' + dafKey(selVal('daf')) + '|' + selVal('pg')];
+  $('tally').innerHTML = n
+    ? '<b>' + y + '</b> מתוך <b>' + n + '</b> נתפסו · ' +
+      Math.round(y / n * 100) + '%' +
+      (me === undefined ? '' : ' · הדף הזה סומן כ' + (me ? 'תקין' : 'שגוי'))
+    : 'עוד לא נוקד אף דף.';
+}
+
+/* ---------- ניווט ---------- */
+function step(d) {
+  var pg = $('pg'), df = $('daf');
+  var i = +pg.value + d;
+  if (pg._items && i >= 0 && i < pg._items.length) { pg.value = i; showPage(+selVal('pg')); return; }
+  var j = +df.value + d;
+  if (df._items && j >= 0 && j < df._items.length) {
+    df.value = j;
+    openDaf();
+  }
+}
+
+function onMas() {
+  var m = selVal('mas');
+  var links = (window.DAF_LINKS || {})[m] || {};
+  var cal = (m === 'megila' ? CAL_MEGILA : CAL_TAANIT) || [];
+  var opts = [], seen = {};
+  cal.forEach(function (row) {
+    var d = row[2];
+    if (!d || d === 'סיום' || seen[dafKey(d)] || !links[dafKey(d)]) return;
+    seen[dafKey(d)] = 1;
+    opts.push([d, 'דף ' + d]);
+  });
+  if (!opts.length) { say('אין קישורים למסכת הזו.', 1); return; }
+  fillSel($('daf'), opts);
+  openDaf();
+}
+
+window.addEventListener('DOMContentLoaded', function () {
+  fillSel($('mas'), [['taanit','תענית'], ['megila','מגילה']]);
+  fillSel($('pg'), [[1, 'ע״א']]);
+  $('mas').onchange = onMas;
+  $('daf').onchange = openDaf;
+  $('pg').onchange  = function () { showPage(+selVal('pg')); };
+  $('next').onclick = function () { step(1); };
+  $('prev').onclick = function () { step(-1); };
+  $('hit').onclick  = function () { mark(true); };
+  $('miss').onclick = function () { mark(false); };
+  paintTally();
+  onMas();
+});
+</script>
+</body>
+</html>
