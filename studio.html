@@ -1184,6 +1184,46 @@ function chavBuild(items, body) {
   });
 }
 
+/* ============================================================
+   מטמון החברותא.
+
+   השאלה "זה בסך הכל טקסט, למה זה איטי" מוצדקת — והתשובה היא
+   שזה לא טקסט אלא PDF בן עשרה עמודים, שנמשך דרך הסקריפט,
+   מקודד ב-base64, מפוענח בדפדפן, ואז נסרק פריט-פריט כדי
+   לשחזר את ההדגשות מגובה האותיות ואת הרווחים מהמרווח בין
+   הרצפים. כל זה קרה מחדש בכל פתיחה.
+
+   הקובץ בדרייב אינו משתנה, ולכן די לעשות את זה פעם אחת.
+   נשמרים שלושה דפים אחרונים.
+
+   ואם המכסה מלאה — מוחקים את המטמון כולו ולא מנסים שוב. המטמון
+   הוא נוחות; הסימונים יושבים באותו אחסון והם העיקר, ואסור שנוחות
+   תתפוס את המקום שדרוש להם.
+   ============================================================ */
+var CHV_KEY = 'df:chv';
+function chavStore(id, paras) {
+  var o;
+  try { o = JSON.parse(localStorage.getItem(CHV_KEY) || '{}'); } catch (e) { o = {}; }
+  o[id] = { at: Date.now(), p: paras };
+  var ids = Object.keys(o).sort(function (a, b) { return o[b].at - o[a].at; });
+  var keep = {};
+  ids.slice(0, 3).forEach(function (k) { keep[k] = o[k]; });
+  try {
+    localStorage.setItem(CHV_KEY, JSON.stringify(keep));
+  } catch (e) {
+    var one = {};
+    one[id] = keep[id];
+    try { localStorage.setItem(CHV_KEY, JSON.stringify(one)); }
+    catch (e2) { try { localStorage.removeItem(CHV_KEY); } catch (e3) {} }
+  }
+}
+function chavLoad(id) {
+  try {
+    var o = JSON.parse(localStorage.getItem(CHV_KEY) || '{}');
+    return (o[id] && o[id].p && o[id].p.length) ? o[id].p : null;
+  } catch (e) { return null; }
+}
+
 function chavHtml(paras) {
   var n = 0;
   return paras.map(function (p, i) {
@@ -1408,7 +1448,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.23.0';
+var STUDIO_VER = '6.24.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2000,9 +2040,14 @@ function loadChav() {
            לא יסיט אותו. */
         var all = [].concat.apply([], pages);
         var body = bodyHeight(all);
-        CHV = applySplits([].concat.apply([], pages.map(function (it) {
+        /* נשמרות הפסקאות **לפני** הפיצולים. הפיצולים הם החלטה של
+           המשתמש, הם נשמרים ברשומת העמוד, והם מוחלים מחדש בכל
+           בנייה — לשמור אותם גם כאן היה מפצל פעמיים. */
+        var raw = [].concat.apply([], pages.map(function (it) {
           return chavBuild(it, body);
-        })));
+        }));
+        chavStore(id, raw);
+        CHV = applySplits(raw.slice());
         box.innerHTML = chavHtml(CHV);
         document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
         chavBind(); paintChav(1);
@@ -2012,6 +2057,17 @@ function loadChav() {
       })
       .catch(function () { box.innerHTML = '<div class="hint">לא הצלחתי לקרוא.</div>'; });
   };
+  /* הפסקאות המפוענחות, מהפעם הקודמת. זה מדלג על כל השרשרת:
+     קריאה מהסקריפט, base64, פענוח PDF, וזיהוי ההדגשות והרווחים
+     לפי גובה הגליפים. הקובץ אינו משתנה, ולכן אין מה לרענן. */
+  var mem = chavLoad(id);
+  if (mem) {
+    CHV = applySplits(mem.slice());
+    box.innerHTML = chavHtml(CHV);
+    document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
+    chavBind(); paintChav(1); backfillChav();
+    return;
+  }
   if (CACHE[id]) return render(CACHE[id]);
   var url = API + (API.indexOf('?') < 0 ? '?' : '&') + 'file=' + encodeURIComponent(id);
   fetch(url).then(function (r) { return r.json(); }).catch(function () { return jsonp(url); })
