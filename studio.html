@@ -1300,9 +1300,39 @@ function onDaf() {
      כך שגם קובץ ה-JSON יצא ובו הדף הקודם. שניהם נטענים עכשיו. */
   if (MODE === 'mark') { loadChav(); loadFromSheet().then(afterSheet); }
 }
+/* סימונים שנשמרו לפני שההדגשות נשמרו איתם נשענים על קובץ
+   החברותא בכל פתיחה במסך הלימוד — וזה איטי ושביר. כשהקובץ
+   ממילא פתוח כאן, ממלאים את מה שחסר, וזה נשמר בשמירה הבאה. */
+function backfillChav() {
+  if (!CHV || !STEPS.length) return 0;
+  var n = 0;
+  STEPS.forEach(function (st) {
+    var c = st.c;
+    if (!c || c.h || c.from == null) return;
+    var got = [];
+    for (var i = c.from; i <= c.to && i < CHV.length; i++) got.push(CHV[i]);
+    if (!got.length) return;
+    var plain = got.map(function (p) {
+      return p.runs.map(function (r) { return r.t; }).join('');
+    }).join(' ');
+    /* רק כשהקובץ תואם לטקסט השמור — אחרת המספרים מצביעים
+       על פסקאות אחרות. */
+    if (bareTxt(plain) !== bareTxt(c.text || '')) return;
+    c.h = got.map(function (p) {
+      return '<p>' + p.runs.map(function (r) {
+        return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t);
+      }).join('') + '</p>';
+    }).join('');
+    n++;
+  });
+  if (n) { touched(); say('הושלמו הדגשות ל-' + n + ' קטעים. שמרו כדי לקבע.'); }
+  return n;
+}
+function bareTxt(t) { return String(t || '').replace(/\s+/g, ''); }
+
 function afterSheet(n) {
   if (!n) return;
-  PKEY = ''; loadPageState(); paintChav(); markDraw();
+  PKEY = ''; loadPageState(); paintChav(); markDraw(); backfillChav();
   say('נטענו סימונים קודמים מ-' + n + ' עמודים');
 }
 function onSrc() {
@@ -1378,7 +1408,7 @@ function jsonp(url) {
 
 /* הגרסה על המסך. בלעדיה אי אפשר לדעת אם מה שרואים הוא הקוד
    החדש או עותק שנשמר במטמון, וזו השאלה הראשונה בכל תקלה. */
-var STUDIO_VER = '6.22.0';
+var STUDIO_VER = '6.23.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1569,6 +1599,19 @@ function keepPageState() {
            grid: (S.grid || []).map(function (v) { return v / S.w; }),
            simple: !!S.simple },
     steps: STEPS };
+  /* הכלל שהיה חסר, וזה שמחק את העבודה: רשומה שיש בה קטעים לא
+     מוחלפת ברשומה בלי קטעים.
+
+     כשמחליפים דף, משיכת ה-PDF וטעינת הסימונים מהגיליון רצות
+     במקביל. אם ה-PDF הגיע ראשון והגיליון עוד לא ענה — או נכשל —
+     `loadPageState` לא מצא רשומה והסיק "אין קטעים". כל פעולה
+     אחריו כתבה את הריק הזה על גבי רשומה מלאה, והשמירה הבאה
+     העבירה אותו לגיליון. הסטודיו לא ידע להבחין בין "אין" לבין
+     "עוד לא שמעתי", וזה ההבדל היחיד שהיה חשוב. */
+  if (!STEPS.length && was.steps && was.steps.length) {
+    BOOK[PKEY].steps = was.steps;
+    STEPS = was.steps;
+  }
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
 }
@@ -1963,6 +2006,9 @@ function loadChav() {
         box.innerHTML = chavHtml(CHV);
         document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
         chavBind(); paintChav(1);
+        /* גם כאן, ולא רק אחרי הגיליון: השניים מגיעים בסדר משתנה,
+           וההשלמה צריכה את שניהם. */
+        backfillChav();
       })
       .catch(function () { box.innerHTML = '<div class="hint">לא הצלחתי לקרוא.</div>'; });
   };
@@ -2083,6 +2129,13 @@ function saveToSheet() {
   keepPageState();
   say('שומר בגיליון…');
   return sheetCsv(MARK_TAB).then(function (rows) {
+    /* כתיבה מוחקת את הלשונית וכותבת מחדש. אם הקריאה נכשלה, כל
+       מה שאינו בזיכרון נמחק — וכל דף אחר. עדיף לא לשמור. */
+    if (!rows || rows.length < 1) {
+      say('לא הצלחתי לקרוא את הגיליון. לא שמרתי, כדי לא למחוק ' +
+          'דפים אחרים. נסו שוב.', 1);
+      return false;
+    }
     var keep = [];
     (rows || []).slice(1).forEach(function (r) {
       /* שומרים כל מה ששייך לדפים אחרים, ומחליפים רק את שלנו */

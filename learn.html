@@ -703,6 +703,18 @@ function loadChav() {
     .catch(function () {});
 }
 function bare(t) { return String(t || '').replace(/\s+/g, ''); }
+/* מטמון ההדגשות, לפי מסכת·דף·קטע. קריאה בלי ערך, כתיבה עם. */
+function chavCache(i, html) {
+  var k = 'df:ch:' + S.mas + '|' + dafKey(S.daf);
+  try {
+    var o = JSON.parse(localStorage.getItem(k) || '{}');
+    if (html == null) return o[i] || '';
+    o[i] = html;
+    localStorage.setItem(k, JSON.stringify(o));
+  } catch (e) {}
+  return html || '';
+}
+
 function paintChav() {
   var st = FLAT[IDX], box = $('chb');
   $('chnum').textContent = st ? 'קטע ' + (IDX + 1) : '';
@@ -712,6 +724,11 @@ function paintChav() {
      לא מהדרייב ולא דרך הסקריפט. סימונים ישנים שנשמרו לפני כן
      עדיין נשענים על הקובץ, וזה מה שהענף הבא מטפל בו. */
   if (st.c && st.c.h) html = st.c.h;
+  /* סימונים ישנים נשמרו בלי ה-HTML, ולכן הם נשענים על קובץ
+     החברותא — שתי מגהבייט דרך הסקריפט, בכל פתיחה מחדש. זה
+     האיטיות, וזו גם הסיבה שההדגשות נעלמו כשהמשיכה נכשלה.
+     מה שנבנה פעם אחת נשמר כאן, וכל פתיחה הבאה מיידית. */
+  if (!html) html = chavCache(IDX);
   if (!html && CHV && st.c && st.c.from != null) {
     var got = [], plain = '';
     for (var i = st.c.from; i <= st.c.to && i < CHV.length; i++) {
@@ -725,6 +742,7 @@ function paintChav() {
         return '<p>' + p.runs.map(function (r) {
           return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t); }).join('') + '</p>';
       }).join('');
+      chavCache(IDX, html);
     }
   }
   if (!html) {
