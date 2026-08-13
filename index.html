@@ -1026,7 +1026,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.24.0';
+var APP_VERSION = '6.24.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1732,7 +1732,7 @@ function openWeek(id, i) {
        '<div id="w-inter"></div>' +
        (showRow('sugya')
          ? lnk(sgHref, '◆', 'הסוגיה היומית',
-               sgPage ? 'דלגו לעמוד ' + sgPage + ' בחוברת' : 'החוברת הדיגיטלית', 'sug')
+               sgPage ? 'נפתח בעמוד ' + sgPage + ' בחוברת' : 'החוברת הדיגיטלית', 'sug')
          : '') +
        '</div>';
 
