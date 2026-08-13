@@ -130,18 +130,18 @@ def to_webp(png, dst):
 def build(api, mas, daf, urls, idx):
     fid = file_id(urls[0] if urls else None)
     if not fid:
-        print('  %s %-4s  אין קישור' % (mas, daf)); return
+        print('  %s %-4s  אין קישור' % (mas, daf)); return False
     key = daf_key(daf)
     out = os.path.join(OUT, mas)
     os.makedirs(out, exist_ok=True)
     if all(os.path.exists(os.path.join(out, '%s-%s.webp' % (key, a))) for a in AMUD):
         idx.setdefault(mas, {})[key] = AMUD
-        print('  %s %-4s  קיים' % (mas, daf)); return
+        print('  %s %-4s  קיים' % (mas, daf)); return True
 
     try:
         buf, name = grab(api, fid)
     except Exception as e:
-        print('  %s %-4s  ✗ %s' % (mas, daf, e)); return
+        print('  %s %-4s  ✗ %s' % (mas, daf, e)); return False
 
     tmp = tempfile.mkdtemp()
     pdf = os.path.join(tmp, 'd.pdf')
@@ -161,6 +161,12 @@ def build(api, mas, daf, urls, idx):
     idx.setdefault(mas, {})[key] = made
     print('  %s %-4s  %d עמודים · %.2fMB · «%s»'
           % (mas, daf, len(made), total / 1e6, name))
+    return True
+
+
+# שם המסכת בעברית עובד גם הוא. מי שמריץ את זה מהטלפון כותב
+# "תענית" באופן טבעי, וקודם לכן הכלי פשוט לא עשה כלום ולא אמר למה.
+ALIAS = {'תענית': 'taanit', 'מגילה': 'megila', 'מגלה': 'megila'}
 
 
 if __name__ == '__main__':
@@ -168,20 +174,32 @@ if __name__ == '__main__':
     links = js_value(os.path.join(ROOT, 'links.js'), 'DAF_LINKS')
     want_mas = sys.argv[1] if len(sys.argv) > 1 else None
     want_daf = set(sys.argv[2:]) or None
+    if want_mas:
+        want_mas = ALIAS.get(want_mas.strip(), want_mas.strip())
+        if want_mas not in links:
+            print('אין מסכת בשם "%s".' % want_mas)
+            print('הקיימות: %s (או בעברית: %s)'
+                  % (', '.join(links), ', '.join(ALIAS)))
+            sys.exit(1)
 
     idx = {}
     if os.path.exists(INDEX):
         idx = json.load(open(INDEX, encoding='utf-8'))
 
+    bad = []
     for mas, dapim in links.items():
         if want_mas and mas != want_mas: continue
         print(mas + ':')
         for daf, urls in dapim.items():
             if want_daf and daf not in want_daf: continue
-            build(api, mas, daf, urls, idx)
+            if not build(api, mas, daf, urls, idx):
+                bad.append('%s %s' % (mas, daf))
 
     os.makedirs(OUT, exist_ok=True)
     json.dump(idx, open(INDEX, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     n = sum(len(v) for v in idx.values())
     print('\n%d דפים במאגר · daf/index.json עודכן' % n)
-    print('אחרי זה: git add daf && git commit && git push')
+    if bad:
+        # מרוכז בסוף, כי בלוג ארוך שורת שגיאה בודדת נבלעת
+        print('לא נבנו (%d): %s' % (len(bad), ' · '.join(bad)))
+        print('הרצה חוזרת תנסה רק אותם.')
