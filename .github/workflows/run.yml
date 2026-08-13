@@ -1,0 +1,91 @@
+# ============================================================
+# הרצת כלים מהנייד.
+#
+# הרכז עובד מהטלפון. הכלים שב-tools/ דורשים פייתון, poppler ורשת —
+# דברים שאין בטלפון ואין טעם להתקין בו. במקום זה הם רצים כאן, על
+# מכונת GitHub, והתוצאות נדחפות חזרה לריפו.
+#
+# איך מריצים: github.com בדפדפן של הטלפון → Actions → "הרצת כלים"
+# → Run workflow → בוחרים משימה → Run. זהו.
+#
+# מה שנדחף חזרה נקרא ישירות מהריפו, ולכן אין צורך להעתיק שום דבר
+# ידנית לצ'אט.
+# ============================================================
+name: הרצת כלים
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'איזו משימה'
+        required: true
+        default: 'sugya'
+        type: choice
+        options:
+          - sugya          # מיפוי הסוגיה היומית
+          - library        # המרת צורות הדף לתמונות
+          - check-links    # בדיקת קישורי הדפים
+      args:
+        description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # poppler דרוש רק ל-library, אבל הוא זול ומותקן תמיד כדי
+      # ששינוי משימה לא ידרוש עריכה של הקובץ הזה.
+      - name: התקנה
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          pip install --quiet pdfplumber pillow
+
+      - name: הרצה
+        run: |
+          set -o pipefail
+          case "${{ inputs.job }}" in
+            sugya)       python3 tools/sugya-index.py   ${{ inputs.args }} ;;
+            library)     python3 tools/build-library.py ${{ inputs.args }} ;;
+            check-links) python3 tools/check-links.py   ${{ inputs.args }} ;;
+          esac 2>&1 | tee run.log
+
+      # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.job }}-output
+          path: |
+            run.log
+            sugya/
+            daf/index.json
+          if-no-files-found: ignore
+
+      - name: דחיפה
+        if: always()
+        run: |
+          git config user.name  'hadaf-bot'
+          git config user.email 'hadaf-bot@users.noreply.github.com'
+          git add -A sugya daf 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo 'אין שינוי לדחוף'
+            exit 0
+          fi
+          git commit -m "תוצאות ${{ inputs.job }} ${{ inputs.args }}"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && \
+            git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((2 ** i))
+          done
+          exit 1
