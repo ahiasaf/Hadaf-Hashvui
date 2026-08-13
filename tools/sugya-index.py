@@ -237,10 +237,17 @@ def read_pages(path):
     flipped = join.count('היגוס') > join.count('סוגיה')
     if not flipped:
         return raw, False
-    out = []
-    for t in raw:
-        out.append('\n'.join(ln[::-1] for ln in t.split('\n')))
-    return out, True
+    return ['\n'.join(unflip(ln) for ln in t.split('\n')) for t in raw], True
+
+
+def unflip(ln):
+    """הופכים את השורה — ואז מחזירים את המספרים למקומם.
+
+    בקובץ העברית שמורה בסדר הפוך אבל המספרים שמורים ישר. היפוך של
+    השורה כולה מתקן את העברית ומקלקל אותם: 'סוגיה 10' הפכה ל'סוגיה
+    01', ומכאן ש-10 נקראה כ-1 והתנגשה עם סוגיה 1 — כלומר סוגיה
+    שלמה נעלמה מהטבלה."""
+    return re.sub(r'[0-9A-Za-z]+', lambda m: m.group(0)[::-1], ln[::-1])
 
 
 # ============================================================
@@ -373,10 +380,17 @@ def build(book, want_daf, log):
             hit = [s for s in spans if s['lo'] <= k <= s['hi']]
             if not hit:
                 continue                       # לא בחוברת הזאת — לא אזהרה
-            s = hit[0]
-            if k == s['lo']:
+
+            # קודם כל: האם יש סוגיה שמתחילה **בדיוק** בחצי הדף הזה?
+            # אם כן היא התשובה, גם אם סוגיה קודמת עוד נמשכת עליו.
+            # בלי זה ג ע"ב היה מקבל את הסוגיה שגלשה אליו ולא את
+            # הסוגיה שנפתחת בו, והכותרת המדויקת שלו הייתה מוחמצת.
+            exact = [s for s in hit if s['lo'] == k]
+            if exact:
+                s = exact[0]
                 page, how = s['page'], 'כותרת'
             else:
+                s = hit[0]
                 page, kind = amud_start_page(pages, names, hdr, s['page'],
                                              s['end'], daf, amud)
                 how = {'ref': 'הפניה', 'mark': 'סימון צד'}.get(kind, '')
