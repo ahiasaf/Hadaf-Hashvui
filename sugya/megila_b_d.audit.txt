@@ -1,0 +1,7 @@
+חוברת: מגילה פרקים ב-ד
+
+[אזהרה] לא הצלחתי לפתוח את עמוד האתר (HTTP Error 302: The HTTP server returned a redirec)
+Flipbook: 
+[אזהרה] נפילה: HTTP Error 302: The HTTP server returned a redirect error that would lead to an infinite loop.
+The last 30x error message was:
+Found
