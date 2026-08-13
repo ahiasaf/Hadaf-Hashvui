@@ -25,6 +25,7 @@ on:
           - sugya          # מיפוי הסוגיה היומית
           - library        # המרת צורות הדף לתמונות
           - check-links    # בדיקת קישורי הדפים
+          - dflip          # מה הפליפבוק מקבל מהכתובת
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -59,6 +60,7 @@ jobs:
             sugya)       python3 tools/sugya-index.py   ${{ inputs.args }} ;;
             library)     python3 tools/build-library.py ${{ inputs.args }} ;;
             check-links) python3 tools/check-links.py   ${{ inputs.args }} ;;
+            dflip)       python3 tools/dflip-probe.py   ${{ inputs.args }} ;;
           esac 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
