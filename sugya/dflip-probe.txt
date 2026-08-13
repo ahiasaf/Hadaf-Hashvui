@@ -1,0 +1,80 @@
+עמוד: https://www.sugiayomit.co.il/%d7%9e%d7%a1%d7%9b%d7%aa-%d7%aa%d7%a2%d7%a0%d7%99%d7%aa-%d7%a4%d7%a8%d7%a7-%d7%90-%d7%91/
+
+גודל העמוד: 123347 תווים
+קבצי סקריפט: 43 · מתוכם של הפליפבוק: 1
+  https://www.sugiayomit.co.il/wp-content/plugins/3d-flipbook-dflip-lite/assets/js/dflip.min.js?ver=2.4.27
+
+=== הגדרות בעמוד עצמו ===
+  option_df_6714 = {"outline":[],"autoEnableOutline":"false","autoEnableThumbnail":"false","overwritePDFOutline":"false","enableDownload":"false","direction":"2","pageSize":"0","pageMode":"2","source":"https:\/\/www.sugiayomit.co.il\/wp-content\/uploads\/2022\/07\/\u05ea\u05e2\u05e0\u05d9\u05ea-\u05d0
+
+=== dflip.min.js?ver=2.4.27 ===
+  246143 תווים
+  --- fullscreen (19) ---
+      omin:"df-icon-add-circle",zoomout:"df-icon-minus-circle",resetzoom:"df-icon-minus-circle",fullscreen:"df-icon-fullscreen","fullscreen-off":"df-icon-fit-screen",fitscreen:"df-icon-f
+      rcle",zoomout:"df-icon-minus-circle",resetzoom:"df-icon-minus-circle",fullscreen:"df-icon-fullscreen","fullscreen-off":"df-icon-fit-screen",fitscreen:"df-icon-fit-screen",thumbnail
+      :"df-icon-minus-circle",resetzoom:"df-icon-minus-circle",fullscreen:"df-icon-fullscreen","fullscreen-off":"df-icon-fit-screen",fitscreen:"df-icon-fit-screen",thumbnail:"df-icon-gri
+      .pow(2,Math.ceil(Math.log(e)/Math.LN2)))},getFullscreenElement:function(){return document.fullscreenElement||document.mozFullScreenElement||document.webkitFullscreenElement||docume
+      eenElement||document.msFullscreenElement},hasFullscreenEnabled:function(){return document.fullscreenEnabled||document.mozFullScreenEnabled||document.webkitFullscreenEnabled||docume
+      ss:"df-more-container"}),n.more.append(e.moreContainer),!0===i.options.isLightBox&&!0!==i.fullscreenSupported||(this.fullScreen=n.fullScreen=tc.createBtn("fullscreen",s.fullscreen,
+  --- fullScreen (5) ---
+      ct}}"},allControls:"altPrev,pageNumber,altNext,play,outline,thumbnail,zoomIn,zoomOut,zoom,fullScreen,share,download,search,pageMode,startPage,endPage,sound,search,print,more",moreC
+      pageMode,pageFit,startPage,endPage,sound",leftControls:"outline,thumbnail",rightControls:"fullScreen,share,download,more",hideControls:"",hideShareControls:"",controlsPosition:p.CO
+      more.append(e.moreContainer),!0===i.options.isLightBox&&!0!==i.fullscreenSupported||(this.fullScreen=n.fullScreen=tc.createBtn("fullscreen",s.fullscreen,o.toggleFullscreen).on("cli
+      .moreContainer),!0===i.options.isLightBox&&!0!==i.fullscreenSupported||(this.fullScreen=n.fullScreen=tc.createBtn("fullscreen",s.fullscreen,o.toggleFullscreen).on("click",i.switchF
+      ||void 0===t?void 0:null===(e=t.controls)||void 0===e?void 0:e.fullscreen)&&i.ui.controls.fullScreen.toggleClass(i.options.icons["fullscreen-off"],!0!==i.isFullscreen),!0!==i.isFul
+  --- requestFullscreen (2) ---
+      (i.options.icons["fullscreen-off"],!0!==i.isFullscreen),!0!==i.isFullscreen){var o=null;n.requestFullscreen?o=n.requestFullscreen():n.msRequestFullscreen?o=n.msRequestFullscreen():
+      screen-off"],!0!==i.isFullscreen),!0!==i.isFullscreen){var o=null;n.requestFullscreen?o=n.requestFullscreen():n.msRequestFullscreen?o=n.msRequestFullscreen():n.mozRequestFullScreen
+  --- location.hash (2) ---
+      ),e.replace(v,""))},p.hashFocusBookFound=!1,m.detectHash=function(){p.preParseHash=window.location.hash;var e=m.getSharePrefixes();-1==e.indexOf("")&&e.push(""),Array.prototype.for
+      per.hide(),Array.prototype.forEach.call(p.utils.getSharePrefixes(),function(e){0===window.location.hash.indexOf("#"+e)&&!0==p.defaults.hashNavigationEnabled&&history.replaceState(v
+  --- window.location (7) ---
+      tpsCorrection:function(e){try{if(null==e)return null;if("string"!=typeof e)return e;var t=window.location;if(t.href.split(".")[0]===e.split(".")[0])return e;e.split("://")[1].split
+      ft:s,top:a,right:r,bottom:l,width:h,height:u}}};m.isChromeExtension=function(){return 0===window.location.href.indexOf("chrome-extension://")};var v=/\x00+/g,y=/[\x01-\x1F]/g;m.rem
+      (y," ")),e.replace(v,""))},p.hashFocusBookFound=!1,m.detectHash=function(){p.preParseHash=window.location.hash;var e=m.getSharePrefixes();-1==e.indexOf("")&&e.push(""),Array.protot
+      ent.createElement("a");i.href=t.options.pdfjsWorkerSrc+n.cacheBustParameters,i.hostname!==window.location.hostname&&!0===p.loadCorsPdfjsWorker?(t.updateInfo(t.options.text.loading+
+      =e.options){var n,o="",s=document.createElement("a");s.href=e.options.source,s.hostname===window.location.hostname||-1!==s.href.indexOf("file://")||e1.isChromeExtension()||-1!==s.h
+      boxWrapper.hide(),Array.prototype.forEach.call(p.utils.getSharePrefixes(),function(e){0===window.location.hash.indexOf("#"+e)&&!0==p.defaults.hashNavigationEnabled&&history.replace
+  --- dflip- (3) ---
+      turn m.getSharePrefixes()[0]},getSharePrefixes:function(){return(p.defaults.sharePrefix+",dflip-,flipbook-,dearflip-,dearpdf-").split(",").map(function(e){return e.trim()})},toRad:
+      ={AUTO:0,SINGLE:1,DOUBLEINTERNAL:2},tk.parseFallBack=function(){tT(".df-posts").addClass("dflip-books"),tT(".dflip-books").addClass("df-posts"),tT("._df_button, ._df_thumb, ._df_bo
+      OUBLEINTERNAL:2},tk.parseFallBack=function(){tT(".df-posts").addClass("dflip-books"),tT(".dflip-books").addClass("df-posts"),tT("._df_button, ._df_thumb, ._df_book").each(function(
+  --- flipbook- (3) ---
+      getSharePrefixes()[0]},getSharePrefixes:function(){return(p.defaults.sharePrefix+",dflip-,flipbook-,dearflip-,dearpdf-").split(",").map(function(e){return e.trim()})},toRad:functio
+      i(e,n){var o,s;return ee(this,i),e.viewerClass=null!==(s=e.viewerClass)&&void 0!==s?s:"df-flipbook-2d",e.skipViewerLoaded=!0,(o=t.call(this,e,n)).bookShadow=el("<div>",{class:"df-b
+      (e){eB(i,e);var t=eU(i);function i(e,n){var o,s,a,r,l;return eA(this,i),e.viewerClass="df-flipbook-3d",(o=t.call(this,e,n)).pageOffset=5,o.spiralCount=20,o.groundDistance=null!==(s
+  --- openPage (6) ---
+      PAGE_MODE.AUTO,flipbookFitPages:!1,backgroundColor:"transparent",flipbookHardPages:"none",openPage:1,annotationClass:"",maxTextureSize:3200,minTextureSize:256,rangeChunkSize:524288
+      are.mail&&(e.share.mail="mailto:?subject="+e.text.mailSubject+"&body="+e.text.mailBody),e.openPage&&(e.openPage=parseInt(e.openPage,10)),e};var b=function(e){var t={},i={id:"",thum
+      share.mail="mailto:?subject="+e.text.mailSubject+"&body="+e.text.mailBody),e.openPage&&(e.openPage=parseInt(e.openPage,10)),e};var b=function(e){var t={},i={id:"",thumb:"",openPage
+      subject="+e.text.mailSubject+"&body="+e.text.mailBody),e.openPage&&(e.openPage=parseInt(e.openPage,10)),e};var b=function(e){var t={},i={id:"",thumb:"",openPage:"data-hash-page,df-
+      age&&(e.openPage=parseInt(e.openPage,10)),e};var b=function(e){var t={},i={id:"",thumb:"",openPage:"data-hash-page,df-page,data-df-page,data-page,page",target:"",height:"",showDown
+      .links=e.links,this.thumbSize=128,this.pendingZoom=!0,this.currentPageNumber=this.options.openPage||this.startPage,this.hashNavigationEnabled=!0===this.options.hashNavigationEnable
+  --- gotoPage (21) ---
+      ash(o);var a=p.activeLightBox&&p.activeLightBox.app||o.data("df-app");if(null!=a)return a.gotoPage(s),m.focusHash(a.element),!1;null!=s&&o.attr("data-hash-page",s),o.addClass("df-h
+      n(){}},{key:"determinePageMode",value:function(){}},{key:"zoom",value:function(){}},{key:"gotoPageCallBack",value:function(){this.requestRefresh()}},{key:"requestRefresh",value:fun
+      r[0].style.transform="none",this.updateScrollBar()}},{key:"onReady",value:function(){this.gotoPageCallBack(),this.oldScrollHeight=this.element[0].scrollHeight}},{key:"refresh",valu
+      eak;if(o>0&&a>t&&s.clientHeight+a>=t){n=i[o-1];break}}this.skipScrollIntoView=!0,this.app.gotoPage(n),this.skipScrollIntoView=!1,this.updateScrollBar(),e.preventDefault&&e.preventD
+      le.transform="translateY("+t+"px)"}},{key:"validatePageChange",value:function(e){}},{key:"gotoPageCallBack",value:function(){if(!0!==this.skipScrollIntoView){var e=this.getPageByNu
+      s)}},{key:"updatePan",value:function(){}},{key:"resetPageTween",value:function(){}},{key:"gotoPageCallBack",value:function(){this.resetPageTween(),1!==this.app.zoomValue&&!0===this
+  --- autoPlay (24) ---
+      er",cleanupAfterRender:!0,canvasWillReadFrequently:!0,providerType:"pdf",loadMoreCount:-1,autoPlay:!1,autoPlayDuration:1e3,autoPlayStart:!1,popupBackGroundColor:"#eee",mockupMode:!
+      fterRender:!0,canvasWillReadFrequently:!0,providerType:"pdf",loadMoreCount:-1,autoPlay:!1,autoPlayDuration:1e3,autoPlayStart:!1,popupBackGroundColor:"#eee",mockupMode:!1,instantTex
+      illReadFrequently:!0,providerType:"pdf",loadMoreCount:-1,autoPlay:!1,autoPlayDuration:1e3,autoPlayStart:!1,popupBackGroundColor:"#eee",mockupMode:!1,instantTextureProcess:!1,cacheP
+      arseFloatIfExists(e.zoomRatio),e.enableAnalytics=m.parseBoolIfExists(e.enableAnalytics),e.autoPlay=m.parseBoolIfExists(e.autoPlay),e.autoPlayStart=m.parseBoolIfExists(e.autoPlaySta
+      e.enableAnalytics=m.parseBoolIfExists(e.enableAnalytics),e.autoPlay=m.parseBoolIfExists(e.autoPlay),e.autoPlayStart=m.parseBoolIfExists(e.autoPlayStart),e.autoPlayDuration=m.parseI
+      ytics=m.parseBoolIfExists(e.enableAnalytics),e.autoPlay=m.parseBoolIfExists(e.autoPlay),e.autoPlayStart=m.parseBoolIfExists(e.autoPlayStart),e.autoPlayDuration=m.parseIntIfExists(e
+  --- singlePageMode (19) ---
+      ok3DTiltAngleLeft:0,readDirection:p.READ_DIRECTION.LTR,pageMode:p.FLIPBOOK_PAGE_MODE.AUTO,singlePageMode:p.FLIPBOOK_SINGLE_PAGE_MODE.AUTO,flipbookFitPages:!1,backgroundColor:"trans
+      ",pageFit:"Fit Page",widthFit:"Fit Width",toggleHelp:"Toggle Help",search:"Search in PDF",singlePageMode:"Single Page Mode",doublePageMode:"Double Page Mode",downloadPDFFile:"Downl
+      eCount<=2?p.FLIPBOOK_PAGE_MODE.SINGLE:p.FLIPBOOK_PAGE_MODE.DOUBLE:e.options.pageMode,this.singlePageMode=e.options.singlePageMode||(X.isMobile?p.FLIPBOOK_SINGLE_PAGE_MODE.BOOKLET:p
+      _MODE.SINGLE:p.FLIPBOOK_PAGE_MODE.DOUBLE:e.options.pageMode,this.singlePageMode=e.options.singlePageMode||(X.isMobile?p.FLIPBOOK_SINGLE_PAGE_MODE.BOOKLET:p.FLIPBOOK_SINGLE_PAGE_MOD
+      s.isSingle=this.pageMode===p.FLIPBOOK_PAGE_MODE.SINGLE,this.isBooklet=this.isSingle&&this.singlePageMode===p.FLIPBOOK_SINGLE_PAGE_MODE.BOOKLET,this.app.jumpStep=this.isSingle?1:2,t
+      ptions.icons.doublepage).addClass(e.options.icons.singlepage).attr("title",e.options.text.singlePageMode).html("<span>"+e.options.text.singlePageMode+"</span>"):e.ui.controls.pageM
+  --- zoom (220) ---
+      v"},ARROW_KEYS_ACTIONS:{NONE:"none",NAV:"nav"},MOUSE_DBL_CLICK_ACTIONS:{NONE:"none",ZOOM:"zoom"},MOUSE_SCROLL_ACTIONS:{NONE:"none",ZOOM:"zoom",NAV:"nav"},PAGE_SCALE:{PAGE_FIT:"fit"
+      MOUSE_DBL_CLICK_ACTIONS:{NONE:"none",ZOOM:"zoom"},MOUSE_SCROLL_ACTIONS:{NONE:"none",ZOOM:"zoom",NAV:"nav"},PAGE_SCALE:{PAGE_FIT:"fit",PAGE_WIDTH:"width",AUTO:"auto",ACTUAL:"actual"
+      _PAGE_MODE:{SINGLE:"single",DOUBLE:"double",AUTO:"auto"},FLIPBOOK_SINGLE_PAGE_MODE:{ZOOM:"zoom",BOOKLET:"booklet",AUTO:"auto"},FLIPBOOK_PAGE_SIZE:{AUTO:"auto",SINGLE:"single",DOUBL
+      :"df-icon-arrow-down",help:"df-icon-help",more:"df-icon-more",download:"df-icon-download",zoomin:"df-icon-add-circle",zoomout:"df-icon-minus-circle",resetzoom:"df-icon-minus-circle
+      df-icon-help",more:"df-icon-more",download:"df-icon-download",zoomin:"df-icon-add-circle",zoomout:"df-icon-minus-circle",resetzoom:"df-icon-minus-circle",fullscreen:"df-icon-fullsc
+      wnload:"df-icon-download",zoomin:"df-icon-add-circle",zoomout:"df-icon-minus-circle",resetzoom:"df-icon-minus-circle",fullscreen:"df-icon-fullscreen","fullscreen-off":"df-icon-fit-
