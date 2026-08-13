@@ -26,6 +26,7 @@ on:
           - library        # המרת צורות הדף לתמונות
           - check-links    # בדיקת קישורי הדפים
           - dflip          # מה הפליפבוק מקבל מהכתובת
+          - word           # מה יש בקובצי הוורד של חברותא
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -61,6 +62,7 @@ jobs:
             library)     python3 tools/build-library.py ${{ inputs.args }} ;;
             check-links) python3 tools/check-links.py   ${{ inputs.args }} ;;
             dflip)       python3 tools/dflip-probe.py   ${{ inputs.args }} ;;
+            word)        python3 tools/word-probe.py    ${{ inputs.args }} ;;
           esac 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
@@ -71,6 +73,7 @@ jobs:
           path: |
             run.log
             sugya/
+            docs/word-probe.txt
             daf/index.json
           if-no-files-found: ignore
 
@@ -82,7 +85,7 @@ jobs:
           # כל תיקייה בנפרד: git add נכשל על נתיב שאינו קיים ואז
           # אינו מוסיף **כלום**, גם לא את מה שכן נוצר. וב-if ולא ב-&&,
           # כי הצעד רץ תחת `bash -e` ותנאי שקרי היה מפיל אותו.
-          for d in sugya daf; do
+          for d in sugya daf docs; do
             if [ -d "$d" ]; then git add -A "$d"; fi
           done
           echo '--- מה נוצר ---'

@@ -50,6 +50,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -94,13 +95,26 @@ def file_id(url):
 
 
 def grab(api, fid):
-    """מושך קובץ מהדרייב דרך הסקריפט, ומחזיר בייטים."""
+    """מושך קובץ מהדרייב דרך הסקריפט, ומחזיר בייטים.
+
+    עם ניסיונות חוזרים, וזה לא מותרות: הסקריפט של הרכז מוגבל
+    בריצות מקבילות ובזמן, ובריצה על מסכת שלמה חלק מהדפים נופלים
+    באמצע — לא מפני שמשהו שבור אלא מעומס רגעי. בריצה הראשונה על
+    תענית נבנו 15 דפים מתוך 30 בדיוק מהסיבה הזאת."""
     url = api + ('&' if '?' in api else '?') + 'file=' + fid
-    with urllib.request.urlopen(url, timeout=180) as r:
-        d = json.loads(r.read().decode('utf-8'))
-    if d.get('status') != 'ok' or not d.get('data'):
-        raise RuntimeError(d.get('message') or 'no data')
-    return base64.b64decode(d['data']), d.get('name', '')
+    last = ''
+    for i in range(4):
+        try:
+            with urllib.request.urlopen(url, timeout=180) as r:
+                d = json.loads(r.read().decode('utf-8'))
+            if d.get('status') == 'ok' and d.get('data'):
+                return base64.b64decode(d['data']), d.get('name', '')
+            last = d.get('message') or 'no data'
+        except Exception as e:
+            last = str(e)[:90]
+        if i < 3:
+            time.sleep(5 * (i + 1))
+    raise RuntimeError(last)
 
 
 def to_webp(png, dst):
