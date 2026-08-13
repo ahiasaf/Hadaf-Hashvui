@@ -12,20 +12,22 @@
 
 הכלל שקובע
 ----------
-היחידה אינה "סוגיה" אלא **חצי דף**. סוגיה אחת יכולה לכסות גם ע"א
-וגם ע"ב, ואז שני חצאי הדף מקבלים **נקודות פתיחה שונות**:
+היחידה אינה "סוגיה" אלא **חצי דף**, והכלל פשוט:
 
-    ע"א  →  העמוד שבו הכותרת של הסוגיה מופיעה
-    ע"ב  →  העמוד שבו ע"ב באמת מתחיל, גם אם זה באמצע הסוגיה
+    ההופעה הראשונה של חצי הדף בכותרת — שם הוא מתחיל.
 
-לזה משמש `AMUD_MARK` למטה: סימון של מעבר עמוד בתוך גוף החוברת.
+ולא משנה אם הכותרת מזכירה אותו לבדו ("ב ע"ב") או בטווח יחד עם
+מה שקדם לו ("ב ע"א - ב ע"ב"). בשני המקרים זו הפעם הראשונה שהחוברת
+מגיעה לחצי הדף הזה, ולכן זו הסוגיה שאליה מפנים.
 
-ומה שלא נמצא — לא מנוחש. הוא נרשם ב-audit עם [אזהרה] והקישור נשאר
-ריק. חצי דף בלי קישור עדיף על חצי דף שנפתח במקום הלא נכון.
+זה נלמד מהחוברת עצמה ולא מהקוד. הייתה כאן גרסה שחיפשה "איפה ע"ב
+מתחיל בתוך הסוגיה" ודילגה על הכותרת המשותפת — היא הפנתה את ב ע"ב
+לסוגיה 3 במקום לסוגיה 2, וגם ייצרה אזהרות על לא כלום.
 
 הפלט
 ----
-    sugya/<חוברת>.csv         daf,amud,sugya,pdf_page,link,confidence
+    sugya/<חוברת>.csv         daf,amud,sugya,pdf_page,link
+    sugya/index.json          מיפוי אחד לכל המסכתות — מה שהאפליקציה קוראת
     sugya/<חוברת>.md          טבלה לקריאה
     sugya/<חוברת>.audit.txt   כל הסוגיות שזוהו והטווחים שלהן
     sugya/probe-<חוברת>.txt   מה הכלי ראה בפועל ב-PDF
@@ -43,6 +45,7 @@
 (מוחרג מהריפו), ולכן ריצה שנייה מהירה.
 """
 import csv
+import json
 import http.cookiejar
 import io
 import os
@@ -148,10 +151,6 @@ def ref_re(names):
 
 
 SUGYA_RE = re.compile(r'סוגי[הא]\s*[:\-]?\s*(\d{1,3})')
-
-# סימון מעבר עמוד בתוך גוף החוברת: "עב" בפני עצמו, בלי שם דף לפניו.
-# זה מה שמאפשר לתת ל-ע"ב נקודת פתיחה משלו כשהוא באמצע סוגיה.
-AMUD_MARK = re.compile(r'(?<![א-ת])ע\s*([אב])(?![א-ת])')
 
 
 # ============================================================
@@ -264,7 +263,7 @@ def find_sugyot(pages, names):
     בשורה שלידה, ולא תמיד באותו סדר. לכן מחפשים את המספר, ואז את
     ההפניה הקרובה אליו בחלון של שתי שורות לכל צד."""
     rx = ref_re(names)
-    out, hdr = [], set()
+    out = []
     for pno, text in enumerate(pages, 1):
         lines = strip_q(text).split('\n')
         for i, ln in enumerate(lines):
@@ -273,7 +272,6 @@ def find_sugyot(pages, names):
                 continue
             refs = []
             for j in range(max(0, i - 2), min(len(lines), i + 3)):
-                hdr.add((pno, j))     # שורות הכותרת — לא נקודות התחלה
                 for r in rx.finditer(lines[j]):
                     refs.append((r.group(1), r.group(2)))
             out.append({'n': int(m.group(1)), 'page': pno, 'refs': refs,
@@ -285,52 +283,11 @@ def find_sugyot(pages, names):
             continue
         seen.add(s['n'])
         uniq.append(s)
-    return sorted(uniq, key=lambda s: s['page']), hdr
+    return sorted(uniq, key=lambda s: s['page'])
 
 
 def half_index(names, daf, amud):
     return names.index(daf) * 2 + (0 if amud == 'א' else 1)
-
-
-def amud_start_page(pages, names, hdr, frm, to, daf, amud):
-    """העמוד שבו מתחיל חצי דף שנמצא **בתוך** סוגיה.
-
-    מחפשים קודם את ההפניה המלאה (הדף והצד יחד), ורק אם אין —
-    סימון של הצד לבדו. חיפוש הצד לבדו מוגבל לטווח העמודים של
-    הסוגיה, אחרת הוא היה תופס כל 'עב' בחוברת.
-
-    שורות הכותרת מוחרגות, וזה העיקר: הכותרת של סוגיה 4 כתוב בה
-    "ב ע"א - ב ע"ב", ובלי ההחרגה ע"ב היה מקבל את עמוד הכותרת —
-    כלומר בדיוק את הטעות שהכלי נועד למנוע."""
-    def scan(match_full):
-        rx = ref_re(names)
-        for pno in range(frm, to + 1):
-            if pno - 1 >= len(pages):
-                break
-            for i, ln in enumerate(strip_q(pages[pno - 1]).split('\n')):
-                if (pno, i) in hdr:
-                    continue
-                if match_full:
-                    for m in rx.finditer(ln):
-                        if m.group(1) == daf and m.group(2) == amud:
-                            return pno
-                else:
-                    # הפניות מלאות שכבר נבדקו — סימון בתוכן אינו סימון
-                    # עצמאי אלא הצד של דף אחר.
-                    full = [(m.start(), m.end()) for m in rx.finditer(ln)]
-                    for m in AMUD_MARK.finditer(ln):
-                        if m.group(1) != amud:
-                            continue
-                        if any(a <= m.start() < b for a, b in full):
-                            continue
-                        return pno
-        return None
-
-    p = scan(True)
-    if p:
-        return p, 'ref'
-    p = scan(False)
-    return (p, 'mark') if p else (None, None)
 
 
 def build(book, want_daf, log):
@@ -345,7 +302,7 @@ def build(book, want_daf, log):
     log.append('עמודי PDF: %d%s' % (len(pages), '  (הטקסט היה הפוך ותוקן)'
                                     if flipped else ''))
 
-    sug, hdr = find_sugyot(pages, names)
+    sug = find_sugyot(pages, names)
     log.append('סוגיות שזוהו: %d' % len(sug))
     log.append('')
     log.append('%-6s %-6s %s' % ('סוגיה', 'עמוד', 'טווח'))
@@ -375,41 +332,20 @@ def build(book, want_daf, log):
         spans.append({'n': s['n'], 'lo': min(lo, hi), 'hi': max(lo, hi),
                       'page': s['page'], 'end': end})
 
-    rows, warns = [], []
+    rows = []
     for daf in names:
         if want_daf and daf not in want_daf:
             continue
         for amud in ('א', 'ב'):
             k = half_index(names, daf, amud)
+            # ההופעה הראשונה בכותרת — שם חצי הדף מתחיל. הסוגיות
+            # מסודרות לפי עמוד, ולכן הראשונה שמכסה אותו היא התשובה.
             hit = [s for s in spans if s['lo'] <= k <= s['hi']]
             if not hit:
-                continue                       # לא בחוברת הזאת — לא אזהרה
-
-            # קודם כל: האם יש סוגיה שמתחילה **בדיוק** בחצי הדף הזה?
-            # אם כן היא התשובה, גם אם סוגיה קודמת עוד נמשכת עליו.
-            # בלי זה ג ע"ב היה מקבל את הסוגיה שגלשה אליו ולא את
-            # הסוגיה שנפתחת בו, והכותרת המדויקת שלו הייתה מוחמצת.
-            exact = [s for s in hit if s['lo'] == k]
-            if exact:
-                s = exact[0]
-                page, how = s['page'], 'כותרת'
-            else:
-                s = hit[0]
-                page, kind = amud_start_page(pages, names, hdr, s['page'],
-                                             s['end'], daf, amud)
-                how = {'ref': 'הפניה', 'mark': 'סימון צד'}.get(kind, '')
-            if not page:
-                warns.append('%s ע"%s — בתוך סוגיה %d, לא נמצאה נקודת ההתחלה'
-                             % (daf, amud, s['n']))
-                rows.append([daf, 'ע"' + amud, s['n'], '', '', 'אזהרה'])
-                continue
-            link = '%s#flipbook-%s/%d/' % (book['page'], df, page)
-            rows.append([daf, 'ע"' + amud, s['n'], page, link, how])
-
-    if warns:
-        log.append('')
-        for w in warns:
-            log.append('[אזהרה] ' + w)
+                continue          # החוברת אינה מגיעה לדף הזה — לא אזהרה
+            s = hit[0]
+            rows.append([daf, 'ע"' + amud, s['n'], s['page'],
+                         '%s#flipbook-%s/%d/' % (book['page'], df, s['page'])])
     return rows, pages, flipped, df
 
 
@@ -447,15 +383,13 @@ def write_out(book, rows, log, probe_txt):
     with io.open(os.path.join(OUT, k + '.csv'), 'w', encoding='utf-8-sig',
                  newline='') as f:
         w = csv.writer(f)
-        w.writerow(['daf', 'amud', 'sugya', 'pdf_page', 'link', 'confidence'])
+        w.writerow(['daf', 'amud', 'sugya', 'pdf_page', 'link'])
         w.writerows(rows)
 
     md = ['# %s' % book['title'], '',
           '| דף | צד | מספר סוגיה | קישור |', '| --- | --- | ---: | --- |']
     for r in rows:
-        md.append('| %s | %s | %s | %s |'
-                  % (r[0], r[1], r[2],
-                     ('[עמוד %s](%s)' % (r[3], r[4])) if r[4] else '**חסר**'))
+        md.append('| %s | %s | %s | [עמוד %s](%s) |' % (r[0], r[1], r[2], r[3], r[4]))
     io.open(os.path.join(OUT, k + '.md'), 'w', encoding='utf-8').write(
         '\n'.join(md) + '\n')
 
@@ -470,6 +404,7 @@ def main():
     want_key = args[0] if args and not re.match(r'^[א-ת]{1,3}$', args[0]) else None
     want_daf = set(a for a in args if re.match(r'^[א-ת]{1,3}$', a)) or None
 
+    merged, ran = {}, []
     for book in BOOKS:
         if want_key and book['key'] != want_key:
             continue
@@ -486,10 +421,34 @@ def main():
             continue
         write_out(book, rows, log, probe(book, pages, flipped, df,
                                         DAPIM[book['mas']]))
-        bad = len([r for r in rows if r[5] == 'אזהרה'])
+        ran.append(book)
+        for r in rows:
+            # חוברות חופפות בקצוות; הראשונה שמכסה קובעת
+            merged.setdefault(book['mas'], {}).setdefault(r[0], {}).setdefault(
+                'ב' if r[1].endswith('ב') else 'א', r[4])
         print('\n'.join(log[:60]))
-        print('  → %d שורות · %d אזהרות · sugya/%s.csv'
-              % (len(rows), bad, book['key']))
+        print('  → %d שורות · sugya/%s.csv' % (len(rows), book['key']))
+
+    if len(ran) == len(BOOKS) and not want_daf:
+        write_index(merged)
+
+
+def write_index(merged):
+    """מיפוי אחד לכל המסכתות — זה מה שהאפליקציה תקרא.
+
+    וגם דוח של חצאי דף שאף חוברת לא מכסה: זה הדבר היחיד שיכול
+    להשאיר תלמיד בלי קישור, וכדאי לדעת עליו מראש."""
+    io.open(os.path.join(OUT, 'index.json'), 'w', encoding='utf-8').write(
+        json.dumps(merged, ensure_ascii=False, indent=1) + '\n')
+    miss = []
+    for mas, names in DAPIM.items():
+        for daf in names:
+            for amud in ('א', 'ב'):
+                if not merged.get(mas, {}).get(daf, {}).get(amud):
+                    miss.append('%s · דף %s ע"%s' % (mas, daf, amud))
+    io.open(os.path.join(OUT, 'MISSING.txt'), 'w', encoding='utf-8').write(
+        ('\n'.join(miss) if miss else 'אין חצי דף בלי קישור.') + '\n')
+    print('\nsugya/index.json · %d חצאי דף בלי קישור' % len(miss))
 
 
 if __name__ == '__main__':
