@@ -77,7 +77,11 @@ jobs:
         run: |
           git config user.name  'hadaf-bot'
           git config user.email 'hadaf-bot@users.noreply.github.com'
-          git add -A sugya daf 2>/dev/null || true
+          # כל תיקייה בנפרד: git add נכשל על נתיב שאינו קיים ואז
+          # אינו מוסיף **כלום**, גם לא את מה שכן נוצר.
+          for d in sugya daf; do
+            [ -d "$d" ] && git add -A "$d"
+          done
           if git diff --cached --quiet; then
             echo 'אין שינוי לדחוף'
             exit 0
