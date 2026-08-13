@@ -51,6 +51,7 @@ import io
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -156,7 +157,15 @@ SUGYA_RE = re.compile(r'סוגי[הא]\s*[:\-]?\s*(\d{1,3})')
 # ============================================================
 # הורדה וקריאה
 # ============================================================
-def fetch(url, dst=None):
+# עוגיות אחת לכל הריצה, ולא לכל בקשה. האתר בודק שהמבקר כבר היה
+# בעמוד לפני שהוא מוריד ממנו קובץ — בדיוק כמו דפדפן, שמבקר בעמוד,
+# מקבל עוגייה, ורק אז מושך את ה-PDF. בלי זה הוא החזיר עמוד חסימה
+# במקום הקובץ, ו-pdfplumber נפל על "Is this really a PDF?".
+JAR = http.cookiejar.CookieJar()
+OPENER = None
+
+
+def fetch(url, dst=None, referer=None):
     """הורדה עם טיפול ידני בהפניות.
 
     האתר החזיר "infinite loop" ל-urllib. שתי סיבות אפשריות, ושתיהן
@@ -166,12 +175,17 @@ def fetch(url, dst=None):
 
     ולכן ההפניות נעשות ביד: עוגיות נשמרות, כל Location מקודד, והשרשרת
     נרשמת — כדי שכישלון יגיד למה נכשל ולא רק שנכשל."""
-    jar = http.cookiejar.CookieJar()
-    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar),
-                                     _NoRedirect())
+    global OPENER
+    op = OPENER
+    if op is None:
+        op = OPENER = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(JAR), _NoRedirect())
+    head = dict(UA)
+    if referer:
+        head['Referer'] = referer
     chain, seen = [], set()
     for _ in range(12):
-        req = urllib.request.Request(url, headers=UA)
+        req = urllib.request.Request(url, headers=head)
         try:
             r = op.open(req, timeout=120)
         except urllib.error.HTTPError as e:
@@ -210,7 +224,10 @@ def flip_id(book):
         return book['df'], 'לא הצלחתי לפתוח את עמוד האתר (%s)' % str(e)[:50]
     ids = re.findall(r'df_\d+', html)
     if not ids:
-        return book['df'], 'לא נמצא מזהה Flipbook בעמוד'
+        # מה כן חזר — כדי שיהיה ברור אם זה עמוד חסימה ולא תקלת זיהוי
+        t = re.search(r'<title>(.*?)</title>', html, re.S)
+        return book['df'], ('לא נמצא מזהה Flipbook בעמוד · %d תווים · "%s"'
+                            % (len(html), (t.group(1).strip()[:60]) if t else '?'))
     best = max(set(ids), key=ids.count)
     if book['df'] and best != book['df']:
         return best, 'מזהה שונה מהצפוי — נמצא %s, ציפיתי %s' % (best, book['df'])
@@ -218,11 +235,33 @@ def flip_id(book):
 
 
 def get_pdf(book):
+    """הורדת החוברת, כמו דפדפן שהגיע אליה מעמוד האתר.
+
+    ה-Referer ועוגיות הביקור הקודם הם מה שמבדיל בין הורדה שמתקבלת
+    לבין עמוד חסימה. ואם בכל זאת חזר משהו שאינו PDF — עדיף להגיד
+    את זה במילים מאשר להעביר HTML ל-pdfplumber ולקבל ממנו
+    "Is this really a PDF?", שאינו מרמז על הסיבה."""
     os.makedirs(PDFS, exist_ok=True)
     dst = os.path.join(PDFS, book['key'] + '.pdf')
-    if not os.path.exists(dst) or os.path.getsize(dst) < 10000:
-        fetch(book['pdf'], dst)
-    return dst
+    if os.path.exists(dst) and os.path.getsize(dst) > 10000:
+        return dst
+    last = ''
+    for i in range(3):
+        try:
+            data = fetch(book['pdf'], referer=book['page'])
+        except Exception as e:
+            last = str(e)[:120]
+            data = b''
+        if data[:5] == b'%PDF-':
+            open(dst, 'wb').write(data)
+            return dst
+        if data:
+            t = re.search(rb'<title>(.*?)</title>', data[:4000], re.S)
+            last = ('לא PDF · %d בתים · "%s"'
+                    % (len(data), (t.group(1).decode('utf-8', 'replace').strip()[:60])
+                       if t else data[:40].decode('utf-8', 'replace')))
+        time.sleep(4 * (i + 1))
+    raise RuntimeError('האתר לא מסר את הקובץ — ' + last)
 
 
 def read_pages(path):
