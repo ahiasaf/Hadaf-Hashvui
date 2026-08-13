@@ -1026,7 +1026,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '6.23.0';
+var APP_VERSION = '6.24.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1708,9 +1708,19 @@ function openWeek(id, i) {
       : '<a class="lnk dim" href="#" onclick="return notYet()">' +
         '<span class="ic">' + ic + '</span><span>' + t + '<small>' + sub + '</small></span></a>';
   };
-  var sg = SUGYA[id] || {}, sgPage = (sg.pages || {})[dafKey(row[2])];
-  var sgHref = (sg.base && sg.fmt && sgPage) ? sg.fmt.replace('{p}', sgPage)
-             : (sg.base || '');
+  /* הסוגיה היומית: הדף מצביע על העמוד שלו בחוברת ולא על תחילתה.
+     `pages[דף]` הוא [חוברת, עמוד] — חוברת, כי כל כמה פרקים יש
+     חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
+     עם {p}) עדיין נתמכת, כדי שעריכה ידנית בניהול לא תישבר. */
+  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[dafKey(row[2])];
+  var sgPage = '', sgHref = sg.base || '';
+  if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) {
+    sgPage = sgp[1];
+    sgHref = sg.books[sgp[0]] + sgPage + '/';
+  } else if (sgp && sg.base && sg.fmt) {
+    sgPage = sgp;
+    sgHref = sg.fmt.replace('{p}', sgPage);
+  }
 
   h += '<div class="sec" style="margin-top:16px"><b>הדף עצמו</b><i></i></div><div class="links">' +
        lnk(lk[0], '⤓', 'צורת הדף', 'הדף להדפסה') +
@@ -3295,21 +3305,40 @@ function admSugya(el) {
     '<div class="label">עמוד בחוברת לכל דף</div>' +
     trackById(t).cal.filter(function (r) { return r[2] && r[2] !== 'סיום'; })
       .map(function (r) {
-        var k = dafKey(r[2]);
-        return '<div class="row"><span>דף ' + esc(r[2]) + '</span>' +
+        var k = dafKey(r[2]), p = (sg.pages || {})[k];
+        var two = p && p.length === 2, n = two ? p[1] : (p || '');
+        /* הקישור עצמו מוצג ליד המספר, כדי שאפשר יהיה לפתוח ולבדוק
+           בלי לנחש איזו חוברת משרתת את הדף. */
+        var url = (two && (sg.books || {})[p[0]]) ? sg.books[p[0]] + n + '/' : '';
+        return '<div class="row"><span>דף ' + esc(r[2]) +
+          (url ? ' <a href="' + url + '" target="_blank" rel="noopener" ' +
+                 'style="font-size:12px;opacity:.6">בדיקה</a>' : '') + '</span>' +
           '<input type="tel" style="width:74px;text-align:center;padding:8px" value="' +
-          ((sg.pages || {})[k] || '') + '" onchange="admSugyaPage(\'' + k + '\',this.value)"></div>';
+          n + '" onchange="admSugyaPage(\'' + k + '\',this.value)"></div>';
       }).join('') + '</div>';
 }
+/* העריכה מתחילה ממה שקיים ולא מטופס ריק. הסיבה: ההגדרה שבגיליון
+   מחליפה את זו שבקוד במלואה, ולכן שינוי של שדה אחד בטופס ריק היה
+   מוחק את כל מפת העמודים — כלומר תיקון קטן היה מבטל את כל הקישורים. */
+function sugCur() {
+  var c = CFG.sugya || {};
+  if (!c[homeTrack]) {
+    var d = SUGYA[homeTrack] || {};
+    c[homeTrack] = { base: d.base || '', fmt: d.fmt || '',
+                     books: JSON.parse(JSON.stringify(d.books || {})),
+                     pages: JSON.parse(JSON.stringify(d.pages || {})) };
+  }
+  return c;
+}
 function admSugyaSet(k, v) {
-  var c = CFG.sugya || {}; c[homeTrack] = c[homeTrack] || { base:'', fmt:'', pages:{} };
+  var c = sugCur();
   c[homeTrack][k] = v.trim(); cfgSet('sugya', c);
 }
 function admSugyaPage(daf, v) {
-  var c = CFG.sugya || {}; c[homeTrack] = c[homeTrack] || { base:'', fmt:'', pages:{} };
-  c[homeTrack].pages = c[homeTrack].pages || {};
-  if (v.trim()) c[homeTrack].pages[daf] = parseInt(v, 10) || '';
-  else delete c[homeTrack].pages[daf];
+  var c = sugCur(), pg = c[homeTrack].pages = c[homeTrack].pages || {};
+  var was = pg[daf], book = (was && was.length === 2) ? was[0] : null;
+  if (!v.trim()) delete pg[daf];
+  else pg[daf] = book ? [book, parseInt(v, 10) || 0] : (parseInt(v, 10) || '');
   cfgSet('sugya', c);
 }
 

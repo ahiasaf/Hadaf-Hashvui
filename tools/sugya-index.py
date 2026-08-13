@@ -487,7 +487,52 @@ def write_index(merged):
                     miss.append('%s · דף %s ע"%s' % (mas, daf, amud))
     io.open(os.path.join(OUT, 'MISSING.txt'), 'w', encoding='utf-8').write(
         ('\n'.join(miss) if miss else 'אין חצי דף בלי קישור.') + '\n')
+    write_js(merged)
     print('\nsugya/index.json · %d חצאי דף בלי קישור' % len(miss))
+
+
+def write_js(merged):
+    """הליטרל שנכנס ל-data.js, מוכן להעתקה.
+
+    לא נכתב לתוך data.js ישירות בכוונה: אין שלב בנייה בפרויקט,
+    data.js נערך ביד, וכלי שכותב לתוכו היה עלול למחוק עריכות.
+    כאן הוא יושב לצד התוצאות, ומי שמעדכן מעתיק אותו פנימה.
+
+    הצורה דחוסה — קידומת אחת לכל חוברת, ולכל דף [חוברת, עמוד] —
+    כי data.js נטען בכל פתיחה, ו-120 כתובות מלאות היו מכפילות אותו."""
+    out = []
+    for mas in sorted(merged):
+        pref, order, rows = {}, [], []
+        for daf in DAPIM[mas]:
+            u = merged[mas].get(daf, {}).get('א')   # הדף השבועי מתחיל בע"א
+            if not u:
+                continue
+            m = re.match(r'^(.*/)(\d+)/$', u)
+            if not m:
+                continue
+            p, n = m.group(1), int(m.group(2))
+            if p not in pref:
+                pref[p] = 'abcde'[len(pref)]
+                order.append(p)
+            rows.append((daf, pref[p], n))
+        out.append('  %s: {' % mas)
+        out.append('    books: {')
+        out.append(',\n'.join("      %s: '%s'" % (pref[p], p) for p in order))
+        out.append('    },')
+        out.append('    pages: {')
+        line, wrapped = '      ', []
+        for r in rows:
+            part = "'%s':['%s',%d], " % r
+            if len(line) + len(part) > 94:
+                wrapped.append(line.rstrip())
+                line = '      '
+            line += part
+        wrapped.append(line.rstrip().rstrip(','))
+        out.append('\n'.join(wrapped))
+        out.append('    }')
+        out.append('  },')
+    io.open(os.path.join(OUT, 'SUGYA.js'), 'w', encoding='utf-8').write(
+        'var SUGYA = {\n' + '\n'.join(out).rstrip(',') + '\n};\n')
 
 
 if __name__ == '__main__':
