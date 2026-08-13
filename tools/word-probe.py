@@ -45,8 +45,20 @@ DOCS = [
 
 UA = {'User-Agent': 'Mozilla/5.0'}
 
-# כותרת דף בתוך הקובץ: "דף ב", "דף ב עמוד א", "ב ע"א" וכדומה
-DAF_HEAD = re.compile(r'^\s*(?:דף\s*)?([א-ת]{1,3})\s*(?:ע["״׳\']?([אב])|עמוד\s*([אב]))\s*[.:]?\s*$')
+# כותרת דף בתוך הקובץ. הנוסח בפועל הוא "דף ב - א", ולא מה
+# שהנחתי בהתחלה; שאר הצורות נשארו כי הן זולות ואולי יופיעו בהמשך.
+DAF_HEAD = re.compile(
+    r'^\s*דף\s*([א-ת]{1,3})\s*[-–—]\s*([אב])\s*$'
+    r'|^\s*(?:דף\s*)?([א-ת]{1,3})\s*(?:ע["״׳\']?([אב])|עמוד\s*([אב]))\s*[.:]?\s*$')
+
+
+def head_of(t):
+    """שם הדף והצד, או None."""
+    m = DAF_HEAD.match(t)
+    if not m:
+        return None
+    g = [x for x in m.groups() if x]
+    return (g[0], g[1]) if len(g) >= 2 else None
 
 
 def fetch(fid):
@@ -106,18 +118,21 @@ def main():
         log.append('  פסקאות: %d · ריצות: %d · פסקאות עם הדגשה: %d (%.0f%%)'
                    % (len(paras), runs, bold, 100.0 * bold / max(1, len(paras))))
 
-        # איפה מתחיל כל דף
+        # איפה מתחיל כל דף, וכמה פסקאות יש בו.
+        # המספר הזה הוא העיקר: הסימונים שבסטודיו שמורים לפי מספר
+        # פסקה, ולכן ההשוואה מול מה שיצא מה-PDF נעשית עליו.
         heads = []
         for i, p in enumerate(paras):
             t = text_of(p).strip()
-            m = DAF_HEAD.match(t)
-            if m and len(t) < 22:
-                heads.append((i, t))
+            if len(t) < 22:
+                h = head_of(t)
+                if h:
+                    heads.append((i, h[0], h[1], t))
         log.append('  כותרות דף שזוהו: %d' % len(heads))
-        for i, t in heads[:40]:
-            log.append('      פסקה %-5d %s' % (i, t))
-        if len(heads) > 40:
-            log.append('      … ועוד %d' % (len(heads) - 40))
+        log.append('      %-6s %-5s %-8s %s' % ('דף', 'צד', 'פסקה', 'פסקאות בחצי הדף'))
+        for n, (i, daf, amud, t) in enumerate(heads):
+            end = heads[n + 1][0] if n + 1 < len(heads) else len(paras)
+            log.append('      %-6s %-5s %-8d %d' % (daf, amud, i, end - i - 1))
 
         log.append('')
         log.append('  --- שתים-עשרה הפסקאות הראשונות ---')
