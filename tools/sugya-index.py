@@ -43,17 +43,23 @@
 (מוחרג מהריפו), ולכן ריצה שנייה מהירה.
 """
 import csv
+import http.cookiejar
 import io
 import os
 import re
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'sugya')
 PDFS = os.path.join(OUT, 'pdf')
 
-UA = {'User-Agent': 'Mozilla/5.0'}
+UA = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    ' (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/pdf,*/*',
+      'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8'}
 
 # ============================================================
 # החוברות.
@@ -148,12 +154,49 @@ AMUD_MARK = re.compile(r'(?<![א-ת])ע\s*([אב])(?![א-ת])')
 # הורדה וקריאה
 # ============================================================
 def fetch(url, dst=None):
-    req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=120) as r:
-        data = r.read()
-    if dst:
-        open(dst, 'wb').write(data)
-    return data
+    """הורדה עם טיפול ידני בהפניות.
+
+    האתר החזיר "infinite loop" ל-urllib. שתי סיבות אפשריות, ושתיהן
+    מטופלות כאן: עוגייה שנקבעת בביקור הראשון ובלעדיה חוזרים לאותו
+    מקום, וכתובת Location שיש בה עברית לא מקודדת ש-urllib אינו
+    מזהה כזהה לקודמתה.
+
+    ולכן ההפניות נעשות ביד: עוגיות נשמרות, כל Location מקודד, והשרשרת
+    נרשמת — כדי שכישלון יגיד למה נכשל ולא רק שנכשל."""
+    jar = http.cookiejar.CookieJar()
+    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar),
+                                     _NoRedirect())
+    chain, seen = [], set()
+    for _ in range(12):
+        req = urllib.request.Request(url, headers=UA)
+        try:
+            r = op.open(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            if e.code not in (301, 302, 303, 307, 308):
+                raise
+            r = e
+        loc = r.headers.get('Location')
+        if not loc:
+            data = r.read()
+            if dst:
+                open(dst, 'wb').write(data)
+            return data
+        # הכותרת נקראת כ-latin-1, ולכן היא מחזיקה את הבתים הגולמיים.
+        # מקודדים את הבתים עצמם; קידוד המחרוזת היה מקודד פעמיים.
+        raw = loc.encode('latin-1', 'replace')
+        nxt = urllib.parse.urljoin(url, urllib.parse.quote(raw, safe=":/?#[]@!$&'()*+,;=%~"))
+        chain.append('%s → %s' % (url[-60:], nxt[-60:]))
+        if nxt in seen:
+            raise RuntimeError('הפניה במעגל:\n    ' + '\n    '.join(chain))
+        seen.add(nxt)
+        url = nxt
+    raise RuntimeError('יותר מדי הפניות:\n    ' + '\n    '.join(chain))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """ההפניות מטופלות ביד למעלה, ולכן urllib לא נוגע בהן."""
+    def redirect_request(self, *a):
+        return None
 
 
 def flip_id(book):
