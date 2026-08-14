@@ -145,32 +145,37 @@ def para_text(p):
     return ''.join(r['t'] for r in p)
 
 
-def find_span(chunks, want, lo=0):
+def find_span(chunks, want):
     """הרצף הרציף של פסקאות שהטקסט שלו מתאים ל-want.
 
-    מתחילים מהפסקה שהפתיחה שלה תואמת, ומרחיבים כל עוד זה משפר.
-    החיפוש מתחיל מ-lo ולא מאפס, כי הקטעים רצים לפי הסדר — וזה
-    מונע התאמה לפסקה דומה במקום אחר בדף."""
+    שתי החלטות שנקנו בכישלון אמיתי:
+
+    · אין תקרה על מספר הפסקאות ברצף. הייתה כזו, והיא פסלה בדיוק
+      את הקטעים הארוכים — סוגיה שנמשכת על חמישים פסקאות, שהיא
+      בדיוק המקרה שבו טעות עולה ביוקר.
+
+    · החיפוש הוא על **כל הדף** ולא קדימה בלבד. קטע `cont` הוא
+      המשך של סוגיה שהתחילה בעמוד הקודם, והטקסט שלו יושב לפני
+      הקטע שנבדק לפניו. חיפוש קדימה בלבד פשוט לא הגיע אליו.
+
+    הגבול היחיד הוא האורך: מפסיקים להרחיב כשהצטבר יותר מהמבוקש."""
     w = norm(want)
     if not w:
         return None
-    head = w[:40]
+    n = [norm(para_text(p)) for p in chunks]
     best = None
-    for i in range(lo, len(chunks)):
+    for i in range(len(chunks)):
         acc = ''
-        for j in range(i, min(i + 12, len(chunks))):
-            acc += norm(para_text(chunks[j]))
-            if len(acc) > len(w) * 1.6:
+        for j in range(i, len(chunks)):
+            acc += n[j]
+            if len(acc) > len(w) * 1.4:
                 break
             if acc == w:
                 return (i, j, 1.0)
-            # ציון: כמה מהמבוקש מכוסה, בלי לחרוג
             if w.startswith(acc) or acc.startswith(w):
                 sc = min(len(acc), len(w)) / float(max(len(acc), len(w)))
                 if not best or sc > best[2]:
                     best = (i, j, sc)
-        if norm(para_text(chunks[i]))[:40] == head and best and best[0] == i:
-            break
     return best
 
 
@@ -225,18 +230,16 @@ def main():
         log.append('=' * 58)
         log.append('%s · דף %s · עמוד %s · %d קטעים · %d פסקאות בוורד'
                    % (mas, daf, page, len(steps), len(chunks)))
-        lo = 0
         for n, st in enumerate(steps):
             c = st.get('c') or {}
             want = c.get('text') or ''
             tot += 1
-            sp = find_span(chunks, want, lo)
+            sp = find_span(chunks, want)
             if not sp:
                 miss += 1
                 log.append('  %2d  ✗ לא נמצא · «%s»' % (n, want[:60]))
                 continue
             a, b, sc = sp
-            lo = a
             tag = '✓' if sc >= 0.995 else ('~' if sc >= 0.9 else '✗')
             if sc >= 0.995:
                 good += 1
