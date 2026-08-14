@@ -31,6 +31,7 @@ import io
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
 
@@ -56,8 +57,11 @@ def sheet_id():
 
 
 def read_now():
-    url = ('https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s'
-           % (sheet_id(), urllib.parse.quote(TAB)))
+    # מונע מטמון: gviz מחזיק תשובה, ובדיקה אחרי כתיבה שקוראת עותק
+    # ישן הייתה מדווחת "לא נכתב" על כתיבה שהצליחה — או גרוע מזה,
+    # "נכתב" על כתיבה שנכשלה.
+    url = ('https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s&_=%d'
+           % (sheet_id(), urllib.parse.quote(TAB), int(time.time() * 1000)))
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120) as r:
         txt = r.read().decode('utf-8', 'replace')
     import csv
@@ -116,21 +120,49 @@ def main():
         return 0
 
     api = js_value(os.path.join(ROOT, 'data.js'), 'APPS_SCRIPT_URL').strip()
-    body = urllib.parse.urlencode({
-        'action': 'table', 'tab': TAB,
-        'cols': json.dumps(cols, ensure_ascii=False),
-        'rows': json.dumps(rows, ensure_ascii=False)}).encode('utf-8')
-    req = urllib.request.Request(api, data=body, headers=UA)
+    # גוף JSON, ובדיוק באותה צורה שבה האפליקציה שולחת: `doPost`
+    # עושה JSON.parse על גוף הבקשה, ו-`cols`/`rows` הם מחרוזות
+    # מקוננות. טופס urlencode נפל שם בשקט ולא נכתב דבר.
+    body = json.dumps({'action': 'table', 'tab': TAB,
+                       'cols': json.dumps(cols, ensure_ascii=False),
+                       'rows': json.dumps(rows, ensure_ascii=False)},
+                      ensure_ascii=False).encode('utf-8')
+    head = dict(UA)
+    head['Content-Type'] = 'text/plain;charset=utf-8'
+    req = urllib.request.Request(api, data=body, headers=head)
     with urllib.request.urlopen(req, timeout=300) as r:
-        print('תשובת הסקריפט:', r.read().decode('utf-8', 'replace')[:200])
+        print('תשובת הסקריפט:', r.read().decode('utf-8', 'replace')[:300])
 
-    # ואימות: קוראים שוב ובודקים שמה שנכתב אכן שם
+    # ואימות אמיתי: לא רק שהשורות שם, אלא שה**תוכן** הוחלף.
+    # ספירת ההדגשות היא המדד הישיר — היא בדיוק מה שהתיקון הזה מוסיף.
+    time.sleep(4)
     hdr2, after = read_now()
     if len(after) != len(rows):
         print('אזהרה: אחרי הכתיבה יש %d שורות ולא %d' % (len(after), len(rows)))
         return 1
-    print('אומת: %d שורות בגיליון.' % len(after))
+    want = bolds(rows)
+    got = bolds(after)
+    print('אומת: %d שורות · הדגשות בגיליון %d, ציפיתי %d' % (len(after), got, want))
+    if got != want:
+        print('הכתיבה לא נכנסה. הגיבוי ב-docs/marks-backup.json.')
+        return 1
     return 0
+
+
+def bolds(rows):
+    import re
+    n = 0
+    for r in rows:
+        b = next((c for c in r if c.strip().startswith('{')), '')
+        if not b:
+            continue
+        try:
+            o = json.loads(b)
+        except Exception:
+            continue
+        for s in (o.get('steps') or []):
+            n += len(re.findall(r'<b>', (s.get('c') or {}).get('h') or ''))
+    return n
 
 
 if __name__ == '__main__':
