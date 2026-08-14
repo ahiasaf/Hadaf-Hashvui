@@ -230,6 +230,7 @@ def main():
         log.append('=' * 58)
         log.append('%s · דף %s · עמוד %s · %d קטעים · %d פסקאות בוורד'
                    % (mas, daf, page, len(steps), len(chunks)))
+        last = -1
         for n, st in enumerate(steps):
             c = st.get('c') or {}
             want = c.get('text') or ''
@@ -238,8 +239,16 @@ def main():
             if not sp:
                 miss += 1
                 log.append('  %2d  ✗ לא נמצא · «%s»' % (n, want[:60]))
+                # מה יושב בוורד במקום שבו הקטע היה אמור להיות. בלי
+                # זה "לא נמצא" הוא מבוי סתום; איתו רואים אם הנוסח
+                # שונה, אם הקטע חסר, או אם זו תקלת התאמה.
+                at = last + 1
+                log.append('        בוורד סביב פסקה %d:' % at)
+                for k in range(at, min(at + 4, len(chunks))):
+                    log.append('          %d· %s' % (k, para_text(chunks[k])[:100]))
                 continue
             a, b, sc = sp
+            last = b
             tag = '✓' if sc >= 0.995 else ('~' if sc >= 0.9 else '✗')
             if sc >= 0.995:
                 good += 1
