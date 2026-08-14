@@ -27,6 +27,7 @@ on:
           - check-links    # בדיקת קישורי הדפים
           - dflip          # מה הפליפבוק מקבל מהכתובת
           - word           # מה יש בקובצי הוורד של חברותא
+          - align          # התאמת הסימונים לוורד
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -63,6 +64,7 @@ jobs:
             check-links) python3 tools/check-links.py   ${{ inputs.args }} ;;
             dflip)       python3 tools/dflip-probe.py   ${{ inputs.args }} ;;
             word)        python3 tools/word-probe.py    ${{ inputs.args }} ;;
+            align)       python3 tools/chav-align.py    ${{ inputs.args }} ;;
           esac 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
@@ -73,7 +75,7 @@ jobs:
           path: |
             run.log
             sugya/
-            docs/word-probe.txt
+            docs/
             daf/index.json
           if-no-files-found: ignore
 
