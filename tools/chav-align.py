@@ -176,6 +176,28 @@ def find_span(chunks, want):
                 sc = min(len(acc), len(w)) / float(max(len(acc), len(w)))
                 if not best or sc > best[2]:
                     best = (i, j, sc)
+    if best:
+        return best
+
+    # שלב שני: התאמה מקורבת.
+    #
+    # השלב הראשון דורש זהות או קידומת, ולפעמים הנוסח נבדל באמצע —
+    # מילה שהומרה, סוגריים שזזו. שני קטעים במגילה נפלו כך, והטקסט
+    # שלהם היה בוורד מילה במילה בפתיחה. כאן מודדים דמיון אמיתי,
+    # ורק מפסקאות שהפתיחה שלהן כבר תואמת, כדי לא לסרוק את הדף כולו.
+    import difflib
+    head = w[:30]
+    for i in range(len(chunks)):
+        if not n[i].startswith(head[:24]):
+            continue
+        acc = ''
+        for j in range(i, len(chunks)):
+            acc += n[j]
+            if len(acc) > len(w) * 1.5:
+                break
+            sc = difflib.SequenceMatcher(None, acc, w).ratio()
+            if not best or sc > best[2]:
+                best = (i, j, sc)
     return best
 
 
