@@ -1344,20 +1344,25 @@ function onDaf() {
    החברותא בכל פתיחה במסך הלימוד — וזה איטי ושביר. כשהקובץ
    ממילא פתוח כאן, ממלאים את מה שחסר, וזה נשמר בשמירה הבאה. */
 function backfillChav() {
-  if (!CHV || !STEPS.length) return 0;
-  var n = 0;
+  if (!STEPS.length) return 0;
+  /* החברותא והגיליון מגיעים בסדר משתנה, ושניהם קוראים לכאן.
+     כשהחברותא עוד בדרך אין מה לומר — הצד השני יקרא שוב. */
+  if (!CHV) return 0;
+  var n = 0, miss = 0, noPar = 0, mismatch = 0;
   STEPS.forEach(function (st) {
     var c = st.c;
-    if (!c || c.h || c.from == null) return;
+    if (!c || c.from == null) return;
+    if (c.h) return;
+    miss++;
     var got = [];
     for (var i = c.from; i <= c.to && i < CHV.length; i++) got.push(CHV[i]);
-    if (!got.length) return;
+    if (!got.length) { noPar++; return; }
     var plain = got.map(function (p) {
       return p.runs.map(function (r) { return r.t; }).join('');
     }).join(' ');
     /* רק כשהקובץ תואם לטקסט השמור — אחרת המספרים מצביעים
        על פסקאות אחרות. */
-    if (bareTxt(plain) !== bareTxt(c.text || '')) return;
+    if (bareTxt(plain) !== bareTxt(c.text || '')) { mismatch++; return; }
     c.h = got.map(function (p) {
       return '<p>' + p.runs.map(function (r) {
         return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t);
@@ -1365,7 +1370,28 @@ function backfillChav() {
     }).join('');
     n++;
   });
-  if (n) { touched(); say('הושלמו הדגשות ל-' + n + ' קטעים. שמרו כדי לקבע.'); }
+  if (n) touched();
+  markPanel();
+  /* וכאן העיקר: **הכשל הזה היה שקט.** קטע בלי ביאור שמור נראה
+     תקין לחלוטין בסטודיו, וההשלמה שנכשלה לא אמרה דבר — לא
+     כשהקובץ לא תאם, ולא כשלא היה מה להשלים. מי שנכנס לעמוד
+     כדי לתקן יצא בידיים ריקות בלי לדעת אם משהו קרה, אם לא היה
+     מה לתקן, או אם התיקון נכשל. שלושת המצבים נראו זהים.
+
+     המחיר משולם רק אצל התלמיד, ולכן הוא לא מתגלה כאן: בלי
+     `c.h` מסך הלימוד נאלץ למשוך את קובץ החברותא דרך הסקריפט
+     בכל פתיחה — בדיוק התלות שהוסרה ממסך התלמידים. */
+  if (!miss) return 0;
+  if (n && !(noPar + mismatch)) {
+    say('הושלמו הדגשות ל-' + n + ' קטעים. שמרו כדי לקבע.');
+    return n;
+  }
+  var m = [];
+  if (n) m.push('הושלמו ' + n);
+  if (mismatch) m.push(mismatch + ' לא תואמים לקובץ החברותא');
+  if (noPar) m.push(noPar + ' בלי פסקאות');
+  say(miss + ' קטעים בעמוד בלי ביאור שמור — ' + m.join(' · ') +
+      (n ? '. שמרו כדי לקבע.' : '.'), !n);
   return n;
 }
 function bareTxt(t) { return String(t || '').replace(/\s+/g, ''); }
@@ -1858,6 +1884,18 @@ function markPanel() {
     : (cont || ready) ? ''
     : (g ? 'עכשיו בחברותא'
          : (STEPS.length ? STEPS.length + ' קטעים · המשך בגמרא' : 'סמנו בגמרא'));
+
+  /* קטע בלי ביאור שמור נראה כאן בדיוק כמו קטע תקין, ולכן הוא
+     נאמר בפירוש ולא רק בהודעה חולפת: הודעה נמחקת בפעולה הבאה,
+     והמצב הזה צריך להישאר על המסך עד שמתקנים אותו. */
+  var noExp = 0;
+  for (var ni = 0; ni < STEPS.length; ni++) {
+    var nc = STEPS[ni].c;
+    if (nc && nc.from != null && !nc.h) noExp++;
+  }
+  if (hint && noExp) hint.textContent =
+      '⚠ ' + noExp + ' בלי ביאור שמור' +
+      (hint.textContent ? ' · ' + hint.textContent : '');
   var b2 = document.getElementById('addstep2');
   if (b2) {
     b2.textContent = cont ? '↩ המשך הקטע' : 'הוספת הקטע';
