@@ -101,7 +101,12 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
    שמזיזים את הגודל, והבחירה נשמרת. */
 .chb{flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;
   font-size:calc(1.05rem * var(--cz,1));line-height:1.85;
-  letter-spacing:.005em;color:#22314D}
+  letter-spacing:.005em;color:#22314D;
+  /* מילה ארוכה מרוחב העמודה — מראה מקום, ציטוט עם גרשיים, או
+     כל רצף בלי רווח — גולשת מהתיבה במקום להישבר, ואז השורה
+     יוצאת מהמסך. בעברית זה נדיר ולכן זה מתגלה מאוחר, ובדיוק
+     בגופן מוגדל (א+) שבו העמודה צרה יותר ביחס למילה. */
+  overflow-wrap:break-word;word-break:break-word}
 .chb p{margin:0 0 13px}
 .chb b{color:var(--blue-d);font-weight:700}
 .chd .zoom{display:flex;gap:4px}

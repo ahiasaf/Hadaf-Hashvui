@@ -62,6 +62,18 @@ label.alt{font-size:.8rem;font-weight:800;cursor:pointer;opacity:.75;
   padding:16px;align-items:start}
 @media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
 
+/* ---------- מסגרת הבמה ----------
+   `.zbar` היה ילד מוחלט של `.stage`, ו-`.stage` הוא המסגרת
+   הנגללת. מיקום מוחלט אינו מקבע ביחס לחלון הגלילה אלא ביחס
+   **לתוכן** — ולכן ברגע שמגדילים את הדף וגוללים אליו, הכפתורים
+   נגללים החוצה יחד איתו. זה מה שנראה כאילו "הכפתורים בורחים
+   הצידה ולא איתי תמיד", והוא נעשה גרוע ככל שמגדילים יותר.
+
+   `.stagebox` הוא המעטפת שאינה נגללת: היא זו שמקבלת את מקום
+   הבמה בפריסה, `.stage` נשאר הגולל שבתוכה, והכפתורים נעגנים
+   למעטפת ולכן נשארים במקומם בכל זום ובכל גלילה. */
+.stagebox{position:relative;display:flex;min-width:0;min-height:0}
+.stagebox>.stage{flex:1;min-width:0}
 .stage{background:var(--surface);border-radius:var(--r);padding:10px;
   box-shadow:0 2px 4px rgba(37,29,12,.06),0 10px 26px rgba(37,29,12,.08);
   overflow:auto;position:relative}
@@ -93,8 +105,16 @@ button.c.hot{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:#fff;border-color:transparent}
 /* זום: התמונה מוגדלת בטרנספורם ולא בשינוי גודל, כדי שהקואורדינטות
    של הסימון יישארו זהות. פינץ' ושתי אצבעות מזיזים; הקשה אחת
-   נשארת בחירה, ולכן אין התנגשות. */
-.stage{touch-action:pan-x pan-y pinch-zoom}
+   נשארת בחירה, ולכן אין התנגשות.
+
+   `pinch-zoom` היה ברשימה, וזו הייתה התנגשות אמיתית: הפינץ'
+   מטופל כאן בקוד (`pointerdown`/`pointermove` → `setZoom`), אבל
+   הערך הזה אומר לדפדפן שגם **הוא** רשאי לטפל בו. שתי האצבעות
+   הפעילו את שניהם — הדף הוגדל, וגם **כל העמוד** נכנס לזום של
+   הדפדפן. משם הכותרת, הפס והפאנלים זזים יחד, נשאר רווח לבן
+   בצד, ושום דבר אינו במקומו. `pan-x pan-y` משאיר את הגלילה
+   באצבע אחת לדפדפן — חלקה ובלי קוד — ואת הפינץ' רק לנו. */
+.stage{touch-action:pan-x pan-y}
 .zbar{position:absolute;inset-inline-end:10px;top:10px;z-index:5;display:flex;
   flex-direction:column;gap:5px}
 .zbar button{width:38px;height:38px;padding:0;font-size:1.05rem;
@@ -137,6 +157,33 @@ body.mark.gsel .fg{display:flex}
 .fg button{padding:9px 11px;min-width:38px}
 #clearsel{display:none}
 body.mark.gsel #clearsel{display:inline-block}
+
+/* ---------- הפס בטלפון ----------
+   הפס נבנה למסך רחב ולא נמדד על טלפון. כשהסימון פעיל **וגם** יש
+   שינוי שטרם נשמר, התוכן מגיע ל-440px: על מסך 390 הכפתור הראשי
+   — "הוספת הקטע" — נחתך ב-50px, ועל 360 ב-80. כלומר בדיוק
+   הפעולה שבשבילה נכנסים למסך הזה יצאה ממנו.
+
+   ההערה שלמעלה מספרת שזה כבר קרה פעם, ואז הפתרון היה לכווץ את
+   התזכורת לסימן. זה הספיק כל עוד `.fg` היה מוסתר — אבל `.fg`
+   מופיע בדיוק כשיש בחירה, כלומר בדיוק כשצריך את "הוספת הקטע".
+
+   כאן לא מוסתר דבר: כל הכפתורים נשארים, רק המרווחים מתהדקים.
+   כפתור שנעלם באמצע עבודה גרוע מכפתור צר. */
+@media (max-width:460px){
+  .bar{gap:4px;padding-inline:8px}
+  .bar button{padding:11px 8px}
+  .bar .add{padding:12px 11px}
+  .fg{gap:2px}
+  .fg button{padding:9px 6px;min-width:32px}
+  #unsaved{width:32px}
+}
+/* מתחת ל-380 גם המילה "סוף" יורדת. החיצים אומרים את שלהם, והם
+   ממילא מופיעים רק כשיש מה לכוונן. */
+@media (max-width:380px){
+  .fg{font-size:0}
+  .fg button{font-size:.74rem}
+}
 
 .menu{position:fixed;inset-inline-start:12px;bottom:74px;z-index:61;display:none;
   flex-direction:column;gap:5px;width:min(260px,calc(100vw - 24px));
@@ -187,7 +234,10 @@ body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2
   border-bottom:1px solid var(--rule);display:flex;justify-content:space-between}
 .chd span{font-weight:700;color:var(--ink-3);font-size:.76rem}
 .chb{overflow:auto;padding:14px 15px;font-size:.95rem;line-height:1.95;
-  -webkit-user-select:text;user-select:text}
+  -webkit-user-select:text;user-select:text;
+  /* אותו טיפול כמו במסך הלימוד: רצף בלי רווח נשבר במקום לגלוש
+     מהתיבה ולמשוך את השורה אל מחוץ למסך. */
+  overflow-wrap:break-word;word-break:break-word}
 .chb p.cp{margin:0 0 13px}
 .chb p.cp b{font-weight:800}
 .chb ::selection{background:rgba(240,150,20,.42)}
@@ -215,9 +265,9 @@ body.mark header{flex:0 0 auto}
 body.mark .wrap{flex:1;min-height:0;padding-bottom:14px;align-items:stretch;
   grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 290px}
 body.mark .bar{position:static;flex:0 0 auto}
-body.mark .stage,body.mark .chav,body.mark #marker{height:auto;min-height:0}
+body.mark .stagebox,body.mark .stage,body.mark .chav,body.mark #marker{height:auto;min-height:0}
 body.mark #marker{overflow:auto}
-body.mark.swap .stage{order:2}
+body.mark.swap .stagebox{order:2}
 @media (max-width:900px){
   /* בטלפון הכותרת מתכווצת לשורה אחת: השם והכפתורים שאינם נחוצים
      תוך כדי סימון רק גוזלים גובה מהעבודה עצמה. */
@@ -234,7 +284,7 @@ body.mark.swap .stage{order:2}
 /* מסך מלא לכל צד, להליכה ולעיניים עייפות */
 body.mark.solo .wrap{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
 body.mark.solo #marker{display:none}
-body.mark.solo.on-chav .stage{display:none}
+body.mark.solo.on-chav .stagebox{display:none}
 body.mark.solo:not(.on-chav) .chav{display:none}
 .step{border:1px solid var(--rule);border-radius:9px;padding:8px 10px;margin-top:7px;
   font-size:.77rem;font-weight:700;line-height:1.5}
@@ -265,15 +315,19 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 </header>
 
 <div class="wrap">
-  <div class="stage">
+  <!-- כפתורי הזום יושבים **מחוץ** ל-.stage בכוונה. ראו .stagebox
+       בגיליון הסגנון: בתוך מסגרת נגללת הם נגללים יחד עם הדף. -->
+  <div class="stagebox">
     <div class="zbar">
       <button id="zin" title="הגדלה">+</button>
       <button id="zout" title="הקטנה">−</button>
       <button id="zfit" title="התאמה למסך">⤢</button>
     </div>
-    <div id="holder">
-      <img id="page" alt="">
-      <svg id="ov" preserveAspectRatio="none"></svg>
+    <div class="stage">
+      <div id="holder">
+        <img id="page" alt="">
+        <svg id="ov" preserveAspectRatio="none"></svg>
+      </div>
     </div>
   </div>
 
@@ -313,8 +367,16 @@ body.mark.solo:not(.on-chav) .chav{display:none}
           style="display:none">!</button>
   <button id="undo" title="ביטול הקטע האחרון">↶</button>
   <span class="fg">סוף
-    <button data-nudge="end,-1" title="מילה אחורה">◂</button>
-    <button data-nudge="end,1" title="מילה קדימה">▸</button></span>
+    <!-- הכיוונים היו הפוכים, וזה שיתק את הכפתור שבו באמת משתמשים.
+         בכל האפליקציה `▸` הוא אחורה (`▸ הקודם`, `▸ יציאה`) ו-`◂`
+         הוא קדימה (`הבא ◂`) — כך נקרא עברית. כאן זה היה הפוך.
+
+         והמחיר לא היה בלבול בלבד: הסוף נקבע בהקשה בקצה השורה,
+         כלומר בערך המרבי. מי שלחץ `▸` כדי למשוך אותו אחורה קיבל
+         בפועל "קדימה", הערך כבר היה בתקרה, והכפתור נחסם — שום
+         דבר לא זז, כמה שלא לוחצים. זה נראה ככפתור מקולקל. -->
+    <button data-nudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-nudge="end,1" title="מילה קדימה">◂</button></span>
   <button id="clearsel" title="ניקוי הסימון">✕</button>
   <span class="gap"></span>
   <span class="gh" id="ghint"></span>
