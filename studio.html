@@ -367,8 +367,16 @@ body.mark.solo:not(.on-chav) .chav{display:none}
           style="display:none">!</button>
   <button id="undo" title="ביטול הקטע האחרון">↶</button>
   <span class="fg">סוף
-    <button data-nudge="end,-1" title="מילה אחורה">◂</button>
-    <button data-nudge="end,1" title="מילה קדימה">▸</button></span>
+    <!-- הכיוונים היו הפוכים, וזה שיתק את הכפתור שבו באמת משתמשים.
+         בכל האפליקציה `▸` הוא אחורה (`▸ הקודם`, `▸ יציאה`) ו-`◂`
+         הוא קדימה (`הבא ◂`) — כך נקרא עברית. כאן זה היה הפוך.
+
+         והמחיר לא היה בלבול בלבד: הסוף נקבע בהקשה בקצה השורה,
+         כלומר בערך המרבי. מי שלחץ `▸` כדי למשוך אותו אחורה קיבל
+         בפועל "קדימה", הערך כבר היה בתקרה, והכפתור נחסם — שום
+         דבר לא זז, כמה שלא לוחצים. זה נראה ככפתור מקולקל. -->
+    <button data-nudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-nudge="end,1" title="מילה קדימה">◂</button></span>
   <button id="clearsel" title="ניקוי הסימון">✕</button>
   <span class="gap"></span>
   <span class="gh" id="ghint"></span>
