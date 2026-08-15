@@ -1029,16 +1029,35 @@ function marksQuery() {
    ואם השאילתה לא החזירה דבר — שפת השאילתה נדחתה, או ששם הדף נשמר
    בצורה שלא ניחשנו — חוזרים לשליפה המלאה. איטי, אבל נכון: תקלה כאן
    אינה נראית כשגיאה אלא כ"הדף הזה עוד לא הוכן ללימוד". */
+/* יש כאן שורה של המסכת שלנו? זו גם הבדיקה אם השליפה החזירה משהו
+   וגם מה שמבדיל שורת כותרת משורת נתונים — כותרת אינה נושאת שם
+   מסכת. ספירת שורות גולמית לא הבחינה בין השתיים. */
+function hasMine(rows) {
+  if (!rows) return false;
+  for (var i = 0; i < rows.length; i++) if (rows[i][0] === S.mas) return true;
+  return false;
+}
 function loadMarks() {
   var q = marksQuery();
   return sheetCsv(MARK_TAB, q).then(function (rows) {
     MARKS_FILTERED = !!(q && rows && rows.length >= 2);
-    if (q && (!rows || rows.length < 2)) return sheetCsv(MARK_TAB);
+    if (q && !hasMine(rows)) return sheetCsv(MARK_TAB);
     return rows;
   }).then(function (rows) {
-    if (!rows || rows.length < 2) return 0;
+    if (!hasMine(rows)) return 0;
     var mine = [], tail = null;
-    rows.slice(1).forEach(function (r) {
+    /* **בלי `slice(1)`.** כאן ישבה הנחה שהשורה הראשונה היא תמיד
+       הכותרת — נכונה כל עוד נשלפה כל הלשונית, ושגויה מרגע שהשליפה
+       מסננת: התשובה חוזרת בלי שורת הכותרת, והדילוג בלע **שורת
+       נתונים אמיתית** — הראשונה שהתאימה.
+
+       בתענית זו הייתה ע״א, ולכן כל דף נפתח בעמוד ב׳. במגילה
+       השורות הראשונות שהתאימו היו ריקות מקטעים וירדו ממילא, ולכן
+       שם זה לא נראה כלל — אותו באג, ורק במסכת אחת.
+
+       אין צורך לנחש: שורת כותרת אינה נושאת שם מסכת, והשורה הבאה
+       מסננת אותה בעצמה. */
+    rows.forEach(function (r) {
       if (r[0] !== S.mas) return;
       /* עמודה "עמוד" נשמרה כ-"מקור|עמוד"; מקור 0 הוא צורת הדף. */
       var a = String(r[2] || '').split('|');
