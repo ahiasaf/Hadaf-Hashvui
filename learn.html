@@ -165,6 +165,11 @@ nav .sp{flex:1}
 .card .how li{font-size:.86rem;font-weight:700;color:var(--ink-2);line-height:1.8;
   margin-bottom:7px}
 .seal{font-size:2.4rem;line-height:1;margin-bottom:8px}
+#toast{position:fixed;inset-inline:0;bottom:calc(var(--bar) + 22px);z-index:30;
+  margin:0 auto;width:max-content;max-width:80vw;pointer-events:none;
+  background:rgba(11,37,80,.92);color:#fff;font-size:.84rem;font-weight:800;
+  padding:10px 16px;border-radius:999px;opacity:0;transition:opacity .18s}
+#toast.on{opacity:1}
 /* "לדף הבא" אינו הפעולה הראשית אבל הוא אחת משתי הפעולות
    האמיתיות כאן, ולכן הוא מסומן ולא נבלע בין הקישורים הצדדיים. */
 .card .btn.nx{background:var(--blue);color:#fff;border-color:transparent}
@@ -447,6 +452,38 @@ function shapes(d, g) {
    בלי זה נשארים פסי עמימות בין שורות הקטע, והמסגרת מתפרקת
    למסגרת קטנה סביב כל שורה — וזה מה שמעמיס על העין. מסגרת אחת
    חיצונית אומרת את אותו דבר בשקט. */
+/* איזה קטע יושב בנקודה הזו על הדף. הקואורדינטות מנורמלות לתמונה
+   (0–1), אותה מערכת שבה נשמרו הסימונים, ולכן אין כאן תלות בזום
+   או בגלילה. נבדקים רק קטעי העמוד המוצג. */
+function hitSeg(nx, ny) {
+  for (var i = 0; i < FLAT.length; i++) {
+    var v = FLAT[i];
+    if (v.p !== SHOWN) continue;
+    var bs = bands(PAGES[v.p].d, v.g);
+    for (var j = 0; j < bs.length; j++) {
+      var b = bs[j];
+      if (nx >= Math.min(b.x0, b.x1) && nx <= Math.max(b.x0, b.x1) &&
+          ny >= Math.min(b.y0, b.y1) && ny <= Math.max(b.y0, b.y1)) return i;
+    }
+  }
+  return -1;
+}
+/* הודעה קצרה שנעלמת מעצמה. לא כרטיס ולא יריעה — התשובה כאן היא
+   מילה אחת, ומסך שצריך לסגור בשבילה גרוע מהשאלה. */
+var TOAST = null;
+function toast(t) {
+  var el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = t;
+  el.className = 'on';
+  clearTimeout(TOAST);
+  TOAST = setTimeout(function () { el.className = ''; }, 1900);
+}
+
 function bands(d, g) {
   var rs = shapes(d, g);
   if (!rs.length) return [];
@@ -1188,7 +1225,26 @@ window.addEventListener('DOMContentLoaded', function () {
   $('prev').onclick  = function () { go(IDX - 1); };
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
      שמעדיף אותו. */
-  $('stage').onclick = function () { if (FLAT.length) go(IDX + 1); };
+  /* ---------- הקשה על הדף ----------
+     במצב הרגיל היא מקדמת לקטע הבא, כמו תמיד.
+
+     **בלי עמעום** היא עושה משהו אחר: קופצת אל הקטע שנמצא במקום
+     שהוקש. שם ממילא רואים את הדף כולו והתלמיד מסתכל סביב, ולכן
+     "קדימה" אינו מה שמתבקש — אלא "מה זה שם".
+
+     וזה גם מה שמאפשר לבדוק חלוקה: מקישים על מילה, ואם אין שם
+     קטע — נאמר בפירוש. רווח בין קטעים היה עד עכשיו בלתי נראה
+     לגמרי: הלימוד פשוט דילג עליו, ואי אפשר היה לדעת אם כך סומן
+     או שמשהו אבד בדרך. */
+  $('stage').onclick = function (e) {
+    if (!FLAT.length) return;
+    if (DIM) { go(IDX + 1); return; }
+    var r = $('ov').getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var i = hitSeg((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    if (i >= 0) { if (i !== IDX) go(i); return; }
+    toast('אין כאן קטע מסומן');
+  };
   $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
   $('chclose').onclick = function () { drawer(false); };
   $('czm').onclick = function () { chavZoom(-1); };
@@ -1197,6 +1253,7 @@ window.addEventListener('DOMContentLoaded', function () {
     DIM = !DIM;
     $('whole').classList.toggle('on', !DIM);
     $('whole').textContent = DIM ? 'בלי עמעום' : 'עם עמעום';
+    if (!DIM) toast('הקישו על הדף כדי לקפוץ לקטע');
     try { localStorage.setItem('df:dim', DIM ? '1' : '0'); } catch (e) {}
     paint();
   };
