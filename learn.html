@@ -901,8 +901,67 @@ function pickDaf() {
   return { mas:mas, daf:daf, week:wk };
 }
 
+/* הדף שאחרי זה שעל המסך, לפי סדר הלוח.
+   הלוח הוא סדר הדפים של התוכנית — כולל ההבדל בין תענית למגילה —
+   ולכן אין צורך בטבלה נוספת. שבועות בלי דף (חנוכה, פורים) וה"סיום"
+   מדולגים, וכך הדף הבא הוא באמת הבא. */
+function nextDaf(daf) {
+  var cal = calOf(S.mas), seen = false;
+  for (var i = 0; i < cal.length; i++) {
+    var d = cal[i][2];
+    if (!d || d === 'סיום') continue;
+    if (seen) return d;
+    if (dafKey(d) === dafKey(daf)) seen = true;
+  }
+  return null;
+}
+/* מחרוזת לשאילתת הגיליון. שמות הדפים מכילים גרש וגרשיים — `כ'`
+   מצד אחד, `י"ט` מצד שני — ולשפת השאילתה אין תו בריחה. לכן כל ערך
+   עוטף את עצמו בסימן שאינו מופיע בתוכו. ערך שמכיל את שניהם היה
+   בלתי ניתן לביטוי, ולכן הוא פשוט יורד ומטופל בנפילה לאחור. */
+function qLit(v) {
+  if (v.indexOf("'") < 0) return "'" + v + "'";
+  if (v.indexOf('"') < 0) return '"' + v + '"';
+  return null;
+}
+function marksQuery() {
+  var forms = {}, list = [];
+  [S.daf, nextDaf(S.daf)].forEach(function (d) {
+    if (!d) return;
+    /* גם הצורה עם הגרשיים וגם בלעדיה: הסטודיו כותב את השם כפי
+       שהוא בבורר, ואיננו רוצים לתלות את הכל בניחוש איזו צורה. */
+    forms[d] = 1; forms[dafKey(d)] = 1;
+  });
+  for (var k in forms) {
+    var lit = qLit(k);
+    if (lit) list.push('B = ' + lit);
+  }
+  if (!list.length) return null;
+  return 'A, B, C, D where A = ' + qLit(S.mas) + ' and (' + list.join(' or ') + ')';
+}
+
+/* ---------- שליפת הסימונים ----------
+   קודם נשלפה **כל הלשונית** — כל הדפים בשתי המסכתות — והסינון נעשה
+   כאן. זה עבד, אבל הוא גדל עם ההצלחה: 17 עמודים מסומנים הם כ-220KB
+   בכל פתיחה, ותוכנית מלאה של 120 עמודים היא כמיליון וחצי בייט —
+   בכל פתיחה, אצל כל תלמיד, בלי מטמון (הבקשה נושאת חותמת זמן בכוונה,
+   כדי שסימון חדש יגיע מיד). שיעור עם שלושים תלמידים על אותה רשת
+   הכפיל את זה שוב.
+
+   עכשיו נשלפים **שני דפים בלבד**: זה שעל המסך, והבא אחריו. הבא נחוץ
+   כי קטע יכול להתחיל בסוף הדף הזה ולהיגמר בתחילת הבא, והזנב נשמר
+   שם — בלעדיו התלמיד לא יראה את החצי השני. הנפח נעשה קבוע ואינו
+   גדל עם מספר הדפים שסומנו.
+
+   ואם השאילתה לא החזירה דבר — שפת השאילתה נדחתה, או ששם הדף נשמר
+   בצורה שלא ניחשנו — חוזרים לשליפה המלאה. איטי, אבל נכון: תקלה כאן
+   אינה נראית כשגיאה אלא כ"הדף הזה עוד לא הוכן ללימוד". */
 function loadMarks() {
-  return sheetCsv(MARK_TAB).then(function (rows) {
+  var q = marksQuery();
+  return sheetCsv(MARK_TAB, q).then(function (rows) {
+    if (q && (!rows || rows.length < 2)) return sheetCsv(MARK_TAB);
+    return rows;
+  }).then(function (rows) {
     if (!rows || rows.length < 2) return 0;
     var mine = [], tail = null;
     rows.slice(1).forEach(function (r) {
