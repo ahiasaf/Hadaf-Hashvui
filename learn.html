@@ -165,6 +165,15 @@ nav .sp{flex:1}
 .card .how li{font-size:.86rem;font-weight:700;color:var(--ink-2);line-height:1.8;
   margin-bottom:7px}
 .seal{font-size:2.4rem;line-height:1;margin-bottom:8px}
+/* "לדף הבא" אינו הפעולה הראשית אבל הוא אחת משתי הפעולות
+   האמיתיות כאן, ולכן הוא מסומן ולא נבלע בין הקישורים הצדדיים. */
+.card .btn.nx{background:var(--blue);color:#fff;border-color:transparent}
+/* מהתחלה וחזרה לתוכנית — נחוצים, ולא מה שבאו בשבילו. */
+.card .minor{display:flex;gap:14px;justify-content:center;align-items:center;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.card .minor button,.card .minor a{background:none;border:0;padding:4px;
+  font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-3);
+  text-decoration:none;cursor:pointer}
 .cred{margin:16px 0 0;font-size:.72rem;line-height:1.7;color:var(--ink-3);
   font-weight:600;border-top:1px solid var(--rule);padding-top:12px}
 .cred a{color:var(--ink-2)}
@@ -269,13 +278,20 @@ nav .sp{flex:1}
     <a href="rights.html">קרדיט וזכויות</a></p>
 </div></div>
 
+<!-- מסך הסיום. שתי הפעולות שתלמיד באמת רוצה כאן הן החידה
+     והדף הבא, ולכן הן למעלה ובולטות. "חזרה לדף" סוגר את
+     המסך ומשאיר אותו על הדף — מי שסיים לא בהכרח סיים להסתכל. -->
 <div class="sheet" id="done"><div class="card">
-  <div class="seal">✡</div>
+  <div class="seal">📖</div>
   <h2>ישר כוח!</h2>
   <p id="done-sub"></p>
   <a class="btn p" id="to-quiz" href="./">לשאלה השבועית</a>
-  <button class="btn" id="again">מהתחלה</button>
-  <a class="btn" href="./">חזרה לתוכנית</a>
+  <a class="btn nx" id="to-next" href="./">לדף הבא</a>
+  <button class="btn" id="stay">חזרה לדף</button>
+  <div class="minor">
+    <button id="again">מהתחלה</button>
+    <a href="./">חזרה לתוכנית</a>
+  </div>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -315,6 +331,10 @@ var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
    יורדת. תלמיד שרוצה לראות מה כתוב בתוספות שליד, או שפשוט
    נוח לו כך, מקבל את זה בלי לוותר על שום דבר אחר. */
 var IDX = 0, DIM = true, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
+/* האם מסך הסיום כבר נראה. אחריו "הבא" מוביל לדף הבא ולא חוזר
+   אליו — מי שסגר אותו כדי להסתכל שוב לא רוצה לפגוש אותו בכל
+   הקשה על "הבא". */
+var DONE_SEEN = false;
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -859,8 +879,53 @@ function bar() {
     (st && st.parts > 1 ? ' · חלק ' + st.part + ' מ-' + st.parts : '');
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0;
-  $('next').textContent = IDX === FLAT.length - 1 ? 'סיום ◂'
+  var last = IDX === FLAT.length - 1;
+  $('next').textContent = last
+    ? (DONE_SEEN && nextDaf(S.daf) ? 'דף ' + nextDaf(S.daf) + ' ◂' : 'סיום ◂')
     : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
+}
+/* ---------- מדידת זמנים ----------
+   "לוקח שש שניות" היא תלונה שאי אפשר לתקן בלי לדעת לאן הזמן הלך,
+   ובטלפון אין קונסולה להסתכל בה. `learn.html?debug=1` מציג את
+   הפירוק על המסך — כמה לקח המאגר, כמה הסימונים, כמה התמונה, והאם
+   שאילתת שני-הדפים תפסה או שהיא נפלה חזרה לשליפה המלאה.
+
+   בלי הפרמטר לא נוצר כלום ולא מוצג כלום, ולכן זה אינו עולה דבר
+   לתלמיד. */
+var T0 = Date.now(), TLOG = [];
+var DEBUG = /(?:^|[?&])debug=1/.test(location.search);
+function tick(name, p) {
+  if (!DEBUG) return p;
+  var t = Date.now();
+  p.then(function () { TLOG.push([name, Date.now() - t]); showTimes(); },
+         function () { TLOG.push([name + ' (נכשל)', Date.now() - t]); showTimes(); });
+  return p;
+}
+function showTimes() {
+  if (!DEBUG) return;
+  var el = document.getElementById('dbg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dbg';
+    el.style.cssText = 'position:fixed;inset-inline:8px;bottom:8px;z-index:99;' +
+      'background:rgba(11,37,80,.93);color:#fff;font:700 12px/1.7 system-ui;' +
+      'padding:10px 12px;border-radius:10px;white-space:pre;direction:rtl';
+    document.body.appendChild(el);
+  }
+  el.textContent = TLOG.map(function (r) { return r[0] + ': ' + r[1] + 'ms'; })
+    .concat('סה״כ: ' + (Date.now() - T0) + 'ms',
+            'שאילתה: ' + (MARKS_FILTERED === null ? '—'
+              : MARKS_FILTERED ? 'שני דפים ✓' : 'נפלה לשליפה מלאה ✗')).join('\n');
+}
+var MARKS_FILTERED = null;
+
+/* הדף הבא, כתובת מלאה. אין כאן בדיקה אם הוא כבר סומן — בכוונה:
+   `learn.html` יודע לומר בעצמו "הדף הזה עוד לא הוכן ללימוד", וזו
+   תשובה טובה יותר מכפתור שנעלם בלי הסבר. */
+function nextDafUrl() {
+  var d = nextDaf(S.daf);
+  return d ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+             '&daf=' + encodeURIComponent(d) : null;
 }
 function finish() {
   var key = S.mas + '-' + (S.week + 1);
@@ -870,7 +935,15 @@ function finish() {
   var a = $('to-quiz');
   if (q) { a.style.display = ''; a.href = './#quiz=' + key; }
   else a.style.display = 'none';
+
+  var nd = nextDaf(S.daf), n = $('to-next');
+  if (nd) { n.style.display = ''; n.href = nextDafUrl();
+            n.textContent = 'לדף הבא — דף ' + nd + ' ◂'; }
+  else n.style.display = 'none';
+
+  DONE_SEEN = true;      /* מכאן "הבא" כבר אינו מחזיר לכאן — ראו paint() */
   $('done').className = 'sheet on';
+  bar();
 }
 
 /* ============================================================
@@ -959,6 +1032,7 @@ function marksQuery() {
 function loadMarks() {
   var q = marksQuery();
   return sheetCsv(MARK_TAB, q).then(function (rows) {
+    MARKS_FILTERED = !!(q && rows && rows.length >= 2);
     if (q && (!rows || rows.length < 2)) return sheetCsv(MARK_TAB);
     return rows;
   }).then(function (rows) {
@@ -1040,10 +1114,18 @@ function boot() {
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
-  loadLib()
-    .then(function () {
-      return Promise.all([loadMarks().catch(function () { return 0; }), loadGemara()]);
-    })
+  /* שלוש המשיכות רצות **במקביל**, ולא בטור.
+     קודם `loadLib()` חסם את השאר, ורק כשסיים יצאו הסימונים
+     והתמונה לדרך. אבל הסימונים אינם צריכים את המאגר כלל — רק
+     `loadGemara` צריך אותו, כדי לדעת אם יש תמונה מוכנה או שצריך
+     ללכת לדרייב. ההמתנה המיותרת הזו נוספה לכל פתיחה, והיא דווקא
+     הכי כבדה בחיבור איטי: `daf/index.json` נטען "מהרשת קודם" עם
+     פסק זמן של 2.5 שניות. */
+  var lib = loadLib();
+  tick('lib', lib);
+  var marks = tick('marks', loadMarks().catch(function () { return 0; }));
+  var gem = tick('gemara', lib.then(function () { return loadGemara(); }));
+  Promise.all([marks, gem])
     .then(function (res) {
       if (!res[0]) {
         veil('הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע',
@@ -1074,7 +1156,16 @@ function boot() {
 }
 
 window.addEventListener('DOMContentLoaded', function () {
-  $('next').onclick  = function () { go(IDX + 1); };
+  $('next').onclick  = function () {
+    /* בסוף הדף, ואחרי שמסך הסיום כבר הוצג פעם אחת, "הבא" ממשיך
+       אל הדף הבא ממש — כמו שדפדוף בגמרא ממשיך. דף שטרם סומן יענה
+       שם בעצמו שהוא עוד לא מוכן, וזו תשובה ולא מבוי סתום. */
+    if (IDX === FLAT.length - 1 && DONE_SEEN) {
+      var u = nextDafUrl();
+      if (u) { location.href = u; return; }
+    }
+    go(IDX + 1);
+  };
   $('prev').onclick  = function () { go(IDX - 1); };
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
      שמעדיף אותו. */
@@ -1095,6 +1186,8 @@ window.addEventListener('DOMContentLoaded', function () {
     try { localStorage.setItem('df:learn-intro', '1'); } catch (e) {}
   };
   $('again').onclick = function () { $('done').className = 'sheet'; go(0); };
+  /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
+  $('stay').onclick  = function () { $('done').className = 'sheet'; bar(); };
   document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
     if (e.key === 'ArrowRight') { go(IDX - 1); e.preventDefault(); }

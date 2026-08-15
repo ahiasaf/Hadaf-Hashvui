@@ -42,17 +42,25 @@ def check_version():
     באתר ימשיך להגיש את הקוד הישן מהמטמון — ובחיבור איטי זה קורה
     תמיד, כי ל"מהרשת קודם" יש פסק זמן של 2.5 שניות.
     """
-    app = re.search(r"APP_VERSION\s*=\s*'([^']+)'", read('index.html'))
-    cache = re.search(r"CACHE_NAME\s*=\s*'hadaf-v([^']+)'", read('sw.js'))
-    if not app or not cache:
-        BAD.append('לא מצאתי את מספרי הגרסה')
-        return
-    if app.group(1) != cache.group(1):
-        BAD.append('גרסה לא מסונכרנת: index.html=%s אבל sw.js=%s — '
-                   'מכשירים יישארו על הקוד הישן'
-                   % (app.group(1), cache.group(1)))
+    found = {}
+    for label, path, pat in (
+            ('index.html', 'index.html', r"APP_VERSION\s*=\s*'([^']+)'"),
+            ('sw.js', 'sw.js', r"CACHE_NAME\s*=\s*'hadaf-v([^']+)'"),
+            # הסטודיו מחזיק מספר משלו, והוא היחיד שהרכז רואה על המסך.
+            # כשהוא נשאר מאחור הוא משקר בדיוק ברגע שבו בודקים איזו
+            # גרסה רצה — וזה כבר שלח אותנו לחפש באג במקום הלא נכון.
+            ('studio.html', 'studio.html', r"STUDIO_VER\s*=\s*'([^']+)'")):
+        m = re.search(pat, read(path))
+        if not m:
+            BAD.append('לא מצאתי מספר גרסה ב-%s' % label)
+            return
+        found[label] = m.group(1)
+    if len(set(found.values())) > 1:
+        BAD.append('גרסה לא מסונכרנת: %s — מכשירים יישארו על הקוד הישן'
+                   % ' · '.join('%s=%s' % kv for kv in sorted(found.items())))
     else:
-        OK.append('גרסה מסונכרנת (%s)' % app.group(1))
+        OK.append('גרסה מסונכרנת בשלושת הקבצים (%s)'
+                  % list(found.values())[0])
 
 
 def check_decks():
