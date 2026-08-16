@@ -635,33 +635,33 @@ body.tk-sheeting #tk-bar{display:none}
 #toast.on{opacity:1;transform:none}
 
 /* ---------- מה שבדרך ---------- */
-.soon{margin-top:22px;cursor:pointer}
-.sn-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.soon{margin-top:20px;cursor:pointer;background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--r);padding:14px 15px 15px;
+  box-shadow:var(--sh-1)}
+.sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
 .sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:#fff;
   background:linear-gradient(140deg,var(--gold-l),var(--gold));
   border-radius:999px;padding:5px 11px}
 .sn-h b{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
 
-/* הכרטיס שיישלח, בגודל אמיתי ובלי מילת הסבר אחת. המספרים
-   בדויים, ולכן הכרטיס כולו עמום מעט — הוא ממחיש צורה, ואסור
-   שייקרא כנתון. */
-.sn-card{background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--r);padding:17px 18px 14px;box-shadow:var(--sh-1);opacity:.82}
-.sn-top b{display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
-.sn-top span{display:block;font-size:.76rem;font-weight:700;color:var(--ink-3);
-  margin-top:3px}
-.sn-nums{display:flex;gap:26px;margin-top:16px}
-.sn-num b{display:block;font-size:1.85rem;font-weight:800;line-height:1;
-  color:var(--blue)}
-.sn-num span{display:block;font-size:.72rem;font-weight:700;color:var(--ink-3);
-  margin-top:5px}
-.sn-bars{display:flex;align-items:flex-end;gap:5px;height:34px;margin-top:16px}
-.sn-bars i{flex:1;background:var(--gold-l);border-radius:3px 3px 0 0;opacity:.6}
-.sn-share{display:flex;align-items:center;justify-content:center;gap:8px;
-  margin-top:16px;padding:11px;border-radius:var(--r-s);
-  background:linear-gradient(140deg,var(--green),var(--green-d));color:#fff;
-  font-size:.88rem;font-weight:800}
-.sn-share svg{width:17px;height:17px;fill:currentColor}
+/* טעימה, לא דוח. שורה אחת של מספרים בגודל טקסט — מספרים ענקיים
+   ותרשים עמודות עושים מזה כרטיס של רואה חשבון, וזו תוכנית לנוער.
+   ושלוש דרכי הלימוד נמצאות כאן כי הן העיקר: לא כמה, אלא מי. */
+.sn-line{font-size:.95rem;font-weight:700;color:var(--ink-2);
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.sn-line b{font-size:1.22rem;font-weight:800;color:var(--blue);
+  letter-spacing:-.02em}
+.sn-line s{width:4px;height:4px;border-radius:50%;background:var(--ink-3);
+  opacity:.5;margin:0 3px}
+.sn-who{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:11px}
+.sn-who span{font-size:.75rem;font-weight:800;color:var(--green-d);
+  background:rgba(111,168,59,.13);border-radius:999px;padding:5px 11px}
+/* מלא ולא שקוף, אחרת הוא נקרא כקטגוריה רביעית ולא כפעולה. */
+.sn-share{display:inline-flex;align-items:center;gap:6px;margin-inline-start:auto;
+  font-style:normal;font-size:.75rem;font-weight:800;color:#fff;
+  background:linear-gradient(140deg,var(--green),var(--green-d));
+  border-radius:999px;padding:6px 13px}
+.sn-share svg{width:14px;height:14px;fill:currentColor}
 
 /* הטיפ של החוברת */
 .sg-tip{padding:4px 8px 10px;line-height:1.85}
@@ -1098,7 +1098,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.9.1';
+var APP_VERSION = '7.9.2';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1273,29 +1273,17 @@ function renderHome() {
      כאן אין הסבר בכוונה. מה שמוצג הוא הכרטיס עצמו — שם הישיבה,
      הדף, שני המספרים, וכפתור שיתוף. כפתור השיתוף אומר לבדו את
      מה ששלוש שורות טקסט ניסו לומר: את זה שולחים להורים. */
-  var soonInst = (regSaved() || {}).inst || '';
   document.getElementById('soon').innerHTML = !CFG_SOON() ? '' :
     '<div class="soon" onclick="toast(\'הלוח בפיתוח — יגיע לפני תחילת התוכנית.\')">' +
     '<div class="sn-h"><span class="sn-tag">בקרוב</span>' +
     '<b>לוח ההתקדמות של הישיבה</b></div>' +
-    '<div class="sn-card" aria-hidden="true">' +
-      '<div class="sn-top"><b>' + esc(soonInst || 'הישיבה שלנו') + '</b>' +
-      '<span>' + (row[2] && row[2] !== 'סיום'
-        ? 'השבוע · ' + esc(tr.masechet) + ' דף ' + esc(row[2])
-        : 'השבוע') + '</span></div>' +
-      '<div class="sn-nums">' +
-        '<div class="sn-num"><b>41</b><span>לומדים את הדף</span></div>' +
-        '<div class="sn-num"><b>27</b><span>השלימו דף</span></div>' +
-      '</div>' +
-      '<div class="sn-bars"><i style="height:30%"></i><i style="height:52%"></i>' +
-      '<i style="height:44%"></i><i style="height:71%"></i><i style="height:63%"></i>' +
-      '<i style="height:88%"></i></div>' +
-      '<div class="sn-share">' +
-        '<svg viewBox="0 0 20 20"><circle cx="15" cy="4.5" r="2.3"/>' +
-        '<circle cx="5" cy="10" r="2.3"/><circle cx="15" cy="15.5" r="2.3"/>' +
-        '<path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" stroke-width="1.5" ' +
-        'fill="none"/></svg>שיתוף הסיכום</div>' +
-    '</div></div>';
+    '<div class="sn-line"><b>41</b> לומדים את הדף<s></s><b>27</b> השלימו דף</div>' +
+    '<div class="sn-who"><span>אבות ובנים</span><span>חבורות לימוד</span>' +
+    '<span>לימוד עצמי</span>' +
+    '<i class="sn-share"><svg viewBox="0 0 20 20"><circle cx="15" cy="4.5" r="2.3"/>' +
+    '<circle cx="5" cy="10" r="2.3"/><circle cx="15" cy="15.5" r="2.3"/>' +
+    '<path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" stroke-width="1.5" ' +
+    'fill="none"/></svg>שיתוף</i></div></div>';
 
   /* ---- פס ההרשמה ---- */
   var mine = regSaved();
