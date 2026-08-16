@@ -1562,7 +1562,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '6.33.0';
+var STUDIO_VER = '7.0.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1713,9 +1713,7 @@ function loadPageState() {
   PKEY = k;
   var rec = BOOK[k];
   STEPS = rec ? rec.steps : [];
-  var last = STEPS[STEPS.length - 1];
-  USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
-  USED_C = lastChav();
+  seal();                       /* גם מה שנשמר שבור — נאטם בכניסה */
   GSEL = null; CSEL_P = null;
 }
 /* התווית נגזרת מהמפתח שנכתב, ולא מהבוררים שעל המסך.
@@ -2161,9 +2159,7 @@ function addStep(cont) {
     if (f.line > i0 || (f.line === i0 && f.x >= xa)) { at = i; break; }
   }
   STEPS.splice(at, 0, step);
-  var end = STEPS[STEPS.length - 1];
-  USED_G = { line: end.g.to.line, x: end.g.to.x };
-  USED_C = end.c.to;
+  seal();                       /* הרצף נאטם מיד, לפני כל דבר אחר */
   touched();
   GSEL = null; CSEL_P = null;
   paintChav(1); markDraw();
@@ -2232,11 +2228,12 @@ function showSteps() {
   });
 }
 
+/* מחיקה = הסרת נקודת חיתוך. במודל הזה זה **מאחד** את הקטע עם
+   השכן שלפניו במקום לפעור חור: `seal` מותח את הקודם עד תחילת
+   הבא. אין יותר מצב שבו מחיקה משאירה שטח בלי בעלים. */
 function removeStep(i) {
   STEPS.splice(i, 1);
-  var last = STEPS[STEPS.length - 1];
-  USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
-  USED_C = lastChav();
+  seal();
   touched();
   paintChav(1); markDraw();
 }
@@ -2773,6 +2770,86 @@ function paintChav(scroll) {
   });
   if (scroll) seeChav();
 }
+/* ============================================================
+   נקודות חיתוך — האכיפה.
+
+   עד כאן הרצף היה **חישוב**: בהוספת קטע חדש ההתחלה חושבה מתוך
+   השכן, ומאותו רגע איש לא בדק אותה שוב. מחיקה, כוונון ידית,
+   הוספה כפולה או החלפת עמוד — כולם שברו אותו בשקט, ואי אפשר היה
+   לדעת שזה קרה. משם הגיעו כמעט כל הבאגים בסימון, כל פעם בצורה
+   אחרת: פעם חור, פעם שני קטעים על אותן שורות, פעם קטע שמתחיל
+   באמצע שום מקום.
+
+   `seal()` הופך את הרצף מחישוב ל**מבנה**. הדף הוא רשימת נקודות
+   חיתוך, והקטעים הם המרווחים ביניהן: הסוף של קטע **הוא** ההתחלה
+   של הבא — אותו ערך, לא שניים ששווים במקרה. אחרי כל שינוי הרשימה
+   נאטמת מחדש, ולכן חור וחפיפה אינם ניתנים לייצוג כלל.
+
+   זה רץ גם בטעינה, ולכן דף שכבר סומן ונשברו בו הרצפים מתוקן
+   בכניסה אליו — הקטע נמתח עד תחילת הבא, והפסקאות שנשארו יתומות
+   נכנסות איתו. אין כאן ניחוש: זו המשמעות היחידה האפשרית של
+   "רצף" על הנתונים שכבר קיימים.
+   ============================================================ */
+function pos(q) { return q.line + q.x; }
+
+/* הטקסט של טווח פסקאות. נחוץ כי `seal` עשוי להזיז גבול, ואז
+   הטקסט השמור אינו תואם עוד לטווח. */
+function chavRange(a, b) {
+  if (!CHV) return null;
+  var txt = [], html = [];
+  for (var i = a; i <= b && i < CHV.length; i++) {
+    if (i < 0) continue;
+    txt.push(CHV[i].runs.map(function (r) { return r.t; }).join(''));
+    html.push('<p>' + CHV[i].runs.map(function (r) {
+      var t = esc(r.t); return r.b ? '<b>' + t + '</b>' : t;
+    }).join('') + '</p>');
+  }
+  if (!txt.length) return null;
+  return { text: txt.join(' '), h: html.join('') };
+}
+
+function seal(report) {
+  if (!STEPS.length) return 0;
+  var fixed = 0;
+
+  /* לפי סדר הדף. הסדר הוא המבנה — בלעדיו "הקודם" חסר משמעות. */
+  STEPS.sort(function (a, b) { return pos(a.g.from) - pos(b.g.from); });
+
+  var out = [];
+  STEPS.forEach(function (st) {
+    var prev = out[out.length - 1];
+    if (prev) {
+      /* קטע שנבלע כולו בקודמו — כפילות. יורד. */
+      if (pos(st.g.to) <= pos(prev.g.to) + 1e-6) { fixed++; return; }
+      /* ההתחלה **היא** הסוף של הקודם. כאן נסגר חור וכאן מתבטלת
+         חפיפה, ושניהם באותה שורה אחת. */
+      if (Math.abs(pos(st.g.from) - pos(prev.g.to)) > 1e-6) {
+        st.g.from = { line: prev.g.to.line, x: prev.g.to.x };
+        fixed++;
+      }
+      /* אותו כלל בחברותא: הפסקה הראשונה היא זו שאחרי הקודמת.
+         פסקאות שנשארו יתומות בין השניים נכנסות לקטע הזה. */
+      if (st.c.from !== prev.c.to + 1) {
+        st.c.from = prev.c.to + 1;
+        if (st.c.to < st.c.from) st.c.to = st.c.from;
+        fixed++;
+        var got = chavRange(st.c.from, st.c.to);
+        if (got) { st.c.text = got.text; st.c.h = got.h; }
+      }
+    }
+    out.push(st);
+  });
+
+  STEPS = out;
+  /* `BOOK` מחזיק את אותה רשומה, ולכן היא מתעדכנת יחד. */
+  if (BOOK[PKEY]) BOOK[PKEY].steps = STEPS;
+  var last = STEPS[STEPS.length - 1];
+  USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
+  USED_C = lastChav();
+  if (fixed && report) say(fixed + ' רצפים נסגרו אוטומטית.');
+  return fixed;
+}
+
 function chavText() {
   if (!CSEL_P || !CHV) return '';
   var out = [];
