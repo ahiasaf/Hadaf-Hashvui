@@ -272,6 +272,15 @@ body.mark.gsel #clearsel{display:inline-block}
 .splitbox .gap{background:#FFF8E8;border:1px dashed var(--gold);color:#7A5A12;
   border-radius:10px;padding:9px 11px;margin-bottom:6px;
   font-size:.83rem;font-weight:800}
+/* קטע שחוזר על ביאור ששובץ כבר. אדום ולא צהוב — צהוב כאן הוא
+   "רווח לא מסומן", שהוא הזמנה לעבודה; זה ההפך, עבודה כפולה. */
+.splitbox .dup{background:#FDECEA;border:1px solid rgba(214,84,61,.45);
+  color:#8A2C1C;border-radius:10px;padding:11px;margin-bottom:9px;
+  font-size:.84rem;font-weight:700;line-height:1.7}
+.splitbox .dup .dx{display:block;width:100%;margin-top:9px;padding:11px;
+  background:var(--stop);color:#fff;border-radius:9px;font-size:.86rem}
+.splitbox .row.isdup .go{background:#FDECEA;border-color:rgba(214,84,61,.4)}
+
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
 /* פסקה מוסתרת: נשארת קריאה כדי שאפשר יהיה לזהות אותה ולהחזיר,
@@ -1752,7 +1761,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.6.1';
+var STUDIO_VER = '7.7.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2379,12 +2388,84 @@ function stepRows() {
   });
   return out;
 }
+/* ============================================================
+   קטעים כפולים.
+
+   קרה, וזה לא ייחודי: בין תמונה שהתחלפה, כיול שנעשה מחדש וכמה
+   גרסאות, נשאר בדף ב׳ סבב שני של סימונים — הקטעים רצו עד סוף
+   העמוד, ואז חזרו לראשו ורצו שוב.
+
+   `seal` אינו תופס את זה, ובצדק: הוא אוכף רצף **בתוך עמוד**,
+   והסבב הכפול יושב ברשומה של העמוד השני. אין לו שם שכן לבדוק
+   מולו.
+
+   הסימן שאינו משקר הוא פסקת החברותא. החברותא אחת לשני עמודי
+   הדף, ולכל קטע טווח פסקאות משלו — ולכן שני קטעים שמצביעים על
+   אותה פסקה הם אותו ביאור פעמיים, גם אם שורות הגמרא שלהם זזו
+   מעט בין כיול לכיול.
+   ============================================================ */
+function otherKey() {
+  var a = PKEY.split('|');
+  if (a.length < 4) return null;
+  a[3] = a[3] === '2' ? '1' : '2';
+  return a.join('|');
+}
+function cRange(st) {
+  var c = st && st.c;
+  if (!c || c.from == null) return null;
+  return [c.from, c.to == null ? c.from : c.to];
+}
+/* **הכלה ולא חפיפה.** קטע כפול הוא כזה שכל הפסקאות שלו כבר
+   שובצו במקום אחר — זו החתימה של "סימנתי את זה שוב". חפיפה
+   חלקית היא משהו אחר לגמרי: קטע שנמתח על התפר אחרי מחיקה, וזה
+   תקין. הבחנה זו היא ההבדל בין כלי שאפשר לסמוך עליו לבין כפתור
+   שמוחק עבודה טובה. */
+function covered(r, list) {
+  if (!r) return false;
+  for (var p = r[0]; p <= r[1]; p++) {
+    var in1 = false;
+    for (var k = 0; k < list.length && !in1; k++)
+      if (list[k] && list[k][0] <= p && p <= list[k][1]) in1 = true;
+    if (!in1) return false;
+  }
+  return true;
+}
+/* אילו קטעים בעמוד הזה חוזרים על ביאור שכבר שובץ */
+function dupSteps() {
+  var rec = BOOK[otherKey() || ''] || {};
+  var other = (rec.steps || []).map(cRange).filter(Boolean);
+  var seen = [], out = [];
+  STEPS.forEach(function (st, i) {
+    var r = cRange(st);
+    if (!r) return;
+    if (covered(r, seen) || covered(r, other)) out.push(i);
+    else seen.push(r);
+  });
+  return out;
+}
+function dropDups() {
+  var d = dupSteps();
+  if (!d.length) return;
+  for (var i = d.length - 1; i >= 0; i--) STEPS.splice(d[i], 1);
+  seal();
+  touched();
+  paintChav(1); markDraw();
+  say('הוסרו ' + d.length + ' קטעים כפולים.');
+  showSteps();
+}
+
 function showSteps() {
   var box = document.getElementById('splitbox');
   var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' +
     '<p>הקשה על קטע מציגה אותו על הדף. ✕ מוחק אותו בלבד — ' +
     'השאר נשארים, ואפשר להוסיף חדש במקומו.</p>';
   if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
+  var dup = dupSteps(), isDup = {};
+  dup.forEach(function (i) { isDup[i] = 1; });
+  if (dup.length)
+    html += '<div class="dup"><b>' + dup.length + ' קטעים חוזרים</b> על ביאור ' +
+      'שכבר שובץ — בעמוד הזה או בעמוד השני של הדף. הם מסומנים למטה.' +
+      '<button class="dx">הסרת ' + dup.length + ' הכפולים</button></div>';
   stepRows().forEach(function (r) {
     if (r.gap) {
       html += '<div class="gap">⚠ רווח לא מסומן — שורות ' +
@@ -2392,8 +2473,9 @@ function showSteps() {
       return;
     }
     var st = r.st;
-    html += '<div class="row">' +
-      '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> שורות ' +
+    html += '<div class="row' + (isDup[r.i] ? ' isdup' : '') + '">' +
+      '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> ' +
+      (isDup[r.i] ? 'כפול · ' : '') + 'שורות ' +
       (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
       (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
       '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
@@ -2402,6 +2484,9 @@ function showSteps() {
   html += '<button class="cl" onclick="document.getElementById(\'splitbox\').className=\'splitbox\'">סגירה</button></div>';
   box.innerHTML = html;
   box.className = 'splitbox on';
+  [].forEach.call(box.querySelectorAll('.dx'), function (b) {
+    b.onclick = function () { dropDups(); };
+  });
   [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
     b.onclick = function () { removeStep(+b.dataset.del); showSteps(); };
   });
