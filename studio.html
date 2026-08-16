@@ -115,6 +115,12 @@ button.c.hot{background:linear-gradient(140deg,var(--gold-l),var(--gold));
    בצד, ושום דבר אינו במקומו. `pan-x pan-y` משאיר את הגלילה
    באצבע אחת לדפדפן — חלקה ובלי קוד — ואת הפינץ' רק לנו. */
 .stage{touch-action:pan-x pan-y}
+/* הלחיצה הארוכה על הדף הייתה בלתי שמישה: אנדרואיד ואייפון פותחים
+   עליה את תפריט התמונה של הדפדפן ("העתקת תמונה / הורדת תמונה"),
+   והאירוע שלנו לא הגיע. הדף כאן אינו תמונה שמורידים אלא משטח
+   עבודה, ולכן התפריט הזה מבוטל עליו. */
+.stage #page,.stage #ov{-webkit-touch-callout:none;
+  -webkit-user-select:none;user-select:none}
 .zbar{position:absolute;inset-inline-end:10px;top:10px;z-index:5;display:flex;
   flex-direction:column;gap:5px}
 .zbar button{width:38px;height:38px;padding:0;font-size:1.05rem;
@@ -1556,7 +1562,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '6.31.0';
+var STUDIO_VER = '6.32.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1897,12 +1903,52 @@ function hand(x, y, h, which) {
 /* הקטעים רצים ברצף ואין דילוגים, ולכן ההתחלה כבר ידועה והקשה
    אחת על הסוף מספיקה. הקשה ארוכה קובעת התחלה חדשה, למקרה
    שבכל זאת צריך לדלג. */
+/* מאיפה מתחיל קטע שנגמר בשורה שהוקשה.
+
+   קודם ההתחלה נלקחה תמיד מסופו של הקטע **האחרון בעמוד**. זה נכון
+   כשמסמנים ברצף מלמעלה למטה, ושבר לגמרי כל השלמה של חור: קטע
+   שנשמט בין שניים קיימים יושב **לפני** האחרון, ולכן ההקשה עליו
+   נפלה לענף "הוקש לפני נקודת ההמשך" וסימנה שורה בודדת בלבד.
+   השלמת חור דרשה מחיקה אחורה עד אליו.
+
+   עכשיו ההתחלה נגזרת מהמקום שהוקש: סופו של הקטע האחרון שנגמר
+   לפניו. סימון ברצף מתנהג בדיוק כמו קודם — שם הקטע האחרון הוא
+   ממילא זה שלפני ההקשה — והשלמה באמצע פשוט עובדת: מקישים על סוף
+   הקטע החסר, וההתחלה נופלת מעצמה במקום שבו נגמר הקודם לו. */
+function startBefore(i) {
+  var best = null;
+  STEPS.forEach(function (st) {
+    var t = st.g.to;
+    if (t.line > i) return;
+    if (!best || t.line > best.line ||
+        (t.line === best.line && t.x > best.x)) best = t;
+  });
+  if (!best) return { i: 0, x: 0 };
+  if (best.x >= 0.98) return { i: best.line + 1, x: 0 };
+  return { i: best.line, x: best.x };
+}
 function pickLine(i, longPress) {
-  var st = nextStart();
-  if (longPress || i < st.i) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
+  var st = startBefore(i);
+  /* אם בין ההתחלה לשורה שהוקשה כבר יושב קטע — ההקשה נפלה בתוך
+     שטח מסומן, והבחירה הייתה חופפת אותו ויוצרת שני קטעים על אותן
+     שורות. אין מה לנחש כאן, ולכן מסמנים את השורה שהוקשה בלבד.
+
+     `st.i > i` הוא אותו דבר מהקצה השני: השורה כבר מוצתה. */
+  var over = STEPS.some(function (q) {
+    return q.g.from.line >= st.i && q.g.from.line <= i;
+  });
+  if (longPress || st.i > i || over) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
   else { GSEL = { a: { i: st.i, x: st.x }, b: { i: i, x: 1 } }; }
   markDraw();
 }
+
+/* ה-CSS לבדו אינו מספיק בכל דפדפן — כרום באנדרואיד עדיין מרים
+   תפריט על החזקה ארוכה מעל תמונה. חסימת האירוע על הבמה סוגרת את
+   הפער, ואינה נוגעת לחברותא שבה בחירת טקסט דרושה. */
+(function () {
+  var st = document.querySelector('.stage');
+  if (st) st.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+})();
 
 function bindMarkHandles() {
   var ov = document.getElementById('ov');

@@ -70,37 +70,20 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
 
 <div class="wrap">
 
-  <p class="say">שלום, קוראים לי <b id="who">רכז התוכנית</b>.</p>
+  <p class="say" id="t-hello"></p>
+  <p class="say" id="t-body"></p>
+  <p class="say" id="t-ask"></p>
 
-  <p class="say">אני מרכז תוכנית לימוד גמרא לנוער בישיבות בני עקיבא —
-     דף בשבוע — ובניתי בערבים משהו קטן שיעזור לנערים שקשה להם:
-     הדף מחולק לקטעים, וכל פעם מואר קטע אחד עם הביאור שלו לצידו.
-     <b>אין בזה תשלום ואין בזה מסחר</b>, ולא פתחתי את זה לאף אחד
-     עד שאדע שזה בסדר מבחינתכם.</p>
-
-  <p class="say">רציתי לבקש רשות להשתמש בדפי הגמרא. <b>קל יותר
-     לראות מלהסביר</b> — תסתכלו רגע, ותגידו לי מה דעתכם.</p>
-
-  <a class="btn" id="demo" href="learn.html?mas=taanit&daf=%D7%91">
-    לצפייה — תענית דף ב׳</a>
+  <a class="btn" id="demo" href="learn.html?mas=taanit&daf=%D7%91"></a>
 
   <hr>
 
   <div class="cred">
-    <div>
-      <h3>דפי הגמרא</h3>
-      © הוצאת ח. וגשל בע"מ (Moznaim)
-      <small>הדפים מקורם ב-HebrewBooks.org ונושאים את הערת הזכויות
-        של ההוצאה.</small>
-    </div>
-    <div>
-      <h3>פירוש חברותא</h3>
-      © הרב יעקב שולביץ שליט"א
-      <small>מופץ בכפוף לרישיון CC BY-NC-SA 2.5. השימוש המסחרי אסור.</small>
-    </div>
-    <div>
-      הקרדיט מופיע גם בתוך המערכת עצמה, וינוסח בדיוק כפי שתבקשו.
-    </div>
+    <div><h3 id="t-gem"></h3><span id="t-gemLine"></span>
+      <small id="t-gemNote"></small></div>
+    <div><h3 id="t-chav"></h3><span id="t-chavLine"></span>
+      <small id="t-chavNote"></small></div>
+    <div id="t-end"></div>
   </div>
 
   <footer id="foot"></footer>
@@ -112,10 +95,65 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
 /* הלוגו והשמות מגיעים מאותם קבצים של האפליקציה, כדי ששינוי
    בפרטי הקשר לא ישכח את העמוד הזה מאחור. */
 document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
-var c = (window.PROGRAM || {}).contact || {};
-if (c.coord) document.getElementById('who').textContent = c.coord;
 document.getElementById('foot').innerHTML =
   'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז';
+
+/* ---------- המלל ----------
+   מגיע מ-`RIGHTS` שב-data.js, ונדרס במה שפורסם בלשונית "טקסטים"
+   — אותן שלוש שכבות של האפליקציה, כדי שעריכה בניהול ← טקסטים
+   תשנה גם את העמוד הזה בלי לגעת בקוד. הטיוטה המקומית נקראת גם
+   היא, כדי שהרכז יראה מיד מה שערך אצלו לפני שפרסם. */
+var KEYS = ['hello','body','ask','gem','gemLine','gemNote',
+            'chav','chavLine','chavNote','end'];
+function draw(over) {
+  var R = window.RIGHTS || {};
+  KEYS.forEach(function (k) {
+    var el = document.getElementById('t-' + k);
+    if (el) el.innerHTML = (over && over['rights.' + k]) || R[k] || '';
+  });
+  document.getElementById('demo').textContent =
+    (over && over['rights.btn']) || R.btn || 'לצפייה';
+}
+draw(null);
+try {
+  var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+  if (cfg.texts) draw(cfg.texts);
+} catch (e) {}
+
+/* ומה שפורסם בגיליון — לכל מי שאינו הרכז. */
+(function () {
+  var id = window.SHEET_ID;
+  try {
+    var c2 = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (c2.sheetId) id = c2.sheetId;
+  } catch (e) {}
+  if (!id || !navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('טקסטים') +
+        '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var map = {}, rows = [], row = [], f = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var ch = t[i];
+        if (q) {
+          if (ch === '"' && t[i+1] === '"') { f += '"'; i++; }
+          else if (ch === '"') q = false; else f += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ',') { row.push(f); f = ''; }
+        else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+        else if (ch !== '\r') f += ch;
+      }
+      if (f || row.length) { row.push(f); rows.push(row); }
+      rows.forEach(function (r2) {
+        var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
+        if (k.indexOf('rights.') === 0 && v) map[k] = v;
+      });
+      if (Object.keys(map).length) draw(map);
+    })
+    .catch(function () {});
+})();
 </script>
 </body>
 </html>
