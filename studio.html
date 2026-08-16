@@ -559,6 +559,7 @@ function median(v) {
 /* מרווח שורה = המרחק בין תחילות שורות, ולא גובה הרצף.
    זה מה שמבדיל בין שלוש שכבות הטקסט בדף. */
 function pitchOf(m, w, a, b, y0, y1) {
+  if (y1 - y0 < 4) return null;
   var p = new Float32Array(y1 - y0);
   for (var y = y0; y < y1; y++) p[y-y0] = rowMean(m, w, y, a, b);
   p = smooth3(p);
@@ -598,6 +599,10 @@ function isFloating(m, w, a, b, t, bt) {
 }
 
 function linesIn(m, w, a, b, y0, y1, pit, vilna) {
+  /* אזור מנוון אינו שגיאה שצריך להתפוצץ עליה — הוא פשוט בלי
+     שורות. בלי השורה הזו `Float32Array(-2)` הפיל את כל טעינת
+     העמוד, והדף כולו לא נפתח בסטודיו. */
+  if (y1 - y0 < 2) return [];
   var p = new Float32Array(y1 - y0);
   for (var y = y0; y < y1; y++) p[y-y0] = rowMean(m, w, y, a, b);
   p = smooth3(p);
@@ -828,6 +833,7 @@ function analyse(m, w, h, pit0) {
   });
 
   snapZones(m, w, zones, gpit, bx0, gA, gB, bx1);
+  zones = zones.filter(function (z) { return z.y1 > z.y0; });
 
   return { w:w, h:h, sc:sc, bbox:[x0,y0,x1,y1],
            outer:[bx0,bx1], inner:[gA,gB],
@@ -902,6 +908,10 @@ function snapZones(m, w, zones, pit, bx0, gA, gB, bx1) {
     /* לאיזה אזור השורה שייכת, ומשם היכן הגבול */
     var y = (isWide === (wide === up)) ? hit[1] : hit[0] - 1;
     if (Math.abs(y - bnd) > pit * 1.5) continue;
+    /* ההצמדה מזיזה גבול אחד בכל פעם, ושני גבולות שזזו זה לקראת
+       זה הפכו אזור צר על פניו: y0 גדול מ-y1. מגילה ל ע"ב יצא כך,
+       ואי אפשר היה לפתוח אותו בכלל. גבול לא זז מעבר לשכניו. */
+    if (y <= up.y0 || y >= dn.y1) continue;
     up.y1 = y; dn.y0 = y + 1;
   }
 }
@@ -1742,7 +1752,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.6.0';
+var STUDIO_VER = '7.6.1';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
