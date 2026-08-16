@@ -43,9 +43,42 @@
 body{margin:0;background:var(--paper);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
 header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
-  padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  padding:10px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 header h1{margin:0;font-size:1.05rem;font-weight:800;letter-spacing:-.02em}
 header .sp{flex:1}
+header [hidden]{display:none}
+
+/* רצועת הניווט: חץ · הדף · העמוד · חץ, כגוש אחד. שם הדף הוא
+   הבורר עצמו, ולכן ההקשה עליו נותנת את רשימת כל הדפים בלי
+   שנצטרך לבנות תפריט משלנו — ובטלפון זו הרשימה המקומית, שהיא
+   תמיד נוחה יותר ממה שנצייר בעצמנו. */
+.nav{display:flex;align-items:center;gap:4px;min-width:0;
+  background:rgba(255,255,255,.13);border-radius:11px;padding:3px}
+/* שם הדף הוא מה שמתכווץ כשאין מקום, לא החצים ולא העמוד — הוא
+   היחיד שאפשר לקרוא גם חתוך. בלי זה הרצועה כולה נמעכה בטלפון
+   ובמצב סימון נשארו ממנה שני חצים בלי שום שם דף. */
+.nav select{background:transparent;padding:7px 8px;min-width:0;
+  text-overflow:ellipsis}
+.nav #daf{flex:1 1 auto}
+.nav .amud,.nav button{flex:0 0 auto}
+.nav select:disabled{opacity:1}
+.nav .amud{font-size:.8rem;padding-inline:6px;opacity:.9}
+.nav button{background:transparent;color:#fff;font-size:1rem;
+  padding:6px 11px;border-radius:8px;line-height:1}
+.nav button:hover:not(:disabled){background:rgba(255,255,255,.16)}
+.nav button:disabled{opacity:.3}
+
+/* בטלפון גם מסך הכיול. הצילום שהגיע ממנו הראה כותרת שתופסת חצי
+   מסך והדף דחוק למטה — וזה המסך שבו מסתכלים על הדף. */
+@media (max-width:640px){
+  header{padding:8px 10px;gap:7px;row-gap:6px}
+  header h1{font-size:.95rem}
+  #ver{display:none}
+  header select,header button{font-size:.79rem;padding:7px 9px}
+  .nav select{padding:6px 7px}
+  #stat{font-size:.73rem;max-width:none;flex:1 1 100%;order:9;
+    line-height:1.3;opacity:.85}
+}
 #stat{font-size:.8rem;font-weight:800;opacity:.92;max-width:34ch;line-height:1.35}
 #stat.bad{color:#FFC9C2}
 button{font-family:inherit;font-weight:800;font-size:.86rem;cursor:pointer;
@@ -197,6 +230,11 @@ body.mark.gsel #clearsel{display:inline-block}
   box-shadow:0 12px 44px rgba(11,37,80,.4)}
 .menu.on{display:flex}
 .menu button{width:100%;text-align:start;padding:12px 14px;font-size:.87rem}
+/* פתיחת קובץ היא <label> כדי שההקשה תפתח את בורר הקבצים, וצריכה
+   להיראות ככל שאר השורות בתפריט ולא כמו טקסט שנשמט לשוליים. */
+.menu label.alt{display:block;width:100%;text-align:start;padding:12px 14px;
+  font-size:.87rem;border:0;border-radius:9px;background:var(--surface);
+  color:var(--ink);opacity:.72}
 .menu hr{border:0;border-top:1px solid var(--rule);margin:2px 6px}
 /* גיליון הפיצול */
 .splitbox{position:fixed;inset:0;z-index:70;display:none;align-items:center;
@@ -231,6 +269,13 @@ body.mark.gsel #clearsel{display:inline-block}
   font-size:.83rem;font-weight:800}
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
+/* פסקה מוסתרת: נשארת קריאה כדי שאפשר יהיה לזהות אותה ולהחזיר,
+   ואינה נראית כמו תוכן. אצל התלמיד היא פשוט אינה. */
+.chb p.cp.off{opacity:.4;color:var(--ink-3);text-decoration:line-through;
+  text-decoration-color:rgba(150,160,178,.6)}
+body.hiding .chb p.cp{outline:2px dashed rgba(214,84,61,.45);outline-offset:2px;
+  cursor:pointer}
+body.hiding .chb p.cp.off{outline-color:rgba(90,103,128,.35)}
 .mstate{padding:8px 14px 10px;font-size:.78rem;font-weight:700;color:var(--ink-2);
   line-height:1.5;border-bottom:1px solid var(--rule);margin-bottom:3px}
 #ver{font-size:.7rem;font-weight:700;opacity:.5;color:#fff;white-space:nowrap}
@@ -266,9 +311,11 @@ body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2
 body.mark .chav{display:flex}
 body.mark #marker{display:block}
 body.mark aside:not(#marker){display:none}
-/* במצב סימון המסך נקי: הבוררים אינם נחוצים, ויציאה מחזירה אליהם */
-body.mark #mas,body.mark #daf,body.mark #src,body.mark #pg,
-body.mark #pick,body.mark #reset{display:none}
+/* במצב סימון המסך נקי — אבל **הניווט נשאר**. הדף הוא יחידת
+   העבודה, וסימנו דף וממשיכים לבא; הסתרת הבוררים כאן אילצה
+   יציאה לכיול וחזרה על כל מעבר. מה שנעלם הוא מה שבאמת אינו
+   נוגע לסימון: המסכת, מקור הקובץ, וכיול מחדש. */
+body.mark #mas,body.mark #src,body.mark #reset{display:none}
 /* ============================================================
    במצב סימון המסך הוא מסך אחד, לא מסמך נגלל: כותרת למעלה, פס
    פעולה למטה, ובאמצע שני החלונות שמתחלקים בכל מה שנשאר.
@@ -293,7 +340,13 @@ body.mark.swap .stagebox{order:2}
   /* בטלפון הכותרת מתכווצת לשורה אחת: השם והכפתורים שאינם נחוצים
      תוך כדי סימון רק גוזלים גובה מהעבודה עצמה. */
   body.mark header{padding:9px 12px;flex-wrap:nowrap}
-  body.mark header h1,body.mark #save{display:none}
+  /* בסימון נשאר בכותרת מה שנוגעים בו תוך כדי: לאן ללכת, ואיך
+     לחזור לכיול. המסכת אינה מתחלפת באמצע דף, ו"זיהוי מחדש" שייך
+     למסך הכיול — שניהם רק דחסו את שם הדף לאפס רוחב. */
+  body.mark header h1,body.mark #ver,
+  body.mark #mas,body.mark #reset{display:none}
+  body.mark .nav{flex:0 1 auto}
+  body.mark #daf{min-width:8.5ch}
   /* ההודעה מתכווצת ואינה דוחפת את הכפתור לשורה שנייה */
   body.mark #stat{font-size:.74rem;max-width:none;flex:1 1 auto;min-width:0;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -319,20 +372,31 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 </head>
 <body>
 
+<!-- הכותרת תפסה חצי מסך בטלפון: שני בוררים שאין בהם צורך יומיומי,
+     כפתור פתיחת קובץ שאיש לא ידע למה הוא, וכפתור JSON שנדרש פעם
+     בחודש. מה שנשאר הוא מה שנוגעים בו בכל דף — לאן ללכת, ומה
+     לעשות כאן. השאר עבר לתפריט ⋯.
+
+     הניווט הוא רצועה אחת: חץ, שם הדף, העמוד, חץ. שם הדף עצמו הוא
+     הבורר — הקשה עליו פותחת את רשימת כל הדפים. -->
 <header>
   <h1>סטודיו הדף</h1>
   <span id="ver"></span>
   <select id="mas"></select>
-  <select id="daf"></select>
-  <select id="src"></select>
-  <select id="pg"></select>
-  <span class="sp"></span>
-  <label class="alt" id="pick" title="קובץ PDF של דף, או תמונה">
-    פתיחת קובץ<input type="file" id="file" accept="application/pdf,image/*" hidden></label>
+  <nav class="nav">
+    <button id="pgprev" title="הקודם">▸</button>
+    <select id="daf"></select>
+    <select id="pg" class="amud"></select>
+    <button id="pgnext" title="הבא">◂</button>
+  </nav>
+  <!-- החברותא אינה זקוקה לכיול — היא טקסט, ופיצול הפסקאות נעשה
+       תוך כדי הלימוד. הבורר נשאר כאן מוסתר כי המפתח של כל רשומה
+       בגיליון בנוי ממנו, ושינוי המפתח היה מנתק את כל מה שנשמר. -->
+  <select id="src" hidden></select>
   <span id="stat"></span>
+  <span class="sp"></span>
   <button id="mode">סימון קטעים ←</button>
   <button id="reset">זיהוי מחדש</button>
-  <button class="p" id="save">שמירת JSON</button>
 </header>
 
 <div class="wrap">
@@ -407,14 +471,18 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 <!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
 <div class="menu" id="menu">
   <div class="mstate" id="gstate"></div>
-  <button id="pgprev">▸ הקודם (עמוד או דף)</button>
-  <button id="pgnext">הבא (עמוד או דף) ◂</button>
-  <hr>
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
   <button id="steplist">☰ רשימת הקטעים · עריכה</button>
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
+  <button id="hidepara">⊘ הסתרת פסקה בחברותא</button>
   <button id="stoppt">⌁ נקודת עצירה — סוף הדף הקודם</button>
+  <hr>
+  <!-- פעם בחודש, ולא באמצע עבודה -->
+  <label class="alt" id="pick" title="קובץ PDF של דף, או תמונה">
+    📄 פתיחת קובץ ידנית<input type="file" id="file"
+    accept="application/pdf,image/*" hidden></label>
+  <button id="save">⬇ שמירת JSON</button>
   <hr>
   <button class="p" id="save2">שמירה בגיליון</button>
 </div>
@@ -1329,7 +1397,8 @@ function chavHtml(paras) {
       var t = esc(r.t);
       return r.b ? '<b>' + t + '</b>' : t;
     }).join('');
-    return '<p class="cp" data-p="' + i + '">' + html + '</p>';
+    return '<p class="cp' + (p.off ? ' off' : '') + '" data-p="' + i + '">' +
+           html + '</p>';
   }).join('');
 }
 
@@ -1420,7 +1489,9 @@ function onMas() {
   cal.forEach(function (row, i) {
     var d = row[2];
     if (!d || d === 'סיום' || !links[dafKey(d)]) return;
-    opts.push([d, 'שבוע ' + (i + 1) + ' · ' + row[1] + ' · דף ' + d]);
+    /* הדף ראשון, ולא השבוע. ברצועת הניווט השם נחתך כשאין מקום,
+       והחלק שחייב לשרוד הוא זה שאומר איפה אנחנו. */
+    opts.push([d, 'דף ' + d + ' · שבוע ' + (i + 1) + ' · ' + row[1]]);
   });
   if (!opts.length) { say('אין קישורי דפים למסכת הזו.', 1); return; }
   fillSel(document.getElementById('daf'), opts);
@@ -1451,6 +1522,7 @@ function onDaf() {
   /* החלפת דף בתוך מסך הסימון החליפה רק את התמונה: החברותא נשארה
      של הדף הקודם, והסימונים של הדף החדש כלל לא נטענו מהגיליון —
      כך שגם קובץ ה-JSON יצא ובו הדף הקודם. שניהם נטענים עכשיו. */
+  if (typeof setHideMode === 'function') setHideMode(false);
   if (MODE === 'mark') { loadChav(); loadFromSheet().then(afterSheet); }
 }
 /* סימונים שנשמרו לפני שההדגשות נשמרו איתם נשענים על קובץ
@@ -1543,10 +1615,41 @@ function libImg(daf, pg) {
    מגיעה מהמאגר אין `PDF`, ו-`onPage` הישן — שהתנה הכל בקיומו —
    פשוט לא עשה דבר. המפתח היה עובר ל-ע״ב בזמן שהתמונה נשארת
    ע״א, כלומר סימון על עמוד אחד שנשמר תחת השני. */
+/* רשימת עמודי הדף — ע״א וע״ב.
+
+   היא נבנתה **רק** בפתיחת PDF, ומרגע שהסטודיו עבר לתמונות המאגר
+   לא נבנתה כלל: הבורר נשאר ריק ומושבת, `selVal('pg')` החזיר
+   כלום, ו-`loadFromLib` נפל לברירת המחדל. כלומר כל דף נפתח על
+   ע״א ולא הייתה שום דרך להגיע לע״ב — גם לא דרך "הבא", כי הוא
+   סופר את האפשרויות שבבורר ולא מצא אף אחת.
+
+   המאגר יודע אילו עמודים קיימים, וזה המקור הנכון. */
+var AMUD_FOR = '';
+function fillAmud() {
+  var c = curDaf(), mas = selVal('mas'), key = mas + '|' + dafKey(c.daf);
+  var m = window.DAF_LIB && DAF_LIB[mas];
+  var a = m && m[dafKey(c.daf)];
+  if (!a || !a.length) return;
+  var el = document.getElementById('pg');
+  /* רק בהחלפת דף. אחרת כל טעינה הייתה מחזירה את הבורר לע״א
+     מיד אחרי שנבחר ע״ב. */
+  if (key === AMUD_FOR && el.options.length) return;
+  AMUD_FOR = key;
+  var opts = [];
+  if (a.indexOf('a') >= 0) opts.push(['1', 'ע״א']);
+  if (a.indexOf('b') >= 0) opts.push(['2', 'ע״ב']);
+  fillSel(el, opts);
+  /* מי שהגיע לכאן בדרך אחורה רוצה את סופו של הדף, לא את ראשו */
+  el.value = WANT_LAST ? opts.length - 1 : 0;
+  WANT_LAST = false;
+  el.style.display = '';
+}
+
 function loadFromLib() {
   var c = curDaf();
   if (+selVal('src') !== 0) return false;     /* חברותא — טקסט, לא במאגר */
   if (!window.DAF_LIB) return null;           /* עוד לא ידוע — ראו onSrc */
+  fillAmud();
   var pg = +selVal('pg') || 1;
   var src = libImg(c.daf, pg);
   if (!src) return false;
@@ -1643,7 +1746,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.4.0';
+var STUDIO_VER = '7.5.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1846,6 +1949,7 @@ function keepPageState() {
     STEPS = was.steps;
   }
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
+  if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
 }
 var GSEL = null;         // { a:{i,x}, b:{i,x} } לפי אינדקס שורה
@@ -2361,9 +2465,9 @@ function loadChav() {
           return chavBuild(it, body);
         }));
         chavStore(id, raw);
-        CHV = applySplits(raw.slice());
+        CHV = buildChav(raw);
         box.innerHTML = chavHtml(CHV);
-        document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
+        document.getElementById('chpg').textContent = chavCount();
         chavBind(); paintChav(1);
         /* גם כאן, ולא רק אחרי הגיליון: השניים מגיעים בסדר משתנה,
            וההשלמה צריכה את שניהם. */
@@ -2376,9 +2480,9 @@ function loadChav() {
      לפי גובה הגליפים. הקובץ אינו משתנה, ולכן אין מה לרענן. */
   var mem = chavLoad(id);
   if (mem) {
-    CHV = applySplits(mem.slice());
+    CHV = buildChav(mem);
     box.innerHTML = chavHtml(CHV);
-    document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
+    document.getElementById('chpg').textContent = chavCount();
     chavBind(); paintChav(1); backfillChav();
     return;
   }
@@ -2567,6 +2671,7 @@ function loadFromSheet() {
         if (was) {
           if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
           if (!rec.splits && was.splits) rec.splits = was.splits;
+          if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
           if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
         }
         BOOK[k] = rec; n++;
@@ -2681,6 +2786,7 @@ function nextStart() {
    כולם ושובר את מה שכבר נשמר.
    ============================================================ */
 var SPLIT_MODE = false;
+var HIDE_MODE = false;
 
 function allSplits() {
   var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
@@ -2716,6 +2822,76 @@ function applySplits(list) {
     list.splice(i, 1, two[0], two[1]);
   });
   return list;
+}
+
+/* ============================================================
+   הסתרת פסקה בחברותא.
+
+   בחוברת יש פסקאות שאינן ביאור: כותרת, שורת מקורות, הקדמה. הן
+   אינן שייכות לשום קטע, והן צצות אצל התלמיד באמצע הלימוד.
+
+   מחיקה אמיתית אסורה כאן. הפסקאות נבנות מחדש מהחוברת בכל
+   פתיחה, ומחיקה הייתה מזיזה כל אינדקס שאחריה — כלומר שוברת כל
+   קטע ששובץ. לכן הפסקה נשארת במקומה ובמספרה, ורק אינה מוצגת:
+   אפורה כאן, ואינה נכנסת לטקסט שנשמר לתלמיד. אפשר להחזיר אותה
+   בהקשה נוספת.
+
+   נשמרת לפי חתימת הטקסט ולא לפי המספר, כדי שפיצול של פסקה
+   אחרת לא יזיז אותה.
+   ============================================================ */
+function paraSig(p) {
+  return (p.runs || []).map(function (r) { return r.t; }).join('')
+    .replace(/\s+/g, '').slice(0, 24);
+}
+function hiddenKeys() {
+  var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+  var out = [];
+  for (var k in BOOK) if (k.indexOf(pre) === 0) out.push(k);
+  return out;
+}
+function applyHidden(list) {
+  var h = {};
+  hiddenKeys().forEach(function (k) {
+    (BOOK[k].hidden || []).forEach(function (s) { h[s] = 1; });
+  });
+  list.forEach(function (p) { p.off = !!h[paraSig(p)]; });
+  return list;
+}
+/* החברותא כפי שהיא מוצגת: הפיצולים שנעשו, וההסתרות שנעשו */
+function buildChav(raw) { return applyHidden(applySplits(raw.slice())); }
+
+function chavCount() {
+  if (!CHV) return '';
+  var off = 0;
+  CHV.forEach(function (p) { if (p.off) off++; });
+  return CHV.length + ' פסקאות' + (off ? ' · ' + off + ' מוסתרות' : '');
+}
+function redrawChav() {
+  document.getElementById('chb').innerHTML = chavHtml(CHV);
+  document.getElementById('chpg').textContent = chavCount();
+  chavBind(); paintChav(); markPanel();
+}
+function toggleHide(i) {
+  if (!CHV || !CHV[i]) return;
+  var sig = paraSig(CHV[i]);
+  if (CHV[i].off) {
+    /* ההסתרה עשויה להיות רשומה בעמוד השני של אותו דף — החברותא
+       אחת לשני העמודים. */
+    hiddenKeys().forEach(function (k) {
+      if (!BOOK[k].hidden) return;
+      BOOK[k].hidden = BOOK[k].hidden.filter(function (s) { return s !== sig; });
+    });
+    CHV[i].off = false;
+  } else {
+    var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
+    rec.hidden = rec.hidden || [];
+    if (rec.hidden.indexOf(sig) < 0) rec.hidden.push(sig);
+    CHV[i].off = true;
+  }
+  redrawChav();
+  touched();
+  say(CHV[i].off ? 'הפסקה הוסתרה — לא תופיע אצל התלמיד'
+                 : 'הפסקה הוחזרה.');
 }
 
 function paraText(i) {
@@ -2766,9 +2942,7 @@ function doSplit(i, at) {
   (rec.splits = rec.splits || []).push([i, at]);
   var two = cutRuns(CHV[i].runs, at);
   CHV.splice(i, 1, two[0], two[1]);
-  document.getElementById('chb').innerHTML = chavHtml(CHV);
-  document.getElementById('chpg').textContent = CHV.length + ' פסקאות';
-  chavBind(); paintChav(); markPanel();
+  redrawChav();
   touched();
   say('הפסקה פוצלה · ' + CHV.length + ' פסקאות');
 }
@@ -2777,6 +2951,7 @@ function chavBind() {
   [].forEach.call(document.querySelectorAll('#chb p.cp'), function (el) {
     el.onclick = function () {
       var i = +el.dataset.p;
+      if (HIDE_MODE) { toggleHide(i); return; }
       if (SPLIT_MODE) {
         if (i <= USED_C) { say('אפשר לפצל רק פסקה שטרם שובצה.', 1); return; }
         splitSheet(i);
@@ -2878,6 +3053,9 @@ function chavRange(a, b) {
   var txt = [], html = [];
   for (var i = a; i <= b && i < CHV.length; i++) {
     if (i < 0) continue;
+    /* פסקה מוסתרת נשארת בטווח ובמספרה, ורק אינה נכנסת לטקסט —
+       וזה מה שהתלמיד רואה, כי המבנה נשמר בסימון עצמו. */
+    if (CHV[i].off) continue;
     txt.push(CHV[i].runs.map(function (r) { return r.t; }).join(''));
     html.push('<p>' + CHV[i].runs.map(function (r) {
       var t = esc(r.t); return r.b ? '<b>' + t + '</b>' : t;
@@ -3177,9 +3355,26 @@ document.getElementById('stoppt').onclick = function () { stopSheet(); };
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  setHideMode(false);
   SPLIT_MODE = true;
   document.body.classList.add('splitting');
   say('הקישו על הפסקה שצריך לפצל.');
+};
+/* נשאר דלוק עד שמכבים אותו: מי שמסתיר פסקה אחת מסתיר בדרך כלל
+   עוד אחת באותו דף, ולחזור לתפריט בין אחת לשנייה זה מיותר. */
+function setHideMode(on) {
+  HIDE_MODE = !!on;
+  document.body.classList.toggle('hiding', HIDE_MODE);
+  document.getElementById('hidepara').textContent =
+    HIDE_MODE ? '⊘ סיום הסתרת פסקאות' : '⊘ הסתרת פסקה בחברותא';
+}
+document.getElementById('hidepara').onclick = function () {
+  if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  if (HIDE_MODE) { setHideMode(false); say('חזרה לסימון.'); return; }
+  SPLIT_MODE = false;
+  document.body.classList.remove('splitting');
+  setHideMode(true);
+  say('הקישו על פסקה כדי להסתיר אותה — והקשה נוספת מחזירה.');
 };
 
 /* אזהרה לפני סגירה, כשיש עבודה שלא נשמרה בגיליון */
