@@ -1412,6 +1412,14 @@ function onMas() {
   fillSel(document.getElementById('daf'), opts);
   onDaf();
 }
+/* רשימת המאגר — אותו קובץ שמסך הלימוד קורא. */
+var DAF_LIB = null;
+(function () {
+  fetch('daf/index.json').then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { window.DAF_LIB = j || {}; })
+    .catch(function () { window.DAF_LIB = {}; });
+})();
+
 function onDaf() {
   var c = curDaf();
   var opts = [];
@@ -1485,9 +1493,44 @@ function afterSheet(n) {
   PKEY = ''; loadPageState(); paintChav(); markDraw(); backfillChav();
   say('נטענו סימונים קודמים מ-' + n + ' עמודים');
 }
+/* ---------- מאיזו תמונה מכיילים ----------
+   **זה היה שורש הסטייה, והוא היה כאן מהיום הראשון.**
+
+   הסטודיו משך תמיד את ה-PDF מהדרייב וצייר אותו ב-pdf.js. מסך
+   הלימוד, לעומתו, מעדיף את התמונה שבמאגר (`daf/…webp`) שנבנתה
+   ב-pdftoppm. לשתיהן **חיתוך וקנה מידה שונים**, והסימונים נשמרים
+   כשברים של התמונה — ולכן אותם מספרים בדיוק מצביעים על מקומות
+   שונים בכל אחת.
+
+   נמדד על תענית ב ע״א: הגמרא יושבת ב-x 0.278–0.464 בתמונת המאגר,
+   וב-0.364–0.635 בציור של ה-PDF. הפרש של עשרות אחוזים — וזה מה
+   שנראה כ"הסימון קופץ" בכל מקום שבו התמונות התחלפו.
+
+   מעכשיו הסטודיו מכייל על **אותה תמונה בדיוק** שהתלמיד רואה.
+   דף שטרם הומר למאגר ממשיך דרך הדרייב כמקודם. */
+function libImg(daf, pg) {
+  var mas = selVal('mas');
+  var m = window.DAF_LIB && DAF_LIB[mas];
+  var a = m && m[dafKey(daf)];
+  if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
+  return 'daf/' + mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
+}
 function onSrc() {
   var c = curDaf();
   var si = +selVal('src');
+  /* צורת הדף בלבד. החברותא היא טקסט ואינה במאגר. */
+  if (si === 0) {
+    var src = libImg(c.daf, +selVal('pg') || 1);
+    if (src) {
+      PDF = null;
+      var im = new Image();
+      im.onload = function () { IMG = im; load(im); };
+      im.onerror = function () { fetchDaf(fileId(c.links[0]), 'צורת הדף'); };
+      im.src = src;
+      say('מהמאגר · דף ' + c.daf);
+      return;
+    }
+  }
   var id = fileId(c.links[si]);
   if (!id) { say('אין קובץ לדף הזה.', 1); return; }
   var mas = document.getElementById('mas');
@@ -1562,7 +1605,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.1.1';
+var STUDIO_VER = '7.2.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
