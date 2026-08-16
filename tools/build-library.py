@@ -58,6 +58,9 @@ OUT = os.path.join(ROOT, 'daf')
 INDEX = os.path.join(OUT, 'index.json')
 
 WIDTH = 1600
+# בנייה מחדש של דף שכבר קיים. נחוץ כששיטת ההמרה משתנה — למשל
+# כשנוסף חיתוך השוליים — ואחרת הכלי מדלג על הכל ואומר "קיים".
+FORCE = False
 DPI = 200
 QUALITY = 82
 AMUD = ['a', 'b']
@@ -117,9 +120,40 @@ def grab(api, fid):
     raise RuntimeError(last)
 
 
+# כמה שוליים להשאיר סביב הדיו, כשבר מרוחב הדף.
+MARGIN = 0.015
+
+
+def trim(im):
+    """חיתוך השוליים הלבנים.
+
+    קובצי המקור אינם ממורכזים: נמדד על כל 119 העמודים שכבר הומרו —
+    כ-9.6% לבן משמאל וכ-33.4% מימין, באופן עקבי. שליש מכל תמונה היה
+    ריק, והדף הוצג קטן ממה שהוא יכול בשליש.
+
+    וזה לא רק בזבוז מקום: הסימונים נשמרים כשבר מרוחב התמונה, ולכן
+    שוליים שונים בין שתי תמונות של אותו דף מזיזים כל סימון. ככל
+    שהתמונה צמודה לדיו, כך היא תלויה פחות בגחמות של קובץ המקור.
+
+    החיתוך נעשה על התמונה בגווני אפור לפני ההקטנה, כדי שההקטנה
+    תנצל את כל 1600 הפיקסלים לדיו עצמו ולא לשוליים.
+    """
+    from PIL import Image, ImageChops
+    g = im.convert('L')
+    # הדף לבן על שחור לצורך getbbox — הוא מחפש את מה שאינו אפס.
+    inv = ImageChops.invert(g).point(lambda v: 255 if v > 90 else 0)
+    box = inv.getbbox()
+    if not box:
+        return im
+    pad = round(im.width * MARGIN)
+    return im.crop((max(0, box[0] - pad), max(0, box[1] - pad),
+                    min(im.width,  box[2] + pad),
+                    min(im.height, box[3] + pad)))
+
+
 def to_webp(png, dst):
     from PIL import Image
-    im = Image.open(png)
+    im = trim(Image.open(png))
     if im.width != WIDTH:
         im = im.resize((WIDTH, round(im.height * WIDTH / im.width)), Image.LANCZOS)
     # גווני אפור: הדפים שחור-לבן, וצבע רק מנפח את הקובץ
@@ -134,7 +168,8 @@ def build(api, mas, daf, urls, idx):
     key = daf_key(daf)
     out = os.path.join(OUT, mas)
     os.makedirs(out, exist_ok=True)
-    if all(os.path.exists(os.path.join(out, '%s-%s.webp' % (key, a))) for a in AMUD):
+    if not FORCE and all(os.path.exists(os.path.join(out, '%s-%s.webp' % (key, a)))
+                         for a in AMUD):
         idx.setdefault(mas, {})[key] = AMUD
         print('  %s %-4s  קיים' % (mas, daf)); return True
 
@@ -172,8 +207,10 @@ ALIAS = {'תענית': 'taanit', 'מגילה': 'megila', 'מגלה': 'megila'}
 if __name__ == '__main__':
     api = js_value(os.path.join(ROOT, 'data.js'), 'APPS_SCRIPT_URL').strip()
     links = js_value(os.path.join(ROOT, 'links.js'), 'DAF_LINKS')
-    want_mas = sys.argv[1] if len(sys.argv) > 1 else None
-    want_daf = set(sys.argv[2:]) or None
+    args = [a for a in sys.argv[1:] if a != 'force']
+    FORCE = len(args) != len(sys.argv[1:])
+    want_mas = args[0] if args else None
+    want_daf = set(args[1:]) or None
     if want_mas:
         want_mas = ALIAS.get(want_mas.strip(), want_mas.strip())
         if want_mas not in links:

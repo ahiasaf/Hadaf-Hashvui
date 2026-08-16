@@ -1412,13 +1412,20 @@ function onMas() {
   fillSel(document.getElementById('daf'), opts);
   onDaf();
 }
-/* רשימת המאגר — אותו קובץ שמסך הלימוד קורא. */
+/* רשימת המאגר — אותו קובץ שמסך הלימוד קורא.
+
+   **חייבים להמתין לה לפני שטוענים דף.** `onMas()` רץ בעליית העמוד
+   וקורא בשרשרת ל-`onSrc()`, בעוד הרשימה עדיין בדרך מהרשת. אז
+   `libImg()` החזיר כלום, הסטודיו נפל לדרייב — וכל התיקון שהעביר
+   אותו לתמונת המאגר כמעט לא נכנס לפעולה מעולם.
+
+   `LIB_READY` הוא ההבטחה, וכל טעינת דף ממתינה לה. זה מוסיף חלק
+   משנייה בפתיחה, ומבטיח שהכיול נעשה על אותה תמונה שהתלמיד רואה. */
 var DAF_LIB = null;
-(function () {
-  fetch('daf/index.json').then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (j) { window.DAF_LIB = j || {}; })
-    .catch(function () { window.DAF_LIB = {}; });
-})();
+var LIB_READY = fetch('daf/index.json')
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .catch(function () { return null; })
+  .then(function (j) { window.DAF_LIB = j || {}; });
 
 function onDaf() {
   var c = curDaf();
@@ -1524,6 +1531,7 @@ function libImg(daf, pg) {
 function loadFromLib() {
   var c = curDaf();
   if (+selVal('src') !== 0) return false;     /* חברותא — טקסט, לא במאגר */
+  if (!window.DAF_LIB) return null;           /* עוד לא ידוע — ראו onSrc */
   var pg = +selVal('pg') || 1;
   var src = libImg(c.daf, pg);
   if (!src) return false;
@@ -1536,7 +1544,11 @@ function loadFromLib() {
   return true;
 }
 function onSrc() {
-  if (loadFromLib()) return;
+  var r = loadFromLib();
+  if (r === true) return;
+  /* הרשימה עוד לא הגיעה — ממתינים לה ומנסים שוב, במקום ליפול
+     לדרייב ולכייל על התמונה הלא נכונה. */
+  if (r === null) { LIB_READY.then(onSrc); return; }
   var c = curDaf();
   var si = +selVal('src');
   var id = fileId(c.links[si]);
@@ -1546,7 +1558,9 @@ function onSrc() {
                ' · ' + (si ? 'חברותא' : 'צורת הדף'));
 }
 function onPage() {
-  if (loadFromLib()) return;
+  var r = loadFromLib();
+  if (r === true) return;
+  if (r === null) { LIB_READY.then(onPage); return; }
   if (PDF) return showPdfPage(+selVal('pg'));
 }
 
@@ -1614,7 +1628,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.2.1';
+var STUDIO_VER = '7.3.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
