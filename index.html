@@ -1058,7 +1058,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.8.0';
+var APP_VERSION = '7.8.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3730,6 +3730,9 @@ function sugyaTip(href) {
       'וכך קשה לקרוא בטלפון.</p>' +
       '<p><b>בסרגל שבתחתית החוברת יש כפתור מסך מלא. הקישו עליו, ' +
       'והדף ימלא את המסך.</b></p>' +
+      /* החוברת בנויה לעמוד רחב, והטלפון מציג אותה לגובה. סיבוב
+         המכשיר לרוחב מכפיל את גודל הכתב בלי לגעת בכלום. */
+      '<p>ואם המכשיר מסובב לרוחב — הכתב גדול עוד יותר.</p>' +
       /* אותו סדר שבסרגל האמיתי, ומשמאל לימין כמוהו — ההודעה
          מראה מה שיראו, לא תרגום שלו. */
       '<div class="sg-bar">' +
