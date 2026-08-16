@@ -136,6 +136,11 @@ button.c{flex:1;padding:9px 6px;font-size:.78rem;border:1px solid var(--rule);
   background:#fff;border-radius:8px;min-height:40px}
 button.c.hot{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:#fff;border-color:transparent}
+/* המרכז אינו בחירה — הגמרא נמצאת בכל אזור. הוא מוצג דלוק כדי
+   שהשורה תיקרא כמו הדף, ובכחול ולא בזהב כדי שלא ייראה ככפתור
+   שנשכח דלוק. */
+button.c.fix{opacity:1;cursor:default;background:var(--blue);
+  color:#fff;border-color:transparent}
 /* זום: התמונה מוגדלת בטרנספורם ולא בשינוי גודל, כדי שהקואורדינטות
    של הסימון יישארו זהות. פינץ' ושתי אצבעות מזיזים; הקשה אחת
    נשארת בחירה, ולכן אין התנגשות.
@@ -429,9 +434,10 @@ body.mark.solo:not(.on-chav) .chav{display:none}
     <h2 style="margin-top:14px">אזורים</h2>
     <div id="zones"></div>
     <div class="hint">לחיצה על אזור פותחת את הכלים שלו.
-      <b>פנימי</b> = הגמרא לבדה, בין שני הרווחים הקבועים.
-      <b>חיצוני</b> = הורחבה עד קצה הגוש, כשטור פירוש נגמר.
-      אפשר גם לגרור את הקו העליון של אזור.</div>
+      <b>טורים</b> = אילו טורים האזור מכסה; הגמרא תמיד בפנים,
+      וצד נוסף נדלק כשטור הפירוש שם נגמר.
+      <b>שורות</b> = הוספה והסרה בקצה העליון או התחתון, שורה
+      בכל לחיצה. השורה שזזה מהבהבת על הדף — ירוק נכנס, אדום יצא.</div>
     <div id="msg"></div>
   </aside>
 
@@ -988,25 +994,42 @@ function draw() {
     if (on) s += '<text x="'+((z.a+z.b)/2)+'" y="'+(z.y0+S.gpitch*1.4)+
       '" text-anchor="middle" font-size="'+(S.gpitch*1.5)+
       '" font-weight="700" fill="#8A5A00">'+(i+1)+'</text>';
-    /* ידית הגבול העליון. העובי נקבע לפי גודל התצוגה בפועל, כדי
-       שיהיה ~44 פיקסלים של מסך גם בנייד. */
-    s += '<line class="hy" data-i="'+i+'" x1="'+S.bbox[0]+'" y1="'+z.y0+
-         '" x2="'+S.bbox[2]+'" y2="'+z.y0+'" stroke="rgba(0,0,0,0)" stroke-width="'+
-         handleW() + '"/>';
   });
+  /* הבהוב הגבול שזז זה עתה. הכפתורים מזיזים שורה אחת, וזו תנועה
+     קטנה שקל לפספס בדף צפוף — ואז לוחצים שוב ושוב בלי לדעת אם
+     משהו קרה. הפס מראה בדיוק איזו שורה נכנסה או יצאה. */
+  if (FLASH) s += '<rect x="'+S.bbox[0]+'" y="'+FLASH[0]+'" width="'+
+    (S.bbox[2]-S.bbox[0])+'" height="'+Math.max(4, FLASH[1]-FLASH[0])+
+    '" fill="'+FLASH[2]+'"/>';
   ov.innerHTML = s;
-  bindHandles();
   panel();
+}
+/* ============================================================
+   הגבולות זזים בכפתורים בלבד.
+
+   הייתה כאן גם גרירה באצבע על הדף עצמו, והיא עלתה יותר משהועילה:
+   הדף נגלל ומוגדל באצבע, וכל תנועה על קו גבול תפסה אותו בטעות
+   ושינתה כיול שכבר היה נכון. הכפתורים מזיזים שורה שלמה בדיוק,
+   וזה ממילא מה שרוצים — אין מצב ביניים בין שורה לשורה.
+   ============================================================ */
+var FLASH = null, FLASH_T = 0;
+function flash(a, b, col) {
+  FLASH = [Math.min(a, b), Math.max(a, b), col];
+  clearTimeout(FLASH_T);
+  FLASH_T = setTimeout(function () { FLASH = null; if (S) draw(); }, 1000);
+}
+function scrollToY(y) {
+  var st = document.querySelector('.stage'), ov = document.getElementById('ov');
+  if (!st || !ov) return;
+  var r = ov.getBoundingClientRect();
+  var at = y / S.h * r.height;
+  if (at < st.scrollTop + 40 || at > st.scrollTop + st.clientHeight - 40)
+    st.scrollTop = Math.max(0, at - st.clientHeight * 0.45);
 }
 function box(a, t, b, bt, col, w, dash) {
   return '<rect x="'+a+'" y="'+t+'" width="'+(b-a)+'" height="'+(bt-t)+
          '" fill="none" stroke="'+col+'" stroke-width="'+w+'" stroke-dasharray="'+dash+'"/>';
 }
-function handleW() {
-  var r = document.getElementById('ov').getBoundingClientRect();
-  return Math.max(20, Math.round(44 * S.w / (r.width || S.w)));
-}
-
 function panel() {
   var n = S.zones.reduce(function (a, z) { return a + lineCount(z); }, 0);
   document.getElementById('stats').innerHTML =
@@ -1040,16 +1063,26 @@ function ctrls(i) {
   var t = function (a, lbl, hot) {
     return '<button class="c'+(hot?' hot':'')+'" data-act="'+a+'" data-i="'+i+'">'+lbl+'</button>';
   };
+  /* הטורים, כפי שהם נראים על הדף: ימין · מרכז · שמאל.
+
+     קודם זה היה "ימין: פנימי/חיצוני" ו"שמאל: פנימי/חיצוני" — שתי
+     שורות של מונחים שצריך לתרגם בראש לפני שלוחצים. השאלה
+     האמיתית פשוטה: אילו טורים האזור מכסה. הגמרא תמיד בפנים ולכן
+     המרכז דלוק וקבוע, והצדדים נדלקים ונכבים. */
+  var side = function (a, lbl, on) {
+    return '<button class="c' + (on ? ' hot' : '') + '" data-act="' + a +
+      '" data-i="' + i + '">' + lbl + '</button>';
+  };
   return '<div class="ctl">' +
     (S.simple ? '' :
-      '<div class="cg"><span>ימין</span>' +
-        t('rin', 'פנימי', z.inB) + t('rout', 'חיצוני', !z.inB) + '</div>' +
-      '<div class="cg"><span>שמאל</span>' +
-        t('lin', 'פנימי', z.inA) + t('lout', 'חיצוני', !z.inA) + '</div>') +
-    '<div class="cg"><span>גבול עליון</span>' +
-      t('up', '▲ שורה') + t('down', '▼ שורה') + '</div>' +
-    '<div class="cg"><span>גבול תחתון</span>' +
-      t('bup', '▲ שורה') + t('bdown', '▼ שורה') + '</div>' +
+      '<div class="cg"><span>טורים</span>' +
+        side('rtog', 'ימין', !z.inB) +
+        '<button class="c hot fix" disabled>מרכז</button>' +
+        side('ltog', 'שמאל', !z.inA) + '</div>') +
+    '<div class="cg"><span>שורות למעלה</span>' +
+      t('down', '− הסרה') + t('up', '＋ הוספה') + '</div>' +
+    '<div class="cg"><span>שורות למטה</span>' +
+      t('bup', '− הסרה') + t('bdown', '＋ הוספה') + '</div>' +
     '<div class="cg"><span></span>' +
       t('split', 'פיצול') + t('del', 'מחיקה') + '</div>' +
     '<div class="cg"><span>אזור חסר</span>' +
@@ -1079,17 +1112,19 @@ function allLines(z) {
   return linesIn(D.m, D.w, z.a, z.b, S.bbox[1], S.bbox[3], S.gpitch, !S.simple);
 }
 
+var ADDED = 'rgba(59,125,87,.42)';    /* שורה שנכנסה */
+var GONE  = 'rgba(214,84,61,.42)';    /* שורה שיצאה */
 function act(a, i) {
   var z = S.zones[i], prev = S.zones[i-1], next = S.zones[i+1];
-  if (a === 'rin')  { z.inB = true;  applySides(z); }
-  if (a === 'rout') { z.inB = false; applySides(z); }
-  if (a === 'lin')  { z.inA = true;  applySides(z); }
-  if (a === 'lout') { z.inA = false; applySides(z); }
+  if (a === 'rtog') { z.inB = !z.inB; applySides(z); }
+  if (a === 'ltog') { z.inA = !z.inA; applySides(z); }
   if (a === 'up' || a === 'down') {
     var y = stepLine(z.y0, a === 'up' ? -1 : 1, z, 'start');
     if (y === null) return;
     y = Math.max(S.bbox[1], Math.min(z.y1 - S.gpitch, y));
+    flash(z.y0, y, a === 'up' ? ADDED : GONE);
     z.y0 = y; if (prev) prev.y1 = y - 1;
+    scrollToY(y);
   }
   if (a === 'bup' || a === 'bdown') {
     /* נספר לפי שורות שנכללות בפועל, ולא לפי המרחק מהגבול.
@@ -1103,7 +1138,9 @@ function act(a, i) {
       : (after.length ? after[0][1] : null);
     if (y2 === null) return;              /* אין שורה נוספת — לא זזים */
     y2 = Math.max(z.y0 + S.gpitch, Math.min(S.bbox[3], y2));
+    flash(z.y1, y2, a === 'bdown' ? ADDED : GONE);
     z.y1 = y2; if (next) next.y0 = y2 + 1;
+    scrollToY(y2);
   }
   if (a === 'split') {
     if (z.y1 - z.y0 < S.gpitch * 2) return;
@@ -1139,47 +1176,6 @@ function scrollToZone() {
   var r = ov.getBoundingClientRect();
   st.scrollTop = Math.max(0, z.y0 / S.h * r.height - st.clientHeight * 0.3);
 }
-
-/* הגרירה נשברה קודם מסיבה מביכה: כל תזוזה בנתה מחדש את כל
-   השכבה הגרפית, וזה מחק את הקו שהאצבע מחזיקה. עכשיו האזנה על
-   החלון עצמו, כך שבנייה מחדש אינה מפריעה. */
-function bindHandles() {
-  var ov = document.getElementById('ov');
-  [].forEach.call(ov.querySelectorAll('.hy'), function (el) {
-    el.style.touchAction = 'none';
-    el.style.cursor = 'ns-resize';
-    el.onpointerdown = function (ev) {
-      ev.preventDefault(); ev.stopPropagation();
-      var i = +el.dataset.i;
-      sel = i;
-      var stage = document.querySelector('.stage');
-      var wasOverflow = stage.style.overflow;
-      stage.style.overflow = 'hidden';        /* שלא ייגלל מתחת לאצבע */
-
-      var move = function (m) {
-        var r = ov.getBoundingClientRect();
-        var y = Math.round((m.clientY - r.top) / r.height * S.h);
-        var lo = i ? S.zones[i-1].y0 + S.gpitch : S.bbox[1];
-        var hi = S.zones[i].y1 - S.gpitch;
-        y = Math.max(lo, Math.min(hi, y));
-        S.zones[i].y0 = y;
-        if (i) S.zones[i-1].y1 = y - 1;
-        relines(); draw();
-      };
-      var up = function () {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('pointercancel', up);
-        stage.style.overflow = wasOverflow;
-        touched();                 /* בשחרור, לא בכל תזוזה */
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-      window.addEventListener('pointercancel', up);
-    };
-  });
-}
-
 
 /* "זיהוי מחדש" הוא עכשיו באמת מחדש: הכיול השמור נזרק והזיהוי
    האוטומטי רץ. זו הדרך לחזור אחורה מתיקון ידני שהשתבש. */
@@ -1746,7 +1742,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.5.0';
+var STUDIO_VER = '7.6.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
