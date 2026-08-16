@@ -1515,22 +1515,30 @@ function libImg(daf, pg) {
   if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
   return 'daf/' + mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
 }
+/* טעינת עמוד מהמאגר. מוחזר `true` אם נטען מכאן.
+
+   חייבת להיקרא גם ממעבר עמוד ולא רק מהחלפת מקור: כשהתמונה
+   מגיעה מהמאגר אין `PDF`, ו-`onPage` הישן — שהתנה הכל בקיומו —
+   פשוט לא עשה דבר. המפתח היה עובר ל-ע״ב בזמן שהתמונה נשארת
+   ע״א, כלומר סימון על עמוד אחד שנשמר תחת השני. */
+function loadFromLib() {
+  var c = curDaf();
+  if (+selVal('src') !== 0) return false;     /* חברותא — טקסט, לא במאגר */
+  var pg = +selVal('pg') || 1;
+  var src = libImg(c.daf, pg);
+  if (!src) return false;
+  PDF = null;
+  var im = new Image();
+  im.onload = function () { IMG = im; load(im); };
+  im.onerror = function () { fetchDaf(fileId(c.links[0]), 'צורת הדף'); };
+  im.src = src;
+  say('מהמאגר · דף ' + c.daf + ' · ' + (pg === 2 ? 'ע״ב' : 'ע״א'));
+  return true;
+}
 function onSrc() {
+  if (loadFromLib()) return;
   var c = curDaf();
   var si = +selVal('src');
-  /* צורת הדף בלבד. החברותא היא טקסט ואינה במאגר. */
-  if (si === 0) {
-    var src = libImg(c.daf, +selVal('pg') || 1);
-    if (src) {
-      PDF = null;
-      var im = new Image();
-      im.onload = function () { IMG = im; load(im); };
-      im.onerror = function () { fetchDaf(fileId(c.links[0]), 'צורת הדף'); };
-      im.src = src;
-      say('מהמאגר · דף ' + c.daf);
-      return;
-    }
-  }
   var id = fileId(c.links[si]);
   if (!id) { say('אין קובץ לדף הזה.', 1); return; }
   var mas = document.getElementById('mas');
@@ -1538,6 +1546,7 @@ function onSrc() {
                ' · ' + (si ? 'חברותא' : 'צורת הדף'));
 }
 function onPage() {
+  if (loadFromLib()) return;
   if (PDF) return showPdfPage(+selVal('pg'));
 }
 
@@ -1605,7 +1614,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.2.0';
+var STUDIO_VER = '7.2.1';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
