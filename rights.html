@@ -3,85 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>הדף השבועי של בני עקיבא — בקשה</title>
+<title>הדף השבועי של בני עקיבא</title>
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0E2E63">
 <meta name="robots" content="noindex">
 <meta property="og:title" content="הדף השבועי של בני עקיבא">
-<meta property="og:description" content="תוכנית לימוד גמרא לנוער. בקשה קטנה לשימוש בדפי הגמרא.">
+<meta property="og:description" content="תוכנית לימוד גמרא לנוער.">
 <style>
 /* ============================================================
    העמוד שנשלח לבעלי הזכויות.
 
-   קודם היה כאן מסמך: כותרת "בקשת אישור שימוש", מלבן אדום
-   שמכריז שהאישור טרם התקבל, ורשימת דרישות בסוף. כל אלה נכונים
-   עובדתית — ובדיוק בגללם העמוד נקרא כמו פנייה משפטית, והתשובה
-   הבטוחה לפנייה משפטית היא "לא".
+   כאן היה מסמך: מלבן אדום, ארבעה סעיפים, ורשימת בקשות. אחר כך
+   היה מכתב ארוך. שניהם נכשלו באותו דבר — הם ביקשו מהקורא לעבוד.
 
-   מה שמבקשים כאן אינו זכיון מסחרי אלא טובה: אדם אחד בנה משהו
-   בערבים כדי לעזור לנערים, והוא מבקש רשות. העמוד צריך להישמע
-   כמו האדם הזה — ולכן הוא בגוף ראשון, קצר, ובלי אזהרות.
+   מה שמבקשים כאן אינו זכיון אלא טובה, ולטובה עונים בכן או בלא
+   תוך חצי דקה. לכן: פסקה וחצי, ומיד הכפתור. מי שיסתכל יבין לבד
+   מה זה, וזה עדיף על כל הסבר.
 
-   והחשש האמיתי של ההוצאה נענה ישירות ובשמו: לא שיישאר רושם
-   שהדפים חינם, אלא שהמערכת אינה מפיצה דפים כלל ומובילה לקניית
-   ספר מודפס. זה הסעיף שנועד להכריע, ולכן הוא לפני הבקשה.
+   שני דברים שאסור להחזיר:
+   * **טיעון על רכישת ספרים.** החוברות שהתוכנית מזמינה הן של
+     הוצאות אחרות. "אנחנו קונים ספרים" נשמע טוב עד שקולטים שזה
+     אצל המתחרה, ואז זה הופך את הבקשה לעלבון.
+   * **קישור חיצוני לכתב הרשאה של ההוצאה.** מפנה את הקורא החוצה,
+     ורומז שיש כבר הסדר — בדיוק מה שאין.
    ============================================================ */
 :root{
   --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E3B44A;
   --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
-  --ink-3:#96A0B2; --rule:#E5DAC3; --ok:#3B7D57;
+  --ink-3:#96A0B2; --rule:#E5DAC3;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);line-height:1.85;
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.9;
   font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
-.wrap{max-width:40rem;margin:0 auto;padding:0 20px 54px}
+.wrap{max-width:34rem;margin:0 auto;padding:0 22px 50px}
 
 header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
-  padding:calc(env(safe-area-inset-top) + 24px) 20px 30px;text-align:center}
-header img{height:42px;margin-bottom:10px}
-header h1{margin:0;font-size:1.28rem;font-weight:800;letter-spacing:-.02em}
-header p{margin:7px auto 0;max-width:30rem;font-size:.9rem;opacity:.82;font-weight:600}
+  padding:calc(env(safe-area-inset-top) + 26px) 20px 28px;text-align:center}
+header img{height:44px;margin-bottom:10px}
+header h1{margin:0;font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
 
-/* פתיח, ולא אזהרה. אותו מידע — שהמערכת סגורה וממתינה — נאמר
-   כאן בשורה אחת ובלי מלבן אדום, כי הוא הרגעה ולא התראה. */
-.open{background:var(--surface);border-radius:16px;padding:22px 22px 20px;
-  margin:22px 0 8px;box-shadow:0 2px 4px rgba(37,29,12,.05),0 10px 26px rgba(37,29,12,.07)}
-.open p{margin:0 0 12px;font-size:1rem;color:var(--ink)}
-.open p:last-child{margin-bottom:0}
-.open .sig{font-size:.9rem;color:var(--ink-3);font-weight:700}
+.say{font-size:1.06rem;color:var(--ink);margin:26px 0 0}
+.say b{font-weight:800}
+.say + .say{margin-top:14px}
 
-h2{font-size:1.02rem;font-weight:800;margin:32px 0 8px;color:var(--blue-d)}
-h2::after{content:'';display:block;width:34px;height:3px;border-radius:2px;
-  background:var(--gold);margin-top:6px}
-p{font-size:.96rem;color:var(--ink-2)}
-b{color:var(--ink)}
-
-.pts{list-style:none;padding:0;margin:12px 0 0}
-.pts li{position:relative;padding-inline-start:26px;margin-bottom:11px;
-  font-size:.96rem;color:var(--ink-2)}
-.pts li::before{content:'✓';position:absolute;inset-inline-start:0;top:0;
-  color:var(--ok);font-weight:800}
-
-.card{background:var(--surface);border-radius:16px;padding:20px 22px;
-  box-shadow:0 2px 4px rgba(37,29,12,.05),0 10px 26px rgba(37,29,12,.07)}
-.cred{font-size:.94rem}
-.cred h3{margin:0 0 3px;font-size:.93rem;font-weight:800;color:var(--blue-d)}
-.cred div{margin-bottom:15px}
-.cred div:last-child{margin-bottom:0}
-.cred small{display:block;color:var(--ink-3);font-weight:600;font-size:.83rem;
-  line-height:1.7}
 .btn{display:block;text-align:center;text-decoration:none;font-weight:800;
-  font-size:1rem;border-radius:13px;padding:16px;margin-top:14px;
+  font-size:1.05rem;border-radius:14px;padding:17px;margin-top:26px;
   background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
   box-shadow:0 6px 18px rgba(192,143,43,.3)}
-.btn.q{background:var(--surface);color:var(--ink);box-shadow:none;
-  border:1px solid var(--rule);font-size:.92rem;padding:13px}
-.ask{background:#F4F8F4;border-inline-start:4px solid var(--ok);
-  border-radius:12px;padding:18px 20px;margin-top:14px}
-.ask p{margin:0;font-size:.98rem;color:#2B4636}
-a{color:var(--blue)}
+
+hr{border:0;border-top:1px solid var(--rule);margin:32px 0 20px}
+.cred{font-size:.9rem;color:var(--ink-2);line-height:1.85}
+.cred h3{margin:0 0 2px;font-size:.9rem;font-weight:800;color:var(--blue-d)}
+.cred div{margin-bottom:14px}
+.cred div:last-child{margin-bottom:0}
+.cred small{display:block;color:var(--ink-3);font-weight:600;font-size:.82rem}
 footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
-  margin-top:34px;line-height:1.9}
+  margin-top:30px;line-height:1.9}
 </style>
 </head>
 <body>
@@ -89,67 +66,27 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
 <header>
   <img id="logo" alt="בני עקיבא">
   <h1>הדף השבועי של בני עקיבא</h1>
-  <p>תוכנית לימוד גמרא לנוער · ובקשה קטנה</p>
 </header>
 
 <div class="wrap">
 
-  <div class="open">
-    <p>שלום, ותודה שפתחתם.</p>
-    <p>קוראים לי <b id="who">רכז התוכנית</b>, ואני מרכז את "הדף השבועי"
-       ברשת ישיבות בני עקיבא. את המערכת שתראו כאן <b>בניתי בערבים,
-       בהתנדבות</b>. זה לא היה חלק מהתפקיד שלי ואף אחד לא ביקש —
-       עשיתי את זה בשביל נערים שקשה להם עם גמרא, ושמתביישים להגיד
-       את זה בקול.</p>
-    <p>המערכת <b>סגורה כרגע ואינה פתוחה לאף תלמיד</b>. היא מחכה
-       לתשובה שלכם. אם התשובה תהיה לא — היא פשוט תישאר סגורה, בלי
-       טענות ובלי ויכוח. הדבר האחרון שאני רוצה הוא להשתמש במשהו
-       שלכם בלי רשות.</p>
-    <p class="sig">אשמח אם תסתכלו רגע לפני שתחליטו.</p>
-  </div>
+  <p class="say">שלום, קוראים לי <b id="who">רכז התוכנית</b>.</p>
 
-  <h2>מה זו התוכנית</h2>
-  <p>דף גמרא אחד בשבוע, מסכת שלמה בשנה. השנה שעברה למדו בה
-     כ־350 תלמידים. <b>אין תשלום</b> — לא מהתלמידים, לא מהישיבות,
-     ואין בה פרסומות או שימוש מסחרי כלשהו.</p>
+  <p class="say">אני מרכז תוכנית לימוד גמרא לנוער בישיבות בני עקיבא —
+     דף בשבוע — ובניתי בערבים משהו קטן שיעזור לנערים שקשה להם:
+     הדף מחולק לקטעים, וכל פעם מואר קטע אחד עם הביאור שלו לצידו.
+     <b>אין בזה תשלום ואין בזה מסחר</b>, ולא פתחתי את זה לאף אחד
+     עד שאדע שזה בסדר מבחינתכם.</p>
 
-  <h2>מה המערכת עושה</h2>
-  <p>הנער רואה את <b>צורת הדף כפי שהיא</b> — לא טקסט מועתק ולא
-     כרטיסיות. אני מחלק כל דף מראש לקטעים, ובכל רגע מואר קטע אחד
-     בלבד. לצידו נפתח הביאור של אותו קטע בדיוק.</p>
-  <p>הקושי הראשון של נער בגמרא הוא לא הארמית. הוא <b>"איפה אני
-     נמצא על הדף"</b> ו<b>"איפה הקטע הזה נגמר"</b>. את זה המערכת
-     פותרת — ומשאירה אותו מול הדף האמיתי.</p>
+  <p class="say">רציתי לבקש רשות להשתמש בדפי הגמרא. <b>קל יותר
+     לראות מלהסביר</b> — תסתכלו רגע, ותגידו לי מה דעתכם.</p>
 
-  <h2>מה שחשוב לי שתדעו</h2>
-  <p>הבנתי שהחשש הוא שיווצר רושם שהדפים ניתנים חינם. אני רוצה
-     לענות על זה ישירות:</p>
-  <ul class="pts">
-    <li><b>זו אינה הפצה של דפים.</b> אין כפתור הורדה ואין קובץ
-        להורדה. הדף מוצג רק בתוך מסך הלימוד, קטע אחרי קטע, ואינו
-        ניתן להדפסה מתוך המערכת.</li>
-    <li><b>זה לא מתפרסם.</b> הקישור נמסר לתלמידי התוכנית בלבד,
-        ולבני משפחה שלומדים איתם בבית. העמודים חסומים למנועי
-        חיפוש ואינם מקושרים משום מקום פומבי.</li>
-    <li><b>זה לא תחליף לגמרא — זה מה שמוביל אליה.</b> כל המטרה
-        היא שהנער יידע למצוא את מקומו בדף, כדי שיוכל לפתוח גמרא
-        מודפסת ולהסתדר בה לבד.</li>
-    <li><b>וזו תוכנית שקונה ספרים.</b> היא בנויה סביב חוברת
-        מודפסת לכל תלמיד, בהזמנה מרוכזת של הישיבות. אנחנו
-        מכניסים ספרים לידיים של נערים, לא מוציאים אותם משם.</li>
-  </ul>
-
-  <h2>אפשר פשוט לראות</h2>
-  <p>קל יותר להחליט אחרי דקה של מבט מאשר אחרי עמוד של הסברים.
-     זה דף ב׳ ממסכת תענית, מסומן במלואו:</p>
   <a class="btn" id="demo" href="learn.html?mas=taanit&daf=%D7%91">
     לצפייה — תענית דף ב׳</a>
-  <a class="btn q" href="./">לאתר התוכנית</a>
 
-  <h2>איך אתם מופיעים</h2>
-  <p>הקרדיט מופיע בתוך המערכת עצמה, במסך הפתיחה של הלימוד, ובכל
-     מקום שבו מוצג דף:</p>
-  <div class="card cred">
+  <hr>
+
+  <div class="cred">
     <div>
       <h3>דפי הגמרא</h3>
       © הוצאת ח. וגשל בע"מ (Moznaim)
@@ -161,16 +98,10 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
       © הרב יעקב שולביץ שליט"א
       <small>מופץ בכפוף לרישיון CC BY-NC-SA 2.5. השימוש המסחרי אסור.</small>
     </div>
+    <div>
+      הקרדיט מופיע גם בתוך המערכת עצמה, וינוסח בדיוק כפי שתבקשו.
+    </div>
   </div>
-
-  <h2>הבקשה</h2>
-  <div class="ask">
-    <p>רשות להשתמש בדפי הגמרא בתוך המערכת, לנערים בתוכנית, בלי
-       תשלום ובלי מסחר.<br>
-       <b>הקרדיט ינוסח בדיוק כפי שתבקשו</b> — כל מילה, כל קישור,
-       כל שינוי. תגידו ואעשה.</p>
-  </div>
-  <p>ואם התשובה היא לא — תודה שקראתם עד כאן, ובאמת שאין טענות.</p>
 
   <footer id="foot"></footer>
 </div>
@@ -184,8 +115,7 @@ document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || ''
 var c = (window.PROGRAM || {}).contact || {};
 if (c.coord) document.getElementById('who').textContent = c.coord;
 document.getElementById('foot').innerHTML =
-  'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>' +
-  (c.coord ? c.coord : '');
+  'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז';
 </script>
 </body>
 </html>
