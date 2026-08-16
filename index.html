@@ -626,30 +626,42 @@ body.tk-sheeting #tk-bar{display:none}
   padding:14px;border-radius:var(--r-s);font-size:.96rem;font-weight:700;color:inherit;
   cursor:pointer;text-align:start}
 #sheet .it:active{background:var(--sunk)}
+#toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom) + 22px);
+  z-index:120;margin:0 auto;width:max-content;max-width:calc(100% - 40px);
+  background:var(--blue-d);color:#fff;border-radius:999px;padding:11px 20px;
+  font-size:.86rem;font-weight:700;line-height:1.5;text-align:center;
+  box-shadow:0 8px 26px rgba(11,37,80,.32);opacity:0;transform:translateY(8px);
+  pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+#toast.on{opacity:1;transform:none}
+
 /* ---------- מה שבדרך ---------- */
-.soon{margin-top:14px;background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--r);padding:15px 16px 16px;box-shadow:var(--sh-1)}
-.sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.soon{margin-top:22px;cursor:pointer}
+.sn-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:#fff;
   background:linear-gradient(140deg,var(--gold-l),var(--gold));
-  border-radius:999px;padding:4px 10px}
+  border-radius:999px;padding:5px 11px}
 .sn-h b{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
-/* תצוגה מוקטנת של הלוח. המספרים בדויים ולכן הם עמומים ובלי
-   הקשר — הם ממחישים צורה, ואסור שייקראו כנתון אמיתי. */
-.sn-demo{display:flex;align-items:flex-end;gap:16px;margin:14px 0 4px;
-  padding:13px 15px;background:var(--sunk);border-radius:12px;opacity:.75}
-.sn-num b{display:block;font-size:1.5rem;font-weight:800;line-height:1;
+
+/* הכרטיס שיישלח, בגודל אמיתי ובלי מילת הסבר אחת. המספרים
+   בדויים, ולכן הכרטיס כולו עמום מעט — הוא ממחיש צורה, ואסור
+   שייקרא כנתון. */
+.sn-card{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:17px 18px 14px;box-shadow:var(--sh-1);opacity:.82}
+.sn-top b{display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.sn-top span{display:block;font-size:.76rem;font-weight:700;color:var(--ink-3);
+  margin-top:3px}
+.sn-nums{display:flex;gap:26px;margin-top:16px}
+.sn-num b{display:block;font-size:1.85rem;font-weight:800;line-height:1;
   color:var(--blue)}
-.sn-num span{display:block;font-size:.7rem;font-weight:700;color:var(--ink-3);
-  margin-top:4px}
-.sn-bars{flex:1;display:flex;align-items:flex-end;gap:4px;height:42px}
-.sn-bars i{flex:1;background:var(--gold-l);border-radius:3px 3px 0 0;opacity:.65}
-.sn-l{list-style:none;margin:12px 0 0;padding:0}
-.sn-l li{position:relative;padding-inline-start:16px;margin-bottom:7px;
-  font-size:.86rem;font-weight:600;line-height:1.65;color:var(--ink-2)}
-.sn-l li::before{content:'';position:absolute;inset-inline-start:0;top:.62em;
-  width:6px;height:6px;border-radius:50%;background:var(--gold)}
-.sn-l li:last-child{margin-bottom:0;color:var(--ink);font-weight:700}
+.sn-num span{display:block;font-size:.72rem;font-weight:700;color:var(--ink-3);
+  margin-top:5px}
+.sn-bars{display:flex;align-items:flex-end;gap:5px;height:34px;margin-top:16px}
+.sn-bars i{flex:1;background:var(--gold-l);border-radius:3px 3px 0 0;opacity:.6}
+.sn-share{display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:16px;padding:11px;border-radius:var(--r-s);
+  background:linear-gradient(140deg,var(--green),var(--green-d));color:#fff;
+  font-size:.88rem;font-weight:800}
+.sn-share svg{width:17px;height:17px;fill:currentColor}
 
 /* הטיפ של החוברת */
 .sg-tip{padding:4px 8px 10px;line-height:1.85}
@@ -976,10 +988,10 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
           <span id="z-sub">הצטרפות לתוכנית והזמנת הגמרות.</span></div>
         <div id="rings"></div>
-        <!-- מה שעוד לא קיים, ומובטח. יושב כאן ולא בעמוד השבוע:
-             זו הבטחה לראש חטיבה, לא כלי לתלמיד. -->
-        <div id="soon"></div>
         <div id="inbox"></div>
+        <!-- מה שעוד לא קיים, ומובטח. ממש לפני כפתור ההרשמה: זו
+             הסיבה האחרונה שראש חטיבה שומע לפני שהוא מחליט. -->
+        <div id="soon"></div>
         <div id="cta" style="margin-top:16px"></div>
       </section>
 
@@ -1086,7 +1098,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.9.0';
+var APP_VERSION = '7.9.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1256,22 +1268,34 @@ function renderHome() {
 
   /* ---- מה שבדרך ----
      ראש חטיבה שמקבל את הקישור עכשיו צריך לדעת מה עוד מגיע, אחרת
-     הוא שופט את התוכנית לפי מה שהוא רואה היום בלבד. ההבטחה כאן
-     מנוסחת כמספרים ולא כחזון, כי זה מה שישכנע אותו. */
+     הוא שופט את התוכנית לפי מה שהוא רואה היום בלבד.
+
+     כאן אין הסבר בכוונה. מה שמוצג הוא הכרטיס עצמו — שם הישיבה,
+     הדף, שני המספרים, וכפתור שיתוף. כפתור השיתוף אומר לבדו את
+     מה ששלוש שורות טקסט ניסו לומר: את זה שולחים להורים. */
+  var soonInst = (regSaved() || {}).inst || '';
   document.getElementById('soon').innerHTML = !CFG_SOON() ? '' :
-    '<div class="soon"><div class="sn-h"><span class="sn-tag">בקרוב</span>' +
+    '<div class="soon" onclick="toast(\'הלוח בפיתוח — יגיע לפני תחילת התוכנית.\')">' +
+    '<div class="sn-h"><span class="sn-tag">בקרוב</span>' +
     '<b>לוח ההתקדמות של הישיבה</b></div>' +
-    '<div class="sn-demo" aria-hidden="true">' +
-      '<div class="sn-num"><b>41</b><span>לומדים</span></div>' +
-      '<div class="sn-num"><b>27</b><span>השלימו את הדף</span></div>' +
+    '<div class="sn-card" aria-hidden="true">' +
+      '<div class="sn-top"><b>' + esc(soonInst || 'הישיבה שלנו') + '</b>' +
+      '<span>' + (row[2] && row[2] !== 'סיום'
+        ? 'השבוע · ' + esc(tr.masechet) + ' דף ' + esc(row[2])
+        : 'השבוע') + '</span></div>' +
+      '<div class="sn-nums">' +
+        '<div class="sn-num"><b>41</b><span>לומדים את הדף</span></div>' +
+        '<div class="sn-num"><b>27</b><span>השלימו דף</span></div>' +
+      '</div>' +
       '<div class="sn-bars"><i style="height:30%"></i><i style="height:52%"></i>' +
       '<i style="height:44%"></i><i style="height:71%"></i><i style="height:63%"></i>' +
-      '<i style="height:88%"></i></div></div>' +
-    '<ul class="sn-l">' +
-      '<li>כמה תלמידים למדו השבוע, וכמה השלימו את הדף כולו</li>' +
-      '<li>מי לומד לבד, מי עם אבא, ומי בחברותא — הישיבה כולה במספר אחד</li>' +
-      '<li>ובלחיצה אחת: תמונה מוכנה לשליחה בקבוצת ההורים</li>' +
-    '</ul></div>';
+      '<i style="height:88%"></i></div>' +
+      '<div class="sn-share">' +
+        '<svg viewBox="0 0 20 20"><circle cx="15" cy="4.5" r="2.3"/>' +
+        '<circle cx="5" cy="10" r="2.3"/><circle cx="15" cy="15.5" r="2.3"/>' +
+        '<path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" stroke-width="1.5" ' +
+        'fill="none"/></svg>שיתוף הסיכום</div>' +
+    '</div></div>';
 
   /* ---- פס ההרשמה ---- */
   var mine = regSaved();
@@ -1861,6 +1885,22 @@ function openWeek(id, i) {
   show('week');
 }
 function notYet() { alert('הקישור יתווסף בקרוב.'); return false; }
+
+/* הודעה קצרה שנעלמת מעצמה. `alert` עוצר את המסך ודורש אישור,
+   וזה יותר מדי בשביל משפט אחד שכל תפקידו לומר "עוד לא". */
+var TOAST_T = null;
+function toast(t) {
+  var el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = t;
+  el.className = 'on';
+  clearTimeout(TOAST_T);
+  TOAST_T = setTimeout(function () { el.className = ''; }, 2600);
+}
 
 /* ---------- לימוד אינטראקטיבי ----------
    הדף מחולק לקטעים, וכל קטע מחובר לביאור שלו. החלוקה נעשית ביד

@@ -72,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 5;
+var SCRIPT_VERSION = 6;
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -80,9 +80,24 @@ function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
 
-    /* ---- הצורה הכללית: האפליקציה נוקבת בלשונית ובעמודות ---- */
-    if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols));
-    if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows));
+    /* ---- הצורה הכללית: האפליקציה נוקבת בלשונית ובעמודות ----
+
+       `ss` הוא מזהה גיליון אחר, והוא הדבר שמאפשר לכתוב פרטים
+       אישיים בלי לפרסם אותם.
+
+       הגיליון שהסקריפט מחובר אליו חייב להיות משותף כ"כל מי שיש
+       לו הקישור — מציג", אחרת האפליקציה אינה יכולה לקרוא ממנו
+       כלל. והמזהה שלו יושב ב-data.js, כלומר בקוד שמוגש לכל
+       דפדפן. מכאן מסקנה שקל לפספס: **כל מה שנכתב לגיליון הזה
+       גלוי לכל מי שפותח את קוד המקור של האפליקציה.**
+
+       זה בסדר גמור עבור סימוני הדף ועבור המלל. זה אינו בסדר
+       עבור שם של תלמיד או מספר טלפון של הורה. אלה נכתבים עם
+       `ss` — ונוחתים בגיליון סגור שאיש אינו רואה.
+
+       הקריאה כבר תמכה ב-`ss` (ראו doGet); עכשיו גם הכתיבה. */
+    if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
+    if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
     /* ---- הצורות הישנות. נשארות כדי שמכשיר שמחזיק גרסה ישנה
             של האפליקציה במטמון לא יאבד הרשמה. ---- */
@@ -193,8 +208,8 @@ function reply_(e, out) {
    כותרת שכבר קיימת בשורה 1 מקבלת את הערך בעמודה שלה, וכותרת
    חדשה נוספת בסוף. כך שדה חדש באפליקציה מייצר עמודה חדשה לבדו,
    בלי לגעת כאן ובלי לשבש שורות שכבר נכתבו. */
-function appendCols_(tab, cols) {
-  var sh = sheet_(tab);
+function appendCols_(tab, cols, ssId) {
+  var sh = sheet_(tab, ssId);
   var head = headers_(sh);
   var row = [];
 
@@ -212,8 +227,8 @@ function appendCols_(tab, cols) {
 
 /* טבלת הגדרות (כרגע: המלל) — נכתבת מחדש בשלמותה בכל פרסום,
    אחרת נוסח שנמחק היה נשאר בגיליון וממשיך לדרוס את הקוד. */
-function writeTable_(tab, cols, rows) {
-  var sh = sheet_(tab);
+function writeTable_(tab, cols, rows, ssId) {
+  var sh = sheet_(tab, ssId);
   if (!sh.getLastRow()) headRow_(sh, cols);
   var last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, sh.getLastColumn()).clearContent();
@@ -270,8 +285,9 @@ function headRow_(sh, cols) {
   sh.setFrozenRows(1);
 }
 
-function sheet_(tab) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function sheet_(tab, ssId) {
+  var ss = ssId ? SpreadsheetApp.openById(String(ssId))
+                : SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheetByName(tab) || ss.insertSheet(tab);
 }
 
