@@ -690,9 +690,28 @@ function libSrc(daf, pg) {
   if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
   return 'daf/' + S.mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
 }
+/* רשימת המאגר. חובה שתהיה נכונה: בלעדיה הלימוד מסיק שאין תמונה
+   לדף ופונה לדרייב — איטי בהרבה, **וגם** מצייר מ-PDF בקנה מידה
+   שאינו זה שהסימונים מכוילים אליו, כך שהסימון נראה סוטה.
+
+   לכן שתי הגנות: בודקים שמה שחזר באמת נראה כמו הרשימה ולא כמו
+   משהו אחר, ואם לא — מושכים שוב תוך עקיפת המטמון. */
+function looksLikeLib(j) {
+  if (!j || typeof j !== 'object') return false;
+  for (var k in j) if (j[k] && typeof j[k] === 'object') return true;
+  return false;
+}
 function loadLib() {
-  return fetch('daf/index.json').then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (j) { LIB = j || {}; }).catch(function () { LIB = {}; });
+  return fetch('daf/index.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (j) {
+      if (looksLikeLib(j)) { LIB = j; return; }
+      return fetch('daf/index.json', { cache: 'reload' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; })
+        .then(function (j2) { LIB = looksLikeLib(j2) ? j2 : {}; });
+    });
 }
 
 function loadGemara(daf) {
