@@ -208,6 +208,21 @@ body.mark.gsel #clearsel{display:inline-block}
   border:1px solid var(--rule);border-radius:10px;background:#fff}
 .splitbox .sp:hover{border-color:var(--gold);background:#FFFBF2}
 .splitbox .cl{margin-top:8px;width:100%;padding:11px;font-weight:800}
+/* רשימת הקטעים בתוך היריעה. אותה רשימה שיושבת בפאנל הצדדי
+   במחשב — הפאנל מוסתר בטלפון, ושם דווקא נעשית רוב העבודה. */
+.splitbox .row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;
+  border:1px solid var(--rule);border-radius:10px;background:#fff;overflow:hidden}
+.splitbox .row .go{flex:1;min-width:0;text-align:start;padding:10px 11px;
+  font-size:.86rem;line-height:1.6;font-weight:600;border:0;background:none}
+.splitbox .row .go b{display:inline;font-size:.86rem}
+.splitbox .row .go i{display:block;font-style:normal;color:var(--ink-3);
+  font-size:.8rem;margin-top:2px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.splitbox .row .del{flex:0 0 auto;align-self:stretch;padding:0 14px;border:0;
+  background:#FBEFED;color:var(--stop);font-weight:800;font-size:.95rem}
+.splitbox .gap{background:#FFF8E8;border:1px dashed var(--gold);color:#7A5A12;
+  border-radius:10px;padding:9px 11px;margin-bottom:6px;
+  font-size:.83rem;font-weight:800}
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
 .mstate{padding:8px 14px 10px;font-size:.78rem;font-weight:700;color:var(--ink-2);
@@ -391,6 +406,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <hr>
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
+  <button id="steplist">☰ רשימת הקטעים · עריכה</button>
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
   <button id="stoppt">⌁ נקודת עצירה — סוף הדף הקודם</button>
   <hr>
@@ -1540,7 +1556,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '6.30.0';
+var STUDIO_VER = '6.31.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2098,6 +2114,70 @@ function addStep(cont) {
   GSEL = null; CSEL_P = null;
   paintChav(1); markDraw();
 }
+/* ---------- רשימת הקטעים, בטלפון ----------
+   הרשימה עם כפתורי המחיקה קיימת מזמן — אבל היא יושבת בפאנל הצדדי,
+   והפאנל מוסתר מתחת ל-900px. כלומר בדיוק במכשיר שבו נעשית העבודה
+   לא הייתה שום דרך לראות מה סומן, למחוק קטע אחד, או לקפוץ אליו:
+   הדרך היחידה לתקן קטע באמצע הדף הייתה למחוק אחורה מהסוף.
+
+   `addStep` ממילא יודע להכניס קטע במקומו לפי סדר השורות, ולכן
+   ברגע שאפשר למחוק אחד באמצע — התיקון הוא מחיקה והוספה, ולא
+   פירוק של כל מה שאחרי.
+
+   הרשימה גם מסמנת **רווחים**: מקום שבו קטע אינו מתחיל היכן
+   שקודמו נגמר. רווח כזה היה בלתי נראה לגמרי עד עכשיו. */
+function stepRows() {
+  var out = [], prev = null;
+  STEPS.forEach(function (st, i) {
+    if (prev) {
+      var g = st.g.from, p = prev.g.to;
+      if (g.line > p.line + 1 || (g.line === p.line && g.x > p.x + 0.02) ||
+          (g.line === p.line + 1 && p.x < 0.98 && g.x > 0.02))
+        out.push({ gap: true, at: i, from: p.line + 1, to: g.line + 1 });
+    }
+    out.push({ i: i, st: st });
+    prev = st;
+  });
+  return out;
+}
+function showSteps() {
+  var box = document.getElementById('splitbox');
+  var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' +
+    '<p>הקשה על קטע מציגה אותו על הדף. ✕ מוחק אותו בלבד — ' +
+    'השאר נשארים, ואפשר להוסיף חדש במקומו.</p>';
+  if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
+  stepRows().forEach(function (r) {
+    if (r.gap) {
+      html += '<div class="gap">⚠ רווח לא מסומן — שורות ' +
+        r.from + '–' + r.to + '</div>';
+      return;
+    }
+    var st = r.st;
+    html += '<div class="row">' +
+      '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> שורות ' +
+      (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
+      (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
+      '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
+      '<button class="del" data-del="' + r.i + '">✕</button></div>';
+  });
+  html += '<button class="cl" onclick="document.getElementById(\'splitbox\').className=\'splitbox\'">סגירה</button></div>';
+  box.innerHTML = html;
+  box.className = 'splitbox on';
+  [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
+    b.onclick = function () { removeStep(+b.dataset.del); showSteps(); };
+  });
+  [].forEach.call(box.querySelectorAll('[data-go]'), function (b) {
+    b.onclick = function () {
+      var st = STEPS[+b.dataset.go];
+      if (!st) return;
+      GSEL = { a: { i: st.g.from.line, x: st.g.from.x },
+               b: { i: st.g.to.line,   x: st.g.to.x } };
+      box.className = 'splitbox';
+      markDraw(); markPanel(); zoomToSel();
+    };
+  });
+}
+
 function removeStep(i) {
   STEPS.splice(i, 1);
   var last = STEPS[STEPS.length - 1];
@@ -2832,6 +2912,7 @@ function setStop(n, pd) {
 /* תפריט הפעולות הנדירות */
 document.getElementById('unsaved').onclick = function () { saveToSheet(); };
 document.getElementById('stoppt').onclick = function () { stopSheet(); };
+document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
   SPLIT_MODE = true;
