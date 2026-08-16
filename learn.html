@@ -41,7 +41,20 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
+/* ---------- הגובה, ולמה לא 100% ----------
+   `focus()` בונה את חלון ההתמקדות מ-`stage.clientHeight`, ולכן הוא
+   תלוי בגובה האמיתי של המסך. `height:100%` בדפדפן נייד נמדד מול
+   ה-viewport **הגדול** — זה שבלי שורת הכתובת — ולכן הבמה יוצאת
+   גבוהה ממה שנראה בפועל, והקטע ממורכז בתיבה שחלקה מוסתר מתחת
+   לשורת הכתובת ולסרגל התחתון.
+
+   באפליקציה המותקנת אין שורות כאלה, הגבהים זהים, והכל נראה תקין —
+   וזה בדיוק מה שהיה: נכון במותקנת, שגוי באנדרואיד ובאייפון.
+
+   `dvh` הוא הגובה שבאמת פנוי כרגע. `vh` נשאר לפניו כנפילה לאחור
+   לדפדפן שאינו מכיר אותו, ושם ההתנהגות היא כשהייתה. */
 body{margin:0;background:var(--paper);color:var(--ink);overflow:hidden;
+  height:100vh;height:100dvh;
   font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
   display:flex;flex-direction:column}
 
