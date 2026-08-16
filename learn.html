@@ -76,6 +76,10 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
 main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
 .stage{position:relative;overflow:hidden;background:#fff;
   touch-action:manipulation;cursor:pointer}
+/* בדף המלא האצבע מזיזה את הדף, ולכן הדפדפן לא יקבל אותה לגלילה
+   או להגדלה משלו — אחרת כל משיכה נלקחת ממנו ולא מגיעה לכאן. */
+body.whole .stage{touch-action:none;cursor:grab}
+body.whole .stage:active{cursor:grabbing}
 #holder{position:absolute;top:0;left:0;width:100%;transform-origin:0 0;
   transition:transform .5s cubic-bezier(.33,.1,.2,1);line-height:0}
 #page{width:100%;display:block}
@@ -277,7 +281,7 @@ nav .sp{flex:1}
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
   <button id="chtog">חברותא</button>
-  <button id="whole" title="הצגת הדף בלי עמעום">בלי עמעום</button>
+  <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
   <button class="p" id="next">הבא ◂</button>
 </nav>
 
@@ -465,22 +469,6 @@ function shapes(d, g) {
    בלי זה נשארים פסי עמימות בין שורות הקטע, והמסגרת מתפרקת
    למסגרת קטנה סביב כל שורה — וזה מה שמעמיס על העין. מסגרת אחת
    חיצונית אומרת את אותו דבר בשקט. */
-/* איזה קטע יושב בנקודה הזו על הדף. הקואורדינטות מנורמלות לתמונה
-   (0–1), אותה מערכת שבה נשמרו הסימונים, ולכן אין כאן תלות בזום
-   או בגלילה. נבדקים רק קטעי העמוד המוצג. */
-function hitSeg(nx, ny) {
-  for (var i = 0; i < FLAT.length; i++) {
-    var v = FLAT[i];
-    if (v.p !== SHOWN) continue;
-    var bs = bands(PAGES[v.p].d, v.g);
-    for (var j = 0; j < bs.length; j++) {
-      var b = bs[j];
-      if (nx >= Math.min(b.x0, b.x1) && nx <= Math.max(b.x0, b.x1) &&
-          ny >= Math.min(b.y0, b.y1) && ny <= Math.max(b.y0, b.y1)) return i;
-    }
-  }
-  return -1;
-}
 /* הודעה קצרה שנעלמת מעצמה. לא כרטיס ולא יריעה — התשובה כאן היא
    מילה אחת, ומסך שצריך לסגור בשבילה גרוע מהשאלה. */
 var TOAST = null;
@@ -556,15 +544,24 @@ function paint() {
   if (!b.length) { ov.innerHTML = ''; return; }
   var path = outline(b);
 
-  ov.innerHTML =
-    '<defs><mask id="hole">' +
-      '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' +
-      '<path d="' + path + '" fill="#000"/>' +
-    '</mask></defs>' +
-    (DIM ? '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" ' +
-           'opacity=".80" mask="url(#hole)"/>' : '') +
-    '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' +
-      'stroke-linejoin="round" opacity=".5"/>';
+  /* שני מצבים, שתי שפות.
+
+     במיקוד — מסכה בצבע הנייר על כל השאר, ומסגרת דקה סביב הקטע.
+     בדף המלא — אין את מי להסתיר, והמסגרת מיותרת: היא אומרת "עד
+     כאן ולא הלאה", וזה בדיוק ההפך ממה שהמצב הזה נועד לו. במקומה
+     הדגשה על השורות עצמן, כמו מרקר על נייר — `multiply` משאיר
+     את האותיות שחורות מתחת לצבע במקום לצבוע אותן. */
+  ov.innerHTML = DIM
+    ? '<defs><mask id="hole">' +
+        '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' +
+        '<path d="' + path + '" fill="#000"/>' +
+      '</mask></defs>' +
+      '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" ' +
+        'opacity=".80" mask="url(#hole)"/>' +
+      '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' +
+        'stroke-linejoin="round" opacity=".5"/>'
+    : '<path d="' + path + '" fill="#E3B44A" opacity=".42" ' +
+        'style="mix-blend-mode:multiply"/>';
 }
 
 /* ההתמקדות: חלון נע על הדף.
@@ -622,10 +619,35 @@ function focus() {
   var dh = disp * R;
   var tx = sw / 2 - (fx + fw / 2) * disp;
   var ty = sh / 2 - (fy + fh / 2) * dh;
-  tx = disp > sw ? Math.max(sw - disp, Math.min(0, tx)) : (sw - disp) / 2;
-  ty = dh > sh ? Math.max(sh - dh, Math.min(0, ty)) : (sh - dh) / 2;
-  $('holder').style.transform =
-    'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + (disp / sw).toFixed(4) + ')';
+  VIEW = { tx: tx, ty: ty, disp: disp, dh: dh, sw: sw, sh: sh };
+  PAN.x = 0; PAN.y = 0;          /* כל מיקוד מחזיר את הדף למקומו */
+  applyView();
+}
+
+/* ============================================================
+   ההזזה הידנית.
+
+   במיקוד הדף נעול, וזה נכון: הקטע הוא מה שלומדים עכשיו.
+   בדף המלא הנעילה סותרת את עצם המצב — מי שביקש לראות את כל הדף
+   רוצה להגיע לרש"י, לתוספות, למה שמעל ומתחת. לכן שם אפשר לגרור.
+
+   ההזזה חיה עד ההקשה הבאה בלבד. כל מעבר לקטע — בהקשה, בכפתור,
+   במקש — מחזיר את הדף למקומו וממקד מחדש, בדיוק כמו קודם. אין
+   כאן מצב שצריך לצאת ממנו.
+
+   הגבולות הם גבולות הדף עצמו: אפשר להגיע לכל פינה בו, ואי אפשר
+   לאבד אותו מחוץ למסך. */
+var VIEW = null, PAN = { x: 0, y: 0 };
+function applyView(instant) {
+  if (!VIEW) return;
+  var v = VIEW;
+  var tx = v.tx + PAN.x, ty = v.ty + PAN.y;
+  tx = v.disp > v.sw ? Math.max(v.sw - v.disp, Math.min(0, tx)) : (v.sw - v.disp) / 2;
+  ty = v.dh > v.sh ? Math.max(v.sh - v.dh, Math.min(0, ty)) : (v.sh - v.dh) / 2;
+  var h = $('holder');
+  h.style.transition = instant ? 'none' : '';
+  h.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' +
+                      (v.disp / v.sw).toFixed(4) + ')';
 }
 
 /* ============================================================
@@ -928,6 +950,19 @@ function go(i) {
     paint(); focus(); paintChav(); bar();
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
+/* מצב התצוגה במקום אחד: הכפתור, המחלקה על הגוף, והציור.
+   קודם הוא היה משוכפל בין ההקשה על הכפתור לבין העלייה, והשניים
+   נפרדו — העלייה שינתה את הדגל ולא את הכיתוב. */
+function setWhole(on) {
+  DIM = !on;
+  var el = $('whole');
+  el.classList.toggle('on', on);
+  el.textContent = on ? 'מיקוד' : 'כל הדף';
+  el.title = on ? 'חזרה למיקוד בקטע' : 'הצגת הדף כולו, עם אפשרות לגרור';
+  document.body.classList.toggle('whole', on);
+  if (FLAT.length) paint();
+}
+
 function buttons(on) {
   ['next', 'prev', 'chtog', 'whole'].forEach(function (b) { $(b).disabled = !on; });
 }
@@ -1227,7 +1262,7 @@ function boot() {
         try {
           if (localStorage.getItem('df:chav') === '1') drawer(true);
           if (localStorage.getItem('df:dim') === '0') {
-            DIM = false;
+            DIM = false; setWhole(true);
             $('whole').classList.add('on');
             $('whole').textContent = 'עם עמעום';
           }
@@ -1269,26 +1304,57 @@ window.addEventListener('DOMContentLoaded', function () {
      קטע — נאמר בפירוש. רווח בין קטעים היה עד עכשיו בלתי נראה
      לגמרי: הלימוד פשוט דילג עליו, ואי אפשר היה לדעת אם כך סומן
      או שמשהו אבד בדרך. */
-  $('stage').onclick = function (e) {
+  /* ============================================================
+     ההקשה על הדף.
+
+     למטה — הקטע הבא. למעלה — הקטע הקודם. זה לא שרירותי: המיקוד
+     יושב במרכז המסך, ומה שנמצא מעליו בדף הוא מה שכבר נלמד. מי
+     שרוצה לחזור מקיש שם, במקום שבו הדבר עצמו נמצא.
+
+     גרירה אינה הקשה. בדף המלא אפשר למשוך את הדף, ולכן אצבע שזזה
+     יותר מכמה פיקסלים אינה מבקשת להתקדם — היא מזיזה. הסף נמדד
+     בפיקסלים ולא בזמן, כי אצבע על מסך זזה תמיד קצת.
+     ============================================================ */
+  var TAP_BACK = 0.30;              /* החלק העליון של המסך = אחורה */
+  var DRAG = null;
+
+  $('stage').addEventListener('pointerdown', function (e) {
     if (!FLAT.length) return;
-    if (DIM) { go(IDX + 1); return; }
-    var r = $('ov').getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    var i = hitSeg((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
-    if (i >= 0) { if (i !== IDX) go(i); return; }
-    toast('אין כאן קטע מסומן');
+    DRAG = { x: e.clientX, y: e.clientY, px: PAN.x, py: PAN.y, moved: 0 };
+  });
+  $('stage').addEventListener('pointermove', function (e) {
+    if (!DRAG) return;
+    var dx = e.clientX - DRAG.x, dy = e.clientY - DRAG.y;
+    DRAG.moved = Math.max(DRAG.moved, Math.abs(dx) + Math.abs(dy));
+    if (DIM || DRAG.moved < 6) return;      /* במיקוד הדף נעול */
+    e.preventDefault();
+    PAN.x = DRAG.px + dx; PAN.y = DRAG.py + dy;
+    applyView(true);
+  });
+  var endDrag = function (e) {
+    if (!DRAG) return;
+    var d = DRAG; DRAG = null;
+    if (d.moved >= 6) return;               /* זו הייתה גרירה */
+    var r = $('stage').getBoundingClientRect();
+    if (!r.height) return;
+    if ((e.clientY - r.top) / r.height < TAP_BACK) {
+      if (IDX > 0) go(IDX - 1);
+      else toast('זה הקטע הראשון');
+      return;
+    }
+    go(IDX + 1);
   };
+  $('stage').addEventListener('pointerup', endDrag);
+  $('stage').addEventListener('pointercancel', function () { DRAG = null; });
+
   $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
   $('chclose').onclick = function () { drawer(false); };
   $('czm').onclick = function () { chavZoom(-1); };
   $('czp').onclick = function () { chavZoom(1); };
   $('whole').onclick = function () {
-    DIM = !DIM;
-    $('whole').classList.toggle('on', !DIM);
-    $('whole').textContent = DIM ? 'בלי עמעום' : 'עם עמעום';
-    if (!DIM) toast('הקישו על הדף כדי לקפוץ לקטע');
+    setWhole(DIM);
+    if (!DIM) toast('אפשר לגרור את הדף · הקשה מחזירה וממשיכה');
     try { localStorage.setItem('df:dim', DIM ? '1' : '0'); } catch (e) {}
-    paint();
   };
   $('intro-go').onclick = function () {
     $('intro').className = 'sheet';

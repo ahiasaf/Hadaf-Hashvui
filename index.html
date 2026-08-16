@@ -626,6 +626,23 @@ body.tk-sheeting #tk-bar{display:none}
   padding:14px;border-radius:var(--r-s);font-size:.96rem;font-weight:700;color:inherit;
   cursor:pointer;text-align:start}
 #sheet .it:active{background:var(--sunk)}
+/* הטיפ של החוברת */
+.sg-tip{padding:4px 8px 10px;line-height:1.85}
+.sg-tip p{margin:0 0 10px;font-size:.93rem;font-weight:600}
+.sg-tip p b{font-weight:800}
+.sg-bar{display:flex;justify-content:center;gap:4px;margin:18px auto 34px;padding:8px 10px;
+  width:max-content;max-width:100%;background:#2E2E33;border-radius:13px;direction:ltr}
+.sg-i{position:relative;display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:9px;color:rgba(255,255,255,.5)}
+.sg-i svg{width:19px;height:19px;fill:currentColor}
+.sg-i.hot{color:#fff;background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  box-shadow:0 0 0 3px rgba(227,180,74,.35)}
+/* החץ יושב מתחת לכפתור עצמו ולא במרכז הסרגל. במרכז הוא הצביע
+   על הכפתור השכן — וזו הודעה שכל תפקידה להצביע נכון. */
+.sg-i.hot::after{content:'▲ זה הכפתור';position:absolute;top:calc(100% + 5px);
+  left:50%;transform:translateX(-50%);white-space:nowrap;direction:rtl;
+  font-size:.76rem;font-weight:800;color:var(--gold)}
+.sg-tip .btn{margin-top:6px}
 #sheet .it.on{background:var(--accent-soft);color:var(--blue)}
 #sheet .it .tick{width:18px;flex:none;font-size:.85rem;color:var(--blue);opacity:0}
 #sheet .it.on .tick{opacity:1}
@@ -1041,7 +1058,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.7.1';
+var APP_VERSION = '7.8.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1738,8 +1755,11 @@ function openWeek(id, i) {
   }
 
   h += '<div class="sec" style="margin-top:16px"><b>הדף עצמו</b><i></i></div><div class="links">' +
-       lnk(lk[0], '⤓', 'צורת הדף', 'הדף להדפסה') +
-       lnk(lk[1], 'פ', 'פירוש חברותא', 'ביאור על הדף') +
+       /* גם אלה ניתנים לכיבוי עכשיו. כשהלימוד האינטראקטיבי נותן
+          את הדף ואת הביאור באותו מסך, שתי השורות האלה הן שתי דרכים
+          נוספות לאותו דבר — והבחירה מה להציג היא של הרכז. */
+       (showRow('daf')  ? lnk(lk[0], '⤓', 'צורת הדף', 'הדף להדפסה') : '') +
+       (showRow('chav') ? lnk(lk[1], 'פ', 'פירוש חברותא', 'ביאור על הדף') : '') +
        /* הלימוד האינטראקטיבי הוא עוד דרך ללמוד את אותו דף, ולכן
           מקומו כאן ולא כגוש נפרד. הוא נכנס מאוחר, אחרי שהגיליון
           עונה — כפתור שמבטיח לימוד ומגיע למסך ריק גרוע מכפתור
@@ -1806,7 +1826,7 @@ function notYet() { alert('הקישור יתווסף בקרוב.'); return false
    תלויה בחוברת. INTER_PUBLIC הוא ברירת המחדל בלבד — כבוי —
    ומה שנבחר בניהול גובר עליו. */
 var INTER_PUBLIC = false;
-var ROW_DEF = { inter:false, sugya:true };
+var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true };
 function showRow(k) {
   var v = (CFG.rows || {})[k];
   return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
@@ -2981,10 +3001,9 @@ function admInst(el) {
     '<button class="sw' + (now ? ' on' : '') + '" onclick="cfgSet(\'roster\',\'now\');' +
     'renderHome();admPane()" aria-label="תשפז"></button></div></div>' +
 
-    /* מה נכנס לרשימת "הדף עצמו" בעמוד השבוע. שני אלה בלבד:
-       צורת הדף והחברותא הם הליבה ואינם ניתנים לכיבוי. */
+    /* מה נכנס לרשימת "הדף עצמו" בעמוד השבוע. */
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד השבוע</h4>' +
-    '<p class="h">שורות ברשימת "הדף עצמו". צורת הדף והחברותא תמיד מוצגות.</p>' +
+    '<p class="h">שורות ברשימת "הדף עצמו".</p>' +
     ROW_KEYS.map(function (r) {
       return '<div class="row"><div>' + esc(r[1]) +
         '<div class="sub">' + esc(r[2]) + '</div></div>' +
@@ -3004,6 +3023,8 @@ function admInst(el) {
 }
 var ROW_KEYS = [
   ['inter', 'דף אינטראקטיבי', 'ללמוד את הדף שלב אחר שלב · מוצג רק לדף שסומן'],
+  ['daf',   'צורת הדף',       'קובץ הדף להדפסה'],
+  ['chav',  'פירוש חברותא',   'קובץ הביאור על הדף'],
   ['sugya', 'הסוגיה היומית',  'החוברת הדיגיטלית']
 ];
 function rowToggle(k) {
@@ -3668,6 +3689,72 @@ function pick(title, items, current, cb) {
   document.getElementById('sheet').className = 'on';
 }
 function sheetPick(v) { sheetClose(); if (sheetCb) sheetCb(v); }
+
+/* ============================================================
+   הטיפ של החוברת הדיגיטלית.
+
+   "הסוגיה היומית" נפתחת ב-Flipbook של אתר חיצוני, ושם היא נפתחת
+   קטנה — קריאה בטלפון בגודל הזה כמעט בלתי אפשרית. יש כפתור מסך
+   מלא בסרגל התחתון והוא פותר את זה לגמרי, אבל אין שום סיבה
+   שתלמיד ינחש שהוא שם.
+
+   אי אפשר להציג הודעה בתוך האתר ההוא, ולכן היא מוצגת כאן — רגע
+   לפני שנוסעים, ופעם אחת לכל מכשיר. הסרגל מצויר ולא מצולם: צילום
+   של אתר אחר מתיישן ברגע שהם משנים שם משהו, וציור מראה בדיוק את
+   מה שצריך ולא יותר.
+   ============================================================ */
+var SUG_TIP = 'df:sugya-tip';
+function sugIcon(on, inner) {
+  return '<span class="sg-i' + (on ? ' hot' : '') + '">' + inner + '</span>';
+}
+function sugyaTip(href) {
+  var sq = '<svg viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1"/>' +
+    '<rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/>' +
+    '<rect x="11" y="11" width="7" height="7" rx="1"/></svg>';
+  var pl = '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+    '<path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>';
+  var mn = '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+    '<path d="M6 10h8" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>';
+  var ex = '<svg viewBox="0 0 20 20"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" ' +
+    'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var dt = '<svg viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/>' +
+    '<circle cx="15" cy="10" r="1.6"/></svg>';
+  var sh = '<svg viewBox="0 0 20 20"><circle cx="15" cy="4.5" r="2.4"/><circle cx="5" cy="10" r="2.4"/>' +
+    '<circle cx="15" cy="15.5" r="2.4"/><path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" ' +
+    'stroke-width="1.5" fill="none"/></svg>';
+
+  document.getElementById('sheet-t').textContent = 'רגע לפני החוברת';
+  document.getElementById('sheet-l').innerHTML =
+    '<div class="sg-tip">' +
+      '<p>החוברת נפתחת ישר בעמוד של הדף שלכם — אבל היא נפתחת קטנה, ' +
+      'וכך קשה לקרוא בטלפון.</p>' +
+      '<p><b>בסרגל שבתחתית החוברת יש כפתור מסך מלא. הקישו עליו, ' +
+      'והדף ימלא את המסך.</b></p>' +
+      /* אותו סדר שבסרגל האמיתי, ומשמאל לימין כמוהו — ההודעה
+         מראה מה שיראו, לא תרגום שלו. */
+      '<div class="sg-bar">' +
+        sugIcon(0, sq) + sugIcon(0, pl) + sugIcon(0, mn) +
+        sugIcon(1, ex) + sugIcon(0, sh) + sugIcon(0, dt) +
+      '</div>' +
+      '<button class="btn gr" id="sg-go">הבנתי — לפתוח את החוברת</button>' +
+    '</div>';
+  document.getElementById('sheet').className = 'on';
+  document.getElementById('sg-go').onclick = function () {
+    try { localStorage.setItem(SUG_TIP, '1'); } catch (e) {}
+    sheetClose();
+    window.open(href, '_blank', 'noopener');
+  };
+}
+/* נתפס בעלייה, כדי שיעבוד גם על קישור שנבנה מחדש בכל ציור */
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest && e.target.closest('a.lnk.sug');
+  if (!a || !a.getAttribute('href') || a.getAttribute('href') === '#') return;
+  var seen = false;
+  try { seen = localStorage.getItem(SUG_TIP) === '1'; } catch (x) {}
+  if (seen) return;
+  e.preventDefault();
+  sugyaTip(a.getAttribute('href'));
+}, true);
 function sheetClose() { document.getElementById('sheet').className = ''; }
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && document.getElementById('sheet').className === 'on') sheetClose();
