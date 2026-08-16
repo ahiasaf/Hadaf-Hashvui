@@ -1562,7 +1562,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.0.0';
+var STUDIO_VER = '7.1.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1927,23 +1927,21 @@ function startBefore(i) {
 }
 function pickLine(i, longPress) {
   var st = startBefore(i);
-  /* חפיפה נבדקת על **טווחים**, לא על שורות התחלה.
+  /* **אין כאן שומר חפיפה, ובכוונה.**
 
-     כאן הייתה טעות שעלתה ביוקר: הבדיקה שאלה אם קיים קטע שמתחיל
-     בין ההתחלה לשורה שהוקשה — וקטע שנגמר בדיוק בנקודת ההתחלה
-     מתחיל, כמובן, לפניה. לכן כל הקשה נחשבה חופפת, וכל בחירה
-     התכווצה לשורה בודדת. זה בדיוק הפוך ממה שהשומר נועד למנוע.
+     היו כאן שתי גרסאות שלו, ושתיהן היו טעות — לא בפרטים אלא
+     ברעיון. במודל נקודות החיתוך העמוד מכוסה כולו תמיד, ולכן כל
+     הקשה נופלת בהכרח בתוך קטע קיים. שומר שמסרב לזה מסרב לפעולה
+     היחידה שיש: **הקשה בתוך קטע היא פיצול שלו.**
 
-     המדד הנכון הוא מיקום רציף: `שורה + x`. הבחירה המוצעת רצה
-     מ-`start` עד סוף השורה שהוקשה, וקטע חופף רק אם הוא **נגמר
-     אחרי** ההתחלה **ומתחיל לפני** הסוף. קטע שנגמר בדיוק בהתחלה
-     אינו חופף — הוא השכן. */
-  var pos = function (q) { return q.line + q.x; };
-  var from = st.i + st.x, to = i + 1, EPS = 1e-6;
-  var over = STEPS.some(function (q) {
-    return pos(q.g.to) > from + EPS && pos(q.g.from) < to - EPS;
-  });
-  if (longPress || st.i > i || over) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
+     אין "השורה תפוסה". סימון אינו תפיסת שטח פנוי — הוא הוספת
+     חיתוך. `seal` דוחף אחריו את גבול הקטע שהכיל את הנקודה, וכך
+     האחד נעשה שניים. זה גם מה שהופך מחיקה-ואז-סימון-מחדש לזרימה
+     טבעית: המחיקה מאחדת, וההקשה מפצלת בחזרה.
+
+     `st.i > i` נשאר: שם הקטע הקודם נגמר בדיוק בסוף השורה
+     שהוקשה, ואין מה לפצל בה. */
+  if (longPress || st.i > i) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
   else { GSEL = { a: { i: st.i, x: st.x }, b: { i: i, x: 1 } }; }
   markDraw();
 }
@@ -2815,9 +2813,61 @@ function seal(report) {
   /* לפי סדר הדף. הסדר הוא המבנה — בלעדיו "הקודם" חסר משמעות. */
   STEPS.sort(function (a, b) { return pos(a.g.from) - pos(b.g.from); });
 
+  /* ---------- נקודת האפס ----------
+     החוק חל גם על הקטע הראשון, ובלעדיו הוא חסר.
+
+     `seal` אכף רצף רק **בין** קטעים, ולכן מחיקה מתחילת העמוד
+     השאירה את הראשון תלוי באוויר: הוא נשאר במקום שבו התחיל
+     פעם, וכל מה שלפניו — שורות ופסקאות כאחד — נשאר בלי בעלים.
+     זה בדיוק מה שקרה אחרי מחיקת שבעת הראשונים: הקטע הראשון
+     נשאר בשורה 6.54 ובפסקה 2, ושורות 0–6 ופסקאות 0–1 נעלמו
+     מהחשבון בלי שאיש יאמר.
+
+     במודל נקודות החיתוך יש נקודה אפס, והיא ראש העמוד. בגמרא
+     תמיד שורה 0 — מספרי השורות מתאפסים בכל עמוד. בחברותא לא:
+     הפסקאות רצות ברצף על פני שני עמודי הדף, ולכן ראש העמוד הוא
+     מה שנגמר בעמוד הקודם ועוד אחת. נקודת עצירה (`prev`) גוברת
+     על שניהם, כי שם נקבע במפורש שהתחלת העמוד שייכת לדף שקדם. */
+  var rec0 = BOOK[PKEY] || {};
+  var base = { line: 0, x: 0 };
+  var baseC = 0;
+  if (rec0.prev > 0 && STEPS[rec0.prev - 1]) {
+    /* הקטעים הראשונים שייכים לדף הקודם — נקודת האפס היא סופם. */
+    var cut = STEPS[rec0.prev - 1];
+    base = { line: cut.g.to.line, x: cut.g.to.x };
+    baseC = cut.c.to + 1;
+  } else {
+    var pageStart = STEPS.length ? null : null;
+    baseC = 0;
+    /* עמוד שאינו הראשון בדף: הפסקאות ממשיכות מהעמוד שלפניו. */
+    var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+    var pgn = +selVal('pg') || 1, best = -1;
+    for (var k0 in BOOK) {
+      if (k0.indexOf(pre) !== 0 || k0 === PKEY) continue;
+      if ((+k0.slice(pre.length) || 1) >= pgn) continue;
+      var pst = BOOK[k0].steps || [];
+      for (var j0 = 0; j0 < pst.length; j0++) best = Math.max(best, pst[j0].c.to);
+    }
+    baseC = best + 1;
+  }
+
   var out = [];
-  STEPS.forEach(function (st) {
+  STEPS.forEach(function (st, si) {
     var prev = out[out.length - 1];
+    if (!prev && si === 0) {
+      /* הראשון נמתח עד ראש העמוד. */
+      if (Math.abs(pos(st.g.from) - pos(base)) > 1e-6) {
+        st.g.from = { line: base.line, x: base.x };
+        fixed++;
+      }
+      if (st.c.from !== baseC) {
+        st.c.from = baseC;
+        if (st.c.to < st.c.from) st.c.to = st.c.from;
+        fixed++;
+        var g0 = chavRange(st.c.from, st.c.to);
+        if (g0) { st.c.text = g0.text; st.c.h = g0.h; }
+      }
+    }
     if (prev) {
       /* קטע שנבלע כולו בקודמו — כפילות. יורד. */
       if (pos(st.g.to) <= pos(prev.g.to) + 1e-6) { fixed++; return; }
