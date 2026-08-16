@@ -626,6 +626,31 @@ body.tk-sheeting #tk-bar{display:none}
   padding:14px;border-radius:var(--r-s);font-size:.96rem;font-weight:700;color:inherit;
   cursor:pointer;text-align:start}
 #sheet .it:active{background:var(--sunk)}
+/* ---------- מה שבדרך ---------- */
+.soon{margin-top:14px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:15px 16px 16px;box-shadow:var(--sh-1)}
+.sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:#fff;
+  background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  border-radius:999px;padding:4px 10px}
+.sn-h b{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
+/* תצוגה מוקטנת של הלוח. המספרים בדויים ולכן הם עמומים ובלי
+   הקשר — הם ממחישים צורה, ואסור שייקראו כנתון אמיתי. */
+.sn-demo{display:flex;align-items:flex-end;gap:16px;margin:14px 0 4px;
+  padding:13px 15px;background:var(--sunk);border-radius:12px;opacity:.75}
+.sn-num b{display:block;font-size:1.5rem;font-weight:800;line-height:1;
+  color:var(--blue)}
+.sn-num span{display:block;font-size:.7rem;font-weight:700;color:var(--ink-3);
+  margin-top:4px}
+.sn-bars{flex:1;display:flex;align-items:flex-end;gap:4px;height:42px}
+.sn-bars i{flex:1;background:var(--gold-l);border-radius:3px 3px 0 0;opacity:.65}
+.sn-l{list-style:none;margin:12px 0 0;padding:0}
+.sn-l li{position:relative;padding-inline-start:16px;margin-bottom:7px;
+  font-size:.86rem;font-weight:600;line-height:1.65;color:var(--ink-2)}
+.sn-l li::before{content:'';position:absolute;inset-inline-start:0;top:.62em;
+  width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.sn-l li:last-child{margin-bottom:0;color:var(--ink);font-weight:700}
+
 /* הטיפ של החוברת */
 .sg-tip{padding:4px 8px 10px;line-height:1.85}
 .sg-tip p{margin:0 0 10px;font-size:.93rem;font-weight:600}
@@ -951,6 +976,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
           <span id="z-sub">הצטרפות לתוכנית והזמנת הגמרות.</span></div>
         <div id="rings"></div>
+        <!-- מה שעוד לא קיים, ומובטח. יושב כאן ולא בעמוד השבוע:
+             זו הבטחה לראש חטיבה, לא כלי לתלמיד. -->
+        <div id="soon"></div>
         <div id="inbox"></div>
         <div id="cta" style="margin-top:16px"></div>
       </section>
@@ -1058,7 +1086,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.8.1';
+var APP_VERSION = '7.9.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1225,6 +1253,25 @@ function renderHome() {
     '<div class="here"><em>עכשיו</em><span>' +
     (nowIdx === 0 ? 'נרשמים, מעריכים כמה תלמידים, ומזמינים גמרות במחיר מוזל.'
                   : esc(PHASES[nowIdx].t) + ' · ' + esc(PHASES[nowIdx].sub)) + '</span></div>';
+
+  /* ---- מה שבדרך ----
+     ראש חטיבה שמקבל את הקישור עכשיו צריך לדעת מה עוד מגיע, אחרת
+     הוא שופט את התוכנית לפי מה שהוא רואה היום בלבד. ההבטחה כאן
+     מנוסחת כמספרים ולא כחזון, כי זה מה שישכנע אותו. */
+  document.getElementById('soon').innerHTML = !CFG_SOON() ? '' :
+    '<div class="soon"><div class="sn-h"><span class="sn-tag">בקרוב</span>' +
+    '<b>לוח ההתקדמות של הישיבה</b></div>' +
+    '<div class="sn-demo" aria-hidden="true">' +
+      '<div class="sn-num"><b>41</b><span>לומדים</span></div>' +
+      '<div class="sn-num"><b>27</b><span>השלימו את הדף</span></div>' +
+      '<div class="sn-bars"><i style="height:30%"></i><i style="height:52%"></i>' +
+      '<i style="height:44%"></i><i style="height:71%"></i><i style="height:63%"></i>' +
+      '<i style="height:88%"></i></div></div>' +
+    '<ul class="sn-l">' +
+      '<li>כמה תלמידים למדו השבוע, וכמה השלימו את הדף כולו</li>' +
+      '<li>מי לומד לבד, מי עם אבא, ומי בחברותא — הישיבה כולה במספר אחד</li>' +
+      '<li>ובלחיצה אחת: תמונה מוכנה לשליחה בקבוצת ההורים</li>' +
+    '</ul></div>';
 
   /* ---- פס ההרשמה ---- */
   var mine = regSaved();
@@ -1827,6 +1874,10 @@ function notYet() { alert('הקישור יתווסף בקרוב.'); return false
    ומה שנבחר בניהול גובר עליו. */
 var INTER_PUBLIC = false;
 var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true };
+/* הבאנר של מה שבדרך. מתג ולא קבוע, כדי שאפשר יהיה להוריד אותו
+   ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
+   יותר מדי. */
+function CFG_SOON() { return (CFG.rows || {}).soon !== false; }
 function showRow(k) {
   var v = (CFG.rows || {})[k];
   return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
@@ -3011,6 +3062,13 @@ function admInst(el) {
         '" onclick="rowToggle(\'' + r[0] + '\')" aria-label="' + esc(r[1]) + '"></button></div>';
     }).join('') + '</div>' +
 
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
+    '<p class="h">באנר "בקרוב" בעמוד הראשי, בחלק של ראשי החטיבות.</p>' +
+    '<div class="row"><div>לוח ההתקדמות של הישיבה' +
+    '<div class="sub">הבטחה למה שעוד לא קיים</div></div>' +
+    '<button class="sw' + (CFG_SOON() ? ' on' : '') +
+    '" onclick="soonToggle()" aria-label="בקרוב"></button></div></div>' +
+
     '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
     '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה, ' +
     'כשהתצוגה למעלה היא של תשפ"ז.</p>' +
@@ -3027,6 +3085,12 @@ var ROW_KEYS = [
   ['chav',  'פירוש חברותא',   'קובץ הביאור על הדף'],
   ['sugya', 'הסוגיה היומית',  'החוברת הדיגיטלית']
 ];
+function soonToggle() {
+  var r = CFG.rows || {};
+  r.soon = !CFG_SOON();
+  cfgSet('rows', r);
+  renderHome(); admPane();
+}
 function rowToggle(k) {
   var r = CFG.rows || {};
   r[k] = !showRow(k);
