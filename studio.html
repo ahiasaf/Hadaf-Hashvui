@@ -279,7 +279,7 @@ body.mark.gsel #clearsel{display:inline-block}
   font-size:.84rem;font-weight:700;line-height:1.7}
 .splitbox .dup .dx{display:block;width:100%;margin-top:9px;padding:11px;
   background:var(--stop);color:#fff;border-radius:9px;font-size:.86rem}
-.splitbox .row.isdup .go{background:#FDECEA;border-color:rgba(214,84,61,.4)}
+.splitbox .dup div{font-weight:600;margin-top:5px}
 
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
@@ -1761,7 +1761,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.7.0';
+var STUDIO_VER = '7.7.1';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1871,10 +1871,20 @@ var STEPS = [];
    ============================================================ */
 var BOOK = {};
 var PKEY = '';
+/* מפתחות שנמחקו. בלי הרשימה הזו מחיקה מ-BOOK אינה מוחקת כלום:
+   השמירה שומרת כל שורה בגיליון שאין לה מקבילה ב-BOOK — וזה נכון,
+   כדי לא לדרוס עבודה של דף אחר — ולכן הרשומה הייתה חוזרת בשלמותה
+   בשמירה הבאה. */
+var GONE = {};
 
 function pageKey() {
   if (PDF && !LIB_OK()) return 'file|' + (selVal('pg') || 1);
-  return [selVal('mas'), selVal('daf'), selVal('src'), selVal('pg')].join('|');
+  /* `|| 1` אינו קישוט. כשבורר העמוד היה ריק — וזה היה מצבו מרגע
+     שהסטודיו עבר לתמונות המאגר — `selVal('pg')` החזיר מחרוזת
+     ריקה, והמפתח יצא `taanit|ב|0|` בלי מספר עמוד. זו רשומה
+     שלישית לדף: היא נשמרה בגיליון, מסך הלימוד קרא גם אותה, וזה
+     מה שהחזיר את התלמיד לראש הדף באמצע העמוד. */
+  return [selVal('mas'), selVal('daf'), selVal('src'), selVal('pg') || 1].join('|');
 }
 function LIB_OK() { return !!(window.DAF_LINKS && document.getElementById('mas').options.length); }
 
@@ -2404,68 +2414,63 @@ function stepRows() {
    אותה פסקה הם אותו ביאור פעמיים, גם אם שורות הגמרא שלהם זזו
    מעט בין כיול לכיול.
    ============================================================ */
-function otherKey() {
+/* כל רשומות הדף הזה — שני העמודים, וגם מה שאינו עמוד. */
+function dafKeys() {
   var a = PKEY.split('|');
-  if (a.length < 4) return null;
-  a[3] = a[3] === '2' ? '1' : '2';
-  return a.join('|');
-}
-function cRange(st) {
-  var c = st && st.c;
-  if (!c || c.from == null) return null;
-  return [c.from, c.to == null ? c.from : c.to];
-}
-/* **הכלה ולא חפיפה.** קטע כפול הוא כזה שכל הפסקאות שלו כבר
-   שובצו במקום אחר — זו החתימה של "סימנתי את זה שוב". חפיפה
-   חלקית היא משהו אחר לגמרי: קטע שנמתח על התפר אחרי מחיקה, וזה
-   תקין. הבחנה זו היא ההבדל בין כלי שאפשר לסמוך עליו לבין כפתור
-   שמוחק עבודה טובה. */
-function covered(r, list) {
-  if (!r) return false;
-  for (var p = r[0]; p <= r[1]; p++) {
-    var in1 = false;
-    for (var k = 0; k < list.length && !in1; k++)
-      if (list[k] && list[k][0] <= p && p <= list[k][1]) in1 = true;
-    if (!in1) return false;
-  }
-  return true;
-}
-/* אילו קטעים בעמוד הזה חוזרים על ביאור שכבר שובץ */
-function dupSteps() {
-  var rec = BOOK[otherKey() || ''] || {};
-  var other = (rec.steps || []).map(cRange).filter(Boolean);
-  var seen = [], out = [];
-  STEPS.forEach(function (st, i) {
-    var r = cRange(st);
-    if (!r) return;
-    if (covered(r, seen) || covered(r, other)) out.push(i);
-    else seen.push(r);
-  });
+  if (a.length < 4) return [];
+  var pre = a.slice(0, 3).join('|') + '|', out = [];
+  for (var k in BOOK) if (k.indexOf(pre) === 0) out.push(k);
   return out;
 }
-function dropDups() {
-  var d = dupSteps();
-  if (!d.length) return;
-  for (var i = d.length - 1; i >= 0; i--) STEPS.splice(d[i], 1);
-  seal();
-  touched();
-  paintChav(1); markDraw();
-  say('הוסרו ' + d.length + ' קטעים כפולים.');
+/* רשומה שאינה עמוד א׳ ואינה עמוד ב׳ — כלומר מפתח פגום.
+
+   כך נראתה התקלה בדף ב׳: לצד `taanit|ב|0|1` ו-`taanit|ב|0|2`
+   ישבה `taanit|ב|0|` ובה אחד־עשר קטעים, העתק מדויק של תחילת
+   ע״א. מסך הלימוד קורא את כל שורות הדף ולכן הציג את שלושתן:
+   ע״א במלואו, ואז שוב ראשו, ואז ע״ב.
+
+   אי אפשר גם להגיע אליה מהסטודיו — בורר העמוד מציע א׳ וב׳ בלבד
+   — ולכן היא מכאן, ולא מתוך רשימת הקטעים של העמוד. */
+function orphanKeys() {
+  return dafKeys().filter(function (k) {
+    var p = k.split('|')[3];
+    return p !== '1' && p !== '2';
+  });
+}
+function dropOrphans() {
+  var ks = orphanKeys(), n = 0;
+  ks.forEach(function (k) {
+    n += ((BOOK[k] || {}).steps || []).length;
+    GONE[k] = 1;
+    delete BOOK[k];
+  });
+  if (!ks.length) return;
+  DIRTY[PKEY] = 1;                    /* שתהיה שמירה לשלוח */
+  keepLocal();
+  markPanel();                        /* שסימן "לא נשמר" יידלק */
+  say('הוסרו ' + ks.length + ' רשומות עודפות (' + n + ' קטעים). ' +
+      'צריך לשמור בגיליון.');
   showSteps();
 }
-
 function showSteps() {
   var box = document.getElementById('splitbox');
   var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' +
     '<p>הקשה על קטע מציגה אותו על הדף. ✕ מוחק אותו בלבד — ' +
     'השאר נשארים, ואפשר להוסיף חדש במקומו.</p>';
   if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
-  var dup = dupSteps(), isDup = {};
-  dup.forEach(function (i) { isDup[i] = 1; });
-  if (dup.length)
-    html += '<div class="dup"><b>' + dup.length + ' קטעים חוזרים</b> על ביאור ' +
-      'שכבר שובץ — בעמוד הזה או בעמוד השני של הדף. הם מסומנים למטה.' +
-      '<button class="dx">הסרת ' + dup.length + ' הכפולים</button></div>';
+  var orph = orphanKeys();
+  if (orph.length) {
+    var on = 0;
+    orph.forEach(function (k) { on += ((BOOK[k] || {}).steps || []).length; });
+    html += '<div class="dup"><b>רשומה עודפת לדף הזה</b><div>' +
+      (on ? 'נמצאה רשומה בלי מספר עמוד ובה ' + on + ' קטעים. אי אפשר ' +
+            'להגיע אליה מהסטודיו, אבל מסך הלימוד קורא גם אותה — וזה מה ' +
+            'שמחזיר את התלמיד לראש הדף באמצע.'
+          : 'נמצאה רשומה ריקה בלי מספר עמוד. היא אינה מזיקה, אבל אין ' +
+            'לה מה לעשות בגיליון.') +
+      ' נוצרה בגרסה שבה בורר העמוד היה ריק.</div>' +
+      '<button class="dx">מחיקת הרשומה העודפת</button></div>';
+  }
   stepRows().forEach(function (r) {
     if (r.gap) {
       html += '<div class="gap">⚠ רווח לא מסומן — שורות ' +
@@ -2473,9 +2478,8 @@ function showSteps() {
       return;
     }
     var st = r.st;
-    html += '<div class="row' + (isDup[r.i] ? ' isdup' : '') + '">' +
-      '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> ' +
-      (isDup[r.i] ? 'כפול · ' : '') + 'שורות ' +
+    html += '<div class="row">' +
+      '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> שורות ' +
       (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
       (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
       '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
@@ -2485,7 +2489,7 @@ function showSteps() {
   box.innerHTML = html;
   box.className = 'splitbox on';
   [].forEach.call(box.querySelectorAll('.dx'), function (b) {
-    b.onclick = function () { dropDups(); };
+    b.onclick = function () { dropOrphans(); };
   });
   [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
     b.onclick = function () { removeStep(+b.dataset.del); showSteps(); };
@@ -2704,7 +2708,8 @@ function saveToSheet() {
     var keep = [];
     (rows || []).slice(1).forEach(function (r) {
       /* שומרים כל מה ששייך לדפים אחרים, ומחליפים רק את שלנו */
-      if (!BOOK[r[0] + '|' + r[1] + '|' + r[2]]) keep.push(r.slice(0, 4));
+      var rk = r[0] + '|' + r[1] + '|' + r[2];
+      if (!BOOK[rk] && !GONE[rk]) keep.push(r.slice(0, 4));
     });
     for (var k in BOOK) {
       var a = k.split('|');
@@ -2754,6 +2759,7 @@ function loadFromSheet() {
          סימונים במעבר לכיול וחזרה: הטעינה מהגיליון החזירה את
          הגרסה הישנה על גבי החדשה. */
       if (DIRTY[k]) return;
+      if (GONE[k]) return;              /* נמחקה כאן — לא להחזיר */
       try {
         var rec = JSON.parse(r[3]), was = BOOK[k];
         /* שורה בגיליון שנכתבה לפני שהכיול נשמר בכלל אינה מכילה
