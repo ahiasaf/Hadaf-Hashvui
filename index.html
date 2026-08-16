@@ -1102,7 +1102,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.10.0';
+var APP_VERSION = '7.10.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3502,7 +3502,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 3;
+var SCRIPT_MIN = 7;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -3547,9 +3547,18 @@ function admPing() {
         say('cond', 'הסקריפט מגיב, אבל הפריסה ישנה — גרסה ' + v +
             ' במקום ' + SCRIPT_MIN + '.<br>ב-Apps Script: Deploy ← Manage ' +
             'deployments ← עריכה ← New version.');
+      } else if (!d.privateOn) {
+        /* הסקריפט עובד, אבל אין לו לאן לכתוב פרטים אישיים —
+           והם ייכתבו לגיליון שמשותף לצפייה. זו התקלה היחידה כאן
+           שאי אפשר לראות בעין, כי הכתיבה מצליחה בכל מקרה. */
+        say('cond', 'החיבור תקין · גרסה ' + v +
+            '<br><b>אבל הגיליון הפרטי אינו מוגדר.</b> שמות של תלמידים ' +
+            'וטלפונים של הורים ייכתבו לגיליון שמשותף לצפייה.<br>' +
+            'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.');
       } else {
         say('done-box', 'החיבור תקין · גרסה ' + v +
             (d.sheet ? '<br>גיליון: ' + esc(d.sheet) : '') +
+            '<br>הגיליון הפרטי מוגדר ✓' +
             '<br>לשוניות: ' + tabs);
       }
     })

@@ -206,7 +206,12 @@ function doGet(e) {
     return reply_(e, rd);
   }
 
-  var out = { status: 'ok', version: SCRIPT_VERSION, tabs: [] };
+  /* `private` הוא התשובה לשאלה היחידה שאי אפשר לראות מבחוץ:
+     האם יש לאן לכתוב פרטים אישיים. כשהוא כבוי, שם של תלמיד
+     ייכתב לגיליון שמשותף לצפייה — ובלי הדיווח הזה איש לא היה
+     יודע, כי הכתיבה מצליחה בשני המקרים. */
+  var out = { status: 'ok', version: SCRIPT_VERSION, tabs: [],
+              privateOn: !!PRIVATE_ID };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
