@@ -1281,10 +1281,24 @@ window.addEventListener('DOMContentLoaded', function () {
     if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
     if (e.key === 'ArrowRight') { go(IDX - 1); e.preventDefault(); }
   });
+  /* חלון ההתמקדות מחושב פעם אחת, מגובה הבמה. בדפדפן נייד הגובה
+     הזה **משתנה תוך כדי**: שורת הכתובת נעלמת בגלילה וחוזרת, וגם
+     המקלדת והסרגל התחתון מזיזים אותו. `resize` לבדו אינו מספיק —
+     שינוי של ה-visual viewport (בדיוק המקרה של שורת הכתובת) אינו
+     יורה אותו באייפון, ולעיתים גם לא באנדרואיד.
+
+     `visualViewport` הוא ה-API שנועד למקרה הזה. בלעדיו הבמה
+     משתנה והחלון נשאר במידה הישנה — הקטע יוצא ממרכזו ונראה כאילו
+     הסימון לא במקום. באפליקציה המותקנת אין שורות כאלה, הגובה
+     קבוע, ולכן שם זה מעולם לא נראה. */
   var t = null;
-  window.addEventListener('resize', function () {
-    clearTimeout(t); t = setTimeout(focus, 120);
-  });
+  var refocus = function () { clearTimeout(t); t = setTimeout(focus, 120); };
+  window.addEventListener('resize', refocus);
+  window.addEventListener('orientationchange', refocus);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', refocus);
+    window.visualViewport.addEventListener('scroll', refocus);
+  }
   boot();
 });
 </script>
