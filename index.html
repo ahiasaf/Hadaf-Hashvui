@@ -638,24 +638,28 @@ body.tk-sheeting #tk-bar{display:none}
 .soon{margin-top:20px;cursor:pointer;background:var(--surface);
   border:1px solid var(--rule);border-radius:var(--r);padding:14px 15px 15px;
   box-shadow:var(--sh-1)}
-.sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px}
 .sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:#fff;
   background:linear-gradient(140deg,var(--gold-l),var(--gold));
   border-radius:999px;padding:5px 11px}
 .sn-h b{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
 
-/* טעימה, לא דוח. שורה אחת של מספרים בגודל טקסט — מספרים ענקיים
-   ותרשים עמודות עושים מזה כרטיס של רואה חשבון, וזו תוכנית לנוער.
-   ושלוש דרכי הלימוד נמצאות כאן כי הן העיקר: לא כמה, אלא מי. */
-.sn-line{font-size:.95rem;font-weight:700;color:var(--ink-2);
-  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.sn-line b{font-size:1.22rem;font-weight:800;color:var(--blue);
-  letter-spacing:-.02em}
-.sn-line s{width:4px;height:4px;border-radius:50%;background:var(--ink-3);
-  opacity:.5;margin:0 3px}
-.sn-who{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:11px}
-.sn-who span{font-size:.75rem;font-weight:800;color:var(--green-d);
-  background:rgba(111,168,59,.13);border-radius:999px;padding:5px 11px}
+/* שלוש משבצות שוות — זה מה שהיה חסר. שורה של צ'יפים בלי מספרים
+   נקראה כרשימה, ורשימה אינה אומרת כלום. משבצת עם אייקון ומספר
+   אומרת "שמונה־עשר אבות ובנים", וזה המשפט. */
+.sn-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sn-t{text-align:center;padding:10px 6px 9px;border-radius:12px;
+  background:color-mix(in srgb,var(--c) 9%,transparent)}
+@supports not (background:color-mix(in srgb,red 9%,transparent)){
+  .sn-t{background:var(--sunk)}
+}
+.sn-t svg{width:23px;height:23px;fill:var(--c);opacity:.9}
+.sn-t b{display:block;font-size:1.35rem;font-weight:800;line-height:1.1;
+  color:var(--c);letter-spacing:-.02em;margin-top:5px}
+.sn-t span{display:block;font-size:.7rem;font-weight:800;color:var(--ink-2);
+  margin-top:3px;line-height:1.3}
+.sn-f{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sn-f em{font-style:normal;font-size:.83rem;font-weight:800;color:var(--ink-2)}
 /* מלא ולא שקוף, אחרת הוא נקרא כקטגוריה רביעית ולא כפעולה. */
 .sn-share{display:inline-flex;align-items:center;gap:6px;margin-inline-start:auto;
   font-style:normal;font-size:.75rem;font-weight:800;color:#fff;
@@ -1098,7 +1102,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.9.2';
+var APP_VERSION = '7.9.3';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1273,13 +1277,37 @@ function renderHome() {
      כאן אין הסבר בכוונה. מה שמוצג הוא הכרטיס עצמו — שם הישיבה,
      הדף, שני המספרים, וכפתור שיתוף. כפתור השיתוף אומר לבדו את
      מה ששלוש שורות טקסט ניסו לומר: את זה שולחים להורים. */
+  /* שלוש דרכי הלימוד, כל אחת עם המספר שלה. זה מה שראש חטיבה
+     באמת רוצה לדעת — לא כמה בסך הכול, אלא שיש אבות ובנים.
+
+     ואין כאן "השלימו": ספירת השלמות מודדת מי לא סיים, וזה מדד
+     של חוסר. סופרים התחלות, ובלשון הווה — לומדים. */
+  var SOON_G = [
+    /* גדול וקטן, ורווח ביניהם — בלי הרווח הם נקראים ככתם אחד */
+    ['#C08F2B', 18, 'אבות ובנים',
+     '<circle cx="5.6" cy="5" r="3"/>' +
+     '<path d="M1 17.5c0-3 2-4.8 4.6-4.8s4.6 1.8 4.6 4.8z"/>' +
+     '<circle cx="15" cy="8.4" r="2.2"/>' +
+     '<path d="M11.4 17.5c0-2.1 1.6-3.5 3.6-3.5s3.6 1.4 3.6 3.5z"/>'],
+    /* שלושה בשורה עם כתף אחת משותפת — חבורה, לא נקודות */
+    ['#3B7D57', 14, 'חבורות לימוד',
+     '<circle cx="4.4" cy="6.4" r="2.3"/><circle cx="10" cy="5.6" r="2.6"/>' +
+     '<circle cx="15.6" cy="6.4" r="2.3"/>' +
+     '<path d="M.8 17.2c0-3 4.1-4.9 9.2-4.9s9.2 1.9 9.2 4.9z"/>'],
+    ['#17468F', 9, 'לומדים לבד',
+     '<path d="M2.4 4.6c2.5-1.1 5.1-1.1 7.6 0v11.2c-2.5-1.1-5.1-1.1-7.6 0z"/>' +
+     '<path d="M17.6 4.6c-2.5-1.1-5.1-1.1-7.6 0v11.2c2.5-1.1 5.1-1.1 7.6 0z"/>']
+  ];
   document.getElementById('soon').innerHTML = !CFG_SOON() ? '' :
     '<div class="soon" onclick="toast(\'הלוח בפיתוח — יגיע לפני תחילת התוכנית.\')">' +
     '<div class="sn-h"><span class="sn-tag">בקרוב</span>' +
     '<b>לוח ההתקדמות של הישיבה</b></div>' +
-    '<div class="sn-line"><b>41</b> לומדים את הדף<s></s><b>27</b> השלימו דף</div>' +
-    '<div class="sn-who"><span>אבות ובנים</span><span>חבורות לימוד</span>' +
-    '<span>לימוד עצמי</span>' +
+    '<div class="sn-g">' + SOON_G.map(function (g) {
+      return '<div class="sn-t" style="--c:' + g[0] + '">' +
+        '<svg viewBox="0 0 20 20">' + g[3] + '</svg>' +
+        '<b>' + g[1] + '</b><span>' + g[2] + '</span></div>';
+    }).join('') + '</div>' +
+    '<div class="sn-f"><em>41 לומדים השבוע</em>' +
     '<i class="sn-share"><svg viewBox="0 0 20 20"><circle cx="15" cy="4.5" r="2.3"/>' +
     '<circle cx="5" cy="10" r="2.3"/><circle cx="15" cy="15.5" r="2.3"/>' +
     '<path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" stroke-width="1.5" ' +
