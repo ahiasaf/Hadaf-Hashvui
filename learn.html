@@ -688,7 +688,8 @@ function libSrc(daf, pg) {
   var m = LIB && LIB[S.mas];
   var a = m && m[dafKey(daf)];
   if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
-  return 'daf/' + S.mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
+  return 'daf/' + S.mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') +
+         '.webp?v=' + (window.DAF_REV || '');
 }
 /* רשימת המאגר. חובה שתהיה נכונה: בלעדיה הלימוד מסיק שאין תמונה
    לדף ופונה לדרייב — איטי בהרבה, **וגם** מצייר מ-PDF בקנה מידה

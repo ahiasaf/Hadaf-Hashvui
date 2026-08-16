@@ -1534,7 +1534,8 @@ function libImg(daf, pg) {
   var m = window.DAF_LIB && DAF_LIB[mas];
   var a = m && m[dafKey(daf)];
   if (!a || a.indexOf(pg === 2 ? 'b' : 'a') < 0) return null;
-  return 'daf/' + mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') + '.webp';
+  return 'daf/' + mas + '/' + dafKey(daf) + '-' + (pg === 2 ? 'b' : 'a') +
+         '.webp?v=' + (window.DAF_REV || '');
 }
 /* טעינת עמוד מהמאגר. מוחזר `true` אם נטען מכאן.
 
