@@ -626,6 +626,23 @@ body.tk-sheeting #tk-bar{display:none}
   padding:14px;border-radius:var(--r-s);font-size:.96rem;font-weight:700;color:inherit;
   cursor:pointer;text-align:start}
 #sheet .it:active{background:var(--sunk)}
+/* פס הפרסום שבמסך הניהול */
+.pubbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  border-radius:13px;padding:13px 15px;background:var(--surface);
+  border:1px solid var(--rule)}
+.pubbar > div{flex:1;min-width:12rem}
+.pubbar b{display:block;font-size:.92rem;font-weight:800}
+.pubbar span{display:block;font-size:.79rem;font-weight:600;color:var(--ink-2);
+  line-height:1.6;margin-top:2px}
+.pubbar button{border:0;border-radius:10px;padding:11px 20px;font-family:inherit;
+  font-size:.88rem;font-weight:800;cursor:pointer;color:#fff;
+  background:linear-gradient(140deg,var(--gold-l),var(--gold))}
+.pubbar button.alt{background:none;color:var(--ink-3);
+  border:1px solid var(--rule);padding:10px 16px}
+.pubbar.warn{border-color:var(--gold);background:#FFF8E8}
+.pubbar.warn b{color:#7A5A12}
+.pubbar.ok b{color:var(--ok)}
+
 #toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom) + 22px);
   z-index:120;margin:0 auto;width:max-content;max-width:calc(100% - 40px);
   background:var(--blue-d);color:#fff;border-radius:999px;padding:11px 20px;
@@ -1102,7 +1119,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.11.0';
+var APP_VERSION = '7.12.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1321,7 +1338,7 @@ function renderHome() {
      אישרו רשמית, "כבר בתוכנית תשפ״ז" הוא מספר שאי אפשר לעמוד
      מאחוריו. לכן ברירת המחדל היא מי שהיה בתשפ״ו — אמת מלאה
      שגם משכנעת — והמתג בניהול מעביר לתשפ״ז כשיגיע הזמן. */
-  var showNow = CFG.roster === 'now';
+  var showNow = CV('roster') === 'now';
   var inList  = INSTITUTIONS.filter(function (i) { return showNow ? i.joined : i.last; });
   var openN   = INSTITUTIONS.length - inList.length;
 
@@ -1933,7 +1950,7 @@ var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true };
 /* הבאנר של מה שבדרך. מתג ולא קבוע, כדי שאפשר יהיה להוריד אותו
    ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
    יותר מדי. */
-function CFG_SOON() { return (CFG.rows || {}).soon !== false; }
+function CFG_SOON() { return (CV('rows') || {}).soon !== false; }
 /* ============================================================
    מצב הדגמה — ‎?demo=1
 
@@ -1952,7 +1969,7 @@ var DEMO = /[?&]demo=1\b/.test(location.search);
 
 function showRow(k) {
   if (DEMO) return true;
-  var v = (CFG.rows || {})[k];
+  var v = (CV('rows') || {})[k];
   return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
 }
 var MARKED = null;
@@ -2733,22 +2750,77 @@ var Store = {
   del: function (k) { try { localStorage.removeItem('df:' + k); } catch (e) {} }
 };
 
-/* הגדרות שנקבעות מתוך מסך הניהול ודורסות את ברירות המחדל שב-data.js */
+/* ============================================================
+   ההגדרות, בשלוש שכבות.
+
+   כאן הייתה תקלה שקטה ויסודית: מסך הניהול כתב הכל ל-localStorage
+   בלבד. כלומר הרכז כיבה את הדף האינטראקטיבי, ראה אותו נעלם אצלו,
+   והוא המשיך להופיע אצל כל ראשי החטיבות. מסך שמשנה רק את המכשיר
+   של מי שיושב בו אינו ניהול אלא העדפות.
+
+   הפתרון כבר היה קיים בקוד — לטקסטים בלבד. אותן שלוש שכבות חלות
+   מעכשיו גם על ההגדרות:
+
+     data.js   — ברירת המחדל שבקוד
+     הגיליון   — מה שפורסם, וזה מה שכולם רואים
+     CFG       — טיוטה מקומית, כדי שהרכז יראה מיד מה שינה
+
+   הטיוטה גוברת על המכשיר שלו בלבד, ורק "פרסום" הופך אותה לאמת
+   של כולם. הקריאה מהגיליון נשמרת במטמון ומוחלת מיד בעלייה, כדי
+   שהעמוד לא יבהב בין שני מצבים.
+   ============================================================ */
 var CFG = Store.get('cfg', {}) || {};
-function cfgSet(k, v) { CFG[k] = v; Store.set('cfg', CFG); applyCfg(); }
+var PUB_CFG = Store.get('cfgCache', {}) || {};
+
+/* מה שפורסם לכולם. מה שאינו כאן נשאר על המכשיר בלבד — מזהי
+   גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
+   שמשותף לצפייה. */
+var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa'];
+var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
+
+/* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
+   באובייקטים זה מיזוג ולא החלפה — טיוטה שנגעה במתג אחד לא
+   תמחק את שאר המתגים שפורסמו. */
+function CV(k) {
+  var pub = PUB_CFG[k], loc = CFG[k];
+  if (!PUB_DEEP[k]) return loc != null ? loc : pub;
+  if (pub == null && loc == null) return null;
+  var out = {}, a;
+  if (pub) for (a in pub) out[a] = pub[a];
+  if (loc) for (a in loc) out[a] = loc[a];
+  return out;
+}
+/* האם יש בטיוטה משהו שטרם פורסם */
+function cfgDirty() {
+  for (var i = 0; i < PUB_KEYS.length; i++) {
+    var k = PUB_KEYS[i];
+    if (CFG[k] == null) continue;
+    if (JSON.stringify(CV(k)) !== JSON.stringify(PUB_CFG[k] == null ? null : PUB_CFG[k]))
+      return true;
+  }
+  return false;
+}
+
+function cfgSet(k, v) {
+  CFG[k] = v; Store.set('cfg', CFG); applyCfg();
+  if (typeof admPubBar === 'function') admPubBar();
+}
 function applyCfg() {
+  /* אלה נשארים מקומיים: הם מפתחות גישה, לא החלטות תוכן. */
   if (CFG.api) { API = CFG.api; localStorage.setItem('dfApi', CFG.api); }
-  if (CFG.coordWa)  COORD_WA = CFG.coordWa;
-  if (CFG.pin)      ADMIN_PIN = CFG.pin;
-  if (CFG.sugya)    { for (var t in CFG.sugya) SUGYA[t] = CFG.sugya[t]; }
-  if (CFG.joined)   INSTITUTIONS.forEach(function (i) {
-                      if (CFG.joined[i.code] != null) i.joined = !!CFG.joined[i.code]; });
+  if (CFG.pin) ADMIN_PIN = CFG.pin;
+
+  var wa = CV('coordWa'), sg = CV('sugya'), jn = CV('joined'), pr = CV('prices');
+  if (wa) COORD_WA = wa;
+  if (sg) { for (var t in sg) SUGYA[t] = sg[t]; }
+  if (jn) INSTITUTIONS.forEach(function (i) {
+            if (jn[i.code] != null) i.joined = !!jn[i.code]; });
   /* מיזוג ולא החלפה: הגדרה ישנה שנשמרה במכשיר בלי `min` לא תמחק
      את הכמות המינימלית שהגיעה מ-data.js. */
-  if (CFG.prices) for (var p in CFG.prices) {
+  if (pr) for (var p in pr) {
     PRICES[p] = PRICES[p] || {};
-    for (var f in CFG.prices[p])
-      if (CFG.prices[p][f] != null) PRICES[p][f] = CFG.prices[p][f];
+    for (var f in pr[p])
+      if (pr[p][f] != null) PRICES[p][f] = pr[p][f];
   }
   relayerTexts();
 }
@@ -2943,6 +3015,64 @@ function loadTexts() {
     });
 }
 
+/* ============================================================
+   ההגדרות מהגיליון, ואליו.
+
+   אותו מנגנון של הטקסטים, ומאותה סיבה: מה שנכתב כאן הוא מה
+   שראשי החטיבות יראו, ולכן הוא חייב לצאת מהמכשיר של הרכז.
+   ============================================================ */
+var SET_TAB = 'הגדרות';
+
+function loadSettings() {
+  return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB)
+    .then(function (rows) {
+      if (!rows || rows.length < 2) return false;
+      var map = {};
+      rows.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+        if (!k || PUB_KEYS.indexOf(k) < 0 || !v) return;
+        /* ערך פגום בגיליון לא יפיל את העלייה — הוא פשוט מדולג,
+           והברירה שבקוד נשארת. */
+        try { map[k] = JSON.parse(v); } catch (e) {}
+      });
+      if (!Object.keys(map).length) return false;
+      PUB_CFG = map;
+      Store.set('cfgCache', map);
+      applyCfg();
+      return true;
+    });
+}
+
+function publishSettings() {
+  var msg = document.getElementById('adm-pub-msg');
+  var say = function (cls, t) {
+    if (msg) msg.innerHTML = '<div class="' + cls + '" style="margin-top:9px">' + t + '</div>';
+  };
+  if (!API) {
+    say('cond', 'אין כתובת שרת. מלאו אותה בהגדרות ← כתובת שרת, ' +
+        'אחרת אפשר לשנות רק במכשיר הזה.');
+    return;
+  }
+  var rows = [];
+  PUB_KEYS.forEach(function (k) {
+    var v = CV(k);
+    if (v != null) rows.push([k, JSON.stringify(v)]);
+  });
+  queue({ action:'table', tab: SET_TAB,
+          cols: JSON.stringify(['מפתח', 'ערך']),
+          rows: JSON.stringify(rows) });
+
+  /* מעדכנים את המפורסם כאן ולא ממתינים לגיליון: `no-cors` מחזיר
+     תשובה אטומה ואי אפשר לדעת ממנה אם הכתיבה הצליחה. הקריאה
+     בעלייה הבאה היא זו שמאמתת. */
+  var now = {};
+  rows.forEach(function (r) { try { now[r[0]] = JSON.parse(r[1]); } catch (e) {} });
+  PUB_CFG = now;
+  Store.set('cfgCache', now);
+  say('done-box', 'פורסם · מעכשיו זה מה שכל מי שנכנס לאפליקציה רואה.');
+  renderAdmin();
+}
+
 /* אנשי קשר מגיליון פרטי. המזהה מוזן בניהול ונשמר על המכשיר —
    אינו בקוד, כדי שטלפונים של מנהלים לא יישבו בריפו ציבורי. */
 function loadContactsFromSheet() {
@@ -2993,10 +3123,43 @@ function renderAdmin() {
           TABS.map(function (t) {
             return '<button class="' + (admTab === t[0] ? 'on' : '') +
                    '" onclick="admGo(\'' + t[0] + '\')">' + t[1] + '</button>';
-          }).join('') + '</div><div id="adm-pane" style="margin-top:14px"></div>';
+          }).join('') + '</div>' +
+          /* פס הפרסום. יושב מעל כל הלשוניות ולא בתוך אחת מהן, כי
+             מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
+          '<div id="adm-pub" style="margin-top:12px"></div>' +
+          '<div id="adm-pane" style="margin-top:14px"></div>';
   document.getElementById('admin-body').innerHTML = h;
+  admPubBar();
   admPane();
 }
+/* מצב הפרסום, בשלוש אפשרויות: יש טיוטה שלא פורסמה, הכל מפורסם,
+   או שמעולם לא פורסם דבר ולכן כולם עדיין על ברירות המחדל. */
+function admPubBar() {
+  var el = document.getElementById('adm-pub');
+  if (!el) return;
+  var dirty = cfgDirty();
+  var never = !Object.keys(PUB_CFG || {}).length;
+  if (dirty) {
+    el.innerHTML =
+      '<div class="pubbar warn"><div><b>יש שינויים שלא פורסמו</b>' +
+      '<span>הם נראים כרגע רק במכשיר הזה. פרסום יחיל אותם על כל מי ' +
+      'שנכנס לאפליקציה.</span></div>' +
+      '<button onclick="publishSettings()">פרסום</button></div>' +
+      '<div id="adm-pub-msg"></div>';
+  } else if (never) {
+    el.innerHTML =
+      '<div class="pubbar"><div><b>עוד לא פורסמו הגדרות</b>' +
+      '<span>כולם רואים את ברירות המחדל שבקוד. שנו משהו כאן ופרסמו, ' +
+      'וזה יחול על כולם.</span></div></div><div id="adm-pub-msg"></div>';
+  } else {
+    el.innerHTML =
+      '<div class="pubbar ok"><div><b>ההגדרות מפורסמות</b>' +
+      '<span>מה שמוצג כאן הוא מה שכל מי שנכנס לאפליקציה רואה.</span></div>' +
+      '<button class="alt" onclick="publishSettings()">פרסום מחדש</button></div>' +
+      '<div id="adm-pub-msg"></div>';
+  }
+}
+
 function admGo(t) { admTab = t; renderAdmin(); }
 /* באפליקציית הניהול המותקנת אין שורת כתובת, ולכן יציאה לאפליקציה
    הרגילה הייתה דרך ללא חזרה — צריך היה לסגור ולפתוח מחדש.
@@ -3109,7 +3272,7 @@ function admInst(el) {
       'onclick="loadInstitutions().then(function(){renderHome();admPane();})">' +
       'ניסיון טעינה מחדש</button></div></div>';
 
-  var now = CFG.roster === 'now';
+  var now = CV('roster') === 'now';
   el.innerHTML = src +
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
     '<p class="h">כל עוד הישיבות לא אישרו רשמית, המספר היחיד שאפשר ' +
@@ -3159,19 +3322,19 @@ var ROW_KEYS = [
   ['sugya', 'הסוגיה היומית',  'החוברת הדיגיטלית']
 ];
 function soonToggle() {
-  var r = CFG.rows || {};
+  var r = CV('rows') || {};
   r.soon = !CFG_SOON();
   cfgSet('rows', r);
   renderHome(); admPane();
 }
 function rowToggle(k) {
-  var r = CFG.rows || {};
+  var r = CV('rows') || {};
   r[k] = !showRow(k);
   cfgSet('rows', r);
   admPane();
 }
 function admToggle(code) {
-  var j = CFG.joined || {};
+  var j = CV('joined') || {};
   var cur = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
   j[code] = !(cur && cur.joined);
   cfgSet('joined', j);
@@ -3447,7 +3610,7 @@ function admPriceSet(id, k, v) {
   v = parseInt(v, 10);
   if (k === 'min') { if (!(v >= 0)) v = 0; }
   else if (!(v > 0)) { alert('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
-  var cur = priceOf(id), c = CFG.prices || {};
+  var cur = priceOf(id), c = CV('prices') || {};
   c[id] = { price:cur.price, list:cur.list, min:cur.min };   // נשמרים גם השדות שלא נגעו בהם
   c[id][k] = v;
   if (c[id].price > c[id].list) c[id].list = c[id].price;   // מוזל לא גבוה ממלא
@@ -3494,7 +3657,7 @@ function admSugya(el) {
    מחליפה את זו שבקוד במלואה, ולכן שינוי של שדה אחד בטופס ריק היה
    מוחק את כל מפת העמודים — כלומר תיקון קטן היה מבטל את כל הקישורים. */
 function sugCur() {
-  var c = CFG.sugya || {};
+  var c = CV('sugya') || {};
   if (!c[homeTrack]) {
     var d = SUGYA[homeTrack] || {};
     c[homeTrack] = { base: d.base || '', fmt: d.fmt || '',
@@ -3684,7 +3847,7 @@ function admSet(el) {
     '<div class="adm-card" style="margin-bottom:11px"><h4>יעדי שליחה</h4>' +
     '<p class="h">כל עוד אין כתובת שרת, הרשמות נשלחות כהודעת וואטסאפ לרכז.</p>' +
     '<div class="fld"><div class="label">וואטסאפ של הרכז (972…)</div>' +
-    '<input type="tel" dir="ltr" value="' + esc(CFG.coordWa || COORD_WA) +
+    '<input type="tel" dir="ltr" value="' + esc(CV('coordWa') || COORD_WA) +
     '" onchange="cfgSet(\'coordWa\',this.value.replace(/[^0-9]/g,\'\'))"></div>' +
     '<div class="fld"><div class="label">כתובת שרת (Apps Script / Firebase)</div>' +
     '<input type="text" dir="ltr" placeholder="https://script.google.com/…/exec" value="' +
@@ -4082,6 +4245,10 @@ function registerSW() {
   loadInstitutions().then(function (ok) { if (ok) renderHome(); }).catch(function () {});
   /* המלל שפורסם. נכשל בשקט — נשארים עם המטמון או עם הקוד. */
   loadTexts().then(function (ok) { if (ok) repaintTexts(); }).catch(function () {});
+  /* ההגדרות שפורסמו. מוחלות מהמטמון כבר בעלייה, ונרעננות כאן. */
+  loadSettings().then(function (ok) {
+    if (ok) { renderHome(); if (document.getElementById('adm-pane')) admPane(); }
+  }).catch(function () {});
   /* חזרה מהלימוד האינטראקטיבי אל החידה של אותו שבוע. הלימוד
      נגמר ב"ישר כוח!" ובקישור הזה, ולכן הוא צריך לנחות על החידה
      עצמה ולא על מסך הבית. */
