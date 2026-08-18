@@ -1102,7 +1102,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.10.1';
+var APP_VERSION = '7.11.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1934,7 +1934,24 @@ var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true };
    ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
    יותר מדי. */
 function CFG_SOON() { return (CFG.rows || {}).soon !== false; }
+/* ============================================================
+   מצב הדגמה — ‎?demo=1
+
+   מתגי הניהול נשמרים ב-localStorage של המכשיר, ולכן מה שהרכז
+   מדליק אצלו אינו נראה לאיש אחר. זה נכון ורצוי: אפשר להציג
+   פגישה שלמה עם הכל דלוק בלי לשנות דבר למי שמשתמש באתר.
+
+   אבל קישור שנשלח אחרי הפגישה נפתח על מכשיר אחר, ושם חוזרת
+   ברירת המחדל — והנמען רואה משהו אחר לגמרי ממה שהוצג לו.
+
+   `?demo=1` מדליק את כל השורות לאותה כניסה בלבד. הוא **אינו
+   נכתב להגדרות**, בכוונה: זו צורת תצוגה של קישור אחד, ולא
+   החלטה שצריכה לשרוד על המכשיר של מי שפתח אותו במקרה.
+   ============================================================ */
+var DEMO = /[?&]demo=1\b/.test(location.search);
+
 function showRow(k) {
+  if (DEMO) return true;
   var v = (CFG.rows || {})[k];
   return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
 }
