@@ -183,6 +183,10 @@ button.c.fix{opacity:1;cursor:default;background:var(--blue);
   background:linear-gradient(150deg,var(--blue-d),var(--blue));
   box-shadow:0 -6px 22px rgba(0,0,0,.22)}
 body.mark .bar{display:flex}
+/* שני הפסים אינם מופיעים יחד: או מסמנים חדש, או משנים קיים. */
+.ibar{display:none}
+body.mark.insp .bar:not(.ibar){display:none}
+body.mark.insp .ibar{display:flex}
 .bar .gap{flex:1}
 .bar button{padding:11px 13px;font-size:.84rem;white-space:nowrap}
 .bar .add{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
@@ -302,6 +306,10 @@ body.hiding .chb p.cp.off{outline-color:rgba(90,103,128,.35)}
   box-shadow:inset 3px 0 0 var(--gold)}
 .chb p.cp.used{opacity:.45}
 .chb p.cp.nextup{box-shadow:inset 3px 0 0 var(--ok)}
+/* קטע שכבר קיים, בזמן שבוחנים אותו. כחול ולא זהב — הזהב שמור
+   לבחירה חדשה, ושני הצבעים חייבים להיקרא במבט אחד. */
+.chb p.cp.insp{background:rgba(30,120,225,.2);opacity:1;
+  box-shadow:inset 3px 0 0 var(--blue)}
 
 /* שני מצבים לאותו מסך: כיול הדף, וסימון הקטעים.
    בסימון צריך לראות את הגמרא ואת החברותא זו לצד זו ולתאם
@@ -481,6 +489,23 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <span class="gap"></span>
   <span class="gh" id="ghint"></span>
   <button class="add" id="addstep2">הוספת הקטע</button>
+</div>
+
+<!-- הפס של קטע שכבר קיים. אותם כפתורי כוונון, ופעולות אחרות:
+     כאן לא מוסיפים קטע אלא משנים אחד. -->
+<div class="bar ibar" id="ibar">
+  <button id="i-close" title="סגירה">✕</button>
+  <span class="fg">התחלה
+    <button data-inudge="start,-1" title="מילה אחורה">▸</button>
+    <button data-inudge="start,1" title="מילה קדימה">◂</button></span>
+  <span class="fg">סוף
+    <button data-inudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-inudge="end,1" title="מילה קדימה">◂</button></span>
+  <span class="gap"></span>
+  <span class="gh" id="ihint"></span>
+  <button id="i-split" title="פיצול הקטע כאן">✂</button>
+  <button id="i-del" title="מחיקת הקטע">🗑</button>
+  <button class="add" id="i-save">שמירה</button>
 </div>
 
 <!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
@@ -1131,8 +1156,13 @@ function allLines(z) {
   return linesIn(D.m, D.w, z.a, z.b, S.bbox[1], S.bbox[3], S.gpitch, !S.simple);
 }
 
-var ADDED = 'rgba(59,125,87,.42)';    /* שורה שנכנסה */
-var GONE  = 'rgba(214,84,61,.42)';    /* שורה שיצאה */
+/* שמות ייחודיים ולא ADDED/GONE: `GONE` כבר שימש בקובץ הזה למפת
+   המפתחות שנמחקו מהגיליון, ושתי הצהרות `var` באותו שם באותו קובץ
+   הן משתנה אחד. ההצהרה המאוחרת ניצחה, הצבע האדום נעשה אובייקט,
+   ו-`fill="[object Object]"` פשוט לא צויר — כלומר ההבהוב של
+   "שורה יצאה" לא נראה מעולם, בשקט. */
+var FL_IN  = 'rgba(59,125,87,.42)';   /* שורה שנכנסה */
+var FL_OUT = 'rgba(214,84,61,.42)';   /* שורה שיצאה */
 function act(a, i) {
   var z = S.zones[i], prev = S.zones[i-1], next = S.zones[i+1];
   if (a === 'rtog') { z.inB = !z.inB; applySides(z); }
@@ -1141,7 +1171,7 @@ function act(a, i) {
     var y = stepLine(z.y0, a === 'up' ? -1 : 1, z, 'start');
     if (y === null) return;
     y = Math.max(S.bbox[1], Math.min(z.y1 - S.gpitch, y));
-    flash(z.y0, y, a === 'up' ? ADDED : GONE);
+    flash(z.y0, y, a === 'up' ? FL_IN : FL_OUT);
     z.y0 = y; if (prev) prev.y1 = y - 1;
     scrollToY(y);
   }
@@ -1157,7 +1187,7 @@ function act(a, i) {
       : (after.length ? after[0][1] : null);
     if (y2 === null) return;              /* אין שורה נוספת — לא זזים */
     y2 = Math.max(z.y0 + S.gpitch, Math.min(S.bbox[3], y2));
-    flash(z.y1, y2, a === 'bdown' ? ADDED : GONE);
+    flash(z.y1, y2, a === 'bdown' ? FL_IN : FL_OUT);
     z.y1 = y2; if (next) next.y0 = y2 + 1;
     scrollToY(y2);
   }
@@ -1761,7 +1791,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.12.0';
+var STUDIO_VER = '7.13.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2058,9 +2088,13 @@ function markDraw() {
          (k % 2 ? '#7FA6D9' : '#17468F') + '" opacity=".85" pointer-events="none"/>';
   });
 
+  /* זהב = בחירה חדשה. כחול = קטע שכבר קיים, ובמכוון אותו כחול
+     של הפס במרזב — שניהם אומרים "זה כבר מסומן". */
+  var selFill = INSP >= 0 ? 'rgba(30,120,225,.34)' : 'rgba(240,150,20,.45)';
+  var selLine = INSP >= 0 ? '#17468F' : '#C08F2B';
   selShapes(GSEL).forEach(function (r) {
     s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
-         '" fill="rgba(240,150,20,.45)" stroke="#C08F2B" stroke-width="2"' +
+         '" fill="' + selFill + '" stroke="' + selLine + '" stroke-width="2"' +
          ' pointer-events="none"/>';
   });
   /* ידיות לכוונון בתוך השורה */
@@ -2123,6 +2157,104 @@ function hand(x, y, h, which) {
    לפניו. סימון ברצף מתנהג בדיוק כמו קודם — שם הקטע האחרון הוא
    ממילא זה שלפני ההקשה — והשלמה באמצע פשוט עובדת: מקישים על סוף
    הקטע החסר, וההתחלה נופלת מעצמה במקום שבו נגמר הקודם לו. */
+/* ============================================================
+   בחינת קטע שכבר סומן.
+
+   הפס במרזב אמר שיש כאן קטע, ולא אמר איזה. כדי לפצל קטע או
+   למשוך את תחילתו מילה אחורה צריך קודם לראות אותו — ובשני
+   הצדדים גם יחד, כי גמרא וחברותא הם שני חצאים של אותו קטע.
+
+   ההקשה שכבר קיימת עושה את זה, ובלי מצב חדש: הקשה על שורה
+   שנמצאת בתוך קטע קיים מציגה אותו; הקשה מעבר לקטע האחרון
+   מתחילה בחירה חדשה, בדיוק כמו קודם. מי שמסמן עמוד ריק עובד
+   תמיד בקצה, ולכן אצלו שום דבר לא השתנה.
+
+   הצבע מבדיל: זהב לבחירה חדשה, כחול לקטע שכבר קיים — אותו כחול
+   של הפס במרזב, כדי ששניהם ייקראו כאותו דבר.
+   ============================================================ */
+var INSP = -1;        /* הקטע שנבחן */
+var INSP_LINE = -1;   /* השורה שהוקשה בתוכו — נקודת הפיצול המוצעת */
+
+/* שורה אחת יכולה להשתייך לשני קטעים, כי נקודת החיתוך יושבת
+   באמצעה. מחזירים את המאוחר — מי שמקיש על שורת גבול מתכוון
+   כמעט תמיד לקטע שממשיך ממנה והלאה, לא לזה שנגמר בה. */
+function stepAt(i) {
+  var found = -1;
+  for (var k = 0; k < STEPS.length; k++) {
+    var g = STEPS[k].g;
+    var a = Math.min(g.from.line, g.to.line), z = Math.max(g.from.line, g.to.line);
+    if (i >= a && i <= z) found = k;
+  }
+  return found;
+}
+function stepAtPara(i) {
+  for (var k = 0; k < STEPS.length; k++) {
+    var c = STEPS[k].c;
+    if (!c || c.from == null) continue;
+    if (i >= c.from && i <= (c.to == null ? c.from : c.to)) return k;
+  }
+  return -1;
+}
+function inspect(k, line) {
+  var st = STEPS[k];
+  if (!st) return;
+  INSP = k;
+  INSP_LINE = line == null ? st.g.from.line : line;
+  GSEL = { a: { i: st.g.from.line, x: st.g.from.x },
+           b: { i: st.g.to.line,   x: st.g.to.x } };
+  CSEL_P = (st.c && st.c.from != null)
+    ? { a: st.c.from, b: st.c.to == null ? st.c.from : st.c.to } : null;
+  document.body.classList.add('insp');
+  markDraw(); paintChav(1); markPanel(); zoomToSel();
+}
+function inspEnd() {
+  INSP = -1; INSP_LINE = -1; GSEL = null; CSEL_P = null;
+  document.body.classList.remove('insp');
+  markDraw(); paintChav(); markPanel();
+}
+/* השינויים שנעשו בידיות ובחצים נכתבים חזרה לקטע, והטקסט של
+   החברותא נבנה מחדש — `seal` עשוי להזיז גבול, ואז טקסט ישן
+   כבר אינו תואם לטווח. */
+function inspSave() {
+  if (INSP < 0 || !STEPS[INSP] || !GSEL) return;
+  var st = STEPS[INSP];
+  var f = GSEL.a.i <= GSEL.b.i ? GSEL.a : GSEL.b;
+  var t = GSEL.a.i <= GSEL.b.i ? GSEL.b : GSEL.a;
+
+  /* **התחלה של קטע היא הסוף של הקודם לו — נקודה אחת ולא שתיים.**
+     בלי לכתוב אותה גם שם, `seal` היה מחזיר אותה למקומה מיד:
+     הוא אוכף `from = prev.to`, וההזזה נראתה כאילו לא קרתה. */
+  var prev = STEPS[INSP - 1];
+  if (prev && (prev.g.to.line !== f.i || Math.abs(prev.g.to.x - f.x) > 1e-6))
+    prev.g.to = { line: f.i, x: f.x };
+
+  st.g = { from: { line: f.i, x: f.x }, to: { line: t.i, x: t.x } };
+  if (CSEL_P) {
+    st.c = st.c || {};
+    st.c.from = Math.min(CSEL_P.a, CSEL_P.b);
+    st.c.to   = Math.max(CSEL_P.a, CSEL_P.b);
+    var r = chavRange(st.c.from, st.c.to);
+    if (r) { st.c.text = r.text; st.c.h = r.h; }
+  }
+  seal();
+  touched();
+  say('הקטע עודכן.');
+  inspEnd();
+}
+/* פיצול: יוצאים מהבחינה אל הזרימה הרגילה, כשהבחירה כבר מתוחה
+   מתחילת הקטע ועד השורה שהוקשה. משם זו אותה עבודה כמו תמיד —
+   בוחרים פסקה בחברותא ומוסיפים, ו-`seal` דוחף את הגבול. */
+function inspSplit() {
+  if (INSP < 0 || !STEPS[INSP]) return;
+  var st = STEPS[INSP], line = INSP_LINE;
+  INSP = -1; INSP_LINE = -1;
+  document.body.classList.remove('insp');
+  GSEL = { a: { i: st.g.from.line, x: st.g.from.x }, b: { i: line, x: 1 } };
+  CSEL_P = null;
+  markDraw(); paintChav(1); markPanel();
+  say('בחרו בחברותא היכן הקטע הראשון נגמר, והוסיפו.');
+}
+
 function startBefore(i) {
   var best = null;
   STEPS.forEach(function (st) {
@@ -2151,6 +2283,14 @@ function pickLine(i, longPress) {
 
      `st.i > i` נשאר: שם הקטע הקודם נגמר בדיוק בסוף השורה
      שהוקשה, ואין מה לפצל בה. */
+  /* הקשה בתוך קטע שכבר קיים מציגה אותו במקום לפצל אותו מיד.
+     הפיצול נשאר, והוא עכשיו לחיצה מודעת ולא תוצר לוואי של
+     הקשה. הקשה ארוכה עוקפת הכל ומתחילה בחירה חדשה. */
+  if (!longPress) {
+    var k = stepAt(i);
+    if (k >= 0) { inspect(k, i); return; }
+  }
+  if (INSP >= 0) inspEnd();
   if (longPress || st.i > i) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
   else { GSEL = { a: { i: st.i, x: st.x }, b: { i: i, x: 1 } }; }
   markDraw();
@@ -2197,6 +2337,19 @@ function bindMarkHandles() {
 }
 
 function markPanel() {
+  /* הפס של קטע קיים מדבר על עצמו, ואינו מציע "הוספה" */
+  var ih = document.getElementById('ihint');
+  var sNudge = document.querySelectorAll('[data-inudge^="start"]');
+  [].forEach.call(sNudge, function (btn) { btn.disabled = INSP <= 0; });
+  if (ih && INSP >= 0 && STEPS[INSP]) {
+    var ist = STEPS[INSP], ic = ist.c || {};
+    ih.textContent = 'קטע ' + (INSP + 1) + ' · שורות ' +
+      (Math.min(ist.g.from.line, ist.g.to.line) + 1) + '–' +
+      (Math.max(ist.g.from.line, ist.g.to.line) + 1) +
+      (ic.from != null ? ' · פסקה ' + (ic.from + 1) +
+        (ic.to > ic.from ? '–' + (ic.to + 1) : '') : '');
+  }
+
   var g = GSEL ? (Math.min(GSEL.a.i, GSEL.b.i) + 1) + '–' + (Math.max(GSEL.a.i, GSEL.b.i) + 1) : null;
   var c = CSEL_P ? (CSEL_P.a + 1) + (CSEL_P.b > CSEL_P.a ? '–' + (CSEL_P.b + 1) : '') : null;
   var ready = !!(GSEL && CSEL_P);
@@ -3057,6 +3210,12 @@ function chavBind() {
   });
 }
 function pickPara(i) {
+  /* פסקה ששובצה כבר מציגה את הקטע שלה — אותה התנהגות כמו בגמרא,
+     כי זה אותו קטע משני צדדיו. */
+  if (INSP < 0) {
+    var k = stepAtPara(i);
+    if (k >= 0) { inspect(k, null); return; }
+  }
   /* הקטע ממשיך מהמקום שהקודם נגמר, ולכן די בהקשה על הסוף.
      הקשה על פסקה שכבר בתוך הבחירה מבטלת. */
   if (CSEL_P && i >= CSEL_P.a && i <= CSEL_P.b && CSEL_P.b > CSEL_P.a) {
@@ -3115,8 +3274,10 @@ function seeGem() {
 function paintChav(scroll) {
   [].forEach.call(document.querySelectorAll('#chb p.cp'), function (el) {
     var i = +el.dataset.p;
-    el.classList.toggle('hot', !!CSEL_P && i >= CSEL_P.a && i <= CSEL_P.b);
-    el.classList.toggle('used', i <= USED_C);
+    var inSel = !!CSEL_P && i >= Math.min(CSEL_P.a, CSEL_P.b) && i <= Math.max(CSEL_P.a, CSEL_P.b);
+    el.classList.toggle('hot',  inSel && INSP < 0);
+    el.classList.toggle('insp', inSel && INSP >= 0);
+    el.classList.toggle('used', i <= USED_C && !inSel);
     el.classList.toggle('nextup', !CSEL_P && i === USED_C + 1);
   });
   if (scroll) seeChav();
@@ -3488,6 +3649,22 @@ window.addEventListener('beforeunload', function (e) {
 document.getElementById('undo').onclick = function () {
   if (STEPS.length) removeStep(STEPS.length - 1);
 };
+/* פס הקטע הקיים */
+[].forEach.call(document.querySelectorAll('[data-inudge]'), function (b) {
+  var p = b.dataset.inudge.split(',');
+  b.onclick = function () { nudge(p[0], +p[1]); markPanel(); };
+});
+document.getElementById('i-close').onclick = function () { inspEnd(); };
+document.getElementById('i-save').onclick  = function () { inspSave(); };
+document.getElementById('i-split').onclick = function () { inspSplit(); };
+document.getElementById('i-del').onclick   = function () {
+  if (INSP < 0) return;
+  var k = INSP;
+  inspEnd();
+  removeStep(k);
+  say('הקטע נמחק · הוא אוחד עם הקטע שלפניו.');
+};
+
 [].forEach.call(document.querySelectorAll('[data-nudge]'), function (b) {
   b.onclick = function () {
     var a = b.dataset.nudge.split(',');

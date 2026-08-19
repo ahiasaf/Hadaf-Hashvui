@@ -67,6 +67,37 @@ def check_version():
                   % list(found.values())[0])
 
 
+def check_dupe_vars():
+    """שני `var` באותו שם באותו קובץ — משתנה אחד, וזה תמיד באג.
+
+    קרה בפועל: `GONE` היה צבע ההבהוב של "שורה יצאה", ומאוחר יותר
+    נוספה בשם הזה גם מפת המפתחות שנמחקו מהגיליון. ההצהרה השנייה
+    ניצחה, הצבע נעשה אובייקט, ו-fill="[object Object]" פשוט לא
+    צויר. שום שגיאה, שום סימן — פשוט הבהוב שלא הופיע.
+
+    נבדקות רק הצהרות בעמודה הראשונה. `var` בתוך פונקציה הוא
+    מקומי, וחזרה עליו לגיטימית.
+    """
+    for f in ('index.html', 'studio.html', 'learn.html', 'join.html'):
+        path = os.path.join(ROOT, f)
+        if not os.path.exists(path):
+            continue
+        seen, dupes = {}, []
+        for i, line in enumerate(read(f).split('\n'), 1):
+            m = re.match(r'var ([A-Za-z_$][\w$]*)\s*=', line)
+            if not m:
+                continue
+            name = m.group(1)
+            if name in seen:
+                dupes.append('%s (שורות %d ו-%d)' % (name, seen[name], i))
+            else:
+                seen[name] = i
+        if dupes:
+            BAD.append('%s — שם מוצהר פעמיים: %s' % (f, ' · '.join(dupes)))
+        else:
+            OK.append('%s — אין שמות כפולים (%d משתנים)' % (f, len(seen)))
+
+
 def check_decks():
     """כל מצגת שמוגדרת ב-data.js — הקבצים שלה באמת שם.
 
@@ -161,7 +192,8 @@ def check_calendar():
 
 
 def main():
-    for fn in (check_version, check_decks, check_daf_index, check_calendar):
+    for fn in (check_version, check_dupe_vars, check_decks, check_daf_index,
+               check_calendar):
         try:
             fn()
         except Exception as e:                # noqa: BLE001
