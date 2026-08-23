@@ -311,7 +311,12 @@ body{background:var(--paper);
 .sizebox .ctl input{width:62px;text-align:center;font-size:1.15rem;font-weight:800;
   padding:8px 2px;border-radius:10px}
 .sizebox .unit{font-size:.76rem;color:var(--ink-3);font-weight:700;margin-top:5px}
-.sizebox .hint{grid-column:1/-1;margin:7px 0 0;font-size:.79rem;color:var(--ink-3);
+/* היעד הארצי — קו מפריד מעליו, כדי שייקרא כהקשר ולא כהמשך
+   של השאלה. במשקל מלא: זה המספר שאמור להשפיע על המספר שמעליו. */
+.sizebox .aim{grid-column:1/-1;margin:11px 0 0;padding-top:10px;
+  border-top:1px solid var(--rule-2);
+  font-size:.87rem;color:var(--ink);font-weight:800;line-height:1.5}
+.sizebox .hint{grid-column:1/-1;margin:5px 0 0;font-size:.79rem;color:var(--ink-3);
   font-weight:600;line-height:1.6}
 
 /* ---------- עריכה על המסך ---------- */
@@ -751,6 +756,28 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   .fit li i{width:52px;height:52px}.fit li svg{width:31px;height:31px}}
 /* בלי אנימציות — עדיין חייבים להיראות */
 @media (prefers-reduced-motion:reduce){.fit li{opacity:1}}
+/* ---------- הקישור שראש החטיבה מקבל בסיום ההרשמה ----------
+   קופסה ולא שורה: זה לא אישור אלא כלי, והוא צריך להיראות כמו
+   דבר שלוקחים איתו. הכתובת עצמה מוצגת במלואה — ראש חטיבה
+   שמעביר קישור לקבוצת הורים רוצה לראות לאן הוא שולח. */
+.linkbox{margin-top:14px;background:var(--surface);border-radius:var(--r-m);
+  padding:15px 16px;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
+.linkbox>b{display:block;font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.linkbox>p{margin:7px 0 0;font-size:.82rem;color:var(--ink-3);
+  font-weight:600;line-height:1.6}
+.linkbox .url{margin-top:12px;background:var(--sunk);border-radius:10px;
+  padding:9px 11px;font-size:.78rem;font-weight:700;color:var(--ink-2);
+  direction:ltr;text-align:left;overflow-wrap:anywhere;line-height:1.5}
+.linkbox .acts{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px;
+  align-items:stretch}
+.linkbox .acts .btn{margin:0}
+.cp{border:none;border-radius:var(--r-s);background:var(--sunk);
+  color:var(--ink-2);font-weight:800;font-size:.84rem;padding:9px 15px;cursor:pointer;
+  font-family:inherit;white-space:nowrap}
+.cp:active{transform:scale(.96)}
+.linkbox .cp{padding:0 15px}
+@media (max-width:359px){.linkbox .acts{grid-template-columns:1fr}}
+
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
   margin-bottom:14px}
@@ -1119,7 +1146,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.13.1';
+var APP_VERSION = '7.14.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1478,6 +1505,10 @@ function renderReg() {
              esc(UI.savedGo) + '</a> · ' +
              '<a href="#" onclick="regReset();return false">' +
              esc(UI.savedNew) + '</a></p>' : '') +
+    /* מי שכבר נרשם וחזר — בא בדרך כלל בשביל הקישור, לא בשביל
+       הטופס. הודעת וואטסאפ נמחקת, נקברת בקבוצה, מתחלף טלפון;
+       הקישור חייב להיות מקום שאפשר לחזור אליו. */
+    (saved ? linkBlock(UI.linkAgain) : '') +
 
     '<div class="step-n"><i>1</i><b>' + esc(UI.s2) + '</b></div>' +
     (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + '</p>' : '') +
@@ -1646,6 +1677,7 @@ function sizeRow() {
     '" onchange="sizeSet(this.value)">' +
     '<button onclick="sizeStep(5)">+</button></div>' +
     '<div class="unit">' + esc(UI.sizeUnit) + '</div></div>' +
+    (UI.sizeAim ? '<p class="aim">' + esc(UI.sizeAim) + '</p>' : '') +
     '<p class="hint">' + esc(UI.sizeHint) + '</p></div>';
 }
 function sizeSet(v) { reg.size = Math.max(0, parseInt(v, 10) || 0); renderReg(); }
@@ -1741,6 +1773,76 @@ function regCols(name, total, summary) {
   return cols;
 }
 
+/* ============================================================
+   הקישור שראש החטיבה שולח לתלמידים ולהורים.
+   ============================================================
+   `join.html?inst=<קוד>` — הקוד הוא מה שגורם לכל מי שנרשם דרכו
+   להיספר לישיבה הזאת, בלי שהוא בוחר ובלי שהוא טועה.
+
+   הקישור מופיע **אחרי** ההרשמה ולא לפניה, וזו החלטה ולא סדר
+   מקרי: כך ההרשמה מפסיקה להיות טופס והופכת להתחלה — הוא שולח
+   מספר, ומיד חוזר אליו הכלי שיהפוך את המספר לאמיתי. וגם: אין
+   קישור לישיבה שלא נרשמה, ולכן הרשימה נשארת נקייה.
+
+   ומה שנשלח אינו קישור אלא הודעה כתובה. ראש חטיבה לא ינסח
+   בעצמו פנייה לקבוצת הורים בשעה אחת עשרה בלילה; הוא כן ילחץ
+   על כפתור שפותח וואטסאפ עם הכל מוכן. */
+function joinUrl(code) {
+  var base = location.href.split('#')[0].split('?')[0]
+                  .replace(/(index\.html)?$/, '')
+                  .replace(/\/admin\/?$/, '/');
+  return base + 'join.html?inst=' + encodeURIComponent(code);
+}
+
+/* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
+   ואז אין קישור, כי אין למי לספור. */
+function joinCode() {
+  return reg.inst && reg.inst !== 'other' ? reg.inst : '';
+}
+
+function linkBlock(title) {
+  var code = joinCode();
+  if (!code) return '';
+  var name = (INSTITUTIONS.filter(function (i) { return i.code === code; })[0] || {}).name || '';
+  var url  = joinUrl(code);
+  var wa   = fill(UI.linkWa, { inst:name, url:url });
+  return '<div class="linkbox">' +
+    '<b>' + esc(fill(title, { inst:name })) + '</b>' +
+    '<p>' + esc(UI.linkNote) + '</p>' +
+    '<div class="url">' + esc(url) + '</div>' +
+    '<div class="acts">' +
+      '<a class="btn gr" href="https://wa.me/?text=' + encodeURIComponent(wa) + '" ' +
+         'target="_blank" rel="noopener">' + esc(UI.linkWaBtn) + '</a>' +
+      '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' +
+        esc(UI.linkCopy) + '</button>' +
+    '</div></div>';
+}
+
+/* העתקה. `navigator.clipboard` אינו קיים בהקשר לא־מאובטח ובחלק
+   מהדפדפנים המוטמעים, ולכן יש נפילה לשדה זמני — אחרת הכפתור
+   פשוט לא עושה כלום, בלי שום סימן. */
+function copyJoin(btn, code) {
+  code = code || joinCode(); if (!code) return;
+  var url = joinUrl(code);
+  var mark = function () {
+    var was = btn.textContent;
+    btn.textContent = UI.linkCopied;
+    setTimeout(function () { btn.textContent = was; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(mark).catch(function () { legacyCopy(url, mark); });
+  } else legacyCopy(url, mark);
+}
+function legacyCopy(txt, done) {
+  var t = document.createElement('textarea');
+  t.value = txt; t.setAttribute('readonly', '');
+  t.style.cssText = 'position:fixed;top:-999px;opacity:0';
+  document.body.appendChild(t);
+  t.select(); t.setSelectionRange(0, txt.length);
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(t);
+}
+
 function regDone(txt, viaWa) {
   document.getElementById('r-done').innerHTML =
     '<div class="done-box" style="margin-top:14px">' +
@@ -1748,7 +1850,9 @@ function regDone(txt, viaWa) {
     (viaWa ? '<div style="text-align:center;margin-top:11px">' +
              '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' +
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
-             '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '');
+             '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
+    /* הכלי, מיד אחרי האישור. */
+    linkBlock(UI.linkTitle);
   renderHome();
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'center' });
 }
@@ -3304,6 +3408,23 @@ function admInst(el) {
     '<div class="sub">הבטחה למה שעוד לא קיים</div></div>' +
     '<button class="sw' + (CFG_SOON() ? ' on' : '') +
     '" onclick="soonToggle()" aria-label="בקרוב"></button></div></div>' +
+
+    /* הקישורים, לכל המוסדות. ראש חטיבה שנרשם מקבל את שלו במסך
+       ההרשמה; מי שנרשם בטלפון לא מקבל כלום, וזה המקום שממנו
+       אפשר לשלוח לו אותו ביד. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>קישורי ההצטרפות</h4>' +
+    '<p class="h">קישור לכל מוסד. מי שנכנס דרכו נספר אליו. ' +
+    'שלחו לראש החטיבה שיפיץ לכיתות ולהורים.</p>' +
+    INSTITUTIONS.map(function (i) {
+      var wa = fill(UI.linkWa, { inst:i.name, url:joinUrl(i.code) });
+      return '<div class="row"><div>' + esc(i.name) +
+        '<div class="sub" style="direction:ltr;text-align:start">?inst=' + esc(i.code) + '</div></div>' +
+        '<div style="display:flex;gap:7px;flex:0 0 auto">' +
+        '<a class="cp" style="display:flex;align-items:center;text-decoration:none" ' +
+        'href="https://wa.me/?text=' + encodeURIComponent(wa) + '" target="_blank" rel="noopener">וואטסאפ</a>' +
+        '<button class="cp" onclick="copyJoin(this,\'' + i.code + '\')">העתקה</button>' +
+        '</div></div>';
+    }).join('') + '</div>' +
 
     '<div class="adm-card"><h4>מי מופיע כ"בפנים"</h4>' +
     '<p class="h">המתג קובע מה נראה בעמוד הראשי ובעיגול המונה, ' +
