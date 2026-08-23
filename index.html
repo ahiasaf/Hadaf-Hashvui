@@ -1119,7 +1119,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.13.0';
+var APP_VERSION = '7.13.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4204,6 +4204,13 @@ function applyUpdate() {
 function showUpdateBar(w) { newWorker = w; document.getElementById('upd').className = 'on'; }
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
+  /* האם כבר היה עובד־שירות שולט ברגע שהעמוד עלה?
+     בביקור הראשון אין — הוא נרשם עכשיו, מסיים להתקין, ולוקח
+     שליטה מעצמו (clients.claim). זה מפעיל controllerchange,
+     והרענון שלמטה טען את העמוד מחדש — ולכן מסך הפתיחה הופיע,
+     נעלם, וחזר שוב. השתלטות ראשונה אינה גרסה חדשה; רק החלפה
+     של עובד קיים היא. */
+  var hadWorker = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').then(function (reg) {
     reg.update();
     setInterval(function () { reg.update(); }, 3600000);
@@ -4217,7 +4224,7 @@ function registerSW() {
     });
   }).catch(function () {});
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (refreshing) return;
+    if (!hadWorker || refreshing) return;
     refreshing = true;
     location.reload();
   });
