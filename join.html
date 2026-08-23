@@ -152,7 +152,9 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
     <div class="two">
       <div class="fld"><div class="label">שכבה</div>
         <select id="grade"></select></div>
-      <div class="fld"><div class="label">טלפון <i>· לא חובה</i></div>
+      <!-- חובה. זה הערוץ היחיד שדרכו אפשר להודיע לזוכה בהגרלה,
+           ובלעדיו הזכייה שלו פשוט לא מגיעה אליו. -->
+      <div class="fld"><div class="label">טלפון</div>
         <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
     </div>
   </div>
@@ -180,8 +182,8 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 
   <button class="btn" id="go">מצטרף ללימוד</button>
   <div class="err" id="err"></div>
-  <p class="note">הפרטים נשמרים אצל רכז התוכנית בלבד,
-    ומשמשים כדי לספור את הלימוד ולעדכן את ההורים.</p>
+  <p class="note">הפרטים נשמרים אצל רכז התוכנית בלבד, ומשמשים כדי
+    לספור את הלימוד, לעדכן את ההורים, ולהודיע לזוכים בהגרלה.</p>
 </div>
 
 <div class="wrap" id="done">
@@ -329,9 +331,16 @@ $('go').onclick = function () {
   })();
   var grade = val('grade');
 
-  /* מה שחייבים, ולא יותר. שכבה וטלפון אינם עוצרים אף אחד. */
+  /* מה שחייבים, ולא יותר. שכבה אינה עוצרת אף אחד; טלפון כן —
+     בלעדיו אין איך להודיע לזוכה בהגרלה שהוא זכה.
+
+     הבדיקה רופפת בכוונה: ספרות, ולפחות תשע. מספר עם מקף, עם
+     רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
+     אותו מרחיק תלמיד בגלל צורת כתיבה. */
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה.');
+  if ((val('phone').match(/\d/g) || []).length < 9)
+    return say('צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
   if (!way)            return say('צריך לבחור איך אתה לומד.');
   if (way === 'dad' && !val('dad-first'))
     return say('צריך את שמו הפרטי של אבא.');

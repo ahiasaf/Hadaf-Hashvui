@@ -1146,7 +1146,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.14.0';
+var APP_VERSION = '7.15.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3213,9 +3213,9 @@ function loadContactsFromSheet() {
 var admTab = 'reg';
 
 function renderAdmin() {
-  var TABS = [['reg','הרשמות'],['inst','מוסדות'],['calls','שיחות'],
-              ['text','טקסטים'],['price','מחירים'],['sugya','הסוגיה'],
-              ['set','הגדרות']];
+  var TABS = [['reg','הרשמות'],['part','משתתפים'],['inst','מוסדות'],
+              ['calls','שיחות'],['text','טקסטים'],['price','מחירים'],
+              ['sugya','הסוגיה'],['set','הגדרות']];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -3284,6 +3284,7 @@ function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
   if (admTab === 'reg')   return admReg(el);
+  if (admTab === 'part')  return admPart(el);
   if (admTab === 'inst')  return admInst(el);
   if (admTab === 'calls') {
     el.innerHTML = '<div id="calls-body"></div>';
@@ -3296,6 +3297,137 @@ function admPane() {
   if (admTab === 'price') return admPrice(el);
   if (admTab === 'sugya') return admSugya(el);
   if (admTab === 'set')   { admSet(el); return admInstallBox(); }
+}
+
+/* ============================================================
+   משתתפים — מי נרשם בפועל, לפי ישיבה.
+   ============================================================
+   שני מספרים שונים חיים זה לצד זה: בלשונית "הרשמות" יושב מה
+   שראש החטיבה **העריך**, וכאן מי שבאמת נרשם. הם לא יסתדרו, וזה
+   בסדר — הפער הוא בדיוק השיחה שכדאי לנהל איתו.
+
+   הרשימה נקראת דרך הסקריפט ולא ישירות מהגיליון: היא יושבת
+   בגיליון סגור שאינו משותף לאיש, ודפדפן אינו יכול לקרוא ממנו.
+   הסקריפט רץ בחשבון של הרכז, ולכן הוא היחיד שיכול — ולכן הוא
+   גם המקום שבו נבדקת סיסמת הקריאה. */
+var JOIN_TAB = 'לומדים';
+
+/* מתי נקראה הרשימה. "לפני שעתיים" עונה על השאלה שנשאלת בפועל —
+   האם מה שמולי עדכני — ותאריך מלא מחייב לחשב את זה בראש. */
+function whenTxt(t) {
+  var m = Math.round((Date.now() - t) / 60000);
+  if (m < 2)   return 'עכשיו';
+  if (m < 60)  return 'לפני ' + m + ' דקות';
+  var h = Math.round(m / 60);
+  if (h < 24)  return 'לפני ' + h + (h === 1 ? ' שעה' : ' שעות');
+  var d = Math.round(h / 24);
+  return 'לפני ' + d + (d === 1 ? ' יום' : ' ימים');
+}
+var partState = { at:0, msg:'' };
+
+/* שם עמודה → מפתח. הקריאה לפי שם ולא לפי מיקום: עמודה שתתווסף
+   בעתיד תזיז את כל השאר, ורשימה שנקראת לפי מיקום הייתה מציגה
+   טלפונים בעמודת השכבה בלי שאיש ישים לב. */
+var PART_COLS = { 'מזהה':'id', 'ישיבה':'instName', 'קוד ישיבה':'inst',
+                  'שם':'first', 'משפחה':'last', 'שכבה':'grade',
+                  'טלפון':'phone', 'מסגרת':'way',
+                  'שם ההורה':'dadFirst', 'משפחת ההורה':'dadLast',
+                  'טלפון ההורה':'dadPhone' };
+
+function partParse(rows) {
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0].map(function (h) { return PART_COLS[String(h || '').trim()] || ''; });
+  var byId = {}, order = [];
+  rows.slice(1).forEach(function (r) {
+    var o = {};
+    for (var i = 0; i < head.length; i++) if (head[i]) o[head[i]] = String(r[i] == null ? '' : r[i]).trim();
+    if (!o.first && !o.last) return;                 /* שורה ריקה */
+    /* תלמיד שתיקן את פרטיו שלח שורה נוספת עם אותו מזהה.
+       האחרונה היא הנכונה, והראשונה אינה אמורה להיספר פעמיים. */
+    var k = o.id || (o.inst + '|' + o.first + '|' + o.last);
+    if (!(k in byId)) order.push(k);
+    byId[k] = o;
+  });
+  return order.map(function (k) { return byId[k]; });
+}
+
+function partLoad() {
+  partState.msg = 'טוען…'; admPane();
+  var key = (CFG.readKey || '').trim();
+  if (!key) { partState.msg = 'nokey'; admPane(); return Promise.resolve(false); }
+  return scriptGet({ read:JOIN_TAB, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      partState.msg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    Store.set('partCache', partParse(d.rows));
+    partState.at = Date.now(); partState.msg = '';
+    Store.set('partAt', partState.at);
+    admPane(); return true;
+  }).catch(function () {
+    partState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+
+var WAY_LBL = { 'אבות ובנים':'אב ובן', 'חבורת לימוד':'חבורה', 'לימוד עצמי':'לבד' };
+
+function admPart(el) {
+  var list = Store.get('partCache', []) || [];
+  var at = Store.get('partAt', 0);
+  var btn = '<button class="btn g" onclick="partLoad()" style="margin-top:10px">' +
+            (list.length ? 'רענון מהגיליון' : 'טעינה מהגיליון') + '</button>';
+
+  if (partState.msg === 'nokey') {
+    el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
+      '<p class="h">רשימת התלמידים יושבת בגיליון סגור, והסקריפט לא ימסור ' +
+      'אותה בלי סיסמה — אחרת כל אחד היה יכול לקרוא אותה. ' +
+      'הדביקו בהגדרות ← "סיסמת הקריאה" את אותה מחרוזת שכתובה ' +
+      'ב-Apps Script בשורת <code>READ_KEY</code>.</p>' +
+      '<button class="btn p" onclick="admGo(\'set\')">למסך ההגדרות</button></div>';
+    return;
+  }
+
+  /* סיכום קודם ופירוט אחריו: המספרים הם מה שמסתכלים עליהם כל
+     יום, והשמות הם מה שמחפשים בהם פעם בשבוע. */
+  var ways = {}, byInst = {}, instOrder = [];
+  list.forEach(function (p) {
+    ways[p.way] = (ways[p.way] || 0) + 1;
+    var k = p.instName || 'ללא ישיבה';
+    if (!byInst[k]) { byInst[k] = []; instOrder.push(k); }
+    byInst[k].push(p);
+  });
+  instOrder.sort(function (a, b) { return byInst[b].length - byInst[a].length; });
+
+  var head = '<div class="adm-card" style="margin-bottom:11px"><h4>' +
+    (list.length ? list.length + ' לומדים · ' + instOrder.length + ' ישיבות'
+                 : 'אין עדיין משתתפים') + '</h4>' +
+    (list.length
+      ? Object.keys(ways).map(function (w) {
+          return '<div class="row" style="padding:7px 0"><span>' +
+            esc(WAY_LBL[w] || w || 'לא צוין') + '</span><b>' + ways[w] + '</b></div>';
+        }).join('')
+      : '<p class="h">כל מי שנרשם דרך קישור ההצטרפות יופיע כאן. ' +
+        'הרשימה נקראת מהגיליון הפרטי ואינה גלויה לאיש מלבדכם.</p>') +
+    (partState.msg ? '<div class="cond" style="margin-top:10px">' +
+                     esc(partState.msg) + '</div>' : '') +
+    btn +
+    (at ? '<p class="h" style="margin-top:8px">עודכן ' + esc(whenTxt(at)) + '</p>' : '') +
+    '</div>';
+
+  el.innerHTML = head + instOrder.map(function (k) {
+    return '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(k) +
+      ' · ' + byInst[k].length + '</h4>' +
+      byInst[k].map(function (p) {
+        var sub = [p.grade, WAY_LBL[p.way] || p.way].filter(Boolean).join(' · ');
+        var dad = p.dadFirst ? (p.dadFirst + ' ' + (p.dadLast || '')).trim() +
+                  (p.dadPhone ? ' · ' + p.dadPhone : '') : '';
+        return '<div class="row"><div>' + esc((p.first + ' ' + p.last).trim()) +
+          '<div class="sub">' + esc(sub) + (dad ? ' · עם ' + esc(dad) : '') + '</div></div>' +
+          (p.phone ? '<a class="cp" style="text-decoration:none;direction:ltr" href="tel:' +
+                     esc(p.phone) + '">' + esc(p.phone) + '</a>' : '') +
+          '</div>';
+      }).join('') + '</div>';
+  }).join('');
 }
 
 /* ---- הרשמות שהתקבלו ---- */
@@ -3803,7 +3935,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 7;
+var SCRIPT_MIN = 8;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -3857,9 +3989,13 @@ function admPing() {
             'וטלפונים של הורים ייכתבו לגיליון שמשותף לצפייה.<br>' +
             'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.');
       } else {
-        say('done-box', 'החיבור תקין · גרסה ' + v +
+        say(d.readKeyOn ? 'done-box' : 'cond', 'החיבור תקין · גרסה ' + v +
             (d.sheet ? '<br>גיליון: ' + esc(d.sheet) : '') +
             '<br>הגיליון הפרטי מוגדר ✓' +
+            (d.readKeyOn ? '<br>סיסמת הקריאה מוגדרת ✓'
+                         : '<br><b>אבל אין סיסמת קריאה.</b> מסך המשתתפים ' +
+                           'יישאר ריק.<br>ב-Apps Script, בראש הקובץ: ' +
+                           '<code>READ_KEY</code>.') +
             '<br>לשוניות: ' + tabs);
       }
     })
@@ -4027,6 +4163,17 @@ function admSet(el) {
     '<div class="fld"><div class="label">שם הלשונית</div>' +
     '<input type="text" value="' + esc(CFG.contactsTab || 'גיליון1') +
     '" onchange="cfgSet(\'contactsTab\',this.value.trim())"></div></div>' +
+
+    /* סיסמת הקריאה. לא נכנסת ל-PUB_KEYS ולכן אינה מתפרסמת —
+       היא כל מה שמפריד בין רשימת התלמידים לבין העולם. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>סיסמת הקריאה</h4>' +
+    '<p class="h">אותה מחרוזת שכתובה ב-Apps Script בשורת ' +
+    '<code>READ_KEY</code>. בלעדיה מסך המשתתפים יישאר ריק — ובלעדיה ' +
+    'גם אף אחד אחר אינו יכול לקרוא את רשימת התלמידים. נשמרת על ' +
+    'המכשיר הזה בלבד ואינה מתפרסמת.</p>' +
+    '<div class="fld"><input type="text" dir="ltr" ' +
+    'placeholder="נשמר על המכשיר בלבד" value="' + esc(CFG.readKey || '') +
+    '" onchange="cfgSet(\'readKey\',this.value.trim())"></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>קוד הכניסה לניהול</h4>' +
     '<p class="h">ארבע ספרות. שמור אותו — בלעדיו אין כניסה למסך הזה.</p>' +

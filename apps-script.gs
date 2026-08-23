@@ -72,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 7;
+var SCRIPT_VERSION = 8;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -100,6 +100,24 @@ var PRIVATE_ID = '';
 
 /* לשוניות שיש בהן פרטים אישיים. אלה נכתבות לגיליון הפרטי. */
 var PRIVATE_TABS = ['לומדים'];
+
+/* ============================================================
+   סיסמת הקריאה — מלאו כאן פעם אחת, ואותו דבר בניהול ← הגדרות.
+   ============================================================
+   בלי זה הגיליון הפרטי אינו שווה דבר. כתובת הסקריפט יושבת
+   בקוד של האפליקציה, כלומר כל אחד יכול לפתוח אותה; אם קריאה
+   של לשונית פרטית תעבוד בלי סיסמה, רשימת השמות והטלפונים
+   רחוקה כתובת אחת מכל אדם בעולם — בדיוק מה שהגיליון הפרטי בא
+   למנוע.
+
+   כתבו כאן כל מחרוזת שתרצו, ארוכה ואקראית ככל האפשר, והדביקו
+   את אותה מחרוזת בניהול ← הגדרות ← "סיסמת הקריאה". היא נשמרת
+   על המכשיר שלכם בלבד ואינה מתפרסמת לאיש.
+
+   ריק = קריאה של לשונית פרטית נדחית תמיד. זו ברירת המחדל
+   הבטוחה: עדיף שמסך המשתתפים יהיה ריק מאשר שהרשימה תהיה
+   פתוחה. כתיבה אינה מושפעת — תלמיד ממשיך להירשם כרגיל. */
+var READ_KEY = '';
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -193,12 +211,27 @@ function doGet(e) {
      getDisplayValues ולא getValues: מספר טלפון שמתחיל באפס הוא
      מספר בעיני הגיליון, ו-getValues היה מחזיר 527997944. */
   if (e && e.parameter && e.parameter.read) {
-    var rd;
+    var want = String(e.parameter.read), rd;
+
+    /* לשונית פרטית — רק עם הסיסמה, ורק אם נקבעה סיסמה בכלל.
+       הבדיקה כאן ולא אצל הקורא: מה שמגן על הרשימה חייב לרוץ
+       בצד שאיש אינו יכול לשנות. */
+    if (PRIVATE_TABS.indexOf(want) >= 0 &&
+        (!READ_KEY || String((e.parameter.key || '')) !== READ_KEY)) {
+      return reply_(e, { status: 'error', tab: want,
+        message: READ_KEY ? 'סיסמת קריאה שגויה'
+                          : 'לא נקבעה סיסמת קריאה בסקריפט (READ_KEY)' });
+    }
+
     try {
-      var book = e.parameter.ss ? SpreadsheetApp.openById(String(e.parameter.ss))
-                                : SpreadsheetApp.getActiveSpreadsheet();
-      var tab = book.getSheetByName(String(e.parameter.read));
-      rd = { status: 'ok', tab: String(e.parameter.read),
+      /* אותו ניתוב של הכתיבה: לשונית פרטית נקראת מהגיליון
+         הפרטי, בלי שהקורא יידע את המזהה שלו. */
+      var pid = PRIVATE_TABS.indexOf(want) >= 0 ? PRIVATE_ID : '';
+      var id  = e.parameter.ss || pid;
+      var book = id ? SpreadsheetApp.openById(String(id))
+                    : SpreadsheetApp.getActiveSpreadsheet();
+      var tab = book.getSheetByName(want);
+      rd = { status: 'ok', tab: want,
              rows: tab && tab.getLastRow() ? tab.getDataRange().getDisplayValues() : [] };
     } catch (err) {
       rd = { status: 'error', message: String(err) };
@@ -211,7 +244,7 @@ function doGet(e) {
      ייכתב לגיליון שמשותף לצפייה — ובלי הדיווח הזה איש לא היה
      יודע, כי הכתיבה מצליחה בשני המקרים. */
   var out = { status: 'ok', version: SCRIPT_VERSION, tabs: [],
-              privateOn: !!PRIVATE_ID };
+              privateOn: !!PRIVATE_ID, readKeyOn: !!READ_KEY };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
