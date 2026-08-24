@@ -105,6 +105,37 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   margin-top:11px;line-height:1.65}
 .err{color:#A5382D;font-weight:800;font-size:.82rem;margin-top:10px;min-height:1.2em}
 
+/* ---------- מה זה, בראש העמוד ----------
+   הטופס פתח ב"מי אתה?" ובשני שדות שם, כלומר ביקש התחייבות לפני
+   שאמר למה. מי שמגיע לכאן קיבל קישור בקבוצה ואינו יודע דבר. */
+.lead{margin-top:16px;text-align:center}
+.lead p{font-size:1rem;font-weight:700;line-height:1.65;color:var(--ink)}
+/* מתי מתחילים. בין ההצטרפות לדף הראשון יש חודש שבו לא קורה
+   דבר, וזו השורה שהופכת אותו למשהו שממתינים לו. */
+.when{display:inline-flex;align-items:center;gap:8px;margin-top:13px;
+  padding:8px 15px;border-radius:999px;background:var(--sunk);
+  font-size:.83rem;font-weight:800;color:var(--ink-2)}
+.when b{color:var(--blue);font-weight:800}
+
+/* ---------- ההגרלה ----------
+   נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
+   נכתבים בטקסטים; כל עוד הם ריקים מוצג רק ההסבר, ולכן אפשר
+   להדליק אותה לפני שהפרס סוכם. */
+.raffle{display:none;margin-top:14px;border-radius:var(--r);overflow:hidden;
+  border:1.5px solid var(--gold);background:var(--surface);box-shadow:var(--sh-2)}
+.raffle.on{display:block}
+.raffle .tag{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:#fff;font-size:.74rem;font-weight:800;letter-spacing:.06em;
+  padding:6px 18px}
+.raffle .in{padding:16px 18px 18px}
+.raffle h3{font-size:1rem;font-weight:800;letter-spacing:-.02em;line-height:1.4}
+.raffle p{font-size:.83rem;font-weight:600;color:var(--ink-2);
+  margin-top:7px;line-height:1.65}
+.raffle .prize{margin-top:11px;padding-top:11px;border-top:1px solid var(--rule);
+  font-size:.92rem;font-weight:800;color:var(--ink);line-height:1.5}
+.raffle img{display:block;width:100%;max-height:190px;object-fit:contain;
+  margin-top:12px;border-radius:var(--r-s);background:var(--sunk)}
+
 /* אחרי ההרשמה */
 #done{display:none;text-align:center;padding:26px 18px}
 #done.on{display:block}
@@ -133,6 +164,21 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 </header>
 
 <div class="wrap" id="form">
+
+  <div class="lead">
+    <p id="lead"></p>
+    <span class="when" id="when" style="display:none"></span>
+  </div>
+
+  <div class="raffle" id="raffle">
+    <div class="tag" id="rf-tag"></div>
+    <div class="in">
+      <h3 id="rf-title"></h3>
+      <p id="rf-body"></p>
+      <div class="prize" id="rf-prize" style="display:none"></div>
+      <img id="rf-img" alt="" style="display:none">
+    </div>
+  </div>
 
   <div class="card">
     <h2>מי אתה?</h2>
@@ -190,6 +236,8 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <div class="big">📖</div>
   <h2 id="d-h"></h2>
   <p id="d-p"></p>
+  <p id="d-start"></p>
+  <p id="d-raffle" style="font-weight:800;color:var(--gold)"></p>
   <div class="who" id="d-who"></div>
   <button class="again" id="again">שינוי הפרטים</button>
 </div>
@@ -270,6 +318,138 @@ function drawWays() {
       drawWays();
     };
   });
+}
+
+/* ============================================================
+   מה שפורסם מהניהול.
+   ============================================================
+   הטלפון של התלמיד אינו מכיר את הגדרות הרכז — הן יושבות על
+   המכשיר שלו. מה שכן משותף הוא הגיליון: הרכז מפרסם לשם, וכל
+   מכשיר קורא משם. אותו מנגנון בדיוק שיש באפליקציה הראשית.
+
+   הכל נשמר במטמון ומוחל **לפני** הקריאה לרשת, ולכן מסך שנפתח
+   בלי חיבור נראה כמו שנראה בפעם הקודמת, ולא כמו ברירת המחדל
+   שבקוד. */
+var SET_TAB = 'הגדרות', TXT_TAB = 'טקסטים';
+var pub = get('cfgCache', {}) || {};
+
+function sheetCsv(tab) {
+  var id = (get('cfg', {}) || {}).sheetId || SHEET_ID;
+  if (!id || !navigator.onLine) return Promise.resolve(null);
+  return fetch('https://docs.google.com/spreadsheets/d/' + id +
+               '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab) +
+               '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) { return t ? csv(t) : null; })
+    .catch(function () { return null; });
+}
+/* CSV עם מירכאות ופסיקים בתוכן */
+function csv(text) {
+  var rows = [], row = [], f = '', q = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { f += '"'; i++; }
+      else if (c === '"') q = false;
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+
+/* המלל שפורסם, על מה שבקוד. רק מפתחות join.* — שאר המלל שייך
+   למסכים אחרים ואין לו כאן משמעות. */
+function applyTxt(map) {
+  for (var k in map) {
+    var parts = k.split('.');
+    if (parts[0] !== 'join' || parts.length !== 2) continue;
+    if (typeof map[k] === 'string' && map[k] !== '') JOIN[parts[1]] = map[k];
+  }
+}
+applyTxt(get('txtCache', {}) || {});
+
+function loadPub() {
+  return Promise.all([
+    sheetCsv(SET_TAB).then(function (rows) {
+      if (!rows || rows.length < 2) return;
+      var m = {};
+      rows.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+        if (!k || !v) return;
+        try { m[k] = JSON.parse(v); } catch (e) {}
+      });
+      if (Object.keys(m).length) { pub = m; set('cfgCache', m); }
+    }),
+    sheetCsv(TXT_TAB).then(function (rows) {
+      if (!rows || rows.length < 2) return;
+      var m = {};
+      rows.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+        if (k && v) m[k] = v;
+      });
+      if (Object.keys(m).length) { set('txtCache', m); applyTxt(m); }
+    })
+  ]).catch(function () {});
+}
+
+/* ---------- מתי מתחילים ----------
+   PROGRAM.startDate הוא שבוע 1 בלוח, ולכן הוא כבר מקור האמת
+   ואין כאן תאריך שני שיכול להתפצל ממנו. */
+function startsIn() {
+  var d = new Date(PROGRAM.startDate + 'T00:00:00');
+  if (isNaN(d)) return null;
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  return { date: d, days: Math.round((d - today) / 86400000) };
+}
+function startTxt() {
+  var s = startsIn();
+  if (!s) return '';
+  return s.date.getDate() + '.' + (s.date.getMonth() + 1) + '.' +
+         String(s.date.getFullYear()).slice(2);
+}
+function tpl(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) {
+    return v[k] != null ? v[k] : m;
+  });
+}
+
+/* ---------- ציור הראש ----------
+   נקרא פעמיים: מיד מהמטמון, ושוב אחרי שהגיליון ענה. */
+function drawTop() {
+  $('lead').textContent = JOIN.lead;
+
+  var s = startsIn();
+  var w = $('when');
+  if (s) {
+    var left = s.days > 0 ? tpl(JOIN.soon, { n:s.days })
+             : s.days === 0 ? JOIN.today : '';
+    w.innerHTML = esc(tpl(JOIN.counting, { date:startTxt() })) +
+                  (left ? ' <b>· ' + esc(left) + '</b>' : '');
+    w.style.display = '';
+  } else w.style.display = 'none';
+
+  /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
+     הגרלה שהובטחה לתלמידים ובוטלה גרועה מאין הגרלה כלל. */
+  var on = !!pub.raffle;
+  $('raffle').className = on ? 'raffle on' : 'raffle';
+  if (!on) return;
+  $('rf-tag').textContent   = JOIN.rfTag;
+  $('rf-title').textContent = JOIN.rfTitle;
+  $('rf-body').textContent  = JOIN.rfBody;
+  $('rf-prize').textContent = JOIN.rfPrize;
+  $('rf-prize').style.display = JOIN.rfPrize ? '' : 'none';
+  var img = $('rf-img');
+  if (JOIN.rfImg) {
+    /* תמונה שלא נטענת מותירה ריבוע שבור בדיוק במקום שאמור
+       להיות בו הפרס. עדיף בלי. */
+    img.onerror = function () { img.style.display = 'none'; };
+    img.onload  = function () { img.style.display = ''; };
+    img.src = JOIN.rfImg;
+  } else { img.style.display = 'none'; img.removeAttribute('src'); }
 }
 
 /* ---------- הישיבה ----------
@@ -372,12 +552,18 @@ $('go').onclick = function () {
 };
 function say(t) { $('err').textContent = t; }
 
+/* המסך שאחרי. עד עכשיו הוא אמר "ברוך הבא" ונעצר — ומי שהצטרף
+   נשאר בלי לדעת מה קורה עכשיו. הלימוד מתחיל רק אחרי סוכות,
+   ולכן דווקא כאן חייב להיאמר מתי, אחרת השקט של החודש הקרוב
+   נקרא כאילו לא קרה כלום. */
 function showDone(me) {
+  var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
-  $('d-h').textContent = 'ברוך הבא, ' + me.first + '!';
-  $('d-p').innerHTML = 'מעכשיו כל דף שתלמד נספר — ' +
-    esc(me.instName || 'הישיבה') + ' רואה כמה לומדים אצלה השבוע.';
+  $('d-h').textContent = tpl(JOIN.okTitle, { name:me.first });
+  $('d-p').textContent = tpl(JOIN.okBody,  { inst:inst });
+  $('d-start').textContent = startsIn() ? tpl(JOIN.okStart, { date:startTxt() }) : '';
+  $('d-raffle').textContent = pub.raffle ? tpl(JOIN.okRaffle, { inst:inst }) : '';
   $('d-who').textContent = WAY_NAME[me.way] || '';
   window.scrollTo(0, 0);
 }
@@ -387,6 +573,14 @@ function showDone(me) {
   var me = get('me', null);
   if (me && me.first) showDone(me);
   flush();
+  /* מהמטמון מיד, ומהגיליון אחר כך. מסך שנפתח בלי רשת נראה כמו
+     בפעם הקודמת, ולא נופל חזרה לברירת המחדל שבקוד. */
+  drawTop();
+  loadPub().then(function () {
+    drawTop();
+    var cur = get('me', null);
+    if (cur && cur.first && $('done').className === 'on') showDone(cur);
+  });
   $('again').onclick = function () {
     /* נקרא מחדש ולא מהסגור: מי שנרשם ממש עכשיו לא היה קיים
        כשהפונקציה הזו נוצרה, ו-`me` היה `null`. */
