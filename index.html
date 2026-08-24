@@ -931,11 +931,20 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .row .sub{font-size:.76rem;color:var(--ink-3);font-weight:700;margin-top:2px}
 .sw{width:46px;height:27px;border-radius:20px;background:var(--rule);border:none;
   position:relative;cursor:pointer;flex:none;transition:background .2s}
-.sw:after{content:"";position:absolute;top:3px;inset-inline-end:3px;width:21px;height:21px;
-  border-radius:50%;background:#fff;transition:transform .22s cubic-bezier(.34,1.4,.5,1);
+/* הידית מתחילה ב**התחלה** — בעברית זה מימין — ונוסעת אל הסוף.
+   קודם היא ישבה ב-inset-inline-end, כלומר משמאל, וכבוי ודלוק
+   נראו כמעט אותו דבר: הידית לא זזה, רק הרקע החליף צבע. במסך
+   הניהול זה הפריע פחות; בטופס ההרשמה זה כבר מתג שראש חטיבה
+   מסתכל עליו ולא יודע אם ענה.
+
+   inset-inline-start ולא transform: translateX אינו מודע לכיוון
+   הכתיבה, ולכן אותו קוד היה נכון בעברית והפוך באנגלית. */
+.sw:after{content:"";position:absolute;top:3px;inset-inline-start:3px;
+  width:21px;height:21px;border-radius:50%;background:#fff;
+  transition:inset-inline-start .22s cubic-bezier(.34,1.4,.5,1);
   box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .sw.on{background:var(--green)}
-.sw.on:after{transform:translateX(-19px)}
+.sw.on:after{inset-inline-start:calc(100% - 24px)}
 .adm-card{background:var(--surface);border-radius:var(--r-m);padding:15px;box-shadow:var(--sh-1)}
 .adm-card h4{font-size:.98rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
 .adm-card p.h{font-size:.79rem;color:var(--ink-3);font-weight:600;line-height:1.55;margin-bottom:11px}
@@ -1171,7 +1180,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.17.0';
+var APP_VERSION = '7.17.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
