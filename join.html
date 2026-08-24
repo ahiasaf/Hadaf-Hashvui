@@ -116,6 +116,9 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   padding:8px 15px;border-radius:999px;background:var(--sunk);
   font-size:.83rem;font-weight:800;color:var(--ink-2)}
 .when b{color:var(--blue);font-weight:800}
+/* כמה כבר בפנים אצלו בישיבה. השורה הזו עושה יותר מכל פרס:
+   נער מצטרף למקום שהחברים שלו כבר נמצאים בו. */
+.peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d)}
 
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
@@ -168,6 +171,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <div class="lead">
     <p id="lead"></p>
     <span class="when" id="when" style="display:none"></span>
+    <div class="peers" id="peers" style="display:none"></div>
   </div>
 
   <div class="raffle" id="raffle">
@@ -330,8 +334,11 @@ function drawWays() {
    הכל נשמר במטמון ומוחל **לפני** הקריאה לרשת, ולכן מסך שנפתח
    בלי חיבור נראה כמו שנראה בפעם הקודמת, ולא כמו ברירת המחדל
    שבקוד. */
-var SET_TAB = 'הגדרות', TXT_TAB = 'טקסטים';
+var SET_TAB = 'הגדרות', TXT_TAB = 'טקסטים', COUNT_TAB = 'מונים';
 var pub = get('cfgCache', {}) || {};
+/* קוד ישיבה → מספר מצטרפים. לשונית ציבורית שיש בה מספרים
+   בלבד; רשימת השמות נשארת בגיליון הסגור ואינה נקראת כאן. */
+var peers = get('peerCache', {}) || {};
 
 function sheetCsv(tab) {
   var id = (get('cfg', {}) || {}).sheetId || SHEET_ID;
@@ -384,6 +391,17 @@ function loadPub() {
       });
       if (Object.keys(m).length) { pub = m; set('cfgCache', m); }
     }),
+    sheetCsv(COUNT_TAB).then(function (rows) {
+      if (!rows || rows.length < 2) return;
+      var m = {};
+      rows.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim(), v = parseInt(r[1], 10);
+        if (k && v > 0) m[k] = v;
+      });
+      /* לשונית ריקה אינה "אפס מצטרפים" אלא "עוד לא נכתב לשם
+         דבר", ולכן היא אינה דורסת מספר ששמור מהפעם הקודמת. */
+      if (Object.keys(m).length) { peers = m; set('peerCache', m); }
+    }),
     sheetCsv(TXT_TAB).then(function (rows) {
       if (!rows || rows.length < 2) return;
       var m = {};
@@ -431,6 +449,18 @@ function drawTop() {
                   (left ? ' <b>· ' + esc(left) + '</b>' : '');
     w.style.display = '';
   } else w.style.display = 'none';
+
+  /* כמה כבר בפנים אצלו. רק כשהישיבה ידועה מהקישור — בלעדיה
+     אין על מה לדווח, והמספר הכללי אינו אומר לו דבר. */
+  var pe = $('peers');
+  var nm = instRow && instRow.name;
+  var cnt = nm ? (peers[instRow.code] || 0) : -1;
+  var line = cnt < 0 ? '' :
+    cnt === 0 ? tpl(JOIN.peersNone, { inst:nm }) :
+    cnt === 1 ? tpl(JOIN.peersOne,  { inst:nm }) :
+                tpl(JOIN.peersMany, { n:cnt, inst:nm });
+  pe.textContent = line;
+  pe.style.display = line ? '' : 'none';
 
   /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
      הגרלה שהובטחה לתלמידים ובוטלה גרועה מאין הגרלה כלל. */

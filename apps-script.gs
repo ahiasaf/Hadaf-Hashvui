@@ -72,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 8;
+var SCRIPT_VERSION = 9;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -287,7 +287,64 @@ function appendCols_(tab, cols, ssId) {
 
   for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
   sh.appendRow(row);
+  if (tab === JOIN_TAB) recount_();
   return json_({ status: 'success', tab: tab, columns: row.length });
+}
+
+/* ============================================================
+   מונה המצטרפים.
+   ============================================================
+   תלמיד ששוקל להצטרף רוצה לדעת דבר אחד: מי כבר בפנים אצלו
+   בישיבה. אבל רשימת המצטרפים יושבת בגיליון סגור מאחורי סיסמה,
+   ואי אפשר למסור אותה לטלפון של תלמיד בשביל מספר.
+
+   לכן נשמר כאן **מספר בלבד**: לשונית ציבורית עם קוד ישיבה
+   ומספר, בלי שם אחד ובלי טלפון אחד. הטלפון של התלמיד קורא רק
+   אותה, ומעולם אינו נוגע בגיליון הסגור.
+
+   ספירה מחדש בכל הרשמה, ולא הגדלה באחד: תלמיד שתיקן את פרטיו
+   שולח שורה נוספת עם אותו מזהה, ומונה שרק גדל היה סופר אותו
+   פעמיים — ולנצח, כי אין דרך לתקן מספר שכבר טיפס. */
+var JOIN_TAB  = 'לומדים';
+var COUNT_TAB = 'מונים';
+
+function recount_() {
+  try {
+    var src = sheet_(JOIN_TAB);
+    if (!src || !src.getLastRow()) return;
+    var rows = src.getDataRange().getDisplayValues();
+    var head = rows[0], iCode = -1, iId = -1;
+    for (var i = 0; i < head.length; i++) {
+      var h = String(head[i]).trim();
+      if (h === 'קוד ישיבה') iCode = i;
+      if (h === 'מזהה')      iId   = i;
+    }
+    if (iCode < 0) return;
+
+    var seen = {}, n = {}, order = [];
+    for (var r = 1; r < rows.length; r++) {
+      var code = String(rows[r][iCode] || '').trim();
+      if (!code) continue;
+      /* אותו מזהה נספר פעם אחת. בלי מזהה — כל שורה היא אדם. */
+      var key = iId >= 0 ? String(rows[r][iId] || '').trim() : '';
+      if (key) { if (seen[key]) continue; seen[key] = 1; }
+      if (!(code in n)) { n[code] = 0; order.push(code); }
+      n[code]++;
+    }
+
+    /* ללשונית הציבורית — כלומר לגיליון שהסקריפט מחובר אליו,
+       ולא לפרטי. `sheet_` היה מנתב לפי שם, ו'מונים' אינו
+       ברשימה הפרטית, ולכן זו כבר התוצאה הנכונה. */
+    var out = sheet_(COUNT_TAB);
+    var last = out.getLastRow();
+    if (last > 1) out.getRange(2, 1, last - 1, Math.max(2, out.getLastColumn())).clearContent();
+    if (!last) headRow_(out, ['קוד ישיבה', 'מצטרפים']);
+    if (order.length) {
+      out.getRange(2, 1, order.length, 2).setValues(order.map(function (c) {
+        return [c, n[c]];
+      }));
+    }
+  } catch (err) {}          /* מונה שנכשל לא יפיל הרשמה של תלמיד */
 }
 
 /* טבלת הגדרות (כרגע: המלל) — נכתבת מחדש בשלמותה בכל פרסום,

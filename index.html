@@ -779,20 +779,29 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 @media (max-width:359px){.linkbox .acts{grid-template-columns:1fr}}
 
 /* ---------- רוצים להזמין גמרות? ----------
-   שני כרטיסים ולא מתג. מתג נראה כמו העדפה שכבר יש לה ברירת
-   מחדל, וכאן זו שאלה שטרם נענתה — ושתי התשובות שלה לגיטימיות
-   באותה מידה, ולכן הן נראות אותו דבר עד שבוחרים. */
-.wants{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
-.want{display:block;text-align:start;background:var(--surface);border:1.5px solid var(--rule-2);
-  border-radius:var(--r-s);padding:12px 13px;cursor:pointer;font-family:inherit;
-  color:inherit;box-shadow:var(--sh-1);transition:border-color .15s,background .15s}
-.want b{display:block;font-size:.94rem;font-weight:800;line-height:1.3}
-.want span{display:block;font-size:.74rem;font-weight:700;color:var(--ink-3);
-  line-height:1.4;margin-top:4px}
-.want.on{border-color:var(--blue);background:var(--sunk)}
-.want.on b{color:var(--blue)}
-.want:active{transform:scale(.98)}
-@media (max-width:339px){.wants{grid-template-columns:1fr}}
+   שורה אחת עם מתג. זו שאלת כן/לא, וכל צורה גדולה מזה הופכת
+   אותה להחלטה — בעמוד שכל מטרתו לא להכביד על מי שרק רוצה
+   להצטרף. "כן" פותח את הפירוט למטה; החזרת המתג סוגרת אותו. */
+.wantbar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--surface);border-radius:var(--r-s);padding:13px 15px;
+  box-shadow:var(--sh-1);cursor:pointer}
+.wantbar>div{min-width:0}
+.wantbar b{display:block;font-size:.96rem;font-weight:800;line-height:1.35}
+.wantbar span{display:block;font-size:.76rem;font-weight:700;color:var(--ink-3);
+  line-height:1.45;margin-top:3px}
+
+/* המגירה. הגובה נמדד ב-JS ונקבע במפורש, כי CSS אינו יודע
+   להנפיש אל `auto`. אחרי הפתיחה הוא משוחרר ל-none, אחרת תמונה
+   שנטענת מאוחר נחתכת בדיוק בקצה. */
+.fold{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1)}
+.fold>div{padding-top:16px}
+@media (prefers-reduced-motion:reduce){.fold{transition:none}}
+/* כותרת בתוך המגירה — בלי מספר שלב, כי המגירה כולה היא שלב אחד */
+.foldh{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;margin:18px 0 9px}
+/* המועד האחרון. ליד הכמויות ולא בתחתית: מי שמקליד מספרים הוא
+   מי שצריך לדעת עד מתי. */
+.byline{background:var(--sunk);border-radius:var(--r-s);padding:10px 13px;
+  font-size:.83rem;font-weight:800;color:var(--ink-2);margin-bottom:13px}
 
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
@@ -1162,7 +1171,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="data.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.16.0';
+var APP_VERSION = '7.17.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1537,20 +1546,36 @@ function renderReg() {
        שתי מסכתות וסף הנחה **לפני** שנשאלה השאלה אם בכלל רוצים
        לרכוש, קורא כמו חנות ולא כמו הרשמה — והוא גם עצר בפועל,
        כי בלי כמות אי אפשר היה לשלוח. */
-    '<div class="step-n"><i>1</i><b>' + esc(UI.s2) + '</b></div>' +
-    (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + '</p>' : '') +
-    wantRow() +
-    (reg.want ? recBlocks() +
+    /* הגמרות מאחורי מתג, וזו הנקודה כולה: מי שרק רוצה להצטרף
+       ולנקוב במספר סיים כאן. עמוד שפורש שתי מהדורות, מחירים,
+       שתי מסכתות וסף הנחה **לפני** שנשאלה השאלה אם בכלל רוצים
+       לרכוש, קורא כמו חנות ולא כמו הרשמה — והוא גם עצר בפועל,
+       כי בלי כמות אי אפשר היה לשלוח.
 
-      '<div class="step-n"><i>2</i><b>' + esc(UI.s3) + '</b></div>' +
+       המספרים קבועים ואינם מתחלפים לפי מצב המתג: מספר שלב
+       שמשתנה תוך כדי מילוי הטופס נראה כמו תקלה. */
+    (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + '</p>' : '') +
+    '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' +
+      '<div><b>' + esc(UI.s2) + '</b><span>' + esc(UI.wantSub) + '</span></div>' +
+      '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' +
+        'aria-label="' + esc(UI.s2) + '"></button>' +
+    '</div>' +
+
+    '<div class="fold" id="r-fold"><div>' +
+      recBlocks() +
+      '<div class="foldh">' + esc(UI.s3) + '</div>' +
       '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' +
       'line-height:1.6">' + esc(UI.hint) + '</p>' +
       '<p class="two-m">' + esc(UI.twoM) + '</p>' +
+      byLine() +
       orderRows() +
-      regTotal() : '') +
+      regTotal() +
+    '</div></div>' +
 
-    '<div class="step-n" id="r-who-step"><i>' + (reg.want ? 3 : 2) + '</i><b>' +
-    esc(UI.s4) + '</b></div>' +
+    /* בלי מספר שלב. כשהגמרות היו שלושה חלקים כבדים המספרים
+       עזרו; עכשיו נשאר חלק אחד, ו"1" בודד נראה כמו שריד. */
+    '<div class="foldh" id="r-who-step" style="margin-top:22px">' +
+    esc(UI.s4) + '</div>' +
     pkField('', instName, UI.instLabel, 'pickInst()') +
     '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
     '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
@@ -1567,6 +1592,7 @@ function renderReg() {
     '<div id="r-done"></div>';
 
   document.getElementById('reg-body').innerHTML = h;
+  foldInit();
 }
 /* למי מתאימה התוכנית — בעמוד הראשי, ממש מעל כפתור ההרשמה.
    הסמלים מצוירים כאן ולא בקובץ נפרד: שלושה קווים כל אחד, קלים
@@ -1708,24 +1734,54 @@ function sizeRow() {
     (UI.sizeAim ? '<p class="aim">' + esc(UI.sizeAim) + '</p>' : '') +
     '<p class="hint">' + esc(UI.sizeHint) + '</p></div>';
 }
-/* כן/לא, ולא מתג: מתג נראה כמו העדפה שכבר יש לה ברירת מחדל,
-   וכאן זו שאלה שטרם נענתה. "לא" אינו סירוב אלא "לא עכשיו",
-   ולכן הוא נאמר בפירוש — אחרת מי שלא מזמין מרגיש שדילג. */
-function wantRow() {
-  var b = function (v, t, sub) {
-    return '<button class="want' + (reg.want === v ? ' on' : '') +
-      '" onclick="wantSet(' + v + ')"><b>' + esc(t) + '</b>' +
-      '<span>' + esc(sub) + '</span></button>';
-  };
-  return '<div class="wants">' + b(true, UI.wantYes, UI.wantYesSub) +
-         b(false, UI.wantNo, UI.wantNoSub) + '</div>';
+/* המועד האחרון להזמנה. תאריך ולא "סוף אלול": מי שצריך לתרגם
+   תאריך עברי לתאריך לועזי בראש דוחה את ההחלטה. ריק = לא מוצג. */
+function byLine() {
+  /* ברירת המחדל שבקוד היא הבסיס; ההגדרות רק דורסות אותה.
+     כך יש תאריך על המסך גם לפני שהרכז נגע בהגדרות בכלל. */
+  var d = CV('orderBy') != null ? CV('orderBy') : ORDER_BY;
+  if (!d) return '';
+  var t = new Date(String(d) + 'T00:00:00');
+  if (isNaN(t)) return '';
+  return '<div class="byline">' + esc(fill(UI.orderBy, {
+    date: t.getDate() + '.' + (t.getMonth() + 1) + '.' + t.getFullYear()
+  })) + '</div>';
 }
-function wantSet(v) {
-  reg.want = !!v;
-  /* "לא עכשיו" מאפס את הכמויות. אחרת נשלחת הזמנה שהוא כבר
-     חזר בו ממנה, ולא נראית לו בשום מקום על המסך. */
-  if (!v) reg.qty = {};
-  renderReg();
+
+/* המגירה. `max-height` ולא `height:auto` כי CSS אינו יודע
+   להנפיש אל auto, ולא grid-template-rows כי הוא אינו קיים
+   בדפדפנים שעדיין על טלפונים של ראשי חטיבות. */
+function foldEl() { return document.getElementById('r-fold'); }
+
+/* אחרי ציור מחדש — מעמידים על המצב הנוכחי בלי להנפיש. בלי
+   כיבוי המעבר, כל הקלדת כמות (שמציירת מחדש) הייתה מקפיצה את
+   המגירה. */
+function foldInit() {
+  var f = foldEl(); if (!f) return;
+  var sw = document.getElementById('r-wantsw');
+  if (sw) sw.className = reg.want ? 'sw on' : 'sw';
+  f.style.transition = 'none';
+  f.style.maxHeight = reg.want ? 'none' : '0';
+  void f.offsetHeight;                 /* מאלץ חישוב, אחרת הכיבוי נבלע */
+  f.style.transition = '';
+}
+
+function wantToggle(e) {
+  if (e) e.stopPropagation();
+  reg.want = !reg.want;
+  var f = foldEl(), sw = document.getElementById('r-wantsw');
+  if (sw) sw.className = reg.want ? 'sw on' : 'sw';
+  if (!f) return;
+  if (reg.want) {
+    f.style.maxHeight = f.scrollHeight + 'px';
+    /* ומיד אחרי הפתיחה — משחררים. תמונת כריכה שנטענת מאוחר
+       מגדילה את התוכן, וגובה קבוע היה חותך אותה. */
+    setTimeout(function () { if (reg.want) f.style.maxHeight = 'none'; }, 320);
+  } else {
+    f.style.maxHeight = f.scrollHeight + 'px';   /* מ-none לערך מדיד */
+    void f.offsetHeight;
+    f.style.maxHeight = '0';
+  }
 }
 
 function sizeSet(v) { reg.size = Math.max(0, parseInt(v, 10) || 0); renderReg(); }
@@ -1763,10 +1819,15 @@ function sendReg() {
 
   /* הכמות אינה תנאי. ראש חטיבה שרוצה רק להצטרף ולנקוב במספר
      נעצר כאן בפועל — ההרשמה סורבה בגלל הזמנה שהוא כלל לא ביקש
-     לבצע. מי שכן ביקש להזמין ולא מילא כמות — כן נשאל, כי זו
-     כנראה שכחה ולא בחירה. */
+     לבצע. מי שכן פתח את ההזמנה ולא מילא כמות — כן נשאל, כי זו
+     כנראה שכחה ולא בחירה.
+
+     כשהמתג סגור הכמויות אינן נמחקות אלא רק אינן נשלחות. מי
+     שפתח, הקליד, וסגר בטעות — מוצא את המספרים שלו כשהוא פותח
+     שוב, ובכל זאת לא נשלחת הזמנה שהוא חזר בו ממנה. */
+  if (!reg.want) reg.qty = {};
   var total = regTotalQty();
-  if (reg.want && !total) { alert('נא למלא כמה גמרות להזמין, או לבחור "לא עכשיו".'); return; }
+  if (reg.want && !total) { alert('נא למלא כמה גמרות להזמין, או לכבות את המתג.'); return; }
 
   /* עמודה לכל צירוף מסכת-מהדורה בגיליון, ולצידה שורת סיכום
      קריאה לאדם — כדי שההזמנה תהיה ברורה גם בלי לפענח מפתחות. */
@@ -2934,7 +2995,8 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
 /* מה שפורסם לכולם. מה שאינו כאן נשאר על המכשיר בלבד — מזהי
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
-var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle'];
+var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
+                'orderBy'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -4004,7 +4066,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 8;
+var SCRIPT_MIN = 9;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -4183,6 +4245,15 @@ function admSet(el) {
 
     /* הסטודיו נגיש רק מכאן. הוא אינו מקושר מהאפליקציה ואינו
        במניפסט, ומי שלא נכנס לניהול אינו אמור לדעת עליו. */
+    /* המועד האחרון להזמנה. מפורסם, ולכן ראש חטיבה רואה תאריך
+       ולא צריך לתרגם "סוף אלול" בראש. ריק = לא מוצג כלל. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מועד אחרון להזמנת גמרות</h4>' +
+    '<p class="h">מופיע בטופס ההרשמה, ליד הכמויות. ריק = לא מוצג. ' +
+    'את נוסח המשפט משנים בטקסטים ← הזמנת גמרות.</p>' +
+    '<div class="fld"><input type="date" dir="ltr" value="' +
+    esc(CV('orderBy') != null ? CV('orderBy') : ORDER_BY) +
+    '" onchange="cfgSet(\'orderBy\',this.value);admPane()"></div></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>סטודיו הסימון</h4>' +
     '<p class="h">חלוקת הדף לקטעים וקישורם לביאור חברותא. ' +
     'נפתח כאפליקציה נפרדת, עם אייקון משלה.</p>' +
