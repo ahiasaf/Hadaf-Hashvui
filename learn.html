@@ -245,9 +245,9 @@ nav .sp{flex:1}
   <div class="hrow">
     <a class="back" href="./" id="back">▸ יציאה</a>
     <div class="ttl"><b id="t-daf">לימוד אינטראקטיבי</b><span id="t-sub"></span></div>
-    <!-- המונה יושב בכותרת ולא בשורת הכפתורים: שם הוא רק תופס
-         את המקום שהכפתורים צריכים בטלפון צר, וכאן הוא ממילא
-         ליד פס ההתקדמות שאומר את אותו דבר בעין. -->
+    <!-- ריק. כאן ישב "קטע 17 מתוך 41" — חשבונאות של מי שחילק
+         את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
+         את אותו דבר בלי מספר. המקום נשמר. -->
     <span id="count"></span>
   </div>
   <div class="prog"><i id="bar"></i></div>
@@ -876,7 +876,7 @@ function chavCache(i, html) {
 
 function paintChav() {
   var st = FLAT[IDX], box = $('chb');
-  $('chnum').textContent = st ? 'קטע ' + (IDX + 1) : '';
+  $('chnum').textContent = '';       /* אותו מספר, אותה סיבה */
   if (!st) { box.innerHTML = ''; return; }
   var html = '';
   /* המבנה נשמר בסימון עצמו, ולכן אין צורך בקובץ החברותא כלל —
@@ -980,8 +980,13 @@ function bar() {
       ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) +
       ' ' + amud(pp.pg);
   }
-  $('count').textContent = 'קטע ' + (st ? st.n : 1) + ' מתוך ' + GROUPS +
-    (st && st.parts > 1 ? ' · חלק ' + st.part + ' מ-' + st.parts : '');
+  /* מספר הקטע ירד. לתלמיד לא אכפת שהוא בקטע 17 מתוך 41 — זו
+     חשבונאות של מי שחילק את הדף, לא של מי שלומד אותו. פס
+     ההתקדמות שמתחת כבר אומר איפה הוא, בעין ובלי מספר.
+
+     המקום נשאר: הוא קטן, הוא בכותרת, והוא בדיוק הגודל של שורה
+     אחת שקטה. */
+  $('count').textContent = '';
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0;
   var last = IDX === FLAT.length - 1;
@@ -1035,8 +1040,8 @@ function nextDafUrl() {
 function finish() {
   var key = S.mas + '-' + (S.week + 1);
   var q = window.QUIZ && QUIZ[key];
-  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + ' — ' + GROUPS +
-    ' קטעים, מתחילת הדף ועד סופו.';
+  $('done-sub').textContent = 'סיימתם את דף ' + S.daf +
+    ', מתחילת הדף ועד סופו.';
   var a = $('to-quiz');
   if (q) { a.style.display = ''; a.href = './#quiz=' + key; }
   else a.style.display = 'none';
