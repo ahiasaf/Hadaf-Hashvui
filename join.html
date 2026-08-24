@@ -139,6 +139,41 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .raffle img{display:block;width:100%;max-height:190px;object-fit:contain;
   margin-top:12px;border-radius:var(--r-s);background:var(--sunk)}
 
+/* ---------- בית התלמיד ----------
+   השבוע בלבד. רשת של כל דפי המסכת עם מה שהספיק ומה שלא היא
+   תזכורת שבועית למה שפספס; ההתקדמות השנתית יושבת בסימנייה
+   שבאפליקציה, ומי שרוצה לראות אותה הולך לשם. */
+.week{margin-top:16px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:18px;box-shadow:var(--sh-2);
+  border-top:3px solid var(--blue);text-align:start}
+.week .tag{font-size:.73rem;font-weight:800;letter-spacing:.06em;color:var(--gold)}
+.week h3{font-size:1.3rem;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.week .pr{font-size:.83rem;font-weight:700;color:var(--ink-3);margin-top:2px}
+.week .go{display:block;width:100%;text-align:center;margin-top:14px;
+  padding:14px;border:0;border-radius:14px;font-family:inherit;
+  font-size:.98rem;font-weight:800;color:#fff;text-decoration:none;
+  background:linear-gradient(140deg,var(--blue-l),var(--blue));
+  box-shadow:0 6px 16px rgba(23,70,143,.24);cursor:pointer}
+/* "למדתי" — משני לכפתור הלימוד, כי הלימוד הוא העיקר והסימון
+   הוא מה שנעשה אחריו. מי שלמד מתוך גמרא מודפסת מגיע לכאן. */
+.week .mark{display:block;width:100%;margin-top:9px;padding:12px;
+  border:1.5px solid var(--rule);border-radius:14px;background:#fff;
+  font-family:inherit;font-size:.92rem;font-weight:800;color:var(--ink-2);cursor:pointer}
+.week .mark.on{border-color:var(--green);color:var(--green-d);
+  background:color-mix(in srgb,var(--green) 8%,#fff)}
+@supports not (background:color-mix(in srgb,red 8%,#fff)){.week .mark.on{background:var(--sunk)}}
+.week .mark small{display:block;font-size:.74rem;font-weight:700;
+  color:var(--ink-3);margin-top:2px}
+/* המספרים. מידע, לא ניקוד — ולכן שורה ולא תג. */
+.week .net{margin-top:13px;padding-top:12px;border-top:1px solid var(--rule);
+  font-size:.85rem;font-weight:700;color:var(--ink-2);line-height:1.7}
+.week .net b{color:var(--blue);font-weight:800}
+/* רצף. אמירה יבשה על מה שקרה, בלי להבה ובלי איום — וכשהוא
+   נשבר הוא נעלם בשקט. */
+.week .st{margin-top:7px;font-size:.85rem;font-weight:800;color:var(--green-d)}
+.week .tr{display:block;margin-top:13px;font-size:.83rem;font-weight:800;
+  color:var(--blue);text-decoration:none}
+
 /* אחרי ההרשמה */
 #done{display:none;text-align:center;padding:26px 18px}
 #done.on{display:block}
@@ -243,12 +278,18 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <p id="d-start"></p>
   <p id="d-raffle" style="font-weight:800;color:var(--gold)"></p>
   <div class="who" id="d-who"></div>
+
+  <!-- הדף של השבוע. זה מה שהופך את מסך "אתה בפנים" לבית: מקום
+       שחוזרים אליו, ולא הודעה שנקראת פעם אחת. -->
+  <div id="wk"></div>
+
   <button class="again" id="again">שינוי הפרטים</button>
 </div>
 
 <div class="wrap"><footer>רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז</footer></div>
 
 <script src="data.js"></script>
+<script src="learned.js"></script>
 <script src="logo.js"></script>
 <script>
 /* ============================================================
@@ -390,6 +431,11 @@ function loadPub() {
         try { m[k] = JSON.parse(v); } catch (e) {}
       });
       if (Object.keys(m).length) { pub = m; set('cfgCache', m); }
+    }),
+    /* מוני הלימוד — מספרים בלבד, מהלשונית הציבורית. */
+    sheetCsv('מוני-לימוד').then(function (rows) {
+      var m = LCountsFrom(rows);
+      if (m && Object.keys(m).length) LSet('learnCount', m);
     }),
     sheetCsv(COUNT_TAB).then(function (rows) {
       if (!rows || rows.length < 2) return;
@@ -582,6 +628,88 @@ $('go').onclick = function () {
 };
 function say(t) { $('err').textContent = t; }
 
+/* ============================================================
+   הדף של השבוע — מה שהופך את מסך הסיום לבית.
+   ============================================================
+   השבוע בלבד, בכוונה. רשת של כל דפי המסכת עם מה שהספיק ומה
+   שלא הייתה מזכירה לו בכל כניסה מה פספס, וזה עומס ולא עידוד.
+   ההתקדמות השנתית כבר חיה בסימנייה שבאפליקציה — למי שרוצה.
+
+   המסלול נלקח מ-dfHomeTrack, אותו מפתח שהאפליקציה משתמשת בו,
+   ולכן מסכת שנבחרה שם היא זו שמופיעה כאן. */
+function myTrack() {
+  var t = null;
+  try { t = localStorage.getItem('dfHomeTrack'); } catch (e) {}
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return t;
+  return TRACKS[0].id;
+}
+function setTrack(t) {
+  try { localStorage.setItem('dfHomeTrack', t); } catch (e) {}
+  drawWeek();
+}
+function masName(t) {
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return TRACKS[i].masechet;
+  return '';
+}
+
+function drawWeek() {
+  var box = $('wk'); if (!box) return;
+  var me = get('me', null) || {};
+  var wk = LWeek(), tr = myTrack();
+
+  /* לפני שהתוכנית התחילה — תאריך, לא כפתור מת. */
+  if (wk < 0) {
+    box.innerHTML = '<div class="week"><div class="tag">' + esc(JOIN.weekTag) +
+      '</div><h3>' + esc(tpl(JOIN.soonMark, { date:startTxt() })) + '</h3></div>';
+    return;
+  }
+  var daf = LDaf(tr, wk);
+  var row = null;
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === tr) row = TRACKS[i].cal[wk];
+  if (!daf) {
+    box.innerHTML = '<div class="week"><div class="tag">' + esc(JOIN.weekTag) +
+      '</div><h3>' + esc(JOIN.weekOff) + '</h3></div>';
+    return;
+  }
+
+  var done = LDone(tr, wk);
+  var all  = LCount(tr, wk);
+  var mine = me.inst ? LCount(tr, wk, me.inst) : 0;
+  var st   = LStreak(tr);
+
+  /* בורר המסכת מופיע רק כשיש באמת שתיים להציג — אחרת הוא
+     שאלה שלא נשאלה. */
+  var pick = TRACKS.length > 1
+    ? '<div class="pr">' + TRACKS.map(function (t) {
+        return t.id === tr ? '<b>מסכת ' + esc(t.masechet) + '</b>'
+          : '<a href="#" onclick="setTrack(\'' + t.id + '\');return false" ' +
+            'style="color:var(--ink-3)">מסכת ' + esc(t.masechet) + '</a>';
+      }).join(' · ') + '</div>' : '';
+
+  box.innerHTML = '<div class="week">' +
+    '<div class="tag">' + esc(JOIN.weekTag) + '</div>' +
+    '<h3>דף ' + esc(daf) + '</h3>' +
+    (row ? '<div class="pr">' + esc(row[1]) + ' · ' + esc(row[0]) + '</div>' : '') +
+    pick +
+    '<a class="go" href="learn.html?mas=' + encodeURIComponent(tr) +
+      '&daf=' + encodeURIComponent(daf) + '&pg=1">' + esc(JOIN.weekGo) + ' ←</a>' +
+    '<button class="mark' + (done ? ' on' : '') + '" onclick="markWeek()">' +
+      esc(done ? JOIN.markedOk : JOIN.markBtn) +
+      (done ? '<small>' + esc(JOIN.markUndo) + '</small>' : '') + '</button>' +
+    (all ? '<div class="net">' + esc(tpl(JOIN.netAll, { n:all })) +
+      (mine ? '<br>' + esc(tpl(JOIN.netInst, { n:mine })) : '') + '</div>' : '') +
+    (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '') +
+    '<a class="tr" href="index.html#track-' + esc(tr) + '">' + esc(JOIN.trackGo) + '</a>' +
+    '</div>';
+}
+
+function markWeek() {
+  var wk = LWeek(), tr = myTrack();
+  if (wk < 0 || !LDaf(tr, wk)) return;
+  if (LDone(tr, wk)) LUnmark(tr, wk); else LMark(tr, wk);
+  drawWeek();
+}
+
 /* המסך שאחרי. עד עכשיו הוא אמר "ברוך הבא" ונעצר — ומי שהצטרף
    נשאר בלי לדעת מה קורה עכשיו. הלימוד מתחיל רק אחרי סוכות,
    ולכן דווקא כאן חייב להיאמר מתי, אחרת השקט של החודש הקרוב
@@ -595,6 +723,7 @@ function showDone(me) {
   $('d-start').textContent = startsIn() ? tpl(JOIN.okStart, { date:startTxt() }) : '';
   $('d-raffle').textContent = pub.raffle ? tpl(JOIN.okRaffle, { inst:inst }) : '';
   $('d-who').textContent = WAY_NAME[me.way] || '';
+  drawWeek();
   window.scrollTo(0, 0);
 }
 
@@ -606,6 +735,7 @@ function showDone(me) {
   /* מהמטמון מיד, ומהגיליון אחר כך. מסך שנפתח בלי רשת נראה כמו
      בפעם הקודמת, ולא נופל חזרה לברירת המחדל שבקוד. */
   drawTop();
+  LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
   loadPub().then(function () {
     drawTop();
     var cur = get('me', null);

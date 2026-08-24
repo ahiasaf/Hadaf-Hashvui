@@ -72,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 9;
+var SCRIPT_VERSION = 10;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -99,7 +99,7 @@ var SCRIPT_VERSION = 9;
 var PRIVATE_ID = '';
 
 /* לשוניות שיש בהן פרטים אישיים. אלה נכתבות לגיליון הפרטי. */
-var PRIVATE_TABS = ['לומדים'];
+var PRIVATE_TABS = ['לומדים', 'לימוד'];
 
 /* ============================================================
    סיסמת הקריאה — מלאו כאן פעם אחת, ואותו דבר בניהול ← הגדרות.
@@ -287,7 +287,8 @@ function appendCols_(tab, cols, ssId) {
 
   for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
   sh.appendRow(row);
-  if (tab === JOIN_TAB) recount_();
+  if (tab === JOIN_TAB)  recount_();
+  if (tab === LEARN_TAB) recountLearn_();
   return json_({ status: 'success', tab: tab, columns: row.length });
 }
 
@@ -305,45 +306,106 @@ function appendCols_(tab, cols, ssId) {
    ספירה מחדש בכל הרשמה, ולא הגדלה באחד: תלמיד שתיקן את פרטיו
    שולח שורה נוספת עם אותו מזהה, ומונה שרק גדל היה סופר אותו
    פעמיים — ולנצח, כי אין דרך לתקן מספר שכבר טיפס. */
-var JOIN_TAB  = 'לומדים';
-var COUNT_TAB = 'מונים';
+var JOIN_TAB   = 'לומדים';
+var COUNT_TAB  = 'מונים';
+var LEARN_TAB  = 'לימוד';        /* פרטי — שורה לכל סימון לימוד */
+var LCOUNT_TAB = 'מוני-לימוד';   /* ציבורי — מספרים בלבד */
+
+/* ערכים ייחודיים בעמודה, מקובצים לפי עמודות מפתח. משמש את שני
+   המונים, ולכן הכלל של "אותו מזהה נספר פעם אחת" נכתב פעם אחת. */
+function tally_(rows, keyNames, idName) {
+  var head = rows[0], ix = {}, iId = -1;
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i]).trim();
+    if (keyNames.indexOf(h) >= 0) ix[h] = i;
+    if (h === idName) iId = i;
+  }
+  for (var k = 0; k < keyNames.length; k++) if (ix[keyNames[k]] === undefined) return null;
+
+  var seen = {}, n = {}, order = [];
+  for (var r = 1; r < rows.length; r++) {
+    var parts = [], ok = true;
+    for (var j = 0; j < keyNames.length; j++) {
+      var v = String(rows[r][ix[keyNames[j]]] || '').trim();
+      if (!v) { ok = false; break; }
+      parts.push(v);
+    }
+    if (!ok) continue;
+    var key = parts.join('\u0001');
+    /* אותו אדם באותו מפתח נספר פעם אחת: תלמיד שתיקן פרטים או
+       פתח את הדף פעמיים שלח שורה נוספת, ומונה שרק גדל היה
+       סופר אותו שוב — ולתמיד, כי אין דרך להוריד מספר שטיפס. */
+    if (iId >= 0) {
+      var who = String(rows[r][iId] || '').trim();
+      if (who) {
+        var u = key + '\u0001' + who;
+        if (seen[u]) continue;
+        seen[u] = 1;
+      }
+    }
+    if (!(key in n)) { n[key] = 0; order.push(key); }
+    n[key]++;
+  }
+  return { order: order, n: n };
+}
+
+/* כותב לשונית ציבורית מחדש בשלמותה. מספרים בלבד. */
+function writeCount_(tab, cols, rows) {
+  var out = sheet_(tab);
+  var last = out.getLastRow();
+  if (!last) headRow_(out, cols);
+  else if (last > 1) out.getRange(2, 1, last - 1, Math.max(cols.length, out.getLastColumn())).clearContent();
+  if (rows.length) out.getRange(2, 1, rows.length, cols.length).setValues(rows);
+}
+
+/* מי סיים איזה דף, לפי מסלול · שבוע · ישיבה. שום שם ושום טלפון
+   אינם יוצאים מהגיליון הסגור — רק ספירה. */
+function recountLearn_() {
+  try {
+    var src = sheet_(LEARN_TAB);
+    if (!src || src.getLastRow() < 2) return;
+    var t = tally_(src.getDataRange().getDisplayValues(),
+                   ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
+    if (!t) return;
+    writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'],
+      t.order.map(function (k) {
+        var p = k.split('\u0001');
+        return [p[0], p[1], p[2], t.n[k]];
+      }));
+  } catch (err) {}
+}
 
 function recount_() {
   try {
     var src = sheet_(JOIN_TAB);
-    if (!src || !src.getLastRow()) return;
+    if (!src || src.getLastRow() < 2) return;
     var rows = src.getDataRange().getDisplayValues();
-    var head = rows[0], iCode = -1, iId = -1;
-    for (var i = 0; i < head.length; i++) {
-      var h = String(head[i]).trim();
-      if (h === 'קוד ישיבה') iCode = i;
-      if (h === 'מזהה')      iId   = i;
-    }
-    if (iCode < 0) return;
 
-    var seen = {}, n = {}, order = [];
-    for (var r = 1; r < rows.length; r++) {
-      var code = String(rows[r][iCode] || '').trim();
-      if (!code) continue;
-      /* אותו מזהה נספר פעם אחת. בלי מזהה — כל שורה היא אדם. */
-      var key = iId >= 0 ? String(rows[r][iId] || '').trim() : '';
-      if (key) { if (seen[key]) continue; seen[key] = 1; }
-      if (!(code in n)) { n[code] = 0; order.push(code); }
-      n[code]++;
-    }
+    /* סך המצטרפים לכל ישיבה */
+    var t = tally_(rows, ['קוד ישיבה'], 'מזהה');
+    if (!t) return;
 
-    /* ללשונית הציבורית — כלומר לגיליון שהסקריפט מחובר אליו,
-       ולא לפרטי. `sheet_` היה מנתב לפי שם, ו'מונים' אינו
-       ברשימה הפרטית, ולכן זו כבר התוצאה הנכונה. */
-    var out = sheet_(COUNT_TAB);
-    var last = out.getLastRow();
-    if (last > 1) out.getRange(2, 1, last - 1, Math.max(2, out.getLastColumn())).clearContent();
-    if (!last) headRow_(out, ['קוד ישיבה', 'מצטרפים']);
-    if (order.length) {
-      out.getRange(2, 1, order.length, 2).setValues(order.map(function (c) {
-        return [c, n[c]];
+    /* ופילוח — לפי שכבה ולפי מסגרת. הלוח של ראש החטיבה מציג
+       אותו, וזה עדיין מספרים בלבד: מי שרואה "ח׳ — 11" אינו
+       יודע מי אחד עשר. */
+    var byG = tally_(rows, ['קוד ישיבה', 'שכבה'],  'מזהה');
+    var byW = tally_(rows, ['קוד ישיבה', 'מסגרת'], 'מזהה');
+    var pack = function (t2) {
+      var out = {};
+      if (!t2) return out;
+      t2.order.forEach(function (k) {
+        var p = k.split('\u0001');
+        if (!out[p[0]]) out[p[0]] = [];
+        out[p[0]].push(p[1] + ':' + t2.n[k]);
+      });
+      return out;
+    };
+    var g = pack(byG), w = pack(byW);
+
+    writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'],
+      t.order.map(function (c) {
+        return [c, t.n[c], (g[c] || []).join(' · '), (w[c] || []).join(' · ')];
       }));
-    }
   } catch (err) {}          /* מונה שנכשל לא יפיל הרשמה של תלמיד */
 }
 

@@ -307,8 +307,17 @@ nav .sp{flex:1}
   <div class="seal">📖</div>
   <h2>ישר כוח!</h2>
   <p id="done-sub"></p>
+  <!-- הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד
+       סופו, ולבקש ממנו לאשר את מה שהרגע עשה זו שאלה מיותרת.
+       השורה רק מדווחת. -->
+  <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
+     font-size:.88rem;margin-top:-4px"></p>
   <a class="btn p" id="to-quiz" href="./">לשאלה השבועית</a>
   <a class="btn nx" id="to-next" href="./">לדף הבא</a>
+  <!-- התלמיד שולח, לא המערכת. מערכת ששולחת הודעות לאבא היא
+       מעקב; ילד שמספר לאבא שלו זה נחת. אותו כפתור, הבדל של
+       מי לוחץ. מופיע רק במסלול אבות ובנים. -->
+  <a class="btn" id="tell-dad" style="display:none" target="_blank" rel="noopener"></a>
   <button class="btn" id="stay">חזרה לדף</button>
   <div class="minor">
     <button id="again">מהתחלה</button>
@@ -319,6 +328,7 @@ nav .sp{flex:1}
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
      עצמה נשענת עליהם. אין כאן מאגר נפרד. -->
 <script src="data.js"></script>
+<script src="learned.js"></script>
 <script src="links.js"></script>
 <script type="module">
   import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
@@ -1051,9 +1061,52 @@ function finish() {
             n.textContent = 'לדף הבא — דף ' + nd + ' ◂'; }
   else n.style.display = 'none';
 
+  /* ---- סימון הלימוד ----
+     אוטומטי, ורק לדף של השבוע הנוכחי. מי שחוזר בפברואר לדף
+     ישן כדי לחזור עליו אינו מסמן בכך את השבוע ההוא. */
+  markThisDaf();
+
   DONE_SEEN = true;      /* מכאן "הבא" כבר אינו מחזיר לכאן — ראו paint() */
   $('done').className = 'sheet on';
   bar();
+}
+
+function markThisDaf() {
+  var m = $('done-mark'), td = $('tell-dad');
+  m.style.display = 'none'; td.style.display = 'none';
+  if (typeof LWeek !== 'function') return;
+
+  var wk = LWeek();
+  /* הדף שנלמד הוא הדף של השבוע? רק אז זה סימון. */
+  if (wk < 0 || dafKey(LDaf(S.mas, wk) || '') !== dafKey(S.daf)) return;
+
+  var fresh = !LDone(S.mas, wk);
+  if (fresh) LMark(S.mas, wk);
+  m.textContent = JOIN.markedOk;
+  m.style.display = '';
+
+  var me = LMe();
+  if (me && me.way === 'dad') {
+    td.textContent = JOIN.tellDad;
+    td.href = 'https://wa.me/' + waNum(me.dadPhone) + '?text=' +
+      encodeURIComponent(fill2(JOIN.tellMsg, {
+        daf: S.daf, mas: MAS_NAME[S.mas] || ''
+      }));
+    td.style.display = '';
+  }
+}
+/* מספר ישראלי לצורת wa.me. בלי מספר — הקישור נפתח על בחירת
+   נמען, וזה עדיין עובד. */
+function waNum(p) {
+  var d = String(p || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.indexOf('0') === 0) d = '972' + d.slice(1);
+  return d;
+}
+function fill2(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) {
+    return v[k] != null ? v[k] : m;
+  });
 }
 
 /* ============================================================

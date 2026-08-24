@@ -456,6 +456,14 @@ body.tk-sheeting #tk-bar{display:none}
   transition:transform .2s cubic-bezier(.22,1,.36,1)}
 .step:active .dot{transform:scale(.9)}
 .step.done .dot{background:var(--sunk);border-color:var(--rule);color:var(--ink-3)}
+/* ✓ על מה שהתלמיד סימן שלמד. הסימנייה היא המקום שבו ההתקדמות
+   השנתית חיה ממילא, ולכן זו התוספת הנכונה — ולא רשת של כל
+   הדפים במסך הבית שלו, שרק מזכירה בכל כניסה מה פספס. */
+.step.learned .dot{background:var(--green);border-color:var(--green-d);color:#fff}
+.step.learned .p:after{content:"✓";margin-inline-start:7px;color:var(--green-d);
+  font-weight:800}
+.bm.t-b .step.learned.cur .dot,.bm.t-g .step.learned.cur .dot{
+  background:linear-gradient(150deg,var(--green),var(--green-d));border-color:transparent}
 .bm.t-b .step.cur .dot{background:linear-gradient(150deg,var(--blue-l),var(--blue));
   border-color:var(--blue);color:#fff;box-shadow:0 0 0 5px rgba(23,70,143,.14),var(--sh-2);
   width:52px;height:52px;font-size:1.15rem}
@@ -768,6 +776,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .linkbox .url{margin-top:12px;background:var(--sunk);border-radius:10px;
   padding:9px 11px;font-size:.78rem;font-weight:700;color:var(--ink-2);
   direction:ltr;text-align:left;overflow-wrap:anywhere;line-height:1.5}
+/* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
+   ברצף, לא שני נושאים. */
+.linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
+  font-size:.83rem;font-weight:800;color:var(--gold);letter-spacing:.02em}
+.linkbox .lstep:first-of-type{margin-top:13px}
 .linkbox .acts{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px;
   align-items:stretch}
 .linkbox .acts .btn{margin:0}
@@ -1178,9 +1191,10 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.17.2';
+var APP_VERSION = '7.18.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1925,6 +1939,11 @@ function joinCode() {
   return reg.inst && reg.inst !== 'other' ? reg.inst : '';
 }
 
+/* כתובת הלוח של אותו מוסד. אותו בסיס, קובץ אחר. */
+function boardUrl(code) {
+  return joinUrl(code).replace('join.html?', 'board.html?');
+}
+
 function linkBlock(title) {
   var code = joinCode();
   if (!code) return '';
@@ -1933,6 +1952,11 @@ function linkBlock(title) {
   var wa   = fill(UI.linkWa, { inst:name, url:url });
   return '<div class="linkbox">' +
     '<b>' + esc(fill(title, { inst:name })) + '</b>' +
+
+    /* שניים, ובסדר הזה. הראשון הוא מה שהוא עושה עכשיו; השני
+       מה שהוא פותח מחר — ואז הוא כבר מלא, ולכן אין רגע שבו
+       הוא רואה לוח ריק ותוהה מה קנה. */
+    '<div class="lstep">' + esc(UI.linkStep1) + '</div>' +
     '<p>' + esc(UI.linkNote) + '</p>' +
     '<div class="url">' + esc(url) + '</div>' +
     '<div class="acts">' +
@@ -1940,7 +1964,13 @@ function linkBlock(title) {
          'target="_blank" rel="noopener">' + esc(UI.linkWaBtn) + '</a>' +
       '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' +
         esc(UI.linkCopy) + '</button>' +
-    '</div></div>';
+    '</div>' +
+
+    '<div class="lstep">' + esc(UI.linkStep2) + '</div>' +
+    '<p>' + esc(UI.boardNote) + '</p>' +
+    '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
+       'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
+    '</div>';
 }
 
 /* העתקה. `navigator.clipboard` אינו קיים בהקשר לא־מאובטח ובחלק
@@ -2025,14 +2055,16 @@ function openTrack(id) {
         }
       });
     }
+    var open = daf && daf !== 'סיום';
     var cls = 'step';
     if (!daf) cls += ' off';
     else if (daf === 'סיום') cls += ' siyum';
     if (i === wi) cls += ' cur';
     if (wi >= 0 && i < wi) cls += ' done';
+    /* מה שסומן כנלמד — מהמכשיר, ולכן זמין גם בלי רשת. */
+    if (open && typeof LDone === 'function' && LDone(id, i)) cls += ' learned';
     if (i === tr.cal.length - 1) cls += ' last';
 
-    var open = daf && daf !== 'סיום';
     h += '<div class="' + cls + '"' +
          (open ? ' onclick="openWeek(\'' + id + '\',' + i + ')"' : '') + '>' +
          '<span class="dot">' + (daf ? (daf === 'סיום' ? 'סיום' : esc(daf)) : 'חופשה') + '</span>' +
@@ -4075,7 +4107,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 9;
+var SCRIPT_MIN = 10;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>הלוח — הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<meta name="robots" content="noindex">
+<style>
+/* ============================================================
+   הלוח של ראש החטיבה.
+
+   קישור קבוע אחד למוסד: board.html?inst=avir
+
+   מספרים בלבד — וזו החלטה, לא חוסר.
+   ------------------------------------
+   הקישור הזה מועבר. ראש חטיבה שולח לר״ם, ר״ם לר״ם אחר, ומישהו
+   מדביק אותו בקבוצה. אם הוא היה מכיל שמות של תלמידים, כל
+   העברה כזו הייתה דליפה של רשימת קטינים — בדיוק מה שהגיליון
+   הפרטי והסיסמה באו למנוע. לכן הוא קורא **רק** מהלשוניות
+   הציבוריות, שיש בהן קוד ישיבה ומספר.
+
+   השמות יושבים בפאנל הניהול של הרכז, מאחורי סיסמת הקריאה.
+
+   וזה גם המקום שבו הוא מוצא שוב את קישור ההצטרפות: קישור אחד
+   לזכור במקום שניים.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE;
+  --green:#6FA83B; --green-d:#4A821C;
+  --gold:#C08F2B; --gold-l:#E3B44A;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#96A0B2; --rule:#E5DAC3;
+  --r:16px; --r-s:12px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:"Assistant","Segoe UI","Noto Sans Hebrew","Arial Hebrew",system-ui,sans-serif}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 34px)}
+
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 24px) 20px 24px;text-align:center}
+header img{height:34px;margin-bottom:8px}
+header h1{font-size:1.1rem;font-weight:800;letter-spacing:-.03em}
+header p{font-size:.82rem;font-weight:700;opacity:.82;margin-top:4px}
+
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  padding:18px;margin-top:14px;box-shadow:var(--sh-1)}
+.card h2{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.card .h{font-size:.8rem;font-weight:600;color:var(--ink-3);margin-top:3px;line-height:1.6}
+
+/* שלושת המספרים. גדולים, כי הם הסיבה שהוא פתח את הדף. */
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
+.num{background:var(--surface);border-radius:var(--r);padding:15px 8px;
+  text-align:center;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
+.num b{display:block;font-size:1.75rem;font-weight:800;letter-spacing:-.04em;
+  line-height:1.1;color:var(--blue)}
+.num span{display:block;font-size:.72rem;font-weight:800;color:var(--ink-3);
+  margin-top:4px;line-height:1.35}
+@media (max-width:339px){.nums{grid-template-columns:1fr 1fr}}
+
+/* פילוח. מוט ולא עוגה: השוואה בין שכבות נקראת בעין בשורות
+   באורך שונה, ובעוגה צריך לפענח אותה. */
+.bars{margin-top:12px;display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:2.6rem 1fr 2rem;align-items:center;gap:9px}
+.bar .k{font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.bar .t{height:9px;border-radius:9px;background:var(--sunk);overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:9px;
+  background:linear-gradient(90deg,var(--blue-l),var(--blue))}
+.bar .n{font-size:.84rem;font-weight:800;text-align:start}
+
+.wk{margin-top:12px;padding-top:13px;border-top:1px solid var(--rule)}
+.wk b{font-size:1.02rem;font-weight:800}
+.wk .of{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-top:3px}
+
+.btn{display:block;width:100%;text-align:center;font-size:.98rem;font-weight:800;
+  border:0;border-radius:14px;padding:15px;margin-top:11px;cursor:pointer;
+  font-family:inherit;color:#fff;text-decoration:none;
+  background:linear-gradient(140deg,var(--green),var(--green-d));
+  box-shadow:0 6px 18px rgba(74,130,28,.26)}
+.btn.g{background:var(--sunk);color:var(--ink-2);box-shadow:none}
+.url{margin-top:11px;background:var(--sunk);border-radius:10px;padding:9px 11px;
+  font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
+  overflow-wrap:anywhere;line-height:1.5}
+
+.empty{text-align:center;padding:8px 0 4px}
+.empty .big{font-size:2.2rem;line-height:1}
+.empty p{font-size:.9rem;font-weight:700;color:var(--ink-2);margin-top:9px;line-height:1.7}
+
+.soon{margin-top:14px;font-size:.82rem;font-weight:700;color:var(--ink-3);
+  text-align:center;line-height:1.7}
+footer{text-align:center;color:var(--ink-3);font-size:.76rem;font-weight:700;
+  margin-top:22px;line-height:1.9}
+footer b{display:block;color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="logo" alt="בני עקיבא">
+  <h1>הדף השבועי</h1>
+  <p id="sub">הלוח</p>
+</header>
+
+<div class="wrap" id="body"></div>
+
+<div class="wrap"><footer>
+  <b id="foot-how"></b>
+  רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז
+</footer></div>
+
+<script src="data.js"></script>
+<script src="learned.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function qs(k) {
+  var m = new RegExp('[?&]' + k + '=([^&]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+}
+function tp(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) {
+    return v[k] != null ? v[k] : m;
+  });
+}
+(function () { var l = $('logo'); if (l) l.src = LOGO_FULL; })();
+
+/* ---------- הישיבה ---------- */
+var code = qs('inst'), inst = null;
+for (var i = 0; i < INSTITUTIONS.length; i++)
+  if (INSTITUTIONS[i].code === code) inst = INSTITUTIONS[i];
+
+/* ---------- קריאה מהגיליון הציבורי ----------
+   אותן שתי לשוניות שמסך ההצטרפות קורא, ומאותה סיבה: מספרים
+   בלבד. */
+function sheetCsv(tab) {
+  var id = (LGet('cfg', {}) || {}).sheetId || SHEET_ID;
+  if (!id || !navigator.onLine) return Promise.resolve(null);
+  return fetch('https://docs.google.com/spreadsheets/d/' + id +
+               '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab) +
+               '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) { return t ? csv(t) : null; })
+    .catch(function () { return null; });
+}
+function csv(text) {
+  var rows = [], row = [], f = '', q = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { f += '"'; i++; }
+      else if (c === '"') q = false;
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+
+/* "ח׳:11 · ט׳:7" → [['ח׳',11],['ט׳',7]] — הצורה שהסקריפט כותב,
+   כדי שפילוח לא ידרוש עמודה לכל שכבה. */
+function pairs(t) {
+  return String(t || '').split('·').map(function (p) {
+    var i = p.lastIndexOf(':');
+    return i < 0 ? null : [p.slice(0, i).trim(), parseInt(p.slice(i + 1), 10) || 0];
+  }).filter(function (x) { return x && x[0] && x[1]; });
+}
+
+var joined = LGet('boardCache', null);
+function loadBoard() {
+  return Promise.all([
+    sheetCsv('מונים').then(function (rows) {
+      if (!rows || rows.length < 2) return;
+      var head = rows[0], ix = {};
+      for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      for (var r = 1; r < rows.length; r++) {
+        if (String(rows[r][ix['קוד ישיבה']] || '').trim() !== code) continue;
+        joined = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
+                   grades: pairs(rows[r][ix['שכבות']]),
+                   ways:   pairs(rows[r][ix['מסגרות']]) };
+        LSet('boardCache', joined);
+      }
+    }),
+    sheetCsv('מוני-לימוד').then(function (rows) {
+      var m = LCountsFrom(rows);
+      if (m && Object.keys(m).length) LSet('learnCount', m);
+    })
+  ]).catch(function () {});
+}
+
+/* ---------- הקישור לתלמידים ----------
+   כאן, ולא רק בהודעה שנשלחה בהרשמה: הודעת וואטסאפ נקברת
+   בקבוצה תוך יומיים, והלוח הוא מה שהוא שומר. */
+function joinUrl() {
+  return location.href.split('#')[0].split('?')[0]
+           .replace(/board\.html$/, '') + 'join.html?inst=' + encodeURIComponent(code);
+}
+
+function draw() {
+  if (!inst) {
+    $('body').innerHTML = '<div class="card"><h2>הקישור אינו שלם</h2>' +
+      '<p class="h">כתובת הלוח כוללת את קוד הישיבה, למשל ' +
+      '<span dir="ltr">board.html?inst=avir</span>. בקשו מרכז התוכנית ' +
+      'את הקישור של הישיבה שלכם.</p></div>';
+    return;
+  }
+  $('sub').textContent = inst.name;
+
+  var wk = LWeek(), tr = TRACKS[0].id;
+  try { var t = localStorage.getItem('dfHomeTrack');
+        for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t; } catch (e) {}
+
+  var n     = joined ? joined.n : 0;
+  var dads  = 0;
+  if (joined) joined.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') dads = p[1]; });
+  var daf   = wk >= 0 ? LDaf(tr, wk) : null;
+  var didWk = wk >= 0 ? LCount(tr, wk, code) : 0;
+
+  var share =
+    '<div class="card"><h2>הקישור לתלמידים</h2>' +
+    '<p class="h">שלחו אותו לקבוצות הכיתה ולהורים. כל מי שנכנס דרכו ' +
+    'נרשם אליכם.</p>' +
+    '<div class="url">' + esc(joinUrl()) + '</div>' +
+    '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(tp(UI.linkWa, { inst:inst.name, url:joinUrl() })) + '">' +
+      esc(UI.linkWaBtn) + '</a>' +
+    '<button class="btn g" id="cp">' + esc(UI.linkCopy) + '</button></div>';
+
+  /* לפני שהצטרף מישהו — לא אפס ושלושה גרפים ריקים, אלא מה
+     לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */
+  if (!n) {
+    $('body').innerHTML =
+      '<div class="card"><div class="empty"><div class="big">📩</div>' +
+      '<p>הקישור עוד לא הופץ.<br>שלחו אותו לכיתות ולהורים, ' +
+      'וכאן תראו כמה הצטרפו.</p></div></div>' + share + soonLine();
+    wire();
+    return;
+  }
+
+  var maxG = 0;
+  joined.grades.forEach(function (p) { if (p[1] > maxG) maxG = p[1]; });
+
+  $('body').innerHTML =
+    '<div class="nums">' +
+      num(n, 'מצטרפים') +
+      num(didWk, 'למדו השבוע') +
+      num(dads, 'אבות ובנים') +
+    '</div>' +
+
+    (joined.grades.length
+      ? '<div class="card"><h2>לפי שכבה</h2><div class="bars">' +
+        joined.grades.map(function (p) {
+          return '<div class="bar"><span class="k">' + esc(p[0]) + '</span>' +
+            '<span class="t"><i style="width:' +
+            Math.max(6, Math.round(p[1] / maxG * 100)) + '%"></i></span>' +
+            '<span class="n">' + p[1] + '</span></div>';
+        }).join('') + '</div>' +
+        (daf ? '<div class="wk"><b>השבוע · דף ' + esc(daf) + '</b>' +
+               '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו</div></div>' : '') +
+        '</div>'
+      : '') +
+
+    share + soonLine();
+  wire();
+}
+function num(v, t) {
+  return '<div class="num"><b>' + v + '</b><span>' + esc(t) + '</span></div>';
+}
+/* משפט אחד עם תאריך, ולא רשימת פיצ'רים. רשימה קוראת כמו שיווק
+   ומזמינה למדוד אותנו מול הבטחה; משפט אחד הוא הבטחה שאפשר
+   לעמוד בה. */
+function soonLine() {
+  var d = new Date(PROGRAM.startDate + 'T00:00:00');
+  if (isNaN(d) || Date.now() >= d.getTime()) return '';
+  return '<p class="soon">הלימוד מתחיל ב־' + d.getDate() + '.' + (d.getMonth() + 1) +
+         '.' + String(d.getFullYear()).slice(2) +
+         '.<br>מאותו שבוע יופיע כאן גם מי למד.</p>';
+}
+function wire() {
+  var b = $('cp'); if (!b) return;
+  b.onclick = function () {
+    var u = joinUrl(), was = b.textContent;
+    var ok = function () { b.textContent = UI.linkCopied;
+                           setTimeout(function () { b.textContent = was; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(u).then(ok).catch(function () { legacy(u, ok); });
+    else legacy(u, ok);
+  };
+}
+function legacy(txt, done) {
+  var t = document.createElement('textarea');
+  t.value = txt; t.setAttribute('readonly', '');
+  t.style.cssText = 'position:fixed;top:-999px;opacity:0';
+  document.body.appendChild(t); t.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(t);
+}
+
+$('foot-how').textContent =
+  'שמרו את הקישור הזה. הוא נשלח אליכם בהרשמה, ואפשר גם להוסיף אותו למסך הבית.';
+
+/* מהמטמון מיד, ומהגיליון אחר כך — לוח שנפתח בלי רשת מראה את
+   מה שהיה, ולא מסך ריק. */
+draw();
+loadBoard().then(draw);
+</script>
+</body>
+</html>
