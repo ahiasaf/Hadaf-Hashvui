@@ -40,6 +40,16 @@
   --r:12px;
 }
 *{box-sizing:border-box}
+
+/* תמונה שעוד אין לה כתובת — לא מציגים סימן שבור.
+   הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
+   עד שהוא נוחת, ל-<img> אין src בכלל — והדפדפן מצייר במקומו
+   ריבוע שבור. בקליטה טובה זה מהבהב לרגע; בקליטה חלשה זה מה
+   שרואים במשך שניות, ובדיוק במסך הראשון של האפליקציה.
+
+   visibility ולא display: המסגרת שומרת על מקומה, ולכן כשהלוגו
+   מגיע שום דבר לא קופץ. */
+img:not([src]){visibility:hidden}
 body{margin:0;background:var(--paper);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
 header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
@@ -1791,7 +1801,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '7.19.1';
+var STUDIO_VER = '7.19.2';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון

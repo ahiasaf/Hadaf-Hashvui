@@ -50,6 +50,16 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;
   font-family:"Assistant","Segoe UI","Noto Sans Hebrew","Arial Hebrew",system-ui,sans-serif}
+
+/* תמונה שעוד אין לה כתובת — לא מציגים סימן שבור.
+   הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
+   עד שהוא נוחת, ל-<img> אין src בכלל — והדפדפן מצייר במקומו
+   ריבוע שבור. בקליטה טובה זה מהבהב לרגע; בקליטה חלשה זה מה
+   שרואים במשך שניות, ובדיוק במסך הראשון של האפליקציה.
+
+   visibility ולא display: המסגרת שומרת על מקומה, ולכן כשהלוגו
+   מגיע שום דבר לא קופץ. */
+img:not([src]){visibility:hidden}
 body{background:var(--paper);color:var(--ink);line-height:1.6;
   padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
 
