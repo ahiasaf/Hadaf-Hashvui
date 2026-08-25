@@ -816,6 +816,25 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .byline{background:var(--sunk);border-radius:var(--r-s);padding:10px 13px;
   font-size:.83rem;font-weight:800;color:var(--ink-2);margin-bottom:13px}
 
+/* ---------- מי שולח את החידה ----------
+   שורה ולא שדה: זו אינה שאלה אלא אמירה. מי שנרשם כבר אמר לנו
+   מי הוא, והבקשה להקליד את השם שוב היא הודעה שלא זכרנו.
+
+   ו"לא אתה?" — כי המקרה הנדיר קיים: תלמיד שפתח את הטלפון של
+   חבר. הוא נדיר מספיק כדי להיות קישור קטן, וקיים מספיק כדי
+   שאסור להשמיט אותו. */
+.qas{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--sunk);border-radius:var(--r-s);padding:12px 14px}
+.qas b{display:block;font-size:.94rem;font-weight:800;line-height:1.35}
+.qas span{display:block;font-size:.78rem;font-weight:700;color:var(--ink-3);margin-top:2px}
+.qas button{flex:none;border:none;background:none;font-family:inherit;
+  font-size:.8rem;font-weight:800;color:var(--blue);text-decoration:underline;
+  cursor:pointer;padding:4px}
+.qback{display:flex;align-items:center;gap:10px;margin-bottom:12px;
+  font-size:.83rem;font-weight:800;color:var(--ink-3)}
+.qback button{border:none;background:none;font-family:inherit;font-size:.83rem;
+  font-weight:800;color:var(--blue);cursor:pointer;padding:0}
+
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
   margin-bottom:14px}
@@ -1194,7 +1213,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.19.0';
+var APP_VERSION = '7.19.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2332,18 +2351,61 @@ function openQuiz() {
     h += '<button class="opt" id="opt' + i + '" onclick="pickAns(' + i + ')">' +
          '<span class="n">' + (i + 1) + '</span><span>' + esc(t) + '</span></button>';
   });
-  h += '</div><div style="margin-top:18px">' +
-       pkField('הישיבה שלי', qInstName, 'בחרו ישיבה', 'pickQuizInst()') +
-       '<div class="fld"><div class="label">השם שלי</div>' +
-       '<input type="text" id="q-name" placeholder="שם מלא" value="' + esc(myName) + '"></div>' +
-       '<div class="fld"><div class="label">טלפון — לשליחת הפרס</div>' +
-       '<input type="tel" id="q-phone" placeholder="05X-XXXXXXX"></div></div>' +
+  /* מי שולח. תלמיד שנרשם כבר אמר לנו מי הוא, ולבקש ממנו
+     להקליד את שמו שוב זה לומר לו שלא זכרנו.
+
+     השורה יושבת מעל כפתור השליחה ולא בראש המסך: השאלה "בשם מי
+     זה נשלח" עולה ברגע השליחה, ובראש העמוד היא רק דוחה את
+     החידה עצמה למטה. */
+  h += '</div><div style="margin-top:18px" id="q-who"></div>' +
        '<button class="btn p" id="q-send" onclick="sendQuiz()" disabled>שליחה</button>' +
        '<p style="font-size:.76rem;color:var(--ink-3);text-align:center;margin-top:10px;font-weight:600">' +
        'הפרטים נשמרים במערכת התוכנית בלבד.</p><div id="q-result"></div>';
   document.getElementById('quiz-body').innerHTML = h;
   state.ans = -1;
+  qManual = false;
+  quizWho();
   show('quiz');
+}
+
+/* מזוהה = יש פרופיל מלא מההרשמה, ולא ביקשנו לעקוף אותו. */
+var qManual = false;
+function quizMe() {
+  if (qManual) return null;
+  var me = typeof LMe === 'function' ? LMe() : null;
+  return (me && me.first && me.inst) ? me : null;
+}
+function quizWho() {
+  var el = document.getElementById('q-who');
+  if (!el) return;
+  var me = quizMe();
+
+  if (me) {
+    var nm = (me.first + ' ' + (me.last || '')).trim();
+    el.innerHTML = '<div class="qas">' +
+      '<div><b>' + esc(fill(UI.qAs, { name:nm })) + '</b>' +
+      '<span>' + esc(fill(UI.qAsSub, { inst:me.instName || '' })) + '</span></div>' +
+      '<button onclick="qManual=true;quizWho()">' + esc(UI.qNotYou) + '</button>' +
+      '</div>';
+    return;
+  }
+
+  /* לא מזוהה — או שביקש לשלוח בשם מישהו אחר. אלה השדות שהיו
+     כאן קודם, ועכשיו הם החריג ולא ברירת המחדל. */
+  var qInstName = (INSTITUTIONS.filter(function (i) { return i.code === myInst; })[0] || {}).name || '';
+  el.innerHTML =
+    (typeof LMe === 'function' && LMe() ?
+      '<div class="qback"><button onclick="qManual=false;quizWho()">→ חזרה</button>' +
+      esc(UI.qManual) + '</div>' : '') +
+    pkField('הישיבה שלי', qInstName, 'בחרו ישיבה', 'pickQuizInst()') +
+    '<div class="fld"><div class="label">השם שלי</div>' +
+    '<input type="text" id="q-name" placeholder="שם מלא" value="' + esc(myName) + '"></div>' +
+    '<div class="fld"><div class="label">טלפון — לשליחת הפרס</div>' +
+    '<input type="tel" id="q-phone" placeholder="05X-XXXXXXX" value="' + esc(myPhone()) + '"></div>';
+}
+function myPhone() {
+  var me = typeof LMe === 'function' ? LMe() : null;
+  return (me && me.phone) || '';
 }
 function pickQuizInst() {
   pick('הישיבה שלי', INSTITUTIONS.map(function (i) { return { v:i.code, t:i.name }; }),
@@ -2362,12 +2424,21 @@ function pickAns(i) {
 }
 function sendQuiz() {
   var key = state.track.id + '-' + (state.week + 1), q = QUIZ[key];
-  var inst = myInst;
-  var name = document.getElementById('q-name').value.trim();
-  var phone = document.getElementById('q-phone').value.trim();
-  if (!inst || !name) { alert('נא לבחור ישיבה ולמלא שם.'); return; }
-  myInst = inst; myName = name;
-  localStorage.setItem('dfInst', inst); localStorage.setItem('dfName', name);
+  var me = quizMe(), inst, name, phone, id = '';
+
+  if (me) {
+    inst  = me.inst;
+    name  = (me.first + ' ' + (me.last || '')).trim();
+    phone = me.phone || '';
+    id    = me.id || '';           /* מקשר את התשובה לתלמיד עצמו */
+  } else {
+    inst  = myInst;
+    name  = document.getElementById('q-name').value.trim();
+    phone = document.getElementById('q-phone').value.trim();
+    if (!inst || !name) { alert('נא לבחור ישיבה ולמלא שם.'); return; }
+    myInst = inst; myName = name;
+    localStorage.setItem('dfInst', inst); localStorage.setItem('dfName', name);
+  }
 
   var right = state.ans === q.correct;
   for (var k = 0; k < q.a.length; k++) {
@@ -2382,7 +2453,10 @@ function sendQuiz() {
           answer:state.ans, correct:right, at:new Date().toISOString(),
           cols: JSON.stringify([['שבוע', key], ['ישיבה', inst], ['שם', name],
             ['טלפון', phone], ['תשובה', state.ans + 1],
-            ['נכון', right ? 'נכון' : 'לא נכון']]) });
+            ['נכון', right ? 'נכון' : 'לא נכון'],
+            /* המזהה הוא מה שיקשר בין "ענה נכון" לבין תלמיד
+               מסוים כשתיערך ההגרלה. */
+            ['מזהה', id]]) });
   document.getElementById('q-result').innerHTML =
     '<div class="done-box" style="margin-top:14px">' +
     (right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
