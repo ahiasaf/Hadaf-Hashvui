@@ -63,42 +63,29 @@ header p{font-size:.82rem;font-weight:700;opacity:.82;margin-top:4px}
 .card h2{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
 .card .h{font-size:.8rem;font-weight:600;color:var(--ink-3);margin-top:3px;line-height:1.6}
 
-/* ---------- הלוח של הרכז בישיבה ----------
-   אותם שמות מחלקה ב-index.html וב-board.html, כי אותו קוד
-   מייצר את שניהם — ראו LBoard ב-learned.js. */
-.bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:11px}
-.bnum{background:var(--surface);border-radius:var(--r-m,16px);padding:15px 8px;
+/* שלושת המספרים. גדולים, כי הם הסיבה שהוא פתח את הדף. */
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
+.num{background:var(--surface);border-radius:var(--r);padding:15px 8px;
   text-align:center;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
-.bnum b{display:block;font-size:1.75rem;font-weight:800;letter-spacing:-.04em;
+.num b{display:block;font-size:1.75rem;font-weight:800;letter-spacing:-.04em;
   line-height:1.1;color:var(--blue)}
-.bnum span{display:block;font-size:.72rem;font-weight:800;color:var(--ink-3);
+.num span{display:block;font-size:.72rem;font-weight:800;color:var(--ink-3);
   margin-top:4px;line-height:1.35}
-@media (max-width:339px){.bnums{grid-template-columns:1fr 1fr}}
+@media (max-width:339px){.nums{grid-template-columns:1fr 1fr}}
 
-.bcard{background:var(--surface);border-radius:var(--r-m,16px);padding:17px 18px;
-  box-shadow:var(--sh-2);border-top:3px solid var(--gold);text-align:start}
-.bcard>b{display:block;font-size:1.02rem;font-weight:800;letter-spacing:-.02em;
-  line-height:1.4}
-.bcard>p{margin-top:8px;font-size:.85rem;font-weight:600;color:var(--ink-2);
-  line-height:1.7}
-.bnow{margin-top:12px;padding-top:11px;border-top:1px solid var(--rule-2,#E5DAC3);
-  font-size:.92rem;font-weight:800;color:var(--blue)}
-
-/* מוט ולא עוגה: השוואה בין שכבות נקראת בעין באורך של שורות. */
-.bbars{margin-top:11px;display:grid;gap:8px}
-.bbar{display:grid;grid-template-columns:2.6rem 1fr 2rem;align-items:center;gap:9px}
-.bbar .k{font-size:.84rem;font-weight:800;color:var(--ink-2)}
-.bbar .t{height:9px;border-radius:9px;background:var(--sunk);overflow:hidden}
-.bbar .t i{display:block;height:100%;border-radius:9px;
+/* פילוח. מוט ולא עוגה: השוואה בין שכבות נקראת בעין בשורות
+   באורך שונה, ובעוגה צריך לפענח אותה. */
+.bars{margin-top:12px;display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:2.6rem 1fr 2rem;align-items:center;gap:9px}
+.bar .k{font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.bar .t{height:9px;border-radius:9px;background:var(--sunk);overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:9px;
   background:linear-gradient(90deg,var(--blue-l),var(--blue))}
-.bbar .n{font-size:.84rem;font-weight:800;text-align:start}
+.bar .n{font-size:.84rem;font-weight:800;text-align:start}
 
-.bweek{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule-2,#E5DAC3)}
-.bweek b{display:block;font-size:1rem;font-weight:800}
-.bweek span{display:block;font-size:.87rem;font-weight:700;color:var(--ink-2);margin-top:2px}
-.bcard .bsend{margin-top:13px}
-.bwhere{margin-top:11px;font-size:.78rem;font-weight:700;color:var(--ink-3);
-  text-align:center;line-height:1.6}
+.wk{margin-top:12px;padding-top:13px;border-top:1px solid var(--rule)}
+.wk b{font-size:1.02rem;font-weight:800}
+.wk .of{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-top:3px}
 
 .btn{display:block;width:100%;text-align:center;font-size:.98rem;font-weight:800;
   border:0;border-radius:14px;padding:15px;margin-top:11px;cursor:pointer;
@@ -192,12 +179,29 @@ function csv(text) {
   return rows;
 }
 
-var joined = null;
+/* "ח׳:11 · ט׳:7" → [['ח׳',11],['ט׳',7]] — הצורה שהסקריפט כותב,
+   כדי שפילוח לא ידרוש עמודה לכל שכבה. */
+function pairs(t) {
+  return String(t || '').split('·').map(function (p) {
+    var i = p.lastIndexOf(':');
+    return i < 0 ? null : [p.slice(0, i).trim(), parseInt(p.slice(i + 1), 10) || 0];
+  }).filter(function (x) { return x && x[0] && x[1]; });
+}
+
+var joined = LGet('boardCache', null);
 function loadBoard() {
   return Promise.all([
     sheetCsv('מונים').then(function (rows) {
-      var m = LJoinFrom(rows);
-      if (m && Object.keys(m).length) LSet('joinCount', m);
+      if (!rows || rows.length < 2) return;
+      var head = rows[0], ix = {};
+      for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      for (var r = 1; r < rows.length; r++) {
+        if (String(rows[r][ix['קוד ישיבה']] || '').trim() !== code) continue;
+        joined = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
+                   grades: pairs(rows[r][ix['שכבות']]),
+                   ways:   pairs(rows[r][ix['מסגרות']]) };
+        LSet('boardCache', joined);
+      }
     }),
     sheetCsv('מוני-לימוד').then(function (rows) {
       var m = LCountsFrom(rows);
@@ -208,8 +212,11 @@ function loadBoard() {
 
 /* ---------- הקישור לתלמידים ----------
    כאן, ולא רק בהודעה שנשלחה בהרשמה: הודעת וואטסאפ נקברת
-   בקבוצה תוך יומיים, והלוח הוא מה שנשמר. */
-function joinUrl() { return LJoinUrl(code); }
+   בקבוצה תוך יומיים, והלוח הוא מה שהוא שומר. */
+function joinUrl() {
+  return location.href.split('#')[0].split('?')[0]
+           .replace(/board\.html$/, '') + 'join.html?inst=' + encodeURIComponent(code);
+}
 
 function draw() {
   if (!inst) {
@@ -221,19 +228,69 @@ function draw() {
   }
   $('sub').textContent = inst.name;
 
-  /* אותו מנוע שמצייר את הלוח בעמוד הראשי — ראו LBoard
-     ב-learned.js. כאן הוא תמיד עם כפתור השליחה, כי מי שהגיע
-     לכתובת הזו הוא הרכז עצמו. */
-  $('body').innerHTML = '<div style="margin-top:16px">' +
-    LBoard(code, inst.name, { send:true }) + '</div>' +
+  var wk = LWeek(), tr = TRACKS[0].id;
+  try { var t = localStorage.getItem('dfHomeTrack');
+        for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t; } catch (e) {}
+
+  var n     = joined ? joined.n : 0;
+  var dads  = 0;
+  if (joined) joined.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') dads = p[1]; });
+  var daf   = wk >= 0 ? LDaf(tr, wk) : null;
+  var didWk = wk >= 0 ? LCount(tr, wk, code) : 0;
+
+  var share =
     '<div class="card"><h2>הקישור לתלמידים</h2>' +
+    '<p class="h">שלחו אותו לקבוצות הכיתה ולהורים. כל מי שנכנס דרכו ' +
+    'נרשם אליכם.</p>' +
     '<div class="url">' + esc(joinUrl()) + '</div>' +
-    '<button class="btn g" id="cp">' + esc(UI.linkCopy) + '</button></div>' +
-    soonLine();
+    '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(tp(UI.linkWa, { inst:inst.name, url:joinUrl() })) + '">' +
+      esc(UI.linkWaBtn) + '</a>' +
+    '<button class="btn g" id="cp">' + esc(UI.linkCopy) + '</button></div>';
+
+  /* לפני שהצטרף מישהו — לא אפס ושלושה גרפים ריקים, אלא מה
+     לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */
+  if (!n) {
+    $('body').innerHTML =
+      '<div class="card"><div class="empty"><div class="big">📩</div>' +
+      '<p>הקישור עוד לא הופץ.<br>שלחו אותו לכיתות ולהורים, ' +
+      'וכאן תראו כמה הצטרפו.</p></div></div>' + share + soonLine();
+    wire();
+    return;
+  }
+
+  var maxG = 0;
+  joined.grades.forEach(function (p) { if (p[1] > maxG) maxG = p[1]; });
+
+  $('body').innerHTML =
+    '<div class="nums">' +
+      num(n, 'מצטרפים') +
+      num(didWk, 'למדו השבוע') +
+      num(dads, 'אבות ובנים') +
+    '</div>' +
+
+    (joined.grades.length
+      ? '<div class="card"><h2>לפי שכבה</h2><div class="bars">' +
+        joined.grades.map(function (p) {
+          return '<div class="bar"><span class="k">' + esc(p[0]) + '</span>' +
+            '<span class="t"><i style="width:' +
+            Math.max(6, Math.round(p[1] / maxG * 100)) + '%"></i></span>' +
+            '<span class="n">' + p[1] + '</span></div>';
+        }).join('') + '</div>' +
+        (daf ? '<div class="wk"><b>השבוע · דף ' + esc(daf) + '</b>' +
+               '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו</div></div>' : '') +
+        '</div>'
+      : '') +
+
+    share + soonLine();
   wire();
 }
+function num(v, t) {
+  return '<div class="num"><b>' + v + '</b><span>' + esc(t) + '</span></div>';
+}
 /* משפט אחד עם תאריך, ולא רשימת פיצ'רים. רשימה קוראת כמו שיווק
-   ומזמינה למדוד אותנו מול הבטחה. */
+   ומזמינה למדוד אותנו מול הבטחה; משפט אחד הוא הבטחה שאפשר
+   לעמוד בה. */
 function soonLine() {
   var d = new Date(PROGRAM.startDate + 'T00:00:00');
   if (isNaN(d) || Date.now() >= d.getTime()) return '';

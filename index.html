@@ -778,42 +778,72 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
    קופסה ולא שורה: זה לא אישור אלא כלי, והוא צריך להיראות כמו
    דבר שלוקחים איתו. הכתובת עצמה מוצגת במלואה — ראש חטיבה
    שמעביר קישור לקבוצת הורים רוצה לראות לאן הוא שולח. */
-/* ---------- הלוח של הרכז בישיבה ----------
-   אותם שמות מחלקה ב-index.html וב-board.html, כי אותו קוד
-   מייצר את שניהם — ראו LBoard ב-learned.js. */
-.bnums{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:11px}
-.bnum{background:var(--surface);border-radius:var(--r-m,16px);padding:15px 8px;
-  text-align:center;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
-.bnum b{display:block;font-size:1.75rem;font-weight:800;letter-spacing:-.04em;
-  line-height:1.1;color:var(--blue)}
-.bnum span{display:block;font-size:.72rem;font-weight:800;color:var(--ink-3);
-  margin-top:4px;line-height:1.35}
-@media (max-width:339px){.bnums{grid-template-columns:1fr 1fr}}
+.linkbox{margin-top:14px;background:var(--surface);border-radius:var(--r-m);
+  padding:15px 16px;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
+.linkbox>b{display:block;font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.linkbox>p{margin:7px 0 0;font-size:.82rem;color:var(--ink-3);
+  font-weight:600;line-height:1.6}
+.linkbox .url{margin-top:12px;background:var(--sunk);border-radius:10px;
+  padding:9px 11px;font-size:.78rem;font-weight:700;color:var(--ink-2);
+  direction:ltr;text-align:left;overflow-wrap:anywhere;line-height:1.5}
+/* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
+   ברצף, לא שני נושאים. */
+.linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
+  font-size:.83rem;font-weight:800;color:var(--gold);letter-spacing:.02em}
+.linkbox .lstep:first-of-type{margin-top:13px}
+.linkbox .acts{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px;
+  align-items:stretch}
+.linkbox .acts .btn{margin:0}
+.cp{border:none;border-radius:var(--r-s);background:var(--sunk);
+  color:var(--ink-2);font-weight:800;font-size:.84rem;padding:9px 15px;cursor:pointer;
+  font-family:inherit;white-space:nowrap}
+.cp:active{transform:scale(.96)}
+.linkbox .cp{padding:0 15px}
+@media (max-width:359px){.linkbox .acts{grid-template-columns:1fr}}
 
-.bcard{background:var(--surface);border-radius:var(--r-m,16px);padding:17px 18px;
-  box-shadow:var(--sh-2);border-top:3px solid var(--gold);text-align:start}
-.bcard>b{display:block;font-size:1.02rem;font-weight:800;letter-spacing:-.02em;
-  line-height:1.4}
-.bcard>p{margin-top:8px;font-size:.85rem;font-weight:600;color:var(--ink-2);
-  line-height:1.7}
-.bnow{margin-top:12px;padding-top:11px;border-top:1px solid var(--rule-2,#E5DAC3);
-  font-size:.92rem;font-weight:800;color:var(--blue)}
+/* ---------- רוצים להזמין גמרות? ----------
+   שורה אחת עם מתג. זו שאלת כן/לא, וכל צורה גדולה מזה הופכת
+   אותה להחלטה — בעמוד שכל מטרתו לא להכביד על מי שרק רוצה
+   להצטרף. "כן" פותח את הפירוט למטה; החזרת המתג סוגרת אותו. */
+.wantbar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--surface);border-radius:var(--r-s);padding:13px 15px;
+  box-shadow:var(--sh-1);cursor:pointer}
+.wantbar>div{min-width:0}
+.wantbar b{display:block;font-size:.96rem;font-weight:800;line-height:1.35}
+.wantbar span{display:block;font-size:.76rem;font-weight:700;color:var(--ink-3);
+  line-height:1.45;margin-top:3px}
 
-/* מוט ולא עוגה: השוואה בין שכבות נקראת בעין באורך של שורות. */
-.bbars{margin-top:11px;display:grid;gap:8px}
-.bbar{display:grid;grid-template-columns:2.6rem 1fr 2rem;align-items:center;gap:9px}
-.bbar .k{font-size:.84rem;font-weight:800;color:var(--ink-2)}
-.bbar .t{height:9px;border-radius:9px;background:var(--sunk);overflow:hidden}
-.bbar .t i{display:block;height:100%;border-radius:9px;
-  background:linear-gradient(90deg,var(--blue-l),var(--blue))}
-.bbar .n{font-size:.84rem;font-weight:800;text-align:start}
+/* המגירה. הגובה נמדד ב-JS ונקבע במפורש, כי CSS אינו יודע
+   להנפיש אל `auto`. אחרי הפתיחה הוא משוחרר ל-none, אחרת תמונה
+   שנטענת מאוחר נחתכת בדיוק בקצה. */
+.fold{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1)}
+.fold>div{padding-top:16px}
+@media (prefers-reduced-motion:reduce){.fold{transition:none}}
+/* כותרת בתוך המגירה — בלי מספר שלב, כי המגירה כולה היא שלב אחד */
+.foldh{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;margin:18px 0 9px}
+/* המועד האחרון. ליד הכמויות ולא בתחתית: מי שמקליד מספרים הוא
+   מי שצריך לדעת עד מתי. */
+.byline{background:var(--sunk);border-radius:var(--r-s);padding:10px 13px;
+  font-size:.83rem;font-weight:800;color:var(--ink-2);margin-bottom:13px}
 
-.bweek{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule-2,#E5DAC3)}
-.bweek b{display:block;font-size:1rem;font-weight:800}
-.bweek span{display:block;font-size:.87rem;font-weight:700;color:var(--ink-2);margin-top:2px}
-.bcard .bsend{margin-top:13px}
-.bwhere{margin-top:11px;font-size:.78rem;font-weight:700;color:var(--ink-3);
-  text-align:center;line-height:1.6}
+/* ---------- מי שולח את החידה ----------
+   שורה ולא שדה: זו אינה שאלה אלא אמירה. מי שנרשם כבר אמר לנו
+   מי הוא, והבקשה להקליד את השם שוב היא הודעה שלא זכרנו.
+
+   ו"לא אתה?" — כי המקרה הנדיר קיים: תלמיד שפתח את הטלפון של
+   חבר. הוא נדיר מספיק כדי להיות קישור קטן, וקיים מספיק כדי
+   שאסור להשמיט אותו. */
+.qas{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--sunk);border-radius:var(--r-s);padding:12px 14px}
+.qas b{display:block;font-size:.94rem;font-weight:800;line-height:1.35}
+.qas span{display:block;font-size:.78rem;font-weight:700;color:var(--ink-3);margin-top:2px}
+.qas button{flex:none;border:none;background:none;font-family:inherit;
+  font-size:.8rem;font-weight:800;color:var(--blue);text-decoration:underline;
+  cursor:pointer;padding:4px}
+.qback{display:flex;align-items:center;gap:10px;margin-bottom:12px;
+  font-size:.83rem;font-weight:800;color:var(--ink-3)}
+.qback button{border:none;background:none;font-family:inherit;font-size:.83rem;
+  font-weight:800;color:var(--blue);cursor:pointer;padding:0}
 
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
@@ -1077,15 +1107,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div id="mini" style="margin-top:14px"></div>
       </section>
 
-      <!-- שלב ב׳½ · הרכז בישיבה — רק למי שכבר נרשם.
-           אחרי התלמידים ולפני ההרשמה: מי שכבר בפנים אינו צריך
-           לעבור שוב דרך אזור ההצטרפות כדי להגיע ללוח שלו. -->
-      <section class="sec-b rv" id="coord" style="display:none">
-        <div class="zlabel"><span class="tag" id="c-tag">לרכז התוכנית בישיבה</span>
-          <span id="c-sub"></span></div>
-        <div id="board"></div>
-      </section>
-
       <!-- שלב ג׳ · ראשי החטיבות — חזרה לקרקע -->
       <section class="sec-b rv">
         <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
@@ -1202,7 +1223,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.20.0';
+var APP_VERSION = '7.19.2';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1472,7 +1493,6 @@ function renderHome() {
   if (zt) zt.textContent = UI.zoneTag;
   if (zs) zs.textContent = UI.zoneSub;
 
-  renderBoard();
   reveal();
 }
 
@@ -1568,11 +1588,10 @@ function renderReg() {
              esc(UI.savedGo) + '</a> · ' +
              '<a href="#" onclick="regReset();return false">' +
              esc(UI.savedNew) + '</a></p>' : '') +
-    /* מי שכבר נרשם וחזר — בא בשביל הלוח, לא בשביל הטופס.
-       ומי שהחליף מכשיר והלוח שלו נעלם מגיע לכאן ממילא, ולכן
-       דלת השחזור נמצאת כאן ולא בעמוד הראשי. */
-    (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" ' +
-             'onclick="boardBack();return false">' + esc(UI.bBack) + '</a></p>') +
+    /* מי שכבר נרשם וחזר — בא בדרך כלל בשביל הקישור, לא בשביל
+       הטופס. הודעת וואטסאפ נמחקת, נקברת בקבוצה, מתחלף טלפון;
+       הקישור חייב להיות מקום שאפשר לחזור אליו. */
+    (saved ? linkBlock(UI.linkAgain) : '') +
 
     /* הגמרות מאחורי שאלה, וזו הנקודה כולה: מי שרק רוצה להצטרף
        ולנקוב במספר סיים כאן. עמוד שפורש שתי מהדורות, מחירים,
@@ -1949,6 +1968,40 @@ function joinCode() {
   return reg.inst && reg.inst !== 'other' ? reg.inst : '';
 }
 
+/* כתובת הלוח של אותו מוסד. אותו בסיס, קובץ אחר. */
+function boardUrl(code) {
+  return joinUrl(code).replace('join.html?', 'board.html?');
+}
+
+function linkBlock(title) {
+  var code = joinCode();
+  if (!code) return '';
+  var name = (INSTITUTIONS.filter(function (i) { return i.code === code; })[0] || {}).name || '';
+  var url  = joinUrl(code);
+  var wa   = fill(UI.linkWa, { inst:name, url:url });
+  return '<div class="linkbox">' +
+    '<b>' + esc(fill(title, { inst:name })) + '</b>' +
+
+    /* שניים, ובסדר הזה. הראשון הוא מה שהוא עושה עכשיו; השני
+       מה שהוא פותח מחר — ואז הוא כבר מלא, ולכן אין רגע שבו
+       הוא רואה לוח ריק ותוהה מה קנה. */
+    '<div class="lstep">' + esc(UI.linkStep1) + '</div>' +
+    '<p>' + esc(UI.linkNote) + '</p>' +
+    '<div class="url">' + esc(url) + '</div>' +
+    '<div class="acts">' +
+      '<a class="btn gr" href="https://wa.me/?text=' + encodeURIComponent(wa) + '" ' +
+         'target="_blank" rel="noopener">' + esc(UI.linkWaBtn) + '</a>' +
+      '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' +
+        esc(UI.linkCopy) + '</button>' +
+    '</div>' +
+
+    '<div class="lstep">' + esc(UI.linkStep2) + '</div>' +
+    '<p>' + esc(UI.boardNote) + '</p>' +
+    '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
+       'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
+    '</div>';
+}
+
 /* העתקה. `navigator.clipboard` אינו קיים בהקשר לא־מאובטח ובחלק
    מהדפדפנים המוטמעים, ולכן יש נפילה לשדה זמני — אחרת הכפתור
    פשוט לא עושה כלום, בלי שום סימן. */
@@ -1982,67 +2035,10 @@ function regDone(txt, viaWa) {
              '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' +
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
-    /* הלוח, מיד אחרי האישור — ולא שני קישורים. הוא יראה אותו
-       מכאן ואילך בעמוד הראשי, וזה נאמר בשורה שבתחתיתו. */
-    boardBlock();
+    /* הכלי, מיד אחרי האישור. */
+    linkBlock(UI.linkTitle);
   renderHome();
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'center' });
-}
-
-/* ============================================================
-   הלוח של הרכז — בעמוד הראשי.
-   ============================================================
-   עד עכשיו הוא קיבל בסיום ההרשמה שני קישורים, אחד לתלמידים
-   ואחד ללוח. שני קישורים הם שני דברים לזכור, וזה עומס בדיוק
-   ברגע שבו הוא רק רוצה לדעת שההרשמה נקלטה.
-
-   הלוח אינו קישור אלא מקום, והמקום שלו הוא כאן: אחרי אזור
-   התלמידים, לפני אזור ההרשמה, ורק אצל מי שכבר נרשם.
-
-   `dfBoard` הוא קוד הישיבה שהמכשיר הזה עוקב אחריה. הוא נקבע
-   בהרשמה, ואפשר לקבוע אותו גם ידנית — ראו boardBack(). */
-function myBoard() {
-  var saved = regSaved();
-  if (saved && saved.code && saved.code !== 'other') return saved.code;
-  var b = Store.get('dfBoard', '');
-  return b || '';
-}
-/* האם מפיצים בכלל קישור הצטרפות לתלמידים. כבוי = הרכז רואה
-   את הלוח בלי כפתור השליחה, והקישור אינו מוצג בשום מקום
-   שראש חטיבה מגיע אליו. */
-function joinLinkOn() { return CV('joinLink') !== false; }
-
-/* הלוח בתוך מסך ההרשמה — אותו מנוע שמצייר אותו בעמוד הראשי,
-   כדי שהרגע שאחרי ההרשמה והמקום הקבוע לא ייראו כשני דברים. */
-function boardBlock() {
-  var code = myBoard();
-  var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
-  if (!inst) return '';
-  return '<div style="margin-top:16px">' +
-    LBoard(code, inst.name, { send:joinLinkOn(), where:true }) + '</div>';
-}
-
-function renderBoard() {
-  var el = document.getElementById('coord');
-  if (!el) return;
-  var code = myBoard();
-  var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
-  if (!inst) { el.style.display = 'none'; return; }
-  el.style.display = '';
-  document.getElementById('c-tag').textContent = UI.coordTag;
-  document.getElementById('c-sub').textContent = fill(UI.coordSub, { inst:inst.name });
-  document.getElementById('board').innerHTML =
-    LBoard(code, inst.name, { send:joinLinkOn(), where:true });
-}
-/* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
-   שהלוח שלו נעלם הולך לשם ממילא. הלוח מציג מספרים בלבד, ולכן
-   אין כאן מה לשמור מפני מי שיבחר ישיבה שאינה שלו. */
-function boardBack() {
-  pick(UI.bBack, INSTITUTIONS.map(function (i) { return { v:i.code, t:i.name }; }),
-       myBoard(), function (v) {
-    Store.set('dfBoard', v);
-    renderBoard(); renderReg();
-  });
 }
 
 /* חשיפה עדינה בגלילה — נותנת קצב לעמוד בלי להסיח */
@@ -3125,7 +3121,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'orderBy', 'joinLink'];
+                'orderBy'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -3391,22 +3387,6 @@ function loadSettings() {
       applyCfg();
       return true;
     });
-}
-
-/* שתי הלשוניות הציבוריות של המונים. אין בהן שם ואין בהן טלפון
-   — רק קוד ישיבה ומספר. */
-function loadCounts() {
-  var id = CFG.sheetId || SHEET_ID;
-  return Promise.all([
-    fetchSheet(id, 'מונים').then(function (rows) {
-      var m = LJoinFrom(rows);
-      if (m && Object.keys(m).length) { Store.set('joinCount', m); return true; }
-    }).catch(function () {}),
-    fetchSheet(id, 'מוני-לימוד').then(function (rows) {
-      var m = LCountsFrom(rows);
-      if (m && Object.keys(m).length) { Store.set('learnCount', m); return true; }
-    }).catch(function () {})
-  ]).then(function (r) { return !!(r[0] || r[1]); });
 }
 
 function publishSettings() {
@@ -3795,21 +3775,6 @@ function admInst(el) {
         '<button class="sw' + (showRow(r[0]) ? ' on' : '') +
         '" onclick="rowToggle(\'' + r[0] + '\')" aria-label="' + esc(r[1]) + '"></button></div>';
     }).join('') + '</div>' +
-
-    /* הקישור לתלמידים. כבוי = ראש חטיבה רואה את הלוח שלו בלי
-       כפתור השליחה, והקישור אינו מוצג בשום מקום שהוא מגיע
-       אליו. הרשימה בניהול ← מוסדות נשארת — היא כלי של הרכז
-       הראשי, ואינה מושפעת. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>הפצת הקישור לתלמידים</h4>' +
-    '<p class="h">כשדלוק — ראש חטיבה שנרשם מקבל בלוח שלו כפתור לשליחת ' +
-    'ההזמנה לכיתות ולהורים. כשכבוי — הוא רואה את הלוח בלבד, ואתם ' +
-    'מחליטים מתי ולמי למסור את הקישור.</p>' +
-    '<div class="row"><div>כפתור השליחה אצל ראשי החטיבות' +
-    '<div class="sub">' + (joinLinkOn() ? 'דלוק' : 'כבוי — הקישור נמסר על ידכם') +
-    '</div></div>' +
-    '<button class="sw' + (joinLinkOn() ? ' on' : '') +
-    '" onclick="cfgSet(\'joinLink\',!joinLinkOn());admPane();renderHome()" ' +
-    'aria-label="הפצת הקישור"></button></div></div>' +
 
     /* ההגרלה. כבויה עד שהפרס מאושר — אין דבר גרוע יותר מהגרלה
        שהובטחה לתלמידים ובוטלה. המפתח מפורסם, ולכן ההחלטה חלה
@@ -4824,8 +4789,6 @@ function registerSW() {
   loadSettings().then(function (ok) {
     if (ok) { renderHome(); if (document.getElementById('adm-pane')) admPane(); }
   }).catch(function () {});
-  /* המונים הציבוריים — מספרים בלבד, ומהם נבנה הלוח של הרכז. */
-  loadCounts().then(function (ok) { if (ok) renderBoard(); }).catch(function () {});
   /* חזרה מהלימוד האינטראקטיבי אל החידה של אותו שבוע. הלימוד
      נגמר ב"ישר כוח!" ובקישור הזה, ולכן הוא צריך לנחות על החידה
      עצמה ולא על מסך הבית. */
