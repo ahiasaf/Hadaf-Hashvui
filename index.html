@@ -845,6 +845,45 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .qback button{border:none;background:none;font-family:inherit;font-size:.83rem;
   font-weight:800;color:var(--blue);cursor:pointer;padding:0}
 
+/* ---------- הלוח של הרכז בישיבה ----------
+   לא תרשים. משפט חי נושא את הרגש, ופס אחד נושא את המידע —
+   והפס הוא הדבר היחיד כאן שיש בו תנועה: הוא מתמלא כל שבוע.
+
+   הפירוט לפי שכבה יורד לשורת צ'יפים ולא לתרשים מוטות, כי
+   הפירוט אינו מה שמושך את העין — הוא מה שמסתכלים בו אחרי. */
+.brd{background:linear-gradient(160deg,var(--surface) 0%,var(--surface-2) 100%);
+  border-radius:var(--r);padding:20px 18px 18px;box-shadow:var(--sh-2);
+  border-top:3px solid var(--gold)}
+/* המספר הוא הכותרת. גדול, בזהב, ובשורה משלו — כדי שהמשפט
+   שמתחתיו ייקרא כהמשך שלו ולא כתווית. */
+.brd-hero{text-align:center}
+.brd-hero b{display:block;font-size:2.4rem;font-weight:800;line-height:1;
+  letter-spacing:-.05em;color:var(--gold)}
+.brd-hero b small{font-size:1.05rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink);margin-inline-start:7px}
+.brd-hero span{display:block;font-size:.95rem;font-weight:700;color:var(--ink-2);
+  margin-top:7px;line-height:1.5}
+.brd-hero p{font-size:.85rem;font-weight:600;color:var(--ink-3);
+  margin-top:9px;line-height:1.7}
+
+/* הפס. מתמלא משמאל לימין בעברית — כלומר מהצד שבו מתחילים. */
+.brd-bar{margin-top:17px;padding-top:16px;border-top:1px solid var(--rule-2)}
+.brd-bar .t{height:12px;border-radius:12px;background:var(--sunk);overflow:hidden}
+.brd-bar .t i{display:block;height:100%;border-radius:12px;
+  background:linear-gradient(90deg,var(--green),var(--green-d));
+  transition:width .6s cubic-bezier(.4,0,.2,1)}
+.brd-bar span{display:block;font-size:.88rem;font-weight:800;color:var(--ink);
+  margin-top:9px;text-align:center}
+
+.brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
+.brd-chips span{background:var(--sunk);border-radius:999px;padding:6px 13px;
+  font-size:.79rem;font-weight:800;color:var(--ink-2)}
+.brd-chips span b{color:var(--blue);font-weight:800}
+
+.brd .btn{margin-top:16px}
+.brd-note{margin-top:11px;font-size:.77rem;font-weight:700;color:var(--ink-3);
+  text-align:center;line-height:1.6}
+
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
   margin-bottom:14px}
@@ -1107,6 +1146,15 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div id="mini" style="margin-top:14px"></div>
       </section>
 
+      <!-- הרכז בישיבה — רק אצל מי שכבר נרשם.
+           אחרי התלמידים ולפני ההרשמה: מי שכבר בפנים אינו צריך
+           לעבור דרך אזור ההצטרפות כדי להגיע ללוח שלו. -->
+      <section class="sec-b rv" id="coord" style="display:none">
+        <div class="zlabel"><span class="tag" id="c-tag"></span>
+          <span id="c-sub"></span></div>
+        <div id="board"></div>
+      </section>
+
       <!-- שלב ג׳ · ראשי החטיבות — חזרה לקרקע -->
       <section class="sec-b rv">
         <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
@@ -1223,7 +1271,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.19.2';
+var APP_VERSION = '7.20.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1493,6 +1541,7 @@ function renderHome() {
   if (zt) zt.textContent = UI.zoneTag;
   if (zs) zs.textContent = UI.zoneSub;
 
+  renderBoard();
   reveal();
 }
 
@@ -1591,7 +1640,9 @@ function renderReg() {
     /* מי שכבר נרשם וחזר — בא בדרך כלל בשביל הקישור, לא בשביל
        הטופס. הודעת וואטסאפ נמחקת, נקברת בקבוצה, מתחלף טלפון;
        הקישור חייב להיות מקום שאפשר לחזור אליו. */
-    (saved ? linkBlock(UI.linkAgain) : '') +
+    (saved || myBoard() ? boardBlock()
+       : '<p class="jump"><a href="#" onclick="boardBack();return false">' +
+         esc(UI.cbBack) + '</a></p>') +
 
     /* הגמרות מאחורי שאלה, וזו הנקודה כולה: מי שרק רוצה להצטרף
        ולנקוב במספר סיים כאן. עמוד שפורש שתי מהדורות, מחירים,
@@ -1973,6 +2024,15 @@ function boardUrl(code) {
   return joinUrl(code).replace('join.html?', 'board.html?');
 }
 
+/* הלוח בתוך מסך ההרשמה — אותו קוד שמצייר אותו בעמוד הראשי,
+   כדי שהרגע שאחרי ההרשמה והמקום הקבוע לא ייראו כשני דברים. */
+function boardBlock() {
+  var code = myBoard();
+  var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  if (!inst) return '';
+  return '<div style="margin-top:16px">' + boardHtml(code, inst.name) + '</div>';
+}
+
 function linkBlock(title) {
   var code = joinCode();
   if (!code) return '';
@@ -2035,10 +2095,129 @@ function regDone(txt, viaWa) {
              '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' +
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
-    /* הכלי, מיד אחרי האישור. */
-    linkBlock(UI.linkTitle);
+    /* הלוח, מיד אחרי האישור — ולא שני קישורים. מכאן ואילך הוא
+       יראה אותו בעמוד הראשי, וזה נאמר בשורה שבתחתיתו. */
+    boardBlock();
   renderHome();
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+/* ============================================================
+   הלוח של הרכז בישיבה.
+   ============================================================
+   `dfBoard` הוא קוד הישיבה שהמכשיר הזה עוקב אחריה. נקבע
+   בהרשמה, ואפשר לקבוע אותו גם ידנית — ראו boardBack().
+
+   כל הנתונים כאן מגיעים מהלשוניות הציבוריות, שיש בהן קוד
+   ישיבה ומספר. שם של תלמיד אינו יוצא מהגיליון הסגור. */
+function myBoard() {
+  var saved = regSaved();
+  if (saved && saved.code && saved.code !== 'other') return saved.code;
+  return Store.get('dfBoard', '') || '';
+}
+/* האם מפיצים בכלל קישור הצטרפות לתלמידים. */
+function joinLinkOn() { return CV('joinLink') !== false; }
+
+/* "ח׳:11 · ט׳:7" → [['ח׳',11],…] — הצורה שהסקריפט כותב, כדי
+   שפילוח לא ידרוש עמודה לכל שכבה. */
+function bPairs(t) {
+  return String(t || '').split('·').map(function (p) {
+    var i = p.lastIndexOf(':');
+    return i < 0 ? null : [p.slice(0, i).trim(), parseInt(p.slice(i + 1), 10) || 0];
+  }).filter(function (x) { return x && x[0] && x[1]; });
+}
+function bJoin(code) { return (Store.get('joinCount', {}) || {})[code] || null; }
+
+function boardHtml(code, name) {
+  var j = bJoin(code), n = j ? j.n : 0;
+  var wk = weekIndex(), tr = homeTrack;
+  var row = wk >= 0 ? trackById(tr).cal[wk] : null;
+  var daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
+
+  var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
+  var send = joinLinkOn()
+    ? '<a class="btn gr" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(wa) + '">' + esc(UI.cbSend) + '</a>' : '';
+
+  /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
+  var hero = n
+    ? '<b>' + n + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
+      '</small></b><span>' + esc(UI.cbHeroSub) + '</span>'
+    : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
+      '<p>' + esc(UI.cbEmptySub) + '</p>';
+
+  /* הפס — רק כשיש מה למדוד. לפני תחילת הלימוד במקומו שורה
+     שאומרת מתי הוא יתחיל להתמלא. */
+  var bar = '';
+  if (n && daf) {
+    bar = '<div class="brd-bar"><div class="t"><i style="width:' +
+      Math.max(3, Math.round(did / n * 100)) + '%"></i></div>' +
+      '<span>' + esc(fill(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
+  } else if (n) {
+    var d = new Date(PROGRAM.startDate + 'T00:00:00');
+    bar = '<div class="brd-bar"><span style="font-weight:700;color:var(--ink-2)">' +
+      esc(fill(UI.cbSoon, { date: d.getDate() + '.' + (d.getMonth() + 1) + '.' +
+                                  String(d.getFullYear()).slice(2) })) + '</span></div>';
+  }
+
+  var chips = '';
+  if (j && (j.grades.length || j.ways.length)) {
+    var list = j.grades.slice();
+    j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]); });
+    chips = '<div class="brd-chips">' + list.map(function (p) {
+      return '<span>' + esc(p[0]) + ' · <b>' + p[1] + '</b></span>';
+    }).join('') + '</div>';
+  }
+
+  return '<div class="brd"><div class="brd-hero">' + hero + '</div>' +
+         bar + chips + send +
+         '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
+}
+
+function renderBoard() {
+  var el = document.getElementById('coord');
+  if (!el) return;
+  var code = myBoard();
+  var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  if (!inst) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  document.getElementById('c-tag').textContent = UI.coordTag;
+  document.getElementById('c-sub').textContent = UI.coordSub;
+  document.getElementById('board').innerHTML = boardHtml(code, inst.name);
+}
+/* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
+   שהלוח שלו נעלם הולך לשם ממילא. */
+function boardBack() {
+  pick(UI.cbBack, INSTITUTIONS.map(function (i) { return { v:i.code, t:i.name }; }),
+       myBoard(), function (v) {
+    Store.set('dfBoard', v); renderBoard(); renderReg();
+  });
+}
+
+/* שתי הלשוניות הציבוריות של המונים — מספרים בלבד. */
+function loadCounts() {
+  var id = CFG.sheetId || SHEET_ID;
+  return Promise.all([
+    fetchSheet(id, 'מונים').then(function (rows) {
+      if (!rows || rows.length < 2) return;
+      var head = rows[0], ix = {}, m = {};
+      for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      if (ix['קוד ישיבה'] === undefined) return;
+      for (var r = 1; r < rows.length; r++) {
+        var c = String(rows[r][ix['קוד ישיבה']] || '').trim();
+        if (!c) continue;
+        m[c] = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
+                 grades: bPairs(rows[r][ix['שכבות']]),
+                 ways:   bPairs(rows[r][ix['מסגרות']]) };
+      }
+      if (Object.keys(m).length) { Store.set('joinCount', m); return true; }
+    }).catch(function () {}),
+    fetchSheet(id, 'מוני-לימוד').then(function (rows) {
+      var m = typeof LCountsFrom === 'function' ? LCountsFrom(rows) : null;
+      if (m && Object.keys(m).length) { Store.set('learnCount', m); return true; }
+    }).catch(function () {})
+  ]).then(function (r) { return !!(r[0] || r[1]); });
 }
 
 /* חשיפה עדינה בגלילה — נותנת קצב לעמוד בלי להסיח */
@@ -3121,7 +3300,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'orderBy'];
+                'orderBy', 'joinLink'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -3775,6 +3954,21 @@ function admInst(el) {
         '<button class="sw' + (showRow(r[0]) ? ' on' : '') +
         '" onclick="rowToggle(\'' + r[0] + '\')" aria-label="' + esc(r[1]) + '"></button></div>';
     }).join('') + '</div>' +
+
+    /* הקישור לתלמידים. כבוי = ראש חטיבה רואה את הלוח שלו בלי
+       כפתור השליחה, והקישור אינו מוצג בשום מקום שהוא מגיע
+       אליו. רשימת הקישורים למטה נשארת — היא כלי של הרכז
+       הראשי, ואינה מושפעת. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>הפצת הקישור לתלמידים</h4>' +
+    '<p class="h">כשדלוק — ראש חטיבה שנרשם מקבל בלוח שלו כפתור לשליחת ' +
+    'ההזמנה לכיתות ולהורים. כשכבוי — הוא רואה את הלוח בלבד, ואתם ' +
+    'מחליטים מתי ולמי למסור את הקישור.</p>' +
+    '<div class="row"><div>כפתור השליחה אצל ראשי החטיבות' +
+    '<div class="sub">' + (joinLinkOn() ? 'דלוק' : 'כבוי — הקישור נמסר על ידכם') +
+    '</div></div>' +
+    '<button class="sw' + (joinLinkOn() ? ' on' : '') +
+    '" onclick="cfgSet(\'joinLink\',!joinLinkOn());admPane();renderHome()" ' +
+    'aria-label="הפצת הקישור"></button></div></div>' +
 
     /* ההגרלה. כבויה עד שהפרס מאושר — אין דבר גרוע יותר מהגרלה
        שהובטחה לתלמידים ובוטלה. המפתח מפורסם, ולכן ההחלטה חלה
@@ -4789,6 +4983,8 @@ function registerSW() {
   loadSettings().then(function (ok) {
     if (ok) { renderHome(); if (document.getElementById('adm-pane')) admPane(); }
   }).catch(function () {});
+  /* המונים הציבוריים — מספרים בלבד, ומהם נבנה הלוח של הרכז. */
+  loadCounts().then(function (ok) { if (ok) renderBoard(); }).catch(function () {});
   /* חזרה מהלימוד האינטראקטיבי אל החידה של אותו שבוע. הלימוד
      נגמר ב"ישר כוח!" ובקישור הזה, ולכן הוא צריך לנחות על החידה
      עצמה ולא על מסך הבית. */
