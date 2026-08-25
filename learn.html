@@ -314,10 +314,6 @@ nav .sp{flex:1}
      font-size:.88rem;margin-top:-4px"></p>
   <a class="btn p" id="to-quiz" href="./">לשאלה השבועית</a>
   <a class="btn nx" id="to-next" href="./">לדף הבא</a>
-  <!-- התלמיד שולח, לא המערכת. מערכת ששולחת הודעות לאבא היא
-       מעקב; ילד שמספר לאבא שלו זה נחת. אותו כפתור, הבדל של
-       מי לוחץ. מופיע רק במסלול אבות ובנים. -->
-  <a class="btn" id="tell-dad" style="display:none" target="_blank" rel="noopener"></a>
   <button class="btn" id="stay">חזרה לדף</button>
   <div class="minor">
     <button id="again">מהתחלה</button>
@@ -1072,8 +1068,8 @@ function finish() {
 }
 
 function markThisDaf() {
-  var m = $('done-mark'), td = $('tell-dad');
-  m.style.display = 'none'; td.style.display = 'none';
+  var m = $('done-mark');
+  m.style.display = 'none';
   if (typeof LWeek !== 'function') return;
 
   var wk = LWeek();
@@ -1085,28 +1081,6 @@ function markThisDaf() {
   m.textContent = JOIN.markedOk;
   m.style.display = '';
 
-  var me = LMe();
-  if (me && me.way === 'dad') {
-    td.textContent = JOIN.tellDad;
-    td.href = 'https://wa.me/' + waNum(me.dadPhone) + '?text=' +
-      encodeURIComponent(fill2(JOIN.tellMsg, {
-        daf: S.daf, mas: MAS_NAME[S.mas] || ''
-      }));
-    td.style.display = '';
-  }
-}
-/* מספר ישראלי לצורת wa.me. בלי מספר — הקישור נפתח על בחירת
-   נמען, וזה עדיין עובד. */
-function waNum(p) {
-  var d = String(p || '').replace(/[^0-9]/g, '');
-  if (!d) return '';
-  if (d.indexOf('0') === 0) d = '972' + d.slice(1);
-  return d;
-}
-function fill2(t, v) {
-  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) {
-    return v[k] != null ? v[k] : m;
-  });
 }
 
 /* ============================================================

@@ -91,9 +91,32 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .way.on svg{fill:var(--c)}
 .way.on b{color:var(--c)}
 
+/* ---------- חשיפה הדרגתית ----------
+   מה שמלחיץ בטופס הוא לראות את כולו בבת אחת. מסך לכל שאלה
+   פותר את זה אבל מוסיף לחיצה לכל שדה, וכל "המשך" הוא עוד
+   נקודה שאפשר לנטוש בה. כאן העמוד פשוט גדל — בלי אף לחיצה
+   נוספת, ותמיד עם דבר אחד לעשות.
+
+   ברירת המחדל היא **גלוי**, וה-JS הוא זה שמסתיר. כך כשלון
+   של הסקריפט משאיר טופס רגיל ומלא ולא מסך ריק. */
+.stg{display:none}
+.stg.in{display:block;animation:stgIn .22s ease-out}
+.two .stg.in{display:block}
+@keyframes stgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.stg.in{animation:none}}
+
+/* מי ממלא — שני כפתורים, לא רשימה נפתחת. זו שאלה של זהות
+   ותשובה בלחיצה אחת. */
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.role{padding:14px 10px;border:1.5px solid var(--rule);border-radius:var(--r-s);
+  background:#fff;font-family:inherit;font-size:1rem;font-weight:800;
+  color:var(--ink-2);cursor:pointer}
+.role.on{border-color:var(--blue);background:var(--sunk);color:var(--blue)}
+.role:active{transform:scale(.98)}
+
 /* חלק האבא נפתח רק כשצריך בו */
 #dad{display:none}
-#dad.on{display:block}
+#dad.on{display:block;animation:stgIn .22s ease-out}
 
 .btn{display:block;width:100%;text-align:center;font-size:1rem;font-weight:800;
   border:0;border-radius:14px;padding:16px;margin-top:18px;cursor:pointer;
@@ -174,6 +197,22 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .week .tr{display:block;margin-top:13px;font-size:.83rem;font-weight:800;
   color:var(--blue);text-decoration:none}
 
+/* ---------- ההזמנה ההדדית ----------
+   לא דיווח אלא קריאה: בוא תלמד איתי. ולכן היא יושבת אחרי
+   ההרשמה ולא בסוף הדף — זה הרגע שבו הוא הצטרף, לא הרגע שבו
+   הוא סיים משהו. */
+.inv{margin-top:16px;background:var(--surface);border-radius:var(--r);
+  border:1.5px solid var(--gold);box-shadow:var(--sh-2);
+  padding:17px 18px;text-align:start}
+.inv h3{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;line-height:1.4}
+.inv p{font-size:.83rem;font-weight:600;color:var(--ink-2);margin-top:7px;line-height:1.65}
+.inv .fld{margin-top:12px}
+.inv .btn{margin-top:11px;font-size:.95rem;padding:14px}
+.inv .btn.off{background:var(--sunk);color:var(--ink-3);box-shadow:none;
+  pointer-events:none}
+.inv .ok{margin-top:11px;font-size:.86rem;font-weight:800;color:var(--green-d);
+  text-align:center}
+
 /* אחרי ההרשמה */
 #done{display:none;text-align:center;padding:26px 18px}
 #done.on{display:block}
@@ -219,53 +258,53 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
     </div>
   </div>
 
-  <div class="card">
-    <h2>מי אתה?</h2>
-    <!-- הקישור מגיע לקבוצת הכיתה ולקבוצת ההורים גם יחד, ולכן
-         חצי מהממלאים אינם התלמיד. שורה אחת מונעת את הטעות. -->
-    <p class="h">כדי שנדע לספור אותך, ושהישיבה תראה שלמדת.
-      הורה שממלא — כאן פרטי הבן.</p>
-    <div class="two">
-      <div class="fld"><div class="label">שם פרטי</div>
-        <input id="first" type="text" autocomplete="given-name"></div>
-      <div class="fld"><div class="label">שם משפחה</div>
-        <input id="last" type="text" autocomplete="family-name"></div>
-    </div>
-    <div class="fld" id="instFld" style="display:none">
-      <div class="label">הישיבה</div><select id="inst"></select>
-    </div>
-    <div class="two">
-      <div class="fld"><div class="label">שכבה</div>
-        <select id="grade"></select></div>
-      <!-- חובה. זה הערוץ היחיד שדרכו אפשר להודיע לזוכה בהגרלה,
-           ובלעדיו הזכייה שלו פשוט לא מגיעה אליו. -->
-      <div class="fld"><div class="label">טלפון</div>
-        <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
-    </div>
+  <!-- מי ממלא. השאלה הזו לא הייתה כאן, ולא בכדי: כל עוד אבא
+       היה שדה בטופס של הבן לא היה מה לשאול. מרגע שהוא נרשם
+       בעצמו — יש, וזו השאלה הראשונה כי כל השאר תלוי בה. -->
+  <div class="card" id="c-role">
+    <h2 id="role-q">אני</h2>
+    <div class="roles" id="roles"></div>
   </div>
 
-  <div class="card">
-    <h2>איך אתה לומד?</h2>
+  <div class="card stg" id="c-who">
+    <h2 id="who-h">מי אתה?</h2>
+    <p class="h" id="who-sub"></p>
+    <div class="fld"><div class="label">שם פרטי</div>
+      <input id="first" type="text" autocomplete="given-name"></div>
+    <div class="fld stg" id="f-last"><div class="label">שם משפחה</div>
+      <input id="last" type="text" autocomplete="family-name"></div>
+    <div class="fld stg" id="instFld" style="display:none">
+      <div class="label">הישיבה</div><select id="inst"></select>
+    </div>
+    <div class="fld stg" id="f-grade"><div class="label">שכבה</div>
+      <select id="grade"></select></div>
+    <!-- חובה. זה הערוץ היחיד שדרכו אפשר להודיע לזוכה בהגרלה,
+         ובלעדיו הזכייה שלו פשוט לא מגיעה אליו. -->
+    <div class="fld stg" id="f-phone"><div class="label">טלפון</div>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+  </div>
+
+  <div class="card stg" id="c-ways">
+    <h2 id="ways-h">איך אתה לומד?</h2>
     <p class="h">אפשר לשנות בכל שלב.</p>
     <div class="ways" id="ways"></div>
   </div>
 
-  <div class="card" id="dad">
-    <h2>ומי לומד איתך?</h2>
-    <p class="h">נעדכן אותו כל שבוע איזה דף למדתם.</p>
-    <div class="two">
-      <div class="fld"><div class="label">שם פרטי</div>
-        <input id="dad-first" type="text"></div>
-      <div class="fld"><div class="label">שם משפחה</div>
-        <input id="dad-last" type="text"></div>
-    </div>
-    <div class="fld"><div class="label">טלפון <i>· לא חובה</i></div>
+  <div class="card stg" id="dad">
+    <h2 id="dad-h">ומי לומד איתך?</h2>
+    <p class="h" id="dad-sub"></p>
+    <div class="fld"><div class="label" id="l-dad-first">שם פרטי</div>
+      <input id="dad-first" type="text"></div>
+    <div class="fld stg" id="f-dad-last"><div class="label">שם משפחה</div>
+      <input id="dad-last" type="text"></div>
+    <div class="fld stg" id="f-dad-phone">
+      <div class="label" id="l-dad-phone">טלפון <i>· לא חובה</i></div>
       <input id="dad-phone" type="tel" inputmode="tel"></div>
-    <p class="note" style="text-align:start;margin-top:12px">
+    <p class="note stg" id="dad-note" style="text-align:start;margin-top:12px">
       לא זוכר את המספר? אפשר להשאיר ריק ולהשלים אחר כך.</p>
   </div>
 
-  <button class="btn" id="go">מצטרף ללימוד</button>
+  <button class="btn stg" id="go">מצטרף ללימוד</button>
   <div class="err" id="err"></div>
   <p class="note">הפרטים נשמרים אצל רכז התוכנית בלבד, ומשמשים כדי
     לספור את הלימוד, לעדכן את ההורים, ולהודיע לזוכים בהגרלה.</p>
@@ -278,6 +317,11 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <p id="d-start"></p>
   <p id="d-raffle" style="font-weight:800;color:var(--gold)"></p>
   <div class="who" id="d-who"></div>
+
+  <!-- ההזמנה ההדדית. לפני הדף של השבוע: זה הרגע שבו הוא הצטרף,
+       והרגע הזה הוא גם ההזדמנות היחידה שבה טבעי לקרוא למישהו
+       להצטרף איתו. -->
+  <div id="inv"></div>
 
   <!-- הדף של השבוע. זה מה שהופך את מסך "אתה בפנים" לבית: מקום
        שחוזרים אליו, ולא הודעה שנקראת פעם אחת. -->
@@ -360,6 +404,7 @@ function drawWays() {
     b.onclick = function () {
       way = b.dataset.w;
       $('dad').className = way === 'dad' ? 'card on' : 'card';
+      stage();
       drawWays();
     };
   });
@@ -497,14 +542,20 @@ function drawTop() {
   } else w.style.display = 'none';
 
   /* כמה כבר בפנים אצלו. רק כשהישיבה ידועה מהקישור — בלעדיה
-     אין על מה לדווח, והמספר הכללי אינו אומר לו דבר. */
+     אין על מה לדווח, והמספר הכללי אינו אומר לו דבר.
+
+     ומתחת לסף לא מציגים מספר בכלל: "כבר 3 מצטרפים" חלש יותר
+     מכלום, והוא גם נימוק נגד. */
   var pe = $('peers');
   var nm = instRow && instRow.name;
   var cnt = nm ? (peers[instRow.code] || 0) : -1;
+  var min = JOIN.peersMin == null ? 5 : (parseInt(JOIN.peersMin, 10) || 0);
   var line = cnt < 0 ? '' :
-    cnt === 0 ? tpl(JOIN.peersNone, { inst:nm }) :
-    cnt === 1 ? tpl(JOIN.peersOne,  { inst:nm }) :
-                tpl(JOIN.peersMany, { n:cnt, inst:nm });
+    cnt < min   ? tpl(JOIN.peersNone, { inst:nm }) :
+    cnt === 1   ? tpl(JOIN.peersOne,  { inst:nm }) :
+                  tpl(JOIN.peersMany, { n:cnt, inst:nm });
+  /* מי שהוזמן — זו השורה שלו, והיא גוברת. */
+  if (invFrom) line = tpl(JOIN.invFrom, { me:invFrom });
   pe.textContent = line;
   pe.style.display = line ? '' : 'none';
 
@@ -527,6 +578,100 @@ function drawTop() {
     img.src = JOIN.rfImg;
   } else { img.style.display = 'none'; img.removeAttribute('src'); }
 }
+
+/* ============================================================
+   מי ממלא — תלמיד או הורה.
+   ============================================================
+   כל עוד אבא היה שדה בטופס של הבן, לא היה מה לשאול. מרגע
+   שהוא נרשם בעצמו — מסך בית משלו, הדף שלו, סימון שלו — יש
+   שני טפסים, והשאלה הזו היא הראשונה כי כל השאר תלוי בה.
+
+   התשובה מגיעה משלושה מקורות, בסדר הזה: הקישור (הזמנה שנשלחה
+   נושאת role), בחירה מפורשת, וברירת מחדל — תלמיד. */
+var role = qs('role') === 'dad' ? 'dad' : 'kid';
+var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
+
+function drawRoles() {
+  $('role-q').textContent = JOIN.roleAsk;
+  $('roles').innerHTML =
+    '<button class="role' + (role === 'kid' ? ' on' : '') + '" data-r="kid">' +
+      esc(JOIN.roleKid) + '</button>' +
+    '<button class="role' + (role === 'dad' ? ' on' : '') + '" data-r="dad">' +
+      esc(JOIN.roleDad) + '</button>';
+  [].forEach.call($('roles').querySelectorAll('[data-r]'), function (b) {
+    b.onclick = function () { role = b.dataset.r; drawRoles(); applyRole(); };
+  });
+}
+
+/* הטופס משנה פנים, ולא נבנה מחדש: מה שכבר הוקלד נשאר. */
+function applyRole() {
+  var dad = role === 'dad';
+  $('who-h').textContent   = dad ? JOIN.dadHead : 'מי אתה?';
+  $('who-sub').textContent = dad
+    ? 'כדי שנדע לספור גם אותך, ותוכל לסמן את הדף שלמדת.'
+    : 'כדי שנדע לספור אותך, ושהישיבה תראה שלמדת.';
+  /* להורה אין שכבה. שדה שאין לו תשובה הוא שדה שעוצר. */
+  $('f-grade').style.display = dad ? 'none' : '';
+  $('ways-h').textContent = dad ? JOIN.dadWays : 'איך אתה לומד?';
+  $('dad-h').textContent  = dad ? 'ומי לומד איתך?' : 'ומי לומד איתך?';
+  $('l-dad-first').textContent = dad ? JOIN.kidOfDad : 'שם פרטי';
+  $('dad-sub').textContent = dad
+    ? 'נזמין אותו להירשם, ותלמדו את אותו הדף.'
+    : 'נזמין אותו להירשם, ותלמדו את אותו הדף.';
+  stage();
+}
+
+/* ============================================================
+   חשיפה הדרגתית.
+   ============================================================
+   שדה נחשף כשקודמו מלא באמת — שתי אותיות ולא אחת, אחרת הוא
+   מקפץ בכל הקלדה. **ומה שנחשף אינו נסגר**: שדה שנעלם אחרי
+   שכבר ראו אותו מבלבל הרבה יותר מטופס ארוך.
+
+   ברירת המחדל ב-HTML היא גלוי, וכאן מסתירים. כשלון של הקוד
+   הזה משאיר טופס מלא ותקין. */
+var opened = {};
+function open_(id) {
+  if (opened[id]) return false;
+  var el = $(id); if (!el) return false;
+  opened[id] = 1;
+  el.className = (el.className + ' in').replace(/\s+/g, ' ');
+  return true;                      /* נחשף עכשיו — לגלול אליו */
+}
+function ready(id) { return ((($(id) || {}).value) || '').trim().length >= 2; }
+
+function stage() {
+  var dad = role === 'dad', grew = null;
+  var step = function (id, cond) { if (cond && open_(id)) grew = id; };
+
+  step('c-who', true);
+  step('f-last',  ready('first'));
+  step('instFld', ready('last'));
+  step('f-grade', ready('last') && !dad);
+  step('f-phone', ready('last') && (dad || !!val('grade')));
+  step('c-ways',  (val('phone').match(/\d/g) || []).length >= 9);
+  step('go',      !!way);
+  /* חלק ההורה/הבן — נפתח מהבחירה ולא מהרצף */
+  step('f-dad-last',  ready('dad-first'));
+  step('f-dad-phone', ready('dad-first'));
+  step('dad-note',    ready('dad-first'));
+
+  /* גלילה עדינה אל מה שנחשף. בלעדיה השדה החדש נולד מתחת
+     למקלדת, והמסך נראה כאילו לא קרה בו דבר. */
+  if (grew) {
+    var el = $(grew);
+    setTimeout(function () {
+      var r = el.getBoundingClientRect();
+      if (r.bottom > window.innerHeight - 120)
+        el.scrollIntoView({ behavior:'smooth', block:'center' });
+    }, 60);
+  }
+}
+/* כל הקלדה בטופס מקדמת את השלב. `input` ולא `change`, כי
+   `change` יורה רק כשעוזבים את השדה — ואז החשיפה מגיעה
+   באיחור של פעולה שלמה. */
+document.addEventListener('input', stage);
+document.addEventListener('change', stage);
 
 /* ---------- הישיבה ----------
    מגיעה מהקישור. ראש חטיבה מפיץ join.html?inst=<קוד>, ואז
@@ -593,22 +738,27 @@ $('go').onclick = function () {
      הבדיקה רופפת בכוונה: ספרות, ולפחות תשע. מספר עם מקף, עם
      רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
      אותו מרחיק תלמיד בגלל צורת כתיבה. */
+  var isDad = role === 'dad';
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה.');
   if ((val('phone').match(/\d/g) || []).length < 9)
     return say('צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
-  if (!way)            return say('צריך לבחור איך אתה לומד.');
+  if (!way)            return say(isDad ? 'צריך לבחור איך אתם לומדים.'
+                                        : 'צריך לבחור איך אתה לומד.');
   if (way === 'dad' && !val('dad-first'))
-    return say('צריך את שמו הפרטי של אבא.');
+    return say(isDad ? 'צריך את שמו הפרטי של הבן.' : 'צריך את שמו הפרטי של אבא.');
   say('');
 
+  /* `pair` הם פרטי מי שלומד איתו — אבא של תלמיד, או בן של
+     הורה. אותם שדות, והתפקיד קובע מי הם. */
   var me = {
-    id: deviceId(), inst: code, instName: name,
-    first: first, last: last, grade: grade, phone: val('phone'),
+    id: deviceId(), role: role, inst: code, instName: name,
+    first: first, last: last, grade: isDad ? '' : grade, phone: val('phone'),
     way: way,
     dadFirst: way === 'dad' ? val('dad-first') : '',
     dadLast:  way === 'dad' ? (val('dad-last') || last) : '',
     dadPhone: way === 'dad' ? val('dad-phone') : '',
+    from: invFrom || '',              /* מי הזמין אותי, אם הוזמנתי */
     at: new Date().toISOString()
   };
   set('me', me);
@@ -620,13 +770,91 @@ $('go').onclick = function () {
     ['מזהה', me.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
     ['שם', me.first], ['משפחה', me.last], ['שכבה', me.grade],
     ['טלפון', me.phone], ['מסגרת', WAY_NAME[me.way] || me.way],
+    ['תפקיד', me.role === 'dad' ? 'הורה' : 'תלמיד'],
     ['שם ההורה', me.dadFirst], ['משפחת ההורה', me.dadLast],
-    ['טלפון ההורה', me.dadPhone]
+    ['טלפון ההורה', me.dadPhone],
+    ['הוזמן על ידי', me.from]
   ]) });
 
   showDone(me);
 };
 function say(t) { $('err').textContent = t; }
+
+/* ============================================================
+   ההזמנה ההדדית.
+   ============================================================
+   לא "סיימתי את הדף, אבא" אלא "בוא נלמד ביחד". ההבדל אינו
+   בניסוח: בדיווח יש צד אחד שעושה וצד שני שמאשר, ובהזמנה שני
+   הצדדים עושים את אותו הדבר.
+
+   ולכן היא מופיעה כאן ולא בסוף הדף — זה הרגע שבו הוא הצטרף,
+   לא הרגע שבו הוא סיים משהו.
+
+   מי שאין לו טלפון של הצד השני יכול להשלים אותו כאן. הכפתור
+   כבוי עד שיש מספר, ואומר למה. */
+function waNum(p) {
+  var d = String(p || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.indexOf('0') === 0) d = '972' + d.slice(1);
+  return d;
+}
+/* הקישור שנשלח לצד השני. `role` הפוך משלי, `me` שמי — כדי
+   שהוא ייפתח כבר מותאם, ויידע מי הזמין אותו. */
+function invUrl(me) {
+  var base = location.href.split('#')[0].split('?')[0];
+  return base + '?inst=' + encodeURIComponent(me.inst) +
+         '&role=' + (me.role === 'dad' ? 'kid' : 'dad') +
+         '&me=' + encodeURIComponent(me.first);
+}
+
+function drawInv() {
+  var box = $('inv'); if (!box) return;
+  var me = get('me', null) || {};
+  box.innerHTML = '';
+  /* רק למי שבחר ללמוד עם מישהו, ורק אם ידוע מי הוא. */
+  if (me.way !== 'dad' || !me.dadFirst) return;
+  /* מי שהגיע דרך הזמנה — הצד השני כבר בפנים. הזמנה חוזרת אליו
+     נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
+  if (me.from) return;
+  if (get('inv-sent', 0)) {
+    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div></div>';
+    return;
+  }
+
+  var them = me.dadFirst, phone = me.dadPhone || '';
+  var okPhone = (phone.match(/\d/g) || []).length >= 9;
+  box.innerHTML = '<div class="inv">' +
+    '<h3>' + esc(tpl(JOIN.invTitle, { them:them })) + '</h3>' +
+    '<p>' + esc(JOIN.invBody) + '</p>' +
+    (okPhone ? ''
+      : '<div class="fld"><div class="label">' +
+        esc(tpl(JOIN.invPhone, { them:them })) + '</div>' +
+        '<input id="inv-ph" type="tel" inputmode="tel" value="' + esc(phone) + '"></div>' +
+        '<p id="inv-need" style="font-size:.79rem;color:var(--ink-3);' +
+        'font-weight:700;margin-top:7px">' + esc(JOIN.invNeed) + '</p>') +
+    '<button class="btn' + (okPhone ? '' : ' off') + '" id="inv-go">' +
+      esc(JOIN.invBtn) + '</button></div>';
+
+  var ph = $('inv-ph'), go = $('inv-go');
+  if (ph) ph.oninput = function () {
+    var ok = (ph.value.match(/\d/g) || []).length >= 9;
+    go.className = 'btn' + (ok ? '' : ' off');
+    /* ההסבר למה הכפתור כבוי מיותר ברגע שהוא נדלק. */
+    var nd = $('inv-need'); if (nd) nd.style.display = ok ? 'none' : '';
+  };
+  go.onclick = function () {
+    var num = ph ? ph.value : phone;
+    if ((String(num).match(/\d/g) || []).length < 9) return;
+    /* נשמר ברשומה, כדי שהמספר לא יאבד אם הוא ייסגר וייפתח. */
+    me.dadPhone = num; set('me', me);
+    set('inv-sent', 1);
+    window.open('https://wa.me/' + waNum(num) + '?text=' +
+      encodeURIComponent(tpl(JOIN.invMsg, {
+        me: me.first, them: them, url: invUrl(me)
+      })), '_blank');
+    drawInv();
+  };
+}
 
 /* ============================================================
    הדף של השבוע — מה שהופך את מסך הסיום לבית.
@@ -723,6 +951,7 @@ function showDone(me) {
   $('d-start').textContent = startsIn() ? tpl(JOIN.okStart, { date:startTxt() }) : '';
   $('d-raffle').textContent = pub.raffle ? tpl(JOIN.okRaffle, { inst:inst }) : '';
   $('d-who').textContent = WAY_NAME[me.way] || '';
+  drawInv();
   drawWeek();
   window.scrollTo(0, 0);
 }
@@ -753,12 +982,20 @@ function showDone(me) {
     $('dad-first').value = me.dadFirst || ''; $('dad-last').value = me.dadLast || '';
     $('dad-phone').value = me.dadPhone || '';
     way = me.way || '';
+    role = me.role || role;
     $('dad').className = way === 'dad' ? 'card on' : 'card';
-    drawWays();
+    drawRoles(); applyRole(); drawWays();
+    /* מי שחוזר לערוך כבר מכיר את הטופס — הריקוד של החשיפה
+       ההדרגתית יהיה כאן מכשול ולא עזרה. */
+    ['c-who','f-last','instFld','f-grade','f-phone','c-ways','go',
+     'f-dad-last','f-dad-phone','dad-note'].forEach(function (id) { open_(id); });
+    if (role === 'dad') $('f-grade').style.display = 'none';
     window.scrollTo(0, 0);
   };
 })();
 
+drawRoles();
+applyRole();
 drawWays();
 </script>
 </body>
