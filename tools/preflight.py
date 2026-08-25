@@ -98,6 +98,56 @@ def check_dupe_vars():
             OK.append('%s — אין שמות כפולים (%d משתנים)' % (f, len(seen)))
 
 
+# שמות שמופיעים ב-class= ואין להם כלל CSS — וזה בסדר.
+# חלקם ערכי השוואה בתוך ביטוי JS שנכנסו למחרוזת ("state.filter
+# === 'warm'"), וחלקם מחלקות שמשמשות רק כמזהה ל-querySelector
+# ואינן מעצבות דבר. הרשימה קפואה בכוונה: כל שם **חדש** שנופל
+# לכאן הוא כנראה כלל שנמחק, ולכן הוא נכשל.
+KNOWN_CLASSLESS = {
+    'index.html': {'all', 'ce-n', 'ce-r', 'cls', 'current', 'new', 'pi',
+                   'raffle', 's-', 'tone', 'warm'},
+    'join.html': {'dad', 'kid'},
+    'studio.html': {'mh', 'ml'},
+}
+
+
+def check_orphan_classes():
+    """מחלקה שמופיעה ב-HTML ואין לה כלל CSS — סימן לכלל שנמחק.
+
+    קרה בפועל, ובגדול. מחיקה של `.linkbox` נעשתה בחיתוך בין שני
+    עוגנים, והטווח בלע איתו שבעה כללים אחרים: `.fold`, `.wantbar`,
+    `.byline`, `.foldh`, `.cp`, `.qas`, `.qback`.
+
+    שום דבר לא זרק שגיאה. `.fold` הוא מה שמחזיק את מגירת הגמרות
+    סגורה (max-height:0 · overflow:hidden), ובלעדיו היא נפתחה על
+    פני כל מסך ההרשמה — תמונות הכריכה, המחירים והשדות זה על גבי
+    זה. הקוד רץ נקי, בדיקת העשן עברה, והמסך היה הרוס.
+
+    בדיקה סטטית וזולה, ותופסת בדיוק את המקרה הזה.
+    """
+    ident = re.compile(r'^[a-z][a-z0-9-]*$')
+    for f in ('index.html', 'join.html', 'board.html', 'learn.html',
+              'studio.html', 'rights.html', 'masa.html'):
+        if not os.path.exists(os.path.join(ROOT, f)):
+            continue
+        t = read(f)
+        if '<style>' not in t:
+            continue
+        css = t[t.index('<style>'):t.index('</style>')]
+        rules = set(re.findall(r'\.([A-Za-z][\w-]*)', css))
+        used = set()
+        for m in re.findall(r'class="([^"]*)"', t):
+            for c in re.split(r"[\s']+", m):
+                if ident.match(c or ''):
+                    used.add(c)
+        gone = sorted(used - rules - KNOWN_CLASSLESS.get(f, set()))
+        if gone:
+            BAD.append('%s — מחלקה בלי שום כלל CSS (כלל שנמחק?): %s'
+                       % (f, ', '.join(gone)))
+        else:
+            OK.append('%s — כל המחלקות מעוצבות' % f)
+
+
 def check_decks():
     """כל מצגת שמוגדרת ב-data.js — הקבצים שלה באמת שם.
 
@@ -192,7 +242,8 @@ def check_calendar():
 
 
 def main():
-    for fn in (check_version, check_dupe_vars, check_decks, check_daf_index,
+    for fn in (check_version, check_dupe_vars, check_orphan_classes,
+               check_decks, check_daf_index,
                check_calendar):
         try:
             fn()
