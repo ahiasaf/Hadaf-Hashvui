@@ -1318,7 +1318,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.27.2';
+var APP_VERSION = '7.28.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2538,20 +2538,31 @@ function showRow(k) {
   return v == null ? (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]) : !!v;
 }
 var MARKED = null;
+/* שם הלשונית שהסטודיו כותב אליה. אותו שם בשני המקומות — מי
+   שישנה כאן בלי לשנות בסטודיו ישבור את השורה בשקט. */
+var MARK_TAB_PUB = 'סימוני הדף';
 function loadMarked() {
   if (MARKED) return Promise.resolve(MARKED);
   var id = CFG.sheetId || SHEET_ID;
   if (!id || !navigator.onLine) return Promise.resolve(null);
   return fetch('https://docs.google.com/spreadsheets/d/' + id +
-      '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('סימוני הדף') +
+      '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(MARK_TAB_PUB) +
       '&tq=' + encodeURIComponent('select A,B') + '&t=' + Date.now())
     .then(function (r) { return r.ok ? r.text() : null; })
     .then(function (t) {
       if (!t) return null;
+      /* gviz אינה מודיעה על לשונית חסרה — היא מגישה את הראשונה
+         בגיליון. בלי הסינון הזה שורות של לשונית אחרת לגמרי היו
+         נכנסות לכאן כ"דפים מסומנים", ונשמרות במטמון. לכן רק
+         מסכת שקיימת במסלול נחשבת. */
+      var ok = {};
+      TRACKS.forEach(function (tr) { ok[tr.id] = 1; });
       var m = {};
       parseCsv(t).slice(1).forEach(function (r) {
         if (!r[0] || !r[1]) return;
-        (m[r[0].trim()] = m[r[0].trim()] || {})[dafKey(r[1])] = 1;
+        var k = r[0].trim();
+        if (!ok[k]) return;
+        (m[k] = m[k] || {})[dafKey(r[1])] = 1;
       });
       MARKED = m;
       Store.set('markedCache', m);
@@ -3810,8 +3821,12 @@ function loadSettings() {
 }
 
 function publishSettings() {
-  var msg = document.getElementById('adm-pub-msg');
+  /* מאתרים את התיבה בכל פעם מחדש ולא פעם אחת: `renderAdmin`
+     בונה את פס הפרסום מאפס, והתיבה שנתפסה קודם כבר אינה במסך.
+     כתיבה אליה נבלעת בשקט — וההודעה החשובה ביותר כאן היא זו
+     שמדווחת על כישלון. */
   var say = function (cls, t) {
+    var msg = document.getElementById('adm-pub-msg');
     if (msg) msg.innerHTML = '<div class="' + cls + '" style="margin-top:9px">' + t + '</div>';
   };
   if (!API) {
@@ -3828,15 +3843,57 @@ function publishSettings() {
           cols: JSON.stringify(['מפתח', 'ערך']),
           rows: JSON.stringify(rows) });
 
-  /* מעדכנים את המפורסם כאן ולא ממתינים לגיליון: `no-cors` מחזיר
-     תשובה אטומה ואי אפשר לדעת ממנה אם הכתיבה הצליחה. הקריאה
-     בעלייה הבאה היא זו שמאמתת. */
+  /* `no-cors` מחזיר תשובה אטומה: ה-fetch "מצליח" גם כשהסקריפט
+     דחה את הכתיבה, גם כשהכתובת שגויה, וגם כשהסקריפט מחובר
+     לגיליון אחר לגמרי. עד עכשיו נאמר כאן "פורסם" על סמך ההצלחה
+     המדומה הזו — וזו בדיוק התקלה שבגללה שבועות של מתגים לא הגיעו
+     לאיש, בלי שדבר על המסך רמז על כך.
+
+     לכן אין כאן יותר הבטחה. כותבים, ממתינים, **קוראים חזרה מן
+     הגיליון**, ומשווים מפתח מול מפתח. רק מה שחזר מן הגיליון
+     נחשב מפורסם. */
   var now = {};
   rows.forEach(function (r) { try { now[r[0]] = JSON.parse(r[1]); } catch (e) {} });
   PUB_CFG = now;
   Store.set('cfgCache', now);
-  say('done-box', 'פורסם · מעכשיו זה מה שכל מי שנכנס לאפליקציה רואה.');
   renderAdmin();
+  say('cond', 'נשלח · בודק בגיליון…');
+
+  var sent = {};
+  rows.forEach(function (r) { sent[r[0]] = r[1]; });
+
+  return new Promise(function (ok) { setTimeout(ok, 1800); })
+    .then(function () { return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB); })
+    .then(function (back) {
+      if (!back || back.length < 2) {
+        say('cond', '<b>הפרסום לא אושר.</b> לא הצלחתי לקרוא את לשונית "' +
+            SET_TAB + '" בגיליון.<br>מה שסימנתם נשמר במכשיר הזה בלבד — ' +
+            'מי שנכנס לאפליקציה עדיין רואה את הקודם.<br>' +
+            'לחצו "בדיקת חיבור" בכרטיס שרת ההרשמות: הוא יאמר מה חסר.');
+        return;
+      }
+      var got = {};
+      back.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim();
+        if (k) got[k] = (r[1] || '').trim();
+      });
+      var bad = [];
+      for (var k in sent) if (got[k] !== sent[k]) bad.push(k);
+      if (bad.length) {
+        say('cond', '<b>הפרסום לא אושר.</b> ' + bad.length +
+            ' מתוך ' + rows.length + ' ההגדרות לא חזרו מהגיליון.<br>' +
+            'מה שסימנתם נשמר במכשיר הזה בלבד — מי שנכנס לאפליקציה ' +
+            'עדיין רואה את הקודם.<br>' +
+            'לחצו "בדיקת חיבור" בכרטיס שרת ההרשמות: הוא יאמר מה חסר.');
+        return;
+      }
+      say('done-box', 'פורסם ואומת בגיליון · מעכשיו זה מה שכל מי שנכנס ' +
+          'לאפליקציה רואה.');
+    })
+    .catch(function () {
+      say('cond', '<b>הפרסום לא אושר.</b> לא הצלחתי לקרוא חזרה מהגיליון. ' +
+          'מה שסימנתם נשמר במכשיר הזה בלבד.');
+    });
 }
 
 /* אנשי קשר מגיליון פרטי. המזהה מוזן בניהול ונשמר על המכשיר —
@@ -3924,6 +3981,112 @@ function admPubBar() {
       '<button class="alt" onclick="publishSettings()">פרסום מחדש</button></div>' +
       '<div id="adm-pub-msg"></div>';
   }
+  /* הפס שלמעלה מדבר על המכשיר הזה בלבד — הוא יודע מה נשלח, ולא
+     מה הגיע. הכפתור הזה הוא הדבר היחיד שאומר את האמת: הוא קורא
+     מן הגיליון כמו זר שנכנס עכשיו, ומדווח מה **הוא** יראה. */
+  el.innerHTML +=
+    '<div style="margin-top:10px">' +
+    '<button class="btn g" style="margin:0" onclick="admVisitorCheck()">' +
+    'בדיקה · מה רואה מי שנכנס עכשיו</button></div>' +
+    '<div id="adm-vis"></div>';
+}
+
+/* ============================================================
+   בדיקת הזר.
+
+   זה נכתב אחרי שהתברר ששבועות של מתגים דלוקים לא הגיעו לאיש.
+   הפאנל הראה "ההגדרות מפורסמות" — כי הוא בדק את עצמו: הוא ידע
+   מה נשלח, לא מה נחת. גלישה בסתר הייתה הדרך היחידה לגלות,
+   ובמקרה.
+
+   כאן קוראים מן הגיליון ישירות, בלי מטמון ובלי הטיוטה
+   המקומית, ומציגים שורה־שורה מה יראה מי שפותח את הקישור עכשיו.
+   כשמשהו לא מגיע — כתוב מה, ולמה, ומה לעשות.
+   ============================================================ */
+function admVisitorCheck() {
+  var box = document.getElementById('adm-vis');
+  if (!box) return;
+  var say = function (cls, h) {
+    box.innerHTML = '<div class="' + cls + '" style="margin-top:10px">' + h + '</div>';
+  };
+  say('cond', 'קורא מהגיליון…');
+
+  var id = CFG.sheetId || SHEET_ID;
+  Promise.all([fetchSheet(id, SET_TAB), fetchSheet(id, MARK_TAB_PUB)])
+    .then(function (r) {
+      var setRows = r[0], markRows = r[1];
+      if (!setRows || setRows.length < 2) {
+        say('cond', '<b>לשונית "' + SET_TAB + '" ריקה או שלא נקראה.</b><br>' +
+            'כלומר: מי שנכנס לאפליקציה רואה את ברירות המחדל שבקוד, ' +
+            'ולא את מה שסימנתם כאן.<br>' +
+            'לחצו "פרסום מחדש" למעלה — הוא יאמר אם הכתיבה הגיעה. ' +
+            'אם גם היא נכשלת, "בדיקת חיבור" בכרטיס שרת ההרשמות ' +
+            'יאמר מה חסר.');
+        return;
+      }
+      /* מה שבגיליון, ורק הוא — בלי CFG ובלי המטמון */
+      var pub = {};
+      setRows.slice(1).forEach(function (row) {
+        var k = (row[0] || '').trim(), v = (row[1] || '').trim();
+        if (!k || PUB_KEYS.indexOf(k) < 0 || !v) return;
+        try { pub[k] = JSON.parse(v); } catch (e) {}
+      });
+
+      /* הדף של השבוע — או הראשון, כל עוד השנה לא התחילה */
+      var wi = weekIndex(), first = wi < 0;
+      var wk = first ? 0 : wi;
+      var marks = {};
+      (markRows || []).slice(1).forEach(function (row) {
+        if (!row[0] || !row[1]) return;
+        (marks[row[0].trim()] = marks[row[0].trim()] || {})[dafKey(row[1])] = 1;
+      });
+
+      var h = '<b>כך זה נראה למי שפותח את הקישור עכשיו:</b>' +
+              '<div style="margin-top:8px">';
+      TRACKS.forEach(function (tr) {
+        var daf = (tr.cal[wk] || [])[2];
+        h += '<div style="margin-top:6px"><b>מסכת ' + esc(tr.masechet) + '</b> · ' +
+             (first ? 'הדף הראשון' : 'הדף השבוע') + ': ' + esc(daf || '—') + '</div>';
+        ROW_KEYS.forEach(function (rk) {
+          var k = rk[0];
+          var on = pub.rows && pub.rows[k] != null ? !!pub.rows[k]
+                 : (k === 'inter' ? INTER_PUBLIC : ROW_DEF[k]);
+          var why = '';
+          if (on && k === 'inter') {
+            /* השער השני, זה שאיש אינו יודע עליו: המתג פותח את
+               השורה, אבל היא נצבעת רק לדף שסומן בסטודיו. מתג
+               דלוק על דף שלא סומן = שום דבר על המסך, ובלי
+               שום הודעה. */
+            if (!daf || !(marks[tr.id] || {})[dafKey(daf)]) {
+              on = false;
+              why = ' — <b>המתג דלוק, אבל הדף לא סומן בסטודיו</b>';
+            }
+          }
+          h += '<div class="sub" style="margin-right:10px">' +
+               (on ? '✓ ' : '✗ ') + esc(rk[1]) +
+               (on || why ? '' : ' — לא מוצג') + why + '</div>';
+        });
+      });
+      h += '</div>';
+
+      /* מה שונה בין המכשיר הזה לבין העולם */
+      var diff = [];
+      PUB_KEYS.forEach(function (k) {
+        var mine = CV(k);
+        if (mine == null) return;
+        if (JSON.stringify(mine) !== JSON.stringify(pub[k])) diff.push(k);
+      });
+      if (diff.length) {
+        h += '<div style="margin-top:10px"><b>' + diff.length +
+             ' הגדרות שונות אצלכם ממה שבגיליון.</b><br>' +
+             'כלומר מה שאתם רואים בפאנל אינו מה שהם רואים. ' +
+             'לחצו "פרסום מחדש" למעלה.</div>';
+      }
+      say(diff.length ? 'cond' : 'done-box', h);
+    })
+    .catch(function () {
+      say('cond', 'לא הצלחתי לקרוא מהגיליון. בדקו חיבור לרשת.');
+    });
 }
 
 function admGo(t) { admTab = t; renderAdmin(); }
@@ -3947,7 +4110,7 @@ function admPane() {
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
   if (admTab === 'reg')   return admReg(el);
   if (admTab === 'part')  return admPart(el);
-  if (admTab === 'inst')  return admInst(el);
+  if (admTab === 'inst')  { admInst(el); return admMarkHint(); }
   if (admTab === 'calls') {
     el.innerHTML = '<div id="calls-body"></div>';
     renderCalls();
@@ -4268,7 +4431,7 @@ function admInst(el) {
     '<p class="h">שורות ברשימת "הדף עצמו".</p>' +
     ROW_KEYS.map(function (r) {
       return '<div class="row"><div>' + esc(r[1]) +
-        '<div class="sub">' + esc(r[2]) + '</div></div>' +
+        '<div class="sub" id="rk-' + r[0] + '">' + esc(r[2]) + '</div></div>' +
         '<button class="sw' + (showRow(r[0]) ? ' on' : '') +
         '" onclick="rowToggle(\'' + r[0] + '\')" aria-label="' + esc(r[1]) + '"></button></div>';
     }).join('') + '</div>' +
@@ -4360,11 +4523,41 @@ function soonToggle() {
   cfgSet('rows', r);
   renderHome(); admPane();
 }
+/* השורה הזו נכתבה כי מתג דלוק לא הספיק.
+
+   "דף אינטראקטיבי" עובר שני שערים: המתג כאן, והדף עצמו שצריך
+   להיות מסומן בסטודיו. השער השני היה סמוי לגמרי — הרכז מדליק,
+   שום דבר לא קורה, ואין מה שיאמר לו למה. עכשיו השורה שמתחת
+   למתג אומרת בדיוק מה מצב הדף של השבוע. */
+function admMarkHint() {
+  var el = document.getElementById('rk-inter');
+  if (!el || !showRow('inter')) return;
+  loadMarked().then(function (m) {
+    var el2 = document.getElementById('rk-inter');
+    if (!el2 || !m) return;
+    var wi = weekIndex(), first = wi < 0, wk = first ? 0 : wi;
+    var miss = [], have = [];
+    TRACKS.forEach(function (tr) {
+      var daf = (tr.cal[wk] || [])[2];
+      if (!daf || daf === 'סיום') return;
+      ((m[tr.id] || {})[dafKey(daf)] ? have : miss).push(tr.masechet + ' ' + daf);
+    });
+    if (!miss.length) {
+      el2.innerHTML = (first ? 'הדף הראשון' : 'הדף השבוע') + ' מסומן ✓ · ' +
+                      esc(have.join(' · '));
+      return;
+    }
+    el2.innerHTML = '<b>המתג דלוק, אבל ' + esc(miss.join(' · ')) +
+      ' עדיין לא סומן בסטודיו — ולכן השורה לא מופיעה לאיש.</b>';
+  }).catch(function () {});
+}
+
 function rowToggle(k) {
   var r = CV('rows') || {};
   r[k] = !showRow(k);
   cfgSet('rows', r);
   admPane();
+  admMarkHint();
 }
 function admToggle(code) {
   var j = CV('joined') || {};
@@ -4784,7 +4977,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 11;
+var SCRIPT_MIN = 12;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -4825,6 +5018,20 @@ function admPing() {
       var tabs = (d.tabs || []).map(function (t) {
         return esc(t.name) + ' (' + t.rows + ')';
       }).join(' · ') || 'אין לשוניות';
+      /* הבדיקה החשובה מכולן, והיחידה שאי אפשר לראות בעין: האם
+         הסקריפט כותב לאותו גיליון שהאפליקציה קוראת ממנו. כשלא —
+         כל "פרסום" מצליח, ואף אחד לא רואה דבר. */
+      var want = (CFG.sheetId || SHEET_ID || '').trim();
+      if (d.sheetId && want && d.sheetId !== want) {
+        say('cond', '<b>הסקריפט מחובר לגיליון אחר.</b><br>' +
+            'הוא כותב אל: ' + esc(d.sheet || d.sheetId) + '<br>' +
+            'והאפליקציה קוראת מגיליון אחר לגמרי.<br>' +
+            'לכן כל פרסום שלכם מצליח — ואף אחד לא רואה אותו.<br><br>' +
+            'הפתרון: פתחו את הגיליון שהאפליקציה קוראת, ומשם ' +
+            'תוספים ← Apps Script, והדביקו שם את הקוד. הכתובת ' +
+            'שתתקבל היא זו שצריכה להיות כאן.');
+        return;
+      }
       if (v < SCRIPT_MIN) {
         say('cond', 'הסקריפט מגיב, אבל הפריסה ישנה — גרסה ' + v +
             ' במקום ' + SCRIPT_MIN + '.<br>ב-Apps Script: Deploy ← Manage ' +

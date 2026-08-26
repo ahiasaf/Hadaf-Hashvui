@@ -72,7 +72,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 11;
+var SCRIPT_VERSION = 12;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -264,6 +264,11 @@ function doGet(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
+    /* המזהה, ולא רק השם. זו התקלה שאי אפשר לראות בעין: הסקריפט
+       מחובר לגיליון אחד, האפליקציה קוראת מגיליון אחר, וכל
+       "פרסום" מצליח — אל הגיליון הלא נכון. השם לבדו אינו מספיק,
+       כי לשני גיליונות יכול להיות אותו שם. */
+    out.sheetId = ss.getId();
     out.tabs = ss.getSheets().map(function (s) {
       return { name: s.getName(), rows: Math.max(0, s.getLastRow() - 1) };
     });
