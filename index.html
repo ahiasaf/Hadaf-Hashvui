@@ -1322,7 +1322,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.29.1';
+var APP_VERSION = '7.30.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3813,6 +3813,33 @@ function loadTexts() {
    ============================================================ */
 var SET_TAB = 'הגדרות';
 
+/* ============================================================
+   הערך כפי שהוא חוזר מהגיליון — ולא כפי ששלחנו אותו.
+
+   גוגל שיטס אינה מחסן טקסט. תא שנכתב בו `true` הופך לערך
+   בוליאני, וחוזר מגוגל כ-`TRUE` — ש-JSON.parse נחנק ממנו.
+   וגרוע מזה: gviz מנחשת טיפוס אחיד לכל עמודה. עמודה שיש בה
+   גם `TRUE` וגם `{"inter":true}` מקבלת טיפוס אחד, וכל מה
+   שאינו מתאים לו חוזר **ריק**.
+
+   זה מה שקרה כאן: ההגדרות נכתבו לגיליון כמו שצריך — ארבע
+   שורות, במקום הנכון — וחזרו כארבעה ערכים שאי אפשר לקרוא.
+   הקוד דילג עליהם בשקט, נשאר עם ברירות המחדל, והפאנל הכריז
+   "מפורסם".
+
+   הכתיבה מסומנת עכשיו כטקסט (ראו publishSettings), אבל השורות
+   שכבר יושבות בגיליון נכתבו קודם — ולכן הקריאה חייבת לדעת
+   לקרוא גם אותן. */
+function cfgVal(v) {
+  v = (v == null ? '' : String(v)).trim();
+  if (!v) return undefined;
+  try { return JSON.parse(v); } catch (e) {}
+  if (/^true$/i.test(v))  return true;
+  if (/^false$/i.test(v)) return false;
+  /* מחרוזת שגוגל פשטה ממנה את המירכאות — 'now', 'last' */
+  return v;
+}
+
 function loadSettings() {
   return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB)
     .then(function (rows) {
@@ -3821,9 +3848,8 @@ function loadSettings() {
       rows.slice(1).forEach(function (r) {
         var k = (r[0] || '').trim(), v = (r[1] || '').trim();
         if (!k || PUB_KEYS.indexOf(k) < 0 || !v) return;
-        /* ערך פגום בגיליון לא יפיל את העלייה — הוא פשוט מדולג,
-           והברירה שבקוד נשארת. */
-        try { map[k] = JSON.parse(v); } catch (e) {}
+        var val = cfgVal(v);
+        if (val !== undefined) map[k] = val;
       });
       if (!Object.keys(map).length) return false;
       PUB_CFG = map;
@@ -3847,10 +3873,13 @@ function publishSettings() {
         'אחרת אפשר לשנות רק במכשיר הזה.');
     return;
   }
+  /* הגרש המוביל הוא הדרך היחידה לומר לגוגל "זה טקסט, אל תיגע".
+     בלעדיו `true` הופך לבוליאני ו-gviz מחזירה עמודה שלמה
+     ריקה. הגרש עצמו אינו חלק מהערך ואינו חוזר בקריאה. */
   var rows = [];
   PUB_KEYS.forEach(function (k) {
     var v = CV(k);
-    if (v != null) rows.push([k, JSON.stringify(v)]);
+    if (v != null) rows.push([k, "'" + JSON.stringify(v)]);
   });
   queue({ action:'table', tab: SET_TAB,
           cols: JSON.stringify(['מפתח', 'ערך']),
@@ -3873,7 +3902,7 @@ function publishSettings() {
   say('cond', 'נשלח · בודק בגיליון…');
 
   var sent = {};
-  rows.forEach(function (r) { sent[r[0]] = r[1]; });
+  rows.forEach(function (r) { sent[r[0]] = r[1].replace(/^'/, ''); });
 
   return new Promise(function (ok) { setTimeout(ok, 1800); })
     .then(function () { return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB); })
@@ -3885,13 +3914,17 @@ function publishSettings() {
             'לחצו "בדיקת חיבור" בכרטיס שרת ההרשמות: הוא יאמר מה חסר.');
         return;
       }
+      /* משווים משמעות ולא תווים: גוגל רשאית לשנות את הצורה של
+         הערך בדרך, וזה בסדר. מה שאינו בסדר הוא ערך שחזר אחר. */
       var got = {};
       back.slice(1).forEach(function (r) {
         var k = (r[0] || '').trim();
-        if (k) got[k] = (r[1] || '').trim();
+        if (k) got[k] = cfgVal(r[1]);
       });
       var bad = [];
-      for (var k in sent) if (got[k] !== sent[k]) bad.push(k);
+      for (var k in sent) {
+        if (JSON.stringify(got[k]) !== JSON.stringify(cfgVal(sent[k]))) bad.push(k);
+      }
       if (bad.length) {
         say('cond', '<b>הפרסום לא אושר.</b> ' + bad.length +
             ' מתוך ' + rows.length + ' ההגדרות לא חזרו מהגיליון.<br>' +
@@ -4038,12 +4071,29 @@ function admVisitorCheck() {
         return;
       }
       /* מה שבגיליון, ורק הוא — בלי CFG ובלי המטמון */
-      var pub = {};
+      var pub = {}, seen = [], broke = [];
       setRows.slice(1).forEach(function (row) {
-        var k = (row[0] || '').trim(), v = (row[1] || '').trim();
-        if (!k || PUB_KEYS.indexOf(k) < 0 || !v) return;
-        try { pub[k] = JSON.parse(v); } catch (e) {}
+        var k = (row[0] || '').trim();
+        if (!k) return;
+        seen.push(k);
+        if (PUB_KEYS.indexOf(k) < 0) return;
+        var val = cfgVal(row[1]);
+        if (val === undefined) { broke.push(k); return; }
+        pub[k] = val;
       });
+      /* אם שום מפתח לא שרד — לא לנחש. מראים מה באמת חזר, כי
+         זו השאלה היחידה שיש כאן, ומסך שאומר "לא מוצג" בלי
+         לומר למה הוא מה ששלח אותנו לגלישה בסתר. */
+      if (!Object.keys(pub).length) {
+        say('cond', '<b>הגיליון נקרא, אבל שום הגדרה לא חזרה ממנו.</b><br>' +
+            'לשונית "' + SET_TAB + '" · ' + (setRows.length - 1) + ' שורות.<br>' +
+            'מה שנמצא בעמודה הראשונה: ' +
+            esc(seen.slice(0, 8).join(' · ') || '(ריק)') +
+            (broke.length ? '<br>ערכים שלא ניתן לקרוא: ' + esc(broke.join(' · ')) : '') +
+            '<br><br>לחצו "פרסום מחדש" למעלה — הוא כותב עכשיו בצורה ' +
+            'שגוגל אינה משנה, והבדיקה הזו אמורה להתמלא.');
+        return;
+      }
 
       /* הדף של השבוע — או הראשון, כל עוד השנה לא התחילה */
       var wi = weekIndex(), first = wi < 0;
