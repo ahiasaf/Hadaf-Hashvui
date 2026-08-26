@@ -1312,7 +1312,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.23.1';
+var APP_VERSION = '7.24.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2769,6 +2769,53 @@ function contacts()      { try { return JSON.parse(localStorage.getItem('dfConta
                            catch (e) { return []; } }
 function saveContacts(c) { localStorage.setItem('dfContacts', JSON.stringify(c)); }
 
+/* ============================================================
+   יומן התיעוד — הרשת הבטוחה.
+   ============================================================
+   רשימת אנשי הקשר נדרסת בכל טעינה מהגיליון, ובכתיבה חזרה כל
+   הלשונית נכתבת מחדש. כלומר כל תיעוד חי בתוך מבנה שנמחק
+   ונכתב שוב ושוב — ודי בקריאה חלקית אחת כדי שהוא ייעלם.
+
+   היומן הזה הוא **הוספה בלבד**. שום מסלול בקוד אינו מוחק ממנו
+   שורה. הוא אינו מוצג, אינו מסונכרן, ואין בו לוגיקה — הוא קיים
+   אך ורק כדי שמה שהוקלד לא ייעלם.
+   ============================================================ */
+function jnl(c) {
+  if (!c || (!c.note && c.stage === 'new')) return;
+  try {
+    var j = Store.get('callJournal', []) || [];
+    var k = nameKey(c.key || c.name), last = null;
+    for (var i = j.length - 1; i >= 0; i--) if (j[i].k === k) { last = j[i]; break; }
+    if (last && last.note === (c.note || '') && last.stage === c.stage) return;
+    j.push({ k:k, name:c.name, stage:c.stage, note:c.note || '',
+             at:c.at || new Date().toISOString() });
+    if (j.length > 3000) j = j.slice(-3000);
+    Store.set('callJournal', j);
+  } catch (e) {}
+}
+/* מה שהיומן יודע ולא נמצא ברשומה — מוחזר. נקרא אחרי כל טעינה
+   מהגיליון, ולכן קריאה חלקית כבר אינה מוחקת תיעוד. */
+function jnlRestore(list) {
+  var j = Store.get('callJournal', []) || [];
+  if (!j.length) return 0;
+  var best = {};
+  j.forEach(function (e) {
+    var b = best[e.k];
+    if (!b || (e.at || '') >= (b.at || '')) best[e.k] = e;
+  });
+  var back = 0;
+  list.forEach(function (c) {
+    var e = best[nameKey(c.key || c.name)];
+    if (!e) return;
+    /* מחזירים רק כשאין מה לאבד: רשומה ריקה, או ישנה יותר. */
+    if (!c.note && e.note) { c.note = e.note; c.at = c.at || e.at; back++; }
+    if ((c.stage === 'new' || !c.stage) && e.stage && e.stage !== 'new') {
+      c.stage = e.stage; back++;
+    }
+  });
+  return back;
+}
+
 /* ------------------------------------------------------------
    איפה חיים הנתונים.
 
@@ -2871,13 +2918,23 @@ function pullCalls() {
       }
     });
 
+    /* מי שקיים אצלי ואינו בגיליון — נשאר. `out` נבנה מהגיליון
+       בלבד, ובלי השורות האלה כל קריאה חלקית מחקה כל איש קשר
+       שלא הופיע בה. זה מה שמחק את התיעוד. */
+    var inSheet = {};
+    out.forEach(function (c) { inSheet[nameKey(c.key || c.name)] = 1; });
+    contacts().forEach(function (c) {
+      if (!inSheet[nameKey(c.key || c.name)]) out.push(c);
+    });
+    var back = jnlRestore(out);
     saveContacts(out);
     /* כמה מהן באמת ניתנות לחיוג. בלי המספר הזה אפשר לראות
        רשימה מלאה ולגלות רק בשיחה שאין ממה לחייג. */
     var withP = out.filter(function (c) {
       return peopleOf(c).some(function (q) { return q.phone; });
     }).length;
-    callSay(out.length + ' ישיבות · ' + withP + ' עם טלפון · מסונכרן');
+    callSay(out.length + ' ישיבות · ' + withP + ' עם טלפון · מסונכרן' +
+            (back ? ' · ' + back + ' שוחזרו מהיומן' : ''));
     return true;
   });
 }
@@ -2902,12 +2959,20 @@ function pushCalls(now) {
         return [c.key || c.name, c.stage, c.note || '', c.at || '',
                 me ? me.name : '', ed];
       });
-    callSay('שומר…');
+    /* `action:'table'` כותב את הלשונית מחדש בשלמותה. כתיבה של
+       אפס שורות מוחקת את כל התיעוד שבגיליון — ובדיוק זה קרה
+       כשהרשימה המקומית התרוקנה לרגע. אין מצב שבו זה רצוי. */
+    if (!rows.length) { callSay('אין מה לשמור — הגיליון לא נגע'); return; }
+
+    callSay('שולח…');
     fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
       body: JSON.stringify({ action:'table', tab: CALL_TAB,
         cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה']),
         rows: JSON.stringify(rows) }) })
-      .then(function () { callSay(rows.length + ' שיחות · נשמר בגיליון'); })
+      /* `no-cors` מחזיר תשובה אטומה: `then` נקרא גם כשהכתיבה
+         נכשלה. "נשמר בגיליון" כאן היה שקר, והוא זה שגרם לסמוך
+         על שמירה שלא קרתה. */
+      .then(function () { callSay(rows.length + ' שיחות נשלחו · שמור גם במכשיר'); })
       .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
   };
   now ? go() : (callTimer = setTimeout(go, 1500));
@@ -3218,6 +3283,8 @@ function renderCalls() {
        '<button class="btn g" onclick="pushCalls(1)">שמירה לגיליון עכשיו</button>' +
        '<button class="btn g" onclick="pullCalls().then(renderCalls)">' +
        'רענון מהגיליון</button>' +
+       '<button class="btn g" onclick="jnlShow()">יומן התיעוד (' +
+       (Store.get('callJournal', []) || []).length + ')</button>' +
        '<button class="btn g" onclick="wipeContacts()">מחיקת הרשימה מהמכשיר</button>';
   el.innerHTML = h;
 }
@@ -3306,6 +3373,7 @@ function editSave() {
   c.primary = Math.min(c.primary || 0, Math.max(0, people.length - 1));
   c.edited = 1;                       /* מכאן ואילך הגיליון לא דורס */
   c.at = new Date().toISOString();
+  jnl(c);
   saveContacts(l);
   editClose(); renderCalls(); pushCalls(1);
 }
@@ -3315,13 +3383,46 @@ function editSave() {
 function setMain(i, k) {
   var l = contacts(); if (!l[i]) return;
   l[i].primary = k; l[i].at = new Date().toISOString();
+  jnl(l[i]);
   saveContacts(l); renderCalls(); pushCalls();
 }
 function setNote(i, v) {
   var l = contacts(); if (!l[i]) return;
   l[i].note = v; l[i].at = new Date().toISOString();
+  jnl(l[i]);                       /* קודם ליומן, ורק אז לכל השאר */
   saveContacts(l); pushCalls();
 }
+/* היומן, לעין. הוא קיים כדי שלא ילך מידע — וכדי שזה יהיה
+   שווה משהו צריך שיהיה אפשר לראות אותו ולהעתיק אותו החוצה
+   בלי לסמוך על שום סנכרון. */
+function jnlShow() {
+  var j = Store.get('callJournal', []) || [];
+  if (!j.length) { alert('היומן ריק.'); return; }
+  var best = {};
+  j.forEach(function (e) {
+    var b = best[e.k];
+    if (!b || (e.at || '') >= (b.at || '')) best[e.k] = e;
+  });
+  var lines = [];
+  for (var k in best) {
+    var e = best[k];
+    if (!e.note && e.stage === 'new') continue;
+    lines.push('• ' + (e.name || e.k) +
+      (e.stage && e.stage !== 'new' ? ' [' + e.stage + ']' : '') +
+      (e.note ? ' — ' + e.note : '') +
+      (e.at ? '  (' + e.at.slice(0, 10) + ')' : ''));
+  }
+  var txt = 'יומן התיעוד · ' + lines.length + ' רשומות\n\n' + lines.join('\n');
+  copyText(txt, 'היומן הועתק. הוא נשמר גם במכשיר ואינו נמחק.');
+}
+/* העתקה עם נפילה לשדה זמני, כמו בשאר האפליקציה. */
+function copyText(txt, okMsg) {
+  var done = function () { alert(okMsg); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(function () { legacyCopy(txt, done); });
+  } else legacyCopy(txt, done);
+}
+
 function exportCalls() {
   var l = contacts();
   var by = function (k) {
@@ -3337,7 +3438,8 @@ function exportCalls() {
 }
 function wipeContacts() {
   if (!confirm('למחוק את הרשימה מהמכשיר הזה?\n\nהגיליון אינו נמחק — לשונית "' +
-               CALL_TAB + '" נשארת, ורענון מהגיליון יחזיר הכל.')) return;
+               CALL_TAB + '" נשארת, ורענון מהגיליון יחזיר הכל.\n\n' +
+               'יומן התיעוד אינו נמחק.')) return;
   localStorage.removeItem('dfContacts');
   callSay('');
   renderCalls();
