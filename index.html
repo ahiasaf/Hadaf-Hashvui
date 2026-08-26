@@ -1312,7 +1312,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.24.0';
+var APP_VERSION = '7.24.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2786,8 +2786,16 @@ function jnl(c) {
     var j = Store.get('callJournal', []) || [];
     var k = nameKey(c.key || c.name), last = null;
     for (var i = j.length - 1; i >= 0; i--) if (j[i].k === k) { last = j[i]; break; }
-    if (last && last.note === (c.note || '') && last.stage === c.stage) return;
+    var ppl = c.edited ? JSON.stringify(peopleOf(c)) : '';
+    if (last && last.note === (c.note || '') && last.stage === c.stage &&
+        JSON.stringify(last.people || (last.people === null ? null : '')) ===
+        (c.edited ? ppl : JSON.stringify(null))) return;
+    /* גם האנשים, לא רק ההערה. איש קשר שהוספת ידנית חי בעמודת
+       "עריכה" שבגיליון בלבד — ואם הקריאה חוזרת בלעדיה, הוא
+       פשוט נעלם והרשימה חוזרת למה שבגיליון. ההערה שורדת (היא
+       בעמודה משלה) והאנשים לא. זה מה שקרה. */
     j.push({ k:k, name:c.name, stage:c.stage, note:c.note || '',
+             people: c.edited ? peopleOf(c) : null, last: !!c.last,
              at:c.at || new Date().toISOString() });
     if (j.length > 3000) j = j.slice(-3000);
     Store.set('callJournal', j);
@@ -2811,6 +2819,13 @@ function jnlRestore(list) {
     if (!c.note && e.note) { c.note = e.note; c.at = c.at || e.at; back++; }
     if ((c.stage === 'new' || !c.stage) && e.stage && e.stage !== 'new') {
       c.stage = e.stage; back++;
+    }
+    /* אנשים שנוספו ידנית. מחזירים כשהרשומה אינה מסומנת כערוכה
+       — כלומר כשהגיליון דרס אותה — או כשיש ביומן יותר אנשים
+       ממה שיש בה עכשיו. */
+    if (e.people && e.people.length &&
+        (!c.edited || e.people.length > (peopleOf(c) || []).length)) {
+      c.people = e.people; c.edited = 1; c.last = !!e.last; back++;
     }
   });
   return back;
@@ -2914,6 +2929,16 @@ function pullCalls() {
       }
       if (m && m.at && (!c.at || m.at > c.at)) {
         c.stage = m.stage; c.note = m.note; c.at = m.at;
+        if (m.primary != null) c.primary = m.primary;
+      }
+      /* עריכה מקומית שאין לה מקבילה בגיליון — נשארת. בלי זה,
+         קריאה שחזרה בלי עמודת "עריכה" (לשונית בת חמש עמודות,
+         או קריאה שנקטעה) החזירה את הרשימה למה שבגיליון ומחקה
+         כל איש קשר שהוסף ידנית. ההערה שרדה כי היא בעמודה
+         משלה — ולכן זה נראה כאילו רק האנשים "התאפסו". */
+      if (m && m.edited && !(s && s.ed)) {
+        c.people = peopleOf(m); c.name = m.name || c.name;
+        c.last = !!m.last; c.edited = 1;
         if (m.primary != null) c.primary = m.primary;
       }
     });
