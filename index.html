@@ -1322,7 +1322,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.30.0';
+var APP_VERSION = '7.31.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3980,7 +3980,7 @@ var admTab = 'reg';
 function renderAdmin() {
   var TABS = [['reg','הרשמות'],['part','משתתפים'],['inst','מוסדות'],
               ['calls','שיחות'],['text','טקסטים'],['price','מחירים'],
-              ['sugya','הסוגיה'],['set','הגדרות']];
+              ['sugya','הסוגיה'],['data','נתונים'],['set','הגדרות']];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -4184,6 +4184,7 @@ function admPane() {
   if (admTab === 'text')  return admText(el);
   if (admTab === 'price') return admPrice(el);
   if (admTab === 'sugya') return admSugya(el);
+  if (admTab === 'data')  return admData(el);
   if (admTab === 'set')   { admSet(el); return admInstallBox(); }
 }
 
@@ -4652,6 +4653,255 @@ function stageFromJoined(code, want) {
   jnl(c); saveContacts(l); pushCalls();
 }
 
+/* ============================================================
+   נתונים — לראות מה יש בגיליונות, להוריד עותק, ולנקות.
+
+   נכתב כי לא הייתה שום דרך למחוק דבר מתוך האפליקציה. שורות
+   ניסיון נשארו בגיליון, ומי שרצה להיפטר מהן היה צריך לפתוח
+   את גוגל שיטס ולעבוד שם ידנית — כלומר האפליקציה לא הייתה
+   מוצר שלם אלא חצי ממנו.
+
+   שלוש החלטות שקובעות איך זה בנוי:
+
+   1. **הורדה לפני מחיקה, תמיד.** ניקוי לשונית אינו הפיך, ורשימת
+      טלפונים של תלמידים אינה נמצאת בשום מקום אחר. לכן הכפתור
+      אינו מוחק לפני שירד עותק — ומי שסירב להוריד, נשאל שוב.
+
+   2. **הקלדת השם.** לא "האם אתה בטוח" — עליו אנשים לוחצים בלי
+      לקרוא. שם הלשונית מוקלד ביד, וזה מחייב להסתכל על מה
+      שמוחקים.
+
+   3. **ספירה חוזרת.** התשובה אומרת כמה שורות נמחקו וכמה נשארו,
+      והמסך נקרא מחדש מהשרת. אחרי "פורסם" שדיווח על הצלחה שלא
+      קרתה, שום פעולה הרסנית כאן אינה מסתמכת על ניחוש.
+   ============================================================ */
+var dataState = { d:null, msg:'', done:'', open:'', typed:'', got:{} };
+
+/* לשוניות שאינן "נתונים": מחיקה שלהן מוחקת עבודה, לא רשומות.
+   אינה חסומה — הרכז רשאי — אבל אומרת בפירוש מה יילך. */
+var TAB_WARN = {
+  'סימוני הדף': 'כאן יושבת כל עבודת הסטודיו — גבולות עמודים וחלוקה לקטעים. ' +
+                'ניקוי מוחק אותה, והדף האינטראקטיבי ייעלם לכל התלמידים.',
+  'טקסטים':     'כאן יושב כל המלל שערכתם. ניקוי מחזיר את הנוסח שבקוד.',
+  'הגדרות':     'כאן יושבים המתגים שפרסמתם. ניקוי מחזיר את כולם לברירת המחדל ' +
+                'אצל כל מי שנכנס.',
+  'מוסדות':     'רשימת המוסדות. ניקוי מחזיר את הרשימה שבקוד.'
+};
+
+function admData(el) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) {
+    el.innerHTML = '<div class="adm-card"><h4>נתונים</h4>' +
+      '<p class="h">כאן רואים מה יש בגיליונות, מורידים עותק ומנקים. ' +
+      'צריך קודם סיסמת קריאה — היא גם מה שמונע ממישהו אחר למחוק ' +
+      'לכם את הגיליון.</p>' +
+      '<div class="cond" style="margin-top:10px">מלאו את "סיסמת הקריאה" ' +
+      'בכרטיס שרת ההרשמות שבהגדרות, ואת אותה מחרוזת ב-Apps Script ' +
+      'בשורת <code>READ_KEY</code>.</div></div>';
+    return;
+  }
+
+  var d = dataState.d;
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>נתונים</h4>' +
+    '<p class="h">מה יש בגיליונות ברגע זה. הורידו עותק לפני כל ניקוי — ' +
+    'מחיקה כאן אינה הפיכה, ורשימת טלפונים אינה נמצאת בשום מקום אחר.</p>' +
+    '<div style="margin-top:10px"><button class="btn g" style="margin:0" ' +
+    'onclick="dataLoad()">' + (d ? 'רענון' : 'קריאת המצב') + '</button></div>' +
+    /* "נמחקו 11 שורות" חייב לשרוד את הקריאה מחדש שבאה מיד
+       אחריו — אחרת הפעולה ההרסנית היחידה כאן מסתיימת בלי שום
+       אישור על המסך. */
+    (dataState.done ? '<div class="done-box" style="margin-top:10px">' +
+                      dataState.done + '</div>' : '') +
+    (dataState.msg ? '<div class="cond" style="margin-top:10px">' +
+                     dataState.msg + '</div>' : '') + '</div>';
+
+  if (d) {
+    h += dataGroup('הגיליון הציבורי', d.sheet, d.tabs || [], '') +
+         (d.privId
+           ? dataGroup('הגיליון הפרטי', d.privSheet, d.privTabs || [], d.privId)
+           /* שתי סיבות שונות לגמרי לכך שהגיליון הפרטי אינו כאן,
+              ואסור לבלבל ביניהן: "אינו מוגדר" הוא תקלת אבטחה
+              אמיתית, ו"הסיסמה אינה תואמת" הוא שדה שצריך לתקן.
+              הודעה אחת לשתיהן הייתה שולחת לחפש את הבעיה הלא
+              נכונה. */
+           : '<div class="adm-card"><h4>הגיליון הפרטי</h4>' +
+             (d.privateOn
+               ? '<div class="cond">מוגדר בסקריפט, אבל הסיסמה שבמכשיר הזה ' +
+                 'אינה תואמת לזו שבו — ולכן אי אפשר לראות אותו מכאן.<br>' +
+                 'הגדרות ← שרת ההרשמות ← "סיסמת הקריאה".</div>'
+               : '<div class="cond"><b>אינו מוגדר.</b> שמות וטלפונים נכתבים ' +
+                 'לגיליון שמשותף לצפייה.<br>ב-Apps Script, בראש הקובץ: ' +
+                 '<code>PRIVATE_ID</code>.</div>') + '</div>');
+  }
+  el.innerHTML = h;
+  var f = document.getElementById('dt-type');
+  if (f) f.focus();
+}
+
+function dataGroup(title, name, tabs, ss) {
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(title) + '</h4>' +
+          '<p class="h">' + esc(name || '') + '</p>';
+  if (!tabs.length) h += '<div class="cond" style="margin-top:10px">אין לשוניות.</div>';
+  tabs.forEach(function (t) {
+    var open = dataState.open === ss + '|' + t.name;
+    h += '<div class="row"><div>' + esc(t.name) +
+      '<div class="sub">' + t.rows + ' שורות</div></div>' +
+      '<div style="display:flex;gap:6px">' +
+      '<button class="cp" onclick="dataGrab(' + dq(t.name) + ',' + dq(ss) + ')">הורדה</button>' +
+      '<button class="cp" onclick="dataAsk(' + dq(t.name) + ',' + dq(ss) + ')">' +
+      (open ? 'ביטול' : 'ניקוי') + '</button></div></div>';
+    if (open) h += dataConfirm(t, ss);
+  });
+  return h + '</div>';
+}
+
+/* מחרוזת בתוך onclick — הגרשיים חייבים לשרוד את שתי השכבות */
+function dq(v) { return "'" + String(v || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"; }
+
+function dataConfirm(t, ss) {
+  var warn = TAB_WARN[t.name];
+  var got  = dataState.got[ss + '|' + t.name];
+  return '<div class="cond" style="margin-top:9px">' +
+    '<b>' + t.rows + ' שורות יימחקו מ"' + esc(t.name) + '" — לצמיתות.</b>' +
+    (warn ? '<br>' + esc(warn) : '') +
+    '<br>' + (got ? 'עותק ירד למכשיר ✓' :
+                    '<b>עוד לא ירד עותק.</b> לחצו "הורדה" קודם.') +
+    '<div class="fld" style="margin-top:9px">' +
+    '<div class="label">הקלידו <b>' + esc(t.name) + '</b> כדי לאשר</div>' +
+    '<input id="dt-type" style="width:100%" value="' + esc(dataState.typed) + '" ' +
+    'oninput="dataState.typed=this.value" placeholder="שם הלשונית"></div>' +
+    '<button class="btn" style="margin-top:9px;background:#B3261E;color:#fff" ' +
+    'onclick="dataWipe(' + dq(t.name) + ',' + dq(ss) + ',' + t.rows + ')">' +
+    'מחיקה</button></div>';
+}
+
+function dataLoad(keep) {
+  if (!keep) dataState.done = '';
+  dataState.msg = 'קורא…'; admPane();
+  return scriptGet({ key: (CFG.readKey || '').trim() })
+    .then(function (d) {
+      if (!d || d.status !== 'ok') {
+        dataState.msg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      } else if (!d.privId && d.privTabs === undefined && !d.tabs) {
+        dataState.msg = 'הסקריפט ענה, אבל לא החזיר לשוניות.';
+      } else {
+        dataState.d = d; dataState.msg = '';
+        if (d.version < 13) dataState.msg =
+          'הפריסה ישנה — גרסה ' + d.version + '. מחיקה נוספה בגרסה 13, ' +
+          'ולכן כפתורי הניקוי לא יעבדו עד פריסה מחדש.';
+      }
+      admPane();
+    })
+    .catch(function () { dataState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); });
+}
+
+function dataAsk(tab, ss) {
+  var k = ss + '|' + tab;
+  dataState.open = dataState.open === k ? '' : k;
+  dataState.typed = '';
+  admPane();
+}
+
+/* הורדה. הלשונית נקראת דרך הסקריפט ולא מ-gviz: לשונית פרטית
+   אינה נקראת מהדפדפן כלל, ולציבורית זה ממילא אותו מסלול. */
+function dataGrab(tab, ss) {
+  dataState.done = ''; dataState.msg = 'מוריד את "' + esc(tab) + '"…'; admPane();
+  var p = { read: tab, key: (CFG.readKey || '').trim() };
+  if (ss) p.ss = ss;
+  return scriptGet(p).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      dataState.msg = (d && d.message) || 'לא הצלחתי לקרוא את הלשונית.';
+      admPane(); return false;
+    }
+    var rows = d.rows || [];
+    var csv = '\ufeff' + rows.map(function (r) {
+      return r.map(function (c) {
+        return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+    saveFile('hadaf-' + asciiName(tab) + '-' + stamp() + '.csv', csv);
+    dataState.got[ss + '|' + tab] = 1;
+    dataState.msg = '"' + esc(tab) + '" ירדה · ' +
+                    Math.max(0, rows.length - 1) + ' שורות.';
+    admPane(); return true;
+  }).catch(function () {
+    dataState.msg = 'לא הצלחתי לקרוא את הלשונית.'; admPane(); return false;
+  });
+}
+
+/* שם הקובץ חייב להיות באנגלית.
+
+   כרום מתעלם מ-download עם תווים שאינם ASCII — לא מקצץ, לא
+   מתרגם: **זורק את השם כולו** ושומר קובץ בשם "download", בלי
+   סיומת. כלומר הקובץ שירד כגיבוי לפני מחיקה אינו נפתח בלחיצה,
+   ואי אפשר לדעת מאיזו לשונית הוא. */
+var TAB_EN = {
+  'הרשמות':'registrations', 'לומדים':'students', 'לימוד':'learning',
+  'חידות':'quiz', 'מונים':'counters', 'מוני-לימוד':'learn-counters',
+  'הגדרות':'settings', 'טקסטים':'texts', 'מוסדות':'institutions',
+  'סימוני הדף':'daf-marks', 'יומן שיחות':'call-log', 'אנשי קשר':'contacts'
+};
+function asciiName(tab) {
+  if (TAB_EN[tab]) return TAB_EN[tab];
+  var s = String(tab || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '-')
+            .replace(/[^A-Za-z0-9\-_]/g, '');
+  return s || 'sheet';
+}
+
+function stamp() {
+  var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+         '-' + p(d.getHours()) + p(d.getMinutes());
+}
+
+/* שמירה כקובץ. Blob ולא data: — קובץ גדול ב-data: נחסם בחלק
+   מהדפדפנים, ו-revoke משחרר את הזיכרון מיד אחרי. */
+function saveFile(name, text) {
+  try {
+    var b = new Blob([text], { type:'text/csv;charset=utf-8' });
+    var u = URL.createObjectURL(b);
+    var a = document.createElement('a');
+    a.href = u; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    return true;
+  } catch (e) { return false; }
+}
+
+function dataWipe(tab, ss, rows) {
+  if (nameKey(dataState.typed) !== nameKey(tab)) {
+    dataState.msg = 'השם שהוקלד אינו תואם. לא נמחק דבר.';
+    admPane(); return;
+  }
+  /* עצירה שנייה, ומסוג אחר: הראשונה דרשה להסתכל על מה שמוחקים,
+     וזו דורשת להחליט על מה שאין ממנו חזרה. ביטול משאיר הודעה —
+     כפתור שנלחץ ולא קרה בו דבר נראה כתקלה. */
+  if (!dataState.got[ss + '|' + tab] &&
+      !confirm('עוד לא הורדתם עותק של "' + tab + '".\n' +
+               rows + ' שורות יימחקו ולא יהיה מהיכן להחזיר אותן.\n\n' +
+               'למחוק בכל זאת?')) {
+    dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
+  }
+
+  dataState.done = ''; dataState.msg = 'מוחק…'; admPane();
+  var p = { clear: tab, key: (CFG.readKey || '').trim() };
+  if (ss) p.ss = ss;
+  scriptGet(p).then(function (d) {
+    if (!d || d.status !== 'success') {
+      dataState.msg = '<b>לא נמחק.</b> ' + esc((d && d.message) || 'אין תשובה מהסקריפט.');
+      admPane(); return;
+    }
+    dataState.open = ''; dataState.typed = '';
+    dataState.done = 'נמחקו ' + d.removed + ' שורות מ"' + esc(tab) + '".' +
+                     (d.left ? ' נשארו ' + d.left + '.' : ' הלשונית ריקה.');
+    /* קוראים מחדש מהשרת ולא מעדכנים את המספר בזיכרון: זו בדיוק
+       ההנחה שעלתה לנו בחודש. */
+    dataLoad(1);
+  }).catch(function () {
+    dataState.msg = '<b>לא נמחק.</b> אין תשובה מהסקריפט.'; admPane();
+  });
+}
+
 /* ---- טקסטים ----
    עריכת המלל בלי לגעת בקוד. "שמירה" משנה את המכשיר הזה בלבד;
    "פרסום" שולח לגיליון, ומשם זה מגיע לכל מי שפותח את האפליקציה.
@@ -5040,7 +5290,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 12;
+var SCRIPT_MIN = 13;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים

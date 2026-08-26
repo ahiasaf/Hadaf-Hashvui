@@ -95,7 +95,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 12;
+var SCRIPT_VERSION = 13;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -180,6 +180,25 @@ function doPost(e) {
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
+    /* ---- מחיקה ----
+
+       כתובת הסקריפט יושבת בקוד של האפליקציה, כלומר כל אחד יכול
+       לפתוח אותה. כתיבה פתוחה היא שורה מיותרת בגיליון; מחיקה
+       פתוחה היא כפתור "למחוק הכל" שנמסר לעולם. לכן ורק כאן
+       נדרשת הסיסמה — אותה READ_KEY, שיושבת על המכשיר של הרכז
+       ואינה מתפרסמת לאיש.
+
+       ריק = מחיקה חסומה תמיד. זו ברירת המחדל הבטוחה. */
+    if (d.action === 'clear' || d.action === 'delrow') {
+      if (!READ_KEY || String(d.key || '') !== READ_KEY) {
+        return json_({ status: 'denied',
+          message: READ_KEY ? 'סיסמה שגויה'
+                            : 'לא נקבעה סיסמה בסקריפט (READ_KEY) — מחיקה חסומה' });
+      }
+      if (d.action === 'clear')  return json_(clearTab_(d.tab, d.ss));
+      return json_(delRows_(d.tab, d.col, parse_(d.vals), d.ss));
+    }
+
     /* ---- הצורות הישנות. נשארות כדי שמכשיר שמחזיק גרסה ישנה
             של האפליקציה במטמון לא יאבד הרשמה. ---- */
     /* מוסד שנרשם מסומן מיד כ"בפנים" ברשימת המוסדות, וכך הוא
@@ -240,6 +259,31 @@ function doGet(e) {
     return reply_(e, res);
   }
 
+  /* ---- מחיקה ----
+     דרך doGet ולא doPost, ובכוונה. כתיבה מהאפליקציה יוצאת
+     ב-no-cors ומחזירה תשובה אטומה: אי אפשר לדעת ממנה אם היא
+     הצליחה. לכתיבה רגילה זה נסבל, כי הקריאה הבאה מאמתת.
+     למחיקה זה אינו נסבל — "כנראה נמחק" הוא בדיוק מה שהפך
+     "פורסם" לחודש של מתגים שאיש לא ראה. doGet עונה תשובה
+     שאפשר לקרוא, ולכן המסך יודע כמה שורות באמת נמחקו.
+
+     הסיסמה נבדקת כאן שוב, ולא רק ב-doPost. */
+  if (e && e.parameter && (e.parameter.clear || e.parameter.delrow)) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied',
+        message: READ_KEY ? 'סיסמה שגויה'
+                          : 'לא נקבעה סיסמה בסקריפט (READ_KEY) — מחיקה חסומה' });
+    }
+    var dres;
+    try {
+      dres = e.parameter.clear
+        ? clearTab_(String(e.parameter.clear), e.parameter.ss)
+        : delRows_(String(e.parameter.delrow), String(e.parameter.col || ''),
+                   parse_(e.parameter.vals), e.parameter.ss);
+    } catch (err) { dres = { status: 'error', message: String(err) }; }
+    return reply_(e, dres);
+  }
+
   /* ---- קריאת לשונית ----
      אנשי הקשר של הישיבות הם טלפונים של אנשים אחרים, ולכן הם לא
      יושבים בקוד ולא בגיליון שמשותף "לכל מי שיש לו הקישור".
@@ -255,7 +299,11 @@ function doGet(e) {
     /* לשונית פרטית — רק עם הסיסמה, ורק אם נקבעה סיסמה בכלל.
        הבדיקה כאן ולא אצל הקורא: מה שמגן על הרשימה חייב לרוץ
        בצד שאיש אינו יכול לשנות. */
-    if (PRIVATE_TABS.indexOf(want) >= 0 &&
+    /* `ss` מפורש דורש סיסמה גם ללשונית שאינה ברשימה הפרטית.
+       בלעדיו היה אפשר לבקש לשונית "רגילה" מתוך הגיליון הפרטי
+       ולעקוף את השמירה כולה — די היה בכך שהיא לא נקראת בשם
+       שברשימה. */
+    if ((PRIVATE_TABS.indexOf(want) >= 0 || e.parameter.ss) &&
         (!READ_KEY || String((e.parameter.key || '')) !== READ_KEY)) {
       return reply_(e, { status: 'error', tab: want,
         message: READ_KEY ? 'סיסמת קריאה שגויה'
@@ -292,6 +340,19 @@ function doGet(e) {
        "פרסום" מצליח — אל הגיליון הלא נכון. השם לבדו אינו מספיק,
        כי לשני גיליונות יכול להיות אותו שם. */
     out.sheetId = ss.getId();
+    /* גם הגיליון הפרטי — אבל רק למי שיש לו הסיסמה. בלעדיה זו
+       הייתה דרך לגלות מבחוץ כמה תלמידים רשומים ומה שמות
+       הלשוניות שבהן הם יושבים. */
+    if (READ_KEY && e && e.parameter && String(e.parameter.key || '') === READ_KEY) {
+      out.privId = PRIVATE_ID;
+      if (PRIVATE_ID) {
+        var ps = SpreadsheetApp.openById(String(PRIVATE_ID));
+        out.privSheet = ps.getName();
+        out.privTabs = ps.getSheets().map(function (t) {
+          return { name: t.getName(), rows: Math.max(0, t.getLastRow() - 1) };
+        });
+      }
+    }
     out.tabs = ss.getSheets().map(function (s) {
       return { name: s.getName(), rows: Math.max(0, s.getLastRow() - 1) };
     });
@@ -493,6 +554,61 @@ function writeTable_(tab, cols, rows, ssId) {
     }));
   }
   return json_({ status: 'success', tab: tab, count: rows.length });
+}
+
+/* ============================================================
+   ניקוי לשונית: שורת הכותרת נשארת, כל השאר נמחק.
+
+   הכותרת נשארת בכוונה. לשונית בלי כותרת נראית לאפליקציה כמו
+   לשונית שלא נוצרה מעולם, וגם מאבדת את הצורה שאליה נכתבות
+   שורות חדשות — כלומר "ניקוי" היה הופך בשקט להרס.
+
+   מחזיר את מספר השורות שנמחקו, כדי שהצד השני יוכל לאמת. אחרי
+   הפרסום שדיווח על הצלחה שלא קרתה, שום פעולה הרסנית כאן אינה
+   מסתמכת על "כנראה הצליח".
+   ============================================================ */
+function clearTab_(tab, ssId) {
+  var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
+  var ss = id ? SpreadsheetApp.openById(String(id))
+              : SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(tab);
+  if (!sh) return { status: 'error', message: 'אין לשונית בשם ' + tab };
+  var last = sh.getLastRow();
+  if (last < 2) return { status: 'success', tab: tab, removed: 0, left: 0 };
+  sh.deleteRows(2, last - 1);
+  return { status: 'success', tab: tab,
+           removed: last - 1, left: Math.max(0, sh.getLastRow() - 1) };
+}
+
+/* מחיקת שורות לפי ערך בעמודה — שורה אחת או כמה, בלי לגעת בשאר.
+   `col` הוא שם הכותרת ולא מספר: מיקום העמודה משתנה כשנוסף שדה
+   חדש באפליקציה, והשם אינו משתנה.
+
+   המחיקה מלמטה למעלה, אחרת כל מחיקה מזיזה את מה שמתחתיה
+   והאינדקסים הבאים מצביעים על השורה הלא נכונה. */
+function delRows_(tab, col, vals, ssId) {
+  var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
+  var ss = id ? SpreadsheetApp.openById(String(id))
+              : SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(tab);
+  if (!sh) return { status: 'error', message: 'אין לשונית בשם ' + tab };
+  var last = sh.getLastRow();
+  if (last < 2) return { status: 'success', tab: tab, removed: 0 };
+
+  var data = sh.getDataRange().getDisplayValues();
+  var head = data[0].map(function (h) { return String(h).trim(); });
+  var ci = head.indexOf(String(col));
+  if (ci < 0) return { status: 'error', message: 'אין עמודה בשם ' + col };
+
+  var want = {};
+  (vals || []).forEach(function (v) { want[String(v).trim()] = 1; });
+  var hit = [];
+  for (var r = 1; r < data.length; r++) {
+    if (want[String(data[r][ci]).trim()]) hit.push(r + 1);
+  }
+  for (var i = hit.length - 1; i >= 0; i--) sh.deleteRow(hit[i]);
+  return { status: 'success', tab: tab, removed: hit.length,
+           left: Math.max(0, sh.getLastRow() - 1) };
 }
 
 /* ---------- עזר ---------- */
