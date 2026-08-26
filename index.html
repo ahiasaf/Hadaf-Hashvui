@@ -875,6 +875,20 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .brd-bar span{display:block;font-size:.88rem;font-weight:800;color:var(--ink);
   margin-top:9px;text-align:center}
 
+/* שורת השבוע הראשון, בשפת הסימנייה — אותו עיגול, אותה היררכיה.
+   לפני שהלימוד מתחיל אין מה למדוד, ובמקום להבטיח במילים מה
+   יהיה כאן מראים את השבוע שממנו מתחילים. */
+.brd-first{display:flex;align-items:center;gap:13px;justify-content:center}
+.brd-first .dot{flex:none;width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;font-weight:800;color:#fff;
+  background:linear-gradient(150deg,var(--blue-l),var(--blue));
+  box-shadow:0 0 0 5px rgba(23,70,143,.12),var(--sh-1)}
+.brd-first b{display:block;font-size:.96rem;font-weight:800;line-height:1.35;
+  text-align:start}
+.brd-first>div>span{display:block;margin-top:2px;font-size:.79rem;font-weight:700;
+  color:var(--ink-3);text-align:start}
+
 .brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
 /* nowrap: בלעדיו "ח׳ · 14" נשבר באמצע, והצ'יפ נראה כמו שתי
    שורות שנדחסו לעיגול. */
@@ -1298,7 +1312,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.22.0';
+var APP_VERSION = '7.22.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2162,6 +2176,7 @@ function boardHtml(code, name, hail) {
   var j = bJoin(code), n = j ? j.n : 0;
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
+  var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
   var daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
   var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
 
@@ -2184,16 +2199,23 @@ function boardHtml(code, name, hail) {
     bar = '<div class="brd-bar"><div class="t"><i style="width:' +
       Math.max(3, Math.round(did / n * 100)) + '%"></i></div>' +
       '<span>' + esc(fill(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
-  } else if (n) {
-    var d = new Date(PROGRAM.startDate + 'T00:00:00');
-    bar = '<div class="brd-bar"><span style="font-weight:700;color:var(--ink-2)">' +
-      esc(fill(UI.cbSoon, { date: d.getDate() + '.' + (d.getMonth() + 1) + '.' +
-                                  String(d.getFullYear()).slice(2) })) + '</span></div>';
+  } else if (n && row0) {
+    /* השבוע הראשון בשפת הסימנייה: עיגול הדף, הפרשה, התאריך
+       העברי. המסלול השנתי כבר מעוצב — אין סיבה לכתוב במילים
+       מה שהוא מראה. */
+    bar = '<div class="brd-bar"><div class="brd-first">' +
+      '<span class="dot">' + esc(row0[2]) + '</span>' +
+      '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
+      '<span>' + esc(row0[0]) + '</span></div></div></div>';
   }
 
   var chips = '';
   if (j && (j.grades.length || j.ways.length)) {
-    var list = j.grades.slice();
+    /* רק שכבות התוכנית. מי שאינו בהן הצטרף ונספר בסך הכל
+       ובאבות ובנים, אבל אינו כרית של שכבה. */
+    var list = j.grades.filter(function (p) {
+      return PROG_GRADES.indexOf(p[0]) >= 0;
+    });
     j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]); });
     chips = '<div class="brd-chips">' + list.map(function (p) {
       return '<span><i style="font-style:normal">' + esc(p[0]) + '</i>' +
