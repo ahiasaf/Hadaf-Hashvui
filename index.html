@@ -876,13 +876,40 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   margin-top:9px;text-align:center}
 
 .brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
-.brd-chips span{background:var(--sunk);border-radius:999px;padding:6px 13px;
-  font-size:.79rem;font-weight:800;color:var(--ink-2)}
-.brd-chips span b{color:var(--blue);font-weight:800}
+/* nowrap: בלעדיו "ח׳ · 14" נשבר באמצע, והצ'יפ נראה כמו שתי
+   שורות שנדחסו לעיגול. */
+/* כרית ולא צ'יפ: התווית קטנה מעל, והמספר מתחתיה. ניסיתי שורה
+   אחת עם מפריד — "אבות ובנים · 6" ארוך מכדי לשבת לצד השאר,
+   והכיתוב נשבר. שתי שורות זו לא פשרה: המספר גדול יותר, נסרק
+   מהר יותר, וכל הכריות יוצאות באותו גובה. */
+.brd-chips span{flex:0 0 auto;display:inline-flex;flex-direction:column;
+  align-items:center;gap:1px;background:var(--sunk);border-radius:16px;
+  padding:8px 14px;white-space:nowrap;min-width:52px}
+.brd-chips span i{font-style:normal;font-size:.74rem;font-weight:800;color:var(--ink-3)}
+.brd-chips span b{font-size:1.06rem;font-weight:800;color:var(--blue);line-height:1.15}
 
 .brd .btn{margin-top:16px}
 .brd-note{margin-top:11px;font-size:.77rem;font-weight:700;color:var(--ink-3);
   text-align:center;line-height:1.6}
+
+/* ---------- הרגע שאחרי ההרשמה ----------
+   פעם אחת בלבד. חגיגיות עדינה ולא חגיגה: משפט אחד, קו זהב
+   שנמתח, והמספר שעולה. בלי קונפטי, בלי קפיצה, בלי צליל — זו
+   תוכנית לימוד ולא משחק. */
+.brd.hail{animation:hailIn .55s cubic-bezier(.22,1,.36,1) both}
+@keyframes hailIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.hail{text-align:center;padding-bottom:15px;margin-bottom:16px;position:relative}
+.hail b{display:block;font-size:1.16rem;font-weight:800;letter-spacing:-.03em;
+  line-height:1.35;color:var(--ink)}
+.hail span{display:block;font-size:.85rem;font-weight:700;color:var(--ink-3);margin-top:5px}
+/* הקו נמתח מהמרכז החוצה. זו כל התנועה שיש כאן, והיא מספיקה. */
+.hail:after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  height:2px;border-radius:2px;background:var(--gold);
+  width:0;animation:hailRule .7s .25s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes hailRule{to{width:64px}}
+@media (prefers-reduced-motion:reduce){
+  .brd.hail{animation:none}
+  .hail:after{animation:none;width:64px}}
 
 /* קיצור לעדכון הרשמה קיימת, בלי לגלול את כל המסך */
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
@@ -1271,7 +1298,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.21.0';
+var APP_VERSION = '7.22.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2095,11 +2122,14 @@ function regDone(txt, viaWa) {
              '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' +
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
-    /* הלוח, מיד אחרי האישור — ולא שני קישורים. מכאן ואילך הוא
-       יראה אותו בעמוד הראשי, וזה נאמר בשורה שבתחתיתו. */
-    boardBlock();
+    '';
   renderHome();
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'center' });
+
+  /* ולא כאן. הלוח חי בעמוד הראשי, ולכן זה המקום שאליו הוא
+     מוחזר — רגע אחרי שהאישור נקרא, כדי שיראה את הלוח שנוצר
+     לו ולא ילמד להסתכל עליו במקום הלא נכון. */
+  if (myBoard()) setTimeout(hailBoard, 1100);
 }
 
 /* ============================================================
@@ -2128,7 +2158,7 @@ function bPairs(t) {
 }
 function bJoin(code) { return (Store.get('joinCount', {}) || {})[code] || null; }
 
-function boardHtml(code, name) {
+function boardHtml(code, name, hail) {
   var j = bJoin(code), n = j ? j.n : 0;
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
@@ -2166,16 +2196,54 @@ function boardHtml(code, name) {
     var list = j.grades.slice();
     j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]); });
     chips = '<div class="brd-chips">' + list.map(function (p) {
-      return '<span>' + esc(p[0]) + ' · <b>' + p[1] + '</b></span>';
+      return '<span><i style="font-style:normal">' + esc(p[0]) + '</i>' +
+             '<b>' + p[1] + '</b></span>';
     }).join('') + '</div>';
   }
 
-  return '<div class="brd"><div class="brd-hero">' + hero + '</div>' +
+  /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר
+     סתם נמצא שם, וזה הנכון — חגיגה שחוזרת בכל פתיחה מפסיקה
+     להיות חגיגה. */
+  var hi = hail
+    ? '<div class="hail"><b>' + esc(fill(UI.hailTitle, { inst:name })) + '</b>' +
+      '<span>' + esc(UI.hailSub) + '</span></div>' : '';
+
+  return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
+         '<div class="brd-hero">' + hero + '</div>' +
          bar + chips + send +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
-function renderBoard() {
+/* המספר עולה מאפס. זו התנועה היחידה שיש בה משמעות — היא
+   מראה שהמספר נמדד ולא הודפס. רצה רק ברגע הברכה. */
+function countUp(el, to) {
+  if (!el || to < 2) return;
+  var t0 = 0, dur = 750;
+  var step = function (t) {
+    if (!t0) t0 = t;
+    var k = Math.min(1, (t - t0) / dur);
+    /* האטה בסוף — מספר שנעצר בבת אחת נראה כמו קפיצה. */
+    el.firstChild.nodeValue = Math.round(to * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  el.firstChild.nodeValue = '0';
+  requestAnimationFrame(step);
+}
+
+/* חוזרים לעמוד הראשי, ונוחתים על הלוח שנוצר. */
+function hailBoard() {
+  show('home');
+  renderBoard(1);
+  var el = document.getElementById('coord');
+  if (!el) return;
+  setTimeout(function () {
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+    var b = el.querySelector('.brd-hero b');
+    if (b && b.firstChild) countUp(b, parseInt(b.firstChild.nodeValue, 10) || 0);
+  }, 60);
+}
+
+function renderBoard(hail) {
   var el = document.getElementById('coord');
   if (!el) return;
   var code = myBoard();
@@ -2184,7 +2252,7 @@ function renderBoard() {
   el.style.display = '';
   document.getElementById('c-tag').textContent = UI.coordTag;
   document.getElementById('c-sub').textContent = UI.coordSub;
-  document.getElementById('board').innerHTML = boardHtml(code, inst.name);
+  document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
    שהלוח שלו נעלם הולך לשם ממילא. */
