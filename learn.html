@@ -183,27 +183,22 @@ nav .sp{flex:1}
   color:var(--blue-d)}
 .card p{margin:0 0 14px;font-size:.9rem;font-weight:700;color:var(--ink-2);
   line-height:1.75}
-/* הקרדיט הקבוע, בתחתית פאנל החברותא — שם יושב מי שקורא את
-   הביאור, וזה הקהל הנכון לקישור. */
-.chcred{flex:none;border-top:1px solid var(--rule);padding:9px 16px;
-  font-size:.72rem;font-weight:700;color:var(--ink-3);line-height:1.6;
-  background:var(--surface)}
-.chcred a{color:var(--blue);font-weight:800;text-decoration:underline;
-  text-underline-offset:2px}
-
-/* ---------- שער הדף ---------- */
+/* ---------- שער הדף ----------
+   נפתח בכניסה הראשונה בלבד. הוצאת ח. וגשל אישרה את השימוש
+   בצורת הדף וביקשה קישור לרכישה; זה המקום. */
 .gate .card{padding:28px 22px 22px}
-.gk{font-size:.7rem;font-weight:800;letter-spacing:.1em;color:var(--ink-3);
-  text-transform:none}
+#g-logo{display:block;margin:0 auto 16px;width:max-content}
+#g-logo img{display:block;max-height:96px;max-width:180px}
+.gk{font-size:.7rem;font-weight:800;letter-spacing:.1em;color:var(--ink-3)}
 .gn{font-size:1.06rem;font-weight:800;color:var(--blue-d);margin-top:3px;
-  line-height:1.4}
+  line-height:1.45}
+.gn.sm{font-size:.98rem}
 .gby{font-size:.85rem;font-weight:700;color:var(--ink-2);margin-top:2px}
-.gbuy{display:inline-block;margin-top:7px;font-size:.83rem;font-weight:800;
+.gbuy{display:inline-block;margin-top:8px;font-size:.85rem;font-weight:800;
   color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .grule{display:block;width:44px;height:2px;border-radius:2px;background:var(--gold-l);
-  margin:17px auto}
+  margin:19px auto}
 .gate .btn{margin-top:20px}
-/* היעלמות רכה. `visibility` ולא `display`, אחרת אין למה להנפיש. */
 .sheet.fade{opacity:0;transition:opacity .45s ease}
 
 .card .btn{display:block;width:100%;margin-top:9px;text-align:center;text-decoration:none;
@@ -307,9 +302,6 @@ nav .sp{flex:1}
       <span id="chnum" style="font-weight:700;color:var(--ink-3);font-size:.78rem"></span>
       <button id="chclose" title="סגירה">✕</button></div>
     <div class="chb" id="chb"></div>
-    <!-- הקרדיט חי גם מחוץ לשער. קישור שקיים שנייה וחצי אינו
-         קישור רכישה, וההוצאה ביקשה קישור — לא הבזק. -->
-    <div class="chcred" id="chcred"></div>
   </aside>
 </main>
 
@@ -336,14 +328,13 @@ nav .sp{flex:1}
      שקיים רק שנייה וחצי אינו קישור רכישה, ואם אנחנו הוגנים
      איתם צריך שיהיה להם אחד שאפשר להשתמש בו כשבאמת רוצים. -->
 <div class="sheet gate" id="gate"><div class="card">
-  <div class="gk" id="g-k1"></div>
+  <a id="g-logo" target="_blank" rel="noopener"><img id="g-logoimg" alt=""></a>
   <div class="gn" id="g-gem"></div>
   <a class="gbuy" id="g-gembuy" target="_blank" rel="noopener"></a>
   <i class="grule"></i>
   <div class="gk" id="g-k2"></div>
-  <div class="gn" id="g-chav"></div>
+  <div class="gn sm" id="g-chav"></div>
   <div class="gby" id="g-chavby"></div>
-  <a class="gbuy" id="g-chavbuy" target="_blank" rel="noopener"></a>
   <button class="btn p" id="gate-go"></button>
 </div></div>
 
@@ -1148,58 +1139,54 @@ function markThisDaf() {
 /* ============================================================
    שער הדף.
    ============================================================ */
-var gateT = null;
 function gateFill() {
-  var pair = function (kick, name, buy, url, kId, nId, bId) {
-    $(kId).textContent = kick;
-    $(nId).textContent = name;
-    var a = $(bId);
-    /* כתובת ריקה — אין קישור. עדיף בלי מקישור שהומצא. */
-    if (url) { a.href = url; a.textContent = buy; a.style.display = ''; }
-    else a.style.display = 'none';
-  };
-  pair(GATE.kicker,  GATE.gemara, GATE.gemBuy,  GATE.gemUrl,  'g-k1', 'g-gem',  'g-gembuy');
-  pair(GATE.kicker2, GATE.chav,   GATE.chavBuy, GATE.chavUrl, 'g-k2', 'g-chav', 'g-chavbuy');
+  /* הלוגו קודם. כשאין — מוצג השם בלבד, ולא ריבוע ריק. */
+  var wrap = $('g-logo'), img = $('g-logoimg');
+  if (GATE.logo) {
+    img.onerror = function () { wrap.style.display = 'none'; };
+    img.src = GATE.logo;
+    wrap.style.display = '';
+  } else { wrap.style.display = 'none'; img.removeAttribute('src'); }
+  if (GATE.gemUrl) wrap.href = GATE.gemUrl; else wrap.removeAttribute('href');
+
+  $('g-gem').textContent = GATE.gemara;
+  var buy = $('g-gembuy');
+  /* כתובת ריקה — אין קישור. עדיף בלי מקישור שהומצא. */
+  if (GATE.gemUrl) { buy.href = GATE.gemUrl; buy.textContent = GATE.gemBuy; buy.style.display = ''; }
+  else buy.style.display = 'none';
+
+  $('g-k2').textContent = GATE.chavK;
+  $('g-chav').textContent = GATE.chav;
   $('g-chavby').textContent = GATE.chavBy || '';
   $('gate-go').textContent = GATE.go + ' ←';
 }
-/* הקרדיט הקבוע. אותם שמות ואותן כתובות של השער, בשורה אחת. */
-function credFill() {
-  var el = $('chcred'); if (!el) return;
-  var a = function (t, u) {
-    return u ? ' · <a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>' : '';
-  };
-  el.innerHTML =
-    GATE.kicker + ': ' + GATE.gemara + a(GATE.gemBuy, GATE.gemUrl) + '<br>' +
-    GATE.kicker2 + ': ' + GATE.chav +
-    (GATE.chavBy ? ' · ' + GATE.chavBy : '') + a(GATE.chavBuy, GATE.chavUrl);
-}
 
+/* ההסבר על אופן הלימוד — אחרי השער, ורק בפעם הראשונה. */
+function introMaybe() {
+  var seen = false;
+  try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
+  if (!seen) $('intro').className = 'sheet on';
+}
 function gateClose() {
   var g = $('gate');
   if (!g || g.className.indexOf('on') < 0) return;
-  clearTimeout(gateT);
   g.className = 'sheet gate on fade';
-  setTimeout(function () {
-    g.className = 'sheet gate';
-    /* ההסבר על אופן הלימוד בא אחרי השער, ורק בפעם הראשונה. */
-    var seen = false;
-    try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
-    if (!seen) $('intro').className = 'sheet on';
-  }, 460);
+  setTimeout(function () { g.className = 'sheet gate'; introMaybe(); }, 460);
 }
 function gateOpen() {
   var g = $('gate'); if (!g) return;
-  gateFill(); credFill();
+
+  /* פעם אחת בלבד. שער שמופיע בכל כניסה ומתפוגג אחרי שנייה
+     וחצי אינו קרדיט אלא הבהוב: הוא מטריד, ואיש אינו קורא אותו
+     בפעם השנייה. פעם אחת, בלי מגבלת זמן, נקראת באמת. */
+  var seen = false;
+  try { seen = localStorage.getItem('df:gate') === '1'; } catch (e) {}
+  if (seen) { introMaybe(); return; }
+
+  gateFill();
   g.className = 'sheet gate on';
   g.onclick = gateClose;
-
-  var first = true;
-  try { first = localStorage.getItem('df:gate') !== '1'; } catch (e) {}
   try { localStorage.setItem('df:gate', '1'); } catch (e) {}
-  /* בפעם הראשונה ממתינים ללחיצה — שער שמתפוגג לפני שקראו אותו
-     אינו קרדיט אלא הבהוב. */
-  if (!first) gateT = setTimeout(gateClose, 1600);
 }
 
 /* ============================================================
