@@ -1139,6 +1139,25 @@ function markThisDaf() {
 /* ============================================================
    שער הדף.
    ============================================================ */
+/* המלל שנערך בניהול. learn.html אינו טוען את index.html, ולכן
+   הוא לא ידע על שום עריכה — שדה שנערך בפאנל פשוט לא הגיע לכאן,
+   והלוגו שנבחר לא הופיע. שתי שכבות, כמו בכל השאר: מה שפורסם
+   לגיליון, ומעליו טיוטה מקומית של הרכז. */
+(function applyGateTexts() {
+  var take = function (map) {
+    if (!map) return;
+    for (var k in map) {
+      var p2 = k.split('.');
+      if (p2[0] !== 'gate' || p2.length !== 2) continue;
+      if (typeof map[k] === 'string' && map[k] !== '') GATE[p2[1]] = map[k];
+    }
+  };
+  try {
+    take(JSON.parse(localStorage.getItem('df:textCache') || 'null'));
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    take(cfg.texts);
+  } catch (e) {}
+})();
 function gateFill() {
   /* הלוגו קודם. כשאין — מוצג השם בלבד, ולא ריבוע ריק. */
   var wrap = $('g-logo'), img = $('g-logoimg');

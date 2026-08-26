@@ -1067,6 +1067,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .sw.on{background:var(--green)}
 .sw.on:after{inset-inline-start:calc(100% - 24px)}
+/* תצוגה מקדימה של תמונה בטבלת המלל */
+.imgbox{display:flex;align-items:center;gap:12px;background:var(--sunk);
+  border-radius:var(--r-s);padding:10px 12px;margin-bottom:8px}
+.imgbox img{max-height:64px;max-width:120px;display:block}
+.imgbox button{margin-inline-start:auto;border:none;background:none;font-family:inherit;
+  font-size:.8rem;font-weight:800;color:var(--stop,#A5382D);cursor:pointer}
 .adm-card{background:var(--surface);border-radius:var(--r-m);padding:15px;box-shadow:var(--sh-1)}
 .adm-card h4{font-size:.98rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
 .adm-card p.h{font-size:.79rem;color:var(--ink-3);font-weight:600;line-height:1.55;margin-bottom:11px}
@@ -1312,7 +1318,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.26.0';
+var APP_VERSION = '7.27.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4419,6 +4425,21 @@ function admText(el) {
       if (f.g) return '<div class="sec" style="margin:16px 0 8px"><b>' +
                       esc(f.g) + '</b><i></i></div>';
       var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== TEXT_BASE[f.k];
+      /* שדה תמונה: בוחרים קובץ מהמכשיר והוא מומר כאן, בדפדפן,
+         ל-data:URI. בלי שרת, בלי ממיר חיצוני, ובלי תלות באתר
+         של אף אחד — הלוגו נשמר אצלנו ועובד גם בלי רשת. */
+      if (f.img) {
+        return '<div class="fld"><div class="label">' + esc(f.lbl) +
+          (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
+          (cur ? '<div class="imgbox"><img src="' + esc(cur) + '" alt="">' +
+                 '<button onclick="admTextSet(\'' + f.k + '\',\'\')">הסרה</button></div>' : '') +
+          '<input type="file" accept="image/*" ' +
+          'onchange="admImgPick(this,\'' + f.k + '\')">' +
+          '<p class="h" style="margin-top:6px">אפשר גם להדביק כתובת תמונה:</p>' +
+          '<input type="text" dir="ltr" placeholder="https://…" value="' +
+          (cur.indexOf('data:') === 0 ? '' : esc(cur)) +
+          '" onchange="admTextSet(\'' + f.k + '\',this.value)"></div>';
+      }
       return '<div class="fld"><div class="label">' + esc(f.lbl) +
         (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
         (f.ml
@@ -4429,6 +4450,38 @@ function admText(el) {
         '</div>';
     }).join('');
 }
+/* קובץ תמונה → data:URI, כאן בדפדפן. מוקטן קודם: לוגו במלוא
+   הרזולוציה שוקל מאות קילובייטים, והוא נכתב לגיליון כטקסט
+   ומגיע לכל מכשיר. 360 פיקסלים רוחב מספיקים בהרבה למה שמוצג
+   בשער, והתוצאה יורדת לעשרות בודדות. */
+function admImgPick(inp, key) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { alert('צריך קובץ תמונה.'); return; }
+  var r = new FileReader();
+  r.onload = function () {
+    var im = new Image();
+    im.onload = function () {
+      var w = im.width, h = im.height, max = 360;
+      if (w > max) { h = Math.round(h * max / w); w = max; }
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(im, 0, 0, w, h);
+      var out;
+      /* PNG שומר על שקיפות — לוגו על רקע לבן ייראה נכון על כל
+         רקע. אם יצא כבד מדי, נופלים ל-JPEG. */
+      try { out = cv.toDataURL('image/png'); } catch (e) { out = r.result; }
+      if (out.length > 260000) out = cv.toDataURL('image/jpeg', 0.85);
+      admTextSet(key, out);
+      alert('הלוגו נטען (' + Math.round(out.length / 1024) + 'KB). ' +
+            'צריך ללחוץ פרסום כדי שכולם יראו אותו.');
+    };
+    im.onerror = function () { alert('לא הצלחתי לקרוא את התמונה.'); };
+    im.src = r.result;
+  };
+  r.readAsDataURL(f);
+}
+
 function admTextSet(k, v) {
   var t = CFG.texts || {};
   v = String(v).trim();
