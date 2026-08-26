@@ -509,6 +509,10 @@ body.tk-sheeting #tk-bar{display:none}
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
   border:none;border-radius:var(--r-s);padding:14px;font-size:1rem;font-weight:800;
   cursor:pointer;letter-spacing:-.01em;transition:transform .14s,filter .15s;color:#fff}
+/* קישור שנראה ככפתור אינו צריך קו תחתון — הוא כבר נראה
+   לחיץ. בלי זה כל כפתור שהוא <a> מגיע מקו־מתחת שברירת המחדל
+   של הדפדפן מוסיפה, וזה נראה כמו טעות. */
+.btn{text-decoration:none}
 .btn:active{transform:scale(.982)}
 .btn.p{background:linear-gradient(140deg,var(--blue-l),var(--blue));box-shadow:var(--sh-2)}
 .btn.gr{background:linear-gradient(140deg,var(--green),var(--green-d));box-shadow:var(--sh-2)}
@@ -1318,7 +1322,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.28.0';
+var APP_VERSION = '7.29.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2106,6 +2110,15 @@ function linkBlock(title) {
     '<p>' + esc(UI.boardNote) + '</p>' +
     '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
        'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
+
+    /* הקישור השני נמסר כאן, בפעם הראשונה שהוא רואה את הלוח —
+       ולא רק בתוך הלוח עצמו. מי שרוצה שר״ם יסתכל שם צריך את
+       הקישור באותו רגע, ואם אין לו הוא ישלח את מה שכן יש לו:
+       את הקישור של התלמידים. */
+    '<p style="margin-top:11px">' + esc(UI.teamNote) + '</p>' +
+    '<a class="btn gd" style="margin-top:11px" href="https://wa.me/?text=' +
+       encodeURIComponent(fill(UI.teamWa, { inst:name, url:boardUrl(code) })) + '" ' +
+       'target="_blank" rel="noopener">' + esc(UI.teamWaBtn) + '</a>' +
     '</div>';
 }
 

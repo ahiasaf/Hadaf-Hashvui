@@ -103,6 +103,28 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
   background:linear-gradient(140deg,var(--green),var(--green-d));
   box-shadow:0 6px 18px rgba(74,130,28,.26)}
 .btn.g{background:var(--sunk);color:var(--ink-2);box-shadow:none}
+/* כחול לצוות, ירוק לתלמידים. ההבדל הוא לא קישוט: שני קישורים
+   שנראים אותו דבר הם הזמנה לשלוח את הלא־נכון, וזו טעות שאי
+   אפשר להחזיר ממנה. הצבע, הכותרת והפס בצד עושים את ההבחנה
+   לפני שקוראים מילה. */
+.btn.b{background:linear-gradient(140deg,var(--blue-l),var(--blue));
+  box-shadow:0 6px 18px rgba(23,70,143,.26)}
+.lk{border-radius:var(--r-s);padding:12px 13px;margin-top:12px;
+  border:1px solid var(--rule);background:var(--surface)}
+.lk:first-of-type{margin-top:11px}
+.lk.team{border-inline-start:4px solid var(--blue-l);background:#F4F7FC}
+.lk.kids{border-inline-start:4px solid var(--green);background:#F5F8F0}
+.lk h3{font-size:.9rem;font-weight:800;letter-spacing:-.02em}
+.lk.team h3{color:var(--blue)}
+.lk.kids h3{color:var(--green-d)}
+.lk p{font-size:.8rem;font-weight:600;color:var(--ink-2);margin-top:4px;line-height:1.65}
+.lk .btn{margin-top:10px;padding:13px;font-size:.92rem}
+/* ההעתקה אינה שוות־ערך לשליחה, ולכן אינה נראית כמוה: קטנה
+   יותר, שקטה יותר, ועם השם המלא — שני כפתורים שכתוב עליהם
+   "העתקת הקישור" זה בדיוק המקום שבו מעתיקים את הלא־נכון. */
+.lk .btn.g{padding:10px;font-size:.82rem;background:transparent;
+  border:1px solid var(--rule);color:var(--ink-2)}
+.lk .url{background:var(--surface);border:1px solid var(--rule)}
 .url{margin-top:11px;background:var(--sunk);border-radius:10px;padding:9px 11px;
   font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
   overflow-wrap:anywhere;line-height:1.5}
@@ -232,6 +254,11 @@ function joinUrl() {
   return location.href.split('#')[0].split('?')[0]
            .replace(/board\.html$/, '') + 'join.html?inst=' + encodeURIComponent(code);
 }
+/* הקישור לעמוד הזה עצמו, נקי מכל מה שהודבק אחריו. */
+function boardUrl() {
+  return location.href.split('#')[0].split('?')[0]
+           .replace(/board\.html$/, '') + 'board.html?inst=' + encodeURIComponent(code);
+}
 
 function draw() {
   if (!inst) {
@@ -253,22 +280,35 @@ function draw() {
   var daf   = wk >= 0 ? LDaf(tr, wk) : null;
   var didWk = wk >= 0 ? LCount(tr, wk, code) : 0;
 
+  /* שני קישורים, ובסדר הזה: הצוות קודם. זה הקישור שהוא נמצא בו
+     ברגע זה, וזו גם השאלה שהוא שואל ראשונה — "איך אני נותן את
+     זה לר״ם שלי". */
   var share =
-    '<div class="card"><h2>הקישור לתלמידים</h2>' +
-    '<p class="h">שלחו אותו לקבוצות הכיתה ולהורים. כל מי שנכנס דרכו ' +
-    'נרשם אליכם.</p>' +
+    '<div class="card"><h2>שני קישורים</h2>' +
+    '<p class="h">אחד לצוות, אחד לתלמידים. לא להחליף ביניהם.</p>' +
+
+    '<div class="lk team"><h3>' + esc(UI.teamTitle) + '</h3>' +
+    '<p>' + esc(UI.teamNote) + '</p>' +
+    '<div class="url">' + esc(boardUrl()) + '</div>' +
+    '<a class="btn b" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(tp(UI.teamWa, { inst:inst.name, url:boardUrl() })) + '">' +
+      esc(UI.teamWaBtn) + '</a>' +
+    '<button class="btn g" id="cp-team">' + esc(UI.teamCopy) + '</button></div>' +
+
+    '<div class="lk kids"><h3>' + esc(UI.kidsTitle) + '</h3>' +
+    '<p>' + esc(UI.linkNote) + '</p>' +
     '<div class="url">' + esc(joinUrl()) + '</div>' +
     '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' +
       encodeURIComponent(tp(UI.linkWa, { inst:inst.name, url:joinUrl() })) + '">' +
-      esc(UI.linkWaBtn) + '</a>' +
-    '<button class="btn g" id="cp">' + esc(UI.linkCopy) + '</button></div>';
+      esc(UI.kidsWaBtn) + '</a>' +
+    '<button class="btn g" id="cp">' + esc(UI.kidsCopy) + '</button></div></div>';
 
   /* לפני שהצטרף מישהו — לא אפס ושלושה גרפים ריקים, אלא מה
      לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */
   if (!n) {
     $('body').innerHTML =
       '<div class="card"><div class="empty"><div class="big">📩</div>' +
-      '<p>הקישור עוד לא הופץ.<br>שלחו אותו לכיתות ולהורים, ' +
+      '<p>הקישור לתלמידים עוד לא הופץ.<br>שלחו אותו לכיתות ולהורים, ' +
       'וכאן תראו כמה הצטרפו.</p></div></div>' + share + soonLine();
     wire();
     return;
@@ -317,9 +357,13 @@ function soonLine() {
 }
 
 function wire() {
-  var b = $('cp'); if (!b) return;
+  bindCopy('cp', joinUrl);
+  bindCopy('cp-team', boardUrl);
+}
+function bindCopy(id, urlOf) {
+  var b = $(id); if (!b) return;
   b.onclick = function () {
-    var u = joinUrl(), was = b.textContent;
+    var u = urlOf(), was = b.textContent;
     var ok = function () { b.textContent = UI.linkCopied;
                            setTimeout(function () { b.textContent = was; }, 1800); };
     if (navigator.clipboard && navigator.clipboard.writeText)
@@ -337,7 +381,8 @@ function legacy(txt, done) {
 }
 
 $('foot-how').textContent =
-  'שמרו את הקישור הזה. הוא נשלח אליכם בהרשמה, ואפשר גם להוסיף אותו למסך הבית.';
+  'שמרו את כתובת העמוד הזה — זה הלוח שלכם. הוא נשלח אליכם בהרשמה, ' +
+  'ואפשר גם להוסיף אותו למסך הבית.';
 
 /* מהמטמון מיד, ומהגיליון אחר כך — לוח שנפתח בלי רשת מראה את
    מה שהיה, ולא מסך ריק. */
