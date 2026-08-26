@@ -633,7 +633,13 @@ function drawTop() {
     cnt === 1   ? tpl(JOIN.peersOne,  { inst:nm }) :
                   tpl(JOIN.peersMany, { n:cnt, inst:nm });
   /* מי שהוזמן — זו השורה שלו, והיא גוברת. */
-  if (invFrom) line = tpl(JOIN.invFrom, { me:invFrom });
+  /* מי שהוזמן — זו השורה שלו, והיא גוברת. הנוסח לפי מי הוא:
+     בן שקיבל מאביו, או אב שקיבל מבנו. */
+  if (invFrom) {
+    line = role === 'dad'
+      ? tpl(JOIN.invFromKid || JOIN.invFrom, { me:invFrom })
+      : tpl(JOIN.invFromDad || JOIN.invFrom, { me:invFrom });
+  }
   pe.textContent = line;
   pe.style.display = line ? '' : 'none';
 
@@ -687,6 +693,10 @@ function drawTop() {
    נושאת role), בחירה מפורשת, וברירת מחדל — תלמיד. */
 var role = qs('role') === 'dad' ? 'dad' : 'kid';
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
+var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
+/* מה שכבר נמסר עליי, ומה שידוע על מי שהזמין. */
+var pre  = { first:qs('f'), last:qs('l'), phone:qs('p') };
+var sndr = { first:qs('sf'), last:qs('sl'), phone:qs('sp') };
 
 function drawRoles() {
   $('role-q').textContent = JOIN.roleAsk;
@@ -709,7 +719,16 @@ function applyRole() {
     : 'כדי שנדע לספור אותך, ושהישיבה תראה שלמדת.';
   /* להורה אין שכבה. שדה שאין לו תשובה הוא שדה שעוצר. */
   $('f-grade').style.display = dad ? 'none' : '';
-  $('ways-h').textContent = dad ? JOIN.dadWays : 'איך אתה לומד?';
+  /* הורה שנרשם — לומד עם הבן. זו כל הסיבה שהוא כאן, ולשאול
+     אותו "איך אתה לומד?" זו שאלה שיש לה תשובה אחת. */
+  if (dad) {
+    way = 'dad';
+    $('c-ways').style.display = 'none';
+    $('dad').className = 'card on';
+  } else {
+    $('c-ways').style.display = '';
+  }
+  $('ways-h').textContent = 'איך אתה לומד?';
   $('dad-h').textContent  = dad ? 'ומי לומד איתך?' : 'ומי לומד איתך?';
   $('l-dad-first').textContent = dad ? JOIN.kidOfDad : 'שם פרטי';
   $('dad-sub').textContent = dad
@@ -750,8 +769,12 @@ function stage(scroll) {
   step('instFld', ready('last'));
   step('f-grade', ready('last') && !dad);
   step('f-phone', ready('last') && (dad || !!val('grade')));
-  step('c-ways',  (val('phone').match(/\d/g) || []).length >= 9);
-  step('go',      !!way);
+  var phoneOk = (val('phone').match(/\d/g) || []).length >= 9;
+  if (!dad) step('c-ways', phoneOk);
+  /* להורה החלק "מי לומד איתך" נפתח ישר אחרי הטלפון — אין
+     ביניהם שאלה. */
+  if (dad && phoneOk && open_('dad')) grew = 'dad';
+  step('go', dad ? phoneOk : !!way);
   /* חלק ההורה/הבן — נפתח מהבחירה ולא מהרצף */
   step('f-dad-last',  ready('dad-first'));
   step('f-dad-phone', ready('dad-first'));
@@ -868,6 +891,7 @@ $('go').onclick = function () {
     dadLast:  way === 'dad' ? (val('dad-last') || last) : '',
     dadPhone: way === 'dad' ? val('dad-phone') : '',
     from: invFrom || '',              /* מי הזמין אותי, אם הוזמנתי */
+    withId: invWid || '',             /* והמזהה שלו — לצימוד */
     at: new Date().toISOString()
   };
   set('me', me);
@@ -882,7 +906,7 @@ $('go').onclick = function () {
     ['תפקיד', me.role === 'dad' ? 'הורה' : 'תלמיד'],
     ['שם ההורה', me.dadFirst], ['משפחת ההורה', me.dadLast],
     ['טלפון ההורה', me.dadPhone],
-    ['הוזמן על ידי', me.from]
+    ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId]
   ]) });
 
   showDone(me);
@@ -909,11 +933,24 @@ function waNum(p) {
 }
 /* הקישור שנשלח לצד השני. `role` הפוך משלי, `me` שמי — כדי
    שהוא ייפתח כבר מותאם, ויידע מי הזמין אותו. */
+/* הקישור נושא את מה שכבר נמסר עליו: השם והטלפון שהצד הזה
+   הזין. מי שמקבל אותו לא צריך להקליד שוב את מה שכבר ידוע —
+   הוא רק מאשר. */
 function invUrl(me) {
   var base = location.href.split('#')[0].split('?')[0];
-  return base + '?inst=' + encodeURIComponent(me.inst) +
-         '&role=' + (me.role === 'dad' ? 'kid' : 'dad') +
-         '&me=' + encodeURIComponent(me.first);
+  var q = '?inst=' + encodeURIComponent(me.inst) +
+          '&role=' + (me.role === 'dad' ? 'kid' : 'dad') +
+          '&me=' + encodeURIComponent(me.first) +
+          '&wid=' + encodeURIComponent(me.id || '');
+  if (me.dadFirst) q += '&f=' + encodeURIComponent(me.dadFirst);
+  if (me.dadLast)  q += '&l=' + encodeURIComponent(me.dadLast);
+  if (me.dadPhone) q += '&p=' + encodeURIComponent(me.dadPhone);
+  /* ומי ששלח — כדי שהצד השני יראה אותו כבר מלא בחלק "מי לומד
+     איתך", ולא יצטרך להזין את מי שהרגע הזמין אותו. */
+  q += '&sf=' + encodeURIComponent(me.first) +
+       '&sl=' + encodeURIComponent(me.last || '');
+  if (me.phone) q += '&sp=' + encodeURIComponent(me.phone);
+  return base + q;
 }
 
 /* איך פונים לצד השני בהודעה. הורה שמזמין את בנו קורא לו בשמו;
@@ -1138,6 +1175,24 @@ $('hero-go').onclick = function () {
 drawRoles();
 applyRole();
 drawWays();
+
+/* ---------- הזמנה שהתקבלה ----------
+   מי שהזמין כבר מסר את הפרטים. להקליד אותם שוב זה לבקש
+   מהמוזמן לחזור על עבודה שנעשתה. */
+(function () {
+  if (!invFrom && !pre.first && !sndr.first) return;
+  if (get('me', null)) return;          /* כבר רשום — לא נוגעים */
+  if (pre.first) $('first').value = pre.first;
+  if (pre.last)  $('last').value  = pre.last;
+  if (pre.phone) $('phone').value = pre.phone;
+  /* הצד השני — הוא זה שהזמין, ולכן הוא "מי לומד איתך". */
+  if (sndr.first) $('dad-first').value = sndr.first;
+  if (sndr.last)  $('dad-last').value  = sndr.last;
+  if (sndr.phone) $('dad-phone').value = sndr.phone;
+  /* מי שהוזמן ללמוד עם מישהו — לומד איתו. אין מה לשאול. */
+  if (invFrom) { way = 'dad'; $('dad').className = 'card on'; drawWays(); }
+  stage();
+})();
 </script>
 </body>
 </html>
