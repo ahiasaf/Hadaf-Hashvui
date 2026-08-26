@@ -106,7 +106,7 @@ def check_dupe_vars():
 KNOWN_CLASSLESS = {
     'index.html': {'all', 'ce-n', 'ce-r', 'cls', 'current', 'new', 'pi',
                    'raffle', 's-', 'tone', 'warm'},
-    'join.html': {'dad', 'kid'},
+    'join.html': {'dad', 'kid', 'cls'},
     'studio.html': {'mh', 'ml'},
 }
 

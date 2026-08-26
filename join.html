@@ -153,6 +153,43 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
    נער מצטרף למקום שהחברים שלו כבר נמצאים בו. */
 .peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d)}
 
+/* ---------- מסך הפתיחה ----------
+   מלא־גובה: הדבר הראשון שנער רואה אינו טופס אלא מה שמחכה לו.
+   `min-height` ולא `height` — כשהתוכן גדל (שלושה כרטיסים ועוד
+   שורת מצטרפים) הוא פשוט ממשיך, ולא נחתך. */
+/* הגובה נמדד ולא מנוחש: --hero-top נקבע ב-JS לפי הגובה האמיתי
+   של הכותרת, כי היא משתנה עם שם הישיבה ועם ה-safe-area. ניחוש
+   קבוע השאיר את השדה הראשון של הטופס גלוי, וזה בדיוק מה שהמסך
+   הזה בא למנוע.
+
+   svh ולא vh: בטלפון vh מודד את החלון בלי סרגלי הדפדפן, ולכן
+   הוא גדול מהשטח שבאמת נראה. */
+.hero{min-height:calc(100vh - var(--hero-top,150px));
+  min-height:calc(100svh - var(--hero-top,150px));
+  display:flex;flex-direction:column;justify-content:center;padding:20px 0 24px}
+.hero .cards{display:grid;gap:10px;margin-top:20px}
+.pc{display:flex;align-items:flex-start;gap:13px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--r);padding:15px 16px;
+  box-shadow:var(--sh-1);text-align:start}
+.pc .ic{flex:0 0 40px;height:40px;border-radius:12px;display:flex;
+  align-items:center;justify-content:center;font-size:1.25rem;background:var(--sunk)}
+.pc.gold .ic{background:color-mix(in srgb,var(--gold) 16%,#fff)}
+.pc.blue .ic{background:color-mix(in srgb,var(--blue) 12%,#fff)}
+@supports not (background:color-mix(in srgb,red 8%,#fff)){
+  .pc.gold .ic,.pc.blue .ic{background:var(--sunk)}}
+.pc b{display:block;font-size:.96rem;font-weight:800;line-height:1.35}
+.pc.gold b{color:var(--gold)}
+.pc.blue b{color:var(--blue)}
+.pc span{display:block;font-size:.82rem;font-weight:600;color:var(--ink-2);
+  margin-top:4px;line-height:1.6}
+/* הכפתור אינו שער — הוא קיצור. הטופס נמצא מתחתיו בכל מקרה,
+   ומי שגולל מגיע אליו בלי ללחוץ. */
+.hero .go{display:block;width:100%;text-align:center;margin-top:22px;
+  padding:16px;border:0;border-radius:14px;font-family:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(140deg,var(--green),var(--green-d));
+  box-shadow:0 6px 18px rgba(74,130,28,.28)}
+
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
    נכתבים בטקסטים; כל עוד הם ריקים מוצג רק ההסבר, ולכן אפשר
@@ -252,10 +289,14 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 
 <div class="wrap" id="form">
 
-  <div class="lead">
-    <p id="lead"></p>
-    <span class="when" id="when" style="display:none"></span>
+  <div class="hero">
+    <div class="lead">
+      <p id="lead"></p>
+      <span class="when" id="when" style="display:none"></span>
+    </div>
+    <div class="cards" id="cards"></div>
     <div class="peers" id="peers" style="display:none"></div>
+    <button class="go" id="hero-go"></button>
   </div>
 
   <div class="raffle" id="raffle">
@@ -414,7 +455,7 @@ function drawWays() {
     b.onclick = function () {
       way = b.dataset.w;
       $('dad').className = way === 'dad' ? 'card on' : 'card';
-      stage();
+      stage(1);
       drawWays();
     };
   });
@@ -569,6 +610,25 @@ function drawTop() {
   pe.textContent = line;
   pe.style.display = line ? '' : 'none';
 
+  /* שלושת הכרטיסים. כל אחד נעלם כשהכיתוב שלו ריק, וכרטיס
+     ההגרלות נעלם גם כשהמתג שלו כבוי — הבטחה שבוטלה גרועה
+     מהיעדרה.
+
+     כרטיס הדף האינטראקטיבי אינו קישוט: ההגרלה מושכת אותו
+     להיכנס, והדף הוא מה שיחזיר אותו כל שבוע. בלעדיו המסך
+     מבטיח פרס ולא לימוד. */
+  var card = function (cls, ic, t, body) {
+    return t ? '<div class="pc ' + cls + '"><span class="ic">' + ic + '</span>' +
+      '<span><b>' + esc(t) + '</b><span>' + esc(body) + '</span></span></div>' : '';
+  };
+  var cards = '';
+  if (pub.weekRaffle) cards += card('gold', '🎲', JOIN.wkTag, JOIN.wkBody);
+  if (pub.raffle)     cards += card('gold', '🎁', JOIN.jnTag,
+                            JOIN.rfPrize || JOIN.jnBody);
+  if (CV_ROWS())      cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
+  $('cards').innerHTML = cards;
+  $('hero-go').textContent = JOIN.goBtn + ' ←';
+
   /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
      הגרלה שהובטחה לתלמידים ובוטלה גרועה מאין הגרלה כלל. */
   var on = !!pub.raffle;
@@ -650,7 +710,11 @@ function open_(id) {
 }
 function ready(id) { return ((($(id) || {}).value) || '').trim().length >= 2; }
 
-function stage() {
+/* `scroll` — האם לגלול אל מה שנחשף. בעלייה הראשונה **לא**:
+   הטופס נבנה ומגלה את החלק הראשון, וגלילה אליו הייתה זורקת
+   את המבקר ישר מעבר למסך הפתיחה — כלומר מבטלת אותו. גוללים
+   רק כשהוא עצמו התקדם. */
+function stage(scroll) {
   var dad = role === 'dad', grew = null;
   var step = function (id, cond) { if (cond && open_(id)) grew = id; };
 
@@ -668,7 +732,7 @@ function stage() {
 
   /* גלילה עדינה אל מה שנחשף. בלעדיה השדה החדש נולד מתחת
      למקלדת, והמסך נראה כאילו לא קרה בו דבר. */
-  if (grew) {
+  if (grew && scroll) {
     var el = $(grew);
     setTimeout(function () {
       var r = el.getBoundingClientRect();
@@ -680,8 +744,16 @@ function stage() {
 /* כל הקלדה בטופס מקדמת את השלב. `input` ולא `change`, כי
    `change` יורה רק כשעוזבים את השדה — ואז החשיפה מגיעה
    באיחור של פעולה שלמה. */
-document.addEventListener('input', stage);
-document.addEventListener('change', stage);
+document.addEventListener('input', function () { stage(1); });
+document.addEventListener('change', function () { stage(1); });
+
+/* הדף האינטראקטיבי מוצג בכרטיס רק אם הוא בכלל פתוח לתלמידים.
+   `rows.inter` הוא אותו מתג שקובע אם השורה מופיעה בעמוד השבוע,
+   ולכן אין מצב שהמסך מבטיח משהו שלא קיים. */
+function CV_ROWS() {
+  var r = pub.rows || {};
+  return r.inter !== false;
+}
 
 /* ---------- הישיבה ----------
    מגיעה מהקישור. ראש חטיבה מפיץ join.html?inst=<קוד>, ואז
@@ -967,6 +1039,26 @@ function showDone(me) {
 }
 
 /* מי שכבר נרשם רואה את מה שרשם, ולא טופס ריק בשנית. */
+/* גובה הכותרת אל תוך ה-CSS, כדי שמסך הפתיחה ימלא בדיוק את מה
+   שנשאר. נמדד גם בסיבוב מסך. */
+function heroFit() {
+  var h = document.querySelector('header');
+  if (!h) return;
+  document.documentElement.style.setProperty(
+    '--hero-top', Math.round(h.getBoundingClientRect().height) + 'px');
+}
+heroFit();
+window.addEventListener('resize', heroFit);
+window.addEventListener('orientationchange', heroFit);
+
+/* הכפתור אינו שער — הטופס נמצא מתחתיו בכל מקרה, והוא רק
+   מקצר את הגלילה. */
+$('hero-go').onclick = function () {
+  var f = $('first');
+  f.scrollIntoView({ behavior:'smooth', block:'center' });
+  setTimeout(function () { try { f.focus(); } catch (e) {} }, 420);
+};
+
 (function () {
   var me = get('me', null);
   if (me && me.first) showDone(me);

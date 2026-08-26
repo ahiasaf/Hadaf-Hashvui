@@ -1271,7 +1271,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.20.0';
+var APP_VERSION = '7.21.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3300,7 +3300,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'orderBy', 'joinLink'];
+                'orderBy', 'joinLink', 'weekRaffle'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -3852,14 +3852,88 @@ function admPart(el) {
 }
 
 /* ---- הרשמות שהתקבלו ---- */
+/* ---- הרשמות: קריאה מהגיליון ----
+   עד עכשיו הרשימה כאן הייתה מה שנשלח **מהמכשיר הזה** בלבד.
+   כלומר ראש חטיבה שנרשם מהטלפון שלו לא הופיע כאן לעולם, וזו
+   בדיוק הרשימה שהרכז צריך.
+
+   הלשונית "הרשמות" עברה לגיליון הפרטי (שם ראש חטיבה וטלפון
+   שלו אינם דבר שיושב בגיליון משותף לצפייה), ולכן הקריאה
+   דורשת את סיסמת הקריאה — אותה אחת של מסך המשתתפים. */
+var regState = { msg:'' };
+
+function regFromRows(rows) {
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0], ix = {};
+  for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+  var cell = function (r, k) {
+    return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
+  };
+  var byCode = {}, order = [];
+  rows.slice(1).forEach(function (r) {
+    var code = cell(r, 'קוד');
+    if (!code) return;
+    var o = { code:code, inst:cell(r, 'ישיבה'), who:cell(r, 'איש קשר'),
+              phone:cell(r, 'טלפון'), size:parseInt(cell(r, 'תלמידים (הערכה)'), 10) || 0,
+              at:cell(r, 'תאריך'), qty:{} };
+    TRACKS.forEach(function (t) {
+      SFARIM.forEach(function (sf) {
+        var n = parseInt(cell(r, t.masechet + ' · ' + sf.name), 10) || 0;
+        if (n) o.qty[qk(t.id, sf.id)] = n;
+      });
+    });
+    o.total = regTotalQty(o.qty);
+    o.seferName = cell(r, 'פירוט');
+    /* אותה ישיבה נרשמה שוב — האחרונה היא הנכונה. */
+    if (!(code in byCode)) order.push(code);
+    byCode[code] = o;
+  });
+  return order.map(function (c) { return byCode[c]; });
+}
+
+function pullRegs() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { regState.msg = 'nokey'; admPane(); return Promise.resolve(false); }
+  regState.msg = 'טוען…'; admPane();
+  return scriptGet({ read:'הרשמות', key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      regState.msg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    var list = regFromRows(d.rows);
+    if (list.length) Store.set('registrations', list);
+    regState.msg = ''; Store.set('regAt', Date.now());
+    admPane(); return true;
+  }).catch(function () {
+    regState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+
 function admReg(el) {
   var list = Store.get('registrations', []) || [];
   var own = regSaved();
   if (own && !list.some(function (r) { return r.code === own.code; })) list = [own].concat(list);
+
+  var at = Store.get('regAt', 0);
+  var sync = '<button class="btn g" onclick="pullRegs()" style="margin-top:10px">' +
+    (list.length ? 'רענון מהגיליון' : 'טעינה מהגיליון') + '</button>' +
+    (at ? '<p class="h" style="margin-top:8px">עודכן ' + esc(whenTxt(at)) + '</p>' : '');
+
+  if (regState.msg === 'nokey') {
+    el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
+      '<p class="h">רשימת ההרשמות יושבת בגיליון הפרטי — שם של ראש חטיבה ' +
+      'והטלפון שלו אינם דבר שיושב בגיליון משותף לצפייה. הדביקו בהגדרות ← ' +
+      '"סיסמת הקריאה" את המחרוזת שכתובה ב-Apps Script.</p>' +
+      '<button class="btn p" onclick="admGo(\'set\')">למסך ההגדרות</button></div>';
+    return;
+  }
   if (!list.length) {
     el.innerHTML = '<div class="adm-card"><h4>אין עדיין הרשמות</h4>' +
-      '<p class="h">הרשמה שנשלחת מהאפליקציה תופיע כאן. כל עוד אין חיבור לשרת, ' +
-      'רואים כאן רק הרשמות שנשלחו מהמכשיר הזה.</p></div>';
+      '<p class="h">כל הרשמה שנשלחת מהאפליקציה נכתבת לגיליון הפרטי. ' +
+      'לחצו כאן כדי למשוך אותן — כולל הרשמות שנשלחו ממכשירים אחרים.</p>' +
+      (regState.msg ? '<div class="cond" style="margin-top:10px">' +
+                      esc(regState.msg) + '</div>' : '') +
+      sync + '</div>';
     return;
   }
   var tot = list.reduce(function (a, r) { return a + (r.total || 0); }, 0);
@@ -3880,6 +3954,8 @@ function admReg(el) {
   el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>' + list.length +
     ' הרשמות · ' + tot + ' גמרות</h4>' +
+    (regState.msg ? '<div class="cond" style="margin-bottom:9px">' +
+                    esc(regState.msg) + '</div>' : '') +
     SFARIM.map(function (s) {
       var p = priceOf(s.id);
       var n = TRACKS.reduce(function (a, t) { return a + (per[qk(t.id, s.id)] || 0); }, 0);
@@ -3894,7 +3970,8 @@ function admReg(el) {
           ? ' <span style="font-weight:600;color:var(--ink-3)">(חסרים ' + gap + ')</span>'
           : p.min ? ' ✓' : '') + '</b></div>';
     }).join('') +
-    '<p class="h" style="margin:9px 0 0">סה"כ להזמנה: ' + shek(sum) + '</p></div>' +
+    '<p class="h" style="margin:9px 0 0">סה"כ להזמנה: ' + shek(sum) + '</p>' +
+    sync + '</div>' +
     list.map(function (r) {
       var q = regMigrate(r);
       return '<div class="adm-card" style="margin-bottom:9px"><h4>' + esc(r.inst) + '</h4>' +
@@ -3973,6 +4050,18 @@ function admInst(el) {
     /* ההגרלה. כבויה עד שהפרס מאושר — אין דבר גרוע יותר מהגרלה
        שהובטחה לתלמידים ובוטלה. המפתח מפורסם, ולכן ההחלטה חלה
        על כל מי שפותח את קישור ההצטרפות ולא רק על המכשיר הזה. */
+    /* ההגרלה השבועית — נפרדת מהגרלת ההצטרפות, כי הן שתי
+       הבטחות שונות ואפשר לרצות אחת בלי השנייה. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>ההגרלה השבועית</h4>' +
+    '<p class="h">מוצגת במסך הפתיחה של התלמיד: עונים נכון על החידה — ' +
+    'ונכנסים להגרלה של אותו שבוע.</p>' +
+    '<div class="row"><div>הגרלה שבועית' +
+    '<div class="sub">' + (CV('weekRaffle') ? 'דלוקה' : 'כבויה — התלמיד לא רואה אותה') +
+    '</div></div>' +
+    '<button class="sw' + (CV('weekRaffle') ? ' on' : '') +
+    '" onclick="cfgSet(\'weekRaffle\',!CV(\'weekRaffle\'));admPane()" ' +
+    'aria-label="הגרלה שבועית"></button></div></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>הגרלת ההצטרפות</h4>' +
     '<p class="h">מוצגת במסך ההצטרפות של התלמיד. ההגרלה נערכת בכל ישיבה ' +
     'בנפרד. את משפט הפרס ואת תמונתו ממלאים בטקסטים ← מסך ההצטרפות; ' +
@@ -4385,7 +4474,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 10;
+var SCRIPT_MIN = 11;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
