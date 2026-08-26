@@ -51,11 +51,21 @@ img:not([src]){visibility:hidden}
 body{background:var(--paper);color:var(--ink);line-height:1.6;
   padding-bottom:calc(env(safe-area-inset-bottom) + 34px)}
 
-header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
-  padding:calc(env(safe-area-inset-top) + 24px) 20px 24px;text-align:center}
-header img{height:34px;margin-bottom:8px}
-header h1{font-size:1.1rem;font-weight:800;letter-spacing:-.03em}
-header p{font-size:.82rem;font-weight:700;opacity:.82;margin-top:4px}
+/* ---------- חתימת התוכנית ----------
+   זהה לעמוד הראשי. הסמל העגול על רקע לבן, השם בשתי שורות,
+   ומתחת — הישיבה או השנה. */
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
+  padding:calc(env(safe-area-inset-top) + 10px) 4px 6px}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.12),0 8px 22px rgba(0,0,0,.14)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:#fff}
+.masthead .yr{font-size:.78rem;font-weight:800;color:var(--gold-l);
+  letter-spacing:.03em;margin-top:3px}
 
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
@@ -110,10 +120,15 @@ footer b{display:block;color:var(--ink-2)}
 </head>
 <body>
 
+<!-- אותה חתימה שיש בעמוד הראשי: הסמל העגול, "הדף השבועי של
+     בני עקיבא", והשנה. זה הפנים של התוכנית, ואין סיבה שמסך
+     אחד ייראה אחרת מהשני. -->
 <header>
-  <img id="logo" alt="בני עקיבא">
-  <h1>הדף השבועי</h1>
-  <p id="sub">הלוח</p>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1>הדף השבועי<br>של בני עקיבא</h1>
+      <div class="yr" id="sub">שנת תשפ"ז</div></div>
+  </div>
 </header>
 
 <div class="wrap" id="body"></div>
@@ -142,7 +157,7 @@ function tp(t, v) {
     return v[k] != null ? v[k] : m;
   });
 }
-(function () { var l = $('logo'); if (l) l.src = LOGO_FULL; })();
+(function () { var l = $('hdr-mark'); if (l) l.src = LOGO_MARK; })();
 
 /* ---------- הישיבה ---------- */
 var code = qs('inst'), inst = null;
@@ -291,13 +306,16 @@ function num(v, t) {
 /* משפט אחד עם תאריך, ולא רשימת פיצ'רים. רשימה קוראת כמו שיווק
    ומזמינה למדוד אותנו מול הבטחה; משפט אחד הוא הבטחה שאפשר
    לעמוד בה. */
+/* לפני שהלימוד מתחיל — שורת הסימנייה של השבוע הראשון, לא
+   תאריך לועזי. הלוח עצמו כבר מציג אותה; זו רק המשלימה לכותרת. */
 function soonLine() {
   var d = new Date(PROGRAM.startDate + 'T00:00:00');
   if (isNaN(d) || Date.now() >= d.getTime()) return '';
-  return '<p class="soon">הלימוד מתחיל ב־' + d.getDate() + '.' + (d.getMonth() + 1) +
-         '.' + String(d.getFullYear()).slice(2) +
-         '.<br>מאותו שבוע יופיע כאן גם מי למד.</p>';
+  var r0 = TRACKS[0].cal[0];
+  return '<p class="soon">מתחילים · ' + esc(r0[1]) + ' · דף ' + esc(r0[2]) +
+         '<br>' + esc(r0[0]) + '</p>';
 }
+
 function wire() {
   var b = $('cp'); if (!b) return;
   b.onclick = function () {

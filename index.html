@@ -1312,7 +1312,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.24.1';
+var APP_VERSION = '7.25.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3325,7 +3325,25 @@ function importContacts() {
 function setStage(i, k) {
   var l = contacts(); if (!l[i]) return;
   l[i].stage = k; l[i].at = new Date().toISOString();
-  saveContacts(l); renderCalls(); pushCalls();
+  jnl(l[i]);
+  saveContacts(l);
+  /* "הצטרף" במסך השיחות ו"בפנים" ברשימת המוסדות הם אותה עובדה
+     בשני מקומות. עד עכשיו כל אחד מהם נשמר לחוד, וסימון באחד
+     לא נראה בשני — כלומר צריך היה לזכור לעדכן ידנית, ומי
+     שלא זכר קיבל שתי אמיתות סותרות. */
+  joinedFromStage(l[i]);
+  renderCalls(); pushCalls();
+}
+
+/* מסמן/מבטל את המוסד ברשימה לפי שלב השיחה. */
+function joinedFromStage(c) {
+  var inst = instByName(c.key || c.name);
+  if (!inst) return;
+  var j = CV('joined') || {}, want = c.stage === 'joined';
+  if (!!inst.joined === want) return;
+  j[inst.code] = want;
+  cfgSet('joined', j);
+  renderHome();
 }
 /* ============================================================
    עריכת כרטיס.
@@ -4345,9 +4363,31 @@ function rowToggle(k) {
 function admToggle(code) {
   var j = CV('joined') || {};
   var cur = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
-  j[code] = !(cur && cur.joined);
+  var want = !(cur && cur.joined);
+  j[code] = want;
   cfgSet('joined', j);
-  admPane();
+  stageFromJoined(code, want);       /* ולכיוון השני */
+  admPane(); renderHome();
+}
+
+/* מסמן/מבטל את שלב השיחה לפי המתג ברשימת המוסדות. */
+function stageFromJoined(code, want) {
+  var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  if (!inst) return;
+  var l = contacts(), hit = -1;
+  for (var i = 0; i < l.length; i++) {
+    var m = instByName(l[i].key || l[i].name);
+    if (m && m.code === code) { hit = i; break; }
+  }
+  if (hit < 0) return;
+  var c = l[hit];
+  if (want && c.stage === 'joined') return;
+  /* ביטול מחזיר ל"דיברתי" ולא ל"לא דיברתי" — שיחה שהתקיימה
+     התקיימה, וגם אם התשובה השתנתה היא אינה נמחקת. */
+  if (!want && c.stage !== 'joined') return;
+  c.stage = want ? 'joined' : 'talked';
+  c.at = new Date().toISOString();
+  jnl(c); saveContacts(l); pushCalls();
 }
 
 /* ---- טקסטים ----

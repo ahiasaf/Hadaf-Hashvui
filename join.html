@@ -63,11 +63,21 @@ img:not([src]){visibility:hidden}
 body{background:var(--paper);color:var(--ink);line-height:1.6;
   padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
 
-header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
-  padding:calc(env(safe-area-inset-top) + 26px) 20px 26px;text-align:center}
-header img{height:38px;margin-bottom:9px}
-header h1{font-size:1.16rem;font-weight:800;letter-spacing:-.03em}
-header p{font-size:.84rem;font-weight:700;opacity:.82;margin-top:5px}
+/* ---------- חתימת התוכנית ----------
+   זהה לעמוד הראשי. הסמל העגול על רקע לבן, השם בשתי שורות,
+   ומתחת — הישיבה או השנה. */
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
+  padding:calc(env(safe-area-inset-top) + 10px) 4px 6px}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.12),0 8px 22px rgba(0,0,0,.14)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:#fff}
+.masthead .yr{font-size:.78rem;font-weight:800;color:var(--gold-l);
+  letter-spacing:.03em;margin-top:3px}
 
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
@@ -281,10 +291,15 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 </head>
 <body>
 
+<!-- אותה חתימה שיש בעמוד הראשי: הסמל העגול, "הדף השבועי של
+     בני עקיבא", והשנה. זה הפנים של התוכנית, ואין סיבה שמסך
+     אחד ייראה אחרת מהשני. -->
 <header>
-  <img id="logo" alt="בני עקיבא">
-  <h1>הדף השבועי</h1>
-  <p id="sub">מצטרפים ללימוד</p>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1>הדף השבועי<br>של בני עקיבא</h1>
+      <div class="yr" id="sub">שנת תשפ"ז</div></div>
+  </div>
 </header>
 
 <div class="wrap" id="form">
@@ -407,7 +422,7 @@ function get(k, d) {
 function set(k, v) {
   try { localStorage.setItem('df:' + k, JSON.stringify(v)); } catch (e) {}
 }
-$('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
+$('hdr-mark').src = window.LOGO_MARK || '';
 
 /* ---------- מזהה המכשיר ----------
    אקראי, נוצר פעם אחת, ואינו נגזר משום פרט אישי. הוא מה שמופיע
@@ -571,6 +586,14 @@ function startTxt() {
   return s.date.getDate() + '.' + (s.date.getMonth() + 1) + '.' +
          String(s.date.getFullYear()).slice(2);
 }
+/* השבוע הראשון בלוח — הדף, הפרשה, והתאריך העברי. */
+function week0() {
+  var t = myTrack ? myTrack() : TRACKS[0].id;
+  for (var i = 0; i < TRACKS.length; i++)
+    if (TRACKS[i].id === t) return TRACKS[i].cal[0];
+  return null;
+}
+
 function tpl(t, v) {
   return String(t || '').replace(/\{(\w+)\}/g, function (m, k) {
     return v[k] != null ? v[k] : m;
@@ -587,8 +610,12 @@ function drawTop() {
   if (s) {
     var left = s.days > 0 ? tpl(JOIN.soon, { n:s.days })
              : s.days === 0 ? JOIN.today : '';
-    w.innerHTML = esc(tpl(JOIN.counting, { date:startTxt() })) +
-                  (left ? ' <b>· ' + esc(left) + '</b>' : '');
+    /* לא תאריך לועזי אלא שורת הסימנייה: הדף והפרשה של השבוע
+       הראשון. יש מסלול שנתי מעוצב, והוא מדבר טוב יותר. */
+    var r0 = week0();
+    w.innerHTML = esc(JOIN.counting) +
+      (r0 ? ' <b>' + esc(r0[1]) + ' · דף ' + esc(r0[2]) + '</b>' : '') +
+      (left ? ' · ' + esc(left) : '');
     w.style.display = '';
   } else w.style.display = 'none';
 
@@ -889,6 +916,12 @@ function invUrl(me) {
          '&me=' + encodeURIComponent(me.first);
 }
 
+/* איך פונים לצד השני בהודעה. הורה שמזמין את בנו קורא לו בשמו;
+   בן שמזמין את אביו אומר "אבא". */
+function greetName(me) {
+  return me.role === 'dad' ? me.dadFirst : (JOIN.callDad || 'אבא');
+}
+
 function drawInv() {
   var box = $('inv'); if (!box) return;
   var me = get('me', null) || {};
@@ -932,7 +965,9 @@ function drawInv() {
     set('inv-sent', 1);
     window.open('https://wa.me/' + waNum(num) + '?text=' +
       encodeURIComponent(tpl(JOIN.invMsg, {
-        me: me.first, them: them, url: invUrl(me)
+        /* בפנייה — "אבא", לא השם. הבן הזין אותו כדי שנדע מי
+           זה, לא כדי לקרוא לאבא שלו בשמו. */
+        me: me.first, them: greetName(me), url: invUrl(me)
       })), '_blank');
     drawInv();
   };
@@ -969,8 +1004,12 @@ function drawWeek() {
 
   /* לפני שהתוכנית התחילה — תאריך, לא כפתור מת. */
   if (wk < 0) {
+    var r0 = week0();
     box.innerHTML = '<div class="week"><div class="tag">' + esc(JOIN.weekTag) +
-      '</div><h3>' + esc(tpl(JOIN.soonMark, { date:startTxt() })) + '</h3></div>';
+      '</div><h3>' + esc(JOIN.soonMark) +
+      (r0 ? ' · דף ' + esc(r0[2]) : '') + '</h3>' +
+      (r0 ? '<div class="pr">' + esc(r0[1]) + ' · ' + esc(r0[0]) + '</div>' : '') +
+      '</div>';
     return;
   }
   var daf = LDaf(tr, wk);
