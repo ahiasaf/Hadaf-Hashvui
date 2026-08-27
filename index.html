@@ -1051,6 +1051,29 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   padding:10px 8px;border-radius:9px;font-size:.83rem;font-weight:800;cursor:pointer;
   white-space:nowrap;transition:background .15s,color .15s}
 .tabs button.on{background:var(--surface);color:var(--blue);box-shadow:var(--sh-1)}
+/* ---------- סינון ברשימת המשתתפים ----------
+   שורת שבבים ולא תפריט נפתח: הרכז צריך לראות בלי ללחוץ כמה
+   יש בכל מסגרת, ותפריט מסתיר בדיוק את המספר הזה. */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.chip{border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);
+  border-radius:999px;padding:7px 13px;font-size:.8rem;font-weight:800;cursor:pointer;
+  font-family:inherit;white-space:nowrap;transition:background .14s,color .14s}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.chip b{font-weight:800;opacity:.62;margin-inline-start:5px}
+.chip.on b{opacity:.8}
+/* כפתור המחיקה של שורה. אפור עד שנוגעים בו — הוא לא הפעולה
+   שמחפשים כאן, ואדום קבוע היה צובע את כל הרשימה באזהרה. */
+/* הטלפון ברשימה הוא קישור, לא כפתור. כגלולה בז' מלאה הוא משך
+   את העין לפני השם — והשם הוא מה שמחפשים כאן. */
+.cp.ph{background:none;color:var(--blue);padding:6px 2px;font-size:.82rem}
+.xrow{border:none;background:none;color:var(--ink-3);font-size:1.05rem;
+  font-weight:800;cursor:pointer;padding:4px 8px;border-radius:9px;line-height:1;
+  font-family:inherit;flex:none}
+.xrow:active{background:#FBE9E7;color:#B3261E}
+.psearch{width:100%;margin-top:9px}
+.pway{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
+  margin:12px 0 2px;padding-top:9px;border-top:1px solid var(--rule-2)}
+.pway:first-child{margin-top:4px;padding-top:0;border-top:0}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:11px 0;border-bottom:1px solid var(--rule-2);font-size:.92rem;font-weight:700}
 .row:last-child{border-bottom:0}
@@ -1322,7 +1345,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.31.0';
+var APP_VERSION = '7.32.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4219,9 +4242,9 @@ var partState = { at:0, msg:'' };
    טלפונים בעמודת השכבה בלי שאיש ישים לב. */
 var PART_COLS = { 'מזהה':'id', 'ישיבה':'instName', 'קוד ישיבה':'inst',
                   'שם':'first', 'משפחה':'last', 'שכבה':'grade',
-                  'טלפון':'phone', 'מסגרת':'way',
+                  'טלפון':'phone', 'מסגרת':'way', 'תפקיד':'role',
                   'שם ההורה':'dadFirst', 'משפחת ההורה':'dadLast',
-                  'טלפון ההורה':'dadPhone' };
+                  'טלפון ההורה':'dadPhone', 'תאריך':'at' };
 
 function partParse(rows) {
   if (!rows || rows.length < 2) return [];
@@ -4260,11 +4283,37 @@ function partLoad() {
 
 var WAY_LBL = { 'אבות ובנים':'אב ובן', 'חבורת לימוד':'חבורה', 'לימוד עצמי':'לבד' };
 
+/* ============================================================
+   המשתתפים.
+
+   השאלה שנשאלת מול המסך הזה אינה "כמה נרשמו" אלא "מה קורה
+   בישיבה הזאת" — ולכן הרשימה נפתחת על ישיבה אחת, ובתוכה
+   מקובצת לפי דרך הלימוד. מאתיים שמות ברצף אחד אינם רשימה, הם
+   ערימה.
+
+   הסינון הוא שבבים ולא תפריט נפתח, כדי שהמספר בכל מסגרת יהיה
+   גלוי בלי ללחוץ. זו לרוב התשובה עצמה: "שלושה אבות ובנים בכל
+   הישיבה" הוא מה שמתחילים ממנו שיחה עם ראש החטיבה.
+   ============================================================ */
+var partView = { q:'', inst:'', way:'', msg:'' };
+
+function partName(p) { return ((p.first || '') + ' ' + (p.last || '')).trim(); }
+
+function partMatch(p) {
+  if (partView.way && (p.way || '') !== partView.way) return false;
+  if (partView.inst && (p.inst || p.instName || '') !== partView.inst &&
+      (p.instName || '') !== partView.inst) return false;
+  var q = nameKey(partView.q);
+  if (!q) return true;
+  var hay = [partName(p), p.phone, p.grade, p.instName,
+             (p.dadFirst || '') + ' ' + (p.dadLast || ''), p.dadPhone]
+            .join(' ');
+  return nameKey(hay).indexOf(q) >= 0;
+}
+
 function admPart(el) {
-  var list = Store.get('partCache', []) || [];
-  var at = Store.get('partAt', 0);
-  var btn = '<button class="btn g" onclick="partLoad()" style="margin-top:10px">' +
-            (list.length ? 'רענון מהגיליון' : 'טעינה מהגיליון') + '</button>';
+  var all = Store.get('partCache', []) || [];
+  var at  = Store.get('partAt', 0);
 
   if (partState.msg === 'nokey') {
     el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
@@ -4276,47 +4325,176 @@ function admPart(el) {
     return;
   }
 
-  /* סיכום קודם ופירוט אחריו: המספרים הם מה שמסתכלים עליהם כל
-     יום, והשמות הם מה שמחפשים בהם פעם בשבוע. */
-  var ways = {}, byInst = {}, instOrder = [];
-  list.forEach(function (p) {
-    ways[p.way] = (ways[p.way] || 0) + 1;
-    var k = p.instName || 'ללא ישיבה';
-    if (!byInst[k]) { byInst[k] = []; instOrder.push(k); }
-    byInst[k].push(p);
-  });
-  instOrder.sort(function (a, b) { return byInst[b].length - byInst[a].length; });
+  if (!all.length) {
+    el.innerHTML = '<div class="adm-card"><h4>אין עדיין משתתפים</h4>' +
+      '<p class="h">כל מי שנרשם דרך קישור ההצטרפות יופיע כאן. הרשימה ' +
+      'נקראת מהגיליון הפרטי ואינה גלויה לאיש מלבדכם.</p>' +
+      (partState.msg && partState.msg !== 'nokey'
+        ? '<div class="cond" style="margin-top:10px">' + esc(partState.msg) + '</div>' : '') +
+      '<button class="btn g" style="margin-top:10px" onclick="partLoad()">' +
+      'טעינה מהגיליון</button></div>';
+    return;
+  }
 
-  var head = '<div class="adm-card" style="margin-bottom:11px"><h4>' +
-    (list.length ? list.length + ' לומדים · ' + instOrder.length + ' ישיבות'
-                 : 'אין עדיין משתתפים') + '</h4>' +
-    (list.length
-      ? Object.keys(ways).map(function (w) {
-          return '<div class="row" style="padding:7px 0"><span>' +
-            esc(WAY_LBL[w] || w || 'לא צוין') + '</span><b>' + ways[w] + '</b></div>';
-        }).join('')
-      : '<p class="h">כל מי שנרשם דרך קישור ההצטרפות יופיע כאן. ' +
-        'הרשימה נקראת מהגיליון הפרטי ואינה גלויה לאיש מלבדכם.</p>') +
-    (partState.msg ? '<div class="cond" style="margin-top:10px">' +
-                     esc(partState.msg) + '</div>' : '') +
-    btn +
+  /* המספר שעל השבב הוא כמה יתקבלו אם ילחצו עליו — ולא כמה יש
+     בסך הכל. שבב שכתוב עליו 4 ומחזיר 2 הוא שבב משקר, וזה בדיוק
+     המספר שמסתכלים עליו לפני שיחה עם ראש חטיבה.
+
+     ולכן כל ספירה מתעלמת **מהמסנן של עצמה בלבד**: מספרי
+     הישיבות מכבדים את סינון המסגרת, ומספרי המסגרות מכבדים את
+     סינון הישיבה. החיפוש חל על שניהם. */
+  var instN = {}, instName = {}, wayN = {}, allInst = 0, allWay = 0;
+  var si = partView.inst, sw = partView.way;
+  all.forEach(function (p) {
+    var ic = p.inst || p.instName || '';
+    instName[ic] = p.instName || ic;
+
+    partView.inst = '';
+    if (partMatch(p)) { instN[ic] = (instN[ic] || 0) + 1; allInst++; }
+    partView.inst = si;
+
+    partView.way = '';
+    if (partMatch(p)) { wayN[p.way || ''] = (wayN[p.way || ''] || 0) + 1; allWay++; }
+    partView.way = sw;
+  });
+
+  var shown = all.filter(partMatch);
+  /* הכותרת מתארת את מה שמוצג, והשבבים מתארים את מה שאפשר לבחור.
+     שני מספרים שונים, ובצדק: "2 מתוך 6 · 2 ישיבות" כשמוצגת
+     ישיבה אחת הוא פשוט שקר. */
+  var seenInst = {}, shownInst = 0;
+  shown.forEach(function (p) {
+    var ic = p.inst || p.instName || '';
+    if (!seenInst[ic]) { seenInst[ic] = 1; shownInst++; }
+  });
+  var insts = Object.keys(instN).sort(function (a, b) { return instN[b] - instN[a]; });
+  var ways  = Object.keys(wayN).sort(function (a, b) { return wayN[b] - wayN[a]; });
+
+  var chip = function (on, label, n, click) {
+    return '<button class="chip' + (on ? ' on' : '') + '" onclick="' + click + '">' +
+      esc(label) + (n == null ? '' : '<b>' + n + '</b>') + '</button>';
+  };
+
+  var h = '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>' + (shown.length === all.length
+                ? all.length + ' לומדים'
+                : shown.length + ' מתוך ' + all.length + ' לומדים') +
+    ' · ' + (shownInst === 1 ? 'ישיבה אחת' : shownInst + ' ישיבות') + '</h4>' +
+
+    '<input class="psearch" placeholder="חיפוש שם, טלפון או שכבה" ' +
+    'value="' + esc(partView.q) + '" oninput="partSet(\'q\',this.value)">' +
+
+    '<div class="chips">' +
+    chip(!partView.inst, 'כל הישיבות', allInst, 'partSet(\'inst\',\'\')') +
+    insts.map(function (c) {
+      return chip(partView.inst === c, instName[c] || 'ללא ישיבה', instN[c],
+                  'partSet(\'inst\',' + dq(c) + ')');
+    }).join('') + '</div>' +
+
+    '<div class="chips">' +
+    chip(!partView.way, 'כל המסגרות', allWay, 'partSet(\'way\',\'\')') +
+    ways.map(function (w) {
+      return chip(partView.way === w, WAY_LBL[w] || w || 'לא צוין', wayN[w],
+                  'partSet(\'way\',' + dq(w) + ')');
+    }).join('') + '</div>' +
+
+    (partView.msg ? '<div class="cond" style="margin-top:10px">' + partView.msg + '</div>' : '') +
+    (partState.msg && partState.msg !== 'nokey'
+      ? '<div class="cond" style="margin-top:10px">' + esc(partState.msg) + '</div>' : '') +
+    '<button class="btn g" style="margin-top:10px" onclick="partLoad()">רענון מהגיליון</button>' +
     (at ? '<p class="h" style="margin-top:8px">עודכן ' + esc(whenTxt(at)) + '</p>' : '') +
     '</div>';
 
-  el.innerHTML = head + instOrder.map(function (k) {
-    return '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(k) +
-      ' · ' + byInst[k].length + '</h4>' +
-      byInst[k].map(function (p) {
-        var sub = [p.grade, WAY_LBL[p.way] || p.way].filter(Boolean).join(' · ');
-        var dad = p.dadFirst ? (p.dadFirst + ' ' + (p.dadLast || '')).trim() +
-                  (p.dadPhone ? ' · ' + p.dadPhone : '') : '';
-        return '<div class="row"><div>' + esc((p.first + ' ' + p.last).trim()) +
-          '<div class="sub">' + esc(sub) + (dad ? ' · עם ' + esc(dad) : '') + '</div></div>' +
-          (p.phone ? '<a class="cp" style="text-decoration:none;direction:ltr" href="tel:' +
-                     esc(p.phone) + '">' + esc(p.phone) + '</a>' : '') +
-          '</div>';
+  if (!shown.length) {
+    el.innerHTML = h + '<div class="adm-card"><p class="h">אין מי שעונה על ' +
+      'הסינון הזה.</p></div>';
+    return;
+  }
+
+  /* קיבוץ: ישיבה, ובתוכה מסגרת. כשמסוננת ישיבה אחת נשארת רק
+     החלוקה למסגרות — היא מה שמסתכלים עליו באותו רגע. */
+  var byInst = {}, order = [];
+  shown.forEach(function (p) {
+    var ic = p.inst || p.instName || '';
+    if (!byInst[ic]) { byInst[ic] = []; order.push(ic); }
+    byInst[ic].push(p);
+  });
+  order.sort(function (a, b) { return byInst[b].length - byInst[a].length; });
+
+  h += order.map(function (ic) {
+    var grp = {}, gord = [];
+    byInst[ic].forEach(function (p) {
+      var w = p.way || '';
+      if (!grp[w]) { grp[w] = []; gord.push(w); }
+      grp[w].push(p);
+    });
+    gord.sort(function (a, b) { return grp[b].length - grp[a].length; });
+
+    return '<div class="adm-card" style="margin-bottom:11px"><h4>' +
+      esc(instName[ic] || 'ללא ישיבה') + ' · ' + byInst[ic].length + '</h4>' +
+      gord.map(function (w) {
+        return '<div class="pway">' + esc(WAY_LBL[w] || w || 'לא צוין') +
+          ' · ' + grp[w].length + '</div>' +
+          grp[w].map(partRow).join('');
       }).join('') + '</div>';
   }).join('');
+
+  el.innerHTML = h;
+}
+
+function partRow(p) {
+  var sub = [p.grade, p.role === 'הורה' ? 'הורה' : ''].filter(Boolean).join(' · ');
+  /* מי לומד עם מי — זו השאלה שבגללה המסך הזה קיים, ולכן היא
+     בשורה ולא בלחיצה נוספת. */
+  var with_ = p.dadFirst
+    ? 'עם ' + ((p.dadFirst + ' ' + (p.dadLast || '')).trim()) +
+      (p.dadPhone ? ' · ' + p.dadPhone : '')
+    : '';
+  return '<div class="row"><div>' + esc(partName(p)) +
+    '<div class="sub">' + esc([sub, with_].filter(Boolean).join(' · ')) + '</div></div>' +
+    '<div style="display:flex;align-items:center;gap:4px">' +
+    (p.phone ? '<a class="cp ph" style="text-decoration:none;direction:ltr" href="tel:' +
+               esc(p.phone) + '">' + esc(p.phone) + '</a>' : '') +
+    '<button class="xrow" title="מחיקה" onclick="partDel(' + dq(p.id || '') + ',' +
+    dq(partName(p)) + ')">✕</button></div></div>';
+}
+
+function partSet(k, v) { partView[k] = v; partView.msg = ''; admPane();
+                         if (k === 'q') { var f = document.querySelector('.psearch');
+                                          if (f) { f.focus(); f.selectionStart = f.value.length; } } }
+
+/* מחיקת משתתף. השורה נמחקת בגיליון לפי המזהה, ורק אם השרת
+   אישר שהיא אכן נמחקה — הרשימה שעל המסך אינה מקור האמת. */
+function partDel(id, name) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { partView.msg = 'חסרה סיסמת הקריאה — אי אפשר למחוק.'; admPane(); return; }
+  if (!id) { partView.msg = 'לשורה הזו אין מזהה בגיליון, ולכן אי אפשר למחוק ' +
+                            'אותה מכאן. אפשר לנקות את כל הלשונית בלשונית "נתונים".';
+             admPane(); return; }
+  if (!confirm('למחוק את ' + name + ' מהרשימה?')) return;
+
+  partView.msg = 'מוחק…'; admPane();
+  scriptGet({ delrow:JOIN_TAB, col:'מזהה', vals:JSON.stringify([id]), key:key })
+    .then(function (d) {
+      if (!d || d.status !== 'success') {
+        partView.msg = '<b>לא נמחק.</b> ' + esc((d && d.message) || 'אין תשובה מהסקריפט.');
+        admPane(); return;
+      }
+      if (!d.removed) {
+        partView.msg = 'לא נמצאה שורה עם המזהה הזה בגיליון. ' +
+                       'לחצו "רענון מהגיליון".';
+        admPane(); return;
+      }
+      var left = (Store.get('partCache', []) || []).filter(function (x) {
+        return x.id !== id;
+      });
+      Store.set('partCache', left);
+      partView.msg = esc(name) + ' נמחק מהגיליון.';
+      admPane();
+    })
+    .catch(function () {
+      partView.msg = '<b>לא נמחק.</b> אין תשובה מהסקריפט.'; admPane();
+    });
 }
 
 /* ---- הרשמות שהתקבלו ---- */
@@ -4675,7 +4853,7 @@ function stageFromJoined(code, want) {
       והמסך נקרא מחדש מהשרת. אחרי "פורסם" שדיווח על הצלחה שלא
       קרתה, שום פעולה הרסנית כאן אינה מסתמכת על ניחוש.
    ============================================================ */
-var dataState = { d:null, msg:'', done:'', open:'', typed:'', got:{} };
+var dataState = { d:null, msg:'', done:'', open:'', got:{} };
 
 /* לשוניות שאינן "נתונים": מחיקה שלהן מוחקת עבודה, לא רשומות.
    אינה חסומה — הרכז רשאי — אבל אומרת בפירוש מה יילך. */
@@ -4703,8 +4881,8 @@ function admData(el) {
 
   var d = dataState.d;
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>נתונים</h4>' +
-    '<p class="h">מה יש בגיליונות ברגע זה. הורידו עותק לפני כל ניקוי — ' +
-    'מחיקה כאן אינה הפיכה, ורשימת טלפונים אינה נמצאת בשום מקום אחר.</p>' +
+    '<p class="h">מה יש בגיליונות ברגע זה. "הורדה" שומרת עותק אצלכם ' +
+    'כקובץ אקסל — שימושי לפני ניקוי, כי מחיקה כאן אינה הפיכה.</p>' +
     '<div style="margin-top:10px"><button class="btn g" style="margin:0" ' +
     'onclick="dataLoad()">' + (d ? 'רענון' : 'קריאת המצב') + '</button></div>' +
     /* "נמחקו 11 שורות" חייב לשרוד את הקריאה מחדש שבאה מיד
@@ -4734,8 +4912,6 @@ function admData(el) {
                  '<code>PRIVATE_ID</code>.</div>') + '</div>');
   }
   el.innerHTML = h;
-  var f = document.getElementById('dt-type');
-  if (f) f.focus();
 }
 
 function dataGroup(title, name, tabs, ss) {
@@ -4760,16 +4936,10 @@ function dq(v) { return "'" + String(v || '').replace(/\\/g, '\\\\').replace(/'/
 
 function dataConfirm(t, ss) {
   var warn = TAB_WARN[t.name];
-  var got  = dataState.got[ss + '|' + t.name];
   return '<div class="cond" style="margin-top:9px">' +
     '<b>' + t.rows + ' שורות יימחקו מ"' + esc(t.name) + '" — לצמיתות.</b>' +
     (warn ? '<br>' + esc(warn) : '') +
-    '<br>' + (got ? 'עותק ירד למכשיר ✓' :
-                    '<b>עוד לא ירד עותק.</b> לחצו "הורדה" קודם.') +
-    '<div class="fld" style="margin-top:9px">' +
-    '<div class="label">הקלידו <b>' + esc(t.name) + '</b> כדי לאשר</div>' +
-    '<input id="dt-type" style="width:100%" value="' + esc(dataState.typed) + '" ' +
-    'oninput="dataState.typed=this.value" placeholder="שם הלשונית"></div>' +
+    (dataState.got[ss + '|' + t.name] ? '<br>עותק ירד למכשיר ✓' : '') +
     '<button class="btn" style="margin-top:9px;background:#B3261E;color:#fff" ' +
     'onclick="dataWipe(' + dq(t.name) + ',' + dq(ss) + ',' + t.rows + ')">' +
     'מחיקה</button></div>';
@@ -4798,7 +4968,6 @@ function dataLoad(keep) {
 function dataAsk(tab, ss) {
   var k = ss + '|' + tab;
   dataState.open = dataState.open === k ? '' : k;
-  dataState.typed = '';
   admPane();
 }
 
@@ -4869,17 +5038,10 @@ function saveFile(name, text) {
 }
 
 function dataWipe(tab, ss, rows) {
-  if (nameKey(dataState.typed) !== nameKey(tab)) {
-    dataState.msg = 'השם שהוקלד אינו תואם. לא נמחק דבר.';
-    admPane(); return;
-  }
-  /* עצירה שנייה, ומסוג אחר: הראשונה דרשה להסתכל על מה שמוחקים,
-     וזו דורשת להחליט על מה שאין ממנו חזרה. ביטול משאיר הודעה —
-     כפתור שנלחץ ולא קרה בו דבר נראה כתקלה. */
-  if (!dataState.got[ss + '|' + tab] &&
-      !confirm('עוד לא הורדתם עותק של "' + tab + '".\n' +
-               rows + ' שורות יימחקו ולא יהיה מהיכן להחזיר אותן.\n\n' +
-               'למחוק בכל זאת?')) {
+  /* אישור אחד, ובו המספר. ביטול משאיר הודעה — כפתור שנלחץ ולא
+     קרה בו דבר נראה כתקלה. */
+  if (!confirm(rows + ' שורות יימחקו מ"' + tab + '" ולא יהיה מהיכן ' +
+               'להחזיר אותן.\n\nלמחוק?')) {
     dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
   }
 
@@ -4891,9 +5053,11 @@ function dataWipe(tab, ss, rows) {
       dataState.msg = '<b>לא נמחק.</b> ' + esc((d && d.message) || 'אין תשובה מהסקריפט.');
       admPane(); return;
     }
-    dataState.open = ''; dataState.typed = '';
-    dataState.done = 'נמחקו ' + d.removed + ' שורות מ"' + esc(tab) + '".' +
-                     (d.left ? ' נשארו ' + d.left + '.' : ' הלשונית ריקה.');
+    dataState.open = '';
+    dataState.done = !d.removed
+      ? '"' + esc(tab) + '" כבר הייתה ריקה — לא נמחק דבר.'
+      : 'נמחקו ' + d.removed + ' שורות מ"' + esc(tab) + '".' +
+        (d.left ? ' נשארו ' + d.left + '.' : ' הלשונית ריקה.');
     /* קוראים מחדש מהשרת ולא מעדכנים את המספר בזיכרון: זו בדיוק
        ההנחה שעלתה לנו בחודש. */
     dataLoad(1);
@@ -5290,7 +5454,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 13;
+var SCRIPT_MIN = 14;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -5358,13 +5522,30 @@ function admPing() {
             'וטלפונים של הורים ייכתבו לגיליון שמשותף לצפייה.<br>' +
             'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.');
       } else {
-        say(d.readKeyOn ? 'done-box' : 'cond', 'החיבור תקין · גרסה ' + v +
+        /* "מוגדר" אינו מספיק. ערך שיושב בקוד יימחק בהדבקה הבאה
+           בלי שדבר יזהיר, ושתי ההדבקות האחרונות כבר הוכיחו זאת.
+           לכן נאמר כאן גם **מאיפה** הוא בא. */
+        var srcTxt = function (src, name) {
+          if (src === 'props') return ' · מוגן בהדבקה הבאה ✓';
+          if (src === 'code')  return ' · <b>יושב בקוד, ויימחק בהדבקה הבאה</b>';
+          return '';
+        };
+        var inCode = d.privSrc === 'code' || d.keySrc === 'code';
+        say(d.readKeyOn && !inCode ? 'done-box' : 'cond',
+            'החיבור תקין · גרסה ' + v +
             (d.sheet ? '<br>גיליון: ' + esc(d.sheet) : '') +
-            '<br>הגיליון הפרטי מוגדר ✓' +
-            (d.readKeyOn ? '<br>סיסמת הקריאה מוגדרת ✓'
+            '<br>הגיליון הפרטי מוגדר ✓' + srcTxt(d.privSrc) +
+            (d.readKeyOn ? '<br>סיסמת הקריאה מוגדרת ✓' + srcTxt(d.keySrc)
                          : '<br><b>אבל אין סיסמת קריאה.</b> מסך המשתתפים ' +
                            'יישאר ריק.<br>ב-Apps Script, בראש הקובץ: ' +
                            '<code>READ_KEY</code>.') +
+            (inCode
+              ? '<br><br><b>שווה חמש דקות, פעם אחת:</b> העבירו אותם ' +
+                'למאפייני הפרויקט, ואז הדבקת קוד חדשה לא תיגע בהם לעולם.' +
+                '<br>בעורך Apps Script ← גלגל השיניים ← Script Properties ← ' +
+                'Add script property, בשמות <code>PRIVATE_ID</code> ו-' +
+                '<code>READ_KEY</code>.'
+              : '') +
             '<br>לשוניות: ' + tabs);
       }
     })
