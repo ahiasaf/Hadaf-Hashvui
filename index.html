@@ -1345,7 +1345,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.34.0';
+var APP_VERSION = '7.35.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2365,11 +2365,20 @@ function boardBack() {
 function loadCounts() {
   var id = CFG.sheetId || SHEET_ID;
   return Promise.all([
+    /* שני מצבים שאסור לבלבל ביניהם: קריאה שנכשלה, ולשונית שבאמת
+       ריקה. הראשון חייב להשאיר את המטמון — לוח שנפתח בלי רשת
+       מראה את מה שהיה. השני חייב לרוקן אותו.
+
+       שני התנאים כאן מיזגו אותם, ולכן מספר שהתרוקן שרד לנצח:
+       `< 2` בלע לשונית עם כותרת בלבד, ו-`Object.keys(m).length`
+       דאג שגם מפה ריקה לא תיכתב. שבעה תלמידים נמחקו והלוח המשיך
+       להראות שבעה — לא בגלל מטמון תקוע, אלא בגלל שתי שורות
+       שאמרו "אל תשמור אפס". */
     fetchSheet(id, 'מונים').then(function (rows) {
-      if (!rows || rows.length < 2) return;
+      if (!rows || !rows.length) return;
       var head = rows[0], ix = {}, m = {};
       for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
-      if (ix['קוד ישיבה'] === undefined) return;
+      if (ix['קוד ישיבה'] === undefined) return;      /* לא הלשונית שביקשנו */
       for (var r = 1; r < rows.length; r++) {
         var c = String(rows[r][ix['קוד ישיבה']] || '').trim();
         if (!c) continue;
@@ -2377,11 +2386,12 @@ function loadCounts() {
                  grades: bPairs(rows[r][ix['שכבות']]),
                  ways:   bPairs(rows[r][ix['מסגרות']]) };
       }
-      if (Object.keys(m).length) { Store.set('joinCount', m); return true; }
+      Store.set('joinCount', m);
+      return true;
     }).catch(function () {}),
     fetchSheet(id, 'מוני-לימוד').then(function (rows) {
       var m = typeof LCountsFrom === 'function' ? LCountsFrom(rows) : null;
-      if (m && Object.keys(m).length) { Store.set('learnCount', m); return true; }
+      if (m) { Store.set('learnCount', m); return true; }
     }).catch(function () {})
   ]).then(function (r) { return !!(r[0] || r[1]); });
 }
@@ -5588,7 +5598,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 16;
+var SCRIPT_MIN = 17;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -5673,6 +5683,11 @@ function admPing() {
                          : '<br><b>אבל אין סיסמת קריאה.</b> מסך המשתתפים ' +
                            'יישאר ריק.<br>ב-Apps Script, בראש הקובץ: ' +
                            '<code>READ_KEY</code>.') +
+            (d.autoOn
+              ? '<br>ספירה אוטומטית כל שעה ✓'
+              : '<br><b>הספירה האוטומטית אינה מותקנת.</b> בעורך Apps Script ' +
+                'בחרו ברשימת הפונקציות את <code>setupTriggers</code> ולחצו Run. ' +
+                'פעם אחת, וזהו.') +
             (inCode
               ? '<br><br><b>שווה חמש דקות, פעם אחת:</b> העבירו אותם ' +
                 'למאפייני הפרויקט, ואז הדבקת קוד חדשה לא תיגע בהם לעולם.' +

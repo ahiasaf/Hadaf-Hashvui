@@ -344,7 +344,7 @@ function loadBoard() {
     }),
     sheetCsv('מוני-לימוד').then(function (rows) {
       var m = LCountsFrom(rows);
-      if (m && Object.keys(m).length) LSet('learnCount', m);
+      if (m) LSet('learnCount', m);        /* `{}` הוא תשובה, לא כישלון */
     })
   ]).catch(function () {});
 }

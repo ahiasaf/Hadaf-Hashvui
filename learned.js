@@ -136,8 +136,12 @@ function LCount(track, wk, code) {
   return n;
 }
 /* שורות הלשונית → מפה. נקרא על ידי כל מסך שטוען אותה. */
+/* `null` = לא הצלחתי לקרוא. `{}` = קראתי, ואין אף אחד.
+   שני מצבים שונים לגמרי: הראשון חייב להשאיר את המטמון, השני
+   חייב לרוקן אותו. מיזוגם לתנאי אחד הוא מה ששמר מספרים של
+   תלמידים שנמחקו. */
 function LCountsFrom(rows) {
-  if (!rows || rows.length < 2) return null;
+  if (!rows || !rows.length) return null;
   var head = rows[0], ix = {};
   for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
   if (ix['מסלול'] === undefined) return null;

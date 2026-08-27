@@ -1,0 +1,118 @@
+# ============================================================
+# פריסת ה-Apps Script אוטומטית.
+#
+# עד עכשיו כל שינוי בסקריפט דרש העתקה ידנית לעורך של גוגל
+# ופריסה מחדש — ובכל פעם מחדש. זה חוב, וזו גם המלכודת שכבר
+# מחקה פעמיים את PRIVATE_ID ו-READ_KEY.
+#
+# מכאן והלאה: כל דחיפה שנוגעת ב-apps-script.gs פורסת אותו
+# בעצמה. הכתובת אינה משתנה — הפריסה הקיימת מתעדכנת ולא נוצרת
+# חדשה, ולכן האפליקציה ממשיכה לדבר עם אותה כתובת.
+#
+# ------------------------------------------------------------
+# הפעלה — פעם אחת, ואז לא נוגעים
+# ------------------------------------------------------------
+# 1. הפעלת ה-API:
+#      script.google.com/home/usersettings → Apps Script API: On
+#
+# 2. על המחשב (לא בטלפון):
+#      npm i -g @google/clasp
+#      clasp login
+#    נפתח דפדפן, מאשרים, ונוצר קובץ בשם  ~/.clasprc.json
+#
+# 3. ב-GitHub: Settings → Secrets and variables → Actions →
+#    New repository secret. שלושה:
+#
+#      CLASPRC_JSON    — כל התוכן של ~/.clasprc.json
+#      SCRIPT_ID       — מזהה הפרויקט: בעורך Apps Script,
+#                        Project Settings → Script ID
+#      DEPLOYMENT_ID   — Deploy → Manage deployments, המזהה של
+#                        הפריסה הקיימת (AKfycb...)
+#
+# ------------------------------------------------------------
+# על הסוד
+# ------------------------------------------------------------
+# CLASPRC_JSON הוא אסימון גישה לחשבון גוגל שלך, בהיקף של
+# Apps Script. GitHub שומר אותו מוצפן ואינו מציג אותו שוב —
+# גם לא לך. הוא **לעולם אינו נכנס לריפו**, שהוא ציבורי.
+#
+# רוצה לבטל? clasp logout על המחשב, או מחיקת ההרשאה ב-
+# myaccount.google.com/permissions. הסוד ב-GitHub מפסיק לעבוד
+# באותו רגע.
+#
+# בלי שלושת הסודות ה-workflow פשוט מדלג. הוא אינו שובר דבר.
+# ============================================================
+name: פריסת הסקריפט
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps-script.gs']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: יש סודות?
+        id: gate
+        env:
+          HAVE: ${{ secrets.CLASPRC_JSON != '' && secrets.SCRIPT_ID != '' }}
+        run: echo "ok=$HAVE" >> "$GITHUB_OUTPUT"
+
+      - if: steps.gate.outputs.ok != 'true'
+        run: |
+          echo "::notice::הסודות טרם הוגדרו — ראו את ההסבר בראש הקובץ. מדלג."
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          node-version: '20'
+
+      - name: התקנת clasp
+        if: steps.gate.outputs.ok == 'true'
+        run: npm i -g @google/clasp@2.4.2
+
+      - name: הזדהות
+        if: steps.gate.outputs.ok == 'true'
+        run: echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+
+      # clasp דורש את שני הקבצים האלה, והם נגזרים מהסוד ולא
+      # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
+      - name: הכנת התיקייה
+        if: steps.gate.outputs.ok == 'true'
+        run: |
+          mkdir -p build
+          cp apps-script.gs build/Code.gs
+          cat > build/appsscript.json <<'JSON'
+          {
+            "timeZone": "Asia/Jerusalem",
+            "dependencies": {},
+            "exceptionLogging": "STACKDRIVER",
+            "runtimeVersion": "V8",
+            "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
+          }
+          JSON
+          printf '{"scriptId":"%s","rootDir":"build"}\n' \
+            '${{ secrets.SCRIPT_ID }}' > .clasp.json
+
+      - name: דחיפת הקוד
+        if: steps.gate.outputs.ok == 'true'
+        run: clasp push --force
+
+      # עדכון הפריסה **הקיימת**. פריסה חדשה הייתה נותנת כתובת
+      # חדשה שהאפליקציה אינה מכירה, וכל כתיבה הייתה ממשיכה
+      # ללכת לשום מקום — בדיוק התקלה שכבר עלתה לנו חודש.
+      - name: עדכון הפריסה
+        if: steps.gate.outputs.ok == 'true' && secrets.DEPLOYMENT_ID != ''
+        run: |
+          VER=$(grep -oP 'SCRIPT_VERSION\s*=\s*\K[0-9]+' apps-script.gs | head -1)
+          clasp deploy -i '${{ secrets.DEPLOYMENT_ID }}' -d "v${VER:-auto} · ${GITHUB_SHA::7}"
+
+      - name: סיכום
+        if: steps.gate.outputs.ok == 'true'
+        run: |
+          VER=$(grep -oP 'SCRIPT_VERSION\s*=\s*\K[0-9]+' apps-script.gs | head -1)
+          echo "::notice::הסקריפט נפרס · SCRIPT_VERSION ${VER:-?}"

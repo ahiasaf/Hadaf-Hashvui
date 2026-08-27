@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 16;
+var SCRIPT_VERSION = 17;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -443,7 +443,8 @@ function doGet(e) {
   var out = { status: 'ok', version: SCRIPT_VERSION, tabs: [],
               privateOn: !!PRIVATE_ID, readKeyOn: !!READ_KEY,
               privSrc: propSrc_('PRIVATE_ID', PRIVATE_ID_FALLBACK),
-              keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK) };
+              keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK),
+              autoOn:  hasTrigger_() };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
@@ -882,6 +883,38 @@ function delRows_(tab, col, vals, ssId) {
    בלי זה תלמיד שנמחק נעלם ממסך המשתתפים ונשאר בלוח — המספר
    בלשונית "מונים" נכתב בהרשמה ואיש לא נגע בו מאז. זה בדיוק
    קרה: שבעה נמחקו, ובלוח הם המשיכו להופיע. */
+/* ============================================================
+   הרצה אוטומטית — כדי שאף אחד לא יצטרך ללחוץ על כלום.
+
+   המונים נספרים מחדש בכל כתיבה ובכל מחיקה, וזה מכסה את מה
+   שעובר דרך האפליקציה. מה שאינו עובר דרכה — שורה שנמחקה ביד
+   בגיליון, עמודה שתוקנה, ייבוא — משאיר מספר תלוי באוויר.
+
+   טריגר שעתי סוגר את זה. **מריצים את הפונקציה הזו פעם אחת**
+   מתוך עורך Apps Script (בוחרים אותה ברשימה ולוחצים Run), והיא
+   מתקינה את עצמה. הרצה חוזרת אינה מכפילה — היא מוחקת קודם.
+   ============================================================ */
+function setupTriggers() {
+  var all = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < all.length; i++) {
+    if (all[i].getHandlerFunction() === 'autoRecount') ScriptApp.deleteTrigger(all[i]);
+  }
+  ScriptApp.newTrigger('autoRecount').timeBased().everyHours(1).create();
+  return 'הטריגר הותקן · ספירה מחדש כל שעה';
+}
+function autoRecount() { recount_(); recountLearn_(); }
+
+/* האם הטריגר מותקן — כדי ש"בדיקת חיבור" תוכל לומר את זה, ולא
+   נצטרך לנחש אם ההתקנה עברה. */
+function hasTrigger_() {
+  try {
+    var all = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < all.length; i++)
+      if (all[i].getHandlerFunction() === 'autoRecount') return true;
+  } catch (e) {}
+  return false;
+}
+
 function reTally_(tab) {
   try {
     if (tab === JOIN_TAB)  recount_();
