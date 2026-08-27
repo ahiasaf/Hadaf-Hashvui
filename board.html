@@ -129,9 +129,45 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
   font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
   overflow-wrap:anywhere;line-height:1.5}
 
-/* ---------- הרשימה השמית ----------
-   שם אחד בשורה, וסימן אחד. הרכז סורק את הרשימה בעין ומחפש את
-   מי שלא סימן — ולכן ה-✓ הוא מה שבולט, ולא הצבע של השורה. */
+/* ---------- שלוש המסגרות ----------
+   משבצת עם אייקון ומספר, ולא צ'יפ עם תווית. האיור הוא מה שמבדיל
+   בין שלוש הקטגוריות בסריקה של חצי שנייה, והמספר הוא מה שהופך
+   את המשבצת ממילה למשפט. */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}
+.tile{position:relative;text-align:center;padding:13px 6px 11px;border-radius:13px;
+  border:1px solid var(--rule);background:var(--surface);font-family:inherit;
+  display:block;width:100%;transition:transform .14s,box-shadow .14s}
+.tile.go{cursor:pointer;box-shadow:var(--sh-1)}
+.tile.go:active{transform:scale(.975)}
+.tile svg{width:26px;height:26px;fill:var(--c);opacity:.92}
+.tile b{display:block;font-size:1.5rem;font-weight:800;line-height:1.05;
+  color:var(--c);letter-spacing:-.03em;margin-top:6px}
+.tile span{display:block;font-size:.71rem;font-weight:800;color:var(--ink-2);
+  margin-top:3px;line-height:1.3}
+.chev{font-style:normal;color:var(--ink-3);font-size:.8rem;font-weight:800}
+.tile .chev{position:absolute;inset-block-start:8px;inset-inline-start:9px;
+  font-size:.72rem}
+
+/* הפס השבועי כפתור — אותו מראה, ועכשיו הוא נפתח */
+/* כשהוא נפתח הוא חייב להיראות כמו משהו שנפתח. פס אפור עם חץ
+   קטן נקרא כטקסט, ואיש לא לוחץ על טקסט. */
+.wk.go{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;text-align:start;cursor:pointer;font-family:inherit;font-size:inherit;
+  margin-top:12px;padding:12px 13px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--sunk);transition:transform .14s}
+.wk.go:active{transform:scale(.99)}
+.wk.go .chev{font-size:1rem;color:var(--blue)}
+
+/* ---------- מסך הפירוט ----------
+   שם אחד בשורה, וסימן אחד. הרכז סורק ומחפש את מי שלא סימן —
+   ולכן ה-✓ הוא מה שבולט, ולא הצבע של השורה. */
+.detail .back{background:none;border:0;color:var(--blue);font-weight:800;
+  font-size:.83rem;font-family:inherit;cursor:pointer;padding:0 0 9px}
+.keyline{margin-top:11px;font-size:.78rem;font-weight:700;color:var(--ink-3);
+  line-height:1.65;background:var(--sunk);border-radius:11px;padding:10px 12px}
+.klink{display:block;margin-top:7px;background:none;border:0;padding:0;
+  color:var(--blue);font-weight:800;font-size:.8rem;font-family:inherit;
+  cursor:pointer;text-decoration:underline}
 .wgrp{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
   margin:13px 0 3px;padding-top:10px;border-top:1px solid var(--rule)}
 .wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
@@ -285,16 +321,26 @@ var joined = LGet('boardCache', null);
 function loadBoard() {
   return Promise.all([
     sheetCsv('מונים').then(function (rows) {
-      if (!rows || rows.length < 2) return;
+      /* `!rows` = הקריאה נכשלה, ואז לא נוגעים במטמון. לשונית עם
+         כותרת בלבד היא קריאה שהצליחה ותשובתה אפס — וזה בדיוק
+         המצב אחרי מחיקת כל הרשומות של ישיבה. התנאי הקודם
+         (`< 2`) בלע את שניהם, ולכן המספר הישן שרד את המחיקה. */
+      if (!rows || !rows.length) return;
       var head = rows[0], ix = {};
       for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      if (ix['קוד ישיבה'] === undefined) return;      /* לא הלשונית שביקשנו */
+      /* אפס ולא "להשאיר כמו שהיה". כשכל הרשומות של ישיבה נמחקות
+         היא נעלמת מהלשונית לגמרי, ולולא זה הלוח היה ממשיך להראות
+         את המספר הישן לנצח — וזה בדיוק מה שקרה. */
+      var hit = null;
       for (var r = 1; r < rows.length; r++) {
         if (String(rows[r][ix['קוד ישיבה']] || '').trim() !== code) continue;
-        joined = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
-                   grades: pairs(rows[r][ix['שכבות']]),
-                   ways:   pairs(rows[r][ix['מסגרות']]) };
-        LSet('boardCache', joined);
+        hit = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
+                grades: pairs(rows[r][ix['שכבות']]),
+                ways:   pairs(rows[r][ix['מסגרות']]) };
       }
+      joined = hit || { n:0, grades:[], ways:[] };
+      LSet('boardCache', joined);
     }),
     sheetCsv('מוני-לימוד').then(function (rows) {
       var m = LCountsFrom(rows);
@@ -373,61 +419,140 @@ function keyAsk() {
   loadRoster().then(draw);
 }
 
-/* השם כפי שמציגים אותו כאן: פרטי בלבד, וכשיש שניים זהים —
-   מוסיפים את השכבה. */
-function rosterHtml() {
-  if (!acc) {
-    return '<div class="card"><h2>מי לומד</h2>' +
-      '<p class="h">הרשימה השמית נפתחת עם קוד הגישה של הישיבה. הוא ' +
-      'מוטמע בקישור האישי שרכז התוכנית שלח לכם — פתחו אותו, והלוח ' +
-      'יזכור אותו.</p>' +
-      (rosterMsg ? '<div class="url">' + esc(rosterMsg) + '</div>' : '') +
-      '<button class="btn g" id="kask">הזנת הקוד ידנית</button></div>';
-  }
-  if (!roster) {
-    return '<div class="card"><h2>מי לומד</h2>' +
-      '<p class="h">' + esc(rosterMsg || 'טוען…') + '</p>' +
-      (rosterMsg ? '<button class="btn g" id="kask">הזנת הקוד ידנית</button>' : '') +
-      '</div>';
-  }
-  if (!roster.length) {
-    return '<div class="card"><h2>מי לומד</h2>' +
-      '<p class="h">עוד לא הצטרף אף אחד דרך הקישור.</p></div>';
-  }
+/* ============================================================
+   לוח שליטה, לא רשימה.
 
+   הרשימה השמית הייתה נכונה לארבעה תלמידים ושגויה לעשרים. מה
+   שראש חטיבה מסתכל עליו כל יום הוא **כמה**, ומה שהוא מחפש פעם
+   בשבוע הוא **מי** — ושתי השאלות אינן צריכות לחלוק מסך.
+
+   לכן המסך הראשון הוא שלוש משבצות עם מספר, והשמות נמצאים
+   לחיצה אחת מכאן. משבצת בלי מספר היא תווית; משבצת עם מספר היא
+   משפט — "שלושה אבות ובנים" הוא מה שמתחילים ממנו שיחה.
+
+   האיורים אינם קישוט. הם מה שמבדיל בין שלוש קטגוריות בסריקה
+   של חצי שנייה, והם משאירים את המסך צעיר בלי לרדת לאמוג'י.
+   ============================================================ */
+var WAYS = [
+  /* גדול וקטן, ורווח ביניהם — בלי הרווח הם נקראים ככתם אחד */
+  ['אבות ובנים', 'אבות ובנים', 'var(--gold)',
+   '<circle cx="5.6" cy="5" r="3"/>' +
+   '<path d="M1 17.5c0-3 2-4.8 4.6-4.8s4.6 1.8 4.6 4.8z"/>' +
+   '<circle cx="15" cy="8.4" r="2.2"/>' +
+   '<path d="M11.4 17.5c0-2.1 1.6-3.5 3.6-3.5s3.6 1.4 3.6 3.5z"/>'],
+  /* שלושה בשורה עם כתף אחת משותפת — חבורה, לא נקודות */
+  ['חבורת לימוד', 'חבורות', 'var(--green-d)',
+   '<circle cx="4.4" cy="6.4" r="2.3"/><circle cx="10" cy="5.6" r="2.6"/>' +
+   '<circle cx="15.6" cy="6.4" r="2.3"/>' +
+   '<path d="M.8 17.2c0-3 4.1-4.9 9.2-4.9s9.2 1.9 9.2 4.9z"/>'],
+  ['לימוד עצמי', 'לומדים לבד', 'var(--blue)',
+   /* פער בשדרה. בלעדיו שני חצאי הספר נוגעים, וב-26 פיקסלים הם
+      נקראים כמלבן כהה ולא כספר פתוח. */
+   '<path d="M2.4 4.6c2.4-1.1 4.5-1.1 6.9 0v11.2c-2.4-1.1-4.5-1.1-6.9 0z"/>' +
+   '<path d="M17.6 4.6c-2.4-1.1-4.5-1.1-6.9 0v11.2c2.4-1.1 4.5-1.1 6.9 0z"/>']
+];
+function wayLbl(w) {
+  for (var i = 0; i < WAYS.length; i++) if (WAYS[i][0] === w) return WAYS[i][1];
+  return w || 'לא צוין';
+}
+
+var view = '';                 /* '' · 'way:<מסגרת>' · 'week' */
+function go(v) { view = v; draw(); window.scrollTo(0, 0); }
+
+function didWeek(p) {
   var wk = LWeek();
-  var grp = {}, gord = [];
-  roster.forEach(function (p) {
-    var w = p.way || '';
-    if (!grp[w]) { grp[w] = []; gord.push(w); }
-    grp[w].push(p);
+  if (wk < 0) return false;
+  for (var i = 0; i < (p.weeks || []).length; i++)
+    if (String(p.weeks[i]).split('|')[1] === String(wk + 1)) return true;
+  return false;
+}
+
+/* המספרים למשבצות. כשיש רשימה שמית סופרים ממנה, ואחרת מלשונית
+   "מונים" — כדי שמי שאין לו קוד עדיין יראה מספרים ולא ריק. */
+function wayCount(w) {
+  if (roster) {
+    var n = 0;
+    roster.forEach(function (p) { if ((p.way || '') === w) n++; });
+    return n;
+  }
+  var hit = 0;
+  ((joined && joined.ways) || []).forEach(function (p) { if (p[0] === w) hit = p[1]; });
+  return hit;
+}
+
+function tilesHtml() {
+  var can = !!roster;
+  return '<div class="tiles">' + WAYS.map(function (g) {
+    var n = wayCount(g[0]);
+    return '<' + (can && n ? 'button' : 'div') + ' class="tile' +
+      (can && n ? ' go' : '') + '" style="--c:' + g[2] + '"' +
+      (can && n ? ' onclick="go(\'way:' + g[0] + '\')"' : '') + '>' +
+      '<svg viewBox="0 0 20 20">' + g[3] + '</svg>' +
+      '<b>' + n + '</b><span>' + esc(g[1]) + '</span>' +
+      (can && n ? '<i class="chev">←</i>' : '') +
+      '</' + (can && n ? 'button' : 'div') + '>';
+  }).join('') + '</div>';
+}
+
+/* פירוט: שמות של מסגרת אחת, או של מי שלמד השבוע. */
+function detailHtml() {
+  var back = '<button class="back" onclick="go(\'\')">→ חזרה ללוח</button>';
+  if (!roster) return '';
+
+  if (view === 'week') {
+    var wk = LWeek(), daf = wk >= 0 ? LDaf(TRACKS[0].id, wk) : null;
+    var did = roster.filter(didWeek);
+    var not = roster.filter(function (p) { return !didWeek(p); });
+    return '<div class="card detail">' + back +
+      '<h2>הדף השבוע' + (daf ? ' · דף ' + esc(daf) : '') + '</h2>' +
+      '<p class="h">' + did.length + ' מתוך ' + roster.length + ' סיימו.</p>' +
+      (did.length ? '<div class="wgrp">סיימו · ' + did.length + '</div>' +
+                    did.map(pRow).join('') : '') +
+      (not.length ? '<div class="wgrp">עדיין לא · ' + not.length + '</div>' +
+                    not.map(pRow).join('') : '') + '</div>';
+  }
+
+  var w = view.slice(4);
+  var list = roster.filter(function (p) { return (p.way || '') === w; });
+  var byGrade = {}, gord = [];
+  list.forEach(function (p) {
+    var g = p.grade || 'ללא שכבה';
+    if (!byGrade[g]) { byGrade[g] = []; gord.push(g); }
+    byGrade[g].push(p);
   });
-  gord.sort(function (a, b) { return grp[b].length - grp[a].length; });
-
-  var didWeek = function (p) {
-    if (wk < 0) return false;
-    for (var i = 0; i < (p.weeks || []).length; i++)
-      if (String(p.weeks[i]).split('|')[1] === String(wk + 1)) return true;
-    return false;
-  };
-
-  return '<div class="card"><h2>מי לומד · ' + roster.length + '</h2>' +
+  gord.sort();
+  return '<div class="card detail">' + back +
+    '<h2>' + esc(wayLbl(w)) + ' · ' + list.length + '</h2>' +
     '<p class="h">✓ מסמן את מי שסיים את הדף השבוע.</p>' +
-    gord.map(function (w) {
-      return '<div class="wgrp">' + esc(WAY_SHORT[w] || w || 'לא צוין') +
-        ' · ' + grp[w].length + '</div>' +
-        grp[w].map(function (p) {
-          var did = didWeek(p);
-          var sub = [p.grade, p.with ? 'עם ' + p.with : ''].filter(Boolean).join(' · ');
-          return '<div class="prow' + (did ? ' did' : '') + '">' +
-            '<span class="tick">' + (did ? '✓' : '') + '</span>' +
-            '<div><b>' + esc(p.first || '—') + '</b>' +
-            (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div></div>';
-        }).join('');
+    gord.map(function (g) {
+      return '<div class="wgrp">' + esc(g) + ' · ' + byGrade[g].length + '</div>' +
+        byGrade[g].map(pRow).join('');
     }).join('') + '</div>';
 }
-var WAY_SHORT = { 'אבות ובנים':'אבות ובנים', 'חבורת לימוד':'חבורה',
-                  'לימוד עצמי':'לומדים לבד' };
+
+function pRow(p) {
+  var did = didWeek(p);
+  var sub = p.with ? 'עם ' + p.with : '';
+  return '<div class="prow' + (did ? ' did' : '') + '">' +
+    '<span class="tick">' + (did ? '✓' : '') + '</span>' +
+    '<div><b>' + esc(p.first || '—') + '</b>' +
+    (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div></div>';
+}
+
+/* השער: בלי קוד אין שמות, ויש לומר את זה פעם אחת ובשקט — לא
+   ככרטיס שתופס חצי מסך בכל כניסה. */
+function keyHtml() {
+  if (acc && roster) return '';
+  if (!acc) {
+    return '<div class="keyline">הרשימות השמיות נפתחות עם קוד הגישה של ' +
+      'הישיבה, המוטמע בקישור האישי שנשלח אליכם.' +
+      (rosterMsg ? '<br><b>' + esc(rosterMsg) + '</b>' : '') +
+      '<button class="klink" id="kask">הזנת הקוד ידנית</button></div>';
+  }
+  return '<div class="keyline">' + esc(rosterMsg || 'טוען את הרשימה…') +
+    (rosterMsg ? '<button class="klink" id="kask">הזנת הקוד ידנית</button>' : '') +
+    '</div>';
+}
 
 /* המספרים של הישיבה עצמה, בנוסח שאפשר להדביק בקבוצה. לפני
    שהשנה מתחילה אין "סיימו השבוע", ולכן יש שני נוסחים ולא אחד
@@ -525,8 +650,17 @@ function draw() {
     return;
   }
 
+  /* מסך הפירוט עומד לבדו. הלוח מאחוריו לא הולך לשום מקום, וכפתור
+     החזרה מחזיר אליו — אבל שתי השאלות לא חולקות מסך. */
+  if (view && roster) {
+    $('body').innerHTML = detailHtml();
+    wire();
+    return;
+  }
+
   var maxG = 0;
   joined.grades.forEach(function (p) { if (p[1] > maxG) maxG = p[1]; });
+  var weekOpen = roster && LWeek() >= 0;
 
   $('body').innerHTML =
     '<div class="nums">' +
@@ -534,6 +668,13 @@ function draw() {
       num(didWk, 'למדו השבוע') +
       num(dads, 'אבות ובנים') +
     '</div>' +
+
+    /* שלוש המסגרות, כל אחת עם המספר שלה — וזה מה שראש חטיבה
+       באמת רוצה לדעת: לא כמה בסך הכול, אלא שיש אבות ובנים. */
+    '<div class="card"><h2>דרכי הלימוד</h2>' +
+    '<p class="h">' + (roster ? 'לחיצה על משבצת פותחת את השמות.'
+                              : 'המספרים של הישיבה שלכם.') + '</p>' +
+    tilesHtml() + keyHtml() + '</div>' +
 
     (joined.grades.length
       ? '<div class="card"><h2>לפי שכבה</h2><div class="bars">' +
@@ -543,12 +684,18 @@ function draw() {
             Math.max(6, Math.round(p[1] / maxG * 100)) + '%"></i></span>' +
             '<span class="n">' + p[1] + '</span></div>';
         }).join('') + '</div>' +
-        (daf ? '<div class="wk"><b>השבוע · דף ' + esc(daf) + '</b>' +
-               '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו</div></div>' : '') +
+        (daf ? (weekOpen
+                 ? '<button class="wk go" onclick="go(\'week\')"><div>' +
+                   '<b>השבוע · דף ' + esc(daf) + '</b>' +
+                   '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו · מי ומי</div>' +
+                   '</div><i class="chev">←</i></button>'
+                 : '<div class="wk"><b>השבוע · דף ' + esc(daf) + '</b>' +
+                   '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו</div></div>')
+             : '') +
         '</div>'
       : '') +
 
-    rosterHtml() + share + soonLine();
+    share + soonLine();
   wire();
 }
 function num(v, t) {

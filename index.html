@@ -1345,7 +1345,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.33.0';
+var APP_VERSION = '7.34.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4991,8 +4991,14 @@ function admData(el) {
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>נתונים</h4>' +
     '<p class="h">מה יש בגיליונות ברגע זה. "הורדה" שומרת עותק אצלכם ' +
     'כקובץ אקסל — שימושי לפני ניקוי, כי מחיקה כאן אינה הפיכה.</p>' +
-    '<div style="margin-top:10px"><button class="btn g" style="margin:0" ' +
-    'onclick="dataLoad()">' + (d ? 'רענון' : 'קריאת המצב') + '</button></div>' +
+    '<div style="margin-top:10px;display:flex;gap:7px">' +
+    '<button class="btn g" style="margin:0;flex:1" ' +
+    'onclick="dataLoad()">' + (d ? 'רענון' : 'קריאת המצב') + '</button>' +
+    /* המונים נגזרים מהלשוניות הפרטיות, ולכן עריכה ידנית בגיליון
+       — או מחיקה שנעשתה בגרסת סקריפט ישנה — משאירה מספר תלוי
+       באוויר שאיש אינו יודע לתקן. */
+    '<button class="btn g" style="margin:0;flex:1" ' +
+    'onclick="dataRecount()">ספירה מחדש</button></div>' +
     /* "נמחקו 11 שורות" חייב לשרוד את הקריאה מחדש שבאה מיד
        אחריו — אחרת הפעולה ההרסנית היחידה כאן מסתיימת בלי שום
        אישור על המסך. */
@@ -5071,6 +5077,26 @@ function dataLoad(keep) {
       admPane();
     })
     .catch(function () { dataState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); });
+}
+
+/* סופר מחדש את "מונים" ו"מוני-לימוד" מתוך הלשוניות הפרטיות.
+   זה מה שמיישר את הלוח של ראש החטיבה כשהמספר שבו אינו תואם
+   את מה שבמסך המשתתפים. */
+function dataRecount() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { dataState.msg = 'חסרה סיסמת הקריאה.'; admPane(); return; }
+  dataState.done = ''; dataState.msg = 'סופר…'; admPane();
+  scriptGet({ recount:1, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      dataState.msg = esc((d && d.message) || 'לא קיבלתי תשובה מהסקריפט.');
+      admPane(); return;
+    }
+    dataState.done = 'המונים נספרו מחדש. הלוח של ראשי החטיבות יתעדכן ' +
+                     'בפתיחה הבאה שלהם.';
+    dataLoad(1);
+  }).catch(function () {
+    dataState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
 }
 
 function dataAsk(tab, ss) {
@@ -5562,7 +5588,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 15;
+var SCRIPT_MIN = 16;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים

@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 15;
+var SCRIPT_VERSION = 16;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -351,6 +351,24 @@ function doGet(e) {
     }
   }
 
+  /* ---- ספירה מחדש ביד ----
+     המונים נגזרים אוטומטית מכל כתיבה ומכל מחיקה, אבל גיליון
+     שנערך ביד — או שורות שנמחקו בגרסה ישנה של הסקריפט — משאירים
+     מספר שאיש אינו יודע לתקן. כפתור אחד בניהול פותר את זה. */
+  if (e && e.parameter && e.parameter.recount) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied',
+        message: READ_KEY ? 'סיסמה שגויה'
+                          : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+    }
+    try {
+      recount_(); recountLearn_();
+      return reply_(e, { status: 'ok' });
+    } catch (err3) {
+      return reply_(e, { status: 'error', message: String(err3) });
+    }
+  }
+
   /* ---- מחיקה ----
      דרך doGet ולא doPost, ובכוונה. כתיבה מהאפליקציה יוצאת
      ב-no-cors ומחזירה תשובה אטומה: אי אפשר לדעת ממנה אם היא
@@ -562,7 +580,11 @@ function writeCount_(tab, cols, rows) {
 function recountLearn_() {
   try {
     var src = sheet_(LEARN_TAB);
-    if (!src || src.getLastRow() < 2) return;
+    if (!src) return;
+    if (src.getLastRow() < 2) {
+      writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'], []);
+      return;
+    }
     var t = tally_(src.getDataRange().getDisplayValues(),
                    ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
     if (!t) return;
@@ -741,7 +763,14 @@ function markJoined_(code) {
 function recount_() {
   try {
     var src = sheet_(JOIN_TAB);
-    if (!src || src.getLastRow() < 2) return;
+    /* לשונית ריקה אינה "אין מה לעשות" אלא **אפס**. יציאה מוקדמת
+       כאן השאירה את המונים הישנים בגיליון לנצח: שבעה תלמידים
+       נמחקו, מסך המשתתפים התרוקן, והלוח המשיך להראות שבעה. */
+    if (!src) return;
+    if (src.getLastRow() < 2) {
+      writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'], []);
+      return;
+    }
     var rows = src.getDataRange().getDisplayValues();
 
     /* סך המצטרפים לכל ישיבה */
@@ -810,6 +839,7 @@ function clearTab_(tab, ssId) {
   var last = sh.getLastRow();
   if (last < 2) return { status: 'success', tab: tab, removed: 0, left: 0 };
   sh.deleteRows(2, last - 1);
+  reTally_(tab);
   return { status: 'success', tab: tab,
            removed: last - 1, left: Math.max(0, sh.getLastRow() - 1) };
 }
@@ -841,8 +871,22 @@ function delRows_(tab, col, vals, ssId) {
     if (want[String(data[r][ci]).trim()]) hit.push(r + 1);
   }
   for (var i = hit.length - 1; i >= 0; i--) sh.deleteRow(hit[i]);
+  reTally_(tab);
   return { status: 'success', tab: tab, removed: hit.length,
            left: Math.max(0, sh.getLastRow() - 1) };
+}
+
+/* המונים הציבוריים נגזרים מהלשוניות הפרטיות, ולכן מחיקה חייבת
+   לספור מחדש.
+
+   בלי זה תלמיד שנמחק נעלם ממסך המשתתפים ונשאר בלוח — המספר
+   בלשונית "מונים" נכתב בהרשמה ואיש לא נגע בו מאז. זה בדיוק
+   קרה: שבעה נמחקו, ובלוח הם המשיכו להופיע. */
+function reTally_(tab) {
+  try {
+    if (tab === JOIN_TAB)  recount_();
+    if (tab === LEARN_TAB) recountLearn_();
+  } catch (e) {}
 }
 
 /* ---------- עזר ---------- */
