@@ -1461,7 +1461,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.37.0';
+var APP_VERSION = '7.37.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3760,7 +3760,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'tourAt',
+                'tourOn', 'tourAt',
                 'orderBy', 'joinLink', 'weekRaffle'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
@@ -4855,8 +4855,22 @@ function admInst(el) {
     /* המדריך. שלושה מיקומים, כי מה שנכון בטלפון אחד מפריע
        למראה של אחר — וזו החלטה של העין ולא של הקוד. */
     '<div class="adm-card" style="margin-bottom:11px"><h4>המדריך</h4>' +
-    '<p class="h">נפתח מעצמו בכניסה הראשונה. מכאן ואילך הוא נמצא ' +
-    'בכפתור — ואתם בוחרים איפה הוא יושב.</p>' +
+    '<p class="h">סיור של שישה מסכים שנפתח בכניסה הראשונה. ' +
+    'הצפייה מכאן עובדת תמיד — גם כשהוא כבוי לכולם.</p>' +
+
+    '<div class="row"><div>המדריך פעיל' +
+    '<div class="sub">' + (tourLive()
+      ? 'דלוק — נפתח בכניסה הראשונה, והכפתור מוצג'
+      : '<b>כבוי — אף אחד אינו רואה אותו</b>') + '</div></div>' +
+    '<button class="sw' + (tourLive() ? ' on' : '') +
+    '" onclick="cfgSet(\'tourOn\',!tourLive());admPane();renderHome()" ' +
+    'aria-label="המדריך פעיל"></button></div>' +
+
+    '<div style="margin-top:10px"><button class="btn p" style="margin:0" ' +
+    'onclick="tourOpen(0)">צפייה במדריך עכשיו</button></div>' +
+
+    '<div class="sec" style="margin-top:15px"><b>איפה יושב הכפתור</b><i></i></div>' +
+    '<p class="h">כשהמדריך דלוק — מכאן פותחים אותו שוב.</p>' +
     [['foot', 'בתחתית העמוד', 'שורה רחבה מתחת לכל התוכן. לא מפריע לכלום.'],
      ['float', 'עיגול צף בפינה', 'תמיד בהישג יד, גם באמצע גלילה.'],
      ['mast', 'בחתימה למעלה', 'עיגול קטן ליד הלוגו.']
@@ -4868,8 +4882,13 @@ function admInst(el) {
         '" onclick="cfgSet(\'tourAt\',\'' + o[0] + '\');admPane();renderHome()" ' +
         'aria-label="' + esc(o[1]) + '"></button></div>';
     }).join('') +
-    '<div style="margin-top:10px"><button class="btn g" style="margin:0" ' +
-    'onclick="tourOpen(0)">פתיחת המדריך עכשיו</button></div></div>' +
+    (tourSeen()
+      ? '<div style="margin-top:10px"><button class="cp" ' +
+        'onclick="Store.set(\'tourSeen\',0);admPane()">' +
+        'לשכוח שראיתי — כדי לבדוק את הפתיחה האוטומטית</button></div>'
+      : '<div class="done-box" style="margin-top:10px">המכשיר הזה טרם ראה ' +
+        'את המדריך — כשהוא דלוק, הוא ייפתח בכניסה הבאה.</div>') +
+    '</div>' +
 
     /* הקישור לתלמידים. כבוי = ראש חטיבה רואה את הלוח שלו בלי
        כפתור השליחה, והקישור אינו מוצג בשום מקום שהוא מגיע
@@ -6261,6 +6280,17 @@ var tourAt_ = 0, tourSeg = 0, tourDafOn = false;
 function tourOn()   { return document.getElementById('tour').className === 'on'; }
 function tourSeen() { return !!Store.get(TOUR_KEY, 0); }
 
+/* האם המדריך חי בכלל.
+
+   **ברירת המחדל כבויה, ובכוונה.** מדריך הוא הדבר הראשון שאדם
+   רואה, וגרסה שאינה מוכנה שם גרועה מכלום. הוא נדלק רק כשהרכז
+   מחליט שהוא מוכן — ורק אחרי פרסום.
+
+   התצוגה המקדימה בניהול אינה עוברת דרך כאן: `tourOpen` נקרא
+   ישירות. אחרת אי אפשר היה לבדוק אותו לפני שמדליקים, וזו בדיוק
+   הסיבה שהמתג קיים. */
+function tourLive() { return CV('tourOn') === true; }
+
 /* איפה יושב הכפתור שפותח אותו שוב. מפורסם, כי זו החלטת עיצוב
    של הרכז ולא העדפה של מכשיר. */
 function tourAt() { return CV('tourAt') || 'foot'; }
@@ -6378,6 +6408,17 @@ function tourNextSeg() {
   });
 }
 
+/* מצב הפתיחה האוטומטית. `ok` נקבע פעם אחת בעלייה — אם המשתמש
+   הגיע לניהול או לקישור ממוקד, המדריך אינו מתפרץ גם אם ההגדרות
+   יגיעו מאוחר יותר. */
+var tourFirst = { ok:false, done:false };
+function tourMaybe() {
+  if (!tourFirst.ok || tourFirst.done) return;
+  if (!tourLive() || tourSeen() || tourOn()) return;
+  tourFirst.done = true;
+  tourOpen(0);
+}
+
 function tourPaint() {
   var k = TOUR_STEPS[tourAt_], last = tourAt_ === TOUR_STEPS.length - 1;
 
@@ -6426,7 +6467,7 @@ function tourLauncher() {
   var foot = document.getElementById('t-foot-wrap');
   var flo  = document.getElementById('t-float');
   var mast = document.getElementById('t-mast');
-  var at = tourAt();
+  var at = tourLive() ? tourAt() : '';      /* כבוי = אין כפתור בשום מקום */
   if (foot) foot.innerHTML = at !== 'foot' ? '' :
     '<button class="t-foot" onclick="tourOpen(0)">◷ ' + esc(TOUR.open) +
     ' <span>' + esc(TOUR.openSub) + '</span></button>';
@@ -6575,6 +6616,7 @@ function registerSW() {
   /* ההגדרות שפורסמו. מוחלות מהמטמון כבר בעלייה, ונרעננות כאן. */
   loadSettings().then(function (ok) {
     if (ok) { renderHome(); if (document.getElementById('adm-pane')) admPane(); }
+    tourMaybe();
   }).catch(function () {});
   /* המונים הציבוריים — מספרים בלבד, ומהם נבנה הלוח של הרכז. */
   loadCounts().then(function (ok) { if (ok) renderBoard(); }).catch(function () {});
@@ -6593,10 +6635,14 @@ function registerSW() {
      אפשר לפספס. מכאן והלאה הוא נמצא רק בכפתור.
 
      ולא בניהול, ולא כשנפתחת חידה או שבוע מקישור: שם המשתמש
-     הגיע בשביל משהו אחר. */
-  if (!tourSeen() && !isAdminRoute() && !qm && !location.search) {
-    setTimeout(function () { if (!tourSeen()) tourOpen(0); }, 950);
-  }
+     הגיע בשביל משהו אחר.
+
+     נבדק פעמיים: פעם אחרי רגע, ופעם אחרי שההגדרות חוזרות
+     מהגיליון. מבקר חדש אין לו מטמון הגדרות, ולכן בבדיקה
+     הראשונה המתג עדיין כבוי — והמדריך היה מפספס בדיוק את מי
+     שהוא נועד לו. */
+  tourFirst.ok = !isAdminRoute() && !qm && !location.search;
+  setTimeout(tourMaybe, 950);
 })();
 </script>
 </body>
