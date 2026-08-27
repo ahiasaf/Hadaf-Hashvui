@@ -1052,44 +1052,82 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   white-space:nowrap;transition:background .15s,color .15s}
 .tabs button.on{background:var(--surface);color:var(--blue);box-shadow:var(--sh-1)}
 /* ============================================================
-   המדריך — הצבעה על האפליקציה עצמה.
+   המדריך — סימון, לא החשכה.
    ============================================================
-   לא מצגת ולא דף נפרד. שכבה שקופה שמחשיכה את המסך **חוץ
-   מאלמנט אחד**, ולידו כרטיס שמסביר מה הוא. המדריך נע על המסך
-   האמיתי, ובשתי עצירות הוא מבקש מהמשתמש ללחוץ בעצמו — אצבע
-   שלחצה זוכרת, ועין שראתה סרטון לא.
+   הגרסה הקודמת החשיכה את המסך והשאירה חור אחד. זה מקובל, וזה
+   גם מה שעושה יותר בלגן מסדר: אדם שנכנס לאפליקציה רוצה קודם
+   **לראות אותה**, ורק אחר כך להקשיב.
 
-   החור נעשה בארבעה מלבנים סביב היעד ולא ב-clip-path: זה עובד
-   בכל דפדפן, זה מונפש בחינם, והיעד עצמו נשאר **לחיץ באמת**.
+   לכן המסך נשאר בהיר לגמרי. מה שמפנה את המבט הוא נקודה זהובה
+   שנוסעת אל האלמנט ונוחתת עליו, טבעת רכה סביבו, ולוח קבוע
+   בתחתית המסך שבו יושב ההסבר. הלוח אינו קופץ ממקום למקום —
+   מיקום קבוע הוא מה שמאפשר לקרוא בלי לחפש.
    ============================================================ */
 #tour{position:fixed;inset:0;z-index:120;visibility:hidden;opacity:0;
   transition:opacity .2s;pointer-events:none}
 #tour.on{visibility:visible;opacity:1}
 #tour.hush{opacity:0;visibility:hidden}          /* בזמן שהמצגת פתוחה */
-.t-sh{position:fixed;background:rgba(11,37,80,.66);pointer-events:auto;
-  transition:top .3s,inset-inline-start .3s,width .3s,height .3s}
-.t-ring{position:fixed;border:2px solid var(--gold-l);border-radius:13px;
-  pointer-events:none;box-shadow:0 0 0 4px rgba(227,180,74,.22);
-  transition:top .3s,inset-inline-start .3s,width .3s,height .3s}
-.t-card{position:fixed;pointer-events:auto;background:var(--surface);
-  border-radius:17px;padding:16px 17px 15px;box-shadow:0 10px 40px rgba(11,37,80,.3);
-  max-width:min(30rem,calc(100vw - 28px));inset-inline-start:14px;
-  transition:top .3s}
-.t-card.mid{position:fixed;inset-inline:14px;top:50%;transform:translateY(-50%);
-  max-width:30rem;margin:0 auto}
-.t-card h3{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;line-height:1.25}
-.t-card p{font-size:.88rem;font-weight:600;color:var(--ink-2);line-height:1.7;
-  margin-top:8px}
-.t-card .ask{margin-top:11px;font-size:.85rem;font-weight:800;color:var(--gold-d);
-  background:rgba(192,143,43,.11);border-radius:11px;padding:10px 12px;
-  line-height:1.55}
-.t-row{display:flex;align-items:center;gap:8px;margin-top:13px}
+
+/* הטבעת. בלי החשכה היא כל מה שמסמן — ולכן זוהר רך ורחב ולא
+   קו דק, שנבלע בין הכרטיסים. */
+.t-ring{position:fixed;border-radius:15px;pointer-events:none;
+  border:2px solid var(--gold);
+  box-shadow:0 0 0 5px rgba(227,180,74,.22),0 0 22px 6px rgba(227,180,74,.3);
+  transition:top .42s cubic-bezier(.4,0,.2,1),left .42s cubic-bezier(.4,0,.2,1),
+             width .42s cubic-bezier(.4,0,.2,1),height .42s cubic-bezier(.4,0,.2,1);
+  animation:tglow 2.1s ease-in-out infinite}
+@keyframes tglow{
+  0%,100%{box-shadow:0 0 0 5px rgba(227,180,74,.22),0 0 22px 6px rgba(227,180,74,.3)}
+  50%    {box-shadow:0 0 0 8px rgba(227,180,74,.12),0 0 30px 9px rgba(227,180,74,.42)}}
+
+/* הנקודה שנוסעת. היא זו שמושכת את העין למקום הבא — ובלעדיה
+   הטבעת פשוט מופיעה, והמבט אינו יודע לאן זזה. */
+.t-mark{position:fixed;width:26px;height:26px;border-radius:50%;
+  background:var(--gold);box-shadow:0 4px 14px rgba(192,143,43,.5);
+  pointer-events:none;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.78rem;font-weight:800;
+  transition:top .48s cubic-bezier(.34,1.3,.5,1),left .48s cubic-bezier(.34,1.3,.5,1)}
+
+/* הלוח התחתון. מיקום קבוע, ולכן קריא. */
+.t-sheet{position:fixed;inset-inline:0;bottom:0;pointer-events:auto;
+  background:var(--surface);border-top:1px solid var(--rule);
+  border-radius:20px 20px 0 0;box-shadow:0 -8px 34px rgba(11,37,80,.16);
+  padding:16px 17px calc(env(safe-area-inset-bottom) + 15px);
+  max-width:32rem;margin:0 auto;transform:translateY(0);
+  transition:transform .28s cubic-bezier(.34,1.3,.5,1)}
+.t-sheet h3{font-size:1.1rem;font-weight:800;letter-spacing:-.03em;line-height:1.25}
+.t-sheet p{font-size:.87rem;font-weight:600;color:var(--ink-2);line-height:1.7;
+  margin-top:7px}
+.t-sheet .ask{margin-top:10px;font-size:.85rem;font-weight:800;color:var(--gold-d);
+  background:rgba(192,143,43,.11);border-radius:11px;padding:10px 12px;line-height:1.55}
+.t-row{display:flex;align-items:center;gap:8px;margin-top:12px}
 .t-row .btn{margin:0;flex:1 1 auto;width:auto;padding:12px;font-size:.9rem}
 .t-row .cp{flex:0 0 auto}
 .t-step{font-size:.72rem;font-weight:800;color:var(--ink-3);
   margin-inline-end:auto;letter-spacing:.03em}
 .t-skip{background:none;border:0;color:var(--ink-3);font-weight:800;
   font-size:.8rem;font-family:inherit;cursor:pointer;padding:8px 4px;flex:0 0 auto}
+
+/* ---------- ההזמנה ----------
+   מרחפת, קטנה, ואינה חוסמת דבר. מי שרוצה להמשיך לגלול — ממשיך,
+   והיא נעלמת מעצמה. זו ההזמנה למתנה, לא המתנה. */
+.t-invite{position:fixed;inset-inline:0;
+  bottom:calc(env(safe-area-inset-bottom) + 15px);z-index:80;
+  display:flex;justify-content:center;padding:0 14px;
+  opacity:0;transform:translateY(14px);pointer-events:none;
+  transition:opacity .32s,transform .32s cubic-bezier(.34,1.3,.5,1)}
+.t-invite.on{opacity:1;transform:none;pointer-events:auto}
+.t-invite > div{display:flex;align-items:center;gap:10px;
+  background:var(--blue-d);color:#fff;border-radius:999px;
+  padding:9px 10px 9px 17px;box-shadow:0 8px 26px rgba(11,37,80,.34);
+  max-width:calc(100% - 8px)}
+.t-invite b{font-size:.85rem;font-weight:800;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.t-invite button{border:0;cursor:pointer;font-family:inherit;flex:none}
+.t-invite .go{background:var(--gold);color:#fff;border-radius:999px;
+  padding:8px 15px;font-size:.83rem;font-weight:800}
+.t-invite .x{background:none;color:rgba(255,255,255,.55);font-size:1.05rem;
+  font-weight:800;padding:4px 2px;line-height:1}
 
 /* הכפתור שפותח אותו שוב — שלושה מקומות אפשריים */
 .t-foot{max-width:32rem;margin:14px auto 0;display:flex;align-items:center;
@@ -1223,13 +1261,12 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
   document.documentElement.dir  = 'rtl';
 </script>
 
+<div class="t-invite" id="t-invite"></div>
+
 <div id="tour" aria-hidden="true">
-  <div class="t-sh" id="t-up"></div>
-  <div class="t-sh" id="t-dn"></div>
-  <div class="t-sh" id="t-st"></div>
-  <div class="t-sh" id="t-en"></div>
   <div class="t-ring" id="t-ring"></div>
-  <div class="t-card" id="t-card"></div>
+  <div class="t-mark" id="t-mark">◷</div>
+  <div class="t-sheet" id="t-card"></div>
 </div>
 
 <button class="t-float" id="t-float" onclick="tourOpen(0)"
@@ -1421,7 +1458,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.38.0';
+var APP_VERSION = '7.39.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6247,20 +6284,15 @@ var TOUR_KEY = 'tourSeen';
    אלמנט חסר גרוע ממדריך שמדלג עליו.
    ============================================================ */
 var TOUR_STOPS = [
-  { k:'p0' },                                     /* פתיחה, באמצע המסך */
+  { k:'p0' },                                     /* פתיחה — כלים */
   { k:'p1', sel:'#plan', home:1 },
-  /* הכרטיס כולו ולא רק התמונה: הכפתור שהעצירה מבקשת ללחוץ
-     עליו יושב מתחתיה, והארה שמסתיימת בתמונה השאירה אותו מחוץ
-     לחור — כלומר ביקשנו ללחוץ על מה שהחשכנו. */
-  { k:'p2', sel:'#stage', home:1,
-    ask:'#stage .acts .go', wait:'#deck' },
+  { k:'p2', sel:'#stage', home:1, ask:'#stage .acts .go', wait:'deck' },
   /* `when` נבדק **לפני** המעבר למסך: אין טעם לנסוע למסך השבוע
      כדי לגלות שם שאין מה להראות. */
   { k:'p3', when:function () { return showRow('inter'); },
     before:'week', sel:'#w-inter', soft:1, try:'#w-inter a' },
   { k:'p4', before:'home', sel:'#mini', home:1 },
-  { k:'p5', sel:'#rings', home:1 },
-  { k:'p6', sel:'#cta', home:1, last:1 }
+  { k:'p5', sel:'#cta', home:1, last:1 }
 ];
 
 var tourI = 0, tourWatch = null, tourClick = null, tourClickEl = null;
@@ -6270,16 +6302,14 @@ function tourSeen() { return !!Store.get(TOUR_KEY, 0); }
 
 /* האם המדריך חי בכלל.
 
-   **ברירת המחדל כבויה, ובכוונה.** מדריך הוא הדבר הראשון שאדם
-   רואה, וגרסה שאינה מוכנה שם גרועה מכלום. הוא נדלק רק כשהרכז
-   מחליט שהוא מוכן — ורק אחרי פרסום.
-
-   התצוגה המקדימה בניהול אינה עוברת דרך כאן: `tourOpen` נקרא
-   ישירות. אחרת אי אפשר היה לבדוק אותו לפני שמדליקים. */
+   **ברירת המחדל כבויה, ובכוונה.** הוא נדלק רק כשהרכז מחליט
+   שהוא מוכן — ורק אחרי פרסום. התצוגה המקדימה בניהול אינה
+   עוברת דרך כאן: `tourOpen` נקרא ישירות. */
 function tourLive() { return CV('tourOn') === true; }
 function tourAt()   { return CV('tourAt') || 'foot'; }
 
 function tourOpen(i) {
+  tourInviteHide();
   tourI = i || 0;
   document.getElementById('tour').className = 'on';
   document.getElementById('tour').setAttribute('aria-hidden', 'false');
@@ -6287,10 +6317,10 @@ function tourOpen(i) {
 }
 function tourClose() {
   tourDrop();
+  document.body.style.paddingBottom = '';
   var el = document.getElementById('tour');
   el.className = ''; el.setAttribute('aria-hidden', 'true');
   Store.set(TOUR_KEY, 1);
-  /* ההצעה להתקין חיכתה בסבלנות — עכשיו תורה. */
   if (deferredInstall && !isStandalone()) setTimeout(function () {
     if (!tourOn()) instShow(false);
   }, 900);
@@ -6302,7 +6332,6 @@ function tourDrop() {
   tourClickEl = null; tourClick = null;
   clearInterval(tourWatch); tourWatch = null;
 }
-
 function tourGo(d) {
   tourDrop();
   var n = tourI + d;
@@ -6310,7 +6339,6 @@ function tourGo(d) {
   if (n >= TOUR_STOPS.length) { tourClose(); return; }
   tourI = n; tourPaint();
 }
-
 function tourP(t) {
   return String(t || '').split(/\n\s*\n/).map(function (x) {
     return '<p>' + esc(x).replace(/\n/g, '<br>') + '</p>';
@@ -6320,73 +6348,61 @@ function tourP(t) {
 /* מעבר מסך לפני עצירה. מחזיר כמה זמן להמתין עד שהציור נגמר. */
 function tourNav(what) {
   if (what === 'week') {
-    var tr = homeTrack, wi = weekIndex();
-    openWeek(tr, wi < 0 ? 0 : wi);
+    var wi = weekIndex();
+    openWeek(homeTrack, wi < 0 ? 0 : wi);
     return 420;
   }
   if (what === 'home') { show('home'); return 320; }
   return 0;
 }
 
+/* מסמנים את היעד: טבעת סביבו, ונקודה שנוסעת אליו. */
 function tourPlace(el) {
   var pad = 7, r = el.getBoundingClientRect();
-  var W = window.innerWidth, H = window.innerHeight;
-  var x = Math.max(0, r.left - pad), y = Math.max(0, r.top - pad);
-  var w = Math.min(W - x, r.width + pad * 2), h = Math.min(H - y, r.height + pad * 2);
-  var px = function (id, t, l, ww, hh) {
-    var e = document.getElementById(id);
-    e.style.display = 'block';
-    e.style.top = t + 'px'; e.style.left = l + 'px';
-    e.style.width = ww + 'px'; e.style.height = hh + 'px';
-  };
+  var x = Math.max(2, r.left - pad), y = Math.max(2, r.top - pad);
+  var w = Math.min(window.innerWidth - x - 2, r.width + pad * 2);
+  var h = r.height + pad * 2;
   /* left/top ולא inset-inline: המידות מגיעות מ-getBoundingClientRect,
      שהוא תמיד פיזי — ובעברית inset-inline-start היה הופך אותן. */
-  px('t-up', 0, 0, W, y);
-  px('t-dn', y + h, 0, W, Math.max(0, H - y - h));
-  px('t-st', y, 0, x, h);
-  px('t-en', y, x + w, Math.max(0, W - x - w), h);
   var ring = document.getElementById('t-ring');
   ring.style.display = 'block';
   ring.style.top = y + 'px'; ring.style.left = x + 'px';
   ring.style.width = w + 'px'; ring.style.height = h + 'px';
-  return { y:y, h:h, H:H };
+  var mk = document.getElementById('t-mark');
+  mk.style.display = 'flex';
+  mk.style.top  = (y - 13) + 'px';
+  mk.style.left = (x + w - 13) + 'px';       /* בפינה שבה מתחילים לקרוא */
 }
-function tourFull() {
-  ['t-dn', 't-st', 't-en', 't-ring'].forEach(function (id) {
-    document.getElementById(id).style.display = 'none';
-  });
-  var up = document.getElementById('t-up');
-  up.style.display = 'block';
-  up.style.top = '0'; up.style.left = '0';
-  up.style.width = '100%'; up.style.height = '100%';
+function tourBare() {
+  document.getElementById('t-ring').style.display = 'none';
+  document.getElementById('t-mark').style.display = 'none';
 }
 
 function tourPaint() {
   var st = TOUR_STOPS[tourI];
   if (st.when && !st.when()) { tourGo(1); return; }
-  var wait = st.before ? tourNav(st.before) : 0;
+  /* עצירה שמצביעה על העמוד הראשי חייבת שהוא יהיה מוצג. בלי זה
+     צפייה מתוך מסך הניהול דילגה על כל העצירות שם: `.view`
+     שאינו פעיל הוא display:none, וכל יעד בתוכו "אינו קיים". */
+  var nav = st.before || (st.home && !viewIsHome() ? 'home' : '');
+  var wait = nav ? tourNav(nav) : 0;
   setTimeout(function () { tourShow(st); }, wait);
+}
+function viewIsHome() {
+  var v = document.getElementById('v-home');
+  return !!(v && v.className.indexOf('on') >= 0);
 }
 
 function tourShow(st) {
   var card = document.getElementById('t-card');
   var el = st.sel ? document.querySelector(st.sel) : null;
 
-  /* יעד חסר — מדלגים, אלא אם העצירה סומנה כ"רכה" ואז נאמר
-     למה היא חסרה ומה זה אומר.
-
-     `offsetHeight` ולא רק קיום: `#w-inter` הוא תא ריק שממתין,
-     והוא קיים במסמך גם כשאין בו שורה. בלי הבדיקה הזו המדריך
-     היה מאיר מלבן בגובה אפס ומסביר אותו. */
+  /* `offsetHeight` ולא רק קיום: `#w-inter` הוא תא ריק שממתין,
+     והוא קיים במסמך גם כשאין בו שורה. */
   if (st.sel && (!el || !el.offsetParent || !el.offsetHeight)) {
     if (!st.soft) { tourGo(1); return; }
     el = null;
   }
-
-  if (el) {
-    el.scrollIntoView({ block:'center', behavior:'auto' });
-  }
-  var box = el ? tourPlace(el) : (tourFull(), null);
 
   var n = tourI, all = TOUR_STOPS.length - 1;
   var body = tourP(TOUR[st.k + 'Body']) +
@@ -6405,7 +6421,7 @@ function tourShow(st) {
            '<div class="t-row"><span class="t-step">' + n + '/' + all + '</span>' +
            '<button class="t-skip" onclick="tourClose()">' + esc(TOUR.skip) + '</button></div>';
   } else if (st.last) {
-    acts = '<p class="t-step" style="margin-top:11px">' + esc(TOUR.where) + '</p>' +
+    acts = '<p class="t-step" style="margin-top:10px">' + esc(TOUR.where) + '</p>' +
            '<div class="t-row">' +
            '<button class="btn gd" onclick="tourClose();show(\'reg\')">' +
            esc(UI.ctaBtn) + '</button>' +
@@ -6416,25 +6432,27 @@ function tourShow(st) {
            'onclick="tourGo(1)">' + esc(n ? TOUR.next : TOUR.start) + '</button>' +
            '<button class="t-skip" onclick="tourClose()">' + esc(TOUR.skip) + '</button></div>';
   }
-
-  card.className = 't-card' + (el ? '' : ' mid');
   card.innerHTML = '<h3>' + esc(TOUR[st.k + 'Title']) + '</h3>' + body + acts;
 
-  /* הכרטיס מתחת ליעד כשיש מקום, ומעליו כשאין. אחרת הוא מכסה
-     בדיוק את מה שהוא מסביר. */
-  if (el && box) {
-    card.style.top = '0px';
-    var ch = card.offsetHeight, gap = 12;
-    var below = box.y + box.h + gap, above = box.y - ch - gap;
-    /* וכשאין מקום לא מלמעלה ולא מלמטה — נצמדים לראש המסך ולא
-       לתחתיתו. מה שחשוב באלמנט יושב בסופו: הכפתור שמבקשים
-       ללחוץ עליו הוא השורה האחרונה, וכרטיס שנצמד לתחתית מכסה
-       בדיוק אותו. */
-    card.style.top = (below + ch < box.H - 8 ? below
-                    : above > 8 ? above
-                    : 8) + 'px';
+  /* הלוח יושב בתחתית ואינו זז, ולכן הגלילה היא זו שצריכה
+     לוודא שהיעד נשאר מעליו. `scrollIntoView` לבדו היה מציב
+     אותו במרכז — ולפעמים בדיוק מתחת ללוח. */
+  /* מרווח בתחתית העמוד כל עוד המדריך פתוח.
+
+     בלעדיו אי אפשר לגלול את האלמנט האחרון אל מעל הלוח — פשוט
+     נגמר הדף. כפתור ההצטרפות, שהוא העצירה האחרונה, נשאר מתחתיו
+     ולא נראה. */
+  var sh = card.offsetHeight;
+  document.body.style.paddingBottom = (sh + 26) + 'px';
+
+  if (el) {
+    el.scrollIntoView({ block:'center', behavior:'auto' });
+    var r = el.getBoundingClientRect();
+    var room = window.innerHeight - sh - 16;
+    if (r.bottom > room) window.scrollBy(0, r.bottom - room + 10);
+    tourPlace(el);
   } else {
-    card.style.top = '';
+    tourBare();
   }
 
   /* עצירה שמבקשת ללחוץ: ממתינים ללחיצה האמיתית, מסתירים את
@@ -6446,7 +6464,7 @@ function tourShow(st) {
     tourClick = function () {
       document.getElementById('tour').className = 'on hush';
       tourWatch = setInterval(function () {
-        var w = st.wait ? document.getElementById(st.wait.replace('#', '')) : null;
+        var w = st.wait ? document.getElementById(st.wait) : null;
         if (w && w.className === 'on') return;      /* עדיין פתוח */
         clearInterval(tourWatch); tourWatch = null;
         document.getElementById('tour').className = 'on';
@@ -6473,26 +6491,53 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'ArrowRight') tourGo(-1);
 });
 
-/* מיקום מחדש בגלילה ובסיבוב מסך — אחרת החור נשאר במקום שבו
-   האלמנט היה. */
+/* מיקום מחדש בגלילה ובסיבוב מסך — אחרת הטבעת נשארת במקום
+   שבו האלמנט היה. */
 function tourReflow() {
   if (!tourOn()) return;
   var st = TOUR_STOPS[tourI];
   var el = st.sel ? document.querySelector(st.sel) : null;
-  if (el && el.offsetParent) tourPlace(el);
+  if (el && el.offsetParent && el.offsetHeight) tourPlace(el);
 }
 window.addEventListener('resize', tourReflow);
 window.addEventListener('scroll', tourReflow, true);
 
-/* מצב הפתיחה האוטומטית. `ok` נקבע פעם אחת בעלייה — אם המשתמש
-   הגיע לניהול או לקישור ממוקד, המדריך אינו מתפרץ גם אם
-   ההגדרות יגיעו מאוחר יותר. */
+/* ============================================================
+   ההזמנה.
+   ============================================================
+   המדריך אינו מתפרץ. אחרי שתי שניות — אחרי שהעין כבר קלטה מה
+   יש כאן — עולה מלמטה שורה קטנה שמציעה סיור. מי שרוצה, לוחץ;
+   מי שלא, ממשיך לגלול והיא נעלמת מעצמה.
+   ============================================================ */
+var TOUR_INV_IN = 2000, TOUR_INV_OUT = 14000, tourInvT = null;
+
+function tourInviteShow() {
+  var el = document.getElementById('t-invite');
+  if (!el) return;
+  el.innerHTML = '<div><b>' + esc(TOUR.invite) + '</b>' +
+    '<button class="go" onclick="tourOpen(0)">' + esc(TOUR.inviteGo) + '</button>' +
+    '<button class="x" onclick="tourInviteHide(1)" aria-label="סגירה">✕</button></div>';
+  el.className = 't-invite on';
+  clearTimeout(tourInvT);
+  tourInvT = setTimeout(function () { tourInviteHide(); }, TOUR_INV_OUT);
+}
+/* סגירה ביד נזכרת; היעלמות מעצמה אינה. מי שדחה במפורש לא
+   אמור לקבל את זה שוב בכל כניסה. */
+function tourInviteHide(byHand) {
+  clearTimeout(tourInvT);
+  var el = document.getElementById('t-invite');
+  if (el) el.className = 't-invite';
+  if (byHand) Store.set(TOUR_KEY, 1);
+}
+
 var tourFirst = { ok:false, done:false };
 function tourMaybe() {
   if (!tourFirst.ok || tourFirst.done) return;
   if (!tourLive() || tourSeen() || tourOn()) return;
   tourFirst.done = true;
-  tourOpen(0);
+  setTimeout(function () {
+    if (!tourOn() && !tourSeen()) tourInviteShow();
+  }, TOUR_INV_IN);
 }
 
 /* הכפתור שפותח שוב, בשלושה מיקומים אפשריים. */
