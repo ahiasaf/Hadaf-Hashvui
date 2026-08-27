@@ -12,22 +12,17 @@
 # ------------------------------------------------------------
 # הפעלה — פעם אחת, ואז לא נוגעים
 # ------------------------------------------------------------
-# 1. הפעלת ה-API:
-#      script.google.com/home/usersettings → Apps Script API: On
+# 1. script.google.com/home/usersettings → Apps Script API: On
 #
-# 2. על המחשב (לא בטלפון):
-#      npm i -g @google/clasp
-#      clasp login
+# 2. על המחשב:  npm i -g @google/clasp  ואז  clasp login
 #    נפתח דפדפן, מאשרים, ונוצר קובץ בשם  ~/.clasprc.json
 #
 # 3. ב-GitHub: Settings → Secrets and variables → Actions →
 #    New repository secret. שלושה:
 #
 #      CLASPRC_JSON    — כל התוכן של ~/.clasprc.json
-#      SCRIPT_ID       — מזהה הפרויקט: בעורך Apps Script,
-#                        Project Settings → Script ID
-#      DEPLOYMENT_ID   — Deploy → Manage deployments, המזהה של
-#                        הפריסה הקיימת (AKfycb...)
+#      SCRIPT_ID       — עורך Apps Script → Project Settings
+#      DEPLOYMENT_ID   — Deploy → Manage deployments (AKfycb...)
 #
 # ------------------------------------------------------------
 # על הסוד
@@ -36,11 +31,16 @@
 # Apps Script. GitHub שומר אותו מוצפן ואינו מציג אותו שוב —
 # גם לא לך. הוא **לעולם אינו נכנס לריפו**, שהוא ציבורי.
 #
-# רוצה לבטל? clasp logout על המחשב, או מחיקת ההרשאה ב-
-# myaccount.google.com/permissions. הסוד ב-GitHub מפסיק לעבוד
-# באותו רגע.
+# לבטל: clasp logout, או myaccount.google.com/permissions.
 #
-# בלי שלושת הסודות ה-workflow פשוט מדלג. הוא אינו שובר דבר.
+# ------------------------------------------------------------
+# הערה למי שעורך את הקובץ הזה
+# ------------------------------------------------------------
+# **אין להשתמש ב-`secrets` בתוך `if:`.** ההקשר הזה אינו זמין
+# בתנאים, ו-GitHub פוסל את הקובץ כולו — לא את השלב, את הקובץ.
+# הריצה נכשלת מיד, בלי שום job ובלי לוג שאפשר לקרוא, וזה נראה
+# בדיוק כמו פריסה שנכשלה. מעבירים סודות דרך `env` בלבד, ואת
+# ההחלטה עושים בתוך `run`.
 # ============================================================
 name: פריסת הסקריפט
 
@@ -56,34 +56,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: יש סודות?
-        id: gate
-        env:
-          HAVE: ${{ secrets.CLASPRC_JSON != '' && secrets.SCRIPT_ID != '' }}
-        run: echo "ok=$HAVE" >> "$GITHUB_OUTPUT"
-
-      - if: steps.gate.outputs.ok != 'true'
-        run: |
-          echo "::notice::הסודות טרם הוגדרו — ראו את ההסבר בראש הקובץ. מדלג."
-
       - uses: actions/setup-node@v4
-        if: steps.gate.outputs.ok == 'true'
         with:
           node-version: '20'
 
-      - name: התקנת clasp
-        if: steps.gate.outputs.ok == 'true'
-        run: npm i -g @google/clasp@2.4.2
-
-      - name: הזדהות
-        if: steps.gate.outputs.ok == 'true'
-        run: echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
-
-      # clasp דורש את שני הקבצים האלה, והם נגזרים מהסוד ולא
-      # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
-      - name: הכנת התיקייה
-        if: steps.gate.outputs.ok == 'true'
+      - name: פריסה
+        env:
+          CLASPRC_JSON:  ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID:     ${{ secrets.SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
         run: |
+          set -euo pipefail
+
+          if [ -z "${CLASPRC_JSON:-}" ] || [ -z "${SCRIPT_ID:-}" ]; then
+            echo "::notice::הסודות טרם הוגדרו — ראו את ההסבר בראש הקובץ. מדלג."
+            exit 0
+          fi
+
+          npm i -g @google/clasp@2.4.2
+
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+          # clasp דורש את שני הקבצים האלה, והם נגזרים מהסוד ולא
+          # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
           mkdir -p build
           cp apps-script.gs build/Code.gs
           cat > build/appsscript.json <<'JSON'
@@ -95,24 +90,19 @@ jobs:
             "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
           }
           JSON
-          printf '{"scriptId":"%s","rootDir":"build"}\n' \
-            '${{ secrets.SCRIPT_ID }}' > .clasp.json
+          printf '{"scriptId":"%s","rootDir":"build"}\n' "$SCRIPT_ID" > .clasp.json
 
-      - name: דחיפת הקוד
-        if: steps.gate.outputs.ok == 'true'
-        run: clasp push --force
+          clasp push --force
 
-      # עדכון הפריסה **הקיימת**. פריסה חדשה הייתה נותנת כתובת
-      # חדשה שהאפליקציה אינה מכירה, וכל כתיבה הייתה ממשיכה
-      # ללכת לשום מקום — בדיוק התקלה שכבר עלתה לנו חודש.
-      - name: עדכון הפריסה
-        if: steps.gate.outputs.ok == 'true' && secrets.DEPLOYMENT_ID != ''
-        run: |
-          VER=$(grep -oP 'SCRIPT_VERSION\s*=\s*\K[0-9]+' apps-script.gs | head -1)
-          clasp deploy -i '${{ secrets.DEPLOYMENT_ID }}' -d "v${VER:-auto} · ${GITHUB_SHA::7}"
+          VER=$(grep -oE 'SCRIPT_VERSION[[:space:]]*=[[:space:]]*[0-9]+' apps-script.gs \
+                | grep -oE '[0-9]+' | head -1)
 
-      - name: סיכום
-        if: steps.gate.outputs.ok == 'true'
-        run: |
-          VER=$(grep -oP 'SCRIPT_VERSION\s*=\s*\K[0-9]+' apps-script.gs | head -1)
-          echo "::notice::הסקריפט נפרס · SCRIPT_VERSION ${VER:-?}"
+          # עדכון הפריסה **הקיימת**. פריסה חדשה הייתה נותנת כתובת
+          # חדשה שהאפליקציה אינה מכירה, וכל כתיבה הייתה ממשיכה
+          # ללכת לשום מקום — התקלה שכבר עלתה לנו חודש.
+          if [ -n "${DEPLOYMENT_ID:-}" ]; then
+            clasp deploy -i "$DEPLOYMENT_ID" -d "v${VER:-auto} · ${GITHUB_SHA:0:7}"
+            echo "::notice::הסקריפט נפרס · SCRIPT_VERSION ${VER:-?}"
+          else
+            echo "::warning::הקוד נדחף, אבל DEPLOYMENT_ID חסר — הפריסה לא עודכנה."
+          fi
