@@ -1345,7 +1345,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.35.0';
+var APP_VERSION = '7.36.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2306,9 +2306,20 @@ function boardHtml(code, name, hail) {
     ? '<div class="hail"><b>' + esc(fill(UI.hailTitle, { inst:name })) + '</b>' +
       '<span>' + esc(UI.hailSub) + '</span></div>' : '';
 
+  /* המספר לבדו אינו עונה על השאלה הבאה — "ומי הם?" — ועד עכשיו
+     לא הייתה מכאן שום דרך אליה. הכרטיס הזה הוא תקציר, והלוח
+     המלא הוא המקום שבו יש משבצות לפי מסגרת, שמות מאחוריהן,
+     ושני הקישורים.
+
+     כפתור ולא כרטיס לחיץ: כרטיס שנראה כמו תצוגה ומגיב ללחיצה
+     הוא בדיוק מה שלא נלחץ, כי איש אינו מנסה. */
+  var full = '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+    'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
+    esc(UI.cbBoard) + ' ←</a>';
+
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
-         bar + chips + send +
+         bar + chips + send + full +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
