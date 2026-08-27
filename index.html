@@ -1345,7 +1345,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.32.0';
+var APP_VERSION = '7.33.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2008,8 +2008,17 @@ function sendReg() {
 
   /* עמודה לכל צירוף מסכת-מהדורה בגיליון, ולצידה שורת סיכום
      קריאה לאדם — כדי שההזמנה תהיה ברורה גם בלי לפענח מפתחות. */
+  /* קוד הגישה של המוסד נוצר **כאן**, בצד הלקוח.
+
+     הסיבה מעשית: הכתיבה לגיליון יוצאת ב-no-cors ואין ממנה
+     תשובה, ולכן אי אפשר לבקש מהשרת לייצר קוד ולקבל אותו. מי
+     שמייצר — יודע. השרת שומר אותו אם עדיין אין קוד למוסד, ולא
+     דורס אם יש: קישור שכבר הופץ לצוות לא נשבר בהרשמה חוזרת. */
+  var access = instCode(reg.inst) || newAccess();
+  setInstCode(reg.inst, access);
+
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
-                  size:reg.size || 0, want:reg.want, total:total,
+                  size:reg.size || 0, want:reg.want, total:total, access:access,
                   at:new Date().toISOString() };
   TRACKS.forEach(function (t) {
     SFARIM.forEach(function (s) { payload[qk(t.id, s.id)] = reg.qty[qk(t.id, s.id)] || 0; });
@@ -2095,7 +2104,9 @@ function joinCode() {
 
 /* כתובת הלוח של אותו מוסד. אותו בסיס, קובץ אחר. */
 function boardUrl(code) {
-  return joinUrl(code).replace('join.html?', 'board.html?');
+  var u = joinUrl(code).replace('join.html?', 'board.html?');
+  var k = instCode(code);
+  return k ? u + '&k=' + encodeURIComponent(k) : u;
 }
 
 /* הלוח בתוך מסך ההרשמה — אותו קוד שמצייר אותו בעמוד הראשי,
@@ -2196,6 +2207,29 @@ function regDone(txt, viaWa) {
 
    כל הנתונים כאן מגיעים מהלשוניות הציבוריות, שיש בהן קוד
    ישיבה ומספר. שם של תלמיד אינו יוצא מהגיליון הסגור. */
+/* ============================================================
+   קודי הגישה של המוסדות.
+
+   הקוד הוא מה שהופך את `board.html?inst=avir` מכתובת שאפשר
+   לנחש לקישור אישי. הוא נשמר גם כאן, על המכשיר של הרכז, כדי
+   שרשימת הקישורים בניהול תוכל להציג את הקישור המלא בלי לשאול
+   את השרת בכל פתיחה.
+
+   בלי 0/O/1/l — הקוד מוקלד ביד כשהקישור אבד.
+   ============================================================ */
+var ACC_ABC = 'abcdefghjkmnpqrstuvwxyz23456789';
+function newAccess() {
+  var s = '';
+  for (var i = 0; i < 6; i++)
+    s += ACC_ABC.charAt(Math.floor(Math.random() * ACC_ABC.length));
+  return s;
+}
+function instCode(code) { return (Store.get('instCodes', {}) || {})[code] || ''; }
+function setInstCode(code, k) {
+  var m = Store.get('instCodes', {}) || {};
+  m[code] = k; Store.set('instCodes', m);
+}
+
 function myBoard() {
   var saved = regSaved();
   if (saved && saved.code && saved.code !== 'other') return saved.code;
@@ -4729,17 +4763,39 @@ function admInst(el) {
     /* הקישורים, לכל המוסדות. ראש חטיבה שנרשם מקבל את שלו במסך
        ההרשמה; מי שנרשם בטלפון לא מקבל כלום, וזה המקום שממנו
        אפשר לשלוח לו אותו ביד. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>קישורי ההצטרפות</h4>' +
-    '<p class="h">קישור לכל מוסד. מי שנכנס דרכו נספר אליו. ' +
-    'שלחו לראש החטיבה שיפיץ לכיתות ולהורים.</p>' +
+    /* שני קישורים לכל מוסד, ולא אחד.
+
+       קישור התלמידים פתוח בכוונה — הוא נשלח לקבוצות כיתה ואין
+       בו מה להגן עליו. קישור הלוח נושא קוד, כי מאחוריו יושבים
+       שמות של תלמידים. אותו קוד נמסר לכל מי שמנהל בפועל: הוא
+       שייך למוסד ולא לאדם, ולכן ראש חטיבה יכול פשוט להעביר
+       אותו לר״ם בלי הרשמה שנייה. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>הקישורים של כל מוסד</h4>' +
+    '<p class="h">הירוק לתלמידים ולהורים — פתוח, ומי שנכנס דרכו נספר ' +
+    'לישיבה. הכחול הוא הלוח לצוות, והוא נושא קוד: בלעדיו הוא לא ' +
+    'ייפתח.</p>' +
+    (linkState.msg ? '<div class="cond" style="margin-top:9px">' +
+                     linkState.msg + '</div>' : '') +
+    '<div style="margin-top:9px"><button class="btn g" style="margin:0" ' +
+    'onclick="codesLoad()">משיכת הקודים מהגיליון</button></div>' +
     INSTITUTIONS.map(function (i) {
       var wa = fill(UI.linkWa, { inst:i.name, url:joinUrl(i.code) });
+      var k  = instCode(i.code);
+      var tw = fill(UI.teamWa, { inst:i.name, url:boardUrl(i.code) });
       return '<div class="row"><div>' + esc(i.name) +
-        '<div class="sub" style="direction:ltr;text-align:start">?inst=' + esc(i.code) + '</div></div>' +
-        '<div style="display:flex;gap:7px;flex:0 0 auto">' +
-        '<a class="cp" style="display:flex;align-items:center;text-decoration:none" ' +
-        'href="https://wa.me/?text=' + encodeURIComponent(wa) + '" target="_blank" rel="noopener">וואטסאפ</a>' +
-        '<button class="cp" onclick="copyJoin(this,\'' + i.code + '\')">העתקה</button>' +
+        '<div class="sub" style="direction:ltr;text-align:start">' +
+        (k ? '?inst=' + esc(i.code) + '&k=' + esc(k) : '?inst=' + esc(i.code) +
+             ' · <span dir="rtl">אין קוד</span>') + '</div></div>' +
+        '<div style="display:flex;gap:6px;flex:0 0 auto">' +
+        '<a class="cp ph" style="display:flex;align-items:center;text-decoration:none;' +
+        'color:var(--green-d)" href="https://wa.me/?text=' + encodeURIComponent(wa) +
+        '" target="_blank" rel="noopener">תלמידים</a>' +
+        (k ? '<a class="cp ph" style="display:flex;align-items:center;' +
+             'text-decoration:none" href="https://wa.me/?text=' +
+             encodeURIComponent(tw) + '" target="_blank" rel="noopener">צוות</a>'
+           : '') +
+        '<button class="cp" onclick="codeNew(' + dq(i.code) + ',' + dq(i.name) + ')">' +
+        (k ? '↻' : 'קוד') + '</button>' +
         '</div></div>';
     }).join('') + '</div>' +
 
@@ -4753,6 +4809,58 @@ function admInst(el) {
         '" onclick="admToggle(\'' + i.code + '\')" aria-label="שיוך"></button></div>';
     }).join('') + '</div>';
 }
+/* ---- הקודים מול הגיליון ----
+   הקודים נשמרים גם על המכשיר, אבל המכשיר אינו מקור האמת: רכז
+   שהחליף טלפון, או שני מכשירים שונים, מוצאים כאן את מה שבאמת
+   רשום בגיליון. */
+var linkState = { msg:'' };
+
+function codesLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
+              admPane(); return; }
+  linkState.msg = 'קורא…'; admPane();
+  scriptGet({ codes:1, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      linkState.msg = esc((d && d.message) || 'לא קיבלתי תשובה מהסקריפט.');
+      admPane(); return;
+    }
+    var m = Store.get('instCodes', {}) || {}, n = 0;
+    for (var c in (d.codes || {})) { m[c] = d.codes[c]; n++; }
+    Store.set('instCodes', m);
+    linkState.msg = n ? n + ' קודים נטענו מהגיליון.'
+                      : 'אין עדיין קודים בגיליון. לחצו "קוד" ליד מוסד כדי לייצר.';
+    admPane();
+  }).catch(function () {
+    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
+/* קוד חדש מבטל את הקודם. זה בדיוק מה שרוצים כשקישור הודבק
+   בקבוצה שלא היה אמור להגיע אליה — ולכן זו גם פעולה שמפילה את
+   הקישור שכבר בידי הצוות, וצריך לומר את זה. */
+function codeNew(code, name) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
+              admPane(); return; }
+  var had = instCode(code);
+  if (had && !confirm('קוד חדש ל' + name + ' יבטל את הקישור שכבר בידי הצוות, ' +
+                      'ותצטרכו לשלוח להם את החדש.\n\nלהמשיך?')) return;
+  linkState.msg = 'מייצר…'; admPane();
+  scriptGet({ newcode:code, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.code) {
+      linkState.msg = esc((d && d.message) || 'לא קיבלתי תשובה מהסקריפט.');
+      admPane(); return;
+    }
+    setInstCode(code, d.code);
+    linkState.msg = 'קוד חדש ל' + esc(name) + ' · <b dir="ltr">' + esc(d.code) +
+                    '</b> · שלחו להם את הקישור הכחול מחדש.';
+    admPane();
+  }).catch(function () {
+    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
 var ROW_KEYS = [
   ['inter', 'דף אינטראקטיבי', 'ללמוד את הדף שלב אחר שלב · מוצג רק לדף שסומן'],
   ['daf',   'צורת הדף',       'קובץ הדף להדפסה'],
@@ -5454,7 +5562,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 14;
+var SCRIPT_MIN = 15;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים

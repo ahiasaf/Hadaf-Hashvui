@@ -129,6 +129,21 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
   font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
   overflow-wrap:anywhere;line-height:1.5}
 
+/* ---------- הרשימה השמית ----------
+   שם אחד בשורה, וסימן אחד. הרכז סורק את הרשימה בעין ומחפש את
+   מי שלא סימן — ולכן ה-✓ הוא מה שבולט, ולא הצבע של השורה. */
+.wgrp{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
+  margin:13px 0 3px;padding-top:10px;border-top:1px solid var(--rule)}
+.wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
+.prow{display:flex;align-items:center;gap:9px;padding:8px 0;
+  border-bottom:1px solid var(--rule);font-size:.92rem}
+.prow:last-child{border-bottom:0}
+.prow b{font-weight:800}
+.prow .s{font-size:.76rem;font-weight:700;color:var(--ink-3);margin-top:1px}
+.prow .tick{flex:none;width:22px;height:22px;border-radius:50%;
+  background:var(--sunk);color:transparent;display:flex;align-items:center;
+  justify-content:center;font-size:.8rem;font-weight:800}
+.prow.did .tick{background:var(--green);color:#fff}
 .empty{text-align:center;padding:8px 0 4px}
 .empty .big{font-size:2.2rem;line-height:1}
 .empty p{font-size:.9rem;font-weight:700;color:var(--ink-2);margin-top:9px;line-height:1.7}
@@ -185,6 +200,47 @@ function tp(t, v) {
 var code = qs('inst'), inst = null;
 for (var i = 0; i < INSTITUTIONS.length; i++)
   if (INSTITUTIONS[i].code === code) inst = INSTITUTIONS[i];
+
+/* ============================================================
+   קוד הגישה.
+
+   `?inst=avir` לבדו אינו סוד — הוא שם הישיבה, ואפשר לנחש אותו.
+   כל עוד הלוח היה מספרים בלבד זה הספיק. ברגע שיש בו שמות של
+   תלמידים זה כבר לא, ולכן הקישור האישי נושא `&k=`.
+
+   שלוש דקויות שנקבעו כאן:
+
+   1. **הקוד נשמר במכשיר בפתיחה הראשונה ומנוקה מהכתובת.** הלוח
+      הוא מסך שמצלמים ומראים, ו-URL עם קוד בתוכו הוא קוד שדולף
+      בצילום מסך. אחרי הביקור הראשון הכתובת נקייה והלוח ממשיך
+      לעבוד.
+
+   2. **הקוד שייך למוסד ולא לאדם.** אין הרשמה, אין סיסמה אישית,
+      ובישיבה שיש בה כמה אנשי צוות פשוט מעבירים את הקישור הלאה.
+
+   3. **הזנה ידנית כגיבוי.** אפליקציה שנוספה למסך הבית מחזיקה
+      אחסון נפרד מהדפדפן, ולכן מי שפתח את הקישור בספארי ואז פתח
+      את האפליקציה — לא ימצא שם את הקוד. שש אותיות פותרות את זה
+      בלי לחזור לרכז.
+   ============================================================ */
+function accKey() { return 'boardKey:' + code; }
+var acc = '';
+try { acc = localStorage.getItem(accKey()) || ''; } catch (e) {}
+
+(function () {
+  var k = qs('k');
+  if (!k) return;
+  acc = k;
+  try { localStorage.setItem(accKey(), k); } catch (e) {}
+  /* מנקים את הכתובת בלי לטעון מחדש. replaceState ולא assign —
+     כפתור "אחורה" לא אמור להחזיר לגרסה שיש בה קוד. */
+  try {
+    if (history.replaceState) {
+      history.replaceState(null, '',
+        location.pathname + '?inst=' + encodeURIComponent(code));
+    }
+  } catch (e2) {}
+})();
 
 /* ---------- קריאה מהגיליון הציבורי ----------
    אותן שתי לשוניות שמסך ההצטרפות קורא, ומאותה סיבה: מספרים
@@ -247,6 +303,149 @@ function loadBoard() {
   ]).catch(function () {});
 }
 
+/* ============================================================
+   הרשימה השמית — רק עם הקוד.
+
+   המספרים באים מהלשוניות הציבוריות ואינם דורשים דבר. השמות
+   באים מהגיליון הסגור, דרך הסקריפט, והקוד הוא מה שפותח אותם.
+   מה שחוזר משם הוא שם פרטי, שכבה, מסגרת, ואילו שבועות סומנו —
+   בלי משפחה ובלי טלפון. קישור שדלף חושף "יונתן, ז׳, לומד לבד",
+   ולא רשימת קטינים שאפשר ליצור איתם קשר.
+   ============================================================ */
+var API_URL = (LGet('cfg', {}) || {}).api || APPS_SCRIPT_URL || '';
+var roster = LGet('rosterCache:' + code, null);
+var rosterMsg = '';
+
+/* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים
+   את הקריאה בגלל CORS. תגית script אינה כפופה לו כלל. */
+function jsonp(url) {
+  return new Promise(function (ok) {
+    var name = '__brd' + Date.now(), t, sc = document.createElement('script');
+    var done = function (v) {
+      try { delete window[name]; } catch (e) { window[name] = undefined; }
+      clearTimeout(t); if (sc.parentNode) sc.remove(); ok(v);
+    };
+    t = setTimeout(function () { done(null); }, 12000);
+    window[name] = function (d) { done(d); };
+    sc.onerror = function () { done(null); };
+    sc.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'callback=' + name;
+    document.body.appendChild(sc);
+  });
+}
+function askScript(params) {
+  if (!API_URL) return Promise.resolve(null);
+  var q = Object.keys(params).map(function (k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  }).join('&');
+  var url = API_URL + (API_URL.indexOf('?') < 0 ? '?' : '&') + q;
+  return fetch(url).then(function (r) { return r.json(); })
+    .catch(function () { return jsonp(url); });
+}
+
+function loadRoster() {
+  if (!acc) return Promise.resolve(null);
+  return askScript({ board:code, k:acc }).then(function (d) {
+    if (!d) { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; }
+    if (d.status !== 'ok') {
+      /* קוד שגוי אינו נשמר — אחרת הוא היה נדבק למכשיר ומונע
+         מהקישור הנכון לעבוד בפעם הבאה. */
+      if (d.status === 'denied') {
+        acc = ''; try { localStorage.removeItem(accKey()); } catch (e) {}
+      }
+      rosterMsg = d.message || 'לא הצלחתי לפתוח את הרשימה.';
+      return null;
+    }
+    roster = d.students || [];
+    rosterMsg = '';
+    LSet('rosterCache:' + code, roster);
+    return roster;
+  }).catch(function () { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; });
+}
+
+function keyAsk() {
+  var v = prompt('הזינו את קוד הגישה של הישיבה (שש אותיות):', '');
+  if (v == null) return;
+  v = String(v).trim().toLowerCase();
+  if (!v) return;
+  acc = v;
+  try { localStorage.setItem(accKey(), v); } catch (e) {}
+  rosterMsg = 'בודק…'; draw();
+  loadRoster().then(draw);
+}
+
+/* השם כפי שמציגים אותו כאן: פרטי בלבד, וכשיש שניים זהים —
+   מוסיפים את השכבה. */
+function rosterHtml() {
+  if (!acc) {
+    return '<div class="card"><h2>מי לומד</h2>' +
+      '<p class="h">הרשימה השמית נפתחת עם קוד הגישה של הישיבה. הוא ' +
+      'מוטמע בקישור האישי שרכז התוכנית שלח לכם — פתחו אותו, והלוח ' +
+      'יזכור אותו.</p>' +
+      (rosterMsg ? '<div class="url">' + esc(rosterMsg) + '</div>' : '') +
+      '<button class="btn g" id="kask">הזנת הקוד ידנית</button></div>';
+  }
+  if (!roster) {
+    return '<div class="card"><h2>מי לומד</h2>' +
+      '<p class="h">' + esc(rosterMsg || 'טוען…') + '</p>' +
+      (rosterMsg ? '<button class="btn g" id="kask">הזנת הקוד ידנית</button>' : '') +
+      '</div>';
+  }
+  if (!roster.length) {
+    return '<div class="card"><h2>מי לומד</h2>' +
+      '<p class="h">עוד לא הצטרף אף אחד דרך הקישור.</p></div>';
+  }
+
+  var wk = LWeek();
+  var grp = {}, gord = [];
+  roster.forEach(function (p) {
+    var w = p.way || '';
+    if (!grp[w]) { grp[w] = []; gord.push(w); }
+    grp[w].push(p);
+  });
+  gord.sort(function (a, b) { return grp[b].length - grp[a].length; });
+
+  var didWeek = function (p) {
+    if (wk < 0) return false;
+    for (var i = 0; i < (p.weeks || []).length; i++)
+      if (String(p.weeks[i]).split('|')[1] === String(wk + 1)) return true;
+    return false;
+  };
+
+  return '<div class="card"><h2>מי לומד · ' + roster.length + '</h2>' +
+    '<p class="h">✓ מסמן את מי שסיים את הדף השבוע.</p>' +
+    gord.map(function (w) {
+      return '<div class="wgrp">' + esc(WAY_SHORT[w] || w || 'לא צוין') +
+        ' · ' + grp[w].length + '</div>' +
+        grp[w].map(function (p) {
+          var did = didWeek(p);
+          var sub = [p.grade, p.with ? 'עם ' + p.with : ''].filter(Boolean).join(' · ');
+          return '<div class="prow' + (did ? ' did' : '') + '">' +
+            '<span class="tick">' + (did ? '✓' : '') + '</span>' +
+            '<div><b>' + esc(p.first || '—') + '</b>' +
+            (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div></div>';
+        }).join('');
+    }).join('') + '</div>';
+}
+var WAY_SHORT = { 'אבות ובנים':'אבות ובנים', 'חבורת לימוד':'חבורה',
+                  'לימוד עצמי':'לומדים לבד' };
+
+/* המספרים של הישיבה עצמה, בנוסח שאפשר להדביק בקבוצה. לפני
+   שהשנה מתחילה אין "סיימו השבוע", ולכן יש שני נוסחים ולא אחד
+   עם אפסים. */
+function groupMsg() {
+  var wk = LWeek(), tr = TRACKS[0].id;
+  try { var t = localStorage.getItem('dfHomeTrack');
+        for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t; } catch (e) {}
+  var n = joined ? joined.n : 0;
+  var v = { inst: inst ? inst.name : '', n: n, url: joinUrl() };
+  if (wk < 0) return tp(UI.groupWaPre, v);
+  var trk = null;
+  for (var j = 0; j < TRACKS.length; j++) if (TRACKS[j].id === tr) trk = TRACKS[j];
+  v.daf = 'מסכת ' + (trk ? trk.masechet : '') + ' · דף ' + (LDaf(tr, wk) || '');
+  v.did = LCount(tr, wk, code);
+  return tp(UI.groupWa, v);
+}
+
 /* ---------- הקישור לתלמידים ----------
    כאן, ולא רק בהודעה שנשלחה בהרשמה: הודעת וואטסאפ נקברת
    בקבוצה תוך יומיים, והלוח הוא מה שהוא שומר. */
@@ -256,8 +455,11 @@ function joinUrl() {
 }
 /* הקישור לעמוד הזה עצמו, נקי מכל מה שהודבק אחריו. */
 function boardUrl() {
-  return location.href.split('#')[0].split('?')[0]
-           .replace(/board\.html$/, '') + 'board.html?inst=' + encodeURIComponent(code);
+  /* עם הקוד. קישור לצוות בלי קוד הוא קישור שייפתח אצלם על מסך
+     שאומר "הזינו קוד" — כלומר לא קישור. */
+  var u = location.href.split('#')[0].split('?')[0]
+            .replace(/board\.html$/, '') + 'board.html?inst=' + encodeURIComponent(code);
+  return acc ? u + '&k=' + encodeURIComponent(acc) : u;
 }
 
 function draw() {
@@ -301,7 +503,16 @@ function draw() {
     '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' +
       encodeURIComponent(tp(UI.linkWa, { inst:inst.name, url:joinUrl() })) + '">' +
       esc(UI.kidsWaBtn) + '</a>' +
-    '<button class="btn g" id="cp">' + esc(UI.kidsCopy) + '</button></div></div>';
+    '<button class="btn g" id="cp">' + esc(UI.kidsCopy) + '</button></div>' +
+
+    /* ההודעה לקבוצה נפרדת משני הקישורים בכוונה: היא אינה
+       "קישור" אלא דיווח, והיא נשלחת שוב ושוב לאורך השנה. היא
+       נושאת את **קישור התלמידים** ולעולם לא את קישור הלוח —
+       הודעה שנשלחת לקבוצת כיתה עם הקוד בתוכה היא הדליפה
+       הקלה ביותר שאפשר לייצר. */
+    '<a class="btn g" style="text-decoration:none" target="_blank" rel="noopener" ' +
+    'href="https://wa.me/?text=' + encodeURIComponent(groupMsg()) + '">' +
+    esc(UI.groupBtn) + '</a></div>';
 
   /* לפני שהצטרף מישהו — לא אפס ושלושה גרפים ריקים, אלא מה
      לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */
@@ -337,7 +548,7 @@ function draw() {
         '</div>'
       : '') +
 
-    share + soonLine();
+    rosterHtml() + share + soonLine();
   wire();
 }
 function num(v, t) {
@@ -359,6 +570,7 @@ function soonLine() {
 function wire() {
   bindCopy('cp', joinUrl);
   bindCopy('cp-team', boardUrl);
+  var ka = $('kask'); if (ka) ka.onclick = keyAsk;
 }
 function bindCopy(id, urlOf) {
   var b = $(id); if (!b) return;
@@ -388,6 +600,7 @@ $('foot-how').textContent =
    מה שהיה, ולא מסך ריק. */
 draw();
 loadBoard().then(draw);
+loadRoster().then(draw);
 </script>
 </body>
 </html>

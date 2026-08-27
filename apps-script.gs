@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 14;
+var SCRIPT_VERSION = 15;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -136,7 +136,7 @@ var PRIVATE_ID_FALLBACK = '';
 
    שורות שכבר נכתבו לשם נשארות שם. כדאי להעביר אותן ידנית
    לגיליון הפרטי ולמחוק אותן מהראשי. */
-var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות'];
+var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -253,6 +253,11 @@ function doPost(e) {
     /* מוסד שנרשם מסומן מיד כ"בפנים" ברשימת המוסדות, וכך הוא
        מופיע בעמוד הראשי אצל כולם בלי שאיש יגע במתג. */
     if (d.action === 'register') markJoined_(d.code);
+    /* הקוד נוצר ברגע ההרשמה, ולא בבקשה נפרדת: הכתיבה יוצאת
+       ב-no-cors ואין ממנה תשובה, ולכן הצד השני מייצר את הקוד
+       ושולח אותו — וכך הוא כבר יודע אותו בלי לשאול. אם כבר יש
+       קוד למוסד, הוא נשאר: קישור שהופץ לצוות לא נשבר. */
+    if (d.action === 'register' && d.access) ensureCode_(d.code, d.access);
     if (d.action === 'register') return appendCols_('הרשמות', d.cols ? parse_(d.cols) : [
       ['ישיבה', d.inst], ['קוד', d.code], ['איש קשר', d.who], ['טלפון', d.phone],
       ['תענית · ושננתם', d['taanit-veshinantam'] || 0],
@@ -306,6 +311,44 @@ function doGet(e) {
       res = { status: 'error', message: String(err) };
     }
     return reply_(e, res);
+  }
+
+  /* ---- הלוח של מוסד ----
+     הקוד שבקישור הוא ההרשאה, ולכן אין כאן READ_KEY: ראש חטיבה
+     אינו אמור להחזיק את המפתח של הרכז. */
+  if (e && e.parameter && e.parameter.board) {
+    var bd;
+    try { bd = boardData_(String(e.parameter.board), e.parameter.k); }
+    catch (err0) { bd = { status: 'error', message: String(err0) }; }
+    return reply_(e, bd);
+  }
+
+  /* ---- הקודים · לרכז בלבד ----
+     `codes` מחזיר את כולם, `newcode` מייצר חדש למוסד אחד —
+     למקרה שקישור דלף לקבוצה שלא היה אמור להגיע אליה. */
+  if (e && e.parameter && (e.parameter.codes || e.parameter.newcode)) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied',
+        message: READ_KEY ? 'סיסמה שגויה'
+                          : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+    }
+    try {
+      if (e.parameter.newcode) {
+        var nc = setCode_(String(e.parameter.newcode), newCode_());
+        return reply_(e, { status: 'ok', inst: String(e.parameter.newcode), code: nc });
+      }
+      var csh = codeRows_(), cmap = {};
+      if (csh.getLastRow() >= 2) {
+        var cv = csh.getRange(2, 1, csh.getLastRow() - 1, 2).getDisplayValues();
+        for (var q = 0; q < cv.length; q++) {
+          var kk = String(cv[q][0]).trim();
+          if (kk) cmap[kk] = String(cv[q][1]).trim();
+        }
+      }
+      return reply_(e, { status: 'ok', codes: cmap });
+    } catch (err2) {
+      return reply_(e, { status: 'error', message: String(err2) });
+    }
   }
 
   /* ---- מחיקה ----
@@ -537,6 +580,146 @@ function recountLearn_() {
    אצל **כל** מי שפותח את האפליקציה, ולא רק אצל מי שנרשם.
    הרכז יכול עדיין לכבות ידנית: המתג בניהול ← מוסדות מתפרסם
    כשכבה מעל הגיליון וגובר עליו. */
+/* ============================================================
+   קוד הגישה של המוסד.
+   ============================================================
+   ראש חטיבה צריך לראות מי מהתלמידים שלו לומד. זה אומר שמות של
+   קטינים, ולכן `board.html?inst=avir` אינו יכול להספיק: שם
+   הישיבה הוא מחרוזת שאפשר לנחש, והלוח נשלח בוואטסאפ ומועבר
+   הלאה.
+
+   **הקוד עצמו הוא ההרשאה.** הוא נוצר פעם אחת למוסד, מוטמע
+   בקישור האישי שלו, ומצורף לכל בקשה. הסקריפט מוודא שהוא תואם
+   למוסד המבוקש — ומחזיר את התלמידים של אותו מוסד בלבד.
+
+   שלוש החלטות:
+
+   1. **הרשאה לפי מוסד ולא לפי אדם.** בישיבה יש יותר מאיש צוות
+      אחד, ומי שנרשם אינו בהכרח מי שינהל בפועל. קוד שאפשר
+      להעביר הלאה פותר את זה בלי הרשמה שנייה ובלי סיסמאות.
+
+   2. **READ_KEY אינו מעורב.** הוא של הרכז, והוא פותח את הכל.
+      קוד המוסד פותח מוסד אחד.
+
+   3. **שמות פרטיים בלבד יוצאים מכאן.** בלי משפחה ובלי טלפון.
+      קישור שדלף חושף "יונתן, ז׳, לומד לבד" — לא רשימת קטינים
+      שאפשר ליצור איתם קשר.
+   ============================================================ */
+var CODE_TAB = 'קודים';
+
+/* בלי 0/O/1/l — הקוד מוקלד ביד כשהקישור אבד. */
+var CODE_ABC = 'abcdefghjkmnpqrstuvwxyz23456789';
+function newCode_() {
+  var s = '';
+  for (var i = 0; i < 6; i++)
+    s += CODE_ABC.charAt(Math.floor(Math.random() * CODE_ABC.length));
+  return s;
+}
+
+function codeRows_() {
+  var sh = sheet_(CODE_TAB);
+  if (!sh.getLastRow()) headRow_(sh, ['קוד ישיבה', 'קוד גישה', 'נוצר']);
+  return sh;
+}
+function getCode_(inst) {
+  var sh = codeRows_();
+  if (sh.getLastRow() < 2) return '';
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getDisplayValues();
+  for (var i = 0; i < v.length; i++)
+    if (String(v[i][0]).trim() === String(inst).trim()) return String(v[i][1]).trim();
+  return '';
+}
+function setCode_(inst, code) {
+  var sh = codeRows_();
+  inst = String(inst || '').trim();
+  if (!inst) return '';
+  code = String(code || '').trim() || newCode_();
+  var last = sh.getLastRow();
+  if (last >= 2) {
+    var v = sh.getRange(2, 1, last - 1, 1).getDisplayValues();
+    for (var i = 0; i < v.length; i++) {
+      if (String(v[i][0]).trim() !== inst) continue;
+      sh.getRange(i + 2, 2).setValue(code);
+      sh.getRange(i + 2, 3).setValue(new Date());
+      return code;
+    }
+  }
+  sh.appendRow([inst, code, new Date()]);
+  return code;
+}
+/* בהרשמה: יוצרים אם אין, ולא דורסים אם יש. ראש חטיבה שנרשם שוב
+   לא אמור לשבור קישור שכבר הופץ לצוות שלו. */
+function ensureCode_(inst, want) {
+  var have = getCode_(inst);
+  if (have) return have;
+  return setCode_(inst, want);
+}
+
+/* הלוח של מוסד אחד. שמות פרטיים, שכבה, מסגרת, ואילו שבועות
+   סומנו — ולא יותר מזה. */
+function boardData_(inst, k) {
+  inst = String(inst || '').trim();
+  var code = getCode_(inst);
+  if (!code) return { status: 'nocode',
+    message: 'לא הוגדר קוד גישה למוסד הזה. בקשו מרכז התוכנית קישור אישי.' };
+  if (String(k || '').trim() !== code) return { status: 'denied',
+    message: 'הקוד אינו מתאים לישיבה הזו.' };
+
+  /* מי סימן מה. הסקריפט אינו יודע מהו "השבוע" — הלוח יודע,
+     ולכן כאן חוזרים כל השבועות והחישוב נשאר בצד אחד. */
+  var done = {};
+  try {
+    var ls = sheet_(LEARN_TAB);
+    if (ls.getLastRow() > 1) {
+      var lr = ls.getDataRange().getDisplayValues(), lh = lr[0], li = {};
+      for (var a = 0; a < lh.length; a++) li[String(lh[a]).trim()] = a;
+      for (var b = 1; b < lr.length; b++) {
+        if (String(lr[b][li['קוד ישיבה']] || '').trim() !== inst) continue;
+        var id = String(lr[b][li['מזהה']] || '').trim();
+        if (!id) continue;
+        var tag = String(lr[b][li['מסלול']] || '') + '|' + String(lr[b][li['שבוע']] || '');
+        (done[id] = done[id] || {})[tag] = 1;
+      }
+    }
+  } catch (e) {}
+
+  var out = [];
+  try {
+    var js = sheet_(JOIN_TAB);
+    if (js.getLastRow() > 1) {
+      var jr = js.getDataRange().getDisplayValues(), jh = jr[0], ji = {};
+      for (var c = 0; c < jh.length; c++) ji[String(jh[c]).trim()] = c;
+      var cell = function (r, name) {
+        return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
+      };
+      var byId = {}, order = [];
+      for (var d = 1; d < jr.length; d++) {
+        var row = jr[d];
+        if (cell(row, 'קוד ישיבה') !== inst) continue;
+        var pid = cell(row, 'מזהה');
+        if (!pid) continue;
+        if (!(pid in byId)) order.push(pid);
+        byId[pid] = {
+          id: pid,
+          first: cell(row, 'שם'),
+          grade: cell(row, 'שכבה'),
+          way:   cell(row, 'מסגרת'),
+          role:  cell(row, 'תפקיד'),
+          with:  cell(row, 'שם ההורה'),        /* שם פרטי בלבד */
+          weeks: []
+        };
+      }
+      order.forEach(function (pid) {
+        var p = byId[pid];
+        for (var t in (done[pid] || {})) p.weeks.push(t);
+        out.push(p);
+      });
+    }
+  } catch (e2) {}
+
+  return { status: 'ok', inst: inst, students: out };
+}
+
 function markJoined_(code) {
   try {
     code = String(code || '').trim();
