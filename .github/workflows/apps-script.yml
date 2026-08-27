@@ -75,7 +75,80 @@ jobs:
 
           npm i -g @google/clasp@2.4.2
 
-          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          # ------------------------------------------------------
+          # התאמת קובץ ההזדהות.
+          #
+          # `clasp login` של גרסה 3 כותב קובץ בצורה אחרת מזו
+          # שגרסה 2 יודעת לקרוא, ואין בו access_token כלל אלא
+          # refresh_token בלבד. clasp 2 נחנק עליו בשגיאה שאינה
+          # מסגירה דבר: "Cannot read properties of undefined".
+          #
+          # כאן מזהים את שתי הצורות. אם יש רק refresh_token —
+          # פודים ממנו access_token מול גוגל וכותבים את הצורה
+          # שגרסה 2 מצפה לה. צורה שלישית שלא נראתה עדיין תדפיס
+          # את שמות המפתחות שנמצאו (בלי ערכים), כדי שאפשר יהיה
+          # לתקן בסיבוב אחד ולא לנחש.
+          # ------------------------------------------------------
+          printf '%s' "$CLASPRC_JSON" > raw.json
+          node > creds.env <<'NODE'
+          var fs = require('fs');
+          var raw = JSON.parse(fs.readFileSync('raw.json', 'utf8'));
+          var out = { shape:'', id:'', secret:'', refresh:'', access:'', scope:'' };
+
+          if (raw.token && raw.token.access_token) {
+            out.shape = 'v2';
+          } else {
+            var t = (raw.tokens && (raw.tokens.default || raw.tokens)) || raw;
+            if (t && t.refresh_token) {
+              out.shape   = 'v3';
+              out.refresh = t.refresh_token;
+              out.id      = t.client_id ||
+                            (raw.oauth2ClientSettings || {}).clientId || '';
+              out.secret  = t.client_secret ||
+                            (raw.oauth2ClientSettings || {}).clientSecret || '';
+              out.scope   = t.scope || '';
+            }
+          }
+          if (!out.shape) {
+            console.error('צורת קובץ לא מוכרת. מפתחות עליונים: ' +
+                          Object.keys(raw).join(', '));
+            process.exit(1);
+          }
+          Object.keys(out).forEach(function (k) {
+            process.stdout.write(k.toUpperCase() + '=' + out[k] + '\n');
+          });
+          NODE
+          set -a; . ./creds.env; set +a
+          echo "צורת ההזדהות: $SHAPE"
+
+          if [ "$SHAPE" = "v2" ]; then
+            cp raw.json ~/.clasprc.json
+          else
+            if [ -z "$ID" ] || [ -z "$SECRET" ]; then
+              echo "::error::חסרים client_id/client_secret בקובץ ההזדהות."
+              exit 1
+            fi
+            RESP=$(curl -sS -X POST https://oauth2.googleapis.com/token \
+              -d "client_id=$ID" -d "client_secret=$SECRET" \
+              -d "refresh_token=$REFRESH" -d "grant_type=refresh_token")
+            ACCESS=$(printf '%s' "$RESP" | node -e \
+              'var d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
+                 var j=JSON.parse(d);
+                 if(!j.access_token){console.error("גוגל דחתה: "+(j.error||"")+" "+(j.error_description||""));process.exit(1);}
+                 process.stdout.write(j.access_token);});')
+            SCOPE_USE="${SCOPE:-https://www.googleapis.com/auth/script.projects https://www.googleapis.com/auth/script.deployments}"
+            ID="$ID" SECRET="$SECRET" REFRESH="$REFRESH" ACCESS="$ACCESS" \
+            SCOPE_USE="$SCOPE_USE" node -e '
+              var fs=require("fs"),e=process.env;
+              fs.writeFileSync(process.env.HOME+"/.clasprc.json", JSON.stringify({
+                token:{ access_token:e.ACCESS, refresh_token:e.REFRESH,
+                        scope:e.SCOPE_USE, token_type:"Bearer",
+                        expiry_date: Date.now()+3500*1000 },
+                oauth2ClientSettings:{ clientId:e.ID, clientSecret:e.SECRET,
+                                       redirectUri:"http://localhost" },
+                isLocalCreds:false }));'
+          fi
+          rm -f raw.json creds.env
 
           # clasp דורש את שני הקבצים האלה, והם נגזרים מהסוד ולא
           # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
