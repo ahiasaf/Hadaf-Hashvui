@@ -25,13 +25,13 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v7.45.0';
+var CACHE_NAME = 'hadaf-v7.46.0';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
-var CORE = ['./', './index.html', './data.js', './learned.js', './links.js',
+var CORE = ['./', './index.html', './join.html', './data.js', './learned.js', './links.js',
             './stage.js', './logo.js',
-            './manifest.json', './admin-manifest.json',
+            './manifest.json', './admin-manifest.json', './join-manifest.json',
             './icon-192.png', './icon-512.png',
             './icon-admin-192.png', './icon-admin-512.png'];
 
@@ -92,7 +92,11 @@ self.addEventListener('fetch', function (e) {
            שאין תמונה לדף — ופנה למסלול הדרייב. משם ארבע שניות
            טעינה, **וגם** דף שמצויר מ-PDF דו-עמודי בקנה מידה אחר
            מזה שהסימונים מכוילים אליו. שתי התקלות, מקור אחד. */
-        return m || (req.mode === 'navigate' ? caches.match('./index.html') : null);
+        /* ולאיזה עמוד נופלים — לפי מה שביקשו. מסך התלמיד הוא
+           קובץ אחר, ותלמיד שפתח את האפליקציה בלי רשת קיבל עד
+           עכשיו את המסך של ראשי החטיבה. */
+        var home = /join/.test(url.pathname) ? './join.html' : './index.html';
+        return m || (req.mode === 'navigate' ? caches.match(home) : null);
       }).then(function (cached) {
         if (!cached) return live;   // אין למה ליפול — ממתינים לרשת עד הסוף
 

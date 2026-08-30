@@ -7,6 +7,21 @@
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0E2E63">
 <meta name="robots" content="noindex">
+<!-- manifest משלו, ולא זה של העמוד הראשי.
+
+     בלעדיו אין בכלל מה להתקין: הדפדפן אינו מציע התקנה לעמוד
+     שאין לו manifest. ועם זה של העמוד הראשי היה נוצר קיצור
+     שנפתח על המסך של ראשי החטיבה — בדיוק המסך שהתלמיד לא
+     אמור לראות. כאן `start_url` הוא מסך התלמיד עצמו.
+
+     `id` נפרד, כמו בניהול, כדי שהמערכת תראה בו אפליקציה
+     לצד האחרות ולא אחת שמחליפה אותן. -->
+<link rel="manifest" href="join-manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="הדף השבועי">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 /* ============================================================
    הצטרפות התלמיד.
@@ -65,20 +80,21 @@ body{background:var(--paper);color:var(--ink);line-height:1.6;
   padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
 
 /* ---------- חתימת התוכנית ----------
-   זהה לעמוד הראשי. הסמל העגול על רקע לבן, השם בשתי שורות,
-   ומתחת — הישיבה או השנה. */
-header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
-  padding:calc(env(safe-area-inset-top) + 10px) 4px 6px}
-.masthead{display:flex;align-items:center;gap:13px;padding:14px;
+   זהה לעמוד הראשי — וזה כולל את מה שמאחוריה. היה כאן פס כחול
+   שנשא את השם, והוא חתך את המסך לשניים: פס למעלה, ודף למטה.
+   במסך הראשי אין פס כזה; החתימה פשוט יושבת על הנייר. שני
+   המסכים אמורים להיראות כמו אותה אפליקציה, ולכן גם כאן. */
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
   max-width:32rem;margin:0 auto}
 .masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
   display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 5px rgba(0,0,0,.12),0 8px 22px rgba(0,0,0,.14)}
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
 .masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
 .masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
-  line-height:1.2;color:#fff}
-.masthead .yr{font-size:.78rem;font-weight:800;color:var(--gold-l);
-  letter-spacing:.03em;margin-top:3px}
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold);
+  letter-spacing:.05em;margin-top:3px}
 
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
@@ -125,8 +141,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .way.on .wv{border-color:var(--c);background:var(--c);
   box-shadow:inset 0 0 0 3px #fff}
 
-/* השורה שמחליפה בין אבא לחבר בכרטיס ההזמנה */
-.whobar{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:11px 0 3px;
+/* השורה שמחליפה בין אבא, בן וחבר בכרטיס ההזמנה */
+.whobar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:11px 0 3px;
   background:var(--sunk);padding:4px;border-radius:12px}
 .whob{border:0;background:none;cursor:pointer;font-family:inherit;
   padding:11px 6px;border-radius:9px;font-weight:800;font-size:.88rem;
@@ -184,6 +200,11 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 /* כמה כבר בפנים אצלו בישיבה. השורה הזו עושה יותר מכל פרס:
    נער מצטרף למקום שהחברים שלו כבר נמצאים בו. */
 .peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d)}
+/* השורה שמעל הבאנר. אבא שנכנס לכאן רואה טופס ומחליט אם למלא
+   אותו; מה שגורם לו למלא הוא לראות **מה** יש מעבר לטופס.
+   ולכן קודם המשפט, מיד אחריו הבאנר עצמו, ורק אז הכפתור. */
+.pitch{margin:22px 0 12px;text-align:center;font-size:1.06rem;font-weight:800;
+  letter-spacing:-.03em;line-height:1.4;color:var(--blue-d);text-wrap:balance}
 
 /* ---------- מסך הפתיחה ----------
    מלא־גובה: הדבר הראשון שנער רואה אינו טופס אלא מה שמחכה לו.
@@ -416,6 +437,18 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   font-size:.82rem;font-weight:800;color:var(--ink-3);text-decoration:underline;
   cursor:pointer}
 
+/* ---------- האפליקציה על מסך הבית ----------
+   הקישור מגיע בוואטסאפ פעם אחת. מי שלא הוסיף אותו למסך הבית
+   מחפש אותו מחדש בכל שבוע, ובדרך כלל לא מוצא. */
+.getapp{margin-top:16px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:17px;box-shadow:var(--sh-1);text-align:center}
+.getapp h3{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.getapp p{font-size:.83rem;font-weight:600;color:var(--ink-2);margin-top:6px;
+  line-height:1.7}
+.getapp .btn{margin-top:14px}
+.getapp .how{margin-top:12px;font-size:.83rem;font-weight:700;color:var(--ink-2);
+  background:var(--sunk);border-radius:var(--r-s);padding:12px 13px;line-height:1.75}
+
 footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   margin-top:26px;line-height:1.9}
 </style>
@@ -440,9 +473,18 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
       <p id="lead"></p>
       <span class="when" id="when" style="display:none"></span>
     </div>
-    <div class="cards" id="cards"></div>
     <div class="peers" id="peers" style="display:none"></div>
+
+    <!-- הבאנר — כאן, ולא רק אחרי ההרשמה.
+         שלושה כרטיסי טקסט שמספרים על הדף אינם מה שמשכנע: הם
+         מבטיחים. הבאנר מראה. הוא חי, עם השקף של השבוע ועם
+         הכפתורים שעובדים — כך שגם אבא וגם תלמיד רואים מה בנו
+         להם עוד לפני שמסרו שם. -->
+    <p class="pitch" id="pitch"></p>
+    <div id="wk0"></div>
+
     <button class="go" id="hero-go"></button>
+    <div class="cards" id="cards"></div>
   </div>
 
   <div class="raffle" id="raffle">
@@ -533,6 +575,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 
   <div class="wrap">
     <div id="inv"></div>
+    <div id="getapp"></div>
     <button class="again" id="again">שינוי הפרטים</button>
   </div>
 </div>
@@ -818,8 +861,14 @@ function drawTop() {
   /* מי שהוזמן — זו השורה שלו, והיא גוברת. המזמין אמר בקישור
      מי הוא ביחס אליו, ולכן אין צורך לשאול. */
   if (invFrom) {
-    line = tpl(qs('rel') === 'friend' ? (JOIN.invFromFriend || JOIN.invFrom)
-                                      : (JOIN.invFromDad || JOIN.invFrom),
+    /* `rel` אומר מי **המוזמן** — כך הוא נכתב בקישור, וכך הוא
+       נבחר בכרטיס ההזמנה. ולכן מי שקיבל `rel=dad` הוא האב,
+       ומי שהזמין אותו הוא בנו. עד עכשיו נאמר לו ההפך:
+       "אביך הזמין אותך", לאב. */
+    var rel0 = qs('rel');
+    line = tpl(rel0 === 'friend' ? (JOIN.invFromFriend || JOIN.invFrom)
+             : rel0 === 'kid'    ? (JOIN.invFromDad    || JOIN.invFrom)
+             :                     (JOIN.invFromKid    || JOIN.invFrom),
                { me:invFrom });
   }
   pe.textContent = line;
@@ -843,6 +892,14 @@ function drawTop() {
   if (CV_ROWS())      cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
   $('cards').innerHTML = cards;
   $('hero-go').textContent = JOIN.goBtn + ' ←';
+
+  /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
+     שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
+     יכולים להיפרד. */
+  var pt = $('pitch');
+  pt.textContent = JOIN.pitch || '';
+  pt.style.display = JOIN.pitch ? '' : 'none';
+  drawHero();
 
   /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
      הגרלה שהובטחה לתלמידים ובוטלה גרועה מאין הגרלה כלל. */
@@ -887,7 +944,11 @@ var sndr = { first:qs('sf'), last:qs('sl'), phone:qs('sp') };
    לאבא, "בחבורה" — לחבר. אבל השורה שמחליפה ביניהם מוצגת תמיד,
    כי מי שבחר "בחבורה" עשוי ללמוד דווקא עם אבא, ולהיפך.
    ============================================================ */
-var invRel = 'dad';                     /* dad | friend */
+/* dad | kid | friend — **מי המוזמן**, לא מי המזמין.
+   "בן" נוסף כאן בגלל המקרה שהוא הנפוץ ביותר בפועל: אבא נרשם
+   ראשון, ורוצה עכשיו לצרף את הבן. עד עכשיו היו לו רק "אבא"
+   ו"חבר", ושניהם לא הוא. */
+var invRel = 'dad';
 function setRel(r) { invRel = r; applyWays(); stage(1); }
 
 function applyWays() {
@@ -900,13 +961,17 @@ function applyWays() {
   /* ברירת המחדל נקבעת **כשמשנים דרך לימוד**, ולא בכל ציור.
      כשהיא נקבעה כאן, כל לחיצה על "חבר" נדרסה מיד חזרה ל"אבא"
      — הכפתור נראה שבור. */
-  var isDad = invRel === 'dad';
-  $('dad-h').textContent   = isDad ? JOIN.invAskDad  : JOIN.invAskFriend;
-  $('dad-sub').textContent = isDad ? JOIN.invSubDad  : JOIN.invSubFriend;
-  $('l-dad-first').textContent = isDad ? JOIN.invNameDad : JOIN.invNameFriend;
+  var isDad = invRel === 'dad', isKid = invRel === 'kid';
+  $('dad-h').textContent   = isDad ? JOIN.invAskDad
+                           : isKid ? JOIN.invAskKid  : JOIN.invAskFriend;
+  $('dad-sub').textContent = isDad ? JOIN.invSubDad
+                           : isKid ? JOIN.invSubKid  : JOIN.invSubFriend;
+  $('l-dad-first').textContent = isDad ? JOIN.invNameDad
+                               : isKid ? JOIN.invNameKid : JOIN.invNameFriend;
   $('l-dad-phone').innerHTML   = 'טלפון <i>· לא חובה</i>';
 
-  $('invWho').innerHTML = [['dad', JOIN.relDad], ['friend', JOIN.relFriend]]
+  $('invWho').innerHTML = [['dad', JOIN.relDad], ['kid', JOIN.relKid],
+                           ['friend', JOIN.relFriend]]
     .map(function (o) {
       return '<button class="whob' + (invRel === o[0] ? ' on' : '') +
         '" onclick="setRel(\'' + o[0] + '\')">' + esc(o[1]) + '</button>';
@@ -1149,7 +1214,8 @@ function waNum(p) {
 function invUrl(me) {
   var base = location.href.split('#')[0].split('?')[0];
   var q = '?inst=' + encodeURIComponent(me.inst) +
-          '&rel=' + encodeURIComponent(me.rel === 'friend' ? 'friend' : 'dad') +
+          '&rel=' + encodeURIComponent(
+            me.rel === 'friend' ? 'friend' : me.rel === 'kid' ? 'kid' : 'dad') +
           '&me=' + encodeURIComponent(me.first) +
           '&wid=' + encodeURIComponent(me.id || '');
   if (me.dadFirst) q += '&f=' + encodeURIComponent(me.dadFirst);
@@ -1167,8 +1233,10 @@ function invUrl(me) {
    בן שמזמין את אביו אומר "אבא". */
 function greetName(me) {
   /* בהודעה קוראים לו "אבא" ולא בשמו — היי צבי נשמע כמו פנייה
-     לזר, והוא לא. חבר, לעומת זאת, נקרא בשמו. */
-  return me.rel === 'friend' ? (me.dadFirst || 'חבר') : (JOIN.callDad || 'אבא');
+     לזר, והוא לא. חבר ובן, לעומת זאת, נקראים בשמם. */
+  if (me.rel === 'friend') return me.dadFirst || 'חבר';
+  if (me.rel === 'kid')    return me.dadFirst || 'בן';
+  return JOIN.callDad || 'אבא';
 }
 
 function drawInv() {
@@ -1249,6 +1317,15 @@ function instTrack() {
 function setTrack(t) {
   try { localStorage.setItem('dfHomeTrack', t); } catch (e) {}
   drawWeek();
+  drawHero();
+}
+
+/* הבאנר של מסך הפתיחה — לפני ההרשמה. אותה במה בדיוק שרואה
+   מי שכבר נרשם, ולכן אין כאן הבטחה שתתברר אחר כך כשונה. */
+function drawHero() {
+  var box = $('wk0'); if (!box) return;
+  box.innerHTML = StageHtml({ track:myTrack(), pick:'setTrack',
+                              deck:'stDeck', week:'stWeek', trail:'stTrail' });
 }
 function masName(t) {
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return TRACKS[i].masechet;
@@ -1266,7 +1343,7 @@ function drawWeek() {
                               deck:'stDeck', week:'stWeek', trail:'stTrail' });
 
   var rail = $('rail');
-  if (rail) rail.innerHTML = RailHtml({ track:tr, href:'index.html#track=' + tr });
+  if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr) });
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
@@ -1292,11 +1369,25 @@ function drawWeek() {
    שתי הלחיצות האלה נחתו על העמוד הראשי ולא על שום מסך: הכתובת
    `#track-` נכתבה כאן מזמן, והעמוד הראשי מעולם לא ידע לקרוא
    אותה. עכשיו הוא כן, ושתיהן מובילות למסך עצמו. */
+/* הכתובת של האפליקציה, ותמיד עם `st=1`.
+
+   הסימון הזה אומר לעמוד הראשי שמי שמסתכל עליו הוא תלמיד.
+   בלעדיו קרה מה שקרה: תלמיד פתח את הדף, לחץ חזרה, הגיע
+   למסלול השנתי — עד כאן טוב — ולחץ חזרה שוב, ונחת על המסך
+   של ראשי החטיבה. עכשיו הלחיצה השנייה מחזירה אותו לכאן.
+
+   הישיבה נוסעת יחד, כדי שהחזרה תדע לאיזה קישור לחזור. */
+function appUrl(hash) {
+  var me = get('me', null) || {};
+  var code = instCode || me.inst || '';
+  return 'index.html?st=1' +
+         (code ? '&inst=' + encodeURIComponent(code) : '') + (hash || '');
+}
 function stWeek() {
   var wi = LWeek();
-  location.href = 'index.html#week=' + myTrack() + '-' + ((wi < 0 ? 0 : wi) + 1);
+  location.href = appUrl('#week=' + myTrack() + '-' + ((wi < 0 ? 0 : wi) + 1));
 }
-function stTrail() { location.href = 'index.html#track=' + myTrack(); }
+function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {
   var tr = myTrack(), wi = LWeek();
   deckOpen(tr + '-' + ((wi < 0 ? 0 : wi) + 1));
@@ -1348,6 +1439,56 @@ function markWeek() {
    נשאר בלי לדעת מה קורה עכשיו. הלימוד מתחיל רק אחרי סוכות,
    ולכן דווקא כאן חייב להיאמר מתי, אחרת השקט של החודש הקרוב
    נקרא כאילו לא קרה כלום. */
+/* ============================================================
+   ההצעה להתקין.
+   ============================================================
+   הרגע הנכון הוא מיד אחרי ההרשמה: הוא כבר בפנים, והדבר היחיד
+   שנשאר הוא שיצליח לחזור לכאן בשבוע הבא.
+
+   הדפדפן מודיע מתי הוא מוכן להתקין (`beforeinstallprompt`),
+   ורק אז יש כפתור אמיתי. באייפון אין הודעה כזו ואין התקנה
+   מהקוד — שם נשארות ההוראות בלבד, ולכן שני נוסחים.
+   ============================================================ */
+var bip = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault(); bip = e; drawApp();
+});
+window.addEventListener('appinstalled', function () { bip = null; drawApp(); });
+
+/* כבר מותקנת — אין מה להציע. */
+function standalone() {
+  return (window.matchMedia &&
+          matchMedia('(display-mode: standalone)').matches) ||
+         navigator.standalone === true;
+}
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function drawApp() {
+  var box = $('getapp'); if (!box) return;
+  if (standalone() || !JOIN.appTitle) { box.innerHTML = ''; return; }
+
+  var h = '<div class="getapp"><h3>' + esc(JOIN.appTitle) + '</h3>' +
+          '<p>' + esc(JOIN.appBody) + '</p>';
+  if (bip)          h += '<button class="btn" id="app-go">' + esc(JOIN.appBtn) + '</button>';
+  else if (isIOS()) h += '<div class="how">' + esc(JOIN.appIos) + '</div>';
+  else              h += '<div class="how">' + esc(JOIN.appHow) + '</div>';
+  box.innerHTML = h + '</div>';
+
+  var g = $('app-go');
+  if (g) g.onclick = function () {
+    var p = bip; if (!p) return;
+    /* ההצעה תקפה פעם אחת. אחריה הכפתור אינו יכול לעבוד שוב,
+       ולכן הוא נעלם ובמקומו ההוראה הידנית. */
+    bip = null;
+    p.prompt();
+    if (p.userChoice && p.userChoice.then)
+      p.userChoice.then(function () { drawApp(); })['catch'](function () {});
+    else drawApp();
+  };
+}
+
 function showDone(me) {
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
@@ -1357,6 +1498,7 @@ function showDone(me) {
     ((me.first || '') + ' ' + (me.last || '')).trim() || 'הדף שלי';
   drawInv();
   drawWeek();
+  drawApp();
   window.scrollTo(0, 0);
 }
 
@@ -1380,6 +1522,15 @@ $('hero-go').onclick = function () {
   f.scrollIntoView({ behavior:'smooth', block:'center' });
   setTimeout(function () { try { f.focus(); } catch (e) {} }, 420);
 };
+
+/* מנוע הרקע. עד עכשיו הוא נרשם רק מהעמוד הראשי, ולכן מסך
+   התלמיד לא נפתח בלי רשת — והדפדפן גם לא הציע להתקין אותו,
+   כי בלי מנוע רקע אין מה להתקין. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js')['catch'](function () {});
+  });
+}
 
 (function () {
   var me = get('me', null);
@@ -1435,8 +1586,16 @@ stage();
   if (sndr.first) $('dad-first').value = sndr.first;
   if (sndr.last)  $('dad-last').value  = sndr.last;
   if (sndr.phone) $('dad-phone').value = sndr.phone;
-  /* מי שהוזמן ללמוד עם מישהו — לומד איתו. אין מה לשאול. */
-  if (invFrom) { way = 'dad'; $('dad').className = 'card on'; drawWays(); }
+  /* מי שהוזמן ללמוד עם מישהו — לומד איתו. אין מה לשאול.
+     והצד השני הוא ההפך ממה שנכתב בקישור: מי שהוזמן כאב —
+     בנו הזמין אותו, ומי שהוזמן כבן — אביו. */
+  if (invFrom) {
+    var relIn = qs('rel');
+    way    = relIn === 'friend' ? 'chav' : 'dad';
+    invRel = relIn === 'friend' ? 'friend' : relIn === 'kid' ? 'dad' : 'kid';
+    $('dad').className = 'card on';
+    drawWays(); applyWays();
+  }
   stage();
 })();
 </script>

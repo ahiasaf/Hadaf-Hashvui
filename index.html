@@ -1398,7 +1398,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
     <!-- ===== מסלול ===== -->
     <div id="v-track" class="view">
-      <button class="back" onclick="show('home')">→ חזרה</button>
+      <button class="back" onclick="trackBack()">→ חזרה</button>
       <div class="bm" id="bm"></div>
     </div>
 
@@ -1493,7 +1493,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.45.0';
+var APP_VERSION = '7.46.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1562,6 +1562,22 @@ function show(v) {
 }
 function backToTrack() { openTrack(state.track.id); }
 function backToWeek()  { openWeek(state.track.id, state.week); }
+
+/* ---------- חזרה מהמסלול השנתי ----------
+   לרכז — הביתה. לתלמיד — למסך שלו, שיושב בקובץ אחר.
+
+   התלמיד מגיע לכאן מהבאנר שבמסך ההרשמה: לוחץ על הדף, חוזר
+   אחורה ורואה את המסלול השנתי — ועד כאן טוב — ולוחץ חזרה שוב,
+   ועד עכשיו נחת על המסך של ראשי החטיבה. זה אינו מסך שלו.
+
+   `st=1` בכתובת הוא מה שאומר שמי שמסתכל הוא תלמיד; join.html
+   מוסיף אותו לכל קישור שהוא שולח לכאן. */
+var stuMode = /[?&]st=1/.test(location.search);
+function trackBack() {
+  if (!stuMode) { show('home'); return; }
+  var m = /[?&]inst=([^&]*)/.exec(location.search);
+  location.href = 'join.html' + (m ? '?inst=' + m[1] : '');
+}
 
 /* ============================================================
    מסך הבית.
