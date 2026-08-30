@@ -1465,10 +1465,11 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.41.0';
+var APP_VERSION = '7.42.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1561,6 +1562,11 @@ function slideSrc(c, n) {
   return (typeof SLIDE_DATA !== 'undefined' && SLIDE_DATA[p]) || p;
 }
 
+/* עטיפות בלי ארגומנטים — stage.js אינו מכיר את המסלול הנוכחי
+   ואינו צריך להכיר. */
+function openWeekNow()  { openWeek(homeTrack, weekOf(trackById(homeTrack))); }
+function openTrackNow() { openTrack(homeTrack); }
+
 function pickTrack(id) {
   homeTrack = id;
   localStorage.setItem('dfHomeTrack', id);
@@ -1573,51 +1579,17 @@ function renderHome() {
   var wi = weekIndex();
   var when = wi < 0 ? 'נפתח בפרשת בראשית' : 'שבוע ' + (wi + 1) + ' מתוך ' + tr.cal.length;
 
-  /* ---- הבמה ---- */
-  var s = '<div class="stage"><span class="g g1"></span><span class="g g2"></span>' +
-          '<div class="picker">';
-  TRACKS.forEach(function (t) {
-    s += '<button class="pick' + (t.id === homeTrack ? ' on' : '') +
-         '" onclick="pickTrack(\'' + t.id + '\')">מסכת ' + esc(t.masechet) + '</button>';
-  });
-  s += '</div><div class="eyebrow">' + esc(when) + '<s></s>' +
-       (row[2] && row[2] !== 'סיום' ? 'דף ' + esc(row[2]) : '') + '</div>' +
-       '<h2>' + esc(c ? c.title : (row[2] ? 'דף ' + row[2] : row[1])) + '</h2>' +
-       '<div class="meta">' + esc(row[1]) + ' · ' + esc(row[0]) + '</div>';
+  /* ---- הבמה ----
+     נבנית ב-stage.js, ומשם גם מסך התלמיד בונה אותה. הבטחנו לו
+     שזה בדיוק מה שייפתח אצלו, ושני עותקים נפרדים היו נפרדים
+     גם בהתנהגות. */
+  var s = StageHtml({ track:homeTrack, pick:'pickTrack',
+                      deck:'openFromHome', week:'openWeekNow', trail:'openTrackNow' });
+  document.getElementById('stage').innerHTML = s;
 
-  if (c && c.deck) {
-    s += '<div class="showcase"><div class="frame" onclick="openFromHome(0)">' +
-         '<img src="' + slideSrc(c, 1) + '" alt="השקף הראשון"></div></div>' +
-         '<div class="acts">' +
-         '<button class="go" onclick="openFromHome(0)">' + esc(UI.deckGo) + '</button>' +
-         '<button class="alt" onclick="openWeek(\'' + homeTrack + '\',' + w.i + ')">' + esc(UI.deckAlt) + '</button>' +
-         '</div>';
-  } else {
-    s += '<div class="showcase"><div class="frame"><div class="empty">' +
-         '<span>' + esc(UI.deckSoon) + '</span></div></div></div>' +
-         '<div class="acts"><button class="go" onclick="openWeek(\'' +
-         homeTrack + '\',' + w.i + ')">' + esc(UI.weekGo) + '</button>' +
-         '<button class="alt" onclick="openTrack(\'' + homeTrack + '\')">' + esc(UI.trackBtn) + '</button></div>';
-  }
-  document.getElementById('stage').innerHTML = s + '</div>';
 
   /* ---- המסלול בזעיר אנפין ---- */
-  var done = dafDone(tr), pct = Math.round(done / tr.dapim * 100);
-  var rail = '';
-  // לפני שהתוכנית יוצאת לדרך מסמנים את שבוע הפתיחה — כדי שרואים מאיפה מתחילים
-  var mark = wi < 0 ? 0 : wi;
-  tr.cal.forEach(function (r, i) {
-    var cls = !r[2] ? 'off' : r[2] === 'סיום' ? 'fin'
-            : i === mark ? 'now' : (wi >= 0 && i < wi) ? 'done' : '';
-    rail += '<i class="' + cls + '"></i>';
-  });
-  document.getElementById('mini').innerHTML =
-    '<div class="mini" onclick="openTrack(\'' + homeTrack + '\')" style="cursor:pointer">' +
-    '<div class="cap"><b>' + fill(UI.trackCap, { mas:esc(tr.masechet) }) + '</b>' +
-    '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' +
-    '<div class="rail">' + rail + '</div>' +
-    '<div style="font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:10px">' +
-    esc(UI.trackNote) + '</div></div>';
+  document.getElementById('mini').innerHTML = RailHtml({ track:homeTrack, go:'openTrack' });
 
   /* ---- לוח שלבי השנה ---- */
   var today = new Date(); today.setHours(0, 0, 0, 0);

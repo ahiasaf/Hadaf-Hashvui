@@ -223,6 +223,70 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
    השבוע בלבד. רשת של כל דפי המסכת עם מה שהספיק ומה שלא היא
    תזכורת שבועית למה שפספס; ההתקדמות השנתית יושבת בסימנייה
    שבאפליקציה, ומי שרוצה לראות אותה הולך לשם. */
+/* ============================================================
+   הבמה — מועתקת מ-index.html בכוונה, ומקורה שם.
+   הבנייה עצמה משותפת (stage.js); רק הצורה חיה בשני הקבצים,
+   כי אין כאן שלב בנייה ואין גיליון סגנון משותף.
+   ============================================================ */
+.stage{position:relative;overflow:hidden;border-radius:18px;padding:16px 16px 18px;
+  background:linear-gradient(155deg,#123A78 0%,#0E2E63 46%,#0B2550 100%);color:#fff;
+  box-shadow:0 18px 44px rgba(11,37,80,.28)}
+.stage .g{position:absolute;border-radius:50%;filter:blur(46px);opacity:.5;
+  pointer-events:none}
+.stage .g1{width:210px;height:210px;background:#3574CE;top:-70px;inset-inline-start:-60px}
+.stage .g2{width:180px;height:180px;background:#C08F2B;bottom:-80px;inset-inline-end:-50px}
+.stage .eyebrow{display:flex;align-items:center;gap:9px;font-size:.73rem;
+  font-weight:800;letter-spacing:.05em;color:var(--gold-l);margin-bottom:5px}
+.stage .eyebrow s{flex:1;height:1px;background:rgba(255,255,255,.16);text-decoration:none}
+.stage h2{font-size:1.42rem;font-weight:800;line-height:1.15;letter-spacing:-.04em;
+  text-wrap:balance}
+.stage .meta{font-size:.85rem;opacity:.72;font-weight:700;margin-top:7px}
+.picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:13px;
+  background:rgba(0,0,0,.2);padding:4px;border-radius:13px}
+.pick{border:none;background:none;color:rgba(255,255,255,.62);cursor:pointer;
+  padding:13px 6px;border-radius:11px;font-weight:800;font-size:.9rem;
+  transition:background .2s,color .2s;line-height:1.3}
+.pick.on{background:rgba(255,255,255,.16);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.showcase{margin:13px -2px 0;perspective:1100px}
+.showcase .frame{border-radius:14px;overflow:hidden;box-shadow:0 22px 50px rgba(0,0,0,.42);
+  transform:rotateX(7deg) scale(.97);transform-origin:50% 0;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);
+  transition:transform .35s cubic-bezier(.22,1,.36,1)}
+.showcase .frame:active{transform:rotateX(0deg) scale(.99)}
+.showcase img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.showcase .empty{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:7px;color:rgba(255,255,255,.6);font-weight:800;font-size:.86rem;
+  background:rgba(255,255,255,.06)}
+.stage .acts{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:16px}
+.stage .acts button{border:none;border-radius:13px;padding:15px;font-weight:800;
+  font-size:.97rem;cursor:pointer;font-family:inherit}
+.stage .acts .go{background:#fff;color:var(--blue-d);box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.stage .acts .alt{background:rgba(255,255,255,.14);color:#fff;
+  border:1px solid rgba(255,255,255,.18)!important;padding-inline:18px}
+.stage .acts button:active{transform:scale(.98)}
+
+/* פס המסלול */
+.mini{background:var(--surface);border-radius:var(--r);padding:13px 15px;
+  box-shadow:var(--sh-1);border:1px solid var(--rule);margin-top:12px}
+.mini .cap{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  font-size:.83rem;font-weight:800}
+.mini .cap span{font-size:.76rem;color:var(--ink-3);font-weight:700}
+.mini .rail{display:flex;align-items:center;gap:3px;margin-top:11px}
+.mini .rail i{flex:1;height:7px;border-radius:4px;background:var(--rule)}
+.mini .rail i.done{background:var(--gold-l)}
+.mini .rail i.now{background:var(--gold);height:11px;box-shadow:0 0 0 3px rgba(192,143,43,.18)}
+.mini .rail i.off{opacity:.35}
+.mini .rail i.fin{background:var(--blue-l)}
+
+/* התווית של האזור — כאן היא השם של התלמיד. */
+.zone{position:relative;margin:0 -14px;padding:26px 14px 20px;
+  background:linear-gradient(180deg,#E9EEF6 0%,#E3E9F3 55%,#E7ECF4 100%);
+  border-block:1px solid rgba(11,37,80,.09)}
+.zone .tag{position:absolute;top:0;inset-inline-end:14px;transform:translateY(-50%);
+  font-size:.66rem;font-weight:800;letter-spacing:.08em;padding:7px 14px;
+  border-radius:99px;background:var(--blue);color:#fff;white-space:nowrap;
+  box-shadow:0 3px 10px rgba(11,37,80,.22),0 0 0 4px #EDF1F7}
+
 .week{margin-top:16px;background:var(--surface);border:1px solid var(--rule);
   border-radius:var(--r);padding:18px;box-shadow:var(--sh-2);
   border-top:3px solid var(--blue);text-align:start}
@@ -407,26 +471,25 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
     לספור את הלימוד, לעדכן את ההורים, ולהודיע לזוכים בהגרלה.</p>
 </div>
 
-<div class="wrap" id="done">
-  <!-- שורת אישור אחת, ואז הדף.
+<div id="done">
+  <!-- מה שהתלמיד רואה הוא **בדיוק** מה שיש במסך הראשי, ובתווית
+       יושב שמו שלו. זה הבאנר שלו.
 
-       קודם היה כאן ברכה, שתי פסקאות ותגית — וכל מה שהובטח
-       לתלמיד שיראה נדחק אל מתחת לקפל. מי שנרשם רוצה לראות את
-       מה שקיבל, לא לקרוא עליו. -->
-  <h2 id="d-h"></h2>
+       מה שהיה כאן קודם — אמוג'י, "אתה בפנים", ושתי שורות הסבר —
+       ירד. "הישיבה רואה כמה לומדים אצלה" אינו תמיד גורם חיובי,
+       "מתחילים בבראשית" כבר כתוב בבאנר, ו"נעדכן אותך" מבטיח
+       ערוץ שאיננו יודעים שיהיה. -->
+  <div class="zone">
+    <span class="tag" id="d-name"></span>
+    <div id="wk"></div>
+    <div id="rail"></div>
+    <div id="wk-more"></div>
+  </div>
 
-  <div id="wk"></div>
-
-  <p id="d-p"></p>
-  <p id="d-start"></p>
-  <p id="d-raffle" style="font-weight:800;color:var(--gold)"></p>
-  <div class="who" id="d-who"></div>
-
-  <!-- ההזמנה ההדדית. אחרי הדף: קודם רואים מה קיבלת, ורק אז
-       יש טעם לקרוא למישהו להצטרף איתך. -->
-  <div id="inv"></div>
-
-  <button class="again" id="again">שינוי הפרטים</button>
+  <div class="wrap">
+    <div id="inv"></div>
+    <button class="again" id="again">שינוי הפרטים</button>
+  </div>
 </div>
 
 <div class="wrap"><footer>רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז</footer></div>
@@ -442,6 +505,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 </div>
 
 <script src="data.js"></script>
+<script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="logo.js"></script>
 <script>
@@ -1092,15 +1156,8 @@ function drawInv() {
   };
 }
 
-/* ============================================================
-   הדף של השבוע — מה שהופך את מסך הסיום לבית.
-   ============================================================
-   השבוע בלבד, בכוונה. רשת של כל דפי המסכת עם מה שהספיק ומה
-   שלא הייתה מזכירה לו בכל כניסה מה פספס, וזה עומס ולא עידוד.
-   ההתקדמות השנתית כבר חיה בסימנייה שבאפליקציה — למי שרוצה.
-
-   המסלול נלקח מ-dfHomeTrack, אותו מפתח שהאפליקציה משתמשת בו,
-   ולכן מסכת שנבחרה שם היא זו שמופיעה כאן. */
+/* המסכת שהתלמיד מסתכל עליה. ברירת המחדל היא מה שהצוות שלו
+   בחר בהרשמה, ומרגע שהוא בחר בעצמו — בחירתו נשמרת. */
 function myTrack() {
   var t = null;
   try { t = localStorage.getItem('dfHomeTrack'); } catch (e) {}
@@ -1118,83 +1175,44 @@ function masName(t) {
 
 function drawWeek() {
   var box = $('wk'); if (!box) return;
+  var tr = myTrack(), wk = LWeek();
+
+  /* אותה במה בדיוק שבמסך הראשי, עם בורר המסכת. הבורר פתוח
+     במכוון: תלמיד שרואה שיש עוד מסכת מבין שהוא חלק ממשהו
+     גדול. ברירת המחדל היא מה שהצוות שלו בחר בהרשמה. */
+  box.innerHTML = StageHtml({ track:tr, pick:'setTrack',
+                              deck:'stDeck', week:'stWeek', trail:'stTrail' });
+
+  var rail = $('rail');
+  if (rail) rail.innerHTML = RailHtml({ track:tr, href:'index.html#track-' + tr });
+
+  /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
+     לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
+  var extra = $('wk-more');
+  if (!extra) return;
+  if (wk < 0 || !LDaf(tr, wk)) { extra.innerHTML = ''; return; }
+
+  var done = LDone(tr, wk), all = LCount(tr, wk);
   var me = get('me', null) || {};
-  var wk = LWeek(), tr = myTrack();
-
-  /* לפני שהתוכנית התחילה מוצג **אותו כרטיס** של שבוע רגיל, עם
-     הדף הראשון. זה מה שהובטח לתלמיד שיראה, וזה גם מה שאומר לו
-     לבד שהלימוד עוד לא התחיל — כתוב עליו "בראשית".
-
-     מה שאין לפני ההתחלה הוא הסימון והמונים: אין מה לסמן ואין
-     מה לספור. */
-  if (wk < 0) {
-    var r0 = week0();
-    box.innerHTML = weekCard(tr, 0, r0, 1);
-    return;
-  }
-  var daf = LDaf(tr, wk);
-  var row = null;
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === tr) row = TRACKS[i].cal[wk];
-  if (!daf) {
-    box.innerHTML = '<div class="week"><div class="tag">' + esc(JOIN.weekTag) +
-      '</div><h3>' + esc(JOIN.weekOff) + '</h3></div>';
-    return;
-  }
-
-  var done = LDone(tr, wk);
-  var all  = LCount(tr, wk);
   var mine = me.inst ? LCount(tr, wk, me.inst) : 0;
-  var st   = LStreak(tr);
-
-  box.innerHTML = weekCard(tr, wk, row, 0) +
+  var st = LStreak(tr);
+  extra.innerHTML =
     '<button class="mark' + (done ? ' on' : '') + '" onclick="markWeek()">' +
       esc(done ? JOIN.markedOk : JOIN.markBtn) +
       (done ? '<small>' + esc(JOIN.markUndo) + '</small>' : '') + '</button>' +
     (all ? '<div class="net">' + esc(tpl(JOIN.netAll, { n:all })) +
       (mine ? '<br>' + esc(tpl(JOIN.netInst, { n:mine })) : '') + '</div>' : '') +
-    (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '') +
-    '<a class="tr" href="index.html#track-' + esc(tr) + '">' + esc(JOIN.trackGo) + '</a>' +
-    '</div>';
+    (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
 
-/* ============================================================
-   כרטיס הדף.
-
-   זה מה שהובטח לתלמיד שייפתח אצלו בכל שבוע, ולכן הוא נראה כמו
-   מה שראש החטיבה ראה בעמוד הראשי — ולא כשורת טקסט. השקף
-   האמיתי הוא העיקר: הוא מה שהופך "דף גמרא" למשהו שרוצים
-   לפתוח.
-   ============================================================ */
-function weekCard(tr, wk, row, soon) {
-  var daf = row ? row[2] : '';
-  var key = tr + '-' + (wk + 1);
-  var c = typeof CONTENT !== 'undefined' ? CONTENT[key] : null;
-
-  var pick = TRACKS.length > 1
-    ? '<div class="pr">' + TRACKS.map(function (t) {
-        return t.id === tr ? '<b>מסכת ' + esc(t.masechet) + '</b>'
-          : '<a href="#" onclick="setTrack(\'' + t.id + '\');return false" ' +
-            'style="color:var(--ink-3)">מסכת ' + esc(t.masechet) + '</a>';
-      }).join(' · ') + '</div>' : '';
-
-  var h = '<div class="week">' +
-    '<div class="tag">' + esc(soon ? JOIN.soonTag : JOIN.weekTag) + '</div>' +
-    '<h3>' + (c && c.title ? esc(c.title) : 'דף ' + esc(daf)) + '</h3>' +
-    '<div class="pr">' + esc(masName(tr)) + ' · דף ' + esc(daf) +
-      (row ? ' · ' + esc(row[1]) + ' · ' + esc(row[0]) : '') + '</div>' + pick;
-
-  /* השקף. תמונה אמיתית מהמצגת של אותו שבוע, ולחיצה פותחת את
-     כולה — זה הדבר היחיד כאן שאפשר לראות לפני שלומדים. */
-  if (c && c.deck) {
-    h += '<button class="shot" onclick="deckOpen(\'' + key + '\')">' +
-         '<img src="' + esc(deckSrc(c, 1)) + '" alt="" loading="lazy">' +
-         '<span>▶ ' + esc(JOIN.deckGo) + '</span></button>';
-  }
-
-  h += '<a class="go" href="learn.html?mas=' + encodeURIComponent(tr) +
-       '&daf=' + encodeURIComponent(daf) + '&pg=1">' + esc(JOIN.weekGo) + ' ←</a>';
-  return h;
+/* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js. */
+function stWeek()  { stDeck(); }
+function stTrail() { location.href = 'index.html#track-' + myTrack(); }
+function stDeck() {
+  var tr = myTrack(), wi = LWeek();
+  deckOpen(tr + '-' + ((wi < 0 ? 0 : wi) + 1));
 }
+
 function deckSrc(c, n) {
   return c.deck.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
 }
@@ -1245,11 +1263,8 @@ function showDone(me) {
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
-  $('d-h').textContent = tpl(JOIN.okTitle, { name:me.first });
-  $('d-p').textContent = tpl(JOIN.okBody,  { inst:inst });
-  $('d-start').textContent = startsIn() ? tpl(JOIN.okStart, { date:startTxt() }) : '';
-  $('d-raffle').textContent = pub.raffle ? tpl(JOIN.okRaffle, { inst:inst }) : '';
-  $('d-who').textContent = WAY_NAME[me.way] || '';
+  /* התווית היא שמו. זה כל מה שצריך להיאמר כאן. */
+  $('d-name').textContent = me.first || 'הדף שלי';
   drawInv();
   drawWeek();
   window.scrollTo(0, 0);
