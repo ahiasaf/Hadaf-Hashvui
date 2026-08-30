@@ -789,11 +789,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .fit ul{list-style:none;margin:14px 0 0;padding:0;
   display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .fit li{display:flex;flex-direction:column;align-items:center;text-align:center;
-  gap:7px;padding:2px 2px 0;
-  opacity:0;animation:fitIn .5s cubic-bezier(.34,1.4,.5,1) forwards}
-.fit li:nth-child(1){animation-delay:.10s}
-.fit li:nth-child(2){animation-delay:.22s}
-.fit li:nth-child(3){animation-delay:.34s}
+  gap:7px;padding:2px 2px 0}
+/* הכניסה של שלושת הסמלים — רק בפעם הראשונה.
+   הטופס נבנה מחדש בכל לחיצה שבו, ולכן האנימציה רצה מחדש בכל
+   בחירה של מסכת ובכל הקלדה בשדה. תנועה שחוזרת על עצמה בכל
+   לחיצה אינה קצב אלא הפרעה. `rise` נוסף רק בציור הראשון. */
+.fit.rise li{opacity:0;animation:fitIn .5s cubic-bezier(.34,1.4,.5,1) forwards}
+.fit.rise li:nth-child(1){animation-delay:.10s}
+.fit.rise li:nth-child(2){animation-delay:.22s}
+.fit.rise li:nth-child(3){animation-delay:.34s}
 @keyframes fitIn{from{opacity:0;transform:translateY(11px) scale(.9)}
   to{opacity:1;transform:none}}
 .fit li i{display:flex;align-items:center;justify-content:center;
@@ -809,7 +813,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 @media (min-width:480px){.fit li span{font-size:.83rem}
   .fit li i{width:52px;height:52px}.fit li svg{width:31px;height:31px}}
 /* בלי אנימציות — עדיין חייבים להיראות */
-@media (prefers-reduced-motion:reduce){.fit li{opacity:1}}
+@media (prefers-reduced-motion:reduce){.fit.rise li{opacity:1;animation:none}}
 /* ---------- הקישור שראש החטיבה מקבל בסיום ההרשמה ----------
    קופסה ולא שורה: זה לא אישור אלא כלי, והוא צריך להיראות כמו
    דבר שלוקחים איתו. הכתובת עצמה מוצגת במלואה — ראש חטיבה
@@ -1493,7 +1497,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.47.0';
+var APP_VERSION = '7.47.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1934,8 +1938,11 @@ var FIT_ICONS = {
         '<path d="M3.6 15.2h6.2c1.2 0 2.2.7 2.2 1.6 0-.9 1-1.6 2.2-1.6h6.2v4.4h-6.2' +
         'c-1.2 0-2.2.7-2.2 1.6 0-.9-1-1.6-2.2-1.6H3.6z"/>'
 };
+var fitRan = false;
 function fitBlock() {
-  return '<div class="fit"><b>' + esc(FIT.title) + '</b>' +
+  var rise = fitRan ? '' : ' rise';
+  fitRan = true;
+  return '<div class="fit' + rise + '"><b>' + esc(FIT.title) + '</b>' +
     '<ul>' + FIT.items.map(function (f) {
       return '<li><i><svg viewBox="0 0 24 24" aria-hidden="true">' +
         (FIT_ICONS[f.icon] || '') + '</svg></i><span>' + esc(f.t) + '</span></li>';
