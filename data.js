@@ -51,7 +51,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '7.43.1';
+var DAF_REV = '7.44.0';
 
 /* "הסוגיה היומית" — החוברת הדיגיטלית.
 
@@ -600,6 +600,17 @@ var JOIN = {
   trackGo:  'ההתקדמות שלי במסכת ←',
   weekOff:  'השבוע אין דף — חופשה.',
   soonMark: 'מתחילים',
+
+  /* --- ההזמנה. "אבא" ולא "הורה": ככה קוראים לו. --- */
+  invAskDad:     'רוצה להזמין את אבא?',
+  invAskFriend:  'רוצה להזמין חבר?',
+  invSubDad:     'נשלח לו קישור, והוא ילמד איתך את אותו הדף.',
+  invSubFriend:  'נשלח לו קישור, ותלמדו את אותו הדף.',
+  invNameDad:    'שם פרטי של אבא',
+  invNameFriend: 'שם פרטי של החבר',
+  relDad:        'אבא',
+  relFriend:     'חבר',
+  invFromFriend: '{me} הזמין אותך ללמוד איתו.',
   soonTag:  'הדף שנפתח בו',
   deckGo:   'המצגת של השבוע',
   /* --- ההזמנה ההדדית ---
@@ -795,6 +806,13 @@ var TEXT_FIELDS = [
   { k:'join.rfBody',   lbl:'הגרלה — ההסבר', ml:1 },
   { k:'join.rfPrize',  lbl:'הגרלה — הפרס · ריק = לא מוצג', ml:1 },
   { k:'join.rfImg',    lbl:'הגרלה — כתובת תמונת הפרס · ריק = בלי תמונה' },
+  { k:'join.invAskDad',    lbl:'ההזמנה — הכותרת כשמזמינים אבא' },
+  { k:'join.invAskFriend', lbl:'ההזמנה — הכותרת כשמזמינים חבר' },
+  { k:'join.invSubDad',    lbl:'ההזמנה — ההסבר, אבא', ml:1 },
+  { k:'join.invSubFriend', lbl:'ההזמנה — ההסבר, חבר', ml:1 },
+  { k:'join.relDad',       lbl:'ההזמנה — הכפתור "אבא"' },
+  { k:'join.relFriend',    lbl:'ההזמנה — הכפתור "חבר"' },
+  { k:'join.invFromFriend',lbl:'למי שהוזמן על ידי חבר · {me}' },
   { k:'join.weekTag',  lbl:'בית התלמיד — התגית מעל הדף' },
   { k:'join.soonTag',  lbl:'בית התלמיד — התגית לפני שהשנה מתחילה' },
   { k:'join.deckGo',   lbl:'בית התלמיד — הכיתוב על השקף' },
