@@ -1493,7 +1493,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.44.0';
+var APP_VERSION = '7.45.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2253,7 +2253,9 @@ function joinUrl(code) {
   var base = location.href.split('#')[0].split('?')[0]
                   .replace(/(index\.html)?$/, '')
                   .replace(/\/admin\/?$/, '/');
-  return base + 'join.html?inst=' + encodeURIComponent(code);
+  /* בלי קוד — הקישור הכללי. `?inst=` ריק היה נראה כמו קוד
+     שנשבר, והמסך היה מחפש ישיבה בשם ריק. */
+  return base + 'join.html' + (code ? '?inst=' + encodeURIComponent(code) : '');
 }
 
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
@@ -2315,6 +2317,19 @@ function linkBlock(title) {
 /* העתקה. `navigator.clipboard` אינו קיים בהקשר לא־מאובטח ובחלק
    מהדפדפנים המוטמעים, ולכן יש נפילה לשדה זמני — אחרת הכפתור
    פשוט לא עושה כלום, בלי שום סימן. */
+/* העתקת כתובת כלשהי. `copyJoin` בנוי סביב קוד מוסד, ולקישור
+   הכללי אין אחד. */
+function copyAny(btn, url) {
+  var mark = function () {
+    var was = btn.textContent;
+    btn.textContent = UI.linkCopied;
+    setTimeout(function () { btn.textContent = was; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(mark).catch(function () { legacyCopy(url, mark); });
+  } else legacyCopy(url, mark);
+}
+
 function copyJoin(btn, code) {
   code = code || joinCode(); if (!code) return;
   var url = joinUrl(code);
@@ -4994,6 +5009,25 @@ function admInst(el) {
        שמות של תלמידים. אותו קוד נמסר לכל מי שמנהל בפועל: הוא
        שייך למוסד ולא לאדם, ולכן ראש חטיבה יכול פשוט להעביר
        אותו לר״ם בלי הרשמה שנייה. */
+    /* הקישור הכללי — לפני רשימת המוסדות.
+
+       לא כל צוות ילחץ על "הצטרפות", וזה בסדר. הקישור הזה נשלח
+       לכל מקום, התלמיד בוחר את הישיבה שלו מתוך הרשימה, והישיבה
+       מסומנת כ"בפנים" מעצם זה שיש בה מי שלומד. תנועה מלמטה. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>קישור כללי לתלמידים</h4>' +
+    '<p class="h">אפשר לשלוח לכל מקום — התלמיד בוחר את הישיבה שלו ' +
+    'מתוך הרשימה. ישיבה שנרשם אליה תלמיד מסומנת כ"בפנים" מעצמה, ' +
+    'והצוות עדיין יכול להירשם רשמית אחר כך.</p>' +
+    '<div class="url" style="direction:ltr;text-align:start">' +
+    esc(joinUrl('')) + '</div>' +
+    '<div style="display:flex;gap:7px;margin-top:10px">' +
+    '<a class="btn gr" style="margin:0;flex:1;text-decoration:none" target="_blank" ' +
+    'rel="noopener" href="https://wa.me/?text=' +
+    encodeURIComponent(fill(UI.linkWa, { inst:'רשת בני עקיבא', url:joinUrl('') })) +
+    '">' + esc(UI.linkWaBtn) + '</a>' +
+    '<button class="cp" onclick="copyAny(this,\'' + esc(joinUrl('')) + '\')">' +
+    esc(UI.linkCopy) + '</button></div></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>הקישורים של כל מוסד</h4>' +
     '<p class="h">הירוק לתלמידים ולהורים — פתוח, ומי שנכנס דרכו נספר ' +
     'לישיבה. הכחול הוא הלוח לצוות, והוא נושא קוד: בלעדיו הוא לא ' +
@@ -5812,7 +5846,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 18;
+var SCRIPT_MIN = 19;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים

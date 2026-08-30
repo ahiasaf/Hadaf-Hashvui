@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 18;
+var SCRIPT_VERSION = 19;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -226,6 +226,16 @@ function doPost(e) {
        `ss` — ונוחתים בגיליון סגור שאיש אינו רואה.
 
        הקריאה כבר תמכה ב-`ss` (ראו doGet); עכשיו גם הכתיבה. */
+    /* תלמיד שנרשם מסמן את הישיבה שלו כ"בפנים".
+
+       זו תנועה מלמטה: לא כל צוות ילחץ על "הצטרפות", ומי שקיבל
+       את הקישור הכללי ובחר את הישיבה שלו מתוך הרשימה — הוכיח
+       שיש שם לימוד. הצוות עדיין יכול להירשם רשמית אחר כך, ואז
+       הוא ממלא גם את מספר התלמידים ואת המסכת; הסימון כאן רק
+       מדליק את הלוח, ואינו גונב את מקומם. */
+    if (d.action === 'row' && d.tab === JOIN_TAB) {
+      markJoined_(instOf_(parse_(d.cols)), '');
+    }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
@@ -743,6 +753,17 @@ function boardData_(inst, k) {
   } catch (e2) {}
 
   return { status: 'ok', inst: inst, students: out };
+}
+
+/* קוד הישיבה מתוך העמודות שנשלחו. `cols` הוא [כותרת, ערך],
+   ולכן אין תלות בסדר. */
+function instOf_(cols) {
+  for (var i = 0; i < (cols || []).length; i++) {
+    if (cols[i] && String(cols[i][0]).trim() === 'קוד ישיבה') {
+      return String(cols[i][1] || '').trim();
+    }
+  }
+  return '';
 }
 
 function markJoined_(code, mas) {
