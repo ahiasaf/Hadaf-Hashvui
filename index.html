@@ -1497,7 +1497,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.48.0';
+var APP_VERSION = '7.49.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3937,9 +3937,28 @@ function resetTexts() {
 /* מרכיב מחדש את שלוש השכבות לפי הסדר. כל שינוי — מקומי או מהגיליון
    — עובר דרך כאן, כדי שמחיקת ערך לא תשאיר אותו תקוע. */
 var PUBLISHED = Store.get('textCache', null) || {};
+
+/* מה שפורסם, פחות נוסחים שהוחלפו מאז בקוד (TEXT_RETIRED).
+   בלי זה נוסח ישן בגיליון מנצח לנצח כל תיקון בקוד. */
+function livePublished() {
+  var out = {}, k, old;
+  for (k in PUBLISHED) {
+    if (!PUBLISHED.hasOwnProperty(k)) continue;
+    old = TEXT_RETIRED[k];
+    if (old && old.indexOf(PUBLISHED[k]) >= 0) continue;
+    out[k] = PUBLISHED[k];
+  }
+  return out;
+}
+/* הערך שהיה מוצג אלמלא הטיוטה המקומית — כלומר השכבה שמתחתיה.
+   זה ולא TEXT_BASE הוא מה שקובע אם עריכה היא בכלל שינוי. */
+function belowText(k) {
+  var p = livePublished()[k];
+  return (typeof p === 'string' && p !== '') ? p : TEXT_BASE[k];
+}
 function relayerTexts() {
   resetTexts();
-  applyTexts(PUBLISHED);
+  applyTexts(livePublished());
   applyTexts(CFG.texts);
 }
 /* תבנית פשוטה: {n}, {name}, {sum} */
@@ -4078,17 +4097,25 @@ function loadInstitutions() {
 
 /* המלל שפורסם, מלשונית "טקסטים": key | value.
    נשמר גם במטמון, כדי שפתיחה בלי רשת לא תחזיר את הנוסח הישן. */
+function textsFromRows(rows) {
+  /* null = הקריאה נכשלה, או שחזרה לשונית אחרת. {} = לשונית ריקה
+     באמת, וזה מצב חוקי שחייב לרוקן את המטמון. gviz מגישה את
+     הלשונית הראשונה כשהמבוקשת חסרה, ולכן בודקים את הכותרת. */
+  if (!rows || !rows.length) return null;
+  if ((rows[0] || []).join('|').indexOf('מפתח') < 0) return null;
+  var map = {};
+  rows.slice(1).forEach(function (r) {
+    var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+    if (k && v) map[k] = v;
+  });
+  return map;
+}
 function loadTexts() {
   return fetchSheet(CFG.sheetId || SHEET_ID, 'טקסטים')
     .then(function (rows) {
-      if (!rows || rows.length < 2) return false;
-      var map = {};
-      rows.slice(1).forEach(function (r) {
-        var k = (r[0] || '').trim(), v = (r[1] || '').trim();
-        if (k && v) map[k] = v;
-      });
-      if (!Object.keys(map).length) return false;
-      Store.set('textCache', map);
+      var map = textsFromRows(rows);
+      if (!map) return false;          /* כישלון — המטמון נשאר */
+      Store.set('textCache', map);     /* ריק — המטמון מתרוקן */
       PUBLISHED = map;
       relayerTexts();
       return true;
@@ -5509,14 +5536,14 @@ function dataWipe(tab, ss, rows) {
 function admText(el) {
   var d = CFG.texts || {};
   var dirty = TEXT_FIELDS.filter(function (f) {
-    return f.k && d[f.k] != null && d[f.k] !== TEXT_BASE[f.k];
+    return f.k && d[f.k] != null && d[f.k] !== belowText(f.k);
   }).length;
 
   el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>עריכת המלל</h4>' +
     '<p class="h">שינוי נשמר במכשיר הזה בלבד עד שלוחצים <b>פרסום</b>. ' +
     'פרסום כותב לגיליון, וכל מי שפותח את האפליקציה רואה את הנוסח החדש. ' +
-    'שדה ריק חוזר לנוסח שבקוד.</p>' +
+    'שדה ריק חוזר לנוסח שפורסם, ואם לא פורסם — לזה שבקוד.</p>' +
     '<div class="row" style="padding:8px 0"><span>שינויים שטרם פורסמו</span>' +
     '<b' + (dirty ? '' : ' style="color:var(--ink-3)"') + '>' + dirty + '</b></div>' +
     '<button class="btn gd" onclick="tkStart()">עריכה על המסך</button>' +
@@ -5530,7 +5557,7 @@ function admText(el) {
     TEXT_FIELDS.map(function (f) {
       if (f.g) return '<div class="sec" style="margin:16px 0 8px"><b>' +
                       esc(f.g) + '</b><i></i></div>';
-      var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== TEXT_BASE[f.k];
+      var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== belowText(f.k);
       /* שדה תמונה: בוחרים קובץ מהמכשיר והוא מומר כאן, בדפדפן,
          ל-data:URI. בלי שרת, בלי ממיר חיצוני, ובלי תלות באתר
          של אף אחד — הלוגו נשמר אצלנו ועובד גם בלי רשת. */
@@ -5591,7 +5618,10 @@ function admImgPick(inp, key) {
 function admTextSet(k, v) {
   var t = CFG.texts || {};
   v = String(v).trim();
-  if (v === '' || v === TEXT_BASE[k]) delete t[k];   /* ריק = חזרה לקוד */
+  /* ההשוואה היא לשכבה שמתחת ולא לקוד. כשהגיליון מפרסם נוסח אחר,
+     הקלדת הנוסח שבקוד *היא* שינוי — ומחיקת הטיוטה כאן החזירה
+     דווקא את הישן, כלומר הפכה עריכה נכונה לחוסר תגובה. */
+  if (v === '' || v === belowText(k)) delete t[k];   /* ריק = חזרה לשכבה שמתחת */
   else t[k] = v;
   resetTexts();                 /* קודם חזרה לבסיס, אחרת ערך שנמחק נשאר */
   cfgSet('texts', t);
@@ -5786,8 +5816,51 @@ function admTextPublish() {
     return;
   }
   queue({ action:'texts', rows:JSON.stringify(rows), at:new Date().toISOString() });
-  m.innerHTML = '<div class="done-box" style="margin-top:10px">נשלח לפרסום · ' +
-    rows.length + ' נוסחים. השינוי יופיע אצל כולם בטעינה הבאה.</div>';
+  m.innerHTML = '<div class="cond" style="margin-top:10px">נשלח · ' + rows.length +
+    ' נוסחים. מאמת מול הגיליון…</div>';
+  admTextVerify(rows, 0);
+}
+
+/* הכתיבה היא no-cors, כלומר התשובה אטומה וגם כישלון "מצליח".
+   לכן ההודעה שהפרסום הצליח נאמרת רק אחרי שקראנו את הגיליון
+   בחזרה ומצאנו שם בדיוק את מה ששלחנו. חמישה ניסיונות, כי
+   הכתיבה עוברת דרך התור וגם ל-gviz לוקח רגע להתעדכן. */
+function admTextVerify(rows, tries) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, 'טקסטים').then(function (got) {
+      var m = document.getElementById('adm-text-msg');
+      if (!m) return;                       /* הרכז יצא מהמסך */
+      var map = textsFromRows(got);
+      var miss = !map ? rows : rows.filter(function (x) {
+        return map[x.key] !== String(x.value).trim();
+      });
+      if (map && !miss.length) {
+        /* אומת. מעדכנים את השכבה המפורסמת ומנקים את הטיוטות
+           שכבר אינן שינוי, כדי שהמונה יראה אפס באמת. */
+        Store.set('textCache', map);
+        PUBLISHED = map;
+        var t = CFG.texts || {}, k;
+        for (k in t)
+          if (t.hasOwnProperty(k) && map[k] === t[k]) delete t[k];
+        cfgSet('texts', t);
+        relayerTexts();
+        repaintTexts();
+        admPane();                          /* קודם הציור, אחרת ההודעה נמחקת */
+        var m2 = document.getElementById('adm-text-msg');
+        if (m2) m2.innerHTML = '<div class="done-box" style="margin-top:10px">' +
+          'פורסם ואומת · ' + rows.length +
+          ' נוסחים. כל מי שפותח את האפליקציה רואה אותם.</div>';
+        return;
+      }
+      if (tries < 4) { admTextVerify(rows, tries + 1); return; }
+      m.innerHTML = '<div class="cond" style="margin-top:10px"><b>הפרסום לא אומת.</b> ' +
+        (!map ? 'הגיליון לא נענה, או שלשונית "טקסטים" חסרה בו.'
+              : miss.length + ' מתוך ' + rows.length +
+                ' הנוסחים לא נמצאו בגיליון.') +
+        ' הנוסח שמור במכשיר הזה, ואפשר לנסות שוב. ' +
+        'אם זה חוזר — בדקו בהגדרות ← בדיקת חיבור.</div>';
+    });
+  }, tries ? 5000 : 2500);
 }
 
 /* ---- מחירים ----
