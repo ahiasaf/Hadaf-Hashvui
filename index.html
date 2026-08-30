@@ -198,6 +198,14 @@ body{background:var(--paper);
   border-radius:99px;background:var(--blue);color:#fff;white-space:nowrap;
   box-shadow:0 3px 10px rgba(11,37,80,.22),0 0 0 4px var(--paper)}
 .band .zlabel .tag{box-shadow:0 3px 10px rgba(11,37,80,.22),0 0 0 4px #EDF1F7}
+/* האזור של הישיבה עצמה. ירוק רך — לא הכחול הקריר של התלמידים
+   ולא הנייר של ראשי החטיבות. שלושה קהלים, שלושה צבעים, וכל
+   אחד יודע מיד באיזה מהם הוא נמצא. */
+.band-c{background:linear-gradient(180deg,#EFF4E8 0%,#E9F0E0 55%,#EDF2E6 100%);
+  border-block:1px solid rgba(74,130,28,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.zlabel .tag.c{background:var(--green-d);
+  box-shadow:0 3px 10px rgba(74,130,28,.26),0 0 0 4px #ECF2E4}
 .zlabel .tag.a{background:var(--gold);
   box-shadow:0 3px 10px rgba(160,120,30,.28),0 0 0 4px var(--paper)}
 .zlabel span{display:block;font-size:.81rem;font-weight:700;color:var(--ink-2);
@@ -1330,15 +1338,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div id="mini" style="margin-top:14px"></div>
       </section>
 
-      <!-- הרכז בישיבה — רק אצל מי שכבר נרשם.
-           אחרי התלמידים ולפני ההרשמה: מי שכבר בפנים אינו צריך
-           לעבור דרך אזור ההצטרפות כדי להגיע ללוח שלו. -->
-      <section class="sec-b rv" id="coord" style="display:none">
-        <div class="zlabel"><span class="tag" id="c-tag"></span>
-          <span id="c-sub"></span></div>
-        <div id="board"></div>
-      </section>
-
       <!-- שלב ג׳ · ראשי החטיבות — חזרה לקרקע -->
       <section class="sec-b rv">
         <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
@@ -1349,6 +1348,17 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
              הסיבה האחרונה שראש חטיבה שומע לפני שהוא מחליט. -->
         <div id="soon"></div>
         <div id="cta" style="margin-top:16px"></div>
+      </section>
+
+      <!-- הלוח של הישיבה — בתחתית, ורק אצל מי שכבר נרשם.
+
+           זה מה שנוסף לעמוד ברגע ההצטרפות, ולכן מקומו אחריו
+           ולא לפניו. ואזור משלו, כמו לתלמידים ולראשי החטיבות:
+           שלושה קהלים, שלושה צבעים. -->
+      <section class="sec-b band-c rv" id="coord" style="display:none">
+        <div class="zlabel"><span class="tag c" id="c-tag"></span>
+          <span id="c-sub"></span></div>
+        <div id="board"></div>
       </section>
 
       <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
@@ -1458,7 +1468,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.39.0';
+var APP_VERSION = '7.40.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2259,14 +2269,10 @@ function linkBlock(title) {
     '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
        'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
 
-    /* הקישור השני נמסר כאן, בפעם הראשונה שהוא רואה את הלוח —
-       ולא רק בתוך הלוח עצמו. מי שרוצה שר״ם יסתכל שם צריך את
-       הקישור באותו רגע, ואם אין לו הוא ישלח את מה שכן יש לו:
-       את הקישור של התלמידים. */
-    '<p style="margin-top:11px">' + esc(UI.teamNote) + '</p>' +
-    '<a class="btn gd" style="margin-top:11px" href="https://wa.me/?text=' +
-       encodeURIComponent(fill(UI.teamWa, { inst:name, url:boardUrl(code) })) + '" ' +
-       'target="_blank" rel="noopener">' + esc(UI.teamWaBtn) + '</a>' +
+    /* קישור הצוות ירד מכאן. מי שנרשם מהטלפון שלו כבר מקבל את
+       הלוח באותו מכשיר, וכפתור שמוסר קישור למי שכבר נמצא בפנים
+       הוא שאלה מיותרת ברגע הכי חשוב. הוא נשאר בלוח עצמו, שם
+       הוא באמת נחוץ — לצירוף איש צוות נוסף. */
     '</div>';
 }
 
@@ -2473,7 +2479,9 @@ function renderBoard(hail) {
   var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
   if (!inst) { el.style.display = 'none'; return; }
   el.style.display = '';
-  document.getElementById('c-tag').textContent = UI.coordTag;
+  /* שם הישיבה, ולא "מסך הלימוד של הישיבה". התווית עונה על
+     "של מי זה" בשתי מילים, וההסבר שמתחתיה אומר מה זה. */
+  document.getElementById('c-tag').textContent = inst.name;
   document.getElementById('c-sub').textContent = UI.coordSub;
   document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
 }

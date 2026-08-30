@@ -109,22 +109,12 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
    לפני שקוראים מילה. */
 .btn.b{background:linear-gradient(140deg,var(--blue-l),var(--blue));
   box-shadow:0 6px 18px rgba(23,70,143,.26)}
-.lk{border-radius:var(--r-s);padding:12px 13px;margin-top:12px;
-  border:1px solid var(--rule);background:var(--surface)}
-.lk:first-of-type{margin-top:11px}
-.lk.team{border-inline-start:4px solid var(--blue-l);background:#F4F7FC}
-.lk.kids{border-inline-start:4px solid var(--green);background:#F5F8F0}
-.lk h3{font-size:.9rem;font-weight:800;letter-spacing:-.02em}
-.lk.team h3{color:var(--blue)}
-.lk.kids h3{color:var(--green-d)}
-.lk p{font-size:.8rem;font-weight:600;color:var(--ink-2);margin-top:4px;line-height:1.65}
-.lk .btn{margin-top:10px;padding:13px;font-size:.92rem}
-/* ההעתקה אינה שוות־ערך לשליחה, ולכן אינה נראית כמוה: קטנה
-   יותר, שקטה יותר, ועם השם המלא — שני כפתורים שכתוב עליהם
-   "העתקת הקישור" זה בדיוק המקום שבו מעתיקים את הלא־נכון. */
-.lk .btn.g{padding:10px;font-size:.82rem;background:transparent;
-  border:1px solid var(--rule);color:var(--ink-2)}
-.lk .url{background:var(--surface);border:1px solid var(--rule)}
+/* הכרטיס המשני. שקט יותר מזה שמעליו — הוא רשת ביטחון, לא
+   פעולה שמחפשים. */
+.card.team{background:var(--sunk);box-shadow:none;border:1px solid var(--rule)}
+.card.team h2{color:var(--ink-2)}
+.card.team .btn{padding:12px;font-size:.9rem}
+.card.team .url{background:var(--surface)}
 .url{margin-top:11px;background:var(--sunk);border-radius:10px;padding:9px 11px;
   font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
   overflow-wrap:anywhere;line-height:1.5}
@@ -607,37 +597,38 @@ function draw() {
   var daf   = wk >= 0 ? LDaf(tr, wk) : null;
   var didWk = wk >= 0 ? LCount(tr, wk, code) : 0;
 
-  /* שני קישורים, ובסדר הזה: הצוות קודם. זה הקישור שהוא נמצא בו
-     ברגע זה, וזו גם השאלה שהוא שואל ראשונה — "איך אני נותן את
-     זה לר״ם שלי". */
+  /* קישור אחד בחזית, ולא שניים.
+
+     הקישור לצוות ירד ממעמד שווה. ראש חטיבה שנרשם מהטלפון שלו
+     מקבל את הלוח באותו מכשיר — אין מה למסור לו, וכרטיס שמציג
+     שני קישורים זה לצד זה הפך משימה אחת לשתי החלטות.
+
+     מה שנשאר הוא בדיוק מה שהוא כן: דרך לצרף איש צוות נוסף,
+     ורשת ביטחון למי שהחליף מכשיר. לכן הוא למטה, שקט, ובלשון
+     שאומרת למה הוא קיים. */
   var share =
-    '<div class="card"><h2>שני קישורים</h2>' +
-    '<p class="h">אחד לצוות, אחד לתלמידים. לא להחליף ביניהם.</p>' +
-
-    '<div class="lk team"><h3>' + esc(UI.teamTitle) + '</h3>' +
-    '<p>' + esc(UI.teamNote) + '</p>' +
-    '<div class="url">' + esc(boardUrl()) + '</div>' +
-    '<a class="btn b" target="_blank" rel="noopener" href="https://wa.me/?text=' +
-      encodeURIComponent(tp(UI.teamWa, { inst:inst.name, url:boardUrl() })) + '">' +
-      esc(UI.teamWaBtn) + '</a>' +
-    '<button class="btn g" id="cp-team">' + esc(UI.teamCopy) + '</button></div>' +
-
-    '<div class="lk kids"><h3>' + esc(UI.kidsTitle) + '</h3>' +
-    '<p>' + esc(UI.linkNote) + '</p>' +
+    '<div class="card"><h2>' + esc(UI.kidsTitle) + '</h2>' +
+    '<p class="h">' + esc(UI.linkNote) + '</p>' +
     '<div class="url">' + esc(joinUrl()) + '</div>' +
     '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' +
       encodeURIComponent(tp(UI.linkWa, { inst:inst.name, url:joinUrl() })) + '">' +
       esc(UI.kidsWaBtn) + '</a>' +
-    '<button class="btn g" id="cp">' + esc(UI.kidsCopy) + '</button></div>' +
+    '<button class="btn g" id="cp">' + esc(UI.kidsCopy) + '</button>' +
 
-    /* ההודעה לקבוצה נפרדת משני הקישורים בכוונה: היא אינה
-       "קישור" אלא דיווח, והיא נשלחת שוב ושוב לאורך השנה. היא
-       נושאת את **קישור התלמידים** ולעולם לא את קישור הלוח —
-       הודעה שנשלחת לקבוצת כיתה עם הקוד בתוכה היא הדליפה
-       הקלה ביותר שאפשר לייצר. */
+    /* ההודעה לקבוצה נושאת תמיד את **קישור התלמידים** ולעולם לא
+       את קישור הלוח — הודעה שנשלחת לקבוצת כיתה עם הקוד בתוכה
+       היא הדליפה הקלה ביותר שאפשר לייצר. */
     '<a class="btn g" style="text-decoration:none" target="_blank" rel="noopener" ' +
     'href="https://wa.me/?text=' + encodeURIComponent(groupMsg()) + '">' +
-    esc(UI.groupBtn) + '</a></div>';
+    esc(UI.groupBtn) + '</a></div>' +
+
+    '<div class="card team"><h2>' + esc(UI.teamAlso) + '</h2>' +
+    '<p class="h">' + esc(UI.teamAlsoSub) + '</p>' +
+    '<div class="url">' + esc(boardUrl()) + '</div>' +
+    '<a class="btn b" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(tp(UI.teamWa, { inst:inst.name, url:boardUrl() })) + '">' +
+      esc(UI.teamWaBtn) + '</a>' +
+    '<button class="btn g" id="cp-team">' + esc(UI.teamCopy) + '</button></div>';
 
   /* לפני שהצטרף מישהו — לא אפס ושלושה גרפים ריקים, אלא מה
      לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */

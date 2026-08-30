@@ -756,6 +756,26 @@ function open_(id) {
 }
 function ready(id) { return ((($(id) || {}).value) || '').trim().length >= 2; }
 
+/* טלפון שהושלם.
+
+   שתי אותיות מספיקות כדי לדעת ששם מתחיל להיכתב, אבל במספר
+   טלפון אנחנו יודעים בדיוק כמה ספרות יש — ולכן אין שום סיבה
+   לקפוץ באמצע. הקפיצה מגיעה עם הספרה האחרונה, ולא לפניה. */
+var phoneLeft = false;
+function phoneDone(v) {
+  var n = (String(v || '').match(/\d/g) || []).length;
+  /* עשר ספרות הוא נייד ישראלי, וזו הצורה של כמעט כולם.
+
+     אבל השליחה מקבלת גם תשע, ולכן מספר בן תשע ספרות היה נתקע:
+     הטופס לא היה נפתח הלאה והשליחה לא הייתה מגיעה לעולם. מי
+     שעזב את השדה סיים להקליד — ואז גם תשע מספיקות. */
+  return n >= 10 || (phoneLeft && n >= 9);
+}
+/* `blur` אינו מבעבע, ולכן בשלב הלכידה */
+document.addEventListener('blur', function (e) {
+  if (e.target && e.target.id === 'phone') { phoneLeft = true; stage(1); }
+}, true);
+
 /* `scroll` — האם לגלול אל מה שנחשף. בעלייה הראשונה **לא**:
    הטופס נבנה ומגלה את החלק הראשון, וגלילה אליו הייתה זורקת
    את המבקר ישר מעבר למסך הפתיחה — כלומר מבטלת אותו. גוללים
@@ -767,10 +787,12 @@ function stage(scroll) {
   step('c-who', true);
   step('f-last',  ready('first'));
   step('instFld', ready('last'));
-  step('f-grade', ready('last') && !dad);
-  step('f-phone', ready('last') && (dad || !!val('grade')));
-  var phoneOk = (val('phone').match(/\d/g) || []).length >= 9;
-  if (!dad) step('c-ways', phoneOk);
+  /* טלפון לפני שכבה. הטלפון הוא הערוץ היחיד שדרכו אפשר להודיע
+     לזוכה, ולכן הוא נשאל כשהתשומת לב עדיין מלאה. */
+  step('f-phone', ready('last'));
+  var phoneOk = phoneDone(val('phone'));
+  step('f-grade', phoneOk && !dad);
+  if (!dad) step('c-ways', phoneOk && !!val('grade'));
   /* להורה החלק "מי לומד איתך" נפתח ישר אחרי הטלפון — אין
      ביניהם שאלה. */
   if (dad && phoneOk && open_('dad')) grew = 'dad';
@@ -782,12 +804,27 @@ function stage(scroll) {
 
   /* גלילה עדינה אל מה שנחשף. בלעדיה השדה החדש נולד מתחת
      למקלדת, והמסך נראה כאילו לא קרה בו דבר. */
+  /* גלילה עדינה אל מה שנחשף — **ורק כמה שצריך**.
+
+     `scrollIntoView({block:'center'})` מרכז את השדה החדש, וזה
+     דוחף למעלה את השדה שבו מקלידים ברגע זה. מי ששמו ארוך ראה
+     את מה שכתב בורח מהמסך באמצע הכתיבה.
+
+     עכשיו גוללים בדיוק את ההפרש שחסר כדי שהשדה החדש ייראה,
+     ולא יותר — ובשום מקרה לא עד כדי כך שהשדה הפעיל יעלם
+     בקצה העליון. */
   if (grew && scroll) {
     var el = $(grew);
     setTimeout(function () {
       var r = el.getBoundingClientRect();
-      if (r.bottom > window.innerHeight - 120)
-        el.scrollIntoView({ behavior:'smooth', block:'center' });
+      var lim = window.innerHeight - 130;         /* מעל המקלדת */
+      var need = r.bottom - lim;
+      if (need <= 0) return;
+      var ae = document.activeElement;
+      var at = ae && ae.getBoundingClientRect ? ae.getBoundingClientRect().top : null;
+      var max = at == null ? need : Math.max(0, at - 14);
+      var by = Math.min(need, max);
+      if (by > 0) window.scrollBy(0, by);
     }, 60);
   }
 }
