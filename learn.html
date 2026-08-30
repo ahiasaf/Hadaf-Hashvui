@@ -312,7 +312,7 @@ nav .sp{flex:1}
   </section>
 
   <aside class="chav" id="chav">
-    <div class="chd"><span>חברותא</span>
+    <div class="chd"><span>פירוש חברותא</span>
       <span class="zoom"><button id="czm" title="הקטנת הטקסט">א−</button>
         <button id="czp" title="הגדלת הטקסט">א+</button></span>
       <span class="sp"></span>
@@ -1444,7 +1444,11 @@ function boot() {
         SHOWN = 0;
         unveil(); buttons(true);
         try {
-          if (localStorage.getItem('df:chav') === '1') drawer(true);
+          /* פתוחה כברירת מחדל. מי שנכנס בפעם הראשונה לא ידע
+             שיש כאן ביאור — הוא ראה כפתור בשם "חברותא" ולא
+             לחץ עליו. מי שסגר אותה נשאר סגור, כי הבחירה
+             נשמרת; רק היעדר בחירה נקרא עכשיו כ"פתוחה". */
+          if (localStorage.getItem('df:chav') !== '0') drawer(true);
           if (localStorage.getItem('df:dim') === '0') {
             DIM = false; setWhole(true);
             $('whole').classList.add('on');

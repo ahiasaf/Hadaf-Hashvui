@@ -65,11 +65,16 @@ function StageHtml(o) {
        '<div class="meta">' + StEsc(row[1]) + ' · ' + StEsc(row[0]) + '</div>';
 
   if (c && c.deck) {
+    /* הכפתור הלבן מוביל לדף, והקטן למצגת — ולא להפך.
+
+       נבדק על אנשים: היד הולכת לכפתור הגדול והבולט, ולכן הוא
+       חייב להוביל לעיקר. המצגת לא איבדה מקום — השקף שמעליהם
+       הוא בעצמו לחיצה שפותחת אותה, וזה יעד גדול מכל כפתור. */
     s += '<div class="showcase"><div class="frame" onclick="' + call(o.deck) + '">' +
          '<img src="' + StSlide(c, 1) + '" alt="השקף הראשון"></div></div>' +
          '<div class="acts">' +
-         '<button class="go" onclick="' + call(o.deck) + '">' + StEsc(UI.deckGo) + '</button>' +
-         '<button class="alt" onclick="' + call(o.week) + '">' + StEsc(UI.deckAlt) + '</button>' +
+         '<button class="go" onclick="' + call(o.week) + '">' + StEsc(UI.deckGo) + '</button>' +
+         '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>' +
          '</div>';
   } else {
     s += '<div class="showcase"><div class="frame"><div class="empty">' +
