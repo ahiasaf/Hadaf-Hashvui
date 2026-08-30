@@ -1493,7 +1493,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.46.0';
+var APP_VERSION = '7.47.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1835,15 +1835,32 @@ function renderReg() {
      לבין "כמה לישיבה שלי". בעמוד הראשי היא הייתה הגוש הרביעי
      ונסרקה בלי להשאיר רושם.
      אחריה ישר לעניין: במה בוחרים, כמה זה עולה, ובסוף שם וטלפון. */
+  /* מי אתם — שם הישיבה, שם, וטלפון.
+
+     זה עלה עכשיו לראש הטופס, מיד אחרי הרצועה. קודם הוא ישב
+     בסוף, אחרי המסכת ואחרי הגמרות והמחירים, ומי שרצה רק
+     להירשם עבר בדרך לשם בכל שאלה שאיננה שלו. עכשיו: למי
+     התוכנית, מי אתם, וכל השאר. */
+  var whoBlock =
+    '<div class="foldh" id="r-who-step" style="margin-top:22px">' +
+    esc(UI.s4) + '</div>' +
+    pkField('', instName, UI.instLabel, 'pickInst()') +
+    '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
+    '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
+    '" onchange="regSet(\'instOther\',this.value)"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.whoLabel) + '</div>' +
+    '<input type="text" id="r-who" placeholder="שם" value="' + esc(reg.who) +
+    '" onchange="regSet(\'who\',this.value)"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.phoneLabel) + '</div>' +
+    '<input type="tel" id="r-phone" placeholder="05X-XXXXXXX" value="' + esc(reg.phone) +
+    '" onchange="regSet(\'phone\',this.value)"></div>';
+
   var h = fitBlock() +
-    /* כמה תלמידים — כאן, מיד אחרי הרצועה. הרצועה מראה חבורה,
-       אב ובן, ולומד יחיד; מי שקרא אותה כבר לא סופר את השיעור
-       שלו אלא את הישיבה. וזו שאלת השתתפות, לא שאלת רכישה —
-       ולכן היא לפני הגמרות ולא בתוכן. */
+    whoBlock +
+    /* כמה תלמידים — כבוי כברירת מחדל, ומוחזר מההגדרות. */
     sizeRow() +
-    /* איזו מסכת לומדים. אחרי "כמה תלמידים" ולפני הגמרות: זו
-       שאלת תוכן ולא שאלת רכישה, והיא גם מה שקובע על מה ייפתח
-       הבאנר אצל כל תלמיד בישיבה הזו. */
+    /* איזו מסכת לומדים. שאלת תוכן ולא שאלת רכישה, והיא גם מה
+       שקובע על מה ייפתח הבאנר אצל כל תלמיד בישיבה הזו. */
     masRow() +
     /* הרשמה שכבר במכשיר ממלאת את הטופס מראש. אומרים את זה במפורש,
        אחרת המספרים נראים כמו ברירת מחדל שהאפליקציה המציאה. */
@@ -1889,21 +1906,6 @@ function renderReg() {
       orderRows() +
       regTotal() +
     '</div></div>' +
-
-    /* בלי מספר שלב. כשהגמרות היו שלושה חלקים כבדים המספרים
-       עזרו; עכשיו נשאר חלק אחד, ו"1" בודד נראה כמו שריד. */
-    '<div class="foldh" id="r-who-step" style="margin-top:22px">' +
-    esc(UI.s4) + '</div>' +
-    pkField('', instName, UI.instLabel, 'pickInst()') +
-    '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
-    '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
-    '" onchange="regSet(\'instOther\',this.value)"></div>' +
-    '<div class="fld"><div class="label">' + esc(UI.whoLabel) + '</div>' +
-    '<input type="text" id="r-who" placeholder="שם" value="' + esc(reg.who) +
-    '" onchange="regSet(\'who\',this.value)"></div>' +
-    '<div class="fld"><div class="label">' + esc(UI.phoneLabel) + '</div>' +
-    '<input type="tel" id="r-phone" placeholder="05X-XXXXXXX" value="' + esc(reg.phone) +
-    '" onchange="regSet(\'phone\',this.value)"></div>' +
 
     '<button class="btn gr" style="margin-top:20px" onclick="sendReg()">' +
     esc(saved ? UI.update : UI.send) + '</button>' +
@@ -2042,7 +2044,14 @@ function regTotal() {
 /* הערכת מספר התלמידים.
    בקפיצות של חמש, מאותה סיבה שהכמויות קופצות בחמש: מי שסופר
    אחד-אחד עוצר מוקדם. מי שרוצה מספר אחר לוחץ על השדה וכותב. */
+/* השאלה "לכמה תלמידים אתם מכוונים" — כבויה כברירת מחדל.
+
+   היא ביקשה מספר לפני שנאמר מה מקבלים, ומספר שנמסר בניחוש
+   אינו שווה את המחיר שלו. המספר האמיתי מגיע ממילא מקישור
+   ההצטרפות. המתג בהגדרות ← מסך ההרשמה מחזיר אותה. */
+function sizeLive() { return CV('sizeOn') === true; }
 function sizeRow() {
+  if (!sizeLive()) return '';
   return '<div class="sizebox"><div class="lbl">' + esc(UI.sizeLabel) + '</div>' +
     '<div class="side"><div class="ctl"><button onclick="sizeStep(-5)">−</button>' +
     '<input type="tel" id="r-size" value="' + (reg.size || 0) +
@@ -3832,7 +3841,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'tourOn', 'tourAt',
+                'tourOn', 'tourAt', 'sizeOn',
                 'orderBy', 'joinLink', 'weekRaffle'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
@@ -4987,6 +4996,18 @@ function admInst(el) {
        על כל מי שפותח את קישור ההצטרפות ולא רק על המכשיר הזה. */
     /* ההגרלה השבועית — נפרדת מהגרלת ההצטרפות, כי הן שתי
        הבטחות שונות ואפשר לרצות אחת בלי השנייה. */
+    /* השאלה על מספר התלמידים. כבויה, ואפשר להחזיר אותה. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מסך ההרשמה</h4>' +
+    '<p class="h">השאלה "' + esc(UI.sizeLabel) + '" — הערכה שראש חטיבה ' +
+    'נותן לפני שהוא יודע כמה ייכנסו בפועל. המספר המדויק מגיע ' +
+    'ממילא מקישור ההצטרפות.</p>' +
+    '<div class="row"><div>שאלת מספר התלמידים' +
+    '<div class="sub">' + (sizeLive() ? 'מוצגת בטופס ההרשמה'
+                                      : 'כבויה — אינה מוצגת') + '</div></div>' +
+    '<button class="sw' + (sizeLive() ? ' on' : '') +
+    '" onclick="cfgSet(\'sizeOn\',!sizeLive());admPane()" ' +
+    'aria-label="שאלת מספר התלמידים"></button></div></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>ההגרלה השבועית</h4>' +
     '<p class="h">מוצגת במסך הפתיחה של התלמיד: עונים נכון על החידה — ' +
     'ונכנסים להגרלה של אותו שבוע.</p>' +
