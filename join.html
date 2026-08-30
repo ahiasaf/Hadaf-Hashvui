@@ -282,7 +282,9 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .zone{position:relative;margin:0 -14px;padding:26px 14px 20px;
   background:linear-gradient(180deg,#E9EEF6 0%,#E3E9F3 55%,#E7ECF4 100%);
   border-block:1px solid rgba(11,37,80,.09)}
-.zone .tag{position:absolute;top:0;inset-inline-end:14px;transform:translateY(-50%);
+/* בצד שממנו מתחילים לקרוא — בעברית, ימין. `inset-inline-end`
+   הציב אותה בשמאל, כלומר בסוף השורה ולא בתחילתה. */
+.zone .tag{position:absolute;top:0;inset-inline-start:14px;transform:translateY(-50%);
   font-size:.66rem;font-weight:800;letter-spacing:.08em;padding:7px 14px;
   border-radius:99px;background:var(--blue);color:#fff;white-space:nowrap;
   box-shadow:0 3px 10px rgba(11,37,80,.22),0 0 0 4px #EDF1F7}
@@ -1218,7 +1220,7 @@ function drawWeek() {
                               deck:'stDeck', week:'stWeek', trail:'stTrail' });
 
   var rail = $('rail');
-  if (rail) rail.innerHTML = RailHtml({ track:tr, href:'index.html#track-' + tr });
+  if (rail) rail.innerHTML = RailHtml({ track:tr, href:'index.html#track=' + tr });
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
@@ -1239,9 +1241,16 @@ function drawWeek() {
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
 
-/* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js. */
-function stWeek()  { stDeck(); }
-function stTrail() { location.href = 'index.html#track-' + myTrack(); }
+/* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js.
+
+   שתי הלחיצות האלה נחתו על העמוד הראשי ולא על שום מסך: הכתובת
+   `#track-` נכתבה כאן מזמן, והעמוד הראשי מעולם לא ידע לקרוא
+   אותה. עכשיו הוא כן, ושתיהן מובילות למסך עצמו. */
+function stWeek() {
+  var wi = LWeek();
+  location.href = 'index.html#week=' + myTrack() + '-' + ((wi < 0 ? 0 : wi) + 1);
+}
+function stTrail() { location.href = 'index.html#track=' + myTrack(); }
 function stDeck() {
   var tr = myTrack(), wi = LWeek();
   deckOpen(tr + '-' + ((wi < 0 ? 0 : wi) + 1));
@@ -1297,8 +1306,9 @@ function showDone(me) {
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
-  /* התווית היא שמו. זה כל מה שצריך להיאמר כאן. */
-  $('d-name').textContent = me.first || 'הדף שלי';
+  /* התווית היא שמו המלא. זה כל מה שצריך להיאמר כאן. */
+  $('d-name').textContent =
+    ((me.first || '') + ' ' + (me.last || '')).trim() || 'הדף שלי';
   drawInv();
   drawWeek();
   window.scrollTo(0, 0);
