@@ -564,16 +564,23 @@ function groupMsg() {
 /* ---------- הקישור לתלמידים ----------
    כאן, ולא רק בהודעה שנשלחה בהרשמה: הודעת וואטסאפ נקברת
    בקבוצה תוך יומיים, והלוח הוא מה שהוא שומר. */
+/* בסיס הכתובת — בלי המקטע האחרון, יהיה אשר יהיה.
+
+   `cleanUrls` ב-Vercel מגיש את העמוד הזה בכתובת `/board` ולא
+   `/board.html`, ולכן הסרה של הסיומת לא תפסה כלום: הבסיס נשאר
+   `…/board`, והקישור שנבנה עליו יצא `…/boardboard.html` — 404
+   אצל כל מי שקיבל אותו. */
+function baseUrl() {
+  return location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+}
 function joinUrl() {
-  return location.href.split('#')[0].split('?')[0]
-           .replace(/board\.html$/, '') + 'join.html?inst=' + encodeURIComponent(code);
+  return baseUrl() + 'join.html?inst=' + encodeURIComponent(code);
 }
 /* הקישור לעמוד הזה עצמו, נקי מכל מה שהודבק אחריו. */
 function boardUrl() {
   /* עם הקוד. קישור לצוות בלי קוד הוא קישור שייפתח אצלם על מסך
      שאומר "הזינו קוד" — כלומר לא קישור. */
-  var u = location.href.split('#')[0].split('?')[0]
-            .replace(/board\.html$/, '') + 'board.html?inst=' + encodeURIComponent(code);
+  var u = baseUrl() + 'board.html?inst=' + encodeURIComponent(code);
   return acc ? u + '&k=' + encodeURIComponent(acc) : u;
 }
 

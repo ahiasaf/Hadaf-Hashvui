@@ -229,6 +229,37 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .week .tag{font-size:.73rem;font-weight:800;letter-spacing:.06em;color:var(--gold)}
 .week h3{font-size:1.3rem;font-weight:800;letter-spacing:-.03em;margin-top:4px}
 .week .pr{font-size:.83rem;font-weight:700;color:var(--ink-3);margin-top:2px}
+/* השקף. תמונה אמיתית מהמצגת של אותו שבוע — וזה הדבר היחיד
+   בכרטיס שאפשר לראות לפני שלומדים, ולכן הוא גדול. */
+.week .shot{display:block;width:100%;margin-top:13px;padding:0;border:0;
+  border-radius:13px;overflow:hidden;position:relative;cursor:pointer;
+  background:var(--sunk);box-shadow:var(--sh-1);font-family:inherit}
+.week .shot img{display:block;width:100%}
+.week .shot span{position:absolute;inset-inline:0;bottom:0;
+  padding:22px 12px 11px;font-size:.85rem;font-weight:800;color:#fff;
+  background:linear-gradient(to top,rgba(11,37,80,.82),transparent)}
+.week .shot:active{transform:scale(.99)}
+
+/* ---------- המצגת ---------- */
+#deck{position:fixed;inset:0;z-index:130;background:#0B2550;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(env(safe-area-inset-top) + 46px) 10px
+          calc(env(safe-area-inset-bottom) + 66px)}
+#deck.on{display:flex}
+#deck img{max-width:100%;max-height:100%;border-radius:11px;
+  box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.dk-x{position:absolute;top:calc(env(safe-area-inset-top) + 10px);
+  inset-inline-end:12px;background:rgba(255,255,255,.14);border:0;color:#fff;
+  width:38px;height:38px;border-radius:50%;font-size:1.05rem;font-weight:800;
+  cursor:pointer;font-family:inherit}
+.dk-bar{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 14px);
+  display:flex;align-items:center;gap:14px;color:#fff}
+.dk-bar button{background:rgba(255,255,255,.14);border:0;color:#fff;
+  width:46px;height:46px;border-radius:50%;font-size:1.15rem;font-weight:800;
+  cursor:pointer;font-family:inherit}
+.dk-bar button:disabled{opacity:.3}
+.dk-bar span{font-size:.85rem;font-weight:800;min-width:4rem;text-align:center}
+
 .week .go{display:block;width:100%;text-align:center;margin-top:14px;
   padding:14px;border:0;border-radius:14px;font-family:inherit;
   font-size:.98rem;font-weight:800;color:#fff;text-decoration:none;
@@ -377,26 +408,38 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 </div>
 
 <div class="wrap" id="done">
-  <div class="big">📖</div>
+  <!-- שורת אישור אחת, ואז הדף.
+
+       קודם היה כאן ברכה, שתי פסקאות ותגית — וכל מה שהובטח
+       לתלמיד שיראה נדחק אל מתחת לקפל. מי שנרשם רוצה לראות את
+       מה שקיבל, לא לקרוא עליו. -->
   <h2 id="d-h"></h2>
+
+  <div id="wk"></div>
+
   <p id="d-p"></p>
   <p id="d-start"></p>
   <p id="d-raffle" style="font-weight:800;color:var(--gold)"></p>
   <div class="who" id="d-who"></div>
 
-  <!-- ההזמנה ההדדית. לפני הדף של השבוע: זה הרגע שבו הוא הצטרף,
-       והרגע הזה הוא גם ההזדמנות היחידה שבה טבעי לקרוא למישהו
-       להצטרף איתו. -->
+  <!-- ההזמנה ההדדית. אחרי הדף: קודם רואים מה קיבלת, ורק אז
+       יש טעם לקרוא למישהו להצטרף איתך. -->
   <div id="inv"></div>
-
-  <!-- הדף של השבוע. זה מה שהופך את מסך "אתה בפנים" לבית: מקום
-       שחוזרים אליו, ולא הודעה שנקראת פעם אחת. -->
-  <div id="wk"></div>
 
   <button class="again" id="again">שינוי הפרטים</button>
 </div>
 
 <div class="wrap"><footer>רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז</footer></div>
+
+<div id="deck">
+  <button class="dk-x" onclick="deckClose()" aria-label="סגירה">✕</button>
+  <img id="dk-img" alt="">
+  <div class="dk-bar">
+    <button id="dk-prev" onclick="deckGo(-1)">→</button>
+    <span id="dk-n"></span>
+    <button id="dk-next" onclick="deckGo(1)">←</button>
+  </div>
+</div>
 
 <script src="data.js"></script>
 <script src="learned.js"></script>
@@ -580,11 +623,13 @@ function startsIn() {
   var today = new Date(); today.setHours(0, 0, 0, 0);
   return { date: d, days: Math.round((d - today) / 86400000) };
 }
+/* תאריך עברי, לא לועזי. "4.10.26" אינו אומר דבר לתלמיד, ו-
+   "פרשת בראשית" אומר לו בדיוק מתי. */
 function startTxt() {
-  var s = startsIn();
-  if (!s) return '';
-  return s.date.getDate() + '.' + (s.date.getMonth() + 1) + '.' +
-         String(s.date.getFullYear()).slice(2);
+  if (!startsIn()) return '';
+  var r = week0();
+  if (!r) return '';
+  return 'פרשת ' + r[1] + ' · ' + r[0];
 }
 /* השבוע הראשון בלוח — הדף, הפרשה, והתאריך העברי. */
 function week0() {
@@ -1076,14 +1121,15 @@ function drawWeek() {
   var me = get('me', null) || {};
   var wk = LWeek(), tr = myTrack();
 
-  /* לפני שהתוכנית התחילה — תאריך, לא כפתור מת. */
+  /* לפני שהתוכנית התחילה מוצג **אותו כרטיס** של שבוע רגיל, עם
+     הדף הראשון. זה מה שהובטח לתלמיד שיראה, וזה גם מה שאומר לו
+     לבד שהלימוד עוד לא התחיל — כתוב עליו "בראשית".
+
+     מה שאין לפני ההתחלה הוא הסימון והמונים: אין מה לסמן ואין
+     מה לספור. */
   if (wk < 0) {
     var r0 = week0();
-    box.innerHTML = '<div class="week"><div class="tag">' + esc(JOIN.weekTag) +
-      '</div><h3>' + esc(JOIN.soonMark) +
-      (r0 ? ' · דף ' + esc(r0[2]) : '') + '</h3>' +
-      (r0 ? '<div class="pr">' + esc(r0[1]) + ' · ' + esc(r0[0]) + '</div>' : '') +
-      '</div>';
+    box.innerHTML = weekCard(tr, 0, r0, 1);
     return;
   }
   var daf = LDaf(tr, wk);
@@ -1100,22 +1146,7 @@ function drawWeek() {
   var mine = me.inst ? LCount(tr, wk, me.inst) : 0;
   var st   = LStreak(tr);
 
-  /* בורר המסכת מופיע רק כשיש באמת שתיים להציג — אחרת הוא
-     שאלה שלא נשאלה. */
-  var pick = TRACKS.length > 1
-    ? '<div class="pr">' + TRACKS.map(function (t) {
-        return t.id === tr ? '<b>מסכת ' + esc(t.masechet) + '</b>'
-          : '<a href="#" onclick="setTrack(\'' + t.id + '\');return false" ' +
-            'style="color:var(--ink-3)">מסכת ' + esc(t.masechet) + '</a>';
-      }).join(' · ') + '</div>' : '';
-
-  box.innerHTML = '<div class="week">' +
-    '<div class="tag">' + esc(JOIN.weekTag) + '</div>' +
-    '<h3>דף ' + esc(daf) + '</h3>' +
-    (row ? '<div class="pr">' + esc(row[1]) + ' · ' + esc(row[0]) + '</div>' : '') +
-    pick +
-    '<a class="go" href="learn.html?mas=' + encodeURIComponent(tr) +
-      '&daf=' + encodeURIComponent(daf) + '&pg=1">' + esc(JOIN.weekGo) + ' ←</a>' +
+  box.innerHTML = weekCard(tr, wk, row, 0) +
     '<button class="mark' + (done ? ' on' : '') + '" onclick="markWeek()">' +
       esc(done ? JOIN.markedOk : JOIN.markBtn) +
       (done ? '<small>' + esc(JOIN.markUndo) + '</small>' : '') + '</button>' +
@@ -1125,6 +1156,79 @@ function drawWeek() {
     '<a class="tr" href="index.html#track-' + esc(tr) + '">' + esc(JOIN.trackGo) + '</a>' +
     '</div>';
 }
+
+/* ============================================================
+   כרטיס הדף.
+
+   זה מה שהובטח לתלמיד שייפתח אצלו בכל שבוע, ולכן הוא נראה כמו
+   מה שראש החטיבה ראה בעמוד הראשי — ולא כשורת טקסט. השקף
+   האמיתי הוא העיקר: הוא מה שהופך "דף גמרא" למשהו שרוצים
+   לפתוח.
+   ============================================================ */
+function weekCard(tr, wk, row, soon) {
+  var daf = row ? row[2] : '';
+  var key = tr + '-' + (wk + 1);
+  var c = typeof CONTENT !== 'undefined' ? CONTENT[key] : null;
+
+  var pick = TRACKS.length > 1
+    ? '<div class="pr">' + TRACKS.map(function (t) {
+        return t.id === tr ? '<b>מסכת ' + esc(t.masechet) + '</b>'
+          : '<a href="#" onclick="setTrack(\'' + t.id + '\');return false" ' +
+            'style="color:var(--ink-3)">מסכת ' + esc(t.masechet) + '</a>';
+      }).join(' · ') + '</div>' : '';
+
+  var h = '<div class="week">' +
+    '<div class="tag">' + esc(soon ? JOIN.soonTag : JOIN.weekTag) + '</div>' +
+    '<h3>' + (c && c.title ? esc(c.title) : 'דף ' + esc(daf)) + '</h3>' +
+    '<div class="pr">' + esc(masName(tr)) + ' · דף ' + esc(daf) +
+      (row ? ' · ' + esc(row[1]) + ' · ' + esc(row[0]) : '') + '</div>' + pick;
+
+  /* השקף. תמונה אמיתית מהמצגת של אותו שבוע, ולחיצה פותחת את
+     כולה — זה הדבר היחיד כאן שאפשר לראות לפני שלומדים. */
+  if (c && c.deck) {
+    h += '<button class="shot" onclick="deckOpen(\'' + key + '\')">' +
+         '<img src="' + esc(deckSrc(c, 1)) + '" alt="" loading="lazy">' +
+         '<span>▶ ' + esc(JOIN.deckGo) + '</span></button>';
+  }
+
+  h += '<a class="go" href="learn.html?mas=' + encodeURIComponent(tr) +
+       '&daf=' + encodeURIComponent(daf) + '&pg=1">' + esc(JOIN.weekGo) + ' ←</a>';
+  return h;
+}
+function deckSrc(c, n) {
+  return c.deck.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
+}
+
+/* ---------- המצגת ----------
+   מציג תמונות, ולא יותר. הן כבר בנויות, והתלמיד רק צריך לעבור
+   ביניהן — ולכן החלקה, חצים, ומונה. */
+var deckAt = 0, deckOf = null;
+function deckOpen(key) {
+  var c = CONTENT[key];
+  if (!c || !c.deck) return;
+  deckOf = c; deckAt = 1;
+  $('deck').className = 'on';
+  deckPaint();
+}
+function deckClose() { $('deck').className = ''; deckOf = null; }
+function deckGo(d) {
+  if (!deckOf) return;
+  var n = deckAt + d;
+  if (n < 1 || n > deckOf.deck.n) return;
+  deckAt = n; deckPaint();
+}
+function deckPaint() {
+  $('dk-img').src = deckSrc(deckOf, deckAt);
+  $('dk-n').textContent = deckAt + ' / ' + deckOf.deck.n;
+  $('dk-prev').disabled = deckAt <= 1;
+  $('dk-next').disabled = deckAt >= deckOf.deck.n;
+}
+document.addEventListener('keydown', function (e) {
+  if ($('deck').className !== 'on') return;
+  if (e.key === 'Escape') deckClose();
+  if (e.key === 'ArrowLeft')  deckGo(1);
+  if (e.key === 'ArrowRight') deckGo(-1);
+});
 
 function markWeek() {
   var wk = LWeek(), tr = myTrack();
