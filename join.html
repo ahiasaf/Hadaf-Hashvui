@@ -651,6 +651,24 @@ function loadPub() {
       if (Object.keys(m).length) { pub = m; set('cfgCache', m); }
     }),
     /* מוני הלימוד — מספרים בלבד, מהלשונית הציבורית. */
+    /* המסכתות שהישיבה בחרה בהרשמה — לשונית ציבורית, בלי סיסמה.
+       זה מה שקובע על מה ייפתח הבאנר של התלמיד. */
+    sheetCsv('מוסדות').then(function (rows) {
+      if (!rows || !rows.length) return;
+      var head = rows[0], ix = {};
+      for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      var ci = ix['code'] !== undefined ? ix['code'] : 0;
+      var mi = ix['מסכתות'] !== undefined ? ix['מסכתות'] : 4;
+      var m = {};
+      for (var r = 1; r < rows.length; r++) {
+        var c = String(rows[r][ci] || '').trim();
+        var v = String(rows[r][mi] || '').trim();
+        if (c && v) m[c] = v;
+      }
+      set('instMas', m);
+      drawWeek();
+    }).catch(function () {}),
+
     sheetCsv('מוני-לימוד').then(function (rows) {
       var m = LCountsFrom(rows);
       if (m && Object.keys(m).length) LSet('learnCount', m);
@@ -1162,7 +1180,23 @@ function myTrack() {
   var t = null;
   try { t = localStorage.getItem('dfHomeTrack'); } catch (e) {}
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return t;
-  return TRACKS[0].id;
+  /* לא בחר בעצמו — מקבל את מה שהצוות שלו בחר בהרשמה. הבורר
+     נשאר פתוח לו בכל מקרה: מי שרואה שיש עוד מסכת מבין שהוא
+     חלק ממשהו גדול. */
+  return instTrack() || TRACKS[0].id;
+}
+/* המסכת של הישיבה שדרך הקישור שלה הוא נכנס. */
+function instTrack() {
+  var me = get('me', null) || {};
+  var code = instCode || me.inst || '';
+  if (!code) return '';
+  var m = get('instMas', {}) || {};
+  var list = String(m[code] || '').split(',');
+  for (var i = 0; i < list.length; i++) {
+    var id = list[i].trim();
+    for (var j = 0; j < TRACKS.length; j++) if (TRACKS[j].id === id) return id;
+  }
+  return '';
 }
 function setTrack(t) {
   try { localStorage.setItem('dfHomeTrack', t); } catch (e) {}

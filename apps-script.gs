@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 17;
+var SCRIPT_VERSION = 18;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -252,7 +252,9 @@ function doPost(e) {
             של האפליקציה במטמון לא יאבד הרשמה. ---- */
     /* מוסד שנרשם מסומן מיד כ"בפנים" ברשימת המוסדות, וכך הוא
        מופיע בעמוד הראשי אצל כולם בלי שאיש יגע במתג. */
-    if (d.action === 'register') markJoined_(d.code);
+    if (d.action === 'register') {
+      markJoined_(d.code, (d.mas && d.mas.join) ? d.mas.join(',') : d.mas);
+    }
     /* הקוד נוצר ברגע ההרשמה, ולא בבקשה נפרדת: הכתיבה יוצאת
        ב-no-cors ואין ממנה תשובה, ולכן הצד השני מייצר את הקוד
        ושולח אותו — וכך הוא כבר יודע אותו בלי לשאול. אם כבר יש
@@ -743,9 +745,10 @@ function boardData_(inst, k) {
   return { status: 'ok', inst: inst, students: out };
 }
 
-function markJoined_(code) {
+function markJoined_(code, mas) {
   try {
     code = String(code || '').trim();
+    mas = String(mas || '').trim();
     if (!code || code === 'other') return;
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INST_TAB);
     if (!sh || sh.getLastRow() < 2) return;
@@ -756,6 +759,18 @@ function markJoined_(code) {
          עדכון של הרשמה קיימת. */
       var cur = String(sh.getRange(i + 2, 4).getDisplayValue()).trim().toUpperCase();
       if (cur !== 'TRUE' && cur !== 'כן') sh.getRange(i + 2, 4).setValue('TRUE');
+      /* המסכתות שהישיבה בחרה, בעמודה E.
+
+         כאן ולא בלשונית ההרשמות, ובכוונה: זו לשונית ציבורית,
+         והתלמיד צריך לקרוא את הבחירה הזו בלי סיסמה כדי שהבאנר
+         שלו ייפתח על המסכת הנכונה. אין בה פרט אישי — שני
+         מזהי מסכת. */
+      if (mas) {
+        if (String(sh.getRange(1, 5).getDisplayValue()).trim() !== 'מסכתות') {
+          sh.getRange(1, 5).setValue('מסכתות');
+        }
+        sh.getRange(i + 2, 5).setValue(mas);
+      }
       return;
     }
   } catch (err) {}      /* סימון שנכשל לא יפיל הרשמה */

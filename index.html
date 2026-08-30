@@ -317,6 +317,30 @@ body{background:var(--paper);
 #cedit .ce-x{grid-row:1/3;border:1px solid var(--rule);background:var(--sunk);
   border-radius:9px;width:34px;height:100%;color:var(--stop);font-weight:800;cursor:pointer}
 
+/* ---------- בחירת המסכת ----------
+   שתי משבצות שלוחצים עליהן, ולא רשימה נפתחת. תפריט מסתיר את
+   האפשרות השנייה, וכאן דווקא חשוב שיראו שיש שתיים — ושאפשר
+   לקחת את שתיהן. */
+.masbox{background:var(--surface);border-radius:var(--r-s);padding:15px 16px;
+  box-shadow:var(--sh-1);margin-bottom:16px}
+.masbox .lbl{font-size:.98rem;font-weight:800;line-height:1.45}
+.mascards{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.mascard{position:relative;border:1.5px solid var(--rule);background:var(--paper);
+  border-radius:13px;padding:15px 10px 13px;cursor:pointer;font-family:inherit;
+  text-align:center;transition:border-color .16s,background .16s}
+.mascard b{display:block;font-size:.98rem;font-weight:800;color:var(--ink)}
+.mascard small{display:block;font-size:.75rem;font-weight:700;color:var(--ink-3);
+  margin-top:3px}
+.mascard .v{position:absolute;top:8px;inset-inline-start:9px;width:20px;height:20px;
+  border-radius:50%;border:1.5px solid var(--rule);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:800;color:#fff}
+.mascard.on{border-color:var(--green);background:#F4F8EE}
+.mascard.on .v{background:var(--green);border-color:var(--green)}
+.mascard:active{transform:scale(.985)}
+.masbox .hint{font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:11px;
+  line-height:1.5}
+
 .sizebox{background:var(--surface);border-radius:var(--r-s);padding:15px 16px;
   box-shadow:var(--sh-1);margin-bottom:16px;
   display:grid;grid-template-columns:1fr auto;gap:5px 11px;align-items:center}
@@ -1469,7 +1493,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.42.0';
+var APP_VERSION = '7.43.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1780,6 +1804,7 @@ function renderReg() {
   if (saved && !reg.inst) {
     reg.inst = saved.code || ''; reg.who = saved.who || ''; reg.phone = saved.phone || '';
     reg.size = saved.size || 0;
+    if (saved.mas && saved.mas.length) reg.mas = saved.mas;
     reg.qty = regMigrate(saved);
     /* הרשמה ישנה נשמרה לפני שהייתה שאלה כזו, ותמיד הייתה בה
        הזמנה — ולכן כמות קיימת היא התשובה שלה. */
@@ -1800,6 +1825,10 @@ function renderReg() {
        שלו אלא את הישיבה. וזו שאלת השתתפות, לא שאלת רכישה —
        ולכן היא לפני הגמרות ולא בתוכן. */
     sizeRow() +
+    /* איזו מסכת לומדים. אחרי "כמה תלמידים" ולפני הגמרות: זו
+       שאלת תוכן ולא שאלת רכישה, והיא גם מה שקובע על מה ייפתח
+       הבאנר אצל כל תלמיד בישיבה הזו. */
+    masRow() +
     /* הרשמה שכבר במכשיר ממלאת את הטופס מראש. אומרים את זה במפורש,
        אחרת המספרים נראים כמו ברירת מחדל שהאפליקציה המציאה. */
     (saved ? '<p class="jump">' + esc(UI.savedNote) + ' · ' +
@@ -2007,6 +2036,36 @@ function sizeRow() {
     (UI.sizeAim ? '<p class="aim">' + esc(UI.sizeAim) + '</p>' : '') +
     '<p class="hint">' + esc(UI.sizeHint) + '</p></div>';
 }
+/* ============================================================
+   המסכת שהישיבה לומדת.
+   ============================================================
+   לא רשימה נפתחת ולא שאלה אמריקאית — שתי משבצות שלוחצים
+   עליהן, ואפשר לבחור בשתיהן. השאלה הזו נשאלת פעם אחת בשנה,
+   והתשובה שלה קובעת על מה ייפתח הבאנר אצל כל תלמיד בישיבה.
+
+   ברירת המחדל היא ריקה במכוון: מי שלא בחר יקבל את המסכת
+   הראשונה, אבל השאלה עצמה צריכה להיראות כמו החלטה ולא כמו
+   שדה שכבר מולא. */
+function masOn(id) { return (reg.mas || []).indexOf(id) >= 0; }
+function masTog(id) {
+  var l = (reg.mas || []).slice(), i = l.indexOf(id);
+  if (i < 0) l.push(id); else l.splice(i, 1);
+  reg.mas = l;
+  renderReg();
+}
+function masRow() {
+  return '<div class="masbox"><div class="lbl">' + esc(UI.masLabel) + '</div>' +
+    '<div class="mascards">' + TRACKS.map(function (t) {
+      var on = masOn(t.id);
+      return '<button class="mascard' + (on ? ' on' : '') +
+        '" onclick="masTog(\'' + t.id + '\')">' +
+        '<span class="v">' + (on ? '✓' : '') + '</span>' +
+        '<b>מסכת ' + esc(t.masechet) + '</b>' +
+        '<small>' + t.dapim + ' דפים</small></button>';
+    }).join('') + '</div>' +
+    '<p class="hint">' + esc(UI.masHint) + '</p></div>';
+}
+
 /* המועד האחרון להזמנה. תאריך ולא "סוף אלול": מי שצריך לתרגם
    תאריך עברי לתאריך לועזי בראש דוחה את ההחלטה. ריק = לא מוצג. */
 function byLine() {
@@ -2115,6 +2174,10 @@ function sendReg() {
 
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
                   size:reg.size || 0, want:reg.want, total:total, access:access,
+                  mas:(reg.mas || []).slice(),
+                  masText:(reg.mas || []).map(function (id) {
+                    return trackById(id) ? trackById(id).masechet : id;
+                  }).join(' · '),
                   at:new Date().toISOString() };
   TRACKS.forEach(function (t) {
     SFARIM.forEach(function (s) { payload[qk(t.id, s.id)] = reg.qty[qk(t.id, s.id)] || 0; });
@@ -2160,7 +2223,8 @@ function sendReg() {
 function regCols(name, total, summary) {
   var cols = [['ישיבה', name], ['קוד', reg.inst],
               ['איש קשר', reg.who], ['טלפון', reg.phone],
-              ['תלמידים (הערכה)', reg.size || '']];
+              ['תלמידים (הערכה)', reg.size || ''],
+              ['מסכתות', (reg.mas || []).join(',')]];
   TRACKS.forEach(function (t) {
     SFARIM.forEach(function (s) {
       cols.push([t.masechet + ' · ' + s.name, reg.qty[qk(t.id, s.id)] || 0]);
@@ -3937,8 +4001,13 @@ function instFromRows(rows) {
     /* קוד אמיתי הוא מזהה באנגלית: avir, lapid. עברית או רווח
        בעמודה הזו פירושם שאלה בכלל לא מוסדות. */
     if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(code)) { odd++; return; }
+    /* עמודה E — המסכתות שהישיבה בחרה. ריק = לא בחרו, ואז
+       נשארת ברירת המחדל שבקוד. */
+    var mas = (r[4] || '').split(',').map(function (x) { return x.trim(); })
+                .filter(function (x) { return !!trackById(x); });
     out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
-               joined:YES.test((r[3] || '').trim()) });
+               joined:YES.test((r[3] || '').trim()),
+               mas:mas.length ? mas : null });
   });
   if (!out.length)     return { ok:false, why:'לא נמצאו מוסדות בלשונית' };
   if (odd > out.length) return { ok:false, why:'הלשונית אינה נראית כרשימת מוסדות' };
@@ -5743,7 +5812,7 @@ function admSugyaPage(daf, v) {
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
-var SCRIPT_MIN = 17;
+var SCRIPT_MIN = 18;
 
 /* Apps Script מפנה את /exec לדומיין אחר, ויש דפדפנים שחוסמים את
    הקריאה הרגילה בגלל CORS. מנסים קודם fetch, ואם הוא נחסם נופלים
@@ -6656,8 +6725,9 @@ function registerSW() {
      בכלל נשאלת. */
   var cached = Store.get('instCache');
   if (cached && cached.length) {
-    var head = [['code','name','last','joined']].concat(cached.map(function (i) {
-      return [i.code, i.name, i.last ? 'TRUE' : '', i.joined ? 'TRUE' : ''];
+    var head = [['code','name','last','joined','mas']].concat(cached.map(function (i) {
+      return [i.code, i.name, i.last ? 'TRUE' : '', i.joined ? 'TRUE' : '',
+              (i.mas || []).join(',')];
     }));
     if (instFromRows(head).ok) {
       INSTITUTIONS.length = 0;
