@@ -1533,7 +1533,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.50.0';
+var APP_VERSION = '7.50.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2506,9 +2506,21 @@ function bJoin(code) { return (Store.get('joinCount', {}) || {})[code] || null; 
 
    שורה בלי נתונים אינה מוצגת כלל. מספר שלא נטען אינו "0".
    ============================================================ */
+/* כבויה עד שיוחלט אחרת. הרשת עדיין מתמלאת, ושורה שמכריזה
+   "2 ישיבות ברשת" אומרת בדיוק את ההפך ממה שהיא באה לומר.
+   ההדלקה היא החלטה, ולכן היא נעשית ביד ולא מאליה. */
 function netMode() {
   var v = CV('netTicker');
-  return (v === 'names' || v === 'off') ? v : 'nums';
+  return (v === 'nums' || v === 'names') ? v : 'off';
+}
+/* אותם פריטים, בלי קשר למתג — כדי שאפשר יהיה לראות בהגדרות
+   איך זה ייראה לפני שמדליקים. */
+function netItemsIn(mode) {
+  var was = CFG.netTicker, out;
+  CFG.netTicker = mode;
+  out = netItems();
+  if (was === undefined) delete CFG.netTicker; else CFG.netTicker = was;
+  return out;
 }
 /* סכימת שדה־צירופים (`שכבות`, `מסגרות`) על פני כל המוסדות */
 function netSum(field) {
@@ -5179,18 +5191,7 @@ function admInst(el) {
     '<button class="sw' + (CV('raffle') ? ' on' : '') +
     '" onclick="cfgSet(\'raffle\',!CV(\'raffle\'));admPane()" aria-label="הגרלה"></button></div></div>' +
 
-    '<div class="adm-card" style="margin-bottom:11px"><h4>השורה הנעה</h4>' +
-    '<p class="h">שורה אחת בעמוד הראשי, מעל כפתור ההרשמה, שאומרת ' +
-    'שהתוכנית רצה ברשת שלמה. <b>מספרים</b> — כמה ישיבות, כמה לומדים ' +
-    'ואיך הם לומדים, בלי אף שם. <b>שם ומספר</b> — כל ישיבה והמספר שלה, ' +
-    'לפי סדר אלפביתי ולא לפי גודל. שורה בלי נתונים אינה מוצגת.</p>' +
-    '<div class="tabs">' +
-    [['nums', 'מספרים'], ['names', 'שם ומספר'], ['off', 'כבויה']]
-      .map(function (o) {
-        return '<button class="' + (netMode() === o[0] ? 'on' : '') +
-          '" onclick="cfgSet(\'netTicker\',\'' + o[0] + '\');renderHome();admPane()">' +
-          o[1] + '</button>';
-      }).join('') + '</div></div>' +
+    netCard() +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
     '<p class="h">באנר "בקרוב" בעמוד הראשי, בחלק של ראשי החטיבות.</p>' +
@@ -5990,6 +5991,48 @@ function admTextVerify(rows, tries) {
         'אם זה חוזר — בדקו בהגדרות ← בדיקת חיבור.</div>';
     });
   }, tries ? 5000 : 2500);
+}
+
+/* ---- השורה הנעה ----
+   כבויה כברירת מחדל, ולכן הכרטיס הזה צריך לענות על שאלה אחת:
+   *איך זה ייראה אם אדליק*. הוא עונה עליה בנתונים האמיתיים ולא
+   בדוגמה — דוגמה מומצאת בהגדרות היא בדיוק מה שגורם להדליק
+   משהו ואז לגלות שהוא אומר משהו אחר.
+
+   ואם אין עדיין נתונים, הכרטיס אומר את זה במפורש ולא מצייר
+   שורה ריקה שתיראה כמו תקלה.                                 */
+function netPreview(mode) {
+  var items = netItemsIn(mode);
+  if (!items.length) return '';
+  return '<div class="netbar" style="margin-top:9px"><div class="nb-track" ' +
+    'style="animation:none"><div class="nb-set">' +
+    items.map(function (it) {
+      return '<span class="nb-i"><b>' + it[0] + '</b>' + it[1] + '</span>';
+    }).join('') + '</div></div></div>';
+}
+function netCard() {
+  var mode = netMode(), has = netItemsIn('nums').length > 0;
+  var MODES = [['off', 'כבויה'], ['nums', 'מספרים'], ['names', 'שם ומספר']];
+  return '<div class="adm-card" style="margin-bottom:11px"><h4>השורה הנעה</h4>' +
+    '<p class="h">שורה אחת בעמוד הראשי, מעל כפתור ההרשמה, שאומרת שהתוכנית ' +
+    'רצה ברשת שלמה. <b>מספרים</b> — כמה ישיבות, כמה לומדים ואיך הם לומדים, ' +
+    'בלי אף שם. <b>שם ומספר</b> — כל ישיבה והמספר שלה, לפי סדר אלפביתי ולא ' +
+    'לפי גודל.</p>' +
+    '<div class="tabs">' + MODES.map(function (o) {
+      return '<button class="' + (mode === o[0] ? 'on' : '') +
+        '" onclick="cfgSet(\'netTicker\',\'' + o[0] + '\');renderHome();admPane()">' +
+        o[1] + '</button>';
+    }).join('') + '</div>' +
+    (!has
+      ? '<div class="cond" style="margin-top:10px">אין עדיין נתונים ברשת. ' +
+        'השורה לא תוצג בעמוד גם אם תדליקו אותה — היא נדלקת מעצמה ' +
+        'ברגע שיהיו מספרים אמיתיים.</div>'
+      : '<p class="h" style="margin:12px 0 0">כך זה ייראה — בנתונים של עכשיו:</p>' +
+        '<div class="label" style="margin-top:8px">מספרים</div>' +
+        netPreview('nums') +
+        '<div class="label" style="margin-top:11px">שם ומספר</div>' +
+        netPreview('names')) +
+    '</div>';
 }
 
 /* ---- מחירים ----
