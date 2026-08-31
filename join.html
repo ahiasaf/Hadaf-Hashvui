@@ -85,7 +85,7 @@ body{background:var(--paper);color:var(--ink);line-height:1.6;
    במסך הראשי אין פס כזה; החתימה פשוט יושבת על הנייר. שני
    המסכים אמורים להיראות כמו אותה אפליקציה, ולכן גם כאן. */
 header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
-.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 12px;
   max-width:32rem;margin:0 auto}
 .masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
   display:flex;align-items:center;justify-content:center;
@@ -192,7 +192,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 /* ---------- מה זה, בראש העמוד ----------
    הטופס פתח ב"מי אתה?" ובשני שדות שם, כלומר ביקש התחייבות לפני
    שאמר למה. מי שמגיע לכאן קיבל קישור בקבוצה ואינו יודע דבר. */
-.lead{margin-top:16px;text-align:center}
+.lead{margin-top:6px;text-align:center}
 .lead p{font-size:1rem;font-weight:700;line-height:1.65;color:var(--ink)}
 /* מתי מתחילים. בין ההצטרפות לדף הראשון יש חודש שבו לא קורה
    דבר, וזו השורה שהופכת אותו למשהו שממתינים לו. */
@@ -202,7 +202,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .when b{color:var(--blue);font-weight:800}
 /* כמה כבר בפנים אצלו בישיבה. השורה הזו עושה יותר מכל פרס:
    נער מצטרף למקום שהחברים שלו כבר נמצאים בו. */
-.peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d)}
+.peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d);
+  text-align:center;text-wrap:balance}
 /* השורה שמעל הבאנר. אבא שנכנס לכאן רואה טופס ומחליט אם למלא
    אותו; מה שגורם לו למלא הוא לראות **מה** יש מעבר לטופס.
    ולכן קודם המשפט, מיד אחריו הבאנר עצמו, ורק אז הכפתור. */
@@ -222,7 +223,11 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
    הוא גדול מהשטח שבאמת נראה. */
 .hero{min-height:calc(100vh - var(--hero-top,150px));
   min-height:calc(100svh - var(--hero-top,150px));
-  display:flex;flex-direction:column;justify-content:center;padding:20px 0 24px}
+  /* שלוש מרווחים נערמו זה על זה מתחת ללוגו — ריפוד הכותרת,
+     ריפוד ההירו, והמרווח של השורה הראשונה — והתוצאה הייתה חלל
+     שנראה כמו שכחה. הריפוד כאן ירד; מה שקובע את המרחק הוא
+     הכותרת בלבד. */
+  display:flex;flex-direction:column;justify-content:center;padding:2px 0 24px}
 .hero .cards{display:grid;gap:10px;margin-top:20px}
 .pc{display:flex;align-items:flex-start;gap:13px;background:var(--surface);
   border:1px solid var(--rule);border-radius:var(--r);padding:15px 16px;
@@ -240,7 +245,11 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   margin-top:4px;line-height:1.6}
 /* הכפתור אינו שער — הוא קיצור. הטופס נמצא מתחתיו בכל מקרה,
    ומי שגולל מגיע אליו בלי ללחוץ. */
-.hero .go{display:block;width:100%;text-align:center;margin-top:22px;
+/* `#hero-go` ולא `.hero .go`: הבאנר יושב **בתוך** ההירו, ויש בו
+   כפתור בשם `go` משלו. הכלל דלף אליו והוסיף לו margin-top של
+   22px — ולכן "פתיחת הדף" ירד, "מצגת" נשאר למעלה, ושורת הרשת
+   נמתחה ל-70px. זה מה שנראה כמו כפתור שחורג. */
+#hero-go{display:block;width:100%;text-align:center;margin-top:22px;
   padding:16px;border:0;border-radius:14px;font-family:inherit;
   font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
   background:linear-gradient(140deg,var(--green),var(--green-d));
@@ -384,7 +393,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .dk-bar button:disabled{opacity:.3}
 .dk-bar span{font-size:.85rem;font-weight:800;min-width:4rem;text-align:center}
 
-.week .go{display:block;width:100%;text-align:center;margin-top:14px;
+/* אותה דליפה, אותו תיקון: רק כפתור ישיר של הכרטיס. */
+.week > .go{display:block;width:100%;text-align:center;margin-top:14px;
   padding:14px;border:0;border-radius:14px;font-family:inherit;
   font-size:.98rem;font-weight:800;color:#fff;text-decoration:none;
   background:linear-gradient(140deg,var(--blue-l),var(--blue));

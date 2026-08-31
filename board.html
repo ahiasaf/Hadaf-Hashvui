@@ -54,18 +54,20 @@ body{background:var(--paper);color:var(--ink);line-height:1.6;
 /* ---------- חתימת התוכנית ----------
    זהה לעמוד הראשי. הסמל העגול על רקע לבן, השם בשתי שורות,
    ומתחת — הישיבה או השנה. */
-header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
-  padding:calc(env(safe-area-inset-top) + 10px) 4px 6px}
-.masthead{display:flex;align-items:center;gap:13px;padding:14px;
+/* הפס הכחול ירד. הוא הפך את הכותרת לרצועה נפרדת שיושבת מעל
+   העמוד במקום להיות חלק ממנו — ובעמוד הראשי הסמל פשוט צף על
+   אותו רקע קרם כמו כל השאר. אותה כותרת, אותו רקע, אותם צבעים. */
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
   max-width:32rem;margin:0 auto}
 .masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
   display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 5px rgba(0,0,0,.12),0 8px 22px rgba(0,0,0,.14)}
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
 .masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
 .masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
-  line-height:1.2;color:#fff}
-.masthead .yr{font-size:.78rem;font-weight:800;color:var(--gold-l);
-  letter-spacing:.03em;margin-top:3px}
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold);
+  letter-spacing:.05em;margin-top:3px}
 
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
@@ -550,11 +552,11 @@ function weekOpenHtml() {
   var non = roster.filter(function (p) { return !didWeek(p) && !frac(p); });
   return '<div class="open">' +
     (did.length ? '<div class="wgrp">סיימו · ' + did.length + '</div>' +
-                  did.map(pRow).join('') : '') +
+                  did.map(function (q) { return pRow(q); }).join('') : '') +
     (mid.length ? '<div class="wgrp">באמצע הדף · ' + mid.length + '</div>' +
-                  mid.map(pRow).join('') : '') +
+                  mid.map(function (q) { return pRow(q); }).join('') : '') +
     (non.length ? '<div class="wgrp">עדיין לא פתחו · ' + non.length + '</div>' +
-                  non.map(pRow).join('') : '') +
+                  non.map(function (q) { return pRow(q); }).join('') : '') +
     '<p class="h" style="margin-top:10px">"סיים" = הגיע לסוף הדף האינטראקטיבי, ' +
     'ענה על החידה השבועית, או סימן בעצמו.</p></div>';
 }
@@ -575,7 +577,7 @@ function wayOpenHtml() {
       return (gord.length > 1
                 ? '<div class="wgrp">' + esc(g) + ' · ' + byGrade[g].length + '</div>'
                 : '') +
-        byGrade[g].map(pRow).join('');
+        byGrade[g].map(function (q) { return pRow(q, true); }).join('');
     }).join('') +
     '<p class="h" style="margin-top:10px">✓ מסמן את מי שסיים את הדף השבוע.</p></div>';
 }
@@ -589,16 +591,28 @@ function frac(p) {
   for (var k in m) if (String(k).split('|')[1] === String(wk + 1)) return m[k];
   return 0;
 }
-function pRow(p) {
+/* `noGrade` — ברשימה שכבר מקובצת לפי שכבה, חזרה על השכבה בכל
+   שורה היא רעש.
+
+   ולעולם לא `list.map(pRow)`: `map` מעביר את האינדקס כארגומנט
+   שני, ולכן כל שורה מלבד הראשונה קיבלה noGrade אמיתי ואיבדה
+   את השכבה שלה. עוטפים. */
+function pRow(p, noGrade) {
   var did = didWeek(p), f = did ? 0 : frac(p);
-  var sub = p.with ? 'עם ' + p.with : '';
+  /* שם מלא ושכבה. "יונתן" לבדו אינו מזהה אף אחד בשכבה של ארבעים,
+     והרשימה הזו נועדה לצוות שצריך לדעת למי לפנות. */
+  var nm = ((p.first || '') + ' ' + (p.last || '')).trim() || '—';
+  var bits = [];
+  if (p.grade && !noGrade) bits.push(p.grade);
+  if (p.with)  bits.push('עם ' + p.with);
+  var sub = bits.join(' · ');
   /* פס ולא אחוז. "29%" מזמין השוואה בין תלמידים, והוא גם מדויק
      יותר ממה שהוא באמת — קטע 12 מתוך 41 אינו 29 אחוז מהלימוד.
      פס אומר את הדבר היחיד שהצוות צריך: הוא התחיל, והוא בדרך. */
   return '<div class="prow' + (did ? ' did' : (f ? ' mid' : '')) + '">' +
     '<span class="tick">' + (did ? '✓' : '') + '</span>' +
     '<div style="flex:1">' +
-    '<b>' + esc(p.first || '—') + '</b>' +
+    '<b>' + esc(nm) + '</b>' +
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
