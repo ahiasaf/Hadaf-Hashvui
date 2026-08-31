@@ -740,16 +740,67 @@ function csv(text) {
   return rows;
 }
 
-/* המלל שפורסם, על מה שבקוד. רק מפתחות join.* — שאר המלל שייך
-   למסכים אחרים ואין לו כאן משמעות. */
+/* ============================================================
+   המלל שפורסם, על מה שבקוד.
+   ============================================================
+   כאן ישבה הנחה שגויה: "רק מפתחות join.* — שאר המלל שייך למסכים
+   אחרים". היא נכונה לטופס ההרשמה ושגויה לגמרי לבאנר.
+
+   הבאנר הכחול נבנה ב-stage.js, והוא **אותו רכיב בדיוק** בעמוד
+   הראשי ובמסך התלמיד — זו הייתה כל הכוונה. אבל שמונת הנוסחים
+   שלו הם `UI.*`: deckAlt · deckGo · deckSoon · stageSoon ·
+   trackBtn · trackCap · trackNote · weekGo. הסינון כאן זרק את
+   כולם, ולכן עריכה של הבאנר השתנתה בעמוד הראשי ולא אצל
+   התלמידים — אותו באנר, שני נוסחים.
+
+   אין סיבה לסנן. מפתח ששייך למסך אחר פשוט אינו מופיע כאן,
+   והחלתו אינה עולה דבר.
+
+   ושכבת הטיוטה נוספה: עד עכשיו המסך הזה הכיר רק את מה שפורסם,
+   ולכן "לראות איך זה נראה אצל התלמיד" לא עבד לפני פרסום.
+   ============================================================ */
+var TXT_ROOTS = { fit:window.FIT, ui:window.UI, sfarim:window.SFARIM,
+                  rights:window.RIGHTS, join:window.JOIN, gate:window.GATE,
+                  tour:window.TOUR };
+function txtSet(k, v) {
+  var p = k.split('.'), o = TXT_ROOTS[p[0]];
+  for (var i = 1; i < p.length - 1 && o; i++) o = o[p[i]];
+  if (o) o[p[p.length - 1]] = v;
+}
 function applyTxt(map) {
+  if (!map) return;
   for (var k in map) {
-    var parts = k.split('.');
-    if (parts[0] !== 'join' || parts.length !== 2) continue;
-    if (typeof map[k] === 'string' && map[k] !== '') JOIN[parts[1]] = map[k];
+    if (!map.hasOwnProperty(k)) continue;
+    /* נוסח שהוחלף בקוד אחרי שכבר פורסם — ראו TEXT_RETIRED */
+    var dead = (window.TEXT_RETIRED || {})[k];
+    if (dead && dead.indexOf(map[k]) >= 0) continue;
+    if (typeof map[k] === 'string' && map[k] !== '') txtSet(k, map[k]);
   }
 }
-applyTxt(get('txtCache', {}) || {});
+/* הנוסח שבקוד, כפי שהיה לפני שנגענו. בלעדיו החלה שנייה אינה
+   יכולה להחזיר לאחור: נוסח שפורסם ואז נמחק היה נשאר על המסך
+   עד רענון, כי אין למה לחזור. */
+var TXT_BASE = {};
+(function () {
+  if (!window.TEXT_FIELDS) return;
+  TEXT_FIELDS.forEach(function (f) {
+    if (!f.k) return;
+    var p = f.k.split('.'), o = TXT_ROOTS[p[0]];
+    for (var i = 1; i < p.length - 1 && o; i++) o = o[p[i]];
+    if (o) TXT_BASE[f.k] = o[p[p.length - 1]];
+  });
+})();
+
+/* שתי השכבות, בסדר: מה שפורסם, ומעליו הטיוטה של הרכז. */
+function applyTxtLayers() {
+  for (var k in TXT_BASE) if (TXT_BASE.hasOwnProperty(k)) txtSet(k, TXT_BASE[k]);
+  applyTxt(get('txtCache', {}) || {});
+  try {
+    var c = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    applyTxt(c.texts);
+  } catch (e) {}
+}
+applyTxtLayers();
 
 function loadPub() {
   return Promise.all([
@@ -798,13 +849,18 @@ function loadPub() {
       if (Object.keys(m).length) { peers = m; set('peerCache', m); }
     }),
     sheetCsv(TXT_TAB).then(function (rows) {
-      if (!rows || rows.length < 2) return;
+      /* כישלון אינו לשונית ריקה. כותרת בלבד היא מצב חוקי שחייב
+         לרוקן את המטמון, אחרת נוסח שנמחק שורד לנצח. */
+      if (!rows || !rows.length) return;
+      if (rows[0].join('|').indexOf('מפתח') < 0) return;   /* לשונית אחרת */
       var m = {};
       rows.slice(1).forEach(function (r) {
         var k = (r[0] || '').trim(), v = (r[1] || '').trim();
         if (k && v) m[k] = v;
       });
-      if (Object.keys(m).length) { set('txtCache', m); applyTxt(m); }
+      set('txtCache', m);
+      applyTxtLayers();
+      drawTop(); drawWeek();
     })
   ]).catch(function () {});
 }
