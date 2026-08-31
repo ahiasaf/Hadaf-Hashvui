@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 19;
+var SCRIPT_VERSION = 20;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -702,7 +702,17 @@ function boardData_(inst, k) {
 
   /* מי סימן מה. הסקריפט אינו יודע מהו "השבוע" — הלוח יודע,
      ולכן כאן חוזרים כל השבועות והחישוב נשאר בצד אחד. */
-  var done = {};
+  /* שתי צורות של אותה לשונית.
+
+     שורה בלי "קטע" — או כזו שבה קטע = מתוך — היא סיום. שורה שבה
+     קטע קטן ממתוך היא **התקדמות באמצע**: התלמיד פתח את הדף,
+     למד חלק, ויצא. הצוות צריך לראות גם אותה — "לא סיים" ו"לא
+     התחיל" הם שני מצבים שונים לגמרי, ורק אחד מהם דורש תזכורת.
+
+     מכל שורות ההתקדמות של אותו תלמיד באותו שבוע נלקחת הגבוהה
+     ביותר. הוא נשלח כמה פעמים במהלך השבוע, ומה שמעניין הוא
+     כמה רחוק הוא הגיע ולא מתי. */
+  var done = {}, pos = {};
   try {
     var ls = sheet_(LEARN_TAB);
     if (ls.getLastRow() > 1) {
@@ -713,7 +723,16 @@ function boardData_(inst, k) {
         var id = String(lr[b][li['מזהה']] || '').trim();
         if (!id) continue;
         var tag = String(lr[b][li['מסלול']] || '') + '|' + String(lr[b][li['שבוע']] || '');
-        (done[id] = done[id] || {})[tag] = 1;
+        var at  = li['קטע']  === undefined ? '' : String(lr[b][li['קטע']]  || '').trim();
+        var of  = li['מתוך'] === undefined ? '' : String(lr[b][li['מתוך']] || '').trim();
+        var n1 = parseInt(at, 10), n2 = parseInt(of, 10);
+        if (!at || !(n2 > 0) || n1 >= n2) {
+          (done[id] = done[id] || {})[tag] = 1;
+        } else {
+          var f = n1 / n2;
+          if (!pos[id]) pos[id] = {};
+          if (!(pos[id][tag] >= f)) pos[id][tag] = f;
+        }
       }
     }
   } catch (e) {}
@@ -741,12 +760,18 @@ function boardData_(inst, k) {
           way:   cell(row, 'מסגרת'),
           role:  cell(row, 'תפקיד'),
           with:  cell(row, 'שם ההורה'),        /* שם פרטי בלבד */
-          weeks: []
+          weeks: [],
+          pos:   {}                            /* 'מסלול|שבוע' → 0–1 */
         };
       }
       order.forEach(function (pid) {
         var p = byId[pid];
         for (var t in (done[pid] || {})) p.weeks.push(t);
+        /* התקדמות מוחזרת רק לשבוע שלא הושלם — אחרת היא סותרת
+           את הסימון ומייצרת שני מספרים לאותו דבר. */
+        for (var t2 in (pos[pid] || {})) {
+          if (!(done[pid] || {})[t2]) p.pos[t2] = Math.round(pos[pid][t2] * 100) / 100;
+        }
         out.push(p);
       });
     }

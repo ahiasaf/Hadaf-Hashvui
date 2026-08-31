@@ -85,15 +85,74 @@ function LMark(track, wk) {
   var me = LMe();
   if (me && me.id) {
     var q = LGet('learn-q', []) || [];
+    /* שורת סיום נושאת קטע = מתוך. כך השרת מבדיל בינה לבין שורת
+       התקדמות באמצע, בלי לנחש לפי מה שחסר. */
+    var pz = LPos(track, wk);
     q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
       ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
-      ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || '']
+      ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
+      ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : '']
     ]) });
     LSet('learn-q', q);
     LFlush();
   }
   return true;
 }
+/* ============================================================
+   איפה הוא עצר בדף.
+   ============================================================
+   תלמיד שפתח דף, למד רבע ממנו וסגר — חזר למחרת אל ההתחלה. דף
+   שלם הוא בין 30 ל-50 קטעים, ולכן "לחזור להתחלה" פירושו לעבור
+   שוב על מה שכבר למד או לוותר. שניהם מוציאים אותו.
+
+   נשמר במכשיר, ובנוסף נשלח ללשונית "לימוד" — כדי שהצוות יראה
+   לא רק "סיים / לא סיים" אלא גם את מי שבאמצע. **פס ולא אחוזים:**
+   מספר מדויק מזמין השוואה בין תלמידים, והוא גם מדויק יותר ממה
+   שהוא באמת — קטע 12 מתוך 41 אינו "29 אחוז מהלימוד".
+
+   `i` הוא הקטע האחרון שנצפה, `n` כמה יש בדף.
+   ============================================================ */
+function LPos(track, wk) { return (LGet('pos', {}) || {})[LKey(track, wk)] || null; }
+function LPosSet(track, wk, i, n) {
+  if (!(n > 1)) return;
+  var all = LGet('pos', {}) || {}, k = LKey(track, wk);
+  var cur = all[k];
+  /* אחורה לא נשמר. תלמיד שחוזר לעיין בקטע קודם אינו "מתקדם
+     פחות", ולוח שקופץ אחורה בכל דפדוף אינו אומר דבר. */
+  if (cur && cur.n === n && cur.i >= i) return;
+  all[k] = { i:i, n:n, at:new Date().toISOString() };
+  LSet('pos', all);
+}
+/* 0–1. הקטע האחרון מתוך האחרון, ולכן סיום הוא 1 מלא. */
+function LPosFrac(track, wk) {
+  if (LDone(track, wk)) return 1;
+  var p = LPos(track, wk);
+  if (!p || !(p.n > 1)) return 0;
+  return Math.max(0, Math.min(1, p.i / (p.n - 1)));
+}
+
+/* שליחה ללשונית "לימוד" — שורה עם קטע ומתוך. נשלחת ביציאה
+   מהדף ולא בכל צעד: שורה לכל הקשה הייתה מציפה את הגיליון,
+   ומה שהצוות צריך לראות הוא איפה הוא הפסיק. */
+function LPosSend(track, wk) {
+  var p = LPos(track, wk);
+  if (!p || !(p.n > 1) || p.i <= 0) return;
+  if (LDone(track, wk)) return;              /* סיים — נשלח כבר כסיום */
+  var sent = LGet('pos-sent', {}) || {}, k = LKey(track, wk);
+  if (sent[k] === p.i) return;               /* אותו מקום, כבר דווח */
+  var me = LMe();
+  if (!me || !me.id) return;
+  sent[k] = p.i; LSet('pos-sent', sent);
+  var q = LGet('learn-q', []) || [];
+  q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
+    ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
+    ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
+    ['קטע', p.i + 1], ['מתוך', p.n]
+  ]) });
+  LSet('learn-q', q);
+  LFlush();
+}
+
 function LUnmark(track, wk) {
   /* מסירים רק במכשיר. שורה שכבר נשלחה נשארת בגיליון, והמונה
      סופר מזהה ייחודי — כלומר ביטול אינו מוריד את המספר. זו

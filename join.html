@@ -443,6 +443,23 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 /* ---------- האפליקציה על מסך הבית ----------
    הקישור מגיע בוואטסאפ פעם אחת. מי שלא הוסיף אותו למסך הבית
    מחפש אותו מחדש בכל שבוע, ובדרך כלל לא מוצא. */
+/* ---------- "ממשיכים מהמקום שעצרת" ----------
+   הכרטיס הזה הוא ההזמנה החזקה ביותר במסך: הוא אינו מבקש להתחיל
+   אלא להמשיך, ומי שכבר התחיל צריך הרבה פחות שכנוע. לכן הוא
+   מעל כפתור הסימון ולא מתחתיו. */
+.cont{display:block;margin-top:14px;padding:14px 15px;border-radius:var(--r);
+  background:linear-gradient(160deg,var(--blue-d),var(--blue));color:#fff;
+  text-decoration:none;box-shadow:var(--sh-2)}
+.cont:active{transform:scale(.99)}
+.cont .ct{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.cont .ct b{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.cont .ct span{font-size:.73rem;font-weight:700;color:rgba(255,255,255,.68)}
+.cbar{margin-top:11px;height:8px;border-radius:8px;background:rgba(255,255,255,.2);
+  overflow:hidden}
+.cbar i{display:block;height:100%;border-radius:8px;
+  background:linear-gradient(90deg,var(--gold-l, #E3B44A),#fff);
+  transition:width .8s cubic-bezier(.3,.1,.2,1)}
+
 .getapp{margin-top:16px;background:var(--surface);border:1px solid var(--rule);
   border-radius:var(--r);padding:17px;box-shadow:var(--sh-1);text-align:center}
 .getapp h3{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
@@ -1473,7 +1490,21 @@ function drawWeek() {
   var me = get('me', null) || {};
   var mine = me.inst ? LCount(tr, wk, me.inst) : 0;
   var st = LStreak(tr);
+  /* איפה הוא עצר. פס ולא אחוז: "29%" הוא מספר שמזמין השוואה,
+     והוא גם מדויק יותר ממה שהוא באמת — קטע 12 מתוך 41 אינו
+     "29 אחוז מהלימוד". פס אומר את הדבר היחיד שחשוב לו: התחלת,
+     ואתה בדרך.
+
+     מוצג רק למי שבאמצע. מי שטרם פתח אינו צריך פס ריק שאומר
+     לו אפס, ומי שסיים כבר רואה את הסימון. */
+  var frac = (typeof LPosFrac === 'function') ? LPosFrac(tr, wk) : 0;
+  var mid  = !done && frac > 0;
   extra.innerHTML =
+    (mid ? '<a class="cont" href="' + esc(dafUrl(tr, wk)) + '">' +
+           '<div class="ct"><b>ממשיכים מהמקום שעצרת</b>' +
+           '<span>הדף נשמר לך</span></div>' +
+           '<div class="cbar"><i style="width:' +
+           Math.max(4, Math.round(frac * 100)) + '%"></i></div></a>' : '') +
     '<button class="mark' + (done ? ' on' : '') + '" onclick="markWeek()">' +
       esc(done ? JOIN.markedOk : JOIN.markBtn) +
       (done ? '<small>' + esc(JOIN.markUndo) + '</small>' : '') + '</button>' +
@@ -1545,6 +1576,14 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'ArrowLeft')  deckGo(1);
   if (e.key === 'ArrowRight') deckGo(-1);
 });
+
+/* הקישור לדף עצמו. מוצג רק למי שכבר פתח אותו פעם — כלומר
+   הדף בוודאי מוכן, ואין כאן הבטחה שתיפול. */
+function dafUrl(tr, wk) {
+  var d = LDaf(tr, wk) || '';
+  return 'learn.html?mas=' + encodeURIComponent(tr) +
+         '&daf=' + encodeURIComponent(d);
+}
 
 function markWeek() {
   var wk = LWeek(), tr = myTrack();
