@@ -1111,6 +1111,9 @@ function CV_ROWS() {
    הקוד אינו יכול לשבת ב-manifest, כי הוא שונה לכל תלמיד ואילו
    הקובץ סטטי. לכן הוא נשמר במכשיר ברגע שמגיעים עם קישור, וזה
    גם עובד באייפון — שם אין שום שליטה על ההתקנה בכלל. */
+/* לא ישיבה, ולכן לא ברשימה. ראו הבורר שלמטה. */
+var OTHER = { code:'other', name:'אחר', label:'אחר — לא מאחת הישיבות' };
+
 var instCode = qs('inst');
 try {
   if (instCode) localStorage.setItem('df:inst', instCode);
@@ -1133,7 +1136,17 @@ var instRow = null;
     $('inst').innerHTML = '<option value="">— בחרו ישיבה —</option>' +
       INSTITUTIONS.map(function (o) {
         return '<option value="' + esc(o.code) + '">' + esc(o.name) + '</option>';
-      }).join('');
+      }).join('') +
+      /* מי שאינו באף ישיבה. הוא מופיע רק בקישור הכללי — הבורר
+         כולו נפתח רק כשאין קוד ישיבה בכתובת — ולכן תלמיד שקיבל
+         את הקישור של הישיבה שלו אינו רואה אותו כלל.
+
+         `OTHER` אינו נכנס ל-INSTITUTIONS בכוונה: כל מה שנשען על
+         `instRow` — שורת המצטרפים, הלוח, הקוד — פשוט אינו חל
+         עליו, וזה נכון. אין ישיבה, אין מה לספור בה, ו"כבר 3
+         מצטרפים באחר" אינו משפט. */
+      '<option disabled>──────────</option>' +
+      '<option value="' + esc(OTHER.code) + '">' + esc(OTHER.label) + '</option>';
   }
   $('grade').innerHTML = '<option value="">— בחרו —</option>' +
     GRADES.map(function (g) { return '<option>' + g + '</option>'; }).join('');
@@ -1170,6 +1183,7 @@ $('go').onclick = function () {
   var first = val('first'), last = val('last');
   var code  = instRow ? instRow.code : val('inst');
   var name  = instRow ? instRow.name : (function () {
+    if (code === OTHER.code) return OTHER.name;
     for (var i = 0; i < INSTITUTIONS.length; i++)
       if (INSTITUTIONS[i].code === code) return INSTITUTIONS[i].name;
     return '';
@@ -1183,7 +1197,8 @@ $('go').onclick = function () {
      רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
      אותו מרחיק תלמיד בגלל צורת כתיבה. */
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
-  if (!code)           return say('צריך לבחור ישיבה.');
+  if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
+                                  'יש "אחר" בסוף הרשימה.');
   if ((val('phone').match(/\d/g) || []).length < 9)
     return say('צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
   if (!way)            return say('צריך לבחור איך אתה לומד.');
