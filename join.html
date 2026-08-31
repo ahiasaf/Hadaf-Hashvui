@@ -448,6 +448,19 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .getapp .btn{margin-top:14px}
 .getapp .how{margin-top:12px;font-size:.83rem;font-weight:700;color:var(--ink-2);
   background:var(--sunk);border-radius:var(--r-s);padding:12px 13px;line-height:1.75}
+/* ההצלחה נראית אחרת מההצעה. תלמיד שסיים צריך לראות שסיים. */
+.getapp.ok{border-color:rgba(74,130,28,.4);background:rgba(74,130,28,.06)}
+.getapp.ok h3{color:#3F7018}
+/* ההודעה שמוציאה מוואטסאפ אינה עוד הסבר — היא מה שחוסם */
+.getapp .how.warn{background:rgba(192,143,43,.12);color:var(--ink);
+  border:1px solid rgba(192,143,43,.35);text-align:right}
+.getapp .how.warn b{color:#8A6316}
+/* האייקון כפי שהוא נראה על מסך הבית — כדי ש"חפשו אותו" יהיה
+   הוראה שאפשר לבצע ולא משפט. */
+.apic{margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:7px}
+.apic img{width:56px;height:56px;border-radius:14px;display:block;
+  box-shadow:0 4px 14px rgba(11,37,80,.22)}
+.apic span{font-size:.72rem;font-weight:800;color:var(--ink-2)}
 
 footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   margin-top:26px;line-height:1.9}
@@ -1088,7 +1101,27 @@ function CV_ROWS() {
    מגיעה מהקישור. ראש חטיבה מפיץ join.html?inst=<קוד>, ואז
    התלמיד אינו בוחר ואינו טועה. בלי הקוד — בורר, כדי שהעמוד
    יעבוד גם כשמישהו הגיע אליו בדרך אחרת. */
+/* הקוד מהקישור — ואם אין, זה שנשמר במכשיר.
+
+   האייקון שנוסף למסך הבית פותח את `start_url` שב-manifest, והוא
+   קבוע: `./join`, בלי שום `?inst`. כלומר בדיוק ברגע שהתלמיד
+   מצליח להתקין, הוא מאבד את הישיבה שלו — הכותרת מתרוקנת, ומי
+   שטרם נרשם מקבל בורר ישיבות במקום הישיבה שלו.
+
+   הקוד אינו יכול לשבת ב-manifest, כי הוא שונה לכל תלמיד ואילו
+   הקובץ סטטי. לכן הוא נשמר במכשיר ברגע שמגיעים עם קישור, וזה
+   גם עובד באייפון — שם אין שום שליטה על ההתקנה בכלל. */
 var instCode = qs('inst');
+try {
+  if (instCode) localStorage.setItem('df:inst', instCode);
+  else {
+    instCode = localStorage.getItem('df:inst') || '';
+    if (!instCode) {
+      var meNow = get('me', null);
+      if (meNow && meNow.inst) instCode = meNow.inst;
+    }
+  }
+} catch (e) {}
 var instRow = null;
 (function () {
   for (var i = 0; i < INSTITUTIONS.length; i++)
@@ -1457,7 +1490,9 @@ var bip = null;
 window.addEventListener('beforeinstallprompt', function (e) {
   e.preventDefault(); bip = e; drawApp();
 });
-window.addEventListener('appinstalled', function () { bip = null; drawApp(); });
+window.addEventListener('appinstalled', function () {
+  bip = null; appMark(); drawApp();
+});
 
 /* כבר מותקנת — אין מה להציע. */
 function standalone() {
@@ -1469,26 +1504,118 @@ function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
+
+/* ============================================================
+   דפדפן בתוך אפליקציה — וזו הסיבה שזה לא עבד לחלק מהם.
+
+   הקישור מופץ בוואטסאפ. הקשה עליו אינה פותחת את הדפדפן אלא
+   חלון גלישה **בתוך** וואטסאפ, ומשם אי אפשר להוסיף למסך הבית
+   בשום דרך: באנדרואיד `beforeinstallprompt` לא נורה שם כלל,
+   ובאייפון תפריט השיתוף של החלון הזה אינו כולל "הוספה למסך
+   הבית". התלמיד עשה הכל נכון ולא קרה כלום, וגם ההוראה הידנית
+   שהוצגה לו הפנתה אותו לתפריט שאינו קיים.
+
+   אנדרואיד: כל WebView מסמן את עצמו ב-`; wv)`, ולפייסבוק,
+   אינסטגרם ודומיהן יש סימן משלהן.
+   אייפון: `navigator.standalone` מוגדר בספארי בלבד. בחלון
+   שבתוך אפליקציה הוא `undefined`, וזה הסימן היחיד שיש.
+
+   שתי הבדיקות הן היוריסטיקה ולא ודאות, ולכן ההוראה הידנית
+   נשארת מתחת להודעה ולא מוחלפת בה.
+   ============================================================ */
+function inApp() {
+  var ua = navigator.userAgent || '';
+  if (/; wv\)|FBAN|FBAV|Instagram|Line\/|MicroMessenger|OKApp/.test(ua)) return true;
+  if (isIOS() && typeof navigator.standalone === 'undefined') return true;
+  return false;
+}
+
+/* סימון שההתקנה קרתה, כדי שביקור הבא בדפדפן ידע להזכיר איפה
+   האייקון במקום להציע להתקין שוב. */
+function appMark() {
+  try { localStorage.setItem('df:appAdded', '1'); } catch (e) {}
+}
+function appWasAdded() {
+  try { return localStorage.getItem('df:appAdded') === '1'; } catch (e) { return false; }
+}
+
+/* האייקון עצמו, בגודל שהוא מופיע בו על המסך. "חפשו את האייקון"
+   הוא משפט שאפשר לקיים רק אם יודעים איך הוא נראה. */
+function appIcon() {
+  return '<div class="apic"><img src="icon-192.png" alt="">' +
+         '<span>הדף השבועי</span></div>';
+}
+
 function drawApp() {
   var box = $('getapp'); if (!box) return;
-  if (standalone() || !JOIN.appTitle) { box.innerHTML = ''; return; }
+  if (!JOIN.appTitle) { box.innerHTML = ''; return; }
+
+  /* ---- כבר בפנים. זו התשובה ל"איך אדע שזה הצליח" ---- */
+  if (standalone()) {
+    appMark();
+    box.innerHTML = '<div class="getapp ok"><h3>אתם בתוך האפליקציה</h3>' +
+      '<p>נפתחתם מהאייקון שבמסך הבית, ולא מהדפדפן. ' +
+      'כל שבוע הדף יחכה לכם כאן.</p></div>';
+    return;
+  }
 
   var h = '<div class="getapp"><h3>' + esc(JOIN.appTitle) + '</h3>' +
           '<p>' + esc(JOIN.appBody) + '</p>';
+
+  /* ---- הותקנה, ואנחנו בדפדפן. להראות מה לחפש ---- */
+  if (appWasAdded()) {
+    box.innerHTML = '<div class="getapp ok"><h3>כבר הוספתם למסך הבית</h3>' +
+      '<p>חפשו את האייקון הזה במסך הבית של הטלפון, ופתחו ממנו ' +
+      'בפעם הבאה.</p>' + appIcon() + '</div>';
+    return;
+  }
+
+  /* ---- חלון בתוך אפליקציה: להוציא אותם לדפדפן ---- */
+  if (inApp()) {
+    /* "נראה ש" ולא "הדף פתוח": הזיהוי הוא היוריסטיקה. טעות
+       לכיוון הזה עולה משפט מיותר; טעות לכיוון השני משאירה
+       תלמיד מול כפתור שאינו יכול לעבוד. */
+    h += '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
+         'מכאן אי אפשר להוסיף למסך הבית. ' +
+         (isIOS()
+           ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי" — ומשם שוב שיתוף ← הוספה למסך הבית.'
+           : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן" — ואז הכפתור כאן יעבוד.') +
+         '</div>' +
+         '<button class="btn" id="app-copy">העתקת הקישור</button>' +
+         '<div class="how">אפשר גם להעתיק את הקישור ולהדביק אותו בדפדפן.</div>';
+    box.innerHTML = h + '</div>';
+    var cp = $('app-copy');
+    if (cp) cp.onclick = function () {
+      var url = location.href;
+      var done = function () { cp.textContent = 'הקישור הועתק ✓'; };
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(url).then(done)['catch'](function () {
+          cp.textContent = 'לא הצלחתי להעתיק';
+        });
+      else cp.textContent = 'לא הצלחתי להעתיק';
+    };
+    return;
+  }
+
   if (bip)          h += '<button class="btn" id="app-go">' + esc(JOIN.appBtn) + '</button>';
-  else if (isIOS()) h += '<div class="how">' + esc(JOIN.appIos) + '</div>';
-  else              h += '<div class="how">' + esc(JOIN.appHow) + '</div>';
+  else if (isIOS()) h += '<div class="how">' + esc(JOIN.appIos) + '</div>' + appIcon();
+  else              h += '<div class="how">' + esc(JOIN.appHow) + '</div>' + appIcon();
   box.innerHTML = h + '</div>';
 
   var g = $('app-go');
   if (g) g.onclick = function () {
     var p = bip; if (!p) return;
-    /* ההצעה תקפה פעם אחת. אחריה הכפתור אינו יכול לעבוד שוב,
-       ולכן הוא נעלם ובמקומו ההוראה הידנית. */
+    /* ההצעה תקפה פעם אחת. אחריה הכפתור אינו יכול לעבוד שוב. */
     bip = null;
     p.prompt();
+    /* התוצאה נאמרת. קודם הכפתור פשוט נעלם והוחלף בהוראה ידנית —
+       גם למי שאישר, וגם למי שביטל — ובשני המקרים זה נקרא כמו
+       כפתור שלא עשה כלום. */
     if (p.userChoice && p.userChoice.then)
-      p.userChoice.then(function () { drawApp(); })['catch'](function () {});
+      p.userChoice.then(function (r) {
+        if (r && r.outcome === 'accepted') appMark();
+        drawApp();
+      })['catch'](function () { drawApp(); });
     else drawApp();
   };
 }
