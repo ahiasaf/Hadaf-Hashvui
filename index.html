@@ -951,6 +951,39 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
    שנמתח, והמספר שעולה. בלי קונפטי, בלי קפיצה, בלי צליל — זו
    תוכנית לימוד ולא משחק. */
 .brd.hail{animation:hailIn .55s cubic-bezier(.22,1,.36,1) both}
+/* ---------- השורה הנעה ----------
+   הרשת בשורה אחת. תנועה איטית ורציפה, לא הבזקים: המספרים כאן
+   אינם חדשות אלא רקע, ומשהו שקופץ היה גונב את הכפתור שמתחתיו.
+
+   שני עותקים זהים בתוך המסילה, והיא נעה בדיוק חצי מרוחבה —
+   ברגע שהעותק השני מגיע למקום הראשון, ההנפשה מתחילה מחדש
+   ואיש אינו רואה את התפר.
+
+   התנועה ימינה ולא שמאלה: בעברית הקריאה היא מימין לשמאל, ולכן
+   הפריט הבא צריך להגיע אל מקום הקריאה — כלומר לנוע ימינה.    */
+.netbar{margin-top:14px;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(23,70,143,.055),rgba(23,70,143,.02));
+  border:1px solid rgba(23,70,143,.10);position:relative}
+/* דהייה בשני הקצוות — הפריט אינו נחתך אלא נמוג */
+.netbar:before,.netbar:after{content:'';position:absolute;top:0;bottom:0;width:20px;
+  z-index:2;pointer-events:none}
+.netbar:before{right:0;background:linear-gradient(270deg,var(--surface),transparent)}
+.netbar:after{left:0;background:linear-gradient(90deg,var(--surface),transparent)}
+.nb-track{display:flex;width:max-content;animation:nbRun 42s linear infinite}
+.netbar:hover .nb-track{animation-play-state:paused}
+.nb-set{display:flex;flex:0 0 auto}
+.nb-i{display:flex;align-items:center;gap:7px;padding:11px 16px;white-space:nowrap;
+  font-size:13px;color:var(--ink-2)}
+.nb-i b{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--blue)}
+/* המפריד. נקודה ולא קו — קו בין מספרים נקרא כמינוס. */
+.nb-i:after{content:'';width:3px;height:3px;border-radius:50%;
+  background:var(--ink-3);opacity:.45;margin-inline-start:9px}
+@keyframes nbRun{from{transform:translateX(0)}to{transform:translateX(50%)}}
+/* מי שביקש פחות תנועה מקבל את אותה שורה, עומדת. */
+@media (prefers-reduced-motion:reduce){
+  .nb-track{animation:none}
+  .netbar{overflow-x:auto}
+}
 @keyframes hailIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .hail{text-align:center;padding-bottom:15px;margin-bottom:16px;position:relative}
 .hail b{display:block;font-size:1.16rem;font-weight:800;letter-spacing:-.03em;
@@ -1375,6 +1408,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <!-- מה שעוד לא קיים, ומובטח. ממש לפני כפתור ההרשמה: זו
              הסיבה האחרונה שראש חטיבה שומע לפני שהוא מחליט. -->
         <div id="soon"></div>
+        <!-- הרשת. מיד לפני הכפתור: זה ההקשר האחרון שראש חטיבה
+             מקבל לפני שהוא מחליט — הוא אינו הראשון וגם לא לבד. -->
+        <div id="netbar"></div>
         <div id="cta" style="margin-top:16px"></div>
       </section>
 
@@ -1497,7 +1533,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.49.0';
+var APP_VERSION = '7.50.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1695,6 +1731,9 @@ function renderHome() {
     '<circle cx="5" cy="10" r="2.3"/><circle cx="15" cy="15.5" r="2.3"/>' +
     '<path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" stroke-width="1.5" ' +
     'fill="none"/></svg>שיתוף</i></div></div>';
+
+  /* ---- הרשת, בשורה אחת ---- */
+  renderNet();
 
   /* ---- פס ההרשמה ---- */
   var mine = regSaved();
@@ -2450,6 +2489,83 @@ function bPairs(t) {
   }).filter(function (x) { return x && x[0] && x[1]; });
 }
 function bJoin(code) { return (Store.get('joinCount', {}) || {})[code] || null; }
+
+/* ============================================================
+   השורה הנעה — הרשת בשורה אחת.
+
+   שני נוסחים, וההחלטה ביניהם היא של אחיאסף בהגדרות:
+
+   `nums` (ברירת המחדל) — הרכב הרשת בלי אף שם. כמה ישיבות, כמה
+   לומדים, ואיך הם לומדים. אין כאן "המובילה" ואין דירוג, בכוונה:
+   שורה שמדרגת ישיבות יוצרת תחרות בין רכזים, ומי שנמצא בתחתיתה
+   לומד ממנה רק דבר אחד.
+
+   `names` — שם ומספר לכל ישיבה. מניע יותר, וגם חושף. הסדר הוא
+   סדר הרשימה שבקוד, כלומר אלפביתי — לא לפי גודל, שלא תיווצר
+   טבלת ליגה דרך הדלת האחורית.
+
+   שורה בלי נתונים אינה מוצגת כלל. מספר שלא נטען אינו "0".
+   ============================================================ */
+function netMode() {
+  var v = CV('netTicker');
+  return (v === 'names' || v === 'off') ? v : 'nums';
+}
+/* סכימת שדה־צירופים (`שכבות`, `מסגרות`) על פני כל המוסדות */
+function netSum(field) {
+  var m = Store.get('joinCount', {}) || {}, out = {}, order = [];
+  for (var c in m) {
+    if (!m.hasOwnProperty(c)) continue;
+    (m[c][field] || []).forEach(function (pair) {
+      if (out[pair[0]] === undefined) { out[pair[0]] = 0; order.push(pair[0]); }
+      out[pair[0]] += pair[1];
+    });
+  }
+  return order.map(function (k) { return [k, out[k]]; });
+}
+function netItems() {
+  var mode = netMode();
+  if (mode === 'off') return [];
+  var m = Store.get('joinCount', {}) || {}, items = [], total = 0, live = 0;
+
+  INSTITUTIONS.forEach(function (inst) {
+    var j = m[inst.code];
+    if (!j || !j.n) return;
+    live++; total += j.n;
+    if (mode === 'names') items.push([String(j.n), esc(inst.name)]);
+  });
+  if (!live) return [];                       /* אין נתונים — אין שורה */
+
+  if (mode === 'nums') {
+    items.push([String(live), live === 1 ? 'ישיבה ברשת' : 'ישיבות ברשת']);
+    items.push([String(total), 'לומדים בסך הכול']);
+    /* ההרכב — איך לומדים ובאילו שכבות. זה מה שאומר "יש כאן
+       תוכנית" ולא "יש כאן מספר". */
+    netSum('ways').forEach(function (w) { items.push([String(w[1]), esc(w[0])]); });
+    netSum('grades').forEach(function (g) {
+      items.push([String(g[1]), 'שכבה ' + esc(g[0])]);
+    });
+  } else {
+    items.unshift([String(total), 'לומדים ברשת']);
+  }
+  return items;
+}
+function renderNet() {
+  var el = document.getElementById('netbar');
+  if (!el) return;
+  var items = netItems();
+  if (!items.length) { el.className = ''; el.innerHTML = ''; return; }
+
+  /* שורה קצרה מדי אינה ממלאת את הרוחב, והמסילה הייתה נעה על
+     ריק. משכפלים עד שיש די תוכן, ורק אז מכפילים לשני עותקים. */
+  var one = items;
+  while (one.length < 6) one = one.concat(items);
+  var set = '<div class="nb-set">' + one.map(function (it) {
+    return '<span class="nb-i"><b>' + it[0] + '</b>' + it[1] + '</span>';
+  }).join('') + '</div>';
+
+  el.className = 'netbar';
+  el.innerHTML = '<div class="nb-track">' + set + set + '</div>';
+}
 
 function boardHtml(code, name, hail) {
   var j = bJoin(code), n = j ? j.n : 0;
@@ -3848,7 +3964,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    גיליונות, כתובת השרת וקוד הכניסה, שאין להם מה לעשות בגיליון
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
-                'tourOn', 'tourAt', 'sizeOn',
+                'tourOn', 'tourAt', 'sizeOn', 'netTicker',
                 'orderBy', 'joinLink', 'weekRaffle'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
@@ -5062,6 +5178,19 @@ function admInst(el) {
       : 'כבויה — התלמיד לא רואה אותה') + '</div></div>' +
     '<button class="sw' + (CV('raffle') ? ' on' : '') +
     '" onclick="cfgSet(\'raffle\',!CV(\'raffle\'));admPane()" aria-label="הגרלה"></button></div></div>' +
+
+    '<div class="adm-card" style="margin-bottom:11px"><h4>השורה הנעה</h4>' +
+    '<p class="h">שורה אחת בעמוד הראשי, מעל כפתור ההרשמה, שאומרת ' +
+    'שהתוכנית רצה ברשת שלמה. <b>מספרים</b> — כמה ישיבות, כמה לומדים ' +
+    'ואיך הם לומדים, בלי אף שם. <b>שם ומספר</b> — כל ישיבה והמספר שלה, ' +
+    'לפי סדר אלפביתי ולא לפי גודל. שורה בלי נתונים אינה מוצגת.</p>' +
+    '<div class="tabs">' +
+    [['nums', 'מספרים'], ['names', 'שם ומספר'], ['off', 'כבויה']]
+      .map(function (o) {
+        return '<button class="' + (netMode() === o[0] ? 'on' : '') +
+          '" onclick="cfgSet(\'netTicker\',\'' + o[0] + '\');renderHome();admPane()">' +
+          o[1] + '</button>';
+      }).join('') + '</div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
     '<p class="h">באנר "בקרוב" בעמוד הראשי, בחלק של ראשי החטיבות.</p>' +
