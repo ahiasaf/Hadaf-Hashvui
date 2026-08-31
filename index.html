@@ -1116,10 +1116,22 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
    מקטעים שלמים, ולכן הן נשברות לשתי שורות — הכול גלוי תמיד. */
 .tabs{display:flex;flex-wrap:wrap;gap:5px;background:var(--sunk);padding:4px;
   border-radius:12px}
-.tabs button{flex:1 1 96px;border:none;background:none;color:var(--ink-3);
+/* ארבע לשוניות חייבות להיכנס בשורה אחת בטלפון צר. 96px כבסיס
+   שבר אותן ל-3+1, ושורה שנייה עם פריט בודד נראית כמו תקלה. */
+.tabs button{flex:1 1 68px;border:none;background:none;color:var(--ink-3);
   padding:10px 8px;border-radius:9px;font-size:.83rem;font-weight:800;cursor:pointer;
   white-space:nowrap;transition:background .15s,color .15s}
 .tabs button.on{background:var(--surface);color:var(--blue);box-shadow:var(--sh-1)}
+/* השורה השנייה — קטנה ושקטה יותר, כדי שיהיה ברור מיד מה מפלס
+   ראשי ומה מפלס משנה. שתי שורות באותו משקל נקראות כתשע. */
+.tabs.sub{background:none;padding:0;gap:4px;border-bottom:1px solid var(--rule);
+  border-radius:0;padding-bottom:7px}
+.tabs.sub button{flex:0 1 auto;padding:6px 12px;font-size:.79rem;
+  background:var(--sunk);border-radius:20px}
+.tabs.sub button.on{background:var(--blue);color:#fff;box-shadow:none}
+/* פעולה שאין ממנה חזרה. הצבע הוא ההבדל היחיד בין "הורדה"
+   ל"מחיקה לצמיתות", ובלעדיו שתיהן נראות כמו אותה בקשה. */
+.cp.kill{color:#B23B3B;border-color:rgba(178,59,59,.4);background:rgba(178,59,59,.06)}
 /* ============================================================
    המדריך — סימון, לא החשכה.
    ============================================================
@@ -1529,11 +1541,12 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.54.0';
+var APP_VERSION = '7.55.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4040,61 +4053,21 @@ function applyCfg() {
      הגיליון  — מה שפורסם, וזה מה שכל ראשי החטיבות רואים
      CFG.texts — טיוטה מקומית, כדי שהרכז יראה מיד מה שערך
 
-   הערך המקורי נשמר ב-TEXT_BASE בטעינה הראשונה, כך ש"שחזור"
+   הנוסח שבקוד מצולם ב-textedit.js בטעינה הראשונה, כך ש"שחזור"
    תמיד חוזר לקוד ולא לערך שנדרס קודם.
    ============================================================ */
-var TEXT_ROOTS = { fit:FIT, ui:UI, sfarim:SFARIM, rights:RIGHTS, join:JOIN,
-                   gate:GATE, tour:TOUR };
-var TEXT_BASE = {};
-
-function textRef(k) {
-  var parts = k.split('.'), o = TEXT_ROOTS[parts[0]];
-  for (var i = 1; i < parts.length - 1 && o; i++) o = o[parts[i]];
-  return o ? { o:o, f:parts[parts.length - 1] } : null;
-}
-function textGet(k) { var r = textRef(k); return r ? r.o[r.f] : ''; }
-function textSet(k, v) { var r = textRef(k); if (r) r.o[r.f] = v; }
-
-(function snapshotTexts() {
-  TEXT_FIELDS.forEach(function (f) { if (f.k) TEXT_BASE[f.k] = textGet(f.k); });
-})();
-
-function applyTexts(map) {
-  if (!map) return;
-  TEXT_FIELDS.forEach(function (f) {
-    if (f.k && typeof map[f.k] === 'string' && map[f.k] !== '') textSet(f.k, map[f.k]);
-  });
-}
-function resetTexts() {
-  TEXT_FIELDS.forEach(function (f) { if (f.k) textSet(f.k, TEXT_BASE[f.k]); });
-}
+/* השכבות עצמן חיות ב-textedit.js — מקור אחד לכל העמודים. כאן
+   נשארות רק העטיפות שהקוד הקיים קורא להן בשמן. */
+function textGet(k) { return TX.get(k); }
+function textSet(k, v) { TX.set(k, v); }
 /* מרכיב מחדש את שלוש השכבות לפי הסדר. כל שינוי — מקומי או מהגיליון
    — עובר דרך כאן, כדי שמחיקת ערך לא תשאיר אותו תקוע. */
 var PUBLISHED = Store.get('textCache', null) || {};
 
-/* מה שפורסם, פחות נוסחים שהוחלפו מאז בקוד (TEXT_RETIRED).
-   בלי זה נוסח ישן בגיליון מנצח לנצח כל תיקון בקוד. */
-function livePublished() {
-  var out = {}, k, old;
-  for (k in PUBLISHED) {
-    if (!PUBLISHED.hasOwnProperty(k)) continue;
-    old = TEXT_RETIRED[k];
-    if (old && old.indexOf(PUBLISHED[k]) >= 0) continue;
-    out[k] = PUBLISHED[k];
-  }
-  return out;
-}
 /* הערך שהיה מוצג אלמלא הטיוטה המקומית — כלומר השכבה שמתחתיה.
-   זה ולא TEXT_BASE הוא מה שקובע אם עריכה היא בכלל שינוי. */
-function belowText(k) {
-  var p = livePublished()[k];
-  return (typeof p === 'string' && p !== '') ? p : TEXT_BASE[k];
-}
-function relayerTexts() {
-  resetTexts();
-  applyTexts(livePublished());
-  applyTexts(CFG.texts);
-}
+   זה ולא הנוסח שבקוד הוא מה שקובע אם עריכה היא בכלל שינוי. */
+function belowText(k) { return TX.below(PUBLISHED, k); }
+function relayerTexts() { TX.layer(PUBLISHED, CFG.texts); }
 /* תבנית פשוטה: {n}, {name}, {sum} */
 function fill(tpl, vars) {
   return String(tpl).replace(/\{(\w+)\}/g, function (m, k) {
@@ -4384,13 +4357,53 @@ function publishSettings() {
             'לחצו "בדיקת חיבור" בכרטיס שרת ההרשמות: הוא יאמר מה חסר.');
         return;
       }
-      say('done-box', 'פורסם ואומת בגיליון · מעכשיו זה מה שכל מי שנכנס ' +
-          'לאפליקציה רואה.');
+      /* והמלל, באותה לחיצה. עד עכשיו היו כאן שני כפתורי פרסום
+         בשתי לשוניות שונות, ומי שערך נוסח ופרסם "הגדרות" יצא
+         בטוח שפרסם — ולא פרסם. אותה כוונה, פעולה אחת. */
+      return publishTexts(say, rows.length);
     })
     .catch(function () {
       say('cond', '<b>הפרסום לא אושר.</b> לא הצלחתי לקרוא חזרה מהגיליון. ' +
           'מה שסימנתם נשמר במכשיר הזה בלבד.');
     });
+}
+
+/* המלל, כחלק מאותו פרסום. קורא חזרה ומשווה, כמו ההגדרות —
+   `no-cors` "מצליח" תמיד, ולכן שום הודעת הצלחה כאן אינה נאמרת
+   על סמך השליחה עצמה. */
+function publishTexts(say, nCfg) {
+  var rows = textPubRows();
+  queue({ action:'texts', rows:JSON.stringify(rows), at:new Date().toISOString() });
+  say('cond', nCfg + ' הגדרות אושרו · שולח ' + rows.length + ' נוסחים…');
+
+  var tries = 0;
+  var check = function () {
+    return new Promise(function (ok) { setTimeout(ok, tries ? 4000 : 2200); })
+      .then(function () { return fetchSheet(CFG.sheetId || SHEET_ID, 'טקסטים'); })
+      .then(function (back) {
+        var map = textsFromRows(back);
+        var miss = !map ? rows : rows.filter(function (x) {
+          return map[x.key] !== String(x.value).trim();
+        });
+        if (map && !miss.length) {
+          Store.set('textCache', map);
+          PUBLISHED = map;
+          var t = CFG.texts || {}, k;
+          for (k in t) if (t.hasOwnProperty(k) && map[k] === t[k]) delete t[k];
+          cfgSet('texts', t);
+          relayerTexts(); repaintTexts();
+          say('done-box', 'פורסם ואומת · ' + nCfg + ' הגדרות ו-' + rows.length +
+              ' נוסחים. מעכשיו זה מה שכל מי שנכנס לאפליקציה רואה.');
+          return;
+        }
+        if (++tries < 4) return check();
+        say('cond', '<b>ההגדרות פורסמו, המלל לא אושר.</b> ' + (!map
+          ? 'לא הצלחתי לקרוא את לשונית "טקסטים".'
+          : miss.length + ' מתוך ' + rows.length + ' הנוסחים לא חזרו מהגיליון.') +
+          '<br>הנוסחים שמורים במכשיר הזה — אפשר לנסות שוב.');
+      });
+  };
+  return check();
 }
 
 /* אנשי קשר מגיליון פרטי. המזהה מוזן בניהול ונשמר על המכשיר —
@@ -4426,12 +4439,17 @@ function loadContactsFromSheet() {
    מסך הניהול.
    לא מקושר מאף מקום באפליקציה — נגיש רק דרך /admin או #admin.
    ============================================================ */
-var admTab = 'reg';
+var admTab = 'what';
 
 function renderAdmin() {
-  var TABS = [['reg','הרשמות'],['part','משתתפים'],['inst','מוסדות'],
-              ['calls','שיחות'],['text','טקסטים'],['price','מחירים'],
-              ['sugya','הסוגיה'],['data','נתונים'],['set','הגדרות']];
+  /* ארבע, ולפי השאלה שנשאלת ולא לפי סוג האובייקט.
+
+     תשע לשוניות שוות־מעמד היו רצועה שנגררת בטלפון, ובלי היררכיה:
+     מתגי התצוגה ישבו תחת "מוסדות", ולכן מי שחיפש הגדרה הלך
+     ל"הגדרות" ומצא שם כתובות שרת. עכשיו "מערכת" הוא מה שנוגעים
+     בו פעם בשנה, ו"מה מוצג" הוא מה שבאמת משנים. */
+  var TABS = [['what','מה קורה'],['show','מה מוצג'],
+              ['links','קישורים'],['sys','מערכת']];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -4483,8 +4501,11 @@ function admPubBar() {
      מן הגיליון כמו זר שנכנס עכשיו, ומדווח מה **הוא** יראה. */
   el.innerHTML +=
     '<div style="margin-top:10px">' +
-    '<button class="btn g" style="margin:0" onclick="admVisitorCheck()">' +
-    'בדיקה · מה רואה מי שנכנס עכשיו</button></div>' +
+    '<button class="btn p" style="margin:0;width:100%" onclick="admVisitorCheck()">' +
+    'מה רואה מי שנכנס עכשיו</button>' +
+    '<p class="h" style="margin-top:6px">הפס שלמעלה יודע מה <b>נשלח</b>. ' +
+    'רק זה יודע מה <b>הגיע</b>: הוא קורא מהגיליון כמו זר, ומדווח ' +
+    'מה הוא רואה בפועל.</p></div>' +
     '<div id="adm-vis"></div>';
 }
 
@@ -4619,24 +4640,61 @@ function paintAdmChip() {
   el.className = away ? 'on' : '';
 }
 
+/* תת-לשוניות. לשונית שיש בה יותר מנושא אחד מקבלת שורה שנייה,
+   וכך המפלס העליון נשאר קצר ונקרא במבט. */
+var SUB = {
+  what:  [['reg','הרשמות'], ['part','משתתפים'],
+          ['calls','שיחות'], ['data','נתונים']],
+  show:  [['screens','מסכים'], ['price','מחירים'],
+          ['sugya','הסוגיה'], ['text','מלל']]
+};
+var admSub = {};
+function admSubGo(t) { admSub[admTab] = t; admPane(); }
+function admSubNow() {
+  var list = SUB[admTab];
+  if (!list) return '';
+  if (!admSub[admTab]) admSub[admTab] = list[0][0];
+  return admSub[admTab];
+}
+function admSubBar() {
+  var list = SUB[admTab];
+  if (!list) return '';
+  var now = admSubNow();
+  return '<div class="tabs sub" style="margin-bottom:12px">' +
+    list.map(function (t) {
+      return '<button class="' + (now === t[0] ? 'on' : '') +
+             '" onclick="admSubGo(\'' + t[0] + '\')">' + t[1] + '</button>';
+    }).join('') + '</div>';
+}
+
 function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
-  if (admTab === 'reg')   return admReg(el);
-  if (admTab === 'part')  return admPart(el);
-  if (admTab === 'inst')  { admInst(el); return admMarkHint(); }
-  if (admTab === 'calls') {
-    el.innerHTML = '<div id="calls-body"></div>';
-    renderCalls();
-    /* מרעננים מהגיליון בכל כניסה למסך: זה מביא תיעוד שנעשה
-       ממכשיר אחר, ומחזיר את הרשימה אם האחסון המקומי נוקה. */
-    return pullCalls().then(renderCalls).catch(function () {});
+  var sub = admSubNow();
+  el.innerHTML = admSubBar() + '<div id="adm-body"></div>';
+  var body = document.getElementById('adm-body');
+
+  if (admTab === 'links') { admLinks(body); return admMarkHint(); }
+  if (admTab === 'sys')   { admSet(body); return admInstallBox(); }
+
+  if (admTab === 'what') {
+    if (sub === 'reg')  return admReg(body);
+    if (sub === 'part') return admPart(body);
+    if (sub === 'data') return admData(body);
+    if (sub === 'calls') {
+      body.innerHTML = '<div id="calls-body"></div>';
+      renderCalls();
+      /* מרעננים מהגיליון בכל כניסה למסך: זה מביא תיעוד שנעשה
+         ממכשיר אחר, ומחזיר את הרשימה אם האחסון המקומי נוקה. */
+      return pullCalls().then(renderCalls).catch(function () {});
+    }
   }
-  if (admTab === 'text')  return admText(el);
-  if (admTab === 'price') return admPrice(el);
-  if (admTab === 'sugya') return admSugya(el);
-  if (admTab === 'data')  return admData(el);
-  if (admTab === 'set')   { admSet(el); return admInstallBox(); }
+  if (admTab === 'show') {
+    if (sub === 'price') return admPrice(body);
+    if (sub === 'sugya') return admSugya(body);
+    if (sub === 'text')  return admText(body);
+    admShow(body); return admMarkHint();
+  }
 }
 
 /* ============================================================
@@ -4749,7 +4807,7 @@ function admPart(el) {
       'אותה בלי סיסמה — אחרת כל אחד היה יכול לקרוא אותה. ' +
       'הדביקו בהגדרות ← "סיסמת הקריאה" את אותה מחרוזת שכתובה ' +
       'ב-Apps Script בשורת <code>READ_KEY</code>.</p>' +
-      '<button class="btn p" onclick="admGo(\'set\')">למסך ההגדרות</button></div>';
+      '<button class="btn p" onclick="admGo(\'sys\')">למסך ההגדרות</button></div>';
     return;
   }
 
@@ -4998,7 +5056,7 @@ function admReg(el) {
       '<p class="h">רשימת ההרשמות יושבת בגיליון הפרטי — שם של ראש חטיבה ' +
       'והטלפון שלו אינם דבר שיושב בגיליון משותף לצפייה. הדביקו בהגדרות ← ' +
       '"סיסמת הקריאה" את המחרוזת שכתובה ב-Apps Script.</p>' +
-      '<button class="btn p" onclick="admGo(\'set\')">למסך ההגדרות</button></div>';
+      '<button class="btn p" onclick="admGo(\'sys\')">למסך ההגדרות</button></div>';
     return;
   }
   if (!list.length) {
@@ -5066,22 +5124,15 @@ function admReg(el) {
 }
 
 /* ---- מוסדות: מי בפנים ---- */
-function admInst(el) {
-  /* מאיפה הרשימה. בלי השורה הזו אי אפשר לדעת שהגיליון נכשל,
-     וזה בדיוק מה שאיפשר לרשימה להתחלף בלי שאיש ישים לב. */
-  var src = INST_SRC === 'sheet'
-    ? '<div class="done-box" style="margin-bottom:11px">' + INSTITUTIONS.length +
-      ' מוסדות · נטענו מלשונית "' + esc(CFG.sheetTab || SHEET_TAB) + '"</div>'
-    : '<div class="cond" style="margin-bottom:11px"><b>' + INSTITUTIONS.length +
-      ' מוסדות · מהרשימה שבקוד.</b><br>' +
-      esc(INST_SRC.indexOf(':') > 0 ? INST_SRC.split(':').slice(1).join(':') : 'הגיליון טרם נקרא') +
-      ' — הרשימה שבקוד מוצגת, ושום דבר לא אבד.' +
-      '<div style="margin-top:8px"><button class="btn g" style="margin:0" ' +
-      'onclick="loadInstitutions().then(function(){renderHome();admPane();})">' +
-      'ניסיון טעינה מחדש</button></div></div>';
-
+/* ---- מה מוצג ----
+   כל ההחלטות על מה שרואים במסכים, במקום אחד. הן ישבו עד עכשיו
+   תחת "מוסדות" — לשונית ששמה מבטיח רשימת ישיבות — ולכן מי שחיפש
+   הגדרה הלך ל"הגדרות" ולא מצא שם דבר מלבד כתובות שרת. */
+function admShow(el) {
+  /* באנר מקור הרשימה עבר ל"קישורים", שם יושבת הרשימה עצמה.
+     כאן הוא היה מידע על מוסדות במסך שעוסק בתצוגה. */
   var now = CV('roster') === 'now';
-  el.innerHTML = src +
+  el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
     '<p class="h">כל עוד הישיבות לא אישרו רשמית, המספר היחיד שאפשר ' +
     'לעמוד מאחוריו הוא של אשתקד.</p>' +
@@ -5204,8 +5255,22 @@ function admInst(el) {
     '<div class="row"><div>לוח ההתקדמות של הישיבה' +
     '<div class="sub">הבטחה למה שעוד לא קיים</div></div>' +
     '<button class="sw' + (CFG_SOON() ? ' on' : '') +
-    '" onclick="soonToggle()" aria-label="בקרוב"></button></div></div>' +
+    '" onclick="soonToggle()" aria-label="בקרוב"></button></div></div>';
+}
 
+/* ---- קישורים ומוסדות ----
+   הקישור הכללי, הקישור והקוד של כל מוסד, ומי מסומן כ"בפנים". */
+function admLinks(el) {
+  var src = INST_SRC === 'sheet'
+    ? '<div class="done-box" style="margin-bottom:11px">' + INSTITUTIONS.length +
+      ' מוסדות · נטענו מלשונית "' + esc(CFG.sheetTab || SHEET_TAB) + '"</div>'
+    : '<div class="cond" style="margin-bottom:11px"><b>' + INSTITUTIONS.length +
+      ' מוסדות · מהרשימה שבקוד.</b><br>' +
+      esc(INST_SRC.indexOf(':') > 0 ? INST_SRC.split(':').slice(1).join(':') : 'הגיליון טרם נקרא') +
+      ' — הרשימה שבקוד מוצגת, ושום דבר לא אבד.' +
+      '<div style="margin-top:8px"><button class="btn g" style="margin:0" ' +
+      'onclick="loadInstitutions().then(function(){renderHome();admPane();})">' +
+      'ניסיון טעינה מחדש</button></div></div>';
     /* הקישורים, לכל המוסדות. ראש חטיבה שנרשם מקבל את שלו במסך
        ההרשמה; מי שנרשם בטלפון לא מקבל כלום, וזה המקום שממנו
        אפשר לשלוח לו אותו ביד. */
@@ -5221,6 +5286,7 @@ function admInst(el) {
        לא כל צוות ילחץ על "הצטרפות", וזה בסדר. הקישור הזה נשלח
        לכל מקום, התלמיד בוחר את הישיבה שלו מתוך הרשימה, והישיבה
        מסומנת כ"בפנים" מעצם זה שיש בה מי שלומד. תנועה מלמטה. */
+  el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>קישור כללי לתלמידים</h4>' +
     '<p class="h">אפשר לשלוח לכל מקום — התלמיד בוחר את הישיבה שלו ' +
     'מתוך הרשימה. ישיבה שנרשם אליה תלמיד מסומנת כ"בפנים" מעצמה, ' +
@@ -5503,7 +5569,10 @@ function dataGroup(title, name, tabs, ss) {
       '<div class="sub">' + t.rows + ' שורות</div></div>' +
       '<div style="display:flex;gap:6px">' +
       '<button class="cp" onclick="dataGrab(' + dq(t.name) + ',' + dq(ss) + ')">הורדה</button>' +
-      '<button class="cp" onclick="dataAsk(' + dq(t.name) + ',' + dq(ss) + ')">' +
+      /* הפעולה ההרסנית היחידה במסך הזה נראתה בדיוק כמו "הורדה"
+         ו"רענון" שלצידה. אדום ולא אפור: אין כאן ביטול. */
+      '<button class="cp' + (open ? '' : ' kill') +
+      '" onclick="dataAsk(' + dq(t.name) + ',' + dq(ss) + ')">' +
       (open ? 'ביטול' : 'ניקוי') + '</button></div></div>';
     if (open) h += dataConfirm(t, ss);
   });
@@ -5669,37 +5738,62 @@ function dataWipe(tab, ss, rows) {
    עריכת המלל בלי לגעת בקוד. "שמירה" משנה את המכשיר הזה בלבד;
    "פרסום" שולח לגיליון, ומשם זה מגיע לכל מי שפותח את האפליקציה.
    ההפרדה מכוונת: אפשר לנסח, לראות איך זה נראה, ורק אז לפרסם.  */
+/* ---- מלל ----
+   הרשימה השטוחה של 189 שדות ירדה. היא הייתה הדרך היחידה להגיע
+   אל רוב המלל, ולכן היא הייתה הכרחית; מרגע ש-textedit.js מפעיל
+   גם את מסך התלמיד וגם את עמוד הזכויות, היא רק מקום נוסף שבו
+   אותו נוסח חי — ומקום נוסף שיכול להיפרד ממה שבאמת על המסך.
+
+   עורכים את הנוסח במקום שבו הוא מופיע. מה שאין לו מסך שאפשר
+   להגיע אליו — שער הדף, והתמונות — נשאר ברשימה קצרה כאן, כי
+   מלל שאי אפשר לערוך גרוע מרשימה.
+
+   הדף האינטראקטיבי אינו ברשימת המסכים בכוונה: לו יש סטודיו. */
+function textOrphans() {
+  return TEXT_FIELDS.filter(function (f) {
+    return f.k && (f.img || f.k.indexOf('gate.') === 0);
+  });
+}
 function admText(el) {
   var d = CFG.texts || {};
   var dirty = TEXT_FIELDS.filter(function (f) {
     return f.k && d[f.k] != null && d[f.k] !== belowText(f.k);
   }).length;
 
+  var PLACES = [
+    ['העמוד הראשי', 'הבית, ההרשמה ומסך השבוע', 'tkStart()'],
+    ['המדריך', 'שש העצירות שראש חטיבה רואה בכניסה', 'tkTour()'],
+    ['מסך התלמיד', '57 נוסחים — המלל הכי חשוף בתוכנית',
+     'location.href=\'join.html?tedit=1\''],
+    ['עמוד הזכויות', 'מה שנשלח להוצאה', 'location.href=\'rights.html?tedit=1\'']
+  ];
+
   el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>עריכת המלל</h4>' +
-    '<p class="h">שינוי נשמר במכשיר הזה בלבד עד שלוחצים <b>פרסום</b>. ' +
-    'פרסום כותב לגיליון, וכל מי שפותח את האפליקציה רואה את הנוסח החדש. ' +
-    'שדה ריק חוזר לנוסח שפורסם, ואם לא פורסם — לזה שבקוד.</p>' +
+    '<p class="h">כל נוסח נערך במקום שבו הוא מופיע: נכנסים למסך, ' +
+    'מקישים על הטקסט, וכותבים. השינוי נראה מיד ונשמר במכשיר הזה ' +
+    'בלבד — עד <b>פרסום</b>, שמחיל אותו על כולם.</p>' +
     '<div class="row" style="padding:8px 0"><span>שינויים שטרם פורסמו</span>' +
     '<b' + (dirty ? '' : ' style="color:var(--ink-3)"') + '>' + dirty + '</b></div>' +
-    '<button class="btn gd" onclick="tkStart()">עריכה על המסך</button>' +
-    '<p class="h" style="margin:8px 0 12px">פותח את האפליקציה עצמה. כל נוסח ' +
-    'שניתן לעריכה מסומן, והשינוי נראה מיד במקומו.</p>' +
-    '<button class="btn gr" onclick="admTextPublish()">פרסום לכל המשתמשים</button>' +
-    '<button class="btn" style="margin-top:8px" onclick="admTextReset()">' +
-    'שחזור כל הנוסחים שבקוד</button>' +
+    PLACES.map(function (p) {
+      return '<button class="btn gd" style="text-align:start" onclick="' + p[2] + '">' +
+        esc(p[0]) + '</button>' +
+        '<p class="h" style="margin:5px 0 12px">' + esc(p[1]) + '</p>';
+    }).join('') +
+    '<button class="btn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
 
-    TEXT_FIELDS.map(function (f) {
-      if (f.g) return '<div class="sec" style="margin:16px 0 8px"><b>' +
-                      esc(f.g) + '</b><i></i></div>';
+    /* מה שאין לו מסך להגיע אליו */
+    '<div class="adm-card"><h4>שער הדף והתמונות</h4>' +
+    '<p class="h">השער נפתח בתוך הדף האינטראקטיבי, ולו יש סטודיו — ' +
+    'ולכן אין שולחים אתכם לערוך שם על המסך. ותמונה אינה טקסט ' +
+    'שאפשר להקיש עליו. שניהם כאן.</p>' +
+    textOrphans().map(function (f) {
       var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== belowText(f.k);
-      /* שדה תמונה: בוחרים קובץ מהמכשיר והוא מומר כאן, בדפדפן,
-         ל-data:URI. בלי שרת, בלי ממיר חיצוני, ובלי תלות באתר
-         של אף אחד — הלוגו נשמר אצלנו ועובד גם בלי רשת. */
+      var head = '<div class="label">' + esc(f.lbl) +
+        (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>';
       if (f.img) {
-        return '<div class="fld"><div class="label">' + esc(f.lbl) +
-          (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
+        return '<div class="fld">' + head +
           (cur ? '<div class="imgbox"><img src="' + esc(cur) + '" alt="">' +
                  '<button onclick="admTextSet(\'' + f.k + '\',\'\')">הסרה</button></div>' : '') +
           '<input type="file" accept="image/*" ' +
@@ -5709,16 +5803,23 @@ function admText(el) {
           (cur.indexOf('data:') === 0 ? '' : esc(cur)) +
           '" onchange="admTextSet(\'' + f.k + '\',this.value)"></div>';
       }
-      return '<div class="fld"><div class="label">' + esc(f.lbl) +
-        (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
+      return '<div class="fld">' + head +
         (f.ml
           ? '<textarea rows="3" onchange="admTextSet(\'' + f.k + '\',this.value)">' +
             esc(cur) + '</textarea>'
           : '<input type="text" value="' + esc(cur) +
             '" onchange="admTextSet(\'' + f.k + '\',this.value)">') +
         '</div>';
-    }).join('');
+    }).join('') + '</div>';
 }
+/* המדריך נפתח כשכבה מעל העמוד הראשי, ולכן העריכה שלו היא פשוט
+   עריכה שהמדריך פתוח בתוכה. */
+function tkTour() {
+  tkStart();
+  setTimeout(function () { tourOpen(0); setTimeout(TX.scan, 260); }, 260);
+}
+
+
 /* קובץ תמונה → data:URI, כאן בדפדפן. מוקטן קודם: לוגו במלוא
    הרזולוציה שוקל מאות קילובייטים, והוא נכתב לגיליון כטקסט
    ומגיע לכל מכשיר. 360 פיקסלים רוחב מספיקים בהרבה למה שמוצג
@@ -5759,15 +5860,20 @@ function admTextSet(k, v) {
      דווקא את הישן, כלומר הפכה עריכה נכונה לחוסר תגובה. */
   if (v === '' || v === belowText(k)) delete t[k];   /* ריק = חזרה לשכבה שמתחת */
   else t[k] = v;
-  resetTexts();                 /* קודם חזרה לבסיס, אחרת ערך שנמחק נשאר */
   cfgSet('texts', t);
+  relayerTexts();               /* הרכבה מחדש, אחרת ערך שנמחק נשאר */
   repaintTexts();
   admPane();
 }
 function admTextReset() {
-  if (!confirm('להחזיר את כל הנוסחים לערך שבקוד?')) return;
-  resetTexts();
+  if (!confirm('להחזיר את כל הנוסחים לערך שבקוד? ' +
+               'הפרסום הבא ימחק גם את מה שפורסם.')) return;
+  /* גם השכבה המפורסמת. בלעדיה הכפתור משקר: הטיוטה נמחקת,
+     הגיליון ממשיך לדרוס את הקוד, והמסך חוזר למה שהיה. */
+  PUBLISHED = {};
+  Store.set('textCache', {});
   cfgSet('texts', {});
+  relayerTexts();
   repaintTexts();
   admPane();
 }
@@ -5776,7 +5882,7 @@ function admTextReset() {
 function repaintTexts() {
   renderHome();
   if (document.getElementById('reg-body').innerHTML) renderReg();
-  tkScan();
+  TX.scan();
 }
 
 /* ============================================================
@@ -5793,211 +5899,30 @@ function repaintTexts() {
    ביטוי מהערך הנוכחי שלו, ומחפשים במסך את האלמנט הקטן ביותר
    שתוכנו תואם. שדה שיתווסף מחר יעבוד בלי שורת קוד.
    ============================================================ */
-var TEDIT = false, TK_OPEN = '';
+/* ============================================================
+   עריכה על המסך.
+   ============================================================
+   העורך עצמו עבר ל-textedit.js — אותו קובץ בדיוק מפעיל את מסך
+   התלמיד ואת עמוד הזכויות, ולכן אין יותר שתי גרסאות של "מה זה
+   נוסח" שיכולות להיפרד זו מזו.
 
-/* התגיות נמחקות ולא מוחלפות ברווח, כי כך גם הדפדפן: textContent
-   של <br> אינו רווח, ו"למדו<br>מסכת" הוא "למדומסכת". שני הצדדים
-   של ההשוואה חייבים להתנהג אותו דבר. */
-function tkNorm(s) {
-  return String(s == null ? '' : s)
-    .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-}
-/* {n} ו-{mas} מוחלפים בזמן אמת, ולכן הם חורים בביטוי ולא טקסט */
-function tkRe(v) {
-  var parts = tkNorm(v).split(/\{\w+\}/).map(function (x) {
-    return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  });
-  return new RegExp('^' + parts.join('[\\s\\S]*?') + '$');
-}
-
-function tkScan() {
-  var was = document.querySelectorAll('[data-tk]');
-  for (var i = 0; i < was.length; i++) {
-    was[i].removeAttribute('data-tk');
-    was[i].classList.remove('tk-hot', 'tk-on');
-  }
-  if (!TEDIT) return;
-  var view = document.querySelector('.view.on');
-  if (!view) return;
-  var els = view.getElementsByTagName('*');
-
-  TEXT_FIELDS.forEach(function (f) {
-    if (!f.k) return;
-    var v = tkNorm(textGet(f.k));
-    if (!v) return;
-    var re = tkRe(v), best = null, bestN = 1e9;
-    for (var j = 0; j < els.length; j++) {
-      var el = els[j];
-      if (el.getAttribute('data-tk')) continue;
-      if (!re.test(tkNorm(el.textContent))) continue;
-      var n = el.getElementsByTagName('*').length;   /* הקטן ביותר שתואם */
-      if (n < bestN) { best = el; bestN = n; }
-    }
-    if (best) {
-      best.setAttribute('data-tk', f.k);
-      best.classList.add('tk-hot');
-      if (f.k === TK_OPEN) best.classList.add('tk-on');
-    }
-  });
-}
-
-function tkGo(where) {
-  if (where === 'week') {
-    var w = contentFor(homeTrack);
-    openWeek(homeTrack, w.i < 0 ? 0 : w.i);
-  } else { show(where); }
-  tkScan();
-}
-
-function tkStart() {
-  TEDIT = true;
-  document.body.classList.add('tediting');
-  tkBar();
-  show('home');
-  tkScan();
-}
-function tkStop() {
-  TEDIT = false; TK_OPEN = '';
-  document.body.classList.remove('tediting', 'tk-sheeting');
-  var b = document.getElementById('tk-bar'); if (b) b.remove();
-  tkClose();
-  tkScan();
-  show('admin'); admTab = 'text'; renderAdmin();
-}
-
-function tkBar() {
-  if (document.getElementById('tk-bar')) return;
-  var b = document.createElement('div');
-  b.id = 'tk-bar';
-  b.innerHTML =
-    '<button onclick="tkGo(\'home\')">בית</button>' +
-    '<button onclick="tkGo(\'reg\')">הרשמה</button>' +
-    '<button onclick="tkGo(\'week\')">שבוע</button>' +
-    '<span>הקישו על טקסט כדי לערוך</span>' +
-    '<button class="done" onclick="tkStop()">סיום</button>';
-  document.body.appendChild(b);
-}
-
-function tkOpen(k) {
-  var f = TEXT_FIELDS.filter(function (x) { return x.k === k; })[0];
-  if (!f) return;
-  TK_OPEN = k;
-  var s = document.getElementById('tk-sheet');
-  if (!s) { s = document.createElement('div'); s.id = 'tk-sheet';
-            document.body.appendChild(s); }
-  var t = CFG.texts || {};
-  var changed = t[k] != null && t[k] !== TEXT_BASE[k];
-  s.innerHTML =
-    '<div class="hd"><b>' + esc(f.lbl) + '</b>' +
-    '<button onclick="tkClose()">סגירה</button></div>' +
-    '<textarea id="tk-in" rows="' + (f.ml ? 4 : 2) + '" ' +
-    'oninput="tkType(this.value)">' + esc(textGet(k)) + '</textarea>' +
-    '<div class="ft"><span>' + (changed ? 'שונה מהנוסח שבקוד' : 'הנוסח שבקוד') +
-    '</span><button onclick="tkReset()">שחזור</button></div>';
-  s.classList.add('on');
-  document.body.classList.add('tk-sheeting');
-  var ta = document.getElementById('tk-in');
-  ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
-  tkScan();
-  var host = document.querySelector('[data-tk="' + k + '"]');
-  if (host) host.scrollIntoView({ block:'center', behavior:'smooth' });
-}
-function tkClose() {
-  TK_OPEN = '';
-  var s = document.getElementById('tk-sheet');
-  if (s) s.classList.remove('on');
-  document.body.classList.remove('tk-sheeting');
-  tkScan();
-}
-/* כל הקלדה נשמרת ומצטיירת. הגיליון אינו מעורב — פרסום נשאר
-   פעולה נפרדת ומכוונת, בדיוק כמו בטופס. */
-function tkType(v) {
-  if (!TK_OPEN) return;
-  var t = CFG.texts || {}, k = TK_OPEN;
-  if (String(v).trim() === '' || v === TEXT_BASE[k]) delete t[k]; else t[k] = v;
-  resetTexts();
-  cfgSet('texts', t);
-  repaintTexts();
-}
-function tkReset() {
-  if (!TK_OPEN) return;
-  var k = TK_OPEN, t = CFG.texts || {};
-  delete t[k];
-  resetTexts(); cfgSet('texts', t); repaintTexts();
-  tkOpen(k);
-}
-
-/* בשלב לכידה, כדי שהקשה על כפתור תפתח אותו לעריכה במקום להפעיל
-   אותו. הסרגל והיריעה עצמם פטורים, אחרת אי אפשר לצאת. */
-document.addEventListener('click', function (e) {
-  if (!TEDIT) return;
-  if (e.target.closest('#tk-bar') || e.target.closest('#tk-sheet')) return;
-  e.preventDefault(); e.stopPropagation();
-  var host = e.target.closest('[data-tk]');
-  if (host) tkOpen(host.getAttribute('data-tk')); else tkClose();
-}, true);
-
-/* פרסום: שורה לכל מפתח שהשתנה, ללשונית "טקסטים" בגיליון.
-   ההרשמות נשלחות באותו מנגנון, ולכן אין כאן תשתית חדשה. */
-function admTextPublish() {
-  var t = CFG.texts || {}, rows = [];
-  TEXT_FIELDS.forEach(function (f) {
-    if (f.k && t[f.k] != null) rows.push({ key:f.k, value:t[f.k] });
-  });
-  var m = document.getElementById('adm-text-msg');
-  if (!API) {
-    m.innerHTML = '<div class="cond" style="margin-top:10px">אין כתובת שרת. ' +
-      'מלאו אותה בהגדרות ← כתובת שרת, אחרת אפשר לערוך רק במכשיר הזה.</div>';
-    return;
-  }
-  queue({ action:'texts', rows:JSON.stringify(rows), at:new Date().toISOString() });
-  m.innerHTML = '<div class="cond" style="margin-top:10px">נשלח · ' + rows.length +
-    ' נוסחים. מאמת מול הגיליון…</div>';
-  admTextVerify(rows, 0);
-}
-
-/* הכתיבה היא no-cors, כלומר התשובה אטומה וגם כישלון "מצליח".
-   לכן ההודעה שהפרסום הצליח נאמרת רק אחרי שקראנו את הגיליון
-   בחזרה ומצאנו שם בדיוק את מה ששלחנו. חמישה ניסיונות, כי
-   הכתיבה עוברת דרך התור וגם ל-gviz לוקח רגע להתעדכן. */
-function admTextVerify(rows, tries) {
-  setTimeout(function () {
-    fetchSheet(CFG.sheetId || SHEET_ID, 'טקסטים').then(function (got) {
-      var m = document.getElementById('adm-text-msg');
-      if (!m) return;                       /* הרכז יצא מהמסך */
-      var map = textsFromRows(got);
-      var miss = !map ? rows : rows.filter(function (x) {
-        return map[x.key] !== String(x.value).trim();
-      });
-      if (map && !miss.length) {
-        /* אומת. מעדכנים את השכבה המפורסמת ומנקים את הטיוטות
-           שכבר אינן שינוי, כדי שהמונה יראה אפס באמת. */
-        Store.set('textCache', map);
-        PUBLISHED = map;
-        var t = CFG.texts || {}, k;
-        for (k in t)
-          if (t.hasOwnProperty(k) && map[k] === t[k]) delete t[k];
-        cfgSet('texts', t);
-        relayerTexts();
-        repaintTexts();
-        admPane();                          /* קודם הציור, אחרת ההודעה נמחקת */
-        var m2 = document.getElementById('adm-text-msg');
-        if (m2) m2.innerHTML = '<div class="done-box" style="margin-top:10px">' +
-          'פורסם ואומת · ' + rows.length +
-          ' נוסחים. כל מי שפותח את האפליקציה רואה אותם.</div>';
-        return;
-      }
-      if (tries < 4) { admTextVerify(rows, tries + 1); return; }
-      m.innerHTML = '<div class="cond" style="margin-top:10px"><b>הפרסום לא אומת.</b> ' +
-        (!map ? 'הגיליון לא נענה, או שלשונית "טקסטים" חסרה בו.'
-              : miss.length + ' מתוך ' + rows.length +
-                ' הנוסחים לא נמצאו בגיליון.') +
-        ' הנוסח שמור במכשיר הזה, ואפשר לנסות שוב. ' +
-        'אם זה חוזר — בדקו בהגדרות ← בדיקת חיבור.</div>';
-    });
-  }, tries ? 5000 : 2500);
-}
+   כאן נשאר רק מה שרק העמוד הזה יודע: מה לצייר מחדש, מה לסרוק
+   (המסך הפעיל, לא כל הגוף), ולאן אפשר לנווט.
+   ============================================================ */
+TX.init({
+  repaint: repaintTexts,
+  root: function () { return document.querySelector('.view.on'); },
+  places: [
+    ['בית',   function () { show('home'); }],
+    ['הרשמה', function () { show('reg'); }],
+    ['שבוע',  function () {
+      var w = contentFor(homeTrack);
+      openWeek(homeTrack, w.i < 0 ? 0 : w.i);
+    }]
+  ],
+  onStop: function () { show('admin'); admTab = 'show'; renderAdmin(); }
+});
+function tkStart() { TX.start(); show('home'); TX.scan(); }
 
 /* ---- השורה הנעה ----
    כבויה כברירת מחדל, ולכן הכרטיס הזה צריך לענות על שאלה אחת:
@@ -6039,6 +5964,29 @@ function netCard() {
         '<div class="label" style="margin-top:11px">שם ומספר</div>' +
         netPreview('names')) +
     '</div>';
+}
+
+/* השורות שנכתבות ללשונית "טקסטים": **מה שכבר מפורסם, ומעליו
+   הטיוטה**. לא הטיוטה בלבד.
+
+   ההבדל אינו תיאורטי. `writeTable_` מחליף את הלשונית כולה, ואחרי
+   שהאימות מנקה טיוטה שכבר נקלטה — הטיוטה ריקה. פרסום שני היה
+   שולח אפס שורות, כלומר **מוחק את כל הנוסחים שפורסמו אי פעם**,
+   בלי שדבר על המסך ירמז על כך. הגיליון מחזיק את מלוא ההחלטות,
+   ולכן כל כתיבה אליו חייבת לשאת את כולן.
+
+   ואין כאן יותר כפתור פרסום נפרד: המלל מתפרסם בתוך
+   `publishSettings`. שני כפתורים בשתי לשוניות היו הדרך הבטוחה
+   לפרסם חצי — מי שערך נוסח ולחץ "פרסום" בהגדרות יצא בטוח
+   שסיים. ראו `publishTexts`. */
+function textPubRows() {
+  var t = CFG.texts || {}, pub = PUBLISHED || {}, rows = [];
+  TEXT_FIELDS.forEach(function (f) {
+    if (!f.k) return;
+    var v = (t[f.k] != null) ? t[f.k] : pub[f.k];
+    if (typeof v === 'string' && v !== '') rows.push({ key:f.k, value:v });
+  });
+  return rows;
 }
 
 /* ---- מחירים ----

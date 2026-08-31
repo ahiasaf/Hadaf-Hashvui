@@ -106,6 +106,9 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .fld{margin-top:13px}
 .fld .label{font-size:.78rem;font-weight:800;color:var(--ink-2);margin-bottom:5px}
 .fld .label i{font-style:normal;font-weight:700;color:var(--ink-3)}
+/* "רשות" — כדי שלא ייראה כשדה חובה נוסף שנפתח לו פתאום */
+.fld .label .opt{font-weight:700;color:var(--ink-3);font-size:.72rem;
+  background:var(--sunk);border-radius:6px;padding:1px 6px;margin-inline-start:5px}
 input,select{width:100%;font-size:1rem;font-weight:700;color:inherit;
   background:#fff;border:1px solid var(--rule);border-radius:var(--r-s);
   padding:13px 14px;font-family:inherit}
@@ -527,6 +530,15 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
     <div class="fld stg" id="instFld" style="display:none">
       <div class="label">הישיבה</div><select id="inst"></select>
     </div>
+    <!-- נפתח רק כשנבחר "אחר", ורק בקישור הכללי. רשות: שדה חובה
+         כאן היה עוצר בדיוק את מי שבא מרצונו ואינו שייך לאף
+         מסגרת. מה שייכתב כאן הוא מה שיופיע בעמודת "ישיבה"
+         בגיליון, כדי שיהיה אפשר לדעת מי הם ומאיפה. -->
+    <div class="fld" id="othFld" style="display:none">
+      <div class="label">מאיפה אתם? <span class="opt">רשות</span></div>
+      <input id="oth-from" type="text" maxlength="60"
+             placeholder="בית ספר, ישיבה, או עיר">
+    </div>
     <!-- חובה. זה הערוץ היחיד שדרכו אפשר להודיע לזוכה בהגרלה,
          ובלעדיו הזכייה שלו פשוט לא מגיעה אליו.
 
@@ -610,6 +622,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
 </div>
 
 <script src="data.js"></script>
+<script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="logo.js"></script>
@@ -744,61 +757,17 @@ function csv(text) {
    המלל שפורסם, על מה שבקוד.
    ============================================================
    כאן ישבה הנחה שגויה: "רק מפתחות join.* — שאר המלל שייך למסכים
-   אחרים". היא נכונה לטופס ההרשמה ושגויה לגמרי לבאנר.
+   אחרים". היא נכונה לטופס ההרשמה ושגויה לגמרי לבאנר: הבאנר הכחול
+   נבנה ב-stage.js והוא אותו רכיב בדיוק בעמוד הראשי ובמסך הזה,
+   אבל שמונת הנוסחים שלו הם `UI.*`. הסינון זרק את כולם, ולכן
+   עריכה של הבאנר השתנתה בעמוד הראשי ולא אצל התלמידים.
 
-   הבאנר הכחול נבנה ב-stage.js, והוא **אותו רכיב בדיוק** בעמוד
-   הראשי ובמסך התלמיד — זו הייתה כל הכוונה. אבל שמונת הנוסחים
-   שלו הם `UI.*`: deckAlt · deckGo · deckSoon · stageSoon ·
-   trackBtn · trackCap · trackNote · weekGo. הסינון כאן זרק את
-   כולם, ולכן עריכה של הבאנר השתנתה בעמוד הראשי ולא אצל
-   התלמידים — אותו באנר, שני נוסחים.
-
-   אין סיבה לסנן. מפתח ששייך למסך אחר פשוט אינו מופיע כאן,
-   והחלתו אינה עולה דבר.
-
-   ושכבת הטיוטה נוספה: עד עכשיו המסך הזה הכיר רק את מה שפורסם,
-   ולכן "לראות איך זה נראה אצל התלמיד" לא עבד לפני פרסום.
+   ההחלה עברה ל-textedit.js, שהוא המקור היחיד לכל העמודים. מפתח
+   אחד = נוסח אחד, בכל מסך שהוא מופיע בו, ואי אפשר עוד שעמוד אחד
+   יחיל אחרת מחברו.
    ============================================================ */
-var TXT_ROOTS = { fit:window.FIT, ui:window.UI, sfarim:window.SFARIM,
-                  rights:window.RIGHTS, join:window.JOIN, gate:window.GATE,
-                  tour:window.TOUR };
-function txtSet(k, v) {
-  var p = k.split('.'), o = TXT_ROOTS[p[0]];
-  for (var i = 1; i < p.length - 1 && o; i++) o = o[p[i]];
-  if (o) o[p[p.length - 1]] = v;
-}
-function applyTxt(map) {
-  if (!map) return;
-  for (var k in map) {
-    if (!map.hasOwnProperty(k)) continue;
-    /* נוסח שהוחלף בקוד אחרי שכבר פורסם — ראו TEXT_RETIRED */
-    var dead = (window.TEXT_RETIRED || {})[k];
-    if (dead && dead.indexOf(map[k]) >= 0) continue;
-    if (typeof map[k] === 'string' && map[k] !== '') txtSet(k, map[k]);
-  }
-}
-/* הנוסח שבקוד, כפי שהיה לפני שנגענו. בלעדיו החלה שנייה אינה
-   יכולה להחזיר לאחור: נוסח שפורסם ואז נמחק היה נשאר על המסך
-   עד רענון, כי אין למה לחזור. */
-var TXT_BASE = {};
-(function () {
-  if (!window.TEXT_FIELDS) return;
-  TEXT_FIELDS.forEach(function (f) {
-    if (!f.k) return;
-    var p = f.k.split('.'), o = TXT_ROOTS[p[0]];
-    for (var i = 1; i < p.length - 1 && o; i++) o = o[p[i]];
-    if (o) TXT_BASE[f.k] = o[p[p.length - 1]];
-  });
-})();
-
-/* שתי השכבות, בסדר: מה שפורסם, ומעליו הטיוטה של הרכז. */
 function applyTxtLayers() {
-  for (var k in TXT_BASE) if (TXT_BASE.hasOwnProperty(k)) txtSet(k, TXT_BASE[k]);
-  applyTxt(get('txtCache', {}) || {});
-  try {
-    var c = JSON.parse(localStorage.getItem('df:cfg') || '{}');
-    applyTxt(c.texts);
-  } catch (e) {}
+  TX.layer(get('txtCache', {}) || {}, TX.draft());
 }
 applyTxtLayers();
 
@@ -859,11 +828,43 @@ function loadPub() {
         if (k && v) m[k] = v;
       });
       set('txtCache', m);
+      /* אותו מפתח שבו העמוד הראשי שומר. `TX.published()` קורא
+         משם, ולכן "מה שפורסם" הוא אותו דבר בשני העמודים. */
+      try { localStorage.setItem('df:textCache', JSON.stringify(m)); } catch (e) {}
       applyTxtLayers();
-      drawTop(); drawWeek();
+      txRepaint();
     })
   ]).catch(function () {});
 }
+
+/* מה שצריך להצטייר מחדש כשנוסח משתנה. כל המלל הניתן לעריכה
+   במסך הזה מצויר ב-JS, ולכן שלוש הפונקציות האלה מכסות אותו. */
+function txRepaint() {
+  try { drawTop(); } catch (e) {}
+  try { drawHero(); } catch (e) {}
+  try { drawWeek(); } catch (e) {}
+  try { drawApp(); } catch (e) {}
+  try { drawWays(); } catch (e) {}
+}
+/* הניהול שולח לכאן עם `?tedit=1`. הסרגל מציע את שני המצבים
+   שהמסך הזה יודע להיות בהם — לפני ההרשמה ואחריה — כי חלק
+   מהנוסחים חיים רק באחד מהם. */
+TX.init({
+  repaint: txRepaint,
+  root: function () { return document.body; },
+  places: [
+    ['לפני ההרשמה', function () {
+      var d = $('done'); if (d) d.className = '';
+      var f = $('form'); if (f) f.style.display = '';
+      window.scrollTo(0, 0);
+    }],
+    ['אחרי ההרשמה', function () {
+      var me = get('me', null);
+      if (me && me.first) showDone(me);
+    }]
+  ],
+  onStop: function () { location.href = './#admin'; }
+});
 
 /* ---------- מתי מתחילים ----------
    PROGRAM.startDate הוא שבוע 1 בלוח, ולכן הוא כבר מקור האמת
@@ -1101,6 +1102,14 @@ function stage(scroll) {
   step('c-who', true);
   step('f-last',  ready('first'));
   step('instFld', ready('last'));
+  /* "אחר" אינו ישיבה, ולכן אחריו נשאלת השאלה שהרשימה כבר ענתה
+     עליה עבור כל השאר.
+
+     לא דרך `step`: שם שדה שנחשף אינו נסגר לעולם — וזה נכון
+     לרצף הטופס, אבל כאן זה היה משאיר "מאיפה אתם?" תלוי על
+     המסך למי שהתחרט ובחר ישיבה אמיתית. */
+  var oth = $('othFld');
+  if (oth) oth.style.display = (val('inst') === OTHER.code) ? 'block' : 'none';
   /* טלפון לפני שכבה. הטלפון הוא הערוץ היחיד שדרכו אפשר להודיע
      לזוכה, ולכן הוא נשאל כשהתשומת לב עדיין מלאה. */
   step('f-phone', ready('last'));
@@ -1239,7 +1248,8 @@ $('go').onclick = function () {
   var first = val('first'), last = val('last');
   var code  = instRow ? instRow.code : val('inst');
   var name  = instRow ? instRow.name : (function () {
-    if (code === OTHER.code) return OTHER.name;
+    /* מה שנכתב ב"מאיפה אתם" הוא השם. ריק — "אחר" סתם. */
+    if (code === OTHER.code) return val('oth-from') || OTHER.name;
     for (var i = 0; i < INSTITUTIONS.length; i++)
       if (INSTITUTIONS[i].code === code) return INSTITUTIONS[i].name;
     return '';

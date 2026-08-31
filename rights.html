@@ -100,6 +100,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
 </div>
 
 <script src="data.js"></script>
+<script src="textedit.js"></script>
 <script src="logo.js"></script>
 <script>
 /* הלוגו והשמות מגיעים מאותם קבצים של האפליקציה, כדי ששינוי
@@ -109,26 +110,27 @@ document.getElementById('foot').innerHTML =
   'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז';
 
 /* ---------- המלל ----------
-   מגיע מ-`RIGHTS` שב-data.js, ונדרס במה שפורסם בלשונית "טקסטים"
-   — אותן שלוש שכבות של האפליקציה, כדי שעריכה בניהול ← טקסטים
-   תשנה גם את העמוד הזה בלי לגעת בקוד. הטיוטה המקומית נקראת גם
-   היא, כדי שהרכז יראה מיד מה שערך אצלו לפני שפרסם. */
+   שלוש השכבות — קוד, מה שפורסם, וטיוטה מקומית — מגיעות מ-
+   textedit.js, שהוא המקור היחיד לכל העמודים.
+
+   קודם היו כאן שתי קריאות `draw` נפרדות: אחת לטיוטה ואחת למה
+   שחזר מהגיליון. השנייה גברה, ולכן הטיוטה של הרכז נמחקה מהמסך
+   ברגע שהגיליון ענה — כלומר דווקא מה שהוא בדיוק ערך נעלם לו.
+   עכשיו יש הרכבה אחת, ותמיד באותו סדר. */
 var KEYS = ['hello','body','ask','gem','gemLine','gemNote',
             'chav','chavLine','chavNote','end'];
-function draw(over) {
+function draw() {
   var R = window.RIGHTS || {};
   KEYS.forEach(function (k) {
     var el = document.getElementById('t-' + k);
-    if (el) el.innerHTML = (over && over['rights.' + k]) || R[k] || '';
+    if (el) el.innerHTML = R[k] || '';
   });
-  document.getElementById('demo').textContent =
-    (over && over['rights.btn']) || R.btn || 'לצפייה';
+  document.getElementById('demo').textContent = R.btn || 'לצפייה';
 }
-draw(null);
-try {
-  var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
-  if (cfg.texts) draw(cfg.texts);
-} catch (e) {}
+function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
+relayer();
+
+TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
 
 /* ומה שפורסם בגיליון — לכל מי שאינו הרכז. */
 (function () {
@@ -156,11 +158,15 @@ try {
         else if (ch !== '\r') f += ch;
       }
       if (f || row.length) { row.push(f); rows.push(row); }
-      rows.forEach(function (r2) {
+      if (!rows.length || rows[0].join('|').indexOf('מפתח') < 0) return;
+      rows.slice(1).forEach(function (r2) {
         var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
-        if (k.indexOf('rights.') === 0 && v) map[k] = v;
+        if (k && v) map[k] = v;
       });
-      if (Object.keys(map).length) draw(map);
+      /* כל המפתחות ולא רק rights.* — המטמון משותף לכל העמודים,
+         וסינון כאן היה מייצר עוד גרסה חלקית של אותה אמת. */
+      try { localStorage.setItem('df:textCache', JSON.stringify(map)); } catch (e) {}
+      relayer();
     })
     .catch(function () {});
 })();
