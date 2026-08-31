@@ -170,6 +170,98 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   .chb{font-size:calc(1rem * var(--cz,1));padding:12px 14px 18px}
 }
 
+/* ============================================================
+   האזור הצדדי.
+   ============================================================
+   הדף האינטראקטיבי אינו משתנה כאן. הוא בנוי לפרופורציה של טלפון
+   ונשאר בה גם במחשב — 580px, ממורכז — וזו החלטה ותיקה שנשמרת:
+   רוחב הבמה הוא שקובע את ההגדלה, ובמה שנמתחת עם החלון מציירת
+   דף ענק ומטושטש.
+
+   מה שנוסף הוא מה שיש **מסביב** לו. במסך רחב נשאר שטח פנוי גדול
+   משמאל, והוא עומד ריק. פתיחת האזור מצמידה את הדף לימין —
+   באותו רוחב בדיוק, כלומר באותה חדות בדיוק — והשטח שנפתח משמאל
+   מקבל תוכן. המצגת היא הדייר הראשון שם, לא הייעוד: `#side`
+   מארח מה שיהיה.
+
+   מי שאינו פותח את האזור אינו רואה שום הבדל מהיום. אין כאן שום
+   שינוי במצב הסגור.
+   ============================================================ */
+#side{display:none;flex-direction:column;min-height:0;background:var(--surface);
+  border-inline-end:1px solid var(--rule)}
+body.side-on #side{display:flex}
+
+/* ---------- מסך מחשב: עמודה אמיתית ----------
+   הדף מקבל רוחב קבוע (--col) והאזור לוקח את השאר. הדף נשאר
+   580 בשני המצבים, ולכן `focus()` מחשב את אותה הגדלה ושום דבר
+   לא מיטשטש כשפותחים.
+
+   grid-template-columns אינו מונפש בכל דפדפן. במקום להישען
+   עליו, ההנפשה יושבת על האזור עצמו — הוא נכנס מהצד ומתבהר —
+   וכך התנועה נראית זהה גם היכן שהרשת קופצת. */
+@media (min-width:1000px){
+  body.side-on main{max-width:none;grid-template-columns:var(--col) minmax(0,1fr)}
+  body.side-on.chav-on main{
+    max-width:none;grid-template-columns:var(--col) 380px minmax(0,1fr)}
+  body.side-on .stage{max-width:var(--col)}
+  #side{animation:sideIn .42s cubic-bezier(.33,.1,.2,1)}
+}
+@keyframes sideIn{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+
+/* ---------- טלפון: חלון קטן שאפשר לראות מעליו ----------
+   בטלפון אין שטח פנוי לחלק, ולכן האזור צף. הוא מכוון להיות
+   קטן מספיק כדי שהדף שמאחוריו יישאר קריא — זו כל מטרתו כאן:
+   לראות את שני הדברים יחד ולשייך ביניהם. הקשה מגדילה, הקשה
+   נוספת מחזירה. */
+@media (max-width:999px){
+  body.side-on #side{position:fixed;z-index:40;inset-inline-start:10px;
+    bottom:calc(var(--nav-h, 56px) + 12px);
+    width:41vw;max-width:210px;height:auto;
+    border:1px solid var(--rule);border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 26px rgba(11,37,80,.24);
+    transition:width .28s ease, max-width .28s ease}
+  body.side-on.side-big #side{width:calc(100vw - 20px);max-width:none}
+}
+
+/* ---------- תוכן האזור ---------- */
+.sd-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 12px;
+  border-bottom:1px solid var(--rule);font-weight:800;font-size:.8rem;color:var(--blue)}
+.sd-h .sp{flex:1}
+.sd-h button{border:0;background:none;font-size:.95rem;color:var(--ink-3);
+  cursor:pointer;font-weight:800;padding:2px 6px}
+.sd-b{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  background:#0B2550;padding:10px}
+.sd-b img{max-width:100%;max-height:100%;border-radius:8px;display:block;
+  box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.sd-f{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-top:1px solid var(--rule)}
+.sd-f .sp{flex:1}
+.sd-f button{border:1px solid var(--rule);background:var(--paper);border-radius:9px;
+  padding:5px 11px;font-weight:800;font-size:.8rem;color:var(--ink);cursor:pointer}
+.sd-f button:disabled{opacity:.4;cursor:default}
+.sd-n{font-weight:800;font-size:.78rem;color:var(--ink-3)}
+/* בטלפון החלון הממוזער קטן מכדי לשאת שורת כפתורים קריאה */
+@media (max-width:999px){
+  body.side-on:not(.side-big) .sd-f,
+  body.side-on:not(.side-big) .sd-a{display:none}
+  body.side-on:not(.side-big) .sd-b{padding:6px;min-height:88px}
+  body.side-on:not(.side-big) .sd-h{padding:6px 9px;font-size:.72rem}
+}
+
+/* ---------- שכבת השיוך ----------
+   פתוחה רק כשהניהול פתוח במכשיר. תלמיד אינו רואה אותה כלל. */
+.sd-a{flex:0 0 auto;border-top:1px solid var(--rule);padding:9px 12px;
+  background:rgba(192,143,43,.07)}
+.sd-a .t{font-size:.72rem;font-weight:800;color:var(--ink-2);margin-bottom:7px}
+.sd-a .r{display:flex;gap:6px;flex-wrap:wrap}
+.sd-a button{border:1px solid rgba(192,143,43,.5);background:#fff;border-radius:9px;
+  padding:5px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
+.sd-a button.hot{background:var(--gold, #C08F2B);border-color:var(--gold, #C08F2B);
+  color:#fff}
+.sd-a .msg{margin-top:7px;font-size:.72rem;font-weight:700;line-height:1.5}
+.sd-a .msg.ok{color:var(--ok, #4A821C)}
+.sd-a .msg.bad{color:#B23B3B}
+
 /* ---------- שורת הניווט ---------- */
 nav{flex:0 0 auto;display:flex;align-items:center;gap:8px;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
@@ -320,12 +412,18 @@ nav .sp{flex:1}
       <button id="chclose" title="סגירה">✕</button></div>
     <div class="chb" id="chb"></div>
   </aside>
+
+  <!-- האזור הצדדי. אחרון בסדר ה-DOM, ולכן במסך RTL הוא השמאלי
+       ביותר: הדף בימין, החברותא לצידו, והאזור בשטח שנפתח. -->
+  <aside id="side"></aside>
 </main>
 
 <nav>
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
   <button id="chtog">חברותא</button>
+  <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
+  <button id="dktog" style="display:none">מצגת</button>
   <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
   <button class="p" id="next">הבא ◂</button>
 </nav>
@@ -1012,6 +1110,291 @@ function drawer(on) {
 }
 
 /* ============================================================
+   האזור הצדדי, והמצגת שבתוכו.
+   ============================================================
+   **מה נשמר בגיליון ומה נגזר.** המצגת עצמה כבר קיימת — היא
+   תמונות ממוספרות ב-`CONTENT[<מסלול>-<שבוע>].deck`, ואותו שבוע
+   הוא גם הדף שעל המסך. לכן אין מה לשמור עליה דבר. מה שנשמר הוא
+   רק **מתי מתחלף השקף**.
+
+   **והשיוך הוא דליל.** לא רשומה לכל קטע אלא נקודות מעבר בלבד:
+   "משקף 3 ואילך". שקף מחזיק מהעוגן שלו ועד לעוגן הבא, וברירת
+   המחדל היא שקף 1 מתחילת הדף. דף עם עשרה שקפים דורש תשע לחיצות,
+   לא ארבעים.
+
+   **העוגן הוא מספר הקטע ולא מקומו ברשימה.** `FLAT` נבנה מחדש
+   בכל טעינה, ומספר סידורי ברשימה משתנה בכל שינוי סימון בסטודיו —
+   שיוך שנעשה פעם היה נשבר בשקט. `n` הוא מספר הקטע שהאדם ראה
+   כשסימן, וזו היחידה שבה הוא חשב.
+
+   **הלשונית `מצגת`:** מסכת | דף | עוגנים, כשהעוגנים הם JSON
+   `{"5":2,"11":3}`. הכתיבה היא `action:'table'` הקיים — הלקוח
+   מחזיק את המפה השלמה וכותב אותה מחדש — ולכן אין כאן שום שינוי
+   ב-apps-script.gs ושום פעולה ידנית.
+   ============================================================ */
+var DECK_TAB = 'מצגת';
+var DECK = null;     /* {dir, n} מתוך CONTENT */
+var DMAP = {};       /* כל הלשונית: 'מסכת|דף' -> עוגנים */
+var ANCH = null;     /* העוגנים של הדף שעל המסך, או null אם אין */
+var SLIDE = 1;
+var SIDE_ADM = false;
+
+function dmKey(mas, daf) { return mas + '|' + dafKey(daf); }
+
+/* המצגת של הדף שעל המסך. השבוע הוא המפתח, כי הלוח הוא שקובע
+   איזה דף שייך לאיזה שבוע — ואין צורך בטבלה נוספת. */
+function deckOf() {
+  if (S.week < 0 || typeof CONTENT === 'undefined') return null;
+  var c = CONTENT[S.mas + '-' + (S.week + 1)];
+  return (c && c.deck && c.deck.dir && c.deck.n) ? c.deck : null;
+}
+function slideSrc(n) {
+  return DECK.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
+}
+
+/* הלשונית כולה. `null` = הקריאה נכשלה או שחזרה לשונית אחרת;
+   `{}` = אין עדיין שום שיוך, וזה מצב חוקי. */
+function dmapFromRows(rows) {
+  if (!rows || !rows.length) return null;
+  if (rows[0].join('|').indexOf('מסכת') < 0) return null;
+  var out = {};
+  rows.slice(1).forEach(function (r) {
+    var mas = (r[0] || '').trim(), daf = (r[1] || '').trim(), raw = (r[2] || '').trim();
+    if (!mas || !daf || !raw) return;
+    /* פענוח שנכשל אינו "אין שיוך" — הוא באג, ולכן הוא מסומן
+       ולא נבלע בשקט. */
+    try { out[dmKey(mas, daf)] = JSON.parse(raw); }
+    catch (e) { out[dmKey(mas, daf)] = { __bad: raw }; }
+  });
+  return out;
+}
+function loadDeckMap() {
+  return sheetCsv(DECK_TAB).then(function (rows) {
+    var m = dmapFromRows(rows);
+    if (!m) return false;
+    DMAP = m;
+    return true;
+  }).catch(function () { return false; });
+}
+
+/* השקף של קטע מסוים: העוגן הגדול ביותר שאינו עולה על מספר
+   הקטע. אין עוגן קודם — שקף 1. */
+function slideAt(idx) {
+  var st = FLAT[idx];
+  if (!st || !ANCH) return 1;
+  var best = 1, bestAt = 0, k;
+  for (k in ANCH) {
+    if (!ANCH.hasOwnProperty(k)) continue;
+    var at = parseInt(k, 10);
+    if (!(at >= 0) || at > st.n) continue;
+    if (at >= bestAt) { bestAt = at; best = ANCH[k]; }
+  }
+  return Math.max(1, Math.min(DECK ? DECK.n : 1, best));
+}
+
+/* ---------- פתיחה, סגירה, מצבי הטלפון ---------- */
+function sideOpen(on) {
+  /* גובה שורת הניווט נמדד ולא מנוחש: יש בו `safe-area-inset`,
+     והוא שונה בין אייפון עם סרגל תחתון לבין אנדרואיד. חלון צף
+     שיושב על מספר קבוע נחתך באחד מהם. */
+  var nv = document.querySelector('nav');
+  if (nv) document.body.style.setProperty('--nav-h', nv.offsetHeight + 'px');
+  document.body.classList.toggle('side-on', !!on);
+  if (!on) document.body.classList.remove('side-big');
+  var b = $('dktog');
+  if (b) b.classList.toggle('on', !!on);
+  try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
+  if (on) sideSync(true);
+  /* הבמה שינתה רוחב רק אם היא לא הייתה נעולה על --col. בכל
+     מקרה ציור מחדש כאן זול, ומונע מצב שבו המסגרת נשארת על
+     המקום הישן. */
+  if (FLAT.length) { paint(); focus(); }
+}
+function sidePhone() {
+  return !window.matchMedia || window.matchMedia('(max-width:999px)').matches;
+}
+function sideBig() {
+  document.body.classList.toggle('side-big');
+  sidePaint();
+}
+
+/* ---------- ציור ---------- */
+function sideSync(force) {
+  if (!DECK || !document.body.classList.contains('side-on')) return;
+  var want = slideAt(IDX);
+  if (want === SLIDE && !force) { sideAdmPaint(); return; }
+  SLIDE = want;
+  sidePaint();
+}
+function sidePaint() {
+  var el = $('side');
+  if (!el || !DECK) return;
+  var big = document.body.classList.contains('side-big');
+  el.innerHTML =
+    '<div class="sd-h"><span>מצגת</span><span class="sp"></span>' +
+    '<span class="sd-n">' + SLIDE + '/' + DECK.n + '</span>' +
+    '<button id="sd-big" title="הגדלה">' + (big ? '⤡' : '⤢') + '</button>' +
+    '<button id="sd-x" title="סגירה">✕</button></div>' +
+    '<div class="sd-b" id="sd-b-wrap"' + (sidePhone() ? ' style="cursor:pointer"' : '') +
+    '><img id="sd-img" alt="שקף ' + SLIDE + '"></div>' +
+    '<div class="sd-f">' +
+    '<button id="sd-prev">▸</button><span class="sp"></span>' +
+    '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
+    '<button id="sd-next">◂</button></div>' +
+    (SIDE_ADM ? sideAdmHtml() : '');
+
+  $('sd-img').src = slideSrc(SLIDE);
+  $('sd-x').onclick = function () { sideOpen(false); };
+  $('sd-big').onclick = sideBig;
+  /* בטלפון החלון עצמו הוא הכפתור. כפתור בגודל 14px בתוך חלון
+     בגודל 160px הוא בקשה לדיוק שאין לאגודל, ומי שרוצה להגדיל
+     ילחץ על מה שהוא רואה — כלומר על השקף. */
+  if (sidePhone()) $('sd-b-wrap').onclick = sideBig;
+  /* דפדוף ידני. הוא אינו משנה את השיוך — הוא רק מסתכל, ובקטע
+     הבא המצגת חוזרת למה שהשיוך אומר. */
+  $('sd-prev').onclick = function () { sideStep(-1); };
+  $('sd-next').onclick = function () { sideStep(1); };
+  $('sd-prev').disabled = SLIDE <= 1;
+  $('sd-next').disabled = SLIDE >= DECK.n;
+  var lbl = $('sd-lbl');
+  if (lbl) lbl.textContent = ANCH ? '' : 'לדף הזה אין עדיין שיוך';
+  sideAdmPaint();
+}
+function sideStep(d) {
+  var n = SLIDE + d;
+  if (n < 1 || n > DECK.n) return;
+  SLIDE = n;
+  sidePaint();
+}
+
+/* ============================================================
+   שכבת השיוך — רק כשהניהול פתוח במכשיר.
+
+   שתי פעולות בלבד, ושתיהן על הקטע שעל המסך עכשיו: "השקף הזה
+   מתחיל כאן", ו"ביטול". זה כל מה שצריך כדי לבנות דף שלם —
+   מדפדפים בדף, וכשמגיעים לקטע שבו השקף אמור להתחלף, לוחצים.
+   ============================================================ */
+function sideAdmHtml() {
+  return '<div class="sd-a" id="sd-a"></div>';
+}
+function sideAdmPaint() {
+  var box = $('sd-a');
+  if (!box) return;
+  var st = FLAT[IDX], n = st ? st.n : 0;
+  var here = ANCH && ANCH[n] !== undefined;
+  var count = 0, k;
+  for (k in (ANCH || {})) if (ANCH.hasOwnProperty(k)) count++;
+
+  box.innerHTML =
+    '<div class="t">קטע ' + n + ' · ' + count +
+    (count === 1 ? ' עוגן בדף' : ' עוגנים בדף') + '</div>' +
+    '<div class="r">' +
+    '<button id="sa-set" class="' + (here ? 'hot' : '') + '">' +
+    'שקף ' + SLIDE + ' מתחיל כאן</button>' +
+    (here ? '<button id="sa-del">ביטול העוגן</button>' : '') +
+    '<button id="sa-save">שמירה לכולם</button>' +
+    '</div><div class="msg" id="sa-msg"></div>';
+
+  $('sa-set').onclick = function () {
+    if (!ANCH) ANCH = {};
+    ANCH[n] = SLIDE;
+    sideMsg('', '');
+    sidePaint();
+  };
+  if ($('sa-del')) $('sa-del').onclick = function () {
+    delete ANCH[n];
+    sideMsg('', '');
+    sideSync(true);
+    sidePaint();
+  };
+  $('sa-save').onclick = sideSave;
+}
+function sideMsg(cls, txt) {
+  var m = $('sa-msg');
+  if (m) { m.className = 'msg ' + cls; m.innerHTML = txt; }
+}
+
+/* הכתיבה היא no-cors ולכן תמיד "מצליחה". ההודעה שנשמר נאמרת
+   רק אחרי קריאה חוזרת שמצאה בגיליון בדיוק את מה שנשלח. */
+function sideSave() {
+  if (!API) { sideMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  DMAP[dmKey(S.mas, S.daf)] = ANCH || {};
+  var rows = [], k;
+  for (k in DMAP) {
+    if (!DMAP.hasOwnProperty(k)) continue;
+    var v = DMAP[k], parts = k.split('|');
+    if (v && v.__bad) { rows.push([parts[0], parts[1], v.__bad]); continue; }
+    var has = false, q;
+    for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
+    if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
+  }
+  sideMsg('', 'נשלח · מאמת מול הגיליון…');
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:DECK_TAB,
+    cols:JSON.stringify(['מסכת', 'דף', 'עוגנים']),
+    rows:JSON.stringify(rows)
+  }) }).catch(function () {});
+  sideVerify(0);
+}
+function sideVerify(tries) {
+  setTimeout(function () {
+    sheetCsv(DECK_TAB).then(function (rows) {
+      var m = dmapFromRows(rows);
+      var mine = m && m[dmKey(S.mas, S.daf)];
+      var want = JSON.stringify(ANCH || {});
+      if (mine && JSON.stringify(mine) === want) {
+        DMAP = m;
+        sideMsg('ok', 'נשמר ואומת. מעכשיו המצגת זורמת כך אצל כל מי שפותח את הדף.');
+        return;
+      }
+      if (tries < 4) { sideVerify(tries + 1); return; }
+      sideMsg('bad', '<b>לא אומת.</b> ' + (!m
+        ? 'הגיליון לא נענה, או שלשונית "מצגת" לא נוצרה.'
+        : 'מה שחזר מהגיליון אינו מה שנשלח.') +
+        ' השיוך קיים במסך הזה בלבד — אפשר לנסות שוב.');
+    }).catch(function () {
+      if (tries < 4) sideVerify(tries + 1);
+      else sideMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+    });
+  }, tries ? 5000 : 2500);
+}
+
+/* ============================================================
+   ההדלקה.
+
+   הכפתור מופיע לתלמיד רק כשיש לדף הזה שיוך אמיתי — דף בלי שיוך
+   אינו מציע מצגת שלא תזוז. אצל מי שהניהול פתוח אצלו הכפתור מופיע
+   תמיד, כי בלעדיו אי אפשר ליצור את השיוך הראשון.
+   ============================================================ */
+function sideInit() {
+  DECK = deckOf();
+  if (!DECK) return;
+  try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+
+  return Promise.resolve(loadDeckMap()).then(function () {
+    /* שורה שלא נפענחה אינה שיוך. היא נשמרת ב-DMAP כפי שהיא
+       כדי שהשמירה לא תמחק אותה, אבל היא אינה מפעילה מצגת. */
+    var got = DMAP[dmKey(S.mas, S.daf)];
+    ANCH = (got && !got.__bad) ? got : null;
+
+    var has = false, q;
+    for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q)) { has = true; break; }
+    var show = SIDE_ADM || has;
+    var b = $('dktog');
+    if (!b || !show) return;
+    b.style.display = '';
+    b.onclick = function () {
+      sideOpen(!document.body.classList.contains('side-on'));
+    };
+    /* מי שסגר — נשאר סגור. אין פתיחה מאליה: הדף כפי שהוא היום
+       הוא ברירת המחדל, וכל שינוי בו הוא בחירה של מי שלחץ. */
+    try {
+      if (localStorage.getItem('df:side') === '1') sideOpen(true);
+    } catch (e) {}
+  });
+}
+
+/* ============================================================
    ניווט.
    ============================================================ */
 function go(i) {
@@ -1023,7 +1406,7 @@ function go(i) {
              : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
-    paint(); focus(); paintChav(); bar();
+    paint(); focus(); paintChav(); bar(); sideSync();
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
 /* מצב התצוגה במקום אחד: הכפתור, המחלקה על הגוף, והציור.
@@ -1040,7 +1423,9 @@ function setWhole(on) {
 }
 
 function buttons(on) {
-  ['next', 'prev', 'chtog', 'whole'].forEach(function (b) { $(b).disabled = !on; });
+  ['next', 'prev', 'chtog', 'whole', 'dktog'].forEach(function (b) {
+    if ($(b)) $(b).disabled = !on;
+  });
 }
 /* איזה עמוד מוצג — ולא רק איזה דף. עמוד שגוי הוא התקלה הכי קלה
    לפספס וגם הכי קלה לראות, אם רק כתוב מה אמור להיות על המסך. */
@@ -1456,6 +1841,9 @@ function boot() {
           }
         } catch (e) {}
         go(0);
+        /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
+           רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל. */
+        try { sideInit(); } catch (e) {}
         var seen = false;
         try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
         /* לא כאן — השער פותח אותו כשהוא נסגר, אחרת שני מסכים
