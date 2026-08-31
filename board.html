@@ -74,14 +74,42 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
 .card .h{font-size:.8rem;font-weight:600;color:var(--ink-3);margin-top:3px;line-height:1.6}
 
 /* שלושת המספרים. גדולים, כי הם הסיבה שהוא פתח את הדף. */
-.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
-.num{background:var(--surface);border-radius:var(--r);padding:15px 8px;
-  text-align:center;box-shadow:var(--sh-2);border-top:3px solid var(--gold)}
-.num b{display:block;font-size:1.75rem;font-weight:800;letter-spacing:-.04em;
-  line-height:1.1;color:var(--blue)}
-.num span{display:block;font-size:.72rem;font-weight:800;color:var(--ink-3);
-  margin-top:4px;line-height:1.35}
-@media (max-width:339px){.nums{grid-template-columns:1fr 1fr}}
+/* ---------- הכותרת של הלוח ----------
+   קודם ישבו כאן שלוש משבצות מספרים, ומתחתיהן שלוש משבצות מסגרות:
+   שלוש מתחת לשלוש, ואחת מהן — "אבות ובנים" — הופיעה פעמיים.
+
+   מה שראש חטיבה באמת פותח את הלוח כדי לדעת הוא שאלה אחת: **כמה
+   למדו את הדף של השבוע**. לכן היא לבדה למעלה, ובגודל שאומר שהיא
+   העיקר. "מצטרפים" הוא הקשר שלה ולא מספר מתחרה, ולכן הוא שורה
+   קטנה מתחתיה. */
+.hero{margin-top:16px;background:linear-gradient(160deg,var(--blue-d),var(--blue));
+  color:#fff;border-radius:var(--r-m, 20px);padding:18px;box-shadow:var(--sh-2);
+  display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;
+  width:100%;text-align:start;border:0;font:inherit}
+.hero .tag{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.04em;
+  background:rgba(255,255,255,.16);border-radius:20px;padding:3px 9px}
+.hero h3{font-size:1.24rem;font-weight:800;letter-spacing:-.03em;margin-top:7px}
+.hero .lead{font-size:.92rem;font-weight:700;margin-top:5px;color:rgba(255,255,255,.88)}
+.hero .lead b{font-size:1.05rem}
+.hero .sub{font-size:.75rem;font-weight:700;margin-top:7px;color:rgba(255,255,255,.62)}
+/* בשורה ולא בפינה. מיקום מוחלט הניח שיש מקום פנוי מתחת לטקסט,
+   ובשם ישיבה ארוך הוא פשוט התיישב עליו. */
+.hero .chev{display:inline-block;margin-top:9px;font-size:.75rem;font-weight:800;
+  color:#fff;background:rgba(255,255,255,.15);border-radius:20px;padding:4px 11px}
+button.hero{cursor:pointer}
+button.hero:active{transform:scale(.99)}
+/* הטבעת. מספר לבדו הוא נתון; טבעת שמתמלאת היא מצב — ורואים
+   אותה בלי לקרוא. */
+.ring{flex:0 0 auto;position:relative;width:84px;height:84px}
+.ring svg{transform:rotate(-90deg)}
+.ring .bg{fill:none;stroke:rgba(255,255,255,.18);stroke-width:9}
+.ring .fg{fill:none;stroke:var(--gold-l, #E3B44A);stroke-width:9;stroke-linecap:round;
+  transition:stroke-dasharray .7s cubic-bezier(.3,.1,.2,1)}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;line-height:1}
+.ring .mid b{font-size:1.5rem;font-weight:800;letter-spacing:-.04em}
+.ring .mid span{font-size:.66rem;font-weight:800;color:rgba(255,255,255,.72);
+  margin-top:3px;white-space:nowrap}
 
 /* פילוח. מוט ולא עוגה: השוואה בין שכבות נקראת בעין בשורות
    באורך שונה, ובעוגה צריך לפענח אותה. */
@@ -147,6 +175,13 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));
   border-radius:12px;background:var(--sunk);transition:transform .14s}
 .wk.go:active{transform:scale(.99)}
 .wk.go .chev{font-size:1rem;color:var(--blue)}
+/* הפירוט נפתח מתחת למה שנלחץ, ולא מחליף את המסך. שתי השאלות —
+   "כמה" ו"מי" — הן אותה שאלה בשתי רמות, ומסך שמחליף מסך הפך
+   אותן לשני מקומות שצריך לנווט ביניהם. */
+.open{margin-top:11px;border-top:1px solid var(--rule);padding-top:11px;
+  animation:opIn .22s ease-out}
+@keyframes opIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.tile.sel{outline:2px solid var(--c);outline-offset:-2px}
 
 /* ---------- מסך הפירוט ----------
    שם אחד בשורה, וסימן אחד. הרכז סורק ומחפש את מי שלא סימן —
@@ -447,7 +482,17 @@ function wayLbl(w) {
 }
 
 var view = '';                 /* '' · 'way:<מסגרת>' · 'week' */
-function go(v) { view = v; draw(); window.scrollTo(0, 0); }
+/* לחיצה שנייה על אותו דבר סוגרת. הלוח נשאר במקומו, ולכן אין
+   לאן "לחזור" — וכפתור חזרה שמוביל למקום שאף פעם לא עזבת הוא
+   בדיוק מה שהופך שתי רמות של אותה שאלה לשני מסכים. */
+function go(v) {
+  view = (view === v) ? '' : v;
+  draw();
+  if (view) setTimeout(function () {
+    var el = document.querySelector('.open');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  }, 40);
+}
 
 function didWeek(p) {
   var wk = LWeek();
@@ -475,33 +520,33 @@ function tilesHtml() {
   return '<div class="tiles">' + WAYS.map(function (g) {
     var n = wayCount(g[0]);
     return '<' + (can && n ? 'button' : 'div') + ' class="tile' +
-      (can && n ? ' go' : '') + '" style="--c:' + g[2] + '"' +
+      (can && n ? ' go' : '') + (view === 'way:' + g[0] ? ' sel' : '') +
+      '" style="--c:' + g[2] + '"' +
       (can && n ? ' onclick="go(\'way:' + g[0] + '\')"' : '') + '>' +
       '<svg viewBox="0 0 20 20">' + g[3] + '</svg>' +
       '<b>' + n + '</b><span>' + esc(g[1]) + '</span>' +
-      (can && n ? '<i class="chev">←</i>' : '') +
+      (can && n ? '<i class="chev">' + (view === 'way:' + g[0] ? '×' : '←') + '</i>' : '') +
       '</' + (can && n ? 'button' : 'div') + '>';
   }).join('') + '</div>';
 }
 
 /* פירוט: שמות של מסגרת אחת, או של מי שלמד השבוע. */
-function detailHtml() {
-  var back = '<button class="back" onclick="go(\'\')">→ חזרה ללוח</button>';
+/* הפירוט נפתח בתוך הכרטיס שנלחץ. אין כותרת חוזרת ואין כפתור
+   חזרה — מה שמעליו עדיין על המסך ואומר את שניהם. */
+function weekOpenHtml() {
   if (!roster) return '';
-
-  if (view === 'week') {
-    var wk = LWeek(), daf = wk >= 0 ? LDaf(TRACKS[0].id, wk) : null;
-    var did = roster.filter(didWeek);
-    var not = roster.filter(function (p) { return !didWeek(p); });
-    return '<div class="card detail">' + back +
-      '<h2>הדף השבוע' + (daf ? ' · דף ' + esc(daf) : '') + '</h2>' +
-      '<p class="h">' + did.length + ' מתוך ' + roster.length + ' סיימו.</p>' +
-      (did.length ? '<div class="wgrp">סיימו · ' + did.length + '</div>' +
-                    did.map(pRow).join('') : '') +
-      (not.length ? '<div class="wgrp">עדיין לא · ' + not.length + '</div>' +
-                    not.map(pRow).join('') : '') + '</div>';
-  }
-
+  var did = roster.filter(didWeek);
+  var not = roster.filter(function (p) { return !didWeek(p); });
+  return '<div class="open">' +
+    (did.length ? '<div class="wgrp">סיימו · ' + did.length + '</div>' +
+                  did.map(pRow).join('') : '') +
+    (not.length ? '<div class="wgrp">עדיין לא · ' + not.length + '</div>' +
+                  not.map(pRow).join('') : '') +
+    '<p class="h" style="margin-top:10px">"סיים" = הגיע לסוף הדף האינטראקטיבי, ' +
+    'ענה על החידה השבועית, או סימן בעצמו.</p></div>';
+}
+function wayOpenHtml() {
+  if (!roster || view.indexOf('way:') !== 0) return '';
   var w = view.slice(4);
   var list = roster.filter(function (p) { return (p.way || '') === w; });
   var byGrade = {}, gord = [];
@@ -511,13 +556,15 @@ function detailHtml() {
     byGrade[g].push(p);
   });
   gord.sort();
-  return '<div class="card detail">' + back +
-    '<h2>' + esc(wayLbl(w)) + ' · ' + list.length + '</h2>' +
-    '<p class="h">✓ מסמן את מי שסיים את הדף השבוע.</p>' +
+  return '<div class="open">' +
+    '<div class="wgrp">' + esc(wayLbl(w)) + ' · ' + list.length + '</div>' +
     gord.map(function (g) {
-      return '<div class="wgrp">' + esc(g) + ' · ' + byGrade[g].length + '</div>' +
+      return (gord.length > 1
+                ? '<div class="wgrp">' + esc(g) + ' · ' + byGrade[g].length + '</div>'
+                : '') +
         byGrade[g].map(pRow).join('');
-    }).join('') + '</div>';
+    }).join('') +
+    '<p class="h" style="margin-top:10px">✓ מסמן את מי שסיים את הדף השבוע.</p></div>';
 }
 
 function pRow(p) {
@@ -648,31 +695,24 @@ function draw() {
     return;
   }
 
-  /* מסך הפירוט עומד לבדו. הלוח מאחוריו לא הולך לשום מקום, וכפתור
-     החזרה מחזיר אליו — אבל שתי השאלות לא חולקות מסך. */
-  if (view && roster) {
-    $('body').innerHTML = detailHtml();
-    wire();
-    return;
-  }
-
   var maxG = 0;
   joined.grades.forEach(function (p) { if (p[1] > maxG) maxG = p[1]; });
   var weekOpen = roster && LWeek() >= 0;
 
+  /* המספר שראש חטיבה פותח את הלוח בשבילו, ורק הוא, למעלה.
+     כשיש רשימה שמית — סופרים ממנה, כי היא מדויקת יותר מהמונה. */
+  var doneN = roster ? roster.filter(didWeek).length : didWk;
+  var totN  = roster ? roster.length : n;
+
   $('body').innerHTML =
-    '<div class="nums">' +
-      num(n, 'מצטרפים') +
-      num(didWk, 'למדו השבוע') +
-      num(dads, 'אבות ובנים') +
-    '</div>' +
+    heroHtml(daf, doneN, totN, weekOpen) +
 
     /* שלוש המסגרות, כל אחת עם המספר שלה — וזה מה שראש חטיבה
        באמת רוצה לדעת: לא כמה בסך הכול, אלא שיש אבות ובנים. */
     '<div class="card"><h2>דרכי הלימוד</h2>' +
     '<p class="h">' + (roster ? 'לחיצה על משבצת פותחת את השמות.'
                               : 'המספרים של הישיבה שלכם.') + '</p>' +
-    tilesHtml() + keyHtml() + '</div>' +
+    tilesHtml() + wayOpenHtml() + keyHtml() + '</div>' +
 
     (joined.grades.length
       ? '<div class="card"><h2>לפי שכבה</h2><div class="bars">' +
@@ -681,24 +721,55 @@ function draw() {
             '<span class="t"><i style="width:' +
             Math.max(6, Math.round(p[1] / maxG * 100)) + '%"></i></span>' +
             '<span class="n">' + p[1] + '</span></div>';
-        }).join('') + '</div>' +
-        (daf ? (weekOpen
-                 ? '<button class="wk go" onclick="go(\'week\')"><div>' +
-                   '<b>השבוע · דף ' + esc(daf) + '</b>' +
-                   '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו · מי ומי</div>' +
-                   '</div><i class="chev">←</i></button>'
-                 : '<div class="wk"><b>השבוע · דף ' + esc(daf) + '</b>' +
-                   '<div class="of">' + didWk + ' מתוך ' + n + ' סיימו</div></div>')
-             : '') +
-        '</div>'
+        }).join('') + '</div></div>'
       : '') +
 
     share + soonLine();
   wire();
 }
-function num(v, t) {
-  return '<div class="num"><b>' + v + '</b><span>' + esc(t) + '</span></div>';
+/* ---------- הכותרת ----------
+   טבעת ולא מספר יבש. "7 מתוך 17" הוא נתון שצריך לחשב; טבעת
+   שמלאה בשני שליש היא מצב שרואים. המספר עדיין שם, במרכזה,
+   כי מי שרוצה את המדויק לא צריך לנחש אותו מהצורה.
+
+   לפני שהלימוד התחיל אין מה למלא, ולכן במקום טבעת ריקה —
+   שנקראת כאפס ולא כ"עוד לא" — מוצג מה שכן ידוע: מתי מתחילים. */
+function ringHtml(done, tot) {
+  var C = 213.6;                                  /* 2πr, r=34 */
+  var pct = tot ? Math.max(0, Math.min(1, done / tot)) : 0;
+  return '<div class="ring"><svg width="84" height="84" viewBox="0 0 84 84">' +
+    '<circle class="bg" cx="42" cy="42" r="34"></circle>' +
+    '<circle class="fg" cx="42" cy="42" r="34" stroke-dasharray="' +
+    (pct * C).toFixed(1) + ' ' + C + '"></circle></svg>' +
+    '<div class="mid"><b>' + done + '</b><span>מתוך ' + tot + '</span></div></div>';
 }
+function heroHtml(daf, done, tot, canOpen) {
+  if (!daf) {
+    return '<div class="hero"><div style="flex:1">' +
+      '<span class="tag">בקרוב</span>' +
+      '<h3>מתחילים בפרשת בראשית</h3>' +
+      '<div class="lead"><b>' + tot + '</b> כבר נרשמו מהישיבה</div>' +
+      '<div class="sub">כשהשבוע הראשון ייפתח, כאן יופיע מי למד אותו.</div>' +
+      '</div></div>';
+  }
+  var tag  = canOpen && view === 'week' ? 'סגירה ×' : 'מי ומי ←';
+  var body =
+    '<div style="flex:1">' +
+    '<span class="tag">השבוע</span>' +
+    '<h3>דף ' + esc(daf) + '</h3>' +
+    '<div class="lead"><b>' + done + '</b> מתוך ' + tot + ' סיימו את הדף</div>' +
+    '<div class="sub">' + tot + ' מצטרפים בישיבה' +
+    (canOpen ? '' : ' · השמות נפתחים עם קוד הגישה') + '</div>' +
+    (canOpen ? '<i class="chev">' + tag + '</i>' : '') +
+    '</div>' + ringHtml(done, tot);
+  return canOpen
+    ? '<button class="hero" onclick="go(\'week\')">' + body + '</button>' +
+      (view === 'week' ? '<div class="card" style="margin-top:9px">' +
+                         weekOpenHtml() + '</div>' : '')
+    : '<div class="hero">' + body + '</div>';
+}
+
+/* `num()` ירדה יחד עם שורת שלוש המשבצות. */
 /* משפט אחד עם תאריך, ולא רשימת פיצ'רים. רשימה קוראת כמו שיווק
    ומזמינה למדוד אותנו מול הבטחה; משפט אחד הוא הבטחה שאפשר
    לעמוד בה. */

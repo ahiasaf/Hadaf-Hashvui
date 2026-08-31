@@ -1546,7 +1546,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.55.0';
+var APP_VERSION = '7.56.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3196,6 +3196,15 @@ function sendQuiz() {
             /* המזהה הוא מה שיקשר בין "ענה נכון" לבין תלמיד
                מסוים כשתיערך ההגרלה. */
             ['מזהה', id]]) });
+  /* מי שענה על החידה סיים את הדף. עד עכשיו "סיים" נרשם רק
+     בהגעה לסוף הדף האינטראקטיבי או בלחיצה ידנית, ולכן תלמיד
+     שלמד מהחוברת וענה על החידה נספר כמי שלא למד — והלוח של
+     הישיבה הראה פחות ממה שקרה בפועל.
+
+     נכון או לא נכון אינו משנה: החידה היא סימן שהוא היה בדף. */
+  if (typeof LMark === 'function' && state.week >= 0) {
+    try { LMark(state.track.id, state.week); } catch (e) {}
+  }
   document.getElementById('q-result').innerHTML =
     '<div class="done-box" style="margin-top:14px">' +
     (right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
@@ -5749,9 +5758,13 @@ function dataWipe(tab, ss, rows) {
    מלל שאי אפשר לערוך גרוע מרשימה.
 
    הדף האינטראקטיבי אינו ברשימת המסכים בכוונה: לו יש סטודיו. */
+/* מה שאין לו מסך להגיע אליו: תמונות, שער הדף (שם יש סטודיו),
+   ו-`off:1` — נוסחים שאינם מצוירים על שום מסך, כמו הודעות
+   הוואטסאפ. הן נשלחות ולא מוצגות, ולכן העורך על המסך לא
+   יפגוש אותן לעולם. */
 function textOrphans() {
   return TEXT_FIELDS.filter(function (f) {
-    return f.k && (f.img || f.k.indexOf('gate.') === 0);
+    return f.k && (f.img || f.off || f.k.indexOf('gate.') === 0);
   });
 }
 function admText(el) {
