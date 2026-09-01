@@ -801,14 +801,17 @@ applyTxtLayers();
 function loadPub() {
   return Promise.all([
     sheetCsv(SET_TAB).then(function (rows) {
-      if (!rows || rows.length < 2) return;
+      /* אותם שלושה מצבים בכל הקוראים: כישלון משאיר, לשונית זרה
+         נדחית, וריק מרוקן. הלוח כבר עבד כך; כאן זה היה שונה. */
+      if (!rows || !rows.length) return;
+      if ((rows[0] || []).join('|').indexOf('מפתח') < 0) return;
       var m = {};
       rows.slice(1).forEach(function (r) {
         var k = (r[0] || '').trim(), v = (r[1] || '').trim();
         if (!k || !v) return;
         try { m[k] = JSON.parse(v); } catch (e) {}
       });
-      if (Object.keys(m).length) { pub = m; set('cfgCache', m); }
+      pub = m; set('cfgCache', m);
     }),
     /* מוני הלימוד — מספרים בלבד, מהלשונית הציבורית. */
     /* המסכתות שהישיבה בחרה בהרשמה — לשונית ציבורית, בלי סיסמה.
@@ -817,8 +820,11 @@ function loadPub() {
       if (!rows || !rows.length) return;
       var head = rows[0], ix = {};
       for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
-      var ci = ix['code'] !== undefined ? ix['code'] : 0;
-      var mi = ix['מסכתות'] !== undefined ? ix['מסכתות'] : 4;
+      /* בלי נפילה למספרי עמודות. אם הכותרת אינה מה שציפינו לו,
+         זו לשונית אחרת — וקריאת עמודה 0 ו-4 ממנה מייצרת מפה
+         שנראית תקינה לגמרי ואינה נכונה בכלל. */
+      var ci = ix['code'], mi = ix['מסכתות'];
+      if (ci === undefined || mi === undefined) return;
       var m = {};
       for (var r = 1; r < rows.length; r++) {
         var c = String(rows[r][ci] || '').trim();
@@ -834,15 +840,21 @@ function loadPub() {
       if (m && Object.keys(m).length) LSet('learnCount', m);
     }),
     sheetCsv(COUNT_TAB).then(function (rows) {
-      if (!rows || rows.length < 2) return;
+      if (!rows || !rows.length) return;
+      var head = rows[0], ix = {};
+      for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+      if (ix['קוד ישיבה'] === undefined) return;      /* לא הלשונית שביקשנו */
       var m = {};
       rows.slice(1).forEach(function (r) {
-        var k = (r[0] || '').trim(), v = parseInt(r[1], 10);
+        var k = String(r[ix['קוד ישיבה']] || '').trim();
+        var v = parseInt(r[ix['מצטרפים']], 10);
         if (k && v > 0) m[k] = v;
       });
-      /* לשונית ריקה אינה "אפס מצטרפים" אלא "עוד לא נכתב לשם
-         דבר", ולכן היא אינה דורסת מספר ששמור מהפעם הקודמת. */
-      if (Object.keys(m).length) { peers = m; set('peerCache', m); }
+      /* ריק מרוקן. עד היום זה היה אסור כאן, כי הספירה מחדש בשרת
+         מחקה את הלשונית לפני שכתבה אותה — ולכן היה רגע שבו היא
+         באמת ריקה. `writeCount_` כותב עכשיו לפני שהוא מוחק, אין
+         עוד חלון כזה, ומספר שהתרוקן באמת מתעדכן סוף־סוף. */
+      peers = m; set('peerCache', m);
     }),
     sheetCsv(TXT_TAB).then(function (rows) {
       /* כישלון אינו לשונית ריקה. כותרת בלבד היא מצב חוקי שחייב

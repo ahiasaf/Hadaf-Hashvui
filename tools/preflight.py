@@ -241,8 +241,73 @@ def check_calendar():
             WARN.append('%s — דפים שאינם במאגר: %s' % (mas, ' · '.join(gone)))
 
 
+def check_shared_globals():
+    """קובץ משותף שנשען על משהו שקיים רק בעמוד אחד.
+
+    זו התקלה שעלתה ביוקר: `stage.js` בונה את הבאנר גם בעמוד הראשי
+    וגם במסך התלמיד, והוא קרא ל-`weekIndex()` — פונקציה שמוגדרת
+    **רק ב-index.html**. במסך התלמיד היא לא קיימת, הנפילה לאחור
+    החזירה שבוע 1, ולכן התלמיד היה רואה לנצח את הדף של השבוע
+    הראשון בעוד שכל שאר המסך מדבר על השבוע האמיתי.
+
+    שום דבר לא נזרק, שום דבר לא נצבע באדום, ואי אפשר לראות את זה
+    בקריאת הקוד — צריך לדעת איזה עמוד טוען מה.
+
+    הבדיקה: לכל קובץ .js משותף, אוספים על מי הוא נשען דרך
+    `typeof X === 'function'` — הדפוס שמסמן "אולי לא קיים" — ואז
+    בודקים שהשם הזה מוגדר באחד הקבצים ש**כל** העמודים הטוענים
+    אותו טוענים גם כן. שם שאינו כזה הוא נפילה שקטה שמחכה.
+    """
+    pages = [f for f in os.listdir(ROOT) if f.endswith('.html')]
+    loads, inline = {}, {}
+    for pg in pages:
+        try:
+            html = read(pg)
+        except Exception:
+            continue
+        loads[pg] = re.findall(r'<script src="([a-z0-9_-]+\.js)"', html)
+        inline[pg] = set(re.findall(r'function\s+([A-Za-z_$][\w$]*)\s*\(', html))
+
+    shared = sorted({j for v in loads.values() for j in v})
+    defs = {}
+    for j in shared:
+        try:
+            defs[j] = set(re.findall(r'function\s+([A-Za-z_$][\w$]*)\s*\(', read(j)))
+        except Exception:
+            defs[j] = set()
+
+    holes = []
+    for j in shared:
+        src = read(j)
+        used = set(re.findall(r"typeof\s+([A-Za-z_$][\w$]*)\s*===\s*'function'", src))
+        if not used:
+            continue
+        users = [pg for pg, lst in loads.items() if j in lst]
+        if not users:
+            continue
+        for name in sorted(used):
+            if name in defs[j]:
+                continue
+            # באילו קבצים משותפים השם מוגדר
+            where = [o for o in shared if name in defs[o]]
+            # האם כל עמוד שטוען את j טוען גם אחד מהם
+            missing = [pg for pg in users
+                       if name not in inline.get(pg, set())
+                       and not any(o in loads[pg] for o in where)]
+            if missing:
+                holes.append((j, name, sorted(missing)))
+
+    if holes:
+        for j, name, missing in holes:
+            WARN.append('%s נשען על %s() — אינו נטען ב: %s'
+                        % (j, name, ', '.join(missing)))
+    else:
+        OK.append('קבצים משותפים — אין תלות בפונקציה שחסרה בעמוד כלשהו')
+
+
 def main():
     for fn in (check_version, check_dupe_vars, check_orphan_classes,
+               check_shared_globals,
                check_decks, check_daf_index,
                check_calendar):
         try:

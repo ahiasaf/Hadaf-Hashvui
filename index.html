@@ -1546,7 +1546,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.57.1';
+var APP_VERSION = '7.58.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1567,13 +1567,10 @@ var state = { track:null, week:null, deck:[], di:0, ans:-1, filter:'all' };
 })();
 
 /* ---------- לוח זמנים ---------- */
-function weekIndex() {
-  var start = new Date(PROGRAM.startDate + 'T00:00:00');
-  var now = new Date(); now.setHours(0, 0, 0, 0);
-  var days = Math.floor((now - start) / 86400000);
-  if (days < 0) return -1;
-  return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
-}
+/* מקור אחד: `LWeek` ב-learned.js, שנטענת בכל ארבעת העמודים.
+   כאן ישב עותק זהה, ובעוד שני קבצים עותקים נוספים — ארבע
+   פונקציות שאומרות את אותו דבר, עד היום שבו אחת מהן משתנה. */
+function weekIndex() { return LWeek(); }
 function trackById(id) {
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i];
   return null;
@@ -4276,7 +4273,11 @@ function cfgVal(v) {
 function loadSettings() {
   return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB)
     .then(function (rows) {
-      if (!rows || rows.length < 2) return false;
+      /* gviz אינה מודיעה על לשונית חסרה — היא מגישה את הראשונה
+         בגיליון. בלי בדיקת כותרת, נתונים של לשונית אחרת לגמרי
+         היו נקראים כאן כהגדרות. */
+      if (!rows || !rows.length) return false;
+      if ((rows[0] || []).join('|').indexOf('מפתח') < 0) return false;
       var map = {};
       rows.slice(1).forEach(function (r) {
         var k = (r[0] || '').trim(), v = (r[1] || '').trim();

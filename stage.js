@@ -14,8 +14,28 @@
    ============================================================ */
 
 /* השבוע המוצג: לפני שהשנה מתחילה — הראשון. */
+/* ============================================================
+   איזה שבוע עכשיו — מקור אחד.
+   ============================================================
+   כאן ישבה תלות ב-`weekIndex`, שקיימת **רק ב-index.html**. הבאנר
+   הזה נבנה מאותו קובץ גם במסך התלמיד, ושם הפונקציה אינה קיימת —
+   ולכן הנפילה לאחור החזירה שבוע 1 בכל שבוע בשנה.
+
+   כלומר: מרגע שהתוכנית מתחילה, התלמיד היה רואה לנצח את הדף של
+   השבוע הראשון, בעוד שכפתור הסימון, פס ההתקדמות והמונים שלצידו
+   מדברים על השבוע האמיתי. שני מספרים על אותו מסך, ואף אחד לא
+   היה מודיע.
+
+   `LWeek` ב-learned.js נטענת בכל ארבעת העמודים, ולכן היא המקור.
+   ============================================================ */
+function StWeekRaw() {
+  /* בלי נפילה שנייה. `learned.js` נטענת בכל ארבעת העמודים, ולכן
+     אם `LWeek` חסרה — משהו שבור, ו-1- הוא התשובה הכנה. נפילה
+     לאחור על פונקציה אחרת היא בדיוק מה שהסתיר את התקלה הזו. */
+  return (typeof LWeek === 'function') ? LWeek() : -1;
+}
 function StWeek() {
-  var wi = (typeof weekIndex === 'function') ? weekIndex() : -1;
+  var wi = StWeekRaw();
   return wi < 0 ? 0 : wi;
 }
 function StTrack(id) {
@@ -40,7 +60,7 @@ function StSlide(c, n) {
 function StageHtml(o) {
   var tr = StTrack(o.track), i = StWeek(), row = tr.cal[i];
   var c  = (typeof CONTENT !== 'undefined') ? CONTENT[tr.id + '-' + (i + 1)] : null;
-  var wi = (typeof weekIndex === 'function') ? weekIndex() : -1;
+  var wi = StWeekRaw();
   var when = wi < 0 ? UI.stageSoon : 'שבוע ' + (wi + 1) + ' מתוך ' + tr.cal.length;
   var call = function (fn, arg) {
     return fn ? fn + '(' + (arg === undefined ? '' : "'" + arg + "'") + ')' : '';
@@ -90,7 +110,7 @@ function StageHtml(o) {
 /* פס המסלול השנתי — אותו אחד שמתחת לבמה במסך הראשי.
    o.go — שם פונקציה, או כתובת כשמדובר בקישור בין עמודים. */
 function RailHtml(o) {
-  var tr = StTrack(o.track), wi = (typeof weekIndex === 'function') ? weekIndex() : -1;
+  var tr = StTrack(o.track), wi = StWeekRaw();
   var mark = wi < 0 ? 0 : wi, rail = '', done = 0;
   for (var i = 0; i < tr.cal.length; i++) {
     var r = tr.cal[i];

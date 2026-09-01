@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 22;
+var SCRIPT_VERSION = 23;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -580,12 +580,25 @@ function tally_(rows, keyNames, idName) {
 }
 
 /* כותב לשונית ציבורית מחדש בשלמותה. מספרים בלבד. */
+/* קודם כותבים, ורק אחר כך מוחקים את השאריות שמתחת.
+
+   הסדר ההפוך — מחיקה ואז כתיבה — משאיר חלון של שבריר שנייה שבו
+   הלשונית באמת ריקה. כל תלמיד שטוען את המסך בדיוק אז מקבל אפס
+   מצטרפים ואפס לומדים, וזה קורה בכל ספירה מחדש: בכל הרשמה, בכל
+   סימון לימוד, וכל שעה מהטריגר.
+
+   בגלל החלון הזה הצד הלקוח נאלץ להתעלם מלשונית ריקה — כלומר
+   מספר שהתרוקן באמת לא היה מתעדכן לעולם. התיקון כאן הוא בשורש:
+   אין יותר חלון, ולכן "ריק" יכול סוף־סוף להיקרא כריק. */
 function writeCount_(tab, cols, rows) {
   var out = sheet_(tab);
-  var last = out.getLastRow();
-  if (!last) headRow_(out, cols);
-  else if (last > 1) out.getRange(2, 1, last - 1, Math.max(cols.length, out.getLastColumn())).clearContent();
+  if (!out.getLastRow()) headRow_(out, cols);
   if (rows.length) out.getRange(2, 1, rows.length, cols.length).setValues(rows);
+  var end = out.getLastRow(), from = rows.length + 2;
+  if (end >= from) {
+    out.getRange(from, 1, end - from + 1,
+                 Math.max(cols.length, out.getLastColumn())).clearContent();
+  }
 }
 
 /* מי סיים איזה דף, לפי מסלול · שבוע · ישיבה. שום שם ושום טלפון
