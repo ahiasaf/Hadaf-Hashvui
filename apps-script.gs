@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 23;
+var SCRIPT_VERSION = 24;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -374,7 +374,7 @@ function doGet(e) {
                           : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
     }
     try {
-      recount_(); recountLearn_();
+      recount_(); recountLearn_(true);
       return reply_(e, { status: 'ok' });
     } catch (err3) {
       return reply_(e, { status: 'error', message: String(err3) });
@@ -518,7 +518,13 @@ function appendCols_(tab, cols, ssId) {
   for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
   sh.appendRow(row);
   if (tab === JOIN_TAB)  recount_();
-  if (tab === LEARN_TAB) recountLearn_();
+  if (tab === LEARN_TAB) {
+    /* השורה שהרגע נכתבה מספרת באיזה שבוע אנחנו. זה כל מה שצריך
+       כדי לדעת היכן השבוע התחיל — בלי שעון ובלי הגדרה. */
+    var iw = idx_(sh, head, 'שבוע');
+    if (iw >= 0) markBump_(row[iw], sh.getLastRow());
+    recountLearn_();
+  }
   return json_({ status: 'success', tab: tab, columns: row.length });
 }
 
@@ -624,7 +630,84 @@ function doneRows_(rows) {
   return out;
 }
 
-function recountLearn_() {
+/* ============================================================
+   הסימנייה — מאיפה מתחיל השבוע הנוכחי בלשונית "לימוד".
+   ============================================================
+   הבעיה: כל סימון של תלמיד גורם לספירה מחדש, והספירה קראה את
+   הלשונית **כולה**. אחרי שנה זה מאות אלפי שורות שנקראות בכל
+   פעם שתלמיד לוחץ "סיימתי".
+
+   הפתרון אינו לנחש "כמה שורות שבוע מייצר" — מספר כזה נכון
+   לשבוע אחד ושגוי לשאר. במקום זה **הנתונים עצמם מסמנים את
+   הגבול**: כל שורה נושאת את מספר השבוע שלה, וברגע שמגיעה שורה
+   של שבוע חדש יודעים בדיוק היכן הוא התחיל. אין שעון, אין אזור
+   זמן, ואין הנחה על קצב.
+
+   נשמרת ב-Script Properties, ולא בלשונית: היא מטא־נתון של
+   המנגנון ולא נתון של התוכנית, ואין סיבה שמישהו יראה אותה.
+
+   שוליים: הסימנייה נסוגה 200 שורות אחורה. שורה שנשלחה באיחור —
+   תלמיד שסימן בלי רשת וההודעה יצאה למחרת — נוחתת אחרי הגבול
+   ולכן ממילא נקראת; השוליים הם כנגד המקרה ההפוך, שבו סדר
+   ההגעה אינו סדר השבועות.
+
+   ובכל שעה רצה בכל מקרה ספירה **מלאה** מהטריגר. כלומר גם אם
+   הסימנייה שגויה מסיבה כלשהי, המספרים מתקנים את עצמם תוך שעה
+   ולא נשארים שבורים.
+   ============================================================ */
+var MARK_KEY = 'learnMark';
+var MARK_PAD = 200;
+
+function markGet_() {
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty(MARK_KEY);
+    var m = raw ? JSON.parse(raw) : null;
+    return (m && m.row > 1 && m.wk) ? m : null;
+  } catch (e) { return null; }
+}
+function markSet_(wk, row) {
+  try {
+    PropertiesService.getScriptProperties().setProperty(MARK_KEY,
+      JSON.stringify({ wk: String(wk), row: Math.max(2, row) }));
+  } catch (e) {}
+}
+
+/* נקרא אחרי כל הוספה ללשונית "לימוד". `wk` הוא השבוע של השורה
+   שהרגע נכתבה, ו-`row` מספרה. */
+function markBump_(wk, row) {
+  var n = parseInt(wk, 10);
+  if (!(n > 0)) return;
+  var m = markGet_();
+  /* קדימה בלבד. שורה שמגיעה באיחור משבוע שעבר אינה מזיזה את
+     הגבול אחורה — היא רק נקראת יחד עם השבוע הנוכחי. */
+  if (m && parseInt(m.wk, 10) >= n) return;
+  markSet_(n, row - MARK_PAD);
+}
+
+/* שורות "לימוד" מהסימנייה ואילך, עם שורת הכותרת בראשן. בלי
+   סימנייה — הכל, וזו גם התשובה הנכונה בשבוע הראשון. */
+function learnSlice_() {
+  var sh = sheet_(LEARN_TAB);
+  if (!sh || sh.getLastRow() < 2) return { rows: [], from: 2, all: true };
+  var last = sh.getLastRow(), wide = sh.getLastColumn();
+  var m = markGet_();
+  var from = (m && m.row > 2 && m.row <= last) ? m.row : 2;
+  if (from <= 2) {
+    return { rows: sh.getDataRange().getDisplayValues(), from: 2, all: true };
+  }
+  var head = sh.getRange(1, 1, 1, wide).getDisplayValues()[0];
+  var body = sh.getRange(from, 1, last - from + 1, wide).getDisplayValues();
+  return { rows: [head].concat(body), from: from, all: false, wk: m.wk };
+}
+
+/* `full` — לקרוא את הלשונית כולה ולבנות את המונים מאפס. זו
+   האמת המלאה, והיא רצה כל שעה מהטריגר וגם בספירה ידנית.
+
+   בלי `full` — תוספתי: קוראים רק מהסימנייה, מחשבים מחדש את
+   השבועות שמופיעים שם, ומשאירים את שורות המונה של השבועות
+   הקודמים כפי שהן. זה מה שרץ בכל סימון של תלמיד, ולכן זה מה
+   שחייב להיות זול. */
+function recountLearn_(full) {
   try {
     var src = sheet_(LEARN_TAB);
     if (!src) return;
@@ -632,6 +715,7 @@ function recountLearn_() {
       writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'], []);
       return;
     }
+    if (!full) return recountLearnPart_();
     /* **רק שורות סיום.**
 
        מאז שנוספה שמירת המקום בדף, אותה לשונית נושאת שני סוגי
@@ -651,6 +735,60 @@ function recountLearn_() {
         return [p[0], p[1], p[2], t.n[k]];
       }));
   } catch (err) {}
+}
+
+/* ספירה תוספתית: רק השבועות שנמצאים אחרי הסימנייה.
+
+   השורות של השבועות הקודמים נשארות בלשונית המונים כפי שהן —
+   הן כבר חושבו, ומה שקרה לפני שבוע אינו משתנה. מה שכן משתנה
+   הוא רק השבוע שרץ עכשיו, וזה בדיוק מה שנקרא.
+
+   אם משהו כאן נכשל — הספירה המלאה שרצה כל שעה מתקנת. */
+function recountLearnPart_() {
+  var slice = learnSlice_();
+  if (slice.all) return recountLearn_(true);          /* אין סימנייה */
+
+  /* **רק שבועות שהפרוסה מכסה במלואם.**
+
+     כאן ישב פגם שהבדיקה תפסה: הסימנייה נסוגה 200 שורות אחורה
+     לשוליים, ולכן הפרוסה מכילה גם *זנב* של השבוע הקודם. חישוב
+     מחדש של שבוע מתוך זנב שלו מחליף מספר נכון במספר חלקי —
+     גרוע יותר מלא לגעת בו בכלל. במדידה: שבוע שהיו בו 305
+     סיומים ירד ל-200.
+
+     השבוע של הסימנייה ומעלה מכוסים בוודאות, כי הסימנייה יושבת
+     לפני השורה הראשונה שלהם. כל מה שמתחת — נשאר כפי שהוא. */
+  var base = parseInt(slice.wk, 10);
+  var head = slice.rows[0], iw = -1;
+  for (var h = 0; h < head.length; h++) if (String(head[h]).trim() === 'שבוע') iw = h;
+  if (iw < 0 || !(base > 0)) return recountLearn_(true);
+
+  var mine = [head];
+  for (var r = 1; r < slice.rows.length; r++) {
+    if (parseInt(slice.rows[r][iw], 10) >= base) mine.push(slice.rows[r]);
+  }
+
+  var t = tally_(doneRows_(mine), ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
+  if (!t) return;
+
+  var touched = {};
+  t.order.forEach(function (k) { touched[k.split('\u0001')[1]] = 1; });
+
+  var out = sheet_(LCOUNT_TAB), keep = [];
+  if (out && out.getLastRow() > 1) {
+    var cur = out.getDataRange().getDisplayValues();
+    for (var i = 1; i < cur.length; i++) {
+      var wk = String(cur[i][1] || '').trim();
+      if (!wk || touched[wk]) continue;                /* יחושב מחדש */
+      if (String(cur[i][0] || '').trim()) keep.push(cur[i].slice(0, 4));
+    }
+  }
+  var fresh = t.order.map(function (k) {
+    var p = k.split('\u0001');
+    return [p[0], p[1], p[2], t.n[k]];
+  });
+  writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'],
+              keep.concat(fresh));
 }
 
 /* מסמן מוסד כמשתתף בתשפ"ז — עמודה D בלשונית המוסדות.
@@ -758,9 +896,13 @@ function boardData_(inst, k) {
      כמה רחוק הוא הגיע ולא מתי. */
   var done = {}, pos = {};
   try {
-    var ls = sheet_(LEARN_TAB);
-    if (ls.getLastRow() > 1) {
-      var lr = ls.getDataRange().getDisplayValues(), lh = lr[0], li = {};
+    /* רק מהסימנייה ואילך. הלוח שואל שאלה אחת — מי סיים את הדף
+       של השבוע — ולכן היסטוריה של חודשים אינה נדרשת לו כלל.
+       `weeks` שחוזר מכאן מכסה את השבוע הנוכחי, וזה מה שהלקוח
+       בודק. */
+    var lr = learnSlice_().rows;
+    if (lr.length > 1) {
+      var lh = lr[0], li = {};
       for (var a = 0; a < lh.length; a++) li[String(lh[a]).trim()] = a;
       for (var b = 1; b < lr.length; b++) {
         if (String(lr[b][li['קוד ישיבה']] || '').trim() !== inst) continue;
@@ -1013,7 +1155,8 @@ function setupTriggers() {
   ScriptApp.newTrigger('autoRecount').timeBased().everyHours(1).create();
   return 'הטריגר הותקן · ספירה מחדש כל שעה';
 }
-function autoRecount() { recount_(); recountLearn_(); }
+/* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
+function autoRecount() { recount_(); recountLearn_(true); }
 
 /* האם הטריגר מותקן — כדי ש"בדיקת חיבור" תוכל לומר את זה, ולא
    נצטרך לנחש אם ההתקנה עברה. */
