@@ -187,8 +187,17 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
    מי שאינו פותח את האזור אינו רואה שום הבדל מהיום. אין כאן שום
    שינוי במצב הסגור.
    ============================================================ */
-#side{display:none;flex-direction:column;min-height:0;background:var(--surface);
-  border-inline-start:1px solid var(--rule)}
+/* כחול רציף מלמעלה עד למטה, ובלי שום מסגרת בתוכו.
+
+   קודם היו כאן שלושה תיחומים מקוננים: השקף, המלבן הכחול שמסביבו,
+   והרווח הלבן שמסביב לו — כלומר שלוש מסגרות זו בתוך זו במקום
+   שבו יש דבר אחד. זה מה ששבר את המבנה של הדף.
+
+   `border-inline-end` ולא `start`: המצגת בימין, והקצה שנוגע בדף
+   הוא השמאלי — בדיוק כמו הקו שבין הדף לחברותא, ובאותו צבע. */
+#side{display:none;flex-direction:column;min-height:0;
+  background:linear-gradient(180deg,#0B2550,#123566);
+  border-inline-end:1px solid var(--rule)}
 body.side-on #side{display:flex}
 
 /* ---------- מסך מחשב: עמודה אמיתית ----------
@@ -225,43 +234,57 @@ body.side-on #side{display:flex}
 }
 
 /* ---------- תוכן האזור ---------- */
-.sd-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 12px;
-  border-bottom:1px solid var(--rule);font-weight:800;font-size:.8rem;color:var(--blue)}
+.sd-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 11px;
+  font-weight:800;font-size:.76rem;color:rgba(255,255,255,.72)}
 .sd-h .sp{flex:1}
-.sd-h button{border:0;background:none;font-size:.95rem;color:var(--ink-3);
-  cursor:pointer;font-weight:800;padding:2px 6px}
+.sd-h button{border:0;background:rgba(255,255,255,.12);border-radius:8px;
+  font-size:.9rem;color:#fff;cursor:pointer;font-weight:800;padding:3px 9px}
 .sd-b{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
-  background:#0B2550;padding:10px}
-.sd-b img{max-width:100%;max-height:100%;border-radius:8px;display:block;
-  box-shadow:0 6px 18px rgba(0,0,0,.3)}
-.sd-f{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 12px;
-  border-top:1px solid var(--rule)}
+  padding:16px}
+/* בלי פינות ובלי צל: אלה מציירים מסגרת שנייה סביב מה שכבר
+   ממוסגר. השקף עצמו הוא הגבול. */
+.sd-b img{max-width:100%;max-height:100%;display:block}
+/* חצי הדפדוף שייכים לשיוך ולא לצפייה. תלמיד אינו מזיז את
+   המצגת — היא נוסעת עם הדף — ומספר שקפים שהוא אינו שולט בו
+   רק מבטיח שליטה שאינה קיימת. */
+.sd-f{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 11px 10px}
 .sd-f .sp{flex:1}
-.sd-f button{border:1px solid var(--rule);background:var(--paper);border-radius:9px;
-  padding:5px 11px;font-weight:800;font-size:.8rem;color:var(--ink);cursor:pointer}
-.sd-f button:disabled{opacity:.4;cursor:default}
-.sd-n{font-weight:800;font-size:.78rem;color:var(--ink-3)}
+.sd-f button{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);
+  border-radius:9px;padding:5px 12px;font-weight:800;font-size:.8rem;color:#fff;
+  cursor:pointer}
+.sd-f button:disabled{opacity:.32;cursor:default}
+.sd-n{font-weight:800;font-size:.76rem;color:rgba(255,255,255,.7)}
+/* במחשב אין כותרת ואין חצים למי שרק צופה. הסגירה היא כפתור
+   "מצגת" שבשורת הניווט — אותו כפתור שפתח — ולכן ✕ נוסף בתוך
+   הפאנל הוא דרך שנייה לאותו דבר. וההגדלה אינה עושה דבר במסך
+   שממילא רחב. */
+@media (min-width:1000px){
+  body:not(.side-adm) .sd-h,
+  body:not(.side-adm) .sd-f{display:none}
+}
 /* בטלפון החלון הממוזער קטן מכדי לשאת שורת כפתורים קריאה */
 @media (max-width:999px){
   body.side-on:not(.side-big) .sd-f,
   body.side-on:not(.side-big) .sd-a{display:none}
   body.side-on:not(.side-big) .sd-b{padding:6px;min-height:88px}
-  body.side-on:not(.side-big) .sd-h{padding:6px 9px;font-size:.72rem}
+  body.side-on:not(.side-big) .sd-h{padding:6px 9px;font-size:.7rem}
 }
 
 /* ---------- שכבת השיוך ----------
    פתוחה רק כשהניהול פתוח במכשיר. תלמיד אינו רואה אותה כלל. */
-.sd-a{flex:0 0 auto;border-top:1px solid var(--rule);padding:9px 12px;
-  background:rgba(192,143,43,.07)}
-.sd-a .t{font-size:.72rem;font-weight:800;color:var(--ink-2);margin-bottom:7px}
+.sd-a{flex:0 0 auto;border-top:1px solid rgba(255,255,255,.16);padding:10px 12px;
+  background:rgba(0,0,0,.22)}
+.sd-a .t{font-size:.72rem;font-weight:800;color:rgba(255,255,255,.66);margin-bottom:8px}
 .sd-a .r{display:flex;gap:6px;flex-wrap:wrap}
-.sd-a button{border:1px solid rgba(192,143,43,.5);background:#fff;border-radius:9px;
-  padding:5px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
+.sd-a button{border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);
+  border-radius:9px;padding:6px 11px;font-weight:800;font-size:.76rem;color:#fff;
+  cursor:pointer}
 .sd-a button.hot{background:var(--gold, #C08F2B);border-color:var(--gold, #C08F2B);
   color:#fff}
-.sd-a .msg{margin-top:7px;font-size:.72rem;font-weight:700;line-height:1.5}
-.sd-a .msg.ok{color:var(--ok, #4A821C)}
-.sd-a .msg.bad{color:#B23B3B}
+.sd-a .msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;
+  color:rgba(255,255,255,.8)}
+.sd-a .msg.ok{color:#9FD46A}
+.sd-a .msg.bad{color:#FF9C9C}
 
 /* ---------- "המשכנו מהמקום שעצרת" ----------
    שורה דקה מתחת לכותרת ולא חלון: היא מדווחת, אינה שואלת, ואינה
@@ -1271,22 +1294,27 @@ function sidePaint() {
   var el = $('side');
   if (!el || !DECK) return;
   var big = document.body.classList.contains('side-big');
+  var phone = sidePhone();
   el.innerHTML =
-    '<div class="sd-h"><span>מצגת</span><span class="sp"></span>' +
-    '<span class="sd-n">' + SLIDE + '/' + DECK.n + '</span>' +
-    '<button id="sd-big" title="הגדלה">' + (big ? '⤡' : '⤢') + '</button>' +
-    '<button id="sd-x" title="סגירה">✕</button></div>' +
+    '<div class="sd-h">' +
+    /* מספר השקף מוצג רק למי שמשייך — הוא הכלי שלו. לתלמיד הוא
+       מבטיח שליטה שאינה קיימת: המצגת נוסעת עם הדף. */
+    (SIDE_ADM ? '<span class="sd-n">שקף ' + SLIDE + ' מתוך ' + DECK.n + '</span>' : '') +
+    '<span class="sp"></span>' +
+    (phone ? '<button id="sd-big" title="הגדלה">' + (big ? '⤡' : '⤢') + '</button>' +
+             '<button id="sd-x" title="סגירה">✕</button>' : '') +
+    '</div>' +
     '<div class="sd-b" id="sd-b-wrap"' + (sidePhone() ? ' style="cursor:pointer"' : '') +
     '><img id="sd-img" alt="שקף ' + SLIDE + '"></div>' +
     '<div class="sd-f">' +
-    '<button id="sd-prev">▸</button><span class="sp"></span>' +
+    '<button id="sd-prev">▸ שקף קודם</button><span class="sp"></span>' +
     '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
-    '<button id="sd-next">◂</button></div>' +
+    '<button id="sd-next">שקף הבא ◂</button></div>' +
     (SIDE_ADM ? sideAdmHtml() : '');
 
   $('sd-img').src = slideSrc(SLIDE);
-  $('sd-x').onclick = function () { sideOpen(false); };
-  $('sd-big').onclick = sideBig;
+  if ($('sd-x'))   $('sd-x').onclick = function () { sideOpen(false); };
+  if ($('sd-big')) $('sd-big').onclick = sideBig;
   /* בטלפון החלון עצמו הוא הכפתור. כפתור בגודל 14px בתוך חלון
      בגודל 160px הוא בקשה לדיוק שאין לאגודל, ומי שרוצה להגדיל
      ילחץ על מה שהוא רואה — כלומר על השקף. */
@@ -1298,7 +1326,7 @@ function sidePaint() {
   $('sd-prev').disabled = SLIDE <= 1;
   $('sd-next').disabled = SLIDE >= DECK.n;
   var lbl = $('sd-lbl');
-  if (lbl) lbl.textContent = ANCH ? '' : 'לדף הזה אין עדיין שיוך';
+  if (lbl) lbl.textContent = (SIDE_ADM && !ANCH) ? 'אין עדיין שיוך' : '';
   sideAdmPaint();
 }
 function sideStep(d) {
@@ -1411,6 +1439,9 @@ function sideInit() {
   DECK = deckOf();
   if (!DECK) return;
   try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+  /* גם ב-CSS: הכותרת והחצים שייכים לשיוך, ולכן הם מופיעים רק
+     אצל מי שמשייך. */
+  document.body.classList.toggle('side-adm', SIDE_ADM);
 
   return Promise.resolve(loadDeckMap()).then(function () {
     /* שורה שלא נפענחה אינה שיוך. היא נשמרת ב-DMAP כפי שהיא
