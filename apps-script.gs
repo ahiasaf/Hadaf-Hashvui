@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 21;
+var SCRIPT_VERSION = 22;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -590,6 +590,27 @@ function writeCount_(tab, cols, rows) {
 
 /* מי סיים איזה דף, לפי מסלול · שבוע · ישיבה. שום שם ושום טלפון
    אינם יוצאים מהגיליון הסגור — רק ספירה. */
+/* שורת הכותרת, ואחריה רק מי שסיים. שורה בלי עמודת "קטע" היא
+   שורה מגרסה קודמת, והיא הייתה תמיד סיום. */
+function doneRows_(rows) {
+  if (!rows || !rows.length) return rows;
+  var head = rows[0], iAt = -1, iOf = -1;
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i]).trim();
+    if (h === 'קטע')  iAt = i;
+    if (h === 'מתוך') iOf = i;
+  }
+  if (iAt < 0 || iOf < 0) return rows;          /* לשונית ישנה — הכל סיום */
+  var out = [head];
+  for (var r = 1; r < rows.length; r++) {
+    var at = String(rows[r][iAt] || '').trim();
+    var of = String(rows[r][iOf] || '').trim();
+    var n1 = parseInt(at, 10), n2 = parseInt(of, 10);
+    if (!at || !(n2 > 0) || n1 >= n2) out.push(rows[r]);
+  }
+  return out;
+}
+
 function recountLearn_() {
   try {
     var src = sheet_(LEARN_TAB);
@@ -598,7 +619,17 @@ function recountLearn_() {
       writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'], []);
       return;
     }
-    var t = tally_(src.getDataRange().getDisplayValues(),
+    /* **רק שורות סיום.**
+
+       מאז שנוספה שמירת המקום בדף, אותה לשונית נושאת שני סוגי
+       שורות: סיום (קטע = מתוך, או שורה ישנה בלי העמודות כלל),
+       והתקדמות באמצע (קטע < מתוך). המונה סופר מזהים ייחודיים
+       ולכן שורת התקדמות הספיקה כדי לספור את התלמיד כמי שסיים —
+       כלומר "כבר 7 סיימו השבוע" כלל גם את מי שהגיע ל-10 אחוז.
+
+       הלוח כבר ידע להבדיל; המונה הציבורי לא, וזה המספר שהתלמידים
+       רואים. הסינון כאן, לפני הספירה. */
+    var t = tally_(doneRows_(src.getDataRange().getDisplayValues()),
                    ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
     if (!t) return;
     writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'],
