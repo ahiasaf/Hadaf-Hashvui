@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 24;
+var SCRIPT_VERSION = 25;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -328,6 +328,42 @@ function doGet(e) {
   /* ---- הלוח של מוסד ----
      הקוד שבקישור הוא ההרשאה, ולכן אין כאן READ_KEY: ראש חטיבה
      אינו אמור להחזיק את המפתח של הרכז. */
+  /* ============================================================
+     "השורה שלי הגיעה?"
+     ============================================================
+     הכתיבה היא `no-cors`, כלומר התשובה אטומה וכל שליחה "מצליחה" —
+     גם כשהיא נדחתה. עד עכשיו הלקוח מחק את השורה מהתור מיד אחרי
+     השליחה, ולכן סימון של תלמיד שלא נכתב פשוט נעלם.
+
+     כאן הוא יכול לשאול. לא רשימה ולא שמות: מזהה מכשיר ושבוע
+     נכנסים, ומספר אחד יוצא — עד היכן הגיע, והאם סיים. אין כאן
+     מה לדלוף, ולכן אין צורך בסיסמה: מי שיודע מזהה מכשיר יכול
+     לדעת אם אותו מכשיר סימן, וזה כל מה שהוא יכול לדעת.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.mark) {
+    var mid = String(e.parameter.mark), mtag = String(e.parameter.wk || '');
+    var mAt = 0, mDone = false;
+    try {
+      var mr = learnSlice_().rows;
+      if (mr.length > 1) {
+        var mh = mr[0], mi = {};
+        for (var mq = 0; mq < mh.length; mq++) mi[String(mh[mq]).trim()] = mq;
+        for (var mz = 1; mz < mr.length; mz++) {
+          if (String(mr[mz][mi['מזהה']] || '').trim() !== mid) continue;
+          var ttag = String(mr[mz][mi['מסלול']] || '') + '|' +
+                     String(mr[mz][mi['שבוע']] || '');
+          if (ttag !== mtag) continue;
+          var vAt = mi['קטע']  === undefined ? '' : String(mr[mz][mi['קטע']]  || '').trim();
+          var vOf = mi['מתוך'] === undefined ? '' : String(mr[mz][mi['מתוך']] || '').trim();
+          var q1 = parseInt(vAt, 10), q2 = parseInt(vOf, 10);
+          if (!vAt || !(q2 > 0) || q1 >= q2) { mDone = true; mAt = q2 > 0 ? q2 : 1; }
+          else if (q1 > mAt) mAt = q1;
+        }
+      }
+    } catch (me) {}
+    return reply_(e, { status: 'ok', at: mAt, done: mDone });
+  }
+
   if (e && e.parameter && e.parameter.board) {
     var bd;
     try { bd = boardData_(String(e.parameter.board), e.parameter.k); }

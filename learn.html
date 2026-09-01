@@ -188,7 +188,7 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
    שינוי במצב הסגור.
    ============================================================ */
 #side{display:none;flex-direction:column;min-height:0;background:var(--surface);
-  border-inline-end:1px solid var(--rule)}
+  border-inline-start:1px solid var(--rule)}
 body.side-on #side{display:flex}
 
 /* ---------- מסך מחשב: עמודה אמיתית ----------
@@ -200,13 +200,14 @@ body.side-on #side{display:flex}
    עליו, ההנפשה יושבת על האזור עצמו — הוא נכנס מהצד ומתבהר —
    וכך התנועה נראית זהה גם היכן שהרשת קופצת. */
 @media (min-width:1000px){
-  body.side-on main{max-width:none;grid-template-columns:var(--col) minmax(0,1fr)}
+  /* ימין ← שמאל: מצגת · דף · חברותא. */
+  body.side-on main{max-width:none;grid-template-columns:minmax(0,1fr) var(--col)}
   body.side-on.chav-on main{
-    max-width:none;grid-template-columns:var(--col) 380px minmax(0,1fr)}
+    max-width:none;grid-template-columns:minmax(0,1fr) var(--col) 380px}
   body.side-on .stage{max-width:var(--col)}
   #side{animation:sideIn .42s cubic-bezier(.33,.1,.2,1)}
 }
-@keyframes sideIn{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+@keyframes sideIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 
 /* ---------- טלפון: חלון קטן שאפשר לראות מעליו ----------
    בטלפון אין שטח פנוי לחלק, ולכן האזור צף. הוא מכוון להיות
@@ -279,10 +280,11 @@ body.side-on #side{display:flex}
   font-size:.75rem;font-weight:800;color:var(--blue);cursor:pointer}
 
 /* ---------- שורת הניווט ---------- */
-nav{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+nav{flex:0 0 auto;display:block;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
   background:var(--surface);border-top:1px solid var(--rule);
   box-shadow:0 -3px 14px rgba(37,29,12,.06)}
+.nrow{display:flex;align-items:center;gap:8px}
 nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
   border:1px solid var(--rule);border-radius:10px;padding:10px 13px;
   background:#fff;color:var(--ink);white-space:nowrap}
@@ -384,10 +386,30 @@ nav .sp{flex:1}
 @media (min-width:1000px){
   .hrow,.prog{max-width:var(--wide);margin-inline:auto;width:100%}
   main{max-width:var(--wide);margin-inline:auto;width:100%}
-  /* הפס נשאר ברוחב מלא — הרקע, הקו העליון והצל שלו נבנו לכך —
-     ורק תוכנו מיושר לאותה עמודה. דפדפן שאינו מכיר padding-inline
-     מתעלם ונשאר עם 12px, וזה תקין. */
-  nav{padding-inline:calc((100% - var(--wide)) / 2)}
+  /* ---------- שורת הניווט מיושרת לדף, ולא למסך ----------
+     "הקודם" ו"הבא" הם התנועה בתוך הדף, ולכן מקומם בדיוק בשני
+     קצותיו. כשהם מיושרים לרוחב החלון הם מתרחקים ממנו: "הקודם"
+     נשאר בקצה אחד של המסך והשאר נערמים בקצה השני, מתחת למצגת
+     ולחברותא — כלומר מתחת לדברים שהם אינם שייכים להם.
+
+     הפס נשאר ברוחב מלא — הרקע, הקו העליון והצל נבנו לכך — ורק
+     תוכנו מיושר. אותה רשת בדיוק כמו `main`, והשורה יושבת תמיד
+     בעמודה של הדף. דפדפן שאינו מכיר רשת מתעלם ונשאר עם השורה
+     ברוחב מלא, וזה תקין.
+
+     `--col` הוא רוחב הדף, ולכן "הקודם" בקצה הימני שלו ו"הבא"
+     בשמאלי — בכל אחד ממצבי הפריסה, ובלי לחשב שום מיקום. */
+  nav{display:grid;padding-inline:0;
+      grid-template-columns:minmax(0,1fr) var(--col) minmax(0,1fr)}
+  .nrow{grid-column:2}
+
+  /* מצגת פתוחה — הדף בעמודה השנייה, וכך גם השורה. */
+  body.side-on nav{grid-template-columns:minmax(0,1fr) var(--col)}
+  body.side-on.chav-on nav{grid-template-columns:minmax(0,1fr) var(--col) 380px}
+  /* חברותא בלבד — הדף ראשון, ואחריו המגירה. */
+  body.chav-on:not(.side-on) nav{
+    grid-template-columns:minmax(0,1fr) var(--col) minmax(0,380px);
+    padding-inline:calc((100% - var(--wide)) / 2)}
 }
 
 </style>
@@ -409,6 +431,11 @@ nav .sp{flex:1}
 <div class="resume" id="resume"></div>
 
 <main>
+  <!-- האזור הצדדי **ראשון** בסדר ה-DOM, ולכן במסך RTL הוא הימני
+       ביותר: המצגת מימין לדף, והחברותא משמאלו. הדף באמצע, בין
+       מה שמראים לו לבין מה שמסבירים לו. -->
+  <aside id="side"></aside>
+
   <section class="stage" id="stage">
     <div id="holder">
       <img id="page" alt="צורת הדף" draggable="false">
@@ -430,13 +457,9 @@ nav .sp{flex:1}
       <button id="chclose" title="סגירה">✕</button></div>
     <div class="chb" id="chb"></div>
   </aside>
-
-  <!-- האזור הצדדי. אחרון בסדר ה-DOM, ולכן במסך RTL הוא השמאלי
-       ביותר: הדף בימין, החברותא לצידו, והאזור בשטח שנפתח. -->
-  <aside id="side"></aside>
 </main>
 
-<nav>
+<nav><div class="nrow">
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
   <button id="chtog">חברותא</button>
@@ -444,7 +467,7 @@ nav .sp{flex:1}
   <button id="dktog" style="display:none">מצגת</button>
   <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
   <button class="p" id="next">הבא ◂</button>
-</nav>
+</div></nav>
 
 <!-- ============================================================
      שער הדף.

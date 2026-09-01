@@ -167,18 +167,89 @@ function LApi() {
   var cfg = LGet('cfg', {}) || {};
   return (cfg.api || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim();
 }
+/* ============================================================
+   שליחה שמאמתת שהגיעה.
+   ============================================================
+   `no-cors` מחזיר תשובה אטומה: ה-fetch "מצליח" גם כשהשרת דחה
+   את הכתיבה, גם כשהנעילה בשרת פגה, וגם כשהכתובת שגויה. עד
+   עכשיו השורה נמחקה מהתור מיד אחרי השליחה — ולכן סימון של
+   תלמיד שלא נכתב פשוט נעלם, ואיש לא ידע.
+
+   עכשיו שולחים, ואז **שואלים את השרת אם השורה שם**. השאלה
+   נשאלת ב-JSONP, כי היא הערוץ היחיד שמחזיר תשובה שאפשר לקרוא;
+   היא מחזירה מספר אחד ולא רשימה, ואין בה שום פרט אישי.
+
+   לא אושר — השורה נשארת בתור ותישלח שוב בפעם הבאה שהאפליקציה
+   נפתחת. **הסימון עצמו כבר שמור במכשיר**, ולכן התלמיד רואה ✓
+   בכל מקרה; מה שמתעכב הוא רק המספר אצל הרכז.
+   ============================================================ */
+var L_TRIES = 0;                 /* בטעינה הזו בלבד */
+
+function LJsonp(url) {
+  return new Promise(function (ok, no) {
+    var name = 'lcb' + Date.now() + Math.floor(Math.random() * 1e6);
+    var sc = document.createElement('script');
+    var done = function (v) {
+      try { delete window[name]; } catch (e) { window[name] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+      clearTimeout(t);
+      v === undefined ? no(new Error('אין תשובה')) : ok(v);
+    };
+    var t = setTimeout(function () { done(undefined); }, 12000);
+    window[name] = function (v) { done(v); };
+    sc.onerror = function () { done(undefined); };
+    sc.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'callback=' + name;
+    document.head.appendChild(sc);
+  });
+}
+
+/* האם מה שנשלח נמצא בגיליון. `item` הוא מה שיושב בתור. */
+function LArrived(item) {
+  var url = LApi(), me = LMe();
+  if (!url || !me || !me.id) return Promise.resolve(false);
+  var c = {};
+  (JSON.parse(item.cols || '[]') || []).forEach(function (p) { c[p[0]] = p[1]; });
+  if (!c['מסלול'] || !c['שבוע']) return Promise.resolve(false);
+  var tag = c['מסלול'] + '|' + c['שבוע'];
+  var at  = parseInt(c['קטע'], 10), of = parseInt(c['מתוך'], 10);
+  var isDone = !c['קטע'] || !(of > 0) || at >= of;
+
+  return LJsonp(url + '?mark=' + encodeURIComponent(me.id) +
+                      '&wk=' + encodeURIComponent(tag))
+    .then(function (r) {
+      if (!r || r.status !== 'ok') return false;
+      /* שורת סיום — צריך שהשרת יאשר סיום. שורת התקדמות — מספיק
+         שהוא הגיע לפחות עד לאן שדיווחנו. */
+      return isDone ? !!r.done : (r.done || r.at >= at);
+    })
+    .catch(function () { return false; });
+}
+
 function LFlush() {
   var q = LGet('learn-q', []) || [];
   var url = LApi();
   if (!q.length || !url || !navigator.onLine) return;
+  /* התקרה סופרת **כישלונות** ולא שליחות. תלמיד שהיה בלי רשת
+     שבוע שלם עשוי להחזיק כמה שורות בתור, וכולן צריכות לצאת;
+     מה שאסור הוא לנסות שוב ושוב את אותה שורה שאינה עוברת. */
+  if (L_TRIES >= 3) return;
+
+  var item = q[0];
   fetch(url, { method:'POST', mode:'no-cors',
                headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-               body: JSON.stringify(q[0]) })
+               body: JSON.stringify(item) })
     .then(function () {
+      /* רגע לפני הבדיקה — הכתיבה בשרת עוברת דרך נעילה. */
+      return new Promise(function (ok) { setTimeout(ok, 1500); });
+    })
+    .then(function () { return LArrived(item); })
+    .then(function (ok) {
+      if (!ok) { L_TRIES++; return; }         /* נשאר בתור */
       var rest = LGet('learn-q', []) || [];
       rest.shift(); LSet('learn-q', rest);
       LFlush();
-    }).catch(function () {});
+    })
+    .catch(function () {});
 }
 if (typeof window !== 'undefined') window.addEventListener('online', LFlush);
 
