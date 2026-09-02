@@ -1335,6 +1335,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 footer{padding:24px 16px 32px;text-align:center;color:var(--ink-3);font-size:.75rem;
   line-height:1.85;font-weight:600}
 footer b{color:var(--ink-2);font-weight:800}
+footer a{color:var(--ink-2);font-weight:800}
 footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 auto 12px}
 </style>
 </head>
@@ -1445,6 +1446,11 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
       <div id="t-foot-wrap"></div>
 
+      <footer><i></i>
+        רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
+        <a href="accessibility.html">הצהרת נגישות</a>
+      </footer>
+
     </div>
 
     <!-- ===== מסלול הרשמה ===== -->
@@ -1552,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.64.0';
+var APP_VERSION = '7.65.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';

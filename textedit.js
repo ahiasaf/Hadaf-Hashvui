@@ -43,7 +43,7 @@ var TX = (function () {
     if (ROOTS) return ROOTS;
     ROOTS = { fit:window.FIT, ui:window.UI, sfarim:window.SFARIM,
               rights:window.RIGHTS, join:window.JOIN, gate:window.GATE,
-              tour:window.TOUR };
+              tour:window.TOUR, a11y:window.A11Y };
     return ROOTS;
   }
   function ref(k) {

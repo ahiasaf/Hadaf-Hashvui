@@ -69,6 +69,7 @@ hr{border:0;border-top:1px solid var(--rule);margin:32px 0 20px}
 .cred small{display:block;color:var(--ink-3);font-weight:600;font-size:.82rem}
 footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
   margin-top:30px;line-height:1.9}
+footer a{color:var(--ink-2);font-weight:800}
 </style>
 </head>
 <body>
@@ -108,7 +109,8 @@ footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
    בפרטי הקשר לא ישכח את העמוד הזה מאחור. */
 document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
 document.getElementById('foot').innerHTML =
-  'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז';
+  'רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>' +
+  '<a href="accessibility.html">הצהרת נגישות</a>';
 
 /* ---------- המלל ----------
    שלוש השכבות — קוד, מה שפורסם, וטיוטה מקומית — מגיעות מ-

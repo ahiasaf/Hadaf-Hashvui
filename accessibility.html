@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>הצהרת נגישות · הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<style>
+/* ============================================================
+   הצהרת הנגישות.
+
+   תקנה 35 לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות
+   נגישות לשירות) מחייבת לציין "במקום בולט" מה הונגש ואל מי
+   פונים. לכן הקישור אליה יושב בתחתית כל עמוד ולא רק כאן.
+
+   המלל כולו מגיע מ-`A11Y` שב-data.js דרך שלוש השכבות של
+   textedit.js — קוד, מה שפורסם, וטיוטה — בדיוק כמו עמוד
+   הזכויות. הסיבה אינה נוחות: **פרטי רכז הנגישות אינם יכולים
+   להישמר בריפו**, שהוא ציבורי, ולכן הם מוזנים בניהול ונשמרים
+   בגיליון. עד שיוזנו, העמוד אומר זאת במפורש במקום להעמיד פנים.
+
+   העמוד עצמו הוא הדוגמה הפשוטה ביותר למה שהוא מצהיר עליו:
+   טקסט אחד, זרימה אחת, בלי סקריפט שמזיז דברים, ובלי שום דבר
+   שאי אפשר להגיע אליו במקלדת.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E5B854;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --ink-3:#5C687E; --rule:#E5DAC3;
+}
+*{box-sizing:border-box}
+img:not([src]){visibility:hidden}
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.9;
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+.wrap{max-width:36rem;margin:0 auto;padding:0 22px 54px}
+
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 26px) 20px 28px;text-align:center}
+header img{height:44px;margin-bottom:10px}
+header h1{margin:0;font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+
+.lead{font-size:1.06rem;margin:26px 0 0}
+
+h2{font-size:1.02rem;font-weight:800;color:var(--blue-d);
+  margin:30px 0 6px;letter-spacing:-.02em}
+p{margin:0}
+.body{font-size:.97rem;color:var(--ink-2)}
+.body b{font-weight:800;color:var(--ink)}
+
+/* כל התאמה בשורה משלה. רשימה אמיתית ולא שורות שנראות כרשימה:
+   קורא מסך מודיע כמה פריטים יש ואיפה הוא נמצא בהם. */
+ul{margin:8px 0 0;padding-inline-start:20px;font-size:.97rem;color:var(--ink-2)}
+li{margin-bottom:5px}
+
+/* פרטי הפנייה — הדבר שבגללו העמוד קיים, ולכן הוא מסומן ולא
+   נבלע בין הפסקאות. */
+.call{background:var(--surface);border:1px solid var(--rule);
+  border-radius:14px;padding:18px 20px;margin-top:12px}
+.call .who{font-size:1.02rem;font-weight:800}
+.call .way{font-size:.97rem;color:var(--ink-2);margin-top:4px;
+  white-space:pre-line}
+.call.none{background:#FBF3E3;border-color:var(--gold)}
+.call.none .who{color:var(--ink-2);font-weight:700;font-size:.95rem}
+
+hr{border:0;border-top:1px solid var(--rule);margin:34px 0 0}
+footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
+  margin-top:22px;line-height:1.9}
+footer a{color:var(--ink-2)}
+.date{display:block;margin-top:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="logo" alt="בני עקיבא">
+  <h1 id="t-title">הצהרת נגישות</h1>
+</header>
+
+<main class="wrap">
+
+  <p class="lead" id="t-lead"></p>
+
+  <h2 id="h-std"></h2>
+  <p class="body" id="t-std"></p>
+
+  <h2 id="h-did"></h2>
+  <ul id="t-did"></ul>
+
+  <h2 id="h-gap"></h2>
+  <p class="body" id="t-gap"></p>
+
+  <h2 id="h-call"></h2>
+  <p class="body" id="t-call"></p>
+  <div class="call" id="coord"></div>
+
+  <hr>
+  <footer>
+    רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז
+    <span class="date" id="t-date"></span>
+  </footer>
+</main>
+
+<script src="a11y.js"></script>
+<script src="data.js"></script>
+<script src="textedit.js"></script>
+<script src="logo.js"></script>
+<script>
+document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
+
+/* ---------- המלל ----------
+   אותה הרכבה אחת שיש בעמוד הזכויות: קוד → מה שפורסם → טיוטה,
+   ותמיד מהתחלה. */
+function draw() {
+  var A = window.A11Y || {};
+  var pairs = [['title', A.title], ['lead', A.lead],
+               ['std', A.std], ['gap', A.gap], ['call', A.call],
+               ['date', A.date]];
+  pairs.forEach(function (p) {
+    var el = document.getElementById('t-' + p[0]);
+    if (el) el.innerHTML = p[1] || '';
+  });
+  var heads = [['std', A.stdH], ['did', A.didH], ['gap', A.gapH], ['call', A.callH]];
+  heads.forEach(function (p) {
+    var el = document.getElementById('h-' + p[0]);
+    if (el) el.innerHTML = p[1] || '';
+  });
+  document.title = (A.title || 'הצהרת נגישות') + ' · הדף השבועי של בני עקיבא';
+
+  /* ההתאמות — שורה לכל אחת, כרשימה אמיתית */
+  var ul = document.getElementById('t-did');
+  ul.innerHTML = String(A.did || '').split('\n').map(function (line) {
+    line = line.trim();
+    return line ? '<li>' + line + '</li>' : '';
+  }).join('');
+
+  /* פרטי הרכז. ריקים — אומרים זאת, ולא מציגים שדה ריק שנראה
+     כאילו מישהו שכח למחוק אותו. */
+  var box = document.getElementById('coord');
+  var name = (A.coordName || '').trim(), way = (A.coordWay || '').trim();
+  if (name || way) {
+    box.className = 'call';
+    box.innerHTML = '<div class="who">' + (name || 'רכז הנגישות') + '</div>' +
+                    (way ? '<div class="way">' + way + '</div>' : '');
+  } else {
+    box.className = 'call none';
+    box.innerHTML = '<div class="who">' + (A.coordNone || '') + '</div>';
+  }
+}
+function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
+relayer();
+
+TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
+
+/* ומה שפורסם בגיליון — לכל מי שאינו הרכז. */
+(function () {
+  var id = window.SHEET_ID;
+  try {
+    var c2 = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (c2.sheetId) id = c2.sheetId;
+  } catch (e) {}
+  if (!id || !navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('טקסטים') +
+        '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var map = {}, rows = [], row = [], f = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var ch = t[i];
+        if (q) {
+          if (ch === '"' && t[i+1] === '"') { f += '"'; i++; }
+          else if (ch === '"') q = false; else f += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ',') { row.push(f); f = ''; }
+        else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+        else if (ch !== '\r') f += ch;
+      }
+      if (f || row.length) { row.push(f); rows.push(row); }
+      /* כותרת שאינה מוכרת = הלשונית שחזרה אינה זו שביקשנו,
+         ואז אין לגעת במטמון. ראו את המלכודת ב-handoff. */
+      if (!rows.length || rows[0].join('|').indexOf('מפתח') < 0) return;
+      rows.slice(1).forEach(function (r2) {
+        var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
+        if (k && v) map[k] = v;
+      });
+      try { localStorage.setItem('df:textCache', JSON.stringify(map)); } catch (e) {}
+      relayer();
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>
