@@ -37,7 +37,7 @@
   /* רוחב הבמה במחשב, ורוחב הבמה+החברותא יחד. ראו הערת
      "מסך מחשב" למטה — אלה אינם מספרי טעם אלא תקרה שנגזרת
      מרזולוציית קובצי הדף. */
-  --col:580px; --wide:960px;
+  --col:580px; --wide:960px; --chav:380px;
 }
 *{box-sizing:border-box}
 /* ההבהוב הכחול שאנדרואיד מצייר על כל הקשה. על כפתור הוא משוב
@@ -210,18 +210,24 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 body.side-on #side{display:flex}
 
 /* ---------- מסך מחשב: עמודה אמיתית ----------
-   הדף מקבל רוחב קבוע (--col) והאזור לוקח את השאר. הדף נשאר
-   580 בשני המצבים, ולכן `focus()` מחשב את אותה הגדלה ושום דבר
-   לא מיטשטש כשפותחים.
+   הדף מקבל רוחב קבוע (--col) והאזור לוקח את השאר. כשהמצגת
+   פתוחה `--col` יורד ל-520 והחברותא ל-340, כדי שהשקף יקבל רוחב
+   שבו הוא באמת שקף. `focus()` מחשב הגדלה חדשה לאותה תמונה, ולכן
+   הדף שומר על מבנהו במדויק — הוא רק קטן.
 
    grid-template-columns אינו מונפש בכל דפדפן. במקום להישען
    עליו, ההנפשה יושבת על האזור עצמו — הוא נכנס מהצד ומתבהר —
    וכך התנועה נראית זהה גם היכן שהרשת קופצת. */
 @media (min-width:1000px){
+  /* שקף אינו תמונה נלווית. כשהמצגת פתוחה היא צריכה רוחב אמיתי,
+     ולכן הדף והחברותא מוותרים לה על עשירית מרוחבם. הדף שומר על
+     מבנהו במדויק — `focus()` מחשב הגדלה חדשה לאותה תמונה — והמקום
+     שהתפנה עובר כולו לשקף. בלי המצגת שניהם חוזרים לרוחבם המלא. */
+  body.side-on{--col:520px; --chav:340px}
   /* ימין ← שמאל: מצגת · דף · חברותא. */
   body.side-on main{max-width:none;grid-template-columns:minmax(0,1fr) var(--col)}
   body.side-on.chav-on main{
-    max-width:none;grid-template-columns:minmax(0,1fr) var(--col) 380px}
+    max-width:none;grid-template-columns:minmax(0,1fr) var(--col) var(--chav)}
   body.side-on .stage{max-width:var(--col)}
   #side{animation:sideIn .42s cubic-bezier(.33,.1,.2,1)}
 }
@@ -277,6 +283,9 @@ body.side-on #side{display:flex}
 @media (min-width:1000px){
   body:not(.side-adm) .sd-h,
   body:not(.side-adm) .sd-f{display:none}
+  /* תקרה לשקף: קובצי המצגת ברוחב 1376, ומעבר לזה המסך רק מותח
+     אותם. במסך רחב מאוד השקף עוצר ונשאר במרכז העמודה. */
+  .sd-b img{max-width:min(100%,900px)}
 }
 /* בטלפון החלון הממוזער קטן מכדי לשאת שורת כפתורים קריאה */
 @media (max-width:999px){
@@ -410,7 +419,8 @@ nav .sp{flex:1}
 
    כשהחברותא פתוחה, הבמה והמגירה יחד תופסות 960: הבמה מקבלת
    580 והמגירה 380, ולכן **רוחב הבמה זהה בשני המצבים** והחדות
-   אינה משתנה כשפותחים את המגירה.
+   אינה משתנה כשפותחים את המגירה. המצגת היא החריג היחיד: היא
+   מורידה את השניים ב-10% (520 ו-340) ולוקחת את ההפרש.
 
    הכל יושב בתוך min-width, ולכן הטלפון אינו מושפע מכאן כלל —
    שום כלל כאן אינו נקרא מתחת ל-1000px.
@@ -463,7 +473,7 @@ nav .sp{flex:1}
 
   /* מצגת פתוחה — הדף בעמודה השנייה, וכך גם השורה. */
   body.side-on nav{grid-template-columns:minmax(0,1fr) var(--col)}
-  body.side-on.chav-on nav{grid-template-columns:minmax(0,1fr) var(--col) 380px}
+  body.side-on.chav-on nav{grid-template-columns:minmax(0,1fr) var(--col) var(--chav)}
   /* חברותא בלבד — הדף ראשון, ואחריו המגירה. */
   body.chav-on:not(.side-on) nav{
     grid-template-columns:minmax(0,1fr) var(--col) minmax(0,380px);
