@@ -104,7 +104,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   line-height:1.6}
 
 .fld{margin-top:13px}
-.fld .label{font-size:.78rem;font-weight:800;color:var(--ink-2);margin-bottom:5px}
+.fld .label{display:block;font-size:.78rem;font-weight:800;color:var(--ink-2);
+  margin-bottom:5px}
 .fld .label i{font-style:normal;font-weight:700;color:var(--ink-3)}
 /* "רשות" — כדי שלא ייראה כשדה חובה נוסף שנפתח לו פתאום */
 .fld .label .opt{font-weight:700;color:var(--ink-3);font-size:.72rem;
@@ -509,7 +510,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   </div>
 </header>
 
-<div class="wrap" id="form">
+<main class="wrap" id="form">
 
   <div class="hero">
     <div class="lead">
@@ -550,19 +551,19 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <div class="card stg" id="c-who">
     <h2 id="who-h">מי אתה?</h2>
     <p class="h" id="who-sub"></p>
-    <div class="fld"><div class="label">שם פרטי</div>
+    <div class="fld"><label class="label" for="first">שם פרטי</label>
       <input id="first" type="text" autocomplete="given-name"></div>
-    <div class="fld stg" id="f-last"><div class="label">שם משפחה</div>
+    <div class="fld stg" id="f-last"><label class="label" for="last">שם משפחה</label>
       <input id="last" type="text" autocomplete="family-name"></div>
     <div class="fld stg" id="instFld" style="display:none">
-      <div class="label">הישיבה</div><select id="inst"></select>
+      <label class="label" for="inst">הישיבה</label><select id="inst"></select>
     </div>
     <!-- נפתח רק כשנבחר "אחר", ורק בקישור הכללי. רשות: שדה חובה
          כאן היה עוצר בדיוק את מי שבא מרצונו ואינו שייך לאף
          מסגרת. מה שייכתב כאן הוא מה שיופיע בעמודת "ישיבה"
          בגיליון, כדי שיהיה אפשר לדעת מי הם ומאיפה. -->
     <div class="fld" id="othFld" style="display:none">
-      <div class="label">מאיפה אתם? <span class="opt">רשות</span></div>
+      <label class="label" for="oth-from">מאיפה אתם? <span class="opt">רשות</span></label>
       <input id="oth-from" type="text" maxlength="60"
              placeholder="בית ספר, ישיבה, או עיר">
     </div>
@@ -572,9 +573,9 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
          ולפני השכבה — גם בסדר החשיפה וגם **בסדר ה-HTML**.
          סדר החשיפה תוקן בלי סדר המסמך, והתוצאה הייתה ששדה
          השכבה נפתח מעל הטלפון: הוא פשוט היה קודם. -->
-    <div class="fld stg" id="f-phone"><div class="label">טלפון</div>
+    <div class="fld stg" id="f-phone"><label class="label" for="phone">טלפון</label>
       <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
-    <div class="fld stg" id="f-grade"><div class="label">שכבה</div>
+    <div class="fld stg" id="f-grade"><label class="label" for="grade">שכבה</label>
       <select id="grade"></select></div>
   </div>
 
@@ -597,12 +598,12 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
     <h2 id="dad-h">רוצה להזמין אותו?</h2>
     <p class="h" id="dad-sub"></p>
     <div class="whobar" id="invWho"></div>
-    <div class="fld"><div class="label" id="l-dad-first">שם פרטי</div>
+    <div class="fld"><label class="label" id="l-dad-first" for="dad-first">שם פרטי</label>
       <input id="dad-first" type="text"></div>
-    <div class="fld stg" id="f-dad-last"><div class="label">שם משפחה</div>
+    <div class="fld stg" id="f-dad-last"><label class="label" for="dad-last">שם משפחה</label>
       <input id="dad-last" type="text"></div>
     <div class="fld stg" id="f-dad-phone">
-      <div class="label" id="l-dad-phone">טלפון <i>· לא חובה</i></div>
+      <label class="label" id="l-dad-phone" for="dad-phone">טלפון <i>· לא חובה</i></label>
       <input id="dad-phone" type="tel" inputmode="tel"></div>
     <p class="note stg" id="dad-note" style="text-align:start;margin-top:12px">
       לא זוכר את המספר? אפשר להשאיר ריק ולהשלים אחר כך.</p>
@@ -612,7 +613,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   <div class="err" id="err"></div>
   <p class="note">הפרטים נשמרים אצל רכז התוכנית בלבד, ומשמשים כדי
     לספור את הלימוד, לעדכן את ההורים, ולהודיע לזוכים בהגרלה.</p>
-</div>
+</main>
 
 <div id="done">
   <!-- מה שהתלמיד רואה הוא **בדיוק** מה שיש במסך הראשי, ובתווית
@@ -648,6 +649,7 @@ footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   </div>
 </div>
 
+<script src="a11y.js"></script>
 <script src="data.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
@@ -1416,8 +1418,8 @@ function drawInv() {
     '<h3>' + esc(tpl(JOIN.invTitle, { them:them })) + '</h3>' +
     '<p>' + esc(JOIN.invBody) + '</p>' +
     (okPhone ? ''
-      : '<div class="fld"><div class="label">' +
-        esc(tpl(JOIN.invPhone, { them:them })) + '</div>' +
+      : '<div class="fld"><label class="label" for="inv-ph">' +
+        esc(tpl(JOIN.invPhone, { them:them })) + '</label>' +
         '<input id="inv-ph" type="tel" inputmode="tel" value="' + esc(phone) + '"></div>' +
         '<p id="inv-need" style="font-size:.79rem;color:var(--ink-3);' +
         'font-weight:700;margin-top:7px">' + esc(JOIN.invNeed) + '</p>') +

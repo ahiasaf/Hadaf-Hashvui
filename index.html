@@ -1388,7 +1388,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
   <div class="strip" id="offline">אין חיבור — מוצג המידע השמור</div>
   <div class="strip" id="queued"></div>
 
-  <div class="content">
+  <main class="content">
 
     <!-- ===== בית ===== -->
     <div id="v-home" class="view">
@@ -1504,7 +1504,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       <div id="calls-body"></div>
     </div>
 
-  </div>
+  </main>
 
 </div>
 
@@ -1544,6 +1544,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
 <div id="upd" onclick="applyUpdate()">גרסה חדשה זמינה — לחצו לעדכון</div>
 
+<script src="a11y.js"></script>
 <script src="logo.js"></script>
 <script src="data.js"></script>
 <script src="textedit.js"></script>
@@ -1551,7 +1552,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.63.0';
+var APP_VERSION = '7.64.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1733,7 +1734,8 @@ function renderHome() {
      '<path d="M17.6 4.6c-2.5-1.1-5.1-1.1-7.6 0v11.2c2.5-1.1 5.1-1.1 7.6 0z"/>']
   ];
   document.getElementById('soon').innerHTML = !CFG_SOON() ? '' :
-    '<div class="soon" onclick="toast(\'הלוח בפיתוח — יגיע לפני תחילת התוכנית.\')">' +
+    '<div class="soon" role="button" tabindex="0" ' +
+    'onclick="toast(\'הלוח בפיתוח — יגיע לפני תחילת התוכנית.\')">' +
     '<div class="sn-h"><span class="sn-tag">בקרוב</span>' +
     '<b>לוח ההתקדמות של הישיבה</b></div>' +
     '<div class="sn-g">' + SOON_G.map(function (g) {

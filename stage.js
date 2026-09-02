@@ -122,7 +122,8 @@ function RailHtml(o) {
   var pct = Math.round(done / tr.dapim * 100);
   var open = o.href ? ' onclick="location.href=\'' + o.href + '\'"'
                     : (o.go ? ' onclick="' + o.go + '(\'' + tr.id + '\')"' : '');
-  return '<div class="mini"' + open + ' style="cursor:pointer">' +
+  return '<div class="mini"' + open +
+    (open ? ' role="button" tabindex="0" style="cursor:pointer"' : '') + '>' +
     '<div class="cap"><b>' +
     String(UI.trackCap).replace('{mas}', StEsc(tr.masechet)) + '</b>' +
     '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' +
