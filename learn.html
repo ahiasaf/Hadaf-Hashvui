@@ -30,9 +30,10 @@
      אותה — היא רצה איתו עד סוף הדף. תלמיד שלא — המסך שלם בלעדיה.
    ============================================================ */
 :root{
-  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E3B44A;
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E5B854;
+  --gold-t:#8C681F;
   --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
-  --ink-3:#96A0B2; --rule:#E5DAC3; --ok:#3B7D57;
+  --ink-3:#5C687E; --rule:#E5DAC3; --ok:#3A7B56;
   --bar:64px;
   /* רוחב הבמה במחשב, ורוחב הבמה+החברותא יחד. ראו הערת
      "מסך מחשב" למטה — אלה אינם מספרי טעם אלא תקרה שנגזרת
@@ -344,7 +345,7 @@ nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
   border:1px solid var(--rule);border-radius:10px;padding:10px 13px;
   background:#fff;color:var(--ink);white-space:nowrap}
 nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
-  color:#fff;border-color:transparent;padding:10px 18px}
+  color:var(--ink);border-color:transparent;padding:10px 18px}
 nav button.on{background:var(--blue);color:#fff;border-color:transparent}
 nav button:disabled{opacity:.38;cursor:default}
 nav .sp{flex:1}
@@ -387,7 +388,7 @@ nav .sp{flex:1}
   font-family:inherit;font-weight:800;font-size:.92rem;cursor:pointer;border:1px solid var(--rule);
   border-radius:12px;padding:13px;background:#fff;color:var(--ink)}
 .card .btn.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
-  color:#fff;border-color:transparent}
+  color:var(--ink);border-color:transparent}
 .card .how{text-align:right;margin:0 0 4px}
 .card .how li{font-size:.86rem;font-weight:700;color:var(--ink-2);line-height:1.8;
   margin-bottom:7px}

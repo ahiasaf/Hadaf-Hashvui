@@ -42,13 +42,17 @@
    ============================================================ */
 :root{
   --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE; --cyan:#29ABE2;
-  --green:#6FA83B; --green-d:#4A821C; --gold:#C08F2B; --gold-l:#E3B44A;
+  --green:#6FA83B; --green-d:#467B1A; --green-2:#3A6615;
+  --gold:#C08F2B; --gold-l:#E5B854;
+  /* זהב קריא לטקסט. הזהב עצמו בהיר מדי מכדי לשאת מילים על
+     נייר, ולכן הוא נשאר לקישוט ולרקעים בלבד. */
+  --gold-t:#8C681F;
 
   --paper:#F6F1E6; --surface:#FFFDF8; --surface-2:#F7F1E4; --sunk:#EFE6D3;
-  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#96A0B2;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E;
   --rule:#E5DAC3; --rule-2:#EFE7D7;
 
-  --ok:#3B7D57; --warn:#A87A1C; --stop:#A5382D;
+  --ok:#3A7B56; --warn:#A87A1C; --stop:#A5382D;
   --r:14px; --r-m:14px; --r-s:10px;
   --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
   --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
@@ -86,7 +90,7 @@ body{background:var(--paper);
 .masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
 .masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;
   color:var(--blue-d)}
-.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold);letter-spacing:.05em;
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);letter-spacing:.05em;
   margin-top:3px}
 
 .content{padding:0 14px 26px}
@@ -206,7 +210,7 @@ body{background:var(--paper);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
 .zlabel .tag.c{background:var(--green-d);
   box-shadow:0 3px 10px rgba(74,130,28,.26),0 0 0 4px #ECF2E4}
-.zlabel .tag.a{background:var(--gold);
+.zlabel .tag.a{background:var(--gold);color:var(--ink);
   box-shadow:0 3px 10px rgba(160,120,30,.28),0 0 0 4px var(--paper)}
 .zlabel span{display:block;font-size:.81rem;font-weight:700;color:var(--ink-2);
   line-height:1.45;padding-top:2px}
@@ -225,12 +229,12 @@ body{background:var(--paper);
 .st.now i{background:var(--gold);box-shadow:0 0 0 5px rgba(192,143,43,.2);
   width:14px;height:14px;top:-1px}
 .st b{display:block;font-size:.74rem;font-weight:800;line-height:1.25;color:var(--ink-3);padding:0 3px}
-.st small{display:block;font-size:.64rem;color:var(--ink-3);opacity:.7;font-weight:700;margin-top:2px}
+.st small{display:block;font-size:.64rem;color:var(--ink-3);font-weight:700;margin-top:2px}
 .st.now b{color:var(--ink);font-size:.78rem}
 .st.done b{color:var(--ink-2)}
 .here{display:flex;align-items:flex-start;gap:9px;margin-top:16px}
 .here em{font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.07em;
-  background:var(--gold);color:#fff;border-radius:99px;padding:4px 10px;flex:none;margin-top:1px}
+  background:var(--gold);color:var(--ink);border-radius:99px;padding:4px 10px;flex:none;margin-top:1px}
 .here span{font-size:.84rem;font-weight:700;color:var(--ink-2);line-height:1.5}
 
 
@@ -242,7 +246,7 @@ body{background:var(--paper);
 .ring:before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--paper)}
 .ring .in{position:relative;text-align:center;padding:0 14px}
 .ring .n{font-size:2.05rem;font-weight:800;line-height:1;letter-spacing:-.04em;
-  font-variant-numeric:tabular-nums;color:var(--gold)}
+  font-variant-numeric:tabular-nums;color:var(--gold-t)}
 .ring.b .n{color:var(--blue)}
 .ring .t{font-size:.75rem;font-weight:800;color:var(--ink-3);margin-top:6px;line-height:1.35}
 
@@ -254,7 +258,7 @@ body{background:var(--paper);
 .inbox .hd span{font-size:.74rem;color:var(--ink-3);font-weight:800}
 .joined{display:flex;flex-wrap:wrap;gap:7px}
 .jp{display:inline-flex;align-items:center;gap:6px;background:rgba(111,168,59,.12);
-  color:var(--green-d);border-radius:30px;padding:7px 13px;font-size:.83rem;font-weight:800}
+  color:var(--green-2);border-radius:30px;padding:7px 13px;font-size:.83rem;font-weight:800}
 .jp:before{content:"✓";font-size:.7rem}
 .jp.open{background:var(--sunk);color:var(--ink-3)}
 .jp.open:before{content:"";display:none}
@@ -399,10 +403,10 @@ body.tk-sheeting #tk-bar{display:none}
   margin-top:9px}
 #tk-sheet .ft span{font-size:.74rem;color:var(--ink-3);font-weight:700}
 
-.total{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
+.total{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:var(--ink);
   border-radius:var(--r-m);padding:17px;text-align:center;box-shadow:var(--sh-2)}
 .total .n{font-size:1.9rem;font-weight:800;letter-spacing:-.04em;line-height:1.1}
-.total .t{font-size:.84rem;opacity:.9;font-weight:700;margin-top:4px}
+.total .t{font-size:.84rem;font-weight:700;margin-top:4px}
 
 /* המסלול בזעיר אנפין — כל השנה במבט אחד */
 .mini{background:var(--surface);border-radius:var(--r);padding:13px 15px;
@@ -547,8 +551,9 @@ body.tk-sheeting #tk-bar{display:none}
 .btn{text-decoration:none}
 .btn:active{transform:scale(.982)}
 .btn.p{background:linear-gradient(140deg,var(--blue-l),var(--blue));box-shadow:var(--sh-2)}
-.btn.gr{background:linear-gradient(140deg,var(--green),var(--green-d));box-shadow:var(--sh-2)}
-.btn.gd{background:linear-gradient(140deg,var(--gold-l),var(--gold));box-shadow:var(--sh-2)}
+.btn.gr{background:linear-gradient(140deg,var(--green-d),var(--green-2));box-shadow:var(--sh-2)}
+.btn.gd{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:var(--ink);box-shadow:var(--sh-2)}
 .btn.g{background:var(--surface);color:var(--ink-2);box-shadow:var(--sh-1);
   font-size:.93rem;padding:14px;font-weight:700}
 .btn:hover{filter:brightness(1.05)}
@@ -715,7 +720,7 @@ body.tk-sheeting #tk-bar{display:none}
   border:1px solid var(--rule);border-radius:var(--r);padding:14px 15px 15px;
   box-shadow:var(--sh-1)}
 .sn-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px}
-.sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:#fff;
+.sn-tag{font-size:.7rem;font-weight:800;letter-spacing:.02em;color:var(--ink);
   background:linear-gradient(140deg,var(--gold-l),var(--gold));
   border-radius:999px;padding:5px 11px}
 .sn-h b{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
@@ -739,7 +744,7 @@ body.tk-sheeting #tk-bar{display:none}
 /* מלא ולא שקוף, אחרת הוא נקרא כקטגוריה רביעית ולא כפעולה. */
 .sn-share{display:inline-flex;align-items:center;gap:6px;margin-inline-start:auto;
   font-style:normal;font-size:.75rem;font-weight:800;color:#fff;
-  background:linear-gradient(140deg,var(--green),var(--green-d));
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));
   border-radius:999px;padding:6px 13px}
 .sn-share svg{width:14px;height:14px;fill:currentColor}
 
@@ -1205,7 +1210,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .t-invite b{font-size:.85rem;font-weight:800;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .t-invite button{border:0;cursor:pointer;font-family:inherit;flex:none}
-.t-invite .go{background:var(--gold);color:#fff;border-radius:999px;
+.t-invite .go{background:var(--gold);color:var(--ink);border-radius:999px;
   padding:8px 15px;font-size:.83rem;font-weight:800}
 .t-invite .x{background:none;color:rgba(255,255,255,.55);font-size:1.05rem;
   font-weight:800;padding:4px 2px;line-height:1}
@@ -1546,7 +1551,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.62.0';
+var APP_VERSION = '7.63.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1713,7 +1718,7 @@ function renderHome() {
      של חוסר. סופרים התחלות, ובלשון הווה — לומדים. */
   var SOON_G = [
     /* גדול וקטן, ורווח ביניהם — בלי הרווח הם נקראים ככתם אחד */
-    ['#C08F2B', 18, 'אבות ובנים',
+    ['#8C681F', 18, 'אבות ובנים',
      '<circle cx="5.6" cy="5" r="3"/>' +
      '<path d="M1 17.5c0-3 2-4.8 4.6-4.8s4.6 1.8 4.6 4.8z"/>' +
      '<circle cx="15" cy="8.4" r="2.2"/>' +
