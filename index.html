@@ -1558,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.67.0';
+var APP_VERSION = '7.68.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5794,7 +5794,9 @@ function admText(el) {
     ['המדריך', 'שש העצירות שראש חטיבה רואה בכניסה', 'tkTour()'],
     ['מסך התלמיד', '57 נוסחים — המלל הכי חשוף בתוכנית',
      'location.href=\'join.html?tedit=1\''],
-    ['עמוד הזכויות', 'מה שנשלח להוצאה', 'location.href=\'rights.html?tedit=1\'']
+    ['עמוד הזכויות', 'מה שנשלח להוצאה', 'location.href=\'rights.html?tedit=1\''],
+    ['הצהרת הנגישות', 'מה שהחוק מחייב אותנו לפרסם',
+     'location.href=\'accessibility.html?tedit=1\'']
   ];
 
   el.innerHTML =
@@ -5811,6 +5813,8 @@ function admText(el) {
     }).join('') +
     '<button class="btn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
+
+    admA11yCard() +
 
     /* מה שאין לו מסך להגיע אליו */
     '<div class="adm-card"><h4>שער הדף והתמונות</h4>' +
@@ -5841,6 +5845,40 @@ function admText(el) {
         '</div>';
     }).join('') + '</div>';
 }
+/* ---- איש הקשר לנגישות ----
+   שלושת השדות האלה אינם נערכים על המסך כמו כל השאר, מסיבה
+   פשוטה: כשהם ריקים אין על מה להקיש. והם דווקא הדבר היחיד
+   בהצהרה שאי אפשר למלא מהקוד — הריפו ציבורי, ואין בו טלפונים.
+
+   לכן כרטיס משלהם, ולא שורה שנבלעת: בלי הפרטים האלה ההצהרה
+   מתפרסמת חסרה. */
+function admA11yCard() {
+  var d = CFG.texts || {};
+  var F = [['a11y.coordName', 'שם', 0],
+           ['a11y.coordRole', 'תפקיד', 0],
+           ['a11y.coordWay',  'טלפון, דוא"ל, או שניהם', 1]];
+  var filled = textGet('a11y.coordName') || textGet('a11y.coordWay');
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>הצהרת הנגישות — אל מי פונים</h4>' +
+    '<p class="h">' + (filled
+      ? 'הפרטים מופיעים בתחתית <b>הצהרת הנגישות</b>, שאליה מקשר ' +
+        'כל עמוד באתר.'
+      : '<b style="color:var(--warn)">טרם מולא.</b> עד שימולא, ' +
+        'ההצהרה אומרת שאין עדיין איש קשר — וזה בדיוק מה שהתקנה ' +
+        'מבקשת שיהיה שם.') + '</p>' +
+    F.map(function (f) {
+      var cur = textGet(f[0]), changed = d[f[0]] != null && d[f[0]] !== belowText(f[0]);
+      return '<div class="fld"><div class="label">' + esc(f[1]) +
+        (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
+        (f[2]
+          ? '<textarea rows="2" onchange="admTextSet(\'' + f[0] + '\',this.value)">' +
+            esc(cur) + '</textarea>'
+          : '<input type="text" value="' + esc(cur) +
+            '" onchange="admTextSet(\'' + f[0] + '\',this.value)">') +
+        '</div>';
+    }).join('') + '</div>';
+}
+
 /* המדריך נפתח כשכבה מעל העמוד הראשי, ולכן העריכה שלו היא פשוט
    עריכה שהמדריך פתוח בתוכה. */
 function tkTour() {
