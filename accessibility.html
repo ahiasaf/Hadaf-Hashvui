@@ -16,9 +16,13 @@
 
    המלל כולו מגיע מ-`A11Y` שב-data.js דרך שלוש השכבות של
    textedit.js — קוד, מה שפורסם, וטיוטה — בדיוק כמו עמוד
-   הזכויות. הסיבה אינה נוחות: **פרטי רכז הנגישות אינם יכולים
+   הזכויות. הסיבה אינה נוחות: **פרטי איש הקשר אינם יכולים
    להישמר בריפו**, שהוא ציבורי, ולכן הם מוזנים בניהול ונשמרים
    בגיליון. עד שיוזנו, העמוד אומר זאת במפורש במקום להעמיד פנים.
+
+   "איש קשר" ולא "רכז נגישות": מינוי רכז נגישות הוא מינוי
+   פורמלי שהארגון עושה מקרב עובדיו, והוא שייך לרשת. העמוד
+   מציג שם ותפקיד כפי שהוזנו, ואינו מדביק לאיש תואר.
 
    העמוד עצמו הוא הדוגמה הפשוטה ביותר למה שהוא מצהיר עליו:
    טקסט אחד, זרימה אחת, בלי סקריפט שמזיז דברים, ובלי שום דבר
@@ -58,6 +62,7 @@ li{margin-bottom:5px}
 .call{background:var(--surface);border:1px solid var(--rule);
   border-radius:14px;padding:18px 20px;margin-top:12px}
 .call .who{font-size:1.02rem;font-weight:800}
+.call .who .role{font-weight:700;color:var(--ink-2);font-size:.92rem}
 .call .way{font-size:.97rem;color:var(--ink-2);margin-top:4px;
   white-space:pre-line}
 .call.none{background:#FBF3E3;border-color:var(--gold)}
@@ -134,13 +139,16 @@ function draw() {
     return line ? '<li>' + line + '</li>' : '';
   }).join('');
 
-  /* פרטי הרכז. ריקים — אומרים זאת, ולא מציגים שדה ריק שנראה
+  /* איש הקשר. ריק — אומרים זאת, ולא מציגים שדה ריק שנראה
      כאילו מישהו שכח למחוק אותו. */
   var box = document.getElementById('coord');
   var name = (A.coordName || '').trim(), way = (A.coordWay || '').trim();
+  var role = (A.coordRole || '').trim();
   if (name || way) {
     box.className = 'call';
-    box.innerHTML = '<div class="who">' + (name || 'רכז הנגישות') + '</div>' +
+    box.innerHTML = '<div class="who">' + (name || 'לפניות בנושא נגישות') +
+                    (name && role ? ' <span class="role">· ' + role + '</span>' : '') +
+                    '</div>' +
                     (way ? '<div class="way">' + way + '</div>' : '');
   } else {
     box.className = 'call none';
