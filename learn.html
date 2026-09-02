@@ -217,8 +217,13 @@ body.side-on #side{display:flex}
 
    grid-template-columns אינו מונפש בכל דפדפן. במקום להישען
    עליו, ההנפשה יושבת על האזור עצמו — הוא נכנס מהצד ומתבהר —
-   וכך התנועה נראית זהה גם היכן שהרשת קופצת. */
-@media (min-width:1000px){
+   וכך התנועה נראית זהה גם היכן שהרשת קופצת.
+
+   **1200 ולא 1000.** שלוש עמודות צריכות רוחב אמיתי, ומתחת ל-1200
+   הן נדחסות עד שהשקף יוצא בגודל בול. אייפד לרוחב הוא 1024 בדיוק,
+   וגם נייד Windows בהגדלת תצוגה 125% נופל כאן. מתחת לגבול הזה
+   המצגת עוברת לחלון הצף — אותו חלון של הטלפון, שנפתח בהקשה. */
+@media (min-width:1200px){
   /* שקף אינו תמונה נלווית. כשהמצגת פתוחה היא צריכה רוחב אמיתי,
      ולכן הדף והחברותא מוותרים לה על עשירית מרוחבם. הדף שומר על
      מבנהו במדויק — `focus()` מחשב הגדלה חדשה לאותה תמונה — והמקום
@@ -233,12 +238,12 @@ body.side-on #side{display:flex}
 }
 @keyframes sideIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 
-/* ---------- טלפון: חלון קטן שאפשר לראות מעליו ----------
-   בטלפון אין שטח פנוי לחלק, ולכן האזור צף. הוא מכוון להיות
-   קטן מספיק כדי שהדף שמאחוריו יישאר קריא — זו כל מטרתו כאן:
-   לראות את שני הדברים יחד ולשייך ביניהם. הקשה מגדילה, הקשה
-   נוספת מחזירה. */
-@media (max-width:999px){
+/* ---------- מסך צר: חלון קטן שאפשר לראות מעליו ----------
+   בטלפון — ובכל מסך שצר מ-1200, אייפד לרוחב בכלל זה — אין שטח
+   פנוי לחלק, ולכן האזור צף. הוא מכוון להיות קטן מספיק כדי
+   שהדף שמאחוריו יישאר קריא — זו כל מטרתו כאן: לראות את שני
+   הדברים יחד ולשייך ביניהם. הקשה מגדילה, הקשה נוספת מחזירה. */
+@media (max-width:1199px){
   body.side-on #side{position:fixed;z-index:40;inset-inline-start:10px;
     bottom:calc(var(--nav-h, 56px) + 12px);
     width:41vw;max-width:210px;height:auto;
@@ -280,15 +285,15 @@ body.side-on #side{display:flex}
    "מצגת" שבשורת הניווט — אותו כפתור שפתח — ולכן ✕ נוסף בתוך
    הפאנל הוא דרך שנייה לאותו דבר. וההגדלה אינה עושה דבר במסך
    שממילא רחב. */
-@media (min-width:1000px){
+@media (min-width:1200px){
   body:not(.side-adm) .sd-h,
   body:not(.side-adm) .sd-f{display:none}
   /* תקרה לשקף: קובצי המצגת ברוחב 1376, ומעבר לזה המסך רק מותח
      אותם. במסך רחב מאוד השקף עוצר ונשאר במרכז העמודה. */
   .sd-b img{max-width:min(100%,900px)}
 }
-/* בטלפון החלון הממוזער קטן מכדי לשאת שורת כפתורים קריאה */
-@media (max-width:999px){
+/* בחלון הצף אין מקום לשורת כפתורים קריאה כל עוד הוא ממוזער */
+@media (max-width:1199px){
   body.side-on:not(.side-big) .sd-f,
   body.side-on:not(.side-big) .sd-a{display:none}
   body.side-on:not(.side-big) .sd-b{padding:6px;min-height:88px}
@@ -471,13 +476,21 @@ nav .sp{flex:1}
       grid-template-columns:minmax(0,1fr) var(--col) minmax(0,1fr)}
   .nrow{grid-column:2}
 
-  /* מצגת פתוחה — הדף בעמודה השנייה, וכך גם השורה. */
-  body.side-on nav{grid-template-columns:minmax(0,1fr) var(--col)}
-  body.side-on.chav-on nav{grid-template-columns:minmax(0,1fr) var(--col) var(--chav)}
-  /* חברותא בלבד — הדף ראשון, ואחריו המגירה. */
-  body.chav-on:not(.side-on) nav{
+  /* חברותא פתוחה — הדף ראשון, ואחריו המגירה. מתחת ל-1200 זהו
+     המצב גם כשהמצגת פתוחה, כי שם היא צפה ואינה תופסת עמודה. */
+  body.chav-on nav{
     grid-template-columns:minmax(0,1fr) var(--col) minmax(0,380px);
     padding-inline:calc((100% - var(--wide)) / 2)}
+}
+
+/* מצגת בעמודה — הדף בעמודה השנייה, וכך גם השורה. הריפוד חוזר
+   לאפס: כאן `main` נפרש על כל הרוחב ואינו ממורכז. */
+@media (min-width:1200px){
+  body.side-on nav{grid-template-columns:minmax(0,1fr) var(--col);
+    padding-inline:0}
+  body.side-on.chav-on nav{
+    grid-template-columns:minmax(0,1fr) var(--col) var(--chav);
+    padding-inline:0}
 }
 
 </style>
@@ -1320,7 +1333,7 @@ function sideOpen(on) {
   if (FLAT.length) { paint(); focus(); }
 }
 function sidePhone() {
-  return !window.matchMedia || window.matchMedia('(max-width:999px)').matches;
+  return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
 }
 function sideBig() {
   document.body.classList.toggle('side-big');
