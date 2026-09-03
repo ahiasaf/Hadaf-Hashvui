@@ -1412,7 +1412,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
       <section class="sec-b band rv">
         <div class="zlabel"><span class="tag">מה התלמידים יראו</span>
-          <span>המסך שנפתח אצל התלמיד ואצל מעביר השיעור, בכל שבוע.</span></div>
+          <span id="stagecap">המסך שנפתח אצל התלמיד ואצל מעביר השיעור, בכל שבוע.</span></div>
         <div id="stage"></div>
         <div id="mini" style="margin-top:14px"></div>
       </section>
@@ -1558,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.69.0';
+var APP_VERSION = '7.70.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1707,9 +1707,16 @@ function renderHome() {
              '<small>' + esc(ph.sub) + '</small></div>';
     }).join('') + '</div>' +
     // שם השלב כבר מודגש בסטפר שמעליו, ולכן כאן רק מה שעושים בו בפועל
-    '<div class="here"><em>עכשיו</em><span>' +
-    (nowIdx === 0 ? 'נרשמים, מעריכים כמה תלמידים, ומזמינים גמרות במחיר מוזל.'
-                  : esc(PHASES[nowIdx].t) + ' · ' + esc(PHASES[nowIdx].sub)) + '</span></div>';
+    (!showRow('here') ? '' :
+     '<div class="here"><em>עכשיו</em><span>' +
+     (nowIdx === 0 ? 'נרשמים, מעריכים כמה תלמידים, ומזמינים גמרות במחיר מוזל.'
+                   : esc(PHASES[nowIdx].t) + ' · ' + esc(PHASES[nowIdx].sub)) +
+     '</span></div>');
+
+  /* display ולא hidden: ל-span שבתווית יש display משלו ב-CSS,
+     והוא גובר על התכונה. */
+  var cap = document.getElementById('stagecap');
+  if (cap) cap.style.display = showRow('cap') ? '' : 'none';
 
   /* ---- מה שבדרך ----
      ראש חטיבה שמקבל את הקישור עכשיו צריך לדעת מה עוד מגיע, אחרת
@@ -2966,7 +2973,13 @@ function toast(t) {
    תלויה בחוברת. INTER_PUBLIC הוא ברירת המחדל בלבד — כבוי —
    ומה שנבחר בניהול גובר עליו. */
 var INTER_PUBLIC = false;
-var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true };
+var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true,
+                /* שני אלה אינם שורות בעמוד השבוע אלא חלקים במסך
+                   הבית. הם כאן כדי לחלוק את אותו מנגנון מתגים —
+                   אין סיבה לשני מנגנונים שעושים אותו דבר.
+                   נועדו בעיקר לצילומי מסך לפרסום: כיבוי שלהם
+                   מעלה את החלק של התלמידים אל תוך המסך הראשון. */
+                here:true, cap:true };
 /* הבאנר של מה שבדרך. מתג ולא קבוע, כדי שאפשר יהיה להוריד אותו
    ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
    יותר מדי. */
@@ -5274,6 +5287,19 @@ function admShow(el) {
     '" onclick="cfgSet(\'raffle\',!CV(\'raffle\'));admPane()" aria-label="הגרלה"></button></div></div>' +
 
     netCard() +
+    /* שני חלקים במסך הבית שאפשר לכבות. נועדו לצילומי מסך: הם
+       תופסים גובה, וכיבוי שלהם מעלה את החלק של התלמידים אל
+       תוך המסך הראשון. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>מסך הבית</h4>' +
+    '<p class="h">לכיבוי זמני כשמצלמים מסך לפרסום.</p>' +
+    '<div class="row"><div>הפס "עכשיו"' +
+    '<div class="sub">השורה שמתחת ללוח התוכנית</div></div>' +
+    '<button class="sw' + (showRow('here') ? ' on' : '') +
+    '" onclick="homeToggle(\'here\')" aria-label="עכשיו"></button></div>' +
+    '<div class="row"><div>ההסבר מעל חלק התלמידים' +
+    '<div class="sub">"המסך שנפתח אצל התלמיד…"</div></div>' +
+    '<button class="sw' + (showRow('cap') ? ' on' : '') +
+    '" onclick="homeToggle(\'cap\')" aria-label="הסבר"></button></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
     '<p class="h">באנר "בקרוב" בעמוד הראשי, בחלק של ראשי החטיבות.</p>' +
@@ -5458,6 +5484,12 @@ function admMarkHint() {
   }).catch(function () {});
 }
 
+function homeToggle(k) {
+  var r = CV('rows') || {};
+  r[k] = !showRow(k);
+  cfgSet('rows', r);
+  renderHome(); admPane();
+}
 function rowToggle(k) {
   var r = CV('rows') || {};
   r[k] = !showRow(k);
