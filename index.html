@@ -1403,7 +1403,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       </div>
 
       <!-- שלב א׳ · לוח השנה — על הקרקע -->
-      <section class="sec-b">
+      <section class="sec-b" id="sec-plan">
         <div class="zlabel"><span class="tag a">לוח התוכנית</span>
           <span>תשפ"ז — מההרשמה ועד חגיגת הסיום.</span></div>
         <div id="plan"></div>
@@ -1558,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.70.0';
+var APP_VERSION = '7.71.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1717,6 +1717,8 @@ function renderHome() {
      והוא גובר על התכונה. */
   var cap = document.getElementById('stagecap');
   if (cap) cap.style.display = showRow('cap') ? '' : 'none';
+  var sp = document.getElementById('sec-plan');
+  if (sp) sp.style.display = showRow('plan') ? '' : 'none';
 
   /* ---- מה שבדרך ----
      ראש חטיבה שמקבל את הקישור עכשיו צריך לדעת מה עוד מגיע, אחרת
@@ -2979,7 +2981,7 @@ var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true,
                    אין סיבה לשני מנגנונים שעושים אותו דבר.
                    נועדו בעיקר לצילומי מסך לפרסום: כיבוי שלהם
                    מעלה את החלק של התלמידים אל תוך המסך הראשון. */
-                here:true, cap:true };
+                here:true, cap:true, plan:true };
 /* הבאנר של מה שבדרך. מתג ולא קבוע, כדי שאפשר יהיה להוריד אותו
    ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
    יותר מדי. */
@@ -5292,6 +5294,10 @@ function admShow(el) {
        תוך המסך הראשון. */
     '<div class="adm-card" style="margin-bottom:11px"><h4>מסך הבית</h4>' +
     '<p class="h">לכיבוי זמני כשמצלמים מסך לפרסום.</p>' +
+    '<div class="row"><div>לוח התוכנית' +
+    '<div class="sub">אב–אלול, תשרי, 30 שבועות, סיום</div></div>' +
+    '<button class="sw' + (showRow('plan') ? ' on' : '') +
+    '" onclick="homeToggle(\'plan\')" aria-label="לוח"></button></div>' +
     '<div class="row"><div>הפס "עכשיו"' +
     '<div class="sub">השורה שמתחת ללוח התוכנית</div></div>' +
     '<button class="sw' + (showRow('here') ? ' on' : '') +
