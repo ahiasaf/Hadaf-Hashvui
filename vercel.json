@@ -5,7 +5,7 @@
   ],
   "headers": [
     {
-      "source": "/(join-manifest.json|index.html|admin.html|learn.html|rights.html|accessibility.html|lab.html|masa.html|masa.js|data.js|links.js|stage.js|learned.js|textedit.js|a11y.js|join.html|board.html|sw.js)",
+      "source": "/(join-manifest.json|index.html|admin.html|learn.html|rights.html|accessibility.html|slidetest.html|lab.html|masa.html|masa.js|data.js|links.js|stage.js|learned.js|textedit.js|a11y.js|join.html|board.html|sw.js)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>בדיקת שקף מדרייב</title>
+<link rel="icon" href="icon-192.png">
+<meta name="robots" content="noindex">
+<style>
+/* ============================================================
+   עמוד בדיקה חד־פעמי. אחרי שנדע את התשובה — למחוק.
+
+   למה כאן ולא במקום נוח יותר: השאלה היא מה קורה **בדפדפן של
+   תלמיד, בדומיין שלנו**. כל סביבה אחרת עונה על שאלה אחרת —
+   ובפעם הקודמת זה בדיוק מה שקרה: הבדיקה רצה בתוך מסגרת שחוסמת
+   כל תמונה חיצונית, וכל שלוש הצורות "נכשלו" בלי קשר לדרייב.
+
+   שלוש הצורות אינן זהות: `thumbnail` מגישה תצוגה מקדימה של כל
+   סוג קובץ, ואילו `uc` ו-lh3 מגישות תמונות ממש. לכן קובץ מסוג
+   מסמך יכול להיכשל בשתיים ולהצליח באחת — וזו אינה התשובה
+   שאנחנו מחפשים. הבדיקה האמיתית היא על JPG.
+   ============================================================ */
+:root{
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+  --blue:#17468F; --gold:#8C681F;
+  --ok:#2E6B47; --ok-bg:#E4EFE7; --bad:#9B3327; --bad-bg:#F6E6E2;
+  --wait:#6B6252; --wait-bg:#EFE9DC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.7;
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+.wrap{max-width:34rem;margin:0 auto;padding:24px 18px 60px;
+  display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font-size:1.35rem;font-weight:800;letter-spacing:-.02em;line-height:1.3}
+.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.1em;color:var(--gold)}
+.sub{margin:6px 0 0;color:var(--ink-2);font-size:.93rem}
+
+.verdict{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  padding:15px 17px}
+.verdict .lbl{font-size:.7rem;font-weight:800;letter-spacing:.1em;color:var(--ink-3);
+  display:block}
+.verdict .val{font-size:1.1rem;font-weight:800;line-height:1.4;margin-top:3px;
+  display:block}
+.verdict.good{border-color:var(--ok);background:var(--ok-bg)}
+.verdict.good .val{color:var(--ok)}
+.verdict.none{border-color:var(--bad);background:var(--bad-bg)}
+.verdict.none .val{color:var(--bad)}
+
+.t{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  overflow:hidden;margin-bottom:12px}
+.t-head{display:flex;align-items:center;gap:9px;padding:12px 15px}
+.t-name{font-weight:800;font-size:.94rem;flex:1;min-width:0}
+.chip{flex:none;font-size:.73rem;font-weight:800;padding:3px 10px;border-radius:99px;
+  background:var(--wait-bg);color:var(--wait);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.t-url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;
+  direction:ltr;text-align:left;color:var(--ink-3);background:var(--sunk);
+  padding:8px 13px;overflow-x:auto;white-space:nowrap;
+  border-block:1px solid var(--rule)}
+.t-shot{min-height:120px;display:flex;align-items:center;justify-content:center;
+  padding:12px;background:var(--sunk)}
+.t-shot img{max-width:100%;max-height:220px;display:block;border-radius:6px;
+  border:1px solid var(--rule)}
+.t-shot .empty{font-size:.84rem;color:var(--ink-3);font-weight:600}
+
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:.83rem;font-weight:800;color:var(--ink-2)}
+.fld .row{display:flex;gap:8px}
+input[type=text]{flex:1;min-width:0;font-family:ui-monospace,Menlo,monospace;
+  font-size:.8rem;direction:ltr;text-align:left;padding:11px 12px;
+  border:1px solid var(--rule);border-radius:9px;background:var(--surface);
+  color:var(--ink)}
+button{font-family:inherit;font-weight:800;font-size:.9rem;cursor:pointer;
+  padding:11px 18px;border-radius:9px;border:0;background:var(--blue);color:#fff}
+:focus-visible{outline:3px solid #fff;outline-offset:0;
+  box-shadow:0 0 0 6px #0B2550}
+
+.note{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  padding:15px 17px;font-size:.89rem;color:var(--ink-2)}
+.note b{color:var(--ink)}
+.note ol{margin:8px 0 0;padding-inline-start:19px}
+.note li{margin-bottom:4px}
+footer{font-size:.79rem;color:var(--ink-3);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">הדף השבועי · בדיקה טכנית</div>
+    <h1>האם שקף מדרייב נטען אצל תלמיד?</h1>
+    <p class="sub">העמוד הזה יושב באתר שלנו, ולכן מה שנטען כאן ייטען
+      גם במסך הלימוד. <b>בדוק על קובץ JPG</b> — מסמך אינו בדיקה נכונה.</p>
+  </header>
+
+  <div class="verdict" id="verdict">
+    <span class="lbl">התוצאה</span>
+    <span class="val" id="verdict-val">בודק…</span>
+  </div>
+
+  <div id="tests"></div>
+
+  <div class="fld">
+    <label for="fid">קישור לקובץ בדרייב, או המזהה שלו</label>
+    <div class="row">
+      <input type="text" id="fid" spellcheck="false" autocapitalize="off"
+             autocomplete="off">
+      <button type="button" id="go">בדיקה</button>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>כדי שהבדיקה תהיה אמיתית:</b>
+    <ol>
+      <li>העלה לדרייב <b>שקף אחד כ-JPG</b>, לא מסמך</li>
+      <li>שיתוף ← גישה כללית ← <b>כל מי שיש לו הקישור</b></li>
+      <li>פתח את העמוד הזה <b>בגלישה בסתר</b> — שם אינך מחובר,
+          וזה בדיוק המצב של תלמיד</li>
+    </ol>
+  </div>
+
+  <footer>עמוד זמני · יימחק אחרי שתהיה תשובה</footer>
+</div>
+
+<script>
+var DEFAULT_ID = '1N8I8RnFBvH-F9Lw-YvotIj1M2w2hU7lF';
+
+var FORMS = [
+  ['תצוגה מקדימה (thumbnail)', 'כל סוג קובץ',
+   function (id) { return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600'; }],
+  ['הקובץ עצמו (uc)', 'תמונות בלבד',
+   function (id) { return 'https://drive.google.com/uc?export=view&id=' + id; }],
+  ['שרת התמונות (lh3)', 'תמונות בלבד',
+   function (id) { return 'https://lh3.googleusercontent.com/d/' + id + '=w1600'; }]
+];
+
+var results = [];
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function settle(i, ok, why) {
+  if (results[i] !== null) return;
+  results[i] = ok;
+  var chip = document.getElementById('chip-' + i);
+  chip.className = 'chip ' + (ok ? 'ok' : 'bad');
+  chip.textContent = ok ? 'נטען' : (why || 'נכשל');
+  if (!ok) {
+    document.getElementById('shot-' + i).innerHTML =
+      '<span class="empty">התמונה לא הוצגה</span>';
+  }
+  verdict();
+}
+
+function verdict() {
+  var done = 0, i;
+  for (i = 0; i < results.length; i++) if (results[i] !== null) done++;
+  if (done < FORMS.length) return;
+  var win = [];
+  for (i = 0; i < results.length; i++) if (results[i]) win.push(FORMS[i][0]);
+  var box = document.getElementById('verdict');
+  var val = document.getElementById('verdict-val');
+  if (win.length) {
+    box.className = 'verdict good';
+    val.textContent = 'עובד — ' + win.join(' · ');
+  } else {
+    box.className = 'verdict none';
+    val.textContent = 'אף אחת מהשלוש לא נטענה';
+  }
+}
+
+function run(raw) {
+  var id = (raw || '').trim();
+  var m = id.match(/\/d\/([A-Za-z0-9_-]{20,})/) ||
+          id.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
+  if (m) id = m[1];
+  if (!id) return;
+  document.getElementById('fid').value = id;
+
+  results = [];
+  var i;
+  for (i = 0; i < FORMS.length; i++) results.push(null);
+  document.getElementById('verdict').className = 'verdict';
+  document.getElementById('verdict-val').textContent = 'בודק…';
+
+  var h = '';
+  for (i = 0; i < FORMS.length; i++) {
+    h += '<div class="t"><div class="t-head">' +
+         '<span class="t-name">' + esc(FORMS[i][0]) + '</span>' +
+         '<span class="chip" id="chip-' + i + '">בודק…</span></div>' +
+         '<div class="t-url">' + esc(FORMS[i][2](id)) + '</div>' +
+         '<div class="t-shot" id="shot-' + i + '">' +
+         '<span class="empty">טוען…</span></div></div>';
+  }
+  document.getElementById('tests').innerHTML = h;
+
+  FORMS.forEach(function (f, k) {
+    var im = new Image();
+    im.onload = function () {
+      /* גוגל מחזירה לפעמים תמונת חסימה זעירה במקום שגיאה */
+      if (im.naturalWidth < 20 || im.naturalHeight < 20) {
+        settle(k, false, 'תמונה ריקה'); return;
+      }
+      var shot = document.getElementById('shot-' + k);
+      shot.innerHTML = '';
+      im.alt = 'התוצאה של ' + f[0];
+      shot.appendChild(im);
+      settle(k, true);
+    };
+    im.onerror = function () { settle(k, false); };
+    im.src = f[2](id);
+    /* בלי פסק זמן כרטיס תקוע משאיר את המסקנה ריקה לנצח */
+    setTimeout(function () { settle(k, false, 'לא ענה'); }, 12000);
+  });
+}
+
+document.getElementById('go').onclick = function () {
+  run(document.getElementById('fid').value);
+};
+document.getElementById('fid').onkeydown = function (e) {
+  if (e.key === 'Enter') run(this.value);
+};
+run(DEFAULT_ID);
+</script>
+</body>
+</html>
