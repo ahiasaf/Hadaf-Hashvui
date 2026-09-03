@@ -137,7 +137,14 @@ def check_orphan_classes():
         rules = set(re.findall(r'\.([A-Za-z][\w-]*)', css))
         used = set()
         for m in re.findall(r'class="([^"]*)"', t):
-            for c in re.split(r"[\s']+", m):
+            # מחלקה שנבנית בקוד — class="sw' + (showRow('plan') ? …
+            # הביטוי כולו נלכד עד הגרש הבא, ומתוכו נשלפו "מחלקות"
+            # שהן בעצם ארגומנטים של פונקציה. `plan` הוא מזהה ושם
+            # מתג, לא מחלקה, והבודק צעק עליו בלי סיבה.
+            # לכן: בערך שיש בו ביטוי — רק מה שלפניו.
+            if '+' in m or '(' in m:
+                m = re.split(r"['+(]", m)[0]
+            for c in m.split():
                 if ident.match(c or ''):
                     used.add(c)
         gone = sorted(used - rules - KNOWN_CLASSLESS.get(f, set()))
