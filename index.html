@@ -1411,7 +1411,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
       <section class="sec-b band rv">
-        <div class="zlabel"><span class="tag">מה התלמידים יראו</span>
+        <div class="zlabel"><span class="tag" id="stagetag">מה התלמידים יראו</span>
           <span id="stagecap">המסך שנפתח אצל התלמיד ואצל מעביר השיעור, בכל שבוע.</span></div>
         <div id="stage"></div>
         <div id="mini" style="margin-top:14px"></div>
@@ -1558,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.71.0';
+var APP_VERSION = '7.72.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1716,7 +1716,10 @@ function renderHome() {
   /* display ולא hidden: ל-span שבתווית יש display משלו ב-CSS,
      והוא גובר על התכונה. */
   var cap = document.getElementById('stagecap');
-  if (cap) cap.style.display = showRow('cap') ? '' : 'none';
+  if (cap) {
+    cap.textContent = UI.stageSub;
+    cap.style.display = showRow('cap') ? '' : 'none';
+  }
   var sp = document.getElementById('sec-plan');
   if (sp) sp.style.display = showRow('plan') ? '' : 'none';
 
@@ -1822,6 +1825,8 @@ function renderHome() {
 
   /* הרצועה של ראשי החטיבות יושבת ב-HTML הסטטי, ולכן היא
      מתעדכנת כאן ולא נבנית מחדש. */
+  var st = document.getElementById('stagetag');
+  if (st) st.textContent = UI.stageTag;
   var zt = document.getElementById('z-tag'), zs = document.getElementById('z-sub');
   if (zt) zt.textContent = UI.zoneTag;
   if (zs) zs.textContent = UI.zoneSub;
