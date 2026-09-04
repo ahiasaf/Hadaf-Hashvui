@@ -1559,7 +1559,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.74.0';
+var APP_VERSION = '7.75.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2866,7 +2866,7 @@ function openWeek(id, i) {
 
   var h = '<div class="' + tone + '"><div class="wtop">' +
           '<div><div class="k">מסכת ' + esc(tr.masechet) + ' · ' + esc(row[1]) + '</div>' +
-          '<h2>' + esc(c ? c.title : 'דף ' + row[2]) + '</h2>' +
+          '<h2>' + esc(DeckTitle(id, i + 1) || 'דף ' + row[2]) + '</h2>' +
           '<div class="k" style="font-weight:600">' + esc(row[0]) + '</div></div>' +
           '<span class="dafbig">' + esc(row[2]) + '</span></div></div>';
 
@@ -4693,8 +4693,8 @@ function paintAdmChip() {
 var SUB = {
   what:  [['reg','הרשמות'], ['part','משתתפים'],
           ['calls','שיחות'], ['data','נתונים']],
-  show:  [['screens','מסכים'], ['decks','מצגות'], ['price','מחירים'],
-          ['sugya','הסוגיה'], ['text','מלל']]
+  show:  [['screens','מסכים'], ['daf','הדף'], ['price','מחירים'],
+          ['text','מלל']]
 };
 var admSub = {};
 function admSubGo(t) { admSub[admTab] = t; admPane(); }
@@ -4738,9 +4738,8 @@ function admPane() {
     }
   }
   if (admTab === 'show') {
-    if (sub === 'decks') return admDecks(body);
+    if (sub === 'daf') return admDecks(body);
     if (sub === 'price') return admPrice(body);
-    if (sub === 'sugya') return admSugya(body);
     if (sub === 'text')  return admText(body);
     admShow(body); return admMarkHint();
   }
@@ -6123,6 +6122,8 @@ var dkDir  = '';     /* התיקייה בריפו */
 var dkList = [];     /* הסדר — מה שנשמר */
 var dkPool = null;   /* מה שיש בתיקייה בפועל; null = טרם נשאל */
 var dkBusy = false;
+var dkTitle = '';    /* הכותרת שבבאנר הכחול */
+var dkPdf  = null;   /* השקפים שנחתכו מ-PDF, לפני הורדה */
 
 function dkKey() { return dkSel.mas + '-' + dkSel.wk; }
 function dkDefDir() { return 'slides/' + dkSel.mas + '-' + dkSel.wk; }
@@ -6131,16 +6132,21 @@ function dkDefDir() { return 'slides/' + dkSel.mas + '-' + dkSel.wk; }
    — מה שבקוד. אותה שרשרת שלוש-שכבות שיש למלל. */
 function dkLoadSel() {
   var draft = (CV('decks') || {})[dkKey()];
-  if (draft) { dkDir = draft.dir; dkList = draft.files.slice(); return; }
+  if (draft) {
+    dkDir = draft.dir; dkList = draft.files.slice();
+    dkTitle = draft.title || ''; return;
+  }
+  dkTitle = DeckTitle(dkSel.mas, dkSel.wk);
   var d = DeckOf(dkSel.mas, dkSel.wk);
   if (d) { dkDir = d.dir; dkList = d.files.slice(); return; }
   dkDir = dkDefDir(); dkList = [];
 }
 function dkStash() {
   var c = CV('decks') || {};
-  c[dkKey()] = { dir: dkDir, files: dkList.slice() };
+  c[dkKey()] = { dir: dkDir, files: dkList.slice(), title: dkTitle };
   cfgSet('decks', c);
 }
+function dkSetTitle(v) { dkTitle = String(v || '').trim(); dkStash(); }
 
 function dkGo(mas, wk) {
   dkSel = { mas: mas, wk: wk };
@@ -6189,12 +6195,12 @@ function dkSave() {
   for (k in c) {
     if (!c.hasOwnProperty(k)) continue;
     var parts = k.split('-'), wk = parts.pop(), mas = parts.join('-');
-    rows.push([mas, wk, c[k].dir, c[k].files.join(',')]);
+    rows.push([mas, wk, c[k].dir, c[k].files.join(','), c[k].title || '']);
   }
   dkMsg('', 'נשלח · מאמת מול הגיליון…');
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
     action:'table', tab:DECK_SHEET,
-    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים']),
+    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים', 'כותרת']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
   dkVerify(0);
@@ -6222,6 +6228,114 @@ function dkMsg(cls, t) {
     '">' + esc(t) + '</p>';
 }
 
+/* ============================================================
+   PDF → שקפים.
+
+   נוטבוק-LM מייצא PDF או PowerPoint, ואנחנו מציגים תמונות: הן
+   נטענות מיידית, נשמרות במטמון של המכשיר, ועובדות בלי רשת.
+   המרה בכל פתיחה אצל תלמיד הייתה מבטלת את שלושת אלה.
+
+   לכן ההמרה נעשית כאן, פעם אחת, בדפדפן של הרכז. pdf.js כבר
+   יושב אצלנו (`vendor/pdfjs`) בשביל צורת הדף, ואין צורך בכלום
+   נוסף — לא שרת, לא שירות חיצוני, ולא העלאה של הקובץ לאיש.
+
+   הטעינה היא **על פי דרישה**: pdf.js שוקל 1.3MB, ואין סיבה
+   שכל תלמיד יוריד אותו. התגית נוצרת דרך ה-DOM ולא נכתבת בקוד
+   העמוד, כי `import` בתוך הקובץ היה שובר את הניתוח בדפדפן ישן
+   — כלומר מפיל את האפליקציה כולה בטלפונים שבשטח.
+
+   1376 רוחב: זה הרוחב של השקפים הקיימים, והוא חד גם במסך גדול
+   ושוקל כ-150KB.                                              */
+var DK_W = 1376;
+
+function dkPdfLib() {
+  if (window.pdfjsLib) return Promise.resolve();
+  return new Promise(function (ok, fail) {
+    var sc = document.createElement('script');
+    sc.type = 'module';
+    sc.textContent =
+      "import * as p from './vendor/pdfjs/pdf.min.mjs';" +
+      "p.GlobalWorkerOptions.workerSrc='./vendor/pdfjs/pdf.worker.min.mjs';" +
+      "window.pdfjsLib=p;window.dispatchEvent(new Event('pdfjs-ready'));";
+    var t = setTimeout(function () { fail(new Error('timeout')); }, 20000);
+    window.addEventListener('pdfjs-ready', function () {
+      clearTimeout(t); ok();
+    }, { once: true });
+    sc.onerror = function () { clearTimeout(t); fail(new Error('load')); };
+    document.head.appendChild(sc);
+  });
+}
+
+function dkPdfPick(inp) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (!/pdf$/i.test(f.type) && !/\.pdf$/i.test(f.name)) {
+    dkPdfMsg('bad', 'צריך קובץ PDF.'); return;
+  }
+  dkPdf = null;
+  dkPdfMsg('', 'טוען את הממיר…');
+  var buf;
+  dkPdfLib()
+    .then(function () { return f.arrayBuffer(); })
+    .then(function (b) {
+      buf = b;
+      dkPdfMsg('', 'קורא את הקובץ…');
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    })
+    .then(function (doc) {
+      var out = [], n = 1;
+      function page() {
+        if (n > doc.numPages) {
+          dkPdf = out;
+          /* קודם הציור ואז ההודעה. הפוך — `admPane` בונה מחדש את
+             הכרטיס וההודעה נמחקת ברגע שנכתבה. */
+          admPane();
+          dkPdfMsg('ok', 'נחתכו ' + out.length + ' שקפים. הורידו אותם, ' +
+                         'וגררו לתיקייה ב-GitHub.');
+          return;
+        }
+        dkPdfMsg('', 'חותך שקף ' + n + ' מתוך ' + doc.numPages + '…');
+        return doc.getPage(n).then(function (pg) {
+          var v1 = pg.getViewport({ scale: 1 });
+          var vp = pg.getViewport({ scale: DK_W / v1.width });
+          var cv = document.createElement('canvas');
+          cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+          return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp })
+            .promise.then(function () {
+              /* שם באנגלית בלבד: כרום דוחה הורדה עם שם שאינו
+                 ASCII, וזו מלכודת שכבר נפלנו בה. */
+              var nm = (n < 10 ? '0' : '') + n + '.jpg';
+              out.push({ name: nm, url: cv.toDataURL('image/jpeg', 0.82) });
+              n++;
+              return page();
+            });
+        });
+      }
+      return page();
+    })
+    .catch(function (e) {
+      dkPdfMsg('bad', 'ההמרה נכשלה: ' + (e && e.message ? e.message : 'שגיאה'));
+    });
+}
+function dkPdfMsg(cls, t) {
+  var el = document.getElementById('dk-pdf-msg');
+  if (el) el.innerHTML = '<p class="h" style="margin-top:8px' +
+    (cls === 'ok' ? ';color:var(--ok)' : cls === 'bad' ? ';color:var(--stop)' : '') +
+    '">' + esc(t) + '</p>';
+}
+/* הורדה של כולם ברצף. כרום שואל פעם אחת "לאשר הורדות מרובות",
+   וזו התנהגות שלו ולא באג אצלנו. */
+function dkPdfAll() {
+  if (!dkPdf) return;
+  dkPdf.forEach(function (s, i) {
+    setTimeout(function () {
+      var a = document.createElement('a');
+      a.href = s.url; a.download = s.name;
+      document.body.appendChild(a); a.click(); a.remove();
+    }, i * 350);
+  });
+}
+
 function admDecks(el) {
   if (!dkSel) { dkSel = { mas: homeTrack, wk: Math.max(1, weekOf(trackById(homeTrack)) + 1) };
                 dkLoadSel(); dkAsk(); }
@@ -6247,8 +6361,15 @@ function admDecks(el) {
              '>שבוע ' + (k + 1) + ' · ' + esc(r[1]) + ' · דף ' + esc(r[2]) + '</option>';
     }).join('') + '</select></div>' +
 
-    '<div class="fld"><div class="label">התיקייה בריפו</div>' +
-    '<input type="text" dir="ltr" value="' + esc(dkDir) +
+    '<div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
+    ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
+    esc(row[2] || '') + '"</span></label>' +
+    '<input type="text" id="dk-ttl" value="' + esc(dkTitle) +
+    '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
+    'onchange="dkSetTitle(this.value)"></div>' +
+
+    '<div class="fld"><label class="label" for="dk-dir">התיקייה בריפו</label>' +
+    '<input type="text" id="dk-dir" dir="ltr" value="' + esc(dkDir) +
     '" onchange="dkSetDir(this.value)"></div>' +
 
     '<a class="btn gd" style="display:block;text-align:center;text-decoration:none;' +
@@ -6313,6 +6434,64 @@ function admDecks(el) {
   }
   h += '</div>';
 
+  /* ---- המרה מ-PDF ---- */
+  h += '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>יש לכם PDF במקום תמונות?</h4>' +
+    '<p class="h">נוטבוק-LM מייצא PDF או PowerPoint, ואנחנו צריכים ' +
+    'תמונות. בחרו כאן את ה-PDF — הוא נחתך לשקפים <b>כאן במכשיר</b>, ' +
+    'בלי להישלח לאיש. אחר כך מורידים אותם וגוררים לתיקייה.</p>' +
+    '<div class="fld"><label class="label" for="dk-pdf">קובץ PDF</label>' +
+    '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" ' +
+    'onchange="dkPdfPick(this)"></div>' +
+    '<div id="dk-pdf-msg"></div>';
+  if (dkPdf && dkPdf.length) {
+    h += '<button class="btn gd" style="margin-top:8px" onclick="dkPdfAll()">' +
+      'הורדת כל ' + dkPdf.length + ' השקפים</button>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;' +
+      'margin-top:10px">' +
+      dkPdf.map(function (sl) {
+        return '<a href="' + sl.url + '" download="' + esc(sl.name) + '" ' +
+          'style="text-decoration:none;text-align:center">' +
+          '<img src="' + sl.url + '" alt="" style="width:100%;border-radius:6px;' +
+          'border:1px solid var(--rule)">' +
+          '<span dir="ltr" style="display:block;font-size:.68rem;' +
+          'color:var(--ink-3);font-weight:800">' + esc(sl.name) + '</span></a>';
+      }).join('') + '</div>';
+  }
+  h += '</div>';
+
+  /* ---- הסוגיה היומית — העמוד של הדף הזה ----
+     היה מסך נפרד ובו רשימה של שלושים שורות. הוא נבלע לכאן, כי
+     "איזה עמוד בחוברת" הוא נתון של הדף ולא נושא בפני עצמו. */
+  var sg = SUGYA[dkSel.mas] || {};
+  var dfk = dafKey(row[2] || '');
+  var pg = ((CV('sugya') || {})[dkSel.mas] || sg).pages || sg.pages || {};
+  var pv = pg[dfk], two = pv && pv.length === 2;
+  var pn = two ? pv[1] : (pv || '');
+  var purl = (two && (sg.books || {})[pv[0]]) ? sg.books[pv[0]] + pn + '/' : '';
+  h += '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>הסוגיה היומית — העמוד בחוברת</h4>' +
+    '<p class="h">באיזה עמוד בחוברת החיצונית מתחיל דף ' + esc(row[2] || '') + '. ' +
+    'ריק = הקישור לחוברת לא יוצג לשבוע הזה.' +
+    (purl ? ' <a href="' + purl + '" target="_blank" rel="noopener">בדיקה ↗</a>' : '') +
+    '</p>' +
+    '<div class="fld"><label class="label" for="dk-sug">עמוד</label>' +
+    '<input type="tel" id="dk-sug" style="width:110px;text-align:center" value="' +
+    esc(pn) + '" onchange="admSugyaPage(\'' + dfk + '\',this.value);admPane()"></div>' +
+    '</div>';
+
+  /* הגדרות שנקבעות פעם בשנה, ולכן בתחתית ולא בראש. */
+  h += '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>החוברת של מסכת ' + esc(tr.masechet) + '</h4>' +
+    '<p class="h">נקבע פעם אחת לכל המסכת. ב-<span dir="ltr">{p}</span> ' +
+    'ייכנס מספר העמוד.</p>' +
+    '<div class="fld"><label class="label" for="dk-base">כתובת החוברת</label>' +
+    '<input type="text" id="dk-base" dir="ltr" value="' + esc(sg.base || '') +
+    '" onchange="admSugyaSet(\'base\',this.value)"></div>' +
+    '<div class="fld"><label class="label" for="dk-fmt">תבנית קישור לעמוד</label>' +
+    '<input type="text" id="dk-fmt" dir="ltr" placeholder="https://…/book#p={p}" value="' +
+    esc(sg.fmt || '') + '" onchange="admSugyaSet(\'fmt\',this.value)"></div></div>';
+
   h += '<div class="adm-card"><h4>פרסום</h4>' +
     '<p class="h">עד הפרסום השינוי חי במכשיר הזה בלבד. פרסום מחיל ' +
     'אותו על כל התלמידים.</p>' +
@@ -6359,59 +6538,29 @@ function admPriceSet(id, k, v) {
 }
 
 /* ---- הסוגיה היומית ---- */
-function admSugya(el) {
-  var t = homeTrack, sg = SUGYA[t] || { base:'', fmt:'', pages:{} };
-  el.innerHTML =
-    '<div class="adm-card"><h4>הסוגיה היומית — ' +
-    esc(trackById(t).masechet) + '</h4>' +
-    '<p class="h">כתובת הפליפבוק, ותבנית הקישור לעמוד מסוים. ' +
-    'ב-{p} ייכנס מספר העמוד. לדוגמה: ' +
-    '<span dir="ltr">https://…/book.html#p={p}</span></p>' +
-    '<div class="tabs" style="margin-bottom:12px">' +
-    TRACKS.map(function (x) {
-      return '<button class="' + (x.id === t ? 'on' : '') +
-             '" onclick="pickTrack(\'' + x.id + '\');admPane()">' + esc(x.masechet) + '</button>';
-    }).join('') + '</div>' +
-    '<div class="fld"><div class="label">כתובת הפליפבוק</div>' +
-    '<input type="text" dir="ltr" value="' + esc(sg.base) +
-    '" onchange="admSugyaSet(\'base\',this.value)"></div>' +
-    '<div class="fld"><div class="label">תבנית קישור לעמוד</div>' +
-    '<input type="text" dir="ltr" value="' + esc(sg.fmt) +
-    '" onchange="admSugyaSet(\'fmt\',this.value)"></div>' +
-    '<div class="label">עמוד בחוברת לכל דף</div>' +
-    trackById(t).cal.filter(function (r) { return r[2] && r[2] !== 'סיום'; })
-      .map(function (r) {
-        var k = dafKey(r[2]), p = (sg.pages || {})[k];
-        var two = p && p.length === 2, n = two ? p[1] : (p || '');
-        /* הקישור עצמו מוצג ליד המספר, כדי שאפשר יהיה לפתוח ולבדוק
-           בלי לנחש איזו חוברת משרתת את הדף. */
-        var url = (two && (sg.books || {})[p[0]]) ? sg.books[p[0]] + n + '/' : '';
-        return '<div class="row"><span>דף ' + esc(r[2]) +
-          (url ? ' <a href="' + url + '" target="_blank" rel="noopener" ' +
-                 'style="font-size:12px;opacity:.6">בדיקה</a>' : '') + '</span>' +
-          '<input type="tel" style="width:74px;text-align:center;padding:8px" value="' +
-          n + '" onchange="admSugyaPage(\'' + k + '\',this.value)"></div>';
-      }).join('') + '</div>';
-}
 /* העריכה מתחילה ממה שקיים ולא מטופס ריק. הסיבה: ההגדרה שבגיליון
    מחליפה את זו שבקוד במלואה, ולכן שינוי של שדה אחד בטופס ריק היה
    מוחק את כל מפת העמודים — כלומר תיקון קטן היה מבטל את כל הקישורים. */
-function sugCur() {
+function sugCur(track) {
+  var t = track || homeTrack;
   var c = CV('sugya') || {};
-  if (!c[homeTrack]) {
-    var d = SUGYA[homeTrack] || {};
-    c[homeTrack] = { base: d.base || '', fmt: d.fmt || '',
-                     books: JSON.parse(JSON.stringify(d.books || {})),
-                     pages: JSON.parse(JSON.stringify(d.pages || {})) };
+  if (!c[t]) {
+    var d = SUGYA[t] || {};
+    c[t] = { base: d.base || '', fmt: d.fmt || '',
+             books: JSON.parse(JSON.stringify(d.books || {})),
+             pages: JSON.parse(JSON.stringify(d.pages || {})) };
   }
   return c;
 }
 function admSugyaSet(k, v) {
-  var c = sugCur();
-  c[homeTrack][k] = v.trim(); cfgSet('sugya', c);
+  var t = (dkSel && dkSel.mas) || homeTrack;
+  var c = sugCur(t);
+  c[t][k] = v.trim(); cfgSet('sugya', c);
 }
 function admSugyaPage(daf, v) {
-  var c = sugCur(), pg = c[homeTrack].pages = c[homeTrack].pages || {};
+  /* המסכת היא זו שנבחרה במסך הדף, ולא זו שעל העמוד הראשי. */
+  var t = (dkSel && dkSel.mas) || homeTrack;
+  var c = sugCur(t), pg = c[t].pages = c[t].pages || {};
   var was = pg[daf], book = (was && was.length === 2) ? was[0] : null;
   if (!v.trim()) delete pg[daf];
   else pg[daf] = book ? [book, parseInt(v, 10) || 0] : (parseInt(v, 10) || '');

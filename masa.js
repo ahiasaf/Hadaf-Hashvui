@@ -270,10 +270,19 @@ function kitFor(trackId) {
 }
 function notYet() { alert('הקישור יתווסף בקרוב.'); return false; }
 
+/* המצגות נשאלות פעם אחת לכל טעינת עמוד. ראו renderMine. */
+var deckAsked = false;
+
 function renderMine() {
   var t = profile.track || 'taanit', w = contentFor(t), c = w.c;
   var wi = weekIndex();
   var when = wi < 0 ? 'נפתח בפרשת בראשית' : 'שבוע ' + (wi + 1) + ' מתוך ' + w.tr.cal.length;
+  /* פעם אחת בלבד. בלי הדגל הזה כל ציור מושך מהרשת, והמשיכה
+     מציירת שוב — לולאה שאינה נגמרת. */
+  if (!deckAsked) {
+    deckAsked = true;
+    DeckLoad().then(function (ok) { if (ok) { try { renderMine(); } catch (e) {} } });
+  }
 
   var h = '<div class="hi"><span class="m"><img id="mine-mark" alt=""></span>' +
     '<span class="w"><b>' + (profile.who ? esc(profile.who.split(' ')[0]) + ', ' : '') +
@@ -282,11 +291,13 @@ function renderMine() {
 
   h += '<div class="stage"><div class="eyebrow">' + esc(when) + '<s></s>' +
     (w.row[2] && w.row[2] !== 'סיום' ? 'דף ' + esc(w.row[2]) : '') + '</div>' +
-    '<h2>' + esc(c ? c.title : (w.row[2] ? 'דף ' + w.row[2] : w.row[1])) + '</h2>' +
+    '<h2>' + esc(DeckTitle(w.tr.id, w.i + 1) ||
+                 (w.row[2] ? 'דף ' + w.row[2] : w.row[1])) + '</h2>' +
     '<div class="meta">' + esc(w.row[1]) + ' · ' + esc(w.row[0]) + '</div>';
-  if (c && c.deck) {
-    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + c.deck.dir +
-      '/01.jpg" alt="השקף הראשון"></div>' +
+  var dk = DeckOf(w.tr.id, w.i + 1);
+  if (dk) {
+    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + DeckSrc(dk, 1) +
+      '" alt="השקף הראשון"></div>' +
       '<button class="go" onclick="deckOpen(0)">▶ הצגה על המסך</button>';
   } else {
     h += '<div class="frame"><div class="empty">המצגת לשבוע זה בהכנה</div></div>';
@@ -345,11 +356,11 @@ function sheetClose() { document.getElementById('sheet').className = ''; }
 
 var deck = { imgs:[], i:0 };
 function deckOpen(i) {
-  var t = profile.track || 'taanit', c = contentFor(t).c;
-  if (!c || !c.deck) return;
+  var t = profile.track || 'taanit', w = contentFor(t);
+  var dk = DeckOf(t, w.i + 1);
+  if (!dk) return;
   deck.imgs = [];
-  for (var n = 1; n <= c.deck.n; n++)
-    deck.imgs.push(c.deck.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg');
+  for (var n = 1; n <= dk.files.length; n++) deck.imgs.push(DeckSrc(dk, n));
   deck.i = i || 0;
   document.getElementById('d-where').textContent =
     'מסכת ' + trackById(t).masechet + ' · דף ' + contentFor(t).row[2];

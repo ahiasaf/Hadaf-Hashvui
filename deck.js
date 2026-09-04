@@ -57,7 +57,8 @@ function DeckFromRows(rows) {
     var wk  = parseInt(r[1], 10);
     var dir = String(r[2] || '').trim().replace(/^\/+|\/+$/g, '');
     var fs  = String(r[3] || '').split(',');
-    if (!mas || !(wk > 0) || !dir) return;
+    var ttl = String(r[4] || '').trim();
+    if (!mas || !(wk > 0)) return;
     var files = [];
     fs.forEach(function (f) {
       f = f.trim();
@@ -65,7 +66,7 @@ function DeckFromRows(rows) {
     });
     /* שורה בלי קבצים אינה שגיאה — היא "לשבוע הזה אין מצגת",
        וזו הדרך לבטל מצגת בלי למחוק שורה. */
-    out[mas + '-' + wk] = { dir: dir, files: files };
+    out[mas + '-' + wk] = { dir: dir, files: files, title: ttl };
   });
   return out;
 }
@@ -128,7 +129,8 @@ function DeckCsv(t) {
 function DeckOf(mas, week) {
   var key = mas + '-' + week;
   var d = DECKS && DECKS[key];
-  if (d) return d.files.length ? d : null;
+  if (d && d.dir) return d.files.length ? d : null;
+  if (d) return null;                  /* שורה בלי תיקייה = אין מצגת */
 
   /* אין שורה בגיליון — מה שבקוד */
   var c = (typeof CONTENT !== 'undefined') ? CONTENT[key] : null;
@@ -136,6 +138,16 @@ function DeckOf(mas, week) {
   var files = [], i;
   for (i = 1; i <= c.deck.n; i++) files.push((i < 10 ? '0' : '') + i + '.jpg');
   return { dir: c.deck.dir, files: files };
+}
+
+/* הכותרת שבבאנר. שורה בגיליון גוברת על מה שבקוד, וכשאין —
+   נופלים ל-CONTENT, ואם גם שם אין, המסך מציג "דף כך וכך". */
+function DeckTitle(mas, week) {
+  var key = mas + '-' + week;
+  var d = DECKS && DECKS[key];
+  if (d && d.title) return d.title;
+  var c = (typeof CONTENT !== 'undefined') ? CONTENT[key] : null;
+  return (c && c.title) || '';
 }
 
 /* כתובת שקף. `i` מתחיל ב-1, כמו שהמשתמש סופר. */

@@ -84,7 +84,8 @@ function StageHtml(o) {
 
   s += '<div class="eyebrow">' + StEsc(when) + '<s></s>' +
        (row[2] && row[2] !== 'סיום' ? 'דף ' + StEsc(row[2]) : '') + '</div>' +
-       '<h2>' + StEsc(c ? c.title : (row[2] ? 'דף ' + row[2] : row[1])) + '</h2>' +
+       '<h2>' + StEsc(DeckTitle(tr.id, i + 1) ||
+                       (row[2] ? 'דף ' + row[2] : row[1])) + '</h2>' +
        '<div class="meta">' + StEsc(row[1]) + ' · ' + StEsc(row[0]) + '</div>';
 
   var dk = StDeck(tr, i);
