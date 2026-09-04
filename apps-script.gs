@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 25;
+var SCRIPT_VERSION = 26;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -238,6 +238,28 @@ function doPost(e) {
     }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
+
+    /* ---- העלאת שקף לריפו ----
+
+       למה דרך הסקריפט ולא ישירות מהדפדפן: כתיבה ל-GitHub דורשת
+       אסימון, ואסימון בדפדפן הוא אסימון שדלף. כאן הוא יושב
+       במאפייני הסקריפט — בחשבון של הרכז, לא בקוד ולא בריפו
+       (שהוא ציבורי) ולא במכשיר.
+
+       ולמה בכלל: הממשק של GitHub להעלאת קבצים נכשל לא-אחת
+       ("Something went really wrong"), ובטלפון במיוחד. זה מסלול
+       שאינו תלוי בו.
+
+       נדרשת READ_KEY בדיוק כמו במחיקה: כתובת הסקריפט יושבת בקוד
+       הפומבי, וכתיבה פתוחה לריפו היא הרשאת דחיפה שנמסרה לעולם. */
+    if (d.action === 'ghput') {
+      if (!READ_KEY || String(d.key || '') !== READ_KEY) {
+        return json_({ status: 'denied',
+          message: READ_KEY ? 'סיסמה שגויה'
+                            : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+      }
+      return json_(ghPut_(d.path, d.b64, d.msg));
+    }
 
     /* ---- מחיקה ----
 
@@ -1262,6 +1284,54 @@ function sheet_(tab, ssId) {
   var ss = id ? SpreadsheetApp.openById(String(id))
               : SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheetByName(tab) || ss.insertSheet(tab);
+}
+
+/* ============================================================
+   כתיבת קובץ לריפו.
+
+   GitHub דורש את ה-sha של הקובץ הקיים כדי לדרוס אותו, ואינו
+   מקבל sha כשהקובץ חדש. לכן קודם שואלים, ורק אז כותבים — ושתי
+   התשובות (200 ו-404) שתיהן תקינות.
+   ============================================================ */
+var GH_API = 'https://api.github.com/repos/';
+
+function ghPut_(path, b64, msg) {
+  var tok  = prop_('GH_TOKEN', '');
+  var repo = prop_('GH_REPO', '');
+  if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
+  if (!repo) return { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
+  path = String(path || '').replace(/^\/+/, '');
+  if (!path || !b64) return { status:'error', message:'חסר נתיב או תוכן' };
+  /* נתיב שיוצא מהתיקייה הוא כתיבה למקום שלא התכוונו אליו */
+  if (path.indexOf('..') >= 0) return { status:'error', message:'נתיב לא חוקי' };
+
+  var url = GH_API + repo + '/contents/' + path;
+  var head = { Authorization: 'Bearer ' + tok,
+               Accept: 'application/vnd.github+json',
+               'X-GitHub-Api-Version': '2022-11-28' };
+  var sha = '';
+  try {
+    var got = UrlFetchApp.fetch(url + '?ref=main',
+      { headers: head, muteHttpExceptions: true });
+    if (got.getResponseCode() === 200) {
+      sha = (JSON.parse(got.getContentText()) || {}).sha || '';
+    }
+  } catch (e) {}
+
+  var body = { message: msg || ('הוספת ' + path), content: b64, branch: 'main' };
+  if (sha) body.sha = sha;
+  try {
+    var res = UrlFetchApp.fetch(url, {
+      method: 'put', contentType: 'application/json',
+      headers: head, payload: JSON.stringify(body), muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code === 200 || code === 201) return { status:'ok', path:path, replaced:!!sha };
+    return { status:'error', code:code,
+             message: String(res.getContentText()).slice(0, 200) };
+  } catch (e) {
+    return { status:'error', message: String(e) };
+  }
 }
 
 function json_(o) {

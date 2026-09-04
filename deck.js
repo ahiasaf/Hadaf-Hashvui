@@ -129,8 +129,9 @@ function DeckCsv(t) {
 function DeckOf(mas, week) {
   var key = mas + '-' + week;
   var d = DECKS && DECKS[key];
-  if (d && d.dir) return d.files.length ? d : null;
-  if (d) return null;                  /* שורה בלי תיקייה = אין מצגת */
+  /* שורה קיימת = היא הקובעת, גם כשהיא ריקה (כך מבטלים מצגת).
+     `dir` אינו נדרש: מצגת משולבת נושאת נתיבים מלאים. */
+  if (d) return d.files.length ? d : null;
 
   /* אין שורה בגיליון — מה שבקוד */
   var c = (typeof CONTENT !== 'undefined') ? CONTENT[key] : null;
@@ -150,10 +151,16 @@ function DeckTitle(mas, week) {
   return (c && c.title) || '';
 }
 
-/* כתובת שקף. `i` מתחיל ב-1, כמו שהמשתמש סופר. */
+/* כתובת שקף. `i` מתחיל ב-1, כמו שהמשתמש סופר.
+
+   רשומה שיש בה `/` היא נתיב מלא מתוך הריפו, וכך שבוע יכול לשלב
+   שקפים משתי מצגות ויותר — ראשון מכאן, שני משם, ושלישי בחזרה.
+   רשומה בלי `/` היא שם בתוך `dir`, וזו הצורה הישנה: מצגת אחת
+   בתיקייה אחת. שתיהן חיות זו לצד זו בלי המרה. */
 function DeckSrc(deck, i) {
   if (!deck || i < 1 || i > deck.files.length) return '';
-  return deck.dir + '/' + deck.files[i - 1];
+  var f = deck.files[i - 1];
+  return f.indexOf('/') >= 0 ? f : deck.dir + '/' + f;
 }
 
 /* המטמון נטען מיד עם הקובץ, לפני כל ציור — אחרת הציור הראשון

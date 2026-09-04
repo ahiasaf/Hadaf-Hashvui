@@ -1284,6 +1284,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .imgbox button{margin-inline-start:auto;border:none;background:none;font-family:inherit;
   font-size:.8rem;font-weight:800;color:var(--stop,#A5382D);cursor:pointer}
 .adm-card{background:var(--surface);border-radius:var(--r-m);padding:15px;box-shadow:var(--sh-1)}
+/* מקום ההודעה של ההעלאה. אין לה עיצוב משלה — הפסקה שבתוכה
+   מעצבת את עצמה — אבל ריקה היא לא צריכה לתפוס שורה. */
+.dk-msg:empty{display:none}
 .adm-card h4{font-size:.98rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
 .adm-card p.h{font-size:.79rem;color:var(--ink-3);font-weight:600;line-height:1.55;margin-bottom:11px}
 .pill-n{background:var(--blue);color:#fff;border-radius:20px;padding:2px 9px;
@@ -1559,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.75.0';
+var APP_VERSION = '7.76.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6158,7 +6161,22 @@ function dkGo(mas, wk) {
 function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
 function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
 function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); }
-function dkAdd(f)  { if (dkList.indexOf(f) < 0) dkList.push(f); dkStash(); admPane(); }
+/* נתיב מלא ולא שם: כך שקף מתיקייה אחרת יושב באותה רשימה, ואפשר
+   לשזור שתי מצגות זו בזו. */
+function dkAdd(f) {
+  var p = f.indexOf('/') >= 0 ? f : dkDir + '/' + f;
+  if (dkList.indexOf(p) < 0) dkList.push(p);
+  dkStash(); admPane();
+}
+/* הנתיב שממנו נטען שקף ברשימה, ולתצוגה — שתי המילים האחרונות. */
+function dkPath(f) { return f.indexOf('/') >= 0 ? f : dkDir + '/' + f; }
+function dkShort(f) {
+  var p = dkPath(f).split('/');
+  return p.length > 1 ? p[p.length - 2] + '/' + p[p.length - 1] : p[0];
+}
+/* החלפת התיקייה מחליפה **רק את מה שמעיינים בו**. הרשימה עצמה
+   אינה נוגעת — היא נושאת נתיבים מלאים, ולכן שקפים שכבר נבחרו
+   ממצגת קודמת נשארים בדיוק במקומם. */
 function dkSetDir(v) {
   dkDir = String(v || '').trim().replace(/^\/+|\/+$/g, '') || dkDefDir();
   dkPool = null; dkStash(); admPane(); dkAsk();
@@ -6317,11 +6335,15 @@ function dkPdfPick(inp) {
       dkPdfMsg('bad', 'ההמרה נכשלה: ' + (e && e.message ? e.message : 'שגיאה'));
     });
 }
+/* שני מקומות בשני כרטיסים שונים מדווחים על אותה פעולה, ולכן
+   מחלקה ולא מזהה: מזהה כפול היה מפנה הכול לראשון, וההודעה
+   הייתה מופיעה הרחק מהכפתור שנלחץ. */
 function dkPdfMsg(cls, t) {
-  var el = document.getElementById('dk-pdf-msg');
-  if (el) el.innerHTML = '<p class="h" style="margin-top:8px' +
+  var h = '<p class="h" style="margin-top:8px' +
     (cls === 'ok' ? ';color:var(--ok)' : cls === 'bad' ? ';color:var(--stop)' : '') +
     '">' + esc(t) + '</p>';
+  var all = document.querySelectorAll('.dk-msg');
+  for (var i = 0; i < all.length; i++) all[i].innerHTML = h;
 }
 /* הורדה של כולם ברצף. כרום שואל פעם אחת "לאשר הורדות מרובות",
    וזו התנהגות שלו ולא באג אצלנו. */
@@ -6334,6 +6356,97 @@ function dkPdfAll() {
       document.body.appendChild(a); a.click(); a.remove();
     }, i * 350);
   });
+}
+
+/* ============================================================
+   העלאה ישירה לריפו, בלי לעבור בממשק של GitHub.
+
+   הממשק ההוא נכשל לא-אחת ("Something went really wrong"), ובטלפון
+   במיוחד — וזו תקלה מוכרת שלו ולא שלנו. כאן הקובץ נשלח לסקריפט
+   של הרכז, והוא כותב ל-GitHub עם אסימון שיושב אצלו במאפיינים.
+   אסימון בדפדפן הוא אסימון שדלף, ולכן הוא לא נמצא כאן.
+
+   התשובה אטומה (`no-cors`), כמו בכל כתיבה אצלנו. לכן האימות אינו
+   "נשלח בהצלחה" אלא **שאלה חוזרת ל-GitHub** — הקובץ באמת שם או
+   שלא. ראו את המלכודת בראש CLAUDE.md.
+   ============================================================ */
+function dkPutAll(items, done) {
+  var i = 0, sent = [];
+  function one() {
+    if (i >= items.length) { dkAskUntil(sent, 0, done); return; }
+    var it = items[i++];
+    dkPdfMsg('', 'שולח ' + i + ' מתוך ' + items.length + '…');
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+      action:'ghput', key:(CFG.readKey || ''),
+      path: dkDir + '/' + it.name,
+      b64: it.url.split(',')[1],
+      msg: 'שקף ' + it.name + ' · ' + dkDir
+    }) }).catch(function () {}).then(function () {
+      sent.push(it.name);
+      setTimeout(one, 400);
+    });
+  }
+  one();
+}
+/* שואלים את GitHub עד שהקבצים באמת שם. גיטהאב מעדכן את ה-API
+   תוך שניות, ולכן חמישה ניסיונות בהפרש שתי שניות מספיקים. */
+function dkAskUntil(want, tries, done) {
+  dkPdfMsg('', 'נשלח · מאמת מול GitHub…');
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        dkDir.split('/').map(encodeURIComponent).join('/') +
+        '?ref=main&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (j) {
+      var have = {};
+      (j || []).forEach(function (f) { have[f.name] = 1; });
+      var miss = want.filter(function (n) { return !have[n]; });
+      if (!miss.length) { done(null); return; }
+      if (tries < 5) { setTimeout(function () { dkAskUntil(want, tries + 1, done); }, 2200); return; }
+      done(miss);
+    })
+    .catch(function () {
+      if (tries < 5) { setTimeout(function () { dkAskUntil(want, tries + 1, done); }, 2200); return; }
+      done(want);
+    });
+}
+
+function dkUpload(items) {
+  if (!API) { dkPdfMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!CFG.readKey) {
+    dkPdfMsg('bad', 'צריך סיסמת סקריפט במכשיר — ניהול ← מערכת.'); return;
+  }
+  dkPutAll(items, function (miss) {
+    if (!miss) {
+      dkPdf = null; dkPool = null;
+      admPane();
+      dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים. הוסיפו אותם למצגת מלמעלה.');
+      dkAsk();
+      return;
+    }
+    dkPdfMsg('bad', 'לא הגיעו: ' + miss.join(', ') + ' — צריך GH_TOKEN ' +
+      'ו-GH_REPO במאפייני הסקריפט, וגרסת סקריפט 26 ומעלה ' +
+      '(מערכת ← בדיקת חיבור).');
+  });
+}
+
+/* תמונות שכבר קיימות כקבצים אצלו — אותו מסלול בדיוק. */
+function dkImgPick(inp) {
+  var fs = inp.files;
+  if (!fs || !fs.length) return;
+  var items = [], n = 0;
+  function next() {
+    if (n >= fs.length) { dkUpload(items); return; }
+    var f = fs[n++];
+    var r = new FileReader();
+    r.onload = function () {
+      items.push({ name: f.name.replace(/[^\w.\-]/g, '_'), url: r.result });
+      next();
+    };
+    r.onerror = function () { next(); };
+    r.readAsDataURL(f);
+  }
+  dkPdfMsg('', 'קורא ' + fs.length + ' קבצים…');
+  next();
 }
 
 function admDecks(el) {
@@ -6368,7 +6481,9 @@ function admDecks(el) {
     '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
     'onchange="dkSetTitle(this.value)"></div>' +
 
-    '<div class="fld"><label class="label" for="dk-dir">התיקייה בריפו</label>' +
+    '<div class="fld"><label class="label" for="dk-dir">התיקייה שמעיינים בה' +
+    ' <span style="font-weight:700;color:var(--ink-3)">· אפשר להחליף ' +
+    'ולשלב ממצגת אחרת</span></label>' +
     '<input type="text" id="dk-dir" dir="ltr" value="' + esc(dkDir) +
     '" onchange="dkSetDir(this.value)"></div>' +
 
@@ -6376,8 +6491,13 @@ function admDecks(el) {
     'margin-top:10px" target="_blank" rel="noopener" href="https://github.com/' +
     REPO + '/upload/main/' + esc(dkDir) + '">העלאת שקפים לתיקייה ←</a>' +
     '<p class="h" style="margin-top:6px">נפתח ב-GitHub. גוררים קבצים, ' +
-    '"Commit changes", וזהו — תוך דקה הם באתר. אחר כך חוזרים לכאן ' +
-    'ולוחצים "רענון".</p>' +
+    '"Commit changes", וזהו. <b>אם זה נכשל שם</b> — קורה, וזו תקלה ' +
+    'מוכרת שלהם — השתמשו בהעלאה הישירה כאן:</p>' +
+    '<div class="fld"><label class="label" for="dk-img">העלאת תמונות ' +
+    'ישירות לתיקייה</label>' +
+    '<input type="file" id="dk-img" accept="image/*" multiple ' +
+    'onchange="dkImgPick(this)"></div>' +
+    '<div class="dk-msg"></div>' +
     '<button class="btn g" style="margin-top:8px" onclick="dkPool=null;dkAsk()">' +
     'רענון הרשימה מ-GitHub</button></div>';
 
@@ -6390,12 +6510,12 @@ function admDecks(el) {
     h += dkList.map(function (f, i) {
       return '<div class="row" style="align-items:center;gap:9px">' +
         '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
-        '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
+        '<img loading="lazy" src="' + esc(dkPath(f)) + '" alt="" ' +
         'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
         'border:1px solid var(--rule);background:var(--sunk)">' +
-        '<span style="flex:1;min-width:0;font-size:.74rem;direction:ltr;' +
+        '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
         'text-align:left;color:var(--ink-3);overflow:hidden;' +
-        'text-overflow:ellipsis">' + esc(f) + '</span>' +
+        'text-overflow:ellipsis">' + esc(dkShort(f)) + '</span>' +
         '<button class="back" onclick="dkUp(' + i + ')"' +
         (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
         '<button class="back" onclick="dkDown(' + i + ')"' +
@@ -6411,20 +6531,24 @@ function admDecks(el) {
   if (dkPool === null) {
     h += '<p class="h">שואל את GitHub…</p>';
   } else {
-    var rest = dkPool.filter(function (f) { return dkList.indexOf(f) < 0; });
+    var rest = dkPool.filter(function (f) {
+      return dkList.indexOf(dkDir + '/' + f) < 0 && dkList.indexOf(f) < 0;
+    });
     if (!dkPool.length) {
       h += '<p class="h">התיקייה <span dir="ltr">' + esc(dkDir) + '</span> ריקה ' +
            'או שאינה קיימת עדיין. העלו אליה שקפים בכפתור שלמעלה.</p>';
     } else if (!rest.length) {
       h += '<p class="h">כל ' + dkPool.length + ' הקבצים שבתיקייה כבר במצגת.</p>';
     } else {
-      h += '<p class="h">קיימים בתיקייה ואינם במצגת:</p>' +
+      h += '<p class="h">קיימים ב-<span dir="ltr">' + esc(dkDir) +
+        '</span> ואינם במצגת. <b>אפשר להחליף תיקייה למעלה</b> ולהוסיף ' +
+        'שקפים ממצגת שנייה — הם נשזרים באותה רשימה.</p>' +
         rest.map(function (f) {
           return '<div class="row" style="align-items:center;gap:9px">' +
             '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
             'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
             'border:1px solid var(--rule);background:var(--sunk)">' +
-            '<span style="flex:1;min-width:0;font-size:.74rem;direction:ltr;' +
+            '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
             'text-align:left;color:var(--ink-3);overflow:hidden;' +
             'text-overflow:ellipsis">' + esc(f) + '</span>' +
             '<button class="back" onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
@@ -6443,10 +6567,14 @@ function admDecks(el) {
     '<div class="fld"><label class="label" for="dk-pdf">קובץ PDF</label>' +
     '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" ' +
     'onchange="dkPdfPick(this)"></div>' +
-    '<div id="dk-pdf-msg"></div>';
+    '<div class="dk-msg"></div>';
   if (dkPdf && dkPdf.length) {
-    h += '<button class="btn gd" style="margin-top:8px" onclick="dkPdfAll()">' +
-      'הורדת כל ' + dkPdf.length + ' השקפים</button>' +
+    h += '<button class="btn gd" style="margin-top:8px" onclick="dkUpload(dkPdf)">' +
+      'העלאת ' + dkPdf.length + ' השקפים לתיקייה ←</button>' +
+      '<p class="h" style="margin:6px 0 10px">ישירות לריפו, בלי לעבור ' +
+      'ב-GitHub. אם זה לא מוגדר עדיין — אפשר להוריד ולגרור:</p>' +
+      '<button class="btn g" onclick="dkPdfAll()">' +
+      'הורדת ' + dkPdf.length + ' השקפים למכשיר</button>' +
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;' +
       'margin-top:10px">' +
       dkPdf.map(function (sl) {
