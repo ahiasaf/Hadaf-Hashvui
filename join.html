@@ -653,6 +653,7 @@ footer a{color:var(--ink-2);font-weight:800}
 
 <script src="a11y.js"></script>
 <script src="data.js"></script>
+<script src="deck.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
@@ -1483,6 +1484,10 @@ function setTrack(t) {
 
 /* הבאנר של מסך הפתיחה — לפני ההרשמה. אותה במה בדיוק שרואה
    מי שכבר נרשם, ולכן אין כאן הבטחה שתתברר אחר כך כשונה. */
+DeckLoad().then(function (ok) {
+  if (ok) { try { drawHero(); } catch (e) {} }
+});
+
 function drawHero() {
   var box = $('wk0'); if (!box) return;
   box.innerHTML = StageHtml({ track:myTrack(), pick:'setTrack',

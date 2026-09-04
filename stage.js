@@ -47,9 +47,12 @@ function StEsc(s) {
     return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
   });
 }
-function StSlide(c, n) {
-  var p = c.deck.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
-  return (typeof SLIDE_DATA !== 'undefined' && SLIDE_DATA[p]) || p;
+/* המצגת מגיעה מ-deck.js — הסדר שם, לא בשמות הקבצים. */
+function StDeck(tr, i) {
+  return (typeof DeckOf === 'function') ? DeckOf(tr.id, i + 1) : null;
+}
+function StSlide(dk, n) {
+  return (typeof DeckSrc === 'function') ? DeckSrc(dk, n) : '';
 }
 
 /* o.track  — מזהה המסכת המוצגת
@@ -84,14 +87,15 @@ function StageHtml(o) {
        '<h2>' + StEsc(c ? c.title : (row[2] ? 'דף ' + row[2] : row[1])) + '</h2>' +
        '<div class="meta">' + StEsc(row[1]) + ' · ' + StEsc(row[0]) + '</div>';
 
-  if (c && c.deck) {
+  var dk = StDeck(tr, i);
+  if (dk) {
     /* הכפתור הלבן מוביל לדף, והקטן למצגת — ולא להפך.
 
        נבדק על אנשים: היד הולכת לכפתור הגדול והבולט, ולכן הוא
        חייב להוביל לעיקר. המצגת לא איבדה מקום — השקף שמעליהם
        הוא בעצמו לחיצה שפותחת אותה, וזה יעד גדול מכל כפתור. */
     s += '<div class="showcase"><div class="frame" onclick="' + call(o.deck) + '">' +
-         '<img src="' + StSlide(c, 1) + '" alt="השקף הראשון"></div></div>' +
+         '<img src="' + StSlide(dk, 1) + '" alt="השקף הראשון"></div></div>' +
          '<div class="acts">' +
          '<button class="go" onclick="' + call(o.week) + '">' + StEsc(UI.deckGo) + '</button>' +
          '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>' +

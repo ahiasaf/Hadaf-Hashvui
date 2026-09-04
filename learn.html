@@ -624,6 +624,7 @@ nav .sp{flex:1}
      עצמה נשענת עליהם. אין כאן מאגר נפרד. -->
 <script src="a11y.js"></script>
 <script src="data.js"></script>
+<script src="deck.js"></script>
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script type="module">
@@ -1276,14 +1277,18 @@ var SIDE_ADM = false;
 function dmKey(mas, daf) { return mas + '|' + dafKey(daf); }
 
 /* המצגת של הדף שעל המסך. השבוע הוא המפתח, כי הלוח הוא שקובע
-   איזה דף שייך לאיזה שבוע — ואין צורך בטבלה נוספת. */
+   איזה דף שייך לאיזה שבוע — ואין צורך בטבלה נוספת.
+   הרשימה עצמה מגיעה מ-deck.js: הקבצים בריפו, הסדר בגיליון. */
 function deckOf() {
-  if (S.week < 0 || typeof CONTENT === 'undefined') return null;
-  var c = CONTENT[S.mas + '-' + (S.week + 1)];
-  return (c && c.deck && c.deck.dir && c.deck.n) ? c.deck : null;
+  if (S.week < 0) return null;
+  return DeckOf(S.mas, S.week + 1);
 }
 function slideSrc(n) {
-  return DECK.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
+  return DeckSrc(DECK, n);
+}
+/* כמה שקפים יש. היה `DECK.n`, ועכשיו זה אורך הרשימה. */
+function deckN() {
+  return DECK ? DECK.files.length : 0;
 }
 
 /* הלשונית כולה. `null` = הקריאה נכשלה או שחזרה לשונית אחרת;
@@ -1323,7 +1328,7 @@ function slideAt(idx) {
     if (!(at >= 0) || at > st.n) continue;
     if (at >= bestAt) { bestAt = at; best = ANCH[k]; }
   }
-  return Math.max(1, Math.min(DECK ? DECK.n : 1, best));
+  return Math.max(1, Math.min(deckN() || 1, best));
 }
 
 /* ---------- פתיחה, סגירה, מצבי הטלפון ---------- */
@@ -1369,7 +1374,7 @@ function sidePaint() {
     '<div class="sd-h">' +
     /* מספר השקף מוצג רק למי שמשייך — הוא הכלי שלו. לתלמיד הוא
        מבטיח שליטה שאינה קיימת: המצגת נוסעת עם הדף. */
-    (SIDE_ADM ? '<span class="sd-n">שקף ' + SLIDE + ' מתוך ' + DECK.n + '</span>' : '') +
+    (SIDE_ADM ? '<span class="sd-n">שקף ' + SLIDE + ' מתוך ' + deckN() + '</span>' : '') +
     '<span class="sp"></span>' +
     (phone ? '<button id="sd-big" title="הגדלה">' + (big ? '⤡' : '⤢') + '</button>' +
              '<button id="sd-x" title="סגירה">✕</button>' : '') +
@@ -1394,14 +1399,14 @@ function sidePaint() {
   $('sd-prev').onclick = function () { sideStep(-1); };
   $('sd-next').onclick = function () { sideStep(1); };
   $('sd-prev').disabled = SLIDE <= 1;
-  $('sd-next').disabled = SLIDE >= DECK.n;
+  $('sd-next').disabled = SLIDE >= deckN();
   var lbl = $('sd-lbl');
   if (lbl) lbl.textContent = (SIDE_ADM && !ANCH) ? 'אין עדיין שיוך' : '';
   sideAdmPaint();
 }
 function sideStep(d) {
   var n = SLIDE + d;
-  if (n < 1 || n > DECK.n) return;
+  if (n < 1 || n > deckN()) return;
   SLIDE = n;
   sidePaint();
 }
@@ -2034,8 +2039,14 @@ function boot() {
         go(0);
         try { resumePos(); } catch (e) {}
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
-           רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל. */
-        try { sideInit(); } catch (e) {}
+           רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
+
+           ו**אחרי** DeckLoad: הרשימה קובעת כמה שקפים יש ומה
+           סדרם, ו-sideInit נשען עליה. בלי ההמתנה המצגת נבנית
+           מהקוד ומתחלפת רגע אחר כך מול עיני התלמיד. */
+        DeckLoad()['catch'](function () {}).then(function () {
+          try { sideInit(); } catch (e) {}
+        });
         var seen = false;
         try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
         /* לא כאן — השער פותח אותו כשהוא נסגר, אחרת שני מסכים

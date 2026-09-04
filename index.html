@@ -1553,12 +1553,13 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="a11y.js"></script>
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script src="deck.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.73.0';
+var APP_VERSION = '7.74.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1657,13 +1658,6 @@ function contentFor(id) {
   var tr = trackById(id), i = weekOf(tr);
   return { tr:tr, i:i, row:tr.cal[i], c:CONTENT[id + '-' + (i + 1)] };
 }
-/* הבנאי היחיד של נתיב שקף. בגרסה העצמאית השקפים מוטמעים תחת
-   אותו מפתח בדיוק, ולכן אין כאן שני מסלולים שיכולים להיפרד. */
-function slideSrc(c, n) {
-  var p = c.deck.dir + '/' + (n < 10 ? '0' + n : n) + '.jpg';
-  return (typeof SLIDE_DATA !== 'undefined' && SLIDE_DATA[p]) || p;
-}
-
 /* עטיפות בלי ארגומנטים — stage.js אינו מכיר את המסלול הנוכחי
    ואינו צריך להכיר. */
 function openWeekNow()  { openWeek(homeTrack, weekOf(trackById(homeTrack))); }
@@ -1674,6 +1668,14 @@ function pickTrack(id) {
   localStorage.setItem('dfHomeTrack', id);
   renderHome();
 }
+
+/* המצגות: המטמון כבר בזיכרון מרגע טעינת deck.js, והרשת רק
+   מעדכנת. ציור חוזר רק אם באמת השתנה משהו. */
+DeckLoad().then(function (ok) {
+  if (ok && typeof renderHome === 'function') {
+    try { renderHome(); } catch (e) {}
+  }
+});
 
 function renderHome() {
   tourLauncher();
@@ -2912,11 +2914,12 @@ function openWeek(id, i) {
               '<button class="btn gr" onclick="openQuiz()">לחידה — ולהגרלה</button>';
 
   /* 3. המצגת — כלי עזר, ולכן אחרונה */
-  if (c && c.deck) {
+  var dk = DeckOf(id, i + 1);
+  if (dk) {
     state.deck = [];
-    for (var n = 1; n <= c.deck.n; n++)
-      state.deck.push({ img: slideSrc(c, n) });
-    h += '<div class="sec" style="margin-top:20px"><b>מצגת עזר · ' + c.deck.n +
+    for (var n = 1; n <= dk.files.length; n++)
+      state.deck.push({ img: DeckSrc(dk, n) });
+    h += '<div class="sec" style="margin-top:20px"><b>מצגת עזר · ' + dk.files.length +
          ' שקפים</b><i></i></div>' +
          '<button class="btn p" onclick="deckOpen()">▶ הצגה על המסך</button>' +
          '<div class="thumbs">';
@@ -4690,7 +4693,7 @@ function paintAdmChip() {
 var SUB = {
   what:  [['reg','הרשמות'], ['part','משתתפים'],
           ['calls','שיחות'], ['data','נתונים']],
-  show:  [['screens','מסכים'], ['price','מחירים'],
+  show:  [['screens','מסכים'], ['decks','מצגות'], ['price','מחירים'],
           ['sugya','הסוגיה'], ['text','מלל']]
 };
 var admSub = {};
@@ -4735,6 +4738,7 @@ function admPane() {
     }
   }
   if (admTab === 'show') {
+    if (sub === 'decks') return admDecks(body);
     if (sub === 'price') return admPrice(body);
     if (sub === 'sugya') return admSugya(body);
     if (sub === 'text')  return admText(body);
@@ -6097,6 +6101,225 @@ function textPubRows() {
     if (typeof v === 'string' && v !== '') rows.push({ key:f.k, value:v });
   });
   return rows;
+}
+
+/* ============================================================
+   מצגות — הסדר כאן, הקבצים ב-GitHub.
+
+   למה זו החלוקה: קובץ שיושב בריפו מוגש מה-CDN של ורסל, כלומר
+   מיידית ובלי שום מכסה, גם אם כל התלמידים פותחים את המצגת
+   באותה שנייה. Apps Script ודרייב אינם בנויים לזה — הם הצוואר
+   שממנו הוצאו דפי הגמרא, ואין סיבה להחזיר אליו את השקפים.
+
+   אבל סדר אינו יכול לגור בשמות הקבצים: דחיפת שקף באמצע הייתה
+   מחייבת לשנות שם לכל מה שאחריו, כלומר להעלות הכול מחדש. לכן
+   הסדר יושב בגיליון, ושינוי סדר אינו נוגע בקובץ אחד.
+
+   הרשימה "מה קיים בתיקייה" מגיעה מ-GitHub עצמו. אין רשימה
+   שנייה שאפשר לשכוח לעדכן — התיקייה היא האמת.
+   ============================================================ */
+var dkSel  = null;   /* {mas, wk} */
+var dkDir  = '';     /* התיקייה בריפו */
+var dkList = [];     /* הסדר — מה שנשמר */
+var dkPool = null;   /* מה שיש בתיקייה בפועל; null = טרם נשאל */
+var dkBusy = false;
+
+function dkKey() { return dkSel.mas + '-' + dkSel.wk; }
+function dkDefDir() { return 'slides/' + dkSel.mas + '-' + dkSel.wk; }
+
+/* המצב הנוכחי: מה שנערך במכשיר, ואם אין — מה שבגיליון, ואם אין
+   — מה שבקוד. אותה שרשרת שלוש-שכבות שיש למלל. */
+function dkLoadSel() {
+  var draft = (CV('decks') || {})[dkKey()];
+  if (draft) { dkDir = draft.dir; dkList = draft.files.slice(); return; }
+  var d = DeckOf(dkSel.mas, dkSel.wk);
+  if (d) { dkDir = d.dir; dkList = d.files.slice(); return; }
+  dkDir = dkDefDir(); dkList = [];
+}
+function dkStash() {
+  var c = CV('decks') || {};
+  c[dkKey()] = { dir: dkDir, files: dkList.slice() };
+  cfgSet('decks', c);
+}
+
+function dkGo(mas, wk) {
+  dkSel = { mas: mas, wk: wk };
+  dkPool = null;
+  dkLoadSel();
+  admPane();
+  dkAsk();
+}
+function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
+function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
+function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); }
+function dkAdd(f)  { if (dkList.indexOf(f) < 0) dkList.push(f); dkStash(); admPane(); }
+function dkSetDir(v) {
+  dkDir = String(v || '').trim().replace(/^\/+|\/+$/g, '') || dkDefDir();
+  dkPool = null; dkStash(); admPane(); dkAsk();
+}
+
+/* מה באמת יושב בתיקייה. GitHub עונה לכל אתר ובלי סיסמה, והריפו
+   ציבורי ממילא. תשובה 404 = התיקייה עוד לא קיימת, וזה מצב חוקי
+   של שבוע שטרם הועלתה לו מצגת. */
+function dkAsk() {
+  if (!dkSel || dkBusy) return;
+  dkBusy = true;
+  var want = dkDir;
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        want.split('/').map(encodeURIComponent).join('/') + '?ref=main')
+    .then(function (r) { return r.status === 404 ? [] : (r.ok ? r.json() : null); })
+    .then(function (j) {
+      dkBusy = false;
+      if (want !== dkDir) return;          /* התיקייה הוחלפה בינתיים */
+      if (!j || !j.length && !Array.isArray(j)) { dkPool = null; admPane(); return; }
+      var out = [];
+      j.forEach(function (f) {
+        if (f.type === 'file' && /\.(jpe?g|png|webp)$/i.test(f.name)) out.push(f.name);
+      });
+      out.sort();
+      dkPool = out;
+      admPane();
+    })
+    .catch(function () { dkBusy = false; dkPool = null; admPane(); });
+}
+
+function dkSave() {
+  if (!API) { dkMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  var c = CV('decks') || {}, rows = [], k;
+  for (k in c) {
+    if (!c.hasOwnProperty(k)) continue;
+    var parts = k.split('-'), wk = parts.pop(), mas = parts.join('-');
+    rows.push([mas, wk, c[k].dir, c[k].files.join(',')]);
+  }
+  dkMsg('', 'נשלח · מאמת מול הגיליון…');
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:DECK_SHEET,
+    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים']),
+    rows:JSON.stringify(rows)
+  }) }).catch(function () {});
+  dkVerify(0);
+}
+/* `no-cors` תמיד "מצליח" — התשובה אטומה. לכן קריאה חוזרת
+   שמאמתת שמה שנשלח באמת יושב בגיליון. */
+function dkVerify(tries) {
+  setTimeout(function () {
+    DeckLoad().then(function () {
+      var mine = (CV('decks') || {})[dkKey()];
+      var live = DECKS && DECKS[dkKey()];
+      if (live && mine && live.files.join(',') === mine.files.join(',')) {
+        dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.');
+        return;
+      }
+      if (tries < 4) { dkVerify(tries + 1); return; }
+      dkMsg('bad', 'לא הצלחתי לאמת שהשמירה הגיעה לגיליון. נסו שוב.');
+    });
+  }, tries ? 2500 : 1400);
+}
+function dkMsg(cls, t) {
+  var el = document.getElementById('dk-msg');
+  if (el) el.innerHTML = '<p class="h" style="margin-top:9px' +
+    (cls === 'ok' ? ';color:var(--ok)' : cls === 'bad' ? ';color:var(--stop)' : '') +
+    '">' + esc(t) + '</p>';
+}
+
+function admDecks(el) {
+  if (!dkSel) { dkSel = { mas: homeTrack, wk: Math.max(1, weekOf(trackById(homeTrack)) + 1) };
+                dkLoadSel(); dkAsk(); }
+  var tr = trackById(dkSel.mas);
+  var row = tr.cal[dkSel.wk - 1] || ['', '', ''];
+
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>המצגת של השבוע</h4>' +
+    '<p class="h">הקבצים יושבים ב-GitHub ומוגשים מהאתר — מיידי, ובלי ' +
+    'תלות בשום שרת. כאן קובעים <b>אילו שקפים</b> ו<b>באיזה סדר</b>.</p>' +
+
+    '<div class="tabs" style="margin-bottom:10px">' +
+    TRACKS.map(function (x) {
+      return '<button class="' + (x.id === dkSel.mas ? 'on' : '') +
+             '" onclick="dkGo(\'' + x.id + '\',' + dkSel.wk + ')">' +
+             esc(x.masechet) + '</button>';
+    }).join('') + '</div>' +
+
+    '<div class="fld"><div class="label">שבוע</div>' +
+    '<select onchange="dkGo(\'' + dkSel.mas + '\',+this.value)">' +
+    tr.cal.map(function (r, k) {
+      if (!r[2] || r[2] === 'סיום') return '';
+      return '<option value="' + (k + 1) + '"' + (k + 1 === dkSel.wk ? ' selected' : '') +
+             '>שבוע ' + (k + 1) + ' · ' + esc(r[1]) + ' · דף ' + esc(r[2]) + '</option>';
+    }).join('') + '</select></div>' +
+
+    '<div class="fld"><div class="label">התיקייה בריפו</div>' +
+    '<input type="text" dir="ltr" value="' + esc(dkDir) +
+    '" onchange="dkSetDir(this.value)"></div>' +
+
+    '<a class="btn gd" style="display:block;text-align:center;text-decoration:none;' +
+    'margin-top:10px" target="_blank" rel="noopener" href="https://github.com/' +
+    REPO + '/upload/main/' + esc(dkDir) + '">העלאת שקפים לתיקייה ←</a>' +
+    '<p class="h" style="margin-top:6px">נפתח ב-GitHub. גוררים קבצים, ' +
+    '"Commit changes", וזהו — תוך דקה הם באתר. אחר כך חוזרים לכאן ' +
+    'ולוחצים "רענון".</p>' +
+    '<button class="btn g" style="margin-top:8px" onclick="dkPool=null;dkAsk()">' +
+    'רענון הרשימה מ-GitHub</button></div>';
+
+  /* ---- המצגת עצמה ---- */
+  h += '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>הסדר · ' + dkList.length + ' שקפים</h4>';
+  if (!dkList.length) {
+    h += '<p class="h">אין עדיין שקפים במצגת של שבוע זה. הוסיפו מהרשימה שלמטה.</p>';
+  } else {
+    h += dkList.map(function (f, i) {
+      return '<div class="row" style="align-items:center;gap:9px">' +
+        '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
+        '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
+        'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
+        'border:1px solid var(--rule);background:var(--sunk)">' +
+        '<span style="flex:1;min-width:0;font-size:.74rem;direction:ltr;' +
+        'text-align:left;color:var(--ink-3);overflow:hidden;' +
+        'text-overflow:ellipsis">' + esc(f) + '</span>' +
+        '<button class="back" onclick="dkUp(' + i + ')"' +
+        (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
+        '<button class="back" onclick="dkDown(' + i + ')"' +
+        (i === dkList.length - 1 ? ' disabled' : '') + ' aria-label="הורדה">↓</button>' +
+        '<button class="back" onclick="dkDel(' + i + ')" aria-label="הסרה">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+  h += '</div>';
+
+  /* ---- מה שבתיקייה ואינו במצגת ---- */
+  h += '<div class="adm-card" style="margin-bottom:11px"><h4>בתיקייה</h4>';
+  if (dkPool === null) {
+    h += '<p class="h">שואל את GitHub…</p>';
+  } else {
+    var rest = dkPool.filter(function (f) { return dkList.indexOf(f) < 0; });
+    if (!dkPool.length) {
+      h += '<p class="h">התיקייה <span dir="ltr">' + esc(dkDir) + '</span> ריקה ' +
+           'או שאינה קיימת עדיין. העלו אליה שקפים בכפתור שלמעלה.</p>';
+    } else if (!rest.length) {
+      h += '<p class="h">כל ' + dkPool.length + ' הקבצים שבתיקייה כבר במצגת.</p>';
+    } else {
+      h += '<p class="h">קיימים בתיקייה ואינם במצגת:</p>' +
+        rest.map(function (f) {
+          return '<div class="row" style="align-items:center;gap:9px">' +
+            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
+            'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
+            'border:1px solid var(--rule);background:var(--sunk)">' +
+            '<span style="flex:1;min-width:0;font-size:.74rem;direction:ltr;' +
+            'text-align:left;color:var(--ink-3);overflow:hidden;' +
+            'text-overflow:ellipsis">' + esc(f) + '</span>' +
+            '<button class="back" onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
+            '</div>';
+        }).join('');
+    }
+  }
+  h += '</div>';
+
+  h += '<div class="adm-card"><h4>פרסום</h4>' +
+    '<p class="h">עד הפרסום השינוי חי במכשיר הזה בלבד. פרסום מחיל ' +
+    'אותו על כל התלמידים.</p>' +
+    '<button class="btn gd" onclick="dkSave()">פרסום המצגות</button>' +
+    '<div id="dk-msg"></div></div>';
+
+  el.innerHTML = h;
 }
 
 /* ---- מחירים ----
