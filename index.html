@@ -1558,7 +1558,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.72.0';
+var APP_VERSION = '7.73.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6401,6 +6401,16 @@ function admInstall() {
 
 function admSet(el) {
   el.innerHTML =
+    /* ---- זמני ---- בדיקת שקפים מדרייב. הקישור כאן ולא בהודעה,
+       כי כתובת האתר אינה שמורה בשום מקום בקוד — הכל יחסי — ואין
+       סיבה שמישהו יצטרך להקליד אותה. יורד יחד עם slidetest.html. */
+    '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>בדיקת שקפים מדרייב</h4>' +
+    '<p class="h">בדיקה חד־פעמית: האם תמונה מדרייב נטענת אצל תלמיד. ' +
+    'לפתוח <b>בגלישה בסתר</b>, ולבדוק על קובץ <b>JPG</b>.</p>' +
+    '<a class="btn gd" style="text-align:center;display:block;' +
+    'text-decoration:none" href="slidetest.html">לעמוד הבדיקה ←</a></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>יעדי שליחה</h4>' +
     '<p class="h">כל עוד אין כתובת שרת, הרשמות נשלחות כהודעת וואטסאפ לרכז.</p>' +
     '<div class="fld"><div class="label">וואטסאפ של הרכז (972…)</div>' +
