@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>זכויות · הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<style>
+/* ============================================================
+   עמוד הזכויות הפומבי · /credits
+
+   אל תבלבל בינו לבין `rights.html` — זה עמוד הפנייה להוצאה,
+   מכתב שנשלח פעם אחת. העמוד הזה הוא הצהרה שיושבת באתר לתמיד
+   ומקושרת מכל מסך.
+
+   מה החוק דורש כאן: כלום. זכות יוצרים קמה עם היצירה, בלי
+   רישום ובלי הודעה, ואמנת ברן אוסרת להתנות הגנה בפורמליות.
+   הסימן © הוא שריד מהחוק האמריקאי הישן. הערך שלו הוא ראייתי
+   בלבד — שם שמופיע על היצירה בדרך המקובלת מקים חזקה שהוא
+   היוצר, והנטל עובר לצד שכנגד. לכן די בעמוד מקושר, ואין צורך
+   בשורה בעמוד הבית.
+
+   הסדר אינו מקרי, והוא מה שמאפשר לעמוד להיקרא כהוקרה ולא
+   כהכרזה: מי שנתן לנו רשות בא ראשון, ומי שבנה בא אחרון.
+   כשהקורא מגיע לשורת ה-© האחרונה הוא כבר קרא שתיים כמותה,
+   והיא נקראת כהשלמת רשימה.
+
+   ניסוח שכל מילה בו נשקלה — אל תשפר אותו בלי לשאול:
+   "ביוזמה אישית" · "בזמנו הפנוי" · "פתוח לשימושם של לומדים
+   ומסגרות שונות" · "הועמד לרשות" (רישיון, לא מסירה) · "ללא
+   תמורה וללא הגבלת זמן". כל אחד מהם נושא משקל.
+
+   המלל כולו מגיע מ-`CRED` שב-data.js דרך שלוש השכבות של
+   textedit.js, כדי שיהיה ניתן לעריכה מהניהול בלי נגיעה בקוד —
+   ובעיקר כדי שסעיף הביאור יוכל להתמלא ביום שהוא יעלה, בלי
+   גרסה חדשה.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --ink-3:#5C687E; --rule:#E5DAC3;
+}
+*{box-sizing:border-box}
+img:not([src]){visibility:hidden}
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.9;
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+.wrap{max-width:36rem;margin:0 auto;padding:0 22px 54px}
+
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 26px) 20px 28px;text-align:center}
+header img{height:44px;margin-bottom:10px}
+header h1{margin:0;font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
+
+.lead{font-size:1.02rem;color:var(--ink-2);margin:26px 0 0}
+
+/* כל סעיף הוא כרטיס אחד: שם היצירה, שורת הזכות, וההערה.
+   אותה צורה לשלושתם — וזו הצורה שמשווה בין הנותנים. */
+.item{background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+  padding:17px 19px;margin-top:14px}
+.item h2{margin:0;font-size:1.02rem;font-weight:800;color:var(--blue-d);
+  letter-spacing:-.02em}
+.item .line{margin:5px 0 0;font-size:.97rem;font-weight:700}
+.item .note{margin:6px 0 0;font-size:.92rem;color:var(--ink-2);
+  white-space:pre-line}
+.item .note b{color:var(--ink)}
+.item a{color:var(--blue);font-weight:700}
+.item .body{margin:6px 0 0;font-size:.95rem;color:var(--ink-2);
+  white-space:pre-line}
+
+:focus-visible{outline:3px solid #fff;outline-offset:0;
+  box-shadow:0 0 0 6px #0B2550}
+
+hr{border:0;border-top:1px solid var(--rule);margin:34px 0 0}
+footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
+  margin-top:22px;line-height:1.9}
+footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="logo" alt="בני עקיבא">
+  <h1 id="t-title">זכויות</h1>
+</header>
+
+<main class="wrap">
+
+  <p class="lead" id="t-lead"></p>
+
+  <div class="item">
+    <h2 id="t-gemH"></h2>
+    <p class="line" id="t-gem"></p>
+    <p class="note" id="t-gemNote"></p>
+    <p class="note" id="gem-buy"></p>
+  </div>
+
+  <div class="item">
+    <h2 id="t-chavH"></h2>
+    <p class="line" id="t-chav"></p>
+    <p class="note" id="t-chavNote"></p>
+  </div>
+
+  <!-- הביאור של הרכז. ריק כל עוד לא עלה, ואז הכרטיס אינו מוצג
+       כלל — עדיף בלי סעיף מסעיף שממתין למילוי. -->
+  <div class="item" id="own-card" hidden>
+    <h2 id="t-ownH"></h2>
+    <p class="line" id="t-ownLine"></p>
+    <p class="note" id="t-own"></p>
+  </div>
+
+  <div class="item">
+    <h2 id="t-dafH"></h2>
+    <p class="body" id="t-daf"></p>
+    <p class="line" id="t-dafLine"></p>
+  </div>
+
+  <hr>
+  <footer>
+    רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
+    <a href="accessibility.html">הצהרת נגישות</a>
+  </footer>
+</main>
+
+<script src="a11y.js"></script>
+<script src="data.js"></script>
+<script src="textedit.js"></script>
+<script src="logo.js"></script>
+<script>
+document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
+
+function draw() {
+  var C = window.CRED || {};
+  var keys = ['title','lead','gemH','gem','gemNote','chavH','chav','chavNote',
+              'ownH','own','ownLine','dafH','daf','dafLine'];
+  keys.forEach(function (k) {
+    var el = document.getElementById('t-' + k);
+    if (el) el.innerHTML = C[k] || '';
+  });
+  document.title = (C.title || 'זכויות') + ' · הדף השבועי של בני עקיבא';
+
+  /* קישור הרכישה — בקשה של ההוצאה, ולכן הוא קישור ולא טקסט.
+     כתובת ריקה = בלי קישור, ולא קישור מומצא. */
+  var buy = document.getElementById('gem-buy');
+  buy.innerHTML = (C.gemUrl && C.gemBuy)
+    ? '<a href="' + C.gemUrl + '" target="_blank" rel="noopener">' +
+      C.gemBuy + ' ←</a>'
+    : '';
+
+  /* כרטיס הביאור מופיע רק כשיש בו תוכן */
+  var own = document.getElementById('own-card');
+  own.hidden = !((C.ownH || '').trim() || (C.own || '').trim());
+}
+function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
+relayer();
+
+TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
+
+/* ומה שפורסם בגיליון — לכל מי שאינו הרכז. */
+(function () {
+  var id = window.SHEET_ID;
+  try {
+    var c2 = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (c2.sheetId) id = c2.sheetId;
+  } catch (e) {}
+  if (!id || !navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('טקסטים') +
+        '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var map = {}, rows = [], row = [], f = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var ch = t[i];
+        if (q) {
+          if (ch === '"' && t[i+1] === '"') { f += '"'; i++; }
+          else if (ch === '"') q = false; else f += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ',') { row.push(f); f = ''; }
+        else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+        else if (ch !== '\r') f += ch;
+      }
+      if (f || row.length) { row.push(f); rows.push(row); }
+      /* כותרת שאינה מוכרת = לא הלשונית שביקשנו. לא נוגעים. */
+      if (!rows.length || rows[0].join('|').indexOf('מפתח') < 0) return;
+      rows.slice(1).forEach(function (r2) {
+        var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
+        if (k && v) map[k] = v;
+      });
+      try { localStorage.setItem('df:textCache', JSON.stringify(map)); } catch (e) {}
+      relayer();
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>
