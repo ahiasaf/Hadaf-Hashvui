@@ -179,7 +179,7 @@ function draw() {
 
   /* שדה שרוקן בניהול לא ישאיר רווח: פסקה ריקה עדיין נושאת
      שוליים, ואז נראה כאילו חסר שם משהו. */
-  ['lead','verBy'].forEach(function (k) {
+  ['lead','verBy','dafLine'].forEach(function (k) {
     var el = document.getElementById('t-' + k);
     if (el) el.hidden = !(el.innerHTML || '').replace(/\s|&nbsp;/g, '');
   });
