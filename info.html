@@ -3,37 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>זכויות · הדף השבועי של בני עקיבא</title>
+<title>פרטים · הדף השבועי של בני עקיבא</title>
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0E2E63">
 <style>
 /* ============================================================
-   עמוד הזכויות הפומבי · /credits
+   עמוד הפרטים · /info
 
-   אל תבלבל בינו לבין `rights.html` — זה עמוד הפנייה להוצאה,
-   מכתב שנשלח פעם אחת. העמוד הזה הוא הצהרה שיושבת באתר לתמיד
-   ומקושרת מכל מסך.
+   אל תבלבל בינו לבין `rights.html` — זה מכתב הפנייה להוצאה,
+   שנשלח פעם אחת. זה עמוד שמקושר מכל מסך.
 
-   מה החוק דורש כאן: כלום. זכות יוצרים קמה עם היצירה, בלי
-   רישום ובלי הודעה, ואמנת ברן אוסרת להתנות הגנה בפורמליות.
-   הסימן © הוא שריד מהחוק האמריקאי הישן. הערך שלו הוא ראייתי
-   בלבד — שם שמופיע על היצירה בדרך המקובלת מקים חזקה שהוא
-   היוצר, והנטל עובר לצד שכנגד. לכן די בעמוד מקושר, ואין צורך
-   בשורה בעמוד הבית.
+   למה הכל כאן ולמה הנגישות בנפרד
+   ------------------------------
+   הצהרת הנגישות חייבת קישור משלה — תקנה 35 דורשת "מקום
+   בולט", ולכן היא נשארה עומדת בפני עצמה, וכאן יש רק תמצית
+   וקישור אליה. לשאר אין דרישת מיקום כלל: הודעת זכויות
+   יוצרים אינה חובה בשום צורה (הזכות קמה עם היצירה, בלי
+   רישום ובלי הודעה; ערכה ראייתי בלבד), וחובת היידוע על
+   פרטיות מתקיימת בנקודת האיסוף — בטופס ההצטרפות, ששם היא
+   כתובה. העמוד הזה הוא ההרחבה, לא התחליף.
 
-   הסדר אינו מקרי, והוא מה שמאפשר לעמוד להיקרא כהוקרה ולא
-   כהכרזה: מי שנתן לנו רשות בא ראשון, ומי שבנה בא אחרון.
-   כשהקורא מגיע לשורת ה-© האחרונה הוא כבר קרא שתיים כמותה,
-   והיא נקראת כהשלמת רשימה.
+   הסדר
+   ----
+   פרטיות ראשונה — זה מה שהורה בא לחפש. זכויות אחרונות,
+   ובתוכן מי שנתן רשות קודם למי שבנה: כשהקורא מגיע לשורת
+   ה-© האחרונה הוא כבר קרא שתיים כמותה, והיא נקראת כהשלמת
+   רשימה ולא כהכרזה.
 
-   ניסוח שכל מילה בו נשקלה — אל תשפר אותו בלי לשאול:
-   "ביוזמה אישית" · "בזמנו הפנוי" · "פתוח לשימושם של לומדים
-   ומסגרות שונות" · "הועמד לרשות" (רישיון, לא מסירה) · "ללא
-   תמורה וללא הגבלת זמן". כל אחד מהם נושא משקל.
+   סעיף הפרטיות מתאר את מה שהקוד עושה בפועל — אלה בדיוק
+   השדות שבטופס ההצטרפות. אם ישתנה שדה, לתקן גם כאן.
 
-   המלל כולו מגיע מ-`CRED` שב-data.js דרך שלוש השכבות של
-   textedit.js, כדי שיהיה ניתן לעריכה מהניהול בלי נגיעה בקוד —
-   ובעיקר כדי שסעיף הביאור יוכל להתמלא ביום שהוא יעלה, בלי
+   הכל ניתן לעריכה מהניהול דרך שלוש השכבות של textedit.js,
+   כדי שסעיף הביאור של הרכז יוכל להתמלא ביום שהוא יעלה בלי
    גרסה חדשה.
    ============================================================ */
 :root{
@@ -54,19 +55,31 @@ header h1{margin:0;font-size:1.3rem;font-weight:800;letter-spacing:-.02em}
 
 .lead{font-size:1.02rem;color:var(--ink-2);margin:26px 0 0}
 
-/* כל סעיף הוא כרטיס אחד: שם היצירה, שורת הזכות, וההערה.
-   אותה צורה לשלושתם — וזו הצורה שמשווה בין הנותנים. */
+h2{font-size:1.02rem;font-weight:800;color:var(--blue-d);
+  margin:32px 0 6px;letter-spacing:-.02em}
+p{margin:0}
+.body{font-size:.96rem;color:var(--ink-2);white-space:pre-line}
+.body b{font-weight:800;color:var(--ink)}
+a{color:var(--blue);font-weight:700}
+.go{display:inline-block;margin-top:6px;font-size:.94rem}
+
+/* שלושת הקרדיטים. אותה צורה לשלושתם — וזו הצורה שמשווה
+   בין מי שנתן למי שבנה. */
 .item{background:var(--surface);border:1px solid var(--rule);border-radius:14px;
-  padding:17px 19px;margin-top:14px}
-.item h2{margin:0;font-size:1.02rem;font-weight:800;color:var(--blue-d);
+  padding:16px 18px;margin-top:12px}
+.item h3{margin:0;font-size:.98rem;font-weight:800;color:var(--blue-d);
   letter-spacing:-.02em}
-.item .line{margin:5px 0 0;font-size:.97rem;font-weight:700}
-.item .note{margin:6px 0 0;font-size:.92rem;color:var(--ink-2);
+.item .line{margin:4px 0 0;font-size:.95rem;font-weight:700}
+.item .note{margin:5px 0 0;font-size:.9rem;color:var(--ink-2);
   white-space:pre-line}
 .item .note b{color:var(--ink)}
-.item a{color:var(--blue);font-weight:700}
-.item .body{margin:6px 0 0;font-size:.95rem;color:var(--ink-2);
+.item .txt{margin:5px 0 0;font-size:.93rem;color:var(--ink-2);
   white-space:pre-line}
+
+.ver{font-family:ui-monospace,Menlo,Consolas,monospace;direction:ltr;
+  display:inline-block;font-size:1.02rem;font-weight:700;color:var(--ink);
+  background:var(--surface);border:1px solid var(--rule);border-radius:8px;
+  padding:3px 11px}
 
 :focus-visible{outline:3px solid #fff;outline-offset:0;
   box-shadow:0 0 0 6px #0B2550}
@@ -81,39 +94,53 @@ footer a{color:var(--ink-2)}
 
 <header>
   <img id="logo" alt="בני עקיבא">
-  <h1 id="t-title">זכויות</h1>
+  <h1 id="t-title">פרטים</h1>
 </header>
 
 <main class="wrap">
 
   <p class="lead" id="t-lead"></p>
 
+  <h2 id="h-priv"></h2>
+  <p class="body" id="t-priv"></p>
+
+  <h2 id="h-a11y"></h2>
+  <p class="body" id="t-a11y"></p>
+  <a class="go" href="accessibility.html" id="t-a11yGo"></a>
+
+  <h2 id="h-cred"></h2>
+  <p class="body" id="t-cred"></p>
+
   <div class="item">
-    <h2 id="t-gemH"></h2>
+    <h3 id="t-gemH"></h3>
     <p class="line" id="t-gem"></p>
     <p class="note" id="t-gemNote"></p>
     <p class="note" id="gem-buy"></p>
   </div>
 
   <div class="item">
-    <h2 id="t-chavH"></h2>
+    <h3 id="t-chavH"></h3>
     <p class="line" id="t-chav"></p>
     <p class="note" id="t-chavNote"></p>
   </div>
 
-  <!-- הביאור של הרכז. ריק כל עוד לא עלה, ואז הכרטיס אינו מוצג
-       כלל — עדיף בלי סעיף מסעיף שממתין למילוי. -->
+  <!-- הביאור של הרכז. ריק כל עוד לא עלה, ואז אינו מוצג כלל —
+       עדיף בלי סעיף מסעיף שממתין למילוי. -->
   <div class="item" id="own-card" hidden>
-    <h2 id="t-ownH"></h2>
+    <h3 id="t-ownH"></h3>
     <p class="line" id="t-ownLine"></p>
     <p class="note" id="t-own"></p>
   </div>
 
   <div class="item">
-    <h2 id="t-dafH"></h2>
-    <p class="body" id="t-daf"></p>
+    <h3 id="t-dafH"></h3>
+    <p class="txt" id="t-daf"></p>
     <p class="line" id="t-dafLine"></p>
   </div>
+
+  <h2 id="h-ver"></h2>
+  <p><span class="ver" id="ver"></span></p>
+  <p class="body" id="t-verBy" style="margin-top:5px"></p>
 
   <hr>
   <footer>
@@ -130,26 +157,37 @@ footer a{color:var(--ink-2)}
 document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
 
 function draw() {
-  var C = window.CRED || {};
-  var keys = ['title','lead','gemH','gem','gemNote','chavH','chav','chavNote',
-              'ownH','own','ownLine','dafH','daf','dafLine'];
+  var I = window.INFO || {};
+  var keys = ['title','lead','priv','a11y','a11yGo','cred',
+              'gemH','gem','gemNote','chavH','chav','chavNote',
+              'ownH','own','ownLine','dafH','daf','dafLine','verBy'];
   keys.forEach(function (k) {
     var el = document.getElementById('t-' + k);
-    if (el) el.innerHTML = C[k] || '';
+    if (el) el.innerHTML = I[k] || '';
   });
-  document.title = (C.title || 'זכויות') + ' · הדף השבועי של בני עקיבא';
+  var heads = [['priv', I.privH], ['a11y', I.a11yH],
+               ['cred', I.credH], ['ver', I.verH]];
+  heads.forEach(function (h) {
+    var el = document.getElementById('h-' + h[0]);
+    if (el) el.innerHTML = h[1] || '';
+  });
+  document.title = (I.title || 'פרטים') + ' · הדף השבועי של בני עקיבא';
 
-  /* קישור הרכישה — בקשה של ההוצאה, ולכן הוא קישור ולא טקסט.
+  /* קישור הרכישה — בקשה של ההוצאה, ולכן קישור ולא טקסט.
      כתובת ריקה = בלי קישור, ולא קישור מומצא. */
   var buy = document.getElementById('gem-buy');
-  buy.innerHTML = (C.gemUrl && C.gemBuy)
-    ? '<a href="' + C.gemUrl + '" target="_blank" rel="noopener">' +
-      C.gemBuy + ' ←</a>'
+  buy.innerHTML = (I.gemUrl && I.gemBuy)
+    ? '<a href="' + I.gemUrl + '" target="_blank" rel="noopener">' +
+      I.gemBuy + ' ←</a>'
     : '';
 
   /* כרטיס הביאור מופיע רק כשיש בו תוכן */
-  var own = document.getElementById('own-card');
-  own.hidden = !((C.ownH || '').trim() || (C.own || '').trim());
+  document.getElementById('own-card').hidden =
+    !((I.ownH || '').trim() || (I.own || '').trim());
+
+  /* הגרסה מגיעה מ-DAF_REV, שהוא אחד מארבעת המספרים שחייבים
+     להיות זהים — ולכן הוא תמיד אותו מספר שבמסך הראשי. */
+  document.getElementById('ver').textContent = 'v' + (window.DAF_REV || '');
 }
 function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
 relayer();
