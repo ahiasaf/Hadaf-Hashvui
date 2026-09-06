@@ -574,7 +574,8 @@ footer a{color:var(--ink-2);font-weight:800}
          ולפני השכבה — גם בסדר החשיפה וגם **בסדר ה-HTML**.
          סדר החשיפה תוקן בלי סדר המסמך, והתוצאה הייתה ששדה
          השכבה נפתח מעל הטלפון: הוא פשוט היה קודם. -->
-    <div class="fld stg" id="f-phone"><label class="label" for="phone">טלפון</label>
+    <div class="fld stg" id="f-phone">
+    <label class="label" id="l-phone" for="phone">טלפון</label>
       <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
     <div class="fld stg" id="f-grade"><label class="label" for="grade">שכבה</label>
       <select id="grade"></select></div>
@@ -1159,10 +1160,24 @@ function stage(scroll) {
      המסך למי שהתחרט ובחר ישיבה אמיתית. */
   var oth = $('othFld');
   if (oth) oth.style.display = (val('inst') === OTHER.code) ? 'block' : 'none';
+
+  /* מי שאינו באחת הישיבות אינו נדרש לטלפון.
+
+     זה אינו פינוק אלא תנאי להצטרפות: הרשימה נושאת שמות של
+     מוסדות, ולא כל מי שמצטרף רוצה או יכול להשתייך לאחד מהם
+     בגלוי. מי שבוחר "אחר" מוותר ממילא על ההגרלה — אין למי
+     להודיע — וזו כל העלות.
+
+     החשיפה ההדרגתית היא החלק שבאמת חסם: `f-grade` ואחריה
+     דרך הלימוד והכפתור נפתחו רק אחרי טלפון שלם, ולכן שדה
+     ריק לא רק דחה בשליחה אלא עצר את הטופס באמצע. */
   /* טלפון לפני שכבה. הטלפון הוא הערוץ היחיד שדרכו אפשר להודיע
      לזוכה, ולכן הוא נשאל כשהתשומת לב עדיין מלאה. */
   step('f-phone', ready('last'));
-  var phoneOk = phoneDone(val('phone'));
+  var free = val('inst') === OTHER.code;
+  var lp = $('l-phone');
+  if (lp) lp.innerHTML = free ? 'טלפון <i>· לא חובה</i>' : 'טלפון';
+  var phoneOk = free || phoneDone(val('phone'));
   step('f-grade', phoneOk);
   step('c-ways', phoneOk && !!val('grade'));
   step('go', !!way);
@@ -1305,8 +1320,10 @@ $('go').onclick = function () {
   })();
   var grade = val('grade');
 
-  /* מה שחייבים, ולא יותר. שכבה אינה עוצרת אף אחד; טלפון כן —
-     בלעדיו אין איך להודיע לזוכה בהגרלה שהוא זכה.
+  /* מה שחייבים, ולא יותר. שכבה אינה עוצרת אף אחד; טלפון עוצר
+     רק את מי שבחר ישיבה — בלעדיו אין איך להודיע לזוכה בהגרלה
+     שהוא זכה. מי שבחר "אחר" אינו בהגרלה ממילא, ולכן אין ממה
+     לעכב אותו.
 
      הבדיקה רופפת בכוונה: ספרות, ולפחות תשע. מספר עם מקף, עם
      רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
@@ -1314,7 +1331,7 @@ $('go').onclick = function () {
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
-  if ((val('phone').match(/\d/g) || []).length < 9)
+  if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
     return say('צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
   if (!way)            return say('צריך לבחור איך אתה לומד.');
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
