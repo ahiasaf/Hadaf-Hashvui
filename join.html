@@ -152,8 +152,14 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   padding:11px 6px;border-radius:9px;font-weight:800;font-size:.88rem;
   color:var(--ink-3)}
 .whob.on{background:#fff;color:var(--blue);box-shadow:var(--sh-1)}
-/* אותה שורה בדיוק, בשתי אפשרויות — "מי ממלא" שבראש הטופס. */
-.whobar.two{grid-template-columns:1fr 1fr;margin:0 0 13px}
+/* אותה שורה בדיוק, בשתי אפשרויות — "מי ממלא" שמעל הטופס. */
+.whobar.two{grid-template-columns:1fr 1fr;margin:0}
+/* הבלוק שמחזיק אותה. יושב **מעל** כרטיס הפרטים ולא בתוכו, ולכן
+   הוא גם נראה אחרת: בלי מסגרת ובלי צל, כדי שלא ייקרא ככרטיס
+   נוסף שצריך למלא. הוא מציג אפשרות, לא שואל שאלה. */
+.whopick{margin-top:14px}
+.whopick .h{font-size:.8rem;font-weight:600;color:var(--ink-3);
+  margin-top:9px;line-height:1.6;text-align:center}
 
 /* ---------- חשיפה הדרגתית ----------
    מה שמלחיץ בטופס הוא לראות את כולו בבת אחת. מסך לכל שאלה
@@ -551,21 +557,26 @@ footer a{color:var(--ink-2);font-weight:800}
   <!-- מי ממלא. השאלה הזו לא הייתה כאן, ולא בכדי: כל עוד אבא
        היה שדה בטופס של הבן לא היה מה לשאול. מרגע שהוא נרשם
        בעצמו — יש, וזו השאלה הראשונה כי כל השאר תלוי בה. -->
-  <div class="card stg" id="c-who">
-    <h2 id="who-h">מי אתה?</h2>
-    <p class="h" id="who-sub"></p>
-    <!-- מי ממלא. מוצג **רק בקישור הכללי** — זה שנשלח לכל מקום
-         ופונה גם להורים; בקישור של הישיבה אין דו־משמעות.
+  <!-- מי ממלא — **בלוק בפני עצמו, מעל הטופס ולא בתוכו.**
 
-         "בן" לחוץ מראש ויושב מימין, וזה כל העניין: הרוב
-         המוחלט ממשיך ישר לשם הפרטי בלי לעצור, ומי שקלט
-         בזווית העין רואה שזה כבר מסומן ואינו מעמיק בזה
-         מחשבה. רק אבא אמיתי ישים לב וישנה.
+       כשהוא ישב בתוך כרטיס הפרטים, מעל "שם פרטי", הוא היה
+       הדבר הראשון שהעין נתקלת בו ברגע שמתחילים למלא — כלומר
+       הוא מיקד את התלמיד בדיוק בשאלה שלא נועדה למקד אותו.
 
-         ושתי המילים עצמן עושות עבודה: "בן · אבא" מציג את
-         אפשרות הלימוד המשותף לכל מי שפותח את המסך. -->
-    <div class="whobar two" id="whoBar" style="display:none"></div>
+       כאן הוא חלק עליון נפרד: הוא מציג את אפשרות אבא־ובן לכל
+       מי שפותח את המסך, והמילוי מתחיל מתחתיו בשאלת השם. הבן
+       כבר בתוך הכתיבה, ואינו נותן את העין על "בן · אבא".
+
+       מוצג **רק בקישור הכללי ובקישור ההורים** — בקישור של
+       הישיבה אין דו־משמעות — וניתן לכיבוי מהניהול. -->
+  <div class="whopick" id="whoPick" style="display:none">
+    <div class="whobar two" id="whoBar"></div>
     <p class="h" id="dad-lead" style="display:none"></p>
+  </div>
+
+  <div class="card stg" id="c-who">
+    <h2 id="who-h"></h2>
+    <p class="h" id="who-sub"></p>
     <div class="fld"><label class="label" for="first">שם פרטי</label>
       <input id="first" type="text" autocomplete="given-name"></div>
     <div class="fld stg" id="f-last"><label class="label" for="last">שם משפחה</label>
@@ -905,6 +916,7 @@ function loadPub() {
    במסך הזה מצויר ב-JS, ולכן שלוש הפונקציות האלה מכסות אותו. */
 function txRepaint() {
   try { drawTop(); } catch (e) {}
+  try { drawWho(); } catch (e) {}
   try { drawHero(); } catch (e) {}
   try { drawWeek(); } catch (e) {}
   try { drawApp(); } catch (e) {}
@@ -964,7 +976,11 @@ function tpl(t, v) {
 /* ---------- ציור הראש ----------
    נקרא פעמיים: מיד מהמטמון, ושוב אחרי שהגיליון ענה. */
 function drawTop() {
-  $('lead').textContent = JOIN.lead;
+  /* בקישור ההורים השורה הפותחת מדברת אל האב. מי שסרק את הפלייר
+     הגיע לכאן, ואם המסך יפתח באמירה אחרת משלו הוא ייראה כמו
+     מקום אחר. ריק = חוזרים לנוסח הרגיל, ולא לשורה ריקה. */
+  $('lead').textContent = (forDad && JOIN.leadDad) ? JOIN.leadDad : JOIN.lead;
+  var wh = $('who-h'); if (wh) wh.textContent = JOIN.whoH || '';
 
   var s = startsIn();
   var w = $('when');
@@ -1128,11 +1144,28 @@ function setRel(r) { invRel = r; applyWays(); stage(1); }
    שממלא טופס עבור בנו מייצר עובדה מוגמרת, והנער מגיע ללימוד
    שמישהו אחר בחר בשבילו — וזה בדיוק מה שמפיל התמדה בגיל הזה.
    ============================================================ */
-var role = 'kid';                         /* 'kid' | 'dad' */
-/* השאלה מוצגת רק כשאין ישיבה בכתובת — כלומר בקישור הכללי.
-   זה בדיוק אותו תנאי שפותח את בורר הישיבות, ולכן אין כאן
-   מושג חדש: "לא יודעים מאיזו ישיבה הגעת" = הקישור הכללי. */
-function whoOn() { return !instRow; }
+/* `?for=dad` — **הקישור להורים.** אותו עמוד בדיוק, פתוח על
+   אבא: הבורר מסומן עליו מראש, והשורה הפותחת מדברת אליו.
+
+   הבורר נשאר גלוי גם שם, ובכוונה: נער שקיבל את הקישור בטעות
+   — מהורה ששלח לו, מקבוצה שהתערבבה — צריך דרך לצאת ממנו.
+   קישור שכולא אדם בתפקיד שאינו שלו גרוע מקישור אחד לכולם. */
+var forDad = qs('for') === 'dad';
+var role = forDad ? 'dad' : 'kid';        /* 'kid' | 'dad' */
+
+/* מתי הבורר מוצג בכלל — שלושה תנאים, ולכל אחד סיבה משלו.
+
+   · **הרכז יכול לכבות אותו מהניהול.** הוא עשוי לרדת בהמשך,
+     וכיבוי דרך הגיליון אינו דורש גרסה חדשה ואינו מגיע
+     למכשירים באיחור של שבוע.
+   · **בקישור של הישיבה הוא אינו מוצג** — הוא נשלח לתלמידים,
+     ואין שם דו־משמעות. זה בדיוק התנאי שפותח את בורר
+     הישיבות, ולכן אין כאן מושג חדש.
+   · **בקישור ההורים הוא כן מוצג**, למרות שהתפקיד כבר בכתובת. */
+function whoOn() {
+  if (pub.roleAsk === false) return false;
+  return forDad || !instRow;
+}
 
 /* מה שהתלמיד בחר כדרך לימוד, לפני שסימן "אני אבא".
 
@@ -1152,9 +1185,12 @@ function setRole(r) {
   drawWho(); applyRole(); drawWays(); stage(1);
 }
 function drawWho() {
-  var bar = $('whoBar'); if (!bar) return;
-  if (!whoOn()) { bar.style.display = 'none'; return; }
-  bar.style.display = '';
+  var box = $('whoPick'), bar = $('whoBar');
+  if (!box || !bar) return;
+  /* מסתירים את **הבלוק** ולא רק את השורה: בלוק ריק עדיין נושא
+     שוליים, והמסך היה נפתח בפער שנראה כאילו חסר בו משהו. */
+  if (!whoOn()) { box.style.display = 'none'; return; }
+  box.style.display = '';
   bar.innerHTML = [['kid', JOIN.whoKid], ['dad', JOIN.whoDad]]
     .map(function (o) {
       return '<button class="whob' + (role === o[0] ? ' on' : '') +
@@ -2014,6 +2050,10 @@ if ('serviceWorker' in navigator) {
   LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
   loadPub().then(function () {
     drawTop();
+    /* הבורר תלוי במתג מהגיליון, ולכן הוא חייב להיצבע שוב אחרי
+       שהגיליון ענה — אחרת כיבוי מהניהול היה מגיע רק בפתיחה
+       הבאה, והרכז היה רואה מסך שלא השתנה ומניח שזה נשבר. */
+    drawWho();
     var cur = get('me', null);
     if (cur && cur.first && $('done').className === 'on') showDone(cur);
   });

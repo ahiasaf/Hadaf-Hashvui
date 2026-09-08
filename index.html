@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.86.0';
+var APP_VERSION = '7.87.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2371,6 +2371,11 @@ function joinUrl(code) {
   return base + 'join.html' + (code ? '?inst=' + encodeURIComponent(code) : '');
 }
 
+/* הקישור להורים. אותו קובץ, עם `for=dad` — ראו את ההסבר ליד
+   הכרטיס שמציג אותו. בלי קוד ישיבה: הוא נשלח לקבוצות הורים
+   של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
+function dadUrl() { return joinUrl('') + '?for=dad'; }
+
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
    ואז אין קישור, כי אין למי לספור. */
 function joinCode() {
@@ -2521,6 +2526,11 @@ function myBoard() {
 }
 /* האם מפיצים בכלל קישור הצטרפות לתלמידים. */
 function joinLinkOn() { return CV('joinLink') !== false; }
+/* "בן · אבא" בראש קישור ההצטרפות. ברירת המחדל דלוקה, ולכן
+   `!== false` ולא ערך אמת: מפתח שמעולם לא נכתב לגיליון חייב
+   להתנהג כמו דלוק, אחרת התכונה כבויה אצל כולם עד שמישהו
+   ייגע במתג. */
+function roleAskOn() { return CV('roleAsk') !== false; }
 
 /* "ח׳:11 · ט׳:7" → [['ח׳',11],…] — הצורה שהסקריפט כותב, כדי
    שפילוח לא ידרוש עמודה לכל שכבה. */
@@ -4043,7 +4053,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
                 'tourOn', 'tourAt', 'sizeOn', 'netTicker',
-                'orderBy', 'joinLink', 'weekRaffle'];
+                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -5308,6 +5318,26 @@ function admShow(el) {
     '" onclick="cfgSet(\'sizeOn\',!sizeLive());admPane()" ' +
     'aria-label="שאלת מספר התלמידים"></button></div></div>' +
 
+    /* "בן · אבא" בראש קישור ההצטרפות. ניתן לכיבוי כי הוא עשוי
+       לרדת בהמשך — והכיבוי הוא מהגיליון ולא מהקוד, כלומר הוא
+       מגיע לכל מי שפותח את הקישור בלי גרסה חדשה.
+
+       כיבוי אינו מבטל את קישור ההורים: הוא עדיין פותח את הטופס
+       על אבא. מה שיורד הוא השאלה, לא היכולת. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>"בן · אבא" בקישור ההצטרפות</h4>' +
+    '<p class="h">שתי אפשרויות בראש הטופס, "בן" מסומן מראש. הן מציגות ' +
+    'את אפשרות הלימוד המשותף לכל מי שפותח את הקישור, ומאפשרות לאב ' +
+    'למלא את הפרטים שלו ולצרף את בנו.<br>' +
+    'מוצגות בקישור הכללי ובקישור להורים בלבד — <b>בקישורים של ' +
+    'המוסדות הן אינן מוצגות</b>, שם הקישור נשלח לתלמידים.</p>' +
+    '<div class="row"><div>הבחירה "בן · אבא"' +
+    '<div class="sub">' + (roleAskOn() ? 'מוצגת'
+                                       : 'כבויה — כולם ממלאים כתלמידים') +
+    '</div></div>' +
+    '<button class="sw' + (roleAskOn() ? ' on' : '') +
+    '" onclick="cfgSet(\'roleAsk\',!roleAskOn());admPane()" ' +
+    'aria-label="הבחירה בן ואבא"></button></div></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>ההגרלה השבועית</h4>' +
     '<p class="h">מוצגת במסך הפתיחה של התלמיד: עונים נכון על החידה — ' +
     'ונכנסים להגרלה של אותו שבוע.</p>' +
@@ -5397,6 +5427,32 @@ function admLinks(el) {
     encodeURIComponent(fill(UI.linkWa, { inst:'רשת בני עקיבא', url:joinUrl('') })) +
     '">' + esc(UI.linkWaBtn) + '</a>' +
     '<button class="cp" onclick="copyAny(this,\'' + esc(joinUrl('')) + '\')">' +
+    esc(UI.linkCopy) + '</button></div></div>' +
+
+    /* הקישור להורים — אותו עמוד, פתוח על אבא.
+
+       לא קובץ נפרד ולא טופס נפרד, ובכוונה: כל מה שנוסף למסך
+       ההצטרפות מגיע לשניהם, ואין מצב שאחד מהם מקבל גרסה
+       ישנה. מה שמשתנה הוא שתי נקודות — הבחירה פתוחה על "אבא",
+       והשורה הפותחת מדברת אל האב.
+
+       ולמה לא לנעול את האב בתפקידו: נער שקיבל את הקישור
+       בטעות — מהורה ששלח לו, מקבוצה שהתערבבה — יכול לעבור
+       ל"בן" בלחיצה. קישור שכולא אדם בתפקיד שאינו שלו גרוע
+       מקישור אחד לכולם. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>קישור להורים</h4>' +
+    '<p class="h">אותו מסך, נפתח על "אבא": הפרטים שלו, ואז צירוף הבן ' +
+    'בשם פרטי וטלפון. <b>הבן נרשם בעצמו</b> — הוא מקבל קישור משלו ' +
+    'ולוחץ "מצטרף", והמערכת מצליבה ביניהם לפי הטלפון.<br>' +
+    'זה הקישור שנשלח לקבוצות ההורים, לצד הפלייר.</p>' +
+    '<div class="url" style="direction:ltr;text-align:start">' +
+    esc(dadUrl()) + '</div>' +
+    '<div style="display:flex;gap:7px;margin-top:10px">' +
+    '<a class="btn gr" style="margin:0;flex:1;text-decoration:none" target="_blank" ' +
+    'rel="noopener" href="https://wa.me/?text=' +
+    encodeURIComponent(fill(UI.dadWa, { url:dadUrl() })) +
+    '">שליחה להורים</a>' +
+    '<button class="cp" onclick="copyAny(this,\'' + esc(dadUrl()) + '\')">' +
     esc(UI.linkCopy) + '</button></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>הקישורים של כל מוסד</h4>' +
