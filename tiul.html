@@ -10,12 +10,21 @@
 /* ============================================================
    מפקד טיול — מסך אחד, אצבע אחת, תוך כדי הליכה.
 
-   שני סוגי סימון, וההבדל ביניהם הוא כל הרעיון:
+   ליום טיול יש שני שלבים, ולא נכון לתאר את שניהם כאותה ספירה
+   חוזרת:
 
-   • **עלה** — נמחק בכל סבב. זה מה שסופרים מחדש בכל עלייה
-     לאוטובוס, ולכן "סבב חדש" מנקה אותו בלחיצה אחת.
-   • **אישור הורים** — נשאר. תלמיד שהביא אישור הביא אותו לכל
-     היום, ואין שום סיבה לסמן אותו שוב בכל עצירה.
+   **שלב א · עלייה לאוטובוס.** כל הכיתה ברשימה. מי שלא עלה
+   אינו בטיול, ואינו עניינו של המלווה לשאר היום.
+
+   **שלב ב · סבבים.** בסגירת העלייה מופקת רשימת מי שלא הגיע,
+   ומכאן הרשימה מצטמצמת למי שבאמת בטיול. כל סבב סופר רק אותם.
+   מי שלא בטיול אינו חוזר להפריע לספירה — אבל אפשר להחזיר אותו
+   בלחיצה, כי תלמיד שמגיע באיחור זה דבר שקורה.
+
+   מה נשמר ומה נמחק:
+   • **סימון הסבב** נמחק בכל "סבב חדש".
+   • **מי בטיול** נקבע פעם אחת, בסגירת העלייה.
+   • **אישור הורים** נשאר כל היום, ורלוונטי רק בשלב א.
 
    הרשימה נשמרת ב-localStorage של המכשיר בלבד. הריפו ציבורי,
    ואין בו ולא יהיה בו שם של תלמיד.
@@ -41,7 +50,7 @@ button{cursor:pointer;border:none;background:none}
 
 /* הסרגל התחתון מרחף מעל הרשימה — הריפוד למטה הוא מה שמונע
    ממנו לכסות את התלמיד האחרון, וזה בדיוק התלמיד שמחפשים. */
-.wrap{max-width:560px;margin:0 auto;padding:16px 14px 168px}
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 172px}
 .view{display:none}
 .view.on{display:block}
 
@@ -73,12 +82,25 @@ button{cursor:pointer;border:none;background:none}
 .flag{flex:none;font-size:.7rem;font-weight:800;color:var(--amber);
       background:var(--amber-bg);border-radius:8px;padding:3px 7px;white-space:nowrap}
 
-/* אישור הורים הוא סימון שקט. הפעולה החוזרת של היום היא "עלה",
-   והיא זו שצובעת את השורה — הצ'יפ לא אמור להתחרות בה על העין. */
+/* אישור הורים הוא סימון שקט, והוא שייך לשלב א בלבד. הפעולה
+   החוזרת של היום היא הספירה — הצ'יפ לא מתחרה בה על העין. */
 .chip{flex:none;font-size:.74rem;font-weight:800;color:var(--ink-2);
       background:var(--sunk);border:1px solid var(--rule);border-radius:9px;
       padding:7px 9px;white-space:nowrap}
 .chip.yes{background:rgba(23,70,143,.09);border-color:var(--blue);color:var(--blue)}
+
+/* ---------- מי שלא הגיע לטיול ---------- */
+.gone{margin-top:22px;border-top:1px dashed var(--rule);padding-top:12px}
+.goneh{display:block;width:100%;text-align:right;font-size:.82rem;font-weight:800;
+       color:var(--ink-2);padding:6px 2px}
+.gonel{display:none;padding-top:6px}
+.gonel.open{display:block}
+.grow{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:6px;
+      background:var(--sunk);border:1px solid var(--rule);border-radius:var(--r)}
+.grow .nm{flex:1;min-width:0;font-size:.96rem;font-weight:700;color:var(--ink-2)}
+.back{flex:none;font-size:.76rem;font-weight:800;color:var(--blue);
+      background:var(--surface);border:1px solid var(--blue);border-radius:9px;
+      padding:7px 11px;white-space:nowrap}
 
 /* ---------- הסרגל התחתון ---------- */
 .bar{position:fixed;inset:auto 0 0 0;background:var(--surface);
@@ -90,7 +112,7 @@ button{cursor:pointer;border:none;background:none}
             font-variant-numeric:tabular-nums;line-height:1.1}
 .tally .of{font-size:.92rem;font-weight:700;color:var(--ink-2)}
 .tally .miss{margin-inline-start:auto;font-size:.78rem;font-weight:700;
-             color:var(--amber)}
+             color:var(--amber);text-align:left}
 .acts{display:flex;gap:8px}
 .btn{flex:1;border-radius:11px;padding:13px 8px;font-size:.92rem;font-weight:800;
      border:1px solid var(--rule);background:var(--sunk);color:var(--ink)}
@@ -104,8 +126,10 @@ button{cursor:pointer;border:none;background:none}
 .txt{width:100%;background:var(--surface);border:1px solid var(--rule);
      border-radius:var(--r);padding:11px 12px;margin-bottom:14px;
      font-size:1rem;line-height:1.7;resize:vertical}
-.txt.tall{min-height:44vh}
+.txt.tall{min-height:38vh}
 .hint{font-size:.78rem;color:var(--ink-2);margin:-8px 2px 16px}
+.reset{margin-top:20px;border-top:1px solid var(--rule);padding-top:14px}
+.reset .hint{margin:8px 2px 0}
 .empty{text-align:center;color:var(--ink-2);font-size:.94rem;padding:40px 10px}
 </style>
 </head>
@@ -133,6 +157,11 @@ button{cursor:pointer;border:none;background:none}
       <button class="btn go" id="bSave">שמור רשימה</button>
       <button class="btn ghost" id="bCancel">ביטול</button>
     </div>
+    <div class="reset">
+      <button class="btn ghost" id="bRestart">התחל יום טיול מחדש</button>
+      <p class="hint">מחזיר את כל התלמידים לרשימה ופותח מחדש את מפקד
+        העלייה. השמות ואישורי ההורים נשארים.</p>
+    </div>
   </div>
 
   <!-- ===== מסך ב׳ · המפקד ===== -->
@@ -146,12 +175,12 @@ button{cursor:pointer;border:none;background:none}
   <div class="in">
     <div class="tally">
       <span class="big" id="cnt">0</span>
-      <span class="of" id="of">מתוך 0 עלו</span>
+      <span class="of" id="of">מתוך 0</span>
       <span class="miss" id="miss"></span>
     </div>
     <div class="acts">
-      <button class="btn go" id="bWa">שלח לוואטסאפ</button>
-      <button class="btn" id="bClear">סבב חדש</button>
+      <button class="btn go" id="bMain">סיום עלייה לאוטובוס</button>
+      <button class="btn" id="bWa">וואטסאפ</button>
     </div>
   </div>
 </div>
@@ -161,10 +190,16 @@ button{cursor:pointer;border:none;background:none}
 (function () {
   'use strict';
 
-  var KEY = 'tiul.v1';
+  var KEY = 'tiul.v1';       /* המפתח נשאר; המבנה בתוכו מהוגר */
   var S = null;
+  var goneOpen = false;
 
   /* ---------- אחסון ---------- */
+
+  function blank() {
+    return { v: 2, title: '', seq: 0, kids: [], ok: {},
+             phase: 1, out: {}, here: {}, round: 1, roundAt: 0 };
+  }
 
   /* קריאה שנכשלה אינה רשימה ריקה. אם ה-JSON פגום או ה-localStorage
      חסום, מוטב להתחיל נקי מאשר להעמיד פנים שהכיתה ריקה — אבל אז
@@ -175,13 +210,21 @@ button{cursor:pointer;border:none;background:none}
     if (raw) {
       try { S = JSON.parse(raw); } catch (e2) { S = null; }
     }
-    if (!S || !S.kids || !S.kids.length) {
-      S = { title: '', round: 1, seq: 0, kids: [], here: {}, ok: {} };
-      return false;
+    if (!S || !S.kids || !S.kids.length) { S = blank(); return false; }
+
+    /* הגירה מהמבנה הראשון, שלא הכיר שלבים: מה שסומן שם הוא
+       עלייה לאוטובוס, וזה בדיוק שלב א. */
+    if (!S.v || S.v < 2) {
+      S.v = 2;
+      S.phase = 1;
+      S.out = {};
+      S.roundAt = 0;
     }
     if (!S.here) S.here = {};
     if (!S.ok) S.ok = {};
+    if (!S.out) S.out = {};
     if (!S.round) S.round = 1;
+    if (!S.phase) S.phase = 1;
     if (!S.seq) S.seq = S.kids.length;
     return true;
   }
@@ -199,6 +242,35 @@ button{cursor:pointer;border:none;background:none}
                     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function count(o) {
+    var n = 0, k;
+    for (k in o) { if (o.hasOwnProperty(k)) n++; }
+    return n;
+  }
+
+  function hhmm(ts) {
+    var d = ts ? new Date(ts) : new Date();
+    var h = d.getHours(), m = d.getMinutes();
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  /* מי בטיול. בשלב א — כולם; בשלב ב — כל מי שלא הוצא. */
+  function onTrip() {
+    var out = [], i;
+    for (i = 0; i < S.kids.length; i++) {
+      if (!S.out[S.kids[i].id]) out.push(S.kids[i]);
+    }
+    return out;
+  }
+
+  function offTrip() {
+    var out = [], i;
+    for (i = 0; i < S.kids.length; i++) {
+      if (S.out[S.kids[i].id]) out.push(S.kids[i]);
+    }
+    return out;
+  }
+
   function show(which) {
     $('vSetup').className = 'view' + (which === 'setup' ? ' on' : '');
     $('vList').className  = 'view' + (which === 'list' ? ' on' : '');
@@ -211,10 +283,10 @@ button{cursor:pointer;border:none;background:none}
      כאן — האפליקציה ממספרת בעצמה — ובלי ניקוי הוא נכנס לתוך השם
      ומופיע גם בדיווח. */
   function parseNames(text) {
-    var lines = String(text || '').split(/\r?\n/);
+    var ls = String(text || '').split(/\r?\n/);
     var out = [], i, s;
-    for (i = 0; i < lines.length; i++) {
-      s = lines[i].replace(/^[\s‏‎]*\d+[\s.)\-–]*/, '');
+    for (i = 0; i < ls.length; i++) {
+      s = ls[i].replace(/^[\s‏‎]*\d+[\s.)\-–]*/, '');
       s = s.replace(/^\s+|\s+$/g, '');
       if (s) out.push(s);
     }
@@ -222,8 +294,8 @@ button{cursor:pointer;border:none;background:none}
   }
 
   /* בנייה מחדש של הרשימה תוך שמירת הסימונים: תלמיד שנשאר בשמו
-     שומר את המזהה שלו, ולכן גם את "עלה" ואת אישור ההורים. תלמיד
-     שהוסר — הסימונים שלו נמחקים, אחרת הם היו נספרים לנצח. */
+     שומר את המזהה שלו, ולכן גם את מצבו. תלמיד שהוסר — הכל שלו
+     נמחק, אחרת הוא היה נספר לנצח. */
   function applyNames(names) {
     var old = S.kids, taken = {}, out = [], i, j, id;
     for (i = 0; i < names.length; i++) {
@@ -238,18 +310,22 @@ button{cursor:pointer;border:none;background:none}
 
     var live = {};
     for (i = 0; i < out.length; i++) live[out[i].id] = 1;
-    var k;
-    for (k in S.here) { if (S.here.hasOwnProperty(k) && !live[k]) delete S.here[k]; }
-    for (k in S.ok)   { if (S.ok.hasOwnProperty(k)   && !live[k]) delete S.ok[k]; }
+    var maps = [S.here, S.ok, S.out], m, k;
+    for (i = 0; i < maps.length; i++) {
+      m = maps[i];
+      for (k in m) { if (m.hasOwnProperty(k) && !live[k]) delete m[k]; }
+    }
   }
 
   /* ---------- ציור ---------- */
 
   function render() {
+    var trip = onTrip(), off = offTrip();
     var h = '', i, k, on, ok, here = 0, noSlip = 0;
+    var p1 = (S.phase === 1);
 
-    for (i = 0; i < S.kids.length; i++) {
-      k = S.kids[i];
+    for (i = 0; i < trip.length; i++) {
+      k = trip[i];
       on = !!S.here[k.id];
       ok = !!S.ok[k.id];
       if (on) here++;
@@ -259,92 +335,165 @@ button{cursor:pointer;border:none;background:none}
          +   '<span class="num">' + (i + 1) + '</span>'
          +   '<span class="tick">✓</span>'
          +   '<span class="nm">' + esc(k.n) + '</span>'
-         +   (on && !ok ? '<span class="flag">אין אישור</span>' : '')
-         +   '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
-         +     (ok ? 'הורים ✓' : 'הורים') + '</span>'
+         +   (p1 && on && !ok ? '<span class="flag">אין אישור</span>' : '')
+         +   (p1 ? '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
+                 + (ok ? 'הורים ✓' : 'הורים') + '</span>' : '')
          + '</button>';
+    }
+
+    /* מי שלא הגיע לטיול יורד מהספירה, אבל לא נעלם. תלמיד שמגיע
+       באיחור הוא דבר שקורה, וצריך להיות לו מסלול חזרה. */
+    if (off.length) {
+      h += '<div class="gone">'
+         +   '<button class="goneh" id="bGoneT">לא הגיעו לטיול (' + off.length + ') '
+         +     (goneOpen ? '▴' : '▾') + '</button>'
+         +   '<div class="gonel' + (goneOpen ? ' open' : '') + '">';
+      for (i = 0; i < off.length; i++) {
+        h += '<div class="grow"><span class="nm">' + esc(off[i].n) + '</span>'
+           +   '<button class="back" data-b="' + off[i].id + '">החזר לטיול</button></div>';
+      }
+      h += '</div></div>';
     }
 
     $('list').innerHTML = h || '<p class="empty">הרשימה ריקה.</p>';
     $('ttl').textContent = S.title || 'מפקד טיול';
-    $('rnd').textContent = 'סבב ' + S.round;
+    $('rnd').textContent = p1 ? 'עלייה לאוטובוס'
+                              : ('סבב ' + S.round + ' · ' + hhmm(S.roundAt));
     $('cnt').textContent = here;
-    $('of').textContent = 'מתוך ' + S.kids.length + ' עלו';
-    $('miss').textContent = noSlip ? (noSlip + ' ללא אישור הורים') : '';
+    $('of').textContent = 'מתוך ' + trip.length + (p1 ? ' עלו' : ' נמצאים');
+    $('miss').textContent = p1
+      ? (noSlip ? noSlip + ' ללא אישור הורים' : '')
+      : ((trip.length - here) ? (trip.length - here) + ' חסרים' : '');
+    $('bMain').textContent = p1 ? 'סיום עלייה לאוטובוס' : 'סבב חדש';
   }
 
   /* ---------- דיווח ---------- */
 
-  function report() {
-    var d = new Date();
-    var hh = (d.getHours() < 10 ? '0' : '') + d.getHours();
-    var mm = (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
-    var yes = [], no = [], i, k;
+  function listOf(arr) {
+    var t = '', i;
+    for (i = 0; i < arr.length; i++) t += (i + 1) + '. ' + arr[i].n + '\n';
+    return t;
+  }
 
-    for (i = 0; i < S.kids.length; i++) {
-      k = S.kids[i];
-      (S.here[k.id] ? yes : no).push(k.n);
+  function report() {
+    var trip = onTrip(), off = offTrip();
+    var yes = [], no = [], i;
+    for (i = 0; i < trip.length; i++) {
+      (S.here[trip[i].id] ? yes : no).push(trip[i]);
     }
 
     var t = (S.title || 'מפקד טיול') + '\n';
-    t += 'סבב ' + S.round + ' · ' + hh + ':' + mm + '\n';
-    t += 'עלו ' + yes.length + ' מתוך ' + S.kids.length + '\n';
 
-    t += '\nעלו (' + yes.length + '):\n';
-    for (i = 0; i < yes.length; i++) t += (i + 1) + '. ' + yes[i] + '\n';
+    if (S.phase === 1) {
+      t += 'עלייה לאוטובוס · ' + hhmm(0) + '\n';
+      t += 'עלו ' + yes.length + ' מתוך ' + trip.length + '\n';
+      t += '\nעלו (' + yes.length + '):\n' + (yes.length ? listOf(yes) : '— אף אחד\n');
+      t += '\nלא עלו (' + no.length + '):\n' + (no.length ? listOf(no) : '— כולם עלו\n');
+      return t;
+    }
 
-    t += '\nלא עלו (' + no.length + '):\n';
-    if (!no.length) t += '— כולם על האוטובוס\n';
-    for (i = 0; i < no.length; i++) t += (i + 1) + '. ' + no[i] + '\n';
-
+    /* בסבב, מי שחסר הוא המידע הדחוף — ולכן הוא ראשון. */
+    t += 'סבב ' + S.round + ' · ' + hhmm(0) + '\n';
+    t += 'נמצאים ' + yes.length + ' מתוך ' + trip.length + '\n';
+    t += '\nחסרים עכשיו (' + no.length + '):\n' + (no.length ? listOf(no) : '— כולם נמצאים\n');
+    t += '\nנמצאים (' + yes.length + '):\n' + (yes.length ? listOf(yes) : '— אף אחד\n');
+    if (off.length) {
+      t += '\nלא הגיעו לטיול (' + off.length + '):\n' + listOf(off);
+    }
     return t;
+  }
+
+  /* wa.me פותח את וואטסאפ עם הטקסט מוכן ונותן לבחור למי לשלוח —
+     כולל "הודעה לעצמי". אין כאן מספר טלפון, ולא יהיה: הריפו ציבורי. */
+  function toWhatsApp(txt) {
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }
+
+  /* ---------- מעברי שלב ---------- */
+
+  /* סגירת העלייה היא ההחלטה היחידה ביום שקשה לחזור ממנה, ולכן
+     היא מציגה בשמות את מי שעומד לצאת מהרשימה. מספר לבדו אינו
+     מאפשר לתפוס טעות. */
+  function closeBoarding() {
+    var trip = onTrip(), no = [], i;
+    for (i = 0; i < trip.length; i++) {
+      if (!S.here[trip[i].id]) no.push(trip[i]);
+    }
+    if (!count(S.here)) {
+      window.alert('לא סימנת אף תלמיד שעלה לאוטובוס.');
+      return;
+    }
+
+    var names = '', shown = Math.min(no.length, 12);
+    for (i = 0; i < shown; i++) names += '· ' + no[i].n + '\n';
+    if (no.length > shown) names += '· ועוד ' + (no.length - shown) + '\n';
+
+    var q = no.length
+      ? (no.length + ' תלמידים לא עלו לאוטובוס:\n' + names +
+         '\nהם יצאו מהרשימה לשאר הטיול, ורשימתם תישלח לוואטסאפ.\nלהמשיך לסבבים?')
+      : 'כל הכיתה עלתה לאוטובוס.\nלסגור את מפקד העלייה ולעבור לסבבים?';
+    if (!window.confirm(q)) return;
+
+    var txt = report();          /* הדיווח של שלב א, לפני המעבר */
+
+    for (i = 0; i < no.length; i++) S.out[no[i].id] = 1;
+    S.phase = 2;
+    S.round = 1;
+    S.roundAt = (new Date()).getTime();
+    /* הסבב הראשון ממשיך את העלייה: מי שעלה נמצא, וזו אותה ספירה
+       ולא הצהרה חדשה שלא נעשתה. השעה בכותרת אומרת מתי. */
+    goneOpen = false;
+    save();
+    render();
+    toWhatsApp(txt);
+  }
+
+  function newRound() {
+    var n = count(S.here);
+    if (n && !window.confirm('למחוק את הסימונים של ' + n + ' תלמידים ולפתוח סבב חדש?')) return;
+    S.here = {};
+    S.round++;
+    S.roundAt = (new Date()).getTime();
+    save();
+    render();
+    window.scrollTo(0, 0);
   }
 
   /* ---------- אירועים ---------- */
 
   $('list').addEventListener('click', function (e) {
-    var el = e.target, id = null, isChip = false;
+    var el = e.target, id = null, kind = null;
     while (el && el !== this) {
       if (el.getAttribute) {
-        if (el.getAttribute('data-p')) { id = el.getAttribute('data-p'); isChip = true; break; }
-        if (el.getAttribute('data-k')) { id = el.getAttribute('data-k'); break; }
+        if (el.getAttribute('data-p')) { id = el.getAttribute('data-p'); kind = 'ok'; break; }
+        if (el.getAttribute('data-b')) { id = el.getAttribute('data-b'); kind = 'back'; break; }
+        if (el.getAttribute('data-k')) { id = el.getAttribute('data-k'); kind = 'here'; break; }
+        if (el.id === 'bGoneT') { kind = 'toggle'; break; }
       }
       el = el.parentNode;
     }
-    if (!id) return;
+    if (!kind) return;
 
-    if (isChip) {
-      if (S.ok[id]) delete S.ok[id]; else S.ok[id] = 1;
-    } else {
-      if (S.here[id]) delete S.here[id]; else S.here[id] = 1;
-    }
+    if (kind === 'toggle') { goneOpen = !goneOpen; render(); return; }
+    if (kind === 'ok')     { if (S.ok[id]) delete S.ok[id]; else S.ok[id] = 1; }
+    if (kind === 'here')   { if (S.here[id]) delete S.here[id]; else S.here[id] = 1; }
+    if (kind === 'back')   { delete S.out[id]; S.here[id] = 1; }
     save();
     render();
   });
 
-  $('bClear').addEventListener('click', function () {
-    var n = 0, k;
-    for (k in S.here) { if (S.here.hasOwnProperty(k)) n++; }
-    if (n && !window.confirm('למחוק את הסימונים של ' + n + ' תלמידים ולפתוח סבב חדש?')) return;
-    S.here = {};
-    S.round++;
-    save();
-    render();
-    window.scrollTo(0, 0);
+  $('bMain').addEventListener('click', function () {
+    if (S.phase === 1) closeBoarding(); else newRound();
   });
 
-  $('bWa').addEventListener('click', function () {
-    var txt = report();
-    /* wa.me פותח את וואטסאפ עם הטקסט מוכן ונותן לבחור למי לשלוח —
-       כולל "הודעה לעצמי". אין כאן מספר טלפון, ולא יהיה: הריפו ציבורי. */
-    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
-  });
+  $('bWa').addEventListener('click', function () { toWhatsApp(report()); });
 
   $('bEdit').addEventListener('click', function () {
     var names = [], i;
     for (i = 0; i < S.kids.length; i++) names.push(S.kids[i].n);
     $('iTtl').value = S.title || '';
     $('iNames').value = names.join('\n');
+    $('bRestart').style.display = (S.phase === 2) ? '' : 'none';
     show('setup');
   });
 
@@ -359,6 +508,19 @@ button{cursor:pointer;border:none;background:none}
     if (!names.length) { window.alert('לא נמצא אף שם ברשימה.'); return; }
     S.title = $('iTtl').value.replace(/^\s+|\s+$/g, '');
     applyNames(names);
+    save();
+    render();
+    show('list');
+  });
+
+  $('bRestart').addEventListener('click', function () {
+    if (!window.confirm('להחזיר את כל התלמידים לרשימה ולפתוח מחדש את מפקד העלייה?')) return;
+    S.phase = 1;
+    S.out = {};
+    S.here = {};
+    S.round = 1;
+    S.roundAt = 0;
+    goneOpen = false;
     save();
     render();
     show('list');
@@ -381,9 +543,9 @@ button{cursor:pointer;border:none;background:none}
     var raw = '';
     try { raw = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return false; }
 
-    var lines = raw.split(/\r?\n/);
-    var title = (lines.shift() || '').replace(/^\s+|\s+$/g, '');
-    var names = parseNames(lines.join('\n'));
+    var ls = raw.split(/\r?\n/);
+    var title = (ls.shift() || '').replace(/^\s+|\s+$/g, '');
+    var names = parseNames(ls.join('\n'));
     if (!names.length) return false;
 
     /* רשימה קיימת אינה נדרסת בשקט — באמצע טיול זו מחיקה של
@@ -397,6 +559,14 @@ button{cursor:pointer;border:none;background:none}
 
     if (title) S.title = title;
     applyNames(names);
+    /* רשימה חדשה היא יום חדש. להשאיר אותה בשלב הסבבים של הכיתה
+       הקודמת היה מסתיר מיד חלק מהתלמידים. */
+    S.phase = 1;
+    S.out = {};
+    S.here = {};
+    S.round = 1;
+    S.roundAt = 0;
+    goneOpen = false;
     save();
     clearHash();
     return true;
@@ -417,6 +587,12 @@ button{cursor:pointer;border:none;background:none}
 
   var had = load();
   if (fromLink()) had = true;
+  render();
+  show(had ? 'list' : 'setup');
+  if (!had) {
+    $('bCancel').style.display = 'none';
+    $('bRestart').style.display = 'none';
+  }
 
   /* קישור שנפתח כשהאפליקציה כבר פתוחה משנה רק את הסימן — הדפדפן
      אינו טוען את העמוד מחדש, והרשימה החדשה פשוט לא הייתה נכנסת.
@@ -424,9 +600,6 @@ button{cursor:pointer;border:none;background:none}
   window.addEventListener('hashchange', function () {
     if (fromLink()) { render(); show('list'); }
   });
-  render();
-  show(had ? 'list' : 'setup');
-  if (!had) $('bCancel').style.display = 'none';
 
   /* עובד בלי רשת. באוטובוס באמצע שום מקום זה ההבדל בין אפליקציה
      למסך לבן — או, גרוע מכך, למסך הלא נכון.
