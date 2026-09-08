@@ -78,9 +78,29 @@ button{cursor:pointer;border:none;background:none}
            font-size:.9rem;font-weight:800;color:transparent}
 .row.on .tick{background:var(--green-l);border-color:var(--green);color:#fff}
 
-/* דגל קטן ולא צועק: עלה לאוטובוס ואין לו אישור הורים. */
-.flag{flex:none;font-size:.7rem;font-weight:800;color:var(--amber);
-      background:var(--amber-bg);border-radius:8px;padding:3px 7px;white-space:nowrap}
+/* השורה והפתק שמתחתיה הם יחידה אחת. הפתק אינו יכול לשבת בתוך
+   ה-button של השורה, ולכן העטיפה. */
+.item{margin-bottom:7px}
+.item .row{margin-bottom:0}
+
+/* עט. צר בכוונה — הוא חולק שורה עם השם, ובמסך של 360 פיקסלים
+   כל אלמנט נוסף בא על חשבון השם. */
+.pen{flex:none;width:34px;height:34px;border-radius:9px;
+     border:1px solid var(--rule);background:var(--sunk);color:var(--ink-2);
+     display:flex;align-items:center;justify-content:center;
+     font-size:.92rem;font-weight:800}
+.pen.has{background:var(--amber-bg);border-color:var(--gold);color:var(--amber)}
+
+/* ---------- הפתק ---------- */
+.note{background:var(--surface);border:1px solid var(--gold);border-top:none;
+      border-radius:0 0 var(--r) var(--r);padding:10px 12px 12px;
+      margin-top:-1px}
+.ntxt{width:100%;min-height:84px;background:transparent;border:none;outline:none;
+      font-size:.98rem;line-height:1.65;resize:vertical;color:var(--ink)}
+.nclose{display:block;margin-inline-start:auto;margin-top:4px;
+        font-size:.78rem;font-weight:800;color:var(--blue);
+        background:var(--surface);border:1px solid var(--rule);border-radius:9px;
+        padding:6px 14px}
 
 /* אישור הורים הוא סימון שקט, והוא שייך לשלב א בלבד. הפעולה
    החוזרת של היום היא הספירה — הצ'יפ לא מתחרה בה על העין. */
@@ -158,6 +178,9 @@ button{cursor:pointer;border:none;background:none}
       <button class="btn ghost" id="bCancel">ביטול</button>
     </div>
     <div class="reset">
+      <button class="btn ghost" id="bNotes">שלח את ההערות לוואטסאפ</button>
+      <p class="hint">ההערות שכתבת על התלמידים, במסר אחד. הן אינן
+        נכללות בדיווחי הנוכחות — אלה נשלחים הלאה, וההערות לא.</p>
       <button class="btn ghost" id="bRestart">התחל יום טיול מחדש</button>
       <p class="hint">מחזיר את כל התלמידים לרשימה ופותח מחדש את מפקד
         העלייה. השמות ואישורי ההורים נשארים.</p>
@@ -193,11 +216,13 @@ button{cursor:pointer;border:none;background:none}
   var KEY = 'tiul.v1';       /* המפתח נשאר; המבנה בתוכו מהוגר */
   var S = null;
   var goneOpen = false;
+  var openNote = null;      /* מזהה התלמיד שהפתק שלו פתוח */
+  var focusNote = false;    /* לתת פוקוס רק בפתיחה, לא בכל ציור */
 
   /* ---------- אחסון ---------- */
 
   function blank() {
-    return { v: 2, title: '', seq: 0, kids: [], ok: {},
+    return { v: 2, title: '', seq: 0, kids: [], ok: {}, note: {},
              phase: 1, out: {}, here: {}, round: 1, roundAt: 0 };
   }
 
@@ -223,6 +248,7 @@ button{cursor:pointer;border:none;background:none}
     if (!S.here) S.here = {};
     if (!S.ok) S.ok = {};
     if (!S.out) S.out = {};
+    if (!S.note) S.note = {};
     if (!S.round) S.round = 1;
     if (!S.phase) S.phase = 1;
     if (!S.seq) S.seq = S.kids.length;
@@ -310,7 +336,7 @@ button{cursor:pointer;border:none;background:none}
 
     var live = {};
     for (i = 0; i < out.length; i++) live[out[i].id] = 1;
-    var maps = [S.here, S.ok, S.out], m, k;
+    var maps = [S.here, S.ok, S.out, S.note], m, k;
     for (i = 0; i < maps.length; i++) {
       m = maps[i];
       for (k in m) { if (m.hasOwnProperty(k) && !live[k]) delete m[k]; }
@@ -331,14 +357,24 @@ button{cursor:pointer;border:none;background:none}
       if (on) here++;
       if (!ok) noSlip++;
 
-      h += '<button class="row' + (on ? ' on' : '') + '" data-k="' + k.id + '">'
-         +   '<span class="num">' + (i + 1) + '</span>'
-         +   '<span class="tick">✓</span>'
-         +   '<span class="nm">' + esc(k.n) + '</span>'
-         +   (p1 && on && !ok ? '<span class="flag">אין אישור</span>' : '')
-         +   (p1 ? '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
-                 + (ok ? 'הורים ✓' : 'הורים') + '</span>' : '')
-         + '</button>';
+      var txt = S.note[k.id] || '';
+      var open = (openNote === k.id);
+
+      h += '<div class="item">'
+         +   '<button class="row' + (on ? ' on' : '') + '" data-k="' + k.id + '">'
+         +     '<span class="num">' + (i + 1) + '</span>'
+         +     '<span class="tick">✓</span>'
+         +     '<span class="nm">' + esc(k.n) + '</span>'
+         +     (p1 ? '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
+                   + (ok ? 'הורים ✓' : 'הורים') + '</span>' : '')
+         +     '<span class="pen' + (txt ? ' has' : '') + '" data-n="' + k.id + '">✎</span>'
+         +   '</button>'
+         +   (open
+              ? '<div class="note"><textarea class="ntxt" data-t="' + k.id + '"'
+                + ' placeholder="משהו שכדאי לזכור">' + esc(txt) + '</textarea>'
+                + '<button class="nclose" data-c="' + k.id + '">סגור</button></div>'
+              : '')
+         + '</div>';
     }
 
     /* מי שלא הגיע לטיול יורד מהספירה, אבל לא נעלם. תלמיד שמגיע
@@ -365,6 +401,14 @@ button{cursor:pointer;border:none;background:none}
       ? (noSlip ? noSlip + ' ללא אישור הורים' : '')
       : ((trip.length - here) ? (trip.length - here) + ' חסרים' : '');
     $('bMain').textContent = p1 ? 'סיום עלייה לאוטובוס' : 'סבב חדש';
+
+    /* פוקוס רק ברגע הפתיחה. ציור חוזר תוך כדי הקלדה היה גונב
+       את הסמן, ולכן ההקלדה עצמה אינה מציירת מחדש. */
+    if (focusNote && openNote) {
+      var ta = $('list').querySelector('.ntxt');
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }
+    focusNote = false;
   }
 
   /* ---------- דיווח ---------- */
@@ -443,6 +487,7 @@ button{cursor:pointer;border:none;background:none}
     /* הסבב הראשון ממשיך את העלייה: מי שעלה נמצא, וזו אותה ספירה
        ולא הצהרה חדשה שלא נעשתה. השעה בכותרת אומרת מתי. */
     goneOpen = false;
+    openNote = null;
     save();
     render();
     toWhatsApp(txt);
@@ -466,6 +511,8 @@ button{cursor:pointer;border:none;background:none}
     while (el && el !== this) {
       if (el.getAttribute) {
         if (el.getAttribute('data-p')) { id = el.getAttribute('data-p'); kind = 'ok'; break; }
+        if (el.getAttribute('data-n')) { id = el.getAttribute('data-n'); kind = 'note'; break; }
+        if (el.getAttribute('data-c')) { id = el.getAttribute('data-c'); kind = 'shut'; break; }
         if (el.getAttribute('data-b')) { id = el.getAttribute('data-b'); kind = 'back'; break; }
         if (el.getAttribute('data-k')) { id = el.getAttribute('data-k'); kind = 'here'; break; }
         if (el.id === 'bGoneT') { kind = 'toggle'; break; }
@@ -475,11 +522,29 @@ button{cursor:pointer;border:none;background:none}
     if (!kind) return;
 
     if (kind === 'toggle') { goneOpen = !goneOpen; render(); return; }
+    if (kind === 'note') {
+      focusNote = (openNote !== id);
+      openNote = (openNote === id) ? null : id;
+      render();
+      return;
+    }
+    if (kind === 'shut') { openNote = null; render(); return; }
     if (kind === 'ok')     { if (S.ok[id]) delete S.ok[id]; else S.ok[id] = 1; }
     if (kind === 'here')   { if (S.here[id]) delete S.here[id]; else S.here[id] = 1; }
     if (kind === 'back')   { delete S.out[id]; S.here[id] = 1; }
     save();
     render();
+  });
+
+  /* נשמר תוך כדי הקלדה. אין "שמור" ואין מה לשכוח ללחוץ עליו. */
+  $('list').addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el || !el.getAttribute) return;
+    var id = el.getAttribute('data-t');
+    if (!id) return;
+    var v = el.value.replace(/^\s+|\s+$/g, '');
+    if (v) S.note[id] = el.value; else delete S.note[id];
+    save();
   });
 
   $('bMain').addEventListener('click', function () {
@@ -494,6 +559,7 @@ button{cursor:pointer;border:none;background:none}
     $('iTtl').value = S.title || '';
     $('iNames').value = names.join('\n');
     $('bRestart').style.display = (S.phase === 2) ? '' : 'none';
+    $('bNotes').style.display = count(S.note) ? '' : 'none';
     show('setup');
   });
 
@@ -513,6 +579,18 @@ button{cursor:pointer;border:none;background:none}
     show('list');
   });
 
+  /* ההערות חיות בטלפון אחד בלבד, וזה מספיק כדי לאבד אותן.
+     ייצוא אחד, לעצמו, פותר את זה. */
+  $('bNotes').addEventListener('click', function () {
+    var t = (S.title || 'מפקד טיול') + ' — הערות\n', n = 0, i, k;
+    for (i = 0; i < S.kids.length; i++) {
+      k = S.kids[i];
+      if (S.note[k.id]) { n++; t += '\n· ' + k.n + '\n' + S.note[k.id] + '\n'; }
+    }
+    if (!n) { window.alert('עוד לא כתבת הערות.'); return; }
+    toWhatsApp(t);
+  });
+
   $('bRestart').addEventListener('click', function () {
     if (!window.confirm('להחזיר את כל התלמידים לרשימה ולפתוח מחדש את מפקד העלייה?')) return;
     S.phase = 1;
@@ -521,6 +599,7 @@ button{cursor:pointer;border:none;background:none}
     S.round = 1;
     S.roundAt = 0;
     goneOpen = false;
+    openNote = null;
     save();
     render();
     show('list');
@@ -567,6 +646,7 @@ button{cursor:pointer;border:none;background:none}
     S.round = 1;
     S.roundAt = 0;
     goneOpen = false;
+    openNote = null;
     save();
     clearHash();
     return true;
@@ -592,6 +672,7 @@ button{cursor:pointer;border:none;background:none}
   if (!had) {
     $('bCancel').style.display = 'none';
     $('bRestart').style.display = 'none';
+    $('bNotes').style.display = 'none';
   }
 
   /* קישור שנפתח כשהאפליקציה כבר פתוחה משנה רק את הסימן — הדפדפן
