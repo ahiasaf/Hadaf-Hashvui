@@ -71,14 +71,7 @@ button{cursor:pointer;border:none;background:none}
 .row .num{width:24px;flex:none;font-size:.78rem;font-weight:700;color:var(--ink-2);
           font-variant-numeric:tabular-nums}
 .row.on .num{color:var(--green)}
-.row .nm{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:1px}
-.nn{font-size:1.04rem;font-weight:700;letter-spacing:-.01em}
-
-/* תובנה שנכתבה תוך כדי טיול צריכה להיראות בלי לפתוח כלום —
-   אחרת היא נכתבת פעם אחת ולא נקראת שוב. שורה אחת, חתוכה,
-   ורק למי שיש לו הערה: על השאר היא לא מוסיפה שום גובה. */
-.np{font-size:.78rem;font-weight:700;color:var(--amber);
-    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .nm{flex:1;min-width:0;font-size:1.04rem;font-weight:700;letter-spacing:-.01em}
 .row .tick{width:26px;height:26px;flex:none;border-radius:50%;
            border:2px solid var(--rule);background:#fff;
            display:flex;align-items:center;justify-content:center;
@@ -86,7 +79,11 @@ button{cursor:pointer;border:none;background:none}
 .row.on .tick{background:var(--green-l);border-color:var(--green);color:#fff}
 
 /* השורה והפתק שמתחתיה הם יחידה אחת. הפתק אינו יכול לשבת בתוך
-   ה-button של השורה, ולכן העטיפה. */
+   ה-button של השורה, ולכן העטיפה.
+
+   **תוכן ההערה לעולם אינו מוצג ברשימה.** המסך הזה נפתח ליד
+   התלמידים עצמם, ותצוגה מקדימה מתחת לשם היא בדיוק מה שנקרא
+   מעבר לכתף. ההערה נראית רק כשלוחצים על העט. נוסה, והוסר. */
 .item{margin-bottom:7px}
 .item .row{margin-bottom:0}
 
@@ -281,12 +278,6 @@ button{cursor:pointer;border:none;background:none}
     return n;
   }
 
-  /* שורה אחת מתוך הפתק, בלי שברי שורות — היא נכנסת לתוך רוחב
-     של אצבע ואין טעם לשלוח לשם פסקה. */
-  function peek(t) {
-    return String(t).replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
-  }
-
   function hhmm(ts) {
     var d = ts ? new Date(ts) : new Date();
     var h = d.getHours(), m = d.getMinutes();
@@ -377,9 +368,7 @@ button{cursor:pointer;border:none;background:none}
          +   '<button class="row' + (on ? ' on' : '') + '" data-k="' + k.id + '">'
          +     '<span class="num">' + (i + 1) + '</span>'
          +     '<span class="tick">✓</span>'
-         +     '<span class="nm"><span class="nn">' + esc(k.n) + '</span>'
-         +       (txt ? '<span class="np">' + esc(peek(txt)) + '</span>' : '')
-         +     '</span>'
+         +     '<span class="nm">' + esc(k.n) + '</span>'
          +     (p1 ? '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
                    + (ok ? 'הורים ✓' : 'הורים') + '</span>' : '')
          +     '<span class="pen' + (txt ? ' has' : '') + '" data-n="' + k.id + '">✎</span>'
