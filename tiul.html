@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>מפקד טיול</title>
+<meta name="theme-color" content="#17468F">
+<meta name="robots" content="noindex">
+<style>
+/* ============================================================
+   מפקד טיול — מסך אחד, אצבע אחת, תוך כדי הליכה.
+
+   שני סוגי סימון, וההבדל ביניהם הוא כל הרעיון:
+
+   • **עלה** — נמחק בכל סבב. זה מה שסופרים מחדש בכל עלייה
+     לאוטובוס, ולכן "סבב חדש" מנקה אותו בלחיצה אחת.
+   • **אישור הורים** — נשאר. תלמיד שהביא אישור הביא אותו לכל
+     היום, ואין שום סיבה לסמן אותו שוב בכל עצירה.
+
+   הרשימה נשמרת ב-localStorage של המכשיר בלבד. הריפו ציבורי,
+   ואין בו ולא יהיה בו שם של תלמיד.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550;
+  --green:#467B1A; --green-l:#6FA83B; --green-bg:#EEF5E4;
+  --gold:#C08F2B; --amber:#8A5A00; --amber-bg:#FBF1DA;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780;
+  --rule:#E5DAC3;
+  --r:13px;
+  --sh:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:"Assistant","Segoe UI","Noto Sans Hebrew","Arial Hebrew",system-ui,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+html,body{overflow-x:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.5;
+     -webkit-font-smoothing:antialiased;touch-action:manipulation}
+button,textarea,input{font-size:1rem;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* הסרגל התחתון מרחף מעל הרשימה — הריפוד למטה הוא מה שמונע
+   ממנו לכסות את התלמיד האחרון, וזה בדיוק התלמיד שמחפשים. */
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 168px}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- כותרת ---------- */
+.top{display:flex;align-items:baseline;gap:8px;
+     padding:2px 2px 14px;border-bottom:1px solid var(--rule);margin-bottom:12px}
+.top h1{font-size:1.12rem;font-weight:800;letter-spacing:-.01em;flex:1;
+        min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .rnd{font-size:.8rem;font-weight:700;color:var(--gold);white-space:nowrap}
+.top .edit{font-size:.82rem;font-weight:700;color:var(--blue);padding:4px}
+
+/* ---------- שורת תלמיד ---------- */
+.row{display:flex;align-items:center;gap:10px;width:100%;text-align:right;
+     background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+     padding:11px 12px;margin-bottom:7px;box-shadow:var(--sh);
+     transition:background .12s,border-color .12s}
+.row.on{background:var(--green-bg);border-color:var(--green-l)}
+.row .num{width:24px;flex:none;font-size:.78rem;font-weight:700;color:var(--ink-2);
+          font-variant-numeric:tabular-nums}
+.row.on .num{color:var(--green)}
+.row .nm{flex:1;min-width:0;font-size:1.04rem;font-weight:700;letter-spacing:-.01em}
+.row .tick{width:26px;height:26px;flex:none;border-radius:50%;
+           border:2px solid var(--rule);background:#fff;
+           display:flex;align-items:center;justify-content:center;
+           font-size:.9rem;font-weight:800;color:transparent}
+.row.on .tick{background:var(--green-l);border-color:var(--green);color:#fff}
+
+/* דגל קטן ולא צועק: עלה לאוטובוס ואין לו אישור הורים. */
+.flag{flex:none;font-size:.7rem;font-weight:800;color:var(--amber);
+      background:var(--amber-bg);border-radius:8px;padding:3px 7px;white-space:nowrap}
+
+/* אישור הורים הוא סימון שקט. הפעולה החוזרת של היום היא "עלה",
+   והיא זו שצובעת את השורה — הצ'יפ לא אמור להתחרות בה על העין. */
+.chip{flex:none;font-size:.74rem;font-weight:800;color:var(--ink-2);
+      background:var(--sunk);border:1px solid var(--rule);border-radius:9px;
+      padding:7px 9px;white-space:nowrap}
+.chip.yes{background:rgba(23,70,143,.09);border-color:var(--blue);color:var(--blue)}
+
+/* ---------- הסרגל התחתון ---------- */
+.bar{position:fixed;inset:auto 0 0 0;background:var(--surface);
+     border-top:1px solid var(--rule);box-shadow:0 -4px 18px rgba(37,29,12,.08);
+     padding:11px 14px calc(11px + env(safe-area-inset-bottom))}
+.bar .in{max-width:560px;margin:0 auto}
+.tally{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;padding:0 2px}
+.tally .big{font-size:1.5rem;font-weight:800;color:var(--green);
+            font-variant-numeric:tabular-nums;line-height:1.1}
+.tally .of{font-size:.92rem;font-weight:700;color:var(--ink-2)}
+.tally .miss{margin-inline-start:auto;font-size:.78rem;font-weight:700;
+             color:var(--amber)}
+.acts{display:flex;gap:8px}
+.btn{flex:1;border-radius:11px;padding:13px 8px;font-size:.92rem;font-weight:800;
+     border:1px solid var(--rule);background:var(--sunk);color:var(--ink)}
+.btn.go{background:var(--green-l);border-color:var(--green);color:#fff;flex:1.35}
+.btn.ghost{background:var(--surface)}
+
+/* ---------- מסך הרשימה ---------- */
+.lead{font-size:.94rem;color:var(--ink-2);margin-bottom:12px;line-height:1.6}
+.fld{display:block;font-size:.8rem;font-weight:800;color:var(--ink-2);
+     margin:0 2px 6px}
+.txt{width:100%;background:var(--surface);border:1px solid var(--rule);
+     border-radius:var(--r);padding:11px 12px;margin-bottom:14px;
+     font-size:1rem;line-height:1.7;resize:vertical}
+.txt.tall{min-height:44vh}
+.hint{font-size:.78rem;color:var(--ink-2);margin:-8px 2px 16px}
+.empty{text-align:center;color:var(--ink-2);font-size:.94rem;padding:40px 10px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="top">
+    <h1 id="ttl">מפקד טיול</h1>
+    <span class="rnd" id="rnd"></span>
+    <button class="edit" id="bEdit">רשימה</button>
+  </div>
+
+  <!-- ===== מסך א׳ · הרשימה ===== -->
+  <div class="view" id="vSetup">
+    <p class="lead">הדבק כאן את שמות התלמידים — שם בכל שורה.
+      הרשימה נשמרת בטלפון הזה בלבד, ואפשר לערוך אותה בכל רגע.</p>
+    <label class="fld" for="iTtl">שם הכיתה</label>
+    <input class="txt" id="iTtl" type="text" placeholder="ז׳5 · יום טיול">
+    <label class="fld" for="iNames">שמות התלמידים</label>
+    <textarea class="txt tall" id="iNames" placeholder="ישראל ישראלי&#10;משה כהן&#10;..."></textarea>
+    <p class="hint">מספור בתחילת שורה (1. או 1) ) יוסר לבד. סימונים
+      שכבר קיימים נשמרים לתלמידים שנשארו ברשימה.</p>
+    <div class="acts">
+      <button class="btn go" id="bSave">שמור רשימה</button>
+      <button class="btn ghost" id="bCancel">ביטול</button>
+    </div>
+  </div>
+
+  <!-- ===== מסך ב׳ · המפקד ===== -->
+  <div class="view" id="vList">
+    <div id="list"></div>
+  </div>
+
+</div>
+
+<div class="bar" id="bar">
+  <div class="in">
+    <div class="tally">
+      <span class="big" id="cnt">0</span>
+      <span class="of" id="of">מתוך 0 עלו</span>
+      <span class="miss" id="miss"></span>
+    </div>
+    <div class="acts">
+      <button class="btn go" id="bWa">שלח לוואטסאפ</button>
+      <button class="btn" id="bClear">סבב חדש</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ES5 בלבד. הטלפונים בשטח ישנים. */
+(function () {
+  'use strict';
+
+  var KEY = 'tiul.v1';
+  var S = null;
+
+  /* ---------- אחסון ---------- */
+
+  /* קריאה שנכשלה אינה רשימה ריקה. אם ה-JSON פגום או ה-localStorage
+     חסום, מוטב להתחיל נקי מאשר להעמיד פנים שהכיתה ריקה — אבל אז
+     גם לא דורסים את מה ששמור: השמירה הבאה היא זו שתחליט. */
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try { S = JSON.parse(raw); } catch (e2) { S = null; }
+    }
+    if (!S || !S.kids || !S.kids.length) {
+      S = { title: '', round: 1, seq: 0, kids: [], here: {}, ok: {} };
+      return false;
+    }
+    if (!S.here) S.here = {};
+    if (!S.ok) S.ok = {};
+    if (!S.round) S.round = 1;
+    if (!S.seq) S.seq = S.kids.length;
+    return true;
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  }
+
+  /* ---------- עזר ---------- */
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function show(which) {
+    $('vSetup').className = 'view' + (which === 'setup' ? ' on' : '');
+    $('vList').className  = 'view' + (which === 'list' ? ' on' : '');
+    $('bar').style.display = (which === 'list') ? '' : 'none';
+    $('bEdit').style.display = (which === 'list') ? '' : 'none';
+    window.scrollTo(0, 0);
+  }
+
+  /* שורה שהודבקה מגיליון או מווטסאפ נושאת איתה מספור. הוא מיותר
+     כאן — האפליקציה ממספרת בעצמה — ובלי ניקוי הוא נכנס לתוך השם
+     ומופיע גם בדיווח. */
+  function parseNames(text) {
+    var lines = String(text || '').split(/\r?\n/);
+    var out = [], i, s;
+    for (i = 0; i < lines.length; i++) {
+      s = lines[i].replace(/^[\s‏‎]*\d+[\s.)\-–]*/, '');
+      s = s.replace(/^\s+|\s+$/g, '');
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  /* בנייה מחדש של הרשימה תוך שמירת הסימונים: תלמיד שנשאר בשמו
+     שומר את המזהה שלו, ולכן גם את "עלה" ואת אישור ההורים. תלמיד
+     שהוסר — הסימונים שלו נמחקים, אחרת הם היו נספרים לנצח. */
+  function applyNames(names) {
+    var old = S.kids, taken = {}, out = [], i, j, id;
+    for (i = 0; i < names.length; i++) {
+      id = null;
+      for (j = 0; j < old.length; j++) {
+        if (!taken[j] && old[j].n === names[i]) { id = old[j].id; taken[j] = 1; break; }
+      }
+      if (!id) { S.seq++; id = 'k' + S.seq; }
+      out.push({ id: id, n: names[i] });
+    }
+    S.kids = out;
+
+    var live = {};
+    for (i = 0; i < out.length; i++) live[out[i].id] = 1;
+    var k;
+    for (k in S.here) { if (S.here.hasOwnProperty(k) && !live[k]) delete S.here[k]; }
+    for (k in S.ok)   { if (S.ok.hasOwnProperty(k)   && !live[k]) delete S.ok[k]; }
+  }
+
+  /* ---------- ציור ---------- */
+
+  function render() {
+    var h = '', i, k, on, ok, here = 0, noSlip = 0;
+
+    for (i = 0; i < S.kids.length; i++) {
+      k = S.kids[i];
+      on = !!S.here[k.id];
+      ok = !!S.ok[k.id];
+      if (on) here++;
+      if (!ok) noSlip++;
+
+      h += '<button class="row' + (on ? ' on' : '') + '" data-k="' + k.id + '">'
+         +   '<span class="num">' + (i + 1) + '</span>'
+         +   '<span class="tick">✓</span>'
+         +   '<span class="nm">' + esc(k.n) + '</span>'
+         +   (on && !ok ? '<span class="flag">אין אישור</span>' : '')
+         +   '<span class="chip' + (ok ? ' yes' : '') + '" data-p="' + k.id + '">'
+         +     (ok ? 'הורים ✓' : 'הורים') + '</span>'
+         + '</button>';
+    }
+
+    $('list').innerHTML = h || '<p class="empty">הרשימה ריקה.</p>';
+    $('ttl').textContent = S.title || 'מפקד טיול';
+    $('rnd').textContent = 'סבב ' + S.round;
+    $('cnt').textContent = here;
+    $('of').textContent = 'מתוך ' + S.kids.length + ' עלו';
+    $('miss').textContent = noSlip ? (noSlip + ' ללא אישור הורים') : '';
+  }
+
+  /* ---------- דיווח ---------- */
+
+  function report() {
+    var d = new Date();
+    var hh = (d.getHours() < 10 ? '0' : '') + d.getHours();
+    var mm = (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+    var yes = [], no = [], i, k;
+
+    for (i = 0; i < S.kids.length; i++) {
+      k = S.kids[i];
+      (S.here[k.id] ? yes : no).push(k.n);
+    }
+
+    var t = (S.title || 'מפקד טיול') + '\n';
+    t += 'סבב ' + S.round + ' · ' + hh + ':' + mm + '\n';
+    t += 'עלו ' + yes.length + ' מתוך ' + S.kids.length + '\n';
+
+    t += '\nעלו (' + yes.length + '):\n';
+    for (i = 0; i < yes.length; i++) t += (i + 1) + '. ' + yes[i] + '\n';
+
+    t += '\nלא עלו (' + no.length + '):\n';
+    if (!no.length) t += '— כולם על האוטובוס\n';
+    for (i = 0; i < no.length; i++) t += (i + 1) + '. ' + no[i] + '\n';
+
+    return t;
+  }
+
+  /* ---------- אירועים ---------- */
+
+  $('list').addEventListener('click', function (e) {
+    var el = e.target, id = null, isChip = false;
+    while (el && el !== this) {
+      if (el.getAttribute) {
+        if (el.getAttribute('data-p')) { id = el.getAttribute('data-p'); isChip = true; break; }
+        if (el.getAttribute('data-k')) { id = el.getAttribute('data-k'); break; }
+      }
+      el = el.parentNode;
+    }
+    if (!id) return;
+
+    if (isChip) {
+      if (S.ok[id]) delete S.ok[id]; else S.ok[id] = 1;
+    } else {
+      if (S.here[id]) delete S.here[id]; else S.here[id] = 1;
+    }
+    save();
+    render();
+  });
+
+  $('bClear').addEventListener('click', function () {
+    var n = 0, k;
+    for (k in S.here) { if (S.here.hasOwnProperty(k)) n++; }
+    if (n && !window.confirm('למחוק את הסימונים של ' + n + ' תלמידים ולפתוח סבב חדש?')) return;
+    S.here = {};
+    S.round++;
+    save();
+    render();
+    window.scrollTo(0, 0);
+  });
+
+  $('bWa').addEventListener('click', function () {
+    var txt = report();
+    /* wa.me פותח את וואטסאפ עם הטקסט מוכן ונותן לבחור למי לשלוח —
+       כולל "הודעה לעצמי". אין כאן מספר טלפון, ולא יהיה: הריפו ציבורי. */
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  });
+
+  $('bEdit').addEventListener('click', function () {
+    var names = [], i;
+    for (i = 0; i < S.kids.length; i++) names.push(S.kids[i].n);
+    $('iTtl').value = S.title || '';
+    $('iNames').value = names.join('\n');
+    show('setup');
+  });
+
+  $('bCancel').addEventListener('click', function () {
+    if (!S.kids.length) return;          /* אין לאן לחזור */
+    render();
+    show('list');
+  });
+
+  $('bSave').addEventListener('click', function () {
+    var names = parseNames($('iNames').value);
+    if (!names.length) { window.alert('לא נמצא אף שם ברשימה.'); return; }
+    S.title = $('iTtl').value.replace(/^\s+|\s+$/g, '');
+    applyNames(names);
+    save();
+    render();
+    show('list');
+  });
+
+  /* ---------- הפעלה ---------- */
+
+  var had = load();
+  render();
+  show(had ? 'list' : 'setup');
+  if (!had) $('bCancel').style.display = 'none';
+
+  /* עובד בלי רשת. באוטובוס באמצע שום מקום זה ההבדל בין אפליקציה
+     למסך לבן — או, גרוע מכך, למסך הלא נכון.
+
+     ה-Service Worker נכנס לתמונה רק **אחרי** הניווט שהתקין אותו,
+     ולכן העמוד הזה עצמו אינו במטמון בסוף הביקור הראשון. פתיחה בלי
+     רשת אחריו לא מחזירה מסך לבן: היא נופלת לעמוד הבית של הדף
+     השבועי, כי זו נפילת ברירת המחדל שם. נבדק, וזה בדיוק מה שקרה.
+
+     התיקון הוא בקשה אחת של העמוד דרך ה-SW ברגע שהוא תופס שליטה.
+     מכאן הוא שמור, והפתיחה הבאה עובדת גם בלי קליטה. */
+  if ('serviceWorker' in navigator) {
+    var warm = function () {
+      try { fetch('./tiul.html', { cache: 'reload' }); } catch (e) {}
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', warm);
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').then(function () {
+        if (navigator.serviceWorker.controller) warm();
+      }).catch(function () {});
+    });
+  }
+}());
+</script>
+
+</body>
+</html>
