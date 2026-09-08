@@ -364,9 +364,66 @@ button{cursor:pointer;border:none;background:none}
     show('list');
   });
 
+  /* ---------- טעינה מקישור ---------- */
+
+  /* להקליד 34 שמות בטלפון בבוקר של יום טיול זה לא מסלול. קישור
+     שנושא את הרשימה בתוכו הוא לחיצה אחת, והשמות נשארים בכתובת
+     ובמכשיר — לא בקוד ולא בשרת.
+
+     מבנה: #list=<שורה ראשונה שם הכיתה, ואחריה שם בכל שורה>,
+     מקודד ב-encodeURIComponent. אחרי הטעינה הכתובת מנוקה, אחרת
+     כל רענון היה דורס מחדש את הסימונים של אמצע היום. */
+  function fromLink() {
+    var h = String(window.location.hash || '');
+    var m = h.match(/[#&]list=([^&]*)/);
+    if (!m) return false;
+
+    var raw = '';
+    try { raw = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return false; }
+
+    var lines = raw.split(/\r?\n/);
+    var title = (lines.shift() || '').replace(/^\s+|\s+$/g, '');
+    var names = parseNames(lines.join('\n'));
+    if (!names.length) return false;
+
+    /* רשימה קיימת אינה נדרסת בשקט — באמצע טיול זו מחיקה של
+       סימונים שאי אפשר לשחזר. */
+    if (S.kids.length && !window.confirm(
+          'הקישור נושא רשימה של ' + names.length + ' תלמידים.\n' +
+          'להחליף את הרשימה הקיימת (' + S.kids.length + ')?')) {
+      clearHash();
+      return false;
+    }
+
+    if (title) S.title = title;
+    applyNames(names);
+    save();
+    clearHash();
+    return true;
+  }
+
+  function clearHash() {
+    try {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState('', document.title,
+          window.location.pathname + window.location.search);
+      } else {
+        window.location.hash = '';
+      }
+    } catch (e) {}
+  }
+
   /* ---------- הפעלה ---------- */
 
   var had = load();
+  if (fromLink()) had = true;
+
+  /* קישור שנפתח כשהאפליקציה כבר פתוחה משנה רק את הסימן — הדפדפן
+     אינו טוען את העמוד מחדש, והרשימה החדשה פשוט לא הייתה נכנסת.
+     נבדק, וזה בדיוק מה שקרה. */
+  window.addEventListener('hashchange', function () {
+    if (fromLink()) { render(); show('list'); }
+  });
   render();
   show(had ? 'list' : 'setup');
   if (!had) $('bCancel').style.display = 'none';
