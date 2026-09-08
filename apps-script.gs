@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 26;
+var SCRIPT_VERSION = 27;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -500,6 +500,13 @@ function doGet(e) {
       var tab = book.getSheetByName(want);
       rd = { status: 'ok', tab: want,
              rows: tab && tab.getLastRow() ? tab.getDataRange().getDisplayValues() : [] };
+      /* ההצלבה נוסעת יחד עם השורות, ולא בבקשה שנייה.
+
+         היא מחושבת **כאן בלבד** — אותה פונקציה שהלוח משתמש
+         בה — כי שני מימושים של "מי לומד עם מי" ייפרדו זה מזה
+         ביום שמישהו יתקן אחד מהם, וזה כבר קרה בפרויקט הזה
+         יותר מפעם אחת. */
+      if (want === JOIN_TAB) rd.pairs = pairMap_(rd.rows);
     } catch (err) {
       rd = { status: 'error', message: String(err) };
     }
@@ -986,6 +993,10 @@ function boardData_(inst, k) {
     var js = sheet_(JOIN_TAB);
     if (js.getLastRow() > 1) {
       var jr = js.getDataRange().getDisplayValues(), jh = jr[0], ji = {};
+      /* ההצלבה נעשית על **כל** הנרשמים ולא על הישיבה הזו בלבד:
+         אבא ובן אינם תמיד מסמנים את אותה ישיבה, ואב שסימן
+         ישיבה אחרת עדיין אביו של הבן הזה. */
+      var pm = pairMap_(jr);
       for (var c = 0; c < jh.length; c++) ji[String(jh[c]).trim()] = c;
       var cell = function (r, name) {
         return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
@@ -1016,6 +1027,17 @@ function boardData_(inst, k) {
       }
       order.forEach(function (pid) {
         var p = byId[pid];
+        /* הלוח הוא רשימת הנוכחות של תלמידי הישיבה. אבא אינו
+           תלמיד שלה, ושמו אינו צריך להגיע לצוות — מה שהצוות
+           צריך לדעת יושב על שורת הבן. */
+        if (p.role === 'הורה') return;
+        /* זיווג מאומת: שני הצדדים נרשמו בפועל. בלעדיו נשאר
+           מה שהתלמיד **הצהיר** — וזה הבדל שהצוות צריך לראות,
+           כי "מילא את השם של אבא" אינו "אבא לומד איתו". */
+        if (pm[pid] && pm[pid]['with']) {
+          p['with'] = pm[pid]['with'];
+          p.withOk  = 1;
+        }
         for (var t in (done[pid] || {})) p.weeks.push(t);
         /* התקדמות מוחזרת רק לשבוע שלא הושלם — אחרת היא סותרת
            את הסימון ומייצרת שני מספרים לאותו דבר. */
@@ -1028,6 +1050,104 @@ function boardData_(inst, k) {
   } catch (e2) {}
 
   return { status: 'ok', inst: inst, students: out };
+}
+
+/* ============================================================
+   מי לומד עם מי — ההצלבה.
+   ============================================================
+   אבא ובן נרשמים בנפרד, כל אחד במכשיר שלו, ואיש מהם אינו יודע
+   את המזהה של השני. מה שכן משותף להם הוא **הטלפון**: הבן מסר
+   את של אביו, האב מסר את של בנו, ולפחות אחד מהשניים תמיד
+   קיים. זו נקודת החיבור.
+
+   שלושה חוטים, וכל אחד מהם לבדו מספיק:
+     · הטלפון שהאב מסר על הבן = הטלפון של הבן
+     · הטלפון שהבן מסר על אביו = הטלפון של האב
+     · מזהה המזמין — מי שנרשם דרך קישור הזמנה נושא אותו איתו,
+       וזה החוט החזק ביותר כי אין בו ניחוש בכלל.
+
+   **מזווגים רק כשצד אחד הוא הורה והשני אינו.** שני חברים
+   שרשמו זה את הטלפון של זה יתאימו גם הם — ולסמן אותם "לומד
+   עם אבא" זה להציג לצוות מידע שגוי על תלמיד. תפקיד הוא מה
+   שמבדיל.
+
+   וזה רץ **כאן ולא אצל הקורא**, מסיבה אחת שאינה נתונה לוויכוח:
+   ההצלבה היא לפי טלפונים, והלוח של הצוות אינו מקבל טלפונים
+   ולא יקבל. מה שיוצא מכאן הוא שם פרטי וסימן, ותו לא.
+   ============================================================ */
+/* הצורה היחידה שאפשר להשוות בה. 050-123-4567, 0501234567
+   ו-+972501234567 הם אותו מספר, ומי שמשווה מחרוזות מפספס
+   את שלושתם. */
+function phKey_(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (d.indexOf('972') === 0) d = d.slice(3);
+  if (d.indexOf('0')   === 0) d = d.slice(1);
+  return d.length >= 8 ? d : '';
+}
+
+/* מזהה → { with:'שם פרטי של הצד השני', ok:1 }.
+   מוחזר רק למי שיש לו זיווג **מאומת**. הצהרה בלבד ("מילאתי
+   את השם של אבא") כבר מיוצגת בעמודה עצמה, והבחנה בין השתיים
+   היא כל מה שהמסך הזה נועד לתת. */
+function pairMap_(rows) {
+  var out = {};
+  if (!rows || rows.length < 2) return out;
+  var head = rows[0], ix = {};
+  for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+  if (ix['מזהה'] === undefined) return out;       /* אין את מי לזווג */
+  var cell = function (r, n) {
+    return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim();
+  };
+
+  /* השורה האחרונה לכל מזהה היא הנכונה — מי שתיקן פרטים שלח
+     שורה נוספת עם אותו מזהה. */
+  var by = {}, order = [];
+  for (var r = 1; r < rows.length; r++) {
+    var id = cell(rows[r], 'מזהה');
+    if (!id) continue;
+    if (!(id in by)) order.push(id);
+    by[id] = {
+      id:    id,
+      first: cell(rows[r], 'שם'),
+      dad:   cell(rows[r], 'תפקיד') === 'הורה',
+      mine:  phKey_(cell(rows[r], 'טלפון')),
+      other: phKey_(cell(rows[r], 'טלפון ההורה')),
+      wid:   cell(rows[r], 'מזהה המזמין')
+    };
+  }
+
+  /* שני אינדקסים ולא לולאה בתוך לולאה: אלפיים נרשמים היו
+     ארבעה מיליון השוואות, וזה נגמר בפסק הזמן של הסקריפט
+     באמצע ספירה — כלומר לוח שמפסיק להתעדכן בלי שום הודעה.
+
+     יותר ממזהה אחד לטלפון קורה באמת — אחים שמסרו את אותו
+     טלפון של אבא — ולכן רשימה ולא ערך יחיד. */
+  var byPhone = {}, byOther = {};
+  for (var a = 0; a < order.length; a++) {
+    var p = by[order[a]];
+    if (p.mine)  (byPhone[p.mine]  = byPhone[p.mine]  || []).push(p.id);
+    if (p.other) (byOther[p.other] = byOther[p.other] || []).push(p.id);
+  }
+
+  var link = function (x, y) {
+    if (!x || !y || x.id === y.id) return;
+    if (x.dad === y.dad) return;                  /* הורה מול תלמיד בלבד */
+    if (!out[x.id]) out[x.id] = { 'with': y.first, ok: 1 };
+    if (!out[y.id]) out[y.id] = { 'with': x.first, ok: 1 };
+  };
+
+  for (var b = 0; b < order.length; b++) {
+    var me = by[order[b]];
+    /* הטלפון שהוא מסר על הצד השני */
+    var hit = me.other ? (byPhone[me.other] || []) : [];
+    for (var c = 0; c < hit.length; c++) link(me, by[hit[c]]);
+    /* ומי שמסר את הטלפון שלו — הכיוון ההפוך, כשרק צד אחד מילא */
+    var back = me.mine ? (byOther[me.mine] || []) : [];
+    for (var d = 0; d < back.length; d++) link(me, by[back[d]]);
+    /* ומי שנרשם דרך ההזמנה שלו */
+    if (me.wid && by[me.wid]) link(me, by[me.wid]);
+  }
+  return out;
 }
 
 /* קוד הישיבה מתוך העמודות שנשלחו. `cols` הוא [כותרת, ערך],
@@ -1072,6 +1192,35 @@ function markJoined_(code, mas) {
   } catch (err) {}      /* סימון שנכשל לא יפיל הרשמה */
 }
 
+/* ============================================================
+   התלמידים בלבד — בלי ההורים.
+   ============================================================
+   "מצטרפים" הוא המספר שמוצג לנער שעוד לא נרשם ("כבר 14
+   בישיבה שלך"), והוא גם המספר שנמדד מול היעד השנתי. אבא
+   שנרשם אינו תלמיד, ואם הוא נספר שם — המספר שהנער רואה
+   מנופח, והיעד נמדד מול משהו אחר.
+
+   ההורים לא נעלמים: הם ברשימת המשתתפים שבניהול, והם מסומנים
+   על שורת הבן בלוח הצוות. הם פשוט אינם נספרים כתלמידים.
+
+   **שורה בלי עמודת "תפקיד" היא תלמיד.** כל מה שנרשם עד היום
+   נכתב לפני שהעמודה קיימת, וברירת מחדל אחרת הייתה מוחקת את
+   כולם מהספירה בבת אחת.
+   ============================================================ */
+function studentRows_(rows) {
+  if (!rows || rows.length < 2) return rows;
+  var head = rows[0], iR = -1;
+  for (var i = 0; i < head.length; i++) {
+    if (String(head[i]).trim() === 'תפקיד') iR = i;
+  }
+  if (iR < 0) return rows;                       /* לשונית ישנה — הכל תלמידים */
+  var out = [head];
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][iR] || '').trim() !== 'הורה') out.push(rows[r]);
+  }
+  return out;
+}
+
 function recount_() {
   try {
     var src = sheet_(JOIN_TAB);
@@ -1083,7 +1232,7 @@ function recount_() {
       writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'], []);
       return;
     }
-    var rows = src.getDataRange().getDisplayValues();
+    var rows = studentRows_(src.getDataRange().getDisplayValues());
 
     /* סך המצטרפים לכל ישיבה */
     var t = tally_(rows, ['קוד ישיבה'], 'מזהה');

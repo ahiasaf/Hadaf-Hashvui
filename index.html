@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.84.0';
+var APP_VERSION = '7.85.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4810,6 +4810,11 @@ function partLoad() {
       admPane(); return false;
     }
     Store.set('partCache', partParse(d.rows));
+    /* מי לומד עם מי — מחושב בסקריפט ונוסע יחד עם השורות.
+       הוא אינו מחושב כאן בכוונה: אותה הצלבה עצמה משרתת גם את
+       לוח הצוות, ושני מימושים לאותו מושג נפרדים זה מזה בשקט
+       ביום שמישהו מתקן אחד מהם. */
+    Store.set('partPairs', d.pairs || {});
     partState.at = Date.now(); partState.msg = '';
     Store.set('partAt', partState.at);
     admPane(); return true;
@@ -4833,6 +4838,8 @@ var WAY_LBL = { 'אבות ובנים':'אב ובן', 'חבורת לימוד':'ח
    הישיבה" הוא מה שמתחילים ממנו שיחה עם ראש החטיבה.
    ============================================================ */
 var partView = { q:'', inst:'', way:'', msg:'' };
+/* מזהה → הצד השני, כפי שהסקריפט הצליב. נטען פעם אחת לציור. */
+var partPairs = {};
 
 function partName(p) { return ((p.first || '') + ' ' + (p.last || '')).trim(); }
 
@@ -4851,6 +4858,9 @@ function partMatch(p) {
 function admPart(el) {
   var all = Store.get('partCache', []) || [];
   var at  = Store.get('partAt', 0);
+  /* נקרא פעם אחת לציור ולא פעם אחת לשורה: קריאה מהאחסון בכל
+     שורה היא אלפיים קריאות ברשימה של אלפיים, והמסך נתקע. */
+  partPairs = Store.get('partPairs', {}) || {};
 
   if (partState.msg === 'nokey') {
     el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
@@ -4912,10 +4922,23 @@ function admPart(el) {
       esc(label) + (n == null ? '' : '<b>' + n + '</b>') + '</button>';
   };
 
+  /* ההורים נספרים בנפרד, ולא בתוך "לומדים".
+
+     המספר הזה נמדד מול היעד השנתי, והוא גם מה שנער רואה
+     ("כבר 14 בישיבה שלך"). אבא שנספר בתוכו מנפח את שניהם.
+     ההורים אינם נעלמים — הם ברשימה שמתחת, מסומנים — אבל הם
+     מספר אחר, ולכן הם מוצגים כמספר אחר. */
+  var isDad = function (p) { return p.role === 'הורה'; };
+  var nDad = 0, allKid = 0;
+  shown.forEach(function (p) { if (isDad(p)) nDad++; });
+  all.forEach(function (p) { if (!isDad(p)) allKid++; });
+  var nKid = shown.length - nDad;
+
   var h = '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>' + (shown.length === all.length
-                ? all.length + ' לומדים'
-                : shown.length + ' מתוך ' + all.length + ' לומדים') +
+                ? nKid + ' לומדים'
+                : nKid + ' מתוך ' + allKid + ' לומדים') +
+    (nDad ? ' · ' + nDad + (nDad === 1 ? ' הורה' : ' הורים') : '') +
     ' · ' + (shownInst === 1 ? 'ישיבה אחת' : shownInst + ' ישיבות') + '</h4>' +
 
     '<input class="psearch" placeholder="חיפוש שם, טלפון או שכבה" ' +
@@ -4987,6 +5010,13 @@ function partRow(p) {
     ? 'עם ' + ((p.dadFirst + ' ' + (p.dadLast || '')).trim()) +
       (p.dadPhone ? ' · ' + p.dadPhone : '')
     : '';
+  /* ✓ = שני הצדדים נרשמו בפועל והמערכת הצליבה ביניהם לפי
+     טלפון. בלי הסימן זו הצהרה בלבד — מה שהוא מילא בטופס.
+     ההבדל בין השניים הוא כל מה שהמסך הזה נועד לתת כאן. */
+  var pair = partPairs[p.id || ''];
+  if (pair && pair['with']) {
+    with_ = 'לומד עם ' + pair['with'] + ' ✓' + (with_ ? ' · ' + with_ : '');
+  }
   return '<div class="row"><div>' + esc(partName(p)) +
     '<div class="sub">' + esc([sub, with_].filter(Boolean).join(' · ')) + '</div></div>' +
     '<div style="display:flex;align-items:center;gap:4px">' +

@@ -152,6 +152,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
   padding:11px 6px;border-radius:9px;font-weight:800;font-size:.88rem;
   color:var(--ink-3)}
 .whob.on{background:#fff;color:var(--blue);box-shadow:var(--sh-1)}
+/* אותה שורה בדיוק, בשתי אפשרויות — "מי ממלא" שבראש הטופס. */
+.whobar.two{grid-template-columns:1fr 1fr;margin:0 0 13px}
 
 /* ---------- חשיפה הדרגתית ----------
    מה שמלחיץ בטופס הוא לראות את כולו בבת אחת. מסך לכל שאלה
@@ -552,6 +554,15 @@ footer a{color:var(--ink-2);font-weight:800}
   <div class="card stg" id="c-who">
     <h2 id="who-h">מי אתה?</h2>
     <p class="h" id="who-sub"></p>
+    <!-- מי ממלא. מוצג **רק בקישור הכללי** — זה שנשלח לכל מקום
+         ופונה גם להורים; בקישור של הישיבה אין דו־משמעות.
+
+         "אני תלמיד" לחוץ מראש, וזה כל העניין: הרוב המוחלט
+         ממשיך ישר לשם הפרטי בלי לעצור, ומי שקלט בזווית העין
+         רואה שזה כבר מסומן ואינו מעמיק בזה מחשבה. רק אבא
+         אמיתי ישים לב וישנה. -->
+    <div class="whobar two" id="whoBar" style="display:none"></div>
+    <p class="h" id="dad-lead" style="display:none"></p>
     <div class="fld"><label class="label" for="first">שם פרטי</label>
       <input id="first" type="text" autocomplete="given-name"></div>
     <div class="fld stg" id="f-last"><label class="label" for="last">שם משפחה</label>
@@ -1075,7 +1086,119 @@ var sndr = { first:qs('sf'), last:qs('sl'), phone:qs('sp') };
 var invRel = 'dad';
 function setRel(r) { invRel = r; applyWays(); stage(1); }
 
+/* ============================================================
+   מי ממלא — תלמיד או אבא.
+   ============================================================
+   הקישור הכללי נשלח לכל מקום ופונה גם להורים, ולכן הוא היחיד
+   שצריך לשאול. בקישור של הישיבה אין דו־משמעות — הוא נשלח
+   לתלמידים — ולכן שם השאלה אינה מוצגת כלל, ורוב התלמידים
+   לא יראו אותה מעולם.
+
+   **"אני תלמיד" לחוץ מראש.** זה לא קישוט: ברירת מחדל לחוצה
+   הופכת את השאלה מחסם לאישור. הרוב ממשיך ישר לשם הפרטי, ומי
+   שקלט אותה בזווית העין רואה שזה כבר מסומן ואינו נעצר. אבא
+   הוא היחיד שצריך לעשות משהו — והוא גם היחיד שיחפש את זה.
+
+   ולמה "אני תלמיד" ולא "בן": נער בגיל הזה מוגדר לפי עצמו,
+   לא לפי אביו. "בן" מציב אותו שני ברשימה ומגדיר אותו ביחס
+   למישהו אחר, וזה בדיוק מה שאין לעשות בשורה הראשונה.
+
+   מה שאבא **אינו** נשאל: שכבה (אין לו) ודרך לימוד (היא
+   "אבות ובנים" מעצם העניין). ומה שהוא כן מקבל: צירוף הבן.
+
+   *** והכלל שאין לעבור עליו: הבן נרשם בעצמו. ***
+   מה שאבא ממלא על הבן הוא **כתובת למשלוח ההזמנה** ותו לא.
+   הבן מקבל קישור, פותח מסך משלו, ולוחץ "מצטרף" בעצמו. אבא
+   שממלא טופס עבור בנו מייצר עובדה מוגמרת, והנער מגיע ללימוד
+   שמישהו אחר בחר בשבילו — וזה בדיוק מה שמפיל התמדה בגיל הזה.
+   ============================================================ */
+var role = 'kid';                         /* 'kid' | 'dad' */
+/* השאלה מוצגת רק כשאין ישיבה בכתובת — כלומר בקישור הכללי.
+   זה בדיוק אותו תנאי שפותח את בורר הישיבות, ולכן אין כאן
+   מושג חדש: "לא יודעים מאיזו ישיבה הגעת" = הקישור הכללי. */
+function whoOn() { return !instRow; }
+
+/* מה שהתלמיד בחר כדרך לימוד, לפני שסימן "אני אבא".
+
+   לאבא נקבעת "אבות ובנים" אוטומטית, וחזרה ל"אני תלמיד" הייתה
+   משאירה אותה בחורה — כלומר בוחרת בשבילו. מי שנגע בכפתור
+   בטעות היה מוצא תשובה שלא נתן, וגם יכול היה לשלוח בלי לבחור
+   כלל. */
+var kidWay = '';
+
+function setRole(r) {
+  if (role === r) return;
+  if (r === 'dad') kidWay = way;      /* לשמור */
+  else             way    = kidWay;   /* ולהחזיר — ולא את זו של אבא */
+  role = r;
+  /* `applyRole` הוא שקורא ל-`applyWays` כשצריך — קריאה נוספת
+     כאן הייתה מציירת את כרטיס ההזמנה פעמיים. */
+  drawWho(); applyRole(); drawWays(); stage(1);
+}
+function drawWho() {
+  var bar = $('whoBar'); if (!bar) return;
+  if (!whoOn()) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  bar.innerHTML = [['kid', JOIN.whoKid], ['dad', JOIN.whoDad]]
+    .map(function (o) {
+      return '<button class="whob' + (role === o[0] ? ' on' : '') +
+        '" onclick="setRole(\'' + o[0] + '\')">' + esc(o[1]) + '</button>';
+    }).join('');
+}
+
+/* מה שמשתנה בטופס לפי מי ממלא.
+
+   **`style.display` ולא החשיפה ההדרגתית**, ובכוונה: שדה
+   שנחשף אינו נסגר לעולם (ראו `open_`), וזה נכון לרצף הטופס
+   אבל שגוי כאן — מי שהתחיל למלא כתלמיד ואז סימן "אני אבא"
+   היה נשאר עם שאלת השכבה תלויה על המסך. זה בדיוק הדפוס של
+   `othFld`, ומאותה סיבה. */
+function applyRole() {
+  var dad = role === 'dad';
+
+  var lead = $('dad-lead');
+  /* שדה מלל שרוקן משאיר רווח — פסקה ריקה עדיין נושאת שוליים.
+     מסתירים, לא רק מרוקנים. */
+  if (lead) {
+    lead.textContent = dad ? (JOIN.dadLead || '') : '';
+    lead.style.display = (dad && JOIN.dadLead) ? '' : 'none';
+  }
+
+  /* לאבא אין שכבה, ודרך הלימוד שלו ידועה מראש. */
+  var g = $('f-grade'); if (g) g.style.display = dad ? 'none' : '';
+  var w = $('c-ways');  if (w) w.style.display = dad ? 'none' : '';
+
+  if (dad) {
+    /* הכרטיס הופך לצירוף הבן: בלי בורר "אבא · הבן · חבר"
+       (אין מה לבחור — הוא מצרף את בנו), ובלי שם משפחה
+       (הוא ממילא זהה, וזו הסיבה שהוא נחסך). */
+    way = 'dad'; invRel = 'kid';
+    /* הכרטיס אינו נפתח כאן: צירוף הבן שקופץ לפני שהוא הקליד
+       את שמו מקדים את הטופס. `stage` פותח אותו אחרי הטלפון.
+
+       ו-`on` ולא `in`: הכרטיס הזה נשלט בכלל אחר (`#dad.on`)
+       ולא בחשיפה ההדרגתית — מי שמערבב בין השניים מקבל אלמנט
+       עם כל המחלקות הנכונות שנשאר `display:none`. */
+    $('dad').className = 'card';
+    $('invWho').innerHTML = '';
+    $('invWho').style.display = 'none';
+    $('f-dad-last').style.display = 'none';
+    $('dad-h').textContent   = JOIN.kidAskH;
+    $('dad-sub').textContent = JOIN.kidAskSub;
+    $('l-dad-first').textContent = JOIN.kidName;
+    $('l-dad-phone').textContent = JOIN.kidPhone;
+    $('dad-note').textContent    = JOIN.kidNote;
+  } else {
+    $('invWho').style.display = '';
+    $('f-dad-last').style.display = '';
+    applyWays();
+  }
+}
+
 function applyWays() {
+  /* אבא אינו נשאל איך הוא לומד, והכרטיס שלו נקבע ב-applyRole.
+     בלי היציאה הזו הציור הרגיל היה דורס אותו חזרה. */
+  if (role === 'dad') return;
   /* הזמנה נפתחת רק כשיש למי. מי שלומד לבד יכול להזמין חבר
      מהכפתור שמתחת לדרכי הלימוד. */
   var need = way === 'dad' || way === 'chav' || way === 'friend';
@@ -1178,9 +1301,23 @@ function stage(scroll) {
   var lp = $('l-phone');
   if (lp) lp.innerHTML = free ? 'טלפון <i>· לא חובה</i>' : 'טלפון';
   var phoneOk = free || phoneDone(val('phone'));
-  step('f-grade', phoneOk);
-  step('c-ways', phoneOk && !!val('grade'));
-  step('go', !!way);
+  /* אבא אינו עובר דרך שכבה ודרך לימוד — הן מוסתרות אצלו
+     (`applyRole`), ולכן גם אינן יכולות להיות תנאי להמשך.
+
+     זו בדיוק המלכודת שכבר עלתה כאן פעם אחת: כשהוסרה דרישת
+     הטלפון, החשיפה ההדרגתית המשיכה להישען עליה — והטופס נעצר
+     באמצע **בלי הודעה**, וזה גרוע בהרבה משגיאה. כשמסירים
+     דרישה, בודקים גם מה נפתח. */
+  if (role === 'dad') {
+    /* אותו מתג שבו `applyWays` פותח את הכרטיס לתלמיד — `#dad`
+       נשלט במחלקת `on` ולא ב-`stg`/`in`. */
+    $('dad').className = phoneOk ? 'card on' : 'card';
+    step('go', phoneOk);
+  } else {
+    step('f-grade', phoneOk);
+    step('c-ways', phoneOk && !!val('grade'));
+    step('go', !!way);
+  }
   /* ההזמנה — נפתחת מהבחירה ולא מהרצף */
   step('f-dad-last',  ready('dad-first'));
   step('f-dad-phone', ready('dad-first'));
@@ -1332,8 +1469,12 @@ $('go').onclick = function () {
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
   if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
-    return say('צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
-  if (!way)            return say('צריך לבחור איך אתה לומד.');
+    return say(role === 'dad'
+      ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
+      : 'צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
+  /* אבא אינו נשאל איך הוא לומד, ולכן אין מה לאמת אצלו. תנאי
+     שנשאר על שדה מוסתר הוא כפתור שאינו עושה דבר ואינו מסביר. */
+  if (role !== 'dad' && !way) return say('צריך לבחור איך אתה לומד.');
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
      עכשיו — יצטרף לבד, וההזמנה תמתין לו במסך הבית. שדה ריק
      שעוצר טופס הוא הדרך הבטוחה לאבד מצטרף. */
@@ -1343,8 +1484,13 @@ $('go').onclick = function () {
      הורה. אותם שדות, והתפקיד קובע מי הם. */
   var wantsInv = way === 'dad' || way === 'chav' || way === 'friend';
   var me = {
-    id: deviceId(), rel: invRel, inst: code, instName: name,
-    first: first, last: last, grade: grade, phone: val('phone'),
+    id: deviceId(), role: role, rel: invRel, inst: code, instName: name,
+    first: first, last: last,
+    /* לאבא אין שכבה. הבורר מוסתר אצלו, אבל מי שהתחיל למלא
+       כתלמיד ואז סימן "אני אבא" השאיר בו ערך — והוא היה
+       נשלח ומופיע בפילוח השכבות של הישיבה. */
+    grade: role === 'dad' ? '' : grade,
+    phone: val('phone'),
     way: way,
     dadFirst: wantsInv ? val('dad-first') : '',
     dadLast:  wantsInv ? (val('dad-last') || last) : '',
@@ -1358,11 +1504,17 @@ $('go').onclick = function () {
   /* ללשונית "לומדים". הסקריפט מנתב אותה לגיליון הפרטי לפי שמה
      — ראו PRIVATE_TABS ב-apps-script.gs — ולכן אין כאן שום מזהה
      של גיליון, ובצדק: הטלפון של התלמיד אינו צריך להכיר אותו. */
+  /* שלוש עמודות "ההורה" הן למעשה **הצד השני**, ולא ההורה:
+     הן כבר נושאות היום חבר כשלומדים בחבורה, ועכשיו גם את הבן
+     כשממלא אבא. עמודת "תפקיד" היא שאומרת מי מהם. שמות
+     העמודות נשארים כפי שהם בכוונה — שינוי שם כותרת מייצר
+     עמודה חדשה וריקה, ומשאיר את כל מה שנכתב עד היום ביתומה. */
   queue({ action:'row', tab:'לומדים', cols: JSON.stringify([
     ['מזהה', me.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
     ['שם', me.first], ['משפחה', me.last], ['שכבה', me.grade],
-    ['טלפון', me.phone], ['מסגרת', WAY_NAME[me.way] || me.way],
-    ['לומד עם', me.rel === 'friend' ? 'חבר' : 'אבא'],
+    ['טלפון', me.phone], ['תפקיד', me.role === 'dad' ? 'הורה' : 'תלמיד'],
+    ['מסגרת', WAY_NAME[me.way] || me.way],
+    ['לומד עם', me.rel === 'friend' ? 'חבר' : me.rel === 'kid' ? 'בן' : 'אבא'],
     ['שם ההורה', me.dadFirst], ['משפחת ההורה', me.dadLast],
     ['טלפון ההורה', me.dadPhone],
     ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId]
@@ -1872,9 +2024,10 @@ if ('serviceWorker' in navigator) {
 })();
 
 drawWays();
-applyWays();
-/* `applyRole` היה זה שקרא ל-`stage` בעלייה, ועם הסרתו נשאר
-   הטופס סגור: הכרטיס הראשון פשוט לא נפתח. */
+/* `drawWho` חייב לרוץ **אחרי** ש-`instRow` נקבע — הוא מה
+   שמחליט אם השאלה מוצגת בכלל. */
+drawWho();
+applyRole();          /* וזה קורא ל-applyWays כשהממלא אינו אבא */
 stage();
 
 /* ---------- הזמנה שהתקבלה ----------
@@ -1897,8 +2050,14 @@ stage();
     var relIn = qs('rel');
     way    = relIn === 'friend' ? 'chav' : 'dad';
     invRel = relIn === 'friend' ? 'friend' : relIn === 'kid' ? 'dad' : 'kid';
+    /* `rel=dad` פירושו שהמוזמן **הוא** האב — בנו הזמין אותו.
+       כאן אין מה לשאול אותו: הקישור כבר אומר מי הוא, וזה
+       מהימן יותר משאלה. וזה גם מה שמאפשר את ההצלבה בכיוון
+       הזה — בלעדיו אב שהוזמן היה נספר כתלמיד. */
+    if (relIn === 'dad') role = 'dad';
     $('dad').className = 'card on';
-    drawWays(); applyWays();
+    drawWho(); applyRole();
+    drawWays();
   }
   stage();
 })();
