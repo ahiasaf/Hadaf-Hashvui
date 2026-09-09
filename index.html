@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.91.0';
+var APP_VERSION = '7.92.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5474,12 +5474,12 @@ function admLinks(el) {
     esc(UI.linkCopy) + '</button></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>הקישורים של כל מוסד</h4>' +
-    '<p class="h">הירוק לתלמידים ולהורים — פתוח, ומי שנכנס דרכו נספר ' +
-    'לישיבה. הכחול הוא הלוח לצוות, והוא נושא קוד: בלעדיו הוא לא ' +
-    'ייפתח.<br>' +
-    '<b>"עמוד"</b> הוא עמוד הנחיתה של אותה ישיבה — מה התוכנית, ' +
-    'מה כדאי לעשות איתה, הדף של השבוע לפתיחה בכיתה, והלוח שלהם. ' +
-    '<b>לר"מים בלבד</b>, כי הוא מכיל את הלוח.</p>' +
+    '<p class="h"><b>תלמידים</b> — פתוח, ומי שנכנס דרכו נספר לישיבה. ' +
+    'שלחו לקבוצות הכיתה ולהורים.<br>' +
+    '<b>צוות</b> — שולח לר"מים את <b>עמוד הצוות</b>: מה התוכנית, ' +
+    'מה כדאי לעשות איתה, הדף של השבוע לפתיחה בכיתה, והלוח שלהם ' +
+    'בתוכו. <b>לא לשלוח לתלמידים</b> — הוא נושא את קוד הלוח.<br>' +
+    '<b>עמוד</b> — פותח אותו אצלכם, לראות לפני ששולחים.</p>' +
     (linkState.msg ? '<div class="cond" style="margin-top:9px">' +
                      linkState.msg + '</div>' : '') +
     '<div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">' +
@@ -5490,7 +5490,9 @@ function admLinks(el) {
     INSTITUTIONS.map(function (i) {
       var wa = fill(UI.linkWa, { inst:i.name, url:joinUrl(i.code) });
       var k  = instCode(i.code);
-      var tw = fill(UI.teamWa, { inst:i.name, url:boardUrl(i.code) });
+      /* לצוות נשלח **עמוד הצוות** ולא הלוח: הוא מכיל את הלוח,
+         ומוסיף לו את מה שר"ם צריך כדי להתחיל. */
+      var tw = fill(UI.teamWa, { inst:i.name, url:tzevetUrl(i.code) });
       return '<div class="row"><div>' + esc(i.name) +
         '<div class="sub" style="direction:ltr;text-align:start">' +
         (k ? '?inst=' + esc(i.code) + '&k=' + esc(k) : '?inst=' + esc(i.code) +
@@ -5504,10 +5506,12 @@ function admLinks(el) {
         '<a class="cp ph" style="display:flex;align-items:center;' +
         'text-decoration:none;color:var(--gold-t)" href="' + esc(tzevetUrl(i.code)) +
         '" target="_blank" rel="noopener">עמוד</a>' +
-        (k ? '<a class="cp ph" style="display:flex;align-items:center;' +
-             'text-decoration:none" href="https://wa.me/?text=' +
-             encodeURIComponent(tw) + '" target="_blank" rel="noopener">צוות</a>'
-           : '') +
+        /* בלי קוד הכפתור עדיין נשלח: עמוד הצוות עובד גם בלעדיו,
+           והלוח שבתוכו יבקש אותו. קודם הוא פשוט נעלם, ולכן
+           מוסד בלי קוד לא היה ניתן לשליחה כלל. */
+        '<a class="cp ph" style="display:flex;align-items:center;' +
+        'text-decoration:none" href="https://wa.me/?text=' +
+        encodeURIComponent(tw) + '" target="_blank" rel="noopener">צוות</a>' +
         '<button class="cp" onclick="codeNew(' + dq(i.code) + ',' + dq(i.name) + ')">' +
         (k ? '↻' : 'קוד') + '</button>' +
         '</div></div>';

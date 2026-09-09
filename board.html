@@ -673,6 +673,21 @@ function baseUrl() {
 function joinUrl() {
   return baseUrl() + 'join.html?inst=' + encodeURIComponent(code);
 }
+/* ============================================================
+   הקישור שנשלח לאיש צוות — עמוד הצוות, לא הלוח.
+   ============================================================
+   עד עכשיו נשלח מכאן קישור ללוח הזה. עמוד הצוות **מכיל** את
+   הלוח, ומוסיף לו את מה שאיש צוות חדש באמת צריך: מה התוכנית,
+   מה עושים איתה, והדף של השבוע לפתיחה בכיתה. קישור ללוח לבדו
+   נותן לו מספרים בלי להסביר למה.
+
+   הקוד נוסע איתו, בדיוק כמו קודם — בלעדיו העמוד ייפתח אצלו
+   בלי לוח. */
+function tzevetUrl() {
+  var u = baseUrl() + 'tzevet.html?inst=' + encodeURIComponent(code);
+  return acc ? u + '&k=' + encodeURIComponent(acc) : u;
+}
+
 /* הקישור לעמוד הזה עצמו, נקי מכל מה שהודבק אחריו. */
 function boardUrl() {
   /* עם הקוד. קישור לצוות בלי קוד הוא קישור שייפתח אצלם על מסך
@@ -728,9 +743,9 @@ function draw() {
 
     '<div class="card team"><h2>' + esc(UI.teamAlso) + '</h2>' +
     '<p class="h">' + esc(UI.teamAlsoSub) + '</p>' +
-    '<div class="url">' + esc(boardUrl()) + '</div>' +
+    '<div class="url">' + esc(tzevetUrl()) + '</div>' +
     '<a class="btn b" target="_blank" rel="noopener" href="https://wa.me/?text=' +
-      encodeURIComponent(tp(UI.teamWa, { inst:inst.name, url:boardUrl() })) + '">' +
+      encodeURIComponent(tp(UI.teamWa, { inst:inst.name, url:tzevetUrl() })) + '">' +
       esc(UI.teamWaBtn) + '</a>' +
     '<button class="btn g" id="cp-team">' + esc(UI.teamCopy) + '</button></div>';
 
@@ -835,7 +850,7 @@ function soonLine() {
 
 function wire() {
   bindCopy('cp', joinUrl);
-  bindCopy('cp-team', boardUrl);
+  bindCopy('cp-team', tzevetUrl);
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
 }
 function bindCopy(id, urlOf) {
