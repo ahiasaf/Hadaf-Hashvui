@@ -420,6 +420,14 @@ try {
   if (accCode) localStorage.setItem(accKey(), accCode);
   else accCode = localStorage.getItem(accKey()) || '';
 } catch (e) {}
+/* בעריכת מלל בלי ישיבה בכתובת — נופלים לראשונה ברשימה.
+
+   בלי זה הלוח שבתחתית העמוד אינו מצויר כלל (אין למי לספור),
+   ואז אי אפשר להקיש על הנוסח שבתוכו כדי לערוך אותו: מה שאינו
+   על המסך אינו ניתן לעריכה במקום. */
+if (!instCode && /[?&]tedit=1/.test(location.search) && INSTITUTIONS.length) {
+  instCode = INSTITUTIONS[0].code;
+}
 var instRow  = null;
 for (var i = 0; i < INSTITUTIONS.length; i++) {
   if (INSTITUTIONS[i].code === instCode) instRow = INSTITUTIONS[i];

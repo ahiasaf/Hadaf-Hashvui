@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.92.0';
+var APP_VERSION = '7.93.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6030,7 +6030,11 @@ function admText(el) {
     ['הצהרת הנגישות', 'מה שהחוק מחייב אותנו לפרסם',
      'location.href=\'accessibility.html?tedit=1\''],
     ['עמוד הפרטים', 'פרטיות, נגישות וזכויות \u2014 שבתחתית כל מסך',
-     'location.href=\'info.html?tedit=1\'']
+     'location.href=\'info.html?tedit=1\''],
+    /* עמוד הצוות. נפתח לעריכה על ישיבה לדוגמה, אחרת הלוח שבתחתיתו
+       אינו מצויר כלל — ואי אפשר להקיש על נוסח שאינו על המסך. */
+    ['עמוד הצוות', 'מה שהר\u05f4מים מקבלים \u2014 היעד, ההנחיות והסיפור',
+     'location.href=\'tzevet.html?tedit=1\'']
   ];
 
   el.innerHTML =
