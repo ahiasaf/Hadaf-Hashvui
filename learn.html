@@ -350,34 +350,39 @@ nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
 nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent;padding:10px 18px}
 
-/* ---------- ההזמנה שבסוף ההדגמה ----------
-   יושבת בין הדף לשורת הניווט ואינה מכסה דבר: מי שמזמינים אותו
-   לגעת צריך לראות במה הוא נוגע. הטבעת פועמת כי אצבע מצוירת על
-   מסך סטטי נראית כמו תמונה, וטבעת שנושמת נקראת כהזמנה. */
-.invite{display:none;flex:0 0 auto;align-items:center;justify-content:center;gap:13px;
-  padding:13px 16px calc(env(safe-area-inset-bottom) + 13px);
-  background:var(--blue-d);color:#fff}
-.invite.on{display:flex}
-.invite b{display:block;font-size:1rem;font-weight:800}
-.invite small{display:block;margin-top:2px;font-size:.82rem;
-  font-weight:600;color:rgba(255,255,255,.82)}
-.invite .ring{flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+/* ---------- הבועה המרחפת ----------
+   פס תחתון היה קל יותר לבנות, והוא היה טעות: הוא גזל גובה
+   מהחברותא ודחק אותה כלפי מעלה בדיוק ברגע שבו מסתכלים על הדף.
+   בועה מרחפת אומרת את אותו דבר ואינה נוגעת בפריסה.
+
+   ושלושה מצבים, לא שלושה אלמנטים: אותו דבר עצמו משנה את מה
+   שהוא אומר לפי מה שקורה — רץ, מזמין, ומציע לצאת. */
+.dbadge{display:none;position:absolute;top:10px;left:10px;z-index:8;
+  background:var(--blue-d);color:#fff;border-radius:999px;
+  box-shadow:0 3px 14px rgba(11,37,80,.34);pointer-events:none;
+  font-size:.72rem;font-weight:800;letter-spacing:.02em;padding:6px 12px}
+.dbadge.on{display:block}
+
+/* מזמינה. גדולה יותר, עם טבעת פועמת — אצבע מצוירת על מסך סטטי
+   נראית כמו תמונה, וטבעת שנושמת נקראת כהזמנה. */
+.dbadge.ask{display:flex;align-items:center;gap:10px;padding:10px 15px;
+  max-width:min(74vw,300px)}
+.dbadge.ask .ring{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
   border:3px solid rgba(255,255,255,.8);animation:tapring 1.6s infinite}
+.dbadge.ask b{display:block;font-size:.92rem;font-weight:800}
+.dbadge.ask small{display:block;margin-top:1px;font-size:.76rem;
+  font-weight:600;color:rgba(255,255,255,.82)}
 @keyframes tapring{
   0%   {transform:scale(.78);opacity:.35}
   50%  {transform:scale(1.12);opacity:1}
   100% {transform:scale(.78);opacity:.35}
 }
-@media (prefers-reduced-motion:reduce){ .invite .ring{animation:none;opacity:1} }
+@media (prefers-reduced-motion:reduce){ .dbadge.ask .ring{animation:none;opacity:1} }
 
-/* ---------- התגית "הדגמה" ----------
-   בפינה הרחוקה של הדף. מי שרואה דף שמדפדף מעצמו בלי סימן חושב
-   שהמכשיר תקוע, ומילה אחת פותרת את זה. */
-.dbadge{display:none;position:absolute;top:10px;left:10px;z-index:7;
-  background:var(--blue-d);color:#fff;font-size:.72rem;font-weight:800;
-  letter-spacing:.02em;padding:5px 11px;border-radius:999px;
-  box-shadow:0 2px 10px rgba(11,37,80,.28);pointer-events:none}
-.dbadge.on{display:block}
+/* ומציעה לצאת. זו היחידה שלוחצים עליה, ולכן רק היא מקבלת
+   אצבע — בשתי האחרות נגיעה שייכת לדף שמתחת. */
+.dbadge.fin{pointer-events:auto;cursor:pointer;padding:8px 14px;
+  font-size:.78rem;border:0;font-family:inherit}
 
 /* ---------- לוח המקליט ----------
    בתחתית ולא בפינה: בטלפון פינה היא רבע מהדף, והמקליט צריך
@@ -585,9 +590,11 @@ nav .sp{flex:1}
       <img id="page" alt="צורת הדף" draggable="false">
       <svg id="ov" preserveAspectRatio="none"></svg>
     </div>
-    <!-- "זה רץ לבד". בתוך הבמה ולא במסך, ולכן היא תמיד בפינה
-         של הדף בלי תלות בגובה הכותרת. -->
-    <span class="dbadge" id="dbadge"></span>
+    <!-- הבועה. שלושה מצבים באותו מקום: "הדגמה" בזמן שהיא רצה,
+         ההזמנה לגעת כשהיא נגמרת, וכפתור היציאה אחרי שנגעו.
+         מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
+         את החברותא כלפי מעלה ושיבש את הדף. -->
+    <div class="dbadge" id="dbadge"></div>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -605,12 +612,6 @@ nav .sp{flex:1}
     <div class="chb" id="chb"></div>
   </aside>
 </main>
-
-<!-- ההזמנה שבסוף ההדגמה. מוסתרת תמיד, ונדלקת רק ב-`?demo=1`. -->
-<div class="invite" id="invite">
-  <span class="ring"></span>
-  <div><b id="inv-h"></b><small id="inv-s"></small></div>
-</div>
 
 <!-- לוח המקליט. מוסתר תמיד, ונדלק רק ב-`?rec=1`. -->
 <div class="rec" id="rec">
@@ -1298,7 +1299,10 @@ function chavZoom(d) {
   document.documentElement.style.setProperty('--cz', CZS[CZ]);
   $('czm').disabled = CZ === 0;
   $('czp').disabled = CZ === CZS.length - 1;
-  if (d) { try { localStorage.setItem('df:chav-size', CZ); } catch (e) {} }
+  if (d) {
+    if (!quiet()) try { localStorage.setItem('df:chav-size', CZ); } catch (e) {}
+    recStep('zoom', d);
+  }
 }
 
 function needChav() {
@@ -1421,13 +1425,12 @@ function sideOpen(on) {
    `safe-area-inset`, והוא שונה בין אייפון עם סרגל תחתון לבין
    אנדרואיד, וחלון צף שיושב על מספר קבוע נחתך באחד מהם.
 
-   וזה **גם** ההזמנה שבסוף ההדגמה ולוח המקליט, כשהם דלוקים.
-   בטלפון המצגת היא חלון צף שנתלה מלמעלה על השורה הזו, ובלי
-   המדידה הזו היא כיסתה את ההזמנה בדיוק ברגע שבו מזמינים מישהו
-   לגעת — ואת כפתורי המקליט בדיוק כשמקליטים. */
+   וזה **גם** לוח המקליט, כשהוא דלוק. בטלפון המצגת היא חלון צף
+   שנתלה מלמעלה על השורה הזו, ובלי המדידה הזו היא כיסתה את
+   כפתורי המקליט בדיוק כשמקליטים. */
 function navH() {
   var h = 0;
-  ['rec', 'invite', 'nav'].forEach(function (sel) {
+  ['rec', 'nav'].forEach(function (sel) {
     var el = sel === 'nav' ? document.querySelector('nav') : $(sel);
     if (el && el.offsetParent !== null) h += el.offsetHeight;
   });
@@ -1439,6 +1442,7 @@ function sidePhone() {
 function sideBig() {
   document.body.classList.toggle('side-big');
   sidePaint();
+  recStep('big');
 }
 
 /* ---------- ציור ---------- */
@@ -1904,7 +1908,7 @@ function demoRun(script) {
     if (!b) return;
     DEMO_T = setTimeout(function () { demoAct(b[1], b[2]); step(); }, b[0]);
   };
-  badge(true);
+  bubble('run');
   step();
 }
 /* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
@@ -1916,6 +1920,8 @@ function demoAct(a, v) {
   else if (a === 'chav')   drawer(!document.body.classList.contains('chav-on'));
   else if (a === 'deck')   demoDeck();
   else if (a === 'whole')  setWhole(DIM);
+  else if (a === 'big')    sideBig();
+  else if (a === 'zoom')   chavZoom(v);
   else if (a === 'invite') demoInvite();
 }
 /* המצגת נפתחת רק אם באמת יש אחת לדף הזה. הכפתור מוסתר עד
@@ -1925,40 +1931,55 @@ function demoDeck() {
   if (!b || b.style.display === 'none') return;
   sideOpen(!document.body.classList.contains('side-on'));
 }
-function demoInvite() {
-  var el = $('invite');
-  if (!el) return;
-  var t = window.PLAY || {};
-  $('inv-h').textContent = t.head || 'עכשיו אתם';
-  $('inv-s').textContent = t.sub  || 'הקישו על הדף כדי להמשיך';
-  el.className = 'invite on';
-  /* התגית יורדת כאן ולא ב-demoStop: היא אומרת "זה רץ לבד", וזו
-     בדיוק ההפך ממה שההזמנה מבקשת. תגית שנשארת דלוקה מעל
-     "עכשיו אתם" אומרת לאדם לא לטרוח. */
-  badge(false);
-  navH();
-  /* ההזמנה גוזלת גובה מהבמה, וחלון ההתמקדות נמדד מגובה הבמה.
-     בלי המדידה מחדש הקטע יוצא ממרכזו ברגע שהיא נדלקת. */
-  setTimeout(focus, 30);
-}
-/* התגית שאומרת "זה רץ לבד". בלעדיה מי שרואה דף שמדפדף מעצמו
-   חושב שהמכשיר תקוע. */
-function badge(on) {
+/* ---------- הבועה ----------
+   'run' — רצה לבד · 'ask' — נגמרה ומזמינה לגעת · 'fin' — נגעו,
+   והיא מציעה לצאת · '' — אין הדגמה.
+
+   מצב אחד בכל רגע, ובאותו מקום: מי שעקב אחריה כשהיא אמרה
+   "הדגמה" מוצא את ההזמנה באותה פינה, ואת היציאה אחריה. */
+function bubble(mode) {
   var el = $('dbadge');
   if (!el) return;
-  if (on) el.textContent = (window.PLAY && PLAY.tag) || 'הדגמה';
-  el.className = on ? 'dbadge on' : 'dbadge';
+  var t = window.PLAY || {};
+  if (mode === 'run') {
+    el.textContent = t.tag || 'הדגמה';
+    el.className = 'dbadge on';
+  } else if (mode === 'ask') {
+    el.innerHTML = '<span class="ring"></span><div><b>' +
+      esc(t.head || 'עכשיו אתם') + '</b><small>' +
+      esc(t.sub || 'הקישו על הדף') + '</small></div>';
+    el.className = 'dbadge on ask';
+  } else if (mode === 'fin') {
+    el.textContent = t.fin || 'סיום ההדגמה';
+    el.className = 'dbadge on fin';
+  } else {
+    el.textContent = '';
+    el.className = 'dbadge';
+  }
+}
+/* לאן יוצאים בסוף. מסך ההצטרפות, ולא חזרה לתוכנית: מי שנתנו
+   לו לשחק בדף וסיים הוא בדיוק מי שכדאי לשאול אותו עכשיו אם
+   הוא בפנים. `learn.html` יושב לצד `join.html`, ולכן הכתובת
+   נבנית מאותו בסיס — בייצור אין סיומות, וקוד שחותך `.html`
+   מהכתובת נשבר שם. */
+function demoOut() {
+  location.href = location.href.split('#')[0].split('?')[0]
+    .replace(/\/learn(\.html)?\/?$/, '/') + 'join.html';
+}
+function demoInvite() {
+  /* התגית אינה יורדת אלא הופכת: "רץ לבד" הוא ההפך ממה שההזמנה
+     מבקשת, ולכן אותה בועה עצמה משנה את מה שהיא אומרת. */
+  bubble('ask');
 }
 /* סוף ההדגמה. מכאן והלאה הדף מתנהג כרגיל לגמרי. */
+/* המסירה. מכאן והלאה הדף מתנהג כרגיל לגמרי, והבועה מציעה את
+   הדרך החוצה — מי שסיים לשחק צריך לדעת לאן ללכת, ובכיתה זה
+   מסך ההצטרפות. במקליט אין יציאה כזו: שם הלוח הוא הדרך חזרה. */
 function demoStop() {
   if (!DEMO) return;
   DEMO = false;
   clearTimeout(DEMO_T);
-  var el = $('invite');
-  if (el) el.className = 'invite';
-  badge(false);
-  navH();
-  setTimeout(focus, 30);
+  bubble(REC ? '' : 'fin');
   if (REC) recPaint();          /* חזרה מניגון אל המקליט */
 }
 
@@ -2003,7 +2024,7 @@ function recPlay() {
   DEMO = true;
   drawer(true);
   if (document.body.classList.contains('side-on')) sideOpen(false);
-  var el = $('invite'); if (el) el.className = 'invite';
+  bubble('');
   go(0);
   recPaint();
   demoRun(a);
@@ -2022,6 +2043,8 @@ function recLabel(a, v) {
   if (a === 'chav')   return 'חברותא';
   if (a === 'deck')   return 'מצגת';
   if (a === 'whole')  return 'כל הדף';
+  if (a === 'big')    return 'הגדלת המצגת';
+  if (a === 'zoom')   return v > 0 ? 'הגדלת הביאור' : 'הקטנת הביאור';
   if (a === 'invite') return 'ההזמנה — עכשיו אתם';
   return a;
 }
@@ -2506,6 +2529,13 @@ window.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('pointerdown', demoStop, true);
     document.addEventListener('keydown', demoStop, true);
   }
+
+  /* היציאה. רק במצב 'fin' יש לבועה אצבע, ולכן אין כאן סכנה
+     שנגיעה בדף תיפול לכאן. */
+  var db = $('dbadge');
+  if (db) db.onclick = function () {
+    if (db.className.indexOf('fin') >= 0) demoOut();
+  };
 
   var t = null;
   var refocus = function () { clearTimeout(t); t = setTimeout(focus, 120); };
