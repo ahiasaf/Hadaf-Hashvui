@@ -42,7 +42,8 @@
   --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE; --cyan:#29ABE2;
   --green:#6FA83B; --green-d:#467B1A; --green-2:#3A6615;
   --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
-  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --paper:#F6F1E6; --surface:#FFFDF8; --surface-2:#F7F1E4; --sunk:#EFE6D3;
+  --rule-2:#EFE7D7;
   --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
   --r:16px; --r-s:12px;
   --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
@@ -157,6 +158,11 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   bottom:2px;width:2px;background:var(--rule)}
 .steps li:last-child::after{display:none}
 .steps-foot{margin:16px 0 0;font-size:.97rem;font-weight:800;color:var(--blue-d)}
+/* שורת היעד. יושבת מעל השאלה ולא לצידה: קודם לאן הולכים,
+   ואז איך — כך שלוש הפעולות שמתחת אינן רשימה אלא דרך. */
+.goal{margin:0 0 10px;font-size:1.04rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink);background:rgba(192,143,43,.11);border-radius:var(--r-s);
+  padding:13px 15px;line-height:1.6}
 
 /* הסיפור. פס זהב בצד שממנו מתחילים לקרוא, בלי מסגרת מלאה —
    הוא ציטוט של מה שקרה, לא כרטיס נוסף. */
@@ -212,6 +218,51 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
 .btn.ghost{flex:0 0 auto;background:rgba(255,255,255,.85);color:var(--ink-2);
   box-shadow:inset 0 0 0 1px var(--rule)}
 
+/* ---------- הלוח המקוצר ----------
+   אותו כרטיס שמופיע בעמוד הראשי לישיבה שהצטרפה, וכאן הוא
+   מראה לר"ם מראש מה יופיע לו מול העיניים ברגע שתלמיד נרשם.
+
+   **הצורה מועתקת מ-index.html, וזה עותק שני.** הנוסח לפחות
+   אינו מועתק — הוא נקרא מאותם שדות מלל (UI.cb*), ולכן שינוי
+   מילה בניהול משנה את שני המקומות. מי שנוגע כאן — שיבדוק גם
+   בעמוד הראשי. */
+.brd{background:linear-gradient(160deg,var(--surface) 0%,var(--surface-2) 100%);
+  border-radius:var(--r);padding:20px 18px 18px;box-shadow:var(--sh-2);
+  border-top:3px solid var(--gold);margin-top:11px}
+.brd-hero{text-align:center}
+.brd-hero b{display:block;font-size:2.4rem;font-weight:800;line-height:1;
+  letter-spacing:-.05em;color:var(--gold)}
+.brd-hero b small{font-size:1.05rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink);margin-inline-start:7px}
+.brd-hero span{display:block;font-size:.95rem;font-weight:700;color:var(--ink-2);
+  margin-top:7px;line-height:1.5}
+.brd-hero p{font-size:.85rem;font-weight:600;color:var(--ink-3);
+  margin:9px 0 0;line-height:1.7}
+.brd-bar{margin-top:17px;padding-top:16px;border-top:1px solid var(--rule-2)}
+.brd-bar .t{height:12px;border-radius:12px;background:var(--sunk);overflow:hidden}
+.brd-bar .t i{display:block;height:100%;border-radius:12px;
+  background:linear-gradient(90deg,var(--green),var(--green-d))}
+.brd-bar span{display:block;font-size:.88rem;font-weight:800;color:var(--ink);
+  margin-top:9px;text-align:center}
+.brd-first{display:flex;align-items:center;gap:13px;justify-content:center}
+.brd-first .dot{flex:none;width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;font-weight:800;color:#fff;
+  background:linear-gradient(150deg,var(--blue-l),var(--blue));
+  box-shadow:0 0 0 5px rgba(23,70,143,.12),var(--sh-1)}
+.brd-first b{display:block;font-size:.96rem;font-weight:800;line-height:1.35;
+  text-align:start}
+.brd-first>div>span{display:block;margin-top:2px;font-size:.79rem;font-weight:700;
+  color:var(--ink-3);text-align:start}
+.brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
+.brd-chips span{flex:0 0 auto;display:inline-flex;flex-direction:column;
+  align-items:center;gap:1px;background:var(--sunk);border-radius:16px;
+  padding:8px 14px;white-space:nowrap;min-width:52px}
+.brd-chips span i{font-style:normal;font-size:.74rem;font-weight:800;color:var(--ink-3)}
+.brd-chips span b{font-size:1.06rem;font-weight:800;color:var(--blue);line-height:1.15}
+.brd-note{margin:11px 0 0;font-size:.77rem;font-weight:700;color:var(--ink-3);
+  text-align:center}
+
 hr{border:0;border-top:1px solid var(--rule);margin:34px 0 0}
 footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
   margin-top:18px;line-height:1.9;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
@@ -244,25 +295,30 @@ footer a{color:var(--ink-2);font-weight:800}
 
   <!-- הדף של השבוע. גבוה בכוונה: העמוד הזה אינו מתאר את הדף
        אלא פותח אותו, ומכאן ר"ם יכול להתחיל שיעור. -->
-  <p class="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
+  <p class="demo-cap" id="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
   <div id="stage"></div>
 
   <section>
+    <h2 class="sec" id="t-whoH"></h2>
+    <div class="who" id="who"></div>
+  </section>
+
+  <!-- ההנחיות. קודם היעד, ואז השאלה איך מגיעים אליו — סדר
+       שהופך רשימת פעולות לדבר עם סיבה. -->
+  <section>
+    <p class="goal" id="t-goalH"></p>
     <h2 class="sec" id="t-stepsH"></h2>
     <ol class="steps" id="steps"></ol>
     <p class="steps-foot" id="t-stepsFoot"></p>
   </section>
 
+  <!-- הסיפור סוגר את החלק המשכנע, ממש לפני הקישורים: מי
+       שהגיע עד כאן קרא מה לעשות, וזה מה שנותן לו סיבה. -->
   <section id="story-sec">
     <div class="story">
       <h3 id="t-storyH"></h3>
       <p id="t-story"></p>
     </div>
-  </section>
-
-  <section>
-    <h2 class="sec" id="t-whoH"></h2>
-    <div class="who" id="who"></div>
   </section>
 
   <section>
@@ -285,6 +341,10 @@ footer a{color:var(--ink-2);font-weight:800}
     </div>
 
     <p class="peers" id="peers" hidden></p>
+
+    <!-- מה יופיע לו כשתלמיד יירשם. לא הבטחה במילים אלא
+         הכרטיס עצמו, בדיוק כפי שהוא נראה בעמוד הראשי. -->
+    <div id="brd"></div>
   </section>
 
   <hr>
@@ -352,9 +412,21 @@ for (var i = 0; i < INSTITUTIONS.length; i++) {
   if (INSTITUTIONS[i].code === instCode) instRow = INSTITUTIONS[i];
 }
 
+/* ============================================================
+   הבסיס שממנו נבנים כל הקישורים.
+   ============================================================
+   `cleanUrls` ב-Vercel מגיש את העמוד בכתובת "/tzevet", בלי
+   הסיומת. (ואזהרה למי שעורך: הדגשה בכוכביות סביב נתיב סוגרת
+   את ההערה באמצע — הכוכבית והלוכסן הם סוף בלוק.) חיתוך שמחפש `tzevet.html` פשוט לא מצא אותה בייצור,
+   הבסיס נשאר `…/tzevet`, וכל שלושת הקישורים יצאו כ-
+   `…/tzevetjoin.html` — כלומר 404 על המצגת, על הלוח ועל
+   הקישור לתלמידים.
+
+   בסביבת הפיתוח הכתובת כן נגמרת ב-`.html`, ולכן זה עבד שם
+   ונשבר רק אצל המשתמש. שתי הצורות מטופלות כאן. */
 function base() {
   return location.href.split('#')[0].split('?')[0]
-         .replace(/tzevet\.html$/, '');
+         .replace(/\/tzevet(\.html)?\/?$/, '/');
 }
 function kidsUrl() {
   return base() + 'join.html' + (instCode ? '?inst=' + encodeURIComponent(instCode) : '');
@@ -431,18 +503,25 @@ function drawWho() {
 /* ---------- הציור ---------- */
 function draw() {
   var T = window.TZEVET || {};
-  ['h1','lead','demoH','demoSub','stepsH','stepsFoot','storyH','story',
+  ['h1','lead','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
    'whoH','kidsH','kidsTxt','boardH','boardTxt','foot'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
   });
+  /* הסיפור לבדו נכתב כ-HTML, כדי שאפשר יהיה להדגיש בו משפטים.
+     זה גם מה שעושים שאר עמודי המלל בפרויקט. */
+  $('t-story').innerHTML = T.story || '';
   document.title = (T.title || 'לצוות') + ' · הדף השבועי של בני עקיבא';
 
   $('inst-name').textContent = instRow ? instRow.name : '';
   $('inst-name').hidden = !instRow;
 
-  /* שורה שרוקנה מהניהול נעלמת ואינה משאירה רווח לבן על הכהה. */
+  /* שורה שרוקנה מהניהול נעלמת ואינה משאירה רווח לבן על הכהה,
+     והבלוק כולו יורד כששתי השורות ריקות. */
+  $('t-demoH').hidden   = !(T.demoH || '').trim();
   $('t-demoSub').hidden = !(T.demoSub || '').trim();
+  $('demo-cap').hidden  = !((T.demoH || '').trim() || (T.demoSub || '').trim());
+  $('t-goalH').hidden   = !(T.goalH || '').trim();
 
   /* השלבים. שדה שרוקן יורד מהרשימה ואינו משאיר מספר מיותם. */
   var st = [];
@@ -469,7 +548,89 @@ function draw() {
   $('board-go').textContent = T.boardGo || 'לפתיחת הלוח';
 
   drawPeers();
+  drawBoard();
   drawStage();
+}
+
+/* ============================================================
+   הלוח המקוצר — מה יופיע לו כשתלמיד יירשם.
+   ============================================================
+   אותו כרטיס שיש בעמוד הראשי לישיבה שהצטרפה. הוא כאן כדי
+   שר"ם יראה מראש מה מחכה לו, ולא יצטרך להאמין לתיאור.
+
+   הכל נקרא מהלשוניות **הציבוריות** — מספרים בלבד. שום שם
+   אינו יוצא מהגיליון הסגור אל העמוד הזה, גם לא לכרטיס הזה.
+
+   **הנוסח אינו מועתק:** אותם שדות מלל של העמוד הראשי
+   (`UI.cb*`), ולכן מילה שתשונה בניהול משתנה בשני המקומות.
+   הצורה כן מועתקת — ראו את ההערה ליד ה-CSS.
+   ============================================================ */
+var counts = { n:0, grades:[], ways:[] };
+var learned = {};
+try { learned = JSON.parse(localStorage.getItem('df:learnCount') || '{}') || {}; }
+catch (e) { learned = {}; }
+
+/* "ז׳:9 · ח׳:4" → [['ז׳',9],['ח׳',4]] */
+function pairs(v) {
+  var out = [];
+  String(v || '').split('·').forEach(function (p) {
+    var i = p.lastIndexOf(':');
+    if (i < 0) return;
+    var k = p.slice(0, i).trim(), n = parseInt(p.slice(i + 1), 10);
+    if (k && n > 0) out.push([k, n]);
+  });
+  return out;
+}
+
+function drawBoard() {
+  var el = $('brd'); if (!el) return;
+  /* בלי ישיבה אין לוח — אין מה לספור ואין מה להראות. */
+  if (!instRow) { el.innerHTML = ''; return; }
+
+  var n = counts.n, wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var tr = null;
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === track) tr = TRACKS[i];
+  if (!tr) tr = TRACKS[0];
+  var row = wk >= 0 ? tr.cal[wk] : null, row0 = tr.cal[0];
+  var daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  var did = (wk >= 0 && typeof LCount === 'function')
+          ? LCount(tr.id, wk, instRow.code) : 0;
+
+  /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
+  var hero = n
+    ? '<b>' + n + '<small>' +
+      esc(tpl(UI.cbHero, { n:'' }).replace(/^\s*/, '')) + '</small></b>' +
+      '<span>' + esc(UI.cbHeroSub) + '</span>'
+    : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
+      '<p>' + esc(UI.cbEmptySub) + '</p>';
+
+  var bar = '';
+  if (n && daf) {
+    bar = '<div class="brd-bar"><div class="t"><i style="width:' +
+      Math.max(3, Math.round(did / n * 100)) + '%"></i></div><span>' +
+      esc(tpl(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
+  } else if (n && row0) {
+    bar = '<div class="brd-bar"><div class="brd-first">' +
+      '<span class="dot">' + esc(row0[2]) + '</span>' +
+      '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
+      '<span>' + esc(row0[0]) + '</span></div></div></div>';
+  }
+
+  var chips = '';
+  var list = counts.grades.filter(function (p) {
+    return (window.PROG_GRADES || []).indexOf(p[0]) >= 0;
+  });
+  counts.ways.forEach(function (p) {
+    if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]);
+  });
+  if (list.length) {
+    chips = '<div class="brd-chips">' + list.map(function (p) {
+      return '<span><i>' + esc(p[0]) + '</i><b>' + p[1] + '</b></span>';
+    }).join('') + '</div>';
+  }
+
+  el.innerHTML = '<div class="brd"><div class="brd-hero">' + hero + '</div>' +
+    bar + chips + '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
 }
 
 /* ---------- כמה כבר הצטרפו ----------
@@ -577,7 +738,18 @@ sheetCsv('מונים').then(function (rows) {
   });
   peers = m;
   try { localStorage.setItem('df:peerCache', JSON.stringify(m)); } catch (e) {}
-  drawPeers();
+  /* אותה לשונית נושאת גם את הפילוח, ולכן היא ממלאת גם את
+     הלוח המקוצר — ולא נדרשת קריאה שנייה. */
+  if (instCode) {
+    var iG = ix['שכבות'], iW = ix['מסגרות'];
+    rows.slice(1).forEach(function (r) {
+      if (String(r[ix['קוד ישיבה']] || '').trim() !== instCode) return;
+      counts = { n: parseInt(r[ix['מצטרפים']], 10) || 0,
+                 grades: iG === undefined ? [] : pairs(r[iG]),
+                 ways:   iW === undefined ? [] : pairs(r[iW]) };
+    });
+  }
+  drawPeers(); drawBoard();
 });
 
 /* המסכת שהישיבה בחרה בהרשמה — מהלשונית הציבורית `מוסדות`.
