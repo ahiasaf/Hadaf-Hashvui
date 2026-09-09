@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.88.0';
+var APP_VERSION = '7.89.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1642,6 +1642,15 @@ var stuMode = /[?&]st=1/.test(location.search);
 function trackBack() {
   if (!stuMode) { show('home'); return; }
   var m = /[?&]inst=([^&]*)/.exec(location.search);
+  /* מי שהגיע מעמוד הצוות חוזר לשם, ולא למסך ההצטרפות.
+
+     ר"ם שפתח מצגת מתוך עמוד הנחיתה ולחץ חזרה פעמיים נחת עד
+     עכשיו במסך של תלמיד — כלומר איבד את הלוח ואת הקישורים
+     שבשבילם הוא נכנס. */
+  if (/[?&]from=tzevet\b/.test(location.search)) {
+    location.href = 'tzevet.html' + (m ? '?inst=' + m[1] : '');
+    return;
+  }
   location.href = 'join.html' + (m ? '?inst=' + m[1] : '');
 }
 
@@ -5473,8 +5482,11 @@ function admLinks(el) {
     '<b>לר"מים בלבד</b>, כי הוא מכיל את הלוח.</p>' +
     (linkState.msg ? '<div class="cond" style="margin-top:9px">' +
                      linkState.msg + '</div>' : '') +
-    '<div style="margin-top:9px"><button class="btn g" style="margin:0" ' +
-    'onclick="codesLoad()">משיכת הקודים מהגיליון</button></div>' +
+    '<div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">' +
+    '<button class="btn g" style="margin:0;flex:1" ' +
+    'onclick="codesLoad()">משיכת הקודים מהגיליון</button>' +
+    '<button class="btn g" style="margin:0;flex:1" ' +
+    'onclick="codesFill()">קוד לכל מי שאין לו</button></div>' +
     INSTITUTIONS.map(function (i) {
       var wa = fill(UI.linkWa, { inst:i.name, url:joinUrl(i.code) });
       var k  = instCode(i.code);
@@ -5533,6 +5545,70 @@ function codesLoad() {
     linkState.msg = n ? n + ' קודים נטענו מהגיליון.'
                       : 'אין עדיין קודים בגיליון. לחצו "קוד" ליד מוסד כדי לייצר.';
     admPane();
+  }).catch(function () {
+    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
+/* ============================================================
+   קוד לכל מוסד שאין לו — בלחיצה אחת.
+   ============================================================
+   עד היום קוד נוצר רק כשמוסד סיים הרשמה במסך הראשי, ובפועל
+   אף אחד לא עשה את זה: הקישור הגיע אליהם, והם לא לחצו. אנשים
+   עסוקים, והמסקנה אינה לחכות להם — היא לתת להם לוח שעובד
+   מהרגע הראשון, ושההרשמה תגיע אחר כך.
+
+   **רק למי שאין לו.** `newcode` מייצר חדש ודורס את הקיים, וקוד
+   שנדרס מפיל את הקישור שכבר בידי הצוות. לכן קודם מושכים את
+   מה שיש בגיליון, ורק מי שנשאר בלי — מקבל.
+
+   אחד־אחד ולא בבת אחת: כל בקשה נועלת את הגיליון בשרת, ועשרים
+   וארבע במקביל היו נחסמות זו בזו.
+   ============================================================ */
+function codesFill() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
+              admPane(); return; }
+  linkState.msg = 'קורא מה כבר קיים…'; admPane();
+
+  scriptGet({ codes:1, key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה "אין קודים". ייצור על סמך כישלון היה
+       דורס את כל הקודים הקיימים בבת אחת. */
+    if (!d || d.status !== 'ok') {
+      linkState.msg = esc((d && d.message) || 'לא הצלחתי לקרוא את הקודים. ' +
+                          'לא נגעתי בכלום.');
+      admPane(); return null;
+    }
+    var m = Store.get('instCodes', {}) || {};
+    for (var c in (d.codes || {})) m[c] = d.codes[c];
+    Store.set('instCodes', m);
+
+    var need = INSTITUTIONS.filter(function (i) {
+      return i.code && i.code !== 'other' && !(m[i.code] || '').trim();
+    });
+    if (!need.length) {
+      linkState.msg = 'לכל המוסדות כבר יש קוד.'; admPane(); return null;
+    }
+    if (!confirm('לייצר קוד ל־' + need.length + ' מוסדות שאין להם?\n\n' +
+                 'מי שכבר יש לו קוד — לא ייגע, והקישור שבידיו ימשיך לעבוד.')) {
+      linkState.msg = ''; admPane(); return null;
+    }
+
+    var done = 0, failed = 0;
+    var step = function (i) {
+      if (i >= need.length) {
+        linkState.msg = done + ' קודים נוצרו' +
+          (failed ? ' · ' + failed + ' נכשלו' : '') + '.';
+        admPane(); return null;
+      }
+      linkState.msg = 'מייצר… ' + (i + 1) + ' מתוך ' + need.length; admPane();
+      return scriptGet({ newcode:need[i].code, key:key }).then(function (r) {
+        if (r && r.status === 'ok' && r.code) { setInstCode(need[i].code, r.code); done++; }
+        else failed++;
+        return step(i + 1);
+      }).catch(function () { failed++; return step(i + 1); });
+    };
+    return step(0);
   }).catch(function () {
     linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
   });

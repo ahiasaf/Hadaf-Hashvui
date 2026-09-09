@@ -64,7 +64,21 @@ header{background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
     var(--blue) 38%,var(--blue-d) 82%);
   color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 18px 118px;
   text-align:center}
-header .mark{height:40px;margin-bottom:12px}
+/* אותה חתימה שיש בעמוד הראשי ובמסך ההצטרפות: הסמל בעיגול
+   לבן, ולצידו שם התוכנית והשנה. זה הפנים של התוכנית, ואין
+   סיבה שמסך אחד ייראה אחרת מהשני — רק שכאן היא יושבת על
+   הכהה, ולכן הכיתוב לבן. */
+.masthead{display:flex;align-items:center;justify-content:center;gap:13px;
+  margin-bottom:20px}
+.masthead .m{width:54px;height:54px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.28)}
+.masthead .m img{width:35px;height:35px;display:block;object-fit:contain}
+.masthead .t{text-align:start}
+.masthead b{display:block;font-size:1.14rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:#fff}
+.masthead .yr{display:block;font-size:.74rem;font-weight:800;color:var(--gold-l);
+  letter-spacing:.05em;margin-top:3px}
 header .eyebrow{font-size:.73rem;font-weight:800;letter-spacing:.09em;
   color:var(--gold-l);text-transform:none;margin-bottom:8px}
 header h1{margin:0;font-size:1.52rem;font-weight:800;line-height:1.25;
@@ -216,7 +230,11 @@ footer a{color:var(--ink-2);font-weight:800}
 <body>
 
 <header>
-  <img class="mark" id="logo" alt="בני עקיבא">
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div class="t"><b>הדף השבועי<br>של בני עקיבא</b>
+      <span class="yr">שנת תשפ״ז</span></div>
+  </div>
   <div class="eyebrow" id="inst-name"></div>
   <h1 id="t-h1"></h1>
   <p class="lead" id="t-lead"></p>
@@ -307,13 +325,28 @@ function tpl(s, o) {
   });
 }
 
-$('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
+$('hdr-mark').src = window.LOGO_MARK || '';
 
 /* ---------- המוסד ----------
    מגיע מהקישור. בלעדיו העמוד עדיין עובד — הוא פשוט מדבר
    בכללי, בלי שם ובלי קישורים אישיים. */
+/* קוד הגישה ללוח.
+
+   מגיע מהכתובת, ונשמר במכשיר — **אותו מפתח שבו הלוח עצמו
+   משתמש**, ולכן מי שפתח פעם אחת את אחד משניהם מחזיק אותו
+   לשניהם. בזכות זה הכפתור עובד גם בחזרה מהאפליקציה, שאליה
+   הקוד אינו נוסע: כתובת עם קוד גלוי על מקרן בכיתה היא בדיוק
+   הדרך שבה קישור הלוח דולף.
+
+   קוד ריק אינו נשמר — אחרת הוא היה דורס קוד תקין שכבר יושב
+   על המכשיר. */
 var instCode = qs('inst');
 var accCode  = qs('k');
+function accKey() { return 'boardKey:' + instCode; }
+try {
+  if (accCode) localStorage.setItem(accKey(), accCode);
+  else accCode = localStorage.getItem(accKey()) || '';
+} catch (e) {}
 var instRow  = null;
 for (var i = 0; i < INSTITUTIONS.length; i++) {
   if (INSTITUTIONS[i].code === instCode) instRow = INSTITUTIONS[i];
@@ -353,7 +386,15 @@ function goDaf() {
    לשבוע באפליקציה, ושם היא נפתחת. */
 function goApp() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
-  location.href = base() + 'index.html?st=1#week=' + track + '-' + ((wk < 0 ? 0 : wk) + 1);
+  /* `from=tzevet` הוא מה שמחזיר את כפתור "חזרה" שבאפליקציה
+     לכאן ולא למסך ההצטרפות. בלעדיו ר"ם שפתח מצגת היה נופל
+     בסוף אל מסך של תלמיד.
+
+     הקוד אינו נוסע איתו — הוא נשמר במכשיר. כתובת עם קוד גלוי
+     על מקרן בכיתה היא בדיוק הדרך שבה קישור הלוח דולף. */
+  location.href = base() + 'index.html?st=1&from=tzevet' +
+    (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
+    '#week=' + track + '-' + ((wk < 0 ? 0 : wk) + 1);
 }
 function drawStage() {
   $('stage').innerHTML = StageHtml({ track:track, pick:'setTrack',
@@ -399,6 +440,9 @@ function draw() {
 
   $('inst-name').textContent = instRow ? instRow.name : '';
   $('inst-name').hidden = !instRow;
+
+  /* שורה שרוקנה מהניהול נעלמת ואינה משאירה רווח לבן על הכהה. */
+  $('t-demoSub').hidden = !(T.demoSub || '').trim();
 
   /* השלבים. שדה שרוקן יורד מהרשימה ואינו משאיר מספר מיותם. */
   var st = [];
