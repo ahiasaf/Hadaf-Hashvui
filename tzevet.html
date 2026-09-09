@@ -144,11 +144,20 @@ section{margin-top:30px}
 h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   color:var(--blue-d);margin:0 0 14px}
 
+/* ---------- ההנחיות ----------
+   הן העיקר בעמוד הזה, ולכן הן כרטיס ולא טקסט על הרקע: ר"ם
+   שסורק צריך לעצור עליהן. קודם הן היו אפורות וקלות מהסיפור
+   שמתחתיהן, וזה הפך את הסיפור לעיקר ואת ההנחיה לקישוט. */
+.howto{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:18px;box-shadow:var(--sh-2);
+  border-top:3px solid var(--gold)}
+.howto h2{margin:0 0 14px}
+
 /* השלבים. מספר בעיגול זהב, וקו שמחבר ביניהם — כדי שייקרא
-   כרצף ולא כארבע עצות נפרדות. */
+   כרצף ולא כשלוש עצות נפרדות. */
 .steps{list-style:none;margin:0;padding:0;position:relative}
 .steps li{position:relative;padding-inline-start:46px;padding-bottom:16px;
-  font-size:.97rem;font-weight:600;color:var(--ink-2)}
+  font-size:1.02rem;font-weight:700;color:var(--ink);line-height:1.6}
 .steps li:last-child{padding-bottom:0}
 .steps li::before{content:attr(data-n);position:absolute;inset-inline-start:0;top:0;
   width:30px;height:30px;border-radius:50%;background:var(--gold);color:#fff;
@@ -170,8 +179,11 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   margin-top:6px}
 .story h3{margin:0 0 5px;font-size:.78rem;font-weight:800;letter-spacing:.07em;
   color:var(--gold-t)}
-.story p{margin:0;font-size:1rem;font-weight:600;color:var(--ink);
-  line-height:1.8}
+/* קטן ובהיר מההנחיות, ובכוונה: הוא מלווה אותן ואינו מתחרה
+   בהן. קודם הוא היה גדול וכהה מהן, והעין נחתה עליו ראשונה. */
+.story p{margin:0;font-size:.92rem;font-weight:600;color:var(--ink-2);
+  line-height:1.85}
+.story p b{font-weight:800;color:var(--ink)}
 
 /* שלושת הקהלים. עיגול צבעוני לאייקון — אותו קו של דרכי
    הלימוד במסך ההצטרפות, ולא אמוג'י. */
@@ -260,6 +272,8 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   padding:8px 14px;white-space:nowrap;min-width:52px}
 .brd-chips span i{font-style:normal;font-size:.74rem;font-weight:800;color:var(--ink-3)}
 .brd-chips span b{font-size:1.06rem;font-weight:800;color:var(--blue);line-height:1.15}
+.brd .btn{margin-top:16px;
+  background:linear-gradient(140deg,var(--blue-l),var(--blue));color:#fff}
 .brd-note{margin:11px 0 0;font-size:.77rem;font-weight:700;color:var(--ink-3);
   text-align:center}
 
@@ -306,10 +320,12 @@ footer a{color:var(--ink-2);font-weight:800}
   <!-- ההנחיות. קודם היעד, ואז השאלה איך מגיעים אליו — סדר
        שהופך רשימת פעולות לדבר עם סיבה. -->
   <section>
-    <p class="goal" id="t-goalH"></p>
-    <h2 class="sec" id="t-stepsH"></h2>
-    <ol class="steps" id="steps"></ol>
-    <p class="steps-foot" id="t-stepsFoot"></p>
+    <div class="howto">
+      <p class="goal" id="t-goalH"></p>
+      <h2 class="sec" id="t-stepsH"></h2>
+      <ol class="steps" id="steps"></ol>
+      <p class="steps-foot" id="t-stepsFoot"></p>
+    </div>
   </section>
 
   <!-- הסיפור סוגר את החלק המשכנע, ממש לפני הקישורים: מי
@@ -332,18 +348,15 @@ footer a{color:var(--ink-2);font-weight:800}
       </div>
     </div>
 
-    <div class="link board">
-      <h3 id="t-boardH"></h3>
-      <p id="t-boardTxt"></p>
-      <div class="row">
-        <a class="btn b" id="board-go"></a>
-      </div>
-    </div>
-
     <p class="peers" id="peers" hidden></p>
 
-    <!-- מה יופיע לו כשתלמיד יירשם. לא הבטחה במילים אלא
-         הכרטיס עצמו, בדיוק כפי שהוא נראה בעמוד הראשי. -->
+    <!-- **לוח אחד בלבד.** קודם היו כאן שניים — כרטיס כחול
+         שהוביל ללוח, ומתחתיו הלוח עצמו — ושניהם דיברו על
+         אותו דבר.
+
+         זה הלוח בדיוק כפי שהוא בעמוד הראשי, כולל הכפתור
+         הכחול שבתוכו. ההבדל היחיד: כפתור השליחה לתלמידים
+         אינו כאן, כי הוא כבר יושב למעלה בכרטיס משלו. -->
     <div id="brd"></div>
   </section>
 
@@ -504,7 +517,7 @@ function drawWho() {
 function draw() {
   var T = window.TZEVET || {};
   ['h1','lead','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
-   'whoH','kidsH','kidsTxt','boardH','boardTxt','foot'].forEach(function (k) {
+   'whoH','kidsH','kidsTxt','foot'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
   });
@@ -544,9 +557,7 @@ function draw() {
   $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
   $('kids-wa').textContent = UI.linkWaBtn || 'שליחה בוואטסאפ';
   $('kids-copy').textContent = UI.linkCopy || 'העתקה';
-  $('board-go').href = boardUrl();
-  $('board-go').textContent = T.boardGo || 'לפתיחת הלוח';
-
+  
   drawPeers();
   drawBoard();
   drawStage();
@@ -584,6 +595,7 @@ function pairs(v) {
 
 function drawBoard() {
   var el = $('brd'); if (!el) return;
+  var T = window.TZEVET || {};
   /* בלי ישיבה אין לוח — אין מה לספור ואין מה להראות. */
   if (!instRow) { el.innerHTML = ''; return; }
 
@@ -601,7 +613,12 @@ function drawBoard() {
     ? '<b>' + n + '<small>' +
       esc(tpl(UI.cbHero, { n:'' }).replace(/^\s*/, '')) + '</small></b>' +
       '<span>' + esc(UI.cbHeroSub) + '</span>'
-    : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
+    /* "שלחו לתלמידים את הקישור" נכון בעמוד הראשי, שבו זו
+       הפעולה הבאה. כאן הכפתור כבר יושב למעלה, ולכן הכותרת
+       אומרת מה יופיע ולא מה לעשות. ריק = חוזרים לנוסח
+       המשותף. */
+    : '<b style="font-size:1.15rem;color:var(--ink)">' +
+      esc(T.brdEmpty || UI.cbEmpty) + '</b>' +
       '<p>' + esc(UI.cbEmptySub) + '</p>';
 
   var bar = '';
@@ -629,8 +646,14 @@ function drawBoard() {
     }).join('') + '</div>';
   }
 
+  /* הכפתור הכחול הוא חלק מהלוח, כמו בעמוד הראשי — ולא כרטיס
+     נפרד שמוביל אליו. כפתור השליחה הירוק אינו כאן: הוא כבר
+     יושב למעלה, ושני כפתורי שליחה באותו עמוד הם שאלה. */
+  var full = '<a class="btn" href="' + esc(boardUrl()) + '">' +
+             esc(UI.cbBoard) + ' ←</a>';
+
   el.innerHTML = '<div class="brd"><div class="brd-hero">' + hero + '</div>' +
-    bar + chips + '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
+    bar + chips + full + '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
 }
 
 /* ---------- כמה כבר הצטרפו ----------
