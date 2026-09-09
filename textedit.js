@@ -44,7 +44,7 @@ var TX = (function () {
     ROOTS = { fit:window.FIT, ui:window.UI, sfarim:window.SFARIM,
               rights:window.RIGHTS, join:window.JOIN, gate:window.GATE,
               tour:window.TOUR, a11y:window.A11Y, info:window.INFO,
-              tzevet:window.TZEVET };
+              tzevet:window.TZEVET, play:window.PLAY };
     return ROOTS;
   }
   function ref(k) {

@@ -349,6 +349,26 @@ nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
   background:#fff;color:var(--ink);white-space:nowrap}
 nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent;padding:10px 18px}
+
+/* ---------- ההזמנה שבסוף ההדגמה ----------
+   יושבת בין הדף לשורת הניווט ואינה מכסה דבר: מי שמזמינים אותו
+   לגעת צריך לראות במה הוא נוגע. הטבעת פועמת כי אצבע מצוירת על
+   מסך סטטי נראית כמו תמונה, וטבעת שנושמת נקראת כהזמנה. */
+.invite{display:none;flex:0 0 auto;align-items:center;justify-content:center;gap:13px;
+  padding:13px 16px calc(env(safe-area-inset-bottom) + 13px);
+  background:var(--blue-d);color:#fff}
+.invite.on{display:flex}
+.invite b{display:block;font-size:1rem;font-weight:800}
+.invite small{display:block;margin-top:2px;font-size:.82rem;
+  font-weight:600;color:rgba(255,255,255,.82)}
+.invite .ring{flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.8);animation:tapring 1.6s infinite}
+@keyframes tapring{
+  0%   {transform:scale(.78);opacity:.35}
+  50%  {transform:scale(1.12);opacity:1}
+  100% {transform:scale(.78);opacity:.35}
+}
+@media (prefers-reduced-motion:reduce){ .invite .ring{animation:none;opacity:1} }
 nav button.on{background:var(--blue);color:#fff;border-color:transparent}
 nav button:disabled{opacity:.38;cursor:default}
 nav .sp{flex:1}
@@ -548,6 +568,12 @@ nav .sp{flex:1}
     <div class="chb" id="chb"></div>
   </aside>
 </main>
+
+<!-- ההזמנה שבסוף ההדגמה. מוסתרת תמיד, ונדלקת רק ב-`?demo=1`. -->
+<div class="invite" id="invite">
+  <span class="ring"></span>
+  <div><b id="inv-h"></b><small id="inv-s"></small></div>
+</div>
 
 <nav><div class="nrow">
   <button id="prev">▸ הקודם</button>
@@ -1237,7 +1263,7 @@ function needChav() {
 function drawer(on) {
   document.body.classList.toggle('chav-on', on);
   $('chtog').classList.toggle('on', on);
-  try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
+  if (!DEMO) try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
   /* הקובץ נטען רק אם יש קטע שנשמר לפני שהמבנה נשמר יחד איתו */
   if (on) { if (needChav()) loadChav(); paintChav(); }
   /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
@@ -1333,21 +1359,32 @@ function slideAt(idx) {
 
 /* ---------- פתיחה, סגירה, מצבי הטלפון ---------- */
 function sideOpen(on) {
-  /* גובה שורת הניווט נמדד ולא מנוחש: יש בו `safe-area-inset`,
-     והוא שונה בין אייפון עם סרגל תחתון לבין אנדרואיד. חלון צף
-     שיושב על מספר קבוע נחתך באחד מהם. */
-  var nv = document.querySelector('nav');
-  if (nv) document.body.style.setProperty('--nav-h', nv.offsetHeight + 'px');
+  navH();
   document.body.classList.toggle('side-on', !!on);
   if (!on) document.body.classList.remove('side-big');
   var b = $('dktog');
   if (b) b.classList.toggle('on', !!on);
-  try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
+  if (!DEMO) try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
   if (on) sideSync(true);
   /* הבמה שינתה רוחב רק אם היא לא הייתה נעולה על --col. בכל
      מקרה ציור מחדש כאן זול, ומונע מצב שבו המסגרת נשארת על
      המקום הישן. */
   if (FLAT.length) { paint(); focus(); }
+}
+/* גובה מה שיושב בתחתית המסך. נמדד ולא מנוחש: יש בו
+   `safe-area-inset`, והוא שונה בין אייפון עם סרגל תחתון לבין
+   אנדרואיד, וחלון צף שיושב על מספר קבוע נחתך באחד מהם.
+
+   וזה **גם** ההזמנה שבסוף ההדגמה, כשהיא דלוקה. בטלפון המצגת
+   היא חלון צף שנתלה מלמעלה על השורה הזו, ובלי המדידה הזו היא
+   כיסתה את ההזמנה בדיוק ברגע שבו מזמינים מישהו לגעת. */
+function navH() {
+  var h = 0;
+  ['invite', 'nav'].forEach(function (sel) {
+    var el = sel === 'nav' ? document.querySelector('nav') : $(sel);
+    if (el && el.offsetParent !== null) h += el.offsetHeight;
+  });
+  if (h) document.body.style.setProperty('--nav-h', h + 'px');
 }
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
@@ -1514,6 +1551,9 @@ function sideInit() {
   DECK = deckOf();
   if (!DECK) return;
   try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+  /* בהדגמה — לא. "שקף 3 מתוך 12" הוא הכלי של מי שמשייך, והרכז
+     שמריץ את ההדגמה הוא בדיוק מי שהדגל הזה דלוק אצלו. */
+  if (DEMO) SIDE_ADM = false;
   /* גם ב-CSS: הכותרת והחצים שייכים לשיוך, ולכן הם מופיעים רק
      אצל מי שמשייך. */
   document.body.classList.toggle('side-adm', SIDE_ADM);
@@ -1534,8 +1574,11 @@ function sideInit() {
       sideOpen(!document.body.classList.contains('side-on'));
     };
     /* מי שסגר — נשאר סגור. אין פתיחה מאליה: הדף כפי שהוא היום
-       הוא ברירת המחדל, וכל שינוי בו הוא בחירה של מי שלחץ. */
-    try {
+       הוא ברירת המחדל, וכל שינוי בו הוא בחירה של מי שלחץ.
+
+       ובהדגמה גם לא נפתחת מאליה: התסריט פותח אותה בזמן שלו,
+       וכך היא נראית נפתחת ולא נמצאת. */
+    if (!DEMO) try {
       if (localStorage.getItem('df:side') === '1') sideOpen(true);
     } catch (e) {}
   });
@@ -1557,6 +1600,7 @@ function posWeek() {
   return dafKey(LDaf(S.mas, wk) || '') === dafKey(S.daf) ? wk : -1;
 }
 function savePos() {
+  if (DEMO) return;               /* הדגמה אינה "מקום שעצרתי בו" */
   var wk = posWeek();
   if (wk < 0 || !FLAT.length) return;
   try { LPosSet(S.mas, wk, IDX, FLAT.length); } catch (e) {}
@@ -1749,19 +1793,92 @@ function markThisDaf() {
 })();
 
 /* ============================================================
+   מצב הדגמה — `?demo=1`.
+   ============================================================
+   הדף מנגן את עצמו: קטע ראשון, המצגת נפתחת, ועוד שני קטעים.
+   אחריהם הוא עוצר ומזמין את מי שמסתכל לגעת — כי דף שרץ לבד
+   מראה, ורק אצבע שנוגעת נותנת להרגיש.
+
+   **כל נגיעה מפסיקה אותו.** מיד, ובלי לבלוע את הנגיעה עצמה:
+   מי שהקיש כדי להתקדם — התקדם. הדגמה שאי אפשר לקטוע היא מטרד,
+   ובכיתה זה בדיוק הרגע שבו רוצים לקחת את השליטה.
+
+   **והיא אינה משאירה עקבות.** ההדגמה פותחת חברותא, פותחת מצגת
+   ומדפדפת — ואת כל אלה המכשיר זוכר בדרך כלל. אצל הרכז, שמריץ
+   אותה על הטלפון שלו, זה היה משנה לו את ההגדרות ומסמן לו מקום
+   שמור בדף. לכן כל כתיבה נבלמת כאן, וגם השער וההסבר שנפתחים
+   בכניסה ראשונה מדולגים — הם היו הופכים את ההדגמה למסך שממתין.
+   ============================================================ */
+var DEMO = /[?&]demo=1\b/.test(location.search);
+var DEMO_T = null;
+
+/* התסריט. כל שורה: כמה זמן להשאיר את המסך כפי שהוא, ומה לעשות
+   אחר כך. הקצב מכוון לקריאה של ביאור קצר בקול, לא למי שמדלג. */
+function demoRun() {
+  var beats = [
+    [5200, demoDeck],
+    [3600, function () { go(IDX + 1); }],
+    [5600, function () { go(IDX + 1); }],
+    [5600, demoInvite]
+  ];
+  var i = 0;
+  var step = function () {
+    if (!DEMO) return;
+    var b = beats[i++];
+    if (!b) return;
+    DEMO_T = setTimeout(function () { b[1](); step(); }, b[0]);
+  };
+  step();
+}
+/* המצגת נפתחת רק אם באמת יש אחת לדף הזה. הכפתור מוסתר עד
+   ש-sideInit יודע שיש שיוך, וזו הבדיקה הזולה והנכונה. */
+function demoDeck() {
+  var b = $('dktog');
+  if (!b || b.style.display === 'none') return;
+  if (!document.body.classList.contains('side-on')) sideOpen(true);
+}
+function demoInvite() {
+  var el = $('invite');
+  if (!el) return;
+  var t = window.PLAY || {};
+  $('inv-h').textContent = t.head || 'עכשיו אתם';
+  $('inv-s').textContent = t.sub  || 'הקישו על הדף כדי להמשיך';
+  el.className = 'invite on';
+  navH();
+  /* ההזמנה גוזלת גובה מהבמה, וחלון ההתמקדות נמדד מגובה הבמה.
+     בלי המדידה מחדש הקטע יוצא ממרכזו ברגע שהיא נדלקת. */
+  setTimeout(focus, 30);
+}
+/* סוף ההדגמה. מכאן והלאה הדף מתנהג כרגיל לגמרי. */
+function demoStop() {
+  if (!DEMO) return;
+  DEMO = false;
+  clearTimeout(DEMO_T);
+  var el = $('invite');
+  if (el) el.className = 'invite';
+  navH();
+  setTimeout(focus, 30);
+}
+
+/* ============================================================
    שער הדף.
    ============================================================ */
 /* המלל שנערך בניהול. learn.html אינו טוען את index.html, ולכן
    הוא לא ידע על שום עריכה — שדה שנערך בפאנל פשוט לא הגיע לכאן,
    והלוגו שנבחר לא הופיע. שתי שכבות, כמו בכל השאר: מה שפורסם
    לגיליון, ומעליו טיוטה מקומית של הרכז. */
-(function applyGateTexts() {
+(function applyLearnTexts() {
+  /* שני אוסָפים באותו מנגנון. קודם היה כאן `gate` בלבד, ומלל
+     שנוסף לעמוד הזה היה צריך העתק של אותו לולאה. */
+  var into = { gate: window.GATE, play: window.PLAY };
   var take = function (map) {
     if (!map) return;
     for (var k in map) {
       var p2 = k.split('.');
-      if (p2[0] !== 'gate' || p2.length !== 2) continue;
-      if (typeof map[k] === 'string' && map[k] !== '') GATE[p2[1]] = map[k];
+      if (p2.length !== 2) continue;
+      var o = into[p2[0]];
+      if (!o) continue;
+      if (typeof map[k] === 'string' && map[k] !== '') o[p2[1]] = map[k];
     }
   };
   try {
@@ -1794,6 +1911,7 @@ function gateFill() {
 
 /* ההסבר על אופן הלימוד — אחרי השער, ורק בפעם הראשונה. */
 function introMaybe() {
+  if (DEMO) return;               /* מסך שממתין ללחיצה אינו הדגמה */
   var seen = false;
   try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
   if (!seen) $('intro').className = 'sheet on';
@@ -1805,6 +1923,7 @@ function gateClose() {
   setTimeout(function () { g.className = 'sheet gate'; introMaybe(); }, 460);
 }
 function gateOpen() {
+  if (DEMO) return;               /* ולא נרשם כ"נראה" — תלמיד אמיתי עוד יראה אותו */
   var g = $('gate'); if (!g) return;
 
   /* פעם אחת בלבד. שער שמופיע בכל כניסה ומתפוגג אחרי שנייה
@@ -2024,7 +2143,11 @@ function boot() {
       return showPage(PAGES[0].daf, PAGES[0].pg).then(function () {
         SHOWN = 0;
         unveil(); buttons(true);
-        try {
+        /* בהדגמה המסך נפתח תמיד באותה צורה — חברותא פתוחה
+           ומיקוד דלוק — ולא כפי שהמכשיר הזה מכוון. הדגמה שנראית
+           אחרת בכל טלפון אינה הדגמה. */
+        if (DEMO) drawer(true);
+        else try {
           /* פתוחה כברירת מחדל. מי שנכנס בפעם הראשונה לא ידע
              שיש כאן ביאור — הוא ראה כפתור בשם "חברותא" ולא
              לחץ עליו. מי שסגר אותה נשאר סגור, כי הבחירה
@@ -2037,16 +2160,20 @@ function boot() {
           }
         } catch (e) {}
         go(0);
-        try { resumePos(); } catch (e) {}
+        if (!DEMO) try { resumePos(); } catch (e) {}
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
 
            ו**אחרי** DeckLoad: הרשימה קובעת כמה שקפים יש ומה
            סדרם, ו-sideInit נשען עליה. בלי ההמתנה המצגת נבנית
            מהקוד ומתחלפת רגע אחר כך מול עיני התלמיד. */
+        /* ההדגמה מתחילה **אחרי** sideInit: התסריט פותח את המצגת,
+           והכפתור שלה קיים רק משסיים. נכשל משהו בדרך — ההדגמה
+           עדיין רצה, בלי המצגת. */
+        var started = function () { if (DEMO) demoRun(); };
         DeckLoad()['catch'](function () {}).then(function () {
-          try { sideInit(); } catch (e) {}
-        });
+          try { return sideInit(); } catch (e) {}
+        }).then(started, started);
         var seen = false;
         try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
         /* לא כאן — השער פותח אותו כשהוא נסגר, אחרת שני מסכים
@@ -2162,6 +2289,15 @@ window.addEventListener('DOMContentLoaded', function () {
      משתנה והחלון נשאר במידה הישנה — הקטע יוצא ממרכזו ונראה כאילו
      הסימון לא במקום. באפליקציה המותקנת אין שורות כאלה, הגובה
      קבוע, ולכן שם זה מעולם לא נראה. */
+  /* ---------- קטיעת ההדגמה ----------
+     בשלב הלכידה, כדי שזה יקרה לפני כל שאר המאזינים — אבל בלי
+     לבלוע את הנגיעה: מי שהקיש על הדף כדי להתקדם, מתקדם, וגם
+     ההדגמה נעצרת באותה תנועה. */
+  if (DEMO) {
+    document.addEventListener('pointerdown', demoStop, true);
+    document.addEventListener('keydown', demoStop, true);
+  }
+
   var t = null;
   var refocus = function () { clearTimeout(t); t = setTimeout(focus, 120); };
   window.addEventListener('resize', refocus);
