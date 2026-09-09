@@ -272,6 +272,20 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   padding:8px 14px;white-space:nowrap;min-width:52px}
 .brd-chips span i{font-style:normal;font-size:.74rem;font-weight:800;color:var(--ink-3)}
 .brd-chips span b{font-size:1.06rem;font-weight:800;color:var(--blue);line-height:1.15}
+/* ---------- הלוח לפני שהצטרף מישהו ----------
+   לא תיבה ריקה ולא מספרים מומצאים: **הצורה האמיתית של הלוח,
+   בלי תוכן.** המקפים במקום המספרים הם מה שהופך אותו להדגמה
+   ולא להבטחה — ר"ם רואה בדיוק מה יופיע לו, ואף נתון לא נטען.
+
+   לוח לדוגמה עם מספרים היה נראה משכנע יותר ליום אחד, ועולה
+   באמון ביום שהמספר האמיתי מגיע ונמוך ממנו. */
+.brd.skel .brd-hero b,
+.brd.skel .brd-bar,
+.brd.skel .brd-chips{opacity:.42}
+.skel-tag{display:block;text-align:center;font-size:.72rem;font-weight:800;
+  letter-spacing:.09em;color:var(--gold-t);margin-bottom:12px}
+.skel-note{margin:14px 0 0;font-size:.88rem;font-weight:600;color:var(--ink-2);
+  line-height:1.7;text-align:center}
 .brd .btn{margin-top:16px;
   background:linear-gradient(140deg,var(--blue-l),var(--blue));color:#fff}
 .brd-note{margin:11px 0 0;font-size:.77rem;font-weight:700;color:var(--ink-3);
@@ -618,21 +632,20 @@ function drawBoard() {
   var did = (wk >= 0 && typeof LCount === 'function')
           ? LCount(tr.id, wk, instRow.code) : 0;
 
-  /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
-  var hero = n
-    ? '<b>' + n + '<small>' +
-      esc(tpl(UI.cbHero, { n:'' }).replace(/^\s*/, '')) + '</small></b>' +
-      '<span>' + esc(UI.cbHeroSub) + '</span>'
-    /* "שלחו לתלמידים את הקישור" נכון בעמוד הראשי, שבו זו
-       הפעולה הבאה. כאן הכפתור כבר יושב למעלה, ולכן הכותרת
-       אומרת מה יופיע ולא מה לעשות. ריק = חוזרים לנוסח
-       המשותף. */
-    : '<b style="font-size:1.15rem;color:var(--ink)">' +
-      esc(T.brdEmpty || UI.cbEmpty) + '</b>' +
-      '<p>' + esc(UI.cbEmptySub) + '</p>';
+  var unit = esc(tpl(UI.cbHero, { n:'' }).replace(/^\s*/, ''));
+  /* לפני שהצטרף מישהו — אותה כותרת בדיוק, עם מקף במקום המספר. */
+  var hero = '<b>' + (n ? n : '—') + '<small>' + unit + '</small></b>' +
+             '<span>' + esc(UI.cbHeroSub) + '</span>';
 
   var bar = '';
-  if (n && daf) {
+  if (!n && row0) {
+    /* שורת הסימנייה — היא אמיתית גם עכשיו, ולכן היא לא מעומעמת
+       פחות משאר השלד רק כדי להיראות מלא. */
+    bar = '<div class="brd-bar"><div class="brd-first">' +
+      '<span class="dot">' + esc(row0[2]) + '</span>' +
+      '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
+      '<span>' + esc(row0[0]) + '</span></div></div></div>';
+  } else if (n && daf) {
     bar = '<div class="brd-bar"><div class="t"><i style="width:' +
       Math.max(3, Math.round(did / n * 100)) + '%"></i></div><span>' +
       esc(tpl(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
@@ -643,13 +656,20 @@ function drawBoard() {
       '<span>' + esc(row0[0]) + '</span></div></div></div>';
   }
 
-  var chips = '';
-  var list = counts.grades.filter(function (p) {
-    return (window.PROG_GRADES || []).indexOf(p[0]) >= 0;
-  });
-  counts.ways.forEach(function (p) {
-    if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]);
-  });
+  var chips = '', list = [];
+  if (n) {
+    list = counts.grades.filter(function (p) {
+      return (window.PROG_GRADES || []).indexOf(p[0]) >= 0;
+    });
+    counts.ways.forEach(function (p) {
+      if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]);
+    });
+  } else {
+    /* השכבות של התוכנית, עם מקף. אלה התוויות האמיתיות שיופיעו
+       שם — רק המספרים עוד לא קיימים. */
+    list = (window.PROG_GRADES || []).map(function (g) { return [g, '—']; });
+    list.push([UI.cbDads, '—']);
+  }
   if (list.length) {
     chips = '<div class="brd-chips">' + list.map(function (p) {
       return '<span><i>' + esc(p[0]) + '</i><b>' + p[1] + '</b></span>';
@@ -662,8 +682,15 @@ function drawBoard() {
   var full = '<a class="btn" href="' + esc(boardUrl()) + '">' +
              esc(UI.cbBoard) + ' ←</a>';
 
-  el.innerHTML = '<div class="brd"><div class="brd-hero">' + hero + '</div>' +
-    bar + chips + full + '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
+  /* התגית והשורה המסבירה — רק בשלד. משהצטרף אחד, הלוח מדבר
+     בעד עצמו ואין מה להסביר. */
+  var tag = n ? '' : '<span class="skel-tag">' + esc(T.brdSkel || '') + '</span>';
+  var note = n ? '' : '<p class="skel-note">' + esc(UI.cbEmptySub) + '</p>';
+
+  el.innerHTML = '<div class="brd' + (n ? '' : ' skel') + '">' + tag +
+    '<div class="brd-hero">' + hero + '</div>' +
+    bar + chips + note + full +
+    '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
 }
 
 /* ---------- כמה כבר הצטרפו ----------
