@@ -266,12 +266,14 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   text-align:start}
 .brd-first>div>span{display:block;margin-top:2px;font-size:.79rem;font-weight:700;
   color:var(--ink-3);text-align:start}
-.brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
-.brd-chips span{flex:0 0 auto;display:inline-flex;flex-direction:column;
-  align-items:center;gap:1px;background:var(--sunk);border-radius:16px;
-  padding:8px 14px;white-space:nowrap;min-width:52px}
-.brd-chips span i{font-style:normal;font-size:.74rem;font-weight:800;color:var(--ink-3)}
-.brd-chips span b{font-size:1.06rem;font-weight:800;color:var(--blue);line-height:1.15}
+/* הכותרת. בלעדיה הכרטיס נקרא כמספרים ולא כלוח — וצילום מסך
+   שלו לבדו אינו אומר של מי הוא. */
+.brd-head{text-align:center;padding-bottom:14px;margin-bottom:16px;
+  border-bottom:1px solid var(--rule-2)}
+.brd-head b{display:block;font-size:1.06rem;font-weight:800;letter-spacing:-.03em;
+  color:var(--blue-d)}
+.brd-head span{display:block;margin-top:2px;font-size:.83rem;font-weight:800;
+  color:var(--gold-t)}
 /* ---------- הלוח לפני שהצטרף מישהו ----------
    לא תיבה ריקה ולא מספרים מומצאים: **הצורה האמיתית של הלוח,
    בלי תוכן.** המקפים במקום המספרים הם מה שהופך אותו להדגמה
@@ -279,13 +281,15 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
 
    לוח לדוגמה עם מספרים היה נראה משכנע יותר ליום אחד, ועולה
    באמון ביום שהמספר האמיתי מגיע ונמוך ממנו. */
-.brd.skel .brd-hero b,
-.brd.skel .brd-bar,
-.brd.skel .brd-chips{opacity:.42}
+/* השלד. **רק המספר** מעומעם — שורת השבוע אמיתית כבר עכשיו,
+   ואין סיבה להחוויר אותה רק כדי שהכל ייראה אחיד. */
+.brd.skel .brd-hero b{opacity:.5}
 .skel-tag{display:block;text-align:center;font-size:.72rem;font-weight:800;
-  letter-spacing:.09em;color:var(--gold-t);margin-bottom:12px}
-.skel-note{margin:14px 0 0;font-size:.88rem;font-weight:600;color:var(--ink-2);
-  line-height:1.7;text-align:center}
+  letter-spacing:.09em;color:var(--gold-t);margin:-6px 0 12px}
+/* המקום שבו יעמוד המספר. **עיגול ולא מקף**: מקף נקרא כמחיקה —
+   כמו משהו שהיה ואיננו — ועיגול ריק נקרא כמקום שממתין. */
+.brd-hero b .hole{display:inline-block;width:38px;height:38px;border-radius:50%;
+  border:3px solid var(--gold-l);vertical-align:-4px}
 .brd .btn{margin-top:16px;
   background:linear-gradient(140deg,var(--blue-l),var(--blue));color:#fff}
 .brd-note{margin:11px 0 0;font-size:.77rem;font-weight:700;color:var(--ink-3);
@@ -326,23 +330,9 @@ footer a{color:var(--ink-2);font-weight:800}
   <p class="demo-cap" id="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
   <div id="stage"></div>
 
-  <section>
-    <h2 class="sec" id="t-whoH"></h2>
-    <div class="who" id="who"></div>
-  </section>
-
-  <!-- הסיפור יושב בין "למי זה טוב" להנחיות: הוא הסיבה, והן
-       הפעולה. מי שקרא למי זה טוב עדיין שואל "ובאמת עובד?" —
-       והסיפור עונה, ורק אז מגיע מה לעשות. -->
-  <section id="story-sec">
-    <div class="story">
-      <h3 id="t-storyH"></h3>
-      <p id="t-story"></p>
-    </div>
-  </section>
-
-  <!-- ההנחיות. קודם היעד, ואז השאלה איך מגיעים אליו — סדר
-       שהופך רשימת פעולות לדבר עם סיבה. -->
+  <!-- ההנחיות צמודות לבאנר: מי שראה את הדף נפתח שואל מיד
+       "ומה אני עושה עם זה?" — וכאן זה עונה. קודם היעד, ואז
+       השאלה איך מגיעים אליו — סדר שהופך רשימה לדבר עם סיבה. -->
   <section>
     <div class="howto">
       <p class="goal" id="t-goalH"></p>
@@ -352,15 +342,30 @@ footer a{color:var(--ink-2);font-weight:800}
     </div>
   </section>
 
+  <section>
+    <h2 class="sec" id="t-whoH"></h2>
+    <div class="who" id="who"></div>
+  </section>
+
+  <!-- הסיפור בא אחרי "למי זה טוב": מי שקרא למי זה מתאים
+       עדיין שואל "ובאמת עובד?" — והסיפור עונה. -->
+  <section id="story-sec">
+    <div class="story">
+      <h3 id="t-storyH"></h3>
+      <p id="t-story"></p>
+    </div>
+  </section>
+
 
   <section>
     <div class="link kids">
       <h3 id="t-kidsH"></h3>
       <p id="t-kidsTxt"></p>
       <div class="url" id="kids-url"></div>
+      <!-- כפתור אחד. הכתובת מוצגת מעליו וניתנת לסימון ידני,
+           והשליחה בוואטסאפ היא מה שבאמת נעשה כאן. -->
       <div class="row">
         <a class="btn g" id="kids-wa" target="_blank" rel="noopener">שליחה בוואטסאפ</a>
-        <button class="btn ghost" id="kids-copy">העתקה</button>
       </div>
     </div>
 
@@ -580,7 +585,6 @@ function draw() {
                             url: kidsUrl() });
   $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
   $('kids-wa').textContent = UI.linkWaBtn || 'שליחה בוואטסאפ';
-  $('kids-copy').textContent = UI.linkCopy || 'העתקה';
   
   drawPeers();
   drawBoard();
@@ -600,22 +604,10 @@ function draw() {
    (`UI.cb*`), ולכן מילה שתשונה בניהול משתנה בשני המקומות.
    הצורה כן מועתקת — ראו את ההערה ליד ה-CSS.
    ============================================================ */
-var counts = { n:0, grades:[], ways:[] };
-var learned = {};
-try { learned = JSON.parse(localStorage.getItem('df:learnCount') || '{}') || {}; }
-catch (e) { learned = {}; }
-
-/* "ז׳:9 · ח׳:4" → [['ז׳',9],['ח׳',4]] */
-function pairs(v) {
-  var out = [];
-  String(v || '').split('·').forEach(function (p) {
-    var i = p.lastIndexOf(':');
-    if (i < 0) return;
-    var k = p.slice(0, i).trim(), n = parseInt(p.slice(i + 1), 10);
-    if (k && n > 0) out.push([k, n]);
-  });
-  return out;
-}
+/* **מספר אחד בלבד.** הפילוח לפי שכבה ולפי דרך לימוד ירד מכאן:
+   הוא שייך ללוח המפורט, ובכרטיס המקוצר הוא הפך שורה של כריות
+   קטנות שמתחרות במספר הגדול. */
+var counts = { n:0 };
 
 function drawBoard() {
   var el = $('brd'); if (!el) return;
@@ -632,48 +624,35 @@ function drawBoard() {
   var did = (wk >= 0 && typeof LCount === 'function')
           ? LCount(tr.id, wk, instRow.code) : 0;
 
+  /* ---------- הכותרת ----------
+     בלעדיה זה נקרא ככרטיס מספרים ולא כלוח. "לוח לימוד" ושם
+     הישיבה, כדי שגם צילום מסך של הכרטיס לבדו יגיד מה הוא
+     ושל מי. */
+  var head = '<div class="brd-head"><b>' + esc(T.brdH || '') + '</b>' +
+             '<span>' + esc(instRow.name) + '</span></div>';
+
+  /* ---------- המספר ----------
+     לפני שהצטרף מישהו — **עיגול ריק** ולא מקף. מקף נראה כמו
+     מחיקה, כלומר כמו משהו שהיה ואיננו; עיגול ריק נקרא כמקום
+     שממתין להתמלא. */
   var unit = esc(tpl(UI.cbHero, { n:'' }).replace(/^\s*/, ''));
-  /* לפני שהצטרף מישהו — אותה כותרת בדיוק, עם מקף במקום המספר. */
-  var hero = '<b>' + (n ? n : '—') + '<small>' + unit + '</small></b>' +
+  var hero = '<b>' + (n ? n : '<i class="hole"></i>') +
+             '<small>' + unit + '</small></b>' +
              '<span>' + esc(UI.cbHeroSub) + '</span>';
 
+  /* ---------- שורת השבוע ----------
+     לפני שהלימוד מתחיל, ולפני שיש מה למדוד — שורת הסימנייה.
+     היא אמיתית גם עכשיו, ולכן אינה חלק מהשלד. */
   var bar = '';
-  if (!n && row0) {
-    /* שורת הסימנייה — היא אמיתית גם עכשיו, ולכן היא לא מעומעמת
-       פחות משאר השלד רק כדי להיראות מלא. */
-    bar = '<div class="brd-bar"><div class="brd-first">' +
-      '<span class="dot">' + esc(row0[2]) + '</span>' +
-      '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
-      '<span>' + esc(row0[0]) + '</span></div></div></div>';
-  } else if (n && daf) {
+  if (n && daf) {
     bar = '<div class="brd-bar"><div class="t"><i style="width:' +
       Math.max(3, Math.round(did / n * 100)) + '%"></i></div><span>' +
       esc(tpl(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
-  } else if (n && row0) {
+  } else if (row0) {
     bar = '<div class="brd-bar"><div class="brd-first">' +
       '<span class="dot">' + esc(row0[2]) + '</span>' +
       '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
       '<span>' + esc(row0[0]) + '</span></div></div></div>';
-  }
-
-  var chips = '', list = [];
-  if (n) {
-    list = counts.grades.filter(function (p) {
-      return (window.PROG_GRADES || []).indexOf(p[0]) >= 0;
-    });
-    counts.ways.forEach(function (p) {
-      if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]);
-    });
-  } else {
-    /* השכבות של התוכנית, עם מקף. אלה התוויות האמיתיות שיופיעו
-       שם — רק המספרים עוד לא קיימים. */
-    list = (window.PROG_GRADES || []).map(function (g) { return [g, '—']; });
-    list.push([UI.cbDads, '—']);
-  }
-  if (list.length) {
-    chips = '<div class="brd-chips">' + list.map(function (p) {
-      return '<span><i>' + esc(p[0]) + '</i><b>' + p[1] + '</b></span>';
-    }).join('') + '</div>';
   }
 
   /* הכפתור הכחול הוא חלק מהלוח, כמו בעמוד הראשי — ולא כרטיס
@@ -682,14 +661,12 @@ function drawBoard() {
   var full = '<a class="btn" href="' + esc(boardUrl()) + '">' +
              esc(UI.cbBoard) + ' ←</a>';
 
-  /* התגית והשורה המסבירה — רק בשלד. משהצטרף אחד, הלוח מדבר
-     בעד עצמו ואין מה להסביר. */
+  /* התגית — רק בשלד. משהצטרף אחד, הלוח מדבר בעד עצמו. */
   var tag = n ? '' : '<span class="skel-tag">' + esc(T.brdSkel || '') + '</span>';
-  var note = n ? '' : '<p class="skel-note">' + esc(UI.cbEmptySub) + '</p>';
 
-  el.innerHTML = '<div class="brd' + (n ? '' : ' skel') + '">' + tag +
+  el.innerHTML = '<div class="brd' + (n ? '' : ' skel') + '">' + head + tag +
     '<div class="brd-hero">' + hero + '</div>' +
-    bar + chips + note + full +
+    bar + full +
     '<p class="brd-note">' + esc(UI.cbNote) + '</p></div>';
 }
 
@@ -709,24 +686,6 @@ function drawPeers() {
   el.hidden = false;
 }
 
-$('kids-copy').onclick = function () {
-  var t = kidsUrl(), btn = $('kids-copy');
-  var done = function () {
-    btn.textContent = UI.linkCopied || 'הועתק';
-    setTimeout(function () { btn.textContent = UI.linkCopy || 'העתקה'; }, 1800);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(t).then(done)['catch'](function () {});
-    return;
-  }
-  /* דפדפן ישן — שדה זמני. הטלפונים בשטח אינם חדשים. */
-  var ta = document.createElement('textarea');
-  ta.value = t; ta.setAttribute('readonly', '');
-  ta.style.position = 'absolute'; ta.style.left = '-9999px';
-  document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); done(); } catch (e) {}
-  document.body.removeChild(ta);
-};
 
 /* ---------- הרכבת המלל ואז הציור ---------- */
 function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
@@ -801,12 +760,9 @@ sheetCsv('מונים').then(function (rows) {
   /* אותה לשונית נושאת גם את הפילוח, ולכן היא ממלאת גם את
      הלוח המקוצר — ולא נדרשת קריאה שנייה. */
   if (instCode) {
-    var iG = ix['שכבות'], iW = ix['מסגרות'];
     rows.slice(1).forEach(function (r) {
       if (String(r[ix['קוד ישיבה']] || '').trim() !== instCode) return;
-      counts = { n: parseInt(r[ix['מצטרפים']], 10) || 0,
-                 grades: iG === undefined ? [] : pairs(r[iG]),
-                 ways:   iW === undefined ? [] : pairs(r[iW]) };
+      counts = { n: parseInt(r[ix['מצטרפים']], 10) || 0 };
     });
   }
   drawPeers(); drawBoard();
