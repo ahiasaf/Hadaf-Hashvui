@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.97.0';
+var APP_VERSION = '7.98.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2392,6 +2392,18 @@ function tzevetUrl(code) {
   var u = joinUrl(code).replace('join.html', 'tzevet.html');
   var k = code ? instCode(code) : '';
   return k ? u + '&k=' + encodeURIComponent(k) : u;
+}
+
+/* ההדגמה — הדף האינטראקטיבי מנגן את עצמו.
+
+   תענית ב׳ קבוע, ולא הדף של השבוע: זה הדף שכולם מכירים, והוא
+   מה שמראים למי שרואה את התוכנית בפעם הראשונה.
+
+   הכתובת אינה מוצגת בשום מקום והיא אינה נשלחת לאיש — זו פעולה
+   שפותחים אצלנו, על מקרן או ביד, ולא קישור. */
+function demoUrl() {
+  return joinUrl('').replace('join.html', 'learn.html') +
+         '?mas=taanit&daf=' + encodeURIComponent('ב') + '&demo=1';
 }
 
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
@@ -5433,6 +5445,19 @@ function admLinks(el) {
        לכל מקום, התלמיד בוחר את הישיבה שלו מתוך הרשימה, והישיבה
        מסומנת כ"בפנים" מעצם זה שיש בה מי שלומד. תנועה מלמטה. */
   el.innerHTML =
+    /* ההדגמה ראשונה, כי היא הדבר היחיד כאן שאינו נשלח לאיש —
+       פותחים אותה, מסתכלים, ומגישים. ובלי להציג כתובת: מה
+       שלא שולחים אין סיבה לקרוא בקול. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>הדגמה</h4>' +
+    '<p class="h">הדף האינטראקטיבי מנגן את עצמו: תענית ב׳ — קטע ' +
+    'עם החברותא, המצגת נפתחת, ועוד שני קטעים. ואז הוא עוצר ' +
+    'ומזמין לגעת. כעשרים שניות.<br>' +
+    '<b>כל נגיעה עוצרת אותו ומעבירה את השליטה.</b> על מקרן ' +
+    'בכיתה, או מגישים את הטלפון.</p>' +
+    '<a class="btn p" style="margin:10px 0 0;width:100%;box-sizing:border-box;' +
+    'text-decoration:none;display:block;text-align:center" target="_blank" ' +
+    'rel="noopener" href="' + esc(demoUrl()) + '">פתיחת ההדגמה</a></div>' +
+
     '<div class="adm-card" style="margin-bottom:11px"><h4>קישור כללי לתלמידים</h4>' +
     '<p class="h">אפשר לשלוח לכל מקום — התלמיד בוחר את הישיבה שלו ' +
     'מתוך הרשימה. ישיבה שנרשם אליה תלמיד מסומנת כ"בפנים" מעצמה, ' +
