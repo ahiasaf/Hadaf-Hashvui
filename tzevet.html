@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>לצוות · הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0B2550">
+<style>
+/* ============================================================
+   עמוד הנחיתה לצוות · /tzevet?inst=<קוד>&k=<קוד גישה>
+   ============================================================
+   נשלח לר"מים ולראשי חטיבות, קישור אחד לכל מוסד. אינו נשלח
+   לתלמידים — ולכן הוא מכיל גם את הלוח.
+
+   **הוא אינו מתחרה במסך ההצטרפות.** שם התפקיד הוא להרשים
+   ולהירשם, וכאן התפקיד להסביר ולצייד: מה זה, מה עושים איתו,
+   ולמי זה טוב. שני קהלים, שתי מטרות, שני עמודים.
+
+   הסדר, והוא לא מקרי
+   ------------------
+   הבאנר החי יושב **גבוה**, מיד אחרי הכותרת, ומתוכו נפתח הדף
+   בהקשה אחת. זו כל הנקודה: העמוד הזה אינו מתאר את הדף אלא
+   פותח אותו, ולכן ר"ם יכול להקרין אותו בכיתה ולהתחיל ללמד
+   מכאן. אחריו הבקשה, ורק אז הנימוקים.
+
+   מה מגיע מאיפה
+   -------------
+   * הבאנר — `stage.js`, אותו קובץ שבונה אותו במסך הראשי
+     ובמסך ההצטרפות. אין כאן עותק שני של החישוב.
+   * המלל — `data.js` (TZEVET) דרך שלוש השכבות של textedit.js,
+     כלומר הרכז עורך אותו מהניהול בלי גרסה חדשה.
+   * המספר "כבר X הצטרפו" — הלשונית הציבורית `מונים`. מספר
+     בלבד; שום שם אינו יוצא מהגיליון הסגור אל העמוד הזה.
+
+   **הצורה של הבאנר מועתקת לכאן, וזה עותק שלישי** (index,
+   join, ואני). אין שלב בנייה ואין גיליון סגנון משותף, ולכן
+   מי שנוגע בבאנר באחד מהם — שיבדוק בשלושתם. שווה לאחד את
+   זה לקובץ אחד ביום שאין דדליין.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE; --cyan:#29ABE2;
+  --green:#6FA83B; --green-d:#467B1A; --green-2:#3A6615;
+  --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+  --r:16px; --r-s:12px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+  --sh-3:0 10px 40px rgba(11,37,80,.20);
+}
+*{box-sizing:border-box}
+img:not([src]){visibility:hidden}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  line-height:1.75;-webkit-text-size-adjust:100%}
+.wrap{max-width:34rem;margin:0 auto;padding:0 18px}
+
+/* ---------- הראש ----------
+   הכותרת יושבת על גרדיאנט כהה, והתוכן שמתחתיה עולה עליו
+   בשוליים שליליים. זה מה שגורם לבאנר להיראות כמו כרטיס
+   שיוצא מתוך הראש ולא כמו עוד קופסה מתחתיו. */
+header{background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
+    var(--blue) 38%,var(--blue-d) 82%);
+  color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 18px 118px;
+  text-align:center}
+header .mark{height:40px;margin-bottom:12px}
+header .eyebrow{font-size:.73rem;font-weight:800;letter-spacing:.09em;
+  color:var(--gold-l);text-transform:none;margin-bottom:8px}
+header h1{margin:0;font-size:1.52rem;font-weight:800;line-height:1.25;
+  letter-spacing:-.035em;max-width:22rem;margin-inline:auto}
+header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
+  color:rgba(255,255,255,.82);line-height:1.7;max-width:24rem}
+
+/* שיעור החפיפה נגזר מגובה השורה שמעל הבמה, ולא נבחר לפי
+   מראה: היא לבנה, ואם היא גולשת מהאזור הכהה היא יושבת לבן
+   על קרם. השוליים השליליים חייבים להיות גדולים ממנה. */
+/* `main.wrap` ולא `main`: ל-`.wrap` יש `margin:0 auto`, והוא
+   ספציפי יותר מסלקטור אלמנט — כלומר `main{margin-top}` נדרס
+   בשקט, החפיפה לא חלה, והשורה הלבנה נחתה על הקרם. */
+main.wrap{margin-top:-96px;padding-bottom:46px}
+
+/* ---------- הבמה — הצורה, מועתקת מ-join.html ---------- */
+.stage{position:relative;overflow:hidden;border-radius:18px;padding:16px 16px 18px;
+  color:#fff;box-shadow:var(--sh-3);
+  background:radial-gradient(130% 105% at 78% -10%,#2C63B6 0%,var(--blue) 34%,var(--blue-d) 78%)}
+.stage .g{position:absolute;border-radius:50%}
+.stage .g1{left:-70px;bottom:-90px;width:210px;height:210px;background:var(--green);opacity:.22}
+.stage .g2{left:52px;bottom:-120px;width:190px;height:190px;background:var(--cyan);opacity:.14}
+.stage>*{position:relative}
+.stage .eyebrow{display:flex;align-items:center;gap:9px;font-size:.7rem;font-weight:800;
+  letter-spacing:.08em;color:var(--gold-l)}
+.stage .eyebrow s{flex:1;height:1px;background:rgba(255,255,255,.16);text-decoration:none}
+.stage h2{font-size:1.42rem;font-weight:800;line-height:1.15;letter-spacing:-.04em;
+  margin:10px 0 0}
+.stage .meta{font-size:.85rem;opacity:.72;font-weight:700;margin-top:7px}
+.picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:13px;
+  background:rgba(0,0,0,.22);padding:4px;border-radius:13px}
+.pick{border:none;background:none;color:rgba(255,255,255,.62);cursor:pointer;
+  font-family:inherit;font-size:.86rem;font-weight:800;padding:10px 6px;
+  border-radius:10px}
+.pick.on{background:rgba(255,255,255,.16);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.showcase{margin:13px -2px 0;perspective:1100px}
+.showcase .frame{border-radius:14px;overflow:hidden;box-shadow:0 22px 50px rgba(0,0,0,.42);
+  transform:rotateX(7deg) scale(.985);transform-origin:top center;cursor:pointer;
+  transition:transform .18s}
+.showcase .frame:active{transform:rotateX(0deg) scale(.99)}
+.showcase img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.showcase .empty{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);font-weight:700;
+  font-size:.88rem}
+.stage .acts{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:16px}
+.stage .acts button{border:none;border-radius:13px;padding:15px;font-weight:800;
+  font-size:.95rem;font-family:inherit;cursor:pointer;transition:transform .12s}
+.stage .acts .go{background:#fff;color:var(--blue-d);box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.stage .acts .alt{background:rgba(255,255,255,.14);color:#fff;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.stage .acts button:active{transform:scale(.98)}
+
+/* השורה שמעל הבמה — לבנה על הכהה, ולכן היא יושבת בתוך main
+   אבל עדיין על רקע הראש. */
+.demo-cap{text-align:center;color:#fff;margin:0 0 12px}
+.demo-cap b{display:block;font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
+.demo-cap span{display:block;font-size:.85rem;font-weight:600;
+  color:rgba(255,255,255,.72);margin-top:3px}
+
+/* ---------- קטעים ---------- */
+section{margin-top:30px}
+h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
+  color:var(--blue-d);margin:0 0 14px}
+
+/* השלבים. מספר בעיגול זהב, וקו שמחבר ביניהם — כדי שייקרא
+   כרצף ולא כארבע עצות נפרדות. */
+.steps{list-style:none;margin:0;padding:0;position:relative}
+.steps li{position:relative;padding-inline-start:46px;padding-bottom:16px;
+  font-size:.97rem;font-weight:600;color:var(--ink-2)}
+.steps li:last-child{padding-bottom:0}
+.steps li::before{content:attr(data-n);position:absolute;inset-inline-start:0;top:0;
+  width:30px;height:30px;border-radius:50%;background:var(--gold);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:800;
+  font-size:.88rem;box-shadow:0 3px 10px rgba(192,143,43,.35)}
+.steps li::after{content:"";position:absolute;inset-inline-start:14.5px;top:32px;
+  bottom:2px;width:2px;background:var(--rule)}
+.steps li:last-child::after{display:none}
+.steps-foot{margin:16px 0 0;font-size:.97rem;font-weight:800;color:var(--blue-d)}
+
+/* הסיפור. פס זהב בצד שממנו מתחילים לקרוא, בלי מסגרת מלאה —
+   הוא ציטוט של מה שקרה, לא כרטיס נוסף. */
+.story{border-inline-start:3px solid var(--gold);padding-inline-start:15px;
+  margin-top:6px}
+.story h3{margin:0 0 5px;font-size:.78rem;font-weight:800;letter-spacing:.07em;
+  color:var(--gold-t)}
+.story p{margin:0;font-size:1rem;font-weight:600;color:var(--ink);
+  line-height:1.8}
+
+/* שלושת הקהלים. עיגול צבעוני לאייקון — אותו קו של דרכי
+   הלימוד במסך ההצטרפות, ולא אמוג'י. */
+.who{display:grid;gap:11px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  padding:16px 17px;box-shadow:var(--sh-1);display:flex;gap:13px;align-items:flex-start}
+.card .ic{flex:0 0 auto;width:40px;height:40px;border-radius:50%;
+  background:var(--c);display:flex;align-items:center;justify-content:center}
+.card .ic svg{width:21px;height:21px;fill:#fff}
+.card h3{margin:0;font-size:.98rem;font-weight:800;color:var(--blue-d);
+  letter-spacing:-.02em}
+.card p{margin:4px 0 0;font-size:.9rem;font-weight:600;color:var(--ink-2);
+  line-height:1.7}
+
+/* המספר. פס שקט ולא כרטיס — הוא עובדה, לא הכרזה. */
+.peers{margin-top:14px;text-align:center;font-size:.94rem;font-weight:800;
+  color:var(--green-d);background:rgba(111,168,59,.09);
+  border-radius:var(--r-s);padding:11px 14px}
+
+/* שני הקישורים. ירוק לתלמידים, כחול ללוח — אותה הבחנה בצבע
+   שיש בניהול, כדי שמי שמכיר אחד יזהה גם את השני. */
+.link{border-radius:var(--r);padding:17px 18px;margin-top:11px;
+  box-shadow:var(--sh-2)}
+.link.kids{background:linear-gradient(150deg,#F2F7EB,#E8F1DC);
+  border:1px solid #CFE0B6}
+.link.board{background:linear-gradient(150deg,#EDF2FA,#DFE9F7);
+  border:1px solid #C4D5EC}
+.link h3{margin:0;font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.link.kids h3{color:var(--green-2)}
+.link.board h3{color:var(--blue-d)}
+.link p{margin:5px 0 0;font-size:.89rem;font-weight:600;color:var(--ink-2);
+  line-height:1.7}
+.url{margin-top:11px;background:rgba(255,255,255,.72);border-radius:10px;
+  padding:9px 11px;font-size:.78rem;font-weight:700;color:var(--ink-2);
+  direction:ltr;text-align:start;word-break:break-all;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+.row{display:flex;gap:8px;margin-top:11px}
+.btn{flex:1;border:none;border-radius:12px;padding:14px;font-weight:800;
+  font-size:.92rem;font-family:inherit;cursor:pointer;text-align:center;
+  text-decoration:none;display:block;transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.btn.g{background:var(--green-d);color:#fff;box-shadow:0 5px 16px rgba(70,123,26,.28)}
+.btn.b{background:var(--blue);color:#fff;box-shadow:0 5px 16px rgba(23,70,143,.26)}
+.btn.ghost{flex:0 0 auto;background:rgba(255,255,255,.85);color:var(--ink-2);
+  box-shadow:inset 0 0 0 1px var(--rule)}
+
+hr{border:0;border-top:1px solid var(--rule);margin:34px 0 0}
+footer{text-align:center;color:var(--ink-3);font-size:.82rem;font-weight:600;
+  margin-top:18px;line-height:1.9;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+footer a{color:var(--ink-2);font-weight:800}
+
+/* טבעת מיקוד דו־גונית — אין צבע יחיד שעובר 3:1 גם על הקרם
+   וגם על הנייבי. a11y.js מוסיף את אותה טבעת בשאר העמודים. */
+:focus-visible{outline:3px solid #fff;outline-offset:0;
+  box-shadow:0 0 0 6px var(--blue-d)}
+
+@media (prefers-reduced-motion:reduce){
+  .showcase .frame,.btn,.stage .acts button{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <img class="mark" id="logo" alt="בני עקיבא">
+  <div class="eyebrow" id="inst-name"></div>
+  <h1 id="t-h1"></h1>
+  <p class="lead" id="t-lead"></p>
+</header>
+
+<main class="wrap">
+
+  <!-- הדף של השבוע. גבוה בכוונה: העמוד הזה אינו מתאר את הדף
+       אלא פותח אותו, ומכאן ר"ם יכול להתחיל שיעור. -->
+  <p class="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
+  <div id="stage"></div>
+
+  <section>
+    <h2 class="sec" id="t-stepsH"></h2>
+    <ol class="steps" id="steps"></ol>
+    <p class="steps-foot" id="t-stepsFoot"></p>
+  </section>
+
+  <section id="story-sec">
+    <div class="story">
+      <h3 id="t-storyH"></h3>
+      <p id="t-story"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="sec" id="t-whoH"></h2>
+    <div class="who" id="who"></div>
+  </section>
+
+  <section>
+    <div class="link kids">
+      <h3 id="t-kidsH"></h3>
+      <p id="t-kidsTxt"></p>
+      <div class="url" id="kids-url"></div>
+      <div class="row">
+        <a class="btn g" id="kids-wa" target="_blank" rel="noopener">שליחה בוואטסאפ</a>
+        <button class="btn ghost" id="kids-copy">העתקה</button>
+      </div>
+    </div>
+
+    <div class="link board">
+      <h3 id="t-boardH"></h3>
+      <p id="t-boardTxt"></p>
+      <div class="row">
+        <a class="btn b" id="board-go"></a>
+      </div>
+    </div>
+
+    <p class="peers" id="peers" hidden></p>
+  </section>
+
+  <hr>
+  <footer>
+    <span id="t-foot"></span><br>
+    רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
+    <a href="info.html">פרטים</a> · <a href="accessibility.html">הצהרת נגישות</a>
+  </footer>
+</main>
+
+<script src="a11y.js"></script>
+<script src="data.js"></script>
+<script src="links.js"></script>
+<script src="learned.js"></script>
+<script src="deck.js"></script>
+<script src="stage.js"></script>
+<script src="textedit.js"></script>
+<script src="logo.js"></script>
+<script>
+/* ============================================================
+   הצוות — הלוגיקה.
+   ============================================================
+   ES5 בלבד, כמו כל השאר.
+   ============================================================ */
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function qs(k) {
+  var m = new RegExp('[?&]' + k + '=([^&]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+}
+function tpl(s, o) {
+  return String(s || '').replace(/\{(\w+)\}/g, function (m, k) {
+    return o[k] == null ? '' : o[k];
+  });
+}
+
+$('logo').src = window.LOGO_FULL || window.LOGO_MARK || '';
+
+/* ---------- המוסד ----------
+   מגיע מהקישור. בלעדיו העמוד עדיין עובד — הוא פשוט מדבר
+   בכללי, בלי שם ובלי קישורים אישיים. */
+var instCode = qs('inst');
+var accCode  = qs('k');
+var instRow  = null;
+for (var i = 0; i < INSTITUTIONS.length; i++) {
+  if (INSTITUTIONS[i].code === instCode) instRow = INSTITUTIONS[i];
+}
+
+function base() {
+  return location.href.split('#')[0].split('?')[0]
+         .replace(/tzevet\.html$/, '');
+}
+function kidsUrl() {
+  return base() + 'join.html' + (instCode ? '?inst=' + encodeURIComponent(instCode) : '');
+}
+/* הלוח נושא את קוד הגישה כשהוא קיים בכתובת של העמוד הזה.
+   בלעדיו הלוח עצמו יבקש אותו — ולכן הכפתור עדיין שווה משהו. */
+function boardUrl() {
+  var u = base() + 'board.html?inst=' + encodeURIComponent(instCode || '');
+  return accCode ? u + '&k=' + encodeURIComponent(accCode) : u;
+}
+
+/* ---------- המסלול המוצג ----------
+   ברירת המחדל היא מה שהישיבה בחרה בהרשמה, ואם לא בחרה —
+   הראשון. הבורר בבמה מאפשר להחליף. */
+var track = TRACKS[0].id;
+function setTrack(t) { track = t; drawStage(); }
+
+/* ---------- הבמה ----------
+   `stage.js` בונה, וכאן רק נקבע מה קורה בלחיצה. */
+function goDaf() {
+  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
+  if (!d) { goApp(); return; }
+  location.href = 'learn.html?mas=' + encodeURIComponent(track) +
+                  '&daf=' + encodeURIComponent(d);
+}
+/* המצגת יושבת במסך הראשי, ומציג המצגות שלה הוא קוד שכבר קיים
+   שם. לא משכפלים אותו לכאן בשביל כפתור אחד — הכפתור מוביל
+   לשבוע באפליקציה, ושם היא נפתחת. */
+function goApp() {
+  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  location.href = base() + 'index.html?st=1#week=' + track + '-' + ((wk < 0 ? 0 : wk) + 1);
+}
+function drawStage() {
+  $('stage').innerHTML = StageHtml({ track:track, pick:'setTrack',
+                                     deck:'goApp', week:'goDaf', trail:'goApp' });
+}
+
+/* ---------- שלושת הקהלים ----------
+   אותם אייקונים של דרכי הלימוד במסך ההצטרפות — קו עיצובי
+   אחד, ולא אמוג'י. */
+var IC = {
+  ram: '<circle cx="4.4" cy="6.4" r="2.3"/><circle cx="10" cy="5.6" r="2.6"/>' +
+       '<circle cx="15.6" cy="6.4" r="2.3"/>' +
+       '<path d="M.8 17.2c0-3 4.1-4.9 9.2-4.9s9.2 1.9 9.2 4.9z"/>',
+  dad: '<circle cx="5.6" cy="5" r="3"/>' +
+       '<path d="M1 17.5c0-3 2-4.8 4.6-4.8s4.6 1.8 4.6 4.8z"/>' +
+       '<circle cx="15" cy="8.4" r="2.2"/>' +
+       '<path d="M11.4 17.5c0-2.1 1.6-3.5 3.6-3.5s3.6 1.4 3.6 3.5z"/>',
+  kid: '<path d="M2.4 4.6c2.5-1.1 5.1-1.1 7.6 0v11.2c-2.5-1.1-5.1-1.1-7.6 0z"/>' +
+       '<path d="M17.6 4.6c-2.5-1.1-5.1-1.1-7.6 0v11.2c2.5-1.1 5.1-1.1 7.6 0z"/>'
+};
+function drawWho() {
+  var T = window.TZEVET || {};
+  var rows = [['ram', '#4A821C'], ['dad', '#C08F2B'], ['kid', '#17468F']];
+  $('who').innerHTML = rows.map(function (r) {
+    var h = T[r[0] + 'H'], t = T[r[0] + 'Txt'];
+    if (!h && !t) return '';                 /* נוסח שרוקן — לא כרטיס ריק */
+    return '<div class="card" style="--c:' + r[1] + '">' +
+      '<i class="ic"><svg viewBox="0 0 20 20" aria-hidden="true">' + IC[r[0]] +
+      '</svg></i><div><h3>' + esc(h || '') + '</h3>' +
+      (t ? '<p>' + esc(t) + '</p>' : '') + '</div></div>';
+  }).join('');
+}
+
+/* ---------- הציור ---------- */
+function draw() {
+  var T = window.TZEVET || {};
+  ['h1','lead','demoH','demoSub','stepsH','stepsFoot','storyH','story',
+   'whoH','kidsH','kidsTxt','boardH','boardTxt','foot'].forEach(function (k) {
+    var el = $('t-' + k);
+    if (el) el.textContent = T[k] || '';
+  });
+  document.title = (T.title || 'לצוות') + ' · הדף השבועי של בני עקיבא';
+
+  $('inst-name').textContent = instRow ? instRow.name : '';
+  $('inst-name').hidden = !instRow;
+
+  /* השלבים. שדה שרוקן יורד מהרשימה ואינו משאיר מספר מיותם. */
+  var st = [];
+  for (var n = 1; n <= 4; n++) if (T['step' + n]) st.push(T['step' + n]);
+  $('steps').innerHTML = st.map(function (s, i) {
+    return '<li data-n="' + (i + 1) + '">' + esc(s) + '</li>';
+  }).join('');
+
+  drawWho();
+
+  /* קטע שרוקן כולו נעלם — פסקה ריקה עדיין נושאת שוליים,
+     והמסך היה נראה כאילו חסר בו משהו. */
+  $('story-sec').hidden = !((T.storyH || '').trim() || (T.story || '').trim());
+  $('t-stepsFoot').hidden = !(T.stepsFoot || '').trim();
+
+  /* הקישורים */
+  $('kids-url').textContent = kidsUrl();
+  var wa = tpl(UI.linkWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא',
+                            url: kidsUrl() });
+  $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
+  $('kids-wa').textContent = UI.linkWaBtn || 'שליחה בוואטסאפ';
+  $('kids-copy').textContent = UI.linkCopy || 'העתקה';
+  $('board-go').href = boardUrl();
+  $('board-go').textContent = T.boardGo || 'לפתיחת הלוח';
+
+  drawPeers();
+  drawStage();
+}
+
+/* ---------- כמה כבר הצטרפו ----------
+   מהלשונית הציבורית `מונים`, מספר בלבד. שום שם אינו יוצא
+   מהגיליון הסגור אל העמוד הזה. */
+var peers = {};
+try { peers = JSON.parse(localStorage.getItem('df:peerCache') || '{}') || {}; }
+catch (e) { peers = {}; }
+
+function drawPeers() {
+  var T = window.TZEVET || {};
+  var el = $('peers');
+  var n = instRow ? (peers[instRow.code] || 0) : 0;
+  if (!n || !T.peers || !instRow) { el.hidden = true; return; }
+  el.textContent = tpl(T.peers, { n:n, inst:instRow.name });
+  el.hidden = false;
+}
+
+$('kids-copy').onclick = function () {
+  var t = kidsUrl(), btn = $('kids-copy');
+  var done = function () {
+    btn.textContent = UI.linkCopied || 'הועתק';
+    setTimeout(function () { btn.textContent = UI.linkCopy || 'העתקה'; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done)['catch'](function () {});
+    return;
+  }
+  /* דפדפן ישן — שדה זמני. הטלפונים בשטח אינם חדשים. */
+  var ta = document.createElement('textarea');
+  ta.value = t; ta.setAttribute('readonly', '');
+  ta.style.position = 'absolute'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(ta);
+};
+
+/* ---------- הרכבת המלל ואז הציור ---------- */
+function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
+relayer();
+TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
+
+/* ---------- מה שפורסם בגיליון ----------
+   המלל והמונים. שניהם ציבוריים, ולכן נקראים ישירות בלי
+   לעבור דרך הסקריפט של הרכז.
+
+   ושלושת המצבים, כמו בכל קורא בפרויקט: כישלון משאיר את
+   המטמון, לשונית שאינה מה שביקשנו נדחית, וריק אמיתי מרוקן. */
+function sheetId() {
+  try {
+    var c = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (c && c.sheetId) return c.sheetId;
+  } catch (e) {}
+  return window.SHEET_ID;
+}
+function csv(t) {
+  var rows = [], row = [], f = '', q = false;
+  for (var i = 0; i < t.length; i++) {
+    var c = t[i];
+    if (q) {
+      if (c === '"' && t[i + 1] === '"') { f += '"'; i++; }
+      else if (c === '"') q = false;
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function sheetCsv(tab) {
+  var id = sheetId();
+  if (!id || !navigator.onLine) return Promise.resolve(null);
+  return fetch('https://docs.google.com/spreadsheets/d/' + id +
+               '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab) +
+               '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) { return t ? csv(t) : null; })
+    .catch(function () { return null; });
+}
+
+sheetCsv('טקסטים').then(function (rows) {
+  if (!rows || !rows.length) return;                  /* כישלון — לא נוגעים */
+  if (rows[0].join('|').indexOf('מפתח') < 0) return;  /* לשונית אחרת */
+  var m = {};
+  rows.slice(1).forEach(function (r) {
+    var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+    if (k && v) m[k] = v;
+  });
+  try { localStorage.setItem('df:textCache', JSON.stringify(m)); } catch (e) {}
+  relayer();
+});
+
+sheetCsv('מונים').then(function (rows) {
+  if (!rows || !rows.length) return;
+  var head = rows[0], ix = {};
+  for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+  if (ix['קוד ישיבה'] === undefined) return;          /* לא הלשונית שביקשנו */
+  var m = {};
+  rows.slice(1).forEach(function (r) {
+    var k = String(r[ix['קוד ישיבה']] || '').trim();
+    var v = parseInt(r[ix['מצטרפים']], 10);
+    if (k && v > 0) m[k] = v;
+  });
+  peers = m;
+  try { localStorage.setItem('df:peerCache', JSON.stringify(m)); } catch (e) {}
+  drawPeers();
+});
+
+/* המסכת שהישיבה בחרה בהרשמה — מהלשונית הציבורית `מוסדות`.
+   בלעדיה נשארת ברירת המחדל, וזה בסדר: הבורר בבמה פתוח. */
+sheetCsv('מוסדות').then(function (rows) {
+  if (!rows || rows.length < 2 || !instCode) return;
+  var head = rows[0], ci = -1, mi = -1;
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i]).trim();
+    if (h === 'code' || h === 'קוד') ci = i;
+    if (h === 'מסכתות') mi = i;
+  }
+  if (ci < 0 || mi < 0) return;
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][ci] || '').trim() !== instCode) continue;
+    var list = String(rows[r][mi] || '').split(',');
+    for (var j = 0; j < list.length; j++) {
+      var id = list[j].trim();
+      for (var k2 = 0; k2 < TRACKS.length; k2++) {
+        if (TRACKS[k2].id === id) { track = id; drawStage(); return; }
+      }
+    }
+    return;
+  }
+});
+</script>
+</body>
+</html>

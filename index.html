@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.87.0';
+var APP_VERSION = '7.88.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2375,6 +2375,15 @@ function joinUrl(code) {
    הכרטיס שמציג אותו. בלי קוד ישיבה: הוא נשלח לקבוצות הורים
    של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
 function dadUrl() { return joinUrl('') + '?for=dad'; }
+
+/* עמוד הנחיתה של הצוות. נושא את קוד הגישה כשיש כזה, ולכן הוא
+   מכיל גם את הלוח — הוא נשלח לר"מים בלבד. בלי קוד הוא עדיין
+   עובד: הלוח שבתוכו יבקש אותו בעצמו. */
+function tzevetUrl(code) {
+  var u = joinUrl(code).replace('join.html', 'tzevet.html');
+  var k = code ? instCode(code) : '';
+  return k ? u + '&k=' + encodeURIComponent(k) : u;
+}
 
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
    ואז אין קישור, כי אין למי לספור. */
@@ -5458,7 +5467,10 @@ function admLinks(el) {
     '<div class="adm-card" style="margin-bottom:11px"><h4>הקישורים של כל מוסד</h4>' +
     '<p class="h">הירוק לתלמידים ולהורים — פתוח, ומי שנכנס דרכו נספר ' +
     'לישיבה. הכחול הוא הלוח לצוות, והוא נושא קוד: בלעדיו הוא לא ' +
-    'ייפתח.</p>' +
+    'ייפתח.<br>' +
+    '<b>"עמוד"</b> הוא עמוד הנחיתה של אותה ישיבה — מה התוכנית, ' +
+    'מה כדאי לעשות איתה, הדף של השבוע לפתיחה בכיתה, והלוח שלהם. ' +
+    '<b>לר"מים בלבד</b>, כי הוא מכיל את הלוח.</p>' +
     (linkState.msg ? '<div class="cond" style="margin-top:9px">' +
                      linkState.msg + '</div>' : '') +
     '<div style="margin-top:9px"><button class="btn g" style="margin:0" ' +
@@ -5475,6 +5487,11 @@ function admLinks(el) {
         '<a class="cp ph" style="display:flex;align-items:center;text-decoration:none;' +
         'color:var(--green-d)" href="https://wa.me/?text=' + encodeURIComponent(wa) +
         '" target="_blank" rel="noopener">תלמידים</a>' +
+        /* עמוד הנחיתה — נפתח לצפייה, ולא נשלח בוואטסאפ מכאן:
+           זה עמוד שכדאי לראות פעם אחת לפני שמפיצים אותו. */
+        '<a class="cp ph" style="display:flex;align-items:center;' +
+        'text-decoration:none;color:var(--gold-t)" href="' + esc(tzevetUrl(i.code)) +
+        '" target="_blank" rel="noopener">עמוד</a>' +
         (k ? '<a class="cp ph" style="display:flex;align-items:center;' +
              'text-decoration:none" href="https://wa.me/?text=' +
              encodeURIComponent(tw) + '" target="_blank" rel="noopener">צוות</a>'

@@ -127,7 +127,7 @@ def check_orphan_classes():
     """
     ident = re.compile(r'^[a-z][a-z0-9-]*$')
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
-              'studio.html', 'rights.html', 'masa.html', 'tiul.html'):
+              'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html'):
         if not os.path.exists(os.path.join(ROOT, f)):
             continue
         t = read(f)
