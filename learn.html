@@ -369,6 +369,40 @@ nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   100% {transform:scale(.78);opacity:.35}
 }
 @media (prefers-reduced-motion:reduce){ .invite .ring{animation:none;opacity:1} }
+
+/* ---------- התגית "הדגמה" ----------
+   בפינה הרחוקה של הדף. מי שרואה דף שמדפדף מעצמו בלי סימן חושב
+   שהמכשיר תקוע, ומילה אחת פותרת את זה. */
+.dbadge{display:none;position:absolute;top:10px;left:10px;z-index:7;
+  background:var(--blue-d);color:#fff;font-size:.72rem;font-weight:800;
+  letter-spacing:.02em;padding:5px 11px;border-radius:999px;
+  box-shadow:0 2px 10px rgba(11,37,80,.28);pointer-events:none}
+.dbadge.on{display:block}
+
+/* ---------- לוח המקליט ----------
+   בתחתית ולא בפינה: בטלפון פינה היא רבע מהדף, והמקליט צריך
+   להיות נוכח לאורך כל ההקלטה בלי להסתיר את מה שמקליטים. */
+.rec{display:none;flex:0 0 auto;max-height:44vh;overflow:auto;
+  padding:11px 14px;background:var(--blue-d);color:#fff}
+.rec.on{display:block}
+.rec-h b{font-size:.9rem;font-weight:800}
+.rec-b{margin-top:6px;font-size:.8rem;line-height:1.65;
+  color:rgba(255,255,255,.88);font-weight:600}
+.rec-b b{color:#fff}
+.rec-l{margin:0;padding-inline-start:20px;font-size:.8rem;line-height:1.9}
+.rec-l i{display:inline-block;min-width:56px;font-style:normal;
+  font-weight:800;color:var(--gold-l)}
+.rec-t{margin:7px 0 0;font-size:.76rem;color:rgba(255,255,255,.7)}
+.rec-x{width:100%;margin-top:7px;box-sizing:border-box;font-family:inherit;
+  font-size:.68rem;direction:ltr;text-align:start;border-radius:8px;
+  border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.22);
+  color:rgba(255,255,255,.85);padding:6px 8px;resize:vertical}
+.rec-a{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.rec-a button{flex:1 1 auto;font-family:inherit;font-weight:800;
+  font-size:.82rem;cursor:pointer;border-radius:10px;padding:9px 12px;
+  border:1px solid rgba(255,255,255,.35);background:none;color:#fff}
+.rec-a button.pri{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:var(--ink);border-color:transparent}
 nav button.on{background:var(--blue);color:#fff;border-color:transparent}
 nav button:disabled{opacity:.38;cursor:default}
 nav .sp{flex:1}
@@ -551,6 +585,9 @@ nav .sp{flex:1}
       <img id="page" alt="צורת הדף" draggable="false">
       <svg id="ov" preserveAspectRatio="none"></svg>
     </div>
+    <!-- "זה רץ לבד". בתוך הבמה ולא במסך, ולכן היא תמיד בפינה
+         של הדף בלי תלות בגובה הכותרת. -->
+    <span class="dbadge" id="dbadge"></span>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -573,6 +610,13 @@ nav .sp{flex:1}
 <div class="invite" id="invite">
   <span class="ring"></span>
   <div><b id="inv-h"></b><small id="inv-s"></small></div>
+</div>
+
+<!-- לוח המקליט. מוסתר תמיד, ונדלק רק ב-`?rec=1`. -->
+<div class="rec" id="rec">
+  <div class="rec-h"><b>מקליט הדגמה</b></div>
+  <div class="rec-b" id="rec-b"></div>
+  <div class="rec-a" id="rec-a"></div>
 </div>
 
 <nav><div class="nrow">
@@ -1263,7 +1307,8 @@ function needChav() {
 function drawer(on) {
   document.body.classList.toggle('chav-on', on);
   $('chtog').classList.toggle('on', on);
-  if (!DEMO) try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
+  if (!quiet()) try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
+  recStep('chav');
   /* הקובץ נטען רק אם יש קטע שנשמר לפני שהמבנה נשמר יחד איתו */
   if (on) { if (needChav()) loadChav(); paintChav(); }
   /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
@@ -1364,7 +1409,8 @@ function sideOpen(on) {
   if (!on) document.body.classList.remove('side-big');
   var b = $('dktog');
   if (b) b.classList.toggle('on', !!on);
-  if (!DEMO) try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
+  if (!quiet()) try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
+  recStep('deck');
   if (on) sideSync(true);
   /* הבמה שינתה רוחב רק אם היא לא הייתה נעולה על --col. בכל
      מקרה ציור מחדש כאן זול, ומונע מצב שבו המסגרת נשארת על
@@ -1375,12 +1421,13 @@ function sideOpen(on) {
    `safe-area-inset`, והוא שונה בין אייפון עם סרגל תחתון לבין
    אנדרואיד, וחלון צף שיושב על מספר קבוע נחתך באחד מהם.
 
-   וזה **גם** ההזמנה שבסוף ההדגמה, כשהיא דלוקה. בטלפון המצגת
-   היא חלון צף שנתלה מלמעלה על השורה הזו, ובלי המדידה הזו היא
-   כיסתה את ההזמנה בדיוק ברגע שבו מזמינים מישהו לגעת. */
+   וזה **גם** ההזמנה שבסוף ההדגמה ולוח המקליט, כשהם דלוקים.
+   בטלפון המצגת היא חלון צף שנתלה מלמעלה על השורה הזו, ובלי
+   המדידה הזו היא כיסתה את ההזמנה בדיוק ברגע שבו מזמינים מישהו
+   לגעת — ואת כפתורי המקליט בדיוק כשמקליטים. */
 function navH() {
   var h = 0;
-  ['invite', 'nav'].forEach(function (sel) {
+  ['rec', 'invite', 'nav'].forEach(function (sel) {
     var el = sel === 'nav' ? document.querySelector('nav') : $(sel);
     if (el && el.offsetParent !== null) h += el.offsetHeight;
   });
@@ -1553,7 +1600,7 @@ function sideInit() {
   try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
   /* בהדגמה — לא. "שקף 3 מתוך 12" הוא הכלי של מי שמשייך, והרכז
      שמריץ את ההדגמה הוא בדיוק מי שהדגל הזה דלוק אצלו. */
-  if (DEMO) SIDE_ADM = false;
+  if (quiet()) SIDE_ADM = false;
   /* גם ב-CSS: הכותרת והחצים שייכים לשיוך, ולכן הם מופיעים רק
      אצל מי שמשייך. */
   document.body.classList.toggle('side-adm', SIDE_ADM);
@@ -1578,7 +1625,7 @@ function sideInit() {
 
        ובהדגמה גם לא נפתחת מאליה: התסריט פותח אותה בזמן שלו,
        וכך היא נראית נפתחת ולא נמצאת. */
-    if (!DEMO) try {
+    if (!quiet()) try {
       if (localStorage.getItem('df:side') === '1') sideOpen(true);
     } catch (e) {}
   });
@@ -1600,7 +1647,7 @@ function posWeek() {
   return dafKey(LDaf(S.mas, wk) || '') === dafKey(S.daf) ? wk : -1;
 }
 function savePos() {
-  if (DEMO) return;               /* הדגמה אינה "מקום שעצרתי בו" */
+  if (quiet()) return;            /* הדגמה אינה "מקום שעצרתי בו" */
   var wk = posWeek();
   if (wk < 0 || !FLAT.length) return;
   try { LPosSet(S.mas, wk, IDX, FLAT.length); } catch (e) {}
@@ -1651,6 +1698,7 @@ function go(i) {
   render.then(function () {
     SHOWN = st.p;
     paint(); focus(); paintChav(); bar(); sideSync(); savePos();
+    recStep('go', IDX);
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
 /* מצב התצוגה במקום אחד: הכפתור, המחלקה על הגוף, והציור.
@@ -1658,6 +1706,7 @@ function go(i) {
    נפרדו — העלייה שינתה את הדגל ולא את הכיתוב. */
 function setWhole(on) {
   DIM = !on;
+  recStep('whole');
   var el = $('whole');
   el.classList.toggle('on', on);
   el.textContent = on ? 'מיקוד' : 'כל הדף';
@@ -1793,49 +1842,88 @@ function markThisDaf() {
 })();
 
 /* ============================================================
-   מצב הדגמה — `?demo=1`.
+   מצב הדגמה — `?demo=1`, והמקליט — `?rec=1`.
    ============================================================
-   הדף מנגן את עצמו: קטע ראשון, המצגת נפתחת, ועוד שני קטעים.
-   אחריהם הוא עוצר ומזמין את מי שמסתכל לגעת — כי דף שרץ לבד
-   מראה, ורק אצבע שנוגעת נותנת להרגיש.
+   הדף מנגן את עצמו לפי תסריט, ואז עוצר ומזמין את מי שמסתכל
+   לגעת — כי דף שרץ לבד מראה, ורק אצבע שנוגעת נותנת להרגיש.
 
    **כל נגיעה מפסיקה אותו.** מיד, ובלי לבלוע את הנגיעה עצמה:
    מי שהקיש כדי להתקדם — התקדם. הדגמה שאי אפשר לקטוע היא מטרד,
    ובכיתה זה בדיוק הרגע שבו רוצים לקחת את השליטה.
 
-   **והיא אינה משאירה עקבות.** ההדגמה פותחת חברותא, פותחת מצגת
-   ומדפדפת — ואת כל אלה המכשיר זוכר בדרך כלל. אצל הרכז, שמריץ
-   אותה על הטלפון שלו, זה היה משנה לו את ההגדרות ומסמן לו מקום
-   שמור בדף. לכן כל כתיבה נבלמת כאן, וגם השער וההסבר שנפתחים
-   בכניסה ראשונה מדולגים — הם היו הופכים את ההדגמה למסך שממתין.
+   **התסריט אינו כתוב בקוד אלא מוקלט.** קצב נכון הוא דבר שמרגישים
+   ולא מחשבים, ואי אפשר להכתיב אותו במילים — לכן `?rec=1` פותח
+   מקליט: לוחצים "התחלה", עושים את ההדגמה ביד ובקצב שרוצים, וכל
+   לחיצה נשמרת עם הזמן שעבר מקודמתה. מה שהוקלט נשמר על המכשיר
+   וגובר על תסריט ברירת המחדל, כך שאפשר לנגן, לתקן ולהקליט שוב
+   עד שזה יוצא נכון.
+
+   **ואינם משאירים עקבות.** ההדגמה — וגם ההקלטה — פותחות חברותא,
+   פותחות מצגת ומדפדפות, ואת כל אלה המכשיר זוכר בדרך כלל. אצל
+   הרכז, שמריץ אותן על הטלפון שלו, זה היה משנה לו את ההגדרות
+   ומסמן לו מקום שמור בדף. לכן כל כתיבה נבלמת, וגם השער וההסבר
+   של כניסה ראשונה מדולגים — הם היו הופכים את ההדגמה למסך שממתין.
    ============================================================ */
 var DEMO = /[?&]demo=1\b/.test(location.search);
+var REC  = /[?&]rec=1\b/.test(location.search);
 var DEMO_T = null;
 
-/* התסריט. כל שורה: כמה זמן להשאיר את המסך כפי שהוא, ומה לעשות
-   אחר כך. הקצב מכוון לקריאה של ביאור קצר בקול, לא למי שמדלג. */
-function demoRun() {
-  var beats = [
-    [5200, demoDeck],
-    [3600, function () { go(IDX + 1); }],
-    [5600, function () { go(IDX + 1); }],
-    [5600, demoInvite]
-  ];
+/* "בלי עקבות ובלי מסכים שממתינים" — נכון לניגון ולהקלטה כאחד,
+   ומפסיק לחול ברגע שההדגמה נמסרה לידיים. */
+function quiet() { return DEMO || REC; }
+
+/* ---------- התסריט ----------
+   כל צעד: [כמה להמתין לפני שהוא קורה, מה לעשות, ערך].
+   ברירת המחדל היא נקודת פתיחה סבירה בלבד — מה שמוקלט גובר. */
+var DEMO_DEF = [[5200,'deck'], [3600,'next'], [5600,'next'], [5600,'invite']];
+var SCRIPT_KEY = 'df:demoScript';
+
+function scriptSaved() {
+  try {
+    var raw = localStorage.getItem(SCRIPT_KEY);
+    var a = raw ? JSON.parse(raw) : null;
+    return (a && a.length) ? a : null;
+  } catch (e) { return null; }
+}
+/* ההקלטה נשמרת גם במצב שבו כל שאר הכתיבות חסומות: היא אינה
+   "הגדרה שנדבקה" אלא בדיוק מה שביקשו לשמור. */
+function scriptSave(a) {
+  try { localStorage.setItem(SCRIPT_KEY, JSON.stringify(a)); } catch (e) {}
+}
+function scriptClear() {
+  try { localStorage.removeItem(SCRIPT_KEY); } catch (e) {}
+}
+
+/* ---------- ניגון ---------- */
+function demoRun(script) {
+  var steps = script || scriptSaved() || DEMO_DEF;
   var i = 0;
   var step = function () {
     if (!DEMO) return;
-    var b = beats[i++];
+    var b = steps[i++];
     if (!b) return;
-    DEMO_T = setTimeout(function () { b[1](); step(); }, b[0]);
+    DEMO_T = setTimeout(function () { demoAct(b[1], b[2]); step(); }, b[0]);
   };
+  badge(true);
   step();
+}
+/* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
+   טבלת תרגום שאפשר לשכוח לעדכן. */
+function demoAct(a, v) {
+  if (a === 'go')          go(v);
+  else if (a === 'next')   go(IDX + 1);
+  else if (a === 'prev')   go(IDX - 1);
+  else if (a === 'chav')   drawer(!document.body.classList.contains('chav-on'));
+  else if (a === 'deck')   demoDeck();
+  else if (a === 'whole')  setWhole(DIM);
+  else if (a === 'invite') demoInvite();
 }
 /* המצגת נפתחת רק אם באמת יש אחת לדף הזה. הכפתור מוסתר עד
    ש-sideInit יודע שיש שיוך, וזו הבדיקה הזולה והנכונה. */
 function demoDeck() {
   var b = $('dktog');
   if (!b || b.style.display === 'none') return;
-  if (!document.body.classList.contains('side-on')) sideOpen(true);
+  sideOpen(!document.body.classList.contains('side-on'));
 }
 function demoInvite() {
   var el = $('invite');
@@ -1844,10 +1932,22 @@ function demoInvite() {
   $('inv-h').textContent = t.head || 'עכשיו אתם';
   $('inv-s').textContent = t.sub  || 'הקישו על הדף כדי להמשיך';
   el.className = 'invite on';
+  /* התגית יורדת כאן ולא ב-demoStop: היא אומרת "זה רץ לבד", וזו
+     בדיוק ההפך ממה שההזמנה מבקשת. תגית שנשארת דלוקה מעל
+     "עכשיו אתם" אומרת לאדם לא לטרוח. */
+  badge(false);
   navH();
   /* ההזמנה גוזלת גובה מהבמה, וחלון ההתמקדות נמדד מגובה הבמה.
      בלי המדידה מחדש הקטע יוצא ממרכזו ברגע שהיא נדלקת. */
   setTimeout(focus, 30);
+}
+/* התגית שאומרת "זה רץ לבד". בלעדיה מי שרואה דף שמדפדף מעצמו
+   חושב שהמכשיר תקוע. */
+function badge(on) {
+  var el = $('dbadge');
+  if (!el) return;
+  if (on) el.textContent = (window.PLAY && PLAY.tag) || 'הדגמה';
+  el.className = on ? 'dbadge on' : 'dbadge';
 }
 /* סוף ההדגמה. מכאן והלאה הדף מתנהג כרגיל לגמרי. */
 function demoStop() {
@@ -1856,8 +1956,113 @@ function demoStop() {
   clearTimeout(DEMO_T);
   var el = $('invite');
   if (el) el.className = 'invite';
+  badge(false);
   navH();
   setTimeout(focus, 30);
+  if (REC) recPaint();          /* חזרה מניגון אל המקליט */
+}
+
+/* ============================================================
+   המקליט.
+   ============================================================
+   הוא אינו מקליט נגיעות אלא **תוצאות**: `go`, `drawer`, `sideOpen`
+   ו-setWhole מדווחים כאן בעצמם. לכן אין חשיבות לשאלה אם הקטע
+   התחלף מהקשה על הדף, מהכפתור או מהמקלדת — ומה שהוקלט הוא מה
+   שהעין ראתה, לא איך שהאצבע הגיעה לשם.
+
+   ההזמנה אינה "מה שקורה כשמפסיקים להקליט" אלא כפתור משלה. זמן
+   החיפוש של כפתור העצירה אינו חלק מההדגמה, ולכן הוא אינו נכנס
+   לתסריט.
+   ============================================================ */
+var RECS = { on:false, t:0, steps:null };
+
+function recStep(a, v) {
+  if (!RECS.on) return;
+  var now = Date.now();
+  RECS.steps.push([now - RECS.t, a, v]);
+  RECS.t = now;
+  recPaint();
+}
+function recStart() {
+  RECS.on = true; RECS.t = Date.now(); RECS.steps = [];
+  recPaint();
+}
+/* סיום = ההזמנה. הלחיצה הזו היא הצעד האחרון בתסריט, ובאותו
+   רגע ההשהיה שלפניה כבר נמדדה. */
+function recEnd() {
+  if (!RECS.on) return;
+  recStep('invite');
+  RECS.on = false;
+  scriptSave(RECS.steps);
+  recPaint();
+}
+function recPlay() {
+  var a = RECS.steps || scriptSaved();
+  if (!a || !a.length) return;
+  /* ניגון מתחיל תמיד מאותה נקודה שממנה הוקלט */
+  DEMO = true;
+  drawer(true);
+  if (document.body.classList.contains('side-on')) sideOpen(false);
+  var el = $('invite'); if (el) el.className = 'invite';
+  go(0);
+  recPaint();
+  demoRun(a);
+}
+function recWipe() {
+  scriptClear();
+  RECS = { on:false, t:0, steps:null };
+  recPaint();
+}
+
+/* ---------- הכתיבה על המסך ---------- */
+function recLabel(a, v) {
+  if (a === 'go')     return 'קטע ' + ((v | 0) + 1);
+  if (a === 'next')   return 'הקטע הבא';
+  if (a === 'prev')   return 'הקטע הקודם';
+  if (a === 'chav')   return 'חברותא';
+  if (a === 'deck')   return 'מצגת';
+  if (a === 'whole')  return 'כל הדף';
+  if (a === 'invite') return 'ההזמנה — עכשיו אתם';
+  return a;
+}
+function recSecs(ms) { return (Math.round(ms / 100) / 10).toFixed(1); }
+
+function recPaint() {
+  var box = $('rec');
+  if (!box) return;
+  if (DEMO) { box.className = 'rec'; return; }   /* בזמן ניגון — מהדרך */
+  box.className = 'rec on';
+
+  var have = RECS.steps || scriptSaved();
+  var b = '', act = '';
+
+  if (RECS.on) {
+    b = '<b>מקליט…</b> ' + RECS.steps.length + ' צעדים. ' +
+        'עשו את ההדגמה בקצב שלכם, ובסוף לחצו "כאן ההזמנה".';
+    act = '<button class="pri" onclick="recEnd()">■ כאן ההזמנה</button>';
+  } else {
+    if (have && have.length) {
+      b = '<ol class="rec-l">' + have.map(function (st) {
+            return '<li><i>' + recSecs(st[0]) + ' שנ׳</i>' +
+                   esc(recLabel(st[1], st[2])) + '</li>';
+          }).join('') + '</ol>' +
+          '<p class="rec-t">סה״כ ' + recSecs(have.reduce(function (n, st) {
+            return n + st[0]; }, 0)) + ' שניות. זה מה שיתנגן בהדגמה.</p>' +
+          '<textarea class="rec-x" readonly rows="2" ' +
+          'onclick="this.select()">' + esc(JSON.stringify(have)) + '</textarea>';
+      act = '<button class="pri" onclick="recPlay()">▶ ניגון</button>' +
+            '<button onclick="recStart()">● הקלטה מחדש</button>' +
+            '<button onclick="recWipe()">מחיקה</button>';
+    } else {
+      b = 'לחצו <b>התחלה</b>, ואז עשו את ההדגמה ביד — לדפדף, לפתוח ' +
+          'חברותא, לפתוח מצגת, לחכות. כל לחיצה נשמרת עם הזמן שעבר ' +
+          'מקודמתה, וזה יהיה הקצב של ההדגמה.';
+      act = '<button class="pri" onclick="recStart()">● התחלה</button>';
+    }
+  }
+  $('rec-b').innerHTML = b;
+  $('rec-a').innerHTML = act;
+  navH();
 }
 
 /* ============================================================
@@ -1911,7 +2116,7 @@ function gateFill() {
 
 /* ההסבר על אופן הלימוד — אחרי השער, ורק בפעם הראשונה. */
 function introMaybe() {
-  if (DEMO) return;               /* מסך שממתין ללחיצה אינו הדגמה */
+  if (quiet()) return;            /* מסך שממתין ללחיצה אינו הדגמה */
   var seen = false;
   try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
   if (!seen) $('intro').className = 'sheet on';
@@ -1923,7 +2128,7 @@ function gateClose() {
   setTimeout(function () { g.className = 'sheet gate'; introMaybe(); }, 460);
 }
 function gateOpen() {
-  if (DEMO) return;               /* ולא נרשם כ"נראה" — תלמיד אמיתי עוד יראה אותו */
+  if (quiet()) return;            /* ולא נרשם כ"נראה" — תלמיד אמיתי עוד יראה אותו */
   var g = $('gate'); if (!g) return;
 
   /* פעם אחת בלבד. שער שמופיע בכל כניסה ומתפוגג אחרי שנייה
@@ -2146,7 +2351,7 @@ function boot() {
         /* בהדגמה המסך נפתח תמיד באותה צורה — חברותא פתוחה
            ומיקוד דלוק — ולא כפי שהמכשיר הזה מכוון. הדגמה שנראית
            אחרת בכל טלפון אינה הדגמה. */
-        if (DEMO) drawer(true);
+        if (quiet()) drawer(true);
         else try {
           /* פתוחה כברירת מחדל. מי שנכנס בפעם הראשונה לא ידע
              שיש כאן ביאור — הוא ראה כפתור בשם "חברותא" ולא
@@ -2160,7 +2365,7 @@ function boot() {
           }
         } catch (e) {}
         go(0);
-        if (!DEMO) try { resumePos(); } catch (e) {}
+        if (!quiet()) try { resumePos(); } catch (e) {}
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
 
@@ -2170,7 +2375,10 @@ function boot() {
         /* ההדגמה מתחילה **אחרי** sideInit: התסריט פותח את המצגת,
            והכפתור שלה קיים רק משסיים. נכשל משהו בדרך — ההדגמה
            עדיין רצה, בלי המצגת. */
-        var started = function () { if (DEMO) demoRun(); };
+        var started = function () {
+          if (DEMO) demoRun();
+          else if (REC) recPaint();
+        };
         DeckLoad()['catch'](function () {}).then(function () {
           try { return sideInit(); } catch (e) {}
         }).then(started, started);
@@ -2293,7 +2501,8 @@ window.addEventListener('DOMContentLoaded', function () {
      בשלב הלכידה, כדי שזה יקרה לפני כל שאר המאזינים — אבל בלי
      לבלוע את הנגיעה: מי שהקיש על הדף כדי להתקדם, מתקדם, וגם
      ההדגמה נעצרת באותה תנועה. */
-  if (DEMO) {
+  /* גם במקליט: שם הניגון נקטע באותה נגיעה, והלוח חוזר. */
+  if (DEMO || REC) {
     document.addEventListener('pointerdown', demoStop, true);
     document.addEventListener('keydown', demoStop, true);
   }

@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '7.98.0';
+var APP_VERSION = '7.99.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2401,9 +2401,10 @@ function tzevetUrl(code) {
 
    הכתובת אינה מוצגת בשום מקום והיא אינה נשלחת לאיש — זו פעולה
    שפותחים אצלנו, על מקרן או ביד, ולא קישור. */
-function demoUrl() {
+function demoUrl(mode) {
   return joinUrl('').replace('join.html', 'learn.html') +
-         '?mas=taanit&daf=' + encodeURIComponent('ב') + '&demo=1';
+         '?mas=taanit&daf=' + encodeURIComponent('ב') +
+         '&' + (mode || 'demo') + '=1';
 }
 
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —
@@ -5456,7 +5457,16 @@ function admLinks(el) {
     'בכיתה, או מגישים את הטלפון.</p>' +
     '<a class="btn p" style="margin:10px 0 0;width:100%;box-sizing:border-box;' +
     'text-decoration:none;display:block;text-align:center" target="_blank" ' +
-    'rel="noopener" href="' + esc(demoUrl()) + '">פתיחת ההדגמה</a></div>' +
+    'rel="noopener" href="' + esc(demoUrl()) + '">פתיחת ההדגמה</a>' +
+    /* הקצב הוא דבר שמרגישים ולא מחשבים, ולכן הוא נקבע ביד:
+       מקליטים את ההדגמה פעם אחת בקצב הנכון, וזה מה שמתנגן. */
+    '<p class="h" style="margin-top:12px">הקצב וסדר הלחיצות נקבעים ' +
+    '<b>בהקלטה</b>: עושים את ההדגמה ביד, וכל לחיצה נשמרת עם הזמן ' +
+    'שלה. מה שהוקלט נשמר <b>במכשיר הזה</b> ומתנגן במקום ברירת ' +
+    'המחדל — אפשר לנגן, לתקן ולהקליט שוב.</p>' +
+    '<a class="btn g" style="margin:8px 0 0;width:100%;box-sizing:border-box;' +
+    'text-decoration:none;display:block;text-align:center" target="_blank" ' +
+    'rel="noopener" href="' + esc(demoUrl('rec')) + '">הקלטת הדגמה</a></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>קישור כללי לתלמידים</h4>' +
     '<p class="h">אפשר לשלוח לכל מקום — התלמיד בוחר את הישיבה שלו ' +
