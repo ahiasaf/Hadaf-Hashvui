@@ -80,8 +80,10 @@ header{background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
   line-height:1.2;color:#fff}
 .masthead .yr{display:block;font-size:.74rem;font-weight:800;color:var(--gold-l);
   letter-spacing:.05em;margin-top:3px}
+/* המרווח מתחת לשם הישיבה הוא גם האוויר שמעל הפנייה אחרי
+   הגלילה הראשונה — ראו firstScroll. */
 header .eyebrow{font-size:.73rem;font-weight:800;letter-spacing:.09em;
-  color:var(--gold-l);text-transform:none;margin-bottom:8px}
+  color:var(--gold-l);text-transform:none;margin-bottom:15px}
 header h1{margin:0;font-size:1.52rem;font-weight:800;line-height:1.25;
   letter-spacing:-.035em;max-width:22rem;margin-inline:auto}
 header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
@@ -695,11 +697,11 @@ function draw() {
   var li = function (s, i) {
     return '<li data-n="' + (i + 1) + '">' + esc(s) + '</li>';
   };
-  /* שניים ראשונים לפני הבאנר, השאר אחריו. הבאנר הוא הכלי של
-     שני אלה: לפתוח את הדף, וללמוד בו עמוד. */
-  $('steps-a').innerHTML = st.slice(0, 2).map(li).join('');
-  $('steps-b').innerHTML = st.slice(2).map(function (s, i) {
-    return li(s, i + 2);
+  /* הראשון לפני הבאנר, השאר אחריו. הבאנר הוא הכלי של השלב
+     הראשון — לפתוח את הדף בכיתה — והוא בא מיד אחריו. */
+  $('steps-a').innerHTML = st.slice(0, 1).map(li).join('');
+  $('steps-b').innerHTML = st.slice(1).map(function (s, i) {
+    return li(s, i + 1);
   }).join('');
 
   /* שורה שרוקנה אינה משאירה שוליים ריקים מעל ההדגמה */
@@ -714,11 +716,11 @@ function draw() {
 
   /* הפוטר. הקישור נדלק רק כשיש מספר — הוא נקרא מההגדרות
      שפורסמו, ואינו יושב בריפו. */
-  var fw = $('foot-wa');
+  var fw = $('foot-wa'), num = COORD_WA || waNum(T.waNum);
   if (fw) {
     fw.textContent = ' ' + (T.footWa || '');
-    fw.hidden = !(COORD_WA && (T.footWa || '').trim());
-    if (COORD_WA) fw.href = 'https://wa.me/' + COORD_WA;
+    fw.hidden = !(num && (T.footWa || '').trim());
+    if (num) fw.href = 'https://wa.me/' + num;
   }
 
   /* שלוש הדרכים לקישור */
@@ -819,31 +821,61 @@ function drawQr() {
    הוא הגיע, ומסגרת שנדלקת ודועכת אומרת "זה מה שחיפשת" בלי
    מילה אחת. */
 /* ---------- הגלילה הראשונה ----------
-   שנייה אחרי הפתיחה העמוד יורד לאט, עד שהפנייה — "רב ומחנך
-   נכבד" — יושבת בראש המסך. החתימה שמעליה נחוצה כדי לדעת ממי
-   זה הגיע, אבל אחרי שנייה היא כבר עשתה את שלה, והמקום שייך
-   לפנייה ולהדגמה שמתחתיה.
+   העמוד יורד לבד עד שהפנייה — "רב ומחנך נכבד" — יושבת בראשו,
+   והחתימה שמעליה נשארת מעל הקיפול. היא כבר עשתה את שלה: מי
+   שפתח קישור רוצה לדעת בשנייה הראשונה ממי זה הגיע.
 
-   רק כשלא נגעו: אצבע שכבר גוללה יודעת לאן היא הולכת, ועמוד
-   שזז מתחתיה הוא הדבר המעצבן ביותר שמסך יכול לעשות. */
+   **התזמון והקצב הם כל העניין.** מי שפותח עמוד אינו קורא מיד —
+   הוא מרפרף שנייה־שתיים, העין מדלגת על הלוגו ומחפשת את התוכן,
+   ורק אז היא נוחתת על הכותרת ומתחילה לקרוא. גלילה שקופצת לפני
+   הרגע הזה נקראת כמשהו שברח, וגלילה מהירה — גם אם היא מגיעה
+   למקום הנכון — קוטעת את הרפרוף במקום להמשיך אותו.
+
+   לכן: שתי שניות של המתנה, ואז תנועה של שנייה וחצי שמתחילה
+   כמעט בלי מהירות, צוברת, ונעצרת בעדינות. זו תנועה שמרגישה
+   כמו העמוד שמתיישב, לא כמו העמוד שבורח. `behavior:'smooth'`
+   של הדפדפן קצר מדי לזה — כרבע שנייה — ולכן היא מצוירת כאן.
+
+   וכל נגיעה מבטלת: מי שכבר גולל יודע לאן הוא הולך, ועמוד שזז
+   מתחת לאצבע הוא הדבר המעצבן ביותר שמסך יכול לעשות. */
 function firstScroll() {
   if (location.hash) return;                    /* באו לקטע מסוים */
   if (/[?&]tedit=1/.test(location.search)) return;
-  var touched = false;
-  var mark = function () { touched = true; };
-  window.addEventListener('touchstart', mark, true);
-  window.addEventListener('wheel', mark, true);
-  window.addEventListener('keydown', mark, true);
+  if (window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+
+  var stop = false;
+  var mark = function () { stop = true; };
+  ['touchstart', 'wheel', 'keydown', 'pointerdown'].forEach(function (ev) {
+    window.addEventListener(ev, mark, true);
+  });
+
   setTimeout(function () {
-    if (touched || window.pageYOffset > 4) return;
-    /* היעד הוא הפנייה עצמה. שם הישיבה שמעליה נשאר מעל הקיפול
-       — הוא כבר נקרא בשנייה הראשונה — והמקום שייך לפנייה
-       ולהדגמה שמתחתיה. */
-    var el = $('t-h1');
-    if (!el) return;
-    var y = el.getBoundingClientRect().top + window.pageYOffset - 20;
-    if (y > 8) window.scrollTo({ top: y, behavior:'smooth' });
-  }, 1000);
+    if (stop || window.pageYOffset > 4) return;
+    var h1 = $('t-h1'), eb = $('inst-name');
+    if (!h1) return;
+    var to = h1.getBoundingClientRect().top + window.pageYOffset - 20;
+    /* לא לחתוך את שם הישיבה לחצי: או שהוא נראה כולו, או שהוא
+       מעל הקיפול. הרווח שנשאר מעל הפנייה הוא המרווח שמתחתיו. */
+    if (eb && eb.textContent.trim()) {
+      var eBot = eb.getBoundingClientRect().bottom + window.pageYOffset;
+      if (to < eBot) to = eBot;
+    }
+    if (to <= 8) return;
+
+    var from = window.pageYOffset, dist = to - from, t0 = 0, T = 1500;
+    var step = function (ts) {
+      if (stop) return;
+      if (!t0) t0 = ts;
+      var k = Math.min(1, (ts - t0) / T);
+      /* מתחילה כמעט בלי מהירות, צוברת, ונעצרת בעדינות */
+      var e = k < 0.5 ? 4 * k * k * k
+                      : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      window.scrollTo(0, from + dist * e);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, 2000);
 }
 
 /* המעבר אל ההנחיות. שני מקומות מגיעים לכאן: חזרה מההדגמה
@@ -1015,21 +1047,36 @@ sheetCsv('טקסטים').then(function (rows) {
 });
 
 /* ---------- הוואטסאפ של הרכז ----------
-   נקרא מלשונית ההגדרות שפורסמה, ולא יושב בקוד: הריפו ציבורי,
-   ומספר טלפון בו הוא מספר שפורסם לעולם. הערכים שם נשמרים
-   כ-JSON עם גרש מוביל — כך גוגל שיטס אינה הופכת אותם לטיפוס
-   משלה — ולכן הגרש יורד לפני הפענוח.
+   לא יושב בקוד: הריפו ציבורי, ומספר טלפון בו הוא מספר שפורסם
+   לעולם. הוא מגיע מהגיליון, ומשני מקומות אפשריים:
 
-   אין מספר, או שהקריאה נכשלה — הקישור פשוט אינו מוצג. */
+   **ההגדרות שפורסמו** — אותו שדה שכבר קיים בניהול ← מערכת,
+   וזה המקום הטבעי. הערכים שם נשמרים כ-JSON עם גרש מוביל, כדי
+   שגוגל שיטס לא תהפוך אותם לטיפוס משלה.
+
+   **ואם משום מה הוא אינו מגיע משם** — `tzevet.waNum` בלשונית
+   הטקסטים. הלשונית הזו מוכחת בעמוד הזה: כל המלל שבו מגיע ממנה.
+   שדה שני לאותו מספר אינו יפה, אבל קישור שאינו מופיע ואי אפשר
+   לדעת למה גרוע ממנו.
+
+   בשני המקרים: אין מספר — הקישור פשוט אינו מוצג. */
 var COORD_WA = '';
+function waNum(v) {
+  v = String(v == null ? '' : v).trim().replace(/^'/, '');
+  try { v = JSON.parse(v); } catch (e) {}
+  v = String(v || '').replace(/[^0-9]/g, '');
+  /* 05… הוא מספר ישראלי מקומי, ו-wa.me דורש קידומת מדינה. מי
+     שהקליד אותו כפי שהוא מכיר אותו לא צריך ליפול על זה. */
+  if (v.indexOf('0') === 0) v = '972' + v.slice(1);
+  return v.length >= 11 ? v : '';
+}
+/* בלי דרישת כותרת: אם השורה מכילה `coordWa` בעמודה הראשונה,
+   זו הלשונית הנכונה. בדיקת כותרת שנכשלת מפילה את הכל בשקט. */
 sheetCsv('הגדרות').then(function (rows) {
   if (!rows || !rows.length) return;
-  if ((rows[0] || []).join('|').indexOf('מפתח') < 0) return;
-  rows.slice(1).forEach(function (r) {
+  rows.forEach(function (r) {
     if ((r[0] || '').trim() !== 'coordWa') return;
-    var v = (r[1] || '').trim().replace(/^'/, '');
-    try { v = JSON.parse(v); } catch (e) {}
-    v = String(v || '').replace(/[^0-9]/g, '');
+    var v = waNum(r[1]);
     if (v) COORD_WA = v;
   });
   if (COORD_WA) draw();
