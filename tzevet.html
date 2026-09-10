@@ -152,6 +152,9 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   border-radius:var(--r);padding:18px;box-shadow:var(--sh-2);
   border-top:3px solid var(--gold)}
 .howto h2{margin:0 0 14px}
+/* נדלקת לרגע למי שחזר לכאן מההדגמה */
+.howto.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55), var(--sh-2)}
+.howto{transition:box-shadow .5s ease}
 
 /* השלבים. מספר בעיגול זהב, וקו שמחבר ביניהם — כדי שייקרא
    כרצף ולא כשלוש עצות נפרדות. */
@@ -333,7 +336,7 @@ footer a{color:var(--ink-2);font-weight:800}
   <!-- ההנחיות צמודות לבאנר: מי שראה את הדף נפתח שואל מיד
        "ומה אני עושה עם זה?" — וכאן זה עונה. קודם היעד, ואז
        השאלה איך מגיעים אליו — סדר שהופך רשימה לדבר עם סיבה. -->
-  <section>
+  <section id="howto">
     <div class="howto">
       <p class="goal" id="t-goalH"></p>
       <h2 class="sec" id="t-stepsH"></h2>
@@ -488,12 +491,20 @@ function setTrack(t) { track = t; drawStage(); }
 
 /* ---------- הבמה ----------
    `stage.js` בונה, וכאן רק נקבע מה קורה בלחיצה. */
+/* הכפתור הראשי בבאנר פותח את **ההדגמה**, לא את הדף הריק.
+
+   ר"ם שנחת בדף אינטראקטיבי ריק אינו יודע מה לעשות בו — הוא
+   רואה גמרא ושני כפתורים. ההדגמה מראה לו בשש־עשרה שניות מה זה,
+   ואז מזמינה אותו לגעת בעצמו; נגיעה אחת עוצרת אותה והוא כבר
+   בתוך הדף האמיתי, באותו מקום. בסוף היא מחזירה אותו לכאן,
+   אל ההנחיות. */
 function goDaf() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
   if (!d) { goApp(); return; }
-  location.href = 'learn.html?mas=' + encodeURIComponent(track) +
-                  '&daf=' + encodeURIComponent(d);
+  location.href = base() + 'learn.html?mas=' + encodeURIComponent(track) +
+                  '&daf=' + encodeURIComponent(d) + '&demo=1&from=tzevet' +
+                  (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 }
 /* המצגת יושבת במסך הראשי, ומציג המצגות שלה הוא קוד שכבר קיים
    שם. לא משכפלים אותו לכאן בשביל כפתור אחד — הכפתור מוביל
@@ -589,6 +600,29 @@ function draw() {
   drawPeers();
   drawBoard();
   drawStage();
+  backFromDemo();
+}
+
+/* ---------- חזרה מההדגמה ----------
+   ר"ם שסיים לצפות לוחץ "איך עושים זאת?" וחוזר לכאן אל ההנחיות.
+   הדפדפן היה קופץ לשם בעצמו — אבל התוכן נבנה ב-JS, וברגע שהוא
+   קופץ הקטע עוד ריק והוא נוחת במקום הלא נכון. לכן הגלילה נעשית
+   כאן, אחרי שהעמוד מצויר.
+
+   וההבהוב: מי שנחת אחרי מעבר בין עמודים צריך רגע כדי לדעת לאן
+   הוא הגיע, ומסגרת שנדלקת ודועכת אומרת "זה מה שחיפשת" בלי
+   מילה אחת. */
+function backFromDemo() {
+  if (location.hash !== '#howto') return;
+  var el = $('howto');
+  if (!el) return;
+  setTimeout(function () {
+    el.scrollIntoView({ behavior:'smooth', block:'start' });
+    var c = el.querySelector('.howto');
+    if (!c) return;
+    c.className = 'howto lit';
+    setTimeout(function () { c.className = 'howto'; }, 1800);
+  }, 120);
 }
 
 /* ============================================================

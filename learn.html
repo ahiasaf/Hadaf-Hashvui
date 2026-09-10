@@ -1872,6 +1872,9 @@ function markThisDaf() {
    ============================================================ */
 var DEMO = /[?&]demo=1\b/.test(location.search);
 var REC  = /[?&]rec=1\b/.test(location.search);
+/* מי פתח את ההדגמה. `tzevet` = ר"ם מעמוד הצוות, וזה משנה את
+   סופה: לר"ם אין למה להצטרף — הוא זה שיפעיל את זה בכיתה. */
+var FROM = (/[?&]from=([\w-]+)/.exec(location.search) || [])[1] || '';
 var DEMO_T = null;
 
 /* "בלי עקבות ובלי מסכים שממתינים" — נכון לניגון ולהקלטה כאחד,
@@ -1955,10 +1958,12 @@ function bubble(mode) {
   var el = $('dbadge');
   if (!el) return;
   var t = window.PLAY || {};
+  var end = FROM === 'tzevet' ? (t.finTeam || 'איך עושים זאת? ←')
+                              : (t.fin || 'להצטרפות!');
   var fill = function () {
     if (mode === 'run')      { el.textContent = t.tag || 'הדגמה';       el.className = 'dbadge on'; }
     else if (mode === 'ask') { el.textContent = t.ask || 'נסו בעצמכם!'; el.className = 'dbadge on ask'; }
-    else if (mode === 'fin') { el.textContent = t.fin || 'להצטרפות!';   el.className = 'dbadge on fin'; }
+    else if (mode === 'fin') { el.textContent = end;                    el.className = 'dbadge on fin'; }
     else                     { el.textContent = '';                     el.className = 'dbadge'; }
   };
   clearTimeout(BUB);
@@ -1975,16 +1980,29 @@ function bubble(mode) {
   }, 260);
 }
 
-/* לאן יוצאים. מסך ההצטרפות, ולא חזרה לתוכנית: מי שנתנו לו
-   לשחק בדף וסיים הוא בדיוק מי שכדאי לשאול אותו עכשיו אם הוא
-   בפנים — ו-`go=1` נוחת ישר בתוך הטופס, לא במסך הפתיחה.
+/* לאן יוצאים — ושתי תשובות, לפי מי צופה.
 
-   `learn.html` יושב לצד `join.html`, ולכן הכתובת נבנית מאותו
-   בסיס — בייצור אין סיומות, וקוד שחותך `.html` מהכתובת נשבר שם. */
+   **תלמיד** מגיע למסך ההצטרפות, ו-`go=1` נוחת ישר בתוך הטופס
+   ולא במסך הפתיחה: מי שראה את הדף עובד וסיים לשחק הוא בדיוק
+   מי שכדאי לשאול עכשיו אם הוא בפנים.
+
+   **ר"ם שפתח מעמוד הצוות** אינו מצטרף לשום דבר — הוא זה
+   שיפעיל את זה בכיתה. הוא חוזר לעמוד שממנו בא, אל ההנחיות,
+   כי זו בדיוק השאלה שנשאלת אחרי שרואים את הדף עובד.
+
+   הקוד אינו נוסע בכתובת — הוא נשמר במכשיר. כתובת עם קוד גלוי
+   על מקרן בכיתה היא בדיוק הדרך שבה קישור הלוח דולף.
+
+   `learn.html` יושב לצד שניהם, ולכן הכתובת נבנית מאותו בסיס —
+   בייצור אין סיומות, וקוד שחותך `.html` מהכתובת נשבר שם. */
 function demoOut() {
   if (REC) return;              /* במקליט אין לאן ללכת — עוד מכוונים */
-  var u = location.href.split('#')[0].split('?')[0]
-    .replace(/\/learn(\.html)?\/?$/, '/') + 'join.html?go=1';
+  var base = location.href.split('#')[0].split('?')[0]
+    .replace(/\/learn(\.html)?\/?$/, '/');
+  var inst = (/[?&]inst=([^&]*)/.exec(location.search) || [])[1] || '';
+  var u = FROM === 'tzevet'
+    ? base + 'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto'
+    : base + 'join.html?go=1';
   /* דעיכה ואז מעבר. קפיצה חדה בין שני עמודים היא הרגע שבו
      נאבד מי שכבר החליט, ושליש שנייה קונה את הרצף. */
   document.body.className += ' leaving';
