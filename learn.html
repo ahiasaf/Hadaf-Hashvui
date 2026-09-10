@@ -1976,6 +1976,10 @@ var BUB = null;
 function bubble(mode) {
   var el = $('dbadge');
   if (!el) return;
+  /* בחלון ההדגמה אין בועה כלל. "הדגמה" כתוב שם על משהו שכבר
+     ברור שהוא הדגמה — העמוד סביבו אומר את זה — והיא רק מכסה
+     פינה של הדף. שאר המצבים אינם קיימים שם ממילא. */
+  if (EMB) { el.className = 'dbadge'; return; }
   var t = window.PLAY || {};
   var end = FROM === 'tzevet' ? (t.finTeam || 'איך עושים זאת? ←')
                               : (t.fin || 'להצטרפות!');
