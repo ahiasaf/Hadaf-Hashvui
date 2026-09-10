@@ -239,19 +239,24 @@ body.side-on #side{display:flex}
 }
 @keyframes sideIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 
-/* ---------- מסך צר: חלון קטן שאפשר לראות מעליו ----------
+/* ---------- מסך צר: המצגת נפתחת בגודל מלא ----------
    בטלפון — ובכל מסך שצר מ-1200, אייפד לרוחב בכלל זה — אין שטח
-   פנוי לחלק, ולכן האזור צף. הוא מכוון להיות קטן מספיק כדי
-   שהדף שמאחוריו יישאר קריא — זו כל מטרתו כאן: לראות את שני
-   הדברים יחד ולשייך ביניהם. הקשה מגדילה, הקשה נוספת מחזירה. */
+   פנוי לחלק, ולכן האזור צף מעל הדף.
+
+   **קודם הוא נפתח ממוזער, ולחיצה נוספת הגדילה אותו.** זה היה
+   מיותר בשני הכיוונים: בגודל הזה אי אפשר לקרוא שקף, אז איש לא
+   נשאר שם — כולם הגדילו — והמדרגה הנוספת רק עמדה בדרך. ולעיתים
+   קרובות השקף הוא ההסבר הטוב ביותר לקטע, טוב מהביאור, ואין סיבה
+   להגיש אותו בגודל שאי אפשר להשתמש בו.
+
+   הכפתור "מצגת" פותח את מה שרוצים לראות. סוגרים באותו כפתור
+   או ב-✕. */
 @media (max-width:1199px){
   body.side-on #side{position:fixed;z-index:40;inset-inline-start:10px;
     bottom:calc(var(--nav-h, 56px) + 12px);
-    width:41vw;max-width:210px;height:auto;
+    width:calc(100vw - 20px);max-width:none;height:auto;
     border:1px solid var(--rule);border-radius:14px;overflow:hidden;
-    box-shadow:0 10px 26px rgba(11,37,80,.24);
-    transition:width .28s ease, max-width .28s ease}
-  body.side-on.side-big #side{width:calc(100vw - 20px);max-width:none}
+    box-shadow:0 10px 26px rgba(11,37,80,.24)}
 }
 
 /* ---------- תוכן האזור ---------- */
@@ -293,13 +298,7 @@ body.side-on #side{display:flex}
      אותם. במסך רחב מאוד השקף עוצר ונשאר במרכז העמודה. */
   .sd-b img{max-width:min(100%,900px)}
 }
-/* בחלון הצף אין מקום לשורת כפתורים קריאה כל עוד הוא ממוזער */
-@media (max-width:1199px){
-  body.side-on:not(.side-big) .sd-f,
-  body.side-on:not(.side-big) .sd-a{display:none}
-  body.side-on:not(.side-big) .sd-b{padding:6px;min-height:88px}
-  body.side-on:not(.side-big) .sd-h{padding:6px 9px;font-size:.7rem}
-}
+
 
 /* ---------- שכבת השיוך ----------
    פתוחה רק כשהניהול פתוח במכשיר. תלמיד אינו רואה אותה כלל. */
@@ -1410,7 +1409,6 @@ function slideAt(idx) {
 function sideOpen(on) {
   navH();
   document.body.classList.toggle('side-on', !!on);
-  if (!on) document.body.classList.remove('side-big');
   var b = $('dktog');
   if (b) b.classList.toggle('on', !!on);
   if (!quiet()) try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
@@ -1439,12 +1437,6 @@ function navH() {
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
 }
-function sideBig() {
-  document.body.classList.toggle('side-big');
-  sidePaint();
-  recStep('big');
-}
-
 /* ---------- ציור ---------- */
 function sideSync(force) {
   if (!DECK || !document.body.classList.contains('side-on')) return;
@@ -1456,7 +1448,6 @@ function sideSync(force) {
 function sidePaint() {
   var el = $('side');
   if (!el || !DECK) return;
-  var big = document.body.classList.contains('side-big');
   var phone = sidePhone();
   el.innerHTML =
     '<div class="sd-h">' +
@@ -1464,11 +1455,9 @@ function sidePaint() {
        מבטיח שליטה שאינה קיימת: המצגת נוסעת עם הדף. */
     (SIDE_ADM ? '<span class="sd-n">שקף ' + SLIDE + ' מתוך ' + deckN() + '</span>' : '') +
     '<span class="sp"></span>' +
-    (phone ? '<button id="sd-big" title="הגדלה">' + (big ? '⤡' : '⤢') + '</button>' +
-             '<button id="sd-x" title="סגירה">✕</button>' : '') +
+    (phone ? '<button id="sd-x" title="סגירה">✕</button>' : '') +
     '</div>' +
-    '<div class="sd-b" id="sd-b-wrap"' + (sidePhone() ? ' style="cursor:pointer"' : '') +
-    '><img id="sd-img" alt="שקף ' + SLIDE + '"></div>' +
+    '<div class="sd-b"><img id="sd-img" alt="שקף ' + SLIDE + '"></div>' +
     '<div class="sd-f">' +
     '<button id="sd-prev">▸ שקף קודם</button><span class="sp"></span>' +
     '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
@@ -1476,12 +1465,7 @@ function sidePaint() {
     (SIDE_ADM ? sideAdmHtml() : '');
 
   $('sd-img').src = slideSrc(SLIDE);
-  if ($('sd-x'))   $('sd-x').onclick = function () { sideOpen(false); };
-  if ($('sd-big')) $('sd-big').onclick = sideBig;
-  /* בטלפון החלון עצמו הוא הכפתור. כפתור בגודל 14px בתוך חלון
-     בגודל 160px הוא בקשה לדיוק שאין לאגודל, ומי שרוצה להגדיל
-     ילחץ על מה שהוא רואה — כלומר על השקף. */
-  if (sidePhone()) $('sd-b-wrap').onclick = sideBig;
+  if ($('sd-x')) $('sd-x').onclick = function () { sideOpen(false); };
   /* דפדוף ידני. הוא אינו משנה את השיוך — הוא רק מסתכל, ובקטע
      הבא המצגת חוזרת למה שהשיוך אומר. */
   $('sd-prev').onclick = function () { sideStep(-1); };
@@ -1920,7 +1904,6 @@ function demoAct(a, v) {
   else if (a === 'chav')   drawer(!document.body.classList.contains('chav-on'));
   else if (a === 'deck')   demoDeck();
   else if (a === 'whole')  setWhole(DIM);
-  else if (a === 'big')    sideBig();
   else if (a === 'zoom')   chavZoom(v);
   else if (a === 'invite') demoInvite();
 }
@@ -2043,7 +2026,6 @@ function recLabel(a, v) {
   if (a === 'chav')   return 'חברותא';
   if (a === 'deck')   return 'מצגת';
   if (a === 'whole')  return 'כל הדף';
-  if (a === 'big')    return 'הגדלת המצגת';
   if (a === 'zoom')   return v > 0 ? 'הגדלת הביאור' : 'הקטנת הביאור';
   if (a === 'invite') return 'ההזמנה — עכשיו אתם';
   return a;
