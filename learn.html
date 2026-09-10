@@ -1940,10 +1940,6 @@ function demoRun(script) {
     DEMO_T = setTimeout(function () { demoAct(b[1], b[2]); step(); }, b[0]);
   };
   bubble('run');
-  /* העמוד המארח מכסה את החלון במשפט עד שההדגמה באמת מתחילה.
-     שעון לא היה מדייק — טעינה על רשת איטית ארוכה בהרבה — ולכן
-     הרגע הזה נמסר משם. */
-  if (EMB) try { parent.postMessage('daf-demo-start', '*'); } catch (e) {}
   step();
 }
 /* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
@@ -2476,9 +2472,25 @@ function boot() {
         /* ההדגמה מתחילה **אחרי** sideInit: התסריט פותח את המצגת,
            והכפתור שלה קיים רק משסיים. נכשל משהו בדרך — ההדגמה
            עדיין רצה, בלי המצגת. */
+        /* ---------- מי נותן את אות הפתיחה ----------
+           במסך מלא — אנחנו, ברגע שהדף מוכן.
+
+           בחלון — העמוד המארח. הוא מחזיק את המקום ריק ומגלה
+           את ההדגמה אחרי כמה שניות, ולו התסריט היה מתחיל עם
+           הטעינה הוא היה רץ מאחורי מסך ריק והצופה היה מפספס
+           את תחילתו. לכן כאן רק מודיעים שמוכנים וממתינים
+           ל"צא" — עם רשת ביטחון, למקרה שהעמוד המארח שותק. */
         var started = function () {
-          if (DEMO) demoRun();
-          else if (REC) recPaint();
+          if (REC) { recPaint(); return; }
+          if (!DEMO) return;
+          if (!EMB) { demoRun(); return; }
+          var went = false;
+          var go = function () { if (!went) { went = true; demoRun(); } };
+          window.addEventListener('message', function (e) {
+            if (e.data === 'daf-demo-go') go();
+          });
+          try { parent.postMessage('daf-demo-ready', '*'); } catch (e) {}
+          setTimeout(go, 9000);
         };
         DeckLoad()['catch'](function () {}).then(function () {
           try { return sideInit(); } catch (e) {}

@@ -63,7 +63,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
    שיוצא מתוך הראש ולא כמו עוד קופסה מתחתיו. */
 header{background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
     var(--blue) 38%,var(--blue-d) 82%);
-  color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 18px 118px;
+  color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 18px 30px;
   text-align:center}
 /* אותה חתימה שיש בעמוד הראשי ובמסך ההצטרפות: הסמל בעיגול
    לבן, ולצידו שם התוכנית והשנה. זה הפנים של התוכנית, ואין
@@ -93,7 +93,7 @@ header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
 /* `main.wrap` ולא `main`: ל-`.wrap` יש `margin:0 auto`, והוא
    ספציפי יותר מסלקטור אלמנט — כלומר `main{margin-top}` נדרס
    בשקט, החפיפה לא חלה, והשורה הלבנה נחתה על הקרם. */
-main.wrap{margin-top:-96px;padding-bottom:46px}
+main.wrap{padding-bottom:46px}
 
 /* ---------- הבמה — הצורה, מועתקת מ-join.html ---------- */
 .stage{position:relative;overflow:hidden;border-radius:18px;padding:16px 16px 18px;
@@ -147,23 +147,25 @@ main.wrap{margin-top:-96px;padding-bottom:46px}
    שני: מה שיתוקן שם יתוקן גם כאן, ואין שני דברים שנפרדים זה
    מזה עם הזמן.
 
-   גבוה בכוונה — הוא עולה על הכותרת הכהה, בדיוק במקום שבו
-   הבאנר ישב קודם. זה הדבר הראשון שהעין פוגשת, והוא זז. */
+   **המקום שמור וריק.** קודם ישב כאן מלבן כחול עם משפט שהסביר
+   מה עומד לקרות, וזה הקדים את עצמו: הדגמה שמכריזה על עצמה
+   כבר איבדה חצי מהאפקט. עכשיו זה פשוט שטח בצבע הרקע, והדף
+   עולה מתוכו. הגובה שמור מראש כדי שהעמוד לא יקפוץ כשהוא
+   מופיע — קפיצה כזו מזיזה למישהו את מה שהוא קורא. */
 .demo{position:relative;border-radius:var(--r);overflow:hidden;
-  background:var(--blue-d);border:1px solid rgba(255,255,255,.16);
-  box-shadow:0 16px 38px rgba(11,37,80,.32)}
-.demo .df{display:block;width:100%;height:470px;border:0}
+  transition:box-shadow .9s ease}
+.demo .df{display:block;width:100%;height:470px;border:0;
+  opacity:0;transition:opacity 1s ease}
 @media (min-height:780px){ .demo .df{height:540px} }
-/* הכיסוי. מתמוסס ואינו נעלם בבת אחת — הדף שמתחתיו כבר שם,
-   וההתמוססות היא מה שהופך טעינה למעבר. */
-.demo .dv{position:absolute;inset:0;z-index:2;display:flex;
-  align-items:center;justify-content:center;text-align:center;padding:26px;
-  background:var(--blue-d);transition:opacity .7s ease}
-.demo .dv.off{opacity:0;pointer-events:none}
-.demo .dv b{font-size:1.08rem;font-weight:800;letter-spacing:-.02em;
-  color:#fff;line-height:1.7}
+/* עלה */
+.demo.on{box-shadow:0 16px 38px rgba(11,37,80,.3)}
+.demo.on .df{opacity:1}
 /* כל החלון הוא הכפתור */
 .demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
+/* הכותרת שמעל. יושבת על הקרם ולא על הכהה, ולכן החפיפה
+   השלילית של התוכן אל תוך הכותרת ירדה — ההדגמה אמורה לעלות
+   מתוך הרקע, לא לחצות את הגבול שבינו לבין הכחול. */
+.sec.meet{margin-top:26px;text-align:center}
 
 /* ---------- קטעים ---------- */
 section{margin-top:30px}
@@ -365,12 +367,14 @@ footer a{color:var(--ink-2);font-weight:800}
 
   <!-- ההדגמה. הדבר הראשון בעמוד, והיא מתחילה לבד.
        ר"ם עסוק אינו לוחץ על כפתורים — וכל עוד ההדגמה ישבה
-       מאחורי לחיצה, מי שהגיע אליה כבר ממילא היה משוכנע. -->
+       מאחורי לחיצה, מי שהגיע אליה כבר ממילא היה משוכנע.
+
+       המקום שלה שמור מהרגע הראשון והוא ריק, בצבע הרקע. אין בו
+       כיסוי ואין בו משפט שמסביר מה עומד לקרות: הדף פשוט עולה
+       מתוך הרקע אחרי כמה שניות, וזה מה שתופס את העין. -->
+  <h2 class="sec meet" id="t-meetH"></h2>
   <div class="demo" id="demo">
     <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
-    <!-- הכיסוי. ממלא את שניות הטעינה במשפט שאומר מה עומד
-         לקרות, ומתמוסס ברגע שהדף באמת עלה. -->
-    <div class="dv" id="demo-veil"><b id="t-demoWait"></b></div>
     <!-- שכבה שקופה מעל הכל: נגיעה בחלון פותחת את הדף האמיתי
          במסך מלא, ולא מפעילה כפתור זעיר שבתוכו. -->
     <div class="dtap" id="demo-tap"></div>
@@ -613,7 +617,7 @@ function drawWho() {
 /* ---------- הציור ---------- */
 function draw() {
   var T = window.TZEVET || {};
-  ['h1','lead','demoWait','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
+  ['h1','lead','meetH','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
    'whoH','kidsH','kidsTxt','foot'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
@@ -688,9 +692,9 @@ function draw() {
 function demoBox() {
   var box = $('demo'), f = $('demo-frame');
   if (!box || !f || f.src) return;          /* פעם אחת, לא בכל ציור */
-  /* במצב עריכת מלל הכיסוי נשאר: המשפט שעליו נערך יושב עליו,
-     והדגמה שמתמוססת מעליו הופכת אותו לבלתי נגיש. */
-  if (/[?&]tedit=1/.test(location.search)) return;
+  /* במצב עריכת מלל אין הדגמה: היא אינה נושאת מלל שנערך,
+     והחלון רק היה גונב את המקום ממה שכן. */
+  if (/[?&]tedit=1/.test(location.search)) { box.hidden = true; return; }
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
   /* אין דף לשבוע הזה — אין מה להדגים, והחלון פשוט אינו מוצג. */
@@ -700,18 +704,29 @@ function demoBox() {
           '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=tzevet' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
+  /* ---------- מתי היא עולה ----------
+     ארבע שניות של שקט, ורק אז. הרגע הזה הוא כל האפקט: מי
+     שקרא את הכותרת ואת השורה שמתחתיה מרים את העין בדיוק
+     כשמשהו מתחיל לזוז.
+
+     ושני תנאים ולא אחד: גם שארבע השניות עברו, וגם שהדף שבחלון
+     באמת מוכן. שעון לבדו היה מגלה מלבן ריק ברשת איטית; מוכנוּת
+     לבדה הייתה מגלה אותו מיד ברשת מהירה, בלי השהות.
+
+     ורק אז נשלח "צא" — התסריט אינו מתחיל לפני שרואים אותו,
+     אחרת השניות הראשונות שלו רצות מאחורי מסך ריק. */
   var t0 = Date.now(), done = false;
-  var lift = function () {
+  var show = function () {
     if (done) return;
     done = true;
     setTimeout(function () {
-      var v = $('demo-veil');
-      if (v) v.className = 'dv off';
-    }, Math.max(0, 1700 - (Date.now() - t0)));
+      box.className = 'demo on';
+      try { f.contentWindow.postMessage('daf-demo-go', '*'); } catch (e) {}
+    }, Math.max(0, 4000 - (Date.now() - t0)));
   };
-  var bail = setTimeout(lift, 12000);
+  var bail = setTimeout(show, 12000);
   window.addEventListener('message', function (e) {
-    if (e.data === 'daf-demo-start') { clearTimeout(bail); lift(); }
+    if (e.data === 'daf-demo-ready') { clearTimeout(bail); show(); }
   });
 
   /* נגיעה בחלון פותחת את הדף האמיתי במסך מלא. גרירה אינה
