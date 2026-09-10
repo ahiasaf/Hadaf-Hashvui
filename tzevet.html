@@ -134,27 +134,50 @@ main.wrap{margin-top:-96px;padding-bottom:46px}
 
 /* השורה שמעל הבמה — לבנה על הכהה, ולכן היא יושבת בתוך main
    אבל עדיין על רקע הראש. */
-.demo-cap{text-align:center;color:#fff;margin:0 0 12px}
-.demo-cap b{display:block;font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
-.demo-cap span{display:block;font-size:.85rem;font-weight:600;
-  color:rgba(255,255,255,.72);margin-top:3px}
+/* הכיתוב שמעל הבאנר. הבאנר ירד אל תוך המשימה ויושב על הקרם,
+   ולכן הכיתוב אינו לבן עוד. שני השדות ריקים כברירת מחדל. */
+.demo-cap{text-align:center;margin:0 0 10px}
+.demo-cap b{display:block;font-size:1rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--blue-d)}
+.demo-cap span{display:block;font-size:.84rem;font-weight:600;
+  color:var(--ink-2);margin-top:3px}
+
+/* ---------- חלון ההדגמה ----------
+   הדף האינטראקטיבי האמיתי, רץ בתוך חלון. לא סרטון ולא עותק
+   שני: מה שיתוקן שם יתוקן גם כאן, ואין שני דברים שנפרדים זה
+   מזה עם הזמן.
+
+   גבוה בכוונה — הוא עולה על הכותרת הכהה, בדיוק במקום שבו
+   הבאנר ישב קודם. זה הדבר הראשון שהעין פוגשת, והוא זז. */
+.demo{position:relative;border-radius:var(--r);overflow:hidden;
+  background:var(--blue-d);border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 16px 38px rgba(11,37,80,.32)}
+.demo .df{display:block;width:100%;height:470px;border:0}
+@media (min-height:780px){ .demo .df{height:540px} }
+/* הכיסוי. מתמוסס ואינו נעלם בבת אחת — הדף שמתחתיו כבר שם,
+   וההתמוססות היא מה שהופך טעינה למעבר. */
+.demo .dv{position:absolute;inset:0;z-index:2;display:flex;
+  align-items:center;justify-content:center;text-align:center;padding:26px;
+  background:var(--blue-d);transition:opacity .7s ease}
+.demo .dv.off{opacity:0;pointer-events:none}
+.demo .dv b{font-size:1.08rem;font-weight:800;letter-spacing:-.02em;
+  color:#fff;line-height:1.7}
+/* כל החלון הוא הכפתור */
+.demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
 
 /* ---------- קטעים ---------- */
 section{margin-top:30px}
 h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   color:var(--blue-d);margin:0 0 14px}
 
-/* ---------- ההנחיות ----------
-   הן העיקר בעמוד הזה, ולכן הן כרטיס ולא טקסט על הרקע: ר"ם
-   שסורק צריך לעצור עליהן. קודם הן היו אפורות וקלות מהסיפור
-   שמתחתיהן, וזה הפך את הסיפור לעיקר ואת ההנחיה לקישוט. */
-.howto{background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--r);padding:18px;box-shadow:var(--sh-2);
-  border-top:3px solid var(--gold)}
-.howto h2{margin:0 0 14px}
-/* נדלקת לרגע למי שחזר לכאן מההדגמה */
-.howto.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55), var(--sh-2)}
-.howto{transition:box-shadow .5s ease}
+/* ---------- המשימה ----------
+   קודם היא הייתה כרטיס, כדי שתשקול יותר מהסיפור שמתחתיה.
+   עכשיו היא נושאת בתוכה את הבאנר ואת הקישור — כלומר את שני
+   הגושים הגדולים בעמוד — ומסגרת כבר אינה מה שנותן לה משקל.
+
+   נדלקת לרגע למי שחזר לכאן מההדגמה, כדי שיֵדע לאן הגיע. */
+#howto{transition:box-shadow .5s ease;border-radius:var(--r)}
+#howto.lit{box-shadow:0 0 0 4px rgba(229,184,84,.5)}
 
 /* השלבים. מספר בעיגול זהב, וקו שמחבר ביניהם — כדי שייקרא
    כרצף ולא כשלוש עצות נפרדות. */
@@ -169,6 +192,18 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
 .steps li::after{content:"";position:absolute;inset-inline-start:14.5px;top:32px;
   bottom:2px;width:2px;background:var(--rule)}
 .steps li:last-child::after{display:none}
+/* ...אלא כשהרשימה נמשכת מעבר לכלי שאחריה. הקו חייב לעבור
+   דרך הבאנר, אחרת הוא נראה כקטע חדש ולא כשלב במשימה. */
+#steps-a li:last-child::after{display:block}
+
+/* ---------- הכלי של השלב ----------
+   בהזחה של טקסט השלבים, והקו ממשיך דרכו. כך "לפתוח את הדף
+   בכיתה" והבאנר שפותח אותו הם דבר אחד, ולא הנחיה וקישוט. */
+.tool{position:relative;padding-inline-start:46px;padding-bottom:16px}
+.tool::after{content:"";position:absolute;inset-inline-start:14.5px;
+  top:0;bottom:0;width:2px;background:var(--rule)}
+/* האחרון סוגר את הרצף: הקו נוגע בו ונעצר. */
+.tool.end::after{bottom:auto;height:14px}
 .steps-foot{margin:16px 0 0;font-size:.97rem;font-weight:800;color:var(--blue-d)}
 /* שורת היעד. יושבת מעל השאלה ולא לצידה: קודם לאן הולכים,
    ואז איך — כך שלוש הפעולות שמתחת אינן רשימה אלא דרך. */
@@ -328,21 +363,55 @@ footer a{color:var(--ink-2);font-weight:800}
 
 <main class="wrap">
 
-  <!-- הדף של השבוע. גבוה בכוונה: העמוד הזה אינו מתאר את הדף
-       אלא פותח אותו, ומכאן ר"ם יכול להתחיל שיעור. -->
-  <p class="demo-cap" id="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
-  <div id="stage"></div>
+  <!-- ההדגמה. הדבר הראשון בעמוד, והיא מתחילה לבד.
+       ר"ם עסוק אינו לוחץ על כפתורים — וכל עוד ההדגמה ישבה
+       מאחורי לחיצה, מי שהגיע אליה כבר ממילא היה משוכנע. -->
+  <div class="demo" id="demo">
+    <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
+    <!-- הכיסוי. ממלא את שניות הטעינה במשפט שאומר מה עומד
+         לקרות, ומתמוסס ברגע שהדף באמת עלה. -->
+    <div class="dv" id="demo-veil"><b id="t-demoWait"></b></div>
+    <!-- שכבה שקופה מעל הכל: נגיעה בחלון פותחת את הדף האמיתי
+         במסך מלא, ולא מפעילה כפתור זעיר שבתוכו. -->
+    <div class="dtap" id="demo-tap"></div>
+  </div>
 
-  <!-- ההנחיות צמודות לבאנר: מי שראה את הדף נפתח שואל מיד
-       "ומה אני עושה עם זה?" — וכאן זה עונה. קודם היעד, ואז
-       השאלה איך מגיעים אליו — סדר שהופך רשימה לדבר עם סיבה. -->
+  <!-- ============================================================
+       המשימה.
+       ============================================================
+       כל שלב והכלי שמבצע אותו מיד אחריו: אחרי "לפתוח בכיתה"
+       ו"ללמוד עמוד" — הבאנר שפותח את הדף; ואחרי "לשלוח לקבוצה"
+       — הקישור עצמו. קודם השלבים ישבו יחד והכלים היו פזורים
+       בעמוד, ומי שקרא "לשלוח את הקישור" היה צריך לחפש אותו.
+
+       הקו הזהוב ממשיך דרך הכלים, ולכן הכל נקרא כמשימה אחת
+       ולא כשלושה קטעים. -->
   <section id="howto">
-    <div class="howto">
-      <p class="goal" id="t-goalH"></p>
-      <h2 class="sec" id="t-stepsH"></h2>
-      <ol class="steps" id="steps"></ol>
-      <p class="steps-foot" id="t-stepsFoot"></p>
+    <p class="goal" id="t-goalH"></p>
+    <h2 class="sec" id="t-stepsH"></h2>
+    <ol class="steps" id="steps-a"></ol>
+
+    <div class="tool">
+      <p class="demo-cap" id="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
+      <div id="stage"></div>
     </div>
+
+    <ol class="steps" id="steps-b"></ol>
+
+    <div class="tool end">
+      <div class="link kids">
+        <h3 id="t-kidsH"></h3>
+        <p id="t-kidsTxt"></p>
+        <div class="url" id="kids-url"></div>
+        <!-- כפתור אחד. הכתובת מוצגת מעליו וניתנת לסימון ידני,
+             והשליחה בוואטסאפ היא מה שבאמת נעשה כאן. -->
+        <div class="row">
+          <a class="btn g" id="kids-wa" target="_blank" rel="noopener">שליחה בוואטסאפ</a>
+        </div>
+      </div>
+    </div>
+
+    <p class="steps-foot" id="t-stepsFoot"></p>
   </section>
 
   <section>
@@ -359,19 +428,7 @@ footer a{color:var(--ink-2);font-weight:800}
     </div>
   </section>
 
-
   <section>
-    <div class="link kids">
-      <h3 id="t-kidsH"></h3>
-      <p id="t-kidsTxt"></p>
-      <div class="url" id="kids-url"></div>
-      <!-- כפתור אחד. הכתובת מוצגת מעליו וניתנת לסימון ידני,
-           והשליחה בוואטסאפ היא מה שבאמת נעשה כאן. -->
-      <div class="row">
-        <a class="btn g" id="kids-wa" target="_blank" rel="noopener">שליחה בוואטסאפ</a>
-      </div>
-    </div>
-
     <p class="peers" id="peers" hidden></p>
 
     <!-- **לוח אחד בלבד.** קודם היו כאן שניים — כרטיס כחול
@@ -380,7 +437,7 @@ footer a{color:var(--ink-2);font-weight:800}
 
          זה הלוח בדיוק כפי שהוא בעמוד הראשי, כולל הכפתור
          הכחול שבתוכו. ההבדל היחיד: כפתור השליחה לתלמידים
-         אינו כאן, כי הוא כבר יושב למעלה בכרטיס משלו. -->
+         אינו כאן, כי הוא כבר יושב למעלה בתוך המשימה. -->
     <div id="brd"></div>
   </section>
 
@@ -556,7 +613,7 @@ function drawWho() {
 /* ---------- הציור ---------- */
 function draw() {
   var T = window.TZEVET || {};
-  ['h1','lead','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
+  ['h1','lead','demoWait','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
    'whoH','kidsH','kidsTxt','foot'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
@@ -576,11 +633,20 @@ function draw() {
   $('demo-cap').hidden  = !((T.demoH || '').trim() || (T.demoSub || '').trim());
   $('t-goalH').hidden   = !(T.goalH || '').trim();
 
-  /* השלבים. שדה שרוקן יורד מהרשימה ואינו משאיר מספר מיותם. */
+  /* השלבים, בשתי רשימות שהכלים מפרידים ביניהן. שדה שרוקן
+     יורד ואינו משאיר מספר מיותם, והמספור רץ על פני שתיהן:
+     `data-n` נקבע כאן ולא על ידי הדפדפן, ולכן פיצול הרשימה
+     אינו מאפס אותו. */
   var st = [];
   for (var n = 1; n <= 4; n++) if (T['step' + n]) st.push(T['step' + n]);
-  $('steps').innerHTML = st.map(function (s, i) {
+  var li = function (s, i) {
     return '<li data-n="' + (i + 1) + '">' + esc(s) + '</li>';
+  };
+  /* שניים ראשונים לפני הבאנר, השאר אחריו. הבאנר הוא הכלי של
+     שני אלה: לפתוח את הדף, וללמוד בו עמוד. */
+  $('steps-a').innerHTML = st.slice(0, 2).map(li).join('');
+  $('steps-b').innerHTML = st.slice(2).map(function (s, i) {
+    return li(s, i + 2);
   }).join('');
 
   drawWho();
@@ -600,7 +666,70 @@ function draw() {
   drawPeers();
   drawBoard();
   drawStage();
+  demoBox();
   backFromDemo();
+}
+
+/* ============================================================
+   חלון ההדגמה.
+   ============================================================
+   הדף האינטראקטיבי האמיתי רץ כאן בתוך חלון ומנגן את עצמו,
+   בלי שאיש לחץ על דבר. ר"ם עסוק אינו לוחץ — וכל עוד ההדגמה
+   ישבה מאחורי לחיצה, מי שהגיע אליה כבר ממילא היה משוכנע.
+
+   **הכיסוי יורד כשההדגמה מתחילה באמת, לא לפי שעון.** טעינה
+   על רשת איטית ארוכה בהרבה משנייתיים, ושעון היה מגלה מלבן
+   ריק. הדף שבחלון מודיע כשהוא מתחיל — ראו `EMB` ב-learn.html —
+   וזה מה שמוריד את הכיסוי. פסק זמן ארוך הוא רשת ביטחון בלבד.
+
+   **ושהות מזערית**: גם כשהכל מהיר, המשפט צריך להספיק להיקרא.
+   כיסוי שמהבהב הוא גרוע ממשפט ששוהה רגע.
+   ============================================================ */
+function demoBox() {
+  var box = $('demo'), f = $('demo-frame');
+  if (!box || !f || f.src) return;          /* פעם אחת, לא בכל ציור */
+  /* במצב עריכת מלל הכיסוי נשאר: המשפט שעליו נערך יושב עליו,
+     והדגמה שמתמוססת מעליו הופכת אותו לבלתי נגיש. */
+  if (/[?&]tedit=1/.test(location.search)) return;
+  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
+  /* אין דף לשבוע הזה — אין מה להדגים, והחלון פשוט אינו מוצג. */
+  if (!d) { box.hidden = true; return; }
+
+  f.src = base() + 'learn.html?mas=' + encodeURIComponent(track) +
+          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=tzevet' +
+          (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+
+  var t0 = Date.now(), done = false;
+  var lift = function () {
+    if (done) return;
+    done = true;
+    setTimeout(function () {
+      var v = $('demo-veil');
+      if (v) v.className = 'dv off';
+    }, Math.max(0, 1700 - (Date.now() - t0)));
+  };
+  var bail = setTimeout(lift, 12000);
+  window.addEventListener('message', function (e) {
+    if (e.data === 'daf-demo-start') { clearTimeout(bail); lift(); }
+  });
+
+  /* נגיעה בחלון פותחת את הדף האמיתי במסך מלא. גרירה אינה
+     נגיעה — אצבע שגוללת את העמוד עוברת מעל החלון, וסף של
+     כמה פיקסלים הוא מה שמפריד בין השניים. */
+  var tap = $('demo-tap'), dr = null;
+  tap.addEventListener('pointerdown', function (e) {
+    dr = { x:e.clientX, y:e.clientY, m:0 };
+  });
+  tap.addEventListener('pointermove', function (e) {
+    if (dr) dr.m = Math.max(dr.m, Math.abs(e.clientX - dr.x) +
+                                  Math.abs(e.clientY - dr.y));
+  });
+  tap.addEventListener('pointerup', function () {
+    var d2 = dr; dr = null;
+    if (d2 && d2.m < 8) goDaf();
+  });
+  tap.addEventListener('pointercancel', function () { dr = null; });
 }
 
 /* ---------- חזרה מההדגמה ----------
@@ -618,10 +747,8 @@ function backFromDemo() {
   if (!el) return;
   setTimeout(function () {
     el.scrollIntoView({ behavior:'smooth', block:'start' });
-    var c = el.querySelector('.howto');
-    if (!c) return;
-    c.className = 'howto lit';
-    setTimeout(function () { c.className = 'howto'; }, 1800);
+    el.className = 'lit';
+    setTimeout(function () { el.className = ''; }, 1800);
   }, 120);
 }
 

@@ -335,6 +335,16 @@ body.side-on #side{display:flex}
   font-size:.75rem;font-weight:800;color:var(--blue);cursor:pointer}
 
 /* ---------- שורת הניווט ---------- */
+/* ---------- בחלון ההדגמה ----------
+   שורת הניווט יורדת. בחלון של 350 פיקסלים חמישה כפתורים
+   נשברים לשתי שורות וגוזלים כמעט שליש מהגובה — ואיש אינו לוחץ
+   עליהם ממילא: הנגיעה בחלון שייכת לעמוד המארח, שפותח את הדף
+   האמיתי במסך מלא. מה שהם מבטיחים — חברותא ומצגת — ההדגמה
+   מראה בעצמה. */
+body.emb nav{display:none}
+/* וכפתורי הביאור. בחלון הם אינם ניתנים ללחיצה ממילא, והשם
+   "פירוש חברותא" הוא כל מה שצריך להיאמר שם. */
+body.emb .chd button,body.emb .chd .zoom{display:none}
 nav{flex:0 0 auto;display:block;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
   background:var(--surface);border-top:1px solid var(--rule);
@@ -1875,6 +1885,10 @@ var REC  = /[?&]rec=1\b/.test(location.search);
 /* מי פתח את ההדגמה. `tzevet` = ר"ם מעמוד הצוות, וזה משנה את
    סופה: לר"ם אין למה להצטרף — הוא זה שיפעיל את זה בכיתה. */
 var FROM = (/[?&]from=([\w-]+)/.exec(location.search) || [])[1] || '';
+/* ההדגמה רצה בתוך חלון בעמוד אחר — ראו `tzevet.html`. שם היא
+   ראווה ולא כלי: אין ממנה לאן לצאת, ואין בה "להצטרפות" — הנגיעה
+   בחלון פותחת את הדף האמיתי במסך מלא, וזה מטופל בעמוד המארח. */
+var EMB = /[?&]embed=1\b/.test(location.search);
 var DEMO_T = null;
 
 /* "בלי עקבות ובלי מסכים שממתינים" — נכון לניגון ולהקלטה כאחד,
@@ -1926,6 +1940,10 @@ function demoRun(script) {
     DEMO_T = setTimeout(function () { demoAct(b[1], b[2]); step(); }, b[0]);
   };
   bubble('run');
+  /* העמוד המארח מכסה את החלון במשפט עד שההדגמה באמת מתחילה.
+     שעון לא היה מדייק — טעינה על רשת איטית ארוכה בהרבה — ולכן
+     הרגע הזה נמסר משם. */
+  if (EMB) try { parent.postMessage('daf-demo-start', '*'); } catch (e) {}
   step();
 }
 /* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
@@ -1960,6 +1978,9 @@ function bubble(mode) {
   var t = window.PLAY || {};
   var end = FROM === 'tzevet' ? (t.finTeam || 'איך עושים זאת? ←')
                               : (t.fin || 'להצטרפות!');
+  /* בחלון אין שלב שלישי: כל החלון הוא הכפתור, ועיגול שמוביל
+     למקום אחר בתוך חלון של 350 פיקסלים הוא הבטחה מבלבלת. */
+  if (EMB && mode === 'fin') return;
   var fill = function () {
     if (mode === 'run')      { el.textContent = t.tag || 'הדגמה';       el.className = 'dbadge on'; }
     else if (mode === 'ask') { el.textContent = t.ask || 'נסו בעצמכם!'; el.className = 'dbadge on ask'; }
@@ -2390,6 +2411,13 @@ function boot() {
     if (cz !== null) CZ = +cz;
   } catch (e) {}
   chavZoom(0);
+
+  /* בחלון אין "יציאה": אין לאן. הנגיעה שייכת לעמוד המארח,
+     שפותח את הדף האמיתי במסך מלא. */
+  if (EMB) {
+    document.body.className += ' emb';
+    var bk = $('back'); if (bk) bk.style.display = 'none';
+  }
 
   S = pickDaf();
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
