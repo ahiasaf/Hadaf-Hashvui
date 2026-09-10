@@ -2432,6 +2432,17 @@ function boot() {
     document.body.className += ' emb';
     var bk = $('back'); if (bk) bk.style.display = 'none';
   }
+  /* מי שהגיע מעמוד הצוות חוזר לשם, ולא למסך של תלמיד. הקוד
+     אינו נוסע בכתובת — הוא נשמר במכשיר, והלוח שם ייפתח בלעדיו. */
+  if (FROM === 'tzevet') {
+    var b2 = $('back');
+    if (b2) {
+      var inst = (/[?&]inst=([^&]*)/.exec(location.search) || [])[1] || '';
+      b2.href = location.href.split('#')[0].split('?')[0]
+        .replace(/\/learn(\.html)?\/?$/, '/') +
+        'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto';
+    }
+  }
 
   S = pickDaf();
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;

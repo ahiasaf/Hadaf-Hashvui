@@ -600,19 +600,20 @@ function setTrack(t) { track = t; drawStage(); }
 
 /* ---------- הבמה ----------
    `stage.js` בונה, וכאן רק נקבע מה קורה בלחיצה. */
-/* הכפתור הראשי בבאנר פותח את **ההדגמה**, לא את הדף הריק.
+/* הכפתור הראשי בבאנר פותח את **הדף האמיתי**, נקי.
 
-   ר"ם שנחת בדף אינטראקטיבי ריק אינו יודע מה לעשות בו — הוא
-   רואה גמרא ושני כפתורים. ההדגמה מראה לו בשש־עשרה שניות מה זה,
-   ואז מזמינה אותו לגעת בעצמו; נגיעה אחת עוצרת אותה והוא כבר
-   בתוך הדף האמיתי, באותו מקום. בסוף היא מחזירה אותו לכאן,
-   אל ההנחיות. */
+   קודם הוא פתח שם הדגמה, וזו הייתה טעות: ההדגמה כבר רצה למעלה
+   בעמוד הזה, ומי שלחץ "פתיחת הדף" ביקש במפורש את הדבר עצמו —
+   ולקבל שם עוד הדגמה זה לקחת ממנו את מה שהוא ביקש.
+
+   `from=tzevet` נשאר: הוא מה שמחזיר את כפתור "יציאה" שבדף
+   לכאן, ולא למסך של תלמיד. */
 function goDaf() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
   if (!d) { goApp(); return; }
   location.href = base() + 'learn.html?mas=' + encodeURIComponent(track) +
-                  '&daf=' + encodeURIComponent(d) + '&demo=1&from=tzevet' +
+                  '&daf=' + encodeURIComponent(d) + '&from=tzevet' +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 }
 /* המצגת יושבת במסך הראשי, ומציג המצגות שלה הוא קוד שכבר קיים
@@ -835,13 +836,12 @@ function firstScroll() {
   window.addEventListener('keydown', mark, true);
   setTimeout(function () {
     if (touched || window.pageYOffset > 4) return;
-    /* היעד הוא שם הישיבה ולא הכותרת עצמה: הוא יושב שורה מעליה,
-       והוא ההתאמה האישית של העמוד — שווה שייראה. וגלילה אל
-       הכותרת בלבד הייתה חותכת אותו לחצי בקצה העליון. */
-    var el = $('inst-name');
-    if (!el || !el.textContent.trim()) el = $('t-h1');
+    /* היעד הוא הפנייה עצמה. שם הישיבה שמעליה נשאר מעל הקיפול
+       — הוא כבר נקרא בשנייה הראשונה — והמקום שייך לפנייה
+       ולהדגמה שמתחתיה. */
+    var el = $('t-h1');
     if (!el) return;
-    var y = el.getBoundingClientRect().top + window.pageYOffset - 16;
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 20;
     if (y > 8) window.scrollTo({ top: y, behavior:'smooth' });
   }, 1000);
 }
