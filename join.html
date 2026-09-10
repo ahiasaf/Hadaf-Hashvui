@@ -104,6 +104,9 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   line-height:1.6}
 
 .fld{margin-top:13px}
+/* שני שדות בשורה. הכיתה צרה יותר — ספרה אחת בשדה רחב נראית
+   כמו שדה שלא מולא. */
+.pair{display:grid;grid-template-columns:1fr .72fr;gap:10px;align-items:end}
 .fld .label{display:block;font-size:.78rem;font-weight:800;color:var(--ink-2);
   margin-bottom:5px}
 .fld .label i{font-style:normal;font-weight:700;color:var(--ink-3)}
@@ -602,8 +605,17 @@ footer a{color:var(--ink-2);font-weight:800}
     <div class="fld stg" id="f-phone">
     <label class="label" id="l-phone" for="phone">טלפון</label>
       <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
-    <div class="fld stg" id="f-grade"><label class="label" for="grade">שכבה</label>
-      <select id="grade"></select></div>
+    <!-- שכבה וכיתה בשורה אחת. שתי שאלות שהן שאלה אחת — "איפה
+         אתה לומד" — ושתי שורות נפרדות היו מרגישות כמו טופס
+         שגדל. השכבה מימין כי היא הראשונה שנבחרת. -->
+    <div class="fld stg" id="f-grade">
+      <div class="pair">
+        <div><label class="label" for="grade">שכבה</label>
+          <select id="grade"></select></div>
+        <div><label class="label" for="klass">כיתה</label>
+          <select id="klass"></select></div>
+      </div>
+    </div>
   </div>
 
   <div class="card stg" id="c-ways">
@@ -745,6 +757,9 @@ var WAYS = [
 ];
 var WAY_NAME = { dad:'אבות ובנים', chav:'חבורת לימוד', solo:'לימוד עצמי' };
 var GRADES = ['ז׳', 'ח׳', 'ט׳', 'י׳', 'י״א', 'י״ב'];
+/* מספר הכיתה בתוך השכבה — ז׳1, ז׳2. שמונה ולא שש: ישיבה גדולה
+   מפתיעה, ורשימה שנגמרת לפני הכיתה שלו היא תלמיד שלא נרשם. */
+var CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 var way = '';
 function drawWays() {
@@ -1468,6 +1483,8 @@ var instRow = null;
   }
   $('grade').innerHTML = '<option value="">— בחרו —</option>' +
     GRADES.map(function (g) { return '<option>' + g + '</option>'; }).join('');
+  $('klass').innerHTML = '<option value="">—</option>' +
+    CLASSES.map(function (c) { return '<option>' + c + '</option>'; }).join('');
 })();
 
 /* ---------- שליחה ----------
@@ -1508,6 +1525,7 @@ $('go').onclick = function () {
     return '';
   })();
   var grade = val('grade');
+  var klass = val('klass');
 
   /* מה שחייבים, ולא יותר. שכבה אינה עוצרת אף אחד; טלפון עוצר
      רק את מי שבחר ישיבה — בלעדיו אין איך להודיע לזוכה בהגרלה
@@ -1542,6 +1560,7 @@ $('go').onclick = function () {
        כתלמיד ואז סימן "אני אבא" השאיר בו ערך — והוא היה
        נשלח ומופיע בפילוח השכבות של הישיבה. */
     grade: role === 'dad' ? '' : grade,
+    klass: role === 'dad' ? '' : klass,
     phone: val('phone'),
     way: way,
     dadFirst: wantsInv ? val('dad-first') : '',
@@ -1564,6 +1583,7 @@ $('go').onclick = function () {
   queue({ action:'row', tab:'לומדים', cols: JSON.stringify([
     ['מזהה', me.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
     ['שם', me.first], ['משפחה', me.last], ['שכבה', me.grade],
+    ['כיתה', me.klass],
     ['טלפון', me.phone], ['תפקיד', me.role === 'dad' ? 'הורה' : 'תלמיד'],
     ['מסגרת', WAY_NAME[me.way] || me.way],
     ['לומד עם', me.rel === 'friend' ? 'חבר' : me.rel === 'kid' ? 'בן' : 'אבא'],
@@ -2077,6 +2097,7 @@ if ('serviceWorker' in navigator) {
     $('form').style.display = '';
     $('first').value = me.first || ''; $('last').value = me.last || '';
     $('phone').value = me.phone || ''; $('grade').value = me.grade || '';
+    $('klass').value = me.klass || '';
     if (!instRow && me.inst) $('inst').value = me.inst;
     $('dad-first').value = me.dadFirst || ''; $('dad-last').value = me.dadLast || '';
     $('dad-phone').value = me.dadPhone || '';

@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.2.0';
+var APP_VERSION = '8.3.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4820,6 +4820,7 @@ var partState = { at:0, msg:'' };
    טלפונים בעמודת השכבה בלי שאיש ישים לב. */
 var PART_COLS = { 'מזהה':'id', 'ישיבה':'instName', 'קוד ישיבה':'inst',
                   'שם':'first', 'משפחה':'last', 'שכבה':'grade',
+                  'כיתה':'klass',
                   'טלפון':'phone', 'מסגרת':'way', 'תפקיד':'role',
                   'שם ההורה':'dadFirst', 'משפחת ההורה':'dadLast',
                   'טלפון ההורה':'dadPhone', 'תאריך':'at' };
@@ -4890,7 +4891,7 @@ function partMatch(p) {
       (p.instName || '') !== partView.inst) return false;
   var q = nameKey(partView.q);
   if (!q) return true;
-  var hay = [partName(p), p.phone, p.grade, p.instName,
+  var hay = [partName(p), p.phone, gradeOf(p), p.instName,
              (p.dadFirst || '') + ' ' + (p.dadLast || ''), p.dadPhone]
             .join(' ');
   return nameKey(hay).indexOf(q) >= 0;
@@ -5043,8 +5044,16 @@ function admPart(el) {
   el.innerHTML = h;
 }
 
+/* "ז׳2" ולא "ז׳ · 2": השכבה והכיתה הן שם אחד של מקום, ונקודה
+   ביניהן הייתה קוראת אותן כשני נתונים. כיתה בלי שכבה אינה
+   אומרת דבר, ולכן היא נבלעת. */
+function gradeOf(p) {
+  var g = p.grade || '';
+  return g && p.klass ? g + p.klass : g;
+}
+
 function partRow(p) {
-  var sub = [p.grade, p.role === 'הורה' ? 'הורה' : ''].filter(Boolean).join(' · ');
+  var sub = [gradeOf(p), p.role === 'הורה' ? 'הורה' : ''].filter(Boolean).join(' · ');
   /* מי לומד עם מי — זו השאלה שבגללה המסך הזה קיים, ולכן היא
      בשורה ולא בלחיצה נוספת. */
   var with_ = p.dadFirst
