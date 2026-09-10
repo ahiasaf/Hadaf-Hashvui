@@ -177,7 +177,13 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
    הגושים הגדולים בעמוד — ומסגרת כבר אינה מה שנותן לה משקל.
 
    נדלקת לרגע למי שחזר לכאן מההדגמה, כדי שיֵדע לאן הגיע. */
-#howto{transition:box-shadow .5s ease;border-radius:var(--r)}
+/* אוויר מעל, כשגוללים לכאן. בלעדיו שורת היעד נצמדת לקצה
+   העליון של המסך ונראית כאילו נחתכה. */
+#howto{transition:box-shadow .5s ease;border-radius:var(--r);
+  scroll-margin-top:18px}
+/* והכלי האחרון סוגר את המשימה — הרווח שאחריו הוא זה של הקטע
+   הבא, ולא שניהם יחד. */
+#howto .tool.end{padding-bottom:0}
 #howto.lit{box-shadow:0 0 0 4px rgba(229,184,84,.5)}
 
 /* השלבים. מספר בעיגול זהב, וקו שמחבר ביניהם — כדי שייקרא
@@ -264,17 +270,30 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
    הקוד בריבוע לבן משלו, בגודל שנסרק מהמסך ומהמקרן כאחד. הוא
    נוצר כאן ולא בשירות חיצוני — ראו qr.js — ולכן הכתובת אינה
    יוצאת לשום מקום בדרך. */
-.kidrow{display:flex;gap:12px;align-items:stretch;margin-top:11px}
-.kidrow .url{margin-top:0;flex:1;display:flex;align-items:center}
-.qr{flex:0 0 auto;margin:0;width:104px;text-align:center}
-.qr .qb{background:#fff;border:1px solid #CFE0B6;border-radius:10px;
-  padding:7px;box-shadow:var(--sh-1)}
-.qr figcaption{margin-top:5px;font-size:.68rem;font-weight:700;
-  color:var(--ink-3)}
-/* בצר מאוד — זה מתחת לזה, ולא שני טורים דחוסים */
-@media (max-width:359px){
-  .kidrow{display:block}
-  .qr{width:120px;margin:11px auto 0}
+/* ---------- שלוש הדרכים לקישור ----------
+   באותו מעמד ובאותה צורה: אריח לבן, סימן, ומילה. כך אף אחת
+   מהן אינה נראית כמו "הדרך האמיתית" והשתיים האחרות כהערות.
+
+   הכתובת עצמה ירדה: היא ארוכה, איש אינו מקליד אותה, ושלוש
+   הדרכים עושות בדיוק את מה שהיא נועדה לו. */
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+  margin-top:13px;align-items:stretch}
+.opt{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:7px;text-align:center;
+  background:#fff;border:1px solid #CFE0B6;border-radius:12px;
+  padding:10px 6px;box-shadow:var(--sh-1);min-height:112px}
+.opt span{font-size:.74rem;font-weight:800;color:var(--ink-2);line-height:1.3}
+.opt .qb{width:100%}
+.opt.go{text-decoration:none;cursor:pointer}
+.opt.go svg{width:30px;height:30px;display:block}
+.opt.wa svg{fill:#25D366}
+.opt.ml svg{fill:var(--blue)}
+.opt.go:active{transform:scale(.97)}
+/* בצר מאוד — שתי שורות, והקוד תופס את הרוחב */
+@media (max-width:339px){
+  .opts{grid-template-columns:1fr 1fr}
+  .opt.qr{grid-column:1 / -1}
+  .opt.qr .qb{max-width:150px;margin:0 auto}
 }
 .btn{flex:1;border:none;border-radius:12px;padding:14px;font-weight:800;
   font-size:.92rem;font-family:inherit;cursor:pointer;text-align:center;
@@ -421,20 +440,23 @@ footer a{color:var(--ink-2);font-weight:800}
       <div class="link kids">
         <h3 id="t-kidsH"></h3>
         <p id="t-kidsTxt"></p>
-        <!-- הכתובת והקוד זה לצד זה: מי ששולח בוואטסאפ לוקח את
-             הכתובת, ומי שעומד מול כיתה תולה את הקוד על המקרן
-             והם סורקים. שתי דרכים לאותו מקום. -->
-        <div class="kidrow">
-          <div class="url" id="kids-url"></div>
-          <figure class="qr" id="kids-qr" hidden>
+        <!-- שלוש דרכים לאותו מקום, ובאותו מעמד: סורקים מהמסך,
+             שולחים בוואטסאפ, או שולחים במייל. הכתובת עצמה אינה
+             מוצגת — היא ארוכה, איש אינו מקליד אותה, ושלוש
+             הדרכים כבר עושות את מה שהיא נועדה לו. -->
+        <div class="opts">
+          <div class="opt qr" id="kids-qr" hidden>
             <div class="qb" id="kids-qr-box"></div>
-            <figcaption id="t-qrCap"></figcaption>
-          </figure>
-        </div>
-        <!-- כפתור אחד. הכתובת מוצגת מעליו וניתנת לסימון ידני,
-             והשליחה בוואטסאפ היא מה שבאמת נעשה כאן. -->
-        <div class="row">
-          <a class="btn g" id="kids-wa" target="_blank" rel="noopener">שליחה בוואטסאפ</a>
+            <span id="t-qrCap"></span>
+          </div>
+          <a class="opt go wa" id="kids-wa" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23s-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.8-.79.97-.14.16-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.22.25-.85.83-.85 2.03s.88 2.35 1 2.51c.12.17 1.72 2.63 4.17 3.69.58.25 1.04.4 1.39.51.59.19 1.12.16 1.54.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
+            <span id="t-waBtn"></span>
+          </a>
+          <a class="opt go ml" id="kids-mail">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.4l8 4.85 8-4.85V7H4zm16 10V9.7l-7.48 4.53a1 1 0 0 1-1.04 0L4 9.7V17h16z"/></svg>
+            <span id="t-mailBtn"></span>
+          </a>
         </div>
       </div>
     </div>
@@ -471,7 +493,8 @@ footer a{color:var(--ink-2);font-weight:800}
 
   <hr>
   <footer>
-    <span id="t-foot"></span><br>
+    <span id="t-foot"></span>
+    <a id="foot-wa" target="_blank" rel="noopener" hidden></a><br>
     רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
     <a href="info.html">פרטים</a> · <a href="accessibility.html">הצהרת נגישות</a>
   </footer>
@@ -688,20 +711,33 @@ function draw() {
   $('story-sec').hidden = !((T.storyH || '').trim() || (T.story || '').trim());
   $('t-stepsFoot').hidden = !(T.stepsFoot || '').trim();
 
-  /* הקישורים */
-  $('kids-url').textContent = kidsUrl();
+  /* הפוטר. הקישור נדלק רק כשיש מספר — הוא נקרא מההגדרות
+     שפורסמו, ואינו יושב בריפו. */
+  var fw = $('foot-wa');
+  if (fw) {
+    fw.textContent = ' ' + (T.footWa || '');
+    fw.hidden = !(COORD_WA && (T.footWa || '').trim());
+    if (COORD_WA) fw.href = 'https://wa.me/' + COORD_WA;
+  }
+
+  /* שלוש הדרכים לקישור */
   drawQr();
-  var wa = tpl(UI.linkWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא',
-                            url: kidsUrl() });
-  $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
-  $('kids-wa').textContent = UI.linkWaBtn || 'שליחה בוואטסאפ';
+  var msg = tpl(UI.linkWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא',
+                             url: kidsUrl() });
+  $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  $('t-waBtn').textContent = 'וואטסאפ';
+  $('kids-mail').href = 'mailto:?subject=' + encodeURIComponent(T.mailSub || '') +
+                        '&body=' + encodeURIComponent(msg);
+  $('t-mailBtn').textContent = 'מייל';
   
   drawPeers();
   drawBoard();
   drawStage();
   demoBox();
   backFromDemo();
+  if (!SCROLLED) { SCROLLED = 1; firstScroll(); }
 }
+var SCROLLED = 0;
 
 /* ============================================================
    חלון ההדגמה.
@@ -781,6 +817,35 @@ function drawQr() {
    וההבהוב: מי שנחת אחרי מעבר בין עמודים צריך רגע כדי לדעת לאן
    הוא הגיע, ומסגרת שנדלקת ודועכת אומרת "זה מה שחיפשת" בלי
    מילה אחת. */
+/* ---------- הגלילה הראשונה ----------
+   שנייה אחרי הפתיחה העמוד יורד לאט, עד שהפנייה — "רב ומחנך
+   נכבד" — יושבת בראש המסך. החתימה שמעליה נחוצה כדי לדעת ממי
+   זה הגיע, אבל אחרי שנייה היא כבר עשתה את שלה, והמקום שייך
+   לפנייה ולהדגמה שמתחתיה.
+
+   רק כשלא נגעו: אצבע שכבר גוללה יודעת לאן היא הולכת, ועמוד
+   שזז מתחתיה הוא הדבר המעצבן ביותר שמסך יכול לעשות. */
+function firstScroll() {
+  if (location.hash) return;                    /* באו לקטע מסוים */
+  if (/[?&]tedit=1/.test(location.search)) return;
+  var touched = false;
+  var mark = function () { touched = true; };
+  window.addEventListener('touchstart', mark, true);
+  window.addEventListener('wheel', mark, true);
+  window.addEventListener('keydown', mark, true);
+  setTimeout(function () {
+    if (touched || window.pageYOffset > 4) return;
+    /* היעד הוא שם הישיבה ולא הכותרת עצמה: הוא יושב שורה מעליה,
+       והוא ההתאמה האישית של העמוד — שווה שייראה. וגלילה אל
+       הכותרת בלבד הייתה חותכת אותו לחצי בקצה העליון. */
+    var el = $('inst-name');
+    if (!el || !el.textContent.trim()) el = $('t-h1');
+    if (!el) return;
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 16;
+    if (y > 8) window.scrollTo({ top: y, behavior:'smooth' });
+  }, 1000);
+}
+
 /* המעבר אל ההנחיות. שני מקומות מגיעים לכאן: חזרה מההדגמה
    במסך מלא, וסיום ההדגמה שבחלון. */
 function toHowto() {
@@ -947,6 +1012,27 @@ sheetCsv('טקסטים').then(function (rows) {
   });
   try { localStorage.setItem('df:textCache', JSON.stringify(m)); } catch (e) {}
   relayer();
+});
+
+/* ---------- הוואטסאפ של הרכז ----------
+   נקרא מלשונית ההגדרות שפורסמה, ולא יושב בקוד: הריפו ציבורי,
+   ומספר טלפון בו הוא מספר שפורסם לעולם. הערכים שם נשמרים
+   כ-JSON עם גרש מוביל — כך גוגל שיטס אינה הופכת אותם לטיפוס
+   משלה — ולכן הגרש יורד לפני הפענוח.
+
+   אין מספר, או שהקריאה נכשלה — הקישור פשוט אינו מוצג. */
+var COORD_WA = '';
+sheetCsv('הגדרות').then(function (rows) {
+  if (!rows || !rows.length) return;
+  if ((rows[0] || []).join('|').indexOf('מפתח') < 0) return;
+  rows.slice(1).forEach(function (r) {
+    if ((r[0] || '').trim() !== 'coordWa') return;
+    var v = (r[1] || '').trim().replace(/^'/, '');
+    try { v = JSON.parse(v); } catch (e) {}
+    v = String(v || '').replace(/[^0-9]/g, '');
+    if (v) COORD_WA = v;
+  });
+  if (COORD_WA) draw();
 });
 
 sheetCsv('מונים').then(function (rows) {
