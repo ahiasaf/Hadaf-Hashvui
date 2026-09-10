@@ -2025,11 +2025,23 @@ window.addEventListener('orientationchange', heroFit);
 
 /* הכפתור אינו שער — הטופס נמצא מתחתיו בכל מקרה, והוא רק
    מקצר את הגלילה. */
-$('hero-go').onclick = function () {
+function toForm(smooth) {
   var f = $('first');
-  f.scrollIntoView({ behavior:'smooth', block:'center' });
-  setTimeout(function () { try { f.focus(); } catch (e) {} }, 420);
-};
+  if (!f || !f.getClientRects().length) return;   /* כבר רשום — אין טופס */
+  f.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block:'center' });
+  setTimeout(function () { try { f.focus(); } catch (e) {} }, smooth ? 420 : 120);
+}
+$('hero-go').onclick = function () { toForm(true); };
+
+/* `?go=1` — מי שבא מההדגמה. הוא כבר ראה את הדף עובד ולחץ
+   "להצטרפות", ולכן מסך הפתיחה כבר עשה את שלו: נוחתים ישר
+   בתוך הטופס, על השדה הראשון.
+
+   בלי גלילה חלקה: המסך נפתח כאן, ואנימציה שמתחילה מלמעלה
+   וגוללת למטה נראית כמו תקלה ולא כמו רצף. */
+if (/[?&]go=1\b/.test(location.search)) {
+  window.addEventListener('load', function () { setTimeout(toForm, 60); });
+}
 
 /* מנוע הרקע. עד עכשיו הוא נרשם רק מהעמוד הראשי, ולכן מסך
    התלמיד לא נפתח בלי רשת — והדפדפן גם לא הציע להתקין אותו,

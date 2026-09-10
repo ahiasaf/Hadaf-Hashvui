@@ -350,38 +350,56 @@ nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent;padding:10px 18px}
 
 /* ---------- הבועה המרחפת ----------
-   פס תחתון היה קל יותר לבנות, והוא היה טעות: הוא גזל גובה
-   מהחברותא ודחק אותה כלפי מעלה בדיוק ברגע שבו מסתכלים על הדף.
-   בועה מרחפת אומרת את אותו דבר ואינה נוגעת בפריסה.
+   פס תחתון היה טעות: הוא גזל גובה מהחברותא ודחק אותה כלפי מעלה
+   בדיוק ברגע שמסתכלים על הדף. בועה מרחפת אומרת את אותו דבר
+   ואינה נוגעת בפריסה.
 
-   ושלושה מצבים, לא שלושה אלמנטים: אותו דבר עצמו משנה את מה
-   שהוא אומר לפי מה שקורה — רץ, מזמין, ומציע לצאת. */
-.dbadge{display:none;position:absolute;top:10px;left:10px;z-index:8;
-  background:var(--blue-d);color:#fff;border-radius:999px;
-  box-shadow:0 3px 14px rgba(11,37,80,.34);pointer-events:none;
-  font-size:.72rem;font-weight:800;letter-spacing:.02em;padding:6px 12px}
-.dbadge.on{display:block}
+   ועיגול, לא מלבן. מלבן קטן עם מילה בתוכו נקרא כתווית — משהו
+   שהמערכת אומרת על עצמה — והעין מדלגת עליו. עיגול פועם נקרא
+   כדבר שפונה אליך.
 
-/* מזמינה. גדולה יותר, עם טבעת פועמת — אצבע מצוירת על מסך סטטי
-   נראית כמו תמונה, וטבעת שנושמת נקראת כהזמנה. */
-.dbadge.ask{display:flex;align-items:center;gap:10px;padding:10px 15px;
-  max-width:min(74vw,300px)}
-.dbadge.ask .ring{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
-  border:3px solid rgba(255,255,255,.8);animation:tapring 1.6s infinite}
-.dbadge.ask b{display:block;font-size:.92rem;font-weight:800}
-.dbadge.ask small{display:block;margin-top:1px;font-size:.76rem;
-  font-weight:600;color:rgba(255,255,255,.82)}
-@keyframes tapring{
-  0%   {transform:scale(.78);opacity:.35}
-  50%  {transform:scale(1.12);opacity:1}
-  100% {transform:scale(.78);opacity:.35}
+   שלושה מצבים באותו מקום ולא שלושה אלמנטים: מי שעקב אחריו
+   כשאמר "הדגמה" מוצא באותה פינה גם את ההזמנה וגם את היציאה. */
+.dbadge{display:none;position:absolute;top:12px;left:12px;z-index:8;
+  align-items:center;justify-content:center;text-align:center;
+  width:74px;height:74px;border-radius:50%;padding:6px;
+  background:var(--blue-d);color:#fff;pointer-events:none;
+  font-size:.8rem;font-weight:800;line-height:1.25;letter-spacing:-.01em;
+  box-shadow:0 4px 18px rgba(11,37,80,.34);
+  /* המעבר בין המצבים. הבועה גדלה ומתחלפת בצבע, ולא קופצת. */
+  transition:width .34s cubic-bezier(.34,1.3,.5,1),
+             height .34s cubic-bezier(.34,1.3,.5,1),
+             background .34s ease, opacity .26s ease, transform .26s ease}
+.dbadge.on{display:flex}
+/* החלפת התוכן — נדעכת רגע, מתחלפת, וחוזרת. */
+.dbadge.swap{opacity:0;transform:scale(.86)}
+
+/* פועם בעדינות. לא הבהוב אלא נשימה: 4.5% הם ההבדל בין "משהו
+   חי כאן" לבין משהו שמושך את העין מהדף. */
+.dbadge.on{animation:breathe 2.8s ease-in-out infinite}
+@keyframes breathe{
+  0%,100%{box-shadow:0 4px 18px rgba(11,37,80,.34)}
+  50%    {box-shadow:0 6px 26px rgba(11,37,80,.46)}
 }
-@media (prefers-reduced-motion:reduce){ .dbadge.ask .ring{animation:none;opacity:1} }
+.dbadge.ask,.dbadge.fin{width:104px;height:104px;font-size:.94rem}
+.dbadge.ask{animation:breathe 2.2s ease-in-out infinite, grow 2.2s ease-in-out infinite}
+@keyframes grow{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
-/* ומציעה לצאת. זו היחידה שלוחצים עליה, ולכן רק היא מקבלת
-   אצבע — בשתי האחרות נגיעה שייכת לדף שמתחת. */
-.dbadge.fin{pointer-events:auto;cursor:pointer;padding:8px 14px;
-  font-size:.78rem;border:0;font-family:inherit}
+/* והיציאה — ירוקה, וזו היחידה שלוחצים עליה. בשתי האחרות נגיעה
+   שייכת לדף שמתחת. */
+.dbadge.fin{background:linear-gradient(150deg,var(--green-d,#467B1A),var(--green-2,#3A6615));
+  box-shadow:0 4px 18px rgba(58,102,21,.4);pointer-events:auto;cursor:pointer;
+  border:0;font-family:inherit;
+  animation:breathe-g 2.6s ease-in-out infinite}
+@keyframes breathe-g{
+  0%,100%{box-shadow:0 4px 18px rgba(58,102,21,.4)}
+  50%    {box-shadow:0 7px 28px rgba(58,102,21,.55)}
+}
+@media (prefers-reduced-motion:reduce){
+  .dbadge.on,.dbadge.ask,.dbadge.fin{animation:none}
+}
+/* היציאה מהעמוד — דעיכה רכה לפני המעבר, כדי שלא יהיה קפיצה. */
+body.leaving{opacity:0;transition:opacity .32s ease}
 
 /* ---------- לוח המקליט ----------
    בתחתית ולא בפינה: בטלפון פינה היא רבע מהדף, והמקליט צריך
@@ -1862,8 +1880,20 @@ function quiet() { return DEMO || REC; }
 
 /* ---------- התסריט ----------
    כל צעד: [כמה להמתין לפני שהוא קורה, מה לעשות, ערך].
-   ברירת המחדל היא נקודת פתיחה סבירה בלבד — מה שמוקלט גובר. */
-var DEMO_DEF = [[5200,'deck'], [3600,'next'], [5600,'next'], [5600,'invite']];
+
+   זה אינו תסריט שנכתב אלא **תסריט שהוקלט** — אחיאסף עשה את
+   ההדגמה ביד ב-`?rec=1`, וזה מה שיצא. לכן יש בו דברים ששום
+   כותב לא היה מכניס וטוב שהם שם: הוא מתקדם ארבעה קטעים, ואז
+   מדפדף אחורה במהירות עד להתחלה — וזה מראה בשנייה אחת שאפשר
+   לחזור — ורק אז פותח את המצגת ומתקדם איתה.
+
+   מה שמוקלט על המכשיר גובר על זה, וכך אפשר לשנות בלי לגעת בקוד. */
+var DEMO_DEF = [
+  [1301,'go',1], [1624,'go',2], [1471,'go',3], [1649,'go',4],
+  [1353,'go',3], [239,'go',2],  [225,'go',1],  [408,'go',0],
+  [1247,'deck'], [1610,'go',1], [1655,'go',2], [1738,'go',3],
+  [980,'deck'],  [727,'invite']
+];
 var SCRIPT_KEY = 'df:demoScript';
 
 function scriptSaved() {
@@ -1915,56 +1945,76 @@ function demoDeck() {
   sideOpen(!document.body.classList.contains('side-on'));
 }
 /* ---------- הבועה ----------
-   'run' — רצה לבד · 'ask' — נגמרה ומזמינה לגעת · 'fin' — נגעו,
-   והיא מציעה לצאת · '' — אין הדגמה.
+   'run' — רצה לבד · 'ask' — נגמרה ומזמינה לנסות · 'fin' — ההזמנה
+   להצטרף · '' — אין הדגמה.
 
-   מצב אחד בכל רגע, ובאותו מקום: מי שעקב אחריה כשהיא אמרה
-   "הדגמה" מוצא את ההזמנה באותה פינה, ואת היציאה אחריה. */
+   מצב אחד בכל רגע ובאותו מקום, והמעבר ביניהם רך: הבועה נדעכת
+   לרגע, מתחלפת, וחוזרת — במקום להחליף תוכן מול העין. */
+var BUB = null;
 function bubble(mode) {
   var el = $('dbadge');
   if (!el) return;
   var t = window.PLAY || {};
-  if (mode === 'run') {
-    el.textContent = t.tag || 'הדגמה';
-    el.className = 'dbadge on';
-  } else if (mode === 'ask') {
-    el.innerHTML = '<span class="ring"></span><div><b>' +
-      esc(t.head || 'עכשיו אתם') + '</b><small>' +
-      esc(t.sub || 'הקישו על הדף') + '</small></div>';
-    el.className = 'dbadge on ask';
-  } else if (mode === 'fin') {
-    el.textContent = t.fin || 'סיום ההדגמה';
-    el.className = 'dbadge on fin';
-  } else {
-    el.textContent = '';
-    el.className = 'dbadge';
-  }
+  var fill = function () {
+    if (mode === 'run')      { el.textContent = t.tag || 'הדגמה';       el.className = 'dbadge on'; }
+    else if (mode === 'ask') { el.textContent = t.ask || 'נסו בעצמכם!'; el.className = 'dbadge on ask'; }
+    else if (mode === 'fin') { el.textContent = t.fin || 'להצטרפות!';   el.className = 'dbadge on fin'; }
+    else                     { el.textContent = '';                     el.className = 'dbadge'; }
+  };
+  clearTimeout(BUB);
+  /* אין ממה לדעוך כשהיא כבויה — אז פשוט נדלקת */
+  if (el.className.indexOf('on') < 0) { fill(); return; }
+  el.className += ' swap';
+  BUB = setTimeout(function () {
+    fill();
+    /* פריים אחרי ההחלפה. באותו פריים הדפדפן מאחד את שתי השורות
+       ולא מצייר את הדעיכה בכלל. */
+    setTimeout(function () {
+      el.className = el.className.replace(/\s*swap/, '');
+    }, 20);
+  }, 260);
 }
-/* לאן יוצאים בסוף. מסך ההצטרפות, ולא חזרה לתוכנית: מי שנתנו
-   לו לשחק בדף וסיים הוא בדיוק מי שכדאי לשאול אותו עכשיו אם
-   הוא בפנים. `learn.html` יושב לצד `join.html`, ולכן הכתובת
-   נבנית מאותו בסיס — בייצור אין סיומות, וקוד שחותך `.html`
-   מהכתובת נשבר שם. */
+
+/* לאן יוצאים. מסך ההצטרפות, ולא חזרה לתוכנית: מי שנתנו לו
+   לשחק בדף וסיים הוא בדיוק מי שכדאי לשאול אותו עכשיו אם הוא
+   בפנים — ו-`go=1` נוחת ישר בתוך הטופס, לא במסך הפתיחה.
+
+   `learn.html` יושב לצד `join.html`, ולכן הכתובת נבנית מאותו
+   בסיס — בייצור אין סיומות, וקוד שחותך `.html` מהכתובת נשבר שם. */
 function demoOut() {
-  location.href = location.href.split('#')[0].split('?')[0]
-    .replace(/\/learn(\.html)?\/?$/, '/') + 'join.html';
+  if (REC) return;              /* במקליט אין לאן ללכת — עוד מכוונים */
+  var u = location.href.split('#')[0].split('?')[0]
+    .replace(/\/learn(\.html)?\/?$/, '/') + 'join.html?go=1';
+  /* דעיכה ואז מעבר. קפיצה חדה בין שני עמודים היא הרגע שבו
+     נאבד מי שכבר החליט, ושליש שנייה קונה את הרצף. */
+  document.body.className += ' leaving';
+  setTimeout(function () { location.href = u; }, 320);
 }
-function demoInvite() {
-  /* התגית אינה יורדת אלא הופכת: "רץ לבד" הוא ההפך ממה שההזמנה
-     מבקשת, ולכן אותה בועה עצמה משנה את מה שהיא אומרת. */
-  bubble('ask');
-}
-/* סוף ההדגמה. מכאן והלאה הדף מתנהג כרגיל לגמרי. */
-/* המסירה. מכאן והלאה הדף מתנהג כרגיל לגמרי, והבועה מציעה את
-   הדרך החוצה — מי שסיים לשחק צריך לדעת לאן ללכת, ובכיתה זה
-   מסך ההצטרפות. במקליט אין יציאה כזו: שם הלוח הוא הדרך חזרה. */
-function demoStop() {
-  if (!DEMO) return;
-  DEMO = false;
+
+/* ---------- הסוף ----------
+   נקודה אחת לשתי הדרכים שבהן הדגמה נגמרת: התסריט הגיע לסופו,
+   או שמישהו נגע באמצע. משם והלאה הרצף זהה, ולכן גם הקוד.
+
+   ומרגע זה `DEMO` כבוי: הדף חזר להיות דף רגיל — נשמר בו מקום,
+   נשמרות בו הגדרות — והבועה היא כל מה שנשאר מההדגמה.
+
+   ההזמנה להצטרף באה מעצמה אחרי שלוש שניות ואינה ממתינה לנגיעה:
+   מי שראה את הדף עובד הוא בדיוק מי שכדאי לשאול עכשיו. */
+var JOIN_AFTER = 3000;
+function demoEnd() {
   clearTimeout(DEMO_T);
-  bubble(REC ? '' : 'fin');
-  if (REC) recPaint();          /* חזרה מניגון אל המקליט */
+  DEMO = false;
+  bubble('ask');
+  DEMO_T = setTimeout(function () {
+    bubble('fin');
+    /* במקליט הלוח חוזר ברגע שהרצף נגמר — הוא כבר ראה את הסוף
+       כמו שהוא, וממשיך לתקן. הבועה עצמה נשארת, ובמקליט לחיצה
+       עליה אינה מוציאה מהעמוד. */
+    if (REC) recPaint();
+  }, JOIN_AFTER);
 }
+function demoInvite() { demoEnd(); }              /* הצעד האחרון בתסריט */
+function demoStop()   { if (DEMO) demoEnd(); }    /* נגיעה באמצע */
 
 /* ============================================================
    המקליט.
