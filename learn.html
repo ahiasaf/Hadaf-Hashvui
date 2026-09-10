@@ -342,9 +342,11 @@ body.side-on #side{display:flex}
    האמיתי במסך מלא. מה שהם מבטיחים — חברותא ומצגת — ההדגמה
    מראה בעצמה. */
 body.emb nav{display:none}
-/* וכפתורי הביאור. בחלון הם אינם ניתנים ללחיצה ממילא, והשם
-   "פירוש חברותא" הוא כל מה שצריך להיאמר שם. */
-body.emb .chd button,body.emb .chd .zoom{display:none}
+/* וכפתורי הביאור, וחצי הדפדוף והסגירה של המצגת. בחלון אף
+   אחד מהם אינו ניתן ללחיצה — הנגיעה שייכת לעמוד המארח — והם
+   רק גוזלים מקום ומבטיחים שליטה שאינה קיימת שם. */
+body.emb .chd button,body.emb .chd .zoom,
+body.emb .sd-f,body.emb .sd-h button{display:none}
 nav{flex:0 0 auto;display:block;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
   background:var(--surface);border-top:1px solid var(--rule);
@@ -1460,7 +1462,10 @@ function navH() {
     var el = sel === 'nav' ? document.querySelector('nav') : $(sel);
     if (el && el.offsetParent !== null) h += el.offsetHeight;
   });
-  if (h) document.body.style.setProperty('--nav-h', h + 'px');
+  /* גם אפס. `if (h)` השאיר את ברירת המחדל שב-CSS — 56 פיקסלים —
+     בדיוק במקרה שבו אין שורת ניווט כלל, כלומר בחלון ההדגמה,
+     והמצגת ריחפה שם גבוה מדי עם רווח ריק מתחתיה. */
+  document.body.style.setProperty('--nav-h', h + 'px');
 }
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
@@ -2039,6 +2044,15 @@ var JOIN_AFTER = 3000;
 function demoEnd() {
   clearTimeout(DEMO_T);
   DEMO = false;
+  /* בחלון ההדגמה זה פשוט נעצר. "נסו בעצמכם" ו"להצטרפות" שייכים
+     למסך מלא, שבו אפשר באמת לנסות ובאמת להצטרף; בחלון של 350
+     פיקסלים הם מזמינים למשהו שלא קורה שם. במקומם — העמוד
+     המארח לוקח את הפוקוס אל ההנחיות. */
+  if (EMB) {
+    bubble('');
+    try { parent.postMessage('daf-demo-done', '*'); } catch (e) {}
+    return;
+  }
   bubble('ask');
   DEMO_T = setTimeout(function () {
     bubble('fin');
