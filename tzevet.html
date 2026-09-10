@@ -147,25 +147,24 @@ main.wrap{padding-bottom:46px}
    שני: מה שיתוקן שם יתוקן גם כאן, ואין שני דברים שנפרדים זה
    מזה עם הזמן.
 
-   **המקום שמור וריק.** קודם ישב כאן מלבן כחול עם משפט שהסביר
-   מה עומד לקרות, וזה הקדים את עצמו: הדגמה שמכריזה על עצמה
-   כבר איבדה חצי מהאפקט. עכשיו זה פשוט שטח בצבע הרקע, והדף
-   עולה מתוכו. הגובה שמור מראש כדי שהעמוד לא יקפוץ כשהוא
-   מופיע — קפיצה כזו מזיזה למישהו את מה שהוא קורא. */
+   **והוא פתוח מהרגע הראשון.** קודם הוא היה מוסתר וממתין —
+   תחילה מאחורי מלבן כחול עם משפט, ואחר כך שקוף — ובשני המקרים
+   הפגישה הראשונה עם המסך הייתה שטח ריק. עכשיו הוא פשוט שם:
+   הדף האינטראקטיבי נטען לעיני מי שמסתכל, עם מסך הטעינה שלו
+   עצמו, ומתחיל לנגן ברגע שהוא מוכן. אין המתנה שצריך למלא. */
 .demo{position:relative;border-radius:var(--r);overflow:hidden;
-  transition:box-shadow .9s ease}
-.demo .df{display:block;width:100%;height:470px;border:0;
-  opacity:0;transition:opacity 1s ease}
+  box-shadow:0 16px 38px rgba(11,37,80,.3)}
+.demo .df{display:block;width:100%;height:470px;border:0}
 @media (min-height:780px){ .demo .df{height:540px} }
-/* עלה */
-.demo.on{box-shadow:0 16px 38px rgba(11,37,80,.3)}
-.demo.on .df{opacity:1}
 /* כל החלון הוא הכפתור */
 .demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
-/* הכותרת שמעל. יושבת על הקרם ולא על הכהה, ולכן החפיפה
-   השלילית של התוכן אל תוך הכותרת ירדה — ההדגמה אמורה לעלות
-   מתוך הרקע, לא לחצות את הגבול שבינו לבין הכחול. */
-.sec.meet{margin-top:26px;text-align:center}
+/* השורה שמעל ההדגמה. היא גם מכינה את מי שמסתכל להבין מה הוא
+   רואה, וגם מפרידה בין הכחול של הכותרת לכחול של הדף שבחלון —
+   שני כחולים שנגעו זה בזה נראו כמו תקלת ציור. */
+.meet{margin:22px 0 16px;text-align:center;font-size:.97rem;
+  font-weight:700;line-height:1.7;color:var(--ink-2)}
+/* וגם כשהיא רוקנה, הרווח נשמר */
+.meet[hidden] + .demo{margin-top:26px}
 
 /* ---------- קטעים ---------- */
 section{margin-top:30px}
@@ -261,6 +260,22 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
   direction:ltr;text-align:start;word-break:break-all;
   font-family:ui-monospace,Menlo,Consolas,monospace}
 .row{display:flex;gap:8px;margin-top:11px}
+/* ---------- הכתובת והקוד ----------
+   הקוד בריבוע לבן משלו, בגודל שנסרק מהמסך ומהמקרן כאחד. הוא
+   נוצר כאן ולא בשירות חיצוני — ראו qr.js — ולכן הכתובת אינה
+   יוצאת לשום מקום בדרך. */
+.kidrow{display:flex;gap:12px;align-items:stretch;margin-top:11px}
+.kidrow .url{margin-top:0;flex:1;display:flex;align-items:center}
+.qr{flex:0 0 auto;margin:0;width:104px;text-align:center}
+.qr .qb{background:#fff;border:1px solid #CFE0B6;border-radius:10px;
+  padding:7px;box-shadow:var(--sh-1)}
+.qr figcaption{margin-top:5px;font-size:.68rem;font-weight:700;
+  color:var(--ink-3)}
+/* בצר מאוד — זה מתחת לזה, ולא שני טורים דחוסים */
+@media (max-width:359px){
+  .kidrow{display:block}
+  .qr{width:120px;margin:11px auto 0}
+}
 .btn{flex:1;border:none;border-radius:12px;padding:14px;font-weight:800;
   font-size:.92rem;font-family:inherit;cursor:pointer;text-align:center;
   text-decoration:none;display:block;transition:transform .12s}
@@ -372,7 +387,7 @@ footer a{color:var(--ink-2);font-weight:800}
        המקום שלה שמור מהרגע הראשון והוא ריק, בצבע הרקע. אין בו
        כיסוי ואין בו משפט שמסביר מה עומד לקרות: הדף פשוט עולה
        מתוך הרקע אחרי כמה שניות, וזה מה שתופס את העין. -->
-  <h2 class="sec meet" id="t-meetH"></h2>
+  <p class="meet" id="t-demoNote"></p>
   <div class="demo" id="demo">
     <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
     <!-- שכבה שקופה מעל הכל: נגיעה בחלון פותחת את הדף האמיתי
@@ -406,7 +421,16 @@ footer a{color:var(--ink-2);font-weight:800}
       <div class="link kids">
         <h3 id="t-kidsH"></h3>
         <p id="t-kidsTxt"></p>
-        <div class="url" id="kids-url"></div>
+        <!-- הכתובת והקוד זה לצד זה: מי ששולח בוואטסאפ לוקח את
+             הכתובת, ומי שעומד מול כיתה תולה את הקוד על המקרן
+             והם סורקים. שתי דרכים לאותו מקום. -->
+        <div class="kidrow">
+          <div class="url" id="kids-url"></div>
+          <figure class="qr" id="kids-qr" hidden>
+            <div class="qb" id="kids-qr-box"></div>
+            <figcaption id="t-qrCap"></figcaption>
+          </figure>
+        </div>
         <!-- כפתור אחד. הכתובת מוצגת מעליו וניתנת לסימון ידני,
              והשליחה בוואטסאפ היא מה שבאמת נעשה כאן. -->
         <div class="row">
@@ -461,6 +485,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="stage.js"></script>
 <script src="textedit.js"></script>
 <script src="logo.js"></script>
+<script src="qr.js"></script>
 <script>
 /* ============================================================
    הצוות — הלוגיקה.
@@ -617,8 +642,8 @@ function drawWho() {
 /* ---------- הציור ---------- */
 function draw() {
   var T = window.TZEVET || {};
-  ['h1','lead','meetH','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
-   'whoH','kidsH','kidsTxt','foot'].forEach(function (k) {
+  ['h1','lead','demoNote','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
+   'whoH','kidsH','kidsTxt','qrCap','foot'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
   });
@@ -653,8 +678,8 @@ function draw() {
     return li(s, i + 2);
   }).join('');
 
-  /* כותרת שרוקנה אינה משאירה שוליים ריקים מעל ההדגמה */
-  $('t-meetH').hidden = !(T.meetH || '').trim();
+  /* שורה שרוקנה אינה משאירה שוליים ריקים מעל ההדגמה */
+  $('t-demoNote').hidden = !(T.demoNote || '').trim();
 
   drawWho();
 
@@ -665,6 +690,7 @@ function draw() {
 
   /* הקישורים */
   $('kids-url').textContent = kidsUrl();
+  drawQr();
   var wa = tpl(UI.linkWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא',
                             url: kidsUrl() });
   $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(wa);
@@ -707,30 +733,11 @@ function demoBox() {
           '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=tzevet' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
-  /* ---------- מתי היא עולה ----------
-     כמעט מיד — חצי שנייה. די בה כדי שהעלייה תיקרא כעלייה ולא
-     כחלק מהעמוד שנטען, ולא יותר: המתנה ארוכה יותר היא זמן שבו
-     אפשר לגלול הלאה.
-
-     ושני תנאים ולא אחד: גם שחצי השנייה עברה, וגם שהדף שבחלון
-     מוכן. שעון לבדו היה מגלה מלבן ריק ברשת איטית.
-
-     ורק אז נשלח "צא" — התסריט אינו מתחיל לפני שרואים אותו,
-     אחרת השניות הראשונות שלו רצות מאחורי מסך ריק. */
-  var t0 = Date.now(), done = false;
-  var show = function () {
-    if (done) return;
-    done = true;
-    setTimeout(function () {
-      box.className = 'demo on';
-      try { f.contentWindow.postMessage('daf-demo-go', '*'); } catch (e) {}
-    }, Math.max(0, 500 - (Date.now() - t0)));
-  };
-  var bail = setTimeout(show, 12000);
+  /* אין כאן יותר "מתי היא עולה": היא שם מההתחלה, ומתחילה
+     לנגן ברגע שהיא מוכנה. וכשהיא נגמרה — העמוד יורד לבד אל
+     ההנחיות. ההדגמה ענתה על "מה זה", והשאלה הבאה היא "ומה אני
+     עושה עם זה". */
   window.addEventListener('message', function (e) {
-    if (e.data === 'daf-demo-ready') { clearTimeout(bail); show(); }
-    /* וכשהיא נגמרה — העמוד יורד לבד אל ההנחיות. ההדגמה ענתה
-       על "מה זה", והשאלה הבאה היא "ומה אני עושה עם זה". */
     if (e.data === 'daf-demo-done') toHowto();
   });
 
@@ -750,6 +757,19 @@ function demoBox() {
     if (d2 && d2.m < 8) goDaf();
   });
   tap.addEventListener('pointercancel', function () { dr = null; });
+}
+
+/* קוד הסריקה של קישור התלמידים. נכשל משהו — הריבוע פשוט אינו
+   מוצג, והכתובת והכפתור עומדים בזכות עצמם. */
+function drawQr() {
+  var box = $('kids-qr');
+  if (!box) return;
+  var svg = '';
+  try {
+    if (window.QR) svg = QR.svg(kidsUrl(), { color:'#1B2A45', label:'קוד לסריקה' });
+  } catch (e) { svg = ''; }
+  $('kids-qr-box').innerHTML = svg;
+  box.hidden = !svg;
 }
 
 /* ---------- חזרה מההדגמה ----------
