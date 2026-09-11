@@ -239,24 +239,49 @@ body.side-on #side{display:flex}
 }
 @keyframes sideIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 
-/* ---------- מסך צר: המצגת נפתחת בגודל מלא ----------
-   בטלפון — ובכל מסך שצר מ-1200, אייפד לרוחב בכלל זה — אין שטח
-   פנוי לחלק, ולכן האזור צף מעל הדף.
+/* ---------- מסך צר: המצגת יושבת במקומה של החברותא ----------
+   קודם היא ריחפה מעל הדף, וזו הייתה טעות שלקח זמן לראות.
 
-   **קודם הוא נפתח ממוזער, ולחיצה נוספת הגדילה אותו.** זה היה
-   מיותר בשני הכיוונים: בגודל הזה אי אפשר לקרוא שקף, אז איש לא
-   נשאר שם — כולם הגדילו — והמדרגה הנוספת רק עמדה בדרך. ולעיתים
-   קרובות השקף הוא ההסבר הטוב ביותר לקטע, טוב מהביאור, ואין סיבה
-   להגיש אותו בגודל שאי אפשר להשתמש בו.
+   הדף ממרכז את הקטע המואר **בשטח שנשאר לו**. כשהחברותא פתוחה
+   הגמרא מצטמצמת למעלה והקטע יושב גבוה; כשהיא סגורה הגמרא מקבלת
+   את כל המסך והקטע יורד בדיוק למרכז — לשם שהחלון הצף ריחף.
+   כלומר המצגת כיסתה בדיוק את מה שהיא באה להסביר. ובהדגמה, שבה
+   החברותא תמיד פתוחה, היא כיסתה את הביאור.
 
-   הכפתור "מצגת" פותח את מה שרוצים לראות. סוגרים באותו כפתור
-   או ב-✕. */
+   עכשיו היא שכבה אמיתית באותה משבצת של החברותא — אותו מקום,
+   אותו גובה, אותו קו. הגמרא מצטמצמת מאליה וממרכזת את הקטע במה
+   שנשאר, בלי שאיש יחשב מיקום.
+
+   **שתיהן דלוקות = המצגת מעל.** מכבים אותה וחוזרים לביאור שהיה
+   שם כל הזמן. וכך המצגת היא גם פירוש בפני עצמו למי שרוצה אותה
+   במקום הביאור — אבות ובנים, או חזרה על הסוגיה.
+
+   מ-1200 ומעלה אין כאן שינוי: שם יש מקום אמיתי לשלושתם. */
 @media (max-width:1199px){
-  body.side-on #side{position:fixed;z-index:40;inset-inline-start:10px;
-    bottom:calc(var(--nav-h, 56px) + 12px);
-    width:calc(100vw - 20px);max-width:none;height:auto;
-    border:1px solid var(--rule);border-radius:14px;overflow:hidden;
-    box-shadow:0 10px 26px rgba(11,37,80,.24)}
+  /* אטומה, ומעל. `#side` ראשון ב-DOM כדי שיהיה הימני ביותר
+     במסך רחב, ובלי `z-index` הביאור היה נצבע מעליו דווקא כאן. */
+  #side{z-index:2;border-inline-end:0}
+  .stage{grid-row:1;grid-column:1}
+}
+@media (min-width:821px) and (max-width:1199px){
+  /* אייפד לרוחב: עמודה ימנית, ברוחב של הביאור. */
+  body.side-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
+  .chav,#side{grid-row:1;grid-column:2}
+  #side{border-inline-start:1px solid var(--rule)}
+}
+@media (max-width:820px){
+  /* טלפון: השורה התחתונה, בגובה של הביאור בדיוק. */
+  body.side-on main{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+  .chav,#side{grid-row:2;grid-column:1}
+  #side{border-top:1px solid var(--rule);
+    box-shadow:0 -8px 22px rgba(37,29,12,.10)}
+  /* השקף ממלא את הגובה שיש וממורכז בו. במחשב הוא נשאר צמוד
+     למעלה, כי שם הוא בעמודה גבוהה לצד הביאור ושני אגפים
+     שמתחילים בגבהים שונים מכריחים את העין לקפוץ. כאן זו שורה
+     נמוכה, ומרכוז הוא מה שנראה בה מסודר. */
+  .sd-b{flex:1 1 auto;min-height:0;align-items:center;padding:10px 14px}
+  .sd-b img{max-height:100%;object-fit:contain}
 }
 
 /* ---------- תוכן האזור ---------- */
@@ -277,6 +302,20 @@ body.side-on #side{display:flex}
    קו מעט כהה יותר. קו ולא צל: צל מחזיר את תחושת הקופסה הצפה. */
 .sd-b img{max-width:100%;display:block;border-radius:12px;
   border:1px solid rgba(27,42,69,.22)}
+/* ---------- השקף שעוד בדרך ----------
+   התיבה **אינה מתרוקנת**. השקף שעל המסך נשאר עד שהבא מוכן, ואז
+   הם מתחלפים. קודם היא התרוקנה ורק אז התחילה להביא את התמונה,
+   ולכן כל מעבר היה ריק ואחריו קפיצה.
+
+   הסימן הזה מופיע רק כשבאמת ממתינים, וברוב המקרים איש לא יראה
+   אותו: השקפים מובאים ברקע לפני שמבקשים אותם. ראו slidePre. */
+.sd-b{position:relative}
+.sd-b img{transition:opacity .22s}
+.sd-b.wait img{opacity:.4}
+.sd-b.wait::after{content:'';position:absolute;left:50%;top:50%;
+  width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;
+  border:2px solid rgba(27,42,69,.16);border-top-color:var(--blue);
+  animation:sp .9s linear infinite}
 /* חצי הדפדוף שייכים לשיוך ולא לצפייה. תלמיד אינו מזיז את
    המצגת — היא נוסעת עם הדף — ומספר שקפים שהוא אינו שולט בו
    רק מבטיח שליטה שאינה קיימת. */
@@ -1395,6 +1434,32 @@ function deckN() {
   return DECK ? DECK.files.length : 0;
 }
 
+/* ---------- השקפים מובאים ברקע ----------
+   שקף הוא כ-110KB, וברשת של טלפון זה נראה: לוחצים "מצגת"
+   ורואים תיבה ריקה. לכן מה שיוצג עוד מעט מובא **לפני** שמבקשים
+   אותו — בשקט, בזמן שאיש אינו ממתין.
+
+   **אחד קדימה ולא הכול.** מצגת שלמה היא מעל מגה־בייט, וזו חבילת
+   הגלישה של תלמיד שאולי לא יפתח מצגת בכלל. השקף של הקטע שעל
+   המסך והבא אחריו מכסים כל לחיצה מציאותית ועולים עשירית מזה.
+   מי שילמד את הדף כולו יביא בסוף את כולם — אחד בכל פעם, בדיוק
+   כשהוא נעשה רלוונטי, ולא בפרץ אחד בכניסה.
+
+   הדפדפן הוא שמחזיק את התמונות; המפה כאן רק זוכרת מי כבר הגיע,
+   כדי שנדע אם להחליף מיד או להמתין. */
+var PRE = {};
+function slidePre(n) {
+  if (!DECK || !(n >= 1) || n > deckN()) return null;
+  var src = slideSrc(n);
+  if (!PRE[src]) { PRE[src] = new Image(); PRE[src].src = src; }
+  return PRE[src];
+}
+function slideReady(n) {
+  if (!DECK || !(n >= 1) || n > deckN()) return false;
+  var im = PRE[slideSrc(n)];
+  return !!(im && im.complete && im.naturalWidth);
+}
+
 /* הלשונית כולה. `null` = הקריאה נכשלה או שחזרה לשונית אחרת;
    `{}` = אין עדיין שום שיוך, וזה מצב חוקי. */
 function dmapFromRows(rows) {
@@ -1436,12 +1501,16 @@ function slideAt(idx) {
 }
 
 /* ---------- פתיחה, סגירה, מצבי הטלפון ---------- */
-function sideOpen(on) {
-  navH();
+/* `auto` = נפתחה מאליה בכניסה, ולא מלחיצה של אדם. פתיחה כזו
+   אינה נשמרת כהעדפה: אחרת חלון צר באותו מחשב היה נפתח אחר כך
+   עם מצגת שאיש לא ביקש. */
+function sideOpen(on, auto) {
   document.body.classList.toggle('side-on', !!on);
   var b = $('dktog');
   if (b) b.classList.toggle('on', !!on);
-  if (!quiet()) try { localStorage.setItem('df:side', on ? '1' : '0'); } catch (e) {}
+  if (!quiet() && !auto) try {
+    localStorage.setItem('df:side', on ? '1' : '0');
+  } catch (e) {}
   recStep('deck');
   if (on) sideSync(true);
   /* הבמה שינתה רוחב רק אם היא לא הייתה נעולה על --col. בכל
@@ -1449,65 +1518,93 @@ function sideOpen(on) {
      המקום הישן. */
   if (FLAT.length) { paint(); focus(); }
 }
-/* גובה מה שיושב בתחתית המסך. נמדד ולא מנוחש: יש בו
-   `safe-area-inset`, והוא שונה בין אייפון עם סרגל תחתון לבין
-   אנדרואיד, וחלון צף שיושב על מספר קבוע נחתך באחד מהם.
-
-   וזה **גם** לוח המקליט, כשהוא דלוק. בטלפון המצגת היא חלון צף
-   שנתלה מלמעלה על השורה הזו, ובלי המדידה הזו היא כיסתה את
-   כפתורי המקליט בדיוק כשמקליטים. */
-function navH() {
-  var h = 0;
-  ['rec', 'nav'].forEach(function (sel) {
-    var el = sel === 'nav' ? document.querySelector('nav') : $(sel);
-    if (el && el.offsetParent !== null) h += el.offsetHeight;
-  });
-  /* גם אפס. `if (h)` השאיר את ברירת המחדל שב-CSS — 56 פיקסלים —
-     בדיוק במקרה שבו אין שורת ניווט כלל, כלומר בחלון ההדגמה,
-     והמצגת ריחפה שם גבוה מדי עם רווח ריק מתחתיה. */
-  document.body.style.setProperty('--nav-h', h + 'px');
-}
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
 }
 /* ---------- ציור ---------- */
 function sideSync(force) {
-  if (!DECK || !document.body.classList.contains('side-on')) return;
+  if (!DECK) return;
+  /* גם כשהמצגת סגורה. השקף של הקטע שעל המסך מובא ברקע, כדי
+     שלחיצה על "מצגת" תראה שקף ולא תיבה ריקה — וזה נכון בדיוק
+     במקרה שבו הלומד דפדף הרבה לפני שפתח אותה. */
+  slidePre(slideAt(IDX));
+  if (!document.body.classList.contains('side-on')) return;
   var want = slideAt(IDX);
   if (want === SLIDE && !force) { sideAdmPaint(); return; }
   SLIDE = want;
   sidePaint();
 }
+/* המסגרת נבנית **פעם אחת**, ואחריה רק מתעדכנת.
+   `null` = עוד לא נבנתה · true/false = נבנתה למצב טלפון או מחשב,
+   ומעבר בין השניים (סיבוב, שינוי גודל חלון) בונה מחדש.
+
+   קודם היא נבנתה מחדש בכל החלפת שקף, וזה מה שיצר את הריק: תיבת
+   התמונה נהרסה ונולדה ריקה, ורק אז התחילה להביא. */
+var SIDE_FR = null;
 function sidePaint() {
   var el = $('side');
   if (!el || !DECK) return;
   var phone = sidePhone();
-  el.innerHTML =
-    '<div class="sd-h">' +
-    /* מספר השקף מוצג רק למי שמשייך — הוא הכלי שלו. לתלמיד הוא
-       מבטיח שליטה שאינה קיימת: המצגת נוסעת עם הדף. */
-    (SIDE_ADM ? '<span class="sd-n">שקף ' + SLIDE + ' מתוך ' + deckN() + '</span>' : '') +
-    '<span class="sp"></span>' +
-    (phone ? '<button id="sd-x" title="סגירה">✕</button>' : '') +
-    '</div>' +
-    '<div class="sd-b"><img id="sd-img" alt="שקף ' + SLIDE + '"></div>' +
-    '<div class="sd-f">' +
-    '<button id="sd-prev">▸ שקף קודם</button><span class="sp"></span>' +
-    '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
-    '<button id="sd-next">שקף הבא ◂</button></div>' +
-    (SIDE_ADM ? sideAdmHtml() : '');
-
-  $('sd-img').src = slideSrc(SLIDE);
-  if ($('sd-x')) $('sd-x').onclick = function () { sideOpen(false); };
-  /* דפדוף ידני. הוא אינו משנה את השיוך — הוא רק מסתכל, ובקטע
-     הבא המצגת חוזרת למה שהשיוך אומר. */
-  $('sd-prev').onclick = function () { sideStep(-1); };
-  $('sd-next').onclick = function () { sideStep(1); };
+  if (SIDE_FR !== phone || !$('sd-img')) {
+    el.innerHTML =
+      '<div class="sd-h">' +
+      /* מספר השקף מוצג רק למי שמשייך — הוא הכלי שלו. לתלמיד הוא
+         מבטיח שליטה שאינה קיימת: המצגת נוסעת עם הדף. */
+      (SIDE_ADM ? '<span class="sd-n" id="sd-cnt"></span>' : '') +
+      '<span class="sp"></span>' +
+      (phone ? '<button id="sd-x" title="סגירה">✕</button>' : '') +
+      '</div>' +
+      '<div class="sd-b"><img id="sd-img" alt=""></div>' +
+      '<div class="sd-f">' +
+      '<button id="sd-prev">▸ שקף קודם</button><span class="sp"></span>' +
+      '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
+      '<button id="sd-next">שקף הבא ◂</button></div>' +
+      (SIDE_ADM ? sideAdmHtml() : '');
+    if ($('sd-x')) $('sd-x').onclick = function () { sideOpen(false); };
+    /* דפדוף ידני. הוא אינו משנה את השיוך — הוא רק מסתכל, ובקטע
+       הבא המצגת חוזרת למה שהשיוך אומר. */
+    $('sd-prev').onclick = function () { sideStep(-1); };
+    $('sd-next').onclick = function () { sideStep(1); };
+    SIDE_FR = phone;
+  }
+  var cnt = $('sd-cnt');
+  if (cnt) cnt.textContent = 'שקף ' + SLIDE + ' מתוך ' + deckN();
+  sideImg(SLIDE);
   $('sd-prev').disabled = SLIDE <= 1;
   $('sd-next').disabled = SLIDE >= deckN();
   var lbl = $('sd-lbl');
   if (lbl) lbl.textContent = (SIDE_ADM && !ANCH) ? 'אין עדיין שיוך' : '';
   sideAdmPaint();
+}
+
+/* השקף שעל המסך נשאר עד שהבא **מוכן**, ואז הם מתחלפים — אף פעם
+   לא רואים תיבה ריקה באמצע. ראו `.sd-b.wait`. */
+function sideImg(n) {
+  var img = $('sd-img');
+  if (!img) return;
+  var src = slideSrc(n);
+  var cls = function (c) {
+    var e = $('sd-img');
+    if (e && e.parentNode) e.parentNode.className = c;
+  };
+  if (img.getAttribute('src') === src) { cls('sd-b'); return; }
+  var im = slidePre(n);
+  slidePre(n + 1);                 /* הבא בתור, בשקט */
+  var show = function () {
+    /* בינתיים הוחלף השקף — מה שהגיע כבר אינו מה שמבקשים */
+    var e = $('sd-img');
+    if (SLIDE !== n || !e) return;
+    e.src = src;
+    e.alt = 'שקף ' + n;
+    cls('sd-b');
+  };
+  if (slideReady(n)) { show(); return; }
+  /* כבר נכשל קודם: `complete` דלוק ואין רוחב. אין למה להמתין,
+     ושום אירוע לא יגיע יותר — בלי זה הסימן היה מסתובב לנצח. */
+  if (!im || (im.complete && !im.naturalWidth)) { cls('sd-b'); return; }
+  cls('sd-b wait');
+  im.onload  = show;
+  im.onerror = function () { cls('sd-b'); };
 }
 function sideStep(d) {
   var n = SLIDE + d;
@@ -1641,13 +1738,29 @@ function sideInit() {
     b.onclick = function () {
       sideOpen(!document.body.classList.contains('side-on'));
     };
-    /* מי שסגר — נשאר סגור. אין פתיחה מאליה: הדף כפי שהוא היום
-       הוא ברירת המחדל, וכל שינוי בו הוא בחירה של מי שלחץ.
+    /* השקף הראשון מובא כבר עכשיו, לפני שאיש לחץ. */
+    slidePre(slideAt(IDX));
+    slidePre(slideAt(IDX) + 1);
 
-       ובהדגמה גם לא נפתחת מאליה: התסריט פותח אותה בזמן שלו,
-       וכך היא נראית נפתחת ולא נמצאת. */
+    /* ---------- מה פתוח בכניסה ----------
+       **במסך רחב — שתיהן.** מחנך שפותח את הדף בפעם הראשונה מול
+       כיתה, על מקרן, אינו יודע שיש כאן מצגת ואינו מחפש כפתור.
+       הוא ילמד עם הביאור בלבד, והכיתה לא תראה את מה שהוכן לה —
+       והוא אפילו לא ידע מה החסיר. במסך רחב יש מקום לשלושתם זה
+       לצד זה, ולכן אין שום דבר להרוויח מהסתרה.
+
+       **בטלפון — רק הביאור**, כמו היום: שם המצגת תופסת את מקומו,
+       וזו בחירה שצריכה להיות של מי שלחץ.
+
+       ומי שסגר נשאר סגור, בשני המקרים: '0' נכתב רק מלחיצה של
+       אדם, והפתיחה מאליה אינה נשמרת כהעדפה.
+
+       בהדגמה כלום לא נפתח מאליו: התסריט פותח בזמן שלו, וכך היא
+       נראית נפתחת ולא נמצאת. */
     if (!quiet()) try {
-      if (localStorage.getItem('df:side') === '1') sideOpen(true);
+      var pref = localStorage.getItem('df:side');
+      var want = sidePhone() ? (pref === '1') : (pref !== '0');
+      if (want) sideOpen(true, true);
     } catch (e) {}
   });
 }
@@ -1942,29 +2055,56 @@ function demoRun(script) {
     if (!DEMO) return;
     var b = steps[i++];
     if (!b) return;
-    DEMO_T = setTimeout(function () { demoAct(b[1], b[2]); step(); }, b[0]);
+    /* הצעד מודיע מתי הוא נגמר, ולא מניחים שהוא מיידי: פתיחת
+       המצגת ממתינה לשקף, והתסריט ממתין איתה. */
+    DEMO_T = setTimeout(function () { demoAct(b[1], b[2], step); }, b[0]);
   };
   bubble('run');
   step();
 }
 /* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
    טבלת תרגום שאפשר לשכוח לעדכן. */
-function demoAct(a, v) {
+function demoAct(a, v, done) {
+  done = done || function () {};
+  if (a === 'deck') { demoDeck(done); return; }   /* הוא מודיע בעצמו */
   if (a === 'go')          go(v);
   else if (a === 'next')   go(IDX + 1);
   else if (a === 'prev')   go(IDX - 1);
   else if (a === 'chav')   drawer(!document.body.classList.contains('chav-on'));
-  else if (a === 'deck')   demoDeck();
   else if (a === 'whole')  setWhole(DIM);
   else if (a === 'zoom')   chavZoom(v);
   else if (a === 'invite') demoInvite();
+  done();
 }
 /* המצגת נפתחת רק אם באמת יש אחת לדף הזה. הכפתור מוסתר עד
-   ש-sideInit יודע שיש שיוך, וזו הבדיקה הזולה והנכונה. */
-function demoDeck() {
+   ש-sideInit יודע שיש שיוך, וזו הבדיקה הזולה והנכונה.
+
+   **וכאן, בשונה מהדף עצמו, היא ממתינה לשקף.** בהדגמה אין אדם
+   שלחץ ומחכה לעצמו — יש צופה, והוא רואה מעבר אחד חלק במקום
+   תיבה שנפתחת ריקה ומתמלאת. בדף האמיתי זה הפוך בדיוק: מי שלחץ
+   חייב לראות תגובה מיד, אחרת הוא חושב שהכפתור לא עבד ולוחץ שוב.
+
+   תקרה של שתי שניות: אחריה זה נפתח בלי השקף. הדגמה שנתקעת
+   גרועה משקף שמאחר. בפועל זה כמעט לעולם לא יקרה — המצגת
+   נפתחת בתסריט אחרי כתשע שניות, והשקפים מובאים מהרגע הראשון. */
+function demoDeck(done) {
+  done = done || function () {};
   var b = $('dktog');
-  if (!b || b.style.display === 'none') return;
-  sideOpen(!document.body.classList.contains('side-on'));
+  if (!b || b.style.display === 'none') { done(); return; }
+  if (document.body.classList.contains('side-on')) {
+    sideOpen(false); done(); return;             /* סגירה — אין למה להמתין */
+  }
+  var n = slideAt(IDX), im = slidePre(n), fired = false, t = 0;
+  var open = function () {
+    if (fired || !DEMO) return;
+    fired = true;
+    clearTimeout(t);
+    sideOpen(true);
+    done();
+  };
+  if (slideReady(n)) { open(); return; }
+  t = setTimeout(open, 2000);
+  if (im) im.onload = function () { slidePre(n + 1); open(); };
 }
 /* ---------- הבועה ----------
    'run' — רצה לבד · 'ask' — נגמרה ומזמינה לנסות · 'fin' — ההזמנה
@@ -2170,7 +2310,6 @@ function recPaint() {
   }
   $('rec-b').innerHTML = b;
   $('rec-a').innerHTML = act;
-  navH();
 }
 
 /* ============================================================
