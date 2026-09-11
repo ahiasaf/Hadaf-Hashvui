@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.13.0';
+var APP_VERSION = '8.14.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4086,7 +4086,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
                 'tourOn', 'tourAt', 'sizeOn', 'netTicker',
-                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk'];
+                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
@@ -7156,6 +7156,26 @@ function admSet(el) {
     esc(CFG.api || API) + '" onchange="cfgSet(\'api\',this.value.trim())"></div>' +
     '<button class="btn g" onclick="admPing()">בדיקת חיבור</button>' +
     '<div id="adm-ping"></div></div>' +
+
+    /* ---------- קבוצת הוואטסאפ ----------
+       הקישור יושב כאן ולא בקוד: הריפו ציבורי, וקישור הצטרפות
+       הוא דלת פתוחה לקבוצה של נוער. וגם — קישורי קבוצה מתחלפים,
+       וכך אפשר להחליף בלי דחיפת קוד.
+
+       **חייבים פרסום.** כל עוד לא נלחץ "פרסום", זה יושב על
+       המכשיר הזה בלבד והתלמידים אינם רואים דבר. זו בדיוק התקלה
+       שהייתה בוואטסאפ של הרכז, ולכן השורה הזו כתובה כאן.
+
+       ריק = הכרטיס אינו מוצג לתלמיד כלל, ואין כפתור שבור. */
+    '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>קבוצת הוואטסאפ</h4>' +
+    '<p class="h">מוצעת לתלמיד מיד אחרי שנרשם. להורה שנרשם ' +
+    'לעצמו — לא. ריק = לא מוצע לאיש.<br>' +
+    '<b>לא נשמר בקוד ולכן חייב פרסום</b> כדי שיגיע לתלמידים.</p>' +
+    '<div class="fld"><div class="label">קישור ההצטרפות</div>' +
+    '<input type="text" dir="ltr" placeholder="https://chat.whatsapp.com/…" value="' +
+    esc(CV('waGroup') || '') +
+    '" onchange="cfgSet(\'waGroup\',this.value.trim())"></div></div>' +
 
     /* הסטודיו נגיש רק מכאן. הוא אינו מקושר מהאפליקציה ואינו
        במניפסט, ומי שלא נכנס לניהול אינו אמור לדעת עליו. */
