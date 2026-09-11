@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>בדיקת שמע — הדף השבועי</title>
+<!-- ============================================================
+     כלי בדיקה, לא מסך של האפליקציה.
+     ============================================================
+     שאלה אחת ויחידה: **האם הקלטה מהטלפון של אחיאסף תתנגן אצל
+     כל התלמידים?** הפירוש הקולי כולו תלוי בתשובה, ואי אפשר
+     לנחש אותה מהקוד — היא תלויה בדגם, בדפדפן ובגרסת המערכת.
+
+     לכן הדף הזה אינו בודק תאוריה אלא **מנגן קבצים אמיתיים**
+     בשלושה פורמטים, ואומר על כל אחד אם הוא ניגן. ואז הוא
+     מקליט במכשיר עצמו ומראה מה יצא.
+
+     פותחים אותו בשני המכשירים — אנדרואיד ואייפון — ומשווים.
+
+     כמו slidetest.html ו-lab.html: כלי פנימי, בלי לוגו ובלי
+     קישור משום מקום. אפשר למחוק אותו כשהפיצ'ר יסתיים.
+     ============================================================ -->
+<style>
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --rule:#E5DAC3; --ok:#3A7B56; --stop:#A5382D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:0 16px 60px}
+.wrap{max-width:560px;margin-inline:auto}
+header{background:var(--blue-d);color:#fff;margin:0 -16px 22px;
+  padding:20px 18px}
+header b{display:block;font-size:1.15rem}
+header span{display:block;font-size:.84rem;opacity:.82;margin-top:3px}
+h2{font-size:.95rem;color:var(--blue);margin:26px 0 4px}
+h2 i{font-style:normal;color:var(--gold);margin-inline-end:6px}
+p.lead{margin:0 0 14px;font-size:.86rem;color:var(--ink-2)}
+.card{background:var(--surface);border:1px solid var(--rule);
+  border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--rule)}
+.row:last-child{border-bottom:0}
+.row .nm{flex:1;min-width:0}
+.row .nm b{display:block;font-size:.9rem}
+.row .nm small{color:var(--ink-2);font-size:.76rem}
+.tag{font-weight:800;font-size:.78rem;padding:3px 10px;border-radius:20px;
+  white-space:nowrap}
+.tag.q{background:#EFEAdD;color:var(--ink-2)}
+.tag.y{background:#E3F0E8;color:var(--ok)}
+.tag.n{background:#F7E4E2;color:var(--stop)}
+button{border:1px solid var(--rule);background:var(--surface);
+  border-radius:10px;padding:11px 18px;font:inherit;font-weight:800;
+  color:var(--ink);cursor:pointer}
+button.p{background:var(--blue);border-color:var(--blue);color:#fff}
+button.rec{background:var(--stop);border-color:var(--stop);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+.acts{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 4px}
+.out{font-size:.82rem;color:var(--ink-2);margin-top:10px;
+  white-space:pre-wrap;word-break:break-word}
+.out b{color:var(--ink)}
+.verdict{margin-top:8px;padding:13px 15px;border-radius:12px;
+  font-size:.88rem;font-weight:700;line-height:1.6}
+.verdict.y{background:#E3F0E8;color:#24593C;border:1px solid #BBD9C7}
+.verdict.n{background:#F7E4E2;color:#7E2C23;border:1px solid #E2BDB8}
+.verdict.q{background:#EFEAdD;color:var(--ink-2);border:1px solid var(--rule)}
+code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
+  font-size:.82em;direction:ltr;display:inline-block}
+audio{width:100%;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <b>בדיקת שמע</b>
+  <span>פותחים בשני המכשירים ומשווים — אנדרואיד ואייפון</span>
+</header>
+
+<div class="wrap">
+
+  <h2><i>1</i>מה המכשיר הזה מסוגל <b>לנגן</b></h2>
+  <p class="lead">שלושה קבצים אמיתיים, צליל קצר בכל אחד. לוחצים פעם
+    אחת והדף מנגן את שלושתם בזה אחר זה ומדווח.</p>
+  <div class="card" id="play-card">
+    <div class="row"><div class="nm"><b>WebM / Opus</b>
+      <small>מה שאנדרואיד מקליט כברירת מחדל</small></div>
+      <span class="tag q" id="t-webm">טרם נבדק</span></div>
+    <div class="row"><div class="nm"><b>MP4 / AAC</b>
+      <small>מה שאייפון מקליט</small></div>
+      <span class="tag q" id="t-m4a">טרם נבדק</span></div>
+    <div class="row"><div class="nm"><b>Ogg / Opus</b>
+      <small>גיבוי אפשרי</small></div>
+      <span class="tag q" id="t-ogg">טרם נבדק</span></div>
+    <div class="acts"><button class="p" id="go">▶ בדוק נגינה</button></div>
+    <div class="out" id="play-out"></div>
+  </div>
+
+  <h2><i>2</i>מה המכשיר הזה מסוגל <b>להקליט</b></h2>
+  <p class="lead">מקליט שלוש שניות, מראה מה באמת יצא, ומנגן בחזרה.
+    צריך לאשר גישה למיקרופון.</p>
+  <div class="card">
+    <div class="out" id="sup"></div>
+    <div class="acts">
+      <button class="rec" id="rec">● הקלט 3 שניות</button>
+      <button id="dl" disabled>שמור את הקובץ</button>
+    </div>
+    <div class="out" id="rec-out"></div>
+    <audio id="back" controls hidden></audio>
+  </div>
+
+  <h2><i>3</i>מה זה אומר</h2>
+  <div class="verdict q" id="verdict">הרץ את שתי הבדיקות למעלה.</div>
+
+</div>
+
+<script>
+/* ES5 בלבד — אותו כלל כמו בכל הפרויקט. */
+function $(id) { return document.getElementById(id); }
+
+var FILES = [
+  { id:'t-webm', key:'webm', url:'voicetest/opus.webm', nm:'WebM/Opus' },
+  { id:'t-m4a',  key:'m4a',  url:'voicetest/aac.m4a',   nm:'MP4/AAC'  },
+  { id:'t-ogg',  key:'ogg',  url:'voicetest/opus.ogg',  nm:'Ogg/Opus' }
+];
+var RES = {};
+
+function tag(id, cls, txt) {
+  var e = $(id);
+  e.className = 'tag ' + cls;
+  e.textContent = txt;
+}
+
+/* ---------- נגינה ----------
+   `canPlayType` הוא ניחוש של הדפדפן ולא עובדה: הוא מחזיר
+   "maybe" על דברים שאינם מתנגנים, ו-"" על דברים שכן. לכן כאן
+   מנגנים באמת ובודקים שהזמן זז.
+
+   שלוש שניות תקרה. קובץ שלא התחיל לנגן בשלוש שניות לא ינגן. */
+function testOne(f, done) {
+  var a = new Audio();
+  var fin = false;
+  var end = function (okay, why) {
+    if (fin) return;
+    fin = true;
+    clearTimeout(t);
+    a.pause();
+    RES[f.key] = okay;
+    tag(f.id, okay ? 'y' : 'n', okay ? '✓ מתנגן' : '✗ לא מתנגן');
+    if (!okay && why) note(f.nm + ' — ' + why);
+    done();
+  };
+  var t = setTimeout(function () { end(false, 'לא התחיל לנגן'); }, 3000);
+  a.addEventListener('timeupdate', function () {
+    if (a.currentTime > 0.12) end(true);
+  });
+  a.addEventListener('ended', function () { end(a.currentTime > 0.12); });
+  a.addEventListener('error', function () { end(false, 'שגיאת טעינה'); });
+  a.preload = 'auto';
+  a.src = f.url + '?t=' + Date.now();
+  var pr = a.play();
+  /* דפדפן שחוסם ניגון מחזיר דחייה, וזו אינה "הפורמט לא נתמך" */
+  if (pr && pr['catch']) pr['catch'](function (e) {
+    end(false, String(e && e.name) === 'NotAllowedError'
+      ? 'הדפדפן חסם ניגון' : 'הניגון נכשל');
+  });
+}
+function note(s) {
+  var e = $('play-out');
+  e.innerHTML += (e.innerHTML ? '<br>' : '') + s;
+}
+function runPlay() {
+  $('go').disabled = true;
+  $('play-out').innerHTML = '';
+  var i = 0;
+  var step = function () {
+    if (i >= FILES.length) { $('go').disabled = false; verdict(); return; }
+    var f = FILES[i++];
+    tag(f.id, 'q', 'בודק…');
+    testOne(f, step);
+  };
+  step();
+}
+
+/* ---------- הקלטה ---------- */
+var TRY = ['audio/mp4', 'audio/mp4;codecs=mp4a.40.2', 'audio/aac',
+           'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+var SUP = [];
+function showSup() {
+  var e = $('sup');
+  if (!window.MediaRecorder) {
+    e.innerHTML = '<b>אין הקלטה בדפדפן הזה.</b>';
+    return;
+  }
+  var i, out = [];
+  for (i = 0; i < TRY.length; i++) {
+    var okay = false;
+    try { okay = MediaRecorder.isTypeSupported(TRY[i]); } catch (e2) {}
+    if (okay) SUP.push(TRY[i]);
+    out.push((okay ? '✓ ' : '✗ ') + TRY[i]);
+  }
+  e.innerHTML = '<b>פורמטים שהמכשיר הזה יכול להקליט:</b><br>' +
+                out.join('<br>');
+}
+
+var BLOB = null;
+function record() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('rec-out').innerHTML = '<b>אין גישה למיקרופון בדפדפן הזה.</b>';
+    return;
+  }
+  $('rec').disabled = true;
+  $('rec').textContent = '● מקליט…';
+  $('rec-out').innerHTML = '';
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    /* בלי לבקש פורמט: כך רואים מה המכשיר בוחר **לבד**, וזו
+       בדיוק השאלה. הבחירה המפורשת נבדקת בסעיף 1 למעלה. */
+    var mr;
+    try { mr = new MediaRecorder(stream); }
+    catch (e) {
+      $('rec-out').innerHTML = '<b>ההקלטה נכשלה:</b> ' + String(e);
+      reset(stream); return;
+    }
+    var parts = [];
+    mr.ondataavailable = function (ev) {
+      if (ev.data && ev.data.size) parts.push(ev.data);
+    };
+    mr.onstop = function () {
+      BLOB = new Blob(parts, { type: mr.mimeType || 'audio/webm' });
+      var a = $('back');
+      a.hidden = false;
+      a.src = URL.createObjectURL(BLOB);
+      $('dl').disabled = false;
+      $('rec-out').innerHTML =
+        '<b>מה שיצא:</b> <code>' + (mr.mimeType || 'לא ידוע') + '</code>' +
+        '<br><b>גודל:</b> ' + Math.round(BLOB.size / 1024) + 'KB לשלוש שניות' +
+        '<br>נגן אותו כאן, ואז שמור ושלח לעצמך למכשיר השני.';
+      reset(stream);
+      verdict();
+    };
+    mr.start();
+    setTimeout(function () { if (mr.state !== 'inactive') mr.stop(); }, 3000);
+  })['catch'](function (e) {
+    $('rec-out').innerHTML = '<b>לא ניתנה גישה למיקרופון.</b> ' +
+      String(e && e.name || e);
+    $('rec').disabled = false;
+    $('rec').textContent = '● הקלט 3 שניות';
+  });
+}
+function reset(stream) {
+  $('rec').disabled = false;
+  $('rec').textContent = '● הקלט שוב';
+  if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+}
+function save() {
+  if (!BLOB) return;
+  var ext = (BLOB.type.indexOf('mp4') >= 0 || BLOB.type.indexOf('aac') >= 0)
+          ? 'm4a' : BLOB.type.indexOf('ogg') >= 0 ? 'ogg' : 'webm';
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(BLOB);
+  a.download = 'haklata.' + ext;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+/* ---------- השורה התחתונה ---------- */
+function verdict() {
+  var v = $('verdict');
+  var n = 0, k;
+  for (k in RES) if (RES.hasOwnProperty(k)) n++;
+  if (n < FILES.length) { return; }
+
+  var canM4a = false, i;
+  for (i = 0; i < SUP.length; i++) {
+    if (SUP[i].indexOf('mp4') >= 0 || SUP[i].indexOf('aac') >= 0) canM4a = true;
+  }
+  var msg, cls;
+  if (RES.m4a && RES.webm) {
+    cls = 'y';
+    msg = 'המכשיר הזה מנגן גם MP4/AAC וגם WebM/Opus. מבחינתו — ' +
+          'אפשר להקליט בכל אחד מהם.';
+  } else if (RES.m4a && !RES.webm) {
+    cls = 'n';
+    msg = 'המכשיר הזה מנגן MP4/AAC אבל **לא** WebM/Opus. ' +
+          'כלומר הקלטה שיוצאת כ-WebM לא תישמע כאן — וזו בדיוק ' +
+          'התקלה שחיפשנו. הפתרון: להקליט ב-MP4, או להמיר אוטומטית ' +
+          'אחרי ההעלאה.';
+  } else if (!RES.m4a && RES.webm) {
+    cls = 'n';
+    /* קורה בדפדפנים בלי קודקים קנייניים — למשל כרומיום פתוח
+       בסביבת בדיקה. בטלפון אמיתי זה כמעט לא קיים. */
+    msg = 'המכשיר הזה מנגן WebM/Opus אבל לא MP4/AAC. בטלפון רגיל ' +
+          'זה כמעט לא קורה — זה אופייני לדפדפן בלי קודקים קנייניים, ' +
+          'כלומר לא לדפדפן של תלמיד.';
+  } else {
+    cls = 'n';
+    msg = 'שום פורמט לא ניגן כאן. כנראה בעיית רשת או חסימת ניגון — ' +
+          'לרענן ולנסות שוב.';
+  }
+  if (SUP.length) {
+    msg += canM4a
+      ? ' · ובהקלטה: המכשיר הזה **יכול** להקליט ישירות ב-MP4/AAC, ' +
+        'כלומר כפתור הקלטה שנבנה כאן יבחר את הפורמט שמתנגן בכל מקום.'
+      : ' · ובהקלטה: המכשיר הזה **אינו** יכול להקליט ב-MP4/AAC — ' +
+        'רק Opus. לכן תידרש המרה אוטומטית אחרי ההעלאה.';
+  }
+  v.className = 'verdict ' + cls;
+  v.innerHTML = msg.replace(/\*\*(.+?)\*\*/g, '<u>$1</u>');
+}
+
+showSup();
+$('go').onclick  = runPlay;
+$('rec').onclick = record;
+$('dl').onclick  = save;
+</script>
+</body>
+</html>
