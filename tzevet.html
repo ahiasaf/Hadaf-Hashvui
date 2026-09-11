@@ -844,14 +844,13 @@ function firstScroll() {
   if (window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
 
-  var stop = false;
-  var mark = function () { stop = true; };
+  var mark = function () { STOPPED = true; };
   ['touchstart', 'wheel', 'keydown', 'pointerdown'].forEach(function (ev) {
     window.addEventListener(ev, mark, true);
   });
 
   setTimeout(function () {
-    if (stop || window.pageYOffset > 4) return;
+    if (STOPPED || window.pageYOffset > 4) return;
     var h1 = $('t-h1'), eb = $('inst-name');
     if (!h1) return;
     var to = h1.getBoundingClientRect().top + window.pageYOffset - 20;
@@ -863,19 +862,42 @@ function firstScroll() {
     }
     if (to <= 8) return;
 
-    var from = window.pageYOffset, dist = to - from, t0 = 0, T = 1500;
-    var step = function (ts) {
-      if (stop) return;
-      if (!t0) t0 = ts;
-      var k = Math.min(1, (ts - t0) / T);
-      /* מתחילה כמעט בלי מהירות, צוברת, ונעצרת בעדינות */
-      var e = k < 0.5 ? 4 * k * k * k
-                      : 1 - Math.pow(-2 * k + 2, 3) / 2;
-      window.scrollTo(0, from + dist * e);
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+    glide(to, 1500, function () {
+      /* ---------- והגלילה השנייה ----------
+         עכשיו העין כבר על החלון. שלוש שניות לקרוא את שתי
+         השורות, ואז תזוזה קטנה שמושיבה את החלון כולו על המסך
+         עם אוויר מתחתיו: חלון שנגמר בדיוק בקצה התחתון נראה
+         כאילו נחתך, ומי שרואה אותו כך אינו יודע שזה הכל. */
+      setTimeout(function () {
+        if (STOPPED) return;
+        var box = $('demo');
+        if (!box || box.hidden) return;
+        var r = box.getBoundingClientRect();
+        var y = window.pageYOffset + r.bottom + 22 - window.innerHeight;
+        if (y - window.pageYOffset > 14) glide(y, 1100);
+      }, 3000);
+    });
   }, 2000);
+}
+
+/* תנועה אחת: מתחילה כמעט בלי מהירות, צוברת, ונעצרת בעדינות.
+   `behavior:'smooth'` של הדפדפן הוא כרבע שנייה — מהיר מדי כדי
+   להיקרא כהתיישבות, ולכן היא מצוירת כאן.
+
+   `STOPPED` נבדק בכל פריים: נגיעה באמצע עוצרת מיד. */
+var STOPPED = false;
+function glide(to, ms, done) {
+  var from = window.pageYOffset, dist = to - from, t0 = 0;
+  var step = function (ts) {
+    if (STOPPED) return;
+    if (!t0) t0 = ts;
+    var k = Math.min(1, (ts - t0) / ms);
+    var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    window.scrollTo(0, from + dist * e);
+    if (k < 1) requestAnimationFrame(step);
+    else if (done) done();
+  };
+  requestAnimationFrame(step);
 }
 
 /* המעבר אל ההנחיות. שני מקומות מגיעים לכאן: חזרה מההדגמה

@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.11.0';
+var APP_VERSION = '8.12.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2505,7 +2505,9 @@ function regDone(txt, viaWa) {
   document.getElementById('r-done').innerHTML =
     '<div class="done-box" style="margin-top:14px">' +
     esc(UI.done) + '</div>' +
-    (viaWa ? '<div style="text-align:center;margin-top:11px">' +
+    /* בלי מספר אין קישור: `wa.me/` ריק הוא כפתור שמוביל לשגיאה.
+       המספר מגיע מההגדרות שפורסמו — ראו COORD_WA ב-data.js. */
+    (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' +
              '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' +
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
