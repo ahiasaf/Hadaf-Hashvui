@@ -514,9 +514,19 @@ function subscribe() {
    **אין כאן אימות־קריאה־חוזרת** כמו בשאר הכתיבות, כי הלשונית
    פרטית והבודק אינו יכול לקרוא אותה. וזה בסדר דווקא כאן:
    **ההתראה עצמה היא האימות.** הגיעה — נרשם. */
+/* אותה הכרעת כתובת של שאר האפליקציה: מה שנקבע במכשיר גובר על
+   מה שבקוד. מסך הניהול שומר כתובת חלופית, ועמוד שמתעלם ממנה
+   כותב לסקריפט ישן — ושותק על כך, כי `no-cors` אטום. */
+function apiUrl() {
+  var a = '';
+  try { a = localStorage.getItem('dfApi') || ''; } catch (e) {}
+  if (!a) { try { a = (JSON.parse(localStorage.getItem('df:cfg') || '{}') || {}).api || ''; } catch (e) {} }
+  if (!a && typeof APPS_SCRIPT_URL !== 'undefined') a = APPS_SCRIPT_URL;
+  return String(a || '').trim();
+}
 function register() {
   var msg = $('copy-msg');
-  var url = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL : '';
+  var url = apiUrl();
   if (!SUB || !url) {
     msg.innerHTML = '<div class="out"><b>לא הצלחתי להירשם למערכת.</b> ' +
       'תגידו לאחיאסף.</div>';
@@ -537,10 +547,32 @@ function register() {
       ])
     })
   })['catch'](function () {})['then'](function () {
-    msg.innerHTML = '<div class="out"><b>נרשמת. ✓</b><br>' +
-      'זהו — אין עוד מה לעשות. כשתישלח התראה היא תגיע לכאן, ' +
-      'גם כשהטלפון בכיס.</div>';
+    /* **לא כותבים "נרשמת ✓".** `no-cors` מחזיר תשובה אטומה:
+       ה-fetch "מצליח" גם כשהשרת דחה, גם כשהכתובת שגויה וגם
+       כשאין רשת. זה כלל הברזל של הפרויקט, והפרתי אותו כאן.
+
+       מה שאפשר לומר באמת: נשלח. **ההתראה עצמה היא האישור** —
+       היא מגיעה רק למי שבאמת נרשם. ולמקרה שלא תגיע, הטקסט
+       זמין להעתקה ידנית ולא צריך להתחיל מהתחלה. */
+    msg.innerHTML = '<div class="out"><b>נשלח.</b><br>' +
+      'אין עוד מה לעשות — אם תגיע התראה, זה עבד. ' +
+      '<u>אל תסגרו את העמוד עד שתקבלו אותה.</u>' +
+      '<br><a href="#" id="sub-manual" style="color:var(--blue);' +
+      'font-weight:800">לא הגיעה התראה? הצג את הקוד להעתקה</a></div>';
+    var m = $('sub-manual');
+    if (m) m.onclick = function (e) { e.preventDefault(); showRaw(); };
   });
+}
+
+/* גיבוי ידני, למקרה שהכתיבה לגיליון נכשלה בשקט. */
+function showRaw() {
+  var msg = $('copy-msg');
+  msg.innerHTML = '<div class="out"><b>שלחו לאחיאסף את הטקסט הזה:</b></div>' +
+    '<textarea readonly style="width:100%;height:100px;margin-top:8px;' +
+    'font-size:.7rem;direction:ltr;border:1px solid var(--rule);' +
+    'border-radius:8px;padding:8px">' + esc(JSON.stringify(SUB)) + '</textarea>';
+  var t = msg.querySelector('textarea');
+  if (t) { t.focus(); t.select(); }
 }
 
 /* ---------- השורה התחתונה ---------- */
