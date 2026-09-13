@@ -191,40 +191,54 @@ function perm()    { return canNote() ? Notification.permission : 'default'; }
 var BIP = null;
 window.addEventListener('beforeinstallprompt', function (e) {
   e.preventDefault(); BIP = e;
-  /* מציירים רק במסך הסיום — שם ההצעה מופיעה. ציור באמצע
-     הדרך היה מוחק שם שכבר הוקלד בשדה. */
-  if (STEP === 4) draw();
+  /* ההצעה מגיעה באיחור של רגע אחרי טעינת העמוד. אם אנחנו עוד
+     בשלב ההתקנה — מחליפים את ההוראות הידניות בכפתור אמיתי. */
+  if (STEP === 1) draw();
 });
-window.addEventListener('appinstalled', function () { BIP = null; draw(); });
+/* הדפדפן מדווח שהתקין — וזה מה שמקדם את השלב. באנדרואיד אין
+   טעם לדרוש שיסגור ויפתח מחדש: המנוי שייך לאתר, לא לחלון. */
+window.addEventListener('appinstalled', function () {
+  BIP = null;
+  try { localStorage.setItem('pt:inst', '1'); } catch (e) {}
+  go(2);
+});
 
 /* RES — איך נגמר: 'ok' נרשם, 'blocked' דיווח שההתראות חסומות.
    שניהם סיום, ורק אחד מהם הצלחה. */
-var STEP = 1, SUB = null, ERR = '', RES = '', DONE = false;
+var STEP = 1, SUB = null, ERR = '', RES = '', RSN = '', DONE = false;
 try { RES = localStorage.getItem('pt:done') || ''; } catch (e) {}
 if (RES === '1') RES = 'ok';          /* מי שסיים בגרסה הקודמת */
 DONE = !!RES;
 
 /* ---------- באיזה שלב אנחנו ----------
-   **באנדרואיד אין שלב התקנה בכלל.** הגרסה הקודמת פתחה בו גם
-   שם, עם הוראות תפריט כלליות — ועל שיאומי התפריט נראה אחרת,
-   הכפתור האוטומטי לא הופיע, והבודקת נתקעה בשלב הראשון וכתבה
-   "לא הצלחתי לעשות דרך השלבים".
+   **ההתקנה היא שלב, ואין סביבה דרך.** לרגע ויתרתי עליה
+   באנדרואיד — ההוראות שלי לא התאימו לשיאומי, והסקתי שנוריד
+   את השלב. זו הייתה המסקנה ההפוכה: ההוראות היו צריכות תיקון,
+   לא השלב מחיקה.
 
-   וזה היה מיותר מלכתחילה: באנדרואיד התראות עובדות מצוין מתוך
-   הדפדפן. ההתקנה היא נוחות, ומקומה **אחרי** ההצלחה ולא כשער
-   לפניה. באייפון היא תנאי, ושם היא נשארת שלב ראשון.
+   ומעבר לזה, מסלול "בלי התקנה" אינו אפשרות שנייה — הוא
+   האפשרות שכולם יבחרו, כי היא הנוחה יותר. התוצאה היא תוכנית
+   בלי אפליקציה על אף טלפון.
 
-   שני מסלולים: אייפון 3 שלבים, אנדרואיד 2. */
+   יש דלת למי שבאמת נתקע, אבל היא **מסיימת בדיווח** ולא
+   ממשיכה בלי התקנה. קיצור דרך שמגיע לאותו מקום הוא קיצור
+   דרך שכולם ילכו בו. */
+function installed() {
+  if (home()) return true;
+  /* באייפון אין תחליף: הדפדפן שם פשוט אינו יודע לקבל התראות.
+     באנדרואיד הדפדפן מדווח שהתקין, וזה מספיק. */
+  if (IOS) return false;
+  try { return localStorage.getItem('pt:inst') === '1'; } catch (e) { return false; }
+}
 function where() {
   if (DONE) return 4;
-  if (IOS && !home()) return 1;
+  if (!installed()) return 1;
   if (perm() !== 'granted') return 2;
   return 3;
 }
-function total() { return IOS ? 3 : 2; }
-function shown(n) { return IOS ? n : n - 1; }
+function total() { return 3; }
 function kick(n) {
-  return '<div class="kick">שלב ' + shown(n) + ' מתוך ' + total() + '</div>';
+  return '<div class="kick">שלב ' + n + ' מתוך ' + total() + '</div>';
 }
 function go(n) { STEP = n; draw(); }
 
@@ -232,6 +246,18 @@ function go(n) { STEP = n; draw(); }
 var SHARE = '<span class="gl"><svg viewBox="0 0 24 24">' +
   '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/>' +
   '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></span>';
+/* שלוש נקודות שוכבות — התפריט בספארי החדש; ושלוש עומדות —
+   התפריט של כרום באנדרואיד. אלה שני כפתורים שונים לגמרי,
+   ואדם שמחפש את הלא-נכון לא ימצא כלום. */
+var DOTS_H = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="5" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="19" cy="12" r="1.6" fill="#17468F" stroke="none"/></svg></span>';
+var DOTS_V = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="12" cy="5" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="19" r="1.6" fill="#17468F" stroke="none"/></svg></span>';
+
 /* הסמל שליד הכתובת בראש הדפדפן. אי אפשר לכתוב "לחצו על הסמל"
    ולקוות שיזוהה — מציירים אותו, וכך העין מוצאת אותו על המסך. */
 var TUNE = '<span class="gl"><svg viewBox="0 0 24 24">' +
@@ -249,9 +275,8 @@ function draw() {
 
   /* המד סופר את השלבים שיש במסלול הזה, ולא שלושה תמיד: נקודה
      שלישית שלעולם לא תידלק אומרת לאנדרואיד שנשאר לו עוד משהו. */
-  $('p1').style.display = IOS ? '' : 'none';
-  /* מסך החסימה והדיווח יושבים על שלב 2 — הם אינם התקדמות. */
-  var m = (STEP === 5) ? 2 : STEP;
+  /* הדיווח יושב על השלב שממנו הגיע — הוא אינו התקדמות. */
+  var m = (STEP === 5) ? (RSN === 'התקנה' ? 1 : 2) : STEP;
   ['p1','p2','p3'].forEach(function (id, i) {
     $(id).className = (STEP === 4 && RES === 'ok') ? 'did'
       : (i + 1 < m ? 'did' : (i + 1 === m ? 'on' : ''));
@@ -264,7 +289,8 @@ function draw() {
 
   /* מה שנגמר מתכווץ לשורה. הוא אינו נעלם, כדי שיהיה ברור
      שהתקדמנו — אבל הוא גם אינו תופס מקום של כרטיס. */
-  if (IOS && STEP > 1) h += row('האפליקציה על מסך הבית');
+  if (STEP > 1 && STEP !== 5) h += row('האפליקציה על מסך הבית');
+  if (STEP === 5 && RSN !== 'התקנה') h += row('האפליקציה על מסך הבית');
   if (STEP === 3 || (STEP === 4 && RES === 'ok')) h += row('ההתראות אושרו');
 
   if (STEP === 1)      h += stepInstall();
@@ -278,27 +304,61 @@ function draw() {
   diag();
 }
 
-/* ---------- שלב 1 ---------- */
-/* מוצג באייפון בלבד — שם זה תנאי ואין דרך אחרת. */
+/* ---------- שלב 1: ההתקנה ----------
+   **קודם למה, אחר כך איך — ושום "ככה זה בנוי".** המשפט הפותח
+   הקודם הסביר מגבלה של אפל. לתלמיד לא אכפת מאפל; הוא רוצה
+   לדעת למה כדאי לו. ההסבר הטכני ירד לפרטים למטה, ובמקומו
+   שורה אחת על מה הוא מקבל.
+
+   **ולכל דפדפן המסלול שלו.** בספארי החדש כפתור השיתוף כבר
+   אינו על הסרגל — צריך קודם שלוש נקודות שוכבות. בכרום
+   באנדרואיד יש כפתור התקנה אמיתי, וכשאין — תפריט שלוש נקודות
+   עומדות. אלה שלושה מסלולים שונים, וכולם בשוק עכשיו. */
 function stepInstall() {
-  return '<div class="step now">' + kick(1) +
+  var h = '<div class="step now">' + kick(1) +
     '<h2>להוסיף את הדף השבועי למסך הבית</h2>' +
-    '<p>באייפון זה <b>חייב</b> להיות ממסך הבית — מתוך הדפדפן ' +
-    'אין התראות בכלל. ככה אייפון בנוי, ואין מה לעשות בקוד.</p>' +
-    '<ol class="how">' +
-    '<li>לחצו על כפתור השיתוף ' + SHARE +
-      ' שבתחתית המסך, באמצע.</li>' +
-    '<li>גללו למטה ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
-    '<li>סגרו את הדפדפן ו<b>פתחו את האייקון החדש</b> שנוסף למסך ' +
-      'הבית. משם נמשיך לבד.</li></ol>' + calm() + '</div>';
+    '<p>משם נדע להודיע לך כשיש דף חדש — ואם זכית בהגרלה.</p>';
+
+  if (IOS) {
+    h += '<ol class="how">' +
+      '<li>לחצו על כפתור השיתוף ' + SHARE + ' שבתחתית המסך.<br>' +
+        '<b>לא רואים אותו?</b> לחצו קודם על שלוש הנקודות ' + DOTS_H +
+        ' שבפינה, ואז על "שיתוף".</li>' +
+      '<li>גללו למטה ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
+      '<li>סגרו את הדפדפן ו<b>פתחו את האייקון החדש</b> שנוסף למסך ' +
+        'הבית. משם נמשיך לבד.</li></ol>';
+  } else if (BIP) {
+    /* כרום מציע להתקין בעצמו — כפתור אחד, בלי לחפש בתפריט. */
+    h += '<button class="btn" id="b-inst">התקנת האפליקציה</button>' +
+      '<p style="font-size:.88rem">ייפתח חלון של הטלפון — לוחצים ' +
+      '"התקן". לוקח שנייה.</p>';
+  } else {
+    h += '<ol class="how">' +
+      '<li>לחצו על שלוש הנקודות ' + DOTS_V + ' בפינת הדפדפן.</li>' +
+      '<li>בחרו <b>"התקנת אפליקציה"</b> — או, אם אין כזה, ' +
+        '<b>"הוספה למסך הבית"</b>.<br>' +
+        '<span style="font-size:.9rem">בדפדפן של סמסונג זה ' +
+        '"הוספת דף אל" ואז "מסך הבית".</span></li>' +
+      '<li><b>פתחו את האייקון החדש</b> שנוסף למסך הבית. ' +
+        'משם נמשיך לבד.</li></ol>';
+  }
+
+  return h + calm() +
+    '<button class="btn thin" id="b-nope">' +
+      'לא מוצא את זה במכשיר שלי — לדווח ולסיים</button>' +
+    (ERR ? '<div class="oops">' + esc(ERR) + '</div>' : '') +
+    '</div>';
 }
 
 /* מה שמפחיד, נאמר לפני שמבקשים. חשד שלא נענה הוא חשד שגדל. */
 function calm() {
   return '<div class="calm"><b>מה זה עושה לטלפון?</b><br>' +
     'מוסיף אייקון למסך הבית — כמו קיצור דרך. לא תופס מקום ולא ' +
-    'רואה שום דבר במכשיר.<br><b>כמה הודעות יגיעו?</b> אחת, לבדיקה. ' +
-    'ואפשר למחוק את האייקון אחר כך בלחיצה ארוכה.</div>';
+    'רואה שום דבר במכשיר, ואפשר למחוק אותו בלחיצה ארוכה.<br>' +
+    '<b>כמה הודעות יגיעו?</b> אחת, לבדיקה.' +
+    (IOS ? '<br><b>למה דווקא ממסך הבית?</b> באייפון התראות ' +
+           'עובדות רק ככה. זו מגבלה של אפל, ואין מה לעשות בקוד.' : '') +
+    '</div>';
 }
 
 /* ---------- שלב 2 ---------- */
@@ -357,13 +417,15 @@ function stepBlocked() {
 
 /* ---------- הדיווח ---------- */
 function stepReport() {
-  return '<div class="step now">' + kick(2) +
+  return '<div class="step now">' + kick(RSN === 'התקנה' ? 1 : 2) +
     '<h2>תודה שטרחתם</h2>' +
-    '<p>נרשום שבמכשיר הזה ההתראות חסומות. רק שנדע מי — ' +
-    'שם פרטי מספיק.</p>' +
+    '<p>' + (RSN === 'התקנה'
+      ? 'נרשום שבמכשיר הזה לא הצלחנו להתקין.'
+      : 'נרשום שבמכשיר הזה ההתראות חסומות.') +
+    ' רק שנדע מי — שם פרטי מספיק.</p>' +
     '<input type="text" id="who" placeholder="לדוגמה: מאיר">' +
     '<button class="btn g" id="b-send">שליחת הדיווח</button>' +
-    '<button class="btn thin" id="b-back">חזרה להוראות</button>' +
+    '<button class="btn thin" id="b-back">רגע, אנסה שוב</button>' +
     (ERR ? '<div class="oops">' + esc(ERR) + '</div>' : '') +
     '</div>';
 }
@@ -389,17 +451,10 @@ function stepDone() {
       '<button class="btn thin" id="b-again">' +
         'פתחתי את ההתראות בינתיים — לנסות שוב</button></div>';
   }
-  var h = '<div class="step fin"><div class="v">✓</div>' +
+  return '<div class="step fin"><div class="v">✓</div>' +
     '<h2>הכול מוכן</h2>' +
     '<p>אין עוד מה לעשות. תוך זמן קצר תגיע התראה אחת — ' +
-    'גם כשהטלפון נעול ובכיס.<br><b>אפשר לסגור את המסך.</b></p>';
-  /* ההתקנה באנדרואיד — הצעה, ורק כשהדפדפן באמת מציע. הוראות
-     תפריט כלליות בלי כפתור הן מה שהכשיל את הבודקת הראשונה. */
-  if (!IOS && BIP && !home()) {
-    h += '<button class="btn thin" id="b-inst">' +
-      'רוצים גם אייקון על מסך הבית? (לא חובה)</button>';
-  }
-  return h +
+    'גם כשהטלפון נעול ובכיס.<br><b>אפשר לסגור את המסך.</b></p>' +
     '<button class="btn thin" id="b-raw">משהו לא עבד? לחצו כאן</button>' +
     '<div id="raw"></div></div>';
 }
@@ -409,16 +464,28 @@ function wire() {
   var b;
   if ((b = $('b-inst'))) b.onclick = function () {
     var p = BIP; if (!p) return;
-    BIP = null; p.prompt();
-    var back = function () { draw(); };
+    p.prompt();
+    /* **מי שביטל אינו מאבד את הכפתור.** איפוס BIP מיד היה מחליף
+       את הכפתור בהוראות תפריט ידניות — עונש על היסוס. */
+    var back = function (c) {
+      if (c && c.outcome === 'accepted') BIP = null;
+      draw();
+    };
     if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
     else back();
   };
   if ((b = $('b-perm')))   b.onclick = askPerm;
   if ((b = $('b-fin')))    b.onclick = finish;
   if ((b = $('b-raw')))    b.onclick = showRaw;
-  if ((b = $('b-report'))) b.onclick = function () { ERR = ''; go(5); };
-  if ((b = $('b-back')))   b.onclick = function () { ERR = ''; go(2); };
+  if ((b = $('b-nope')))   b.onclick = function () {
+    ERR = ''; RSN = 'התקנה'; go(5);
+  };
+  if ((b = $('b-report'))) b.onclick = function () {
+    ERR = ''; RSN = 'חסימה'; go(5);
+  };
+  if ((b = $('b-back')))   b.onclick = function () {
+    ERR = ''; go(RSN === 'התקנה' ? 1 : 2);
+  };
   if ((b = $('b-send')))   b.onclick = report;
   /* "בדקו שוב" — טעינה מחדש ולא ציור מחדש: הרשאה שהשתנתה
      בהגדרות הדפדפן אינה מתעדכנת בעמוד שכבר פתוח. */
@@ -504,7 +571,8 @@ function whoName() {
 function report() {
   ERR = '';
   var b = $('b-send'); if (b) { b.disabled = true; b.textContent = 'רגע…'; }
-  post(whoName(), null, 'חסום במכשיר').then(function () {
+  post(whoName(), null,
+       RSN === 'התקנה' ? 'לא הצליח להתקין' : 'חסום במכשיר').then(function () {
     saveRes('blocked');
   })['catch'](function (e) {
     ERR = 'לא הצלחתי לשלוח את הדיווח: ' + (e && e.message || e) +
@@ -563,7 +631,8 @@ function diag() {
     '<br>notifications=' + canNote() + ' · permission=' + perm() +
     '<br>push=' + ('PushManager' in window) +
     ' · sw=' + ('serviceWorker' in navigator) +
-    '<br>step=' + STEP + ' · res=' + (RES || '-') + ' · bip=' + !!BIP +
+    '<br>step=' + STEP + ' · res=' + (RES || '-') +
+    ' · rsn=' + (RSN || '-') + ' · inst=' + installed() + ' · bip=' + !!BIP +
     (SUB ? '<br>endpoint=' + esc(String(SUB.endpoint).slice(0, 60)) + '…' : '') +
     (ERR ? '<br>err=' + esc(ERR) : '');
 }
