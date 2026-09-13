@@ -45,13 +45,24 @@ function scriptUrl() {
 function loadSubs() {
   var url = scriptUrl();
   if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
-  var q = url + '?tab=' + encodeURIComponent('התראות') +
+  /* **`read` ולא `tab`.** הפרמטר לקריאה נקרא `read`; `tab` הוא
+     של הכתיבה. עם השם הלא נכון הסקריפט אינו נכנס לענף הקריאה
+     כלל, ומחזיר תשובה תקינה בלי שורות — וזה נקרא כאן בטעות
+     "הלשונית ריקה". שלוש שליחות אבדו על זה. */
+  var q = url + '?read=' + encodeURIComponent('התראות') +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
   return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
     if (!j || j.status !== 'ok') {
       throw new Error('הגיליון לא נענה: ' + ((j && j.message) || 'לא ידוע'));
     }
-    var rows = j.rows || [];
+    /* **תשובה בלי שדה `rows` אינה לשונית ריקה — היא קריאה
+       שנכשלה.** זה כלל הברזל של הפרויקט, והבלבול בין השניים
+       הוא בדיוק מה שהסתיר את הבאג למעלה. */
+    if (!j.rows) {
+      throw new Error('התשובה מהגיליון אינה מכילה שורות כלל — ' +
+                      'כנראה לא נקראה הלשונית הנכונה.');
+    }
+    var rows = j.rows;
     if (rows.length < 2) return [];
     /* מיפוי לפי שם העמודה ולא לפי מספרה: סדר עמודות משתנה
        ביום שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
