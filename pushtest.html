@@ -180,10 +180,15 @@ function esc(s) {
     .replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* מפתח ציבורי לבדיקה בלבד. מפתח ציבורי הוא ציבורי מעצם הגדרתו,
-   והפרטי שלו מעולם לא נשמר — אי אפשר לשלוח איתו דבר. הוא כאן רק
-   כדי שנדע אם `subscribe` בכלל מצליח במכשיר הזה. */
-var VAPID = 'BHZtFHn5wMhF3SUv4jLHZF-ei3DDScA6WrDPlZxiyBhV3O2meGuSnslXFuZe3CCyoPyU5Y8S8xufaXiVR2xg-6o';
+/* המפתח הציבורי של התוכנית. ציבורי מעצם הגדרתו, ולכן מקומו
+   בקוד. הפרטי שלו הוא סוד של הריפו ואינו כאן ולעולם לא יהיה —
+   ראו `.github/workflows/push-send.yml`.
+
+   **החליף מפתח קודם**, ולכן ראו `sameKey`: מנוי שנוצר עם מפתח
+   ישן ממשיך להתקיים במכשיר ונראה תקין, אבל דחיפה שנחתמה
+   במפתח החדש תיפול עליו. זה נכשל בשקט, וזה בדיוק סוג הדבר
+   שמתגלה רק ביום שבו צריך שיעבוד. */
+var VAPID = 'BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbdNVYqY5UxdX7lg-i_wIELw';
 
 function b64ToU8(s) {
   var pad = '='.repeat((4 - s.length % 4) % 4);
@@ -425,17 +430,37 @@ function later() {
 }
 
 /* ---------- ההרשמה ---------- */
+/* האם המנוי הקיים נוצר עם המפתח שבקוד עכשיו. מנוי עם מפתח ישן
+   אינו שגוי — הוא פשוט שייך למישהו אחר, ודחיפה שלנו לא תגיע
+   אליו. הוא נזרק ונוצר מחדש. */
+function sameKey(sub) {
+  try {
+    var k = sub.options && sub.options.applicationServerKey;
+    if (!k) return false;
+    var a = new Uint8Array(k), b = b64ToU8(VAPID), i;
+    if (a.length !== b.length) return false;
+    for (i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  } catch (e) { return false; }
+}
+var SUB = null;
 function subscribe() {
   $('sub').disabled = true;
   $('sub-out').innerHTML = 'מנסה…';
   worker().then(function (r) {
-    return r.pushManager.getSubscription().then(function (s) {
-      return s || r.pushManager.subscribe({
+    var fresh = function () {
+      return r.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: b64ToU8(VAPID)
       });
+    };
+    return r.pushManager.getSubscription().then(function (s) {
+      if (!s) return fresh();
+      if (sameKey(s)) return s;
+      return s.unsubscribe().then(fresh, fresh);
     });
   }).then(function (s) {
+    SUB = s;
     /* מוצג רק **שם השירות** ולא הכתובת המלאה: הכתובת המלאה היא
        המפתח לשלוח למכשיר הזה, ואין סיבה שתופיע בצילום מסך. */
     var host = '';
@@ -443,7 +468,10 @@ function subscribe() {
     CAP.sub = true;
     $('sub-out').innerHTML = '<b>ההרשמה הצליחה.</b><br>' +
       'שירות ההתראות: <code>' + esc(host) + '</code><br>' +
-      'כלומר המכשיר הזה <b>יכול</b> לקבל תזכורת שבועית מהשרת.';
+      'כלומר המכשיר הזה <b>יכול</b> לקבל תזכורת שבועית מהשרת.' +
+      '<div class="acts"><button id="sub-copy">העתקת המנוי</button></div>' +
+      '<div id="copy-msg"></div>';
+    $('sub-copy').onclick = copySub;
     verdict();
   })['catch'](function (e) {
     CAP.sub = false;
@@ -465,6 +493,39 @@ function subscribe() {
     $('sub').disabled = false;
     verdict();
   });
+}
+
+/* ---------- מסירת המנוי ----------
+   המנוי הוא הכתובת שאליה דוחפים למכשיר הזה, ובלעדיו אי אפשר
+   לשלוח אליו כלום. אין כאן שליחה אוטומטית לשום מקום: לניסוי
+   של שני מכשירים, העתקה ידנית לסוד של הריפו בטוחה ופשוטה
+   יותר מצינור שצריך לבנות ולאבטח.
+
+   **זה סוד ולא קישור.** מי שמחזיק בו יכול לדחוף התראות
+   למכשיר הזה, ולכן מקומו ב-Secrets ולא בקובץ ולא בהודעה
+   פומבית. */
+function copySub() {
+  if (!SUB) return;
+  var txt = JSON.stringify(SUB);
+  var msg = $('copy-msg');
+  var okay = function () {
+    msg.innerHTML = '<div class="out"><b>הועתק.</b> להדביק לסוד ' +
+      '<code>PUSH_SUBS</code> בגיטהאב. זה מפתח למכשיר שלך — ' +
+      'לא לשלוח בשום מקום פומבי.</div>';
+  };
+  var manual = function () {
+    /* אין גישה ללוח — מציגים את הטקסט לבחירה ידנית, ולא
+       אומרים "לא הצלחתי" ומשאירים בלי כלום. */
+    msg.innerHTML = '<div class="out"><b>להעתיק מכאן ידנית:</b></div>' +
+      '<textarea readonly style="width:100%;height:90px;margin-top:8px;' +
+      'font-size:.72rem;direction:ltr;border:1px solid var(--rule);' +
+      'border-radius:8px;padding:8px">' + esc(txt) + '</textarea>';
+    var t = msg.querySelector('textarea');
+    if (t) { t.focus(); t.select(); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(okay)['catch'](manual);
+  } else manual();
 }
 
 /* ---------- השורה התחתונה ---------- */

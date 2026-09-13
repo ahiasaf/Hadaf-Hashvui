@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.14.0';
+var CACHE_NAME = 'hadaf-v8.15.0';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -53,6 +53,47 @@ self.addEventListener('activate', function (e) {
       return Promise.all(ks.filter(function (k) { return k !== CACHE_NAME; })
                            .map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
+  );
+});
+
+/* ============================================================
+   התראה שמגיעה מבחוץ.
+   ============================================================
+   עד כאן ה-Worker ידע רק להגיש קבצים. זה מה שמאפשר לאפליקציה
+   להקפיץ תזכורת **כשהיא סגורה** — כלומר את מה שקבוצת וואטסאפ
+   עשתה, רק עם האייקון שלנו ובלי קבוצה.
+
+   `userVisibleOnly` מחייב שכל דחיפה תציג משהו, ולכן אין כאן
+   מסלול שקט: גם דחיפה בלי תוכן מציגה כותרת. אחרת הדפדפן מציג
+   במקומנו הודעה גנרית משלו, וזה נראה כמו תקלה.
+
+   הלחיצה פותחת חלון קיים אם יש, ורק אחרת פותחת חדש — אחרת כל
+   תזכורת הייתה מותירה עוד לשונית. */
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { if (e.data) d = e.data.json(); }
+  catch (x) { try { d = { body: e.data.text() }; } catch (y) { d = {}; } }
+  e.waitUntil(self.registration.showNotification(d.title || 'הדף השבועי', {
+    body: d.body || '',
+    icon: './icon-192.png',
+    tag:  d.tag || 'daf',
+    dir:  'rtl',
+    lang: 'he',
+    data: { url: d.url || './' }
+  }));
+});
+
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    self.clients.matchAll({ type:'window', includeUncontrolled:true })
+      .then(function (ws) {
+        for (var i = 0; i < ws.length; i++) {
+          if ('focus' in ws[i]) return ws[i].focus();
+        }
+        return self.clients.openWindow(url);
+      })
   );
 });
 
