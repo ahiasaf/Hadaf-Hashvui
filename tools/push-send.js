@@ -69,18 +69,21 @@ function loadSubs() {
     var head = rows[0].map(function (x) { return String(x).trim(); });
     var iSub = head.indexOf('מנוי'), iWho = head.indexOf('שם');
     if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
-    var seen = {}, out = [];
+    var seen = {}, out = [], blocked = 0;
     /* מהסוף להתחלה: מי שנרשם שוב מאותו מכשיר — הרישום האחרון
        הוא הנכון, והישן עלול כבר להיות פג. */
     for (var i = rows.length - 1; i >= 1; i--) {
       var raw = rows[i][iSub];
-      if (!raw) continue;
+      /* שורה בלי מנוי היא דיווח שההתראות חסומות במכשיר — נתון
+         על ציבור המשתמשים, לא נמען. סופרים ולא שולחים. */
+      if (!raw) { blocked++; continue; }
       var s;
       try { s = JSON.parse(raw); } catch (e) { continue; }
       if (!s || !s.endpoint || seen[s.endpoint]) continue;
       seen[s.endpoint] = 1;
       out.push({ sub: s, who: (iWho >= 0 ? rows[i][iWho] : '') || 'בלי שם' });
     }
+    out.blocked = blocked;
     return out;
   });
 }
@@ -94,10 +97,17 @@ loadSubs().then(function (list) {
        אם הגענו — הסודות תקינים, והחסר הוא רק שמישהו יירשם.
        בלי ההבחנה הזו מחפשים תקלה במקום שאין בה. */
     console.error('הגיליון נקרא בהצלחה — כלומר הסודות תקינים.');
-    console.error('אבל אין בו אף מנוי: הלשונית "התראות" ריקה.');
+    console.error(list.blocked
+      ? 'אבל אין בו אף מנוי פעיל — רק ' + list.blocked +
+        ' דיווחים על מכשירים שההתראות בהם חסומות.'
+      : 'אבל אין בו אף מנוי: הלשונית "התראות" ריקה.');
     console.error('צריך שמישהו ייכנס ל-/pushtest, יתקין, וילחץ');
     console.error('"הרשמה לקבלת התראות". רק אז יש למי לשלוח.');
     process.exit(1);
+  }
+  if (list.blocked) {
+    console.log(list.blocked + ' מכשירים דיווחו שההתראות בהם חסומות — ' +
+                'מדלגים עליהם.');
   }
   console.log('שולח ל-' + list.length + ' מכשירים.\n');
   return Promise.all(list.map(function (it) {
