@@ -79,7 +79,13 @@ var payload = JSON.stringify({ title: title, body: body, url: './' });
 
 loadSubs().then(function (list) {
   if (!list.length) {
-    console.error('אין מנויים בלשונית "התראות". שאיש יירשם קודם בעמוד /pushtest.');
+    /* חשוב להפריד בין "לא הגענו לגיליון" ל"הגענו ואין בו איש":
+       אם הגענו — הסודות תקינים, והחסר הוא רק שמישהו יירשם.
+       בלי ההבחנה הזו מחפשים תקלה במקום שאין בה. */
+    console.error('הגיליון נקרא בהצלחה — כלומר הסודות תקינים.');
+    console.error('אבל אין בו אף מנוי: הלשונית "התראות" ריקה.');
+    console.error('צריך שמישהו ייכנס ל-/pushtest, יתקין, וילחץ');
+    console.error('"הרשמה לקבלת התראות". רק אז יש למי לשלוח.');
     process.exit(1);
   }
   console.log('שולח ל-' + list.length + ' מכשירים.\n');
