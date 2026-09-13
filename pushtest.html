@@ -80,6 +80,42 @@ button:disabled{opacity:.45;cursor:default}
 .out{font-size:.82rem;color:var(--ink-2);margin-top:10px;
   white-space:pre-wrap;word-break:break-word}
 .out b{color:var(--ink)}
+/* ---------- כרטיס ההתקנה ----------
+   הוא הדבר הראשון והגדול בעמוד כשעוד לא מותקן, כי בלעדיו שאר
+   העמוד אינו יכול לעבוד באייפון. הוראה שנמסרת בצ'אט ולא בעמוד
+   היא הוראה שאבדה. */
+.inst{background:var(--surface);border:1.5px solid var(--gold);
+  border-radius:14px;padding:18px 18px 20px;margin-bottom:14px;
+  box-shadow:0 6px 20px rgba(11,37,80,.09)}
+.inst.ok{border-color:rgba(58,123,87,.5);background:rgba(58,123,87,.07);
+  box-shadow:none}
+.inst h3{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;margin:0}
+.inst .sub{font-size:.85rem;font-weight:600;color:var(--ink-2);margin-top:6px;
+  line-height:1.65}
+.inst ol{margin:15px 0 0;padding-inline-start:0;list-style:none;counter-reset:st}
+.inst li{counter-increment:st;position:relative;padding-inline-start:34px;
+  margin-bottom:13px;font-size:.9rem;font-weight:600;line-height:1.75}
+.inst li:last-child{margin-bottom:0}
+.inst li::before{content:counter(st);position:absolute;inset-inline-start:0;top:1px;
+  width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;
+  font-size:.76rem;font-weight:800;display:flex;align-items:center;
+  justify-content:center}
+.inst li b{color:var(--blue-d)}
+/* סמל השיתוף של אייפון, כדי שיזהו אותו על המסך ולא יחפשו מילה */
+.gl{display:inline-flex;align-items:center;justify-content:center;
+  width:27px;height:27px;border-radius:7px;background:#EFEAdD;
+  border:1px solid var(--rule);vertical-align:-8px;margin:0 3px}
+.gl svg{width:15px;height:15px;fill:none;stroke:var(--blue);
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.inst .pic{display:flex;align-items:center;gap:11px;margin-top:15px;
+  padding:11px 13px;background:#EFEAdD;border-radius:10px}
+.inst .pic img{width:44px;height:44px;border-radius:11px;display:block;
+  box-shadow:0 3px 10px rgba(11,37,80,.2)}
+.inst .pic span{font-size:.83rem;font-weight:700;color:var(--ink-2);
+  line-height:1.6}
+.inst .btn{margin-top:15px;width:100%;background:var(--blue);
+  border-color:var(--blue);color:#fff;padding:13px}
+.blocked{margin-top:10px;font-size:.83rem;font-weight:700;color:#8A6316}
 .warn{margin-top:10px;background:rgba(192,143,43,.12);
   border:1px solid rgba(192,143,43,.35);border-radius:10px;
   padding:12px 13px;font-size:.84rem;font-weight:700;line-height:1.7}
@@ -101,12 +137,14 @@ code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
 
 <div class="wrap">
 
-  <h2><i>1</i>מה המכשיר הזה יודע</h2>
+  <h2><i>1</i>קודם כול — להתקין</h2>
+  <div id="install"></div>
+
+  <h2><i>2</i>מה המכשיר הזה יודע</h2>
   <p class="lead">נבדק מיד, בלי ללחוץ על כלום.</p>
   <div class="card" id="caps"></div>
-  <div id="ios-warn"></div>
 
-  <h2><i>2</i>התראה אמיתית — לראות אותה בעיניים</h2>
+  <h2><i>3</i>התראה אמיתית — לראות אותה בעיניים</h2>
   <p class="lead">מבקש אישור, ואז מקפיץ התראה עם האייקון של האפליקציה.
     הכפתור השני מקפיץ אותה בעוד עשר שניות — <b>נעלו את המסך וחכו</b>,
     כדי לראות איך היא נראית כשהטלפון בכיס.</p>
@@ -115,19 +153,21 @@ code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
       <button class="p" id="ask">בקשת אישור והתראה</button>
       <button id="later" disabled>התראה בעוד 10 שניות</button>
     </div>
+    <div class="blocked" id="note-blocked"></div>
     <div class="out" id="note-out"></div>
   </div>
 
-  <h2><i>3</i>המנוי — החוליה שקובעת</h2>
+  <h2><i>4</i>המנוי — החוליה שקובעת</h2>
   <p class="lead">התראה שמופיעה כשהאפליקציה פתוחה אינה שווה כלום
     לתזכורת שבועית. מה שצריך זה שהמכשיר יוכל <b>להירשם לקבלת
     התראה מהשרת</b> — וזה מה שנבדק כאן, בניסיון אמיתי.</p>
   <div class="card">
     <div class="acts"><button class="p" id="sub" disabled>ניסיון הרשמה</button></div>
+    <div class="blocked" id="sub-blocked"></div>
     <div class="out" id="sub-out"></div>
   </div>
 
-  <h2><i>4</i>מה זה אומר</h2>
+  <h2><i>5</i>מה זה אומר</h2>
   <div class="verdict q" id="verdict">הריצו את שתי הבדיקות למעלה.</div>
 
 </div>
@@ -198,21 +238,110 @@ function caps() {
        '</div>';
   $('caps').innerHTML = h;
 
-  /* ---------- השער של אייפון ----------
-     בספארי התראות עובדות **רק** כשהאפליקציה נפתחה מהאייקון
-     שבמסך הבית. מהדפדפן אין מה לבדוק — הכפתורים לא יעבדו, וזו
-     אינה תקלה אלא איך שאייפון בנוי. */
-  if (IOS && !CAP.home) {
-    $('ios-warn').innerHTML = '<div class="warn"><b>באייפון צריך קודם ' +
-      'להוסיף את <u>העמוד הזה</u> למסך הבית.</b><br>' +
-      'לא את האפליקציה — את עמוד הבדיקה עצמו. מספארי אין התראות ' +
-      'בכלל, וזה לא באג אלא איך שאייפון בנוי.<br>' +
-      'כפתור השיתוף שלמטה ← "הוספה למסך הבית" ← ואז לפתוח את ' +
-      'הדף הזה שוב <b>מהאייקון החדש</b>, ולא מספארי.</div>';
-  }
-  $('ask').disabled = !CAP.note;
-  $('sub').disabled = !(CAP.sw && CAP.push);
+  drawInstall();
+
+  /* הכפתורים כבויים כשהם **לא יכולים** לעבוד, ותמיד עם סיבה
+     כתובה לידם. כפתור מאפור בלי הסבר נקרא כמו תקלה. */
+  /* **השער מפורש ולא נשען על תופעת לוואי.** באייפון שאינו מותקן
+     ספארי ממילא אינו חושף את ה-API, ולכן זה "עבד" במקרה — אבל
+     להישען על כך זה להישען על מה שדפדפן במקרה מסתיר. כאן
+     החסימה היא החלטה: אין התקנה באייפון, אין מה ללחוץ. */
+  var gate = (IOS && !CAP.home);
+  var why = gate ? 'צריך קודם להתקין — שלב 1 למעלה.'
+          : !CAP.note ? 'הדפדפן הזה אינו תומך בהתראות.' : '';
+  $('ask').disabled = gate || !CAP.note;
+  $('note-blocked').textContent = why;
+  $('sub').disabled = gate || !(CAP.sw && CAP.push);
+  $('sub-blocked').textContent = $('sub').disabled ? why : '';
   if (CAP.perm === 'granted') $('later').disabled = false;
+}
+
+/* ============================================================
+   ההתקנה — השלב שאי אפשר לדלג עליו, ולכן הוא ראשון וגדול.
+   ============================================================
+   באייפון התראות עובדות **רק** ממסך הבית, וזה לא באג אלא איך
+   שאייפון בנוי. לכן ההוראה היא העמוד עצמו ולא הערת שוליים:
+   שלושה צעדים ממוספרים, עם הסמל שצריך לחפש מצויר — כי "כפתור
+   השיתוף" הוא שתי מילים שלא אומרות לאיש איפה ללחוץ.
+
+   והצעד השלישי הוא זה שנשכח: ההוספה למסך הבית **אינה פותחת**
+   את האפליקציה. מי שנשאר בדפדפן יבדוק בדיוק את המצב שבו אין
+   התראות, ויסיק שזה לא עובד.
+   ============================================================ */
+var SHARE_SVG = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/>' +
+  '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></span>';
+var DOTS_SVG = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>' +
+  '<circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>' +
+  '</svg></span>';
+
+/* אנדרואיד מודיע מתי הוא מוכן להתקין, ואז יש כפתור אמיתי
+   במקום הוראה. ההצעה תקפה פעם אחת בלבד. */
+var BIP = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault(); BIP = e; drawInstall();
+});
+window.addEventListener('appinstalled', function () {
+  BIP = null; drawInstall();
+});
+
+function drawInstall() {
+  var box = $('install'); if (!box) return;
+
+  if (CAP.home) {
+    box.innerHTML = '<div class="inst ok"><h3>מותקן — אפשר להתחיל</h3>' +
+      '<div class="sub">העמוד פתוח מהאייקון שבמסך הבית ולא מהדפדפן. ' +
+      'זה בדיוק המצב שבו התראות יכולות לעבוד. המשיכו לשלב 3.</div></div>';
+    return;
+  }
+
+  var h = '<div class="inst"><h3>צריך להוסיף את העמוד הזה למסך הבית</h3>' +
+    '<div class="sub">' +
+    (IOS
+      ? 'באייפון התראות פשוט אינן קיימות בתוך הדפדפן — רק ממסך הבית. ' +
+        'זה לא באג, ככה אייפון בנוי, ולכן בלי הצעד הזה אין מה לבדוק.'
+      : 'ההתראות עובדות גם מהדפדפן, אבל הבדיקה נאמנה יותר כשזה ' +
+        'מותקן — כי ככה זה יהיה אצל התלמיד.') +
+    '</div>';
+
+  if (BIP) {
+    /* אנדרואיד, והדפדפן מוכן — כפתור ולא הוראות */
+    h += '<button class="btn" id="inst-go">התקנה על המכשיר</button>';
+  } else if (IOS) {
+    h += '<ol>' +
+      '<li>לחצו על כפתור השיתוף ' + SHARE_SVG +
+        ' — הוא <b>בתחתית המסך</b>, באמצע. (בגרסאות ישנות הוא למעלה.)</li>' +
+      '<li>גללו ברשימה שנפתחת ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
+      '<li><b>צאו מספארי ופתחו את האייקון החדש</b> שנוסף למסך הבית. ' +
+        'זה הצעד שנשכח — ההוספה לבדה אינה פותחת כלום, ומי שנשאר ' +
+        'בדפדפן יראה שזה "לא עובד".</li>' +
+      '</ol>';
+  } else {
+    h += '<ol>' +
+      '<li>פתחו את תפריט הדפדפן ' + DOTS_SVG + ' — שלוש הנקודות ' +
+        'בפינה העליונה.</li>' +
+      '<li>בחרו <b>"התקנת אפליקציה"</b> או <b>"הוספה למסך הבית"</b>.</li>' +
+      '<li><b>פתחו את האייקון החדש</b> ממסך הבית וחזרו לעמוד הזה משם.</li>' +
+      '</ol>';
+  }
+  /* האייקון מצויר, כי "חפשו את האייקון" הוא הוראה שאפשר לבצע
+     רק כשרואים אותו. */
+  h += '<div class="pic"><img src="icon-192.png" alt="">' +
+       '<span><b>זה האייקון שיתווסף למסך הבית.</b><br>' +
+       'אחרי ההוספה — פתחו אותו, וחזרו לעמוד הזה משם.</span></div>';
+  box.innerHTML = h + '</div>';
+
+  var g = $('inst-go');
+  if (g) g.onclick = function () {
+    var p = BIP; if (!p) return;
+    BIP = null;                       /* ההצעה תקפה פעם אחת */
+    p.prompt();
+    if (p.userChoice && p.userChoice.then)
+      p.userChoice.then(function () { drawInstall(); })['catch'](function () { drawInstall(); });
+    else drawInstall();
+  };
 }
 
 /* ---------- העובד ברקע ----------
