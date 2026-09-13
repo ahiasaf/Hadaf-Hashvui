@@ -157,12 +157,19 @@ code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
     <div class="out" id="note-out"></div>
   </div>
 
-  <h2><i>4</i>המנוי — החוליה שקובעת</h2>
-  <p class="lead">התראה שמופיעה כשהאפליקציה פתוחה אינה שווה כלום
-    לתזכורת שבועית. מה שצריך זה שהמכשיר יוכל <b>להירשם לקבלת
-    התראה מהשרת</b> — וזה מה שנבדק כאן, בניסיון אמיתי.</p>
+  <h2><i>4</i>הרשמה — וזהו, סיימתם</h2>
+  <p class="lead">הלחיצה הזו רושמת את המכשיר לקבלת התראות.
+    <b>אין מה לשלוח לאיש ואין מה להעתיק</b> — אחרי הלחיצה
+    אפשר לסגור את הטלפון ולחכות שתגיע התראה.</p>
   <div class="card">
-    <div class="acts"><button class="p" id="sub" disabled>ניסיון הרשמה</button></div>
+    <div style="margin-bottom:4px">
+      <label class="out" for="who" style="display:block;margin:0 0 6px">
+        <b>איך לקרוא לך?</b> (כדי שנדע למי הגיעה ההתראה)</label>
+      <input id="who" type="text" placeholder="לדוגמה: אבא · שרה · דוד"
+        style="width:100%;padding:11px 12px;font:inherit;font-weight:700;
+        border:1px solid var(--rule);border-radius:10px;background:#fff">
+    </div>
+    <div class="acts"><button class="p" id="sub" disabled>הרשמה לקבלת התראות</button></div>
     <div class="blocked" id="sub-blocked"></div>
     <div class="out" id="sub-out"></div>
   </div>
@@ -172,6 +179,8 @@ code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
 
 </div>
 
+<!-- בשביל כתובת הסקריפט (APPS_SCRIPT_URL) בלבד -->
+<script src="data.js"></script>
 <script>
 /* ES5 בלבד — אותו כלל כמו בכל הפרויקט. */
 function $(id) { return document.getElementById(id); }
@@ -469,9 +478,8 @@ function subscribe() {
     $('sub-out').innerHTML = '<b>ההרשמה הצליחה.</b><br>' +
       'שירות ההתראות: <code>' + esc(host) + '</code><br>' +
       'כלומר המכשיר הזה <b>יכול</b> לקבל תזכורת שבועית מהשרת.' +
-      '<div class="acts"><button id="sub-copy">העתקת המנוי</button></div>' +
       '<div id="copy-msg"></div>';
-    $('sub-copy').onclick = copySub;
+    register();
     verdict();
   })['catch'](function (e) {
     CAP.sub = false;
@@ -495,37 +503,44 @@ function subscribe() {
   });
 }
 
-/* ---------- מסירת המנוי ----------
-   המנוי הוא הכתובת שאליה דוחפים למכשיר הזה, ובלעדיו אי אפשר
-   לשלוח אליו כלום. אין כאן שליחה אוטומטית לשום מקום: לניסוי
-   של שני מכשירים, העתקה ידנית לסוד של הריפו בטוחה ופשוטה
-   יותר מצינור שצריך לבנות ולאבטח.
+/* ---------- הרישום למערכת ----------
+   הגרסה הראשונה ביקשה מכל בודק להעתיק את המנוי ולשלוח אותו
+   ביד. זה עובד לשני מכשירים ונשבר בשלושה, ובוודאי כשמגייסים
+   אנשים שאינם מתעסקים בזה.
 
-   **זה סוד ולא קישור.** מי שמחזיק בו יכול לדחוף התראות
-   למכשיר הזה, ולכן מקומו ב-Secrets ולא בקובץ ולא בהודעה
-   פומבית. */
-function copySub() {
-  if (!SUB) return;
-  var txt = JSON.stringify(SUB);
+   עכשיו העמוד נרשם בעצמו ללשונית **פרטית** בגיליון, דרך אותו
+   גשר כתיבה שכל האפליקציה משתמשת בו. הבודק פותח, לוחץ, וזהו.
+
+   **אין כאן אימות־קריאה־חוזרת** כמו בשאר הכתיבות, כי הלשונית
+   פרטית והבודק אינו יכול לקרוא אותה. וזה בסדר דווקא כאן:
+   **ההתראה עצמה היא האימות.** הגיעה — נרשם. */
+function register() {
   var msg = $('copy-msg');
-  var okay = function () {
-    msg.innerHTML = '<div class="out"><b>הועתק.</b> להדביק לסוד ' +
-      '<code>PUSH_SUBS</code> בגיטהאב. זה מפתח למכשיר שלך — ' +
-      'לא לשלוח בשום מקום פומבי.</div>';
-  };
-  var manual = function () {
-    /* אין גישה ללוח — מציגים את הטקסט לבחירה ידנית, ולא
-       אומרים "לא הצלחתי" ומשאירים בלי כלום. */
-    msg.innerHTML = '<div class="out"><b>להעתיק מכאן ידנית:</b></div>' +
-      '<textarea readonly style="width:100%;height:90px;margin-top:8px;' +
-      'font-size:.72rem;direction:ltr;border:1px solid var(--rule);' +
-      'border-radius:8px;padding:8px">' + esc(txt) + '</textarea>';
-    var t = msg.querySelector('textarea');
-    if (t) { t.focus(); t.select(); }
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(okay)['catch'](manual);
-  } else manual();
+  var url = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL : '';
+  if (!SUB || !url) {
+    msg.innerHTML = '<div class="out"><b>לא הצלחתי להירשם למערכת.</b> ' +
+      'תגידו לאחיאסף.</div>';
+    return;
+  }
+  var who = ($('who') && $('who').value || '').trim() || 'בלי שם';
+  var dev = IOS ? 'אייפון' : 'אנדרואיד';
+  msg.innerHTML = '<div class="out">רושם…</div>';
+  fetch(url, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'row', tab: 'התראות',
+      cols: JSON.stringify([
+        ['שם', who], ['מכשיר', dev],
+        ['מנוי', JSON.stringify(SUB)],
+        ['מתי', new Date().toISOString()]
+      ])
+    })
+  })['catch'](function () {})['then'](function () {
+    msg.innerHTML = '<div class="out"><b>נרשמת. ✓</b><br>' +
+      'זהו — אין עוד מה לעשות. כשתישלח התראה היא תגיע לכאן, ' +
+      'גם כשהטלפון בכיס.</div>';
+  });
 }
 
 /* ---------- השורה התחתונה ---------- */

@@ -21,46 +21,90 @@ var PUBLIC = 'BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbd
    דוא"ל — אין לשים פרט אישי בריפו ציבורי. */
 var SUBJECT = 'https://hadaf-hashvui.vercel.app';
 
-var priv = process.env.VAPID_PRIVATE || '';
-var raw  = process.env.PUSH_SUBS || '[]';
+var fs = require('fs');
+
+var priv  = process.env.VAPID_PRIVATE || '';
+var key   = process.env.READ_KEY || '';
 var title = process.env.TITLE || 'הדף השבועי';
 var body  = process.env.BODY  || 'דף חדש מחכה לך.';
 
 if (!priv) { console.error('חסר VAPID_PRIVATE בסודות הריפו.'); process.exit(1); }
+if (!key)  { console.error('חסר READ_KEY בסודות הריפו.');      process.exit(1); }
 
-var subs;
-try { subs = JSON.parse(raw); }
-catch (e) { console.error('PUSH_SUBS אינו JSON תקין.'); process.exit(1); }
-if (!Array.isArray(subs)) subs = [subs];
-if (!subs.length) { console.error('אין מנויים ב-PUSH_SUBS.'); process.exit(1); }
+/* כתובת הסקריפט יושבת ב-data.js ממילא — אין סיבה לשכפל אותה
+   לסוד נוסף שיישכח ביום שהיא תתחלף. */
+function scriptUrl() {
+  var src = fs.readFileSync(__dirname + '/../data.js', 'utf8');
+  var m = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(src) ||
+          /APPS_SCRIPT_URL\s*=\s*\n?\s*'([^']+)'/.exec(src);
+  return m ? m[1] : '';
+}
+
+/* המנויים מגיעים מהלשונית הפרטית ולא מסוד שצריך לעדכן ביד.
+   כך בודק חדש פשוט נרשם מהעמוד, ואיש אינו נוגע בהגדרות. */
+function loadSubs() {
+  var url = scriptUrl();
+  if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
+  var q = url + '?tab=' + encodeURIComponent('התראות') +
+          '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
+  return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
+    if (!j || j.status !== 'ok') {
+      throw new Error('הגיליון לא נענה: ' + ((j && j.message) || 'לא ידוע'));
+    }
+    var rows = j.rows || [];
+    if (rows.length < 2) return [];
+    /* מיפוי לפי שם העמודה ולא לפי מספרה: סדר עמודות משתנה
+       ביום שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
+    var head = rows[0].map(function (x) { return String(x).trim(); });
+    var iSub = head.indexOf('מנוי'), iWho = head.indexOf('שם');
+    if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
+    var seen = {}, out = [];
+    /* מהסוף להתחלה: מי שנרשם שוב מאותו מכשיר — הרישום האחרון
+       הוא הנכון, והישן עלול כבר להיות פג. */
+    for (var i = rows.length - 1; i >= 1; i--) {
+      var raw = rows[i][iSub];
+      if (!raw) continue;
+      var s;
+      try { s = JSON.parse(raw); } catch (e) { continue; }
+      if (!s || !s.endpoint || seen[s.endpoint]) continue;
+      seen[s.endpoint] = 1;
+      out.push({ sub: s, who: (iWho >= 0 ? rows[i][iWho] : '') || 'בלי שם' });
+    }
+    return out;
+  });
+}
 
 webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
-
 var payload = JSON.stringify({ title: title, body: body, url: './' });
-var done = 0, bad = 0;
 
-console.log('שולח ל-' + subs.length + ' מכשירים.');
-subs.forEach(function (s, i) {
-  var host = '—';
-  try { host = new URL(s.endpoint).host; } catch (e) {}
-  webpush.sendNotification(s, payload, { TTL: 3600 })
-    .then(function (r) {
-      done++;
-      console.log('  ✓ [' + (i + 1) + '] ' + host + ' → ' + r.statusCode);
-      fin();
-    })
-    .catch(function (e) {
-      bad++;
-      console.log('  ✗ [' + (i + 1) + '] ' + host + ' → ' +
-                  (e.statusCode || '') + ' ' + (e.body || e.message || ''));
-      fin();
-    });
-});
-
-function fin() {
-  if (done + bad < subs.length) return;
-  console.log('\nהצליחו: ' + done + ' · נכשלו: ' + bad);
+loadSubs().then(function (list) {
+  if (!list.length) {
+    console.error('אין מנויים בלשונית "התראות". שאיש יירשם קודם בעמוד /pushtest.');
+    process.exit(1);
+  }
+  console.log('שולח ל-' + list.length + ' מכשירים.\n');
+  return Promise.all(list.map(function (it) {
+    var host = '—';
+    try { host = new URL(it.sub.endpoint).host; } catch (e) {}
+    return webpush.sendNotification(it.sub, payload, { TTL: 3600 })
+      .then(function (r) {
+        console.log('  ✓ ' + it.who + ' · ' + host + ' → ' + r.statusCode);
+        return 1;
+      })
+      .catch(function (e) {
+        console.log('  ✗ ' + it.who + ' · ' + host + ' → ' +
+                    (e.statusCode || '') + ' ' +
+                    String(e.body || e.message || '').slice(0, 120));
+        return 0;
+      });
+  }));
+}).then(function (res) {
+  var done = res.reduce(function (a, b) { return a + b; }, 0);
+  console.log('\nהגיעו: ' + done + ' · נכשלו: ' + (res.length - done));
   /* מנוי שפג (410/404) אינו תקלה של הקוד — המכשיר הסיר את
-     ההרשאה או נמחק. נכשלו הכל = כן תקלה. */
+     ההרשאה. נכשלו כולם = כן תקלה. */
   if (!done) process.exit(1);
-}
+})['catch'](function (e) {
+  console.error('נכשל: ' + (e && e.message || e));
+  process.exit(1);
+});
