@@ -5,198 +5,166 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#0B2550">
-<!-- ============================================================
-     בלי השורות האלה אי אפשר לבדוק באייפון בכלל.
-     ============================================================
-     באייפון התראות עובדות **רק** כשהעמוד נפתח ממסך הבית ולא
-     מספארי. "הוספה למסך הבית" בלי `apple-mobile-web-app-capable`
-     יוצרת קיצור דרך שנפתח בספארי הרגיל — כלומר בדיוק המצב שבו
-     אין התראות, ובדיקה שלעולם לא תצליח.
-
-     האייקון הוא של האפליקציה, כדי שההתראה תיראה כפי שהיא
-     תיראה באמת. -->
+<!-- בלי השורות האלה אין מה לבדוק באייפון: התראות שם עובדות רק
+     ממסך הבית, ו"הוספה למסך הבית" בלי `apple-mobile-web-app-capable`
+     יוצרת קיצור שנפתח בספארי — כלומר בדיוק המצב שאין בו התראות. -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="בדיקת התראות">
+<meta name="apple-mobile-web-app-title" content="הדף השבועי">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
-<title>בדיקת התראות — הדף השבועי</title>
+<title>הדף השבועי — בדיקה קצרה</title>
 <!-- ============================================================
-     כלי בדיקה, לא מסך של האפליקציה.
+     עמוד לאנשים, לא לוח מחוונים.
      ============================================================
-     השאלה: **האם האפליקציה יכולה להקפיץ לתלמיד תזכורת שבועית,
-     במקום קבוצת וואטסאפ?**
+     הגרסה הקודמת הייתה כלי אבחון שנכתב עבור מי שבנה אותו:
+     טבלת יכולות, הודעות שגיאה באנגלית, וארבעה קטעים במקביל.
+     היא נמסרה לאדם אמיתי והוא ענה "אם אתה רוצה שזה יתפוס אתה
+     צריך לרשום שם הסברים". הוא צדק, והוא עוד **טרח** — תלמיד
+     או ר"ם עסוק פשוט סוגר.
 
-     שלוש חוליות, וכל אחת יכולה להישבר בנפרד:
-       1. המכשיר תומך בהתראות בכלל
-       2. התלמיד מאשר אותן
-       3. **אפשר להירשם לקבלת התראה מהשרת** — וזו החוליה
-          שקובעת, כי בלעדיה אפשר להקפיץ התראה רק כשהאפליקציה
-          פתוחה, וזה חסר טעם לתזכורת שבועית.
-
-     הדף לא מנחש אף אחת מהן. הוא מקפיץ התראה אמיתית ומנסה
-     להירשם באמת.
-
-     כמו voicetest.html: כלי פנימי, בלי לוגו ובלי קישור משום
-     מקום. אפשר למחוק כשההחלטה תתקבל.
+     מה שהשתנה:
+       · **שלב אחד על המסך בכל רגע.** מה שנגמר מתכווץ לשורה,
+         ומה שעוד לא הגיע אינו מוצג כלל. שלושה קטעים פתוחים
+         יחד הם שלוש החלטות, ואדם שלא ביקש להחליט — עוזב.
+       · **קודם למה, אחר כך מה.** מי שקיבל קישור בוואטסאפ אינו
+         יודע מה זה, ולא ילחץ על "אישור התראות" לפני שיֵדע.
+       · **מה שמפחיד נאמר מראש** — מה ייווסף לטלפון, כמה
+         התראות יגיעו, ואיך מוחקים. חשד שלא נענה הוא חשד שגדל.
+       · האבחון לא נמחק — הוא ירד לתחתית, מקופל, בשביל מי
+         שמתחזק. משתמש אינו צריך לדעת מה זה `fcm.googleapis.com`.
      ============================================================ -->
 <style>
 :root{
   --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B;
   --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
-  --rule:#E5DAC3; --ok:#3A7B56; --stop:#A5382D;
+  --ink-3:#5C687E; --rule:#E5DAC3; --ok:#3A7B56; --sunk:#EFEAdD;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
-  font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  padding:0 16px 60px}
-.wrap{max-width:560px;margin-inline:auto}
-header{background:var(--blue-d);color:#fff;margin:0 -16px 22px;
-  padding:20px 18px}
-header b{display:block;font-size:1.15rem}
-header span{display:block;font-size:.84rem;opacity:.82;margin-top:3px}
-h2{font-size:.95rem;color:var(--blue);margin:26px 0 4px}
-h2 i{font-style:normal;color:var(--gold);margin-inline-end:6px}
-p.lead{margin:0 0 14px;font-size:.86rem;color:var(--ink-2)}
-.card{background:var(--surface);border:1px solid var(--rule);
-  border-radius:12px;padding:14px 16px;margin-bottom:12px}
-.row{display:flex;align-items:center;gap:10px;padding:9px 0;
-  border-bottom:1px solid var(--rule)}
-.row:last-child{border-bottom:0}
-.row .nm{flex:1;min-width:0}
-.row .nm b{display:block;font-size:.9rem}
-.row .nm small{color:var(--ink-2);font-size:.76rem}
-.tag{font-weight:800;font-size:.78rem;padding:3px 10px;border-radius:20px;
-  white-space:nowrap}
-.tag.q{background:#EFEAdD;color:var(--ink-2)}
-.tag.y{background:#E3F0E8;color:var(--ok)}
-.tag.n{background:#F7E4E2;color:var(--stop)}
-button{border:1px solid var(--rule);background:var(--surface);
-  border-radius:10px;padding:11px 18px;font:inherit;font-weight:800;
-  color:var(--ink);cursor:pointer}
-button.p{background:var(--blue);border-color:var(--blue);color:#fff}
-button:disabled{opacity:.45;cursor:default}
-.acts{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 4px}
-.out{font-size:.82rem;color:var(--ink-2);margin-top:10px;
-  white-space:pre-wrap;word-break:break-word}
-.out b{color:var(--ink)}
-/* ---------- כרטיס ההתקנה ----------
-   הוא הדבר הראשון והגדול בעמוד כשעוד לא מותקן, כי בלעדיו שאר
-   העמוד אינו יכול לעבוד באייפון. הוראה שנמסרת בצ'אט ולא בעמוד
-   היא הוראה שאבדה. */
-.inst{background:var(--surface);border:1.5px solid var(--gold);
-  border-radius:14px;padding:18px 18px 20px;margin-bottom:14px;
-  box-shadow:0 6px 20px rgba(11,37,80,.09)}
-.inst.ok{border-color:rgba(58,123,87,.5);background:rgba(58,123,87,.07);
-  box-shadow:none}
-.inst h3{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;margin:0}
-.inst .sub{font-size:.85rem;font-weight:600;color:var(--ink-2);margin-top:6px;
-  line-height:1.65}
-.inst ol{margin:15px 0 0;padding-inline-start:0;list-style:none;counter-reset:st}
-.inst li{counter-increment:st;position:relative;padding-inline-start:34px;
-  margin-bottom:13px;font-size:.9rem;font-weight:600;line-height:1.75}
-.inst li:last-child{margin-bottom:0}
-.inst li::before{content:counter(st);position:absolute;inset-inline-start:0;top:1px;
-  width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;
-  font-size:.76rem;font-weight:800;display:flex;align-items:center;
+  font:16px/1.7 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:0 18px 70px}
+.wrap{max-width:520px;margin-inline:auto}
+
+/* ---------- הפתיחה ---------- */
+header{margin:0 -18px 0;background:var(--blue-d);color:#fff;
+  padding:30px 22px 34px;text-align:center}
+header .mark{width:62px;height:62px;border-radius:16px;margin:0 auto 14px;
+  display:block;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+header h1{margin:0;font-size:1.32rem;font-weight:800;letter-spacing:-.02em}
+header p{margin:10px 0 0;font-size:.95rem;opacity:.9;line-height:1.65}
+
+/* ---------- מד ההתקדמות ---------- */
+.prog{display:flex;align-items:center;justify-content:center;gap:7px;
+  margin:0 -18px 22px;background:var(--blue-d);padding:0 0 22px}
+.prog i{width:34px;height:5px;border-radius:3px;background:rgba(255,255,255,.25)}
+.prog i.on{background:var(--gold)}
+.prog i.did{background:#8FC79E}
+
+/* ---------- שלב ---------- */
+.step{background:var(--surface);border:1px solid var(--rule);
+  border-radius:16px;padding:24px 22px 26px;margin-bottom:14px;
+  box-shadow:0 4px 16px rgba(11,37,80,.07)}
+.step.now{border:2px solid var(--gold);box-shadow:0 8px 26px rgba(11,37,80,.12)}
+.step .kick{font-size:.78rem;font-weight:800;color:var(--gold);
+  letter-spacing:.04em;margin-bottom:7px}
+.step h2{margin:0;font-size:1.16rem;font-weight:800;letter-spacing:-.02em;
+  line-height:1.45}
+.step p{margin:11px 0 0;font-size:.95rem;color:var(--ink-2);line-height:1.75}
+.step .btn{display:block;width:100%;margin-top:20px;padding:16px;
+  border:0;border-radius:12px;background:var(--blue);color:#fff;
+  font:inherit;font-weight:800;font-size:1.02rem;cursor:pointer}
+.step .btn.g{background:var(--ok)}
+.step .btn.thin{background:none;color:var(--ink-2);font-size:.9rem;
+  padding:12px;margin-top:6px;text-decoration:underline}
+
+/* שלב שנגמר — שורה אחת, לא כרטיס */
+.done-row{display:flex;align-items:center;gap:10px;padding:13px 18px;
+  margin-bottom:10px;background:rgba(58,123,87,.09);
+  border:1px solid rgba(58,123,87,.28);border-radius:12px;
+  font-size:.92rem;font-weight:700;color:#2C6446}
+.done-row b{font-size:1.05rem}
+
+/* הוראות ההתקנה */
+ol.how{margin:20px 0 0;padding-inline-start:0;list-style:none;counter-reset:s}
+ol.how li{counter-increment:s;position:relative;padding-inline-start:38px;
+  margin-bottom:16px;font-size:.97rem;line-height:1.8}
+ol.how li:last-child{margin-bottom:0}
+ol.how li::before{content:counter(s);position:absolute;inset-inline-start:0;top:3px;
+  width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;
+  font-size:.82rem;font-weight:800;display:flex;align-items:center;
   justify-content:center}
-.inst li b{color:var(--blue-d)}
-/* סמל השיתוף של אייפון, כדי שיזהו אותו על המסך ולא יחפשו מילה */
 .gl{display:inline-flex;align-items:center;justify-content:center;
-  width:27px;height:27px;border-radius:7px;background:#EFEAdD;
-  border:1px solid var(--rule);vertical-align:-8px;margin:0 3px}
-.gl svg{width:15px;height:15px;fill:none;stroke:var(--blue);
-  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.inst .pic{display:flex;align-items:center;gap:11px;margin-top:15px;
-  padding:11px 13px;background:#EFEAdD;border-radius:10px}
-.inst .pic img{width:44px;height:44px;border-radius:11px;display:block;
-  box-shadow:0 3px 10px rgba(11,37,80,.2)}
-.inst .pic span{font-size:.83rem;font-weight:700;color:var(--ink-2);
-  line-height:1.6}
-.inst .btn{margin-top:15px;width:100%;background:var(--blue);
-  border-color:var(--blue);color:#fff;padding:13px}
-.blocked{margin-top:10px;font-size:.83rem;font-weight:700;color:#8A6316}
-.warn{margin-top:10px;background:rgba(192,143,43,.12);
-  border:1px solid rgba(192,143,43,.35);border-radius:10px;
-  padding:12px 13px;font-size:.84rem;font-weight:700;line-height:1.7}
-.warn b{color:#8A6316}
-.verdict{margin-top:8px;padding:13px 15px;border-radius:12px;
-  font-size:.88rem;font-weight:700;line-height:1.65}
-.verdict.y{background:#E3F0E8;color:#24593C;border:1px solid #BBD9C7}
-.verdict.n{background:#F7E4E2;color:#7E2C23;border:1px solid #E2BDB8}
-.verdict.q{background:#EFEAdD;color:var(--ink-2);border:1px solid var(--rule)}
-code{background:#EFEAdD;border-radius:5px;padding:1px 5px;
-  font-size:.82em;direction:ltr;display:inline-block}
+  width:30px;height:30px;border-radius:8px;background:var(--sunk);
+  border:1px solid var(--rule);vertical-align:-9px;margin:0 4px}
+.gl svg{width:17px;height:17px;fill:none;stroke:var(--blue);
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* מה ייכנס לטלפון — נאמר מראש */
+.calm{margin-top:20px;background:var(--sunk);border-radius:12px;
+  padding:15px 17px;font-size:.88rem;line-height:1.8;color:var(--ink-2)}
+.calm b{color:var(--ink)}
+
+input[type=text]{width:100%;padding:15px;font:inherit;font-weight:700;
+  font-size:1.02rem;border:1.5px solid var(--rule);border-radius:12px;
+  background:#fff;margin-top:16px}
+
+.oops{margin-top:16px;background:#F7E4E2;border:1px solid #E2BDB8;
+  border-radius:12px;padding:14px 16px;font-size:.9rem;font-weight:700;
+  color:#7E2C23;line-height:1.7}
+
+/* ---------- הסיום ---------- */
+.fin{text-align:center;padding:34px 22px 30px}
+.fin .v{width:64px;height:64px;border-radius:50%;background:var(--ok);
+  color:#fff;font-size:2rem;line-height:64px;margin:0 auto 16px;
+  font-weight:800}
+.fin h2{margin:0;font-size:1.3rem;font-weight:800}
+.fin p{margin:12px 0 0;font-size:.98rem;color:var(--ink-2);line-height:1.75}
+
+/* ---------- האבחון, למי שמתחזק ---------- */
+details.diag{margin-top:26px;font-size:.8rem;color:var(--ink-3)}
+details.diag summary{cursor:pointer;color:var(--ink-2);font-weight:700;
+  padding:8px 0}
+details.diag .box{background:var(--surface);border:1px solid var(--rule);
+  border-radius:10px;padding:12px 14px;margin-top:6px;line-height:1.75;
+  direction:ltr;text-align:left;word-break:break-word;font-size:.76rem}
+details.diag .box b{direction:rtl;display:block;text-align:right;
+  color:var(--ink);margin-bottom:4px}
+textarea{width:100%;height:110px;margin-top:10px;font-size:.7rem;
+  direction:ltr;border:1px solid var(--rule);border-radius:8px;padding:8px}
 </style>
 </head>
 <body>
+
 <header>
-  <b>בדיקת התראות</b>
-  <span>פותחים בשני המכשירים ומשווים — אנדרואיד ואייפון</span>
+  <img class="mark" src="icon-192.png" alt="">
+  <h1>הדף השבועי</h1>
+  <!-- מי שקיבל קישור בוואטסאפ אינו יודע מה זה. השורה הזו
+       אומרת מה בודקים, כמה זמן, ומה יקרה בסוף — לפני שמבקשים
+       ממנו דבר. -->
+  <p id="lede">בודקים אם הטלפון שלך יכול לקבל תזכורת מהאפליקציה.
+    דקה אחת, ואז תגיע התראה אחת.</p>
 </header>
+<div class="prog"><i id="p1"></i><i id="p2"></i><i id="p3"></i></div>
 
 <div class="wrap">
+  <div id="flow"></div>
 
-  <h2><i>1</i>קודם כול — להתקין</h2>
-  <div id="install"></div>
-
-  <h2><i>2</i>מה המכשיר הזה יודע</h2>
-  <p class="lead">נבדק מיד, בלי ללחוץ על כלום.</p>
-  <div class="card" id="caps"></div>
-
-  <h2><i>3</i>התראה אמיתית — לראות אותה בעיניים</h2>
-  <p class="lead">מבקש אישור, ואז מקפיץ התראה עם האייקון של האפליקציה.
-    הכפתור השני מקפיץ אותה בעוד עשר שניות — <b>נעלו את המסך וחכו</b>,
-    כדי לראות איך היא נראית כשהטלפון בכיס.</p>
-  <div class="card">
-    <div class="acts">
-      <button class="p" id="ask">בקשת אישור והתראה</button>
-      <button id="later" disabled>התראה בעוד 10 שניות</button>
-    </div>
-    <div class="blocked" id="note-blocked"></div>
-    <div class="out" id="note-out"></div>
-  </div>
-
-  <h2><i>4</i>הרשמה — וזהו, סיימתם</h2>
-  <p class="lead">הלחיצה הזו רושמת את המכשיר לקבלת התראות.
-    <b>אין מה לשלוח לאיש ואין מה להעתיק</b> — אחרי הלחיצה
-    אפשר לסגור את הטלפון ולחכות שתגיע התראה.</p>
-  <div class="card">
-    <div style="margin-bottom:4px">
-      <label class="out" for="who" style="display:block;margin:0 0 6px">
-        <b>איך לקרוא לך?</b> (כדי שנדע למי הגיעה ההתראה)</label>
-      <input id="who" type="text" placeholder="לדוגמה: אבא · שרה · דוד"
-        style="width:100%;padding:11px 12px;font:inherit;font-weight:700;
-        border:1px solid var(--rule);border-radius:10px;background:#fff">
-    </div>
-    <div class="acts"><button class="p" id="sub" disabled>הרשמה לקבלת התראות</button></div>
-    <div class="blocked" id="sub-blocked"></div>
-    <div class="out" id="sub-out"></div>
-  </div>
-
-  <h2><i>5</i>מה זה אומר</h2>
-  <div class="verdict q" id="verdict">הריצו את שתי הבדיקות למעלה.</div>
-
+  <details class="diag">
+    <summary>פרטים טכניים (לא צריך לפתוח)</summary>
+    <div class="box" id="diag-box"></div>
+  </details>
 </div>
 
-<!-- בשביל כתובת הסקריפט (APPS_SCRIPT_URL) בלבד -->
 <script src="data.js"></script>
 <script>
-/* ES5 בלבד — אותו כלל כמו בכל הפרויקט. */
+/* ES5 בלבד — כמו כל הפרויקט. */
 function $(id) { return document.getElementById(id); }
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;')
     .replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* המפתח הציבורי של התוכנית. ציבורי מעצם הגדרתו, ולכן מקומו
-   בקוד. הפרטי שלו הוא סוד של הריפו ואינו כאן ולעולם לא יהיה —
-   ראו `.github/workflows/push-send.yml`.
-
-   **החליף מפתח קודם**, ולכן ראו `sameKey`: מנוי שנוצר עם מפתח
-   ישן ממשיך להתקיים במכשיר ונראה תקין, אבל דחיפה שנחתמה
-   במפתח החדש תיפול עליו. זה נכשל בשקט, וזה בדיוק סוג הדבר
-   שמתגלה רק ביום שבו צריך שיעבוד. */
 var VAPID = 'BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbdNVYqY5UxdX7lg-i_wIELw';
 
 function b64ToU8(s) {
@@ -207,244 +175,203 @@ function b64ToU8(s) {
   return out;
 }
 
-/* ---------- מה יש כאן ---------- */
 var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-function iosVer() {
-  var m = /OS (\d+)[._](\d+)/.exec(navigator.userAgent);
-  return m ? (m[1] + '.' + m[2]) : '';
-}
-/* מותקנת במסך הבית. באייפון זה **תנאי** להתראות, ולא נוחות. */
-function standalone() {
+function home() {
   try {
     if (navigator.standalone) return true;
     return !!(window.matchMedia &&
       window.matchMedia('(display-mode: standalone)').matches);
   } catch (e) { return false; }
 }
+function canNote() { return typeof window.Notification !== 'undefined'; }
+function perm()    { return canNote() ? Notification.permission : 'default'; }
 
-var CAP = {};
-function caps() {
-  CAP.sw    = 'serviceWorker' in navigator;
-  CAP.note  = typeof window.Notification !== 'undefined';
-  CAP.push  = 'PushManager' in window;
-  CAP.home  = standalone();
-  CAP.perm  = CAP.note ? Notification.permission : '—';
-
-  var rows = [
-    ['התראות נתמכות',        CAP.note, CAP.note ? 'כן' : 'לא'],
-    ['מנגנון רקע',           CAP.sw,   CAP.sw ? 'כן' : 'לא'],
-    ['הרשמה לשרת נתמכת',     CAP.push, CAP.push ? 'כן' : 'לא'],
-    ['פתוח ממסך הבית',       CAP.home, CAP.home ? 'כן' : 'לא — מהדפדפן'],
-    ['מצב האישור',           CAP.perm === 'granted',
-       CAP.perm === 'granted' ? 'מאושר'
-     : CAP.perm === 'denied'  ? 'נדחה'
-     : CAP.perm === 'default' ? 'טרם נשאל' : '—']
-  ];
-  var h = '', i;
-  for (i = 0; i < rows.length; i++) {
-    h += '<div class="row"><div class="nm"><b>' + esc(rows[i][0]) + '</b></div>' +
-         '<span class="tag ' + (rows[i][1] ? 'y' : 'n') + '">' +
-         esc(rows[i][2]) + '</span></div>';
-  }
-  h += '<div class="out"><b>המכשיר:</b> ' +
-       (IOS ? ('אייפון' + (iosVer() ? ' · iOS ' + iosVer() : '')) : 'אנדרואיד או מחשב') +
-       '</div>';
-  $('caps').innerHTML = h;
-
-  drawInstall();
-
-  /* הכפתורים כבויים כשהם **לא יכולים** לעבוד, ותמיד עם סיבה
-     כתובה לידם. כפתור מאפור בלי הסבר נקרא כמו תקלה. */
-  /* **השער מפורש ולא נשען על תופעת לוואי.** באייפון שאינו מותקן
-     ספארי ממילא אינו חושף את ה-API, ולכן זה "עבד" במקרה — אבל
-     להישען על כך זה להישען על מה שדפדפן במקרה מסתיר. כאן
-     החסימה היא החלטה: אין התקנה באייפון, אין מה ללחוץ. */
-  var gate = (IOS && !CAP.home);
-  var why = gate ? 'צריך קודם להתקין — שלב 1 למעלה.'
-          : !CAP.note ? 'הדפדפן הזה אינו תומך בהתראות.' : '';
-  $('ask').disabled = gate || !CAP.note;
-  $('note-blocked').textContent = why;
-  $('sub').disabled = gate || !(CAP.sw && CAP.push);
-  $('sub-blocked').textContent = $('sub').disabled ? why : '';
-  if (CAP.perm === 'granted') $('later').disabled = false;
-}
-
-/* ============================================================
-   ההתקנה — השלב שאי אפשר לדלג עליו, ולכן הוא ראשון וגדול.
-   ============================================================
-   באייפון התראות עובדות **רק** ממסך הבית, וזה לא באג אלא איך
-   שאייפון בנוי. לכן ההוראה היא העמוד עצמו ולא הערת שוליים:
-   שלושה צעדים ממוספרים, עם הסמל שצריך לחפש מצויר — כי "כפתור
-   השיתוף" הוא שתי מילים שלא אומרות לאיש איפה ללחוץ.
-
-   והצעד השלישי הוא זה שנשכח: ההוספה למסך הבית **אינה פותחת**
-   את האפליקציה. מי שנשאר בדפדפן יבדוק בדיוק את המצב שבו אין
-   התראות, ויסיק שזה לא עובד.
-   ============================================================ */
-var SHARE_SVG = '<span class="gl"><svg viewBox="0 0 24 24">' +
-  '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/>' +
-  '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></span>';
-var DOTS_SVG = '<span class="gl"><svg viewBox="0 0 24 24">' +
-  '<circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none"/>' +
-  '<circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>' +
-  '<circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/>' +
-  '</svg></span>';
-
-/* אנדרואיד מודיע מתי הוא מוכן להתקין, ואז יש כפתור אמיתי
-   במקום הוראה. ההצעה תקפה פעם אחת בלבד. */
+/* אנדרואיד מציע התקנה בעצמו; שומרים את ההצעה לכפתור. */
 var BIP = null;
 window.addEventListener('beforeinstallprompt', function (e) {
-  e.preventDefault(); BIP = e; drawInstall();
+  e.preventDefault(); BIP = e; if (STEP === 1) draw();
 });
-window.addEventListener('appinstalled', function () {
-  BIP = null; drawInstall();
-});
+window.addEventListener('appinstalled', function () { BIP = null; go(2); });
 
-function drawInstall() {
-  var box = $('install'); if (!box) return;
+var STEP = 1, SKIPPED = false, SUB = null, ERR = '', DONE = false;
+try { DONE = localStorage.getItem('pt:done') === '1'; } catch (e) {}
+function nudged() {
+  try { return localStorage.getItem('pt:nudged') === '1'; } catch (e) { return false; }
+}
+/* ---------- באיזה שלב אנחנו ----------
+   נגזר מהמצב בפועל ולא ממה שנשמר: מי שהתקין וחזר צריך למצוא
+   את עצמו בשלב הבא בלי ללחוץ, ומי שלא אישר יחזור לשלב האישור.
 
-  if (CAP.home) {
-    box.innerHTML = '<div class="inst ok"><h3>מותקן — אפשר להתחיל</h3>' +
-      '<div class="sub">העמוד פתוח מהאייקון שבמסך הבית ולא מהדפדפן. ' +
-      'זה בדיוק המצב שבו התראות יכולות לעבוד. המשיכו לשלב 3.</div></div>';
-    return;
-  }
+   באייפון ההתקנה היא תנאי ואין לדלג עליה; באנדרואיד היא
+   מומלצת בלבד, ודי בכך שהוצעה פעם אחת. */
+function where() {
+  if (DONE) return 4;
+  if (!home() && !SKIPPED && (IOS || !nudged())) return 1;
+  if (perm() !== 'granted') return 2;
+  return 3;
+}
+function go(n) { STEP = n; draw(); }
 
-  var h = '<div class="inst"><h3>צריך להוסיף את העמוד הזה למסך הבית</h3>' +
-    '<div class="sub">' +
-    (IOS
-      ? 'באייפון התראות פשוט אינן קיימות בתוך הדפדפן — רק ממסך הבית. ' +
-        'זה לא באג, ככה אייפון בנוי, ולכן בלי הצעד הזה אין מה לבדוק.'
-      : 'ההתראות עובדות גם מהדפדפן, אבל הבדיקה נאמנה יותר כשזה ' +
-        'מותקן — כי ככה זה יהיה אצל התלמיד.') +
-    '</div>';
+/* ---------- ציור ---------- */
+var SHARE = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/>' +
+  '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></span>';
+var DOTS = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="12" cy="5" r="1.5" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.5" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="19" r="1.5" fill="#17468F" stroke="none"/></svg></span>';
+
+function row(txt) {
+  return '<div class="done-row"><b>✓</b><span>' + esc(txt) + '</span></div>';
+}
+
+function draw() {
+  var f = $('flow'), h = '';
+  STEP = (STEP === 4 || DONE) ? 4 : Math.max(STEP, where());
+
+  ['p1','p2','p3'].forEach(function (id, i) {
+    $(id).className = STEP === 4 ? 'did'
+      : (i + 1 < STEP ? 'did' : (i + 1 === STEP ? 'on' : ''));
+  });
+  $('lede').textContent = STEP === 4
+    ? 'זהו, סיימת. תודה רבה.'
+    : 'בודקים אם הטלפון שלך יכול לקבל תזכורת מהאפליקציה. ' +
+      'דקה אחת, ואז תגיע התראה אחת.';
+
+  /* מה שנגמר מתכווץ לשורה. הוא אינו נעלם, כדי שיהיה ברור
+     שהתקדמנו — אבל הוא גם אינו תופס מקום של כרטיס. */
+  if (STEP > 1) h += row(home() ? 'האפליקציה על מסך הבית' : 'ממשיכים בדפדפן');
+  if (STEP > 2) h += row('ההתראות אושרו');
+
+  if (STEP === 1)      h += stepInstall();
+  else if (STEP === 2) h += stepPerm();
+  else if (STEP === 3) h += stepName();
+  else                 h += stepDone();
+
+  f.innerHTML = h;
+  wire();
+  diag();
+}
+
+/* ---------- שלב 1 ---------- */
+function stepInstall() {
+  var h = '<div class="step now"><div class="kick">שלב 1 מתוך 3</div>' +
+    '<h2>להוסיף את הדף השבועי למסך הבית</h2>';
 
   if (BIP) {
-    /* אנדרואיד, והדפדפן מוכן — כפתור ולא הוראות */
-    h += '<button class="btn" id="inst-go">התקנה על המכשיר</button>';
+    h += '<p>לחיצה אחת, והאייקון יתווסף לטלפון.</p>' +
+         '<button class="btn" id="b-inst">התקנה על המכשיר</button>';
   } else if (IOS) {
-    h += '<ol>' +
-      '<li>לחצו על כפתור השיתוף ' + SHARE_SVG +
-        ' — הוא <b>בתחתית המסך</b>, באמצע. (בגרסאות ישנות הוא למעלה.)</li>' +
-      '<li>גללו ברשימה שנפתחת ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
-      '<li><b>צאו מספארי ופתחו את האייקון החדש</b> שנוסף למסך הבית. ' +
-        'זה הצעד שנשכח — ההוספה לבדה אינה פותחת כלום, ומי שנשאר ' +
-        'בדפדפן יראה שזה "לא עובד".</li>' +
-      '</ol>';
+    h += '<p>באייפון זה <b>חייב</b> להיות ממסך הבית — מתוך הדפדפן ' +
+         'אין התראות בכלל. ככה אייפון בנוי, ואין מה לעשות בקוד.</p>' +
+      '<ol class="how">' +
+      '<li>לחצו על כפתור השיתוף ' + SHARE +
+        ' שבתחתית המסך, באמצע.</li>' +
+      '<li>גללו למטה ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
+      '<li>סגרו את הדפדפן ו<b>פתחו את האייקון החדש</b> שנוסף למסך ' +
+        'הבית. משם נמשיך לבד.</li></ol>';
   } else {
-    h += '<ol>' +
-      '<li>פתחו את תפריט הדפדפן ' + DOTS_SVG + ' — שלוש הנקודות ' +
-        'בפינה העליונה.</li>' +
-      '<li>בחרו <b>"התקנת אפליקציה"</b> או <b>"הוספה למסך הבית"</b>.</li>' +
-      '<li><b>פתחו את האייקון החדש</b> ממסך הבית וחזרו לעמוד הזה משם.</li>' +
-      '</ol>';
+    h += '<p>מומלץ, אבל לא חובה — אצלכם זה יעבוד גם מהדפדפן.</p>' +
+      '<ol class="how">' +
+      '<li>פתחו את תפריט הדפדפן ' + DOTS + ' בפינה העליונה.</li>' +
+      '<li>בחרו <b>"התקנת אפליקציה"</b> או "הוספה למסך הבית".</li>' +
+      '</ol>' +
+      '<button class="btn thin" id="b-skip">להמשיך בלי להתקין ←</button>';
   }
-  /* האייקון מצויר, כי "חפשו את האייקון" הוא הוראה שאפשר לבצע
-     רק כשרואים אותו. */
-  h += '<div class="pic"><img src="icon-192.png" alt="">' +
-       '<span><b>זה האייקון שיתווסף למסך הבית.</b><br>' +
-       'אחרי ההוספה — פתחו אותו, וחזרו לעמוד הזה משם.</span></div>';
-  box.innerHTML = h + '</div>';
+  return h + calm() + '</div>';
+}
 
-  var g = $('inst-go');
-  if (g) g.onclick = function () {
+/* מה שמפחיד, נאמר לפני שמבקשים. חשד שלא נענה הוא חשד שגדל. */
+function calm() {
+  return '<div class="calm"><b>מה זה עושה לטלפון?</b><br>' +
+    'מוסיף אייקון למסך הבית — כמו קיצור דרך. לא תופס מקום ולא ' +
+    'רואה שום דבר במכשיר.<br><b>כמה הודעות יגיעו?</b> אחת, לבדיקה. ' +
+    'ואפשר למחוק את האייקון אחר כך בלחיצה ארוכה.</div>';
+}
+
+/* ---------- שלב 2 ---------- */
+function stepPerm() {
+  var h = '<div class="step now"><div class="kick">שלב 2 מתוך 3</div>' +
+    '<h2>לאשר קבלת התראות</h2>' +
+    '<p>הטלפון ישאל אתכם — צריך לאשר. בלי זה אי אפשר לשלוח ' +
+    'כלום, וזו כל הבדיקה.</p>' +
+    '<button class="btn" id="b-perm">מאשר לקבל התראות</button>';
+  if (perm() === 'denied') {
+    h += '<div class="oops">ההתראות חסומות במכשיר הזה. אפשר לפתוח ' +
+      'אותן בהגדרות האתר בדפדפן — או פשוט לומר לאחיאסף, וזו כבר ' +
+      'תשובה מועילה לבדיקה.</div>';
+  }
+  if (ERR) h += '<div class="oops">' + esc(ERR) + '</div>';
+  return h + '</div>';
+}
+
+/* ---------- שלב 3 ---------- */
+function stepName() {
+  return '<div class="step now"><div class="kick">שלב 3 מתוך 3</div>' +
+    '<h2>איך לקרוא לך?</h2>' +
+    '<p>רק כדי שנדע למי הגיעה ההתראה. שם פרטי מספיק.</p>' +
+    '<input type="text" id="who" placeholder="לדוגמה: מאיר">' +
+    '<button class="btn g" id="b-fin">סיימתי — אפשר לשלוח לי</button>' +
+    (ERR ? '<div class="oops">' + esc(ERR) + '</div>' : '') +
+    '</div>';
+}
+
+/* ---------- הסיום ---------- */
+function stepDone() {
+  return '<div class="step fin"><div class="v">✓</div>' +
+    '<h2>הכול מוכן</h2>' +
+    '<p>אין עוד מה לעשות. תוך זמן קצר תגיע התראה אחת — ' +
+    'גם כשהטלפון נעול ובכיס.<br><b>אפשר לסגור את המסך.</b></p>' +
+    '<button class="btn thin" id="b-raw">משהו לא עבד? לחצו כאן</button>' +
+    '<div id="raw"></div></div>';
+}
+
+/* ---------- חיווט ---------- */
+function wire() {
+  var b;
+  if ((b = $('b-inst'))) b.onclick = function () {
     var p = BIP; if (!p) return;
-    BIP = null;                       /* ההצעה תקפה פעם אחת */
-    p.prompt();
-    if (p.userChoice && p.userChoice.then)
-      p.userChoice.then(function () { drawInstall(); })['catch'](function () { drawInstall(); });
-    else drawInstall();
+    BIP = null; p.prompt();
+    var back = function () { mark(); draw(); };
+    if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
+    else back();
   };
+  if ((b = $('b-skip'))) b.onclick = function () { mark(); SKIPPED = true; go(2); };
+  if ((b = $('b-perm'))) b.onclick = askPerm;
+  if ((b = $('b-fin')))  b.onclick = finish;
+  if ((b = $('b-raw')))  b.onclick = showRaw;
 }
+function mark() { try { localStorage.setItem('pt:nudged', '1'); } catch (e) {} }
 
-/* ---------- העובד ברקע ----------
-   נרשם ה-`sw.js` של האפליקציה עצמה ולא עותק — כדי שמה שנבדק
-   יהיה מה שיהיה בפועל. */
-var REG = null;
-function worker() {
-  if (!CAP.sw) return Promise.reject(new Error('אין מנגנון רקע'));
-  if (REG) return Promise.resolve(REG);
-  return navigator.serviceWorker.register('sw.js')
-    .then(function () { return navigator.serviceWorker.ready; })
-    .then(function (r) { REG = r; return r; });
-}
-
-/* ---------- אישור והתראה ---------- */
-function show(title, body) {
-  return worker().then(function (r) {
-    return r.showNotification(title, {
-      body: body,
-      icon: 'icon-192.png',
-      dir: 'rtl',
-      lang: 'he',
-      tag: 'daf-test',
-      renotify: true
-    });
-  });
-}
-function askAndShow() {
-  $('ask').disabled = true;
-  $('note-out').innerHTML = '';
+/* ---------- אישור ---------- */
+function askPerm() {
+  ERR = '';
+  var b = $('b-perm'); if (b) { b.disabled = true; b.textContent = 'רגע…'; }
   var after = function (p) {
-    CAP.perm = p;
-    if (p !== 'granted') {
-      $('ask').disabled = false;
-      $('note-out').innerHTML = '<b>' +
-        (p === 'denied' ? 'האישור נדחה.' : 'לא ניתן אישור.') +
-        '</b> בלי אישור אין התראות. אפשר לשנות בהגדרות האתר בדפדפן.';
-      caps(); verdict(); return;
-    }
-    show('הדף השבועי', 'דף חדש מחכה לך — מסכת תענית, דף ב.')
-      .then(function () {
-        $('note-out').innerHTML = '<b>נשלחה.</b> אם לא ראית אותה — ' +
-          'ייתכן שהיא נכנסה ישר למגירת ההתראות. משכו מלמעלה.';
-        $('later').disabled = false;
-      })['catch'](function (e) {
-        $('note-out').innerHTML = '<b>נכשלה:</b> ' + esc(e && e.message || e);
-      })['then'](function () { $('ask').disabled = false; caps(); verdict(); });
+    if (p === 'granted') { go(3); return; }
+    ERR = (p === 'denied')
+      ? 'האישור נדחה. בלי אישור אי אפשר לשלוח התראה.'
+      : 'לא התקבל אישור. אפשר לנסות שוב.';
+    draw();
   };
   try {
     var pr = Notification.requestPermission(after);
-    /* דפדפן חדש מחזיר הבטחה, ישן קורא ל-callback. שניהם מטופלים,
-       ובלי לקרוא ל-after פעמיים. */
     if (pr && pr.then) pr.then(after)['catch'](function () { after('default'); });
-  } catch (e) {
-    $('ask').disabled = false;
-    $('note-out').innerHTML = '<b>לא ניתן לבקש אישור כאן:</b> ' +
-      esc(e && e.message || e);
-  }
+  } catch (e) { ERR = 'לא ניתן לבקש אישור כאן.'; draw(); }
 }
 
-/* ---------- ההתראה המושהית ----------
-   זו **הדמיה** ולא הדבר האמיתי: הטיימר רץ בעמוד, ואם המערכת
-   מקפיאה אותו הוא לא יגיע. בדיוק בשביל זה קיימת ההרשמה לשרת
-   שנבדקת בסעיף 3 — שם ההתראה מגיעה מבחוץ ולא תלויה בעמוד. */
-function later() {
-  $('later').disabled = true;
-  var n = 10;
-  var tick = function () {
-    $('note-out').innerHTML = '<b>נעלו את המסך.</b> ההתראה תגיע בעוד ' +
-      n + ' שניות.';
-    if (n-- <= 0) {
-      show('הדף השבועי', 'שבוע חדש התחיל — מחכה לך דף.')
-        ['catch'](function () {});
-      $('note-out').innerHTML = '<b>נשלחה.</b> ראית אותה על המסך הנעול?';
-      $('later').disabled = false;
-      return;
-    }
-    setTimeout(tick, 1000);
-  };
-  tick();
+/* ---------- הרשמה ---------- */
+function worker() {
+  if (!('serviceWorker' in navigator)) return Promise.reject(new Error('אין מנגנון רקע'));
+  return navigator.serviceWorker.register('sw.js')
+    .then(function () { return navigator.serviceWorker.ready; });
 }
-
-/* ---------- ההרשמה ---------- */
-/* האם המנוי הקיים נוצר עם המפתח שבקוד עכשיו. מנוי עם מפתח ישן
-   אינו שגוי — הוא פשוט שייך למישהו אחר, ודחיפה שלנו לא תגיע
-   אליו. הוא נזרק ונוצר מחדש. */
-function sameKey(sub) {
+/* מנוי שנוצר עם מפתח ישן נראה תקין אבל דחיפה שלנו לא תגיע
+   אליו — הוא נזרק ונוצר מחדש. */
+function sameKey(s) {
   try {
-    var k = sub.options && sub.options.applicationServerKey;
+    var k = s.options && s.options.applicationServerKey;
     if (!k) return false;
     var a = new Uint8Array(k), b = b64ToU8(VAPID), i;
     if (a.length !== b.length) return false;
@@ -452,15 +379,22 @@ function sameKey(sub) {
     return true;
   } catch (e) { return false; }
 }
-var SUB = null;
-function subscribe() {
-  $('sub').disabled = true;
-  $('sub-out').innerHTML = 'מנסה…';
+/* אותה הכרעת כתובת של שאר האפליקציה: מה שנקבע במכשיר גובר. */
+function apiUrl() {
+  var a = '';
+  try { a = localStorage.getItem('dfApi') || ''; } catch (e) {}
+  if (!a && typeof APPS_SCRIPT_URL !== 'undefined') a = APPS_SCRIPT_URL;
+  return String(a || '').trim();
+}
+
+function finish() {
+  ERR = '';
+  var b = $('b-fin'); if (b) { b.disabled = true; b.textContent = 'רגע…'; }
+  var who = ($('who') && $('who').value || '').trim() || 'בלי שם';
   worker().then(function (r) {
     var fresh = function () {
       return r.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: b64ToU8(VAPID)
+        userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID)
       });
     };
     return r.pushManager.getSubscription().then(function (s) {
@@ -470,145 +404,61 @@ function subscribe() {
     });
   }).then(function (s) {
     SUB = s;
-    /* מוצג רק **שם השירות** ולא הכתובת המלאה: הכתובת המלאה היא
-       המפתח לשלוח למכשיר הזה, ואין סיבה שתופיע בצילום מסך. */
-    var host = '';
-    try { host = new URL(s.endpoint).host; } catch (e) { host = '—'; }
-    CAP.sub = true;
-    $('sub-out').innerHTML = '<b>ההרשמה הצליחה.</b><br>' +
-      'שירות ההתראות: <code>' + esc(host) + '</code><br>' +
-      'כלומר המכשיר הזה <b>יכול</b> לקבל תזכורת שבועית מהשרת.' +
-      '<div id="copy-msg"></div>';
-    register();
-    verdict();
+    var url = apiUrl();
+    if (!url) throw new Error('אין כתובת שרת');
+    return fetch(url, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'row', tab: 'התראות',
+        cols: JSON.stringify([
+          ['שם', who], ['מכשיר', IOS ? 'אייפון' : 'אנדרואיד'],
+          ['מנוי', JSON.stringify(s)], ['מתי', new Date().toISOString()]
+        ])
+      })
+    });
+  }).then(function () {
+    /* `no-cors` אטום ואינו מעיד על הצלחה — ולכן מסך הסיום אינו
+       אומר "נרשמת" אלא "תגיע התראה". ההתראה היא האישור. */
+    DONE = true;
+    try { localStorage.setItem('pt:done', '1'); } catch (e) {}
+    go(4);
   })['catch'](function (e) {
-    CAP.sub = false;
-    var m = String(e && e.message || e), why;
-    /* הודעת הדפדפן היא באנגלית ולעיתים סתומה. התרגום הוא לשפה
-       שבה אפשר להחליט משהו; המקור נשאר למטה, כי הוא מה שיעזור
-       אם נצטרך לחפור. */
-    if (/permission/i.test(m))            why = 'ההתראות לא אושרו במכשיר.';
-    else if (/not supported|unsupported/i.test(m))
-                                          why = 'המכשיר הזה אינו תומך בהרשמה לשרת.';
-    else if (/abort|timed? ?out/i.test(m)) why = 'שירות ההתראות לא נענה.';
-    else if (/service|registration failed/i.test(m))
-                                          why = 'שירות ההתראות אינו זמין כאן.';
-    else                                   why = 'ההרשמה לא הושלמה.';
-    $('sub-out').innerHTML = '<b>ההרשמה נכשלה — ' + esc(why) + '</b>' +
-      (CAP.perm !== 'granted' ? '<br>קודם צריך לאשר התראות — סעיף 2.' : '') +
-      (IOS && !CAP.home ? '<br>ובאייפון צריך לפתוח ממסך הבית.' : '') +
-      '<br><span style="opacity:.7;font-size:.92em">' + esc(m) + '</span>';
-    $('sub').disabled = false;
-    verdict();
+    ERR = 'לא הצלחתי להשלים: ' + (e && e.message || e) +
+          '. אפשר לנסות שוב, או לומר לאחיאסף.';
+    draw();
   });
 }
 
-/* ---------- הרישום למערכת ----------
-   הגרסה הראשונה ביקשה מכל בודק להעתיק את המנוי ולשלוח אותו
-   ביד. זה עובד לשני מכשירים ונשבר בשלושה, ובוודאי כשמגייסים
-   אנשים שאינם מתעסקים בזה.
-
-   עכשיו העמוד נרשם בעצמו ללשונית **פרטית** בגיליון, דרך אותו
-   גשר כתיבה שכל האפליקציה משתמשת בו. הבודק פותח, לוחץ, וזהו.
-
-   **אין כאן אימות־קריאה־חוזרת** כמו בשאר הכתיבות, כי הלשונית
-   פרטית והבודק אינו יכול לקרוא אותה. וזה בסדר דווקא כאן:
-   **ההתראה עצמה היא האימות.** הגיעה — נרשם. */
-/* אותה הכרעת כתובת של שאר האפליקציה: מה שנקבע במכשיר גובר על
-   מה שבקוד. מסך הניהול שומר כתובת חלופית, ועמוד שמתעלם ממנה
-   כותב לסקריפט ישן — ושותק על כך, כי `no-cors` אטום. */
-function apiUrl() {
-  var a = '';
-  try { a = localStorage.getItem('dfApi') || ''; } catch (e) {}
-  if (!a) { try { a = (JSON.parse(localStorage.getItem('df:cfg') || '{}') || {}).api || ''; } catch (e) {} }
-  if (!a && typeof APPS_SCRIPT_URL !== 'undefined') a = APPS_SCRIPT_URL;
-  return String(a || '').trim();
-}
-function register() {
-  var msg = $('copy-msg');
-  var url = apiUrl();
-  if (!SUB || !url) {
-    msg.innerHTML = '<div class="out"><b>לא הצלחתי להירשם למערכת.</b> ' +
-      'תגידו לאחיאסף.</div>';
+/* גיבוי, אם ההתראה לא הגיעה */
+function showRaw() {
+  var r = $('raw'); if (!r) return;
+  if (!SUB) {
+    r.innerHTML = '<div class="oops">אין מה להציג כאן. נסו לרענן ' +
+      'ולעבור שוב על השלבים.</div>';
     return;
   }
-  var who = ($('who') && $('who').value || '').trim() || 'בלי שם';
-  var dev = IOS ? 'אייפון' : 'אנדרואיד';
-  msg.innerHTML = '<div class="out">רושם…</div>';
-  fetch(url, {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'row', tab: 'התראות',
-      cols: JSON.stringify([
-        ['שם', who], ['מכשיר', dev],
-        ['מנוי', JSON.stringify(SUB)],
-        ['מתי', new Date().toISOString()]
-      ])
-    })
-  })['catch'](function () {})['then'](function () {
-    /* **לא כותבים "נרשמת ✓".** `no-cors` מחזיר תשובה אטומה:
-       ה-fetch "מצליח" גם כשהשרת דחה, גם כשהכתובת שגויה וגם
-       כשאין רשת. זה כלל הברזל של הפרויקט, והפרתי אותו כאן.
-
-       מה שאפשר לומר באמת: נשלח. **ההתראה עצמה היא האישור** —
-       היא מגיעה רק למי שבאמת נרשם. ולמקרה שלא תגיע, הטקסט
-       זמין להעתקה ידנית ולא צריך להתחיל מהתחלה. */
-    msg.innerHTML = '<div class="out"><b>נשלח.</b><br>' +
-      'אין עוד מה לעשות — אם תגיע התראה, זה עבד. ' +
-      '<u>אל תסגרו את העמוד עד שתקבלו אותה.</u>' +
-      '<br><a href="#" id="sub-manual" style="color:var(--blue);' +
-      'font-weight:800">לא הגיעה התראה? הצג את הקוד להעתקה</a></div>';
-    var m = $('sub-manual');
-    if (m) m.onclick = function (e) { e.preventDefault(); showRaw(); };
-  });
-}
-
-/* גיבוי ידני, למקרה שהכתיבה לגיליון נכשלה בשקט. */
-function showRaw() {
-  var msg = $('copy-msg');
-  msg.innerHTML = '<div class="out"><b>שלחו לאחיאסף את הטקסט הזה:</b></div>' +
-    '<textarea readonly style="width:100%;height:100px;margin-top:8px;' +
-    'font-size:.7rem;direction:ltr;border:1px solid var(--rule);' +
-    'border-radius:8px;padding:8px">' + esc(JSON.stringify(SUB)) + '</textarea>';
-  var t = msg.querySelector('textarea');
+  r.innerHTML = '<p style="margin-top:14px">שלחו לאחיאסף את הטקסט הזה:</p>' +
+    '<textarea readonly>' + esc(JSON.stringify(SUB)) + '</textarea>';
+  var t = r.querySelector('textarea');
   if (t) { t.focus(); t.select(); }
 }
 
-/* ---------- השורה התחתונה ---------- */
-function verdict() {
-  var v = $('verdict'), cls, msg;
-  if (CAP.sub === true) {
-    cls = 'y';
-    msg = 'המכשיר הזה יכול לקבל תזכורת שבועית מהאפליקציה, ' +
-          'עם האייקון שלה, בלי שום קבוצה.';
-    if (IOS) msg += ' ובאייפון זה עובד **רק** אחרי הוספה למסך הבית — ' +
-      'וזה הצעד שיקבע כמה תלמידים באמת יקבלו.';
-  } else if (CAP.sub === false) {
-    cls = 'n';
-    msg = 'ההרשמה נכשלה כאן. ' +
-      (CAP.perm !== 'granted' ? 'קודם כול צריך אישור התראות. '
-       : IOS && !CAP.home ? 'באייפון צריך לפתוח ממסך הבית. ' : '') +
-      'בלי הרשמה אפשר להקפיץ התראה רק כשהאפליקציה פתוחה — וזה ' +
-      'חסר טעם לתזכורת שבועית.';
-  } else if (!CAP.note) {
-    cls = 'n';
-    msg = IOS && !CAP.home
-      ? 'אין כאן התראות כי הדף נפתח מהדפדפן. באייפון חייבים ' +
-        'להוסיף למסך הבית ולפתוח משם.'
-      : 'הדפדפן הזה אינו תומך בהתראות כלל.';
-  } else {
-    return;
-  }
-  v.className = 'verdict ' + cls;
-  v.innerHTML = msg.replace(/\*\*(.+?)\*\*/g, '<u>$1</u>');
+/* ---------- האבחון, מקופל ---------- */
+function diag() {
+  var e = $('diag-box'); if (!e) return;
+  e.innerHTML =
+    '<b>מכשיר</b>' + esc(IOS ? 'iOS' : 'Android/Desktop') +
+    ' · standalone=' + home() +
+    '<br>notifications=' + canNote() + ' · permission=' + perm() +
+    '<br>push=' + ('PushManager' in window) +
+    ' · sw=' + ('serviceWorker' in navigator) +
+    '<br>step=' + STEP + ' · bip=' + !!BIP +
+    (SUB ? '<br>endpoint=' + esc(String(SUB.endpoint).slice(0, 60)) + '…' : '') +
+    (ERR ? '<br>err=' + esc(ERR) : '');
 }
 
-caps();
-verdict();
-$('ask').onclick   = askAndShow;
-$('later').onclick = later;
-$('sub').onclick   = subscribe;
+draw();
 </script>
 </body>
 </html>
