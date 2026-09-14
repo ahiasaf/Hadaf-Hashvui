@@ -26,3 +26,9 @@ scratchpad/
 # העותק השמור אצל אחיאסף בדרייב.
 docs/marks-backup.json
 docs/marks-word.json
+
+# צילומי מסך של הבדיקות. הן רצות משורש הריפו וכותבות לכאן,
+# וכבר נדחפו בטעות פעם אחת.
+/*.png
+!icon-*.png
+!logo-*.png
