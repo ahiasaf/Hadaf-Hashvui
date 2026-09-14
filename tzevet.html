@@ -1359,8 +1359,13 @@ function ramBar() {
   var demo = $('demo');
   var past = !demo || demo.getBoundingClientRect().bottom < window.innerHeight * 0.6;
   if (!past) { el.hidden = true; return; }
+  /* **כפתור בלי כיתוב אינו כפתור.** אם המלל עוד לא נטען —
+     למשל data.js ישן שיושב במטמון — עדיף שלא יופיע כלום
+     מאשר מלבן ריק עם ✕. */
+  var t = tz('askBar');
+  if (!t) { el.hidden = true; return; }
   if (!el.hidden) return;
-  $('ab-t').textContent = tz('askBar');
+  $('ab-t').textContent = t;
   $('ab-s').textContent = tz('askBarS');
   el.hidden = false;
 }
@@ -1444,7 +1449,10 @@ function ramWho() {
       esc(tz('askName')) + '</label>' +
       '<input id="r-first" type="text" autocomplete="given-name" value="' +
       esc(me.first || '') + '">' +
-      '<p class="hint">' + esc(tz('askNameH')) + '</p></div>' +
+      /* **"הרב" מתווסף אצלנו, ולא נאמר לו.** הוא כותב את שמו,
+         ואנחנו מוסיפים את התואר בלוח ובכל מקום אחר. הסבר על
+         מה שקורה מאחורי הקלעים הוא עוד שורה לקרוא. */
+      '</div>' +
     '<div class="fld"><label class="label">שכבה וכיתה ' +
       '<i>· ' + esc(tz('askClsH')) + '</i></label>' +
       '<div class="pair">' +
