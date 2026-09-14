@@ -494,10 +494,14 @@ footer a{color:var(--ink-2);font-weight:800}
   box-shadow:0 4px 14px rgba(11,37,80,.22)}
 .apic span{font-size:.72rem;font-weight:800;color:var(--ink-2)}
 /* הלוח: מי הם התלמידים האלה */
-.brd-more{display:inline-flex;align-items:center;gap:7px;margin-top:14px;
-  padding:9px 2px;color:var(--blue);font-size:.9rem;font-weight:800;
+/* במרכז ולא נצמד לימין: הוא יושב מתחת לתוכן ממורכז, וקישור
+   שנתלה בפינה נראה כמו שריד ולא כמו המשך. */
+.brd-more{display:flex;align-items:center;justify-content:center;gap:7px;
+  width:-moz-fit-content;width:fit-content;margin:16px auto 0;
+  padding:9px 4px;color:var(--blue);font-size:.9rem;font-weight:800;
   text-decoration:none;border-bottom:1.5px solid rgba(23,70,143,.25)}
 .brd-more span{font-size:.95rem;line-height:1}
+
 .brd-head .ram{display:block;font-size:.8rem;font-weight:700;
   color:var(--gold-t);margin-top:2px}
 </style>
@@ -1128,7 +1132,8 @@ function drawBoard() {
      "יונתן", וזה מה שהיה מופיע. */
   var ram = (typeof ramGet === 'function') ? ramGet() : null;
   var whoLine = (ram && ram.first)
-    ? '<span class="ram">' + esc(tpl(T.brdWho || '', { ram: ram.first })) + '</span>'
+    ? '<span class="ram">' + esc(tpl(T.brdWho || '',
+        { ram: ((ram.first || '') + ' ' + (ram.last || '')).trim() })) + '</span>'
     : '';
   var head = '<div class="brd-head"><b>' + esc(T.brdH || '') + '</b>' +
              '<span>' + esc(instRow.name) + whoLine + '</span></div>';
@@ -1353,6 +1358,14 @@ var ramStep = 0, ramBusy = false, ramErr = '', ramSkip = false;
 var ramDraft = {};
 
 function tz(k) { return (window.TZEVET && TZEVET[k]) || ''; }
+/* **"הרב" מתווסף כאן ובכל מקום אחר.** הוא הקליד שם פרטי ושם
+   משפחה; התואר אינו נדרש ממנו ואינו נאמר לו. */
+function ramName(me) {
+  me = me || ramGet() || {};
+  var n = ((me.first || '') + ' ' + (me.last || '')).trim();
+  return n ? 'הרב ' + n : '';
+}
+
 function ramGet() {
   try { return JSON.parse(localStorage.getItem('df:ram') || 'null'); }
   catch (e) { return null; }
@@ -1426,15 +1439,18 @@ function ramDraw() {
   /* ---- הפנייה עצמה. בלי מד ובלי שלבים: זו עדיין בקשה
           ולא תהליך, ומד מעליה הופך אותה למשימה. ---- */
   if (ramStep === 0) {
-    el.innerHTML = '<div class="as-card"><h2>' + esc(tz('askH')) + '</h2>' +
-      '<p>' + esc(tz('askBody')) + '</p>' +
+    /* שורה ריקה במלל = פסקה. פסקה אחת ארוכה נקראת כקיר. */
+    var body = String(tz('askBody') || '').split('\n').map(function (x) {
+      return x.trim() ? '<p>' + esc(x.trim()) + '</p>' : '';
+    }).join('');
+    el.innerHTML = '<div class="as-card"><h2>' + esc(tz('askH')) + '</h2>' + body +
       '<button class="as-go" id="r-go">' + esc(tz('askGo')) + '</button>' +
       '<button class="as-thin" id="r-later">' + esc(tz('askLater')) + '</button></div>';
     ramWire(); return;
   }
 
   h += ramMeter(ramStep === 4 ? 3 : ramStep);
-  if (ramStep > 1 && me) h += ramRow('הרב ' + (me.first || ''));
+  if (ramStep > 1 && me) h += ramRow(ramName(me));
   if (ramStep > 2) h += ramRow(ramSkip ? 'ממשיכים בלי התקנה'
                                        : 'האפליקציה על מסך הבית');
 
@@ -1452,6 +1468,7 @@ function ramDraw() {
 function ramWho() {
   var me = ramGet() || {}, d = ramDraft;
   me = { first: d.first != null ? d.first : (me.first || ''),
+         last:  d.last  != null ? d.last  : (me.last  || ''),
          grade: d.grade != null ? d.grade : (me.grade || ''),
          klass: d.klass != null ? d.klass : (me.klass || '') };
   var opts = function (list, cur) {
@@ -1465,7 +1482,11 @@ function ramWho() {
     '<div class="fld"><label class="label" for="r-first">' +
       esc(tz('askName')) + '</label>' +
       '<input id="r-first" type="text" autocomplete="given-name" value="' +
-      esc(me.first || '') + '">' +
+      esc(me.first || '') + '"></div>' +
+    '<div class="fld"><label class="label" for="r-last">' +
+      esc(tz('askLast')) + '</label>' +
+      '<input id="r-last" type="text" autocomplete="family-name" value="' +
+      esc(me.last || '') + '">' +
       /* **"הרב" מתווסף אצלנו, ולא נאמר לו.** הוא כותב את שמו,
          ואנחנו מוסיפים את התואר בלוח ובכל מקום אחר. הסבר על
          מה שקורה מאחורי הקלעים הוא עוד שורה לקרוא. */
@@ -1542,15 +1563,17 @@ function ramWire() {
 
 function ramSave() {
   var first = ($('r-first').value || '').trim();
+  var last  = ($('r-last').value || '').trim();
   var grade = $('r-grade').value, klass = $('r-klass').value;
   /* שומרים לפני שבודקים: ציור מחדש שמוחק את מה שהוקלד הופך
      הודעת שגיאה לעונש. */
-  ramDraft = { first: first, grade: grade, klass: klass };
+  ramDraft = { first: first, last: last, grade: grade, klass: klass };
   if (first.length < 2) { ramErr = 'צריך שם פרטי.'; ramDraw(); return; }
+  if (last.length < 2)  { ramErr = 'צריך שם משפחה.'; ramDraw(); return; }
   if (!grade || !klass) { ramErr = 'צריך שכבה וכיתה — כדי שנדע מי תלמידיך.';
     ramDraw(); return; }
   ramErr = '';
-  ramSet({ id: ramId(), first: first, grade: grade, klass: klass,
+  ramSet({ id: ramId(), first: first, last: last, grade: grade, klass: klass,
            inst: instRow ? instRow.code : '', instName: instRow ? instRow.name : '',
            at: new Date().toISOString() });
   ramPost('רשום', null);
@@ -1584,7 +1607,7 @@ function ramPost(res, sub) {
     body: JSON.stringify({
       action: 'row', tab: 'התראות',
       cols: JSON.stringify([
-        ['מזהה', me.id || ''], ['שם', 'הרב ' + (me.first || '')],
+        ['מזהה', me.id || ''], ['שם', ramName(me)],
         ['ישיבה', me.instName || ''], ['תפקיד', 'ר"ם'],
         ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
         ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
