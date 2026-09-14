@@ -1580,7 +1580,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.29.0';
+var APP_VERSION = '8.30.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1810,7 +1810,7 @@ function renderHome() {
      אישרו רשמית, "כבר בתוכנית תשפ״ז" הוא מספר שאי אפשר לעמוד
      מאחוריו. לכן ברירת המחדל היא מי שהיה בתשפ״ו — אמת מלאה
      שגם משכנעת — והמתג בניהול מעביר לתשפ״ז כשיגיע הזמן. */
-  var showNow = CV('roster') === 'now';
+  var showNow = rosterMode() === 'now';
   var inList  = INSTITUTIONS.filter(function (i) { return showNow ? i.joined : i.last; });
   var openN   = INSTITUTIONS.length - inList.length;
 
@@ -2576,6 +2576,11 @@ function myBoard() {
   return Store.get('dfBoard', '') || '';
 }
 /* האם מפיצים בכלל קישור הצטרפות לתלמידים. */
+/* ברירת המחדל שבקוד, ומעליה מה שפורסם. */
+function rosterMode() {
+  var v = CV('roster');
+  return v != null ? v : ROSTER_DEF;
+}
 function joinLinkOn() { return CV('joinLink') !== false; }
 /* "בן · אבא" בראש קישור ההצטרפות. ברירת המחדל דלוקה, ולכן
    `!== false` ולא ערך אמת: מפתח שמעולם לא נכתב לגיליון חייב
@@ -3046,8 +3051,15 @@ function toast(t) {
    הלימוד האינטראקטיבי ממתין להסדרת הזכויות, והסוגיה היומית
    תלויה בחוברת. INTER_PUBLIC הוא ברירת המחדל בלבד — כבוי —
    ומה שנבחר בניהול גובר עליו. */
-var INTER_PUBLIC = false;
-var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true,
+/* **הוטמע מהניהול, 14.9.26.** עד עכשיו ברירת המחדל שבקוד
+   הייתה הפוכה מהמצב בשטח, והשכבה מהגיליון היא שתיקנה אותה בכל
+   כניסה. תלמיד שהשכבה לא הגיעה אליו — רשת איטית, רגע של כשל,
+   מטמון — לא ראה את הדף האינטראקטיבי בכלל. זה קרה בשטח: שני
+   תלמידים זה לצד זה, אחד ראה ואחד לא.
+
+   מעכשיו הקוד הוא האמת, והשכבה רק מאשרת אותה. */
+var INTER_PUBLIC = true;
+var ROW_DEF = { inter:true, sugya:true, daf:false, chav:false, soon:false,
                 /* שני אלה אינם שורות בעמוד השבוע אלא חלקים במסך
                    הבית. הם כאן כדי לחלוק את אותו מנגנון מתגים —
                    אין סיבה לשני מנגנונים שעושים אותו דבר.
@@ -3057,7 +3069,9 @@ var ROW_DEF = { inter:false, sugya:true, daf:true, chav:true,
 /* הבאנר של מה שבדרך. מתג ולא קבוע, כדי שאפשר יהיה להוריד אותו
    ביום שהלוח עצמו עולה — או מוקדם יותר, אם מסתבר שהוא מבטיח
    יותר מדי. */
-function CFG_SOON() { return (CV('rows') || {}).soon !== false; }
+/* דרך אותו מנגנון של שאר המתגים, כדי שברירת המחדל שבקוד
+   תהיה זו שקובעת כשהשכבה לא הגיעה. */
+function CFG_SOON() { return showRow('soon'); }
 /* ============================================================
    מצב הדגמה — ‎?demo=1
 
@@ -5283,7 +5297,7 @@ function admReg(el) {
 function admShow(el) {
   /* באנר מקור הרשימה עבר ל"קישורים", שם יושבת הרשימה עצמה.
      כאן הוא היה מידע על מוסדות במסך שעוסק בתצוגה. */
-  var now = CV('roster') === 'now';
+  var now = rosterMode() === 'now';
   el.innerHTML =
     '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
     '<p class="h">כל עוד הישיבות לא אישרו רשמית, המספר היחיד שאפשר ' +
