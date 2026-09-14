@@ -392,21 +392,19 @@ footer a{color:var(--ink-2);font-weight:800}
    לדלג עליו, ופנייה אישית שנקראת כסעיף אינה נענית. הוא מופיע
    רק אחרי שההדגמה נגללה — קודם רואים מה בנינו, ואז מבקשים.
    ============================================================ */
-.askbar{position:fixed;inset-inline:14px;bottom:14px;z-index:60;
-  display:flex;align-items:center;gap:12px;width:auto;max-width:520px;
-  margin-inline:auto;padding:14px 18px;border:0;border-radius:16px;
-  background:linear-gradient(140deg,var(--blue),var(--blue-d));
-  color:#fff;font-family:inherit;text-align:start;cursor:pointer;
-  box-shadow:0 10px 34px rgba(11,37,80,.34);
-  animation:abUp .45s cubic-bezier(.2,.8,.25,1) both}
-@keyframes abUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-.askbar .ab-t{flex:1;display:block;line-height:1.45}
-.askbar b{display:block;font-size:1rem;font-weight:800;letter-spacing:-.02em}
-.askbar small{display:block;font-size:.8rem;font-weight:600;opacity:.82;
-  margin-top:2px}
-.askbar .ab-x{flex:0 0 auto;width:30px;height:30px;border-radius:50%;
-  background:rgba(255,255,255,.16);display:flex;align-items:center;
-  justify-content:center;font-size:.9rem;font-weight:800}
+/* שורה אחת וחץ. לא כרטיס, לא פס, ולא רוחב מלא — מה שיש
+   לומר נאמר במסך שנפתח. הזהב הבהיר הוא הזמנה; הכחול הכבד
+   של האפליקציה הוא הכרזה, וזו בקשה. */
+.askrow{display:flex;align-items:center;gap:12px;width:auto;
+  margin:0 auto;padding:15px 18px;border:1px solid rgba(192,143,43,.4);
+  border-radius:999px;background:linear-gradient(135deg,#FDF6E6,#FAF0DA);
+  color:var(--ink);font-family:inherit;font-size:1rem;font-weight:800;
+  letter-spacing:-.02em;cursor:pointer;
+  box-shadow:0 2px 10px rgba(192,143,43,.16)}
+.askrow .ar-go{flex:0 0 auto;width:32px;height:32px;border-radius:50%;
+  background:var(--gold);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:1.05rem;font-weight:800;line-height:1}
+#ask-sec{text-align:center}
 
 /* המסך שנפתח. מסך מלא ולא חלונית: בקשה שמציצה מעל תוכן אחר
    מתחרה בו, ומה שנאמר כאן אינו יכול להיקרא בחצי עין. */
@@ -496,6 +494,10 @@ footer a{color:var(--ink-2);font-weight:800}
   box-shadow:0 4px 14px rgba(11,37,80,.22)}
 .apic span{font-size:.72rem;font-weight:800;color:var(--ink-2)}
 /* הלוח: מי הם התלמידים האלה */
+.brd-more{display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+  padding:9px 2px;color:var(--blue);font-size:.9rem;font-weight:800;
+  text-decoration:none;border-bottom:1.5px solid rgba(23,70,143,.25)}
+.brd-more span{font-size:.95rem;line-height:1}
 .brd-head .ram{display:block;font-size:.8rem;font-weight:700;
   color:var(--gold-t);margin-top:2px}
 </style>
@@ -580,13 +582,36 @@ footer a{color:var(--ink-2);font-weight:800}
     <p class="steps-foot" id="t-stepsFoot"></p>
   </section>
 
-  <section>
+  <!-- ריק ב-whoH = הפרק אינו מוצג, וזו ברירת המחדל. הוא
+       נשאר במסמך כדי שמילוי הנוסח בניהול יחזיר אותו — הבטחה
+       שאי אפשר לקיים כשה-HTML נמחק. -->
+  <section id="who-sec" hidden>
     <h2 class="sec" id="t-whoH"></h2>
     <div class="who" id="who"></div>
   </section>
 
-  <!-- הסיפור בא אחרי "למי זה טוב": מי שקרא למי זה מתאים
-       עדיין שואל "ובאמת עובד?" — והסיפור עונה. -->
+  <!-- ============================================================
+       הבקשה האישית — כאן, ולא מרחפת.
+       ============================================================
+       פס מרחף הוא אוצר המילים של באנרים: הוא נדחף מעל תוכן,
+       ולכן הוא מתנגש בכל מקום שיושם בו. כאן הוא אינו נדחף —
+       הוא השורה הבאה ברצף.
+
+       והרגע נכון: הר"ם בדיוק סיים לקרוא מה לעשות ולשלוח את
+       הקישור. "ועוד בקשה אישית" אחרי משימה שהסתיימה נקראת
+       כהמשך, לא כהפרעה.
+
+       שורה אחת וחץ, בלי כרטיס ובלי פסקה: מה שיש לומר נאמר
+       במסך שנפתח, ולא כאן. -->
+  <section id="ask-sec">
+    <button class="askrow" id="askrow" hidden>
+      <span id="ar-t"></span>
+      <span class="ar-go" aria-hidden="true">←</span>
+    </button>
+  </section>
+
+  <!-- הסיפור בא אחרי הבקשה: מי שקרא מה לעשות ומה יקבל עדיין
+       שואל "ובאמת עובד?" — והסיפור עונה. -->
   <section id="story-sec">
     <div class="story">
       <h3 id="t-storyH"></h3>
@@ -626,11 +651,6 @@ footer a{color:var(--ink-2);font-weight:800}
      המסך שנפתח הוא שלושה שלבים — פרטים, התקנה, עדכונים — ולא
      טופס אחד. אותה שפה בדיוק של מסך התלמיד, כי היא זו שעבדה.
      ============================================================ -->
-<button class="askbar" id="askbar" hidden>
-  <span class="ab-t"><b id="ab-t"></b><small id="ab-s"></small></span>
-  <span class="ab-x" id="ab-x" role="button" aria-label="סגירה">✕</span>
-</button>
-
 <div class="asksheet" id="asksheet" hidden>
   <div class="as-in">
     <button class="as-x" id="as-x" aria-label="סגירה">✕</button>
@@ -799,8 +819,13 @@ var IC = {
 };
 function drawWho() {
   var T = window.TZEVET || {};
+  var sec = $('who-sec'), box = $('who');
+  if (!box) return;
+  /* הכותרת היא המתג: ריקה — אין פרק. */
+  if (sec) sec.hidden = !T.whoH;
+  if (!T.whoH) { box.innerHTML = ''; return; }
   var rows = [['ram', '#4A821C'], ['dad', '#C08F2B'], ['kid', '#17468F']];
-  $('who').innerHTML = rows.map(function (r) {
+  box.innerHTML = rows.map(function (r) {
     var h = T[r[0] + 'H'], t = T[r[0] + 'Txt'];
     if (!h && !t) return '';                 /* נוסח שרוקן — לא כרטיס ריק */
     return '<div class="card" style="--c:' + r[1] + '">' +
@@ -1132,11 +1157,12 @@ function drawBoard() {
       '<span>' + esc(row0[0]) + '</span></div></div></div>';
   }
 
-  /* הכפתור הכחול הוא חלק מהלוח, כמו בעמוד הראשי — ולא כרטיס
-     נפרד שמוביל אליו. כפתור השליחה הירוק אינו כאן: הוא כבר
-     יושב למעלה, ושני כפתורי שליחה באותו עמוד הם שאלה. */
-  var full = '<a class="btn" href="' + esc(boardUrl()) + '">' +
-             esc(UI.cbBoard) + ' ←</a>';
+  /* **קישור ולא כפתור.** מלבן כחול ברוחב מלא הוא הכרזה, והוא
+     נקרא כמו הפעולה הראשית של המסך — בזמן שהפעולה הראשית
+     כאן היא לשלוח לתלמידים. מי שרוצה לראות פירוט, ילחץ על
+     שורה שאומרת "פירוט". */
+  var full = '<a class="brd-more" href="' + esc(boardUrl()) + '">' +
+             esc(UI.cbBoard) + '<span aria-hidden="true">←</span></a>';
 
   /* התגית — רק בשלד. משהצטרף אחד, הלוח מדבר בעד עצמו. */
   var tag = n ? '' : '<span class="skel-tag">' + esc(T.brdSkel || '') + '</span>';
@@ -1337,12 +1363,6 @@ function ramSet(v) {
 function ramNoted() {
   try { return localStorage.getItem('df:ramNote') === '1'; } catch (e) { return false; }
 }
-/* הפס אינו חוזר למי שביקש שלא. "לא עכשיו" שחוזר בכל כניסה
-   אינו "לא עכשיו" — הוא נדנוד. */
-function ramHid() {
-  try { return localStorage.getItem('df:ramHide') === '1'; } catch (e) { return false; }
-}
-
 function ramWhere() {
   if (!ramGet()) return 1;
   if (!APPX.installed() && !ramSkip) return 2;
@@ -1353,20 +1373,17 @@ function ramWhere() {
 /* ---------- הפס המרחף ----------
    מופיע רק אחרי שההדגמה נגללה: קודם רואים מה בנינו, ואז
    מבקשים. בקשה שקופצת לפני שראה משהו היא בקשה מאדם זר. */
+/* השורה יושבת במקומה בעמוד ואינה תלויה בגלילה. מה שהיה
+   קודם — פס שקופץ אחרי X פיקסלים — הופיע בראש העמוד על
+   מסכים גבוהים, כלומר לפני שהר"ם ראה דבר.
+
+   **כפתור בלי כיתוב אינו כפתור:** אם המלל עוד לא נטען, למשל
+   data.js ישן שיושב במטמון, עדיף שלא יופיע כלום. */
 function ramBar() {
-  var el = $('askbar'); if (!el) return;
-  if (ramHid() || ramWhere() === 4) { el.hidden = true; return; }
-  var demo = $('demo');
-  var past = !demo || demo.getBoundingClientRect().bottom < window.innerHeight * 0.6;
-  if (!past) { el.hidden = true; return; }
-  /* **כפתור בלי כיתוב אינו כפתור.** אם המלל עוד לא נטען —
-     למשל data.js ישן שיושב במטמון — עדיף שלא יופיע כלום
-     מאשר מלבן ריק עם ✕. */
+  var el = $('askrow'); if (!el) return;
   var t = tz('askBar');
-  if (!t) { el.hidden = true; return; }
-  if (!el.hidden) return;
-  $('ab-t').textContent = t;
-  $('ab-s').textContent = tz('askBarS');
+  if (!t || ramWhere() === 4) { el.hidden = true; return; }
+  $('ar-t').textContent = t;
   el.hidden = false;
 }
 
@@ -1512,10 +1529,9 @@ function ramWire() {
   var b;
   if ((b = $('r-go')))   b.onclick = function () { ramErr = ''; ramGo(1); };
   if ((b = $('r-done'))) b.onclick = ramClose;
-  if ((b = $('r-later'))) b.onclick = function () {
-    try { localStorage.setItem('df:ramHide', '1'); } catch (e) {}
-    ramClose();
-  };
+  /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
+     קופצת עליו, ולכן אין ממה להסתיר אותה. */
+  if ((b = $('r-later'))) b.onclick = ramClose;
   if ((b = $('r-next'))) b.onclick = ramSave;
   if ((b = $('r-inst'))) b.onclick = function () {
     APPX.prompt(function () { ramGo(ramWhere()); });
@@ -1603,17 +1619,9 @@ function ramAsk() {
 }
 
 /* הפס נבדק בגלילה, ומצויר פעם אחת. */
-window.addEventListener('scroll', ramBar, { passive: true });
 APPX.onBip(function () { if ($('asksheet') && !$('asksheet').hidden) ramDraw(); });
 (function () {
-  var b = $('askbar'); if (!b) return;
-  b.onclick = function (e) {
-    if (e.target && e.target.id === 'ab-x') {
-      try { localStorage.setItem('df:ramHide', '1'); } catch (x) {}
-      b.hidden = true; return;
-    }
-    ramOpen();
-  };
+  var b = $('askrow'); if (b) b.onclick = ramOpen;
   if ($('as-x')) $('as-x').onclick = ramClose;
   ramBar();
 })();
