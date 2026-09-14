@@ -68,11 +68,16 @@ function loadSubs() {
        ביום שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
     var head = rows[0].map(function (x) { return String(x).trim(); });
     var iSub = head.indexOf('מנוי'), iWho = head.indexOf('שם');
+    /* סינון לישיבה אחת. ריק = לכולם. */
+    var only = String(process.env.ONLY || '').trim();
+    var iIns = head.indexOf('ישיבה');
     if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
     var seen = {}, out = [], blocked = 0;
     /* מהסוף להתחלה: מי שנרשם שוב מאותו מכשיר — הרישום האחרון
        הוא הנכון, והישן עלול כבר להיות פג. */
     for (var i = rows.length - 1; i >= 1; i--) {
+      if (only && iIns >= 0 &&
+          String(rows[i][iIns] || '').trim() !== only) continue;
       var raw = rows[i][iSub];
       /* שורה בלי מנוי היא דיווח שההתראות חסומות במכשיר — נתון
          על ציבור המשתמשים, לא נמען. סופרים ולא שולחים. */

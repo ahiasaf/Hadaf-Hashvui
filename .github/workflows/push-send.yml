@@ -35,6 +35,15 @@
 name: שליחת התראה
 
 on:
+  # ------------------------------------------------------------
+  # הפעלה ממסך הניהול
+  # ------------------------------------------------------------
+  # הסקריפט של גוגל מצית את זה דרך repository_dispatch, עם
+  # הכותרת והטקסט במטען. אחיאסף כותב במסך הניהול, וההתראה
+  # יוצאת — בלי להיכנס לכאן ובלי להמתין לסקר.
+  repository_dispatch:
+    types: [push-say]
+
   workflow_dispatch:
     inputs:
       title:
@@ -69,6 +78,9 @@ jobs:
         env:
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           READ_KEY:      ${{ secrets.READ_KEY }}
-          TITLE:         ${{ inputs.title }}
-          BODY:          ${{ inputs.body }}
+          # שני המקורות: הפעלה ידנית מכאן, או הצתה ממסך הניהול.
+          TITLE: ${{ inputs.title || github.event.client_payload.title }}
+          BODY:  ${{ inputs.body  || github.event.client_payload.body }}
+          # ריק = לכולם. אחרת קוד ישיבה, ואז רק היא מקבלת.
+          ONLY:  ${{ github.event.client_payload.only }}
         run: node tools/push-send.js

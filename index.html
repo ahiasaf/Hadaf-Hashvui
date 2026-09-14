@@ -1340,6 +1340,24 @@ footer{padding:24px 16px 32px;text-align:center;color:var(--ink-3);font-size:.75
 footer b{color:var(--ink-2);font-weight:800}
 footer a{color:var(--ink-2);font-weight:800}
 footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 auto 12px}
+
+/* ---------- רשימת הנרשמים להתראות ----------
+   הסימן אומר את המצב בלי לקרוא: ✓ מקבל, ✕ חסום, ! ניסה ולא
+   הצליח להתקין. צבע לבדו אינו מספיק — מי שאינו מבחין בצבעים
+   צריך לדעת אותו דבר. */
+.plist{margin-top:12px;border-top:1px solid var(--rule)}
+.prow2{display:flex;align-items:flex-start;gap:11px;padding:11px 2px;
+  border-bottom:1px solid var(--rule)}
+.prow2 b{display:block;font-size:.93rem;font-weight:800;letter-spacing:-.02em}
+.prow2 span{display:block}
+.prow2 > div > span{font-size:.78rem;font-weight:600;color:var(--ink-3);
+  margin-top:2px;line-height:1.5}
+.pm{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.76rem;font-weight:800;color:#fff;margin-top:1px}
+.prow2.ok   .pm{background:var(--green-d)}
+.prow2.no   .pm{background:#B4473A}
+.prow2.warn .pm{background:var(--gold)}
 </style>
 </head>
 <body>
@@ -1562,7 +1580,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.28.0';
+var APP_VERSION = '8.29.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4738,7 +4756,7 @@ function paintAdmChip() {
    וכך המפלס העליון נשאר קצר ונקרא במבט. */
 var SUB = {
   what:  [['reg','הרשמות'], ['part','משתתפים'],
-          ['calls','שיחות'], ['data','נתונים']],
+          ['calls','שיחות'], ['push','התראות'], ['data','נתונים']],
   show:  [['screens','מסכים'], ['daf','הדף'], ['price','מחירים'],
           ['text','מלל']]
 };
@@ -4774,6 +4792,7 @@ function admPane() {
   if (admTab === 'what') {
     if (sub === 'reg')  return admReg(body);
     if (sub === 'part') return admPart(body);
+    if (sub === 'push') return admPush(body);
     if (sub === 'data') return admData(body);
     if (sub === 'calls') {
       body.innerHTML = '<div id="calls-body"></div>';
@@ -6130,6 +6149,181 @@ function admText(el) {
         '</div>';
     }).join('') + '</div>';
 }
+/* ============================================================
+   התראות — מי קיבל, מי נתקע, ומה שולחים.
+   ============================================================
+   **שני דברים במסך אחד, ובכוונה.** רשימת הנרשמים אינה רשימת
+   תפוצה אלא **תמונת מצב של מה שעובד**: מי הצליח להתקין, מי
+   ההתראות חסומות אצלו, ומי ניסה ולא הצליח בכלל. מי ששולח בלי
+   לראות אותה שולח לחושך.
+
+   השליחה עצמה אינה נעשית מכאן: היא דורשת חתימה במפתח הפרטי,
+   והוא יושב בסודות של GitHub ולא בדפדפן. מסך הניהול מבקש
+   מהסקריפט של גוגל, הסקריפט מצית את ה-workflow, ושם זה נחתם
+   ונשלח. פחות מדקה.
+   ============================================================ */
+var pushRows = null, pushMsg = '', pushBusy = false;
+var pushView = { title:'', body:'', only:'' };
+
+/* מיפוי לפי שם העמודה ולא לפי מספרה: סדר עמודות משתנה ביום
+   שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
+function pushParse(rows) {
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0].map(function (x) { return String(x || '').trim(); });
+  var ix = {};
+  head.forEach(function (h, i) { ix[h] = i; });
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i], g = function (k) {
+      return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
+    };
+    if (!g('שם') && !g('מנוי')) continue;
+    out.push({ id:g('מזהה'), name:g('שם'), inst:g('ישיבה'), role:g('תפקיד'),
+               grade:g('שכבה'), klass:g('כיתה'), dev:g('מכשיר'),
+               sub:!!g('מנוי'), res:g('תוצאה'), at:g('מתי') || g('תאריך') });
+  }
+  /* מכשיר שנרשם פעמיים — האחרון קובע. */
+  var byId = {}, ord = [];
+  out.forEach(function (p) {
+    var k = p.id || (p.name + '|' + p.dev);
+    if (!(k in byId)) ord.push(k);
+    byId[k] = p;
+  });
+  return ord.map(function (k) { return byId[k]; });
+}
+
+function pushLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { pushMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  pushMsg = 'טוען…'; admPane();
+  return scriptGet({ read:'התראות', key:key }).then(function (d) {
+    /* **קריאה שנכשלה אינה לשונית ריקה.** בלי ההבחנה הזו כל
+       תקלת רשת הייתה מציגה "אף אחד לא נרשם". */
+    if (!d || d.status !== 'ok' || !d.rows) {
+      pushMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    pushRows = pushParse(d.rows);
+    pushMsg = ''; admPane(); return true;
+  }).catch(function () {
+    pushMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+
+function pushSend() {
+  var body = (pushView.body || '').trim();
+  if (!body) { pushMsg = 'אין מה לשלוח.'; admPane(); return; }
+  var who = pushView.only
+    ? 'לישיבה אחת' : 'לכל מי שנרשם (' + pushCount().ok + ' מכשירים)';
+  if (!confirm('לשלוח ' + who + '?\n\n' + body)) return;
+  pushBusy = true; pushMsg = 'שולח…'; admPane();
+  scriptGet({ fire:'say', key:(CFG.readKey || '').trim(),
+              title:(pushView.title || '').trim() || PROGRAM.short,
+              body:body, only:pushView.only })
+    .then(function (d) {
+      pushBusy = false;
+      /* התשובה כאן אומרת רק ש-GitHub קיבל את ההצתה. מה שהגיע
+         בפועל למכשירים נמצא ביומן ההרצה, ולכן נאמר בדיוק זה. */
+      pushMsg = (d && d.status === 'ok')
+        ? 'נשלח להפעלה. ההתראה יוצאת תוך פחות מדקה — ' +
+          'הפירוט המלא ב-Actions ב-GitHub.'
+        : 'לא יצא: ' + ((d && d.message) || 'אין תשובה מהסקריפט.');
+      admPane();
+    })['catch'](function () {
+      pushBusy = false;
+      pushMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+    });
+}
+
+function pushCount() {
+  var c = { ok:0, blocked:0, noInst:0, all:0 };
+  (pushRows || []).forEach(function (p) {
+    c.all++;
+    if (p.sub) c.ok++;
+    else if (/חסום/.test(p.res)) c.blocked++;
+    else c.noInst++;
+  });
+  return c;
+}
+
+function pushSet(k, v) { pushView[k] = v; }
+
+function admPush(el) {
+  if (pushMsg === 'nokey') {
+    el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
+      '<p class="h">רשימת ההתראות יושבת בגיליון סגור. הדביקו בהגדרות ← ' +
+      '"סיסמת הקריאה" את אותה מחרוזת שב-Apps Script.</p>' +
+      '<button class="btn p" onclick="admGo(\'sys\')">להגדרות</button></div>';
+    return;
+  }
+  var c = pushCount();
+  var h = '<div class="adm-card"><h4>שליחת התראה</h4>' +
+    '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
+    'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +
+    '<div class="fld"><div class="label">כותרת <i>· רשות</i></div>' +
+    '<input type="text" value="' + esc(pushView.title) +
+    '" placeholder="' + esc(PROGRAM.short) +
+    '" onchange="pushSet(\'title\',this.value)"></div>' +
+    '<div class="fld"><div class="label">הטקסט</div>' +
+    '<textarea rows="3" onchange="pushSet(\'body\',this.value)">' +
+    esc(pushView.body) + '</textarea></div>' +
+    '<div class="fld"><div class="label">למי</div><select ' +
+    'onchange="pushSet(\'only\',this.value)">' +
+    '<option value="">כל מי שנרשם</option>' +
+    INSTITUTIONS.map(function (o) {
+      return '<option value="' + esc(o.name) + '"' +
+             (pushView.only === o.name ? ' selected' : '') + '>' +
+             esc(o.name) + '</option>';
+    }).join('') + '</select></div>' +
+    '<button class="btn p"' + (pushBusy ? ' disabled' : '') +
+    ' onclick="pushSend()">' + (pushBusy ? 'שולח…' : 'שליחה') + '</button>' +
+    (pushMsg ? '<div class="cond" style="margin-top:10px">' +
+               esc(pushMsg) + '</div>' : '') +
+    '</div>';
+
+  /* ---- מי נרשם, ומה עלה בגורלו ---- */
+  h += '<div class="adm-card"><h4>מי נרשם</h4>';
+  if (!pushRows) {
+    h += '<p class="h">הרשימה נקראת מהגיליון הפרטי.</p>' +
+         '<button class="btn g" onclick="pushLoad()">טעינה מהגיליון</button>';
+  } else if (!pushRows.length) {
+    h += '<p class="h">עוד לא נרשם אף אחד.</p>' +
+         '<button class="btn g" onclick="pushLoad()">רענון</button>';
+  } else {
+    h += '<div class="row" style="padding:8px 0"><span>מקבלים התראות</span>' +
+         '<b>' + c.ok + '</b></div>' +
+         '<div class="row" style="padding:8px 0"><span>ההתראות חסומות אצלם</span>' +
+         '<b' + (c.blocked ? '' : ' style="color:var(--ink-3)"') + '>' +
+         c.blocked + '</b></div>' +
+         '<div class="row" style="padding:8px 0"><span>לא הצליחו להתקין</span>' +
+         '<b' + (c.noInst ? '' : ' style="color:var(--ink-3)"') + '>' +
+         c.noInst + '</b></div>' +
+         '<div class="plist">' +
+         pushRows.map(function (p) {
+           /* הסימן אומר את המצב בלי לקרוא: ✓ מקבל, ✕ חסום,
+              ! ניסה ולא הצליח להתקין. */
+           var mark = p.sub ? '✓' : (/חסום/.test(p.res) ? '✕' : '!');
+           var cls  = p.sub ? 'ok' : (/חסום/.test(p.res) ? 'no' : 'warn');
+           var bits = [];
+           if (p.role) bits.push(p.role);
+           if (p.grade) bits.push(p.grade + (p.klass ? '‎' + p.klass : ''));
+           if (p.inst) bits.push(p.inst);
+           if (p.dev) bits.push(p.dev);
+           return '<div class="prow2 ' + cls + '">' +
+             '<span class="pm">' + mark + '</span>' +
+             '<div><b>' + esc(p.name || '—') + '</b>' +
+             (bits.length ? '<span>' + esc(bits.join(' · ')) + '</span>' : '') +
+             '</div></div>';
+         }).join('') + '</div>' +
+         '<button class="btn g" style="margin-top:10px" onclick="pushLoad()">' +
+         'רענון</button>';
+  }
+  if (pushMsg && pushMsg !== 'nokey' && !pushRows) {
+    h += '<div class="cond" style="margin-top:10px">' + esc(pushMsg) + '</div>';
+  }
+  el.innerHTML = h + '</div>';
+}
+
 /* ============================================================
    הטמעה בקוד — הוצאת שכבת המלל החוצה.
    ============================================================

@@ -350,6 +350,28 @@ function doGet(e) {
     return reply_(e, res);
   }
 
+  /* ============================================================
+     שליחת התראה — הסקריפט מצית, GitHub חותם ושולח.
+     ============================================================
+     **הטלפון אינו יכול לשלוח התראה.** השליחה דורשת חתימה
+     במפתח הפרטי, והוא יושב בסודות של GitHub ולא במכשיר —
+     ובצדק: מפתח שמגיע לדפדפן הוא מפתח שדלף.
+
+     ולכן המסלול הוא: מסך הניהול מבקש מכאן, כאן מפעילים את
+     ה-workflow דרך אותו אסימון שכבר משמש ל-ghput, ושם רצה
+     השליחה. אין סקר ואין המתנה — ההתראה יוצאת תוך פחות מדקה.
+
+     READ_KEY נדרשת: כתובת הסקריפט יושבת בקוד הפומבי, ושליחה
+     פתוחה היא ערוץ שידור לתלמידים שנמסר לעולם. */
+  if (e && e.parameter && e.parameter.fire === 'say') {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'סיסמה שגויה' });
+    }
+    return reply_(e, ghFire_(String(e.parameter.title || ''),
+                             String(e.parameter.body || ''),
+                             String(e.parameter.only || '')));
+  }
+
   /* ---- הלוח של מוסד ----
      הקוד שבקישור הוא ההרשאה, ולכן אין כאן READ_KEY: ראש חטיבה
      אינו אמור להחזיק את המפתח של הרכז. */
@@ -1450,6 +1472,38 @@ function sheet_(tab, ssId) {
    התשובות (200 ו-404) שתיהן תקינות.
    ============================================================ */
 var GH_API = 'https://api.github.com/repos/';
+
+/* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
+   הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
+   בלשונית ביניים ואין השהיה של סקר. */
+function ghFire_(title, body, only) {
+  var tok  = prop_('GH_TOKEN', '');
+  var repo = prop_('GH_REPO', '');
+  if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
+  if (!repo) return { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
+  if (!body) return { status:'error',  message:'אין מה לשלוח' };
+  try {
+    var res = UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
+      method: 'post', contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + tok,
+                 Accept: 'application/vnd.github+json',
+                 'X-GitHub-Api-Version': '2022-11-28' },
+      payload: JSON.stringify({
+        event_type: 'push-say',
+        client_payload: { title: title, body: body, only: only }
+      }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    /* 204 = התקבל. כל דבר אחר הוא סירוב, ואומרים אותו. */
+    if (code === 204) return { status:'ok' };
+    return { status:'error', code: code,
+             message: 'GitHub החזיר ' + code + ' — ' +
+                      'ייתכן שלאסימון אין הרשאת Contents/Actions' };
+  } catch (err) {
+    return { status:'error', message: String(err) };
+  }
+}
 
 function ghPut_(path, b64, msg) {
   var tok  = prop_('GH_TOKEN', '');
