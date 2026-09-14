@@ -68,16 +68,49 @@ function loadSubs() {
        ביום שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
     var head = rows[0].map(function (x) { return String(x).trim(); });
     var iSub = head.indexOf('מנוי'), iWho = head.indexOf('שם');
-    /* סינון לישיבה אחת. ריק = לכולם. */
-    var only = String(process.env.ONLY || '').trim();
-    var iIns = head.indexOf('ישיבה');
+    /* סינון. ריק = בלי הגבלה.
+       **הישיבה נבדקת בשני שמות**: בקוד ובשם המלא. מסך הניהול
+       שולח שם, והר"ם שולח קוד — והשורה בגיליון נושאת את
+       שניהם. השוואה לאחד בלבד הייתה שולחת לאיש. */
+    var only  = String(process.env.ONLY  || '').trim();
+    var grade = String(process.env.GRADE || '').trim();
+    var klass = String(process.env.KLASS || '').trim();
+    var iIns  = head.indexOf('ישיבה'), iCode = head.indexOf('קוד ישיבה');
+    var iGr   = head.indexOf('שכבה'),  iKl   = head.indexOf('כיתה');
+
+    /* **צמצום שאי אפשר לבצע — נכשל סגור.** ר"ם ביקש לשלוח
+       לכיתה שלו; אם העמודה שלפיה מצמצמים חסרה בלשונית, הסינון
+       פשוט לא יחול — וההודעה האישית שלו תצא לכל הישיבה. עדיף
+       שלא תצא כלל, ושהיומן יאמר למה. */
+    if (grade && iGr < 0) {
+      throw new Error('התבקש צמצום לשכבה, ואין עמודת "שכבה" בלשונית ' +
+                      'התראות. לא נשלח דבר.');
+    }
+    if (klass && iKl < 0) {
+      throw new Error('התבקש צמצום לכיתה, ואין עמודת "כיתה" בלשונית ' +
+                      'התראות. לא נשלח דבר.');
+    }
+    if (only && iIns < 0 && iCode < 0) {
+      throw new Error('התבקש צמצום לישיבה, ואין עמודת "ישיבה" או ' +
+                      '"קוד ישיבה" בלשונית התראות. לא נשלח דבר.');
+    }
+
+    var hit = function (row) {
+      if (only) {
+        var a = iIns  >= 0 ? String(row[iIns]  || '').trim() : '';
+        var b = iCode >= 0 ? String(row[iCode] || '').trim() : '';
+        if (a !== only && b !== only) return false;
+      }
+      if (grade && String(row[iGr] || '').trim() !== grade) return false;
+      if (klass && String(row[iKl] || '').trim() !== klass) return false;
+      return true;
+    };
     if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
     var seen = {}, out = [], blocked = 0;
     /* מהסוף להתחלה: מי שנרשם שוב מאותו מכשיר — הרישום האחרון
        הוא הנכון, והישן עלול כבר להיות פג. */
     for (var i = rows.length - 1; i >= 1; i--) {
-      if (only && iIns >= 0 &&
-          String(rows[i][iIns] || '').trim() !== only) continue;
+      if (!hit(rows[i])) continue;
       var raw = rows[i][iSub];
       /* שורה בלי מנוי היא דיווח שההתראות חסומות במכשיר — נתון
          על ציבור המשתמשים, לא נמען. סופרים ולא שולחים. */

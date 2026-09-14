@@ -139,7 +139,8 @@ var PRIVATE_ID_FALLBACK = '';
 /* `התראות` — המנויים לקבלת התראה. **פרטית, ובאמת:** מנוי הוא
    כתובת לדחוף למכשיר מסוים, ומי שמחזיק בו יכול להקפיץ הודעה
    לטלפון של תלמיד. זה לא "עוד טור בגיליון". */
-var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות'];
+var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות',
+                    'הודעות', 'תקועים'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -351,6 +352,73 @@ function doGet(e) {
   }
 
   /* ============================================================
+     "לא מצליח להתקין".
+     ============================================================
+     תלמיד שנתקע משאיר שם וטלפון, והרכז חוזר אליו. שתי החלטות
+     כאן, ושתיהן נובעות מאותו דבר — הוא כבר נכשל פעם אחת:
+
+     **בלי סיסמה.** מי שנתקע אינו מחזיק סיסמה, וקיר שני הוא
+     קיר. מה שנפתח כאן הוא כתיבה של שורה אחת ללשונית פרטית,
+     ואי אפשר לקרוא ממנה דבר. הסיכון הוא זבל, והוא נסבל.
+
+     **ובלי `no-cors`.** בכל שאר האפליקציה הכתיבה אטומה ותמיד
+     "מצליחה". כאן אסור: אישור שמופיע על שורה שלא נכתבה הוא
+     הפעם השנייה שהוא ננטש, והפעם בלי שידע. התשובה כאן
+     אמיתית — ומה שהמסך אומר נשען עליה.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.help === '1') {
+    var H = e.parameter;
+    var hName  = String(H.name || '').trim();
+    var hPhone = String(H.phone || '').trim();
+    /* אותה בדיקה רופפת של ההרשמה: ספרות, ולפחות תשע. */
+    if (!hName || hPhone.replace(/[^0-9]/g, '').length < 9) {
+      return reply_(e, { status: 'error', message: 'חסר שם או טלפון' });
+    }
+    try {
+      appendCols_('תקועים', [
+        ['שם', hName], ['טלפון', hPhone],
+        ['ישיבה', String(H.instName || '')],
+        ['קוד ישיבה', String(H.inst || '')],
+        ['שכבה', String(H.grade || '')], ['כיתה', String(H.klass || '')],
+        ['מכשיר', String(H.dev || '')],
+        ['מה קרה', String(H.what || '')],
+        /* מה שהדפדפן כבר יודע ואין טעם לשאול אותו: מאיזה סוג
+           מכשיר, מאיזו אפליקציה נפתח הקישור, והאם הכפתור
+           שמתקין בכלל היה שם. זה מה שמכריע איזו הוראה לתת. */
+        ['אבחון', String(H.diag || '')],
+        ['טופל', '']
+      ]);
+    } catch (err) {
+      return reply_(e, { status: 'error', message: String(err) });
+    }
+    return reply_(e, { status: 'ok' });
+  }
+
+  /* "טופלתי" — סימון שורה בלשונית התקועים.
+     דורש READ_KEY: מי שסימן הוא מי שגם קורא את הרשימה. המספר
+     הוא מספר השורה כפי שהיא חזרה בקריאה, ולשונית שרק נוספות
+     לה שורות שומרת על המספר הזה. */
+  if (e && e.parameter && e.parameter.helpdone) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    var rn = parseInt(e.parameter.helpdone, 10);
+    if (!(rn > 1)) return reply_(e, { status: 'error', message: 'שורה לא תקינה' });
+    try {
+      var dsh = sheet_('תקועים');
+      if (rn > dsh.getLastRow()) {
+        return reply_(e, { status: 'error', message: 'אין שורה כזו' });
+      }
+      var dHead = headers_(dsh);
+      var di = idx_(dsh, dHead, 'טופל');
+      dsh.getRange(rn, di + 1).setValue(new Date());
+    } catch (err2) {
+      return reply_(e, { status: 'error', message: String(err2) });
+    }
+    return reply_(e, { status: 'ok' });
+  }
+
+  /* ============================================================
      שליחת התראה — הסקריפט מצית, GitHub חותם ושולח.
      ============================================================
      **הטלפון אינו יכול לשלוח התראה.** השליחה דורשת חתימה
@@ -364,12 +432,31 @@ function doGet(e) {
      READ_KEY נדרשת: כתובת הסקריפט יושבת בקוד הפומבי, ושליחה
      פתוחה היא ערוץ שידור לתלמידים שנמסר לעולם. */
   if (e && e.parameter && e.parameter.fire === 'say') {
-    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
-      return reply_(e, { status:'denied', message:'סיסמה שגויה' });
+    var P = e.parameter;
+    var inst = String(P.inst || '').trim();
+    var isAdm = READ_KEY && String(P.key || '') === READ_KEY;
+
+    /* ============================================================
+       **ההיקף נקבע כאן, ולא במה שהלקוח ביקש.**
+       ============================================================
+       ר"ם אינו מחזיק את סיסמת הרכז ואסור שיחזיק. מה שיש לו הוא
+       קוד הגישה של הישיבה שלו — אותו קוד שפותח לו את הלוח —
+       והוא מאשר אותו **ותוחם אותו בבת אחת**: מי שהקוד שלו שייך
+       ללפיד יכול לשלוח ללפיד בלבד, גם אם יבקש אחרת.
+
+       זה ההבדל בין הרשאה לבין בקשה. לקוח שמבקש היקף הוא לקוח
+       שאפשר לערוך לו את הכתובת. */
+    if (!isAdm) {
+      if (!inst) return reply_(e, { status:'denied', message:'חסר קוד ישיבה' });
+      var want = getCode_(inst);
+      if (!want || String(P.k || '') !== want) {
+        return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
+      }
     }
-    return reply_(e, ghFire_(String(e.parameter.title || ''),
-                             String(e.parameter.body || ''),
-                             String(e.parameter.only || '')));
+    return reply_(e, ghFire_(String(P.title || ''), String(P.body || ''),
+                             isAdm ? String(P.only || '') : inst,
+                             String(P.grade || ''), String(P.klass || ''),
+                             String(P.who || '')));
   }
 
   /* ---- הלוח של מוסד ----
@@ -1476,7 +1563,7 @@ var GH_API = 'https://api.github.com/repos/';
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only) {
+function ghFire_(title, body, only, grade, klass, who) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
@@ -1490,13 +1577,27 @@ function ghFire_(title, body, only) {
                  'X-GitHub-Api-Version': '2022-11-28' },
       payload: JSON.stringify({
         event_type: 'push-say',
-        client_payload: { title: title, body: body, only: only }
+        client_payload: { title: title, body: body, only: only,
+                          grade: grade || '', klass: klass || '' }
       }),
       muteHttpExceptions: true
     });
     var code = res.getResponseCode();
     /* 204 = התקבל. כל דבר אחר הוא סירוב, ואומרים אותו. */
-    if (code === 204) return { status:'ok' };
+    if (code === 204) {
+      /* **כל הודעה נרשמת.** ערוץ שידור לקטינים בלי יומן הוא
+         ערוץ שאיש אינו יודע מה עבר בו. הרישום נכשל — השליחה
+         עדיין יוצאת; יומן חסר גרוע מהודעה שלא נשלחה, אבל לא
+         עד כדי לחסום. */
+      try {
+        appendCols_('הודעות', [
+          ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
+          ['שכבה', grade || ''], ['כיתה', klass || ''],
+          ['כותרת', title], ['הטקסט', body]
+        ]);
+      } catch (e2) {}
+      return { status:'ok' };
+    }
     return { status:'error', code: code,
              message: 'GitHub החזיר ' + code + ' — ' +
                       'ייתכן שלאסימון אין הרשאת Contents/Actions' };

@@ -1584,7 +1584,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.32.0';
+var APP_VERSION = '8.33.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6192,6 +6192,162 @@ function admText(el) {
 var pushRows = null, pushMsg = '', pushBusy = false;
 var pushView = { title:'', body:'', only:'' };
 
+/* ============================================================
+   מי נתקע — ומה לכתוב לו.
+   ============================================================
+   הרשימה הזו היא אנשים שכבר ניסו ולא הצליחו. כל שורה בה היא
+   מישהו שממתין, ולכן היא יושבת בראש המסך ולא בסופו.
+
+   הכפתור פותח וואטסאפ עם הודעה כתובה, והשם כבר בתוכה: פנייה
+   שמתחילה ב"היי דוד" היא אדם שפנה, והודעה גנרית היא טופס.
+
+   ומה שהדפדפן כבר מסר — סוג המכשיר, מאיפה נפתח הקישור, האם
+   כפתור ההתקנה היה שם — אינו נשאל שוב בהודעה. שואלים רק את
+   מה שרק הוא יכול לדעת. */
+var stuckRows = null, stuckMsg = '', stuckBusy = 0, stuckAll = false;
+
+var STUCK_WA =
+  'היי {name}! כאן רכז "הדף השבועי".\n' +
+  'ראיתי שביקשת עזרה בהתקנה — נסדר את זה ביחד, זה עניין של כמה דקות.\n\n' +
+  'אצלי רשום ש{dev} אצלך. כדי שאדע בדיוק איפה לעזור, תכתוב לי:\n' +
+  '1. מה היה הדבר האחרון שלחצת?\n' +
+  '2. מה הופיע על המסך אחרי זה?\n' +
+  '3. ואם אפשר — צילום מסך של מה שאתה רואה.\n\n' +
+  'אני כאן. תענה ונתקדם.';
+
+function stuckParse(rows) {
+  /* **קריאה שנכשלה אינה לשונית ריקה** — המסנן הזה רץ רק על
+     תשובה תקינה, והנפילה מטופלת אצל הקורא. */
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0].map(function (x) { return String(x || '').trim(); });
+  var ix = {};
+  head.forEach(function (h, i) { ix[h] = i; });
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i], g = function (k) {
+      return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
+    };
+    if (!g('שם') && !g('טלפון')) continue;
+    out.push({ row:i + 1, name:g('שם'), phone:g('טלפון'),
+               inst:g('ישיבה'), grade:g('שכבה'), klass:g('כיתה'),
+               dev:g('מכשיר'), what:g('מה קרה'), diag:g('אבחון'),
+               done:!!g('טופל'), at:g('תאריך') });
+  }
+  /* מי שממתין קודם, והחדש שבהם ראשון. */
+  return out.filter(function (p) { return !p.done; }).reverse()
+            .concat(out.filter(function (p) { return p.done; }).reverse());
+}
+
+function stuckLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { stuckMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  stuckMsg = 'טוען…'; admPane();
+  return scriptGet({ read:'תקועים', key:key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) {
+      stuckMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    stuckRows = stuckParse(d.rows);
+    stuckMsg = ''; admPane(); return true;
+  }).catch(function () {
+    stuckMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+
+function stuckText(p) {
+  return fill(STUCK_WA, {
+    name: (p.name || '').split(' ')[0] || p.name || '',
+    dev:  p.dev || 'הטלפון'
+  });
+}
+
+function stuckDone(row) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  stuckBusy = row; admPane();
+  scriptGet({ helpdone:row, key:key }).then(function (d) {
+    stuckBusy = 0;
+    if (d && d.status === 'ok') {
+      /* הסימון נקרא בחזרה מהגיליון ולא מונח על המסך: כתיבה
+         שנדחתה ונראית כאילו הצליחה היא בדיוק איך שאדם נשכח. */
+      stuckLoad();
+    } else {
+      stuckMsg = 'לא הצלחתי לסמן: ' + ((d && d.message) || 'אין תשובה.');
+      admPane();
+    }
+  }).catch(function () {
+    stuckBusy = 0; stuckMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
+function stuckShowAll() { stuckAll = !stuckAll; admPane(); }
+
+function admStuck() {
+  var h = '<div class="adm-card"><h4>מי ביקש עזרה בהתקנה</h4>';
+  if (!stuckRows) {
+    h += '<p class="h">תלמיד שנתקע משאיר כאן שם וטלפון. הרשימה ' +
+         'נקראת מהגיליון הפרטי.</p>' +
+         '<button class="btn g" onclick="stuckLoad()">טעינה מהגיליון</button>';
+    if (stuckMsg && stuckMsg !== 'nokey') {
+      h += '<div class="cond" style="margin-top:10px">' + esc(stuckMsg) + '</div>';
+    }
+    return h + '</div>';
+  }
+  var open = stuckRows.filter(function (p) { return !p.done; });
+  if (!open.length && !stuckAll) {
+    h += '<p class="h">אף אחד לא ממתין. ' +
+         (stuckRows.length ? 'כולם טופלו.' : 'עוד לא ביקש אף אחד עזרה.') +
+         '</p><button class="btn g" onclick="stuckLoad()">רענון</button>';
+    if (stuckRows.length) {
+      h += '<button class="btn g" style="margin-top:8px" ' +
+           'onclick="stuckShowAll()">להראות את מי שטופל (' +
+           stuckRows.length + ')</button>';
+    }
+    return h + '</div>';
+  }
+  var list = stuckAll ? stuckRows : open;
+  h += '<p class="h">' + open.length + ' ממתינים. הכפתור פותח וואטסאפ ' +
+       'עם הודעה מוכנה — בשמו, ועם השאלות שאי אפשר לענות עליהן ' +
+       'מכאן.</p><div class="plist">';
+  h += list.map(function (p) {
+    var bits = [];
+    if (p.inst) bits.push(p.inst);
+    if (p.grade) bits.push(p.grade + (p.klass ? '\u200e' + p.klass : ''));
+    if (p.dev) bits.push(p.dev);
+    if (p.at) bits.push(String(p.at).slice(0, 10));
+    var num = waNum(p.phone);
+    return '<div class="prow2 ' + (p.done ? 'ok' : 'warn') + '">' +
+      '<span class="pm">' + (p.done ? '✓' : '!') + '</span>' +
+      '<div style="flex:1"><b>' + esc(p.name || '—') + '</b>' +
+      (bits.length ? '<span>' + esc(bits.join(' · ')) + '</span>' : '') +
+      (p.what ? '<span style="color:var(--ink)">„' + esc(p.what) + '"</span>' : '') +
+      (p.diag ? '<span style="font-size:.68rem;opacity:.7;word-break:break-word">' +
+                esc(p.diag) + '</span>' : '') +
+      '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">' +
+      (num
+        ? '<a class="btn gr" style="width:auto;padding:8px 14px" target="_blank" ' +
+          'rel="noopener" href="https://wa.me/' + num + '?text=' +
+          encodeURIComponent(stuckText(p)) + '">וואטסאפ</a>'
+        : '<span class="h">בלי מספר תקין</span>') +
+      (p.done ? '' :
+        '<button class="btn g" style="width:auto;padding:8px 14px"' +
+        (stuckBusy === p.row ? ' disabled' : '') +
+        ' onclick="stuckDone(' + p.row + ')">' +
+        (stuckBusy === p.row ? 'רגע…' : 'טופל') + '</button>') +
+      '</div></div></div>';
+  }).join('');
+  h += '</div><button class="btn g" style="margin-top:10px" ' +
+       'onclick="stuckLoad()">רענון</button>';
+  if (!stuckAll && stuckRows.length > open.length) {
+    h += '<button class="btn g" style="margin-top:8px" onclick="stuckShowAll()">' +
+         'להראות גם את מי שטופל</button>';
+  }
+  if (stuckMsg && stuckMsg !== 'nokey') {
+    h += '<div class="cond" style="margin-top:10px">' + esc(stuckMsg) + '</div>';
+  }
+  return h + '</div>';
+}
+
 /* מיפוי לפי שם העמודה ולא לפי מספרה: סדר עמודות משתנה ביום
    שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
 function pushParse(rows) {
@@ -6284,7 +6440,10 @@ function admPush(el) {
     return;
   }
   var c = pushCount();
-  var h = '<div class="adm-card"><h4>שליחת התראה</h4>' +
+  /* מי שממתין לעזרה — ראשון. שליחת התראה יכולה לחכות דקה;
+     תלמיד שנתקע כבר חיכה. */
+  var h = admStuck() +
+    '<div class="adm-card"><h4>שליחת התראה</h4>' +
     '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
     'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +
     '<div class="fld"><div class="label">כותרת <i>· רשות</i></div>' +

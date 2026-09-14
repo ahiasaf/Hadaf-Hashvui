@@ -148,10 +148,11 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 /* "רשות" — כדי שלא ייראה כשדה חובה נוסף שנפתח לו פתאום */
 .fld .label .opt{font-weight:700;color:var(--ink-3);font-size:.72rem;
   background:var(--sunk);border-radius:6px;padding:1px 6px;margin-inline-start:5px}
-input,select{width:100%;font-size:1rem;font-weight:700;color:inherit;
+input,select,textarea{width:100%;font-size:1rem;font-weight:700;color:inherit;
   background:#fff;border:1px solid var(--rule);border-radius:var(--r-s);
   padding:13px 14px;font-family:inherit}
-input:focus,select:focus{outline:none;border-color:var(--blue-l);
+textarea{font-weight:600;line-height:1.6;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   box-shadow:0 0 0 3px rgba(53,116,206,.15)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
@@ -2276,7 +2277,12 @@ function appSubscribe() {
        בדיוק כמו שורת ההרשמה עצמה. */
     queue({ action:'row', tab:'התראות', cols: JSON.stringify([
       ['מזהה', me.id || ''], ['שם', ((me.first || '') + ' ' + (me.last || '')).trim()],
-      ['ישיבה', me.instName || ''], ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
+      ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
+      ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
+      /* **השכבה והכיתה, כדי שר"ם יוכל לשלוח לכיתה שלו בלבד.**
+         בלעדיהן אפשר לפלח רק לפי ישיבה, ו"מילה לתלמידים שלך"
+         הייתה מגיעה לכל הישיבה. */
+      ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
       ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
       ['מנוי', JSON.stringify(sub)], ['תוצאה', 'נרשם'],
       ['מתי', new Date().toISOString()]
@@ -2390,18 +2396,22 @@ function showPre() {
     return;
   }
 
+  /* הדלת כאן מובילה לאותו מקום של המסע: לרכז, ולא לעקיפה.
+     המסלול הזה חי רק מאחורי `?wiz=0`, ואין סיבה שתעמוד בו
+     הבטחה אחרת. */
   h += appHowList() +
-    /* דלת, אבל לא קיצור דרך: היא אומרת מה המחיר. מסלול נוח
-       שמגיע לאותו מקום הוא המסלול שכולם יבחרו. */
-    '<button class="thin" id="pre-skip">לא מצליח להתקין — ' +
-    'להירשם בכל זאת (ההרשמה עלולה להימחק)</button>';
+    '<button class="thin" id="pre-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
+    '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';
   e.innerHTML = h + '</div>';
 
   var sk = $('pre-skip');
   if (sk) sk.onclick = function () {
     e.className = 'wrap'; e.innerHTML = '';
-    $('form').style.display = '';
-    window.scrollTo(0, 0);
+    hlpErr = ''; hlpSent = false;
+    if (document.body.className.indexOf(' wz ') < 0) {
+      document.body.className += ' wz ';
+    }
+    wzGo(9);
   };
 }
 
@@ -2433,14 +2443,16 @@ function showPre() {
    `?wiz=0` נשאר כדלת חירום: אם משהו יתגלה בשטח, אפשר להפיץ
    קישור אחד ולחזור לעמוד הישן בלי דחיפה. */
 var WZ_ON = !/[?&]wiz=0\b/.test(location.search);
-var wzStep = 0, wzSkipped = false;
+var wzStep = 0;
 
 function jt(k) { return (JOIN && JOIN[k]) || ''; }
 
 /* השלב שבו צריך להיות עכשיו — לפי המצב במכשיר ולא לפי זיכרון.
    מי שחזר אחרי שהתקין ממשיך מהמקום הנכון בלי ללחוץ דבר. */
 function wzWhere() {
-  if (!appInstalled() && !wzSkipped) return 1;
+  /* אין עוד "בלי התקנה". מי שלא מצליח מגיע לשלב 9 — הדלת
+     שמובילה לרכז — ולא לעקיפה שנשברת אצלו בשקט. */
+  if (!appInstalled()) return 1;
   if (!get('me', null)) return 2;
   return 4;
 }
@@ -2473,10 +2485,21 @@ function wzDraw() {
   document.body.className = b;
   var e = $('wz'); if (!e) return;
 
+  /* בקשת עזרה אינה שלב במסע, ולכן אין לה מד ואין לה מספר.
+     מי שהגיע לכאן יצא מהמסלול לרגע — ומד שממשיך לרוץ מאחוריו
+     רק אומר לו שוב שהוא תקוע באחד מארבעה. */
+  if (wzStep === 9) {
+    e.innerHTML = '<div class="wzcard' + (hlpSent ? ' fin' : '') + '">' +
+      wzHelpForm() + '</div>';
+    wzWire();
+    window.scrollTo(0, 0);
+    return;
+  }
+
   var h = wzMeter(wzStep);
   /* מה שנגמר נשאר על המסך. זו ההוכחה שהתקדמת, וזה מה שגורם
      לרצות לסיים. */
-  if (wzStep > 1) h += wzRow(wzSkipped ? 'ממשיכים בלי התקנה' : jt('wzInstS'));
+  if (wzStep > 1) h += wzRow(jt('wzInstS'));
   if (wzStep > 2) h += wzRow(jt('wzDetS'));
   if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
 
@@ -2537,6 +2560,114 @@ function wzInstall() {
     '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';
 }
 
+/* ============================================================
+   הדלת: "לא מצליח להתקין".
+   ============================================================
+   מה שעמד כאן קודם היה דילוג — "להירשם בכל זאת, ההרשמה עלולה
+   להימחק". זו הייתה הבטחה שנשברת בשקט ואיום על מי שכבר נתקע,
+   ושתיהן יצאו. הדלת מובילה עכשיו לאדם.
+
+   **מה שהדפדפן יודע — הוא אינו נשאל עליו.** סוג המכשיר, מאיזו
+   אפליקציה נפתח הקישור, והאם כפתור ההתקנה בכלל היה שם — כל
+   אלה נאספים כאן לבד ונוסעים עם הפנייה. תלמיד תקוע אינו יודע
+   לענות על "איזה דפדפן", ושאלה כזו היא עוד קיר. מה שנשאר
+   לשאול אותו הוא רק מה שרק הוא יכול לדעת: מה קרה.
+   ============================================================ */
+var hlpBusy = false, hlpErr = '', hlpSent = false;
+var hlpV = { name:'', phone:'', what:'' };
+
+/* האבחון — שורה אחת, קריאה בעין, ובלי שום פרט מזהה. */
+function hlpDiag() {
+  var b = [];
+  b.push(isIOS() ? 'אייפון' : 'אנדרואיד');
+  if (inApp()) b.push('נפתח בתוך וואטסאפ');
+  if (standalone()) b.push('כבר באפליקציה');
+  if (appWasAdded()) b.push('סומן כמותקן');
+  b.push(APPX.bip() ? 'היה כפתור התקנה' : 'בלי כפתור התקנה');
+  b.push('התראות: ' + notePerm());
+  b.push(String(screen.width) + '×' + String(screen.height));
+  b.push(navigator.userAgent);
+  return b.join(' · ');
+}
+
+function hlpSet(k, v) { hlpV[k] = v; }
+
+function wzHelpForm() {
+  if (hlpSent) {
+    return '<div class="v-ok">✓</div><h2>' + esc(jt('wzHlpOkT')) + '</h2>' +
+      '<p>' + esc(jt('wzHlpOkB')) + '</p>' +
+      '<button class="wznext" id="wz-hlp-close">' +
+      esc(jt('wzHlpBack')) + '</button>';
+  }
+  /* מה שכבר הוקלד במסע אינו נשאל שוב. */
+  var me = get('me', null) || {};
+  var nm = hlpV.name || [me.first || '', me.last || ''].join(' ').trim();
+  var ph = hlpV.phone || me.phone || '';
+
+  return '<h2>' + esc(jt('wzHlpT')) + '</h2>' +
+    '<p>' + esc(jt('wzHlpB')) + '</p>' +
+    '<div class="fld" style="margin-top:18px">' +
+    '<label class="label" for="hlp-name">שם מלא</label>' +
+    '<input type="text" id="hlp-name" autocomplete="name" value="' +
+    esc(nm) + '" oninput="hlpSet(\'name\',this.value)"></div>' +
+    '<div class="fld"><label class="label" for="hlp-phone">טלפון</label>' +
+    '<input type="tel" id="hlp-phone" inputmode="tel" autocomplete="tel" ' +
+    'value="' + esc(ph) + '" oninput="hlpSet(\'phone\',this.value)"></div>' +
+    '<div class="fld"><label class="label" for="hlp-what">' +
+    esc(jt('wzHlpWhat')) + ' <span class="opt">רשות</span></label>' +
+    '<textarea id="hlp-what" rows="2" placeholder="' + esc(jt('wzHlpPh')) +
+    '" oninput="hlpSet(\'what\',this.value)">' + esc(hlpV.what) +
+    '</textarea></div>' +
+    (hlpErr ? '<div class="err">' + esc(hlpErr) + '</div>' : '') +
+    '<button class="wznext" id="wz-hlp-go"' + (hlpBusy ? ' disabled' : '') +
+    '>' + (hlpBusy ? 'שולח…' : esc(jt('wzHlpGo'))) + '</button>' +
+    '<button class="thin" id="wz-hlp-back">' +
+    esc(jt('wzHlpBack')) + '</button>';
+}
+
+function hlpSend() {
+  var nm = (hlpV.name || ($('hlp-name') ? $('hlp-name').value : '')).trim();
+  var ph = (hlpV.phone || ($('hlp-phone') ? $('hlp-phone').value : '')).trim();
+  hlpV.name = nm; hlpV.phone = ph;
+  hlpErr = '';
+  if (!nm) { hlpErr = 'צריך שם, אחרת אי אפשר לפנות אליך.'; wzDraw(); return; }
+  if (ph.replace(/[^0-9]/g, '').length < 9) {
+    hlpErr = 'צריך מספר טלפון שאפשר להתקשר אליו.'; wzDraw(); return;
+  }
+  if (!API) { hlpErr = jt('wzHlpErr'); wzDraw(); return; }
+
+  var me = get('me', null) || {};
+  var q = {
+    help: '1', name: nm, phone: ph,
+    inst: instRow ? instRow.code : (me.inst || ''),
+    instName: instRow ? instRow.name : (me.instName || ''),
+    grade: me.grade || '', klass: me.klass || '',
+    dev: isIOS() ? 'אייפון' : 'אנדרואיד',
+    what: hlpV.what || '', diag: hlpDiag()
+  };
+  var qs2 = [];
+  for (var k in q) if (q.hasOwnProperty(k)) {
+    qs2.push(encodeURIComponent(k) + '=' + encodeURIComponent(q[k]));
+  }
+
+  hlpBusy = true; wzDraw();
+  /* **הכתיבה כאן אינה `no-cors`.** בכל שאר הקבצים היא כן, ושם
+     זה נסבל: התלמיד ממשיך ממילא. כאן ההודעה על המסך היא הבטחה
+     שאדם יחזור אליו — והבטחה כזו על שורה שלא נכתבה היא הפעם
+     השנייה שהוא ננטש. התשובה נבדקת. */
+  fetch(String(API).trim() +
+        (String(API).indexOf('?') < 0 ? '?' : '&') + qs2.join('&'))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      hlpBusy = false;
+      if (d && d.status === 'ok') { hlpSent = true; hlpErr = ''; }
+      else hlpErr = jt('wzHlpErr');
+      wzDraw();
+    })['catch'](function () {
+      hlpBusy = false; hlpErr = jt('wzHlpErr'); wzDraw();
+    });
+}
+
 /* ---------- שלב 4 ---------- */
 function wzNote() {
   if (noteDone() && notePerm() === 'granted') {
@@ -2565,7 +2696,14 @@ function wzWire() {
   if ((b = $('wz-inst'))) b.onclick = function () {
     APPX.prompt(function () { wzGo(wzWhere()); });
   };
-  if ((b = $('wz-skip'))) b.onclick = function () { wzSkipped = true; wzGo(2); };
+  if ((b = $('wz-skip'))) b.onclick = function () { hlpErr = ''; wzGo(9); };
+  if ((b = $('wz-hlp-go'))) b.onclick = hlpSend;
+  if ((b = $('wz-hlp-back'))) b.onclick = function () { wzGo(wzWhere()); };
+  if ((b = $('wz-hlp-close'))) b.onclick = function () {
+    /* אחרי שהפרטים יצאו הוא חוזר להוראות, לא לדלת. אולי
+       דווקא עכשיו זה יסתדר לו — ואם לא, הרכז בדרך. */
+    hlpSent = false; wzGo(wzWhere());
+  };
   if ((b = $('wz-next'))) {
     b.textContent = jt('wzDetBtn');
     b.onclick = function () { if (wzDetOk()) wzGo(3); };

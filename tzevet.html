@@ -506,6 +506,42 @@ footer a{color:var(--ink-2);font-weight:800}
 
 .brd-head .ram{display:block;font-size:.8rem;font-weight:700;
   color:var(--gold-t);margin-top:2px}
+
+/* ---------- הפינה ----------
+   שני כרטיסים באותה שפה של שאר העמוד. המועדים הם בחירה בין
+   מצבים ולא שעון: שעון הוא טופס, ומצב הוא החלטה. */
+.mycard{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:20px 18px 22px;margin-bottom:12px;
+  box-shadow:var(--sh-1)}
+.mycard h3{font-size:1.06rem;font-weight:800;letter-spacing:-.02em}
+.mycard > p{margin-top:8px;font-size:.9rem;font-weight:600;
+  color:var(--ink-2);line-height:1.7}
+.whens{margin-top:14px;display:grid;gap:8px}
+.whenb{display:flex;align-items:center;gap:12px;width:100%;
+  padding:13px 15px;border:1.5px solid var(--rule);border-radius:var(--r-s);
+  background:#fff;font-family:inherit;text-align:start;cursor:pointer;
+  transition:border-color .15s,background .15s}
+.whenb.on{border-color:var(--green-d);background:rgba(74,130,28,.07)}
+.whenb i{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+  border:2px solid var(--rule);display:flex;align-items:center;
+  justify-content:center;font-size:.7rem;color:#fff;font-style:normal}
+.whenb.on i{border-color:var(--green-d);background:var(--green-d)}
+.whenb b{display:block;font-size:.95rem;font-weight:800;letter-spacing:-.02em}
+.whenb span{display:block;font-size:.78rem;font-weight:600;
+  color:var(--ink-3);margin-top:2px}
+.mysaid{margin-top:11px;font-size:.84rem;font-weight:800;color:var(--green-2)}
+.mycard textarea{width:100%;margin-top:14px;padding:14px;min-height:96px;
+  font-family:inherit;font-size:1rem;font-weight:600;line-height:1.6;
+  border:1.5px solid var(--rule);border-radius:var(--r-s);background:#fff;
+  color:var(--ink);resize:vertical}
+.myto{margin-top:10px;font-size:.82rem;font-weight:700;color:var(--ink-3);
+  line-height:1.6}
+.mygo{display:block;width:100%;margin-top:12px;padding:15px;border:0;
+  border-radius:var(--r-s);background:var(--blue);color:#fff;
+  font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer}
+.mygo[disabled]{opacity:.55}
+.myerr{margin-top:11px;font-size:.85rem;font-weight:700;color:#8A3226;
+  line-height:1.6}
 </style>
 </head>
 <body>
@@ -633,6 +669,18 @@ footer a{color:var(--ink-2);font-weight:800}
        עדכונים מקבל לוח **אישי** — הכיתה שלו בלבד; מי שוויתר
        מקבל את הלוח של הישיבה. בשני המקרים נוסעים אליו
        בגלילה, ולא קופצים. -->
+  <!-- ============================================================
+       הפינה שלו.
+       ============================================================
+       נפתחת אחרי שהתהליך הושלם, ומעל הלוח: הלוח אומר מה קורה,
+       והפינה היא מה שהוא עושה עם זה. שני דברים בלבד, ושניהם
+       שלו — מתי הוא מקבל, ומה הוא שולח. -->
+  <section id="my-sec" hidden>
+    <h2 class="sec" id="t-myH"></h2>
+    <div id="my-when"></div>
+    <div id="my-say"></div>
+  </section>
+
   <section id="brd-sec" hidden>
     <p class="peers" id="peers" hidden></p>
 
@@ -853,7 +901,7 @@ function drawWho() {
 function draw() {
   var T = window.TZEVET || {};
   ['h1','lead','demoNote','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
-   'whoH','kidsH','kidsTxt','qrCap','foot'].forEach(function (k) {
+   'whoH','kidsH','kidsTxt','qrCap','foot','myH'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
   });
@@ -1169,6 +1217,7 @@ function loadMyRoster() {
       myRoster = d.students;
       if (typeof LSet === 'function') LSet('rosterCache:' + instCode, myRoster);
       drawBoard();
+      myShow();
     })['catch'](function () {});
 }
 
@@ -1456,6 +1505,145 @@ function ramNoted() {
 }
 /* עבר את התהליך — בין אם אישר עדכונים ובין אם ויתר עליהם.
    זה מה שפותח את הלוח. */
+/* ============================================================
+   הפינה — מתי לעדכן אותך, ומה לומר לתלמידים.
+   ============================================================
+   נפתחת רק למי שהשלים את התהליך. מי שלא — אין לו מנוי, אין
+   למי לשלוח אליו, ואין מה לשאול אותו מתי.
+
+   **ההיקף אינו נקבע כאן.** מסך שמבקש "שלח ללפיד" הוא מסך
+   שאפשר לערוך לו את הכתובת; הסקריפט בודק את קוד הגישה של
+   הישיבה, וממנו הוא גוזר למי מותר לשלוח. מה שנשלח מכאן הוא
+   בקשה, לא הוראה. ============================================ */
+var WHENS = [['fri','myWhen1'], ['day','myWhen2'],
+             ['sat','myWhen3'], ['off','myWhen4']];
+var myBusy = false, myErr = '', mySaid = '', myDraft = '';
+
+function myWhen() {
+  try { return localStorage.getItem('df:ramWhen') || 'fri'; }
+  catch (e) { return 'fri'; }
+}
+function mySetWhen(v) {
+  try { localStorage.setItem('df:ramWhen', v); } catch (e) {}
+  /* השורה נכתבת לגיליון כדי שהשולח האוטומטי יֵדע מתי. הכתיבה
+     `no-cors` ואטומה, ולכן המסך אומר "נשמר" על מה שנשמר כאן
+     במכשיר — וזה נכון — ולא על מה שקרה בצד השני. */
+  var me = ramGet() || {};
+  ramPost('מועד', null, v);
+  mySaid = tz('myWhenOk');
+  myDraw();
+  setTimeout(function () { mySaid = ''; myDraw(); }, 2500);
+}
+
+/* כמה מתלמידיו התקינו. נגזר מאותה רשימה שכבר נטענה ללוח. */
+function myReach() {
+  var me = ramGet();
+  if (!myRoster || !me) return null;
+  var n = 0;
+  for (var i = 0; i < myRoster.length; i++) {
+    var p = myRoster[i];
+    if (me.grade && String(p.grade || '') !== me.grade) continue;
+    if (me.klass && String(p.klass || '') !== me.klass) continue;
+    n++;
+  }
+  return n;
+}
+
+function myShow() {
+  var sec = $('my-sec'); if (!sec) return;
+  sec.hidden = !(ramSeen() && ramNoted() && ramGet());
+  if (!sec.hidden) myDraw();
+}
+
+function myDraw() {
+  var w = $('my-when'), sy = $('my-say');
+  if (!w || !sy) return;
+  var now = myWhen();
+  w.innerHTML = '<div class="mycard"><h3>' + esc(tz('myWhenH')) + '</h3>' +
+    '<p>' + esc(tz('myWhenB')) + '</p><div class="whens">' +
+    WHENS.map(function (o) {
+      return '<button class="whenb' + (now === o[0] ? ' on' : '') +
+        '" data-w="' + o[0] + '"><i>✓</i><span style="flex:1">' +
+        '<b>' + esc(tz(o[1])) + '</b>' +
+        '<span>' + esc(tz(o[1] + 'S')) + '</span></span></button>';
+    }).join('') + '</div>' +
+    (mySaid ? '<div class="mysaid">' + esc(mySaid) + '</div>' : '') +
+    '</div>';
+
+  var n = myReach();
+  var to = (n === null)
+    ? ''
+    : (n ? '<p class="myto">' + esc(tpl(tz('mySayTo'), { n:n })) + '</p>'
+         : '<p class="myto">' + esc(tz('mySayNone')) + '</p>');
+  sy.innerHTML = '<div class="mycard"><h3>' + esc(tz('mySayH')) + '</h3>' +
+    '<p>' + esc(tz('mySayB')) + '</p>' +
+    '<textarea id="my-txt" rows="3" placeholder="' + esc(tz('mySayPh')) +
+    '">' + esc(myDraft) + '</textarea>' + to +
+    '<button class="mygo" id="my-go"' +
+    (myBusy || n === 0 || myDraft.trim().length < 2 ? ' disabled' : '') +
+    '>' + (myBusy ? 'שולח…' : esc(tz('mySayGo'))) + '</button>' +
+    (myErr ? '<div class="myerr">' + esc(myErr) + '</div>' : '') +
+    '</div>';
+  myWire();
+}
+
+function myWire() {
+  [].forEach.call(document.querySelectorAll('#my-when [data-w]'), function (b) {
+    b.onclick = function () { mySetWhen(b.getAttribute('data-w')); };
+  });
+  var t = $('my-txt');
+  var g = $('my-go');
+  /* הקלדה משנה רק את מצב הכפתור. ציור מחדש בכל תו היה מחזיר
+     את הסמן לתחילת התיבה — מטרד שמרגישים אחרי מילה. */
+  if (t) t.oninput = function () {
+    myDraft = t.value;
+    if (g && !myBusy && myReach() !== 0) {
+      g.disabled = myDraft.trim().length < 2;
+    }
+  };
+  if (g) g.onclick = mySend;
+}
+
+function mySend() {
+  var txt = (myDraft || '').trim();
+  myErr = '';
+  if (txt.length < 2) { myErr = 'אין מה לשלוח.'; myDraw(); return; }
+  var n = myReach();
+  if (!confirm(tz('mySayAsk') + '\n\n' + txt)) return;
+
+  var me = ramGet() || {};
+  var url = '';
+  try { url = localStorage.getItem('dfApi') || ''; } catch (e) {}
+  if (!url && typeof APPS_SCRIPT_URL !== 'undefined') url = APPS_SCRIPT_URL;
+  if (!url) { myErr = tz('mySayErr'); myDraw(); return; }
+
+  myBusy = true; myDraw();
+  var q = { fire:'say', inst: instCode, k: accCode,
+            title: ramName(me) || PROGRAM.short, body: txt,
+            grade: me.grade || '', klass: me.klass || '',
+            who: ramName(me) };
+  var qs2 = Object.keys(q).map(function (k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(q[k]);
+  }).join('&');
+  fetch(String(url).trim() + (url.indexOf('?') < 0 ? '?' : '&') + qs2)
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      myBusy = false;
+      if (d && d.status === 'ok') {
+        myDraft = ''; mySaid = '';
+        myErr = '';
+        alert(tz('mySaySent'));
+      } else {
+        myErr = tz('mySayErr') + ' ' + ((d && d.message) || '');
+      }
+      myDraw();
+    })['catch'](function () {
+      myBusy = false;
+      myErr = tz('mySayErr') + ' לא קיבלתי תשובה מהשרת.';
+      myDraw();
+    });
+}
+
 function ramSeen() {
   /* מי שאישר עדכונים עבר את התהליך מעצם העובדה — גם אם הסימון
      הנפרד חסר, למשל מפני שאישר בגרסה שקדמה לו. */
@@ -1516,6 +1704,7 @@ function brdShow() {
   var was = sec.hidden;
   sec.hidden = !ramSeen();
   drawBoard();
+  myShow();
   if (!sec.hidden && was) {
     setTimeout(function () {
       try { sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
@@ -1710,7 +1899,7 @@ function ramId() {
 
 /* הכתיבה `no-cors` ואטומה ואינה ראיה לכלום — ולכן שום מסך
    כאן אינו אומר "נרשמת". העדכון עצמו הוא האישור. */
-function ramPost(res, sub) {
+function ramPost(res, sub, when) {
   var me = ramGet() || {};
   var url = '';
   try { url = localStorage.getItem('dfApi') || ''; } catch (e) {}
@@ -1723,11 +1912,13 @@ function ramPost(res, sub) {
       action: 'row', tab: 'התראות',
       cols: JSON.stringify([
         ['מזהה', me.id || ''], ['שם', ramName(me)],
-        ['ישיבה', me.instName || ''], ['תפקיד', 'ר"ם'],
+        ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
+        ['תפקיד', 'ר"ם'],
         ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
         ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
         ['מנוי', sub ? JSON.stringify(sub) : ''],
-        ['תוצאה', res], ['מתי', new Date().toISOString()]
+        ['תוצאה', res], ['מועד', when || myWhen()],
+        ['מתי', new Date().toISOString()]
       ])
     })
   });
@@ -1765,6 +1956,7 @@ APPX.onBip(function () { if ($('asksheet') && !$('asksheet').hidden) ramDraw(); 
   ramBar();
   /* בביקור חוזר הלוח כבר שם, בלי גלילה — הוא אינו חדשה. */
   var sec = $('brd-sec'); if (sec) sec.hidden = !ramSeen();
+  myShow();
   loadMyRoster();
 })();
 </script>

@@ -83,4 +83,7 @@ jobs:
           BODY:  ${{ inputs.body  || github.event.client_payload.body }}
           # ריק = לכולם. אחרת קוד ישיבה, ואז רק היא מקבלת.
           ONLY:  ${{ github.event.client_payload.only }}
+          # שכבה וכיתה — ר"ם ששולח לכיתה שלו בלבד.
+          GRADE: ${{ github.event.client_payload.grade }}
+          KLASS: ${{ github.event.client_payload.klass }}
         run: node tools/push-send.js
