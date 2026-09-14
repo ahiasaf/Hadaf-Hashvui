@@ -524,9 +524,6 @@ nav .sp{flex:1}
   border-radius:12px;padding:13px;background:#fff;color:var(--ink)}
 .card .btn.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent}
-.card .how{text-align:right;margin:0 0 4px}
-.card .how li{font-size:.86rem;font-weight:700;color:var(--ink-2);line-height:1.8;
-  margin-bottom:7px}
 .seal{font-size:2.4rem;line-height:1;margin-bottom:8px}
 #toast{position:fixed;inset-inline:0;bottom:calc(var(--bar) + 22px);z-index:30;
   margin:0 auto;width:max-content;max-width:80vw;pointer-events:none;
@@ -542,9 +539,6 @@ nav .sp{flex:1}
 .card .minor button,.card .minor a{background:none;border:0;padding:4px;
   font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-3);
   text-decoration:none;cursor:pointer}
-.cred{margin:16px 0 0;font-size:.72rem;line-height:1.7;color:var(--ink-3);
-  font-weight:600;border-top:1px solid var(--rule);padding-top:12px}
-.cred a{color:var(--ink-2)}
 /* ---------- מסך מחשב ----------
    קובצי הדף הם 1600px רוחב, וזה הגג — אין מה להגדיל מעבר להם.
    `focus()` גוזר את ההגדלה מרוחב הבמה (`disp = sw / fw`, ורוחב
@@ -723,20 +717,13 @@ nav .sp{flex:1}
   <button class="btn p" id="gate-go"></button>
 </div></div>
 
-<div class="sheet" id="intro"><div class="card">
-  <h2>הדף, קטע אחר קטע</h2>
-  <ul class="how">
-    <li><b>הקטע המואר</b> הוא מה שלומדים עכשיו. שאר הדף מעומעם — כדי
-        שתמיד יהיה ברור איפה אנחנו.</li>
-    <li><b>לחיצה על הדף</b> מקדמת לקטע הבא. "הקודם" חוזר אחורה.</li>
-    <li><b>חברותא</b> פותח את הביאור לצד הדף. מי שפתח אותו — הוא
-        נשאר פתוח עד סוף הדף.</li>
-  </ul>
-  <button class="btn p" id="intro-go">מתחילים</button>
-  <p class="cred">דפי הגמרא © הוצאת ח. וגשל בע"מ · פירוש חברותא ©
-    הרב יעקב שולביץ שליט"א, CC BY-NC-SA 2.5 ·
-    <a href="rights.html">קרדיט וזכויות</a></p>
-</div></div>
+<!-- **מסך הפתיחה "הדף, קטע אחר קטע" ירד.** הוא הסביר שלושה
+     דברים שהדף מלמד בעצמו תוך שתי לחיצות: מה מואר, איך
+     מתקדמים, ומה עושה חברותא. מסך שעומד בין אדם לבין הדבר
+     שבא לראות גובה מחיר ודאי בשביל תועלת משוערת.
+
+     הקרדיטים שהיו בתחתיתו לא אבדו: הם בשער שנפתח לפניו,
+     ובתחתית פאנל החברותא. -->
 
 <!-- מסך הסיום. שתי הפעולות שתלמיד באמת רוצה כאן הן החידה
      והדף הבא, ולכן הן למעלה ובולטות. "חזרה לדף" סוגר את
@@ -2362,18 +2349,11 @@ function gateFill() {
   $('gate-go').textContent = GATE.go + ' ←';
 }
 
-/* ההסבר על אופן הלימוד — אחרי השער, ורק בפעם הראשונה. */
-function introMaybe() {
-  if (quiet()) return;            /* מסך שממתין ללחיצה אינו הדגמה */
-  var seen = false;
-  try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
-  if (!seen) $('intro').className = 'sheet on';
-}
 function gateClose() {
   var g = $('gate');
   if (!g || g.className.indexOf('on') < 0) return;
   g.className = 'sheet gate on fade';
-  setTimeout(function () { g.className = 'sheet gate'; introMaybe(); }, 460);
+  setTimeout(function () { g.className = 'sheet gate'; }, 460);
 }
 function gateOpen() {
   if (quiet()) return;            /* ולא נרשם כ"נראה" — תלמיד אמיתי עוד יראה אותו */
@@ -2384,7 +2364,7 @@ function gateOpen() {
      בפעם השנייה. פעם אחת, בלי מגבלת זמן, נקראת באמת. */
   var seen = false;
   try { seen = localStorage.getItem('df:gate') === '1'; } catch (e) {}
-  if (seen) { introMaybe(); return; }
+  if (seen) return;
 
   gateFill();
   g.className = 'sheet gate on';
@@ -2653,10 +2633,6 @@ function boot() {
         DeckLoad()['catch'](function () {}).then(function () {
           try { return sideInit(); } catch (e) {}
         }).then(started, started);
-        var seen = false;
-        try { seen = localStorage.getItem('df:learn-intro') === '1'; } catch (e) {}
-        /* לא כאן — השער פותח אותו כשהוא נסגר, אחרת שני מסכים
-           נפתחים זה על גבי זה. ראו gateClose(). */
       });
     })
     .catch(function () {
@@ -2747,10 +2723,6 @@ window.addEventListener('DOMContentLoaded', function () {
      שייקרא באמת; אחר כך הוא מתפוגג לבד, ולחיצה מדלגת. */
   gateOpen();
 
-  $('intro-go').onclick = function () {
-    $('intro').className = 'sheet';
-    try { localStorage.setItem('df:learn-intro', '1'); } catch (e) {}
-  };
   $('again').onclick = function () { $('done').className = 'sheet'; go(0); };
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
   $('stay').onclick  = function () { $('done').className = 'sheet'; bar(); };
