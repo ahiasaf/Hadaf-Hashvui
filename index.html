@@ -844,16 +844,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 /* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
 .brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
   color:var(--ink-3);line-height:1.55;text-align:start}
-/* הקישור לר"מים — מופרד בקו, כדי שלא ייקרא כהמשך של הכפתור
-   לתלמידים. שליחה לקבוצה הלא נכונה אי אפשר להחזיר. */
+/* כרטיס ההודעות בניהול: כל הודעה, התיבה שלה, והכפתור שלה. */
+.wamsg{margin-top:16px;padding-top:15px;border-top:1px solid var(--rule-2)}
+.wamsg textarea{width:100%;box-sizing:border-box;min-height:190px;
+  font-family:inherit;font-size:.88rem;font-weight:600;line-height:1.65;
+  padding:11px 12px;border:1px solid var(--rule);border-radius:var(--r-s);
+  background:#fff;color:inherit;resize:vertical}
+.wamsg .btn{margin:0;width:100%;box-sizing:border-box;display:block;
+  text-align:center}
+/* המשימה — כותרת, שורה, כפתור. שלושה דברים, וזה הכל. */
 .brd-rams{margin-top:15px;padding-top:14px;
   border-top:1px solid var(--rule-2);text-align:start}
 .brd-rams>b{display:block;font-size:.83rem;font-weight:800;
   color:var(--gold);letter-spacing:.02em}
-.brd-rams>p{margin:7px 0 0;font-size:.8rem;font-weight:600;
-  color:var(--ink-3);line-height:1.6}
-.brd-rams .warn-line{margin:7px 0 0;font-size:.79rem;font-weight:800;
-  color:#8A6316;line-height:1.55}
+.brd-rams>p{margin:7px 0 0;font-size:.84rem;font-weight:700;
+  color:var(--ink-2);line-height:1.6}
 /* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
    ברצף, לא שני נושאים. */
 .linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
@@ -1611,7 +1616,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.37.0';
+var APP_VERSION = '8.38.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2793,30 +2798,22 @@ function boardHtml(code, name, hail) {
   var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
 
   var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
-  var send = joinLinkOn()
-    ? '<a class="btn gr" target="_blank" rel="noopener" href="https://wa.me/?text=' +
-      encodeURIComponent(wa) + '">' + esc(UI.cbSend) + '</a>' +
-      /* מה שקורה אחרי הלחיצה — ראו `waHow`. */
-      '<div class="brd-wahow">' + esc(UI.waHowKids) + '</div>' : '';
-
   /* ============================================================
-     והקישור לר"מים, מיד אחריו.
+     **פעולה אחת, ולא שתיים.**
      ============================================================
-     זה מה שהוא בא לעשות ברגע שאחרי ההרשמה: להעביר לכל הר"מים
-     את הקישור **שלהם** — עמוד שיש בו הדף של השבוע לפתיחה
-     בכיתה, הכיתה שלהם, והפינה שבה הם קובעים מתי לקבל עדכונים.
-     הכפתור לתלמידים לבדו השאיר את הצוות מחוץ לתמונה.
+     הכפתור לתלמידים ירד מכאן. ראש חטיבה אינו שולח לקבוצות
+     הכיתה — הר"מים שולחים, והקישור לתלמידים כבר יושב אצלם
+     בעמוד שלהם. שני כפתורים כאן פירושם שהוא שוקל איזה מהם,
+     במקום לעשות את הדבר האחד שהוא כן צריך לעשות.
 
-     שני קישורים שנראים דומה הם הזמנה לטעות, והטעות כאן היא
-     חד-כיוונית: קישור צוות שנשלח לקבוצת כיתה אי אפשר להחזיר.
-     לכן — כפתור בצבע אחר, ואזהרה צמודה. */
+     ומעט מלל. קיר של הסברים ברגע שאחרי ההרשמה נקרא כמו ספר
+     ולא כמו משימה, ומי שקורא ספר אינו לוחץ. */
   var rams = '';
   if (code) {
     rams = '<div class="brd-rams">' +
       '<b>' + esc(UI.ramsTitle) + '</b>' +
       '<p>' + esc(UI.ramsNote) + '</p>' +
-      '<p class="warn-line">' + esc(UI.ramsWarn) + '</p>' +
-      '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+      '<a class="btn gr" style="text-decoration:none;margin-top:11px" ' +
       'target="_blank" rel="noopener" href="https://wa.me/?text=' +
       encodeURIComponent(fill(UI.teamWa, { inst:name, url:tzevetUrl(code) })) +
       '">' + esc(UI.teamWaBtn) + '</a>' +
@@ -2882,7 +2879,7 @@ function boardHtml(code, name, hail) {
 
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
-         bar + chips + send + full + rams +
+         bar + chips + rams + full +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
@@ -5581,6 +5578,75 @@ function admShow(el) {
 
 /* ---- קישורים ומוסדות ----
    הקישור הכללי, הקישור והקוד של כל מוסד, ומי מסומן כ"בפנים". */
+/* ============================================================
+   ההודעות שאני שולח — במקום אחד.
+   ============================================================
+   כל אחת מהן הייתה ניתנת לעריכה גם קודם, אבל פזורה: חלק
+   בעורך המלל של המסך שבו הן מופיעות, וחלק — אלה שאינן
+   מצוירות על שום מסך — בכרטיס שנקרא "שער הדף והתמונות", לצד
+   תמונות. מי שרצה לתקן מילה בהודעה שהוא שולח לר"מים היה צריך
+   לדעת קודם איפה היא חיה.
+
+   כאן הן יחד, בסדר שבו הוא באמת שולח אותן, וכל אחת עם הכפתור
+   שלה. עריכה נשמרת במכשיר עד **פרסום**, כמו כל נוסח אחר,
+   והכפתור שולח את מה שעל המסך עכשיו.
+
+   `{inst}` ו-`{url}` מוחלפים בשם הישיבה ובקישור שלה, ולכן יש
+   בורר: הקישור שייך למוסד מסוים, והודעה שיוצאת בלעדיו מובילה
+   לשום מקום. ============================================ */
+var waPick = '';
+function waPickSet(v) { waPick = v; admPane(); }
+
+/* כל הודעה: מפתח הנוסח, מה היא, ואיזה קישור היא נושאת. */
+function waMsgs() {
+  return [
+    { k:'ui.teamWa', lbl:'לר״מים ולראשי חטיבות',
+      sub:'הקישור לעמוד הצוות — לא לשלוח לקבוצת כיתה',
+      url:function (c) { return tzevetUrl(c); } },
+    { k:'ui.linkWa', lbl:'לתלמידים',
+      sub:'לקבוצות הכיתה',
+      url:function (c) { return joinUrl(c); } },
+    { k:'ui.dadWa',  lbl:'להורים',
+      sub:'לקבוצות ההורים, לצד הפלייר. בלי קוד ישיבה — ההורה בוחר',
+      url:function () { return dadUrl(); } }
+  ];
+}
+
+function admWaCard() {
+  var list = INSTITUTIONS;
+  if (!waPick && list.length) waPick = list[0].code;
+  var row = null, i;
+  for (i = 0; i < list.length; i++) if (list[i].code === waPick) row = list[i];
+  var name = row ? row.name : 'רשת בני עקיבא';
+  var d = CFG.texts || {};
+
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>ההודעות שאני שולח</h4>' +
+    '<p class="h">כל מה שיוצא בוואטסאפ, במקום אחד. עריכה נשמרת ' +
+    'במכשיר עד <b>פרסום</b>, והכפתור שולח את מה שכתוב עכשיו.</p>' +
+    '<div class="fld"><div class="label">לאיזו ישיבה</div>' +
+    '<select onchange="waPickSet(this.value)">' +
+    list.map(function (o) {
+      return '<option value="' + esc(o.code) + '"' +
+        (o.code === waPick ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+    }).join('') + '</select></div>' +
+    waMsgs().map(function (m) {
+      var raw = textGet(m.k);
+      var out = fill(raw, { inst:name, url:m.url(waPick) });
+      var changed = d[m.k] != null && d[m.k] !== belowText(m.k);
+      return '<div class="wamsg">' +
+        '<div class="label">' + esc(m.lbl) +
+        (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>' +
+        '<p class="h" style="margin:2px 0 7px">' + esc(m.sub) + '</p>' +
+        '<textarea rows="5" onchange="admTextSet(\'' + m.k + '\',this.value)">' +
+        esc(raw) + '</textarea>' +
+        '<a class="btn gr" target="_blank" rel="noopener" ' +
+        'href="https://wa.me/?text=' + encodeURIComponent(out) +
+        '">שליחה בוואטסאפ</a>' +
+        '</div>';
+    }).join('') + '</div>';
+}
+
 function admLinks(el) {
   var src = INST_SRC === 'sheet'
     ? '<div class="done-box" style="margin-bottom:11px">' + INSTITUTIONS.length +
@@ -5608,7 +5674,9 @@ function admLinks(el) {
        לכל מקום, התלמיד בוחר את הישיבה שלו מתוך הרשימה, והישיבה
        מסומנת כ"בפנים" מעצם זה שיש בה מי שלומד. תנועה מלמטה. */
   el.innerHTML =
-    /* ההדגמה ראשונה, כי היא הדבר היחיד כאן שאינו נשלח לאיש —
+    /* ההודעות ראשונות: זה מה שהוא בא לעשות כאן בפועל. */
+    admWaCard() +
+    /* ואחריהן ההדגמה, כי היא הדבר היחיד כאן שאינו נשלח לאיש —
        פותחים אותה, מסתכלים, ומגישים. ובלי להציג כתובת: מה
        שלא שולחים אין סיבה לקרוא בקול. */
     '<div class="adm-card" style="margin-bottom:11px"><h4>הדגמה</h4>' +
@@ -6207,9 +6275,14 @@ function dataWipe(tab, ss, rows) {
    ו-`off:1` — נוסחים שאינם מצוירים על שום מסך, כמו הודעות
    הוואטסאפ. הן נשלחות ולא מוצגות, ולכן העורך על המסך לא
    יפגוש אותן לעולם. */
+/* שלוש ההודעות שיש להן עכשיו בית משלהן — בכרטיס "ההודעות
+   שאני שולח" שבמסך הקישורים. אותה תיבה בשני מקומות היא שתי
+   תיבות שנפרדות זו מזו ברגע שעורכים באחת. */
+var WA_HOME = ['ui.teamWa', 'ui.linkWa', 'ui.dadWa'];
 function textOrphans() {
   return TEXT_FIELDS.filter(function (f) {
-    return f.k && (f.img || f.off || f.k.indexOf('gate.') === 0);
+    if (!f.k || WA_HOME.indexOf(f.k) >= 0) return false;
+    return f.img || f.off || f.k.indexOf('gate.') === 0;
   });
 }
 function admText(el) {
