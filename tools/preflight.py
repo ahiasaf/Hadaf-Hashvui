@@ -351,8 +351,47 @@ def check_inst_manifests():
         OK.append('מניפסט לכל ישיבה — %d, וכולם מצביעים נכון' % len(codes))
 
 
+FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'
+
+
+def check_font():
+    """גופן אחד לכל האפליקציה.
+
+    היו כאן שלוש ערימות שונות: אחת עם "Noto Sans Hebrew", אחת עם
+    Arial, ואחת בלי שתיהן. באייפון שלושתן נופלות על גופן המערכת
+    ונראות זהות — ובאנדרואיד הן שלושה גופנים שונים, כי שם גם
+    Noto וגם Arial באמת מותקנים. כלומר ההבדל היה בלתי נראה בדיוק
+    למי שבדק, ונראה היטב לחצי מהשטח.
+
+    זה נדרש יותר מפעם אחת ונסוג יותר מפעם אחת, ולכן הוא נבדק.
+    """
+    bad, n = [], 0
+    for f in sorted(os.listdir(ROOT)):
+        if not f.endswith('.html'):
+            continue
+        src = read(f)
+        # הערימות נכתבות לפעמים על שתי שורות — משטחים לפני ההשוואה
+        flat = re.sub(r'\s*\n\s*', '', src)
+        for m in re.finditer(r'font(?:-family)?\s*:\s*([^;}]*system-ui[^;}]*)', flat):
+            stack = m.group(1)
+            # `font:` מקוצר נושא גם גודל ורווח־שורה לפני הערימה
+            fam = stack[stack.index('system-ui'):].strip()
+            # `system-ui` לבדו אינו ערימה אלא ברירת מחדל מקומית —
+            # קישור ב-noscript, שכבת ניפוי. מה שנבדק הוא ערימה
+            # אמיתית, כלומר כזו שיש בה נפילה לגופן אחר.
+            if ',' not in fam:
+                continue
+            n += 1
+            if fam != FONT:
+                bad.append('%s → %s' % (f, fam[:70]))
+    if bad:
+        BAD.append('ערימות גופן שונות מהתקן: ' + ' · '.join(bad))
+    else:
+        OK.append('גופן אחיד בכל העמודים (%d הצהרות)' % n)
+
+
 def main():
-    for fn in (check_version, check_dupe_vars, check_orphan_classes,
+    for fn in (check_version, check_font, check_dupe_vars, check_orphan_classes,
                check_shared_globals, check_inst_manifests,
                check_decks, check_daf_index,
                check_calendar):

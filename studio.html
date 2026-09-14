@@ -51,7 +51,7 @@
    מגיע שום דבר לא קופץ. */
 img:not([src]){visibility:hidden}
 body{margin:0;background:var(--paper);color:var(--ink);
-  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
   padding:10px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 header h1{margin:0;font-size:1.05rem;font-weight:800;letter-spacing:-.02em}
@@ -1801,7 +1801,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.38.0';
+var STUDIO_VER = '8.39.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון

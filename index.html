@@ -60,7 +60,7 @@
   --pat:rgba(23,70,143,.05);
 }
 *{box-sizing:border-box;margin:0;padding:0;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Hebrew",sans-serif}
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
 /* תמונה שעוד אין לה כתובת — לא מציגים סימן שבור.
    הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
@@ -852,13 +852,33 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   background:#fff;color:inherit;resize:vertical}
 .wamsg .btn{margin:0;width:100%;box-sizing:border-box;display:block;
   text-align:center}
-/* המשימה — כותרת, שורה, כפתור. שלושה דברים, וזה הכל. */
-.brd-rams{margin-top:15px;padding-top:14px;
-  border-top:1px solid var(--rule-2);text-align:start}
-.brd-rams>b{display:block;font-size:.83rem;font-weight:800;
-  color:var(--gold);letter-spacing:.02em}
-.brd-rams>p{margin:7px 0 0;font-size:.84rem;font-weight:700;
-  color:var(--ink-2);line-height:1.6}
+/* ============================================================
+   הבקשה שאחרי ההרשמה — בדיוק הכרטיס של עמוד הבדיקה.
+   ============================================================
+   אותן מידות, אותו מסגור, אותו קצב: מסגרת זהב, פינות 16,
+   כותרת 1.16rem במשקל 800, וגוף 0.95rem ברווח 1.75. זה מה
+   שנבדק בשטח ועבד, ואין סיבה שכל מסך יגלה אותו מחדש. */
+.thx{background:var(--surface);border:2px solid var(--gold);
+  border-radius:16px;padding:24px 22px 26px;margin-bottom:14px;
+  box-shadow:0 8px 26px rgba(11,37,80,.12);text-align:start}
+.thx h3{margin:0;font-size:1.16rem;font-weight:800;
+  letter-spacing:-.02em;line-height:1.45;color:var(--ink)}
+/* שני שלבים ממוספרים. המספר הוא מה שהופך פסקה לצעד. */
+.thx-steps{margin:18px 0 0;padding:0;list-style:none;counter-reset:thx}
+.thx-steps li{counter-increment:thx;position:relative;
+  padding-inline-start:38px;margin-bottom:14px;
+  font-size:.95rem;font-weight:600;line-height:1.75;color:var(--ink-2)}
+.thx-steps li:last-child{margin-bottom:0}
+.thx-steps li::before{content:counter(thx);position:absolute;
+  inset-inline-start:0;top:2px;width:26px;height:26px;border-radius:50%;
+  background:var(--blue);color:#fff;font-size:.82rem;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
+.thx-go{display:block;width:100%;margin-top:20px;padding:16px;
+  border:0;border-radius:12px;background:var(--green-d);color:#fff;
+  font-weight:800;font-size:1.02rem;text-align:center;
+  text-decoration:none;cursor:pointer}
+.thx-how{margin:11px 0 0;font-size:.84rem;font-weight:600;
+  color:var(--ink-3);line-height:1.65}
 /* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
    ברצף, לא שני נושאים. */
 .linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
@@ -1497,6 +1517,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       <section class="sec-b band-c rv" id="coord" style="display:none">
         <div class="zlabel"><span class="tag c" id="c-tag"></span>
           <span id="c-sub"></span></div>
+        <div id="thanks"></div>
         <div id="board"></div>
       </section>
 
@@ -1616,7 +1637,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.38.0';
+var APP_VERSION = '8.39.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2798,28 +2819,9 @@ function boardHtml(code, name, hail) {
   var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
 
   var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
-  /* ============================================================
-     **פעולה אחת, ולא שתיים.**
-     ============================================================
-     הכפתור לתלמידים ירד מכאן. ראש חטיבה אינו שולח לקבוצות
-     הכיתה — הר"מים שולחים, והקישור לתלמידים כבר יושב אצלם
-     בעמוד שלהם. שני כפתורים כאן פירושם שהוא שוקל איזה מהם,
-     במקום לעשות את הדבר האחד שהוא כן צריך לעשות.
-
-     ומעט מלל. קיר של הסברים ברגע שאחרי ההרשמה נקרא כמו ספר
-     ולא כמו משימה, ומי שקורא ספר אינו לוחץ. */
-  var rams = '';
-  if (code) {
-    rams = '<div class="brd-rams">' +
-      '<b>' + esc(UI.ramsTitle) + '</b>' +
-      '<p>' + esc(UI.ramsNote) + '</p>' +
-      '<a class="btn gr" style="text-decoration:none;margin-top:11px" ' +
-      'target="_blank" rel="noopener" href="https://wa.me/?text=' +
-      encodeURIComponent(fill(UI.teamWa, { inst:name, url:tzevetUrl(code) })) +
-      '">' + esc(UI.teamWaBtn) + '</a>' +
-      '<div class="brd-wahow">' + esc(UI.waHow) + '</div>' +
-      '</div>';
-  }
+  /* **הבקשה אינה כאן.** היא יצאה מהלוח לכרטיס משלה, שיושב
+     מעליו — ראו `thanksHtml()`. הלוח אומר מה קורה, והבקשה היא
+     מה שעושים; שני דברים שהתערבבו נקראים כמו ספר. */
 
   /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
   var hero = n
@@ -2879,7 +2881,7 @@ function boardHtml(code, name, hail) {
 
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
-         bar + chips + rams + full +
+         bar + chips + full +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
@@ -2912,6 +2914,31 @@ function hailBoard() {
   }, 60);
 }
 
+/* ============================================================
+   מה שראש החטיבה רואה מיד אחרי ההרשמה.
+   ============================================================
+   שני שלבים ממוספרים, כפתור אחד, ושורה שאומרת מה יקרה אחרי
+   הלחיצה. אותו כרטיס בדיוק של עמוד הבדיקה — כי זה מה שעובד:
+   שלב אחד במבט אחד, ובלי קיר של מלל.
+
+   **בלי המילה "משימה".** אין נותנים פקודה לראש חטיבה; מבקשים
+   ממנו. ============================================ */
+function thanksHtml(code, name) {
+  if (!code) return '';
+  var wa = fill(UI.teamWa, { inst:name, url:tzevetUrl(code) });
+  return '<div class="thx">' +
+    '<h3>' + esc(UI.thanksH) + '</h3>' +
+    '<ol class="thx-steps">' +
+    '<li>' + esc(UI.thanks1) + '</li>' +
+    '<li>' + esc(UI.thanks2) + '</li>' +
+    '</ol>' +
+    '<a class="thx-go" target="_blank" rel="noopener" ' +
+    'href="https://wa.me/?text=' + encodeURIComponent(wa) + '">' +
+    esc(UI.thanksGo) + '</a>' +
+    '<p class="thx-how">' + esc(UI.thanksHow) + '</p>' +
+    '</div>';
+}
+
 function renderBoard(hail) {
   var el = document.getElementById('coord');
   if (!el) return;
@@ -2923,6 +2950,8 @@ function renderBoard(hail) {
      "של מי זה" בשתי מילים, וההסבר שמתחתיה אומר מה זה. */
   document.getElementById('c-tag').textContent = inst.name;
   document.getElementById('c-sub').textContent = UI.coordSub;
+  /* הבקשה מעל, הלוח מתחת. */
+  document.getElementById('thanks').innerHTML = thanksHtml(code, inst.name);
   document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי

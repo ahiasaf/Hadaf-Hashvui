@@ -98,9 +98,14 @@
 
    `system-ui` ראשון נותן את גופן המערכת — SF באייפון, Roboto
    באנדרואיד — שהעברית שלו פתוחה יותר ומדורגת יפה במשקלים.
-   חמישה עמודים בפרויקט כבר השתמשו בו; עכשיו כולם. */
+
+   **והערימה זהה בכל העמודים.** היו שלוש גרסאות שלה — אחת עם
+   "Noto Sans Hebrew", אחת עם Arial, ואחת בלי שתיהן. באייפון
+   שלושתן נופלות על גופן המערכת ונראות זהות, ובאנדרואיד הן
+   שלושה גופנים שונים: ההבדל היה בלתי נראה בדיוק למי שבדק.
+   `check_font` ב-preflight אוכף את הצורה הזו. */
 *{box-sizing:border-box;margin:0;padding:0;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Hebrew",sans-serif}
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
 /* תמונה שעוד אין לה כתובת — לא מציגים סימן שבור.
    הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
