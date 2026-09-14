@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>הדף השבועי — המסע</title>
+<!-- קובץ אמיתי ולא כלל rewrite, מאותה סיבה בדיוק כמו admin.html:
+     cleanUrls הופך יעד rewrite ללא-תקף, ואז /join2 מחזיר 404.
+
+     מה שיש כאן הוא **הצצה בלבד**: אותו עמוד הצטרפות, עם הדגל
+     שמדליק את המסע. אין כאן עותק שני של הקוד — עמוד הצטרפות
+     שני שצריך לתקן בשני מקומות הוא עמוד שיישבר באחד מהם.
+
+     ביום שהמסע יהיה ברירת המחדל, הקובץ הזה נמחק. -->
+<style>html,body{height:100%;margin:0;background:#0B2550}</style>
+<script>
+  (function () {
+    var q = location.search.replace(/^\?/, '');
+    location.replace('/join' + (q ? '?' + q + '&wiz=1' : '?wiz=1'));
+  })();
+</script>
+</head>
+<body>
+<noscript><a href="/join?wiz=1" style="color:#fff;font:16px system-ui;padding:20px;display:block">
+  להצטרפות</a></noscript>
+</body>
+</html>

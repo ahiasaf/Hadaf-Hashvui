@@ -534,6 +534,63 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .getapp .how.warn{background:rgba(192,143,43,.12);color:var(--ink);
   border:1px solid rgba(192,143,43,.35);text-align:right}
 .getapp .how.warn b{color:#8A6316}
+/* ============================================================
+   המסע — מד, שלב אחד, ומה שנגמר נשאר לראות.
+   ============================================================
+   מה שגורם למסך כזה לעבוד אינו העיצוב אלא **הידיעה איפה אתה**.
+   מד בראש, שלב אחד מולך, ומה שכבר עשית יושב מעליך בירוק. זו
+   לא גלילה — זו משימה קטנה שבא לסיים.
+
+   העמוד הקודם היה גלילה אחת ארוכה, ו"אני מצטרף" רק הזיז בתוכה.
+   בלי מיקום, בלי התקדמות, ובלי רגע שבו נגמר.
+   ------------------------------------------------------------ */
+/* שני מצבים ולא אחד: `wzon` אומר שהמסע הוא הדרך בעמוד הזה,
+   ו-`wz` שהוא כבר התחיל. בלי ההפרדה הטופס היה יושב גלוי
+   מתחת לנחיתה עוד לפני שנלחץ "אני מצטרף" — כלומר בדיוק
+   הגלילה הארוכה שבאנו להחליף. */
+#wz{display:none}
+body.wz #wz{display:block}
+body.wzon #s-det,body.wzon #s-ways{display:none}
+/* במסע — הנחיתה ירדה. היא מה שמשכנע, ותפקידה נגמר בלחיצה. */
+body.wz #s-land{display:none}
+/* הכותרת נאמרת פעם אחת — בראש השלב. הכרטיסים שמתחת נושאים
+   כותרת משלהם מהתקופה שבה כולם ישבו יחד בגלילה אחת, ובמסע
+   היא אותה כותרת פעמיים זו מתחת לזו. */
+body.wz #c-who > h2,body.wz #c-who > p.h,
+body.wz #c-ways > h2,body.wz #c-ways > p.h{display:none}
+body.wz-det #s-det{display:block}
+/* הכפתור שייך למסע בלבד. בלי המסע הטופס נשלח ב"מצטרף ללימוד"
+   שבתחתיתו, וכפתור המשך נוסף היה שני כפתורים לאותו דבר. */
+#wz-next{display:none}
+body.wz-det #wz-next{display:block}
+body.wz-ways #s-ways{display:block}
+
+.wzbar{display:flex;align-items:center;gap:6px;justify-content:center;
+  margin:4px 0 18px}
+.wzbar i{flex:1 1 0;max-width:46px;height:5px;border-radius:3px;
+  background:var(--rule)}
+.wzbar i.on{background:var(--gold)}
+.wzbar i.did{background:var(--green)}
+/* שורת שלב שנגמר. היא אינה נעלמת — היא ההוכחה שהתקדמת. */
+.wzdone{display:flex;align-items:center;gap:9px;margin-bottom:9px;
+  padding:11px 14px;background:rgba(74,130,28,.09);
+  border:1px solid rgba(74,130,28,.28);border-radius:var(--r-s);
+  font-size:.87rem;font-weight:800;color:var(--green-2)}
+.wzdone b{font-size:1rem}
+.wznext{display:block;width:100%;margin-top:16px;padding:15px;border:0;
+  border-radius:14px;background:var(--blue);color:#fff;font-family:inherit;
+  font-weight:800;font-size:1.02rem;cursor:pointer}
+.wzhead{margin-bottom:14px}
+.wzhead .kick{font-size:.73rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.04em;margin-bottom:5px}
+.wzhead h2{font-size:1.2rem;font-weight:800;letter-spacing:-.025em}
+.wzhead p{font-size:.92rem;font-weight:600;color:var(--ink-2);
+  margin-top:7px;line-height:1.7}
+.calm{margin-top:18px;background:var(--sunk);border-radius:var(--r-s);
+  padding:14px 16px;font-size:.85rem;font-weight:600;color:var(--ink-2);
+  line-height:1.75}
+.calm b{color:var(--ink)}
+
 /* ---------- המסע: שלב אחד על המסך ----------
    הכרטיס הזה אינו הצעה אלא השלב האחרון של ההרשמה, ולכן הוא
    נראה כמו שלב: מספר, כותרת, ופעולה אחת. מה שנגמר מתכווץ
@@ -605,8 +662,24 @@ footer a{color:var(--ink-2);font-weight:800}
 <!-- **באייפון ההתקנה קודמת לטופס.** ראו showPre. -->
 <div class="wrap" id="pre"></div>
 
+<!-- המיכל יושב **מחוץ** לטופס בכוונה: מסך הסיום מסתיר את
+     `#form`, והמד היה נעלם יחד איתו בדיוק בשלב האחרון. -->
+<div class="wrap" id="wz"></div>
+
 <main class="wrap" id="form">
 
+  <!-- ============================================================
+       המסע.
+       ============================================================
+       הבלוקים שמתחת לא זזו ולא שונו — הם רק נעטפו. שלושה
+       עטיפות, ומה שבתוכן נשאר בדיוק כפי שהיה, כולל החשיפה
+       ההדרגתית של השדות. עטיפה שמוסתרת אינה נלחמת בסגנון
+       הפנימי של מה שבתוכה, ולכן זו הדרך היחידה להוסיף שלבים
+       בלי לגעת בטופס שכבר עובד.
+
+       בלי `?wiz=1` שום דבר מזה אינו פעיל, והעמוד מתנהג בדיוק
+       כמו קודם. -->
+  <div id="s-land">
   <div class="hero">
     <div class="lead">
       <p id="lead"></p>
@@ -639,6 +712,7 @@ footer a{color:var(--ink-2);font-weight:800}
       <img id="rf-img" alt="" style="display:none">
     </div>
   </div>
+  </div><!-- /s-land -->
 
   <!-- מי ממלא. השאלה הזו לא הייתה כאן, ולא בכדי: כל עוד אבא
        היה שדה בטופס של הבן לא היה מה לשאול. מרגע שהוא נרשם
@@ -655,6 +729,7 @@ footer a{color:var(--ink-2);font-weight:800}
 
        מוצג **רק בקישור הכללי ובקישור ההורים** — בקישור של
        הישיבה אין דו־משמעות — וניתן לכיבוי מהניהול. -->
+  <div id="s-det">
   <div class="whopick" id="whoPick" style="display:none">
     <div class="whobar two" id="whoBar"></div>
     <p class="h" id="dad-lead" style="display:none"></p>
@@ -701,6 +776,11 @@ footer a{color:var(--ink-2);font-weight:800}
     </div>
   </div>
 
+  <button class="wznext" id="wz-next"></button>
+  <div class="err" id="wz-err" role="alert" aria-live="assertive"></div>
+  </div><!-- /s-det -->
+
+  <div id="s-ways">
   <div class="card stg" id="c-ways">
     <h2 id="ways-h">איך אתה לומד?</h2>
     <p class="h">אפשר לשנות בכל שלב.</p>
@@ -740,6 +820,7 @@ footer a{color:var(--ink-2);font-weight:800}
     ולהגרלות. צוות הישיבה רואה את שמות המשתתפים ואת קצב הלימוד,
     ושמות של זוכים ומצטיינים מתפרסמים. הטלפון נשאר אצל רכז
     התוכנית בלבד. <a href="info.html">פרטים</a></p>
+  </div><!-- /s-ways -->
 </main>
 
 <div id="done">
@@ -2135,6 +2216,9 @@ function appHowList() {
 
 function drawApp() {
   var box = $('getapp'); if (!box) return;
+  /* במסע ההתקנה וההתראות הן שלבים במד שלמעלה. הכרטיס הזה היה
+     אומר את אותו דבר פעם שנייה, בתחתית המסך, ועם מספור אחר. */
+  if (WZ_ON) { box.innerHTML = ''; return; }
   if (!JOIN.appTitle) { box.innerHTML = ''; return; }
   var st = appStep();
 
@@ -2249,8 +2333,15 @@ function appNoteCard(box) {
   if (sk) sk.onclick = function () { $('getapp').innerHTML = ''; };
 }
 
+/* המסע והכרטיס הישן חולקים את אותה לוגיקת התראות. הציור הוא
+   מה שנפרד ביניהם, ולכן הוא עובר דרך נקודה אחת. */
+function appRedraw() {
+  if (WZ_ON && document.body.className.indexOf('wz') >= 0) wzDraw();
+  else drawApp();
+}
+
 function appAskNote() {
-  appErr = ''; appBusy = true; drawApp();
+  appErr = ''; appBusy = true; appRedraw();
   /* **פעם אחת, ולא פעמיים.** `requestPermission` תומך גם
      ב-callback וגם ב-Promise, ודפדפן מודרני מפעיל את שניהם:
      ה-callback רץ, ואז ה-`then` רץ שוב עם אותה תשובה. בלי
@@ -2265,21 +2356,21 @@ function appAskNote() {
       appErr = (p === 'denied')
         ? 'האישור נדחה. בלי אישור אי אפשר לשלוח הודעה.'
         : 'לא התקבל אישור. אפשר לנסות שוב.';
-      drawApp(); return;
+      appRedraw(); return;
     }
     appSubscribe();
   };
   try {
     var pr = Notification.requestPermission(after);
     if (pr && pr.then) pr.then(after)['catch'](function () { after('default'); });
-  } catch (e) { appBusy = false; appErr = 'לא ניתן לבקש אישור כאן.'; drawApp(); }
+  } catch (e) { appBusy = false; appErr = 'לא ניתן לבקש אישור כאן.'; appRedraw(); }
 }
 
 function appSubscribe() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     appBusy = false;
     appErr = 'הדפדפן הזה אינו תומך בהתראות.';
-    drawApp(); return;
+    appRedraw(); return;
   }
   navigator.serviceWorker.register('sw.js').then(function () {
     return navigator.serviceWorker.ready;
@@ -2309,11 +2400,11 @@ function appSubscribe() {
        שנאמר למסך הוא רק מה שנכון מקומית: האישור ניתן והמנוי
        נוצר. ההתראה עצמה היא האישור האמיתי. */
     try { localStorage.setItem('df:noteOn', '1'); } catch (e) {}
-    appBusy = false; drawApp();
+    appBusy = false; appRedraw();
   })['catch'](function (e) {
     appBusy = false;
     appErr = 'לא הצלחתי להשלים: ' + ((e && e.message) || e) + '. אפשר לנסות שוב.';
-    drawApp();
+    appRedraw();
   });
 }
 
@@ -2429,9 +2520,224 @@ function showPre() {
   };
 }
 
+/* ============================================================
+   בקר המסע.
+   ============================================================
+   ארבעה שלבים, ומצב אחד שמכתיב הכל. הבלוקים הקיימים לא
+   שוכתבו — הם רק נחשפים לפי השלב, ולכן החשיפה ההדרגתית של
+   השדות ממשיכה לעבוד בתוכם בדיוק כמו קודם.
+
+   1 התקנה · 2 פרטים · 3 דרך הלימוד · 4 התראות.
+
+   ההתקנה ראשונה **בשני סוגי המכשירים**. באייפון אין ברירה —
+   שם לאפליקציה שנוספה למסך הבית יש אחסון נפרד, וההרשמה
+   שנעשתה בדפדפן פשוט אינה שם. באנדרואיד זו בחירה: מסע אחיד
+   לכולם, ואפליקציה על הטלפון במקום כוונה טובה.
+
+   יש דלת למי שבאמת לא מצליח, והיא **אומרת את המחיר**. מסלול
+   נוח ששותק על המחיר הוא המסלול שכולם יבחרו, וזה כבר קרה
+   כאן פעם אחת. */
+/* הדגל נשמר במכשיר: האייקון פותח את `start_url` שבמניפסט,
+   ובו אין `?wiz=1` — כלומר בלי השמירה הזו המסע היה נגמר בדיוק
+   ברגע שחוזרים מההתקנה. ביום שזו תהיה ברירת המחדל, הדגל פשוט
+   יהיה חסר משמעות. */
+var WZ_ON = /[?&]wiz=1\b/.test(location.search);
+try {
+  if (WZ_ON) localStorage.setItem('df:wiz', '1');
+  else if (localStorage.getItem('df:wiz') === '1') WZ_ON = true;
+  if (/[?&]wiz=0\b/.test(location.search)) {
+    WZ_ON = false; localStorage.removeItem('df:wiz');
+  }
+} catch (e) {}
+var wzStep = 0, wzSkipped = false;
+
+function jt(k) { return (JOIN && JOIN[k]) || ''; }
+
+/* השלב שבו צריך להיות עכשיו — לפי המצב במכשיר ולא לפי זיכרון.
+   מי שחזר אחרי שהתקין ממשיך מהמקום הנכון בלי ללחוץ דבר. */
+function wzWhere() {
+  if (!appInstalled() && !wzSkipped) return 1;
+  if (!get('me', null)) return 2;
+  return 4;
+}
+function wzGo(n) { wzStep = n; wzDraw(); }
+
+function wzStart() {
+  if (document.body.className.indexOf(' wz ') < 0) document.body.className += ' wz ';
+  wzGo(wzWhere());
+  window.scrollTo(0, 0);
+}
+
+function wzRow(t) {
+  return '<div class="wzdone"><b>✓</b><span>' + esc(t) + '</span></div>';
+}
+function wzMeter(n) {
+  var h = '<div class="wzbar">', i;
+  for (i = 1; i <= 4; i++) {
+    h += '<i class="' + (i < n ? 'did' : (i === n ? 'on' : '')) + '"></i>';
+  }
+  return h + '</div>';
+}
+function wzHead(n, title, body) {
+  return '<div class="wzhead"><div class="kick">שלב ' + n + ' מתוך 4</div>' +
+    '<h2>' + esc(title) + '</h2>' +
+    (body ? '<p>' + esc(body) + '</p>' : '') + '</div>';
+}
+
+function wzDraw() {
+  var b = document.body.className.replace(/ ?wz-\w+/g, '');
+  document.body.className = b;
+  var e = $('wz'); if (!e) return;
+
+  var h = wzMeter(wzStep);
+  /* מה שנגמר נשאר על המסך. זו ההוכחה שהתקדמת, וזה מה שגורם
+     לרצות לסיים. */
+  if (wzStep > 1) h += wzRow(wzSkipped ? 'ממשיכים בלי התקנה' : jt('wzInstS'));
+  if (wzStep > 2) h += wzRow(jt('wzDetS'));
+  if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
+
+  if (wzStep === 1) {
+    h += wzHead(1, jt('wzInstT'), jt('wzInstB'));
+    h += wzInstall();
+  } else if (wzStep === 2) {
+    document.body.className += ' wz-det';
+    h += wzHead(2, jt('wzDetT'), jt('wzDetB'));
+  } else if (wzStep === 3) {
+    document.body.className += ' wz-ways';
+    h += wzHead(3, jt('wzWayT'), jt('wzWayB'));
+  } else {
+    h += wzNote();
+  }
+
+  e.innerHTML = h;
+  wzWire();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- שלב 1 ---------- */
+function wzInstall() {
+  if (inApp()) {
+    return '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
+      'מכאן אי אפשר להוסיף למסך הבית. ' +
+      (isIOS()
+        ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי" — ומשם נמשיך.'
+        : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן" — ומשם נמשיך.') +
+      '</div><button class="wznext" id="wz-copy">העתקת הקישור</button>';
+  }
+  /* הותקנה, ואנחנו עדיין בדפדפן — באייפון זה המצב שנתקעים בו
+     בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
+  if (appWasAdded() && !appInstalled()) {
+    return '<div class="how">האפליקציה כבר נוספה. <b>פתחו את האייקון ' +
+      'הזה</b> מהמסך של הטלפון, ומשם נמשיך.</div>' + appIcon();
+  }
+  var h = (bip
+    ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
+      '<p class="note" style="text-align:start">ייפתח חלון של הטלפון — ' +
+      'לוחצים "התקן". לוקח שנייה.</p>'
+    : appHowList());
+  return h + wzCalm() +
+    '<button class="thin" id="wz-skip">' + esc(jt('wzSkip')) + '<br>' +
+    '<i style="font-weight:600">' + esc(jt('wzSkipB')) + '</i></button>';
+}
+
+/* ---------- שלב 4 ---------- */
+function wzNote() {
+  if (noteDone() && notePerm() === 'granted') {
+    return wzRow(jt('wzNoteS')) +
+      '<div class="wzhead"><h2>' + esc(jt('wzFinT')) + '</h2>' +
+      '<p>' + esc(jt('wzFinB')) + '</p></div>';
+  }
+  if (!canNote() || notePerm() === 'denied') {
+    return '<div class="wzhead"><div class="kick">שלב 4 מתוך 4</div>' +
+      '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
+      '<p>ההתראות חסומות במכשיר הזה. אפשר לפתוח אותן ' +
+      (isIOS() ? 'ב<b>הגדרות ← הדף השבועי ← התראות</b>'
+               : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>') +
+      ' — ואפשר גם להמשיך בלי. הדף מחכה לך למטה בכל מקרה.</p></div>' +
+      '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
+  }
+  return wzHead(4, jt('wzNoteT'), jt('wzNoteB')) +
+    '<button class="wznext" id="wz-note"' + (appBusy ? ' disabled' : '') + '>' +
+    (appBusy ? 'רגע…' : esc(jt('wzNoteBtn'))) + '</button>' +
+    (appErr ? '<div class="how warn">' + esc(appErr) + '</div>' : '') +
+    '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
+}
+
+/* מה שמפחיד, נאמר לפני שמבקשים ולא אחרי. */
+function wzCalm() {
+  return '<div class="calm"><b>' + esc(jt('wzCalmQ1')) + '</b><br>' +
+    esc(jt('wzCalmA1')) + '<br><b>' + esc(jt('wzCalmQ2')) + '</b> ' +
+    esc(jt('wzCalmA2')) +
+    (isIOS()
+      ? '<br><b>למה דווקא ממסך הבית?</b> באייפון התראות עובדות רק ' +
+        'ככה. זו מגבלה של אפל, ואין מה לעשות בקוד.'
+      : '') + '</div>';
+}
+
+function wzWire() {
+  var b;
+  if ((b = $('wz-inst'))) b.onclick = function () {
+    var p = bip; if (!p) return;
+    p.prompt();
+    var back = function (r) {
+      if (r && r.outcome === 'accepted') { bip = null; appMark(); }
+      wzGo(wzWhere());
+    };
+    if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
+    else back();
+  };
+  if ((b = $('wz-skip'))) b.onclick = function () { wzSkipped = true; wzGo(2); };
+  if ((b = $('wz-next'))) {
+    b.textContent = jt('wzDetBtn');
+    b.onclick = function () { if (wzDetOk()) wzGo(3); };
+  }
+  if ((b = $('wz-copy'))) b.onclick = function () {
+    var t = $('wz-copy');
+    var done = function () { t.textContent = 'הקישור הועתק ✓'; };
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(location.href).then(done)['catch'](function () {
+        t.textContent = 'לא הצלחתי להעתיק';
+      });
+    else t.textContent = 'לא הצלחתי להעתיק';
+  };
+  if ((b = $('wz-note'))) b.onclick = appAskNote;
+  if ((b = $('wz-nonote'))) b.onclick = function () {
+    $('wz').innerHTML = '';
+    document.body.className = document.body.className.replace(/ ?wz\b/g, '');
+  };
+}
+
+/* אותם תנאים בדיוק של השליחה, ולא העתק שלהם: תנאי שמתפצל
+   לשני מקומות מתפצל גם בהתנהגות ביום שמישהו מתקן אחד מהם. */
+function wzDetOk() {
+  var e = $('wz-err');
+  var no = function (m) { if (e) e.textContent = m; return false; };
+  if (e) e.textContent = '';
+  var code = instRow ? instRow.code : val('inst');
+  if (!val('first') || !val('last')) return no('צריך שם פרטי ושם משפחה.');
+  if (!code) return no('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
+                       'יש "אחר" בסוף הרשימה.');
+  if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
+    return no(role === 'dad'
+      ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
+      : 'צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
+  return true;
+}
+
 function showDone(me) {
   var pe = $('pre');
   if (pe) { pe.className = 'wrap'; pe.innerHTML = ''; }
+  /* במסע ההתראות הן שלב 4 ויושבות במד למעלה. הכרטיס הישן
+     שבתוך מסך הסיום היה אומר את אותו דבר פעם שנייה. */
+  if (WZ_ON) {
+    var g = $('getapp'); if (g) g.innerHTML = '';
+    setTimeout(function () {
+      if (document.body.className.indexOf('wz') < 0) {
+        document.body.className += ' wz';
+      }
+      wzGo(4);
+    }, 0);
+  }
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
@@ -2466,7 +2772,12 @@ function toForm(smooth) {
   f.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block:'center' });
   setTimeout(function () { try { f.focus(); } catch (e) {} }, smooth ? 420 : 120);
 }
-$('hero-go').onclick = function () { toForm(true); };
+/* במסע הכפתור אינו גולל אלא **מתחיל**. גלילה אינה התקדמות:
+   התלמיד נשאר באותו עמוד ארוך ואינו יודע איפה הוא. */
+$('hero-go').onclick = function () {
+  if (WZ_ON) { wzStart(); return; }
+  toForm(true);
+};
 
 /* `?go=1` — מי שבא מההדגמה. הוא כבר ראה את הדף עובד ולחץ
    "להצטרפות", ולכן מסך הפתיחה כבר עשה את שלו: נוחתים ישר
@@ -2488,8 +2799,19 @@ if ('serviceWorker' in navigator) {
 }
 
 (function () {
+  /* המסע הוא הדרך בעמוד הזה — ולכן הטופס יורד מהמסך כבר
+     עכשיו, לא רק אחרי הלחיצה. */
+  if (WZ_ON) document.body.className += ' wzon';
+
   var me = get('me', null);
   if (me && me.first) showDone(me);
+  /* במסע אין מסך ההתקנה הנפרד של האייפון — ההתקנה היא שלב 1
+     של המסע עצמו, בשני סוגי המכשירים. */
+  else if (WZ_ON) {
+    /* מי שכבר התקין ממשיך מהמקום הנכון בלי ללחוץ שוב על
+       "אני מצטרף" — הוא כבר לחץ, בביקור הקודם. */
+    if (appInstalled()) wzStart();
+  }
   else if (preNeeded()) showPre();
   flush();
   /* מהמטמון מיד, ומהגיליון אחר כך. מסך שנפתח בלי רשת נראה כמו
