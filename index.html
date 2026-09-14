@@ -1584,7 +1584,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.30.1';
+var APP_VERSION = '8.31.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1694,7 +1694,16 @@ function contentFor(id) {
 }
 /* עטיפות בלי ארגומנטים — stage.js אינו מכיר את המסלול הנוכחי
    ואינו צריך להכיר. */
-function openWeekNow()  { openWeek(homeTrack, weekOf(trackById(homeTrack))); }
+/* **הכפתור הגדול בבאנר מוביל ישר לדף האינטראקטיבי.** הוא
+   הוביל עד עכשיו למסך השבוע — שהוא תחנה, ומי שלחץ "פתיחת
+   הדף" ציפה לדף. תחנה בדרך אל מה שביקשו היא מקום לנשור בו. */
+function openWeekNow() {
+  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
+  if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
+  location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
+                  '&daf=' + encodeURIComponent(d);
+}
 function openTrackNow() { openTrack(homeTrack); }
 
 function pickTrack(id) {

@@ -619,15 +619,28 @@ body.wz .label{font-size:.9rem}
 body.wz input[type=text],body.wz input[type=tel],body.wz select{
   padding:15px;font-size:1.02rem}
 
-.calm{margin-top:20px;background:var(--sunk);border-radius:12px;
-  padding:15px 17px;font-size:.88rem;font-weight:600;color:var(--ink-2);
-  line-height:1.8}
-.calm b{color:var(--ink)}
 
 /* ---------- המסע: שלב אחד על המסך ----------
    הכרטיס הזה אינו הצעה אלא השלב האחרון של ההרשמה, ולכן הוא
    נראה כמו שלב: מספר, כותרת, ופעולה אחת. מה שנגמר מתכווץ
    לשורה ירוקה, ומה שעוד לא הגיע אינו מוצג. */
+/* ---------- חלון ההדגמה ----------
+   אותן מידות של עמוד הצוות: שם הן נבדקו ועבדו. */
+.demo{position:relative;border-radius:var(--r);overflow:hidden;
+  box-shadow:0 16px 38px rgba(11,37,80,.3);margin:16px 0 4px;
+  max-height:520px;transition:max-height .5s cubic-bezier(.4,0,.2,1),
+    opacity .4s ease,margin .5s ease,box-shadow .4s ease}
+.demo .df{display:block;width:100%;height:470px;border:0}
+@media (min-height:780px){ .demo .df{height:520px} }
+.demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
+/* ההתכווצות. `max-height` ולא `height`, כדי שהחלון ייסגר
+   מעצמו בלי שנדע מראש כמה הוא גבוה. */
+.demo.shut{max-height:0;opacity:0;margin:0;box-shadow:none}
+/* הבאנר עולה במקומה, ולא קופץ. */
+#wk0{transition:opacity .45s ease}
+#wk0.rise{animation:wkRise .5s cubic-bezier(.2,.8,.25,1) both}
+@keyframes wkRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
 .getapp{text-align:right}
 .getapp .kick{font-size:.72rem;font-weight:800;color:var(--gold-t);
   letter-spacing:.04em;margin-bottom:5px}
@@ -724,6 +737,25 @@ footer a{color:var(--ink-2);font-weight:800}
          שמתחיל לגלול בתוכו כבר עסוק במשהו אחר — ההצטרפות
          היא הדבר היחיד שצריך להיות ברור לפני הכל. -->
     <button class="go" id="hero-go"></button>
+
+    <!-- ============================================================
+         ההדגמה, ואחריה הבאנר במקומה.
+         ============================================================
+         התלמיד רואה את הדף **פועל** לפני שהוא רואה תמונה שלו.
+         שלוש שורות שמספרות על הדף מבטיחות; הדגמה שרצה מראה.
+
+         וכשהיא נגמרת היא מתכווצת ונעלמת, והבאנר עולה בדיוק
+         במקומה — כלומר העמוד אינו קופץ, והמקום שהוקדש להדגמה
+         נמסר למה שבא אחריה.
+
+         כפתור ההצטרפות נשאר מעליהם תמיד: זו הפעולה, והיא אינה
+         תלויה בשאלה אם ההדגמה רצה, נגמרה, או לא נטענה בכלל. -->
+    <div class="demo" id="jdemo" hidden>
+      <iframe class="df" id="jdemo-frame" title="הדגמה" scrolling="no"></iframe>
+      <!-- שכבה שקופה מעל הכול: נגיעה פותחת את הדף האמיתי, ולא
+           כפתור זעיר שבתוכו. -->
+      <div class="dtap" id="jdemo-tap"></div>
+    </div>
 
     <!-- ואחריו הבאנר, ולא רק אחרי ההרשמה.
          שלושה כרטיסי טקסט שמספרים על הדף אינם מה שמשכנע: הם
@@ -1265,7 +1297,13 @@ function drawTop() {
   if (pub.weekRaffle) cards += card('gold', '🎲', JOIN.wkTag, JOIN.wkBody);
   if (pub.raffle)     cards += card('gold', '🎁', JOIN.jnTag,
                             JOIN.rfPrize || JOIN.jnBody);
-  if (CV_ROWS())      cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
+  /* **"הדף כמו שלא ראית" — לאב בלבד.** התלמיד רואה את הדף
+     עצמו בבאנר שמעליו, ושני משפטים שמסבירים אותו הם עוד מלל
+     על מסך שכבר עמוס. האב הגיע מהזמנה של בנו ולא ראה כלום —
+     אצלו הכרטיס הוא מה שאומר מה זה. */
+  if (CV_ROWS() && qs('rel') === 'dad') {
+    cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
+  }
   $('cards').innerHTML = cards;
   $('hero-go').textContent = JOIN.goBtn + ' ←';
 
@@ -1276,6 +1314,9 @@ function drawTop() {
   pt.textContent = JOIN.pitch || '';
   pt.style.display = JOIN.pitch ? '' : 'none';
   drawHero();
+  /* אחרי שהבאנר קיים — ההדגמה מתחילה ומסתירה אותו עד שתיגמר.
+     הסדר הזה חשוב: היא צריכה לדעת איזה דף מדובר. */
+  jdemoStart();
 
   /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
      הגרלה שהובטחה לתלמידים ובוטלה גרועה מאין הגרלה כלל. */
@@ -2016,9 +2057,94 @@ function appUrl(hash) {
   return 'index.html?st=1' +
          (code ? '&inst=' + encodeURIComponent(code) : '') + (hash || '');
 }
+/* ============================================================
+   ההדגמה במסך התלמיד.
+   ============================================================
+   אותו חלון בדיוק של עמוד הצוות, ואותו דף אינטראקטיבי שרץ
+   בתוכו — `learn.html?demo=1&embed=1`. מה שנוסף כאן הוא
+   **המסירה**: כשההדגמה מודיעה שנגמרה, החלון מתכווץ ונעלם,
+   והבאנר עולה בדיוק במקומה.
+
+   הבאנר מוסתר עד אז ולא נמחק: הוא נבנה מ-stage.js בזמן
+   הציור, ומחיקה והרכבה מחדש הייתה שני מקורות לאותו דבר.
+
+   **ואם ההדגמה אינה נטענת — הבאנר פשוט שם מההתחלה.** אין דף
+   לשבוע, אין רשת, עריכת מלל: בכל אחד מהם המסך נראה כמו שהיה
+   לפני שנגענו בו. הדגמה היא תוספת, לא תנאי. */
+var jdemoOn = false;
+
+function jdemoStart() {
+  var box = $('jdemo'), f = $('jdemo-frame'), wk = $('wk0');
+  if (!box || !f || f.src) return;              /* פעם אחת */
+  /* במצב עריכת מלל אין הדגמה: היא אינה נושאת מלל שנערך,
+     והחלון רק היה גונב את המקום ממה שכן. */
+  if (/[?&]tedit=1/.test(location.search)) return;
+  var tr = myTrack(), wi = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d = (typeof LDaf === 'function') ? LDaf(tr, wi < 0 ? 0 : wi) : '';
+  if (!d) return;                               /* אין מה להדגים */
+
+  jdemoOn = true;
+  if (wk) wk.style.display = 'none';
+  box.hidden = false;
+  f.src = 'learn.html?mas=' + encodeURIComponent(tr) +
+          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
+          (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+
+  window.addEventListener('message', function (e) {
+    if (e.data === 'daf-demo-done') jdemoDone();
+  });
+
+  /* נגיעה בחלון פותחת את הדף האמיתי. גרירה אינה נגיעה — אצבע
+     שגוללת עוברת מעל החלון, וסף של כמה פיקסלים מפריד ביניהן. */
+  var tap = $('jdemo-tap'), dr = null;
+  if (!tap) return;
+  tap.addEventListener('pointerdown', function (e) {
+    dr = { x:e.clientX, y:e.clientY, m:0 };
+  });
+  tap.addEventListener('pointermove', function (e) {
+    if (dr) dr.m = Math.max(dr.m, Math.abs(e.clientX - dr.x) +
+                                  Math.abs(e.clientY - dr.y));
+  });
+  tap.addEventListener('pointerup', function () {
+    var d2 = dr; dr = null;
+    if (d2 && d2.m < 8) stWeek();
+  });
+  tap.addEventListener('pointercancel', function () { dr = null; });
+}
+
+/* המסירה. החלון מתכווץ, ורק אחרי שהסתיים המעבר הוא מוסר את
+   מקומו — אחרת שניהם היו על המסך יחד לרגע, והעמוד היה קופץ. */
+function jdemoDone() {
+  if (!jdemoOn) return;
+  jdemoOn = false;
+  var box = $('jdemo'), wk = $('wk0');
+  if (!box) return;
+  box.className = 'demo shut';
+  setTimeout(function () {
+    box.hidden = true;
+    var f = $('jdemo-frame');
+    if (f) f.src = 'about:blank';          /* לא משאירים דף שרץ ברקע */
+    if (wk) {
+      wk.style.display = '';
+      wk.className = 'rise';
+      setTimeout(function () { wk.className = ''; }, 600);
+    }
+  }, 520);
+}
+
+/* **הכפתור הגדול בבאנר מוביל ישר לדף האינטראקטיבי.** הוא
+   הוביל עד עכשיו למסך השבוע — שהוא תחנה, ומי שלחץ "פתיחת
+   הדף" ציפה לדף. תחנה בדרך אל מה שביקשו היא מקום לנשור בו. */
 function stWeek() {
-  var wi = LWeek();
-  location.href = appUrl('#week=' + myTrack() + '-' + ((wi < 0 ? 0 : wi) + 1));
+  var wi = LWeek(), tr = myTrack();
+  var d = (typeof LDaf === 'function') ? LDaf(tr, wi < 0 ? 0 : wi) : '';
+  if (!d) {
+    location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1));
+    return;
+  }
+  location.href = 'learn.html?mas=' + encodeURIComponent(tr) +
+                  '&daf=' + encodeURIComponent(d) +
+                  (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 }
 function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {
@@ -2517,7 +2643,10 @@ function wzInstall() {
   /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
      מסומנות נראות כמו הכפתור הראשי של המסך, וזה בדיוק מה
      שהיא לא אמורה להיות. */
-  return h + wzCalm() +
+  /* **תיבת "מה זה מוסיף לטלפון" ירדה.** היא נכתבה כדי להרגיע,
+     והיא עשתה את ההפך: תלמיד שרואה קיר של מלל בשלב הראשון
+     נבהל וסוגר. מה שנשאר הוא ההוראות עצמן. */
+  return h +
     '<button class="thin" id="wz-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
     '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';
 }
@@ -2544,15 +2673,6 @@ function wzNote() {
     '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
 }
 
-/* שתי שורות, ולא שלוש. הייתה כאן גם שורה על מגבלה של אפל
-   ועל מה אפשר לעשות בקוד — הסבר טכני שנכון, ושאיש מהקוראים
-   לא שאל עליו. תלמיד שקורא "קוד" יודע רק דבר אחד: זה לא
-   בשבילו. */
-function wzCalm() {
-  return '<div class="calm"><b>' + esc(jt('wzCalmQ1')) + '</b><br>' +
-    esc(jt('wzCalmA1')) + '<br><b>' + esc(jt('wzCalmQ2')) + '</b> ' +
-    esc(jt('wzCalmA2')) + '</div>';
-}
 
 function wzWire() {
   var b;
