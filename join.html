@@ -546,16 +546,18 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
    ------------------------------------------------------------ */
 /* שני מצבים ולא אחד: `wzon` אומר שהמסע הוא הדרך בעמוד הזה,
    ו-`wz` שהוא כבר התחיל. בלי ההפרדה הטופס היה יושב גלוי
-   מתחת לנחיתה עוד לפני שנלחץ "אני מצטרף" — כלומר בדיוק
-   הגלילה הארוכה שבאנו להחליף. */
+   מתחת לנחיתה עוד לפני שנלחץ "אני מצטרף".
+
+   **המידות כאן הן של עמוד הבדיקה ולא של הטופס הישן.** שם הן
+   נבדקו מול אנשים ועבדו; כאן הן ירשו את הסגנון של טופס שנועד
+   להיסרק ולא להיקרא, ויצאו קטנות וצפופות. 16 פיקסל, שורה
+   נושמת, וכרטיס אחד לכל שלב. */
 #wz{display:none}
 body.wz #wz{display:block}
 body.wzon #s-det,body.wzon #s-ways{display:none}
 /* במסע — הנחיתה ירדה. היא מה שמשכנע, ותפקידה נגמר בלחיצה. */
 body.wz #s-land{display:none}
-/* הכותרת נאמרת פעם אחת — בראש השלב. הכרטיסים שמתחת נושאים
-   כותרת משלהם מהתקופה שבה כולם ישבו יחד בגלילה אחת, ובמסע
-   היא אותה כותרת פעמיים זו מתחת לזו. */
+/* הכותרת נאמרת פעם אחת — בראש הכרטיס. */
 body.wz #c-who > h2,body.wz #c-who > p.h,
 body.wz #c-ways > h2,body.wz #c-ways > p.h{display:none}
 body.wz-det #s-det{display:block}
@@ -565,30 +567,61 @@ body.wz-det #s-det{display:block}
 body.wz-det #wz-next{display:block}
 body.wz-ways #s-ways{display:block}
 
-.wzbar{display:flex;align-items:center;gap:6px;justify-content:center;
-  margin:4px 0 18px}
-.wzbar i{flex:1 1 0;max-width:46px;height:5px;border-radius:3px;
-  background:var(--rule)}
+body.wz{font-size:16px;line-height:1.7}
+
+.wzbar{display:flex;align-items:center;gap:7px;justify-content:center;
+  margin:2px 0 20px}
+.wzbar i{width:34px;height:5px;border-radius:3px;background:var(--rule)}
 .wzbar i.on{background:var(--gold)}
 .wzbar i.did{background:var(--green)}
+
 /* שורת שלב שנגמר. היא אינה נעלמת — היא ההוכחה שהתקדמת. */
-.wzdone{display:flex;align-items:center;gap:9px;margin-bottom:9px;
-  padding:11px 14px;background:rgba(74,130,28,.09);
-  border:1px solid rgba(74,130,28,.28);border-radius:var(--r-s);
-  font-size:.87rem;font-weight:800;color:var(--green-2)}
-.wzdone b{font-size:1rem}
-.wznext{display:block;width:100%;margin-top:16px;padding:15px;border:0;
-  border-radius:14px;background:var(--blue);color:#fff;font-family:inherit;
-  font-weight:800;font-size:1.02rem;cursor:pointer}
-.wzhead{margin-bottom:14px}
-.wzhead .kick{font-size:.73rem;font-weight:800;color:var(--gold-t);
-  letter-spacing:.04em;margin-bottom:5px}
-.wzhead h2{font-size:1.2rem;font-weight:800;letter-spacing:-.025em}
-.wzhead p{font-size:.92rem;font-weight:600;color:var(--ink-2);
-  margin-top:7px;line-height:1.7}
-.calm{margin-top:18px;background:var(--sunk);border-radius:var(--r-s);
-  padding:14px 16px;font-size:.85rem;font-weight:600;color:var(--ink-2);
-  line-height:1.75}
+.wzdone{display:flex;align-items:center;gap:10px;padding:13px 18px;
+  margin-bottom:10px;background:rgba(74,130,28,.09);
+  border:1px solid rgba(74,130,28,.3);border-radius:12px;
+  font-size:.92rem;font-weight:700;color:var(--green-2)}
+.wzdone b{font-size:1.05rem}
+
+/* כרטיס השלב — אותן מידות בדיוק של עמוד הבדיקה. */
+.wzcard,body.wz #c-who,body.wz #c-ways,body.wz #dad{
+  background:var(--surface);border:2px solid var(--gold);
+  border-radius:16px;padding:24px 22px 26px;margin-bottom:14px;
+  box-shadow:0 8px 26px rgba(11,37,80,.12)}
+body.wz #dad{border:1px solid var(--rule);
+  box-shadow:0 4px 16px rgba(11,37,80,.07)}
+.wzkick{font-size:.78rem;font-weight:800;color:var(--gold);
+  letter-spacing:.04em;margin-bottom:7px}
+.wzcard h2,.wzin h2{margin:0;font-size:1.16rem;font-weight:800;
+  letter-spacing:-.02em;line-height:1.45}
+.wzcard > p,.wzin > p{margin:11px 0 0;font-size:.95rem;
+  color:var(--ink-2);line-height:1.75;font-weight:600}
+.wzin{margin-bottom:6px}
+/* הווי הירוק של הסיום, כמו בעמוד הבדיקה. */
+.v-ok{width:64px;height:64px;border-radius:50%;background:var(--green-d);
+  color:#fff;font-size:2rem;line-height:64px;margin:0 auto 16px;
+  font-weight:800;text-align:center}
+.wzcard.fin{text-align:center}
+
+.wznext,body.wz #go{display:block;width:100%;margin-top:20px;padding:16px;
+  border:0;border-radius:12px;background:var(--blue);color:#fff;
+  font-family:inherit;font-weight:800;font-size:1.02rem;cursor:pointer}
+body.wz #go{background:var(--green-d)}
+.wzcard .thin,body.wz .thin{display:block;width:100%;margin-top:10px;
+  padding:12px 6px;border:0;background:none;color:var(--ink-2);
+  font-family:inherit;font-size:.9rem;font-weight:700;
+  text-decoration:underline;cursor:pointer;line-height:1.6}
+.wzcard .thin u{text-decoration:underline}
+.wzcard .thin .why{display:block;margin-top:5px;font-size:.82rem;
+  font-weight:600;color:var(--ink-3);text-decoration:none;line-height:1.6}
+
+/* השדות בתוך הכרטיס — גם הם בנשימה של עמוד הבדיקה. */
+body.wz .label{font-size:.9rem}
+body.wz input[type=text],body.wz input[type=tel],body.wz select{
+  padding:15px;font-size:1.02rem}
+
+.calm{margin-top:20px;background:var(--sunk);border-radius:12px;
+  padding:15px 17px;font-size:.88rem;font-weight:600;color:var(--ink-2);
+  line-height:1.8}
 .calm b{color:var(--ink)}
 
 /* ---------- המסע: שלב אחד על המסך ----------
@@ -599,19 +632,19 @@ body.wz-ways #s-ways{display:block}
 .getapp .kick{font-size:.72rem;font-weight:800;color:var(--gold-t);
   letter-spacing:.04em;margin-bottom:5px}
 .getapp .cen{text-align:center}
-.gsteps{margin:13px 0 0;padding:0;list-style:none;counter-reset:gs}
-.gsteps li{counter-increment:gs;position:relative;padding-inline-start:34px;
-  margin-bottom:13px;font-size:.88rem;font-weight:600;line-height:1.8;
+.gsteps{margin:20px 0 0;padding:0;list-style:none;counter-reset:gs}
+.gsteps li{counter-increment:gs;position:relative;padding-inline-start:38px;
+  margin-bottom:16px;font-size:.97rem;font-weight:600;line-height:1.8;
   color:var(--ink)}
 .gsteps li:last-child{margin-bottom:0}
-.gsteps li::before{content:counter(gs);position:absolute;inset-inline-start:0;top:2px;
-  width:23px;height:23px;border-radius:50%;background:var(--blue);
-  color:#fff;font-size:.75rem;font-weight:800;display:flex;
+.gsteps li::before{content:counter(gs);position:absolute;inset-inline-start:0;top:3px;
+  width:26px;height:26px;border-radius:50%;background:var(--blue);
+  color:#fff;font-size:.82rem;font-weight:800;display:flex;
   align-items:center;justify-content:center}
 .gl{display:inline-flex;align-items:center;justify-content:center;
-  width:27px;height:27px;border-radius:7px;background:var(--sunk);
-  border:1px solid var(--rule);vertical-align:-8px;margin:0 3px}
-.gl svg{width:15px;height:15px;fill:none;stroke:var(--blue);
+  width:30px;height:30px;border-radius:8px;background:var(--sunk);
+  border:1px solid var(--rule);vertical-align:-9px;margin:0 4px}
+.gl svg{width:17px;height:17px;fill:none;stroke:var(--blue);
   stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .gdone{display:flex;align-items:center;gap:8px;margin-top:10px;
   padding:9px 12px;background:rgba(74,130,28,.1);
@@ -736,6 +769,9 @@ footer a{color:var(--ink-2);font-weight:800}
   </div>
 
   <div class="card stg" id="c-who">
+    <!-- כותרת השלב נכנסת לכאן, לתוך הכרטיס. כשהיא ישבה מעליו
+         היו שני מלבנים לשלב אחד — וזה בדיוק ה"ערבוב". -->
+    <div class="wzin" id="h-det"></div>
     <h2 id="who-h"></h2>
     <p class="h" id="who-sub"></p>
     <div class="fld"><label class="label" for="first">שם פרטי</label>
@@ -782,6 +818,7 @@ footer a{color:var(--ink-2);font-weight:800}
 
   <div id="s-ways">
   <div class="card stg" id="c-ways">
+    <div class="wzin" id="h-ways"></div>
     <h2 id="ways-h">איך אתה לומד?</h2>
     <p class="h">אפשר לשנות בכל שלב.</p>
     <div class="ways" id="ways"></div>
@@ -2537,18 +2574,17 @@ function showPre() {
    יש דלת למי שבאמת לא מצליח, והיא **אומרת את המחיר**. מסלול
    נוח ששותק על המחיר הוא המסלול שכולם יבחרו, וזה כבר קרה
    כאן פעם אחת. */
-/* הדגל נשמר במכשיר: האייקון פותח את `start_url` שבמניפסט,
-   ובו אין `?wiz=1` — כלומר בלי השמירה הזו המסע היה נגמר בדיוק
-   ברגע שחוזרים מההתקנה. ביום שזו תהיה ברירת המחדל, הדגל פשוט
-   יהיה חסר משמעות. */
-var WZ_ON = /[?&]wiz=1\b/.test(location.search);
-try {
-  if (WZ_ON) localStorage.setItem('df:wiz', '1');
-  else if (localStorage.getItem('df:wiz') === '1') WZ_ON = true;
-  if (/[?&]wiz=0\b/.test(location.search)) {
-    WZ_ON = false; localStorage.removeItem('df:wiz');
-  }
-} catch (e) {}
+/* **המסע הוא הדרך, ולא דגל.**
+
+   הוא היה מאחורי `?wiz=1` להצצה, וזה נשבר בדיוק במקום שבו
+   נשברו כל השאר: האייקון באייפון פותח את `start_url` שבמניפסט,
+   שאין בו את הדגל — והאחסון הנפרד שם גם לא זכר אותו. התלמיד
+   התקין, פתח את האייקון, ונחת בעמוד הישן בלי שום שלב. "חזרתי
+   אחורה", בדיוק.
+
+   `?wiz=0` נשאר כדלת חירום: אם משהו יתגלה בשטח, אפשר להפיץ
+   קישור אחד ולחזור לעמוד הישן בלי דחיפה. */
+var WZ_ON = !/[?&]wiz=0\b/.test(location.search);
 var wzStep = 0, wzSkipped = false;
 
 function jt(k) { return (JOIN && JOIN[k]) || ''; }
@@ -2579,9 +2615,9 @@ function wzMeter(n) {
   return h + '</div>';
 }
 function wzHead(n, title, body) {
-  return '<div class="wzhead"><div class="kick">שלב ' + n + ' מתוך 4</div>' +
+  return '<div class="wzkick">שלב ' + n + ' מתוך 4</div>' +
     '<h2>' + esc(title) + '</h2>' +
-    (body ? '<p>' + esc(body) + '</p>' : '') + '</div>';
+    (body ? '<p>' + esc(body) + '</p>' : '');
 }
 
 function wzDraw() {
@@ -2596,20 +2632,27 @@ function wzDraw() {
   if (wzStep > 2) h += wzRow(jt('wzDetS'));
   if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
 
+  /* שלבים 1 ו-4 הם כרטיס של המסע עצמו. שלבים 2 ו-3 נכנסים
+     לתוך הכרטיסים שכבר קיימים — כותרת אחת בתוך מלבן אחד. */
+  var det = '', ways = '';
   if (wzStep === 1) {
-    h += wzHead(1, jt('wzInstT'), jt('wzInstB'));
-    h += wzInstall();
+    h += '<div class="wzcard">' + wzHead(1, jt('wzInstT'), jt('wzInstB')) +
+         wzInstall() + '</div>';
   } else if (wzStep === 2) {
     document.body.className += ' wz-det';
-    h += wzHead(2, jt('wzDetT'), jt('wzDetB'));
+    det = wzHead(2, jt('wzDetT'), jt('wzDetB'));
   } else if (wzStep === 3) {
     document.body.className += ' wz-ways';
-    h += wzHead(3, jt('wzWayT'), jt('wzWayB'));
+    ways = wzHead(3, jt('wzWayT'), jt('wzWayB'));
   } else {
-    h += wzNote();
+    var fin = noteDone() && notePerm() === 'granted';
+    if (fin) h += wzRow(jt('wzNoteS'));
+    h += '<div class="wzcard' + (fin ? ' fin' : '') + '">' + wzNote() + '</div>';
   }
 
   e.innerHTML = h;
+  if ($('h-det'))  $('h-det').innerHTML = det;
+  if ($('h-ways')) $('h-ways').innerHTML = ways;
   wzWire();
   window.scrollTo(0, 0);
 }
@@ -2635,25 +2678,27 @@ function wzInstall() {
       '<p class="note" style="text-align:start">ייפתח חלון של הטלפון — ' +
       'לוחצים "התקן". לוקח שנייה.</p>'
     : appHowList());
+  /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
+     מסומנות נראות כמו הכפתור הראשי של המסך, וזה בדיוק מה
+     שהיא לא אמורה להיות. */
   return h + wzCalm() +
-    '<button class="thin" id="wz-skip">' + esc(jt('wzSkip')) + '<br>' +
-    '<i style="font-weight:600">' + esc(jt('wzSkipB')) + '</i></button>';
+    '<button class="thin" id="wz-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
+    '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';
 }
 
 /* ---------- שלב 4 ---------- */
 function wzNote() {
   if (noteDone() && notePerm() === 'granted') {
-    return wzRow(jt('wzNoteS')) +
-      '<div class="wzhead"><h2>' + esc(jt('wzFinT')) + '</h2>' +
-      '<p>' + esc(jt('wzFinB')) + '</p></div>';
+    return '<div class="v-ok">✓</div><h2>' + esc(jt('wzFinT')) + '</h2>' +
+      '<p>' + esc(jt('wzFinB')) + '</p>';
   }
   if (!canNote() || notePerm() === 'denied') {
-    return '<div class="wzhead"><div class="kick">שלב 4 מתוך 4</div>' +
+    return '<div class="wzkick">שלב 4 מתוך 4</div>' +
       '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
       '<p>ההתראות חסומות במכשיר הזה. אפשר לפתוח אותן ' +
       (isIOS() ? 'ב<b>הגדרות ← הדף השבועי ← התראות</b>'
                : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>') +
-      ' — ואפשר גם להמשיך בלי. הדף מחכה לך למטה בכל מקרה.</p></div>' +
+      ' — ואפשר גם להמשיך בלי. הדף מחכה לך למטה בכל מקרה.</p>' +
       '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
   }
   return wzHead(4, jt('wzNoteT'), jt('wzNoteB')) +
@@ -2663,15 +2708,14 @@ function wzNote() {
     '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
 }
 
-/* מה שמפחיד, נאמר לפני שמבקשים ולא אחרי. */
+/* שתי שורות, ולא שלוש. הייתה כאן גם שורה על מגבלה של אפל
+   ועל מה אפשר לעשות בקוד — הסבר טכני שנכון, ושאיש מהקוראים
+   לא שאל עליו. תלמיד שקורא "קוד" יודע רק דבר אחד: זה לא
+   בשבילו. */
 function wzCalm() {
   return '<div class="calm"><b>' + esc(jt('wzCalmQ1')) + '</b><br>' +
     esc(jt('wzCalmA1')) + '<br><b>' + esc(jt('wzCalmQ2')) + '</b> ' +
-    esc(jt('wzCalmA2')) +
-    (isIOS()
-      ? '<br><b>למה דווקא ממסך הבית?</b> באייפון התראות עובדות רק ' +
-        'ככה. זו מגבלה של אפל, ואין מה לעשות בקוד.'
-      : '') + '</div>';
+    esc(jt('wzCalmA2')) + '</div>';
 }
 
 function wzWire() {
