@@ -225,6 +225,23 @@ footer{text-align:center;color:var(--ink-3);font-size:.76rem;font-weight:700;
   margin-top:22px;line-height:1.9}
 footer b{display:block;color:var(--ink-2)}
 footer a{color:var(--ink-2);font-weight:800}
+
+/* ---------- התלמידים לפי כיתה ----------
+   כותרת כיתה ומספר, ואז השמות. נקודת צבע לצד כל שם באותם
+   שלושה צבעים של הבאנר שלמעלה — הוא כבר ראה אותם, ולכן
+   אינו צריך לחזור למקרא בשביל כל שורה. */
+.clsgrp{display:flex;align-items:center;justify-content:space-between;
+  margin:18px 0 8px;padding-bottom:7px;
+  border-bottom:1px solid var(--rule)}
+.clsgrp:first-of-type{margin-top:10px}
+.clsgrp b{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.clsgrp span{font-size:.82rem;font-weight:800;color:var(--ink-3)}
+.wdot{display:inline-block;width:8px;height:8px;border-radius:50%;
+  margin-inline-end:7px;vertical-align:1px;flex:0 0 auto}
+.legend{display:flex;gap:14px;justify-content:center;margin-top:18px;
+  padding-top:13px;border-top:1px solid var(--rule);
+  font-size:.78rem;font-weight:700;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
@@ -585,6 +602,85 @@ function wayOpenHtml() {
     '<p class="h" style="margin-top:10px">✓ מסמן את מי שסיים את הדף השבוע.</p></div>';
 }
 
+/* ============================================================
+   מי מסתכל — וזה מה שקובע מה מוצג.
+   ============================================================
+   **הגנה, ולא רק התאמה.** ר"ם של כיתה שבה שלושה לומדים,
+   שרואה לצידה כיתה עם עשרים, מקבל בעיקר את המסר שהוא נכשל —
+   וזה מרפה את הידיים דווקא במקום שהכי צריך חיזוק. מי שאישר
+   עדכונים מקבל את הכיתה שלו, ואת מספר הישיבה **בלי פילוח**.
+
+   ומי שלא עבר את התהליך רואה הכול, ובכוונה: שם ההשוואה
+   עובדת לטובה — היא מראה לו שהוא חריג, ודוחפת אותו לרשום
+   את תלמידיו. ההרשמה אינה רק "קבל עדכונים"; היא גם הכניסה
+   למרחב השקט.
+
+   הרשומה נכתבת בעמוד הצוות ונקראת כאן — אותו מקור, אותו
+   מכשיר. אין לה קשר לסיסמת הגישה: היא אינה מרחיבה הרשאה,
+   רק מצמצמת תצוגה. */
+function ramCard() {
+  try {
+    var r = JSON.parse(localStorage.getItem('df:ram') || 'null');
+    if (!r || !r.grade || !r.klass) return null;
+    if (localStorage.getItem('df:ramNote') !== '1') return null;
+    return r;
+  } catch (e) { return null; }
+}
+var mineRam = ramCard();
+function isMine(p) {
+  if (!mineRam) return true;
+  return String(p.grade || '') === mineRam.grade &&
+         String(p.klass || '') === mineRam.klass;
+}
+/* הרשימה שמוצגת בפועל. ראש חטיבה וכל מי שלא נרשם — הכול. */
+function shown() {
+  if (!roster) return [];
+  return mineRam ? roster.filter(isMine) : roster;
+}
+
+/* ============================================================
+   התלמידים לפי כיתה — הגוף של הלוח, לא נספח.
+   ============================================================
+   הצורך של ר"ם אינו "כמה אבות ובנים" אלא **מי**, מסודר לפי
+   כיתה. דרך הלימוד נשארת — אבל כנקודה קטנה לצד השם, באותם
+   שלושה צבעים של הבאנר שלמעלה, ולא כפילוח שמתחרה ברשימה.
+   ============================================================ */
+var WAY_C = { 'לימוד עצמי':'#17468F', 'חבורת לימוד':'#4A821C',
+              'אבות ובנים':'#C08F2B' };
+function wayDot(p) {
+  var c = WAY_C[p.way || ''] || 'var(--rule)';
+  return '<i class="wdot" style="background:' + c + '" title="' +
+         esc(p.way || '') + '"></i>';
+}
+function clsKey(p) {
+  var g = p.grade || 'ללא שכבה';
+  return p.klass ? g + '‎' + p.klass : g;
+}
+function classesHtml() {
+  var list = shown();
+  if (!list.length) return '';
+  var by = {}, ord = [];
+  list.forEach(function (p) {
+    var k = clsKey(p);
+    if (!by[k]) { by[k] = []; ord.push(k); }
+    by[k].push(p);
+  });
+  ord.sort();
+  return '<div class="card"><h2>' +
+    (mineRam ? 'הכיתה שלך' : 'התלמידים לפי כיתה') + '</h2>' +
+    ord.map(function (k) {
+      return '<div class="clsgrp"><b>' + esc(k) + '</b>' +
+        '<span>' + by[k].length + '</span></div>' +
+        by[k].map(function (q) { return pRow(q, true); }).join('');
+    }).join('') +
+    /* מקרא אחד, בתחתית, פעם אחת. */
+    '<div class="legend">' +
+      '<span><i class="wdot" style="background:#17468F"></i>לבד</span>' +
+      '<span><i class="wdot" style="background:#4A821C"></i>חבורה</span>' +
+      '<span><i class="wdot" style="background:#C08F2B"></i>אב ובן</span>' +
+    '</div></div>';
+}
+
 /* כמה מהדף הוא עבר, 0–1. השרת מחזיר `pos` רק לשבוע שלא הושלם,
    ולכן אין כאן סתירה בין הפס לבין הסימון. */
 function frac(p) {
@@ -619,7 +715,7 @@ function pRow(p, noGrade) {
   return '<div class="prow' + (did ? ' did' : (f ? ' mid' : '')) + '">' +
     '<span class="tick">' + (did ? '✓' : '') + '</span>' +
     '<div style="flex:1">' +
-    '<b>' + esc(nm) + '</b>' +
+    '<b>' + wayDot(p) + esc(nm) + '</b>' +
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
@@ -707,8 +803,6 @@ function draw() {
     return;
   }
 
-  var maxG = 0;
-  joined.grades.forEach(function (p) { if (p[1] > maxG) maxG = p[1]; });
   var weekOpen = roster && LWeek() >= 0;
 
   /* המספר שראש חטיבה פותח את הלוח בשבילו, ורק הוא, למעלה.
@@ -716,26 +810,29 @@ function draw() {
   var doneN = roster ? roster.filter(didWeek).length : didWk;
   var totN  = roster ? roster.length : n;
 
+  /* ============================================================
+     הסדר: מספר אחד ← דרכי הלימוד ← התלמידים לפי כיתה.
+     ============================================================
+     **המספר נאמר פעם אחת.** קודם הוא הופיע חמש פעמים במסך
+     אחד — בכותרת, בכרטיס, בשורת המשנה, ושוב בפילוחים —
+     וכל חזרה גורעת ממנו במקום להוסיף.
+
+     "דרכי הלימוד" ו"המספרים של הישיבה שלכם" ירדו ככותרות:
+     שלוש המשבצות עם המספרים והצבעים אומרות את זה בעצמן,
+     וכותרת מעל דבר שמסביר את עצמו היא שורה שקוראים ולא
+     לומדים ממנה.
+
+     "לפי שכבה" ירד: שכבה היא ארבע כיתות, והרשימה שמתחת כבר
+     מסודרת לפי כיתה — כלומר מדויקת יותר ומראה **מי**, לא רק
+     כמה. שני פילוחים לאותו דבר הם שאלה איזה מהם נכון.
+
+     ולר"ם שנרשם אין פילוח בכלל: הוא רואה את המספר הכולל של
+     הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
     heroHtml(daf, doneN, totN, weekOpen) +
-
-    /* שלוש המסגרות, כל אחת עם המספר שלה — וזה מה שראש חטיבה
-       באמת רוצה לדעת: לא כמה בסך הכול, אלא שיש אבות ובנים. */
-    '<div class="card"><h2>דרכי הלימוד</h2>' +
-    '<p class="h">' + (roster ? 'לחיצה על משבצת פותחת את השמות.'
-                              : 'המספרים של הישיבה שלכם.') + '</p>' +
-    tilesHtml() + wayOpenHtml() + keyHtml() + '</div>' +
-
-    (joined.grades.length
-      ? '<div class="card"><h2>לפי שכבה</h2><div class="bars">' +
-        joined.grades.map(function (p) {
-          return '<div class="bar"><span class="k">' + esc(p[0]) + '</span>' +
-            '<span class="t"><i style="width:' +
-            Math.max(6, Math.round(p[1] / maxG * 100)) + '%"></i></span>' +
-            '<span class="n">' + p[1] + '</span></div>';
-        }).join('') + '</div></div>'
-      : '') +
-
+    (mineRam ? '' :
+      '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
+    classesHtml() +
     soonLine();
   wire();
 }
@@ -765,13 +862,15 @@ function heroHtml(daf, done, tot, canOpen) {
       '</div></div>';
   }
   var tag  = canOpen && view === 'week' ? 'סגירה ×' : 'מי ומי ←';
+  /* שורת המשנה אמרה שוב את אותו מספר שכבר נאמר בשורה שמעליה
+     ובטבעת שלצידה. מה שהיא באמת צריכה לומר הוא מה שעוד לא
+     נאמר: שהשמות סגורים בלי קוד. */
   var body =
     '<div style="flex:1">' +
     '<span class="tag">השבוע</span>' +
     '<h3>דף ' + esc(daf) + '</h3>' +
     '<div class="lead"><b>' + done + '</b> מתוך ' + tot + ' סיימו את הדף</div>' +
-    '<div class="sub">' + tot + ' מצטרפים בישיבה' +
-    (canOpen ? '' : ' · השמות נפתחים עם קוד הגישה') + '</div>' +
+    (canOpen ? '' : '<div class="sub">השמות נפתחים עם קוד הגישה</div>') +
     (canOpen ? '<i class="chev">' + tag + '</i>' : '') +
     '</div>' + ringHtml(done, tot);
   return canOpen

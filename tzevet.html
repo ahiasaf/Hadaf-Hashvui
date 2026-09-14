@@ -623,7 +623,15 @@ footer a{color:var(--ink-2);font-weight:800}
     </div>
   </section>
 
-  <section>
+  <!-- **הלוח אינו על דף הנחיתה מלכתחילה.** הר"ם שנכנס רואה
+       מה בנינו, מה לעשות, ובקשה אחת — ותו לא. לוח שיושב שם
+       מראש מפזר את הקשב בדיוק ברגע שבו צריך אותו במקום אחד.
+
+       הוא מגיע בסוף התהליך, והוא מה שמחכה בקצה: מי שאישר
+       עדכונים מקבל לוח **אישי** — הכיתה שלו בלבד; מי שוויתר
+       מקבל את הלוח של הישיבה. בשני המקרים נוסעים אליו
+       בגלילה, ולא קופצים. -->
+  <section id="brd-sec" hidden>
     <p class="peers" id="peers" hidden></p>
 
     <!-- **לוח אחד בלבד.** קודם היו כאן שניים — כרטיס כחול
@@ -1107,6 +1115,61 @@ function backFromDemo() {
    קטנות שמתחרות במספר הגדול. */
 var counts = { n:0 };
 
+/* ============================================================
+   הלוח האישי — הכיתה שלו, ולא הישיבה.
+   ============================================================
+   **זו לא רק התאמה אישית, זו הגנה.** ר"ם של כיתה שבה שלושה
+   לומדים, שרואה לצידה כיתה עם עשרים, מקבל בעיקר את המסר
+   שהוא נכשל — וזה מרפה את הידיים דווקא במקום שהכי צריך
+   חיזוק. מי שאישר עדכונים מקבל מרחב שקט משלו.
+
+   ומי שלא עבר את התהליך רואה את הלוח הכללי, ובכוונה: שם
+   ההשוואה עובדת לטובה — היא מראה לו שהוא חריג, ודוחפת אותו
+   לרשום את תלמידיו.
+
+   הרשימה מגיעה מאותו מקור של הלוח המפורט, ובאותה סיסמה
+   שכבר יושבת בקישור הצוות. בלי סיסמה — פשוט אין ספירה
+   אישית, והלוח הכללי מוצג. */
+var myRoster = (typeof LGet === 'function')
+  ? LGet('rosterCache:' + (instCode || ''), null) : null;
+
+function ramMine() {
+  var me = ramGet();
+  if (!me || !me.grade || !me.klass) return null;
+  if (!ramNoted()) return null;      /* לוח אישי הוא מה שקיבל מי שאישר */
+  return me;
+}
+/* כמה מהכיתה שלו הצטרפו. `null` = עוד לא יודעים, ואז אין
+   מספר — ולא אפס. אפס שאינו אמת הוא השקר הכי מייאש שיש. */
+function mineCount(me) {
+  if (!myRoster) return null;
+  var n = 0;
+  for (var i = 0; i < myRoster.length; i++) {
+    var p = myRoster[i];
+    if (String(p.grade || '') === me.grade &&
+        String(p.klass || '') === me.klass) n++;
+  }
+  return n;
+}
+function loadMyRoster() {
+  var me = ramMine();
+  if (!me || !accCode || !instCode || typeof APPS_SCRIPT_URL === 'undefined') return;
+  var url = String(APPS_SCRIPT_URL || '').trim();
+  if (!url) return;
+  fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
+        'board=' + encodeURIComponent(instCode) +
+        '&k=' + encodeURIComponent(accCode))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      /* **קריאה שנכשלה אינה רשימה ריקה.** בלי התנאי הזה כל
+         תקלת רשת הייתה מאפסת את המספר שעל המסך. */
+      if (!d || d.status !== 'ok' || !d.students) return;
+      myRoster = d.students;
+      if (typeof LSet === 'function') LSet('rosterCache:' + instCode, myRoster);
+      drawBoard();
+    })['catch'](function () {});
+}
+
 function drawBoard() {
   var el = $('brd'); if (!el) return;
   var T = window.TZEVET || {};
@@ -1132,11 +1195,24 @@ function drawBoard() {
      "יונתן", וזה מה שהיה מופיע. */
   var ram = (typeof ramGet === 'function') ? ramGet() : null;
   var whoLine = (ram && ram.first)
-    ? '<span class="ram">' + esc(tpl(T.brdWho || '',
-        { ram: ((ram.first || '') + ' ' + (ram.last || '')).trim() })) + '</span>'
+    ? '<span class="ram">' + esc(tpl(T.brdWho || '', {
+        ram: ((ram.first || '') + ' ' + (ram.last || '')).trim(),
+        cls: ((ram.grade || '') + (ram.klass ? '‎' + ram.klass : '')).trim()
+      })) + '</span>'
     : '';
   var head = '<div class="brd-head"><b>' + esc(T.brdH || '') + '</b>' +
              '<span>' + esc(instRow.name) + whoLine + '</span></div>';
+
+  /* ---------- הלוח האישי ----------
+     אותה צורה בדיוק, ורק המספר והכותרת משתנים. צורה שנייה
+     לאותו דבר הייתה מכריחה את העין לעבוד על ההבדל. */
+  var mine = ramMine();
+  if (mine) {
+    var mn = mineCount(mine);
+    head = '<div class="brd-head"><b>' + esc(T.brdMine || T.brdH || '') + '</b>' +
+           '<span>' + esc(instRow.name) + whoLine + '</span></div>';
+    n = (mn == null) ? n : mn;
+  }
 
   /* ---------- המספר ----------
      לפני שהצטרף מישהו — **עיגול ריק** ולא מקף. מקף נראה כמו
@@ -1376,6 +1452,18 @@ function ramSet(v) {
 function ramNoted() {
   try { return localStorage.getItem('df:ramNote') === '1'; } catch (e) { return false; }
 }
+/* עבר את התהליך — בין אם אישר עדכונים ובין אם ויתר עליהם.
+   זה מה שפותח את הלוח. */
+function ramSeen() {
+  /* מי שאישר עדכונים עבר את התהליך מעצם העובדה — גם אם הסימון
+     הנפרד חסר, למשל מפני שאישר בגרסה שקדמה לו. */
+  if (ramNoted()) return true;
+  try { return localStorage.getItem('df:ramSeen') === '1'; } catch (e) { return false; }
+}
+function ramMarkSeen() {
+  try { localStorage.setItem('df:ramSeen', '1'); } catch (e) {}
+}
+
 function ramWhere() {
   if (!ramGet()) return 1;
   if (!APPX.installed() && !ramSkip) return 2;
@@ -1413,7 +1501,24 @@ function ramClose() {
   $('asksheet').hidden = true;
   document.body.style.overflow = '';
   ramBar();
+  brdShow();
+}
+
+/* ---------- הנחיתה בלוח ----------
+   **גלילה ולא קפיצה.** מי שקופץ למקום חדש אינו יודע מאיפה
+   הגיע; מי שנוסע אליו רואה שהעמוד המשיך, ושהלוח היה מחכה לו
+   בקצה. זו אותה גלילה עדינה שכבר עובדת בשאר הפרויקט. */
+function brdShow() {
+  var sec = $('brd-sec'); if (!sec) return;
+  var was = sec.hidden;
+  sec.hidden = !ramSeen();
   drawBoard();
+  if (!sec.hidden && was) {
+    setTimeout(function () {
+      try { sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
+      catch (e) { sec.scrollIntoView(); }
+    }, 90);
+  }
 }
 function ramGo(n) { ramStep = n; ramDraw(); }
 
@@ -1551,8 +1656,15 @@ function ramWire() {
   if ((b = $('r-go')))   b.onclick = function () { ramErr = ''; ramGo(1); };
   if ((b = $('r-done'))) b.onclick = ramClose;
   /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
-     קופצת עליו, ולכן אין ממה להסתיר אותה. */
-  if ((b = $('r-later'))) b.onclick = ramClose;
+     קופצת עליו, ולכן אין ממה להסתיר אותה.
+
+     ומי שוויתר בשלב העדכונים עבר את התהליך בדיוק כמו מי
+     שאישר, ולכן גם הוא נוסע ללוח — רק שהלוח שלו הוא של
+     הישיבה ולא של הכיתה. */
+  if ((b = $('r-later'))) b.onclick = function () {
+    if (ramStep === 3) ramMarkSeen();
+    ramClose();
+  };
   if ((b = $('r-next'))) b.onclick = ramSave;
   if ((b = $('r-inst'))) b.onclick = function () {
     APPX.prompt(function () { ramGo(ramWhere()); });
@@ -1632,6 +1744,7 @@ function ramAsk() {
       return ramPost('נרשם', sub);
     }).then(function () {
       try { localStorage.setItem('df:ramNote', '1'); } catch (e) {}
+      ramMarkSeen();
       ramBusy = false; ramGo(4);
     })['catch'](function (e) {
       ramBusy = false;
@@ -1647,6 +1760,9 @@ APPX.onBip(function () { if ($('asksheet') && !$('asksheet').hidden) ramDraw(); 
   var b = $('askrow'); if (b) b.onclick = ramOpen;
   if ($('as-x')) $('as-x').onclick = ramClose;
   ramBar();
+  /* בביקור חוזר הלוח כבר שם, בלי גלילה — הוא אינו חדשה. */
+  var sec = $('brd-sec'); if (sec) sec.hidden = !ramSeen();
+  loadMyRoster();
 })();
 </script>
 </body>
