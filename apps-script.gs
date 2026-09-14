@@ -453,10 +453,26 @@ function doGet(e) {
         return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
       }
     }
+    /* **הכתובת נבדקת כאן, ולא נסמכת על השולח.** קישור חופשי
+       בהתראה הוא ערוץ שמפנה תלמידים לאן שמישהו יבקש. מה
+       שמותר הוא נתיב יחסי בתוך האתר בלבד. */
+    var link = String(P.url || '').trim();
+    if (link && !/^[A-Za-z0-9_\-\/]{0,60}(\?[A-Za-z0-9_\-=&%\u0590-\u05FF]{0,120})?(#[A-Za-z0-9_\-]{0,30})?$/.test(link)) {
+      return reply_(e, { status:'denied', message:'כתובת לא מותרת' });
+    }
+    /* **צמצום לפי תפקיד הוא של הרכז בלבד** — "שלח לכל הצוות"
+       הוא ערוץ אחר לגמרי, ואינו נתון בידי ר"ם.
+
+       ומה שר"ם שולח מגיע **לתלמידים**, תמיד. המסך שלו מבטיח
+       לו "ההודעה תגיע ל-N מתלמידיך", והמספר הזה נספר מהלוח —
+       שבו יש תלמידים בלבד. בלי השורה הזו ההודעה הייתה מגיעה
+       גם לר"ם עצמו ולכל איש צוות אחר באותה כיתה, כלומר ליותר
+       אנשים ממה שנאמר לו. הבטחה ומסירה חייבות להיות אותו דבר. */
     return reply_(e, ghFire_(String(P.title || ''), String(P.body || ''),
                              isAdm ? String(P.only || '') : inst,
                              String(P.grade || ''), String(P.klass || ''),
-                             String(P.who || '')));
+                             String(P.who || ''), link,
+                             isAdm ? String(P.role || '') : 'תלמיד'));
   }
 
   /* ---- הלוח של מוסד ----
@@ -500,7 +516,14 @@ function doGet(e) {
 
   if (e && e.parameter && e.parameter.board) {
     var bd;
-    try { bd = boardData_(String(e.parameter.board), e.parameter.k); }
+    /* **סיסמת הרכז פותחת כל לוח.** היא כבר פותחת כל לשונית
+       פרטית, ולכן זו אינה הרחבה של הרשאה אלא ויתור על עקיפה:
+       בלי זה השולח המתוזמן היה צריך לשלוף את הקוד של כל ישיבה
+       רק כדי לשאול על מה שהסיסמה ממילא מתירה. */
+    var bk = (READ_KEY && String(e.parameter.key || '') === READ_KEY)
+      ? getCode_(String(e.parameter.board))
+      : e.parameter.k;
+    try { bd = boardData_(String(e.parameter.board), bk); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
     return reply_(e, bd);
   }
@@ -1563,7 +1586,7 @@ var GH_API = 'https://api.github.com/repos/';
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who) {
+function ghFire_(title, body, only, grade, klass, who, link, role) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
@@ -1577,8 +1600,12 @@ function ghFire_(title, body, only, grade, klass, who) {
                  'X-GitHub-Api-Version': '2022-11-28' },
       payload: JSON.stringify({
         event_type: 'push-say',
+        /* **הכתובת נוסעת עם ההודעה.** בלעדיה כל התראה נחתה
+           על המסך שבמקרה היה פתוח, ואי אפשר היה להזמין
+           מישהו למקום מסוים. */
         client_payload: { title: title, body: body, only: only,
-                          grade: grade || '', klass: klass || '' }
+                          grade: grade || '', klass: klass || '',
+                          url: link || '', role: role || '' }
       }),
       muteHttpExceptions: true
     });

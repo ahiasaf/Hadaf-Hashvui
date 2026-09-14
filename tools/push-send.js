@@ -27,6 +27,13 @@ var priv  = process.env.VAPID_PRIVATE || '';
 var key   = process.env.READ_KEY || '';
 var title = process.env.TITLE || 'הדף השבועי';
 var body  = process.env.BODY  || 'דף חדש מחכה לך.';
+/* לאן ההתראה פותחת. ריק = שורש האפליקציה, כמו תמיד.
+   נתיב יחסי בלבד — כתובת מלאה מכאן היא ערוץ הפניה. */
+var link  = String(process.env.LINK || '').trim();
+if (link && /^[a-zA-Z][a-zA-Z0-9+.\-]*:|^\/\//.test(link)) {
+  console.error('כתובת ההתראה חייבת להיות יחסית. התקבל: ' + link);
+  process.exit(1);
+}
 
 if (!priv) { console.error('חסר VAPID_PRIVATE בסודות הריפו.'); process.exit(1); }
 if (!key)  { console.error('חסר READ_KEY בסודות הריפו.');      process.exit(1); }
@@ -75,8 +82,11 @@ function loadSubs() {
     var only  = String(process.env.ONLY  || '').trim();
     var grade = String(process.env.GRADE || '').trim();
     var klass = String(process.env.KLASS || '').trim();
+    /* לצוות בלבד, או לתלמידים בלבד. ריק = לכולם. */
+    var role  = String(process.env.ROLE  || '').trim();
     var iIns  = head.indexOf('ישיבה'), iCode = head.indexOf('קוד ישיבה');
     var iGr   = head.indexOf('שכבה'),  iKl   = head.indexOf('כיתה');
+    var iRole = head.indexOf('תפקיד');
 
     /* **צמצום שאי אפשר לבצע — נכשל סגור.** ר"ם ביקש לשלוח
        לכיתה שלו; אם העמודה שלפיה מצמצמים חסרה בלשונית, הסינון
@@ -94,6 +104,10 @@ function loadSubs() {
       throw new Error('התבקש צמצום לישיבה, ואין עמודת "ישיבה" או ' +
                       '"קוד ישיבה" בלשונית התראות. לא נשלח דבר.');
     }
+    if (role && iRole < 0) {
+      throw new Error('התבקש צמצום לפי תפקיד, ואין עמודת "תפקיד" ' +
+                      'בלשונית התראות. לא נשלח דבר.');
+    }
 
     var hit = function (row) {
       if (only) {
@@ -103,6 +117,14 @@ function loadSubs() {
       }
       if (grade && String(row[iGr] || '').trim() !== grade) return false;
       if (klass && String(row[iKl] || '').trim() !== klass) return false;
+      if (role) {
+        var rv = String(row[iRole] || '').trim();
+        /* "צוות" הוא כל מי שאינו תלמיד ואינו הורה — כך ר"ם,
+           ראש חטיבה ורכז נכנסים בלי לתחזק רשימה. */
+        if (role === 'צוות') {
+          if (rv === 'תלמיד' || rv === 'הורה' || rv === 'אב' || !rv) return false;
+        } else if (rv !== role) return false;
+      }
       return true;
     };
     if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
@@ -127,7 +149,7 @@ function loadSubs() {
 }
 
 webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
-var payload = JSON.stringify({ title: title, body: body, url: './' });
+var payload = JSON.stringify({ title: title, body: body, url: link || './' });
 
 loadSubs().then(function (list) {
   if (!list.length) {

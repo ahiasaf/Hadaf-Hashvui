@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.33.0';
+var CACHE_NAME = 'hadaf-v8.34.0';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -83,16 +83,58 @@ self.addEventListener('push', function (e) {
   }));
 });
 
+/* ============================================================
+   לחיצה על התראה — פותחת את מה שההתראה הבטיחה.
+   ============================================================
+   קודם עמד כאן "אם יש חלון פתוח, תמקד אותו" — **והכתובת
+   שבהתראה נזרקה**. כל התראה, על מה שלא תהיה, החזירה את
+   המשתמש לאותו מסך שבמקרה היה פתוח אצלו. התראה שמזמינה
+   לפינה האישית ונוחתת על מסך אחר היא התראה שנכשלה, וגרוע
+   מכך — היא מלמדת שאין טעם ללחוץ.
+
+   שלושה מצבים, לפי הסדר:
+     · חלון שכבר עומד על היעד — למקד אותו.
+     · חלון פתוח על משהו אחר — לנווט אותו ליעד ולמקד.
+     · אין חלון — לפתוח אחד.
+
+   `navigate` ולא רק `openWindow`, כי באפליקציה שנוספה למסך
+   הבית יש חלון אחד והוא כבר פתוח: `openWindow` שם עלול לא
+   לעשות דבר. ============================================ */
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
-  var url = (e.notification.data && e.notification.data.url) || './';
+  var raw = (e.notification.data && e.notification.data.url) || './';
+  var target;
+  try { target = new URL(raw, self.location.href).href; }
+  catch (x) { target = self.location.origin + '/'; }
+  /* יעד מחוץ למקור שלנו אינו יעד — התראה אינה ערוץ ניתוב. */
+  if (target.indexOf(self.location.origin) !== 0) {
+    target = self.location.origin + '/';
+  }
+  var same = function (u) {
+    /* `#my` אינו עמוד אחר — חלון שעומד על אותו נתיב הוא היעד,
+       ומנווטים אותו כדי שהעוגן ייתפס. */
+    return u.split('#')[0] === target.split('#')[0];
+  };
   e.waitUntil(
     self.clients.matchAll({ type:'window', includeUncontrolled:true })
       .then(function (ws) {
-        for (var i = 0; i < ws.length; i++) {
-          if ('focus' in ws[i]) return ws[i].focus();
+        var i;
+        for (i = 0; i < ws.length; i++) {
+          if (ws[i].url === target && 'focus' in ws[i]) return ws[i].focus();
         }
-        return self.clients.openWindow(url);
+        for (i = 0; i < ws.length; i++) {
+          if ('navigate' in ws[i]) {
+            return ws[i].navigate(target).then(function (c) {
+              return (c && 'focus' in c) ? c.focus() : null;
+            })['catch'](function () {
+              return self.clients.openWindow(target);
+            });
+          }
+        }
+        for (i = 0; i < ws.length; i++) {
+          if (same(ws[i].url) && 'focus' in ws[i]) return ws[i].focus();
+        }
+        return self.clients.openWindow(target);
       })
   );
 });

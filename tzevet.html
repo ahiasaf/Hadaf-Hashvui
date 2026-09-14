@@ -542,6 +542,11 @@ footer a{color:var(--ink-2);font-weight:800}
 .mygo[disabled]{opacity:.55}
 .myerr{margin-top:11px;font-size:.85rem;font-weight:700;color:#8A3226;
   line-height:1.6}
+/* הפינה נדלקת לרגע כשמגיעים אליה מהתראה — כדי שיֵדע על מה
+   לחץ, ולא ינחת באמצע עמוד ארוך בלי סימן. */
+#my-sec.lit .mycard{border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(192,143,43,.18),var(--sh-1)}
+#my-sec .mycard{transition:border-color .5s,box-shadow .5s}
 </style>
 </head>
 <body>
@@ -1958,7 +1963,36 @@ APPX.onBip(function () { if ($('asksheet') && !$('asksheet').hidden) ramDraw(); 
   var sec = $('brd-sec'); if (sec) sec.hidden = !ramSeen();
   myShow();
   loadMyRoster();
+  myAnchor();
 })();
+
+/* ============================================================
+   `#my` — הכתובת שמובילה ישר לפינה.
+   ============================================================
+   זה מה שההתראה פותחת. שני מצבים, ושניהם חייבים לעבוד:
+
+     · **מי שכבר השלים** — הפינה פתוחה, נוסעים אליה בגלילה
+       והיא נדלקת לרגע. בלי ההבהוב הוא נוחת באמצע עמוד ארוך
+       ואינו יודע על מה לחצו לו.
+     · **מי שעדיין לא** — אין לו פינה. קישור שמבטיח מקום ולא
+       מגיע אליו הוא קישור שבור, ולכן במקום להשאיר אותו בראש
+       העמוד נפתח לו התהליך עצמו — שהוא בדיוק מה שחסר לו כדי
+       שתהיה לו פינה.
+   ============================================================ */
+function myAnchor() {
+  if (!/(^|#)my$/.test(location.hash)) return;
+  var sec = $('my-sec');
+  if (!sec || sec.hidden) { ramOpen(); return; }
+  setTimeout(function () {
+    try { sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch (e) { sec.scrollIntoView(); }
+    sec.className = 'lit';
+    setTimeout(function () { sec.className = ''; }, 2200);
+  }, 120);
+}
+/* חלון שכבר היה פתוח על העמוד: לחיצה על ההתראה מנווטת אותו
+   לאותה כתובת עם עוגן, והדפדפן אינו טוען מחדש. */
+window.addEventListener('hashchange', myAnchor);
 </script>
 </body>
 </html>

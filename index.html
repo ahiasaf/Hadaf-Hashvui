@@ -1584,7 +1584,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.33.0';
+var APP_VERSION = '8.34.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6190,7 +6190,7 @@ function admText(el) {
    ונשלח. פחות מדקה.
    ============================================================ */
 var pushRows = null, pushMsg = '', pushBusy = false;
-var pushView = { title:'', body:'', only:'' };
+var pushView = { title:'', body:'', only:'', role:'', link:'' };
 
 /* ============================================================
    מי נתקע — ומה לכתוב לו.
@@ -6396,13 +6396,20 @@ function pushLoad() {
 function pushSend() {
   var body = (pushView.body || '').trim();
   if (!body) { pushMsg = 'אין מה לשלוח.'; admPane(); return; }
-  var who = pushView.only
-    ? 'לישיבה אחת' : 'לכל מי שנרשם (' + pushCount().ok + ' מכשירים)';
-  if (!confirm('לשלוח ' + who + '?\n\n' + body)) return;
+  /* **נאמר במדויק למי.** "לכל מי שנרשם" כשבפועל נבחר הצוות
+     בלבד הוא אישור שנתן על משהו אחר. */
+  var c2 = pushCount();
+  var who = [];
+  who.push(pushView.role === 'צוות' ? 'לצוות'
+         : (pushView.role === 'תלמיד' ? 'לתלמידים' : 'לכולם'));
+  if (pushView.only) who.push('בישיבה אחת');
+  if (!pushView.role && !pushView.only) who = ['לכל מי שנרשם (' + c2.ok + ' מכשירים)'];
+  if (!confirm('לשלוח ' + who.join(' ') + '?\n\n' + body)) return;
   pushBusy = true; pushMsg = 'שולח…'; admPane();
   scriptGet({ fire:'say', key:(CFG.readKey || '').trim(),
               title:(pushView.title || '').trim() || PROGRAM.short,
-              body:body, only:pushView.only })
+              body:body, only:pushView.only,
+              role:pushView.role, url:pushView.link })
     .then(function (d) {
       pushBusy = false;
       /* התשובה כאן אומרת רק ש-GitHub קיבל את ההצתה. מה שהגיע
@@ -6430,6 +6437,23 @@ function pushCount() {
 }
 
 function pushSet(k, v) { pushView[k] = v; }
+
+/* ממלא את ההודעה שלמעלה בהזמנה מוכנה, ומצייר מחדש כדי שיראה
+   בדיוק מה עומד לצאת לפני שהוא לוחץ. */
+function pushInvite(code) {
+  if (!code) return;
+  var row = null, i;
+  for (i = 0; i < INSTITUTIONS.length; i++) {
+    if (INSTITUTIONS[i].code === code) row = INSTITUTIONS[i];
+  }
+  pushView.only  = row ? row.name : '';
+  pushView.role  = 'צוות';
+  pushView.link  = 'tzevet?inst=' + code + '#my';
+  pushView.title = PUSH_INVITE.title;
+  pushView.body  = PUSH_INVITE.body;
+  pushMsg = 'ההודעה מוכנה למעלה. בדקו, ושלחו.';
+  admPane();
+}
 
 function admPush(el) {
   if (pushMsg === 'nokey') {
@@ -6461,11 +6485,41 @@ function admPush(el) {
              (pushView.only === o.name ? ' selected' : '') + '>' +
              esc(o.name) + '</option>';
     }).join('') + '</select></div>' +
+    '<div class="fld"><div class="label">איזה קהל</div><select ' +
+    'onchange="pushSet(\'role\',this.value)">' +
+    [['','כולם'],['צוות','הצוות בלבד'],['תלמיד','התלמידים בלבד']]
+      .map(function (o) {
+        return '<option value="' + esc(o[0]) + '"' +
+               (pushView.role === o[0] ? ' selected' : '') + '>' +
+               esc(o[1]) + '</option>';
+      }).join('') + '</select></div>' +
+    '<div class="fld"><div class="label">לאן ההתראה פותחת ' +
+    '<i>· נתיב יחסי, ריק = האפליקציה</i></div>' +
+    '<input type="text" value="' + esc(pushView.link) +
+    '" placeholder="tzevet?inst=lapid#my" ' +
+    'onchange="pushSet(\'link\',this.value)"></div>' +
     '<button class="btn p"' + (pushBusy ? ' disabled' : '') +
     ' onclick="pushSend()">' + (pushBusy ? 'שולח…' : 'שליחה') + '</button>' +
     (pushMsg ? '<div class="cond" style="margin-top:10px">' +
                esc(pushMsg) + '</div>' : '') +
     '</div>';
+
+  /* ============================================================
+     ההזמנה לפינה האישית.
+     ============================================================
+     ר"ם שקיבל אותה ולחץ עליה נחת בדיוק במקום שבו הוא בוחר
+     מתי לקבל ומה לשלוח. וזו גם הבדיקה: מי שהגיע לשם הבין
+     מה זו התראה, ומי שלא — פשוט לא לחץ. */
+  h += '<div class="adm-card"><h4>הזמנה לפינה האישית</h4>' +
+    '<p class="h">ממלא את ההודעה שלמעלה: לצוות בלבד, ופותחת ' +
+    'ישר בפינה שבעמוד הצוות. צריך לבחור ישיבה — הקישור נושא ' +
+    'את הקוד שלה.</p>' +
+    '<div class="fld"><div class="label">הישיבה</div><select ' +
+    'onchange="pushInvite(this.value)">' +
+    '<option value="">בחרו ישיבה…</option>' +
+    INSTITUTIONS.map(function (o) {
+      return '<option value="' + esc(o.code) + '">' + esc(o.name) + '</option>';
+    }).join('') + '</select></div></div>';
 
   /* ---- מי נרשם, ומה עלה בגורלו ---- */
   h += '<div class="adm-card"><h4>מי נרשם</h4>';

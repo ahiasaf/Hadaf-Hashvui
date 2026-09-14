@@ -54,6 +54,10 @@ on:
         description: 'הטקסט'
         required: false
         default: 'דף חדש מחכה לך — מסכת תענית, דף ב.'
+      link:
+        description: 'לאן לפתוח (נתיב יחסי, ריק = האפליקציה)'
+        required: false
+        default: ''
 
 # הרשאות מינימליות: השליחה אינה נוגעת בריפו כלל.
 permissions:
@@ -86,4 +90,8 @@ jobs:
           # שכבה וכיתה — ר"ם ששולח לכיתה שלו בלבד.
           GRADE: ${{ github.event.client_payload.grade }}
           KLASS: ${{ github.event.client_payload.klass }}
+          # לאן ההתראה פותחת. ריק = שורש האפליקציה.
+          LINK:  ${{ inputs.link || github.event.client_payload.url }}
+          # "צוות" = כל מי שאינו תלמיד ואינו הורה. ריק = לכולם.
+          ROLE:  ${{ github.event.client_payload.role }}
         run: node tools/push-send.js
