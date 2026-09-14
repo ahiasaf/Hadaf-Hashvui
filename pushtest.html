@@ -499,7 +499,12 @@ function wire() {
 function askPerm() {
   ERR = '';
   var b = $('b-perm'); if (b) { b.disabled = true; b.textContent = 'רגע…'; }
+  /* פעם אחת בלבד: `requestPermission` מפעיל גם את ה-callback
+     וגם את ה-Promise, ושניהם היו מקדמים את המסע. */
+  var done = false;
   var after = function (p) {
+    if (done) return;
+    done = true;
     if (p === 'granted') { go(3); return; }
     ERR = (p === 'denied')
       ? 'האישור נדחה. בלי אישור אי אפשר לשלוח התראה.'

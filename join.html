@@ -497,6 +497,36 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 .getapp .how.warn{background:rgba(192,143,43,.12);color:var(--ink);
   border:1px solid rgba(192,143,43,.35);text-align:right}
 .getapp .how.warn b{color:#8A6316}
+/* ---------- המסע: שלב אחד על המסך ----------
+   הכרטיס הזה אינו הצעה אלא השלב האחרון של ההרשמה, ולכן הוא
+   נראה כמו שלב: מספר, כותרת, ופעולה אחת. מה שנגמר מתכווץ
+   לשורה ירוקה, ומה שעוד לא הגיע אינו מוצג. */
+.getapp{text-align:right}
+.getapp .kick{font-size:.72rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.04em;margin-bottom:5px}
+.getapp .cen{text-align:center}
+.gsteps{margin:13px 0 0;padding:0;list-style:none;counter-reset:gs}
+.gsteps li{counter-increment:gs;position:relative;padding-inline-start:34px;
+  margin-bottom:13px;font-size:.88rem;font-weight:600;line-height:1.8;
+  color:var(--ink)}
+.gsteps li:last-child{margin-bottom:0}
+.gsteps li::before{content:counter(gs);position:absolute;inset-inline-start:0;top:2px;
+  width:23px;height:23px;border-radius:50%;background:var(--blue);
+  color:#fff;font-size:.75rem;font-weight:800;display:flex;
+  align-items:center;justify-content:center}
+.gl{display:inline-flex;align-items:center;justify-content:center;
+  width:27px;height:27px;border-radius:7px;background:var(--sunk);
+  border:1px solid var(--rule);vertical-align:-8px;margin:0 3px}
+.gl svg{width:15px;height:15px;fill:none;stroke:var(--blue);
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.gdone{display:flex;align-items:center;gap:8px;margin-top:10px;
+  padding:9px 12px;background:rgba(74,130,28,.1);
+  border:1px solid rgba(74,130,28,.3);border-radius:var(--r-s);
+  font-size:.82rem;font-weight:800;color:#3F7018}
+.getapp .thin{display:block;width:100%;margin-top:8px;padding:9px;
+  border:0;background:none;color:var(--ink-2);font:inherit;
+  font-size:.8rem;font-weight:700;text-decoration:underline;cursor:pointer}
+
 /* ---------- קבוצת הוואטסאפ ----------
    אותו כרטיס בדיוק של "הוספה למסך הבית", ולא עיצוב שלישי:
    שניהם אותו סוג דבר — הצעה שאפשר לקחת או לוותר עליה — ושני
@@ -688,9 +718,13 @@ footer a{color:var(--ink-2);font-weight:800}
   </div>
 
   <div class="wrap">
+    <!-- **ההתקנה ראשונה, ולא בתחתית.** קודם היא ישבה מתחת
+         להזמנה ולקבוצה — כלומר אחרי שני דברים שאפשר לדלג
+         עליהם, ובמקום שרוב התלמידים לא גללו אליו. היא השלב
+         האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
+    <div id="getapp"></div>
     <div id="inv"></div>
     <div id="wagrp"></div>
-    <div id="getapp"></div>
     <button class="again" id="again">שינוי הפרטים</button>
   </div>
 </div>
@@ -1957,50 +1991,150 @@ function appIcon() {
          '<span>הדף השבועי</span></div>';
 }
 
+/* ============================================================
+   ההתראות — השלב השני, ומה שמצדיק את הראשון.
+   ============================================================
+   תלמיד לא מוסיף אייקון למסך הבית כי ביקשנו יפה. הוא עושה את
+   זה כשיש בצד השני משהו שהוא רוצה: לדעת שיש דף חדש, ולדעת
+   שזכה. ולכן שני השלבים יושבים באותו כרטיס ובאותו רצף —
+   ההתקנה אינה מטרה בפני עצמה, היא הדרך לשלב השני.
+
+   **ובאייפון אין ברירה:** התראות שם עובדות אך ורק מתוך
+   אפליקציה שנוספה למסך הבית. זו הסיבה האמיתית שההתקנה חובה,
+   ולא "ככה יותר נוח".
+
+   המנוי נשמר עם **המזהה של התלמיד** ולא רק עם שמו. שני
+   תלמידים יכולים להיקרא אותו דבר, ומנוי חדש מאותו מזהה הוא
+   החלפה של הקודם ולא הצטרפות אליו. זה גם מה שיאפשר בהמשך
+   להודיע לתלמיד מסוים שהוא זכה. */
+var VAPID = 'BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbdNVYqY5UxdX7lg-i_wIELw';
+
+function b64ToU8(str) {
+  var pad = '='.repeat((4 - str.length % 4) % 4);
+  var raw = atob((str + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  var out = new Uint8Array(raw.length), i;
+  for (i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function canNote() { return typeof window.Notification !== 'undefined'; }
+function notePerm() { return canNote() ? Notification.permission : 'default'; }
+function noteDone() {
+  try { return localStorage.getItem('df:noteOn') === '1'; } catch (e) { return false; }
+}
+/* מנוי שנוצר עם מפתח ישן נראה תקין, אבל דחיפה שלנו לא תגיע
+   אליו לעולם. נזרק ונוצר מחדש. */
+function sameKey(sub) {
+  try {
+    var k = sub.options && sub.options.applicationServerKey;
+    if (!k) return false;
+    var a = new Uint8Array(k), b = b64ToU8(VAPID), i;
+    if (a.length !== b.length) return false;
+    for (i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  } catch (e) { return false; }
+}
+
+var appBusy = false, appErr = '';
+
+/* ---------- באיזה שלב ----------
+   1 להתקין · 2 לאשר התראות · 3 נגמר.
+   באייפון אין דרך לאשר התראות לפני ההתקנה, ולכן הסדר הזה
+   אינו העדפה אלא הכרח. */
+function appInstalled() {
+  if (standalone()) return true;
+  /* **באנדרואיד די בכך שהדפדפן דיווח שהתקין.** המנוי שייך
+     לאתר ולא לחלון, ולכן אישור שניתן בדפדפן עובד גם מהאייקון.
+     לדרוש שיסגור ויפתח מחדש זו עוד נקודה לנשור בה, בלי שום
+     תמורה. באייפון אין דיווח כזה ואין התראות מחוץ לאפליקציה,
+     ולכן שם האייקון חייב להיפתח. */
+  return !isIOS() && appWasAdded();
+}
+function appStep() {
+  if (!appInstalled()) return 1;
+  if (noteDone() && notePerm() === 'granted') return 3;
+  return 2;
+}
+
+var SHARE_I = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/>' +
+  '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></span>';
+/* שלוש שוכבות — התפריט בספארי החדש. שלוש עומדות — כרום
+   באנדרואיד. שני כפתורים שונים לגמרי, ומי שמחפש את הלא-נכון
+   לא ימצא כלום. */
+var DOTS_H = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="5" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="19" cy="12" r="1.6" fill="#17468F" stroke="none"/></svg></span>';
+var DOTS_V = '<span class="gl"><svg viewBox="0 0 24 24">' +
+  '<circle cx="12" cy="5" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
+  '<circle cx="12" cy="19" r="1.6" fill="#17468F" stroke="none"/></svg></span>';
+
+/* ההוראות הידניות, ולכל דפדפן שלו. הנוסח הכללי שהיה כאן
+   ("תפריט הדפדפן ← הוספה למסך הבית") נמסר לבודקת על שיאומי
+   והיא לא מצאה אותו. תפריט נראה אחרת בכל מכשיר, וזה ההבדל
+   בין הוראה שמתבצעת להוראה שנקראת. */
+function appHowList() {
+  if (isIOS()) {
+    return '<ol class="gsteps">' +
+      '<li>לחצו על כפתור השיתוף ' + SHARE_I + ' שבתחתית המסך.<br>' +
+        '<b>לא רואים אותו?</b> לחצו קודם על שלוש הנקודות ' + DOTS_H +
+        ' שבפינה, ואז על "שיתוף".</li>' +
+      '<li>גללו למטה ובחרו <b>"הוספה למסך הבית"</b>, ואז "הוסף".</li>' +
+      '<li><b>פתחו את האייקון החדש</b> שנוסף למסך הבית — ומשם ' +
+        'נמשיך.</li></ol>' + appIcon();
+  }
+  return '<ol class="gsteps">' +
+    '<li>לחצו על שלוש הנקודות ' + DOTS_V + ' בפינת הדפדפן.</li>' +
+    '<li>בחרו <b>"התקנת אפליקציה"</b>, ואם אין כזה — ' +
+      '<b>"הוספה למסך הבית"</b>.<br>בדפדפן של סמסונג זה ' +
+      '"הוספת דף אל" ואז "מסך הבית".</li>' +
+    '<li><b>פתחו את האייקון החדש</b> שנוסף למסך הבית.</li></ol>' +
+    appIcon();
+}
+
 function drawApp() {
   var box = $('getapp'); if (!box) return;
   if (!JOIN.appTitle) { box.innerHTML = ''; return; }
+  var st = appStep();
 
-  /* ---- כבר בפנים. זו התשובה ל"איך אדע שזה הצליח" ---- */
-  if (standalone()) {
-    appMark();
-    box.innerHTML = '<div class="getapp ok"><h3>אתם בתוך האפליקציה</h3>' +
-      '<p>נפתחתם מהאייקון שבמסך הבית, ולא מהדפדפן. ' +
-      'כל שבוע הדף יחכה לכם כאן.</p></div>';
+  /* ---- נגמר ---- */
+  if (st === 3) {
+    box.innerHTML = '<div class="getapp ok cen"><h3>הכול מוכן</h3>' +
+      '<p>האפליקציה על מסך הבית, וההתראות מאושרות. ' +
+      'כשיֵצא דף חדש — תדעו.</p>' +
+      (standalone() ? '' : appIcon()) + '</div>';
     return;
   }
 
-  var h = '<div class="getapp"><h3>' + esc(JOIN.appTitle) + '</h3>' +
-          '<p>' + esc(JOIN.appBody) + '</p>';
-
-  /* ---- הותקנה, ואנחנו בדפדפן. להראות מה לחפש ---- */
-  if (appWasAdded()) {
-    box.innerHTML = '<div class="getapp ok"><h3>כבר הוספתם למסך הבית</h3>' +
-      '<p>חפשו את האייקון הזה במסך הבית של הטלפון, ופתחו ממנו ' +
-      'בפעם הבאה.</p>' + appIcon() + '</div>';
+  /* ---- שלב 2: ההתראות ---- */
+  if (st === 2) {
+    appNoteCard(box);
     return;
   }
 
-  /* ---- חלון בתוך אפליקציה: להוציא אותם לדפדפן ---- */
+  /* ---- שלב 1: ההתקנה ---- */
+  var h = '<div class="getapp"><div class="kick">שלב 1 מתוך 2</div>' +
+          '<h3>' + esc(JOIN.appTitle) + '</h3>' +
+          '<p>משם נדע להודיע לכם כשיש דף חדש — ואם זכיתם בהגרלה.</p>';
+
+  /* חלון בתוך וואטסאפ: משם אי אפשר להתקין בשום דרך, ולכן
+     ההוראה היחידה היא לצאת לדפדפן. */
   if (inApp()) {
-    /* "נראה ש" ולא "הדף פתוח": הזיהוי הוא היוריסטיקה. טעות
-       לכיוון הזה עולה משפט מיותר; טעות לכיוון השני משאירה
-       תלמיד מול כפתור שאינו יכול לעבוד. */
     h += '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
          'מכאן אי אפשר להוסיף למסך הבית. ' +
          (isIOS()
-           ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי" — ומשם שוב שיתוף ← הוספה למסך הבית.'
-           : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן" — ואז הכפתור כאן יעבוד.') +
+           ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי" — ומשם נמשיך.'
+           : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן" — ומשם נמשיך.') +
          '</div>' +
          '<button class="btn" id="app-copy">העתקת הקישור</button>' +
          '<div class="how">אפשר גם להעתיק את הקישור ולהדביק אותו בדפדפן.</div>';
     box.innerHTML = h + '</div>';
     var cp = $('app-copy');
     if (cp) cp.onclick = function () {
-      var url = location.href;
       var done = function () { cp.textContent = 'הקישור הועתק ✓'; };
       if (navigator.clipboard && navigator.clipboard.writeText)
-        navigator.clipboard.writeText(url).then(done)['catch'](function () {
+        navigator.clipboard.writeText(location.href).then(done)['catch'](function () {
           cp.textContent = 'לא הצלחתי להעתיק';
         });
       else cp.textContent = 'לא הצלחתי להעתיק';
@@ -2008,27 +2142,136 @@ function drawApp() {
     return;
   }
 
-  if (bip)          h += '<button class="btn" id="app-go">' + esc(JOIN.appBtn) + '</button>';
-  else if (isIOS()) h += '<div class="how">' + esc(JOIN.appIos) + '</div>' + appIcon();
-  else              h += '<div class="how">' + esc(JOIN.appHow) + '</div>' + appIcon();
+  /* הותקנה, ואנחנו עדיין בספארי. באייפון זה המצב שנתקעים בו
+     בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
+  if (appWasAdded()) {
+    h += '<div class="how">האפליקציה כבר נוספה. <b>פתחו את האייקון ' +
+         'הזה</b> מהמסך של הטלפון, ושם נמשיך לשלב האחרון.</div>' + appIcon();
+    box.innerHTML = h + '</div>';
+    return;
+  }
+
+  if (bip) h += '<button class="btn" id="app-go">' + esc(JOIN.appBtn) + '</button>';
+  else     h += appHowList();
   box.innerHTML = h + '</div>';
 
   var g = $('app-go');
   if (g) g.onclick = function () {
     var p = bip; if (!p) return;
-    /* ההצעה תקפה פעם אחת. אחריה הכפתור אינו יכול לעבוד שוב. */
-    bip = null;
     p.prompt();
-    /* התוצאה נאמרת. קודם הכפתור פשוט נעלם והוחלף בהוראה ידנית —
-       גם למי שאישר, וגם למי שביטל — ובשני המקרים זה נקרא כמו
-       כפתור שלא עשה כלום. */
+    /* **מי שביטל אינו מאבד את הכפתור.** איפוס ההצעה מיד היה
+       מחליף אותו בהוראות תפריט ידניות — עונש על היסוס. */
+    var back = function (r) {
+      if (r && r.outcome === 'accepted') { bip = null; appMark(); }
+      drawApp();
+    };
     if (p.userChoice && p.userChoice.then)
-      p.userChoice.then(function (r) {
-        if (r && r.outcome === 'accepted') appMark();
-        drawApp();
-      })['catch'](function () { drawApp(); });
-    else drawApp();
+      p.userChoice.then(back)['catch'](function () { drawApp(); });
+    else back();
   };
+}
+
+/* ---------- שלב 2 ---------- */
+function appNoteCard(box) {
+  var h = '<div class="getapp"><div class="gdone"><b>✓</b>' +
+          '<span>האפליקציה על מסך הבית</span></div>' +
+          '<div class="kick" style="margin-top:14px">שלב 2 מתוך 2</div>' +
+          '<h3>שנודיע לכם כשיש דף חדש?</h3>';
+
+  if (notePerm() === 'denied') {
+    /* דחייה אינה נשאלת שוב — הדפדפן פשוט לא ישאל. קיר בלי
+       דלת הוא מה שמייאש, ולכן כאן ההוראה לפתוח. */
+    h += '<p>ההתראות חסומות במכשיר הזה. אפשר לפתוח אותן ' +
+         (isIOS()
+           ? 'ב<b>הגדרות ← הדף השבועי ← התראות</b>.'
+           : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>.') +
+         '<br>ואפשר גם להמשיך בלי — הדף מחכה לכם כאן בכל מקרה.</p>' +
+         '<button class="thin" id="app-skip">להמשיך בלי התראות</button>';
+    box.innerHTML = h + '</div>';
+  } else {
+    h += '<p>הודעה אחת כשיוצא דף חדש, ואם זכיתם בהגרלה. ' +
+         'לא יותר מזה, ואפשר לבטל מתי שרוצים.</p>' +
+         '<button class="btn" id="app-note"' + (appBusy ? ' disabled' : '') + '>' +
+         (appBusy ? 'רגע…' : 'כן, שיודיעו לי') + '</button>' +
+         (appErr ? '<div class="how warn">' + esc(appErr) + '</div>' : '') +
+         '<button class="thin" id="app-skip">לא עכשיו</button>';
+    box.innerHTML = h + '</div>';
+    var b = $('app-note');
+    if (b) b.onclick = appAskNote;
+  }
+  var sk = $('app-skip');
+  /* "לא עכשיו" אינו מוחק את השלב לנצח — הוא מסלק אותו מהמסך
+     הזה. בכניסה הבאה הוא יוצע שוב, כי עד אז כנראה כבר הגיע
+     דף חדש והשאלה נעשתה מוחשית. */
+  if (sk) sk.onclick = function () { $('getapp').innerHTML = ''; };
+}
+
+function appAskNote() {
+  appErr = ''; appBusy = true; drawApp();
+  /* **פעם אחת, ולא פעמיים.** `requestPermission` תומך גם
+     ב-callback וגם ב-Promise, ודפדפן מודרני מפעיל את שניהם:
+     ה-callback רץ, ואז ה-`then` רץ שוב עם אותה תשובה. בלי
+     השומר הזה כל תלמיד היה נרשם פעמיים — שני מנויים לאותו
+     מכשיר, ושתי התראות על כל הודעה. */
+  var done = false;
+  var after = function (p) {
+    if (done) return;
+    done = true;
+    if (p !== 'granted') {
+      appBusy = false;
+      appErr = (p === 'denied')
+        ? 'האישור נדחה. בלי אישור אי אפשר לשלוח הודעה.'
+        : 'לא התקבל אישור. אפשר לנסות שוב.';
+      drawApp(); return;
+    }
+    appSubscribe();
+  };
+  try {
+    var pr = Notification.requestPermission(after);
+    if (pr && pr.then) pr.then(after)['catch'](function () { after('default'); });
+  } catch (e) { appBusy = false; appErr = 'לא ניתן לבקש אישור כאן.'; drawApp(); }
+}
+
+function appSubscribe() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    appBusy = false;
+    appErr = 'הדפדפן הזה אינו תומך בהתראות.';
+    drawApp(); return;
+  }
+  navigator.serviceWorker.register('sw.js').then(function () {
+    return navigator.serviceWorker.ready;
+  }).then(function (reg) {
+    var fresh = function () {
+      return reg.pushManager.subscribe({
+        userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID)
+      });
+    };
+    return reg.pushManager.getSubscription().then(function (sub) {
+      if (!sub) return fresh();
+      if (sameKey(sub)) return sub;
+      return sub.unsubscribe().then(fresh, fresh);
+    });
+  }).then(function (sub) {
+    var me = get('me', null) || {};
+    /* דרך התור ולא ב-fetch ישיר: הוא שורד רשת שנפלה באמצע,
+       בדיוק כמו שורת ההרשמה עצמה. */
+    queue({ action:'row', tab:'התראות', cols: JSON.stringify([
+      ['מזהה', me.id || ''], ['שם', ((me.first || '') + ' ' + (me.last || '')).trim()],
+      ['ישיבה', me.instName || ''], ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
+      ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
+      ['מנוי', JSON.stringify(sub)], ['תוצאה', 'נרשם'],
+      ['מתי', new Date().toISOString()]
+    ]) });
+    /* הכתיבה `no-cors` ואטומה, ולכן היא אינה ראיה לכלום. מה
+       שנאמר למסך הוא רק מה שנכון מקומית: האישור ניתן והמנוי
+       נוצר. ההתראה עצמה היא האישור האמיתי. */
+    try { localStorage.setItem('df:noteOn', '1'); } catch (e) {}
+    appBusy = false; drawApp();
+  })['catch'](function (e) {
+    appBusy = false;
+    appErr = 'לא הצלחתי להשלים: ' + ((e && e.message) || e) + '. אפשר לנסות שוב.';
+    drawApp();
+  });
 }
 
 /* ============================================================
