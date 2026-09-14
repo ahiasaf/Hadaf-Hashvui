@@ -554,6 +554,10 @@ body.tk-sheeting #tk-bar{display:none}
 .btn.gr{background:linear-gradient(140deg,var(--green-d),var(--green-2));box-shadow:var(--sh-2)}
 .btn.gd{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);box-shadow:var(--sh-2)}
+/* פעולה שיש לה מחיר. לא אדום מלא — היא לגיטימית ולא אזהרה —
+   אבל גם לא `.btn` חשוף, שהוא לבן על לבן ונראה מושבת. */
+.btn.warn{background:var(--surface);color:#8A3226;
+  border:1.5px solid rgba(138,50,38,.35);box-shadow:var(--sh-1)}
 .btn.g{background:var(--surface);color:var(--ink-2);box-shadow:var(--sh-1);
   font-size:.93rem;padding:14px;font-weight:700}
 .btn:hover{filter:brightness(1.05)}
@@ -1580,7 +1584,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.30.0';
+var APP_VERSION = '8.30.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6128,7 +6132,7 @@ function admText(el) {
         esc(p[0]) + '</button>' +
         '<p class="h" style="margin:5px 0 12px">' + esc(p[1]) + '</p>';
     }).join('') +
-    '<button class="btn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
+    '<button class="btn warn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
 
     admEmbedCard() +
@@ -6534,14 +6538,26 @@ function admTextSet(k, v) {
   repaintTexts();
   admPane();
 }
+/* **פרטי איש הקשר לנגישות אינם נמחקים.** הם אינם ניסוח אלא
+   נתון שחייב להתפרסם לפי חוק, והם אינם בקוד ולא יהיו — הריפו
+   ציבורי. שחזור ש"מחזיר לערך שבקוד" היה מוחק אותם לריק
+   ומשאיר הצהרת נגישות חסרה, בלי שאיש ישים לב. */
+var KEEP_TEXT = { 'a11y.coordName':1, 'a11y.coordWay':1, 'a11y.coordRole':1 };
+function keepOnly(map) {
+  var out = {};
+  for (var k in map) if (map.hasOwnProperty(k) && KEEP_TEXT[k]) out[k] = map[k];
+  return out;
+}
+
 function admTextReset() {
   if (!confirm('להחזיר את כל הנוסחים לערך שבקוד? ' +
-               'הפרסום הבא ימחק גם את מה שפורסם.')) return;
+               'הפרסום הבא ימחק גם את מה שפורסם.\n\n' +
+               'פרטי איש הקשר לנגישות יישמרו.')) return;
   /* גם השכבה המפורסמת. בלעדיה הכפתור משקר: הטיוטה נמחקת,
      הגיליון ממשיך לדרוס את הקוד, והמסך חוזר למה שהיה. */
-  PUBLISHED = {};
-  Store.set('textCache', {});
-  cfgSet('texts', {});
+  PUBLISHED = keepOnly(PUBLISHED);
+  Store.set('textCache', PUBLISHED);
+  cfgSet('texts', keepOnly(CFG.texts || {}));
   relayerTexts();
   repaintTexts();
   admPane();
