@@ -312,9 +312,48 @@ def check_shared_globals():
         OK.append('קבצים משותפים — אין תלות בפונקציה שחסרה בעמוד כלשהו')
 
 
+def check_inst_manifests():
+    """מניפסט לכל ישיבה — אחרת ההתקנה מוחקת את הישיבה.
+
+    האייקון שנוסף למסך הבית פותח את start_url שבמניפסט. אם אין
+    מניפסט לישיבה, ההתקנה נופלת חזרה על זה הכללי — והתלמיד
+    מקבל בורר ישיבות במקום הישיבה שלו. זה כבר קרה בשטח.
+
+    ישיבה שנוספה ל-INSTITUTIONS בלי מניפסט היא בדיוק התקלה
+    השקטה הזאת, ולכן הבדיקה כאן ולא בראש של מישהו.
+    """
+    d = read('data.js')
+    blk = d[d.index('var INSTITUTIONS = ['):]
+    blk = blk[:blk.index('\n];')]
+    codes = re.findall(r"code:'([a-z]+)'", blk)
+    if not codes:
+        BAD.append('לא נמצאו קודי ישיבות ב-data.js')
+        return
+    miss, wrong = [], []
+    for c in codes:
+        path = os.path.join(ROOT, 'm', c + '.json')
+        if not os.path.exists(path):
+            miss.append(c)
+            continue
+        m = json.loads(read('m', c + '.json'))
+        if m.get('start_url') != '/join?inst=' + c:
+            wrong.append(c + ' → ' + str(m.get('start_url')))
+        # כתובת יחסית במניפסט שיושב ב-/m נפתרת מולו, לא מהשורש.
+        for ic in m.get('icons', []):
+            if not str(ic.get('src', '')).startswith('/'):
+                wrong.append(c + ' — אייקון בכתובת יחסית')
+    if miss:
+        BAD.append('ישיבות בלי מניפסט: ' + ', '.join(miss) +
+                   ' (הריצו tools/make-manifests.py)')
+    if wrong:
+        BAD.append('מניפסט שגוי: ' + ' · '.join(wrong))
+    if not miss and not wrong:
+        OK.append('מניפסט לכל ישיבה — %d, וכולם מצביעים נכון' % len(codes))
+
+
 def main():
     for fn in (check_version, check_dupe_vars, check_orphan_classes,
-               check_shared_globals,
+               check_shared_globals, check_inst_manifests,
                check_decks, check_daf_index,
                check_calendar):
         try:

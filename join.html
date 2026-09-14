@@ -460,6 +460,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue-l);
 /* אחרי ההרשמה */
 #done{display:none;text-align:center;padding:26px 18px}
 #done.on{display:block}
+#pre{display:none}
+#pre.on{display:block;padding-top:18px}
 #done .big{font-size:2.6rem;line-height:1}
 #done h2{font-size:1.2rem;font-weight:800;margin-top:12px;letter-spacing:-.02em}
 #done p{font-size:.9rem;font-weight:600;color:var(--ink-2);margin-top:9px;
@@ -574,6 +576,9 @@ footer a{color:var(--ink-2);font-weight:800}
       <div class="yr" id="sub">שנת תשפ"ז</div></div>
   </div>
 </header>
+
+<!-- **באייפון ההתקנה קודמת לטופס.** ראו showPre. -->
+<div class="wrap" id="pre"></div>
 
 <main class="wrap" id="form">
 
@@ -1539,6 +1544,28 @@ var instRow = null;
       '<option disabled>──────────</option>' +
       '<option value="' + esc(OTHER.code) + '">' + esc(OTHER.label) + '</option>';
   }
+  /* ============================================================
+     המניפסט לפי ישיבה — כדי שההתקנה לא תמחק את הישיבה.
+     ============================================================
+     האייקון שנוסף למסך הבית פותח את `start_url` שבמניפסט, והוא
+     היה קבוע: `./join` בלי שום `?inst`. ניסינו לפצות על כך
+     בשמירת הקוד באחסון המכשיר — וזה נכשל דווקא באייפון, כי שם
+     לאפליקציה שנוספה למסך הבית יש אחסון **נפרד** מספארי.
+     התוצאה בשטח: תלמידה של ישיבת לפיד פתחה את האייקון וקיבלה
+     בורר ישיבות.
+
+     עכשיו יש מניפסט לכל ישיבה תחת /m, והוא נבחר כאן לפי הקוד
+     שבכתובת — כלומר `start_url` עצמו נושא את הישיבה, ואינו
+     תלוי בשום אחסון. `id` זהה בכולם: זו אותה אפליקציה, ורק
+     נקודת הפתיחה שונה.
+
+     רק קוד שקיים ברשימה: קוד שגוי בכתובת היה מפנה למניפסט
+     שאינו קיים, וזה שובר את ההתקנה עצמה. */
+  if (instRow) {
+    var mf = document.querySelector('link[rel="manifest"]');
+    if (mf) mf.href = 'm/' + instRow.code + '.json';
+  }
+
   $('grade').innerHTML = '<option value="">— בחרו —</option>' +
     GRADES.map(function (g) { return '<option>' + g + '</option>'; }).join('');
   $('klass').innerHTML = '<option value="">—</option>' +
@@ -2185,7 +2212,10 @@ function drawApp() {
 function appNoteCard(box) {
   var h = '<div class="getapp"><div class="gdone"><b>✓</b>' +
           '<span>האפליקציה על מסך הבית</span></div>' +
-          '<div class="kick" style="margin-top:14px">שלב 2 מתוך 2</div>' +
+          /* באייפון ההתקנה הייתה שלב 1 לפני הטופס, ולכן זה
+             השלישי. באנדרואיד היא הייתה אחרי, וזה השני. */
+          '<div class="kick" style="margin-top:14px">' +
+          (isIOS() ? 'שלב 3 מתוך 3' : 'שלב 2 מתוך 2') + '</div>' +
           '<h3>שנודיע לכם כשיש דף חדש?</h3>';
 
   if (notePerm() === 'denied') {
@@ -2333,7 +2363,72 @@ function drawWa() {
   };
 }
 
+/* ============================================================
+   באייפון: קודם מתקינים, ורק אחר כך נרשמים.
+   ============================================================
+   הסדר ההפוך נבדק בשטח ונכשל. תלמידה נרשמה בספארי, הוסיפה את
+   האפליקציה למסך הבית, פתחה את האייקון — והאפליקציה לא הכירה
+   אותה. הסיבה: באייפון לאפליקציה שנוספה למסך הבית יש אחסון
+   **נפרד** מזה של ספארי, ולכן ההרשמה נשארה בצד השני של הגדר.
+
+   התוצאה בלי התיקון הזה אינה אי-נוחות אלא נתונים שגויים: כל
+   תלמיד עם אייפון נרשם פעמיים, מקבל שני מזהים, ונספר פעמיים
+   בישיבה שלו.
+
+   באנדרואיד אין את הבעיה — שם זה אותו אחסון — ולכן שם הסדר
+   נשאר כפי שהיה, וההתקנה מוצעת אחרי ההרשמה. */
+function preNeeded() {
+  return isIOS() && !standalone() && !get('me', null);
+}
+
+function showPre() {
+  $('form').style.display = 'none';
+  var e = $('pre'); if (!e) return;
+  e.className = 'wrap on';
+
+  var h = '<div class="getapp"><div class="kick">שלב 1 מתוך 3</div>' +
+    '<h3>קודם מוסיפים את האפליקציה למסך הבית</h3>' +
+    '<p>באייפון ההרשמה נשמרת בתוך האפליקציה בלבד. אם נירשם ' +
+    'כאן בדפדפן, היא לא תהיה שם — ונצטרך להירשם שוב. ' +
+    'שתי דקות עכשיו, ונרשמים פעם אחת.</p>';
+
+  /* מוואטסאפ אי אפשר להתקין בכלל, וזו ההוראה היחידה שתעזור. */
+  if (inApp()) {
+    h += '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
+         'מכאן אי אפשר להוסיף למסך הבית. לחצו על כפתור השיתוף ' +
+         'שלמטה ובחרו "פתיחה בספארי" — ומשם נמשיך.</div>' +
+         '<button class="btn" id="pre-copy">העתקת הקישור</button>';
+    e.innerHTML = h + '</div>';
+    var cp = $('pre-copy');
+    if (cp) cp.onclick = function () {
+      var ok2 = function () { cp.textContent = 'הקישור הועתק ✓'; };
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(location.href).then(ok2)['catch'](function () {
+          cp.textContent = 'לא הצלחתי להעתיק';
+        });
+      else cp.textContent = 'לא הצלחתי להעתיק';
+    };
+    return;
+  }
+
+  h += appHowList() +
+    /* דלת, אבל לא קיצור דרך: היא אומרת מה המחיר. מסלול נוח
+       שמגיע לאותו מקום הוא המסלול שכולם יבחרו. */
+    '<button class="thin" id="pre-skip">לא מצליח להתקין — ' +
+    'להירשם בכל זאת (ההרשמה עלולה להימחק)</button>';
+  e.innerHTML = h + '</div>';
+
+  var sk = $('pre-skip');
+  if (sk) sk.onclick = function () {
+    e.className = 'wrap'; e.innerHTML = '';
+    $('form').style.display = '';
+    window.scrollTo(0, 0);
+  };
+}
+
 function showDone(me) {
+  var pe = $('pre');
+  if (pe) { pe.className = 'wrap'; pe.innerHTML = ''; }
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
@@ -2392,6 +2487,7 @@ if ('serviceWorker' in navigator) {
 (function () {
   var me = get('me', null);
   if (me && me.first) showDone(me);
+  else if (preNeeded()) showPre();
   flush();
   /* מהמטמון מיד, ומהגיליון אחר כך. מסך שנפתח בלי רשת נראה כמו
      בפעם הקודמת, ולא נופל חזרה לברירת המחדל שבקוד. */
