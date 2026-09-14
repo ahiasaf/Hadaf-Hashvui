@@ -40,8 +40,20 @@ var priv = process.env.VAPID_PRIVATE || '';
 var key  = process.env.READ_KEY || '';
 /* הרצה יבשה: מחשבת ומדפיסה הכול, ואינה שולחת דבר. */
 var DRY  = /^(1|true|yes)$/i.test(String(process.env.DRY_RUN || ''));
-/* לבדיקה בלבד — כופה שעה ויום במקום השעון האמיתי. */
+/* לבדיקה בלבד — כופה שעה (HH:MM) ויום (0-6) במקום השעון. */
 var FORCE = String(process.env.FORCE_SLOT || '').trim();
+/* ============================================================
+   שני מצבים.
+   ============================================================
+   `learn` — העדכון המתוזמן: מי למד את הדף השבוע. יוצא לפי
+   התזכורות שכל ר"ם קבע לעצמו.
+
+   `joined` — "כמה מכיתתך הצטרפו": יוצא **על פי בקשה** ממסך
+   הניהול, לכל ר"ם בבת אחת, בלי קשר לתזכורות שלו. זו הודעה
+   שהרכז מחליט לשלוח, ולא שעון. ============================ */
+var MODE = String(process.env.MODE || 'learn').trim() || 'learn';
+/* מתעלם מהתזכורות ושולח לכל הצוות — מלווה את `joined`. */
+var ALL = /^(1|true|yes)$/i.test(String(process.env.SEND_ALL || ''));
 
 if (!priv && !DRY) { console.error('חסר VAPID_PRIVATE בסודות הריפו.'); process.exit(1); }
 if (!key) { console.error('חסר READ_KEY בסודות הריפו.'); process.exit(1); }
@@ -97,7 +109,7 @@ function loadProgram() {
 function israelNow() {
   var f = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Jerusalem', weekday: 'short',
-    hour: '2-digit', hour12: false,
+    hour: '2-digit', minute: '2-digit', hour12: false,
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).formatToParts(new Date());
   var g = {};
@@ -106,32 +118,34 @@ function israelNow() {
   return {
     day:  DAYS[g.weekday],
     hour: parseInt(g.hour, 10),
+    min:  parseInt(g.minute, 10),
     date: g.year + '-' + g.month + '-' + g.day
   };
 }
 
-/* המשמרות, בדיוק כפי שהן מוצגות בפינה שבעמוד הצוות.
-   `week` = העדכון מדבר על השבוע הבא, לא על זה שנגמר. */
-var SLOTS = [
-  { id:'day', hour:7,  days:[0,1,2,3,4,5], next:false },  /* כל יום, לא בשבת */
-  { id:'fri', hour:9,  days:[5],           next:false },  /* שישי בבוקר */
-  { id:'sat', hour:21, days:[6],           next:true  }   /* מוצאי שבת */
-];
+/* ============================================================
+   המשבצת — חצי השעה שבה אנחנו עומדים.
+   ============================================================
+   הקרון רץ בכל חצי שעה, והשעה מעוגלת **כלפי מטה** לחצי שעה.
+   הרצה שאיחרה בעשר דקות עדיין מטפלת במשבצת שלה; הרצה שאיחרה
+   מעבר לחצי שעה מפספסת את המשבצת — וזה עדיף בהרבה על כפילות,
+   כי כל משבצת מטופלת על ידי הרצה אחת בדיוק.
 
+   `next` — אחרי שעה 20:00 ביום שבת השבוע כבר התחלף מבחינת
+   הר"ם: מה שהוא רוצה לקרוא במוצאי שבת הוא מה שמתחיל, ולא
+   מה שנגמר. ============================================ */
 function slotNow(now) {
   if (FORCE) {
-    for (var f = 0; f < SLOTS.length; f++) if (SLOTS[f].id === FORCE) return SLOTS[f];
+    var m = /^([0-6]):([0-2]?\d:[0-5]\d)$/.exec(FORCE);
+    if (m) {
+      var t0 = m[2].length === 4 ? '0' + m[2] : m[2];
+      return { day: +m[1], t: t0, next: (+m[1] === 6 && t0 >= '20:00') };
+    }
     return null;
   }
-  /* בשבת אין שליחה, נקודה. המשמרת של מוצאי שבת היא בשעה 21
-     ביום שבת לפי התאריך, ולכן היא עוברת את התנאי הזה במפורש. */
-  for (var i = 0; i < SLOTS.length; i++) {
-    var s = SLOTS[i];
-    if (s.hour !== now.hour) continue;
-    if (s.days.indexOf(now.day) < 0) continue;
-    return s;
-  }
-  return null;
+  var t = (now.hour < 10 ? '0' : '') + now.hour + ':' +
+          (now.min < 30 ? '00' : '30');
+  return { day: now.day, t: t, next: (now.day === 6 && t >= '20:00') };
 }
 
 /* ---------- הגיליון ---------- */
@@ -205,13 +219,50 @@ function loadWants() {
         grade: g(r, 'שכבה'),
         klass: g(r, 'כיתה'),
         role:  role,
-        /* ברירת המחדל זהה לזו שבמסך: מי שלא נגע בבורר מקבל
-           בימי שישי, וזה מה שכתוב לו שם. */
-        when:  g(r, 'מועד') || 'fri'
+        /* מי שעדיין לא נשאל אינו מקבל תזכורות. **ברירת מחדל
+           היא לא תשובה**: לשלוח למי שלא ביקש זה בדיוק מה
+           שגורם לאנשים לכבות התראות לתמיד. */
+        when:  parseWhen(g(r, 'מועד'))
       });
     }
     return out;
   });
+}
+
+/* ============================================================
+   התזכורות שר"ם קבע לעצמו.
+   ============================================================
+   `0123456@07:00;5@09:00` — ספרות הימים (0=ראשון), שעה,
+   ונקודה-פסיק בין תזכורות. הנוסח הישן (`fri` · `day` · `sat`
+   · `off`) עדיין מובן, כי הוא יושב בגיליון אצל מי שכבר בחר.
+
+   ריק = לא נשאל ולא ענה, וגם זה אינו מקבל. ============== */
+var OLD_WHEN = {
+  fri: [{ d:'5', t:'09:00' }],
+  day: [{ d:'012345', t:'07:00' }],
+  sat: [{ d:'6', t:'21:00' }],
+  off: []
+};
+function parseWhen(raw) {
+  raw = String(raw || '').trim();
+  if (!raw) return [];
+  if (OLD_WHEN[raw]) return OLD_WHEN[raw].slice();
+  var out = [];
+  raw.split(';').forEach(function (part) {
+    var m = /^([0-6]{1,7})@([0-2]?\d:[0-5]\d)$/.exec(part.trim());
+    if (!m) return;
+    var t = m[2];
+    if (t.length === 4) t = '0' + t;
+    out.push({ d: m[1], t: t });
+  });
+  return out;
+}
+function wantsNow(list, slot) {
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].t !== slot.t) continue;
+    if (list[i].d.indexOf(String(slot.day)) >= 0) return true;
+  }
+  return false;
 }
 
 /* הלוח של ישיבה אחת. סיסמת הרכז פותחת כל לוח. */
@@ -245,6 +296,28 @@ function forOne(P, w, students, wk) {
   });
   var cls = (w.grade || '') + (w.klass ? '‎' + w.klass : '');
   var D = P.DIGEST;
+
+  /* ============================================================
+     "כמה מכיתתך הצטרפו" — ההודעה שהרכז שולח ביד.
+     ============================================================
+     היא אינה מדברת על הדף אלא על ההצטרפות, והיא **נושאת את
+     השאלה על המועד**: זה הרגע שבו לר"ם יש כבר תלמידים, ולכן
+     זה הרגע שבו "מתי נוח לך" הופכת לשאלה אמיתית. לחיצה על
+     ההתראה פותחת בדיוק שם. */
+  if (MODE === 'joined') {
+    /* **מי שאין לו תלמידים אינו מקבל "אפס הצטרפו".** ההודעה
+       הזו נשלחת כדי לבשר, ו-"0 מתלמידיך" אינה בשורה — היא
+       נזיפה בשבע בבוקר על משהו שהוא ממילא יודע. מדלגים.
+       ומאותה סיבה גם השאלה על המועד לא נשאלת כאן: אין לו
+       עדיין על מי לקבל עדכון, בדיוק כמו במסך עצמו. */
+    if (!mine.length) return null;
+    var vj = { cls: cls, n: mine.length };
+    /* מי שכבר קבע מועד אינו נשאל שוב. */
+    var tail = (w.when && w.when.length) ? '' : ' ' + D.joinedAsk;
+    return { title: fill(D.joinedT, vj),
+             body:  fill(D.joined, vj) + tail };
+  }
+
   if (!mine.length) {
     return { title: fill(D.title, { cls: cls }),
              body: fill(D.empty, { cls: cls }) };
@@ -279,39 +352,65 @@ catch (e) { console.error('נכשל: ' + e.message); process.exit(1); }
 
 var now = israelNow();
 var slot = slotNow(now);
-console.log('שעון ישראל: ' + now.date + ' · יום ' + now.day + ' · ' + now.hour + ':00');
+console.log('שעון ישראל: ' + now.date + ' · יום ' + now.day + ' · ' +
+            (now.hour < 10 ? '0' : '') + now.hour + ':' +
+            (now.min < 10 ? '0' : '') + now.min +
+            '  ·  מצב: ' + MODE + (ALL ? ' (לכולם)' : ''));
 
 if (!slot) {
-  console.log('אין משמרת בשעה הזו — לא נשלח דבר.');
+  console.log('אין משבצת בשעה הזו — לא נשלח דבר.');
   process.exit(0);
 }
-console.log('משמרת: ' + slot.id);
+console.log('משבצת: יום ' + slot.day + ' · ' + slot.t +
+            (slot.next ? '  (השבוע הבא)' : ''));
 
 /* השבוע שעליו מדובר. במוצאי שבת השבוע כבר התחלף. */
 var wk = P.LWeek() + (slot.next ? 1 : 0);
-if (wk < 0) {
-  console.log('התוכנית עוד לא התחילה (מתחילה ' + P.PROGRAM.startDate +
-              ') — לא נשלח דבר.');
+
+/* ============================================================
+   שלושת השערים האלה שייכים לעדכון על הלימוד בלבד.
+   ============================================================
+   "כמה מכיתתך הצטרפו" מדבר על הרשמה ולא על דף, ולכן הוא
+   נכון דווקא **לפני** שהתוכנית מתחילה — זה הזמן שבו תלמידים
+   נרשמים, וזה מה שהרכז ירצה להראות לר"ם. שער שסוגר אותו אז
+   סוגר אותו בדיוק כשהוא נחוץ. */
+if (MODE === 'learn') {
+  if (wk < 0) {
+    console.log('התוכנית עוד לא התחילה (מתחילה ' + P.PROGRAM.startDate +
+                ') — לא נשלח דבר.');
+    process.exit(0);
+  }
+  if (wk >= P.CAL_TAANIT.length) {
+    console.log('התוכנית הסתיימה — לא נשלח דבר.');
+    process.exit(0);
+  }
+  /* שבוע חופשה: אין דף באף מסלול, ולכן אין על מה לעדכן.
+     כך גם חנוכה ופסח יוצאים מהמשחק בלי רשימת חגים נפרדת. */
+  var anyDaf = P.TRACKS.some(function (t) { return !!P.LDaf(t.id, wk); });
+  if (!anyDaf) {
+    console.log('שבוע ' + (wk + 1) + ' הוא שבוע חופשה — לא נשלח דבר.');
+    process.exit(0);
+  }
+  console.log('שבוע ' + (wk + 1) + ' · ' + P.CAL_TAANIT[wk][1]);
+}
+
+/* **ובשבת לא שולחים, בשום מצב ובשום מצב-שליחה.** גם הודעה
+   שהרכז יזם ביד אינה מצלצלת בטלפון של ר"ם בשבת. */
+if (slot.day === 6 && slot.t < '20:00') {
+  console.log('שבת — לא נשלח דבר.');
   process.exit(0);
 }
-if (wk >= P.CAL_TAANIT.length) {
-  console.log('התוכנית הסתיימה — לא נשלח דבר.');
-  process.exit(0);
-}
-/* שבוע חופשה: אין דף באף מסלול, ולכן אין על מה לעדכן.
-   כך גם חנוכה ופסח יוצאים מהמשחק בלי רשימת חגים נפרדת. */
-var anyDaf = P.TRACKS.some(function (t) { return !!P.LDaf(t.id, wk); });
-if (!anyDaf) {
-  console.log('שבוע ' + (wk + 1) + ' הוא שבוע חופשה — לא נשלח דבר.');
-  process.exit(0);
-}
-console.log('שבוע ' + (wk + 1) + ' · ' + P.CAL_TAANIT[wk][1]);
 
 loadWants().then(function (all) {
-  var due = all.filter(function (w) { return w.when === slot.id; });
-  console.log('רשומים: ' + all.length + ' · במשמרת הזו: ' + due.length);
+  /* `ALL` — הודעה שהרכז החליט לשלוח, ולכן היא אינה נשענת על
+     התזכורות של איש. בלעדיו: רק מי שביקש, ורק עכשיו. */
+  var due = ALL ? all : all.filter(function (w) {
+    return wantsNow(w.when, slot);
+  });
+  console.log('רשומים: ' + all.length +
+              (ALL ? ' · שולחים לכולם: ' : ' · במשבצת הזו: ') + due.length);
   if (!due.length) {
-    console.log('אין למי לשלוח במשמרת הזו.');
+    console.log('אין למי לשלוח.');
     return [];
   }
   due.forEach(function (w) { w.slot = slot; });
@@ -343,6 +442,10 @@ loadWants().then(function (all) {
         return 0;
       }
       var msg = forOne(P, w, students, wk);
+      if (!msg) {
+        console.log('  · ' + w.who + ' — אין לו עדיין תלמידים, מדלג');
+        return 0;
+      }
       if (DRY) {
         console.log('  · ' + w.who + ' → ' + msg.title + ' | ' + msg.body);
         return 1;

@@ -517,18 +517,41 @@ footer a{color:var(--ink-2);font-weight:800}
 .mycard > p{margin-top:8px;font-size:.9rem;font-weight:600;
   color:var(--ink-2);line-height:1.7}
 .whens{margin-top:14px;display:grid;gap:8px}
-.whenb{display:flex;align-items:center;gap:12px;width:100%;
-  padding:13px 15px;border:1.5px solid var(--rule);border-radius:var(--r-s);
-  background:#fff;font-family:inherit;text-align:start;cursor:pointer;
-  transition:border-color .15s,background .15s}
-.whenb.on{border-color:var(--green-d);background:rgba(74,130,28,.07)}
-.whenb i{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
-  border:2px solid var(--rule);display:flex;align-items:center;
-  justify-content:center;font-size:.7rem;color:#fff;font-style:normal}
-.whenb.on i{border-color:var(--green-d);background:var(--green-d)}
-.whenb b{display:block;font-size:.95rem;font-weight:800;letter-spacing:-.02em}
-.whenb span{display:block;font-size:.78rem;font-weight:600;
-  color:var(--ink-3);margin-top:2px}
+/* שורת תזכורת שנקבעה: השעה היא מה שהעין מחפשת, ולכן היא
+   ראשונה וגדולה, והימים לצידה. */
+.whenrow{display:flex;align-items:center;gap:12px;width:100%;
+  padding:12px 15px;border:1.5px solid var(--rule);border-radius:var(--r-s);
+  background:#fff}
+.whenrow .wt{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--green-2)}
+.whenrow .wd{flex:1;font-size:.86rem;font-weight:700;color:var(--ink-2)}
+.whenrow .wx{border:0;background:none;font-family:inherit;font-size:.78rem;
+  font-weight:700;color:var(--ink-3);text-decoration:underline;
+  cursor:pointer;padding:4px 2px}
+/* הכרטיס כשעוד לא נשאל — קו זהב שאומר "יש כאן שאלה פתוחה" */
+.mycard.ask{border-color:var(--gold)}
+.whenadd{display:block;width:100%;margin-top:12px;padding:14px;border:0;
+  border-radius:var(--r-s);background:var(--green-d);color:#fff;
+  font-family:inherit;font-weight:800;font-size:.97rem;cursor:pointer}
+.whennone,.whenx{display:block;width:100%;margin-top:8px;padding:11px 6px;
+  border:0;background:none;color:var(--ink-3);font-family:inherit;
+  font-size:.86rem;font-weight:700;text-decoration:underline;cursor:pointer}
+.whenoff{margin-top:11px;font-size:.84rem;font-weight:700;color:var(--ink-3)}
+.whenform{margin-top:14px;padding:16px 15px;border:1.5px solid var(--rule);
+  border-radius:var(--r-s);background:var(--sunk)}
+.whenform .fl{font-size:.78rem;font-weight:800;color:var(--ink-2);
+  margin-bottom:7px}
+.whenform select{width:100%;padding:12px 13px;font-size:1rem;font-weight:700;
+  font-family:inherit;color:inherit;background:#fff;
+  border:1px solid var(--rule);border-radius:var(--r-s)}
+.daysrow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;
+  margin-bottom:14px}
+.dayb{padding:11px 0;border:1.5px solid var(--rule);border-radius:10px;
+  background:#fff;font-family:inherit;font-size:.92rem;font-weight:800;
+  color:var(--ink-2);cursor:pointer;transition:border-color .15s,background .15s}
+.dayb.on{border-color:var(--green-d);background:var(--green-d);color:#fff}
+.fbtns{margin-top:4px}
+.fbtns .whenadd{margin-top:14px}
 .mysaid{margin-top:11px;font-size:.84rem;font-weight:800;color:var(--green-2)}
 .mycard textarea{width:100%;margin-top:14px;padding:14px;min-height:96px;
   font-family:inherit;font-size:1rem;font-weight:600;line-height:1.6;
@@ -1520,24 +1543,136 @@ function ramNoted() {
    שאפשר לערוך לו את הכתובת; הסקריפט בודק את קוד הגישה של
    הישיבה, וממנו הוא גוזר למי מותר לשלוח. מה שנשלח מכאן הוא
    בקשה, לא הוראה. ============================================ */
-var WHENS = [['fri','myWhen1'], ['day','myWhen2'],
-             ['sat','myWhen3'], ['off','myWhen4']];
-var myBusy = false, myErr = '', mySaid = '', myDraft = '';
+/* ============================================================
+   התזכורות — הוא בונה אותן, ולא בוחר מרשימה.
+   ============================================================
+   קודם עמדו כאן ארבע אפשרויות קבועות. הן היו נוחות לבנייה
+   ושגויות בשטח: ר"ם שהשיעור שלו בשמונה, ר"ם שרוצה גם בשישי
+   וגם באמצע השבוע, ור"ם שפשוט מעדיף בערב — כולם קיבלו את
+   מה שהתאים למישהו אחר.
 
-function myWhen() {
-  try { return localStorage.getItem('df:ramWhen') || 'fri'; }
-  catch (e) { return 'fri'; }
+   עכשיו הוא מוסיף תזכורת: ימים ושעה. כמה שירצה. **ואפס
+   תזכורות הן "אל תעדכן אותי"** — אין צורך באפשרות נפרדת
+   שאומרת את זה, והרשימה הריקה אומרת את עצמה.
+
+   הצורה שנשמרת: `0123456@07:00;5@09:00` — ספרות הימים
+   (0=ראשון), שעה, ונקודה-פסיק בין תזכורות. השולח קורא
+   בדיוק את הצורה הזו, וממשיך להבין גם את הנוסח הישן
+   (`fri` · `day` · `sat` · `off`) של מי שכבר בחר. */
+var DAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+var MAX_WHEN = 8;
+var myBusy = false, myErr = '', mySaid = '', myDraft = '';
+/* הטיוטה של התזכורת שנבנית כרגע. `null` = הטופס סגור. */
+var myNew = null;
+
+/* הנוסח הישן, למי שכבר בחר לפני שהמסך הזה השתנה. */
+var OLD_WHEN = {
+  fri: [{ d:'5', t:'09:00' }],
+  day: [{ d:'012345', t:'07:00' }],
+  sat: [{ d:'6', t:'21:00' }],
+  off: []
+};
+
+function myParse(raw) {
+  raw = String(raw || '').trim();
+  if (!raw) return null;                       /* עוד לא בחר */
+  if (OLD_WHEN[raw]) return OLD_WHEN[raw].slice();
+  var out = [];
+  raw.split(';').forEach(function (part) {
+    var m = /^([0-6]{1,7})@([0-2]?\d:[0-5]\d)$/.exec(part.trim());
+    if (!m) return;
+    var t = m[2];
+    if (t.length === 4) t = '0' + t;
+    out.push({ d: m[1], t: t });
+  });
+  return out;
 }
-function mySetWhen(v) {
-  try { localStorage.setItem('df:ramWhen', v); } catch (e) {}
+/* **רשימה ריקה נשמרת כ-`off`, ולא כמחרוזת ריקה.** ריק פירושו
+   "עוד לא נשאל", ומי שביקש במפורש שלא יעדכנו אותו היה נשאל
+   שוב בכל כניסה. `off` הוא בדיוק הנוסח הישן, והשולח כבר
+   מבין אותו. */
+function myFmt(list) {
+  if (!list || !list.length) return 'off';
+  return list.map(function (w) { return w.d + '@' + w.t; }).join(';');
+}
+
+/* `null` = לא נשאל ולא ענה. `[]` = ביקש במפורש שלא יעדכנו. */
+function myWhen() {
+  try { return myParse(localStorage.getItem('df:ramWhen')); }
+  catch (e) { return null; }
+}
+function mySaveWhen(list) {
+  var txt = myFmt(list);
+  try { localStorage.setItem('df:ramWhen', txt); } catch (e) {}
   /* השורה נכתבת לגיליון כדי שהשולח האוטומטי יֵדע מתי. הכתיבה
      `no-cors` ואטומה, ולכן המסך אומר "נשמר" על מה שנשמר כאן
      במכשיר — וזה נכון — ולא על מה שקרה בצד השני. */
-  var me = ramGet() || {};
-  ramPost('מועד', null, v);
+  ramPost('מועד', null, txt);
   mySaid = tz('myWhenOk');
   myDraw();
   setTimeout(function () { mySaid = ''; myDraw(); }, 2500);
+}
+
+/* ---------- בניית תזכורת ---------- */
+function myOpenNew() {
+  /* ברירת מחדל שאפשר פשוט לאשר: ימי חול, לפני השיעור הראשון. */
+  myNew = { d:'012345', t:'07:00' };
+  myErr = '';
+  myDraw();
+}
+function myCancelNew() { myNew = null; myErr = ''; myDraw(); }
+function myToggleDay(i) {
+  if (!myNew) return;
+  var k = String(i);
+  myNew.d = myNew.d.indexOf(k) >= 0
+    ? myNew.d.split(k).join('')
+    : (myNew.d + k).split('').sort().join('');
+  myErr = '';
+  myDraw();
+}
+function mySetTime(t) { if (myNew) myNew.t = t; }
+function myAdd() {
+  if (!myNew) return;
+  var sel = $('my-time');
+  if (sel) myNew.t = sel.value;
+  if (!myNew.d) { myErr = tz('myWhenNoDay'); myDraw(); return; }
+  var list = myWhen() || [];
+  /* אותה תזכורת פעמיים אינה שתי התראות — היא אותה התראה. */
+  var dup = false;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].d === myNew.d && list[i].t === myNew.t) dup = true;
+  }
+  if (dup) { myErr = tz('myWhenDup'); myDraw(); return; }
+  if (list.length >= MAX_WHEN) { myErr = tz('myWhenMax'); myDraw(); return; }
+  list.push({ d: myNew.d, t: myNew.t });
+  list.sort(function (a2, b2) { return a2.t < b2.t ? -1 : (a2.t > b2.t ? 1 : 0); });
+  myNew = null; myErr = '';
+  mySaveWhen(list);
+}
+function myDrop(i) {
+  var list = myWhen() || [];
+  list.splice(i, 1);
+  mySaveWhen(list);
+}
+/* "אל תעדכן אותי" = רשימה ריקה שנשמרה במפורש. */
+function myNone() { myNew = null; myErr = ''; mySaveWhen([]); }
+
+/* "ב׳ ד׳ ו׳" · "כל יום" · "ימי חול" — הצורה שאדם קורא. */
+function myDaysText(d) {
+  if (d === '0123456') return tz('myWhenAll');
+  if (d === '012345')  return tz('myWhenWeek');
+  var out = [];
+  for (var i = 0; i < 7; i++) if (d.indexOf(String(i)) >= 0) out.push(DAYS[i] + '׳');
+  return out.join(' ');
+}
+function myTimes() {
+  var out = [], h, m;
+  for (h = 5; h <= 23; h++) {
+    for (m = 0; m < 60; m += 30) {
+      out.push((h < 10 ? '0' : '') + h + ':' + (m ? '30' : '00'));
+    }
+  }
+  return out;
 }
 
 /* כמה מתלמידיו התקינו. נגזר מאותה רשימה שכבר נטענה ללוח. */
@@ -1563,17 +1698,27 @@ function myShow() {
 function myDraw() {
   var w = $('my-when'), sy = $('my-say');
   if (!w || !sy) return;
-  var now = myWhen();
-  w.innerHTML = '<div class="mycard"><h3>' + esc(tz('myWhenH')) + '</h3>' +
-    '<p>' + esc(tz('myWhenB')) + '</p><div class="whens">' +
-    WHENS.map(function (o) {
-      return '<button class="whenb' + (now === o[0] ? ' on' : '') +
-        '" data-w="' + o[0] + '"><i>✓</i><span style="flex:1">' +
-        '<b>' + esc(tz(o[1])) + '</b>' +
-        '<span>' + esc(tz(o[1] + 'S')) + '</span></span></button>';
-    }).join('') + '</div>' +
-    (mySaid ? '<div class="mysaid">' + esc(mySaid) + '</div>' : '') +
-    '</div>';
+  var n0 = myReach();
+  var list = myWhen();
+
+  /* ============================================================
+     **השאלה מופיעה עם הצורך.**
+     ============================================================
+     ר"ם שאין לו עדיין תלמידים באפליקציה אינו צריך להחליט מתי
+     לקבל עדכון על תלמידיו — אין על מה לעדכן אותו, והשאלה
+     בשלב הזה היא רק עוד טופס. ברגע שהצטרף אליו הראשון היא
+     נפתחת, ואז היא שאלה אמיתית. */
+  if (n0 === 0) {
+    w.innerHTML = '';
+  } else {
+    w.innerHTML = '<div class="mycard' + (list === null ? ' ask' : '') + '">' +
+      '<h3>' + esc(tz('myWhenH')) + '</h3>' +
+      '<p>' + esc(list === null ? tz('myWhenNew') : tz('myWhenB')) + '</p>' +
+      myWhenList(list) + myWhenForm(list) +
+      (myErr ? '<div class="myerr">' + esc(myErr) + '</div>' : '') +
+      (mySaid ? '<div class="mysaid">' + esc(mySaid) + '</div>' : '') +
+      '</div>';
+  }
 
   var n = myReach();
   var to = (n === null)
@@ -1592,10 +1737,65 @@ function myDraw() {
   myWire();
 }
 
+/* הרשימה שכבר נקבעה. כל שורה — מה, ומה מסיר אותה. */
+function myWhenList(list) {
+  if (!list || !list.length) return '';
+  return '<div class="whens">' + list.map(function (o, i) {
+    return '<div class="whenrow">' +
+      '<span class="wt">' + esc(o.t) + '</span>' +
+      '<span class="wd">' + esc(myDaysText(o.d)) + '</span>' +
+      '<button class="wx" data-drop="' + i + '" ' +
+      'aria-label="הסרת התזכורת">הסרה</button></div>';
+  }).join('') + '</div>';
+}
+
+/* הטופס: ימים כלחצנים, שעה ברשימה. שתי החלטות, ובלי הקלדה. */
+function myWhenForm(list) {
+  if (!myNew) {
+    var h = '<button class="whenadd" id="my-add">' +
+      esc(list && list.length ? tz('myWhenMore') : tz('myWhenGo')) + '</button>';
+    /* "אל תעדכן אותי" אינו אפשרות ברשימה אלא יציאה — ולכן
+       הוא שקט, ומוצג רק כל עוד לא נאמר. */
+    if (list === null) {
+      h += '<button class="whennone" id="my-none">' + esc(tz('myWhenOff')) + '</button>';
+    }
+    if (list && !list.length) {
+      h += '<p class="whenoff">' + esc(tz('myWhenOffNow')) + '</p>';
+    }
+    return h;
+  }
+  var days = '<div class="daysrow">';
+  for (var i = 0; i < 7; i++) {
+    days += '<button class="dayb' + (myNew.d.indexOf(String(i)) >= 0 ? ' on' : '') +
+      '" data-day="' + i + '">' + DAYS[i] + '</button>';
+  }
+  days += '</div>';
+  var opts = myTimes().map(function (t) {
+    return '<option value="' + t + '"' + (t === myNew.t ? ' selected' : '') +
+           '>' + t + '</option>';
+  }).join('');
+  return '<div class="whenform">' +
+    '<div class="fl">' + esc(tz('myWhenDays')) + '</div>' + days +
+    '<div class="fl">' + esc(tz('myWhenTime')) + '</div>' +
+    '<select id="my-time" onchange="mySetTime(this.value)">' + opts + '</select>' +
+    '<div class="fbtns">' +
+    '<button class="whenadd" id="my-ok">' + esc(tz('myWhenSave')) + '</button>' +
+    '<button class="whenx" id="my-cancel">' + esc(tz('myWhenCancel')) + '</button>' +
+    '</div></div>';
+}
+
 function myWire() {
-  [].forEach.call(document.querySelectorAll('#my-when [data-w]'), function (b) {
-    b.onclick = function () { mySetWhen(b.getAttribute('data-w')); };
+  var b;
+  [].forEach.call(document.querySelectorAll('#my-when [data-day]'), function (d) {
+    d.onclick = function () { myToggleDay(+d.getAttribute('data-day')); };
   });
+  [].forEach.call(document.querySelectorAll('#my-when [data-drop]'), function (d) {
+    d.onclick = function () { myDrop(+d.getAttribute('data-drop')); };
+  });
+  if ((b = $('my-add')))    b.onclick = myOpenNew;
+  if ((b = $('my-ok')))     b.onclick = myAdd;
+  if ((b = $('my-cancel'))) b.onclick = myCancelNew;
+  if ((b = $('my-none')))   b.onclick = myNone;
   var t = $('my-txt');
   var g = $('my-go');
   /* הקלדה משנה רק את מצב הכפתור. ציור מחדש בכל תו היה מחזיר

@@ -1584,7 +1584,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.34.0';
+var APP_VERSION = '8.35.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6438,6 +6438,38 @@ function pushCount() {
 
 function pushSet(k, v) { pushView[k] = v; }
 
+/* ============================================================
+   "כמה מכיתתך הצטרפו" — עדכון אישי לכל ר"ם.
+   ============================================================
+   זו אינה הודעה אחת שיוצאת לרבים: כל ר"ם מקבל את המספר של
+   הכיתה **שלו**, והניסוח נבנה בצד ששולח. ולכן אין כאן תיבת
+   טקסט — אין מה להקליד.
+
+   ולמי שעוד לא קבע מתי נוח לו לקבל עדכונים, מתווספת לסוף
+   ההודעה השאלה: עכשיו יש לו תלמידים, ולכן עכשיו זו שאלה
+   אמיתית. לחיצה על ההתראה פותחת בדיוק שם. */
+function pushJoined() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { pushMsg = 'nokey'; admPane(); return; }
+  if (!confirm('לשלוח לכל ר"ם שנרשם התראה עם מספר התלמידים ' +
+               'שהצטרפו מכיתתו?\n\nלכל אחד יוצא המספר שלו.')) return;
+  pushBusy = true; pushMsg = 'שולח…'; admPane();
+  scriptGet({ fire:'digest', key:key, mode:'joined' })
+    .then(function (d) {
+      pushBusy = false;
+      /* התשובה אומרת רק ש-GitHub קיבל את ההצתה. מה שהגיע
+         בפועל למכשירים נמצא ביומן ההרצה, ולכן נאמר בדיוק זה. */
+      pushMsg = (d && d.status === 'ok')
+        ? 'נשלח להפעלה. ההתראות יוצאות תוך פחות מדקה — ' +
+          'הפירוט המלא ב-Actions ב-GitHub.'
+        : 'לא יצא: ' + ((d && d.message) || 'אין תשובה מהסקריפט.');
+      admPane();
+    })['catch'](function () {
+      pushBusy = false;
+      pushMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+    });
+}
+
 /* ממלא את ההודעה שלמעלה בהזמנה מוכנה, ומצייר מחדש כדי שיראה
    בדיוק מה עומד לצאת לפני שהוא לוחץ. */
 function pushInvite(code) {
@@ -6510,6 +6542,14 @@ function admPush(el) {
      ר"ם שקיבל אותה ולחץ עליה נחת בדיוק במקום שבו הוא בוחר
      מתי לקבל ומה לשלוח. וזו גם הבדיקה: מי שהגיע לשם הבין
      מה זו התראה, ומי שלא — פשוט לא לחץ. */
+  h += '<div class="adm-card"><h4>כמה מכיתתך הצטרפו</h4>' +
+    '<p class="h">עדכון אישי לכל ר"ם שנרשם — כל אחד מקבל את המספר ' +
+    'של הכיתה שלו. למי שעוד לא קבע מתי נוח לו לקבל עדכונים, ' +
+    'מתווספת לסוף ההודעה השאלה, ולחיצה פותחת אותה.</p>' +
+    '<button class="btn p"' + (pushBusy ? ' disabled' : '') +
+    ' onclick="pushJoined()">' +
+    (pushBusy ? 'שולח…' : 'שליחה לכל הר"מים') + '</button></div>';
+
   h += '<div class="adm-card"><h4>הזמנה לפינה האישית</h4>' +
     '<p class="h">ממלא את ההודעה שלמעלה: לצוות בלבד, ופותחת ' +
     'ישר בפינה שבעמוד הצוות. צריך לבחור ישיבה — הקישור נושא ' +

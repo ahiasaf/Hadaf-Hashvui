@@ -394,6 +394,54 @@ function doGet(e) {
     return reply_(e, { status: 'ok' });
   }
 
+  /* ============================================================
+     "כמה מכיתתך הצטרפו" — הצתה של העדכון האישי.
+     ============================================================
+     בניגוד ל-`fire=say`, כאן אין טקסט אחד: כל ר"ם מקבל את
+     המספר של הכיתה שלו, והניסוח נבנה בצד ששולח. מה שיוצא
+     מכאן הוא רק ההוראה להתחיל.
+
+     READ_KEY בלבד — זו הודעה לכל הצוות, ואין ר"ם ששולח
+     אותה. ============================================== */
+  if (e && e.parameter && e.parameter.fire === 'digest') {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    var dTok  = prop_('GH_TOKEN', '');
+    var dRepo = prop_('GH_REPO', '');
+    if (!dTok)  return reply_(e, { status:'denied', message:'לא הוגדר GH_TOKEN' });
+    if (!dRepo) return reply_(e, { status:'denied', message:'לא הוגדר GH_REPO' });
+    try {
+      var dRes = UrlFetchApp.fetch(GH_API + dRepo + '/dispatches', {
+        method: 'post', contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + dTok,
+                   Accept: 'application/vnd.github+json',
+                   'X-GitHub-Api-Version': '2022-11-28' },
+        payload: JSON.stringify({
+          event_type: 'push-digest',
+          client_payload: { mode: String(e.parameter.mode || 'joined'),
+                            all: '1' }
+        }),
+        muteHttpExceptions: true
+      });
+      var dCode = dRes.getResponseCode();
+      if (dCode !== 204) {
+        return reply_(e, { status:'error', code: dCode,
+          message: 'GitHub החזיר ' + dCode });
+      }
+      try {
+        appendCols_('הודעות', [
+          ['מי', 'רכז'], ['ישיבה', 'כל הצוות'],
+          ['כותרת', 'כמה מכיתתך הצטרפו'],
+          ['הטקסט', 'עדכון אישי — כל ר"ם והמספר שלו']
+        ]);
+      } catch (e3) {}
+      return reply_(e, { status: 'ok' });
+    } catch (err3) {
+      return reply_(e, { status: 'error', message: String(err3) });
+    }
+  }
+
   /* "טופלתי" — סימון שורה בלשונית התקועים.
      דורש READ_KEY: מי שסימן הוא מי שגם קורא את הרשימה. המספר
      הוא מספר השורה כפי שהיא חזרה בקריאה, ולשונית שרק נוספות
