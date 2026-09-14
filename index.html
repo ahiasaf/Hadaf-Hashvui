@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.27.0';
+var APP_VERSION = '8.28.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6162,29 +6162,51 @@ function textDrift() {
   return out;
 }
 
+/* **וגם ההגדרות, לא רק המלל.** מתג "מה מוצג" אינו נוסח, והוא
+   נמשך מאותה שכבה בדיוק — כלומר תלמיד שהשכבה לא הגיעה אליו
+   רואה את ברירת המחדל שבקוד. זה כבר קרה בשטח: שני תלמידים זה
+   לצד זה, אחד ראה את המסכים הנכונים והשני את הישנים. הטמעה
+   בקוד היא מה שהופך את ברירת המחדל לנכונה. */
+function cfgDrift() {
+  var out = [];
+  PUB_KEYS.forEach(function (k) {
+    var v = CV(k);
+    if (v == null) return;
+    out.push({ k: k, v: v });
+  });
+  return out;
+}
+
 function admEmbedCard() {
-  var n = textDrift().length;
-  return '<div class="adm-card"><h4>הטמעת המלל בקוד</h4>' +
-    '<p class="h">כל נוסח שערכתם יושב בשכבה שמעל הקוד, והיא ' +
-    'נמשכת מהגיליון אצל כל תלמיד בכל כניסה. כשהניסוח מתייצב — ' +
-    'מפיקים כאן את הרשימה, מעבירים אותה להטמעה בקוד, ואז מוחקים ' +
-    'את השכבה. אין לזה דחיפות; זה סדר.</p>' +
+  var n = textDrift().length, c = cfgDrift().length;
+  return '<div class="adm-card"><h4>הטמעה בקוד</h4>' +
+    '<p class="h">כל מה שערכתם — הנוסחים <b>וגם המתגים של "מה ' +
+    'מוצג"</b> — יושב בשכבה שמעל הקוד, והיא נמשכת מהגיליון אצל ' +
+    'כל תלמיד בכל כניסה. מי שהשכבה לא הגיעה אליו רואה את מה ' +
+    'שכתוב בקוד. הטמעה בקוד היא מה שהופך את ברירת המחדל לנכונה, ' +
+    'ואחריה אפשר למחוק את השכבה.</p>' +
+    '<div class="row" style="padding:8px 0"><span>הגדרות שפורסמו</span>' +
+    '<b' + (c ? '' : ' style="color:var(--ink-3)"') + '>' + c + '</b></div>' +
     '<div class="row" style="padding:8px 0"><span>נוסחים שנפרדו מהקוד</span>' +
     '<b' + (n ? '' : ' style="color:var(--ink-3)"') + '>' + n + '</b></div>' +
-    (n
+    ((n + c)
       ? '<button class="btn p" onclick="admEmbedMake()">הפקת הרשימה</button>'
-      : '<p class="h">אין מה להפיק — המלל שמוצג הוא בדיוק מה שבקוד.</p>') +
+      : '<p class="h">אין מה להפיק — מה שמוצג הוא בדיוק מה שבקוד.</p>') +
     '<div id="adm-embed"></div></div>';
 }
 
 function admEmbedMake() {
-  var list = textDrift(), box = document.getElementById('adm-embed');
+  var list = textDrift(), cfg = cfgDrift();
+  var box = document.getElementById('adm-embed');
   if (!box) return;
   var map = {};
   list.forEach(function (f) { map[f.k] = { lbl:f.lbl, code:f.code, now:f.now }; });
-  var txt = JSON.stringify(map, null, 2);
+  var out = { גרסה: APP_VERSION, הגדרות: {}, נוסחים: map };
+  cfg.forEach(function (f) { out['הגדרות'][f.k] = f.v; });
+  var txt = JSON.stringify(out, null, 2);
 
-  box.innerHTML = '<p class="h" style="margin-top:12px">' + list.length +
+  box.innerHTML = '<p class="h" style="margin-top:12px">' + cfg.length +
+    ' הגדרות ו-' + list.length +
     ' נוסחים. להעתיק את הכל ולשלוח להטמעה:</p>' +
     '<textarea id="adm-embed-t" rows="9" dir="ltr" readonly ' +
     'style="direction:ltr;text-align:left;font-size:.72rem"></textarea>' +
