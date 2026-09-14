@@ -5,6 +5,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>לצוות · הדף השבועי של בני עקיבא</title>
 <link rel="icon" href="icon-192.png">
+<!-- ============================================================
+     האייקון והמצב העצמאי — שניהם היו חסרים כאן, וזה עלה ביוקר.
+     ============================================================
+     ספארי מתעלם מהאייקונים שב-manifest, ולכן `apple-touch-icon`
+     הוא האייקון היחיד שהוא מכיר. בלעדיו אייפון מייצר אריח
+     מהאות הראשונה של הכותרת — וזה מה שראה ר"ם שהתקין: "ל"
+     של "לצוות", על רקע כהה.
+
+     **וזה היה החצי הקטן.** `apple-mobile-web-app-capable` הוא
+     מה שגורם לאייקון להיפתח כאפליקציה ולא כלשונית ספארי, ורק
+     במצב הזה `navigator.standalone` הוא אמת. בלעדיו:
+
+       · המסע של הר"ם לא ידע לעולם שהוא התקין, ונתקע על
+         "פתחו את האייקון" — גם אחרי שפתח אותו.
+       · והתראות באייפון עובדות **רק** במצב עצמאי, כלומר אף
+         ר"ם עם אייפון לא היה יכול לקבל עדכון.
+
+     העמוד הזה הוא שבו הר"ם מתבקש להתקין, ולכן כאן זה קריטי.
+     `index.html` ו-`join.html` נשאו את התגיות האלה מההתחלה.
+
+     **ובלי manifest, בכוונה.** מניפסט קובע `start_url` קבוע,
+     והאייקון היה נפתח בלי `?inst=` — כלומר בלי הישיבה שלו
+     ובלי הלוח. אייפון בלי מניפסט פותח את הכתובת שממנה הוסיף,
+     על כל מה שיש בה. ============================================ -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="הדף · לצוות">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#0B2550">
 <style>
 /* ============================================================
@@ -470,6 +499,10 @@ footer a{color:var(--ink-2);font-weight:800}
 .as-thin{display:block;width:100%;margin-top:10px;padding:12px 6px;border:0;
   background:none;color:var(--ink-2);font-family:inherit;font-size:.9rem;
   font-weight:700;text-decoration:underline;cursor:pointer;line-height:1.6}
+/* שורת מוצא שקטה — נאמרת רק למי שבאמת נתקע, ולכן היא אינה
+   מתחרה בהוראה הראשית שמעליה. */
+.as-sub{margin-top:12px;font-size:.84rem;font-weight:600;
+  color:var(--ink-3);line-height:1.7}
 .as-err{margin-top:14px;background:#F7E4E2;border:1px solid #E2BDB8;
   border-radius:12px;padding:13px 15px;font-size:.88rem;font-weight:700;
   color:#7E2C23;line-height:1.7}
@@ -2026,9 +2059,17 @@ function ramInstall() {
         : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן".') + '</div>';
   }
   if (APPX.wasAdded() && !APPX.installed()) {
+    /* **ולמצב הזה חייבת להיות יציאה.** עד שהתגיות שלמעלה
+       נוספו, אייקון שנוצר באייפון לא נפתח כאפליקציה — ולכן
+       המסך הזה חזר שוב ושוב גם אחרי שהוא פתח את האייקון.
+       מי שנתקע כך צריך להסיר ולהוסיף מחדש, ובינתיים לא
+       להיתקע. */
     return ramKick(2, tz('askInstH'), '') +
       '<p>האפליקציה כבר נוספה. <b>פתחו את האייקון</b> מהמסך של ' +
-      'הטלפון, ומשם נמשיך.</p>' + APPX.icon();
+      'הטלפון, ומשם נמשיך.</p>' + APPX.icon() +
+      (APPX.isIOS()
+        ? '<p class="as-sub">' + esc(tz('askAgain')) + '</p>' : '') +
+      '<button class="as-thin" id="r-skip">' + esc(tz('askSkip')) + '</button>';
   }
   var h = ramKick(2, tz('askInstH'), tz('askInstB'));
   h += APPX.bip()
