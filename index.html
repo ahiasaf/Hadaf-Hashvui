@@ -1562,7 +1562,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.19.1';
+var APP_VERSION = '8.20.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6098,6 +6098,7 @@ function admText(el) {
     '<button class="btn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
 
+    admEmbedCard() +
     admA11yCard() +
 
     /* מה שאין לו מסך להגיע אליו */
@@ -6129,6 +6130,93 @@ function admText(el) {
         '</div>';
     }).join('') + '</div>';
 }
+/* ============================================================
+   הטמעה בקוד — הוצאת שכבת המלל החוצה.
+   ============================================================
+   המלל חי בשלוש שכבות: הקוד, מה שפורסם בגיליון, והטיוטה
+   שבמכשיר. שתי העליונות נוחות לניסוח — משנים ורואים מיד, בלי
+   לגעת בקוד — אבל יש להן מחיר שמצטבר:
+
+     · הן שכבה שנמשכת מהגיליון אצל כל תלמיד בכל כניסה.
+     · הן מרחיקות את הקוד מהאמת. מי שקורא את data.js רואה
+       נוסח שאיש בשטח אינו רואה — וזה כבר הטעה כאן: נמסרו
+       הוראות התקנה שנחשבו נכונות, בזמן שבשטח הוצג נוסח אחר.
+
+   לכן: משחקים בניסוח כמה שרוצים, וכשהוא מתייצב — מפיקים כאן
+   את הרשימה, מטמיעים אותה בקוד, ומוחקים את השכבה. הקוד חוזר
+   להיות האמת.
+
+   הפורמט הוא JSON ולא טקסט חופשי בכוונה: הוא מדויק בדיוק
+   בדברים שנשברים — רווח בסוף, שורה חדשה, גרש. ולכל מפתח
+   נשמר גם הנוסח שבקוד, כדי שאפשר יהיה למצוא אותו ולוודא
+   שהוחלף הדבר הנכון. */
+function textDrift() {
+  var out = [];
+  TEXT_FIELDS.forEach(function (f) {
+    if (!f.k) return;
+    var code = TX.base(f.k), now = textGet(f.k);
+    if (typeof now !== 'string' || typeof code !== 'string') return;
+    if (now === code) return;
+    out.push({ k:f.k, lbl:f.lbl || '', code:code, now:now });
+  });
+  return out;
+}
+
+function admEmbedCard() {
+  var n = textDrift().length;
+  return '<div class="adm-card"><h4>הטמעת המלל בקוד</h4>' +
+    '<p class="h">כל נוסח שערכתם יושב בשכבה שמעל הקוד, והיא ' +
+    'נמשכת מהגיליון אצל כל תלמיד בכל כניסה. כשהניסוח מתייצב — ' +
+    'מפיקים כאן את הרשימה, מעבירים אותה להטמעה בקוד, ואז מוחקים ' +
+    'את השכבה. אין לזה דחיפות; זה סדר.</p>' +
+    '<div class="row" style="padding:8px 0"><span>נוסחים שנפרדו מהקוד</span>' +
+    '<b' + (n ? '' : ' style="color:var(--ink-3)"') + '>' + n + '</b></div>' +
+    (n
+      ? '<button class="btn p" onclick="admEmbedMake()">הפקת הרשימה</button>'
+      : '<p class="h">אין מה להפיק — המלל שמוצג הוא בדיוק מה שבקוד.</p>') +
+    '<div id="adm-embed"></div></div>';
+}
+
+function admEmbedMake() {
+  var list = textDrift(), box = document.getElementById('adm-embed');
+  if (!box) return;
+  var map = {};
+  list.forEach(function (f) { map[f.k] = { lbl:f.lbl, code:f.code, now:f.now }; });
+  var txt = JSON.stringify(map, null, 2);
+
+  box.innerHTML = '<p class="h" style="margin-top:12px">' + list.length +
+    ' נוסחים. להעתיק את הכל ולשלוח להטמעה:</p>' +
+    '<textarea id="adm-embed-t" rows="9" dir="ltr" readonly ' +
+    'style="direction:ltr;text-align:left;font-size:.72rem"></textarea>' +
+    '<button class="btn gd" onclick="admEmbedCopy()">העתקה</button>' +
+    '<p class="h" style="margin-top:10px"><b>אחרי שההטמעה בקוד ' +
+    'נדחפה ופורסמה</b> — "שחזור כל הנוסחים שבקוד" למעלה, ואז ' +
+    '<b>פרסום</b>. בלי הפרסום השכבה נמחקת רק במכשיר הזה ' +
+    'וממשיכה לרוץ אצל כולם.</p>';
+  /* דרך value ולא דרך HTML: נוסח שיש בו < או & היה נשבר. */
+  var t = document.getElementById('adm-embed-t');
+  if (t) t.value = txt;
+}
+
+function admEmbedCopy() {
+  var t = document.getElementById('adm-embed-t');
+  if (!t) return;
+  var done = function (ok) {
+    var b = t.parentNode.querySelector('button');
+    if (b) b.textContent = ok ? 'הועתק ✓' : 'לא הצלחתי — סמנו ידנית';
+  };
+  t.readOnly = false; t.focus(); t.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t.value)
+      .then(function () { done(true); })['catch'](function () { done(false); });
+  } else {
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    done(ok);
+  }
+  t.readOnly = true;
+}
+
 /* ---- איש הקשר לנגישות ----
    שלושת השדות האלה אינם נערכים על המסך כמו כל השאר, מסיבה
    פשוטה: כשהם ריקים אין על מה להקיש. והם דווקא הדבר היחיד
