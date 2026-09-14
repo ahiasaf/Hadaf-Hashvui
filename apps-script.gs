@@ -298,6 +298,10 @@ function doPost(e) {
     if (d.action === 'register' && d.access) ensureCode_(d.code, d.access);
     if (d.action === 'register') return appendCols_('הרשמות', d.cols ? parse_(d.cols) : [
       ['ישיבה', d.inst], ['קוד', d.code], ['איש קשר', d.who], ['טלפון', d.phone],
+      /* ראש החטיבה יושב ב"איש קשר" — שם העמודה הישן נשמר, כי
+         שינוי שם מייצר עמודה חדשה וקוטע את מה שכבר נכתב.
+         רכז הצוות הוא השני, ואינו חובה. */
+      ['רכז צוות', d.who2 || ''], ['טלפון הרכז', d.phone2 || ''],
       ['תענית · ושננתם', d['taanit-veshinantam'] || 0],
       ['תענית · הסוגיה היומית', d['taanit-sugya'] || 0],
       ['מגילה · ושננתם', d['megila-veshinantam'] || 0],

@@ -565,6 +565,9 @@ footer a{color:var(--ink-2);font-weight:800}
 .mygo[disabled]{opacity:.55}
 .myerr{margin-top:11px;font-size:.85rem;font-weight:700;color:#8A3226;
   line-height:1.6}
+/* ההכנה לשלב שאחרי הלחיצה על "וואטסאפ". */
+.wahow{margin:11px 0 0;font-size:.78rem;font-weight:600;color:var(--ink-3);
+  line-height:1.6;text-align:start}
 /* הפינה נדלקת לרגע כשמגיעים אליה מהתראה — כדי שיֵדע על מה
    לחץ, ולא ינחת באמצע עמוד ארוך בלי סימן. */
 #my-sec.lit .mycard{border-color:var(--gold);
@@ -646,6 +649,10 @@ footer a{color:var(--ink-2);font-weight:800}
             <span id="t-mailBtn"></span>
           </a>
         </div>
+        <!-- מה שקורה אחרי הלחיצה, ונאמר לפניה: וואטסאפ נפתח
+             עם ההודעה מוכנה ועוצר על בורר אנשי הקשר. מי שלא
+             מכיר את זה רואה שוואטסאפ נפתח ו"לא קרה כלום". -->
+        <p class="wahow" id="t-waHow"></p>
       </div>
     </div>
 
@@ -992,6 +999,11 @@ function draw() {
   $('kids-mail').href = 'mailto:?subject=' + encodeURIComponent(T.mailSub || '') +
                         '&body=' + encodeURIComponent(msg);
   $('t-mailBtn').textContent = 'מייל';
+  var wh = $('t-waHow');
+  if (wh) {
+    wh.textContent = UI.waHowKids || '';
+    wh.hidden = !(UI.waHowKids || '').trim();
+  }
   
   drawPeers();
   drawBoard();

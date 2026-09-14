@@ -835,11 +835,38 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .linkbox .url{margin-top:12px;background:var(--sunk);border-radius:10px;
   padding:9px 11px;font-size:.78rem;font-weight:700;color:var(--ink-2);
   direction:ltr;text-align:left;overflow-wrap:anywhere;line-height:1.5}
+/* "רשות" — תגית קטנה בתוך התווית, כדי שהשדה לא ייראה כמו
+   עוד שדה חובה שנפתח פתאום. מחלקה משלה: `.opt` בקובץ הזה
+   שייך לכרטיסי התשובה בחידון והיא בלוק ברוחב מלא. */
+.fld .label .mayb{display:inline-block;font-weight:700;color:var(--ink-3);
+  font-size:.72rem;background:var(--sunk);border-radius:6px;
+  padding:1px 6px;margin-inline-start:5px;vertical-align:middle}
+/* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
+.brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
+  color:var(--ink-3);line-height:1.55;text-align:start}
+/* הקישור לר"מים — מופרד בקו, כדי שלא ייקרא כהמשך של הכפתור
+   לתלמידים. שליחה לקבוצה הלא נכונה אי אפשר להחזיר. */
+.brd-rams{margin-top:15px;padding-top:14px;
+  border-top:1px solid var(--rule-2);text-align:start}
+.brd-rams>b{display:block;font-size:.83rem;font-weight:800;
+  color:var(--gold);letter-spacing:.02em}
+.brd-rams>p{margin:7px 0 0;font-size:.8rem;font-weight:600;
+  color:var(--ink-3);line-height:1.6}
+.brd-rams .warn-line{margin:7px 0 0;font-size:.79rem;font-weight:800;
+  color:#8A6316;line-height:1.55}
 /* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
    ברצף, לא שני נושאים. */
 .linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
   font-size:.83rem;font-weight:800;color:var(--gold);letter-spacing:.02em}
 .linkbox .lstep:first-of-type{margin-top:13px}
+/* מה שקורה אחרי הלחיצה, מתחת לכפתור שמפעיל אותו. קטן ושקט —
+   זו הכנה, לא אזהרה. */
+.linkbox .wahow{margin:9px 0 0;font-size:.76rem;font-weight:600;
+  color:var(--ink-3);line-height:1.6}
+/* "לצוות בלבד" — צמוד לקישור הצוות, ובצבע שעוצר את העין
+   לרגע. שליחה בטעות לקבוצת כיתה אי אפשר להחזיר. */
+.linkbox .warn-line{margin:7px 0 0;font-size:.8rem;font-weight:800;
+  color:#8A6316;line-height:1.6}
 .linkbox .acts{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:11px;
   align-items:stretch}
 .linkbox .acts .btn{margin:0}
@@ -1584,7 +1611,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.35.0';
+var APP_VERSION = '8.36.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1895,7 +1922,8 @@ function openFromHome(i) {
 /* want: null = טרם נענתה · true/false = נענתה. שלושה מצבים
    ולא שניים, אחרת "לא עכשיו" נראה מסומן כבר בכניסה — כלומר
    האפליקציה ענתה במקומו, ובדיוק על השאלה שהיא באה לשאול. */
-var reg = { inst:'', instOther:'', who:'', phone:'', size:0, want:null, qty:{} };
+var reg = { inst:'', instOther:'', who:'', phone:'',
+            who2:'', phone2:'', size:0, want:null, qty:{} };
 
 function regSaved() {
   try { return JSON.parse(localStorage.getItem('dfReg') || 'null'); } catch (e) { return null; }
@@ -1903,7 +1931,8 @@ function regSaved() {
 /* ניקוי ההרשמה שנשמרה במכשיר — הטופס חוזר להיות ריק */
 function regReset() {
   localStorage.removeItem('dfReg');
-  reg = { inst:'', instOther:'', who:'', phone:'', size:0, want:null, qty:{} };
+  reg = { inst:'', instOther:'', who:'', phone:'',
+          who2:'', phone2:'', size:0, want:null, qty:{} };
   renderReg();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -1944,6 +1973,7 @@ function renderReg() {
   var saved = regSaved();
   if (saved && !reg.inst) {
     reg.inst = saved.code || ''; reg.who = saved.who || ''; reg.phone = saved.phone || '';
+    reg.who2 = saved.who2 || ''; reg.phone2 = saved.phone2 || '';
     reg.size = saved.size || 0;
     if (saved.mas && saved.mas.length) reg.mas = saved.mas;
     reg.qty = regMigrate(saved);
@@ -1973,12 +2003,29 @@ function renderReg() {
     '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
     '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
     '" onchange="regSet(\'instOther\',this.value)"></div>' +
+    /* ============================================================
+       שני אנשי קשר, ולא אחד.
+       ============================================================
+       ראש החטיבה הוא מי שמחליט, ורכז הצוות הוא לרוב מי שבאמת
+       מריץ את זה ביום-יום. איש קשר אחד פירושו שחצי מהשיחות
+       מגיעות לאדם הלא נכון, או שאין למי לפנות כשהאחד לא זמין.
+
+       השני אינו חובה — לא בכל ישיבה יש כזה — ולכן הוא אינו
+       עוצר את ההרשמה ואינו מוצג כשדה שחסר בו משהו. */
     '<div class="fld"><div class="label">' + esc(UI.whoLabel) + '</div>' +
     '<input type="text" id="r-who" placeholder="שם" value="' + esc(reg.who) +
     '" onchange="regSet(\'who\',this.value)"></div>' +
     '<div class="fld"><div class="label">' + esc(UI.phoneLabel) + '</div>' +
     '<input type="tel" id="r-phone" placeholder="05X-XXXXXXX" value="' + esc(reg.phone) +
-    '" onchange="regSet(\'phone\',this.value)"></div>';
+    '" onchange="regSet(\'phone\',this.value)"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.who2Label) +
+    ' <span class="mayb">רשות</span></div>' +
+    '<input type="text" id="r-who2" placeholder="שם" value="' + esc(reg.who2) +
+    '" onchange="regSet(\'who2\',this.value)"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.phone2Label) +
+    ' <span class="mayb">רשות</span></div>' +
+    '<input type="tel" id="r-phone2" placeholder="05X-XXXXXXX" value="' + esc(reg.phone2) +
+    '" onchange="regSet(\'phone2\',this.value)"></div>';
 
   var h = fitBlock() +
     whoBlock +
@@ -2299,8 +2346,8 @@ function sendReg() {
   var name = reg.inst === 'other' ? reg.instOther
            : (INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0] || {}).name;
   if (!name)      { alert('נא לבחור ישיבה.'); return; }
-  if (!reg.who)   { alert('נא למלא שם איש קשר.'); return; }
-  if (!reg.phone) { alert('נא למלא טלפון.'); return; }
+  if (!reg.who)   { alert('נא למלא את שם ראש החטיבה.'); return; }
+  if (!reg.phone) { alert('נא למלא את הטלפון שלו.'); return; }
 
   /* הכמות אינה תנאי. ראש חטיבה שרוצה רק להצטרף ולנקוב במספר
      נעצר כאן בפועל — ההרשמה סורבה בגלל הזמנה שהוא כלל לא ביקש
@@ -2326,6 +2373,7 @@ function sendReg() {
   setInstCode(reg.inst, access);
 
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
+                  who2:reg.who2 || '', phone2:reg.phone2 || '',
                   size:reg.size || 0, want:reg.want, total:total, access:access,
                   mas:(reg.mas || []).slice(),
                   masText:(reg.mas || []).map(function (id) {
@@ -2346,8 +2394,10 @@ function sendReg() {
 
   var txt = 'הרשמה לדף השבועי תשפ"ז\n\n' +
     'ישיבה: ' + name + '\n' +
-    'איש קשר: ' + reg.who + '\n' +
+    'ראש החטיבה: ' + reg.who + '\n' +
     'טלפון: ' + reg.phone + '\n' +
+    (reg.who2 ? 'רכז צוות: ' + reg.who2 + '\n' : '') +
+    (reg.phone2 ? 'טלפון הרכז: ' + reg.phone2 + '\n' : '') +
     (reg.size ? 'תלמידים (יעד): ' + reg.size + '\n' : '') +
     (total
       ? TRACKS.map(function (t) {
@@ -2375,7 +2425,11 @@ function sendReg() {
 /* העמודות בגיליון ההרשמות, לפי הסדר. מקור האמת היחיד לשמות שלהן. */
 function regCols(name, total, summary) {
   var cols = [['ישיבה', name], ['קוד', reg.inst],
+              /* "איש קשר" נשאר השם של העמודה הקיימת — שינוי שם
+                 עמודה מייצר עמודה חדשה וקוטע את ההרשמות שכבר
+                 נכתבו. מה שהשתנה הוא מה שכתוב עליה במסך. */
               ['איש קשר', reg.who], ['טלפון', reg.phone],
+              ['רכז צוות', reg.who2 || ''], ['טלפון הרכז', reg.phone2 || ''],
               ['תלמידים (הערכה)', reg.size || ''],
               ['מסכתות', (reg.mas || []).join(',')]];
   TRACKS.forEach(function (t) {
@@ -2460,6 +2514,19 @@ function boardBlock() {
   return '<div style="margin-top:16px">' + boardHtml(code, inst.name) + '</div>';
 }
 
+/* ============================================================
+   מה שקורה אחרי הלחיצה — ונאמר לפניה.
+   ============================================================
+   קישור וואטסאפ בלי נמען פותח את וואטסאפ עם ההודעה מוכנה
+   **ועוצר על בורר אנשי הקשר**. מי שלא מכיר את זה רואה
+   שוואטסאפ נפתח ו"לא קרה כלום", סוגר, ומניח שהכפתור שבור.
+   השורה הזו יושבת מתחת לכל כפתור שליחה בוואטסאפ שאין לו
+   נמען, ומכינה אותו לשלב הבא. */
+function waHow(txt) {
+  txt = (txt || '').trim();
+  return txt ? '<p class="wahow">' + esc(txt) + '</p>' : '';
+}
+
 function linkBlock(title) {
   var code = joinCode();
   if (!code) return '';
@@ -2481,16 +2548,12 @@ function linkBlock(title) {
       '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' +
         esc(UI.linkCopy) + '</button>' +
     '</div>' +
+    waHow(UI.waHowKids) +
 
-    '<div class="lstep">' + esc(UI.linkStep2) + '</div>' +
+    '<div class="lstep">' + esc(UI.linkStep3) + '</div>' +
     '<p>' + esc(UI.boardNote) + '</p>' +
     '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
        'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
-
-    /* קישור הצוות ירד מכאן. מי שנרשם מהטלפון שלו כבר מקבל את
-       הלוח באותו מכשיר, וכפתור שמוסר קישור למי שכבר נמצא בפנים
-       הוא שאלה מיותרת ברגע הכי חשוב. הוא נשאר בלוח עצמו, שם
-       הוא באמת נחוץ — לצירוף איש צוות נוסף. */
     '</div>';
 }
 
@@ -2522,6 +2585,21 @@ function copyJoin(btn, code) {
     navigator.clipboard.writeText(url).then(mark).catch(function () { legacyCopy(url, mark); });
   } else legacyCopy(url, mark);
 }
+/* אותו סימון על הכפתור של `copyJoin`, לקישור הצוות. הודעת
+   `alert` כאן הייתה קופצת על מסך שכבר עמוס בשלושה שלבים. */
+function copyTeam(btn) {
+  var code = joinCode(); if (!code) return;
+  var url = tzevetUrl(code);
+  var mark = function () {
+    var was = btn.textContent;
+    btn.textContent = UI.linkCopied;
+    setTimeout(function () { btn.textContent = was; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(mark).catch(function () { legacyCopy(url, mark); });
+  } else legacyCopy(url, mark);
+}
+
 function legacyCopy(txt, done) {
   var t = document.createElement('textarea');
   t.value = txt; t.setAttribute('readonly', '');
@@ -2717,7 +2795,34 @@ function boardHtml(code, name, hail) {
   var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
   var send = joinLinkOn()
     ? '<a class="btn gr" target="_blank" rel="noopener" href="https://wa.me/?text=' +
-      encodeURIComponent(wa) + '">' + esc(UI.cbSend) + '</a>' : '';
+      encodeURIComponent(wa) + '">' + esc(UI.cbSend) + '</a>' +
+      /* מה שקורה אחרי הלחיצה — ראו `waHow`. */
+      '<div class="brd-wahow">' + esc(UI.waHowKids) + '</div>' : '';
+
+  /* ============================================================
+     והקישור לר"מים, מיד אחריו.
+     ============================================================
+     זה מה שהוא בא לעשות ברגע שאחרי ההרשמה: להעביר לכל הר"מים
+     את הקישור **שלהם** — עמוד שיש בו הדף של השבוע לפתיחה
+     בכיתה, הכיתה שלהם, והפינה שבה הם קובעים מתי לקבל עדכונים.
+     הכפתור לתלמידים לבדו השאיר את הצוות מחוץ לתמונה.
+
+     שני קישורים שנראים דומה הם הזמנה לטעות, והטעות כאן היא
+     חד-כיוונית: קישור צוות שנשלח לקבוצת כיתה אי אפשר להחזיר.
+     לכן — כפתור בצבע אחר, ואזהרה צמודה. */
+  var rams = '';
+  if (code) {
+    rams = '<div class="brd-rams">' +
+      '<b>' + esc(UI.ramsTitle) + '</b>' +
+      '<p>' + esc(UI.ramsNote) + '</p>' +
+      '<p class="warn-line">' + esc(UI.ramsWarn) + '</p>' +
+      '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+      'target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent(fill(UI.teamWa, { inst:name, url:tzevetUrl(code) })) +
+      '">' + esc(UI.teamWaBtn) + '</a>' +
+      '<div class="brd-wahow">' + esc(UI.waHow) + '</div>' +
+      '</div>';
+  }
 
   /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
   var hero = n
@@ -2777,7 +2882,7 @@ function boardHtml(code, name, hail) {
 
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
-         bar + chips + send + full +
+         bar + chips + send + full + rams +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
