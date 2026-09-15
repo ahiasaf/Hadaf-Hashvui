@@ -783,6 +783,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   border:1.5px solid var(--ok);color:var(--ok);border-radius:var(--r-m);padding:16px;
   font-weight:800;font-size:.96rem;text-align:center}
 
+/* מי התקין בפועל — שורה שקטה מתחת לאנשי הקשר. */
+.instd{margin-top:9px;font-size:.78rem;font-weight:700;line-height:1.7;
+  color:var(--ink-2)}
+.instd i{font-style:normal;font-weight:700;color:var(--ink-3);font-size:.72rem}
+
 /* "נרשם" — עובדה שהגיעה מהגיליון, ולא סימון שנקבע ביד.
    ולכן היא תגית ולא כרית: אין על מה ללחוץ. */
 .signed{flex:none;font-size:.68rem;font-weight:800;letter-spacing:.02em;
@@ -802,6 +807,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   display:flex;align-items:center;justify-content:center;
   transition:background .18s,border-color .18s,color .18s}
 .vee.on{background:var(--ok,#3B7D57);border-color:var(--ok,#3B7D57);color:#fff}
+/* מי שהתקין — אותה צורה, בכחול: זה שלב אחר ולא אותו דבר. */
+.signed.inst{color:var(--blue);background:rgba(11,37,80,.09);
+  border-color:rgba(11,37,80,.22)}
 .ct.done{opacity:.62}
 .ct.done:focus-within,.ct.done:hover{opacity:1}
 
@@ -1746,7 +1754,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.59.0';
+var APP_VERSION = '8.61.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4076,6 +4084,37 @@ function nameKey(s) {
 
    הרשימה נטענת במסך "מה קורה ← הרשמות", ונשמרת במכשיר. כאן
    רק מצליבים אותה מול אנשי הקשר. ======================== */
+/* מי התקין, לפי ישיבה.
+   ============================================================
+   "אני אשמח שגם אני אדע שם מי התקין."
+
+   **ושוב — עובדה, לא סימון.** מי שיש לו מנוי בלשונית ההתראות
+   הוא מי שבאמת סיים את התהליך: האפליקציה על מסך הבית
+   וההתראות אושרו. זה מה שמבדיל בין ישיבה שנרשמה לבין ישיבה
+   שבאמת בפנים.
+
+   מוצלב לפי **קוד** ולא לפי שם: שם ישיבה נכתב בכמה כתיבים,
+   והקוד הוא המזהה היחיד. שורה בלי קוד (רישומים ישנים) נופלת
+   חזרה לשם. ============================================ */
+function subsByInst() {
+  var m = {}, l = Store.get('pushCache', []) || [];
+  l.forEach(function (p) {
+    if (!p.sub) return;                 /* בלי מנוי לא התקין */
+    var key = p.code;
+    if (!key && p.inst) {
+      var i = instByName(p.inst);
+      key = i ? i.code : '';
+    }
+    if (!key) return;
+    (m[key] = m[key] || []).push(p);
+  });
+  return m;
+}
+function subsOf(c, map) {
+  var i = instByName(c.key || c.name);
+  return (i && map[i.code]) || [];
+}
+
 function regByInst() {
   var m = {}, l = Store.get('registrations', []) || [];
   l.forEach(function (r) { if (r.code) m[r.code] = r; });
@@ -4959,7 +4998,7 @@ function renderCalls() {
           'עוד לא נטענה. היא נטענת ב"מה קורה \u2190 הרשמות".'
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
 
-  var regs = regByInst();
+  var regs = regByInst(), subs = subsByInst();
   shown.forEach(function (o) {
     var c = o.c, i = o.i;
     var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
@@ -4970,6 +5009,9 @@ function renderCalls() {
          '</div><div style="display:flex;gap:6px;align-items:center">' +
          (c.last ? '<span class="last">תשפ"ו</span>' : '') +
          (regOf(c, regs) ? '<span class="signed" title="נרשם דרך האפליקציה">\u2691 נרשם</span>' : '') +
+         (subsOf(c, subs).length
+           ? '<span class="signed inst" title="התקינו את האפליקציה">\u25c9 ' +
+             subsOf(c, subs).length + '</span>' : '') +
          '<button class="vee' + (c.round ? ' on' : '') +
          '" onclick="roundTick(' + i + ')" ' +
          'title="' + (c.round ? 'דיברתי בסבב הזה' : 'לסמן שדיברתי') +
@@ -4990,6 +5032,16 @@ function renderCalls() {
           (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>';
       });
       h += '</div>';
+    }
+
+    /* ומי הם. מספר לבדו אינו עונה על "מי מהם?", וזו השאלה
+       הראשונה שנשאלת אחריו. */
+    var who = subsOf(c, subs);
+    if (who.length) {
+      h += '<div class="instd">התקינו: ' + who.map(function (q) {
+        return esc(q.name || 'ללא שם') +
+               (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
+      }).join(' \u00b7 ') + '</div>';
     }
 
     /* הכפתורים נושאים את השם, כדי שלא יהיה ספק לאן הם מחייגים */
@@ -7647,7 +7699,10 @@ function pushParse(rows) {
       return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
     };
     if (!g('שם') && !g('מנוי')) continue;
-    out.push({ id:g('מזהה'), name:g('שם'), inst:g('ישיבה'), role:g('תפקיד'),
+    out.push({ id:g('מזהה'), name:g('שם'), inst:g('ישיבה'),
+               /* **וגם הקוד.** שם ישיבה נכתב בכמה כתיבים, והקוד
+                  הוא המזהה היחיד שאפשר להצליב לפיו. */
+               code:g('קוד ישיבה'), role:g('תפקיד'),
                grade:g('שכבה'), klass:g('כיתה'), dev:g('מכשיר'),
                sub:!!g('מנוי'), res:g('תוצאה'), at:g('מתי') || g('תאריך') });
   }
@@ -7673,6 +7728,9 @@ function pushLoad() {
       admPane(); return false;
     }
     pushRows = pushParse(d.rows);
+    /* נשמר, כדי שמסך השיחות ידע מי התקין בלי שצריך לבקר כאן
+       קודם. אותו דפוס של רשימת ההרשמות. */
+    Store.set('pushCache', pushRows);
     pushMsg = ''; admPane(); return true;
   }).catch(function () {
     pushMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
@@ -9404,9 +9462,6 @@ function tourClose() {
   var el = document.getElementById('tour');
   el.className = ''; el.setAttribute('aria-hidden', 'true');
   Store.set(TOUR_KEY, 1);
-  if (deferredInstall && !isStandalone()) setTimeout(function () {
-    if (!tourOn()) instShow(false);
-  }, 900);
 }
 /* מנתקים כל מה שהעצירה הקודמת חיברה. בלי זה לחיצה על כפתור
    ישן הייתה מקדמת את המדריך ממקום אחר לגמרי. */
@@ -9637,8 +9692,8 @@ function tourLauncher() {
 }
 
 var deferredInstall = null;
-var INST_DELAY = 4500;      /* נותנים לו קודם לראות מה זה */
-var INST_SNOOZE = 7 * 864e5;
+/* `INST_DELAY` ו-`INST_SNOOZE` ירדו יחד עם הבאנר הצף: אין
+   יותר הצעה שקופצת מעצמה, ולכן אין מה להשהות ואין ממה לנוח. */
 
 function isStandalone() {
   return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
@@ -9689,12 +9744,6 @@ function initInstall() {
     e.preventDefault();
     deferredInstall = e;
     if (admTab === 'set') admInstallBox();
-    /* המדריך קודם. שלושה דברים על עשר השניות הראשונות — מסך
-       פתיחה, מדריך, והצעה להתקין — הם לא קבלת פנים אלא עומס.
-       כשהמדריך פתוח ההצעה ממתינה, ו-tourClose מזמן אותה. */
-    if (wantsBanner()) setTimeout(function () {
-      if (deferredInstall && !tourOn()) instShow(false);
-    }, INST_DELAY);
   });
   window.addEventListener('appinstalled', function () {
     Store.set(isAdminRoute() ? 'instDoneAdmin' : 'instDone', 1);
@@ -9702,19 +9751,19 @@ function initInstall() {
     if (admTab === 'set') admInstallBox();
   });
 
-  /* אייפון: אין אירוע, ולכן מציגים לפי זיהוי המכשיר */
-  if (isIOS() && wantsBanner()) setTimeout(function () {
-    if (!tourOn()) instShow(true);
-  }, INST_DELAY);
 }
-/* הבאנר הצף הוא לראשי החטיבות. במסך הניהול הוא רק מפריע — שם יש
-   כפתור מפורש בהגדרות, ולרכז לא צריך לרדוף אחרי באנר. */
-function wantsBanner() {
-  if (isAdminRoute() || isStandalone()) return false;
-  if (Store.get('instDone', 0)) return false;
-  var snooze = Store.get('instSnooze', 0);
-  return !(snooze && Date.now() - snooze < INST_SNOOZE);
-}
+/* ============================================================
+   **הבאנר הצף ירד מהעמוד הראשי.**
+   ============================================================
+   הוא קפץ לכל מי שנכנס והציע להתקין, לפני שהוא יודע מה זה
+   ובלי שביקש. ההתקנה כבר יושבת במקום הנכון: שלב 2 בתוך
+   הבקשה האישית, אחרי שראש החטיבה הצטרף ויש לו סיבה — ראו
+   `ask.js`. שתי הצעות לאותו דבר, אחת מהן בלי הקשר, מלמדות
+   להתעלם משתיהן.
+
+   `instShow` נשאר: הוא מה שכפתור ההתקנה שבהגדרות הניהול
+   מפעיל, ושם הוא נלחץ בכוונה.
+   ============================================================ */
 
 /* ---------- עדכון גרסה ----------
    הפס ש"מציע" לעדכן ירד. גרסה חדשה נכנסת מעצמה, והעמוד מרענן
