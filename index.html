@@ -1665,7 +1665,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.44.0';
+var APP_VERSION = '8.45.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6562,6 +6562,12 @@ function admText(el) {
     '<button class="btn warn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
 
+    /* הרשימה המלאה מיד אחרי ההסבר, ולא בתחתית.
+       היא הייתה למטה, אחרי עוד שלושה כרטיסים, ואחיאסף חיפש בה
+       נוסח ולא מצא — "לא מצאתי במלל איפה אני מגיע לזה". רשימה
+       שצריך לגלול אליה היא רשימה שלא קיימת. */
+    admAllTexts() +
+
     admEmbedCard() +
     admA11yCard() +
 
@@ -6570,9 +6576,7 @@ function admText(el) {
     '<p class="h">השער נפתח בתוך הדף האינטראקטיבי, ולו יש סטודיו — ' +
     'ולכן אין שולחים אתכם לערוך שם על המסך. ותמונה אינה טקסט ' +
     'שאפשר להקיש עליו. שניהם כאן.</p>' +
-    textOrphans().map(textBox).join('') + '</div>' +
-
-    admAllTexts();
+    textOrphans().map(textBox).join('') + '</div>';
 }
 
 /* ============================================================
@@ -6624,17 +6628,26 @@ function admTextFind(v) {
   if (host) host.innerHTML = admAllRows();
 }
 function admAllRows() {
-  var q = textFind.trim(), h = '', open = false, head = '', grp = '', n = 0;
+  var q = textFind.trim();
+  var words = q ? q.split(/\s+/).filter(Boolean) : [];
+  var h = '', open = false, head = '', grp = '', n = 0;
   TEXT_FIELDS.forEach(function (f) {
     if (f.g) { head = f.g; grp = f.g; return; }
     if (!f.k) return;
-    if (q) {
+    if (words.length) {
       /* מחפשים בארבעה מקומות: שם הקבוצה, התיאור, הנוסח עצמו,
          ושם המפתח. מי שמחפש "הבקשה האישית" מחפש את שם הקבוצה
-         ולא את הנוסח שבתוכה, ומי שמכיר נוסח אינו מכיר מפתח. */
+         ולא את הנוסח שבתוכה, ומי שמכיר נוסח אינו מכיר מפתח.
+
+         ומילה־מילה ולא מחרוזת אחת: מי שהקליד "ראש חטיבה" לא
+         מצא כלום, כי בכותרת כתוב "ראש **ה**חטיבה". כל מילה
+         צריכה להופיע איפשהו, לא כולן ברצף — וזה גם פותר סדר
+         מילים הפוך. */
       var hay = grp + ' ' + (f.lbl || '') + ' ' +
                 String(textGet(f.k) || '') + ' ' + f.k;
-      if (hay.indexOf(q) < 0) return;
+      for (var w = 0; w < words.length; w++) {
+        if (hay.indexOf(words[w]) < 0) return;
+      }
     }
     if (head) {
       if (open) h += '</div>';
