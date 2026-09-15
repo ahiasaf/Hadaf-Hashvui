@@ -868,6 +868,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 8px 26px rgba(11,37,80,.12);text-align:start}
 .thx h3{margin:0;font-size:1.16rem;font-weight:800;
   letter-spacing:-.02em;line-height:1.45;color:var(--ink)}
+/* פסקאות ולא צעדים ממוספרים. אחיאסף ביקש במפורש שלא תיכתב
+   כאן המילה "משימה" ושלא יינתנו לראש חטיבה הוראות
+   ממוספרות — מבקשים ממנו, לא מתדרכים אותו. הרווח בין
+   הפסקאות הוא מה שמחליף את המספרים. */
+.thx p{margin:15px 0 0;font-size:.95rem;font-weight:600;
+  line-height:1.75;color:var(--ink-2)}
+.thx p:first-child{margin-top:0}
+.thx p b{color:var(--ink);font-weight:800}
+.thx h3 + p{margin-top:16px}
 /* שני שלבים ממוספרים. המספר הוא מה שהופך פסקה לצעד. */
 .thx-steps{margin:18px 0 0;padding:0;list-style:none;counter-reset:thx}
 .thx-steps li{counter-increment:thx;position:relative;
@@ -957,9 +966,14 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 
    הפירוט לפי שכבה יורד לשורת צ'יפים ולא לתרשים מוטות, כי
    הפירוט אינו מה שמושך את העין — הוא מה שמסתכלים בו אחרי. */
-.brd{background:linear-gradient(160deg,var(--surface) 0%,var(--surface-2) 100%);
-  border-radius:var(--r);padding:20px 18px 18px;box-shadow:var(--sh-2);
-  border-top:3px solid var(--gold)}
+/* **בלי מסגרת.** ללוח הייתה כרטיסייה משלו — רקע, צל וקו זהב
+   בראש — והיא יצרה קופסה בתוך קופסה: האזור כבר צבוע בצבע
+   משלו, וזה מה שמפריד אותו. כך זה עובד אצל התלמידים, וכאן
+   זה אמור לדבר באותה שפה. */
+.brd{padding:2px 0 0}
+/* הפירוט לפי שכבה — הוא כן כרטיס, כי הוא טבלה קטנה ולא טקסט. */
+.brd-box{background:var(--surface);border-radius:var(--r-m);
+  padding:15px 14px;margin-top:15px;box-shadow:var(--sh-1)}
 /* המספר הוא הכותרת. גדול, בזהב, ובשורה משלו — כדי שהמשפט
    שמתחתיו ייקרא כהמשך שלו ולא כתווית. */
 .brd-hero{text-align:center}
@@ -995,7 +1009,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .brd-first>div>span{display:block;margin-top:2px;font-size:.79rem;font-weight:700;
   color:var(--ink-3);text-align:start}
 
-.brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:14px}
+/* אבות ובנים אינו שכבה, והוא ישב בין הכריות כאילו הוא כן.
+   שורה משלו, מתחת: אותו מספר, בלי להעמיד פנים שהוא ט׳. */
+.brd-dads{display:flex;align-items:center;justify-content:center;gap:9px;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--rule-2);
+  font-size:.86rem;font-weight:700;color:var(--ink-2)}
+.brd-dads b{font-size:1.02rem;font-weight:800;color:var(--blue)}
+.brd-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:0}
 /* nowrap: בלעדיו "ח׳ · 14" נשבר באמצע, והצ'יפ נראה כמו שתי
    שורות שנדחסו לעיגול. */
 /* כרית ולא צ'יפ: התווית קטנה מעל, והמספר מתחתיה. ניסיתי שורה
@@ -1507,6 +1527,25 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
            ראה, ולא שני דברים שנראים דומה. -->
       <div id="cta-top" class="cta-top"></div>
 
+      <!-- הלוח של הישיבה — רק אצל מי שכבר נרשם.
+
+           **ומעל הבאנר של התלמידים, לא בתחתית.** מי שכבר
+           הצטרף בא לראות מה קורה אצלו, ולא לקרוא שוב את
+           השכנוע — הלוח שלו הוא הדבר הראשון שצריך לפגוש
+           אותו. מי שעדיין לא הצטרף אינו רואה כאן דבר, ואצלו
+           הסדר לא השתנה כלל.
+
+           אזור משלו, כמו לתלמידים ולראשי החטיבות: שלושה
+           קהלים, שלושה צבעים. -->
+      <section class="sec-b band-c rv" id="coord" style="display:none">
+        <div class="zlabel"><span class="tag c" id="c-tag"></span>
+          <span id="c-sub"></span></div>
+        <!-- ההנחיה והבקשה האישית, למי שעדיין לא השלים אותן.
+             ריק אצל מי שסיים — ראו renderBoard(). -->
+        <div id="c-pend"></div>
+        <div id="board"></div>
+      </section>
+
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
       <section class="sec-b band rv">
         <div class="zlabel"><span class="tag" id="stagetag">מה התלמידים יראו</span>
@@ -1528,21 +1567,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
              מקבל לפני שהוא מחליט — הוא אינו הראשון וגם לא לבד. -->
         <div id="netbar"></div>
         <div id="cta" style="margin-top:16px"></div>
-      </section>
-
-      <!-- הלוח של הישיבה — בתחתית, ורק אצל מי שכבר נרשם.
-
-           זה מה שנוסף לעמוד ברגע ההצטרפות, ולכן מקומו אחריו
-           ולא לפניו. ואזור משלו, כמו לתלמידים ולראשי החטיבות:
-           שלושה קהלים, שלושה צבעים. -->
-      <section class="sec-b band-c rv" id="coord" style="display:none">
-        <div class="zlabel"><span class="tag c" id="c-tag"></span>
-          <span id="c-sub"></span></div>
-        <div id="thanks"></div>
-        <!-- הבקשה האישית, מתחת להנחיות ומעל הלוח. ask.js
-             שותל כאן את השורה ואת המסך שנפתח ממנה. -->
-        <div id="ask-here"></div>
-        <div id="board"></div>
       </section>
 
       <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
@@ -1665,7 +1689,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.46.0';
+var APP_VERSION = '8.47.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2135,7 +2159,14 @@ function renderReg() {
 
     '<button class="btn gr" style="margin-top:20px" onclick="sendReg()">' +
     esc(saved ? UI.update : UI.send) + '</button>' +
-    '<div id="r-done"></div>';
+    '<div id="r-done"></div>' +
+    /* ההמשך — ההנחיה לר"מים והבקשה האישית. נפתח כאן, במקום,
+       ברגע שההצטרפות נקלטה. ראו regDone().
+
+       **ולא `r-next`.** זה המזהה של כפתור ההמשך שבתוך הבקשה
+       האישית, ו-`wire()` שב-ask.js קשר את השמירה לעטיפה הזו
+       במקום לכפתור. */
+    '<div id="head-next"></div>';
 
   document.getElementById('reg-body').innerHTML = h;
   foldInit();
@@ -2671,12 +2702,34 @@ function regDone(txt, viaWa) {
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
     '';
   renderHome();
-  document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'center' });
 
-  /* ולא כאן. הלוח חי בעמוד הראשי, ולכן זה המקום שאליו הוא
-     מוחזר — רגע אחרי שהאישור נקרא, כדי שיראה את הלוח שנוצר
-     לו ולא ילמד להסתכל עליו במקום הלא נכון. */
-  if (myBoard()) setTimeout(hailBoard, 1100);
+  /* ============================================================
+     **ולא מקפיצים אותו לעמוד הראשי.**
+     ============================================================
+     עד עכשיו ההצטרפות הסתיימה בקפיצה הביתה וגלילה מהירה כלפי
+     מטה, והיא נחתה על הלוח. אבל הדבר שהוא צריך לראות ברגע הזה
+     אינו הלוח — הוא עוד ריק — אלא **מה לעשות עכשיו**: לבקש
+     מהר"מים ללמוד עם התלמידים. מסך שזז מתחת לאצבע ונעצר על
+     משהו אחר מלמד שלא כדאי לקרוא.
+
+     לכן ההמשך נפתח כאן, מתחת לאישור, בלי לזוז: ההנחיה
+     והכפתור, ומתחתם הבקשה האישית. הלוח מחכה בעמוד הראשי
+     לסוף התהליך. ============================================ */
+  var code = myBoard();
+  var inst = code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  if (inst) {
+    /* **ורק עותק אחד.** `renderHome()` שרץ עכשיו שתל את אותה
+       בקשה מעל הלוח שבעמוד הראשי, ושני אלמנטים עם אותו מזהה
+       פירושם ש-`getElementById` מחזיר את הראשון — כלומר השורה
+       שנפתחת כאן הייתה ריקה, והלחיצה עבדה על מסך אחר.
+       כאן המסך הזה הוא הבעלים, ושם מתרוקן. */
+    var pend = document.getElementById('c-pend');
+    if (pend) { pend.innerHTML = ''; }
+    document.getElementById('head-next').innerHTML =
+      thanksHtml(code, inst.name) + '<div id="ask-here"></div>';
+    askSetup('ask-here');
+  }
+  document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 /* ============================================================
@@ -2870,6 +2923,8 @@ function boardHtml(code, name, hail) {
       '<span>' + esc(row0[0]) + '</span></div></div></div>';
   }
 
+  /* הפירוט — צמוד למספר ולא אחרי שורת הזמן. "כמה" ו"מי הם"
+     הן שאלה אחת, ושורת התאריך שהפרידה ביניהן שברה אותה לשתיים. */
   var chips = '';
   if (j && (j.grades.length || j.ways.length)) {
     /* רק שכבות התוכנית. מי שאינו בהן הצטרף ונספר בסך הכל
@@ -2877,11 +2932,18 @@ function boardHtml(code, name, hail) {
     var list = j.grades.filter(function (p) {
       return PROG_GRADES.indexOf(p[0]) >= 0;
     });
-    j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') list.push([UI.cbDads, p[1]]); });
-    chips = '<div class="brd-chips">' + list.map(function (p) {
-      return '<span><i style="font-style:normal">' + esc(p[0]) + '</i>' +
-             '<b>' + p[1] + '</b></span>';
-    }).join('') + '</div>';
+    var dads = 0;
+    j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') dads = p[1]; });
+    var inner = list.length
+      ? '<div class="brd-chips">' + list.map(function (p) {
+          return '<span><i style="font-style:normal">' + esc(p[0]) + '</i>' +
+                 '<b>' + p[1] + '</b></span>';
+        }).join('') + '</div>' : '';
+    if (dads) {
+      inner += '<div class="brd-dads"><span>' + esc(UI.cbDads) + '</span>' +
+               '<b>' + dads + '</b></div>';
+    }
+    if (inner) chips = '<div class="brd-box">' + inner + '</div>';
   }
 
   /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר
@@ -2902,9 +2964,10 @@ function boardHtml(code, name, hail) {
     'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
     esc(UI.cbBoard) + ' ←</a>';
 
+  /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
-         bar + chips + full +
+         chips + bar + full +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
@@ -2947,15 +3010,19 @@ function hailBoard() {
    **ומפתח אחסון משלו.** אחיאסף עצמו הוא גם רכז וגם עשוי
    לפתוח את עמוד הצוות; שני תפקידים על מכשיר אחד שחולקים
    מפתח היו דורסים זה את זה. ====================== */
-var askReady = false;
 function headT(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
-function askSetup() {
-  if (askReady) return;
+/* **בלי דגל "כבר הותקן".** מסך ההרשמה נבנה מחדש בכל ציור,
+   ולכן האלמנט שהבקשה יושבת בו נמחק ונוצר מאין. דגל שזוכר
+   "כבר עשינו" היה מונע את ההשתלה החוזרת — והשורה פשוט לא
+   הייתה מופיעה. הבדיקה היא על המסך עצמו, לא על הזיכרון. */
+function askSetup(where) {
+  var host = document.getElementById(where || 'ask-here');
+  if (!host || host.getAttribute('data-on')) return;
   var code = myBoard();
   if (!code || typeof ASK === 'undefined') return;
-  askReady = true;
+  host.setAttribute('data-on', '1');
   ASK.init({
-    mount: 'ask-here',
+    mount: host.id,
     key:   'head',
     role:  'ראש חטיבה',
     t:     headT,
@@ -2964,6 +3031,12 @@ function askSetup() {
       var c = myBoard();
       var i = INSTITUTIONS.filter(function (x) { return x.code === c; })[0];
       return i ? { code:i.code, name:i.name } : null;
+    },
+    /* **וכאן, ורק כאן, מותר לזוז.** התהליך האישי הסתיים,
+       ומה שמחכה לו עכשיו הוא הלוח — בעמוד הראשי, מעל הבאנר
+       של התלמידים. זו אינה קפיצה באמצע קריאה אלא המשך. */
+    onClose: function () {
+      if (ASK.seen && ASK.seen()) setTimeout(hailBoard, 250);
     }
   });
 }
@@ -2977,15 +3050,31 @@ function askSetup() {
 
    **בלי המילה "משימה".** אין נותנים פקודה לראש חטיבה; מבקשים
    ממנו. ============================================ */
+/* כוכביות מדגישות, כמו בוואטסאפ.
+   ============================================================
+   אחיאסף כותב את הנוסחים שלו בוואטסאפ ומדביק אותם לכאן, ושם
+   `*ככה*` זו הדגשה. תגית `<b>` היא דבר שצריך ללמוד, וכוכבית
+   היא מה שכבר באצבעות שלו.
+
+   מברחים קודם ורק אז מחליפים — הסדר ההפוך היה הופך נוסח
+   שמכיל סוגריים משולשים לתגית פתוחה. */
+function emph(t) {
+  return esc(t).replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+}
+/* שורה ריקה = פסקה. */
+function paras(t, cls) {
+  return String(t == null ? '' : t).split('\n').map(function (x) {
+    return x.trim() ? '<p' + (cls ? ' class="' + cls + '"' : '') + '>' +
+                      emph(x.trim()) + '</p>' : '';
+  }).join('');
+}
+
 function thanksHtml(code, name) {
   if (!code) return '';
   var wa = fill(UI.teamWa, { inst:name, url:tzevetUrl(code) });
   return '<div class="thx">' +
-    '<h3>' + esc(UI.thanksH) + '</h3>' +
-    '<ol class="thx-steps">' +
-    '<li>' + esc(UI.thanks1) + '</li>' +
-    '<li>' + esc(UI.thanks2) + '</li>' +
-    '</ol>' +
+    (UI.thanksH ? '<h3>' + esc(UI.thanksH) + '</h3>' : '') +
+    paras(UI.thanksBody) +
     '<a class="thx-go" target="_blank" rel="noopener" ' +
     'href="https://wa.me/?text=' + encodeURIComponent(wa) + '">' +
     esc(UI.thanksGo) + '</a>' +
@@ -3005,13 +3094,23 @@ function renderBoard(hail) {
   document.getElementById('c-tag').textContent = inst.name;
   document.getElementById('c-sub').textContent = UI.coordSub;
   /* הבקשה מעל, הלוח מתחת. */
-  document.getElementById('thanks').innerHTML = thanksHtml(code, inst.name);
   /* ============================================================
-     והבקשה האישית — מתחת להנחיות.
+     מי שלא סיים — ממשיך מכאן.
      ============================================================
-     היא נשתלת פעם אחת, ברגע שיש ישיבה: קודם לכן אין למי
-     לפנות ואין מה לרשום. מכאן ואילך `ASK` מנהל את עצמו. */
-  askSetup();
+     ההנחיה לר"מים והבקשה האישית נפתחות במסך ההרשמה, מיד אחרי
+     ההצטרפות. אבל מי שסגר את האפליקציה באמצע לא היה מוצא
+     אותן בשום מקום: מסך ההרשמה כבר אינו המסך שהוא נוחת עליו.
+
+     לכן הן ממתינות כאן, מעל הלוח, כל עוד התהליך האישי לא
+     הושלם — ונעלמות ברגע שכן. אצל מי שסיים הלוח עומד לבדו,
+     כמו שביקש. ============================================ */
+  var open = !(typeof ASK !== 'undefined' && ASK.seen && ASK.seen());
+  var wrap = document.getElementById('c-pend');
+  if (wrap) {
+    wrap.innerHTML = open
+      ? thanksHtml(code, inst.name) + '<div id="ask-here"></div>' : '';
+    if (open) askSetup('ask-here');
+  }
   document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי

@@ -177,13 +177,16 @@ var ASK = (function () {
       wire(); return;
     }
 
-    h += meter(step === 4 ? 3 : step);
+    /* 4 = סיום, 5 = לא הצליח להתקין. בשניהם התהליך נגמר,
+       ולכן המד מלא ואינו מצביע על שלב רביעי שאינו קיים. */
+    h += meter(step >= 4 ? 3 : step);
     if (step > 1 && me) h += row(name(me));
     if (step > 2) h += row(u(skipped ? 'doneSkip' : 'doneApp'));
 
     if (step === 1)      h += '<div class="as-card">' + who() + '</div>';
     else if (step === 2) h += '<div class="as-card">' + install() + '</div>';
     else if (step === 3) h += '<div class="as-card">' + note() + '</div>';
+    else if (step === 5) h += '<div class="as-card">' + help() + '</div>';
     else                 h += '<div class="as-card fin">' + fin() + '</div>';
 
     el.innerHTML = h;
@@ -267,6 +270,18 @@ var ASK = (function () {
       '<button class="as-thin" id="r-later">' + esc(t('askLater')) + '</button>';
   }
 
+  /* ---------- מי שלא הצליח להתקין ----------
+     עד עכשיו "לא מצליח להתקין" העביר אותו לשלב ההתראות — וזה
+     היה חסר טעם: בלי אפליקציה על מסך הבית אין התראות באייפון
+     בכלל, ולכן הוא היה מאשר משהו שלעולם לא יגיע אליו. עכשיו
+     זו דלת אמיתית: נרשם שהוא נתקע, והוא נשאר עם משפט אחד
+     שאומר מי יחזור אליו. */
+  function help() {
+    return '<div class="as-v">✉</div><h2>' + esc(u('helpH')) + '</h2>' +
+      '<p>' + esc(u('helpB')) + '</p>' +
+      '<button class="as-go" id="r-done">' + esc(u('close')) + '</button>';
+  }
+
   function fin() {
     return '<div class="as-v">✓</div><h2>' + esc(t('askFinH')) + '</h2>' +
       '<p>' + esc(t('askFinB')) + '</p>' +
@@ -291,7 +306,15 @@ var ASK = (function () {
     if ((b = $('r-inst'))) b.onclick = function () {
       APPX.prompt(function () { go(where()); });
     };
-    if ((b = $('r-skip'))) b.onclick = function () { skipped = true; go(3); };
+    if ((b = $('r-skip'))) b.onclick = function () {
+      skipped = true;
+      /* הכתיבה אטומה ואינה ראיה לכלום, ולכן המסך אינו מבטיח
+         "דיווחנו" אלא "נחזור אליך" — וזה נכון בין אם השורה
+         נכתבה ובין אם לא, כי אחיאסף רואה אותו ברשימת המוסדות
+         ממילא. */
+      post('לא הצליח להתקין', null);
+      go(5);
+    };
     if ((b = $('r-note'))) b.onclick = ask;
   }
 
@@ -515,10 +538,15 @@ var ASK = (function () {
   function mount(where) {
     var host = $(where);
     if (!host) return;
-    var st = document.createElement('style');
-    st.id = 'ask-css';
-    st.textContent = CSS;
-    document.head.appendChild(st);
+    /* פעם אחת. המסך שמחזיק את הבקשה מצויר מחדש (מסך ההרשמה
+       נבנה כל פעם מאפס), והשתלה חוזרת הייתה מוסיפה עוד עותק
+       של כל הסגנון בכל ציור. */
+    if (!document.getElementById('ask-css')) {
+      var st = document.createElement('style');
+      st.id = 'ask-css';
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
     /* התבנית קבועה, והמלל מגיע מ-data.js — ולכן הכיתוב לקורא
        המסך מוחלף כאן ולא נכתב לתוכה. */
     host.innerHTML = HTML.replace('ASKCLOSE', esc(u('close')));
