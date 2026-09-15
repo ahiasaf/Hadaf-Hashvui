@@ -25,13 +25,19 @@
       '<link rel="manifest" href="' + (adm ? 'admin-manifest.json' : 'manifest.json') + '">' +
       '<link rel="apple-touch-icon" href="' + icon + '">' +
       '<link rel="apple-touch-icon" sizes="180x180" href="' + icon + '">' +
+      /* `-precomposed` הוא מה שאייפון ישן קורא: iOS 6 ומטה
+         מתעלם מהצורה שמעליו, וכך גם כמה דפדפנים מוטמעים.
+         בלי שניהם המכשיר מייצר אריח מהאות הראשונה של הכותרת. */
+      '<link rel="apple-touch-icon-precomposed" href="' + icon + '">' +
+      '<link rel="apple-touch-icon-precomposed" sizes="180x180" href="' + icon + '">' +
       '<meta name="apple-mobile-web-app-title" content="' +
         (adm ? 'ניהול' : 'הדף השבועי') + '">' +
       '<meta name="theme-color" content="' + (adm ? '#7A5610' : '#0E2E63') + '">');
   })();
 </script>
 <noscript><link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png"></noscript>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon-precomposed" href="icon-192.png"></noscript>
 <meta property="og:title" content="הדף השבועי של בני עקיבא">
 <meta property="og:description" content="דף אחד בשבוע. מסכת שלמה בשנה. תשפ״ז — מסכת תענית ומסכת מגילה.">
 <meta property="og:type" content="website">
@@ -1754,7 +1760,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.61.0';
+var APP_VERSION = '8.62.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
