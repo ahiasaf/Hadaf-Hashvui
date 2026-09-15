@@ -421,113 +421,8 @@ footer a{color:var(--ink-2);font-weight:800}
    לדלג עליו, ופנייה אישית שנקראת כסעיף אינה נענית. הוא מופיע
    רק אחרי שההדגמה נגללה — קודם רואים מה בנינו, ואז מבקשים.
    ============================================================ */
-/* שורה אחת וחץ. לא כרטיס, לא פס, ולא רוחב מלא — מה שיש
-   לומר נאמר במסך שנפתח. הזהב הבהיר הוא הזמנה; הכחול הכבד
-   של האפליקציה הוא הכרזה, וזו בקשה. */
-.askrow{display:flex;align-items:center;gap:12px;width:auto;
-  margin:0 auto;padding:15px 18px;border:1px solid rgba(192,143,43,.4);
-  border-radius:999px;background:linear-gradient(135deg,#FDF6E6,#FAF0DA);
-  color:var(--ink);font-family:inherit;font-size:1rem;font-weight:800;
-  letter-spacing:-.02em;cursor:pointer;
-  box-shadow:0 2px 10px rgba(192,143,43,.16)}
-.askrow .ar-go{flex:0 0 auto;display:flex;align-items:center;gap:7px;
-  padding:7px 8px 7px 13px;border-radius:999px;background:var(--gold);
-  color:#fff;font-size:.86rem;font-weight:800;line-height:1}
-.askrow .ar-go i{font-style:normal}
-.askrow .ar-go b{font-size:1.05rem;line-height:1}
-#ask-sec{text-align:center}
-
-/* המסך שנפתח. מסך מלא ולא חלונית: בקשה שמציצה מעל תוכן אחר
-   מתחרה בו, ומה שנאמר כאן אינו יכול להיקרא בחצי עין. */
-.asksheet{position:fixed;inset:0;z-index:70;background:var(--paper);
-  overflow-y:auto;-webkit-overflow-scrolling:touch;
-  animation:asIn .3s ease both}
-@keyframes asIn{from{opacity:0}to{opacity:1}}
-.as-in{max-width:520px;margin-inline:auto;padding:56px 18px 48px;
-  position:relative}
-.as-head{display:flex;align-items:center;gap:11px;margin:0 0 22px;
-  justify-content:center}
-.as-head .m{flex:0 0 auto;width:46px;height:46px;border-radius:50%;
-  background:#fff;box-shadow:var(--sh-1);display:flex;align-items:center;
-  justify-content:center;overflow:hidden}
-.as-head .m img{width:34px;height:34px;object-fit:contain;display:block}
-.as-head b{display:block;font-size:.98rem;font-weight:800;line-height:1.25;
-  letter-spacing:-.02em;color:var(--blue-d)}
-.as-head .yr{display:block;font-size:.72rem;font-weight:800;
-  color:var(--gold-t);margin-top:3px}
-.as-x{position:absolute;inset-inline-end:14px;top:12px;width:38px;height:38px;
-  border:0;border-radius:50%;background:var(--sunk);color:var(--ink-2);
-  font-size:1rem;font-weight:800;font-family:inherit;cursor:pointer}
-
-/* שלושת השלבים — אותן מידות בדיוק של מסך התלמיד. הן נבדקו
-   מול אנשים ועבדו, ואין סיבה שר"ם יקבל משהו צפוף יותר. */
-.as-body{font-size:16px;line-height:1.7;color:var(--ink)}
-.as-bar{display:flex;align-items:center;gap:7px;justify-content:center;
-  margin:0 0 20px}
-.as-bar i{width:34px;height:5px;border-radius:3px;background:var(--rule)}
-.as-bar i.on{background:var(--gold)}
-.as-bar i.did{background:var(--green)}
-.as-done{display:flex;align-items:center;gap:10px;padding:13px 18px;
-  margin-bottom:10px;background:rgba(74,130,28,.09);
-  border:1px solid rgba(74,130,28,.3);border-radius:12px;
-  font-size:.92rem;font-weight:700;color:var(--green-2)}
-.as-done b{font-size:1.05rem}
-.as-card{background:var(--surface);border:2px solid var(--gold);
-  border-radius:16px;padding:24px 22px 26px;
-  box-shadow:0 8px 26px rgba(11,37,80,.12)}
-.as-card.fin{text-align:center}
-.as-kick{font-size:.78rem;font-weight:800;color:var(--gold);
-  letter-spacing:.04em;margin-bottom:7px}
-.as-card h2{margin:0;font-size:1.16rem;font-weight:800;
-  letter-spacing:-.02em;line-height:1.45}
-.as-card > p{margin:11px 0 0;font-size:.95rem;color:var(--ink-2);
-  line-height:1.75;font-weight:600}
-.as-card .fld{margin-top:18px}
-.as-card .label{display:block;font-size:.9rem;font-weight:800;
-  color:var(--ink);margin-bottom:6px}
-.as-card .label i{font-style:normal;font-weight:600;color:var(--ink-3)}
-.as-card input,.as-card select{width:100%;padding:15px;font-family:inherit;
-  font-size:1.02rem;font-weight:700;border:1.5px solid var(--rule);
-  border-radius:12px;background:#fff;color:var(--ink)}
-.as-card .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.as-card .hint{margin-top:7px;font-size:.83rem;font-weight:600;
-  color:var(--ink-3);line-height:1.6}
-.as-go{display:block;width:100%;margin-top:20px;padding:16px;border:0;
-  border-radius:12px;background:var(--blue);color:#fff;font-family:inherit;
-  font-weight:800;font-size:1.02rem;cursor:pointer}
-.as-go.g{background:var(--green-d)}
-.as-thin{display:block;width:100%;margin-top:10px;padding:12px 6px;border:0;
-  background:none;color:var(--ink-2);font-family:inherit;font-size:.9rem;
-  font-weight:700;text-decoration:underline;cursor:pointer;line-height:1.6}
-/* שורת מוצא שקטה — נאמרת רק למי שבאמת נתקע, ולכן היא אינה
-   מתחרה בהוראה הראשית שמעליה. */
-.as-sub{margin-top:12px;font-size:.84rem;font-weight:600;
-  color:var(--ink-3);line-height:1.7}
-.as-err{margin-top:14px;background:#F7E4E2;border:1px solid #E2BDB8;
-  border-radius:12px;padding:13px 15px;font-size:.88rem;font-weight:700;
-  color:#7E2C23;line-height:1.7}
-.as-v{width:64px;height:64px;border-radius:50%;background:var(--green-d);
-  color:#fff;font-size:2rem;line-height:64px;margin:0 auto 16px;
-  font-weight:800;text-align:center}
-/* הסמלים וההוראות מגיעים מ-getapp.js, וצריכים את הסגנון שלהם. */
-.gsteps{margin:20px 0 0;padding:0;list-style:none;counter-reset:gs}
-.gsteps li{counter-increment:gs;position:relative;padding-inline-start:38px;
-  margin-bottom:16px;font-size:.97rem;font-weight:600;line-height:1.8}
-.gsteps li:last-child{margin-bottom:0}
-.gsteps li::before{content:counter(gs);position:absolute;inset-inline-start:0;
-  top:3px;width:26px;height:26px;border-radius:50%;background:var(--blue);
-  color:#fff;font-size:.82rem;font-weight:800;display:flex;
-  align-items:center;justify-content:center}
-.gl{display:inline-flex;align-items:center;justify-content:center;
-  width:30px;height:30px;border-radius:8px;background:var(--sunk);
-  border:1px solid var(--rule);vertical-align:-9px;margin:0 4px}
-.gl svg{width:17px;height:17px;fill:none;stroke:var(--blue);
-  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.apic{margin-top:16px;display:flex;flex-direction:column;align-items:center;
-  gap:7px}
-.apic img{width:56px;height:56px;border-radius:14px;display:block;
-  box-shadow:0 4px 14px rgba(11,37,80,.22)}
-.apic span{font-size:.72rem;font-weight:800;color:var(--ink-2)}
+/* העיצוב של הבקשה האישית ושל הוראות ההתקנה עבר ל-ask.js,
+   כדי שהוא יגיע יחד עם הקוד לכל עמוד שמשתמש בו. */
 /* הלוח: מי הם התלמידים האלה */
 /* במרכז ולא נצמד לימין: הוא יושב מתחת לתוכן ממורכז, וקישור
    שנתלה בפינה נראה כמו שריד ולא כמו המשך. */
@@ -713,12 +608,8 @@ footer a{color:var(--ink-2);font-weight:800}
 
        שורה אחת וחץ, בלי כרטיס ובלי פסקה: מה שיש לומר נאמר
        במסך שנפתח, ולא כאן. -->
-  <section id="ask-sec">
-    <button class="askrow" id="askrow" hidden>
-      <span id="ar-t"></span>
-      <span class="ar-go"><i id="ar-go"></i><b aria-hidden="true">←</b></span>
-    </button>
-  </section>
+  <!-- השורה והמסך נשתלים כאן על ידי ask.js. -->
+  <div id="ask-here"></div>
 
   <!-- הסיפור בא אחרי הבקשה: מי שקרא מה לעשות ומה יקבל עדיין
        שואל "ובאמת עובד?" — והסיפור עונה. -->
@@ -781,21 +672,6 @@ footer a{color:var(--ink-2);font-weight:800}
      המסך שנפתח הוא שלושה שלבים — פרטים, התקנה, עדכונים — ולא
      טופס אחד. אותה שפה בדיוק של מסך התלמיד, כי היא זו שעבדה.
      ============================================================ -->
-<div class="asksheet" id="asksheet" hidden>
-  <div class="as-in">
-    <button class="as-x" id="as-x" aria-label="סגירה">✕</button>
-    <!-- מסך מלא הוא מסך, ומסך נושא את החתימה של התוכנית:
-         הסמל העגול, השם והשנה. פנייה אישית בלי זהות נראית
-         כמו חלונית שקפצה, ולא כמו מכתב מהתוכנית. -->
-    <div class="as-head">
-      <span class="m"><img id="as-mark" alt=""></span>
-      <div><b>הדף השבועי<br>של בני עקיבא</b>
-        <span class="yr">שנת תשפ״ז</span></div>
-    </div>
-    <div class="as-body" id="as-body"></div>
-  </div>
-</div>
-
 <script src="a11y.js"></script>
 <script src="data.js"></script>
 <script src="links.js"></script>
@@ -806,6 +682,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="logo.js"></script>
 <script src="qr.js"></script>
 <script src="getapp.js"></script>
+<script src="ask.js"></script>
 <script>
 /* ============================================================
    הצוות — הלוגיקה.
@@ -1551,33 +1428,24 @@ sheetCsv('מוסדות').then(function (rows) {
    ולא מעותק שני שלו.
    ============================================================ */
 var RAM_GRADES = ['ז׳', 'ח׳', 'ט׳', 'י׳', 'י״א', 'י״ב'];
-var ramStep = 0, ramBusy = false, ramErr = '', ramSkip = false;
-/* **מה שהוקלד ולא נשמר עדיין.** בלעדיו, ר"ם שהקליד שם ושכח
-   לבחור שכבה קיבל את ההודעה "צריך שכבה" — ויחד איתה טופס
-   שהשם שלו נמחק. אדם שנענש על טעות קטנה סוגר את המסך. */
-var ramDraft = {};
-
+/* ============================================================
+   הבקשה האישית — הקוד עבר ל-`ask.js`.
+   ============================================================
+   הוא נדרש גם בעמוד הראשי, אצל ראש החטיבה, ועותק שני היה
+   נפרד מהראשון בשקט ביום שמישהו מתקן אחד מהם. מה שנשאר כאן
+   הוא ההגדרות של העמוד הזה, ושמות קצרים שהפינה והלוח כבר
+   קוראים להם. ============================================ */
 function tz(k) { return (window.TZEVET && TZEVET[k]) || ''; }
-/* **"הרב" מתווסף כאן ובכל מקום אחר.** הוא הקליד שם פרטי ושם
-   משפחה; התואר אינו נדרש ממנו ואינו נאמר לו. */
-function ramName(me) {
-  me = me || ramGet() || {};
-  var n = ((me.first || '') + ' ' + (me.last || '')).trim();
-  return n ? 'הרב ' + n : '';
-}
 
-function ramGet() {
-  try { return JSON.parse(localStorage.getItem('df:ram') || 'null'); }
-  catch (e) { return null; }
-}
-function ramSet(v) {
-  try { localStorage.setItem('df:ram', JSON.stringify(v)); } catch (e) {}
-}
-function ramNoted() {
-  try { return localStorage.getItem('df:ramNote') === '1'; } catch (e) { return false; }
-}
-/* עבר את התהליך — בין אם אישר עדכונים ובין אם ויתר עליהם.
-   זה מה שפותח את הלוח. */
+function ramGet()      { return ASK.get(); }
+function ramName(me)   { return ASK.name(me); }
+function ramNoted()    { return ASK.noted(); }
+function ramSeen()     { return ASK.seen(); }
+function ramMarkSeen() { return ASK.markSeen(); }
+function ramPost(res, sub, when) { return ASK.post(res, sub, when); }
+function ramOpen()     { return ASK.open(); }
+function ramBar()      { return ASK.bar(); }
+
 /* ============================================================
    הפינה — מתי לעדכן אותך, ומה לומר לתלמידים.
    ============================================================
@@ -1894,61 +1762,27 @@ function mySend() {
     });
 }
 
-function ramSeen() {
-  /* מי שאישר עדכונים עבר את התהליך מעצם העובדה — גם אם הסימון
-     הנפרד חסר, למשל מפני שאישר בגרסה שקדמה לו. */
-  if (ramNoted()) return true;
-  try { return localStorage.getItem('df:ramSeen') === '1'; } catch (e) { return false; }
-}
-function ramMarkSeen() {
-  try { localStorage.setItem('df:ramSeen', '1'); } catch (e) {}
-}
-
-function ramWhere() {
-  if (!ramGet()) return 1;
-  if (!APPX.installed() && !ramSkip) return 2;
-  if (ramNoted() && APPX.perm() === 'granted') return 4;
-  return 3;
-}
-
-/* ---------- הפס המרחף ----------
-   מופיע רק אחרי שההדגמה נגללה: קודם רואים מה בנינו, ואז
-   מבקשים. בקשה שקופצת לפני שראה משהו היא בקשה מאדם זר. */
-/* השורה יושבת במקומה בעמוד ואינה תלויה בגלילה. מה שהיה
-   קודם — פס שקופץ אחרי X פיקסלים — הופיע בראש העמוד על
-   מסכים גבוהים, כלומר לפני שהר"ם ראה דבר.
-
-   **כפתור בלי כיתוב אינו כפתור:** אם המלל עוד לא נטען, למשל
-   data.js ישן שיושב במטמון, עדיף שלא יופיע כלום. */
-function ramBar() {
-  var el = $('askrow'); if (!el) return;
-  var t = tz('askBar');
-  if (!t || ramWhere() === 4) { el.hidden = true; return; }
-  $('ar-t').textContent = t;
-  $('ar-go').textContent = tz('askBarGo');
-  el.hidden = false;
-}
-
-function ramOpen() {
-  var mk = $('as-mark');
-  if (mk && !mk.src) mk.src = window.LOGO_MARK || '';
-  ramStep = ramWhere();
-  if (ramStep === 1 && !ramGet()) ramStep = 0;   /* 0 = הפנייה עצמה */
-  $('asksheet').hidden = false;
-  document.body.style.overflow = 'hidden';
-  ramDraw();
-}
-function ramClose() {
-  $('asksheet').hidden = true;
-  document.body.style.overflow = '';
-  ramBar();
-  brdShow();
-}
+/* ============================================================
+   הגדרת הבקשה האישית לעמוד הזה.
+   ============================================================
+   הקוד עצמו ב-`ask.js`. מה שמשתנה בין עמוד לעמוד הוא זה
+   בלבד: מי מדבר, מה נשאל, ולאן חוזרים אחרי הסגירה. */
+ASK.init({
+  mount:  'ask-here',
+  key:    'ram',
+  role:   'ר"ם',
+  t:      tz,
+  klass:  true,
+  grades: RAM_GRADES,
+  inst:   function () { return instRow; },
+  when:   function () { return myFmt(myWhen() || []); },
+  onClose: function () { brdShow(); }
+});
 
 /* ---------- הנחיתה בלוח ----------
    **גלילה ולא קפיצה.** מי שקופץ למקום חדש אינו יודע מאיפה
    הגיע; מי שנוסע אליו רואה שהעמוד המשיך, ושהלוח היה מחכה לו
-   בקצה. זו אותה גלילה עדינה שכבר עובדת בשאר הפרויקט. */
+   בקצה. */
 function brdShow() {
   var sec = $('brd-sec'); if (!sec) return;
   var was = sec.hidden;
@@ -1962,256 +1796,8 @@ function brdShow() {
     }, 90);
   }
 }
-function ramGo(n) { ramStep = n; ramDraw(); }
 
-function ramMeter(n) {
-  var h = '<div class="as-bar">', i;
-  for (i = 1; i <= 3; i++) {
-    h += '<i class="' + (i < n ? 'did' : (i === n ? 'on' : '')) + '"></i>';
-  }
-  return h + '</div>';
-}
-function ramRow(t) {
-  return '<div class="as-done"><b>✓</b><span>' + esc(t) + '</span></div>';
-}
-function ramKick(n, t, b) {
-  return '<div class="as-kick">שלב ' + n + ' מתוך 3</div>' +
-    '<h2>' + esc(t) + '</h2>' + (b ? '<p>' + esc(b) + '</p>' : '');
-}
-
-function ramDraw() {
-  var el = $('as-body'); if (!el) return;
-  var me = ramGet(), h = '';
-
-  /* ---- הפנייה עצמה. בלי מד ובלי שלבים: זו עדיין בקשה
-          ולא תהליך, ומד מעליה הופך אותה למשימה. ---- */
-  if (ramStep === 0) {
-    /* שורה ריקה במלל = פסקה. פסקה אחת ארוכה נקראת כקיר. */
-    var body = String(tz('askBody') || '').split('\n').map(function (x) {
-      return x.trim() ? '<p>' + esc(x.trim()) + '</p>' : '';
-    }).join('');
-    el.innerHTML = '<div class="as-card"><h2>' + esc(tz('askH')) + '</h2>' + body +
-      '<button class="as-go" id="r-go">' + esc(tz('askGo')) + '</button>' +
-      '<button class="as-thin" id="r-later">' + esc(tz('askLater')) + '</button></div>';
-    ramWire(); return;
-  }
-
-  h += ramMeter(ramStep === 4 ? 3 : ramStep);
-  if (ramStep > 1 && me) h += ramRow(ramName(me));
-  if (ramStep > 2) h += ramRow(ramSkip ? 'ממשיכים בלי התקנה'
-                                       : 'האפליקציה על מסך הבית');
-
-  if (ramStep === 1)      h += '<div class="as-card">' + ramWho() + '</div>';
-  else if (ramStep === 2) h += '<div class="as-card">' + ramInstall() + '</div>';
-  else if (ramStep === 3) h += '<div class="as-card">' + ramNote() + '</div>';
-  else                    h += '<div class="as-card fin">' + ramFin() + '</div>';
-
-  el.innerHTML = h;
-  ramWire();
-  $('asksheet').scrollTop = 0;
-}
-
-/* ---------- שלב 1 ---------- */
-function ramWho() {
-  var me = ramGet() || {}, d = ramDraft;
-  me = { first: d.first != null ? d.first : (me.first || ''),
-         last:  d.last  != null ? d.last  : (me.last  || ''),
-         grade: d.grade != null ? d.grade : (me.grade || ''),
-         klass: d.klass != null ? d.klass : (me.klass || '') };
-  var opts = function (list, cur) {
-    return '<option value="">—</option>' + list.map(function (g) {
-      return '<option' + (g === cur ? ' selected' : '') + '>' + esc(g) + '</option>';
-    }).join('');
-  };
-  var cls = [];
-  for (var i = 1; i <= 12; i++) cls.push(String(i));
-  return ramKick(1, tz('askWhoH'), tz('askWhoB')) +
-    '<div class="fld"><label class="label" for="r-first">' +
-      esc(tz('askName')) + '</label>' +
-      '<input id="r-first" type="text" autocomplete="given-name" value="' +
-      esc(me.first || '') + '"></div>' +
-    '<div class="fld"><label class="label" for="r-last">' +
-      esc(tz('askLast')) + '</label>' +
-      '<input id="r-last" type="text" autocomplete="family-name" value="' +
-      esc(me.last || '') + '">' +
-      /* **"הרב" מתווסף אצלנו, ולא נאמר לו.** הוא כותב את שמו,
-         ואנחנו מוסיפים את התואר בלוח ובכל מקום אחר. הסבר על
-         מה שקורה מאחורי הקלעים הוא עוד שורה לקרוא. */
-      '</div>' +
-    '<div class="fld"><label class="label">שכבה וכיתה ' +
-      '<i>· ' + esc(tz('askClsH')) + '</i></label>' +
-      '<div class="pair">' +
-      '<select id="r-grade">' + opts(RAM_GRADES, me.grade) + '</select>' +
-      '<select id="r-klass">' + opts(cls, me.klass) + '</select></div></div>' +
-    '<button class="as-go" id="r-next">' + esc(tz('askNext')) + '</button>' +
-    (ramErr ? '<div class="as-err">' + esc(ramErr) + '</div>' : '');
-}
-
-/* ---------- שלב 2 ---------- */
-function ramInstall() {
-  if (APPX.inApp()) {
-    return ramKick(2, tz('askInstH'), '') +
-      '<div class="as-err" style="background:rgba(192,143,43,.12);' +
-      'border-color:rgba(192,143,43,.35);color:var(--ink)">' +
-      '<b>נראה שהדף פתוח בתוך וואטסאפ</b><br>מכאן אי אפשר להוסיף ' +
-      'למסך הבית. ' + (APPX.isIOS()
-        ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי".'
-        : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן".') + '</div>';
-  }
-  if (APPX.wasAdded() && !APPX.installed()) {
-    /* **ולמצב הזה חייבת להיות יציאה.** עד שהתגיות שלמעלה
-       נוספו, אייקון שנוצר באייפון לא נפתח כאפליקציה — ולכן
-       המסך הזה חזר שוב ושוב גם אחרי שהוא פתח את האייקון.
-       מי שנתקע כך צריך להסיר ולהוסיף מחדש, ובינתיים לא
-       להיתקע. */
-    return ramKick(2, tz('askInstH'), '') +
-      '<p>האפליקציה כבר נוספה. <b>פתחו את האייקון</b> מהמסך של ' +
-      'הטלפון, ומשם נמשיך.</p>' + APPX.icon() +
-      (APPX.isIOS()
-        ? '<p class="as-sub">' + esc(tz('askAgain')) + '</p>' : '') +
-      '<button class="as-thin" id="r-skip">' + esc(tz('askSkip')) + '</button>';
-  }
-  var h = ramKick(2, tz('askInstH'), tz('askInstB'));
-  h += APPX.bip()
-    ? '<button class="as-go" id="r-inst">התקנת האפליקציה</button>'
-    : APPX.howList();
-  return h + '<button class="as-thin" id="r-skip">' +
-    esc(tz('askSkip')) + '</button>';
-}
-
-/* ---------- שלב 3 ---------- */
-function ramNote() {
-  if (!APPX.canNote() || APPX.perm() === 'denied') {
-    return ramKick(3, tz('askNoteH'), '') +
-      '<p>ההתראות חסומות במכשיר הזה. אפשר לפתוח אותן ' +
-      APPX.unblock() + ', ואז לחזור לכאן.</p>' +
-      '<button class="as-thin" id="r-later">לא עכשיו</button>';
-  }
-  return ramKick(3, tz('askNoteH'), tz('askNoteB')) +
-    '<button class="as-go g" id="r-note"' + (ramBusy ? ' disabled' : '') + '>' +
-    (ramBusy ? 'רגע…' : esc(tz('askNoteGo'))) + '</button>' +
-    (ramErr ? '<div class="as-err">' + esc(ramErr) + '</div>' : '') +
-    '<button class="as-thin" id="r-later">לא עכשיו</button>';
-}
-
-function ramFin() {
-  return '<div class="as-v">✓</div><h2>' + esc(tz('askFinH')) + '</h2>' +
-    '<p>' + esc(tz('askFinB')) + '</p>' +
-    '<button class="as-go" id="r-done">סגירה</button>';
-}
-
-/* ---------- חיווט ---------- */
-function ramWire() {
-  var b;
-  if ((b = $('r-go')))   b.onclick = function () { ramErr = ''; ramGo(1); };
-  if ((b = $('r-done'))) b.onclick = ramClose;
-  /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
-     קופצת עליו, ולכן אין ממה להסתיר אותה.
-
-     ומי שוויתר בשלב העדכונים עבר את התהליך בדיוק כמו מי
-     שאישר, ולכן גם הוא נוסע ללוח — רק שהלוח שלו הוא של
-     הישיבה ולא של הכיתה. */
-  if ((b = $('r-later'))) b.onclick = function () {
-    if (ramStep === 3) ramMarkSeen();
-    ramClose();
-  };
-  if ((b = $('r-next'))) b.onclick = ramSave;
-  if ((b = $('r-inst'))) b.onclick = function () {
-    APPX.prompt(function () { ramGo(ramWhere()); });
-  };
-  if ((b = $('r-skip'))) b.onclick = function () { ramSkip = true; ramGo(3); };
-  if ((b = $('r-note'))) b.onclick = ramAsk;
-}
-
-function ramSave() {
-  var first = ($('r-first').value || '').trim();
-  var last  = ($('r-last').value || '').trim();
-  var grade = $('r-grade').value, klass = $('r-klass').value;
-  /* שומרים לפני שבודקים: ציור מחדש שמוחק את מה שהוקלד הופך
-     הודעת שגיאה לעונש. */
-  ramDraft = { first: first, last: last, grade: grade, klass: klass };
-  if (first.length < 2) { ramErr = 'צריך שם פרטי.'; ramDraw(); return; }
-  if (last.length < 2)  { ramErr = 'צריך שם משפחה.'; ramDraw(); return; }
-  if (!grade || !klass) { ramErr = 'צריך שכבה וכיתה — כדי שנדע מי תלמידיך.';
-    ramDraw(); return; }
-  ramErr = '';
-  ramSet({ id: ramId(), first: first, last: last, grade: grade, klass: klass,
-           inst: instRow ? instRow.code : '', instName: instRow ? instRow.name : '',
-           at: new Date().toISOString() });
-  ramPost('רשום', null);
-  ramGo(ramWhere());
-}
-
-/* מזהה אקראי, כמו של התלמיד: הוא מה שמופיע בגיליון לצד
-   העדכונים, ואינו נגזר משום פרט אישי. */
-function ramId() {
-  var v = '';
-  try { v = localStorage.getItem('df:ram-id') || ''; } catch (e) {}
-  if (!v) {
-    v = 'R' + Date.now().toString(36) +
-        Math.random().toString(36).slice(2, 7).toUpperCase();
-    try { localStorage.setItem('df:ram-id', v); } catch (e) {}
-  }
-  return v;
-}
-
-/* הכתיבה `no-cors` ואטומה ואינה ראיה לכלום — ולכן שום מסך
-   כאן אינו אומר "נרשמת". העדכון עצמו הוא האישור. */
-function ramPost(res, sub, when) {
-  var me = ramGet() || {};
-  var url = '';
-  try { url = localStorage.getItem('dfApi') || ''; } catch (e) {}
-  if (!url && typeof APPS_SCRIPT_URL !== 'undefined') url = APPS_SCRIPT_URL;
-  if (!url) return Promise.reject(new Error('אין כתובת שרת'));
-  return fetch(String(url).trim(), {
-    method: 'POST', mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'row', tab: 'התראות',
-      cols: JSON.stringify([
-        ['מזהה', me.id || ''], ['שם', ramName(me)],
-        ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
-        ['תפקיד', 'ר"ם'],
-        ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
-        ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
-        ['מנוי', sub ? JSON.stringify(sub) : ''],
-        ['תוצאה', res], ['מועד', when || myWhen()],
-        ['מתי', new Date().toISOString()]
-      ])
-    })
-  });
-}
-
-function ramAsk() {
-  ramErr = ''; ramBusy = true; ramDraw();
-  APPX.ask(function (p) {
-    if (p !== 'granted') {
-      ramBusy = false;
-      ramErr = (p === 'denied')
-        ? 'האישור נדחה. בלי אישור אי אפשר לשלוח עדכון.'
-        : 'לא התקבל אישור. אפשר לנסות שוב.';
-      ramDraw(); return;
-    }
-    APPX.subscribe().then(function (sub) {
-      return ramPost('נרשם', sub);
-    }).then(function () {
-      try { localStorage.setItem('df:ramNote', '1'); } catch (e) {}
-      ramMarkSeen();
-      ramBusy = false; ramGo(4);
-    })['catch'](function (e) {
-      ramBusy = false;
-      ramErr = 'לא הצלחתי להשלים: ' + ((e && e.message) || e) + '. אפשר לנסות שוב.';
-      ramDraw();
-    });
-  });
-}
-
-/* הפס נבדק בגלילה, ומצויר פעם אחת. */
-APPX.onBip(function () { if ($('asksheet') && !$('asksheet').hidden) ramDraw(); });
 (function () {
-  var b = $('askrow'); if (b) b.onclick = ramOpen;
-  if ($('as-x')) $('as-x').onclick = ramClose;
-  ramBar();
   /* בביקור חוזר הלוח כבר שם, בלי גלילה — הוא אינו חדשה. */
   var sec = $('brd-sec'); if (sec) sec.hidden = !ramSeen();
   myShow();

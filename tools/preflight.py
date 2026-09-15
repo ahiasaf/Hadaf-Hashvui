@@ -390,8 +390,55 @@ def check_font():
         OK.append('גופן אחיד בכל העמודים (%d הצהרות)' % n)
 
 
+# ---------------------------------------------------------------
+# כל נוסח ניתן לעריכה בניהול
+# ---------------------------------------------------------------
+# זו הייתה תלונה אמיתית: "פה ושם אני מוצא שעמוד כזה לא מופיע".
+# נוסח שנוסף ל-data.js בלי שורה ב-`TEXT_FIELDS` לא היה קיים
+# בניהול כלל, וכל תיקון ניסוח קטן חייב לעבור דרך מתכנת.
+#
+# `textedit.js` כבר מוסיף שורה אוטומטית לכל מפתח שאין לו אחת,
+# ולכן שום נוסח כבר אינו נעלם. הבדיקה כאן היא על הדרגה השנייה:
+# מפתח שמופיע בניהול בשם המפתח שבקוד במקום בתיאור בעברית.
+# אזהרה, לא כישלון.
+def check_texts():
+    import subprocess
+    try:
+        out = subprocess.check_output(
+            ['node', os.path.join(ROOT, 'tools', 'textcheck.js')],
+            stderr=subprocess.STDOUT).decode('utf-8')
+    except Exception as e:                    # noqa: BLE001
+        WARN.append('בדיקת המלל לא רצה (צריך node): %s' % e)
+        return
+    tot, nolabel, ghost, miss = 0, [], [], []
+    for line in out.splitlines():
+        parts = line.split()
+        if not parts:
+            continue
+        if parts[0] == 'TOTAL':
+            tot = int(parts[1])
+        elif parts[0] == 'NOLABEL':
+            nolabel = parts[2:]
+        elif parts[0] == 'GHOST':
+            ghost = parts[2:]
+        elif parts[0] == 'MISSING-ROOT':
+            miss.append(' '.join(parts[1:]))
+    if miss:
+        BAD.append('שורש מלל שאינו קיים ב-data.js: ' + ' · '.join(miss))
+    if ghost:
+        # שורה בניהול שאין לה נוסח בקוד — תיבה ריקה שאי־אפשר לדעת
+        # מה היא עושה, ופרסום שלה דורס בכלום.
+        BAD.append('שורות בניהול בלי נוסח בקוד: ' + ' · '.join(ghost[:12]))
+    if nolabel:
+        WARN.append('%d נוסחים מופיעים בניהול בשם המפתח ולא בתיאור: %s'
+                    % (len(nolabel), ' · '.join(nolabel[:10])))
+    if not miss and not ghost and not nolabel:
+        OK.append('כל %d הנוסחים ניתנים לעריכה בניהול, וכולם מתוארים' % tot)
+
+
 def main():
-    for fn in (check_version, check_font, check_dupe_vars, check_orphan_classes,
+    for fn in (check_version, check_font, check_texts,
+               check_dupe_vars, check_orphan_classes,
                check_shared_globals, check_inst_manifests,
                check_decks, check_daf_index,
                check_calendar):

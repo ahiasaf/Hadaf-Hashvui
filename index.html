@@ -1349,6 +1349,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
    מעצבת את עצמה — אבל ריקה היא לא צריכה לתפוס שורה. */
 .dk-msg:empty{display:none}
 .adm-card h4{font-size:.98rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
+/* כותרת קבוצה בתוך רשימת כל הנוסחים. 465 תיבות ברצף הן קיר;
+   הקו המפריד הוא מה שהופך אותן לרשימה שאפשר לסרוק בעין. */
+.adm-sub{margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}
+.adm-sub h5{font-size:.85rem;font-weight:800;color:var(--ink-2);
+  margin-bottom:8px;line-height:1.6}
+.adm-sub:first-of-type{margin-top:8px;border-top:0;padding-top:0}
 .adm-card p.h{font-size:.79rem;color:var(--ink-3);font-weight:600;line-height:1.55;margin-bottom:11px}
 .pill-n{background:var(--blue);color:#fff;border-radius:20px;padding:2px 9px;
   font-size:.7rem;font-weight:800;margin-inline-start:6px}
@@ -1533,6 +1539,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div class="zlabel"><span class="tag c" id="c-tag"></span>
           <span id="c-sub"></span></div>
         <div id="thanks"></div>
+        <!-- הבקשה האישית, מתחת להנחיות ומעל הלוח. ask.js
+             שותל כאן את השורה ואת המסך שנפתח ממנה. -->
+        <div id="ask-here"></div>
         <div id="board"></div>
       </section>
 
@@ -1651,8 +1660,12 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="stage.js"></script>
 <script src="learned.js"></script>
 <script src="links.js"></script>
+<!-- הבקשה האישית. אותו קוד בדיוק של עמוד הצוות, ולכן גם
+     ראש החטיבה מקבל בדיוק את מה שהר"מים כבר מכירים. -->
+<script src="getapp.js"></script>
+<script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.40.0';
+var APP_VERSION = '8.42.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2925,6 +2938,37 @@ function hailBoard() {
 }
 
 /* ============================================================
+   הבקשה האישית לראש החטיבה.
+   ============================================================
+   אותו מנגנון של הר"ם, מתוך `ask.js`. מה שמשתנה: הנוסח
+   (`HEAD_ASK`), התפקיד שנרשם בגיליון, והעובדה שהוא אינו
+   נשאל שכבה וכיתה — לשאלה הזו אין אצלו תשובה נכונה.
+
+   **ומפתח אחסון משלו.** אחיאסף עצמו הוא גם רכז וגם עשוי
+   לפתוח את עמוד הצוות; שני תפקידים על מכשיר אחד שחולקים
+   מפתח היו דורסים זה את זה. ====================== */
+var askReady = false;
+function headT(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
+function askSetup() {
+  if (askReady) return;
+  var code = myBoard();
+  if (!code || typeof ASK === 'undefined') return;
+  askReady = true;
+  ASK.init({
+    mount: 'ask-here',
+    key:   'head',
+    role:  'ראש חטיבה',
+    t:     headT,
+    klass: false,
+    inst:  function () {
+      var c = myBoard();
+      var i = INSTITUTIONS.filter(function (x) { return x.code === c; })[0];
+      return i ? { code:i.code, name:i.name } : null;
+    }
+  });
+}
+
+/* ============================================================
    מה שראש החטיבה רואה מיד אחרי ההרשמה.
    ============================================================
    שני שלבים ממוספרים, כפתור אחד, ושורה שאומרת מה יקרה אחרי
@@ -2962,6 +3006,12 @@ function renderBoard(hail) {
   document.getElementById('c-sub').textContent = UI.coordSub;
   /* הבקשה מעל, הלוח מתחת. */
   document.getElementById('thanks').innerHTML = thanksHtml(code, inst.name);
+  /* ============================================================
+     והבקשה האישית — מתחת להנחיות.
+     ============================================================
+     היא נשתלת פעם אחת, ברגע שיש ישיבה: קודם לכן אין למי
+     לפנות ואין מה לרשום. מכאן ואילך `ASK` מנהל את עצמו. */
+  askSetup();
   document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
@@ -6369,29 +6419,93 @@ function admText(el) {
     '<p class="h">השער נפתח בתוך הדף האינטראקטיבי, ולו יש סטודיו — ' +
     'ולכן אין שולחים אתכם לערוך שם על המסך. ותמונה אינה טקסט ' +
     'שאפשר להקיש עליו. שניהם כאן.</p>' +
-    textOrphans().map(function (f) {
-      var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== belowText(f.k);
-      var head = '<div class="label">' + esc(f.lbl) +
-        (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>';
-      if (f.img) {
-        return '<div class="fld">' + head +
-          (cur ? '<div class="imgbox"><img src="' + esc(cur) + '" alt="">' +
-                 '<button onclick="admTextSet(\'' + f.k + '\',\'\')">הסרה</button></div>' : '') +
-          '<input type="file" accept="image/*" ' +
-          'onchange="admImgPick(this,\'' + f.k + '\')">' +
-          '<p class="h" style="margin-top:6px">אפשר גם להדביק כתובת תמונה:</p>' +
-          '<input type="text" dir="ltr" placeholder="https://…" value="' +
-          (cur.indexOf('data:') === 0 ? '' : esc(cur)) +
-          '" onchange="admTextSet(\'' + f.k + '\',this.value)"></div>';
-      }
-      return '<div class="fld">' + head +
-        (f.ml
-          ? '<textarea rows="3" onchange="admTextSet(\'' + f.k + '\',this.value)">' +
-            esc(cur) + '</textarea>'
-          : '<input type="text" value="' + esc(cur) +
-            '" onchange="admTextSet(\'' + f.k + '\',this.value)">') +
-        '</div>';
-    }).join('') + '</div>';
+    textOrphans().map(textBox).join('') + '</div>' +
+
+    admAllTexts();
+}
+
+/* ============================================================
+   כל הנוסחים — הרשימה המלאה.
+   ============================================================
+   **זו הייתה תלונה, ולא בקשה לתכונה.** המסך הזה הציע עד עכשיו
+   דלתות למסכים: "היכנס למסך, הקש על הטקסט, כתוב". זה נעים,
+   וזה גם הותיר בחוץ כל נוסח שאי אפשר להקיש עליו — הודעת
+   שגיאה, שלב שני של מסך שנפתח, "רגע…" שמופיע לשנייה, ועמוד
+   שלם ששכחנו להוסיף לרשימת הדלתות. הדרך היחידה לשנות אותם
+   הייתה לבקש ממתכנת.
+
+   הרשימה כאן היא הרצפה: **כל** מה שקיים, מקובץ לפי הקבוצות
+   שברשימת השדות, עם תיבה לכל אחד. הדלתות שלמעלה נשארות — הן
+   עדיין הדרך הנוחה — אבל הן כבר אינן הדרך היחידה.
+
+   `tools/preflight.py` מוודא שכל מפתח מגיע לכאן. */
+function textBox(f) {
+  var d = CFG.texts || {};
+  var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== belowText(f.k);
+  var head = '<div class="label">' + esc(f.lbl) +
+    (changed ? ' <span style="color:var(--gold)">•</span>' : '') + '</div>';
+  if (f.img) {
+    return '<div class="fld">' + head +
+      (cur ? '<div class="imgbox"><img src="' + esc(cur) + '" alt="">' +
+             '<button onclick="admTextSet(\'' + f.k + '\',\'\')">הסרה</button></div>' : '') +
+      '<input type="file" accept="image/*" ' +
+      'onchange="admImgPick(this,\'' + f.k + '\')">' +
+      '<p class="h" style="margin-top:6px">אפשר גם להדביק כתובת תמונה:</p>' +
+      '<input type="text" dir="ltr" placeholder="https://…" value="' +
+      (cur.indexOf('data:') === 0 ? '' : esc(cur)) +
+      '" onchange="admTextSet(\'' + f.k + '\',this.value)"></div>';
+  }
+  return '<div class="fld">' + head +
+    (f.ml
+      ? '<textarea rows="3" onchange="admTextSet(\'' + f.k + '\',this.value)">' +
+        esc(cur) + '</textarea>'
+      : '<input type="text" value="' + esc(cur) +
+        '" onchange="admTextSet(\'' + f.k + '\',this.value)">') +
+    '</div>';
+}
+
+/* החיפוש חי בזיכרון ולא ב-CFG: הוא אינו הגדרה, והוא לא אמור
+   לשרוד רענון או להתפרסם לאיש. */
+var textFind = '';
+function admTextFind(v) {
+  textFind = String(v || '');
+  var host = document.getElementById('adm-all-list');
+  if (host) host.innerHTML = admAllRows();
+}
+function admAllRows() {
+  var q = textFind.trim(), h = '', open = false, head = '', grp = '', n = 0;
+  TEXT_FIELDS.forEach(function (f) {
+    if (f.g) { head = f.g; grp = f.g; return; }
+    if (!f.k) return;
+    if (q) {
+      /* מחפשים בארבעה מקומות: שם הקבוצה, התיאור, הנוסח עצמו,
+         ושם המפתח. מי שמחפש "הבקשה האישית" מחפש את שם הקבוצה
+         ולא את הנוסח שבתוכה, ומי שמכיר נוסח אינו מכיר מפתח. */
+      var hay = grp + ' ' + (f.lbl || '') + ' ' +
+                String(textGet(f.k) || '') + ' ' + f.k;
+      if (hay.indexOf(q) < 0) return;
+    }
+    if (head) {
+      if (open) h += '</div>';
+      h += '<div class="adm-sub"><h5>' + head + '</h5>';
+      head = ''; open = true;
+    }
+    h += textBox(f); n++;
+  });
+  if (open) h += '</div>';
+  if (!n) h += '<p class="h">לא נמצא נוסח שמתאים לחיפוש.</p>';
+  return h;
+}
+function admAllTexts() {
+  return '<div class="adm-card"><h4>כל הנוסחים</h4>' +
+    '<p class="h">הרשימה המלאה — גם מה שאי אפשר להקיש עליו במסך: ' +
+    'הודעות שגיאה, שלבים שנפתחים תוך כדי, וכיתובים שמופיעים ' +
+    'לרגע. עריכה כאן זהה לעריכה על המסך, ונכנסת לאותו ' +
+    '<b>פרסום</b>.</p>' +
+    '<div class="fld"><input type="text" id="adm-all-find" ' +
+    'placeholder="חיפוש בתוך הנוסחים…" ' +
+    'oninput="admTextFind(this.value)" value="' + esc(textFind) + '"></div>' +
+    '<div id="adm-all-list">' + admAllRows() + '</div></div>';
 }
 /* ============================================================
    התראות — מי קיבל, מי נתקע, ומה שולחים.

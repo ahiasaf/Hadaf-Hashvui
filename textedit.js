@@ -44,7 +44,12 @@ var TX = (function () {
     ROOTS = { fit:window.FIT, ui:window.UI, sfarim:window.SFARIM,
               rights:window.RIGHTS, join:window.JOIN, gate:window.GATE,
               tour:window.TOUR, a11y:window.A11Y, info:window.INFO,
-              tzevet:window.TZEVET, play:window.PLAY };
+              tzevet:window.TZEVET, play:window.PLAY,
+              /* הבקשה האישית לראש החטיבה — אותו מנגנון של
+                 `tzevet`, ולכן גם היא ניתנת לעריכה ולפרסום. */
+              head:window.HEAD_ASK,
+              /* המסגרת המשותפת לשני התפקידים — ראו `ASK_UI`. */
+              askui:window.ASK_UI };
     return ROOTS;
   }
   function ref(k) {
@@ -55,11 +60,66 @@ var TX = (function () {
   function get(k) { var r = ref(k); return r ? r.o[r.f] : ''; }
   function set(k, v) { var r = ref(k); if (r) r.o[r.f] = v; }
 
+  /* ---------- רשת הביטחון: שום נוסח אינו נעלם ----------
+     `TEXT_FIELDS` נכתב ביד, והוא מה שמסך הניהול מציג. לכן כל
+     נוסח שנוסף ל-data.js ולא נוספה לו שורה ברשימה פשוט לא
+     היה קיים בניהול — לא לעריכה, לא לפרסום, ולא לסימון על
+     המסך. אחיאסף גילה את זה אחד־אחד, מסך אחרי מסך, וכל תיקון
+     ניסוח קטן היה חייב לעבור דרך מתכנת.
+
+     כאן זה נסגר מהשורש: לפני הצילום סורקים את כל השורשים,
+     וכל מפתח שאין לו שורה מקבל שורה. תיאור ידני עדיף ותמיד
+     יגבר — אבל היעדרו כבר אינו מסתיר את הנוסח, אלא רק שולח
+     אותו לקבוצה האחרונה. נוסח שנוסף בעמוד חדש מופיע בניהול
+     מעצמו, בלי שאיש יזכור.
+
+     `tools/preflight.py` סופר כמה נוספו כך ומתריע, כדי שגם
+     התיאור הידני יגיע בסוף. */
+  var AUTO = [];
+  function fill() {
+    if (!window.TEXT_FIELDS) return;
+    var seen = {}, i;
+    for (i = 0; i < TEXT_FIELDS.length; i++) {
+      if (TEXT_FIELDS[i].k) seen[TEXT_FIELDS[i].k] = 1;
+    }
+    var R = roots();
+    var add = [];
+    /* מזהה וגוון אינם מלל אלא ברגים, ושורה לעריכה עליהם היא
+       הזמנה לשבור מסך. הם היחידים שאינם עולים לניהול. */
+    var NOTTEXT = /\.(id|tone|key|code|src|hi)$/;
+    var walk = function (pre, o, depth) {
+      if (!o || depth > 4) return;
+      for (var kk in o) {
+        if (!o.hasOwnProperty(kk)) continue;
+        var v = o[kk], key = pre + '.' + kk;
+        if (typeof v === 'string') {
+          if (!seen[key] && !NOTTEXT.test(key)) { seen[key] = 1; add.push(key); }
+        } else if (v && typeof v === 'object') {
+          /* גם מערכים — `fit.items.0.t` הוא מפתח חוקי, ו-`ref()`
+             כבר יודע ללכת בו. מערך שנשאר בחוץ הוא בדיוק הסוג
+             של נוסח שנעלם בשקט. */
+          walk(key, v, depth + 1);
+        }
+      }
+    };
+    for (var r in R) if (R.hasOwnProperty(r)) walk(r, R[r], 1);
+    if (!add.length) return;
+    AUTO = add;
+    TEXT_FIELDS.push({ g:'נוסחים שעדיין אין להם תיאור \u2014 הם עובדים, ' +
+                          'רק שמם הוא שם המפתח שבקוד' });
+    for (i = 0; i < add.length; i++) {
+      var val = get(add[i]);
+      TEXT_FIELDS.push({ k:add[i], lbl:add[i], auto:1,
+                         ml:(typeof val === 'string' && val.length > 70) ? 1 : 0 });
+    }
+  }
+
   /* הנוסח שבקוד, מצולם לפני שמישהו דרס אותו. חייב לרוץ לפני
      כל החלה — לכן `snap()` נקרא מיד בטעינת הקובץ, וקובץ זה
      נטען מיד אחרי data.js. */
   function snap() {
     if (READY || !window.TEXT_FIELDS) return;
+    fill();
     TEXT_FIELDS.forEach(function (f) { if (f.k) BASE[f.k] = get(f.k); });
     READY = true;
   }
@@ -342,6 +402,7 @@ var TX = (function () {
     },
     layer: layer, below: below, base: function (k) { return BASE[k]; },
     get: get, set: set, draft: draft, draftSave: draftSave,
+    auto: function () { return AUTO; },
     published: published, snap: snap,
     start: start, stop: stop, scan: scan, open: open,
     allowed: allowed,
