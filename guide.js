@@ -234,16 +234,32 @@ var GUIDE_UI = (function () {
 
   /* ---------- שלושת המסלולים ----------
      כל שלב: הכיתוב, ההסבר, והציור. */
+  var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
+  var TAIL  = [['s3', sheet], ['s4', confirm], ['s5', home]];
+  var NEW   = [['n1', barNew], ['n2', menuNew]].concat(TAIL);
+  var OLD   = [['o1', barOld]].concat(TAIL);
+
+  /* כפייה של מסלול — למסך הניהול בלבד.
+     ============================================================
+     לאחיאסף יש אנדרואיד, ולכן הוא לעולם לא יראה במכשיר שלו את
+     מה שראש חטיבה עם אייפון רואה. בלי הדרך לראות, הוא עורך
+     נוסח בעיוורון. */
+  var FORCE = null;
+  function force(kind) { FORCE = kind || null; LIST = null; at = 0; }
+
+  function kinds() {
+    return [['iosNew', 'אייפון חדש'], ['iosOld', 'אייפון ישן'],
+            ['droid', 'אנדרואיד']];
+  }
+
   function steps() {
-    if (!APPX.isIOS()) {
-      return [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
-    }
+    if (FORCE === 'droid')  return DROID;
+    if (FORCE === 'iosNew') return NEW;
+    if (FORCE === 'iosOld') return OLD;
+    if (!APPX.isIOS()) return DROID;
     /* גרסה שלא זוהתה מקבלת את החדש — שם רוב המכשירים היום. */
     var v = APPX.iosVer();
-    var first = (v === 0 || v >= 26)
-      ? [['n1', barNew], ['n2', menuNew]]
-      : [['o1', barOld]];
-    return first.concat([['s3', sheet], ['s4', confirm], ['s5', home]]);
+    return (v === 0 || v >= 26) ? NEW : OLD;
   }
 
   /* ---------- המסך ---------- */
@@ -337,5 +353,16 @@ var GUIDE_UI = (function () {
     document.head.appendChild(st);
   }
 
-  return { mount: mount, reset: reset, steps: steps, at: function () { return at; } };
+  /* קפיצה לשלב מסוים. קיימת בשביל הניהול: שם הציור מצויר מחדש
+     בכל הקלדה, ובלי זה כל מילה שנערכה בשלב 3 הייתה מחזירה את
+     המסך לשלב 1 — ואחיאסף לא היה רואה את מה שכתב. */
+  function seek(n) {
+    var L = LIST || (LIST = steps());
+    at = Math.max(0, Math.min(n | 0, L.length - 1));
+    draw();
+  }
+
+  return { mount: mount, reset: reset, steps: steps, css: css,
+           force: force, kinds: kinds, seek: seek,
+           at: function () { return at; } };
 })();

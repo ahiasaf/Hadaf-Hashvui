@@ -203,6 +203,9 @@ var ASK = (function () {
        בעצמו, ואינו מצויר מחדש בכל ציור של המסך שמסביבו. */
     if (wantGuide) {
       var box = $('gu-here');
+      /* הניהול יכול להעמיד את המדריך על מסלול שאינו של המכשיר
+         הזה. כאן זה משתמש אמיתי — מחזירים אותו למכשיר שלו. */
+      if (GUIDE_UI.force) GUIDE_UI.force(null);
       if (box) GUIDE_UI.mount(box, function () { draw(); });
     }
     wire();

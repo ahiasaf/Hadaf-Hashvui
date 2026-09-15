@@ -1420,6 +1420,14 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 -6px 24px rgba(0,0,0,.2)}
 #upd.on{display:block}
 
+/* תצוגת המדריך בניהול. רקע שקוע, כדי שהציור ייראה כמו משהו
+   שמסתכלים עליו ולא כמו חלק מהטופס. */
+.gu-box{background:var(--bg);border:1px solid var(--rule);
+  border-radius:var(--r-m);padding:16px 14px}
+.adm-sub2{margin-top:16px;padding-top:13px;border-top:1px solid var(--rule)}
+.adm-sub2 h5{font-size:.85rem;font-weight:800;color:var(--ink-2);
+  margin-bottom:9px;line-height:1.6}
+
 /* תאריך ושעה זה לצד זה. אותה מידה של `.as-card .pair` שב-ask.js. */
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
@@ -1761,7 +1769,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.64.0';
+var APP_VERSION = '8.65.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7490,7 +7498,94 @@ function admText(el) {
     '<p class="h">השער נפתח בתוך הדף האינטראקטיבי, ולו יש סטודיו — ' +
     'ולכן אין שולחים אתכם לערוך שם על המסך. ותמונה אינה טקסט ' +
     'שאפשר להקיש עליו. שניהם כאן.</p>' +
-    textOrphans().map(textBox).join('') + '</div>';
+    textOrphans().map(textBox).join('') + '</div>' +
+
+    guCard();
+  /* אחרי שה-HTML על המסך. */
+  setTimeout(guPaint, 0);
+}
+
+/* ============================================================
+   מדריך ההתקנה — לראות ולערוך.
+   ============================================================
+   "הבעיה שיש לי אנדרואיד. יש לי דרך בניהול לראות את מדריך
+   ההתקנה הזה?"
+
+   לא הייתה. המדריך מציג את המסלול של המכשיר שבו פותחים אותו,
+   ולכן אחיאסף — שיש לו אנדרואיד — לעולם לא היה רואה את מה
+   שראש חטיבה עם אייפון רואה, ועורך את הנוסח בעיוורון.
+
+   כאן שלושת המסלולים זה לצד זה, חיים ולחיצים, ומתחת לכל אחד
+   הנוסחים שלו. משנים מילה ורואים אותה בציור באותו רגע.
+   ============================================================ */
+var guKind = 'iosNew';
+var GU_TXT = {
+  iosNew: ['guide.n1','guide.n1s','guide.n2','guide.n2s'],
+  iosOld: ['guide.o1','guide.o1s'],
+  droid:  ['guide.a1','guide.a1s','guide.a2','guide.a2s','guide.a3','guide.a3s']
+};
+/* השלבים המשותפים לשני מסלולי האייפון — נערכים פעם אחת. */
+var GU_IOS = ['guide.s3','guide.s3s','guide.s4','guide.s4s','guide.s5','guide.s5s'];
+
+function guPick(k) {
+  guKind = k;
+  guAt = 0;                       /* מסלול אחר — מתחילים מתחילתו */
+  admPane();
+}
+function guCard() {
+  if (typeof GUIDE_UI === 'undefined') return '';
+  var keys = (GU_TXT[guKind] || []).concat(guKind === 'droid' ? [] : GU_IOS);
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>מדריך ההתקנה</h4>' +
+    '<p class="h">מה שרואים כשמתקינים את האפליקציה. לכל מכשיר ' +
+    'מסלול משלו — כאן אפשר לראות את שלושתם, גם כשבידיים ' +
+    'מכשיר אחד.</p>' +
+    '<div class="tabs" style="margin:0 0 12px">' +
+    GUIDE_UI.kinds().map(function (k) {
+      /* `.tabs button` הוא הכלל שבעמוד; מחלקה משלי כאן הייתה
+         רצועה שנראית אחרת מכל שאר הרצועות. */
+      return '<button' + (k[0] === guKind ? ' class="on"' : '') +
+        ' onclick="guPick(\'' + k[0] + '\')">' + esc(k[1]) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="gu-box" id="gu-prev"></div>' +
+    '<div class="adm-sub2"><h5>הנוסחים של המסלול הזה</h5>' +
+    keys.map(function (k) {
+      var f = null;
+      TEXT_FIELDS.forEach(function (x) { if (x.k === k) f = x; });
+      return f ? textBox(f) : '';
+    }).join('') +
+    '<p class="h" style="margin-top:10px">מונה השלבים והכפתורים ' +
+    'משותפים לכל המסלולים:</p>' +
+    ['guide.step','guide.next','guide.back','guide.fin',
+     'guide.help','guide.helpB'].map(function (k) {
+      var f = null;
+      TEXT_FIELDS.forEach(function (x) { if (x.k === k) f = x; });
+      return f ? textBox(f) : '';
+    }).join('') +
+    '</div></div>';
+}
+/* הציור נשתל אחרי שהכרטיס על המסך — הוא מנהל את הצעדים שלו
+   בעצמו, ואינו חלק מה-HTML שנבנה כאן. */
+var guAt = 0;
+function guPaint() {
+  var box = document.getElementById('gu-prev');
+  if (!box || typeof GUIDE_UI === 'undefined') return;
+  GUIDE_UI.force(guKind);
+  GUIDE_UI.mount(box, function () { guAt = 0; guPaint(); });
+  /* `mount` פותח בשלב הראשון. כאן חוזרים לשלב שהוא עמד עליו —
+     אחרת כל הקלדה בתיבה מחזירה את הציור להתחלה. */
+  if (guAt) GUIDE_UI.seek(guAt);
+  guWatch();
+}
+/* שמירת השלב הנוכחי, כדי שהציור יחזור אליו אחרי ההרכבה מחדש. */
+function guWatch() {
+  var b = document.getElementById('gu-next'), k = document.getElementById('gu-back');
+  if (b) b.addEventListener('click', function () {
+    setTimeout(function () { guAt = GUIDE_UI.at(); guWatch(); }, 0);
+  });
+  if (k) k.addEventListener('click', function () {
+    setTimeout(function () { guAt = GUIDE_UI.at(); guWatch(); }, 0);
+  });
 }
 
 /* תיבת עריכה לשדה בודד — לנוסחים שאין להם מסך להקיש עליו:
