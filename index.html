@@ -841,6 +841,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .fld .label .mayb{display:inline-block;font-weight:700;color:var(--ink-3);
   font-size:.72rem;background:var(--sunk);border-radius:6px;
   padding:1px 6px;margin-inline-start:5px;vertical-align:middle}
+/* כפתור ההצטרפות העליון — יושב ברוחב התוכן, בלי רצועה משלו.
+   `:empty` כדי שמי שכבר נרשם לא יקבל רווח לבן במקומו. */
+.cta-top{margin:0 0 20px}
+.cta-top:empty{display:none}
+.cta-top .btn{margin:0}
 /* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
 .brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
   color:var(--ink-3);line-height:1.55;text-align:start}
@@ -1486,6 +1491,16 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div id="plan"></div>
       </section>
 
+      <!-- ============================================================
+           כפתור ההצטרפות, פעם ראשונה.
+           ============================================================
+           הוא יושב גם למטה, בסוף המסלול, אחרי כל הסיבות. אבל
+           ראש חטיבה שכבר שוחח איתנו ויודע למה הוא בא אינו צריך
+           לגלול דרך כל השכנוע — הוא צריך כפתור. אותו כפתור
+           בדיוק, ואותו נוסח: מי שגלל עד הסוף מוצא את מה שכבר
+           ראה, ולא שני דברים שנראים דומה. -->
+      <div id="cta-top" class="cta-top"></div>
+
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
       <section class="sec-b band rv">
         <div class="zlabel"><span class="tag" id="stagetag">מה התלמידים יראו</span>
@@ -1637,7 +1652,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="learned.js"></script>
 <script src="links.js"></script>
 <script>
-var APP_VERSION = '8.39.0';
+var APP_VERSION = '8.40.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1921,6 +1936,15 @@ function renderHome() {
     'margin-top:9px;line-height:1.5">' +
     (mine ? esc(UI.ctaSubAgain) : fill(UI.ctaSub, { offer:offer })) + '</p>';
 
+  /* אותו כפתור, למעלה. בלי שורת המחיר שמתחתיו: שם הוא סוף
+     מסלול שכנוע, וכאן הוא קיצור דרך למי שכבר החליט. ומי שכבר
+     נרשם אינו רואה אותו — הוא היה מזמין אותו להירשם שוב. */
+  var top = document.getElementById('cta-top');
+  if (top) {
+    top.innerHTML = mine ? '' :
+      '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>';
+  }
+
   /* הרצועה של ראשי החטיבות יושבת ב-HTML הסטטי, ולכן היא
      מתעדכנת כאן ולא נבנית מחדש. */
   var st = document.getElementById('stagetag');
@@ -2028,30 +2052,21 @@ function renderReg() {
     pkField('', instName, UI.instLabel, 'pickInst()') +
     '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
     '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
-    '" onchange="regSet(\'instOther\',this.value)"></div>' +
+    '" onchange="regSet(\'instOther\',this.value)"></div>';
     /* ============================================================
-       שני אנשי קשר, ולא אחד.
+       **שם ומספר כבר לא נשאלים כאן.**
        ============================================================
-       ראש החטיבה הוא מי שמחליט, ורכז הצוות הוא לרוב מי שבאמת
-       מריץ את זה ביום-יום. איש קשר אחד פירושו שחצי מהשיחות
-       מגיעות לאדם הלא נכון, או שאין למי לפנות כשהאחד לא זמין.
+       הרשימה של מי עומד בראש כל חטיבה כבר אצלנו — היא נאספה
+       בשיחות, והיא יושבת בלשונית אנשי הקשר. לבקש מאדם להקליד
+       משהו שאנחנו כבר יודעים זה לבזבז לו את הרגע הראשון, וגם
+       להזמין שגיאות הקלדה בדבר היחיד שצריך להיות מדויק.
 
-       השני אינו חובה — לא בכל ישיבה יש כזה — ולכן הוא אינו
-       עוצר את ההרשמה ואינו מוצג כשדה שחסר בו משהו. */
-    '<div class="fld"><div class="label">' + esc(UI.whoLabel) + '</div>' +
-    '<input type="text" id="r-who" placeholder="שם" value="' + esc(reg.who) +
-    '" onchange="regSet(\'who\',this.value)"></div>' +
-    '<div class="fld"><div class="label">' + esc(UI.phoneLabel) + '</div>' +
-    '<input type="tel" id="r-phone" placeholder="05X-XXXXXXX" value="' + esc(reg.phone) +
-    '" onchange="regSet(\'phone\',this.value)"></div>' +
-    '<div class="fld"><div class="label">' + esc(UI.who2Label) +
-    ' <span class="mayb">רשות</span></div>' +
-    '<input type="text" id="r-who2" placeholder="שם" value="' + esc(reg.who2) +
-    '" onchange="regSet(\'who2\',this.value)"></div>' +
-    '<div class="fld"><div class="label">' + esc(UI.phone2Label) +
-    ' <span class="mayb">רשות</span></div>' +
-    '<input type="tel" id="r-phone2" placeholder="05X-XXXXXXX" value="' + esc(reg.phone2) +
-    '" onchange="regSet(\'phone2\',this.value)"></div>';
+       מה שנשאר: בוחר את החטיבה, וזהו. מהרגע הזה אנחנו יודעים
+       שהישיבה בפנים, והוא מקבל את הקישור לר"מים.
+
+       השם שלו כן נאסף — אבל במקום שבו יש לו סיבה: הבקשה
+       האישית, שם הוא ממילא נרשם להתראות ואנחנו צריכים לדעת
+       למי הן. ============================================ */
 
   var h = fitBlock() +
     whoBlock +
@@ -2372,8 +2387,6 @@ function sendReg() {
   var name = reg.inst === 'other' ? reg.instOther
            : (INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0] || {}).name;
   if (!name)      { alert('נא לבחור ישיבה.'); return; }
-  if (!reg.who)   { alert('נא למלא את שם ראש החטיבה.'); return; }
-  if (!reg.phone) { alert('נא למלא את הטלפון שלו.'); return; }
 
   /* הכמות אינה תנאי. ראש חטיבה שרוצה רק להצטרף ולנקוב במספר
      נעצר כאן בפועל — ההרשמה סורבה בגלל הזמנה שהוא כלל לא ביקש
@@ -2399,7 +2412,6 @@ function sendReg() {
   setInstCode(reg.inst, access);
 
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
-                  who2:reg.who2 || '', phone2:reg.phone2 || '',
                   size:reg.size || 0, want:reg.want, total:total, access:access,
                   mas:(reg.mas || []).slice(),
                   masText:(reg.mas || []).map(function (id) {
@@ -2420,10 +2432,8 @@ function sendReg() {
 
   var txt = 'הרשמה לדף השבועי תשפ"ז\n\n' +
     'ישיבה: ' + name + '\n' +
-    'ראש החטיבה: ' + reg.who + '\n' +
-    'טלפון: ' + reg.phone + '\n' +
-    (reg.who2 ? 'רכז צוות: ' + reg.who2 + '\n' : '') +
-    (reg.phone2 ? 'טלפון הרכז: ' + reg.phone2 + '\n' : '') +
+    (reg.who ? 'ראש החטיבה: ' + reg.who + '\n' : '') +
+    (reg.phone ? 'טלפון: ' + reg.phone + '\n' : '') +
     (reg.size ? 'תלמידים (יעד): ' + reg.size + '\n' : '') +
     (total
       ? TRACKS.map(function (t) {
@@ -2451,11 +2461,11 @@ function sendReg() {
 /* העמודות בגיליון ההרשמות, לפי הסדר. מקור האמת היחיד לשמות שלהן. */
 function regCols(name, total, summary) {
   var cols = [['ישיבה', name], ['קוד', reg.inst],
-              /* "איש קשר" נשאר השם של העמודה הקיימת — שינוי שם
-                 עמודה מייצר עמודה חדשה וקוטע את ההרשמות שכבר
-                 נכתבו. מה שהשתנה הוא מה שכתוב עליה במסך. */
-              ['איש קשר', reg.who], ['טלפון', reg.phone],
-              ['רכז צוות', reg.who2 || ''], ['טלפון הרכז', reg.phone2 || ''],
+              /* העמודות נשארות, וריקות. שם ומספר כבר לא נשאלים
+                 בהרשמה — הם אצלנו ממילא — והשם נאסף בבקשה
+                 האישית, שם יש לו סיבה. מחיקת עמודה מזיזה את כל
+                 מה שמימינה בשורות שכבר נכתבו. */
+              ['איש קשר', reg.who || ''], ['טלפון', reg.phone || ''],
               ['תלמידים (הערכה)', reg.size || ''],
               ['מסכתות', (reg.mas || []).join(',')]];
   TRACKS.forEach(function (t) {
