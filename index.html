@@ -1384,6 +1384,20 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 -6px 24px rgba(0,0,0,.2)}
 #upd.on{display:block}
 
+/* תאריך ושעה זה לצד זה. אותה מידה של `.as-card .pair` שב-ask.js. */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* רשימת המועדים — הועתקה מהפינה שבעמוד הצוות כמו שהיא.
+   אותו רכיב בשני עמודים שנראה קצת אחר בכל אחד מהם הוא
+   בדיוק איך ששפה עיצובית מתפרקת. */
+.whens{margin-top:14px;display:grid;gap:8px}
+.whenrow{display:flex;align-items:center;gap:12px;width:100%;
+  padding:12px 15px;border:1.5px solid var(--rule);border-radius:var(--r-s);
+  background:#fff}
+.whenrow .wt{font-size:1.02rem;font-weight:800;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--green-2)}
+.whenrow .wd{flex:1;font-size:.86rem;font-weight:700;color:var(--ink-2)}
+
 /* מילה לתלמידי הישיבה — הכרטיס של ראש החטיבה.
    ============================================================
    הכללים הועתקו מעמוד הצוות **כמו שהם**, ולא נכתבו מחדש:
@@ -1710,7 +1724,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.54.0';
+var APP_VERSION = '8.55.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4481,6 +4495,247 @@ function blastCard(list) {
     '</div>';
 }
 
+/* ============================================================
+   תזכורות לעצמי.
+   ============================================================
+   אחיאסף מנהל את המבצע כולו, והתזכורות שהוא צריך אינן קשורות
+   לדף השבועי: "להתקשר לחדרה", "לשלוח לפלטי סיכום", "לבדוק מי
+   לא נכנס". עד עכשיו לא היה לזה מקום, והמנגנון שמקפיץ התראות
+   כבר קיים ומשרת את כל הצוות.
+
+   **המנגנון בדיוק אותו מנגנון.** התזכורת נשמרת בגיליון, השולח
+   המתוזמן שרץ בכל חצי שעה מוצא אותה במשבצת שלה, ודוחף אותה
+   למכשיר שלו. אין כאן שרת חדש ואין קרון נוסף.
+
+   ומכאן שתי מגבלות שנאמרות במסך ולא מוסתרות:
+     · **השעות הן בחצאי שעה.** הקרון רץ כך, ותזכורת ל-9:15
+       הייתה יוצאת ב-9:30. עדיף לבחור מתוך מה שבאמת אפשר.
+     · **התזכורת יוצאת למכשיר הזה.** היא נשענת על המנוי שנרשם
+       כאן, ולכן צריך לאשר התראות פעם אחת.
+   ============================================================ */
+var RM_TAB = 'תזכורות';
+var rmRows = null, rmMsg = '', rmBusy = false;
+var rmNew = null;
+
+/* מזהה קבוע למכשיר הזה. אותו דפוס של `ask.js`. */
+function rmId() {
+  var v = Store.get('rmId', '');
+  if (!v) {
+    v = 'rm' + Math.random().toString(36).slice(2, 10);
+    Store.set('rmId', v);
+  }
+  return v;
+}
+function rmToday() {
+  var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+}
+/* חצאי שעה בלבד — ראו ההסבר למעלה. */
+function rmTimes() {
+  var out = [], h, m;
+  for (h = 5; h < 24; h++) {
+    for (m = 0; m < 60; m += 30) {
+      out.push((h < 10 ? '0' : '') + h + ':' + (m ? '30' : '00'));
+    }
+  }
+  return out;
+}
+function rmNearest() {
+  var d = new Date();
+  var h = d.getHours(), m = d.getMinutes() < 30 ? 30 : 0;
+  if (!m) h += 1;
+  if (h > 23) h = 23;
+  if (h < 5) h = 5;
+  return (h < 10 ? '0' : '') + h + ':' + (m ? '30' : '00');
+}
+
+function rmLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) { rmMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  rmMsg = 'טוען…'; admPane();
+  return scriptGet({ read: RM_TAB, key: k }).then(function (d) {
+    /* **תשובה בלי rows אינה לשונית ריקה.** כלל הברזל של
+       הפרויקט: כישלון משאיר את מה שיש, ריק אמיתי מרוקן. */
+    if (!d || d.status !== 'ok' || !d.rows) {
+      rmMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    rmRows = rmParse(d.rows);
+    rmMsg = ''; admPane(); return true;
+  }).catch(function () {
+    rmMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+function rmParse(rows) {
+  if (!rows || rows.length < 2) return [];
+  var h = rows[0], ix = {}, i;
+  for (i = 0; i < h.length; i++) ix[String(h[i]).trim()] = i;
+  var out = [];
+  rows.slice(1).forEach(function (r) {
+    var o = { id:   String(r[ix['מזהה']] || '').trim(),
+              date: String(r[ix['תאריך']] || '').trim(),
+              time: String(r[ix['שעה']]   || '').trim(),
+              text: String(r[ix['נוסח']]  || '').trim() };
+    if (o.id === rmId() && o.date && o.time && o.text) out.push(o);
+  });
+  out.sort(function (a, b) {
+    return (a.date + a.time) < (b.date + b.time) ? -1 : 1;
+  });
+  return out;
+}
+
+/* כתיבה: הלשונית נכתבת מחדש בשלמותה, כמו יומן השיחות. */
+function rmSave(list) {
+  var url = (CFG.api || API || '').trim();
+  if (!url) { rmMsg = 'אין כתובת שרת.'; admPane(); return; }
+  rmBusy = true; rmMsg = 'שומר…'; admPane();
+  var rows = list.map(function (o) {
+    return [o.id, o.date, o.time, o.text];
+  });
+  fetch(url, { method:'POST', mode:'no-cors',
+    body: JSON.stringify({ action:'table', tab: RM_TAB,
+      cols: JSON.stringify(['מזהה', 'תאריך', 'שעה', 'נוסח']),
+      rows: JSON.stringify(rows) }) })
+    /* הכתיבה אטומה ואינה ראיה. קוראים חזרה, ורק מה שחזר הוא
+       מה שמוצג. */
+    .then(function () { return new Promise(function (r) { setTimeout(r, 1200); }); })
+    .then(function () { rmBusy = false; return rmLoad(); })
+    .catch(function () { rmBusy = false; rmMsg = 'השמירה לא אושרה.'; admPane(); });
+}
+
+function rmAdd() {
+  if (!rmNew) return;
+  var txt = String(rmNew.text || '').trim();
+  if (txt.length < 2) { rmMsg = 'אין מה להזכיר.'; admPane(); return; }
+  var list = (rmRows || []).slice();
+  list.push({ id: rmId(), date: rmNew.date, time: rmNew.time, text: txt });
+  rmNew = null;
+  rmSave(list);
+}
+function rmDrop(i) {
+  var list = (rmRows || []).slice();
+  if (!list[i]) return;
+  if (!confirm('להסיר את התזכורת?')) return;
+  list.splice(i, 1);
+  /* לשונית ריקה היא מצב חוקי כאן — בניגוד ליומן השיחות, שבו
+     אפס שורות פירושו תיעוד שנמחק. */
+  rmSave(list);
+}
+function rmOpen() {
+  rmNew = { date: rmToday(), time: rmNearest(), text: '' };
+  rmMsg = ''; admPane();
+}
+function rmCancel() { rmNew = null; rmMsg = ''; admPane(); }
+function rmSet(k, v) { if (rmNew) rmNew[k] = v; }
+
+/* ---- ההתראות במכשיר הזה ---- */
+var rmSubMsg = '';
+function rmSubOn() {
+  if (!window.APPX || !APPX.canNote()) {
+    rmSubMsg = 'הדפדפן הזה אינו תומך בהתראות.'; admPane(); return;
+  }
+  rmSubMsg = 'מבקש אישור…'; admPane();
+  APPX.ask(function (p) {
+    if (p !== 'granted') {
+      rmSubMsg = 'בלי אישור אי אפשר להקפיץ תזכורת.'; admPane(); return;
+    }
+    APPX.subscribe().then(function (sub) {
+      var url = (CFG.api || API || '').trim();
+      if (!url) { rmSubMsg = 'אין כתובת שרת.'; admPane(); return; }
+      /* נרשם ללשונית ההתראות כמו כל אחד אחר, בתפקיד "רכז" —
+         כך השולח המתוזמן מוצא את המנוי בלי מסלול נפרד. */
+      return fetch(url, { method:'POST', mode:'no-cors',
+        body: JSON.stringify({ action:'row', tab:'התראות',
+          cols: JSON.stringify([
+            ['מזהה', rmId()], ['שם', 'רכז התוכנית'],
+            ['ישיבה', ''], ['קוד ישיבה', ''],
+            ['תפקיד', 'רכז'], ['שכבה', ''], ['כיתה', ''],
+            ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
+            ['מנוי', JSON.stringify(sub)],
+            ['תוצאה', 'נרשם'], ['מועד', ''],
+            ['מתי', new Date().toISOString()]]) }) })
+        .then(function () {
+          Store.set('rmSub', 1);
+          rmSubMsg = ''; admPane();
+        });
+    }).catch(function (e) {
+      rmSubMsg = 'לא הצלחתי להשלים: ' + ((e && e.message) || e);
+      admPane();
+    });
+  });
+}
+
+function rmCard() {
+  var subbed = Store.get('rmSub', 0) &&
+               window.APPX && APPX.perm() === 'granted';
+  var h = '<div class="card" style="margin-bottom:11px">' +
+    '<div class="row" style="padding:0 0 8px"><div><b>תזכורות לעצמי</b>' +
+    '<div class="sub">נדחפות למכשיר הזה בשעה שתבחר</div></div></div>';
+
+  if (!subbed) {
+    h += '<p class="h">כדי שתזכורת תוכל לקפוץ, צריך לאשר התראות ' +
+         'במכשיר הזה. פעם אחת.</p>' +
+         '<button class="btn p" onclick="rmSubOn()">אישור התראות במכשיר הזה</button>' +
+         (rmSubMsg ? '<div class="msg">' + esc(rmSubMsg) + '</div>' : '') +
+         '</div>';
+    return h;
+  }
+
+  if (rmRows === null) {
+    h += '<p class="h">הרשימה נשמרת בגיליון, בלשונית "' + RM_TAB + '".</p>' +
+         '<button class="btn g" onclick="rmLoad()">טעינה מהגיליון</button>';
+    if (rmMsg === 'nokey') {
+      h += '<div class="msg">צריך להזין את סיסמת הקריאה בהגדרות.</div>';
+    } else if (rmMsg) {
+      h += '<div class="msg">' + esc(rmMsg) + '</div>';
+    }
+    return h + '</div>';
+  }
+
+  if (rmRows.length) {
+    h += '<div class="whens">' + rmRows.map(function (o, i) {
+      return '<div class="whenrow"><span class="wt">' + esc(o.time) + '</span>' +
+        '<span class="wd">' + esc(rmDay(o.date)) + ' · ' + esc(o.text) + '</span>' +
+        '<button onclick="rmDrop(' + i + ')">הסרה</button></div>';
+    }).join('') + '</div>';
+  } else {
+    h += '<p class="h">אין תזכורות ממתינות.</p>';
+  }
+
+  if (rmNew) {
+    h += '<div class="fld" style="margin-top:12px">' +
+      '<div class="label">מתי</div><div class="pair">' +
+      '<input type="date" value="' + esc(rmNew.date) +
+      '" onchange="rmSet(\'date\',this.value)">' +
+      '<select onchange="rmSet(\'time\',this.value)">' +
+      rmTimes().map(function (t) {
+        return '<option' + (t === rmNew.time ? ' selected' : '') + '>' + t + '</option>';
+      }).join('') + '</select></div></div>' +
+      '<div class="fld"><textarea rows="2" placeholder="מה להזכיר לך?" ' +
+      'oninput="rmSet(\'text\',this.value)">' + esc(rmNew.text) + '</textarea></div>' +
+      '<button class="btn p" onclick="rmAdd()"' + (rmBusy ? ' disabled' : '') + '>' +
+      (rmBusy ? 'שומר…' : 'שמירת התזכורת') + '</button>' +
+      '<button class="btn g" onclick="rmCancel()">ביטול</button>';
+  } else {
+    h += '<button class="btn p" style="margin-top:10px" onclick="rmOpen()">' +
+         (rmRows.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>';
+  }
+  if (rmMsg && rmMsg !== 'nokey') h += '<div class="msg">' + esc(rmMsg) + '</div>';
+  return h + '</div>';
+}
+
+/* "היום", "מחר", או התאריך עצמו. */
+function rmDay(d) {
+  var t = rmToday();
+  if (d === t) return 'היום';
+  var n = new Date(); n.setDate(n.getDate() + 1);
+  var z = function (x) { return (x < 10 ? '0' : '') + x; };
+  var tm = n.getFullYear() + '-' + z(n.getMonth() + 1) + '-' + z(n.getDate());
+  if (d === tm) return 'מחר';
+  var p = d.split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] : d;
+}
+
 function renderCalls() {
   var list = contacts();
   var el = document.getElementById('calls-body');
@@ -4545,6 +4800,9 @@ function renderCalls() {
      היא מחושבת על כל הרשימה ולא על המסנן: "נשלחו 7 מתוך 9"
      שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
   h += blastCard(list);
+  /* התזכורות שלו — מיד אחרי ההודעה לכולם. שתיהן "מה אני עושה
+     עכשיו", והרשימה שמתחת היא "למי". */
+  h += rmCard();
 
   // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
   var shown = list.map(function (c, i) { return { c:c, i:i }; })

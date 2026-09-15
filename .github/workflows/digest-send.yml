@@ -106,3 +106,16 @@ jobs:
           MODE:     ${{ inputs.mode     || github.event.client_payload.mode }}
           SEND_ALL: ${{ inputs.everyone || github.event.client_payload.all }}
         run: node tools/digest-send.js
+
+      # התזכורות שהרכז כתב לעצמו. אותו קרון, כי אין סיבה
+      # לשני לוחות זמנים — והן תלויות באותה משבצת של חצי שעה.
+      #
+      # `if: always()` כדי שכישלון של העדכון המתוזמן לא יבלע
+      # אותן: שני דברים שונים לגמרי שרצים באותה דקה.
+      - name: תזכורות לרכז
+        if: always() && github.event_name != 'repository_dispatch'
+        env:
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          READ_KEY:      ${{ secrets.READ_KEY }}
+          DRY_RUN:       ${{ inputs.dry }}
+        run: node tools/remind-send.js
