@@ -34,6 +34,11 @@
 var ASK = (function () {
   var C = null;                    /* ההגדרות מהעמוד */
   var step = 0, busy = false, err = '', skipped = false;
+  /* עורך המלל פותח את המסך על שלב מסוים כדי שאפשר יהיה להקיש
+     על הנוסח שבו. במצב הזה אין לקטוע את השלב לפי מה שהמשתמש
+     באמת השלים — הרי כל העניין הוא לראות נוסח שעדיין לא הגיע
+     אליו. */
+  var peek = false;
   /* **מה שהוקלד ולא נשמר עדיין.** בלעדיו, מי שהקליד שם ושכח
      לבחור שכבה קיבל את ההודעה "צריך שכבה" — ויחד איתה טופס
      שהשם שלו נמחק. אדם שנענש על טעות קטנה סוגר את המסך. */
@@ -126,7 +131,7 @@ var ASK = (function () {
     var mk = $('as-mark');
     if (mk && !mk.src) mk.src = window.LOGO_MARK || '';
     step = where();
-    if (step === 1 && !get()) step = 0;      /* 0 = הפנייה עצמה */
+    if (step === 1 && !get() && !peek) step = 0;   /* 0 = הפנייה עצמה */
     $('asksheet').hidden = false;
     document.body.style.overflow = 'hidden';
     draw();
@@ -534,7 +539,20 @@ var ASK = (function () {
     bar();
   }
 
+  /* ---- פתיחה על שלב מסוים, לעורך המלל בלבד ----
+     `err` מקבל ערך כדי שגם הודעת השגיאה תצויר ותהיה ניתנת
+     להקשה. אחרת היא נוסח שאי אפשר להגיע אליו בשום דרך חוץ
+     מלטעות בכוונה. */
+  function at(n, withErr) {
+    peek = true;
+    step = n;
+    err = withErr ? (window.ASK_UI && ASK_UI[withErr]) || '' : '';
+    if ($('asksheet')) $('asksheet').hidden = false;
+    document.body.style.overflow = 'hidden';
+    draw();
+  }
+
   return { init:init, bar:bar, open:open, close:close, draw:draw,
            get:get, set:set, name:name, noted:noted, seen:seen,
-           markSeen:markSeen, where:where, post:post, id:id };
+           markSeen:markSeen, where:where, post:post, id:id, at:at };
 })();

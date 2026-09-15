@@ -1275,7 +1275,49 @@ function drawPeers() {
 /* ---------- הרכבת המלל ואז הציור ---------- */
 function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
 relayer();
-TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
+/* ---- העצירות של עורך המלל ----
+   ============================================================
+   **זה מה שמחליף רשימת נוסחים.** אחיאסף אמר את זה במפורש:
+   "סתם לעבור על נוסחים זה לא יפה, רציתי מסכים שבתוכם אני
+   יכול לגעת". ולכן כל מצב שיש בו נוסח מקבל כאן עצירה — לוחצים
+   עליה, המסך נכנס לאותו מצב, ומקישים על הטקסט עצמו.
+
+   בלי זה חמישים נוסחים בעמוד הזה לא היו נגישים כלל: הבקשה
+   האישית נפתחת רק למי שלא השלים אותה, הפינה מופיעה רק למי
+   שכבר אישר התראות, והלוח רק למי שראה את ההנחיות. הרכז לעולם
+   אינו במצבים האלה — ולכן לעולם לא היה מגיע אליהם.
+   ============================================================ */
+TX.init({
+  repaint: draw,
+  places: [
+    ['ההנחיות', function () {
+      if (window.ASK && ASK.close) ASK.close();
+      window.scrollTo(0, 0);
+    }],
+    ['הבקשה', function () { ASK.at(0); }],
+    ['שלב 1 · מי אתה', function () { ASK.at(1); }],
+    ['שגיאת שם',      function () { ASK.at(1, 'errFirst'); }],
+    ['שלב 2 · התקנה', function () { ASK.at(2); }],
+    ['שלב 3 · עדכונים', function () { ASK.at(3); }],
+    ['מסך התודה',     function () { ASK.at(4); }],
+    /* הלוח והפינה — שניהם מתחת להנחיות, ושניהם מוסתרים עד
+       שהר"ם עובר את התהליך. כאן הם נפתחים בכוח. */
+    ['הלוח', function () {
+      if (window.ASK && ASK.close) ASK.close();
+      var b = $('brd-sec'); if (b) { b.hidden = false; drawBoard(); }
+    }],
+    ['הפינה שלי', function () {
+      if (window.ASK && ASK.close) ASK.close();
+      var m = $('my-sec'); if (m) { m.hidden = false; myDraw(); }
+    }],
+    ['בחירת מועד', function () {
+      if (window.ASK && ASK.close) ASK.close();
+      var m = $('my-sec'); if (m) m.hidden = false;
+      myOpenNew();
+    }]
+  ],
+  onStop: function () { location.href = './#admin'; }
+});
 
 /* ---------- מה שפורסם בגיליון ----------
    המלל והמונים. שניהם ציבוריים, ולכן נקראים ישירות בלי
