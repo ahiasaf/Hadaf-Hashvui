@@ -1724,7 +1724,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.56.0';
+var APP_VERSION = '8.57.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4607,7 +4607,17 @@ function rmAdd() {
   if (!rmNew) return;
   var txt = String(rmNew.text || '').trim();
   if (txt.length < 2) { rmMsg = 'אין מה להזכיר.'; admPane(); return; }
-  var list = (rmRows || []).slice();
+  /* ============================================================
+     **לא כותבים על מה שלא נקרא.**
+     ============================================================
+     הכתיבה דורסת את הלשונית כולה. אם הרשימה מעולם לא נטענה,
+     `rmRows` הוא null — ושמירה כזו הייתה מוחקת תזכורות
+     שכבר היו שם. קוראים קודם, ורק אז שומרים. */
+  if (rmRows === null) {
+    rmLoad().then(function (ok) { if (ok) rmAdd(); });
+    return;
+  }
+  var list = rmRows.slice();
   list.push({ id: rmId(), date: rmNew.date, time: rmNew.time, text: txt });
   rmNew = null;
   rmSave(list);
@@ -4672,33 +4682,48 @@ function rmCard() {
     '<div class="row" style="padding:0 0 8px"><div><b>תזכורות לעצמי</b>' +
     '<div class="sub">נדחפות למכשיר הזה בשעה שתבחר</div></div></div>';
 
+  /* ============================================================
+     **האישור אינו שער.**
+     ============================================================
+     קודם הכרטיס הראה **רק** את כפתור האישור, וכל השאר היה
+     מאחוריו — כלומר מי שלא אישר עדיין לא ראה בכלל איפה כותבים
+     תזכורת, ולא ידע שיש כאן דבר כזה. "לא ראיתי איפה אני כותב
+     תזכורת חדשה."
+
+     עכשיו הטופס תמיד כאן, והחוסר נאמר בשורה אחת מעליו. */
   if (!subbed) {
-    h += '<p class="h">כדי שתזכורת תוכל לקפוץ, צריך לאשר התראות ' +
-         'במכשיר הזה. פעם אחת.</p>' +
-         '<button class="btn p" onclick="rmSubOn()">אישור התראות במכשיר הזה</button>' +
+    h += '<div class="cond" style="margin:0 0 10px">' +
+         'התזכורות יישמרו, אבל לא יקפצו עד שההתראות מאושרות במכשיר הזה.' +
+         '<div style="margin-top:8px"><button class="btn p" style="margin:0" ' +
+         'onclick="rmSubOn()">אישור התראות</button></div>' +
          (rmSubMsg ? '<div class="msg">' + esc(rmSubMsg) + '</div>' : '') +
          '</div>';
-    return h;
   }
 
   if (rmRows === null) {
     h += '<p class="h">הרשימה נשמרת בגיליון, בלשונית "' + RM_TAB + '".</p>' +
          '<button class="btn g" onclick="rmLoad()">טעינה מהגיליון</button>';
     if (rmMsg === 'nokey') {
-      h += '<div class="msg">צריך להזין את סיסמת הקריאה בהגדרות.</div>';
+      h += '<div class="msg">צריך להזין את סיסמת הקריאה בהגדרות ' +
+           'כדי לקרוא את התזכורות שכבר נשמרו.</div>';
     } else if (rmMsg) {
       h += '<div class="msg">' + esc(rmMsg) + '</div>';
     }
-    return h + '</div>';
   }
 
-  if (rmRows.length) {
-    h += '<div class="whens">' + rmRows.map(function (o, i) {
+  /* **וגם בלי הרשימה אפשר לכתוב.** קריאה שנכשלה אינה סיבה
+     לחסום כתיבה — היא רק אומרת שאיננו יודעים מה כבר יש. משתנה
+     מקומי ולא דריסה של `rmRows`: ציור אינו אמור לשנות מצב, ואם
+     היה דורס — הכפתור "טעינה מהגיליון" לא היה חוזר לעולם. */
+  var list = rmRows || [];
+
+  if (list.length) {
+    h += '<div class="whens">' + list.map(function (o, i) {
       return '<div class="whenrow"><span class="wt">' + esc(o.time) + '</span>' +
         '<span class="wd">' + esc(rmDay(o.date)) + ' · ' + esc(o.text) + '</span>' +
         '<button onclick="rmDrop(' + i + ')">הסרה</button></div>';
     }).join('') + '</div>';
-  } else {
+  } else if (rmRows) {
     h += '<p class="h">אין תזכורות ממתינות.</p>';
   }
 
@@ -4718,7 +4743,7 @@ function rmCard() {
       '<button class="btn g" onclick="rmCancel()">ביטול</button>';
   } else {
     h += '<button class="btn p" style="margin-top:10px" onclick="rmOpen()">' +
-         (rmRows.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>';
+         (list.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>';
   }
   if (rmMsg && rmMsg !== 'nokey') h += '<div class="msg">' + esc(rmMsg) + '</div>';
   return h + '</div>';
@@ -4782,19 +4807,9 @@ function renderCalls() {
               }).length + ' בלי טלפון'
             : '') + '</div>';
 
-  /* ============================================================
-     חיפוש — כי עשרים וארבע ישיבות הן רשימה שגוללים בה.
-     ============================================================
-     "אני מוצא את עצמי כל פעם מחפש איזה מוסד." מחפשים לפי מה
-     שזוכרים: לפעמים שם הישיבה, ולפעמים שם הרב שדיברת איתו
-     אתמול. שניהם עובדים כאן, וגם התפקיד.
-
-     מילה־מילה ולא מחרוזת אחת, מאותה סיבה שבעורך המלל: מי
-     שהקליד "הראל חולון" לא אמור להיכשל כי בגיליון כתוב
-     "יב״ע הראל — חולון". */
-  h += '<div class="fld" style="margin:10px 0 0">' +
-       '<input type="text" id="call-find" placeholder="חיפוש ישיבה או שם\u2026" ' +
-       'oninput="callFind(this.value)" value="' + esc(state.find || '') + '"></div>';
+  /* התזכורות בראש: זה מה שהוא בא לראות כשהוא פותח את המסך
+     בבוקר, לפני שהוא מחליט למי מתקשרים. */
+  h += rmCard();
 
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
@@ -4810,13 +4825,19 @@ function renderCalls() {
        '" onclick="callFilter(\'joined\')"><b>' + counts.joined + '</b><span>הצטרפו</span></div>' +
        '</div>';
 
-  /* ההודעה לכולם — מעל הרשימה, כי היא מה שבאים לעשות כאן היום.
-     היא מחושבת על כל הרשימה ולא על המסנן: "נשלחו 7 מתוך 9"
-     שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
-  h += blastCard(list);
-  /* התזכורות שלו — מיד אחרי ההודעה לכולם. שתיהן "מה אני עושה
-     עכשיו", והרשימה שמתחת היא "למי". */
-  h += rmCard();
+  /* ============================================================
+     החיפוש — ממש מעל הרשימה שהוא מסנן.
+     ============================================================
+     "אני מוצא את עצמי כל פעם מחפש איזה מוסד." מחפשים לפי מה
+     שזוכרים: לפעמים שם הישיבה, ולפעמים שם הרב שדיברת איתו
+     אתמול. שניהם עובדים כאן, וגם התפקיד.
+
+     מילה־מילה ולא מחרוזת אחת, מאותה סיבה שבעורך המלל: מי
+     שהקליד "הראל חולון" לא אמור להיכשל כי בגיליון כתוב
+     "יב״ע הראל — חולון". */
+  h += '<div class="fld" style="margin:10px 0 0">' +
+       '<input type="text" id="call-find" placeholder="חיפוש ישיבה או שם\u2026" ' +
+       'oninput="callFind(this.value)" value="' + esc(state.find || '') + '"></div>';
 
   // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
   var words = String(state.find || '').trim().split(/\s+/).filter(Boolean);
@@ -4922,6 +4943,13 @@ function renderCalls() {
          'oninput="noteGrow(this)" ' +
          'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></div>';
   });
+
+  /* ההודעה לכולם — בתחתית. היא מבצע שקורה פעם בכמה שבועות,
+     והמסך הזה נפתח כל יום כדי לדבר עם אנשים. כרטיס גדול
+     שיושב באמצע הדרך אל הרשימה הוא מכשול, לא תזכורת.
+     והיא מחושבת על כל הרשימה ולא על המסנן: "נשלחו 7 מתוך 9"
+     שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
+  h += blastCard(list);
 
   h += '<button class="btn g" style="margin-top:8px" onclick="exportCalls()">' +
        'העתקת סיכום לוואטסאפ</button>' +
