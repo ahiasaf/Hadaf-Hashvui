@@ -1689,7 +1689,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.47.0';
+var APP_VERSION = '8.48.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2692,7 +2692,9 @@ function legacyCopy(txt, done) {
 
 function regDone(txt, viaWa) {
   document.getElementById('r-done').innerHTML =
-    '<div class="done-box" style="margin-top:14px">' +
+    /* רווח מתחת, לא רק מעל: ההנחיה שנפתחת אחריו נצמדה אליו
+     והשניים נראו כמו בלוק אחד שנדחס. */
+  '<div class="done-box" style="margin:14px 0 22px">' +
     esc(UI.done) + '</div>' +
     /* בלי מספר אין קישור: `wa.me/` ריק הוא כפתור שמוביל לשגיאה.
        המספר מגיע מההגדרות שפורסמו — ראו COORD_WA ב-data.js. */
@@ -3010,7 +3012,33 @@ function hailBoard() {
    **ומפתח אחסון משלו.** אחיאסף עצמו הוא גם רכז וגם עשוי
    לפתוח את עמוד הצוות; שני תפקידים על מכשיר אחד שחולקים
    מפתח היו דורסים זה את זה. ====================== */
-function headT(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
+/* ============================================================
+   הפנייה אליו בשמו.
+   ============================================================
+   `{name}` הוא שם ראש החטיבה מרשימת המוסדות. שלושה מצבים,
+   ולכל אחד נוסח שנקרא כמו משפט שלם:
+
+     · יש שם עם תואר    → "ראש החטיבה הרב ישראל כהן"
+     · יש שם בלי תואר   → "ראש החטיבה הרב ישראל כהן"
+     · אין שם           → "ראש החטיבה"
+
+   הרווח שלפני `{name}` נבלע יחד איתו כשהוא ריק, אחרת נשארת
+   פנייה שמסתיימת ברווח — וזה בדיוק המקום שבו רואים שהמסך
+   מולא בתבנית. */
+function headName() {
+  var c = myBoard();
+  var i = INSTITUTIONS.filter(function (x) { return x.code === c; })[0];
+  var n = (i && i.head ? String(i.head) : '').trim();
+  if (!n) return '';
+  return /^(הרב|הרה|ר')/.test(n) ? n : 'הרב ' + n;
+}
+function headT(k) {
+  var v = (window.HEAD_ASK && HEAD_ASK[k]) || '';
+  if (v.indexOf('{name}') < 0) return v;
+  var n = headName();
+  return n ? v.split('{name}').join(n)
+           : v.split(' {name}').join('').split('{name}').join('');
+}
 /* **בלי דגל "כבר הותקן".** מסך ההרשמה נבנה מחדש בכל ציור,
    ולכן האלמנט שהבקשה יושבת בו נמחק ונוצר מאין. דגל שזוכר
    "כבר עשינו" היה מונע את ההשתלה החוזרת — והשורה פשוט לא
@@ -4754,8 +4782,13 @@ function instFromRows(rows) {
        נשארת ברירת המחדל שבקוד. */
     var mas = (r[4] || '').split(',').map(function (x) { return x.trim(); })
                 .filter(function (x) { return !!trackById(x); });
+    /* עמודה F — שם ראש החטיבה, לפנייה אישית אליו. ריק = מה
+       שברשימה שבקוד, ואם גם שם אין — פנייה בלי שם. **אין כאן
+       טלפון**: הגיליון הזה ציבורי, ומספר אינו נכנס אליו. */
+    var head = (r[5] || '').trim();
     out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
                joined:YES.test((r[3] || '').trim()),
+               head:head || null,
                mas:mas.length ? mas : null });
   });
   if (!out.length)     return { ok:false, why:'לא נמצאו מוסדות בלשונית' };
@@ -4768,8 +4801,16 @@ function loadInstitutions() {
     .then(function (rows) {
       var r = instFromRows(rows);
       if (!r.ok) { INST_SRC = 'code:' + r.why; return false; }
+      /* שם ראש החטיבה שבקוד נשמר כשהגיליון אינו נושא אותו.
+         בלעדי זה, מילוי חלקי בגיליון היה **מוחק** שמות שכבר
+         היו — אותה מלכודת של "ריק אינו חדש". */
+      var was = {};
+      INSTITUTIONS.forEach(function (i) { was[i.code] = i.head || null; });
       INSTITUTIONS.length = 0;
-      r.list.forEach(function (i) { INSTITUTIONS.push(i); });
+      r.list.forEach(function (i) {
+        if (!i.head && was[i.code]) i.head = was[i.code];
+        INSTITUTIONS.push(i);
+      });
       INST_SRC = 'sheet';
       applyCfg();
       Store.set('instCache', INSTITUTIONS);
