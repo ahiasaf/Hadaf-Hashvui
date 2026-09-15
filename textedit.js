@@ -51,7 +51,9 @@ var TX = (function () {
               /* המסגרת המשותפת לשני התפקידים — ראו `ASK_UI`. */
               askui:window.ASK_UI,
               /* רק מה ששונה בלשון נקבה — ראו `HEAD_ASK_F`. */
-              headf:window.HEAD_ASK_F };
+              headf:window.HEAD_ASK_F,
+              /* מדריך ההתקנה המאויר. */
+              guide:window.GUIDE };
     return ROOTS;
   }
   function ref(k) {

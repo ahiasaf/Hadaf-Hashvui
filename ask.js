@@ -58,6 +58,8 @@ var ASK = (function () {
 
   /* המלל שאינו תלוי בתפקיד — `ASK_UI` שב-data.js, ולכן ניתן
      לעריכה בניהול ככל נוסח אחר. `{n}` וחבריו מוחלפים כאן. */
+  /* נוסח המדריך המאויר. */
+  function gu(k) { return (window.GUIDE && GUIDE[k]) || ''; }
   function u(key, vars) {
     var v = (window.ASK_UI && ASK_UI[key]) || '';
     if (vars) {
@@ -188,6 +190,8 @@ var ASK = (function () {
     if (step > 1 && me) h += row(name(me));
     if (step > 2) h += row(u(skipped ? 'doneSkip' : 'doneApp'));
 
+    var wantGuide = (step === 2 && window.GUIDE_UI && !APPX.bip() &&
+                     !APPX.inApp() && !(APPX.wasAdded() && !APPX.installed()));
     if (step === 1)      h += '<div class="as-card">' + who() + '</div>';
     else if (step === 2) h += '<div class="as-card">' + install() + '</div>';
     else if (step === 3) h += '<div class="as-card">' + note() + '</div>';
@@ -195,6 +199,12 @@ var ASK = (function () {
     else                 h += '<div class="as-card fin">' + fin() + '</div>';
 
     el.innerHTML = h;
+    /* המדריך נשתל אחרי שהמסך צויר — הוא מנהל את הצעדים שלו
+       בעצמו, ואינו מצויר מחדש בכל ציור של המסך שמסביבו. */
+    if (wantGuide) {
+      var box = $('gu-here');
+      if (box) GUIDE_UI.mount(box, function () { draw(); });
+    }
     wire();
     $('asksheet').scrollTop = 0;
   }
@@ -255,10 +265,22 @@ var ASK = (function () {
         '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
     }
     var h = kick(2, t('askInstH'), t('askInstB'));
-    h += APPX.bip()
-      ? '<button class="as-go" id="r-inst">' + esc(u('instBtn')) + '</button>'
-      : APPX.howList();
-    return h + '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
+    /* ============================================================
+       כפתור אמיתי אם יש, ואם אין — מדריך מאויר.
+       ============================================================
+       באנדרואיד הדפדפן מציע להתקין בעצמו, וכפתור אחד עדיף על
+       כל הסבר. באייפון אין הצעה כזו ולעולם לא תהיה, ושם
+       ההוראות הן כל מה שיש — ולכן שם הן מאוירות, מסך אחד
+       לכל פעולה. ראו `guide.js`. */
+    if (APPX.bip()) {
+      return h + '<button class="as-go" id="r-inst">' + esc(u('instBtn')) +
+        '</button>' +
+        '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
+    }
+    return h + '<div class="as-guide" id="gu-here"></div>' +
+      '<div class="as-help"><b>' + esc(gu('help')) + '</b><br>' +
+      esc(gu('helpB')) + '</div>' +
+      '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
   }
 
   /* ---------- שלב 3 ---------- */
@@ -470,6 +492,13 @@ var ASK = (function () {
     ".as-card > p{margin:11px 0 0;font-size:.95rem;color:var(--ink-2);",
     "  line-height:1.75;font-weight:600}",
     ".as-card > p b{color:var(--ink);font-weight:800}",
+    /* המדריך המאויר יושב בתוך הכרטיס, ולכן מקבל ממנו אוויר
+       ולא מסגרת משלו. */
+    ".as-guide{margin-top:18px}",
+    ".as-help{margin-top:16px;padding-top:14px;",
+    "  border-top:1px solid var(--rule);font-size:.84rem;font-weight:600;",
+    "  color:var(--ink-3);line-height:1.65;text-align:center}",
+    ".as-help b{color:var(--ink-2);font-weight:800}",
     ".as-card .fld{margin-top:18px}",
     ".as-card .label{display:block;font-size:.9rem;font-weight:800;",
     "  color:var(--ink);margin-bottom:6px}",
