@@ -1369,12 +1369,6 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
    מעצבת את עצמה — אבל ריקה היא לא צריכה לתפוס שורה. */
 .dk-msg:empty{display:none}
 .adm-card h4{font-size:.98rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}
-/* כותרת קבוצה בתוך רשימת כל הנוסחים. 465 תיבות ברצף הן קיר;
-   הקו המפריד הוא מה שהופך אותן לרשימה שאפשר לסרוק בעין. */
-.adm-sub{margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}
-.adm-sub h5{font-size:.85rem;font-weight:800;color:var(--ink-2);
-  margin-bottom:8px;line-height:1.6}
-.adm-sub:first-of-type{margin-top:8px;border-top:0;padding-top:0}
 .adm-card p.h{font-size:.79rem;color:var(--ink-3);font-weight:600;line-height:1.55;margin-bottom:11px}
 .pill-n{background:var(--blue);color:#fff;border-radius:20px;padding:2px 9px;
   font-size:.7rem;font-weight:800;margin-inline-start:6px}
@@ -1716,7 +1710,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.51.0';
+var APP_VERSION = '8.52.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1744,11 +1738,14 @@ var state = { track:null, week:null, deck:[], di:0, ans:-1, filter:'all' };
 
    `URLSearchParams` אינו בשימוש: יש טלפונים בשטח שאין בו,
    ושם השורה הזו נפלה בשקט ולקחה איתה את כל מה שמתחתיה. */
-var urlInst = '';
+var urlInst = '', urlKey = '';
 (function () {
   var q = String(location.search || '');
-  var m = q.match(/[?&]m=([^&#]*)/);
-  var v = m ? decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() : '';
+  var grab = function (n) {
+    var m = q.match(new RegExp('[?&]' + n + '=([^&#]*)'));
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() : '';
+  };
+  var v = grab('m');
   if (!v) return;
   var known = false, i;
   for (i = 0; i < INSTITUTIONS.length; i++) {
@@ -1758,6 +1755,24 @@ var urlInst = '';
   urlInst = v;
   myInst = v;
   try { localStorage.setItem('dfInst', v); } catch (e) {}
+
+  /* ============================================================
+     וגם קוד הגישה, כשהוא בקישור.
+     ============================================================
+     זה מה שפותר את השני שמצטרף מאותו מוסד. הקוד נוצר בצד
+     הלקוח, והשרת שומר אותו רק אם עדיין אין קוד לישיבה — ולכן
+     מכשיר שני שנרשם ייצר קוד משלו, שמר אותו, **והשרת דחה
+     אותו**. התוצאה: הלוח שלו לא נפתח וההודעות שלו לתלמידים
+     נכשלו, בלי שאיש ידע.
+
+     קישור שנושא `k=` מוסר את הקוד האמיתי, וכל מי שמקבל אותו
+     מסודר מיד. זה בדיוק אותו מודל של הקישור לר"מים, שנושא
+     אותו קוד ומאותה סיבה. */
+  /* **רק נרשם כאן, ולא נשמר.** `setInstCode` נשען על `Store`,
+     שמוגדר הרבה אחרי השורה הזו — קריאה לו כאן זרקה שגיאה
+     שהפילה את כל שאר הסקריפט בשקט, וזה בדיוק סוג התקלה שאין
+     לה הודעה. השמירה נעשית ב-`boot()`. */
+  urlKey = grab('k');
 })();
 
 /* ---------- לוח זמנים ---------- */
@@ -2552,6 +2567,9 @@ function sendReg() {
 
     queue(sent);                          // יש שרת — נשלח, וגם נשמר בתור אם אין רשת
     regDone(txt, false);
+    /* הכתיבה אטומה, ולכן היא אינה ראיה. שואלים את השרת האם
+       הקוד שנוצר כאן הוא באמת הקוד של הישיבה. */
+    setTimeout(function () { codeCheck(reg.inst); }, 2500);
   } else {
     regDone(txt, true);                   // אין שרת — הודעת וואטסאפ מוכנה לשליחה
   }
@@ -2633,6 +2651,43 @@ function joinCode() {
 }
 
 /* כתובת הלוח של אותו מוסד. אותו בסיס, קובץ אחר. */
+/* ============================================================
+   האם הקוד שבידי הוא הקוד של הישיבה?
+   ============================================================
+   הקוד נוצר בצד הלקוח כי הכתיבה לגיליון אטומה ואין ממנה
+   תשובה. השרת שומר אותו רק אם עדיין אין קוד למוסד — קישור
+   שכבר הופץ לצוות לא נשבר בהרשמה חוזרת, וזה נכון.
+
+   **אבל אז המכשיר השני מחזיק קוד שנדחה.** ראש חטיבה נרשם,
+   העביר לרכז שלו, והרכז נרשם גם הוא: אצלו נוצר קוד אחר, הוא
+   נשמר מקומית, והשרת החזיק בשלו. מאותו רגע הלוח שלו לא נפתח
+   וההודעות שלו לתלמידים נדחו — והמסך לא אמר דבר.
+
+   כאן זה נבדק. `board` הוא נתיב קריאה אמיתי שמחזיר `denied`
+   כשהקוד אינו מתאים, ולכן אפשר לשאול בלי סיסמת הרכז. קוד
+   שנדחה **נמחק מהמכשיר** — קוד שגוי שמור גרוע מאין קוד, כי
+   הוא בונה קישורים שנראים תקינים ואינם.
+
+   ומי שנשאר בלי קוד אינו תקוע: אחיאסף רואה אותו בניהול ושולח
+   לו את הקישור האישי, שנושא את הקוד. ============== */
+var codeBad = false;
+function codeCheck(code) {
+  var k = instCode(code), url = (CFG.api || API || '').trim();
+  if (!code || !k || !url) return;
+  fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
+        'board=' + encodeURIComponent(code) + '&k=' + encodeURIComponent(k))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || d.status !== 'denied') return;   /* תקין, או שלא נענה */
+      var m = Store.get('instCodes', {}) || {};
+      delete m[code];
+      Store.set('instCodes', m);
+      codeBad = true;
+      renderBoard();
+    })
+    .catch(function () {});           /* אין רשת — לא מסיקים דבר */
+}
+
 function boardUrl(code) {
   var u = joinUrl(code).replace('join.html?', 'board.html?');
   var k = instCode(code);
@@ -3016,9 +3071,13 @@ function boardHtml(code, name, hail) {
 
      כפתור ולא כרטיס לחיץ: כרטיס שנראה כמו תצוגה ומגיב ללחיצה
      הוא בדיוק מה שלא נלחץ, כי איש אינו מנסה. */
-  var full = '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
-    'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
-    esc(UI.cbBoard) + ' ←</a>';
+  /* בלי קוד אין קישור. כפתור שמוביל ל"הקוד אינו מתאים" גרוע
+     מהיעדרו — הוא מלמד שהאפליקציה שבורה. */
+  var full = instCode(code)
+    ? '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+      'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
+      esc(UI.cbBoard) + ' ←</a>'
+    : '<div class="cond" style="margin-top:12px">' + esc(UI.cbShared) + '</div>';
 
   /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
@@ -3204,6 +3263,9 @@ function sayWire() {
 function sayPaint() {
   var el = document.getElementById('c-say');
   if (!el) return;
+  /* בלי קוד גישה השליחה תידחה בשרת. כרטיס ששולח לשומקום הוא
+     הבטחה שנשברת בשקט. */
+  if (!instCode(myBoard())) { el.innerHTML = ''; return; }
   /* נפתח רק למי שהשלים את התהליך האישי: בלי מכשיר רשום אין
      ממי לשלוח, והכרטיס היה מבטיח משהו שאינו עובד. */
   var on = typeof ASK !== 'undefined' && ASK.seen && ASK.seen() &&
@@ -4328,7 +4390,13 @@ function waGreet() {
 function blastUrl(c) {
   var inst = instByName(c.key || c.name);
   var base = joinUrl('').replace('join.html', '');
-  return inst ? base + '?m=' + encodeURIComponent(inst.code) : base;
+  if (!inst) return base;
+  var u = base + '?m=' + encodeURIComponent(inst.code);
+  /* **וגם קוד הגישה.** כך גם השני שמצטרף מאותו מוסד מקבל את
+     הקוד האמיתי ולא מייצר לעצמו אחד שהשרת דוחה. אותו מודל של
+     הקישור לר"מים, ואותה החלטה: מי ששולח בוחר למי. */
+  var k = instCode(inst.code);
+  return k ? u + '&k=' + encodeURIComponent(k) : u;
 }
 function blastText(c, q) {
   var inst = instByName(c.key || c.name);
@@ -6885,11 +6953,6 @@ function admText(el) {
     '<button class="btn warn" onclick="admTextReset()">שחזור כל הנוסחים שבקוד</button>' +
     '<div id="adm-text-msg"></div></div>' +
 
-    /* הרשימה המלאה מיד אחרי ההסבר, ולא בתחתית.
-       היא הייתה למטה, אחרי עוד שלושה כרטיסים, ואחיאסף חיפש בה
-       נוסח ולא מצא — "לא מצאתי במלל איפה אני מגיע לזה". רשימה
-       שצריך לגלול אליה היא רשימה שלא קיימת. */
-    admAllTexts() +
 
     admEmbedCard() +
     admA11yCard() +
@@ -6902,21 +6965,9 @@ function admText(el) {
     textOrphans().map(textBox).join('') + '</div>';
 }
 
-/* ============================================================
-   כל הנוסחים — הרשימה המלאה.
-   ============================================================
-   **זו הייתה תלונה, ולא בקשה לתכונה.** המסך הזה הציע עד עכשיו
-   דלתות למסכים: "היכנס למסך, הקש על הטקסט, כתוב". זה נעים,
-   וזה גם הותיר בחוץ כל נוסח שאי אפשר להקיש עליו — הודעת
-   שגיאה, שלב שני של מסך שנפתח, "רגע…" שמופיע לשנייה, ועמוד
-   שלם ששכחנו להוסיף לרשימת הדלתות. הדרך היחידה לשנות אותם
-   הייתה לבקש ממתכנת.
-
-   הרשימה כאן היא הרצפה: **כל** מה שקיים, מקובץ לפי הקבוצות
-   שברשימת השדות, עם תיבה לכל אחד. הדלתות שלמעלה נשארות — הן
-   עדיין הדרך הנוחה — אבל הן כבר אינן הדרך היחידה.
-
-   `tools/preflight.py` מוודא שכל מפתח מגיע לכאן. */
+/* תיבת עריכה לשדה בודד — לנוסחים שאין להם מסך להקיש עליו:
+   תמונות, ושער הדף שנפתח בתוך הדף האינטראקטיבי. כל השאר נערך
+   על המסך שבו הוא מופיע, ושם בלבד. */
 function textBox(f) {
   var d = CFG.texts || {};
   var cur = textGet(f.k), changed = d[f.k] != null && d[f.k] !== belowText(f.k);
@@ -6942,58 +6993,6 @@ function textBox(f) {
     '</div>';
 }
 
-/* החיפוש חי בזיכרון ולא ב-CFG: הוא אינו הגדרה, והוא לא אמור
-   לשרוד רענון או להתפרסם לאיש. */
-var textFind = '';
-function admTextFind(v) {
-  textFind = String(v || '');
-  var host = document.getElementById('adm-all-list');
-  if (host) host.innerHTML = admAllRows();
-}
-function admAllRows() {
-  var q = textFind.trim();
-  var words = q ? q.split(/\s+/).filter(Boolean) : [];
-  var h = '', open = false, head = '', grp = '', n = 0;
-  TEXT_FIELDS.forEach(function (f) {
-    if (f.g) { head = f.g; grp = f.g; return; }
-    if (!f.k) return;
-    if (words.length) {
-      /* מחפשים בארבעה מקומות: שם הקבוצה, התיאור, הנוסח עצמו,
-         ושם המפתח. מי שמחפש "הבקשה האישית" מחפש את שם הקבוצה
-         ולא את הנוסח שבתוכה, ומי שמכיר נוסח אינו מכיר מפתח.
-
-         ומילה־מילה ולא מחרוזת אחת: מי שהקליד "ראש חטיבה" לא
-         מצא כלום, כי בכותרת כתוב "ראש **ה**חטיבה". כל מילה
-         צריכה להופיע איפשהו, לא כולן ברצף — וזה גם פותר סדר
-         מילים הפוך. */
-      var hay = grp + ' ' + (f.lbl || '') + ' ' +
-                String(textGet(f.k) || '') + ' ' + f.k;
-      for (var w = 0; w < words.length; w++) {
-        if (hay.indexOf(words[w]) < 0) return;
-      }
-    }
-    if (head) {
-      if (open) h += '</div>';
-      h += '<div class="adm-sub"><h5>' + head + '</h5>';
-      head = ''; open = true;
-    }
-    h += textBox(f); n++;
-  });
-  if (open) h += '</div>';
-  if (!n) h += '<p class="h">לא נמצא נוסח שמתאים לחיפוש.</p>';
-  return h;
-}
-function admAllTexts() {
-  return '<div class="adm-card"><h4>כל הנוסחים</h4>' +
-    '<p class="h">הרשימה המלאה — גם מה שאי אפשר להקיש עליו במסך: ' +
-    'הודעות שגיאה, שלבים שנפתחים תוך כדי, וכיתובים שמופיעים ' +
-    'לרגע. עריכה כאן זהה לעריכה על המסך, ונכנסת לאותו ' +
-    '<b>פרסום</b>.</p>' +
-    '<div class="fld"><input type="text" id="adm-all-find" ' +
-    'placeholder="חיפוש בתוך הנוסחים…" ' +
-    'oninput="admTextFind(this.value)" value="' + esc(textFind) + '"></div>' +
-    '<div id="adm-all-list">' + admAllRows() + '</div></div>';
-}
 /* ============================================================
    התראות — מי קיבל, מי נתקע, ומה שולחים.
    ============================================================
@@ -9257,6 +9256,9 @@ function registerSW() {
 }
 
 (function boot() {
+  /* קוד הגישה שהגיע בקישור — עכשיו, כש-`Store` כבר קיים.
+     זה מה שמסדר את השני שמצטרף מאותו מוסד. */
+  if (urlInst && urlKey) setInstCode(urlInst, urlKey);
   /* נפתחים מיד מהמטמון, ומתרעננים מהגיליון ברקע — אבל המטמון
      עובר את אותה בדיקה כמו הגיליון. מכשיר שכבר שמר אצלו רשימה
      פגומה היה ממשיך להציג אותה לנצח, כי היא נטענת לפני שהרשת
