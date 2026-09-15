@@ -1710,7 +1710,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.53.0';
+var APP_VERSION = '8.54.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4183,7 +4183,14 @@ function isPhone(c) {
 /* השוואת שמות ישיבות. הכתיב בגיליון ובקוד אינו זהה: גרשיים,
    מקפים, "יב״ע" שלפעמים כתוב ולפעמים לא, ותוספות כמו "חטיבה".
    לכן ההשוואה היא על המילים המשמעותיות בלבד. */
-var INST_SKIP = /^(יבע|ישיבת|ישיבה|בני|עקיבא|תיכונית|חטיבת|חטיבה|ע|ה)$/;
+/* **`יב` ברשימה, וזה קריטי.** `יב"ע` מאבד את הגרשיים בניקוי
+   ונשבר לשתי מילים, `יב` ו-`ע`. `ע` היה כאן ו-`יב` לא — ולכן
+   `יב` נחשב מילה משמעותית **שמשותפת לכל עשרים וארבע הישיבות**.
+   כל שם שלא זוהה קיבל ציון 1 מול כולן, והראשונה ברשימה ניצחה:
+   שם עם שגיאת כתיב בגיליון, או ישיבה שאינה ברשימה, שויכו בשקט
+   ל"אביר יעקב". וסימון "הצטרף" על שורה כזו הפך את הדגל של
+   הישיבה הלא נכונה. */
+var INST_SKIP = /^(יב|יבע|ישיבת|ישיבה|בני|עקיבא|תיכונית|חטיבת|חטיבה|ע|ה)$/;
 function instWords(s) {
   return String(s || '').replace(/[^א-ת\s]/g, ' ').split(/\s+/)
     .filter(function (w) { return w && !INST_SKIP.test(w); });
@@ -4201,13 +4208,18 @@ function instByName(s) {
      כשיש כמה מועמדים בוחרים את בעל החפיפה הגדולה ביותר. */
   var mine = instWords(s);
   if (!mine.length) return null;
-  var best = null, bestN = 0;
+  var best = null, bestN = 0, tie = 0;
   INSTITUTIONS.forEach(function (i) {
     var his = instWords(i.name);
     var n = mine.filter(function (w) { return his.indexOf(w) >= 0; }).length;
-    if (n > bestN) { bestN = n; best = i; }
+    if (!n) return;
+    if (n > bestN) { bestN = n; best = i; tie = 1; }
+    else if (n === bestN) tie++;
   });
-  return bestN ? best : null;
+  /* **תיקו אינו התאמה.** כששתי ישיבות מקבלות אותו ציון, הקודמת
+     ברשימה ניצחה — כלומר ניחוש שנראה כמו ידיעה. שיוך שגוי גרוע
+     מהיעדר שיוך: הוא מסמן "הצטרף" על מוסד אחר. */
+  return (bestN && tie === 1) ? best : null;
 }
 
 /* שורה מהגיליון → ישיבה ואנשי הקשר שלה.
