@@ -783,6 +783,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   border:1.5px solid var(--ok);color:var(--ok);border-radius:var(--r-m);padding:16px;
   font-weight:800;font-size:.96rem;text-align:center}
 
+/* "נרשם" — עובדה שהגיעה מהגיליון, ולא סימון שנקבע ביד.
+   ולכן היא תגית ולא כרית: אין על מה ללחוץ. */
+.signed{flex:none;font-size:.68rem;font-weight:800;letter-spacing:.02em;
+  color:var(--green-2,#2E7D52);background:rgba(59,125,87,.12);
+  border:1px solid rgba(59,125,87,.3);border-radius:999px;padding:3px 8px;
+  white-space:nowrap}
+
 /* הווי של הסבב.
    ============================================================
    עיגול ריק שמתמלא ירוק — אותה תנועה של תיבת סימון, בלי
@@ -1167,7 +1174,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 /* ---------- מוקד שיחות ---------- */
 /* חמישה שבבים ברוחב טלפון: גלילה אופקית במקום שורה שנשברת
    ומשאירה שבב בודד לבדו למטה. */
-.callbar{display:grid;grid-template-columns:repeat(5,minmax(66px,1fr));gap:8px;
+.callbar{display:grid;grid-template-columns:repeat(6,minmax(62px,1fr));gap:8px;
   overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .callbar::-webkit-scrollbar{display:none}
 .cb{background:var(--surface);border-radius:var(--r-s);padding:12px 6px;text-align:center;
@@ -1739,7 +1746,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.58.0';
+var APP_VERSION = '8.59.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4055,6 +4062,31 @@ function nameKey(s) {
   return String(s || '').replace(/["'״׳]/g, '').replace(/\s+/g, ' ').trim();
 }
 
+/* ============================================================
+   מי נרשם באמת — מול מה שסימנתי.
+   ============================================================
+   "יש רב שאני יודע שהצטרף בכפתור הצהוב, אבל איפה אני רואה את
+   זה בניהול?"
+
+   **ואלה שתי עובדות שונות.** "הצטרף" בשלבי השיחה הוא מה
+   שאחיאסף סימן אחרי שדיבר; "נרשם" הוא מה שקרה בפועל — מישהו
+   לחץ על הכפתור והשורה נכתבה לגיליון. השנייה אינה שיפוט
+   ואינה נקבעת ביד, ולכן היא מוצגת ואינה כרית שאפשר ללחוץ
+   עליה.
+
+   הרשימה נטענת במסך "מה קורה ← הרשמות", ונשמרת במכשיר. כאן
+   רק מצליבים אותה מול אנשי הקשר. ======================== */
+function regByInst() {
+  var m = {}, l = Store.get('registrations', []) || [];
+  l.forEach(function (r) { if (r.code) m[r.code] = r; });
+  return m;
+}
+/* ההרשמה של איש קשר, אם יש. */
+function regOf(c, map) {
+  var i = instByName(c.key || c.name);
+  return i ? (map[i.code] || null) : null;
+}
+
 function pullCalls() {
   callSay('טוען מהגיליון…');
   var ss = (CFG.contactsSheet || '').trim();
@@ -4817,6 +4849,8 @@ function renderCalls() {
   /* הממשיכים מאשתקד הם השיחות הראשונות, ולכן הם קבוצה לעצמם
      ולא רק סדר מיון: אפשר לראות רק אותם ולעבור עליהם. */
   counts.last = list.filter(function (c) { return c.last; }).length;
+  var regMap = regByInst();
+  counts.signed = list.filter(function (c) { return !!regOf(c, regMap); }).length;
 
   var h = '<div class="hero" style="padding:20px"><span class="glow g1"></span>' +
           '<span class="glow g3"></span><h2 style="font-size:1.3rem">מוקד שיחות</h2>' +
@@ -4849,6 +4883,11 @@ function renderCalls() {
        '" onclick="callFilter(\'warm\')"><b>' + counts.warm + '</b><span>מתעניין</span></div>' +
        '<div class="cb' + (state.filter === 'joined' ? ' on' : '') +
        '" onclick="callFilter(\'joined\')"><b>' + counts.joined + '</b><span>הצטרפו</span></div>' +
+       /* **עובדה, לא סימון.** מי שלחץ על הכפתור הצהוב והשורה
+          שלו נכתבה לגיליון. זה לא נקבע ביד, ולכן זה גם לא
+          מתנגש עם "הצטרפו" שאחיאסף מסמן אחרי שיחה. */
+       '<div class="cb' + (state.filter === 'signed' ? ' on' : '') +
+       '" onclick="callFilter(\'signed\')"><b>' + counts.signed + '</b><span>נרשמו</span></div>' +
        '</div>';
 
   /* ============================================================
@@ -4903,6 +4942,7 @@ function renderCalls() {
       if (!hits(o.c)) return false;
       if (state.filter === 'all')  return true;
       if (state.filter === 'last') return !!o.c.last;
+      if (state.filter === 'signed') return !!regOf(o.c, regMap);
       return o.c.stage === state.filter;
     })
     .sort(function (a, b) { return (b.c.last ? 1 : 0) - (a.c.last ? 1 : 0); });
@@ -4914,8 +4954,12 @@ function renderCalls() {
     (state.filter === 'last'
       ? 'אף שם ברשימה לא זוהה כישיבה שהייתה בתשפ"ו. בדקו ששמות ' +
         'הישיבות בגיליון זהים לאלה שבמסך "מוסדות".'
-      : 'אין מוסדות בקטגוריה הזו.') + '</div>';
+      : state.filter === 'signed'
+        ? 'עוד לא נרשמה אף ישיבה דרך הכפתור \u2014 או שרשימת ההרשמות ' +
+          'עוד לא נטענה. היא נטענת ב"מה קורה \u2190 הרשמות".'
+        : 'אין מוסדות בקטגוריה הזו.') + '</div>';
 
+  var regs = regByInst();
   shown.forEach(function (o) {
     var c = o.c, i = o.i;
     var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
@@ -4925,6 +4969,7 @@ function renderCalls() {
          '<div class="nm">' + esc(c.name) + '</div>' +
          '</div><div style="display:flex;gap:6px;align-items:center">' +
          (c.last ? '<span class="last">תשפ"ו</span>' : '') +
+         (regOf(c, regs) ? '<span class="signed" title="נרשם דרך האפליקציה">\u2691 נרשם</span>' : '') +
          '<button class="vee' + (c.round ? ' on' : '') +
          '" onclick="roundTick(' + i + ')" ' +
          'title="' + (c.round ? 'דיברתי בסבב הזה' : 'לסמן שדיברתי') +
