@@ -49,7 +49,9 @@ var TX = (function () {
                  `tzevet`, ולכן גם היא ניתנת לעריכה ולפרסום. */
               head:window.HEAD_ASK,
               /* המסגרת המשותפת לשני התפקידים — ראו `ASK_UI`. */
-              askui:window.ASK_UI };
+              askui:window.ASK_UI,
+              /* רק מה ששונה בלשון נקבה — ראו `HEAD_ASK_F`. */
+              headf:window.HEAD_ASK_F };
     return ROOTS;
   }
   function ref(k) {

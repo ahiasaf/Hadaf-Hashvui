@@ -24,7 +24,8 @@ vm.runInContext(fs.readFileSync(path.join(ROOT, 'data.js'), 'utf8'), ctx);
    שורש חדש ולא כאן, הבדיקה תצעק שהיא אינה מכירה אותו. */
 var ROOTS = { fit:'FIT', ui:'UI', sfarim:'SFARIM', rights:'RIGHTS', join:'JOIN',
               gate:'GATE', tour:'TOUR', a11y:'A11Y', info:'INFO',
-              tzevet:'TZEVET', play:'PLAY', head:'HEAD_ASK', askui:'ASK_UI' };
+              tzevet:'TZEVET', play:'PLAY', head:'HEAD_ASK', askui:'ASK_UI',
+              headf:'HEAD_ASK_F' };
 var NOTTEXT = /\.(id|tone|key|code|src|hi)$/;
 
 var listed = {};

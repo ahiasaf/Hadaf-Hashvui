@@ -1716,7 +1716,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.50.0';
+var APP_VERSION = '8.51.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1729,11 +1729,35 @@ var teamCode = '';
 
 var state = { track:null, week:null, deck:[], di:0, ans:-1, filter:'all' };
 
+/* ============================================================
+   `?m=<קוד>` — הקישור שיודע מי פותח אותו.
+   ============================================================
+   כך נשלח הקישור האישי לכל ראש חטיבה. עד עכשיו הוא קבע את
+   "הישיבה שלי" למסכי התלמיד בלבד, **ומסך ההרשמה לא ידע עליו
+   דבר** — ראש חטיבה שלחץ על הקישור שלו עדיין נדרש לבחור את
+   הישיבה מתוך רשימה של עשרים וארבע. כלומר ההתאמה האישית
+   הובטחה ולא נמסרה.
+
+   הקוד נשמר כאן, ו-`renderReg()` מקדים אותו לטופס. מי שכבר
+   נרשם במכשיר הזה אינו מושפע: ההרשמה השמורה גוברת, אחרת
+   קישור של ישיבה אחרת היה מחליף לו את הישיבה בשקט.
+
+   `URLSearchParams` אינו בשימוש: יש טלפונים בשטח שאין בו,
+   ושם השורה הזו נפלה בשקט ולקחה איתה את כל מה שמתחתיה. */
+var urlInst = '';
 (function () {
-  var m = new URLSearchParams(location.search).get('m');
-  if (m && INSTITUTIONS.some(function (i) { return i.code === m; })) {
-    myInst = m; localStorage.setItem('dfInst', m);
+  var q = String(location.search || '');
+  var m = q.match(/[?&]m=([^&#]*)/);
+  var v = m ? decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() : '';
+  if (!v) return;
+  var known = false, i;
+  for (i = 0; i < INSTITUTIONS.length; i++) {
+    if (INSTITUTIONS[i].code === v) { known = true; break; }
   }
+  if (!known) return;
+  urlInst = v;
+  myInst = v;
+  try { localStorage.setItem('dfInst', v); } catch (e) {}
 })();
 
 /* ---------- לוח זמנים ---------- */
@@ -2085,6 +2109,9 @@ function regMigrate(saved) {
 
 function renderReg() {
   var saved = regSaved();
+  /* הקישור האישי ממלא את הישיבה מראש. אחרי ההרשמה השמורה
+     בסדר העדיפות, ולכן הוא אינו דורס מי שכבר נרשם כאן. */
+  if (!saved && !reg.inst && urlInst) reg.inst = urlInst;
   if (saved && !reg.inst) {
     reg.inst = saved.code || ''; reg.who = saved.who || ''; reg.phone = saved.phone || '';
     reg.who2 = saved.who2 || ''; reg.phone2 = saved.phone2 || '';
@@ -3054,12 +3081,33 @@ function hailBoard() {
    איתו, אחרת נשארת פנייה שמסתיימת ברווח — וזה בדיוק המקום
    שבו רואים שהמסך מולא בתבנית. */
 function headName() {
-  var c = myBoard();
-  var i = INSTITUTIONS.filter(function (x) { return x.code === c; })[0];
+  var i = headInst();
   return (i && i.head ? String(i.head) : '').trim();
 }
+/* איזו ישיבה זו, לצורך הפנייה.
+   ============================================================
+   `myBoard()` הוא הישיבה שהמכשיר **כבר רשום** אליה, והוא ריק
+   עד ההרשמה. אבל הפנייה צריכה לדעת מי פותח את המסך כבר
+   מהרגע הראשון — גם מטופס שטרם נשלח, וגם מהקישור האישי.
+   שלושתם, לפי הסדר, ומה שיש קודם גובר. */
+function headInst() {
+  var c = myBoard();
+  if (!c && typeof reg !== 'undefined' && reg.inst && reg.inst !== 'other') c = reg.inst;
+  if (!c) c = urlInst;
+  if (!c) return null;
+  return INSTITUTIONS.filter(function (x) { return x.code === c; })[0] || null;
+}
+/* האם מנהלת החטיבה. מסומן ברשימת המוסדות ב-`fem:true`. */
+function headFem() {
+  var i = headInst();
+  return !!(i && i.fem);
+}
+/* `HEAD_ASK_F` נושא **רק את מה ששונה**, וכל השאר נלקח
+   מ-`HEAD_ASK`: שינוי ניסוח שאינו נוגע למין נעשה פעם אחת. */
 function headT(k) {
-  var v = (window.HEAD_ASK && HEAD_ASK[k]) || '';
+  var v = '';
+  if (headFem() && window.HEAD_ASK_F && HEAD_ASK_F[k]) v = HEAD_ASK_F[k];
+  else v = (window.HEAD_ASK && HEAD_ASK[k]) || '';
   if (v.indexOf('{name}') < 0) return v;
   var n = headName();
   return n ? v.split('{name}').join(n)
@@ -3081,6 +3129,7 @@ function askSetup(where) {
     role:  'ראש חטיבה',
     t:     headT,
     klass: false,
+    fem:   headFem(),
     inst:  function () {
       var c = myBoard();
       var i = INSTITUTIONS.filter(function (x) { return x.code === c; })[0];

@@ -104,7 +104,7 @@ var ASK = (function () {
   function name(me) {
     me = me || get() || {};
     var n = ((me.first || '') + ' ' + (me.last || '')).trim();
-    return n ? u('title', { name: n }) : '';
+    return n ? u(C.fem ? 'titleF' : 'title', { name: n }) : '';
   }
 
   /* ---------- היכן הוא עומד ---------- */

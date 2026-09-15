@@ -65,7 +65,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.50.0';
+var DAF_REV = '8.51.0';
 
 /* "הסוגיה היומית" — החוברת הדיגיטלית.
 
@@ -261,12 +261,12 @@ var TRACKS = [
 var INSTITUTIONS = [
   { code:'avir',    name:'יב"ע אביר יעקב',            last:true,  joined:false  },
   { code:'ohel',    name:'יב"ע אהל שלמה',             last:false, joined:false,
-    head:'יגאל בוטוש' },
+    head:'הרב יגאל בוטוש' },
   { code:'oretzion',name:'יב"ע אור עציון',            last:false, joined:false,
     head:'הרב נחמיה ארנטל' },
   { code:'baryohai',name:'יב"ע בר יוחאי',             last:false, joined:true },
   { code:'givat',   name:'יב"ע גבעת שמואל',           last:true,  joined:true,
-    head:'אלעזר אוליאל' },
+    head:'הרב אלעזר אוליאל' },
   { code:'hadarom', name:'יב"ע הדרום',                last:true,  joined:true,
     head:'הרב אלעד לסרי' },
   { code:'halihot', name:'יב"ע הליכות עולם — שומרון', last:false, joined:false,
@@ -278,32 +278,32 @@ var INSTITUTIONS = [
   { code:'harish',  name:'יב"ע חריש',                 last:false, joined:false,
     head:'הרב רז לגזיאל' },
   { code:'yavne',   name:'יב"ע יבנה',                 last:true,  joined:true,
-    head:'אלחנן אפטרבוט' },
+    head:'הרב אלחנן אפטרבוט' },
   { code:'lapid',   name:'יב"ע לפיד תורת נחום',       last:false, joined:true,
     head:'הרב שלום צבי קרל' },
   { code:'binyamin',name:'יב"ע מטה בנימין',           last:false, joined:false,
-    head:'יונתן מרמור' },
+    head:'הרב יונתן מרמור' },
   { code:'neve',    name:'יב"ע נווה הרצוג',           last:true,  joined:true,
-    head:'מני כהן' },
+    head:'הרב מני כהן' },
   { code:'nahal',   name:'יב"ע נחל יצחק — נחלים',     last:false, joined:false,
     head:'הרב ברגר אסף' },
   { code:'nertamid',name:'יב"ע נר תמיד',              last:false, joined:true,
-    head:'רויטל פישר' },
+    head:'רויטל פישר', fem:true },
   { code:'netivmeir',name:'יב"ע נתיב מאיר',           last:false, joined:false,
     head:'הרב נועם ברנדל' },
   { code:'netivot', name:'יב"ע נתיבות חיים',          last:false, joined:false,
-    head:'אליאור אוחנה' },
+    head:'הרב אליאור אוחנה' },
   { code:'eli',     name:'יב"ע עלי',                  last:false, joined:false,
     head:'הרב נריה מימון' },
   { code:'kiryat',  name:'יב"ע קרית הרצוג',           last:false, joined:true,
     head:'הרב יואב קרוטהמר' },
   { code:'rishon',  name:'יב"ע ראשל"צ',               last:false, joined:true,
-    head:'ליטל צימניס' },
+    head:'ליטל צימניס', fem:true },
   { code:'raanana', name:'יב"ע רעננה',                last:true,  joined:true,
     head:'הרב אהרן ישורון' },
   { code:'tapuah',  name:'יב"ע תפוח / מערב השומרון',  last:false, joined:true },
   { code:'tikvot',  name:'יב"ע תקוות יעקב',           last:false, joined:false,
-    head:'בועז מנצורה' }
+    head:'הרב בועז מנצורה' }
 ];
 
 /* ------------------------------------------------------------
@@ -1491,7 +1491,33 @@ var ASK_UI = {
   errNoPerm:'לא התקבל אישור. אפשר לנסות שוב.',
   busy:     'רגע…',
   close:    'סגירה',
-  title:    'הרב {name}'
+  title:    'הרב {name}',
+  /* אותה שורה, כשהפונה היא אישה. */
+  titleF:   '{name}'
+};
+
+/* ============================================================
+   הפנייה למנהלת חטיבה.
+   ============================================================
+   **רק מה ששונה.** כל מפתח שאינו כאן נלקח מ-`HEAD_ASK`, ולכן
+   שינוי ניסוח שאינו נוגע למין נעשה פעם אחת ומשרת את שניהם.
+   עותק מלא היה נפרד מהמקור בשקט ביום שמישהו מתקן אחד מהם.
+
+   מסומן ברשימת המוסדות ב-`fem:true`.
+   ============================================================ */
+var HEAD_ASK_F = {
+  askBarGo:'לחצי כאן',
+  askH:    'ראשת החטיבה {name}',
+  askBody: 'אנחנו רוצים לאפשר לך להיות מעודכנת בלימוד האישי של ' +
+           'תלמידי החטיבה, כדי שתוכלי לעודד, לתמוך ולתת מענה ' +
+           'במקום שבו צריך.\n' +
+           'בנינו מערכת חכמה, שבה את בוחרת מתי נוח לקבל עדכונים, ' +
+           'ופנייה *אישית* לכל אחד מתלמידי הישיבה בלחיצה פשוטה.',
+  askSkip: 'לא מצליחה להתקין — לדווח ולסיים',
+  askNoteB:'עדכון על הלימוד בחטיבה. בהמשך תוכלי לקבוע בדיוק מתי ' +
+           '— ותמיד אפשר לבטל.',
+  sayB:    'תובנה מהדף, חיזוק לפני שבת, או מילה טובה. ' +
+           'היא מגיעה כהתראה אישית לכל אחד מהם.'
 };
 
 var DIGEST = {
@@ -2064,11 +2090,20 @@ var TEXT_FIELDS = [
   { k:'head.sayErr',   lbl:'מילה לתלמידים — כשהשליחה נכשלה' },
   { k:'head.sayEmpty', lbl:'מילה לתלמידים — כשהתיבה ריקה' },
 
+  { g:'הפנייה למנהלת חטיבה — רק מה ששונה. כל השאר נלקח מהפנייה שמעל' },
+  { k:'headf.askBarGo',lbl:'הכיתוב הלחיץ בשורה שמזמינה' },
+  { k:'headf.askH',    lbl:'הכותרת של הפנייה · {name} שמה' },
+  { k:'headf.askBody', lbl:'גוף הפנייה · שורה ריקה = פסקה · <b>*כוכביות*</b> מדגישות', ml:1 },
+  { k:'headf.askSkip', lbl:'שלב 2 · הדלת למי שלא מצליחה להתקין' },
+  { k:'headf.askNoteB',lbl:'שלב 3 · העדכונים — ההסבר', ml:1 },
+  { k:'headf.sayB',    lbl:'מילה לתלמידים — ההסבר', ml:1 },
+
   { g:'הבקשה האישית — המסגרת המשותפת לר"ם ולראש החטיבה. עריכה כאן משנה את שניהם' },
   { k:'askui.step',     lbl:'מד השלבים · {n} מספר השלב' },
   { k:'askui.doneApp',  lbl:'שורת ה-✓ אחרי ההתקנה' },
   { k:'askui.doneSkip', lbl:'שורת ה-✓ למי שדילג על ההתקנה' },
   { k:'askui.title',    lbl:'איך נכתב שמו בשורת ה-✓ · {name} השם שהקליד' },
+  { k:'askui.titleF',   lbl:'אותה שורה, כשהפונה היא אישה · {name}' },
   { k:'askui.clsLabel', lbl:'שלב 1 · תווית השכבה והכיתה (לר"ם בלבד)' },
   { k:'askui.errFirst', lbl:'שגיאה · חסר שם פרטי' },
   { k:'askui.errLast',  lbl:'שגיאה · חסר שם משפחה' },
