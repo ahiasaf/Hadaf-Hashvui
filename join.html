@@ -2512,7 +2512,10 @@ function wzDraw() {
      לתוך הכרטיסים שכבר קיימים — כותרת אחת בתוך מלבן אחד. */
   var det = '', ways = '';
   if (wzStep === 1) {
-    h += '<div class="wzcard">' + wzHead(1, jt('wzInstT'), jt('wzInstB')) +
+    /* להורה נוסח משלו, וכרגע ריק: ההסבר כבר נאמר בעמוד שלפני.
+       אותו דפוס של `JOIN.leadDad`. */
+    var instB = forDad ? jt('wzInstBDad') : jt('wzInstB');
+    h += '<div class="wzcard">' + wzHead(1, jt('wzInstT'), instB) +
          wzInstall() + '</div>';
   } else if (wzStep === 2) {
     document.body.className += ' wz-det';
