@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>הדף השבועי · מה קיבלתם</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon-precomposed" href="icon-192.png">
+<meta name="description" content="הדף השבועי של בני עקיבא — מה זה, ומה נדרש מכם.">
+<style>
+/* ============================================================
+   ההצגה לראשי החטיבות.
+   ============================================================
+   **מסך אחד בכל פעם, ורעיון אחד בכל מסך.** אולם שבו עשרים
+   איש מסתכלים על מסך אחד אינו סובל רשימות: מה שיש בו יותר
+   משורה אחת מרכזית נקרא ולא נשמע, והמציג מאבד אותם לטלפון.
+
+   **ואותו עמוד נקרא גם לבד.** מחר אחיאסף מציג ממנו, ואחר כך
+   הם פותחים אותו בבית — ולכן לכל מסך יש גם משפט שמסביר אותו,
+   ולא רק כותרת שצריך לדבר מעליה.
+
+   המידות גדולות בכוונה: מסך של טלפון שמוקרן לחדר, או טלפון
+   שמחזיקים ביד — בשניהם הכותרת צריכה להיקרא מרחוק.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE; --cyan:#29ABE2;
+  --green:#6FA83B; --green-d:#467B1A; --green-2:#3A6615;
+  --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+  --r:16px; --r-s:12px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+  --sh-3:0 10px 40px rgba(11,37,80,.20);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);line-height:1.7;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-text-size-adjust:100%;overflow:hidden}
+
+/* ---------- החתימה ---------- */
+.masthead{display:flex;align-items:center;gap:11px;padding:14px 16px 8px;
+  max-width:40rem;margin:0 auto;flex:none}
+.masthead .m{width:44px;height:44px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:29px;height:29px;display:block;object-fit:contain}
+.masthead h1{margin:0;font-size:.98rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.68rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:2px}
+
+/* ---------- הבמה ---------- */
+.deck{height:100%;display:flex;flex-direction:column}
+.stage{flex:1;min-height:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:0 20px;
+  max-width:40rem;margin:0 auto;width:100%;text-align:center}
+.sl{width:100%;animation:slIn .34s ease both}
+@keyframes slIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sl{animation:none}}
+
+.kick{font-size:.76rem;font-weight:800;letter-spacing:.1em;color:var(--gold-t);
+  margin-bottom:9px}
+.sl h2{margin:0;font-size:1.62rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.28;color:var(--blue-d)}
+.sl .lead{margin:13px 0 0;font-size:1.02rem;font-weight:600;color:var(--ink-2);
+  line-height:1.6}
+.sl .sub{margin:16px 0 0;font-size:.86rem;font-weight:600;color:var(--ink-3);
+  line-height:1.65}
+
+/* רשימה של שלושה — הצורה החוזרת של ההצגה */
+.tri{list-style:none;margin:20px 0 0;padding:0;display:grid;gap:11px;text-align:right}
+.tri li{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-s);
+  padding:13px 15px;box-shadow:var(--sh-1);display:flex;gap:12px;align-items:flex-start}
+.tri li i{flex:none;width:26px;height:26px;border-radius:50%;background:var(--sunk);
+  color:var(--gold-t);font-style:normal;font-weight:800;font-size:.82rem;
+  display:flex;align-items:center;justify-content:center;margin-top:1px}
+.tri li i svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.tri li b{display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.tri li span{display:block;font-size:.83rem;font-weight:600;color:var(--ink-3);
+  margin-top:2px;line-height:1.55}
+
+/* המספרים */
+.nums{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
+  margin-top:22px}
+.nums .big{font-size:3.1rem;font-weight:800;letter-spacing:-.05em;line-height:1;
+  color:var(--blue-d)}
+.nums .now .big{color:var(--green-2)}
+.nums .k{font-size:.72rem;font-weight:800;letter-spacing:.1em;color:var(--gold-t)}
+.nums .u{font-size:.78rem;font-weight:700;color:var(--ink-3);margin-top:4px}
+.nums .arw{font-size:1.5rem;color:var(--rule);font-weight:800}
+
+/* ההדגמה החיה */
+.demo{position:relative;width:100%;max-width:352px;margin:0 auto;
+  aspect-ratio:352/620;border-radius:22px;overflow:hidden;
+  background:var(--surface);border:1px solid var(--rule);box-shadow:var(--sh-3)}
+.demo iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.demo .veil{position:absolute;inset:0;background:var(--surface);display:flex;
+  align-items:center;justify-content:center;font-size:.85rem;font-weight:700;
+  color:var(--ink-3);transition:opacity .4s}
+.demo .veil.off{opacity:0;pointer-events:none}
+.cap{margin:15px 0 0;font-size:1.02rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--blue-d);opacity:0;transition:opacity .6s}
+.cap.on{opacity:1}
+
+/* ============================================================
+   מדריך ההתקנה — הוא מביא את העיצוב שלו מ-guide.js.
+   ============================================================
+   **והכפתורים שלו יורדים כאן.** למדריך יש "הבא" משלו, ולמצגת
+   יש "הבא" משלה — ושניהם זה מעל זה הם שני כפתורים באותו שם
+   שעושים דברים שונים. במסך הזה יש כפתור אחד, והוא מקדם קודם
+   את המדריך ואחר כך את המצגת. הנקודות של המדריך נשארות, כי
+   הן מה שמראה שיש עוד שלבים.
+   ============================================================ */
+.gwrap{max-width:290px;margin:4px auto 0}
+.gwrap .gu-go,.gwrap .gu-back{display:none}
+.gwrap .gu-dots{margin-top:10px}
+
+/* קוד הסריקה */
+.qr{margin:18px auto 0;width:186px;background:#fff;padding:12px;
+  border-radius:var(--r-s);box-shadow:var(--sh-2)}
+.qr svg{display:block;width:100%;height:auto}
+/* הכתובת מוצגת כאן **כדי שיקלידו אותה** — זה המסך שממנו הם
+   נרשמים, ומצלמה שלא עובדת אינה סיבה לאבד אדם. */
+.addr{margin:9px 0 0;font-size:.82rem;font-weight:800;color:var(--blue);
+  direction:ltr;letter-spacing:.01em;word-break:break-all}
+
+/* ---------- הניווט ---------- */
+.nav{flex:none;padding:10px 20px calc(14px + env(safe-area-inset-bottom));
+  max-width:40rem;margin:0 auto;width:100%;
+  display:flex;align-items:center;gap:12px}
+.nav .go{flex:1;border:0;border-radius:var(--r-s);background:var(--blue);color:#fff;
+  font:inherit;font-size:1rem;font-weight:800;padding:14px;cursor:pointer;
+  box-shadow:var(--sh-2)}
+.nav .go:active{transform:translateY(1px)}
+.nav .bk{border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);
+  font:inherit;font-size:.86rem;font-weight:700;padding:13px 15px;
+  border-radius:var(--r-s);cursor:pointer}
+.nav .bk[hidden]{display:none}
+.count{flex:none;text-align:center;font-size:.7rem;font-weight:800;
+  letter-spacing:.08em;color:var(--ink-3);padding:0 20px 5px}
+.dots{display:flex;gap:5px;justify-content:center;padding:0 20px 4px;flex:none}
+.dots i{width:16px;height:4px;border-radius:2px;background:var(--rule);
+  transition:background .25s}
+.dots i.did{background:var(--gold-l)}
+.dots i.on{background:var(--gold)}
+
+/* מסך רחב — הכל גדל, כי הוא מוקרן לחדר */
+@media (min-width:700px) and (min-height:560px){
+  .sl h2{font-size:2.1rem}
+  .sl .lead{font-size:1.15rem}
+  .nums .big{font-size:4.2rem}
+  .stage{max-width:46rem}
+}
+/* מסך נמוך — ההדגמה מקבלת את מה שיש */
+@media (max-height:620px){
+  .masthead{padding:8px 16px 4px}
+  .masthead .m{width:34px;height:34px}
+  .masthead .m img{width:22px;height:22px}
+  .sl h2{font-size:1.35rem}
+}
+</style>
+</head>
+<body>
+
+<div class="deck">
+  <header>
+    <div class="masthead">
+      <span class="m"><img id="hdr-mark" alt=""></span>
+      <div><h1>הדף השבועי<br>של בני עקיבא</h1>
+        <div class="yr" id="hdr-yr"></div></div>
+    </div>
+  </header>
+
+  <main class="stage" id="stage"></main>
+
+  <div class="count" id="count"></div>
+  <div class="dots" id="dots"></div>
+  <nav class="nav">
+    <button class="go" id="go"></button>
+    <button class="bk" id="bk" hidden></button>
+  </nav>
+</div>
+
+<script src="data.js"></script>
+<script src="learned.js"></script>
+<script src="textedit.js"></script>
+<script src="logo.js"></script>
+<script src="qr.js"></script>
+<script src="getapp.js"></script>
+<script src="guide.js"></script>
+<script>
+/* ============================================================
+   ההצגה — הלוגיקה.
+   ============================================================
+   כל מסך הוא פונקציה שמחזירה HTML, ושתיים מהן שותלות אחר כך
+   משהו חי לתוך מה שהחזירו: המסך הראשון את הדף האמיתי, והתשיעי
+   את מדריך ההתקנה. שניהם קוד שכבר קיים ורץ בייצור, ואין כאן
+   העתק שלו.
+   ============================================================ */
+function $(id) { return document.getElementById(id); }
+function esc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+  });
+}
+function t(k) { return (window.SHOW && SHOW[k]) || ''; }
+function fill(s, v) {
+  return String(s).replace(/\{(\w+)\}/g, function (m, k) {
+    return v[k] != null ? v[k] : m;
+  });
+}
+
+$('hdr-mark').src = window.LOGO_MARK || '';
+$('hdr-yr').textContent = 'שנת ' + (PROGRAM.year || '');
+
+/* ---------- הכתובת ----------
+   `cleanUrls` מגיש את העמוד כ-/matana, בלי סיומת. חיתוך שמחפש
+   רק `.html` עובד בפיתוח ונשבר בייצור — ולכן שתי הצורות. */
+function base() {
+  return location.href.split('#')[0].split('?')[0]
+         .replace(/\/matana(\.html)?\/?$/, '/');
+}
+
+/* ---------- אבני בניין ---------- */
+function tri(items) {
+  return '<ul class="tri">' + items.map(function (it) {
+    return '<li><i>' + (it.ico ? '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+      it.ico + '</svg>' : esc(it.n || '')) + '</i><div><b>' + esc(it.t) + '</b>' +
+      (it.s ? '<span>' + esc(it.s) + '</span>' : '') + '</div></li>';
+  }).join('') + '</ul>';
+}
+function head(title, lead) {
+  return '<h2>' + esc(title) + '</h2>' +
+         (lead ? '<p class="lead">' + esc(lead) + '</p>' : '');
+}
+function sub(s) { return s ? '<p class="sub">' + esc(s) + '</p>' : ''; }
+
+/* שלוש דרכי הלימוד — אותם סמלים שבעמוד הראשי, ולא אמוג'י. */
+var ICO = {
+  solo: '<circle cx="12" cy="5.6" r="2.5"/>' +
+        '<path d="M8.4 12.4c.5-1.7 1.9-2.7 3.6-2.7s3.1 1 3.6 2.7"/>' +
+        '<path d="M3.6 15.2h6.2c1.2 0 2.2.7 2.2 1.6 0-.9 1-1.6 2.2-1.6h6.2v4.4h-6.2' +
+        'c-1.2 0-2.2.7-2.2 1.6 0-.9-1-1.6-2.2-1.6H3.6z"/>',
+  group:'<circle cx="5" cy="8.4" r="2.2"/><circle cx="12" cy="8.4" r="2.2"/>' +
+        '<circle cx="19" cy="8.4" r="2.2"/>' +
+        '<path d="M1.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>' +
+        '<path d="M8.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>' +
+        '<path d="M15.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>',
+  pair: '<circle cx="7.5" cy="6.2" r="2.6"/><circle cx="16.8" cy="10.4" r="2.1"/>' +
+        '<path d="M3.4 19.6c0-2.9 1.8-4.8 4.1-4.8s4.1 1.9 4.1 4.8"/>' +
+        '<path d="M13.4 19.6c0-2.2 1.5-3.6 3.4-3.6s3.4 1.4 3.4 3.6"/>'
+};
+
+/* ============================================================
+   1 · הדף עצמו — ובלי מילה אחת מעליו.
+   ============================================================
+   הדף האמיתי רץ כאן בתוך מסגרת ומנגן את עצמו, לפי התסריט
+   שאחיאסף הקליט. זה אותו חלון שכבר רץ בעמוד הצוות.
+
+   השורה שמתחת עולה **כשההדגמה נגמרה**, ולא לפי שעון: משפט
+   שמופיע בזמן שהדף עוד מדבר לוקח את העיניים ממנו.
+   ============================================================ */
+function s1() {
+  return '<div class="demo" id="demo">' +
+    '<iframe id="demo-frame" title="הדף השבועי"></iframe>' +
+    '<div class="veil" id="demo-veil">רגע…</div></div>' +
+    '<p class="cap" id="demo-cap">' + esc(t('s1cap')) + '</p>';
+}
+var demoOn = false;
+function s1live() {
+  var f = $('demo-frame');
+  if (!f || f.src) return;
+  /* לפני תחילת התוכנית `LWeek()` מחזיר ‎-1, ואז מציגים את הדף
+     הראשון של השנה — יש מה להראות גם בספטמבר. */
+  var wk = LWeek(); if (wk < 0) wk = 0;
+  var tr = TRACKS[0].id, d = LDaf(tr, wk);
+  if (!d) { d = LDaf(tr, 0); }
+  if (!d) { $('demo').hidden = true; capOn(); return; }
+  f.src = base() + 'learn.html?mas=' + encodeURIComponent(tr) +
+          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1';
+  /* הכיסוי יורד כשהיא באמת מוכנה. פסק זמן הוא רשת ביטחון. */
+  f.onload = function () { setTimeout(veilOff, 500); };
+  setTimeout(veilOff, 4500);
+}
+function veilOff() { var v = $('demo-veil'); if (v) v.className = 'veil off'; }
+function capOn()   { var c = $('demo-cap');  if (c) c.className = 'cap on'; }
+window.addEventListener('message', function (e) {
+  if (e.data === 'daf-demo-done') { demoOn = true; capOn(); }
+});
+
+/* ---------- 2 · מה יש בדף ---------- */
+function s2() {
+  return head(t('s2t')) + tri([
+    { n:'1', t:t('s2a'), s:t('s2aS') },
+    { n:'2', t:t('s2b'), s:t('s2bS') },
+    { n:'3', t:t('s2c'), s:t('s2cS') }
+  ]) + sub(t('s2sub'));
+}
+/* ---------- 3 · ואיך לומדים בו ---------- */
+function s3() {
+  return head(t('s3t')) + tri([
+    { ico:ICO.solo,  t:t('s3a') },
+    { ico:ICO.group, t:t('s3b') },
+    { ico:ICO.pair,  t:t('s3c') }
+  ]) + sub(t('s3sub'));
+}
+/* ============================================================
+   4 · המספרים.
+   ============================================================
+   מספר הישיבות אינו מוקלד אלא נספר מהרשימה, אחרת הוא היה
+   מזדקן בשקט ברגע שתצטרף עוד אחת.
+   ============================================================ */
+function s4() {
+  var n = (window.INSTITUTIONS || []).length;
+  return '<div class="nums">' +
+      '<div><div class="k">' + esc(t('s4k')) + '</div>' +
+        '<div class="big">' + esc(t('s4a')) + '</div>' +
+        '<div class="u">' + esc(t('s4aS')) + '</div></div>' +
+      '<div class="arw">←</div>' +
+      '<div class="now"><div class="k">' + esc(t('s4k2')) + '</div>' +
+        '<div class="big">' + esc(t('s4b')) + '</div>' +
+        '<div class="u">' + esc(t('s4bS')) + '</div></div>' +
+    '</div>' + sub(fill(t('s4sub'), { n:n }));
+}
+/* ---------- 5 · ההצטרפות שלו ---------- */
+function s5() {
+  return head(t('s5t')) + tri([
+    { n:'1', t:t('s5a') }, { n:'2', t:t('s5b') }, { n:'3', t:t('s5c') }
+  ]) + sub(t('s5sub'));
+}
+/* ---------- 6 · הקישור לתלמידים ---------- */
+function s6() {
+  return head(t('s6t'), t('s6b')) + sub(t('s6sub'));
+}
+/* ---------- 7 · הלוח ---------- */
+function s7() {
+  return head(t('s7t')) + tri([
+    { n:'1', t:t('s7a') }, { n:'2', t:t('s7b') }, { n:'3', t:t('s7c') }
+  ]) + sub(t('s7sub'));
+}
+/* ---------- 8 · הפינה שלו ---------- */
+function s8() {
+  return head(t('s8t'), t('s8b')) + sub(t('s8sub'));
+}
+/* ============================================================
+   9 · ההתקנה — המדריך עצמו, ולא תמונה שלו.
+   ============================================================
+   `GUIDE_UI` הוא אותו מדריך שכל ראש חטיבה מקבל, והוא מנהל
+   את הצעדים שלו בעצמו. כאן הוא מוצג במסלול של המכשיר שממנו
+   מציגים — וזה בסדר: מה שחשוב להראות הוא שיש ליווי, לא איזה.
+   ============================================================ */
+function s9() {
+  return head(t('s9t')) + '<div class="gwrap" id="gu-here"></div>' + sub(t('s9sub'));
+}
+function s9live() {
+  var box = $('gu-here');
+  if (!box || !window.GUIDE_UI) return;
+  if (GUIDE_UI.force) GUIDE_UI.force(null);
+  GUIDE_UI.mount(box, function () { GUIDE_UI.reset(); s9live(); });
+}
+/* ---------- 10 · מה נדרש מהם ---------- */
+function s10() {
+  return head(t('s10t')) + tri([
+    { n:'1', t:t('s10a') }, { n:'2', t:t('s10b') }, { n:'3', t:t('s10c') }
+  ]) + '<div class="qr" id="qr-box"></div>' +
+    '<p class="sub" style="margin-top:9px">' + esc(t('s10qr')) + '</p>' +
+    '<p class="addr">' + esc(appUrl().replace(/^https?:\/\//, '')
+                                        .replace(/\/$/, '')) + '</p>';
+}
+function appUrl() { return base(); }
+function s10live() {
+  var box = $('qr-box');
+  if (!box) return;
+  var svg = '';
+  try { if (window.QR) svg = QR.svg(appUrl(), { color:'#1B2A45', label:'קוד לסריקה' }); }
+  catch (e) { svg = ''; }
+  /* נכשל — הריבוע פשוט אינו מוצג, והכתובת עומדת בזכות עצמה. */
+  if (svg) box.innerHTML = svg; else box.hidden = true;
+}
+
+var SLIDES = [
+  [s1, s1live], [s2], [s3], [s4], [s5],
+  [s6], [s7], [s8], [s9, s9live], [s10, s10live]
+];
+
+/* ---------- הבמה ---------- */
+var at = 0;
+function draw() {
+  var s = SLIDES[at], last = (at === SLIDES.length - 1);
+  $('stage').innerHTML = '<div class="sl">' + s[0]() + '</div>';
+  if (s[1]) s[1]();
+
+  $('dots').innerHTML = SLIDES.map(function (x, i) {
+    return '<i class="' + (i === at ? 'on' : (i < at ? 'did' : '')) + '"></i>';
+  }).join('');
+  $('go').textContent = last ? t('again') : t('next');
+  $('bk').textContent = t('back');
+  $('bk').hidden = !at;
+  $('count').textContent = fill(t('of'), { n:at + 1, all:SLIDES.length });
+  try { location.replace('#' + (at + 1)); } catch (e) {}
+}
+function goTo(n) {
+  n = Math.max(0, Math.min(n, SLIDES.length - 1));
+  if (n === at) return;
+  at = n;
+  draw();
+}
+/* במסך שיש בו מדריך, הכפתור מקדם קודם את המדריך. */
+function guStep(d) {
+  if (SLIDES[at][0] !== s9 || !window.GUIDE_UI || !GUIDE_UI.seek) return false;
+  var n = GUIDE_UI.at() + d, all = GUIDE_UI.steps().length;
+  if (n < 0 || n >= all) return false;
+  GUIDE_UI.seek(n);
+  return true;
+}
+/* במסך האחרון הכפתור מחזיר להתחלה — בפגישה תמיד יש מי
+   שנכנס באמצע, ו"מהתחלה" הוא מה שצריך אז. */
+function next() {
+  if (guStep(1)) return;
+  if (at === SLIDES.length - 1) goTo(0); else goTo(at + 1);
+}
+function prev() { if (guStep(-1)) return; goTo(at - 1); }
+
+$('go').onclick = next;
+$('bk').onclick = prev;
+
+/* ---------- מקלדת ----------
+   בעמוד מימין לשמאל החץ שמאלה הוא "קדימה". רווח ו-PageDown
+   הם מה שמרחוק־שליטה של מצגות שולח, ולכן גם הם. */
+document.addEventListener('keydown', function (e) {
+  var k = e.key;
+  if (k === 'ArrowLeft' || k === ' ' || k === 'PageDown' || k === 'Enter') {
+    next(); e.preventDefault();
+  } else if (k === 'ArrowRight' || k === 'PageUp' || k === 'Backspace') {
+    prev(); e.preventDefault();
+  } else if (k === 'Home') { goTo(0); e.preventDefault(); }
+  else if (k === 'End')    { goTo(SLIDES.length - 1); e.preventDefault(); }
+});
+
+/* ---------- החלקה ----------
+   **לא מעל ההדגמה.** הדף שבחלון מקבל את הנגיעות שלו, וגרירה
+   שמתחילה עליו אינה דפדוף של המצגת. */
+var sw = null;
+document.addEventListener('touchstart', function (e) {
+  if (e.target.closest && e.target.closest('.demo')) { sw = null; return; }
+  var p = e.touches[0];
+  sw = { x:p.clientX, y:p.clientY };
+}, { passive:true });
+document.addEventListener('touchend', function (e) {
+  if (!sw) return;
+  var p = e.changedTouches[0], dx = p.clientX - sw.x, dy = p.clientY - sw.y;
+  sw = null;
+  /* אלכסון אינו החלקה: גלילה אנכית בתוך מסך ארוך הייתה מדפדפת. */
+  if (Math.abs(dx) < 52 || Math.abs(dy) > Math.abs(dx)) return;
+  if (dx > 0) prev(); else next();
+}, { passive:true });
+
+/* ---------- הפתיחה ----------
+   `#5` בכתובת פותח במסך החמישי. זה מה שמאפשר לחזור באמצע
+   פגישה בדיוק למקום שבו היינו, וגם לשלוח קישור למסך מסוים. */
+function relayer() {
+  if (!window.TX || !TX.layer) return;
+  try { TX.layer(TX.published(), TX.draft()); } catch (e) {}
+}
+
+/* ============================================================
+   הנוסח שפורסם.
+   ============================================================
+   אחיאסף עורך את ההצגה בניהול ומפרסם לגיליון. ראש חטיבה
+   שפותח את הקישור בבית פותח אותו במכשיר שמעולם לא היה בו
+   מטמון — ובלי הקריאה הזו הוא היה רואה את נוסח הקוד ולא את
+   מה שנערך.
+
+   **וכישלון קריאה אינו לשונית ריקה.** רשת שנפלה משאירה את מה
+   שיש; לשונית שאינה זו שביקשנו נדחית; ורק כותרת בלי שורות
+   מרוקנת באמת.
+   ============================================================ */
+var TXT_TAB = 'טקסטים';
+function csv(text) {
+  var rows = [], row = [], f = '', q = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { f += '"'; i++; }
+      else if (c === '"') q = false;
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function loadTexts() {
+  if (!navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(TXT_TAB) +
+        '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (txt) {
+      if (!txt) return;                       /* נפל — משאירים */
+      var rows = csv(txt);
+      if (!rows || !rows.length) return;
+      if (rows[0].join('|').indexOf('מפתח') < 0) return;   /* לשונית אחרת */
+      var m = {};
+      rows.slice(1).forEach(function (r) {
+        var k = (r[0] || '').trim(), v = (r[1] || '').trim();
+        if (k && v) m[k] = v;
+      });
+      try { localStorage.setItem('df:textCache', JSON.stringify(m)); } catch (e) {}
+      relayer();
+      /* **לא מציירים מחדש מסך שיש בו משהו חי.** ציור מחדש בונה
+         את המסגרת מאפס, וההדגמה שכבר רצה הייתה מתחילה שוב
+         באמצע. המסכים האלה נושאים שורה אחת, והיא תתעדכן ממילא
+         כשעוברים מהם. */
+      if (!SLIDES[at][1]) draw();
+    })
+    .catch(function () {});
+}
+
+function boot() {
+  relayer();
+  var n = parseInt((location.hash || '').replace('#', ''), 10);
+  at = (n > 0 && n <= SLIDES.length) ? n - 1 : 0;
+  draw();
+  loadTexts();
+}
+boot();
+
+/* ============================================================
+   עריכת המלל — על המסך עצמו.
+   ============================================================
+   "רציתי לנווט באפליקציה החיה, בכל המסכים כאילו אני משתמש,
+   ושם לערוך שינויים."
+
+   אותו מנגנון של כל שאר המסכים: הניהול שולח לכאן עם
+   `?tedit=1`, מקישים על מילה והיא נפתחת. הרשימה למטה היא מה
+   שמאפשר לדלג בין המסכים בלי לצאת מהעריכה — כל מסך ונוסחיו.
+
+   **והשורה של המסך הראשון עולה בכוח.** היא מחכה שההדגמה
+   תיגמר, ומי שבא לערוך אותה אינו צריך לשבת ולחכות לה. */
+TX.init({
+  /* הנוסחים של המסך הזה, לפני כל השאר — ראו `scan` ב-textedit.js. */
+  roots: ['show'],
+  repaint: function () { draw(); if (at === 0) capOn(); },
+  places: [
+    ['1 · הדף',        function () { goTo(0); capOn(); }],
+    ['2 · מה יש בו',   function () { goTo(1); }],
+    ['3 · איך לומדים', function () { goTo(2); }],
+    ['4 · המספרים',    function () { goTo(3); }],
+    ['5 · ההצטרפות',   function () { goTo(4); }],
+    ['6 · הקישור',     function () { goTo(5); }],
+    ['7 · הלוח',       function () { goTo(6); }],
+    ['8 · הפינה',      function () { goTo(7); }],
+    ['9 · ההתקנה',     function () { goTo(8); }],
+    ['10 · מה עכשיו',  function () { goTo(9); }]
+  ]
+});
+</script>
+</body>
+</html>

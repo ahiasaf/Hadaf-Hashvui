@@ -53,7 +53,9 @@ var TX = (function () {
               /* רק מה ששונה בלשון נקבה — ראו `HEAD_ASK_F`. */
               headf:window.HEAD_ASK_F,
               /* מדריך ההתקנה המאויר. */
-              guide:window.GUIDE };
+              guide:window.GUIDE,
+              /* ההצגה לראשי החטיבות — /matana. */
+              show:window.SHOW };
     return ROOTS;
   }
   function ref(k) {
@@ -192,6 +194,11 @@ var TX = (function () {
     return new RegExp('^' + parts.join('[\\s\\S]*?') + '$');
   }
 
+  function mine(k, roots) {
+    for (var i = 0; i < roots.length; i++)
+      if (k.indexOf(roots[i] + '.') === 0) return true;
+    return false;
+  }
   function scan() {
     var was = document.querySelectorAll('[data-tk]');
     for (var i = 0; i < was.length; i++) {
@@ -203,15 +210,64 @@ var TX = (function () {
     if (!host) return;
     var els = host.getElementsByTagName('*');
 
-    TEXT_FIELDS.forEach(function (f) {
+    /* ============================================================
+       **המסך שלפנינו קודם.**
+       ============================================================
+       שני מפתחות יכולים לשאת בדיוק אותו נוסח — "הבא" הוא גם
+       הכפתור של מדריך ההתקנה וגם הכפתור של ההצגה. הסריקה עוברת
+       על `TEXT_FIELDS` לפי סדר, והראשון שתאם חוטף את האלמנט:
+       בהצגה זה היה `guide.next`, והקשה עליו הייתה משנה את
+       המדריך במקום את המצגת — בלי שום סימן.
+
+       עמוד שמצהיר על השורשים שלו (`roots` ב-`TX.init`) מקבל
+       אותם ראשונים, ורק אחריהם כל השאר. עמוד שאינו מצהיר
+       מתנהג בדיוק כמו קודם. */
+    var own = HOOK.roots || [];
+    var order = own.length
+      ? TEXT_FIELDS.filter(function (f) { return f.k && mine(f.k, own); })
+          .concat(TEXT_FIELDS.filter(function (f) { return !f.k || !mine(f.k, own); }))
+      : TEXT_FIELDS;
+
+    order.forEach(function (f) {
       if (!f.k || f.img) return;
       var v = norm(get(f.k));
       if (!v) return;
+      /* ============================================================
+         **נוסח שכולו תבנית אינו מזהה דבר.**
+         ============================================================
+         `{name}` לבדו נעשה הביטוי `^[\s\S]*?$`, שמתאים לכל טקסט
+         שהוא — ולכן הוא חטף אלמנט שרירותי בכל עמוד וסימן אותו
+         כניתן לעריכה. הקשה עליו פתחה מפתח שאין לו שום קשר למה
+         שנגעו בו.
+
+         אין דרך לזהות נוסח כזה על המסך, כי אין בו אות אחת קבועה
+         להיאחז בה. הוא נערך מהרשימה שבניהול, שם הוא מופיע בשמו. */
+      if (!v.split(/\{\w+\}/).join('')) return;
       var re = rex(v), best = null, bestN = 1e9;
       for (var j = 0; j < els.length; j++) {
         var el = els[j];
         if (el.getAttribute('data-tk')) continue;
-        if (!re.test(norm(el.textContent))) continue;
+        /* ============================================================
+           **מה שאינו על המסך אינו נתפס.**
+           ============================================================
+           `textContent` של אלמנט מוסתר נקרא בדיוק כמו של גלוי, ולכן
+           מפתח יכול היה לתפוס דווקא את העותק שאי אפשר להקיש עליו —
+           ואז המפתח האמיתי, זה שכן מוצג, נשאר בלי כלום.
+
+           זה קרה בהצגה: מדריך ההתקנה מוצג שם בלי הכפתורים שלו
+           (`display:none`), ו"הבא" של המדריך חטף את כפתור הניווט
+           של המצגת. הקשה עליו הייתה משנה את המדריך — בשקט.
+
+           `getClientRects` ריק רק למי שאינו מצויר כלל, ולכן אלמנט
+           קבוע (`position:fixed`) או שקוף עדיין נספרים. */
+        if (!el.getClientRects().length) continue;
+        /* **ואלמנט בלי מלל אינו מלל.** נוסח שכולו תבנית — `{name}`
+           לבדו — נעשה ביטוי שמתאים גם למחרוזת ריקה, ולכן חטף את
+           ה-`<img>` או ה-`<br>` הראשון בעמוד וסימן אותו כניתן
+           לעריכה. אי אפשר להקיש על מילה שאינה שם. */
+        var txt = norm(el.textContent);
+        if (!txt) continue;
+        if (!re.test(txt)) continue;
         var n = el.getElementsByTagName('*').length;   /* הקטן ביותר שתואם */
         if (n < bestN) { best = el; bestN = n; }
       }

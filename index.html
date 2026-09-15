@@ -1769,7 +1769,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.65.0';
+var APP_VERSION = '8.66.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2680,6 +2680,9 @@ function joinUrl(code) {
    הכרטיס שמציג אותו. בלי קוד ישיבה: הוא נשלח לקבוצות הורים
    של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
 function dadUrl() { return joinUrl('') + '?for=dad'; }
+
+/* ההצגה לראשי החטיבות. אותו בסיס, קובץ אחר. */
+function showUrl() { return joinUrl('').replace('join.html', 'matana.html'); }
 
 /* עמוד הנחיתה של הצוות. נושא את קוד הגישה כשיש כזה, ולכן הוא
    מכיל גם את הלוח — הוא נשלח לר"מים בלבד. בלי קוד הוא עדיין
@@ -6814,6 +6817,38 @@ function admWaCard() {
     }).join('') + '</div>';
 }
 
+/* ============================================================
+   ההצגה לראשי החטיבות — לפתוח, ולשלוח.
+   ============================================================
+   "מחר יש לי מפגש עם כל ראשי החטיבות. אני רוצה להראות להם
+   בעיניים את המתנה שהם קיבלו... וגם שאוכל אחר כך לשלוח את
+   זה לעיון בבית."
+
+   **אותו קישור עושה את שני הדברים.** ההצגה בנויה כך שכל מסך
+   נושא גם את המשפט שמסביר אותו, ולכן היא נקראת לבד בדיוק
+   כמו שהיא מוצגת — ואין מסמך שני שצריך לעדכן בנפרד.
+
+   הכתובת אינה מוצגת כאן כטקסט. היא יוצאת דרך כפתור ההעתקה,
+   שזה מה שעושים איתה.
+   ============================================================ */
+function admShowCard() {
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>ההצגה לראשי החטיבות</h4>' +
+    '<p class="h">עשרה מסכים, אחד בכל פעם: הדף האמיתי מנגן את ' +
+    'עצמו, מה יש בו, המספרים, ההצטרפות, הלוח — ובסוף קוד סריקה ' +
+    'ושלוש המשימות. החלקה או חצים.<br>' +
+    '<b>ואותו קישור נשלח אחר כך לעיון בבית</b> — כל מסך נושא גם ' +
+    'את המשפט שמסביר אותו.<br>' +
+    'כל מילה בה נערכת על המסך שלה — "מה מוצג" ← "מלל" ← ' +
+    '"ההצגה לראשי החטיבות".</p>' +
+    '<a class="btn p" style="margin:10px 0 0;width:100%;box-sizing:border-box;' +
+    'text-decoration:none;display:block;text-align:center" target="_blank" ' +
+    'rel="noopener" href="' + esc(showUrl()) + '">פתיחת ההצגה</a>' +
+    '<button class="btn g" style="margin:8px 0 0;width:100%" ' +
+    'onclick="copyAny(this, showUrl())">העתקת הקישור לשליחה</button>' +
+    '</div>';
+}
+
 function admLinks(el) {
   var src = INST_SRC === 'sheet'
     ? '<div class="done-box" style="margin-bottom:11px">' + INSTITUTIONS.length +
@@ -6843,6 +6878,7 @@ function admLinks(el) {
   el.innerHTML =
     /* ההודעות ראשונות: זה מה שהוא בא לעשות כאן בפועל. */
     admWaCard() +
+    admShowCard() +
     /* ואחריהן ההדגמה, כי היא הדבר היחיד כאן שאינו נשלח לאיש —
        פותחים אותה, מסתכלים, ומגישים. ובלי להציג כתובת: מה
        שלא שולחים אין סיבה לקרוא בקול. */
@@ -7471,7 +7507,9 @@ function admText(el) {
     /* עמוד הצוות. נפתח לעריכה על ישיבה לדוגמה, אחרת הלוח שבתחתיתו
        אינו מצויר כלל — ואי אפשר להקיש על נוסח שאינו על המסך. */
     ['עמוד הצוות', 'מה שהר\u05f4מים מקבלים \u2014 היעד, ההנחיות והסיפור',
-     'location.href=\'tzevet.html?tedit=1\'']
+     'location.href=\'tzevet.html?tedit=1\''],
+    ['ההצגה לראשי החטיבות', 'עשרת המסכים שמציגים בפגישה ושולחים אחריה',
+     'location.href=\'matana.html?tedit=1\'']
   ];
 
   el.innerHTML =
