@@ -783,6 +783,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   border:1.5px solid var(--ok);color:var(--ok);border-radius:var(--r-m);padding:16px;
   font-weight:800;font-size:.96rem;text-align:center}
 
+/* הווי של הסבב.
+   ============================================================
+   עיגול ריק שמתמלא ירוק — אותה תנועה של תיבת סימון, בלי
+   להיראות כמו עוד כפתור פעולה. הכרטיס כולו נרגע כשהוא
+   מסומן: מי שכבר דיברת איתו אינו אמור למשוך את העין
+   כשאתה סורק את מי שנשאר. */
+.vee{width:30px;height:30px;border-radius:50%;flex:none;cursor:pointer;
+  border:1.5px solid var(--rule);background:var(--surface);
+  color:var(--ink-3);font-size:.9rem;font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .18s,border-color .18s,color .18s}
+.vee.on{background:var(--ok,#3B7D57);border-color:var(--ok,#3B7D57);color:#fff}
+.ct.done{opacity:.62}
+.ct.done:focus-within,.ct.done:hover{opacity:1}
+
 /* ---------- מי יכול להינות מהתוכנית — בראש מסך ההרשמה ----------
    רצועה, לא פאנל. שלושה סמלים בשורה אחת נסרקים במבט; שלוש שורות
    זו מתחת לזו נקראות כרשימה, וזה בדיוק מה שלא רצינו כאן.
@@ -1724,7 +1739,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.57.0';
+var APP_VERSION = '8.58.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4075,7 +4090,11 @@ function pullCalls() {
     (log || []).slice(1).forEach(function (r2) {
       if (r2[0]) was[nameKey(r2[0])] = { stage:r2[1] || 'new', note:r2[2] || '',
                                          at:r2[3] || '', who:r2[4] || '',
-                                         ed:r2[5] || '' };
+                                         ed:r2[5] || '',
+                                         /* עמודה שנוספה אחרי שהלשונית כבר
+                                            הייתה קיימת — שורה ישנה פשוט
+                                            אין בה סבב, וזה לא סימון שנמחק. */
+                                         round: YES.test(String(r2[6] || '').trim()) };
     });
     var mine = {};
     contacts().forEach(function (c) { mine[nameKey(c.key || c.name)] = c; });
@@ -4084,6 +4103,7 @@ function pullCalls() {
       var k = nameKey(c.key || c.name), s = was[k], m = mine[k];
       if (s) {
         c.stage = s.stage; c.note = s.note; c.at = s.at;
+        if (s.round) c.round = 1;
         /* עריכה ידנית גוברת על מה שנקרא מהגיליון */
         if (s.ed) {
           try {
@@ -4103,6 +4123,10 @@ function pullCalls() {
         c.stage = m.stage; c.note = m.note; c.at = m.at;
         if (m.primary != null) c.primary = m.primary;
       }
+      /* הסימון המקומי נשמר תמיד. הוא אינו נושא חותמת זמן משלו,
+         ולשונית שעדיין אין בה עמודת "סבב" הייתה מוחקת סבב שלם
+         בטעינה אחת. */
+      if (m && m.round) c.round = 1;
       /* עריכה מקומית שאין לה מקבילה בגיליון — נשארת. בלי זה,
          קריאה שחזרה בלי עמודת "עריכה" (לשונית בת חמש עמודות,
          או קריאה שנקטעה) החזירה את הרשימה למה שבגיליון ומחקה
@@ -4145,7 +4169,7 @@ function pushCalls(now) {
     if (!API && !CFG.api) { callSay('נשמר על המכשיר · אין כתובת שרת'); return; }
     var rows = contacts()
       .filter(function (c) {
-        return c.stage !== 'new' || c.note || c.primary || c.edited;
+        return c.stage !== 'new' || c.note || c.primary || c.edited || c.round;
       })
       .map(function (c) {
         var me = mainOf(c);
@@ -4154,7 +4178,7 @@ function pushCalls(now) {
         var ed = c.edited ? JSON.stringify({ name:c.name, last:!!c.last,
                                              people: peopleOf(c) }) : '';
         return [c.key || c.name, c.stage, c.note || '', c.at || '',
-                me ? me.name : '', ed];
+                me ? me.name : '', ed, c.round ? 'TRUE' : ''];
       });
     /* `action:'table'` כותב את הלשונית מחדש בשלמותה. כתיבה של
        אפס שורות מוחקת את כל התיעוד שבגיליון — ובדיוק זה קרה
@@ -4164,7 +4188,9 @@ function pushCalls(now) {
     callSay('שולח…');
     fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
       body: JSON.stringify({ action:'table', tab: CALL_TAB,
-        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה']),
+        /* עמודה חדשה **בסוף**. הוספה באמצע מזיזה את כל מה
+           שמימינה בשורות שכבר נכתבו. */
+        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה','סבב']),
         rows: JSON.stringify(rows) }) })
       /* `no-cors` מחזיר תשובה אטומה: `then` נקרא גם כשהכתיבה
          נכשלה. "נשמר בגיליון" כאן היה שקר, והוא זה שגרם לסמוך
@@ -4826,6 +4852,26 @@ function renderCalls() {
        '</div>';
 
   /* ============================================================
+     הסבב — וי לכל מי שדיברת איתו הפעם.
+     ============================================================
+     "אני עושה סבב שאני מדבר איתם, ומדי פעם יהיו סבבים כאלה.
+     אין לי שום דרך לסמן בקלילות שעשיתי סבב."
+
+     **וזה לא אותו דבר כמו שלב השיחה.** "מתעניין" או "הצטרף"
+     הם מצב שנשאר; הסבב הוא "עברתי עליו **הפעם**", והוא מתאפס
+     כשמתחיל סבב חדש. שני דברים שהיו חולקים סימון אחד היו
+     מוחקים זה את זה בכל איפוס.
+     ============================================================ */
+  var did = list.filter(function (c) { return c.round; }).length;
+  h += '<div class="card" style="margin:10px 0 0;padding:14px 15px">' +
+       '<div class="row" style="padding:0">' +
+       '<div><b>הסבב הנוכחי</b><div class="sub">' +
+       (did ? did + ' מתוך ' + list.length + ' \u00b7 סמנו \u2713 אחרי כל שיחה'
+            : 'סמנו \u2713 על כל מי שדיברתם איתו') + '</div></div>' +
+       (did ? '<button class="back" onclick="roundReset()">סבב חדש</button>' : '') +
+       '</div></div>';
+
+  /* ============================================================
      החיפוש — ממש מעל הרשימה שהוא מסנן.
      ============================================================
      "אני מוצא את עצמי כל פעם מחפש איזה מוסד." מחפשים לפי מה
@@ -4874,10 +4920,15 @@ function renderCalls() {
     var c = o.c, i = o.i;
     var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
 
-    h += '<div class="ct s-' + c.stage + '"><div class="h"><div>' +
+    h += '<div class="ct s-' + c.stage + (c.round ? ' done' : '') +
+         '"><div class="h"><div>' +
          '<div class="nm">' + esc(c.name) + '</div>' +
          '</div><div style="display:flex;gap:6px;align-items:center">' +
          (c.last ? '<span class="last">תשפ"ו</span>' : '') +
+         '<button class="vee' + (c.round ? ' on' : '') +
+         '" onclick="roundTick(' + i + ')" ' +
+         'title="' + (c.round ? 'דיברתי בסבב הזה' : 'לסמן שדיברתי') +
+         '" aria-label="סימון סבב">\u2713</button>' +
          '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
          '</div></div>';
 
@@ -5095,6 +5146,28 @@ function setMain(i, k) {
   jnl(l[i]);
   saveContacts(l); renderCalls(); pushCalls();
 }
+/* וי לסבב. נשמר כמו כל השאר ונכתב לגיליון, כדי שהסבב ישרוד
+   מעבר בין מכשירים — ולא יתאפס כשהדפדפן מנקה אחסון. */
+function roundTick(i) {
+  var l = contacts(); if (!l[i]) return;
+  l[i].round = !l[i].round;
+  saveContacts(l);
+  renderCalls();
+  pushCalls();
+}
+/* סבב חדש — הווים יורדים, וכל השאר נשאר. */
+function roundReset() {
+  var l = contacts();
+  var n = l.filter(function (c) { return c.round; }).length;
+  if (!n) return;
+  if (!confirm('להתחיל סבב חדש? ' + n + ' הסימונים יימחקו.\n' +
+               'השלבים, ההערות והתיעוד נשארים.')) return;
+  l.forEach(function (c) { delete c.round; });
+  saveContacts(l);
+  renderCalls();
+  pushCalls(1);
+}
+
 function setNote(i, v) {
   var l = contacts(); if (!l[i]) return;
   l[i].note = v; l[i].at = new Date().toISOString();
