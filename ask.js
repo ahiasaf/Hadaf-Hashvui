@@ -168,8 +168,13 @@ var ASK = (function () {
             ולא תהליך, ומד מעליה הופך אותה למשימה. ---- */
     if (step === 0) {
       /* שורה ריקה במלל = פסקה. פסקה אחת ארוכה נקראת כקיר. */
+      /* כוכביות מדגישות, כמו בוואטסאפ — אותו כלל בכל האפליקציה.
+         מברחים קודם ורק אז מחליפים, אחרת נוסח עם סוגריים
+         משולשים היה הופך לתגית פתוחה. */
       var body = String(t('askBody') || '').split('\n').map(function (x) {
-        return x.trim() ? '<p>' + esc(x.trim()) + '</p>' : '';
+        x = x.trim();
+        if (!x) return '';
+        return '<p>' + esc(x).replace(/\*([^*\n]+)\*/g, '<b>$1</b>') + '</p>';
       }).join('');
       el.innerHTML = '<div class="as-card"><h2>' + esc(t('askH')) + '</h2>' + body +
         '<button class="as-go" id="r-go">' + esc(t('askGo')) + '</button>' +
@@ -464,6 +469,7 @@ var ASK = (function () {
     "  letter-spacing:-.02em;line-height:1.45}",
     ".as-card > p{margin:11px 0 0;font-size:.95rem;color:var(--ink-2);",
     "  line-height:1.75;font-weight:600}",
+    ".as-card > p b{color:var(--ink);font-weight:800}",
     ".as-card .fld{margin-top:18px}",
     ".as-card .label{display:block;font-size:.9rem;font-weight:800;",
     "  color:var(--ink);margin-bottom:6px}",

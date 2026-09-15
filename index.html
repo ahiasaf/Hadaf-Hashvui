@@ -1390,6 +1390,30 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 -6px 24px rgba(0,0,0,.2)}
 #upd.on{display:block}
 
+/* מילה לתלמידי הישיבה — הכרטיס של ראש החטיבה.
+   ============================================================
+   הכללים הועתקו מעמוד הצוות **כמו שהם**, ולא נכתבו מחדש:
+   אותו רכיב בשני עמודים שנראה קצת אחר בכל אחד מהם הוא
+   בדיוק איך שפה עיצובית מתפרקת. */
+.mycard{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);padding:20px 18px 22px;margin-bottom:12px;
+  box-shadow:var(--sh-1)}
+.mycard h3{font-size:1.06rem;font-weight:800;letter-spacing:-.02em}
+.mycard > p{margin-top:8px;font-size:.9rem;font-weight:600;
+  color:var(--ink-2);line-height:1.7}
+.mycard textarea{width:100%;margin-top:14px;padding:14px;min-height:96px;
+  font-family:inherit;font-size:1rem;font-weight:600;line-height:1.6;
+  border:1.5px solid var(--rule);border-radius:var(--r-s);background:#fff;
+  color:var(--ink);resize:vertical}
+.myto{margin-top:10px;font-size:.82rem;font-weight:700;color:var(--ink-3);
+  line-height:1.6}
+.myerr{margin-top:11px;font-size:.85rem;font-weight:700;color:#8A3226;
+  line-height:1.6}
+.mygo{display:block;width:100%;margin-top:12px;padding:15px;border:0;
+  border-radius:var(--r-s);background:var(--blue);color:#fff;
+  font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer}
+.mygo[disabled]{opacity:.55}
+
 /* ---------- הזמנה להתקין את האפליקציה ----------
    צפה מעל הכול, בכניסה הראשונה בלבד. לא מופיעה כשהאפליקציה
    כבר מותקנת. באנדרואיד יש כפתור אמיתי; באייפון רק הוראה,
@@ -1544,6 +1568,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
              ריק אצל מי שסיים — ראו renderBoard(). -->
         <div id="c-pend"></div>
         <div id="board"></div>
+        <!-- מילה לתלמידי הישיבה. נפתח למי שהשלים את התהליך
+             האישי — ראו sayPaint(). -->
+        <div id="c-say" style="margin-top:14px"></div>
       </section>
 
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
@@ -1689,7 +1716,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.48.0';
+var APP_VERSION = '8.49.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3065,8 +3092,115 @@ function askSetup(where) {
        של התלמידים. זו אינה קפיצה באמצע קריאה אלא המשך. */
     onClose: function () {
       if (ASK.seen && ASK.seen()) setTimeout(hailBoard, 250);
+      sayPaint();
     }
   });
+}
+
+/* ============================================================
+   מילה לתלמידי הישיבה.
+   ============================================================
+   אותו מנגנון של הר"ם, והיקף אחר: הר"ם שולח לכיתה שלו, וראש
+   החטיבה לכל מי שהצטרף בישיבה. זה מה שהופך אותו למי שחולש
+   על הישיבה כולה ולא רק מקבל דיווחים עליה.
+
+   **וההיקף אינו נקבע כאן.** המסך שולח את קוד הגישה של המוסד,
+   והשרת הוא שקובע לפי הקוד למי מותר לשלוח — ראו `fire=say`
+   ב-apps-script.gs. שכבה וכיתה יוצאות ריקות, וריק שם פירושו
+   "כל הישיבה". לקוח שמבקש היקף הוא לקוח שאפשר לערוך לו את
+   הכתובת.
+
+   `no-cors` אינו בשימוש כאן בכוונה: התשובה נקראת, ורק תשובה
+   שאומרת `ok` הופכת ל"ההודעה יצאה". ==================== */
+var sayDraft = '', sayErr = '', sayBusy = false;
+
+function sayReach() {
+  var code = myBoard();
+  if (!code) return null;
+  var j = bJoin(code);
+  return j ? (j.n || 0) : null;
+}
+
+function sayHtml() {
+  var n = sayReach();
+  if (n === null) return '';
+  var to = n
+    ? '<p class="myto">' + esc(fill(headT('sayTo'), { n:n })) + '</p>'
+    : '<p class="myto">' + esc(headT('sayNone')) + '</p>';
+  return '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
+    '<p>' + esc(headT('sayB')) + '</p>' +
+    '<textarea id="say-txt" rows="3" placeholder="' + esc(headT('sayPh')) +
+    '">' + esc(sayDraft) + '</textarea>' + to +
+    '<button class="mygo" id="say-go"' +
+    (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
+    '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
+    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '') +
+    '</div>';
+}
+
+function sayWire() {
+  var t = document.getElementById('say-txt');
+  if (t) {
+    /* מעדכנים את הכפתור בלי לצייר מחדש — ציור מחדש באמצע
+       הקלדה מאבד את הסמן, וזו כבר הייתה תקלה כאן. */
+    t.oninput = function () {
+      sayDraft = t.value;
+      var g = document.getElementById('say-go');
+      if (g) g.disabled = sayBusy || !sayReach() || sayDraft.trim().length < 2;
+    };
+  }
+  var g = document.getElementById('say-go');
+  if (g) g.onclick = saySend;
+}
+
+function sayPaint() {
+  var el = document.getElementById('c-say');
+  if (!el) return;
+  /* נפתח רק למי שהשלים את התהליך האישי: בלי מכשיר רשום אין
+     ממי לשלוח, והכרטיס היה מבטיח משהו שאינו עובד. */
+  var on = typeof ASK !== 'undefined' && ASK.seen && ASK.seen() &&
+           ASK.noted && ASK.noted() && ASK.get && ASK.get();
+  el.innerHTML = on ? sayHtml() : '';
+  if (on) sayWire();
+}
+
+function saySend() {
+  var txt = (sayDraft || '').trim();
+  sayErr = '';
+  if (txt.length < 2) { sayErr = headT('sayEmpty'); sayPaint(); return; }
+  var code = myBoard(), k = instCode(code);
+  if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
+  if (!confirm(headT('sayAsk') + '\n\n' + txt)) return;
+
+  var url = (CFG.api || API || '').trim();
+  if (!url) { sayErr = headT('sayErr'); sayPaint(); return; }
+
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
+  var who = (typeof ASK !== 'undefined' && ASK.name) ? ASK.name(me) : '';
+  sayBusy = true; sayPaint();
+  /* שכבה וכיתה ריקות — כל הישיבה. */
+  var q = { fire:'say', inst:code, k:k,
+            title: who || PROGRAM.short, body: txt,
+            grade:'', klass:'', who: who };
+  var qs = Object.keys(q).map(function (x) {
+    return encodeURIComponent(x) + '=' + encodeURIComponent(q[x]);
+  }).join('&');
+  fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + qs)
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      sayBusy = false;
+      if (d && d.status === 'ok') {
+        sayDraft = ''; sayErr = '';
+        sayPaint();
+        alert(headT('saySent'));
+      } else {
+        sayErr = headT('sayErr') + ' ' + ((d && d.message) || '');
+        sayPaint();
+      }
+    })
+    .catch(function () {
+      sayBusy = false; sayErr = headT('sayErr'); sayPaint();
+    });
 }
 
 /* ============================================================
@@ -3140,6 +3274,7 @@ function renderBoard(hail) {
     if (open) askSetup('ask-here');
   }
   document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
+  sayPaint();
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
    שהלוח שלו נעלם הולך לשם ממילא. */
