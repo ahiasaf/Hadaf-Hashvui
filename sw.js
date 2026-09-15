@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.43.0';
+var CACHE_NAME = 'hadaf-v8.44.0';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -44,8 +44,19 @@ var CODE = /\.(html|js)$|\/$|\/sfarim\/|\/daf\/index\.json$/;
 // כמה להמתין לרשת לפני שנופלים למטמון. מספיק לחיבור סביר, קצר מכדי להרגיז.
 var NET_TIMEOUT = 2500;
 
+/* ---- לא ממתינים לרשות ----
+   עובד־שירות חדש נכנס כברירת מחדל ל"המתנה" ומחליף את הישן רק
+   כשכל הלשוניות נסגרות. באפליקציה שהוסיפו למסך הבית זה כמעט
+   לעולם לא קורה: היא נשארת פתוחה שבועות. לכן גרסה חדשה הייתה
+   יושבת במכשיר ולא נכנסת לתפקיד, וראש חטיבה המשיך לראות את
+   הגרסה של לפני שבועיים.
+
+   `skipWaiting` מוותר על ההמתנה, `clients.claim` שלמטה לוקח
+   שליטה מיד, והעמוד מרענן את עצמו פעם אחת (`getapp.js`). */
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE_NAME).then(function (c) { return c.addAll(CORE); }));
+  e.waitUntil(caches.open(CACHE_NAME).then(function (c) {
+    return c.addAll(CORE);
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {

@@ -186,7 +186,135 @@ var APPX = (function () {
       : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>';
   }
 
+  /* ============================================================
+     עדכון גרסה — מעצמו, בלי שיבקשו ממנו.
+     ============================================================
+     עד כאן העדכון היה פס ירוק שכתוב עליו "גרסה חדשה זמינה —
+     לחצו לעדכון", והוא **חיכה ללחיצה**. בשטח זה אומר שהוא לא
+     קורה: ראש חטיבה שפתח את האפליקציה לפני שבועיים ממשיך
+     לראות את הגרסה של אז, בלי לדעת שיש חדשה ובלי לדעת שהפס
+     הזה בכלל מיועד לו. תיקון שיצא לאוויר ולא הגיע לטלפון הוא
+     תיקון שלא קרה.
+
+     עכשיו זה הפוך: עובד־השירות החדש נכנס לתפקיד מיד
+     (`skipWaiting` ב-sw.js), לוקח שליטה, והעמוד טוען את עצמו
+     מחדש. הקפיצה נמשכת רגע, ואחריה נשארת שורה ירוקה קצרה
+     שאומרת שזה קרה — ונעלמת לבד.
+
+     שלוש הגנות, וכל אחת מהן נובעת ממשהו שנשבר:
+
+     · **השתלטות ראשונה אינה עדכון.** בביקור הראשון אין עדיין
+       עובד־שירות, הוא נרשם עכשיו ולוקח שליטה — וזה מפעיל את
+       אותו אירוע בדיוק. בלי הבדיקה הזו כל כניסה ראשונה הייתה
+       נטענת פעמיים, ומסך הפתיחה היה מהבהב.
+
+     · **לא באמצע הקלדה.** מי שכותב הודעה בפינה שלו, או ממלא
+       את שמו בטופס, מאבד את מה שהקליד ברענון. במקרה כזה
+       הרענון ממתין עד שהוא מסיים — ולא מוותר.
+
+     · **פעם אחת.** `refreshing` חוסם רענון שני, כי שני
+       מאזינים שרצים יחד על אותו אירוע הם לולאה.
+     ============================================================ */
+  var upReady = false, upBusy = false, upHad = false;
+
+  /* השורה הירוקה. היא מגיעה **אחרי** הרענון, ולכן הסימון עובר
+     דרך האחסון: העמוד שמצייר אותה אינו העמוד שידע שהעדכון קרה.
+     `sessionStorage` ולא `localStorage` — סימון שנשאר על
+     המכשיר היה מציג "עודכנה" גם מחר בבוקר. */
+  function upSaid() {
+    try { return sessionStorage.getItem('df:upd') === '1'; } catch (e) { return false; }
+  }
+  function upSay(v) {
+    try {
+      if (v) sessionStorage.setItem('df:upd', '1');
+      else sessionStorage.removeItem('df:upd');
+    } catch (e) {}
+  }
+
+  function upBar() {
+    if (!upSaid()) return;
+    upSay(false);
+    /* בעמוד הראשי כבר יש פס כזה ומעוצב. בשאר העמודים אין,
+       ולכן הוא נבנה כאן — אותו מראה בדיוק בשלושתם. */
+    var el = document.getElementById('upd');
+    if (!el) {
+      if (!document.getElementById('upd-css')) {
+        var st = document.createElement('style');
+        st.id = 'upd-css';
+        st.textContent =
+          '#upd{position:fixed;bottom:0;left:0;right:0;z-index:70;display:none;' +
+          'text-align:center;padding:15px;font-weight:800;font-size:.94rem;' +
+          'color:#fff;background:linear-gradient(140deg,#2E7D52,#1F5C3B);' +
+          'box-shadow:0 -6px 24px rgba(0,0,0,.2)}' +
+          '#upd.on{display:block}';
+        document.head.appendChild(st);
+      }
+      el = document.createElement('div');
+      el.id = 'upd';
+      document.body.appendChild(el);
+    }
+    /* הנוסח מ-data.js, ככל נוסח אחר. נפילה לברירת מחדל רק אם
+       data.js ישן יושב במטמון. */
+    el.textContent = (window.UI && UI.updated) || 'האפליקציה עודכנה';
+    el.onclick = null;
+    el.style.cursor = 'default';
+    el.className = 'on';
+    setTimeout(function () { el.className = ''; }, 4000);
+  }
+
+  /* הקלדה פתוחה? ממתינים לסופה. */
+  function upTyping() {
+    var a = document.activeElement;
+    if (!a) return false;
+    var t = (a.tagName || '').toLowerCase();
+    return t === 'input' || t === 'textarea' || t === 'select' ||
+           a.isContentEditable === true;
+  }
+  function upGo() {
+    if (upBusy) return;
+    if (upTyping()) {
+      /* לא מוותרים — רק ממתינים. `blur` מגיע ברגע שהוא מסיים. */
+      document.activeElement.addEventListener('blur', function () {
+        setTimeout(upGo, 120);
+      }, { once: true });
+      return;
+    }
+    upBusy = true;
+    upSay(true);
+    location.reload();
+  }
+
+  function update() {
+    if (upReady || !('serviceWorker' in navigator)) return;
+    upReady = true;
+    upBar();                       /* אולי בדיוק חזרנו מרענון */
+    upHad = !!navigator.serviceWorker.controller;
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!upHad) return;          /* השתלטות ראשונה אינה עדכון */
+      upGo();
+    });
+
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      var poke = function () { try { reg.update(); } catch (e) {} };
+      poke();
+      setInterval(poke, 3600000);
+      /* חזרה לאפליקציה אחרי שהייתה ברקע — שם רוב הזמן נשמר,
+         ושם `setInterval` של אייפון פשוט אינו רץ. */
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) poke();
+      });
+      /* עובד שכבר ממתין מגרסה קודמת — לדחוף אותו פנימה עכשיו.
+         `skipWaiting` ב-sw.js מטפל בחדשים; זה מטפל במי שכבר
+         נתקע בהמתנה אצל מי שלא לחץ על הפס הישן. */
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        reg.waiting.postMessage({ type:'SKIP_WAITING' });
+      }
+    })['catch'](function () {});
+  }
+
   return {
+    update: update,
     isIOS: isIOS, standalone: standalone, inApp: inApp,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },

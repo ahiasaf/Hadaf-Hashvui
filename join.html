@@ -2813,12 +2813,14 @@ if (/[?&]go=1\b/.test(location.search)) {
 
 /* מנוע הרקע. עד עכשיו הוא נרשם רק מהעמוד הראשי, ולכן מסך
    התלמיד לא נפתח בלי רשת — והדפדפן גם לא הציע להתקין אותו,
-   כי בלי מנוע רקע אין מה להתקין. */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js')['catch'](function () {});
-  });
-}
+   כי בלי מנוע רקע אין מה להתקין.
+
+   והרישום עובר דרך `APPX.update()`, שגם דואג שגרסה חדשה תיכנס
+   מעצמה. מסך התלמיד הוא המסך שיושב הכי הרבה זמן פתוח על מסך
+   הבית, וגרסה תקועה בו היא זו שהכי קשה לגלות. */
+window.addEventListener('load', function () {
+  if (window.APPX && APPX.update) APPX.update();
+});
 
 (function () {
   /* המסע הוא הדרך בעמוד הזה — ולכן הטופס יורד מהמסך כבר
