@@ -1665,7 +1665,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.42.0';
+var APP_VERSION = '8.43.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3962,6 +3962,135 @@ function parseContacts(text) {
   return out;
 }
 
+/* ============================================================
+   הודעה אחת, לכל ראש חטיבה בשמו.
+   ============================================================
+   הדרך הקודמת לשלוח הודעה לכל ראשי החטיבות הייתה להעתיק נוסח,
+   לפתוח וואטסאפ, לחפש איש קשר, להדביק, ולתקן ביד את השם
+   שבפתיחה — עשרים וארבע פעמים. מי שעושה את זה מאבד את המקום
+   באמצע, ושולח פעמיים לאחד ובכלל לא לאחר.
+
+   כאן זה נשען על מה שכבר קיים: במוקד השיחות יש שם, תפקיד
+   וטלפון לכל אחד. מדליקים את ההודעה, וכל כפתור וואטסאפ ברשימה
+   נושא אותה — עם השם הפרטי שלו בפתיחה, ועם קישור שנפתח כבר
+   על הישיבה שלו. מה שנשלח מסומן, כדי שאפשר לעצור באמצע
+   ולחזור.
+
+   ההודעה עצמה היא נוסח ככל נוסח אחר (`ui.blastWa`), ולכן היא
+   נערכת כאן, נשמרת במכשיר, ומתפרסמת עם שאר המלל.
+   ============================================================ */
+function blastOn()      { return Store.get('blastOn', false) === true; }
+function blastSetOn(v)  { Store.set('blastOn', !!v); renderCalls(); }
+function blastLog()     { return Store.get('blastLog', {}) || {}; }
+function blastKey(c, q) { return (c.name || '') + '|' + ((q && q.name) || ''); }
+function blastMark(key) {
+  var l = blastLog();
+  if (l[key]) delete l[key]; else l[key] = new Date().toISOString();
+  Store.set('blastLog', l);
+  setTimeout(renderCalls, 0);   /* אחרי שהקישור כבר נפתח */
+}
+function blastReset() {
+  if (!confirm('לאפס את הסימון של מי שכבר קיבל?')) return;
+  Store.set('blastLog', {});
+  renderCalls();
+}
+
+/* השם הפרטי בלבד. הגיליון כותב "הרב ישראל כהן", והפתיחה
+   "הרב הרב ישראל כהן היקר" היא בדיוק מה שמסגיר הודעה מוכנה. */
+function firstName(n) {
+  n = String(n == null ? '' : n)
+        .replace(/[\u200e\u200f\u202a-\u202e]/g, '').trim();
+  n = n.replace(/^(?:הרב|הרה[\u05f4"]ג|הר[\u05f4"]ר|הרה[\u05f4"]ח|רב|ר['\u05f3])\s+/, '');
+  return n.split(/\s+/)[0] || '';
+}
+
+/* לפי השעה עכשיו. "בוקר טוב" שנשלח בשמונה בערב הוא הודעה
+   שנכתבה מראש, וזה בדיוק מה שאנחנו מנסים שלא יורגש. */
+function waGreet() {
+  var h = new Date().getHours();
+  if (h < 11) return 'בוקר טוב';
+  if (h < 17) return 'צהריים טובים';
+  return 'ערב טוב';
+}
+
+/* הקישור נפתח כבר על הישיבה שלו — `?m=` בוחר אותה. ראש חטיבה
+   שאינו צריך לחפש את עצמו ברשימה הוא ראש חטיבה שמצטרף. */
+function blastUrl(c) {
+  var inst = instByName(c.key || c.name);
+  var base = joinUrl('').replace('join.html', '');
+  return inst ? base + '?m=' + encodeURIComponent(inst.code) : base;
+}
+function blastText(c, q) {
+  var inst = instByName(c.key || c.name);
+  return fill(textGet('ui.blastWa'), {
+    name:  firstName((q && q.name) || c.name),
+    greet: waGreet(),
+    inst:  (inst && inst.name) || c.name || '',
+    url:   blastUrl(c)
+  });
+}
+
+function blastCard(list) {
+  var raw = textGet('ui.blastWa'), on = blastOn();
+  var d = CFG.texts || {};
+  var changed = d['ui.blastWa'] != null && d['ui.blastWa'] !== belowText('ui.blastWa');
+  var log = blastLog(), sent = 0, total = 0, noName = [];
+  list.forEach(function (c) {
+    var q = mainOf(c);
+    if (!q || !q.phone) return;
+    total++;
+    if (log[blastKey(c, q)]) sent++;
+    if (!firstName(q.name)) noName.push(c.name);
+  });
+
+  /* התצוגה המקדימה היא על אדם אמיתי מהרשימה ולא על "ישראל
+     ישראלי": שם שיצא עקום ייראה כאן, לפני שהוא נשלח. */
+  var first = null;
+  for (var i = 0; i < list.length; i++) {
+    var q0 = mainOf(list[i]);
+    if (q0 && q0.phone) { first = { c:list[i], q:q0 }; break; }
+  }
+  var peek = first
+    ? String(blastText(first.c, first.q)).split('\n').slice(0, 3).join('\n')
+    : '';
+
+  return '<div class="card" style="margin-bottom:11px">' +
+    '<div class="row" style="padding:0 0 8px"><div><b>הודעה לכולם</b>' +
+    (changed ? ' <span style="color:var(--gold)">\u2022</span>' : '') +
+    '<div class="sub">כל כפתור וואטסאפ למטה ישלח אותה, בשמו של מי שמחייגים אליו</div>' +
+    '</div><button class="sw' + (on ? ' on' : '') +
+    '" onclick="blastSetOn(' + (on ? 'false' : 'true') + ')" ' +
+    'aria-label="הודעה לכולם"></button></div>' +
+
+    (on
+      ? '<div class="done-box" style="margin:0 0 10px">נשלחו ' + sent +
+        ' מתוך ' + total +
+        (sent ? ' \u00b7 <a href="#" onclick="blastReset();return false">איפוס הסימון</a>' : '') +
+        '</div>'
+      : '') +
+
+    '<textarea rows="8" onchange="admTextSet(\'ui.blastWa\',this.value);renderCalls()">' +
+    esc(raw) + '</textarea>' +
+    '<p class="h" style="margin:6px 0 0">' +
+    '<b>{name}</b> השם הפרטי \u00b7 <b>{greet}</b> בוקר טוב לפי השעה \u00b7 ' +
+    '<b>{inst}</b> שם הישיבה \u00b7 <b>{url}</b> הקישור, פתוח כבר על הישיבה שלו. ' +
+    'העריכה נשמרת במכשיר עד <b>פרסום</b>.</p>' +
+
+    (peek
+      ? '<div class="cond" style="margin-top:10px"><b>כך זה ייפתח אצל ' +
+        esc(first.c.name) + ':</b><br>' +
+        esc(peek).replace(/\n/g, '<br>') + '</div>'
+      : '') +
+
+    (noName.length
+      ? '<div class="msg" style="margin-top:8px;color:var(--stop)">' +
+        '<b>בלי שם פרטי:</b> ' + esc(noName.slice(0, 4).join(' \u00b7 ')) +
+        (noName.length > 4 ? ' ועוד ' + (noName.length - 4) : '') +
+        ' \u2014 הפתיחה תצא חסרה. אפשר לתקן בכרטיס שלהם.</div>'
+      : '') +
+    '</div>';
+}
+
 function renderCalls() {
   var list = contacts();
   var el = document.getElementById('calls-body');
@@ -4022,6 +4151,11 @@ function renderCalls() {
        '" onclick="callFilter(\'joined\')"><b>' + counts.joined + '</b><span>הצטרפו</span></div>' +
        '</div>';
 
+  /* ההודעה לכולם — מעל הרשימה, כי היא מה שבאים לעשות כאן היום.
+     היא מחושבת על כל הרשימה ולא על המסנן: "נשלחו 7 מתוך 9"
+     שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
+  h += blastCard(list);
+
   // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
   var shown = list.map(function (c, i) { return { c:c, i:i }; })
     .filter(function (o) {
@@ -4064,12 +4198,29 @@ function renderCalls() {
     }
 
     /* הכפתורים נושאים את השם, כדי שלא יהיה ספק לאן הם מחייגים */
+    /* וכשההודעה לכולם דלוקה — הם נושאים גם אותה, כתובה כבר
+       בשמו. `?text=` פותח את וואטסאפ ישירות על השיחה איתו, בלי
+       שלב בחירת איש קשר: מהיר יותר, וגם מוציא מהמשחק את הטעות
+       של שליחה לאדם הלא נכון.
+
+       רק הכפתור הראשי נושא אותה. המספר הנוסף הוא לרוב מזכירה
+       או קו נוסף של אותו אדם, ושתי פניות אישיות זהות לאותו
+       אדם הן בדיוק מה שמסגיר דיוור. */
+    var blOn = blastOn(), blKey = blastKey(c, me);
+    var blDone = !!blastLog()[blKey];
+    var blTxt = (blOn && me) ? '?text=' + encodeURIComponent(blastText(c, me)) : '';
     var dial = function (name, ph, faint) {
+      var live = blOn && !faint;
       return '<div class="acts"' + (faint ? ' style="margin-top:8px"' : '') + '>' +
         '<a class="call"' + (faint ? ' style="opacity:.82"' : '') +
         ' href="tel:' + digits(ph) + '">📞 ' + esc(name) + '</a>' +
         '<a class="wa"' + (faint ? ' style="opacity:.82"' : '') +
-        ' href="https://wa.me/' + waNum(ph) + '" target="_blank" rel="noopener">וואטסאפ</a></div>';
+        ' href="https://wa.me/' + waNum(ph) + (live ? blTxt : '') +
+        '" target="_blank" rel="noopener"' +
+        (live ? ' onclick="blastMark(this.getAttribute(\'data-bk\'))" data-bk="' +
+                esc(blKey) + '"' : '') + '>' +
+        (live ? (blDone ? '✓ נשלחה' : 'שליחת ההודעה')
+              : 'וואטסאפ') + '</a></div>';
     };
 
     if (me && me.phone) {
