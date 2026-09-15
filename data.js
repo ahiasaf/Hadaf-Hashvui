@@ -65,7 +65,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.49.0';
+var DAF_REV = '8.50.0';
 
 /* "הסוגיה היומית" — החוברת הדיגיטלית.
 
@@ -260,29 +260,50 @@ var TRACKS = [
    ------------------------------------------------------------ */
 var INSTITUTIONS = [
   { code:'avir',    name:'יב"ע אביר יעקב',            last:true,  joined:false  },
-  { code:'ohel',    name:'יב"ע אהל שלמה',             last:false, joined:false },
-  { code:'oretzion',name:'יב"ע אור עציון',            last:false, joined:false },
+  { code:'ohel',    name:'יב"ע אהל שלמה',             last:false, joined:false,
+    head:'יגאל בוטוש' },
+  { code:'oretzion',name:'יב"ע אור עציון',            last:false, joined:false,
+    head:'הרב נחמיה ארנטל' },
   { code:'baryohai',name:'יב"ע בר יוחאי',             last:false, joined:true },
-  { code:'givat',   name:'יב"ע גבעת שמואל',           last:true,  joined:true  },
-  { code:'hadarom', name:'יב"ע הדרום',                last:true,  joined:true  },
-  { code:'halihot', name:'יב"ע הליכות עולם — שומרון', last:false, joined:false },
-  { code:'harel',   name:'יב"ע הראל חולון',           last:true,  joined:true  },
-  { code:'hadera',  name:'יב"ע חדרה',                 last:true,  joined:true  },
-  { code:'harish',  name:'יב"ע חריש',                 last:false, joined:false },
-  { code:'yavne',   name:'יב"ע יבנה',                 last:true,  joined:true  },
-  { code:'lapid',   name:'יב"ע לפיד תורת נחום',       last:false, joined:true },
-  { code:'binyamin',name:'יב"ע מטה בנימין',           last:false, joined:false },
-  { code:'neve',    name:'יב"ע נווה הרצוג',           last:true,  joined:true  },
-  { code:'nahal',   name:'יב"ע נחל יצחק — נחלים',     last:false, joined:false },
-  { code:'nertamid',name:'יב"ע נר תמיד',              last:false, joined:true },
-  { code:'netivmeir',name:'יב"ע נתיב מאיר',           last:false, joined:false },
-  { code:'netivot', name:'יב"ע נתיבות חיים',          last:false, joined:false },
-  { code:'eli',     name:'יב"ע עלי',                  last:false, joined:false },
-  { code:'kiryat',  name:'יב"ע קרית הרצוג',           last:false, joined:true },
-  { code:'rishon',  name:'יב"ע ראשל"צ',               last:false, joined:true },
-  { code:'raanana', name:'יב"ע רעננה',                last:true,  joined:true  },
+  { code:'givat',   name:'יב"ע גבעת שמואל',           last:true,  joined:true,
+    head:'אלעזר אוליאל' },
+  { code:'hadarom', name:'יב"ע הדרום',                last:true,  joined:true,
+    head:'הרב אלעד לסרי' },
+  { code:'halihot', name:'יב"ע הליכות עולם — שומרון', last:false, joined:false,
+    head:'הרב מנור עמרמי' },
+  { code:'harel',   name:'יב"ע הראל חולון',           last:true,  joined:true,
+    head:'הרב חיים גורן' },
+  { code:'hadera',  name:'יב"ע חדרה',                 last:true,  joined:true,
+    head:'הרב שלמה זוננשטיין' },
+  { code:'harish',  name:'יב"ע חריש',                 last:false, joined:false,
+    head:'הרב רז לגזיאל' },
+  { code:'yavne',   name:'יב"ע יבנה',                 last:true,  joined:true,
+    head:'אלחנן אפטרבוט' },
+  { code:'lapid',   name:'יב"ע לפיד תורת נחום',       last:false, joined:true,
+    head:'הרב שלום צבי קרל' },
+  { code:'binyamin',name:'יב"ע מטה בנימין',           last:false, joined:false,
+    head:'יונתן מרמור' },
+  { code:'neve',    name:'יב"ע נווה הרצוג',           last:true,  joined:true,
+    head:'מני כהן' },
+  { code:'nahal',   name:'יב"ע נחל יצחק — נחלים',     last:false, joined:false,
+    head:'הרב ברגר אסף' },
+  { code:'nertamid',name:'יב"ע נר תמיד',              last:false, joined:true,
+    head:'רויטל פישר' },
+  { code:'netivmeir',name:'יב"ע נתיב מאיר',           last:false, joined:false,
+    head:'הרב נועם ברנדל' },
+  { code:'netivot', name:'יב"ע נתיבות חיים',          last:false, joined:false,
+    head:'אליאור אוחנה' },
+  { code:'eli',     name:'יב"ע עלי',                  last:false, joined:false,
+    head:'הרב נריה מימון' },
+  { code:'kiryat',  name:'יב"ע קרית הרצוג',           last:false, joined:true,
+    head:'הרב יואב קרוטהמר' },
+  { code:'rishon',  name:'יב"ע ראשל"צ',               last:false, joined:true,
+    head:'ליטל צימניס' },
+  { code:'raanana', name:'יב"ע רעננה',                last:true,  joined:true,
+    head:'הרב אהרן ישורון' },
   { code:'tapuah',  name:'יב"ע תפוח / מערב השומרון',  last:false, joined:true },
-  { code:'tikvot',  name:'יב"ע תקוות יעקב',           last:false, joined:false }
+  { code:'tikvot',  name:'יב"ע תקוות יעקב',           last:false, joined:false,
+    head:'בועז מנצורה' }
 ];
 
 /* ------------------------------------------------------------
