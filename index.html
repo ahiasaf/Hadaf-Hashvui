@@ -1724,7 +1724,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.55.0';
+var APP_VERSION = '8.56.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4782,6 +4782,20 @@ function renderCalls() {
               }).length + ' בלי טלפון'
             : '') + '</div>';
 
+  /* ============================================================
+     חיפוש — כי עשרים וארבע ישיבות הן רשימה שגוללים בה.
+     ============================================================
+     "אני מוצא את עצמי כל פעם מחפש איזה מוסד." מחפשים לפי מה
+     שזוכרים: לפעמים שם הישיבה, ולפעמים שם הרב שדיברת איתו
+     אתמול. שניהם עובדים כאן, וגם התפקיד.
+
+     מילה־מילה ולא מחרוזת אחת, מאותה סיבה שבעורך המלל: מי
+     שהקליד "הראל חולון" לא אמור להיכשל כי בגיליון כתוב
+     "יב״ע הראל — חולון". */
+  h += '<div class="fld" style="margin:10px 0 0">' +
+       '<input type="text" id="call-find" placeholder="חיפוש ישיבה או שם\u2026" ' +
+       'oninput="callFind(this.value)" value="' + esc(state.find || '') + '"></div>';
+
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
        '" onclick="callFilter(\'all\')"><b>' + counts.all + '</b><span>הכל</span></div>' +
@@ -4805,15 +4819,31 @@ function renderCalls() {
   h += rmCard();
 
   // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
+  var words = String(state.find || '').trim().split(/\s+/).filter(Boolean);
+  var hits = function (c) {
+    if (!words.length) return true;
+    var hay = (c.name || '') + ' ' +
+              peopleOf(c).map(function (q) {
+                return (q.name || '') + ' ' + (q.role || '');
+              }).join(' ');
+    for (var w = 0; w < words.length; w++) {
+      if (hay.indexOf(words[w]) < 0) return false;
+    }
+    return true;
+  };
   var shown = list.map(function (c, i) { return { c:c, i:i }; })
     .filter(function (o) {
+      if (!hits(o.c)) return false;
       if (state.filter === 'all')  return true;
       if (state.filter === 'last') return !!o.c.last;
       return o.c.stage === state.filter;
     })
     .sort(function (a, b) { return (b.c.last ? 1 : 0) - (a.c.last ? 1 : 0); });
 
-  if (!shown.length) h += '<div class="msg">' +
+  if (!shown.length && words.length) {
+    h += '<div class="msg">לא נמצאה ישיבה או שם שמתאים ל\u201c' +
+         esc(state.find) + '\u201d.</div>';
+  } else if (!shown.length) h += '<div class="msg">' +
     (state.filter === 'last'
       ? 'אף שם ברשימה לא זוהה כישיבה שהייתה בתשפ"ו. בדקו ששמות ' +
         'הישיבות בגיליון זהים לאלה שבמסך "מוסדות".'
@@ -4884,7 +4914,12 @@ function renderCalls() {
       h += '<button class="chip ' + s.c + (c.stage === s.k ? ' on' : '') +
            '" onclick="setStage(' + i + ',\'' + s.k + '\')">' + s.t + '</button>';
     });
-    h += '</div><textarea rows="1" placeholder="הערה מהשיחה…" ' +
+    /* שלוש שורות ולא אחת, וגדלה עם מה שנכתב. תיבה בגובה שורה
+       הופכת כל הערה ארוכה לחלון הצצה — וההערות האלה הן התיעוד
+       היחיד של השיחה. `oninput` מרחיב בלי לצייר מחדש: ציור
+       מחדש באמצע הקלדה מאבד את הסמן. */
+    h += '</div><textarea rows="3" placeholder="הערה מהשיחה…" ' +
+         'oninput="noteGrow(this)" ' +
          'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></div>';
   });
 
@@ -4897,8 +4932,26 @@ function renderCalls() {
        (Store.get('callJournal', []) || []).length + ')</button>' +
        '<button class="btn g" onclick="wipeContacts()">מחיקת הרשימה מהמכשיר</button>';
   el.innerHTML = h;
+  /* הערה ארוכה שכבר נכתבה נפתחת במלואה, ולא בשלוש שורות עם
+     גלילה פנימית. */
+  var ta = el.querySelectorAll('.ct textarea');
+  for (var z = 0; z < ta.length; z++) noteGrow(ta[z]);
 }
 function callFilter(f) { state.filter = f; renderCalls(); }
+/* החיפוש חי בזיכרון בלבד — הוא אינו הגדרה ואינו אמור לשרוד
+   רענון. ציור מחדש מאבד את הפוקוס, ולכן הוא מוחזר. */
+function callFind(v) {
+  state.find = v;
+  renderCalls();
+  var el = document.getElementById('call-find');
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+/* התיבה גדלה עם מה שנכתב בה, עד גבול שממנו גוללים. */
+function noteGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 260) + 'px';
+}
 function importContacts() {
   var t = document.getElementById('paste').value;
   var parsed = parseContacts(t);
