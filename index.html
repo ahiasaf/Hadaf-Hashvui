@@ -1832,8 +1832,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="getapp.js"></script>
 <script src="guide.js"></script>
 <script src="ask.js"></script>
+<script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.69.0';
+var APP_VERSION = '8.70.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2757,8 +2758,6 @@ function joinUrl(code) {
    של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
 function dadUrl() { return joinUrl('') + '?for=dad'; }
 
-/* ההצגה לראשי החטיבות. אותו בסיס, קובץ אחר. */
-function showUrl() { return joinUrl('').replace('join.html', 'matana.html'); }
 
 /* עמוד הנחיתה של הצוות. נושא את קוד הגישה כשיש כזה, ולכן הוא
    מכיל גם את הלוח — הוא נשלח לר"מים בלבד. בלי קוד הוא עדיין
@@ -3601,7 +3600,12 @@ function thanksHtml(code, name) {
   return '<div class="thx">' +
     (UI.thanksH ? '<h3>' + esc(UI.thanksH) + '</h3>' : '') +
     paras(UI.thanksBody) +
+    /* **הלחיצה נרשמת.** `no-cors` אינו רלוונטי כאן — וואטסאפ
+       נפתח בלשונית אחרת ולעולם לא יחזור לספר. מה שאנחנו כן
+       יודעים הוא שהוא לחץ, וזה מה שהמסע צריך כדי להתקדם.
+       ראו `trip.js`. */
     '<a class="thx-go" target="_blank" rel="noopener" ' +
+    'onclick="try{localStorage.setItem(\'df:ramsWa\',\'1\')}catch(e){}" ' +
     'href="https://wa.me/?text=' + encodeURIComponent(wa) + '">' +
     esc(UI.thanksGo) + '</a>' +
     '<p class="thx-how">' + esc(UI.thanksHow) + '</p>' +
@@ -7006,34 +7010,31 @@ function admWaCard() {
 }
 
 /* ============================================================
-   ההצגה לראשי החטיבות — לפתוח, ולשלוח.
+   המסע — לפתוח, ולשלוח.
    ============================================================
-   "מחר יש לי מפגש עם כל ראשי החטיבות. אני רוצה להראות להם
-   בעיניים את המתנה שהם קיבלו... וגם שאוכל אחר כך לשלוח את
-   זה לעיון בבית."
+   "אני רוצה שכאשר אני שולח את זה, אם אחד מהם ירצה להשתמש
+   בכפתור מסוים הוא יפעל לו — זאת אומרת זה לא יהיה רק הדגמה
+   ריקה."
 
-   **אותו קישור עושה את שני הדברים.** ההצגה בנויה כך שכל מסך
-   נושא גם את המשפט שמסביר אותו, ולכן היא נקראת לבד בדיוק
-   כמו שהיא מוצגת — ואין מסמך שני שצריך לעדכן בנפרד.
-
-   הכתובת אינה מוצגת כאן כטקסט. היא יוצאת דרך כפתור ההעתקה,
-   שזה מה שעושים איתה.
+   ולכן זו אינה מצגת אלא האפליקציה עצמה, עם רצועה שמלווה.
+   הקישור נושא `?masa=1`, ומי שפותח אותו מקבל את המסע; כל
+   השאר נכנסים לאפליקציה כרגיל ואינם רואים דבר.
    ============================================================ */
+function tripUrl() { return joinUrl('').replace('join.html', '') + '?masa=1'; }
+
 function admShowCard() {
   return '<div class="adm-card" style="margin-bottom:11px">' +
-    '<h4>ההצגה לראשי החטיבות</h4>' +
-    '<p class="h">עשרה מסכים, אחד בכל פעם: הדף האמיתי מנגן את ' +
-    'עצמו, מה יש בו, המספרים, ההצטרפות, הלוח — ובסוף קוד סריקה ' +
-    'ושלוש המשימות. החלקה או חצים.<br>' +
-    '<b>ואותו קישור נשלח אחר כך לעיון בבית</b> — כל מסך נושא גם ' +
-    'את המשפט שמסביר אותו.<br>' +
-    'כל מילה בה נערכת על המסך שלה — "מה מוצג" ← "מלל" ← ' +
-    '"ההצגה לראשי החטיבות".</p>' +
+    '<h4>המסע — לראשי החטיבות</h4>' +
+    '<p class="h">לא מצגת: <b>האפליקציה עצמה</b>, עם רצועה בראש ' +
+    'המסך שאומרת בכל שלב מה לעשות. שבעה שלבים — היכרות, ' +
+    'הצטרפות, שליחה לר"מים, התקנה, ואז מה שקיבלו.<br>' +
+    'המשימות מתקדמות מעצמן כשהן נעשות, וכל כפתור אמיתי ועובד.<br>' +
+    'הנוסח נערך ב"מה מוצג" ← "מלל" ← "המסע".</p>' +
     '<a class="btn p" style="margin:10px 0 0;width:100%;box-sizing:border-box;' +
     'text-decoration:none;display:block;text-align:center" target="_blank" ' +
-    'rel="noopener" href="' + esc(showUrl()) + '">פתיחת ההצגה</a>' +
+    'rel="noopener" href="' + esc(tripUrl()) + '">פתיחת המסע</a>' +
     '<button class="btn g" style="margin:8px 0 0;width:100%" ' +
-    'onclick="copyAny(this, showUrl())">העתקת הקישור לשליחה</button>' +
+    'onclick="copyAny(this, tripUrl())">העתקת הקישור לשליחה</button>' +
     '</div>';
 }
 
@@ -7696,8 +7697,8 @@ function admText(el) {
        אינו מצויר כלל — ואי אפשר להקיש על נוסח שאינו על המסך. */
     ['עמוד הצוות', 'מה שהר\u05f4מים מקבלים \u2014 היעד, ההנחיות והסיפור',
      'location.href=\'tzevet.html?tedit=1\''],
-    ['ההצגה לראשי החטיבות', 'עשרת המסכים שמציגים בפגישה ושולחים אחריה',
-     'location.href=\'matana.html?tedit=1\'']
+    ['המסע', 'הרצועה שמלווה ראש חטיבה בתוך האפליקציה',
+     'location.href=\'index.html?masa=1&tedit=1\'']
   ];
 
   el.innerHTML =

@@ -54,12 +54,12 @@ var TX = (function () {
               headf:window.HEAD_ASK_F,
               /* מדריך ההתקנה המאויר. */
               guide:window.GUIDE,
-              /* ההצגה לראשי החטיבות — /matana. */
-              show:window.SHOW,
               /* אזור הניהול האישי — בעמוד הראשי ובעמוד הצוות. */
               panel:window.PANEL,
               /* שלוש דרכי הלימוד — ראו ways.js. */
-              ways:window.WAYS_T };
+              ways:window.WAYS_T,
+              /* המסע — ראו trip.js. */
+              trip:window.TRIP };
     return ROOTS;
   }
   function ref(k) {
