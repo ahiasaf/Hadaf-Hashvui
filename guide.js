@@ -98,7 +98,8 @@ var GUIDE_UI = (function () {
     s2e: { src:'guidepics/s2e.webp', x:15.5,y:38, r:7.6 },
     s3:  { src:'guidepics/s3.webp',  x:88,  y:90, r:5.4 },
     s4:  { src:'guidepics/s4.webp',  x:14,  y:15, r:7.2 },
-    s5:  { src:'guidepics/s5.webp',  x:45,  y:45, r:26 }
+    /* התמונה חתוכה עד לאייקון עצמו, ולכן הטבעת מקיפה אותו. */
+    s5:  { src:'guidepics/s5.webp',  x:50,  y:40, r:36 }
   };
 
   function pic(p) {
