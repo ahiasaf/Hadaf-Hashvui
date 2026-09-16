@@ -84,7 +84,14 @@ def check_dupe_vars():
             continue
         seen, dupes = {}, []
         for i, line in enumerate(read(f).split('\n'), 1):
-            m = re.match(r'var ([A-Za-z_$][\w$]*)\s*=', line)
+            # `var X =` וגם `function X(` — שניהם מצהירים על אותו שם
+            # גלובלי, והשני דורס את הראשון. זה קרה בפועל: `myInst`
+            # היה מחרוזת (קוד הישיבה של הרכז), ונוספה פונקציה באותו
+            # שם. ההצהרה של הפונקציה הורמה, ההשמה של המחרוזת רצה
+            # אחריה ודרסה אותה — וכל קריאה יצאה
+            # "myInst is not a function", בעמוד אחר לגמרי.
+            m = (re.match(r'var ([A-Za-z_$][\w$]*)\s*=', line) or
+                 re.match(r'function ([A-Za-z_$][\w$]*)\s*\(', line))
             if not m:
                 continue
             name = m.group(1)

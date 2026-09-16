@@ -882,6 +882,42 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .cta-top{margin:0 0 20px}
 .cta-top:empty{display:none}
 .cta-top .btn{margin:0}
+/* ============================================================
+   הכפתור שמוביל לאזור הניהול.
+   ============================================================
+   כפתור עם שורה שנייה בתוכו, ולא כפתור ומתחתיו הסבר: שם
+   האזור לבדו אינו אומר מה יש בו, והסבר שיושב מחוץ לכפתור
+   נקרא כמו הערת שוליים ולא כמו הבטחה של מה שייפתח. */
+.btn.pnl{display:block;width:100%;text-align:center;line-height:1.35}
+.btn.pnl small{display:block;font-size:.74rem;font-weight:700;
+  opacity:.82;margin-top:3px;letter-spacing:0}
+.brd .btn.pnl{margin-top:12px}
+
+/* ============================================================
+   אזור הניהול — מסך משלו.
+   ============================================================
+   שלושה פרקים, כל אחד עם כותרת ושורה שמסבירה מה הוא. הרווח
+   ביניהם גדול מהרגיל בכוונה: זה מסך שבאים אליו כדי לעשות
+   דבר אחד, ולא כדי לגלול. */
+.my-top{margin:4px 0 18px}
+.my-top b{display:block;font-size:1.28rem;font-weight:800;
+  letter-spacing:-.035em;color:var(--blue-d)}
+.my-top span{display:block;font-size:.85rem;font-weight:700;
+  color:var(--gold-t);margin-top:3px}
+.my-sec{margin-top:26px}
+.my-sec:first-of-type{margin-top:0}
+.my-sec.bare > div{margin-top:0}
+.my-sec h3{margin:0;font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.my-sec > p{margin:3px 0 11px;font-size:.82rem;font-weight:600;
+  color:var(--ink-3);line-height:1.55}
+.my-note{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r-s);padding:14px 16px;box-shadow:var(--sh-1)}
+.my-note b{display:block;font-size:.93rem;font-weight:800}
+.my-note.on b{color:var(--green-2)}
+.my-note span{display:block;font-size:.82rem;font-weight:600;
+  color:var(--ink-3);margin-top:4px;line-height:1.55}
+.my-note .btn{margin-top:12px;width:100%}
+
 /* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
 .brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
   color:var(--ink-3);line-height:1.55;text-align:start}
@@ -1603,28 +1639,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
            ראה, ולא שני דברים שנראים דומה. -->
       <div id="cta-top" class="cta-top"></div>
 
-      <!-- הלוח של הישיבה — רק אצל מי שכבר נרשם.
-
-           **ומעל הבאנר של התלמידים, לא בתחתית.** מי שכבר
-           הצטרף בא לראות מה קורה אצלו, ולא לקרוא שוב את
-           השכנוע — הלוח שלו הוא הדבר הראשון שצריך לפגוש
-           אותו. מי שעדיין לא הצטרף אינו רואה כאן דבר, ואצלו
-           הסדר לא השתנה כלל.
-
-           אזור משלו, כמו לתלמידים ולראשי החטיבות: שלושה
-           קהלים, שלושה צבעים. -->
-      <section class="sec-b band-c rv" id="coord" style="display:none">
-        <div class="zlabel"><span class="tag c" id="c-tag"></span>
-          <span id="c-sub"></span></div>
-        <!-- ההנחיה והבקשה האישית, למי שעדיין לא השלים אותן.
-             ריק אצל מי שסיים — ראו renderBoard(). -->
-        <div id="c-pend"></div>
-        <div id="board"></div>
-        <!-- מילה לתלמידי הישיבה. נפתח למי שהשלים את התהליך
-             האישי — ראו sayPaint(). -->
-        <div id="c-say" style="margin-top:14px"></div>
-      </section>
-
       <!-- שלב ב׳ · עולם התלמידים — הלוח הקריר, הסטייה היחידה -->
       <section class="sec-b band rv">
         <div class="zlabel"><span class="tag" id="stagetag">מה התלמידים יראו</span>
@@ -1648,6 +1662,29 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <div id="cta" style="margin-top:16px"></div>
       </section>
 
+      <!-- ============================================================
+           המוסד שלך — אחרון, וזה הסדר.
+           ============================================================
+           "מהמסך הראשי הפאנל של הלוח יורד בחזרה למטה... קודם יש
+           את לוח התוכנית, ואז מה שהתלמיד רואה, ואז ראשי
+           החטיבות, ואז המוסד הפרטי — מין סדר בראש, מהגדול
+           לקטן."
+
+           העמוד נקרא מהרחב אל הצר: התוכנית כולה, אחר כך מה
+           שכל תלמיד ברשת מקבל, אחר כך הרשת, ורק בסוף הישיבה
+           הזו. מי שעדיין לא הצטרף אינו רואה כאן דבר.
+
+           **ומה שיושב כאן הוא תקציר.** הלוח המפורט, ההודעות
+           והעדכונים עברו לאזור הניהול — ראו `renderMy()`. -->
+      <section class="sec-b band-c rv" id="coord" style="display:none">
+        <div class="zlabel"><span class="tag c" id="c-tag"></span>
+          <span id="c-sub"></span></div>
+        <!-- ההנחיה והבקשה האישית, למי שעדיין לא השלים אותן.
+             ריק אצל מי שסיים — ראו renderBoard(). -->
+        <div id="c-pend"></div>
+        <div id="board"></div>
+      </section>
+
       <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
       <div id="t-foot-wrap"></div>
 
@@ -1656,6 +1693,20 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         <a href="accessibility.html">הצהרת נגישות</a> · <a href="info.html">פרטים</a>
       </footer>
 
+    </div>
+
+    <!-- ============================================================
+         אזור הניהול האישי.
+         ============================================================
+         "אנחנו צריכים לייצר חוויה נפרדת: יש את האפליקציה, ויש
+         את הניהול."
+
+         שלושה דברים, ובסדר הזה: הלוח אומר מה קורה, ההודעה היא
+         מה שעושים עם זה, והעדכונים הם הצנוע מבין השלושה ולכן
+         אחרון. ============================================ -->
+    <div id="v-my" class="view">
+      <button class="back" onclick="show('home')" id="my-back">→ חזרה</button>
+      <div id="my-body"></div>
     </div>
 
     <!-- ===== מסלול הרשמה ===== -->
@@ -1769,7 +1820,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.67.0';
+var APP_VERSION = '8.68.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1874,6 +1925,7 @@ function show(v) {
   if (v === 'insts')  renderInsts();
   if (v === 'calls')  renderCalls();
   if (v === 'reg')    renderReg();
+  if (v === 'my')     renderMy();
   if (v === 'gate')   { teamCode = ''; paintPins();
                         document.getElementById('gate-msg').textContent = ''; }
   paintAdmChip();
@@ -2101,10 +2153,21 @@ function renderHome() {
   /* אותו כפתור, למעלה. בלי שורת המחיר שמתחתיו: שם הוא סוף
      מסלול שכנוע, וכאן הוא קיצור דרך למי שכבר החליט. ומי שכבר
      נרשם אינו רואה אותו — הוא היה מזמין אותו להירשם שוב. */
+  /* ============================================================
+     ומי שכבר נרשם מקבל כאן את הדרך פנימה.
+     ============================================================
+     "ברגע שהצטרף, כפתור ההצטרפות מתחלף בכפתור אחר."
+
+     קודם הוא פשוט נעלם, ואז ראש חטיבה שכבר הצטרף פתח את
+     האפליקציה ולא היה לו לאן ללכת — הוא היה גולל עד הסוף
+     כדי למצוא את הלוח שלו. עכשיו זה אותו מקום בדיוק, ומה
+     שיושב בו הוא מה שנכון לו עכשיו. */
   var top = document.getElementById('cta-top');
   if (top) {
-    top.innerHTML = mine ? '' :
-      '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>';
+    top.innerHTML = myInstRow()
+      ? '<button class="btn p pnl" onclick="show(\'my\')">' +
+        esc(PANEL.btn) + ' ←<small>' + esc(PANEL.btnSub) + '</small></button>'
+      : '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>';
   }
 
   /* הרצועה של ראשי החטיבות יושבת ב-HTML הסטטי, ולכן היא
@@ -3059,7 +3122,7 @@ function renderNet() {
   el.innerHTML = '<div class="nb-track">' + set + set + '</div>';
 }
 
-function boardHtml(code, name, hail) {
+function boardHtml(code, name, hail, compact) {
   var j = bJoin(code), n = j ? j.n : 0;
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
@@ -3141,11 +3204,106 @@ function boardHtml(code, name, hail) {
       esc(UI.cbBoard) + ' ←</a>'
     : '<div class="cond" style="margin-top:12px">' + esc(UI.cbShared) + '</div>';
 
+  /* ============================================================
+     **בתקציר אין את הקישור ואין את ההערה.**
+     ============================================================
+     במסך הבית הלוח הוא הצצה: כמה, מי הם, ומתי. מה שעושים עם
+     זה — הלוח המפורט, ההודעה לתלמידים, העדכונים — יושב באזור
+     הניהול, וכפתור אחד מוביל לכל השלושה. שני קישורים שמובילים
+     לשני מקומות שונים באותו כרטיס הם בדיוק מה שמפזר. */
+  if (compact) {
+    return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
+           '<div class="brd-hero">' + hero + '</div>' +
+           chips + bar +
+           '<button class="btn p pnl" onclick="show(\'my\')">' +
+           esc(PANEL.btn) + ' ←<small>' + esc(PANEL.btnSub) + '</small>' +
+           '</button></div>';
+  }
+
   /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
          '<div class="brd-hero">' + hero + '</div>' +
          chips + bar + full +
          '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
+}
+
+/* ============================================================
+   אזור הניהול האישי — הלוח, ההודעה, והעדכונים.
+   ============================================================
+   שלושה דברים שהיו מפוזרים על מסך הבית ועכשיו יושבים ביחד.
+   הסדר הוא סדר של שימוש: הלוח אומר **מה קורה**, ההודעה היא
+   **מה שעושים עם זה**, והעדכונים הם ההגדרה שנוגעים בה פעם
+   אחת — ולכן אחרונה ובלי כרטיס משלה.
+   ============================================================ */
+/* יש ישיבה לנהל? אותו תנאי בדיוק פותח את הכפתור ואת המסך —
+   כפתור שמוביל למסך שמחזיר אותך מיד הוא כפתור שבור. */
+function myInstRow() {
+  var code = myBoard();
+  return (code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0]) || null;
+}
+function renderMy() {
+  var el = document.getElementById('my-body');
+  if (!el) return;
+  var inst = myInstRow();
+  /* בלי ישיבה אין מה לנהל. מי שהגיע לכאן בטעות חוזר הביתה. */
+  if (!inst) { show('home'); return; }
+  var code = inst.code;
+
+  el.innerHTML =
+    '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
+    '<span>' + esc(inst.name) + '</span></div>' +
+
+    '<div class="my-sec"><h3>' + esc(PANEL.brdH) + '</h3>' +
+    '<p>' + esc(PANEL.brdSub) + '</p>' +
+    '<div id="my-brd"></div></div>' +
+
+    /* לכרטיס ההודעה יש כותרת משלו — `sayHtml()` — ולכן אין
+       לו כותרת שנייה כאן. שתי כותרות זו מעל זו על אותו
+       כרטיס נקראות כמו תקלה. */
+    '<div class="my-sec bare"><div id="my-say"></div></div>' +
+
+    '<div class="my-sec"><h3>' + esc(PANEL.noteH) + '</h3>' +
+    '<div id="my-note"></div></div>';
+
+  /* ============================================================
+     **הלוח של הבית מצויר קודם, גם כשלא רואים אותו.**
+     ============================================================
+     `renderBoard` הוא מה שמאתחל את `ASK` — ובלי זה `sayPaint`
+     שואל על משתמש שאין לו מפתח, מקבל "לא השלים", ומסתיר את
+     הכרטיס דווקא ממי שכן. האלמנטים שלו יושבים במסמך גם כשהמסך
+     שלהם אינו המסך הפעיל, ולכן זה בטוח וזול.
+
+     מי שנכנס לכאן ישירות מקישור — ולא דרך מסך הבית — הוא
+     בדיוק המקרה שנשבר בלעדיו. */
+  renderBoard();
+  document.getElementById('my-brd').innerHTML = boardHtml(code, inst.name);
+  sayPaint();
+  myNote();
+}
+
+/* ============================================================
+   העדכונים — הצנוע מבין השלושה.
+   ============================================================
+   מה שיש כאן הוא מצב ומתג, ולא לוח זמנים: בחירת ימים ושעות
+   קיימת היום לר"ם בלבד, בעמוד הצוות. להעתיק אותה לכאן בלי
+   שנשב על זה זה להבטיח מסך שלא נבדק בשטח.
+   ============================================================ */
+function myNote() {
+  var el = document.getElementById('my-note');
+  if (!el) return;
+  var on = window.APPX && APPX.perm && APPX.perm() === 'granted';
+  el.innerHTML =
+    '<div class="my-note' + (on ? ' on' : '') + '"><b>' +
+    esc(on ? PANEL.noteOn : PANEL.noteOff) + '</b>' +
+    '<span>' + esc(PANEL.noteSub) + '</span>' +
+    (on ? '' : '<button class="btn g" id="my-note-go">' +
+               esc(PANEL.noteGo) + '</button>') + '</div>';
+  var b = document.getElementById('my-note-go');
+  /* ההפעלה היא שלב 3 של הבקשה האישית — אותו קוד, ולא עותק
+     שני שיצא ממנו מסונכרן בחצי שנה. */
+  if (b) b.onclick = function () {
+    if (typeof ASK !== 'undefined' && ASK.at) ASK.at(3);
+  };
 }
 
 /* המספר עולה מאפס. זו התנועה היחידה שיש בה משמעות — היא
@@ -3323,7 +3481,9 @@ function sayWire() {
 }
 
 function sayPaint() {
-  var el = document.getElementById('c-say');
+  /* עברה ממסך הבית לאזור הניהול. `null` כשהאזור אינו פתוח —
+     ואז אין מה לצייר, וזה תקין. */
+  var el = document.getElementById('my-say');
   if (!el) return;
   /* בלי קוד גישה השליחה תידחה בשרת. כרטיס ששולח לשומקום הוא
      הבטחה שנשברת בשקט. */
@@ -3438,15 +3598,39 @@ function renderBoard(hail) {
      לכן הן ממתינות כאן, מעל הלוח, כל עוד התהליך האישי לא
      הושלם — ונעלמות ברגע שכן. אצל מי שסיים הלוח עומד לבדו,
      כמו שביקש. ============================================ */
-  var open = !(typeof ASK !== 'undefined' && ASK.seen && ASK.seen());
+  /* ============================================================
+     **קודם מאתחלים את `ASK`, ורק אז שואלים אותו.**
+     ============================================================
+     `ASK` יודע מי המשתמש רק אחרי `init` — עד אז המפתח שלו
+     ריק, וכל שאלה עליו ("האם השלים?") נענית בשלילה.
+
+     קודם `open` חושב לפני `init`, ולכן בציור הראשון הוא יצא
+     תמיד `true`: ראש חטיבה שסיים מזמן את התהליך ראה לרגע את
+     כרטיס ההנחיה ואת הבקשה האישית, והם נעלמו רק בציור הבא.
+     ומאז שהלוח וההודעה עברו למסך אחר, גם הכרטיס "מילה
+     לתלמידים" נעלם ממי שכן השלים.
+
+     שני מקומות נפרדים בתוך `#c-pend`: אחד ל-`ASK`, שאינו
+     נכתב מחדש ולכן החיבורים שלו שורדים, ואחד להנחיה — שנכתב
+     לפי התשובה האמיתית. `init` עצמו מסתיר את הפס למי שסיים,
+     ולכן אין מחיר בלהריץ אותו תמיד. */
   var wrap = document.getElementById('c-pend');
+  var open = true;
   if (wrap) {
-    wrap.innerHTML = open
-      ? thanksHtml(code, inst.name) + '<div id="ask-here"></div>' : '';
-    if (open) askSetup('ask-here');
+    /* **הבדיקה על העטיפה, לא על המסמך.** מסך ההרשמה שותל
+       `#ask-here` משלו ב-`#head-next`, ולכן חיפוש גלובלי מצא
+       אותו, דילג על בניית המקום כאן — ו-`#pend-say` לא היה
+       קיים כשניגשו אליו. */
+    if (!wrap.querySelector('#ask-here')) {
+      wrap.innerHTML = '<div id="pend-say"></div><div id="ask-here"></div>';
+    }
+    askSetup('ask-here');
+    open = !(typeof ASK !== 'undefined' && ASK.seen && ASK.seen());
+    var ps = wrap.querySelector('#pend-say');
+    if (ps) ps.innerHTML = open ? thanksHtml(code, inst.name) : '';
   }
-  document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail);
-  sayPaint();
+  /* תקציר בלבד. השאר עבר לאזור הניהול. */
+  document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail, 1);
 }
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
    שהלוח שלו נעלם הולך לשם ממילא. */

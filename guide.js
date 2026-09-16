@@ -84,15 +84,98 @@ var GUIDE_UI = (function () {
     return h;
   }
 
+  /* ============================================================
+     הסמלים האמיתיים של אייפון.
+     ============================================================
+     "אנחנו מנסים להעביר את ההסבר מהמלל לחזותי — שבן אדם יראה
+     את התמונה, יראה את המסך שלו, ויגיד: אה, הנה זה. בחלקיק
+     שנייה."
+
+     פס אפור במקום סמל אינו מקצר שום דבר — הוא רק מעביר את
+     העבודה בחזרה למילים. הסמלים כאן מצוירים בצורתם האמיתית
+     ובמקום שבו הם באמת יושבים על המסך, ומה שאינו רלוונטי
+     לשלב פשוט אינו מצויר.
+     ============================================================ */
+  var INK = 'var(--ink-2)';
+
+  /* סמל השיתוף — ריבוע פתוח למעלה וחץ שיוצא ממנו. */
+  function icShare(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M0 -6V5"/><path d="M-4 -2l4-4 4 4"/>' +
+      '<path d="M-6 0v7h12V0"/></g>';
+  }
+  /* הוספה למסך הבית — ריבוע עם פלוס בתוכו. */
+  function icAddHome(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.7" ' +
+      'stroke-linecap="round">' +
+      '<rect x="-7" y="-7" width="14" height="14" rx="3.5"/>' +
+      '<path d="M0 -3.5v7M-3.5 0h7"/></g>';
+  }
+  function icBookmark(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.7" ' +
+      'stroke-linejoin="round"><path d="M-5 -7h10v14l-5-4-5 4z"/></g>';
+  }
+  function icBook(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.7" ' +
+      'stroke-linejoin="round"><path d="M-7 -5h5a2 2 0 012 2v9a2 2 0 00-2-2h-5z"/>' +
+      '<path d="M7 -5H2a2 2 0 00-2 2v9a2 2 0 012-2h5z"/></g>';
+  }
+  function icPlus(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'stroke="' + col + '" stroke-width="1.8" stroke-linecap="round">' +
+      '<path d="M0 -6v12M-6 0h12"/></g>';
+  }
+  /* שלוש הנקודות, אופקיות. */
+  function icDots(x, y, gap, col) {
+    col = col || INK; gap = gap || 7;
+    return '<circle cx="' + (x - gap) + '" cy="' + y + '" r="2" fill="' + col + '"/>' +
+           '<circle cx="' + x + '" cy="' + y + '" r="2" fill="' + col + '"/>' +
+           '<circle cx="' + (x + gap) + '" cy="' + y + '" r="2" fill="' + col + '"/>';
+  }
+
+  /* ============================================================
+     האייקון שלנו — הדבר עצמו, ולא רמז אליו.
+     ============================================================
+     זה מה שהם מחפשים בסוף התהליך, ולכן זה חייב להיראות בדיוק
+     כמו מה שיופיע להם: ריבוע כחול כהה, ובתוכו הסמל העגול על
+     עיגול לבן. `LOGO_MARK` נטען בכל עמוד שטוען את הקובץ הזה;
+     בלעדיו נשאר ריבוע כחול, ולא ציור אחר של הלוגו. */
+  function appIcon(x, y, size) {
+    var r = size * 0.23, cx = x + size / 2, cy = y + size / 2;
+    var m = size * 0.82, mk = window.LOGO_MARK || '';
+    return '<rect x="' + x + '" y="' + y + '" width="' + size + '" height="' +
+      size + '" rx="' + r + '" fill="#0B2550"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + (m / 2) + '" fill="#fff"/>' +
+      (mk ? '<image href="' + mk + '" x="' + (cx - m * 0.33) + '" y="' +
+            (cy - m * 0.33) + '" width="' + (m * 0.66) + '" height="' +
+            (m * 0.66) + '" preserveAspectRatio="xMidYMid meet"/>' : '');
+  }
+
+  /* השורה שמקישים עליה — רקע זהב עדין מתחתיה. הטבעת אומרת
+     "הסמל הזה", והרקע אומר "כל השורה לחיצה", ושניהם ביחד הם
+     בדיוק מה שקורה באמת. */
+  function rowLit(x, y, w) {
+    return '<rect x="' + x + '" y="' + (y - 14) + '" width="' + w +
+      '" height="28" rx="8" fill="var(--gold)" opacity=".13"/>';
+  }
+
   /* ---------- שלב 1, אייפון חדש: הסרגל המכווץ ---------- */
   function barNew() {
     return page(50) +
-      /* הסרגל התחתון, כפי שהוא ב-iOS 26: גלולות נפרדות */
+      /* הסרגל התחתון של iOS 26: שלוש גלולות נפרדות, ושלוש
+         הנקודות בגלולה השמאלית. */
       '<rect x="24" y="288" width="34" height="26" rx="13" fill="#fff" ' +
-        'stroke="var(--rule)"/>' +
-      '<circle cx="34" cy="301" r="2" fill="var(--ink-2)"/>' +
-      '<circle cx="41" cy="301" r="2" fill="var(--ink-2)"/>' +
-      '<circle cx="48" cy="301" r="2" fill="var(--ink-2)"/>' +
+        'stroke="var(--rule)"/>' + icDots(41, 301, 7) +
       '<rect x="64" y="288" width="88" height="26" rx="13" fill="#fff" ' +
         'stroke="var(--rule)"/>' +
       '<rect x="76" y="298" width="64" height="6" rx="3" fill="#D9D2C4"/>' +
@@ -101,21 +184,29 @@ var GUIDE_UI = (function () {
       ring(41, 301, 22);
   }
 
-  /* ---------- שלב 2, אייפון חדש: התפריט ---------- */
+  /* ---------- שלב 2, אייפון חדש: התפריט שנפתח ----------
+     חמש השורות שבצילום, בסדר שלהן, עם הסמלים שלהן. "שיתוף"
+     היא הראשונה — וזו בדיוק הנקודה. */
   function menuNew() {
-    var rows = ['שיתוף', 'הוספה אל סימניות', 'כרטיסייה חדשה'];
-    var h = page(40) +
-      '<rect x="26" y="150" width="148" height="128" rx="16" fill="#fff" ' +
-        'stroke="var(--rule)"/>';
-    rows.forEach(function (t, i) {
-      var y = 172 + i * 38;
-      h += '<rect x="40" y="' + (y - 5) + '" width="' + (92 - i * 10) +
-           '" height="7" rx="3.5" fill="' + (i ? '#DED7C9' : 'var(--ink-2)') + '"/>' +
-           '<rect x="146" y="' + (y - 9) + '" width="14" height="14" rx="3" ' +
-           'fill="none" stroke="' + (i ? '#DED7C9' : 'var(--ink-2)') +
-           '" stroke-width="1.6"/>';
+    var rows = [
+      { w:34, ic:icShare },
+      { w:76, ic:icBookmark },
+      { w:68, ic:icBook },
+      { w:52, ic:icPlus }
+    ];
+    var h = page(36) +
+      '<rect x="22" y="150" width="156" height="152" rx="16" fill="#fff" ' +
+        'stroke="var(--rule)"/>' + rowLit(30, 174, 140);
+    rows.forEach(function (r, i) {
+      var y = 174 + i * 36, on = (i === 0), col = on ? INK : '#CFC7B6';
+      /* הכיתוב נצמד לימין, והסמל משמאלו — כמו בתפריט עברי. */
+      h += '<rect x="' + (162 - r.w) + '" y="' + (y - 4) + '" width="' + r.w +
+           '" height="7" rx="3.5" fill="' + col + '"/>' +
+           r.ic(44, y, 1, col);
+      if (i < rows.length - 1)
+        h += '<rect x="34" y="' + (y + 14) + '" width="132" height="1" fill="#EFEADF"/>';
     });
-    return h + ring(100, 168, 30);
+    return h + ring(44, 174, 15);
   }
 
   /* ---------- שלב 1, אייפון ישן: הסמל בסרגל ---------- */
@@ -123,75 +214,106 @@ var GUIDE_UI = (function () {
     return page(50) +
       '<rect x="20" y="286" width="160" height="30" rx="10" fill="#fff" ' +
         'stroke="var(--rule)"/>' +
-      /* סמל השיתוף: ריבוע וחץ כלפי מעלה */
-      '<path d="M100 294v13M95 299l5-5 5 5" fill="none" stroke="var(--ink-2)" ' +
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M92 302v7h16v-7" fill="none" stroke="var(--ink-2)" ' +
-        'stroke-width="2" stroke-linecap="round"/>' +
+      icShare(100, 301, 1.25) +
       '<rect x="30" y="297" width="40" height="6" rx="3" fill="#D9D2C4"/>' +
       '<rect x="134" y="297" width="34" height="6" rx="3" fill="#D9D2C4"/>' +
       ring(100, 301, 22);
   }
 
-  /* ---------- גיליון השיתוף, גלול אל "הוספה למסך הבית" ---------- */
+  /* ============================================================
+     גיליון השיתוף, גלול אל "הוספה למסך הבית".
+     ============================================================
+     בראשו האייקון שלנו והכתובת — כך הוא באמת נראה, וזה מה
+     שמאשר למי שמסתכל שהוא בגיליון הנכון. שורות האנשים
+     והאפליקציות מרומזות בלבד: הן קיימות על המסך, אבל הן לא
+     מה שמחפשים כאן, ולכן הן אפורות.
+     ============================================================ */
   function sheet() {
-    var h = '<rect x="16" y="90" width="168" height="236" rx="18" fill="#fff" ' +
+    var h = '<rect x="16" y="76" width="168" height="250" rx="18" fill="#fff" ' +
             'stroke="var(--rule)"/>' +
-            '<rect x="70" y="100" width="60" height="5" rx="2.5" fill="#DED7C9"/>';
-    /* שלוש שורות, והשלישית היא שלנו */
-    var rows = 3, i;
-    for (i = 0; i < rows; i++) {
-      var y = 130 + i * 44, on = (i === 2);
-      h += '<rect x="34" y="' + (y - 4) + '" width="' + (on ? 104 : 74) +
-           '" height="7" rx="3.5" fill="' + (on ? 'var(--ink-2)' : '#DED7C9') + '"/>' +
-           '<rect x="150" y="' + (y - 9) + '" width="16" height="16" rx="4" ' +
-           'fill="none" stroke="' + (on ? 'var(--ink-2)' : '#DED7C9') +
-           '" stroke-width="1.7"/>';
-      if (on) {
-        /* סימן הפלוס, כמו באייפון */
-        h += '<path d="M158 213v6M155 216h6" stroke="var(--ink-2)" ' +
-             'stroke-width="1.7" stroke-linecap="round"/>';
-      }
-    }
-    /* חץ גלילה — "צריך לגלול", וזה מה שאנשים מפספסים */
-    h += '<path class="gu-scroll" d="M100 262v22M92 276l8 8 8-8" fill="none" ' +
-         'stroke="var(--gold)" stroke-width="2.6" stroke-linecap="round" ' +
+            /* הכותרת: האייקון, השם, והכתובת */
+            appIcon(146, 88, 26) +
+            '<rect x="66" y="92" width="72" height="6" rx="3" fill="#CFC7B6"/>' +
+            '<rect x="88" y="104" width="50" height="5" rx="2.5" fill="#E3DDD0"/>';
+    /* שורת אנשים ושורת אפליקציות — מרומזות */
+    var i;
+    for (i = 0; i < 4; i++)
+      h += '<circle cx="' + (158 - i * 34) + '" cy="136" r="11" fill="#EFEADF"/>';
+    for (i = 0; i < 4; i++)
+      h += '<rect x="' + (147 - i * 34) + '" y="160" width="22" height="22" ' +
+           'rx="6" fill="#EFEADF"/>';
+    h += '<rect x="30" y="194" width="140" height="1" fill="#EFEADF"/>';
+    /* הרשימה. השורה שלנו אחרונה, והיא היחידה בצבע. */
+    var rows = [{ w:70, ic:icBookmark }, { w:56, ic:icPlus },
+                { w:96, ic:icAddHome, on:1 }];
+    rows.forEach(function (r, k) {
+      var y = 216 + k * 34, col = r.on ? INK : '#CFC7B6';
+      if (r.on) h += rowLit(28, y, 144);
+      h += '<rect x="' + (160 - r.w) + '" y="' + (y - 4) + '" width="' + r.w +
+           '" height="7" rx="3.5" fill="' + col + '"/>' +
+           r.ic(44, y, 1, col);
+    });
+    /* ============================================================
+       "צריך לגלול" — מצויר, ולא רק כתוב.
+       ============================================================
+       זה הדבר שהכי מפספסים: השורה אינה נראית עד שגוללים. החץ
+       יושב **מעל** הרשימה ומצביע פנימה — כלומר "היא נמצאת
+       למטה, תמשיכו". חץ מתחת לשורה המודגשת היה אומר את ההפך:
+       שצריך להמשיך *אחריה*. */
+    h += '<path class="gu-scroll" d="M100 198v9M95 203l5 5 5-5" fill="none" ' +
+         'stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round" ' +
          'stroke-linejoin="round"/>';
-    return h + ring(100, 218, 32);
+    return h + ring(44, 284, 15);
   }
 
-  /* ---------- חלון האישור ---------- */
+  /* ============================================================
+     חלון האישור.
+     ============================================================
+     ה-X משמאל, הכותרת באמצע, ו"הוספה" בכחול למעלה מימין —
+     בדיוק כמו בצילום. האייקון והשם מתחת, כי זה מה שמאשר
+     שמוסיפים את הדבר הנכון.
+     ============================================================ */
   function confirm() {
-    return '<rect x="16" y="96" width="168" height="150" rx="18" fill="#fff" ' +
+    return '<rect x="16" y="86" width="168" height="168" rx="18" fill="#fff" ' +
       'stroke="var(--rule)"/>' +
-      '<rect x="32" y="112" width="44" height="7" rx="3.5" fill="#DED7C9"/>' +
-      /* "הוסף" — למעלה מימין, כמו באייפון בעברית */
-      '<rect x="124" y="108" width="44" height="22" rx="11" fill="var(--blue)"/>' +
-      '<rect x="136" y="116" width="20" height="6" rx="3" fill="#fff"/>' +
-      /* האייקון שלנו, מרומז */
-      '<rect x="80" y="150" width="40" height="40" rx="10" fill="var(--blue)"/>' +
-      '<path d="M90 178c6-16 14-20 22-22" fill="none" stroke="#fff" ' +
-        'stroke-width="3" stroke-linecap="round"/>' +
-      '<rect x="62" y="204" width="76" height="7" rx="3.5" fill="#DED7C9"/>' +
-      ring(146, 119, 24);
+      /* X שמאלה */
+      '<circle cx="38" cy="106" r="11" fill="#F1EDE4"/>' +
+      '<path d="M34 102l8 8M42 102l-8 8" stroke="#8A8272" stroke-width="1.8" ' +
+        'stroke-linecap="round"/>' +
+      /* הכותרת */
+      '<rect x="72" y="103" width="56" height="7" rx="3.5" fill="#CFC7B6"/>' +
+      /* "הוספה" — כחול, למעלה מימין */
+      '<rect x="140" y="95" width="34" height="22" rx="11" fill="#0A84FF"/>' +
+      '<rect x="148" y="103" width="18" height="6" rx="3" fill="#fff"/>' +
+      '<rect x="30" y="132" width="140" height="1" fill="#EFEADF"/>' +
+      /* האייקון, השם, והכתובת */
+      appIcon(140, 142, 32) +
+      '<rect x="62" y="150" width="68" height="7" rx="3.5" fill="#CFC7B6"/>' +
+      '<rect x="46" y="168" width="84" height="5" rx="2.5" fill="#E3DDD0"/>' +
+      '<rect x="30" y="188" width="140" height="1" fill="#EFEADF"/>' +
+      /* המתג */
+      '<rect x="84" y="206" width="86" height="6" rx="3" fill="#E3DDD0"/>' +
+      '<rect x="32" y="200" width="34" height="19" rx="9.5" fill="#34C759"/>' +
+      '<circle cx="56" cy="209.5" r="7.5" fill="#fff"/>' +
+      ring(157, 106, 24);
   }
 
-  /* ---------- מסך הבית, והאייקון שנוסף ---------- */
+  /* ============================================================
+     מסך הבית, והאייקון שנוסף.
+     ============================================================
+     זה הרגע שבו הם צריכים לזהות משהו בשנייה, ולכן האייקון
+     כאן הוא האייקון — ולא ריבוע שמייצג אותו.
+     ============================================================ */
   function home() {
     var h = '', r, c;
     for (r = 0; r < 3; r++) {
       for (c = 0; c < 4; c++) {
-        var x = 30 + c * 36, y = 60 + r * 46;
-        var mine = (r === 1 && c === 1);
-        if (mine) continue;
-        h += '<rect x="' + x + '" y="' + y + '" width="28" height="28" rx="8" ' +
-             'fill="#E3DDD0"/>';
+        if (r === 1 && c === 1) continue;
+        h += '<rect x="' + (30 + c * 36) + '" y="' + (60 + r * 46) +
+             '" width="28" height="28" rx="8" fill="#E7E1D4"/>';
       }
     }
-    /* שלנו — במקום קבוע, וצבוע */
-    h += '<rect x="66" y="106" width="28" height="28" rx="8" fill="var(--blue)"/>' +
-         '<path d="M73 128c4-11 10-14 15-15" fill="none" stroke="#fff" ' +
-           'stroke-width="2.4" stroke-linecap="round"/>' +
+    h += appIcon(66, 106, 28) +
          '<rect x="62" y="140" width="36" height="5" rx="2.5" fill="#CFC7B6"/>';
     return h + ring(80, 120, 26);
   }

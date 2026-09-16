@@ -508,6 +508,27 @@ footer a{color:var(--ink-2);font-weight:800}
   line-height:1.6;text-align:start}
 /* הפינה נדלקת לרגע כשמגיעים אליה מהתראה — כדי שיֵדע על מה
    לחץ, ולא ינחת באמצע עמוד ארוך בלי סימן. */
+/* ============================================================
+   אזור הניהול — מסך בתוך מסך.
+   ============================================================
+   העמוד אינו בנוי מ"תצוגות", ולכן ההחלפה היא מחלקה אחת:
+   כשהאזור פתוח, כל השאר יורד. אותה תחושה של מסך שנפתח,
+   בלי מנגנון ניווט שלם לעמוד יחיד. */
+body.panel-on main > *:not(#panel){display:none}
+body.panel-on #panel{display:block}
+#pnl-go{margin:26px 0 0}
+.pnl-back{border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);
+  font:inherit;font-size:.84rem;font-weight:700;padding:9px 14px;border-radius:10px;
+  cursor:pointer;margin-bottom:4px}
+.btn.pnl{display:block;width:100%;text-align:center;line-height:1.35}
+.btn.pnl small{display:block;font-size:.74rem;font-weight:700;
+  opacity:.82;margin-top:3px;letter-spacing:0}
+#panel .my-top{margin:10px 0 20px}
+#panel .my-top b{display:block;font-size:1.28rem;font-weight:800;
+  letter-spacing:-.035em;color:var(--blue-d)}
+#panel .my-top span{display:block;font-size:.85rem;font-weight:700;
+  color:var(--gold-t);margin-top:3px}
+
 #my-sec.lit .mycard{border-color:var(--gold);
   box-shadow:0 0 0 3px rgba(192,143,43,.18),var(--sh-1)}
 #my-sec .mycard{transition:border-color .5s,box-shadow .5s}
@@ -644,6 +665,24 @@ footer a{color:var(--ink-2);font-weight:800}
        נפתחת אחרי שהתהליך הושלם, ומעל הלוח: הלוח אומר מה קורה,
        והפינה היא מה שהוא עושה עם זה. שני דברים בלבד, ושניהם
        שלו — מתי הוא מקבל, ומה הוא שולח. -->
+  <!-- ============================================================
+       אזור הניהול האישי.
+       ============================================================
+       "בעמוד של הר"ם יש את ההדגמה, ההנחיות והקישור לתלמידים —
+       וזה נשאר שם. ומתחת לזה יופיע כפתור הניהול."
+
+       אותה הפרדה שיש לראש החטיבה בעמוד הראשי: העמוד הזה הוא
+       מה שמשכנע ומסביר, והניהול הוא מה שעושים אחר כך. עד
+       עכשיו שניהם ישבו ברצף אחד, והר"ם שחזר לעמוד כדי לראות
+       את הלוח שלו היה גולל דרך כל ההסבר שהוא כבר קרא. -->
+  <div id="pnl-go" hidden>
+    <button class="btn b pnl" onclick="panelOn(1)" id="pnl-btn"></button>
+  </div>
+
+  <div id="panel" hidden>
+    <button class="pnl-back" onclick="panelOn(0)" id="pnl-back">→ חזרה</button>
+    <div class="my-top"><b id="pnl-t"></b><span id="pnl-i"></span></div>
+
   <section id="my-sec" hidden>
     <h2 class="sec" id="t-myH"></h2>
     <div id="my-when"></div>
@@ -662,6 +701,7 @@ footer a{color:var(--ink-2);font-weight:800}
          אינו כאן, כי הוא כבר יושב למעלה בתוך המשימה. -->
     <div id="brd"></div>
   </section>
+  </div>
 
   <hr>
   <footer>
@@ -1659,6 +1699,44 @@ function myShow() {
   var sec = $('my-sec'); if (!sec) return;
   sec.hidden = !(ramSeen() && ramNoted() && ramGet());
   if (!sec.hidden) myDraw();
+  panelGate();
+}
+
+/* ============================================================
+   אזור הניהול — שני מסכים בעמוד אחד.
+   ============================================================
+   העמוד אינו בנוי מ"תצוגות" כמו העמוד הראשי, ולכן ההחלפה
+   נעשית במחלקה אחת על ה-body: מה שאינו האזור נעלם, והאזור
+   עולה. אותה תחושה של מסך שנפתח, בלי לבנות מנגנון ניווט
+   שלם לעמוד אחד.
+   ============================================================ */
+function panelGate() {
+  var go = $('pnl-go'), pnl = $('panel');
+  if (!go || !pnl) return;
+  /* הכפתור מופיע רק למי שכבר עבר את התהליך — לפני זה אין לו
+     מה לנהל, וכפתור שמוביל לשני מסכים ריקים הוא הבטחה ריקה. */
+  var ready = ramSeen();
+  go.hidden = !ready;
+  var b = $('pnl-btn');
+  if (b && window.PANEL) {
+    b.innerHTML = esc(PANEL.btn) + ' ←<small>' + esc(PANEL.btnSub) + '</small>';
+  }
+  var t = $('pnl-t'), i = $('pnl-i');
+  if (t && window.PANEL) t.textContent = PANEL.title;
+  if (i) i.textContent = (instRow && instRow.name) || '';
+  var bk = $('pnl-back');
+  if (bk && window.PANEL) bk.textContent = '→ ' + PANEL.back;
+  if (!ready) panelOn(0);
+}
+
+function panelOn(on) {
+  var pnl = $('panel');
+  if (!pnl) return;
+  pnl.hidden = !on;
+  document.body.className = document.body.className.replace(/ ?panel-on/g, '') +
+                            (on ? ' panel-on' : '');
+  window.scrollTo(0, 0);
+  if (on) { drawBoard(); myDraw(); }
 }
 
 function myDraw() {
@@ -1836,18 +1914,16 @@ ASK.init({
    **גלילה ולא קפיצה.** מי שקופץ למקום חדש אינו יודע מאיפה
    הגיע; מי שנוסע אליו רואה שהעמוד המשיך, ושהלוח היה מחכה לו
    בקצה. */
+/* **סוף התהליך פותח את האזור.** קודם הוא גלל אל הלוח שבתחתית
+   העמוד; עכשיו הלוח יושב באזור, וגלילה אל משהו מוסתר אינה
+   מגיעה לשומקום — היא פשוט לא זזה. */
 function brdShow() {
   var sec = $('brd-sec'); if (!sec) return;
   var was = sec.hidden;
   sec.hidden = !ramSeen();
   drawBoard();
   myShow();
-  if (!sec.hidden && was) {
-    setTimeout(function () {
-      try { sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
-      catch (e) { sec.scrollIntoView(); }
-    }, 90);
-  }
+  if (!sec.hidden && was) setTimeout(function () { panelOn(1); }, 90);
 }
 
 (function () {
@@ -1875,6 +1951,9 @@ function myAnchor() {
   if (!/(^|#)my$/.test(location.hash)) return;
   var sec = $('my-sec');
   if (!sec || sec.hidden) { ramOpen(); return; }
+  /* ההתראה מובילה לפינה, והפינה יושבת עכשיו בתוך האזור —
+     ולכן קודם פותחים אותו, אחרת הקישור נוחת על מסך מוסתר. */
+  panelOn(1);
   setTimeout(function () {
     try { sec.scrollIntoView({ behavior:'smooth', block:'start' }); }
     catch (e) { sec.scrollIntoView(); }
