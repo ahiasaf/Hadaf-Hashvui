@@ -57,6 +57,12 @@ var TRIP_UI = (function () {
     });
   }
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  /* שורש האפליקציה. `cleanUrls` מגיש בלי סיומת, ולכן שתי
+     הצורות נחתכות — ראו את האזהרה ב-CLAUDE.md. */
+  function home() {
+    return location.href.split('#')[0].split('?')[0]
+      .replace(/\/(index|join|tzevet|board|learn)(\.html)?\/?$/, '/');
+  }
 
   /* ---------- המצב ---------- */
   function load() {
@@ -90,7 +96,28 @@ var TRIP_UI = (function () {
       done:function () { return !!ls('dfReg'); } },
     { k:'s2', sel:'.thx-go',
       done:function () { return ls('df:ramsWa') === '1'; } },
-    { k:'s3', sel:'#trip-here, .btn.pnl', hail:'s3done',
+    /* ============================================================
+       ולא "לחצו על אזור הניהול" — ישר אל הכפתור עצמו.
+       ============================================================
+       "בוא נדלג על הכל ונשים אותו ישר במסך שבו רשום 'אנחנו
+       רוצים לאפשר לך להיות מעודכן', ותכוון אותו לכפתור 'אני
+       רוצה לקבל עדכונים'."
+
+       `enter` הוא מה שפותח את המסך הזה בעצמנו. מדריך שמבקש
+       לפתוח שלוש דלתות כדי להגיע להוראה הוא שלושה מקומות
+       לאבד בהם אנשים.
+       ============================================================ */
+    { k:'s3', sel:'#r-go, #r-note, #r-next', hail:'s3done',
+      enter:function () {
+        /* המסך הזה חי בעמוד הראשי בלבד. מי שעומד בעמוד אחר
+           כשהשלב מתחיל מקבל הוראה שמצביעה על כפתור שאינו
+           שם — ולכן מחזירים אותו, ולא משאירים אותו תוהה. */
+        if (typeof show === 'function' && typeof myInstRow === 'function') {
+          if (myInstRow()) show('my');
+          return;
+        }
+        location.href = home() + '?masa=1';
+      },
       done:function () {
         return !!(window.APPX && APPX.installed && APPX.installed());
       } },
@@ -163,8 +190,18 @@ var TRIP_UI = (function () {
 
          זה `#howto.lit` שבעמוד הצוות, אות באות. לא טבעת זוהרת
          שנשארת ולא החשכה — "אנשים רוצים מראה מלא". */
-      '.trip-lit{box-shadow:0 0 0 4px rgba(229,184,84,.5)!important;',
-      '  border-radius:var(--r,16px);transition:box-shadow .5s ease}',
+      '@keyframes tripPulse{0%,100%{box-shadow:0 0 0 4px rgba(229,184,84,.55)}',
+      '  50%{box-shadow:0 0 0 8px rgba(229,184,84,.16)}}',
+      '.trip-lit{border-radius:var(--r,16px);',
+      '  animation:tripPulse 1.9s ease-in-out infinite}',
+      '@media (prefers-reduced-motion:reduce){',
+      '  .trip-lit{animation:none;box-shadow:0 0 0 4px rgba(229,184,84,.55)}}',
+      /* המזערה של הכפתור, בתוך הרצועה */
+      '#trip .mini{display:inline-flex;align-items:center;gap:5px;',
+      '  margin-top:5px;padding:5px 11px;border-radius:9px;',
+      '  font-size:.8rem;font-weight:800;max-width:100%;',
+      '  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '#trip .mini{box-shadow:0 1px 3px rgba(37,29,12,.18)}',
       '.trip-aim{scroll-margin-top:var(--trip-h,120px)}',
       /* השאלה למי שחזר באמצע */
       '#trip-ask{position:fixed;inset:0;z-index:160;display:flex;',
@@ -197,6 +234,30 @@ var TRIP_UI = (function () {
      יעד שאינו על המסך פשוט אינו מסומן — ההוראה לבדה עדיין
      נכונה, ומדריך שנתקע על אלמנט חסר גרוע ממדריך ששותק.
      ============================================================ */
+  /* העתק מוקטן של היעד. `''` כשאין יעד על המסך — ורצועה בלי
+     מזערה עדיין נכונה, כי ההוראה נאמרת גם במילים. */
+  function miniOf(sel) {
+    var el = document.querySelector(sel);
+    if (!el || !el.offsetParent) return '';
+    var txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!txt || txt.length > 34) return '';
+    var c = getComputedStyle(el);
+    var bg = c.backgroundColor, fg = c.color;
+    /* ============================================================
+       **גם המילוי, לא רק הצבע.**
+       ============================================================
+       כפתור ההצטרפות צבוע בגרדיאנט זהב, ולכן `backgroundColor`
+       שלו שקוף — והמזערה יצאה כחולה. העתק שנראה אחרת מהמקור
+       אינו עוזר למצוא אותו; הוא שולח לחפש כפתור שאינו קיים.
+       ============================================================ */
+    var img = c.backgroundImage;
+    var clear = !bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent';
+    var fill = (img && img !== 'none') ? img : (clear ? '' : bg);
+    if (!fill) { fill = 'var(--blue,#17468F)'; fg = '#fff'; }
+    return '<span class="mini" style="background:' + fill + ';color:' + fg +
+           '">' + esc(txt) + '</span>';
+  }
+
   var litEl = null, litT = null;
   function aim(sel) {
     if (litT) { clearTimeout(litT); litT = null; }
@@ -212,14 +273,20 @@ var TRIP_UI = (function () {
     try { el.scrollIntoView({ behavior:'smooth', block:'start' }); }
     catch (e) { el.scrollIntoView(); }
     litEl = el;
-    /* נדלקת אחרי שהגלילה הגיעה — מסגרת שנדלקת בזמן שהמסך זז
-       נעלמת לפני שהעין מספיקה למצוא אותה. */
+    /* ============================================================
+       **ומהבהב עד שלוחצים.**
+       ============================================================
+       "אני מתחרט שאמרתי הבהוב קצר. שפשוט יהבהב עד שהוא ילחץ —
+       עדין, אבל מהבהב, וככה ברור לו על מה העין שלו צריכה
+       ליפול."
+
+       מסגרת שנדלקת לשתי שניות מניחה שהעין נמצאת שם באותו רגע.
+       היא לא: היא נודדת בעמוד. ההבהוב ממתין לה.
+       ============================================================ */
     litT = setTimeout(function () {
-      el.classList.add('trip-lit');
-      litT = setTimeout(function () {
-        el.classList.remove('trip-lit'); litEl = null; litT = null;
-      }, 1800);
+      el.classList.add('trip-lit'); litT = null;
     }, 420);
+    return el;
   }
 
   /* ---------- הרצועה ---------- */
@@ -246,12 +313,27 @@ var TRIP_UI = (function () {
       ? '<button class="go" id="trip-go">' +
         esc(last ? t('finGo') : t('next')) + '</button>' : '';
 
+    /* ============================================================
+       הכפתור עצמו, בזעיר אנפין.
+       ============================================================
+       "העין של האנשים קודם כל הולכת לתוך האפליקציה — הם לא שמו
+       לב למעלה שהגיע השלב הבא. תצייר לו ממש את הכפתור בקטן
+       בתוך המדריך."
+
+       ולכן זו אינה מילה אלא **העתק של מה שמחפשים**: אותו כיתוב
+       ואותו צבע. מי שעינו נפלה על הרצועה יודע מה לחפש למטה,
+       ומי שעינו נפלה על האפליקציה מזהה את מה שראה למעלה.
+       הוא נקרא מהאלמנט האמיתי, ולכן אינו יכול להתיישן.
+       ============================================================ */
+    var mini = (!st.hail && s.sel) ? miniOf(s.sel) : '';
+
     el.innerHTML = '<div class="in">' +
       '<div class="bars">' + bars + '</div>' +
       '<div class="row"><div class="txt">' +
       '<div class="n">' + esc(fill(t('of'), { n:st.i + 1, all:STEPS.length })) + '</div>' +
       '<b>' + esc(ttl) + '</b>' +
       (sub ? '<span class="s">' + esc(sub) + '</span>' : '') +
+      mini +
       '</div>' + btn +
       '<button class="x" id="trip-x" aria-label="' + esc(t('quit')) + '">✕</button>' +
       '</div></div>';
@@ -263,8 +345,20 @@ var TRIP_UI = (function () {
        ציור חוזר קורה גם מפעימת הבדיקה, וגלילה בכל פעימה הייתה
        חוטפת את המסך מתחת לאצבע. */
     if (aimed !== st.i + ':' + (st.hail ? 'h' : '')) {
+      var first = aimed.split(':')[0] !== String(st.i);
       aimed = st.i + ':' + (st.hail ? 'h' : '');
-      setTimeout(function () { aim(st.hail ? '' : s.sel); }, 60);
+      if (first && s.enter && !st.hail) { try { s.enter(); } catch (e) {} }
+      setTimeout(function () {
+        aim(st.hail ? '' : s.sel);
+        /* המזערה נקראת מהאלמנט, ולכן היא מצוירת אחרי שהוא
+           הגיע למסך — ולא לפניו. */
+        var m = $('trip');
+        if (m && !st.hail && s.sel) {
+          var box = m.querySelector('.mini');
+          var now = miniOf(s.sel);
+          if (now && !box) { m.querySelector('.txt').innerHTML += now; }
+        }
+      }, 260);
     }
     var g = $('trip-go');
     if (g) g.onclick = function () {

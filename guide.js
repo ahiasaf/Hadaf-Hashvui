@@ -169,44 +169,73 @@ var GUIDE_UI = (function () {
       '" height="28" rx="8" fill="var(--gold)" opacity=".13"/>';
   }
 
-  /* ---------- שלב 1, אייפון חדש: הסרגל המכווץ ---------- */
+  /* ============================================================
+     שלב 1, אייפון חדש — הסרגל של iOS 26.
+     ============================================================
+     שלושה גופים נפרדים: עיגול בהיר עם שלוש נקודות בשמאל,
+     גלולה **כהה** עם הכתובת באמצע, ועיגול עם חץ בימין.
+     הגלולה הכהה היא מה שמזהים ראשון, ולכן היא כהה גם כאן.
+     ============================================================ */
   function barNew() {
     return page(50) +
-      /* הסרגל התחתון של iOS 26: שלוש גלולות נפרדות, ושלוש
-         הנקודות בגלולה השמאלית. */
-      '<rect x="24" y="288" width="34" height="26" rx="13" fill="#fff" ' +
-        'stroke="var(--rule)"/>' + icDots(41, 301, 7) +
-      '<rect x="64" y="288" width="88" height="26" rx="13" fill="#fff" ' +
-        'stroke="var(--rule)"/>' +
-      '<rect x="76" y="298" width="64" height="6" rx="3" fill="#D9D2C4"/>' +
-      '<rect x="158" y="288" width="26" height="26" rx="13" fill="#fff" ' +
-        'stroke="var(--rule)"/>' +
-      ring(41, 301, 22);
+      /* העיגול השמאלי — שלוש הנקודות */
+      '<circle cx="32" cy="301" r="14" fill="#F4F0E6"/>' + icDots(32, 301, 6) +
+      /* הגלולה הכהה */
+      '<rect x="52" y="288" width="96" height="26" rx="13" fill="#6E665A"/>' +
+      '<path d="M66 296a5 5 0 1 0 2-4" fill="none" stroke="#fff" ' +
+        'stroke-width="1.6" stroke-linecap="round"/>' +
+      '<path d="M65 291v4h4" fill="none" stroke="#fff" stroke-width="1.6" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<rect x="80" y="298" width="42" height="6" rx="3" fill="rgba(255,255,255,.8)"/>' +
+      '<rect x="128" y="295" width="12" height="10" rx="2" fill="none" ' +
+        'stroke="#fff" stroke-width="1.5"/>' +
+      /* העיגול הימני — החץ */
+      '<circle cx="168" cy="301" r="14" fill="#F4F0E6"/>' +
+      '<path d="M165 295l6 6-6 6" fill="none" stroke="' + INK + '" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      ring(32, 301, 22);
   }
 
-  /* ---------- שלב 2, אייפון חדש: התפריט שנפתח ----------
-     חמש השורות שבצילום, בסדר שלהן, עם הסמלים שלהן. "שיתוף"
-     היא הראשונה — וזו בדיוק הנקודה. */
+  /* ============================================================
+     שלב 2, אייפון חדש — התפריט שנפתח.
+     ============================================================
+     **הסמל מימין לכיתוב**, כמו בכל תפריט עברי — וכך הוא
+     בצילום. "שיתוף" היא השורה הראשונה, וזו בדיוק הנקודה.
+     ============================================================ */
   function menuNew() {
     var rows = [
-      { w:34, ic:icShare },
-      { w:76, ic:icBookmark },
-      { w:68, ic:icBook },
-      { w:52, ic:icPlus }
+      { w:32, ic:icShare, on:1 },
+      { w:74, ic:icBookmark },
+      { w:78, ic:icBook },
+      { w:56, ic:icPlus },
+      { w:88, ic:icHand }
     ];
-    var h = page(36) +
-      '<rect x="22" y="150" width="156" height="152" rx="16" fill="#fff" ' +
-        'stroke="var(--rule)"/>' + rowLit(30, 174, 140);
+    var h = page(30) +
+      '<rect x="26" y="120" width="152" height="184" rx="18" fill="#fff" ' +
+        'stroke="var(--rule)"/>';
     rows.forEach(function (r, i) {
-      var y = 174 + i * 36, on = (i === 0), col = on ? INK : '#CFC7B6';
-      /* הכיתוב נצמד לימין, והסמל משמאלו — כמו בתפריט עברי. */
-      h += '<rect x="' + (162 - r.w) + '" y="' + (y - 4) + '" width="' + r.w +
-           '" height="7" rx="3.5" fill="' + col + '"/>' +
-           r.ic(44, y, 1, col);
-      if (i < rows.length - 1)
-        h += '<rect x="34" y="' + (y + 14) + '" width="132" height="1" fill="#EFEADF"/>';
+      var y = 142 + i * 30, col = r.on ? INK : '#CFC7B6';
+      if (r.on) h += rowLit(34, y, 136);
+      /* הסמל בקצה הימני, והכיתוב לשמאלו. */
+      h += r.ic(158, y, 1, col) +
+           '<rect x="' + (142 - r.w) + '" y="' + (y - 4) + '" width="' + r.w +
+           '" height="7" rx="3.5" fill="' + col + '"/>';
+      if (i === 2) h += '<rect x="34" y="' + (y + 15) + '" width="136" height="1" ' +
+                        'fill="#EFEADF"/>';
     });
-    return h + ring(44, 174, 15);
+    /* השורה התחתונה — סימניות וכל הכרטיסיות */
+    h += '<rect x="34" y="292" width="136" height="1" fill="#EFEADF"/>';
+    return h + ring(158, 142, 15);
+  }
+
+  /* כף יד — כרטיסייה פרטית. */
+  function icHand(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M-5 1v-5M-1.7 1v-7M1.7 1v-6M5 1v-3"/>' +
+      '<path d="M-5 1c0 4 2 6 5 6s5-2 5-6"/></g>';
   }
 
   /* ---------- שלב 1, אייפון ישן: הסמל בסרגל ---------- */
@@ -228,74 +257,133 @@ var GUIDE_UI = (function () {
      והאפליקציות מרומזות בלבד: הן קיימות על המסך, אבל הן לא
      מה שמחפשים כאן, ולכן הן אפורות.
      ============================================================ */
-  function sheet() {
-    var h = '<rect x="16" y="76" width="168" height="250" rx="18" fill="#fff" ' +
+  /* ============================================================
+     הגיליון כפי שהוא נפתח — חלקית.
+     ============================================================
+     זה השלב שדילגנו עליו: הגיליון עולה עד אמצע המסך, ורשימת
+     הפעולות מתחתיו חתוכה. החץ בצד הוא מה שפורס אותו, ובלעדיו
+     "הוספה למסך הבית" פשוט אינה קיימת על המסך.
+     ============================================================ */
+  function sheetPart() {
+    var h = '<rect x="16" y="140" width="168" height="190" rx="18" fill="#fff" ' +
             'stroke="var(--rule)"/>' +
-            /* הכותרת: האייקון, השם, והכתובת */
-            appIcon(146, 88, 26) +
-            '<rect x="66" y="92" width="72" height="6" rx="3" fill="#CFC7B6"/>' +
-            '<rect x="88" y="104" width="50" height="5" rx="2.5" fill="#E3DDD0"/>';
-    /* שורת אנשים ושורת אפליקציות — מרומזות */
+            appIcon(148, 152, 26) +
+            '<rect x="62" y="156" width="78" height="6" rx="3" fill="#CFC7B6"/>' +
+            '<rect x="84" y="168" width="56" height="5" rx="2.5" fill="#E3DDD0"/>' +
+            /* "אפשרויות ›" */
+            '<rect x="112" y="182" width="40" height="13" rx="6.5" fill="#F4F0E6"/>' +
+            '<rect x="122" y="186" width="22" height="5" rx="2.5" fill="#CFC7B6"/>' +
+            '<rect x="30" y="204" width="140" height="1" fill="#EFEADF"/>';
     var i;
     for (i = 0; i < 4; i++)
-      h += '<circle cx="' + (158 - i * 34) + '" cy="136" r="11" fill="#EFEADF"/>';
+      h += '<circle cx="' + (156 - i * 36) + '" cy="226" r="12" fill="#EFEADF"/>';
     for (i = 0; i < 4; i++)
-      h += '<rect x="' + (147 - i * 34) + '" y="160" width="22" height="22" ' +
+      h += '<rect x="' + (144 - i * 36) + '" y="250" width="24" height="24" ' +
            'rx="6" fill="#EFEADF"/>';
-    h += '<rect x="30" y="194" width="140" height="1" fill="#EFEADF"/>';
-    /* הרשימה. השורה שלנו אחרונה, והיא היחידה בצבע. */
-    var rows = [{ w:70, ic:icBookmark }, { w:56, ic:icPlus },
-                { w:96, ic:icAddHome, on:1 }];
-    rows.forEach(function (r, k) {
-      var y = 216 + k * 34, col = r.on ? INK : '#CFC7B6';
-      if (r.on) h += rowLit(28, y, 144);
-      h += '<rect x="' + (160 - r.w) + '" y="' + (y - 4) + '" width="' + r.w +
-           '" height="7" rx="3.5" fill="' + col + '"/>' +
-           r.ic(44, y, 1, col);
-    });
+    h += '<rect x="30" y="286" width="140" height="1" fill="#EFEADF"/>';
     /* ============================================================
-       "צריך לגלול" — מצויר, ולא רק כתוב.
+       שורת הפעולות — ו"הצגת עוד" בקצה השמאלי.
        ============================================================
-       זה הדבר שהכי מפספסים: השורה אינה נראית עד שגוללים. החץ
-       יושב **מעל** הרשימה ומצביע פנימה — כלומר "היא נמצאת
-       למטה, תמשיכו". חץ מתחת לשורה המודגשת היה אומר את ההפך:
-       שצריך להמשיך *אחריה*. */
-    h += '<path class="gu-scroll" d="M100 198v9M95 203l5 5 5-5" fill="none" ' +
-         'stroke="var(--gold)" stroke-width="2.4" stroke-linecap="round" ' +
+       העתקה · הוספה אל סימניות · רשימת הקריאה · הצגת עוד.
+       החץ כלפי מטה הוא מה שפורס את הגיליון, והוא האחרון —
+       כלומר השמאלי ביותר.
+       ============================================================ */
+    for (i = 0; i < 3; i++)
+      h += '<circle cx="' + (156 - i * 36) + '" cy="308" r="13" fill="#F1EDE4"/>';
+    h += '<circle cx="48" cy="308" r="13" fill="#F1EDE4"/>' +
+         '<path class="gu-scroll" d="M42 305l6 6 6-6" fill="none" ' +
+         'stroke="' + INK + '" stroke-width="2.2" stroke-linecap="round" ' +
          'stroke-linejoin="round"/>';
-    return h + ring(44, 284, 15);
+    return h + ring(48, 308, 17);
+  }
+
+  function sheet() {
+    var h = '<rect x="16" y="86" width="168" height="240" rx="18" fill="#fff" ' +
+            'stroke="var(--rule)"/>' +
+            appIcon(148, 96, 24) +
+            '<rect x="66" y="100" width="74" height="6" rx="3" fill="#CFC7B6"/>' +
+            '<rect x="90" y="112" width="50" height="5" rx="2.5" fill="#E3DDD0"/>';
+    var i;
+    for (i = 0; i < 4; i++)
+      h += '<rect x="' + (144 - i * 36) + '" y="130" width="24" height="24" ' +
+           'rx="6" fill="#EFEADF"/>';
+    for (i = 0; i < 3; i++)
+      h += '<circle cx="' + (156 - i * 36) + '" cy="180" r="12" fill="#F1EDE4"/>';
+    h += '<circle cx="48" cy="180" r="12" fill="#F1EDE4"/>' +
+         '<path d="M43 182l5-5 5 5" fill="none" stroke="' + INK + '" ' +
+         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    /* ============================================================
+       הרשימה — והשורה שלנו בתחתיתה.
+       ============================================================
+       הוספת סימניה אל... · הוספה למועדפים · חיפוש בעמוד זה ·
+       **הוספה למסך הבית**. הסמלים מימין לכיתוב, כמו בצילום.
+       ============================================================ */
+    h += '<rect x="26" y="204" width="148" height="112" rx="14" fill="#F4F1EA"/>';
+    var rows = [{ w:76, ic:icBook }, { w:66, ic:icStar },
+                { w:60, ic:icFind }, { w:84, ic:icAddHome, on:1 }];
+    rows.forEach(function (r, k) {
+      var y = 222 + k * 26, col = r.on ? INK : '#CFC7B6';
+      if (r.on) h += rowLit(34, y, 132);
+      h += r.ic(156, y, .92, col) +
+           '<rect x="' + (140 - r.w) + '" y="' + (y - 3.5) + '" width="' + r.w +
+           '" height="7" rx="3.5" fill="' + col + '"/>';
+      if (k < 3) h += '<rect x="36" y="' + (y + 13) + '" width="120" height="1" ' +
+                      'fill="#E7E1D4"/>';
+    });
+    return h + ring(156, 300, 15);
+  }
+
+  function icStar(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round">' +
+      '<path d="M0 -7l2.1 4.3 4.7.7-3.4 3.3.8 4.7L0 4.8l-4.2 2.2.8-4.7-3.4-3.3 ' +
+      '4.7-.7z"/></g>';
+  }
+  function icFind(x, y, k, col) {
+    k = k || 1; col = col || INK;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + k + ')" ' +
+      'fill="none" stroke="' + col + '" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="-6" y="-7" width="12" height="14" rx="2"/>' +
+      '<circle cx="0" cy="0" r="2.6"/><path d="M2 2l2.4 2.4"/></g>';
   }
 
   /* ============================================================
-     חלון האישור.
+     חלון האישור — בדיוק כפי שהוא.
      ============================================================
-     ה-X משמאל, הכותרת באמצע, ו"הוספה" בכחול למעלה מימין —
-     בדיוק כמו בצילום. האייקון והשם מתחת, כי זה מה שמאשר
-     שמוסיפים את הדבר הנכון.
+     **ה-X מימין ו"הוספה" הכחול משמאל.** ציירתי אותם הפוך,
+     ושלחתי אנשים לחפש בפינה הלא נכונה. בצילום: X לבן בעיגול
+     בפינה הימנית, הכותרת באמצע, ו"הוספה" בכחול בפינה
+     השמאלית — כולם בקצה העליון של המסך, לא באמצע חלון.
+
+     מתחת: האייקון מימין, השם לשמאלו, הכתובת באפור, ומתג
+     "פתיחה ביישום רשת" הדלוק.
      ============================================================ */
   function confirm() {
-    return '<rect x="16" y="86" width="168" height="168" rx="18" fill="#fff" ' +
+    return '<rect x="16" y="70" width="168" height="150" rx="16" fill="#fff" ' +
       'stroke="var(--rule)"/>' +
-      /* X שמאלה */
-      '<circle cx="38" cy="106" r="11" fill="#F1EDE4"/>' +
-      '<path d="M34 102l8 8M42 102l-8 8" stroke="#8A8272" stroke-width="1.8" ' +
+      /* "הוספה" — כחול, בפינה השמאלית */
+      '<rect x="26" y="80" width="42" height="24" rx="12" fill="#0A84FF"/>' +
+      '<rect x="36" y="89" width="22" height="6" rx="3" fill="#fff"/>' +
+      /* הכותרת באמצע */
+      '<rect x="80" y="89" width="56" height="7" rx="3.5" fill="' + INK + '"/>' +
+      /* ה-X בפינה הימנית */
+      '<circle cx="163" cy="92" r="13" fill="#F4F0E6"/>' +
+      '<path d="M159 88l8 8M167 88l-8 8" stroke="#6E665A" stroke-width="2" ' +
         'stroke-linecap="round"/>' +
-      /* הכותרת */
-      '<rect x="72" y="103" width="56" height="7" rx="3.5" fill="#CFC7B6"/>' +
-      /* "הוספה" — כחול, למעלה מימין */
-      '<rect x="140" y="95" width="34" height="22" rx="11" fill="#0A84FF"/>' +
-      '<rect x="148" y="103" width="18" height="6" rx="3" fill="#fff"/>' +
-      '<rect x="30" y="132" width="140" height="1" fill="#EFEADF"/>' +
-      /* האייקון, השם, והכתובת */
-      appIcon(140, 142, 32) +
-      '<rect x="62" y="150" width="68" height="7" rx="3.5" fill="#CFC7B6"/>' +
-      '<rect x="46" y="168" width="84" height="5" rx="2.5" fill="#E3DDD0"/>' +
-      '<rect x="30" y="188" width="140" height="1" fill="#EFEADF"/>' +
+      '<rect x="16" y="114" width="168" height="1" fill="#EFEADF"/>' +
+      /* האייקון מימין, השם לשמאלו */
+      appIcon(146, 124, 30) +
+      '<rect x="78" y="132" width="58" height="7" rx="3.5" fill="' + INK + '"/>' +
+      '<circle cx="34" cy="136" r="7" fill="#E3DDD0"/>' +
+      '<rect x="46" y="152" width="90" height="5" rx="2.5" fill="#DED7C9"/>' +
+      '<rect x="16" y="168" width="168" height="1" fill="#EFEADF"/>' +
       /* המתג */
-      '<rect x="84" y="206" width="86" height="6" rx="3" fill="#E3DDD0"/>' +
-      '<rect x="32" y="200" width="34" height="19" rx="9.5" fill="#34C759"/>' +
-      '<circle cx="56" cy="209.5" r="7.5" fill="#fff"/>' +
-      ring(157, 106, 24);
+      '<rect x="78" y="186" width="58" height="6" rx="3" fill="' + INK + '"/>' +
+      '<rect x="26" y="180" width="36" height="20" rx="10" fill="#34C759"/>' +
+      '<circle cx="52" cy="190" r="8" fill="#fff"/>' +
+      ring(47, 92, 24);
   }
 
   /* ============================================================
@@ -391,7 +479,7 @@ var GUIDE_UI = (function () {
   /* ---------- שלושת המסלולים ----------
      כל שלב: הכיתוב, ההסבר, והציור. */
   var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
-  var TAIL  = [['s3', sheet], ['s4', confirm], ['s5', home]];
+  var TAIL  = [['s2e', sheetPart], ['s3', sheet], ['s4', confirm], ['s5', home]];
   var NEW   = [['n1', barNew], ['n2', menuNew]].concat(TAIL);
   var OLD   = [['o1', barOld]].concat(TAIL);
 

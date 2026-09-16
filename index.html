@@ -1834,7 +1834,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.71.0';
+var APP_VERSION = '8.72.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3274,9 +3274,19 @@ function renderMy() {
       '<span>' + esc(inst.name) + '</span></div>' +
       '<div id="my-flow"></div>';
     askSetup('my-flow');
-    /* ואם `ASK` כבר מחובר למקום אחר, פותחים אותו ישירות —
-       כפתור שמוביל למסך ריק גרוע מכפתור שאינו קיים. */
-    if (!document.getElementById('my-flow').innerHTML && ASK.open) ASK.open();
+    /* ============================================================
+       **נפתח ישר, בלי "ועוד — בקשה אישית אליך".**
+       ============================================================
+       "ביקשתי שהכפתור של הבקשה האישית לא יופיע אצל ראש חטיבה,
+       ואני רואה שהוא עדיין מופיע כשלב מסוים. למחוק את השלב."
+
+       הפס הזה הוא הזמנה — והוא נכון לר"ם, שפוגש אותו באמצע
+       עמוד שהוא קורא. ראש חטיבה שלחץ "אזור הניהול האישי" כבר
+       אמר מה הוא רוצה, ושאלה נוספת באמצע היא עוד דלת לפתוח.
+       ============================================================ */
+    var bar = document.getElementById('askrow');
+    if (bar) bar.hidden = true;
+    if (ASK.open) ASK.open();
     return;
   }
 
