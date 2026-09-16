@@ -74,6 +74,19 @@ var TRIP_UI = (function () {
   function on() { return !!st; }
 
   /* ============================================================
+     אזור הניהול — פותחים אותו אם אנחנו בעמוד שיש בו כזה.
+     ============================================================
+     ובלי לנווט: מי שעומד בעמוד הצוות או בלוח נמצא שם בכוונה,
+     ורצועה שחוטפת אותו משם בחזרה לעמוד הראשי גרועה מרצועה
+     שאומרת את ההוראה ואינה מסמנת. היחיד שכן מנווט הוא שלב
+     ההתקנה — שם אין מה לעשות בעמוד אחר.
+     ============================================================ */
+  function toPanel() {
+    if (typeof show === 'function' && typeof myInstRow === 'function' &&
+        myInstRow()) show('my');
+  }
+
+  /* ============================================================
      השלבים.
      ============================================================
      `done` קיים = משימה, והוא נבדק מול מצב המכשיר. אין `done`
@@ -93,6 +106,24 @@ var TRIP_UI = (function () {
        ללחוץ עליו, והמסך נוסע אליו.
        ============================================================ */
     { k:'s1', sel:'#cta-top .btn, #cta .btn',
+      /* ============================================================
+         נגמר כשהטופס נפתח, לא כשההרשמה נשלחה.
+         ============================================================
+         קודם השלב הזה החזיק עד סוף ההרשמה, ולכן מילוי הטופס —
+         ישיבה, מסכת, וכמה גמרות — קרה בלי מילה אחת של הדרכה.
+         מי שהגיע לשם ראה רצועה שעדיין אומרת "לחצו כדי להצטרף",
+         והכפתור שהיא מדברת עליו כבר היה מאחוריו.
+         ============================================================ */
+      done:function () {
+        return !!ls('dfReg') || !!document.querySelector('#v-reg.on');
+      } },
+    /* ---- והטופס עצמו, עם הכפתור שמסיים אותו ---- */
+    { k:'s1f', sel:'#r-send',
+      enter:function () {
+        if (typeof show === 'function' && !document.querySelector('#v-reg.on')) {
+          show('reg');
+        }
+      },
       done:function () { return !!ls('dfReg'); } },
     { k:'s2', sel:'.thx-go',
       done:function () { return ls('df:ramsWa') === '1'; } },
@@ -108,6 +139,17 @@ var TRIP_UI = (function () {
        לאבד בהם אנשים.
        ============================================================ */
     { k:'s3', sel:'#r-go, #r-note, #r-next', hail:'s3done',
+      /* ============================================================
+         בזמן שהאשף פתוח הרצועה מפנה אליו, ולא מצביעה בעצמה.
+         ============================================================
+         "כשהוא לוחץ על 'אני רוצה לקבל עדכונים' הוא מתקדם לשלבים
+         הבאים, אבל למעלה עדיין נשאר אותו כפתור. רק לכתוב למעלה
+         'עקבו אחרי ההוראות למטה'."
+
+         מד השלבים של האשף הוא הסימן שהוא בפנים: הוא מצויר רק
+         משלב 1 והלאה, ולא במסך שמציע להתחיל.
+         ============================================================ */
+      busy:function () { return !!document.querySelector('#as-body .as-bar'); },
       enter:function () {
         /* המסך הזה חי בעמוד הראשי בלבד. מי שעומד בעמוד אחר
            כשהשלב מתחיל מקבל הוראה שמצביעה על כפתור שאינו
@@ -121,14 +163,25 @@ var TRIP_UI = (function () {
       done:function () {
         return !!(window.APPX && APPX.installed && APPX.installed());
       } },
-    /* ---- ומכאן המתנות. בכל אחת יש מה לנסות. ---- */
-    { k:'s4', sel:'#my-brd .brd' },
-    { k:'s5', sel:'#my-say .mycard' },
-    { k:'s6', sel:'#stage .acts .go, #stage' },
+    /* ---- ומכאן המתנות. בכל אחת יש מה לנסות. ----
+       גם להן `enter`: שתיים מהן חיות באזור הניהול והשלישית
+       בעמוד הראשי, ומי שמגיע אליהן ממסך אחר — בסיור, או אחרי
+       שנדד בעצמו — היה מקבל הוראה שמצביעה על כלום. */
+    { k:'s4', sel:'#my-brd .brd',  enter:toPanel },
+    { k:'s5', sel:'#my-say .mycard', enter:toPanel },
+    { k:'s6', sel:'#stage .acts .go, #stage',
+      enter:function () { if (typeof show === 'function') show('home'); } },
     { k:'s7', fin:1 }
   ];
 
   function step() { return STEPS[Math.max(0, Math.min(st.i, STEPS.length - 1))]; }
+  /* מה שמצויר עכשיו: שלב, ברכה, ומסירת ההוראות לאשף. הרצועה
+     מצוירת מחדש כשזה משתנה, ולא בכל פעימה. */
+  function mode() {
+    var s = step();
+    return st.i + ':' + (st.hail ? 'h' : '') +
+           ':' + (!st.hail && s.busy && s.busy() ? 'b' : '');
+  }
 
   /* ---------- העיצוב ----------
      נטען פעם אחת, ומגיע מכאן ולא מהעמוד: עמוד חדש שירצה את
@@ -261,7 +314,11 @@ var TRIP_UI = (function () {
   var litEl = null, litT = null;
   function aim(sel) {
     if (litT) { clearTimeout(litT); litT = null; }
-    if (litEl) { litEl.classList.remove('trip-lit'); litEl = null; }
+    if (litEl) {
+      litEl.classList.remove('trip-lit');
+      litEl.classList.remove('trip-aim');
+      litEl = null;
+    }
     if (!sel) return;
     var el = document.querySelector(sel);
     if (!el || !el.offsetParent || !el.offsetHeight) return;
@@ -304,12 +361,24 @@ var TRIP_UI = (function () {
       return '<i class="' + (i < st.i ? 'did' : (i === st.i ? 'on' : '')) + '"></i>';
     }).join('');
 
+    /* ============================================================
+       שלב שההוראות שלו עברו לידיים אחרות.
+       ============================================================
+       כל עוד האשף פתוח הרצועה אינה מצביעה ואינה מציירת מזערה:
+       הכפתור שהיא הראתה כבר נלחץ, וההוראה הנכונה עכשיו היא
+       להסתכל למטה.
+       ============================================================ */
+    var busy = !st.hail && s.busy && s.busy();
+
     el.className = st.hail ? 'hail' : '';
-    var ttl = st.hail ? t(s.hail) : t(s.k);
-    var sub = st.hail ? t(s.hail + 'B') : t(s.k + 'b');
+    var ttl = st.hail ? t(s.hail) : t(busy ? s.k + 'busy' : s.k);
+    var sub = st.hail ? t(s.hail + 'B') : t(busy ? s.k + 'busyB' : s.k + 'b');
     /* כפתור רק כשיש מה ללחוץ עליו: היכרות, ברכה, וסיום.
-       במשימה אין כפתור — מה שמקדם אותה הוא לעשות אותה. */
-    var btn = (st.hail || !s.done)
+       במשימה אין כפתור — מה שמקדם אותה הוא לעשות אותה.
+
+       ובסיור ובחזרה מההתחלה יש: שם המשימות כבר עשויות, ובלי
+       כפתור הרצועה הייתה נתקעת על משימה שאין דרך לעשות שוב. */
+    var btn = (st.hail || !s.done || st.see || (st.re && st.re[s.k]))
       ? '<button class="go" id="trip-go">' +
         esc(last ? t('finGo') : t('next')) + '</button>' : '';
 
@@ -325,7 +394,7 @@ var TRIP_UI = (function () {
        ומי שעינו נפלה על האפליקציה מזהה את מה שראה למעלה.
        הוא נקרא מהאלמנט האמיתי, ולכן אינו יכול להתיישן.
        ============================================================ */
-    var mini = (!st.hail && s.sel) ? miniOf(s.sel) : '';
+    var mini = (!st.hail && !busy && s.sel) ? miniOf(s.sel) : '';
 
     el.innerHTML = '<div class="in">' +
       '<div class="bars">' + bars + '</div>' +
@@ -344,16 +413,16 @@ var TRIP_UI = (function () {
     /* המסך נוסע אל ההוראה — פעם אחת לכל שלב, ולא בכל ציור.
        ציור חוזר קורה גם מפעימת הבדיקה, וגלילה בכל פעימה הייתה
        חוטפת את המסך מתחת לאצבע. */
-    if (aimed !== st.i + ':' + (st.hail ? 'h' : '')) {
+    if (aimed !== mode()) {
       var first = aimed.split(':')[0] !== String(st.i);
-      aimed = st.i + ':' + (st.hail ? 'h' : '');
+      aimed = mode();
       if (first && s.enter && !st.hail) { try { s.enter(); } catch (e) {} }
       setTimeout(function () {
-        aim(st.hail ? '' : s.sel);
+        aim((st.hail || busy) ? '' : s.sel);
         /* המזערה נקראת מהאלמנט, ולכן היא מצוירת אחרי שהוא
            הגיע למסך — ולא לפניו. */
         var m = $('trip');
-        if (m && !st.hail && s.sel) {
+        if (m && !st.hail && !busy && s.sel) {
           var box = m.querySelector('.mini');
           var now = miniOf(s.sel);
           if (now && !box) { m.querySelector('.txt').innerHTML += now; }
@@ -362,7 +431,13 @@ var TRIP_UI = (function () {
     }
     var g = $('trip-go');
     if (g) g.onclick = function () {
-      if (st.hail) { st.hail = 0; bump(); } else bump();
+      /* ברכה שאין משימה שתפעיל אותה — בסיור, ואצל מי שהתחיל
+         מההתחלה אחרי שכבר עשה הכול. בלי זה היא הייתה נעלמת
+         מהמסע בדיוק אצל מי שבא לראות אותו. */
+      if (!st.hail && s.hail && (st.see || (st.re && st.re[s.k]))) {
+        st.hail = 1; save(); paint(); return;
+      }
+      bump();
     };
     offset();
   }
@@ -392,9 +467,16 @@ var TRIP_UI = (function () {
   /* משימה שנעשתה. שלב שיש לו ברכה עוצר עליה רגע לפני שהוא
      ממשיך — זה הרגע שבו המסע מתהפך ממשימות למתנות. */
   function check() {
-    if (!on() || st.hail) return;
+    if (!on()) return;
+    /* פתיחת האשף וסגירתו אינן משנות שלב, ולכן אין מי שיצייר
+       מחדש חוץ מהפעימה הזו. */
+    if (mode() !== aimed) { paint(); return; }
+    if (st.hail) return;
     var s = step();
     if (!s.done || !s.done()) return;
+    /* בסיור ובמשימה שכבר הייתה עשויה לפני שהתחיל מחדש —
+       מתקדמים בכפתור, אחרת כל המשימות היו נבלעות בשנייה. */
+    if (st.see || (st.re && st.re[s.k])) return;
     if (s.hail) { st.hail = 1; save(); paint(); return; }
     bump();
   }
@@ -405,25 +487,55 @@ var TRIP_UI = (function () {
     var w = document.createElement('div');
     w.id = 'trip-ask';
     w.innerHTML = '<div class="box"><h3>' + esc(t('backH')) + '</h3>' +
-      '<p>' + esc(fill(t('backB'), { n:st.i + 1 })) + '</p>' +
+      '<p>' + esc(t('backB')) + '</p>' +
       '<button id="trip-cont">' + esc(t('backGo')) + '</button>' +
+      '<button class="alt" id="trip-new">' + esc(t('backNew')) + '</button>' +
       '<button class="alt" id="trip-end">' + esc(t('backEnd')) + '</button></div>';
     document.body.appendChild(w);
     var kill = function () { if (w.parentNode) w.parentNode.removeChild(w); };
     $('trip-cont').onclick = function () { kill(); after(); };
-    /* ============================================================
-       **ואין "מהתחלה".**
-       ============================================================
-       המשימות נבדקות מול מצב המכשיר, ולכן מי שכבר נרשם והתקין
-       היה נזרק קדימה דרך כולן בשנייה — "מהתחלה" הבטיח משהו
-       שאינו יכול לקיים. שתי האפשרויות האמיתיות הן להמשיך,
-       או לא. */
+    $('trip-new').onclick = function () { kill(); restart(); };
     $('trip-end').onclick = function () { kill(); stop(); };
   }
 
   /* ---------- הדלקה וכיבוי ---------- */
   function start() {
     st = { i:0, hail:0 };
+    save();
+    run();
+  }
+  /* ============================================================
+     מההתחלה — בלי שהמסע ייבלע בשנייה.
+     ============================================================
+     המשימות נבדקות מול מצב המכשיר, ולכן מי שכבר נרשם והתקין
+     היה נזרק דרך כולן ברגע. לכן מסמנים כאן מה כבר עשוי, וכל
+     משימה כזו ממתינה ל"הבא" במקום לקפוץ מעצמה. מי שבאמת עוד
+     לא עשה אותה מקבל אותה כרגיל.
+     ============================================================ */
+  function restart() {
+    var re = {}, i, x;
+    for (i = 0; i < STEPS.length; i++) {
+      x = STEPS[i];
+      if (!x.done) continue;
+      try { if (x.done()) re[x.k] = 1; } catch (e) {}
+    }
+    st = { i:0, hail:0, re:re };
+    aimed = '';
+    save();
+    run();
+  }
+  /* ============================================================
+     סיור — כל השלבים, גם אלה שכבר נעשו.
+     ============================================================
+     "בגלל שאצלי זה כבר מותקן אין לי אפשרות לראות מה בנית אחרי
+     ההתקנה. תייצר לי אפשרות."
+
+     כאן שום משימה אינה מקדמת מעצמה: המסע כולו עובר ב"הבא",
+     והכפתורים האמיתיים עדיין מסומנים ועובדים.
+     ============================================================ */
+  function tour() {
+    st = { i:0, hail:0, see:1 };
+    aimed = '';
     save();
     run();
   }
@@ -444,12 +556,17 @@ var TRIP_UI = (function () {
 
   function boot() {
     if (!document.body) return;
-    var wants = /[?&]masa=1\b/.test(location.search);
+    var m = /[?&]masa=([a-z0-9]+)/i.exec(location.search);
+    var wants = !!m;
+    /* `?masa=see` פותח סיור, תמיד מההתחלה — הוא נשלח בכוונה
+       כדי לראות, ולא כדי להמשיך ממקום כלשהו. */
+    if (m && m[1].toLowerCase() === 'see') { tour(); return; }
     st = load();
     if (wants && !st) { start(); return; }
     if (!st) return;
-    /* חזר באמצע — שואלים אותו, פעם אחת לכניסה. */
-    if (st.i > 0 && !asked && wants) { asked = true; askBack(run); return; }
+    /* חזר באמצע — שואלים אותו, פעם אחת לכניסה. בסיור לא: שם
+       אין "מקום שעצרת", והשאלה הייתה חוסמת את מה שבא לראות. */
+    if (st.i > 0 && !asked && wants && !st.see) { asked = true; askBack(run); return; }
     run();
   }
 
@@ -458,6 +575,7 @@ var TRIP_UI = (function () {
   } else boot();
 
   return { start:start, stop:stop, on:on, paint:paint, check:check,
+           tour:tour, restart:restart,
            at:function () { return st ? st.i : -1; },
            steps:function () { return STEPS.length; } };
 })();

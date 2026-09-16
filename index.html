@@ -1834,7 +1834,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.75.0';
+var APP_VERSION = '8.76.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2362,8 +2362,9 @@ function renderReg() {
       regTotal() +
     '</div></div>' +
 
-    '<button class="btn gr" style="margin-top:20px" onclick="sendReg()">' +
-    esc(saved ? UI.update : UI.send) + '</button>' +
+    /* `id` כדי שהמסע יוכל להצביע עליו. */
+    '<button class="btn gr" id="r-send" style="margin-top:20px" ' +
+    'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + '</button>' +
     '<div id="r-done"></div>' +
     /* ההמשך — ההנחיה לר"מים והבקשה האישית. נפתח כאן, במקום,
        ברגע שההצטרפות נקלטה. ראו regDone().
@@ -7048,13 +7049,22 @@ function admWaCard() {
    השאר נכנסים לאפליקציה כרגיל ואינם רואים דבר.
    ============================================================ */
 function tripUrl() { return joinUrl('').replace('join.html', '') + '?masa=1'; }
+/* ============================================================
+   הסיור — לראות את כל השלבים, גם מה שכבר נעשה.
+   ============================================================
+   מי שכבר נרשם והתקין אינו יכול לראות את המסע: המשימות
+   מסתיימות מעצמן ברגע, והוא נוחת בסופו. הקישור הזה מעביר את
+   כולן ל"הבא" — אותם מסכים בדיוק, ובלי לגעת בשום דבר במכשיר.
+   ============================================================ */
+function tourUrl() { return tripUrl().replace('?masa=1', '?masa=see'); }
 
 function admShowCard() {
   return '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>המסע — לראשי החטיבות</h4>' +
     '<p class="h">לא מצגת: <b>האפליקציה עצמה</b>, עם רצועה בראש ' +
-    'המסך שאומרת בכל שלב מה לעשות. שבעה שלבים — היכרות, ' +
-    'הצטרפות, שליחה לר"מים, התקנה, ואז מה שקיבלו.<br>' +
+    'המסך שאומרת בכל שלב מה לעשות. שמונה שלבים — הצטרפות, ' +
+    'מילוי הטופס, שליחה לר"מים, התקנה, ואז מה שקיבלו: הלוח, ' +
+    'מילה לתלמידים, והדף עצמו.<br>' +
     'המשימות מתקדמות מעצמן כשהן נעשות, וכל כפתור אמיתי ועובד.<br>' +
     'הנוסח נערך ב"מה מוצג" ← "מלל" ← "המסע".</p>' +
     '<a class="btn p" style="margin:10px 0 0;width:100%;box-sizing:border-box;' +
@@ -7062,6 +7072,14 @@ function admShowCard() {
     'rel="noopener" href="' + esc(tripUrl()) + '">פתיחת המסע</a>' +
     '<button class="btn g" style="margin:8px 0 0;width:100%" ' +
     'onclick="copyAny(this, tripUrl())">העתקת הקישור לשליחה</button>' +
+    '<p class="h" style="margin:14px 0 0;padding-top:12px;' +
+    'border-top:1px solid var(--rule)"><b>כבר רשום ומותקן אצלך?</b><br>' +
+    'אז המסע הרגיל ידלג לך על ההתחלה — המשימות כבר עשויות. ' +
+    'הסיור מראה את כל שמונת השלבים לפי הסדר, אחד־אחד בכפתור ' +
+    '"הבא", בלי לשנות כלום במכשיר.</p>' +
+    '<a class="btn g" style="margin:8px 0 0;width:100%;box-sizing:border-box;' +
+    'text-decoration:none;display:block;text-align:center" target="_blank" ' +
+    'rel="noopener" href="' + esc(tourUrl()) + '">סיור בכל השלבים</a>' +
     '</div>';
 }
 
