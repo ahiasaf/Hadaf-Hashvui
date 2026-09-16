@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.72.0';
+var CACHE_NAME = 'hadaf-v8.73.0';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -34,7 +34,12 @@ var CORE = ['./', './index.html', './join.html', './data.js', './learned.js', '.
             './getapp.js', './ask.js', './guide.js',
             './manifest.json', './admin-manifest.json', './join-manifest.json',
             './icon-192.png', './icon-512.png',
-            './icon-admin-192.png', './icon-admin-512.png'];
+            './icon-admin-192.png', './icon-admin-512.png',
+            // צילומי מדריך ההתקנה. 34KB לכל השישה, והם נדרשים
+            // בדיוק ברגע שבו אין עדיין אפליקציה — כלומר אסור
+            // שהם ייפלו על רשת גרועה.
+            './guidepics/n1.webp', './guidepics/n2.webp', './guidepics/s2e.webp',
+            './guidepics/s3.webp', './guidepics/s4.webp', './guidepics/s5.webp'];
 
 // מהרשת קודם: קוד, תמונות הספרים, ורשימת הדפים שבמאגר.
 // עמודי הדף עצמם (daf/*.webp) הם מהמטמון קודם — הם כבדים ולעולם
