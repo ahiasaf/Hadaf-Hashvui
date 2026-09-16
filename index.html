@@ -1834,7 +1834,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.70.0';
+var APP_VERSION = '8.71.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2878,8 +2878,9 @@ function linkBlock(title) {
 
     '<div class="lstep">' + esc(UI.linkStep3) + '</div>' +
     '<p>' + esc(UI.boardNote) + '</p>' +
-    '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '" ' +
-       'target="_blank" rel="noopener">' + esc(UI.boardBtn) + '</a>' +
+    /* בלי לשונית חדשה — ראו `boardHtml`. */
+    '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '">' +
+       esc(UI.boardBtn) + '</a>' +
     '</div>';
 }
 
@@ -3207,9 +3208,20 @@ function boardHtml(code, name, hail) {
      הוא בדיוק מה שלא נלחץ, כי איש אינו מנסה. */
   /* בלי קוד אין קישור. כפתור שמוביל ל"הקוד אינו מתאים" גרוע
      מהיעדרו — הוא מלמד שהאפליקציה שבורה. */
+  /* ============================================================
+     **בלי `target="_blank"` לעמוד שלנו.**
+     ============================================================
+     "למה מופיע הפס הכחול עם הכתובת של ורסל? אני הפעלתי את זה
+     באפליקציה, לא בדפדפן."
+
+     זה היה זה: בתוך אפליקציה מותקנת, קישור שנפתח בלשונית
+     חדשה יוצא מהאפליקציה אל לשונית דפדפן — ואנדרואיד מוסיף
+     לה פס עם הכתובת. הלוח הוא עמוד שלנו, והוא צריך להיפתח
+     בתוך האפליקציה כמו כל מסך אחר.
+     ============================================================ */
   var full = instCode(code)
     ? '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
-      'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
+      'href="' + esc(boardUrl(code)) + '">' +
       esc(UI.cbBoard) + ' ←</a>'
     : '<div class="cond" style="margin-top:12px">' + esc(UI.cbShared) + '</div>';
 

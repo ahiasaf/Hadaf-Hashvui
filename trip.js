@@ -40,7 +40,8 @@
 var TRIP_UI = (function () {
 
   var KEY = 'df:trip';
-  var st = null;            /* { i:<שלב>, seen:<נשאל על חזרה> } */
+  var st = null;            /* { i:<שלב>, hail:<בברכה> } */
+  var aimed = '';           /* השלב שכבר הצבענו עליו */
   var watch = null, asked = false;
 
   function $(id) { return document.getElementById(id); }
@@ -76,15 +77,27 @@ var TRIP_UI = (function () {
      בעמוד אחר — לא קפיצה בכוח, אלא קישור שהוא לוחץ.
      ============================================================ */
   var STEPS = [
-    { k:'s1' },
-    { k:'s2', done:function () { return !!ls('dfReg'); } },
-    { k:'s3', done:function () { return ls('df:ramsWa') === '1'; } },
-    { k:'s4', hail:'s4done',
+    /* ============================================================
+       מתחילים בהוראה, לא בהיכרות.
+       ============================================================
+       "מדריך מתחיל במין אמירה כללית — בוא תסתכל על העמוד
+       הראשי? לא, ממש לא. המדריך פרקטי."
+
+       ולכן אין כאן שלב פתיחה. השלב הראשון הוא כפתור שצריך
+       ללחוץ עליו, והמסך נוסע אליו.
+       ============================================================ */
+    { k:'s1', sel:'#cta-top .btn, #cta .btn',
+      done:function () { return !!ls('dfReg'); } },
+    { k:'s2', sel:'.thx-go',
+      done:function () { return ls('df:ramsWa') === '1'; } },
+    { k:'s3', sel:'#trip-here, .btn.pnl', hail:'s3done',
       done:function () {
         return !!(window.APPX && APPX.installed && APPX.installed());
       } },
-    { k:'s5' },
-    { k:'s6' },
+    /* ---- ומכאן המתנות. בכל אחת יש מה לנסות. ---- */
+    { k:'s4', sel:'#my-brd .brd' },
+    { k:'s5', sel:'#my-say .mycard' },
+    { k:'s6', sel:'#stage .acts .go, #stage' },
     { k:'s7', fin:1 }
   ];
 
@@ -93,53 +106,70 @@ var TRIP_UI = (function () {
   /* ---------- העיצוב ----------
      נטען פעם אחת, ומגיע מכאן ולא מהעמוד: עמוד חדש שירצה את
      המסע צריך שורת <script> אחת, ואין מה לשכוח להעתיק. */
+  /* ============================================================
+     העיצוב — בהיר, כמו המדריך המאויר.
+     ============================================================
+     "במדריך שתלמיד מקבל התצוגה בהירה. עכשיו יצרת רקע כחול —
+     וגם ככה האפליקציה כחולה, אז זה רק מוסיף עומס. זה אמור
+     לייצר מסגרת בהירה שתפספס אותך ותגיד: הנה, ההתרחשות
+     קורית למטה. זה רק מדריך."
+
+     ולכן אותה שפה בדיוק של `as-card` שבמסך ההתקנה: נייר,
+     מסגרת זהב, פינות עגולות. המדריך אינו התוכן — הוא המסגרת
+     סביבו, והעין צריכה לעבור דרכו אל האפליקציה.
+     ============================================================ */
   function css() {
     if ($('trip-css')) return;
     var s = document.createElement('style');
     s.id = 'trip-css';
     s.textContent = [
       '#trip{position:fixed;inset-inline:0;top:0;z-index:70;',
-      '  background:var(--blue-d,#0B2550);color:#fff;',
-      '  box-shadow:0 4px 18px rgba(11,37,80,.28);',
+      '  background:var(--surface,#FFFDF8);color:var(--ink,#1B2A45);',
+      '  border-bottom:2px solid var(--gold,#C08F2B);',
+      '  box-shadow:0 4px 16px rgba(37,29,12,.10);',
       '  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;',
-      '  padding:10px 14px calc(10px + env(safe-area-inset-top,0px));',
-      '  padding-top:calc(10px + env(safe-area-inset-top,0px))}',
+      '  padding:calc(9px + env(safe-area-inset-top,0px)) 14px 10px}',
       '#trip .in{max-width:34rem;margin:0 auto}',
       /* מד השלבים — אותה שפה של מסך ההתקנה */
-      '#trip .bars{display:flex;gap:5px;justify-content:center;margin-bottom:8px}',
+      '#trip .bars{display:flex;gap:5px;justify-content:center;margin-bottom:7px}',
       '#trip .bars i{height:4px;border-radius:2px;flex:1;max-width:38px;',
-      '  background:rgba(255,255,255,.22)}',
+      '  background:var(--rule,#E5DAC3)}',
       '#trip .bars i.did{background:var(--green,#6FA83B)}',
-      '#trip .bars i.on{background:var(--gold-l,#E5B854)}',
+      '#trip .bars i.on{background:var(--gold,#C08F2B)}',
       '#trip .row{display:flex;align-items:center;gap:10px}',
       '#trip .txt{flex:1;min-width:0}',
-      '#trip .n{font-size:.66rem;font-weight:800;letter-spacing:.08em;',
-      '  color:var(--gold-l,#E5B854)}',
-      '#trip b{display:block;font-size:.98rem;font-weight:800;',
-      '  letter-spacing:-.02em;line-height:1.3;margin-top:1px}',
-      '#trip span.s{display:block;font-size:.78rem;font-weight:600;',
-      '  color:rgba(255,255,255,.78);line-height:1.45;margin-top:2px}',
-      '#trip .go{flex:none;border:0;border-radius:10px;background:#fff;',
-      '  color:var(--blue-d,#0B2550);font:inherit;font-size:.85rem;',
-      '  font-weight:800;padding:9px 15px;cursor:pointer}',
-      '#trip .x{flex:none;border:0;background:none;color:rgba(255,255,255,.6);',
-      '  font:inherit;font-size:1.1rem;font-weight:700;cursor:pointer;',
+      '#trip .n{font-size:.65rem;font-weight:800;letter-spacing:.08em;',
+      '  color:var(--gold-t,#8C681F)}',
+      '#trip b{display:block;font-size:.97rem;font-weight:800;',
+      '  letter-spacing:-.02em;line-height:1.3;margin-top:1px;',
+      '  color:var(--blue-d,#0B2550)}',
+      '#trip span.s{display:block;font-size:.77rem;font-weight:600;',
+      '  color:var(--ink-3,#5C687E);line-height:1.45;margin-top:2px}',
+      '#trip .go{flex:none;border:0;border-radius:10px;',
+      '  background:var(--blue,#17468F);color:#fff;font:inherit;font-size:.85rem;',
+      '  font-weight:800;padding:10px 16px;cursor:pointer}',
+      '#trip .x{flex:none;border:0;background:none;color:var(--ink-3,#5C687E);',
+      '  font:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;',
       '  padding:4px 6px;line-height:1}',
+      /* הברכה — רגע אחד. ירוק רך על נייר, ולא מסך שמתהפך. */
+      '#trip.hail{border-bottom-color:var(--green-d,#467B1A)}',
+      '#trip.hail b{color:var(--green-2,#3A6615)}',
+      '#trip.hail .n{color:var(--green-d,#467B1A)}',
       /* ============================================================
-         הברכה — רגע אחד, ואז ממשיכים.
+         הסימון — מסגרת שנדלקת ונעלמת.
          ============================================================
-         **והמד נצבע מחדש עליה.** ירוק על ירוק אינו נקרא: השלבים
-         שכבר נעשו נבלעו ברקע, ומה שעוד לא נעשה — לבן שקוף על
-         ירוק — נראה דווקא כאילו כן. כלומר בדיוק ברגע החגיגה
-         המונה שיקר. */
-      '#trip.hail{background:var(--green-2,#3A6615)}',
-      '#trip.hail .bars i{background:rgba(0,0,0,.28)}',
-      '#trip.hail .bars i.did{background:rgba(255,255,255,.9)}',
-      '#trip.hail .bars i.on{background:var(--gold-l,#E5B854)}',
+         "בדיוק כמו במסך של הר"מים: ברגע שזה יורד להנחיות מופיע
+         פס שמיד אחרי זה נעלם. מסגרת שנעלמת די מהר."
+
+         זה `#howto.lit` שבעמוד הצוות, אות באות. לא טבעת זוהרת
+         שנשארת ולא החשכה — "אנשים רוצים מראה מלא". */
+      '.trip-lit{box-shadow:0 0 0 4px rgba(229,184,84,.5)!important;',
+      '  border-radius:var(--r,16px);transition:box-shadow .5s ease}',
+      '.trip-aim{scroll-margin-top:var(--trip-h,120px)}',
       /* השאלה למי שחזר באמצע */
       '#trip-ask{position:fixed;inset:0;z-index:160;display:flex;',
       '  align-items:center;justify-content:center;padding:22px;',
-      '  background:rgba(11,37,80,.55)}',
+      '  background:rgba(11,37,80,.45)}',
       '#trip-ask .box{background:var(--surface,#FFFDF8);color:var(--ink,#1B2A45);',
       '  border-radius:16px;padding:22px 20px;max-width:21rem;width:100%;',
       '  text-align:center;box-shadow:0 12px 40px rgba(11,37,80,.3)}',
@@ -153,6 +183,43 @@ var TRIP_UI = (function () {
       '  margin-top:6px;font-size:.85rem}'
     ].join('');
     document.head.appendChild(s);
+  }
+
+  /* ============================================================
+     ההצבעה — מניעים את המסך אל ההוראה.
+     ============================================================
+     "אם הוא נותן הוראה הוא שם אותך על ההוראה."
+
+     מדריך שאומר "לחצו על כפתור ההצטרפות" ומשאיר אותך לחפש
+     אותו הוא מדריך שקוראים ולא מבצעים. כאן המסך נוסע אל
+     הכפתור, והמסגרת נדלקת עליו לשתי שניות ונעלמת.
+
+     יעד שאינו על המסך פשוט אינו מסומן — ההוראה לבדה עדיין
+     נכונה, ומדריך שנתקע על אלמנט חסר גרוע ממדריך ששותק.
+     ============================================================ */
+  var litEl = null, litT = null;
+  function aim(sel) {
+    if (litT) { clearTimeout(litT); litT = null; }
+    if (litEl) { litEl.classList.remove('trip-lit'); litEl = null; }
+    if (!sel) return;
+    var el = document.querySelector(sel);
+    if (!el || !el.offsetParent || !el.offsetHeight) return;
+    var bar = $('trip');
+    var h = bar ? bar.offsetHeight : 0;
+    try { document.documentElement.style.setProperty('--trip-h', (h + 16) + 'px'); }
+    catch (e) {}
+    el.classList.add('trip-aim');
+    try { el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch (e) { el.scrollIntoView(); }
+    litEl = el;
+    /* נדלקת אחרי שהגלילה הגיעה — מסגרת שנדלקת בזמן שהמסך זז
+       נעלמת לפני שהעין מספיקה למצוא אותה. */
+    litT = setTimeout(function () {
+      el.classList.add('trip-lit');
+      litT = setTimeout(function () {
+        el.classList.remove('trip-lit'); litEl = null; litT = null;
+      }, 1800);
+    }, 420);
   }
 
   /* ---------- הרצועה ---------- */
@@ -192,6 +259,13 @@ var TRIP_UI = (function () {
     $('trip-x').onclick = function () {
       if (confirm(t('quitAsk'))) stop();
     };
+    /* המסך נוסע אל ההוראה — פעם אחת לכל שלב, ולא בכל ציור.
+       ציור חוזר קורה גם מפעימת הבדיקה, וגלילה בכל פעימה הייתה
+       חוטפת את המסך מתחת לאצבע. */
+    if (aimed !== st.i + ':' + (st.hail ? 'h' : '')) {
+      aimed = st.i + ':' + (st.hail ? 'h' : '');
+      setTimeout(function () { aim(st.hail ? '' : s.sel); }, 60);
+    }
     var g = $('trip-go');
     if (g) g.onclick = function () {
       if (st.hail) { st.hail = 0; bump(); } else bump();
@@ -239,11 +313,18 @@ var TRIP_UI = (function () {
     w.innerHTML = '<div class="box"><h3>' + esc(t('backH')) + '</h3>' +
       '<p>' + esc(fill(t('backB'), { n:st.i + 1 })) + '</p>' +
       '<button id="trip-cont">' + esc(t('backGo')) + '</button>' +
-      '<button class="alt" id="trip-new">' + esc(t('backNew')) + '</button></div>';
+      '<button class="alt" id="trip-end">' + esc(t('backEnd')) + '</button></div>';
     document.body.appendChild(w);
     var kill = function () { if (w.parentNode) w.parentNode.removeChild(w); };
     $('trip-cont').onclick = function () { kill(); after(); };
-    $('trip-new').onclick = function () { st.i = 0; st.hail = 0; save(); kill(); after(); };
+    /* ============================================================
+       **ואין "מהתחלה".**
+       ============================================================
+       המשימות נבדקות מול מצב המכשיר, ולכן מי שכבר נרשם והתקין
+       היה נזרק קדימה דרך כולן בשנייה — "מהתחלה" הבטיח משהו
+       שאינו יכול לקיים. שתי האפשרויות האמיתיות הן להמשיך,
+       או לא. */
+    $('trip-end').onclick = function () { kill(); stop(); };
   }
 
   /* ---------- הדלקה וכיבוי ---------- */
@@ -253,7 +334,8 @@ var TRIP_UI = (function () {
     run();
   }
   function stop() {
-    st = null;
+    st = null; aimed = '';
+    aim('');
     try { localStorage.removeItem(KEY); } catch (e) {}
     drop();
   }
