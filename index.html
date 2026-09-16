@@ -1834,7 +1834,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.73.0';
+var APP_VERSION = '8.74.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6270,8 +6270,12 @@ function paintAdmChip() {
 var SUB = {
   what:  [['reg','הרשמות'], ['part','משתתפים'],
           ['calls','שיחות'], ['push','התראות'], ['data','נתונים']],
+  /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
+     הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
+     והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
+     הרגילה. לשונית משלו. */
   show:  [['screens','מסכים'], ['daf','הדף'], ['price','מחירים'],
-          ['text','מלל']]
+          ['guide','התקנה'], ['text','מלל']]
 };
 var admSub = {};
 function admSubGo(t) { admSub[admTab] = t; admPane(); }
@@ -6316,6 +6320,7 @@ function admPane() {
     }
   }
   if (admTab === 'show') {
+    if (sub === 'guide') { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
     if (sub === 'daf') return admDecks(body);
     if (sub === 'price') return admPrice(body);
     if (sub === 'text')  return admText(body);
@@ -7747,11 +7752,7 @@ function admText(el) {
     '<p class="h">השער נפתח בתוך הדף האינטראקטיבי, ולו יש סטודיו — ' +
     'ולכן אין שולחים אתכם לערוך שם על המסך. ותמונה אינה טקסט ' +
     'שאפשר להקיש עליו. שניהם כאן.</p>' +
-    textOrphans().map(textBox).join('') + '</div>' +
-
-    guCard();
-  /* אחרי שה-HTML על המסך. */
-  setTimeout(guPaint, 0);
+    textOrphans().map(textBox).join('') + '</div>';
 }
 
 /* ============================================================
@@ -7774,7 +7775,11 @@ var GU_TXT = {
   droid:  ['guide.a1','guide.a1s','guide.a2','guide.a2s','guide.a3','guide.a3s']
 };
 /* השלבים המשותפים לשני מסלולי האייפון — נערכים פעם אחת. */
-var GU_IOS = ['guide.s3','guide.s3s','guide.s4','guide.s4s','guide.s5','guide.s5s'];
+/* שלבי האייפון המשותפים, לפי הסדר שבמסלול. `s2e` — פריסת
+   גיליון השיתוף — נוסף אחריו ונשכח כאן, וכך היה נוסח שאי
+   אפשר להגיע אליו בעריכה. */
+var GU_IOS = ['guide.s2e','guide.s2es','guide.s3','guide.s3s',
+              'guide.s4','guide.s4s','guide.s5','guide.s5s'];
 
 function guPick(k) {
   guKind = k;
@@ -7787,8 +7792,10 @@ function guCard() {
   return '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>מדריך ההתקנה</h4>' +
     '<p class="h">מה שרואים כשמתקינים את האפליקציה. לכל מכשיר ' +
-    'מסלול משלו — כאן אפשר לראות את שלושתם, גם כשבידיים ' +
-    'מכשיר אחד.</p>' +
+    'מסלול משלו — כאן שלושתם, גם כשבידיים מכשיר אחד ' +
+    'והאפליקציה כבר מותקנת עליו.<br>' +
+    'בחרו מסלול, ועברו בו עם "הבא" עד הסוף. מסלולי האייפון ' +
+    'הם צילומי מסך אמיתיים; אנדרואיד מצויר.</p>' +
     '<div class="tabs" style="margin:0 0 12px">' +
     GUIDE_UI.kinds().map(function (k) {
       /* `.tabs button` הוא הכלל שבעמוד; מחלקה משלי כאן הייתה
