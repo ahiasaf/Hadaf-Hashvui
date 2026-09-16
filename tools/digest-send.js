@@ -104,24 +104,10 @@ function loadProgram() {
   return ctx;
 }
 
-/* ---------- השעון הישראלי ---------- */
-/* `Intl` יודע על שעון קיץ; הקרון של GitHub אינו יודע. */
-function israelNow() {
-  var f = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Jerusalem', weekday: 'short',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit'
-  }).formatToParts(new Date());
-  var g = {};
-  f.forEach(function (p) { g[p.type] = p.value; });
-  var DAYS = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
-  return {
-    day:  DAYS[g.weekday],
-    hour: parseInt(g.hour, 10),
-    min:  parseInt(g.minute, 10),
-    date: g.year + '-' + g.month + '-' + g.day
-  };
-}
+/* ---------- השעון, הקריאה, והרישום ----------
+   משותפים לשתי השליחות המתוזמנות. ההסבר המלא ב-sched.js. */
+var S = require('./sched.js');
+function israelNow() { return S.israelNow(); }
 
 /* ============================================================
    המשבצת — חצי השעה שבה אנחנו עומדים.
@@ -134,18 +120,36 @@ function israelNow() {
    `next` — אחרי שעה 20:00 ביום שבת השבוע כבר התחלף מבחינת
    הר"ם: מה שהוא רוצה לקרוא במוצאי שבת הוא מה שמתחיל, ולא
    מה שנגמר. ============================================ */
-function slotNow(now) {
+/* ============================================================
+   **וכל המשבצות שנפספסו, לא רק זו שאנחנו עומדים בה.**
+   ============================================================
+   הקרון של GitHub הוא מאמץ סביר ולא הבטחה: ביומן ההרצות
+   נראות כשש הרצות ביממה במקום ארבעים ושמונה. מודל של משבצת
+   אחת להרצה פירושו שרוב הר"מים לא יקבלו את העדכון שביקשו —
+   לא בגלל תקלה בהתראות, אלא בגלל שעון שלא צלצל.
+
+   מה שמחליף את ההימור הוא רישום: כל עדכון שיצא נרשם בלשונית
+   "נשלחו", וכל הרצה מדלגת על מה שכבר שם. ראו tools/sched.js.
+
+   **ושבת יורדת מהחלון ולא מהסוף.** משבצת של שבת לפני 20:00
+   אינה נשלחת גם באיחור — ולכן היא מסוננת כאן, ולא נבדקת
+   פעם אחת על המשבצת האחרונה.
+   ============================================================ */
+function slotsNow(now) {
   if (FORCE) {
     var m = /^([0-6]):([0-2]?\d:[0-5]\d)$/.exec(FORCE);
-    if (m) {
-      var t0 = m[2].length === 4 ? '0' + m[2] : m[2];
-      return { day: +m[1], t: t0, next: (+m[1] === 6 && t0 >= '20:00') };
-    }
-    return null;
+    if (!m) return [];
+    var t0 = m[2].length === 4 ? '0' + m[2] : m[2];
+    return [{ day: +m[1], t: t0, date: now.date,
+              next: (+m[1] === 6 && t0 >= '20:00') }];
   }
-  var t = (now.hour < 10 ? '0' : '') + now.hour + ':' +
-          (now.min < 30 ? '00' : '30');
-  return { day: now.day, t: t, next: (now.day === 6 && t >= '20:00') };
+  return S.slotsDue(now).filter(function (sl) {
+    /* ובשבת לא שולחים, בשום מצב ובשום מצב-שליחה. */
+    return !(sl.day === 6 && sl.t < '20:00');
+  }).map(function (sl) {
+    return { day: sl.day, t: sl.t, date: sl.date,
+             next: (sl.day === 6 && sl.t >= '20:00') };
+  });
 }
 
 /* ---------- הגיליון ---------- */
@@ -155,15 +159,9 @@ function scriptUrl() {
   return m ? m[1] : '';
 }
 
-function ask(params) {
-  var url = scriptUrl();
-  if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
-  var q = Object.keys(params).map(function (k) {
-    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-  }).join('&');
-  return fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now())
-    .then(function (r) { return r.json(); });
-}
+/* כולל ניסיון חוזר: הסקריפט של גוגל מחזיר מדי פעם דף HTML
+   במקום JSON, וזה הפיל הרצה שלמה ב-16.9. */
+function ask(params) { return S.ask(params); }
 
 /* מי ביקש לקבל, ומתי. */
 function loadWants() {
@@ -214,6 +212,10 @@ function loadWants() {
       seen[sub.endpoint] = 1;
       out.push({
         sub:   sub,
+        /* המזהה של המכשיר — הוא מה שנרשם ב"נשלחו" כדי שעדכון
+           לא יצא פעמיים לאותו אדם. שורה ישנה בלי מזהה נופלת
+           חזרה לכתובת הדחיפה, שהיא ייחודית גם היא. */
+        id:    g(r, 'מזהה') || String(sub.endpoint).slice(-24),
         who:   g(r, 'שם') || 'בלי שם',
         inst:  g(r, 'קוד ישיבה'),
         grade: g(r, 'שכבה'),
@@ -351,20 +353,27 @@ try { P = loadProgram(); }
 catch (e) { console.error('נכשל: ' + e.message); process.exit(1); }
 
 var now = israelNow();
-var slot = slotNow(now);
+var slots = slotsNow(now);
 console.log('שעון ישראל: ' + now.date + ' · יום ' + now.day + ' · ' +
             (now.hour < 10 ? '0' : '') + now.hour + ':' +
             (now.min < 10 ? '0' : '') + now.min +
             '  ·  מצב: ' + MODE + (ALL ? ' (לכולם)' : ''));
 
-if (!slot) {
-  console.log('אין משבצת בשעה הזו — לא נשלח דבר.');
+if (!slots.length) {
+  console.log('אין משבצת לשלוח בה — לא נשלח דבר.');
   process.exit(0);
 }
-console.log('משבצת: יום ' + slot.day + ' · ' + slot.t +
-            (slot.next ? '  (השבוע הבא)' : ''));
+var slot = slots[slots.length - 1];      /* הנוכחית */
+console.log('משבצות: ' + slots.length + ' · יום ' + slot.day + ' · ' +
+            slots[0].t + '–' + slot.t + (slot.next ? '  (השבוע הבא)' : ''));
 
-/* השבוע שעליו מדובר. במוצאי שבת השבוע כבר התחלף. */
+/* ============================================================
+   השבוע שעליו מדובר. במוצאי שבת השבוע כבר התחלף.
+   ============================================================
+   `next` זהה בכל המשבצות שבחלון: היחידות שבהן הוא אמת הן
+   שבת מ-20:00, וכל מה שלפניהן באותה שבת כבר סונן. ולכן די
+   בבדיקה אחת, והיא נכונה גם כשמשלימים אחורה.
+   ============================================================ */
 var wk = P.LWeek() + (slot.next ? 1 : 0);
 
 /* ============================================================
@@ -395,25 +404,50 @@ if (MODE === 'learn') {
 }
 
 /* **ובשבת לא שולחים, בשום מצב ובשום מצב-שליחה.** גם הודעה
-   שהרכז יזם ביד אינה מצלצלת בטלפון של ר"ם בשבת. */
+   שהרכז יזם ביד אינה מצלצלת בטלפון של ר"ם בשבת. המשבצות של
+   שבת כבר סוננו ב-`slotsNow`, וזו הרשת האחרונה. */
 if (slot.day === 6 && slot.t < '20:00') {
   console.log('שבת — לא נשלח דבר.');
   process.exit(0);
 }
 
-loadWants().then(function (all) {
+/* מפתח אחד לכל עדכון בכל ההיסטוריה: למי, באיזה יום, ובאיזו
+   משבצת. הוא מה שמונע שליחה כפולה כשהרצה משלימה אחורה. */
+function keyOf(w, sl) {
+  return 'dg|' + MODE + '|' + w.id + '|' + sl.date + '|' + sl.t;
+}
+
+/* הרישום נקרא לפני הכול: קריאה שנכשלה אינה "עוד לא נשלח
+   כלום". עדכון שיוצא פעמיים לכל הצוות גרוע מהרצה שדילגה. */
+Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
+  var all = both[0], sent = both[1];
   /* `ALL` — הודעה שהרכז החליט לשלוח, ולכן היא אינה נשענת על
-     התזכורות של איש. בלעדיו: רק מי שביקש, ורק עכשיו. */
-  var due = ALL ? all : all.filter(function (w) {
-    return wantsNow(w.when, slot);
-  });
+     התזכורות של איש. בלעדיו: רק מי שביקש, ורק במשבצות שעדיין
+     לא טופלו. */
+  var due = [];
+  if (ALL) {
+    /* שליחה יזומה מתייחסת למשבצת הנוכחית בלבד — היא אינה
+       "השלמה", והרכז לחץ עכשיו. */
+    all.forEach(function (w) { w.slot = slot; due.push(w); });
+  } else {
+    all.forEach(function (w) {
+      /* המשבצת האחרונה שהוא ביקש ושעדיין לא יצאה. אחת בלבד:
+         שלוש השלמות ברצף הן שלוש התראות זהות. */
+      for (var i = slots.length - 1; i >= 0; i--) {
+        if (!wantsNow(w.when, slots[i])) continue;
+        if (sent[keyOf(w, slots[i])]) continue;
+        w.slot = slots[i];
+        due.push(w);
+        return;
+      }
+    });
+  }
   console.log('רשומים: ' + all.length +
-              (ALL ? ' · שולחים לכולם: ' : ' · במשבצת הזו: ') + due.length);
+              (ALL ? ' · שולחים לכולם: ' : ' · ממתינים: ') + due.length);
   if (!due.length) {
     console.log('אין למי לשלוח.');
     return [];
   }
-  due.forEach(function (w) { w.slot = slot; });
 
   var insts = {};
   due.forEach(function (w) { if (w.inst) insts[w.inst] = 1; });
@@ -432,6 +466,8 @@ loadWants().then(function (all) {
 
     if (!DRY) webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
     console.log('');
+    /* המפתחות שיֵצאו בפועל, לרישום ב"נשלחו" בסוף. */
+    var done = [];
     return Promise.all(due.map(function (w) {
       var students = by[w.inst];
       /* לוח שלא נקרא אינו ישיבה ריקה. עדכון שאומר "אף אחד לא
@@ -447,7 +483,8 @@ loadWants().then(function (all) {
         return 0;
       }
       if (DRY) {
-        console.log('  · ' + w.who + ' → ' + msg.title + ' | ' + msg.body);
+        console.log('  · ' + w.who + ' · ' + w.slot.t + ' → ' + msg.title +
+                    ' | ' + msg.body);
         return 1;
       }
       var host = '—';
@@ -461,6 +498,8 @@ loadWants().then(function (all) {
         .then(function (r) {
           console.log('  ✓ ' + w.who + ' · ' + host + ' → ' + r.statusCode +
                       ' | ' + msg.body);
+          /* רק מה שבאמת יצא נרשם. שליחה שנכשלה תנסה שוב. */
+          if (!ALL) done.push(keyOf(w, w.slot));
           return 1;
         })
         .catch(function (e) {
@@ -469,7 +508,9 @@ loadWants().then(function (all) {
                       String(e.body || e.message || '').slice(0, 120));
           return 0;
         });
-    }));
+    })).then(function (res) {
+      return S.sentMark(done).then(function () { return res; });
+    });
   });
 }).then(function (res) {
   if (!res.length) return;
