@@ -1875,7 +1875,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.78.0';
+var APP_VERSION = '8.79.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9383,6 +9383,62 @@ function admSugyaPage(daf, v) {
 }
 
 /* ---- הגדרות ---- */
+/* ============================================================
+   שעון השליחות — הטריגר של גוגל.
+   ============================================================
+   "רשמתי לעצמי תזכורות ולא הגיעה לי התראה."
+
+   הקרון של GitHub התבקש לרוץ כל חצי שעה, וביומן ההרצות נראו
+   כשש הרצות ביממה. השולחים יודעים עכשיו להשלים מה שנפספס,
+   ולכן שום הודעה כבר לא הולכת לאיבוד — אבל תזכורת שמאחרת
+   בחמש שעות אינה שווה הרבה.
+
+   הטריגר של גוגל רץ בזמן, והוא מצית את אותה הרצה. שני שעונים
+   זה לצד זה, ומה שמונע כפילות הוא לשונית "נשלחו" ולא התזמון.
+
+   הכפתור כאן ולא בעורך Apps Script: פתיחת העורך מהטלפון
+   ובחירת פונקציה מרשימה היא צעד שנדחה ולא נעשה.
+   ============================================================ */
+var clockMsg = '', clockOn = null;
+function clockCard() {
+  var state = clockOn === null ? 'טרם נבדק'
+            : (clockOn ? 'פעיל · מצית הרצה כל חצי שעה' : 'אינו מותקן');
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>שעון השליחות</h4>' +
+    '<p class="h">מה שמקפיץ את התזכורות שלך ואת העדכון לר"מים ' +
+    'במועד. הקרון של גיטהאב מאחר ומדלג — הטריגר של גוגל לא.<br>' +
+    '<b>מצב: ' + esc(state) + '</b></p>' +
+    '<button class="btn p" style="margin:0 0 8px" ' +
+    'onclick="clockGo(\'clock\')">התקנת השעון</button>' +
+    '<button class="btn g" style="margin:0" ' +
+    'onclick="clockGo(\'clockstate\')">בדיקה</button>' +
+    (clockMsg ? '<div class="msg">' + esc(clockMsg) + '</div>' : '') +
+    '</div>';
+}
+function clockGo(what) {
+  var k = (CFG.readKey || '').trim();
+  if (!k) {
+    clockMsg = 'חסרה סיסמת הקריאה. הכניסו אותה בכרטיס שרת ההרשמות.';
+    admPane(); return;
+  }
+  clockMsg = 'רגע…'; admPane();
+  scriptGet({ setup: what, key: k }).then(function (d) {
+    /* **קריאה שנכשלה אינה "לא מותקן".** תשובה בלי `status`
+       אומרת שלא הגענו לסקריפט, ולא שהשעון כבוי. */
+    if (!d || !d.status) {
+      clockMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return;
+    }
+    if (d.status !== 'ok') {
+      clockMsg = d.message || 'הסקריפט סירב.'; admPane(); return;
+    }
+    clockOn = !!d.clock;
+    clockMsg = d.message || '';
+    admPane();
+  }).catch(function () {
+    clockMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
 /* בדיקת חיבור לסקריפט. עונה איזו גרסה פרוסה בגוגל ואילו לשוניות
    היא רואה — כדי שלא נצטרך לנחש אם הפריסה עלתה ואם היא עדכנית.
    SCRIPT_MIN הוא מה שהאפליקציה מצפה לו; נמוך מזה = צריך לפרוס שוב. */
@@ -9608,6 +9664,8 @@ function admSet(el) {
     esc(CFG.api || API) + '" onchange="cfgSet(\'api\',this.value.trim())"></div>' +
     '<button class="btn g" onclick="admPing()">בדיקת חיבור</button>' +
     '<div id="adm-ping"></div></div>' +
+
+    clockCard() +
 
     /* ---------- קבוצת הוואטסאפ ----------
        הקישור יושב כאן ולא בקוד: הריפו ציבורי, וקישור הצטרפות

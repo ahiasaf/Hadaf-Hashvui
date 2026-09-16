@@ -410,6 +410,36 @@ function doGet(e) {
 
      READ_KEY בלבד — זו הודעה לכל הצוות, ואין ר"ם ששולח
      אותה. ============================================== */
+  /* ============================================================
+     התקנת שעון השליחות — בהקשה אחת, ולא מתוך עורך הקוד.
+     ============================================================
+     `?setup=clock&key=<סיסמת הקריאה>` מתקין, `setup=clockoff`
+     מסיר, ו-`setup=clockstate` אומר מה מותקן. הכול דורש את
+     סיסמת הקריאה: מי שמתקין שעון מצית הרצות ב-GitHub.
+
+     למה כאן ולא ב-`setupTriggers`: כדי שזה יקרה בפועל. פתיחת
+     עורך Apps Script מהטלפון ובחירת פונקציה מרשימה היא בדיוק
+     הסוג של צעד שנדחה ולא נעשה.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.setup &&
+      /^clock(off|state)?$/.test(String(e.parameter.setup))) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    var what = String(e.parameter.setup);
+    try {
+      if (what === 'clockstate') {
+        return reply_(e, { status:'ok', clock: hasClock_(),
+          message: hasClock_() ? 'שעון השליחות פעיל · כל חצי שעה'
+                               : 'שעון השליחות אינו מותקן' });
+      }
+      var msg = what === 'clockoff' ? removeClock() : setupClock();
+      return reply_(e, { status:'ok', clock: hasClock_(), message: msg });
+    } catch (errC) {
+      return reply_(e, { status:'error', message: String(errC) });
+    }
+  }
+
   if (e && e.parameter && e.parameter.fire === 'digest') {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied', message: 'אין הרשאה' });
@@ -1554,10 +1584,76 @@ function setupTriggers() {
     if (all[i].getHandlerFunction() === 'autoRecount') ScriptApp.deleteTrigger(all[i]);
   }
   ScriptApp.newTrigger('autoRecount').timeBased().everyHours(1).create();
-  return 'הטריגר הותקן · ספירה מחדש כל שעה';
+  return 'הטריגר הותקן · ספירה מחדש כל שעה' + '\n' + setupClock();
 }
 /* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
 function autoRecount() { recount_(); recountLearn_(true); }
+
+/* ============================================================
+   השעון של השליחות המתוזמנות.
+   ============================================================
+   "רשמתי לעצמי תזכורות ולא הגיעה לי התראה."
+
+   הסיבה הייתה בשעון. הקרון של GitHub הוא **מאמץ סביר ולא
+   הבטחה**: הוא התבקש לרוץ כל חצי שעה, וביומן ההרצות נראו כשש
+   הרצות ביממה במקום ארבעים ושמונה. השולחים כבר יודעים להשלים
+   מה שנפספס, ולכן שום הודעה כבר לא הולכת לאיבוד — אבל היא
+   מגיעה באיחור של שעות, ותזכורת שמאחרת בחמש שעות אינה שווה
+   הרבה.
+
+   הטריגר של גוגל **כן** רץ בזמן. הוא מצית כאן את אותה הרצה
+   ב-GitHub, בדיוק כמו "כמה מכיתתך הצטרפו" — אותו גשר, אותו
+   אסימון, ורק שם אירוע אחר.
+
+   שני השעונים חיים זה לצד זה בכוונה: אם אחד מהם שותק, השני
+   עדיין מריץ. מה שמונע כפילות אינו התזמון אלא לשונית "נשלחו",
+   ולכן אין נזק בכך ששניהם יעבדו.
+   ============================================================ */
+function clockTick() {
+  var tok  = prop_('GH_TOKEN', '');
+  var repo = prop_('GH_REPO', '');
+  if (!tok || !repo) return;
+  try {
+    UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
+      method: 'post', contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + tok,
+                 Accept: 'application/vnd.github+json',
+                 'X-GitHub-Api-Version': '2022-11-28' },
+      payload: JSON.stringify({ event_type: 'push-clock', client_payload: {} }),
+      muteHttpExceptions: true
+    });
+  } catch (e) {}
+}
+
+/* התקנה והסרה. הרצה חוזרת אינה מכפילה — מוחקת קודם. */
+function setupClock() {
+  var all = ScriptApp.getProjectTriggers(), i;
+  for (i = 0; i < all.length; i++) {
+    if (all[i].getHandlerFunction() === 'clockTick') ScriptApp.deleteTrigger(all[i]);
+  }
+  if (!prop_('GH_TOKEN', '') || !prop_('GH_REPO', '')) {
+    return 'השעון לא הותקן — חסר GH_TOKEN או GH_REPO במאפייני הסקריפט.';
+  }
+  ScriptApp.newTrigger('clockTick').timeBased().everyMinutes(30).create();
+  return 'שעון השליחות הותקן · כל חצי שעה';
+}
+function removeClock() {
+  var all = ScriptApp.getProjectTriggers(), n = 0, i;
+  for (i = 0; i < all.length; i++) {
+    if (all[i].getHandlerFunction() === 'clockTick') {
+      ScriptApp.deleteTrigger(all[i]); n++;
+    }
+  }
+  return n ? 'שעון השליחות הוסר' : 'לא היה שעון להסיר';
+}
+function hasClock_() {
+  try {
+    var all = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < all.length; i++)
+      if (all[i].getHandlerFunction() === 'clockTick') return true;
+  } catch (e) {}
+  return false;
+}
 
 /* האם הטריגר מותקן — כדי ש"בדיקת חיבור" תוכל לומר את זה, ולא
    נצטרך לנחש אם ההתקנה עברה. */
