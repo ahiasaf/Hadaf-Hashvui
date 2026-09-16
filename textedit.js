@@ -55,7 +55,9 @@ var TX = (function () {
               /* מדריך ההתקנה המאויר. */
               guide:window.GUIDE,
               /* ההצגה לראשי החטיבות — /matana. */
-              show:window.SHOW };
+              show:window.SHOW,
+              /* אזור הניהול האישי — בעמוד הראשי ובעמוד הצוות. */
+              panel:window.PANEL };
     return ROOTS;
   }
   function ref(k) {
