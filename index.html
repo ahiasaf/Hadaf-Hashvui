@@ -18,11 +18,52 @@
      ספארי מתעלם מהאייקונים שב-manifest, ולכן apple-touch-icon
      נכתב כאן גם הוא — בלעדיו "הוספה למסך הבית" באייפון יוצרת
      אייקון של צילום מסך. */
+  /* ============================================================
+     ולכל ישיבה מניפסט משלה — כמו שכבר יש לתלמידים.
+     ============================================================
+     "נתתי לבעלת אייפון להתקין, וכשהגיעה לשלב של האייקון ולחצה
+     עליו — כל השלבים שעשתה קודם לא היו רלוונטיים, כי הוא לא
+     זוכר שהיא נרשמה."
+
+     באייפון לאפליקציה שנוספה למסך הבית יש **אחסון נפרד
+     מספארי**. שום דבר שנשמר בדפדפן אינו שם. מה שכן עובר הוא
+     `start_url` שבמניפסט — וזה כל הערוץ שיש. לכן האייקון נפתח
+     על הישיבה שלו, ולא על דף ריק.
+
+     הבחירה נעשית כאן ולא בהמשך: הדפדפן קורא את המניפסט פעם
+     אחת בטעינה, והחלפה מאוחרת יותר אינה נקלטת.
+     ============================================================ */
+  function homeManifest() {
+    var q = String(location.search || '');
+    var grab = function (n) {
+      var m = q.match(new RegExp('[?&]' + n + '=([^&#]*)'));
+      return m ? decodeURIComponent(m[1]).trim() : '';
+    };
+    var inst = grab('m');
+    if (!inst) {
+      try {
+        inst = localStorage.getItem('dfInst') || '';
+        if (!inst) {
+          var r = JSON.parse(localStorage.getItem('dfReg') || 'null');
+          if (r && r.code && r.code !== 'other') inst = r.code;
+        }
+      } catch (e) { inst = ''; }
+    }
+    /* רק אותיות: השם נכנס לנתיב קובץ, ומחרוזת מהכתובת אינה
+       דבר שסומכים עליו. */
+    if (!/^[a-z]+$/.test(inst)) inst = '';
+    /* מתקין מתוך המסע — האייקון ימשיך אותו בפנים, פעם אחת. */
+    var masa = /[?&]masa=(1|go)\b/.test(q) ? '-masa' : '';
+    if (inst) return 'mh/' + inst + masa + '.json';
+    return masa ? 'manifest-masa.json' : 'manifest.json';
+  }
+
   (function () {
     var adm = /\/admin\/?$/.test(location.pathname) || location.hash === '#admin';
     var icon = adm ? 'icon-admin-192.png' : 'icon-192.png';
     document.write(
-      '<link rel="manifest" href="' + (adm ? 'admin-manifest.json' : 'manifest.json') + '">' +
+      '<link rel="manifest" href="' +
+        (adm ? 'admin-manifest.json' : homeManifest()) + '">' +
       '<link rel="apple-touch-icon" href="' + icon + '">' +
       '<link rel="apple-touch-icon" sizes="180x180" href="' + icon + '">' +
       /* `-precomposed` הוא מה שאייפון ישן קורא: iOS 6 ומטה
@@ -1834,7 +1875,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.76.0';
+var APP_VERSION = '8.77.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2258,7 +2299,79 @@ function regMigrate(saved) {
   return q;
 }
 
+/* ============================================================
+   באייפון — קודם מתקינים, ואז ממלאים.
+   ============================================================
+   "נתתי לבעלת אייפון להתקין, וכשלחצה על האייקון כל השלבים
+   שעשתה מקודם לא היו רלוונטיים — הוא לא זוכר שהיא נרשמה."
+
+   באייפון לאפליקציה שנוספה למסך הבית יש אחסון נפרד מספארי.
+   הרשמה שנעשתה בדפדפן פשוט **אינה שם**, והאדם נדרש למלא הכול
+   שוב. וגרוע מזה: הרשמה שנייה מייצרת קוד גישה חדש, השרת שומר
+   את הראשון ודוחה אותו, והלוח שלו מפסיק להיפתח בשקט.
+
+   ולכן אותו סדר שכבר עובד אצל התלמידים (`preNeeded` ב-join):
+   בדפדפן עושים דבר אחד — מתקינים. כל השאר קורה בפנים, פעם
+   אחת. באנדרואיד זה אותו אחסון, ולכן שם שום דבר לא משתנה.
+   ============================================================ */
+/* מי שבחר במפורש להירשם כאן בכל זאת. בזיכרון בלבד: זו בחירה
+   לכניסה הזו, ולא הכרזה על כל המכשיר. */
+var regPreSkip = false;
+function regPreNeeded() {
+  if (regPreSkip) return false;
+  return !!(window.APPX && APPX.isIOS() && !APPX.standalone());
+}
+
+function renderRegPre() {
+  var el = document.getElementById('reg-body');
+  if (!el) return;
+  /* `mycard` ולא הכרטיס של האשף: הסגנון ההוא מוזרק על ידי
+     ask.js ברגע שהוא נשתל, ומסך שמסתמך עליו לפני כן מצויר
+     בלי עיצוב. */
+  var h = '<div class="mycard"><h3>' + esc(UI.preH) + '</h3>' +
+          '<p>' + esc(UI.preB) + '</p>';
+
+  /* מוואטסאפ אי אפשר להוסיף למסך הבית בכלל, וזו ההוראה
+     היחידה שתעזור שם. */
+  if (window.APPX && APPX.inApp()) {
+    h += '<div class="cond" style="margin-top:14px"><b>' +
+         esc(ASK_UI.inAppH) + '</b><br>' + esc(ASK_UI.inAppB) + ' ' +
+         esc(ASK_UI.inAppIos) + '</div>' +
+         '<button class="btn g" style="margin-top:12px;width:100%" ' +
+         'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) +
+         '</button></div>';
+    el.innerHTML = h;
+    return;
+  }
+
+  h += '<div id="reg-gu" style="margin-top:16px"></div>' +
+       '<button class="btn g" id="reg-pre-skip" style="margin-top:14px">' +
+       esc(UI.preSkip) + '</button></div>';
+  el.innerHTML = h;
+
+  if (window.GUIDE_UI) {
+    GUIDE_UI.force(null);
+    GUIDE_UI.mount(document.getElementById('reg-gu'), function () {
+      /* סיים את המדריך ועדיין כאן — כלומר האייקון טרם נפתח.
+         מציירים מחדש, וההוראה האחרונה חוזרת. */
+      renderRegPre();
+    });
+  }
+  var sk = document.getElementById('reg-pre-skip');
+  if (sk) sk.onclick = function () { regPreSkip = true; renderReg(); };
+}
+
+/* ההרשמה הזו תעדכן ישיבה שכבר רשומה, מתוך מכשיר שאין בו את
+   קוד הלוח שלה. אין בזה נזק — אבל יש בזה הפתעה, ולכן אומרים. */
+function regDupWarn() {
+  if (!reg.inst || reg.inst === 'other') return false;
+  if (instCode(reg.inst)) return false;
+  var row = INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0];
+  return !!(row && row.joined);
+}
+
 function renderReg() {
+  if (regPreNeeded()) { renderRegPre(); return; }
   var saved = regSaved();
   /* הקישור האישי ממלא את הישיבה מראש. אחרי ההרשמה השמורה
      בסדר העדיפות, ולכן הוא אינו דורס מי שכבר נרשם כאן. */
@@ -2362,6 +2475,10 @@ function renderReg() {
       regTotal() +
     '</div></div>' +
 
+    /* הישיבה כבר רשומה והמכשיר הזה אינו זה שנרשם — אומרים
+       את זה לפני הכפתור, ולא אחריו. */
+    (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' +
+      esc(UI.regDup) + '</div>' : '') +
     /* `id` כדי שהמסע יוכל להצביע עליו. */
     '<button class="btn gr" id="r-send" style="margin-top:20px" ' +
     'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + '</button>' +
@@ -2658,11 +2775,27 @@ function sendReg() {
      תשובה, ולכן אי אפשר לבקש מהשרת לייצר קוד ולקבל אותו. מי
      שמייצר — יודע. השרת שומר אותו אם עדיין אין קוד למוסד, ולא
      דורס אם יש: קישור שכבר הופץ לצוות לא נשבר בהרשמה חוזרת. */
-  var access = instCode(reg.inst) || newAccess();
-  setInstCode(reg.inst, access);
+  /* ============================================================
+     **ולא מייצרים קוד לישיבה שכבר יש לה אחד.**
+     ============================================================
+     השרת שומר את הקוד הראשון ומתעלם מהבאים. מכשיר שנרשם בלי
+     קוד ומייצר אחד חדש שומר אצלו קוד שהשרת דחה — והלוח שלו
+     מפסיק להיפתח וההודעות שלו נכשלות, בלי שאיש ידע. זה בדיוק
+     מה שקורה באייפון אחרי התקנה, כשהאחסון מתחלף.
+
+     לכן: קוד חדש נוצר רק כשהישיבה עדיין אינה רשומה. אחרת
+     ההרשמה נשלחת בלי `access`, הקוד שבשרת נשאר על כנו,
+     והמכשיר הזה אינו שומר אצלו קוד שקרי.
+     ============================================================ */
+  var row = INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0];
+  var access = instCode(reg.inst);
+  if (!access && !(row && row.joined)) {
+    access = newAccess();
+    setInstCode(reg.inst, access);
+  }
 
   var payload = { action:'register', inst:name, code:reg.inst, who:reg.who, phone:reg.phone,
-                  size:reg.size || 0, want:reg.want, total:total, access:access,
+                  size:reg.size || 0, want:reg.want, total:total,
                   mas:(reg.mas || []).slice(),
                   masText:(reg.mas || []).map(function (id) {
                     return trackById(id) ? trackById(id).masechet : id;
@@ -2673,6 +2806,9 @@ function sendReg() {
   });
   payload.qty = reg.qty;
   payload.seferName = orderSummary(reg.qty) || 'לא נבחר';
+  /* נשלח רק כשיש קוד אמיתי. שדה ריק היה נראה לשרת כבקשה
+     לאפס, וזה ההפך ממה שרוצים. */
+  if (access) payload.access = access;
 
   localStorage.setItem('dfReg', JSON.stringify(payload));
   var all = Store.get('registrations', []) || [];

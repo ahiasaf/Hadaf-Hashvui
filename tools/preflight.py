@@ -19,6 +19,7 @@ HTML אחד לכל אפליקציה, `git push` הוא הפריסה. המחיר 
 
 יוצא בקוד 1 אם משהו נכשל, ולכן אפשר לתלות בו CI.
 """
+import glob
 import io
 import json
 import os
@@ -349,13 +350,46 @@ def check_inst_manifests():
         for ic in m.get('icons', []):
             if not str(ic.get('src', '')).startswith('/'):
                 wrong.append(c + ' — אייקון בכתובת יחסית')
+    # ---- ואותו דבר לראש החטיבה. אותה תקלה בדיוק, עמוד אחר ----
+    for c in codes:
+        for suf, start in (('', '/?m=' + c),
+                           ('-masa', '/?m=' + c + '&masa=go')):
+            path = os.path.join(ROOT, 'mh', c + suf + '.json')
+            if not os.path.exists(path):
+                miss.append('mh/' + c + suf)
+                continue
+            m = json.loads(read('mh', c + suf + '.json'))
+            if m.get('start_url') != start:
+                wrong.append('mh/' + c + suf + ' → ' + str(m.get('start_url')))
+            for ic in m.get('icons', []):
+                if not str(ic.get('src', '')).startswith('/'):
+                    wrong.append('mh/' + c + suf + ' — אייקון בכתובת יחסית')
+
+    # ומי שמתקין מתוך המסע לפני שהישיבה ידועה
+    if not os.path.exists(os.path.join(ROOT, 'manifest-masa.json')):
+        miss.append('manifest-masa.json')
+    elif json.loads(read('manifest-masa.json')).get('start_url') != '/?masa=go':
+        wrong.append('manifest-masa.json')
+
+    # **כל קוד גישה שנכנס למניפסט הוא קוד שפורסם.** הקבצים
+    # האלה בריפו ציבורי, ומאחורי הקוד יושבים שמות של תלמידים.
+    leaked = []
+    for path in sorted(glob.glob(os.path.join(ROOT, 'mh', '*.json')) +
+                       glob.glob(os.path.join(ROOT, 'm', '*.json'))):
+        if 'k=' in json.loads(io.open(path, encoding='utf-8').read())\
+                .get('start_url', ''):
+            leaked.append(os.path.basename(path))
+    if leaked:
+        BAD.append('קוד גישה במניפסט ציבורי: ' + ', '.join(leaked))
+
     if miss:
         BAD.append('ישיבות בלי מניפסט: ' + ', '.join(miss) +
                    ' (הריצו tools/make-manifests.py)')
     if wrong:
         BAD.append('מניפסט שגוי: ' + ' · '.join(wrong))
     if not miss and not wrong:
-        OK.append('מניפסט לכל ישיבה — %d, וכולם מצביעים נכון' % len(codes))
+        OK.append('מניפסט לכל ישיבה — %d לתלמיד, %d לראש החטיבה, '
+                  'וכולם מצביעים נכון' % (len(codes), len(codes) * 2))
 
 
 FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'
