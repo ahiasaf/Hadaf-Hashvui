@@ -276,6 +276,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="a11y.js"></script>
 <script src="data.js"></script>
 <script src="learned.js"></script>
+<script src="ways.js"></script>
 <script src="logo.js"></script>
 <script>
 function $(id) { return document.getElementById(id); }
@@ -496,28 +497,9 @@ function keyAsk() {
    האיורים אינם קישוט. הם מה שמבדיל בין שלוש קטגוריות בסריקה
    של חצי שנייה, והם משאירים את המסך צעיר בלי לרדת לאמוג'י.
    ============================================================ */
-var WAYS = [
-  /* גדול וקטן, ורווח ביניהם — בלי הרווח הם נקראים ככתם אחד */
-  ['אבות ובנים', 'אבות ובנים', 'var(--gold)',
-   '<circle cx="5.6" cy="5" r="3"/>' +
-   '<path d="M1 17.5c0-3 2-4.8 4.6-4.8s4.6 1.8 4.6 4.8z"/>' +
-   '<circle cx="15" cy="8.4" r="2.2"/>' +
-   '<path d="M11.4 17.5c0-2.1 1.6-3.5 3.6-3.5s3.6 1.4 3.6 3.5z"/>'],
-  /* שלושה בשורה עם כתף אחת משותפת — חבורה, לא נקודות */
-  ['חבורת לימוד', 'חבורות', 'var(--green-d)',
-   '<circle cx="4.4" cy="6.4" r="2.3"/><circle cx="10" cy="5.6" r="2.6"/>' +
-   '<circle cx="15.6" cy="6.4" r="2.3"/>' +
-   '<path d="M.8 17.2c0-3 4.1-4.9 9.2-4.9s9.2 1.9 9.2 4.9z"/>'],
-  ['לימוד עצמי', 'לומדים לבד', 'var(--blue)',
-   /* פער בשדרה. בלעדיו שני חצאי הספר נוגעים, וב-26 פיקסלים הם
-      נקראים כמלבן כהה ולא כספר פתוח. */
-   '<path d="M2.4 4.6c2.4-1.1 4.5-1.1 6.9 0v11.2c-2.4-1.1-4.5-1.1-6.9 0z"/>' +
-   '<path d="M17.6 4.6c-2.4-1.1-4.5-1.1-6.9 0v11.2c2.4-1.1 4.5-1.1 6.9 0z"/>']
-];
-function wayLbl(w) {
-  for (var i = 0; i < WAYS.length; i++) if (WAYS[i][0] === w) return WAYS[i][1];
-  return w || 'לא צוין';
-}
+/* WAYS, `WayLbl` ו-`WaysTiles` — ב-ways.js, משותף עם העמוד
+   הראשי. הכיתוב ב-`WAYS_T` שב-data.js, ולכן נערך בניהול. */
+function wayLbl(w) { return WayLbl(w); }
 
 var view = '';                 /* '' · 'way:<מסגרת>' · 'week' */
 /* לחיצה שנייה על אותו דבר סוגרת. הלוח נשאר במקומו, ולכן אין
@@ -553,19 +535,12 @@ function wayCount(w) {
   return hit;
 }
 
+function goWay(k) { go('way:' + k); }
 function tilesHtml() {
-  var can = !!roster;
-  return '<div class="tiles">' + WAYS.map(function (g) {
-    var n = wayCount(g[0]);
-    return '<' + (can && n ? 'button' : 'div') + ' class="tile' +
-      (can && n ? ' go' : '') + (view === 'way:' + g[0] ? ' sel' : '') +
-      '" style="--c:' + g[2] + '"' +
-      (can && n ? ' onclick="go(\'way:' + g[0] + '\')"' : '') + '>' +
-      '<svg viewBox="0 0 20 20">' + g[3] + '</svg>' +
-      '<b>' + n + '</b><span>' + esc(g[1]) + '</span>' +
-      (can && n ? '<i class="chev">' + (view === 'way:' + g[0] ? '×' : '←') + '</i>' : '') +
-      '</' + (can && n ? 'button' : 'div') + '>';
-  }).join('') + '</div>';
+  return WaysTiles(wayCount, {
+    go:   roster ? 'goWay' : '',
+    sel:  view.indexOf('way:') === 0 ? view.slice(4) : ''
+  });
 }
 
 /* פירוט: שמות של מסגרת אחת, או של מי שלמד השבוע. */
@@ -626,8 +601,20 @@ function wayOpenHtml() {
    הרשומה נכתבת בעמוד הצוות ונקראת כאן — אותו מקור, אותו
    מכשיר. אין לה קשר לסיסמת הגישה: היא אינה מרחיבה הרשאה,
    רק מצמצמת תצוגה. */
+/* ============================================================
+   ר"ם — אבל לא כשהמכשיר הוא של ראש החטיבה.
+   ============================================================
+   מי שנרשם גם כראש חטיבה וגם כר"ם — וזה בדיוק מה שקורה לכל
+   מי שבודק את שני המסלולים על אותו טלפון — קיבל את המסך של
+   הר"ם: בלי פילוח דרכי הלימוד, ועם "הכיתה שלך" בלבד. וכשאין
+   רשימה שמית, כלומר לפני תחילת התוכנית, המסך יצא ריק לגמרי.
+
+   ראש חטיבה רואה את הישיבה. הוא הגדול מבין השניים.
+   ============================================================ */
 function ramCard() {
   try {
+    if (localStorage.getItem('df:headSeen') === '1' ||
+        localStorage.getItem('df:headNote') === '1') return null;
     var r = JSON.parse(localStorage.getItem('df:ram') || 'null');
     if (!r || !r.grade || !r.klass) return null;
     if (localStorage.getItem('df:ramNote') !== '1') return null;
@@ -838,8 +825,10 @@ function draw() {
      הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
     heroHtml(daf, doneN, totN, weekOpen) +
-    (mineRam ? '' :
-      '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
+    /* **המשבצות מוצגות גם לר"ם.** הן באות מהמונים ולא מהרשימה
+       השמית, ולכן הן קיימות גם לפני שהתוכנית התחילה — ובלעדיהן
+       ר"ם שפתח את הלוח מוקדם ראה מסך ריק. */
+    '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>' +
     classesHtml() +
     soonLine();
   wire();

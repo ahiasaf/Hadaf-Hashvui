@@ -57,7 +57,9 @@ var TX = (function () {
               /* ההצגה לראשי החטיבות — /matana. */
               show:window.SHOW,
               /* אזור הניהול האישי — בעמוד הראשי ובעמוד הצוות. */
-              panel:window.PANEL };
+              panel:window.PANEL,
+              /* שלוש דרכי הלימוד — ראו ways.js. */
+              ways:window.WAYS_T };
     return ROOTS;
   }
   function ref(k) {

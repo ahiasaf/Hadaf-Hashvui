@@ -345,8 +345,37 @@ var APPX = (function () {
     })['catch'](function () {});
   }
 
+  /* ============================================================
+     יציאה מהדפדפן שבתוך וואטסאפ.
+     ============================================================
+     "אם פותחים דרך קישור בוואטסאפ אז הוא יפתח את זה בדפדפן של
+     הוואטסאפ, ואנחנו צריכים להעביר אותו לדפדפן הרגיל."
+
+     מהדפדפן המוטמע אי אפשר להתקין — אין בו "הוספה למסך הבית"
+     ואין בו הצעת התקנה — ולכן כל מי שמגיע משם נתקע. הבקשה
+     "תפתחו בדפדפן" בעברית פשוטה עובדת, אבל היא עוד שלב שאפשר
+     לטעות בו.
+
+     **באנדרואיד יש דרך אמיתית:** כתובת `intent://` פותחת את
+     כרום עצמו. `browser_fallback_url` דואג שמי שאין לו כרום
+     פשוט יישאר איפה שהוא ולא ייתקל בשגיאה.
+
+     **באייפון אין דרך כזו.** כל מה שקיים שם הן סכמות פרטיות
+     שאינן מובטחות, וכפתור שלפעמים לא עושה כלום גרוע מהיעדרו.
+     שם נשארת ההנחיה, והיא מדויקת: בתפריט של וואטסאפ יש
+     "פתיחה בדפדפן".
+
+     מחזיר '' כשאין מה להציע — והמסך שמעליו יודע להסתדר. */
+  function toBrowser() {
+    if (isIOS() || !inApp()) return '';
+    var u = location.href.replace(/^https?:\/\//, '');
+    return 'intent://' + u + '#Intent;scheme=https;' +
+           'package=com.android.chrome;' +
+           'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+  }
+
   return {
-    update: update,
+    update: update, toBrowser: toBrowser,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },

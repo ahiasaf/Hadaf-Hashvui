@@ -318,40 +318,74 @@ var GUIDE_UI = (function () {
     return h + ring(80, 120, 26);
   }
 
-  /* ---------- אנדרואיד ---------- */
+  /* ============================================================
+     אנדרואיד.
+     ============================================================
+     "במדריך הנוכחי באנדרואיד עצמו הכל נראה לא ברור."
+
+     צדק. שלושת הציורים היו מלבנים אפורים בלי שום דבר שאפשר
+     לזהות. כאן הם מראים את מה שבאמת על המסך: סרגל הדפדפן עם
+     הכתובת ושלוש הנקודות, התפריט שנפתח מתחתיהן, וחלון ההתקנה
+     עם האייקון שלנו.
+
+     **וברוב המכשירים לא רואים את זה בכלל.** כשלכרום יש כפתור
+     התקנה אמיתי, הוא מחליף את כל המסלול — ראו `APPX.bip()`.
+     המדריך כאן הוא למי שאין לו אותו.
+     ============================================================ */
+
+  /* סרגל הדפדפן: גלולת כתובת, ושלוש נקודות אנכיות בקצה. */
+  function droidBar(lit) {
+    return '<rect x="16" y="20" width="168" height="30" rx="8" fill="#fff"/>' +
+      '<rect x="30" y="28" width="120" height="14" rx="7" fill="#F1EDE4"/>' +
+      '<rect x="40" y="32" width="70" height="6" rx="3" fill="#CFC7B6"/>' +
+      '<circle cx="166" cy="29" r="2" fill="' + INK + '"/>' +
+      '<circle cx="166" cy="35" r="2" fill="' + INK + '"/>' +
+      '<circle cx="166" cy="41" r="2" fill="' + INK + '"/>' +
+      (lit ? ring(166, 35, 15) : '');
+  }
+
+  /* ---------- שלב 1: שלוש הנקודות ---------- */
   function droidDots() {
-    return page(60) +
-      '<rect x="16" y="26" width="168" height="26" rx="8" fill="#fff" ' +
-        'stroke="var(--rule)"/>' +
-      '<rect x="34" y="36" width="76" height="6" rx="3" fill="#D9D2C4"/>' +
-      '<circle cx="166" cy="33" r="2" fill="var(--ink-2)"/>' +
-      '<circle cx="166" cy="39" r="2" fill="var(--ink-2)"/>' +
-      '<circle cx="166" cy="45" r="2" fill="var(--ink-2)"/>' +
-      ring(166, 39, 20);
+    return page(72) + droidBar(1);
   }
+
+  /* ---------- שלב 2: התפריט שנפתח מתחתיהן ----------
+     נצמד לפינה שממנה הוא נפתח, ולא מרחף באמצע. השורה שלנו
+     נושאת את סמל ההתקנה — טלפון עם חץ שנכנס אליו. */
   function droidMenu() {
-    var h = page(40) +
-      '<rect x="74" y="52" width="102" height="136" rx="12" fill="#fff" ' +
+    var h = page(72) + droidBar(0) +
+      '<rect x="74" y="56" width="104" height="150" rx="12" fill="#fff" ' +
         'stroke="var(--rule)"/>';
-    var i;
+    var i, rows = [64, 36, 80, 52];
     for (i = 0; i < 4; i++) {
-      var y = 74 + i * 32, on = (i === 2);
-      h += '<rect x="88" y="' + (y - 4) + '" width="' + (on ? 74 : 52) +
-           '" height="7" rx="3.5" fill="' + (on ? 'var(--ink-2)' : '#DED7C9') + '"/>';
+      var y = 78 + i * 34, on = (i === 2);
+      if (on) h += rowLit(80, y, 92);
+      h += '<rect x="' + (168 - rows[i]) + '" y="' + (y - 4) + '" width="' + rows[i] +
+           '" height="7" rx="3.5" fill="' + (on ? INK : '#CFC7B6') + '"/>';
+      if (on) {
+        /* סמל ההתקנה: טלפון וחץ שיורד לתוכו. */
+        h += '<g transform="translate(90,' + y + ')" fill="none" stroke="' + INK +
+             '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+             '<rect x="-5" y="-7" width="10" height="14" rx="2"/>' +
+             '<path d="M0 -4v6M-2.5 -0.5L0 2l2.5-2.5"/></g>';
+      }
     }
-    return h + ring(125, 138, 28);
+    return h + ring(90, 146, 15);
   }
+
+  /* ---------- שלב 3: חלון ההתקנה ---------- */
   function droidOk() {
-    return '<rect x="24" y="110" width="152" height="120" rx="16" fill="#fff" ' +
-      'stroke="var(--rule)"/>' +
-      '<rect x="46" y="132" width="40" height="40" rx="10" fill="var(--blue)"/>' +
-      '<path d="M55 160c5-13 12-16 18-17" fill="none" stroke="#fff" ' +
-        'stroke-width="2.8" stroke-linecap="round"/>' +
-      '<rect x="96" y="140" width="60" height="7" rx="3.5" fill="#DED7C9"/>' +
-      '<rect x="96" y="156" width="40" height="6" rx="3" fill="#E3DDD0"/>' +
-      '<rect x="112" y="192" width="50" height="24" rx="12" fill="var(--blue)"/>' +
-      '<rect x="126" y="201" width="22" height="6" rx="3" fill="#fff"/>' +
-      ring(137, 204, 26);
+    return page(72) + droidBar(0) +
+      '<rect x="22" y="112" width="156" height="118" rx="16" fill="#fff" ' +
+        'stroke="var(--rule)"/>' +
+      appIcon(134, 130, 34) +
+      '<rect x="56" y="138" width="66" height="8" rx="4" fill="#CFC7B6"/>' +
+      '<rect x="44" y="156" width="78" height="6" rx="3" fill="#E3DDD0"/>' +
+      /* "התקן" — כחול, בפינה התחתונה */
+      '<rect x="40" y="188" width="52" height="24" rx="12" fill="var(--blue)"/>' +
+      '<rect x="54" y="197" width="24" height="6" rx="3" fill="#fff"/>' +
+      '<rect x="104" y="197" width="38" height="6" rx="3" fill="#CFC7B6"/>' +
+      ring(66, 200, 22);
   }
 
   /* ---------- שלושת המסלולים ----------

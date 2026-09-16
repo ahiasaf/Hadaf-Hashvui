@@ -883,6 +883,23 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .cta-top:empty{display:none}
 .cta-top .btn{margin:0}
 /* ============================================================
+   שלוש המשבצות הצבעוניות — ways.js.
+   ============================================================
+   אותן מידות ואותם צבעים שיש להן בלוח המפורט. מסך התקציר
+   ומסך הפירוט מציגים את אותו דבר, ולכן הם חייבים להיראות
+   אותו דבר — אחרת הם נקראים כשני נתונים שונים.
+   ============================================================ */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}
+.tile{position:relative;text-align:center;padding:13px 6px 11px;border-radius:13px;
+  border:1px solid var(--rule);background:var(--surface);font-family:inherit;
+  display:block;width:100%}
+.tile svg{width:26px;height:26px;fill:var(--c);opacity:.92}
+.tile b{display:block;font-size:1.5rem;font-weight:800;line-height:1.05;
+  color:var(--c);letter-spacing:-.03em;margin-top:6px}
+.tile span{display:block;font-size:.71rem;font-weight:800;color:var(--ink-2);
+  margin-top:3px;line-height:1.3}
+
+/* ============================================================
    הכפתור שמוביל לאזור הניהול.
    ============================================================
    כפתור עם שורה שנייה בתוכו, ולא כפתור ומתחתיו הסבר: שם
@@ -1663,27 +1680,22 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       </section>
 
       <!-- ============================================================
-           המוסד שלך — אחרון, וזה הסדר.
+           **ומה שאינו ייצוגי אינו כאן.**
            ============================================================
-           "מהמסך הראשי הפאנל של הלוח יורד בחזרה למטה... קודם יש
-           את לוח התוכנית, ואז מה שהתלמיד רואה, ואז ראשי
-           החטיבות, ואז המוסד הפרטי — מין סדר בראש, מהגדול
-           לקטן."
+           "העמוד הראשי הוא ייצוגי בלבד."
 
-           העמוד נקרא מהרחב אל הצר: התוכנית כולה, אחר כך מה
-           שכל תלמיד ברשת מקבל, אחר כך הרשת, ורק בסוף הישיבה
-           הזו. מי שעדיין לא הצטרף אינו רואה כאן דבר.
+           הלוח, ההנחיה לר"מים והבקשה האישית ישבו כאן וערבבו
+           שלושה דברים שונים במסך אחד: מה שמציגים לאורח, מה
+           שעושים אחרי ההרשמה, ומה שמנהלים אחר כך. מי שנרשם
+           נכנס לאזור הניהול האישי מלמעלה, ושם הכול לפי סדר.
 
-           **ומה שיושב כאן הוא תקציר.** הלוח המפורט, ההודעות
-           והעדכונים עברו לאזור הניהול — ראו `renderMy()`. -->
-      <section class="sec-b band-c rv" id="coord" style="display:none">
-        <div class="zlabel"><span class="tag c" id="c-tag"></span>
-          <span id="c-sub"></span></div>
-        <!-- ההנחיה והבקשה האישית, למי שעדיין לא השלים אותן.
-             ריק אצל מי שסיים — ראו renderBoard(). -->
+           `#coord` נשאר במסמך, ריק ומוסתר, כי `renderBoard`
+           הוא שמאתחל את `ASK` — ראו שם. -->
+      <div id="coord" hidden>
+        <span id="c-tag"></span><span id="c-sub"></span>
         <div id="c-pend"></div>
         <div id="board"></div>
-      </section>
+      </div>
 
       <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
       <div id="t-foot-wrap"></div>
@@ -1813,6 +1825,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
+<script src="ways.js"></script>
 <script src="links.js"></script>
 <!-- הבקשה האישית. אותו קוד בדיוק של עמוד הצוות, ולכן גם
      ראש החטיבה מקבל בדיוק את מה שהר"מים כבר מכירים. -->
@@ -1820,7 +1833,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script>
-var APP_VERSION = '8.68.0';
+var APP_VERSION = '8.69.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2951,19 +2964,21 @@ function regDone(txt, viaWa) {
      לכן ההמשך נפתח כאן, מתחת לאישור, בלי לזוז: ההנחיה
      והכפתור, ומתחתם הבקשה האישית. הלוח מחכה בעמוד הראשי
      לסוף התהליך. ============================================ */
+  /* ============================================================
+     **משימה אחת, ולא שתיים.**
+     ============================================================
+     "ראש חטיבה לא מסוגל גם לשלוח לר"מים וגם לבצע את הבקשה
+     האישית. נסיר את הבקשה האישית — קודם כל נבקש לשלוח
+     לר"מים, וזה יהיה סוף העמוד."
+
+     וגם הניסוח: "בקשה אישית" מתאים לר"ם ולמחנך. לראש חטיבה
+     זה לא עובד — ההתקנה שלו היא חלק מאזור הניהול שלו, ולא
+     טובה שמבקשים ממנו. ראו `renderMy()`.
+     ============================================================ */
   var code = myBoard();
   var inst = code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
   if (inst) {
-    /* **ורק עותק אחד.** `renderHome()` שרץ עכשיו שתל את אותה
-       בקשה מעל הלוח שבעמוד הראשי, ושני אלמנטים עם אותו מזהה
-       פירושם ש-`getElementById` מחזיר את הראשון — כלומר השורה
-       שנפתחת כאן הייתה ריקה, והלחיצה עבדה על מסך אחר.
-       כאן המסך הזה הוא הבעלים, ושם מתרוקן. */
-    var pend = document.getElementById('c-pend');
-    if (pend) { pend.innerHTML = ''; }
-    document.getElementById('head-next').innerHTML =
-      thanksHtml(code, inst.name) + '<div id="ask-here"></div>';
-    askSetup('ask-here');
+    document.getElementById('head-next').innerHTML = thanksHtml(code, inst.name);
   }
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -3122,7 +3137,7 @@ function renderNet() {
   el.innerHTML = '<div class="nb-track">' + set + set + '</div>';
 }
 
-function boardHtml(code, name, hail, compact) {
+function boardHtml(code, name, hail) {
   var j = bJoin(code), n = j ? j.n : 0;
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
@@ -3159,27 +3174,22 @@ function boardHtml(code, name, hail, compact) {
       '<span>' + esc(row0[0]) + '</span></div></div></div>';
   }
 
-  /* הפירוט — צמוד למספר ולא אחרי שורת הזמן. "כמה" ו"מי הם"
-     הן שאלה אחת, ושורת התאריך שהפרידה ביניהן שברה אותה לשתיים. */
+  /* ============================================================
+     שלוש דרכי הלימוד — ולא שתי שורות של מספרים.
+     ============================================================
+     "המסך הייצוגי אמור להיות שלושת הבאנרים הצבעוניים האלה."
+
+     כאן ישבו קודם כריות אפורות של שכבות ושורת "אבות ובנים",
+     והן אמרו את אותו הדבר שהלוח המפורט אומר בצבע ובאיור —
+     רק שהן נראו כמו נתון אחר. אותן משבצות בדיוק, מ-ways.js.
+
+     הפילוח לפי כיתה יורד מכאן: הוא מה שמחכה בפירוט, ובשמות.
+     ============================================================ */
   var chips = '';
-  if (j && (j.grades.length || j.ways.length)) {
-    /* רק שכבות התוכנית. מי שאינו בהן הצטרף ונספר בסך הכל
-       ובאבות ובנים, אבל אינו כרית של שכבה. */
-    var list = j.grades.filter(function (p) {
-      return PROG_GRADES.indexOf(p[0]) >= 0;
-    });
-    var dads = 0;
-    j.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') dads = p[1]; });
-    var inner = list.length
-      ? '<div class="brd-chips">' + list.map(function (p) {
-          return '<span><i style="font-style:normal">' + esc(p[0]) + '</i>' +
-                 '<b>' + p[1] + '</b></span>';
-        }).join('') + '</div>' : '';
-    if (dads) {
-      inner += '<div class="brd-dads"><span>' + esc(UI.cbDads) + '</span>' +
-               '<b>' + dads + '</b></div>';
-    }
-    if (inner) chips = '<div class="brd-box">' + inner + '</div>';
+  if (j && typeof WaysTiles === 'function') {
+    var wmap = {};
+    (j.ways || []).forEach(function (p2) { wmap[p2[0]] = p2[1]; });
+    chips = WaysTiles(function (kk) { return wmap[kk] || 0; }, {});
   }
 
   /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר
@@ -3203,22 +3213,6 @@ function boardHtml(code, name, hail, compact) {
       'href="' + esc(boardUrl(code)) + '" target="_blank" rel="noopener">' +
       esc(UI.cbBoard) + ' ←</a>'
     : '<div class="cond" style="margin-top:12px">' + esc(UI.cbShared) + '</div>';
-
-  /* ============================================================
-     **בתקציר אין את הקישור ואין את ההערה.**
-     ============================================================
-     במסך הבית הלוח הוא הצצה: כמה, מי הם, ומתי. מה שעושים עם
-     זה — הלוח המפורט, ההודעה לתלמידים, העדכונים — יושב באזור
-     הניהול, וכפתור אחד מוביל לכל השלושה. שני קישורים שמובילים
-     לשני מקומות שונים באותו כרטיס הם בדיוק מה שמפזר. */
-  if (compact) {
-    return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
-           '<div class="brd-hero">' + hero + '</div>' +
-           chips + bar +
-           '<button class="btn p pnl" onclick="show(\'my\')">' +
-           esc(PANEL.btn) + ' ←<small>' + esc(PANEL.btnSub) + '</small>' +
-           '</button></div>';
-  }
 
   /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
@@ -3249,6 +3243,32 @@ function renderMy() {
   if (!inst) { show('home'); return; }
   var code = inst.code;
 
+  /* ============================================================
+     **קודם התהליך, ואז האזור.**
+     ============================================================
+     "עד שנכנסים לשם פשוט יופיע כל התהליך שראש החטיבה עובר —
+     ההודעה הראשית ואז שלבי ההתקנה — ורק בסוף התהליך הזה הוא
+     יקבל את האזור האישי."
+
+     ולכן אין יותר "בקשה אישית" שמרחפת במסך אחר. הכפתור הזה
+     הוא הדלת היחידה, ומה שמאחוריה משתנה לפי מי שנכנס: מי
+     שעדיין לא עבר — עובר; מי שעבר — מנהל.
+
+     `ASK` עצמו הוא התהליך. הוא יודע באיזה שלב הוא, והוא זה
+     שמסמן שהסתיים. ============================================ */
+  renderBoard();                       /* מאתחל את ASK — ראו שם */
+  if (!(typeof ASK !== 'undefined' && ASK.seen && ASK.seen())) {
+    el.innerHTML =
+      '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
+      '<span>' + esc(inst.name) + '</span></div>' +
+      '<div id="my-flow"></div>';
+    askSetup('my-flow');
+    /* ואם `ASK` כבר מחובר למקום אחר, פותחים אותו ישירות —
+       כפתור שמוביל למסך ריק גרוע מכפתור שאינו קיים. */
+    if (!document.getElementById('my-flow').innerHTML && ASK.open) ASK.open();
+    return;
+  }
+
   el.innerHTML =
     '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
     '<span>' + esc(inst.name) + '</span></div>' +
@@ -3275,7 +3295,6 @@ function renderMy() {
 
      מי שנכנס לכאן ישירות מקישור — ולא דרך מסך הבית — הוא
      בדיוק המקרה שנשבר בלעדיו. */
-  renderBoard();
   document.getElementById('my-brd').innerHTML = boardHtml(code, inst.name);
   sayPaint();
   myNote();
@@ -3323,10 +3342,11 @@ function countUp(el, to) {
 }
 
 /* חוזרים לעמוד הראשי, ונוחתים על הלוח שנוצר. */
+/* **אין יותר "נוחתים על הלוח".** הלוח עבר לאזור הניהול, ומי
+   שסיים את התהליך נכנס אליו — ולא נזרק למסך אחר. */
 function hailBoard() {
-  show('home');
-  renderBoard(1);
-  var el = document.getElementById('coord');
+  show('my');
+  var el = document.getElementById('my-body');
   if (!el) return;
   setTimeout(function () {
     el.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -3396,9 +3416,21 @@ function headT(k) {
    ולכן האלמנט שהבקשה יושבת בו נמחק ונוצר מאין. דגל שזוכר
    "כבר עשינו" היה מונע את ההשתלה החוזרת — והשורה פשוט לא
    הייתה מופיעה. הבדיקה היא על המסך עצמו, לא על הזיכרון. */
+/* ============================================================
+   **"כבר הותקן" אינו "עדיין שם".**
+   ============================================================
+   הסימון `data-on` אמר שהמארח הזה כבר אותחל, ודי בזה כדי
+   לדלג. אבל המסך שמחזיק אותו נבנה מחדש: מי שנכנס לאזור הניהול
+   לפני שסיים את התהליך קיבל שם את הבקשה, סיים אותה, והאזור
+   צויר מחדש — `#my-body` נמחק, ואיתו כל ה-DOM של `ASK`.
+   הסימון נשאר על מארח ישן, ומאותו רגע שום לחיצה לא פתחה דבר.
+
+   התנאי האמיתי הוא אם המסך עצמו חי במסמך.
+   ============================================================ */
 function askSetup(where) {
   var host = document.getElementById(where || 'ask-here');
-  if (!host || host.getAttribute('data-on')) return;
+  if (!host) return;
+  if (host.getAttribute('data-on') && host.querySelector('#asksheet')) return;
   var code = myBoard();
   if (!code || typeof ASK === 'undefined') return;
   host.setAttribute('data-on', '1');
@@ -3576,62 +3608,34 @@ function thanksHtml(code, name) {
     '</div>';
 }
 
+/* ============================================================
+   מי המשתמש — ומה הוא כבר עבר.
+   ============================================================
+   מה שנקרא פעם "הלוח בעמוד הראשי" אינו מצייר עוד דבר. מסך
+   הבית ייצוגי בלבד, הלוח וההודעה עברו לאזור הניהול, וכרטיס
+   ההנחיה נשאר במקום אחד — מסך ההרשמה, מיד אחרי שנרשם.
+
+   מה שנשאר כאן הוא **איתחול `ASK`**, וזה לא מעט: `ASK` יודע
+   מי המשתמש רק אחרי `init`, ועד אז כל שאלה עליו ("האם
+   השלים?") נענית בשלילה. `#coord` מוסתר במסמך בדיוק בשביל
+   זה — מקום לעגון בו, בלי להציג כלום.
+
+   `hail` נשמר בחתימה כי הקוראים מעבירים אותו; הברכה עצמה
+   יושבת עכשיו באזור הניהול. ============================ */
 function renderBoard(hail) {
   var el = document.getElementById('coord');
   if (!el) return;
   var code = myBoard();
   var inst = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
-  if (!inst) { el.style.display = 'none'; return; }
-  el.style.display = '';
-  /* שם הישיבה, ולא "מסך הלימוד של הישיבה". התווית עונה על
-     "של מי זה" בשתי מילים, וההסבר שמתחתיה אומר מה זה. */
-  document.getElementById('c-tag').textContent = inst.name;
-  document.getElementById('c-sub').textContent = UI.coordSub;
-  /* הבקשה מעל, הלוח מתחת. */
-  /* ============================================================
-     מי שלא סיים — ממשיך מכאן.
-     ============================================================
-     ההנחיה לר"מים והבקשה האישית נפתחות במסך ההרשמה, מיד אחרי
-     ההצטרפות. אבל מי שסגר את האפליקציה באמצע לא היה מוצא
-     אותן בשום מקום: מסך ההרשמה כבר אינו המסך שהוא נוחת עליו.
-
-     לכן הן ממתינות כאן, מעל הלוח, כל עוד התהליך האישי לא
-     הושלם — ונעלמות ברגע שכן. אצל מי שסיים הלוח עומד לבדו,
-     כמו שביקש. ============================================ */
-  /* ============================================================
-     **קודם מאתחלים את `ASK`, ורק אז שואלים אותו.**
-     ============================================================
-     `ASK` יודע מי המשתמש רק אחרי `init` — עד אז המפתח שלו
-     ריק, וכל שאלה עליו ("האם השלים?") נענית בשלילה.
-
-     קודם `open` חושב לפני `init`, ולכן בציור הראשון הוא יצא
-     תמיד `true`: ראש חטיבה שסיים מזמן את התהליך ראה לרגע את
-     כרטיס ההנחיה ואת הבקשה האישית, והם נעלמו רק בציור הבא.
-     ומאז שהלוח וההודעה עברו למסך אחר, גם הכרטיס "מילה
-     לתלמידים" נעלם ממי שכן השלים.
-
-     שני מקומות נפרדים בתוך `#c-pend`: אחד ל-`ASK`, שאינו
-     נכתב מחדש ולכן החיבורים שלו שורדים, ואחד להנחיה — שנכתב
-     לפי התשובה האמיתית. `init` עצמו מסתיר את הפס למי שסיים,
-     ולכן אין מחיר בלהריץ אותו תמיד. */
+  if (!inst) return;
   var wrap = document.getElementById('c-pend');
-  var open = true;
-  if (wrap) {
-    /* **הבדיקה על העטיפה, לא על המסמך.** מסך ההרשמה שותל
-       `#ask-here` משלו ב-`#head-next`, ולכן חיפוש גלובלי מצא
-       אותו, דילג על בניית המקום כאן — ו-`#pend-say` לא היה
-       קיים כשניגשו אליו. */
-    if (!wrap.querySelector('#ask-here')) {
-      wrap.innerHTML = '<div id="pend-say"></div><div id="ask-here"></div>';
-    }
-    askSetup('ask-here');
-    open = !(typeof ASK !== 'undefined' && ASK.seen && ASK.seen());
-    var ps = wrap.querySelector('#pend-say');
-    if (ps) ps.innerHTML = open ? thanksHtml(code, inst.name) : '';
-  }
-  /* תקציר בלבד. השאר עבר לאזור הניהול. */
-  document.getElementById('board').innerHTML = boardHtml(code, inst.name, hail, 1);
+  if (!wrap) return;
+  /* פעם אחת. `ASK` נשתל כאן ומהגר משם לאזור הניהול כשנכנסים
+     אליו — ראו `mount` ב-ask.js, שמנקה את הקודם. */
+  if (!wrap.querySelector('#ask-here')) wrap.innerHTML = '<div id="ask-here"></div>';
+  askSetup('ask-here');
 }
+
 /* שחזור במכשיר חדש. יושב במסך ההרשמה ולא בעמוד הראשי: מי
    שהלוח שלו נעלם הולך לשם ממילא. */
 function boardBack() {
