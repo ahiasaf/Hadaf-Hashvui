@@ -1631,8 +1631,16 @@ function setupClock() {
   for (i = 0; i < all.length; i++) {
     if (all[i].getHandlerFunction() === 'clockTick') ScriptApp.deleteTrigger(all[i]);
   }
+  /* **ואומרים מה לעשות, ולא רק מה חסר.** שם של מאפיין הוא
+     אבחנה; מה שהאדם צריך הוא הצעד הבא. אותם שני ערכים משרתים
+     גם את "שליחת הודעה לצוות" ממסך הניהול. */
   if (!prop_('GH_TOKEN', '') || !prop_('GH_REPO', '')) {
-    return 'השעון לא הותקן — חסר GH_TOKEN או GH_REPO במאפייני הסקריפט.';
+    return 'השעון לא הותקן. בעורך Apps Script: Project Settings ← ' +
+           'Script Properties ← Add script property, פעמיים:\n' +
+           'GH_TOKEN = אסימון GitHub עם הרשאת Contents: write לריפו\n' +
+           'GH_REPO = ahiasaf/Hadaf-Hashvui\n' +
+           'ואז ללחוץ כאן שוב. אותם שניים מפעילים גם את שליחת ' +
+           'ההודעות לצוות ממסך הניהול.';
   }
   ScriptApp.newTrigger('clockTick').timeBased().everyMinutes(30).create();
   return 'שעון השליחות הותקן · כל חצי שעה';

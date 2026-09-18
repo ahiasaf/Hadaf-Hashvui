@@ -1881,7 +1881,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.80.0';
+var APP_VERSION = '8.81.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3361,8 +3361,23 @@ function boardHtml(code, name, hail) {
 
      כפתור ולא כרטיס לחיץ: כרטיס שנראה כמו תצוגה ומגיב ללחיצה
      הוא בדיוק מה שלא נלחץ, כי איש אינו מנסה. */
-  /* בלי קוד אין קישור. כפתור שמוביל ל"הקוד אינו מתאים" גרוע
-     מהיעדרו — הוא מלמד שהאפליקציה שבורה. */
+  /* ============================================================
+     **הכפתור תמיד כאן.**
+     ============================================================
+     "מה זה הסינית הזאתי? למה הוא לא מקבל את הנתונים? הרי מי
+     שקיבל את המדריך הוא בעצמו ראש החטיבה."
+
+     קודם, כשלא היה קוד גישה במכשיר, הכפתור הוחלף בפסקה
+     שהסבירה שהלוח "נפתח בקישור אישי שהרכז ישלח". שתי בעיות:
+     היא הסבירה מנגנון פנימי במקום לומר מה לעשות, והיא נאמרה
+     למי שהלוח שייך לו.
+
+     והנימוק שמאחוריה — "כפתור בלי קוד מוביל למסך שגיאה" —
+     פשוט אינו נכון: עמוד הלוח נפתח יפה בלי קוד. הוא מראה את
+     הישיבה, את המספרים ואת השבוע, ואומר בשורה אחת ובמקום
+     אחד שהשמות דורשים קוד. הפסקה כאן הייתה אזהרה שנייה על
+     אותו דבר, לפני שהאדם בכלל ראה את המסך.
+     ============================================================ */
   /* ============================================================
      **בלי `target="_blank"` לעמוד שלנו.**
      ============================================================
@@ -3374,11 +3389,8 @@ function boardHtml(code, name, hail) {
      לה פס עם הכתובת. הלוח הוא עמוד שלנו, והוא צריך להיפתח
      בתוך האפליקציה כמו כל מסך אחר.
      ============================================================ */
-  var full = instCode(code)
-    ? '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
-      'href="' + esc(boardUrl(code)) + '">' +
-      esc(UI.cbBoard) + ' ←</a>'
-    : '<div class="cond" style="margin-top:12px">' + esc(UI.cbShared) + '</div>';
+  var full = '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+    'href="' + esc(boardUrl(code)) + '">' + esc(UI.cbBoard) + ' ←</a>';
 
   /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
   return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
@@ -9430,7 +9442,10 @@ function clockCard() {
     'onclick="clockGo(\'clock\')">התקנת השעון</button>' +
     '<button class="btn g" style="margin:0" ' +
     'onclick="clockGo(\'clockstate\')">בדיקה</button>' +
-    (clockMsg ? '<div class="msg">' + esc(clockMsg) + '</div>' : '') +
+    /* `pre-line` — ההוראה שחוזרת מהסקריפט היא כמה שורות, ובלי
+       זה הן נמעכות לפסקה אחת שאי אפשר לעקוב אחריה. */
+    (clockMsg ? '<div class="msg" style="white-space:pre-line;' +
+     'text-align:start;padding:14px 4px">' + esc(clockMsg) + '</div>' : '') +
     '</div>';
 }
 function clockGo(what) {
