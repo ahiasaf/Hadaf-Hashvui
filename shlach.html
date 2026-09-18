@@ -290,11 +290,18 @@ function instName() {
    `/shlach.html`, ולכן שתי הצורות נחתכות. חיתוך של אחת מהן
    בלבד כבר הפיל שלושה כפתורים ל-404.
    ============================================================ */
-function joinUrl() {
-  var base = location.href.split('#')[0].split('?')[0]
-                     .replace(/shlach(\.html)?$/, '');
-  return base + 'join.html?inst=' + encodeURIComponent(INST);
+function base() {
+  return location.href.split('#')[0].split('?')[0]
+                .replace(/shlach(\.html)?$/, '');
 }
+function joinUrl() {
+  return base() + 'join.html?inst=' + encodeURIComponent(INST);
+}
+/* ההורים מקבלים קישור אחר, וזה לא הבדל טכני: הקישור שלהם
+   נשלח לקבוצות הורים של יותר ממוסד אחד, וההורה בוחר בעצמו
+   את הישיבה של בנו. `?for=dad` הוא מה שפותח לו את המסלול
+   הזה — אותו קישור בדיוק ש-`dadUrl()` בעמוד הראשי בונה. */
+function dadUrl() { return base() + 'join.html?for=dad'; }
 
 /* ---------- השכבה שנבחרה ---------- */
 var GKEY = 'df:shlachG';
@@ -320,7 +327,7 @@ function young(g) {
 function msg(who) {
   var S = window.SEND || {}, g = grade();
   var t = who === 'par' ? S.mPar : (young(g) ? S.mSonsA : S.mSonsB);
-  return fill(t, { 'קישור':joinUrl(), 'שכבה':g });
+  return fill(t, { 'קישור':(who === 'par' ? dadUrl() : joinUrl()), 'שכבה':g });
 }
 
 /* ============================================================
