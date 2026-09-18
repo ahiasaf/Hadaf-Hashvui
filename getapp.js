@@ -141,6 +141,36 @@ var APPX = (function () {
     });
   }
 
+  /* ============================================================
+     בדיקה שההתראה באמת קופצת אצלו.
+     ============================================================
+     "יהיה לו כפתור של בדיקת התראות, וברגע שילחץ עליו תופיע לו
+     התראה — ואז תשאל אותו: קיבלת?"
+
+     **מקומית, דרך ה-Service Worker, ולא דרך השרת.** דחיפה
+     אמיתית נוסעת דרך GitHub Actions ומגיעה בעוד דקה ארוכה —
+     בדיקה שאי אפשר לעמוד מולה ולחכות. מה שנבדק כאן הוא מה
+     שמעניין אותו: שהאישור ניתן, שהמכשיר מצייר התראה, ושהוא
+     רואה אותה. ערוץ הדחיפה עצמו כבר נבדק ברישום.
+
+     `showNotification` ולא `new Notification`: באנדרואיד
+     ובאייפון המותקן רק הראשון עובד, והשני נכשל בשקט.
+     ============================================================ */
+  function demo(title, body) {
+    if (!('serviceWorker' in navigator)) {
+      return Promise.reject(new Error('הדפדפן הזה אינו תומך בהתראות'));
+    }
+    if (perm() !== 'granted') {
+      return Promise.reject(new Error('ההתראות אינן מאושרות במכשיר הזה'));
+    }
+    return navigator.serviceWorker.ready.then(function (reg) {
+      return reg.showNotification(title, {
+        body: body, icon: 'icon-192.png', badge: 'icon-192.png',
+        tag: 'df-demo', renotify: true
+      });
+    });
+  }
+
   /* ---------- הסמלים ----------
      אי אפשר לכתוב "לחצו על הסמל" ולקוות שיזוהה. מציירים אותו,
      וכך העין מוצאת אותו על המסך. */
@@ -391,7 +421,7 @@ var APPX = (function () {
       if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
       else back(null);
     },
-    canNote: canNote, perm: perm, ask: ask, subscribe: subscribe,
+    canNote: canNote, perm: perm, ask: ask, subscribe: subscribe, demo: demo,
     howList: howList, icon: icon, unblock: unblock,
     SHARE: SHARE, DOTS_H: DOTS_H, DOTS_V: DOTS_V
   };

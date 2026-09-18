@@ -609,6 +609,12 @@ body.tk-sheeting #tk-bar{display:none}
   font-size:.93rem;padding:14px;font-weight:700}
 .btn:hover{filter:brightness(1.05)}
 .btn:disabled{opacity:.4;filter:none}
+/* **הכפתור שכבר נלחץ.** לא מעומעם כמו כפתור חסום — נלחץ
+   בהצלחה אינו אותו דבר כמו לא זמין, ועמעום נראה כמו תקלה.
+   ירוק רך, מסגרת, ובלי הצללה: מה שהיה בולט ונגמר. */
+.btn.gr.sent{background:rgba(74,130,28,.12);color:var(--green-2);
+  border:1.5px solid rgba(74,130,28,.42);box-shadow:none;opacity:1;
+  cursor:default}
 .back{background:none;border:none;color:var(--ink-3);font-size:.87rem;font-weight:800;
   cursor:pointer;padding:3px 0;text-align:start;align-self:flex-start}
 .links{display:grid;gap:9px}
@@ -1875,7 +1881,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.79.0';
+var APP_VERSION = '8.80.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3075,11 +3081,23 @@ function legacyCopy(txt, done) {
 }
 
 function regDone(txt, viaWa) {
+  /* ============================================================
+     **הכפתור עצמו מתחלף, ולא נפתחת תיבה מתחתיו.**
+     ============================================================
+     "ברגע שהוא נרשם, כפתור שליחת ההרשמה מתחלף בכפתור ההרשמה
+     נשלחה — ואז רואים בבירור שהכפתור הזה כבר לחוץ."
+
+     קודם נפתחה מתחתיו תיבה ירוקה שאמרה "ההרשמה נשלחה", ומעליה
+     נשאר כפתור שנראה כאילו לא נלחץ. שני מסרים סותרים באותו
+     מסך, ואדם שמסתכל על הכפתור לוחץ שוב.
+     ============================================================ */
+  var sb = document.getElementById('r-send');
+  if (sb) {
+    sb.textContent = UI.sent;
+    sb.className = 'btn gr sent';
+    sb.disabled = true;
+  }
   document.getElementById('r-done').innerHTML =
-    /* רווח מתחת, לא רק מעל: ההנחיה שנפתחת אחריו נצמדה אליו
-     והשניים נראו כמו בלוק אחד שנדחס. */
-  '<div class="done-box" style="margin:14px 0 22px">' +
-    esc(UI.done) + '</div>' +
     /* בלי מספר אין קישור: `wa.me/` ריק הוא כפתור שמוביל לשגיאה.
        המספר מגיע מההגדרות שפורסמו — ראו COORD_WA ב-data.js. */
     (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' +

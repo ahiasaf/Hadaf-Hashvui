@@ -74,19 +74,6 @@ var TRIP_UI = (function () {
   function on() { return !!st; }
 
   /* ============================================================
-     אזור הניהול — פותחים אותו אם אנחנו בעמוד שיש בו כזה.
-     ============================================================
-     ובלי לנווט: מי שעומד בעמוד הצוות או בלוח נמצא שם בכוונה,
-     ורצועה שחוטפת אותו משם בחזרה לעמוד הראשי גרועה מרצועה
-     שאומרת את ההוראה ואינה מסמנת. היחיד שכן מנווט הוא שלב
-     ההתקנה — שם אין מה לעשות בעמוד אחר.
-     ============================================================ */
-  function toPanel() {
-    if (typeof show === 'function' && typeof myInstRow === 'function' &&
-        myInstRow()) show('my');
-  }
-
-  /* ============================================================
      השלבים.
      ============================================================
      `done` קיים = משימה, והוא נבדק מול מצב המכשיר. אין `done`
@@ -125,7 +112,10 @@ var TRIP_UI = (function () {
         }
       },
       done:function () { return !!ls('dfReg'); } },
-    { k:'s2', sel:'.thx-go',
+    /* `loud` — "ואחריו בכתב בולט וגדול". ההוראה כאן אינה מה
+       לעשות אלא **לחזור**, ובלעדיה אנשים יצאו לוואטסאפ ולא
+       חזרו. */
+    { k:'s2', sel:'.thx-go', loud:1,
       done:function () { return ls('df:ramsWa') === '1'; } },
     /* ============================================================
        ולא "לחצו על אזור הניהול" — ישר אל הכפתור עצמו.
@@ -160,18 +150,24 @@ var TRIP_UI = (function () {
         }
         location.href = home() + '?masa=1';
       },
+      /* **נגמר כשהעדכונים פעילים, ולא כשהאייקון נוסף.** זה מה
+         שהמדריך בא להשיג, וזה גם הערוץ שכל ההמשך יגיע דרכו. */
       done:function () {
+        if (window.ASK && ASK.noted) return ASK.noted();
         return !!(window.APPX && APPX.installed && APPX.installed());
       } },
-    /* ---- ומכאן המתנות. בכל אחת יש מה לנסות. ----
-       גם להן `enter`: שתיים מהן חיות באזור הניהול והשלישית
-       בעמוד הראשי, ומי שמגיע אליהן ממסך אחר — בסיור, או אחרי
-       שנדד בעצמו — היה מקבל הוראה שמצביעה על כלום. */
-    { k:'s4', sel:'#my-brd .brd',  enter:toPanel },
-    { k:'s5', sel:'#my-say .mycard', enter:toPanel },
-    { k:'s6', sel:'#stage .acts .go, #stage',
-      enter:function () { if (typeof show === 'function') show('home'); } },
-    { k:'s7', fin:1 }
+    /* ============================================================
+       וכאן נגמר המדריך.
+       ============================================================
+       "ברגע שהוא קיבל עדכונים אין יותר קשב מזה. נעצור בזה."
+
+       קודם המשיכו מכאן ארבעה שלבים — הלוח, המילה לתלמידים,
+       הדף והסיום. הם נמחקו: הלוח שהוא רואה ברגע הזה ריק, כי
+       אף תלמיד עוד לא נרשם, וסיום שמראה אפס אינו סיום. ההמשך
+       יישלח כהתראה כשיהיה לו מה להראות — וזה בדיוק הערוץ
+       שהשלב האחרון כאן בא לוודא שעובד.
+       ============================================================ */
+    { k:'s4', fin:1, test:1 }
   ];
 
   function step() { return STEPS[Math.max(0, Math.min(st.i, STEPS.length - 1))]; }
@@ -225,6 +221,16 @@ var TRIP_UI = (function () {
       '  color:var(--blue-d,#0B2550)}',
       '#trip span.s{display:block;font-size:.77rem;font-weight:600;',
       '  color:var(--ink-3,#5C687E);line-height:1.45;margin-top:2px}',
+      /* **וההוראה שחייבים לקרוא — בגדול ובבולט.**
+         "אחריו בכתב בולט וגדול: לאחר ששלחתם חזרו לכאן." */
+      '#trip span.s.loud{font-size:.95rem;font-weight:800;margin-top:7px;',
+      '  color:var(--gold-t,#8C681F);line-height:1.4}',
+      /* שתי תשובות באותו משקל, זו מעל זו — ברירת מחדל אינה
+         תשובה, ולכן "כן" אינו גדול מ"לא". */
+      '#trip .acts{flex:none;display:flex;flex-direction:column;gap:6px;',
+      '  align-items:stretch}',
+      '#trip .acts .go{text-align:center;text-decoration:none;display:block}',
+      '#trip .go.alt{background:var(--sunk,#F3ECDD);color:var(--ink-2,#5A6780)}',
       '#trip .go{flex:none;border:0;border-radius:10px;',
       '  background:var(--blue,#17468F);color:#fff;font:inherit;font-size:.85rem;',
       '  font-weight:800;padding:10px 16px;cursor:pointer}',
@@ -370,6 +376,14 @@ var TRIP_UI = (function () {
        ============================================================ */
     var busy = !st.hail && s.busy && s.busy();
 
+    /* ============================================================
+       הבדיקה האחרונה מנהלת מסך משלה.
+       ============================================================
+       שלושה מצבים על אותו שלב: לפני הלחיצה, אחרי שההתראה
+       יצאה (ואז שתי תשובות), ומה שנאמר למי שלא קיבל.
+       ============================================================ */
+    if (s.test && !st.hail) { paintTest(el, bars); return; }
+
     el.className = st.hail ? 'hail' : '';
     var ttl = st.hail ? t(s.hail) : t(busy ? s.k + 'busy' : s.k);
     var sub = st.hail ? t(s.hail + 'B') : t(busy ? s.k + 'busyB' : s.k + 'b');
@@ -401,8 +415,18 @@ var TRIP_UI = (function () {
       '<div class="row"><div class="txt">' +
       '<div class="n">' + esc(fill(t('of'), { n:st.i + 1, all:STEPS.length })) + '</div>' +
       '<b>' + esc(ttl) + '</b>' +
-      (sub ? '<span class="s">' + esc(sub) + '</span>' : '') +
+      /* ============================================================
+         **המזערה מתחת לכותרת, וההוראה אחריה.**
+         ============================================================
+         "תסיר את המשפט, ובמקומו שים את הכפתור הממוזער מתחת
+         לכותרת — ואחריו בכתב בולט וגדול."
+
+         קודם היא ישבה אחרי ההסבר, ולכן המשפט החשוב ביותר במסך
+         הזה — "חזרו לכאן" — נבלע בין הכותרת לכפתור.
+         ============================================================ */
       mini +
+      (sub ? '<span class="s' + (s.loud ? ' loud' : '') + '">' +
+             esc(sub) + '</span>' : '') +
       '</div>' + btn +
       '<button class="x" id="trip-x" aria-label="' + esc(t('quit')) + '">✕</button>' +
       '</div></div>';
@@ -425,7 +449,12 @@ var TRIP_UI = (function () {
         if (m && !st.hail && !busy && s.sel) {
           var box = m.querySelector('.mini');
           var now = miniOf(s.sel);
-          if (now && !box) { m.querySelector('.txt').innerHTML += now; }
+          /* לפני ההוראה ולא אחריה — אותו סדר של הציור הראשון. */
+          if (now && !box) {
+            var line = m.querySelector('.txt .s');
+            if (line) line.insertAdjacentHTML('beforebegin', now);
+            else m.querySelector('.txt').innerHTML += now;
+          }
         }
       }, 260);
     }
@@ -440,6 +469,116 @@ var TRIP_UI = (function () {
       bump();
     };
     offset();
+  }
+
+  /* ============================================================
+     הבדיקה האחרונה — ההתראה קופצת, והוא אומר אם ראה.
+     ============================================================
+     "יהיה לו כפתור של בדיקת התראות. ברגע שילחץ עליו תופיע לו
+     התראה, ותשאל אותו: קיבלת? אם כן — סיימנו. אם לא — תכתוב
+     לו שזה דווח לרכז והוא יהיה איתו בקשר."
+
+     `st.chk`:  0 = לפני · 1 = ההתראה יצאה · 2 = דווח ·
+                3 = לא הצלחנו לדווח · 4 = הדפדפן לא הקפיץ
+
+     ההתראה מקומית, דרך ה-Service Worker. ראו `APPX.demo`.
+     ============================================================ */
+  function paintTest(el, bars) {
+    var chk = st.chk || 0;
+    var K = { 0:['s4','s4b'], 1:['s4ask','s4askB'],
+              2:['s4bad','s4badB'], 3:['s4hand','s4handB'],
+              4:['s4','s4err'] }[chk];
+    el.className = chk === 2 ? 'hail' : '';
+
+    var acts;
+    if (chk === 1) {
+      /* שתי תשובות, וברירת מחדל אינה תשובה — לכן שתיהן
+         כפתורים באותו משקל ולא "כן" גדול ליד "לא" קטן. */
+      acts = '<button class="go" id="trip-yes">' + esc(t('s4yes')) + '</button>' +
+             '<button class="go alt" id="trip-no">' + esc(t('s4no')) + '</button>';
+    } else if (chk === 2) {
+      acts = '<button class="go" id="trip-done">' + esc(t('finGo')) + '</button>';
+    } else if (chk === 3) {
+      acts = (window.COORD_WA
+        ? '<a class="go" id="trip-wa" target="_blank" rel="noopener" href="' +
+          esc(waLink()) + '">' + esc(t('s4wa')) + '</a>' : '') +
+        '<button class="go alt" id="trip-done">' + esc(t('finGo')) + '</button>';
+    } else {
+      acts = '<button class="go" id="trip-test">' + esc(t('s4go')) + '</button>';
+    }
+    /* בסיור גם דרך החוצה. הבדיקה עצמה עובדת גם שם, אבל סיור
+       הוא הצצה — ומי שמסתכל אינו אמור להיתקע בו. */
+    if (st.see && chk !== 2 && chk !== 3) {
+      acts += '<button class="go alt" id="trip-done">' +
+              esc(t('finGo')) + '</button>';
+    }
+
+    el.innerHTML = '<div class="in">' +
+      '<div class="bars">' + bars + '</div>' +
+      '<div class="row"><div class="txt">' +
+      '<div class="n">' + esc(fill(t('of'), { n:st.i + 1, all:STEPS.length })) + '</div>' +
+      '<b>' + esc(t(K[0])) + '</b>' +
+      '<span class="s">' + esc(t(K[1])) + '</span>' +
+      '</div><div class="acts">' + acts + '</div>' +
+      '<button class="x" id="trip-x" aria-label="' + esc(t('quit')) + '">✕</button>' +
+      '</div></div>';
+
+    $('trip-x').onclick = function () { if (confirm(t('quitAsk'))) stop(); };
+
+    var hit = function (id, f) { var b = $(id); if (b) b.onclick = f; };
+    hit('trip-test', function () {
+      if (!window.APPX || !APPX.demo) { st.chk = 4; save(); paint(); return; }
+      APPX.demo(t('s4'), t('s4askB')).then(function () {
+        st.chk = 1; save(); paint();
+      })['catch'](function () { st.chk = 4; save(); paint(); });
+    });
+    hit('trip-yes',  function () { stop(); });
+    hit('trip-no',   function () { report(); });
+    hit('trip-done', function () { stop(); });
+    offset();
+  }
+
+  /* הודעה לרכז, למי שאין לו דרך אחרת. הנוסח קצר בכוונה: הוא
+     כבר מתוסכל, ולא יערוך הודעה. */
+  function waLink() {
+    var who = '';
+    try {
+      var r = JSON.parse(ls('dfReg') || 'null');
+      if (r) who = (r.inst || '') + (r.who ? ' · ' + r.who : '');
+    } catch (e) {}
+    return 'https://wa.me/' + window.COORD_WA + '?text=' +
+      encodeURIComponent('ההתראות לא מגיעות אליי. ' + who);
+  }
+
+  /* ============================================================
+     ומי שלא קיבל — מדווח, ונאמר לו שדיווחנו.
+     ============================================================
+     דרך `help=1`, שהוא המסלול היחיד כאן שמחזיר תשובה אמיתית:
+     כתיבה ב-`no-cors` "מצליחה" תמיד, ואמירה "דיווחנו" על סמך
+     הצלחה מדומה היא בדיוק ההבטחה שהפרויקט הזה נלחם בה.
+     ============================================================ */
+  function report() {
+    var reg = null;
+    try { reg = JSON.parse(ls('dfReg') || 'null'); } catch (e) {}
+    var me  = (window.ASK && ASK.get && ASK.get()) || {};
+    var who = (reg && reg.who) || ((me.first || '') + ' ' + (me.last || '')).trim();
+    var tel = (reg && reg.phone) || '';
+    if (typeof scriptGet !== 'function' || !who ||
+        String(tel).replace(/[^0-9]/g, '').length < 9) {
+      st.chk = 3; save(); paint(); return;
+    }
+    st.chk = 2; save(); paint();          /* קודם לצייר, אחר כך להודיע */
+    scriptGet({
+      help: '1', name: who, phone: tel,
+      inst: (reg && reg.code) || '', instName: (reg && reg.inst) || '',
+      what: 'ההתראה לא הגיעה בבדיקה שבסוף המדריך',
+      dev: (window.APPX && APPX.isIOS()) ? 'אייפון' : 'אנדרואיד',
+      diag: 'מותקן:' + (window.APPX && APPX.installed && APPX.installed() ? 'כן' : 'לא') +
+            ' · אישור:' + (window.APPX && APPX.perm ? APPX.perm() : '—')
+    }).then(function (d) {
+      /* לא נקלט — אומרים, ולא משאירים אותו עם הבטחה שלא קרתה. */
+      if (!d || d.status !== 'ok') { st.chk = 3; save(); paint(); }
+    })['catch'](function () { st.chk = 3; save(); paint(); });
   }
 
   /* **הדחיפה למטה.** זה מה שמונע מהרצועה לכסות משהו, ולכן
