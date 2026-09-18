@@ -59,7 +59,9 @@ var TX = (function () {
               /* שלוש דרכי הלימוד — ראו ways.js. */
               ways:window.WAYS_T,
               /* המסע — ראו trip.js. */
-              trip:window.TRIP };
+              trip:window.TRIP,
+              /* ההודעות שהמורה שולח בוואטסאפ — ראו shlach.html. */
+              send:window.SEND };
     return ROOTS;
   }
   function ref(k) {

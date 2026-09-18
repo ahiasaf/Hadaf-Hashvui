@@ -27,7 +27,7 @@ var ROOTS = { fit:'FIT', ui:'UI', sfarim:'SFARIM', rights:'RIGHTS', join:'JOIN',
               tzevet:'TZEVET', play:'PLAY', head:'HEAD_ASK', askui:'ASK_UI',
               headf:'HEAD_ASK_F', guide:'GUIDE',
               panel:'PANEL', ways:'WAYS_T',
-              trip:'TRIP' };
+              trip:'TRIP', send:'SEND' };
 var NOTTEXT = /\.(id|tone|key|code|src|hi)$/;
 
 var listed = {};

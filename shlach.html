@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>שליחת ההודעות · הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<link rel="apple-touch-icon-precomposed" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="הדף · שליחה">
+<meta name="theme-color" content="#0B2550">
+<!-- בכוונה בלי manifest: מניפסט קובע start_url קבוע, והאייקון
+     היה נפתח בלי ?inst= — כלומר בלי הישיבה שההודעה שייכת לה.
+     אותו שיקול בדיוק כמו ב-tzevet.html. -->
+<style>
+/* ============================================================
+   שליחת ההודעות בוואטסאפ · /shlach?inst=<קוד>
+   ============================================================
+   קישור אחד לכל המורים של מוסד. המורה בוחר את השכבה שלו,
+   לוחץ על כפתור אחד, ווואטסאפ נפתח עם הפלייר וההודעה בפנים.
+
+   מה שהעמוד הזה מנסה למנוע
+   ------------------------
+   עד היום ההודעות נשלחו כך: הרכז שולח למורה טקסט, המורה
+   מעתיק, מחפש את הפלייר בגלריה, מוודא שהוא לקח את הנוסח של
+   הגיל הנכון, ומדביק. כל שלב שם הוא מקום שבו מורה אחד מתוך
+   עשרה שולח את הנוסח של שכבה אחרת, או שולח בלי הפלייר, או
+   לא שולח בכלל.
+
+   ולכן: בחירה אחת, לחיצה אחת, וכל השאר נבנה כאן.
+
+   התמונה — וזו כל הנקודה הטכנית
+   -----------------------------
+   `wa.me?text=` יודע לשלוח טקסט בלבד. הדרך היחידה להוציא
+   תמונה מדף אינטרנט אל וואטסאפ היא `navigator.share` עם
+   `files` — ו**היא חייבת להיקרא מתוך המחווה של המשתמש**.
+   לכן שני הפליירים נטענים כבר בפתיחת העמוד וממתינים כקובץ
+   מוכן; טעינה בתוך הלחיצה הייתה שוברת את המחווה באייפון,
+   וחלון השיתוף לא היה נפתח כלל.
+
+   **ולמה JPG ולא WEBP.** וואטסאפ מפרש קובץ webp כמדבקה —
+   הפלייר היה מגיע מרובע וקטן. JPG מגיע כתמונה.
+
+   ומה שלא תמיד עובד: יש מכשירים שבהם וואטסאפ מקבל את התמונה
+   ומשמיט את הכיתוב. אין על זה שליטה מהקוד, ולכן ההודעה
+   מועתקת ללוח ההעתקה **לפני** פתיחת חלון השיתוף (אחרי, החלון
+   כבר לקח את הפוקוס והעתקה נכשלת), ונאמר למורה שאפשר להדביק.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE;
+  --green:#6FA83B; --green-d:#467B1A;
+  --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E;
+  --rule:#E5DAC3; --rule-2:#EFE7D7;
+  --r:16px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+}
+*{box-sizing:border-box}
+/* `display` שנקבע במחלקה גובר על `hidden` של הדפדפן, וכפתור
+   שהוסתר בקוד נשאר על המסך. זה קרה כאן לכפתורי ההצצה. */
+[hidden]{display:none !important}
+img:not([src]){visibility:hidden}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  line-height:1.75;-webkit-text-size-adjust:100%}
+.wrap{max-width:34rem;margin:0 auto;padding:0 18px 54px}
+
+/* ---------- הראש ----------
+   אותה חתימה שיש בכל מסך: הסמל בעיגול לבן, שם התוכנית והשנה. */
+header{background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
+    var(--blue) 38%,var(--blue-d) 82%);
+  color:#fff;padding:calc(env(safe-area-inset-top) + 26px) 18px 30px;
+  text-align:center}
+.masthead{display:flex;align-items:center;justify-content:center;gap:13px;
+  margin-bottom:20px}
+.masthead .m{width:54px;height:54px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.28)}
+.masthead .m img{width:35px;height:35px;display:block;object-fit:contain}
+.masthead .t{text-align:start}
+.masthead b{display:block;font-size:1.14rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:#fff}
+.masthead .yr{display:block;font-size:.74rem;font-weight:800;color:var(--gold-l);
+  letter-spacing:.05em;margin-top:3px}
+header .eyebrow{font-size:.73rem;font-weight:800;letter-spacing:.09em;
+  color:var(--gold-l);margin-bottom:13px;min-height:1px}
+header h1{margin:0;font-size:1.52rem;font-weight:800;line-height:1.25;
+  letter-spacing:-.035em;max-width:22rem;margin-inline:auto}
+header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
+  color:rgba(255,255,255,.82);line-height:1.7;max-width:24rem}
+
+/* ---------- הכרטיסים ---------- */
+.card{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--r);box-shadow:var(--sh-2);padding:19px 18px;
+  margin-top:16px}
+.card:first-child{margin-top:-14px}
+.step{display:flex;align-items:center;gap:11px}
+.step i{flex:none;width:30px;height:30px;border-radius:50%;font-style:normal;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;font-weight:800;color:#fff;
+  background:linear-gradient(150deg,var(--blue-l),var(--blue));
+  box-shadow:0 0 0 4px rgba(23,70,143,.11)}
+.step b{font-size:1.05rem;font-weight:800;letter-spacing:-.03em;
+  color:var(--blue-d);line-height:1.35}
+.sub{margin:7px 0 0;font-size:.86rem;font-weight:600;color:var(--ink-3);
+  line-height:1.6}
+
+/* ---------- השכבות ----------
+   שישה כפתורים גדולים ולא רשימה נפתחת: בחירה בלחיצה אחת,
+   ורואים את כולן בבת אחת. */
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+  margin-top:14px}
+.gr{border:1px solid var(--rule);background:var(--sunk);color:var(--ink-2);
+  border-radius:12px;padding:13px 4px;font-family:inherit;font-size:1.12rem;
+  font-weight:800;cursor:pointer;transition:transform .12s}
+.gr:active{transform:scale(.97)}
+.gr.on{background:linear-gradient(150deg,var(--blue-l),var(--blue));
+  border-color:transparent;color:#fff;
+  box-shadow:0 5px 16px rgba(23,70,143,.28)}
+
+/* ---------- שני הכפתורים ---------- */
+.act{margin-top:14px}
+.act:first-of-type{margin-top:16px}
+.big{display:block;width:100%;border:none;border-radius:13px;
+  padding:15px 14px;font-family:inherit;font-weight:800;font-size:1.05rem;
+  color:#fff;cursor:pointer;text-align:center;line-height:1.3;
+  transition:transform .12s}
+.big:active{transform:scale(.985)}
+.big small{display:block;margin-top:3px;font-size:.78rem;font-weight:700;
+  color:rgba(255,255,255,.82)}
+.big.g{background:var(--green-d);box-shadow:0 5px 16px rgba(70,123,26,.28)}
+.big.b{background:var(--blue);box-shadow:0 5px 16px rgba(23,70,143,.26)}
+.big[disabled]{opacity:.45;box-shadow:none;cursor:default}
+
+.peek{display:block;margin:7px auto 0;background:none;border:none;
+  font-family:inherit;font-size:.83rem;font-weight:700;color:var(--ink-3);
+  text-decoration:underline;cursor:pointer;padding:3px 6px}
+
+/* ההצצה — הפלייר והנוסח, בדיוק מה שיישלח */
+.prev{margin-top:11px;background:var(--sunk);border-radius:12px;
+  padding:13px;border:1px solid var(--rule-2)}
+.prev .fl{display:block;width:100%;max-width:15rem;margin:0 auto;
+  border-radius:9px;box-shadow:var(--sh-1)}
+.prev .msg{margin:12px 0 0;font-size:.84rem;line-height:1.7;
+  color:var(--ink-2);white-space:pre-line;word-break:break-word}
+.prev .save{display:block;margin-top:11px;text-align:center;
+  font-size:.85rem;font-weight:800;color:var(--blue);text-decoration:none;
+  background:#fff;border:1px solid var(--rule);border-radius:10px;padding:9px}
+
+/* מה שנאמר אחרי הלחיצה */
+.after{margin:9px 0 0;font-size:.87rem;font-weight:700;line-height:1.6;
+  color:var(--green-d);background:rgba(111,168,59,.1);
+  border-radius:10px;padding:10px 12px}
+
+.pick{margin:10px 0 0;text-align:center;font-size:.85rem;font-weight:700;
+  color:var(--gold-t)}
+
+/* ---------- ומה יקרה אז ---------- */
+.how{margin-top:16px;padding:17px 18px;border-radius:var(--r);
+  background:rgba(23,70,143,.055);border:1px solid rgba(23,70,143,.12)}
+.how b{display:block;font-size:.97rem;font-weight:800;color:var(--blue-d);
+  letter-spacing:-.02em}
+.how ol{margin:9px 0 0;padding-inline-start:20px}
+.how li{font-size:.9rem;font-weight:600;color:var(--ink-2);line-height:1.7;
+  margin-top:3px}
+
+.inst{margin:16px 0 0;text-align:center;font-size:.82rem;font-weight:700;
+  color:var(--ink-3)}
+
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+footer{text-align:center;color:var(--ink-3);font-size:.8rem;font-weight:600;
+  margin-top:26px;line-height:1.9}
+footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div class="t"><b>הדף השבועי<br>של בני עקיבא</b>
+      <span class="yr">שנת תשפ״ז</span></div>
+  </div>
+  <div class="eyebrow" id="inst-name"></div>
+  <h1 id="t-h1"></h1>
+  <p class="lead" id="t-lead"></p>
+</header>
+
+<main class="wrap">
+
+  <section class="card">
+    <div class="step"><i>1</i><b id="t-g1"></b></div>
+    <p class="sub" id="t-g1b"></p>
+    <div class="grades" id="grades"></div>
+  </section>
+
+  <section class="card">
+    <div class="step"><i>2</i><b id="t-g2"></b></div>
+
+    <div class="act">
+      <button class="big g" id="b-sons" disabled>
+        <span id="t-sons"></span><small id="t-sonsB"></small></button>
+      <button class="peek" id="p-sons"></button>
+      <div class="prev" id="v-sons" hidden>
+        <img class="fl" id="f-sons" alt="">
+        <p class="msg" id="m-sons"></p>
+        <a class="save" id="s-sons" href="flyer/sons.jpg"
+           download="hadaf-sons.jpg"></a>
+      </div>
+      <p class="after" id="a-sons" hidden></p>
+    </div>
+
+    <div class="act">
+      <button class="big b" id="b-par" disabled>
+        <span id="t-par"></span><small id="t-parB"></small></button>
+      <button class="peek" id="p-par"></button>
+      <div class="prev" id="v-par" hidden>
+        <img class="fl" id="f-par" alt="">
+        <p class="msg" id="m-par"></p>
+        <a class="save" id="s-par" href="flyer/parents.jpg"
+           download="hadaf-parents.jpg"></a>
+      </div>
+      <p class="after" id="a-par" hidden></p>
+    </div>
+
+    <p class="pick" id="pick"></p>
+  </section>
+
+  <section class="how">
+    <b id="t-howH"></b>
+    <ol>
+      <li id="t-how1"></li>
+      <li id="t-how2"></li>
+      <li id="t-how3"></li>
+    </ol>
+  </section>
+
+  <p class="inst" id="t-inst"></p>
+
+  <footer>
+    רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
+    <a href="accessibility.html">הצהרת נגישות</a>
+  </footer>
+</main>
+
+<script src="a11y.js"></script>
+<script src="data.js"></script>
+<script src="textedit.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(i) { return document.getElementById(i); }
+document.getElementById('hdr-mark').src = window.LOGO_MARK || '';
+
+/* `{שדה}` בתוך נוסח. השדות כאן בעברית ולא באנגלית, כי אחיאסף
+   עורך את הנוסח ורואה אותם. */
+function fill(t, m) {
+  return String(t == null ? '' : t).replace(/\{([^}]+)\}/g, function (_, k) {
+    return m[k] == null ? '' : m[k];
+  });
+}
+function esc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+  });
+}
+function qs(n) {
+  var m = new RegExp('[?&]' + n + '=([^&#]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+/* ---------- הישיבה ----------
+   הקוד מגיע מהכתובת, ומנוקה: הוא נכנס לתוך קישור שנשלח
+   לקבוצות שלמות. */
+var INST = (qs('inst') || 'lapid').replace(/[^a-z0-9_-]/gi, '');
+function instName() {
+  var r = (window.INSTITUTIONS || []).filter(function (i) {
+    return i.code === INST;
+  })[0];
+  return r ? r.name : '';
+}
+
+/* ============================================================
+   קישור ההצטרפות שנכנס להודעה.
+   ============================================================
+   `cleanUrls` מגיש את העמוד הזה גם כ-`/shlach` וגם כ-
+   `/shlach.html`, ולכן שתי הצורות נחתכות. חיתוך של אחת מהן
+   בלבד כבר הפיל שלושה כפתורים ל-404.
+   ============================================================ */
+function joinUrl() {
+  var base = location.href.split('#')[0].split('?')[0]
+                     .replace(/shlach(\.html)?$/, '');
+  return base + 'join.html?inst=' + encodeURIComponent(INST);
+}
+
+/* ---------- השכבה שנבחרה ---------- */
+var GKEY = 'df:shlachG';
+function grades() {
+  return String((window.SEND || {}).grades || '').split(/\s+/)
+         .filter(function (g) { return !!g; });
+}
+function grade() {
+  try {
+    var g = localStorage.getItem(GKEY);
+    return grades().indexOf(g) >= 0 ? g : '';
+  } catch (e) { return ''; }
+}
+function setGrade(g) {
+  try { localStorage.setItem(GKEY, g); } catch (e) {}
+  draw();
+}
+
+/* ---------- ההודעה עצמה ---------- */
+function young(g) {
+  return String((window.SEND || {}).young || '').split(/\s+/).indexOf(g) >= 0;
+}
+function msg(who) {
+  var S = window.SEND || {}, g = grade();
+  var t = who === 'par' ? S.mPar : (young(g) ? S.mSonsA : S.mSonsB);
+  return fill(t, { 'קישור':joinUrl(), 'שכבה':g });
+}
+
+/* ============================================================
+   הפליירים — נטענים עכשיו, לא בלחיצה.
+   ============================================================
+   `navigator.share` חייב להיקרא מתוך המחווה של המשתמש. קריאת
+   `fetch` בתוך הלחיצה שוברת את השרשרת הזו באייפון, וחלון
+   השיתוף פשוט אינו נפתח. לכן שניהם ממתינים כקובץ מוכן.
+   ============================================================ */
+var FILES = {}, PIC = { sons:'flyer/sons.jpg', par:'flyer/parents.jpg' };
+function preload(who) {
+  fetch(PIC[who]).then(function (r) { return r.ok ? r.blob() : null; })
+    .then(function (b) {
+      if (!b) return;
+      try {
+        FILES[who] = new File([b], who + '.jpg', { type:'image/jpeg' });
+      } catch (e) {}
+    })
+    .catch(function () {});
+}
+
+function canFiles(who) {
+  var f = FILES[who];
+  if (!f || !navigator.canShare || !navigator.share) return false;
+  try { return navigator.canShare({ files:[f] }); } catch (e) { return false; }
+}
+
+/* ---------- הלחיצה ---------- */
+function go(who) {
+  if (!grade()) return;
+  var text = msg(who);
+
+  /* ההעתקה **לפני** השיתוף: אחריו החלון כבר לקח את הפוקוס,
+     והכתיבה ללוח נכשלת. */
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {});
+    }
+  } catch (e) {}
+
+  if (canFiles(who)) {
+    navigator.share({ files:[FILES[who]], text:text })
+      .then(function () { after(who, 1); })
+      /* ביטול של המשתמש אינו תקלה, ואין מה לומר עליו. */
+      .catch(function () {});
+    return;
+  }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  after(who, 0);
+}
+function after(who, withPic) {
+  var S = window.SEND || {}, el = $('a-' + who);
+  el.textContent = withPic ? S.okShare : S.okWa;
+  el.hidden = false;
+  if (!withPic) show(who, true);
+}
+
+/* ---------- ההצצה ---------- */
+function show(who, on) {
+  var v = $('v-' + who);
+  v.hidden = on == null ? !v.hidden : !on;
+  $('p-' + who).textContent =
+    v.hidden ? (window.SEND || {}).peek : (window.SEND || {}).peekOff;
+}
+
+/* ============================================================
+   הציור.
+   ============================================================ */
+function draw() {
+  var S = window.SEND || {}, g = grade();
+
+  $('t-h1').textContent   = S.h1 || '';
+  $('t-lead').textContent = S.lead || '';
+  $('t-g1').textContent   = S.g1 || '';
+  $('t-g1b').textContent  = S.g1b || '';
+  $('t-g2').textContent   = S.g2 || '';
+  $('t-howH').textContent = S.howH || '';
+  $('t-how1').textContent = S.how1 || '';
+  $('t-how2').textContent = S.how2 || '';
+  $('t-how3').textContent = S.how3 || '';
+  document.title = (S.h1 || '') + ' · הדף השבועי של בני עקיבא';
+
+  $('t-sons').textContent  = S.sons || '';
+  $('t-sonsB').textContent = g ? fill(S.sonsB, { g:g }) : (S.sonsAny || '');
+  $('t-par').textContent   = S.par || '';
+  $('t-parB').textContent  = S.parB || '';
+
+  /* השכבות */
+  var box = $('grades'), html = '';
+  grades().forEach(function (x) {
+    html += '<button class="gr' + (x === g ? ' on' : '') + '" data-g="' +
+            esc(x) + '">' + esc(x) + '</button>';
+  });
+  box.innerHTML = html;
+
+  /* בלי שכבה אין הודעה — ונאמר למה, במקום כפתור שלא מגיב. */
+  ['sons','par'].forEach(function (w) {
+    $('b-' + w).disabled = !g;
+    $('m-' + w).textContent = g ? msg(w) : '';
+    $('s-' + w).textContent = S.save || '';
+    if ($('v-' + w).hidden) $('p-' + w).textContent = S.peek || '';
+    /* אין מה להציץ בהודעה שעוד לא נבחר לה גיל */
+    $('p-' + w).hidden = !g;
+    if (!g) { $('v-' + w).hidden = true; $('a-' + w).hidden = true; }
+  });
+  $('pick').textContent = g ? '' : (S.pick || '');
+  $('pick').hidden = !!g;
+
+  /* שם הישיבה — רק כשהוא ידוע. קוד שאינו ברשימה אינו הופך
+     לשורה ריקה שנראית כמו תקלה. */
+  var nm = instName();
+  $('inst-name').textContent = nm;
+  $('t-inst').textContent = nm ? fill(S.inst, { inst:nm }) : '';
+}
+
+/* ---------- חיווט ---------- */
+$('grades').addEventListener('click', function (e) {
+  var b = e.target.closest ? e.target.closest('.gr') : null;
+  if (b && b.getAttribute('data-g')) setGrade(b.getAttribute('data-g'));
+});
+['sons','par'].forEach(function (w) {
+  $('b-' + w).addEventListener('click', function () { go(w); });
+  $('p-' + w).addEventListener('click', function () { show(w); });
+  $('f-' + w).src = PIC[w];
+  preload(w);
+});
+
+function relayer() { TX.layer(TX.published(), TX.draft()); draw(); }
+relayer();
+TX.init({ repaint: draw, onStop: function () { location.href = './#admin'; } });
+
+/* ---------- ומה שפורסם בגיליון ---------- */
+(function () {
+  var id = window.SHEET_ID;
+  try {
+    var c = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (c.sheetId) id = c.sheetId;
+  } catch (e) {}
+  if (!id || !navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('טקסטים') +
+        '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var map = {}, rows = [], row = [], f = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var ch = t[i];
+        if (q) {
+          if (ch === '"' && t[i+1] === '"') { f += '"'; i++; }
+          else if (ch === '"') q = false; else f += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ',') { row.push(f); f = ''; }
+        else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+        else if (ch !== '\r') f += ch;
+      }
+      if (f || row.length) { row.push(f); rows.push(row); }
+      /* כותרת שאינה מוכרת = לא הלשונית שביקשנו. לא נוגעים. */
+      if (!rows.length || rows[0].join('|').indexOf('מפתח') < 0) return;
+      rows.slice(1).forEach(function (r2) {
+        var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
+        if (k && v) map[k] = v;
+      });
+      try { localStorage.setItem('df:textCache', JSON.stringify(map)); } catch (e) {}
+      relayer();
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>
