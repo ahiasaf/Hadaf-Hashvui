@@ -1522,6 +1522,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 
 /* תצוגת המדריך בניהול. רקע שקוע, כדי שהציור ייראה כמו משהו
    שמסתכלים עליו ולא כמו חלק מהטופס. */
+/* המדריך מביא איתו קו מפריד, שמפריד אותו מהכותרת והשורה
+   הקבועה שמעליו. בשני המקומות האלה אין מעליו דבר — הוא פותח
+   את הכרטיס, והקו היה נראה כמו שריטה בקצה העליון. */
+#reg-gu .gu,#gu-prev .gu{padding-top:0;border-top:0}
 .gu-box{background:var(--bg);border:1px solid var(--rule);
   border-radius:var(--r-m);padding:16px 14px}
 .adm-sub2{margin-top:16px;padding-top:13px;border-top:1px solid var(--rule)}
@@ -1881,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.82.2';
+var APP_VERSION = '8.82.3';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2334,13 +2338,14 @@ function renderRegPre() {
   /* `mycard` ולא הכרטיס של האשף: הסגנון ההוא מוזרק על ידי
      ask.js ברגע שהוא נשתל, ומסך שמסתמך עליו לפני כן מצויר
      בלי עיצוב. */
-  var h = '<div class="mycard"><h3>' + esc(UI.preH) + '</h3>' +
-          '<p>' + esc(UI.preB) + '</p>';
+  /* בלי כותרת ובלי פסקה שמסבירה למה — ראו `UI.preSkip` ב-data.js.
+     המדריך פותח בהוראה הראשונה. */
+  var h = '<div class="mycard">';
 
   /* מוואטסאפ אי אפשר להוסיף למסך הבית בכלל, וזו ההוראה
      היחידה שתעזור שם. */
   if (window.APPX && APPX.inApp()) {
-    h += '<div class="cond" style="margin-top:14px"><b>' +
+    h += '<div class="cond"><b>' +
          esc(ASK_UI.inAppH) + '</b><br>' + esc(ASK_UI.inAppB) + ' ' +
          esc(ASK_UI.inAppIos) + '</div>' +
          '<button class="btn g" style="margin-top:12px;width:100%" ' +
@@ -2350,7 +2355,7 @@ function renderRegPre() {
     return;
   }
 
-  h += '<div id="reg-gu" style="margin-top:16px"></div>' +
+  h += '<div id="reg-gu"></div>' +
        '<button class="btn g" id="reg-pre-skip" style="margin-top:14px">' +
        esc(UI.preSkip) + '</button></div>';
   el.innerHTML = h;
@@ -7952,18 +7957,16 @@ function admText(el) {
    כאן שלושת המסלולים זה לצד זה, חיים ולחיצים, ומתחת לכל אחד
    הנוסחים שלו. משנים מילה ורואים אותה בציור באותו רגע.
    ============================================================ */
-var guKind = 'iosNew';
+var guKind = 'ios';
 var GU_TXT = {
-  iosNew: ['guide.n1','guide.n1s','guide.n2','guide.n2s'],
-  iosOld: ['guide.o1','guide.o1s'],
-  droid:  ['guide.a1','guide.a1s','guide.a2','guide.a2s','guide.a3','guide.a3s']
+  ios:   ['guide.n1','guide.n2'],
+  droid: ['guide.a1','guide.a2','guide.a3']
 };
 /* השלבים המשותפים לשני מסלולי האייפון — נערכים פעם אחת. */
 /* שלבי האייפון המשותפים, לפי הסדר שבמסלול. `s2e` — פריסת
    גיליון השיתוף — נוסף אחריו ונשכח כאן, וכך היה נוסח שאי
    אפשר להגיע אליו בעריכה. */
-var GU_IOS = ['guide.s2e','guide.s2es','guide.s3','guide.s3s',
-              'guide.s4','guide.s4s','guide.s5','guide.s5s'];
+var GU_IOS = ['guide.s2e','guide.s3','guide.s4','guide.s5'];
 
 function guPick(k) {
   guKind = k;
@@ -7976,10 +7979,10 @@ function guCard() {
   return '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>מדריך ההתקנה</h4>' +
     '<p class="h">מה שרואים כשמתקינים את האפליקציה. לכל מכשיר ' +
-    'מסלול משלו — כאן שלושתם, גם כשבידיים מכשיר אחד ' +
+    'מסלול משלו — כאן שניהם, גם כשבידיים מכשיר אחד ' +
     'והאפליקציה כבר מותקנת עליו.<br>' +
-    'בחרו מסלול, ועברו בו עם "הבא" עד הסוף. מסלולי האייפון ' +
-    'הם צילומי מסך אמיתיים; אנדרואיד מצויר.</p>' +
+    'בחרו מסלול, ועברו בו עם "הבא" עד הסוף. מסלול האייפון ' +
+    'הוא צילומי מסך אמיתיים; אנדרואיד מצויר.</p>' +
     '<div class="tabs" style="margin:0 0 12px">' +
     GUIDE_UI.kinds().map(function (k) {
       /* `.tabs button` הוא הכלל שבעמוד; מחלקה משלי כאן הייתה
