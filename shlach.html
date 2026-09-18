@@ -158,14 +158,14 @@ header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
 .pick{margin:10px 0 0;text-align:center;font-size:.85rem;font-weight:700;
   color:var(--gold-t)}
 
-/* ---------- ומה יקרה אז ---------- */
-.how{margin-top:16px;padding:17px 18px;border-radius:var(--r);
-  background:rgba(23,70,143,.055);border:1px solid rgba(23,70,143,.12)}
-.how b{display:block;font-size:.97rem;font-weight:800;color:var(--blue-d);
-  letter-spacing:-.02em}
-.how ol{margin:9px 0 0;padding-inline-start:20px}
-.how li{font-size:.9rem;font-weight:600;color:var(--ink-2);line-height:1.7;
-  margin-top:3px}
+/* ---------- מה שקורה אחרי הלחיצה ----------
+   הסמל הוא שם כדי שהעין תמצא את וואטסאפ בחלון השיתוף בלי
+   לקרוא — שם הוא יושב בין עוד חמישה יעדים. */
+.open{display:flex;align-items:center;justify-content:center;gap:10px;
+  margin:20px auto 0;max-width:20rem}
+.open svg{flex:none;width:27px;height:27px;fill:#25D366}
+.open b{font-size:1rem;font-weight:800;color:var(--blue-d);
+  letter-spacing:-.025em;line-height:1.5;text-align:start}
 
 .inst{margin:16px 0 0;text-align:center;font-size:.82rem;font-weight:700;
   color:var(--ink-3)}
@@ -187,7 +187,6 @@ footer a{color:var(--ink-2)}
   </div>
   <div class="eyebrow" id="inst-name"></div>
   <h1 id="t-h1"></h1>
-  <p class="lead" id="t-lead"></p>
 </header>
 
 <main class="wrap">
@@ -230,14 +229,10 @@ footer a{color:var(--ink-2)}
     <p class="pick" id="pick"></p>
   </section>
 
-  <section class="how">
-    <b id="t-howH"></b>
-    <ol>
-      <li id="t-how1"></li>
-      <li id="t-how2"></li>
-      <li id="t-how3"></li>
-    </ol>
-  </section>
+  <p class="open">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.48-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.01-1.04 2.47s1.07 2.87 1.22 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.28.17-1.41-.07-.13-.27-.2-.57-.35zM12.04 21.5h-.01c-1.77 0-3.5-.48-5.02-1.38l-.36-.21-3.73.98 1-3.64-.24-.37a9.86 9.86 0 01-1.51-5.26c0-5.45 4.44-9.89 9.89-9.89 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 012.89 6.99c0 5.45-4.44 9.88-9.9 9.88zM20.52 3.45A11.8 11.8 0 0012.04 0C5.46 0 .1 5.35.1 11.93c0 2.1.55 4.16 1.6 5.97L0 24l6.24-1.64a11.9 11.9 0 005.8 1.48h.01c6.58 0 11.93-5.35 11.93-11.93 0-3.19-1.24-6.19-3.46-8.46z"/></svg>
+    <b id="t-open"></b>
+  </p>
 
   <p class="inst" id="t-inst"></p>
 
@@ -400,14 +395,10 @@ function draw() {
   var S = window.SEND || {}, g = grade();
 
   $('t-h1').textContent   = S.h1 || '';
-  $('t-lead').textContent = S.lead || '';
   $('t-g1').textContent   = S.g1 || '';
   $('t-g1b').textContent  = S.g1b || '';
   $('t-g2').textContent   = S.g2 || '';
-  $('t-howH').textContent = S.howH || '';
-  $('t-how1').textContent = S.how1 || '';
-  $('t-how2').textContent = S.how2 || '';
-  $('t-how3').textContent = S.how3 || '';
+  $('t-open').textContent = S.open || '';
   document.title = (S.h1 || '') + ' · הדף השבועי של בני עקיבא';
 
   $('t-sons').textContent  = S.sons || '';
