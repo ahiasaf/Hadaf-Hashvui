@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.83.0';
+var APP_VERSION = '8.85.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9538,6 +9538,14 @@ function admPing() {
       var tabs = (d.tabs || []).map(function (t) {
         return esc(t.name) + ' (' + t.rows + ')';
       }).join(' · ') || 'אין לשוניות';
+      /* העלאת שקפים/שמע לריפו עוברת ב-no-cors ולכן לעולם לא
+         אומרת למה נכשלה — רק "לא הגיעו". זה המקום היחיד שיכול
+         להגיד את הסיבה האמיתית (טוקן שגוי, אין הרשאת כתיבה,
+         שם ריפו לא נמצא), כי הוא עובר דרך doGet שהתשובה שלו נקראת. */
+      var ghLine = d.gh
+        ? ('<br>' + (d.gh.ok ? '' : '<b>') + 'GitHub: ' + esc(d.gh.message) +
+           (d.gh.ok ? '' : '</b>'))
+        : '';
       /* הבדיקה החשובה מכולן, והיחידה שאי אפשר לראות בעין: האם
          הסקריפט כותב לאותו גיליון שהאפליקציה קוראת ממנו. כשלא —
          כל "פרסום" מצליח, ואף אחד לא רואה דבר. */
@@ -9563,7 +9571,7 @@ function admPing() {
         say('cond', 'החיבור תקין · גרסה ' + v +
             '<br><b>אבל הגיליון הפרטי אינו מוגדר.</b> שמות של תלמידים ' +
             'וטלפונים של הורים ייכתבו לגיליון שמשותף לצפייה.<br>' +
-            'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.');
+            'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.' + ghLine);
       } else {
         /* "מוגדר" אינו מספיק. ערך שיושב בקוד יימחק בהדבקה הבאה
            בלי שדבר יזהיר, ושתי ההדבקות האחרונות כבר הוכיחו זאת.
@@ -9594,7 +9602,7 @@ function admPing() {
                 'Add script property, בשמות <code>PRIVATE_ID</code> ו-' +
                 '<code>READ_KEY</code>.'
               : '') +
-            '<br>לשוניות: ' + tabs);
+            '<br>לשוניות: ' + tabs + ghLine);
       }
     })
     .catch(function () {
