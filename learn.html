@@ -366,19 +366,19 @@ body.side-on #side{display:flex}
 .sd-a .msg.bad{color:#B23B3B}
 
 /* ---------- האולפן ---------- */
-.rec-txt{width:100%;box-sizing:border-box;min-height:70px;resize:vertical;
+.vox-txt{width:100%;box-sizing:border-box;min-height:70px;resize:vertical;
   border:1px solid rgba(192,143,43,.45);border-radius:9px;padding:8px 10px;
   font:inherit;font-size:.82rem;line-height:1.6;color:var(--ink, #22314D);
   background:#fff;margin-bottom:8px}
-.rec-clips{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-.rec-clip{display:flex;align-items:center;gap:8px}
-.rec-clip .tag{flex:0 0 auto;font-size:.68rem;font-weight:800;color:var(--blue);
+.vox-clips{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.vox-clip{display:flex;align-items:center;gap:8px}
+.vox-clip .tag{flex:0 0 auto;font-size:.68rem;font-weight:800;color:var(--blue);
   background:rgba(23,70,143,.09);border-radius:20px;padding:2px 9px}
-.rec-clip audio{flex:1;min-width:0;height:32px}
-.rec-clip button.back{flex:0 0 auto;border:0;background:none;color:var(--ink-2);
+.vox-clip audio{flex:1;min-width:0;height:32px}
+.vox-clip button.back{flex:0 0 auto;border:0;background:none;color:var(--ink-2);
   font-size:.9rem;cursor:pointer;padding:2px 6px}
-.rec-empty{font-size:.76rem;font-weight:700;color:var(--ink-2);margin:0 0 8px}
-.rec-tag{width:78px;border:1px solid rgba(192,143,43,.45);border-radius:9px;
+.vox-empty{font-size:.76rem;font-weight:700;color:var(--ink-2);margin:0 0 8px}
+.vox-tag{width:78px;border:1px solid rgba(192,143,43,.45);border-radius:9px;
   padding:6px 9px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
 .sd-a button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
 
@@ -1648,17 +1648,17 @@ function sideAdmPaint() {
 
   /* מעבר קטע באמצע הקלטה — עוצרים ושומרים מה שכבר הוקלט, במקום
      להשאיר מיקרופון פתוח על קטע שכבר לא על המסך. */
-  if (REC_RECORDER && REC_RECORDER.state === 'recording' && REC_FOR_N !== n) recStop();
+  if (VOX_RECORDER && VOX_RECORDER.state === 'recording' && VOX_FOR_N !== n) voxStop();
 
   var tabs = '<div class="r" style="margin-bottom:9px">' +
     '<button class="' + (SIDE_MODE === 'deck' ? 'hot' : '') +
-    '" onclick="recSwitch(\'deck\')">שיוך מצגת</button>' +
+    '" onclick="voxSwitch(\'deck\')">שיוך מצגת</button>' +
     '<button class="' + (SIDE_MODE === 'rec' ? 'hot' : '') +
-    '" onclick="recSwitch(\'rec\')">הקלטת קול</button></div>';
+    '" onclick="voxSwitch(\'rec\')">הקלטת קול</button></div>';
 
   if (SIDE_MODE === 'rec') {
-    box.innerHTML = tabs + '<div id="rec-body"><p class="rec-empty">טוען…</p></div>';
-    recPaintBody(n);
+    box.innerHTML = tabs + '<div id="vox-body"><p class="vox-empty">טוען…</p></div>';
+    voxPaintBody(n);
     return;
   }
 
@@ -1690,7 +1690,7 @@ function sideAdmPaint() {
   };
   $('sa-save').onclick = sideSave;
 }
-function recSwitch(m) { SIDE_MODE = m; sideAdmPaint(); }
+function voxSwitch(m) { SIDE_MODE = m; sideAdmPaint(); }
 
 /* ============================================================
    האולפן — הקלטת הפירוש הקולי, שלב 1.
@@ -1708,41 +1708,41 @@ function recSwitch(m) { SIDE_MODE = m; sideAdmPaint(); }
    שכבר יש לו מצגת משויכת (`DECK`). דף בלי מצגת עדיין לא יכול
    להיפתח לכאן — זה דורש לנתק את הפינה הזו מהתלות במצגת, ולא
    נעשה בשלב הזה כדי לא לגעת במנגנון הקיים שכבר עובד. */
-var REC_CACHE = {};        /* n -> {text, clips:[{tag,buf,mime,at,_url}]} שכבר נטען */
-var REC_STREAM = null, REC_RECORDER = null, REC_CHUNKS = [], REC_FOR_N = 0;
-var REC_TAG = 'פירוש', REC_MSG = '', REC_SAVE_T = 0, REC_DB = null;
+var VOX_CACHE = {};        /* n -> {text, clips:[{tag,buf,mime,at,_url}]} שכבר נטען */
+var VOX_STREAM = null, VOX_RECORDER = null, VOX_CHUNKS = [], VOX_FOR_N = 0;
+var VOX_TAG = 'פירוש', VOX_MSG = '', VOX_SAVE_T = 0, VOX_DB = null;
 
-function recDbOpen() {
-  if (REC_DB) return Promise.resolve(REC_DB);
+function voxDbOpen() {
+  if (VOX_DB) return Promise.resolve(VOX_DB);
   if (!window.indexedDB) return Promise.reject(new Error('no idb'));
   return new Promise(function (ok, fail) {
     var req = indexedDB.open('df-voice', 1);
     req.onupgradeneeded = function () {
       if (!req.result.objectStoreNames.contains('segs')) req.result.createObjectStore('segs');
     };
-    req.onsuccess = function () { REC_DB = req.result; ok(REC_DB); };
+    req.onsuccess = function () { VOX_DB = req.result; ok(VOX_DB); };
     req.onerror = function () { fail(req.error); };
   });
 }
-function recKey(n) { return S.mas + '|' + dafKey(S.daf) + '|' + n; }
-function recLoad(n) {
-  if (REC_CACHE[n]) return Promise.resolve(REC_CACHE[n]);
-  return recDbOpen().then(function (db) {
+function voxKey(n) { return S.mas + '|' + dafKey(S.daf) + '|' + n; }
+function voxLoad(n) {
+  if (VOX_CACHE[n]) return Promise.resolve(VOX_CACHE[n]);
+  return voxDbOpen().then(function (db) {
     return new Promise(function (ok) {
-      var rq = db.transaction('segs', 'readonly').objectStore('segs').get(recKey(n));
-      rq.onsuccess = function () { REC_CACHE[n] = rq.result || { text:'', clips:[] }; ok(REC_CACHE[n]); };
-      rq.onerror   = function () { REC_CACHE[n] = { text:'', clips:[] }; ok(REC_CACHE[n]); };
+      var rq = db.transaction('segs', 'readonly').objectStore('segs').get(voxKey(n));
+      rq.onsuccess = function () { VOX_CACHE[n] = rq.result || { text:'', clips:[] }; ok(VOX_CACHE[n]); };
+      rq.onerror   = function () { VOX_CACHE[n] = { text:'', clips:[] }; ok(VOX_CACHE[n]); };
     });
-  }).catch(function () { REC_CACHE[n] = { text:'', clips:[] }; return REC_CACHE[n]; });
+  }).catch(function () { VOX_CACHE[n] = { text:'', clips:[] }; return VOX_CACHE[n]; });
 }
-function recSave(n) {
-  var v = REC_CACHE[n];
+function voxSave(n) {
+  var v = VOX_CACHE[n];
   if (!v) return;
-  recDbOpen().then(function (db) {
-    db.transaction('segs', 'readwrite').objectStore('segs').put(v, recKey(n));
+  voxDbOpen().then(function (db) {
+    db.transaction('segs', 'readwrite').objectStore('segs').put(v, voxKey(n));
   }).catch(function () {});
 }
-function recClipUrl(c) {
+function voxClipUrl(c) {
   if (!c._url) {
     try { c._url = URL.createObjectURL(new Blob([c.buf], { type: c.mime || 'audio/webm' })); }
     catch (e) { c._url = ''; }
@@ -1750,127 +1750,127 @@ function recClipUrl(c) {
   return c._url;
 }
 
-function recPaintBody(n) {
-  recLoad(n).then(function (v) {
+function voxPaintBody(n) {
+  voxLoad(n).then(function (v) {
     var cur = FLAT[IDX];
     if (!cur || cur.n !== n) return;      /* עברו קטע בזמן שחיכינו לגיליון */
-    var body = $('rec-body');
+    var body = $('vox-body');
     if (!body) return;
 
-    var recording = !!(REC_RECORDER && REC_RECORDER.state === 'recording' && REC_FOR_N === n);
+    var recording = !!(VOX_RECORDER && VOX_RECORDER.state === 'recording' && VOX_FOR_N === n);
 
     var clipsHtml = v.clips.length ? v.clips.map(function (c, i) {
-      return '<div class="rec-clip">' +
+      return '<div class="vox-clip">' +
         '<span class="tag">' + esc(c.tag || 'פירוש') + '</span>' +
-        '<audio controls preload="none" src="' + recClipUrl(c) + '"></audio>' +
-        '<button class="back" onclick="recDelClip(' + n + ',' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
+        '<audio controls preload="none" src="' + voxClipUrl(c) + '"></audio>' +
+        '<button class="back" onclick="voxDelClip(' + n + ',' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
         '</div>';
-    }).join('') : '<p class="rec-empty">עוד אין הקלטה לקטע הזה.</p>';
+    }).join('') : '<p class="vox-empty">עוד אין הקלטה לקטע הזה.</p>';
 
     body.innerHTML =
       '<div class="t">קטע ' + n + ' מתוך ' + GROUPS + '</div>' +
-      '<textarea id="rec-txt" class="rec-txt" placeholder="הטקסט שלך לקטע הזה (רשות) — ' +
+      '<textarea id="vox-txt" class="vox-txt" placeholder="הטקסט שלך לקטע הזה (רשות) — ' +
       'התסריט שממנו תקריא">' + esc(v.text || '') + '</textarea>' +
-      '<div class="rec-clips">' + clipsHtml + '</div>' +
+      '<div class="vox-clips">' + clipsHtml + '</div>' +
       '<div class="r">' +
-      '<input id="rec-tag" class="rec-tag" type="text" value="' + esc(REC_TAG) + '" aria-label="תיוג ההקלטה">' +
+      '<input id="vox-tag" class="vox-tag" type="text" value="' + esc(VOX_TAG) + '" aria-label="תיוג ההקלטה">' +
       (recording
-        ? '<button class="stop" onclick="recStop()">⏹ עצירה</button>'
-        : '<button class="hot" onclick="recGo(' + n + ')">⏺ הקלטה חדשה</button>') +
+        ? '<button class="stop" onclick="voxStop()">⏹ עצירה</button>'
+        : '<button class="hot" onclick="voxGo(' + n + ')">⏺ הקלטה חדשה</button>') +
       '</div>' +
-      '<div class="msg' + (REC_MSG && /לא|נכשל|אי אפשר/.test(REC_MSG) ? ' bad' : '') +
-      '" id="rec-msg">' + esc(REC_MSG) + '</div>';
+      '<div class="msg' + (VOX_MSG && /לא|נכשל|אי אפשר/.test(VOX_MSG) ? ' bad' : '') +
+      '" id="vox-msg">' + esc(VOX_MSG) + '</div>';
 
-    var ta = $('rec-txt');
+    var ta = $('vox-txt');
     if (ta) ta.oninput = function () {
       v.text = ta.value;
-      clearTimeout(REC_SAVE_T);
-      REC_SAVE_T = setTimeout(function () { recSave(n); }, 500);
+      clearTimeout(VOX_SAVE_T);
+      VOX_SAVE_T = setTimeout(function () { voxSave(n); }, 500);
     };
-    var tg = $('rec-tag');
-    if (tg) tg.oninput = function () { REC_TAG = tg.value; };
+    var tg = $('vox-tag');
+    if (tg) tg.oninput = function () { VOX_TAG = tg.value; };
   });
 }
 
-function recMimeType() {
+function voxMimeType() {
   if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
   if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
   return '';
 }
-function recGo(n) {
+function voxGo(n) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-    REC_MSG = 'הדפדפן הזה אינו תומך בהקלטה.'; recPaintBody(n); return;
+    VOX_MSG = 'הדפדפן הזה אינו תומך בהקלטה.'; voxPaintBody(n); return;
   }
-  REC_MSG = 'מבקש הרשאת מיקרופון…'; recPaintBody(n);
+  VOX_MSG = 'מבקש הרשאת מיקרופון…'; voxPaintBody(n);
   navigator.mediaDevices.getUserMedia({ audio:true }).then(function (stream) {
     var cur = FLAT[IDX];
     if (!cur || cur.n !== n) {              /* עברו קטע בזמן שחיכינו להרשאה */
       stream.getTracks().forEach(function (t) { t.stop(); });
       return;
     }
-    REC_STREAM = stream; REC_FOR_N = n;
-    var mt = recMimeType(), opts = { audioBitsPerSecond: 64000 };
+    VOX_STREAM = stream; VOX_FOR_N = n;
+    var mt = voxMimeType(), opts = { audioBitsPerSecond: 64000 };
     if (mt) opts.mimeType = mt;
-    try { REC_RECORDER = new MediaRecorder(stream, opts); }
+    try { VOX_RECORDER = new MediaRecorder(stream, opts); }
     catch (e) {
-      try { REC_RECORDER = new MediaRecorder(stream); }
+      try { VOX_RECORDER = new MediaRecorder(stream); }
       catch (e2) {
         stream.getTracks().forEach(function (t) { t.stop(); });
-        REC_STREAM = null;
-        REC_MSG = 'לא הצלחתי להפעיל הקלטה במכשיר הזה.'; recPaintBody(n); return;
+        VOX_STREAM = null;
+        VOX_MSG = 'לא הצלחתי להפעיל הקלטה במכשיר הזה.'; voxPaintBody(n); return;
       }
     }
-    REC_CHUNKS = [];
-    REC_RECORDER.ondataavailable = function (e) { if (e.data && e.data.size) REC_CHUNKS.push(e.data); };
-    REC_RECORDER.onstop = function () {
-      if (REC_STREAM) REC_STREAM.getTracks().forEach(function (t) { t.stop(); });
-      REC_STREAM = null;
-      var blob = new Blob(REC_CHUNKS, { type: (REC_RECORDER && REC_RECORDER.mimeType) || mt || 'audio/webm' });
-      var savedN = REC_FOR_N, savedTag = REC_TAG;
-      REC_RECORDER = null;
+    VOX_CHUNKS = [];
+    VOX_RECORDER.ondataavailable = function (e) { if (e.data && e.data.size) VOX_CHUNKS.push(e.data); };
+    VOX_RECORDER.onstop = function () {
+      if (VOX_STREAM) VOX_STREAM.getTracks().forEach(function (t) { t.stop(); });
+      VOX_STREAM = null;
+      var blob = new Blob(VOX_CHUNKS, { type: (VOX_RECORDER && VOX_RECORDER.mimeType) || mt || 'audio/webm' });
+      var savedN = VOX_FOR_N, savedTag = VOX_TAG;
+      VOX_RECORDER = null;
       if (!blob.size) {
-        REC_MSG = 'ההקלטה יצאה ריקה — נסו שוב.';
-        var c2 = FLAT[IDX]; if (c2 && c2.n === savedN) recPaintBody(savedN);
+        VOX_MSG = 'ההקלטה יצאה ריקה — נסו שוב.';
+        var c2 = FLAT[IDX]; if (c2 && c2.n === savedN) voxPaintBody(savedN);
         return;
       }
-      REC_MSG = 'שומר…';
-      var c3 = FLAT[IDX]; if (c3 && c3.n === savedN) recPaintBody(savedN);
-      recSaveClipFor(savedN, blob, savedTag);
+      VOX_MSG = 'שומר…';
+      var c3 = FLAT[IDX]; if (c3 && c3.n === savedN) voxPaintBody(savedN);
+      voxSaveClipFor(savedN, blob, savedTag);
     };
-    REC_MSG = '';
-    REC_RECORDER.start();
-    recPaintBody(n);
+    VOX_MSG = '';
+    VOX_RECORDER.start();
+    voxPaintBody(n);
   }).catch(function () {
-    REC_MSG = 'אי אפשר לגשת למיקרופון — בדקו הרשאה בדפדפן.';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+    VOX_MSG = 'אי אפשר לגשת למיקרופון — בדקו הרשאה בדפדפן.';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
   });
 }
-function recStop() {
-  if (REC_RECORDER && REC_RECORDER.state !== 'inactive') REC_RECORDER.stop();
+function voxStop() {
+  if (VOX_RECORDER && VOX_RECORDER.state !== 'inactive') VOX_RECORDER.stop();
 }
-function recSaveClipFor(n, blob, tag) {
-  var v = REC_CACHE[n] || { text:'', clips:[] };
+function voxSaveClipFor(n, blob, tag) {
+  var v = VOX_CACHE[n] || { text:'', clips:[] };
   var fr = new FileReader();
   fr.onload = function () {
     v.clips.push({ tag: tag || 'פירוש', buf: fr.result, mime: blob.type, at: Date.now() });
-    REC_CACHE[n] = v;
-    recSave(n);
-    REC_MSG = '';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+    VOX_CACHE[n] = v;
+    voxSave(n);
+    VOX_MSG = '';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
   };
   fr.onerror = function () {
-    REC_MSG = 'ההקלטה נכשלה להישמר.';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+    VOX_MSG = 'ההקלטה נכשלה להישמר.';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
   };
   fr.readAsArrayBuffer(blob);
 }
-function recDelClip(n, i) {
-  var v = REC_CACHE[n];
+function voxDelClip(n, i) {
+  var v = VOX_CACHE[n];
   if (!v || !v.clips[i]) return;
   if (v.clips[i]._url) { try { URL.revokeObjectURL(v.clips[i]._url); } catch (e) {} }
   v.clips.splice(i, 1);
-  recSave(n);
-  recPaintBody(n);
+  voxSave(n);
+  voxPaintBody(n);
 }
 function sideMsg(cls, txt) {
   var m = $('sa-msg');
