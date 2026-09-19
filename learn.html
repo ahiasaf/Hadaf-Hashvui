@@ -365,6 +365,23 @@ body.side-on #side{display:flex}
 .sd-a .msg.ok{color:var(--ok, #3B7D57)}
 .sd-a .msg.bad{color:#B23B3B}
 
+/* ---------- האולפן ---------- */
+.rec-txt{width:100%;box-sizing:border-box;min-height:70px;resize:vertical;
+  border:1px solid rgba(192,143,43,.45);border-radius:9px;padding:8px 10px;
+  font:inherit;font-size:.82rem;line-height:1.6;color:var(--ink, #22314D);
+  background:#fff;margin-bottom:8px}
+.rec-clips{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.rec-clip{display:flex;align-items:center;gap:8px}
+.rec-clip .tag{flex:0 0 auto;font-size:.68rem;font-weight:800;color:var(--blue);
+  background:rgba(23,70,143,.09);border-radius:20px;padding:2px 9px}
+.rec-clip audio{flex:1;min-width:0;height:32px}
+.rec-clip button.back{flex:0 0 auto;border:0;background:none;color:var(--ink-2);
+  font-size:.9rem;cursor:pointer;padding:2px 6px}
+.rec-empty{font-size:.76rem;font-weight:700;color:var(--ink-2);margin:0 0 8px}
+.rec-tag{width:78px;border:1px solid rgba(192,143,43,.45);border-radius:9px;
+  padding:6px 9px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
+.sd-a button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
+
 /* ---------- "המשכנו מהמקום שעצרת" ----------
    שורה דקה מתחת לכותרת ולא חלון: היא מדווחת, אינה שואלת, ואינה
    עוצרת את מי שממילא רצה להמשיך. מי שדווקא רוצה מהתחלה מקבל
@@ -1416,6 +1433,7 @@ var DMAP = {};       /* כל הלשונית: 'מסכת|דף' -> עוגנים */
 var ANCH = null;     /* העוגנים של הדף שעל המסך, או null אם אין */
 var SLIDE = 1;
 var SIDE_ADM = false;
+var SIDE_MODE = 'deck';   /* 'deck' = שיוך מצגת · 'rec' = אולפן ההקלטה */
 
 function dmKey(mas, daf) { return mas + '|' + dafKey(daf); }
 
@@ -1627,11 +1645,28 @@ function sideAdmPaint() {
   var box = $('sd-a');
   if (!box) return;
   var st = FLAT[IDX], n = st ? st.n : 0;
+
+  /* מעבר קטע באמצע הקלטה — עוצרים ושומרים מה שכבר הוקלט, במקום
+     להשאיר מיקרופון פתוח על קטע שכבר לא על המסך. */
+  if (REC_RECORDER && REC_RECORDER.state === 'recording' && REC_FOR_N !== n) recStop();
+
+  var tabs = '<div class="r" style="margin-bottom:9px">' +
+    '<button class="' + (SIDE_MODE === 'deck' ? 'hot' : '') +
+    '" onclick="recSwitch(\'deck\')">שיוך מצגת</button>' +
+    '<button class="' + (SIDE_MODE === 'rec' ? 'hot' : '') +
+    '" onclick="recSwitch(\'rec\')">הקלטת קול</button></div>';
+
+  if (SIDE_MODE === 'rec') {
+    box.innerHTML = tabs + '<div id="rec-body"><p class="rec-empty">טוען…</p></div>';
+    recPaintBody(n);
+    return;
+  }
+
   var here = ANCH && ANCH[n] !== undefined;
   var count = 0, k;
   for (k in (ANCH || {})) if (ANCH.hasOwnProperty(k)) count++;
 
-  box.innerHTML =
+  box.innerHTML = tabs +
     '<div class="t">קטע ' + n + ' · ' + count +
     (count === 1 ? ' עוגן בדף' : ' עוגנים בדף') + '</div>' +
     '<div class="r">' +
@@ -1654,6 +1689,188 @@ function sideAdmPaint() {
     sidePaint();
   };
   $('sa-save').onclick = sideSave;
+}
+function recSwitch(m) { SIDE_MODE = m; sideAdmPaint(); }
+
+/* ============================================================
+   האולפן — הקלטת הפירוש הקולי, שלב 1.
+
+   מה שיש כאן: טקסט לכל קטע (רשות — התסריט שממנו מקריאים),
+   הקלטה/עצירה, שמיעה חוזרת, מחיקה, ואפשרות להקליט כמה קטעי
+   שמע לאותו קטע גמרא (למשל: הקראת הגמרא בנפרד מהפירוש) —
+   כל קטע הקלטה מתויג בטקסט חופשי, לא משלוש קטגוריות קבועות,
+   כי לא בכל קטע גמרא יש הקדמה או העשרה.
+
+   מה שאין כאן עדיין, בכוונה: העלאה לריפו וכתיבה לגיליון. הכול
+   נשמר במכשיר הזה בלבד (IndexedDB) — שלב הבא.
+
+   מגבלה ידועה: האולפן יושב בפינת המצגת, ולכן זמין רק לשבוע/דף
+   שכבר יש לו מצגת משויכת (`DECK`). דף בלי מצגת עדיין לא יכול
+   להיפתח לכאן — זה דורש לנתק את הפינה הזו מהתלות במצגת, ולא
+   נעשה בשלב הזה כדי לא לגעת במנגנון הקיים שכבר עובד. */
+var REC_CACHE = {};        /* n -> {text, clips:[{tag,buf,mime,at,_url}]} שכבר נטען */
+var REC_STREAM = null, REC_RECORDER = null, REC_CHUNKS = [], REC_FOR_N = 0;
+var REC_TAG = 'פירוש', REC_MSG = '', REC_SAVE_T = 0, REC_DB = null;
+
+function recDbOpen() {
+  if (REC_DB) return Promise.resolve(REC_DB);
+  if (!window.indexedDB) return Promise.reject(new Error('no idb'));
+  return new Promise(function (ok, fail) {
+    var req = indexedDB.open('df-voice', 1);
+    req.onupgradeneeded = function () {
+      if (!req.result.objectStoreNames.contains('segs')) req.result.createObjectStore('segs');
+    };
+    req.onsuccess = function () { REC_DB = req.result; ok(REC_DB); };
+    req.onerror = function () { fail(req.error); };
+  });
+}
+function recKey(n) { return S.mas + '|' + dafKey(S.daf) + '|' + n; }
+function recLoad(n) {
+  if (REC_CACHE[n]) return Promise.resolve(REC_CACHE[n]);
+  return recDbOpen().then(function (db) {
+    return new Promise(function (ok) {
+      var rq = db.transaction('segs', 'readonly').objectStore('segs').get(recKey(n));
+      rq.onsuccess = function () { REC_CACHE[n] = rq.result || { text:'', clips:[] }; ok(REC_CACHE[n]); };
+      rq.onerror   = function () { REC_CACHE[n] = { text:'', clips:[] }; ok(REC_CACHE[n]); };
+    });
+  }).catch(function () { REC_CACHE[n] = { text:'', clips:[] }; return REC_CACHE[n]; });
+}
+function recSave(n) {
+  var v = REC_CACHE[n];
+  if (!v) return;
+  recDbOpen().then(function (db) {
+    db.transaction('segs', 'readwrite').objectStore('segs').put(v, recKey(n));
+  }).catch(function () {});
+}
+function recClipUrl(c) {
+  if (!c._url) {
+    try { c._url = URL.createObjectURL(new Blob([c.buf], { type: c.mime || 'audio/webm' })); }
+    catch (e) { c._url = ''; }
+  }
+  return c._url;
+}
+
+function recPaintBody(n) {
+  recLoad(n).then(function (v) {
+    var cur = FLAT[IDX];
+    if (!cur || cur.n !== n) return;      /* עברו קטע בזמן שחיכינו לגיליון */
+    var body = $('rec-body');
+    if (!body) return;
+
+    var recording = !!(REC_RECORDER && REC_RECORDER.state === 'recording' && REC_FOR_N === n);
+
+    var clipsHtml = v.clips.length ? v.clips.map(function (c, i) {
+      return '<div class="rec-clip">' +
+        '<span class="tag">' + esc(c.tag || 'פירוש') + '</span>' +
+        '<audio controls preload="none" src="' + recClipUrl(c) + '"></audio>' +
+        '<button class="back" onclick="recDelClip(' + n + ',' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
+        '</div>';
+    }).join('') : '<p class="rec-empty">עוד אין הקלטה לקטע הזה.</p>';
+
+    body.innerHTML =
+      '<div class="t">קטע ' + n + ' מתוך ' + GROUPS + '</div>' +
+      '<textarea id="rec-txt" class="rec-txt" placeholder="הטקסט שלך לקטע הזה (רשות) — ' +
+      'התסריט שממנו תקריא">' + esc(v.text || '') + '</textarea>' +
+      '<div class="rec-clips">' + clipsHtml + '</div>' +
+      '<div class="r">' +
+      '<input id="rec-tag" class="rec-tag" type="text" value="' + esc(REC_TAG) + '" aria-label="תיוג ההקלטה">' +
+      (recording
+        ? '<button class="stop" onclick="recStop()">⏹ עצירה</button>'
+        : '<button class="hot" onclick="recGo(' + n + ')">⏺ הקלטה חדשה</button>') +
+      '</div>' +
+      '<div class="msg' + (REC_MSG && /לא|נכשל|אי אפשר/.test(REC_MSG) ? ' bad' : '') +
+      '" id="rec-msg">' + esc(REC_MSG) + '</div>';
+
+    var ta = $('rec-txt');
+    if (ta) ta.oninput = function () {
+      v.text = ta.value;
+      clearTimeout(REC_SAVE_T);
+      REC_SAVE_T = setTimeout(function () { recSave(n); }, 500);
+    };
+    var tg = $('rec-tag');
+    if (tg) tg.oninput = function () { REC_TAG = tg.value; };
+  });
+}
+
+function recMimeType() {
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+  return '';
+}
+function recGo(n) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    REC_MSG = 'הדפדפן הזה אינו תומך בהקלטה.'; recPaintBody(n); return;
+  }
+  REC_MSG = 'מבקש הרשאת מיקרופון…'; recPaintBody(n);
+  navigator.mediaDevices.getUserMedia({ audio:true }).then(function (stream) {
+    var cur = FLAT[IDX];
+    if (!cur || cur.n !== n) {              /* עברו קטע בזמן שחיכינו להרשאה */
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      return;
+    }
+    REC_STREAM = stream; REC_FOR_N = n;
+    var mt = recMimeType(), opts = { audioBitsPerSecond: 64000 };
+    if (mt) opts.mimeType = mt;
+    try { REC_RECORDER = new MediaRecorder(stream, opts); }
+    catch (e) {
+      try { REC_RECORDER = new MediaRecorder(stream); }
+      catch (e2) {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        REC_STREAM = null;
+        REC_MSG = 'לא הצלחתי להפעיל הקלטה במכשיר הזה.'; recPaintBody(n); return;
+      }
+    }
+    REC_CHUNKS = [];
+    REC_RECORDER.ondataavailable = function (e) { if (e.data && e.data.size) REC_CHUNKS.push(e.data); };
+    REC_RECORDER.onstop = function () {
+      if (REC_STREAM) REC_STREAM.getTracks().forEach(function (t) { t.stop(); });
+      REC_STREAM = null;
+      var blob = new Blob(REC_CHUNKS, { type: (REC_RECORDER && REC_RECORDER.mimeType) || mt || 'audio/webm' });
+      var savedN = REC_FOR_N, savedTag = REC_TAG;
+      REC_RECORDER = null;
+      if (!blob.size) {
+        REC_MSG = 'ההקלטה יצאה ריקה — נסו שוב.';
+        var c2 = FLAT[IDX]; if (c2 && c2.n === savedN) recPaintBody(savedN);
+        return;
+      }
+      REC_MSG = 'שומר…';
+      var c3 = FLAT[IDX]; if (c3 && c3.n === savedN) recPaintBody(savedN);
+      recSaveClipFor(savedN, blob, savedTag);
+    };
+    REC_MSG = '';
+    REC_RECORDER.start();
+    recPaintBody(n);
+  }).catch(function () {
+    REC_MSG = 'אי אפשר לגשת למיקרופון — בדקו הרשאה בדפדפן.';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+  });
+}
+function recStop() {
+  if (REC_RECORDER && REC_RECORDER.state !== 'inactive') REC_RECORDER.stop();
+}
+function recSaveClipFor(n, blob, tag) {
+  var v = REC_CACHE[n] || { text:'', clips:[] };
+  var fr = new FileReader();
+  fr.onload = function () {
+    v.clips.push({ tag: tag || 'פירוש', buf: fr.result, mime: blob.type, at: Date.now() });
+    REC_CACHE[n] = v;
+    recSave(n);
+    REC_MSG = '';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+  };
+  fr.onerror = function () {
+    REC_MSG = 'ההקלטה נכשלה להישמר.';
+    var cur = FLAT[IDX]; if (cur && cur.n === n) recPaintBody(n);
+  };
+  fr.readAsArrayBuffer(blob);
+}
+function recDelClip(n, i) {
+  var v = REC_CACHE[n];
+  if (!v || !v.clips[i]) return;
+  if (v.clips[i]._url) { try { URL.revokeObjectURL(v.clips[i]._url); } catch (e) {} }
+  v.clips.splice(i, 1);
+  recSave(n);
+  recPaintBody(n);
 }
 function sideMsg(cls, txt) {
   var m = $('sa-msg');
