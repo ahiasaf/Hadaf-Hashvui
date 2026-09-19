@@ -34,6 +34,8 @@
 var ASK = (function () {
   var C = null;                    /* ההגדרות מהעמוד */
   var step = 0, busy = false, err = '', skipped = false;
+  /* ההתקנה אושרה ולא הגיעה — ראו `APPX.prompt`. */
+  var stuck = false;
   /* עורך המלל פותח את המסך על שלב מסוים כדי שאפשר יהיה להקיש
      על הנוסח שבו. במצב הזה אין לקטוע את השלב לפי מה שהמשתמש
      באמת השלים — הרי כל העניין הוא לראות נוסח שעדיין לא הגיע
@@ -250,13 +252,38 @@ var ASK = (function () {
   }
 
   /* ---------- שלב 2 ---------- */
+  /* הקופסה הצהובה — אותה צורה לכל שלוש המבוי־הסתום. */
+  function warn(h, b2) {
+    return '<div class="as-err" style="background:rgba(192,143,43,.12);' +
+      'border-color:rgba(192,143,43,.35);color:var(--ink)">' +
+      '<b>' + esc(h) + '</b><br>' + b2 + '</div>';
+  }
+  /* ============================================================
+     הכפתור שבאמת מעביר לכרום.
+     ============================================================
+     הוא היה קיים במסך התלמיד בלבד, ולכן ר"ם שפתח בוואטסאפ על
+     אנדרואיד קיבל רק את המשפט "לחצו על שלוש הנקודות ובחרו
+     פתיחה בדפדפן" — בלי הכפתור שעושה את זה בשבילו.
+     ============================================================ */
+  function toBr() {
+    var url = (window.APPX && APPX.toBrowser) ? APPX.toBrowser() : '';
+    return url ? '<a class="as-go" style="display:block;text-align:center;' +
+      'text-decoration:none;box-sizing:border-box" href="' + esc(url) + '">' +
+      esc(u('openGo')) + '</a>' : '';
+  }
+
   function install() {
+    /* כרום ופיירפוקס באייפון הם דפדפנים אמיתיים — ולכן לא
+       אומרים להם "אתם בתוך וואטסאפ", אלא את האמת. */
+    if (APPX.iosOther && APPX.iosOther()) {
+      return kick(2, t('askInstH'), '') +
+        warn(u('iosOthH'), esc(u('iosOthB')));
+    }
     if (APPX.inApp()) {
       return kick(2, t('askInstH'), '') +
-        '<div class="as-err" style="background:rgba(192,143,43,.12);' +
-        'border-color:rgba(192,143,43,.35);color:var(--ink)">' +
-        '<b>' + esc(u('inAppH')) + '</b><br>' + esc(u('inAppB')) + ' ' +
-        esc(u(APPX.isIOS() ? 'inAppIos' : 'inAppNot')) + '</div>';
+        warn(u('inAppH'), esc(u('inAppB')) + ' ' +
+             esc(u(APPX.isIOS() ? 'inAppIos' : 'inAppNot'))) +
+        toBr();
     }
     if (APPX.wasAdded() && !APPX.installed()) {
       /* **ולמצב הזה חייבת להיות יציאה.** עד שהתגיות של אייפון
@@ -275,6 +302,7 @@ var ASK = (function () {
        כל הסבר. באייפון אין הצעה כזו ולעולם לא תהיה, ושם
        ההוראות הן כל מה שיש — ולכן שם הן מאוירות, מסך אחד
        לכל פעולה. ראו `guide.js`. */
+    if (stuck) h += warn(u('blockH'), esc(u('blockB'))) + toBr();
     if (APPX.bip()) {
       return h + '<button class="as-go" id="r-inst">' + esc(u('instBtn')) +
         '</button>' +
@@ -334,7 +362,12 @@ var ASK = (function () {
     };
     if ((b = $('r-next'))) b.onclick = save;
     if ((b = $('r-inst'))) b.onclick = function () {
-      APPX.prompt(function () { go(where()); });
+      APPX.prompt(function (okd, why) {
+        /* "אישרתי" אינו "הותקן". מי שאישר ולא קיבל אייקון
+           מקבל כאן את הסיבה ואת הדרך — ולא וי. */
+        stuck = (!okd && why === 'stuck');
+        go(where());
+      });
     };
     if ((b = $('r-skip'))) b.onclick = function () {
       skipped = true;

@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.82.3';
+var APP_VERSION = '8.83.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2344,10 +2344,29 @@ function renderRegPre() {
 
   /* מוואטסאפ אי אפשר להוסיף למסך הבית בכלל, וזו ההוראה
      היחידה שתעזור שם. */
+  /* כרום או פיירפוקס באייפון — דפדפנים אמיתיים, ולכן לא
+     אומרים להם "אתם בתוך וואטסאפ" אלא את האמת: באייפון רק
+     ספארי מוסיף למסך הבית. */
+  if (window.APPX && APPX.iosOther && APPX.iosOther()) {
+    h += '<div class="cond"><b>' + esc(ASK_UI.iosOthH) + '</b><br>' +
+         esc(ASK_UI.iosOthB) + '</div>' +
+         '<button class="btn g" style="margin-top:12px;width:100%" ' +
+         'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) +
+         '</button></div>';
+    el.innerHTML = h;
+    return;
+  }
   if (window.APPX && APPX.inApp()) {
+    /* הכפתור שבאמת מעביר — באנדרואיד. באייפון `toBrowser`
+       מחזיר ריק, ושם נשארת ההנחיה וההעתקה. */
+    var br = APPX.toBrowser ? APPX.toBrowser() : '';
     h += '<div class="cond"><b>' +
          esc(ASK_UI.inAppH) + '</b><br>' + esc(ASK_UI.inAppB) + ' ' +
-         esc(ASK_UI.inAppIos) + '</div>' +
+         esc(APPX.isIOS() ? ASK_UI.inAppIos : ASK_UI.inAppNot) + '</div>' +
+         (br ? '<a class="btn b" style="margin-top:12px;width:100%;' +
+               'display:block;text-align:center;text-decoration:none;' +
+               'box-sizing:border-box" href="' + esc(br) + '">' +
+               esc(ASK_UI.openGo) + '</a>' : '') +
          '<button class="btn g" style="margin-top:12px;width:100%" ' +
          'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) +
          '</button></div>';

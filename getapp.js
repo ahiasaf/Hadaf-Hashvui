@@ -54,11 +54,32 @@ var APPX = (function () {
      הקישור מופץ בוואטסאפ, והקשה עליו פותחת חלון **בתוך**
      וואטסאפ. משם אי אפשר להוסיף למסך הבית בשום דרך.
      היוריסטיקה ולא ודאות, ולכן מי שמשתמש בה אומר "נראה ש". */
+  /* ============================================================
+     ובאייפון — כרום ופיירפוקס אינם "בתוך וואטסאפ".
+     ============================================================
+     שניהם בנויים על אותו מנוע מוטמע שבו `navigator.standalone`
+     אינו קיים, ולכן המבחן שלמטה סימן אותם כדפדפן של אפליקציה
+     אחרת — ומי שברירת המחדל שלו היא כרום קיבל הודעה שהוא
+     בתוך וואטסאפ בזמן שהוא בדפדפן.
+
+     הם אמנם באמת אינם יכולים להוסיף למסך הבית — באייפון רק
+     ספארי יכול — אבל זו עובדה אחרת, והיא נאמרת אחרת. ראו
+     `iosOther`.
+     ============================================================ */
+  function iosOther() {
+    return isIOS() && /CriOS|FxiOS|EdgiOS|OPT\//.test(navigator.userAgent || '');
+  }
   function inApp() {
     var ua = navigator.userAgent || '';
     if (/; wv\)|FBAN|FBAV|Instagram|Line\/|MicroMessenger|OKApp/.test(ua)) return true;
+    if (iosOther()) return false;
     if (isIOS() && typeof navigator.standalone === 'undefined') return true;
     return false;
+  }
+  /* דפדפן סמסונג. ראו `toBrowser` — ההתקנה שלו נחסמת בחלק
+     מהמכשירים, ולכן יש מקרים שבהם מפנים ממנו לכרום. */
+  function samsung() {
+    return /SamsungBrowser/.test(navigator.userAgent || '');
   }
 
   /* ההצעה של הדפדפן להתקין. באייפון היא לא קיימת ולעולם לא
@@ -392,9 +413,18 @@ var APPX = (function () {
      שם נשארת ההנחיה, והיא מדויקת: בתפריט של וואטסאפ יש
      "פתיחה בדפדפן".
 
+     **וכרום דווקא, ולא "דפדפן ברירת המחדל".** זה נראה כמו
+     הכללה מיותרת עד שרואים למה: בשני מכשירי סמסונג בשטח
+     ההתקנה מדפדפן סמסונג נחסמה על ידי Play Protect ("אפליקציה
+     לא בטוחה נחסמה"), ובשניהם ברירת המחדל היא דפדפן סמסונג.
+     החבילה שנחסמת נוצרת על ידי הדפדפן עצמו, ולכן דפדפן אחר
+     פותר את זה וכתובת אחרת אצלנו לא. לכן גם דפדפן סמסונג —
+     ולא רק דפדפן של אפליקציה אחרת — מקבל את הכפתור הזה.
+
      מחזיר '' כשאין מה להציע — והמסך שמעליו יודע להסתדר. */
   function toBrowser() {
-    if (isIOS() || !inApp()) return '';
+    if (isIOS()) return '';
+    if (!inApp() && !samsung()) return '';
     var u = location.href.replace(/^https?:\/\//, '');
     return 'intent://' + u + '#Intent;scheme=https;' +
            'package=com.android.chrome;' +
@@ -404,16 +434,46 @@ var APPX = (function () {
   return {
     update: update, toBrowser: toBrowser,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
+    iosOther: iosOther, samsung: samsung,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
+    /* ============================================================
+       אישור בחלון ההתקנה אינו התקנה.
+       ============================================================
+       "הכל סומן v, הכל עבר בשלום — ואז חיפשתי את האייקון במסך
+       הבית ולא מצאתי."
+
+       כאן נרשם "הותקן" ברגע ש-`userChoice` חזר `accepted`,
+       כלומר ברגע שהאדם לחץ "התקן" בחלון של הדפדפן. מה שקורה
+       *אחרי* הלחיצה לא נבדק — ובשטח דווקא שם זה נכשל: Play
+       Protect חסם את ההתקנה, לא נוצר אייקון, והאשף בכל זאת
+       סימן וי והמשיך הלאה. משם והלאה הכול היה שגוי: המסך אמר
+       שהאפליקציה מותקנת, וההתראות לא היו יכולות להגיע.
+
+       הראיה היחידה להתקנה היא האירוע `appinstalled`, והוא זה
+       שרושם. כאן ממתינים לו, ואם הוא אינו מגיע — לא מכריזים
+       על הצלחה. המסך שמעל יודע לומר מה לעשות.
+       ============================================================ */
     prompt: function (after) {
       var p = BIP; if (!p) { after(false); return; }
       p.prompt();
+      var done = false;
+      /* `why`: 'no' — הוא סגר את החלון · 'stuck' — הוא אישר
+         וההתקנה לא הגיעה. שני מצבים שונים לגמרי, ומסך שאומר
+         לשניהם את אותו דבר טועה באחד מהם. */
+      var finish = function (okd, why) {
+        if (done) return; done = true;
+        after(okd, why);
+      };
       var back = function (r) {
-        var okd = !!(r && r.outcome === 'accepted');
-        if (okd) { BIP = null; mark(); }
-        after(okd);
+        if (!(r && r.outcome === 'accepted')) { finish(false, 'no'); return; }
+        BIP = null;
+        /* אושר — ועכשיו ממתינים לראיה. חלון של שמונה שניות:
+           די לכל התקנה שמצליחה, וקצר מכדי להיראות כתקיעה. */
+        if (wasAdded()) { finish(true); return; }
+        ON_BIP.push(function () { if (wasAdded()) finish(true); });
+        setTimeout(function () { finish(wasAdded(), 'stuck'); }, 8000);
       };
       if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
       else back(null);

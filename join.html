@@ -2568,6 +2568,13 @@ function wzDraw() {
 
 /* ---------- שלב 1 ---------- */
 function wzInstall() {
+  /* כרום או פיירפוקס באייפון — דפדפן אמיתי, ולכן האמת ולא
+     "אתם בתוך וואטסאפ": באייפון רק ספארי מוסיף למסך הבית. */
+  if (window.APPX && APPX.iosOther && APPX.iosOther()) {
+    return '<div class="how warn"><b>' + esc(ASK_UI.iosOthH) + '</b><br>' +
+      esc(ASK_UI.iosOthB) + '</div>' +
+      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>';
+  }
   if (inApp()) {
     /* באנדרואיד יש כפתור שבאמת מעביר לכרום — ראו `APPX.toBrowser`.
        באייפון אין, ושם נשארת ההנחיה בלבד. ההעתקה נשארת בשניהם:
