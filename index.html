@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.85.0';
+var APP_VERSION = '8.86.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6490,6 +6490,14 @@ function admSubBar() {
 function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
+  /* כל עדכון מצב בפאנל הזה עובר דרך הריסה ובנייה מחדש של כל
+     ה-innerHTML — גם כשמה שהשתנה זו שורת הודעה אחת. אם הגובה
+     הכולל משתנה, הדפדפן קובע מחדש איפה הגלילה נמצאת, וזה בדיוק
+     מה שנראה כמו "קפצתי למקום אחר" — בזמן שההודעה שרצית לראות
+     כן נכתבה, רק לא במקום שאתה מסתכל בו. שומרים את מיקום הגלילה
+     ומחזירים אותו אחרי הציור מחדש, בפריים הבא. */
+  var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+  requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
   el.innerHTML = admSubBar() + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
@@ -9156,10 +9164,19 @@ function dkUpload(items) {
   }
   dkPutAll(items, function (miss) {
     if (!miss) {
-      dkPdf = null; dkPool = null;
+      dkPdf = null;
+      /* לא מחכים לתשובה טרייה מגיטהאב כדי שהקבצים "יהיו זמינים" —
+         אנחנו כבר יודעים בוודאות שהם שם: `dkAskUntil` בתוך
+         `dkPutAll` בדקה את זה בעצמה, קובץ קובץ. בלי זה הרשימה
+         "בתיקייה" הייתה מראה את המצב הישן עד שרשימת התיקייה
+         מגיטהאב מתעדכנת, ומרגישה כאילו מה שהועלה הרגע לא קיים. */
+      var names = items.map(function (it) { return it.name; });
+      dkPool = (dkPool || []).concat(names.filter(function (n) {
+        return (dkPool || []).indexOf(n) < 0;
+      })).sort();
       admPane();
       dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים. הוסיפו אותם למצגת מלמעלה.');
-      dkAsk();
+      dkAsk();   /* רענון אמיתי ברקע, למקרה שהתיקייה השתנתה גם ממכשיר אחר */
       return;
     }
     dkPdfMsg('bad', 'לא הגיעו: ' + miss.join(', ') + ' — צריך GH_TOKEN ' +
