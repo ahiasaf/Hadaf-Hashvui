@@ -29,6 +29,8 @@ on:
           - word           # מה יש בקובצי הוורד של חברותא
           - align          # התאמת הסימונים לוורד
           - apply          # כתיבת ההתאמה לגיליון (עם גיבוי)
+          - chavruta       # בניית מאגר הביאור מקובצי הוורד
+          - fix-bold       # התאמה + כתיבה, בריצה אחת
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -67,6 +69,10 @@ jobs:
             word)        python3 tools/word-probe.py    ${{ inputs.args }} ;;
             align)       python3 tools/chav-align.py    ${{ inputs.args }} ;;
             apply)       python3 tools/chav-apply.py    ${{ inputs.args }} ;;
+            chavruta)    python3 tools/build-chavruta.py ${{ inputs.args }} ;;
+            # שניהם בריצה אחת: הקובץ שהראשון כותב מוחרג מהריפו
+            # (הוא מחזיק טלפונים ושמות), ולכן הוא אינו שורד בין ריצות.
+            fix-bold)    python3 tools/chav-align.py && python3 tools/chav-apply.py write ;;
           esac 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
@@ -89,7 +95,7 @@ jobs:
           # כל תיקייה בנפרד: git add נכשל על נתיב שאינו קיים ואז
           # אינו מוסיף **כלום**, גם לא את מה שכן נוצר. וב-if ולא ב-&&,
           # כי הצעד רץ תחת `bash -e` ותנאי שקרי היה מפיל אותו.
-          for d in sugya daf docs; do
+          for d in sugya daf docs chav; do
             if [ -d "$d" ]; then git add -A "$d"; fi
           done
           echo '--- מה נוצר ---'
