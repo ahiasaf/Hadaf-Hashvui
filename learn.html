@@ -198,6 +198,19 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .chb .none{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:.82rem;font-weight:700;
   color:var(--ink-3);line-height:1.7}
 
+/* ---------- לשונית שנייה בתוך המגירה: "הפירוש שלי" ---------- */
+.cht{display:flex;gap:6px;margin-bottom:14px}
+.cht button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:9px;
+  padding:5px 12px;font-weight:800;font-size:.78rem;color:var(--blue);cursor:pointer}
+.cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
+.own-q{margin:0 0 14px;padding:10px 12px;background:rgba(192,143,43,.08);
+  border-radius:9px;font-weight:700}
+.chb .own-save{border:1px solid rgba(192,143,43,.45);background:var(--gold,#C08F2B);
+  color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
+.chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
+.chb .own-msg.ok{color:var(--ok,#3B7D57)}
+.chb .own-msg.bad{color:#B23B3B}
+
 @media (max-width:820px){
   body.chav-on main{grid-template-columns:minmax(0,1fr);
     grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
@@ -320,6 +333,22 @@ body.side-on #side{display:flex}
      נמוכה, ומרכוז הוא מה שנראה בה מסודר. */
   .sd-b{flex:1 1 auto;min-height:0;align-items:center;padding:10px 14px}
   .sd-b img{max-height:100%;object-fit:contain}
+}
+/* ---------- ניהול במסך צר: הפאנל גלש ובלע את סרגל הניווט ----------
+   שוחזר בצילום מסך: 44vh נמדד על הביאור (טקסט גולל בעצמו), אבל
+   בניהול יש גם שקף וגם שורת שיוך/הקלטה מתחתיו, וזה לא נכנס יחד.
+   בלי גלילה־כרשת־ביטחון התוצאה גלשה מתחת ל-#side וכיסתה בדיוק
+   את הכפתורים הקבועים (הבא/כל הדף/מצגת/חברותא/הקודם). */
+@media (max-width:820px){
+  body.side-adm.side-on main{grid-template-rows:minmax(0,1fr) minmax(0,60vh)}
+  body.side-adm #side{overflow-y:auto}
+}
+/* ---------- מקלדת פתוחה, בכתיבת הפירוש ----------
+   רק אצל אחיאסף (side-adm), ורק כשבאמת יש מקלדת על המסך (ראו
+   ה-JS ליד ownKbWatch) — הדף כמעט נעלם והמגירה מקבלת כמעט הכל,
+   כדי שיישאר לו שטח לקרוא את מה שהוא כותב מעל המקלדת. */
+@media (max-width:820px){
+  body.side-adm.kb-open.chav-on main{grid-template-rows:minmax(0,64px) minmax(0,1fr)}
 }
 
 /* ---------- תוכן האזור ---------- */
@@ -1353,7 +1382,7 @@ function loadChav() {
       var all = [].concat.apply([], pages);
       var body = bodyHeight(all);
       CHV = [].concat.apply([], pages.map(function (it) { return chavBuild(it, body); }));
-      paintChav();
+      paintChavArea();
     })
     .catch(function () {});
 }
@@ -1408,6 +1437,172 @@ function paintChav() {
   box.innerHTML = html;
   box.scrollTop = 0;
 }
+
+/* ============================================================
+   "הפירוש שלי" — לשונית שנייה בתוך אותה מגירה בדיוק.
+   ============================================================
+   לא קובץ נפרד ולא חלוקה מחדש: השיוך בין מילות הגמרא המודגשות
+   לבין הקטע כבר קיים ב-`st.c.h` — בדיוק מה שמצייר `paintChav`
+   היום. "הפירוש שלי" הוא רק ערוץ שני, ריק, **צמוד לאותו מספר
+   קטע** (`st.n`) — בדיוק כמו שיוך השקף וכמו הקלטת הקול. מכאן
+   שהוא תקף מאליו גם לדפים שכבר סומנו וגם לדפים שיסומנו מחר,
+   בלי שום שלב הכנה.
+
+   הכתיבה היא `action:'table'` הקיים, בדיוק כמו הלשונית `מצגת` —
+   שום שינוי ב-apps-script.gs. `dmapFromRows` כללית ומשרתת גם
+   כאן בדיוק כמו שם. */
+var OWN_TAB = 'פירוש';
+var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: טקסט} */
+var OWN = null;        /* הפירוש של הדף שעל המסך, או null אם אין */
+var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי */
+
+function loadOwnMap() {
+  return sheetCsv(OWN_TAB).then(function (rows) {
+    var m = dmapFromRows(rows);
+    if (!m) return false;
+    OMAP = m;
+    OWN = OMAP[dmKey(S.mas, S.daf)] || null;
+    return true;
+  }).catch(function () { return false; });
+}
+
+/* רק המילים המודגשות — לשון הגמרא עצמה — ומבנה הפסקאות סביבן.
+   כל טקסט לא-מודגש (הפירוש של החברותא, כולל סימוני "(1)" "(2)"
+   שיושבים רק בתוכו) פשוט לא נכלל, ולכן אין צורך להסיר משהו
+   בנפרד — הוא מעולם לא הועתק. */
+function boldOnly(html) {
+  if (!html) return '';
+  var out = '', last = '', m, re = /<p>|<\/p>|<b>[\s\S]*?<\/b>/g;
+  while ((m = re.exec(html))) {
+    /* שתי מילים מודגשות שהיו רצופות מקבלות רווח ביניהן — מה
+       שהפריד אותן היה טקסט לא-מודגש, וזה בדיוק מה שהוסר. בלעדי
+       זה שתי מילים נדבקות זו לזו לגוש אחד בלתי קריא. */
+    if (last.slice(0, 2) === '<b' && m[0].slice(0, 2) === '<b') out += ' ';
+    out += m[0];
+    last = m[0];
+  }
+  return out.replace(/<p>\s*<\/p>/g, '');
+}
+
+function chavTabHtml(st) {
+  if (!st) return '';
+  var hasOwn = !!(OWN && OWN[String(st.n)]);
+  if (!SIDE_ADM && !hasOwn) return '';
+  return '<div class="cht" id="cht">' +
+    '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
+    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">הפירוש שלי</button></div>';
+}
+
+function ownMsg(cls, txt) {
+  var m = $('own-msg');
+  if (m) { m.className = 'own-msg ' + cls; m.innerHTML = txt; }
+}
+
+/* מוצג בתוך אותה תיבה בדיוק שהתלמיד יראה — ולכן זו גם חוויית
+   הכתיבה של אחיאסף: המילים המודגשות של הקטע הנוכחי, ולידן מקום
+   ריק. ברוב הפעמים הטקסט יגיע דרך הדבקה או הקלדה קולית של
+   גוגל ולא הקלדה ביד — ולכן תיבה גדולה ופשוטה, לא עורך. */
+function paintOwn() {
+  var st = FLAT[IDX], box = $('chb');
+  if (!st) { box.innerHTML = ''; return; }
+  var n = st.n, quote = boldOnly(st.c && st.c.h);
+  var text = (OWN && OWN[String(n)]) || '';
+  var html = '<div class="own-q">' + (quote ||
+    '<span class="none">לקטע הזה עדיין אין גמרא מסומנת.</span>') + '</div>';
+  if (SIDE_ADM) {
+    html += '<textarea class="vox-txt" id="own-txt" ' +
+      'placeholder="כתוב כאן את הפירוש שלך לקטע הזה…">' + esc(text) + '</textarea>' +
+      '<button class="own-save" id="own-save">שמירה לכולם</button>' +
+      '<div class="own-msg" id="own-msg"></div>';
+  } else {
+    html += text ? '<p>' + esc(text) + '</p>'
+                 : '<div class="none">טרם נכתב כאן פירוש.</div>';
+  }
+  box.innerHTML = html;
+  box.scrollTop = 0;
+  if (!SIDE_ADM) return;
+  $('own-save').onclick = function () { ownSave(n, $('own-txt').value.trim()); };
+  $('own-txt').addEventListener('blur', function () {
+    document.body.classList.remove('kb-open');
+  });
+}
+
+/* הכתיבה היא no-cors ולכן תמיד "מצליחה" — ראו ההערה המקבילה
+   ליד sideSave. ההודעה "נשמר" נאמרת רק אחרי קריאה חוזרת. */
+function ownSave(n, text) {
+  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!OWN) OWN = {};
+  if (text) OWN[String(n)] = text; else delete OWN[String(n)];
+  OMAP[dmKey(S.mas, S.daf)] = OWN;
+  var rows = [], k;
+  for (k in OMAP) {
+    if (!OMAP.hasOwnProperty(k)) continue;
+    var v = OMAP[k], parts = k.split('|');
+    if (v && v.__bad) { rows.push([parts[0], parts[1], v.__bad]); continue; }
+    var has = false, q;
+    for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
+    if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
+  }
+  ownMsg('', 'נשלח · מאמת מול הגיליון…');
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:OWN_TAB,
+    cols:JSON.stringify(['מסכת', 'דף', 'פירוש']),
+    rows:JSON.stringify(rows)
+  }) }).catch(function () {});
+  ownVerify(0, n, text);
+}
+function ownVerify(tries, n, text) {
+  setTimeout(function () {
+    sheetCsv(OWN_TAB).then(function (rows) {
+      var m = dmapFromRows(rows);
+      var mine = m && m[dmKey(S.mas, S.daf)];
+      var want = (mine || {})[String(n)] || '';
+      if ((text || '') === want) {
+        OMAP = m; OWN = mine;
+        ownMsg('ok', 'נשמר ואומת. מעכשיו זה מה שיראה כל מי שפותח את הדף.');
+        return;
+      }
+      if (tries < 4) { ownVerify(tries + 1, n, text); return; }
+      ownMsg('bad', '<b>לא אומת.</b> ' + (!m
+        ? 'הגיליון לא נענה, או שלשונית "' + OWN_TAB + '" לא נוצרה.'
+        : 'מה שחזר מהגיליון אינו מה שנשלח.') +
+        ' הטקסט קיים במסך הזה בלבד — אפשר לנסות שוב.');
+    }).catch(function () {
+      if (tries < 4) ownVerify(tries + 1, n, text);
+      else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+    });
+  }, tries ? 5000 : 2500);
+}
+
+/* המתג בין שתי הלשוניות, ומה שקורה סביבו. תלמיד שאין לו מה
+   לראות בלשונית השנייה כלל לא רואה אותה — "קטע בלי הקלטה, אין
+   כפתור". אצל אחיאסף היא תמיד שם, כי בלעדיה אי אפשר לכתוב
+   פירוש ראשון לקטע. */
+function paintChavArea() {
+  var st = FLAT[IDX], tabs = chavTabHtml(st);
+  if (!tabs) { CHAV_TAB = 'chav'; paintChav(); return; }
+  if (CHAV_TAB === 'own') paintOwn(); else paintChav();
+  $('chb').insertAdjacentHTML('afterbegin', tabs);
+  $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
+  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
+}
+
+/* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
+   בהדבקה או בהקלדה קולית — אין לו מקום קריא מעליה. פותרים בלי
+   לנחש "איזה קלט": מסתכלים כמה השטח הנראה התכווץ בפועל, ורק
+   אצל מי שהניהול פתוח אצלו ורק כשהמיקוד באמת על תיבת הפירוש. */
+if (window.visualViewport) {
+  (function () {
+    var vvh0 = window.visualViewport.height;
+    window.visualViewport.addEventListener('resize', function () {
+      var el = document.activeElement;
+      var open = SIDE_ADM && el && el.id === 'own-txt' &&
+        (vvh0 - window.visualViewport.height) > 120;
+      document.body.classList.toggle('kb-open', open);
+    });
+  })();
+}
+
 /* גודל הטקסט. חמישה שלבים, נשמר במכשיר. */
 var CZ = 2, CZS = [.86, .93, 1, 1.12, 1.28];
 function chavZoom(d) {
@@ -1430,7 +1625,7 @@ function drawer(on) {
   if (!quiet()) try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
   recStep('chav');
   /* הקובץ נטען רק אם יש קטע שנשמר לפני שהמבנה נשמר יחד איתו */
-  if (on) { if (needChav()) loadChav(); paintChav(); }
+  if (on) { if (needChav()) loadChav(); paintChavArea(); }
   /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
   setTimeout(focus, 30);
 }
@@ -2079,7 +2274,7 @@ function go(i) {
              : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
-    paint(); focus(); paintChav(); bar(); sideSync(); savePos();
+    paint(); focus(); paintChavArea(); bar(); sideSync(); savePos();
     recStep('go', IDX);
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
@@ -2840,6 +3035,18 @@ function boot() {
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';
   document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
+
+  /* מי שמשייך יודע לכתוב פירוש גם בדף שעוד אין לו מצגת — "הפירוש
+     שלי" יושב במגירת החברותא ולא במגירת המצגת, ולכן הדגל נקבע
+     כאן ולא רק בתוך sideInit (שיוצא מיד כשאין DECK). sideInit
+     קובע אותו שוב, לאותו ערך בדיוק, כשיש מצגת — בלי סתירה. */
+  try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+  if (quiet()) SIDE_ADM = false;
+  document.body.classList.toggle('side-adm', SIDE_ADM);
+
+  /* לא חוסם שום דבר — רק כשהיא מוכנה, אם הדף כבר מצויר, מציירים
+     שוב כדי שהלשונית השנייה תופיע למי שצריך לראות אותה. */
+  loadOwnMap().then(function () { if (FLAT.length) paintChavArea(); });
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
