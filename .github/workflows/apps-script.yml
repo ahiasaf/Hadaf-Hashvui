@@ -154,12 +154,28 @@ jobs:
           # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
           mkdir -p build
           cp apps-script.gs build/Code.gs
+          # oauthScopes מפורש, ולא סמכות על ניחוש אוטומטי.
+          #
+          # בלי השורה הזו קרה בדיוק זה: הקוד קורא ל-UrlFetchApp
+          # (כתיבה ל-GitHub) כבר חודשים, אבל מסך ההרשאה של גוגל
+          # מעולם לא ביקש את זה — כי הניחוש האוטומטי של גוגל
+          # רץ כשעורכים בעורך הדפדפן, לא כשדוחפים קוד דרך clasp.
+          # התוצאה: כל קריאה ל-ghPut_/ghCheck_ נפלה בשקט על
+          # "You do not have permission… script.external_request",
+          # והרכז לא קיבל אף פעם הזדמנות לאשר — כי גוגל לא חשבה
+          # שיש מה לאשר.
           cat > build/appsscript.json <<'JSON'
           {
             "timeZone": "Asia/Jerusalem",
             "dependencies": {},
             "exceptionLogging": "STACKDRIVER",
             "runtimeVersion": "V8",
+            "oauthScopes": [
+              "https://www.googleapis.com/auth/spreadsheets",
+              "https://www.googleapis.com/auth/drive.readonly",
+              "https://www.googleapis.com/auth/script.scriptapp",
+              "https://www.googleapis.com/auth/script.external_request"
+            ],
             "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
           }
           JSON

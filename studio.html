@@ -1801,7 +1801,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.84.0';
+var STUDIO_VER = '8.89.0';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2733,6 +2733,37 @@ function loadChav() {
       })
       .catch(function () { box.innerHTML = '<div class="hint">לא הצלחתי לקרוא.</div>'; });
   };
+  /* ============================================================
+     המקור הראשון: הביאור מקובץ הוורד המקורי.
+
+     ב-PDF אין "מודגש" ואין רווח — שניהם שוחזרו בניחוש, מגובה
+     האותיות ומהמרווח בין הרצפים. הניחוש נכשל: בתענית ג ע"א הוא
+     יצא ריק, וחמישה-עשר קטעים הוצגו לתלמיד בלי שום הבחנה בין
+     לשון הגמרא לפירוש.
+
+     בוורד ההדגשה היא תכונה מפורשת. הקובץ מומר פעם אחת
+     ב-tools/build-chavruta.py, ומכאן זו קריאה אחת של קובץ קטן —
+     בלי דרייב, בלי הסקריפט, ובלי פענוח PDF בדפדפן.
+
+     ה-PDF נשאר כגיבוי לדף שעדיין אין לו קובץ.
+     ============================================================ */
+  var mas = selVal('mas'), dk = dafKey(selVal('daf'));
+  fetch('chav/' + mas + '/' + encodeURIComponent(dk) + '.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (rows) {
+      if (!rows || !rows.length) return fromPdf();
+      var raw = rows.map(function (p) {
+        return { runs: p.map(function (r) { return { t: r[0], b: r[1] }; }) };
+      });
+      CHV = buildChav(raw);
+      box.innerHTML = chavHtml(CHV);
+      document.getElementById('chpg').textContent = chavCount();
+      chavBind(); paintChav(1); backfillChav();
+    });
+  return;
+
+  function fromPdf() {
   /* הפסקאות המפוענחות, מהפעם הקודמת. זה מדלג על כל השרשרת:
      קריאה מהסקריפט, base64, פענוח PDF, וזיהוי ההדגשות והרווחים
      לפי גובה הגליפים. הקובץ אינו משתנה, ולכן אין מה לרענן. */
@@ -2753,6 +2784,7 @@ function loadChav() {
       CACHE[id] = buf; render(buf);
     })
     .catch(function () { box.innerHTML = '<div class="hint">לא הצלחתי להביא.</div>'; });
+  }
 }
 
 /* ============================================================

@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.84.0';
+var APP_VERSION = '8.89.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6507,6 +6507,14 @@ function admSubBar() {
 function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
+  /* כל עדכון מצב בפאנל הזה עובר דרך הריסה ובנייה מחדש של כל
+     ה-innerHTML — גם כשמה שהשתנה זו שורת הודעה אחת. אם הגובה
+     הכולל משתנה, הדפדפן קובע מחדש איפה הגלילה נמצאת, וזה בדיוק
+     מה שנראה כמו "קפצתי למקום אחר" — בזמן שההודעה שרצית לראות
+     כן נכתבה, רק לא במקום שאתה מסתכל בו. שומרים את מיקום הגלילה
+     ומחזירים אותו אחרי הציור מחדש, בפריים הבא. */
+  var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+  requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
   el.innerHTML = admSubBar() + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
@@ -9171,12 +9179,43 @@ function dkUpload(items) {
   if (!CFG.readKey) {
     dkPdfMsg('bad', 'צריך סיסמת סקריפט במכשיר — ניהול ← מערכת.'); return;
   }
+  /* שם קובץ שכבר קיים בתיקייה נדרס בלי שום סימן — וזה בדיוק ההבדל
+     בין "שקף חדש" לבין שינוי מה שתלמיד שכבר ראה את הדף ימשיך לראות
+     אצלו, כי תמונות נטענות מהמטמון של המכשיר ואינן מתעדכנות מעצמן.
+     שואלים מפורשות לפני שדורסים, ולא אחרי. */
+  if (dkPool) {
+    var clash = items.filter(function (it) { return dkPool.indexOf(it.name) >= 0; })
+                      .map(function (it) { return it.name; });
+    if (clash.length) {
+      var live = clash.filter(function (nm) {
+        return dkList.indexOf(dkDir + '/' + nm) >= 0 || dkList.indexOf(nm) >= 0;
+      });
+      var warn = 'הקבצים האלה כבר קיימים בתיקייה ויידרסו: ' + clash.join(', ') + '.' +
+        (live.length
+          ? ' חלקם במצגת החיה עכשיו — תלמיד שכבר פתח את הדף הזה עלול ' +
+            'להמשיך לראות אצלו את הגרסה הישנה גם אחרי הדריסה, כי המכשיר ' +
+            'שלו לא בודק אם השקף השתנה.'
+          : '') +
+        ' אם אתם מחליפים שקף בכוונה — עדיף להעלות בשם קובץ חדש ולהחליף ' +
+        'ברשימת הסדר, כדי שזה יגיע לכולם מיד. להמשיך ולדרוס בכל זאת?';
+      if (!window.confirm(warn)) { dkPdfMsg('', 'בוטל — שום דבר לא נשלח.'); return; }
+    }
+  }
   dkPutAll(items, function (miss) {
     if (!miss) {
-      dkPdf = null; dkPool = null;
+      dkPdf = null;
+      /* לא מחכים לתשובה טרייה מגיטהאב כדי שהקבצים "יהיו זמינים" —
+         אנחנו כבר יודעים בוודאות שהם שם: `dkAskUntil` בתוך
+         `dkPutAll` בדקה את זה בעצמה, קובץ קובץ. בלי זה הרשימה
+         "בתיקייה" הייתה מראה את המצב הישן עד שרשימת התיקייה
+         מגיטהאב מתעדכנת, ומרגישה כאילו מה שהועלה הרגע לא קיים. */
+      var names = items.map(function (it) { return it.name; });
+      dkPool = (dkPool || []).concat(names.filter(function (n) {
+        return (dkPool || []).indexOf(n) < 0;
+      })).sort();
       admPane();
       dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים. הוסיפו אותם למצגת מלמעלה.');
-      dkAsk();
+      dkAsk();   /* רענון אמיתי ברקע, למקרה שהתיקייה השתנתה גם ממכשיר אחר */
       return;
     }
     dkPdfMsg('bad', 'לא הגיעו: ' + miss.join(', ') + ' — צריך GH_TOKEN ' +
@@ -9263,10 +9302,15 @@ function admDecks(el) {
   if (!dkList.length) {
     h += '<p class="h">אין עדיין שקפים במצגת של שבוע זה. הוסיפו מהרשימה שלמטה.</p>';
   } else {
+    /* אחת לציור, לא אחת לתמונה: מספיק כדי שגרסה שנדרסה הרגע תיראה
+       אצלך מיד, בלי לגלוש בסתר. תמונות שנטענות בלי הפרמטר הזה
+       (מה שהתלמיד מקבל) ממשיכות להיות ממטמון-קודם, כמו תמיד —
+       וזה בכוונה: זו הדרך היחידה שדף נשאר מהיר על רשת חלשה. */
+    var dkBust = Date.now();
     h += dkList.map(function (f, i) {
       return '<div class="row" style="align-items:center;gap:9px">' +
         '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
-        '<img loading="lazy" src="' + esc(dkPath(f)) + '" alt="" ' +
+        '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="" ' +
         'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
         'border:1px solid var(--rule);background:var(--sunk)">' +
         '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
@@ -9301,7 +9345,7 @@ function admDecks(el) {
         'שקפים ממצגת שנייה — הם נשזרים באותה רשימה.</p>' +
         rest.map(function (f) {
           return '<div class="row" style="align-items:center;gap:9px">' +
-            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
+            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + dkBust + '" alt="" ' +
             'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
             'border:1px solid var(--rule);background:var(--sunk)">' +
             '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
@@ -9555,6 +9599,14 @@ function admPing() {
       var tabs = (d.tabs || []).map(function (t) {
         return esc(t.name) + ' (' + t.rows + ')';
       }).join(' · ') || 'אין לשוניות';
+      /* העלאת שקפים/שמע לריפו עוברת ב-no-cors ולכן לעולם לא
+         אומרת למה נכשלה — רק "לא הגיעו". זה המקום היחיד שיכול
+         להגיד את הסיבה האמיתית (טוקן שגוי, אין הרשאת כתיבה,
+         שם ריפו לא נמצא), כי הוא עובר דרך doGet שהתשובה שלו נקראת. */
+      var ghLine = d.gh
+        ? ('<br>' + (d.gh.ok ? '' : '<b>') + 'GitHub: ' + esc(d.gh.message) +
+           (d.gh.ok ? '' : '</b>'))
+        : '';
       /* הבדיקה החשובה מכולן, והיחידה שאי אפשר לראות בעין: האם
          הסקריפט כותב לאותו גיליון שהאפליקציה קוראת ממנו. כשלא —
          כל "פרסום" מצליח, ואף אחד לא רואה דבר. */
@@ -9580,7 +9632,7 @@ function admPing() {
         say('cond', 'החיבור תקין · גרסה ' + v +
             '<br><b>אבל הגיליון הפרטי אינו מוגדר.</b> שמות של תלמידים ' +
             'וטלפונים של הורים ייכתבו לגיליון שמשותף לצפייה.<br>' +
-            'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.');
+            'ב-Apps Script, בראש הקובץ: <code>PRIVATE_ID</code>.' + ghLine);
       } else {
         /* "מוגדר" אינו מספיק. ערך שיושב בקוד יימחק בהדבקה הבאה
            בלי שדבר יזהיר, ושתי ההדבקות האחרונות כבר הוכיחו זאת.
@@ -9611,7 +9663,7 @@ function admPing() {
                 'Add script property, בשמות <code>PRIVATE_ID</code> ו-' +
                 '<code>READ_KEY</code>.'
               : '') +
-            '<br>לשוניות: ' + tabs);
+            '<br>לשוניות: ' + tabs + ghLine);
       }
     })
     .catch(function () {

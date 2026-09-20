@@ -98,7 +98,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 27;
+var SCRIPT_VERSION = 28;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -741,7 +741,7 @@ function doGet(e) {
               privateOn: !!PRIVATE_ID, readKeyOn: !!READ_KEY,
               privSrc: propSrc_('PRIVATE_ID', PRIVATE_ID_FALLBACK),
               keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK),
-              autoOn:  hasTrigger_() };
+              autoOn:  hasTrigger_(), gh: ghCheck_() };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
@@ -1789,6 +1789,43 @@ function ghFire_(title, body, only, grade, klass, who, link, role) {
                       'ייתכן שלאסימון אין הרשאת Contents/Actions' };
   } catch (err) {
     return { status:'error', message: String(err) };
+  }
+}
+
+/* בדיקת GH_TOKEN/GH_REPO בלי לכתוב שום קובץ — לשימוש "בדיקת חיבור"
+   בלבד. כתיבה בפועל (`ghPut_`) יוצאת מהאפליקציה ב-`no-cors`, כלומר
+   תשובתה אטומה ואי אפשר לדעת ממנה למה נכשלה — רק "לא הגיעו".
+   הבדיקה כאן עוברת דרך doGet, שהתשובה שלו כן נקראת, ולכן זה
+   המקום היחיד שיכול להגיד את הסיבה האמיתית. */
+function ghCheck_() {
+  var tok = prop_('GH_TOKEN', ''), repo = prop_('GH_REPO', '');
+  if (!tok && !repo) return { ok: false, message: 'לא הוגדרו GH_TOKEN ו-GH_REPO' };
+  if (!tok)  return { ok: false, message: 'לא הוגדר GH_TOKEN' };
+  if (!repo) return { ok: false, message: 'לא הוגדר GH_REPO' };
+  try {
+    var res = UrlFetchApp.fetch(GH_API + repo, {
+      headers: { Authorization: 'Bearer ' + tok,
+                 Accept: 'application/vnd.github+json',
+                 'X-GitHub-Api-Version': '2022-11-28' },
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code === 200) {
+      var j = {};
+      try { j = JSON.parse(res.getContentText()) || {}; } catch (e2) {}
+      if (j.permissions && j.permissions.push === false) {
+        return { ok: false, message:
+          'הטוקן מחובר לריפו ' + repo + ', אבל בלי הרשאת כתיבה — ' +
+          'ב-GitHub: Contents ← Read and write.' };
+      }
+      return { ok: true, message: 'מחובר ל-' + repo + ' עם הרשאת כתיבה ✓' };
+    }
+    if (code === 401) return { ok: false, message: 'הטוקן שגוי או פג תוקף (401).' };
+    if (code === 404) return { ok: false, message:
+      'לא נמצא ריפו "' + repo + '", או שלטוקן אין אליו גישה (404).' };
+    return { ok: false, message: 'GitHub החזיר שגיאה (קוד ' + code + ').' };
+  } catch (e) {
+    return { ok: false, message: 'לא הצלחתי להתחבר ל-GitHub: ' + String(e) };
   }
 }
 
