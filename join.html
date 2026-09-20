@@ -582,6 +582,22 @@ body.wz-det #s-det{display:block}
 #wz-next{display:none}
 body.wz-det #wz-next{display:block}
 body.wz-ways #s-ways{display:block}
+/* ============================================================
+   עדכון פרטים — שני השלבים יחד, ובלי מד.
+   ============================================================
+   "אם הוא לוחץ על שינוי פרטים הוא צריך להתחיל מחדש." הכפתור
+   החזיר אותו לעמוד הנחיתה, כלומר לתחילת ההרשמה — והשדות אמנם
+   היו מלאים, אבל הם ישבו מאחורי מסך ה"אני מצטרף". כאן הוא
+   נוחת ישר על השדות, מלאים, ושני החלקים פתוחים יחד: מי שבא
+   לשנות "לבד" ל"עם אבא" צריך את שניהם באותו מסך.
+
+   בלי מד ובלי "שלב 2 מתוך 4": זה אינו מסע, זו עריכה. */
+body.wz-edit .wzbar,body.wz-edit #wz-next{display:none}
+.wz-eh{margin-bottom:16px}
+.wz-eh h2{margin:0;font-size:1.16rem;font-weight:800;letter-spacing:-.02em;
+  line-height:1.45}
+.wz-eh p{margin:6px 0 0;font-size:.93rem;font-weight:600;color:var(--ink-2);
+  line-height:1.65}
 
 body.wz{font-size:16px;line-height:1.7}
 
@@ -1518,7 +1534,16 @@ function applyWays() {
                            : isKid ? JOIN.invSubKid  : JOIN.invSubFriend;
   $('l-dad-first').textContent = isDad ? JOIN.invNameDad
                                : isKid ? JOIN.invNameKid : JOIN.invNameFriend;
-  $('l-dad-phone').innerHTML   = 'טלפון <i>· לא חובה</i>';
+  /* לומד עם אבא — המספר חובה, והשדה אומר את זה. לחבר ולבן
+     הוא נשאר רשות. */
+  if (isDad) {
+    $('l-dad-phone').textContent = JOIN.dadPhoneL;
+    $('dad-note').textContent    = JOIN.dadPhoneB;
+  } else {
+    $('l-dad-phone').innerHTML   = 'טלפון <i>· לא חובה</i>';
+    $('dad-note').textContent    = 'לא זוכר את המספר? אפשר להשאיר ריק ' +
+                                   'ולהשלים אחר כך.';
+  }
 
   $('invWho').innerHTML = [['dad', JOIN.relDad], ['kid', JOIN.relKid],
                            ['friend', JOIN.relFriend]]
@@ -1781,6 +1806,11 @@ $('go').onclick = function () {
   /* אבא אינו נשאל איך הוא לומד, ולכן אין מה לאמת אצלו. תנאי
      שנשאר על שדה מוסתר הוא כפתור שאינו עושה דבר ואינו מסביר. */
   if (role !== 'dad' && !way) return say('צריך לבחור איך אתה לומד.');
+  /* הטלפון של אבא הוא מה שמחבר בין השניים במערכת — בלעדיו
+     האפליקציה אינה יודעת שהם לומדים יחד. ראו `JOIN.dadPhoneB`. */
+  if (role !== 'dad' && way === 'dad' && invRel === 'dad' &&
+      (val('dad-phone').match(/\d/g) || []).length < 9)
+    return say(JOIN.errDadPh);
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
      עכשיו — יצטרף לבד, וההזמנה תמתין לו במסך הבית. שדה ריק
      שעוצר טופס הוא הדרך הבטוחה לאבד מצטרף. */
@@ -2470,6 +2500,8 @@ function showPre() {
    קישור אחד ולחזור לעמוד הישן בלי דחיפה. */
 var WZ_ON = !/[?&]wiz=0\b/.test(location.search);
 var wzStep = 0;
+/* הכיתוב המקורי של כפתור השליחה, לפני שהעריכה מחליפה אותו. */
+var GO_TXT = ($('go') || {}).textContent || '';
 
 function jt(k) { return (JOIN && JOIN[k]) || ''; }
 
@@ -2522,12 +2554,17 @@ function wzDraw() {
     return;
   }
 
-  var h = wzMeter(wzStep);
+  /* שלב 8 אינו שלב במסע אלא עריכה של מה שכבר נמסר, ולכן אין
+     לו מד ואין לו שורות "מה שנגמר". */
+  var edit = (wzStep === 8);
+  var h = edit ? '' : wzMeter(wzStep);
   /* מה שנגמר נשאר על המסך. זו ההוכחה שהתקדמת, וזה מה שגורם
      לרצות לסיים. */
-  if (wzStep > 1) h += wzRow(jt('wzInstS'));
-  if (wzStep > 2) h += wzRow(jt('wzDetS'));
-  if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
+  if (!edit) {
+    if (wzStep > 1) h += wzRow(jt('wzInstS'));
+    if (wzStep > 2) h += wzRow(jt('wzDetS'));
+    if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
+  }
 
   /* שלבים 1 ו-4 הם כרטיס של המסע עצמו. שלבים 2 ו-3 נכנסים
      לתוך הכרטיסים שכבר קיימים — כותרת אחת בתוך מלבן אחד. */
@@ -2544,6 +2581,12 @@ function wzDraw() {
   } else if (wzStep === 3) {
     document.body.className += ' wz-ways';
     ways = wzHead(3, jt('wzWayT'), jt('wzWayB'));
+  } else if (edit) {
+    /* שניהם פתוחים יחד — מי שבא לשנות "לבד" ל"עם אבא" צריך
+       את דרך הלימוד ואת שדות ההזמנה באותו מסך. */
+    document.body.className += ' wz-det wz-ways wz-edit';
+    det = '<div class="wz-eh"><h2>' + esc(jt('editT')) + '</h2>' +
+          '<p>' + esc(jt('editB')) + '</p></div>';
   } else {
     var fin = noteDone() && notePerm() === 'granted';
     if (fin) h += wzRow(jt('wzNoteS'));
@@ -2553,6 +2596,10 @@ function wzDraw() {
   e.innerHTML = h;
   if ($('h-det'))  $('h-det').innerHTML = det;
   if ($('h-ways')) $('h-ways').innerHTML = ways;
+  /* אותו כפתור, שני כיתובים: "מצטרף ללימוד" בהרשמה, ו"שמירת
+     השינויים" בעריכה. מי שכבר רשום ורואה "מצטרף ללימוד" חושב
+     שהוא עומד להירשם פעם שנייה. */
+  if ($('go')) $('go').textContent = edit ? jt('editBtn') : GO_TXT;
   /* המדריך נשתל אחרי שהמסך צויר — הוא מנהל את הצעדים שלו
      בעצמו, ואינו חלק מה-HTML שנבנה כאן. */
   var gbox = $('gu-here');
@@ -2930,6 +2977,19 @@ window.addEventListener('load', function () {
        ההדרגתית יהיה כאן מכשול ולא עזרה. */
     ['c-who','f-last','instFld','f-grade','f-phone','c-ways','go',
      'f-dad-last','f-dad-phone','dad-note'].forEach(function (id) { open_(id); });
+    /* ============================================================
+       ולא חזרה לעמוד הנחיתה.
+       ============================================================
+       השדות היו מלאים כל הזמן — אבל הם ישבו מאחורי מסך
+       "אני מצטרף", כלומר מי שלחץ "שינוי הפרטים" נחת בתחילת
+       ההרשמה ונראה לו שהכול התאפס. כאן הוא נוחת על השדות.
+       ============================================================ */
+    if (WZ_ON) {
+      if (document.body.className.indexOf(' wz ') < 0) {
+        document.body.className += ' wz ';
+      }
+      wzGo(8);
+    }
     window.scrollTo(0, 0);
   };
 })();
