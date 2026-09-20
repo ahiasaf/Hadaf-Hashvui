@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.83.0';
+var APP_VERSION = '8.84.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4173,17 +4173,34 @@ function paintInter(id, daf) {
   var box = document.getElementById('w-inter');
   if (!box) return;
   if (!showRow('inter')) { box.innerHTML = ''; return; }
+  /* ============================================================
+     דף שעוד לא סומן — שורה, ולא כפתור שמוביל למסך ריק.
+     ============================================================
+     הדף האינטראקטיבי מוכן דף־דף בסטודיו, ולא לכל המסכת בבת
+     אחת. עד עכשיו לדף שלא סומן פשוט לא הופיע כלום — וזה נראה
+     כאילו משהו נעלם. שורה אחת שאומרת שהוא בדרך עדיפה על
+     חלל, ובוודאי על כפתור שמוביל לדף שאינו קיים.
+     ============================================================ */
+  var soon = function (el) {
+    el.innerHTML = UI.interSoon
+      ? '<div class="lnk dim" aria-disabled="true"><span class="ic">◈</span>' +
+        '<span>' + esc(UI.interSoon) + '</span></div>'
+      : '';
+  };
   var draw = function (m) {
     var el = document.getElementById('w-inter');
     if (!el || !m) return;
-    if (!(m[id] || {})[dafKey(daf)]) { el.innerHTML = ''; return; }
+    if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
       '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
       '&daf=' + encodeURIComponent(daf) + '">' +
       '<span class="ic">◈</span><span>דף אינטראקטיבי' +
       '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
   };
-  draw(MARKED || Store.get('markedCache'));
+  /* קריאה שנכשלה אינה "אין דפים מסומנים": בלי מפה כלל מציגים
+     את השורה, ולא כפתור מומצא. */
+  var have = MARKED || Store.get('markedCache');
+  if (have) draw(have); else soon(box);
   loadMarked().then(draw).catch(function () {});
 }
 
