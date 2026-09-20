@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.89.0';
+var APP_VERSION = '8.89.1';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8128,19 +8128,10 @@ var pushView = { title:'', body:'', only:'', role:'', link:'' };
    הכפתור פותח וואטסאפ עם הודעה כתובה, והשם כבר בתוכה: פנייה
    שמתחילה ב"היי דוד" היא אדם שפנה, והודעה גנרית היא טופס.
 
-   ומה שהדפדפן כבר מסר — סוג המכשיר, מאיפה נפתח הקישור, האם
-   כפתור ההתקנה היה שם — אינו נשאל שוב בהודעה. שואלים רק את
-   מה שרק הוא יכול לדעת. */
+   והנוסח עצמו יושב ב-`UI.stuckWa` שב-data.js, ולכן אחיאסף
+   עורך אותו מהניהול בלי גרסה חדשה — כפי שקרה כבר פעם אחת:
+   ההודעה הייתה שאלון, ומרגע שידענו מה נשבר היא הפכה לתשובה. */
 var stuckRows = null, stuckMsg = '', stuckBusy = 0, stuckAll = false;
-
-var STUCK_WA =
-  'היי {name}! כאן רכז "הדף השבועי".\n' +
-  'ראיתי שביקשת עזרה בהתקנה — נסדר את זה ביחד, זה עניין של כמה דקות.\n\n' +
-  'אצלי רשום ש{dev} אצלך. כדי שאדע בדיוק איפה לעזור, תכתוב לי:\n' +
-  '1. מה היה הדבר האחרון שלחצת?\n' +
-  '2. מה הופיע על המסך אחרי זה?\n' +
-  '3. ואם אפשר — צילום מסך של מה שאתה רואה.\n\n' +
-  'אני כאן. תענה ונתקדם.';
 
 function stuckParse(rows) {
   /* **קריאה שנכשלה אינה לשונית ריקה** — המסנן הזה רץ רק על
@@ -8156,7 +8147,10 @@ function stuckParse(rows) {
     };
     if (!g('שם') && !g('טלפון')) continue;
     out.push({ row:i + 1, name:g('שם'), phone:g('טלפון'),
-               inst:g('ישיבה'), grade:g('שכבה'), klass:g('כיתה'),
+               /* הקוד ולא השם — הוא מה שבונה את הקישור שנשלח
+                  לו בחזרה, וגורם לו להיספר לישיבה שלו. */
+               inst:g('ישיבה'), code:g('קוד ישיבה'),
+               grade:g('שכבה'), klass:g('כיתה'),
                dev:g('מכשיר'), what:g('מה קרה'), diag:g('אבחון'),
                done:!!g('טופל'), at:g('תאריך') });
   }
@@ -8181,10 +8175,21 @@ function stuckLoad() {
   });
 }
 
+/* קוד הישיבה של מי שנתקע. הלשונית נושאת אותו, ומי שנרשם
+   לפני שהקוד נשמר מזוהה לפי השם. בלי שניהם — הקישור הכללי,
+   שבו הוא בוחר ישיבה בעצמו. */
+function stuckInst(p) {
+  if (p.code) return p.code;
+  var by = (INSTITUTIONS || []).filter(function (i) {
+    return i.name === p.inst;
+  })[0];
+  return by ? by.code : '';
+}
 function stuckText(p) {
-  return fill(STUCK_WA, {
+  return fill(UI.stuckWa || '', {
     name: (p.name || '').split(' ')[0] || p.name || '',
-    dev:  p.dev || 'הטלפון'
+    dev:  p.dev || 'הטלפון',
+    link: joinUrl(stuckInst(p))
   });
 }
 
