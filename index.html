@@ -9346,6 +9346,9 @@ function admDecks(el) {
         (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
         '<button class="back" onclick="dkDown(' + i + ')"' +
         (i === dkList.length - 1 ? ' disabled' : '') + ' aria-label="הורדה">↓</button>' +
+        '<a class="back" style="text-decoration:none" href="' + esc(dkPath(f)) +
+        '" download="' + esc(dkShort(f).split('/').pop()) +
+        '" aria-label="הורדה למכשיר לעריכה">⇩</a>' +
         '<button class="back" onclick="dkDel(' + i + ')" aria-label="הסרה">✕</button>' +
         '</div>';
     }).join('');
