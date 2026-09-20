@@ -9031,6 +9031,18 @@ function dkPdfLib() {
   });
 }
 
+/* ממשיכים למספר שאחרי הגבוה ביותר שכבר בתיקייה — לא תמיד מ-01.
+   PDF שני לאותה תיקייה היה חוזר על 01.jpg עד 10.jpg בדיוק כמו
+   הראשון ודורס אותו בשקט, וזו בדיוק התקלה שכבר קרתה. תיקייה
+   ריקה או שעוד לא נשאלה — מתחילים מ-1 כרגיל. */
+function dkNextStart() {
+  var max = 0;
+  (dkPool || []).forEach(function (f) {
+    var m = /^(\d+)\.jpg$/i.exec(f);
+    if (m) { var v = parseInt(m[1], 10); if (v > max) max = v; }
+  });
+  return max + 1;
+}
 function dkPdfPick(inp) {
   var f = inp.files && inp.files[0];
   if (!f) return;
@@ -9048,35 +9060,37 @@ function dkPdfPick(inp) {
       return pdfjsLib.getDocument({ data: buf }).promise;
     })
     .then(function (doc) {
-      var out = [], n = 1;
-      function page() {
-        if (n > doc.numPages) {
+      var out = [], pg = 1, startN = dkNextStart(), fn = startN;
+      function cut() {
+        if (pg > doc.numPages) {
           dkPdf = out;
           /* קודם הציור ואז ההודעה. הפוך — `admPane` בונה מחדש את
              הכרטיס וההודעה נמחקת ברגע שנכתבה. */
           admPane();
-          dkPdfMsg('ok', 'נחתכו ' + out.length + ' שקפים. הורידו אותם, ' +
-                         'וגררו לתיקייה ב-GitHub.');
+          dkPdfMsg('ok', 'נחתכו ' + out.length + ' שקפים' +
+            (startN > 1 ? ' · ממוספרים ' + startN + ' עד ' + (fn - 1) +
+                          ' כדי לא לדרוס את הקיימים בתיקייה' : '') +
+            '. הורידו אותם, וגררו לתיקייה ב-GitHub.');
           return;
         }
-        dkPdfMsg('', 'חותך שקף ' + n + ' מתוך ' + doc.numPages + '…');
-        return doc.getPage(n).then(function (pg) {
-          var v1 = pg.getViewport({ scale: 1 });
-          var vp = pg.getViewport({ scale: DK_W / v1.width });
+        dkPdfMsg('', 'חותך שקף ' + pg + ' מתוך ' + doc.numPages + '…');
+        return doc.getPage(pg).then(function (p) {
+          var v1 = p.getViewport({ scale: 1 });
+          var vp = p.getViewport({ scale: DK_W / v1.width });
           var cv = document.createElement('canvas');
           cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
-          return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp })
+          return p.render({ canvasContext: cv.getContext('2d'), viewport: vp })
             .promise.then(function () {
               /* שם באנגלית בלבד: כרום דוחה הורדה עם שם שאינו
                  ASCII, וזו מלכודת שכבר נפלנו בה. */
-              var nm = (n < 10 ? '0' : '') + n + '.jpg';
+              var nm = (fn < 10 ? '0' : '') + fn + '.jpg';
               out.push({ name: nm, url: cv.toDataURL('image/jpeg', 0.82) });
-              n++;
-              return page();
+              pg++; fn++;
+              return cut();
             });
         });
       }
-      return page();
+      return cut();
     })
     .catch(function (e) {
       dkPdfMsg('bad', 'ההמרה נכשלה: ' + (e && e.message ? e.message : 'שגיאה'));
