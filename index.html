@@ -4,6 +4,36 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>הדף השבועי של בני עקיבא</title>
+<!-- ============================================================
+     התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
+     ============================================================
+     "כשאני שולח הודעה עם הלוגו של הדף השבועי זה נראה הרבה
+     יותר מקצועי ותופס את תשומת הלב."
+
+     וואטסאפ אינו מריץ את הקוד של העמוד — הוא קורא את התגיות
+     האלה בלבד. בלעדיהן כל קישור שיצא מהתוכנית הופיע כשורת
+     כתובת אפורה. עם `og:image` הוא מופיע ככרטיס עם הסמל,
+     בכל הודעה ובכל קבוצה, **בלי שום צעד נוסף למי ששולח.**
+
+     ולכן הנוסח כאן ב-HTML ולא ב-data.js, בניגוד לכל מלל אחר
+     בתוכנית: הסורק של וואטסאפ אינו מגיע לשום דבר שנטען אחר
+     כך. זה החריג היחיד לכלל, והוא כפוי.
+
+     הכתובת מוחלטת בכוונה — סורק שמקבל נתיב יחסי מדלג עליו.
+     `tools/preflight.py` בודק שכל עמוד שנשלח נושא את הבלוק.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="הדף השבועי של בני עקיבא">
+<meta property="og:description" content="דף אחד בשבוע. מסכת שלמה בשנה. תשפ״ז — מסכת תענית ומסכת מגילה.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -79,9 +109,6 @@
 <noscript><link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon-precomposed" href="icon-192.png"></noscript>
-<meta property="og:title" content="הדף השבועי של בני עקיבא">
-<meta property="og:description" content="דף אחד בשבוע. מסכת שלמה בשנה. תשפ״ז — מסכת תענית ומסכת מגילה.">
-<meta property="og:type" content="website">
 <style>
 /* ============================================================
    שפת העיצוב לקוחה מהמצגות ומהסימנייה המודפסת:
@@ -1885,7 +1912,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.91.0';
+var APP_VERSION = '8.92.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';

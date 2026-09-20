@@ -4,6 +4,36 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>שליחת ההודעות · הדף השבועי של בני עקיבא</title>
+<!-- ============================================================
+     התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
+     ============================================================
+     "כשאני שולח הודעה עם הלוגו של הדף השבועי זה נראה הרבה
+     יותר מקצועי ותופס את תשומת הלב."
+
+     וואטסאפ אינו מריץ את הקוד של העמוד — הוא קורא את התגיות
+     האלה בלבד. בלעדיהן כל קישור שיצא מהתוכנית הופיע כשורת
+     כתובת אפורה. עם `og:image` הוא מופיע ככרטיס עם הסמל,
+     בכל הודעה ובכל קבוצה, **בלי שום צעד נוסף למי ששולח.**
+
+     ולכן הנוסח כאן ב-HTML ולא ב-data.js, בניגוד לכל מלל אחר
+     בתוכנית: הסורק של וואטסאפ אינו מגיע לשום דבר שנטען אחר
+     כך. זה החריג היחיד לכלל, והוא כפוי.
+
+     הכתובת מוחלטת בכוונה — סורק שמקבל נתיב יחסי מדלג עליו.
+     `tools/preflight.py` בודק שכל עמוד שנשלח נושא את הבלוק.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="שליחת ההודעות · הדף השבועי של בני עקיבא">
+<meta property="og:description" content="בוחרים שכבה, לוחצים — ווואטסאפ נפתח עם הפלייר וההודעה מוכנים.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/shlach">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
