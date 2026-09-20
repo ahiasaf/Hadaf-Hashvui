@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.87.0';
+var APP_VERSION = '8.88.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9162,6 +9162,28 @@ function dkUpload(items) {
   if (!CFG.readKey) {
     dkPdfMsg('bad', 'צריך סיסמת סקריפט במכשיר — ניהול ← מערכת.'); return;
   }
+  /* שם קובץ שכבר קיים בתיקייה נדרס בלי שום סימן — וזה בדיוק ההבדל
+     בין "שקף חדש" לבין שינוי מה שתלמיד שכבר ראה את הדף ימשיך לראות
+     אצלו, כי תמונות נטענות מהמטמון של המכשיר ואינן מתעדכנות מעצמן.
+     שואלים מפורשות לפני שדורסים, ולא אחרי. */
+  if (dkPool) {
+    var clash = items.filter(function (it) { return dkPool.indexOf(it.name) >= 0; })
+                      .map(function (it) { return it.name; });
+    if (clash.length) {
+      var live = clash.filter(function (nm) {
+        return dkList.indexOf(dkDir + '/' + nm) >= 0 || dkList.indexOf(nm) >= 0;
+      });
+      var warn = 'הקבצים האלה כבר קיימים בתיקייה ויידרסו: ' + clash.join(', ') + '.' +
+        (live.length
+          ? ' חלקם במצגת החיה עכשיו — תלמיד שכבר פתח את הדף הזה עלול ' +
+            'להמשיך לראות אצלו את הגרסה הישנה גם אחרי הדריסה, כי המכשיר ' +
+            'שלו לא בודק אם השקף השתנה.'
+          : '') +
+        ' אם אתם מחליפים שקף בכוונה — עדיף להעלות בשם קובץ חדש ולהחליף ' +
+        'ברשימת הסדר, כדי שזה יגיע לכולם מיד. להמשיך ולדרוס בכל זאת?';
+      if (!window.confirm(warn)) { dkPdfMsg('', 'בוטל — שום דבר לא נשלח.'); return; }
+    }
+  }
   dkPutAll(items, function (miss) {
     if (!miss) {
       dkPdf = null;
@@ -9263,10 +9285,15 @@ function admDecks(el) {
   if (!dkList.length) {
     h += '<p class="h">אין עדיין שקפים במצגת של שבוע זה. הוסיפו מהרשימה שלמטה.</p>';
   } else {
+    /* אחת לציור, לא אחת לתמונה: מספיק כדי שגרסה שנדרסה הרגע תיראה
+       אצלך מיד, בלי לגלוש בסתר. תמונות שנטענות בלי הפרמטר הזה
+       (מה שהתלמיד מקבל) ממשיכות להיות ממטמון-קודם, כמו תמיד —
+       וזה בכוונה: זו הדרך היחידה שדף נשאר מהיר על רשת חלשה. */
+    var dkBust = Date.now();
     h += dkList.map(function (f, i) {
       return '<div class="row" style="align-items:center;gap:9px">' +
         '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
-        '<img loading="lazy" src="' + esc(dkPath(f)) + '" alt="" ' +
+        '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="" ' +
         'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
         'border:1px solid var(--rule);background:var(--sunk)">' +
         '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
@@ -9301,7 +9328,7 @@ function admDecks(el) {
         'שקפים ממצגת שנייה — הם נשזרים באותה רשימה.</p>' +
         rest.map(function (f) {
           return '<div class="row" style="align-items:center;gap:9px">' +
-            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '" alt="" ' +
+            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + dkBust + '" alt="" ' +
             'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
             'border:1px solid var(--rule);background:var(--sunk)">' +
             '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
