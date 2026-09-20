@@ -1912,7 +1912,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.93.0';
+var APP_VERSION = '8.94.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8278,8 +8278,8 @@ function pairLoad() {
       out.push({ at:g('מתי'), name:g('שם'), inst:g('ישיבה'),
                  grade:g('שכבה'), klass:g('כיתה'),
                  track:g('מסלול'), wk:parseInt(g('שבוע'), 10) || 0,
-                 daf:g('דף'), rel:g('קרבה'),
-                 pName:g('שם ההורה'), pPhone:g('טלפון ההורה') });
+                 daf:g('דף'), rel:g('קרבה'), by:g('דיווח'),
+                 pName:g('שם השותף'), pPhone:g('טלפון השותף') });
     }
     pairRows = out.reverse();          /* החדש ראשון */
     pairMsg = ''; admPane(); return true;
@@ -8331,6 +8331,7 @@ function admPairs() {
       '<div style="flex:1"><b>' + esc(o.name) + '</b>' +
       '<span>' + esc(bits.join(' · ')) + '</span>' +
       '<span style="color:var(--ink)">עם ' + esc(o.rel || 'הורה') +
+      (o.by === 'ההורה' ? ' · דיווח ההורה' : '') +
       (o.pName ? ' — ' + esc(o.pName) : '') +
       (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span></div></div>';
   }).join('') + '</div>' +

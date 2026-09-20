@@ -54,12 +54,34 @@ var PAIR_UI = (function () {
     return t(m.parent === 'mom' ? 'mom' : 'dad');
   }
 
-  /* ---------- מי נשאל ----------
-     רק מי שבחר ללמוד עם הורה. `way` נקרא עכשיו, ולכן עדכון
-     מאוחר של דרך הלימוד תופס מיד. */
-  function wanted() {
+  /* ============================================================
+     מי נשאל — ומאיזה צד.
+     ============================================================
+     'kid'    — המכשיר של הבן, שבחר ללמוד עם הורה.
+     'parent' — המכשיר של ההורה, שצירף את בנו.
+
+     אותו תהליך בדיוק בשני הכיוונים: מי שמסמן הוא מי שמדווח,
+     וההודעה יוצאת לצד השני. ההבדל היחיד הוא המילה.
+
+     `way` ו-`role` נקראים **עכשיו** ולא נשמרים בנפרד, ולכן
+     עדכון מאוחר של דרך הלימוד תופס מיד — בדיוק כמו סימון
+     בהרשמה.
+     ============================================================ */
+  function side() {
     var m = me();
-    return !!(m && m.id && m.way === 'dad');
+    if (!m || !m.id) return '';
+    if (m.role === 'dad') return m.rel === 'kid' ? 'parent' : '';
+    return m.way === 'dad' ? 'kid' : '';
+  }
+  function wanted() { return !!side(); }
+
+  /* שם הצד השני כפי שמי שמסמן מכיר אותו: הבן בשמו, וההורה
+     במילה. שם פרטי תמיד חם יותר ממילה — אבל "אבא" חם יותר
+     משמו הפרטי של אבא. */
+  function other(m) {
+    m = m || me() || {};
+    if (side() === 'parent') return (m.dadFirst || '').trim() || t('kid');
+    return word(m);
   }
 
   /* ---------- מה כבר דווח ---------- */
@@ -102,11 +124,19 @@ var PAIR_UI = (function () {
       ['קוד ישיבה', m.inst || ''], ['ישיבה', m.instName || ''],
       ['שכבה', m.grade || ''], ['כיתה', m.klass || ''],
       ['מסלול', track], ['שבוע', wk + 1], ['דף', daf],
-      /* הטלפון הוא מה שמחבר בין השניים — הוא גם מה שמאתר את
-         ההורה בלשונית המנויים כדי לשלוח לו את ההתראה. */
-      ['קרבה', m.parent === 'mom' ? 'אמא' : 'אבא'],
-      ['שם ההורה', m.dadFirst || ''],
-      ['טלפון ההורה', m.dadPhone || '']
+      /* ============================================================
+         "שותף" ולא "הורה" — כי הכיוון מתחלף.
+         ============================================================
+         השורה נכתבת גם מהמכשיר של הבן וגם מזה של ההורה, ומי
+         שכתב אותה הוא "המדווח". הטלפון הוא מה שמחבר בין
+         השניים, והוא גם מה שמאתר את הצד השני בלשונית המנויים
+         כדי לשלוח לו את ההתראה — בשני הכיוונים.
+         ============================================================ */
+      ['דיווח', side() === 'parent' ? 'ההורה' : 'הבן'],
+      ['קרבה', side() === 'parent' ? 'בן'
+                                   : (m.parent === 'mom' ? 'אמא' : 'אבא')],
+      ['שם השותף', m.dadFirst || ''],
+      ['טלפון השותף', m.dadPhone || '']
     ]) };
     var q = [];
     try { q = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
@@ -224,9 +254,12 @@ var PAIR_UI = (function () {
   var SEAL = '<div class="pr-seal"><svg viewBox="0 0 24 24">' +
              '<path d="M4 12.5l5.2 5.2L20 7"/></svg></div>';
 
-  function win(m) {
+  function win(m, sd) {
+    var who = other(m);
+    var body = sd === 'parent' ? fill(t('okKidB'), { 'בן': who })
+                               : fill(t('okB'), { 'הורה': who });
     show(SEAL + '<h3>' + esc(t('okH')) + '</h3>' +
-      '<p>' + esc(fill(t('okB'), { 'הורה': word(m) })) + '</p>' +
+      '<p>' + esc(body) + '</p>' +
       '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
     var b = document.getElementById('pr-x');
     if (b) b.onclick = shut;
@@ -234,10 +267,14 @@ var PAIR_UI = (function () {
 
   /* ---------- מה שנקרא מבחוץ ---------- */
   function ask(track, wk) {
-    if (!wanted()) return false;
+    var sd = side();
+    if (!sd) return false;
     var m = me();
     if (done(track, wk)) return false;
-    show('<h3>' + esc(fill(t('askH'), { 'הורה': word(m) })) + '</h3>' +
+    var who = other(m);
+    var head = sd === 'parent' ? fill(t('askKidH'), { 'בן': who })
+                               : fill(t('askH'), { 'הורה': who });
+    show('<h3>' + esc(head) + '</h3>' +
       '<p>' + esc(t('askB')) + '</p>' +
       '<button class="pr-go" id="pr-y">' + esc(t('yes')) + '</button>' +
       '<button class="pr-thin" id="pr-n">' + esc(t('no')) + '</button>');
@@ -245,7 +282,7 @@ var PAIR_UI = (function () {
     if (b) b.onclick = function () {
       keep(key(track, wk));
       send(track, wk);
-      win(m);
+      win(m, sd);
     };
     b = document.getElementById('pr-n');
     if (b) b.onclick = shut;
@@ -255,6 +292,7 @@ var PAIR_UI = (function () {
   /* התור מנסה שוב בכל פתיחה — אותו דפוס של `learn-q`. */
   function boot() { TRIES = 0; flush(); }
 
-  return { ask: ask, word: word, wanted: wanted, done: done,
+  return { ask: ask, word: word, other: other, side: side,
+           wanted: wanted, done: done,
            flush: boot, close: shut };
 })();
