@@ -4,6 +4,36 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>הדף השבועי של בני עקיבא</title>
+<!-- ============================================================
+     התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
+     ============================================================
+     "כשאני שולח הודעה עם הלוגו של הדף השבועי זה נראה הרבה
+     יותר מקצועי ותופס את תשומת הלב."
+
+     וואטסאפ אינו מריץ את הקוד של העמוד — הוא קורא את התגיות
+     האלה בלבד. בלעדיהן כל קישור שיצא מהתוכנית הופיע כשורת
+     כתובת אפורה. עם `og:image` הוא מופיע ככרטיס עם הסמל,
+     בכל הודעה ובכל קבוצה, **בלי שום צעד נוסף למי ששולח.**
+
+     ולכן הנוסח כאן ב-HTML ולא ב-data.js, בניגוד לכל מלל אחר
+     בתוכנית: הסורק של וואטסאפ אינו מגיע לשום דבר שנטען אחר
+     כך. זה החריג היחיד לכלל, והוא כפוי.
+
+     הכתובת מוחלטת בכוונה — סורק שמקבל נתיב יחסי מדלג עליו.
+     `tools/preflight.py` בודק שכל עמוד שנשלח נושא את הבלוק.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="הדף השבועי של בני עקיבא">
+<meta property="og:description" content="דף אחד בשבוע. מסכת שלמה בשנה. תשפ״ז — מסכת תענית ומסכת מגילה.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -79,9 +109,6 @@
 <noscript><link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon-precomposed" href="icon-192.png"></noscript>
-<meta property="og:title" content="הדף השבועי של בני עקיבא">
-<meta property="og:description" content="דף אחד בשבוע. מסכת שלמה בשנה. תשפ״ז — מסכת תענית ומסכת מגילה.">
-<meta property="og:type" content="website">
 <style>
 /* ============================================================
    שפת העיצוב לקוחה מהמצגות ומהסימנייה המודפסת:
@@ -1885,7 +1912,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.90.0';
+var APP_VERSION = '8.95.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8128,19 +8155,10 @@ var pushView = { title:'', body:'', only:'', role:'', link:'' };
    הכפתור פותח וואטסאפ עם הודעה כתובה, והשם כבר בתוכה: פנייה
    שמתחילה ב"היי דוד" היא אדם שפנה, והודעה גנרית היא טופס.
 
-   ומה שהדפדפן כבר מסר — סוג המכשיר, מאיפה נפתח הקישור, האם
-   כפתור ההתקנה היה שם — אינו נשאל שוב בהודעה. שואלים רק את
-   מה שרק הוא יכול לדעת. */
+   והנוסח עצמו יושב ב-`UI.stuckWa` שב-data.js, ולכן אחיאסף
+   עורך אותו מהניהול בלי גרסה חדשה — כפי שקרה כבר פעם אחת:
+   ההודעה הייתה שאלון, ומרגע שידענו מה נשבר היא הפכה לתשובה. */
 var stuckRows = null, stuckMsg = '', stuckBusy = 0, stuckAll = false;
-
-var STUCK_WA =
-  'היי {name}! כאן רכז "הדף השבועי".\n' +
-  'ראיתי שביקשת עזרה בהתקנה — נסדר את זה ביחד, זה עניין של כמה דקות.\n\n' +
-  'אצלי רשום ש{dev} אצלך. כדי שאדע בדיוק איפה לעזור, תכתוב לי:\n' +
-  '1. מה היה הדבר האחרון שלחצת?\n' +
-  '2. מה הופיע על המסך אחרי זה?\n' +
-  '3. ואם אפשר — צילום מסך של מה שאתה רואה.\n\n' +
-  'אני כאן. תענה ונתקדם.';
 
 function stuckParse(rows) {
   /* **קריאה שנכשלה אינה לשונית ריקה** — המסנן הזה רץ רק על
@@ -8156,7 +8174,10 @@ function stuckParse(rows) {
     };
     if (!g('שם') && !g('טלפון')) continue;
     out.push({ row:i + 1, name:g('שם'), phone:g('טלפון'),
-               inst:g('ישיבה'), grade:g('שכבה'), klass:g('כיתה'),
+               /* הקוד ולא השם — הוא מה שבונה את הקישור שנשלח
+                  לו בחזרה, וגורם לו להיספר לישיבה שלו. */
+               inst:g('ישיבה'), code:g('קוד ישיבה'),
+               grade:g('שכבה'), klass:g('כיתה'),
                dev:g('מכשיר'), what:g('מה קרה'), diag:g('אבחון'),
                done:!!g('טופל'), at:g('תאריך') });
   }
@@ -8181,10 +8202,21 @@ function stuckLoad() {
   });
 }
 
+/* קוד הישיבה של מי שנתקע. הלשונית נושאת אותו, ומי שנרשם
+   לפני שהקוד נשמר מזוהה לפי השם. בלי שניהם — הקישור הכללי,
+   שבו הוא בוחר ישיבה בעצמו. */
+function stuckInst(p) {
+  if (p.code) return p.code;
+  var by = (INSTITUTIONS || []).filter(function (i) {
+    return i.name === p.inst;
+  })[0];
+  return by ? by.code : '';
+}
 function stuckText(p) {
-  return fill(STUCK_WA, {
+  return fill(UI.stuckWa || '', {
     name: (p.name || '').split(' ')[0] || p.name || '',
-    dev:  p.dev || 'הטלפון'
+    dev:  p.dev || 'הטלפון',
+    link: joinUrl(stuckInst(p))
   });
 }
 
@@ -8208,6 +8240,113 @@ function stuckDone(row) {
 }
 
 function stuckShowAll() { stuckAll = !stuckAll; admPane(); }
+
+/* ============================================================
+   הלימוד המשותף — רשימת הזוגות, ומהם ההגרלה.
+   ============================================================
+   כל שורה היא לימוד אחד משותף שהבן דיווח עליו: מי, עם מי,
+   איזה דף ומתי. זו הרשימה שממנה ההגרלה נעשית — בלי סינון
+   ובלי פרשנות, כי היא נכתבת בדיוק ברגע שהוא סימן.
+
+   **וההורה אינו נספר פעמיים.** הזוג הוא היחידה, ולכן שורה
+   אחת לכל לימוד משותף ולא שתיים.
+   ============================================================ */
+var pairRows = null, pairMsg = '', pairWk = 0;
+
+function pairLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { pairMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  pairMsg = 'טוען…'; admPane();
+  return scriptGet({ read:'זוגות', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה לשונית ריקה. */
+    if (!d || d.status !== 'ok' || !d.rows) {
+      pairMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    var r = d.rows;
+    if (r.length < 2) { pairRows = []; pairMsg = ''; admPane(); return true; }
+    var head = r[0].map(function (x) { return String(x || '').trim(); });
+    var ix = {};
+    head.forEach(function (x, i) { ix[x] = i; });
+    var out = [];
+    for (var i = 1; i < r.length; i++) {
+      var row = r[i], g = function (k) {
+        return ix[k] === undefined ? ''
+             : String(row[ix[k]] == null ? '' : row[ix[k]]).trim();
+      };
+      if (!g('שם')) continue;
+      out.push({ at:g('מתי'), name:g('שם'), inst:g('ישיבה'),
+                 grade:g('שכבה'), klass:g('כיתה'),
+                 track:g('מסלול'), wk:parseInt(g('שבוע'), 10) || 0,
+                 daf:g('דף'), rel:g('קרבה'), by:g('דיווח'),
+                 okd:g('אושר'),
+                 pName:g('שם השותף'), pPhone:g('טלפון השותף') });
+    }
+    pairRows = out.reverse();          /* החדש ראשון */
+    pairMsg = ''; admPane(); return true;
+  })['catch'](function () {
+    pairMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+function pairPick(n) { pairWk = n | 0; admPane(); }
+
+function admPairs() {
+  var h = '<div class="adm-card"><h4>לימוד משותף — אבא ובן</h4>';
+  if (!pairRows) {
+    h += '<p class="h">כל שורה היא לימוד משותף שהבן דיווח עליו. ' +
+         'מכאן נעשית ההגרלה. הרשימה נקראת מהגיליון הפרטי.</p>' +
+         '<button class="btn g" onclick="pairLoad()">טעינה מהגיליון</button>';
+    if (pairMsg && pairMsg !== 'nokey') {
+      h += '<div class="cond" style="margin-top:10px">' + esc(pairMsg) + '</div>';
+    }
+    return h + '</div>';
+  }
+  if (!pairRows.length) {
+    return h + '<p class="h">עוד לא דיווח אף אחד על לימוד משותף.</p>' +
+      '<button class="btn g" onclick="pairLoad()">רענון</button></div>';
+  }
+  /* סינון לפי שבוע — ההגרלה נעשית על שבוע אחד. */
+  var weeks = [];
+  pairRows.forEach(function (o) {
+    if (o.wk && weeks.indexOf(o.wk) < 0) weeks.push(o.wk);
+  });
+  weeks.sort(function (a2, b2) { return b2 - a2; });
+  var list = pairWk ? pairRows.filter(function (o) { return o.wk === pairWk; })
+                    : pairRows;
+  h += '<p class="h"><b>' + list.length + '</b> ' +
+       (list.length === 1 ? 'זוג' : 'זוגות') +
+       (pairWk ? ' בשבוע ' + pairWk : ' בסך הכול') + '.</p>';
+  if (weeks.length > 1) {
+    h += '<div class="tabs" style="margin:0 0 12px">' +
+      '<button' + (pairWk ? '' : ' class="on"') +
+      ' onclick="pairPick(0)">הכול</button>' +
+      weeks.map(function (w) {
+        return '<button' + (pairWk === w ? ' class="on"' : '') +
+          ' onclick="pairPick(' + w + ')">שבוע ' + w + '</button>';
+      }).join('') + '</div>';
+  }
+  h += '<div class="plist">' + list.map(function (o) {
+    var bits = [o.inst, o.grade && o.klass ? o.grade + o.klass : o.grade,
+                o.daf ? 'דף ' + o.daf : ''].filter(Boolean);
+    /* ההורה אישר · לא אישר · אמר שלא למדו. האישור אינו תנאי
+       להגרלה — הוא מה שמראה שהיה שם אדם שני. */
+    var cls = o.okd === 'כן' ? 'ok' : o.okd === 'לא' ? 'no' : 'warn';
+    var sig = o.okd === 'כן' ? '✓' : o.okd === 'לא' ? '✕' : '…';
+    return '<div class="prow2 ' + cls + '"><span class="pm">' + sig + '</span>' +
+      '<div style="flex:1"><b>' + esc(o.name) + '</b>' +
+      '<span>' + esc(bits.join(' · ')) + '</span>' +
+      '<span style="color:var(--ink)">עם ' + esc(o.rel || 'הורה') +
+      (o.by === 'ההורה' ? ' · דיווח ההורה'
+        : o.okd === 'כן'  ? ' · ההורה אישר'
+        : o.okd === 'לא'  ? ' · ההורה אמר שלא למדו'
+                          : ' · ממתין לאישור ההורה') +
+      (o.pName ? ' — ' + esc(o.pName) : '') +
+      (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span></div></div>';
+  }).join('') + '</div>' +
+  '<button class="btn g" style="margin-top:10px" ' +
+  'onclick="pairLoad()">רענון</button></div>';
+  return h;
+}
 
 function admStuck() {
   var h = '<div class="adm-card"><h4>מי ביקש עזרה בהתקנה</h4>';
@@ -8431,7 +8570,7 @@ function admPush(el) {
   var c = pushCount();
   /* מי שממתין לעזרה — ראשון. שליחת התראה יכולה לחכות דקה;
      תלמיד שנתקע כבר חיכה. */
-  var h = admStuck() +
+  var h = admStuck() + admPairs() +
     '<div class="adm-card"><h4>שליחת התראה</h4>' +
     '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
     'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +

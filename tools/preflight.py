@@ -396,6 +396,43 @@ def check_inst_manifests():
 FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'
 
 
+def check_share_card():
+    """כל עמוד שנשלח בוואטסאפ — עם תצוגה מקדימה, ועם תמונה שקיימת.
+
+    וואטסאפ אינו מריץ את הקוד של העמוד; הוא קורא את תגיות
+    ה-og בלבד. עמוד בלי התגיות האלה מופיע בהודעה כשורת כתובת
+    אפורה — וזה היה המצב של **כל** הקישורים שהתוכנית שולחת:
+    ההצטרפות, הצוות, הלוח, המסע. רק `index.html` נשא כותרת
+    ותיאור, וגם הוא בלי תמונה.
+
+    הבדיקה תופסת את העמוד הבא שייווצר וישלח בלי הבלוק, ואת
+    היום שבו התמונה תזוז ממקומה ואיש לא ישים לב — כי בהודעה
+    שנשלחה כבר אי אפשר לתקן.
+    """
+    shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html',
+              'board.html', 'learn.html', 'masa.html']
+    card = 'share-card.jpg'
+    if not os.path.exists(os.path.join(ROOT, card)):
+        BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)
+        return
+    bad = []
+    for f in shared:
+        if not os.path.exists(os.path.join(ROOT, f)):
+            continue
+        t = read(f)
+        missing = [k for k in ('og:title', 'og:description', 'og:image', 'og:url')
+                   if 'property="%s"' % k not in t]
+        if missing:
+            bad.append('%s (%s)' % (f, ', '.join(missing)))
+        elif card not in t:
+            bad.append('%s (מצביע על תמונה אחרת)' % f)
+    if bad:
+        BAD.append('תצוגה מקדימה בוואטסאפ — חסרה ב: %s' % ' · '.join(bad))
+    else:
+        OK.append('תצוגה מקדימה בוואטסאפ — %d עמודים, כולם עם הכרטיס'
+                  % len(shared))
+
+
 def check_font():
     """גופן אחד לכל האפליקציה.
 
@@ -482,6 +519,7 @@ def main():
     for fn in (check_version, check_font, check_texts,
                check_dupe_vars, check_orphan_classes,
                check_shared_globals, check_inst_manifests,
+               check_share_card,
                check_decks, check_daf_index,
                check_calendar):
         try:

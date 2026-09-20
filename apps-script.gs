@@ -143,7 +143,9 @@ var PRIVATE_ID_FALLBACK = '';
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
 var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות',
-                    'הודעות', 'תקועים', 'תזכורות', 'נשלחו'];
+                    'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
+                    /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
+                    'זוגות'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -597,6 +599,79 @@ function doGet(e) {
       }
     } catch (me) {}
     return reply_(e, { status: 'ok', at: mAt, done: mDone });
+  }
+
+  /* ============================================================
+     הלימוד המשותף — האם השורה הגיעה.
+     ============================================================
+     הכתיבה מהדפדפן היא `no-cors`, כלומר התשובה אטומה ואינה
+     ראיה לכלום. כאן הוא שואל בחזרה, ורק אם השורה באמת בגיליון
+     היא יוצאת מהתור שבמכשיר. אותו דפוס בדיוק של `?mark=`.
+
+     כמוהו גם כאן: התשובה היא כן/לא בלבד, על מזהה שהשואל כבר
+     מחזיק. אין בה שם, אין טלפון, ואין מה לדלוף ממנה — ולכן
+     אין צורך בסיסמה.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.pair) {
+    var pid = String(e.parameter.pair), ptag = String(e.parameter.wk || '');
+    var pHas = false;
+    try {
+      /* `sheet_` מנתב לפי שם הלשונית — "זוגות" ברשימה הפרטית,
+         ולכן הוא פותח את הגיליון הסגור בלי שהשואל יידע עליו. */
+      var psh = sheet_('זוגות');
+      if (psh && psh.getLastRow() > 1) {
+        var pr = psh.getDataRange().getValues();
+        var ph = pr[0], pix = {};
+        for (var pq = 0; pq < ph.length; pq++) pix[String(ph[pq]).trim()] = pq;
+        for (var pz = 1; pz < pr.length; pz++) {
+          if (String(pr[pz][pix['מזהה']] || '').trim() !== pid) continue;
+          var ptg = String(pr[pz][pix['מסלול']] || '') + '|' +
+                    String(pr[pz][pix['שבוע']] || '');
+          if (ptg === ptag) { pHas = true; break; }
+        }
+      }
+    } catch (pe) {}
+    return reply_(e, { status: 'ok', has: pHas });
+  }
+
+  /* ============================================================
+     האישור של ההורה.
+     ============================================================
+     הבן סימן "למדנו ביחד", והוא כבר בהגרלה — זה נגמר ברגע
+     שהוא לחץ. ההתראה להורה פותחת מסך אחד, והלחיצה שלו מגיעה
+     לכאן ומסמנת את העמודה.
+
+     **אינו שער.** ההגרלה אינה תלויה בו, והוא אינו מוחק דבר:
+     הוא כותב "כן" או "לא" בשדה אחד בשורה שכבר קיימת. לכן גם
+     אין כאן סיסמה — מי שיודע מזהה מכשיר ושבוע יכול לסמן
+     שלמדו, וזה כל מה שהוא יכול.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.pairok) {
+    var oid = String(e.parameter.pairok), otag = String(e.parameter.wk || '');
+    var oyes = String(e.parameter.yes || '') === '1' ? 'כן' : 'לא';
+    var oHit = 0;
+    try {
+      var osh = sheet_('זוגות');
+      if (osh && osh.getLastRow() > 1) {
+        var or_ = osh.getDataRange().getValues();
+        var oh = or_[0], oix = {};
+        for (var oq = 0; oq < oh.length; oq++) oix[String(oh[oq]).trim()] = oq;
+        /* עמודה שאינה קיימת בלשונית ישנה — נוספת פעם אחת. */
+        if (oix['אושר'] === undefined) {
+          osh.getRange(1, oh.length + 1).setValue('אושר');
+          oix['אושר'] = oh.length;
+        }
+        for (var oz = 1; oz < or_.length; oz++) {
+          if (String(or_[oz][oix['מזהה']] || '').trim() !== oid) continue;
+          var ot = String(or_[oz][oix['מסלול']] || '') + '|' +
+                   String(or_[oz][oix['שבוע']] || '');
+          if (ot !== otag) continue;
+          osh.getRange(oz + 1, oix['אושר'] + 1).setValue(oyes);
+          oHit++;
+        }
+      }
+    } catch (oe) {}
+    return reply_(e, { status: 'ok', set: oHit });
   }
 
   if (e && e.parameter && e.parameter.board) {

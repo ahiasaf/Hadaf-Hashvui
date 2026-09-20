@@ -4,6 +4,36 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>הצטרפות — הדף השבועי של בני עקיבא</title>
+<!-- ============================================================
+     התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
+     ============================================================
+     "כשאני שולח הודעה עם הלוגו של הדף השבועי זה נראה הרבה
+     יותר מקצועי ותופס את תשומת הלב."
+
+     וואטסאפ אינו מריץ את הקוד של העמוד — הוא קורא את התגיות
+     האלה בלבד. בלעדיהן כל קישור שיצא מהתוכנית הופיע כשורת
+     כתובת אפורה. עם `og:image` הוא מופיע ככרטיס עם הסמל,
+     בכל הודעה ובכל קבוצה, **בלי שום צעד נוסף למי ששולח.**
+
+     ולכן הנוסח כאן ב-HTML ולא ב-data.js, בניגוד לכל מלל אחר
+     בתוכנית: הסורק של וואטסאפ אינו מגיע לשום דבר שנטען אחר
+     כך. זה החריג היחיד לכלל, והוא כפוי.
+
+     הכתובת מוחלטת בכוונה — סורק שמקבל נתיב יחסי מדלג עליו.
+     `tools/preflight.py` בודק שכל עמוד שנשלח נושא את הבלוק.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="הצטרפות · הדף השבועי של בני עקיבא">
+<meta property="og:description" content="דף גמרא אחד בשבוע, מבראשית ועד שבועות. מצטרפים בדקה.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/join">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0E2E63">
 <meta name="robots" content="noindex">
@@ -873,6 +903,18 @@ footer a{color:var(--ink-2);font-weight:800}
   <div class="card stg" id="dad">
     <h2 id="dad-h">רוצה להזמין אותו?</h2>
     <p class="h" id="dad-sub"></p>
+    <!-- ============================================================
+         "אמא" — מילה שמתחלפת, ולא כפתור בבורר.
+         ============================================================
+         "לעשות אמא בבורר דרכי הלימוד זה כבר יותר מדי, ומרגיש
+         לילד ילדותי. אבל צריך להתחשב באמא שרוצה ללמוד עם בנה."
+
+         ולכן הבורר נשאר "עם אבא", והחלפה יושבת כאן — במקום
+         שבו ממילא ממלאים את הפרטים שלו. תשעים וחמישה אחוז
+         לא יראו אותה, ומי שצריך — לחיצה אחת, וכל המילים
+         בתוכנית מתחלפות: השאלה אחרי הדף, מסך ההגרלה, הכיתוב
+         על השדות. ============================================ -->
+    <button type="button" class="thin" id="dad-flip" hidden></button>
     <div class="whobar" id="invWho"></div>
     <div class="fld"><label class="label" id="l-dad-first" for="dad-first">שם פרטי</label>
       <input id="dad-first" type="text"></div>
@@ -943,6 +985,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
+<script src="pair.js"></script>
 <script src="logo.js"></script>
 <script src="getapp.js"></script>
 <script src="guide.js"></script>
@@ -1514,6 +1557,29 @@ function applyRole() {
   }
 }
 
+/* ============================================================
+   אבא או אמא — מילה אחת, ולא תכונה.
+   ============================================================
+   כל השאר בתוכנית אינו יודע על ההבדל: אותו שדה, אותו טלפון,
+   אותה הגרלה. רק המילה מתחלפת, וגם היא במקום אחד — `PAIR_UI`
+   הוא שמחזיר אותה לכל מי שצריך.
+   ============================================================ */
+var parentIs = 'dad';
+function parentWord() {
+  return PAIR[parentIs === 'mom' ? 'mom' : 'dad'];
+}
+function drawFlip() {
+  var b = $('dad-flip'); if (!b) return;
+  /* רק כשמדובר בהורה. לחבר ולבן אין מה להחליף. */
+  b.hidden = !(invRel === 'dad');
+  b.innerHTML = '<u>' + esc(parentIs === 'mom' ? PAIR.toDad : PAIR.toMom) + '</u>';
+}
+function flipParent() {
+  parentIs = (parentIs === 'mom') ? 'dad' : 'mom';
+  /* מה שכבר מצויר על המסך נושא את המילה, ולכן הוא מצויר שוב. */
+  applyWays();
+}
+
 function applyWays() {
   /* אבא אינו נשאל איך הוא לומד, והכרטיס שלו נקבע ב-applyRole.
      בלי היציאה הזו הציור הרגיל היה דורס אותו חזרה. */
@@ -1528,17 +1594,24 @@ function applyWays() {
      כשהיא נקבעה כאן, כל לחיצה על "חבר" נדרסה מיד חזרה ל"אבא"
      — הכפתור נראה שבור. */
   var isDad = invRel === 'dad', isKid = invRel === 'kid';
-  $('dad-h').textContent   = isDad ? JOIN.invAskDad
+  /* "אבא" שבנוסחים מתחלף ב"אמא" למי שסימן כך. המילה מגיעה
+     מ-`PAIR`, ולכן היא נערכת בניהול ככל נוסח אחר. */
+  var pw = function (x) {
+    return String(x == null ? '' : x)
+      .split(PAIR.dad).join(parentWord());
+  };
+  $('dad-h').textContent   = isDad ? pw(JOIN.invAskDad)
                            : isKid ? JOIN.invAskKid  : JOIN.invAskFriend;
-  $('dad-sub').textContent = isDad ? JOIN.invSubDad
+  $('dad-sub').textContent = isDad ? pw(JOIN.invSubDad)
                            : isKid ? JOIN.invSubKid  : JOIN.invSubFriend;
-  $('l-dad-first').textContent = isDad ? JOIN.invNameDad
+  $('l-dad-first').textContent = isDad ? pw(JOIN.invNameDad)
                                : isKid ? JOIN.invNameKid : JOIN.invNameFriend;
+  drawFlip();
   /* לומד עם אבא — המספר חובה, והשדה אומר את זה. לחבר ולבן
      הוא נשאר רשות. */
   if (isDad) {
-    $('l-dad-phone').textContent = JOIN.dadPhoneL;
-    $('dad-note').textContent    = JOIN.dadPhoneB;
+    $('l-dad-phone').textContent = pw(JOIN.dadPhoneL);
+    $('dad-note').textContent    = pw(JOIN.dadPhoneB);
   } else {
     $('l-dad-phone').innerHTML   = 'טלפון <i>· לא חובה</i>';
     $('dad-note').textContent    = 'לא זוכר את המספר? אפשר להשאיר ריק ' +
@@ -1810,7 +1883,7 @@ $('go').onclick = function () {
      האפליקציה אינה יודעת שהם לומדים יחד. ראו `JOIN.dadPhoneB`. */
   if (role !== 'dad' && way === 'dad' && invRel === 'dad' &&
       (val('dad-phone').match(/\d/g) || []).length < 9)
-    return say(JOIN.errDadPh);
+    return say(String(JOIN.errDadPh).split(PAIR.dad).join(parentWord()));
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
      עכשיו — יצטרף לבד, וההזמנה תמתין לו במסך הבית. שדה ריק
      שעוצר טופס הוא הדרך הבטוחה לאבד מצטרף. */
@@ -1829,6 +1902,8 @@ $('go').onclick = function () {
     klass: role === 'dad' ? '' : klass,
     phone: val('phone'),
     way: way,
+    /* 'dad' או 'mom'. כל השאר בתוכנית אינו יודע על ההבדל. */
+    parent: parentIs,
     dadFirst: wantsInv ? val('dad-first') : '',
     dadLast:  wantsInv ? (val('dad-last') || last) : '',
     dadPhone: wantsInv ? val('dad-phone') : '',
@@ -2141,8 +2216,11 @@ function dafUrl(tr, wk) {
 function markWeek() {
   var wk = LWeek(), tr = myTrack();
   if (wk < 0 || !LDaf(tr, wk)) return;
-  if (LDone(tr, wk)) LUnmark(tr, wk); else LMark(tr, wk);
+  var fresh = !LDone(tr, wk);
+  if (fresh) LMark(tr, wk); else LUnmark(tr, wk);
   drawWeek();
+  /* רק על סימון חדש, ורק למי שלומד עם הורה — ראו pair.js. */
+  if (fresh && window.PAIR_UI) PAIR_UI.ask(tr, wk);
 }
 
 /* המסך שאחרי. עד עכשיו הוא אמר "ברוך הבא" ונעצר — ומי שהצטרף
@@ -2927,6 +3005,8 @@ if (/[?&]go=1\b/.test(location.search)) {
    הבית, וגרסה תקועה בו היא זו שהכי קשה לגלות. */
 window.addEventListener('load', function () {
   if (window.APPX && APPX.update) APPX.update();
+  /* שורת לימוד משותף שלא הגיעה — מנסה שוב בכל פתיחה. */
+  if (window.PAIR_UI) PAIR_UI.flush();
 });
 
 (function () {
@@ -2958,6 +3038,8 @@ window.addEventListener('load', function () {
     var cur = get('me', null);
     if (cur && cur.first && $('done').className === 'on') showDone(cur);
   });
+  var fb = $('dad-flip');
+  if (fb) fb.onclick = flipParent;
   $('again').onclick = function () {
     /* נקרא מחדש ולא מהסגור: מי שנרשם ממש עכשיו לא היה קיים
        כשהפונקציה הזו נוצרה, ו-`me` היה `null`. */
@@ -2971,6 +3053,7 @@ window.addEventListener('load', function () {
     $('dad-first').value = me.dadFirst || ''; $('dad-last').value = me.dadLast || '';
     $('dad-phone').value = me.dadPhone || '';
     way = me.way || '';
+    parentIs = me.parent === 'mom' ? 'mom' : 'dad';
     invRel = me.rel || (way === 'chav' ? 'friend' : 'dad');
     drawWays(); applyWays();
     /* מי שחוזר לערוך כבר מכיר את הטופס — הריקוד של החשיפה

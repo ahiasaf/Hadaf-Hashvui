@@ -61,7 +61,9 @@ var TX = (function () {
               /* המסע — ראו trip.js. */
               trip:window.TRIP,
               /* ההודעות שהמורה שולח בוואטסאפ — ראו shlach.html. */
-              send:window.SEND };
+              send:window.SEND,
+              /* הלימוד המשותף וההגרלה — ראו pair.js. */
+              pair:window.PAIR };
     return ROOTS;
   }
   function ref(k) {
