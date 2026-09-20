@@ -1885,7 +1885,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.89.0';
+var APP_VERSION = '8.90.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9101,7 +9101,7 @@ function dkPdfPick(inp) {
               /* שם באנגלית בלבד: כרום דוחה הורדה עם שם שאינו
                  ASCII, וזו מלכודת שכבר נפלנו בה. */
               var nm = (fn < 10 ? '0' : '') + fn + '.jpg';
-              out.push({ name: nm, url: cv.toDataURL('image/jpeg', 0.82) });
+              out.push({ name: nm, url: cv.toDataURL('image/jpeg', 0.82), sel: true });
               pg++; fn++;
               return cut();
             });
@@ -9123,11 +9123,23 @@ function dkPdfMsg(cls, t) {
   var all = document.querySelectorAll('.dk-msg');
   for (var i = 0; i < all.length; i++) all[i].innerHTML = h;
 }
+/* לא כל עמוד ב-PDF הוא שקף שרוצים — נוטבוק-LM מוציא לפעמים גם
+   עמוד שער או עמוד שכבר לא רלוונטי. לוחצים על שקף כדי להוציא
+   אותו מהרשימה; לא צריך למספר מחדש את מה שנשאר — פער במספור
+   הקבצים לא משנה כלום, הסדר שהתלמיד רואה נקבע במקום אחר לגמרי. */
+function dkPdfToggle(i) {
+  if (!dkPdf || !dkPdf[i]) return;
+  dkPdf[i].sel = dkPdf[i].sel === false ? true : false;
+  admPane();
+}
+function dkPdfSelected() {
+  return (dkPdf || []).filter(function (s) { return s.sel !== false; });
+}
 /* הורדה של כולם ברצף. כרום שואל פעם אחת "לאשר הורדות מרובות",
    וזו התנהגות שלו ולא באג אצלנו. */
 function dkPdfAll() {
-  if (!dkPdf) return;
-  dkPdf.forEach(function (s, i) {
+  var sel = dkPdfSelected();
+  sel.forEach(function (s, i) {
     setTimeout(function () {
       var a = document.createElement('a');
       a.href = s.url; a.download = s.name;
@@ -9383,21 +9395,34 @@ function admDecks(el) {
     'onchange="dkPdfPick(this)"></div>' +
     '<div class="dk-msg"></div>';
   if (dkPdf && dkPdf.length) {
-    h += '<button class="btn gd" style="margin-top:8px" onclick="dkUpload(dkPdf)">' +
-      'העלאת ' + dkPdf.length + ' השקפים לתיקייה ←</button>' +
+    var dkSelN = dkPdfSelected().length;
+    h += '<button class="btn gd" style="margin-top:8px" ' +
+      (dkSelN ? 'onclick="dkUpload(dkPdfSelected())"' : 'disabled') + '>' +
+      'העלאת ' + dkSelN + ' השקפים לתיקייה ←</button>' +
       '<p class="h" style="margin:6px 0 10px">ישירות לריפו, בלי לעבור ' +
       'ב-GitHub. אם זה לא מוגדר עדיין — אפשר להוריד ולגרור:</p>' +
-      '<button class="btn g" onclick="dkPdfAll()">' +
-      'הורדת ' + dkPdf.length + ' השקפים למכשיר</button>' +
+      '<button class="btn g" ' + (dkSelN ? 'onclick="dkPdfAll()"' : 'disabled') + '>' +
+      'הורדת ' + dkSelN + ' השקפים למכשיר</button>' +
+      '<p class="h" style="margin-top:10px">לחצו על שקף כדי לכלול או ' +
+      'להוציא אותו — לא כל עמוד ב-PDF הוא שקף שרוצים.</p>' +
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;' +
-      'margin-top:10px">' +
-      dkPdf.map(function (sl) {
-        return '<a href="' + sl.url + '" download="' + esc(sl.name) + '" ' +
-          'style="text-decoration:none;text-align:center">' +
+      'margin-top:6px">' +
+      dkPdf.map(function (sl, i) {
+        var on = sl.sel !== false;
+        return '<div onclick="dkPdfToggle(' + i + ')" role="button" tabindex="0" ' +
+          'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' +
+          'dkPdfToggle(' + i + ')}" aria-pressed="' + (on ? 'true' : 'false') +
+          '" style="cursor:pointer;text-align:center;opacity:' + (on ? '1' : '.35') + '">' +
+          '<div style="position:relative">' +
           '<img src="' + sl.url + '" alt="" style="width:100%;border-radius:6px;' +
           'border:1px solid var(--rule)">' +
+          (on ? '<span style="position:absolute;top:4px;left:4px;background:' +
+            'var(--gold, #C08F2B);color:#fff;border-radius:50%;width:20px;height:20px;' +
+            'display:flex;align-items:center;justify-content:center;font-size:.7rem;' +
+            'font-weight:800">✓</span>' : '') +
+          '</div>' +
           '<span dir="ltr" style="display:block;font-size:.68rem;' +
-          'color:var(--ink-3);font-weight:800">' + esc(sl.name) + '</span></a>';
+          'color:var(--ink-3);font-weight:800">' + esc(sl.name) + '</span></div>';
       }).join('') + '</div>';
   }
   h += '</div>';
