@@ -1912,7 +1912,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.92.0';
+var APP_VERSION = '8.93.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8241,6 +8241,104 @@ function stuckDone(row) {
 
 function stuckShowAll() { stuckAll = !stuckAll; admPane(); }
 
+/* ============================================================
+   הלימוד המשותף — רשימת הזוגות, ומהם ההגרלה.
+   ============================================================
+   כל שורה היא לימוד אחד משותף שהבן דיווח עליו: מי, עם מי,
+   איזה דף ומתי. זו הרשימה שממנה ההגרלה נעשית — בלי סינון
+   ובלי פרשנות, כי היא נכתבת בדיוק ברגע שהוא סימן.
+
+   **וההורה אינו נספר פעמיים.** הזוג הוא היחידה, ולכן שורה
+   אחת לכל לימוד משותף ולא שתיים.
+   ============================================================ */
+var pairRows = null, pairMsg = '', pairWk = 0;
+
+function pairLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { pairMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  pairMsg = 'טוען…'; admPane();
+  return scriptGet({ read:'זוגות', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה לשונית ריקה. */
+    if (!d || d.status !== 'ok' || !d.rows) {
+      pairMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    var r = d.rows;
+    if (r.length < 2) { pairRows = []; pairMsg = ''; admPane(); return true; }
+    var head = r[0].map(function (x) { return String(x || '').trim(); });
+    var ix = {};
+    head.forEach(function (x, i) { ix[x] = i; });
+    var out = [];
+    for (var i = 1; i < r.length; i++) {
+      var row = r[i], g = function (k) {
+        return ix[k] === undefined ? ''
+             : String(row[ix[k]] == null ? '' : row[ix[k]]).trim();
+      };
+      if (!g('שם')) continue;
+      out.push({ at:g('מתי'), name:g('שם'), inst:g('ישיבה'),
+                 grade:g('שכבה'), klass:g('כיתה'),
+                 track:g('מסלול'), wk:parseInt(g('שבוע'), 10) || 0,
+                 daf:g('דף'), rel:g('קרבה'),
+                 pName:g('שם ההורה'), pPhone:g('טלפון ההורה') });
+    }
+    pairRows = out.reverse();          /* החדש ראשון */
+    pairMsg = ''; admPane(); return true;
+  })['catch'](function () {
+    pairMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+function pairPick(n) { pairWk = n | 0; admPane(); }
+
+function admPairs() {
+  var h = '<div class="adm-card"><h4>לימוד משותף — אבא ובן</h4>';
+  if (!pairRows) {
+    h += '<p class="h">כל שורה היא לימוד משותף שהבן דיווח עליו. ' +
+         'מכאן נעשית ההגרלה. הרשימה נקראת מהגיליון הפרטי.</p>' +
+         '<button class="btn g" onclick="pairLoad()">טעינה מהגיליון</button>';
+    if (pairMsg && pairMsg !== 'nokey') {
+      h += '<div class="cond" style="margin-top:10px">' + esc(pairMsg) + '</div>';
+    }
+    return h + '</div>';
+  }
+  if (!pairRows.length) {
+    return h + '<p class="h">עוד לא דיווח אף אחד על לימוד משותף.</p>' +
+      '<button class="btn g" onclick="pairLoad()">רענון</button></div>';
+  }
+  /* סינון לפי שבוע — ההגרלה נעשית על שבוע אחד. */
+  var weeks = [];
+  pairRows.forEach(function (o) {
+    if (o.wk && weeks.indexOf(o.wk) < 0) weeks.push(o.wk);
+  });
+  weeks.sort(function (a2, b2) { return b2 - a2; });
+  var list = pairWk ? pairRows.filter(function (o) { return o.wk === pairWk; })
+                    : pairRows;
+  h += '<p class="h"><b>' + list.length + '</b> ' +
+       (list.length === 1 ? 'זוג' : 'זוגות') +
+       (pairWk ? ' בשבוע ' + pairWk : ' בסך הכול') + '.</p>';
+  if (weeks.length > 1) {
+    h += '<div class="tabs" style="margin:0 0 12px">' +
+      '<button' + (pairWk ? '' : ' class="on"') +
+      ' onclick="pairPick(0)">הכול</button>' +
+      weeks.map(function (w) {
+        return '<button' + (pairWk === w ? ' class="on"' : '') +
+          ' onclick="pairPick(' + w + ')">שבוע ' + w + '</button>';
+      }).join('') + '</div>';
+  }
+  h += '<div class="plist">' + list.map(function (o) {
+    var bits = [o.inst, o.grade && o.klass ? o.grade + o.klass : o.grade,
+                o.daf ? 'דף ' + o.daf : ''].filter(Boolean);
+    return '<div class="prow2 ok"><span class="pm">✓</span>' +
+      '<div style="flex:1"><b>' + esc(o.name) + '</b>' +
+      '<span>' + esc(bits.join(' · ')) + '</span>' +
+      '<span style="color:var(--ink)">עם ' + esc(o.rel || 'הורה') +
+      (o.pName ? ' — ' + esc(o.pName) : '') +
+      (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span></div></div>';
+  }).join('') + '</div>' +
+  '<button class="btn g" style="margin-top:10px" ' +
+  'onclick="pairLoad()">רענון</button></div>';
+  return h;
+}
+
 function admStuck() {
   var h = '<div class="adm-card"><h4>מי ביקש עזרה בהתקנה</h4>';
   if (!stuckRows) {
@@ -8463,7 +8561,7 @@ function admPush(el) {
   var c = pushCount();
   /* מי שממתין לעזרה — ראשון. שליחת התראה יכולה לחכות דקה;
      תלמיד שנתקע כבר חיכה. */
-  var h = admStuck() +
+  var h = admStuck() + admPairs() +
     '<div class="adm-card"><h4>שליחת התראה</h4>' +
     '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
     'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +

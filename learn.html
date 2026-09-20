@@ -811,6 +811,7 @@ nav .sp{flex:1}
 <script src="data.js"></script>
 <script src="deck.js"></script>
 <script src="learned.js"></script>
+<script src="pair.js"></script>
 <script src="links.js"></script>
 <script src="trip.js"></script>
 <script type="module">
@@ -2209,6 +2210,8 @@ function markThisDaf() {
   if (fresh) LMark(S.mas, wk);
   m.textContent = JOIN.markedOk;
   m.style.display = '';
+  /* הגיע לסוף הדף — וזה הרגע לשאול עם מי למד. ראו pair.js. */
+  if (fresh && window.PAIR_UI) PAIR_UI.ask(S.mas, wk);
 
 }
 
