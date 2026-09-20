@@ -103,6 +103,11 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
     var due = pairs.filter(function (o) {
       return o['מזהה'] && o['מסלול'] && o['שבוע'] && !sent[keyOf(o)];
     });
+    /* "במידה וטרם אישר" — שורה שההורה כבר אישר אינה מזמינה
+       אותו לאשר שוב. */
+    due = due.filter(function (o) {
+      return !(o['דיווח'] !== 'ההורה' && o['אושר'] === 'כן');
+    });
     if (!due.length) { console.log('אין לימוד משותף שממתין להודעה.'); return []; }
 
     /* טלפון → מזהה. השורה האחרונה גוברת: מי שנרשם מחדש. */
@@ -142,16 +147,34 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
           console.log('  ! מנוי פגום למזהה ' + pid);
           res.push(0); return res;
         }
-        /* ההורה דיווח → ההודעה הולכת לבן, ולכן הנוסח שלו. */
-        var body = fill(o['דיווח'] === 'ההורה' ? T.pushKidB : T.pushB,
+        /* ============================================================
+           שתי הודעות שונות, ולא אחת.
+           ============================================================
+           ההורה דיווח → ההודעה הולכת לבן, והיא הבשורה עצמה:
+           "נכנסת להגרלה".
+
+           הבן דיווח → ההודעה הולכת להורה, והיא מזמינה אותו
+           לאשר. הכתובת נושאת את מי דיווח ועל איזה שבוע, ולכן
+           הלחיצה פותחת את מסך האישור ולא סתם את האפליקציה.
+
+           **וההורה אינו בהגרלה — הבן הוא שבהגרלה.** שתי
+           ההודעות אומרות את זה.
+           ============================================================ */
+        var byParent = (o['דיווח'] === 'ההורה');
+        var body = fill(byParent ? T.pushKidB : T.pushB,
                         { name: name, daf: daf });
+        /* `join` ולא `./`: זה העמוד שההורה והבן מתקינים, והוא
+           מה שנפתח מהאייקון שלהם. */
+        var link = byParent ? './join'
+          : './join?pr=' + encodeURIComponent(
+              o['מזהה'] + '|' + o['מסלול'] + '|' + o['שבוע']);
         if (DRY) {
           console.log('  · ' + name + ' → ' + pid + ' | ' + body);
           res.push(1); return res;
         }
         return webpush.sendNotification(sub,
           JSON.stringify({ title: T.pushT || '', body: body,
-                           url: './', tag: 'pair' }), { TTL: 86400 })
+                           url: link, tag: 'pair' }), { TTL: 86400 })
           .then(function (x) {
             console.log('  ✓ ' + name + ' → ' + x.statusCode + ' | ' + body);
             done.push(keyOf(o));

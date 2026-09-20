@@ -133,6 +133,14 @@ var PAIR_UI = (function () {
          כדי לשלוח לו את ההתראה — בשני הכיוונים.
          ============================================================ */
       ['דיווח', side() === 'parent' ? 'ההורה' : 'הבן'],
+      /* ============================================================
+         מי שדיווח בעצמו — אישר בעצמו.
+         ============================================================
+         הורה שסימן במכשיר שלו אינו צריך שיבקשו ממנו לאשר את
+         מה שהוא עצמה כתב. כשהבן דיווח, העמודה נשארת ריקה עד
+         שההורה מאשר — וההתראה אליו היא מה שפותח את המסך.
+         ============================================================ */
+      ['אושר', side() === 'parent' ? 'כן' : ''],
       ['קרבה', side() === 'parent' ? 'בן'
                                    : (m.parent === 'mom' ? 'אמא' : 'אבא')],
       ['שם השותף', m.dadFirst || ''],
@@ -254,11 +262,14 @@ var PAIR_UI = (function () {
   var SEAL = '<div class="pr-seal"><svg viewBox="0 0 24 24">' +
              '<path d="M4 12.5l5.2 5.2L20 7"/></svg></div>';
 
+  /* **ההורה אינו בהגרלה — הבן הוא שבהגרלה.** הפרס נועד לעודד
+     את הילד להמשיך, ולכן גם הבשורה להורה מדברת על בנו. */
   function win(m, sd) {
     var who = other(m);
+    var head = sd === 'parent' ? t('okKidH') : t('okH');
     var body = sd === 'parent' ? fill(t('okKidB'), { 'בן': who })
                                : fill(t('okB'), { 'הורה': who });
-    show(SEAL + '<h3>' + esc(t('okH')) + '</h3>' +
+    show(SEAL + '<h3>' + esc(head) + '</h3>' +
       '<p>' + esc(body) + '</p>' +
       '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
     var b = document.getElementById('pr-x');
@@ -274,8 +285,11 @@ var PAIR_UI = (function () {
     var who = other(m);
     var head = sd === 'parent' ? fill(t('askKidH'), { 'בן': who })
                                : fill(t('askH'), { 'הורה': who });
+    /* להורה נאמר "בוא נכניס אותו" ולא "תיכנס" — הוא עושה את
+       זה בשביל בנו, וזה בדיוק מה שהוא רוצה לעשות. */
+    var sub = sd === 'parent' ? t('askKidB') : t('askB');
     show('<h3>' + esc(head) + '</h3>' +
-      '<p>' + esc(t('askB')) + '</p>' +
+      '<p>' + esc(sub) + '</p>' +
       '<button class="pr-go" id="pr-y">' + esc(t('yes')) + '</button>' +
       '<button class="pr-thin" id="pr-n">' + esc(t('no')) + '</button>');
     var b = document.getElementById('pr-y');
@@ -289,10 +303,80 @@ var PAIR_UI = (function () {
     return true;
   }
 
+  /* ============================================================
+     האישור של ההורה.
+     ============================================================
+     הבן סימן, והוא כבר בהגרלה — זה נגמר ברגע שהוא לחץ. מה
+     שההתראה להורה עושה הוא לפתוח כאן מסך אחד: "למדתם יחד?".
+     היא אינה שער ואינה תנאי; היא האדם השני שראה.
+
+     הכתובת שבהתראה נושאת את מי דיווח ועל איזה שבוע:
+     `?pr=<מזהה>|<מסלול>|<שבוע>`. היא מגיעה רק למכשיר שההורה
+     נרשם בו, כי היא נוסעת בתוך ההתראה שלו.
+     ============================================================ */
+  function param() {
+    var m = /[?&]pr=([^&#]+)/.exec(location.search);
+    if (!m) return null;
+    var p = decodeURIComponent(m[1]).split('|');
+    return p.length === 3 ? { id:p[0], track:p[1], wk:p[2] } : null;
+  }
+  /* הכתובת מנוקה אחרי שנקראה: רענון של הדף לא אמור לשאול שוב. */
+  function clearParam() {
+    try {
+      var u = location.href.replace(/[?&]pr=[^&#]*/, '');
+      history.replaceState(null, '', u);
+    } catch (e) {}
+  }
+  function mark(p, yes) {
+    var url = api(); if (!url) return;
+    /* JSONP, כמו כל קריאה אחרת לסקריפט של גוגל. */
+    var cb = 'pk' + Date.now();
+    var sc = document.createElement('script');
+    window[cb] = function () {
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+    };
+    sc.onerror = window[cb];
+    sc.src = url + '?pairok=' + encodeURIComponent(p.id) +
+             '&wk=' + encodeURIComponent(p.track + '|' + p.wk) +
+             '&yes=' + (yes ? '1' : '0') + '&cb=' + cb;
+    document.body.appendChild(sc);
+  }
+  function confirm_() {
+    var p = param(); if (!p) return false;
+    clearParam();
+    var m = me() || {};
+    var who = (m.dadFirst || '').trim() || t('kid');
+    var daf = (typeof LDaf === 'function')
+      ? (LDaf(p.track, (parseInt(p.wk, 10) || 1) - 1) || '') : '';
+    show('<h3>' + esc(fill(t('okAskH'), { daf: daf ? 'דף ' + daf : '' })) +
+      '</h3><p>' + esc(fill(t('okAskB'), { name: who })) + '</p>' +
+      '<button class="pr-go" id="pr-ok">' + esc(t('okYes')) + '</button>' +
+      '<button class="pr-thin" id="pr-nope">' + esc(t('okNo')) + '</button>');
+    var end = function (yes) {
+      mark(p, yes);
+      show((yes ? SEAL : '') +
+        '<h3>' + esc(t(yes ? 'thanksH' : 'nopeH')) + '</h3>' +
+        '<p>' + esc(t(yes ? 'thanksB' : 'nopeB')) + '</p>' +
+        '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
+      var x = document.getElementById('pr-x');
+      if (x) x.onclick = shut;
+    };
+    var b = document.getElementById('pr-ok');
+    if (b) b.onclick = function () { end(true); };
+    b = document.getElementById('pr-nope');
+    if (b) b.onclick = function () { end(false); };
+    return true;
+  }
+
   /* התור מנסה שוב בכל פתיחה — אותו דפוס של `learn-q`. */
-  function boot() { TRIES = 0; flush(); }
+  function boot() {
+    TRIES = 0; flush();
+    /* ומי שהגיע מההתראה — מקבל את מסך האישור. */
+    confirm_();
+  }
 
   return { ask: ask, word: word, other: other, side: side,
-           wanted: wanted, done: done,
+           wanted: wanted, done: done, confirm: confirm_,
            flush: boot, close: shut };
 })();

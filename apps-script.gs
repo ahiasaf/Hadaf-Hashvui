@@ -634,6 +634,46 @@ function doGet(e) {
     return reply_(e, { status: 'ok', has: pHas });
   }
 
+  /* ============================================================
+     האישור של ההורה.
+     ============================================================
+     הבן סימן "למדנו ביחד", והוא כבר בהגרלה — זה נגמר ברגע
+     שהוא לחץ. ההתראה להורה פותחת מסך אחד, והלחיצה שלו מגיעה
+     לכאן ומסמנת את העמודה.
+
+     **אינו שער.** ההגרלה אינה תלויה בו, והוא אינו מוחק דבר:
+     הוא כותב "כן" או "לא" בשדה אחד בשורה שכבר קיימת. לכן גם
+     אין כאן סיסמה — מי שיודע מזהה מכשיר ושבוע יכול לסמן
+     שלמדו, וזה כל מה שהוא יכול.
+     ============================================================ */
+  if (e && e.parameter && e.parameter.pairok) {
+    var oid = String(e.parameter.pairok), otag = String(e.parameter.wk || '');
+    var oyes = String(e.parameter.yes || '') === '1' ? 'כן' : 'לא';
+    var oHit = 0;
+    try {
+      var osh = sheet_('זוגות');
+      if (osh && osh.getLastRow() > 1) {
+        var or_ = osh.getDataRange().getValues();
+        var oh = or_[0], oix = {};
+        for (var oq = 0; oq < oh.length; oq++) oix[String(oh[oq]).trim()] = oq;
+        /* עמודה שאינה קיימת בלשונית ישנה — נוספת פעם אחת. */
+        if (oix['אושר'] === undefined) {
+          osh.getRange(1, oh.length + 1).setValue('אושר');
+          oix['אושר'] = oh.length;
+        }
+        for (var oz = 1; oz < or_.length; oz++) {
+          if (String(or_[oz][oix['מזהה']] || '').trim() !== oid) continue;
+          var ot = String(or_[oz][oix['מסלול']] || '') + '|' +
+                   String(or_[oz][oix['שבוע']] || '');
+          if (ot !== otag) continue;
+          osh.getRange(oz + 1, oix['אושר'] + 1).setValue(oyes);
+          oHit++;
+        }
+      }
+    } catch (oe) {}
+    return reply_(e, { status: 'ok', set: oHit });
+  }
+
   if (e && e.parameter && e.parameter.board) {
     var bd;
     /* **סיסמת הרכז פותחת כל לוח.** היא כבר פותחת כל לשונית

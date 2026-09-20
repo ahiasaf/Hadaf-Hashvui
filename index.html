@@ -1912,7 +1912,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.94.0';
+var APP_VERSION = '8.95.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8279,6 +8279,7 @@ function pairLoad() {
                  grade:g('שכבה'), klass:g('כיתה'),
                  track:g('מסלול'), wk:parseInt(g('שבוע'), 10) || 0,
                  daf:g('דף'), rel:g('קרבה'), by:g('דיווח'),
+                 okd:g('אושר'),
                  pName:g('שם השותף'), pPhone:g('טלפון השותף') });
     }
     pairRows = out.reverse();          /* החדש ראשון */
@@ -8327,11 +8328,18 @@ function admPairs() {
   h += '<div class="plist">' + list.map(function (o) {
     var bits = [o.inst, o.grade && o.klass ? o.grade + o.klass : o.grade,
                 o.daf ? 'דף ' + o.daf : ''].filter(Boolean);
-    return '<div class="prow2 ok"><span class="pm">✓</span>' +
+    /* ההורה אישר · לא אישר · אמר שלא למדו. האישור אינו תנאי
+       להגרלה — הוא מה שמראה שהיה שם אדם שני. */
+    var cls = o.okd === 'כן' ? 'ok' : o.okd === 'לא' ? 'no' : 'warn';
+    var sig = o.okd === 'כן' ? '✓' : o.okd === 'לא' ? '✕' : '…';
+    return '<div class="prow2 ' + cls + '"><span class="pm">' + sig + '</span>' +
       '<div style="flex:1"><b>' + esc(o.name) + '</b>' +
       '<span>' + esc(bits.join(' · ')) + '</span>' +
       '<span style="color:var(--ink)">עם ' + esc(o.rel || 'הורה') +
-      (o.by === 'ההורה' ? ' · דיווח ההורה' : '') +
+      (o.by === 'ההורה' ? ' · דיווח ההורה'
+        : o.okd === 'כן'  ? ' · ההורה אישר'
+        : o.okd === 'לא'  ? ' · ההורה אמר שלא למדו'
+                          : ' · ממתין לאישור ההורה') +
       (o.pName ? ' — ' + esc(o.pName) : '') +
       (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span></div></div>';
   }).join('') + '</div>' +
