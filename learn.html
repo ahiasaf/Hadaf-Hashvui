@@ -216,13 +216,6 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-pub.on{background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
 .own-pub button{margin-inline-start:auto;border:1px solid currentColor;background:none;
   border-radius:8px;padding:4px 10px;font-weight:800;font-size:.72rem;color:inherit;cursor:pointer}
-/* שורת הכלים המשותפת — בולד/ביטול/חזרה, צמודה לכפתור השמירה
-   ולא כפולה בכל חלק (ראו `paintOwnEdit_`). */
-.own-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:10px}
-.own-toolbar .sp{flex:1}
-.own-toolbar button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
-  width:28px;height:26px;font-weight:800;font-size:.82rem;color:var(--ink-2);cursor:pointer}
-.own-toolbar button.own-save{width:auto;height:auto}
 .own-edit{min-height:90px;outline:none}
 .own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
 .own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
@@ -247,16 +240,22 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
 .own-mv:disabled{opacity:.3;cursor:default}
 .own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
-/* שורה אחת, קומפקטית — תוויות קצרות בכוונה כדי שלא יעברו שורה
-   בטלפון צר. כרטיס חלק ארוך מדי הוא בדיוק התלונה שתיקן את זה. */
-.own-slide{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
-  font-size:.72rem;color:var(--ink-2);white-space:nowrap}
-.own-slide span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.own-slide button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+/* בולד/ביטול/חזרה + מצב השקף — שורה אחת, מיד מתחת לתיבת הטקסט
+   של החלק. תוויות קצרות בכוונה כדי שלא יעברו שורה בטלפון צר. */
+.own-tools{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
+  font-size:.72rem;color:var(--ink-2)}
+.own-tools .sp{flex:1}
+.own-tools button.icon{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
+  width:24px;height:24px;font-weight:800;font-size:.76rem;color:var(--ink-2);cursor:pointer;
+  flex:0 0 auto;padding:0}
+.own-slide-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.own-tools button:not(.icon){border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
   padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
 .own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
   padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
 .own-slide-up input{display:none}
+.own-slide-sel{max-width:84px;flex:0 0 auto;border:1px solid rgba(192,143,43,.45);border-radius:8px;
+  padding:3px 4px;font-weight:700;font-size:.68rem;color:var(--ink-2);background:#fff}
 .own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
@@ -1624,6 +1623,16 @@ function ownPieceSlideClear(i) {
   OWN_EDIT[i].slide = '';
   paintOwn();
 }
+/* בחירת שקף שכבר קיים בתיקייה (מתוך `DECK.files`) — הדרך השנייה
+   לשייך שקף לחלק, לצד העלאת אחד חדש. שם קובץ, לא מיקום — אותה
+   מוסכמה כמו בכל מקום אחר, ראו `deckFileAt`. */
+function ownPieceSlidePick(i, idxStr) {
+  ownEditSync_();
+  var idx = parseInt(idxStr, 10);
+  if (!DECK || !(idx >= 0) || !DECK.files[idx]) return;
+  OWN_EDIT[i].slide = DECK.files[idx];
+  paintOwn();
+}
 /* שקף חדש שלא היה קיים בתיקייה כלל — ייעודי לחלק הזה בלבד.
    מעלים אותו בדיוק כמו הקלטה (`ghput` + אימות מול גיטהאב), בשם
    קובץ שלא מתנגש בשום מספר סידורי ("piece-<קטע>-<חלק>"), ולכן
@@ -1698,9 +1707,7 @@ function paintOwnRead_(n) {
 }
 function paintOwnEdit_(n) {
   var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
-  var html = '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
-    (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
-    '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
+  var html = '';
 
   html += OWN_EDIT.map(function (p, i) {
     var key = n + '::' + p._id, loaded = VOX_CACHE.hasOwnProperty(key), clip = VOX_CACHE[key];
@@ -1724,13 +1731,35 @@ function paintOwnEdit_(n) {
        של המצגת, אין צורך לגעת. השקף הייעודי הוא רק לחריג: שקף
        חדש שמעלים ישירות (`ownPieceSlideUpload`), לא בחירה מחדש
        מתוך שקפים שכבר קיימים. */
-    var slideRow = DECK ?
-      '<div class="own-slide"><span>שקף: ' +
-      (p.slide ? '<b>ייעודי לחלק זה</b>' : 'ברירת המחדל של הקטע') + '</span>' +
-      '<label class="own-slide-up">שקף חדש' +
-      '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>' +
-      (p.slide ? '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' : '') +
-      '</div>' : '';
+    /* בלי שקף ייעודי — שתי דרכים לקבוע אחד: לבחור שקף שכבר קיים
+       בתיקייה (תפריט נפתח, לא תופס מקום כשהוא סגור), או להעלות
+       שקף חדש. עם שקף ייעודי — רק תווית קצרה והסרה, בלי לחזור
+       ולהראות את שתי הדרכים. */
+    var slideStatus = !DECK ? '<span class="sp"></span>' :
+      p.slide ? '<span class="sp"></span><span class="own-slide-txt">שקף ייעודי</span>' +
+        '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' :
+      '<span class="sp"></span>' +
+      '<select class="own-slide-sel" onchange="ownPieceSlidePick(' + i + ',this.value)">' +
+      '<option value="">שקף קיים…</option>' +
+      DECK.files.map(function (f, fi) { return '<option value="' + fi + '">שקף ' + (fi + 1) + '</option>'; }).join('') +
+      '</select>' +
+      '<label class="own-slide-up">חדש' +
+      '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>';
+
+    /* בולד/ביטול/חזרה — ליד תיבת הטקסט של כל חלק, לא רחוק ממנה.
+       פועלים על תיבת הטקסט שהייתה בפוקוס אחרון: ה-
+       mousedown+preventDefault שומר על הבחירה שם, גם כשהכפתור
+       יושב בחלק אחר של המסך. ביטול/חזרה נשענים על ההיסטוריה
+       המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי
+       בלבד" מאליהם, בלי שום שמירה נוספת. */
+    var toolsRow = '<div class="own-tools">' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
+      'title="הדגשה (בולד)">B</button>' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'undo\')" ' +
+      'title="ביטול">↶</button>' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'redo\')" ' +
+      'title="חזרה">↷</button>' +
+      slideStatus + '</div>';
 
     var moveBtns = OWN_EDIT.length > 1 ?
       '<button class="own-mv" onclick="ownPieceMove_(' + i + ',-1)"' +
@@ -1746,27 +1775,18 @@ function paintOwnEdit_(n) {
       '</div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
       'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + p.text + '</div>' +
-      slideRow + '<div class="own-audio">' + audioRow + '</div></div>';
+      toolsRow + '<div class="own-audio">' + audioRow + '</div></div>';
   }).join('');
 
-  /* בולד/ביטול/חזרה — שורה משותפת אחת ליד השמירה, לא כפולה בכל
-     חלק. הם פועלים על תיבת הטקסט שהייתה בפוקוס אחרונה: ה-
-     mousedown+preventDefault (כמו למעלה) שומר על הבחירה שם, גם
-     כשהכפתור עצמו יושב הרחק ממנה. ביטול/חזרה נשענים על ההיסטוריה
-     המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי בלבד"
-     מאליהם, בלי שום שמירה נוספת. */
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
-    '<div class="own-toolbar">' +
-    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
-    'title="הדגשה (בולד)">B</button>' +
-    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'undo\')" ' +
-    'title="ביטול">↶</button>' +
-    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'redo\')" ' +
-    'title="חזרה">↷</button>' +
-    '<span class="sp"></span>' +
     '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' +
-    '</div>' +
-    '<div class="own-msg" id="own-msg"></div>';
+    '<div class="own-msg" id="own-msg"></div>' +
+    /* שער הפרסום לכל הדף — למטה, אחרי העריכה עצמה: זו פעולה
+       שקורית פעם אחת בהרבה זמן, ולא צריכה לתפוס את המקום הראשון
+       שרואים בכל פתיחה של המסך. */
+    '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
+    (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
+    '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
 
   box.innerHTML = html;
   box.scrollTop = 0;
