@@ -216,9 +216,13 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-pub.on{background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
 .own-pub button{margin-inline-start:auto;border:1px solid currentColor;background:none;
   border-radius:8px;padding:4px 10px;font-weight:800;font-size:.72rem;color:inherit;cursor:pointer}
-.own-bar{margin-bottom:6px}
-.own-bar button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
+/* שורת הכלים המשותפת — בולד/ביטול/חזרה, צמודה לכפתור השמירה
+   ולא כפולה בכל חלק (ראו `paintOwnEdit_`). */
+.own-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.own-toolbar .sp{flex:1}
+.own-toolbar button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
   width:28px;height:26px;font-weight:800;font-size:.82rem;color:var(--ink-2);cursor:pointer}
+.own-toolbar button.own-save{width:auto;height:auto}
 .own-edit{min-height:90px;outline:none}
 .own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
 .own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
@@ -1668,15 +1672,28 @@ function paintOwnEdit_(n) {
       '<input class="own-tag" id="own-tag-' + i + '" type="text" value="' + esc(p.tag) + '" aria-label="תיוג החלק">' +
       (OWN_EDIT.length > 1 ? '<button class="back" onclick="ownPieceDel(' + i + ')" aria-label="מחיקת החלק">✕</button>' : '') +
       '</div>' +
-      '<div class="own-bar"><button type="button" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
-      'title="הדגשה (בולד)">B</button></div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
       'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + p.text + '</div>' +
       slideRow + '<div class="own-audio">' + audioRow + '</div></div>';
   }).join('');
 
+  /* בולד/ביטול/חזרה — שורה משותפת אחת ליד השמירה, לא כפולה בכל
+     חלק. הם פועלים על תיבת הטקסט שהייתה בפוקוס אחרונה: ה-
+     mousedown+preventDefault (כמו למעלה) שומר על הבחירה שם, גם
+     כשהכפתור עצמו יושב הרחק ממנה. ביטול/חזרה נשענים על ההיסטוריה
+     המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי בלבד"
+     מאליהם, בלי שום שמירה נוספת. */
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
+    '<div class="own-toolbar">' +
+    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
+    'title="הדגשה (בולד)">B</button>' +
+    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'undo\')" ' +
+    'title="ביטול">↶</button>' +
+    '<button type="button" onmousedown="event.preventDefault();document.execCommand(\'redo\')" ' +
+    'title="חזרה">↷</button>' +
+    '<span class="sp"></span>' +
     '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' +
+    '</div>' +
     '<div class="own-msg" id="own-msg"></div>';
 
   box.innerHTML = html;
