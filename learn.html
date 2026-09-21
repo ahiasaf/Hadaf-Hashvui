@@ -235,14 +235,25 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 /* חלקי-הפירוש — כל חלק (תיוג+טקסט+שקף+הקלטה) בכרטיס נפרד,
    כדי שיהיה ברור בעין שאלה יחידות נבדלות ולא זרם אחד רציף. */
 .own-piece{border:1px solid var(--rule);border-radius:11px;padding:9px 10px;margin-bottom:10px}
-.own-piece-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.own-tag{flex:1;min-width:0;border:1px solid rgba(192,143,43,.45);border-radius:8px;
-  padding:4px 8px;font-weight:800;font-size:.78rem;color:var(--blue);background:#fff}
+.own-piece-h{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.own-piece-h .sp{flex:1}
+/* תג קטן וממורכז — לא תיבת טופס גדולה. עדיין ניתן לעריכה (שם
+   חופשי: "פירוש"/"הקדמה"/"העשרה" וכל דבר אחר), רק לא תופס שורה. */
+.own-tag{width:5.5em;max-width:38vw;flex:0 0 auto;border:1px solid transparent;border-radius:20px;
+  padding:3px 10px;font-weight:800;font-size:.74rem;color:var(--blue);
+  background:rgba(23,70,143,.08);text-align:center}
+.own-tag:focus{border-color:rgba(192,143,43,.45);background:#fff}
+.own-mv{border:1px solid rgba(192,143,43,.3);background:#fff;border-radius:7px;
+  width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
+.own-mv:disabled{opacity:.3;cursor:default}
 .own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
 .own-slide{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;
   font-size:.72rem;color:var(--ink-2)}
 .own-slide button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
   padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer}
+.own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer}
+.own-slide-up input{display:none}
 .own-audio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
@@ -1589,6 +1600,16 @@ function ownPieceDel(i) {
   else OWN_EDIT.splice(i, 1);
   paintOwn();
 }
+/* סדר החלקים הוא סדר ההצגה — גם בלשונית הכתובה וגם בכפתורי
+   ההשמעה. לפעמים חלק צריך לבוא **לפני** ה"פירוש" הראשי (הקדמה),
+   לא רק אחריו — ולכן סדר חופשי, לא רק הוספה בסוף. */
+function ownPieceMove_(i, d) {
+  ownEditSync_();
+  var j = i + d, tmp;
+  if (j < 0 || j >= OWN_EDIT.length) return;
+  tmp = OWN_EDIT[i]; OWN_EDIT[i] = OWN_EDIT[j]; OWN_EDIT[j] = tmp;
+  paintOwn();
+}
 /* "שקף מקושר" נקבע לפי מה שמוצג הרגע בפאנל המצגת — לא נבחר
    מרשימה נפרדת. מי שכותב פותח את שני הפאנלים זה לצד זה (במחשב;
    בטלפון — אחד־אחד), מדפדף בפאנל למה שהוא רוצה, וחוזר לכאן
@@ -1602,6 +1623,46 @@ function ownPieceSlideClear(i) {
   ownEditSync_();
   OWN_EDIT[i].slide = '';
   paintOwn();
+}
+/* שקף חדש שלא היה קיים בתיקייה כלל — ייעודי לחלק הזה בלבד.
+   מעלים אותו בדיוק כמו הקלטה (`ghput` + אימות מול גיטהאב), בשם
+   קובץ שלא מתנגש בשום מספר סידורי ("piece-<קטע>-<חלק>"), ולכן
+   הוא **לא נכנס לרשימת הסדר של המצגת הרגילה** במסך הניהול —
+   שקף שמשרת רק את הפירוש הקולי, בלי לגעת ברצף הקיים. */
+function ownSlideExt_(mime) {
+  if (/png/.test(mime)) return 'png';
+  if (/webp/.test(mime)) return 'webp';
+  return 'jpg';
+}
+function ownPieceSlideUpload(i, file) {
+  ownEditSync_();
+  if (!DECK || !file) return;
+  var n = OWN_EDIT_N, pid = OWN_EDIT[i]._id;
+  if (!cfgReadKey_()) {
+    ownMsg('bad', 'צריך סיסמת סקריפט במכשיר כדי להעלות שקף — ניהול ← מערכת.');
+    paintOwnEdit_(n); return;
+  }
+  var fr = new FileReader();
+  fr.onload = function () {
+    var fname = 'piece-' + n + '-' + pid + '.' + ownSlideExt_(file.type);
+    var path = (DECK.dir ? DECK.dir + '/' : '') + fname;
+    ownMsg('', 'מעלה שקף…'); paintOwnEdit_(n);
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+      action:'ghput', key:cfgReadKey_(), path:path, b64:ownB64FromBuf_(fr.result),
+      msg:'שקף לחלק בקטע ' + n
+    }) }).catch(function () {}).then(function () {
+      ownUploadVerify_(path, 0, function (ok) {
+        if (ok && OWN_EDIT && OWN_EDIT_N === n) {
+          OWN_EDIT.forEach(function (p) { if (p._id === pid) p.slide = fname; });
+          ownMsg('ok', 'השקף עלה. הוא ישויך לחלק בלחיצה על שמירה.');
+        } else {
+          ownMsg('bad', 'העלאת השקף נכשלה — אפשר לנסות שוב.');
+        }
+        if (OWN_EDIT_N === n) paintOwnEdit_(n);
+      });
+    });
+  };
+  fr.readAsArrayBuffer(file);
 }
 
 /* פירוש — טקסט חופשי נטו, ולכל חלק גם הקלטה ושקף אפשריים (ראו
@@ -1665,11 +1726,20 @@ function paintOwnEdit_(n) {
       '<button onclick="ownPieceSlideSet(' + i + ')">קביעה לפי השקף המוצג כרגע' +
       ' (שקף ' + SLIDE + ')</button>' +
       (p.slide ? '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' : '') +
+      '<label class="own-slide-up">העלאת שקף חדש לחלק הזה' +
+      '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>' +
       '</div>' : '';
+
+    var moveBtns = OWN_EDIT.length > 1 ?
+      '<button class="own-mv" onclick="ownPieceMove_(' + i + ',-1)"' +
+      (i === 0 ? ' disabled' : '') + ' aria-label="הזזה למעלה">▲</button>' +
+      '<button class="own-mv" onclick="ownPieceMove_(' + i + ',1)"' +
+      (i === OWN_EDIT.length - 1 ? ' disabled' : '') + ' aria-label="הזזה למטה">▼</button>' : '';
 
     return '<div class="own-piece">' +
       '<div class="own-piece-h">' +
       '<input class="own-tag" id="own-tag-' + i + '" type="text" value="' + esc(p.tag) + '" aria-label="תיוג החלק">' +
+      moveBtns + '<span class="sp"></span>' +
       (OWN_EDIT.length > 1 ? '<button class="back" onclick="ownPieceDel(' + i + ')" aria-label="מחיקת החלק">✕</button>' : '') +
       '</div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
