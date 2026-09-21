@@ -210,6 +210,12 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 /* פירוש נטו — בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
    (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות — ראו את ההערה
    למעלה על boldOnly ב-git log.) */
+.own-pub{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;
+  border-radius:9px;background:rgba(178,59,59,.08);font-size:.74rem;font-weight:800;
+  color:#8a3a3a}
+.own-pub.on{background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
+.own-pub button{margin-inline-start:auto;border:1px solid currentColor;background:none;
+  border-radius:8px;padding:4px 10px;font-weight:800;font-size:.72rem;color:inherit;cursor:pointer}
 .own-bar{margin-bottom:6px}
 .own-bar button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
   width:28px;height:26px;font-weight:800;font-size:.82rem;color:var(--ink-2);cursor:pointer}
@@ -1487,7 +1493,10 @@ function loadOwnMap() {
    אחר. */
 function chavTabHtml(st) {
   if (!st) return '<span class="cht-lbl">חברותא</span>';
-  var hasOwn = !!(OWN && OWN[String(st.n)]);
+  /* לתלמיד: לא מספיק שיש טקסט לקטע — הדף כולו צריך להיות
+     מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
+     דולף לפני שהדף מוכן. */
+  var hasOwn = !!(OWN && OWN.__pub && OWN[String(st.n)]);
   if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
   return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
     '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
@@ -1501,18 +1510,29 @@ function ownMsg(cls, txt) {
 /* פירוש לנוער — טקסט חופשי נטו. אזור עריכה חי (לא textarea) כדי
    שיהיה אפשר להדגיש מילה בודדת בבולד; מעבר לזה זו עריכה רגילה
    לגמרי של הדפדפן — סמן בכל מקום, מיזוג שורות ב-Backspace בתחילת
-   שורה — ולכן אין צורך בשום מנגנון מיוחד בשבילם. */
+   שורה — ולכן אין צורך בשום מנגנון מיוחד בשבילם.
+
+   שער הפרסום: `OWN.__pub` הוא מפתח שמור אחד לכל הדף (לא קטע),
+   באותו אובייקט בדיוק שכבר נשמר לכל דף — בלי לשונית נוספת ובלי
+   שינוי ב-apps-script.gs. בלי הדגל — כותבים כמה שרוצים, רק
+   אחיאסף רואה. עם הדגל — תלמידים רואים מיד, כולל כל עריכה הבאה. */
 function paintOwn() {
   var st = FLAT[IDX], box = $('chb');
   if (!st) { box.innerHTML = ''; return; }
   var n = st.n;
   var html = (OWN && OWN[String(n)]) || '';
+  var pubOn = !!(OWN && OWN.__pub);
   if (SIDE_ADM) {
     box.innerHTML =
+      '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
+      (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
+      '</span><button id="own-pub-btn">' +
+      (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>' +
       '<div class="own-bar"><button type="button" id="own-b" title="הדגשה (בולד)">B</button></div>' +
       '<div class="vox-txt own-edit" id="own-txt" contenteditable="true" ' +
       'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + html + '</div>' +
-      '<button class="own-save" id="own-save">שמירה לכולם</button>' +
+      '<button class="own-save" id="own-save">' +
+      (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' +
       '<div class="own-msg" id="own-msg"></div>';
   } else {
     box.innerHTML = html ? '<div class="own-read">' + html + '</div>'
@@ -1528,6 +1548,13 @@ function paintOwn() {
     var el = $('own-txt');
     ownSave(n, el.textContent.trim() ? el.innerHTML.trim() : '');
   };
+  $('own-pub-btn').onclick = function () {
+    var goingOn = !pubOn;
+    if (goingOn && !window.confirm(
+      'לפרסם את "הפירוש לנוער" לכל הדף הזה? כל התלמידים שיפתחו אותו יראו אותו החל מעכשיו.'
+    )) return;
+    ownPublishSet(goingOn);
+  };
   $('own-txt').addEventListener('blur', function () {
     document.body.classList.remove('kb-open');
   });
@@ -1535,11 +1562,9 @@ function paintOwn() {
 
 /* הכתיבה היא no-cors ולכן תמיד "מצליחה" — ראו ההערה המקבילה
    ליד sideSave. ההודעה "נשמר" נאמרת רק אחרי קריאה חוזרת. */
-function ownSave(n, text) {
-  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
-  if (!OWN) OWN = {};
-  if (text) OWN[String(n)] = text; else delete OWN[String(n)];
-  OMAP[dmKey(S.mas, S.daf)] = OWN;
+/* הרשימה המלאה, לכתיבה — משותפת לשמירת קטע ולמתג הפרסום, כי
+   שתיהן כותבות את אותה לשונית שלמה מחדש. */
+function ownRows_() {
   var rows = [], k;
   for (k in OMAP) {
     if (!OMAP.hasOwnProperty(k)) continue;
@@ -1549,12 +1574,22 @@ function ownSave(n, text) {
     for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
     if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
   }
-  ownMsg('', 'נשלח · מאמת מול הגיליון…');
+  return rows;
+}
+function ownPost_() {
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
     action:'table', tab:OWN_TAB,
     cols:JSON.stringify(['מסכת', 'דף', 'פירוש']),
-    rows:JSON.stringify(rows)
+    rows:JSON.stringify(ownRows_())
   }) }).catch(function () {});
+}
+function ownSave(n, text) {
+  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!OWN) OWN = {};
+  if (text) OWN[String(n)] = text; else delete OWN[String(n)];
+  OMAP[dmKey(S.mas, S.daf)] = OWN;
+  ownMsg('', 'נשלח · מאמת מול הגיליון…');
+  ownPost_();
   ownVerify(0, n, text);
 }
 function ownVerify(tries, n, text) {
@@ -1565,7 +1600,9 @@ function ownVerify(tries, n, text) {
       var want = (mine || {})[String(n)] || '';
       if ((text || '') === want) {
         OMAP = m; OWN = mine;
-        ownMsg('ok', 'נשמר ואומת. מעכשיו זה מה שיראה כל מי שפותח את הדף.');
+        ownMsg('ok', (OWN && OWN.__pub)
+          ? 'נשמר ואומת. הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
+          : 'נשמר כטיוטה ואומת. עדיין רק אתה רואה — עד שתפרסם את כל הדף.');
         return;
       }
       if (tries < 4) { ownVerify(tries + 1, n, text); return; }
@@ -1575,6 +1612,38 @@ function ownVerify(tries, n, text) {
         ' הטקסט קיים במסך הזה בלבד — אפשר לנסות שוב.');
     }).catch(function () {
       if (tries < 4) ownVerify(tries + 1, n, text);
+      else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+    });
+  }, tries ? 2500 : 1400);
+}
+/* מתג הפרסום — לכל הדף בבת אחת, לא לקטע. אותו מפתח שמור
+   (`__pub`) באותו אובייקט שכבר נשמר לדף הזה בלשונית `פירוש`. */
+function ownPublishSet(on) {
+  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!OWN) OWN = {};
+  if (on) OWN.__pub = '1'; else delete OWN.__pub;
+  OMAP[dmKey(S.mas, S.daf)] = OWN;
+  ownMsg('', on ? 'מפרסם לכל הדף · מאמת מול הגיליון…' : 'מחזיר לטיוטה · מאמת מול הגיליון…');
+  ownPost_();
+  ownPublishVerify(0, on);
+}
+function ownPublishVerify(tries, on) {
+  setTimeout(function () {
+    sheetCsv(OWN_TAB).then(function (rows) {
+      var m = dmapFromRows(rows);
+      var mine = m && m[dmKey(S.mas, S.daf)];
+      var got = !!(mine && mine.__pub);
+      if (got === !!on) {
+        OMAP = m; OWN = mine;
+        ownMsg('ok', on ? 'פורסם! מעכשיו כל התלמידים שיפתחו את הדף הזה רואים את הפירוש לנוער.'
+                        : 'הוחזר לטיוטה. התלמידים כבר לא רואים את זה.');
+        paintChavArea();
+        return;
+      }
+      if (tries < 4) { ownPublishVerify(tries + 1, on); return; }
+      ownMsg('bad', 'לא אומת. אפשר לנסות שוב.');
+    }).catch(function () {
+      if (tries < 4) ownPublishVerify(tries + 1, on);
       else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
     });
   }, tries ? 5000 : 2500);
@@ -1589,7 +1658,7 @@ function paintChavArea() {
   var st = FLAT[IDX];
   var cht = $('cht');
   if (cht) cht.innerHTML = chavTabHtml(st);
-  var canSwitch = !!(st && (SIDE_ADM || (OWN && OWN[String(st.n)])));
+  var canSwitch = !!(st && (SIDE_ADM || (OWN && OWN.__pub && OWN[String(st.n)])));
   if (!canSwitch) CHAV_TAB = 'chav';
   if (CHAV_TAB === 'own' && canSwitch) paintOwn(); else paintChav();
   if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
