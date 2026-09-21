@@ -247,17 +247,21 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
 .own-mv:disabled{opacity:.3;cursor:default}
 .own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
-.own-slide{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;
-  font-size:.72rem;color:var(--ink-2)}
+/* שורה אחת, קומפקטית — תוויות קצרות בכוונה כדי שלא יעברו שורה
+   בטלפון צר. כרטיס חלק ארוך מדי הוא בדיוק התלונה שתיקן את זה. */
+.own-slide{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
+  font-size:.72rem;color:var(--ink-2);white-space:nowrap}
+.own-slide span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .own-slide button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
-  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer}
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
 .own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
-  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer}
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
 .own-slide-up input{display:none}
-.own-audio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
-  padding:4px 10px;font-weight:700;font-size:.74rem;color:var(--ink-2);cursor:pointer}
+  padding:4px 10px;font-weight:700;font-size:.74rem;color:var(--ink-2);cursor:pointer;
+  white-space:nowrap;flex:0 0 auto}
 .own-audio button.hot{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
 .own-audio button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
 .own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
@@ -1610,15 +1614,11 @@ function ownPieceMove_(i, d) {
   tmp = OWN_EDIT[i]; OWN_EDIT[i] = OWN_EDIT[j]; OWN_EDIT[j] = tmp;
   paintOwn();
 }
-/* "שקף מקושר" נקבע לפי מה שמוצג הרגע בפאנל המצגת — לא נבחר
-   מרשימה נפרדת. מי שכותב פותח את שני הפאנלים זה לצד זה (במחשב;
-   בטלפון — אחד־אחד), מדפדף בפאנל למה שהוא רוצה, וחוזר לכאן
-   ללחוץ. שם הקובץ, לא המיקום — ראו `deckFileAt`. */
-function ownPieceSlideSet(i) {
-  ownEditSync_();
-  OWN_EDIT[i].slide = deckFileAt(SLIDE);
-  paintOwn();
-}
+/* ברירת המחדל: חלק בלי שקף משלו משתמש בשקף שכבר משויך לקטע
+   הזה במסך הניהול של המצגת — בדיוק כמו שכל תלמיד רואה היום.
+   אין צורך לגעת כאן בכלל. השקף הייעודי (`p.slide`) קיים רק
+   לחריג: שקף חדש שקיים רק במצב הפירוש הקולי (`ownPieceSlideUpload`
+   למטה) — לא לבחירה מחדש מתוך שקפים שכבר קיימים. */
 function ownPieceSlideClear(i) {
   ownEditSync_();
   OWN_EDIT[i].slide = '';
@@ -1666,7 +1666,7 @@ function ownPieceSlideUpload(i, file) {
 }
 
 /* פירוש — טקסט חופשי נטו, ולכל חלק גם הקלטה ושקף אפשריים (ראו
-   `ownAudioGo`/`ownPieceSlideSet` למעלה). אזור עריכה חי (לא
+   `ownAudioGo`/`ownPieceSlideUpload` למעלה). אזור עריכה חי (לא
    textarea) כדי שיהיה אפשר להדגיש מילה בודדת בבולד; מעבר לזה
    זו עריכה רגילה לגמרי של הדפדפן.
 
@@ -1711,23 +1711,25 @@ function paintOwnEdit_(n) {
     } else if (clip) {
       audioRow = '<audio controls preload="none" src="' + voxClipUrl_(clip) + '"></audio>' +
         '<button class="back" onclick="ownAudioDel(' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
-        '<button onclick="ownAudioGo(' + i + ')">הקלטה מחדש</button>' +
-        (p.audio ? '' : '<span class="vox-empty">תישלח בלחיצה על שמירה</span>');
+        '<button onclick="ownAudioGo(' + i + ')">מחדש</button>';
     } else if (p.audio && loaded) {
       audioRow = '<audio controls preload="none" src="' + esc(p.audio) + '"></audio>' +
-        '<button onclick="ownAudioGo(' + i + ')">הקלטה מחדש</button>';
+        '<button onclick="ownAudioGo(' + i + ')">מחדש</button>';
     } else if (!loaded) {
       audioRow = '<span class="vox-empty">טוען…</span>';
     } else {
-      audioRow = '<button class="hot" onclick="ownAudioGo(' + i + ')">⏺ הקלטת קול לחלק הזה</button>';
+      audioRow = '<button class="hot" onclick="ownAudioGo(' + i + ')">⏺ הקלטה</button>';
     }
+    /* בלי שקף ייעודי — משתמשים בשקף שכבר משויך לקטע במסך הניהול
+       של המצגת, אין צורך לגעת. השקף הייעודי הוא רק לחריג: שקף
+       חדש שמעלים ישירות (`ownPieceSlideUpload`), לא בחירה מחדש
+       מתוך שקפים שכבר קיימים. */
     var slideRow = DECK ?
-      '<div class="own-slide"><span>שקף: <b>' + (p.slide ? esc(p.slide) : 'ברירת המחדל של הקטע') + '</b></span>' +
-      '<button onclick="ownPieceSlideSet(' + i + ')">קביעה לפי השקף המוצג כרגע' +
-      ' (שקף ' + SLIDE + ')</button>' +
-      (p.slide ? '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' : '') +
-      '<label class="own-slide-up">העלאת שקף חדש לחלק הזה' +
+      '<div class="own-slide"><span>שקף: ' +
+      (p.slide ? '<b>ייעודי לחלק זה</b>' : 'ברירת המחדל של הקטע') + '</span>' +
+      '<label class="own-slide-up">שקף חדש' +
       '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>' +
+      (p.slide ? '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' : '') +
       '</div>' : '';
 
     var moveBtns = OWN_EDIT.length > 1 ?
