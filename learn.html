@@ -254,8 +254,19 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
   padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
 .own-slide-up input{display:none}
-.own-slide-sel{max-width:84px;flex:0 0 auto;border:1px solid rgba(192,143,43,.45);border-radius:8px;
-  padding:3px 4px;font-weight:700;font-size:.68rem;color:var(--ink-2);background:#fff}
+/* רשת בחירת שקף — מודאל, לא תופס מקום כשסגור (`.sheet` קיים). */
+.own-pick{padding:22px}
+.own-pick-card{background:var(--surface);border-radius:18px;padding:16px;max-width:30rem;
+  width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(11,37,80,.3)}
+.own-pick-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  font-weight:800;color:var(--blue-d)}
+.own-pick-h button{border:0;background:none;font-size:1.1rem;color:var(--ink-2);cursor:pointer}
+.own-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow-y:auto}
+.own-pick-th{border:2px solid transparent;border-radius:10px;padding:0;cursor:pointer;
+  background:none;position:relative;overflow:hidden;aspect-ratio:4/3}
+.own-pick-th img{display:block;width:100%;height:100%;object-fit:cover}
+.own-pick-th span{position:absolute;bottom:3px;inset-inline-end:5px;background:rgba(11,37,80,.75);
+  color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
 .own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
@@ -861,6 +872,11 @@ nav .sp{flex:1}
   <div class="gby" id="g-chavby"></div>
   <button class="btn p" id="gate-go"></button>
 </div></div>
+
+<!-- בחירת שקף קיים לחלק-פירוש — רשת ממוזערים, לא רשימת מספרים.
+     "שקף 5" לא אומר לאחיאסף כלום, הוא צריך לראות מה עליו. נפתח
+     מעל הכל (מחלקת .sheet הקיימת) ולא תופס מקום כשהוא סגור. -->
+<div class="sheet own-pick" id="own-pick"></div>
 
 <!-- **מסך הפתיחה "הדף, קטע אחר קטע" ירד.** הוא הסביר שלושה
      דברים שהדף מלמד בעצמו תוך שתי לחיצות: מה מואר, איך
@@ -1623,15 +1639,41 @@ function ownPieceSlideClear(i) {
   OWN_EDIT[i].slide = '';
   paintOwn();
 }
-/* בחירת שקף שכבר קיים בתיקייה (מתוך `DECK.files`) — הדרך השנייה
-   לשייך שקף לחלק, לצד העלאת אחד חדש. שם קובץ, לא מיקום — אותה
-   מוסכמה כמו בכל מקום אחר, ראו `deckFileAt`. */
-function ownPieceSlidePick(i, idxStr) {
+/* בחירת שקף שכבר קיים — רשת ממוזערים ולא רשימת מספרים, כי
+   "שקף 5" כשלעצמו לא אומר כלום; רואים מה עליו ובוחרים. הרשת
+   נפתחת מעל הכל (`#own-pick`, אותה מחלקת `.sheet` ששער הדף
+   כבר משתמש בה) ולא תופסת מקום כשהיא סגורה. */
+var OWN_PICK = null;    /* אינדקס החלק שעבורו בוחרים, או null */
+function ownPieceSlidePickOpen(i) {
   ownEditSync_();
-  var idx = parseInt(idxStr, 10);
-  if (!DECK || !(idx >= 0) || !DECK.files[idx]) return;
-  OWN_EDIT[i].slide = DECK.files[idx];
+  OWN_PICK = i;
+  paintOwnPick_();
+}
+function ownPieceSlidePickClose() {
+  OWN_PICK = null;
+  var el = $('own-pick');
+  if (el) el.className = 'sheet own-pick';
+}
+function ownPieceSlidePickChoose(fi) {
+  if (OWN_PICK == null || !DECK || !DECK.files[fi]) { ownPieceSlidePickClose(); return; }
+  OWN_EDIT[OWN_PICK].slide = DECK.files[fi];
+  ownPieceSlidePickClose();
   paintOwn();
+}
+function paintOwnPick_() {
+  var el = $('own-pick');
+  if (!el || !DECK) return;
+  el.innerHTML = '<div class="own-pick-card">' +
+    '<div class="own-pick-h"><span>בחירת שקף</span>' +
+    '<button id="own-pick-x" aria-label="סגירה">✕</button></div>' +
+    '<div class="own-pick-grid">' +
+    DECK.files.map(function (f, fi) {
+      return '<button class="own-pick-th" onclick="ownPieceSlidePickChoose(' + fi + ')">' +
+        '<img src="' + slideSrc(fi + 1) + '" alt="" loading="lazy"><span>' + (fi + 1) + '</span></button>';
+    }).join('') +
+    '</div></div>';
+  el.className = 'sheet own-pick on';
+  $('own-pick-x').onclick = ownPieceSlidePickClose;
 }
 /* שקף חדש שלא היה קיים בתיקייה כלל — ייעודי לחלק הזה בלבד.
    מעלים אותו בדיוק כמו הקלטה (`ghput` + אימות מול גיטהאב), בשם
@@ -1739,10 +1781,7 @@ function paintOwnEdit_(n) {
       p.slide ? '<span class="sp"></span><span class="own-slide-txt">שקף ייעודי</span>' +
         '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' :
       '<span class="sp"></span>' +
-      '<select class="own-slide-sel" onchange="ownPieceSlidePick(' + i + ',this.value)">' +
-      '<option value="">שקף קיים…</option>' +
-      DECK.files.map(function (f, fi) { return '<option value="' + fi + '">שקף ' + (fi + 1) + '</option>'; }).join('') +
-      '</select>' +
+      '<button onclick="ownPieceSlidePickOpen(' + i + ')">קיים</button>' +
       '<label class="own-slide-up">חדש' +
       '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>';
 
