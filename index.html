@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.9';
+var APP_VERSION = '8.99.10';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2417,8 +2417,8 @@ function renderRegPre() {
   }
 
   h += '<div id="reg-gu"></div>' +
-       '<button class="btn g" id="reg-pre-skip" style="margin-top:14px">' +
-       esc(UI.preSkip) + '</button></div>';
+       '<button class="btn g pnl" id="reg-pre-skip" style="margin-top:14px">' +
+       esc(UI.preSkip) + '<small>' + esc(UI.preSkipSub) + '</small></button></div>';
   el.innerHTML = h;
 
   if (window.GUIDE_UI) {
