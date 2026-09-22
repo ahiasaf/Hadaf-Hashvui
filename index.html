@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.8';
+var APP_VERSION = '8.99.9';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6047,7 +6047,23 @@ function bulkImportRun() {
       c = { name:name, key:it.key || name, stage:'new', note:'', tags:{} };
       list.push(c); byKey[k] = list.length - 1; created++;
     } else updated++;
-    if (it.people && it.people.length) { c.people = it.people; c.edited = 1; }
+    /* מיזוג אנשי קשר לפי שם, לא דריסה. הטלפונים כבר יושבים כאן
+       באפליקציה (הוזנו ידנית ב"עריכה") ולא בטבלה שממנה מייבאים
+       — ייבוא שדורס את people היה מוחק אותם בכל הרצה חוזרת. איש
+       קשר קיים עם אותו שם שומר על הטלפון שלו; שם חדש מצטרף בלי
+       טלפון, ומחכה שיוזן כאן. */
+    if (it.people && it.people.length) {
+      var have = peopleOf(c).map(function (q) { return q; });
+      var byName = {};
+      have.forEach(function (q) { byName[nameKey(q.name)] = q; });
+      c.people = it.people.map(function (p) {
+        var old = byName[nameKey(p.name)];
+        return old ? { name:p.name, role:p.role || old.role,
+                        phone:old.phone || '', phone2:old.phone2 || '' }
+                   : { name:p.name, role:p.role || '', phone:'', phone2:'' };
+      });
+      c.edited = 1;
+    }
     if (it.primary != null) c.primary = it.primary;
     if (!c.tags) c.tags = {};
     Object.keys(it.tags || {}).forEach(function (tk) { c.tags[tk] = it.tags[tk]; });
