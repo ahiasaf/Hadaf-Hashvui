@@ -14,10 +14,13 @@
    בקוד האפליקציה בלבד.
 
    *** לגבי הגיליון — זו הפריסה האחרונה שנדרשת ממך. ***
-   (גרסאות 4 ו-5 כן דרשו פריסה נוספת, כי הן פותחות יכולת חדשה
+   (גרסאות 4, 5 ו-6 כן דרשו פריסה נוספת, כי הן פותחות יכולת חדשה
    ואינן משנות נתונים: 4 — קריאת קבצים מהדרייב בשביל הסטודיו,
-   5 — קריאת לשונית פרטית בשביל מוקד השיחות. הכלל נשאר בתוקף
-   לכל מה שנוגע לכתיבה לגיליון.)
+   5 — קריאת לשונית פרטית בשביל מוקד השיחות, 6 — עמוד הצוות
+   (team.html): שתי פעולות חדשות, `team`/`teamlog`, ושתי הגדרות
+   חדשות שממלאים פעם אחת — CONTACTS_ID ו-TEAM_KEY, ראו ליד
+   prop_('CONTACTS_ID', …) למטה. הכלל נשאר בתוקף לכל מה שנוגע
+   לכתיבה לגיליון.)
 
    מה זה עושה
    ----------
@@ -98,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 28;
+var SCRIPT_VERSION = 29;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -203,6 +206,29 @@ function prop_(name, fallback) {
 var PRIVATE_ID = prop_('PRIVATE_ID', PRIVATE_ID_FALLBACK);
 var READ_KEY   = prop_('READ_KEY',   READ_KEY_FALLBACK);
 
+/* ============================================================
+   עמוד הצוות — סיסמה נפרדת, וגיליון ידוע לשרת בלבד.
+   ============================================================
+   מוקד השיחות קורא וכותב "אנשי קשר"/"יומן שיחות" מגיליון שהמזהה
+   שלו יושב על המכשיר של הרכז בלבד (CFG.contactsSheet) — בכוונה,
+   כדי שהוא לא יהיה בקוד. עמוד הצוות (team.html) נפתח אצל הרב
+   פלתי ואצל אלחנן, ואסור שהם ידעו את המזהה הזה — זה בדיוק מה
+   שאמור להישאר חסוי אצלם. לכן יש לו עותק שרק השרת מכיר.
+
+   READ_KEY אינה מתאימה כאן: היא פותחת את כל הלשוניות הפרטיות,
+   כולל טלפונים של תלמידים והורים — הרשאת הרכז בלבד. עמוד הצוות
+   חושף רק מה שסומן לחשיפה במפורש (לשונית 'תצוגת צוות' למטה),
+   ולכן יש לו סיסמה נפרדת שאפשר למסור הלאה בלי לתת שום דבר מעבר
+   לזה. ריק = עמוד הצוות סגור לגמרי — ברירת המחדל הבטוחה.
+
+   למלא, פעם אחת: Apps Script ← הגדרות הפרויקט ← Script Properties
+     CONTACTS_ID   מזהה גיליון אנשי הקשר (ריק = אותו גיליון כמו PRIVATE_ID)
+     TEAM_KEY      סיסמה חדשה, שרק היא נמסרת לרב פלתי ולאלחנן */
+var CONTACTS_ID  = prop_('CONTACTS_ID', '') || PRIVATE_ID;
+var TEAM_KEY     = prop_('TEAM_KEY', '');
+var TEAM_VIEW_TAB = 'תצוגת צוות';
+var TEAM_LOG_TAB  = 'פעולות צוות';
+
 /* מאיפה הערכים באו — כדי ש"בדיקת חיבור" תוכל לומר אם הם
    מוגנים מפני ההדבקה הבאה או שהם עומדים להימחק בה. */
 function propSrc_(name, fallback) {
@@ -247,6 +273,16 @@ function doPost(e) {
     }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
+
+    /* ---- פעולת צוות: מי התקשר/שלח, ומתי ----
+       עמוד הצוות (team.html) נפתח אצל הרב פלתי ואצל אלחנן, ואסור
+       שהוא ידע את מזהה הגיליון הפרטי — בדיוק מה שהסיסמה הזו,
+       הנפרדת מ-READ_KEY, קיימת כדי למנוע. הוספה בלבד, לא דריסה —
+       שתי פעולות בו-זמנית לא ימחקו זו את זו, כמו כל יומן אחר כאן. */
+    if (d.action === 'teamlog') {
+      if (!TEAM_KEY || String(d.key || '') !== TEAM_KEY) return json_({ status:'denied' });
+      return json_(appendCols_(TEAM_LOG_TAB, parse_(d.cols), CONTACTS_ID));
+    }
 
     /* ---- העלאת שקף לריפו ----
 
@@ -688,6 +724,25 @@ function doGet(e) {
     return reply_(e, bd);
   }
 
+  /* ---- עמוד הצוות ----
+     הלשונית 'תצוגת צוות' כבר מכילה רק מה שסומן לחשיפה — מוקד
+     השיחות הוא זה שכותב אותה וזה שמחליט מה יוצא. השרת כאן רק
+     מגיש את מה שכבר הוחלט, בלי סינון נוסף ובלי שהקורא צריך
+     לדעת את מזהה הגיליון הפרטי. */
+  if (e && e.parameter && e.parameter.team) {
+    if (!TEAM_KEY || String(e.parameter.key || '') !== TEAM_KEY) {
+      return reply_(e, { status: 'denied',
+        message: TEAM_KEY ? 'סיסמה שגויה' : 'עמוד הצוות עדיין לא הופעל' });
+    }
+    try {
+      var tsh = sheet_(TEAM_VIEW_TAB, CONTACTS_ID);
+      return reply_(e, { status: 'ok',
+        rows: tsh.getLastRow() ? tsh.getDataRange().getDisplayValues() : [] });
+    } catch (err4) {
+      return reply_(e, { status: 'error', message: String(err4) });
+    }
+  }
+
   /* ---- הקודים · לרכז בלבד ----
      `codes` מחזיר את כולם, `newcode` מייצר חדש למוסד אחד —
      למקרה שקישור דלף לקבוצה שלא היה אמור להגיע אליה. */
@@ -816,6 +871,7 @@ function doGet(e) {
               privateOn: !!PRIVATE_ID, readKeyOn: !!READ_KEY,
               privSrc: propSrc_('PRIVATE_ID', PRIVATE_ID_FALLBACK),
               keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK),
+              teamOn:  !!TEAM_KEY,
               autoOn:  hasTrigger_(), gh: ghCheck_() };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();

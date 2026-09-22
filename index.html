@@ -376,24 +376,26 @@ body{background:var(--paper);
 /* עריכת כרטיס */
 .ct .edit{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
   width:30px;height:30px;font-size:.9rem;color:var(--ink-2);cursor:pointer;flex:none}
-#cedit{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
+#cedit,#tagedit{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
   background:rgba(11,22,45,.45)}
-#cedit.on{display:flex}
-#cedit .sh{background:var(--surface);width:100%;max-height:88vh;overflow:auto;
+#cedit.on,#tagedit.on{display:flex}
+#cedit .sh,#tagedit .sh{background:var(--surface);width:100%;max-height:88vh;overflow:auto;
   border-radius:18px 18px 0 0;padding:15px 16px calc(15px + env(safe-area-inset-bottom))}
-#cedit .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-#cedit .hd b{font-size:1rem;font-weight:800}
-#cedit .hd button{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
+#cedit .hd,#tagedit .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#cedit .hd b,#tagedit .hd b{font-size:1rem;font-weight:800}
+#cedit .hd button,#tagedit .hd button{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
   padding:6px 11px;font-size:.78rem;font-weight:800;color:var(--ink-2);cursor:pointer}
 #cedit .ce-last{display:flex;align-items:center;gap:8px;margin-top:10px;
   font-size:.9rem;font-weight:700}
-#cedit .ce-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;
+#cedit .ce-row,#tagedit .ce-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;
   align-items:center;margin-bottom:6px}
 #cedit .ce-row .ce-p{grid-column:1/3}
-#cedit .ce-row input{font:inherit;font-size:.88rem;font-weight:700;padding:9px 10px;
+#cedit .ce-row input,#tagedit .ce-row input{font:inherit;font-size:.88rem;font-weight:700;padding:9px 10px;
   border:1px solid var(--rule);border-radius:9px;background:#fff;min-width:0}
-#cedit .ce-x{grid-row:1/3;border:1px solid var(--rule);background:var(--sunk);
+#cedit .ce-x,#tagedit .ce-x{grid-row:1/3;border:1px solid var(--rule);background:var(--sunk);
   border-radius:9px;width:34px;height:100%;color:var(--stop);font-weight:800;cursor:pointer}
+#tagedit .tg-team{display:flex;align-items:center;gap:5px;font-size:.76rem;font-weight:700;
+  color:var(--ink-2);white-space:nowrap}
 
 /* ---------- בחירת המסכת ----------
    שתי משבצות שלוחצים עליהן, ולא רשימה נפתחת. תפריט מסתיר את
@@ -875,18 +877,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   border:1px solid rgba(59,125,87,.3);border-radius:999px;padding:3px 8px;
   white-space:nowrap}
 
-/* הווי של הסבב.
-   ============================================================
-   עיגול ריק שמתמלא ירוק — אותה תנועה של תיבת סימון, בלי
-   להיראות כמו עוד כפתור פעולה. הכרטיס כולו נרגע כשהוא
-   מסומן: מי שכבר דיברת איתו אינו אמור למשוך את העין
-   כשאתה סורק את מי שנשאר. */
-.vee{width:30px;height:30px;border-radius:50%;flex:none;cursor:pointer;
-  border:1.5px solid var(--rule);background:var(--surface);
-  color:var(--ink-3);font-size:.9rem;font-weight:800;line-height:1;
-  display:flex;align-items:center;justify-content:center;
-  transition:background .18s,border-color .18s,color .18s}
-.vee.on{background:var(--ok,#3B7D57);border-color:var(--ok,#3B7D57);color:#fff}
+/* הווי היה כאן — "וי לסבב" קבוע בקוד. הפך לתגית רגילה
+   (`tagOn(c,'called')`) בתוך המערכת הגמישה, ראו "תגיות" למעלה.
+   ה-done על הכרטיס (עיגול שמתמלא ירוק) נשאר תלוי בה בדיוק כמו
+   קודם — רק המקור של הדגל השתנה. */
 /* מי שהתקין — אותה צורה, בכחול: זה שלב אחר ולא אותו דבר. */
 .signed.inst{color:var(--blue);background:rgba(11,37,80,.09);
   border-color:rgba(11,37,80,.22)}
@@ -1347,7 +1341,21 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .chip.on.j{background:var(--green-d);border-color:var(--green-d)}
 .chip.on.w{background:var(--gold);border-color:var(--gold)}
 .chip.on.x{background:var(--stop);border-color:var(--stop)}
-.ct textarea{margin-top:10px;min-height:44px;font-size:.88rem;padding:11px;font-weight:600}
+.wprow{display:flex;align-items:center;gap:8px}
+.wprow .wp{flex:1}
+.teamp{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;
+  color:var(--ink-3);white-space:nowrap;flex:none}
+.teamshow{display:flex;align-items:center;gap:7px;margin-top:11px;
+  font-size:.76rem;font-weight:700;color:var(--ink-2)}
+.updline{width:100%;box-sizing:border-box;margin-top:7px;padding:9px 11px;
+  border:1.5px solid var(--gold);border-radius:10px;font:inherit;font-size:.85rem;
+  font-weight:700;background:#FFFBF0}
+.notelbl{margin-top:12px;font-size:.64rem;font-weight:800;letter-spacing:.03em;
+  color:var(--ink-3)}
+.tlog-row{font-size:.82rem;font-weight:700;padding:4px 0;
+  display:flex;justify-content:space-between;gap:8px}
+.tlog-at{color:var(--ink-3);font-size:.68rem;font-weight:700;flex:none}
+.ct textarea{margin-top:4px;min-height:44px;font-size:.88rem;padding:11px;font-weight:600}
 
 /* ---------- קוד ---------- */
 .pins{display:flex;justify-content:center;gap:14px;margin:20px 0}
@@ -1912,7 +1920,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.96.0';
+var APP_VERSION = '8.97.0';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2015,7 +2023,11 @@ function show(v) {
   window.scrollTo(0, 0);
   if (v === 'home')   renderHome();
   if (v === 'insts')  renderInsts();
-  if (v === 'calls')  renderCalls();
+  if (v === 'calls')  {
+    renderCalls();
+    pullTagDefs().then(function (ok) { if (ok) renderCalls(); });
+    pullTeamLog().then(function (ok) { if (ok) renderCalls(); });
+  }
   if (v === 'reg')    renderReg();
   if (v === 'my')     renderMy();
   if (v === 'gate')   { teamCode = ''; paintPins();
@@ -4434,8 +4446,42 @@ var STAGES = [
   { k:'joined', t:'הצטרף',     c:'j' },
   { k:'no',     t:'לא השנה',   c:'x' }
 ];
-function contacts()      { try { return JSON.parse(localStorage.getItem('dfContacts') || '[]'); }
-                           catch (e) { return []; } }
+/* ============================================================
+   תגיות — סימונים גמישים לגמרי.
+   ============================================================
+   "וי לסבב" היה סימון יחיד וקבוע בקוד. כאן זו רשימה שאחיאסף
+   עצמו קובע: מוסיף תגית כשצריך ("היה בזום", "אחיאסף"/"הרב
+   פלתי"/"אלחנן" בתור מי אחראי, וכל דבר שיתחדש), ומוחק כשמשהו
+   כבר לא רלוונטי — בלי לחזור לכאן בכל פעם.
+
+   כל תגית: מפתח קבוע, תווית לעריכה, ודגל "מוצג בעמוד הצוות".
+   כל כרטיס מחזיק מפה פשוטה מפתח→דלוק/כבוי (`c.tags`). תגית
+   שנמחקה משאירה מפתחות יתומים בכרטיסים — לא נמחקים, רק לא
+   מוצגים; תגית חדשה באותו מפתח מחזירה נתונים ישנים לחיים, וזו
+   בחירה מכוונת ולא באג. */
+var TAG_DEFS_DEFAULT = [
+  { k:'called',   t:'התקשרתי בסבב הזה', team:false },
+  { k:'zoom',     t:'היה בזום',          team:true  },
+  { k:'me',       t:'אחיאסף',            team:false },
+  { k:'palti',    t:'הרב פלתי',          team:false },
+  { k:'elchanan', t:'אלחנן',             team:false }
+];
+function tagDefs()          { return Store.get('callTagDefs', null) || TAG_DEFS_DEFAULT; }
+function saveTagDefsLocal(d){ Store.set('callTagDefs', d); }
+
+function contacts() {
+  var l; try { l = JSON.parse(localStorage.getItem('dfContacts') || '[]'); }
+  catch (e) { l = []; }
+  /* מיגרציה חד-פעמית ושקטה: "וי לסבב" הישן הוא מעכשיו תגית
+     'called' רגילה — לא שונה משום תגית אחרת. */
+  var moved = false;
+  l.forEach(function (c) {
+    if (!c.tags) c.tags = {};
+    if (c.round && !c.tags.called) { c.tags.called = true; moved = true; }
+  });
+  if (moved) localStorage.setItem('dfContacts', JSON.stringify(l));
+  return l;
+}
 function saveContacts(c) { localStorage.setItem('dfContacts', JSON.stringify(c)); }
 
 /* ============================================================
@@ -4450,13 +4496,17 @@ function saveContacts(c) { localStorage.setItem('dfContacts', JSON.stringify(c))
    אך ורק כדי שמה שהוקלד לא ייעלם.
    ============================================================ */
 function jnl(c) {
-  if (!c || (!c.note && c.stage === 'new')) return;
+  var anyTag = c && c.tags && Object.keys(c.tags).some(function (k) { return c.tags[k]; });
+  if (!c || (!c.note && !c.upd && !anyTag && c.stage === 'new')) return;
   try {
     var j = Store.get('callJournal', []) || [];
     var k = nameKey(c.key || c.name), last = null;
     for (var i = j.length - 1; i >= 0; i--) if (j[i].k === k) { last = j[i]; break; }
     var ppl = c.edited ? JSON.stringify(peopleOf(c)) : '';
+    var tagsJ = JSON.stringify(c.tags || {});
     if (last && last.note === (c.note || '') && last.stage === c.stage &&
+        (last.upd || '') === (c.upd || '') &&
+        JSON.stringify(last.tags || {}) === tagsJ &&
         JSON.stringify(last.people || (last.people === null ? null : '')) ===
         (c.edited ? ppl : JSON.stringify(null))) return;
     /* גם האנשים, לא רק ההערה. איש קשר שהוספת ידנית חי בעמודת
@@ -4464,6 +4514,7 @@ function jnl(c) {
        פשוט נעלם והרשימה חוזרת למה שבגיליון. ההערה שורדת (היא
        בעמודה משלה) והאנשים לא. זה מה שקרה. */
     j.push({ k:k, name:c.name, stage:c.stage, note:c.note || '',
+             upd:c.upd || '', tags:c.tags || {},
              people: c.edited ? peopleOf(c) : null, last: !!c.last,
              at:c.at || new Date().toISOString() });
     if (j.length > 3000) j = j.slice(-3000);
@@ -4486,6 +4537,9 @@ function jnlRestore(list) {
     if (!e) return;
     /* מחזירים רק כשאין מה לאבד: רשומה ריקה, או ישנה יותר. */
     if (!c.note && e.note) { c.note = e.note; c.at = c.at || e.at; back++; }
+    if (!c.upd && e.upd) { c.upd = e.upd; c.at = c.at || e.at; back++; }
+    if ((!c.tags || !Object.keys(c.tags).length) &&
+        e.tags && Object.keys(e.tags).length) { c.tags = e.tags; back++; }
     if ((c.stage === 'new' || !c.stage) && e.stage && e.stage !== 'new') {
       c.stage = e.stage; back++;
     }
@@ -4626,13 +4680,21 @@ function pullCalls() {
        חדש יותר — כך ששיחה שתועדה במטוס לא נדרסת בטעינה. */
     var was = {};
     (log || []).slice(1).forEach(function (r2) {
-      if (r2[0]) was[nameKey(r2[0])] = { stage:r2[1] || 'new', note:r2[2] || '',
-                                         at:r2[3] || '', who:r2[4] || '',
-                                         ed:r2[5] || '',
-                                         /* עמודה שנוספה אחרי שהלשונית כבר
-                                            הייתה קיימת — שורה ישנה פשוט
-                                            אין בה סבב, וזה לא סימון שנמחק. */
-                                         round: YES.test(String(r2[6] || '').trim()) };
+      if (!r2[0]) return;
+      /* תגיות: מהעמודה החדשה, ואם היא ריקה (שורה ישנה, נכתבה
+         לפני שהתגיות היו) — מתרגמים את "סבב" הישן ל-'called',
+         בדיוק כמו במיגרציה של contacts(). שורה ישנה בלי אף אחת
+         מהעמודות פשוט אינה סימון שנמחק. */
+      var tg = {};
+      try { tg = JSON.parse(r2[7] || '') || {}; } catch (e0) { tg = {}; }
+      if (!Object.keys(tg).length && YES.test(String(r2[6] || '').trim())) tg = { called:true };
+      var tm = null;
+      try { tm = JSON.parse(r2[9] || '') || null; } catch (e1) { tm = null; }
+      was[nameKey(r2[0])] = { stage:r2[1] || 'new', note:r2[2] || '',
+                               at:r2[3] || '', who:r2[4] || '',
+                               ed:r2[5] || '', tags:tg, upd:r2[8] || '',
+                               teamShow: !!(tm && tm.show),
+                               teamPeople: (tm && tm.people) || null };
     });
     var mine = {};
     contacts().forEach(function (c) { mine[nameKey(c.key || c.name)] = c; });
@@ -4641,7 +4703,8 @@ function pullCalls() {
       var k = nameKey(c.key || c.name), s = was[k], m = mine[k];
       if (s) {
         c.stage = s.stage; c.note = s.note; c.at = s.at;
-        if (s.round) c.round = 1;
+        c.tags = s.tags; c.upd = s.upd; c.teamShow = s.teamShow;
+        if (s.teamPeople) c.teamPeople = s.teamPeople;
         /* עריכה ידנית גוברת על מה שנקרא מהגיליון */
         if (s.ed) {
           try {
@@ -4659,12 +4722,11 @@ function pullCalls() {
       }
       if (m && m.at && (!c.at || m.at > c.at)) {
         c.stage = m.stage; c.note = m.note; c.at = m.at;
+        c.tags = m.tags || {}; c.upd = m.upd || '';
+        if (m.teamShow != null) c.teamShow = m.teamShow;
+        if (m.teamPeople) c.teamPeople = m.teamPeople;
         if (m.primary != null) c.primary = m.primary;
       }
-      /* הסימון המקומי נשמר תמיד. הוא אינו נושא חותמת זמן משלו,
-         ולשונית שעדיין אין בה עמודת "סבב" הייתה מוחקת סבב שלם
-         בטעינה אחת. */
-      if (m && m.round) c.round = 1;
       /* עריכה מקומית שאין לה מקבילה בגיליון — נשארת. בלי זה,
          קריאה שחזרה בלי עמודת "עריכה" (לשונית בת חמש עמודות,
          או קריאה שנקטעה) החזירה את הרשימה למה שבגיליון ומחקה
@@ -4675,6 +4737,7 @@ function pullCalls() {
         c.last = !!m.last; c.edited = 1;
         if (m.primary != null) c.primary = m.primary;
       }
+      if (!c.tags) c.tags = {};
     });
 
     /* מי שקיים אצלי ואינו בגיליון — נשאר. `out` נבנה מהגיליון
@@ -4701,13 +4764,17 @@ function pullCalls() {
 /* כתיבה חזרה. נדחית בשנייה וחצי, כי בזמן שיחה לוחצים סטטוס
    ומקלידים הערה ברצף, ואין טעם בשלוש כתיבות. */
 var callTimer = null;
+function anyTag_(c) {
+  return !!(c.tags && Object.keys(c.tags).some(function (k) { return c.tags[k]; }));
+}
 function pushCalls(now) {
   clearTimeout(callTimer);
   var go = function () {
     if (!API && !CFG.api) { callSay('נשמר על המכשיר · אין כתובת שרת'); return; }
-    var rows = contacts()
+    var list = contacts();
+    var rows = list
       .filter(function (c) {
-        return c.stage !== 'new' || c.note || c.primary || c.edited || c.round;
+        return c.stage !== 'new' || c.note || c.primary || c.edited || anyTag_(c) || c.upd;
       })
       .map(function (c) {
         var me = mainOf(c);
@@ -4715,28 +4782,137 @@ function pushCalls(now) {
            כי המבנה עוד ישתנה והגיליון לא צריך לרדוף אחריו. */
         var ed = c.edited ? JSON.stringify({ name:c.name, last:!!c.last,
                                              people: peopleOf(c) }) : '';
+        /* עמודת "סבב" נשארת, ותמיד ערך TRUE/ריק — כדי שגיליון
+           שנקרא בגרסה ישנה (בלי עמודת תגיות) עדיין יראה משהו
+           נכון. 'תגיות' היא מקור האמת מכאן ואילך. */
         return [c.key || c.name, c.stage, c.note || '', c.at || '',
-                me ? me.name : '', ed, c.round ? 'TRUE' : ''];
+                me ? me.name : '', ed, tagOn(c, 'called') ? 'TRUE' : '',
+                JSON.stringify(c.tags || {}), c.upd || '',
+                JSON.stringify({ show:!!c.teamShow, people:c.teamPeople || [] })];
       });
     /* `action:'table'` כותב את הלשונית מחדש בשלמותה. כתיבה של
        אפס שורות מוחקת את כל התיעוד שבגיליון — ובדיוק זה קרה
        כשהרשימה המקומית התרוקנה לרגע. אין מצב שבו זה רצוי. */
-    if (!rows.length) { callSay('אין מה לשמור — הגיליון לא נגע'); return; }
-
-    callSay('שולח…');
-    fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
-      body: JSON.stringify({ action:'table', tab: CALL_TAB,
-        /* עמודה חדשה **בסוף**. הוספה באמצע מזיזה את כל מה
-           שמימינה בשורות שכבר נכתבו. */
-        cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה','סבב']),
-        rows: JSON.stringify(rows) }) })
-      /* `no-cors` מחזיר תשובה אטומה: `then` נקרא גם כשהכתיבה
-         נכשלה. "נשמר בגיליון" כאן היה שקר, והוא זה שגרם לסמוך
-         על שמירה שלא קרתה. */
-      .then(function () { callSay(rows.length + ' שיחות נשלחו · שמור גם במכשיר'); })
-      .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
+    if (rows.length) {
+      callSay('שולח…');
+      fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
+        body: JSON.stringify({ action:'table', tab: CALL_TAB,
+          /* עמודה חדשה **בסוף**. הוספה באמצע מזיזה את כל מה
+             שמימינה בשורות שכבר נכתבו. */
+          cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה','סבב',
+                                 'תגיות','עדכון','צוות']),
+          rows: JSON.stringify(rows) }) })
+        /* `no-cors` מחזיר תשובה אטומה: `then` נקרא גם כשהכתיבה
+           נכשלה. "נשמר בגיליון" כאן היה שקר, והוא זה שגרם לסמוך
+           על שמירה שלא קרתה. */
+        .then(function () { callSay(rows.length + ' שיחות נשלחו · שמור גם במכשיר'); })
+        .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
+    } else {
+      callSay('אין מה לשמור — הגיליון לא נגע');
+    }
+    pushTeamView(list);
   };
   now ? go() : (callTimer = setTimeout(go, 1500));
+}
+
+/* ============================================================
+   מה שיוצא לעמוד הצוות — כתיבה נפרדת, לשונית נפרדת.
+   ============================================================
+   נכתב מכאן, לא נקרא משם: הלשונית הזו כבר מכילה רק מה שסומן
+   לחשיפה בפירוש (c.teamShow, c.teamPeople, tagDefs עם team:true).
+   עמוד הצוות (team.html) קורא אותה כמות שהיא, בלי לדעת דבר על
+   מוקד השיחות ובלי גישה ללשוניות הפרטיות — ראו apps-script.gs. */
+function pushTeamView(list) {
+  if (!API && !CFG.api) return;
+  var defs = tagDefs().filter(function (t) { return t.team; });
+  var rows = list.filter(function (c) { return c.teamShow; }).map(function (c) {
+    var ps = peopleOf(c);
+    var idx = c.teamPeople || [c.primary || 0];
+    var people = idx.map(function (k) { return ps[k]; })
+                     .filter(function (q) { return q && q.phone; })
+                     .map(function (q) { return { name:q.name, phone:q.phone }; });
+    var tg = defs.filter(function (t) { return tagOn(c, t.k); }).map(function (t) { return t.t; });
+    return [c.name, c.upd || '', JSON.stringify(tg), JSON.stringify(people)];
+  });
+  fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
+    body: JSON.stringify({ action:'table', tab:'תצוגת צוות', ss:(CFG.contactsSheet || '').trim() || undefined,
+      cols: JSON.stringify(['ישיבה','עדכון','תגיות','אנשי קשר']),
+      rows: JSON.stringify(rows) }) }).catch(function () {});
+}
+
+/* ============================================================
+   רשימת התגיות עצמה — נכתבת בכל שינוי בניהול התגיות, כדי
+   שתישאר גם אם המכשיר הזה מתחלף.
+   ============================================================ */
+function pushTagDefs() {
+  if (!API && !CFG.api) return;
+  var rows = tagDefs().map(function (t) { return [t.k, t.t, t.team ? 'TRUE' : '']; });
+  fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
+    body: JSON.stringify({ action:'table', tab:'הגדרות תגיות', ss:(CFG.contactsSheet || '').trim() || undefined,
+      cols: JSON.stringify(['מפתח','תווית','לצוות']),
+      rows: JSON.stringify(rows) }) }).catch(function () {});
+}
+function pullTagDefs() {
+  var ss = (CFG.contactsSheet || '').trim();
+  var p = { read:'הגדרות תגיות' }; if (ss) p.ss = ss;
+  return scriptGet(p).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return false;
+    var out = [];
+    d.rows.slice(1).forEach(function (r) {
+      if (!r[0]) return;
+      out.push({ k:r[0], t:r[1] || r[0], team: YES.test(String(r[2] || '').trim()) });
+    });
+    if (out.length) saveTagDefsLocal(out);
+    return true;
+  }).catch(function () { return false; });
+}
+function saveTagDefs(d) { saveTagDefsLocal(d); pushTagDefs(); renderCalls(); }
+
+/* הקישור לעמוד הצוות — נבנה מאותה שיטה שכל קישור אחר כאן נבנה
+   בה (ראו joinUrl), עם סיסמת הצוות כפרמטר. קישור אחד משותף
+   לרב פלתי ולאלחנן, ולא שניים נפרדים — הם בוחרים "מי אני" בפעם
+   הראשונה שהם פותחים אותו. */
+function teamUrl() {
+  var base = location.href.split('#')[0].split('?')[0]
+                  .replace(/(index\.html)?$/, '')
+                  .replace(/\/admin\/?$/, '/');
+  return base + 'team.html' + (CFG.teamKey ? '?k=' + encodeURIComponent(CFG.teamKey) : '');
+}
+/* מה שהרב פלתי ואלחנן עשו — נקרא מ"פעולות צוות" (ראו teamlog
+   ב-apps-script.gs), כדי שאחיאסף ידע גם אם הם לא טרחו לעדכן
+   משהו בעצמם. נטען פעם אחת כשנכנסים למסך (ראו show), לא בכל
+   renderCalls — זו קריאת רשת ולא חישוב מקומי. */
+function pullTeamLog() {
+  var ss = (CFG.contactsSheet || '').trim();
+  var p = { read:'פעולות צוות' }; if (ss) p.ss = ss;
+  var key = (CFG.readKey || '').trim(); if (key) p.key = key;
+  return scriptGet(p).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return false;
+    Store.set('teamLogCache', d.rows.slice(1).slice(-12).reverse());
+    return true;
+  }).catch(function () { return false; });
+}
+function teamLogCard() {
+  var rows = Store.get('teamLogCache', []) || [];
+  if (!rows.length) return '';
+  /* appendCols_ כותב "תאריך" תמיד ראשון, ואז מי שנשלח — כאן
+     [מי, ישיבה, פעולה], בדיוק כמו שteam.html שולח. */
+  var lines = rows.map(function (r) {
+    return '<div class="tlog-row"><b>' + esc(r[1] || '') + '</b> ' +
+      esc(r[3] || 'פעל') + ' → ' + esc(r[2] || '') +
+      '<span class="tlog-at">' + esc(String(r[0] || '').slice(0, 16)) + '</span></div>';
+  }).join('');
+  return '<div class="card" style="margin:10px 0 0;padding:14px 15px">' +
+    '<b>מה הצוות עשה</b><div class="sub" style="margin-top:6px">' + lines + '</div></div>';
+}
+
+function teamLinkCopy() {
+  if (!CFG.teamKey) {
+    alert('קודם למלא "סיסמת עמוד הצוות" בהגדרות המערכת — ואת אותה מחרוזת ' +
+          'גם ב-Apps Script, בשורת TEAM_KEY. ניהול ← הגדרות ← מערכת.');
+    return;
+  }
+  copyText(teamUrl(), 'הקישור הועתק. שולחים אותו פעם אחת לרב פלתי ולאלחנן.');
 }
 
 /* סימון "כן" בעמודה. תיבת סימון בגיליון מוצגת כ-TRUE, אבל
@@ -5376,6 +5552,7 @@ function renderCalls() {
   /* התזכורות בראש: זה מה שהוא בא לראות כשהוא פותח את המסך
      בבוקר, לפני שהוא מחליט למי מתקשרים. */
   h += rmCard();
+  h += teamLogCard();
 
   h += '<div class="callbar">' +
        '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
@@ -5407,7 +5584,7 @@ function renderCalls() {
      כשמתחיל סבב חדש. שני דברים שהיו חולקים סימון אחד היו
      מוחקים זה את זה בכל איפוס.
      ============================================================ */
-  var did = list.filter(function (c) { return c.round; }).length;
+  var did = list.filter(function (c) { return tagOn(c, 'called'); }).length;
   h += '<div class="card" style="margin:10px 0 0;padding:14px 15px">' +
        '<div class="row" style="padding:0">' +
        '<div><b>הסבב הנוכחי</b><div class="sub">' +
@@ -5470,7 +5647,7 @@ function renderCalls() {
     var c = o.c, i = o.i;
     var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
 
-    h += '<div class="ct s-' + c.stage + (c.round ? ' done' : '') +
+    h += '<div class="ct s-' + c.stage + (tagOn(c, 'called') ? ' done' : '') +
          '"><div class="h"><div>' +
          '<div class="nm">' + esc(c.name) + '</div>' +
          '</div><div style="display:flex;gap:6px;align-items:center">' +
@@ -5479,24 +5656,26 @@ function renderCalls() {
          (subsOf(c, subs).length
            ? '<span class="signed inst" title="התקינו את האפליקציה">\u25c9 ' +
              subsOf(c, subs).length + '</span>' : '') +
-         '<button class="vee' + (c.round ? ' on' : '') +
-         '" onclick="roundTick(' + i + ')" ' +
-         'title="' + (c.round ? 'דיברתי בסבב הזה' : 'לסמן שדיברתי') +
-         '" aria-label="סימון סבב">\u2713</button>' +
          '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
          '</div></div>';
 
     /* שורה לכל איש קשר, תמיד — גם כשהוא אחד. ראש החטיבה מעמיד
        רכז, ואז צריך לדעת בוודאות של מי המספר שמחייגים אליו.
-       ההקשה בוחרת את מי שהכפתורים מצייתים לו, והבחירה נשמרת. */
+       ההקשה בוחרת את מי שהכפתורים מצייתים לו, והבחירה נשמרת.
+       תיבת "לצוות" קיימת רק למי שיש לו טלפון — בלי מספר אין מה
+       להציג בעמוד הצוות בכל מקרה. */
     if (ps.length) {
       h += '<div class="whos">';
       ps.forEach(function (q, k) {
-        h += '<button class="wp' + (k === pi ? ' on' : '') +
+        h += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
           '" onclick="setMain(' + i + ',' + k + ')">' +
           '<b>' + esc(q.name || 'ללא שם') + '</b>' +
           (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
-          (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>';
+          (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>' +
+          (q.phone ? '<label class="teamp"><input type="checkbox"' +
+            (personTeamOn(c, k) ? ' checked' : '') +
+            ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
+          '</div>';
       });
       h += '</div>';
     }
@@ -5550,11 +5729,38 @@ function renderCalls() {
       h += '<button class="chip ' + s.c + (c.stage === s.k ? ' on' : '') +
            '" onclick="setStage(' + i + ',\'' + s.k + '\')">' + s.t + '</button>';
     });
+    h += '</div>';
+
+    /* תגיות — רשימה שאחיאסף קובע, לא קבועה בקוד. ראו "ניהול
+       תגיות". כפתור אחד לכל תגית, בדיוק כמו השלבים למעלה, רק
+       בצבע שונה כדי שלא יתערבבו. */
+    h += '<div class="chips">';
+    tagDefs().forEach(function (t) {
+      h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
+           '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
+    });
+    h += '</div>';
+
+    /* עדכון קצר ליד ה"תכלס" — נפרד לגמרי מההערה שלמטה. זה יוצא
+       לעמוד הצוות (רק אם המוסד מסומן להציג שם), ההערה לעולם לא. */
+    h += '<label class="teamshow"><input type="checkbox"' +
+         (c.teamShow ? ' checked' : '') +
+         ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>';
+    if (c.teamShow) {
+      h += '<input class="updline" type="text" maxlength="160" ' +
+           'placeholder="עדכון קצר לצוות, משפט–שניים…" value="' + esc(c.upd || '') +
+           '" onchange="setUpd(' + i + ',this.value)">';
+    }
+
     /* שלוש שורות ולא אחת, וגדלה עם מה שנכתב. תיבה בגובה שורה
        הופכת כל הערה ארוכה לחלון הצצה — וההערות האלה הן התיעוד
        היחיד של השיחה. `oninput` מרחיב בלי לצייר מחדש: ציור
-       מחדש באמצע הקלדה מאבד את הסמן. */
-    h += '</div><textarea rows="3" placeholder="הערה מהשיחה…" ' +
+       מחדש באמצע הקלדה מאבד את הסמן.
+
+       והכי חשוב: זו ההערה הפרטית. היא לא יוצאת לעמוד הצוות ולא
+       לשום מקום אחר — מה שיוצא זה רק שורת העדכון שלמעלה. */
+    h += '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
+         '<textarea rows="3" placeholder="הערה מהשיחה…" ' +
          'oninput="noteGrow(this)" ' +
          'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></div>';
   });
@@ -5566,8 +5772,9 @@ function renderCalls() {
      שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
   h += blastCard(list);
 
-  h += '<button class="btn g" style="margin-top:8px" onclick="exportCalls()">' +
-       'העתקת סיכום לוואטסאפ</button>' +
+  h += '<button class="btn g" style="margin-top:8px" onclick="tagEditOpen()">' +
+       '⚙ ניהול תגיות</button>' +
+       '<button class="btn g" onclick="teamLinkCopy()">קישור לעמוד הצוות</button>' +
        '<button class="btn g" onclick="pushCalls(1)">שמירה לגיליון עכשיו</button>' +
        '<button class="btn g" onclick="pullCalls().then(renderCalls)">' +
        'רענון מהגיליון</button>' +
@@ -5702,6 +5909,66 @@ function editSave() {
   editClose(); renderCalls(); pushCalls(1);
 }
 
+/* ============================================================
+   ניהול תגיות — כאן, ולא בקוד.
+   ============================================================
+   "פשוט תן לי מערכת גמישה" — הוספה ומחיקה של תגית הן פעולה
+   אחת, לא בקשה למתכנת. מפתח התגית קבוע לאורך חייה (גם אם משנים
+   את התווית), כדי שנתונים ישנים יישארו מיושרים; מחיקה מסירה רק
+   אותה מהרשימה שמוצגת — מה שכבר סומן בכרטיסים נשאר, ותגית חדשה
+   באותו מפתח (כלומר: לא נמחקה ונוצרה שוב מאותה שורה) מחזירה
+   אותו לחיים. זו בחירה, לא זהירות יתר: מחיקה אמיתית של נתונים
+   היא פעולה אחרת (roundReset, כפתור "סבב חדש"), לא כאן. */
+function tagEditOpen() {
+  var box = document.getElementById('tagedit') ||
+            document.body.appendChild(Object.assign(document.createElement('div'),
+              { id:'tagedit' }));
+  box.innerHTML =
+    '<div class="sh"><div class="hd"><b>ניהול תגיות</b>' +
+    '<button onclick="tagEditClose()">סגירה</button></div>' +
+    '<div class="sub">"לצוות" — התגית הזו תופיע גם בעמוד הצוות, לכל מוסד ' +
+    'שמסומן להצגה שם. מחיקת תגית כאן לא מוחקת מה שכבר סומן בכרטיסים.</div>' +
+    '<div id="tg-rows" style="margin-top:12px">' +
+    tagDefs().map(tgRow).join('') + '</div>' +
+    '<button class="btn g" style="margin-top:6px" onclick="tagAddRow()">＋ תגית חדשה</button>' +
+    '<button class="btn p" style="margin-top:10px" onclick="tagEditSave()">שמירה</button>' +
+    '</div>';
+  box.className = 'on';
+}
+function tgRow(t, k) {
+  return '<div class="ce-row tg-row" data-k="' + esc(t.k) + '">' +
+    '<input class="tg-t" type="text" value="' + esc(t.t) + '">' +
+    '<label class="tg-team"><input type="checkbox" class="tg-team-c"' +
+    (t.team ? ' checked' : '') + '>לצוות</label>' +
+    '<button class="ce-x" onclick="this.parentNode.remove()" title="מחיקה">✕</button></div>';
+}
+function tagAddRow() {
+  var name = prompt('שם התגית החדשה:');
+  if (!name || !name.trim()) return;
+  document.getElementById('tg-rows').insertAdjacentHTML('beforeend',
+    tgRow({ k:'', t:name.trim(), team:false }));
+}
+/* מפתח יציב: תגית קיימת שומרת עליו (data-k), חדשה מקבלת אחד
+   שאינו תלוי בתרגום/ניסוח, כדי שסדר התגיות בעריכה לא ישפיע. */
+function tagKeyOf_(t) {
+  return 'tag_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function tagEditSave() {
+  var defs = [];
+  [].forEach.call(document.querySelectorAll('#tg-rows .tg-row'), function (row) {
+    var t = row.querySelector('.tg-t').value.trim();
+    if (!t) return;
+    var k = row.getAttribute('data-k') || tagKeyOf_();
+    defs.push({ k:k, t:t, team: row.querySelector('.tg-team-c').checked });
+  });
+  saveTagDefs(defs);
+  tagEditClose();
+}
+function tagEditClose() {
+  var b = document.getElementById('tagedit');
+  if (b) b.className = '';
+}
+
 /* איש הקשר שהכפתורים מצייתים לו. נשמר ומסונכרן כמו הסטטוס —
    ראש ישיבה שהפנה לרכז לא צריך להיות מופנה שוב בשיחה הבאה. */
 function setMain(i, k) {
@@ -5710,26 +5977,61 @@ function setMain(i, k) {
   jnl(l[i]);
   saveContacts(l); renderCalls(); pushCalls();
 }
-/* וי לסבב. נשמר כמו כל השאר ונכתב לגיליון, כדי שהסבב ישרוד
-   מעבר בין מכשירים — ולא יתאפס כשהדפדפן מנקה אחסון. */
-function roundTick(i) {
+/* תגית — דלוק/כבוי לכל מוסד, נכתבת לגיליון כמו כל השאר, כדי
+   שתשרוד מעבר בין מכשירים ולא תתאפס כשהדפדפן מנקה אחסון. */
+function tagOn(c, k)   { return !!(c.tags && c.tags[k]); }
+function tagTick(i, k) {
   var l = contacts(); if (!l[i]) return;
-  l[i].round = !l[i].round;
+  if (!l[i].tags) l[i].tags = {};
+  l[i].tags[k] = !l[i].tags[k];
+  l[i].at = new Date().toISOString();
+  jnl(l[i]);
   saveContacts(l);
   renderCalls();
   pushCalls();
 }
-/* סבב חדש — הווים יורדים, וכל השאר נשאר. */
+/* סבב חדש — התגית 'called' יורדת מכולם, וכל השאר נשאר. שאר
+   התגיות מתאפסות דרך "ניהול תגיות", כל אחת בנפרד — לא כולן
+   ביחד, כי "מי אחראי" למשל לא אמור להתאפס כשמתחילים סבב. */
 function roundReset() {
   var l = contacts();
-  var n = l.filter(function (c) { return c.round; }).length;
+  var n = l.filter(function (c) { return tagOn(c, 'called'); }).length;
   if (!n) return;
   if (!confirm('להתחיל סבב חדש? ' + n + ' הסימונים יימחקו.\n' +
                'השלבים, ההערות והתיעוד נשארים.')) return;
-  l.forEach(function (c) { delete c.round; });
+  l.forEach(function (c) { if (c.tags) delete c.tags.called; });
   saveContacts(l);
   renderCalls();
   pushCalls(1);
+}
+/* מי מאנשי הקשר של המוסד מוצג בעמוד הצוות. ברירת המחדל — רק
+   איש הקשר הראשי, כי זה כמעט תמיד מי שרוצים להראות. */
+function personTeamOn(c, k) {
+  if (c.teamPeople) return c.teamPeople.indexOf(k) >= 0;
+  return k === (c.primary || 0);
+}
+function setPersonTeam(i, k, v) {
+  var l = contacts(), c = l[i]; if (!c) return;
+  var arr = (c.teamPeople || [c.primary || 0]).slice(), at = arr.indexOf(k);
+  if (v && at < 0) arr.push(k);
+  if (!v && at >= 0) arr.splice(at, 1);
+  c.teamPeople = arr; c.at = new Date().toISOString();
+  saveContacts(l);
+  pushCalls();
+}
+function setTeamShow(i, v) {
+  var l = contacts(); if (!l[i]) return;
+  l[i].teamShow = !!v; l[i].at = new Date().toISOString();
+  saveContacts(l);
+  renderCalls();
+  pushCalls();
+}
+function setUpd(i, v) {
+  var l = contacts(); if (!l[i]) return;
+  l[i].upd = v; l[i].at = new Date().toISOString();
+  jnl(l[i]);
+  saveContacts(l);
+  pushCalls();
 }
 
 function setNote(i, v) {
@@ -5769,19 +6071,9 @@ function copyText(txt, okMsg) {
   } else legacyCopy(txt, done);
 }
 
-function exportCalls() {
-  var l = contacts();
-  var by = function (k) {
-    return l.filter(function (c) { return c.stage === k; })
-            .map(function (c) { return '• ' + c.name + (c.note ? ' — ' + c.note : ''); }).join('\n');
-  };
-  var txt = 'הדף השבועי — סיכום סבב שיחות\n\n' +
-    'הצטרפו (' + l.filter(function (c) { return c.stage === 'joined'; }).length + '):\n' + by('joined') +
-    '\n\nמתעניינים:\n' + by('warm') +
-    '\n\nלא דיברתי עדיין:\n' + by('new');
-  if (navigator.clipboard) navigator.clipboard.writeText(txt);
-  alert('הסיכום הועתק. אפשר להדביק בוואטסאפ.');
-}
+/* הכפתור הישן שייצא סיכום כללי הוסר — הוא ערבב הערה פרטית
+   (`c.note`) לתוך טקסט שיוצא, ועמוד הצוות מחליף אותו: מה שיוצא
+   משם הוא רק מה שמסומן במפורש להצגה. ראו teamLinkCopy ומעלה. */
 function wipeContacts() {
   if (!confirm('למחוק את הרשימה מהמכשיר הזה?\n\nהגיליון אינו נמחק — לשונית "' +
                CALL_TAB + '" נשארת, ורענון מהגיליון יחזיר הכל.\n\n' +
@@ -10063,6 +10355,18 @@ function admSet(el) {
     '<div class="fld"><input type="text" dir="ltr" ' +
     'placeholder="נשמר על המכשיר בלבד" value="' + esc(CFG.readKey || '') +
     '" onchange="cfgSet(\'readKey\',this.value.trim())"></div></div>' +
+
+    /* סיסמה נפרדת לגמרי מ-READ_KEY — זו מה שמותר למסור לרב פלתי
+       ולאלחנן, כי היא פותחת רק מה שסומן במפורש להצגה בעמוד
+       הצוות, ולא שום דבר אחר. */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>סיסמת עמוד הצוות</h4>' +
+    '<p class="h">מחרוזת חדשה ונפרדת — אינה סיסמת הקריאה. הדביקו אותה גם ' +
+    'ב-Apps Script בשורת <code>TEAM_KEY</code>, וגם כאן. זו הסיסמה שמותר ' +
+    'למסור הלאה: היא פותחת רק את "עמוד הצוות" (מוקד שיחות ← קישור לעמוד ' +
+    'הצוות), ובו רק מה שסימנתם להציג — לא את רשימת אנשי הקשר המלאה.</p>' +
+    '<div class="fld"><input type="text" dir="ltr" ' +
+    'placeholder="נשמר על המכשיר בלבד" value="' + esc(CFG.teamKey || '') +
+    '" onchange="cfgSet(\'teamKey\',this.value.trim())"></div></div>' +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>קוד הכניסה לניהול</h4>' +
     '<p class="h">ארבע ספרות. שמור אותו — בלעדיו אין כניסה למסך הזה.</p>' +

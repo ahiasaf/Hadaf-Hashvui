@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>עמוד הצוות — הדף השבועי של בני עקיבא</title>
+<!-- ============================================================
+     התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
+     ראו board.html: אותו טעם בדיוק, אותה סיבה. -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="עמוד הצוות · הדף השבועי של בני עקיבא">
+<meta property="og:description" content="מה קורה מול כל ישיבה, בקצרה — ואפשר להתקשר או לשלוח וואטסאפ ישר מכאן.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/team">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="הדף השבועי">
+<meta name="theme-color" content="#0E2E63">
+<meta name="robots" content="noindex">
+<style>
+/* ============================================================
+   עמוד הצוות.
+   ============================================================
+   אחיאסף, הרב פלתי ואלחנן מחלקים ביניהם את השיחות עם הישיבות.
+   הדף הזה הוא הקישור המשותף שאחיאסף שולח לשני האחרים: מה קורה
+   מול כל ישיבה שסומנה להצגה, בקצרה — ואפשרות להתקשר או לשלוח
+   וואטסאפ ישר מכאן, בלי לחפש איש קשר.
+
+   הוא קורא לשונית אחת בלבד ('תצוגת צוות'), שכבר מכילה רק מה
+   שאחיאסף בחר להראות — מוקד השיחות הוא זה שכותב אותה. הדף הזה
+   עצמו אינו יודע דבר על מוקד השיחות, על הגיליון הפרטי, או על
+   כל מוסד שלא סומן. סיסמת הגישה (TEAM_KEY) נפרדת לגמרי מסיסמת
+   הקריאה של הרכז, בדיוק כדי שאפשר יהיה למסור אותה הלאה.
+
+   פעולה (שיחה/וואטסאפ) נרשמת חזרה לגיליון ברגע שנלחצים — כדי
+   שאחיאסף ידע מה נעשה גם אם איש לא טרח לעדכן בעצמו. */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE;
+  --green:#6FA83B; --green-d:#467B1A; --ok:#3B7D57; --stop:#B23B3B;
+  --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+  --r:16px; --r-s:12px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 34px)}
+
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  padding:16px;margin-top:12px;box-shadow:var(--sh-1)}
+.card h2{font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.card .upd{font-size:.9rem;font-weight:700;color:var(--ink-2);margin-top:6px;
+  padding:9px 11px;background:rgba(192,143,43,.08);border-radius:10px;line-height:1.6}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tag{border:1px solid rgba(192,143,43,.45);background:#fff;color:var(--gold-t);
+  border-radius:30px;padding:3px 11px;font-size:.72rem;font-weight:800}
+.who{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:11px;padding-top:11px;border-top:1px solid var(--rule)}
+.who:first-of-type{border-top:0;margin-top:9px;padding-top:0}
+.who b{font-size:.92rem;font-weight:800}
+.acts{display:flex;gap:8px}
+.acts a{display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:11px;
+  color:#fff;font-weight:800;font-size:.82rem;text-decoration:none}
+.acts .call{background:linear-gradient(140deg,var(--blue-l),var(--blue))}
+.acts .wa{background:linear-gradient(140deg,#3FC152,#1FA637)}
+.acts a:active{transform:scale(.97)}
+
+.gate{max-width:26rem;margin:18vh auto 0;padding:0 18px;text-align:center}
+.gate .card{text-align:start}
+.pick{display:grid;gap:9px;margin-top:14px}
+.pick button{border:1.5px solid var(--rule);background:var(--surface);
+  border-radius:12px;padding:13px;font-size:.95rem;font-weight:800;color:var(--ink);
+  cursor:pointer}
+.pick button:active{background:var(--sunk)}
+.empty{text-align:center;color:var(--ink-3);font-weight:700;font-size:.9rem;
+  padding:30px 20px}
+.whoami{max-width:32rem;margin:0 auto;padding:0 16px;text-align:end;
+  font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.whoami button{border:0;background:none;color:var(--blue);font-weight:800;
+  cursor:pointer;text-decoration:underline;font-size:.74rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1>הדף השבועי<br>של בני עקיבא</h1>
+      <div class="yr">עמוד הצוות</div></div>
+  </div>
+</header>
+
+<div id="whoami" class="whoami" style="display:none"></div>
+<main class="wrap" id="body"></main>
+
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+(function () { var l = document.getElementById('hdr-mark'); if (l) l.src = LOGO_MARK; })();
+
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; });
+}
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function digits(p) { return String(p || '').replace(/[^0-9]/g, ''); }
+function waNum(p) {
+  var d = digits(p);
+  return d.indexOf('972') === 0 ? d : '972' + d.replace(/^0/, '');
+}
+
+var API = window.APPS_SCRIPT_URL || '';
+var KEY = qs('k');
+
+/* מי אתה — נשאל פעם אחת, נשמר במכשיר הזה, ונשלח עם כל פעולה
+   כדי שאחיאסף ידע מי בדיוק עשה מה. אין כאן הרשאה אמיתית — כמו
+   בכל מקום אחר בפרויקט הזה, הקוד בקישור הוא ההרשאה, וזיהוי מי
+   אתה הוא נוחות ותו לא. */
+var WHO_KEY = 'df:teamWho';
+var WHO_OPTS = ['אחיאסף', 'הרב פלתי', 'אלחנן'];
+function whoAmI() { try { return localStorage.getItem(WHO_KEY) || ''; } catch (e) { return ''; } }
+function setWho(w) {
+  try { localStorage.setItem(WHO_KEY, w); } catch (e) {}
+  paintWhoami();
+  boot();
+}
+/* אינדקס למחרוזת, ולא המחרוזת עצמה בתוך המאפיין — כדי שלא
+   נצטרך לברוח מגרשיים בתוך onclick. אותו טעם ב-logClick. */
+function pickWho(i)  { setWho(WHO_OPTS[i] || ''); }
+function clearWho()  { setWho(''); }
+function paintWhoami() {
+  var w = whoAmI(), el = $('whoami');
+  if (!w) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = esc(w) + ' · <button onclick="clearWho()">לא אני?</button>';
+}
+
+function veil(msg) {
+  $('body').innerHTML = '<div class="empty">' + esc(msg) + '</div>';
+}
+
+/* פעולת צוות — נרשמת מיד עם הלחיצה, לפני שהקישור נפתח. no-cors
+   תמיד "מצליח", וזה בסדר כאן: זה יומן שמצטרף (appendCols_),
+   לא דריסה — כישלון בודד לא מוחק שום דבר, ואין צורך באימות
+   בכל לחיצה בודדת על "התקשרתי". */
+function logAct(inst, action) {
+  if (!API || !KEY) return;
+  var who = whoAmI() || 'לא ידוע';
+  fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'teamlog', key:KEY,
+    cols: JSON.stringify([['מי', who], ['ישיבה', inst], ['פעולה', action]])
+  }) }).catch(function () {});
+}
+/* הכפתור נושא רק שני מספרים (איזו ישיבה, איזה איש קשר) —
+   השם עצמו נשלף מ-CUR_ROWS בזמן הלחיצה, ולא נכתב לתוך
+   ה-onclick כמחרוזת. */
+var CUR_ROWS = [];
+function logClick(el) {
+  var ri = +el.getAttribute('data-ri');
+  var name = (CUR_ROWS[ri] || [])[0] || '';
+  logAct(name, el.getAttribute('data-act'));
+}
+
+function render(rows) {
+  CUR_ROWS = rows;
+  if (!rows.length) {
+    $('body').innerHTML = '<div class="empty">אין כרגע שום ישיבה שסומנה להצגה כאן.<br>' +
+      'זה מתעדכן ממוקד השיחות.</div>';
+    return;
+  }
+  var h = '';
+  rows.forEach(function (r, ri) {
+    var name = r[0] || '', upd = r[1] || '';
+    var tags = [], people = [];
+    try { tags = JSON.parse(r[2] || '[]') || []; } catch (e) {}
+    try { people = JSON.parse(r[3] || '[]') || []; } catch (e) {}
+
+    h += '<div class="card"><h2>' + esc(name) + '</h2>';
+    if (upd) h += '<div class="upd">' + esc(upd) + '</div>';
+    if (tags.length) {
+      h += '<div class="tags">' + tags.map(function (t) {
+        return '<span class="tag">' + esc(t) + '</span>';
+      }).join('') + '</div>';
+    }
+    if (!people.length) {
+      h += '<div class="who"><b style="color:var(--stop)">אין כאן מספר טלפון</b></div>';
+    }
+    people.forEach(function (q) {
+      h += '<div class="who"><b>' + esc(q.name || 'חייג') + '</b>' +
+        '<div class="acts">' +
+        '<a class="call" href="tel:' + digits(q.phone) + '" ' +
+        'data-ri="' + ri + '" data-act="שיחה" onclick="logClick(this)">📞 שיחה</a>' +
+        '<a class="wa" href="https://wa.me/' + waNum(q.phone) + '" target="_blank" rel="noopener" ' +
+        'data-ri="' + ri + '" data-act="וואטסאפ" onclick="logClick(this)">וואטסאפ</a>' +
+        '</div></div>';
+    });
+    h += '</div>';
+  });
+  $('body').innerHTML = h;
+}
+
+function boot() {
+  if (!whoAmI()) {
+    $('body').innerHTML =
+      '<div class="gate"><div class="card">' +
+      '<h2>מי אתה?</h2>' +
+      '<p style="margin-top:6px;font-size:.84rem;color:var(--ink-2)">' +
+      'כדי שאחיאסף ידע מי התקשר למי.</p>' +
+      '<div class="pick">' + WHO_OPTS.map(function (w, i) {
+        return '<button onclick="pickWho(' + i + ')">' + esc(w) + '</button>';
+      }).join('') + '</div></div></div>';
+    return;
+  }
+  paintWhoami();
+  if (!API) { veil('חסר חיבור לשרת בקוד האתר.'); return; }
+  if (!KEY) { veil('הקישור הזה חסר את קוד הגישה.'); return; }
+  veil('טוען…');
+  fetch(API + '?team=1&key=' + encodeURIComponent(KEY))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || d.status === 'denied') {
+        veil(d && d.message ? d.message : 'הקישור הזה אינו תקף יותר.');
+        return;
+      }
+      if (d.status !== 'ok') { veil('לא הצלחתי לטעון. נסו לרענן.'); return; }
+      var rows = (d.rows || []).slice(1);
+      render(rows);
+    })
+    .catch(function () { veil('לא הצלחתי להתחבר. נסו לרענן.'); });
+}
+boot();
+</script>
+</body>
+</html>

@@ -113,7 +113,11 @@ def check_dupe_vars():
 # לכאן הוא כנראה כלל שנמחק, ולכן הוא נכשל.
 KNOWN_CLASSLESS = {
     'index.html': {'all', 'ce-n', 'ce-r', 'cls', 'current', 'new', 'pi',
-                   'raffle', 's-', 'tone', 'warm'},
+                   'raffle', 's-', 'tone', 'warm',
+                   # ניהול תגיות — אותו דפוס בדיוק כמו ce-n/ce-r
+                   # למעלה: מזהה ל-querySelector בלבד, מתעצב דרך
+                   # ce-row/ce-x הקיימים.
+                   'tg-row', 'tg-t', 'tg-team-c'},
     'join.html': {'dad', 'kid', 'cls'},
     'studio.html': {'mh', 'ml'},
 }
@@ -136,7 +140,7 @@ def check_orphan_classes():
     ident = re.compile(r'^[a-z][a-z0-9-]*$')
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
               'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html',
-              'shlach.html'):
+              'shlach.html', 'team.html'):
         if not os.path.exists(os.path.join(ROOT, f)):
             continue
         t = read(f)
@@ -410,7 +414,7 @@ def check_share_card():
     שנשלחה כבר אי אפשר לתקן.
     """
     shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html',
-              'board.html', 'learn.html', 'masa.html']
+              'board.html', 'learn.html', 'masa.html', 'team.html']
     card = 'share-card.jpg'
     if not os.path.exists(os.path.join(ROOT, card)):
         BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)
