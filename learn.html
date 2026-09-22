@@ -267,6 +267,13 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-pick-th img{display:block;width:100%;height:100%;object-fit:cover}
 .own-pick-th span{position:absolute;bottom:3px;inset-inline-end:5px;background:rgba(11,37,80,.75);
   color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
+.own-export{padding:22px}
+.own-export-card textarea{flex:1;min-height:40vh;box-sizing:border-box;resize:vertical;
+  border:1px solid var(--rule);border-radius:9px;padding:10px;font:inherit;font-size:.82rem;
+  line-height:1.6;color:var(--ink);background:#fff;margin-bottom:10px}
+.own-export-copy-btn{display:block;width:100%;box-sizing:border-box;border:1px solid rgba(192,143,43,.45);
+  background:var(--gold,#C08F2B);color:#fff;border-radius:9px;padding:9px;font-weight:800;
+  font-size:.84rem;cursor:pointer}
 .own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
@@ -277,6 +284,8 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
   padding:2px 4px}
 .own-add{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px dashed rgba(192,143,43,.5);
+  background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
+.own-export-btn{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px solid var(--rule);
   background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
 
 @media (max-width:820px){
@@ -877,6 +886,10 @@ nav .sp{flex:1}
      "שקף 5" לא אומר לאחיאסף כלום, הוא צריך לראות מה עליו. נפתח
      מעל הכל (מחלקת .sheet הקיימת) ולא תופס מקום כשהוא סגור. -->
 <div class="sheet own-pick" id="own-pick"></div>
+
+<!-- ייצוא הפירוש לכל הדף — טקסט ממוספר לקטעים, בלי תיוג חלקים,
+     להדבקה החוצה (GPT, מסמך וכד'). אותה מחלקת .sheet. -->
+<div class="sheet own-export" id="own-export"></div>
 
 <!-- **מסך הפתיחה "הדף, קטע אחר קטע" ירד.** הוא הסביר שלושה
      דברים שהדף מלמד בעצמו תוך שתי לחיצות: מה מואר, איך
@@ -1675,6 +1688,71 @@ function paintOwnPick_() {
   el.className = 'sheet own-pick on';
   $('own-pick-x').onclick = ownPieceSlidePickClose;
 }
+
+/* ============================================================
+   ייצוא הפירוש לכל הדף — טקסט פשוט, מחולק לקטעים וממוספר לפי
+   `st.n`, בלי שום תיוג חלק ("פירוש"/"העשרה" וכד') — רק המספר
+   שהאדם רואה בדף עצמו והטקסט. להדבקה החוצה: GPT, מסמך, כל
+   מקום. קטע עם כמה חלקים — הטקסטים שלהם זה מתחת לזה, באותו
+   מספר. קטע בלי טקסט בכלל — מדלגים עליו, לא משאירים מספר ריק.
+
+   הקטע שפתוח כרגע לעריכה נלקח מ-`OWN_EDIT` (מה שעל המסך, גם
+   אם עוד לא נשמר) — לא מ-`OWN` (מה שכבר נשמר בגיליון) — אחרת
+   ייצוא באמצע כתיבה היה מפספס בדיוק את מה שרואים הרגע. */
+function ownStripHtml_(html) {
+  var d = document.createElement('div');
+  d.innerHTML = html || '';
+  return (d.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function ownExportText_() {
+  var seen = {}, lines = [];
+  FLAT.forEach(function (st) {
+    if (seen[st.n]) return;
+    seen[st.n] = true;
+    var pieces = (OWN_EDIT && OWN_EDIT_N === st.n) ? OWN_EDIT : ownPieces_(st.n);
+    var texts = pieces.map(function (p) { return ownStripHtml_(p.text); }).filter(function (t) { return t; });
+    if (texts.length) lines.push(st.n + '. ' + texts.join('\n\n'));
+  });
+  return lines.join('\n\n');
+}
+function ownExportOpen() {
+  if (OWN_EDIT) ownEditSync_();
+  paintOwnExport_();
+}
+function ownExportClose() {
+  var el = $('own-export');
+  if (el) el.className = 'sheet own-export';
+}
+function paintOwnExport_() {
+  var el = $('own-export');
+  if (!el) return;
+  var txt = ownExportText_();
+  el.innerHTML = '<div class="own-pick-card own-export-card">' +
+    '<div class="own-pick-h"><span>ייצוא הפירוש לכל הדף</span>' +
+    '<button id="own-export-x" aria-label="סגירה">✕</button></div>' +
+    (txt ? '<textarea id="own-export-ta" readonly></textarea>' +
+           '<button class="own-export-copy-btn" id="own-export-copy">העתקה</button>' :
+           '<p class="none">עדיין אין מה לייצא — לא נכתב פירוש לאף קטע בדף הזה.</p>') +
+    '</div>';
+  el.className = 'sheet own-export on';
+  $('own-export-x').onclick = ownExportClose;
+  if (!txt) return;
+  var ta = $('own-export-ta');
+  ta.value = txt;
+  ta.focus();
+  ta.select();
+  $('own-export-copy').onclick = function () {
+    var btn = $('own-export-copy'), ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt);
+        ok = true;
+      }
+    } catch (e) {}
+    if (!ok) { try { ta.select(); ok = document.execCommand('copy'); } catch (e2) {} }
+    btn.textContent = ok ? 'הועתק ✓' : 'לא הצלחתי — יש להעתיק ידנית מהתיבה';
+  };
+}
 /* שקף חדש שלא היה קיים בתיקייה כלל — ייעודי לחלק הזה בלבד.
    מעלים אותו בדיוק כמו הקלטה (`ghput` + אימות מול גיטהאב), בשם
    קובץ שלא מתנגש בשום מספר סידורי ("piece-<קטע>-<חלק>"), ולכן
@@ -1725,11 +1803,22 @@ function ownPieceSlideUpload(i, file) {
    באותו אובייקט בדיוק שכבר נשמר לכל דף — בלי לשונית נוספת ובלי
    שינוי ב-apps-script.gs. בלי הדגל — כותבים כמה שרוצים, רק
    אחיאסף רואה. עם הדגל — תלמידים רואים מיד, כולל כל עריכה הבאה. */
+/* יש עריכה בזיכרון שעדיין לא נשמרה בגיליון? השוואה למה שכבר
+   ידוע כשמור (`ownPieces_`) — לא הצהרה, בדיקה אמיתית. */
+function ownEditDirty_() {
+  if (!OWN_EDIT) return false;
+  ownEditSync_();
+  return JSON.stringify(ownCleanPieces_(OWN_EDIT)) !== JSON.stringify(ownPieces_(OWN_EDIT_N));
+}
 function paintOwn() {
   var st = FLAT[IDX], box = $('chb');
   if (!st) { box.innerHTML = ''; return; }
   var n = st.n;
   if (!SIDE_ADM) { paintOwnRead_(n); return; }
+  /* עברו לקטע אחר בזמן שנשאר טקסט לא שמור — שומרים אותו ברקע
+     לפני שהוא נעלם. זה בדיוק מה שקרה בפועל: כתיבה בקטע אחד,
+     מעבר לקטע הבא בלי ללחוץ "שמירה", והכתיבה אבדה. */
+  if (OWN_EDIT && OWN_EDIT_N !== n && ownEditDirty_()) ownSaveAll(OWN_EDIT_N);
   ownEditLoad_(n);
   paintOwnEdit_(n);
   var need = OWN_EDIT.filter(function (p) { return !VOX_CACHE.hasOwnProperty(n + '::' + p._id); });
@@ -1769,14 +1858,9 @@ function paintOwnEdit_(n) {
     } else {
       audioRow = '<button class="hot" onclick="ownAudioGo(' + i + ')">⏺ הקלטה</button>';
     }
-    /* בלי שקף ייעודי — משתמשים בשקף שכבר משויך לקטע במסך הניהול
-       של המצגת, אין צורך לגעת. השקף הייעודי הוא רק לחריג: שקף
-       חדש שמעלים ישירות (`ownPieceSlideUpload`), לא בחירה מחדש
-       מתוך שקפים שכבר קיימים. */
     /* בלי שקף ייעודי — שתי דרכים לקבוע אחד: לבחור שקף שכבר קיים
-       בתיקייה (תפריט נפתח, לא תופס מקום כשהוא סגור), או להעלות
-       שקף חדש. עם שקף ייעודי — רק תווית קצרה והסרה, בלי לחזור
-       ולהראות את שתי הדרכים. */
+       בתיקייה (רשת ממוזערים, לא תופסת מקום כשהיא סגורה), או
+       להעלות שקף חדש. עם שקף ייעודי — רק תווית קצרה והסרה. */
     var slideStatus = !DECK ? '<span class="sp"></span>' :
       p.slide ? '<span class="sp"></span><span class="own-slide-txt">שקף ייעודי</span>' +
         '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' :
@@ -1806,6 +1890,12 @@ function paintOwnEdit_(n) {
       '<button class="own-mv" onclick="ownPieceMove_(' + i + ',1)"' +
       (i === OWN_EDIT.length - 1 ? ' disabled' : '') + ' aria-label="הזזה למטה">▼</button>' : '';
 
+    /* השמירה יושבת בשורת ההקלטה של החלק האחרון — לא שורה נפרדת
+       משלה. כפתור ההקלטה במקומו (ימין), השמירה נדחפת לצד השני
+       (שמאל) על ידי מרווח אוטומטי, ראו CSS. */
+    var saveBtn = i === OWN_EDIT.length - 1 ?
+      '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' : '';
+
     return '<div class="own-piece">' +
       '<div class="own-piece-h">' +
       '<input class="own-tag" id="own-tag-' + i + '" type="text" value="' + esc(p.tag) + '" aria-label="תיוג החלק">' +
@@ -1814,15 +1904,14 @@ function paintOwnEdit_(n) {
       '</div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
       'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + p.text + '</div>' +
-      toolsRow + '<div class="own-audio">' + audioRow + '</div></div>';
+      toolsRow + '<div class="own-audio">' + audioRow + saveBtn + '</div></div>';
   }).join('');
 
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
-    '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' +
     '<div class="own-msg" id="own-msg"></div>' +
-    /* שער הפרסום לכל הדף — למטה, אחרי העריכה עצמה: זו פעולה
-       שקורית פעם אחת בהרבה זמן, ולא צריכה לתפוס את המקום הראשון
-       שרואים בכל פתיחה של המסך. */
+    /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
+       לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
+    '<button class="own-export-btn" id="own-export-open">ייצוא הפירוש לכל הדף</button>' +
     '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
     (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
     '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
@@ -1839,6 +1928,7 @@ function paintOwnEdit_(n) {
   };
   $('own-add').onclick = ownPieceAdd;
   $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
+  $('own-export-open').onclick = ownExportOpen;
   OWN_EDIT.forEach(function (p, i) {
     var e = $('own-txt-' + i);
     if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
@@ -2045,12 +2135,22 @@ if (window.visualViewport) {
     var vvh0 = window.visualViewport.height;
     window.visualViewport.addEventListener('resize', function () {
       var el = document.activeElement;
-      var open = SIDE_ADM && el && el.id === 'own-txt' &&
+      var open = SIDE_ADM && el && el.id && el.id.indexOf('own-txt-') === 0 &&
         (vvh0 - window.visualViewport.height) > 120;
       document.body.classList.toggle('kb-open', open);
     });
   })();
 }
+
+/* עזיבת העמוד (סגירה, ריענון, מעבר לאתר אחר) עם עריכה שלא
+   נשמרה — המעבר בין קטעים כבר שומר לבד (ראו `paintOwn`), אבל
+   זו לא נגיעה בזה: מי שסוגר את הכל באמצע כתיבה מקבל אזהרה
+   סטנדרטית של הדפדפן במקום לגלות מחר שהטקסט נעלם. */
+window.addEventListener('beforeunload', function (e) {
+  if (!SIDE_ADM || !ownEditDirty_()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
 
 /* גודל הטקסט. חמישה שלבים, נשמר במכשיר. */
 var CZ = 2, CZS = [.86, .93, 1, 1.12, 1.28];
