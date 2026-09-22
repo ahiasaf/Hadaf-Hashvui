@@ -376,14 +376,14 @@ body{background:var(--paper);
 /* עריכת כרטיס */
 .ct .edit{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
   width:30px;height:30px;font-size:.9rem;color:var(--ink-2);cursor:pointer;flex:none}
-#cedit,#tagedit{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
+#cedit,#tagedit,#bimport{position:fixed;inset:0;z-index:150;display:none;align-items:flex-end;
   background:rgba(11,22,45,.45)}
-#cedit.on,#tagedit.on{display:flex}
-#cedit .sh,#tagedit .sh{background:var(--surface);width:100%;max-height:88vh;overflow:auto;
+#cedit.on,#tagedit.on,#bimport.on{display:flex}
+#cedit .sh,#tagedit .sh,#bimport .sh{background:var(--surface);width:100%;max-height:88vh;overflow:auto;
   border-radius:18px 18px 0 0;padding:15px 16px calc(15px + env(safe-area-inset-bottom))}
-#cedit .hd,#tagedit .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-#cedit .hd b,#tagedit .hd b{font-size:1rem;font-weight:800}
-#cedit .hd button,#tagedit .hd button{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
+#cedit .hd,#tagedit .hd,#bimport .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#cedit .hd b,#tagedit .hd b,#bimport .hd b{font-size:1rem;font-weight:800}
+#cedit .hd button,#tagedit .hd button,#bimport .hd button{border:1px solid var(--rule);background:var(--sunk);border-radius:9px;
   padding:6px 11px;font-size:.78rem;font-weight:800;color:var(--ink-2);cursor:pointer}
 #cedit .ce-last{display:flex;align-items:center;gap:8px;margin-top:10px;
   font-size:.9rem;font-weight:700}
@@ -394,6 +394,9 @@ body{background:var(--paper);
   border:1px solid var(--rule);border-radius:9px;background:#fff;min-width:0}
 #cedit .ce-x,#tagedit .ce-x{grid-row:1/3;border:1px solid var(--rule);background:var(--sunk);
   border-radius:9px;width:34px;height:100%;color:var(--stop);font-weight:800;cursor:pointer}
+#bimport textarea{width:100%;box-sizing:border-box;font:inherit;font-size:.76rem;direction:ltr;
+  text-align:left;border:1px solid var(--rule);border-radius:9px;padding:9px 10px;
+  min-height:140px;margin-top:8px}
 #tagedit .tg-team{display:flex;align-items:center;gap:5px;font-size:.76rem;font-weight:700;
   color:var(--ink-2);white-space:nowrap}
 
@@ -1920,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.7';
+var APP_VERSION = '8.99.8';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4460,11 +4463,17 @@ var STAGES = [
    מוצגים; תגית חדשה באותו מפתח מחזירה נתונים ישנים לחיים, וזו
    בחירה מכוונת ולא באג. */
 var TAG_DEFS_DEFAULT = [
-  { k:'called',   t:'התקשרתי בסבב הזה', team:false },
-  { k:'zoom',     t:'היה בזום',          team:true  },
-  { k:'me',       t:'אחיאסף',            team:false },
-  { k:'palti',    t:'הרב פלתי',          team:false },
-  { k:'elchanan', t:'אלחנן',             team:false }
+  { k:'called',      t:'התקשרתי בסבב הזה', team:false },
+  { k:'zoom',        t:'היה בזום',          team:true  },
+  { k:'me',          t:'אחיאסף',            team:false },
+  { k:'palti',       t:'הרב פלתי',          team:false },
+  { k:'elchanan',    t:'אלחנן',             team:false },
+  /* שלוש אלה תואמות את צביעת "הערות" בטבלה שממנה מייבאים —
+     ירוק/צהוב/אדום הפכו לתגית, כדי שאותו איתות יהיה גם בעמוד
+     הצוות ולא רק צבע שרואים רק בגיליון. */
+  { k:'status_good', t:'מצב: טוב',          team:true  },
+  { k:'status_mid',  t:'מצב: בינוני',       team:true  },
+  { k:'status_low',  t:'מצב: פחות טוב',     team:true  }
 ];
 function tagDefs()          { return Store.get('callTagDefs', null) || TAG_DEFS_DEFAULT; }
 function saveTagDefsLocal(d){ Store.set('callTagDefs', d); }
@@ -5520,7 +5529,9 @@ function renderCalls() {
       '<p style="margin-top:8px">אפשר גם להדביק ישירות, אבל אז התיעוד חי על ' +
       'המכשיר הזה בלבד — וזה מה שנמחק בפעם הקודמת.</p></div>' +
       '<textarea id="paste" rows="5" placeholder="או הדביקו כאן מהגיליון…"></textarea>' +
-      '<button class="btn g" onclick="importContacts()">ייבוא בהדבקה</button>';
+      '<button class="btn g" onclick="importContacts()">ייבוא בהדבקה</button>' +
+      '<button class="btn g" style="margin-top:8px" onclick="bulkImportOpen()">' +
+      '⇩ ייבוא מרשימה (JSON)</button>';
     return;
   }
 
@@ -5741,16 +5752,15 @@ function renderCalls() {
     });
     h += '</div>';
 
-    /* עדכון קצר ליד ה"תכלס" — נפרד לגמרי מההערה שלמטה. זה יוצא
-       לעמוד הצוות (רק אם המוסד מסומן להציג שם), ההערה לעולם לא. */
-    h += '<label class="teamshow"><input type="checkbox"' +
+    /* הערת תכלס — תמיד קיימת לכל מוסד, בניגוד להערה הפרטית
+       שלמטה. "להציג לצוות" קובע רק אם היא **יוצאת** לעמוד הצוות,
+       לא אם אפשר לראות ולערוך אותה כאן — היא חלק קבוע מהכרטיס. */
+    h += '<input class="updline" type="text" maxlength="160" ' +
+         'placeholder="עדכון קצר (תכלס), משפט–שניים…" value="' + esc(c.upd || '') +
+         '" onchange="setUpd(' + i + ',this.value)">' +
+         '<label class="teamshow"><input type="checkbox"' +
          (c.teamShow ? ' checked' : '') +
          ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>';
-    if (c.teamShow) {
-      h += '<input class="updline" type="text" maxlength="160" ' +
-           'placeholder="עדכון קצר לצוות, משפט–שניים…" value="' + esc(c.upd || '') +
-           '" onchange="setUpd(' + i + ',this.value)">';
-    }
 
     /* שלוש שורות ולא אחת, וגדלה עם מה שנכתב. תיבה בגובה שורה
        הופכת כל הערה ארוכה לחלון הצצה — וההערות האלה הן התיעוד
@@ -5772,8 +5782,9 @@ function renderCalls() {
      שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
   h += blastCard(list);
 
-  h += '<button class="btn g" style="margin-top:8px" onclick="tagEditOpen()">' +
-       '⚙ ניהול תגיות</button>' +
+  h += '<button class="btn g" style="margin-top:8px" onclick="bulkImportOpen()">' +
+       '⇩ ייבוא מרשימה</button>' +
+       '<button class="btn g" onclick="tagEditOpen()">⚙ ניהול תגיות</button>' +
        '<button class="btn g" onclick="teamLinkCopy()">קישור לעמוד הצוות</button>' +
        '<button class="btn g" onclick="pushCalls(1)">שמירה לגיליון עכשיו</button>' +
        '<button class="btn g" onclick="pullCalls().then(renderCalls)">' +
@@ -5967,6 +5978,90 @@ function tagEditSave() {
 function tagEditClose() {
   var b = document.getElementById('tagedit');
   if (b) b.className = '';
+}
+
+/* ============================================================
+   ייבוא מרשימה — מדביקים JSON מוכן, לא מקלידים.
+   ============================================================
+   לפעמים יש כבר טבלה שלמה מוכנה (מוסד, אנשי קשר, תגיות, עדכון
+   קצר) — ואין טעם להקליד עשרות מוסדות ביד. הפורמט:
+
+     { "tags": [{"k":..,"t":..,"team":bool}, ...],   // רשות
+       "contacts": [{"name":..,"people":[{name,role,phone}],
+                     "primary":0, "tags":{"k":true}, "upd":".."}] }
+
+   מוסד קיים (לפי שם) מתעדכן: אנשי קשר, ראשי, תגיות ועדכון קצר
+   נדרסים; שלב, הערה פרטית ומי-אחראי-בתגית **לא נוגעים בהם** אם
+   הם כבר סומנו — הייבוא לעולם לא מוחק החלטה שכבר קיבלת. תגית
+   שמופיעה ב-contacts ואין לה הגדרה עדיין נרשמת אוטומטית, גם
+   בלי בלוק "tags" — כדי שייבוא לא ייתקע על תגית ששכחו להגדיר. */
+function bulkImportOpen() {
+  var box = document.getElementById('bimport') ||
+            document.body.appendChild(Object.assign(document.createElement('div'),
+              { id:'bimport' }));
+  box.innerHTML =
+    '<div class="sh"><div class="hd"><b>ייבוא מרשימה</b>' +
+    '<button onclick="bulkImportClose()">סגירה</button></div>' +
+    '<div class="sub">מדביקים כאן טקסט מוכן (JSON) ולוחצים "ייבוא". מוסד קיים ' +
+    'מתעדכן — אנשי קשר, תגיות ועדכון קצר; השלב וההערה הפרטית שלכם לא נמחקים.</div>' +
+    '<textarea id="bimport-txt" placeholder="{&quot;contacts&quot;:[...]}"></textarea>' +
+    '<button class="btn p" style="margin-top:10px" onclick="bulkImportRun()">ייבוא</button>' +
+    '<div class="msg" id="bimport-msg"></div></div>';
+  box.className = 'on';
+}
+function bulkImportClose() {
+  var b = document.getElementById('bimport');
+  if (b) b.className = '';
+}
+function bulkImportRun() {
+  var msg = document.getElementById('bimport-msg');
+  var data;
+  try { data = JSON.parse(document.getElementById('bimport-txt').value); }
+  catch (e) { msg.textContent = 'JSON לא תקין: ' + e.message; return; }
+  var items = Array.isArray(data) ? data : data.contacts;
+  if (!items || !items.length) { msg.textContent = 'לא נמצאו מוסדות בטקסט שהודבק.'; return; }
+
+  /* תגיות חדשות שהייבוא מזכיר — נרשמות אוטומטית, בין אם הגיעו
+     בבלוק "tags" המפורש ובין אם רק כמפתח בתוך contacts[].tags. */
+  var defs = tagDefs().slice(), have = {};
+  defs.forEach(function (d) { have[d.k] = 1; });
+  (data.tags || []).forEach(function (t) {
+    if (!have[t.k]) { defs.push({ k:t.k, t:t.t || t.k, team:!!t.team }); have[t.k] = 1; }
+  });
+  items.forEach(function (it) {
+    Object.keys(it.tags || {}).forEach(function (k) {
+      if (!have[k]) { defs.push({ k:k, t:k, team:true }); have[k] = 1; }
+    });
+  });
+  saveTagDefsLocal(defs);
+
+  var list = contacts(), byKey = {};
+  list.forEach(function (c, i) { byKey[nameKey(c.key || c.name)] = i; });
+  var created = 0, updated = 0;
+  items.forEach(function (it) {
+    var name = (it.name || it.key || '').trim();
+    if (!name) return;
+    var k = nameKey(it.key || name), at = byKey[k];
+    var c = at != null ? list[at] : null;
+    if (!c) {
+      c = { name:name, key:it.key || name, stage:'new', note:'', tags:{} };
+      list.push(c); byKey[k] = list.length - 1; created++;
+    } else updated++;
+    if (it.people && it.people.length) { c.people = it.people; c.edited = 1; }
+    if (it.primary != null) c.primary = it.primary;
+    if (!c.tags) c.tags = {};
+    Object.keys(it.tags || {}).forEach(function (tk) { c.tags[tk] = it.tags[tk]; });
+    if (it.upd) c.upd = it.upd;
+    c.at = new Date().toISOString();
+    jnl(c);
+  });
+  saveContacts(list);
+  bulkImportClose();
+  renderCalls();
+  pushCalls(1);
+  pushTagDefs();
+  alert('יובאו ' + items.length + ' מוסדות (' + created + ' חדשים, ' + updated +
+        ' עודכנו). שולח לגיליון…');
 }
 
 /* איש הקשר שהכפתורים מצייתים לו. נשמר ומסונכרן כמו הסטטוס —
