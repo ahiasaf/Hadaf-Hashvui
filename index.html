@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.10';
+var APP_VERSION = '8.99.11';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2430,7 +2430,17 @@ function renderRegPre() {
     });
   }
   var sk = document.getElementById('reg-pre-skip');
-  if (sk) sk.onclick = function () { regPreSkip = true; renderReg(); };
+  if (sk) sk.onclick = function () {
+    regPreSkip = true;
+    renderReg();
+    /* מי שבא מקישור המסע (`?masa=1`) ובחר לא להתקין עדיין
+       רואה שלושה שלבים מתוכו: הצטרפות, מילוי הטופס, שליחה
+       לר"מים. ראו `iosBefore` ב-trip.js — למה רק שלושה. */
+    if (window.TRIP_UI && !TRIP_UI.on() &&
+        /[?&]masa=1(&|$)/i.test(location.search)) {
+      TRIP_UI.start(3);
+    }
+  };
 }
 
 /* ההרשמה הזו תעדכן ישיבה שכבר רשומה, מתוך מכשיר שאין בו את
