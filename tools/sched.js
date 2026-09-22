@@ -94,6 +94,13 @@ function scriptUrl() {
    דף HTML במקום JSON. זה קורה לגוגל מדי פעם, וזה הפיל את כל
    הצעד ולא רק את הקריאה הבודדת. שני ניסיונות נוספים, ואם גם
    הם חוזרים עם HTML — נאמר מה באמת חזר, ולא "לא תקין".
+
+   ב-22.9 קרה שוב, כמה פעמים באותו יום, ושלושה ניסיונות לא
+   הספיקו: כל ניסיון עצמו נמשך כחצי דקה, כלומר גוגל היה תקוע
+   על ה-HTML הזה במשך יותר משתי דקות ברצף, לא רגע חולף אחד.
+   חמישה ניסיונות, פרוסים על פני כארבע דקות, נותנים לתקלה כזו
+   סיכוי אמיתי לחלוף לפני שהצעד נכשל — ובלי לפגוע בהרצה
+   הרגילה, שאינה נוגעת בהמתנה הזו כלל.
    ============================================================ */
 function ask(params, tries) {
   var url = scriptUrl();
@@ -101,7 +108,7 @@ function ask(params, tries) {
   var q = Object.keys(params).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   }).join('&');
-  var left = tries == null ? 3 : tries;
+  var left = tries == null ? 5 : tries;
   var go = function (n) {
     return fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now())
       .then(function (r) { return r.text(); })
@@ -115,7 +122,7 @@ function ask(params, tries) {
       .catch(function (e) {
         if (n <= 1) throw e;
         /* המתנה קצרה וגדלה — תקלה חולפת של גוגל חולפת. */
-        return new Promise(function (ok) { setTimeout(ok, (4 - n) * 2000); })
+        return new Promise(function (ok) { setTimeout(ok, (6 - n) * 3000); })
           .then(function () { return go(n - 1); });
       });
   };
