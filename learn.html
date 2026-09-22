@@ -198,18 +198,95 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .chb .none{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:.82rem;font-weight:700;
   color:var(--ink-3);line-height:1.7}
 
-/* ---------- לשונית שנייה בתוך המגירה: "הפירוש שלי" ---------- */
-.cht{display:flex;gap:6px;margin-bottom:14px}
+/* ---------- לשונית שנייה בתוך המגירה: "פירוש לנוער" ----------
+   הלשוניות עצמן יושבות בכותרת הקבועה של המגירה (`#cht` בתוך
+   `.chd`) ולא בזרם התוכן — כך שהן תמיד באותו מקום בדיוק, קבוע,
+   בלי לתפוס גובה מהטקסט. */
+.cht{display:flex;gap:6px}
 .cht button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:9px;
-  padding:5px 12px;font-weight:800;font-size:.78rem;color:var(--blue);cursor:pointer}
+  padding:4px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
 .cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
-.own-q{margin:0 0 14px;padding:10px 12px;background:rgba(192,143,43,.08);
-  border-radius:9px;font-weight:700}
+.cht-lbl{font-weight:800;color:var(--blue);font-size:.84rem}
+/* פירוש נטו — בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
+   (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות — ראו את ההערה
+   למעלה על boldOnly ב-git log.) */
+.own-pub{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;
+  border-radius:9px;background:rgba(178,59,59,.08);font-size:.74rem;font-weight:800;
+  color:#8a3a3a}
+.own-pub.on{background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
+.own-pub button{margin-inline-start:auto;border:1px solid currentColor;background:none;
+  border-radius:8px;padding:4px 10px;font-weight:800;font-size:.72rem;color:inherit;cursor:pointer}
+.own-edit{min-height:90px;outline:none}
+.own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
+.own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
+.own-read{margin:0 0 6px;line-height:1.85}
 .chb .own-save{border:1px solid rgba(192,143,43,.45);background:var(--gold,#C08F2B);
   color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
 .chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
 .chb .own-msg.ok{color:var(--ok,#3B7D57)}
 .chb .own-msg.bad{color:#B23B3B}
+/* חלקי-הפירוש — כל חלק (תיוג+טקסט+שקף+הקלטה) בכרטיס נפרד,
+   כדי שיהיה ברור בעין שאלה יחידות נבדלות ולא זרם אחד רציף. */
+.own-piece{border:1px solid var(--rule);border-radius:11px;padding:9px 10px;margin-bottom:10px}
+.own-piece-h{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.own-piece-h .sp{flex:1}
+/* תג קטן וממורכז — לא תיבת טופס גדולה. עדיין ניתן לעריכה (שם
+   חופשי: "פירוש"/"הקדמה"/"העשרה" וכל דבר אחר), רק לא תופס שורה. */
+.own-tag{width:5.5em;max-width:38vw;flex:0 0 auto;border:1px solid transparent;border-radius:20px;
+  padding:3px 10px;font-weight:800;font-size:.74rem;color:var(--blue);
+  background:rgba(23,70,143,.08);text-align:center}
+.own-tag:focus{border-color:rgba(192,143,43,.45);background:#fff}
+.own-mv{border:1px solid rgba(192,143,43,.3);background:#fff;border-radius:7px;
+  width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
+.own-mv:disabled{opacity:.3;cursor:default}
+.own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
+/* בולד/ביטול/חזרה + מצב השקף — שורה אחת, מיד מתחת לתיבת הטקסט
+   של החלק. תוויות קצרות בכוונה כדי שלא יעברו שורה בטלפון צר. */
+.own-tools{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
+  font-size:.72rem;color:var(--ink-2)}
+.own-tools .sp{flex:1}
+.own-tools button.icon{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
+  width:24px;height:24px;font-weight:800;font-size:.76rem;color:var(--ink-2);cursor:pointer;
+  flex:0 0 auto;padding:0}
+.own-slide-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.own-tools button:not(.icon){border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
+.own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
+.own-slide-up input{display:none}
+/* רשת בחירת שקף — מודאל, לא תופס מקום כשסגור (`.sheet` קיים). */
+.own-pick{padding:22px}
+.own-pick-card{background:var(--surface);border-radius:18px;padding:16px;max-width:30rem;
+  width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(11,37,80,.3)}
+.own-pick-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  font-weight:800;color:var(--blue-d)}
+.own-pick-h button{border:0;background:none;font-size:1.1rem;color:var(--ink-2);cursor:pointer}
+.own-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow-y:auto}
+.own-pick-th{border:2px solid transparent;border-radius:10px;padding:0;cursor:pointer;
+  background:none;position:relative;overflow:hidden;aspect-ratio:4/3}
+.own-pick-th img{display:block;width:100%;height:100%;object-fit:cover}
+.own-pick-th span{position:absolute;bottom:3px;inset-inline-end:5px;background:rgba(11,37,80,.75);
+  color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
+.own-export{padding:22px}
+.own-export-card textarea{flex:1;min-height:40vh;box-sizing:border-box;resize:vertical;
+  border:1px solid var(--rule);border-radius:9px;padding:10px;font:inherit;font-size:.82rem;
+  line-height:1.6;color:var(--ink);background:#fff;margin-bottom:10px}
+.own-export-copy-btn{display:block;width:100%;box-sizing:border-box;border:1px solid rgba(192,143,43,.45);
+  background:var(--gold,#C08F2B);color:#fff;border-radius:9px;padding:9px;font-weight:800;
+  font-size:.84rem;cursor:pointer}
+.own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
+.own-audio audio{flex:1;min-width:0;height:32px}
+.own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:4px 10px;font-weight:700;font-size:.74rem;color:var(--ink-2);cursor:pointer;
+  white-space:nowrap;flex:0 0 auto}
+.own-audio button.hot{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
+.own-audio button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
+.own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
+  padding:2px 4px}
+.own-add{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px dashed rgba(192,143,43,.5);
+  background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
+.own-export-btn{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px solid var(--rule);
+  background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
 
 @media (max-width:820px){
   body.chav-on main{grid-template-columns:minmax(0,1fr);
@@ -424,22 +501,22 @@ body.side-on #side{display:flex}
 .sd-a .msg.ok{color:var(--ok, #3B7D57)}
 .sd-a .msg.bad{color:#B23B3B}
 
-/* ---------- האולפן ---------- */
+/* ---------- עריכת חלק (טקסט + הקלטה) ---------- */
 .vox-txt{width:100%;box-sizing:border-box;min-height:70px;resize:vertical;
   border:1px solid rgba(192,143,43,.45);border-radius:9px;padding:8px 10px;
   font:inherit;font-size:.82rem;line-height:1.6;color:var(--ink, #22314D);
   background:#fff;margin-bottom:8px}
-.vox-clips{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-.vox-clip{display:flex;align-items:center;gap:8px}
-.vox-clip .tag{flex:0 0 auto;font-size:.68rem;font-weight:800;color:var(--blue);
-  background:rgba(23,70,143,.09);border-radius:20px;padding:2px 9px}
-.vox-clip audio{flex:1;min-width:0;height:32px}
-.vox-clip button.back{flex:0 0 auto;border:0;background:none;color:var(--ink-2);
-  font-size:.9rem;cursor:pointer;padding:2px 6px}
 .vox-empty{font-size:.76rem;font-weight:700;color:var(--ink-2);margin:0 0 8px}
-.vox-tag{width:78px;border:1px solid rgba(192,143,43,.45);border-radius:9px;
-  padding:6px 9px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
 .sd-a button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
+
+/* ---------- הפירוש הקולי — כפתורי השמעה בפאנל המצגת ----------
+   מתחת לניווט השקפים, מעל שכבת השיוך (שקיימת רק לניהול). גלוי
+   לכולם — זה בדיוק ה"פירוש קולי" שרואה תלמיד. */
+.sd-vox{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+.sd-vox:empty{display:none;padding:0}
+.sd-vp{border:1px solid var(--blue);background:#fff;border-radius:20px;
+  padding:5px 13px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
+.sd-vp.on{background:var(--blue);color:#fff}
 
 /* ---------- "המשכנו מהמקום שעצרת" ----------
    שורה דקה מתחת לכותרת ולא חלון: היא מדווחת, אינה שואלת, ואינה
@@ -753,7 +830,7 @@ nav .sp{flex:1}
   </section>
 
   <aside class="chav" id="chav">
-    <div class="chd"><span>פירוש חברותא</span>
+    <div class="chd"><span class="cht" id="cht"></span>
       <span class="zoom"><button id="czm" title="הקטנת הטקסט">א−</button>
         <button id="czp" title="הגדלת הטקסט">א+</button></span>
       <span class="sp"></span>
@@ -773,7 +850,7 @@ nav .sp{flex:1}
 <nav><div class="nrow">
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
-  <button id="chtog">חברותא</button>
+  <button id="chtog">פירוש</button>
   <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
   <button id="dktog" style="display:none">מצגת</button>
   <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
@@ -804,6 +881,15 @@ nav .sp{flex:1}
   <div class="gby" id="g-chavby"></div>
   <button class="btn p" id="gate-go"></button>
 </div></div>
+
+<!-- בחירת שקף קיים לחלק-פירוש — רשת ממוזערים, לא רשימת מספרים.
+     "שקף 5" לא אומר לאחיאסף כלום, הוא צריך לראות מה עליו. נפתח
+     מעל הכל (מחלקת .sheet הקיימת) ולא תופס מקום כשהוא סגור. -->
+<div class="sheet own-pick" id="own-pick"></div>
+
+<!-- ייצוא הפירוש לכל הדף — טקסט ממוספר לקטעים, בלי תיוג חלקים,
+     להדבקה החוצה (GPT, מסמך וכד'). אותה מחלקת .sheet. -->
+<div class="sheet own-export" id="own-export"></div>
 
 <!-- **מסך הפתיחה "הדף, קטע אחר קטע" ירד.** הוא הסביר שלושה
      דברים שהדף מלמד בעצמו תוך שתי לחיצות: מה מואר, איך
@@ -1452,7 +1538,7 @@ function paintChav() {
    שום שינוי ב-apps-script.gs. `dmapFromRows` כללית ומשרתת גם
    כאן בדיוק כמו שם. */
 var OWN_TAB = 'פירוש';
-var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: טקסט} */
+var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: [חלקים] | טקסט ישן} */
 var OWN = null;        /* הפירוש של הדף שעל המסך, או null אם אין */
 var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי */
 
@@ -1466,31 +1552,44 @@ function loadOwnMap() {
   }).catch(function () { return false; });
 }
 
-/* רק המילים המודגשות — לשון הגמרא עצמה — ומבנה הפסקאות סביבן.
-   כל טקסט לא-מודגש (הפירוש של החברותא, כולל סימוני "(1)" "(2)"
-   שיושבים רק בתוכו) פשוט לא נכלל, ולכן אין צורך להסיר משהו
-   בנפרד — הוא מעולם לא הועתק. */
-function boldOnly(html) {
-  if (!html) return '';
-  var out = '', last = '', m, re = /<p>|<\/p>|<b>[\s\S]*?<\/b>/g;
-  while ((m = re.exec(html))) {
-    /* שתי מילים מודגשות שהיו רצופות מקבלות רווח ביניהן — מה
-       שהפריד אותן היה טקסט לא-מודגש, וזה בדיוק מה שהוסר. בלעדי
-       זה שתי מילים נדבקות זו לזו לגוש אחד בלתי קריא. */
-    if (last.slice(0, 2) === '<b' && m[0].slice(0, 2) === '<b') out += ' ';
-    out += m[0];
-    last = m[0];
-  }
-  return out.replace(/<p>\s*<\/p>/g, '');
+/* ============================================================
+   חלקי-הפירוש.
+   ------------------------------------------------------------
+   קטע גמרא אחד יכול לשאת כמה חלקי-פירוש — בדרך כלל אחד ("פירוש"),
+   לפעמים גם "העשרה". כל חלק נושא ביחד את הטקסט שלו, ההקלטה שלו
+   (אם הוקלטה והועלתה) והשקף שלו (אם שויך) — לא שלושה מקומות
+   נפרדים לתחזק אלא רשומה אחת. `tag` הוא תיוג חופשי, לא מרשימה
+   קבועה: לא בכל קטע יש הקדמה או העשרה.
+
+   תאימות לאחור: ערך ישן היה מחרוזת HTML בודדת ("הפירוש שלי").
+   כאן היא הופכת לחלק יחיד בשם "פירוש", בלי שום מיגרציה בגיליון —
+   מחרוזת נשארת מחרוזת שם, ורק כאן מתפרשת מחדש. */
+function ownPiecesFrom_(v) {
+  if (!v) return [];
+  if (typeof v === 'string') return v ? [{ tag:'פירוש', text:v, slide:'', audio:'' }] : [];
+  if (v.length === undefined) return [];   /* __bad וכד' — לא רשימת חלקים */
+  return v;
+}
+function ownPieces_(n) {
+  return ownPiecesFrom_(OWN && OWN[String(n)]);
 }
 
+/* גרסה קודמת (קומיט 9db4d2e) ציטטה כאן את מילות הגמרא המודגשות
+   של הקטע לפני תיבת הכתיבה — `boldOnly(html)` חילצה אותן מתוך
+   `st.c.h`. הוסר לבקשתו: הגמרא כבר מסומנת למעלה בדף עצמו, ואין
+   טעם להראות אותה פעמיים — "הפירוש לנוער" נטו, בלי ציטוט.
+   הקוד לא נמחק, רק לא בשימוש — לחפש `git show 9db4d2e:learn.html`
+   ולחפש בו `function boldOnly` אם ירצה לחזור לזה, כאן או בפרויקט
+   אחר. */
 function chavTabHtml(st) {
-  if (!st) return '';
-  var hasOwn = !!(OWN && OWN[String(st.n)]);
-  if (!SIDE_ADM && !hasOwn) return '';
-  return '<div class="cht" id="cht">' +
-    '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
-    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">הפירוש שלי</button></div>';
+  if (!st) return '<span class="cht-lbl">חברותא</span>';
+  /* לתלמיד: לא מספיק שיש טקסט לקטע — הדף כולו צריך להיות
+     מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
+     דולף לפני שהדף מוכן. */
+  var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
+  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
+  return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
+    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
 }
 
 function ownMsg(cls, txt) {
@@ -1498,42 +1597,349 @@ function ownMsg(cls, txt) {
   if (m) { m.className = 'own-msg ' + cls; m.innerHTML = txt; }
 }
 
-/* מוצג בתוך אותה תיבה בדיוק שהתלמיד יראה — ולכן זו גם חוויית
-   הכתיבה של אחיאסף: המילים המודגשות של הקטע הנוכחי, ולידן מקום
-   ריק. ברוב הפעמים הטקסט יגיע דרך הדבקה או הקלדה קולית של
-   גוגל ולא הקלדה ביד — ולכן תיבה גדולה ופשוטה, לא עורך. */
+/* ------------------------------------------------------------
+   מאגר העריכה — עותק עבודה של חלקי הקטע שעל המסך, עד שנשמר.
+   נטען פעם אחת לקטע (`OWN_EDIT_N`), וכל פעולה (הוספה/מחיקה/
+   שיוך שקף/הקלטה) קוראת קודם `ownEditSync_` כדי לא לאבד טקסט
+   שכבר הוקלד בתיבות האחרות לפני שהיא מציירת מחדש. `_id` הוא
+   מזהה מקומי בלבד (לא נשמר בגיליון) — המפתח שבאמצעותו ההקלטה
+   המקומית של החלק נמצאת ב-IndexedDB, גם אם החלק עדיין נטול שם. */
+var OWN_EDIT = null, OWN_EDIT_N = 0;
+function ownPid_() { return Math.random().toString(36).slice(2, 9); }
+function ownEditLoad_(n) {
+  if (OWN_EDIT && OWN_EDIT_N === n) return;
+  var src = ownPieces_(n);
+  OWN_EDIT = (src.length ? src : [{ tag:'פירוש', text:'', slide:'', audio:'' }]).map(function (p) {
+    return { tag:p.tag || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '', _id:ownPid_() };
+  });
+  OWN_EDIT_N = n;
+}
+function ownEditSync_() {
+  if (!OWN_EDIT) return;
+  OWN_EDIT.forEach(function (p, i) {
+    var t = $('own-tag-' + i); if (t) p.tag = t.value;
+    var e = $('own-txt-' + i); if (e) p.text = e.textContent.trim() ? e.innerHTML.trim() : '';
+  });
+}
+function ownPieceAdd() {
+  ownEditSync_();
+  OWN_EDIT.push({ tag:'העשרה', text:'', slide:'', audio:'', _id:ownPid_() });
+  paintOwn();
+}
+function ownPieceDel(i) {
+  ownEditSync_();
+  if (OWN_EDIT.length <= 1) OWN_EDIT[0] = { tag:'פירוש', text:'', slide:'', audio:'', _id:ownPid_() };
+  else OWN_EDIT.splice(i, 1);
+  paintOwn();
+}
+/* סדר החלקים הוא סדר ההצגה — גם בלשונית הכתובה וגם בכפתורי
+   ההשמעה. לפעמים חלק צריך לבוא **לפני** ה"פירוש" הראשי (הקדמה),
+   לא רק אחריו — ולכן סדר חופשי, לא רק הוספה בסוף. */
+function ownPieceMove_(i, d) {
+  ownEditSync_();
+  var j = i + d, tmp;
+  if (j < 0 || j >= OWN_EDIT.length) return;
+  tmp = OWN_EDIT[i]; OWN_EDIT[i] = OWN_EDIT[j]; OWN_EDIT[j] = tmp;
+  paintOwn();
+}
+/* ברירת המחדל: חלק בלי שקף משלו משתמש בשקף שכבר משויך לקטע
+   הזה במסך הניהול של המצגת — בדיוק כמו שכל תלמיד רואה היום.
+   אין צורך לגעת כאן בכלל. השקף הייעודי (`p.slide`) קיים רק
+   לחריג: שקף חדש שקיים רק במצב הפירוש הקולי (`ownPieceSlideUpload`
+   למטה) — לא לבחירה מחדש מתוך שקפים שכבר קיימים. */
+function ownPieceSlideClear(i) {
+  ownEditSync_();
+  OWN_EDIT[i].slide = '';
+  paintOwn();
+}
+/* בחירת שקף שכבר קיים — רשת ממוזערים ולא רשימת מספרים, כי
+   "שקף 5" כשלעצמו לא אומר כלום; רואים מה עליו ובוחרים. הרשת
+   נפתחת מעל הכל (`#own-pick`, אותה מחלקת `.sheet` ששער הדף
+   כבר משתמש בה) ולא תופסת מקום כשהיא סגורה. */
+var OWN_PICK = null;    /* אינדקס החלק שעבורו בוחרים, או null */
+function ownPieceSlidePickOpen(i) {
+  ownEditSync_();
+  OWN_PICK = i;
+  paintOwnPick_();
+}
+function ownPieceSlidePickClose() {
+  OWN_PICK = null;
+  var el = $('own-pick');
+  if (el) el.className = 'sheet own-pick';
+}
+function ownPieceSlidePickChoose(fi) {
+  if (OWN_PICK == null || !DECK || !DECK.files[fi]) { ownPieceSlidePickClose(); return; }
+  OWN_EDIT[OWN_PICK].slide = DECK.files[fi];
+  ownPieceSlidePickClose();
+  paintOwn();
+}
+function paintOwnPick_() {
+  var el = $('own-pick');
+  if (!el || !DECK) return;
+  el.innerHTML = '<div class="own-pick-card">' +
+    '<div class="own-pick-h"><span>בחירת שקף</span>' +
+    '<button id="own-pick-x" aria-label="סגירה">✕</button></div>' +
+    '<div class="own-pick-grid">' +
+    DECK.files.map(function (f, fi) {
+      return '<button class="own-pick-th" onclick="ownPieceSlidePickChoose(' + fi + ')">' +
+        '<img src="' + slideSrc(fi + 1) + '" alt="" loading="lazy"><span>' + (fi + 1) + '</span></button>';
+    }).join('') +
+    '</div></div>';
+  el.className = 'sheet own-pick on';
+  $('own-pick-x').onclick = ownPieceSlidePickClose;
+}
+
+/* ============================================================
+   ייצוא הפירוש לכל הדף — טקסט פשוט, מחולק לקטעים וממוספר לפי
+   `st.n`, בלי שום תיוג חלק ("פירוש"/"העשרה" וכד') — רק המספר
+   שהאדם רואה בדף עצמו והטקסט. להדבקה החוצה: GPT, מסמך, כל
+   מקום. קטע עם כמה חלקים — הטקסטים שלהם זה מתחת לזה, באותו
+   מספר. קטע בלי טקסט בכלל — מדלגים עליו, לא משאירים מספר ריק.
+
+   הקטע שפתוח כרגע לעריכה נלקח מ-`OWN_EDIT` (מה שעל המסך, גם
+   אם עוד לא נשמר) — לא מ-`OWN` (מה שכבר נשמר בגיליון) — אחרת
+   ייצוא באמצע כתיבה היה מפספס בדיוק את מה שרואים הרגע. */
+function ownStripHtml_(html) {
+  var d = document.createElement('div');
+  d.innerHTML = html || '';
+  return (d.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function ownExportText_() {
+  var seen = {}, lines = [];
+  FLAT.forEach(function (st) {
+    if (seen[st.n]) return;
+    seen[st.n] = true;
+    var pieces = (OWN_EDIT && OWN_EDIT_N === st.n) ? OWN_EDIT : ownPieces_(st.n);
+    var texts = pieces.map(function (p) { return ownStripHtml_(p.text); }).filter(function (t) { return t; });
+    if (texts.length) lines.push(st.n + '. ' + texts.join('\n\n'));
+  });
+  return lines.join('\n\n');
+}
+function ownExportOpen() {
+  if (OWN_EDIT) ownEditSync_();
+  paintOwnExport_();
+}
+function ownExportClose() {
+  var el = $('own-export');
+  if (el) el.className = 'sheet own-export';
+}
+function paintOwnExport_() {
+  var el = $('own-export');
+  if (!el) return;
+  var txt = ownExportText_();
+  el.innerHTML = '<div class="own-pick-card own-export-card">' +
+    '<div class="own-pick-h"><span>ייצוא הפירוש לכל הדף</span>' +
+    '<button id="own-export-x" aria-label="סגירה">✕</button></div>' +
+    (txt ? '<textarea id="own-export-ta" readonly></textarea>' +
+           '<button class="own-export-copy-btn" id="own-export-copy">העתקה</button>' :
+           '<p class="none">עדיין אין מה לייצא — לא נכתב פירוש לאף קטע בדף הזה.</p>') +
+    '</div>';
+  el.className = 'sheet own-export on';
+  $('own-export-x').onclick = ownExportClose;
+  if (!txt) return;
+  var ta = $('own-export-ta');
+  ta.value = txt;
+  ta.focus();
+  ta.select();
+  $('own-export-copy').onclick = function () {
+    var btn = $('own-export-copy'), ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt);
+        ok = true;
+      }
+    } catch (e) {}
+    if (!ok) { try { ta.select(); ok = document.execCommand('copy'); } catch (e2) {} }
+    btn.textContent = ok ? 'הועתק ✓' : 'לא הצלחתי — יש להעתיק ידנית מהתיבה';
+  };
+}
+/* שקף חדש שלא היה קיים בתיקייה כלל — ייעודי לחלק הזה בלבד.
+   מעלים אותו בדיוק כמו הקלטה (`ghput` + אימות מול גיטהאב), בשם
+   קובץ שלא מתנגש בשום מספר סידורי ("piece-<קטע>-<חלק>"), ולכן
+   הוא **לא נכנס לרשימת הסדר של המצגת הרגילה** במסך הניהול —
+   שקף שמשרת רק את הפירוש הקולי, בלי לגעת ברצף הקיים. */
+function ownSlideExt_(mime) {
+  if (/png/.test(mime)) return 'png';
+  if (/webp/.test(mime)) return 'webp';
+  return 'jpg';
+}
+function ownPieceSlideUpload(i, file) {
+  ownEditSync_();
+  if (!DECK || !file) return;
+  var n = OWN_EDIT_N, pid = OWN_EDIT[i]._id;
+  if (!cfgReadKey_()) {
+    ownMsg('bad', 'צריך סיסמת סקריפט במכשיר כדי להעלות שקף — ניהול ← מערכת.');
+    paintOwnEdit_(n); return;
+  }
+  var fr = new FileReader();
+  fr.onload = function () {
+    var fname = 'piece-' + n + '-' + pid + '.' + ownSlideExt_(file.type);
+    var path = (DECK.dir ? DECK.dir + '/' : '') + fname;
+    ownMsg('', 'מעלה שקף…'); paintOwnEdit_(n);
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+      action:'ghput', key:cfgReadKey_(), path:path, b64:ownB64FromBuf_(fr.result),
+      msg:'שקף לחלק בקטע ' + n
+    }) }).catch(function () {}).then(function () {
+      ownUploadVerify_(path, 0, function (ok) {
+        if (ok && OWN_EDIT && OWN_EDIT_N === n) {
+          OWN_EDIT.forEach(function (p) { if (p._id === pid) p.slide = fname; });
+          ownMsg('ok', 'השקף עלה. הוא ישויך לחלק בלחיצה על שמירה.');
+        } else {
+          ownMsg('bad', 'העלאת השקף נכשלה — אפשר לנסות שוב.');
+        }
+        if (OWN_EDIT_N === n) paintOwnEdit_(n);
+      });
+    });
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+/* פירוש — טקסט חופשי נטו, ולכל חלק גם הקלטה ושקף אפשריים (ראו
+   `ownAudioGo`/`ownPieceSlideUpload` למעלה). אזור עריכה חי (לא
+   textarea) כדי שיהיה אפשר להדגיש מילה בודדת בבולד; מעבר לזה
+   זו עריכה רגילה לגמרי של הדפדפן.
+
+   שער הפרסום: `OWN.__pub` הוא מפתח שמור אחד לכל הדף (לא קטע),
+   באותו אובייקט בדיוק שכבר נשמר לכל דף — בלי לשונית נוספת ובלי
+   שינוי ב-apps-script.gs. בלי הדגל — כותבים כמה שרוצים, רק
+   אחיאסף רואה. עם הדגל — תלמידים רואים מיד, כולל כל עריכה הבאה. */
+/* יש עריכה בזיכרון שעדיין לא נשמרה בגיליון? השוואה למה שכבר
+   ידוע כשמור (`ownPieces_`) — לא הצהרה, בדיקה אמיתית. */
+function ownEditDirty_() {
+  if (!OWN_EDIT) return false;
+  ownEditSync_();
+  return JSON.stringify(ownCleanPieces_(OWN_EDIT)) !== JSON.stringify(ownPieces_(OWN_EDIT_N));
+}
 function paintOwn() {
   var st = FLAT[IDX], box = $('chb');
   if (!st) { box.innerHTML = ''; return; }
-  var n = st.n, quote = boldOnly(st.c && st.c.h);
-  var text = (OWN && OWN[String(n)]) || '';
-  var html = '<div class="own-q">' + (quote ||
-    '<span class="none">לקטע הזה עדיין אין גמרא מסומנת.</span>') + '</div>';
-  if (SIDE_ADM) {
-    html += '<textarea class="vox-txt" id="own-txt" ' +
-      'placeholder="כתוב כאן את הפירוש שלך לקטע הזה…">' + esc(text) + '</textarea>' +
-      '<button class="own-save" id="own-save">שמירה לכולם</button>' +
-      '<div class="own-msg" id="own-msg"></div>';
-  } else {
-    html += text ? '<p>' + esc(text) + '</p>'
-                 : '<div class="none">טרם נכתב כאן פירוש.</div>';
-  }
+  var n = st.n;
+  if (!SIDE_ADM) { paintOwnRead_(n); return; }
+  /* עברו לקטע אחר בזמן שנשאר טקסט לא שמור — שומרים אותו ברקע
+     לפני שהוא נעלם. זה בדיוק מה שקרה בפועל: כתיבה בקטע אחד,
+     מעבר לקטע הבא בלי ללחוץ "שמירה", והכתיבה אבדה. */
+  if (OWN_EDIT && OWN_EDIT_N !== n && ownEditDirty_()) ownSaveAll(OWN_EDIT_N);
+  ownEditLoad_(n);
+  paintOwnEdit_(n);
+  var need = OWN_EDIT.filter(function (p) { return !VOX_CACHE.hasOwnProperty(n + '::' + p._id); });
+  if (need.length) Promise.all(need.map(function (p) { return voxLoad(n, p._id); }))
+    .then(function () {
+      if (FLAT[IDX] && FLAT[IDX].n === n && OWN_EDIT_N === n) { ownEditSync_(); paintOwnEdit_(n); }
+    });
+}
+function paintOwnRead_(n) {
+  var box = $('chb'), pieces = ownPieces_(n);
+  if (!pieces.length) { box.innerHTML = '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
+  box.innerHTML = pieces.map(function (p) {
+    var lbl = (pieces.length > 1 && p.tag) ? '<div class="own-plbl">' + esc(p.tag) + '</div>' : '';
+    return lbl + '<div class="own-read">' + (p.text || '') + '</div>';
+  }).join('');
+  box.scrollTop = 0;
+}
+function paintOwnEdit_(n) {
+  var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
+  var html = '';
+
+  html += OWN_EDIT.map(function (p, i) {
+    var key = n + '::' + p._id, loaded = VOX_CACHE.hasOwnProperty(key), clip = VOX_CACHE[key];
+    var recording = !!(VOX_RECORDER && VOX_FOR && VOX_FOR.n === n && VOX_FOR.pid === p._id);
+    var audioRow;
+    if (recording) {
+      audioRow = '<button class="stop" onclick="ownAudioStop()">⏹ עצירה</button>';
+    } else if (clip) {
+      audioRow = '<audio controls preload="none" src="' + voxClipUrl_(clip) + '"></audio>' +
+        '<button class="back" onclick="ownAudioDel(' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
+        '<button onclick="ownAudioGo(' + i + ')">מחדש</button>';
+    } else if (p.audio && loaded) {
+      audioRow = '<audio controls preload="none" src="' + esc(p.audio) + '"></audio>' +
+        '<button onclick="ownAudioGo(' + i + ')">מחדש</button>';
+    } else if (!loaded) {
+      audioRow = '<span class="vox-empty">טוען…</span>';
+    } else {
+      audioRow = '<button class="hot" onclick="ownAudioGo(' + i + ')">⏺ הקלטה</button>';
+    }
+    /* בלי שקף ייעודי — שתי דרכים לקבוע אחד: לבחור שקף שכבר קיים
+       בתיקייה (רשת ממוזערים, לא תופסת מקום כשהיא סגורה), או
+       להעלות שקף חדש. עם שקף ייעודי — רק תווית קצרה והסרה. */
+    var slideStatus = !DECK ? '<span class="sp"></span>' :
+      p.slide ? '<span class="sp"></span><span class="own-slide-txt">שקף ייעודי</span>' +
+        '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' :
+      '<span class="sp"></span>' +
+      '<button onclick="ownPieceSlidePickOpen(' + i + ')">קיים</button>' +
+      '<label class="own-slide-up">חדש' +
+      '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>';
+
+    /* בולד/ביטול/חזרה — ליד תיבת הטקסט של כל חלק, לא רחוק ממנה.
+       פועלים על תיבת הטקסט שהייתה בפוקוס אחרון: ה-
+       mousedown+preventDefault שומר על הבחירה שם, גם כשהכפתור
+       יושב בחלק אחר של המסך. ביטול/חזרה נשענים על ההיסטוריה
+       המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי
+       בלבד" מאליהם, בלי שום שמירה נוספת. */
+    var toolsRow = '<div class="own-tools">' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
+      'title="הדגשה (בולד)">B</button>' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'undo\')" ' +
+      'title="ביטול">↶</button>' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'redo\')" ' +
+      'title="חזרה">↷</button>' +
+      slideStatus + '</div>';
+
+    var moveBtns = OWN_EDIT.length > 1 ?
+      '<button class="own-mv" onclick="ownPieceMove_(' + i + ',-1)"' +
+      (i === 0 ? ' disabled' : '') + ' aria-label="הזזה למעלה">▲</button>' +
+      '<button class="own-mv" onclick="ownPieceMove_(' + i + ',1)"' +
+      (i === OWN_EDIT.length - 1 ? ' disabled' : '') + ' aria-label="הזזה למטה">▼</button>' : '';
+
+    /* השמירה יושבת בשורת ההקלטה של החלק האחרון — לא שורה נפרדת
+       משלה. כפתור ההקלטה במקומו (ימין), השמירה נדחפת לצד השני
+       (שמאל) על ידי מרווח אוטומטי, ראו CSS. */
+    var saveBtn = i === OWN_EDIT.length - 1 ?
+      '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' : '';
+
+    return '<div class="own-piece">' +
+      '<div class="own-piece-h">' +
+      '<input class="own-tag" id="own-tag-' + i + '" type="text" value="' + esc(p.tag) + '" aria-label="תיוג החלק">' +
+      moveBtns + '<span class="sp"></span>' +
+      (OWN_EDIT.length > 1 ? '<button class="back" onclick="ownPieceDel(' + i + ')" aria-label="מחיקת החלק">✕</button>' : '') +
+      '</div>' +
+      '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
+      'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + p.text + '</div>' +
+      toolsRow + '<div class="own-audio">' + audioRow + saveBtn + '</div></div>';
+  }).join('');
+
+  html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
+    '<div class="own-msg" id="own-msg"></div>' +
+    /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
+       לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
+    '<button class="own-export-btn" id="own-export-open">ייצוא הפירוש לכל הדף</button>' +
+    '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
+    (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
+    '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
+
   box.innerHTML = html;
   box.scrollTop = 0;
-  if (!SIDE_ADM) return;
-  $('own-save').onclick = function () { ownSave(n, $('own-txt').value.trim()); };
-  $('own-txt').addEventListener('blur', function () {
-    document.body.classList.remove('kb-open');
+  $('own-pub-btn').onclick = function () {
+    var goingOn = !pubOn;
+    if (goingOn && !window.confirm(
+      'לפרסם את "הפירוש" לכל הדף הזה? כל התלמידים שיפתחו אותו יראו אותו החל מעכשיו.'
+    )) return;
+    ownEditSync_();
+    ownPublishSet(goingOn);
+  };
+  $('own-add').onclick = ownPieceAdd;
+  $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
+  $('own-export-open').onclick = ownExportOpen;
+  OWN_EDIT.forEach(function (p, i) {
+    var e = $('own-txt-' + i);
+    if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
   });
 }
 
 /* הכתיבה היא no-cors ולכן תמיד "מצליחה" — ראו ההערה המקבילה
    ליד sideSave. ההודעה "נשמר" נאמרת רק אחרי קריאה חוזרת. */
-function ownSave(n, text) {
-  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
-  if (!OWN) OWN = {};
-  if (text) OWN[String(n)] = text; else delete OWN[String(n)];
-  OMAP[dmKey(S.mas, S.daf)] = OWN;
+/* הרשימה המלאה, לכתיבה — משותפת לשמירת קטע ולמתג הפרסום, כי
+   שתיהן כותבות את אותה לשונית שלמה מחדש. */
+function ownRows_() {
   var rows = [], k;
   for (k in OMAP) {
     if (!OMAP.hasOwnProperty(k)) continue;
@@ -1543,48 +1949,181 @@ function ownSave(n, text) {
     for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
     if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
   }
-  ownMsg('', 'נשלח · מאמת מול הגיליון…');
+  return rows;
+}
+function ownPost_() {
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
     action:'table', tab:OWN_TAB,
     cols:JSON.stringify(['מסכת', 'דף', 'פירוש']),
-    rows:JSON.stringify(rows)
+    rows:JSON.stringify(ownRows_())
   }) }).catch(function () {});
-  ownVerify(0, n, text);
 }
-function ownVerify(tries, n, text) {
+/* חלק ריק לגמרי (בלי טקסט ובלי הקלטה) לא נשמר — כך מחיקת כל
+   הטקסט מחלק שווה למחיקתו, בלי כפתור נפרד. */
+function ownCleanPieces_(list) {
+  var out = [];
+  list.forEach(function (p) {
+    if (!(p.text || '').trim() && !p.audio) return;
+    out.push({ tag:(p.tag || 'פירוש').trim() || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '' });
+  });
+  return out;
+}
+/* סיסמת הסקריפט לפעולות מוגנות (ghput) — אותו אחסון בדיוק כמו
+   ב"ניהול ← מערכת" שבמסך אחר; לא נערכת כאן, רק נקראת. */
+function cfgReadKey_() {
+  try { return (JSON.parse(localStorage.getItem('df:cfg') || '{}').readKey || '').trim(); }
+  catch (e) { return ''; }
+}
+/* שמירה: קודם מעלים לגיטהאב כל הקלטה מקומית שעדיין לא הועלתה
+   (ראו `ownUploadNext_`), ורק אז כותבים את מערך החלקים לגיליון —
+   כדי שלא יישמר מצביע לקובץ שעוד לא באמת קיים שם. */
+/* העלאת ההקלטות לגיטהאב — בדיוק אותו מנגנון שכבר משרת שקפים
+   (`action:'ghput'` הכללי שב-apps-script.gs, ואימות מול
+   ה-contents API כמו `dkAskUntil` שבמסך הניהול). שום שינוי
+   בסקריפט: המפתח כבר פתוח לכל נתיב, וכאן רק תיקיית `audio/`
+   במקום `slides/`. */
+function ownAudioExt_(mime) {
+  if (/mp4/.test(mime)) return 'm4a';
+  if (/ogg/.test(mime)) return 'ogg';
+  return 'webm';
+}
+/* ArrayBuffer -> base64, בפיסות של 32K כדי לא לפגוע ב-
+   String.fromCharCode.apply עם הקלטה ארוכה (מעבר לזה זורק
+   "Maximum call stack size exceeded" בדפדפנים ישנים). */
+function ownB64FromBuf_(buf) {
+  var bytes = new Uint8Array(buf), bin = '', i, CH = 0x8000;
+  for (i = 0; i < bytes.length; i += CH) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(bin);
+}
+function ownUploadVerify_(path, tries, cb) {
+  var slash = path.lastIndexOf('/'), dir = path.slice(0, slash), name = path.slice(slash + 1);
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        dir.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (j) {
+      var have = (j || []).some(function (f) { return f.name === name; });
+      if (have) { cb(true); return; }
+      if (tries < 5) { setTimeout(function () { ownUploadVerify_(path, tries + 1, cb); }, 2200); return; }
+      cb(false);
+    })
+    .catch(function () {
+      if (tries < 5) { setTimeout(function () { ownUploadVerify_(path, tries + 1, cb); }, 2200); return; }
+      cb(false);
+    });
+}
+function ownUploadNext_(n, list, i, failed, done) {
+  if (i >= list.length) { done(failed); return; }
+  var item = list[i], mime = item.clip.mime || 'audio/webm';
+  var path = 'audio/' + dmKey(S.mas, S.daf).replace('|', '-') + '/' + n + '-' + item.p._id +
+    '.' + ownAudioExt_(mime);
+  ownMsg('', 'מעלה הקלטה ' + (i + 1) + ' מתוך ' + list.length + '…');
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'ghput', key:cfgReadKey_(), path:path, b64:ownB64FromBuf_(item.clip.buf),
+    msg:'הקלטה לקטע ' + n + ' · ' + dmKey(S.mas, S.daf)
+  }) }).catch(function () {}).then(function () {
+    ownUploadVerify_(path, 0, function (ok) {
+      if (ok) item.p.audio = path; else failed.push(item.p.tag || 'פירוש');
+      ownUploadNext_(n, list, i + 1, failed, done);
+    });
+  });
+}
+function ownSaveAll(n) {
+  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  var pieces = OWN_EDIT.slice(), toUpload = [];
+  pieces.forEach(function (p) {
+    var clip = VOX_CACHE[n + '::' + p._id];
+    if (clip && !p.audio) toUpload.push({ p:p, clip:clip });
+  });
+  if (toUpload.length && !cfgReadKey_()) {
+    ownMsg('bad', 'צריך סיסמת סקריפט במכשיר כדי להעלות הקלטה — ניהול ← מערכת.'); return;
+  }
+  ownMsg('', toUpload.length ? 'מעלה הקלטות…' : 'נשלח · מאמת מול הגיליון…');
+  ownUploadNext_(n, toUpload, 0, [], function (failed) {
+    if (!OWN) OWN = {};
+    var clean = ownCleanPieces_(pieces);
+    if (clean.length) OWN[String(n)] = clean; else delete OWN[String(n)];
+    OMAP[dmKey(S.mas, S.daf)] = OWN;
+    ownMsg('', 'נשלח · מאמת מול הגיליון…');
+    ownPost_();
+    ownVerify(0, n, clean, failed);
+  });
+}
+function ownVerify(tries, n, wantPieces, failed) {
+  var failWarn = (failed && failed.length)
+    ? ' <b>שימו לב:</b> ההקלטה של "' + failed.join('", "') + '" לא עלתה — הטקסט נשמר, אפשר לנסות להקליט ולשמור שוב.'
+    : '';
   setTimeout(function () {
     sheetCsv(OWN_TAB).then(function (rows) {
       var m = dmapFromRows(rows);
       var mine = m && m[dmKey(S.mas, S.daf)];
-      var want = (mine || {})[String(n)] || '';
-      if ((text || '') === want) {
+      var got = ownPiecesFrom_((mine || {})[String(n)]);
+      if (JSON.stringify(got) === JSON.stringify(wantPieces)) {
         OMAP = m; OWN = mine;
-        ownMsg('ok', 'נשמר ואומת. מעכשיו זה מה שיראה כל מי שפותח את הדף.');
+        ownMsg(failWarn ? 'bad' : 'ok', ((OWN && OWN.__pub)
+          ? 'נשמר ואומת. הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
+          : 'נשמר כטיוטה ואומת. עדיין רק אתה רואה — עד שתפרסם את כל הדף.') + failWarn);
         return;
       }
-      if (tries < 4) { ownVerify(tries + 1, n, text); return; }
+      if (tries < 4) { ownVerify(tries + 1, n, wantPieces, failed); return; }
       ownMsg('bad', '<b>לא אומת.</b> ' + (!m
         ? 'הגיליון לא נענה, או שלשונית "' + OWN_TAB + '" לא נוצרה.'
         : 'מה שחזר מהגיליון אינו מה שנשלח.') +
         ' הטקסט קיים במסך הזה בלבד — אפשר לנסות שוב.');
     }).catch(function () {
-      if (tries < 4) ownVerify(tries + 1, n, text);
+      if (tries < 4) ownVerify(tries + 1, n, wantPieces, failed);
+      else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+    });
+  }, tries ? 2500 : 1400);
+}
+/* מתג הפרסום — לכל הדף בבת אחת, לא לקטע. אותו מפתח שמור
+   (`__pub`) באותו אובייקט שכבר נשמר לדף הזה בלשונית `פירוש`. */
+function ownPublishSet(on) {
+  if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!OWN) OWN = {};
+  if (on) OWN.__pub = '1'; else delete OWN.__pub;
+  OMAP[dmKey(S.mas, S.daf)] = OWN;
+  ownMsg('', on ? 'מפרסם לכל הדף · מאמת מול הגיליון…' : 'מחזיר לטיוטה · מאמת מול הגיליון…');
+  ownPost_();
+  ownPublishVerify(0, on);
+}
+function ownPublishVerify(tries, on) {
+  setTimeout(function () {
+    sheetCsv(OWN_TAB).then(function (rows) {
+      var m = dmapFromRows(rows);
+      var mine = m && m[dmKey(S.mas, S.daf)];
+      var got = !!(mine && mine.__pub);
+      if (got === !!on) {
+        OMAP = m; OWN = mine;
+        ownMsg('ok', on ? 'פורסם! מעכשיו כל התלמידים שיפתחו את הדף הזה רואים את הפירוש לנוער.'
+                        : 'הוחזר לטיוטה. התלמידים כבר לא רואים את זה.');
+        paintChavArea();
+        return;
+      }
+      if (tries < 4) { ownPublishVerify(tries + 1, on); return; }
+      ownMsg('bad', 'לא אומת. אפשר לנסות שוב.');
+    }).catch(function () {
+      if (tries < 4) ownPublishVerify(tries + 1, on);
       else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
     });
   }, tries ? 5000 : 2500);
 }
 
-/* המתג בין שתי הלשוניות, ומה שקורה סביבו. תלמיד שאין לו מה
-   לראות בלשונית השנייה כלל לא רואה אותה — "קטע בלי הקלטה, אין
-   כפתור". אצל אחיאסף היא תמיד שם, כי בלעדיה אי אפשר לכתוב
-   פירוש ראשון לקטע. */
+/* המתג בין שתי הלשוניות יושב בכותרת הקבועה של המגירה (`#cht`),
+   לא בזרם התוכן — כך שהוא תמיד באותו מקום, ולא תופס גובה מהטקסט.
+   תלמיד שאין לו מה לראות בלשונית השנייה רואה שם רק תווית קבועה
+   "חברותא" — "קטע בלי הקלטה, אין כפתור". אצל אחיאסף היא תמיד
+   לחיצה, כי בלעדיה אי אפשר לכתוב פירוש ראשון לקטע. */
 function paintChavArea() {
-  var st = FLAT[IDX], tabs = chavTabHtml(st);
-  if (!tabs) { CHAV_TAB = 'chav'; paintChav(); return; }
-  if (CHAV_TAB === 'own') paintOwn(); else paintChav();
-  $('chb').insertAdjacentHTML('afterbegin', tabs);
-  $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
-  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
+  var st = FLAT[IDX];
+  var cht = $('cht');
+  if (cht) cht.innerHTML = chavTabHtml(st);
+  var canSwitch = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
+  if (!canSwitch) CHAV_TAB = 'chav';
+  if (CHAV_TAB === 'own' && canSwitch) paintOwn(); else paintChav();
+  if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
+  if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
 }
 
 /* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
@@ -1596,12 +2135,22 @@ if (window.visualViewport) {
     var vvh0 = window.visualViewport.height;
     window.visualViewport.addEventListener('resize', function () {
       var el = document.activeElement;
-      var open = SIDE_ADM && el && el.id === 'own-txt' &&
+      var open = SIDE_ADM && el && el.id && el.id.indexOf('own-txt-') === 0 &&
         (vvh0 - window.visualViewport.height) > 120;
       document.body.classList.toggle('kb-open', open);
     });
   })();
 }
+
+/* עזיבת העמוד (סגירה, ריענון, מעבר לאתר אחר) עם עריכה שלא
+   נשמרה — המעבר בין קטעים כבר שומר לבד (ראו `paintOwn`), אבל
+   זו לא נגיעה בזה: מי שסוגר את הכל באמצע כתיבה מקבל אזהרה
+   סטנדרטית של הדפדפן במקום לגלות מחר שהטקסט נעלם. */
+window.addEventListener('beforeunload', function (e) {
+  if (!SIDE_ADM || !ownEditDirty_()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
 
 /* גודל הטקסט. חמישה שלבים, נשמר במכשיר. */
 var CZ = 2, CZS = [.86, .93, 1, 1.12, 1.28];
@@ -1659,7 +2208,6 @@ var DMAP = {};       /* כל הלשונית: 'מסכת|דף' -> עוגנים */
 var ANCH = null;     /* העוגנים של הדף שעל המסך, או null אם אין */
 var SLIDE = 1;
 var SIDE_ADM = false;
-var SIDE_MODE = 'deck';   /* 'deck' = שיוך מצגת · 'rec' = אולפן ההקלטה */
 
 function dmKey(mas, daf) { return mas + '|' + dafKey(daf); }
 
@@ -1676,6 +2224,20 @@ function slideSrc(n) {
 /* כמה שקפים יש. היה `DECK.n`, ועכשיו זה אורך הרשימה. */
 function deckN() {
   return DECK ? DECK.files.length : 0;
+}
+/* הערך הגולמי של שקף לפי מיקום — בדיוק מה ששמור ב-`DECK.files`,
+   כלומר שם קובץ בתוך `dir`, או נתיב מלא אם יש בו `/`. זה מה
+   שנשמר בעוגן מעכשיו (ראו `anchPos_` למטה), ולא המיקום עצמו. */
+function deckFileAt(n) {
+  return (DECK && DECK.files[n - 1]) || '';
+}
+/* הכיוון ההפוך: איפה קובץ נתון יושב היום ברשימה, או 0 אם אינו
+   בה בכלל — למשל שקף שהועלה רק בשביל חלק-פירוש קולי, ולא נכנס
+   מעולם לרצף הרגיל. */
+function deckPosOfFile(f) {
+  if (!DECK || !f) return 0;
+  for (var i = 0; i < DECK.files.length; i++) if (DECK.files[i] === f) return i + 1;
+  return 0;
 }
 
 /* ---------- השקפים מובאים ברקע ----------
@@ -1729,6 +2291,17 @@ function loadDeckMap() {
   }).catch(function () { return false; });
 }
 
+/* ערך עוגן -> מיקום ברשימה. מספר הוא שיוך ישן (נשמר כשהעוגן היה
+   "שקף מספר X" עצמו) — הוא תקף כמות שהוא. מחרוזת היא שיוך חדש
+   (שם קובץ) — מחפשים אותה ב-`DECK.files` היום, וזה בדיוק מה
+   שעושה שיוך כזה חסין מפני שקף שנדחף באמצע: השם לא זז, גם אם
+   המיקום שלו כן. `0` = לא נמצא — מתעלמים מהעוגן הזה ולא קורסים
+   (קובץ שנמחק, או שיוך שהתייחס למצגת אחרת). */
+function anchPos_(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return deckPosOfFile(v);
+  return 0;
+}
 /* השקף של קטע מסוים: העוגן הגדול ביותר שאינו עולה על מספר
    הקטע. אין עוגן קודם — שקף 1. */
 function slideAt(idx) {
@@ -1738,8 +2311,10 @@ function slideAt(idx) {
   for (k in ANCH) {
     if (!ANCH.hasOwnProperty(k)) continue;
     var at = parseInt(k, 10);
-    if (!(at >= 0) || at > st.n) continue;
-    if (at >= bestAt) { bestAt = at; best = ANCH[k]; }
+    if (!(at >= 0) || at > st.n || at < bestAt) continue;
+    var pos = anchPos_(ANCH[k]);
+    if (!pos) continue;
+    bestAt = at; best = pos;
   }
   return Math.max(1, Math.min(deckN() || 1, best));
 }
@@ -1756,6 +2331,7 @@ function sideOpen(on, auto) {
     localStorage.setItem('df:side', on ? '1' : '0');
   } catch (e) {}
   recStep('deck');
+  if (!on) sideVoxStop_();
   if (on) sideSync(true);
   /* הבמה שינתה רוחב רק אם היא לא הייתה נעולה על --col. בכל
      מקרה ציור מחדש כאן זול, ומונע מצב שבו המסגרת נשארת על
@@ -1768,12 +2344,17 @@ function sidePhone() {
 /* ---------- ציור ---------- */
 function sideSync(force) {
   if (!DECK) return;
+  var st = FLAT[IDX];
+  /* עברנו קטע — הקלטה של חלק-פירוש קולי ששייכת לקטע הקודם
+     מפסיקה, כמו שהשקף הרגיל מפסיק להיות רלוונטי. */
+  if (VOICE_PLAY && st && VOICE_PLAY.n !== st.n) sideVoxStop_();
   /* גם כשהמצגת סגורה. השקף של הקטע שעל המסך מובא ברקע, כדי
      שלחיצה על "מצגת" תראה שקף ולא תיבה ריקה — וזה נכון בדיוק
      במקרה שבו הלומד דפדף הרבה לפני שפתח אותה. */
   slidePre(slideAt(IDX));
   if (!document.body.classList.contains('side-on')) return;
   var want = slideAt(IDX);
+  sideVoxPaint();
   if (want === SLIDE && !force) { sideAdmPaint(); return; }
   SLIDE = want;
   sidePaint();
@@ -1803,6 +2384,7 @@ function sidePaint() {
       '<button id="sd-prev">▸ שקף קודם</button><span class="sp"></span>' +
       '<span class="sd-n" id="sd-lbl"></span><span class="sp"></span>' +
       '<button id="sd-next">שקף הבא ◂</button></div>' +
+      '<div class="sd-vox" id="sd-vox"></div>' +
       (SIDE_ADM ? sideAdmHtml() : '');
     if ($('sd-x')) $('sd-x').onclick = function () { sideOpen(false); };
     /* דפדוף ידני. הוא אינו משנה את השיוך — הוא רק מסתכל, ובקטע
@@ -1818,6 +2400,7 @@ function sidePaint() {
   $('sd-next').disabled = SLIDE >= deckN();
   var lbl = $('sd-lbl');
   if (lbl) lbl.textContent = (SIDE_ADM && !ANCH) ? 'אין עדיין שיוך' : '';
+  sideVoxPaint();
   sideAdmPaint();
 }
 
@@ -1858,6 +2441,56 @@ function sideStep(d) {
 }
 
 /* ============================================================
+   הפירוש הקולי — כפתורי השמעה בפאנל המצגת, לכולם (לא רק ניהול).
+
+   מוצג רק חלק שכבר הועלה (`piece.audio` קיים) ורק כשהדף מפורסם —
+   בדיוק אותו שער שכבר קובע מה נראה בלשונית הכתובה. לחיצה מנגנת,
+   ואם לחלק יש שקף משלו (`piece.slide`) היא גם מציגה אותו במקום
+   שקף הקטע הרגיל — זמנית, עד עצירה או מעבר קטע. השקף הרגיל של
+   המצגת (השיוך הראשי) אינו נוגע בזה כלל: זו שכבה נפרדת לגמרי. */
+var VOICE_PLAY = null;    /* {n, i} של החלק שמתנגן עכשיו, או null */
+var VOICE_AU = null;
+function sideVoxPaint() {
+  var box = $('sd-vox');
+  if (!box) return;
+  var st = FLAT[IDX];
+  var pieces = (st && OWN && OWN.__pub) ? ownPieces_(st.n).filter(function (p) { return p.audio; }) : [];
+  if (!pieces.length) { box.innerHTML = ''; return; }
+  box.innerHTML = pieces.map(function (p, i) {
+    var playing = !!(VOICE_PLAY && VOICE_PLAY.n === st.n && VOICE_PLAY.i === i);
+    return '<button class="sd-vp' + (playing ? ' on' : '') + '" onclick="sideVoxToggle(' + i + ')">' +
+      (playing ? '⏸ ' : '▶ ') + esc(p.tag || 'פירוש') + ' (קול)</button>';
+  }).join('');
+}
+function sideVoxToggle(i) {
+  var st = FLAT[IDX];
+  if (!st) return;
+  if (VOICE_PLAY && VOICE_PLAY.n === st.n && VOICE_PLAY.i === i) { sideVoxStop_(); return; }
+  var p = ownPieces_(st.n).filter(function (q) { return q.audio; })[i];
+  if (!p) return;
+  sideVoxStop_();
+  if (!VOICE_AU) { VOICE_AU = new Audio(); VOICE_AU.addEventListener('ended', sideVoxStop_); }
+  VOICE_AU.src = p.audio;
+  VOICE_AU.play()['catch'](function () {});
+  VOICE_PLAY = { n:st.n, i:i };
+  if (p.slide) sideVoxShowSlide_(p.slide);
+  sideVoxPaint();
+}
+function sideVoxStop_() {
+  if (VOICE_AU) { try { VOICE_AU.pause(); } catch (e) {} }
+  var had = VOICE_PLAY;
+  VOICE_PLAY = null;
+  if (had) { sideImg(SLIDE); sideVoxPaint(); }
+}
+function sideVoxShowSlide_(file) {
+  var img = $('sd-img');
+  if (!img) return;
+  var src = file.indexOf('/') >= 0 ? file : ((DECK && DECK.dir ? DECK.dir + '/' : '') + file);
+  img.src = src;
+  img.alt = 'שקף פירוש קולי';
+}
+
+/* ============================================================
    שכבת השיוך — רק כשהניהול פתוח במכשיר.
 
    שתי פעולות בלבד, ושתיהן על הקטע שעל המסך עכשיו: "השקף הזה
@@ -1873,26 +2506,15 @@ function sideAdmPaint() {
   var st = FLAT[IDX], n = st ? st.n : 0;
 
   /* מעבר קטע באמצע הקלטה — עוצרים ושומרים מה שכבר הוקלט, במקום
-     להשאיר מיקרופון פתוח על קטע שכבר לא על המסך. */
-  if (VOX_RECORDER && VOX_RECORDER.state === 'recording' && VOX_FOR_N !== n) voxStop();
-
-  var tabs = '<div class="r" style="margin-bottom:9px">' +
-    '<button class="' + (SIDE_MODE === 'deck' ? 'hot' : '') +
-    '" onclick="voxSwitch(\'deck\')">שיוך מצגת</button>' +
-    '<button class="' + (SIDE_MODE === 'rec' ? 'hot' : '') +
-    '" onclick="voxSwitch(\'rec\')">הקלטת קול</button></div>';
-
-  if (SIDE_MODE === 'rec') {
-    box.innerHTML = tabs + '<div id="vox-body"><p class="vox-empty">טוען…</p></div>';
-    voxPaintBody(n);
-    return;
-  }
+     להשאיר מיקרופון פתוח על קטע שכבר לא על המסך. ההקלטה עצמה
+     יושבת עכשיו בעורך הפירוש (`paintOwn`), לא כאן. */
+  if (VOX_RECORDER && VOX_FOR && VOX_FOR.n !== n) ownAudioStop();
 
   var here = ANCH && ANCH[n] !== undefined;
   var count = 0, k;
   for (k in (ANCH || {})) if (ANCH.hasOwnProperty(k)) count++;
 
-  box.innerHTML = tabs +
+  box.innerHTML =
     '<div class="t">קטע ' + n + ' · ' + count +
     (count === 1 ? ' עוגן בדף' : ' עוגנים בדף') + '</div>' +
     '<div class="r">' +
@@ -1904,7 +2526,9 @@ function sideAdmPaint() {
 
   $('sa-set').onclick = function () {
     if (!ANCH) ANCH = {};
-    ANCH[n] = SLIDE;
+    /* שם קובץ ולא מיקום — כדי ששיוך שנעשה היום לא יישבר אם מחר
+       נדחף שקף באמצע הרשימה. ראו `anchPos_`. */
+    ANCH[n] = deckFileAt(SLIDE);
     sideMsg('', '');
     sidePaint();
   };
@@ -1916,27 +2540,18 @@ function sideAdmPaint() {
   };
   $('sa-save').onclick = sideSave;
 }
-function voxSwitch(m) { SIDE_MODE = m; sideAdmPaint(); }
 
 /* ============================================================
-   האולפן — הקלטת הפירוש הקולי, שלב 1.
+   הקלטת הקול — חלק ממאגר החלקים (ראו `paintOwn` למעלה), לא
+   מסך נפרד. כל חלק־פירוש (n + `_id` מקומי) מחזיק לכל היותר
+   הקלטה אחת: הקלטה מחדש מחליפה את הקודמת, בדיוק כמו טקסט.
 
-   מה שיש כאן: טקסט לכל קטע (רשות — התסריט שממנו מקריאים),
-   הקלטה/עצירה, שמיעה חוזרת, מחיקה, ואפשרות להקליט כמה קטעי
-   שמע לאותו קטע גמרא (למשל: הקראת הגמרא בנפרד מהפירוש) —
-   כל קטע הקלטה מתויג בטקסט חופשי, לא משלוש קטגוריות קבועות,
-   כי לא בכל קטע גמרא יש הקדמה או העשרה.
-
-   מה שאין כאן עדיין, בכוונה: העלאה לריפו וכתיבה לגיליון. הכול
-   נשמר במכשיר הזה בלבד (IndexedDB) — שלב הבא.
-
-   מגבלה ידועה: האולפן יושב בפינת המצגת, ולכן זמין רק לשבוע/דף
-   שכבר יש לו מצגת משויכת (`DECK`). דף בלי מצגת עדיין לא יכול
-   להיפתח לכאן — זה דורש לנתק את הפינה הזו מהתלות במצגת, ולא
-   נעשה בשלב הזה כדי לא לגעת במנגנון הקיים שכבר עובד. */
-var VOX_CACHE = {};        /* n -> {text, clips:[{tag,buf,mime,at,_url}]} שכבר נטען */
-var VOX_STREAM = null, VOX_RECORDER = null, VOX_CHUNKS = [], VOX_FOR_N = 0;
-var VOX_TAG = 'פירוש', VOX_MSG = '', VOX_SAVE_T = 0, VOX_DB = null;
+   מה שנשמר איפה: הבלוב עצמו יושב ב-IndexedDB במכשיר הזה בלבד
+   עד שנלחץ "שמירה" — או אז הוא מועלה לגיטהאב (`ownUploadNext_`)
+   וה-URL שלו נכתב לגיליון עם שאר החלק. קליפ מקומי שעדיין לא
+   הועלה מזוהה בכך של-`piece.audio` אין ערך. */
+var VOX_CACHE = {};        /* 'n::pid' -> {buf,mime} | null, שכבר נטען */
+var VOX_STREAM = null, VOX_RECORDER = null, VOX_CHUNKS = [], VOX_FOR = null, VOX_MSG = '', VOX_DB = null;
 
 function voxDbOpen() {
   if (VOX_DB) return Promise.resolve(VOX_DB);
@@ -1950,91 +2565,50 @@ function voxDbOpen() {
     req.onerror = function () { fail(req.error); };
   });
 }
-function voxKey(n) { return S.mas + '|' + dafKey(S.daf) + '|' + n; }
-function voxLoad(n) {
-  if (VOX_CACHE[n]) return Promise.resolve(VOX_CACHE[n]);
+function voxKey_(n, pid) { return S.mas + '|' + dafKey(S.daf) + '|' + n + '|' + pid; }
+function voxLoad(n, pid) {
+  var key = n + '::' + pid;
+  if (VOX_CACHE.hasOwnProperty(key)) return Promise.resolve(VOX_CACHE[key]);
   return voxDbOpen().then(function (db) {
     return new Promise(function (ok) {
-      var rq = db.transaction('segs', 'readonly').objectStore('segs').get(voxKey(n));
-      rq.onsuccess = function () { VOX_CACHE[n] = rq.result || { text:'', clips:[] }; ok(VOX_CACHE[n]); };
-      rq.onerror   = function () { VOX_CACHE[n] = { text:'', clips:[] }; ok(VOX_CACHE[n]); };
+      var rq = db.transaction('segs', 'readonly').objectStore('segs').get(voxKey_(n, pid));
+      rq.onsuccess = function () { VOX_CACHE[key] = rq.result || null; ok(VOX_CACHE[key]); };
+      rq.onerror   = function () { VOX_CACHE[key] = null; ok(null); };
     });
-  }).catch(function () { VOX_CACHE[n] = { text:'', clips:[] }; return VOX_CACHE[n]; });
+  }).catch(function () { VOX_CACHE[key] = null; return null; });
 }
-function voxSave(n) {
-  var v = VOX_CACHE[n];
-  if (!v) return;
+function voxSaveLocal_(n, pid, clip) {
+  VOX_CACHE[n + '::' + pid] = clip;
   voxDbOpen().then(function (db) {
-    db.transaction('segs', 'readwrite').objectStore('segs').put(v, voxKey(n));
+    var store = db.transaction('segs', 'readwrite').objectStore('segs');
+    if (clip) store.put(clip, voxKey_(n, pid)); else store['delete'](voxKey_(n, pid));
   }).catch(function () {});
 }
-function voxClipUrl(c) {
+function voxClipUrl_(c) {
   if (!c._url) {
     try { c._url = URL.createObjectURL(new Blob([c.buf], { type: c.mime || 'audio/webm' })); }
     catch (e) { c._url = ''; }
   }
   return c._url;
 }
-
-function voxPaintBody(n) {
-  voxLoad(n).then(function (v) {
-    var cur = FLAT[IDX];
-    if (!cur || cur.n !== n) return;      /* עברו קטע בזמן שחיכינו לגיליון */
-    var body = $('vox-body');
-    if (!body) return;
-
-    var recording = !!(VOX_RECORDER && VOX_RECORDER.state === 'recording' && VOX_FOR_N === n);
-
-    var clipsHtml = v.clips.length ? v.clips.map(function (c, i) {
-      return '<div class="vox-clip">' +
-        '<span class="tag">' + esc(c.tag || 'פירוש') + '</span>' +
-        '<audio controls preload="none" src="' + voxClipUrl(c) + '"></audio>' +
-        '<button class="back" onclick="voxDelClip(' + n + ',' + i + ')" aria-label="מחיקת ההקלטה">✕</button>' +
-        '</div>';
-    }).join('') : '<p class="vox-empty">עוד אין הקלטה לקטע הזה.</p>';
-
-    body.innerHTML =
-      '<div class="t">קטע ' + n + ' מתוך ' + GROUPS + '</div>' +
-      '<textarea id="vox-txt" class="vox-txt" placeholder="הטקסט שלך לקטע הזה (רשות) — ' +
-      'התסריט שממנו תקריא">' + esc(v.text || '') + '</textarea>' +
-      '<div class="vox-clips">' + clipsHtml + '</div>' +
-      '<div class="r">' +
-      '<input id="vox-tag" class="vox-tag" type="text" value="' + esc(VOX_TAG) + '" aria-label="תיוג ההקלטה">' +
-      (recording
-        ? '<button class="stop" onclick="voxStop()">⏹ עצירה</button>'
-        : '<button class="hot" onclick="voxGo(' + n + ')">⏺ הקלטה חדשה</button>') +
-      '</div>' +
-      '<div class="msg' + (VOX_MSG && /לא|נכשל|אי אפשר/.test(VOX_MSG) ? ' bad' : '') +
-      '" id="vox-msg">' + esc(VOX_MSG) + '</div>';
-
-    var ta = $('vox-txt');
-    if (ta) ta.oninput = function () {
-      v.text = ta.value;
-      clearTimeout(VOX_SAVE_T);
-      VOX_SAVE_T = setTimeout(function () { voxSave(n); }, 500);
-    };
-    var tg = $('vox-tag');
-    if (tg) tg.oninput = function () { VOX_TAG = tg.value; };
-  });
-}
-
 function voxMimeType() {
   if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
   if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
   return '';
 }
-function voxGo(n) {
+function ownAudioGo(i) {
+  ownEditSync_();
+  var n = OWN_EDIT_N, pid = OWN_EDIT[i]._id;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-    VOX_MSG = 'הדפדפן הזה אינו תומך בהקלטה.'; voxPaintBody(n); return;
+    VOX_MSG = 'הדפדפן הזה אינו תומך בהקלטה.'; paintOwnEdit_(n); return;
   }
-  VOX_MSG = 'מבקש הרשאת מיקרופון…'; voxPaintBody(n);
+  VOX_MSG = 'מבקש הרשאת מיקרופון…'; paintOwnEdit_(n);
   navigator.mediaDevices.getUserMedia({ audio:true }).then(function (stream) {
-    var cur = FLAT[IDX];
-    if (!cur || cur.n !== n) {              /* עברו קטע בזמן שחיכינו להרשאה */
-      stream.getTracks().forEach(function (t) { t.stop(); });
+    if (!OWN_EDIT || OWN_EDIT_N !== n || !OWN_EDIT[i] || OWN_EDIT[i]._id !== pid) {
+      stream.getTracks().forEach(function (t) { t.stop(); });      /* עברו קטע/חלק בזמן שחיכינו להרשאה */
       return;
     }
-    VOX_STREAM = stream; VOX_FOR_N = n;
+    VOX_STREAM = stream; VOX_FOR = { n:n, pid:pid };
     var mt = voxMimeType(), opts = { audioBitsPerSecond: 64000 };
     if (mt) opts.mimeType = mt;
     try { VOX_RECORDER = new MediaRecorder(stream, opts); }
@@ -2042,8 +2616,8 @@ function voxGo(n) {
       try { VOX_RECORDER = new MediaRecorder(stream); }
       catch (e2) {
         stream.getTracks().forEach(function (t) { t.stop(); });
-        VOX_STREAM = null;
-        VOX_MSG = 'לא הצלחתי להפעיל הקלטה במכשיר הזה.'; voxPaintBody(n); return;
+        VOX_STREAM = null; VOX_FOR = null;
+        VOX_MSG = 'לא הצלחתי להפעיל הקלטה במכשיר הזה.'; paintOwnEdit_(n); return;
       }
     }
     VOX_CHUNKS = [];
@@ -2052,51 +2626,47 @@ function voxGo(n) {
       if (VOX_STREAM) VOX_STREAM.getTracks().forEach(function (t) { t.stop(); });
       VOX_STREAM = null;
       var blob = new Blob(VOX_CHUNKS, { type: (VOX_RECORDER && VOX_RECORDER.mimeType) || mt || 'audio/webm' });
-      var savedN = VOX_FOR_N, savedTag = VOX_TAG;
-      VOX_RECORDER = null;
+      var was = VOX_FOR;
+      VOX_RECORDER = null; VOX_FOR = null;
       if (!blob.size) {
         VOX_MSG = 'ההקלטה יצאה ריקה — נסו שוב.';
-        var c2 = FLAT[IDX]; if (c2 && c2.n === savedN) voxPaintBody(savedN);
+        if (OWN_EDIT_N === was.n) paintOwnEdit_(was.n);
         return;
       }
       VOX_MSG = 'שומר…';
-      var c3 = FLAT[IDX]; if (c3 && c3.n === savedN) voxPaintBody(savedN);
-      voxSaveClipFor(savedN, blob, savedTag);
+      if (OWN_EDIT_N === was.n) paintOwnEdit_(was.n);
+      var fr = new FileReader();
+      fr.onload = function () {
+        voxSaveLocal_(was.n, was.pid, { buf:fr.result, mime:blob.type });
+        /* הקלטה מקומית חדשה מבטלת את המצביע להעלאה הקודמת — היא
+           תועלה מחדש רק בלחיצה הבאה על שמירה. */
+        if (OWN_EDIT && OWN_EDIT_N === was.n) OWN_EDIT.forEach(function (p) { if (p._id === was.pid) p.audio = ''; });
+        VOX_MSG = '';
+        if (OWN_EDIT_N === was.n) paintOwnEdit_(was.n);
+      };
+      fr.onerror = function () {
+        VOX_MSG = 'ההקלטה נכשלה להישמר.';
+        if (OWN_EDIT_N === was.n) paintOwnEdit_(was.n);
+      };
+      fr.readAsArrayBuffer(blob);
     };
     VOX_MSG = '';
     VOX_RECORDER.start();
-    voxPaintBody(n);
+    paintOwnEdit_(n);
   }).catch(function () {
     VOX_MSG = 'אי אפשר לגשת למיקרופון — בדקו הרשאה בדפדפן.';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
+    if (OWN_EDIT_N === n) paintOwnEdit_(n);
   });
 }
-function voxStop() {
+function ownAudioStop() {
   if (VOX_RECORDER && VOX_RECORDER.state !== 'inactive') VOX_RECORDER.stop();
 }
-function voxSaveClipFor(n, blob, tag) {
-  var v = VOX_CACHE[n] || { text:'', clips:[] };
-  var fr = new FileReader();
-  fr.onload = function () {
-    v.clips.push({ tag: tag || 'פירוש', buf: fr.result, mime: blob.type, at: Date.now() });
-    VOX_CACHE[n] = v;
-    voxSave(n);
-    VOX_MSG = '';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
-  };
-  fr.onerror = function () {
-    VOX_MSG = 'ההקלטה נכשלה להישמר.';
-    var cur = FLAT[IDX]; if (cur && cur.n === n) voxPaintBody(n);
-  };
-  fr.readAsArrayBuffer(blob);
-}
-function voxDelClip(n, i) {
-  var v = VOX_CACHE[n];
-  if (!v || !v.clips[i]) return;
-  if (v.clips[i]._url) { try { URL.revokeObjectURL(v.clips[i]._url); } catch (e) {} }
-  v.clips.splice(i, 1);
-  voxSave(n);
-  voxPaintBody(n);
+function ownAudioDel(i) {
+  ownEditSync_();
+  var n = OWN_EDIT_N, pid = OWN_EDIT[i]._id;
+  voxSaveLocal_(n, pid, null);
+  OWN_EDIT[i].audio = '';
+  paintOwn();
 }
 function sideMsg(cls, txt) {
   var m = $('sa-msg');
