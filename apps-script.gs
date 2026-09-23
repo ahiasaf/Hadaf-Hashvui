@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 32;
+var SCRIPT_VERSION = 33;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -776,6 +776,43 @@ function doGet(e) {
       }
     } catch (oe) {}
     return reply_(e, { status: 'ok', set: oHit });
+  }
+
+  /* ============================================================
+     האם יש אצל ההורה דיווח שממתין לאישורו — בלי קשר להתראה.
+     ============================================================
+     עד עכשיו הדרך היחידה להגיע למסך האישור הייתה התראה שנלחצה
+     (`?pr=`), וזו בדיוק ההבטחה שאי אפשר לעמוד בה כשההתראה
+     שקטה או מתעכבת. כאן ההורה נשאל ישירות, לפי הטלפון שהוא
+     עצמו מילא בהרשמה — אותו טלפון בדיוק שהבן כתב כ"טלפון
+     השותף" כשדיווח. מי שיודע טלפון יכול לדעת אם יש דיווח
+     ממתין לו, וזה כל מה שהוא יכול לדעת — בלי סיסמה, מאותו
+     טעם של `?pair=` למעלה. */
+  if (e && e.parameter && e.parameter.pendingFor) {
+    var pfPhone = String(e.parameter.pendingFor).replace(/[^0-9]/g, '');
+    var pf = null;
+    try {
+      if (pfPhone) {
+        var pfsh = sheet_('זוגות');
+        if (pfsh && pfsh.getLastRow() > 1) {
+          var pfvals = pfsh.getDataRange().getValues();
+          var pfh = pfvals[0], pfix = {};
+          for (var pfq = 0; pfq < pfh.length; pfq++) pfix[String(pfh[pfq]).trim()] = pfq;
+          for (var pfz = pfvals.length - 1; pfz >= 1; pfz--) {
+            var pfr = pfvals[pfz];
+            var pfRp  = String(pfr[pfix['טלפון השותף']] || '').replace(/[^0-9]/g, '');
+            var pfRep = String(pfr[pfix['דיווח']] || '').trim();
+            var pfOk  = String(pfr[pfix['אושר']] || '').trim();
+            if (pfRp !== pfPhone || pfRep !== 'הבן' || pfOk) continue;
+            pf = { id: String(pfr[pfix['מזהה']] || ''),
+                   track: String(pfr[pfix['מסלול']] || ''),
+                   wk: String(pfr[pfix['שבוע']] || '') };
+            break;
+          }
+        }
+      }
+    } catch (pfe) {}
+    return reply_(e, { status: 'ok', pending: pf });
   }
 
   if (e && e.parameter && e.parameter.board) {

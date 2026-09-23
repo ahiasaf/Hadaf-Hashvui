@@ -224,6 +224,9 @@ var PAIR_UI = (function () {
       '  padding:26px 22px 22px;max-width:23rem;width:100%;text-align:center;',
       '  box-shadow:0 18px 60px rgba(11,37,80,.4);',
       '  border-top:4px solid var(--gold,#C08F2B)}',
+      /* המסך היזום אצל ההורה — לא נלחץ מתוך התראה, ולכן צריך
+         לבלוט מעצמו. אדום ולא זהב, בכוונה. */
+      '.pr-card.red{border-top-color:#B3261E}',
       '.pr-card h3{margin:0;font-size:1.25rem;font-weight:800;',
       '  letter-spacing:-.03em;line-height:1.35;color:var(--blue-d,#0B2550)}',
       '.pr-card p{margin:10px 0 0;font-size:.95rem;font-weight:600;',
@@ -288,7 +291,10 @@ var PAIR_UI = (function () {
     /* להורה נאמר "בוא נכניס אותו" ולא "תיכנס" — הוא עושה את
        זה בשביל בנו, וזה בדיוק מה שהוא רוצה לעשות. */
     var sub = sd === 'parent' ? t('askKidB') : t('askB');
-    show('<h3>' + esc(head) + '</h3>' +
+    var camp = t('campH');
+    show((camp ? '<p style="margin:0 0 10px;font-size:.82rem;font-weight:700;' +
+                 'color:var(--gold-d,#8A6416)">' + esc(camp) + '</p>' : '') +
+      '<h3>' + esc(head) + '</h3>' +
       '<p>' + esc(sub) + '</p>' +
       '<button class="pr-go" id="pr-y">' + esc(t('yes')) + '</button>' +
       '<button class="pr-thin" id="pr-n">' + esc(t('no')) + '</button>');
@@ -342,17 +348,22 @@ var PAIR_UI = (function () {
              '&yes=' + (yes ? '1' : '0') + '&cb=' + cb;
     document.body.appendChild(sc);
   }
-  function confirm_() {
-    var p = param(); if (!p) return false;
-    clearParam();
+  /* `urgent` — האם המסך נפתח **יזום**, לא בעקבות התראה שנלחצה.
+     אז יש גם אדום: זו בדיוק הנקודה — לא להישען על שההתראה
+     תגיע. ראו `pending()` למטה. */
+  function confirmShow(p, urgent) {
     var m = me() || {};
     var who = (m.dadFirst || '').trim() || t('kid');
     var daf = (typeof LDaf === 'function')
       ? (LDaf(p.track, (parseInt(p.wk, 10) || 1) - 1) || '') : '';
-    show('<h3>' + esc(fill(t('okAskH'), { daf: daf ? 'דף ' + daf : '' })) +
+    var wrap = show('<h3>' + esc(fill(t('okAskH'), { daf: daf ? 'דף ' + daf : '' })) +
       '</h3><p>' + esc(fill(t('okAskB'), { name: who })) + '</p>' +
       '<button class="pr-go" id="pr-ok">' + esc(t('okYes')) + '</button>' +
       '<button class="pr-thin" id="pr-nope">' + esc(t('okNo')) + '</button>');
+    if (urgent) {
+      var card = wrap.querySelector('.pr-card');
+      if (card) card.className += ' red';
+    }
     var end = function (yes) {
       mark(p, yes);
       show((yes ? SEAL : '') +
@@ -368,12 +379,49 @@ var PAIR_UI = (function () {
     if (b) b.onclick = function () { end(false); };
     return true;
   }
+  function confirm_() {
+    var p = param(); if (!p) return false;
+    clearParam();
+    return confirmShow(p, false);
+  }
+
+  /* ============================================================
+     בדיקה יזומה — לא תלויה בהתראה שהגיעה.
+     ============================================================
+     ההתראה הייתה עד עכשיו הדרך היחידה שבה הורה מגיע למסך
+     האישור, וזו בדיוק ההבטחה שאי אפשר לעמוד בה. כאן, בכל
+     פתיחה רגילה של האפליקציה אצל מי שנרשם כהורה, נשאל השרת
+     לפי הטלפון שהוא עצמו מילא — אותו טלפון בדיוק שהבן רשם
+     כ"טלפון השותף" כשדיווח. אם יש דיווח שממתין לאישורו,
+     המסך נפתח מעצמו — באדום, כדי שזה יבלוט בלי קשר להתראה. */
+  function pending() {
+    var m = me();
+    if (!m || m.role !== 'dad' || !m.phone) return;
+    var url = api(); if (!url) return;
+    var cb = 'pp' + Date.now() + Math.floor(Math.random() * 1000);
+    var sc = document.createElement('script');
+    var t0 = setTimeout(function () { clean(); }, 8000);
+    function clean() {
+      clearTimeout(t0);
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+    }
+    window[cb] = function (r) {
+      clean();
+      if (r && r.status === 'ok' && r.pending && r.pending.id) confirmShow(r.pending, true);
+    };
+    sc.onerror = clean;
+    sc.src = url + '?pendingFor=' + encodeURIComponent(m.phone) + '&cb=' + cb;
+    document.body.appendChild(sc);
+  }
 
   /* התור מנסה שוב בכל פתיחה — אותו דפוס של `learn-q`. */
   function boot() {
     TRIES = 0; flush();
-    /* ומי שהגיע מההתראה — מקבל את מסך האישור. */
-    confirm_();
+    /* מי שהגיע מההתראה — מקבל את מסך האישור מיד. מי שלא, ואצלו
+       יש דיווח ממתין, מקבל אותו בכל זאת — רגע אחרי, כדי לא
+       להתחרות עם קריאות הרשת שכבר יצאו בעליית האפליקציה. */
+    if (!confirm_()) setTimeout(pending, 600);
   }
 
   return { ask: ask, word: word, other: other, side: side,
