@@ -601,6 +601,18 @@ body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
 .dbadge.ask{animation:breathe 2.2s ease-in-out infinite, grow 2.2s ease-in-out infinite}
 @keyframes grow{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
+/* עיגול החידה. פינה נגדית ל-dbadge בכוונה — אין ביניהם קשר,
+   ואסור שהם ייתקלו זה בזה. נשאר נפרד לגמרי מהחברותא/הפירוש:
+   לא באותה מגירה, לא באותו כפתור, אפילו לא באותו צבע. */
+.qfab{display:none;position:absolute;bottom:12px;left:12px;z-index:8;
+  align-items:center;justify-content:center;
+  width:52px;height:52px;border-radius:50%;padding:0;border:0;cursor:pointer;
+  background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
+  color:#fff;font-family:inherit;font-weight:800;font-size:1.3rem;
+  box-shadow:0 4px 18px rgba(11,37,80,.3)}
+.qfab.on{display:flex}
+body.emb .qfab{width:40px;height:40px;font-size:1.05rem;bottom:8px;left:8px}
+
 /* והיציאה — ירוקה, וזו היחידה שלוחצים עליה. בשתי האחרות נגיעה
    שייכת לדף שמתחת. */
 .dbadge.fin{background:linear-gradient(150deg,var(--green-d,#467B1A),var(--green-2,#3A6615));
@@ -822,6 +834,8 @@ nav .sp{flex:1}
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
+    <!-- עיגול צף לחידות — נפרד לגמרי מהחברותא/הפירוש, ראו quizInit(). -->
+    <button class="qfab" id="qfab" title="החידה השבועית" aria-label="החידה השבועית">?</button>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -2962,6 +2976,20 @@ function finish() {
   bar();
 }
 
+/* עיגול החידה — מופיע רק כשיש חידה לדף הזה, וזמין **כל זמן
+   הלימוד** ולא רק בסיומו: עד עכשיו החידה הופיעה רק במסך הסיום,
+   ותלמיד שלא הגיע עד שם לא ידע שהיא קיימת. נפרד לגמרי מהחברותא/
+   הפירוש — לא באותה מגירה, לא באותו כפתור. הניווט זהה לזה
+   שבמסך "סיימתי". */
+function quizInit() {
+  var b = $('qfab');
+  if (!b) return;
+  var key = S.mas + '-' + (S.week + 1);
+  var q = window.QUIZ && QUIZ[key];
+  b.classList.toggle('on', !!(q && q.length));
+  b.onclick = function () { location.href = './#quiz=' + key; };
+}
+
 function markThisDaf() {
   var m = $('done-mark');
   m.style.display = 'none';
@@ -3605,6 +3633,7 @@ function boot() {
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';
   document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
+  quizInit();
 
   /* מי שמשייך יודע לכתוב פירוש גם בדף שעוד אין לו מצגת — "הפירוש
      שלי" יושב במגירת החברותא ולא במגירת המצגת, ולכן הדגל נקבע

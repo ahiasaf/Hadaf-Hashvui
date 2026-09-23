@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.18';
+var APP_VERSION = '8.99.19';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -1934,7 +1934,7 @@ var teamCode = '';
   var l = document.getElementById('splash-logo'); if (l) l.src = LOGO_FULL;
 })();
 
-var state = { track:null, week:null, deck:[], di:0, ans:-1, filter:'all' };
+var state = { track:null, week:null, deck:[], di:0, ans:-1, filter:'all', quizIdx:0 };
 
 /* ============================================================
    `?m=<קוד>` — הקישור שיודע מי פותח אותו.
@@ -4080,7 +4080,8 @@ function openWeek(id, i) {
        '</div>';
 
   /* 2. החידה */
-  if (q) h += '<div class="sec" style="margin-top:18px"><b>החידה השבועית</b><i></i></div>' +
+  if (q && q.length) h += '<div class="sec" style="margin-top:18px"><b>' +
+              (q.length > 1 ? 'החידות השבועיות' : 'החידה השבועית') + '</b><i></i></div>' +
               '<button class="btn gr" onclick="openQuiz()">לחידה — ולהגרלה</button>';
 
   /* 3. המצגת — כלי עזר, ולכן אחרונה */
@@ -4308,15 +4309,28 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') deckClose();
 });
 
-/* ---------- חידה ---------- */
-function openQuiz() {
-  var key = state.track.id + '-' + (state.week + 1), q = QUIZ[key];
+/* ---------- חידה ----------
+   `QUIZ[key]` הוא רשימה, לא חידה בודדת — ראו data.js. פריט אחד
+   ברשימה (המצב הנפוץ) קופץ ישר לשאלה, בדיוק כמו קודם; יותר
+   מפריט אחד עוצר קודם על מסך בחירה קצר (openQuizList). */
+function openQuiz(idx) {
+  var key = state.track.id + '-' + (state.week + 1), list = QUIZ[key];
+  if (!list || !list.length) return;
+  if (idx === undefined) {
+    if (list.length === 1) idx = 0;
+    else { openQuizList(key, list); return; }
+  }
+  var q = list[idx];
   if (!q) return;
+  state.quizIdx = idx;
   var qInstName = (INSTITUTIONS.filter(function (i) { return i.code === myInst; })[0] || {}).name || '';
 
-  var h = '<div class="sec"><b>החידה השבועית · דף ' +
-          esc(state.track.cal[state.week][2]) + '</b><i></i></div>' +
-          '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
+  var h = (list.length > 1
+      ? '<button class="btn g" style="margin-bottom:12px" onclick="openQuiz()">→ כל החידות</button>'
+      : '') +
+      '<div class="sec"><b>' + (list.length > 1 ? 'חידה ' + (idx + 1) + ' · ' : 'החידה השבועית · ') +
+      'דף ' + esc(state.track.cal[state.week][2]) + '</b><i></i></div>' +
+      '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
   q.a.forEach(function (t, i) {
     h += '<button class="opt" id="opt' + i + '" onclick="pickAns(' + i + ')">' +
          '<span class="n">' + (i + 1) + '</span><span>' + esc(t) + '</span></button>';
@@ -4335,6 +4349,18 @@ function openQuiz() {
   state.ans = -1;
   qManual = false;
   quizWho();
+  show('quiz');
+}
+
+/* יותר מחידה אחת באותו שבוע — מסך בחירה קצר ביניהן. */
+function openQuizList(key, list) {
+  var h = '<div class="sec"><b>החידות · דף ' +
+          esc(state.track.cal[state.week][2]) + '</b><i></i></div>';
+  h += list.map(function (q, i) {
+    return '<button class="btn gr" style="margin-top:8px" onclick="openQuiz(' + i + ')">' +
+           'חידה ' + (i + 1) + ' — ' + esc(q.q) + '</button>';
+  }).join('');
+  document.getElementById('quiz-body').innerHTML = h;
   show('quiz');
 }
 
@@ -4385,7 +4411,7 @@ function pickQuizInst() {
 }
 function pickAns(i) {
   state.ans = i;
-  var q = QUIZ[state.track.id + '-' + (state.week + 1)];
+  var q = QUIZ[state.track.id + '-' + (state.week + 1)][state.quizIdx];
   for (var k = 0; k < q.a.length; k++) {
     var el = document.getElementById('opt' + k);
     if (el) el.className = 'opt' + (k === i ? ' sel' : '');
@@ -4393,7 +4419,7 @@ function pickAns(i) {
   document.getElementById('q-send').disabled = false;
 }
 function sendQuiz() {
-  var key = state.track.id + '-' + (state.week + 1), q = QUIZ[key];
+  var key = state.track.id + '-' + (state.week + 1), q = QUIZ[key][state.quizIdx];
   var me = quizMe(), inst, name, phone, id = '';
 
   if (me) {
@@ -4426,7 +4452,10 @@ function sendQuiz() {
             ['נכון', right ? 'נכון' : 'לא נכון'],
             /* המזהה הוא מה שיקשר בין "ענה נכון" לבין תלמיד
                מסוים כשתיערך ההגרלה. */
-            ['מזהה', id]]) });
+            ['מזהה', id],
+            /* איזו חידה מבין הרשימה של אותו שבוע — כדי ששבוע
+               עם כמה חידות לא יתערבב בגיליון. 1 כשיש רק אחת. */
+            ['חידה', state.quizIdx + 1]]) });
   /* מי שענה על החידה סיים את הדף. עד עכשיו "סיים" נרשם רק
      בהגעה לסוף הדף האינטראקטיבי או בלחיצה ידנית, ולכן תלמיד
      שלמד מהחוברת וענה על החידה נספר כמי שלא למד — והלוח של
