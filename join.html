@@ -754,7 +754,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <header>
   <div class="masthead">
     <span class="m"><img id="hdr-mark" alt=""></span>
-    <div><h1>הדף השבועי<br>של בני עקיבא</h1>
+    <div><h1>הדף השבועי<br>של ישיבות בני עקיבא</h1>
       <div class="yr" id="sub">שנת תשפ"ז</div></div>
   </div>
 </header>
@@ -846,7 +846,7 @@ footer a{color:var(--ink-2);font-weight:800}
       <input id="first" type="text" autocomplete="given-name"></div>
     <div class="fld stg" id="f-last"><label class="label" for="last">שם משפחה</label>
       <input id="last" type="text" autocomplete="family-name"></div>
-    <div class="fld stg" id="instFld" style="display:none">
+    <div class="fld stg" id="instFld">
       <label class="label" for="inst">הישיבה</label><select id="inst"></select>
     </div>
     <!-- נפתח רק כשנבחר "אחר", ורק בקישור הכללי. רשות: שדה חובה
@@ -1301,19 +1301,22 @@ function drawTop() {
     w.style.display = '';
   } else w.style.display = 'none';
 
-  /* כמה כבר בפנים אצלו. רק כשהישיבה ידועה מהקישור — בלעדיה
-     אין על מה לדווח, והמספר הכללי אינו אומר לו דבר.
+  /* כמה כבר בפנים — **בכל הישיבות יחד**, לא רק בישיבה של
+     הקישור. קישור עם קוד ישיבה מופץ הלאה בלי שליטה, ומספר
+     שמשויך לישיבה לפי הקישור שבו נכנסו כבר אינו נכון; מספר
+     כללי גם גדול יותר וגם תמיד אמיתי. מוצג לכולם, גם בקישור
+     הכללי — שם עד עכשיו לא הוצג כלום.
 
-     ומתחת לסף לא מציגים מספר בכלל: "כבר 3 מצטרפים" חלש יותר
+     ומתחת לסף לא מציגים מספר בכלל: "כבר 3 הצטרפו" חלש יותר
      מכלום, והוא גם נימוק נגד. */
   var pe = $('peers');
-  var nm = instRow && instRow.name;
-  var cnt = nm ? (peers[instRow.code] || 0) : -1;
+  var cnt = 0;
+  for (var pk in peers) if (peers.hasOwnProperty(pk)) cnt += (peers[pk] || 0);
   var min = JOIN.peersMin == null ? 5 : (parseInt(JOIN.peersMin, 10) || 0);
-  var line = cnt < 0 ? '' :
-    cnt < min   ? tpl(JOIN.peersNone, { inst:nm }) :
-    cnt === 1   ? tpl(JOIN.peersOne,  { inst:nm }) :
-                  tpl(JOIN.peersMany, { n:cnt, inst:nm });
+  var line =
+    cnt < min   ? tpl(JOIN.peersNone, {}) :
+    cnt === 1   ? tpl(JOIN.peersOne,  {}) :
+                  tpl(JOIN.peersMany, { n:cnt });
   /* מי שהוזמן — זו השורה שלו, והיא גוברת. */
   /* מי שהוזמן — זו השורה שלו, והיא גוברת. הנוסח לפי מי הוא:
      בן שקיבל מאביו, או אב שקיבל מבנו. */
@@ -1796,25 +1799,30 @@ var instRow = null;
 (function () {
   for (var i = 0; i < INSTITUTIONS.length; i++)
     if (INSTITUTIONS[i].code === instCode) instRow = INSTITUTIONS[i];
+  /* ============================================================
+     הבורר מוצג תמיד, גם בקישור של ישיבה מסוימת.
+     ============================================================
+     קודם קישור עם קוד ישיבה נעל את הבורר לגמרי — בהנחה שאין
+     דו־משמעות: מי שקיבל קישור של הישיבה שלו הוא ממנה. ההנחה
+     נשברה: קישור כזה הופץ הלאה בלי שליטה, וכל מי שקיבל אותו
+     מהחבר נעל אוטומטית על ישיבה שאינה שלו, בלי דרך לתקן. עכשיו
+     קוד הישיבה שבקישור הוא רק **ברירת מחדל** לבורר — נבחר
+     מראש, אבל תמיד ניתן לשינוי. */
+  $('inst').innerHTML = '<option value="">— בחרו ישיבה —</option>' +
+    INSTITUTIONS.map(function (o) {
+      return '<option value="' + esc(o.code) + '">' + esc(o.name) + '</option>';
+    }).join('') +
+    '<option disabled>──────────</option>' +
+    '<option value="' + esc(OTHER.code) + '">' + esc(OTHER.label) + '</option>';
   if (instRow) {
-    $('sub').textContent = instRow.name;
-  } else {
-    $('instFld').style.display = '';
-    $('inst').innerHTML = '<option value="">— בחרו ישיבה —</option>' +
-      INSTITUTIONS.map(function (o) {
-        return '<option value="' + esc(o.code) + '">' + esc(o.name) + '</option>';
-      }).join('') +
-      /* מי שאינו באף ישיבה. הוא מופיע רק בקישור הכללי — הבורר
-         כולו נפתח רק כשאין קוד ישיבה בכתובת — ולכן תלמיד שקיבל
-         את הקישור של הישיבה שלו אינו רואה אותו כלל.
-
-         `OTHER` אינו נכנס ל-INSTITUTIONS בכוונה: כל מה שנשען על
-         `instRow` — שורת המצטרפים, הלוח, הקוד — פשוט אינו חל
-         עליו, וזה נכון. אין ישיבה, אין מה לספור בה, ו"כבר 3
-         מצטרפים באחר" אינו משפט. */
-      '<option disabled>──────────</option>' +
-      '<option value="' + esc(OTHER.code) + '">' + esc(OTHER.label) + '</option>';
+    $('inst').value = instRow.code; $('sub').textContent = instRow.name;
+    /* פתוח מיד, לא בחשיפה ההדרגתית הרגילה (ראו `stage`/`open_`
+       למטה): יש כאן כבר מה להראות — ברירת המחדל מהקישור — וזו
+       בדיוק ההזדמנות לתקן אותה, לפני שממלאים שם בכלל. */
+    open_('instFld');
   }
+  /* בלי קוד ישיבה בקישור, הבורר נשאר בחשיפה ההדרגתית הרגילה
+     של `stage()` — נגלה אחרי שם משפחה, כמו כל שדה אחר. */
   $('grade').innerHTML = '<option value="">— בחרו —</option>' +
     GRADES.map(function (g) { return '<option>' + g + '</option>'; }).join('');
   $('klass').innerHTML = '<option value="">—</option>' +
@@ -1847,17 +1855,20 @@ function flush() {
 window.addEventListener('online', flush);
 
 function val(id) { return ($(id).value || '').trim(); }
+/* שם הישיבה לפי הקוד שבבורר — **תמיד מהבורר החי**, לא מקוד
+   הקישור. הבורר מוצג תמיד (ראו למעלה) והוא מה שקובע בפועל,
+   גם כשהוא נשאר על ברירת המחדל שהקישור הציע. */
+function instNameOf(code) {
+  if (code === OTHER.code) return val('oth-from') || OTHER.name;   /* "מאיפה אתם" */
+  for (var i = 0; i < INSTITUTIONS.length; i++)
+    if (INSTITUTIONS[i].code === code) return INSTITUTIONS[i].name;
+  return '';
+}
 
 $('go').onclick = function () {
   var first = val('first'), last = val('last');
-  var code  = instRow ? instRow.code : val('inst');
-  var name  = instRow ? instRow.name : (function () {
-    /* מה שנכתב ב"מאיפה אתם" הוא השם. ריק — "אחר" סתם. */
-    if (code === OTHER.code) return val('oth-from') || OTHER.name;
-    for (var i = 0; i < INSTITUTIONS.length; i++)
-      if (INSTITUTIONS[i].code === code) return INSTITUTIONS[i].name;
-    return '';
-  })();
+  var code  = val('inst');
+  var name  = instNameOf(code);
   var grade = val('grade');
   var klass = val('klass');
 
@@ -2829,8 +2840,8 @@ function hlpSend() {
   var me = get('me', null) || {};
   var q = {
     help: '1', name: nm, phone: ph,
-    inst: instRow ? instRow.code : (me.inst || ''),
-    instName: instRow ? instRow.name : (me.instName || ''),
+    inst: val('inst') || me.inst || '',
+    instName: val('inst') ? instNameOf(val('inst')) : (me.instName || ''),
     grade: me.grade || '', klass: me.klass || '',
     dev: isIOS() ? 'אייפון' : 'אנדרואיד',
     what: hlpV.what || '', diag: hlpDiag()
@@ -2920,7 +2931,7 @@ function wzDetOk() {
   var e = $('wz-err');
   var no = function (m) { if (e) e.textContent = m; return false; };
   if (e) e.textContent = '';
-  var code = instRow ? instRow.code : val('inst');
+  var code = val('inst');
   if (!val('first') || !val('last')) return no('צריך שם פרטי ושם משפחה.');
   if (!code) return no('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                        'יש "אחר" בסוף הרשימה.');
@@ -3049,7 +3060,7 @@ window.addEventListener('load', function () {
     $('first').value = me.first || ''; $('last').value = me.last || '';
     $('phone').value = me.phone || ''; $('grade').value = me.grade || '';
     $('klass').value = me.klass || '';
-    if (!instRow && me.inst) $('inst').value = me.inst;
+    if (me.inst) $('inst').value = me.inst;
     $('dad-first').value = me.dadFirst || ''; $('dad-last').value = me.dadLast || '';
     $('dad-phone').value = me.dadPhone || '';
     way = me.way || '';
