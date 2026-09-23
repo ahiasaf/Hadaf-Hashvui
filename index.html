@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.13';
+var APP_VERSION = '8.99.14';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3643,9 +3643,11 @@ function hailBoard() {
    ריק → "ראש החטיבה" לבדו. הרווח שלפני `{name}` נבלע יחד
    איתו, אחרת נשארת פנייה שמסתיימת ברווח — וזה בדיוק המקום
    שבו רואים שהמסך מולא בתבנית. */
+/* גנרי בכוונה — "ראש החטיבה" בלבד, בלי שם. הוא ממילא מזין את
+   הפרטים האישיים שלו בעצמו כמה שורות מטה, ואין טעם לנחש אותם
+   קודם מרשימת המוסדות. */
 function headName() {
-  var i = headInst();
-  return (i && i.head ? String(i.head) : '').trim();
+  return '';
 }
 /* איזו ישיבה זו, לצורך הפנייה.
    ============================================================
