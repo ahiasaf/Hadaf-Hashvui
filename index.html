@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.14';
+var APP_VERSION = '8.99.15';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3703,7 +3703,11 @@ function askSetup(where) {
   ASK.init({
     mount: host.id,
     key:   'head',
-    role:  'ראש חטיבה',
+    role:  headT('roleYeshiva'),
+    /* לא רק ראש חטיבה — גם ראש הישיבה וגם רכז תורה לשמה עשויים
+       למלא את המסך הזה. הבורר פותח מעצמו, וברירת המחדל היא
+       הראשונה ברשימה. ראו `roleInit`/`roleNow` ב-ask.js. */
+    roleOptions: [headT('roleYeshiva'), headT('roleChativa'), headT('roleRachez')],
     t:     headT,
     klass: false,
     fem:   headFem(),

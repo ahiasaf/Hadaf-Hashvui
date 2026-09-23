@@ -34,6 +34,24 @@
 var ASK = (function () {
   var C = null;                    /* ההגדרות מהעמוד */
   var step = 0, busy = false, err = '', skipped = false;
+  /* ============================================================
+     תפקיד נבחר — כשיש יותר מתפקיד אחד שיכול למלא את המסך הזה.
+     ============================================================
+     "אני בעצם פותח את האפשרות גם לראש הישיבה וגם לרכז תורה
+     לשמה." ראש חטיבה כבר אינו הממלא היחיד, ולכן `C.role`
+     הקבוע הפך לבורר: `C.roleOptions` (מערך) מדליק אותו, הראשון
+     ברשימה הוא ברירת המחדל, והבחירה נשמרת לצד שאר הפרופיל —
+     כדי שנדע גם אנחנו מי בדיוק ענה. מי שאין לו `roleOptions`
+     (הר"ם) ממשיך בדיוק כמו קודם, עם `C.role` הקבוע. */
+  var roleSel = null;
+  function roleInit() {
+    if (!C.roleOptions) return;
+    if (roleSel) return;
+    var me = get();
+    roleSel = (me && me.role && C.roleOptions.indexOf(me.role) >= 0) ?
+              me.role : C.roleOptions[0];
+  }
+  function roleNow() { return roleSel || C.role; }
   /* ההתקנה אושרה ולא הגיעה — ראו `APPX.prompt`. */
   var stuck = false;
   /* עורך המלל פותח את המסך על שלב מסוים כדי שאפשר יהיה להקיש
@@ -180,7 +198,18 @@ var ASK = (function () {
         if (!x) return '';
         return '<p>' + esc(x).replace(/\*([^*\n]+)\*/g, '<b>$1</b>') + '</p>';
       }).join('');
-      el.innerHTML = '<div class="as-card"><h2>' + esc(t('askH')) + '</h2>' + body +
+      /* הבורר נפתח מעצמו, בלי לחיצה — ממש מתחת לכותרת "ראש
+         החטיבה". ברירת המחדל היא הראשונה ברשימה, וכל אחד בוחר
+         את עצמו; זה כל מה שצריך כדי לדעת מי באמת ענה. */
+      var roles = '';
+      if (C.roleOptions) {
+        roleInit();
+        roles = '<div class="as-roles">' + C.roleOptions.map(function (r, i) {
+          return '<button class="as-role' + (r === roleSel ? ' on' : '') +
+                 '" data-i="' + i + '">' + esc(r) + '</button>';
+        }).join('') + '</div>';
+      }
+      el.innerHTML = '<div class="as-card"><h2>' + esc(t('askH')) + '</h2>' + roles + body +
         '<button class="as-go" id="r-go">' + esc(t('askGo')) + '</button>' +
         '<button class="as-thin" id="r-later">' + esc(t('askLater')) + '</button></div>';
       wire(); return;
@@ -349,6 +378,17 @@ var ASK = (function () {
   /* ---------- חיווט ---------- */
   function wire() {
     var b;
+    /* שבבי הבחירה — כל לחיצה רק מחליפה מי מסומן, ומציירת
+       מחדש; אין כאן שדה חובה שצריך לאשר, כי תמיד יש ברירת
+       מחדל מסומנת. */
+    if (C.roleOptions) {
+      var chips = document.querySelectorAll('.as-role'), ci;
+      for (ci = 0; ci < chips.length; ci++) {
+        chips[ci].onclick = (function (r) {
+          return function () { roleSel = r; draw(); };
+        })(C.roleOptions[chips[ci].getAttribute('data-i') | 0]);
+      }
+    }
     if ((b = $('r-go')))   b.onclick = function () { err = ''; go(1); };
     if ((b = $('r-done'))) b.onclick = close;
     /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
@@ -398,7 +438,7 @@ var ASK = (function () {
     var ir = inst();
     set({ id: id(), first: first, last: last, grade: grade, klass: klass,
           inst: ir ? ir.code : '', instName: ir ? ir.name : '',
-          at: new Date().toISOString() });
+          role: roleNow(), at: new Date().toISOString() });
     post('רשום', null);
     go(where());
   }
@@ -419,7 +459,7 @@ var ASK = (function () {
         cols: JSON.stringify([
           ['מזהה', me.id || ''], ['שם', name(me)],
           ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
-          ['תפקיד', C.role],
+          ['תפקיד', roleNow()],
           ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
           ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
           ['מנוי', sub ? JSON.stringify(sub) : ''],
@@ -525,6 +565,15 @@ var ASK = (function () {
     "  letter-spacing:.04em;margin-bottom:7px}",
     ".as-card h2{margin:0;font-size:1.16rem;font-weight:800;",
     "  letter-spacing:-.02em;line-height:1.45}",
+    /* שבבי התפקיד — נפתחים מעצמם, בלי לחיצה, מתחת לכותרת.
+       שלושה משקלים שווים, לא רשימה נפתחת: כל האפשרויות גלויות
+       בבת אחת, וזו שמסומנת היא הברירת מחדל עד שבוחרים אחרת. */
+    ".as-roles{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}",
+    ".as-role{flex:1 1 auto;border:1.5px solid var(--rule);border-radius:10px;",
+    "  background:#fff;color:var(--ink-2);font-family:inherit;font-size:.85rem;",
+    "  font-weight:700;padding:9px 10px;cursor:pointer}",
+    ".as-role.on{border-color:var(--blue);background:var(--blue);color:#fff;",
+    "  font-weight:800}",
     ".as-card > p{margin:11px 0 0;font-size:.95rem;color:var(--ink-2);",
     "  line-height:1.75;font-weight:600}",
     ".as-card > p b{color:var(--ink);font-weight:800}",
