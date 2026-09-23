@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.15';
+var APP_VERSION = '8.99.16';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8150,6 +8150,11 @@ function admData(el) {
        באוויר שאיש אינו יודע לתקן. */
     '<button class="btn g" style="margin:0;flex:1" ' +
     'onclick="dataRecount()">ספירה מחדש</button></div>' +
+    /* כתיבה חדשה ל"לומדים" כבר לא יוצרת כפילות (upsertCols_ לפי
+       מזהה) — הכפתור הזה מנקה רק את מה שהצטבר לפני התיקון. */
+    '<div style="display:flex;gap:8px;margin-top:8px">' +
+    '<button class="btn" style="margin:0;flex:1;background:#B3261E;color:#fff" ' +
+    'onclick="dataDedupe()">נקה כפילויות ב"לומדים"</button></div>' +
     /* "נמחקו 11 שורות" חייב לשרוד את הקריאה מחדש שבאה מיד
        אחריו — אחרת הפעולה ההרסנית היחידה כאן מסתיימת בלי שום
        אישור על המסך. */
@@ -8351,6 +8356,32 @@ function dataWipe(tab, ss, rows) {
     dataLoad(1);
   }).catch(function () {
     dataState.msg = '<b>לא נמחק.</b> אין תשובה מהסקריפט.'; admPane();
+  });
+}
+
+/* מוחקת שורות כפולות ב"לומדים" — משאירה לכל מזהה רק את
+   השורה האחרונה שלו. חד-פעמי: התיקון עצמו (upsertCols_)
+   כבר מונע כפילות חדשה, וזה רק מנקה את מה שכבר הצטבר. */
+function dataDedupe() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { dataState.msg = 'חסרה סיסמת הקריאה.'; admPane(); return; }
+  if (!confirm('שורות כפולות של אותו תלמיד ב"לומדים" יימחקו — ' +
+               'יישאר רק האחרון שלו. אין דרך חוזרת מלבד היסטוריית ' +
+               'הגרסאות של הגיליון עצמו.\n\nלנקות?')) {
+    dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
+  }
+  dataState.done = ''; dataState.msg = 'מנקה…'; admPane();
+  scriptGet({ dedupe:1, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      dataState.msg = '<b>לא נוקה.</b> ' + esc((d && d.message) || 'אין תשובה מהסקריפט.');
+      admPane(); return;
+    }
+    dataState.done = !d.removed
+      ? '"לומדים" כבר הייתה נקייה — לא נמחק דבר.'
+      : 'נמחקו ' + d.removed + ' שורות כפולות מ"לומדים".';
+    dataLoad(1);
+  }).catch(function () {
+    dataState.msg = '<b>לא נוקה.</b> אין תשובה מהסקריפט.'; admPane();
   });
 }
 

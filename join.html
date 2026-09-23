@@ -1831,11 +1831,37 @@ function queue(payload) {
   set('join-q', q);
   flush();
 }
+/* השורה שנשלחה — האם היא באמת בגיליון?
+   ============================================================
+   רק "לומדים" (ההרשמה עצמה) נבדקת בחזרה: זו כתיבה שנעשית
+   פעם אחת לכל תלמיד, ומאז שהיא כותבת על עצמה (upsertCols_
+   לפי מזהה) "כן, השורה הזו קיימת" הוא בדיוק מה שנשאל. "התראות"
+   הוא יומן אירועים שכל כניסה בו לגיטימית, ולכן נשאר כמו שהיה —
+   נמחק מהתור מיד, בלי אימות. */
+function fArrived(item) {
+  if (item.tab !== 'לומדים' || typeof LJsonp !== 'function') return Promise.resolve(true);
+  var id = '';
+  (JSON.parse(item.cols || '[]') || []).forEach(function (p) { if (p[0] === 'מזהה') id = p[1]; });
+  if (!id || !API) return Promise.resolve(true);
+  return LJsonp(API + '?arrived=' + encodeURIComponent(id))
+    .then(function (r) { return !!(r && r.status === 'ok' && r.has); })
+    .catch(function () { return false; });
+}
+var F_TRIES = 0;   /* בטעינה הזו בלבד — ראו learned.js: L_TRIES */
 function flush() {
   var q = get('join-q', []) || [];
   if (!q.length || !API || !navigator.onLine) return;
-  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify(q[0]) })
+  if (F_TRIES >= 3) return;
+
+  var item = q[0];
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify(item) })
     .then(function () {
+      /* רגע לפני הבדיקה — הכתיבה בשרת עוברת דרך נעילה. */
+      return new Promise(function (ok) { setTimeout(ok, 1500); });
+    })
+    .then(function () { return fArrived(item); })
+    .then(function (ok) {
+      if (!ok) { F_TRIES++; return; }        /* נשאר בתור לפעם הבאה */
       var rest = get('join-q', []) || [];
       rest.shift();
       set('join-q', rest);

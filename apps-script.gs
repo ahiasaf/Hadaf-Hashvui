@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 30;
+var SCRIPT_VERSION = 31;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -272,6 +272,11 @@ function doPost(e) {
        מדליק את הלוח, ואינו גונב את מקומם. */
     if (d.action === 'row' && d.tab === JOIN_TAB) {
       markJoined_(instOf_(parse_(d.cols)), '');
+      /* דורס שורה קיימת של אותו מזהה במקום להוסיף עוד אחת.
+         ראו `upsertCols_` — זה מה שמפסיק את הכפילות שנוצרה
+         מכל שליחה חוזרת (כשל שקט של no-cors, לחיצה כפולה,
+         ניסיון-מחדש). */
+      return upsertCols_(d.tab, parse_(d.cols), 'מזהה', d.ss);
     }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
@@ -662,6 +667,33 @@ function doGet(e) {
      מחזיק. אין בה שם, אין טלפון, ואין מה לדלוף ממנה — ולכן
      אין צורך בסיסמה.
      ============================================================ */
+  /* ============================================================
+     התור המקומי (הרשמה) — האם השורה הגיעה.
+     ============================================================
+     אותו דפוס בדיוק של `?mark=` ו-`?pair=` למעלה: הכתיבה
+     `no-cors` ואטומה, ואי אפשר לדעת מהלקוח אם היא באמת נקלטה.
+     לפני מחיקה מהתור המקומי (ראו join.html: flush/fArrived)
+     הלקוח שואל כאן. תשובה כן/לא על מזהה שהוא כבר מחזיק — אין
+     כאן מה לדלוף, ולכן בלי סיסמה, בדיוק כמו הקודמים. מוגבל
+     ל"לומדים" — הלשונית היחידה שהתור בודק בחזרה. */
+  if (e && e.parameter && e.parameter.arrived) {
+    var aid = String(e.parameter.arrived), aHas = false;
+    try {
+      if (aid) {
+        var ash = sheet_(JOIN_TAB);
+        var ahead = headers_(ash);
+        var aix = ahead.indexOf('מזהה');
+        if (aix >= 0 && ash.getLastRow() > 1) {
+          var avals = ash.getRange(2, aix + 1, ash.getLastRow() - 1, 1).getValues();
+          for (var az = 0; az < avals.length; az++) {
+            if (String(avals[az][0] || '').trim() === aid) { aHas = true; break; }
+          }
+        }
+      }
+    } catch (ae) {}
+    return reply_(e, { status: 'ok', has: aHas });
+  }
+
   if (e && e.parameter && e.parameter.pair) {
     var pid = String(e.parameter.pair), ptag = String(e.parameter.wk || '');
     var pHas = false;
@@ -828,6 +860,21 @@ function doGet(e) {
     return reply_(e, dres);
   }
 
+  /* ---- ניקוי כפילויות ב"לומדים" — חד-פעמי, ראו dedupeJoin_ ----
+     גם היא דרך doGet ומאותה סיבה: מחיקת שורות חייבת תשובה
+     שאפשר לקרוא, לא ניחוש. */
+  if (e && e.parameter && e.parameter.dedupe) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied',
+        message: READ_KEY ? 'סיסמה שגויה'
+                          : 'לא נקבעה סיסמה בסקריפט (READ_KEY) — מחיקה חסומה' });
+    }
+    var ddres;
+    try { ddres = dedupeJoin_(); }
+    catch (dde) { ddres = { status: 'error', message: String(dde) }; }
+    return reply_(e, ddres);
+  }
+
   /* ---- קריאת לשונית ----
      אנשי הקשר של הישיבות הם טלפונים של אנשים אחרים, ולכן הם לא
      יושבים בקוד ולא בגיליון שמשותף "לכל מי שיש לו הקישור".
@@ -956,6 +1003,74 @@ function appendCols_(tab, cols, ssId) {
     recountLearn_();
   }
   return json_({ status: 'success', tab: tab, columns: row.length });
+}
+
+/* ============================================================
+   כמו appendCols_, אבל דורס שורה קיימת עם אותו ערך ב-keyName
+   במקום להוסיף עוד אחת.
+   ============================================================
+   נולד מהתקלה הזו: הכתיבה מהדפדפן `no-cors`, ולכן כל ניסיון
+   חוזר — כשל שקט בשרת, לחיצה כפולה, פתיחה מחדש עם תור שלא
+   התרוקן — הוסיף עוד שורה באותו "מזהה" במקום לעדכן קיימת.
+   354 שורות ב"לומדים" עם 210 מזהים ייחודיים בלבד, עד 15 שורות
+   זהות לאותו תלמיד. `recount_` כבר סופר מזהה ייחודי פעם אחת,
+   ולכן המספר המוצג לא היה שקרי — אבל שורה שנכתבה ולא אושרה
+   הייתה נמחקת מהתור מקומית ונעלמת, וזה כן שקרי. תיקון אחד
+   לשתי הבעיות: מזהה קיים מתעדכן במקום, ולכן גם ניסיון חוזר
+   בטוח וגם אין עוד תלות בכך שהתור המקומי "ידע" אם הצליח. */
+function upsertCols_(tab, cols, keyName, ssId) {
+  var sh = sheet_(tab, ssId);
+  var head = headers_(sh);
+  var ixKey = head.indexOf(keyName);
+  var keyVal = '';
+  cols.forEach(function (c) { if (c && c[0] === keyName) keyVal = String(c[1] || '').trim(); });
+
+  if (ixKey >= 0 && keyVal && sh.getLastRow() > 1) {
+    var vals = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getValues();
+    for (var r = 0; r < vals.length; r++) {
+      if (String(vals[r][ixKey] || '').trim() !== keyVal) continue;
+      var row = vals[r].slice();
+      put_(row, idx_(sh, head, 'תאריך'), new Date());
+      cols.forEach(function (c) {
+        if (!c || c[0] == null || c[0] === '') return;
+        put_(row, idx_(sh, head, String(c[0])), cell_(c[1]));
+      });
+      for (var k = 0; k < row.length; k++) if (row[k] === undefined) row[k] = '';
+      sh.getRange(r + 2, 1, 1, row.length).setValues([row]);
+      if (tab === JOIN_TAB) recount_();
+      return json_({ status: 'success', tab: tab, columns: row.length, updated: true });
+    }
+  }
+  return appendCols_(tab, cols, ssId);
+}
+
+/* ============================================================
+   ניקוי כפילויות ב"לומדים" — פעולת ניהול חד-פעמית.
+   ============================================================
+   כתיבות חדשות כבר מתעדכנות במקום (ראו upsertCols_); הפעולה
+   כאן מנקה את מה שכבר הצטבר לפני התיקון — משאירה לכל מזהה רק
+   את השורה האחרונה שלו (העדכנית ביותר), ומוחקת את הקודמות. */
+function dedupeJoin_() {
+  var sh = sheet_(JOIN_TAB);
+  if (!sh || sh.getLastRow() < 2) return { status: 'ok', removed: 0 };
+  var head = headers_(sh);
+  var ixId = head.indexOf('מזהה');
+  if (ixId < 0) return { status: 'ok', removed: 0 };
+  var vals = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getValues();
+  var lastRowOf = {};
+  for (var i = 0; i < vals.length; i++) {
+    var id = String(vals[i][ixId] || '').trim();
+    if (id) lastRowOf[id] = i;
+  }
+  var toDelete = [];
+  for (var j = 0; j < vals.length; j++) {
+    var jid = String(vals[j][ixId] || '').trim();
+    if (jid && lastRowOf[jid] !== j) toDelete.push(j + 2);
+  }
+  toDelete.sort(function (a, b) { return b - a; });
+  for (var k = 0; k < toDelete.length; k++) sh.deleteRow(toDelete[k]);
+  if (toDelete.length) recount_();
+  return { status: 'ok', removed: toDelete.length };
 }
 
 /* ============================================================
