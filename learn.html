@@ -613,6 +613,34 @@ body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
 .qfab.on{display:flex}
 body.emb .qfab{width:40px;height:40px;font-size:1.05rem;bottom:8px;left:8px}
 
+/* חלון החידה — נפתח מעל הדף, נסגר עם X או עם בחירת תשובה.
+   נבנה ב-JS (qCard_) ולא רק ב-CSS, אבל הכללים כאן וסטטיים,
+   כדי ש-preflight יראה שהמחלקות מעוצבות. */
+.qz-wrap{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;
+  justify-content:center;padding:20px;background:rgba(11,37,80,.55)}
+.qz-card{background:var(--paper,#FFFDF8);border-radius:18px;padding:24px 20px 20px;
+  max-width:23rem;width:100%;box-shadow:0 18px 60px rgba(11,37,80,.4);
+  border-top:4px solid var(--gold,#C08F2B);position:relative;
+  max-height:86vh;overflow:auto;text-align:right}
+.qz-x{position:absolute;top:10px;left:10px;width:32px;height:32px;border:0;
+  border-radius:50%;background:rgba(11,37,80,.08);color:var(--ink-2,#5A6780);
+  font-size:1.05rem;cursor:pointer;font-family:inherit}
+.qz-q{font-weight:800;font-size:1.02rem;margin:6px 32px 14px 0;color:var(--ink,#1B2A45)}
+.qz-opt{display:block;width:100%;text-align:right;margin-top:8px;padding:12px 14px;
+  border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff;
+  color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
+.qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
+  color:#fff;border:0}
+.qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
+  border-radius:10px;border:1.5px solid var(--rule,#E4DCC8);box-sizing:border-box;margin-top:8px}
+textarea.qz-in{min-height:60px;resize:vertical}
+.qz-arow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.qz-arow .qz-in{margin-top:0}
+.qz-pub{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.84rem;
+  font-weight:700;color:var(--ink-2,#5A6780)}
+.qz-res{margin-top:12px;padding:11px;border-radius:10px;
+  background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
+
 /* והיציאה — ירוקה, וזו היחידה שלוחצים עליה. בשתי האחרות נגיעה
    שייכת לדף שמתחת. */
 .dbadge.fin{background:linear-gradient(150deg,var(--green-d,#467B1A),var(--green-2,#3A6615));
@@ -834,8 +862,9 @@ nav .sp{flex:1}
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
-    <!-- עיגול צף לחידות — נפרד לגמרי מהחברותא/הפירוש, ראו quizInit(). -->
-    <button class="qfab" id="qfab" title="החידה השבועית" aria-label="החידה השבועית">?</button>
+    <!-- עיגול צף לחידה של הקטע הנוכחי — נפרד לגמרי מהחברותא/הפירוש.
+         מוצג/מוסתר ומתויג מחדש בכל מעבר קטע, ראו quizPaint(). -->
+    <button class="qfab" id="qfab" style="display:none" title="חידה" aria-label="חידה">?</button>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -2858,7 +2887,7 @@ function go(i) {
              : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
-    paint(); focus(); paintChavArea(); bar(); sideSync(); savePos();
+    paint(); focus(); paintChavArea(); quizPaint(); bar(); sideSync(); savePos();
     recStep('go', IDX);
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
@@ -2976,18 +3005,224 @@ function finish() {
   bar();
 }
 
-/* עיגול החידה — מופיע רק כשיש חידה לדף הזה, וזמין **כל זמן
-   הלימוד** ולא רק בסיומו: עד עכשיו החידה הופיעה רק במסך הסיום,
-   ותלמיד שלא הגיע עד שם לא ידע שהיא קיימת. נפרד לגמרי מהחברותא/
-   הפירוש — לא באותה מגירה, לא באותו כפתור. הניווט זהה לזה
-   שבמסך "סיימתי". */
-function quizInit() {
+/* ============================================================
+   חידות בקטע — עיגול צף שמופיע רק בקטע שאליו שויכה שאלה.
+   ============================================================
+   גרסה קודמת של העיגול הזה הייתה עצמאית מהקטע: מופיעה תמיד
+   כשיש חידה כלשהי לדף, ומנווטת לעמוד אחר. זו לא הכוונה — הסימן
+   צריך להופיע **רק כשעומדים על הקטע שאליו שויכה שאלה**, ולהיפתח
+   כחלון מרחף במקום, לא בעמוד אחר. הנתונים יושבים בלשונית "שאלות
+   בדף" (Q_TAB) — אותו דפוס בדיוק כמו "פירוש" (OWN_TAB): מפה
+   דף->קטע->תוכן, נטענת עם `dmapFromRows`, ונשמרת בכתיבה מלאה
+   של הלשונית (`action:'table'`) עם קריאה חוזרת לאימות.
+
+   בכוונה נפרד לגמרי מהחידה השבועית הישנה (`QUIZ` שב-data.js,
+   הנפתחת מ"סיימתי" ומ-openWeek באפליקציה של ראש החטיבה) — היא
+   ממשיכה לעבוד בדיוק כמו שהייתה, כי אין דרך אוטומטית לדעת לאיזה
+   קטע לשייך אותה. השאלות הקיימות אפשר עכשיו לשייך ידנית לקטע
+   הנכון דרך הכלי הזה, ואז להסיר אותן מ-data.js — זו החלטת תוכן,
+   לא קוד. */
+var Q_TAB = 'שאלות בדף';
+var QMAP = null, QOWN = null;
+function loadQuizMap() {
+  return sheetCsv(Q_TAB).then(function (rows) {
+    var m = dmapFromRows(rows);
+    if (!m) return false;
+    QMAP = m;
+    QOWN = QMAP[dmKey(S.mas, S.daf)] || null;
+    return true;
+  }).catch(function () { return false; });
+}
+function qPiecesFrom_(v) { return (v && v.length !== undefined) ? v : []; }
+function qPieces_(n) { return qPiecesFrom_(QOWN && QOWN[String(n)]); }
+
+/* הציור — נקרא מ-go() בכל מעבר קטע, בדיוק כמו paintChavArea(). */
+function quizPaint() {
   var b = $('qfab');
   if (!b) return;
-  var key = S.mas + '-' + (S.week + 1);
-  var q = window.QUIZ && QUIZ[key];
-  b.classList.toggle('on', !!(q && q.length));
-  b.onclick = function () { location.href = './#quiz=' + key; };
+  var st = FLAT[IDX];
+  var n = st ? st.n : 0;
+  var has = !!(st && qPieces_(n).length);
+  /* לתלמיד: רק קטע עם שאלה, ורק אחרי שהדף פורסם. לאחיאסף: תמיד,
+     כדי שיוכל להוסיף שאלה גם לקטע שעדיין ריק. */
+  var show = SIDE_ADM || (has && QOWN && QOWN.__pub);
+  b.classList.toggle('on', !!show);
+  b.textContent = has ? '?' : '+';
+  b.title = has ? 'החידה של הקטע הזה' : 'הוספת חידה לקטע הזה';
+  b.setAttribute('aria-label', b.title);
+  b.onclick = function () { qOpen(n); };
+}
+
+function qShut() {
+  var el = document.getElementById('qz-wrap');
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+function qCard_(body) {
+  qShut();
+  var d = document.createElement('div');
+  d.className = 'qz-wrap'; d.id = 'qz-wrap';
+  d.innerHTML = '<div class="qz-card">' + body + '</div>';
+  document.body.appendChild(d);
+  document.getElementById('qz-x').onclick = qShut;
+  return d;
+}
+
+/* ---------- הצגה לתלמיד ---------- */
+function qOpen(n) {
+  var list = qPieces_(n);
+  if (!list.length) {
+    if (!SIDE_ADM) return;        /* אין מה להראות למי שאינו עורך */
+    qEditOpen_(n);
+    return;
+  }
+  var q = list[0];
+  qCard_('<button class="qz-x" id="qz-x">✕</button>' +
+    '<div class="qz-q">' + esc(q.q) + '</div>' +
+    q.a.map(function (t, k) {
+      return '<button class="qz-opt" id="qz-opt' + k + '">' + esc(t) + '</button>';
+    }).join('') +
+    (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
+      'color:var(--blue,#17468F)">עריכת השאלה</button>' : ''));
+  q.a.forEach(function (t, k) {
+    document.getElementById('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
+  });
+  var ed = document.getElementById('qz-edit');
+  if (ed) ed.onclick = function () { qEditOpen_(n); };
+}
+/* נסגר מיד עם הבחירה — לא נשאר פתוח לחכות ל"סגירה". התשובה
+   הנכונה נאמרת בהודעה חולפת (toast), לא על המסך שכבר נסגר. */
+function qAnswer(n, q, k) {
+  var right = k === q.correct;
+  qSend(n, k, right);
+  qShut();
+  toast(right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
+              : 'התשובה הנכונה: ' + q.a[q.correct]);
+}
+function qSend(n, k, right) {
+  if (!API) return;
+  var me = (typeof LMe === 'function') ? LMe() : null;
+  fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'quiz', cols: JSON.stringify([
+      ['דף', dmKey(S.mas, S.daf)], ['קטע', n],
+      ['ישיבה', (me && me.instName) || ''],
+      ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
+      ['טלפון', (me && me.phone) || ''],
+      ['תשובה', k + 1], ['נכון', right ? 'נכון' : 'לא נכון'],
+      ['מזהה', (me && me.id) || '']
+    ])
+  }) }).catch(function () {});
+}
+
+/* ---------- עריכה (אחיאסף בלבד) ----------
+   אותו דפוס בדיוק של ownSaveAll/ownVerify: שינוי בזיכרון, כתיבה
+   מלאה של הלשונית, ואז קריאה חוזרת שמאמתת - כי no-cors לעולם
+   אינה הוכחה לכלום. */
+var Q_EDIT = null;
+function qEditOpen_(n) {
+  var cur = qPieces_(n)[0];
+  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct }
+               : { q:'', a:['', '', '', ''], correct:0 };
+  qPaintEdit_(n);
+}
+function qPaintEdit_(n) {
+  var pub = !!(QOWN && QOWN.__pub);
+  var body = '<button class="qz-x" id="qz-x">✕</button>' +
+    '<div style="font-weight:800;margin:6px 32px 12px 0">עריכת שאלה לקטע ' + n + '</div>' +
+    '<textarea class="qz-in" id="qe-q" placeholder="נוסח השאלה">' + esc(Q_EDIT.q) + '</textarea>' +
+    Q_EDIT.a.map(function (t, k) {
+      return '<div class="qz-arow">' +
+        '<input type="radio" name="qe-c" id="qe-c' + k + '"' +
+        (Q_EDIT.correct === k ? ' checked' : '') + '>' +
+        '<input type="text" class="qz-in" id="qe-a' + k + '" value="' + esc(t) +
+        '" placeholder="תשובה ' + (k + 1) + '"></div>';
+    }).join('') +
+    '<label class="qz-pub"><input type="checkbox" id="qe-pub"' + (pub ? ' checked' : '') + '> ' +
+    'לפרסם את כל החידות של הדף הזה לתלמידים</label>' +
+    '<button class="qz-opt gold" id="qe-save" style="margin-top:14px">שמירה</button>' +
+    (qPieces_(n).length
+      ? '<button class="qz-opt" id="qe-del" style="color:#B3261E">מחיקת השאלה מהקטע הזה</button>'
+      : '') +
+    '<div id="qz-res"></div>';
+  qCard_(body);
+  Q_EDIT.a.forEach(function (t, k) {
+    $('qe-a' + k).oninput = function (e) { Q_EDIT.a[k] = e.target.value; };
+    $('qe-c' + k).onclick = function () { Q_EDIT.correct = k; };
+  });
+  $('qe-q').oninput = function (e) { Q_EDIT.q = e.target.value; };
+  $('qe-save').onclick = function () { qEditSave_(n); };
+  var del = $('qe-del');
+  if (del) del.onclick = function () { qEditDelete_(n); };
+}
+/* הרשימה המלאה, לכתיבה — כמו ownRows_ בדיוק. */
+function qRows_() {
+  var rows = [], k;
+  for (k in QMAP) {
+    if (!QMAP.hasOwnProperty(k)) continue;
+    var v = QMAP[k], parts = k.split('|');
+    if (v && v.__bad) { rows.push([parts[0], parts[1], v.__bad]); continue; }
+    var has = false, q;
+    for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
+    if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
+  }
+  return rows;
+}
+function qPost_() {
+  fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'table', tab:Q_TAB,
+    cols: JSON.stringify(['מסכת', 'דף', 'שאלות']),
+    rows: JSON.stringify(qRows_())
+  }) }).catch(function () {});
+}
+function qEditSave_(n) {
+  var text = (Q_EDIT.q || '').trim();
+  var answers = Q_EDIT.a.map(function (t) { return (t || '').trim(); });
+  if (!text || answers.some(function (t) { return !t; })) {
+    var bad = $('qz-res');
+    if (bad) bad.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
+      'צריך למלא את השאלה וגם את ארבע התשובות.</div>';
+    return;
+  }
+  if (!QOWN) QOWN = {};
+  QOWN[String(n)] = [{ q:text, a:answers, correct:Q_EDIT.correct }];
+  if ($('qe-pub').checked) QOWN.__pub = '1'; else delete QOWN.__pub;
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qVerify_(0, n, QOWN[String(n)]);
+}
+function qEditDelete_(n) {
+  if (!QOWN) return;
+  delete QOWN[String(n)];
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qVerify_(0, n, []);
+}
+function qVerify_(tries, n, want) {
+  var res = $('qz-res');
+  if (res) res.innerHTML = '<div class="qz-res">נשלח · מאמת מול הגיליון…</div>';
+  setTimeout(function () {
+    sheetCsv(Q_TAB).then(function (rows) {
+      var m = dmapFromRows(rows);
+      var mine = m && m[dmKey(S.mas, S.daf)];
+      var got = qPiecesFrom_((mine || {})[String(n)]);
+      var r2 = $('qz-res');
+      if (JSON.stringify(got) === JSON.stringify(want)) {
+        QMAP = m; QOWN = mine;
+        if (r2) r2.innerHTML = '<div class="qz-res">נשמר ואומת.</div>';
+        quizPaint();
+        return;
+      }
+      if (tries < 4) { qVerify_(tries + 1, n, want); return; }
+      if (r2) r2.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
+        '<b>לא אומת.</b> ' + (!m ? 'הגיליון לא נענה, או שלשונית "' + Q_TAB + '" לא נוצרה.'
+                                   : 'מה שחזר מהגיליון אינו מה שנשלח.') +
+        ' אפשר לנסות שוב.</div>';
+    }).catch(function () {
+      if (tries < 4) { qVerify_(tries + 1, n, want); return; }
+      var r3 = $('qz-res');
+      if (r3) r3.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
+        'לא הצלחתי לקרוא מהגיליון.</div>';
+    });
+  }, tries ? 2500 : 1400);
 }
 
 function markThisDaf() {
@@ -3633,7 +3868,6 @@ function boot() {
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';
   document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
-  quizInit();
 
   /* מי שמשייך יודע לכתוב פירוש גם בדף שעוד אין לו מצגת — "הפירוש
      שלי" יושב במגירת החברותא ולא במגירת המצגת, ולכן הדגל נקבע
@@ -3646,6 +3880,9 @@ function boot() {
   /* לא חוסם שום דבר — רק כשהיא מוכנה, אם הדף כבר מצויר, מציירים
      שוב כדי שהלשונית השנייה תופיע למי שצריך לראות אותה. */
   loadOwnMap().then(function () { if (FLAT.length) paintChavArea(); });
+  /* אותו דבר לחידות — אחרי ש-SIDE_ADM כבר ידוע, כי quizPaint
+     מחליט לפיו מה להראות. */
+  loadQuizMap().then(function () { if (FLAT.length) quizPaint(); });
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
