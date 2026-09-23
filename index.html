@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.16';
+var APP_VERSION = '8.99.17';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7383,8 +7383,13 @@ function admReg(el) {
     (list.length ? 'רענון מהגיליון' : 'טעינה מהגיליון') + '</button>' +
     (at ? '<p class="h" style="margin-top:8px">עודכן ' + esc(whenTxt(at)) + '</p>' : '');
 
+  /* התנגשויות בין שני אנשי קשר שנרשמו לאותו מוסד — ראשונות
+     בתור, לפני כל תקציר ומספר, בדיוק כמו "מי ביקש עזרה" במסך
+     ההתראות. */
+  var conf = admConflicts();
+
   if (regState.msg === 'nokey') {
-    el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
+    el.innerHTML = conf + '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
       '<p class="h">רשימת ההרשמות יושבת בגיליון הפרטי — שם של ראש חטיבה ' +
       'והטלפון שלו אינם דבר שיושב בגיליון משותף לצפייה. הדביקו בהגדרות ← ' +
       '"סיסמת הקריאה" את המחרוזת שכתובה ב-Apps Script.</p>' +
@@ -7392,7 +7397,7 @@ function admReg(el) {
     return;
   }
   if (!list.length) {
-    el.innerHTML = '<div class="adm-card"><h4>אין עדיין הרשמות</h4>' +
+    el.innerHTML = conf + '<div class="adm-card"><h4>אין עדיין הרשמות</h4>' +
       '<p class="h">כל הרשמה שנשלחת מהאפליקציה נכתבת לגיליון הפרטי. ' +
       'לחצו כאן כדי למשוך אותן — כולל הרשמות שנשלחו ממכשירים אחרים.</p>' +
       (regState.msg ? '<div class="cond" style="margin-top:10px">' +
@@ -7415,7 +7420,7 @@ function admReg(el) {
       });
     });
   });
-  el.innerHTML =
+  el.innerHTML = conf +
     '<div class="adm-card" style="margin-bottom:11px"><h4>' + list.length +
     ' הרשמות · ' + tot + ' גמרות</h4>' +
     (regState.msg ? '<div class="cond" style="margin-bottom:9px">' +
@@ -8690,6 +8695,140 @@ function stuckDone(row) {
 }
 
 function stuckShowAll() { stuckAll = !stuckAll; admPane(); }
+
+/* ============================================================
+   התנגשויות הרשמה — שני אנשי קשר שונים לאותו מוסד.
+   ============================================================
+   נכתבת אוטומטית ב-apps-script.gs (flagRegConflict_) כשמישהו
+   נרשם תחת קוד ישיבה שכבר יש בו איש קשר אחר. אין כאן שיפוט —
+   רק הצגת שני הצדדים זה לצד זה, כדי שיהיה אפשר לראות אם זה
+   עדכון תמים או סתירה אמיתית (20 גמרות מול 30, וכדומה)
+   ולהחליט בעצמכם. אותו דפוס בדיוק של "מי ביקש עזרה" למעלה. */
+var conflictRows = null, conflictMsg = '', conflictBusy = 0, conflictAll = false;
+
+function conflictParse(rows) {
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0].map(function (x) { return String(x || '').trim(); });
+  var ix = {};
+  head.forEach(function (h, i) { ix[h] = i; });
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i], g = function (k) {
+      return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
+    };
+    if (!g('קוד ישיבה')) continue;
+    out.push({
+      row: i + 1, code: g('קוד ישיבה'), inst: g('ישיבה'),
+      prevWho: g('איש קשר קודם'), prevPhone: g('טלפון קודם'),
+      prevTotal: g('סה"כ גמרות קודם'), prevAt: g('נרשם קודם'),
+      newWho: g('איש קשר חדש'), newPhone: g('טלפון חדש'),
+      newTotal: g('סה"כ גמרות חדש'), done: !!g('טופל')
+    });
+  }
+  return out.filter(function (p) { return !p.done; }).reverse()
+            .concat(out.filter(function (p) { return p.done; }).reverse());
+}
+
+function conflictLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { conflictMsg = 'nokey'; admPane(); return Promise.resolve(false); }
+  conflictMsg = 'טוען…'; admPane();
+  return scriptGet({ read:'התנגשויות הרשמה', key:key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) {
+      conflictMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return false;
+    }
+    conflictRows = conflictParse(d.rows);
+    conflictMsg = ''; admPane(); return true;
+  }).catch(function () {
+    conflictMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return false;
+  });
+}
+
+function conflictDone(row) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  conflictBusy = row; admPane();
+  scriptGet({ conflictdone:row, key:key }).then(function (d) {
+    conflictBusy = 0;
+    if (d && d.status === 'ok') {
+      conflictLoad();
+    } else {
+      conflictMsg = 'לא הצלחתי לסמן: ' + ((d && d.message) || 'אין תשובה.');
+      admPane();
+    }
+  }).catch(function () {
+    conflictBusy = 0; conflictMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+  });
+}
+
+function conflictShowAll() { conflictAll = !conflictAll; admPane(); }
+
+function admConflicts() {
+  var h = '<div class="adm-card"><h4>התנגשויות הרשמה</h4>';
+  if (!conflictRows) {
+    h += '<p class="h">שני אנשי קשר שונים שנרשמו לאותו מוסד יופיעו כאן — ' +
+         'הרשימה נקראת מהגיליון הפרטי.</p>' +
+         '<button class="btn g" onclick="conflictLoad()">טעינה מהגיליון</button>';
+    if (conflictMsg && conflictMsg !== 'nokey') {
+      h += '<div class="cond" style="margin-top:10px">' + esc(conflictMsg) + '</div>';
+    }
+    return h + '</div>';
+  }
+  var open = conflictRows.filter(function (p) { return !p.done; });
+  if (!open.length && !conflictAll) {
+    h += '<p class="h">אין התנגשות פתוחה. ' +
+         (conflictRows.length ? 'כולן טופלו.' : 'לא נמצאה עד כה אף אחת.') +
+         '</p><button class="btn g" onclick="conflictLoad()">רענון</button>';
+    if (conflictRows.length) {
+      h += '<button class="btn g" style="margin-top:8px" ' +
+           'onclick="conflictShowAll()">להראות את מי שטופל (' +
+           conflictRows.length + ')</button>';
+    }
+    return h + '</div>';
+  }
+  var list = conflictAll ? conflictRows : open;
+  h += '<p class="h">' + open.length + ' ' +
+       (open.length === 1 ? 'התנגשות ממתינה' : 'התנגשויות ממתינות') +
+       '. שני הצדדים כפי שהם נכתבו בגיליון — ההחלטה אם זה עדכון ' +
+       'תמים או סתירה שצריך לברר היא שלכם.</p><div class="plist">';
+  h += list.map(function (p) {
+    var side = function (who, phone, total, at) {
+      if (!who) return '<span class="h">אין נתון</span>';
+      var num = waNum(phone);
+      return '<div><b>' + esc(who) + '</b>' +
+        (phone ? '<span>' + esc(phone) + '</span>' : '') +
+        (total ? '<span>' + esc(total) + ' גמרות</span>' : '') +
+        (at ? '<span>' + esc(String(at).slice(0, 10)) + '</span>' : '') +
+        (num ? '<a class="btn gr" style="width:auto;padding:6px 12px;margin-top:5px" ' +
+               'target="_blank" rel="noopener" href="https://wa.me/' + num + '">וואטסאפ</a>' : '') +
+        '</div>';
+    };
+    return '<div class="prow2 ' + (p.done ? 'ok' : 'warn') + '">' +
+      '<span class="pm">' + (p.done ? '✓' : '!') + '</span>' +
+      '<div style="flex:1"><b>' + esc(p.inst || p.code) + '</b>' +
+      '<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">' +
+      side(p.prevWho, p.prevPhone, p.prevTotal, p.prevAt) +
+      side(p.newWho, p.newPhone, p.newTotal, '') +
+      '</div>' +
+      (p.done ? '' :
+        '<button class="btn g" style="width:auto;padding:8px 14px;margin-top:9px"' +
+        (conflictBusy === p.row ? ' disabled' : '') +
+        ' onclick="conflictDone(' + p.row + ')">' +
+        (conflictBusy === p.row ? 'רגע…' : 'טופל') + '</button>') +
+      '</div></div>';
+  }).join('');
+  h += '</div><button class="btn g" style="margin-top:10px" ' +
+       'onclick="conflictLoad()">רענון</button>';
+  if (!conflictAll && conflictRows.length > open.length) {
+    h += '<button class="btn g" style="margin-top:8px" onclick="conflictShowAll()">' +
+         'להראות גם את מי שטופל</button>';
+  }
+  if (conflictMsg && conflictMsg !== 'nokey') {
+    h += '<div class="cond" style="margin-top:10px">' + esc(conflictMsg) + '</div>';
+  }
+  return h + '</div>';
+}
 
 /* ============================================================
    הלימוד המשותף — רשימת הזוגות, ומהם ההגרלה.

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 31;
+var SCRIPT_VERSION = 32;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -556,6 +556,28 @@ function doGet(e) {
       dsh.getRange(rn, di + 1).setValue(new Date());
     } catch (err2) {
       return reply_(e, { status: 'error', message: String(err2) });
+    }
+    return reply_(e, { status: 'ok' });
+  }
+
+  /* "טופלה" — סימון שורה בלשונית ההתנגשויות. אותו דפוס בדיוק
+     של helpdone למעלה, על "התנגשויות הרשמה" במקום "תקועים". */
+  if (e && e.parameter && e.parameter.conflictdone) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    var crn = parseInt(e.parameter.conflictdone, 10);
+    if (!(crn > 1)) return reply_(e, { status: 'error', message: 'שורה לא תקינה' });
+    try {
+      var cdsh = sheet_('התנגשויות הרשמה');
+      if (crn > cdsh.getLastRow()) {
+        return reply_(e, { status: 'error', message: 'אין שורה כזו' });
+      }
+      var cdHead = headers_(cdsh);
+      var cdi = idx_(cdsh, cdHead, 'טופל');
+      cdsh.getRange(crn, cdi + 1).setValue(new Date());
+    } catch (cderr) {
+      return reply_(e, { status: 'error', message: String(cderr) });
     }
     return reply_(e, { status: 'ok' });
   }
