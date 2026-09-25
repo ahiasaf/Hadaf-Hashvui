@@ -649,6 +649,15 @@ body.tk-sheeting #tk-bar{display:none}
   cursor:default}
 .back{background:none;border:none;color:var(--ink-3);font-size:.87rem;font-weight:800;
   cursor:pointer;padding:3px 0;text-align:start;align-self:flex-start}
+/* כפתורי סידור השקפים — מטרת נגיעה אמיתית, לא קישור טקסט דחוס.
+   "back" נבנה למחרוזת "חזרה" רווחנית, ולא לשורת אייקונים צפופה —
+   וזה בדיוק מה שהיה קשה ללחוץ עליו כאן. */
+.dk-ic{background:var(--surface);border:1px solid var(--rule);border-radius:9px;
+  color:var(--ink-2);font-size:1.05rem;font-weight:800;cursor:pointer;
+  width:38px;height:38px;flex:none;display:inline-flex;align-items:center;
+  justify-content:center;text-decoration:none;font-family:inherit}
+.dk-ic[disabled]{opacity:.3;cursor:default}
+.dk-ic.warn{color:#B3261E;border-color:rgba(179,38,30,.35)}
 .links{display:grid;gap:9px}
 .lnk{display:flex;align-items:center;gap:11px;background:var(--surface);
   border-radius:var(--r-s);padding:12px;text-decoration:none;color:var(--ink);
@@ -1923,7 +1932,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.21';
+var APP_VERSION = '8.99.22';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9686,15 +9695,29 @@ function dkGo(mas, wk) {
   admPane();
   dkAsk();
 }
-function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
-function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); } }
-function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); }
+function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
+function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
+function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
 /* נתיב מלא ולא שם: כך שקף מתיקייה אחרת יושב באותה רשימה, ואפשר
    לשזור שתי מצגות זו בזו. */
 function dkAdd(f) {
+  dkAddSilent_(f);
+  dkStash(); admPane(); dkAutoSave_();
+}
+/* כמו dkAdd, בלי לצייר/לפרסם — לשימוש בהוספה של כמה קבצים
+   ברצף (dkUpload), כדי שלא נצייר ונפרסם פעם לכל קובץ. */
+function dkAddSilent_(f) {
   var p = f.indexOf('/') >= 0 ? f : dkDir + '/' + f;
   if (dkList.indexOf(p) < 0) dkList.push(p);
-  dkStash(); admPane();
+}
+/* פרסום אוטומטי, עם דיליי קצר: כמה קליקים רצופים (סידור, מחיקה)
+   מייצרים כתיבה אחת לגיליון ולא כתיבה לכל קליק. אין יותר כפתור
+   "פרסום" נפרד לזכור ללחוץ עליו — זה בדיוק מה שהוביל לשקפים
+   שהועלו והוספו, אבל לא הגיעו לדף האינטראקטיבי. */
+var dkAutoT_ = null;
+function dkAutoSave_() {
+  clearTimeout(dkAutoT_);
+  dkAutoT_ = setTimeout(dkSave, 900);
 }
 /* הנתיב שממנו נטען שקף ברשימה, ולתצוגה — שתי המילים האחרונות. */
 function dkPath(f) { return f.indexOf('/') >= 0 ? f : dkDir + '/' + f; }
@@ -10003,9 +10026,17 @@ function dkUpload(items) {
       dkPool = (dkPool || []).concat(names.filter(function (n) {
         return (dkPool || []).indexOf(n) < 0;
       })).sort();
+      /* מוסיפים ישר למצגת — לא רק לתיקייה. עד עכשיו העלאה הצליחה
+         והשקף נשאר "בתיקייה, לא במצגת" עד שמישהו זוכר ללחוץ עוד
+         פעם "הוספה", ולפעמים זה נשכח — בדיוק ה"שקפים חדשים ולא
+         רואה אותם" שדווח. שקף שהועלה כאן נועד להיכנס למצגת. */
+      names.forEach(function (n) { dkAddSilent_(n); });
+      dkStash();
       admPane();
-      dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים. הוסיפו אותם למצגת מלמעלה.');
+      dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים ונוספו למצגת · שבוע ' +
+        dkSel.wk + '. אפשר לסדר אותם ברשימה שלמעלה.');
       dkAsk();   /* רענון אמיתי ברקע, למקרה שהתיקייה השתנתה גם ממכשיר אחר */
+      dkAutoSave_();
       return;
     }
     dkPdfMsg('bad', 'לא הגיעו: ' + miss.join(', ') + ' — צריך GH_TOKEN ' +
@@ -10072,19 +10103,26 @@ function admDecks(el) {
     '<input type="text" id="dk-dir" dir="ltr" value="' + esc(dkDir) +
     '" onchange="dkSetDir(this.value)"></div>' +
 
-    '<a class="btn gd" style="display:block;text-align:center;text-decoration:none;' +
-    'margin-top:10px" target="_blank" rel="noopener" href="https://github.com/' +
-    REPO + '/upload/main/' + esc(dkDir) + '">העלאת שקפים לתיקייה ←</a>' +
-    '<p class="h" style="margin-top:6px">נפתח ב-GitHub. גוררים קבצים, ' +
-    '"Commit changes", וזהו. <b>אם זה נכשל שם</b> — קורה, וזו תקלה ' +
-    'מוכרת שלהם — השתמשו בהעלאה הישירה כאן:</p>' +
-    '<div class="fld"><label class="label" for="dk-img">העלאת תמונות ' +
-    'ישירות לתיקייה</label>' +
+    '<div class="fld" style="margin-top:10px"><label class="label" for="dk-img">' +
+    'העלאת תמונות ישירות לתיקייה</label>' +
     '<input type="file" id="dk-img" accept="image/*" multiple ' +
     'onchange="dkImgPick(this)"></div>' +
     '<div class="dk-msg"></div>' +
     '<button class="btn g" style="margin-top:8px" onclick="dkPool=null;dkAsk()">' +
-    'רענון הרשימה מ-GitHub</button></div>';
+    'רענון הרשימה מ-GitHub</button>' +
+    /* מוסתר מאחורי "מתקדם": זו הדרך שנכשלת בלי סימן ומצריכה עוד
+       שלב ידני (למצוא את הקובץ למטה וללחוץ "הוספה") — לא מה
+       שרוב הכניסות למסך הזה צריכות. */
+    '<details style="margin-top:12px"><summary style="cursor:pointer;' +
+    'font-size:.82rem;font-weight:700;color:var(--ink-3)">מתקדם — העלאה ' +
+    'ישירות ב-GitHub</summary>' +
+    '<a class="btn g" style="display:block;text-align:center;text-decoration:none;' +
+    'margin-top:9px" target="_blank" rel="noopener" href="https://github.com/' +
+    REPO + '/upload/main/' + esc(dkDir) + '">העלאת שקפים לתיקייה ←</a>' +
+    '<p class="h" style="margin-top:6px">נפתח ב-GitHub. גוררים קבצים, ' +
+    '"Commit changes", וזהו — אבל אחרי זה עדיין צריך למצוא אותם ' +
+    'ברשימה "בתיקייה" למטה וללחוץ "הוספה" לכל אחד; ההעלאה הישירה ' +
+    'שלמעלה עושה את זה לבד.</p></details></div>';
 
   /* ---- המצגת עצמה ---- */
   h += '<div class="adm-card" style="margin-bottom:11px">' +
@@ -10106,14 +10144,14 @@ function admDecks(el) {
         '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
         'text-align:left;color:var(--ink-3);overflow:hidden;' +
         'text-overflow:ellipsis">' + esc(dkShort(f)) + '</span>' +
-        '<button class="back" onclick="dkUp(' + i + ')"' +
+        '<button class="dk-ic" onclick="dkUp(' + i + ')"' +
         (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
-        '<button class="back" onclick="dkDown(' + i + ')"' +
+        '<button class="dk-ic" onclick="dkDown(' + i + ')"' +
         (i === dkList.length - 1 ? ' disabled' : '') + ' aria-label="הורדה">↓</button>' +
-        '<a class="back" style="text-decoration:none" href="' + esc(dkPath(f)) +
+        '<a class="dk-ic" href="' + esc(dkPath(f)) +
         '" download="' + esc(dkShort(f).split('/').pop()) +
         '" aria-label="הורדה למכשיר לעריכה">⇩</a>' +
-        '<button class="back" onclick="dkDel(' + i + ')" aria-label="הסרה">✕</button>' +
+        '<button class="dk-ic warn" onclick="dkDel(' + i + ')" aria-label="הסרה">✕</button>' +
         '</div>';
     }).join('');
   }
@@ -10144,7 +10182,8 @@ function admDecks(el) {
             '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
             'text-align:left;color:var(--ink-3);overflow:hidden;' +
             'text-overflow:ellipsis">' + esc(f) + '</span>' +
-            '<button class="back" onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
+            '<button class="btn g" style="width:auto;flex:none;padding:9px 16px" ' +
+            'onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
             '</div>';
         }).join('');
     }
