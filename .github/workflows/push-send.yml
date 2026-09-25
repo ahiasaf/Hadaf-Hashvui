@@ -96,4 +96,7 @@ jobs:
           ROLE:  ${{ github.event.client_payload.role }}
           # "הדף נפתח": רק למי שביקש התראה על הדף הזה. 'taanit|ג'.
           WAIT:  ${{ github.event.client_payload.wait }}
+          # פילוח "מילה לתלמידים": סיימו/באמצע/לא התחילו, מסגרת,
+          # מזהים מסוימים, ופנייה בשם. ראו sayFlt_ ב-apps-script.gs.
+          FLT:   ${{ github.event.client_payload.flt }}
         run: node tools/push-send.js

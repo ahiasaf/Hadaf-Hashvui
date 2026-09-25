@@ -34,6 +34,10 @@ var link  = String(process.env.LINK || '').trim();
    בדף הנעול התראה על הדף הזה, מהלשונית "ממתינים לדף", ולא כל
    המנויים. */
 var WAIT  = String(process.env.WAIT || '').trim();
+/* הפילוח של "מילה לתלמידים" — ראו sayFlt_ ב-apps-script.gs.
+   הוא רק מצמצם: הסינון לפי ישיבה/כיתה/תפקיד שלמטה חל קודם. */
+var FLT = {};
+try { FLT = JSON.parse(process.env.FLT || '{}') || {}; } catch (e) { FLT = {}; }
 if (link && /^[a-zA-Z][a-zA-Z0-9+.\-]*:|^\/\//.test(link)) {
   console.error('כתובת ההתראה חייבת להיות יחסית. התקבל: ' + link);
   process.exit(1);
@@ -49,6 +53,88 @@ function scriptUrl() {
   var m = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(src) ||
           /APPS_SCRIPT_URL\s*=\s*\n?\s*'([^']+)'/.exec(src);
   return m ? m[1] : '';
+}
+
+/* לשונית פרטית כלשהי, כשורות. אותה קריאה ואותם כללים של
+   loadSubs — תשובה בלי `rows` היא כישלון, לא לשונית ריקה. */
+function readTab(name) {
+  var url = scriptUrl();
+  if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
+  var q = url + '?read=' + encodeURIComponent(name) +
+          '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
+  return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
+    if (!j || j.status !== 'ok' || !j.rows) {
+      throw new Error('לא הצלחתי לקרוא את "' + name + '": ' + ((j && j.message) || 'לא ידוע'));
+    }
+    return j.rows;
+  });
+}
+function colIx(rows) {
+  var ix = {};
+  (rows[0] || []).forEach(function (h, i) { ix[String(h).trim()] = i; });
+  return ix;
+}
+
+/* ============================================================
+   הפילוח — מי מהמנויים נשאר, ומה שמו הפרטי.
+   ============================================================
+   `לומדים` נותנת שם פרטי ומסגרת לפי מזהה. `לימוד` נותנת מה
+   למד בשבוע `FLT.wk`: שורה שלמה = סיים, שורת התקדמות = באמצע,
+   כלום = לא התחיל. אותו כלל בדיוק של הלוח (apps-script.gs,
+   `done`/`pos`).
+
+   **מנוי שאין עליו מידע אינו נכלל בפילוח.** מי שביקש "רק מי
+   שסיים" לא אמור לשלוח למי שאיננו יודעים עליו דבר. */
+function applyFlt(list) {
+  var needPeople = FLT.per || FLT.way;
+  var needLearn  = !!FLT.seg;
+  if (!needPeople && !needLearn && !FLT.ids) return Promise.resolve(list);
+  return Promise.all([
+    needPeople ? readTab('לומדים') : Promise.resolve(null),
+    needLearn  ? readTab('לימוד')  : Promise.resolve(null)
+  ]).then(function (res) {
+    var ppl = {}, st = {};
+    if (res[0] && res[0].length > 1) {
+      var a = colIx(res[0]);
+      res[0].slice(1).forEach(function (r) {
+        var id = String(r[a['מזהה']] || '').trim();
+        if (id) ppl[id] = { first: String(r[a['שם']] || '').trim(),
+                            way:   String(r[a['מסגרת']] || '').trim() };
+      });
+    }
+    if (res[1] && res[1].length > 1) {
+      var b = colIx(res[1]);
+      res[1].slice(1).forEach(function (r) {
+        var id = String(r[b['מזהה']] || '').trim();
+        if (!id || String(r[b['שבוע']] || '').trim() !== String(FLT.wk)) return;
+        var at = b['קטע']  === undefined ? '' : String(r[b['קטע']]  || '').trim();
+        var of = b['מתוך'] === undefined ? '' : String(r[b['מתוך']] || '').trim();
+        var n1 = parseInt(at, 10), n2 = parseInt(of, 10);
+        if (!at || !(n2 > 0) || n1 >= n2) st[id] = 'done';
+        else if (st[id] !== 'done') st[id] = 'mid';
+      });
+    }
+    var out = list.filter(function (it) {
+      if (FLT.ids && FLT.ids.indexOf(it.id) < 0) return false;
+      if (FLT.way && (!ppl[it.id] || ppl[it.id].way !== FLT.way)) return false;
+      var my = st[it.id] || 'none';
+      if (FLT.seg === 'todo' ? my === 'done' : (FLT.seg && my !== FLT.seg)) return false;
+      return true;
+    });
+    out.forEach(function (it) {
+      var p = ppl[it.id];
+      it.first = (p && p.first) || String(it.who || '').split(' ')[0] || '';
+    });
+    out.blocked = list.blocked;
+    return out;
+  });
+}
+
+/* הפנייה האישית. {name} מוחלף בשם הפרטי; אין שם — הפנייה
+   יורדת כולה, ולא נשאר "{name}," או פסיק יתום. */
+function personal(text, first) {
+  if (first) return String(text).replace(/\{name\}/g, first);
+  return String(text).replace(/\{name\}[,،]?\s*/g, '');
 }
 
 /* המנויים מגיעים מהלשונית הפרטית ולא מסוד שצריך לעדכן ביד.
@@ -79,6 +165,7 @@ function loadSubs() {
        ביום שמישהו גורר אחת, וקריאה לפי מספר נשברת בשקט. */
     var head = rows[0].map(function (x) { return String(x).trim(); });
     var iSub = head.indexOf('מנוי'), iWho = head.indexOf('שם');
+    var iId  = head.indexOf('מזהה');
     /* סינון. ריק = בלי הגבלה.
        **הישיבה נבדקת בשני שמות**: בקוד ובשם המלא. מסך הניהול
        שולח שם, והר"ם שולח קוד — והשורה בגיליון נושאת את
@@ -150,7 +237,8 @@ function loadSubs() {
       try { s = JSON.parse(raw); } catch (e) { continue; }
       if (!s || !s.endpoint || seen[s.endpoint]) continue;
       seen[s.endpoint] = 1;
-      out.push({ sub: s, who: (iWho >= 0 ? rows[i][iWho] : '') || 'בלי שם' });
+      out.push({ sub: s, who: (iWho >= 0 ? rows[i][iWho] : '') || '',
+                 id: iId >= 0 ? String(rows[i][iId] || '').trim() : '' });
     }
     out.blocked = blocked;
     return out;
@@ -158,12 +246,16 @@ function loadSubs() {
 }
 
 webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
-var payload = JSON.stringify({ title: title, body: body, url: link || './' });
 
-loadSubs().then(function (list) {
+loadSubs().then(applyFlt).then(function (list) {
   /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
   if (WAIT && !list.length) {
     console.log('איש לא ביקש התראה על ' + WAIT + ' — לא נשלח דבר.');
+    process.exit(0);
+  }
+  /* פילוח שאין בו איש — גם זה מצב רגיל ("כולם כבר סיימו"). */
+  if ((FLT.seg || FLT.way || FLT.ids) && !list.length) {
+    console.log('אין מנויים שעונים על הפילוח — לא נשלח דבר.');
     process.exit(0);
   }
   if (!list.length) {
@@ -184,16 +276,21 @@ loadSubs().then(function (list) {
                 'מדלגים עליהם.');
   }
   console.log('שולח ל-' + list.length + ' מכשירים.\n');
-  return Promise.all(list.map(function (it) {
+  /* **בלי שמות בלוג.** הריפו ציבורי, ולכן גם יומני ההרצה —
+     ושמות של תלמידים אינם שייכים לשם. מספר סידורי ומארח. */
+  return Promise.all(list.map(function (it, n) {
     var host = '—';
     try { host = new URL(it.sub.endpoint).host; } catch (e) {}
+    var first = FLT.per ? (it.first || '') : '';
+    var payload = JSON.stringify({ title: personal(title, first),
+                                   body: personal(body, first), url: link || './' });
     return webpush.sendNotification(it.sub, payload, { TTL: 3600 })
       .then(function (r) {
-        console.log('  ✓ ' + it.who + ' · ' + host + ' → ' + r.statusCode);
+        console.log('  ✓ #' + (n + 1) + ' · ' + host + ' → ' + r.statusCode);
         return 1;
       })
       .catch(function (e) {
-        console.log('  ✗ ' + it.who + ' · ' + host + ' → ' +
+        console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' +
                     (e.statusCode || '') + ' ' +
                     String(e.body || e.message || '').slice(0, 120));
         return 0;

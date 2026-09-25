@@ -1616,6 +1616,37 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   border-radius:var(--r-s);background:var(--blue);color:#fff;
   font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer}
 .mygo[disabled]{opacity:.55}
+/* "מילה לתלמידים" — למי, נוסחים, חתימה, תצוגה ויומן. */
+.say-h{margin-top:14px;font-size:.8rem;font-weight:800;color:var(--ink-2)}
+.say-more{display:block;margin-top:9px;padding:0;border:0;background:none;
+  font:inherit;font-size:.8rem;font-weight:700;color:var(--blue);cursor:pointer}
+.say-tm{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+.say-tm button{text-align:start;border:1px dashed var(--rule);background:var(--sunk);
+  border-radius:10px;padding:9px 11px;font:inherit;font-size:.84rem;font-weight:600;
+  color:var(--ink);cursor:pointer;line-height:1.5}
+.say-per{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:.84rem;
+  font-weight:700;color:var(--ink-2)}
+.say-sig{margin-top:10px;font-size:.84rem;font-weight:700;color:var(--ink-2)}
+.say-sig b{color:var(--ink)}
+.say-sig button{border:0;background:none;padding:0 4px;font:inherit;color:var(--blue);
+  text-decoration:underline;cursor:pointer}
+.say-sig input{width:100%;margin-top:6px;padding:9px 11px;border:1px solid var(--rule);
+  border-radius:10px;font:inherit}
+.say-pv{margin-top:12px;background:#1B2230;border-radius:16px;padding:11px 12px 13px}
+.say-pv-h{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.6);margin-bottom:8px}
+.say-pv-n{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.95);
+  border-radius:12px;padding:10px 11px}
+.say-pv-n img{width:30px;height:30px;border-radius:7px;flex:none}
+.say-pv-n b{display:block;font-size:.84rem;font-weight:800;color:#111}
+.say-pv-n span{display:block;margin-top:2px;font-size:.84rem;font-weight:500;color:#333;
+  line-height:1.45;white-space:pre-wrap}
+.say-pv-n .pv-nm{display:inline;font-weight:800;color:#111}
+.say-pv-n .pv-ph{color:#999}
+.say-log{margin-top:6px}
+.say-log div{padding:7px 0;border-bottom:1px solid var(--rule);font-size:.82rem;
+  font-weight:600;color:var(--ink)}
+.say-log div:last-child{border-bottom:0}
+.say-log span{display:block;font-size:.72rem;font-weight:700;color:var(--ink-3)}
 
 /* ---------- הזמנה להתקין את האפליקציה ----------
    צפה מעל הכול, בכניסה הראשונה בלבד. לא מופיעה כשהאפליקציה
@@ -1932,7 +1963,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.29';
+var APP_VERSION = '8.99.30';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3758,6 +3789,64 @@ function askSetup(where) {
    `no-cors` אינו בשימוש כאן בכוונה: התשובה נקראת, ורק תשובה
    שאומרת `ok` הופכת ל"ההודעה יצאה". ==================== */
 var sayDraft = '', sayErr = '', sayBusy = false;
+/* הנוסחים המוכנים: [{cat, text}]. null = טרם נקראו. ראו admTmpl. */
+/* לא `Store.get` כאן: Store מוגדר נמוך יותר בקובץ, והקריאה הזו
+   רצה בטעינה. המטמון נקרא בפעם הראשונה שצריך אותו — tmplNow(). */
+var TMPL = null;
+function tmplNow() {
+  if (TMPL === null) TMPL = Store.get('tmplCache', null);
+  return TMPL || [];
+}
+var TMPL_TAB = 'נוסחים';
+/* 'any' = מוצג בכל קבוצה. השאר — הקבוצה שנבחרה ב"למי?". */
+var TMPL_CATS = [['any', 'כל קבוצה'], ['all', 'saySegAll'], ['done', 'saySegDone'],
+                 ['todo', 'saySegTodo'], ['mid', 'saySegMid'], ['none', 'saySegNone'],
+                 ['parents', 'sayAudPar']];
+function tmplCatLabel(c) {
+  for (var i = 0; i < TMPL_CATS.length; i++) {
+    if (TMPL_CATS[i][0] !== c) continue;
+    var l = TMPL_CATS[i][1];
+    return (HEAD_ASK[l] || l).split(' {daf}').join('').split('{daf}').join('');
+  }
+  return c;
+}
+/* כישלון משאיר את המטמון; לשונית עם כותרת בלי שורות = אין נוסחים. */
+function tmplLoad() {
+  /* `headers=1`: שתי עמודות טקסט, ו-gviz עלולה לבלוע את השורה
+     הראשונה לתוך הכותרת. ראו OpenLoad ב-deck.js. */
+  var id = CFG.sheetId || SHEET_ID;
+  if (!id || !navigator.onLine) return Promise.resolve(false);
+  return fetch(sheetUrl(id, TMPL_TAB) + '&headers=1')
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) { return t ? parseCsv(t) : null; })
+    .then(function (rows) {
+    if (!rows || !rows.length) return false;
+    var head = rows[0].join('|');
+    if (head.indexOf('קטגוריה') < 0 || head.indexOf('נוסח') < 0) return false;
+    var out = [];
+    rows.slice(1).forEach(function (r) {
+      var c = String(r[0] || '').trim(), t = String(r[1] || '').trim();
+      if (c && t) out.push({ cat: c, text: t });
+    });
+    TMPL = out;
+    Store.set('tmplCache', out);
+    return true;
+  }).catch(function () { return false; });
+}
+/* ============================================================
+   למי — הפילוח.
+   ============================================================
+   "תפרוס בפניו את כל האפשרויות — כמובן לא באופן מכביד."
+   במבט ראשון: שורה אחת של "למי?" (כולם / סיימו / עוד לא).
+   מי שיש לו סבלנות פותח "עוד אפשרויות": הורים, דרך הלימוד,
+   שכבה, ושני פילוחי-משנה של "עוד לא סיימו".
+
+   **כל בחירה רק מצמצמת.** השרת קובע את הישיבה לפי קוד הגישה,
+   והפילוח מסונן בתוכה בלבד — ראו sayFlt_ ב-apps-script.gs.
+   ============================================================ */
+var sayOpt = { seg:'', aud:'kids', way:'', grade:'', per:true, more:false, sigEd:false };
+var SAY_WAYS = [['', 'sayWayAll'], ['לימוד עצמי', 'sayWaySelf'],
+                ['חבורת לימוד', 'sayWayChav'], ['אבות ובנים', 'sayWayDad']];
 
 function sayReach() {
   var code = myBoard();
@@ -3765,35 +3854,206 @@ function sayReach() {
   var j = bJoin(code);
   return j ? (j.n || 0) : null;
 }
+/* הדף של השבוע, וכמה כבר סיימו אותו. null = אין שבוע פעיל. */
+function sayWeek() {
+  var wk = weekIndex(), tr = trackById(homeTrack);
+  if (wk < 0 || !tr) return null;
+  var row = tr.cal[wk], daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  if (!daf) return null;
+  var did = typeof LCount === 'function' ? LCount(homeTrack, wk, myBoard()) : 0;
+  return { wk: wk + 1, daf: daf, did: did || 0 };
+}
+/* כמה תלמידים בקבוצה שנבחרה — רק כשזה ידוע באמת. null = לא
+   ידוע, ואז אין מספר ליד הכפתור ולא מבטיחים מספר. */
+function sayCount() {
+  var j = bJoin(myBoard()) || {}, n = j.n || 0, w = sayWeek();
+  if (sayOpt.aud !== 'kids') return null;
+  var narrowed = sayOpt.way || sayOpt.grade;
+  if (sayOpt.seg === 'mid' || sayOpt.seg === 'none') return null;
+  if (narrowed && sayOpt.seg) return null;
+  if (sayOpt.way)   return pairN(j.ways, sayOpt.way);
+  if (sayOpt.grade) return pairN(j.grades, sayOpt.grade);
+  if (sayOpt.seg === 'done') return w ? w.did : null;
+  if (sayOpt.seg === 'todo') return w ? Math.max(0, n - w.did) : null;
+  return n;
+}
+function pairN(list, k) {
+  var v = null;
+  (list || []).forEach(function (p) { if (p[0] === k) v = p[1]; });
+  return v;
+}
+function sayChip(on, label, n, act) {
+  return '<button class="chip' + (on ? ' on' : '') + '" data-say="' + act + '">' +
+    esc(label) + (n != null ? '<b>' + n + '</b>' : '') + '</button>';
+}
+
+/* החתימה: שמו ותפקידו, כפי שנרשם. נשמרת במכשיר ברגע ששינה. */
+function saySig() {
+  var own = Store.get('saySig', '');
+  if (own) return own;
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
+  var who = (typeof ASK !== 'undefined' && ASK.name) ? ASK.name(me) : '';
+  return [who, me.role || ''].filter(function (x) { return x; }).join(', ') || PROGRAM.short;
+}
+
+/* ============================================================
+   הנוסחים המוכנים — הרכז מכין אותם בניהול ← מה קורה ← נוסחים,
+   ומשייך כל אחד לקבוצה. כאן מוצגים רק אלה של הקבוצה שנבחרה
+   (ושל "כל קבוצה"). אין נוסחים — אין כלום, לא שורה ריקה.
+   ============================================================ */
+function sayCat() {
+  if (sayOpt.aud === 'parents') return 'parents';
+  return sayOpt.seg || 'all';
+}
+function sayTmpls() {
+  var cat = sayCat(), w = sayWeek();
+  return tmplNow().filter(function (t) {
+    return t.cat === cat || t.cat === 'any';
+  }).map(function (t) {
+    return fill(t.text, { daf: w ? w.daf : '' });
+  });
+}
+
+function sayPreview() {
+  var name = sayOpt.aud === 'parents' ? headT('sayPvNameP') : headT('sayPvName');
+  var txt = (sayDraft || '').trim();
+  var body = txt ? (sayOpt.per ? '<b class="pv-nm">' + esc(name) + '</b>, ' : '') + esc(txt)
+                 : '<span class="pv-ph">' + esc(headT('sayPvEmpty')) + '</span>';
+  return '<div class="say-pv"><div class="say-pv-h">' + esc(headT('sayPvH')) + '</div>' +
+    '<div class="say-pv-n"><img src="icon-192.png" alt="">' +
+    '<div><b>' + esc(saySig()) + '</b><span id="say-pv-b">' + body + '</span></div></div></div>';
+}
 
 function sayHtml() {
   var n = sayReach();
   if (n === null) return '';
-  var to = n
-    ? '<p class="myto">' + esc(fill(headT('sayTo'), { n:n })) + '</p>'
-    : '<p class="myto">' + esc(headT('sayNone')) + '</p>';
-  return '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
-    '<p>' + esc(headT('sayB')) + '</p>' +
-    '<textarea id="say-txt" rows="3" placeholder="' + esc(headT('sayPh')) +
-    '">' + esc(sayDraft) + '</textarea>' + to +
+  var w = sayWeek(), j = bJoin(myBoard()) || {};
+  var h = '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
+    '<p>' + esc(headT('sayB')) + '</p>';
+
+  /* ---- למי ---- */
+  h += '<div class="say-h">' + esc(headT('sayWho')) + '</div><div class="chips">' +
+    sayChip(!sayOpt.seg, headT('saySegAll'), sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? n : null, 'seg:') +
+    (w ? sayChip(sayOpt.seg === 'done', fill(headT('saySegDone'), { daf:w.daf }),
+                 sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? w.did : null, 'seg:done') +
+         sayChip(sayOpt.seg === 'todo', headT('saySegTodo'),
+                 sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? Math.max(0, n - w.did) : null, 'seg:todo')
+       : '') +
+    '</div>';
+  h += '<button class="say-more" data-say="more">' + esc(headT('sayMore')) +
+    (sayOpt.more ? ' ▴' : ' ▾') + '</button>';
+  if (sayOpt.more) {
+    h += '<div class="chips">' +
+      sayChip(sayOpt.aud === 'kids', headT('sayAudKids'), null, 'aud:kids') +
+      sayChip(sayOpt.aud === 'parents', headT('sayAudPar'), null, 'aud:parents') + '</div>';
+    if (w) {
+      h += '<div class="chips">' +
+        sayChip(sayOpt.seg === 'mid', headT('saySegMid'), null, 'seg:mid') +
+        sayChip(sayOpt.seg === 'none', headT('saySegNone'), null, 'seg:none') + '</div>';
+    }
+    h += '<div class="chips">' + SAY_WAYS.map(function (x) {
+      return sayChip(sayOpt.way === x[0], headT(x[1]),
+                     x[0] && sayOpt.aud === 'kids' ? pairN(j.ways, x[0]) : null, 'way:' + x[0]);
+    }).join('') + '</div>';
+    if (sayOpt.aud === 'kids' && (j.grades || []).length > 1) {
+      h += '<div class="chips">' + sayChip(!sayOpt.grade, headT('sayGrAll'), null, 'grade:') +
+        (j.grades || []).map(function (g) {
+          return sayChip(sayOpt.grade === g[0], fill(headT('sayGrOne'), { g:g[0] }), g[1], 'grade:' + g[0]);
+        }).join('') + '</div>';
+    }
+  }
+
+  /* ---- נוסחים מוכנים ---- */
+  var tm = sayTmpls();
+  if (tm.length) {
+    h += '<div class="say-h">' + esc(headT('sayTmplH')) + '</div><div class="say-tm">' +
+      tm.map(function (t, i) {
+        return '<button data-say="tm:' + i + '">' + esc(t) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  h += '<textarea id="say-txt" rows="3" placeholder="' + esc(headT('sayPh')) +
+    '">' + esc(sayDraft) + '</textarea>';
+  h += '<label class="say-per"><input type="checkbox" id="say-per"' +
+    (sayOpt.per ? ' checked' : '') + '> ' + esc(headT('sayPer')) + '</label>';
+
+  /* ---- החתימה ---- */
+  h += '<div class="say-sig"><span>' + esc(headT('saySigL')) + ':</span> ';
+  if (sayOpt.sigEd) {
+    h += '<input type="text" id="say-sig" value="' + esc(saySig()) + '">';
+  } else {
+    h += '<b>' + esc(saySig()) + '</b> <button data-say="sig">' +
+      esc(headT('saySigEdit')) + '</button>';
+  }
+  h += '</div>' + sayPreview();
+
+  var c = sayCount();
+  h += '<p class="myto">' + (n ? esc(fill(headT('sayTo'), { n: c != null ? c : n })) :
+    esc(headT('sayNone'))) + '</p>' +
     '<button class="mygo" id="say-go"' +
     (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
-    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '') +
-    '</div>';
+    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '');
+
+  /* ---- מה שכבר יצא מכאן ---- */
+  var log = Store.get('sayLog', []) || [];
+  if (log.length) {
+    h += '<div class="say-h">' + esc(headT('sayLogH')) + '</div><div class="say-log">' +
+      log.slice(0, 5).map(function (l) {
+        return '<div><span>' + esc(l.when) + ' · ' + esc(l.to) + '</span>' + esc(l.text) + '</div>';
+      }).join('') + '</div>';
+  }
+  return h + '</div>';
+}
+
+/* התווית של הקבוצה שנבחרה — לאישור, וליומן שמתחת. */
+function sayToLabel() {
+  var w = sayWeek(), bits = [];
+  bits.push(sayOpt.aud === 'parents' ? headT('sayAudPar') : headT('sayAudKids'));
+  if (sayOpt.seg) {
+    bits.push(headT({ done:'saySegDone', todo:'saySegTodo', mid:'saySegMid',
+                      none:'saySegNone' }[sayOpt.seg]).split('{daf}').join(w ? w.daf : ''));
+  }
+  SAY_WAYS.forEach(function (x) { if (x[0] && x[0] === sayOpt.way) bits.push(headT(x[1])); });
+  if (sayOpt.grade) bits.push(fill(headT('sayGrOne'), { g:sayOpt.grade }));
+  return bits.join(' · ');
 }
 
 function sayWire() {
   var t = document.getElementById('say-txt');
   if (t) {
-    /* מעדכנים את הכפתור בלי לצייר מחדש — ציור מחדש באמצע
-       הקלדה מאבד את הסמן, וזו כבר הייתה תקלה כאן. */
+    /* מעדכנים את הכפתור והתצוגה בלי לצייר מחדש — ציור מחדש
+       באמצע הקלדה מאבד את הסמן, וזו כבר הייתה תקלה כאן. */
     t.oninput = function () {
       sayDraft = t.value;
       var g = document.getElementById('say-go');
       if (g) g.disabled = sayBusy || !sayReach() || sayDraft.trim().length < 2;
+      var pv = document.querySelector('.say-pv');
+      if (pv) pv.outerHTML = sayPreview();
     };
   }
+  var per = document.getElementById('say-per');
+  if (per) per.onchange = function () { sayOpt.per = per.checked; sayPaint(); };
+  var sg = document.getElementById('say-sig');
+  if (sg) {
+    sg.focus();
+    sg.onchange = sg.onblur = function () {
+      Store.set('saySig', sg.value.trim());
+      sayOpt.sigEd = false; sayPaint();
+    };
+  }
+  var box = document.getElementById('my-say');
+  if (box) box.onclick = function (e) {
+    var b = e.target.closest ? e.target.closest('[data-say]') : null;
+    if (!b) return;
+    var a = b.getAttribute('data-say'), k = a.split(':')[0], v = a.slice(k.length + 1);
+    if (k === 'more') sayOpt.more = !sayOpt.more;
+    else if (k === 'sig') sayOpt.sigEd = true;
+    else if (k === 'tm') sayDraft = sayTmpls()[+v] || sayDraft;
+    else if (k === 'aud') { sayOpt.aud = v; if (v === 'parents') sayOpt.grade = ''; }
+    else sayOpt[k] = v;
+    sayPaint();
+  };
   var g = document.getElementById('say-go');
   if (g) g.onclick = saySend;
 }
@@ -3812,6 +4072,10 @@ function sayPaint() {
            ASK.noted && ASK.noted() && ASK.get && ASK.get();
   el.innerHTML = on ? sayHtml() : '';
   if (on) sayWire();
+  if (on && !sayPaint.asked) {
+    sayPaint.asked = true;
+    tmplLoad().then(function (ok) { if (ok) sayPaint(); });
+  }
 }
 
 function saySend() {
@@ -3820,18 +4084,25 @@ function saySend() {
   if (txt.length < 2) { sayErr = headT('sayEmpty'); sayPaint(); return; }
   var code = myBoard(), k = instCode(code);
   if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
-  if (!confirm(headT('sayAsk') + '\n\n' + txt)) return;
+  var to = sayToLabel();
+  if (!confirm(headT('sayAsk') + '\n' + to + '\n\n' + txt)) return;
 
   var url = (CFG.api || API || '').trim();
   if (!url) { sayErr = headT('sayErr'); sayPaint(); return; }
 
   var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
   var who = (typeof ASK !== 'undefined' && ASK.name) ? ASK.name(me) : '';
+  var w = sayWeek();
+  var flt = { per: sayOpt.per ? 1 : 0 };
+  if (sayOpt.seg && w) { flt.seg = sayOpt.seg; flt.wk = w.wk; }
+  if (sayOpt.way) flt.way = sayOpt.way;
   sayBusy = true; sayPaint();
-  /* שכבה וכיתה ריקות — כל הישיבה. */
+  /* הכותרת היא החתימה; הפנייה בשם נכנסת בשרת, לכל נמען בנפרד
+     — ראו `personal` ב-tools/push-send.js. */
   var q = { fire:'say', inst:code, k:k,
-            title: who || PROGRAM.short, body: txt,
-            grade:'', klass:'', who: who };
+            title: saySig(), body: (sayOpt.per ? '{name}, ' : '') + txt,
+            grade: sayOpt.grade, klass:'', who: who,
+            aud: sayOpt.aud, flt: JSON.stringify(flt) };
   var qs = Object.keys(q).map(function (x) {
     return encodeURIComponent(x) + '=' + encodeURIComponent(q[x]);
   }).join('&');
@@ -3840,6 +4111,10 @@ function saySend() {
     .then(function (d) {
       sayBusy = false;
       if (d && d.status === 'ok') {
+        var log = Store.get('sayLog', []) || [];
+        var now = new Date();
+        log.unshift({ when: now.getDate() + '.' + (now.getMonth() + 1), to: to, text: txt });
+        Store.set('sayLog', log.slice(0, 20));
         sayDraft = ''; sayErr = '';
         sayPaint();
         alert(headT('saySent'));
@@ -6968,7 +7243,7 @@ function paintAdmChip() {
    וכך המפלס העליון נשאר קצר ונקרא במבט. */
 var SUB = {
   what:  [['reg','הרשמות'], ['part','משתתפים'],
-          ['calls','שיחות'], ['push','התראות'], ['data','נתונים']],
+          ['calls','שיחות'], ['push','התראות'], ['tmpl','נוסחים'], ['data','נתונים']],
   /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
      הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
      והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
@@ -7017,6 +7292,7 @@ function admPane() {
     if (sub === 'reg')  return admReg(body);
     if (sub === 'part') return admPart(body);
     if (sub === 'push') return admPush(body);
+    if (sub === 'tmpl') return admTmpl(body);
     if (sub === 'data') return admData(body);
     if (sub === 'calls') {
       body.innerHTML = '<div id="calls-body"></div>';
@@ -10397,6 +10673,93 @@ function opNotify(t, daf) {
       if (d && d.status === 'ok') done('מי שביקש התראה יקבל אותה תוך דקה.', 'ok');
       else done('ההתראה לא יצאה: ' + ((d && d.message) || 'אין תשובה מהסקריפט.'), 'bad');
     })['catch'](function () { done('ההתראה לא יצאה: אין תשובה מהסקריפט.', 'bad'); });
+}
+
+/* ============================================================
+   נוסחים מוכנים ל"מילה לתלמידים".
+   ============================================================
+   "אל תשים נוסחים מוכנים מראש, אבל תבנה לי בניהול אפשרות להוסיף
+   לבחירתי וגם לשייך אותם לקטגוריות."
+
+   כל נוסח משויך לקבוצה אחת מתוך "למי?" שבכרטיס של ראש החטיבה,
+   ומוצג שם רק כשבחרו בה ("כל קבוצה" — תמיד). הרשימה כולה נכתבת
+   מחדש בכל שינוי לגיליון הראשי, ונקראת חזרה לאימות.
+   ============================================================ */
+var tmAsked = false, tmMsg = '', tmCls = '', tmBusy = false, tmCat = 'any';
+
+function admTmpl(el) {
+  if (!tmAsked) { tmAsked = true; tmplLoad().then(function () { admPane(); }); }
+  var list = tmplNow();
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>נוסח חדש</h4>' +
+    '<p class="h">ראשי החטיבה והרכזים יראו אותו כהצעה בכרטיס "מילה לתלמידים", ' +
+    'כשבחרו בקבוצה שאליה שייכתם אותו. לחיצה מעתיקה אותו לתיבה, ושם אפשר לשנות. ' +
+    '<span dir="ltr">{daf}</span> — הדף של השבוע. אין צורך לכתוב את שם התלמיד: ' +
+    'הפנייה בשם נוספת לבד.</p>' +
+    '<div class="fld"><label class="label" for="tm-cat">לאיזו קבוצה</label>' +
+    '<select id="tm-cat" onchange="tmCat=this.value">' +
+    TMPL_CATS.map(function (c) {
+      return '<option value="' + c[0] + '"' + (c[0] === tmCat ? ' selected' : '') + '>' +
+        esc(tmplCatLabel(c[0])) + '</option>';
+    }).join('') + '</select></div>' +
+    '<div class="fld"><label class="label" for="tm-txt">הנוסח</label>' +
+    '<textarea id="tm-txt" rows="3"></textarea></div>' +
+    '<button class="btn gd"' + (tmBusy ? ' disabled' : '') + ' onclick="tmAdd()">הוספה</button>' +
+    (tmMsg ? '<p class="h" style="margin-top:9px;color:var(--' +
+      (tmCls === 'ok' ? 'ok' : tmCls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(tmMsg) + '</p>' : '') +
+    '</div>';
+  TMPL_CATS.forEach(function (c) {
+    var mine = [];
+    list.forEach(function (t, i) { if (t.cat === c[0]) mine.push(i); });
+    if (!mine.length) return;
+    h += '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(tmplCatLabel(c[0])) +
+      ' · ' + mine.length + '</h4>' + mine.map(function (i) {
+        return '<div class="row" style="align-items:center;gap:9px">' +
+          '<span style="flex:1;min-width:0">' + esc(list[i].text) + '</span>' +
+          '<button class="dk-ic warn"' + (tmBusy ? ' disabled' : '') +
+          ' onclick="tmDel(' + i + ')" aria-label="מחיקה">✕</button></div>';
+      }).join('') + '</div>';
+  });
+  if (TMPL && !list.length) {
+    h += '<p class="h">עוד אין נוסחים. מה שתוסיפו כאן יופיע אצלם.</p>';
+  }
+  el.innerHTML = h;
+}
+function tmAdd() {
+  var t = (document.getElementById('tm-txt').value || '').trim();
+  if (t.length < 2) return;
+  var list = tmplNow().slice();
+  list.push({ cat: tmCat, text: t });
+  tmSave(list);
+}
+function tmDel(i) {
+  var list = tmplNow().slice();
+  if (!list[i] || !confirm('למחוק את הנוסח?\n\n' + list[i].text)) return;
+  list.splice(i, 1);
+  tmSave(list);
+}
+function tmSave(list) {
+  if (!API) { tmMsg = 'אין כתובת שרת במכשיר הזה.'; tmCls = 'bad'; admPane(); return; }
+  tmBusy = true; tmMsg = 'נשמר · מאמת מול הגיליון…'; tmCls = ''; admPane();
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:TMPL_TAB,
+    cols:JSON.stringify(['קטגוריה', 'נוסח']),
+    /* גרש מוביל — נוסח שמתחיל ב"=" או במספר נשאר טקסט. */
+    rows:JSON.stringify(list.map(function (x) { return [x.cat, "'" + x.text]; }))
+  }) }).catch(function () {});
+  var want = JSON.stringify(list);
+  var check = function (tries) {
+    setTimeout(function () {
+      tmplLoad().then(function (ok) {
+        if (ok && JSON.stringify(TMPL) === want) {
+          tmBusy = false; tmCls = 'ok'; tmMsg = 'נשמר. זה כבר מופיע אצלם.'; admPane(); return;
+        }
+        if (tries < 4) { check(tries + 1); return; }
+        tmBusy = false; tmCls = 'bad';
+        tmMsg = 'לא הצלחתי לאמת שהשמירה הגיעה לגיליון. נסו שוב.'; admPane();
+      });
+    }, tries ? 2500 : 1600);
+  };
+  check(0);
 }
 
 /* ---- מחירים ----

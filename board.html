@@ -280,6 +280,22 @@ footer a{color:var(--ink-2);font-weight:800}
   padding-top:13px;border-top:1px solid var(--rule);
   font-size:.78rem;font-weight:700;color:var(--ink-3)}
 .legend span{display:inline-flex;align-items:center}
+/* "ישר כוח" לתלמיד אחד — ליד מי שסיים. */
+.kudo{flex:none;border:1px solid rgba(192,143,43,.45);background:rgba(192,143,43,.1);
+  color:var(--ink);border-radius:20px;padding:6px 11px;font:inherit;font-size:.76rem;
+  font-weight:800;cursor:pointer}
+.kudo.sent{border-color:transparent;background:none;color:var(--green);cursor:default}
+.kudo-box{margin:2px 0 10px;padding:11px 12px;background:var(--sunk);border-radius:12px}
+.kudo-box .tm{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
+  border:1px dashed var(--rule);border-radius:9px;background:var(--surface);font:inherit;
+  font-size:.8rem;font-weight:600;cursor:pointer}
+.kudo-box textarea{width:100%;min-height:64px;padding:9px 10px;border:1px solid var(--rule);
+  border-radius:9px;font:inherit;font-size:.86rem;box-sizing:border-box}
+.kudo-box .pv{margin-top:7px;font-size:.8rem;font-weight:600;color:var(--ink-2)}
+.kudo-box .go{display:block;width:100%;margin-top:9px;padding:11px;border:0;border-radius:10px;
+  background:var(--blue);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.kudo-box .go[disabled]{opacity:.55}
+.kudo-box .s{margin-top:6px;font-size:.74rem;font-weight:700;color:var(--ink-3)}
 </style>
 </head>
 <body>
@@ -745,7 +761,116 @@ function pRow(p, noGrade) {
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div></div>';
+    '</div>' + kudoBtn(p, did) + '</div>' + kudoBox(p);
+}
+
+/* ============================================================
+   "ישר כוח" — מילה אישית לתלמיד אחד שסיים.
+   ============================================================
+   ליד כל מי שסיים את הדף השבוע. לחיצה פותחת תיבה קטנה מתחת
+   לשורה: הנוסחים המוכנים של "סיימו" (שהרכז הכין בניהול), תיבה,
+   ותצוגה של איך זה נפתח — בשמו. השליחה עוברת באותו `fire=say`
+   של "מילה לתלמידים", עם `ids` של התלמיד הזה בלבד; השרת תוחם
+   לישיבה לפי הקוד, והמזהה רק מצמצם בתוכה.
+   ============================================================ */
+var KUDO_OPEN = '', KUDO_TXT = '', KUDO_BUSY = false, KUDO_SENT = {}, KUDO_ERR = '';
+function kt(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
+function kudoBtn(p, did) {
+  if (!did || !acc || !p.id) return '';
+  if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
+  return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>';
+}
+function kudoSig() {
+  return LGet('saySig', '') || tp(kt('kudoSig'), { inst: inst ? inst.name : '' });
+}
+function kudoTmpls() {
+  var wk = LWeek(), row = wk >= 0 ? TRACKS[0].cal[wk] : null;
+  var daf = row && row[2] ? row[2] : '';
+  return (LGet('tmplCache', []) || []).filter(function (t) {
+    return t.cat === 'done' || t.cat === 'any';
+  }).map(function (t) { return tp(t.text, { daf: daf }); });
+}
+function kudoBox(p) {
+  if (KUDO_OPEN !== p.id) return '';
+  var first = p.first || '';
+  var h = '<div class="kudo-box">';
+  kudoTmpls().forEach(function (t, i) {
+    h += '<button class="tm" data-kudo-tm="' + i + '">' + esc(t) + '</button>';
+  });
+  h += '<textarea id="kudo-txt" placeholder="' + esc(kt('kudoPh')) + '">' +
+    esc(KUDO_TXT) + '</textarea>' +
+    '<div class="pv" id="kudo-pv"></div>' +
+    '<button class="go" id="kudo-go"' + (KUDO_BUSY ? ' disabled' : '') + '>' +
+    esc(tp(kt('kudoGo'), { first: first })) + '</button>' +
+    '<div class="s">' + esc(KUDO_ERR || kt('kudoNote')) + '</div></div>';
+  return h;
+}
+function kudoPv(first) {
+  var el = $('kudo-pv'); if (!el) return;
+  var t = (KUDO_TXT || '').trim();
+  el.innerHTML = t ? '<b>' + esc(kudoSig()) + '</b><br>' + esc(first) + ', ' + esc(t) : '';
+  var g = $('kudo-go'); if (g) g.disabled = KUDO_BUSY || t.length < 2;
+}
+function kudoWire() {
+  var body = $('body');
+  if (!body || body.getAttribute('data-kw')) return;
+  body.setAttribute('data-kw', '1');
+  body.addEventListener('click', function (e) {
+    var t = e.target, b;
+    if ((b = t.closest && t.closest('[data-kudo]'))) {
+      var id = b.getAttribute('data-kudo');
+      KUDO_OPEN = KUDO_OPEN === id ? '' : id; KUDO_TXT = ''; KUDO_ERR = '';
+      draw(); return;
+    }
+    if ((b = t.closest && t.closest('[data-kudo-tm]'))) {
+      KUDO_TXT = kudoTmpls()[+b.getAttribute('data-kudo-tm')] || KUDO_TXT;
+      var ta = $('kudo-txt'); if (ta) ta.value = KUDO_TXT;
+      kudoPv(kudoWho().first || ''); return;
+    }
+    if (t.id === 'kudo-go') kudoSend();
+  });
+  body.addEventListener('input', function (e) {
+    if (e.target.id !== 'kudo-txt') return;
+    KUDO_TXT = e.target.value; kudoPv(kudoWho().first || '');
+  });
+}
+function kudoWho() {
+  var r = (roster || []).filter(function (p) { return p.id === KUDO_OPEN; })[0];
+  return r || {};
+}
+function kudoSend() {
+  var p = kudoWho(), txt = (KUDO_TXT || '').trim();
+  if (!p.id || txt.length < 2 || KUDO_BUSY) return;
+  KUDO_BUSY = true; KUDO_ERR = ''; draw();
+  askScript({ fire:'say', inst:code, k:acc, title:kudoSig(), body:'{name}, ' + txt,
+              grade:'', klass:'', who:kudoSig(), aud:'kids',
+              flt: JSON.stringify({ ids:[p.id], per:1 }) })
+    .then(function (d) {
+      KUDO_BUSY = false;
+      if (d && d.status === 'ok') { KUDO_SENT[p.id] = 1; KUDO_OPEN = ''; KUDO_TXT = ''; }
+      else KUDO_ERR = kt('kudoErr') + ' ' + ((d && d.message) || '');
+      draw();
+    });
+}
+/* הנוסחים המוכנים — מהמטמון מיד (אם המכשיר ביקר במסך הבית),
+   ומהגיליון ברקע. `headers=1` — ראו tmplLoad ב-index.html. */
+function kudoLoadTmpl() {
+  var id = (LGet('cfg', {}) || {}).sheetId || SHEET_ID;
+  if (!id || !navigator.onLine) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv&sheet=' +
+        encodeURIComponent('נוסחים') + '&headers=1&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var rows = csv(t);
+      if (!rows.length || rows[0].join('|').indexOf('קטגוריה') < 0) return;
+      var out = [];
+      rows.slice(1).forEach(function (r) {
+        var c = String(r[0] || '').trim(), x = String(r[1] || '').trim();
+        if (c && x) out.push({ cat: c, text: x });
+      });
+      try { localStorage.setItem('df:tmplCache', JSON.stringify(out)); } catch (e) {}
+    }).catch(function () {});
 }
 
 /* ============================================================
@@ -935,6 +1060,8 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
+  kudoWire();
+  if (KUDO_OPEN) kudoPv(kudoWho().first || '');
 }
 function legacy(txt, done) {
   var t = document.createElement('textarea');
@@ -954,6 +1081,7 @@ $('foot-how').textContent =
 draw();
 loadBoard().then(draw);
 loadRoster().then(draw);
+kudoLoadTmpl();
 </script>
 </body>
 </html>

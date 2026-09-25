@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 34;
+var SCRIPT_VERSION = 35;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -639,11 +639,15 @@ function doGet(e) {
                              isAdm ? String(P.only || '') : inst,
                              String(P.grade || ''), String(P.klass || ''),
                              String(P.who || ''), link,
-                             isAdm ? String(P.role || '') : 'תלמיד',
+                             /* ר"ם וראש חטיבה בוחרים בין תלמידים להורים —
+                                ושניהם עדיין בתוך הישיבה שלהם בלבד. */
+                             isAdm ? String(P.role || '')
+                                   : (P.aud === 'parents' ? 'אב' : 'תלמיד'),
                              /* "הדף נפתח" — רק לרכז, ורק לממתינים של
                                 אותו דף. הצורה נבדקת: 'taanit|ג'. */
                              isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}$/.test(String(P.wait || ''))
-                               ? String(P.wait) : ''));
+                               ? String(P.wait) : '',
+                             sayFlt_(P.flt)));
   }
 
   /* ---- הלוח של מוסד ----
@@ -2123,10 +2127,48 @@ function sheet_(tab, ssId) {
    ============================================================ */
 var GH_API = 'https://api.github.com/repos/';
 
+/* ============================================================
+   הפילוח של "מילה לתלמידים" — מי מתוך הישיבה יקבל.
+   ============================================================
+   **כל שדה כאן רק מצמצם.** ההיקף (הישיבה, או הכיתה של הר"ם)
+   נקבע למעלה לפי קוד הגישה, ו-push-send.js מסנן קודם לפיו ורק
+   אחר כך לפי אלה. לכן אין כאן שום הרשאה — רק ניקוי צורה.
+
+     seg  'done' סיימו · 'todo' עוד לא סיימו (באמצע + לא התחילו)
+          · 'mid' התחילו ולא סיימו · 'none' לא התחילו
+     wk   מספר השבוע (1…) שעליו מדובר ב-seg
+     way  מסגרת: 'לימוד עצמי' / 'חבורת לימוד' / 'אבות ובנים'
+     ids  מזהי תלמידים מסוימים — "ישר כוח" מהלוח
+     per  1 = להחליף {name} בשם הפרטי של כל נמען
+   ============================================================ */
+function sayFlt_(raw) {
+  var f;
+  try { f = JSON.parse(String(raw || '')); } catch (e) { return ''; }
+  if (!f || typeof f !== 'object') return '';
+  var out = {};
+  if (/^(done|todo|mid|none)$/.test(String(f.seg || ''))) out.seg = String(f.seg);
+  var wk = parseInt(f.wk, 10);
+  if (wk >= 1 && wk <= 60) out.wk = wk;
+  if (out.seg && !out.wk) delete out.seg;
+  var way = String(f.way || '');
+  if (way === 'לימוד עצמי' || way === 'חבורת לימוד' || way === 'אבות ובנים') out.way = way;
+  if (f.ids && f.ids.length) {
+    out.ids = [];
+    for (var i = 0; i < f.ids.length && i < 60; i++) {
+      var id = String(f.ids[i] || '');
+      if (/^[\w:.\-]{1,60}$/.test(id)) out.ids.push(id);
+    }
+    if (!out.ids.length) delete out.ids;
+  }
+  if (f.per) out.per = 1;
+  for (var k in out) if (out.hasOwnProperty(k)) return JSON.stringify(out);
+  return '';
+}
+
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who, link, role, wait) {
+function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
@@ -2148,7 +2190,10 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait) {
                           url: link || '', role: role || '',
                           /* לא ריק = שולחים רק למי שביקש התראה על
                              הדף הזה (לשונית "ממתינים לדף"). */
-                          wait: wait || '' }
+                          wait: wait || '',
+                          /* הפילוח — ראו sayFlt_. JSON אחד, כי
+                             GitHub מקבל עד עשרה שדות במטען. */
+                          flt: flt || '' }
       }),
       muteHttpExceptions: true
     });
@@ -2163,7 +2208,8 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait) {
         appendCols_('הודעות', [
           ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
           ['שכבה', grade || ''], ['כיתה', klass || ''],
-          ['כותרת', title], ['הטקסט', body]
+          ['כותרת', title], ['הטקסט', body],
+          ['תפקיד', role || ''], ['פילוח', flt || '']
         ]);
       } catch (e2) {}
       return { status:'ok' };

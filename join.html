@@ -944,6 +944,9 @@ footer a{color:var(--ink-2);font-weight:800}
 
   <button class="btn stg" id="go">מצטרף ללימוד</button>
   <div class="err" id="err" role="alert" aria-live="assertive"></div>
+  <!-- בעריכת פרטים בלבד: הוספת בן נוסף / הורה נוסף. ראו
+       drawKids/drawInv2 — אותו רכיב שבמסך "נרשמת". -->
+  <div id="edit-more"></div>
   <!-- חובת היידוע היא כאן, בנקודת האיסוף, ולכן היא חייבת לומר
        את כל השימושים ולא רק את הנוחים: הצוות רואה שמות, ושמות
        של זוכים ומצטיינים מתפרסמים. ההרחבה ב-/info. -->
@@ -2094,13 +2097,14 @@ function drawInv() {
    לאותו אדם נראית כמו מערכת ששכחה. זה קישור עדין ונפרד, שפותח
    טופס קטן משלו — שם וטלפון של הורה שני — ושולח הזמנה חדשה
    בלי לגעת ב-me.dadFirst/dadLast/dadPhone של ההזמנה הראשונה. */
-function drawInv2() {
-  var box = $('inv2'); if (!box) return;
+function drawInv2(where) {
+  var box = $(where || 'inv2'); if (!box) return;
   var me = get('me', null) || {};
   box.innerHTML = '';
-  /* אותו תנאי בסיס כמו drawInv — לומד עם הורה, לא הגיע דרך
-     הזמנה של הצד השני (שם ההורה כבר בפנים ואין את מי להזמין). */
-  if (me.way !== 'dad' || !me.dadFirst || me.from) return;
+  /* תלמיד שלומד עם הורה — **כל** תלמיד כזה, גם מי שהגיע בהזמנה
+     של ההורה, וגם מי שלא מילא את שם ההורה הראשון. "יש לי
+     תלמידים כאלה עכשיו": התנאי הקודם הסתיר את זה מהם. */
+  if (me.way !== 'dad' || me.role === 'dad') return;
   var sent = get('inv2-sent', 0);
   var link = '<button class="more-link" id="inv2-link">' + esc(JOIN.inv2Link) + '</button>';
   if (sent) {
@@ -2138,7 +2142,7 @@ function drawInv2() {
     window.open('https://wa.me/' + waNum(num) + '?text=' +
       encodeURIComponent(tpl(JOIN.invMsg, { me: me.first, them: name2, url: invUrl(me2) })),
       '_blank');
-    drawInv2();
+    drawInv2(where);
   };
 }
 
@@ -2152,13 +2156,12 @@ function drawInv2() {
    ההוספה השנייה הייתה דורסת את הראשונה (ראו upsertCols_
    ב-apps-script.gs, שמעדכנת שורה קיימת לפי אותו מזהה בדיוק). */
 function kidsList_() { return get('kids2', []) || []; }
-function drawKids() {
-  var box = $('kids'); if (!box) return;
+function drawKids(where) {
+  var box = $(where || 'kids'); if (!box) return;
   var me = get('me', null) || {};
   box.innerHTML = '';
-  /* רק הורה שממש נרשם כאן — לא מי שהוזמן על ידי בנו (התפקיד
-     שלו כבר נקבע, ואין לו "עוד בן" להוסיף מהמסך הזה). */
-  if (me.role !== 'dad' || me.from) return;
+  /* כל הורה — גם מי שהגיע בהזמנה של בן אחד, ויש לו בן נוסף. */
+  if (me.role !== 'dad') return;
   var list = kidsList_();
   var h = list.map(function (k) {
     return '<div class="more-card"><div class="ok">✓ ' +
@@ -2196,7 +2199,7 @@ function drawKids() {
     ]) });
     list.push(kid);
     set('kids2', list);
-    drawKids();
+    drawKids(where);
   };
 }
 
@@ -3131,6 +3134,7 @@ function showDone(me) {
   $('d-name').textContent =
     ((me.first || '') + ' ' + (me.last || '')).trim() || 'הדף שלי';
   drawInv();
+  var em = $('edit-more'); if (em) em.innerHTML = '';
   drawInv2();
   drawKids();
   drawWa();
@@ -3237,6 +3241,14 @@ window.addEventListener('load', function () {
     parentIs = me.parent === 'mom' ? 'mom' : 'dad';
     invRel = me.rel || (way === 'chav' ? 'friend' : 'dad');
     drawWays(); applyWays();
+    /* הוספת בן / הורה נוסף — גם כאן, ולא רק במסך "נרשמת".
+       המזהים שבפנים ייחודיים, ולכן המופע שבמסך ההוא מתרוקן. */
+    $('kids').innerHTML = ''; $('inv2').innerHTML = '';
+    var em = $('edit-more');
+    if (em) {
+      em.innerHTML = '<div id="em-kids"></div><div id="em-inv2"></div>';
+      drawKids('em-kids'); drawInv2('em-inv2');
+    }
     /* מי שחוזר לערוך כבר מכיר את הטופס — הריקוד של החשיפה
        ההדרגתית יהיה כאן מכשול ולא עזרה. */
     ['c-who','f-last','instFld','f-grade','f-phone','c-ways','go',
