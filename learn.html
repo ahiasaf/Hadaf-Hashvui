@@ -72,6 +72,10 @@
   --gold-t:#8C681F;
   --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
   --ink-3:#5C687E; --rule:#E5DAC3; --ok:#3A7B56;
+  /* רקע החידה — אותה משפחה כמו paper/surface (חמים, לא צבעוני),
+     רק קריר יותר: תזכורת עדינה ש"עכשיו זה משהו אחר", בלי לצאת
+     מהפשטות של שאר הדף. ראו body.quiz-on .chav למטה. */
+  --quiz-bg:#EEF3FB; --quiz-rule:#D6E3F5;
   --bar:64px;
   /* רוחב הבמה במחשב, ורוחב הבמה+החברותא יחד. ראו הערת
      "מסך מחשב" למטה — אלה אינם מספרי טעם אלא תקרה שנגזרת
@@ -165,8 +169,12 @@ body.whole .stage:active{cursor:grabbing}
 
 /* ---------- מגירת החברותא ---------- */
 .chav{display:none;background:var(--surface);border-inline-start:1px solid var(--rule);
-  flex-direction:column;min-height:0}
+  flex-direction:column;min-height:0;transition:background .25s ease}
 body.chav-on .chav{display:flex}
+/* מצב חידה — רקע קריר-עדין שונה מהחברותא/פירוש, כדי שהמעבר
+   ירגיש כמו "עכשיו זה משחק", בלי גרפיקה נוספת. */
+body.quiz-on .chav{background:var(--quiz-bg)}
+body.quiz-on .chd{border-bottom-color:var(--quiz-rule)}
 body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .chd{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 14px;
   border-bottom:1px solid var(--rule);font-weight:800;font-size:.84rem;color:var(--blue)}
@@ -207,10 +215,6 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   padding:4px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
 .cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
 .cht-lbl{font-weight:800;color:var(--blue);font-size:.84rem}
-/* לשונית החידה — אותו כפתור בדיוק כמו חברותא/פירוש לנוער
-   (`.cht button` שלמעלה), רק עם אייקון המיתוג לצד המילה. */
-.cht-q{display:inline-flex;align-items:center;gap:5px}
-.cht-q img{width:15px;height:15px;display:block}
 /* פירוש נטו — בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
    (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות — ראו את ההערה
    למעלה על boldOnly ב-git log.) */
@@ -591,6 +595,18 @@ nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
    שליש מרוחבו. צנועה יותר — נאמרת, ולא משתלטת. */
 body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
   padding:4px;font-size:.66rem;box-shadow:0 3px 12px rgba(11,37,80,.3)}
+
+/* עיגול החידה הצף — בפינה הנגדית ל-dbadge כדי שלא יתנגשו.
+   האייקון עצמו כבר עגול ומעוצב (icon-quiz.png), ולכן בלי רקע
+   צבעוני משלו — רק הרמה קלה מהדף, ומתג "lit" כשהחידה פתוחה. */
+.qfab{display:none;position:absolute;top:12px;right:12px;z-index:8;
+  width:52px;height:52px;border-radius:50%;padding:0;border:0;
+  background:transparent;cursor:pointer;box-shadow:0 4px 16px rgba(11,37,80,.26);
+  transition:transform .2s ease,box-shadow .2s ease}
+.qfab.on{display:flex}
+.qfab img{width:100%;height:100%;border-radius:50%;display:block}
+.qfab.lit{transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
+body.emb .qfab{width:42px;height:42px;top:8px;right:8px}
 /* החלפת התוכן — נדעכת רגע, מתחלפת, וחוזרת. */
 .dbadge.swap{opacity:0;transform:scale(.86)}
 
@@ -844,6 +860,10 @@ nav .sp{flex:1}
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
+    <!-- עיגול החידה. צף, קבוע במקום, בפינה הנגדית ל-dbadge כדי
+         שלא יתנגשו. לחיצה עליו מחליפה את תוכן המגירה — ראו
+         quizFabPaint/paintChavArea — ולא פותחת חלון או לשונית. -->
+    <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה"></button>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -1563,6 +1583,10 @@ var OWN_TAB = 'פירוש';
 var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: [חלקים] | טקסט ישן} */
 var OWN = null;        /* הפירוש של הדף שעל המסך, או null אם אין */
 var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי */
+/* האם החידה פתוחה כרגע במקום תוכן המגירה. עצמאי מ-CHAV_TAB בכוונה:
+   סגירת החידה (X, או תשובה) חוזרת לאיזו לשונית שהייתה פתוחה קודם,
+   ולא תמיד ל'chav' — ראו quizFabPaint/qAnswer. */
+var QUIZ_OPEN = false;
 
 function loadOwnMap() {
   return sheetCsv(OWN_TAB).then(function (rows) {
@@ -1609,17 +1633,17 @@ function chavTabHtml(st) {
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
   var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
-  /* אותו כלל בדיוק לחידה — קיימת בקטע הזה, ופורסמה (או שאנחנו
-     בעריכה, ואז רואים גם לפני פרסום). לא חלון צף עוד: לשונית
-     שלישית, ממש כמו חברותא ופירוש לנוער. */
-  var hasQuiz = !!(qVisible_(st.n).length);
-  if (!SIDE_ADM && !hasOwn && !hasQuiz) return '<span class="cht-lbl">חברותא</span>';
+  /* החידה כבר לא לשונית כאן — היא עיגול צף משלה (qfab), שמחליף
+     את התוכן של האזור הזה כשלוחצים עליו. ראו quizFabPaint(). */
+  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
   return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
-    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>' +
-    (SIDE_ADM || hasQuiz
-      ? '<button class="cht-q ' + (CHAV_TAB === 'quiz' ? 'on' : '') + '" id="cht-quiz">' +
-        '<img src="icon-quiz.png" alt="">שאלה</button>'
-      : '');
+    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
+}
+/* כותרת המגירה כשהחידה פתוחה — תופסת את מקום כפתורי חברותא/פירוש
+   לנוער (הם עדיין קיימים מתחת, וחוזרים כשסוגרים). רק תווית וסגירה —
+   אין כאן מעבר בין כמה חידות, יש תמיד אחת לקטע. */
+function quizChdHtml() {
+  return '<span class="cht-lbl">חידה</span><button id="cht-x" title="סגירה">✕</button>';
 }
 
 function ownMsg(cls, txt) {
@@ -2147,18 +2171,38 @@ function ownPublishVerify(tries, on) {
    לחיצה, כי בלעדיה אי אפשר לכתוב פירוש ראשון לקטע. */
 function paintChavArea() {
   var st = FLAT[IDX];
-  var cht = $('cht');
-  if (cht) cht.innerHTML = chavTabHtml(st);
   var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
   var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
-  if (CHAV_TAB === 'own'  && !canOwn)  CHAV_TAB = 'chav';
-  if (CHAV_TAB === 'quiz' && !canQuiz) CHAV_TAB = 'chav';
-  if (CHAV_TAB === 'quiz' && canQuiz) paintQuiz();
+  if (CHAV_TAB === 'own' && !canOwn) CHAV_TAB = 'chav';
+  if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
+  document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
+  var cht = $('cht');
+  if (cht) cht.innerHTML = QUIZ_OPEN ? quizChdHtml() : chavTabHtml(st);
+  if (QUIZ_OPEN) paintQuiz();
   else if (CHAV_TAB === 'own' && canOwn) paintOwn();
   else paintChav();
   if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
   if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
-  if ($('cht-quiz')) $('cht-quiz').onclick = function () { CHAV_TAB = 'quiz'; paintChavArea(); };
+  if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
+  quizFabPaint();
+}
+
+/* העיגול הצף של החידה — צף מעל הבמה, לא בזרם התוכן, כדי שיהיה
+   נגיש בלי לפתוח כלום: לחיצה עליו פותחת את המגירה (אם סגורה)
+   ומחליפה את תוכנה לחידה, בדיוק כמו מעבר בין חברותא לפירוש לנוער.
+   נשאר על המסך תמיד כשיש חידה לקטע — גם כשהיא כבר פתוחה, כדי
+   שאותה לחיצה תסגור אותה (מתג, לא כפתור-פתיחה-חד-פעמי). */
+function quizFabPaint() {
+  var st = FLAT[IDX], fab = $('qfab');
+  if (!fab) return;
+  var can = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+  fab.classList.toggle('on', can);
+  fab.classList.toggle('lit', !!QUIZ_OPEN);
+  fab.onclick = function () {
+    QUIZ_OPEN = !QUIZ_OPEN;
+    if (QUIZ_OPEN && !document.body.classList.contains('chav-on')) drawer(true);
+    else paintChavArea();
+  };
 }
 
 /* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
@@ -3072,7 +3116,7 @@ function qAnswer(n, q, k) {
   qSend(n, k, right);
   toast(right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
               : 'התשובה הנכונה: ' + q.a[q.correct]);
-  CHAV_TAB = 'chav';
+  QUIZ_OPEN = false;
   paintChavArea();
 }
 function qSend(n, k, right) {
