@@ -35,11 +35,31 @@ function LSet(k, v) {
 function LMe() { return LGet('me', null); }
 
 /* ---------- השבוע ---------- */
-/* אותה חשבונאות שיש ב-index.html, ובכוונה כתובה כאן שוב תחת
-   שם אחר: שני המסכים האחרים אינם טוענים את index.html. */
+/* "עכשיו" — עם דלת בדיקה בלבד. לפני `PROGRAM.startDate` (ראו
+   data.js) `LWeek()` מחזיר -1 בכל מכשיר, וזה מכבה בשקט גם
+   סימון-דף, גם "למדנו ביחד", וגם שמירת מיקום — כולן תלויות בו.
+   מי שבודק את האפליקציה לפני תחילת התוכנית נתקל בזה כל פעם,
+   וזה לא באג — זה בדיוק המצב שיהיה לתלמיד אמיתי גם כן, עד
+   שהתוכנית תתחיל. `?asof=YYYY-MM-DD` מאפשר לדמות תאריך אחר —
+   **רק במצב ניהול** (`df:admOk`), כדי שתלמיד לא יוכל "לדלג"
+   שבועות דרך שורת הכתובת. נשמר במכשיר, אז מספיק להוסיף אותו
+   פעם אחת; `?asof=` ריק מבטל את הדימוי וחוזר לתאריך האמיתי. */
+function LNow_() {
+  try {
+    if (localStorage.getItem('df:admOk') !== '1') return new Date();
+    var q = /[?&]asof=([^&]*)/.exec(location.search);
+    if (q) {
+      var v = decodeURIComponent(q[1]);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) localStorage.setItem('df:asof', v);
+      else localStorage.removeItem('df:asof');
+    }
+    var saved = localStorage.getItem('df:asof');
+    return saved ? new Date(saved + 'T00:00:00') : new Date();
+  } catch (e) { return new Date(); }
+}
 function LWeek() {
   var start = new Date(PROGRAM.startDate + 'T00:00:00');
-  var now = new Date(); now.setHours(0, 0, 0, 0);
+  var now = LNow_(); now.setHours(0, 0, 0, 0);
   var days = Math.floor((now - start) / 86400000);
   if (days < 0) return -1;
   return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
