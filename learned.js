@@ -61,7 +61,11 @@ function LWeek() {
   var start = new Date(PROGRAM.startDate + 'T00:00:00');
   var now = LNow_(); now.setHours(0, 0, 0, 0);
   var days = Math.floor((now - start) / 86400000);
-  if (days < 0) return -1;
+  if (days < 0) {
+    /* פתיחה מוקדמת: לפני ההתחלה הרשמית, שבוע 1 כבר פעיל. */
+    var early = PROGRAM.earlyFrom ? new Date(PROGRAM.earlyFrom + 'T00:00:00') : null;
+    return (early && now >= early) ? 0 : -1;
+  }
   return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
 }
 /* הדף של שבוע מסוים במסלול. null = שבוע חופשה. */

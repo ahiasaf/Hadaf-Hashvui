@@ -926,6 +926,8 @@ function heroHtml(daf, done, tot, canOpen) {
 function soonLine() {
   var d = new Date(PROGRAM.startDate + 'T00:00:00');
   if (isNaN(d) || Date.now() >= d.getTime()) return '';
+  /* פתיחה מוקדמת — כבר לומדים, אין "מתחילים". */
+  if (LWeek() >= 0) return '';
   var r0 = TRACKS[0].cal[0];
   return '<p class="soon">מתחילים · ' + esc(r0[1]) + ' · דף ' + esc(r0[2]) +
          '<br>' + esc(r0[0]) + '</p>';

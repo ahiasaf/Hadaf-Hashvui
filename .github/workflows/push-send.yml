@@ -94,4 +94,6 @@ jobs:
           LINK:  ${{ inputs.link || github.event.client_payload.url }}
           # "צוות" = כל מי שאינו תלמיד ואינו הורה. ריק = לכולם.
           ROLE:  ${{ github.event.client_payload.role }}
+          # "הדף נפתח": רק למי שביקש התראה על הדף הזה. 'taanit|ג'.
+          WAIT:  ${{ github.event.client_payload.wait }}
         run: node tools/push-send.js

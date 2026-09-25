@@ -1932,7 +1932,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.28';
+var APP_VERSION = '8.99.29';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6973,7 +6973,7 @@ var SUB = {
      הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
      והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
      הרגילה. לשונית משלו. */
-  show:  [['screens','מסכים'], ['daf','הדף'], ['price','מחירים'],
+  show:  [['screens','מסכים'], ['daf','הדף'], ['open','פתיחת דפים'], ['price','מחירים'],
           ['guide','התקנה'], ['text','מלל']]
 };
 var admSub = {};
@@ -7029,6 +7029,7 @@ function admPane() {
   if (admTab === 'show') {
     if (sub === 'guide') { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
     if (sub === 'daf') return admDecks(body);
+    if (sub === 'open') return admOpen(body);
     if (sub === 'price') return admPrice(body);
     if (sub === 'text')  return admText(body);
     admShow(body); return admMarkHint();
@@ -10272,6 +10273,130 @@ function admDecks(el) {
     '<div id="dk-msg"></div></div>';
 
   el.innerHTML = h;
+}
+
+/* ============================================================
+   פתיחת דפים — מה כבר פתוח ללימוד בדף האינטראקטיבי.
+   ============================================================
+   הרכז פותח דף כשהוא מוכן, ולא לפי הלוח. דף שנפתח זמין מיד לכל
+   התלמידים, גם לפני השבוע שלו. דף נעול מציג לתלמיד "עוד לא
+   נפתח", ומציע לו לבקש התראה — וברגע הפתיחה ההתראה יוצאת רק
+   למי שביקש (ראו `wait` ב-apps-script.gs ו-tools/push-send.js).
+
+   הרשימה כולה נכתבת מחדש בכל שינוי (`action:'table'`), ואחר כך
+   נקראת חזרה — `no-cors` תמיד "מצליח". ההתראה יוצאת רק אחרי
+   שהגיליון אישר שהדף באמת פתוח: התראה על דף שנשאר נעול היא
+   הבטחה שנשברה בפני תלמיד שביקש אותה.
+   ============================================================ */
+var opAsked = false, opBusy = false, opMsg = '', opCls = '';
+
+function admOpen(el) {
+  if (!opAsked) {
+    opAsked = true;
+    OpenLoad().then(function () { admPane(); });
+  }
+  var map = OpenMap(), h = '';
+  h += '<div class="adm-card" style="margin-bottom:11px"><h4>פתיחת דפים</h4>' +
+    '<p class="h">דף שנפתח זמין מיד לכל התלמידים — גם לפני השבוע שלו. ' +
+    'דף נעול מציג לתלמיד "' + esc(UI.lockT) + '", ומי שביקש שם התראה ' +
+    'יקבל אותה ברגע שתפתחו את הדף.</p>' +
+    (OPENS ? '' : '<p class="h">עדיין לא נפתח דבר מכאן — לכן רק הדף ' +
+      'הראשון בכל מסכת פתוח.</p>') +
+    (opMsg ? '<p class="h" style="margin-top:9px;color:var(--' +
+      (opCls === 'ok' ? 'ok' : opCls === 'bad' ? 'stop' : 'ink-2') + ')">' +
+      esc(opMsg) + '</p>' : '') +
+    '</div>';
+  TRACKS.forEach(function (t, ti) {
+    h += '<div class="adm-card" style="margin-bottom:11px"><h4>מסכת ' +
+      esc(t.masechet) + '</h4>';
+    t.cal.forEach(function (r, wi) {
+      if (!r[2] || r[2] === 'סיום') return;
+      var on = !!map[OpenKey(t.id, r[2])];
+      h += '<div class="row" style="align-items:center;gap:9px">' +
+        '<span style="flex:1;min-width:0"><b>דף ' + esc(r[2]) + '</b>' +
+        '<span class="h" style="display:block;margin:0">שבוע ' + (wi + 1) +
+        ' · ' + esc(r[1]) + '</span></span>' +
+        (on
+          ? '<span style="font-weight:800;color:var(--ok)">פתוח ✓</span>' +
+            '<button class="btn g" style="width:auto;flex:none;padding:9px 14px" ' +
+            (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">סגירה</button>'
+          : '<button class="btn gd" style="width:auto;flex:none;padding:9px 16px" ' +
+            (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">🔒 פתיחה</button>') +
+        '</div>';
+    });
+    h += '</div>';
+  });
+  el.innerHTML = h;
+}
+
+function opToggle(ti, wi) {
+  var t = TRACKS[ti], daf = t.cal[wi][2], key = OpenKey(t.id, daf);
+  var was = OpenIs(t.id, daf);
+  if (!API) { opMsg = 'אין כתובת שרת במכשיר הזה.'; opCls = 'bad'; admPane(); return; }
+  if (!confirm(was
+      ? 'לסגור את דף ' + daf + ' במסכת ' + t.masechet + '? תלמידים לא יוכלו להיכנס אליו.'
+      : 'לפתוח את דף ' + daf + ' במסכת ' + t.masechet + '? הוא ייפתח מיד לכל ' +
+        'התלמידים, ומי שביקש התראה יקבל אותה עכשיו.')) return;
+
+  var next = {}, k;
+  var cur = OpenMap();
+  for (k in cur) if (cur.hasOwnProperty(k)) next[k] = cur[k];
+  if (was) delete next[key];
+  else next[key] = new Date().toISOString().slice(0, 10);
+
+  var rows = [];
+  for (k in next) {
+    if (!next.hasOwnProperty(k)) continue;
+    var p = k.split('|');
+    /* גרש מוביל: תאריך נשאר טקסט, וגוגל לא הופכת אותו לתאריך
+       ש-gviz מחזירה בצורה אחרת. */
+    rows.push([p[0], p[1], "'" + (next[k] === '1' ? '' : next[k])]);
+  }
+  opBusy = true; opMsg = 'נשלח · מאמת מול הגיליון…'; opCls = ''; admPane();
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:OPEN_SHEET,
+    cols:JSON.stringify(['מסכת', 'דף', 'נפתח']),
+    rows:JSON.stringify(rows)
+  }) }).catch(function () {});
+  opVerify(t, daf, !was, 0);
+}
+
+function opVerify(t, daf, want, tries) {
+  setTimeout(function () {
+    OpenLoad().then(function (got) {
+      if (got && OpenIs(t.id, daf) === want) {
+        if (!want) {
+          opBusy = false; opCls = 'ok';
+          opMsg = 'דף ' + daf + ' נסגר.'; admPane(); return;
+        }
+        opNotify(t, daf); return;
+      }
+      if (tries < 4) { opVerify(t, daf, want, tries + 1); return; }
+      opBusy = false; opCls = 'bad';
+      opMsg = 'לא הצלחתי לאמת שהשינוי הגיע לגיליון. נסו שוב.';
+      admPane();
+    });
+  }, tries ? 2500 : 1600);
+}
+
+/* ההתראה — רק למי שביקש אותה על הדף הזה. */
+function opNotify(t, daf) {
+  var key = (CFG.readKey || '').trim();
+  var v = { mas: t.masechet, daf: daf };
+  var done = function (txt, cls) {
+    opBusy = false; opCls = cls;
+    opMsg = 'דף ' + daf + ' נפתח לכל התלמידים. ' + txt;
+    admPane();
+  };
+  if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
+  scriptGet({ fire:'say', key:key,
+              title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
+              wait:OpenKey(t.id, daf),
+              url:'learn?mas=' + t.id + '&daf=' + OpenKey(t.id, daf).split('|')[1] })
+    .then(function (d) {
+      if (d && d.status === 'ok') done('מי שביקש התראה יקבל אותה תוך דקה.', 'ok');
+      else done('ההתראה לא יצאה: ' + ((d && d.message) || 'אין תשובה מהסקריפט.'), 'bad');
+    })['catch'](function () { done('ההתראה לא יצאה: אין תשובה מהסקריפט.', 'bad'); });
 }
 
 /* ---- מחירים ----

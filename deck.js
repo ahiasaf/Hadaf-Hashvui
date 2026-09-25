@@ -166,3 +166,92 @@ function DeckSrc(deck, i) {
 /* המטמון נטען מיד עם הקובץ, לפני כל ציור — אחרת הציור הראשון
    נופל לקוד גם כשיש מצגת ערוכה, והיא "קופצת" רגע אחר כך. */
 DECKS = DeckCached();
+
+/* ============================================================
+   פתיחת דפים — איזה דף כבר פתוח ללימוד בדף האינטראקטיבי.
+   ============================================================
+   הרכז פותח דף ברגע שהוא מוכן, ולא לפי הלוח: דף שנפתח זמין
+   מיד, גם לפני השבוע שלו — מי שמקדים מבורך. דף סגור מציג
+   לתלמיד "עוד לא נפתח", עם בקשת התראה.
+
+   **הלשונית `דפים פתוחים`** בגיליון הראשי: מסכת | דף | נפתח.
+   שורה = הדף פתוח. אין שורה = נעול. היא ציבורית בכוונה: אין
+   בה פרט אישי, והדף האינטראקטיבי קורא אותה בלי סיסמה.
+
+   **לפני שהלשונית נכתבה פעם ראשונה** — רק הדף הראשון בכל מסכת
+   פתוח. זו ברירת המחדל, והיא גם הנפילה לאחור כשאין רשת ואין
+   מטמון.
+
+   מדיניות הקריאה — כמו המצגות: כישלון לא נוגע במטמון · לשונית
+   זרה נדחית · כותרת בלי שורות = הכול נעול, וזה מצב חוקי.
+   ============================================================ */
+var OPEN_SHEET = 'דפים פתוחים';
+var OPEN_CACHE = 'df:openCache';
+var OPENS = null;          /* 'taanit|ג' -> 1, או null = טרם נקרא */
+
+function OpenKey(mas, daf) {
+  return mas + '|' + String(daf || '').replace(/["'׳״\s]/g, '');
+}
+function OpenCached() {
+  try {
+    var raw = localStorage.getItem(OPEN_CACHE);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function OpenFromRows(rows) {
+  if (!rows || !rows.length) return null;
+  var head = rows[0].join('|');
+  if (head.indexOf('מסכת') < 0 || head.indexOf('דף') < 0 ||
+      head.indexOf('נפתח') < 0) return null;
+  var out = {};
+  rows.slice(1).forEach(function (r) {
+    var mas = String(r[0] || '').trim(), daf = String(r[1] || '').trim();
+    /* הערך הוא תאריך הפתיחה, כדי שכתיבה חוזרת של הרשימה לא
+       תמחק אותו. ריק = '1' — מספיק שיהיה אמת. */
+    if (mas && daf) out[OpenKey(mas, daf)] = String(r[2] || '').trim() || '1';
+  });
+  return out;
+}
+/* הדף הראשון בכל מסכת — ברירת המחדל לפני שהרכז פתח משהו. */
+function OpenDefault() {
+  var out = {};
+  (typeof TRACKS !== 'undefined' ? TRACKS : []).forEach(function (t) {
+    for (var i = 0; i < t.cal.length; i++) {
+      if (t.cal[i][2] && t.cal[i][2] !== 'סיום') { out[OpenKey(t.id, t.cal[i][2])] = '1'; break; }
+    }
+  });
+  return out;
+}
+function OpenMap() { return OPENS || OpenDefault(); }
+function OpenIs(mas, daf) { return !!OpenMap()[OpenKey(mas, daf)]; }
+
+/* Promise שנפתר תמיד: true = נקרא מהגיליון, false = נשאר מה שהיה. */
+function OpenLoad() {
+  OPENS = OpenCached();
+  var id = window.SHEET_ID;
+  try {
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (cfg.sheetId) id = cfg.sheetId;
+  } catch (e) {}
+  if (!id || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    return Promise.resolve(false);
+  }
+  var u = 'https://docs.google.com/spreadsheets/d/' + id +
+          '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(OPEN_SHEET) +
+          /* כל העמודות טקסט, ואז gviz נוטה "לנחש" כמה שורות הן
+             כותרת ולבלוע את השורה הראשונה לתוכה — כלומר את דף ב.
+             שורת כותרת אחת, במפורש. */
+          '&headers=1&t=' + (new Date()).getTime();
+  return fetch(u)
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (t === null) return false;
+      var map = OpenFromRows(DeckCsv(t));
+      if (!map) return false;            /* לשונית זרה או חסרה — לא נוגעים */
+      OPENS = map;
+      try { localStorage.setItem(OPEN_CACHE, JSON.stringify(map)); } catch (e) {}
+      return true;
+    })
+    .catch(function () { return false; });
+}
+OPENS = OpenCached();

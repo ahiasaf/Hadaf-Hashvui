@@ -166,6 +166,12 @@ body.whole .stage:active{cursor:grabbing}
   border:3px solid var(--rule);border-top-color:var(--gold);
   animation:sp .9s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* דף נעול — הכפתור לבקשת התראה, והקישור לדף שכבר פתוח. */
+.lockbtn{display:block;margin:16px auto 0;padding:11px 18px;border:0;border-radius:12px;
+  background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
+  font:inherit;font-weight:800;font-size:.9rem;cursor:pointer;line-height:1.4}
+.lockbtn[disabled]{opacity:.6;cursor:default}
+.lockback{display:inline-block;margin-top:14px;font-weight:800;color:var(--blue)}
 
 /* ---------- מגירת החברותא ---------- */
 .chav{display:none;background:var(--surface);border-inline-start:1px solid var(--rule);
@@ -999,6 +1005,7 @@ nav .sp{flex:1}
 <script src="deck.js"></script>
 <script src="learned.js"></script>
 <script src="pair.js"></script>
+<script src="getapp.js"></script>
 <script src="links.js"></script>
 <script src="trip.js"></script>
 <script type="module">
@@ -3929,6 +3936,60 @@ function loadMarks() {
   });
 }
 
+/* ============================================================
+   דף נעול.
+   ============================================================
+   התלמיד רואה שהדף עוד לא נפתח, ויכול לבקש התראה. הבקשה נרשמת
+   בלשונית הפרטית "ממתינים לדף" עם המנוי של המכשיר, וכשהרכז
+   פותח את הדף — ההתראה יוצאת רק למי שביקש (ראו opNotify
+   ב-index.html). */
+var OPEN_OK = false;
+function lockKey() { return OpenKey(S.mas, S.daf); }
+function lockAsked() {
+  try { return localStorage.getItem('df:wait:' + lockKey()) === '1'; } catch (e) { return false; }
+}
+function lockShow() {
+  var h = esc(String(UI.lockS).replace(/\{daf\}/g, S.daf));
+  h += lockAsked()
+    ? '<br><b style="margin-top:14px">' + esc(UI.lockOk) + '</b>'
+    : '<button class="lockbtn" id="lock-ask">' + esc(UI.lockAsk) + '</button>';
+  /* הדף של השבוע, אם הוא פתוח ואינו הדף הזה — כדי שלא יהיה
+     מבוי סתום. */
+  var wk = Math.max(0, weekIndex());
+  var cur = (calOf(S.mas)[wk] || [])[2];
+  if (cur && cur !== S.daf && OpenIs(S.mas, cur)) {
+    h += '<br><a class="lockback" href="learn.html?mas=' + encodeURIComponent(S.mas) +
+      '&daf=' + encodeURIComponent(cur) + '">' + esc(UI.lockBack) + '</a>';
+  }
+  veil(UI.lockT, h, false);
+  var b = $('lock-ask');
+  if (b) b.onclick = lockAsk;
+}
+function lockAsk() {
+  var b = $('lock-ask');
+  if (b) b.disabled = true;
+  var no = function () {
+    if (b) { b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockNo) + '</b>'; }
+  };
+  if (!window.APPX || !API) { no(); return; }
+  APPX.subscribe().then(function (sub) {
+    var me = (typeof LMe === 'function') ? LMe() : null;
+    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+      action:'row', tab:'ממתינים לדף', cols: JSON.stringify([
+        ['דף', lockKey()],
+        ['מזהה', (me && me.id) || ''],
+        ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
+        ['ישיבה', (me && me.instName) || ''],
+        ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
+        ['מנוי', JSON.stringify(sub)],
+        ['מתי', new Date().toISOString()]
+      ])
+    }) }).catch(function () {});
+    try { localStorage.setItem('df:wait:' + lockKey(), '1'); } catch (e) {}
+    if (b) b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockOk) + '</b>';
+  })['catch'](no);
+}
+
 function boot() {
   API = (window.APPS_SCRIPT_URL || '').trim();
   try {
@@ -3963,7 +4024,7 @@ function boot() {
   /* דיווח לימוד משותף שלא אומת עדיין — מנסה שוב בכל פתיחה, בדיוק
      כמו ב-join.html. בלי זה מכשיר שהגיע לכאן ישר מקישור (ולא דרך
      מסך הבית) לא היה מקבל אף הזדמנות נוספת לאמת דיווח שנתקע. */
-  if (window.PAIR_UI) PAIR_UI.flush();
+  if (window.PAIR_UI && !OPEN_OK) PAIR_UI.flush();
 
   S = pickDaf();
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
@@ -3979,6 +4040,24 @@ function boot() {
   try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
   if (quiet()) SIDE_ADM = false;
   document.body.classList.toggle('side-adm', SIDE_ADM);
+
+  /* דף שהרכז עוד לא פתח — ראו "פתיחת דפים" ב-deck.js. הרכז עצמו
+     (ומי שמריץ הדגמה) נכנס תמיד: הוא זה שמכין את הדף. */
+  if (!OPEN_OK && S.daf) {
+    veil('מביא את הדף…', '');
+    buttons(false);
+    OpenLoad().then(function () {
+      OPEN_OK = true;
+      if (OpenIs(S.mas, S.daf)) { boot(); return; }
+      if (SIDE_ADM || quiet()) {
+        boot();
+        if (SIDE_ADM) toast('הדף נעול לתלמידים — פותחים אותו בניהול ← פתיחת דפים');
+        return;
+      }
+      lockShow();
+    });
+    return;
+  }
 
   /* לא חוסם שום דבר — רק כשהיא מוכנה, אם הדף כבר מצויר, מציירים
      שוב כדי שהלשונית השנייה תופיע למי שצריך לראות אותה. */

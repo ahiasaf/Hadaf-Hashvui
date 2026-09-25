@@ -36,7 +36,11 @@ function weekIndex() {
   var start = new Date(PROGRAM.startDate + 'T00:00:00');
   var now = new Date(); now.setHours(0, 0, 0, 0);
   var days = Math.floor((now - start) / 86400000);
-  if (days < 0) return -1;
+  if (days < 0) {
+    /* פתיחה מוקדמת — אותו כלל כמו LWeek ב-learned.js. */
+    var early = PROGRAM.earlyFrom ? new Date(PROGRAM.earlyFrom + 'T00:00:00') : null;
+    return (early && now >= early) ? 0 : -1;
+  }
   return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
 }
 function trackById(id) {

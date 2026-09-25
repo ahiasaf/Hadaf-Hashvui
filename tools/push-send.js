@@ -30,6 +30,10 @@ var body  = process.env.BODY  || 'דף חדש מחכה לך.';
 /* לאן ההתראה פותחת. ריק = שורש האפליקציה, כמו תמיד.
    נתיב יחסי בלבד — כתובת מלאה מכאן היא ערוץ הפניה. */
 var link  = String(process.env.LINK || '').trim();
+/* "הדף נפתח" — 'taanit|ג'. לא ריק = הנמענים הם רק מי שביקש
+   בדף הנעול התראה על הדף הזה, מהלשונית "ממתינים לדף", ולא כל
+   המנויים. */
+var WAIT  = String(process.env.WAIT || '').trim();
 if (link && /^[a-zA-Z][a-zA-Z0-9+.\-]*:|^\/\//.test(link)) {
   console.error('כתובת ההתראה חייבת להיות יחסית. התקבל: ' + link);
   process.exit(1);
@@ -56,7 +60,7 @@ function loadSubs() {
      של הכתיבה. עם השם הלא נכון הסקריפט אינו נכנס לענף הקריאה
      כלל, ומחזיר תשובה תקינה בלי שורות — וזה נקרא כאן בטעות
      "הלשונית ריקה". שלוש שליחות אבדו על זה. */
-  var q = url + '?read=' + encodeURIComponent('התראות') +
+  var q = url + '?read=' + encodeURIComponent(WAIT ? 'ממתינים לדף' : 'התראות') +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
   return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
     if (!j || j.status !== 'ok') {
@@ -109,7 +113,12 @@ function loadSubs() {
                       'בלשונית התראות. לא נשלח דבר.');
     }
 
+    var iDaf = head.indexOf('דף');
+    if (WAIT && iDaf < 0) {
+      throw new Error('אין עמודת "דף" בלשונית ממתינים לדף. לא נשלח דבר.');
+    }
     var hit = function (row) {
+      if (WAIT && String(row[iDaf] || '').trim() !== WAIT) return false;
       if (only) {
         var a = iIns  >= 0 ? String(row[iIns]  || '').trim() : '';
         var b = iCode >= 0 ? String(row[iCode] || '').trim() : '';
@@ -152,6 +161,11 @@ webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
 var payload = JSON.stringify({ title: title, body: body, url: link || './' });
 
 loadSubs().then(function (list) {
+  /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
+  if (WAIT && !list.length) {
+    console.log('איש לא ביקש התראה על ' + WAIT + ' — לא נשלח דבר.');
+    process.exit(0);
+  }
   if (!list.length) {
     /* חשוב להפריד בין "לא הגענו לגיליון" ל"הגענו ואין בו איש":
        אם הגענו — הסודות תקינים, והחסר הוא רק שמישהו יירשם.

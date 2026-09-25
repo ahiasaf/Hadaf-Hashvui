@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 33;
+var SCRIPT_VERSION = 34;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -150,7 +150,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
-                    'התנגשויות הרשמה'];
+                    'התנגשויות הרשמה',
+                    /* מי ביקש התראה כשדף נעול ייפתח — מנוי למכשיר, ולכן
+                       פרטית כמו `התראות`. ראו `wait` ב-ghFire_. */
+                    'ממתינים לדף'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -636,7 +639,11 @@ function doGet(e) {
                              isAdm ? String(P.only || '') : inst,
                              String(P.grade || ''), String(P.klass || ''),
                              String(P.who || ''), link,
-                             isAdm ? String(P.role || '') : 'תלמיד'));
+                             isAdm ? String(P.role || '') : 'תלמיד',
+                             /* "הדף נפתח" — רק לרכז, ורק לממתינים של
+                                אותו דף. הצורה נבדקת: 'taanit|ג'. */
+                             isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}$/.test(String(P.wait || ''))
+                               ? String(P.wait) : ''));
   }
 
   /* ---- הלוח של מוסד ----
@@ -2119,7 +2126,7 @@ var GH_API = 'https://api.github.com/repos/';
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who, link, role) {
+function ghFire_(title, body, only, grade, klass, who, link, role, wait) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
@@ -2138,7 +2145,10 @@ function ghFire_(title, body, only, grade, klass, who, link, role) {
            מישהו למקום מסוים. */
         client_payload: { title: title, body: body, only: only,
                           grade: grade || '', klass: klass || '',
-                          url: link || '', role: role || '' }
+                          url: link || '', role: role || '',
+                          /* לא ריק = שולחים רק למי שביקש התראה על
+                             הדף הזה (לשונית "ממתינים לדף"). */
+                          wait: wait || '' }
       }),
       muteHttpExceptions: true
     });

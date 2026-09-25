@@ -1270,7 +1270,11 @@ function startsIn() {
   var d = new Date(PROGRAM.startDate + 'T00:00:00');
   if (isNaN(d)) return null;
   var today = new Date(); today.setHours(0, 0, 0, 0);
-  return { date: d, days: Math.round((d - today) / 86400000) };
+  var days = Math.round((d - today) / 86400000);
+  /* פתיחה מוקדמת (PROGRAM.earlyFrom): הדף הראשון כבר פתוח, ולכן
+     אין ספירה לאחור — היא הייתה אומרת "עוד 9 ימים" על משהו פתוח. */
+  if (days > 0 && typeof LWeek === 'function' && LWeek() >= 0) return null;
+  return { date: d, days: days };
 }
 /* תאריך עברי, לא לועזי. "4.10.26" אינו אומר דבר לתלמיד, ו-
    "פרשת בראשית" אומר לו בדיוק מתי. */
