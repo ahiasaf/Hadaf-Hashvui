@@ -207,6 +207,10 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   padding:4px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
 .cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
 .cht-lbl{font-weight:800;color:var(--blue);font-size:.84rem}
+/* לשונית החידה — אותו כפתור בדיוק כמו חברותא/פירוש לנוער
+   (`.cht button` שלמעלה), רק עם אייקון המיתוג לצד המילה. */
+.cht-q{display:inline-flex;align-items:center;gap:5px}
+.cht-q img{width:15px;height:15px;display:block}
 /* פירוש נטו — בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
    (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות — ראו את ההערה
    למעלה על boldOnly ב-git log.) */
@@ -601,31 +605,9 @@ body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
 .dbadge.ask{animation:breathe 2.2s ease-in-out infinite, grow 2.2s ease-in-out infinite}
 @keyframes grow{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
-/* עיגול החידה. פינה נגדית ל-dbadge בכוונה — אין ביניהם קשר,
-   ואסור שהם ייתקלו זה בזה. נשאר נפרד לגמרי מהחברותא/הפירוש:
-   לא באותה מגירה, לא באותו כפתור, אפילו לא באותו צבע. */
-.qfab{display:none;position:absolute;bottom:12px;left:12px;z-index:8;
-  align-items:center;justify-content:center;
-  width:52px;height:52px;border-radius:50%;padding:0;border:0;cursor:pointer;
-  background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
-  color:#fff;font-family:inherit;font-weight:800;font-size:1.3rem;
-  box-shadow:0 4px 18px rgba(11,37,80,.3)}
-.qfab.on{display:flex}
-body.emb .qfab{width:40px;height:40px;font-size:1.05rem;bottom:8px;left:8px}
-
-/* חלון החידה — נפתח מעל הדף, נסגר עם X או עם בחירת תשובה.
-   נבנה ב-JS (qCard_) ולא רק ב-CSS, אבל הכללים כאן וסטטיים,
-   כדי ש-preflight יראה שהמחלקות מעוצבות. */
-.qz-wrap{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;
-  justify-content:center;padding:20px;background:rgba(11,37,80,.55)}
-.qz-card{background:var(--paper,#FFFDF8);border-radius:18px;padding:24px 20px 20px;
-  max-width:23rem;width:100%;box-shadow:0 18px 60px rgba(11,37,80,.4);
-  border-top:4px solid var(--gold,#C08F2B);position:relative;
-  max-height:86vh;overflow:auto;text-align:right}
-.qz-x{position:absolute;top:10px;left:10px;width:32px;height:32px;border:0;
-  border-radius:50%;background:rgba(11,37,80,.08);color:var(--ink-2,#5A6780);
-  font-size:1.05rem;cursor:pointer;font-family:inherit}
-.qz-q{font-weight:800;font-size:1.02rem;margin:6px 32px 14px 0;color:var(--ink,#1B2A45)}
+/* תוכן לשונית החידה — מצויר לתוך `#chb`, אותו מקום בדיוק כמו
+   חברותא ופירוש לנוער (ראו paintQuiz). */
+.qz-q{font-weight:800;font-size:1.02rem;margin:6px 0 14px;color:var(--ink,#1B2A45)}
 .qz-opt{display:block;width:100%;text-align:right;margin-top:8px;padding:12px 14px;
   border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff;
   color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
@@ -862,9 +844,6 @@ nav .sp{flex:1}
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
-    <!-- עיגול צף לחידה של הקטע הנוכחי — נפרד לגמרי מהחברותא/הפירוש.
-         מוצג/מוסתר ומתויג מחדש בכל מעבר קטע, ראו quizPaint(). -->
-    <button class="qfab" id="qfab" style="display:none" title="חידה" aria-label="חידה">?</button>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -1630,9 +1609,17 @@ function chavTabHtml(st) {
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
   var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
-  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
+  /* אותו כלל בדיוק לחידה — קיימת בקטע הזה, ופורסמה (או שאנחנו
+     בעריכה, ואז רואים גם לפני פרסום). לא חלון צף עוד: לשונית
+     שלישית, ממש כמו חברותא ופירוש לנוער. */
+  var hasQuiz = !!(qVisible_(st.n).length);
+  if (!SIDE_ADM && !hasOwn && !hasQuiz) return '<span class="cht-lbl">חברותא</span>';
   return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
-    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
+    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>' +
+    (SIDE_ADM || hasQuiz
+      ? '<button class="cht-q ' + (CHAV_TAB === 'quiz' ? 'on' : '') + '" id="cht-quiz">' +
+        '<img src="icon-quiz.png" alt="">שאלה</button>'
+      : '');
 }
 
 function ownMsg(cls, txt) {
@@ -2162,11 +2149,16 @@ function paintChavArea() {
   var st = FLAT[IDX];
   var cht = $('cht');
   if (cht) cht.innerHTML = chavTabHtml(st);
-  var canSwitch = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
-  if (!canSwitch) CHAV_TAB = 'chav';
-  if (CHAV_TAB === 'own' && canSwitch) paintOwn(); else paintChav();
+  var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
+  var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+  if (CHAV_TAB === 'own'  && !canOwn)  CHAV_TAB = 'chav';
+  if (CHAV_TAB === 'quiz' && !canQuiz) CHAV_TAB = 'chav';
+  if (CHAV_TAB === 'quiz' && canQuiz) paintQuiz();
+  else if (CHAV_TAB === 'own' && canOwn) paintOwn();
+  else paintChav();
   if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
   if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
+  if ($('cht-quiz')) $('cht-quiz').onclick = function () { CHAV_TAB = 'quiz'; paintChavArea(); };
 }
 
 /* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
@@ -2887,7 +2879,7 @@ function go(i) {
              : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
-    paint(); focus(); paintChavArea(); quizPaint(); bar(); sideSync(); savePos();
+    paint(); focus(); paintChavArea(); bar(); sideSync(); savePos();
     recStep('go', IDX);
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
@@ -3006,15 +2998,18 @@ function finish() {
 }
 
 /* ============================================================
-   חידות בקטע — עיגול צף שמופיע רק בקטע שאליו שויכה שאלה.
+   חידות בקטע — לשונית שלישית, ליד חברותא ופירוש לנוער.
    ============================================================
-   גרסה קודמת של העיגול הזה הייתה עצמאית מהקטע: מופיעה תמיד
-   כשיש חידה כלשהי לדף, ומנווטת לעמוד אחר. זו לא הכוונה — הסימן
-   צריך להופיע **רק כשעומדים על הקטע שאליו שויכה שאלה**, ולהיפתח
-   כחלון מרחף במקום, לא בעמוד אחר. הנתונים יושבים בלשונית "שאלות
-   בדף" (Q_TAB) — אותו דפוס בדיוק כמו "פירוש" (OWN_TAB): מפה
-   דף->קטע->תוכן, נטענת עם `dmapFromRows`, ונשמרת בכתיבה מלאה
-   של הלשונית (`action:'table'`) עם קריאה חוזרת לאימות.
+   גרסה קודמת הייתה חלון מרחף שנפתח מעיגול צף — "לא את הצורה
+   הנקייה שיש לאפליקציה, חלק עליון גמרא וחלק תחתון פירוש". עכשיו
+   זו בדיוק אותה מגירה: לשונית "שאלה" עם אייקון המיתוג, נדלקת
+   רק כשלקטע הנוכחי יש שאלה (או תמיד, במצב ניהול), ומציירת לתוך
+   `#chb` בדיוק כמו paintChav/paintOwn.
+
+   הנתונים יושבים בלשונית ציבורית "שאלות בדף" (Q_TAB) — אותו
+   דפוס בדיוק כמו "פירוש" (OWN_TAB): מפה דף->קטע->תוכן, נטענת
+   עם `dmapFromRows`, ונשמרת בכתיבה מלאה (`action:'table'`) עם
+   קריאה חוזרת לאימות.
 
    בכוונה נפרד לגמרי מהחידה השבועית הישנה (`QUIZ` שב-data.js,
    הנפתחת מ"סיימתי" ומ-openWeek באפליקציה של ראש החטיבה) — היא
@@ -3023,7 +3018,7 @@ function finish() {
    הנכון דרך הכלי הזה, ואז להסיר אותן מ-data.js — זו החלטת תוכן,
    לא קוד. */
 var Q_TAB = 'שאלות בדף';
-var QMAP = null, QOWN = null;
+var QMAP = {}, QOWN = null;
 function loadQuizMap() {
   return sheetCsv(Q_TAB).then(function (rows) {
     var m = dmapFromRows(rows);
@@ -3035,68 +3030,50 @@ function loadQuizMap() {
 }
 function qPiecesFrom_(v) { return (v && v.length !== undefined) ? v : []; }
 function qPieces_(n) { return qPiecesFrom_(QOWN && QOWN[String(n)]); }
-
-/* הציור — נקרא מ-go() בכל מעבר קטע, בדיוק כמו paintChavArea(). */
-function quizPaint() {
-  var b = $('qfab');
-  if (!b) return;
-  var st = FLAT[IDX];
-  var n = st ? st.n : 0;
-  var has = !!(st && qPieces_(n).length);
-  /* לתלמיד: רק קטע עם שאלה, ורק אחרי שהדף פורסם. לאחיאסף: תמיד,
-     כדי שיוכל להוסיף שאלה גם לקטע שעדיין ריק. */
-  var show = SIDE_ADM || (has && QOWN && QOWN.__pub);
-  b.classList.toggle('on', !!show);
-  b.textContent = has ? '?' : '+';
-  b.title = has ? 'החידה של הקטע הזה' : 'הוספת חידה לקטע הזה';
-  b.setAttribute('aria-label', b.title);
-  b.onclick = function () { qOpen(n); };
-}
-
-function qShut() {
-  var el = document.getElementById('qz-wrap');
-  if (el && el.parentNode) el.parentNode.removeChild(el);
-}
-function qCard_(body) {
-  qShut();
-  var d = document.createElement('div');
-  d.className = 'qz-wrap'; d.id = 'qz-wrap';
-  d.innerHTML = '<div class="qz-card">' + body + '</div>';
-  document.body.appendChild(d);
-  document.getElementById('qz-x').onclick = qShut;
-  return d;
-}
-
-/* ---------- הצגה לתלמיד ---------- */
-function qOpen(n) {
+/* מה שבאמת מוצג: לתלמיד רק קטע עם שאלה ורק אחרי שהדף פורסם;
+   לאחיאסף תמיד, כדי שיוכל להוסיף שאלה גם לקטע שעדיין ריק. */
+function qVisible_(n) {
   var list = qPieces_(n);
+  if (SIDE_ADM) return list;
+  return (list.length && QOWN && QOWN.__pub) ? list : [];
+}
+
+/* הלשונית עצמה מצוירת בתוך chavTabHtml (ליד חברותא/פירוש
+   לנוער); כאן רק התוכן שבפנים, בדיוק כמו paintChav/paintOwn. */
+function paintQuiz() {
+  var st = FLAT[IDX], box = $('chb');
+  $('chnum').textContent = '';
+  if (!st) { box.innerHTML = ''; return; }
+  var n = st.n, list = qPieces_(n);
   if (!list.length) {
-    if (!SIDE_ADM) return;        /* אין מה להראות למי שאינו עורך */
+    if (!SIDE_ADM) { box.innerHTML = ''; return; }
     qEditOpen_(n);
     return;
   }
   var q = list[0];
-  qCard_('<button class="qz-x" id="qz-x">✕</button>' +
+  box.innerHTML =
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     q.a.map(function (t, k) {
       return '<button class="qz-opt" id="qz-opt' + k + '">' + esc(t) + '</button>';
     }).join('') +
     (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
-      'color:var(--blue,#17468F)">עריכת השאלה</button>' : ''));
+      'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
   q.a.forEach(function (t, k) {
-    document.getElementById('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
+    $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
   });
-  var ed = document.getElementById('qz-edit');
+  var ed = $('qz-edit');
   if (ed) ed.onclick = function () { qEditOpen_(n); };
 }
-/* נסגר מיד עם הבחירה — לא נשאר פתוח לחכות ל"סגירה". התשובה
-   הנכונה נאמרת בהודעה חולפת (toast), לא על המסך שכבר נסגר. */
+/* התשובה נשלחת, וחוזרים ללשונית הרגילה — אין יותר "לסגור",
+   כי אין חלון: יש רק מעבר בין לשוניות, וזה בדיוק מה שקורה כאן
+   לבד. התשובה הנכונה נאמרת בהודעה חולפת (toast). */
 function qAnswer(n, q, k) {
   var right = k === q.correct;
   qSend(n, k, right);
-  qShut();
   toast(right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
               : 'התשובה הנכונה: ' + q.a[q.correct]);
+  CHAV_TAB = 'chav';
+  paintChavArea();
 }
 function qSend(n, k, right) {
   if (!API) return;
@@ -3116,7 +3093,7 @@ function qSend(n, k, right) {
 /* ---------- עריכה (אחיאסף בלבד) ----------
    אותו דפוס בדיוק של ownSaveAll/ownVerify: שינוי בזיכרון, כתיבה
    מלאה של הלשונית, ואז קריאה חוזרת שמאמתת - כי no-cors לעולם
-   אינה הוכחה לכלום. */
+   אינה הוכחה לכלום. מצוירת גם היא לתוך `#chb`, לא בחלון. */
 var Q_EDIT = null;
 function qEditOpen_(n) {
   var cur = qPieces_(n)[0];
@@ -3126,8 +3103,9 @@ function qEditOpen_(n) {
 }
 function qPaintEdit_(n) {
   var pub = !!(QOWN && QOWN.__pub);
-  var body = '<button class="qz-x" id="qz-x">✕</button>' +
-    '<div style="font-weight:800;margin:6px 32px 12px 0">עריכת שאלה לקטע ' + n + '</div>' +
+  var box = $('chb');
+  box.innerHTML =
+    '<div style="font-weight:800;margin-bottom:10px">עריכת שאלה לקטע ' + n + '</div>' +
     '<textarea class="qz-in" id="qe-q" placeholder="נוסח השאלה">' + esc(Q_EDIT.q) + '</textarea>' +
     Q_EDIT.a.map(function (t, k) {
       return '<div class="qz-arow">' +
@@ -3143,7 +3121,6 @@ function qPaintEdit_(n) {
       ? '<button class="qz-opt" id="qe-del" style="color:#B3261E">מחיקת השאלה מהקטע הזה</button>'
       : '') +
     '<div id="qz-res"></div>';
-  qCard_(body);
   Q_EDIT.a.forEach(function (t, k) {
     $('qe-a' + k).oninput = function (e) { Q_EDIT.a[k] = e.target.value; };
     $('qe-c' + k).onclick = function () { Q_EDIT.correct = k; };
@@ -3207,8 +3184,10 @@ function qVerify_(tries, n, want) {
       var r2 = $('qz-res');
       if (JSON.stringify(got) === JSON.stringify(want)) {
         QMAP = m; QOWN = mine;
-        if (r2) r2.innerHTML = '<div class="qz-res">נשמר ואומת.</div>';
-        quizPaint();
+        toast('נשמר ואומת.');
+        /* חוזרים לתצוגת השאלה השמורה — זו ההוכחה שהיא נכתבה,
+           ברורה יותר מהודעת טקסט שנעלמת עם הציור הבא. */
+        paintChavArea();
         return;
       }
       if (tries < 4) { qVerify_(tries + 1, n, want); return; }
@@ -3892,9 +3871,9 @@ function boot() {
   /* לא חוסם שום דבר — רק כשהיא מוכנה, אם הדף כבר מצויר, מציירים
      שוב כדי שהלשונית השנייה תופיע למי שצריך לראות אותה. */
   loadOwnMap().then(function () { if (FLAT.length) paintChavArea(); });
-  /* אותו דבר לחידות — אחרי ש-SIDE_ADM כבר ידוע, כי quizPaint
-     מחליט לפיו מה להראות. */
-  loadQuizMap().then(function () { if (FLAT.length) quizPaint(); });
+  /* אותו דבר לחידות — אחרי ש-SIDE_ADM כבר ידוע, כי paintChavArea
+     מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
+  loadQuizMap().then(function () { if (FLAT.length) paintChavArea(); });
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
