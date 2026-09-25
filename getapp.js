@@ -94,6 +94,27 @@ var APPX = (function () {
     ON_BIP.forEach(function (f) { try { f(); } catch (x) {} });
   });
 
+  /* ============================================================
+     "נתקע" — עברו כמה שניות ואף הצעת התקנה לא הגיעה.
+     ============================================================
+     `inApp()` מזהה חלון-בתוך-אפליקציה לפי מחרוזת הדפדפן, וזה
+     עובד לפייסבוק/אינסטגרם/וכד'. וואטסאפ באנדרואיד שונה: הוא
+     פותח קישורים ב-Custom Tab שמזדהה בדיוק כמו כרום רגיל, כולל
+     ב-user agent — ואין שום מחרוזת לזהות בה "זה וואטסאפ".
+
+     מה שכן אפשר לבדוק: `beforeinstallprompt` הוא הסימן היחיד
+     שההתקנה בכלל זמינה מכאן, ואם הוא לא הגיע תוך זמן סביר —
+     לא משנה בדיוק למה (Custom Tab, גרסת כרום ישנה, מדיניות
+     ארגונית) — האדם תקוע באותה נקודה בדיוק כמו מי שזוהה
+     כ-`inApp()`. אותה תרופה: לצאת לדפדפן אמיתי או להעתיק קישור. */
+  var STUCK = false, ON_STUCK = [];
+  setTimeout(function () {
+    if (STUCK || isIOS() || standalone() || installed() || BIP) return;
+    STUCK = true;
+    ON_STUCK.forEach(function (f) { try { f(); } catch (x) {} });
+  }, 3500);
+  function stuck() { return STUCK; }
+
   function mark() { try { localStorage.setItem('df:appAdded', '1'); } catch (e) {} }
   function wasAdded() {
     try { return localStorage.getItem('df:appAdded') === '1'; } catch (e) { return false; }
@@ -438,6 +459,8 @@ var APPX = (function () {
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
+    stuck: stuck,
+    onStuck: function (f) { ON_STUCK.push(f); },
     /* ============================================================
        אישור בחלון ההתקנה אינו התקנה.
        ============================================================

@@ -1923,7 +1923,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.20';
+var APP_VERSION = '8.99.21';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2398,7 +2398,10 @@ function renderRegPre() {
     el.innerHTML = h;
     return;
   }
-  if (window.APPX && APPX.inApp()) {
+  /* `APPX.stuck()` תופס גם וואטסאפ באנדרואיד — הוא פותח
+     ב-Custom Tab שמזדהה כמו כרום רגיל ב-user agent, ולכן
+     inApp() לבדו לא מזהה אותו. ראו getapp.js. */
+  if (window.APPX && (APPX.inApp() || (APPX.stuck && APPX.stuck()))) {
     /* הכפתור שבאמת מעביר — באנדרואיד. באייפון `toBrowser`
        מחזיר ריק, ושם נשארת ההנחיה וההעתקה. */
     var br = APPX.toBrowser ? APPX.toBrowser() : '';
@@ -2416,9 +2419,16 @@ function renderRegPre() {
     return;
   }
 
+  /* במסע (trip.js) אין את כפתור הדילוג: המסע כולו קיים בשביל
+     להוביל להתקנה, וכפתור "להירשם בלי להתקין" סותר את המטרה
+     שלו. מחוץ למסע — הרשמה רגילה בדפדפן — הכפתור נשאר, כי שם
+     אין "מסע" שמנחה, ומי שממש לא רוצה להתקין צריך דרך להמשיך. */
+  var inTrip = (window.TRIP_UI && TRIP_UI.on()) || /[?&]masa=1(&|$)/i.test(location.search);
   h += '<div id="reg-gu"></div>' +
-       '<button class="btn g pnl" id="reg-pre-skip" style="margin-top:14px">' +
-       esc(UI.preSkip) + '<small>' + esc(UI.preSkipSub) + '</small></button></div>';
+       (inTrip ? '' :
+         '<button class="btn g pnl" id="reg-pre-skip" style="margin-top:14px">' +
+         esc(UI.preSkip) + '<small>' + esc(UI.preSkipSub) + '</small></button>') +
+       '</div>';
   el.innerHTML = h;
 
   if (window.GUIDE_UI) {
@@ -2433,15 +2443,12 @@ function renderRegPre() {
   if (sk) sk.onclick = function () {
     regPreSkip = true;
     renderReg();
-    /* מי שבא מקישור המסע (`?masa=1`) ובחר לא להתקין עדיין
-       רואה שלושה שלבים מתוכו: הצטרפות, מילוי הטופס, שליחה
-       לר"מים. ראו `iosBefore` ב-trip.js — למה רק שלושה. */
-    if (window.TRIP_UI && !TRIP_UI.on() &&
-        /[?&]masa=1(&|$)/i.test(location.search)) {
-      TRIP_UI.start(3);
-    }
   };
 }
+/* עברו כמה שניות ואף הצעת התקנה לא הגיעה (ראו getapp.js) —
+   מציירים מחדש כדי שהוראת "צאו לדפדפן" תופיע גם למי שהגיע
+   מוואטסאפ באנדרואיד, שם inApp() לבדו לא מזהה כלום. */
+if (window.APPX && APPX.onStuck) APPX.onStuck(function () { renderReg(); });
 
 /* ההרשמה הזו תעדכן ישיבה שכבר רשומה, מתוך מכשיר שאין בו את
    קוד הלוח שלה. אין בזה נזק — אבל יש בזה הפתעה, ולכן אומרים. */
