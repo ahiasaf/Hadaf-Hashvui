@@ -596,17 +596,46 @@ nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
 body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
   padding:4px;font-size:.66rem;box-shadow:0 3px 12px rgba(11,37,80,.3)}
 
-/* עיגול החידה הצף — בפינה הנגדית ל-dbadge כדי שלא יתנגשו.
-   האייקון עצמו כבר עגול ומעוצב (icon-quiz.png), ולכן בלי רקע
-   צבעוני משלו — רק הרמה קלה מהדף, ומתג "lit" כשהחידה פתוחה. */
-.qfab{display:none;position:absolute;top:12px;right:12px;z-index:8;
-  width:52px;height:52px;border-radius:50%;padding:0;border:0;
-  background:transparent;cursor:pointer;box-shadow:0 4px 16px rgba(11,37,80,.26);
-  transition:transform .2s ease,box-shadow .2s ease}
+/* עיגול החידה הצף — בפינה השמאלית התחתונה של הדף, רחוק מ-dbadge
+   (שלמעלה) ומהאצבע שמדפדפת. האייקון עצמו כבר עגול ומעוצב
+   (icon-quiz.png, שקוף מסביב), ולכן בלי רקע משלו — רק הרמה קלה
+   מהדף, ומתג "lit" כשהחידה פתוחה.
+
+   **תנועה עדינה**: ריחוף קטן ונטייה קלה, פעם בכמה שניות — מספיק
+   כדי שהעין תמצא אותו, לא מספיק כדי להסיח מהגמרא. נעצרת כשהחידה
+   פתוחה, ובהגדרת "הפחתת תנועה" במכשיר. */
+.qfab{display:none;position:absolute;bottom:14px;left:14px;z-index:8;
+  width:62px;height:62px;border-radius:50%;padding:0;border:0;
+  background:transparent;cursor:pointer;box-shadow:0 4px 16px rgba(11,37,80,.3);
+  transition:transform .2s ease,box-shadow .2s ease;
+  animation:qfloat 3.6s ease-in-out infinite}
 .qfab.on{display:flex}
 .qfab img{width:100%;height:100%;border-radius:50%;display:block}
-.qfab.lit{transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
-body.emb .qfab{width:42px;height:42px;top:8px;right:8px}
+.qfab.lit{animation:none;transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
+body.emb .qfab{width:50px;height:50px;bottom:8px;left:8px}
+@keyframes qfloat{
+  0%,55%,100% {transform:translateY(0) rotate(0)}
+  65%         {transform:translateY(-6px) rotate(-6deg)}
+  75%         {transform:translateY(0) rotate(4deg)}
+  85%         {transform:translateY(-3px) rotate(-2deg)}
+}
+/* הכיתוב שליד העיגול — רק בפעמים הראשונות (ראו qHintShow).
+   החץ פונה אל העיגול, שמשמאלו. */
+.qhint{display:none;position:absolute;bottom:30px;left:90px;z-index:8;
+  background:var(--blue,#0B2550);color:#fff;font-weight:800;font-size:.86rem;
+  padding:8px 13px;border-radius:12px;white-space:nowrap;cursor:pointer;
+  box-shadow:0 4px 14px rgba(11,37,80,.28);opacity:0;transition:opacity .35s ease;
+  animation:qnudge 1.8s ease-in-out infinite}
+.qhint::before{content:'';position:absolute;left:-7px;top:50%;margin-top:-7px;
+  border-style:solid;border-width:7px 8px 7px 0;
+  border-color:transparent var(--blue,#0B2550) transparent transparent}
+.qhint.on{display:block}
+.qhint.in{opacity:1}
+body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
+@keyframes qnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+@media (prefers-reduced-motion:reduce){
+  .qfab,.qhint{animation:none}
+}
 /* החלפת התוכן — נדעכת רגע, מתחלפת, וחוזרת. */
 .dbadge.swap{opacity:0;transform:scale(.86)}
 
@@ -860,10 +889,11 @@ nav .sp{flex:1}
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
-    <!-- עיגול החידה. צף, קבוע במקום, בפינה הנגדית ל-dbadge כדי
-         שלא יתנגשו. לחיצה עליו מחליפה את תוכן המגירה — ראו
+    <!-- עיגול החידה. צף, קבוע במקום, בפינה השמאלית התחתונה, ולידו
+         כיתוב שמופיע רק בפעמים הראשונות. לחיצה עליו מחליפה את תוכן המגירה — ראו
          quizFabPaint/paintChavArea — ולא פותחת חלון או לשונית. -->
     <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה"></button>
+    <div class="qhint" id="qhint" role="button" tabindex="0"></div>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
@@ -2199,10 +2229,48 @@ function quizFabPaint() {
   fab.classList.toggle('on', can);
   fab.classList.toggle('lit', !!QUIZ_OPEN);
   fab.onclick = function () {
+    qHintDone_();
     QUIZ_OPEN = !QUIZ_OPEN;
     if (QUIZ_OPEN && !document.body.classList.contains('chav-on')) drawer(true);
     else paintChavArea();
   };
+  var hint = $('qhint');
+  if (hint) hint.onclick = function () { fab.onclick(); };
+  if (can && !QUIZ_OPEN) qHintShow_();
+  else qHintHide_();
+}
+
+/* הכיתוב שליד העיגול — "זמן לענות על חידה". מופיע רק בפעמים
+   הראשונות: פעם אחת בכל כניסה לדף, עד QHINT_MAX כניסות, ונעלם
+   לבד אחרי כמה שניות. מי שכבר לחץ על העיגול — מכיר אותו, ולא
+   יראה את הכיתוב שוב. בהדגמה — לא נספר, כדי שלא יבזבז את
+   הפעמים של מי שמריץ אותה. */
+var QHINT_KEY = 'df:qHintN', QHINT_MAX = 3, QHINT_MS = 7000;
+var QHINT_SEEN = false, QHINT_T = null;
+function qHintN_() {
+  try { return parseInt(localStorage.getItem(QHINT_KEY), 10) || 0; } catch (e) { return QHINT_MAX; }
+}
+function qHintShow_() {
+  var el = $('qhint');
+  if (!el || QHINT_SEEN) return;
+  if (!quiet() && qHintN_() >= QHINT_MAX) return;
+  QHINT_SEEN = true;
+  if (!quiet()) try { localStorage.setItem(QHINT_KEY, String(qHintN_() + 1)); } catch (e) {}
+  el.textContent = UI.quizHint;
+  el.classList.add('on');
+  setTimeout(function () { el.classList.add('in'); }, 30);
+  QHINT_T = setTimeout(qHintHide_, QHINT_MS);
+}
+function qHintHide_() {
+  var el = $('qhint');
+  if (!el || !el.classList.contains('on')) return;
+  clearTimeout(QHINT_T);
+  el.classList.remove('in');
+  setTimeout(function () { el.classList.remove('on'); }, 360);
+}
+function qHintDone_() {
+  try { localStorage.setItem(QHINT_KEY, String(QHINT_MAX)); } catch (e) {}
+  qHintHide_();
 }
 
 /* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
@@ -3638,7 +3706,7 @@ function recPaint() {
 (function applyLearnTexts() {
   /* שני אוסָפים באותו מנגנון. קודם היה כאן `gate` בלבד, ומלל
      שנוסף לעמוד הזה היה צריך העתק של אותו לולאה. */
-  var into = { gate: window.GATE, play: window.PLAY };
+  var into = { gate: window.GATE, play: window.PLAY, ui: window.UI };
   var take = function (map) {
     if (!map) return;
     for (var k in map) {
