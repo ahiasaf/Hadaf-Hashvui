@@ -528,6 +528,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .inv .ok{margin-top:11px;font-size:.86rem;font-weight:800;color:var(--green-d);
   text-align:center}
 
+/* "עוד ילד" / "עוד הורה" — מוזמן ולא מפריע. קישור עדין ודהוי,
+   לא כרטיס זהב כמו ההזמנה הראשית (`.inv`) — מי שלא צריך את זה
+   כמעט לא שם לב אליו, ומי שכן רואה בבירור שאפשר. */
+.more-link{display:block;margin-top:14px;text-align:center;font-size:.82rem;
+  font-weight:700;color:var(--ink-3);cursor:pointer;background:none;border:0;
+  font-family:inherit;text-decoration:underline;text-underline-offset:2px;
+  width:100%}
+.more-card{margin-top:12px;background:var(--sunk);border-radius:var(--r);
+  padding:15px 16px;text-align:start}
+.more-card h4{font-size:.9rem;font-weight:800;color:var(--ink-2)}
+.more-card .fld{margin-top:10px}
+.more-card .btn{margin-top:10px;font-size:.88rem;padding:12px}
+.more-card .ok{margin-top:8px;font-size:.82rem;font-weight:800;color:var(--green-d)}
+
 /* אחרי ההרשמה */
 #done{display:none;text-align:center;padding:26px 18px}
 #done.on{display:block}
@@ -962,6 +976,8 @@ footer a{color:var(--ink-2);font-weight:800}
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
     <div id="getapp"></div>
     <div id="inv"></div>
+    <div id="inv2"></div>
+    <div id="kids"></div>
     <div id="wagrp"></div>
     <button class="again" id="again">שינוי הפרטים</button>
   </div>
@@ -2066,6 +2082,120 @@ function drawInv() {
   };
 }
 
+/* ============================================================
+   הזמנת הורה נוסף.
+   ============================================================
+   מי ששלח כבר הזמנה אחת (`drawInv` למעלה) אינו יכול לשלוח עוד
+   דרך אותו כרטיס — הוא נעלם אחרי השליחה, ובצדק: הזמנה חוזרת
+   לאותו אדם נראית כמו מערכת ששכחה. זה קישור עדין ונפרד, שפותח
+   טופס קטן משלו — שם וטלפון של הורה שני — ושולח הזמנה חדשה
+   בלי לגעת ב-me.dadFirst/dadLast/dadPhone של ההזמנה הראשונה. */
+function drawInv2() {
+  var box = $('inv2'); if (!box) return;
+  var me = get('me', null) || {};
+  box.innerHTML = '';
+  /* אותו תנאי בסיס כמו drawInv — לומד עם הורה, לא הגיע דרך
+     הזמנה של הצד השני (שם ההורה כבר בפנים ואין את מי להזמין). */
+  if (me.way !== 'dad' || !me.dadFirst || me.from) return;
+  var sent = get('inv2-sent', 0);
+  var link = '<button class="more-link" id="inv2-link">' + esc(JOIN.inv2Link) + '</button>';
+  if (sent) {
+    box.innerHTML = '<div class="more-card"><div class="ok">' + esc(JOIN.invSent) + '</div></div>' + link;
+  } else {
+    box.innerHTML = link + '<div class="more-card" id="inv2-form" style="display:none">' +
+      '<h4>' + esc(JOIN.inv2Title) + '</h4>' +
+      '<div class="fld"><label class="label" for="inv2-name">' + esc(JOIN.inv2Name) +
+      '</label><input id="inv2-name" type="text"></div>' +
+      '<div class="fld"><label class="label" for="inv2-ph">' + esc(JOIN.inv2Phone) +
+      '</label><input id="inv2-ph" type="tel" inputmode="tel"></div>' +
+      '<button class="btn off" id="inv2-go">' + esc(JOIN.invBtn) + '</button></div>';
+  }
+  var lk = $('inv2-link');
+  if (lk) lk.onclick = function () {
+    lk.style.display = 'none';
+    $('inv2-form').style.display = '';
+  };
+  var nm = $('inv2-name'), ph = $('inv2-ph'), go = $('inv2-go');
+  if (!go) return;
+  var check = function () {
+    var ok = (nm.value || '').trim() && (ph.value.match(/\d/g) || []).length >= 9;
+    go.className = 'btn' + (ok ? '' : ' off');
+  };
+  nm.oninput = check; ph.oninput = check;
+  go.onclick = function () {
+    var name2 = (nm.value || '').trim(), num = ph.value;
+    if (!name2 || (String(num).match(/\d/g) || []).length < 9) return;
+    /* לא נכתב על me — זה הורה שני, לא עדכון של הראשון. השם
+       מוצב במקום "אבא" בפנייה, כדי לא לנחש מגדר. */
+    var me2 = { inst: me.inst, rel: 'dad', first: me.first, last: me.last,
+                phone: me.phone, id: me.id,
+                dadFirst: name2, dadLast: me.last, dadPhone: num };
+    set('inv2-sent', 1);
+    window.open('https://wa.me/' + waNum(num) + '?text=' +
+      encodeURIComponent(tpl(JOIN.invMsg, { me: me.first, them: name2, url: invUrl(me2) })),
+      '_blank');
+    drawInv2();
+  };
+}
+
+/* ============================================================
+   הוספת בן נוסף.
+   ============================================================
+   הורה שנרשם וכתב את פרטי בנו (way='dad', dadFirst/dadLast/
+   dadPhone) רשם רק ילד אחד. מי שיש לו כמה בנים בתוכנית מוסיף
+   כאן עוד, בלי להזין שוב את הפרטים שלו עצמו. כל בן נוסף הוא
+   שורת "לומדים" נפרדת, עם מזהה משלו — לא מזהה המכשיר, אחרת
+   ההוספה השנייה הייתה דורסת את הראשונה (ראו upsertCols_
+   ב-apps-script.gs, שמעדכנת שורה קיימת לפי אותו מזהה בדיוק). */
+function kidsList_() { return get('kids2', []) || []; }
+function drawKids() {
+  var box = $('kids'); if (!box) return;
+  var me = get('me', null) || {};
+  box.innerHTML = '';
+  /* רק הורה שממש נרשם כאן — לא מי שהוזמן על ידי בנו (התפקיד
+     שלו כבר נקבע, ואין לו "עוד בן" להוסיף מהמסך הזה). */
+  if (me.role !== 'dad' || me.from) return;
+  var list = kidsList_();
+  var h = list.map(function (k) {
+    return '<div class="more-card"><div class="ok">✓ ' +
+      esc(tpl(JOIN.kidAddOk, { name:k.first })) + '</div></div>';
+  }).join('');
+  h += '<button class="more-link" id="kid-add-link">' + esc(JOIN.kidAddLink) + '</button>' +
+    '<div class="more-card" id="kid-add-form" style="display:none">' +
+    '<h4>' + esc(JOIN.kidAddTitle) + '</h4>' +
+    '<div class="fld"><label class="label" for="kid-first">' + esc(JOIN.kidAddFirst) +
+    '</label><input id="kid-first" type="text"></div>' +
+    '<div class="fld"><label class="label" for="kid-phone">' + esc(JOIN.kidAddPhone) +
+    '</label><input id="kid-phone" type="tel" inputmode="tel"></div>' +
+    '<button class="btn off" id="kid-add-go">' + esc(JOIN.kidAddBtn) + '</button></div>';
+  box.innerHTML = h;
+  var link = $('kid-add-link'), form = $('kid-add-form'), go = $('kid-add-go');
+  link.onclick = function () { link.style.display = 'none'; form.style.display = ''; };
+  var check = function () {
+    var ok = ($('kid-first').value || '').trim() &&
+             (($('kid-phone').value || '').match(/\d/g) || []).length >= 9;
+    go.className = 'btn' + (ok ? '' : ' off');
+  };
+  $('kid-first').oninput = check;
+  $('kid-phone').oninput = check;
+  go.onclick = function () {
+    var first = ($('kid-first').value || '').trim(), phone = $('kid-phone').value || '';
+    if (!first || (phone.match(/\d/g) || []).length < 9) return;
+    var kid = { id: me.id + ':k' + (list.length + 1), first: first, phone: phone };
+    queue({ action:'row', tab:'לומדים', cols: JSON.stringify([
+      ['מזהה', kid.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
+      ['שם', me.first], ['משפחה', me.last], ['שכבה', ''], ['כיתה', ''],
+      ['טלפון', me.phone], ['תפקיד', 'הורה'],
+      ['מסגרת', WAY_NAME[me.way] || me.way], ['לומד עם', 'בן'],
+      ['שם ההורה', kid.first], ['משפחת ההורה', me.last], ['טלפון ההורה', kid.phone],
+      ['הוזמן על ידי', ''], ['מזהה המזמין', '']
+    ]) });
+    list.push(kid);
+    set('kids2', list);
+    drawKids();
+  };
+}
+
 /* המסכת שהתלמיד מסתכל עליה. ברירת המחדל היא מה שהצוות שלו
    בחר בהרשמה, ומרגע שהוא בחר בעצמו — בחירתו נשמרת. */
 function myTrack() {
@@ -2997,6 +3127,8 @@ function showDone(me) {
   $('d-name').textContent =
     ((me.first || '') + ' ' + (me.last || '')).trim() || 'הדף שלי';
   drawInv();
+  drawInv2();
+  drawKids();
   drawWa();
   drawWeek();
   drawApp();
