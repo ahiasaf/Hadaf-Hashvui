@@ -2039,10 +2039,51 @@ function greetName(me) {
   return JOIN.callDad || 'אבא';
 }
 
+/* ============================================================
+   הצד השני כבר רשם אותי?
+   ============================================================
+   "אם הבן כבר רשם את הטלפון של אבא, ואבא עכשיו נרשם — שמיד
+   תופיע לו הודעה: הבן שלך כבר סימן שהוא לומד איתך." ובמקום
+   ההזמנה, שהייתה מזמינה מישהו שכבר בפנים.
+
+   השרת בודק לפי הטלפון שלי **ושם המשפחה** — ראו `pairFor`
+   ב-apps-script.gs. מה שנמצא נשמר במכשיר, ונשאל פעם אחת בכל
+   פתיחה עד שנמצא. */
+var PAIR_ASKED = false;
+function pairAsk_() {
+  var me = get('me', null) || {};
+  if (PAIR_ASKED || get('pair-with', '') || !API) return;
+  if (!me.phone || !me.last || (me.way !== 'dad' && me.role !== 'dad')) return;
+  PAIR_ASKED = true;
+  var cb = 'pw' + Date.now(), sc = document.createElement('script');
+  var clean = function () {
+    try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+    if (sc.parentNode) sc.parentNode.removeChild(sc);
+  };
+  var t0 = setTimeout(clean, 9000);
+  window[cb] = function (r) {
+    clearTimeout(t0); clean();
+    if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); }
+  };
+  sc.onerror = function () { clearTimeout(t0); clean(); };
+  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone) +
+    '&last=' + encodeURIComponent(me.last) + '&role=' + (me.role === 'dad' ? 'dad' : 'kid') +
+    '&callback=' + cb;
+  document.body.appendChild(sc);
+}
+
 function drawInv() {
   var box = $('inv'); if (!box) return;
   var me = get('me', null) || {};
   box.innerHTML = '';
+  var pw = get('pair-with', '');
+  if (pw && (me.way === 'dad' || me.role === 'dad')) {
+    box.innerHTML = '<div class="inv"><div class="ok">' +
+      esc(tpl(me.role === 'dad' ? JOIN.pairFoundDad : JOIN.pairFoundKid, { name: pw })) +
+      '</div></div>';
+    return;
+  }
+  pairAsk_();
   /* רק למי שבחר ללמוד עם מישהו, ורק אם ידוע מי הוא. */
   if (me.way !== 'dad' || !me.dadFirst) return;
   /* מי שהגיע דרך הזמנה — הצד השני כבר בפנים. הזמנה חוזרת אליו
@@ -2289,9 +2330,11 @@ function drawWeek() {
            '<span>הדף נשמר לך</span></div>' +
            '<div class="cbar"><i style="width:' +
            Math.max(4, Math.round(frac * 100)) + '%"></i></div></a>' : '') +
-    '<button class="mark' + (done ? ' on' : '') + '" onclick="markWeek()">' +
-      esc(done ? JOIN.markedOk : JOIN.markBtn) +
-      (done ? '<small>' + esc(JOIN.markUndo) + '</small>' : '') + '</button>' +
+    /* **אין כאן כפתור "למדתי".** הדרך לסמן היא לעבור את הדף
+       האינטראקטיבי עד הסוף — שם הסימון נעשה מעצמו. כפתור כאן
+       היה קיצור דרך שמדלג על הלימוד עצמו. מי שכבר סיים רואה
+       זאת כאן, בלי אפשרות לבטל. */
+    (done ? '<div class="mark on">' + esc(JOIN.markedOk) + '</div>' : '') +
     (all ? '<div class="net">' + esc(tpl(JOIN.netAll, { n:all })) +
       (mine ? '<br>' + esc(tpl(JOIN.netInst, { n:mine })) : '') + '</div>' : '') +
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
@@ -2865,13 +2908,16 @@ function wzDraw() {
     /* הניהול יכול להעמיד את המדריך על מסלול שאינו של המכשיר
        הזה. כאן זה תלמיד — מחזירים אותו למכשיר שלו. */
     if (GUIDE_UI.force) GUIDE_UI.force(null);
-    GUIDE_UI.mount(gbox, function () { wzDraw(); });
+    /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו, אלא ההנחיה
+       הבאה באמת: לפתוח את האייקון החדש. ראו WZ_GUIDE_DONE. */
+    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); });
   }
   wzWire();
   window.scrollTo(0, 0);
 }
 
 /* ---------- שלב 1 ---------- */
+var WZ_GUIDE_DONE = false;
 function wzInstall() {
   /* כרום או פיירפוקס באייפון — דפדפן אמיתי, ולכן האמת ולא
      "אתם בתוך וואטסאפ": באייפון רק ספארי מוסיף למסך הבית. */
@@ -2900,6 +2946,13 @@ function wzInstall() {
              'text-decoration:none;box-sizing:border-box" href="' + esc(out) +
              '">פתיחה בדפדפן</a>' : '') +
       '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>';
+  }
+  /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
+     עכשיו "סיימתי" החזיר לתחילת המדריך, כאילו לא קרה כלום. */
+  if (WZ_GUIDE_DONE) {
+    return '<div class="how"><b>' + esc(jt('wzGuDoneH')) + '</b><br>' +
+      esc(jt('wzGuDoneB')) + '</div>' + appIcon() +
+      '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>';
   }
   /* הותקנה, ואנחנו עדיין בדפדפן — באייפון זה המצב שנתקעים בו
      בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
@@ -3084,6 +3137,11 @@ function wzWire() {
     b.textContent = jt('wzDetBtn');
     b.onclick = function () { if (wzDetOk()) wzGo(3); };
   }
+  if ((b = $('wz-gu-again'))) b.onclick = function () {
+    WZ_GUIDE_DONE = false;
+    if (window.GUIDE_UI && GUIDE_UI.reset) GUIDE_UI.reset();
+    wzDraw();
+  };
   if ((b = $('wz-copy'))) b.onclick = function () {
     var t = $('wz-copy');
     var done = function () { t.textContent = 'הקישור הועתק ✓'; };

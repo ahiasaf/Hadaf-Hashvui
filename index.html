@@ -2,6 +2,36 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<script>
+/* ============================================================
+   תלמיד או הורה אינם נוחתים כאן.
+   ============================================================
+   "אסור שתלמידים או הורים יגיעו לדף הראשי. תסגור את כל הפרצות."
+   המסך הראשי הוא של הרכז וראשי החטיבה. מכשיר שרשום כתלמיד או
+   כהורה (`df:me`) — ואינו מכשיר ניהול, ראש חטיבה או ר"ם — מועבר
+   למסך שלו (join) **לפני** שמשהו מצויר, מכל כניסה: "יציאה"
+   מהדף האינטראקטיבי, אייקון ישן, או הקלדת הכתובת.
+
+   כתובת עם # (שבוע, חידה, מסלול) — נשארת: אלה מסכים של התלמיד
+   שיושבים בקובץ הזה, והם מחזירים אותו למסך שלו בעצמם. ראו גם
+   show('home'). */
+function stuDevice() {
+  try {
+    if (localStorage.getItem('df:admOk') === '1') return null;
+    if (localStorage.getItem('df:head') || localStorage.getItem('df:headSeen') === '1') return null;
+    if (localStorage.getItem('df:ram')) return null;
+    var me = JSON.parse(localStorage.getItem('df:me') || 'null');
+    return (me && me.first) ? me : null;
+  } catch (e) { return null; }
+}
+function stuHomeGo(me) {
+  location.replace('join.html' + (me.inst ? '?inst=' + encodeURIComponent(me.inst) : ''));
+}
+(function () {
+  var me = stuDevice();
+  if (me && (!location.hash || location.hash === '#')) stuHomeGo(me);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>הדף השבועי של בני עקיבא</title>
 <!-- ============================================================
@@ -1976,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.35';
+var APP_VERSION = '8.99.36';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2077,7 +2107,12 @@ function show(v) {
   var el = document.getElementById('v-' + v);
   if (el) el.className = 'view on';
   window.scrollTo(0, 0);
-  if (v === 'home')   renderHome();
+  if (v === 'home') {
+    /* תלמיד שחוזר "הביתה" מאחד המסכים שלו כאן — חוזר למסך שלו. */
+    var stu = stuDevice();
+    if (stu) { stuHomeGo(stu); return; }
+    renderHome();
+  }
   if (v === 'insts')  renderInsts();
   if (v === 'calls')  {
     renderCalls();

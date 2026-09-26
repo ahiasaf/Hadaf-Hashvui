@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 36;
+var SCRIPT_VERSION = 37;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -799,6 +799,44 @@ function doGet(e) {
      השותף" כשדיווח. מי שיודע טלפון יכול לדעת אם יש דיווח
      ממתין לו, וזה כל מה שהוא יכול לדעת — בלי סיסמה, מאותו
      טעם של `?pair=` למעלה. */
+  /* ============================================================
+     "הצד השני כבר רשם אותך?" — בזמן ההרשמה.
+     ============================================================
+     "אם הבן כבר רשם את הטלפון של אבא, ואבא עכשיו נרשם עם הטלפון
+     שלו — שמיד תופיע לו הודעה: הבן שלך כבר סימן שהוא לומד איתך."
+
+     מחפשים שורה של **הצד השני** (הורה מול תלמיד) שבה "טלפון
+     ההורה" — כלומר הטלפון שנמסר על השותף — הוא הטלפון שלי.
+     **ושם המשפחה חייב להתאים** (שלו או זה שמסר עליי): טלפון לבדו
+     היה מאפשר לכל אחד לגלות שם של נער לפי מספר. מה שחוזר: שם
+     פרטי בלבד. */
+  if (e && e.parameter && e.parameter.pairFor) {
+    var pmPh = phKey_(e.parameter.pairFor);
+    var pmLast = String(e.parameter.last || '').replace(/["'׳״\s]/g, '');
+    var pmDad = e.parameter.role === 'dad';
+    var found = null;
+    try {
+      if (pmPh && pmLast) {
+        var pmsh = sheet_(JOIN_TAB);
+        if (pmsh && pmsh.getLastRow() > 1) {
+          var pmv = pmsh.getDataRange().getDisplayValues(), pmix = {};
+          for (var pq = 0; pq < pmv[0].length; pq++) pmix[String(pmv[0][pq]).trim()] = pq;
+          var pc = function (r, n) { return pmix[n] === undefined ? '' : String(r[pmix[n]] || '').trim(); };
+          var nk = function (v) { return String(v || '').replace(/["'׳״\s]/g, ''); };
+          for (var pr = pmv.length - 1; pr >= 1; pr--) {
+            var row = pmv[pr];
+            if ((pc(row, 'תפקיד') === 'הורה') === pmDad) continue;   /* הצד השני בלבד */
+            if (phKey_(pc(row, 'טלפון ההורה')) !== pmPh) continue;
+            if (nk(pc(row, 'משפחה')) !== pmLast && nk(pc(row, 'משפחת ההורה')) !== pmLast) continue;
+            found = pc(row, 'שם');
+            break;
+          }
+        }
+      }
+    } catch (pme) {}
+    return reply_(e, { status: 'ok', 'with': found || '' });
+  }
+
   if (e && e.parameter && e.parameter.pendingFor) {
     var pfPhone = String(e.parameter.pendingFor).replace(/[^0-9]/g, '');
     var pf = null;
@@ -1037,7 +1075,9 @@ function doGet(e) {
    מפנה את /exec לדומיין אחר, ודפדפנים חוסמים לעיתים את הקריאה
    הרגילה בגלל CORS. טעינה כתגית <script> עוקפת את זה תמיד. */
 function reply_(e, out) {
-  var cb = e && e.parameter && e.parameter.callback;
+  /* `cb` וגם `callback`: pair.js שלח `cb`, והתשובה חזרה כ-JSON
+     רגיל — כלומר מסך "למדתם יחד?" של ההורה לא נפתח מעולם. */
+  var cb = e && e.parameter && (e.parameter.callback || e.parameter.cb);
   if (cb && /^[A-Za-z_$][\w$]*$/.test(cb)) {
     return ContentService.createTextOutput(cb + '(' + JSON.stringify(out) + ')')
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
