@@ -65,7 +65,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.33';
+var DAF_REV = '8.99.34';
 
 /* "הסוגיה היומית" — החוברת הדיגיטלית.
 
@@ -1617,14 +1617,20 @@ var HEAD_ASK = {
   sayEmpty:'אין מה לשלוח.',
   sayTo:   'עד {n} תלמידים — כל מי מהם שהתקין את האפליקציה.',
   /* --- למי: הפילוח. {daf} הדף של השבוע --- */
-  sayWho:     'למי?',
+  sayWho:     'למי',
+  saySegH:    'מי מהם',
+  saySegDoneS:'סיימו',
+  sayAudParS: 'הורים',
+  sayMoreOn:  'פעיל',
+  sayToH:     'נשלח אל:',
+  sayToInst:  'רק למי שהתקין את האפליקציה.',
   saySegAll:  'כולם',
   saySegDone: 'סיימו את דף {daf}',
-  saySegTodo: 'עוד לא סיימו',
+  saySegTodo: 'לא סיימו',
   saySegMid:  'התחילו ולא סיימו',
   saySegNone: 'עוד לא התחילו',
-  sayMore:    'עוד אפשרויות',
-  sayAudKids: 'לתלמידים',
+  sayMore:    'סינון נוסף',
+  sayAudKids: 'תלמידים',
   sayAudPar:  'להורים שלומדים עם הבנים',
   sayWayAll:  'כל דרכי הלימוד',
   sayWaySelf: 'לומדים לבד',
@@ -2805,6 +2811,12 @@ var TEXT_FIELDS = [
   { k:'head.sayGo',    lbl:'מילה לתלמידים — הכפתור' },
   { k:'head.sayTo',    lbl:'מילה לתלמידים — למי זה יגיע · {n} מספרם', ml:1 },
   { k:'head.sayWho',     lbl:'מילה לתלמידים — הכותרת "למי?"' },
+  { k:'head.saySegH',    lbl:'למי · השורה השנייה ("מי מהם")' },
+  { k:'head.saySegDoneS',lbl:'למי · "סיימו" (במתג; בשורת הסיכום — עם הדף)' },
+  { k:'head.sayAudParS', lbl:'למי · הורים (במתג)' },
+  { k:'head.sayMoreOn',  lbl:'סינון נוסף · כשמשהו בו נבחר' },
+  { k:'head.sayToH',     lbl:'שורת הסיכום — "נשלח אל:"' },
+  { k:'head.sayToInst',  lbl:'השורה שמתחת לסיכום' },
   { k:'head.saySegAll',  lbl:'למי · כולם' },
   { k:'head.saySegDone', lbl:'למי · סיימו · {daf}' },
   { k:'head.saySegTodo', lbl:'למי · עוד לא סיימו' },

@@ -1618,6 +1618,19 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .mygo[disabled]{opacity:.55}
 /* "מילה לתלמידים" — למי, נוסחים, חתימה, תצוגה ויומן. */
 .say-h{margin-top:14px;font-size:.8rem;font-weight:800;color:var(--ink-2)}
+.say-row{display:flex;align-items:center;gap:10px;margin-top:12px}
+.say-row > span{flex:0 0 3.6em;font-size:.8rem;font-weight:800;color:var(--ink-2)}
+.say-seg{flex:1;display:flex;gap:3px;padding:3px;background:var(--sunk);border-radius:12px}
+.say-seg button{flex:1 1 0;min-width:0;border:0;background:none;border-radius:9px;
+  padding:8px 4px;font:inherit;font-size:.8rem;font-weight:800;color:var(--ink-2);
+  cursor:pointer;line-height:1.25}
+.say-seg button.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(37,29,12,.14)}
+.say-seg small{display:block;font-size:.72rem;font-weight:800;opacity:.6}
+.say-sel{display:flex;gap:8px;margin-top:8px}
+.say-sel select{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--rule);
+  border-radius:10px;background:var(--surface);font:inherit;font-size:.84rem;color:var(--ink)}
+.say-sum{margin-top:12px;padding:9px 12px;border-radius:10px;background:rgba(23,70,143,.07);
+  font-size:.84rem;font-weight:600;color:var(--ink)}
 .say-more{display:block;margin-top:9px;padding:0;border:0;background:none;
   font:inherit;font-size:.8rem;font-weight:700;color:var(--blue);cursor:pointer}
 .say-tm{display:flex;flex-direction:column;gap:6px;margin-top:7px}
@@ -1963,7 +1976,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.33';
+var APP_VERSION = '8.99.34';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3800,8 +3813,7 @@ function tmplNow() {
 var TMPL_TAB = 'נוסחים';
 /* 'any' = מוצג בכל קבוצה. השאר — הקבוצה שנבחרה ב"למי?". */
 var TMPL_CATS = [['any', 'כל קבוצה'], ['all', 'saySegAll'], ['done', 'saySegDone'],
-                 ['todo', 'saySegTodo'], ['mid', 'saySegMid'], ['none', 'saySegNone'],
-                 ['parents', 'sayAudPar']];
+                 ['todo', 'saySegTodo'], ['parents', 'sayAudPar']];
 function tmplCatLabel(c) {
   for (var i = 0; i < TMPL_CATS.length; i++) {
     if (TMPL_CATS[i][0] !== c) continue;
@@ -3931,36 +3943,46 @@ function sayHtml() {
   var h = '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
     '<p>' + esc(headT('sayB')) + '</p>';
 
-  /* ---- למי ---- */
-  h += '<div class="say-h">' + esc(headT('sayWho')) + '</div><div class="chips">' +
-    sayChip(!sayOpt.seg, headT('saySegAll'), sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? n : null, 'seg:') +
-    (w ? sayChip(sayOpt.seg === 'done', fill(headT('saySegDone'), { daf:w.daf }),
-                 sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? w.did : null, 'seg:done') +
-         sayChip(sayOpt.seg === 'todo', headT('saySegTodo'),
-                 sayOpt.aud === 'kids' && !sayOpt.way && !sayOpt.grade ? Math.max(0, n - w.did) : null, 'seg:todo')
-       : '') +
-    '</div>';
+  /* ---- למי ----
+     שתי שורות, ובכל אחת בחירה אחת בלבד — מתג ולא ענן כפתורים:
+     "למי" (תלמידים / הורים) ו"מי מהם" (כולם / סיימו / לא סיימו).
+     "עוד לא סיימו" כבר כולל את מי שבאמצע ואת מי שלא התחיל, ולכן
+     הפיצול ההוא ירד — הוא נראה כמו כפילות. דרך לימוד ושכבה יושבות
+     מתחת ל"סינון נוסף", כרשימות נפתחות. */
+  var kids = sayOpt.aud === 'kids', plain = kids && !sayOpt.way && !sayOpt.grade;
+  var seg = function (on, label, cnt, act) {
+    return '<button class="' + (on ? 'on' : '') + '" data-say="' + act + '">' + esc(label) +
+      (cnt != null ? '<small>' + cnt + '</small>' : '') + '</button>';
+  };
+  h += '<div class="say-row"><span>' + esc(headT('sayWho')) + '</span><div class="say-seg">' +
+    seg(kids, headT('sayAudKids'), null, 'aud:kids') +
+    seg(!kids, headT('sayAudParS'), null, 'aud:parents') + '</div></div>';
+  if (w) {
+    h += '<div class="say-row"><span>' + esc(headT('saySegH')) + '</span><div class="say-seg">' +
+      seg(!sayOpt.seg, headT('saySegAll'), plain ? n : null, 'seg:') +
+      seg(sayOpt.seg === 'done', headT('saySegDoneS'), plain ? w.did : null, 'seg:done') +
+      seg(sayOpt.seg === 'todo', headT('saySegTodo'), plain ? Math.max(0, n - w.did) : null, 'seg:todo') +
+      '</div></div>';
+  }
   h += '<button class="say-more" data-say="more">' + esc(headT('sayMore')) +
+    (sayOpt.way || sayOpt.grade ? ' · ' + esc(headT('sayMoreOn')) : '') +
     (sayOpt.more ? ' ▴' : ' ▾') + '</button>';
   if (sayOpt.more) {
-    h += '<div class="chips">' +
-      sayChip(sayOpt.aud === 'kids', headT('sayAudKids'), null, 'aud:kids') +
-      sayChip(sayOpt.aud === 'parents', headT('sayAudPar'), null, 'aud:parents') + '</div>';
-    if (w) {
-      h += '<div class="chips">' +
-        sayChip(sayOpt.seg === 'mid', headT('saySegMid'), null, 'seg:mid') +
-        sayChip(sayOpt.seg === 'none', headT('saySegNone'), null, 'seg:none') + '</div>';
-    }
-    h += '<div class="chips">' + SAY_WAYS.map(function (x) {
-      return sayChip(sayOpt.way === x[0], headT(x[1]),
-                     x[0] && sayOpt.aud === 'kids' ? pairN(j.ways, x[0]) : null, 'way:' + x[0]);
-    }).join('') + '</div>';
-    if (sayOpt.aud === 'kids' && (j.grades || []).length > 1) {
-      h += '<div class="chips">' + sayChip(!sayOpt.grade, headT('sayGrAll'), null, 'grade:') +
+    h += '<div class="say-sel"><select id="say-way" aria-label="' + esc(headT('sayWayAll')) + '">' +
+      SAY_WAYS.map(function (x) {
+        var c = x[0] && kids ? pairN(j.ways, x[0]) : null;
+        return '<option value="' + esc(x[0]) + '"' + (sayOpt.way === x[0] ? ' selected' : '') + '>' +
+          esc(headT(x[1])) + (c != null ? ' (' + c + ')' : '') + '</option>';
+      }).join('') + '</select>';
+    if (kids && (j.grades || []).length > 1) {
+      h += '<select id="say-grade" aria-label="' + esc(headT('sayGrAll')) + '">' +
+        '<option value="">' + esc(headT('sayGrAll')) + '</option>' +
         (j.grades || []).map(function (g) {
-          return sayChip(sayOpt.grade === g[0], fill(headT('sayGrOne'), { g:g[0] }), g[1], 'grade:' + g[0]);
-        }).join('') + '</div>';
+          return '<option value="' + esc(g[0]) + '"' + (sayOpt.grade === g[0] ? ' selected' : '') + '>' +
+            esc(fill(headT('sayGrOne'), { g:g[0] })) + ' (' + g[1] + ')</option>';
+        }).join('') + '</select>';
     }
+    h += '</div>';
   }
 
   /* ---- נוסחים מוכנים ---- */
@@ -3988,8 +4010,9 @@ function sayHtml() {
   h += '</div>' + sayPreview();
 
   var c = sayCount();
-  h += '<p class="myto">' + (n ? esc(fill(headT('sayTo'), { n: c != null ? c : n })) :
-    esc(headT('sayNone'))) + '</p>' +
+  h += (n ? '<div class="say-sum"><b>' + esc(headT('sayToH')) + '</b> ' + esc(sayToLabel()) +
+      (c != null ? ' · <b>' + c + '</b>' : '') + '</div>' : '') +
+    '<p class="myto">' + (n ? esc(headT('sayToInst')) : esc(headT('sayNone'))) + '</p>' +
     '<button class="mygo" id="say-go"' +
     (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
@@ -4009,7 +4032,7 @@ function sayHtml() {
 /* התווית של הקבוצה שנבחרה — לאישור, וליומן שמתחת. */
 function sayToLabel() {
   var w = sayWeek(), bits = [];
-  bits.push(sayOpt.aud === 'parents' ? headT('sayAudPar') : headT('sayAudKids'));
+  bits.push(sayOpt.aud === 'parents' ? headT('sayAudParS') : headT('sayAudKids'));
   if (sayOpt.seg) {
     bits.push(headT({ done:'saySegDone', todo:'saySegTodo', mid:'saySegMid',
                       none:'saySegNone' }[sayOpt.seg]).split('{daf}').join(w ? w.daf : ''));
@@ -4032,6 +4055,10 @@ function sayWire() {
       if (pv) pv.outerHTML = sayPreview();
     };
   }
+  var sw = document.getElementById('say-way');
+  if (sw) sw.onchange = function () { sayOpt.way = sw.value; sayPaint(); };
+  var sgr = document.getElementById('say-grade');
+  if (sgr) sgr.onchange = function () { sayOpt.grade = sgr.value; sayPaint(); };
   var per = document.getElementById('say-per');
   if (per) per.onchange = function () { sayOpt.per = per.checked; sayPaint(); };
   var sg = document.getElementById('say-sig');
