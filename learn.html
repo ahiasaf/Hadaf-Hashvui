@@ -244,6 +244,7 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-tools button.icon.own-psuk-btn{width:auto;padding:0 9px;font-family:'FrankRuhlDaf',serif;font-size:.86rem}
 .chb .own-save{border:1px solid rgba(192,143,43,.45);background:var(--gold,#C08F2B);
   color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
+.chb .own-local{margin-top:6px;font-size:.7rem;font-weight:700;color:var(--ok,#3B7D57);min-height:1em}
 .chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
 .chb .own-msg.ok{color:var(--ok,#3B7D57)}
 .chb .own-msg.bad{color:#B23B3B}
@@ -1776,14 +1777,80 @@ function ownPsuk_() {
   var r2 = document.createRange(); r2.selectNodeContents(sp); sel.addRange(r2);
 }
 
+/* ============================================================
+   שום מילה לא הולכת לאיבוד.
+   ============================================================
+   "כתבתי קטע, קפצתי רגע לראות מה כתוב בחברותא, חזרתי — ומה
+   שכתבתי נמחק." השמירה האוטומטית פעלה רק במעבר **לקטע אחר**;
+   מעבר ללשונית חברותא באותו קטע צייר את האזור מחדש, והטקסט
+   שבתיבה — שעוד לא הועתק לזיכרון — נעלם.
+
+   שלוש שכבות, מהזולה ליקרה:
+     1. **במכשיר, בכל הקשה.** טיוטה ב-localStorage לכל קטע
+        (`df:ownDraft`). חינם, מיידי, שורד מעבר לשונית, ריענון
+        וסגירת האפליקציה. נמחקת כשהגיליון אישר שמירה זהה.
+     2. **לפני כל ציור מחדש** של האזור (חברותא, חידה, קטע אחר)
+        התיבות נקראות לזיכרון — ראו `ownCatch_` ב-paintChavArea.
+     3. **לגיליון, כמה שניות אחרי שהפסיק להקליד** — רק כשהדף
+        בטיוטה. בדף מפורסם, שמירה אוטומטית הייתה מציגה לתלמידים
+        משפט חצי כתוב; שם השמירה לגיליון נשארת בכפתור ובמעבר קטע,
+        והטיוטה במכשיר שומרת בינתיים.
+   ============================================================ */
+var OWN_DRAFT_KEY = 'df:ownDraft', OWN_AUTO_T = null, OWN_SAVING = false;
+function ownDraftKey_(n) { return dmKey(S.mas, S.daf) + '|' + n; }
+function ownDraftAll_() {
+  try { return JSON.parse(localStorage.getItem(OWN_DRAFT_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function ownDraftPut_() {
+  if (!OWN_EDIT) return;
+  var all = ownDraftAll_(), k = ownDraftKey_(OWN_EDIT_N);
+  var clean = ownCleanPieces_(OWN_EDIT);
+  if (JSON.stringify(clean) === JSON.stringify(ownPieces_(OWN_EDIT_N))) delete all[k];
+  else all[k] = { pieces: clean, at: Date.now() };
+  try { localStorage.setItem(OWN_DRAFT_KEY, JSON.stringify(all)); } catch (e) {}
+}
+function ownDraftDrop_(n) {
+  var all = ownDraftAll_(); delete all[ownDraftKey_(n)];
+  try { localStorage.setItem(OWN_DRAFT_KEY, JSON.stringify(all)); } catch (e) {}
+}
+/* התיבות שעל המסך → הזיכרון והטיוטה. נקרא לפני כל ציור מחדש. */
+function ownCatch_() {
+  if (!SIDE_ADM || !OWN_EDIT || !$('own-txt-0')) return;
+  ownEditSync_();
+  ownDraftPut_();
+}
+/* הקלדה: טיוטה במכשיר מיד, ולגיליון אחרי שקט (בדף טיוטה בלבד). */
+function ownTyped_() {
+  ownEditSync_();
+  ownDraftPut_();
+  var loc = $('own-local');
+  if (loc) loc.textContent = 'נשמר במכשיר ✓';
+  clearTimeout(OWN_AUTO_T);
+  if (OWN && OWN.__pub) return;
+  var n = OWN_EDIT_N;
+  OWN_AUTO_T = setTimeout(function () {
+    if (OWN_SAVING || OWN_EDIT_N !== n || !ownEditDirty_()) return;
+    /* הקלטה שממתינה להעלאה — רק בלחיצה, לא ברקע. */
+    var pend = OWN_EDIT.some(function (p) { return VOX_CACHE[n + '::' + p._id] && !p.audio; });
+    if (pend) return;
+    ownSaveAll(n);
+  }, 6000);
+}
+
 function ownEditLoad_(n) {
   if (OWN_EDIT && OWN_EDIT_N === n) return;
   var src = ownPieces_(n);
+  /* טיוטה שלא הגיעה לגיליון גוברת על מה ששמור שם. */
+  var dr = ownDraftAll_()[ownDraftKey_(n)], restored = false;
+  if (dr && dr.pieces && dr.pieces.length &&
+      JSON.stringify(dr.pieces) !== JSON.stringify(src)) { src = dr.pieces; restored = true; }
   OWN_EDIT = (src.length ? src : [{ tag:'פירוש', text:'', slide:'', audio:'' }]).map(function (p) {
     return { tag:p.tag || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '', _id:ownPid_() };
   });
   OWN_EDIT_N = n;
+  OWN_RESTORED = restored;
 }
+var OWN_RESTORED = false;
 function ownEditSync_() {
   if (!OWN_EDIT) return;
   OWN_EDIT.forEach(function (p, i) {
@@ -2081,6 +2148,8 @@ function paintOwnEdit_(n) {
   }).join('');
 
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
+    '<div class="own-local" id="own-local">' +
+      (OWN_RESTORED ? 'שוחזר מה שכתבת ועוד לא נשמר לגיליון.' : '') + '</div>' +
     '<div class="own-msg" id="own-msg"></div>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
@@ -2091,6 +2160,7 @@ function paintOwnEdit_(n) {
 
   box.innerHTML = html;
   box.scrollTop = 0;
+  OWN_RESTORED = false;
   $('own-pub-btn').onclick = function () {
     var goingOn = !pubOn;
     if (goingOn && !window.confirm(
@@ -2106,6 +2176,9 @@ function paintOwnEdit_(n) {
     var e = $('own-txt-' + i);
     if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
     if (e) e.addEventListener('paste', ownPaste_);
+    if (e) e.addEventListener('input', ownTyped_);
+    var tg = $('own-tag-' + i);
+    if (tg) tg.addEventListener('input', ownTyped_);
   });
 }
 
@@ -2213,6 +2286,7 @@ function ownSaveAll(n) {
   if (toUpload.length && !cfgReadKey_()) {
     ownMsg('bad', 'צריך סיסמת סקריפט במכשיר כדי להעלות הקלטה — ניהול ← מערכת.'); return;
   }
+  OWN_SAVING = true;
   ownMsg('', toUpload.length ? 'מעלה הקלטות…' : 'נשלח · מאמת מול הגיליון…');
   ownUploadNext_(n, toUpload, 0, [], function (failed) {
     if (!OWN) OWN = {};
@@ -2235,19 +2309,26 @@ function ownVerify(tries, n, wantPieces, failed) {
       var got = ownPiecesFrom_((mine || {})[String(n)]);
       if (JSON.stringify(got) === JSON.stringify(wantPieces)) {
         OMAP = m; OWN = mine;
+        OWN_SAVING = false;
+        /* הגיליון מחזיק בדיוק את זה — הטיוטה במכשיר כבר מיותרת,
+           אלא אם הוקלד משהו נוסף בינתיים. */
+        if (OWN_EDIT_N === n) ownDraftPut_(); else ownDraftDrop_(n);
+        /* הוקלד עוד בזמן השמירה — עוד סבב, אחרי שקט. */
+        if (OWN_EDIT_N === n && !(OWN && OWN.__pub) && ownEditDirty_()) ownTyped_();
         ownMsg(failWarn ? 'bad' : 'ok', ((OWN && OWN.__pub)
           ? 'נשמר ואומת. הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
           : 'נשמר כטיוטה ואומת. עדיין רק אתה רואה — עד שתפרסם את כל הדף.') + failWarn);
         return;
       }
       if (tries < 4) { ownVerify(tries + 1, n, wantPieces, failed); return; }
+      OWN_SAVING = false;
       ownMsg('bad', '<b>לא אומת.</b> ' + (!m
         ? 'הגיליון לא נענה, או שלשונית "' + OWN_TAB + '" לא נוצרה.'
         : 'מה שחזר מהגיליון אינו מה שנשלח.') +
-        ' הטקסט קיים במסך הזה בלבד — אפשר לנסות שוב.');
+        ' הטקסט שמור במכשיר הזה — אפשר לנסות שוב.');
     }).catch(function () {
       if (tries < 4) ownVerify(tries + 1, n, wantPieces, failed);
-      else ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+      else { OWN_SAVING = false; ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון. מה שכתבת שמור במכשיר.'); }
     });
   }, tries ? 2500 : 1400);
 }
@@ -2290,6 +2371,7 @@ function ownPublishVerify(tries, on) {
    "חברותא" — "קטע בלי הקלטה, אין כפתור". אצל אחיאסף היא תמיד
    לחיצה, כי בלעדיה אי אפשר לכתוב פירוש ראשון לקטע. */
 function paintChavArea() {
+  ownCatch_();
   var st = FLAT[IDX];
   var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
   var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
