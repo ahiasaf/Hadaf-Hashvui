@@ -234,6 +234,14 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
 .own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
 .own-read{margin:0 0 6px;line-height:1.85}
+/* גופן פסוקים — פרנק-רוהל, הצורה המוכרת מהתנ"ך. יושב בריפו
+   (fonts/), בלי CDN. רחב ומעט גדול יותר, כדי שהפסוק ייקרא כציטוט. */
+@font-face{font-family:'FrankRuhlDaf';font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(fonts/frank-ruhl-hebrew.woff2) format('woff2')}
+.psuk{font-family:'FrankRuhlDaf','Frank Ruhl Libre','David',serif;font-size:1.1em;
+  font-weight:500;letter-spacing:0}
+.psuk b{font-weight:800}
+.own-tools button.icon.own-psuk-btn{width:auto;padding:0 9px;font-family:'FrankRuhlDaf',serif;font-size:.86rem}
 .chb .own-save{border:1px solid rgba(192,143,43,.45);background:var(--gold,#C08F2B);
   color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
 .chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
@@ -1697,6 +1705,77 @@ function ownMsg(cls, txt) {
    המקומית של החלק נמצאת ב-IndexedDB, גם אם החלק עדיין נטול שם. */
 var OWN_EDIT = null, OWN_EDIT_N = 0;
 function ownPid_() { return Math.random().toString(36).slice(2, 9); }
+/* ============================================================
+   ניקוי הפירוש — רק מה שהרכז התכוון אליו.
+   ============================================================
+   "לפעמים חלק מהמשפטים מופיעים בכתב קטן, והבולד מחליף גופן."
+   תיבת עריכה בדפדפן שומרת את מה שהודבק אליה **עם העיצוב של
+   המקור**: `<span style="font-size:.82rem; font-family:…">` —
+   וזה נשמר לגיליון ומוצג לכל התלמידים. וגם "בולד" של הדפדפן
+   יוצא לפעמים כ-span עם עיצוב משלו.
+
+   מה שנשאר: טקסט, מעבר שורה, בולד (<b>), ופסוק (<span
+   class="psuk">). כל השאר נפתח — התוכן נשאר, העיצוב הולך. חל
+   על מה שמוצג (גם על מה שכבר נשמר), ועל מה שנשמר מעכשיו. */
+function ownSan(html) {
+  var box = document.createElement('div');
+  box.innerHTML = String(html || '');
+  var out = function (node) {
+    var h = '', i, c, tag, st, inner;
+    for (i = 0; i < node.childNodes.length; i++) {
+      c = node.childNodes[i];
+      if (c.nodeType === 3) { h += esc(c.nodeValue); continue; }
+      if (c.nodeType !== 1) continue;
+      tag = c.nodeName.toLowerCase();
+      inner = out(c);
+      st = (c.getAttribute('style') || '').toLowerCase();
+      if (tag === 'br') h += '<br>';
+      else if (tag === 'b' || tag === 'strong') h += inner ? '<b>' + inner + '</b>' : '';
+      else if (tag === 'span' && /(^|\s)psuk(\s|$)/.test(c.className || '')) {
+        h += inner ? '<span class="psuk">' + inner + '</span>' : '';
+      }
+      else if (/font-weight:\s*(bold|[6-9]00)/.test(st)) h += inner ? '<b>' + inner + '</b>' : '';
+      else if (tag === 'div' || tag === 'p') h += '<div>' + (inner || '<br>') + '</div>';
+      else if (tag === 'script' || tag === 'style') continue;
+      else h += inner;                      /* span, font, i, a… — רק התוכן */
+    }
+    return h;
+  };
+  return out(box).replace(/&nbsp;/g, ' ');
+}
+/* הדבקה — טקסט בלבד. העיצוב של המקור הוא בדיוק מה שהקטין את
+   הכתב; מה שצריך מודגש מדגישים כאן, בכפתור. */
+function ownPaste_(e) {
+  var t = (e.clipboardData || window.clipboardData);
+  if (!t) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, t.getData('text/plain') || t.getData('text') || '');
+}
+/* פסוק — עוטף את הבחירה בגופן של פסוקים, ואם הבחירה כבר בתוך
+   פסוק — מחזיר אותה לגופן הרגיל. */
+function ownPsuk_() {
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  var n = sel.anchorNode, ed = null, ps = null;
+  for (var x = n; x; x = x.parentNode) {
+    if (x.nodeType === 1 && !ps && x.classList && x.classList.contains('psuk')) ps = x;
+    if (x.nodeType === 1 && x.classList && x.classList.contains('own-edit')) { ed = x; break; }
+  }
+  if (!ed) return;
+  if (ps) {
+    while (ps.firstChild) ps.parentNode.insertBefore(ps.firstChild, ps);
+    ps.parentNode.removeChild(ps);
+    return;
+  }
+  if (sel.isCollapsed) return;
+  var r = sel.getRangeAt(0), sp = document.createElement('span');
+  sp.className = 'psuk';
+  sp.appendChild(r.extractContents());
+  r.insertNode(sp);
+  sel.removeAllRanges();
+  var r2 = document.createRange(); r2.selectNodeContents(sp); sel.addRange(r2);
+}
+
 function ownEditLoad_(n) {
   if (OWN_EDIT && OWN_EDIT_N === n) return;
   var src = ownPieces_(n);
@@ -1709,7 +1788,7 @@ function ownEditSync_() {
   if (!OWN_EDIT) return;
   OWN_EDIT.forEach(function (p, i) {
     var t = $('own-tag-' + i); if (t) p.tag = t.value;
-    var e = $('own-txt-' + i); if (e) p.text = e.textContent.trim() ? e.innerHTML.trim() : '';
+    var e = $('own-txt-' + i); if (e) p.text = e.textContent.trim() ? ownSan(e.innerHTML).trim() : '';
   });
 }
 function ownPieceAdd() {
@@ -1923,7 +2002,7 @@ function paintOwnRead_(n) {
   if (!pieces.length) { box.innerHTML = '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
   box.innerHTML = pieces.map(function (p) {
     var lbl = (pieces.length > 1 && p.tag) ? '<div class="own-plbl">' + esc(p.tag) + '</div>' : '';
-    return lbl + '<div class="own-read">' + (p.text || '') + '</div>';
+    return lbl + '<div class="own-read">' + ownSan(p.text) + '</div>';
   }).join('');
   box.scrollTop = 0;
 }
@@ -1967,8 +2046,11 @@ function paintOwnEdit_(n) {
        המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי
        בלבד" מאליהם, בלי שום שמירה נוספת. */
     var toolsRow = '<div class="own-tools">' +
-      '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'bold\')" ' +
+      '<button type="button" class="icon" onmousedown="event.preventDefault();' +
+      'document.execCommand(\'styleWithCSS\',false,false);document.execCommand(\'bold\')" ' +
       'title="הדגשה (בולד)">B</button>' +
+      '<button type="button" class="icon own-psuk-btn" onmousedown="event.preventDefault();ownPsuk_()" ' +
+      'title="גופן של פסוק — סמנו את הפסוק ולחצו">פסוק</button>' +
       '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'undo\')" ' +
       'title="ביטול">↶</button>' +
       '<button type="button" class="icon" onmousedown="event.preventDefault();document.execCommand(\'redo\')" ' +
@@ -1994,7 +2076,7 @@ function paintOwnEdit_(n) {
       (OWN_EDIT.length > 1 ? '<button class="back" onclick="ownPieceDel(' + i + ')" aria-label="מחיקת החלק">✕</button>' : '') +
       '</div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
-      'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + p.text + '</div>' +
+      'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + ownSan(p.text) + '</div>' +
       toolsRow + '<div class="own-audio">' + audioRow + saveBtn + '</div></div>';
   }).join('');
 
@@ -2023,6 +2105,7 @@ function paintOwnEdit_(n) {
   OWN_EDIT.forEach(function (p, i) {
     var e = $('own-txt-' + i);
     if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
+    if (e) e.addEventListener('paste', ownPaste_);
   });
 }
 
