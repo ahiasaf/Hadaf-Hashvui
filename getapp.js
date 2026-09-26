@@ -107,15 +107,77 @@ var APPX = (function () {
      לא משנה בדיוק למה (Custom Tab, גרסת כרום ישנה, מדיניות
      ארגונית) — האדם תקוע באותה נקודה בדיוק כמו מי שזוהה
      כ-`inApp()`. אותה תרופה: לצאת לדפדפן אמיתי או להעתיק קישור. */
-  var STUCK = false, ON_STUCK = [];
-  setTimeout(function () {
-    if (STUCK || isIOS() || standalone() || installed() || BIP) return;
-    STUCK = true;
-    ON_STUCK.forEach(function (f) { try { f(); } catch (x) {} });
-  }, 3500);
-  function stuck() { return STUCK; }
+  /* ============================================================
+     **הניחוש הזה בוטל.**
+     ============================================================
+     "המסך הזה קופץ גם בגוגל כרום — קודם מופיע המסך הרגיל, ואחרי
+     רגע קצר זה קופץ." כרום רגיל לא תמיד מציע התקנה תוך שלוש
+     וחצי שניות, ולכן תלמידים בכרום אמיתי קיבלו "אתם בתוך וואטסאפ"
+     והועברו הלאה. `stuck()` נשאר (ה-API משמש כמה עמודים) ותמיד
+     אומר לא. במקומו: המסך הרגיל, ובתחתיתו מסגרת וואטסאפ קבועה —
+     ראו `waBox()` למטה. */
+  var ON_STUCK = [];
+  function stuck() { return false; }
 
   function mark() { try { localStorage.setItem('df:appAdded', '1'); } catch (e) {} }
+
+  /* ============================================================
+     מסגרת וואטסאפ — בתחתית כל מסך התקנה.
+     ============================================================
+     "אם פתחתם ישירות בוואטסאפ זה לא יעבוד — העתיקו את הקישור
+     והדביקו בכרום." קבועה, קטנה, ואינה מחליפה דבר: מי שבכרום
+     ממשיך כרגיל, ומי שבתוך וואטסאפ מוצא כאן את היציאה. המלל
+     ב-ASK_UI (data.js), וההעתקה בלחיצה אחת — מאזין אחד לכל
+     העמודים, לפי `data-wa-copy`. */
+  function waBox() {
+    var U = window.ASK_UI || {};
+    var ios = isIOS();
+    return '<div style="display:flex;gap:11px;align-items:flex-start;margin-top:16px;' +
+      'padding:12px 13px;border:1.5px solid #25D366;border-radius:14px;' +
+      'background:rgba(37,211,102,.07);text-align:start">' +
+      '<svg viewBox="0 0 32 32" width="30" height="30" style="flex:none" aria-hidden="true">' +
+      '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
+      '<path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.7.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2z"/>' +
+      '<path fill="#fff" d="M20 17.6c-.2-.1-1.3-.7-1.5-.7s-.3-.1-.5.1-.6.7-.7.9-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.4 2.4 0 0 0-.8 1.8 4.2 4.2 0 0 0 .9 2.2 9.6 9.6 0 0 0 3.7 3.3c1.4.6 1.9.6 2.6.5a2.2 2.2 0 0 0 1.5-1c.2-.5.2-.9.1-1l-.3-.3z"/>' +
+      '</svg><div style="flex:1;min-width:0">' +
+      '<b style="display:block;font-size:.9rem;font-weight:800;color:#1B2A45">' +
+      esc(U.waBoxT || '') + '</b>' +
+      '<span style="display:block;margin-top:2px;font-size:.84rem;font-weight:600;color:#5A6780">' +
+      esc(ios ? (U.waBoxBIos || U.waBoxB || '') : (U.waBoxB || '')) + '</span>' +
+      '<button type="button" data-wa-copy="1" style="margin-top:9px;padding:9px 14px;' +
+      'border:0;border-radius:10px;background:#25D366;color:#fff;font:inherit;' +
+      'font-size:.86rem;font-weight:800;cursor:pointer">' +
+      esc(U.waBoxGo || '') + '</button></div></div>';
+  }
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-wa-copy]') : null;
+    if (!b) return;
+    var U = window.ASK_UI || {};
+    var ok = function () { b.textContent = U.waBoxOk || '✓'; };
+    var bad = function () { b.textContent = location.href; };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(location.href).then(ok, function () {
+          legacyCopy(location.href) ? ok() : bad();
+        });
+      } else if (legacyCopy(location.href)) ok(); else bad();
+    } catch (x) { bad(); }
+  });
+  function legacyCopy(txt) {
+    var t = document.createElement('textarea');
+    t.value = txt; t.setAttribute('readonly', '');
+    t.style.cssText = 'position:fixed;top:-999px;opacity:0';
+    document.body.appendChild(t); t.select();
+    var r = false;
+    try { r = document.execCommand('copy'); } catch (x) {}
+    document.body.removeChild(t);
+    return r;
+  }
   function wasAdded() {
     try { return localStorage.getItem('df:appAdded') === '1'; } catch (e) { return false; }
   }
@@ -460,6 +522,7 @@ var APPX = (function () {
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
     stuck: stuck,
+    waBox: waBox,
     onStuck: function (f) { ON_STUCK.push(f); },
     /* ============================================================
        אישור בחלון ההתקנה אינו התקנה.

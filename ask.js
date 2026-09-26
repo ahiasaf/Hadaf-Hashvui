@@ -332,12 +332,13 @@ var ASK = (function () {
        ההוראות הן כל מה שיש — ולכן שם הן מאוירות, מסך אחד
        לכל פעולה. ראו `guide.js`. */
     if (stuck) h += warn(u('blockH'), esc(u('blockB'))) + toBr();
+    var wa = APPX.waBox ? APPX.waBox() : '';
     if (APPX.bip()) {
       return h + '<button class="as-go" id="r-inst">' + esc(u('instBtn')) +
-        '</button>' +
+        '</button>' + wa +
         '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
     }
-    return h + '<div class="as-guide" id="gu-here"></div>' +
+    return h + '<div class="as-guide" id="gu-here"></div>' + wa +
       '<div class="as-help"><b>' + esc(gu('help')) + '</b><br>' +
       esc(gu('helpB')) + '</div>' +
       '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
