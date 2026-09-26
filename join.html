@@ -1980,7 +1980,8 @@ $('go').onclick = function () {
     ['לומד עם', me.rel === 'friend' ? 'חבר' : me.rel === 'kid' ? 'בן' : 'אבא'],
     ['שם ההורה', me.dadFirst], ['משפחת ההורה', me.dadLast],
     ['טלפון ההורה', me.dadPhone],
-    ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId]
+    ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId],
+    ['בדיקה', LTester() ? 'כן' : '']
   ]) });
 
   showDone(me);
@@ -2195,7 +2196,8 @@ function drawKids(where) {
       ['טלפון', me.phone], ['תפקיד', 'הורה'],
       ['מסגרת', WAY_NAME[me.way] || me.way], ['לומד עם', 'בן'],
       ['שם ההורה', kid.first], ['משפחת ההורה', me.last], ['טלפון ההורה', kid.phone],
-      ['הוזמן על ידי', ''], ['מזהה המזמין', '']
+      ['הוזמן על ידי', ''], ['מזהה המזמין', ''],
+    ['בדיקה', LTester() ? 'כן' : '']
     ]) });
     list.push(kid);
     set('kids2', list);

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 35;
+var SCRIPT_VERSION = 36;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -835,7 +835,7 @@ function doGet(e) {
     var bk = (READ_KEY && String(e.parameter.key || '') === READ_KEY)
       ? getCode_(String(e.parameter.board))
       : e.parameter.k;
-    try { bd = boardData_(String(e.parameter.board), bk); }
+    try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
     return reply_(e, bd);
   }
@@ -1226,7 +1226,27 @@ function writeCount_(tab, cols, rows) {
    אינם יוצאים מהגיליון הסגור — רק ספירה. */
 /* שורת הכותרת, ואחריה רק מי שסיים. שורה בלי עמודת "קטע" היא
    שורה מגרסה קודמת, והיא הייתה תמיד סיום. */
+/* ============================================================
+   משתמשי בדיקה.
+   ============================================================
+   מכשיר שסומן בעמוד /reset כ"מכשיר בדיקה" כותב "כן" בעמודת
+   "בדיקה" — בהרשמה ובכל שורת לימוד. הם **אינם נספרים** במונים,
+   ואינם מופיעים בלוח של הישיבה — אלא אם הלוח נפתח במכשיר בדיקה
+   בעצמו (`test=1`), ואז הם מופיעים ומסומנים. כך הרכז בודק ראש
+   חטיבה ששולח לתלמיד, בלי שהצוות האמיתי יראה תלמיד שלא קיים.
+   ============================================================ */
+function noTestRows_(rows) {
+  if (!rows || rows.length < 2) return rows;
+  var iT = -1;
+  for (var i = 0; i < rows[0].length; i++) if (String(rows[0][i]).trim() === 'בדיקה') iT = i;
+  if (iT < 0) return rows;
+  return [rows[0]].concat(rows.slice(1).filter(function (r) {
+    return String(r[iT] || '').trim() !== 'כן';
+  }));
+}
+
 function doneRows_(rows) {
+  rows = noTestRows_(rows);
   if (!rows || !rows.length) return rows;
   var head = rows[0], iAt = -1, iOf = -1;
   for (var i = 0; i < head.length; i++) {
@@ -1489,7 +1509,7 @@ function ensureCode_(inst, want) {
 
 /* הלוח של מוסד אחד. שמות פרטיים, שכבה, מסגרת, ואילו שבועות
    סומנו — ולא יותר מזה. */
-function boardData_(inst, k) {
+function boardData_(inst, k, withTest) {
   inst = String(inst || '').trim();
   var code = getCode_(inst);
   if (!code) return { status: 'nocode',
@@ -1555,6 +1575,9 @@ function boardData_(inst, k) {
       for (var d = 1; d < jr.length; d++) {
         var row = jr[d];
         if (cell(row, 'קוד ישיבה') !== inst) continue;
+        /* משתמש בדיקה — רק כשהלוח עצמו נפתח במכשיר בדיקה. */
+        var isTest = cell(row, 'בדיקה') === 'כן';
+        if (isTest && !withTest) continue;
         var pid = cell(row, 'מזהה');
         if (!pid) continue;
         if (!(pid in byId)) order.push(pid);
@@ -1575,6 +1598,7 @@ function boardData_(inst, k) {
           way:   cell(row, 'מסגרת'),
           role:  cell(row, 'תפקיד'),
           with:  cell(row, 'שם ההורה'),        /* שם פרטי בלבד */
+          test:  isTest ? 1 : 0,
           weeks: [],
           pos:   {}                            /* 'מסלול|שבוע' → 0–1 */
         };
@@ -1817,6 +1841,7 @@ function flagRegConflict_(d) {
    כולם מהספירה בבת אחת.
    ============================================================ */
 function studentRows_(rows) {
+  rows = noTestRows_(rows);
   if (!rows || rows.length < 2) return rows;
   var head = rows[0], iR = -1;
   for (var i = 0; i < head.length; i++) {

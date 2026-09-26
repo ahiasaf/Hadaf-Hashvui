@@ -33,6 +33,12 @@ function LSet(k, v) {
 /* הפרופיל נכתב במסך ההצטרפות. בלעדיו אין את מי לספור, ולכן
    סימון בלי פרופיל נשמר במכשיר אבל אינו נשלח. */
 function LMe() { return LGet('me', null); }
+/* מכשיר בדיקה — סומן בעמוד /reset. ההרשמה והלימוד ממנו נושאים
+   "בדיקה: כן", ואינם נספרים במונים ואינם בלוח של הצוות. ראו
+   `noTestRows_` ב-apps-script.gs. */
+function LTester() {
+  try { return localStorage.getItem('df:tester') === '1'; } catch (e) { return false; }
+}
 
 /* ---------- השבוע ---------- */
 /* "עכשיו" — עם דלת בדיקה בלבד. לפני `PROGRAM.startDate` (ראו
@@ -115,7 +121,8 @@ function LMark(track, wk) {
     q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
       ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
       ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
-      ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : '']
+      ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : ''],
+      ['בדיקה', LTester() ? 'כן' : '']
     ]) });
     LSet('learn-q', q);
     LFlush();
@@ -171,7 +178,8 @@ function LPosSend(track, wk) {
   q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
     ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
     ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
-    ['קטע', p.i + 1], ['מתוך', p.n]
+    ['קטע', p.i + 1], ['מתוך', p.n],
+    ['בדיקה', LTester() ? 'כן' : '']
   ]) });
   LSet('learn-q', q);
   LFlush();
