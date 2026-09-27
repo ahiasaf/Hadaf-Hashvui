@@ -4387,6 +4387,11 @@ window.addEventListener('DOMContentLoaded', function () {
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
   $('stay').onclick  = function () { $('done').className = 'sheet'; bar(); };
   document.addEventListener('keydown', function (e) {
+    /* מי שכותב — המקלדת שלו. רווח וחיצים בתוך שדה עריכה
+       (הפירוש לנוער, תגיות, כל קלט) אינם מזיזים את הדף. */
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
     if (e.key === 'ArrowRight') { go(IDX - 1); e.preventDefault(); }
   });
