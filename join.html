@@ -2554,9 +2554,9 @@ function drawApp() {
     return;
   }
 
+  if (APPX.waBox) h += APPX.waBox();
   if (APPX.bip()) h += '<button class="btn" id="app-go">' + esc(JOIN.appBtn) + '</button>';
   else     h += appHowList();
-  if (APPX.waBox) h += APPX.waBox();
   box.innerHTML = h + '</div>';
 
   var g = $('app-go');
@@ -2984,7 +2984,7 @@ function wzInstall() {
   /* **תיבת "מה זה מוסיף לטלפון" ירדה.** היא נכתבה כדי להרגיע,
      והיא עשתה את ההפך: תלמיד שרואה קיר של מלל בשלב הראשון
      נבהל וסוגר. מה שנשאר הוא ההוראות עצמן. */
-  if (APPX.waBox) h += APPX.waBox();
+  if (APPX.waBox) h = APPX.waBox() + h;
   return h +
     '<button class="thin" id="wz-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
     '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';

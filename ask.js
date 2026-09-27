@@ -335,11 +335,11 @@ var ASK = (function () {
     if (stuck) h += warn(u('blockH'), esc(u('blockB'))) + toBr();
     var wa = APPX.waBox ? APPX.waBox() : '';
     if (APPX.bip()) {
-      return h + '<button class="as-go" id="r-inst">' + esc(u('instBtn')) +
-        '</button>' + wa +
+      return h + wa + '<button class="as-go" id="r-inst">' + esc(u('instBtn')) +
+        '</button>' +
         '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';
     }
-    return h + '<div class="as-guide" id="gu-here"></div>' + wa +
+    return h + wa + '<div class="as-guide" id="gu-here"></div>' +
       '<div class="as-help"><b>' + esc(gu('help')) + '</b><br>' +
       esc(gu('helpB')) + '</div>' +
       '<button class="as-thin" id="r-skip">' + esc(t('askSkip')) + '</button>';

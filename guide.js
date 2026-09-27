@@ -131,7 +131,14 @@ var GUIDE_UI = (function () {
     s5:  { src:'guidepics/s5.webp',  w:380, h:476, x:201, y:207, r:150 },
     /* תפריט שלוש-הנקודות באנדרואיד, צילום אמיתי — "התקנה
        ויצירת קיצור דרך". מחליף את droidMenu המצויר בשלב a2. */
-    a2:  { src:'guidepics/a2.webp',  w:480, h:421, x:453, y:283, r:34 }
+    a2:  { src:'guidepics/a2.webp',  w:480, h:421, x:453, y:283, r:34 },
+    /* ---- פיירפוקס באנדרואיד — צילומים אמיתיים ----
+       שלוש הנקודות (הצילום חתוך לפני שורת הכתובת), "עוד" עם
+       החץ שפורס את ההמשך, "הוספת יישומון למסך הבית", ו"הוסף". */
+    f1:  { src:'guidepics/f1.webp',  w:400, h:170, x:68,  y:82,  r:40 },
+    f2:  { src:'guidepics/f2.webp',  w:480, h:237, x:45,  y:201, r:28 },
+    f3:  { src:'guidepics/f3.webp',  w:480, h:338, x:435, y:234, r:28 },
+    f4:  { src:'guidepics/f4.webp',  w:480, h:466, x:132, y:420, r:38 }
   };
 
   function pic(p) {
@@ -552,6 +559,10 @@ var GUIDE_UI = (function () {
   /* ---------- שלושת המסלולים ----------
      כל שלב: הכיתוב, ההסבר, והציור. */
   var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
+  /* פיירפוקס: אין בו הצעת התקנה, ו"הוספה למסך הבית" חבויה
+     מתחת ל"עוד". ארבעה שלבים, כולם צילום (PICS) — הציור שבצד
+     הוא רק רשת ביטחון אם תמונה לא נטענה. */
+  var FX    = [['f1', droidDots], ['f2', droidMenu], ['f3', droidMenu], ['f4', droidOk]];
   var TAIL  = [['s2e', sheetPart], ['s3', sheet], ['s4', confirm], ['s5', home]];
   /* ============================================================
      מסלול אייפון אחד, ולא שניים.
@@ -580,13 +591,15 @@ var GUIDE_UI = (function () {
   function force(kind) { FORCE = kind || null; LIST = null; at = 0; }
 
   function kinds() {
-    return [['ios', 'אייפון'], ['droid', 'אנדרואיד']];
+    return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס']];
   }
 
   function steps() {
     if (FORCE === 'droid') return DROID;
     if (FORCE === 'ios')   return IOS;
-    return APPX.isIOS() ? IOS : DROID;
+    if (FORCE === 'fx')    return FX;
+    if (APPX.isIOS()) return IOS;
+    return (APPX.firefox && APPX.firefox()) ? FX : DROID;
   }
 
   /* ---------- המסך ---------- */

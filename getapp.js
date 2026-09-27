@@ -81,6 +81,11 @@ var APPX = (function () {
   function samsung() {
     return /SamsungBrowser/.test(navigator.userAgent || '');
   }
+  /* פיירפוקס באנדרואיד — מסלול התקנה משלו במדריך (guide.js). */
+  function firefox() {
+    var ua = navigator.userAgent || '';
+    return !isIOS() && /Android/.test(ua) && /Firefox\//.test(ua);
+  }
 
   /* ההצעה של הדפדפן להתקין. באייפון היא לא קיימת ולעולם לא
      תגיע — שם נשארות ההוראות בלבד. */
@@ -122,32 +127,70 @@ var APPX = (function () {
   function mark() { try { localStorage.setItem('df:appAdded', '1'); } catch (e) {} }
 
   /* ============================================================
-     מסגרת וואטסאפ — בתחתית כל מסך התקנה.
+     מסגרת וואטסאפ — בראש כל מסך התקנה.
      ============================================================
-     "אם פתחתם ישירות בוואטסאפ זה לא יעבוד — העתיקו את הקישור
-     והדביקו בכרום." קבועה, קטנה, ואינה מחליפה דבר: מי שבכרום
-     ממשיך כרגיל, ומי שבתוך וואטסאפ מוצא כאן את היציאה. המלל
-     ב-ASK_UI (data.js), וההעתקה בלחיצה אחת — מאזין אחד לכל
-     העמודים, לפי `data-wa-copy`. */
-  function waBox() {
-    var U = window.ASK_UI || {};
-    var ios = isIOS();
-    return '<div style="display:flex;gap:11px;align-items:flex-start;margin-top:16px;' +
-      'padding:12px 13px;border:1.5px solid #25D366;border-radius:14px;' +
-      'background:rgba(37,211,102,.07);text-align:start">' +
-      '<svg viewBox="0 0 32 32" width="30" height="30" style="flex:none" aria-hidden="true">' +
+     אין דרך לזהות את הדפדפן שבתוך וואטסאפ, ולכן היא קבועה
+     ואינה מחליפה דבר. המלל ב-ASK_UI (data.js), וההעתקה —
+     מאזין אחד לכל העמודים, לפי `data-wa-copy`.
+
+     "ההודעה לא חסכנית, והיא למטה — אפשר לפספס אותה."
+     ============================================================
+     עכשיו היא בראש מסך ההתקנה, שורה אחת עם הסמלים של וואטסאפ
+     ושל כרום (באייפון — ספארי), וכפתור אחד:
+       · **אנדרואיד** — "פתיחה בכרום" פותח את כרום עצמו
+         (`intent://`, כמו `toBrowser`). מי שכבר בכרום מקבל את
+         אותו עמוד בלשונית — בלי נזק. לצידו קישור העתקה קטן,
+         למי שאין לו כרום.
+       · **אייפון** — אין דרך אמינה לפתוח את ספארי מבחוץ, ולכן
+         העתקה.
+     ומי שהדפדפן כבר הציע לו להתקין, או שהוא בפיירפוקס (שיש לו
+     מדריך משלו) — אינו בוואטסאפ, ואינו רואה את המסגרת כלל. */
+  function waIcons(ios) {
+    var wa = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
       '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
       '<path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.7.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2z"/>' +
       '<path fill="#fff" d="M20 17.6c-.2-.1-1.3-.7-1.5-.7s-.3-.1-.5.1-.6.7-.7.9-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.4 2.4 0 0 0-.8 1.8 4.2 4.2 0 0 0 .9 2.2 9.6 9.6 0 0 0 3.7 3.3c1.4.6 1.9.6 2.6.5a2.2 2.2 0 0 0 1.5-1c.2-.5.2-.9.1-1l-.3-.3z"/>' +
-      '</svg><div style="flex:1;min-width:0">' +
-      '<b style="display:block;font-size:.9rem;font-weight:800;color:#1B2A45">' +
-      esc(U.waBoxT || '') + '</b>' +
-      '<span style="display:block;margin-top:2px;font-size:.84rem;font-weight:600;color:#5A6780">' +
-      esc(ios ? (U.waBoxBIos || U.waBoxB || '') : (U.waBoxB || '')) + '</span>' +
-      '<button type="button" data-wa-copy="1" style="margin-top:9px;padding:9px 14px;' +
-      'border:0;border-radius:10px;background:#25D366;color:#fff;font:inherit;' +
-      'font-size:.86rem;font-weight:800;cursor:pointer">' +
-      esc(U.waBoxGo || '') + '</button></div></div>';
+      '</svg>';
+    var br = ios
+      ? '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
+        '<circle cx="16" cy="16" r="15" fill="#1A8CFF"/><circle cx="16" cy="16" r="12" fill="#fff"/>' +
+        '<path d="M22 10l-7.5 4.5L16 16z" fill="#FF3B30"/><path d="M10 22l4.5-7.5L16 16z" fill="#FF3B30"/>' +
+        '<path d="M22 10l-6 6 1.5 1.5z" fill="#C7CDD6"/><path d="M10 22l6-6-1.5-1.5z" fill="#C7CDD6"/></svg>'
+      : '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
+        '<path d="M16 16L3 8.5A15 15 0 0 1 29 8.5z" fill="#DB4437"/>' +
+        '<path d="M16 16L29 8.5A15 15 0 0 1 16 31z" fill="#F4B400"/>' +
+        '<path d="M16 16L16 31A15 15 0 0 1 3 8.5z" fill="#0F9D58"/>' +
+        '<circle cx="16" cy="16" r="7" fill="#fff"/><circle cx="16" cy="16" r="5.4" fill="#4285F4"/></svg>';
+    return '<span style="flex:none;display:flex;gap:4px">' + wa + br + '</span>';
+  }
+  function chromeUrl() {
+    var u = location.href.replace(/^https?:\/\//, '');
+    return 'intent://' + u + '#Intent;scheme=https;package=com.android.chrome;' +
+           'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+  }
+  function waBox() {
+    if (BIP || firefox() || standalone()) return '';
+    var U = window.ASK_UI || {};
+    var ios = isIOS();
+    var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
+      'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +
+      'cursor:pointer;text-decoration:none';
+    var act = ios
+      ? '<button type="button" data-wa-copy="1" style="' + btn + '">' + esc(U.waBoxGo || '') + '</button>'
+      : '<a href="' + esc(chromeUrl()) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' +
+        '<button type="button" data-wa-copy="1" style="margin-inline-start:12px;padding:4px 0;' +
+        'border:0;background:none;color:#5A6780;font:inherit;font-size:.8rem;font-weight:700;' +
+        'text-decoration:underline;cursor:pointer">' + esc(U.waBoxGo || '') + '</button>';
+    return '<div class="wa-box" style="margin:0 0 14px;padding:10px 12px;' +
+      'border:1.5px solid #25D366;border-radius:14px;background:rgba(37,211,102,.07);' +
+      'text-align:start"><div style="display:flex;gap:10px;align-items:center">' +
+      waIcons(ios) + '<div style="flex:1;min-width:0;line-height:1.35">' +
+      '<b style="display:block;font-size:.86rem;font-weight:800;color:#1B2A45">' +
+      esc(ios ? (U.waBoxTIos || U.waBoxT || '') : (U.waBoxT || '')) + '</b>' +
+      '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
+      esc(ios ? (U.waBoxBIos || '') : (U.waBoxB || '')) + '</span></div></div>' +
+      '<div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap">' +
+      act + '</div></div>';
   }
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
@@ -331,6 +374,13 @@ var APPX = (function () {
           'והוסיפו אותה משם.</li>' +
         '<li><b>פתחו את האייקון החדש</b> שנוסף למסך הבית — ומשם ' +
           'נמשיך.</li></ol>' + icon();
+    }
+    if (firefox()) {
+      return '<ol class="gsteps">' +
+        '<li>לחצו על שלוש הנקודות ' + DOTS_V + ' בפינת הדפדפן.</li>' +
+        '<li>לחצו על החץ שליד <b>"עוד"</b>.</li>' +
+        '<li>בחרו <b>"הוספת יישומון למסך הבית"</b>, ואז "הוסף".</li>' +
+        '<li><b>פתחו את האייקון החדש</b> שנוסף למסך הבית.</li></ol>' + icon();
     }
     return '<ol class="gsteps">' +
       '<li>לחצו על שלוש הנקודות ' + DOTS_V + ' בפינת הדפדפן.</li>' +
@@ -517,7 +567,7 @@ var APPX = (function () {
   return {
     update: update, toBrowser: toBrowser,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
-    iosOther: iosOther, samsung: samsung,
+    iosOther: iosOther, samsung: samsung, firefox: firefox,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
