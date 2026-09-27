@@ -305,6 +305,18 @@ body.mark.gsel #clearsel{display:inline-block}
 #splitoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
   font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
 body.splitting #splitoff{display:inline-block}
+#fixoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
+  font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
+body.fixing #fixoff{display:inline-block}
+body.fixing .chb p.cp{outline:2px dashed rgba(23,70,143,.45);outline-offset:2px}
+.chb p.cp.fixed{box-shadow:inset -3px 0 0 #3B7D57}
+.splitbox .fx-ed{font-size:1.02rem;line-height:1.9;padding:10px 12px;border:1.5px solid var(--gold);
+  border-radius:10px;background:#FFFBF2;max-height:45vh;overflow:auto;outline:none;
+  white-space:pre-wrap;word-break:break-word}
+.splitbox .fx-ed b{display:inline;font-size:inherit;color:inherit;font-weight:800}
+.splitbox .fx-row{display:flex;gap:8px;margin-top:10px}
+.splitbox .fx-row button{flex:1;padding:11px;font-weight:800}
+.splitbox .fx-ok{background:var(--blue-d,#17468F);color:#fff}
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
 /* פסקה מוסתרת: נשארת קריאה כדי שאפשר יהיה לזהות אותה ולהחזיר,
@@ -460,7 +472,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   </div>
 
   <div class="chav" id="chav">
-    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><span id="chpg"></span></div>
+    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><button id="fixoff" type="button">✕ ביטול תיקון</button><span id="chpg"></span></div>
     <div class="chb" id="chb"></div>
   </div>
 
@@ -537,6 +549,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <button id="steplist">☰ רשימת הקטעים · עריכה</button>
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
   <button id="hidepara">⊘ הסתרת פסקה בחברותא</button>
+  <button id="fixpara">✎ תיקון טקסט בחברותא</button>
   <button id="stoppt">⌁ נקודת עצירה — סוף הדף הקודם</button>
   <hr>
   <!-- פעם בחודש, ולא באמצע עבודה -->
@@ -1463,7 +1476,7 @@ function chavHtml(paras) {
       var t = esc(r.t);
       return r.b ? '<b>' + t + '</b>' : t;
     }).join('');
-    return '<p class="cp' + (p.off ? ' off' : '') + '" data-p="' + i + '">' +
+    return '<p class="cp' + (p.off ? ' off' : '') + (p.orig ? ' fixed' : '') + '" data-p="' + i + '">' +
            html + '</p>';
   }).join('');
 }
@@ -1832,7 +1845,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.45';
+var STUDIO_VER = '8.99.46';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2046,6 +2059,7 @@ function keepPageState() {
   }
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
   if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
+  if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
   if (was.t) BOOK[PKEY].t = was.t;
   SEEN[PKEY] = 1;
@@ -3045,6 +3059,7 @@ function loadFromSheet() {
         if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
         if (!rec.splits && was.splits) rec.splits = was.splits;
         if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
+        if (!rec.fixes && was.fixes) rec.fixes = was.fixes;
         if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
       }
       BOOK[k] = rec; SEEN[k] = 1; n++;
@@ -3248,6 +3263,7 @@ function applySplits(list) {
    אחרת לא יזיז אותה.
    ============================================================ */
 function paraSig(p) {
+  if (p.sig0) return p.sig0;      /* פסקה שתוקנה — לפי הנוסח המקורי */
   return (p.runs || []).map(function (r) { return r.t; }).join('')
     .replace(/\s+/g, '').slice(0, 24);
 }
@@ -3266,7 +3282,135 @@ function applyHidden(list) {
   return list;
 }
 /* החברותא כפי שהיא מוצגת: הפיצולים שנעשו, וההסתרות שנעשו */
-function buildChav(raw) { return applyHidden(applySplits(raw.slice())); }
+function buildChav(raw) { return applyFixes(applyHidden(applySplits(raw.slice()))); }
+
+/* ============================================================
+   תיקון טקסט בחברותא.
+   ============================================================
+   "לפעמים אני מוצא שם טעויות קטנות, כמו רווח בתוך מילה."
+
+   הקובץ שבדרייב אינו משתנה. התיקון נשמר ברשומת העמוד (`fixes`),
+   כמו הפיצולים, ומוחל מחדש בכל בנייה של החברותא: זוג של הנוסח
+   המקורי (בלי רווחים — המפתח) והנוסח המתוקן (ריצות, עם ההדגשה).
+   לפי הטקסט ולא לפי מספר הפסקה, כדי שפיצול לא יזיז אותו.
+
+   קטע ששובץ כבר שומר אצלו את הטקסט שהתלמיד רואה (`c.h`), ולכן
+   תיקון בפסקה משובצת מעדכן גם את הקטעים שמחזיקים אותה — בשני
+   עמודי הדף. אלה כמה שורות, לא יותר. */
+var FIX_MODE = false;
+function runsText(runs) { return (runs || []).map(function (r) { return r.t; }).join(''); }
+function fixKey(runs) { return runsText(runs).replace(/\s+/g, ''); }
+function allFixes() {
+  var out = {};
+  hiddenKeys().forEach(function (k) {
+    (BOOK[k].fixes || []).forEach(function (f) { out[f[0]] = f[1]; });
+  });
+  return out;
+}
+function applyFixes(list) {
+  var fx = allFixes();
+  list.forEach(function (p, i) {
+    var key = fixKey(p.runs), to = fx[key];
+    if (!to) return;
+    var q = { runs: to, off: p.off, orig: p.runs, key: key, sig0: paraSig(p) };
+    list[i] = q;
+  });
+  return list;
+}
+/* מה שנכתב בתיבה — בחזרה לריצות. <b> נשאר הדגשה, כל השאר טקסט. */
+function edRuns(el) {
+  var out = [];
+  var walk = function (n, b) {
+    if (n.nodeType === 3) {
+      var t = n.nodeValue.replace(/[\u00a0\n\r\t]/g, ' ');
+      if (!t) return;
+      var last = out[out.length - 1];
+      if (last && last.b === b) last.t += t; else out.push({ t: t, b: b });
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    if (n.tagName === 'BR') { walk(document.createTextNode(' '), b); return; }
+    var bb = b || n.tagName === 'B' || n.tagName === 'STRONG';
+    for (var c = n.firstChild; c; c = c.nextSibling) walk(c, bb);
+  };
+  walk(el, false);
+  /* רווח כפול לאחד, ובלי רווח בקצוות */
+  out.forEach(function (r) { r.t = r.t.replace(/ {2,}/g, ' '); });
+  if (out.length) {
+    out[0].t = out[0].t.replace(/^ +/, '');
+    out[out.length - 1].t = out[out.length - 1].t.replace(/ +$/, '');
+  }
+  return out.filter(function (r) { return r.t; });
+}
+function runsHtml(runs) {
+  return runs.map(function (r) { var t = esc(r.t); return r.b ? '<b>' + t + '</b>' : t; }).join('');
+}
+function fixOff(quiet) {
+  FIX_MODE = false;
+  document.body.classList.remove('fixing');
+  document.getElementById('splitbox').className = 'splitbox';
+  document.getElementById('fixpara').textContent = '✎ תיקון טקסט בחברותא';
+  if (!quiet) say('חזרה לסימון.');
+}
+function fixSheet(i) {
+  var p = CHV[i]; if (!p) return;
+  var box = document.getElementById('splitbox');
+  box.innerHTML = '<div class="sh"><b>תיקון הפסקה</b>' +
+    '<p>מתקנים ישר בתוך הטקסט. ההדגשה נשמרת. הקובץ בדרייב אינו משתנה.</p>' +
+    '<div class="fx-ed" contenteditable="true" id="fx-ed">' + runsHtml(p.runs) + '</div>' +
+    '<div class="fx-row"><button class="fx-ok" id="fx-ok">שמירת התיקון</button>' +
+    (p.orig ? '<button id="fx-org">החזרת המקור</button>' : '') + '</div>' +
+    '<button class="cl">ביטול</button></div>';
+  box.className = 'splitbox on';
+  var ed = document.getElementById('fx-ed');
+  ed.onkeydown = function (e) { if (e.key === 'Enter') e.preventDefault(); };
+  ed.onpaste = function (e) {
+    var t = (e.clipboardData || window.clipboardData);
+    t = t ? t.getData('text') : '';
+    e.preventDefault();
+    document.execCommand('insertText', false, t.replace(/\s+/g, ' '));
+  };
+  document.getElementById('fx-ok').onclick = function () { doFix(i, edRuns(ed)); };
+  var org = document.getElementById('fx-org');
+  if (org) org.onclick = function () { doFix(i, null); };
+  box.querySelector('.cl').onclick = function () { fixOff(); };
+  setTimeout(function () { try { ed.focus(); } catch (x) {} }, 50);
+}
+function doFix(i, runs) {
+  var p = CHV[i]; if (!p) return;
+  var base = p.orig || p.runs, key = p.key || fixKey(base);
+  if (runs && !runs.length) { say('הפסקה ריקה — לא נשמר.', 1); return; }
+  /* התיקון יושב בעמוד הנוכחי; גרסה קודמת שלו, בכל עמוד, יורדת */
+  hiddenKeys().forEach(function (k) {
+    if (!BOOK[k].fixes) return;
+    BOOK[k].fixes = BOOK[k].fixes.filter(function (f) { return f[0] !== key; });
+  });
+  var same = runs && runsText(runs) === runsText(base) &&
+             JSON.stringify(runs) === JSON.stringify(base);
+  if (runs && !same) {
+    var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
+    (rec.fixes = rec.fixes || []).push([key, runs]);
+    CHV[i] = { runs: runs, off: p.off, orig: base, key: key, sig0: paraSig(p) };
+  } else {
+    CHV[i] = { runs: base, off: p.off };
+  }
+  /* הקטעים שכבר מחזיקים את הפסקה — בשני העמודים */
+  var now = Date.now();
+  hiddenKeys().forEach(function (k) {
+    var hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      var c = st.c;
+      if (!c || c.from == null || i < c.from || i > (c.to == null ? c.from : c.to)) return;
+      var got = chavRange(c.from, c.to == null ? c.from : c.to);
+      if (got) { c.text = got.text; c.h = got.h; hit = true; }
+    });
+    if (hit && k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; }
+  });
+  fixOff(true);
+  redrawChav();
+  touched();
+  say(runs && !same ? 'התיקון נשמר. לחצו "שמירה" כדי לשלוח לגיליון.' : 'הפסקה חזרה לנוסח המקורי.');
+}
 
 function chavCount() {
   if (!CHV) return '';
@@ -3347,6 +3491,17 @@ function splitOff() {
   say('הפיצול בוטל.');
 }
 document.getElementById('toast').onclick = function () { this.className = ''; };
+document.getElementById('fixpara').onclick = function () {
+  if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  if (FIX_MODE) { fixOff(); return; }
+  setHideMode(false);
+  if (SPLIT_MODE) splitOff();
+  FIX_MODE = true;
+  document.body.classList.add('fixing');
+  this.textContent = '✕ סיום תיקון טקסט';
+  say('הקישו על הפסקה שצריך לתקן.');
+};
+document.getElementById('fixoff').onclick = function (e) { e.stopPropagation(); fixOff(); };
 document.getElementById('stat').onclick = function () { sayFull(null, true); };
 document.getElementById('splitoff').onclick = function (e) {
   e.stopPropagation(); splitOff();
@@ -3371,6 +3526,7 @@ function chavBind() {
     el.onclick = function () {
       var i = +el.dataset.p;
       if (HIDE_MODE) { toggleHide(i); return; }
+      if (FIX_MODE) { fixSheet(i); return; }
       if (SPLIT_MODE) {
         if (i <= USED_C) { say('אפשר לפצל רק פסקה שטרם שובצה.', 1); return; }
         splitSheet(i);
@@ -3794,6 +3950,7 @@ document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
   if (SPLIT_MODE) { splitOff(); return; }
+  if (FIX_MODE) fixOff(true);
   setHideMode(false);
   SPLIT_MODE = true;
   document.body.classList.add('splitting');
@@ -3812,6 +3969,7 @@ document.getElementById('hidepara').onclick = function () {
   if (HIDE_MODE) { setHideMode(false); say('חזרה לסימון.'); return; }
   SPLIT_MODE = false;
   document.body.classList.remove('splitting');
+  if (FIX_MODE) fixOff(true);
   setHideMode(true);
   say('הקישו על פסקה כדי להסתיר אותה — והקשה נוספת מחזירה.');
 };
