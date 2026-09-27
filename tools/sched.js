@@ -115,9 +115,18 @@ function ask(params, tries) {
       .then(function (txt) {
         var t = String(txt || '').trim();
         if (t.charAt(0) === '{' || t.charAt(0) === '[') return JSON.parse(t);
+        /* דף שגיאה של גוגל — מה שכתוב בו הוא האבחנה. הכותרת ושורת
+           השגיאה (TypeError, "Exceeded", "Service invoked…") נכנסות
+           ללוג; 60 התווים הראשונים של HTML אינם אומרים דבר. */
+        var why = '';
+        if (/<html/i.test(t)) {
+          var tt = /<title>([^<]*)<\/title>/i.exec(t);
+          var er = /(TypeError|ReferenceError|SyntaxError|Exception|Exceeded|Service invoked|Authorization|unable to open|Script function not found|Too many)[^<]{0,160}/i.exec(t);
+          why = ' · ' + (tt ? tt[1].trim() : '') + (er ? ' · ' + er[0].replace(/\s+/g, ' ') : '');
+        }
         throw new Error('הסקריפט החזיר ' + (/^<!DOCTYPE|^<html/i.test(t)
           ? 'דף HTML ולא JSON' : 'תשובה שאינה JSON') +
-          ' (' + t.slice(0, 60).replace(/\s+/g, ' ') + '…)');
+          ' (' + t.slice(0, 60).replace(/\s+/g, ' ') + '…)' + why);
       })
       .catch(function (e) {
         if (n <= 1) throw e;
