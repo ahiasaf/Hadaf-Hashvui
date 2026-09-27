@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>בדיקת פתיחה בכרום</title>
+<!-- ============================================================
+     כלי בדיקה בלבד — אינו חלק מהאפליקציה ואינו מקושר ממנה.
+     ============================================================
+     "אצלי האפליקציה מותקנת, ולכן כל קישור שלנו בוואטסאפ נפתח
+     ישר בה — אין לי איך לבדוק אם 'פתיחה בכרום' עובד."
+
+     העמוד מוגש מכתובת שאינה שלנו (raw.githack.com), ולכן
+     האפליקציה המותקנת אינה בולעת אותו והוא נפתח בדפדפן של
+     וואטסאפ — בדיוק כמו אצל תלמיד בלי האפליקציה. הכפתור
+     הראשון משתמש באותה כתובת `intent://` של `waBox` ב-getapp.js,
+     אבל שולח לגוגל: אם נפתח כרום עם שורת הכתובת והלשוניות
+     שלו — זה עובד. -->
+<style>
+body{margin:0;padding:24px 16px;font:17px/1.5 system-ui,sans-serif;background:#F7F4EC;color:#1B2A45}
+a{display:block;margin:14px 0;padding:14px;border-radius:12px;background:#25D366;color:#fff;
+  text-align:center;font-weight:800;text-decoration:none}
+a.b{background:#1B4A8C}
+p{margin:6px 0}
+</style>
+</head>
+<body>
+<p><b>1.</b> לחצו על הכפתור הירוק.</p>
+<p>אם נפתח <b>כרום</b> (עם שורת הכתובת, הלשוניות ושלוש הנקודות שלו) ובו גוגל — הכפתור עובד.</p>
+<p>אם נשארתם בוואטסאפ, או שלא קרה כלום — הוא לא עובד.</p>
+<a id="g" href="#">פתיחת גוגל בכרום</a>
+<p><b>2.</b> ואותו דבר עם עמוד ההרשמה שלנו (ייתכן שהאפליקציה המותקנת תקפוץ במקום כרום — זה בסדר, זה רק אצלכם):</p>
+<a class="b" id="j" href="#">פתיחת עמוד ההרשמה בכרום</a>
+<script>
+function intentFor(url) {
+  return 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;' +
+    'package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(url) + ';end';
+}
+document.getElementById('g').href = intentFor('https://www.google.com/');
+document.getElementById('j').href = intentFor('https://hadaf-hashvui.vercel.app/join');
+</script>
+</body>
+</html>

@@ -141,22 +141,17 @@ var APPX = (function () {
          (`intent://`, כמו `toBrowser`). מי שכבר בכרום מקבל את
          אותו עמוד בלשונית — בלי נזק. לצידו קישור העתקה קטן,
          למי שאין לו כרום.
-       · **אייפון** — אין דרך אמינה לפתוח את ספארי מבחוץ, ולכן
-         העתקה.
+       · **אייפון** — אין מסגרת. וואטסאפ באייפון פותח קישורים
+         ישר בספארי, ולא בדפדפן פנימי, ולכן אין ממה לצאת.
      ומי שהדפדפן כבר הציע לו להתקין, או שהוא בפיירפוקס (שיש לו
      מדריך משלו) — אינו בוואטסאפ, ואינו רואה את המסגרת כלל. */
-  function waIcons(ios) {
+  function waIcons() {
     var wa = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
       '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
       '<path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.7.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2z"/>' +
       '<path fill="#fff" d="M20 17.6c-.2-.1-1.3-.7-1.5-.7s-.3-.1-.5.1-.6.7-.7.9-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.4 2.4 0 0 0-.8 1.8 4.2 4.2 0 0 0 .9 2.2 9.6 9.6 0 0 0 3.7 3.3c1.4.6 1.9.6 2.6.5a2.2 2.2 0 0 0 1.5-1c.2-.5.2-.9.1-1l-.3-.3z"/>' +
       '</svg>';
-    var br = ios
-      ? '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
-        '<circle cx="16" cy="16" r="15" fill="#1A8CFF"/><circle cx="16" cy="16" r="12" fill="#fff"/>' +
-        '<path d="M22 10l-7.5 4.5L16 16z" fill="#FF3B30"/><path d="M10 22l4.5-7.5L16 16z" fill="#FF3B30"/>' +
-        '<path d="M22 10l-6 6 1.5 1.5z" fill="#C7CDD6"/><path d="M10 22l6-6-1.5-1.5z" fill="#C7CDD6"/></svg>'
-      : '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
+    var br = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
         '<path d="M16 16L3 8.5A15 15 0 0 1 29 8.5z" fill="#DB4437"/>' +
         '<path d="M16 16L29 8.5A15 15 0 0 1 16 31z" fill="#F4B400"/>' +
         '<path d="M16 16L16 31A15 15 0 0 1 3 8.5z" fill="#0F9D58"/>' +
@@ -169,26 +164,23 @@ var APPX = (function () {
            'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
   }
   function waBox() {
-    if (BIP || firefox() || standalone()) return '';
+    if (BIP || isIOS() || firefox() || standalone()) return '';
     var U = window.ASK_UI || {};
-    var ios = isIOS();
     var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
       'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +
       'cursor:pointer;text-decoration:none';
-    var act = ios
-      ? '<button type="button" data-wa-copy="1" style="' + btn + '">' + esc(U.waBoxGo || '') + '</button>'
-      : '<a href="' + esc(chromeUrl()) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' +
+    var act = '<a href="' + esc(chromeUrl()) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' +
         '<button type="button" data-wa-copy="1" style="margin-inline-start:12px;padding:4px 0;' +
         'border:0;background:none;color:#5A6780;font:inherit;font-size:.8rem;font-weight:700;' +
         'text-decoration:underline;cursor:pointer">' + esc(U.waBoxGo || '') + '</button>';
     return '<div class="wa-box" style="margin:0 0 14px;padding:10px 12px;' +
       'border:1.5px solid #25D366;border-radius:14px;background:rgba(37,211,102,.07);' +
       'text-align:start"><div style="display:flex;gap:10px;align-items:center">' +
-      waIcons(ios) + '<div style="flex:1;min-width:0;line-height:1.35">' +
+      waIcons() + '<div style="flex:1;min-width:0;line-height:1.35">' +
       '<b style="display:block;font-size:.86rem;font-weight:800;color:#1B2A45">' +
-      esc(ios ? (U.waBoxTIos || U.waBoxT || '') : (U.waBoxT || '')) + '</b>' +
+      esc(U.waBoxT || '') + '</b>' +
       '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
-      esc(ios ? (U.waBoxBIos || '') : (U.waBoxB || '')) + '</span></div></div>' +
+      esc(U.waBoxB || '') + '</span></div></div>' +
       '<div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap">' +
       act + '</div></div>';
   }
