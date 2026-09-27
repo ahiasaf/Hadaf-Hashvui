@@ -297,6 +297,16 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-export-copy-btn{display:block;width:100%;box-sizing:border-box;border:1px solid rgba(192,143,43,.45);
   background:var(--gold,#C08F2B);color:#fff;border-radius:9px;padding:9px;font-weight:800;
   font-size:.84rem;cursor:pointer}
+.own-export-card .exp-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.own-export-card .exp-row b{font-size:.76rem;font-weight:800;color:var(--ink-2);min-width:3.2em}
+.exp-chip{border:1px solid var(--rule);background:#fff;border-radius:99px;padding:5px 11px;
+  font:inherit;font-size:.78rem;font-weight:700;color:var(--ink-2);cursor:pointer}
+.exp-chip.on{background:var(--blue-d,#17468F);border-color:var(--blue-d,#17468F);color:#fff}
+.exp-rng{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:.78rem;
+  font-weight:700;color:var(--ink-2)}
+.exp-rng select{font:inherit;font-size:.8rem;padding:4px 6px;border:1px solid var(--rule);border-radius:7px}
+.exp-here{border:1px dashed rgba(192,143,43,.6);background:#FFFBF2;border-radius:7px;padding:4px 8px;
+  font:inherit;font-size:.72rem;font-weight:800;color:#8A6412;cursor:pointer}
 .own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
 .own-audio audio{flex:1;min-width:0;height:32px}
 .own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
@@ -1941,16 +1951,72 @@ function ownStripHtml_(html) {
   d.innerHTML = html || '';
   return (d.textContent || '').replace(/\s+/g, ' ').trim();
 }
+/* ============================================================
+   ייצוא גמיש — מה, ואיזה חלק.
+   ============================================================
+   "תן לי גמישות: רק עמוד א׳ או עמוד ב׳, וכנ"ל בחברותא. ואם אפשר
+   — מאיזה קטע עד איזה קטע: אני עומד בדף על נקודה, לוחץ 'תחילת
+   הקטע', ממשיך, עוצר ומסמן 'סוף'."
+
+   שלוש שאלות, כל אחת שורת כפתורים: **מה** (פירוש לנוער / חברותא
+   / שניהם), **איזה חלק** (כל הדף / עמוד א׳ / עמוד ב׳ / מקטע עד
+   קטע). בטווח — שתי רשימות, ולצד כל אחת "הקטע שאני עומד עליו":
+   סוגרים, מתקדמים בדף, פותחים שוב ולוחצים על "סוף". הבחירה נשמרת
+   כל עוד העמוד פתוח, ומה/איזה חלק — גם לפתיחה הבאה. */
+var EXP = { what: 'own', part: 'all', from: 0, to: 0 };
+try {
+  var expSaved = JSON.parse(localStorage.getItem('df:expPick') || 'null');
+  if (expSaved) { EXP.what = expSaved.what || 'own'; EXP.part = expSaved.part === 'range' ? 'all' : (expSaved.part || 'all'); }
+} catch (e) {}
+function expKeep_() {
+  try { localStorage.setItem('df:expPick', JSON.stringify({ what: EXP.what, part: EXP.part })); } catch (e) {}
+}
+/* החברותא שמורה כ-HTML בפסקאות — לטקסט, פסקה בשורה */
+function expChavText_(st) {
+  var h = (st.c && st.c.h) || '';
+  if (!h && st.c && st.c.text) return String(st.c.text).trim();
+  return h.split(/<\/p>/i).map(ownStripHtml_).filter(function (t) { return t; }).join('\n');
+}
+function expPg_(st) { var pp = PAGES[st.p]; return pp ? pp.pg : 1; }
+function expNums_() {
+  var out = [], seen = {};
+  FLAT.forEach(function (st) { if (!seen[st.n]) { seen[st.n] = 1; out.push(st.n); } });
+  return out;
+}
 function ownExportText_() {
-  var seen = {}, lines = [];
-  FLAT.forEach(function (st) {
-    if (seen[st.n]) return;
-    seen[st.n] = true;
-    var pieces = (OWN_EDIT && OWN_EDIT_N === st.n) ? OWN_EDIT : ownPieces_(st.n);
-    var texts = pieces.map(function (p) { return ownStripHtml_(p.text); }).filter(function (t) { return t; });
-    if (texts.length) lines.push(st.n + '. ' + texts.join('\n\n'));
+  var seen = {}, blocks = [], lastPg = 0, pgs = {};
+  var nums = expNums_();
+  var lo = Math.min(EXP.from || nums[0], EXP.to || nums[nums.length - 1]);
+  var hi = Math.max(EXP.from || nums[0], EXP.to || nums[nums.length - 1]);
+  var pick = FLAT.filter(function (st) {
+    if (seen[st.n]) return false;
+    if (EXP.part === 'a' && expPg_(st) !== 1) return false;
+    if (EXP.part === 'b' && expPg_(st) !== 2) return false;
+    if (EXP.part === 'range' && (st.n < lo || st.n > hi)) return false;
+    seen[st.n] = 1;
+    pgs[expPg_(st)] = 1;
+    return true;
   });
-  return lines.join('\n\n');
+  var many = Object.keys(pgs).length > 1;
+  pick.forEach(function (st) {
+    var parts = [];
+    if (EXP.what !== 'own') {
+      var ch = expChavText_(st);
+      if (ch) parts.push(EXP.what === 'both' ? '[חברותא]\n' + ch : ch);
+    }
+    if (EXP.what !== 'chav') {
+      var pieces = (OWN_EDIT && OWN_EDIT_N === st.n) ? OWN_EDIT : ownPieces_(st.n);
+      var texts = pieces.map(function (p) { return ownStripHtml_(p.text); })
+        .filter(function (t) { return t; });
+      if (texts.length) parts.push(EXP.what === 'both' ? '[פירוש לנוער]\n' + texts.join('\n\n') : texts.join('\n\n'));
+    }
+    if (!parts.length) return;
+    var pg = expPg_(st);
+    if (many && pg !== lastPg) blocks.push('— עמוד ' + (pg === 2 ? 'ב׳' : 'א׳') + ' —');
+    lastPg = pg;
+    blocks.push(st.n + '. ' + parts.join('\n\n'));
+  });
+  return blocks.join('\n\n');
 }
 function ownExportOpen() {
   if (OWN_EDIT) ownEditSync_();
@@ -1963,21 +2029,54 @@ function ownExportClose() {
 function paintOwnExport_() {
   var el = $('own-export');
   if (!el) return;
+  var nums = expNums_();
+  var here = (FLAT[IDX] && FLAT[IDX].n) || nums[0] || 1;
+  if (!EXP.from) EXP.from = here;
+  if (!EXP.to) EXP.to = here;
   var txt = ownExportText_();
+  var chip = function (grp, v, label) {
+    return '<button class="exp-chip' + (EXP[grp] === v ? ' on' : '') + '" data-g="' + grp +
+      '" data-v="' + v + '">' + label + '</button>';
+  };
+  var opts = function (sel) {
+    return nums.map(function (n) {
+      return '<option value="' + n + '"' + (n === sel ? ' selected' : '') + '>' + n + '</option>';
+    }).join('');
+  };
+  var none = EXP.what === 'chav' ? 'אין כאן טקסט חברותא לייצא.'
+    : 'עדיין אין מה לייצא — לא נכתב פירוש לקטעים שנבחרו.';
   el.innerHTML = '<div class="own-pick-card own-export-card">' +
-    '<div class="own-pick-h"><span>ייצוא הפירוש לכל הדף</span>' +
+    '<div class="own-pick-h"><span>ייצוא טקסט</span>' +
     '<button id="own-export-x" aria-label="סגירה">✕</button></div>' +
+    '<div class="exp-row"><b>מה</b>' + chip('what', 'own', 'פירוש לנוער') +
+      chip('what', 'chav', 'חברותא') + chip('what', 'both', 'שניהם') + '</div>' +
+    '<div class="exp-row"><b>איזה</b>' + chip('part', 'all', 'כל הדף') +
+      chip('part', 'a', 'עמוד א׳') + chip('part', 'b', 'עמוד ב׳') +
+      chip('part', 'range', 'מקטע עד קטע') + '</div>' +
+    (EXP.part === 'range'
+      ? '<div class="exp-rng">מקטע <select id="exp-from">' + opts(EXP.from) + '</select>' +
+        '<button class="exp-here" id="exp-from-here">← הקטע שאני עומד עליו (' + here + ')</button></div>' +
+        '<div class="exp-rng">עד קטע <select id="exp-to">' + opts(EXP.to) + '</select>' +
+        '<button class="exp-here" id="exp-to-here">← הקטע שאני עומד עליו (' + here + ')</button></div>'
+      : '') +
     (txt ? '<textarea id="own-export-ta" readonly></textarea>' +
            '<button class="own-export-copy-btn" id="own-export-copy">העתקה</button>' :
-           '<p class="none">עדיין אין מה לייצא — לא נכתב פירוש לאף קטע בדף הזה.</p>') +
+           '<p class="none">' + none + '</p>') +
     '</div>';
   el.className = 'sheet own-export on';
   $('own-export-x').onclick = ownExportClose;
+  [].forEach.call(el.querySelectorAll('.exp-chip'), function (b) {
+    b.onclick = function () { EXP[b.getAttribute('data-g')] = b.getAttribute('data-v'); expKeep_(); paintOwnExport_(); };
+  });
+  var fs = $('exp-from'), ts = $('exp-to');
+  if (fs) fs.onchange = function () { EXP.from = +fs.value; paintOwnExport_(); };
+  if (ts) ts.onchange = function () { EXP.to = +ts.value; paintOwnExport_(); };
+  var fh = $('exp-from-here'), th = $('exp-to-here');
+  if (fh) fh.onclick = function () { EXP.from = here; paintOwnExport_(); };
+  if (th) th.onclick = function () { EXP.to = here; paintOwnExport_(); };
   if (!txt) return;
   var ta = $('own-export-ta');
   ta.value = txt;
-  ta.focus();
-  ta.select();
   $('own-export-copy').onclick = function () {
     var btn = $('own-export-copy'), ok = false;
     try {
@@ -2153,7 +2252,7 @@ function paintOwnEdit_(n) {
     '<div class="own-msg" id="own-msg"></div>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
-    '<button class="own-export-btn" id="own-export-open">ייצוא הפירוש לכל הדף</button>' +
+    '<button class="own-export-btn" id="own-export-open">ייצוא טקסט — פירוש לנוער / חברותא</button>' +
     '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
     (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
     '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
