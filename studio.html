@@ -91,6 +91,11 @@ header [hidden]{display:none}
 }
 #stat{font-size:.8rem;font-weight:800;opacity:.92;max-width:34ch;line-height:1.35}
 #stat.bad{color:#FFC9C2}
+#toast{display:none;position:fixed;left:12px;right:12px;z-index:60;padding:10px 14px;
+  border-radius:12px;background:#0B2550;color:#fff;font-size:.86rem;font-weight:700;
+  line-height:1.45;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast.on{display:block}
+#toast.bad{background:#A5382D}
 button{font-family:inherit;font-weight:800;font-size:.86rem;cursor:pointer;
   border:0;border-radius:9px;padding:9px 14px;background:var(--surface);color:var(--ink)}
 button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff}
@@ -295,6 +300,11 @@ body.mark.gsel #clearsel{display:inline-block}
   background:var(--stop);color:#fff;border-radius:9px;font-size:.86rem}
 .splitbox .dup div{font-weight:600;margin-top:5px}
 
+/* היציאה ממצב פיצול — גלויה כל עוד הוא דלוק. בלעדיה מי שלחץ
+   "פיצול" והתחרט נשאר תקוע: כל הקשה על פסקה פתחה שוב את הפיצול. */
+#splitoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
+  font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
+body.splitting #splitoff{display:inline-block}
 /* במצב פיצול הפסקאות מזמינות הקשה אחרת */
 body.splitting .chb p.cp{outline:2px dashed rgba(192,143,43,.5);outline-offset:2px}
 /* פסקה מוסתרת: נשארת קריאה כדי שאפשר יהיה לזהות אותה ולהחזיר,
@@ -403,6 +413,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 </style>
 </head>
 <body>
+<div id="toast"></div>
 
 <!-- הכותרת תפסה חצי מסך בטלפון: שני בוררים שאין בהם צורך יומיומי,
      כפתור פתיחת קובץ שאיש לא ידע למה הוא, וכפתור JSON שנדרש פעם
@@ -449,7 +460,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   </div>
 
   <div class="chav" id="chav">
-    <div class="chd">חברותא<span id="chpg"></span></div>
+    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><span id="chpg"></span></div>
     <div class="chb" id="chb"></div>
   </div>
 
@@ -1472,6 +1483,26 @@ function say(t, bad) {
   el.className = bad ? 'bad' : '';
   el.innerHTML = t;
   document.getElementById('msg').innerHTML = '';
+  sayFull(bad);
+}
+/* ============================================================
+   "בפינה השמאלית למעלה יש פינת דיווחים שאני לא יכול לקרוא."
+   ============================================================
+   בטלפון, במסך הסימון, ההודעה נחתכת לשורה אחת ("זוהה ב…"),
+   כדי לא לדחוף את הכפתורים. כשהיא נחתכת — היא מופיעה גם במלואה
+   בבועה מתחת לכותרת לכמה שניות. הקשה על הבועה סוגרת אותה,
+   והקשה על השורה החתוכה מחזירה אותה. */
+var TOAST_T = null;
+function sayFull(bad, force) {
+  var el = document.getElementById('stat'), tb = document.getElementById('toast');
+  if (!el || !tb || !el.textContent) return;
+  if (!force && el.scrollWidth <= el.clientWidth + 1) { tb.className = ''; return; }
+  tb.innerHTML = el.innerHTML;
+  tb.className = 'on' + (bad || el.className === 'bad' ? ' bad' : '');
+  var hd = document.querySelector('header');
+  tb.style.top = ((hd ? hd.getBoundingClientRect().bottom : 60) + 6) + 'px';
+  clearTimeout(TOAST_T);
+  TOAST_T = setTimeout(function () { tb.className = ''; }, bad ? 8000 : 4500);
 }
 
 document.getElementById('file').onchange = function (e) {
@@ -1801,7 +1832,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.44';
+var STUDIO_VER = '8.99.45';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3306,9 +3337,20 @@ function splitSheet(i) {
     b.onclick = function () { doSplit(i, +b.dataset.at); };
   });
   [].forEach.call(box.querySelectorAll('.cl'), function (b) {
-    b.onclick = function () { box.className = 'splitbox'; };
+    b.onclick = function () { box.className = 'splitbox'; splitOff(); };
   });
 }
+function splitOff() {
+  SPLIT_MODE = false;
+  document.body.classList.remove('splitting');
+  document.getElementById('splitbox').className = 'splitbox';
+  say('הפיצול בוטל.');
+}
+document.getElementById('toast').onclick = function () { this.className = ''; };
+document.getElementById('stat').onclick = function () { sayFull(null, true); };
+document.getElementById('splitoff').onclick = function (e) {
+  e.stopPropagation(); splitOff();
+};
 
 function doSplit(i, at) {
   document.getElementById('splitbox').className = 'splitbox';
@@ -3451,7 +3493,18 @@ function chavRange(a, b) {
 }
 
 function seal(report) {
-  if (!STEPS.length) return 0;
+  /* ============================================================
+     עמוד שנמחקו ממנו כל הקטעים.
+     ============================================================
+     "ביטלתי את כל השיוך של העמוד, ואז ניסיתי לפצל פסקה — וקיבלתי
+     'אפשר לפצל רק פסקה שטרם שובצה'." היציאה המוקדמת כאן דילגה
+     על עדכון USED_G/USED_C שבסוף, ולכן אחרי מחיקת הקטע האחרון
+     הסטודיו עוד "זכר" את הפסקאות ואת השורות שהיו משובצות. */
+  if (!STEPS.length) {
+    USED_G = null;
+    USED_C = lastChav();
+    return 0;
+  }
   var fixed = 0;
 
   /* לפי סדר הדף. הסדר הוא המבנה — בלעדיו "הקודם" חסר משמעות. */
@@ -3740,6 +3793,7 @@ document.getElementById('stoppt').onclick = function () { stopSheet(); };
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  if (SPLIT_MODE) { splitOff(); return; }
   setHideMode(false);
   SPLIT_MODE = true;
   document.body.classList.add('splitting');
