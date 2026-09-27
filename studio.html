@@ -1801,7 +1801,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.43';
+var STUDIO_VER = '8.99.44';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2016,6 +2016,8 @@ function keepPageState() {
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
   if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
+  if (was.t) BOOK[PKEY].t = was.t;
+  SEEN[PKEY] = 1;
 }
 var GSEL = null;         // { a:{i,x}, b:{i,x} } לפי אינדקס שורה
 function flatLines() {
@@ -2136,8 +2138,8 @@ function markDraw() {
     var t = null;
     el.onpointerdown = function () { t = setTimeout(function () {
       t = null; pickLine(+el.dataset.i, true); }, 550); };
-    el.onpointerup = function () {
-      if (t) { clearTimeout(t); t = null; pickLine(+el.dataset.i); } };
+    el.onpointerup = function (ev) {
+      if (t) { clearTimeout(t); t = null; pickLine(+el.dataset.i, false, tapFrac(ev, +el.dataset.i)); } };
     el.onpointercancel = function () { if (t) clearTimeout(t); t = null; };
   });
   bindMarkHandles();
@@ -2277,7 +2279,16 @@ function startBefore(i) {
   if (best.x >= 0.98) return { i: best.line + 1, x: 0 };
   return { i: best.line, x: best.x };
 }
-function pickLine(i, longPress) {
+/* היכן בשורה הוקש — שבר מהקצה הימני, כמו x של הקטעים. */
+function tapFrac(ev, i) {
+  var ov = document.getElementById('ov'), l = flatLines()[i];
+  if (!ov || !l || !S || ev == null || ev.clientX == null) return null;
+  var r = ov.getBoundingClientRect();
+  if (!r.width) return null;
+  var px = (ev.clientX - r.left) / r.width * S.w;
+  return Math.max(0, Math.min(1, (l.x2 - px) / (l.x2 - l.a)));
+}
+function pickLine(i, longPress, frac) {
   var st = startBefore(i);
   /* **אין כאן שומר חפיפה, ובכוונה.**
 
@@ -2298,7 +2309,24 @@ function pickLine(i, longPress) {
      הקשה. הקשה ארוכה עוקפת הכל ומתחילה בחירה חדשה. */
   if (!longPress) {
     var k = stepAt(i);
-    if (k >= 0) { inspect(k, i); return; }
+    /* ============================================================
+       השורה האחרונה, הירוקה, שלא נתנה לסמן אותה.
+       ============================================================
+       "השורה האחרונה מסומנת בירוק, אבל כשאני לוחץ עליה הוא מסמן
+       את הקטע הקודם." הקטע הקודם נגמר **באמצע** השורה הזו, ולכן
+       `stepAt` מצא אותו בה — והקשה על החלק הירוק, שאינו שייך
+       לשום קטע, פתחה אותו לבחינה.
+
+       עכשיו נבדק היכן בשורה הוקש: שורה שבה נגמר הקטע האחרון
+       שנוגע בה, והקשה שמאלה מנקודת הסיום — כלומר על מה שעוד לא
+       סומן — מתחילה בחירה חדשה משם. הקשה על החלק המסומן עדיין
+       פותחת את הקטע. */
+    var free = false;
+    if (k >= 0 && frac != null) {
+      var gz = STEPS[k].g, end = gz.from.line > gz.to.line ? gz.from : gz.to;
+      free = end.line === i && end.x < 0.98 && frac > end.x;
+    }
+    if (k >= 0 && !free) { inspect(k, i); return; }
   }
   if (INSP >= 0) inspEnd();
   if (longPress || st.i > i) { GSEL = { a: { i: i, x: 0 }, b: { i: i, x: 1 } }; }
@@ -2816,6 +2844,25 @@ var MARK_TAB = 'סימוני הדף';
    שאי אפשר לפספס.
    ============================================================ */
 var DIRTY = {};                 /* מפתחות עם שינוי שטרם נשמר בגיליון */
+/* ============================================================
+   עמודים שנגעו בהם **בכניסה הזו** — נטענו מהגיליון או נפתחו כאן.
+   ============================================================
+   "פתחתי את הסטודיו במחשב הנייד, ושם בדף ב עמוד ב אין בכלל
+   קטעים, והכיול לא תקין — כאילו עלתה גרסה ישנה."
+
+   זו לא הייתה גרסה ישנה של הסטודיו אלא **עותק ישן של העמוד**,
+   שהמחשב שמר מקומית מעבודה קודמת בו. שתי תקלות:
+     · עמוד שסומן "לא נשמר" במחשב דילג על הטעינה מהגיליון,
+       ולכן העבודה שנעשתה מאז בטלפון לא הגיעה אליו.
+     · ו**השמירה כתבה את כל מה שבזיכרון** — כולל עותקים מקומיים
+       ישנים של דפים אחרים, שמעולם לא נטענו מחדש. שמירה אחת
+       מהמחשב הייתה דורסת את עבודת הטלפון.
+   עכשיו נכתב רק מה שנגעו בו בכניסה הזו (SEEN), מה שלא נשמר
+   (DIRTY), או מה שאין לו שורה בגיליון בכלל. וכשגם במכשיר וגם
+   בגיליון יש גרסה — החדשה מנצחת לפי `t`, ואם אין לפי מה לדעת,
+   שואלים. */
+var SEEN = {};
+var LOCAL_AT = 0;               /* מתי נכתב העותק המקומי בפעם האחרונה */
 var LKEY = 'df:studio';
 
 function keepLocal() {
@@ -2837,6 +2884,7 @@ function loadLocal() {
   try {
     var v = JSON.parse(localStorage.getItem(LKEY) || 'null');
     if (!v || !v.book) return 0;
+    LOCAL_AT = v.at || 0;
     for (var k in v.book) if (!BOOK[k]) BOOK[k] = v.book[k];
     var n = 0;
     for (var d in (v.dirty || {})) if (BOOK[d]) { DIRTY[d] = 1; n++; }
@@ -2858,6 +2906,8 @@ function dirtyCount() {
 function touched() {
   DIRTY[PKEY] = 1;
   keepPageState();
+  /* מתי שונה העמוד — כדי שמכשיר אחר ידע מי מהשניים חדש יותר. */
+  if (BOOK[PKEY]) BOOK[PKEY].t = Date.now();
   keepLocal();
 }
 
@@ -2900,13 +2950,21 @@ function saveToSheet() {
           'דפים אחרים. נסו שוב.', 1);
       return false;
     }
-    var keep = [];
+    var keep = [], inSheet = {}, mine = {};
+    (rows || []).slice(1).forEach(function (r) {
+      inSheet[r[0] + '|' + r[1] + '|' + r[2]] = 1;
+    });
+    /* מה שנכתב מכאן: מה שנגעו בו בכניסה הזו, מה שלא נשמר, ומה
+       שאין לו שורה בכלל. עותק מקומי ישן של דף אחר — לא. ראו SEEN. */
+    for (var k0 in BOOK) {
+      if (SEEN[k0] || DIRTY[k0] || !inSheet[k0]) mine[k0] = 1;
+    }
     (rows || []).slice(1).forEach(function (r) {
       /* שומרים כל מה ששייך לדפים אחרים, ומחליפים רק את שלנו */
       var rk = r[0] + '|' + r[1] + '|' + r[2];
-      if (!BOOK[rk] && !GONE[rk]) keep.push(r.slice(0, 4));
+      if (!mine[rk] && !GONE[rk]) keep.push(r.slice(0, 4));
     });
-    for (var k in BOOK) {
+    for (var k in mine) {
       var a = k.split('|');
       keep.push([a[0] || '', a[1] || '', a.slice(2).join('|'),
                  JSON.stringify(BOOK[k])]);
@@ -2927,7 +2985,7 @@ function saveToSheet() {
           have[r2[0] + '|' + r2[1] + '|' + r2[2]] = 1;
         });
         var missing = [];
-        for (var q2 in BOOK) if (!have[q2]) missing.push(q2);
+        for (var q2 in mine) if (!have[q2]) missing.push(q2);
         if (missing.length) {
           keepLocal();                       /* נשאר מוגן מקומית */
           say('הגיליון לא אישר ' + missing.length + ' עמודים — ' +
@@ -2946,29 +3004,56 @@ function saveToSheet() {
 function loadFromSheet() {
   return sheetCsv(MARK_TAB).then(function (rows) {
     if (!rows || rows.length < 2) return 0;
-    var mas = selVal('mas'), daf = selVal('daf'), n = 0;
+    var mas = selVal('mas'), daf = selVal('daf'), n = 0, ask = [], took = 0;
+    var take = function (k, rec) {
+      var was = BOOK[k];
+      /* שורה בגיליון שנכתבה לפני שהכיול נשמר בכלל אינה מכילה
+         אותו, ודריסה מלאה מחקה כיול תקין שנעשה כאן. מה שקיים
+         מקומית ואינו בשורה — נשאר. */
+      if (was) {
+        if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
+        if (!rec.splits && was.splits) rec.splits = was.splits;
+        if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
+        if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
+      }
+      BOOK[k] = rec; SEEN[k] = 1; n++;
+    };
     rows.slice(1).forEach(function (r) {
       if (r[0] !== mas || r[1] !== daf) return;
       var k = r[0] + '|' + r[1] + '|' + r[2];
-      /* עמוד שיש בו עבודה שטרם נשמרה — לא נוגעים. זה מה שמחק
-         סימונים במעבר לכיול וחזרה: הטעינה מהגיליון החזירה את
-         הגרסה הישנה על גבי החדשה. */
-      if (DIRTY[k]) return;
       if (GONE[k]) return;              /* נמחקה כאן — לא להחזיר */
-      try {
-        var rec = JSON.parse(r[3]), was = BOOK[k];
-        /* שורה בגיליון שנכתבה לפני שהכיול נשמר בכלל אינה מכילה
-           אותו, ודריסה מלאה מחקה כיול תקין שנעשה כאן. מה שקיים
-           מקומית ואינו בשורה — נשאר. */
-        if (was) {
-          if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
-          if (!rec.splits && was.splits) rec.splits = was.splits;
-          if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
-          if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
+      var rec;
+      try { rec = JSON.parse(r[3]); } catch (e) { return; }
+      /* עמוד שיש בו עבודה שטרם נשמרה במכשיר הזה. פעם פשוט דילגנו
+         עליו — וזה מה שהחזיר במחשב עותק ישן על פני עבודה חדשה
+         מהטלפון. עכשיו: החדש מנצח, ואם אי אפשר לדעת — שואלים. */
+      if (DIRTY[k]) {
+        var mine = BOOK[k];
+        if (!mine) { delete DIRTY[k]; take(k, rec); return; }
+        if (JSON.stringify(mine.steps || []) === JSON.stringify(rec.steps || []) &&
+            JSON.stringify(mine.cal || null) === JSON.stringify(rec.cal || null)) return;
+        var lt = mine.t || 0, rt = rec.t || 0;
+        if (lt && rt) {
+          if (rt > lt) { delete DIRTY[k]; take(k, rec); took++; }
+          return;
         }
-        BOOK[k] = rec; n++;
-      } catch (e) {}
+        ask.push([k, rec]);
+        return;
+      }
+      take(k, rec);
     });
+    if (ask.length) {
+      var when = LOCAL_AT ? new Date(LOCAL_AT).toLocaleDateString('he-IL') : '';
+      if (confirm('במכשיר הזה יש שינויים שלא נשמרו ב-' + ask.length + ' עמודים' +
+          (when ? ' (מ-' + when + ')' : '') + ', ובגיליון יש להם גרסה אחרת.\n\n' +
+          'לטעון את הגרסה שבגיליון?\n' +
+          'אישור — הגיליון (מה שנעשה במכשירים אחרים)\n' +
+          'ביטול — להשאיר את מה שבמכשיר הזה')) {
+        ask.forEach(function (p) { delete DIRTY[p[0]]; take(p[0], p[1]); });
+        took += ask.length;
+      }
+    }
+    if (took) { keepLocal(); markPanel(); }
     return n;
   }).catch(function () { return 0; });
 }
