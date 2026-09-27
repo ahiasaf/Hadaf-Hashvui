@@ -1742,7 +1742,7 @@ function stage(scroll) {
     step('go', phoneOk);
   } else {
     step('f-grade', phoneOk);
-    step('c-ways', phoneOk && !!val('grade'));
+    step('c-ways', phoneOk && (!!val('grade') || WZ_ON));
     step('go', !!way);
   }
   /* ההזמנה — נפתחת מהבחירה ולא מהרצף */
@@ -2882,6 +2882,11 @@ function wzDraw() {
   } else if (wzStep === 3) {
     document.body.className += ' wz-ways';
     ways = wzHead(3, jt('wzWayT'), jt('wzWayB'));
+    /* **דרכי הלימוד נפתחות כאן תמיד** — גם בלי שכבה. בטופס
+       הרציף הן נחשפות אחרי השכבה; במסע השכבה בשלב הקודם, ובוגר
+       שאינו באף שכבה דילג עליה — ונחת כאן בלי אף אפשרות, עם
+       "צריך לבחור איך אתה לומד" ובלי דרך לבחור. */
+    open_('c-ways');
   } else if (edit) {
     /* שניהם פתוחים יחד — מי שבא לשנות "לבד" ל"עם אבא" צריך
        את דרך הלימוד ואת שדות ההזמנה באותו מסך. */

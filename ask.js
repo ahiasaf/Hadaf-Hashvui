@@ -198,18 +198,10 @@ var ASK = (function () {
         if (!x) return '';
         return '<p>' + esc(x).replace(/\*([^*\n]+)\*/g, '<b>$1</b>') + '</p>';
       }).join('');
-      /* הבורר נפתח מעצמו, בלי לחיצה — ממש מתחת לכותרת "ראש
-         החטיבה". ברירת המחדל היא הראשונה ברשימה, וכל אחד בוחר
-         את עצמו; זה כל מה שצריך כדי לדעת מי באמת ענה. */
-      var roles = '';
-      if (C.roleOptions) {
-        roleInit();
-        roles = '<div class="as-roles">' + C.roleOptions.map(function (r, i) {
-          return '<button class="as-role' + (r === roleSel ? ' on' : '') +
-                 '" data-i="' + i + '">' + esc(r) + '</button>';
-        }).join('') + '</div>';
-      }
-      el.innerHTML = '<div class="as-card"><h2>' + esc(t('askH')) + '</h2>' + roles + body +
+      /* **בלי בורר תפקיד כאן.** "זו פנייה אישית, ותוך כדי שאתה
+         פונה אישית אתה אומר לו לבחור מי הוא — זה הורס את התחושה."
+         התפקיד נשאל בשלב הפרטים, ליד השם — ראו `who()`. */
+      el.innerHTML = '<div class="as-card"><h2>' + esc(t('askH')) + '</h2>' + body +
         '<button class="as-go" id="r-go">' + esc(t('askGo')) + '</button>' +
         '<button class="as-thin" id="r-later">' + esc(t('askLater')) + '</button></div>';
       wire(); return;
@@ -260,6 +252,15 @@ var ASK = (function () {
         '<input id="r-last" type="text" autocomplete="family-name" value="' +
         esc(me.last || '') + '"></div>';
 
+    /* התפקיד — ליד השם, כרשימה נפתחת. זה המקום שבו ממלאים
+       פרטים, ולא באמצע הפנייה. */
+    if (C.roleOptions) {
+      roleInit();
+      h += '<div class="fld"><label class="label" for="r-role">' + esc(u('roleLbl')) +
+        '</label><select id="r-role">' + C.roleOptions.map(function (r) {
+          return '<option' + (r === roleSel ? ' selected' : '') + '>' + esc(r) + '</option>';
+        }).join('') + '</select></div>';
+    }
     /* שכבה וכיתה נשאלות רק ממי שיש לו כיתה. ראש חטיבה אחראי
        על כולן, ושדה שאין לו תשובה נכונה הוא שדה שמעכב. */
     if (C.klass) {
@@ -382,14 +383,7 @@ var ASK = (function () {
     /* שבבי הבחירה — כל לחיצה רק מחליפה מי מסומן, ומציירת
        מחדש; אין כאן שדה חובה שצריך לאשר, כי תמיד יש ברירת
        מחדל מסומנת. */
-    if (C.roleOptions) {
-      var chips = document.querySelectorAll('.as-role'), ci;
-      for (ci = 0; ci < chips.length; ci++) {
-        chips[ci].onclick = (function (r) {
-          return function () { roleSel = r; draw(); };
-        })(C.roleOptions[chips[ci].getAttribute('data-i') | 0]);
-      }
-    }
+    if ((b = $('r-role'))) b.onchange = function () { roleSel = this.value; };
     if ((b = $('r-go')))   b.onclick = function () { err = ''; go(1); };
     if ((b = $('r-done'))) b.onclick = close;
     /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
