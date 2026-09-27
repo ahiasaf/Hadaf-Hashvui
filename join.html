@@ -2063,7 +2063,7 @@ function pairAsk_() {
   var t0 = setTimeout(clean, 9000);
   window[cb] = function (r) {
     clearTimeout(t0); clean();
-    if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); }
+    if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); paintName_(); }
   };
   sc.onerror = function () { clearTimeout(t0); clean(); };
   sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone) +
@@ -2077,12 +2077,8 @@ function drawInv() {
   var me = get('me', null) || {};
   box.innerHTML = '';
   var pw = get('pair-with', '');
-  if (pw && (me.way === 'dad' || me.role === 'dad')) {
-    box.innerHTML = '<div class="inv"><div class="ok">' +
-      esc(tpl(me.role === 'dad' ? JOIN.pairFoundDad : JOIN.pairFoundKid, { name: pw })) +
-      '</div></div>';
-    return;
-  }
+  /* מחוברים — זה כבר כתוב בתווית השם (paintName_). אין הזמנה. */
+  if (pw && (me.way === 'dad' || me.role === 'dad')) return;
   pairAsk_();
   /* רק למי שבחר ללמוד עם מישהו, ורק אם ידוע מי הוא. */
   if (me.way !== 'dad' || !me.dadFirst) return;
@@ -3197,9 +3193,7 @@ function showDone(me) {
   var inst = me.instName || 'הישיבה';
   $('form').style.display = 'none';
   $('done').className = 'on';
-  /* התווית היא שמו המלא. זה כל מה שצריך להיאמר כאן. */
-  $('d-name').textContent =
-    ((me.first || '') + ' ' + (me.last || '')).trim() || 'הדף שלי';
+  paintName_();
   drawInv();
   var em = $('edit-more'); if (em) em.innerHTML = '';
   drawInv2();
@@ -3208,6 +3202,23 @@ function showDone(me) {
   drawWeek();
   drawApp();
   window.scrollTo(0, 0);
+}
+
+/* התווית היא שמו המלא. וכשהבן והאב מחוברים — היא אומרת גם את
+   זה: "הלל פנש עם אבא" אצל הבן, "אחיאסף והלל פנש" אצל האב.
+   במקום הודעה נפרדת בסוף המסך. */
+function paintName_() {
+  var el = $('d-name'); if (!el) return;
+  var me = get('me', null) || {};
+  var full = ((me.first || '') + ' ' + (me.last || '')).trim();
+  var pw = get('pair-with', '');
+  var txt = full || 'הדף שלי';
+  if (pw && full && me.role === 'dad') {
+    txt = tpl(JOIN.nameWithKid, { me: me.first || '', kid: pw, last: me.last || '' });
+  } else if (pw && full && me.way === 'dad') {
+    txt = tpl(JOIN.nameWithDad, { name: full });
+  }
+  el.textContent = txt.replace(/\s+/g, ' ').trim();
 }
 
 /* מי שכבר נרשם רואה את מה שרשם, ולא טופס ריק בשנית. */
