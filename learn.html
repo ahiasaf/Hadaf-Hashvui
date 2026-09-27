@@ -1843,7 +1843,7 @@ function ownTyped_() {
     /* הקלטה שממתינה להעלאה — רק בלחיצה, לא ברקע. */
     var pend = OWN_EDIT.some(function (p) { return VOX_CACHE[n + '::' + p._id] && !p.audio; });
     if (pend) return;
-    ownSaveAll(n);
+    ownSaveAll(n, true);
   }, 6000);
 }
 
@@ -1852,8 +1852,14 @@ function ownEditLoad_(n) {
   var src = ownPieces_(n);
   /* טיוטה שלא הגיעה לגיליון גוברת על מה ששמור שם. */
   var dr = ownDraftAll_()[ownDraftKey_(n)], restored = false;
+  /* טיוטה ישנה מגרסה שכבר נשמרה אחריה (ממכשיר אחר) — אינה גוברת.
+     בלי זה טלפון עם טיוטה מלפני שעות החזיר אותה על פני עבודה
+     חדשה שנשמרה מהמחשב. */
+  var sheetT = ownTime_(n);
+  if (dr && sheetT && dr.at && dr.at < sheetT) { ownDraftDrop_(n); dr = null; }
   if (dr && dr.pieces && dr.pieces.length &&
       JSON.stringify(dr.pieces) !== JSON.stringify(src)) { src = dr.pieces; restored = true; }
+  OWN_EDIT_BASE = JSON.stringify(ownCleanPieces_(ownPieces_(n)));
   OWN_EDIT = (src.length ? src : [{ tag:'פירוש', text:'', slide:'', audio:'' }]).map(function (p) {
     return { tag:p.tag || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '', _id:ownPid_() };
   });
@@ -1861,6 +1867,14 @@ function ownEditLoad_(n) {
   OWN_RESTORED = restored;
 }
 var OWN_RESTORED = false;
+/* מה היה בגיליון כשהקטע נפתח לעריכה — כדי לזהות שבינתיים נשמרה
+   ממכשיר אחר גרסה חדשה יותר של אותו קטע. */
+var OWN_EDIT_BASE = '';
+/* מתי נשמר כל קטע לאחרונה (`__t` בתוך הרשומה של הדף). */
+function ownTime_(n) {
+  var t = OWN && OWN.__t;
+  return (t && +t[String(n)]) || 0;
+}
 function ownEditSync_() {
   if (!OWN_EDIT) return;
   OWN_EDIT.forEach(function (p, i) {
@@ -2154,7 +2168,7 @@ function paintOwn() {
   /* עברו לקטע אחר בזמן שנשאר טקסט לא שמור — שומרים אותו ברקע
      לפני שהוא נעלם. זה בדיוק מה שקרה בפועל: כתיבה בקטע אחד,
      מעבר לקטע הבא בלי ללחוץ "שמירה", והכתיבה אבדה. */
-  if (OWN_EDIT && OWN_EDIT_N !== n && ownEditDirty_()) ownSaveAll(OWN_EDIT_N);
+  if (OWN_EDIT && OWN_EDIT_N !== n && ownEditDirty_()) ownSaveAll(OWN_EDIT_N, true);
   ownEditLoad_(n);
   paintOwnEdit_(n);
   var need = OWN_EDIT.filter(function (p) { return !VOX_CACHE.hasOwnProperty(n + '::' + p._id); });
@@ -2375,7 +2389,37 @@ function ownUploadNext_(n, list, i, failed, done) {
     });
   });
 }
-function ownSaveAll(n) {
+/* ============================================================
+   "עבדתי שעות על קטע 39. אחר כך תיקנתי קטע אחר בטלפון, ששם הייתה
+   גרסה ישנה — והשמירה שם העלימה לי את הגרסה החדשה."
+   ============================================================
+   השמירה כותבת את כל הלשונית מחדש. היא כתבה אותה **ממה שהמכשיר
+   זכר** — ובטלפון שנפתח לפני שעות, זה היה הנוסח הישן של כל
+   הקטעים. שמירה של קטע אחד דרסה את כל השאר.
+
+   עכשיו, רגע לפני כל כתיבה, קוראים את הלשונית מחדש ומשנים בה רק
+   את הקטע שנשמר. ואם בגיליון יש לקטע הזה עצמו גרסה שנשמרה אחרי
+   שהוא נפתח כאן — שואלים לפני שדורסים (ובשמירה אוטומטית פשוט לא
+   דורסים). קריאה שנכשלה — לא כותבים בכלל. */
+function ownFresh_(apply) {
+  return sheetCsv(OWN_TAB).then(function (rows) {
+    var m = dmapFromRows(rows);
+    if (!m) return false;
+    var k = dmKey(S.mas, S.daf), cur = m[k];
+    if (cur && cur.__bad) return false;          /* שורה פגומה — לא נוגעים */
+    if (!cur || typeof cur !== 'object') cur = {};
+    /* מה שבגיליון עכשיו — גם אם בסוף לא כותבים */
+    OMAP = m; OWN = m[k] || null;
+    if (apply(cur) === false) return null;
+    var has = false, q;
+    for (q in cur) if (cur.hasOwnProperty(q)) { has = true; break; }
+    if (has) m[k] = cur; else delete m[k];
+    OMAP = m; OWN = m[k] || null;
+    ownPost_();
+    return true;
+  }).catch(function () { return false; });
+}
+function ownSaveAll(n, auto) {
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   var pieces = OWN_EDIT.slice(), toUpload = [];
   pieces.forEach(function (p) {
@@ -2388,13 +2432,37 @@ function ownSaveAll(n) {
   OWN_SAVING = true;
   ownMsg('', toUpload.length ? 'מעלה הקלטות…' : 'נשלח · מאמת מול הגיליון…');
   ownUploadNext_(n, toUpload, 0, [], function (failed) {
-    if (!OWN) OWN = {};
     var clean = ownCleanPieces_(pieces);
-    if (clean.length) OWN[String(n)] = clean; else delete OWN[String(n)];
-    OMAP[dmKey(S.mas, S.daf)] = OWN;
-    ownMsg('', 'נשלח · מאמת מול הגיליון…');
-    ownPost_();
-    ownVerify(0, n, clean, failed);
+    ownFresh_(function (cur) {
+      var there = JSON.stringify(ownPiecesFrom_(cur[String(n)]));
+      if (there !== OWN_EDIT_BASE && there !== JSON.stringify(clean) && OWN_EDIT_N === n) {
+        if (auto) return false;
+        if (!window.confirm('בגיליון יש לקטע ' + n + ' גרסה שנשמרה ממכשיר אחר אחרי שפתחת אותו כאן.\n\n' +
+            'לדרוס אותה במה שכתוב כאן?\nאישור — לדרוס · ביטול — לא לשמור, ולטעון את הגרסה מהגיליון')) {
+          OWN_EDIT = null; OWN_EDIT_N = -1;
+          ownDraftDrop_(n);
+          return false;
+        }
+      }
+      if (clean.length) cur[String(n)] = clean; else delete cur[String(n)];
+      cur.__t = cur.__t || {};
+      cur.__t[String(n)] = Date.now();
+    }).then(function (ok) {
+      if (ok === true) {
+        OWN_EDIT_BASE = JSON.stringify(clean);
+        ownMsg('', 'נשלח · מאמת מול הגיליון…');
+        ownVerify(0, n, clean, failed);
+        return;
+      }
+      OWN_SAVING = false;
+      if (ok === null) {
+        if (auto) { ownMsg('bad', 'לקטע הזה נשמרה ממכשיר אחר גרסה חדשה יותר — לא נשמר אוטומטית. לחצו "שמירה" כדי להחליט.'); return; }
+        ownMsg('', 'לא נשמר. נטענת הגרסה מהגיליון.');
+        paintChavArea();
+        return;
+      }
+      ownMsg('bad', 'לא הצלחתי לקרוא את הגיליון לפני השמירה — לא נשמר, כדי לא לדרוס. מה שכתבת שמור במכשיר.');
+    });
   });
 }
 function ownVerify(tries, n, wantPieces, failed) {
@@ -2435,12 +2503,13 @@ function ownVerify(tries, n, wantPieces, failed) {
    (`__pub`) באותו אובייקט שכבר נשמר לדף הזה בלשונית `פירוש`. */
 function ownPublishSet(on) {
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
-  if (!OWN) OWN = {};
-  if (on) OWN.__pub = '1'; else delete OWN.__pub;
-  OMAP[dmKey(S.mas, S.daf)] = OWN;
   ownMsg('', on ? 'מפרסם לכל הדף · מאמת מול הגיליון…' : 'מחזיר לטיוטה · מאמת מול הגיליון…');
-  ownPost_();
-  ownPublishVerify(0, on);
+  ownFresh_(function (cur) {
+    if (on) cur.__pub = '1'; else delete cur.__pub;
+  }).then(function (ok) {
+    if (ok) ownPublishVerify(0, on);
+    else ownMsg('bad', 'לא הצלחתי לקרוא את הגיליון — לא שיניתי כלום. נסו שוב.');
+  });
 }
 function ownPublishVerify(tries, on) {
   setTimeout(function () {
