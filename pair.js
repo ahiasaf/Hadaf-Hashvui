@@ -279,12 +279,64 @@ var PAIR_UI = (function () {
     if (b) b.onclick = shut;
   }
 
+  /* ============================================================
+     הצד השני כבר סימן?
+     ============================================================
+     "אם אבא כבר סימן את הבן — ההודעה צריכה להשתנות בהתאם."
+     לפני השאלה שואלים את השרת (`pairSeen`) אם הצד השני כבר דיווח
+     על השבוע הזה, לפי הטלפון שלי. תשובה שלא הגיעה תוך שלוש וחצי
+     שניות = כאילו לא — ונשאלת השאלה הרגילה, כמו קודם. */
+  function seen(track, wk, sd, cb) {
+    var m = me(), url = api();
+    if (!m || !m.phone || !url) { cb(null); return; }
+    var name = 'ps' + Date.now(), sc = document.createElement('script'), fin = false;
+    var end = function (v) {
+      if (fin) return; fin = true;
+      try { delete window[name]; } catch (e) { window[name] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+      cb(v);
+    };
+    setTimeout(function () { end(null); }, 3500);
+    window[name] = function (r) { end(r && r.status === 'ok' ? r.seen : null); };
+    sc.onerror = function () { end(null); };
+    sc.src = url + '?pairSeen=' + encodeURIComponent(m.phone) +
+      '&wk=' + encodeURIComponent(key(track, wk)) + '&side=' + sd + '&callback=' + name;
+    document.body.appendChild(sc);
+  }
+  /* הבן: ההורה כבר סימן — אין מה לשאול. הודעה חמה, והוא בהגרלה. */
+  function bothKid(track, wk) {
+    var m = me();
+    keep(key(track, wk));
+    var camp = t('campH');
+    show(SEAL + (camp ? '<p style="margin:0 0 10px;font-size:.82rem;font-weight:700;' +
+                        'color:var(--gold-d,#8A6416)">' + esc(camp) + '</p>' : '') +
+      '<h3>' + esc(fill(t('bothH'), { 'הורה': other(m) })) + '</h3>' +
+      '<p>' + esc(t('bothB')) + '</p>' +
+      '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
+    var b = document.getElementById('pr-x');
+    if (b) b.onclick = shut;
+  }
+
   /* ---------- מה שנקרא מבחוץ ---------- */
   function ask(track, wk) {
     var sd = side();
     if (!sd) return false;
-    var m = me();
     if (done(track, wk)) return false;
+    seen(track, wk, sd, function (hit) {
+      if (hit && hit.id) {
+        if (sd === 'kid') { bothKid(track, wk); return; }
+        /* ההורה: הבן כבר סימן. במקום לדווח שוב — לאשר את מה שהוא
+           סימן. אושר כבר? אין מה לשאול. */
+        keep(key(track, wk));
+        if (hit.ok !== 'כן') confirmShow({ id: hit.id, track: track, wk: String(wk + 1) }, false);
+        return;
+      }
+      askShow(track, wk, sd);
+    });
+    return true;
+  }
+  function askShow(track, wk, sd) {
+    var m = me();
     var who = other(m);
     var head = sd === 'parent' ? fill(t('askKidH'), { 'בן': who })
                                : fill(t('askH'), { 'הורה': who });

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 37;
+var SCRIPT_VERSION = 38;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -787,6 +787,40 @@ function doGet(e) {
       }
     } catch (oe) {}
     return reply_(e, { status: 'ok', set: oHit });
+  }
+
+  /* ============================================================
+     "הצד השני כבר סימן שלמדנו יחד?" — ברגע שמסיימים את הדף.
+     ============================================================
+     "אם אבא כבר סימן את הבן, אז ההודעה צריכה להשתנות בהתאם."
+     לפני שנשאל "למדתם יחד?" — בודקים אם הצד השני כבר דיווח על
+     אותו שבוע, ורשם את הטלפון שלי כטלפון השותף. בן שואל על דיווח
+     של ההורה; הורה שואל על דיווח של הבן. מה שחוזר: מזהה המדווח
+     והאם אושר — בלי שם ובלי טלפון. */
+  if (e && e.parameter && e.parameter.pairSeen) {
+    var psPh = phKey_(e.parameter.pairSeen);
+    var psTag = String(e.parameter.wk || '');
+    var psBy = e.parameter.side === 'parent' ? 'הבן' : 'ההורה';
+    var ps = null;
+    try {
+      if (psPh && psTag) {
+        var pssh = sheet_('זוגות');
+        if (pssh && pssh.getLastRow() > 1) {
+          var psv = pssh.getDataRange().getDisplayValues(), psix = {};
+          for (var psq = 0; psq < psv[0].length; psq++) psix[String(psv[0][psq]).trim()] = psq;
+          var psc = function (r, n) { return psix[n] === undefined ? '' : String(r[psix[n]] || '').trim(); };
+          for (var psz = psv.length - 1; psz >= 1; psz--) {
+            var psr = psv[psz];
+            if (psc(psr, 'דיווח') !== psBy) continue;
+            if (psc(psr, 'מסלול') + '|' + psc(psr, 'שבוע') !== psTag) continue;
+            if (phKey_(psc(psr, 'טלפון השותף')) !== psPh) continue;
+            ps = { id: psc(psr, 'מזהה'), ok: psc(psr, 'אושר') };
+            break;
+          }
+        }
+      }
+    } catch (pse) {}
+    return reply_(e, { status: 'ok', seen: ps });
   }
 
   /* ============================================================
