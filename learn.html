@@ -1819,6 +1819,42 @@ function ownDraftPut_() {
   else all[k] = { pieces: clean, at: Date.now() };
   try { localStorage.setItem(OWN_DRAFT_KEY, JSON.stringify(all)); } catch (e) {}
 }
+/* ============================================================
+   כל הדף בלחיצה אחת.
+   ============================================================
+   "מה אני אמור לזכור — כל קטע שכתבתי אם העליתי אותו או לא?"
+   השמירה נכתבה לקטע אחד, וקטע שלא עלה (שמירה אוטומטית שנעצרה
+   בגלל גרסה ממכשיר אחר, או האחרון לפני סגירה) חיכה בטיוטה
+   במכשיר בלי שום סימן. עכשיו כל שמירה לוקחת איתה את **כל**
+   הטיוטות של הדף, ומתחת לעריכה כתוב אילו קטעים עוד לא עלו. */
+function ownOtherDrafts_(n) {
+  var all = ownDraftAll_(), pre = dmKey(S.mas, S.daf) + '|', out = [], k, q;
+  for (k in all) {
+    if (!all.hasOwnProperty(k) || k.indexOf(pre) !== 0) continue;
+    q = +k.slice(pre.length);
+    if (!(q > 0) || q === n || !all[k] || !all[k].pieces) continue;
+    out.push({ n:q, pieces:ownCleanPieces_(all[k].pieces), at:all[k].at || 0 });
+  }
+  out.sort(function (a, b) { return a.n - b.n; });
+  return out;
+}
+/* מספרי הקטעים בדף שיש להם מה שעוד לא הגיע לגיליון. */
+function ownPendingNs_() {
+  var out = ownOtherDrafts_(-1).filter(function (d) {
+    return JSON.stringify(d.pieces) !== JSON.stringify(ownPieces_(d.n));
+  }).map(function (d) { return d.n; });
+  if (OWN_EDIT && out.indexOf(OWN_EDIT_N) < 0 &&
+      JSON.stringify(ownCleanPieces_(OWN_EDIT)) !== JSON.stringify(ownPieces_(OWN_EDIT_N))) {
+    out.push(OWN_EDIT_N);
+  }
+  return out.sort(function (a, b) { return a - b; });
+}
+function ownPendingTxt_() {
+  var ns = ownPendingNs_();
+  if (!ns.length) return '';
+  return ns.length === 1 ? 'קטע ' + ns[0] + ' עוד לא נשמר לגיליון.'
+                         : 'עוד לא נשמרו לגיליון: קטעים ' + ns.join(', ') + '.';
+}
 function ownDraftDrop_(n) {
   var all = ownDraftAll_(); delete all[ownDraftKey_(n)];
   try { localStorage.setItem(OWN_DRAFT_KEY, JSON.stringify(all)); } catch (e) {}
@@ -1834,7 +1870,7 @@ function ownTyped_() {
   ownEditSync_();
   ownDraftPut_();
   var loc = $('own-local');
-  if (loc) loc.textContent = 'נשמר במכשיר ✓';
+  if (loc) loc.textContent = 'נשמר במכשיר ✓ · ' + ownPendingTxt_();
   clearTimeout(OWN_AUTO_T);
   if (OWN && OWN.__pub) return;
   var n = OWN_EDIT_N;
@@ -2247,7 +2283,7 @@ function paintOwnEdit_(n) {
        משלה. כפתור ההקלטה במקומו (ימין), השמירה נדחפת לצד השני
        (שמאל) על ידי מרווח אוטומטי, ראו CSS. */
     var saveBtn = i === OWN_EDIT.length - 1 ?
-      '<button class="own-save" id="own-save">' + (pubOn ? 'שמירה לכולם' : 'שמירת טיוטה') + '</button>' : '';
+      '<button class="own-save" id="own-save">' + (pubOn ? 'שמירת כל הדף' : 'שמירת טיוטה — כל הדף') + '</button>' : '';
 
     return '<div class="own-piece">' +
       '<div class="own-piece-h">' +
@@ -2262,7 +2298,7 @@ function paintOwnEdit_(n) {
 
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
     '<div class="own-local" id="own-local">' +
-      (OWN_RESTORED ? 'שוחזר מה שכתבת ועוד לא נשמר לגיליון.' : '') + '</div>' +
+      (OWN_RESTORED ? 'שוחזר מה שכתבת ועוד לא נשמר לגיליון. ' : '') + ownPendingTxt_() + '</div>' +
     '<div class="own-msg" id="own-msg"></div>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
@@ -2450,9 +2486,36 @@ function ownSaveAll(n, auto) {
   }
   OWN_SAVING = true;
   ownMsg('', toUpload.length ? 'מעלה הקלטות…' : 'נשלח · מאמת מול הגיליון…');
+  var others = [];
   ownUploadNext_(n, toUpload, 0, [], function (failed) {
     var clean = ownCleanPieces_(pieces);
     ownFresh_(function (cur) {
+      cur.__t = cur.__t || {};
+      /* שאר הקטעים של הדף שממתינים בטיוטה. קטע שנשמר ממכשיר אחר
+         אחרי שנכתבה כאן הטיוטה שלו — נשאל עליו פעם אחת (ובשמירה
+         אוטומטית פשוט לא נוגעים בו). */
+      var clash = [];
+      others = ownOtherDrafts_(n).filter(function (d) {
+        if (JSON.stringify(ownPiecesFrom_(cur[String(d.n)])) === JSON.stringify(d.pieces)) {
+          ownDraftDrop_(d.n); return false;
+        }
+        var t = +cur.__t[String(d.n)] || 0;
+        if (t && d.at && t > d.at) { clash.push(d); return false; }
+        return true;
+      });
+      if (clash.length && !auto && window.confirm(
+          'בגיליון יש גרסה חדשה יותר, ששמרת ממכשיר אחר, לקטע ' +
+          clash.map(function (d) { return d.n; }).join(', ') + '.\n\n' +
+          'לדרוס אותה במה שכתוב כאן?\nאישור — לדרוס · ביטול — להשאיר את מה שבגיליון')) {
+        others = others.concat(clash);
+      } else if (!auto) {
+        /* בחר להשאיר את מה שבגיליון — הטיוטה כבר אינה "לא נשמר". */
+        clash.forEach(function (d) { ownDraftDrop_(d.n); });
+      }
+      others.forEach(function (d) {
+        if (d.pieces.length) cur[String(d.n)] = d.pieces; else delete cur[String(d.n)];
+        cur.__t[String(d.n)] = Date.now();
+      });
       var there = JSON.stringify(ownPiecesFrom_(cur[String(n)]));
       if (there !== OWN_EDIT_BASE && there !== JSON.stringify(clean) && OWN_EDIT_N === n) {
         if (auto) return false;
@@ -2470,7 +2533,7 @@ function ownSaveAll(n, auto) {
       if (ok === true) {
         OWN_EDIT_BASE = JSON.stringify(clean);
         ownMsg('', 'נשלח · מאמת מול הגיליון…');
-        ownVerify(0, n, clean, failed);
+        ownVerify(0, n, clean, failed, others);
         return;
       }
       OWN_SAVING = false;
@@ -2484,7 +2547,8 @@ function ownSaveAll(n, auto) {
     });
   });
 }
-function ownVerify(tries, n, wantPieces, failed) {
+function ownVerify(tries, n, wantPieces, failed, others) {
+  others = others || [];
   var failWarn = (failed && failed.length)
     ? ' <b>שימו לב:</b> ההקלטה של "' + failed.join('", "') + '" לא עלתה — הטקסט נשמר, אפשר לנסות להקליט ולשמור שוב.'
     : '';
@@ -2493,27 +2557,37 @@ function ownVerify(tries, n, wantPieces, failed) {
       var m = dmapFromRows(rows);
       var mine = m && m[dmKey(S.mas, S.daf)];
       var got = ownPiecesFrom_((mine || {})[String(n)]);
-      if (JSON.stringify(got) === JSON.stringify(wantPieces)) {
+      var allOk = others.every(function (d) {
+        return JSON.stringify(ownPiecesFrom_((mine || {})[String(d.n)])) === JSON.stringify(d.pieces);
+      });
+      if (allOk && JSON.stringify(got) === JSON.stringify(wantPieces)) {
         OMAP = m; OWN = mine;
         OWN_SAVING = false;
+        others.forEach(function (d) { ownDraftDrop_(d.n); });
         /* הגיליון מחזיק בדיוק את זה — הטיוטה במכשיר כבר מיותרת,
            אלא אם הוקלד משהו נוסף בינתיים. */
         if (OWN_EDIT_N === n) ownDraftPut_(); else ownDraftDrop_(n);
         /* הוקלד עוד בזמן השמירה — עוד סבב, אחרי שקט. */
         if (OWN_EDIT_N === n && !(OWN && OWN.__pub) && ownEditDirty_()) ownTyped_();
-        ownMsg(failWarn ? 'bad' : 'ok', ((OWN && OWN.__pub)
-          ? 'נשמר ואומת. הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
-          : 'נשמר כטיוטה ואומת. עדיין רק אתה רואה — עד שתפרסם את כל הדף.') + failWarn);
+        var left = ownPendingTxt_();
+        var loc = $('own-local'); if (loc) loc.textContent = left;
+        ownMsg(failWarn || left ? 'bad' : 'ok',
+          (others.length ? 'נשמרו ' + (others.length + 1) + ' קטעים ואומתו. '
+                         : (OWN && OWN.__pub) ? 'נשמר ואומת. ' : 'נשמר כטיוטה ואומת. ') +
+          ((OWN && OWN.__pub)
+          ? 'הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
+          : 'עדיין רק אתה רואה — עד שתפרסם את כל הדף.') +
+          (left ? ' <b>' + left + '</b>' : ' כל הדף בגיליון.') + failWarn);
         return;
       }
-      if (tries < 4) { ownVerify(tries + 1, n, wantPieces, failed); return; }
+      if (tries < 4) { ownVerify(tries + 1, n, wantPieces, failed, others); return; }
       OWN_SAVING = false;
       ownMsg('bad', '<b>לא אומת.</b> ' + (!m
         ? 'הגיליון לא נענה, או שלשונית "' + OWN_TAB + '" לא נוצרה.'
         : 'מה שחזר מהגיליון אינו מה שנשלח.') +
         ' הטקסט שמור במכשיר הזה — אפשר לנסות שוב.');
     }).catch(function () {
-      if (tries < 4) ownVerify(tries + 1, n, wantPieces, failed);
+      if (tries < 4) ownVerify(tries + 1, n, wantPieces, failed, others);
       else { OWN_SAVING = false; ownMsg('bad', 'לא הצלחתי לקרוא מהגיליון. מה שכתבת שמור במכשיר.'); }
     });
   }, tries ? 2500 : 1400);
