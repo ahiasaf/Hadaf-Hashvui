@@ -200,6 +200,10 @@ button.c.fix{opacity:1;cursor:default;background:var(--blue);
 body.mark .bar{display:flex}
 /* שני הפסים אינם מופיעים יחד: או מסמנים חדש, או משנים קיים. */
 .ibar{display:none}
+/* `.ibar{display:none}` לבדו הפסיד ל-`body.mark .bar{display:flex}`
+   שמעליו (משקל גבוה יותר), ולכן במסך הסימון שני הפסים הוצגו
+   תמיד יחד — שני כפתורי "סוף", שני ✕, ו"שמירה" לצד "הוספת הקטע". */
+body.mark .ibar{display:none}
 body.mark.insp .bar:not(.ibar){display:none}
 body.mark.insp .ibar{display:flex}
 .bar .gap{flex:1}
@@ -1845,7 +1849,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.52';
+var STUDIO_VER = '8.99.53';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
