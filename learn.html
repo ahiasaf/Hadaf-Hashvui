@@ -246,6 +246,14 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
 .chb .own-local{margin-top:6px;font-size:.7rem;font-weight:700;color:var(--ok,#3B7D57);min-height:1em}
 .chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
+/* פס מצב השמירה — מקום אחד שאומר תמיד אם מה שכתבת בגיליון. */
+.chb .own-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;
+  border-radius:10px;font-size:.78rem;font-weight:800;line-height:1.45;
+  background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
+.chb .own-bar.pend{background:rgba(192,143,43,.14);color:#8C5A0B}
+.chb .own-bar.bad{background:rgba(178,59,59,.12);color:#B23B3B}
+.chb .own-bar button{margin-inline-start:auto;flex:none;border:1px solid currentColor;
+  background:none;color:inherit;border-radius:8px;padding:3px 10px;font:inherit;cursor:pointer}
 .chb .own-msg.ok{color:var(--ok,#3B7D57)}
 .chb .own-msg.bad{color:#B23B3B}
 /* חלקי-הפירוש — כל חלק (תיוג+טקסט+שקף+הקלטה) בכרטיס נפרד,
@@ -1702,9 +1710,76 @@ function quizChdHtml() {
   return '<span class="cht-lbl">חידה</span><button id="cht-x" title="סגירה">✕</button>';
 }
 
+/* ============================================================
+   פס מצב השמירה.
+   ============================================================
+   "אני רוצה לדעת שדברים כאלה לא קורים לי יותר." עד עכשיו המצב
+   התפזר בין שלוש שורות קטנות בתחתית ("נשמר במכשיר", "לא אומת",
+   "נשלח · מאמת"), ושמירה שנדחתה בשקט נראתה כמו כל שורה אחרת. כאן
+   פס אחד בראש העריכה, בשלושה צבעים:
+     ירוק — הכל בגיליון, אפשר לעבור מכשיר.
+     כתום — יש קטעים שעוד לא נשמרו (ומה הם), או שמירה בדרך.
+     אדום — השמירה נכשלה. נשאר עד שמצליחה, עם הסיבה ו"נסה שוב".
+   `ownMsg` נשאר השער היחיד, ולכן כל ההודעות הקיימות מגיעות לכאן. */
+var OWN_FAIL = '', OWN_NOTE = '';
 function ownMsg(cls, txt) {
-  var m = $('own-msg');
-  if (m) { m.className = 'own-msg ' + cls; m.innerHTML = txt; }
+  if (cls === 'bad') { OWN_FAIL = txt; OWN_NOTE = ''; }
+  else if (cls === 'ok') { OWN_FAIL = ''; OWN_NOTE = ''; }
+  else OWN_NOTE = txt;
+  ownBar_();
+}
+function ownBar_() {
+  var b = $('own-bar'); if (!b) return;
+  var pend = ownPendingTxt_(), cls, txt, btn = '';
+  if (OWN_NEWER) {
+    cls = 'bad'; txt = 'יש גרסה חדשה של האתר. מה שכתבת שמור במחשב — רענן את הדף, ואז שמור.';
+    btn = '<button onclick="ownReload_()">רענון</button>';
+  } else if (OWN_FAIL) {
+    cls = 'bad'; txt = '⚠ ' + OWN_FAIL;
+    btn = OWN_SAVING ? '' : '<button onclick="ownSaveNow_()">נסה שוב</button>';
+  } else if (OWN_SAVING || OWN_NOTE) {
+    cls = 'pend'; txt = OWN_NOTE || 'שומר…';
+  } else if (pend) {
+    cls = 'pend'; txt = pend;
+    btn = '<button onclick="ownSaveNow_()">שמירה</button>';
+  } else {
+    cls = ''; txt = '✓ הכל שמור בגיליון';
+  }
+  b.className = 'own-bar' + (cls ? ' ' + cls : '');
+  b.innerHTML = '<span>' + txt + '</span>' + btn;
+}
+function ownSaveNow_() {
+  if (!OWN_EDIT) return;
+  ownEditSync_();
+  ownSaveAll(OWN_EDIT_N);
+}
+
+/* ============================================================
+   דף שנפתח לפני שעלתה גרסה חדשה.
+   ============================================================
+   כך אבדו קטעים 10–11 בדף ג': הדף היה פתוח מלפני שהשרת התחיל
+   לדרוש סיסמה, וכל שמירה ממנו נדחתה. כאן בודקים ברקע (בפתיחה,
+   כל חמש דקות, ובחזרה ללשונית) אם `DAF_REV` באתר שונה משלנו —
+   ואם כן, השמירה נעצרת ומבקשת רענון. הטקסט כבר בטיוטה במכשיר,
+   ולכן הרענון אינו מאבד דבר. בדיקה שנכשלה אינה עוצרת כלום. */
+var OWN_NEWER = false, OWN_VER_AT = 0;
+function ownVerCheck_() {
+  if (OWN_NEWER || !window.DAF_REV || Date.now() - OWN_VER_AT < 60000) return Promise.resolve();
+  OWN_VER_AT = Date.now();
+  return fetch('data.js?v=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (t) {
+      var m = /DAF_REV\s*=\s*'([^']+)'/.exec(t || '');
+      if (m && m[1] !== window.DAF_REV) { OWN_NEWER = true; ownBar_(); }
+    }).catch(function () {});
+}
+function ownReload_() { ownCatch_(); location.reload(); }
+if (typeof window !== 'undefined') {
+  setInterval(ownVerCheck_, 300000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') ownVerCheck_();
+  });
+  setTimeout(ownVerCheck_, 4000);
 }
 
 /* ------------------------------------------------------------
@@ -1869,8 +1944,8 @@ function ownCatch_() {
 function ownTyped_() {
   ownEditSync_();
   ownDraftPut_();
-  var loc = $('own-local');
-  if (loc) loc.textContent = 'נשמר במכשיר ✓ · ' + ownPendingTxt_();
+  OWN_NOTE = '';
+  ownBar_();
   clearTimeout(OWN_AUTO_T);
   if (OWN && OWN.__pub) return;
   var n = OWN_EDIT_N;
@@ -2228,7 +2303,7 @@ function paintOwnRead_(n) {
 }
 function paintOwnEdit_(n) {
   var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
-  var html = '';
+  var html = '<div class="own-bar" id="own-bar"></div>';
 
   html += OWN_EDIT.map(function (p, i) {
     var key = n + '::' + p._id, loaded = VOX_CACHE.hasOwnProperty(key), clip = VOX_CACHE[key];
@@ -2301,9 +2376,6 @@ function paintOwnEdit_(n) {
   }).join('');
 
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
-    '<div class="own-local" id="own-local">' +
-      (OWN_RESTORED ? 'שוחזר מה שכתבת ועוד לא נשמר לגיליון. ' : '') + ownPendingTxt_() + '</div>' +
-    '<div class="own-msg" id="own-msg"></div>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
     '<button class="own-export-btn" id="own-export-open">ייצוא טקסט — פירוש לנוער / חברותא</button>' +
@@ -2313,6 +2385,9 @@ function paintOwnEdit_(n) {
 
   box.innerHTML = html;
   box.scrollTop = 0;
+  if (OWN_RESTORED && !OWN_FAIL) OWN_NOTE = 'שוחזר מה שכתבת בקטע הזה ועוד לא נשמר לגיליון.';
+  ownBar_();
+  if (OWN_RESTORED) OWN_NOTE = '';
   OWN_RESTORED = false;
   $('own-pub-btn').onclick = function () {
     var goingOn = !pubOn;
@@ -2480,10 +2555,19 @@ function ownFresh_(apply) {
 function ownSaveAll(n, auto) {
   /* לפני כל ניסיון — הטקסט במכשיר. מעבר קטע בלי הקלדה נוספת לא
      כתב טיוטה, ושמירה שנכשלה השאירה אותו רק בזיכרון של הלשונית. */
-  if (OWN_EDIT && OWN_EDIT_N === n) ownDraftPut_();
+  if (!OWN_EDIT || OWN_EDIT_N !== n) return;
+  ownDraftPut_();
+  /* הקטע נלקח עכשיו — מיד אחרי הקריאה הזו המסך כבר עובר לקטע הבא. */
+  var pieces = OWN_EDIT.slice();
+  ownVerCheck_().then(function () {
+    if (OWN_NEWER) { ownBar_(); return; }
+    ownSaveGo_(n, auto, pieces);
+  });
+}
+function ownSaveGo_(n, auto, pieces) {
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_(auto)) { ownMsg('bad', NOKEY_MSG); return; }
-  var pieces = OWN_EDIT.slice(), toUpload = [];
+  var toUpload = [];
   pieces.forEach(function (p) {
     var clip = VOX_CACHE[n + '::' + p._id];
     if (clip && !p.audio) toUpload.push({ p:p, clip:clip });
@@ -2538,7 +2622,9 @@ function ownSaveAll(n, auto) {
       cur.__t[String(n)] = Date.now();
     }).then(function (ok) {
       if (ok === true) {
-        OWN_EDIT_BASE = JSON.stringify(clean);
+        /* הבסיס מתעדכן רק כשהגיליון אישר (ראו ownVerify). כששמירה
+           נדחתה, בסיס שכבר עודכן גרם לניסיון הבא לחשוב ש"נשמרה
+           ממכשיר אחר גרסה חדשה" — ו"ביטול" בשאלה ההיא מחק את הטקסט. */
         ownMsg('', 'נשלח · מאמת מול הגיליון…');
         ownVerify(0, n, clean, failed, others);
         return;
@@ -2570,6 +2656,7 @@ function ownVerify(tries, n, wantPieces, failed, others) {
       if (allOk && JSON.stringify(got) === JSON.stringify(wantPieces)) {
         OMAP = m; OWN = mine;
         OWN_SAVING = false;
+        if (OWN_EDIT_N === n) OWN_EDIT_BASE = JSON.stringify(wantPieces);
         others.forEach(function (d) { ownDraftDrop_(d.n); });
         /* הגיליון מחזיק בדיוק את זה — הטיוטה במכשיר כבר מיותרת,
            אלא אם הוקלד משהו נוסף בינתיים. */
@@ -2577,8 +2664,8 @@ function ownVerify(tries, n, wantPieces, failed, others) {
         /* הוקלד עוד בזמן השמירה — עוד סבב, אחרי שקט. */
         if (OWN_EDIT_N === n && !(OWN && OWN.__pub) && ownEditDirty_()) ownTyped_();
         var left = ownPendingTxt_();
-        var loc = $('own-local'); if (loc) loc.textContent = left;
-        ownMsg(failWarn || left ? 'bad' : 'ok',
+        if (!failWarn) { ownMsg('ok', ''); return; }
+        ownMsg('bad',
           (others.length ? 'נשמרו ' + (others.length + 1) + ' קטעים ואומתו. '
                          : (OWN && OWN.__pub) ? 'נשמר ואומת. ' : 'נשמר כטיוטה ואומת. ') +
           ((OWN && OWN.__pub)
