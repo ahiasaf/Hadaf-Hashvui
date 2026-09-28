@@ -807,8 +807,7 @@ footer a{color:var(--ink-2);font-weight:800}
     <button class="go" id="hero-go"></button>
     <!-- "כבר נרשמתי במכשיר אחר" — ראו drawBack_. כאן ולא בתוך
          הטופס: מי שכבר רשום לא צריך לעבור את שלבי המסע כדי
-         להגיע אליו, ומי ששלח הזמנה ופתח אותה בעצמו נעצר לפני
-         שהתחיל למלא. -->
+         להגיע אליו. -->
     <div id="back" style="margin-top:14px"></div>
 
     <!-- ואחריו הבאנר, ולא רק אחרי ההרשמה.
@@ -1933,13 +1932,6 @@ $('go').onclick = function () {
      רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
      אותו מרחיק תלמיד בגלל צורת כתיבה. */
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
-  /* מי ששלח את ההזמנה פתח אותה בעצמו — במחשב, מהוואטסאפ שלו —
-     והטופס מולו ממולא בפרטים של מי שהוזמן. הטלפון שלו עצמו הוא
-     הסימן: אין סיבה שמי שהוזמן ימסור את הטלפון של מי שהזמין. */
-  if (invFrom && sndr.phone && phNorm_(val('phone')) &&
-      phNorm_(val('phone')) === phNorm_(sndr.phone)) {
-    return say(tpl(JOIN.backSelfErr, { from: sndr.first || invFrom }));
-  }
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
   if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
@@ -3402,11 +3394,7 @@ stage();
    המחשב רואה טופס ריק. אם ימלא אותו — השרת כבר יזהה שזה הוא
    (טלפון ושם, ראו `canonJoinCols_`). אבל אין סיבה שיעבור שוב על
    כל הטופס: שם, משפחה וטלפון — והכול עובר לכאן, כולל החיבור
-   לאבא או לבן והדפים שכבר סימן.
-
-   ומקרה אחד שקרה בפועל: אבא שלח לבן קישור הזמנה, פתח אותו
-   במחשב מהוואטסאפ שלו, ומצא טופס ממולא בפרטים של הבן. הוא נרשם
-   — בשם הבן. כאן הוא נשאל לפני כן, ויש לו כפתור משלו. */
+   לאבא או לבן והדפים שכבר סימן. */
 function phNorm_(v) {
   var d = String(v || '').replace(/[^0-9]/g, '');
   if (d.indexOf('972') === 0) d = d.slice(3);
@@ -3446,17 +3434,7 @@ function restoreAs_(who, msg, btn) {
 function drawBack_() {
   var box = $('back'); if (!box) return;
   if (get('me', null)) { box.innerHTML = ''; return; }
-  var h = '';
-  /* קישור הזמנה — ומי ששלח אותו עשוי להיות זה שפותח. */
-  if (invFrom && sndr.first && sndr.phone) {
-    var from = sndr.first, to = pre.first || '';
-    h += '<div class="more-card" style="margin:0 0 12px">' +
-      '<p class="h" style="margin:0 0 10px">' +
-        esc(tpl(to ? JOIN.backInvQ : JOIN.backInvQ0, { to: to, from: from })) + '</p>' +
-      '<button class="btn" id="back-inv-go">' + esc(tpl(JOIN.backInvBtn, { from: from })) +
-      '</button><div class="err" id="back-inv-msg" role="alert"></div></div>';
-  }
-  h += '<button class="more-link" id="back-link" style="margin:0 0 12px">' +
+  var h = '<button class="more-link" id="back-link" style="margin:0 0 12px">' +
       esc(JOIN.backLink) + '</button>' +
     '<div class="more-card" id="back-form" style="display:none;margin:0 0 12px">' +
     '<h4>' + esc(JOIN.backTitle) + '</h4>' +
@@ -3471,14 +3449,6 @@ function drawBack_() {
     '<div class="err" id="back-msg" role="alert"></div></div>';
   box.innerHTML = h;
 
-  var ig = $('back-inv-go');
-  if (ig) ig.onclick = function () {
-    /* הצד של השולח הוא ההפך ממה שהקישור אומר על המוזמן. */
-    var rel = qs('rel');
-    restoreAs_({ first: sndr.first, last: sndr.last || pre.last || '', phone: sndr.phone,
-                 role: rel === 'kid' ? 'dad' : rel === 'dad' ? 'kid' : '' },
-               $('back-inv-msg'), ig);
-  };
   var link = $('back-link'), form = $('back-form'), go = $('back-go');
   link.onclick = function () { link.style.display = 'none'; form.style.display = ''; };
   var fields = function () {
