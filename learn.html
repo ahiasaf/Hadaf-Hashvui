@@ -2311,9 +2311,27 @@ function ownRows_() {
   }
   return rows;
 }
+/* סיסמת הכתיבה — הלשוניות של הדף (פירוש, מצגת, שאלות) נכתבות רק
+   איתה. ראו `writeKey_` בסטודיו: אותה סיסמה, אותו אחסון. שמירה
+   אוטומטית אינה שואלת — היא פשוט אינה כותבת בלעדיה. */
+function writeKey_(auto) {
+  var k = cfgReadKey_();
+  if (k || auto) return k;
+  k = String(window.prompt('סיסמת הסקריפט — פעם אחת במכשיר הזה.\n' +
+      'בלעדיה אי אפשר לשמור בגיליון.') || '').trim();
+  if (k) {
+    try {
+      var c = JSON.parse(localStorage.getItem('df:cfg') || '{}') || {};
+      c.readKey = k;
+      localStorage.setItem('df:cfg', JSON.stringify(c));
+    } catch (e) {}
+  }
+  return k;
+}
+var NOKEY_MSG = 'לא נשמר — חסרה סיסמת הסקריפט במכשיר (ניהול ← מערכת). מה שכתבת שמור במכשיר.';
 function ownPost_() {
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:OWN_TAB,
+    action:'table', tab:OWN_TAB, key:cfgReadKey_(),
     cols:JSON.stringify(['מסכת', 'דף', 'פירוש']),
     rows:JSON.stringify(ownRows_())
   }) }).catch(function () {});
@@ -2421,6 +2439,7 @@ function ownFresh_(apply) {
 }
 function ownSaveAll(n, auto) {
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!writeKey_(auto)) { ownMsg('bad', NOKEY_MSG); return; }
   var pieces = OWN_EDIT.slice(), toUpload = [];
   pieces.forEach(function (p) {
     var clip = VOX_CACHE[n + '::' + p._id];
@@ -2503,6 +2522,7 @@ function ownVerify(tries, n, wantPieces, failed) {
    (`__pub`) באותו אובייקט שכבר נשמר לדף הזה בלשונית `פירוש`. */
 function ownPublishSet(on) {
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!writeKey_()) { ownMsg('bad', NOKEY_MSG); return; }
   ownMsg('', on ? 'מפרסם לכל הדף · מאמת מול הגיליון…' : 'מחזיר לטיוטה · מאמת מול הגיליון…');
   ownFresh_(function (cur) {
     if (on) cur.__pub = '1'; else delete cur.__pub;
@@ -3190,6 +3210,7 @@ function sideMsg(cls, txt) {
    רק אחרי קריאה חוזרת שמצאה בגיליון בדיוק את מה שנשלח. */
 function sideSave() {
   if (!API) { sideMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!writeKey_()) { sideMsg('bad', NOKEY_MSG); return; }
   DMAP[dmKey(S.mas, S.daf)] = ANCH || {};
   var rows = [], k;
   for (k in DMAP) {
@@ -3202,7 +3223,7 @@ function sideSave() {
   }
   sideMsg('', 'נשלח · מאמת מול הגיליון…');
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:DECK_TAB,
+    action:'table', tab:DECK_TAB, key:cfgReadKey_(),
     cols:JSON.stringify(['מסכת', 'דף', 'עוגנים']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
@@ -3623,7 +3644,7 @@ function qRows_() {
 }
 function qPost_() {
   fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
-    action:'table', tab:Q_TAB,
+    action:'table', tab:Q_TAB, key:cfgReadKey_(),
     cols: JSON.stringify(['מסכת', 'דף', 'שאלות']),
     rows: JSON.stringify(qRows_())
   }) }).catch(function () {});
@@ -3637,6 +3658,11 @@ function qEditSave_(n) {
       'צריך למלא את השאלה וגם את ארבע התשובות.</div>';
     return;
   }
+  if (!writeKey_()) {
+    var nk = $('qz-res');
+    if (nk) nk.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' + NOKEY_MSG + '</div>';
+    return;
+  }
   if (!QOWN) QOWN = {};
   QOWN[String(n)] = [{ q:text, a:answers, correct:Q_EDIT.correct }];
   if ($('qe-pub').checked) QOWN.__pub = '1'; else delete QOWN.__pub;
@@ -3646,6 +3672,7 @@ function qEditSave_(n) {
 }
 function qEditDelete_(n) {
   if (!QOWN) return;
+  if (!writeKey_()) return;
   delete QOWN[String(n)];
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();

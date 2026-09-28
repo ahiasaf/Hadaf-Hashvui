@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 38;
+var SCRIPT_VERSION = 39;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -283,6 +283,20 @@ function doPost(e) {
       var jcols = parse_(d.cols);
       try { jcols = canonJoinCols_(jcols); } catch (cje) {}
       return upsertCols_(d.tab, jcols, 'מזהה', d.ss);
+    }
+    /* ---- הלשוניות של הדף האינטראקטיבי: רק עם סיסמה ----
+       הסימונים, הפירוש, השקפים והחידות הם הנכס — שעות של עבודה.
+       הם יושבים בגיליון הציבורי כי התלמיד קורא אותם בלי סיסמה, אבל
+       **כתיבה** אליהם דרשה עד עכשיו רק את כתובת הסקריפט, שגלויה
+       בקוד. פקודה אחת הייתה מוחקת הכל. מכאן: READ_KEY, כמו במחיקה.
+       וכל יום, לפני הכתיבה הראשונה, נשמר עותק — ראו backupDaily_. */
+    if ((d.action === 'row' || d.action === 'table') && !d.ss &&
+        GUARD_TABS.indexOf(d.tab) >= 0) {
+      if (READ_KEY && String(d.key || '') !== READ_KEY) {
+        return json_({ status: 'denied',
+          message: 'כתיבה ללשונית ' + d.tab + ' דורשת את סיסמת הסקריפט' });
+      }
+      backupDaily_();
     }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
@@ -1181,7 +1195,8 @@ function doGet(e) {
               privSrc: propSrc_('PRIVATE_ID', PRIVATE_ID_FALLBACK),
               keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK),
               teamOn:  !!TEAM_KEY,
-              autoOn:  hasTrigger_(), gh: ghCheck_() };
+              autoOn:  hasTrigger_(), gh: ghCheck_(),
+              backup:  prop_('LAST_BACKUP', ''), backupErr: prop_('BACKUP_ERR', '') };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
@@ -2360,7 +2375,7 @@ function setupTriggers() {
   return 'הטריגר הותקן · ספירה מחדש כל שעה' + '\n' + setupClock();
 }
 /* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
-function autoRecount() { recount_(); recountLearn_(true); }
+function autoRecount() { recount_(); recountLearn_(true); backupDaily_(); }
 
 /* ============================================================
    השעון של השליחות המתוזמנות.
@@ -2383,6 +2398,7 @@ function autoRecount() { recount_(); recountLearn_(true); }
    ולכן אין נזק בכך ששניהם יעבדו.
    ============================================================ */
 function clockTick() {
+  backupDaily_();
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok || !repo) return;
@@ -2690,3 +2706,74 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+/* ============================================================
+   גיבוי יומי של הדף האינטראקטיבי.
+   ============================================================
+   "הסימונים הם הנכס שאני רוצה לשמור."
+
+   פעם ביום — בכתיבה הראשונה ללשוניות האלה, או בטריגר השעתי,
+   מה שבא קודם — כל אחת מהן מועתקת לגיליון גיבוי **פרטי** נפרד,
+   לשונית לכל יום: "2026-09-28 · סימוני הדף". העותק נלקח **לפני**
+   הכתיבה, ולכן גם כתיבה הרסנית משאירה מאחוריה את המצב של אתמול.
+   נשמרים BACKUP_DAYS ימים אחרונים.
+
+   גיליון ולא עותק של קובץ בדרייב: להעתקת קבצים הסקריפט היה צריך
+   הרשאת כתיבה לדרייב, ובקשת הרשאה חדשה מפילה את כל הסקריפט עד
+   שמאשרים אותה. גיליון חדש והעתקת לשוניות — בהרשאה שכבר קיימת.
+
+   הגיליון נוצר בפעם הראשונה בדרייב של בעל הסקריפט, ומזהה שלו
+   נשמר ב-BACKUP_ID. לשחזור: פותחים אותו, מעתיקים את הלשונית של
+   היום הרצוי, ומדביקים על הלשונית שבגיליון הציבורי.
+   ============================================================ */
+var GUARD_TABS = ['סימוני הדף', 'פירוש', 'שאלות בדף', 'מצגת'];
+var BACKUP_DAYS = 14;
+
+function backupSS_() {
+  var P = PropertiesService.getScriptProperties();
+  var id = P.getProperty('BACKUP_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  var ss = SpreadsheetApp.create('הדף השבועי · גיבוי הדף האינטראקטיבי');
+  P.setProperty('BACKUP_ID', ss.getId());
+  return ss;
+}
+
+function backupDaily_(force) {
+  var P = PropertiesService.getScriptProperties();
+  var today = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  /* ניסיון אחד ביום, גם אם נכשל — שלא כל כתיבה תנסה שוב ותאט. */
+  if (!force && ((P.getProperty('LAST_BACKUP') || '').indexOf(today) === 0 ||
+                 P.getProperty('BACKUP_TRY') === today)) return;
+  P.setProperty('BACKUP_TRY', today);
+  try {
+    var src = SpreadsheetApp.getActiveSpreadsheet(), dst = backupSS_(), n = 0;
+    GUARD_TABS.forEach(function (t) {
+      var sh = src.getSheetByName(t);
+      if (!sh || sh.getLastRow() < 2) return;
+      var name = today + ' · ' + t;
+      var old = dst.getSheetByName(name);
+      if (old) dst.deleteSheet(old);
+      sh.copyTo(dst).setName(name);
+      n++;
+    });
+    /* שמירה של BACKUP_DAYS הימים האחרונים בלבד */
+    var re = /^(\d{4}-\d{2}-\d{2}) · /, dates = {};
+    dst.getSheets().forEach(function (x) {
+      var m = re.exec(x.getName()); if (m) dates[m[1]] = 1;
+    });
+    var drop = Object.keys(dates).sort().reverse().slice(BACKUP_DAYS);
+    dst.getSheets().forEach(function (x) {
+      var m = re.exec(x.getName());
+      if (m && drop.indexOf(m[1]) >= 0 && dst.getSheets().length > 1) dst.deleteSheet(x);
+    });
+    P.setProperty('LAST_BACKUP', today + ' · ' + n + ' לשוניות');
+    P.deleteProperty('BACKUP_ERR');
+    return 'גובה · ' + n + ' לשוניות · ' + dst.getUrl();
+  } catch (err) {
+    P.setProperty('BACKUP_ERR', today + ' · ' + String(err));
+    return 'הגיבוי נכשל: ' + String(err);
+  }
+}
+/* להרצה ידנית מהעורך — גיבוי עכשיו, גם אם כבר גובה היום. */
+function backupNow() { return backupDaily_(true); }

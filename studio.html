@@ -1911,7 +1911,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.54';
+var STUDIO_VER = '8.99.55';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3062,8 +3062,33 @@ function csvRows(text) {
 
 var COLS = ['מסכת', 'דף', 'עמוד', 'נתונים'];
 
+
+/* ============================================================
+   סיסמת הכתיבה.
+   ============================================================
+   הסימונים יושבים בגיליון הציבורי, וכתובת הסקריפט שכותב אליו
+   גלויה בקוד. עד עכשיו כל מי שמצא אותה יכול היה לדרוס את כל
+   עבודת הסטודיו בפקודה אחת. מעכשיו הסקריפט דורש לכתיבה ללשונית
+   הזו את סיסמת הסקריפט — אותה סיסמה של "ניהול ← מערכת", באותו
+   אחסון במכשיר. מכשיר שאין בו אותה נשאל פעם אחת. */
+function writeKey_() {
+  var c = {};
+  try { c = JSON.parse(localStorage.getItem('df:cfg') || '{}') || {}; } catch (e) {}
+  var k = String(c.readKey || '').trim();
+  if (k) return k;
+  k = String(window.prompt('סיסמת הסקריפט — פעם אחת במכשיר הזה.\n' +
+      'בלעדיה אי אפשר לשמור בגיליון.') || '').trim();
+  if (k) {
+    c.readKey = k;
+    try { localStorage.setItem('df:cfg', JSON.stringify(c)); } catch (e) {}
+  }
+  return k;
+}
 function saveToSheet() {
   if (!API) { say('אין כתובת שרת.', 1); return Promise.resolve(false); }
+  var wkey = writeKey_();
+  if (!wkey) { say('לא נשמר — חסרה סיסמת הסקריפט. העבודה שמורה במכשיר.', 1);
+               return Promise.resolve(false); }
   keepPageState();
   say('שומר בגיליון…');
   return sheetCsv(MARK_TAB).then(function (rows) {
@@ -3094,7 +3119,7 @@ function saveToSheet() {
                  JSON.stringify(BOOK[k])]);
     }
     return fetch(API, { method:'POST', mode:'no-cors',
-      body: JSON.stringify({ action:'table', tab: MARK_TAB,
+      body: JSON.stringify({ action:'table', tab: MARK_TAB, key: wkey,
         cols: JSON.stringify(COLS), rows: JSON.stringify(keep) }) })
       /* no-cors מחזיר תשובה אטומה: גם כשהסקריפט דחה את הכתיבה
          ה-fetch "מצליח". עד עכשיו סימון ה"לא נשמר" נוקה על סמך
@@ -3104,16 +3129,27 @@ function saveToSheet() {
       .then(function () { return new Promise(function (ok) { setTimeout(ok, 1200); }); })
       .then(function () { return sheetCsv(MARK_TAB); })
       .then(function (back) {
+        /* **התוכן, לא רק קיום השורה.** כתיבה שנדחתה (סיסמה שגויה)
+           משאירה בגיליון את הגרסה הקודמת של אותו עמוד — השורה קיימת,
+           ובדיקה של קיום בלבד הכריזה "נשמר" על עבודה שלא הגיעה. */
         var have = {};
         (back || []).slice(1).forEach(function (r2) {
-          have[r2[0] + '|' + r2[1] + '|' + r2[2]] = 1;
+          have[r2[0] + '|' + r2[1] + '|' + r2[2]] = r2[3] || '';
         });
+        var same = function (a, b) {
+          if (a === b) return true;
+          try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); }
+          catch (e) { return false; }
+        };
         var missing = [];
-        for (var q2 in mine) if (!have[q2]) missing.push(q2);
+        for (var q2 in mine) {
+          if (!have.hasOwnProperty(q2) || !same(have[q2], JSON.stringify(BOOK[q2]))) missing.push(q2);
+        }
         if (missing.length) {
           keepLocal();                       /* נשאר מוגן מקומית */
           say('הגיליון לא אישר ' + missing.length + ' עמודים — ' +
-              'העבודה שמורה במכשיר. נסו שוב.', 1);
+              'העבודה שמורה במכשיר. נסו שוב. אם זה חוזר, ייתכן שסיסמת ' +
+              'הסקריפט במכשיר שגויה (ניהול ← מערכת).', 1);
           markPanel();
           return false;
         }
