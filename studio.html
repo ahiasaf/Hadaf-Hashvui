@@ -426,6 +426,54 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 #mcur .ok{color:var(--ok)} #mcur .no{color:var(--ink-3)}
 .hint{margin-top:12px;font-size:.75rem;color:var(--ink-3);font-weight:700;line-height:1.6}
 #msg{font-size:.8rem;font-weight:800;margin-top:10px}
+
+/* ============================================================
+   מסך הסימון — ממשק אחיד.
+   ============================================================
+   "זה נראה כמו תערובת של כפתורים." ארבעה צבעים (לבן, אדום, אפור,
+   זהב) ושלושה גדלים בפס אחד, כפתור כיול שתפס שליש מהכותרת, והודעות
+   שנחתכו באמצע ("הקטע נמחק · הוא א…"). מכאן:
+     * כל כפתור משני — אותו גודל ואותו צבע שקוף על הכחול.
+     * הכפתור הראשי — תמיד זהוב, תמיד בקצה.
+     * "שמירה (N)" במילים, בזהב, במקום ה-! האדום.
+     * הכותרת: רק הניווט. הכיול עבר לתפריט ⋯.
+     * ההודעות — בבועה מלאה מעל הפס, שנעלמת מעצמה.
+   ============================================================ */
+body.mark #mode{display:none}
+#mode2{display:none}
+body.mark #mode2{display:block}
+body.mark #stat{display:none}
+body.mark .nav{flex:1 1 auto}
+body.mark #daf{min-width:0;flex:1 1 auto;font-size:.92rem}
+.bar button:not(.add){background:rgba(255,255,255,.14);color:#fff;
+  min-width:42px;height:42px;padding:0 12px;font-size:.92rem;border-radius:10px}
+.bar button:not(.add):disabled{opacity:.35}
+.bar .fg button{min-width:36px;padding:0 8px}
+.bar .add{height:44px;padding:0 18px;border-radius:11px;
+  box-shadow:0 3px 12px rgba(192,143,43,.35)}
+#unsaved{width:auto;background:transparent !important;color:var(--gold-l) !important;
+  border:1.5px solid var(--gold-l);font-size:.82rem;font-weight:800;padding:0 10px}
+/* כפתור שאין בו שימוש כרגע — אינו מוצג, ולא מוצג אפור */
+body.mark #i-startg.off{display:none}
+/* הבועה בסימון — מעל הפס התחתון, בשורה מלאה */
+body.mark #toast{top:auto !important}
+@media (max-width:460px){
+  .bar button:not(.add){min-width:36px;padding:0 8px;font-size:.86rem}
+  .bar .fg button{min-width:32px;padding:0 6px}
+  .bar .add{padding:0 12px}
+  #unsaved{padding:0 7px;font-size:.76rem}
+  /* רמז שנחתך ל"עכשיו" אומר פחות משום רמז. כשיש בחירה, הכפתורים
+     עצמם אומרים מה לעשות. */
+  body.mark.gsel .bar:not(.ibar) .gh{display:none}
+  /* בזמן בחירה "ביטול הקטע האחרון" אינו הפעולה של הרגע — הוא חוזר
+     ברגע שהבחירה נסגרת. ובלעדיו הכפתור הראשי נדחק מהמסך. */
+  body.mark.gsel #undo{display:none}
+  #unsaved .n{display:none}
+}
+/* בחברותא: מה שכבר שובץ מקבל את הקו הכחול של הפס שבמרזב הגמרא —
+   "כבר מסומן" נקרא באותו צבע משני הצדדים. זהב = חדש, ירוק = מכאן
+   ממשיכים. */
+.chb p.cp.used{box-shadow:inset 3px 0 0 rgba(23,70,143,.45)}
 </style>
 </head>
 <body>
@@ -509,7 +557,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 <div class="bar">
   <button id="more" title="עוד פעולות">⋯</button>
   <button id="unsaved" title="יש שינויים שטרם נשמרו בגיליון — לחצו לשמירה"
-          style="display:none">!</button>
+          style="display:none">שמירה</button>
   <button id="undo" title="ביטול הקטע האחרון">↶</button>
   <span class="fg">סוף
     <!-- הכיוונים היו הפוכים, וזה שיתק את הכפתור שבו באמת משתמשים.
@@ -532,7 +580,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
      כאן לא מוסיפים קטע אלא משנים אחד. -->
 <div class="bar ibar" id="ibar">
   <button id="i-close" title="סגירה">✕</button>
-  <span class="fg">התחלה
+  <span class="fg" id="i-startg">התחלה
     <button data-inudge="start,-1" title="מילה אחורה">▸</button>
     <button data-inudge="start,1" title="מילה קדימה">◂</button></span>
   <span class="fg">סוף
@@ -542,12 +590,14 @@ body.mark.solo:not(.on-chav) .chav{display:none}
   <span class="gh" id="ihint"></span>
   <button id="i-split" title="פיצול הקטע כאן">✂</button>
   <button id="i-del" title="מחיקת הקטע">🗑</button>
-  <button class="add" id="i-save">שמירה</button>
+  <button class="add" id="i-save">עדכון הקטע</button>
 </div>
 
 <!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
 <div class="menu" id="menu">
   <div class="mstate" id="gstate"></div>
+  <!-- בכותרת הוא תפס שליש מהרוחב, ונוגעים בו פעם בדף -->
+  <button id="mode2">→ חזרה לכיול</button>
   <button id="layout">מסך מלא</button>
   <button id="swap">⇄ החלפת צדדים</button>
   <button id="steplist">☰ רשימת הקטעים · עריכה</button>
@@ -1512,12 +1562,24 @@ function say(t, bad) {
 var TOAST_T = null;
 function sayFull(bad, force) {
   var el = document.getElementById('stat'), tb = document.getElementById('toast');
-  if (!el || !tb || !el.textContent) return;
-  if (!force && el.scrollWidth <= el.clientWidth + 1) { tb.className = ''; return; }
+  if (!el || !tb) return;
+  if (!el.textContent) { tb.className = ''; return; }
+  /* במסך הסימון השורה שבכותרת מוסתרת, ולכן כל הודעה עולה בבועה —
+     מעל הפס התחתון, שם העין נמצאת בזמן העבודה. */
+  var marking = document.body.classList.contains('mark');
+  if (!marking && !force && el.scrollWidth <= el.clientWidth + 1) { tb.className = ''; return; }
   tb.innerHTML = el.innerHTML;
   tb.className = 'on' + (bad || el.className === 'bad' ? ' bad' : '');
-  var hd = document.querySelector('header');
-  tb.style.top = ((hd ? hd.getBoundingClientRect().bottom : 60) + 6) + 'px';
+  if (marking) {
+    var br = document.querySelector('body.mark.insp #ibar') ||
+             document.querySelector('.bar:not(.ibar)');
+    tb.style.top = '';
+    tb.style.bottom = ((br ? br.getBoundingClientRect().height : 60) + 8) + 'px';
+  } else {
+    var hd = document.querySelector('header');
+    tb.style.bottom = '';
+    tb.style.top = ((hd ? hd.getBoundingClientRect().bottom : 60) + 6) + 'px';
+  }
   clearTimeout(TOAST_T);
   TOAST_T = setTimeout(function () { tb.className = ''; }, bad ? 8000 : 4500);
 }
@@ -1849,7 +1911,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.53';
+var STUDIO_VER = '8.99.54';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2438,6 +2500,8 @@ function markPanel() {
   var ih = document.getElementById('ihint');
   var sNudge = document.querySelectorAll('[data-inudge^="start"]');
   [].forEach.call(sNudge, function (btn) { btn.disabled = INSP <= 0; });
+  var sg = document.getElementById('i-startg');
+  if (sg) sg.classList.toggle('off', INSP <= 0);
   if (ih && INSP >= 0 && STEPS[INSP]) {
     var ist = STEPS[INSP], ic = ist.c || {};
     ih.textContent = 'קטע ' + (INSP + 1) + ' · שורות ' +
@@ -2515,6 +2579,7 @@ function markPanel() {
   var db = document.getElementById('unsaved');
   if (db) {
     db.style.display = d ? '' : 'none';
+    db.innerHTML = 'שמירה' + (d > 1 ? '<span class="n"> (' + d + ')</span>' : '');
     db.title = d + ' עמודים טרם נשמרו בגיליון — לחצו לשמירה';
   }
   var sv = document.getElementById('save2');
@@ -3913,6 +3978,7 @@ function nudge(which, dir) {
 document.getElementById('mode').onclick = function () {
   setMode(MODE === 'mark' ? 'cal' : 'mark');
 };
+document.getElementById('mode2').onclick = function () { setMode('cal'); };
 document.getElementById('addstep').onclick = function () { addStep(); };
 document.getElementById('addstep2').onclick = function () {
   addStep(this.dataset.cont === '1');
