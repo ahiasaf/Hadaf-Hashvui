@@ -2741,10 +2741,28 @@ function deckPosOfFile(f) {
    הדפדפן הוא שמחזיק את התמונות; המפה כאן רק זוכרת מי כבר הגיע,
    כדי שנדע אם להחליף מיד או להמתין. */
 var PRE = {};
+/* ============================================================
+   שקף חדש שנכשל פעם אחת — לא נכשל לנצח.
+   ============================================================
+   "העליתי שקף 15 בניהול, ובדף האינטראקטיבי לא רואים אותו — מופיע
+   במקומו 14." הרשימה בגיליון מתעדכנת מיד, אבל הקובץ עצמו עולה
+   לאתר רק אחרי שהפריסה נגמרת. מי שפתח את הדף באמצע קיבל שגיאה —
+   והשגיאה נזכרה: אותו אובייקט תמונה נשאר "נכשל", והמסך המשיך
+   להראות את השקף הקודם בלי לנסות שוב. וייתכן שגם הדפדפן זכר את
+   השגיאה עצמה.
+
+   עכשיו: כישלון מוחק את הזיכרון, וכל ניסיון חוזר מגיע עם סימן
+   ייחודי בכתובת (`?r=`), כדי לעקוף גם שגיאה שנשמרה בדפדפן. */
+var PRE_BAD = {};
 function slidePre(n) {
   if (!DECK || !(n >= 1) || n > deckN()) return null;
   var src = slideSrc(n);
-  if (!PRE[src]) { PRE[src] = new Image(); PRE[src].src = src; }
+  if (!PRE[src]) {
+    var im = new Image();
+    im.onerror = function () { PRE_BAD[src] = (PRE_BAD[src] || 0) + 1; };
+    im.src = PRE_BAD[src] ? src + '?r=' + Date.now() : src;
+    PRE[src] = im;
+  }
   return PRE[src];
 }
 function slideReady(n) {
@@ -2908,17 +2926,25 @@ function sideImg(n) {
     /* בינתיים הוחלף השקף — מה שהגיע כבר אינו מה שמבקשים */
     var e = $('sd-img');
     if (SLIDE !== n || !e) return;
-    e.src = src;
+    e.src = (PRE[src] && PRE[src].src) || src;
     e.alt = 'שקף ' + n;
     cls('sd-b');
   };
   if (slideReady(n)) { show(); return; }
   /* כבר נכשל קודם: `complete` דלוק ואין רוחב. אין למה להמתין,
      ושום אירוע לא יגיע יותר — בלי זה הסימן היה מסתובב לנצח. */
-  if (!im || (im.complete && !im.naturalWidth)) { cls('sd-b'); return; }
+  var retry = function () {
+    /* נכשל — שוכחים אותו ומנסים שוב בעוד כמה שניות, עד חמש פעמים
+       (הפריסה של שקף חדש לוקחת דקה-שתיים). */
+    delete PRE[src];
+    PRE_BAD[src] = (PRE_BAD[src] || 0) + 1;
+    if (PRE_BAD[src] > 5) { cls('sd-b'); return; }
+    setTimeout(function () { if (SLIDE === n) sideImg(n); }, 4000);
+  };
+  if (!im || (im.complete && !im.naturalWidth)) { cls('sd-b wait'); retry(); return; }
   cls('sd-b wait');
   im.onload  = show;
-  im.onerror = function () { cls('sd-b'); };
+  im.onerror = retry;
 }
 function sideStep(d) {
   var n = SLIDE + d;
