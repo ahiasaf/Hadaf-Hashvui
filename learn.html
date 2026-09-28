@@ -1892,7 +1892,11 @@ function ownEditLoad_(n) {
      בלי זה טלפון עם טיוטה מלפני שעות החזיר אותה על פני עבודה
      חדשה שנשמרה מהמחשב. */
   var sheetT = ownTime_(n);
-  if (dr && sheetT && dr.at && dr.at < sheetT) { ownDraftDrop_(n); dr = null; }
+  /* **לא מוחקים — רק לא משתמשים.** `__t` שבזיכרון אינו בהכרח מה
+     שבגיליון: `ownFresh_` כותב אותו לזיכרון לפני שהשרת קיבל. כשהשרת
+     דחה (סיסמה חסרה, דף פתוח מגרסה ישנה) — הטיוטה נמחקה כאן, והקטע
+     נעלם בחזרה אליו. טיוטה נמחקת רק כשהגיליון אישר (`ownVerify`). */
+  if (dr && sheetT && dr.at && dr.at < sheetT) dr = null;
   if (dr && dr.pieces && dr.pieces.length &&
       JSON.stringify(dr.pieces) !== JSON.stringify(src)) { src = dr.pieces; restored = true; }
   OWN_EDIT_BASE = JSON.stringify(ownCleanPieces_(ownPieces_(n)));
@@ -2474,6 +2478,9 @@ function ownFresh_(apply) {
   }).catch(function () { return false; });
 }
 function ownSaveAll(n, auto) {
+  /* לפני כל ניסיון — הטקסט במכשיר. מעבר קטע בלי הקלדה נוספת לא
+     כתב טיוטה, ושמירה שנכשלה השאירה אותו רק בזיכרון של הלשונית. */
+  if (OWN_EDIT && OWN_EDIT_N === n) ownDraftPut_();
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_(auto)) { ownMsg('bad', NOKEY_MSG); return; }
   var pieces = OWN_EDIT.slice(), toUpload = [];
