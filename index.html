@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.49';
+var APP_VERSION = '8.99.50';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8755,8 +8755,9 @@ function dataDedupe() {
   var key = (CFG.readKey || '').trim();
   if (!key) { dataState.msg = 'חסרה סיסמת הקריאה.'; admPane(); return; }
   if (!confirm('שורות כפולות של אותו תלמיד ב"לומדים" יימחקו — ' +
-               'יישאר רק האחרון שלו. אין דרך חוזרת מלבד היסטוריית ' +
-               'הגרסאות של הגיליון עצמו.\n\nלנקות?')) {
+               'יישאר רק האחרון שלו. וגם מי שנרשם מכמה מכשירים ' +
+               '(אותו טלפון, שם ותפקיד) יאוחד לשורה אחת. אין דרך ' +
+               'חוזרת מלבד היסטוריית הגרסאות של הגיליון עצמו.\n\nלנקות?')) {
     dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
   }
   dataState.done = ''; dataState.msg = 'מנקה…'; admPane();
@@ -8765,9 +8766,11 @@ function dataDedupe() {
       dataState.msg = '<b>לא נוקה.</b> ' + esc((d && d.message) || 'אין תשובה מהסקריפט.');
       admPane(); return;
     }
-    dataState.done = !d.removed
+    dataState.done = !d.removed && !d.merged
       ? '"לומדים" כבר הייתה נקייה — לא נמחק דבר.'
-      : 'נמחקו ' + d.removed + ' שורות כפולות מ"לומדים".';
+      : [d.removed ? 'נמחקו ' + d.removed + ' שורות כפולות מ"לומדים".' : '',
+         d.merged ? 'אוחדו ' + d.merged + ' שנרשמו מכמה מכשירים.' : '']
+        .filter(Boolean).join(' ');
     dataLoad(1);
   }).catch(function () {
     dataState.msg = '<b>לא נוקה.</b> אין תשובה מהסקריפט.'; admPane();

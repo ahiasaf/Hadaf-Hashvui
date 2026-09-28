@@ -318,3 +318,64 @@ function LCountsFrom(rows) {
   }
   return m;
 }
+
+/* ============================================================
+   אותו אדם במכשיר נוסף.
+   ============================================================
+   המזהה נולד במכשיר, ולכן מי שנרשם גם מהטלפון וגם מהמחשב היה
+   לשני אנשים. השרת מזהה עכשיו אדם לפי טלפון ושם (ראו
+   `canonJoinCols_` ב-apps-script.gs), ובולע את השורה של המכשיר
+   החדש בשורה הקיימת. כאן המכשיר שואל: "המזהה שלי נבלע?" — ואם
+   כן, עובר למזהה הקבוע ומקבל את הדפים שכבר סימן במכשיר האחר.
+
+   נשאל שוב פעם בשבוע גם אחרי אישור: הניקוי החד-פעמי בניהול
+   (`mergePeople_`) יכול להפוך מזהה קבוע לנבלע. */
+function LMergeLearned(list) {
+  if (!list || !list.length) return;
+  var all = LGet('learned', {}) || {}, now = new Date().toISOString();
+  list.forEach(function (tag) { if (tag && !all[tag]) all[tag] = now; });
+  LSet('learned', all);
+}
+function LAdopt(id, learned) {
+  var me = LMe();
+  if (!me || !id) return;
+  var old = me.id;
+  if (old && old !== id) {
+    me.id = id;
+    LSet('me', me);
+    LSet('who-id', id);
+    /* מה שעוד ממתין בתור נושא את המזהה הישן. בלי ההחלפה הבדיקה
+       החוזרת (`?mark=` לפי המזהה הנוכחי) לא הייתה מוצאת אותו
+       לעולם, והוא היה נשלח שוב ושוב. */
+    ['learn-q', 'join-q'].forEach(function (k) {
+      var q = LGet(k, []) || [];
+      q.forEach(function (it) {
+        if (!it || !it.cols) return;
+        try {
+          var c = JSON.parse(it.cols);
+          c.forEach(function (p) { if (p && p[0] === 'מזהה' && p[1] === old) p[1] = id; });
+          it.cols = JSON.stringify(c);
+        } catch (e) {}
+      });
+      LSet(k, q);
+    });
+  }
+  LMergeLearned(learned);
+  LSet('id-ok', { id: id, at: Date.now() });
+}
+function LSyncId(force, after) {
+  var me = LMe(), url = LApi();
+  if (!me || !me.id || !url) return;
+  var ok = LGet('id-ok', null);
+  if (!force && ok && ok.id === me.id && Date.now() - (ok.at || 0) < 7 * 86400000) return;
+  /* ההרשמה עוד לא הגיעה לגיליון — אין עדיין את מי לשאול. */
+  if ((LGet('join-q', []) || []).length) return;
+  LJsonp(url + '?idFor=' + encodeURIComponent(me.id)).then(function (r) {
+    /* לא נמצא — אולי השורה עוד בדרך. שואלים בפתיחה הבאה. */
+    if (!r || r.status !== 'ok' || !r.id) return;
+    var was = me.id;
+    LAdopt(r.id, r.learned);
+    if (after && (was !== r.id || (r.learned && r.learned.length))) after();
+  }).catch(function () {});
+}
+if (typeof window !== 'undefined') setTimeout(function () { LSyncId(); }, 2500);

@@ -279,7 +279,10 @@ function doPost(e) {
          ראו `upsertCols_` — זה מה שמפסיק את הכפילות שנוצרה
          מכל שליחה חוזרת (כשל שקט של no-cors, לחיצה כפולה,
          ניסיון-מחדש). */
-      return upsertCols_(d.tab, parse_(d.cols), 'מזהה', d.ss);
+      /* ואותו אדם ממכשיר אחר — נבלע בשורה שלו. ראו canonJoinCols_. */
+      var jcols = parse_(d.cols);
+      try { jcols = canonJoinCols_(jcols); } catch (cje) {}
+      return upsertCols_(d.tab, jcols, 'מזהה', d.ss);
     }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
@@ -721,6 +724,8 @@ function doGet(e) {
           for (var az = 0; az < avals.length; az++) {
             if (String(avals[az][0] || '').trim() === aid) { aHas = true; break; }
           }
+          /* מכשיר שנבלע בשורה של אותו אדם — השורה שלו היא זו. */
+          if (!aHas) aHas = rowOfId_(joinTable_(), aid) >= 1;
         }
       }
     } catch (ae) {}
@@ -844,31 +849,127 @@ function doGet(e) {
      **ושם המשפחה חייב להתאים** (שלו או זה שמסר עליי): טלפון לבדו
      היה מאפשר לכל אחד לגלות שם של נער לפי מספר. מה שחוזר: שם
      פרטי בלבד. */
+  /* **בשני הכיוונים.** עד עכשיו נבדק רק "הצד השני מסר את הטלפון
+     שלי". אבא שלא מילא בהרשמה את הטלפון של הבן — או מילא אותו
+     רק בתיבת ההזמנה — ראה אצלו "אבא ובן", והבן לא ראה כלום. ולכן
+     גם: הטלפון **שאני** מסרתי על הצד השני הוא הטלפון שלו, או
+     שנרשמתי דרך קישור ההזמנה שלו (`wid`), או שהוא דרך שלי. אלה
+     בדיוק הדרכים שהלוח של הצוות כבר מצליב בהן (`pairMap_`).
+
+     `id` — המזהה שלי. בעזרתו השרת קורא את השורה שלי עצמה, ולכן
+     גם מכשיר שנרשם מחדש או שוחזר (ואינו זוכר את הטלפון של
+     השותף) מקבל תשובה נכונה. */
   if (e && e.parameter && e.parameter.pairFor) {
     var pmPh = phKey_(e.parameter.pairFor);
-    var pmLast = String(e.parameter.last || '').replace(/["'׳״\s]/g, '');
+    var pmLast = nk_(e.parameter.last);
     var pmDad = e.parameter.role === 'dad';
+    var pmOther = [], pmWid = [], pmIds = [];
+    var addU = function (arr, v) { if (v && arr.indexOf(v) < 0) arr.push(v); };
+    addU(pmOther, phKey_(e.parameter.other));
+    addU(pmWid, String(e.parameter.wid || '').trim());
     var found = null;
     try {
-      if (pmPh && pmLast) {
-        var pmsh = sheet_(JOIN_TAB);
-        if (pmsh && pmsh.getLastRow() > 1) {
-          var pmv = pmsh.getDataRange().getDisplayValues(), pmix = {};
-          for (var pq = 0; pq < pmv[0].length; pq++) pmix[String(pmv[0][pq]).trim()] = pq;
-          var pc = function (r, n) { return pmix[n] === undefined ? '' : String(r[pmix[n]] || '').trim(); };
-          var nk = function (v) { return String(v || '').replace(/["'׳״\s]/g, ''); };
-          for (var pr = pmv.length - 1; pr >= 1; pr--) {
-            var row = pmv[pr];
-            if ((pc(row, 'תפקיד') === 'הורה') === pmDad) continue;   /* הצד השני בלבד */
-            if (phKey_(pc(row, 'טלפון ההורה')) !== pmPh) continue;
-            if (nk(pc(row, 'משפחה')) !== pmLast && nk(pc(row, 'משפחת ההורה')) !== pmLast) continue;
-            found = pc(row, 'שם');
-            break;
+      var pt = joinTable_();
+      var pmId = String(e.parameter.id || '').trim();
+      if (pmId && pt.rows.length > 1) {
+        var mine = rowOfId_(pt, pmId);
+        if (mine >= 1) {
+          var mrow = pt.rows[mine];
+          rowIds_(pt, mrow).forEach(function (x) { addU(pmIds, x); });
+          if (!pmPh) pmPh = phKey_(pt.c(mrow, 'טלפון'));
+          if (!pmLast) pmLast = nk_(pt.c(mrow, 'משפחה'));
+        } else addU(pmIds, pmId);
+        /* השורות שלי — כולל "בן נוסף" של אבא (`מזהה:k1`). */
+        for (var mr0 = 1; mr0 < pt.rows.length; mr0++) {
+          var rid = pt.c(pt.rows[mr0], 'מזהה');
+          var isMine = pmIds.indexOf(rid) >= 0;
+          for (var mi0 = 0; mi0 < pmIds.length && !isMine; mi0++) {
+            if (rid.indexOf(pmIds[mi0] + ':k') === 0) isMine = true;
           }
+          if (!isMine) continue;
+          addU(pmOther, phKey_(pt.c(pt.rows[mr0], 'טלפון ההורה')));
+          addU(pmWid, pt.c(pt.rows[mr0], 'מזהה המזמין'));
+        }
+      }
+      if ((pmPh || pmOther.length) && pmLast || pmWid.length || pmIds.length) {
+        for (var pr = pt.rows.length - 1; pr >= 1; pr--) {
+          var row = pt.rows[pr];
+          if ((pt.c(row, 'תפקיד') === 'הורה') === pmDad) continue;   /* הצד השני בלבד */
+          var theirIds = rowIds_(pt, row);
+          var viaLink = false;
+          for (var w0 = 0; w0 < pmWid.length && !viaLink; w0++) {
+            if (theirIds.indexOf(pmWid[w0]) >= 0) viaLink = true;
+          }
+          if (!viaLink && pmIds.indexOf(pt.c(row, 'מזהה המזמין')) >= 0) viaLink = true;
+          if (!viaLink) {
+            /* טלפון לבדו היה מאפשר לכל אחד לגלות שם של נער לפי
+               מספר — ולכן בהצלבה לפי טלפון שם המשפחה חייב להתאים. */
+            if (!pmLast) continue;
+            if (nk_(pt.c(row, 'משפחה')) !== pmLast &&
+                nk_(pt.c(row, 'משפחת ההורה')) !== pmLast) continue;
+            var theirs = phKey_(pt.c(row, 'טלפון'));
+            var ok = (pmPh && phKey_(pt.c(row, 'טלפון ההורה')) === pmPh) ||
+                     (theirs && pmOther.indexOf(theirs) >= 0);
+            if (!ok) continue;
+          }
+          found = pt.c(row, 'שם');
+          break;
         }
       }
     } catch (pme) {}
     return reply_(e, { status: 'ok', 'with': found || '' });
+  }
+
+  /* ============================================================
+     אותו אדם, מכשיר נוסף.
+     ============================================================
+     `?idFor=` — המכשיר שואל פעם אחת: האם המזהה שלי נבלע בשורה
+     של מישהו (כי נרשמתי כבר ממכשיר אחר)? אם כן — מה המזהה הקבוע,
+     ומה כבר סימנתי משם. מי שמחזיק מזהה אקראי יודע ממילא מי הוא;
+     אין כאן מה לדלוף.
+
+     `?whoIs=` — "כבר נרשמתי במכשיר אחר": טלפון, שם פרטי ושם
+     משפחה — שלושתם, ובדיוק. מה שחוזר הוא מה שהאדם עצמו מילא,
+     **בלי** הטלפון של השותף: את זה הוא לא צריך כדי להמשיך, ומי
+     שמנחש פרטים של אחר לא יקבל ממנו מספר של אדם שלישי. */
+  if (e && e.parameter && e.parameter.idFor) {
+    var ifr = { status: 'ok', id: '', learned: [] };
+    try {
+      var it = joinTable_(), ir = rowOfId_(it, e.parameter.idFor);
+      if (ir >= 1) {
+        ifr.id = it.c(it.rows[ir], 'מזהה');
+        if (ifr.id !== String(e.parameter.idFor).trim()) ifr.learned = learnedOf_(rowIds_(it, it.rows[ir]));
+      }
+    } catch (ife) {}
+    return reply_(e, ifr);
+  }
+  if (e && e.parameter && e.parameter.whoIs) {
+    var wres = { status: 'ok', me: null, learned: [] };
+    try {
+      var wt = joinTable_(), wr = -1;
+      var wdad = e.parameter.role;
+      var tryRole = wdad === 'dad' ? [true] : wdad === 'kid' ? [false] : [false, true];
+      for (var tq = 0; tq < tryRole.length && wr < 1; tq++) {
+        wr = rowOfKey_(wt, personKey_(e.parameter.whoIs, e.parameter.first,
+                                      e.parameter.last, tryRole[tq]));
+      }
+      if (wr >= 1) {
+        var w = wt.rows[wr], wc = function (n) { return wt.c(w, n); };
+        var WAY_OF = { 'אבות ובנים':'dad', 'חבורת לימוד':'chav', 'לימוד עצמי':'solo' };
+        var rel = wc('לומד עם');
+        wres.me = {
+          id: wc('מזהה'), role: wc('תפקיד') === 'הורה' ? 'dad' : 'kid',
+          rel: rel === 'חבר' ? 'friend' : rel === 'בן' ? 'kid' : 'dad',
+          inst: wc('קוד ישיבה'), instName: wc('ישיבה'),
+          first: wc('שם'), last: wc('משפחה'), grade: wc('שכבה'), klass: wc('כיתה'),
+          way: WAY_OF[wc('מסגרת')] || wc('מסגרת'),
+          dadFirst: wc('שם ההורה'), dadLast: wc('משפחת ההורה'),
+          from: wc('הוזמן על ידי'), withId: wc('מזהה המזמין')
+        };
+        wres.learned = learnedOf_(rowIds_(wt, w));
+      }
+    } catch (we) {}
+    return reply_(e, wres);
   }
 
   if (e && e.parameter && e.parameter.pendingFor) {
@@ -1012,7 +1113,12 @@ function doGet(e) {
                           : 'לא נקבעה סיסמה בסקריפט (READ_KEY) — מחיקה חסומה' });
     }
     var ddres;
-    try { ddres = dedupeJoin_(); }
+    try {
+      ddres = dedupeJoin_();
+      /* ואחרי הכפילויות של אותו מכשיר — אותו אדם מכמה מכשירים. */
+      ddres.merged = mergePeople_();
+      if (ddres.merged) recount_();
+    }
     catch (dde) { ddres = { status: 'error', message: String(dde) }; }
     return reply_(e, ddres);
   }
@@ -1641,6 +1747,16 @@ function boardData_(inst, k, withTest) {
          אבא ובן אינם תמיד מסמנים את אותה ישיבה, ואב שסימן
          ישיבה אחרת עדיין אביו של הבן הזה. */
       var pm = pairMap_(jr);
+      /* מה שסומן ממכשיר שנבלע אחר כך — נספר לאותו אדם. */
+      var bam = aliasMap_(jr);
+      for (var al in bam) {
+        var cn = bam[al], t0;
+        for (t0 in (done[al] || {})) (done[cn] = done[cn] || {})[t0] = 1;
+        for (t0 in (pos[al] || {})) {
+          if (!pos[cn]) pos[cn] = {};
+          if (!(pos[cn][t0] >= pos[al][t0])) pos[cn][t0] = pos[al][t0];
+        }
+      }
       for (var c = 0; c < jh.length; c++) ji[String(jh[c]).trim()] = c;
       var cell = function (r, name) {
         return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
@@ -1737,6 +1853,176 @@ function phKey_(v) {
   return d.length >= 8 ? d : '';
 }
 
+/* ============================================================
+   אדם אחד, כמה מכשירים.
+   ============================================================
+   המזהה נולד במכשיר (`deviceId` ב-join.html), ולכן מי שנרשם
+   מהטלפון ואחר כך מהמחשב היה לשני אנשים: שתי שורות, שני
+   מונים, והדפים שסימן בטלפון אינם במחשב. אבא אחד נרשם כך
+   פעמיים, והתווית אצלו הראתה חיבור לבן במכשיר אחד ולא בשני.
+
+   הכלל מעכשיו: **טלפון + שם פרטי + שם משפחה + תפקיד הם אדם.**
+   שורה חדשה שעונה על אותו מפתח אינה נוספת — היא נבלעת בשורה
+   הקיימת, והמזהה של המכשיר החדש נרשם בעמודה "מזהים נוספים".
+   המכשיר עצמו שואל אחר כך (`?idFor=`) ועובר למזהה הקבוע.
+
+   אחים שמסרו את הטלפון של אבא כטלפון שלהם אינם מתאחדים — השם
+   הפרטי שונה. והשורות של "בן נוסף" (`מזהה:k1`) הן של אבא ועם
+   אותו מפתח בדיוק, ולכן אינן נכנסות לחשבון כלל. */
+var ALIAS_COL = 'מזהים נוספים';
+
+function nk_(v) { return String(v || '').replace(/["'׳״\s]/g, ''); }
+
+function personKey_(phone, first, last, dad) {
+  var p = phKey_(phone), f = nk_(first), l = nk_(last);
+  if (!p || !f || !l) return '';
+  return p + '|' + f + '|' + l + '|' + (dad ? 'ה' : 'ת');
+}
+
+/* "לומדים" כטבלה: שורות תצוגה, אינדקס עמודות, ו-`c(r, שם)`. */
+function joinTable_() {
+  var sh = sheet_(JOIN_TAB);
+  var rows = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
+  var ix = {};
+  if (rows.length) for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
+  return {
+    sh: sh, rows: rows, ix: ix,
+    c: function (r, n) { return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim(); }
+  };
+}
+/* כל המזהים של שורה — הקבוע ואחריו אלה שנבלעו בו. */
+function rowIds_(t, r) {
+  var out = [], id = t.c(r, 'מזהה');
+  if (id) out.push(id);
+  t.c(r, ALIAS_COL).split(/\s+/).forEach(function (a) { if (a) out.push(a); });
+  return out;
+}
+function rowKey_(t, r) {
+  if (t.c(r, 'מזהה').indexOf(':k') >= 0) return '';        /* בן נוסף של אבא */
+  return personKey_(t.c(r, 'טלפון'), t.c(r, 'שם'), t.c(r, 'משפחה'),
+                    t.c(r, 'תפקיד') === 'הורה');
+}
+/* השורה של מזהה — לפי המזהה עצמו או לפי אחד שנבלע בה. -1 אם אין. */
+function rowOfId_(t, id) {
+  id = String(id || '').trim();
+  if (!id) return -1;
+  for (var r = t.rows.length - 1; r >= 1; r--) {
+    if (rowIds_(t, t.rows[r]).indexOf(id) >= 0) return r;
+  }
+  return -1;
+}
+function rowOfKey_(t, key) {
+  if (!key) return -1;
+  for (var r = t.rows.length - 1; r >= 1; r--) if (rowKey_(t, t.rows[r]) === key) return r;
+  return -1;
+}
+/* מזהה שנבלע → המזהה הקבוע. לשימוש מי שמצליב "לימוד" מול "לומדים". */
+function aliasMap_(rows) {
+  var out = {};
+  if (!rows || rows.length < 2) return out;
+  var iId = -1, iAl = -1;
+  for (var i = 0; i < rows[0].length; i++) {
+    var h = String(rows[0][i]).trim();
+    if (h === 'מזהה') iId = i;
+    if (h === ALIAS_COL) iAl = i;
+  }
+  if (iId < 0 || iAl < 0) return out;
+  for (var r = 1; r < rows.length; r++) {
+    var id = String(rows[r][iId] || '').trim();
+    if (!id) continue;
+    String(rows[r][iAl] || '').split(/\s+/).forEach(function (a) { if (a) out[a] = id; });
+  }
+  return out;
+}
+
+/* לפני כתיבה ל"לומדים": אם המזהה כבר מוכר כנבלע — כותבים על
+   הקבוע. אם אינו מוכר אבל האדם מוכר — נבלעים בו. אחרת — כמו
+   תמיד, שורה משלו. */
+function canonJoinCols_(cols) {
+  var get = function (n) {
+    for (var i = 0; i < cols.length; i++) if (cols[i] && cols[i][0] === n) return String(cols[i][1] || '').trim();
+    return '';
+  };
+  var setv = function (n, v) {
+    for (var i = 0; i < cols.length; i++) if (cols[i] && cols[i][0] === n) { cols[i][1] = v; return; }
+    cols.push([n, v]);
+  };
+  var id = get('מזהה');
+  if (!id || id.indexOf(':k') >= 0) return cols;
+  var t = joinTable_();
+  if (t.rows.length < 2) return cols;
+  var r = rowOfId_(t, id);
+  if (r >= 1) {
+    var canon = t.c(t.rows[r], 'מזהה');
+    if (canon && canon !== id) setv('מזהה', canon);
+    return cols;
+  }
+  r = rowOfKey_(t, personKey_(get('טלפון'), get('שם'), get('משפחה'), get('תפקיד') === 'הורה'));
+  if (r < 1) return cols;
+  var al = t.c(t.rows[r], ALIAS_COL);
+  setv('מזהה', t.c(t.rows[r], 'מזהה'));
+  setv(ALIAS_COL, (al ? al + ' ' : '') + id);
+  return cols;
+}
+
+/* מה שסומן כסיום, לכל המזהים של אדם אחד — 'מסלול|שבוע'. כל
+   הלשונית ולא מהסימנייה: זו שאלה על כל השנה, והיא נשאלת פעם
+   אחת במכשיר. */
+function learnedOf_(ids) {
+  var out = [], seen = {};
+  if (!ids || !ids.length) return out;
+  var sh = sheet_(LEARN_TAB);
+  if (!sh || sh.getLastRow() < 2) return out;
+  var rows = doneRows_(sh.getDataRange().getDisplayValues());
+  if (!rows || rows.length < 2) return out;
+  var ix = {};
+  for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
+  if (ix['מזהה'] === undefined) return out;
+  for (var r = 1; r < rows.length; r++) {
+    if (ids.indexOf(String(rows[r][ix['מזהה']] || '').trim()) < 0) continue;
+    var tag = String(rows[r][ix['מסלול']] || '') + '|' + String(rows[r][ix['שבוע']] || '');
+    if (!seen[tag]) { seen[tag] = 1; out.push(tag); }
+  }
+  return out;
+}
+
+/* ניקוי חד-פעמי: אותו אדם בכמה שורות → שורה אחת. נשאר המזהה
+   של השורה הראשונה (המכשיר שנרשם ראשון), עם הפרטים של האחרונה
+   (הם העדכניים), וכל שאר המזהים עוברים ל"מזהים נוספים". */
+function mergePeople_() {
+  var t = joinTable_();
+  if (t.rows.length < 3 || t.ix['מזהה'] === undefined) return 0;
+  var groups = {}, order = [];
+  for (var r = 1; r < t.rows.length; r++) {
+    var k = rowKey_(t, t.rows[r]);
+    if (!k) continue;
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(r);
+  }
+  var head = headers_(t.sh), iAl = idx_(t.sh, head, ALIAS_COL);
+  var toDelete = [], merged = 0;
+  order.forEach(function (k) {
+    var g = groups[k];
+    if (g.length < 2) return;
+    var canon = t.c(t.rows[g[0]], 'מזהה'), ids = [];
+    g.forEach(function (r) {
+      rowIds_(t, t.rows[r]).forEach(function (x) {
+        if (x !== canon && ids.indexOf(x) < 0) ids.push(x);
+      });
+    });
+    var keep = g[g.length - 1];
+    var row = t.sh.getRange(keep + 1, 1, 1, head.length).getValues()[0];
+    row[t.ix['מזהה']] = canon;
+    row[iAl] = ids.join(' ');
+    t.sh.getRange(keep + 1, 1, 1, row.length).setValues([row]);
+    for (var j = 0; j < g.length - 1; j++) toDelete.push(g[j] + 1);
+    merged++;
+  });
+  toDelete.sort(function (a, b) { return b - a; });
+  for (var d = 0; d < toDelete.length; d++) t.sh.deleteRow(toDelete[d]);
+  return merged;
+}
+
 /* מזהה → { with:'שם פרטי של הצד השני', ok:1 }.
    מוחזר רק למי שיש לו זיווג **מאומת**. הצהרה בלבד ("מילאתי
    את השם של אבא") כבר מיוצגת בעמודה עצמה, והבחנה בין השתיים
@@ -1747,6 +2033,7 @@ function pairMap_(rows) {
   var head = rows[0], ix = {};
   for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
   if (ix['מזהה'] === undefined) return out;       /* אין את מי לזווג */
+  var am = aliasMap_(rows);
   var cell = function (r, n) {
     return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim();
   };
@@ -1796,8 +2083,10 @@ function pairMap_(rows) {
     /* ומי שמסר את הטלפון שלו — הכיוון ההפוך, כשרק צד אחד מילא */
     var back = me.mine ? (byOther[me.mine] || []) : [];
     for (var d = 0; d < back.length; d++) link(me, by[back[d]]);
-    /* ומי שנרשם דרך ההזמנה שלו */
-    if (me.wid && by[me.wid]) link(me, by[me.wid]);
+    /* ומי שנרשם דרך ההזמנה שלו — גם כשההזמנה נשלחה ממכשיר
+       שנבלע אחר כך בשורה של אותו אדם. */
+    var wid = me.wid ? (am[me.wid] || me.wid) : '';
+    if (wid && by[wid]) link(me, by[wid]);
   }
   return out;
 }

@@ -805,6 +805,11 @@ footer a{color:var(--ink-2);font-weight:800}
          שמתחיל לגלול בתוכו כבר עסוק במשהו אחר — ההצטרפות
          היא הדבר היחיד שצריך להיות ברור לפני הכל. -->
     <button class="go" id="hero-go"></button>
+    <!-- "כבר נרשמתי במכשיר אחר" — ראו drawBack_. כאן ולא בתוך
+         הטופס: מי שכבר רשום לא צריך לעבור את שלבי המסע כדי
+         להגיע אליו, ומי ששלח הזמנה ופתח אותה בעצמו נעצר לפני
+         שהתחיל למלא. -->
+    <div id="back" style="margin-top:14px"></div>
 
     <!-- ואחריו הבאנר, ולא רק אחרי ההרשמה.
          שלושה כרטיסי טקסט שמספרים על הדף אינם מה שמשכנע: הם
@@ -1888,6 +1893,14 @@ function flush() {
       var rest = get('join-q', []) || [];
       rest.shift();
       set('join-q', rest);
+      /* ההרשמה בגיליון. אם השרת זיהה שזה אדם שכבר רשום ממכשיר
+         אחר — עוברים עכשיו למזהה שלו, ולא רק בפתיחה הבאה. */
+      if (!rest.length && typeof LSyncId === 'function') {
+        LSyncId(true, function () {
+          if ($('done').className !== 'on') return;
+          PAIR_ASKED = false; drawWeek(); drawInv(); paintName_();
+        });
+      }
       flush();
     }).catch(function () {});
 }
@@ -1920,6 +1933,13 @@ $('go').onclick = function () {
      רווח או עם קידומת בינלאומית הוא מספר תקין, וטופס שדוחה
      אותו מרחיק תלמיד בגלל צורת כתיבה. */
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
+  /* מי ששלח את ההזמנה פתח אותה בעצמו — במחשב, מהוואטסאפ שלו —
+     והטופס מולו ממולא בפרטים של מי שהוזמן. הטלפון שלו עצמו הוא
+     הסימן: אין סיבה שמי שהוזמן ימסור את הטלפון של מי שהזמין. */
+  if (invFrom && sndr.phone && phNorm_(val('phone')) &&
+      phNorm_(val('phone')) === phNorm_(sndr.phone)) {
+    return say(tpl(JOIN.backSelfErr, { from: sndr.first || invFrom }));
+  }
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
   if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
@@ -1971,7 +1991,17 @@ $('go').onclick = function () {
      כשממלא אבא. עמודת "תפקיד" היא שאומרת מי מהם. שמות
      העמודות נשארים כפי שהם בכוונה — שינוי שם כותרת מייצר
      עמודה חדשה וריקה, ומשאיר את כל מה שנכתב עד היום ביתומה. */
-  queue({ action:'row', tab:'לומדים', cols: JSON.stringify([
+  queue(joinRow_(me));
+
+  showDone(me);
+};
+function say(t) { $('err').textContent = t; }
+
+/* השורה ב"לומדים" — מההרשמה, ושוב כשמשהו בה משתנה אחר כך
+   (הטלפון של הצד השני שהושלם בתיבת ההזמנה). השרת דורס לפי
+   המזהה, ולכן שליחה חוזרת היא עדכון ולא שורה נוספת. */
+function joinRow_(me) {
+  return { action:'row', tab:'לומדים', cols: JSON.stringify([
     ['מזהה', me.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
     ['שם', me.first], ['משפחה', me.last], ['שכבה', me.grade],
     ['כיתה', me.klass],
@@ -1982,11 +2012,13 @@ $('go').onclick = function () {
     ['טלפון ההורה', me.dadPhone],
     ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId],
     ['בדיקה', LTester() ? 'כן' : '']
-  ]) });
+  ].filter(function (c) {
+    /* מכשיר ששוחזר ("כבר נרשמתי") אינו מקבל את הטלפון של השותף
+       — ושורה ששולחת אותו ריק הייתה מוחקת אותו בגיליון. */
+    return c[0] !== 'טלפון ההורה' || c[1];
+  })) };
+}
 
-  showDone(me);
-};
-function say(t) { $('err').textContent = t; }
 
 /* ============================================================
    ההזמנה ההדדית.
@@ -2053,7 +2085,8 @@ var PAIR_ASKED = false;
 function pairAsk_() {
   var me = get('me', null) || {};
   if (PAIR_ASKED || get('pair-with', '') || !API) return;
-  if (!me.phone || !me.last || (me.way !== 'dad' && me.role !== 'dad')) return;
+  if (me.way !== 'dad' && me.role !== 'dad') return;
+  if (!me.id && (!me.phone || !me.last)) return;
   PAIR_ASKED = true;
   var cb = 'pw' + Date.now(), sc = document.createElement('script');
   var clean = function () {
@@ -2066,8 +2099,13 @@ function pairAsk_() {
     if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); paintName_(); }
   };
   sc.onerror = function () { clearTimeout(t0); clean(); };
-  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone) +
-    '&last=' + encodeURIComponent(me.last) + '&role=' + (me.role === 'dad' ? 'dad' : 'kid') +
+  /* גם מה שאני מסרתי על הצד השני, ומי הזמין אותי — השרת בודק
+     בשני הכיוונים, ראו `pairFor` ב-apps-script.gs. */
+  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone || '') +
+    '&last=' + encodeURIComponent(me.last || '') + '&role=' + (me.role === 'dad' ? 'dad' : 'kid') +
+    '&id=' + encodeURIComponent(me.id || '') +
+    '&other=' + encodeURIComponent(me.dadPhone || '') +
+    '&wid=' + encodeURIComponent(me.withId || '') +
     '&callback=' + cb;
   document.body.appendChild(sc);
 }
@@ -2116,6 +2154,10 @@ function drawInv() {
     if ((String(num).match(/\d/g) || []).length < 9) return;
     /* נשמר ברשומה, כדי שהמספר לא יאבד אם הוא ייסגר וייפתח. */
     me.dadPhone = num; set('me', me);
+    /* וגם לגיליון. עד עכשיו המספר נשמר רק כאן — ולכן אבא שהשלים
+       את הטלפון של הבן בתיבה הזו היה מחובר אליו רק בצד שלו,
+       והבן לא ראה "עם אבא". */
+    queue(joinRow_(me));
     set('inv-sent', 1);
     window.open('https://wa.me/' + waNum(num) + '?text=' +
       encodeURIComponent(tpl(JOIN.invMsg, {
@@ -3352,6 +3394,111 @@ drawWays();
 drawWho();
 applyRole();          /* וזה קורא ל-applyWays כשהממלא אינו אבא */
 stage();
+
+/* ============================================================
+   "כבר נרשמתי במכשיר אחר".
+   ============================================================
+   המזהה נולד במכשיר, ולכן מי שנרשם בטלפון ופותח עכשיו את
+   המחשב רואה טופס ריק. אם ימלא אותו — השרת כבר יזהה שזה הוא
+   (טלפון ושם, ראו `canonJoinCols_`). אבל אין סיבה שיעבור שוב על
+   כל הטופס: שם, משפחה וטלפון — והכול עובר לכאן, כולל החיבור
+   לאבא או לבן והדפים שכבר סימן.
+
+   ומקרה אחד שקרה בפועל: אבא שלח לבן קישור הזמנה, פתח אותו
+   במחשב מהוואטסאפ שלו, ומצא טופס ממולא בפרטים של הבן. הוא נרשם
+   — בשם הבן. כאן הוא נשאל לפני כן, ויש לו כפתור משלו. */
+function phNorm_(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (d.indexOf('972') === 0) d = d.slice(3);
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return d.length >= 8 ? d : '';
+}
+function restoreAs_(who, msg, btn) {
+  if (!API || typeof LJsonp !== 'function') { msg.textContent = JOIN.backFail; return; }
+  btn.className = 'btn off';
+  msg.textContent = JOIN.backWait;
+  LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') +
+         'whoIs=' + encodeURIComponent(who.phone) +
+         '&first=' + encodeURIComponent(who.first) +
+         '&last=' + encodeURIComponent(who.last) +
+         (who.role ? '&role=' + who.role : ''))
+    .then(function (r) {
+      btn.className = 'btn';
+      if (!r || r.status !== 'ok') { msg.textContent = JOIN.backFail; return; }
+      if (!r.me || !r.me.id) { msg.textContent = JOIN.backNone; return; }
+      var m = r.me;
+      m.phone = who.phone;
+      m.dadPhone = '';
+      m.at = new Date().toISOString();
+      set('who-id', m.id);
+      set('me', m);
+      set('id-ok', { id: m.id, at: Date.now() });
+      set('pair-with', '');
+      /* ההזמנה כבר נשלחה מהמכשיר האחר. */
+      if (m.dadFirst) set('inv-sent', 1);
+      if (typeof LMergeLearned === 'function') LMergeLearned(r.learned);
+      PAIR_ASKED = false;
+      msg.textContent = '';
+      showDone(m);
+    })
+    .catch(function () { btn.className = 'btn'; msg.textContent = JOIN.backFail; });
+}
+function drawBack_() {
+  var box = $('back'); if (!box) return;
+  if (get('me', null)) { box.innerHTML = ''; return; }
+  var h = '';
+  /* קישור הזמנה — ומי ששלח אותו עשוי להיות זה שפותח. */
+  if (invFrom && sndr.first && sndr.phone) {
+    var from = sndr.first, to = pre.first || '';
+    h += '<div class="more-card" style="margin:0 0 12px">' +
+      '<p class="h" style="margin:0 0 10px">' +
+        esc(tpl(to ? JOIN.backInvQ : JOIN.backInvQ0, { to: to, from: from })) + '</p>' +
+      '<button class="btn" id="back-inv-go">' + esc(tpl(JOIN.backInvBtn, { from: from })) +
+      '</button><div class="err" id="back-inv-msg" role="alert"></div></div>';
+  }
+  h += '<button class="more-link" id="back-link" style="margin:0 0 12px">' +
+      esc(JOIN.backLink) + '</button>' +
+    '<div class="more-card" id="back-form" style="display:none;margin:0 0 12px">' +
+    '<h4>' + esc(JOIN.backTitle) + '</h4>' +
+    '<p class="h">' + esc(JOIN.backSub) + '</p>' +
+    '<div class="fld"><label class="label" for="back-first">' + esc(JOIN.backFirst) +
+    '</label><input id="back-first" type="text" autocomplete="given-name"></div>' +
+    '<div class="fld"><label class="label" for="back-last">' + esc(JOIN.backLast) +
+    '</label><input id="back-last" type="text" autocomplete="family-name"></div>' +
+    '<div class="fld"><label class="label" for="back-phone">' + esc(JOIN.backPhone) +
+    '</label><input id="back-phone" type="tel" inputmode="tel" autocomplete="tel"></div>' +
+    '<button class="btn off" id="back-go">' + esc(JOIN.backBtn) + '</button>' +
+    '<div class="err" id="back-msg" role="alert"></div></div>';
+  box.innerHTML = h;
+
+  var ig = $('back-inv-go');
+  if (ig) ig.onclick = function () {
+    /* הצד של השולח הוא ההפך ממה שהקישור אומר על המוזמן. */
+    var rel = qs('rel');
+    restoreAs_({ first: sndr.first, last: sndr.last || pre.last || '', phone: sndr.phone,
+                 role: rel === 'kid' ? 'dad' : rel === 'dad' ? 'kid' : '' },
+               $('back-inv-msg'), ig);
+  };
+  var link = $('back-link'), form = $('back-form'), go = $('back-go');
+  link.onclick = function () { link.style.display = 'none'; form.style.display = ''; };
+  var fields = function () {
+    return { first: ($('back-first').value || '').trim(), last: ($('back-last').value || '').trim(),
+             phone: ($('back-phone').value || '').trim() };
+  };
+  var check = function () {
+    var f = fields();
+    go.className = 'btn' + (f.first && f.last && phNorm_(f.phone) ? '' : ' off');
+  };
+  $('back-first').oninput = check;
+  $('back-last').oninput = check;
+  $('back-phone').oninput = check;
+  go.onclick = function () {
+    var f = fields();
+    if (!f.first || !f.last || !phNorm_(f.phone)) return;
+    restoreAs_(f, $('back-msg'), go);
+  };
+}
+drawBack_();
 
 /* ---------- הזמנה שהתקבלה ----------
    מי שהזמין כבר מסר את הפרטים. להקליד אותם שוב זה לבקש
