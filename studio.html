@@ -1845,7 +1845,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.51';
+var STUDIO_VER = '8.99.52';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -1983,8 +1983,11 @@ function LIB_OK() { return !!(window.DAF_LINKS && document.getElementById('mas')
 
    לכן: אין קטעים בעמוד הזה — ממשיכים מהעמוד הקודם של אותו דף. */
 function lastChav() {
-  var last = STEPS[STEPS.length - 1];
-  if (last) return last.c.to;
+  /* קטע המשך (`cont`) אינו צורך פסקאות משלו — הוא נושא את הביאור
+     של הקטע שלפני המעבר. בראש דף הוא אפילו נושא מספרי פסקאות של
+     קובץ חברותא **אחר**, של הדף הקודם. לכן אינו נספר כאן. */
+  for (var j = STEPS.length - 1; j >= 0; j--)
+    if (!STEPS[j].cont) return STEPS[j].c.to;
   /* סורקים את כל עמודי הדף שלפני העמוד הנוכחי ולוקחים את הפסקה
      הגבוהה ביותר ששובצה. סריקה ולא "העמוד הקודם בלבד": עמוד אחד
      יכול להיעדר מהזיכרון ברגע הלא נכון, ואז המונה חזר לאפס
@@ -1995,7 +1998,7 @@ function lastChav() {
     if (k.indexOf(pre) !== 0) continue;
     if ((+k.slice(pre.length) || 1) >= pg) continue;
     var st = BOOK[k].steps || [];
-    for (var i = 0; i < st.length; i++) best = Math.max(best, st[i].c.to);
+    for (var i = 0; i < st.length; i++) if (!st[i].cont) best = Math.max(best, st[i].c.to);
   }
   return best;
 }
@@ -2006,7 +2009,11 @@ function loadPageState() {
   PKEY = k;
   var rec = BOOK[k];
   STEPS = rec ? rec.steps : [];
+  CONT_FIXED = false;
   seal();                       /* גם מה שנשמר שבור — נאטם בכניסה */
+  /* קטע המשך שנשמר עם ביאור שגוי תוקן כאן — ותיקון שאינו נשמר
+     חוזר בכל כניסה ואינו מגיע לתלמיד. התג האדום יזכיר לשמור. */
+  if (CONT_FIXED && rec) { touched(); say('קטע ההמשך בראש העמוד תוקן — צריך לשמור בגיליון.'); }
   GSEL = null; CSEL_P = null;
 }
 /* התווית נגזרת מהמפתח שנכתב, ולא מהבוררים שעל המסך.
@@ -2245,9 +2252,12 @@ function stepAt(i) {
   return found;
 }
 function stepAtPara(i) {
+  var pg1 = (+selVal('pg') || 1) === 1;
   for (var k = 0; k < STEPS.length; k++) {
     var c = STEPS[k].c;
     if (!c || c.from == null) continue;
+    /* קטע המשך בראש דף מצביע על פסקאות בקובץ של הדף הקודם. */
+    if (STEPS[k].cont && pg1) continue;
     if (i >= c.from && i <= (c.to == null ? c.from : c.to)) return k;
   }
   return -1;
@@ -2259,7 +2269,7 @@ function inspect(k, line) {
   INSP_LINE = line == null ? st.g.from.line : line;
   GSEL = { a: { i: st.g.from.line, x: st.g.from.x },
            b: { i: st.g.to.line,   x: st.g.to.x } };
-  CSEL_P = (st.c && st.c.from != null)
+  CSEL_P = (st.c && st.c.from != null && !(st.cont && (+selVal('pg') || 1) === 1))
     ? { a: st.c.from, b: st.c.to == null ? st.c.from : st.c.to } : null;
   document.body.classList.add('insp');
   markDraw(); paintChav(1); markPanel(); zoomToSel();
@@ -3537,9 +3547,23 @@ function chavBind() {
 function pickPara(i) {
   /* פסקה ששובצה כבר מציגה את הקטע שלה — אותה התנהגות כמו בגמרא,
      כי זה אותו קטע משני צדדיו. */
-  if (INSP < 0) {
-    var k = stepAtPara(i);
-    if (k >= 0) { inspect(k, null); return; }
+  /* ============================================================
+     "אם אני מקיש על קטע שכבר סומן בחברותא — שיסמן גם את הקטע
+     בגמרא. כרגע זה קיים רק בכיוון ההפוך."
+     ============================================================
+     זה היה קיים — אבל רק כשאף קטע לא היה פתוח. ומרגע שהוקש קטע
+     אחד, כל הקשה בחברותא נחשבה לעריכת הטווח שלו, ולא למעבר. בגמרא
+     אין את ההבדל הזה: הקשה על קטע אחר תמיד עוברת אליו. עכשיו גם
+     כאן — הקשה על פסקה של קטע **אחר** פותחת אותו, בשני המצבים.
+     הקשה בתוך הקטע הפתוח עדיין מקצרת אותו, והקשה על פסקה שטרם
+     שובצה עדיין מאריכה. */
+  var k = stepAtPara(i);
+  if (k >= 0 && k !== INSP) { inspect(k, null); return; }
+  /* פסקה שסומנה בעמוד הקודם של הדף — החברותא משותפת לשני העמודים.
+     עד עכשיו ההקשה הפכה אותה בשקט לבחירה חדשה. */
+  if (INSP < 0 && k < 0 && i <= USED_C) {
+    say('הפסקה הזו שייכת לקטע בעמוד הקודם.', 1);
+    return;
   }
   /* הקטע ממשיך מהמקום שהקודם נגמר, ולכן די בהקשה על הסוף.
      הקשה על פסקה שכבר בתוך הבחירה מבטלת. */
@@ -3648,6 +3672,7 @@ function chavRange(a, b) {
   return { text: txt.join(' '), h: html.join('') };
 }
 
+var CONT_FIXED = false;   /* `seal` תיקן קטע המשך — צריך לשמור */
 function seal(report) {
   /* ============================================================
      עמוד שנמחקו ממנו כל הקטעים.
@@ -3699,7 +3724,8 @@ function seal(report) {
       if (k0.indexOf(pre) !== 0 || k0 === PKEY) continue;
       if ((+k0.slice(pre.length) || 1) >= pgn) continue;
       var pst = BOOK[k0].steps || [];
-      for (var j0 = 0; j0 < pst.length; j0++) best = Math.max(best, pst[j0].c.to);
+      for (var j0 = 0; j0 < pst.length; j0++)
+        if (!pst[j0].cont) best = Math.max(best, pst[j0].c.to);
     }
     baseC = best + 1;
   }
@@ -3713,7 +3739,27 @@ function seal(report) {
         st.g.from = { line: base.line, x: base.x };
         fixed++;
       }
-      if (st.c.from !== baseC) {
+      /* ============================================================
+         "לחצתי 'המשך הקטע', והמערכת סימנה לי בחברותא קטע חדש שלא
+         ביקשתי."
+         ============================================================
+         קטע המשך נושא את הביאור של הקטע שלפני המעבר — זה כל עניינו.
+         אבל כאן הוא נאטם כמו כל קטע ראשון: הפסקה שלו "תוקנה" לזו
+         שאחרי העמוד הקודם, ובמקום הביאור של המשפט שהתחיל למטה הוא
+         קיבל את הפסקה הבאה ("תמהה הגמרא: וכי מאחר…").
+
+         עכשיו הוא פטור מאטימת החברותא, ומקבל תמיד את הביאור של
+         הקטע שהוא ממשיך. זה גם מתקן את מה שכבר נשמר שבור — בכניסה
+         לעמוד. */
+      if (st.cont) {
+        var pv = prevStep();
+        if (pv && pv !== st && (st.c.from !== pv.c.from || st.c.to !== pv.c.to ||
+                                st.c.h !== pv.c.h)) {
+          st.c = { from: pv.c.from, to: pv.c.to, text: pv.c.text, h: pv.c.h };
+          fixed++;
+          CONT_FIXED = true;
+        }
+      } else if (st.c.from !== baseC) {
         st.c.from = baseC;
         if (st.c.to < st.c.from) st.c.to = st.c.from;
         fixed++;
@@ -3732,8 +3778,11 @@ function seal(report) {
       }
       /* אותו כלל בחברותא: הפסקה הראשונה היא זו שאחרי הקודמת.
          פסקאות שנשארו יתומות בין השניים נכנסות לקטע הזה. */
-      if (st.c.from !== prev.c.to + 1) {
-        st.c.from = prev.c.to + 1;
+      /* אחרי קטע המשך — ממשיכים מנקודת האפס של העמוד, לא ממנו:
+         הפסקאות שלו שייכות לעמוד הקודם (או לקובץ של הדף הקודם). */
+      var nextC = prev.cont ? baseC : prev.c.to + 1;
+      if (st.c.from !== nextC) {
+        st.c.from = nextC;
         if (st.c.to < st.c.from) st.c.to = st.c.from;
         fixed++;
         var got = chavRange(st.c.from, st.c.to);

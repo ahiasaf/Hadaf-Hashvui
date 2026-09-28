@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.51';
+var APP_VERSION = '8.99.52';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6643,6 +6643,66 @@ var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffl
                 'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
+/* מה שכתוב בקוד, לפני שהשכבות נוגעות בו. `applyCfg` כותב על
+   SUGYA, PRICES, COORD_WA ועל `joined` של כל מוסד — ולכן אחרי
+   הריצה הראשונה שלו אי אפשר עוד לדעת מה היה בקוד. מכאן נמדד
+   "מה שונה מהקוד" ברשימת השינויים שבניהול. */
+var CODE_CFG = {
+  sugya: JSON.parse(JSON.stringify(SUGYA)),
+  prices: JSON.parse(JSON.stringify(PRICES)),
+  coordWa: COORD_WA,
+  joined: (function () {
+    var o = {};
+    INSTITUTIONS.forEach(function (i) { o[i.code] = !!i.joined; });
+    return o;
+  })()
+};
+
+/* השוואה לפי משמעות. JSON.stringify תלוי בסדר המפתחות, ומה שחוזר
+   מהגיליון אינו חייב לשמור על הסדר שבו נשלח — ואז אותו ערך בדיוק
+   נראה "שונה", והפס צעק "יש שינויים שלא פורסמו" על כלום. */
+function jsonEq(a, b) {
+  var norm = function (v) {
+    if (v === undefined) return null;
+    if (!v || typeof v !== 'object') return v;
+    if (v.length !== undefined) return v.map(norm);
+    var o = {}, ks = Object.keys(v).sort();
+    ks.forEach(function (k) { if (v[k] !== undefined) o[k] = norm(v[k]); });
+    return o;
+  };
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
+
+/* ============================================================
+   "מצאתי את עצמי כמה פעמים צריך לפרסם מחדש."
+   ============================================================
+   הטיוטה המקומית (CFG) לא נוקתה מעולם אחרי פרסום. היא נשארה
+   במכשיר, וגברה על מה שפורסם — גם כשבינתיים פורסם אחרת ממכשיר
+   אחר. והפרסום הבא מאותו מכשיר שלח אותה שוב, כלומר **החזיר
+   לאחור** את מה שפורסם מהמכשיר השני. זו המלכודת של "המכשיר
+   כותב את מה שהוא זוכר".
+
+   עכשיו: טיוטה שזהה למה שפורסם נמחקת — בכל טעינה מהגיליון
+   ואחרי כל פרסום מאומת. מה שנשאר בטיוטה הוא רק מה ששונה באמת,
+   ולכן "יש שינויים שלא פורסמו" אומר אמת. */
+function cfgPrune() {
+  var ch = false;
+  PUB_KEYS.forEach(function (k) {
+    if (CFG[k] == null) return;
+    var pub = PUB_CFG[k], loc = CFG[k];
+    if (PUB_DEEP[k] && pub && typeof loc === 'object' && typeof pub === 'object') {
+      var left = 0, a;
+      for (a in loc) {
+        if (!loc.hasOwnProperty(a)) continue;
+        if (jsonEq(loc[a], pub[a])) { delete loc[a]; ch = true; } else left++;
+      }
+      if (!left) { delete CFG[k]; ch = true; }
+    } else if (jsonEq(loc, pub)) { delete CFG[k]; ch = true; }
+  });
+  if (ch) Store.set('cfg', CFG);
+  return ch;
+}
+
 /* הערך התקף של הגדרה: המפורסם, ומעליו הטיוטה המקומית.
    באובייקטים זה מיזוג ולא החלפה — טיוטה שנגעה במתג אחד לא
    תמחק את שאר המתגים שפורסמו. */
@@ -6660,8 +6720,7 @@ function cfgDirty() {
   for (var i = 0; i < PUB_KEYS.length; i++) {
     var k = PUB_KEYS[i];
     if (CFG[k] == null) continue;
-    if (JSON.stringify(CV(k)) !== JSON.stringify(PUB_CFG[k] == null ? null : PUB_CFG[k]))
-      return true;
+    if (!jsonEq(CV(k), PUB_CFG[k] == null ? null : PUB_CFG[k])) return true;
   }
   return false;
 }
@@ -6936,9 +6995,14 @@ function loadSettings() {
         var val = cfgVal(v);
         if (val !== undefined) map[k] = val;
       });
-      if (!Object.keys(map).length) return false;
+      /* **ריק אינו כישלון.** לשונית שיש בה רק כותרת — למשל אחרי
+         "מחיקת כל השינויים" — היא מצב חוקי, וחייבת לרוקן את
+         המטמון. אחרת כל מכשיר היה ממשיך לרוץ לנצח על מה שנמחק.
+         שורות שאף אחת מהן לא נקראה — זה כן חשד, ושם לא נוגעים. */
+      if (!Object.keys(map).length && rows.length > 1) return false;
       PUB_CFG = map;
       Store.set('cfgCache', map);
+      cfgPrune();
       applyCfg();
       return true;
     });
@@ -6958,6 +7022,55 @@ function publishSettings() {
         'אחרת אפשר לשנות רק במכשיר הזה.');
     return;
   }
+  say('cond', 'קורא מהגיליון מה פורסם עד עכשיו…');
+
+  /* ============================================================
+     קודם קוראים, ורק אז כותבים.
+     ============================================================
+     `table` כותב את הלשונית כולה מחדש. הפרסום בנה אותה ממה
+     **שהמכשיר זכר** שפורסם — ובמכשיר שנפתח לפני שעות, או שהקריאה
+     בעלייה נכשלה בו, זה היה המצב הישן. כך פרסום מהטלפון החזיר
+     לאחור את מה שפורסם קודם מהמחשב, ולהפך, ונדמה היה שצריך
+     לפרסם שוב ושוב. עכשיו כל פרסום נבנה על מה שבגיליון ברגע
+     זה, ומעליו רק מה שבאמת שונה במכשיר הזה. קריאה שנכשלה —
+     לא כותבים בכלל. */
+  var sid = CFG.sheetId || SHEET_ID;
+  return Promise.all([fetchSheet(sid, SET_TAB), fetchSheet(sid, 'טקסטים')])
+    .then(function (fresh) {
+      var fs = fresh[0], ft = textsFromRows(fresh[1]);
+      var okSet = fs && fs.length && (fs[0] || []).join('|').indexOf('מפתח') >= 0;
+      /* לשונית שעוד לא נוצרה (gviz מגישה אז לשונית אחרת) מותרת
+         רק כשבאמת מעולם לא פורסם דבר. */
+      var never = !Object.keys(PUB_CFG || {}).length;
+      if ((!okSet && !(fs && never)) || (!ft && fresh[1] == null)) {
+        say('cond', '<b>לא פרסמתי.</b> לא הצלחתי לקרוא מהגיליון מה כבר ' +
+            'פורסם — וכתיבה בלי קריאה עלולה לדרוס פרסום ממכשיר אחר. ' +
+            'מה שסימנתם שמור במכשיר הזה; נסו שוב בעוד רגע.');
+        return;
+      }
+      if (okSet) {
+        var map = {};
+        fs.slice(1).forEach(function (r) {
+          var k = (r[0] || '').trim();
+          if (!k || PUB_KEYS.indexOf(k) < 0) return;
+          var val = cfgVal(r[1]);
+          if (val !== undefined) map[k] = val;
+        });
+        PUB_CFG = map;
+        Store.set('cfgCache', map);
+      }
+      if (ft) { PUBLISHED = ft; Store.set('textCache', ft); relayerTexts(); }
+      cfgPrune();
+      applyCfg();
+      return writeSettings_(say);
+    })
+    .catch(function () {
+      say('cond', '<b>לא פרסמתי.</b> לא הצלחתי לקרוא מהגיליון. ' +
+          'מה שסימנתם שמור במכשיר הזה.');
+    });
+}
+
+function writeSettings_(say) {
   /* הגרש המוביל הוא הדרך היחידה לומר לגוגל "זה טקסט, אל תיגע".
      בלעדיו `true` הופך לבוליאני ו-gviz מחזירה עמודה שלמה
      ריקה. הגרש עצמו אינו חלק מהערך ואינו חוזר בקריאה. */
@@ -6972,18 +7085,13 @@ function publishSettings() {
 
   /* `no-cors` מחזיר תשובה אטומה: ה-fetch "מצליח" גם כשהסקריפט
      דחה את הכתיבה, גם כשהכתובת שגויה, וגם כשהסקריפט מחובר
-     לגיליון אחר לגמרי. עד עכשיו נאמר כאן "פורסם" על סמך ההצלחה
-     המדומה הזו — וזו בדיוק התקלה שבגללה שבועות של מתגים לא הגיעו
-     לאיש, בלי שדבר על המסך רמז על כך.
-
-     לכן אין כאן יותר הבטחה. כותבים, ממתינים, **קוראים חזרה מן
+     לגיליון אחר לגמרי. לכן כותבים, ממתינים, **קוראים חזרה מן
      הגיליון**, ומשווים מפתח מול מפתח. רק מה שחזר מן הגיליון
-     נחשב מפורסם. */
+     נחשב מפורסם — ורק אז הפס אומר "מפורסם". קודם הוא אמר זאת
+     מיד עם השליחה, וכשהכתיבה לא נקלטה נחשף הדבר רק בכניסה
+     הבאה, כ"יש שינויים שלא פורסמו" שצץ משום מקום. */
   var now = {};
-  rows.forEach(function (r) { try { now[r[0]] = JSON.parse(r[1]); } catch (e) {} });
-  PUB_CFG = now;
-  Store.set('cfgCache', now);
-  renderAdmin();
+  rows.forEach(function (r) { try { now[r[0]] = JSON.parse(r[1].replace(/^'/, '')); } catch (e) {} });
   say('cond', 'נשלח · בודק בגיליון…');
 
   var sent = {};
@@ -6992,7 +7100,7 @@ function publishSettings() {
   return new Promise(function (ok) { setTimeout(ok, 1800); })
     .then(function () { return fetchSheet(CFG.sheetId || SHEET_ID, SET_TAB); })
     .then(function (back) {
-      if (!back || back.length < 2) {
+      if (!back || !back.length) {
         say('cond', '<b>הפרסום לא אושר.</b> לא הצלחתי לקרוא את לשונית "' +
             SET_TAB + '" בגיליון.<br>מה שסימנתם נשמר במכשיר הזה בלבד — ' +
             'מי שנכנס לאפליקציה עדיין רואה את הקודם.<br>' +
@@ -7008,7 +7116,7 @@ function publishSettings() {
       });
       var bad = [];
       for (var k in sent) {
-        if (JSON.stringify(got[k]) !== JSON.stringify(cfgVal(sent[k]))) bad.push(k);
+        if (!jsonEq(got[k], cfgVal(sent[k]))) bad.push(k);
       }
       if (bad.length) {
         say('cond', '<b>הפרסום לא אושר.</b> ' + bad.length +
@@ -7018,6 +7126,13 @@ function publishSettings() {
             'לחצו "בדיקת חיבור" בכרטיס שרת ההרשמות: הוא יאמר מה חסר.');
         return;
       }
+      /* אומת. מה שפורסם הוא עכשיו האמת, והטיוטה שזהה לו נמחקת —
+         כדי שלא תחזור ותדרוס פרסום עתידי ממכשיר אחר. */
+      PUB_CFG = now;
+      Store.set('cfgCache', now);
+      cfgPrune();
+      applyCfg();
+      admPubBar();
       /* והמלל, באותה לחיצה. עד עכשיו היו כאן שני כפתורי פרסום
          בשתי לשוניות שונות, ומי שערך נוסח ופרסם "הגדרות" יצא
          בטוח שפרסם — ולא פרסם. אותה כוונה, פעולה אחת. */
@@ -7131,6 +7246,18 @@ function renderAdmin() {
   admPubBar();
   admPane();
 }
+/* טיוטה שאינה רצויה — למשל שינוי ישן שנשאר בטלפון — נזרקת, והמכשיר
+   חוזר להציג בדיוק את מה שפורסם. המלל אינו נוגע כאן: לו יש
+   מונה ושחזור משלו בלשונית המלל. */
+function cfgDropDraft() {
+  if (!confirm('לבטל את השינויים שלא פורסמו, במכשיר הזה בלבד? ' +
+               'המכשיר יחזור להציג את מה שפורסם.')) return;
+  PUB_KEYS.forEach(function (k) { delete CFG[k]; });
+  Store.set('cfg', CFG);
+  applyCfg();
+  renderHome();
+  renderAdmin();
+}
 /* מצב הפרסום, בשלוש אפשרויות: יש טיוטה שלא פורסמה, הכל מפורסם,
    או שמעולם לא פורסם דבר ולכן כולם עדיין על ברירות המחדל. */
 function admPubBar() {
@@ -7143,7 +7270,8 @@ function admPubBar() {
       '<div class="pubbar warn"><div><b>יש שינויים שלא פורסמו</b>' +
       '<span>הם נראים כרגע רק במכשיר הזה. פרסום יחיל אותם על כל מי ' +
       'שנכנס לאפליקציה.</span></div>' +
-      '<button onclick="publishSettings()">פרסום</button></div>' +
+      '<button onclick="publishSettings()">פרסום</button>' +
+      '<button class="alt" onclick="cfgDropDraft()">ביטול</button></div>' +
       '<div id="adm-pub-msg"></div>';
   } else if (never) {
     el.innerHTML =
@@ -7191,10 +7319,16 @@ function admVisitorCheck() {
   say('cond', 'קורא מהגיליון…');
 
   var id = CFG.sheetId || SHEET_ID;
-  Promise.all([fetchSheet(id, SET_TAB), fetchSheet(id, MARK_TAB_PUB)])
+  Promise.all([fetchSheet(id, SET_TAB), fetchSheet(id, MARK_TAB_PUB),
+               fetchSheet(id, 'טקסטים')])
     .then(function (r) {
-      var setRows = r[0], markRows = r[1];
-      if (!setRows || setRows.length < 2) {
+      var setRows = r[0], markRows = r[1], txtMap = textsFromRows(r[2]);
+      /* לשונית שיש בה כותרת בלבד אינה תקלה — אחרי "מחיקת כל
+         השינויים" זה בדיוק מה שאמור להיות בה, וכולם רואים את
+         הקוד. תקלה היא רק קריאה שלא הצליחה. */
+      var empty = setRows && setRows.length === 1 &&
+                  (setRows[0] || []).join('|').indexOf('מפתח') >= 0;
+      if (!empty && (!setRows || setRows.length < 2)) {
         say('cond', '<b>לשונית "' + SET_TAB + '" ריקה או שלא נקראה.</b><br>' +
             'כלומר: מי שנכנס לאפליקציה רואה את ברירות המחדל שבקוד, ' +
             'ולא את מה שסימנתם כאן.<br>' +
@@ -7217,7 +7351,7 @@ function admVisitorCheck() {
       /* אם שום מפתח לא שרד — לא לנחש. מראים מה באמת חזר, כי
          זו השאלה היחידה שיש כאן, ומסך שאומר "לא מוצג" בלי
          לומר למה הוא מה ששלח אותנו לגלישה בסתר. */
-      if (!Object.keys(pub).length) {
+      if (!empty && !Object.keys(pub).length) {
         say('cond', '<b>הגיליון נקרא, אבל שום הגדרה לא חזרה ממנו.</b><br>' +
             'לשונית "' + SET_TAB + '" · ' + (setRows.length - 1) + ' שורות.<br>' +
             'מה שנמצא בעמודה הראשונה: ' +
@@ -7279,10 +7413,207 @@ function admVisitorCheck() {
              'לחצו "פרסום מחדש" למעלה.</div>';
       }
       say(diff.length ? 'cond' : 'done-box', h);
+      /* וכל מה שפורסם ושונה מהקוד — מתחת, בתיבה משלה. */
+      pubChangesPaint(pub, txtMap);
     })
     .catch(function () {
       say('cond', 'לא הצלחתי לקרוא מהגיליון. בדקו חיבור לרשת.');
     });
+}
+
+/* ============================================================
+   כל מה שפורסם ושונה מהקוד — הרשימה, העתקה, ומחיקה.
+
+   דרך העבודה: מעתיקים את הרשימה ושולחים להטמעה בקוד. אחרי
+   שההטמעה עלתה, אותה רשימה — שנמדדת מול הקוד החדש — מתרוקנת
+   מעצמה, וזה הסימן שאפשר למחוק את השכבה מהגיליון. מה שנשאר בה
+   ברגע המחיקה הוא בדיוק מה שיאבד, ולכן הוא נמנה בשאלה.
+
+   הכל נקרא מן הגיליון, כמו זר — לא מהמכשיר הזה.
+   ============================================================ */
+/* פרטי קשר אינם נכנסים לקוד — הריפו ציבורי — ולכן הם אינם
+   ברשימה ואינם נמחקים. */
+var KEEP_CFG = { coordWa:1, waGroup:1 };
+
+function cfgCodeVal(k, sub) {
+  if (k === 'rows')   return sub === 'inter' ? INTER_PUBLIC : ROW_DEF[sub];
+  if (k === 'joined') return CODE_CFG.joined[sub];
+  if (k === 'sugya')  return CODE_CFG.sugya[sub];
+  if (k === 'prices') return CODE_CFG.prices[sub];
+  var D = { roster:ROSTER_DEF, orderBy:ORDER_BY, raffle:false, tourOn:false,
+            tourAt:'foot', sizeOn:false, netTicker:'off', joinLink:true,
+            weekRaffle:false, roleAsk:true };
+  return D[k];
+}
+/* false וחסר הם אותו דבר למתג שברירת המחדל שלו כבויה. */
+function cfgSame(a, b) {
+  if ((a == null || a === false) && (b == null || b === false)) return true;
+  return jsonEq(a, b);
+}
+function pubChanges(pub, txt) {
+  var cfg = [], tx = [];
+  PUB_KEYS.forEach(function (k) {
+    var v = pub[k];
+    if (v == null || KEEP_CFG[k]) return;
+    if (PUB_DEEP[k] && typeof v === 'object') {
+      for (var a in v) {
+        if (!v.hasOwnProperty(a)) continue;
+        var code = cfgCodeVal(k, a), now = v[a];
+        /* מחיר: הגיליון גובר שדה־שדה, ולכן משווים שדה־שדה. */
+        if (k === 'prices' && now && typeof now === 'object') {
+          var diffF = {}, n = 0;
+          for (var f in now) {
+            if (now.hasOwnProperty(f) && now[f] != null && !cfgSame(now[f], (code || {})[f])) {
+              diffF[f] = now[f]; n++;
+            }
+          }
+          if (n) cfg.push({ k:k, sub:a, code:code, now:diffF });
+          continue;
+        }
+        if (!cfgSame(now, code)) cfg.push({ k:k, sub:a, code:code, now:now });
+      }
+    } else if (!cfgSame(v, cfgCodeVal(k))) {
+      cfg.push({ k:k, code:cfgCodeVal(k), now:v });
+    }
+  });
+  var lbl = {};
+  TEXT_FIELDS.forEach(function (f) { if (f.k) lbl[f.k] = f.lbl || ''; });
+  for (var k in (txt || {})) {
+    if (!txt.hasOwnProperty(k) || KEEP_TEXT[k]) continue;
+    var code = TX.base(k), now = txt[k];
+    if (typeof now !== 'string' || now === code) continue;
+    tx.push({ k:k, lbl:lbl[k] || '', code:typeof code === 'string' ? code : null, now:now });
+  }
+  return { cfg:cfg, tx:tx };
+}
+var PUB_SEEN = null;   /* מה שנקרא בבדיקה האחרונה — המחיקה נשענת עליו */
+
+function pubChangesPaint(pub, txt) {
+  var box = document.getElementById('adm-vis');
+  if (!box) return;
+  var ch = pubChanges(pub, txt || {});
+  PUB_SEEN = { pub:pub, txt:txt, n:ch.cfg.length + ch.tx.length, txtOk:!!txt };
+  var el = document.createElement('div');
+  el.className = 'adm-card';
+  el.style.marginTop = '10px';
+  var h = '<h4>מה שפורסם ושונה מהקוד</h4>';
+  if (!txt) h += '<div class="cond">לשונית המלל לא נקראה — הרשימה כוללת רק הגדרות.</div>';
+  if (!ch.cfg.length && !ch.tx.length) {
+    h += '<p class="h">כלום. מה שכל מי שנכנס רואה הוא בדיוק מה שכתוב בקוד' +
+         (Object.keys(pub).length || (txt && Object.keys(txt).length)
+           ? ' — מה שעוד יושב בגיליון זהה לקוד, או שהוא פרטי קשר שנשמרים שם.'
+           : '.') + '</p>';
+  } else {
+    h += '<p class="h">' + ch.cfg.length + ' הגדרות ו-' + ch.tx.length + ' נוסחים. ' +
+         'מעתיקים ושולחים להטמעה בקוד. אחרי שההטמעה עלתה, הרשימה הזו ' +
+         'מתרוקנת מעצמה — ואז מוחקים.</p>';
+    ch.cfg.forEach(function (c) {
+      h += '<div class="sub" style="margin:4px 0">⚙ <b>' + esc(c.k + (c.sub ? '.' + c.sub : '')) +
+           '</b>: ' + esc(JSON.stringify(c.code)) + ' ← <b>' + esc(JSON.stringify(c.now)) + '</b></div>';
+    });
+    ch.tx.forEach(function (t) {
+      h += '<div class="sub" style="margin:6px 0">✎ <b>' + esc(t.lbl || t.k) + '</b>' +
+           '<div style="color:var(--ink-3)">' + esc(t.code == null ? '—' : t.code) + '</div>' +
+           '<div>' + esc(t.now) + '</div></div>';
+    });
+    h += '<textarea id="adm-chg-t" rows="7" dir="ltr" readonly ' +
+         'style="direction:ltr;text-align:left;font-size:.72rem;margin-top:8px"></textarea>' +
+         '<button class="btn gd" onclick="admChgCopy()">העתקה</button>';
+  }
+  h += '<button class="btn warn" style="margin-top:10px" onclick="pubWipe()">' +
+       'מחיקת כל השינויים</button><div id="adm-wipe-msg"></div>';
+  el.innerHTML = h;
+  box.appendChild(el);
+
+  if (ch.cfg.length || ch.tx.length) {
+    var out = { גרסה: APP_VERSION, הגדרות: {}, נוסחים: {} };
+    ch.cfg.forEach(function (c) {
+      if (c.sub) (out['הגדרות'][c.k] = out['הגדרות'][c.k] || {})[c.sub] = c.now;
+      else out['הגדרות'][c.k] = c.now;
+    });
+    ch.tx.forEach(function (t) { out['נוסחים'][t.k] = { lbl:t.lbl, code:t.code, now:t.now }; });
+    /* דרך value ולא דרך HTML: נוסח שיש בו < או & היה נשבר. */
+    document.getElementById('adm-chg-t').value = JSON.stringify(out, null, 2);
+  }
+}
+function admChgCopy() {
+  var t = document.getElementById('adm-chg-t');
+  if (!t) return;
+  var b = t.nextSibling;
+  var done = function (ok) { if (b) b.textContent = ok ? 'הועתק ✓' : 'לא הצלחתי — סמנו ידנית'; };
+  t.readOnly = false; t.focus(); t.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t.value)
+      .then(function () { done(true); })['catch'](function () { done(false); });
+  } else {
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    done(ok);
+  }
+}
+
+/* המחיקה: שתי הלשוניות נכתבות מחדש ובהן רק פרטי הקשר. אחר כך
+   קוראים חזרה ומוודאים — `no-cors` "מצליח" תמיד. גם הטיוטה
+   שבמכשיר הזה נמחקת, אחרת הפרסום הבא היה מחזיר הכל. */
+function pubWipe() {
+  var msg = function (cls, t) {
+    var m = document.getElementById('adm-wipe-msg');
+    if (m) m.innerHTML = '<div class="' + cls + '" style="margin-top:9px">' + t + '</div>';
+  };
+  if (!API) { msg('cond', 'אין כתובת שרת במכשיר הזה.'); return; }
+  if (!PUB_SEEN || !PUB_SEEN.txtOk) {
+    msg('cond', 'לשונית המלל לא נקראה — לחצו שוב "מה רואה מי שנכנס עכשיו" ונסו שוב.');
+    return;
+  }
+  var n = PUB_SEEN.n;
+  if (!confirm((n ? n + ' שינויים עדיין אינם בקוד, והם יחזרו לנוסח שבקוד אצל כולם.\n\n'
+                  : 'כל מה שברשימה כבר בקוד.\n\n') +
+               'למחוק מהגיליון את כל השינויים? פרטי הקשר נשמרים.')) return;
+
+  var pub = PUB_SEEN.pub, keepSet = {}, setRows = [], k;
+  for (k in pub) if (pub.hasOwnProperty(k) && KEEP_CFG[k]) {
+    keepSet[k] = pub[k];
+    setRows.push([k, "'" + JSON.stringify(pub[k])]);
+  }
+  var keepTxt = keepOnly(PUB_SEEN.txt || {}), txtRows = [];
+  for (k in keepTxt) if (keepTxt.hasOwnProperty(k)) txtRows.push({ key:k, value:keepTxt[k] });
+
+  queue({ action:'table', tab:SET_TAB, cols:JSON.stringify(['מפתח', 'ערך']),
+          rows:JSON.stringify(setRows) });
+  queue({ action:'texts', rows:JSON.stringify(txtRows), at:new Date().toISOString() });
+
+  /* המכשיר הזה — כמו כולם אחרי המחיקה. */
+  PUB_KEYS.forEach(function (q) { if (!KEEP_CFG[q]) delete CFG[q]; });
+  CFG.texts = keepOnly(CFG.texts || {});
+  Store.set('cfg', CFG);
+  PUB_CFG = keepSet; Store.set('cfgCache', keepSet);
+  PUBLISHED = keepTxt; Store.set('textCache', keepTxt);
+  msg('cond', 'נשלח · מאמת מול הגיליון…');
+
+  var id = CFG.sheetId || SHEET_ID, tries = 0;
+  var check = function () {
+    return new Promise(function (ok) { setTimeout(ok, tries ? 4000 : 2500); })
+      .then(function () { return Promise.all([fetchSheet(id, SET_TAB), fetchSheet(id, 'טקסטים')]); })
+      .then(function (r) {
+        var s = r[0], t = textsFromRows(r[1]);
+        var sk = (s || []).slice(1).map(function (x) { return (x[0] || '').trim(); })
+                   .filter(function (x) { return x && !KEEP_CFG[x]; });
+        var tk = t ? Object.keys(t).filter(function (x) { return !KEEP_TEXT[x]; }) : null;
+        if (s && s.length && t && !sk.length && !tk.length) {
+          msg('done-box', 'נמחק ואומת. מעכשיו כל מי שנכנס רואה את מה שכתוב בקוד. ' +
+              'טוען מחדש…');
+          setTimeout(function () { location.reload(); }, 1600);
+          return;
+        }
+        if (++tries < 4) return check();
+        msg('cond', '<b>המחיקה לא אומתה.</b> ' +
+            (!s || !t ? 'לא הצלחתי לקרוא את הגיליון.'
+                      : 'בגיליון עדיין ' + (sk.length + tk.length) + ' שורות.') +
+            ' אפשר לנסות שוב.');
+      })
+      .catch(function () { msg('cond', 'לא הצלחתי לקרוא את הגיליון. אפשר לנסות שוב.'); });
+  };
+  check();
 }
 
 function admGo(t) { admTab = t; renderAdmin(); }
