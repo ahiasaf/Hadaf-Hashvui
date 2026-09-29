@@ -55,7 +55,11 @@ function DeckFromRows(rows) {
   rows.slice(1).forEach(function (r) {
     var mas = String(r[0] || '').trim();
     var wk  = parseInt(r[1], 10);
-    var dir = String(r[2] || '').trim().replace(/^\/+|\/+$/g, '');
+    /* תיקייה היא נתיב בריפו — אותיות לטיניות, ספרות, מקף וקו נטוי.
+       מילה שנוספה לתא בטעות ("slides/taanit-1 לא") שברה את כל
+       השקפים של השבוע, חוץ מאלה שנשמרו עם נתיב מלא. לכן נלקח רק
+       הנתיב שבראש התא, ושאר התא נזנח. */
+    var dir = (String(r[2] || '').trim().split(/\s+/)[0] || '').replace(/^\/+|\/+$/g, '');
     var fs  = String(r[3] || '').split(',');
     var ttl = String(r[4] || '').trim();
     if (!mas || !(wk > 0)) return;
@@ -160,7 +164,9 @@ function DeckTitle(mas, week) {
 function DeckSrc(deck, i) {
   if (!deck || i < 1 || i > deck.files.length) return '';
   var f = deck.files[i - 1];
-  return f.indexOf('/') >= 0 ? f : deck.dir + '/' + f;
+  /* וגם כאן — המטמון במכשיר עוד נושא את התא כפי שנקרא לפני התיקון. */
+  var dir = (String(deck.dir || '').split(/\s+/)[0] || '');
+  return f.indexOf('/') >= 0 ? f : dir + '/' + f;
 }
 
 /* המטמון נטען מיד עם הקובץ, לפני כל ציור — אחרת הציור הראשון

@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.58';
+var APP_VERSION = '8.99.59';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10402,7 +10402,9 @@ function dkShort(f) {
    אינה נוגעת — היא נושאת נתיבים מלאים, ולכן שקפים שכבר נבחרו
    ממצגת קודמת נשארים בדיוק במקומם. */
 function dkSetDir(v) {
-  dkDir = String(v || '').trim().replace(/^\/+|\/+$/g, '') || dkDefDir();
+  /* רק הנתיב — ראו DeckFromRows ב-deck.js. מילה שנוספה בטעות לשדה
+     הזה נשמרה לגיליון ושברה את כל שקפי השבוע. */
+  dkDir = (String(v || '').trim().split(/\s+/)[0] || '').replace(/^\/+|\/+$/g, '') || dkDefDir();
   dkPool = null; dkStash(); admPane(); dkAsk();
 }
 
