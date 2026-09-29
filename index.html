@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.71';
+var APP_VERSION = '8.99.72';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7689,6 +7689,21 @@ function admPane() {
 
   if (admTab === 'what') {
     if (sub === 'reg')  return admReg(body);
+    /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
+       ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
+       בזמן שהלוח של ראש החטיבה נטען טרי בכל פתיחה. פעם אחת לכל
+       שתי דקות, גם כשהטעינה נכשלה — כדי שלא תסתובב בלולאה. */
+    if ((sub === 'part' || sub === 'push') && (CFG.readKey || '').trim()) {
+      var now = Date.now(), last = admAutoAt[sub] || 0;
+      var fresh = sub === 'part' ? Store.get('partAt', 0) : (pushRows ? admAutoAt.pushOk || 0 : 0);
+      if (now - last > 120000 && now - fresh > 120000) {
+        admAutoAt[sub] = now;
+        setTimeout(function () {
+          if (sub === 'part') partLoad();
+          else pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
+        }, 0);
+      }
+    }
     if (sub === 'part') return admPart(body);
     if (sub === 'push') return admPush(body);
     if (sub === 'tmpl') return admTmpl(body);
@@ -7736,6 +7751,8 @@ function whenTxt(t) {
   return 'לפני ' + d + (d === 1 ? ' יום' : ' ימים');
 }
 var partState = { at:0, msg:'' };
+/* מתי נטען אוטומטית כל מסך — ראו admPane. */
+var admAutoAt = {};
 
 /* שם עמודה → מפתח. הקריאה לפי שם ולא לפי מיקום: עמודה שתתווסף
    בעתיד תזיז את כל השאר, ורשימה שנקראת לפי מיקום הייתה מציגה

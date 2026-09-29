@@ -55,6 +55,22 @@ function scriptUrl() {
   return m ? m[1] : '';
 }
 
+/* **קריאה מהגיליון — עד שלושה ניסיונות.** גוגל מחזיר לפעמים דף
+   שגיאה (HTML) במקום JSON — עומס רגעי אצלם. עד עכשיו זה הפיל את
+   ההרצה כולה, וההודעה פשוט לא יצאה. עכשיו ממתינים וחוזרים. */
+function getJson(q, n) {
+  n = n || 1;
+  return fetch(q).then(function (r) { return r.text(); }).then(function (t) {
+    try { return JSON.parse(t); }
+    catch (e) { throw new Error('גוגל החזיר דף שגיאה במקום נתונים'); }
+  })['catch'](function (e) {
+    if (n >= 3) throw e;
+    console.log('ניסיון ' + n + ' נכשל (' + e.message + ') — מנסה שוב בעוד 20 שניות.');
+    return new Promise(function (ok) { setTimeout(ok, 20000); })
+      .then(function () { return getJson(q, n + 1); });
+  });
+}
+
 /* לשונית פרטית כלשהי, כשורות. אותה קריאה ואותם כללים של
    loadSubs — תשובה בלי `rows` היא כישלון, לא לשונית ריקה. */
 function readTab(name) {
@@ -62,7 +78,7 @@ function readTab(name) {
   if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
   var q = url + '?read=' + encodeURIComponent(name) +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
-  return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
+  return getJson(q).then(function (j) {
     if (!j || j.status !== 'ok' || !j.rows) {
       throw new Error('לא הצלחתי לקרוא את "' + name + '": ' + ((j && j.message) || 'לא ידוע'));
     }
@@ -148,7 +164,7 @@ function loadSubs() {
      "הלשונית ריקה". שלוש שליחות אבדו על זה. */
   var q = url + '?read=' + encodeURIComponent(WAIT ? 'ממתינים לדף' : 'התראות') +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
-  return fetch(q).then(function (r) { return r.json(); }).then(function (j) {
+  return getJson(q).then(function (j) {
     if (!j || j.status !== 'ok') {
       throw new Error('הגיליון לא נענה: ' + ((j && j.message) || 'לא ידוע'));
     }
