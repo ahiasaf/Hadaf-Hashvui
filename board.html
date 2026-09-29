@@ -331,6 +331,8 @@ footer a{color:var(--ink-2);font-weight:800}
 .snd-go[disabled]{opacity:.55}
 .snd-msg{margin-top:8px;font-size:.84rem;font-weight:700;color:#B23B3B}
 .snd-msg.ok{color:var(--green,#2E7D52)}
+.srch{display:block;width:100%;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:10px;font:inherit;font-size:.92rem;background:#fff}
 </style>
 </head>
 <body>
@@ -588,7 +590,10 @@ function loadRoster() {
   if (!acc) return Promise.resolve(null);
   /* מכשיר בדיקה רואה גם את משתמשי הבדיקה — ראו /reset. */
   var q = ALL ? { board:'*', key:acc } : { board:code, k:acc };
-  if (LTester()) q.test = '1';
+  /* בכל הישיבות — גם משתמשי בדיקה, עם התגית שלהם. הרכז הוא מי
+     שבודק; תלמיד בדיקה שנוצר ממכשיר בדיקה נעלם מהלוח שלו, והוא
+     מופיע במשתתפים — ולכן "לא מוצא את עצמי". */
+  if (LTester() || ALL) q.test = '1';
   return askScript(q).then(function (d) {
     if (!d) { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; }
     if (d.status !== 'ok') {
@@ -791,9 +796,41 @@ function clsKey(p) {
   var g = p.grade || 'ללא שכבה';
   return p.klass ? g + '‎' + p.klass : g;
 }
+/* ============================================================
+   חיפוש ברשימה.
+   ============================================================
+   "חסר לי מנגנון חיפוש" — בלוח של כל הישיבות, וגם בלוח של הצוות.
+   מסנן את רשימת התלמידים בלבד (המספרים שלמעלה נשארים של הכול),
+   ומתעדכן בכל הקלדה בלי לצייר מחדש את התיבה — אחרת הסמן נעלם.
+   בשם פרטי ומשפחה; בכל הישיבות — גם בשם הישיבה ובטלפון. */
+var SRCH = '';
+function srchKey(v) { return String(v || '').replace(/["'׳״\s\-]/g, '').toLowerCase(); }
+function srchHit(p) {
+  var q = srchKey(SRCH);
+  if (!q) return true;
+  var hay = [p.first, p.last, (p.first || '') + (p.last || ''), (p.last || '') + (p.first || '')];
+  if (ALL) hay.push(instLbl(p), p.instName, p.phone);
+  for (var i = 0; i < hay.length; i++) if (srchKey(hay[i]).indexOf(q) >= 0) return true;
+  return false;
+}
 function classesHtml() {
   var list = shown();
   if (!list.length) return '';
+  return '<div class="card"><h2>' +
+    (mineRam ? 'הכיתה שלך' : ALL && !FILT ? 'התלמידים לפי ישיבה' : 'התלמידים לפי כיתה') + '</h2>' +
+    '<input class="srch" id="cls-q" type="search" value="' + esc(SRCH) + '" placeholder="' +
+    (ALL ? 'חיפוש — שם, ישיבה או טלפון' : 'חיפוש לפי שם') + '">' +
+    '<div id="cls-list">' + classesList() + '</div>' +
+    /* מקרא אחד, בתחתית, פעם אחת. */
+    '<div class="legend">' +
+      '<span><i class="wdot" style="background:#17468F"></i>לבד</span>' +
+      '<span><i class="wdot" style="background:#4A821C"></i>חבורה</span>' +
+      '<span><i class="wdot" style="background:#C08F2B"></i>אב ובן</span>' +
+    '</div></div>';
+}
+function classesList() {
+  var list = shown().filter(srchHit);
+  if (!list.length) return '<p class="h" style="margin:10px 0">לא נמצא אף אחד.</p>';
   BY_INST = ALL && !FILT;
   var by = {}, ord = [];
   list.forEach(function (p) {
@@ -802,21 +839,13 @@ function classesHtml() {
     by[k].push(p);
   });
   ord.sort();
-  var html = '<div class="card"><h2>' +
-    (mineRam ? 'הכיתה שלך' : BY_INST ? 'התלמידים לפי ישיבה' : 'התלמידים לפי כיתה') + '</h2>' +
-    ord.map(function (k) {
+  var html = ord.map(function (k) {
       return '<div class="clsgrp"><b>' + esc(k) + '</b>' +
         '<span>' + by[k].length + '</span></div>' +
         by[k].map(function (q) { return pRow(q, !BY_INST); }).join('');
     }).join('');
   BY_INST = false;
-  return html +
-    /* מקרא אחד, בתחתית, פעם אחת. */
-    '<div class="legend">' +
-      '<span><i class="wdot" style="background:#17468F"></i>לבד</span>' +
-      '<span><i class="wdot" style="background:#4A821C"></i>חבורה</span>' +
-      '<span><i class="wdot" style="background:#C08F2B"></i>אב ובן</span>' +
-    '</div></div>';
+  return html;
 }
 
 /* כמה מהדף הוא עבר, 0–1. השרת מחזיר `pos` רק לשבוע שלא הושלם,
@@ -1417,6 +1446,11 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
+  var cq = $('cls-q');
+  if (cq) cq.oninput = function () {
+    SRCH = cq.value;
+    var l = $('cls-list'); if (l) l.innerHTML = classesList();
+  };
   sendWire();
   kudoWire();
   if (KUDO_OPEN) kudoPv(kudoWho().first || '');
