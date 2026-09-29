@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.65';
+var APP_VERSION = '8.99.66';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9163,7 +9163,11 @@ function admText(el) {
     ['עמוד הצוות', 'מה שהר\u05f4מים מקבלים \u2014 היעד, ההנחיות והסיפור',
      'location.href=\'tzevet.html?tedit=1\''],
     ['המסע', 'הרצועה שמלווה ראש חטיבה בתוך האפליקציה',
-     'location.href=\'index.html?masa=1&tedit=1\'']
+     'location.href=\'index.html?masa=1&tedit=1\''],
+    /* כבויה לתלמידים — כאן רק לראות איך היא נראית. ראו INTRO_ON
+       ב-join.html. */
+    ['הדגמת הפתיחה', 'כבויה כרגע — תלמידים והורים אינם רואים אותה. כאן רק לצפייה',
+     'window.open(\'join.html?intro=1\',\'_blank\')']
   ];
 
   el.innerHTML =

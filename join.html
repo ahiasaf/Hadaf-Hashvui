@@ -3561,16 +3561,25 @@ drawBack_();
    4. **לא באמצע התקנה.** מי שעבר מוואטסאפ לכרום מגיע עם
       `nointro=1` (ראו noIntroHref ב-getapp.js).
    ============================================================ */
+/* **כבויה לכולם (29.9).** "כרגע אני לא אוהב את זה — אולי אעבוד על
+   זה ברקע, ואם זה יהיה מספיק טוב אחדש." נפתחת רק ב-`?intro=1`, מתוך
+   הניהול (עריכת המלל ← הדגמת הפתיחה), ושם תמיד — בלי "פעם אחת" ובלי
+   לבדוק אם המכשיר רשום, כדי שאפשר יהיה לראות אותה שוב ושוב. להחזיר
+   לכולם: `INTRO_ON = true`. */
+var INTRO_ON = false;
 (function intro() {
   var box = $('intro');
   if (!box) return;
+  var preview = qs('intro') === '1';
+  if (!INTRO_ON && !preview) return;
   var seen = false;
   try { seen = localStorage.getItem('df:introSeen') === '1'; } catch (e) {}
-  if (seen || get('me', null) || standalone() || /[?&](nointro=1|tedit=1)/.test(location.search)) return;
+  if (!preview && (seen || get('me', null) || standalone() ||
+                   /[?&](nointro=1|tedit=1)/.test(location.search))) return;
   var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
   if (!d) return;
-  try { localStorage.setItem('df:introSeen', '1'); } catch (e) {}
+  if (!preview) { try { localStorage.setItem('df:introSeen', '1'); } catch (e) {} }
 
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
   box.innerHTML = '<div class="intro" id="intro-in">' +
