@@ -164,7 +164,12 @@ var APPX = (function () {
            'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
   }
   function waBox() {
-    if (BIP || isIOS() || firefox() || standalone()) return '';
+    /* **גם כשיש הצעת התקנה.** קודם המסגרת הוסתרה כשהדפדפן הציע
+       להתקין — אבל דפדפן סמסונג מציע, וההתקנה ממנו היא בדיוק זו
+       שנחסמת. תלמיד לחץ "הוספה למסך הבית", קיבל "אפליקציה לא
+       בטוחה נחסמה", ורק אחרי זה ראה את המסגרת. עכשיו היא שם מההתחלה,
+       ואומרת מראש שבכרום זה לא ייחסם. */
+    if (isIOS() || firefox() || standalone()) return '';
     var U = window.ASK_UI || {};
     var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
       'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +

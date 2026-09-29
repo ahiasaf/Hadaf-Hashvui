@@ -605,51 +605,42 @@ var GUIDE_UI = (function () {
   /* ---------- המסך ---------- */
   var at = 0, LIST = null, HOST = null, ONDONE = null;
 
+  /* ============================================================
+     **כל השלבים בעמוד אחד, ולא "הבא".**
+     ============================================================
+     "יש כמה שמסתבכים בזה כי הם ישר לוחצים על שלוש הנקודות, ולא
+     מבינים שהם צריכים לצאת בחזרה ולהסתכל על המשך ההוראות. אני
+     לוחץ על שלוש הנקודות, מופיע מולי מסך — ואני לא יכול לקרוא
+     באותו רגע את המשך ההוראות."
+
+     מסך אחד לכל שלב הניח שהאדם חוזר אלינו בין שלב לשלב. הוא לא
+     חוזר: הלחיצה הראשונה פותחת חלון של הדפדפן שמכסה אותנו. לכן
+     כל השלבים זה מתחת לזה, עם חץ ביניהם, ובראש שורה שמבקשת לקרוא
+     עד הסוף לפני שמתחילים. */
   function draw() {
     if (!HOST) return;
     var L = LIST || (LIST = steps());
-    if (at >= L.length) at = L.length - 1;
-    if (at < 0) at = 0;
-    var s = L[at], key = s[0], art = s[1];
-    var last = (at === L.length - 1);
-
     HOST.innerHTML =
       '<div class="gu">' +
-        '<div class="gu-kick">' +
-          esc(fill(g('step'), { n: at + 1, all: L.length })) + '</div>' +
-        /* ============================================================
-           **בלי שורת הסבר שנייה.**
-           ============================================================
-           "תמיד שורת ההסבר המשנית שמתחת לשורה שבכתב גדול היא
-           מיותרת — סתם מלל."
-
-           והיא גם עלתה במחיר: המסך שמסביב פותח בכותרת ובשורה
-           קבועה, ומתחתיהן באה השורה שמשתנה בכל שלב. ארבע שורות
-           רצופות באותו משקל, ומי שעוקב צריך לקרוא את כולן מחדש
-           בכל צעד כדי למצוא איזו מהן זזה. עכשיו שורה אחת,
-           מופרדת בקו ובצבע — וזו היחידה שמשתנה.
-           ============================================================ */
-        '<h3>' + esc(g(key)) + '</h3>' +
-        /* **בתוך מסגרת הטלפון.** כל חלק מחזיר את מה שיש על המסך
-           בלבד; בלי העטיפה אלה אלמנטים של SVG מחוץ ל-`<svg>`,
-           והדפדפן פשוט זורק אותם — הציור נעלם בשקט. */
-        (PICS[key] ? pic(PICS[key]) : phone(art())) +
-        '<div class="gu-dots">' + L.map(function (x, i) {
-          return '<i class="' + (i === at ? 'on' : (i < at ? 'did' : '')) + '"></i>';
-        }).join('') + '</div>' +
-        '<button class="gu-go" id="gu-next">' +
-          esc(last ? g('fin') : g('next')) + '</button>' +
-        (at ? '<button class="gu-back" id="gu-back">' + esc(g('back')) +
-              '</button>' : '') +
+        '<div class="gu-intro">' + esc(g('intro')) + '</div>' +
+        L.map(function (s, i) {
+          var key = s[0], art = s[1];
+          return (i ? '<div class="gu-arrow" aria-hidden="true">↓</div>' : '') +
+            '<div class="gu-step" id="gu-s' + i + '">' +
+            '<div class="gu-kick">' +
+              esc(fill(g('step'), { n: i + 1, all: L.length })) + '</div>' +
+            '<h3>' + esc(g(key)) + '</h3>' +
+            /* **בתוך מסגרת הטלפון.** כל חלק מחזיר את מה שיש על המסך
+               בלבד; בלי העטיפה אלה אלמנטים של SVG מחוץ ל-`<svg>`,
+               והדפדפן פשוט זורק אותם — הציור נעלם בשקט. */
+            (PICS[key] ? pic(PICS[key]) : phone(art())) +
+            '</div>';
+        }).join('') +
+        '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
       '</div>';
 
     var b = document.getElementById('gu-next');
-    if (b) b.onclick = function () {
-      if (at < L.length - 1) { at++; draw(); }
-      else if (ONDONE) ONDONE();
-    };
-    b = document.getElementById('gu-back');
-    if (b) b.onclick = function () { at--; draw(); };
+    if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
   }
 
   function mount(host, onDone) {
@@ -691,7 +682,9 @@ var GUIDE_UI = (function () {
       '  margin:12px auto 0}',
       /* הצילום — באותה מסגרת ובאותו גובה שיש לציור, כדי
          שהמעבר בין שלב מצויר לשלב מצולם לא יזיז את הכפתור. */
-      '.gu-pic{width:100%;max-width:230px;height:290px;',
+      /* גובה לפי התמונה: כשהשלבים זה מתחת לזה אין כפתור שקופץ, וגובה
+         קבוע רק השאיר רווחים ריקים סביב צילום נמוך. */
+      '.gu-pic{width:100%;max-width:230px;height:auto;',
       '  margin:12px auto 0;display:flex;align-items:center;',
       '  justify-content:center}',
       '.gu-pic span{position:relative;display:block;line-height:0}',
@@ -713,10 +706,13 @@ var GUIDE_UI = (function () {
       '  50%{transform:translateY(5px);opacity:1}}',
       '.gu-scroll{transform-origin:center;transform-box:fill-box;',
       '  animation:guDrop 1.5s ease-in-out infinite}',
-      '.gu-dots{display:flex;gap:7px;justify-content:center;margin:14px 0 0}',
-      '.gu-dots i{width:22px;height:4px;border-radius:2px;background:var(--rule)}',
-      '.gu-dots i.did{background:var(--green-d,#2E7D52)}',
-      '.gu-dots i.on{background:var(--gold)}',
+      /* הפתיח — "קראו עד הסוף". בולט, כי הוא מה שמונע את הטעות. */
+      '.gu-intro{margin:0 0 14px;padding:10px 12px;border-radius:12px;',
+      '  background:rgba(192,143,43,.12);color:var(--ink,#1B2A45);',
+      '  font-size:.92rem;font-weight:800;line-height:1.5}',
+      '.gu-step{padding-top:4px}',
+      '.gu-arrow{font-size:1.6rem;font-weight:800;line-height:1;',
+      '  color:var(--gold);margin:12px 0 10px}',
       '.gu-go{display:block;width:100%;margin-top:16px;padding:15px;border:0;',
       '  border-radius:12px;background:var(--blue);color:#fff;',
       '  font-family:inherit;font-weight:800;font-size:1rem;cursor:pointer}',
@@ -736,7 +732,6 @@ var GUIDE_UI = (function () {
   function seek(n) {
     var L = LIST || (LIST = steps());
     at = Math.max(0, Math.min(n | 0, L.length - 1));
-    draw();
   }
 
   return { mount: mount, reset: reset, steps: steps, css: css,
