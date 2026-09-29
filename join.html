@@ -242,6 +242,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
    הוא גם נראה אחרת: בלי מסגרת ובלי צל, כדי שלא ייקרא ככרטיס
    נוסף שצריך למלא. הוא מציג אפשרות, לא שואל שאלה. */
 .whopick{margin-top:14px}
+.whoq{font-size:1rem;font-weight:800;color:var(--ink);margin:0 0 8px;text-align:center}
+/* ננעל ברגע שהתחילו למלא — ראו whoLock_. */
+.whobar.lock .whob{cursor:default;color:var(--ink-3);opacity:.55}
+.whobar.lock .whob.on{background:var(--sunk);color:var(--ink-3);box-shadow:none;opacity:1}
 .whopick .h{font-size:.8rem;font-weight:600;color:var(--ink-3);
   margin-top:9px;line-height:1.6;text-align:center}
 
@@ -873,6 +877,7 @@ footer a{color:var(--ink-2);font-weight:800}
        מהניהול. -->
   <div id="s-det">
   <div class="whopick" id="whoPick" style="display:none">
+    <div class="whoq" id="whoQ"></div>
     <div class="whobar two" id="whoBar"></div>
     <p class="h" id="dad-lead" style="display:none"></p>
   </div>
@@ -1549,7 +1554,24 @@ function whoOn() {
    כלל. */
 var kidWay = '';
 
+/* ============================================================
+   "בן · אבא" ננעל ברגע שהתחילו למלא.
+   ============================================================
+   "כמה תלמידים לא מבינים את תפקידו: לוחצים על הבן וממלאים את
+   הפרטים שלהם, ואז עוברים ללחוץ על האבא כדי למלא את הפרטים שלו
+   — חושבים שצריך למלא פעמיים." הבורר נראה כמו שתי לשוניות של
+   טופס. לכן: שאלה מעליו ("מי אתה?"), ומרגע שנכתב שם פרטי הוא
+   אפור ואינו לוחץ — הבחירה נעשתה. מי שמוחק את השם חוזר לבחור. */
+var WHO_LOCK = false;
+function whoLock_() {
+  var f = $('first');
+  var lock = !!(f && (f.value || '').trim());
+  if (lock === WHO_LOCK) return;
+  WHO_LOCK = lock;
+  drawWho();
+}
 function setRole(r) {
+  if (WHO_LOCK) return;
   if (role === r) return;
   if (r === 'dad') kidWay = way;      /* לשמור */
   else             way    = kidWay;   /* ולהחזיר — ולא את זו של אבא */
@@ -1565,10 +1587,13 @@ function drawWho() {
      שוליים, והמסך היה נפתח בפער שנראה כאילו חסר בו משהו. */
   if (!whoOn()) { box.style.display = 'none'; return; }
   box.style.display = '';
+  var q = $('whoQ'); if (q) q.textContent = JOIN.whoQ || '';
+  bar.className = 'whobar two' + (WHO_LOCK ? ' lock' : '');
   bar.innerHTML = [['kid', JOIN.whoKid], ['dad', JOIN.whoDad]]
     .map(function (o) {
-      return '<button class="whob' + (role === o[0] ? ' on' : '') +
-        '" onclick="setRole(\'' + o[0] + '\')">' + esc(o[1]) + '</button>';
+      return '<button class="whob' + (role === o[0] ? ' on' : '') + '"' +
+        (WHO_LOCK ? ' disabled' : '') +
+        ' onclick="setRole(\'' + o[0] + '\')">' + esc(o[1]) + '</button>';
     }).join('');
 }
 
@@ -3422,6 +3447,10 @@ window.addEventListener('load', function () {
 })();
 
 drawWays();
+(function () {
+  var f = $('first');
+  if (f) f.addEventListener('input', whoLock_);
+})();
 drawWho();
 applyRole();          /* וזה קורא ל-applyWays כשהממלא אינו אבא */
 stage();
@@ -3540,6 +3569,8 @@ drawBack_();
   }
   stage();
 })();
+/* טופס שהגיע ממולא (קישור הזמנה) — הבחירה כבר נעשתה בקישור. */
+whoLock_();
 
 /* ============================================================
    הדגמת הפתיחה.
