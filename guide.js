@@ -627,8 +627,9 @@ var GUIDE_UI = (function () {
           var key = s[0], art = s[1];
           return (i ? '<div class="gu-arrow" aria-hidden="true">↓</div>' : '') +
             '<div class="gu-step" id="gu-s' + i + '">' +
-            '<div class="gu-kick">' +
-              esc(fill(g('step'), { n: i + 1, all: L.length })) + '</div>' +
+            /* המספר בעיגול — ולא "שלב 3 מתוך 6": מספר נקלט במבט,
+               ומשפט מדלגים עליו. */
+            '<div class="gu-num">' + (i + 1) + '</div>' +
             '<h3>' + esc(g(key)) + '</h3>' +
             /* **בתוך מסגרת הטלפון.** כל חלק מחזיר את מה שיש על המסך
                בלבד; בלי העטיפה אלה אלמנטים של SVG מחוץ ל-`<svg>`,
@@ -706,11 +707,13 @@ var GUIDE_UI = (function () {
       '  50%{transform:translateY(5px);opacity:1}}',
       '.gu-scroll{transform-origin:center;transform-box:fill-box;',
       '  animation:guDrop 1.5s ease-in-out infinite}',
-      /* הפתיח — "קראו עד הסוף". בולט, כי הוא מה שמונע את הטעות. */
-      '.gu-intro{margin:0 0 14px;padding:10px 12px;border-radius:12px;',
-      '  background:rgba(192,143,43,.12);color:var(--ink,#1B2A45);',
-      '  font-size:.92rem;font-weight:800;line-height:1.5}',
+      /* הפתיח — "אלו שלבי ההתקנה:". שורה אחת, בלי מסגרת. */
+      '.gu-intro{margin:0 0 14px;color:var(--ink,#1B2A45);',
+      '  font-size:1rem;font-weight:800;line-height:1.5}',
       '.gu-step{padding-top:4px}',
+      '.gu-num{width:34px;height:34px;margin:0 auto 8px;border-radius:50%;',
+      '  background:var(--gold);color:#fff;font-size:1.05rem;font-weight:800;',
+      '  display:flex;align-items:center;justify-content:center}',
       '.gu-arrow{font-size:1.6rem;font-weight:800;line-height:1;',
       '  color:var(--gold);margin:12px 0 10px}',
       '.gu-go{display:block;width:100%;margin-top:16px;padding:15px;border:0;',
