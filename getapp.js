@@ -158,10 +158,19 @@ var APPX = (function () {
         '<circle cx="16" cy="16" r="7" fill="#fff"/><circle cx="16" cy="16" r="5.4" fill="#4285F4"/></svg>';
     return '<span style="flex:none;display:flex;gap:4px">' + wa + br + '</span>';
   }
+  /* הכתובת שעוברת לכרום נושאת `nointro=1`: מי שעובר מוואטסאפ לכרום
+     כבר ראה את הדגמת הפתיחה, והוא באמצע התקנה — לא מראים לו שוב
+     (ראו intro ב-join.html). לכרום יש אחסון משלו, ולכן הזיכרון
+     במכשיר לא היה עוזר כאן. */
+  function noIntroHref() {
+    var h = location.href.split('#')[0];
+    if (/[?&]nointro=1/.test(h)) return h;
+    return h + (h.indexOf('?') < 0 ? '?' : '&') + 'nointro=1';
+  }
   function chromeUrl() {
-    var u = location.href.replace(/^https?:\/\//, '');
+    var u = noIntroHref().replace(/^https?:\/\//, '');
     return 'intent://' + u + '#Intent;scheme=https;package=com.android.chrome;' +
-           'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+           'S.browser_fallback_url=' + encodeURIComponent(noIntroHref()) + ';end';
   }
   function waBox() {
     /* **גם כשיש הצעת התקנה.** קודם המסגרת הוסתרה כשהדפדפן הציע
@@ -555,10 +564,10 @@ var APPX = (function () {
   function toBrowser() {
     if (isIOS()) return '';
     if (!inApp() && !samsung()) return '';
-    var u = location.href.replace(/^https?:\/\//, '');
+    var u = noIntroHref().replace(/^https?:\/\//, '');
     return 'intent://' + u + '#Intent;scheme=https;' +
            'package=com.android.chrome;' +
-           'S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+           'S.browser_fallback_url=' + encodeURIComponent(noIntroHref()) + ';end';
   }
 
   return {

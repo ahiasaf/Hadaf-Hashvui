@@ -758,6 +758,17 @@ body.wz input[type=text],body.wz input[type=tel],body.wz select{
 footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   margin-top:26px;line-height:1.9}
 footer a{color:var(--ink-2);font-weight:800}
+.intro{position:fixed;inset:0;z-index:90;background:var(--paper,#F6F1E6);
+  display:flex;flex-direction:column;opacity:1;transition:opacity .45s ease}
+.intro.out{opacity:0;pointer-events:none}
+.intro-top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px}
+.intro-top b{flex:1;font-size:1rem;font-weight:800;color:var(--ink,#1B2A45)}
+.intro-skip{border:1px solid var(--rule,#E5DAC3);background:#fff;color:var(--ink,#1B2A45);
+  border-radius:999px;padding:8px 16px;font:inherit;font-size:.9rem;font-weight:800;cursor:pointer}
+.intro-frame{position:relative;flex:1;margin:0 10px calc(env(safe-area-inset-bottom) + 10px);
+  border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(11,37,80,.25)}
+.intro-frame iframe{display:block;width:100%;height:100%;border:0}
+.intro-frame .intro-tap{position:absolute;inset:0;z-index:2}
 </style>
 </head>
 <body>
@@ -780,6 +791,8 @@ footer a{color:var(--ink-2);font-weight:800}
      `#form`, והמד היה נעלם יחד איתו בדיוק בשלב האחרון. -->
 <div class="wrap" id="wz"></div>
 
+<!-- הדגמת הפתיחה — ראו intro בסוף הקובץ. ריק עד שמוחלט להציג. -->
+<div id="intro"></div>
 <main class="wrap" id="form">
 
   <!-- ============================================================
@@ -3516,6 +3529,73 @@ drawBack_();
     drawWays();
   }
   stage();
+})();
+
+/* ============================================================
+   הדגמת הפתיחה.
+   ============================================================
+   "כל ההדגמה אורכת 12 שניות — אדם רואה אותה, ואז היא נעלמת
+   וחושפת את המסך הנוכחי."
+
+   הדף האינטראקטיבי האמיתי מנגן את עצמו על כל המסך, ואז נעלם אל
+   מסך ההצטרפות — כך "אני מצטרף" מגיע אחרי שראו למה, ולא מתחרה
+   בשום דבר. ארבעה תנאים, כי הקישור הזה יוצא לכולם:
+
+   1. **"דלג" מהשנייה הראשונה.** מי שבא להירשם לא נכלא.
+   2. **פעם אחת.** מי שכבר רשום, מי שכבר ראה, ומי שפתח מהאייקון —
+      ישר למסך הרגיל.
+   3. **חמש שניות להתחיל.** ההדגמה טוענת את הדף כולו מהגיליון
+      (סימונים, מצגת) — בטלפון על רשת סלולרית זה יותר משלוש שניות.
+      עד אז רואים את מסך הטעינה של הדף עצמו, לא מלבן ריק; ואם היא
+      לא מודיעה שהתחילה (`daf-demo-start` מ-learn.html) — מוותרים.
+   4. **לא באמצע התקנה.** מי שעבר מוואטסאפ לכרום מגיע עם
+      `nointro=1` (ראו noIntroHref ב-getapp.js).
+   ============================================================ */
+(function intro() {
+  var box = $('intro');
+  if (!box) return;
+  var seen = false;
+  try { seen = localStorage.getItem('df:introSeen') === '1'; } catch (e) {}
+  if (seen || get('me', null) || standalone() || /[?&](nointro=1|tedit=1)/.test(location.search)) return;
+  var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
+  if (!d) return;
+  try { localStorage.setItem('df:introSeen', '1'); } catch (e) {}
+
+  var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+  box.innerHTML = '<div class="intro" id="intro-in">' +
+    '<div class="intro-top"><b>' + esc(JOIN.introT) + '</b>' +
+    '<button class="intro-skip" id="intro-skip">' + esc(JOIN.introSkip) + '</button></div>' +
+    '<div class="intro-frame" id="intro-fr"><iframe title="' + esc(JOIN.introT) + '" ' +
+    'scrolling="no" src="' + esc(base + 'learn.html?mas=' + encodeURIComponent(tr) +
+      '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
+      (instCode ? '&inst=' + encodeURIComponent(instCode) : '')) + '"></iframe>' +
+    /* נגיעה בחלון אינה מפעילה כפתור זעיר שבתוכו — ההדגמה מנגנת לבד. */
+    '<div class="intro-tap"></div></div></div>';
+  document.documentElement.style.overflow = 'hidden';
+
+  var started = false, done = false, tCap = null;
+  function close() {
+    if (done) return;
+    done = true;
+    clearTimeout(tCap);
+    window.removeEventListener('message', onMsg);
+    var el = $('intro-in');
+    if (el) el.className = 'intro out';
+    document.documentElement.style.overflow = '';
+    setTimeout(function () { box.innerHTML = ''; }, 500);
+  }
+  function onMsg(e) {
+    if (e.data === 'daf-demo-start' && !started) {
+      started = true;
+      /* רשת ביטחון: הדגמה שנתקעה באמצע לא מחזיקה את המסך. */
+      tCap = setTimeout(close, 25000);
+    }
+    if (e.data === 'daf-demo-done') setTimeout(close, 600);
+  }
+  window.addEventListener('message', onMsg);
+  $('intro-skip').onclick = close;
+  setTimeout(function () { if (!started) close(); }, 5000);
 })();
 </script>
 </body>

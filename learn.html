@@ -3998,6 +3998,10 @@ function demoRun(script) {
     DEMO_T = setTimeout(function () { demoAct(b[1], b[2], step); }, b[0]);
   };
   bubble('run');
+  /* בחלון — העמוד המארח שומע שההדגמה באמת התחילה. לפי זה מסך
+     הפתיחה של ההצטרפות מחליט אם להציג אותה או לוותר (ראו
+     intro ב-join.html). */
+  if (EMB) { try { parent.postMessage('daf-demo-start', '*'); } catch (e) {} }
   step();
 }
 /* פעולה אחת מהתסריט. אותם שמות שהמקליט רושם, ולכן אין כאן
