@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.69';
+var APP_VERSION = '8.99.70';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3963,6 +3963,7 @@ function sayTmpls() {
 
 function sayPreview() {
   var name = sayOpt.aud === 'parents' ? headT('sayPvNameP') : headT('sayPvName');
+  if (sayOpt.aud === 'both') name = headT('sayPvName') + ' / ' + headT('sayPvNameP');
   var txt = (sayDraft || '').trim();
   var body = txt ? (sayOpt.per ? '<b class="pv-nm">' + esc(name) + '</b>, ' : '') + esc(txt)
                  : '<span class="pv-ph">' + esc(headT('sayPvEmpty')) + '</span>';
@@ -3991,7 +3992,11 @@ function sayHtml() {
   };
   h += '<div class="say-row"><span>' + esc(headT('sayWho')) + '</span><div class="say-seg">' +
     seg(kids, headT('sayAudKids'), null, 'aud:kids') +
-    seg(!kids, headT('sayAudParS'), null, 'aud:parents') + '</div></div>';
+    seg(sayOpt.aud === 'parents', headT('sayAudParS'), null, 'aud:parents') +
+    seg(sayOpt.aud === 'both', headT('sayAudBoth'), null, 'aud:both') + '</div></div>';
+  /* הורים — אלה שמחוברים לתלמידים שבקבוצה. הפילוח שמתחת
+     (סיימו, דרך לימוד, שכבה) הוא של הבן. */
+  if (!kids) h += '<p class="myto">' + esc(headT('sayParNote')) + '</p>';
   if (w) {
     h += '<div class="say-row"><span>' + esc(headT('saySegH')) + '</span><div class="say-seg">' +
       seg(!sayOpt.seg, headT('saySegAll'), plain ? n : null, 'seg:') +
@@ -4009,7 +4014,7 @@ function sayHtml() {
         return '<option value="' + esc(x[0]) + '"' + (sayOpt.way === x[0] ? ' selected' : '') + '>' +
           esc(headT(x[1])) + (c != null ? ' (' + c + ')' : '') + '</option>';
       }).join('') + '</select>';
-    if (kids && (j.grades || []).length > 1) {
+    if ((j.grades || []).length > 1) {
       h += '<select id="say-grade" aria-label="' + esc(headT('sayGrAll')) + '">' +
         '<option value="">' + esc(headT('sayGrAll')) + '</option>' +
         (j.grades || []).map(function (g) {
@@ -4067,7 +4072,8 @@ function sayHtml() {
 /* התווית של הקבוצה שנבחרה — לאישור, וליומן שמתחת. */
 function sayToLabel() {
   var w = sayWeek(), bits = [];
-  bits.push(sayOpt.aud === 'parents' ? headT('sayAudParS') : headT('sayAudKids'));
+  bits.push(headT(sayOpt.aud === 'parents' ? 'sayAudParS' :
+                  sayOpt.aud === 'both' ? 'sayAudBoth' : 'sayAudKids'));
   if (sayOpt.seg) {
     bits.push(headT({ done:'saySegDone', todo:'saySegTodo', mid:'saySegMid',
                       none:'saySegNone' }[sayOpt.seg]).split('{daf}').join(w ? w.daf : ''));
@@ -4112,7 +4118,7 @@ function sayWire() {
     if (k === 'more') sayOpt.more = !sayOpt.more;
     else if (k === 'sig') sayOpt.sigEd = true;
     else if (k === 'tm') sayDraft = sayTmpls()[+v] || sayDraft;
-    else if (k === 'aud') { sayOpt.aud = v; if (v === 'parents') sayOpt.grade = ''; }
+    else if (k === 'aud') sayOpt.aud = v;
     else sayOpt[k] = v;
     sayPaint();
   };

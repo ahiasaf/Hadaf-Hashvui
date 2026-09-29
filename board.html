@@ -317,6 +317,8 @@ footer a{color:var(--ink-2);font-weight:800}
 .snd-seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:8px;font:inherit;
   font-size:.82rem;font-weight:800;color:var(--ink-3);cursor:pointer}
 .snd-seg button.on{background:#fff;color:var(--blue,#17468F)}
+.kudo-to{margin-bottom:8px;background:#fff}
+.kudo-to button.on{background:var(--blue,#17468F);color:#fff}
 .snd-sel{display:flex;gap:6px;margin-bottom:6px}
 .snd-sel select{flex:1;padding:8px;border:1px solid var(--rule);border-radius:9px;font:inherit;font-size:.85rem}
 .snd-note{font-size:.84rem;font-weight:700;margin-bottom:6px}
@@ -909,6 +911,8 @@ function pRow(p, noGrade) {
    לישיבה לפי הקוד, והמזהה רק מצמצם בתוכה.
    ============================================================ */
 var KUDO_OPEN = '', KUDO_TXT = '', KUDO_BUSY = false, KUDO_SENT = {}, KUDO_ERR = '';
+/* למי — 'k' התלמיד · 'p' ההורה המחובר · 'pk' שניהם. */
+var KUDO_TO = 'k';
 function kt(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
 function kudoBtn(p, did) {
   /* ============================================================
@@ -922,7 +926,7 @@ function kudoBtn(p, did) {
     if (SELMODE) return '';
     if (!p.id) return '';
     if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
-    if (p.push) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
+    if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
     var wa = waNum(p.phone);
     return wa ? '<a class="kudo wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener" ' +
       'title="וואטסאפ — אין לו התראות">וואטסאפ</a>' : '';
@@ -952,8 +956,16 @@ function kudoTmpls() {
 }
 function kudoBox(p) {
   if (KUDO_OPEN !== p.id) return '';
-  var first = p.first || '';
+  var first = kudoName(p);
   var h = '<div class="kudo-box">';
+  if (p.withOk) {
+    var to = function (v, k) {
+      return '<button class="' + (KUDO_TO === v ? 'on' : '') + '" data-kudo-to="' + v + '">' +
+        esc(kt(k)) + '</button>';
+    };
+    h += '<div class="snd-seg kudo-to">' + to('k', 'kudoToK') + to('p', 'kudoToP') +
+      to('pk', 'kudoToB') + '</div>';
+  }
   kudoTmpls().forEach(function (t, i) {
     h += '<button class="tm" data-kudo-tm="' + i + '">' + esc(t) + '</button>';
   });
@@ -964,6 +976,12 @@ function kudoBox(p) {
     esc(tp(kt('kudoGo'), { first: first })) + '</button>' +
     '<div class="s">' + esc(KUDO_ERR || kt('kudoNote')) + '</div></div>';
   return h;
+}
+/* השם בפנייה — של התלמיד, של ההורה, או של שניהם. */
+function kudoName(p) {
+  if (!p.withOk || KUDO_TO === 'k') return p.first || '';
+  if (KUDO_TO === 'p') return p['with'] || '';
+  return (p.first || '') + ' ו' + (p['with'] || '');
 }
 function kudoPv(first) {
   var el = $('kudo-pv'); if (!el) return;
@@ -980,18 +998,23 @@ function kudoWire() {
     if ((b = t.closest && t.closest('[data-kudo]'))) {
       var id = b.getAttribute('data-kudo');
       KUDO_OPEN = KUDO_OPEN === id ? '' : id; KUDO_TXT = ''; KUDO_ERR = '';
+      var kp = kudoWho();
+      KUDO_TO = ALL && !kp.push && kp.parPush ? 'p' : 'k';
       draw(); return;
+    }
+    if ((b = t.closest && t.closest('[data-kudo-to]'))) {
+      KUDO_TO = b.getAttribute('data-kudo-to'); draw(); return;
     }
     if ((b = t.closest && t.closest('[data-kudo-tm]'))) {
       KUDO_TXT = kudoTmpls()[+b.getAttribute('data-kudo-tm')] || KUDO_TXT;
       var ta = $('kudo-txt'); if (ta) ta.value = KUDO_TXT;
-      kudoPv(kudoWho().first || ''); return;
+      kudoPv(kudoName(kudoWho())); return;
     }
     if (t.id === 'kudo-go') kudoSend();
   });
   body.addEventListener('input', function (e) {
     if (e.target.id !== 'kudo-txt') return;
-    KUDO_TXT = e.target.value; kudoPv(kudoWho().first || '');
+    KUDO_TXT = e.target.value; kudoPv(kudoName(kudoWho()));
   });
 }
 function kudoWho() {
@@ -1002,11 +1025,15 @@ function kudoSend() {
   var p = kudoWho(), txt = (KUDO_TXT || '').trim();
   if (!p.id || txt.length < 2 || KUDO_BUSY) return;
   KUDO_BUSY = true; KUDO_ERR = ''; draw();
+  var par = p.withOk && KUDO_TO !== 'k' ? KUDO_TO : '';
+  var ids = (p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60);
   askScript(ALL
     ? { fire:'say', key:acc, title:kudoSig(), body:'{name}, ' + txt, who:'רכז',
-        role:'תלמיד', flt: JSON.stringify({ ids:(p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60), per:1 }) }
+        role: par ? '' : 'תלמיד',
+        flt: JSON.stringify(par ? { ids:ids, per:1, par:par } : { ids:ids, per:1 }) }
     : { fire:'say', inst:code, k:acc, title:kudoSig(), body:'{name}, ' + txt,
-        grade:'', klass:'', who:kudoSig(), aud:'kids',
+        grade:'', klass:'', who:kudoSig(),
+        aud: par === 'p' ? 'parents' : par === 'pk' ? 'both' : 'kids',
         flt: JSON.stringify({ ids:[p.id], per:1 }) })
     .then(function (d) {
       KUDO_BUSY = false;
@@ -1090,6 +1117,10 @@ function sndList() {
     return true;
   });
 }
+/* בלי שום צמצום מלבד הישיבה — השרת מוסיף גם הורים שלא חוברו. */
+function sndPlain() {
+  return !selIds().length && FILT !== '-' && !SND.seg && !SND.way && !SND.grade;
+}
 function sndGrades() {
   var g = {};
   (rosterAll || []).forEach(function (p) {
@@ -1099,7 +1130,7 @@ function sndGrades() {
 }
 function sndToLabel() {
   var sel = selIds().length, bits = [];
-  bits.push(SND.aud === 'parents' ? 'הורים' : 'תלמידים');
+  bits.push(kt(SND.aud === 'parents' ? 'sayAudParS' : SND.aud === 'both' ? 'sayAudBoth' : 'sayAudKids'));
   if (sel) { bits.push(sel + ' שנבחרו'); return bits.join(' · '); }
   bits.push(!FILT ? 'כל הישיבות' : FILT === '-' ? 'ללא ישיבה' : instLbl({ inst: FILT }));
   var w = sndWeek();
@@ -1121,10 +1152,13 @@ function sendHtml() {
     return '<button class="' + (on ? 'on' : '') + '" data-snd="' + act + '">' + esc(label) + '</button>';
   };
   var list = sndList(), pushN = list.filter(function (p) { return p.push; }).length;
+  var parL = list.filter(function (p) { return p.withOk; });
+  var parPushN = parL.filter(function (p) { return p.parPush; }).length;
   var h = '<div class="card snd"><div class="snd-h"><b>שליחת הודעה</b>' +
     '<button class="snd-x" data-snd="close" aria-label="סגירה">✕</button></div>';
   h += '<div class="snd-row"><span>למי</span><div class="snd-seg">' +
-    seg(kids, 'תלמידים', 'aud:kids') + seg(!kids, 'הורים', 'aud:parents') + '</div></div>';
+    seg(kids, kt('sayAudKids'), 'aud:kids') + seg(SND.aud === 'parents', kt('sayAudParS'), 'aud:parents') +
+    seg(SND.aud === 'both', kt('sayAudBoth'), 'aud:both') + '</div></div>';
   if (sel) {
     h += '<div class="snd-note">נבחרו ' + sel + ' מהרשימה. ' +
       '<button class="klink" data-snd="clear">ניקוי הבחירה</button></div>';
@@ -1160,7 +1194,11 @@ function sendHtml() {
     '> לפנות לכל אחד בשמו</label>' +
     '<div class="snd-pv" id="snd-pv"></div>';
   h += '<div class="snd-sum"><b>יישלח ל:</b> ' + esc(sndToLabel()) +
-    (kids ? '<br><b>' + list.length + '</b> תלמידים · <b>' + pushN + '</b> מהם עם התראות — רק הם יקבלו' : '') +
+    (kids ? '<br><b>' + list.length + '</b> תלמידים · <b>' + pushN + '</b> מהם עם התראות — רק הם יקבלו' :
+     SND.aud === 'parents' ? '<br><b>' + parL.length + '</b> הורים מחוברים · <b>' + parPushN +
+       '</b> מהם עם התראות' + (sndPlain() ? ' · ועוד הורים שנרשמו בלי חיבור לבן' : '') :
+     '<br><b>' + list.length + '</b> תלמידים (<b>' + pushN + '</b> עם התראות) · <b>' + parL.length +
+       '</b> הורים מחוברים (<b>' + parPushN + '</b> עם התראות)') +
     '</div>' +
     '<button class="snd-go" id="snd-go"' + (SND.busy || SND.txt.trim().length < 2 ? ' disabled' : '') + '>' +
     (SND.busy ? 'שולח…' : 'שליחה') + '</button>' +
@@ -1172,7 +1210,7 @@ function sndPv() {
   var el = $('snd-pv'); if (!el) return;
   var t = (SND.txt || '').trim();
   el.innerHTML = t ? '<b>' + esc(kudoSig()) + '</b><br>' +
-    (SND.per ? esc(SND.aud === 'parents' ? 'שם ההורה' : 'שם התלמיד') + ', ' : '') + esc(t) : '';
+    (SND.per ? esc(SND.aud === 'parents' ? 'שם ההורה' : SND.aud === 'both' ? 'שם כל אחד' : 'שם התלמיד') + ', ' : '') + esc(t) : '';
   var g = $('snd-go'); if (g) g.disabled = SND.busy || t.length < 2;
 }
 function sendWire() {
@@ -1218,7 +1256,10 @@ function sndSend() {
   var flt = { per: SND.per ? 1 : 0 };
   var q = { fire:'say', key:acc, title:kudoSig(), who:'רכז',
             body:(SND.per ? '{name}, ' : '') + txt,
-            role: SND.aud === 'parents' ? 'אב' : 'תלמיד' };
+            role: SND.aud === 'kids' ? 'תלמיד' : '' };
+  /* הורים — השרת מוצא אותם דרך התלמידים שבקבוצה (sayPeople_). */
+  if (SND.aud === 'parents') flt.par = 'p';
+  if (SND.aud === 'both') flt.par = 'pk';
   /* לפי מזהים: בחירה ידנית, או "ללא ישיבה" — שאין לו קוד אחד. */
   if (sel.length || FILT === '-') {
     var ids = [];
@@ -1243,7 +1284,9 @@ function sndSend() {
   askScript(q).then(function (d) {
     SND.busy = false;
     if (d && d.status === 'ok') {
-      SND.ok = true; SND.msg = '✓ נשלח. ההתראות יוצאות תוך דקה.';
+      SND.ok = true; SND.msg = '✓ נשלח' +
+        (d.dads != null ? ' — ' + d.dads + ' הורים' + (d.kids ? ' ו-' + d.kids + ' תלמידים' : '') : '') +
+        '. ההתראות יוצאות תוך דקה.';
       SND.txt = ''; SEL = {}; SELMODE = false;
     } else {
       SND.ok = false; SND.msg = 'לא נשלח. ' + ((d && d.message) || 'אין תשובה מהשרת.');
@@ -1453,7 +1496,7 @@ function wire() {
   };
   sendWire();
   kudoWire();
-  if (KUDO_OPEN) kudoPv(kudoWho().first || '');
+  if (KUDO_OPEN) kudoPv(kudoName(kudoWho()));
 }
 function legacy(txt, done) {
   var t = document.createElement('textarea');

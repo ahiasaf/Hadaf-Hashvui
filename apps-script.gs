@@ -652,6 +652,28 @@ function doGet(e) {
        שבו יש תלמידים בלבד. בלי השורה הזו ההודעה הייתה מגיעה
        גם לר"ם עצמו ולכל איש צוות אחר באותה כיתה, כלומר ליותר
        אנשים ממה שנאמר לו. הבטחה ומסירה חייבות להיות אותו דבר. */
+    /* ---- להורים, או לתלמיד ולהורה שלו יחד ----
+       השרת מתרגם את הקבוצה למזהים — ראו sayPeople_. ר"ם מקבל רק
+       את הישיבה שלו: הרשימה נבנית מהלוח שלה בלבד. */
+    var flS = sayFlt_(P.flt), flO = flS ? JSON.parse(flS) : {};
+    if (!isAdm) {
+      if (P.aud === 'parents') flO.par = 'p';
+      else if (P.aud === 'both') flO.par = 'pk';
+    }
+    if (flO.par) {
+      var who0 = sayPeople_(isAdm ? String(P.only || '') : inst, isAdm,
+                            isAdm || P.test === '1', flO,
+                            String(P.grade || ''), String(P.klass || ''));
+      if (!who0.ids.length) {
+        return reply_(e, { status:'empty', message:'אין בקבוצה הזו הורים שמחוברים לתלמיד.' });
+      }
+      var fl2 = { ids: who0.ids };
+      if (flO.per) fl2.per = 1;
+      var r0 = ghFire_(String(P.title || ''), String(P.body || ''), '', '', '',
+                       String(P.who || ''), link, '', '', JSON.stringify(fl2));
+      if (r0 && r0.status === 'ok') { r0.kids = who0.kids; r0.dads = who0.dads; }
+      return reply_(e, r0);
+    }
     return reply_(e, ghFire_(String(P.title || ''), String(P.body || ''),
                              isAdm ? String(P.only || '') : inst,
                              String(P.grade || ''), String(P.klass || ''),
@@ -1707,7 +1729,10 @@ function ensureCode_(inst, want) {
 
 /* הלוח של מוסד אחד. שמות פרטיים, שכבה, מסגרת, ואילו שבועות
    סומנו — ולא יותר מזה. */
-function boardData_(inst, k, withTest) {
+/* `inner` — לשימוש השרת בלבד (שליחה להורים, sayPeople_): כל
+   מזהי התלמיד ומזהי ההורה המחובר, וההורים שאינם מחוברים. אינו
+   יוצא לשום לוח. */
+function boardData_(inst, k, withTest, inner) {
   inst = String(inst || '').trim();
   /* '*' — כל הישיבות יחד, וגם מי שאינו משויך לאף אחת. לרכז בלבד:
      הקורא (`?board=*`) כבר בדק את READ_KEY, ולכן אין כאן קוד מוסד. */
@@ -1803,6 +1828,17 @@ function boardData_(inst, k, withTest) {
       var cell = function (r, name) {
         return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
       };
+      /* כל המזהים של כל אדם — גם של הורה מישיבה אחרת. */
+      var idsOf = {}, dads = {};
+      for (var d0 = 1; d0 < jr.length; d0++) {
+        var pid0x = cell(jr[d0], 'מזהה');
+        if (!pid0x) continue;
+        idsOf[pid0x] = rowIdsOf_(pid0x, cell(jr[d0], ALIAS_COL));
+        if (cell(jr[d0], 'תפקיד') === 'הורה' &&
+            (withTest || cell(jr[d0], 'בדיקה') !== 'כן')) {
+          dads[pid0x] = { inst: cell(jr[d0], 'קוד ישיבה'), ids: idsOf[pid0x] };
+        } else delete dads[pid0x];
+      }
       var byId = {}, order = [];
       for (var d = 1; d < jr.length; d++) {
         var row = jr[d];
@@ -1857,7 +1893,14 @@ function boardData_(inst, k, withTest) {
           p['with'] = pm[pid]['with'];
           p.withOk  = 1;
         }
+        var parIds = [];
+        ((pm[pid] && pm[pid].pids) || []).forEach(function (x) {
+          (idsOf[x] || [x]).forEach(function (y) { if (parIds.indexOf(y) < 0) parIds.push(y); });
+        });
+        if (inner) { p._ids = idsOf[pid] || [pid]; p._par = parIds; }
         if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
+        /* להורה המחובר יש התראות? — לכפתור ✉ ולמספרים בשליחה. */
+        if (all) p.parPush = parIds.some(function (x) { return pushSet[x]; }) ? 1 : 0;
         for (var t in (done[pid] || {})) p.weeks.push(t);
         /* התקדמות מוחזרת רק לשבוע שלא הושלם — אחרת היא סותרת
            את הסימון ומייצרת שני מספרים לאותו דבר. */
@@ -1869,7 +1912,60 @@ function boardData_(inst, k, withTest) {
     }
   } catch (e2) {}
 
-  return { status: 'ok', inst: inst, students: out };
+  var res = { status: 'ok', inst: inst, students: out };
+  if (inner) res.dads = dads;
+  return res;
+}
+
+/* ============================================================
+   שליחה להורים — מי הם.
+   ============================================================
+   הורה אינו נושא שכבה, ולא סיום של דף: אלה של הבן. ולכן
+   הפילוח (ישיבה, שכבה, כיתה, דרך לימוד, סיימו / לא, בחירה ידנית)
+   נעשה על **התלמידים**, ומהם עוברים להורה המחובר (pairMap_).
+   'p' = ההורים בלבד · 'pk' = התלמיד וההורה שלו יחד.
+
+   בלי שום צמצום מלבד הישיבה — נוספים גם הורים שנרשמו לישיבה
+   ועדיין לא חוברו לבן. כך "כל ההורים" אינו מצומצם ממה שהיה.
+
+   מחזיר את כל המזהים (כולל מכשירים שנבלעו), ומספר האנשים. */
+function sayPeople_(scope, isAdm, withTest, f, grade, klass) {
+  var bd = isAdm ? boardData_('*', '*', withTest, true)
+                 : boardData_(scope, getCode_(scope), withTest, true);
+  if (!bd || bd.status !== 'ok') return { ids: [], kids: 0, dads: 0 };
+  var inScope = function (code, name) {
+    return !isAdm || !scope || code === scope || name === scope;
+  };
+  var wk = f.wk ? '|' + f.wk : '';
+  var ids = [], kidN = 0, dadSeen = {};
+  var add = function (list) {
+    (list || []).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
+  };
+  bd.students.forEach(function (p) {
+    if (!inScope(p.inst, p.instName)) return;
+    if (grade && p.grade !== grade) return;
+    if (klass && p.klass !== klass) return;
+    if (f.way && p.way !== f.way) return;
+    if (f.ids && !p._ids.some(function (x) { return f.ids.indexOf(x) >= 0; })) return;
+    if (f.seg && wk) {
+      var end = function (t) { return t.slice(-wk.length) === wk; };
+      var my = p.weeks.some(end) ? 'done'
+             : (Object.keys(p.pos).some(end) ? 'mid' : 'none');
+      if (f.seg === 'todo' ? my === 'done' : my !== f.seg) return;
+    }
+    if (f.par === 'pk') { add(p._ids); kidN++; }
+    if (p._par.length && !dadSeen[p._par[0]]) { dadSeen[p._par[0]] = 1; add(p._par); }
+  });
+  var plain = !grade && !klass && !f.way && !f.ids && !f.seg;
+  if (plain) {
+    for (var d in bd.dads) {
+      var dd = bd.dads[d];
+      if (isAdm ? (scope && dd.inst !== scope) : dd.inst !== scope) continue;
+      if (dadSeen[dd.ids[0]]) continue;
+      dadSeen[dd.ids[0]] = 1; add(dd.ids);
+    }
+  }
+  return { ids: ids, kids: kidN, dads: Object.keys(dadSeen).length };
 }
 
 /* ============================================================
@@ -2130,8 +2226,11 @@ function pairMap_(rows) {
   var link = function (x, y) {
     if (!x || !y || x.id === y.id) return;
     if (x.dad === y.dad) return;                  /* הורה מול תלמיד בלבד */
-    if (!out[x.id]) out[x.id] = { 'with': y.first, ok: 1 };
-    if (!out[y.id]) out[y.id] = { 'with': x.first, ok: 1 };
+    if (!out[x.id]) out[x.id] = { 'with': y.first, ok: 1, pids: [] };
+    if (!out[y.id]) out[y.id] = { 'with': x.first, ok: 1, pids: [] };
+    /* מי בדיוק בצד השני — לשליחה להורה של תלמיד, או לשניהם. */
+    if (out[x.id].pids.indexOf(y.id) < 0) out[x.id].pids.push(y.id);
+    if (out[y.id].pids.indexOf(x.id) < 0) out[y.id].pids.push(x.id);
   };
 
   for (var b = 0; b < order.length; b++) {
@@ -2608,6 +2707,7 @@ function sayFlt_(raw) {
     }
     if (!out.ids.length) delete out.ids;
   }
+  if (f.par === 'p' || f.par === 'pk') out.par = f.par;
   if (f.per) out.per = 1;
   for (var k in out) if (out.hasOwnProperty(k)) return JSON.stringify(out);
   return '';
@@ -2657,7 +2757,7 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt) {
           ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
           ['שכבה', grade || ''], ['כיתה', klass || ''],
           ['כותרת', title], ['הטקסט', body],
-          ['תפקיד', role || ''], ['פילוח', flt || '']
+          ['תפקיד', role || ''], ['פילוח', String(flt || '').slice(0, 2000)]
         ]);
       } catch (e2) {}
       return { status:'ok' };

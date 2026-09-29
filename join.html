@@ -2570,8 +2570,15 @@ function appInstalled() { return APPX.installed(); }
 /* האישור ניתן **והמנוי נוצר**. שניהם נכונים מקומית, ורק הם
    נאמרים למסך: הכתיבה לגיליון `no-cors` ואטומה ואינה ראיה
    לכלום. ההתראה עצמה היא האישור האמיתי. */
+/* **הסימון שייך לאדם שנרשם, לא למכשיר.** עד עכשיו נשמר בו '1',
+   ומי שנרשם שוב באותו דפדפן (תלמיד בדיקה, אבא אחרי הבן) דילג
+   על השלב — "כבר אושר" — ושורת ההתראות לא נכתבה על המזהה החדש.
+   בלוח הוא נראה בלי התראות, והשליחה אליו לא הגיעה. */
 function noteDone() {
-  try { return localStorage.getItem('df:noteOn') === '1'; } catch (e) { return false; }
+  var v = '';
+  try { v = localStorage.getItem('df:noteOn') || ''; } catch (e) {}
+  var me = get('me', null);
+  return me && me.id ? v === me.id : !!v;
 }
 function canNote()  { return APPX.canNote(); }
 function notePerm() { return APPX.perm(); }
@@ -2716,7 +2723,25 @@ function appAskNote() {
   });
 }
 
-function appSubscribe() {
+/* בדיקת ההתראה: '' = אין · 'ask' = נשלחה, "קיבלת?" · 'no' = לא הגיעה. */
+var NOTE_T = '';
+function noteTest() {
+  NOTE_T = 'ask'; appRedraw();
+  APPX.demo(jt('wzTestN'), jt('wzTestNB'))['catch'](function () {
+    NOTE_T = 'no'; appRedraw();
+  });
+}
+
+/* מי שכבר אישר בדפדפן הזה, ואין עדיין מנוי רשום על המזהה שלו
+   — נרשם בשקט, בלי לשאול שוב. כך מתרפא גם מי שנרשם לפני התיקון. */
+function noteHeal() {
+  if (!get('me', null) || noteDone()) return;
+  if (!canNote() || notePerm() !== 'granted') return;
+  appSubscribe(true);
+}
+setTimeout(function () { try { noteHeal(); } catch (e) {} }, 1500);
+
+function appSubscribe(quiet) {
   APPX.subscribe().then(function (sub) {
     var me = get('me', null) || {};
     /* דרך התור ולא ב-fetch ישיר: הוא שורד רשת שנפלה באמצע,
@@ -2736,9 +2761,13 @@ function appSubscribe() {
     /* הכתיבה `no-cors` ואטומה, ולכן היא אינה ראיה לכלום. מה
        שנאמר למסך הוא רק מה שנכון מקומית: האישור ניתן והמנוי
        נוצר. ההתראה עצמה היא האישור האמיתי. */
-    try { localStorage.setItem('df:noteOn', '1'); } catch (e) {}
-    appBusy = false; appRedraw();
+    try { localStorage.setItem('df:noteOn', me.id || '1'); } catch (e) {}
+    appBusy = false;
+    if (quiet) { appRedraw(); return; }
+    /* ההתראה עצמה היא האישור האמיתי — שולחים אחת עכשיו ושואלים. */
+    noteTest();
   })['catch'](function (e) {
+    if (quiet) return;
     appBusy = false;
     appErr = 'לא הצלחתי להשלים: ' + ((e && e.message) || e) + '. אפשר לנסות שוב.';
     appRedraw();
@@ -2983,7 +3012,7 @@ function wzDraw() {
     det = '<div class="wz-eh"><h2>' + esc(jt('editT')) + '</h2>' +
           '<p>' + esc(jt('editB')) + '</p></div>';
   } else {
-    var fin = noteDone() && notePerm() === 'granted';
+    var fin = noteDone() && notePerm() === 'granted' && !NOTE_T;
     if (fin) h += wzRow(jt('wzNoteS'));
     h += '<div class="wzcard' + (fin ? ' fin' : '') + '">' + wzNote() + '</div>';
   }
@@ -3198,9 +3227,20 @@ function hlpSend() {
 
 /* ---------- שלב 4 ---------- */
 function wzNote() {
+  if (noteDone() && notePerm() === 'granted' && NOTE_T === 'ask') {
+    return wzHead(4, jt('wzTestT'), jt('wzTestB')) +
+      '<button class="wznext" id="wz-t-yes">' + esc(jt('wzTestYes')) + '</button>' +
+      '<button class="thin" id="wz-t-no">' + esc(jt('wzTestNo')) + '</button>';
+  }
+  if (noteDone() && notePerm() === 'granted' && NOTE_T === 'no') {
+    return wzHead(4, jt('wzTestNoT'), jt('wzTestNoB')) +
+      '<button class="wznext" id="wz-t-again">' + esc(jt('wzTestAgain')) + '</button>' +
+      '<button class="thin" id="wz-t-skip">' + esc(jt('wzTestSkip')) + '</button>';
+  }
   if (noteDone() && notePerm() === 'granted') {
     return '<div class="v-ok">✓</div><h2>' + esc(jt('wzFinT')) + '</h2>' +
-      '<p>' + esc(jt('wzFinB')) + '</p>';
+      '<p>' + esc(jt('wzFinB')) + '</p>' +
+      '<button class="thin" id="wz-t-go">' + esc(jt('wzTestGo')) + '</button>';
   }
   if (!canNote() || notePerm() === 'denied') {
     return '<div class="wzkick">שלב 4 מתוך 4</div>' +
@@ -3251,6 +3291,11 @@ function wzWire() {
     else t.textContent = 'לא הצלחתי להעתיק';
   };
   if ((b = $('wz-note'))) b.onclick = appAskNote;
+  if ((b = $('wz-t-yes')))  b.onclick = function () { NOTE_T = ''; wzDraw(); };
+  if ((b = $('wz-t-skip'))) b.onclick = function () { NOTE_T = ''; wzDraw(); };
+  if ((b = $('wz-t-no')))   b.onclick = function () { NOTE_T = 'no'; wzDraw(); };
+  if ((b = $('wz-t-again'))) b.onclick = noteTest;
+  if ((b = $('wz-t-go')))   b.onclick = noteTest;
   if ((b = $('wz-nonote'))) b.onclick = function () {
     $('wz').innerHTML = '';
     document.body.className = document.body.className.replace(/ ?wz\b/g, '');
