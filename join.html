@@ -767,7 +767,17 @@ footer a{color:var(--ink-2);font-weight:800}
   border-radius:999px;padding:8px 16px;font:inherit;font-size:.9rem;font-weight:800;cursor:pointer}
 .intro-frame{position:relative;flex:1;margin:0 10px calc(env(safe-area-inset-bottom) + 10px);
   border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(11,37,80,.25)}
-.intro-frame iframe{display:block;width:100%;height:100%;border:0}
+.intro-frame iframe{display:block;width:100%;height:100%;border:0;opacity:0;transition:opacity .35s}
+.intro-frame.on iframe{opacity:1}
+/* עד שההדגמה מתחילה — הסמל במקום מלבן ריק. */
+.intro-logo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.intro-logo span{width:92px;height:92px;border-radius:50%;background:#fff;display:flex;
+  align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(11,37,80,.15);
+  animation:introPulse 1.6s ease-in-out infinite}
+.intro-logo img{width:58px;height:58px;object-fit:contain}
+.intro-frame.on .intro-logo{display:none}
+@keyframes introPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.intro-logo span{animation:none}}
 .intro-frame .intro-tap{position:absolute;inset:0;z-index:2}
 </style>
 </head>
@@ -3546,7 +3556,7 @@ drawBack_();
       ישר למסך הרגיל.
    3. **חמש שניות להתחיל.** ההדגמה טוענת את הדף כולו מהגיליון
       (סימונים, מצגת) — בטלפון על רשת סלולרית זה יותר משלוש שניות.
-      עד אז רואים את מסך הטעינה של הדף עצמו, לא מלבן ריק; ואם היא
+      עד אז רואים את הסמל, לא מלבן ריק ולא דף שנבנה; ואם היא
       לא מודיעה שהתחילה (`daf-demo-start` מ-learn.html) — מוותרים.
    4. **לא באמצע התקנה.** מי שעבר מוואטסאפ לכרום מגיע עם
       `nointro=1` (ראו noIntroHref ב-getapp.js).
@@ -3566,7 +3576,9 @@ drawBack_();
   box.innerHTML = '<div class="intro" id="intro-in">' +
     '<div class="intro-top"><b>' + esc(JOIN.introT) + '</b>' +
     '<button class="intro-skip" id="intro-skip">' + esc(JOIN.introSkip) + '</button></div>' +
-    '<div class="intro-frame" id="intro-fr"><iframe title="' + esc(JOIN.introT) + '" ' +
+    '<div class="intro-frame" id="intro-fr">' +
+    '<div class="intro-logo"><span><img alt="" src="' + esc(window.LOGO_MARK || '') + '"></span></div>' +
+    '<iframe title="' + esc(JOIN.introT) + '" ' +
     'scrolling="no" src="' + esc(base + 'learn.html?mas=' + encodeURIComponent(tr) +
       '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
       (instCode ? '&inst=' + encodeURIComponent(instCode) : '')) + '"></iframe>' +
@@ -3588,6 +3600,8 @@ drawBack_();
   function onMsg(e) {
     if (e.data === 'daf-demo-start' && !started) {
       started = true;
+      /* החלון נחשף רק עכשיו — כשהדף כבר עומד, והמצגת כבר פתוחה. */
+      var fr = $('intro-fr'); if (fr) fr.className = 'intro-frame on';
       /* רשת ביטחון: הדגמה שנתקעה באמצע לא מחזיקה את המסך. */
       tCap = setTimeout(close, 25000);
     }
