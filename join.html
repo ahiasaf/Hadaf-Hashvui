@@ -1912,6 +1912,17 @@ try {
    תחזור על עצמה בפתיחה הבאה. */
 var API = (get('cfg', {}) || {}).api || window.APPS_SCRIPT_URL || '';
 function queue(payload) {
+  /* **שורת ההתראות אינה מחכה בתור.** היא עמדה מאחורי ההרשמה,
+     שממתינה לאימות — ומי שסגר את המסך מיד אחרי האישור השאיר
+     אותה בטלפון, ובלוח נראה בלי התראות. יוצאת מיד; רק בלי רשת
+     היא נכנסת לתור. */
+  if (payload.tab === 'התראות' && API && navigator.onLine) {
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify(payload) })['catch'](function () {
+      var q2 = get('join-q', []) || [];
+      q2.push(payload); set('join-q', q2);
+    });
+    return;
+  }
   var q = get('join-q', []) || [];
   q.push(payload);
   set('join-q', q);
