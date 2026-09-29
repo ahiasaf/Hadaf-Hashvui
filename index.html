@@ -2006,7 +2006,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.59';
+var APP_VERSION = '8.99.60';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10344,14 +10344,24 @@ function dkDefDir() { return 'slides/' + dkSel.mas + '-' + dkSel.wk; }
 /* המצב הנוכחי: מה שנערך במכשיר, ואם אין — מה שבגיליון, ואם אין
    — מה שבקוד. אותה שרשרת שלוש-שכבות שיש למלל. */
 function dkLoadSel() {
+  /* **התיקייה אינה עוד נתון שהרכז רואה או עורך.** "למה אני אמור
+     לדעת את שם התיקייה?" — ובצדק: שדה חופשי שבו מילה אחת בטעות
+     ("slides/taanit-1 לא") שברה את כל שקפי השבוע. כל שבוע מעלה
+     לתיקייה משלו, והרשימה נשמרת בנתיבים מלאים — כך שגם מצגת
+     ישנה שנשמרה בשמות קצרים נפתחת נכון, ונשמרת מעכשיו בלעדיהם. */
+  var full = function (d) {
+    var dir = (String(d.dir || '').split(/\s+/)[0] || dkDefDir()).replace(/^\/+|\/+$/g, '');
+    return d.files.map(function (f) { return f.indexOf('/') >= 0 ? f : dir + '/' + f; });
+  };
   var draft = (CV('decks') || {})[dkKey()];
+  dkDir = dkDefDir();
   if (draft) {
-    dkDir = draft.dir; dkList = draft.files.slice();
+    dkList = full(draft);
     dkTitle = draft.title || ''; return;
   }
   dkTitle = DeckTitle(dkSel.mas, dkSel.wk);
   var d = DeckOf(dkSel.mas, dkSel.wk);
-  if (d) { dkDir = d.dir; dkList = d.files.slice(); return; }
+  if (d) { dkList = full(d); return; }
   dkDir = dkDefDir(); dkList = [];
 }
 function dkStash() {
@@ -10359,7 +10369,7 @@ function dkStash() {
   c[dkKey()] = { dir: dkDir, files: dkList.slice(), title: dkTitle };
   cfgSet('decks', c);
 }
-function dkSetTitle(v) { dkTitle = String(v || '').trim(); dkStash(); }
+function dkSetTitle(v) { dkTitle = String(v || '').trim(); dkStash(); dkAutoSave_(); }
 
 function dkGo(mas, wk) {
   dkSel = { mas: mas, wk: wk };
@@ -10548,8 +10558,8 @@ function dkPdfPick(inp) {
           admPane();
           dkPdfMsg('ok', 'נחתכו ' + out.length + ' שקפים' +
             (startN > 1 ? ' · ממוספרים ' + startN + ' עד ' + (fn - 1) +
-                          ' כדי לא לדרוס את הקיימים בתיקייה' : '') +
-            '. הורידו אותם, וגררו לתיקייה ב-GitHub.');
+                          ' כדי לא לדרוס שקפים קיימים' : '') +
+            '. בחרו אילו להוסיף, ולחצו "הוספה למצגת".');
           return;
         }
         dkPdfMsg('', 'חותך שקף ' + pg + ' מתוך ' + doc.numPages + '…');
@@ -10643,7 +10653,7 @@ function dkPutAll(items, done) {
 /* שואלים את GitHub עד שהקבצים באמת שם. גיטהאב מעדכן את ה-API
    תוך שניות, ולכן חמישה ניסיונות בהפרש שתי שניות מספיקים. */
 function dkAskUntil(want, tries, done) {
-  dkPdfMsg('', 'נשלח · מאמת מול GitHub…');
+  dkPdfMsg('', 'מעלה את השקפים…');
   fetch('https://api.github.com/repos/' + REPO + '/contents/' +
         dkDir.split('/').map(encodeURIComponent).join('/') +
         '?ref=main&t=' + Date.now())
@@ -10678,7 +10688,7 @@ function dkUpload(items) {
       var live = clash.filter(function (nm) {
         return dkList.indexOf(dkDir + '/' + nm) >= 0 || dkList.indexOf(nm) >= 0;
       });
-      var warn = 'הקבצים האלה כבר קיימים בתיקייה ויידרסו: ' + clash.join(', ') + '.' +
+      var warn = 'שקפים בשמות האלה כבר קיימים לשבוע הזה ויוחלפו: ' + clash.join(', ') + '.' +
         (live.length
           ? ' חלקם במצגת החיה עכשיו — תלמיד שכבר פתח את הדף הזה עלול ' +
             'להמשיך לראות אצלו את הגרסה הישנה גם אחרי הדריסה, כי המכשיר ' +
@@ -10747,8 +10757,7 @@ function admDecks(el) {
   var row = tr.cal[dkSel.wk - 1] || ['', '', ''];
 
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>המצגת של השבוע</h4>' +
-    '<p class="h">הקבצים יושבים ב-GitHub ומוגשים מהאתר — מיידי, ובלי ' +
-    'תלות בשום שרת. כאן קובעים <b>אילו שקפים</b> ו<b>באיזה סדר</b>.</p>' +
+    '<p class="h">אילו שקפים, ובאיזה סדר. כל שינוי נשמר ומתפרסם לבד.</p>' +
 
     '<div class="tabs" style="margin-bottom:10px">' +
     TRACKS.map(function (x) {
@@ -10772,32 +10781,12 @@ function admDecks(el) {
     '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
     'onchange="dkSetTitle(this.value)"></div>' +
 
-    '<div class="fld"><label class="label" for="dk-dir">התיקייה שמעיינים בה' +
-    ' <span style="font-weight:700;color:var(--ink-3)">· אפשר להחליף ' +
-    'ולשלב ממצגת אחרת</span></label>' +
-    '<input type="text" id="dk-dir" dir="ltr" value="' + esc(dkDir) +
-    '" onchange="dkSetDir(this.value)"></div>' +
-
     '<div class="fld" style="margin-top:10px"><label class="label" for="dk-img">' +
-    'העלאת תמונות ישירות לתיקייה</label>' +
+    'הוספת שקפים (תמונות)</label>' +
     '<input type="file" id="dk-img" accept="image/*" multiple ' +
     'onchange="dkImgPick(this)"></div>' +
     '<div class="dk-msg"></div>' +
-    '<button class="btn g" style="margin-top:8px" onclick="dkPool=null;dkAsk()">' +
-    'רענון הרשימה מ-GitHub</button>' +
-    /* מוסתר מאחורי "מתקדם": זו הדרך שנכשלת בלי סימן ומצריכה עוד
-       שלב ידני (למצוא את הקובץ למטה וללחוץ "הוספה") — לא מה
-       שרוב הכניסות למסך הזה צריכות. */
-    '<details style="margin-top:12px"><summary style="cursor:pointer;' +
-    'font-size:.82rem;font-weight:700;color:var(--ink-3)">מתקדם — העלאה ' +
-    'ישירות ב-GitHub</summary>' +
-    '<a class="btn g" style="display:block;text-align:center;text-decoration:none;' +
-    'margin-top:9px" target="_blank" rel="noopener" href="https://github.com/' +
-    REPO + '/upload/main/' + esc(dkDir) + '">העלאת שקפים לתיקייה ←</a>' +
-    '<p class="h" style="margin-top:6px">נפתח ב-GitHub. גוררים קבצים, ' +
-    '"Commit changes", וזהו — אבל אחרי זה עדיין צריך למצוא אותם ' +
-    'ברשימה "בתיקייה" למטה וללחוץ "הוספה" לכל אחד; ההעלאה הישירה ' +
-    'שלמעלה עושה את זה לבד.</p></details></div>';
+    '<div id="dk-msg"></div></div>';
 
   /* ---- המצגת עצמה ---- */
   h += '<div class="adm-card" style="margin-bottom:11px">' +
@@ -10816,9 +10805,7 @@ function admDecks(el) {
         '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="" ' +
         'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
         'border:1px solid var(--rule);background:var(--sunk)">' +
-        '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
-        'text-align:left;color:var(--ink-3);overflow:hidden;' +
-        'text-overflow:ellipsis">' + esc(dkShort(f)) + '</span>' +
+        '<span style="flex:1"></span>' +
         '<button class="dk-ic" onclick="dkUp(' + i + ')"' +
         (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
         '<button class="dk-ic" onclick="dkDown(' + i + ')"' +
@@ -10832,45 +10819,33 @@ function admDecks(el) {
   }
   h += '</div>';
 
-  /* ---- מה שבתיקייה ואינו במצגת ---- */
-  h += '<div class="adm-card" style="margin-bottom:11px"><h4>בתיקייה</h4>';
-  if (dkPool === null) {
-    h += '<p class="h">שואל את GitHub…</p>';
-  } else {
-    var rest = dkPool.filter(function (f) {
-      return dkList.indexOf(dkDir + '/' + f) < 0 && dkList.indexOf(f) < 0;
-    });
-    if (!dkPool.length) {
-      h += '<p class="h">התיקייה <span dir="ltr">' + esc(dkDir) + '</span> ריקה ' +
-           'או שאינה קיימת עדיין. העלו אליה שקפים בכפתור שלמעלה.</p>';
-    } else if (!rest.length) {
-      h += '<p class="h">כל ' + dkPool.length + ' הקבצים שבתיקייה כבר במצגת.</p>';
-    } else {
-      h += '<p class="h">קיימים ב-<span dir="ltr">' + esc(dkDir) +
-        '</span> ואינם במצגת. <b>אפשר להחליף תיקייה למעלה</b> ולהוסיף ' +
-        'שקפים ממצגת שנייה — הם נשזרים באותה רשימה.</p>' +
-        rest.map(function (f) {
-          return '<div class="row" style="align-items:center;gap:9px">' +
-            '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + dkBust + '" alt="" ' +
-            'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
-            'border:1px solid var(--rule);background:var(--sunk)">' +
-            '<span dir="ltr" style="flex:1;min-width:0;font-size:.72rem;' +
-            'text-align:left;color:var(--ink-3);overflow:hidden;' +
-            'text-overflow:ellipsis">' + esc(f) + '</span>' +
-            '<button class="btn g" style="width:auto;flex:none;padding:9px 16px" ' +
-            'onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
-            '</div>';
-        }).join('');
-    }
+  /* ---- שקפים שהועלו לשבוע הזה ואינם במצגת ----
+     שקף שהוסר מהמצגת נשאר בריפו, ומכאן אפשר להחזיר אותו. כשאין
+     כאלה — הכרטיס כולו אינו מוצג. */
+  var rest = (dkPool || []).filter(function (f) {
+    return dkList.indexOf(dkDir + '/' + f) < 0 && dkList.indexOf(f) < 0;
+  });
+  if (rest.length) {
+    h += '<div class="adm-card" style="margin-bottom:11px"><h4>שקפים שהוסרו מהמצגת</h4>' +
+      '<p class="h">הועלו לשבוע הזה ואינם במצגת. "הוספה" מחזירה שקף לסוף הרשימה.</p>' +
+      rest.map(function (f) {
+        return '<div class="row" style="align-items:center;gap:9px">' +
+          '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + Date.now() + '" alt="" ' +
+          'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
+          'border:1px solid var(--rule);background:var(--sunk)">' +
+          '<span style="flex:1"></span>' +
+          '<button class="btn g" style="width:auto;flex:none;padding:9px 16px" ' +
+          'onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
+          '</div>';
+      }).join('') + '</div>';
   }
-  h += '</div>';
 
   /* ---- המרה מ-PDF ---- */
   h += '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>יש לכם PDF במקום תמונות?</h4>' +
     '<p class="h">נוטבוק-LM מייצא PDF או PowerPoint, ואנחנו צריכים ' +
     'תמונות. בחרו כאן את ה-PDF — הוא נחתך לשקפים <b>כאן במכשיר</b>, ' +
-    'בלי להישלח לאיש. אחר כך מורידים אותם וגוררים לתיקייה.</p>' +
+    'ומשם נכנס למצגת בלחיצה.</p>' +
     '<div class="fld"><label class="label" for="dk-pdf">קובץ PDF</label>' +
     '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" ' +
     'onchange="dkPdfPick(this)"></div>' +
@@ -10879,9 +10854,8 @@ function admDecks(el) {
     var dkSelN = dkPdfSelected().length;
     h += '<button class="btn gd" style="margin-top:8px" ' +
       (dkSelN ? 'onclick="dkUpload(dkPdfSelected())"' : 'disabled') + '>' +
-      'העלאת ' + dkSelN + ' השקפים לתיקייה ←</button>' +
-      '<p class="h" style="margin:6px 0 10px">ישירות לריפו, בלי לעבור ' +
-      'ב-GitHub. אם זה לא מוגדר עדיין — אפשר להוריד ולגרור:</p>' +
+      'הוספת ' + dkSelN + ' השקפים למצגת ←</button>' +
+      '<p class="h" style="margin:6px 0 10px">או לשמור אותם במכשיר:</p>' +
       '<button class="btn g" ' + (dkSelN ? 'onclick="dkPdfAll()"' : 'disabled') + '>' +
       'הורדת ' + dkSelN + ' השקפים למכשיר</button>' +
       '<p class="h" style="margin-top:10px">לחצו על שקף כדי לכלול או ' +
@@ -10927,24 +10901,6 @@ function admDecks(el) {
     '<input type="tel" id="dk-sug" style="width:110px;text-align:center" value="' +
     esc(pn) + '" onchange="admSugyaPage(\'' + dfk + '\',this.value);admPane()"></div>' +
     '</div>';
-
-  /* הגדרות שנקבעות פעם בשנה, ולכן בתחתית ולא בראש. */
-  h += '<div class="adm-card" style="margin-bottom:11px">' +
-    '<h4>החוברת של מסכת ' + esc(tr.masechet) + '</h4>' +
-    '<p class="h">נקבע פעם אחת לכל המסכת. ב-<span dir="ltr">{p}</span> ' +
-    'ייכנס מספר העמוד.</p>' +
-    '<div class="fld"><label class="label" for="dk-base">כתובת החוברת</label>' +
-    '<input type="text" id="dk-base" dir="ltr" value="' + esc(sg.base || '') +
-    '" onchange="admSugyaSet(\'base\',this.value)"></div>' +
-    '<div class="fld"><label class="label" for="dk-fmt">תבנית קישור לעמוד</label>' +
-    '<input type="text" id="dk-fmt" dir="ltr" placeholder="https://…/book#p={p}" value="' +
-    esc(sg.fmt || '') + '" onchange="admSugyaSet(\'fmt\',this.value)"></div></div>';
-
-  h += '<div class="adm-card"><h4>פרסום</h4>' +
-    '<p class="h">עד הפרסום השינוי חי במכשיר הזה בלבד. פרסום מחיל ' +
-    'אותו על כל התלמידים.</p>' +
-    '<button class="btn gd" onclick="dkSave()">פרסום המצגות</button>' +
-    '<div id="dk-msg"></div></div>';
 
   el.innerHTML = h;
 }
