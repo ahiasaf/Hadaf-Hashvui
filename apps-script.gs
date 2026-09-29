@@ -1019,9 +1019,12 @@ function doGet(e) {
        פרטית, ולכן זו אינה הרחבה של הרשאה אלא ויתור על עקיפה:
        בלי זה השולח המתוזמן היה צריך לשלוף את הקוד של כל ישיבה
        רק כדי לשאול על מה שהסיסמה ממילא מתירה. */
-    var bk = (READ_KEY && String(e.parameter.key || '') === READ_KEY)
-      ? getCode_(String(e.parameter.board))
-      : e.parameter.k;
+    var isAdm = READ_KEY && String(e.parameter.key || '') === READ_KEY;
+    var bk = isAdm ? getCode_(String(e.parameter.board)) : e.parameter.k;
+    /* כל הישיבות — רק בסיסמת הרכז. */
+    if (String(e.parameter.board) === '*' && !isAdm) {
+      return reply_(e, { status: 'denied', message: 'הלוח של כל הישיבות נפתח רק בסיסמת הרכז.' });
+    }
     try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
     return reply_(e, bd);
@@ -1706,7 +1709,11 @@ function ensureCode_(inst, want) {
    סומנו — ולא יותר מזה. */
 function boardData_(inst, k, withTest) {
   inst = String(inst || '').trim();
-  var code = getCode_(inst);
+  /* '*' — כל הישיבות יחד, וגם מי שאינו משויך לאף אחת. לרכז בלבד:
+     הקורא (`?board=*`) כבר בדק את READ_KEY, ולכן אין כאן קוד מוסד. */
+  var all = inst === '*';
+  var code = all ? '*' : getCode_(inst);
+  if (all) k = '*';
   if (!code) return { status: 'nocode',
     message: 'לא הוגדר קוד גישה למוסד הזה. בקשו מרכז התוכנית קישור אישי.' };
   if (String(k || '').trim() !== code) return { status: 'denied',
@@ -1735,7 +1742,7 @@ function boardData_(inst, k, withTest) {
       var lh = lr[0], li = {};
       for (var a = 0; a < lh.length; a++) li[String(lh[a]).trim()] = a;
       for (var b = 1; b < lr.length; b++) {
-        if (String(lr[b][li['קוד ישיבה']] || '').trim() !== inst) continue;
+        if (!all && String(lr[b][li['קוד ישיבה']] || '').trim() !== inst) continue;
         var id = String(lr[b][li['מזהה']] || '').trim();
         if (!id) continue;
         var tag = String(lr[b][li['מסלול']] || '') + '|' + String(lr[b][li['שבוע']] || '');
@@ -1779,7 +1786,7 @@ function boardData_(inst, k, withTest) {
       var byId = {}, order = [];
       for (var d = 1; d < jr.length; d++) {
         var row = jr[d];
-        if (cell(row, 'קוד ישיבה') !== inst) continue;
+        if (!all && cell(row, 'קוד ישיבה') !== inst) continue;
         /* משתמש בדיקה — רק כשהלוח עצמו נפתח במכשיר בדיקה. */
         var isTest = cell(row, 'בדיקה') === 'כן';
         if (isTest && !withTest) continue;
@@ -1788,6 +1795,10 @@ function boardData_(inst, k, withTest) {
         if (!(pid in byId)) order.push(pid);
         byId[pid] = {
           id: pid,
+          /* לתצוגת כל הישיבות — לאיזו ישיבה שייך. ריק או 'other' =
+             לא משויך. */
+          inst:  cell(row, 'קוד ישיבה'),
+          instName: cell(row, 'ישיבה'),
           first: cell(row, 'שם'),
           /* שם משפחה יוצא עכשיו גם הוא. עד עכשיו הוגבל לשם פרטי
              בלבד, וזו הייתה הגנה נכונה כל עוד הלוח נועד למספרים;

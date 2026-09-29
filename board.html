@@ -296,6 +296,10 @@ footer a{color:var(--ink-2);font-weight:800}
   background:var(--blue);color:#fff;font:inherit;font-weight:800;cursor:pointer}
 .kudo-box .go[disabled]{opacity:.55}
 .kudo-box .s{margin-top:6px;font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.ichips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.ichip{border:1px solid var(--rule);background:var(--surface,#fff);color:var(--ink-2);
+  border-radius:999px;padding:7px 13px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
+.ichip.on{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
 </style>
 </head>
 <body>
@@ -349,6 +353,55 @@ for (var i = 0; i < INSTITUTIONS.length; i++)
   if (INSTITUTIONS[i].code === code) inst = INSTITUTIONS[i];
 
 /* ============================================================
+   כל הישיבות — לרכז בלבד.
+   ============================================================
+   "אני צריך אזור ניהול רחב יותר של כל המוסדות — לראות בבת אחת
+   את כלל התלמידים, וגם לפי מוסד, וגם את אלה שלא משויכים למוסד."
+
+   אותו לוח בדיוק, ולא עמוד שני: `?inst=all`. מה שפותח אותו הוא
+   סיסמת הסקריפט שכבר שמורה במכשיר של הרכז (ניהול ← מערכת), והשרת
+   מסרב לתת את כל הישיבות בלעדיה — ראו `?board=*` ב-apps-script.gs.
+   שורת בחירה בראש הלוח קובעת מה מוצג: הכול, ישיבה אחת, או
+   "ללא ישיבה". המספרים, המשבצות והרשימה מחושבים מהבחירה. */
+var ALL = code === 'all';
+var FILT = '';                   /* '' = הכול · קוד ישיבה · '-' = ללא ישיבה */
+var rosterAll = null;
+if (ALL) inst = { code:'all', name:'כל הישיבות' };
+function instOfP(p) {
+  var c = p.inst || '';
+  for (var q = 0; q < INSTITUTIONS.length; q++) if (INSTITUTIONS[q].code === c) return c;
+  return '-';
+}
+function applyFilt() {
+  if (!ALL) return;
+  roster = rosterAll ? rosterAll.filter(function (p) {
+    return !FILT || instOfP(p) === FILT;
+  }) : null;
+}
+/* אותו שם שבשורת הבחירה — מ-INSTITUTIONS, ולא מה שנכתב בגיליון. */
+function instLbl(p) {
+  var c = instOfP(p);
+  if (c === '-') return 'ללא ישיבה';
+  for (var q = 0; q < INSTITUTIONS.length; q++) if (INSTITUTIONS[q].code === c) return INSTITUTIONS[q].name;
+  return c;
+}
+function setFilt(v) { FILT = v; view = ''; applyFilt(); draw(); }
+function chipsHtml() {
+  if (!ALL || !rosterAll) return '';
+  var n = {}, tot = rosterAll.length;
+  rosterAll.forEach(function (p) { var c = instOfP(p); n[c] = (n[c] || 0) + 1; });
+  var chip = function (v, t, k) {
+    return '<button class="ichip' + (FILT === v ? ' on' : '') +
+      '" onclick="setFilt(\'' + v + '\')">' + esc(t) + ' · ' + k + '</button>';
+  };
+  return '<div class="ichips">' + chip('', 'כל הישיבות', tot) +
+    INSTITUTIONS.filter(function (x) { return n[x.code]; }).map(function (x) {
+      return chip(x.code, x.name, n[x.code]);
+    }).join('') +
+    (n['-'] ? chip('-', 'ללא ישיבה', n['-']) : '') + '</div>';
+}
+
+/* ============================================================
    קוד הגישה.
 
    `?inst=avir` לבדו אינו סוד — הוא שם הישיבה, ואפשר לנחש אותו.
@@ -373,6 +426,7 @@ for (var i = 0; i < INSTITUTIONS.length; i++)
 function accKey() { return 'boardKey:' + code; }
 var acc = '';
 try { acc = localStorage.getItem(accKey()) || ''; } catch (e) {}
+if (ALL) acc = String((LGet('cfg', {}) || {}).readKey || '').trim();
 
 (function () {
   var k = qs('k');
@@ -502,14 +556,14 @@ function askScript(params) {
 function loadRoster() {
   if (!acc) return Promise.resolve(null);
   /* מכשיר בדיקה רואה גם את משתמשי הבדיקה — ראו /reset. */
-  var q = { board:code, k:acc };
+  var q = ALL ? { board:'*', key:acc } : { board:code, k:acc };
   if (LTester()) q.test = '1';
   return askScript(q).then(function (d) {
     if (!d) { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; }
     if (d.status !== 'ok') {
       /* קוד שגוי אינו נשמר — אחרת הוא היה נדבק למכשיר ומונע
          מהקישור הנכון לעבוד בפעם הבאה. */
-      if (d.status === 'denied') {
+      if (d.status === 'denied' && !ALL) {
         acc = ''; try { localStorage.removeItem(accKey()); } catch (e) {}
       }
       rosterMsg = d.message || 'לא הצלחתי לפתוח את הרשימה.';
@@ -518,6 +572,7 @@ function loadRoster() {
     roster = d.students || [];
     rosterMsg = '';
     LSet('rosterCache:' + code, roster);
+    if (ALL) { rosterAll = roster; applyFilt(); }
     return roster;
   }).catch(function () { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; });
 }
@@ -697,13 +752,18 @@ function wayDot(p) {
   return '<i class="wdot" style="background:' + c + '" title="' +
          esc(p.way || '') + '"></i>';
 }
+/* בכל הישיבות יחד — מקובצים לפי ישיבה ולא לפי כיתה: "ט1" של
+   ישיבה אחת ו"ט1" של אחרת אינם אותה כיתה. */
+var BY_INST = false;
 function clsKey(p) {
+  if (BY_INST) return instLbl(p);
   var g = p.grade || 'ללא שכבה';
   return p.klass ? g + '‎' + p.klass : g;
 }
 function classesHtml() {
   var list = shown();
   if (!list.length) return '';
+  BY_INST = ALL && !FILT;
   var by = {}, ord = [];
   list.forEach(function (p) {
     var k = clsKey(p);
@@ -711,13 +771,15 @@ function classesHtml() {
     by[k].push(p);
   });
   ord.sort();
-  return '<div class="card"><h2>' +
-    (mineRam ? 'הכיתה שלך' : 'התלמידים לפי כיתה') + '</h2>' +
+  var html = '<div class="card"><h2>' +
+    (mineRam ? 'הכיתה שלך' : BY_INST ? 'התלמידים לפי ישיבה' : 'התלמידים לפי כיתה') + '</h2>' +
     ord.map(function (k) {
       return '<div class="clsgrp"><b>' + esc(k) + '</b>' +
         '<span>' + by[k].length + '</span></div>' +
-        by[k].map(function (q) { return pRow(q, true); }).join('');
-    }).join('') +
+        by[k].map(function (q) { return pRow(q, !BY_INST); }).join('');
+    }).join('');
+  BY_INST = false;
+  return html +
     /* מקרא אחד, בתחתית, פעם אחת. */
     '<div class="legend">' +
       '<span><i class="wdot" style="background:#17468F"></i>לבד</span>' +
@@ -747,6 +809,8 @@ function pRow(p, noGrade) {
      והרשימה הזו נועדה לצוות שצריך לדעת למי לפנות. */
   var nm = ((p.first || '') + ' ' + (p.last || '')).trim() || '—';
   var bits = [];
+  /* שם הישיבה — ברשימות שאינן מקובצות לפי ישיבה. */
+  if (ALL && !FILT && !BY_INST) bits.push(instLbl(p));
   if (p.grade && !noGrade) bits.push(p.grade);
   /* "עם אבא" ו"עם אבא ✓" הם שני דברים שונים, ולכן הם נראים
      שונה: בלי הסימן זה מה שהתלמיד **מילא** בטופס, ועם הסימן
@@ -780,6 +844,7 @@ function pRow(p, noGrade) {
 var KUDO_OPEN = '', KUDO_TXT = '', KUDO_BUSY = false, KUDO_SENT = {}, KUDO_ERR = '';
 function kt(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
 function kudoBtn(p, did) {
+  if (ALL) return '';   /* "ישר כוח" נשלח בקוד של ישיבה אחת */
   if (!did || !acc || !p.id) return '';
   if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
   return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>';
@@ -795,6 +860,7 @@ function kudoTmpls() {
   }).map(function (t) { return tp(t.text, { daf: daf }); });
 }
 function kudoBox(p) {
+  if (ALL) return '';
   if (KUDO_OPEN !== p.id) return '';
   var first = p.first || '';
   var h = '<div class="kudo-box">';
@@ -890,6 +956,10 @@ function kudoLoadTmpl() {
    ============================================================ */
 function keyHtml() {
   if (acc && roster) return '';
+  if (ALL && !acc) {
+    return '<div class="keyline">הלוח של כל הישיבות נפתח רק במכשיר שבו שמורה ' +
+      'סיסמת הסקריפט (ניהול ← מערכת).</div>';
+  }
   if (!acc) {
     return '<div class="keyline">המספרים כאן פתוחים. ' +
       '<b>לראות שמות</b> — צריך את קוד הישיבה.' +
@@ -937,6 +1007,18 @@ function draw() {
   try { var t = localStorage.getItem('dfHomeTrack');
         for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t; } catch (e) {}
 
+  /* בכל הישיבות אין מונה ציבורי אחד — הכול נספר מהרשימה. */
+  if (ALL) {
+    if (!rosterAll) {
+      $('body').innerHTML = '<div class="card">' + keyHtml() + '</div>';
+      wire();
+      return;
+    }
+    var jw = {};
+    roster.forEach(function (p) { jw[p.way || ''] = (jw[p.way || ''] || 0) + 1; });
+    joined = { n: roster.length, grades: [],
+               ways: Object.keys(jw).map(function (w) { return [w, jw[w]]; }) };
+  }
   var n     = joined ? joined.n : 0;
   var dads  = 0;
   if (joined) joined.ways.forEach(function (p) { if (p[0] === 'אבות ובנים') dads = p[1]; });
@@ -960,6 +1042,7 @@ function draw() {
      לעשות עכשיו. זה גם מה שהופך את הלוח למלא מחר. */
   if (!n) {
     $('body').innerHTML =
+      chipsHtml() +
       '<div class="card"><div class="empty"><div class="big">📩</div>' +
       '<p>עוד לא הצטרף אף אחד.<br>הקישור לתלמידים נמצא בעמוד הצוות, ' +
       'ומרגע שיישלח — כאן יופיע מי לומד.</p></div></div>' + soonLine();
@@ -993,6 +1076,7 @@ function draw() {
      ולר"ם שנרשם אין פילוח בכלל: הוא רואה את המספר הכולל של
      הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
+    chipsHtml() +
     heroHtml(daf, doneN, totN, weekOpen) +
     /* **המשבצות מוצגות גם לר"ם.** הן באות מהמונים ולא מהרשימה
        השמית, ולכן הן קיימות גם לפני שהתוכנית התחילה — ובלעדיהן
@@ -1076,14 +1160,16 @@ function legacy(txt, done) {
   document.body.removeChild(t);
 }
 
-$('foot-how').textContent =
+$('foot-how').textContent = ALL ? '' :
   'שמרו את כתובת העמוד הזה — זה הלוח שלכם. הוא נשלח אליכם בהרשמה, ' +
   'ואפשר גם להוסיף אותו למסך הבית.';
 
 /* מהמטמון מיד, ומהגיליון אחר כך — לוח שנפתח בלי רשת מראה את
    מה שהיה, ולא מסך ריק. */
+/* מהמטמון מיד — רשימה שכבר נטענה פעם מוצגת בלי לחכות לשרת. */
+if (ALL) { mineRam = null; rosterAll = roster; applyFilt(); }
 draw();
-loadBoard().then(draw);
+if (!ALL) loadBoard().then(draw);
 loadRoster().then(draw);
 kudoLoadTmpl();
 </script>
