@@ -1761,6 +1761,26 @@ function boardData_(inst, k, withTest) {
   } catch (e) {}
 
   var out = [];
+  /* מי שאישר התראות — מזהה → 1. רק בתצוגת כל הישיבות. */
+  var pushSet = {};
+  if (all) {
+    try {
+      var psh = sheet_('התראות');
+      if (psh.getLastRow() > 1) {
+        var pv = psh.getDataRange().getDisplayValues(), ph = pv[0], pix = -1, psx = -1;
+        for (var q0 = 0; q0 < ph.length; q0++) {
+          if (String(ph[q0]).trim() === 'מזהה') pix = q0;
+          if (String(ph[q0]).trim() === 'מנוי') psx = q0;
+        }
+        if (pix >= 0 && psx >= 0) {
+          for (var q1 = 1; q1 < pv.length; q1++) {
+            var pid0 = String(pv[q1][pix] || '').trim();
+            if (pid0 && String(pv[q1][psx] || '').trim()) pushSet[pid0] = 1;
+          }
+        }
+      }
+    } catch (pe) {}
+  }
   try {
     var js = sheet_(JOIN_TAB);
     if (js.getLastRow() > 1) {
@@ -1799,6 +1819,11 @@ function boardData_(inst, k, withTest) {
              לא משויך. */
           inst:  cell(row, 'קוד ישיבה'),
           instName: cell(row, 'ישיבה'),
+          /* לרכז בלבד (כל הישיבות, בסיסמה): הטלפון — לכפתור וואטסאפ
+             ליד מי שאין לו התראות — וכל המזהים שלו, כדי ששליחה אישית
+             תגיע גם למכשיר שנבלע. הלוח של ראש החטיבה אינו מקבל טלפון. */
+          phone: all ? cell(row, 'טלפון') : undefined,
+          ids:   all ? rowIdsOf_(cell(row, 'מזהה'), cell(row, ALIAS_COL)) : undefined,
           first: cell(row, 'שם'),
           /* שם משפחה יוצא עכשיו גם הוא. עד עכשיו הוגבל לשם פרטי
              בלבד, וזו הייתה הגנה נכונה כל עוד הלוח נועד למספרים;
@@ -1832,6 +1857,7 @@ function boardData_(inst, k, withTest) {
           p['with'] = pm[pid]['with'];
           p.withOk  = 1;
         }
+        if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
         for (var t in (done[pid] || {})) p.weeks.push(t);
         /* התקדמות מוחזרת רק לשבוע שלא הושלם — אחרת היא סותרת
            את הסימון ומייצרת שני מספרים לאותו דבר. */
@@ -1917,6 +1943,13 @@ function joinTable_() {
   };
 }
 /* כל המזהים של שורה — הקבוע ואחריו אלה שנבלעו בו. */
+/* אותו דבר, מתאים ישירות. */
+function rowIdsOf_(id, aliases) {
+  var out = [];
+  if (id) out.push(id);
+  String(aliases || '').split(/\s+/).forEach(function (a) { if (a) out.push(a); });
+  return out;
+}
 function rowIds_(t, r) {
   var out = [], id = t.c(r, 'מזהה');
   if (id) out.push(id);

@@ -300,6 +300,37 @@ footer a{color:var(--ink-2);font-weight:800}
 .ichip{border:1px solid var(--rule);background:var(--surface,#fff);color:var(--ink-2);
   border-radius:999px;padding:7px 13px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
 .ichip.on{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
+.kudo.wa{border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.1);color:#128C4A;text-decoration:none}
+.prow.sel{cursor:pointer}
+.prow.sel .tick{font-size:1.1rem}
+.prow.sel.on{background:rgba(23,70,143,.06)}
+.snd-open{display:block;width:100%;margin:0 0 12px;padding:12px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--surface,#fff);color:var(--blue,#17468F);font:inherit;
+  font-weight:800;font-size:.95rem;cursor:pointer}
+.snd{margin-bottom:12px}
+.snd-h{display:flex;align-items:center;margin-bottom:10px}
+.snd-h b{flex:1;font-size:1rem}
+.snd-x{border:0;background:none;font-size:1.1rem;cursor:pointer;color:var(--ink-3)}
+.snd-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.85rem;font-weight:700}
+.snd-row span{width:52px;color:var(--ink-3)}
+.snd-seg{flex:1;display:flex;gap:4px;background:var(--sunk);padding:3px;border-radius:10px}
+.snd-seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:8px;font:inherit;
+  font-size:.82rem;font-weight:800;color:var(--ink-3);cursor:pointer}
+.snd-seg button.on{background:#fff;color:var(--blue,#17468F)}
+.snd-sel{display:flex;gap:6px;margin-bottom:6px}
+.snd-sel select{flex:1;padding:8px;border:1px solid var(--rule);border-radius:9px;font:inherit;font-size:.85rem}
+.snd-note{font-size:.84rem;font-weight:700;margin-bottom:6px}
+.snd-tm button{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
+  border:1px solid var(--rule);border-radius:9px;background:#fff;font:inherit;font-size:.82rem;cursor:pointer}
+.snd textarea{width:100%;padding:9px 10px;border:1px solid var(--rule);border-radius:10px;font:inherit;font-size:.9rem}
+.snd-per{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:.82rem;font-weight:700}
+.snd-pv{margin-top:8px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
+.snd-sum{margin-top:10px;font-size:.84rem;line-height:1.6}
+.snd-go{display:block;width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;
+  background:var(--blue,#17468F);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.snd-go[disabled]{opacity:.55}
+.snd-msg{margin-top:8px;font-size:.84rem;font-weight:700;color:#B23B3B}
+.snd-msg.ok{color:var(--green,#2E7D52)}
 </style>
 </head>
 <body>
@@ -822,6 +853,13 @@ function pRow(p, noGrade) {
   /* פס ולא אחוז. "29%" מזמין השוואה בין תלמידים, והוא גם מדויק
      יותר ממה שהוא באמת — קטע 12 מתוך 41 אינו 29 אחוז מהלימוד.
      פס אומר את הדבר היחיד שהצוות צריך: הוא התחיל, והוא בדרך. */
+  if (ALL && SELMODE) {
+    return '<div class="prow sel' + (SEL[p.id] ? ' on' : '') + '" data-sel="' + esc(p.id) + '">' +
+      '<span class="tick">' + (SEL[p.id] ? '☑' : '☐') + '</span>' +
+      '<div style="flex:1"><b>' + wayDot(p) + esc(nm) + '</b>' +
+      (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div>' +
+      (p.push ? '<span class="kudo" style="cursor:default">✉</span>' : '') + '</div>';
+  }
   return '<div class="prow' + (did ? ' did' : (f ? ' mid' : '')) + '">' +
     '<span class="tick">' + (did ? '✓' : '') + '</span>' +
     '<div style="flex:1">' +
@@ -844,23 +882,46 @@ function pRow(p, noGrade) {
 var KUDO_OPEN = '', KUDO_TXT = '', KUDO_BUSY = false, KUDO_SENT = {}, KUDO_ERR = '';
 function kt(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
 function kudoBtn(p, did) {
-  if (ALL) return '';   /* "ישר כוח" נשלח בקוד של ישיבה אחת */
+  /* ============================================================
+     בכל הישיבות — לכל תלמיד, ולא רק למי שסיים.
+     ============================================================
+     "רק מי שנרשם להתראות מופיע לידו סימן של המכתב, ומי שלא —
+     כפתור של וואטסאפ שפותח את הוואטסאפ האישי שלו." המכתב פותח את
+     אותה תיבה של "ישר כוח"; הוואטסאפ פותח שיחה עם הטלפון שלו.
+     הטלפון מגיע רק לתצוגה הזו (בסיסמת הרכז). */
+  if (ALL) {
+    if (SELMODE) return '';
+    if (!p.id) return '';
+    if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
+    if (p.push) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
+    var wa = waNum(p.phone);
+    return wa ? '<a class="kudo wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener" ' +
+      'title="וואטסאפ — אין לו התראות">וואטסאפ</a>' : '';
+  }
   if (!did || !acc || !p.id) return '';
   if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
   return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>';
 }
 function kudoSig() {
+  if (ALL) return LGet('saySig', '') || PROGRAM.short || 'הדף השבועי';
   return LGet('saySig', '') || tp(kt('kudoSig'), { inst: inst ? inst.name : '' });
+}
+/* 050-1234567 → 972501234567. ריק כשאין מספר. */
+function waNum(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.indexOf('972') === 0) return d;
+  if (d.indexOf('0') === 0) d = d.slice(1);
+  return d.length >= 8 ? '972' + d : '';
 }
 function kudoTmpls() {
   var wk = LWeek(), row = wk >= 0 ? TRACKS[0].cal[wk] : null;
   var daf = row && row[2] ? row[2] : '';
   return (LGet('tmplCache', []) || []).filter(function (t) {
-    return t.cat === 'done' || t.cat === 'any';
+    return ALL || t.cat === 'done' || t.cat === 'any';
   }).map(function (t) { return tp(t.text, { daf: daf }); });
 }
 function kudoBox(p) {
-  if (ALL) return '';
   if (KUDO_OPEN !== p.id) return '';
   var first = p.first || '';
   var h = '<div class="kudo-box">';
@@ -912,9 +973,12 @@ function kudoSend() {
   var p = kudoWho(), txt = (KUDO_TXT || '').trim();
   if (!p.id || txt.length < 2 || KUDO_BUSY) return;
   KUDO_BUSY = true; KUDO_ERR = ''; draw();
-  askScript({ fire:'say', inst:code, k:acc, title:kudoSig(), body:'{name}, ' + txt,
-              grade:'', klass:'', who:kudoSig(), aud:'kids',
-              flt: JSON.stringify({ ids:[p.id], per:1 }) })
+  askScript(ALL
+    ? { fire:'say', key:acc, title:kudoSig(), body:'{name}, ' + txt, who:'רכז',
+        role:'תלמיד', flt: JSON.stringify({ ids:(p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60), per:1 }) }
+    : { fire:'say', inst:code, k:acc, title:kudoSig(), body:'{name}, ' + txt,
+        grade:'', klass:'', who:kudoSig(), aud:'kids',
+        flt: JSON.stringify({ ids:[p.id], per:1 }) })
     .then(function (d) {
       KUDO_BUSY = false;
       if (d && d.status === 'ok') { KUDO_SENT[p.id] = 1; KUDO_OPEN = ''; KUDO_TXT = ''; }
@@ -954,6 +1018,211 @@ function kudoLoadTmpl() {
    הוא משפט נכון שאינו אומר לאיש מה לעשות — ומי שקורא אותו הוא
    בדרך כלל האדם שהלוח שייך לו.
    ============================================================ */
+
+/* ============================================================
+   שליחת הודעה — בכל הישיבות, לרכז בלבד.
+   ============================================================
+   "תן לי את אותו יתרון בדיוק" של "מילה לתלמידים" אצל ראש
+   החטיבה: תלמידים או הורים · כולם / סיימו / עוד לא סיימו את הדף
+   של השבוע · דרך לימוד · שכבה · פנייה בשם · חתימה · תצוגה.
+   **הקהל הוא מה שנבחר בשורה העליונה של הלוח** — כל הישיבות,
+   ישיבה אחת, או "ללא ישיבה". ובנוסף — סימון של תלמידים מסוימים
+   מהרשימה.
+
+   המספר ליד הכפתור נספר מהרשימה עצמה: כמה נרשמו בקבוצה, וכמה
+   מהם אישרו התראות (רק הם יקבלו). "ללא ישיבה" ובחירה ידנית
+   נשלחים לפי מזהים — עד 60 בבת אחת, כמו שהשרת מקבל.
+   ============================================================ */
+var SELMODE = false, SEL = {};
+var SND = { open:false, aud:'kids', seg:'', way:'', grade:'', per:true, txt:'', busy:false, msg:'', ok:false };
+var SND_WAYS = [['', 'כל דרכי הלימוד'], ['לימוד עצמי', 'לבד'],
+                ['חבורת לימוד', 'בחבורה'], ['אבות ובנים', 'אב ובן']];
+function sndWeek() {
+  var wk = LWeek();
+  if (wk < 0) return null;
+  var tr = TRACKS[0].id;
+  try { var t = localStorage.getItem('dfHomeTrack');
+        for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t; } catch (e) {}
+  var d = LDaf(tr, wk);
+  return d ? { wk: wk + 1, daf: d } : null;
+}
+function selIds() { var o = []; for (var k in SEL) if (SEL[k]) o.push(k); return o; }
+/* התלמידים שיקבלו — לפי כל מה שנבחר. */
+function sndList() {
+  var base = rosterAll || [];
+  var sel = selIds();
+  if (sel.length) return base.filter(function (p) { return SEL[p.id]; });
+  return base.filter(function (p) {
+    if (FILT && instOfP(p) !== FILT) return false;
+    if (SND.way && (p.way || '') !== SND.way) return false;
+    if (SND.grade && (p.grade || '') !== SND.grade) return false;
+    if (SND.seg === 'done' && !didWeek(p)) return false;
+    if (SND.seg === 'todo' && didWeek(p)) return false;
+    return true;
+  });
+}
+function sndGrades() {
+  var g = {};
+  (rosterAll || []).forEach(function (p) {
+    if (FILT && FILT !== '-' && instOfP(p) === FILT && p.grade) g[p.grade] = 1;
+  });
+  return Object.keys(g).sort();
+}
+function sndToLabel() {
+  var sel = selIds().length, bits = [];
+  bits.push(SND.aud === 'parents' ? 'הורים' : 'תלמידים');
+  if (sel) { bits.push(sel + ' שנבחרו'); return bits.join(' · '); }
+  bits.push(!FILT ? 'כל הישיבות' : FILT === '-' ? 'ללא ישיבה' : instLbl({ inst: FILT }));
+  var w = sndWeek();
+  if (SND.seg === 'done') bits.push('סיימו את דף ' + (w ? w.daf : ''));
+  if (SND.seg === 'todo') bits.push('עוד לא סיימו את דף ' + (w ? w.daf : ''));
+  SND_WAYS.forEach(function (x) { if (x[0] && x[0] === SND.way) bits.push(x[1]); });
+  if (SND.grade) bits.push('שכבה ' + SND.grade);
+  return bits.join(' · ');
+}
+function sendHtml() {
+  if (!ALL || !rosterAll) return '';
+  var sel = selIds().length;
+  if (!SND.open) {
+    return '<button class="snd-open" data-snd="open">✉ שליחת הודעה' +
+      (sel ? ' · ' + sel + ' נבחרו' : '') + '</button>';
+  }
+  var kids = SND.aud === 'kids', w = sndWeek();
+  var seg = function (on, label, act) {
+    return '<button class="' + (on ? 'on' : '') + '" data-snd="' + act + '">' + esc(label) + '</button>';
+  };
+  var list = sndList(), pushN = list.filter(function (p) { return p.push; }).length;
+  var h = '<div class="card snd"><div class="snd-h"><b>שליחת הודעה</b>' +
+    '<button class="snd-x" data-snd="close" aria-label="סגירה">✕</button></div>';
+  h += '<div class="snd-row"><span>למי</span><div class="snd-seg">' +
+    seg(kids, 'תלמידים', 'aud:kids') + seg(!kids, 'הורים', 'aud:parents') + '</div></div>';
+  if (sel) {
+    h += '<div class="snd-note">נבחרו ' + sel + ' מהרשימה. ' +
+      '<button class="klink" data-snd="clear">ניקוי הבחירה</button></div>';
+  } else {
+    if (w) {
+      h += '<div class="snd-row"><span>מי מהם</span><div class="snd-seg">' +
+        seg(!SND.seg, 'כולם', 'seg:') + seg(SND.seg === 'done', 'סיימו', 'seg:done') +
+        seg(SND.seg === 'todo', 'עוד לא', 'seg:todo') + '</div></div>';
+    }
+    h += '<div class="snd-sel"><select id="snd-way">' + SND_WAYS.map(function (x) {
+      return '<option value="' + esc(x[0]) + '"' + (SND.way === x[0] ? ' selected' : '') + '>' +
+        esc(x[1]) + '</option>';
+    }).join('') + '</select>';
+    var gr = sndGrades();
+    if (gr.length > 1) {
+      h += '<select id="snd-grade"><option value="">כל השכבות</option>' + gr.map(function (g) {
+        return '<option value="' + esc(g) + '"' + (SND.grade === g ? ' selected' : '') + '>שכבה ' +
+          esc(g) + '</option>';
+      }).join('') + '</select>';
+    }
+    h += '</div>';
+  }
+  h += '<button class="klink" data-snd="selmode" style="margin:2px 0 8px">' +
+    (SELMODE ? 'סיום הבחירה' : 'בחירת תלמידים מסוימים מהרשימה') + '</button>';
+  var tm = kudoTmpls();
+  if (tm.length) {
+    h += '<div class="snd-tm">' + tm.map(function (t, i) {
+      return '<button data-snd="tm:' + i + '">' + esc(t) + '</button>';
+    }).join('') + '</div>';
+  }
+  h += '<textarea id="snd-txt" rows="3" placeholder="מה תרצו לומר?">' + esc(SND.txt) + '</textarea>' +
+    '<label class="snd-per"><input type="checkbox" id="snd-per"' + (SND.per ? ' checked' : '') +
+    '> לפנות לכל אחד בשמו</label>' +
+    '<div class="snd-pv" id="snd-pv"></div>';
+  h += '<div class="snd-sum"><b>יישלח ל:</b> ' + esc(sndToLabel()) +
+    (kids ? '<br><b>' + list.length + '</b> תלמידים · <b>' + pushN + '</b> מהם עם התראות — רק הם יקבלו' : '') +
+    '</div>' +
+    '<button class="snd-go" id="snd-go"' + (SND.busy || SND.txt.trim().length < 2 ? ' disabled' : '') + '>' +
+    (SND.busy ? 'שולח…' : 'שליחה') + '</button>' +
+    (SND.msg ? '<div class="snd-msg' + (SND.ok ? ' ok' : '') + '">' + esc(SND.msg) + '</div>' : '') +
+    '</div>';
+  return h;
+}
+function sndPv() {
+  var el = $('snd-pv'); if (!el) return;
+  var t = (SND.txt || '').trim();
+  el.innerHTML = t ? '<b>' + esc(kudoSig()) + '</b><br>' +
+    (SND.per ? esc(SND.aud === 'parents' ? 'שם ההורה' : 'שם התלמיד') + ', ' : '') + esc(t) : '';
+  var g = $('snd-go'); if (g) g.disabled = SND.busy || t.length < 2;
+}
+function sendWire() {
+  sndPv();
+  var body = $('body');
+  if (!body || body.getAttribute('data-sw')) return;
+  body.setAttribute('data-sw', '1');
+  body.addEventListener('click', function (e) {
+    var t = e.target, b;
+    if ((b = t.closest && t.closest('[data-sel]'))) {
+      var id = b.getAttribute('data-sel');
+      SEL[id] = !SEL[id]; draw(); return;
+    }
+    if (!(b = t.closest && t.closest('[data-snd]'))) {
+      if (t.id === 'snd-go') sndSend();
+      return;
+    }
+    var a = b.getAttribute('data-snd'), k = a.split(':')[0], v = a.slice(k.length + 1);
+    if (k === 'open') SND.open = true;
+    else if (k === 'close') { SND.open = false; SELMODE = false; }
+    else if (k === 'selmode') SELMODE = !SELMODE;
+    else if (k === 'clear') SEL = {};
+    else if (k === 'tm') SND.txt = kudoTmpls()[+v] || SND.txt;
+    else if (k === 'aud') SND.aud = v;
+    else if (k === 'seg') SND.seg = v;
+    SND.msg = '';
+    draw();
+  });
+  body.addEventListener('input', function (e) {
+    if (e.target.id === 'snd-txt') { SND.txt = e.target.value; sndPv(); }
+  });
+  body.addEventListener('change', function (e) {
+    var id = e.target.id;
+    if (id === 'snd-way') { SND.way = e.target.value; draw(); }
+    if (id === 'snd-grade') { SND.grade = e.target.value; draw(); }
+    if (id === 'snd-per') { SND.per = e.target.checked; sndPv(); }
+  });
+}
+function sndSend() {
+  var txt = (SND.txt || '').trim();
+  if (txt.length < 2 || SND.busy) return;
+  var sel = selIds(), w = sndWeek();
+  var flt = { per: SND.per ? 1 : 0 };
+  var q = { fire:'say', key:acc, title:kudoSig(), who:'רכז',
+            body:(SND.per ? '{name}, ' : '') + txt,
+            role: SND.aud === 'parents' ? 'אב' : 'תלמיד' };
+  /* לפי מזהים: בחירה ידנית, או "ללא ישיבה" — שאין לו קוד אחד. */
+  if (sel.length || FILT === '-') {
+    var ids = [];
+    sndList().forEach(function (p) {
+      (p.ids && p.ids.length ? p.ids : [p.id]).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
+    });
+    if (!ids.length) { SND.msg = 'אין למי לשלוח.'; SND.ok = false; draw(); return; }
+    if (ids.length > 60) {
+      SND.msg = 'אפשר לשלוח עד 60 מכשירים בבת אחת לפי בחירה. צמצמו את הקבוצה.';
+      SND.ok = false; draw(); return;
+    }
+    flt.ids = ids;
+  } else {
+    if (FILT) q.only = FILT;
+    if (SND.grade) q.grade = SND.grade;
+    if (SND.seg && w) { flt.seg = SND.seg; flt.wk = w.wk; }
+    if (SND.way) flt.way = SND.way;
+  }
+  q.flt = JSON.stringify(flt);
+  if (!confirm('לשלוח?\n' + sndToLabel() + '\n\n' + txt)) return;
+  SND.busy = true; SND.msg = ''; draw();
+  askScript(q).then(function (d) {
+    SND.busy = false;
+    if (d && d.status === 'ok') {
+      SND.ok = true; SND.msg = '✓ נשלח. ההתראות יוצאות תוך דקה.';
+      SND.txt = ''; SEL = {}; SELMODE = false;
+    } else {
+      SND.ok = false; SND.msg = 'לא נשלח. ' + ((d && d.message) || 'אין תשובה מהשרת.');
+    }
+    draw();
+  });
+}
+
 function keyHtml() {
   if (acc && roster) return '';
   if (ALL && !acc) {
@@ -1076,7 +1345,7 @@ function draw() {
      ולר"ם שנרשם אין פילוח בכלל: הוא רואה את המספר הכולל של
      הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
-    chipsHtml() +
+    chipsHtml() + sendHtml() +
     heroHtml(daf, doneN, totN, weekOpen) +
     /* **המשבצות מוצגות גם לר"ם.** הן באות מהמונים ולא מהרשימה
        השמית, ולכן הן קיימות גם לפני שהתוכנית התחילה — ובלעדיהן
@@ -1148,6 +1417,7 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
+  sendWire();
   kudoWire();
   if (KUDO_OPEN) kudoPv(kudoWho().first || '');
 }
