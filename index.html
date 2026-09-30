@@ -1066,6 +1066,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .my-note span{display:block;font-size:.82rem;font-weight:600;
   color:var(--ink-3);margin-top:4px;line-height:1.55}
 .my-note .btn{margin-top:12px;width:100%}
+.my-wait{border-color:rgba(192,143,43,.45);background:#FFFAEE}
 
 /* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
 .brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
@@ -1595,6 +1596,17 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .pt.g{background:#E6F2EA;color:#2B6343}
 .pt.a{background:#FCEFD2;color:#6E5212}
 .pt.r{background:none;color:var(--stop);padding:3px 2px}
+.pt.w{background:#FDE7CF;color:#8A4A0C}
+.acc{margin-top:12px;border-top:1px solid var(--rule-2);padding-top:10px}
+.acc-h{font-size:.76rem;font-weight:800;color:var(--ink-3)}
+.acc-r{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 0;border-bottom:1px solid var(--rule-2)}
+.acc-r:last-child{border-bottom:0}
+.acc-n{flex:1 1 180px;min-width:0;font-size:.9rem}
+.acc-n .sub{font-size:.78rem;color:var(--ink-3);font-weight:700;margin-top:3px}
+.acc-n .sub a{color:var(--blue);text-decoration:none;font-weight:800}
+.acc-b{display:flex;gap:6px;flex:0 0 auto}
+.acc-b .btn{width:auto;margin:0;padding:8px 13px;font-size:.8rem;text-decoration:none}
 .pr.all .pr-n{color:var(--blue)}
 .ppl-oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .ppl-oh b{font-size:1rem;font-weight:800;min-width:0}
@@ -3640,6 +3652,74 @@ function myInstRow() {
   var code = myBoard();
   return (code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0]) || null;
 }
+/* ============================================================
+   גישה אחרי אימות — השמות וההודעה לתלמידים.
+   ============================================================
+   מי שעבר את התהליך האישי ואין לו קוד הישיבה (השני מאותה
+   ישיבה, ובאייפון גם מי שהתקין) — שואל את השרת בשם המכשיר.
+   הרכז מאשר בניהול, ואז מגיע הקוד, וכל השאר עובד כרגיל.
+   עד אז: הודעה אחת, מכובדת, במקום השמות. ראו `acc` בסקריפט.
+   ============================================================ */
+var accSt = '', accPh = true, accBusy = false, accPhSent = false, accPosted = false;
+function accCheck(force) {
+  var code = myBoard();
+  var me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
+  if (!code || !me || !me.id || me.inst !== code) return;
+  if (!(ASK.seen && ASK.seen())) return;
+  var url = (CFG.api || API || '').trim();
+  if (!url || accBusy) return;
+  var has = !!instCode(code), last = Store.get('accAt', 0);
+  /* מי שכבר יש לו קוד — נבדק לעיתים רחוקות, רק כדי שנעילה תתפוס. */
+  if (!force && Date.now() - last < (has ? 3600000 : 60000)) return;
+  accBusy = true;
+  Store.set('accAt', Date.now());
+  scriptGet({ acc: code, dev: me.id, has: has ? '1' : '0' }).then(function (d) {
+    accBusy = false;
+    if (!d || !d.status) return;
+    var was = accSt;
+    if (d.status === 'ok' && d.k) {
+      accSt = 'ok';
+      if (d.k !== instCode(code)) { setInstCode(code, d.k); codeBad = false; renderBoard(); accRe(); }
+      return;
+    }
+    if (d.status === 'locked') {
+      accSt = 'locked';
+      if (has) { var m = Store.get('instCodes', {}) || {}; delete m[code]; Store.set('instCodes', m); renderBoard(); }
+    } else {
+      accSt = 'wait';
+      /* השורה ב"התראות" עוד לא נכתבה (או נכתבה בלי טלפון) —
+         כותבים אותה שוב, פעם אחת לביקור. */
+      if (d.status === 'none' && !accPosted && ASK.post) { accPosted = true; ASK.post('רשום', null); }
+    }
+    accPh = d.phone !== false;
+    if (!has && (was !== accSt || !accPh)) accRe();
+  }).catch(function () { accBusy = false; });
+}
+/* רק כשהאזור האישי פתוח — אחרת אין מה לצייר. */
+function accRe() { if (document.querySelector('#v-my.on')) renderMy(); }
+function accWaitHtml() {
+  var h = '<div class="my-note my-wait"><b>' + esc(PANEL.waitH) + '</b>' +
+    '<span>' + esc(PANEL.waitB) + '</span>';
+  if (accSt === 'wait' && !accPh) {
+    h += accPhSent ? '<span style="margin-top:10px;color:var(--ok)">' + esc(PANEL.waitOk) + '</span>'
+      : '<label for="acc-ph" style="display:block;margin-top:12px;font-size:.82rem;font-weight:800">' +
+        esc(PANEL.waitPh) + '</label>' +
+        '<input id="acc-ph" type="tel" inputmode="tel" autocomplete="tel" style="margin-top:6px">' +
+        '<button class="btn p" onclick="accPhone()">' + esc(PANEL.waitGo) + '</button>';
+  }
+  return h + '</div>';
+}
+function accPhone() {
+  var el = document.getElementById('acc-ph');
+  var v = el ? (el.value || '').trim() : '';
+  if (v.replace(/[^0-9]/g, '').length < 9) { alert(ASK_UI.errPhone); return; }
+  var me = ASK.get() || {};
+  me.phone = v; ASK.set(me);
+  ASK.post('רשום', null);
+  accPhSent = true; accRe();
+  setTimeout(function () { accCheck(true); }, 4000);
+}
+
 function renderMy() {
   var el = document.getElementById('my-body');
   if (!el) return;
@@ -3688,6 +3768,9 @@ function renderMy() {
     '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
     '<span>' + esc(inst.name) + '</span></div>' +
 
+    /* עד האימות — ההודעה במקום השמות וההודעה לתלמידים. */
+    (instCode(code) ? '' : '<div class="my-sec">' + accWaitHtml() + '</div>') +
+
     '<div class="my-sec"><h3>' + esc(PANEL.brdH) + '</h3>' +
     '<p>' + esc(PANEL.brdSub) + '</p>' +
     '<div id="my-brd"></div></div>' +
@@ -3713,6 +3796,7 @@ function renderMy() {
   document.getElementById('my-brd').innerHTML = boardHtml(code, inst.name);
   sayPaint();
   myNote();
+  accCheck();
 }
 
 /* ============================================================
@@ -3869,6 +3953,8 @@ function askSetup(where) {
     /* "איך לפנות אליך?" לפני הפנייה, ושדה טלפון (רשות). */
     whoFirst: true,
     phone: true,
+    /* הטלפון הוא מה שהרכז מאמת לפני שנפתחים השמות — ראו accCheck. */
+    phoneReq: true,
     t:     headT,
     klass: false,
     fem:   headFem(),
@@ -7778,7 +7864,7 @@ function admPane() {
     /* "דורש טיפול" — נטען בכניסה ל"מה קורה", לכל היותר פעם בשתי דקות. */
     if ((CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
       admAutoAt.needs = Date.now();
-      setTimeout(function () { needsLoad(); if (stuckRows === null) stuckLoad(); }, 0);
+      setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
     }
     if (sub === 'people')  return admPeople(body);
     if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
@@ -7922,7 +8008,8 @@ function pplData() {
   if (own && own.code && !regs.some(function (r) { return r.code === own.code; })) regs.unshift(own);
   regs.forEach(function (r) { if (r.code) reg[r.code] = r; });
   var seen = {}, rows = [], repTot = 0;
-  Object.keys(n).concat(Object.keys(reg)).forEach(function (c) {
+  var accC = accList().map(function (a) { return pplCode(a.inst); });
+  Object.keys(n).concat(Object.keys(reg), accC).forEach(function (c) {
     if (seen[c]) return; seen[c] = 1;
     var r = reg[c] || null, got = n[c] || 0;
     var rep = r ? (r.size || r.total || 0) : null;
@@ -7937,9 +8024,11 @@ function pplData() {
            gaps:rows.filter(function (x) { return x.gap; }).length };
 }
 function pplTags(x) {
+  var w = accWait(x.c === '' ? null : x.c).length;
   return '<i class="pt g">' + x.got + ' נרשמו</i>' +
     (x.rep ? '<i class="pt a">' + x.rep + ' דווחו</i>' : '') +
-    (x.gap ? '<i class="pt r">פער ' + x.gap + '</i>' : '');
+    (x.gap ? '<i class="pt r">פער ' + x.gap + '</i>' : '') +
+    (w ? '<i class="pt w">' + w + ' לאימות</i>' : '');
 }
 function pplRowHtml(x) {
   return '<span class="pr-m"><span class="pr-n">' + esc(x.name) + '</span>' +
@@ -7982,7 +8071,7 @@ function admPeople(el) {
     '<div id="ppl-ov" style="display:none">' +
       '<div class="adm-card" style="margin-bottom:11px"><div class="ppl-oh"><b id="ppl-on"></b>' +
       '<button class="ppl-back" onclick="pplBack()">חזרה לישיבות ←</button></div>' +
-      '<div class="ppl-oi" id="ppl-oi"></div></div>' +
+      '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div></div>' +
     '</div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
       (o ? '&filt=' + encodeURIComponent(o) : '') + '" title="אנשים" ' +
@@ -8118,6 +8207,7 @@ function pplOneHead(d) {
     h += '<div style="margin-top:6px">ראש החטיבה עוד לא נרשם.</div>';
   }
   pplSet('ppl-oi', h);
+  pplSet('ppl-acc', accHtml(c));
 }
 
 function pplFrame(msg) {
@@ -8145,7 +8235,83 @@ function pplBack() {
 }
 function pplRefresh() {
   pplFrame({ dfReload: 1 });
-  pullRegs(); conflictLoad();
+  pullRegs(); conflictLoad(); accLoad();
+}
+
+/* ============================================================
+   מי קיבל את אזור הניהול האישי — ואימות.
+   ============================================================
+   כל מי שעבר את התהליך האישי מופיע כאן עם טלפון. לחיצה על
+   הטלפון מחייגת; "אישור" פותח לו את השמות ואת ההודעה
+   לתלמידים, "נעילה" מחזירה אותו למספרים בלבד. הוואטסאפ שאחרי
+   האישור מוכן מראש (נוסח ב"מלל" — ui.accWa).
+   ============================================================ */
+var accRows = null, accMsg = '';
+function accLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(false);
+  return scriptGet({ read:'גישה', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה לשונית ריקה — המטמון נשאר. */
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var rows = d.rows, h = (rows[0] || []).map(function (x) { return String(x).trim(); });
+    var c = function (r, k) { var i = h.indexOf(k); return i < 0 ? '' : String(r[i] == null ? '' : r[i]).trim(); };
+    accRows = rows.slice(1).filter(function (r) { return c(r, 'מזהה'); }).map(function (r) {
+      return { id:c(r, 'מזהה'), name:c(r, 'שם'), phone:c(r, 'טלפון'), instName:c(r, 'ישיבה'),
+               inst:c(r, 'קוד ישיבה'), role:c(r, 'תפקיד'), st:c(r, 'מצב') || 'ממתין',
+               has:c(r, 'קוד במכשיר') === 'כן', at:c(r, 'ביקש') };
+    });
+    Store.set('accCache', accRows);
+    admPane(); return true;
+  }).catch(function () { return false; });
+}
+function accList() {
+  if (accRows === null) accRows = Store.get('accCache', null);
+  return accRows || [];
+}
+function accWait(inst) {
+  return accList().filter(function (a) {
+    return a.st === 'ממתין' && (inst == null || pplCode(a.inst) === inst);
+  });
+}
+function accSet(id, st) {
+  var key = (CFG.readKey || '').trim();
+  var a = accList().filter(function (x) { return x.id === id; })[0];
+  if (!key || !a) return;
+  if (st === 'נעול' && !confirm('לנעול את ' + (a.name || 'איש הצוות') + '?\n' +
+      'הוא יחזור לראות מספרים בלבד, בלי שמות ובלי שליחה לתלמידים.')) return;
+  accMsg = 'שומר…'; admPane();
+  scriptGet({ accset:id, st:st, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok') { accMsg = 'לא נשמר. ' + ((d && d.message) || 'אין תשובה מהסקריפט.'); admPane(); return; }
+    /* ולוודא — no-cors אינו כאן, אבל קריאה חוזרת היא מה שמאשר. */
+    accMsg = ''; a.st = st; Store.set('accCache', accRows);
+    admPane(); accLoad();
+  }).catch(function () { accMsg = 'לא נשמר. אין תשובה מהסקריפט.'; admPane(); });
+}
+function accWaUrl(a) {
+  var first = String(a.name || '').replace(/^הרב\s+/, '').split(' ')[0];
+  var txt = fill(textGet('ui.accWa'), { name: first, inst: a.instName || pplName(pplCode(a.inst)) });
+  return 'https://wa.me/' + waNum(a.phone) + '?text=' + encodeURIComponent(txt);
+}
+function accHtml(c) {
+  var list = accList().filter(function (a) { return c === '' || pplCode(a.inst) === c; });
+  if (!list.length) return '';
+  list.sort(function (x, y) { return (x.st === 'ממתין' ? 0 : 1) - (y.st === 'ממתין' ? 0 : 1); });
+  return '<div class="acc"><div class="acc-h">בניהול האישי</div>' +
+    (accMsg ? '<div class="cond" style="margin:6px 0">' + esc(accMsg) + '</div>' : '') +
+    list.map(function (a) {
+      var tag = a.st === 'אושר' ? '<i class="pt g">אושר</i>'
+              : a.st === 'נעול' ? '<i class="pt r">נעול</i>'
+              : '<i class="pt w">ממתין לאימות</i>';
+      return '<div class="acc-r"><div class="acc-n"><b>' + esc(a.name || '—') + '</b> ' + tag +
+        '<div class="sub">' + esc([a.role, c === '' ? (a.instName || '') : ''].filter(Boolean).join(' · ')) +
+        (a.phone ? ' · <a href="tel:' + digits(a.phone) + '" dir="ltr">' + esc(a.phone) + '</a>' : ' · אין טלפון') +
+        (a.has && a.st === 'ממתין' ? ' · כבר נכנס בקישור עם קוד' : '') +
+        '</div></div><div class="acc-b">' +
+        (a.st !== 'אושר' ? '<button class="btn p" onclick="accSet(' + dq(a.id) + ',\'אושר\')">אישור</button>' : '') +
+        (a.st === 'אושר' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accWaUrl(a)) + '">וואטסאפ</a>' : '') +
+        (a.st !== 'נעול' ? '<button class="btn g" onclick="accSet(' + dq(a.id) + ',\'נעול\')">נעילה</button>' : '') +
+        '</div></div>';
+    }).join('') + '</div>';
 }
 
 /* יומן ההודעות — מה יצא, ממי, ומה עלה בגורלו. */
@@ -8201,6 +8367,12 @@ function needsResend(sid) {
     admPane();
   }).catch(function () { needsBusy = ''; needsMsg = 'אין תשובה מהסקריפט.'; admPane(); });
 }
+/* "לאימות" — הרשימה של כל הישיבות, עם כל מי שממתין. */
+function accGo() {
+  ppl.open = ''; ppl.q = ''; ppl.f = '';
+  if (admSubNow() === 'people' && document.getElementById('ppl')) return pplOpen('');
+  admSubGo('people');
+}
 function admNeeds() {
   var fails = needsFail || [];
   var stuck = (stuckRows || []).filter(function (p) { return !p.done; });
@@ -8221,6 +8393,15 @@ function admNeeds() {
       '<div class="need-m">' + stuck.slice(0, 3).map(function (p) { return esc(p.name || ''); }).join(' · ') +
       (stuck.length > 3 ? ' ועוד' : '') + '</div>' +
       '<button class="btn g" style="margin:8px 0 0" onclick="admSubGo(\'people\')">לפרטים</button></div>';
+  }
+  var aw = accWait(null);
+  if (aw.length) {
+    h += '<div class="need"><div class="need-h">🔑 ' + aw.length +
+      (aw.length === 1 ? ' ממתין' : ' ממתינים') + ' לאימות — אזור הניהול האישי</div>' +
+      '<div class="need-m">' + aw.slice(0, 3).map(function (a) {
+        return esc((a.name || '') + (a.instName ? ' · ' + a.instName : ''));
+      }).join('<br>') + (aw.length > 3 ? '<br>ועוד' : '') + '</div>' +
+      '<button class="btn g" style="margin:8px 0 0" onclick="accGo()">לאימות</button></div>';
   }
   if (!h && !needsMsg) return '';
   /* ההתרעות לטלפון יוצאות למכשירים שנרשמו כ"רכז" (שיחות ← תזכורות
@@ -12918,6 +13099,8 @@ function registerSW() {
   /* קוד הגישה שהגיע בקישור — עכשיו, כש-`Store` כבר קיים.
      זה מה שמסדר את השני שמצטרף מאותו מוסד. */
   if (urlInst && urlKey) setInstCode(urlInst, urlKey);
+  /* אושר מאז הפתיחה הקודמת? הקוד מגיע גם בלי להיכנס לאזור האישי. */
+  setTimeout(function () { accCheck(); }, 2500);
   /* נפתחים מיד מהמטמון, ומתרעננים מהגיליון ברקע — אבל המטמון
      עובר את אותה בדיקה כמו הגיליון. מכשיר שכבר שמר אצלו רשימה
      פגומה היה ממשיך להציג אותה לנצח, כי היא נטענת לפני שהרשת

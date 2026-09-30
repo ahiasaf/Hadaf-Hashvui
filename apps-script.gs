@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 39;
+var SCRIPT_VERSION = 40;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -153,7 +153,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'התנגשויות הרשמה',
                     /* מי ביקש התראה כשדף נעול ייפתח — מנוי למכשיר, ולכן
                        פרטית כמו `התראות`. ראו `wait` ב-ghFire_. */
-                    'ממתינים לדף'];
+                    'ממתינים לדף',
+                    /* מי קיבל את אזור הניהול האישי, ומה הרכז החליט עליו.
+                       שם וטלפון של איש צוות — פרטית. ראו `acc`. */
+                    'גישה'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -1139,6 +1142,41 @@ function doGet(e) {
     return reply_(e, { status: 'ok', pending: pf });
   }
 
+  /* ============================================================
+     אזור הניהול האישי — גישה אחרי אימות, ולא קוד בקישור.
+     ============================================================
+     "כל מי שקיבל את הקישור הזה — שיקבל את הניהול האישי. אני
+     אאמת טלפון, ומי שאינו מהחבורה — אנעל."
+
+     הקוד המשותף הגיע רק בקישור, ולכן השני והשלישי מאותה ישיבה —
+     ובאייפון גם הראשון, אחרי ההתקנה — נשארו בלי שמות ובלי
+     שליחה, בשקט. כאן המכשיר מזדהה במזהה שכבר נכתב ל"התראות"
+     בתהליך האישי (שם, טלפון, ישיבה, תפקיד), והרכז מאשר או נועל
+     בלשונית "גישה". רק אחרי "אושר" נמסר לו קוד הישיבה — וכל מה
+     שכבר עובד עם הקוד (הלוח, השליחה) עובד כמו שהוא.
+
+     `acc`    ציבורי: מזהה מכשיר + ישיבה → ok+קוד · wait · locked.
+     `accset` לרכז: אישור / נעילה. */
+  if (e && e.parameter && e.parameter.acc) {
+    try { return reply_(e, accAsk_(String(e.parameter.acc), String(e.parameter.dev || ''),
+                                   e.parameter.has === '1')); }
+    catch (errA) { return reply_(e, { status: 'error', message: String(errA) }); }
+  }
+  if (e && e.parameter && e.parameter.accset) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    var ast = String(e.parameter.st || '');
+    if (['אושר', 'נעול', 'ממתין'].indexOf(ast) < 0) {
+      return reply_(e, { status: 'error', message: 'מצב לא מוכר' });
+    }
+    try {
+      upsertCols_(ACC_TAB, [['מזהה', String(e.parameter.accset)], ['מצב', ast],
+                            ['הוחלט', new Date()]], 'מזהה');
+      return reply_(e, { status: 'ok' });
+    } catch (errS) { return reply_(e, { status: 'error', message: String(errS) }); }
+  }
+
   if (e && e.parameter && e.parameter.board) {
     var bd;
     /* **סיסמת הרכז פותחת כל לוח.** היא כבר פותחת כל לשונית
@@ -1823,6 +1861,58 @@ function setCode_(inst, code) {
   sh.appendRow([inst, code, new Date()]);
   return code;
 }
+/* ---- אזור הניהול האישי: מי ביקש, ומה הוחלט ---- */
+var ACC_TAB = 'גישה';
+var ACC_HEAD = ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'מצב',
+                'קוד במכשיר', 'ביקש', 'נראה', 'הוחלט'];
+function accAsk_(inst, dev, has) {
+  inst = String(inst || '').trim(); dev = String(dev || '').trim();
+  if (!inst || !dev || dev.length < 6) return { status: 'none' };
+  /* מי המכשיר — השורה האחרונה שלו ב"התראות", של אותה ישיבה. */
+  var ps = sheet_('התראות');
+  if (ps.getLastRow() < 2) return { status: 'none' };
+  var pv = ps.getDataRange().getDisplayValues(), ph = pv[0], pi = {};
+  for (var i = 0; i < ph.length; i++) pi[String(ph[i]).trim()] = i;
+  var me = null;
+  for (var r = pv.length - 1; r >= 1; r--) {
+    if (String(pv[r][pi['מזהה']] || '').trim() !== dev) continue;
+    if (String(pv[r][pi['קוד ישיבה']] || '').trim() !== inst) continue;
+    me = pv[r]; break;
+  }
+  if (!me) return { status: 'none' };
+  var g = function (k) { return pi[k] === undefined ? '' : String(me[pi[k]] || '').trim(); };
+
+  var sh = sheet_(ACC_TAB);
+  if (!sh.getLastRow()) headRow_(sh, ACC_HEAD);
+  var head = headers_(sh), ix = {};
+  for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
+  var st = '', row = -1;
+  if (sh.getLastRow() > 1) {
+    var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
+    for (var a = 0; a < av.length; a++) {
+      if (String(av[a][ix['מזהה']] || '').trim() !== dev) continue;
+      row = a + 2; st = String(av[a][ix['מצב']] || '').trim(); break;
+    }
+  }
+  var cols = [['מזהה', dev], ['שם', g('שם')], ['טלפון', g('טלפון')],
+              ['ישיבה', g('ישיבה')], ['קוד ישיבה', inst], ['תפקיד', g('תפקיד')],
+              ['קוד במכשיר', has ? 'כן' : ''], ['נראה', new Date()]];
+  if (row < 0) {
+    st = 'ממתין';
+    cols.push(['מצב', st]); cols.push(['ביקש', new Date()]);
+    upsertCols_(ACC_TAB, cols, 'מזהה');
+    /* הרכז יודע מיד — זה מה שמאפשר "בשעות הקרובות". */
+    coordPing_('🔑 לאימות: ' + (g('שם') || 'איש צוות'),
+      (g('ישיבה') || inst) + (g('תפקיד') ? ' · ' + g('תפקיד') : '') +
+      (g('טלפון') ? ' · ' + g('טלפון') : ''));
+  } else {
+    upsertCols_(ACC_TAB, cols, 'מזהה');
+  }
+  if (st === 'נעול') return { status: 'locked', phone: !!g('טלפון') };
+  if (st !== 'אושר') return { status: 'wait', phone: !!g('טלפון') };
+  return { status: 'ok', k: ensureCode_(inst, newCode_()) };
+}
+
 /* בהרשמה: יוצרים אם אין, ולא דורסים אם יש. ראש חטיבה שנרשם שוב
    לא אמור לשבור קישור שכבר הופץ לצוות שלו. */
 function ensureCode_(inst, want) {

@@ -279,7 +279,7 @@ var ASK = (function () {
         '<select id="r-grade">' + opts(C.grades || [], me.grade) + '</select>' +
         '<select id="r-klass">' + opts(cls, me.klass) + '</select></div></div>';
     }
-    /* טלפון — רשות, ורק במסלול שביקש אותו. */
+    /* טלפון — רק במסלול שביקש אותו. חובה כש-`phoneReq`. */
     if (C.phone) {
       h += '<div class="fld"><label class="label" for="r-phone">' + esc(t('askPhone')) +
         '</label><input id="r-phone" type="tel" inputmode="tel" autocomplete="tel" value="' +
@@ -440,9 +440,13 @@ var ASK = (function () {
     if (C.klass && (!grade || !klass)) {
       err = u('errClass'); draw(); return;
     }
+    var phone = C.phone && $('r-phone') ? ($('r-phone').value || '').trim() : '';
+    /* חובה במסלול שמעניק גישה לשמות: בטלפון הרכז מאמת מי זה. */
+    if (C.phoneReq && phone.replace(/[^0-9]/g, '').length < 9) {
+      err = u('errPhone'); draw(); return;
+    }
     err = '';
     var ir = inst();
-    var phone = C.phone && $('r-phone') ? ($('r-phone').value || '').trim() : '';
     set({ id: id(), first: first, last: last, grade: grade, klass: klass,
           inst: ir ? ir.code : '', instName: ir ? ir.name : '',
           role: roleNow(), phone: phone, at: new Date().toISOString() });
