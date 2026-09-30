@@ -475,6 +475,10 @@ function doGet(e) {
     } catch (err) {
       return reply_(e, { status: 'error', message: String(err) });
     }
+    /* מי שנתקע כבר מחכה — הרכז יודע מיד, ולא בכניסה הבאה לניהול. */
+    coordPing_('🙋 ביקשו עזרה בהתקנה',
+      hName + (H.instName ? ' · ' + String(H.instName) : '') +
+      (H.what ? ' — ' + String(H.what).slice(0, 80) : ''));
     return reply_(e, { status: 'ok' });
   }
 
@@ -615,6 +619,58 @@ function doGet(e) {
 
      READ_KEY נדרשת: כתובת הסקריפט יושבת בקוד הפומבי, ושליחה
      פתוחה היא ערוץ שידור לתלמידים שנמסר לעולם. */
+  /* ============================================================
+     "איך נגמרה השליחה" — ההרצה ב-GitHub מדווחת בסוף.
+     ============================================================
+     n = כמה הגיעו · bad = כמה נכשלו · why = סיבת כישלון של ההרצה.
+     "אין נמענים" אינו כישלון. כישלון מעדכן את היומן ומתריע לרכז —
+     פעם אחת, גם אם הדיווח מגיע פעמיים (מהקוד ומשלב ה-failure). */
+  if (e && e.parameter && e.parameter.sayDone) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'אין הרשאה' });
+    }
+    try {
+      var sr = sayRow_(String(e.parameter.sayDone));
+      if (!sr) return reply_(e, { status:'ok', none: 1 });
+      var why = String(e.parameter.why || '').slice(0, 200);
+      var nOk = parseInt(e.parameter.n, 10) || 0;
+      var was = String(sr.v[sr.ix['תוצאה']] || '');
+      var now = why ? 'נכשלה: ' + why
+              : (e.parameter.none ? 'אין נמענים עם התראות' : 'יצאה ל-' + nOk);
+      /* דיווח כפול (מהקוד ומשלב ה-failure) — הסיבה הראשונה נשארת. */
+      if (was.indexOf('נכשלה') === 0) now = was;
+      sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue(now);
+      if (why && was.indexOf('נכשלה') !== 0) {
+        sayAlert_(String(sr.v[sr.ix['מי']] || ''), String(sr.v[sr.ix['ישיבה']] || ''),
+                  String(sr.v[sr.ix['הטקסט']] || ''), why);
+      }
+      return reply_(e, { status:'ok' });
+    } catch (errD) {
+      return reply_(e, { status:'error', message: String(errD) });
+    }
+  }
+
+  /* שליחה חוזרת של הודעה שנכשלה — בדיוק כמו שהייתה: אותו נוסח,
+     אותה חתימה, אותו קהל ואותו פילוח. לרכז בלבד. */
+  if (e && e.parameter && e.parameter.resend) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'אין הרשאה' });
+    }
+    try {
+      var rr = sayRow_(String(e.parameter.resend));
+      if (!rr) return reply_(e, { status:'error', message:'ההודעה לא נמצאה ביומן' });
+      var g = function (k) { return rr.ix[k] === undefined ? '' : String(rr.v[rr.ix[k]] || ''); };
+      var r2 = ghFire_(g('כותרת'), g('הטקסט'), g('יעד'), g('שכבה'), g('כיתה'),
+                       g('מי'), g('קישור'), g('תפקיד'), g('ממתינים'), g('פילוח'));
+      if (r2.status === 'ok') {
+        rr.sh.getRange(rr.r, rr.ix['תוצאה'] + 1).setValue(g('תוצאה') + ' · נשלחה שוב');
+      }
+      return reply_(e, r2);
+    } catch (errR) {
+      return reply_(e, { status:'error', message: String(errR) });
+    }
+  }
+
   if (e && e.parameter && e.parameter.fire === 'say') {
     var P = e.parameter;
     var inst = String(P.inst || '').trim();
@@ -671,10 +727,11 @@ function doGet(e) {
       if (flO.per) fl2.per = 1;
       var r0 = ghFire_(String(P.title || ''), String(P.body || ''), '', '', '',
                        String(P.who || ''), link, '', '', JSON.stringify(fl2));
+      if (!isAdm && r0.status !== 'ok') r0 = { status:'ok', held: 1 };
       if (r0 && r0.status === 'ok') { r0.kids = who0.kids; r0.dads = who0.dads; }
       return reply_(e, r0);
     }
-    return reply_(e, ghFire_(String(P.title || ''), String(P.body || ''),
+    var rS = ghFire_(String(P.title || ''), String(P.body || ''),
                              isAdm ? String(P.only || '') : inst,
                              String(P.grade || ''), String(P.klass || ''),
                              String(P.who || ''), link,
@@ -686,7 +743,11 @@ function doGet(e) {
                                 אותו דף. הצורה נבדקת: 'taanit|ג'. */
                              isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}$/.test(String(P.wait || ''))
                                ? String(P.wait) : '',
-                             sayFlt_(P.flt)));
+                             sayFlt_(P.flt));
+    /* **איש הצוות אינו רואה כישלון** — הוא עובר לרכז (נרשם ביומן
+       ו-sayAlert_), והרכז שולח שוב מהניהול. לרכז — האמת. */
+    if (!isAdm && rS.status !== 'ok') rS = { status:'ok', held: 1 };
+    return reply_(e, rS);
   }
 
   /* ---- הלוח של מוסד ----
@@ -2716,58 +2777,95 @@ function sayFlt_(raw) {
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt) {
+function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, quiet) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
-  if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
-  if (!repo) return { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
   if (!body) return { status:'error',  message:'אין מה לשלוח' };
-  try {
-    var res = UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
-      method: 'post', contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + tok,
-                 Accept: 'application/vnd.github+json',
-                 'X-GitHub-Api-Version': '2022-11-28' },
-      payload: JSON.stringify({
-        event_type: 'push-say',
-        /* **הכתובת נוסעת עם ההודעה.** בלעדיה כל התראה נחתה
-           על המסך שבמקרה היה פתוח, ואי אפשר היה להזמין
-           מישהו למקום מסוים. */
-        client_payload: { title: title, body: body, only: only,
-                          grade: grade || '', klass: klass || '',
-                          url: link || '', role: role || '',
-                          /* לא ריק = שולחים רק למי שביקש התראה על
-                             הדף הזה (לשונית "ממתינים לדף"). */
-                          wait: wait || '',
-                          /* הפילוח — ראו sayFlt_. JSON אחד, כי
-                             GitHub מקבל עד עשרה שדות במטען. */
-                          flt: flt || '' }
-      }),
-      muteHttpExceptions: true
-    });
-    var code = res.getResponseCode();
-    /* 204 = התקבל. כל דבר אחר הוא סירוב, ואומרים אותו. */
-    if (code === 204) {
-      /* **כל הודעה נרשמת.** ערוץ שידור לקטינים בלי יומן הוא
-         ערוץ שאיש אינו יודע מה עבר בו. הרישום נכשל — השליחה
-         עדיין יוצאת; יומן חסר גרוע מהודעה שלא נשלחה, אבל לא
-         עד כדי לחסום. */
-      try {
-        appendCols_('הודעות', [
-          ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
-          ['שכבה', grade || ''], ['כיתה', klass || ''],
-          ['כותרת', title], ['הטקסט', body],
-          ['תפקיד', role || ''], ['פילוח', String(flt || '').slice(0, 2000)]
-        ]);
-      } catch (e2) {}
-      return { status:'ok' };
+  /* **מזהה לכל שליחה.** הוא נוסע עם ההודעה ל-GitHub, וההרצה מדווחת
+     עליו בסוף (`?sayDone=`) — "יצאה ל-N" או "נכשלה". בלעדיו "נשלח"
+     במסך אמר רק שגוגל קיבל את הבקשה, ולא שמשהו הגיע למישהו. */
+  var sid = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+  var res0;
+  if (!tok)  res0 = { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
+  else if (!repo) res0 = { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
+  else {
+    try {
+      var res = UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
+        method: 'post', contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + tok,
+                   Accept: 'application/vnd.github+json',
+                   'X-GitHub-Api-Version': '2022-11-28' },
+        payload: JSON.stringify({
+          event_type: 'push-say',
+          /* **הכתובת נוסעת עם ההודעה.** בלעדיה כל התראה נחתה
+             על המסך שבמקרה היה פתוח, ואי אפשר היה להזמין
+             מישהו למקום מסוים. */
+          client_payload: { title: title, body: body, only: only,
+                            grade: grade || '', klass: klass || '',
+                            url: link || '', role: role || '',
+                            /* לא ריק = שולחים רק למי שביקש התראה על
+                               הדף הזה (לשונית "ממתינים לדף"). */
+                            wait: wait || '',
+                            /* הפילוח — ראו sayFlt_. JSON אחד, כי
+                               GitHub מקבל עד עשרה שדות במטען. זה
+                               העשירי: המזהה. */
+                            flt: flt || '', sid: sid }
+        }),
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      /* 204 = התקבל. כל דבר אחר הוא סירוב, ואומרים אותו. */
+      res0 = code === 204 ? { status:'ok', sid: sid }
+        : { status:'error', code: code,
+            message: 'GitHub החזיר ' + code + ' — ' +
+                     'ייתכן שלאסימון אין הרשאת Contents/Actions' };
+    } catch (err) {
+      res0 = { status:'error', message: String(err) };
     }
-    return { status:'error', code: code,
-             message: 'GitHub החזיר ' + code + ' — ' +
-                      'ייתכן שלאסימון אין הרשאת Contents/Actions' };
-  } catch (err) {
-    return { status:'error', message: String(err) };
   }
+  /* **כל הודעה נרשמת, גם כזו שלא יצאה** — עם כל מה שצריך כדי לשלוח
+     אותה שוב בדיוק כמו שהייתה (`?resend=`). ערוץ שידור לקטינים בלי
+     יומן הוא ערוץ שאיש אינו יודע מה עבר בו. התראות מערכת לרכז
+     (`quiet`) אינן נרשמות — הן אינן הודעה של איש. */
+  if (!quiet) {
+    try {
+      appendCols_('הודעות', [
+        ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
+        ['שכבה', grade || ''], ['כיתה', klass || ''],
+        ['כותרת', title], ['הטקסט', body],
+        ['תפקיד', role || ''], ['פילוח', String(flt || '').slice(0, 40000)],
+        ['יעד', only || ''], ['קישור', link || ''], ['ממתינים', wait || ''],
+        ['מזהה שליחה', sid],
+        ['תוצאה', res0.status === 'ok' ? 'ממתין' : 'נכשלה: ' + (res0.message || '')]
+      ]);
+    } catch (e3) {}
+    if (res0.status !== 'ok') sayAlert_(who, only, body, res0.message);
+  }
+  return res0;
+}
+
+/* התראה לרכז — לכל מכשיר שנרשם בתפקיד "רכז" (ניהול ← ההתראות
+   במכשיר הזה). שקטה: אינה נרשמת, ואינה מתריעה על עצמה אם נכשלה. */
+function coordPing_(title, body) {
+  try { ghFire_(title, body, '', '', '', 'מערכת', 'admin', 'רכז', '', '', true); } catch (e) {}
+}
+function sayAlert_(who, only, body, why) {
+  coordPing_('⚠ הודעה לא יצאה',
+    (who || 'רכז') + (only ? ' · ' + only : '') + ': ' +
+    String(body || '').slice(0, 80) + (why ? ' (' + String(why).slice(0, 60) + ')' : ''));
+}
+
+/* שורת היומן של שליחה, לפי המזהה שלה. null = אין (למשל התראת מערכת). */
+function sayRow_(sid) {
+  var sh = sheet_('הודעות');
+  if (!sh.getLastRow() || sh.getLastRow() < 2) return null;
+  var vals = sh.getDataRange().getValues(), h = vals[0], ix = {};
+  for (var i = 0; i < h.length; i++) ix[String(h[i]).trim()] = i;
+  if (ix['מזהה שליחה'] === undefined) return null;
+  for (var r = vals.length - 1; r >= 1; r--) {
+    if (String(vals[r][ix['מזהה שליחה']]) === sid) return { sh: sh, r: r + 1, v: vals[r], ix: ix };
+  }
+  return null;
 }
 
 /* בדיקת GH_TOKEN/GH_REPO בלי לכתוב שום קובץ — לשימוש "בדיקת חיבור"

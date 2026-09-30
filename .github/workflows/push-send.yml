@@ -99,4 +99,16 @@ jobs:
           # פילוח "מילה לתלמידים": סיימו/באמצע/לא התחילו, מסגרת,
           # מזהים מסוימים, ופנייה בשם. ראו sayFlt_ ב-apps-script.gs.
           FLT:   ${{ github.event.client_payload.flt }}
+          # מזהה השליחה — ההרצה מדווחת עליו לסקריפט בסוף (תוצאה ביומן,
+          # והתרעה לרכז אם נכשלה). ראו tools/push-report.js.
+          SID:   ${{ github.event.client_payload.sid }}
         run: node tools/push-send.js
+
+      # נפל לפני שהקוד הספיק לדווח (למשל ההתקנה) — מדווחים מכאן.
+      # דיווח כפול אינו מזיק: הסקריפט מתריע פעם אחת.
+      - name: דיווח על כישלון
+        if: failure()
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          SID:      ${{ github.event.client_payload.sid }}
+        run: node tools/push-report.js crash

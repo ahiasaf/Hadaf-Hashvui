@@ -22,6 +22,12 @@ var PUBLIC = 'BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbd
 var SUBJECT = 'https://hadaf-hashvui.vercel.app';
 
 var fs = require('fs');
+/* הדיווח לסקריפט בסוף ההרצה — ראו push-report.js. */
+var report = require('./push-report.js').report;
+var GONE = 0;
+function endWith(f, code) {
+  return report(f).then(function () { process.exit(code); });
+}
 
 var priv  = process.env.VAPID_PRIVATE || '';
 var key   = process.env.READ_KEY || '';
@@ -267,12 +273,12 @@ loadSubs().then(applyFlt).then(function (list) {
   /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
   if (WAIT && !list.length) {
     console.log('איש לא ביקש התראה על ' + WAIT + ' — לא נשלח דבר.');
-    process.exit(0);
+    return endWith({ none: 1 }, 0);
   }
   /* פילוח שאין בו איש — גם זה מצב רגיל ("כולם כבר סיימו"). */
   if ((FLT.seg || FLT.way || FLT.ids) && !list.length) {
     console.log('אין מנויים שעונים על הפילוח — לא נשלח דבר.');
-    process.exit(0);
+    return endWith({ none: 1 }, 0);
   }
   if (!list.length) {
     /* חשוב להפריד בין "לא הגענו לגיליון" ל"הגענו ואין בו איש":
@@ -285,7 +291,8 @@ loadSubs().then(applyFlt).then(function (list) {
       : 'אבל אין בו אף מנוי: הלשונית "התראות" ריקה.');
     console.error('צריך שמישהו ייכנס ל-/pushtest, יתקין, וילחץ');
     console.error('"הרשמה לקבלת התראות". רק אז יש למי לשלוח.');
-    process.exit(1);
+    /* אין אף מנוי — אינו כישלון של ההרצה, ואינו מתריע. */
+    return endWith({ none: 1 }, 0);
   }
   if (list.blocked) {
     console.log(list.blocked + ' מכשירים דיווחו שההתראות בהם חסומות — ' +
@@ -309,16 +316,21 @@ loadSubs().then(applyFlt).then(function (list) {
         console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' +
                     (e.statusCode || '') + ' ' +
                     String(e.body || e.message || '').slice(0, 120));
+        /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
+        if (e.statusCode === 404 || e.statusCode === 410) GONE++;
         return 0;
       });
   }));
 }).then(function (res) {
+  if (!res) return;                      /* יצאנו כבר למעלה */
   var done = res.reduce(function (a, b) { return a + b; }, 0);
   console.log('\nהגיעו: ' + done + ' · נכשלו: ' + (res.length - done));
   /* מנוי שפג (410/404) אינו תקלה של הקוד — המכשיר הסיר את
      ההרשאה. נכשלו כולם = כן תקלה. */
-  if (!done) process.exit(1);
+  if (!done && GONE === res.length) return endWith({ n: 0, bad: res.length, none: 1 }, 0);
+  if (!done) return endWith({ n: 0, bad: res.length, why: 'כל ' + res.length + ' המכשירים דחו' }, 1);
+  return endWith({ n: done, bad: res.length - done }, 0);
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
-  process.exit(1);
+  return endWith({ why: String(e && e.message || e) }, 1);
 });

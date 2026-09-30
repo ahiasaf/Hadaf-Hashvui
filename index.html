@@ -834,6 +834,14 @@ body.tk-sheeting #tk-bar{display:none}
 .pubbar.warn{border-color:var(--gold);background:#FFF8E8}
 .pubbar.warn b{color:#7A5A12}
 .pubbar.ok b{color:var(--ok)}
+.needs{margin:0 0 12px;padding:12px;border-radius:13px;border:1.5px solid #D9822B;background:#FFF6EC}
+.needs-t{font-size:.8rem;font-weight:800;color:#9A4F0C;margin-bottom:6px}
+.need{padding:10px 0;border-top:1px solid rgba(217,130,43,.3)}
+.need:first-of-type{border-top:0;padding-top:2px}
+.need-h{font-weight:800;font-size:.92rem}
+.need-m{font-size:.8rem;color:var(--ink-2);font-weight:700;margin-top:2px}
+.need-t{font-size:.86rem;margin-top:6px;padding:8px 10px;background:#fff;border-radius:9px;line-height:1.5}
+.need-w{font-size:.74rem;color:var(--ink-3);margin-top:4px}
 .publine{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:7px 8px 7px 12px;border-radius:10px;border:1px solid var(--gold);background:#FFF8E8;
   font-size:.82rem;font-weight:800;color:#7A5A12}
@@ -2012,7 +2020,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.74';
+var APP_VERSION = '8.99.75';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7698,13 +7706,19 @@ function admPane() {
   var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
   requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
-  el.innerHTML = admSubBar() + '<div id="adm-body"></div>';
+  el.innerHTML = (admTab === 'what' ? admNeeds() : '') +
+                 admSubBar() + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
 
   if (admTab === 'links') { admLinks(body); return admMarkHint(); }
   if (admTab === 'sys')   { admSet(body); return admInstallBox(); }
 
   if (admTab === 'what') {
+    /* "דורש טיפול" — נטען בכניסה ל"מה קורה", לכל היותר פעם בשתי דקות. */
+    if ((CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
+      admAutoAt.needs = Date.now();
+      setTimeout(function () { needsLoad(); if (stuckRows === null) stuckLoad(); }, 0);
+    }
     if (sub === 'reg')  return admReg(body);
     /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
        ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
@@ -7770,6 +7784,79 @@ function whenTxt(t) {
 var partState = { at:0, msg:'' };
 /* מתי נטען אוטומטית כל מסך — ראו admPane. */
 var admAutoAt = {};
+
+/* ============================================================
+   "דורש טיפול" — בראש "מה קורה", ורק כשיש בו משהו.
+   ============================================================
+   · הודעה של איש צוות שלא יצאה (ההרצה ב-GitHub נפלה). איש הצוות
+     אינו יודע על זה — אצלו "נשלח". כאן שולחים אותה שוב, כמו שהייתה.
+   · מי ביקש עזרה בהתקנה ועוד לא טופל.
+   ============================================================ */
+var needsFail = null, needsBusy = '', needsMsg = '';
+function needsLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(false);
+  return scriptGet({ read:'הודעות', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה "אין כישלונות" — משאירים את מה שהיה. */
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var rows = d.rows, h = (rows[0] || []).map(function (x) { return String(x).trim(); });
+    var c = function (r, k) { var i = h.indexOf(k); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+    needsFail = rows.slice(1).filter(function (r) {
+      var t = c(r, 'תוצאה');
+      return t.indexOf('נכשלה') === 0 && t.indexOf('נשלחה שוב') < 0 && c(r, 'מזהה שליחה');
+    }).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
+      return { sid: c(r, 'מזהה שליחה'), who: c(r, 'מי'), inst: io ? io.name : ic,
+               title: c(r, 'כותרת'), body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'),
+               why: c(r, 'תוצאה').replace(/^נכשלה:\s*/, ''),
+               at: c(r, 'תאריך') };
+    }).reverse();
+    admPane(); return true;
+  }).catch(function () { return false; });
+}
+function needsResend(sid) {
+  var key = (CFG.readKey || '').trim();
+  if (!key || needsBusy) return;
+  needsBusy = sid; needsMsg = ''; admPane();
+  scriptGet({ resend:sid, key:key }).then(function (d) {
+    needsBusy = '';
+    if (d && d.status === 'ok') {
+      needsFail = (needsFail || []).filter(function (m) { return m.sid !== sid; });
+      needsMsg = '✓ נשלחה שוב. אם גם הפעם לא תצא — תקבל התרעה.';
+    } else needsMsg = 'לא נשלחה. ' + ((d && d.message) || 'אין תשובה מהסקריפט.');
+    admPane();
+  }).catch(function () { needsBusy = ''; needsMsg = 'אין תשובה מהסקריפט.'; admPane(); });
+}
+function admNeeds() {
+  var fails = needsFail || [];
+  var stuck = (stuckRows || []).filter(function (p) { return !p.done; });
+  var h = '';
+  fails.forEach(function (m) {
+    h += '<div class="need"><div class="need-h">⚠ הודעה לא יצאה</div>' +
+      '<div class="need-m"><b>' + esc(m.who || 'צוות') + '</b>' +
+      (m.inst ? ' · ' + esc(m.inst) : '') + (m.at ? ' · ' + esc(whenTxt(Date.parse(m.at) || 0)) : '') +
+      '</div><div class="need-t">' + (m.title ? '<b>' + esc(m.title) + '</b><br>' : '') +
+      esc(m.body) + '</div><div class="need-w">' + esc(m.why) + '</div>' +
+      '<button class="btn p" style="margin:8px 0 0"' + (needsBusy ? ' disabled' : '') +
+      ' onclick="needsResend(\'' + esc(m.sid) + '\')">' +
+      (needsBusy === m.sid ? 'שולח…' : 'שליחה חוזרת — כמו שהייתה') + '</button></div>';
+  });
+  if (stuck.length) {
+    h += '<div class="need"><div class="need-h">🙋 ' + stuck.length +
+      (stuck.length === 1 ? ' ביקש' : ' ביקשו') + ' עזרה בהתקנה</div>' +
+      '<div class="need-m">' + stuck.slice(0, 3).map(function (p) { return esc(p.name || ''); }).join(' · ') +
+      (stuck.length > 3 ? ' ועוד' : '') + '</div>' +
+      '<button class="btn g" style="margin:8px 0 0" onclick="admSubGo(\'push\')">לפרטים</button></div>';
+  }
+  if (!h && !needsMsg) return '';
+  /* ההתרעות לטלפון יוצאות למכשירים שנרשמו כ"רכז" (שיחות ← תזכורות
+     לעצמי). מי שלא נרשם — מוזמן, בשורה אחת. */
+  var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
+  return '<div class="needs"><div class="needs-t">דורש טיפול</div>' + h +
+    (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') +
+    (subbed ? '' : '<button style="margin-top:8px;border:0;background:none;padding:0;font:inherit;font-size:.8rem;font-weight:800;color:#9A4F0C;text-decoration:underline;cursor:pointer" onclick="rmSubOn()">' +
+      'להתרעות על זה בטלפון הזה ←</button>') + '</div>';
+}
 
 /* שם עמודה → מפתח. הקריאה לפי שם ולא לפי מיקום: עמודה שתתווסף
    בעתיד תזיז את כל השאר, ורשימה שנקראת לפי מיקום הייתה מציגה
