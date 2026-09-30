@@ -1570,6 +1570,39 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   font-family:inherit;flex:none}
 .xrow:active{background:#FBE9E7;color:#B3261E}
 .psearch{width:100%;margin-top:9px}
+/* מסך "אנשים": רשימת ישיבות אחת, וישיבה פתוחה בלחיצה. */
+.ppl-bar{position:sticky;top:0;z-index:2;background:var(--surface);padding:2px 0 9px;
+  border-bottom:1px solid var(--rule-2)}
+.ppl-bar input{width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px 12px;
+  border:1px solid var(--rule);border-radius:11px;background:#fff;color:var(--ink)}
+.ppl-r2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;
+  font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.ppl-r2 select{flex:0 1 auto;max-width:60%;font:inherit;font-size:.82rem;padding:7px 10px;
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink)}
+.ppl-msg{font-size:.78rem;color:var(--ink-3);font-weight:700;margin-top:8px}
+.ppl-msg:empty{display:none}
+.pr{display:flex;align-items:center;gap:8px;width:100%;text-align:start;border:0;
+  border-bottom:1px solid var(--rule-2);background:none;padding:11px 2px;font:inherit;
+  color:var(--ink);cursor:pointer}
+.pr:last-child{border-bottom:0}
+.pr:active{background:var(--surface-2)}
+.pr-m{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:5px 8px}
+.pr-n{flex:1 1 150px;min-width:0;font-weight:800;font-size:.9rem;line-height:1.35}
+.pr-t{display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:0 1 auto}
+.pr-ch{flex:none;color:var(--ink-3);font-size:1.1rem;font-weight:800;line-height:1}
+.pt{font-style:normal;font-size:.72rem;font-weight:800;border-radius:7px;padding:3px 7px;
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.pt.g{background:#E6F2EA;color:#2B6343}
+.pt.a{background:#FCEFD2;color:#6E5212}
+.pt.r{background:none;color:var(--stop);padding:3px 2px}
+.pr.all .pr-n{color:var(--blue)}
+.ppl-oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ppl-oh b{font-size:1rem;font-weight:800;min-width:0}
+.ppl-back{flex:none;border:0;background:none;font:inherit;font-size:.8rem;font-weight:800;
+  color:var(--blue);cursor:pointer;padding:6px 2px}
+.ppl-oi{margin-top:8px;font-size:.8rem;color:var(--ink-2);font-weight:700;line-height:1.6}
+.ppl-oi a{color:var(--blue);direction:ltr;unicode-bidi:embed;text-decoration:none}
+#ppl-ord summary{cursor:pointer;font-weight:800;font-size:.9rem}
 .pway{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
   margin:12px 0 2px;padding-top:9px;border-top:1px solid var(--rule-2)}
 .pway:first-child{margin-top:4px;padding-top:0;border-top:0}
@@ -2028,7 +2061,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.81';
+var APP_VERSION = '8.99.82';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6086,7 +6119,7 @@ function renderCalls() {
         'הישיבות בגיליון זהים לאלה שבמסך "מוסדות".'
       : state.filter === 'signed'
         ? 'עוד לא נרשמה אף ישיבה דרך הכפתור \u2014 או שרשימת ההרשמות ' +
-          'עוד לא נטענה. היא נטענת ב"מה קורה \u2190 הרשמות".'
+          'עוד לא נטענה. היא נטענת ב"מה קורה \u2190 אנשים".'
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
 
   var regs = regByInst(), subs = subsByInst();
@@ -7685,9 +7718,9 @@ function paintAdmChip() {
    וכך המפלס העליון נשאר קצר ונקרא במבט. */
 var SUB = {
   /* "אנשים" ראשון: מסך אחד לכל תלמיד והורה — ראו admPeople. */
-  what:  [['people','אנשים'], ['reg','הרשמות'], ['part','משתתפים'],
-          ['calls','שיחות'], ['push','שליחה'], ['lottery','הגרלה'],
-          ['tmpl','נוסחים'], ['data','נתונים']],
+  /* "הרשמות" ו"משתתפים" נבלעו בו: אותן ישיבות, שני מספרים, ומסך אחד. */
+  what:  [['people','אנשים'], ['calls','שיחות'], ['push','שליחה'],
+          ['tmpl','נוסחים'], ['lottery','הגרלה'], ['data','נתונים']],
   /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
      הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
      והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
@@ -7717,6 +7750,13 @@ function admSubBar() {
 function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
+  /* מסך "אנשים" כבר על המסך: מעדכנים רק את מה שהשתנה. בנייה מחדש
+     הייתה יוצרת את הלוח (iframe) מאפס — הבהוב, טעינה, וחיפוש
+     וישיבה פתוחה שנעלמים באמצע עדכון. */
+  if (admTab === 'what' && admSubNow() === 'people' && document.getElementById('ppl')) {
+    pplSet('adm-needs', admNeeds());
+    return pplPaint();
+  }
   /* כל עדכון מצב בפאנל הזה עובר דרך הריסה ובנייה מחדש של כל
      ה-innerHTML — גם כשמה שהשתנה זו שורת הודעה אחת. אם הגובה
      הכולל משתנה, הדפדפן קובע מחדש איפה הגלילה נמצאת, וזה בדיוק
@@ -7726,7 +7766,7 @@ function admPane() {
   var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
   requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
-  el.innerHTML = (admTab === 'what' ? admNeeds() : '') +
+  el.innerHTML = (admTab === 'what' ? '<div id="adm-needs">' + admNeeds() + '</div>' : '') +
                  admSubBar() + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
 
@@ -7741,23 +7781,20 @@ function admPane() {
     }
     if (sub === 'people')  return admPeople(body);
     if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
-    if (sub === 'reg')  return admReg(body);
     /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
        ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
        בזמן שהלוח של ראש החטיבה נטען טרי בכל פתיחה. פעם אחת לכל
        שתי דקות, גם כשהטעינה נכשלה — כדי שלא תסתובב בלולאה. */
-    if ((sub === 'part' || sub === 'push') && (CFG.readKey || '').trim()) {
+    if (sub === 'push' && (CFG.readKey || '').trim()) {
       var now = Date.now(), last = admAutoAt[sub] || 0;
-      var fresh = sub === 'part' ? Store.get('partAt', 0) : (pushRows ? admAutoAt.pushOk || 0 : 0);
+      var fresh = pushRows ? admAutoAt.pushOk || 0 : 0;
       if (now - last > 120000 && now - fresh > 120000) {
         admAutoAt[sub] = now;
         setTimeout(function () {
-          if (sub === 'part') partLoad();
-          else pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
+          pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
         }, 0);
       }
     }
-    if (sub === 'part') return admPart(body);
     if (sub === 'push') return admPush(body);
     if (sub === 'tmpl') return admTmpl(body);
     if (sub === 'data') return admData(body);
@@ -7827,12 +7864,87 @@ var needsFail = null, needsBusy = '', needsMsg = '', sayLog = null;
    ============================================================ */
 var peopleH = 900;
 window.addEventListener('message', function (e) {
-  var d = e && e.data;
-  if (!d || typeof d.dfBoardH !== 'number') return;
+  var d = e && e.data, f = document.getElementById('people-f');
+  if (!d || !f || e.source !== f.contentWindow) return;
+  /* הלוח מדווח שהרשימה נקראה — מעדכנים את המספרים בלבד. */
+  if (d.dfBoardN) { ppl.boardMsg = d.ok ? '' : (d.msg || ''); if (d.ok) ppl.boardAt = Date.now(); pplPaint(); }
+  if (typeof d.dfBoardH !== 'number') return;
+  /* לוח מוסתר מודד אפס — לא לכווץ את המסגרת בגללו. */
+  if (f.style.display === 'none') return;
   peopleH = Math.max(300, d.dfBoardH);
-  var f = document.getElementById('people-f');
-  if (f) f.style.height = peopleH + 'px';
+  f.style.height = peopleH + 'px';
 });
+
+/* ============================================================
+   "אנשים" — רשימת ישיבות אחת, וישיבה פתוחה בלחיצה.
+   ============================================================
+   "הרשמות", "משתתפים" ו"אנשים" היו שלושה מסכים על אותן ישיבות.
+   כאן — שורה לכל ישיבה: כמה נרשמו בפועל, כמה דיווח ראש החטיבה
+   (ההערכה שבהרשמה), והפער ביניהם, שהוא השיחה שכדאי לנהל איתו.
+
+   כפתור לכל ישיבה לא החזיק מעמד מול עשרות ישיבות, ולכן חיפוש
+   ומסנן אחד ("רק פערים"). לחיצה פותחת את הלוח של הישיבה.
+
+   **הלוח (iframe) נוצר פעם אחת ונשאר.** מעבר ישיבה נשלח אליו
+   בהודעה, ורענון מעדכן רק שורות שהשתנו — בלי הבהוב, ובלי לאבד
+   חיפוש, מסנן או ישיבה פתוחה.
+   ============================================================ */
+var ppl = { q:'', f:'', open:null, y:0, boardMsg:'', boardAt:0 };
+var pplLast = {};
+/* innerHTML רק כשהתוכן השתנה — אחרת לא נוגעים. */
+function pplSet(id, html) {
+  var e = document.getElementById(id);
+  if (!e || pplLast[id] === html) return;
+  pplLast[id] = html; e.innerHTML = html;
+}
+/* קוד הישיבה כפי שהלוח מסווג אותו: קוד שאינו ברשימה = "ללא ישיבה". */
+function pplCode(c) {
+  c = c || '';
+  for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return c;
+  return '-';
+}
+function pplName(c, r) {
+  if (c === '') return 'כל הישיבות';
+  if (c === '-') return 'ללא ישיבה';
+  for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return INSTITUTIONS[i].name;
+  return (r && r.inst) || c;
+}
+/* המספרים. "נרשמו" — מאותה רשימה שהלוח מציג (המטמון שלו), ועד
+   שהוא נקרא — מרשימת המשתתפים הישנה. "דווחו" — ההערכה שבהרשמה,
+   ואם אין בה מספר — כמות הגמרות שהוזמנה. */
+function pplData() {
+  var src = Store.get('rosterCache:all', null);
+  if (!src) src = (Store.get('partCache', []) || []).filter(function (p) { return p.role !== 'הורה'; });
+  var n = {}, tot = 0;
+  src.forEach(function (p) { var c = pplCode(p.inst); n[c] = (n[c] || 0) + 1; tot++; });
+  var regs = (Store.get('registrations', []) || []).slice(), own = regSaved(), reg = {};
+  if (own && own.code && !regs.some(function (r) { return r.code === own.code; })) regs.unshift(own);
+  regs.forEach(function (r) { if (r.code) reg[r.code] = r; });
+  var seen = {}, rows = [], repTot = 0;
+  Object.keys(n).concat(Object.keys(reg)).forEach(function (c) {
+    if (seen[c]) return; seen[c] = 1;
+    var r = reg[c] || null, got = n[c] || 0;
+    var rep = r ? (r.size || r.total || 0) : null;
+    if (rep) repTot += rep;
+    rows.push({ c:c, name:pplName(c, r), got:got, rep:rep, reg:r,
+                gap: rep ? Math.abs(rep - got) : 0 });
+  });
+  rows.sort(function (a, b) {
+    return (b.got - a.got) || String(a.name).localeCompare(String(b.name), 'he');
+  });
+  return { rows:rows, tot:tot, repTot:repTot,
+           gaps:rows.filter(function (x) { return x.gap; }).length };
+}
+function pplTags(x) {
+  return '<i class="pt g">' + x.got + ' נרשמו</i>' +
+    (x.rep ? '<i class="pt a">' + x.rep + ' דווחו</i>' : '') +
+    (x.gap ? '<i class="pt r">פער ' + x.gap + '</i>' : '');
+}
+function pplRowHtml(x) {
+  return '<span class="pr-m"><span class="pr-n">' + esc(x.name) + '</span>' +
+    '<span class="pr-t">' + pplTags(x) + '</span></span><span class="pr-ch" aria-hidden="true">‹</span>';
+}
+
 function admPeople(el) {
   if (!(CFG.readKey || '').trim()) {
     el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
@@ -7840,11 +7952,199 @@ function admPeople(el) {
       '"סיסמת הקריאה".</p><button class="btn p" onclick="admGo(\'sys\')">להגדרות</button></div>';
     return;
   }
-  /* מי ביקש עזרה — כאן, ליד האנשים, ולא בין טופסי השליחה. */
+  /* ההרשמות וההתנגשויות — פעם בשתי דקות לכל היותר. הרשימה עצמה
+     נקראת בתוך הלוח, שנטען כאן. */
+  if (Date.now() - (admAutoAt.ppl || 0) > 120000) {
+    admAutoAt.ppl = Date.now();
+    setTimeout(function () { pullRegs(); conflictLoad(); }, 0);
+  }
+  var o = ppl.open;
+  el.innerHTML =
+    '<div id="ppl">' +
+    '<div id="ppl-stuck"></div><div id="ppl-conf"></div>' +
+    '<div id="ppl-lv">' +
+      '<div class="adm-card" style="margin-bottom:11px">' +
+        '<div class="ppl-bar">' +
+          '<input id="ppl-q" type="search" placeholder="⌕ חיפוש ישיבה" aria-label="חיפוש ישיבה" value="' + esc(ppl.q) + '">' +
+          '<div class="ppl-r2"><span>ישיבות</span>' +
+          '<select id="ppl-f" aria-label="סינון"><option value="">הכול</option>' +
+          '<option value="gap"' + (ppl.f ? ' selected' : '') + '>רק פערים</option></select></div>' +
+        '</div>' +
+        '<div class="ppl-msg" id="ppl-msg"></div>' +
+        '<div id="ppl-list"></div>' +
+        '<p class="h" id="ppl-none" style="display:none;margin:12px 0 4px">אין ישיבה שעונה על החיפוש.</p>' +
+        '<button class="btn g" style="margin-top:10px" onclick="pplRefresh()">רענון מהגיליון</button>' +
+      '</div>' +
+      '<details id="ppl-ord" class="adm-card" style="margin-bottom:11px">' +
+        '<summary id="ppl-ords"></summary><div id="ppl-ordb" style="margin-top:8px"></div></details>' +
+    '</div>' +
+    '<div id="ppl-ov" style="display:none">' +
+      '<div class="adm-card" style="margin-bottom:11px"><div class="ppl-oh"><b id="ppl-on"></b>' +
+      '<button class="ppl-back" onclick="pplBack()">חזרה לישיבות ←</button></div>' +
+      '<div class="ppl-oi" id="ppl-oi"></div></div>' +
+    '</div>' +
+    '<iframe id="people-f" src="board.html?inst=all&embed=1' +
+      (o ? '&filt=' + encodeURIComponent(o) : '') + '" title="אנשים" ' +
+      'style="width:100%;border:0;display:none;height:' + peopleH + 'px"></iframe>' +
+    '</div>';
+  pplLast = { 'adm-needs': admNeeds() };
+  var q = document.getElementById('ppl-q');
+  q.oninput = function () { ppl.q = q.value; pplPaint(); };
+  document.getElementById('ppl-f').onchange = function () { ppl.f = this.value; pplPaint(); };
+  document.getElementById('ppl-list').onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-c]');
+    if (b) pplOpen(b.getAttribute('data-c'));
+  };
+  pplPaint();
+}
+
+/* כל עדכון עובר כאן, ונוגע רק במה שהשתנה. */
+function pplPaint() {
+  var list = document.getElementById('ppl-list');
+  if (!list) return;
+  var d = pplData(), open = ppl.open !== null;
+
   var stuck = (stuckRows || []).filter(function (p) { return !p.done; }).length;
-  el.innerHTML = (stuck ? admStuck() : '') +
-    '<iframe id="people-f" src="board.html?inst=all&embed=1" title="אנשים" ' +
-    'style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe>';
+  pplSet('ppl-stuck', stuck ? '<div style="margin-bottom:11px">' + admStuck() + '</div>' : '');
+  var conf = (conflictRows || []).filter(function (p) { return !p.done; }).length;
+  pplSet('ppl-conf', conf ? '<div style="margin-bottom:11px">' + admConflicts() + '</div>' : '');
+
+  document.getElementById('ppl-lv').style.display = open ? 'none' : '';
+  document.getElementById('ppl-ov').style.display = open ? '' : 'none';
+  document.getElementById('people-f').style.display = open ? 'block' : 'none';
+
+  /* שורת המצב: טעינה, שגיאה, או מתי נקראה הרשימה. */
+  var m = [];
+  if (ppl.boardMsg) m.push(esc(ppl.boardMsg));
+  if (regState.msg && regState.msg !== 'nokey') m.push('הרשמות: ' + esc(regState.msg));
+  if (!m.length && ppl.boardAt) m.push('עודכן ' + esc(whenTxt(ppl.boardAt)));
+  pplSet('ppl-msg', m.join(' · '));
+  var fo = document.querySelector('#ppl-f option[value="gap"]');
+  var ft = 'רק פערים (' + d.gaps + ')';
+  if (fo && fo.textContent !== ft) fo.textContent = ft;
+
+  /* השורות — לפי מפתח. שורה קיימת מתעדכנת רק כשהמספרים שלה
+     השתנו; חיפוש וסינון רק מסתירים. */
+  /* בשורת הסיכום אין "פער": רק חלק מהישיבות דיווחו, והפרש בין
+     הסכומים היה נראה כמו בעיה שאינה קיימת. */
+  var q = nameKey(ppl.q), all = { c:'', name:'כל הישיבות', got:d.tot, rep:d.repTot || null, gap:0 };
+  var rows = [all].concat(d.rows), have = {}, want = [], any = false;
+  Array.prototype.forEach.call(list.children, function (b) { have[b.getAttribute('data-c')] = b; });
+  rows.forEach(function (x) {
+    var b = have[x.c];
+    if (!b) {
+      b = document.createElement('button');
+      b.className = 'pr' + (x.c === '' ? ' all' : '');
+      b.setAttribute('data-c', x.c);
+    }
+    delete have[x.c];
+    var h = pplRowHtml(x);
+    if (b._h !== h) { b._h = h; b.innerHTML = h; }
+    var vis = x.c === ''
+      ? !q && !ppl.f
+      : (!ppl.f || x.gap) && (!q || nameKey(x.name).indexOf(q) >= 0);
+    if (vis && x.c !== '') any = true;
+    var dsp = vis ? '' : 'none';
+    if (b.style.display !== dsp) b.style.display = dsp;
+    want.push(b);
+  });
+  for (var k in have) list.removeChild(have[k]);
+  for (var i = 0; i < want.length; i++) {
+    if (list.children[i] !== want[i]) list.insertBefore(want[i], list.children[i] || null);
+  }
+  document.getElementById('ppl-none').style.display = any || (!q && !ppl.f && !d.rows.length) ? 'none' : '';
+
+  pplOrder();
+  if (open) pplOneHead(d);
+}
+
+/* הזמנת הגמרות — מה שישב בראש "הרשמות", מקופל בתחתית הרשימה. */
+function pplOrder() {
+  var list = Store.get('registrations', []) || [], own = regSaved();
+  if (own && !list.some(function (r) { return r.code === own.code; })) list = [own].concat(list);
+  var tot = list.reduce(function (a, r) { return a + (r.total || 0); }, 0);
+  pplSet('ppl-ords', 'הזמנת הגמרות · ' + list.length + ' הרשמות · ' + tot + ' גמרות');
+  if (!list.length) { pplSet('ppl-ordb', '<p class="h">עוד לא נקראה אף הרשמה מהגיליון.</p>'); return; }
+  var per = {}, sum = 0;
+  list.forEach(function (r) {
+    var q = regMigrate(r);
+    TRACKS.forEach(function (t) {
+      SFARIM.forEach(function (s) {
+        var n = q[qk(t.id, s.id)] || 0;
+        per[qk(t.id, s.id)] = (per[qk(t.id, s.id)] || 0) + n;
+        sum += n * priceOf(s.id).price;
+      });
+    });
+  });
+  pplSet('ppl-ordb', SFARIM.map(function (s) {
+    var p = priceOf(s.id);
+    var n = TRACKS.reduce(function (a, t) { return a + (per[qk(t.id, s.id)] || 0); }, 0);
+    var gap = p.min - n;
+    return '<div class="row" style="padding:7px 0"><span>' + esc(s.name) +
+      (p.min ? ' <span style="color:var(--ink-3)">· יעד ' + p.min + '</span>' : '') +
+      '<div class="sub">' + TRACKS.map(function (t) {
+        return t.masechet + ' ' + (per[qk(t.id, s.id)] || 0);
+      }).join(' · ') + '</div></span>' +
+      '<b' + (gap <= 0 ? ' style="color:var(--ok)"' : '') + '>' + n +
+      (p.min && gap > 0
+        ? ' <span style="font-weight:600;color:var(--ink-3)">(חסרים ' + gap + ')</span>'
+        : p.min ? ' ✓' : '') + '</b></div>';
+  }).join('') + '<p class="h" style="margin:9px 0 0">סה"כ להזמנה: ' + shek(sum) + '</p>');
+}
+
+/* ראש הישיבה הפתוחה: המספרים, ומי נרשם בשמה — מה שהיה בכרטיס
+   שלה ב"הרשמות". */
+function pplOneHead(d) {
+  var c = ppl.open, x = null;
+  if (c === '') x = { c:'', got:d.tot, rep:d.repTot || null, gap:0 };
+  d.rows.forEach(function (y) { if (y.c === c) x = y; });
+  if (!x) x = { c:c, got:0, rep:null, gap:0 };
+  pplSet('ppl-on', esc(pplName(c, x.reg)));
+  var r = x.reg, h = '<div class="pr-t">' + pplTags(x) + '</div>';
+  if (r) {
+    var q = regMigrate(r), bits = [];
+    TRACKS.forEach(function (t) {
+      SFARIM.forEach(function (s) {
+        var n = q[qk(t.id, s.id)] || 0;
+        if (n) bits.push(esc(t.masechet + ' · ' + s.name) + ' ' + n);
+      });
+    });
+    h += '<div style="margin-top:6px">' + (r.who ? esc(r.who) : 'ראש החטיבה') +
+      (r.phone ? ' · <a href="tel:' + digits(r.phone) + '">' + esc(r.phone) + '</a>' : '') + '</div>' +
+      (bits.length ? '<div>' + bits.join(' · ') + '</div>' : '') +
+      (r.note ? '<div>הערה: ' + esc(r.note) + '</div>' : '');
+  } else if (c !== '' && c !== '-') {
+    h += '<div style="margin-top:6px">ראש החטיבה עוד לא נרשם.</div>';
+  }
+  pplSet('ppl-oi', h);
+}
+
+function pplFrame(msg) {
+  var f = document.getElementById('people-f');
+  if (f && f.contentWindow) try { f.contentWindow.postMessage(msg, '*'); } catch (e) {}
+}
+function pplOpen(c) {
+  ppl.y = window.pageYOffset || document.documentElement.scrollTop || 0;
+  ppl.open = c;
+  pplPaint();
+  pplFrame({ dfFilt: c });
+  var t = document.getElementById('ppl');
+  if (t) window.scrollTo(0, Math.max(0, t.getBoundingClientRect().top + (window.pageYOffset || 0) - 10));
+  /* השורה שנלחצה הוסתרה — המיקוד עובר ל"חזרה", ולא נופל לראש העמוד. */
+  var k = document.querySelector('.ppl-back');
+  if (k) try { k.focus({ preventScroll: true }); } catch (e) {}
+}
+function pplBack() {
+  var c = ppl.open;
+  ppl.open = null;
+  pplPaint();
+  window.scrollTo(0, ppl.y || 0);
+  var b = document.querySelector('#ppl-list .pr[data-c="' + String(c).replace(/["\\]/g, '') + '"]');
+  if (b) try { b.focus({ preventScroll: true }); } catch (e) {}
+}
+function pplRefresh() {
+  pplFrame({ dfReload: 1 });
+  pullRegs(); conflictLoad();
 }
 
 /* יומן ההודעות — מה יצא, ממי, ומה עלה בגורלו. */
