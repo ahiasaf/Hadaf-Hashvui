@@ -1343,6 +1343,21 @@ function drawTop() {
      הגיע לכאן, ואם המסך יפתח באמירה אחרת משלו הוא ייראה כמו
      מקום אחר. ריק = חוזרים לנוסח הרגיל, ולא לשורה ריקה. */
   $('lead').textContent = (forDad && JOIN.leadDad) ? JOIN.leadDad : JOIN.lead;
+  /* **תפקיד שנזכר — ואפשר לצאת ממנו מיד.** מי שפתח /join נקי במכשיר
+     שבו פעם נפתח קישור ההורים מקבל את הנוסח להורה. כאן — קישור קטן
+     להחליף, לביקור הזה בלבד: הזיכרון לאייקון של ההורה נשאר. */
+  var dn = $('dad-no');
+  if (!dn) {
+    dn = document.createElement('button');
+    dn.id = 'dad-no'; dn.className = 'thin'; dn.type = 'button';
+    $('lead').parentNode.insertBefore(dn, $('lead').nextSibling);
+    dn.onclick = function () {
+      forDad = false; setRole('kid'); drawTop();
+      try { drawWho(); } catch (e) {}
+    };
+  }
+  dn.textContent = JOIN.notDad || '';
+  dn.style.display = (forDad && !/[?&]for=dad\b/.test(location.search) && JOIN.notDad) ? '' : 'none';
   var wh = $('who-h'); if (wh) wh.textContent = JOIN.whoH || '';
 
   var s = startsIn();
@@ -3062,7 +3077,7 @@ function wzInstall() {
   if (window.APPX && APPX.iosOther && APPX.iosOther()) {
     return '<div class="how warn"><b>' + esc(ASK_UI.iosOthH) + '</b><br>' +
       esc(ASK_UI.iosOthB) + '</div>' +
-      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>';
+      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>' + wzSkipBtn();
   }
   /* `inApp()` מזהה לפי מחרוזת הדפדפן, וזה לא תופס את וואטסאפ
      באנדרואיד — הוא פותח ב-Custom Tab שמזדהה כמו כרום רגיל.
@@ -3083,14 +3098,14 @@ function wzInstall() {
       (out ? '<a class="wznext" style="display:block;text-align:center;' +
              'text-decoration:none;box-sizing:border-box" href="' + esc(out) +
              '">פתיחה בדפדפן</a>' : '') +
-      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>';
+      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>' + wzSkipBtn();
   }
   /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
      עכשיו "סיימתי" החזיר לתחילת המדריך, כאילו לא קרה כלום. */
   if (WZ_GUIDE_DONE) {
     return '<div class="how"><b>' + esc(jt('wzGuDoneH')) + '</b><br>' +
       esc(jt('wzGuDoneB')) + '</div>' + appIcon() +
-      '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>';
+      '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>' + wzSkipBtn();
   }
   /* הותקנה, ואנחנו עדיין בדפדפן — באייפון זה המצב שנתקעים בו
      בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
@@ -3129,8 +3144,7 @@ function wzInstall() {
       '</ol><span class="edge-had">' + esc(jt('edgeHad')) + '</span></div>'
     : samsungNow ? '' : (APPX.bip()
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
-      '<p class="note" style="text-align:start">ייפתח חלון של הטלפון — ' +
-      'לוחצים "התקן". לוקח שנייה.</p>'
+      '<p class="note" style="text-align:start">' + esc(jt('wzInstNote')) + '</p>'
     : (window.GUIDE_UI ? '<div class="wz-guide" id="gu-here"></div>'
                        : appHowList()));
   /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
@@ -3140,8 +3154,13 @@ function wzInstall() {
      והיא עשתה את ההפך: תלמיד שרואה קיר של מלל בשלב הראשון
      נבהל וסוגר. מה שנשאר הוא ההוראות עצמן. */
   if (APPX.waBox) h = APPX.waBox() + h;
-  return h +
-    '<button class="thin" id="wz-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
+  return h + wzSkipBtn();
+}
+/* דלת העזרה — **בכל** מסך התקנה. היא הוסתרה במסכים שחזרו מוקדם
+   (אייפון בדפדפן אחר, חלון וואטסאפ, אחרי המדריך) — בדיוק במקומות
+   שבהם אדם נתקע ומחפש אותה. */
+function wzSkipBtn() {
+  return '<button class="thin" id="wz-skip"><u>' + esc(jt('wzSkip')) + '</u>' +
     '<span class="why">' + esc(jt('wzSkipB')) + '</span></button>';
 }
 
@@ -3268,9 +3287,19 @@ function wzNote() {
   if (noteDone() && notePerm() === 'granted') {
     return '<div class="v-ok">✓</div><h2>' + esc(jt('wzFinT')) + '</h2>' +
       '<p>' + esc(jt('wzFinB')) + '</p>' +
+      /* הצעד הבא — ללמוד. לא עוד משפט "הדף מחכה לך למטה". */
+      '<button class="wznext" id="wz-learn">' + esc(jt('wzLearn')) + '</button>' +
       '<button class="thin" id="wz-t-go">' + esc(jt('wzTestGo')) + '</button>';
   }
-  if (!canNote() || notePerm() === 'denied') {
+  /* **"אין התראות בדפדפן הזה" אינו "חסמת".** לראשון אין מה לפתוח
+     בהגדרות — הדרך היא לפתוח מהאייקון (האפליקציה המותקנת). */
+  if (!canNote()) {
+    return '<div class="wzkick">שלב 4 מתוך 4</div>' +
+      '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
+      '<p>' + esc(jt('wzNoNote')) + '</p>' +
+      '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
+  }
+  if (notePerm() === 'denied') {
     return '<div class="wzkick">שלב 4 מתוך 4</div>' +
       '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
       '<p>ההתראות חסומות במכשיר הזה. אפשר לפתוח אותן ' +
@@ -3312,12 +3341,16 @@ function wzWire() {
   };
   if ((b = $('wz-copy'))) b.onclick = function () {
     var t = $('wz-copy');
-    var done = function () { t.textContent = 'הקישור הועתק ✓'; };
+    /* אחרי ההעתקה — מה עושים איתה. ואם נכשלה — הכתובת גלויה, לסימון
+       ידני (זה קישור שמעתיקים, ולכן מותר להציג אותו). */
+    var done = function () { t.textContent = (window.ASK_UI && ASK_UI.waBoxOk) || 'הקישור הועתק ✓'; };
+    var bad = function () {
+      t.outerHTML = '<div class="how" style="direction:ltr;text-align:left;word-break:break-all;' +
+        'user-select:all">' + esc(location.href) + '</div>';
+    };
     if (navigator.clipboard && navigator.clipboard.writeText)
-      navigator.clipboard.writeText(location.href).then(done)['catch'](function () {
-        t.textContent = 'לא הצלחתי להעתיק';
-      });
-    else t.textContent = 'לא הצלחתי להעתיק';
+      navigator.clipboard.writeText(location.href).then(done)['catch'](bad);
+    else bad();
   };
   if ((b = $('wz-note'))) b.onclick = appAskNote;
   if ((b = $('wz-t-yes')))  b.onclick = function () { NOTE_T = ''; wzDraw(); };
@@ -3325,6 +3358,11 @@ function wzWire() {
   if ((b = $('wz-t-no')))   b.onclick = function () { NOTE_T = 'no'; wzDraw(); };
   if ((b = $('wz-t-again'))) b.onclick = noteTest;
   if ((b = $('wz-t-go')))   b.onclick = noteTest;
+  if ((b = $('wz-learn')))  b.onclick = function () {
+    $('wz').innerHTML = '';
+    document.body.className = document.body.className.replace(/ ?wz\b/g, '');
+    var w = $('wk'); if (w && w.scrollIntoView) w.scrollIntoView({ block: 'start' });
+  };
   if ((b = $('wz-nonote'))) b.onclick = function () {
     $('wz').innerHTML = '';
     document.body.className = document.body.className.replace(/ ?wz\b/g, '');
@@ -3429,6 +3467,15 @@ $('hero-go').onclick = function () {
    וגוללת למטה נראית כמו תקלה ולא כמו רצף. */
 if (/[?&]go=1\b/.test(location.search)) {
   window.addEventListener('load', function () { setTimeout(toForm, 60); });
+}
+/* `?nointro=1` — מי שעבר מוואטסאפ לכרום באמצע ההתקנה (ראו chromeUrl
+   ב-getapp.js). הוא כבר לחץ "אני מצטרף" בצד השני, ולכן ממשיכים
+   ישר במסע — לא חוזרים אותו לנחיתה. שאר הפרמטרים (ישיבה, הורה,
+   הזמנה) נשארו בכתובת, ולכן גם הם נשמרים. */
+if (WZ_ON && /[?&]nointro=1\b/.test(location.search) && !/[?&]go=1\b/.test(location.search)) {
+  window.addEventListener('load', function () {
+    setTimeout(function () { if (document.body.className.indexOf(' wz ') < 0) wzStart(); }, 60);
+  });
 }
 
 /* מנוע הרקע. עד עכשיו הוא נרשם רק מהעמוד הראשי, ולכן מסך
