@@ -155,6 +155,24 @@ button{cursor:pointer;border:none;background:none}
 .reset{margin-top:20px;border-top:1px solid var(--rule);padding-top:14px}
 .reset .hint{margin:8px 2px 0}
 .empty{text-align:center;color:var(--ink-2);font-size:.94rem;padding:40px 10px}
+
+/* ---------- מרשימת בית הספר ----------
+   בחירה במקום הקלדה: שכבה, ואז כיתה אחת או כמה. הבחירה ממלאת
+   את השדות שמתחת, וכל השאר — שמירה, עריכה — נשאר כפי שהיה. */
+.src{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+     padding:12px 12px 10px;margin-bottom:16px;box-shadow:var(--sh)}
+.src .hint{margin:8px 2px 0}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{min-width:46px;padding:9px 12px;border-radius:11px;font-size:.95rem;font-weight:800;
+      background:var(--sunk);border:1px solid var(--rule);color:var(--ink);
+      font-variant-numeric:tabular-nums}
+.pill .n{display:inline-block;font-size:.72rem;font-weight:700;color:var(--ink-2);margin-inline-start:7px;
+         padding-inline-start:7px;border-inline-start:1px solid var(--rule)}
+.pill.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.pill.on .n{color:rgba(255,255,255,.78);border-color:rgba(255,255,255,.4)}
+.pill.all{font-size:.84rem}
+.srcacts{display:flex;gap:14px;flex-wrap:wrap;padding:2px 2px 0}
+.lnk{font-size:.8rem;font-weight:800;color:var(--blue);padding:4px 0}
 </style>
 </head>
 <body>
@@ -169,8 +187,27 @@ button{cursor:pointer;border:none;background:none}
 
   <!-- ===== מסך א׳ · הרשימה ===== -->
   <div class="view" id="vSetup">
-    <p class="lead">הדבק כאן את שמות התלמידים — שם בכל שורה.
-      הרשימה נשמרת בטלפון הזה בלבד, ואפשר לערוך אותה בכל רגע.</p>
+    <p class="lead">בחר שכבה וכיתה מרשימת בית הספר, או הדבק שמות — שם
+      בכל שורה. הרשימה נשמרת בטלפון הזה בלבד, ואפשר לערוך אותה בכל רגע.</p>
+    <div class="src">
+      <div id="srcNo">
+        <button class="btn ghost" id="bXl">טען רשימת בית ספר מקובץ אקסל</button>
+        <p class="hint">הקובץ נקרא בטלפון הזה ונשמר בו בלבד — שום שם אינו
+          נשלח לשרת. גיליון לכל שכבה, ועמודות: שם משפחה, שם פרטי, כיתה, מקבילה.</p>
+      </div>
+      <div id="srcYes">
+        <span class="fld">שכבה</span>
+        <div class="pills" id="pG"></div>
+        <span class="fld" id="fC">כיתה · אפשר לבחור כמה</span>
+        <div class="pills" id="pC"></div>
+        <div class="srcacts">
+          <button class="lnk" id="bLink">שלח את הרשימה למלווה</button>
+          <button class="lnk" id="bXl2">החלף קובץ</button>
+        </div>
+      </div>
+      <input type="file" id="fXl" style="display:none"
+             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </div>
     <label class="fld" for="iTtl">שם הכיתה</label>
     <input class="txt" id="iTtl" type="text" placeholder="ז׳5 · יום טיול">
     <label class="fld" for="iNames">שמות התלמידים</label>
@@ -558,6 +595,7 @@ button{cursor:pointer;border:none;background:none}
   $('bWa').addEventListener('click', function () { toWhatsApp(report()); });
 
   $('bEdit').addEventListener('click', function () {
+    picked = false;
     var names = [], i;
     for (i = 0; i < S.kids.length; i++) names.push(S.kids[i].n);
     $('iTtl').value = S.title || '';
@@ -568,6 +606,7 @@ button{cursor:pointer;border:none;background:none}
   });
 
   $('bCancel').addEventListener('click', function () {
+    picked = false;
     if (!S.kids.length) return;          /* אין לאן לחזור */
     render();
     show('list');
@@ -576,8 +615,16 @@ button{cursor:pointer;border:none;background:none}
   $('bSave').addEventListener('click', function () {
     var names = parseNames($('iNames').value);
     if (!names.length) { window.alert('לא נמצא אף שם ברשימה.'); return; }
+    /* רשימה שנבחרה מבית הספר היא יום חדש — כמו רשימה מקישור.
+       סימונים של הכיתה הקודמת אינם נמחקים בלי לשאול. */
+    if (picked && S.kids.length && (count(S.here) || count(S.out)) &&
+        !window.confirm('רשימה חדשה פותחת מפקד חדש, והסימונים של הרשימה הקודמת יימחקו.\nלהמשיך?')) return;
     S.title = $('iTtl').value.replace(/^\s+|\s+$/g, '');
     applyNames(names);
+    if (picked) {
+      S.phase = 1; S.out = {}; S.here = {}; S.round = 1; S.roundAt = 0;
+      goneOpen = false; openNote = null; picked = false;
+    }
     save();
     render();
     show('list');
@@ -607,6 +654,348 @@ button{cursor:pointer;border:none;background:none}
     save();
     render();
     show('list');
+  });
+
+  /* ---------- רשימת בית הספר (אקסל) ----------
+
+     קובץ ההנהלה — שכבה בכל גיליון, ובכל שורה שם משפחה, שם פרטי,
+     כיתה ומקבילה (עמודות A עד D) — נקרא כאן, בטלפון. אין ספרייה
+     ואין CDN, ולכן הפענוח כתוב כאן: xlsx הוא zip של קובצי XML.
+
+     שורה נחשבת לתלמיד רק כשיש בה כיתה ומקבילה מספרית. כך שורת
+     הכותרת, שם הגיליון ושורות ריקות נופלות לבד, בלי לחפש מילים.
+
+     הרשימה נשמרת ב-localStorage בלבד, כמו כל השאר בעמוד. */
+
+  var RKEY = 'tiul.roster.v1';
+  var R = null;             /* { at, g:[{ g:'ז', c:[{ p:'1', k:[...] }] }] } */
+  var pickG = 0, pickC = {}, picked = false;
+
+  /* inflate (deflate גולמי, RFC 1951). קטן ואיטי-יחסית — קובץ של
+     אלף תלמידים הוא רבע מגה, ונפתח בפחות משנייה גם בטלפון ישן. */
+  var LBASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+  var LEXT  = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+  var DBASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+  var DEXT  = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+  var CLORD = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];
+
+  function inflate(src, size) {
+    var out = new Uint8Array(size), op = 0;
+    var pos = 0, tag = 0, bc = 0;
+
+    function bit() {
+      if (!bc) { if (pos >= src.length) throw new Error('eof'); tag = src[pos++]; bc = 8; }
+      var b = tag & 1; tag >>>= 1; bc--; return b;
+    }
+    function bits(n) {
+      var v = 0, i;
+      for (i = 0; i < n; i++) v |= bit() << i;
+      return v;
+    }
+    function tree(lens, off, num) {
+      var t = { c: [], s: [] }, offs = [], i, sum = 0;
+      for (i = 0; i < 16; i++) t.c[i] = 0;
+      for (i = 0; i < num; i++) t.c[lens[off + i]]++;
+      t.c[0] = 0;
+      for (i = 0; i < 16; i++) { offs[i] = sum; sum += t.c[i]; }
+      for (i = 0; i < num; i++) { if (lens[off + i]) t.s[offs[lens[off + i]]++] = i; }
+      return t;
+    }
+    function sym(t) {
+      var sum = 0, cur = 0, len = 0;
+      do {
+        cur = 2 * cur + bit();
+        len++;
+        if (len > 15) throw new Error('code');
+        sum += t.c[len];
+        cur -= t.c[len];
+      } while (cur >= 0);
+      return t.s[sum + cur];
+    }
+    function put(b) {
+      if (op >= out.length) throw new Error('size');
+      out[op++] = b;
+    }
+
+    var fixL = null, fixD = null, last, type, i, n;
+    do {
+      last = bit();
+      type = bits(2);
+      if (type === 0) {
+        bc = 0;                                /* יישור לבית */
+        n = src[pos] | (src[pos + 1] << 8);
+        pos += 4;
+        for (i = 0; i < n; i++) put(src[pos++]);
+        continue;
+      }
+      var lt, dt;
+      if (type === 1) {
+        if (!fixL) {
+          var fl = [];
+          for (i = 0; i < 144; i++) fl[i] = 8;
+          for (; i < 256; i++) fl[i] = 9;
+          for (; i < 280; i++) fl[i] = 7;
+          for (; i < 288; i++) fl[i] = 8;
+          fixL = tree(fl, 0, 288);
+          var fd = [];
+          for (i = 0; i < 30; i++) fd[i] = 5;
+          fixD = tree(fd, 0, 30);
+        }
+        lt = fixL; dt = fixD;
+      } else if (type === 2) {
+        var hlit = bits(5) + 257, hdist = bits(5) + 1, hclen = bits(4) + 4;
+        var cl = [];
+        for (i = 0; i < 19; i++) cl[i] = 0;
+        for (i = 0; i < hclen; i++) cl[CLORD[i]] = bits(3);
+        var ct = tree(cl, 0, 19), lens = [], s, prev, rep;
+        n = 0;
+        while (n < hlit + hdist) {
+          s = sym(ct);
+          if (s < 16) { lens[n++] = s; continue; }
+          if (s === 16) { prev = lens[n - 1]; rep = 3 + bits(2); }
+          else if (s === 17) { prev = 0; rep = 3 + bits(3); }
+          else { prev = 0; rep = 11 + bits(7); }
+          while (rep--) lens[n++] = prev;
+        }
+        lt = tree(lens, 0, hlit);
+        dt = tree(lens, hlit, hdist);
+      } else {
+        throw new Error('type');
+      }
+      for (;;) {
+        var c = sym(lt);
+        if (c < 256) { put(c); continue; }
+        if (c === 256) break;
+        c -= 257;
+        var len = LBASE[c] + bits(LEXT[c]);
+        var d = sym(dt);
+        var from = op - (DBASE[d] + bits(DEXT[d]));
+        if (from < 0) throw new Error('dist');
+        for (i = 0; i < len; i++) put(out[from + i]);
+      }
+    } while (!last);
+    return op === out.length ? out : out.subarray(0, op);
+  }
+
+  function utf8(u) {
+    if (window.TextDecoder) return new TextDecoder('utf-8').decode(u);
+    var s = '', i;
+    for (i = 0; i < u.length; i += 8192) {
+      s += String.fromCharCode.apply(null, u.subarray(i, i + 8192));
+    }
+    return decodeURIComponent(escape(s));
+  }
+
+  /* zip: קוראים את הספרייה המרכזית מהסוף, ומשם כל קובץ לפי שמו. */
+  function unzip(buf) {
+    var u = new Uint8Array(buf), files = {}, i, e = -1;
+    function u16(p) { return u[p] | (u[p + 1] << 8); }
+    function u32(p) { return (u16(p) + u16(p + 2) * 65536); }
+    for (i = u.length - 22; i >= 0 && i >= u.length - 65557; i--) {
+      if (u32(i) === 0x06054b50) { e = i; break; }
+    }
+    if (e < 0) throw new Error('zip');
+    var cnt = u16(e + 10), p = u32(e + 16);
+    for (i = 0; i < cnt; i++) {
+      if (u32(p) !== 0x02014b50) throw new Error('cd');
+      var meth = u16(p + 10), csz = u32(p + 20), usz = u32(p + 24);
+      var nl = u16(p + 28), xl = u16(p + 30), cl = u16(p + 32), lo = u32(p + 42);
+      var name = utf8(u.subarray(p + 46, p + 46 + nl));
+      files[name] = { m: meth, c: csz, n: usz, o: lo };
+      p += 46 + nl + xl + cl;
+    }
+    return {
+      names: function () { var a = [], k; for (k in files) { if (files.hasOwnProperty(k)) a.push(k); } return a; },
+      text: function (name) {
+        var f = files[name];
+        if (!f) return null;
+        var d = f.o + 30 + u16(f.o + 26) + u16(f.o + 28);
+        var raw = u.subarray(d, d + f.c);
+        if (f.m === 0) return utf8(raw);
+        if (f.m !== 8) throw new Error('method');
+        return utf8(inflate(raw, f.n));
+      }
+    };
+  }
+
+  function xml(s) { return new DOMParser().parseFromString(s, 'application/xml'); }
+  function tx(el) {
+    var ts = el.getElementsByTagName('t'), s = '', i;
+    for (i = 0; i < ts.length; i++) s += ts[i].textContent;
+    return s;
+  }
+  function trim(s) { return String(s == null ? '' : s).replace(/^[\s‎‏]+|[\s‎‏]+$/g, ''); }
+
+  function readXlsx(buf) {
+    var z = unzip(buf), ss = [], i, j;
+    var sst = z.text('xl/sharedStrings.xml');
+    if (sst) {
+      var si = xml(sst).getElementsByTagName('si');
+      for (i = 0; i < si.length; i++) ss.push(tx(si[i]));
+    }
+
+    var sheets = [], all = z.names();
+    for (i = 0; i < all.length; i++) {
+      var m = all[i].match(/^xl\/worksheets\/sheet(\d+)\.xml$/);
+      if (m) sheets.push({ n: +m[1], f: all[i] });
+    }
+    sheets.sort(function (a, b) { return a.n - b.n; });
+
+    var out = { at: (new Date()).getTime(), g: [] }, byG = {}, total = 0;
+    for (i = 0; i < sheets.length; i++) {
+      var rows = xml(z.text(sheets[i].f)).getElementsByTagName('row');
+      for (j = 0; j < rows.length; j++) {
+        var cs = rows[j].getElementsByTagName('c'), v = {}, k;
+        for (k = 0; k < cs.length; k++) {
+          var c = cs[k], col = (c.getAttribute('r') || '').replace(/\d+/g, '');
+          var t = c.getAttribute('t'), ve = c.getElementsByTagName('v')[0];
+          var val = ve ? ve.textContent : '';
+          if (t === 's') val = ss[+val] || '';
+          else if (t === 'inlineStr') val = tx(c);
+          v[col] = trim(val);
+        }
+        var gr = (v.C || '').replace(/["'׳״\s]/g, '');
+        var par = (v.D || '').match(/^\d+/);
+        var nm = trim((v.A || '') + ' ' + (v.B || ''));
+        if (!gr || !par || !nm) continue;
+        par = String(+par[0]);
+        if (!byG[gr]) { byG[gr] = { g: gr, c: [], by: {} }; out.g.push(byG[gr]); }
+        var G = byG[gr];
+        if (!G.by[par]) { G.by[par] = { p: par, k: [] }; G.c.push(G.by[par]); }
+        G.by[par].k.push(nm);
+        total++;
+      }
+    }
+    for (i = 0; i < out.g.length; i++) {
+      delete out.g[i].by;
+      out.g[i].c.sort(function (a, b) { return a.p - b.p; });
+    }
+    out.total = total;
+    return out;
+  }
+
+  function loadRoster() {
+    var raw = null;
+    try { raw = localStorage.getItem(RKEY); } catch (e) { raw = null; }
+    if (!raw) return;
+    try { R = JSON.parse(raw); } catch (e2) { R = null; }
+    if (R && (!R.g || !R.g.length)) R = null;
+  }
+
+  /* ז → ז׳ · יא → י״א */
+  function gName(g) {
+    return g.length > 1 ? g.slice(0, -1) + '״' + g.slice(-1) : g + '׳';
+  }
+
+  function drawPick() {
+    $('srcNo').style.display = R ? 'none' : '';
+    $('srcYes').style.display = R ? '' : 'none';
+    if (!R) return;
+    if (pickG >= R.g.length) pickG = 0;
+    var h = '', i, G = R.g[pickG], n = 0, alln = 0;
+    for (i = 0; i < R.g.length; i++) {
+      h += '<button class="pill' + (i === pickG ? ' on' : '') + '" data-g="' + i + '">'
+         + esc(gName(R.g[i].g)) + '</button>';
+    }
+    $('pG').innerHTML = h;
+    h = '';
+    for (i = 0; i < G.c.length; i++) {
+      if (pickC[G.c[i].p]) n++;
+      alln += G.c[i].k.length;
+      h += '<button class="pill' + (pickC[G.c[i].p] ? ' on' : '') + '" data-cl="' + esc(G.c[i].p) + '">'
+         + esc(G.c[i].p) + '<span class="n">' + G.c[i].k.length + '</span></button>';
+    }
+    h += '<button class="pill all' + (n && n === G.c.length ? ' on' : '') + '" data-cl="*">'
+       + 'כל השכבה<span class="n">' + alln + '</span></button>';
+    $('pC').innerHTML = h;
+  }
+
+  /* הבחירה ממלאת את השדות. כיתה אחת — השמות כפי שהם; כמה
+     כיתות — ליד כל שם הכיתה שלו, כדי שבדיווח יהיה ברור מי ממי. */
+  function fillPick() {
+    var G = R.g[pickG], ps = [], names = [], i, j;
+    for (i = 0; i < G.c.length; i++) { if (pickC[G.c[i].p]) ps.push(G.c[i]); }
+    if (!ps.length) return;
+    for (i = 0; i < ps.length; i++) {
+      for (j = 0; j < ps[i].k.length; j++) {
+        names.push(ps.length > 1 ? ps[i].k[j] + ' (' + ps[i].p + ')' : ps[i].k[j]);
+      }
+    }
+    var gn = gName(G.g), pn = [];
+    for (i = 0; i < ps.length; i++) pn.push(ps[i].p);
+    $('iTtl').value = ps.length === 1 ? gn + ps[0].p
+                    : ps.length === G.c.length ? 'שכבה ' + gn
+                    : gn + ' ' + pn.join(', ');
+    $('iNames').value = names.join('\n');
+    picked = true;
+  }
+
+  $('pG').addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== this && !(el.getAttribute && el.getAttribute('data-g'))) el = el.parentNode;
+    if (!el || el === this) return;
+    var i = +el.getAttribute('data-g');
+    if (i !== pickG) { pickG = i; pickC = {}; }
+    drawPick();
+  });
+
+  $('pC').addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== this && !(el.getAttribute && el.getAttribute('data-cl'))) el = el.parentNode;
+    if (!el || el === this) return;
+    var p = el.getAttribute('data-cl'), G = R.g[pickG], i, n = 0;
+    if (p === '*') {
+      for (i = 0; i < G.c.length; i++) { if (pickC[G.c[i].p]) n++; }
+      pickC = {};
+      if (n !== G.c.length) { for (i = 0; i < G.c.length; i++) pickC[G.c[i].p] = 1; }
+    } else if (pickC[p]) {
+      delete pickC[p];
+    } else {
+      pickC[p] = 1;
+    }
+    drawPick();
+    fillPick();
+  });
+
+  function askFile() { $('fXl').value = ''; $('fXl').click(); }
+  $('bXl').addEventListener('click', askFile);
+  $('bXl2').addEventListener('click', askFile);
+
+  $('fXl').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var got = null;
+      try { got = readXlsx(rd.result); } catch (e) { got = null; }
+      if (!got || !got.total) {
+        window.alert('לא הצלחתי לקרוא תלמידים מהקובץ.\n' +
+                     'צריך קובץ אקסל (xlsx) שבו העמודות הן: שם משפחה, שם פרטי, כיתה, מקבילה.');
+        return;
+      }
+      R = got;
+      pickG = 0;
+      pickC = {};
+      try { localStorage.setItem(RKEY, JSON.stringify(R)); } catch (e2) {
+        window.alert('הקובץ נקרא, אבל לא נשמר בטלפון — בפתיחה הבאה יהיה צריך לטעון אותו שוב.');
+      }
+      drawPick();
+      window.alert('נטענו ' + got.total + ' תלמידים ב-' + got.g.length + ' שכבות.');
+    };
+    rd.onerror = function () { window.alert('לא הצלחתי לפתוח את הקובץ.'); };
+    rd.readAsArrayBuffer(f);
+  });
+
+  /* קישור שנושא את הרשימה שבשדות — אותו מבנה #list= שהעמוד כבר
+     מכיר. המלווה לוחץ, והכיתה שלו אצלו, בלי קובץ ובלי הקלדה. */
+  $('bLink').addEventListener('click', function () {
+    var names = parseNames($('iNames').value);
+    if (!names.length) { window.alert('בחר קודם כיתה.'); return; }
+    var title = $('iTtl').value.replace(/^\s+|\s+$/g, '');
+    var url = window.location.href.split('#')[0].split('?')[0]
+            + '#list=' + encodeURIComponent(title + '\n' + names.join('\n'));
+    toWhatsApp((title ? title + ' · ' : '') + 'מפקד טיול — ' + names.length
+               + ' תלמידים. לפתיחה בטלפון:\n' + url);
   });
 
   /* ---------- טעינה מקישור ---------- */
@@ -670,6 +1059,8 @@ button{cursor:pointer;border:none;background:none}
   /* ---------- הפעלה ---------- */
 
   var had = load();
+  loadRoster();
+  drawPick();
   if (fromLink()) had = true;
   render();
   show(had ? 'list' : 'setup');
