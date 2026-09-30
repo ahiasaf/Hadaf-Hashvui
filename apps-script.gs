@@ -668,9 +668,18 @@ function doGet(e) {
       if (!sr) return reply_(e, { status:'ok', none: 1 });
       var why = String(e.parameter.why || '').slice(0, 200);
       var nOk = parseInt(e.parameter.n, 10) || 0;
+      var nBad = parseInt(e.parameter.bad, 10) || 0;
+      var nGone = parseInt(e.parameter.gone, 10) || 0;
       var was = String(sr.v[sr.ix['תוצאה']] || '');
-      var now = why ? 'נכשלה: ' + why
-              : (e.parameter.none ? 'אין נמענים עם התראות' : 'יצאה ל-' + nOk);
+      /* "התקבלה אצל שירות ההתראות" — ולא "הגיעה": תשובה תקינה של
+         שירות ההתראות אינה ראיה שמישהו ראה אותה. */
+      var tail = (nBad ? ' · נכשלה ל-' + nBad : '') + (nGone ? ' · אין מנוי פעיל ל-' + nGone : '');
+      var now = e.parameter.run ? 'בשליחה'
+              : why ? 'נכשלה: ' + why
+              : e.parameter.none ? 'אין נמענים עם התראות' + tail
+              : (nBad ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + nOk + tail;
+      /* "בשליחה" אינו דורס תוצאה שכבר הגיעה. */
+      if (e.parameter.run && was && was !== 'ממתין') now = was;
       /* דיווח כפול (מהקוד ומשלב ה-failure) — הסיבה הראשונה נשארת. */
       if (was.indexOf('נכשלה') === 0) now = was;
       sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue(now);

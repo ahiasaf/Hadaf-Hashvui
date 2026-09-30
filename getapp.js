@@ -96,10 +96,15 @@ var APPX = (function () {
   }
   /* דפדפן אנדרואיד שזוהה בוודאות ואינו כרום. בכרום עצמו אי אפשר
      לדעת אם זה כרום או החלון של וואטסאפ — הם מזדהים אותו דבר. */
+  /* **אדג' מתקין.** נבדק במכשיר: ההתקנה ממנו עובדת, ולכן הוא אינו
+     "דפדפן אחר" שמפנים ממנו לכרום — יש לו מדריך קצר משלו (join). */
+  function edge() {
+    return !isIOS() && /EdgA\//.test(navigator.userAgent || '');
+  }
   function otherBrowser() {
     var ua = navigator.userAgent || '';
-    return !isIOS() && !firefox() &&
-      /SamsungBrowser|EdgA\/|OPR\/|OPT\/|Opera|YaBrowser|MiuiBrowser|XiaoMi|UCBrowser|DuckDuckGo|HuaweiBrowser|HeyTapBrowser/.test(ua);
+    return !isIOS() && !firefox() && !edge() &&
+      /SamsungBrowser|OPR\/|OPT\/|Opera|YaBrowser|MiuiBrowser|XiaoMi|UCBrowser|DuckDuckGo|HuaweiBrowser|HeyTapBrowser/.test(ua);
   }
 
   /* ההצעה של הדפדפן להתקין. באייפון היא לא קיימת ולעולם לא
@@ -193,12 +198,14 @@ var APPX = (function () {
        שנחסמת. תלמיד לחץ "הוספה למסך הבית", קיבל "אפליקציה לא
        בטוחה נחסמה", ורק אחרי זה ראה את המסגרת. עכשיו היא שם מההתחלה,
        ואומרת מראש שבכרום זה לא ייחסם. */
-    if (isIOS() || firefox() || standalone()) return '';
+    if (isIOS() || firefox() || edge() || standalone()) return '';
     /* כרום שהציע התקנה הוא כרום אמיתי — החלון של וואטסאפ לא מציע.
        (בסמסונג ההצעה קיימת, והיא בדיוק זו שנחסמת — שם נשארים.) */
     var other = otherBrowser();
     if (!other && BIP) return '';
     var U = window.ASK_UI || {};
+    /* בסמסונג — גם למה: אחרת "רק בכרום" נקרא כטעות שלנו. */
+    var sub = !other ? U.waBoxB : (samsung() ? (U.waBoxSamB || U.waBoxOB) : U.waBoxOB);
     var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
       'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +
       'cursor:pointer;text-decoration:none';
@@ -212,9 +219,8 @@ var APPX = (function () {
       waIcons(other) + '<div style="flex:1;min-width:0;line-height:1.35">' +
       '<b style="display:block;font-size:.86rem;font-weight:800;color:#1B2A45">' +
       esc((other ? U.waBoxOT : U.waBoxT) || '') + '</b>' +
-      ((other ? U.waBoxOB : U.waBoxB)
-        ? '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
-          esc(other ? U.waBoxOB : U.waBoxB) + '</span>' : '') + '</div></div>' +
+      (sub ? '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
+          esc(sub) + '</span>' : '') + '</div></div>' +
       '<div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap">' +
       act + '</div></div>';
   }
@@ -593,7 +599,7 @@ var APPX = (function () {
   return {
     update: update, toBrowser: toBrowser,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
-    iosOther: iosOther, samsung: samsung, firefox: firefox, otherBrowser: otherBrowser,
+    iosOther: iosOther, samsung: samsung, firefox: firefox, otherBrowser: otherBrowser, edge: edge,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },

@@ -173,51 +173,101 @@ function byHead(r) {
    ============================================================ */
 function sentLoad(key) {
   return rows(SENT_TAB, key).then(function (r) {
+    /* **השורה האחרונה של כל מפתח קובעת.** "נכשל" = ינסה שוב.
+       כל השאר — "נשלח", "ממתין" (לא ודאי: אולי יצא ולא נרשם),
+       ושורות ישנות בלי מצב — נחשבים יצאו. שליחה כפולה לכל הצוות
+       גרועה מהודעה אחת שדילגה. */
+    var st = {};
+    byHead(r).forEach(function (o) { if (o['מפתח']) st[o['מפתח']] = o['מצב'] || ''; });
     var seen = {};
-    byHead(r).forEach(function (o) { if (o['מפתח']) seen[o['מפתח']] = 1; });
+    for (var k in st) if (st[k] !== 'נכשל') seen[k] = 1;
     return seen;
   });
 }
 
-/* רישום מה שיצא. כתיבה אמיתית ולא `no-cors` — כאן אנחנו
-   ב-Node, התשובה נקראת, וכישלון נאמר. */
-function sentMark(keys) {
-  if (!keys.length) return Promise.resolve(0);
+/* שורה אחת ב"נשלחו", עם עד שלושה ניסיונות. true = נרשמה בוודאות. */
+function markOne(k, state) {
   var url = scriptUrl();
-  var stamp = new Date().toISOString();
-  var one = function (k) {
+  var tryOnce = function () {
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       /* "נשלחו" אינה לשונית ציבורית — הכתיבה דורשת את הסיסמה. */
       body: JSON.stringify({ action:'row', tab:SENT_TAB, key: process.env.READ_KEY || '',
-        cols: JSON.stringify([['מפתח', k], ['מתי', stamp]]) })
-    }).then(function (r) { return r.text(); })
-      .then(function (t) {
-        /* `appendCols_` עונה "success", ומסלולים אחרים "ok".
-           שניהם הצלחה; כל השאר אינו. */
-        var ok = /"status"\s*:\s*"(success|ok)"/.test(String(t));
-        if (!ok) throw new Error(String(t).slice(0, 80).replace(/\s+/g, ' '));
-        return 1;
-      });
+        cols: JSON.stringify([['מפתח', k], ['מצב', state], ['מתי', new Date().toISOString()]]) })
+    }).then(function (r) { return r.text(); }).then(function (t) {
+      /* `appendCols_` עונה "success", ומסלולים אחרים "ok". */
+      if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) {
+        throw new Error(String(t).slice(0, 80).replace(/\s+/g, ' '));
+      }
+      return true;
+    });
   };
-  /* בזה אחר זה: הסקריפט כותב לגיליון אחד, וכתיבות מקבילות
-     אליו נדחפות זו על זו. */
+  var go = function (n) {
+    return tryOnce()['catch'](function (e) {
+      if (n >= 3) {
+        console.log('  ! לא נרשם ב"' + SENT_TAB + '" (' + state + '): ' + k + ' — ' + (e.message || e));
+        return false;
+      }
+      return new Promise(function (ok) { setTimeout(ok, 1500 * n); })
+        .then(function () { return go(n + 1); });
+    });
+  };
+  return go(1);
+}
+
+/* ============================================================
+   שליחה אחת, פעם אחת — גם כשהרישום נופל באמצע.
+   ============================================================
+   1. "ממתין" נרשם **לפני** השליחה. לא נרשם — לא שולחים.
+   2. אחרי השליחה: "נשלח", או "נכשל" (ואז ינסה שוב בהרצה הבאה).
+   3. יצא ולא נרשם "נשלח" — נשאר "ממתין": לא יישלח שוב, ונאמר
+      בקול בסוף ההרצה (UNCERTAIN), וההרצה מסתיימת באדום.
+   `send` מחזירה Promise שנכשל כשהשליחה נכשלה.
+   מחזיר את תוצאת send, או { skipped: true } כשלא נשלח כלל.
+   ============================================================ */
+var UNCERTAIN = [];
+function once(k, send) {
+  return markOne(k, 'ממתין').then(function (ok) {
+    if (!ok) {
+      console.log('  ! לא נרשם מראש — לא נשלח (עדיף לדלג מלשלוח פעמיים): ' + k);
+      UNCERTAIN.push(k);
+      return { skipped: true };
+    }
+    return send().then(function (v) {
+      return markOne(k, 'נשלח').then(function (m) {
+        if (!m) {
+          UNCERTAIN.push(k);
+          console.log('  ! יצא, ולא נרשם "נשלח" — נשאר "ממתין" ולא יישלח שוב: ' + k);
+        }
+        return v;
+      });
+    }, function (e) {
+      return markOne(k, 'נכשל').then(function () { throw e; });
+    });
+  });
+}
+/* סוף ההרצה: מה שלא ודאי נאמר, וההרצה אינה "ירוקה". */
+function finish() {
+  if (!UNCERTAIN.length) return;
+  console.error('\n' + UNCERTAIN.length + ' שליחות במצב לא ודאי (לא נרשמו עד הסוף ב"' +
+                SENT_TAB + '"). לא יישלחו שוב אוטומטית.');
+  process.exitCode = 1;
+}
+
+/* תאימות: רישום "נשלח" אחרי מעשה (ללא שלב "ממתין"). */
+function sentMark(keys) {
   return keys.reduce(function (chain, k) {
     return chain.then(function (n) {
-      return one(k).then(function () { return n + 1; })
-        .catch(function (e) {
-          /* **וזה נאמר בקול.** מפתח שלא נרשם פירושו שההודעה
-             הזו תצא שוב בהרצה הבאה. */
-          console.log('  ! לא נרשם ב"' + SENT_TAB + '": ' + k +
-                      ' — ' + (e.message || e));
-          return n;
-        });
+      return markOne(k, 'נשלח').then(function (ok) {
+        if (!ok) UNCERTAIN.push(k);
+        return n + (ok ? 1 : 0);
+      });
     });
   }, Promise.resolve(0));
 }
 
 module.exports = { israelNow: israelNow, slotsDue: slotsDue, two: two,
                    ask: ask, rows: rows, byHead: byHead,
-                   sentLoad: sentLoad, sentMark: sentMark,
+                   sentLoad: sentLoad, sentMark: sentMark, once: once, finish: finish,
                    SENT_TAB: SENT_TAB, HOURS: HOURS, scriptUrl: scriptUrl };

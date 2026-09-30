@@ -1415,7 +1415,7 @@ function sndSend() {
     if (d && d.status === 'ok') {
       SND.ok = true; SND.msg = '✓ נשלח' +
         (d.dads != null ? ' — ' + d.dads + ' הורים' + (d.kids ? ' ו-' + d.kids + ' תלמידים' : '') : '') +
-        '. ההתראות יוצאות תוך דקה.';
+        '. התוצאה — ביומן (ניהול ← שליחה).';
       SND.txt = ''; SEL = {}; SELMODE = false;
     } else {
       SND.ok = false; SND.msg = 'לא נשלח. ' + ((d && d.message) || 'אין תשובה מהשרת.');

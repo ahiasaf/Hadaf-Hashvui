@@ -14,7 +14,9 @@ function scriptUrl() {
   return m ? m[1] : '';
 }
 
-/* f: { n, bad, why, none } */
+/* f: { n, bad, gone, why, none, run }
+   **רק status=ok הוא דיווח שהגיע.** תשובת HTTP כלשהי (דף שגיאה של
+   גוגל, סירוב) אינה ראיה. עד שלושה ניסיונות, 15 שניות לכל אחד. */
 function report(f) {
   var sid = String(process.env.SID || '').trim();
   var key = process.env.READ_KEY || '';
@@ -23,9 +25,28 @@ function report(f) {
   var q = url + '?sayDone=' + encodeURIComponent(sid) + '&key=' + encodeURIComponent(key);
   if (f.n != null)  q += '&n=' + f.n;
   if (f.bad != null) q += '&bad=' + f.bad;
+  if (f.gone != null) q += '&gone=' + f.gone;
   if (f.none) q += '&none=1';
+  if (f.run) q += '&run=1';
   if (f.why) q += '&why=' + encodeURIComponent(String(f.why).slice(0, 180));
-  return fetch(q).then(function () { return true; })['catch'](function () { return false; });
+  var once = function () {
+    var ac = typeof AbortController === 'function' ? new AbortController() : null;
+    var t = ac ? setTimeout(function () { ac.abort(); }, 15000) : null;
+    return fetch(q, ac ? { signal: ac.signal } : {}).then(function (r) { return r.text(); })
+      .then(function (txt) {
+        if (t) clearTimeout(t);
+        var j = null; try { j = JSON.parse(txt); } catch (e) {}
+        if (!j || j.status !== 'ok') throw new Error('הדיווח לא התקבל');
+        return true;
+      });
+  };
+  var go = function (n) {
+    return once()['catch'](function (e) {
+      if (n >= 3) { console.log('  ! הדיווח לסקריפט לא הגיע: ' + (e.message || e)); return false; }
+      return new Promise(function (ok) { setTimeout(ok, 3000 * n); }).then(function () { return go(n + 1); });
+    });
+  };
+  return go(1);
 }
 module.exports = { report: report };
 

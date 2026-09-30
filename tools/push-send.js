@@ -24,6 +24,7 @@ var SUBJECT = 'https://hadaf-hashvui.vercel.app';
 var fs = require('fs');
 /* הדיווח לסקריפט בסוף ההרצה — ראו push-report.js. */
 var report = require('./push-report.js').report;
+var D = require('./push-deliver.js');
 var GONE = 0;
 function endWith(f, code) {
   return report(f).then(function () { process.exit(code); });
@@ -269,6 +270,8 @@ function loadSubs() {
 
 webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
 
+/* "בשליחה" — שהיומן לא יישאר על "ממתין" כשההרצה כבר רצה. */
+report({ run: 1 });
 loadSubs().then(applyFlt).then(function (list) {
   /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
   if (WAIT && !list.length) {
@@ -301,35 +304,36 @@ loadSubs().then(applyFlt).then(function (list) {
   console.log('שולח ל-' + list.length + ' מכשירים.\n');
   /* **בלי שמות בלוג.** הריפו ציבורי, ולכן גם יומני ההרצה —
      ושמות של תלמידים אינם שייכים לשם. מספר סידורי ומארח. */
-  return Promise.all(list.map(function (it, n) {
+  /* זמן קצוב, ניסיון חוזר ומקביליות מוגבלת — ראו push-deliver.js. */
+  return D.mapLimit(list, 8, function (it, n) {
     var host = '—';
     try { host = new URL(it.sub.endpoint).host; } catch (e) {}
     var first = FLT.per ? (it.first || '') : '';
     var payload = JSON.stringify({ title: personal(title, first),
                                    body: personal(body, first), url: link || './' });
-    return webpush.sendNotification(it.sub, payload, { TTL: 3600 })
-      .then(function (r) {
-        console.log('  ✓ #' + (n + 1) + ' · ' + host + ' → ' + r.statusCode);
+    return D.deliver(webpush, it.sub, payload).then(function (r) {
+      if (r.ok) {
+        console.log('  ✓ #' + (n + 1) + ' · ' + host + ' → ' + r.code + (r.tries > 1 ? ' (ניסיון ' + r.tries + ')' : ''));
         return 1;
-      })
-      .catch(function (e) {
-        console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' +
-                    (e.statusCode || '') + ' ' +
-                    String(e.body || e.message || '').slice(0, 120));
-        /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
-        if (e.statusCode === 404 || e.statusCode === 410) GONE++;
-        return 0;
-      });
-  }));
+      }
+      console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' + (r.code || '') + ' ' +
+                  (r.gone ? 'המנוי פג' : (r.err || '')));
+      /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
+      if (r.gone) GONE++;
+      return 0;
+    });
+  });
 }).then(function (res) {
   if (!res) return;                      /* יצאנו כבר למעלה */
   var done = res.reduce(function (a, b) { return a + b; }, 0);
   console.log('\nהגיעו: ' + done + ' · נכשלו: ' + (res.length - done));
   /* מנוי שפג (410/404) אינו תקלה של הקוד — המכשיר הסיר את
      ההרשאה. נכשלו כולם = כן תקלה. */
-  if (!done && GONE === res.length) return endWith({ n: 0, bad: res.length, none: 1 }, 0);
-  if (!done) return endWith({ n: 0, bad: res.length, why: 'כל ' + res.length + ' המכשירים דחו' }, 1);
-  return endWith({ n: done, bad: res.length - done }, 0);
+  var bad = res.length - done - GONE;
+  if (!done && !bad) return endWith({ n: 0, bad: 0, gone: GONE, none: 1 }, 0);
+  if (!done) return endWith({ n: 0, bad: bad, gone: GONE, why: 'כל ' + bad + ' המכשירים דחו' }, 1);
+  /* הצלחה חלקית נאמרת כמו שהיא — ואינה נשלחת שוב בגורף. */
+  return endWith({ n: done, bad: bad, gone: GONE }, 0);
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
   return endWith({ why: String(e && e.message || e) }, 1);

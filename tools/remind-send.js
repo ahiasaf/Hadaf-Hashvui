@@ -45,6 +45,15 @@ if (!key) { console.error('חסר READ_KEY בסודות הריפו.'); process.e
 /* השעון, הקריאה לגיליון ורישום מה שיצא — משותפים לשתי
    השליחות המתוזמנות. ראו את ההסבר שם. */
 var S = require('./sched.js');
+/* מסירה בזהירות (זמן קצוב, ניסיון חוזר) — ראו push-deliver.js.
+   נכשל כשהמסירה נכשלה, כדי ש-S.once ירשום "נכשל". */
+var D = require('./push-deliver.js');
+function pushOne(sub, payload, ttl) {
+  return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
+    if (r.ok) return { statusCode: r.code };
+    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err };
+  });
+}
 function rows(tab)   { return S.rows(tab, key); }
 function byHead(r)   { return S.byHead(r); }
 
@@ -107,7 +116,6 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
   });
 
   if (!DRY) webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
-  var done = [];
   /* בזה אחר זה, ולא במקביל: הרישום נכתב לפי מה שבאמת יצא. */
   return due.reduce(function (chain, o) {
     return chain.then(function (res) {
@@ -127,12 +135,13 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
         res.push(1); return res;
       }
       /* הלחיצה פותחת את מסך השיחות — שם הוא ממילא עומד לפעול. */
-      return webpush.sendNotification(sub,
-        JSON.stringify({ title: title(o), body: o['נוסח'],
-                         url: './#admin', tag: 'remind' }), { TTL: 3600 })
+      return S.once(keyOf(o), function () {
+        return pushOne(sub, JSON.stringify({ title: title(o), body: o['נוסח'],
+                                             url: './#admin', tag: 'remind' }), 3600);
+      })
         .then(function (r) {
+          if (r && r.skipped) { res.push(0); return res; }
           console.log('  ✓ ' + o['שעה'] + ' → ' + r.statusCode + ' | ' + o['נוסח']);
-          done.push(keyOf(o));
           res.push(1); return res;
         })
         .catch(function (e) {
@@ -141,11 +150,10 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
           res.push(0); return res;
         });
     });
-  }, Promise.resolve([])).then(function (res) {
-    /* רק מה שבאמת יצא נרשם. שליחה שנכשלה תנסה שוב בהרצה הבאה. */
-    return S.sentMark(done).then(function () { return res; });
-  });
+  }, Promise.resolve([]));
 }).then(function (res) {
+  /* שליחה שנכשלה נרשמה "נכשל" ותנסה שוב בהרצה הבאה. */
+  S.finish();
   if (!res || !res.length) return;
   var ok = res.reduce(function (x, y) { return x + y; }, 0);
   console.log('\nיצאו: ' + ok + ' · נכשלו: ' + (res.length - ok));

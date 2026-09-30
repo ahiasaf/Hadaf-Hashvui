@@ -841,6 +841,7 @@ body.tk-sheeting #tk-bar{display:none}
 .slog-t{font-size:.84rem;margin-top:2px;line-height:1.45}
 .slog-r{font-size:.74rem;font-weight:800;color:var(--ok);margin-top:2px}
 .slog.bad .slog-r{color:#A33}
+.slog.part .slog-r{color:#B06A10}
 .needs{margin:0 0 12px;padding:12px;border-radius:13px;border:1.5px solid #D9822B;background:#FFF6EC}
 .needs-t{font-size:.8rem;font-weight:800;color:#9A4F0C;margin-bottom:6px}
 .need{padding:10px 0;border-top:1px solid rgba(217,130,43,.3)}
@@ -2027,7 +2028,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.77';
+var APP_VERSION = '8.99.78';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7843,7 +7844,8 @@ function sayLogCard() {
   return '<div class="adm-card"><h4>ההודעות האחרונות</h4>' +
     sayLog.slice(0, 15).map(function (m) {
       var bad = m.res.indexOf('נכשלה') === 0 && m.res.indexOf('נשלחה שוב') < 0;
-      return '<div class="slog' + (bad ? ' bad' : '') + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
+      var part = m.res.indexOf('חלקית') === 0;
+      return '<div class="slog' + (bad ? ' bad' : part ? ' part' : '') + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
         (m.inst ? ' · ' + esc(m.inst) : '') + '<span>' + esc(whenTxt(Date.parse(m.at) || 0)) + '</span></div>' +
         '<div class="slog-t">' + esc((m.title ? m.title + ' — ' : '') + m.body) + '</div>' +
         (m.res ? '<div class="slog-r">' + esc(m.res) + '</div>' : '') + '</div>';
@@ -9990,10 +9992,17 @@ function pushSend() {
       pushBusy = false;
       /* התשובה כאן אומרת רק ש-GitHub קיבל את ההצתה. מה שהגיע
          בפועל למכשירים נמצא ביומן ההרצה, ולכן נאמר בדיוק זה. */
+      /* **בלי הבטחת זמן.** מה שידוע כאן הוא שהבקשה התקבלה; התוצאה
+         (בשליחה → התקבלה ל-N / חלקית / נכשלה) מגיעה מההרצה עצמה
+         ומופיעה ב"ההודעות האחרונות". */
       pushMsg = (d && d.status === 'ok')
-        ? 'נשלח להפעלה. ההתראה יוצאת תוך פחות מדקה — ' +
-          'הפירוט המלא ב-Actions ב-GitHub.'
+        ? 'התקבל לשליחה' + (d.sid ? ' (מזהה ' + d.sid + ')' : '') +
+          '. התוצאה תופיע ב"ההודעות האחרונות" שלמעלה.'
         : 'לא יצא: ' + ((d && d.message) || 'אין תשובה מהסקריפט.');
+      if (d && d.status === 'ok') {
+        setTimeout(function () { needsLoad(); }, 45000);
+        setTimeout(function () { needsLoad(); }, 120000);
+      }
       admPane();
     })['catch'](function () {
       pushBusy = false;
@@ -10036,8 +10045,7 @@ function pushJoined() {
       /* התשובה אומרת רק ש-GitHub קיבל את ההצתה. מה שהגיע
          בפועל למכשירים נמצא ביומן ההרצה, ולכן נאמר בדיוק זה. */
       pushMsg = (d && d.status === 'ok')
-        ? 'נשלח להפעלה. ההתראות יוצאות תוך פחות מדקה — ' +
-          'הפירוט המלא ב-Actions ב-GitHub.'
+        ? 'התקבל לשליחה. הפירוט ב-Actions ב-GitHub.'
         : 'לא יצא: ' + ((d && d.message) || 'אין תשובה מהסקריפט.');
       admPane();
     })['catch'](function () {
@@ -11221,7 +11229,7 @@ function opNotify(t, daf) {
               wait:OpenKey(t.id, daf),
               url:'learn?mas=' + t.id + '&daf=' + OpenKey(t.id, daf).split('|')[1] })
     .then(function (d) {
-      if (d && d.status === 'ok') done('מי שביקש התראה יקבל אותה תוך דקה.', 'ok');
+      if (d && d.status === 'ok') done('התקבל לשליחה. התוצאה — ב"מה קורה ← שליחה".', 'ok');
       else done('ההתראה לא יצאה: ' + ((d && d.message) || 'אין תשובה מהסקריפט.'), 'bad');
     })['catch'](function () { done('ההתראה לא יצאה: אין תשובה מהסקריפט.', 'bad'); });
 }

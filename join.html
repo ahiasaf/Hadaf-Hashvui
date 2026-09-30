@@ -598,6 +598,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .getapp .how.warn{background:rgba(192,143,43,.12);color:var(--ink);
   border:1px solid rgba(192,143,43,.35);text-align:right}
 .getapp .how.warn b{color:#8A6316}
+.edge-ol{margin:8px 0 6px;padding-inline-start:20px;line-height:1.8}
+.edge-had{display:block;font-size:.78rem;color:var(--ink-3);font-weight:700}
 /* ============================================================
    המסע — מד, שלב אחד, ומה שנגמר נשאר לראות.
    ============================================================
@@ -3113,7 +3115,17 @@ function wzInstall() {
   var samsungNow = (APPX.samsung && APPX.samsung()) ||
                    (APPX.otherBrowser && APPX.otherBrowser());
   /* וגם בלי המדריך: הוא מוביל לאותה התקנה עצמה. */
-  var h = samsungNow ? '' : (APPX.bip()
+  /* אדג' בלי הצעת התקנה — שלושה צעדים במילים, ושורה למי שכבר
+     התקין בכרום: האייקון כבר על המסך. */
+  var edgeNow = !APPX.bip() && APPX.edge && APPX.edge();
+  if (edgeNow) {
+    samsungNow = true;
+  }
+  var h = edgeNow
+    ? '<div class="how"><b>' + esc(jt('edgeT')) + '</b><ol class="edge-ol">' +
+      '<li>' + esc(jt('edge1')) + '</li><li>' + esc(jt('edge2')) + '</li><li>' + esc(jt('edge3')) + '</li>' +
+      '</ol><span class="edge-had">' + esc(jt('edgeHad')) + '</span></div>'
+    : samsungNow ? '' : (APPX.bip()
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
       '<p class="note" style="text-align:start">ייפתח חלון של הטלפון — ' +
       'לוחצים "התקן". לוקח שנייה.</p>'

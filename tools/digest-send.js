@@ -107,6 +107,15 @@ function loadProgram() {
 /* ---------- השעון, הקריאה, והרישום ----------
    משותפים לשתי השליחות המתוזמנות. ההסבר המלא ב-sched.js. */
 var S = require('./sched.js');
+/* מסירה בזהירות (זמן קצוב, ניסיון חוזר) — ראו push-deliver.js.
+   נכשל כשהמסירה נכשלה, כדי ש-S.once ירשום "נכשל". */
+var D = require('./push-deliver.js');
+function pushOne(sub, payload, ttl) {
+  return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
+    if (r.ok) return { statusCode: r.code };
+    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err };
+  });
+}
 function israelNow() { return S.israelNow(); }
 
 /* ============================================================
@@ -466,9 +475,7 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
 
     if (!DRY) webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
     console.log('');
-    /* המפתחות שיֵצאו בפועל, לרישום ב"נשלחו" בסוף. */
-    var done = [];
-    return Promise.all(due.map(function (w) {
+    return D.mapLimit(due, 8, function (w) {
       var students = by[w.inst];
       /* לוח שלא נקרא אינו ישיבה ריקה. עדכון שאומר "אף אחד לא
          למד" על סמך קריאה שנכשלה הוא בדיוק סוג השקר שהפרויקט
@@ -492,14 +499,16 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
       /* לחיצה על העדכון פותחת את הפינה שלו — שם הלוח, ושם
          גם מה שאפשר לעשות עם המספר שהרגע קרא. */
       var link = w.inst ? 'tzevet?inst=' + encodeURIComponent(w.inst) + '#my' : './';
-      return webpush.sendNotification(w.sub,
-        JSON.stringify({ title: msg.title, body: msg.body, url: link }),
-        { TTL: 3600 })
+      var sendIt = function () {
+        return pushOne(w.sub, JSON.stringify({ title: msg.title, body: msg.body, url: link }), 3600);
+      };
+      /* "ממתין" לפני, "נשלח"/"נכשל" אחרי — ראו once ב-sched.js.
+         במצב "לכולם" (בדיקה) אין רישום כלל. */
+      return (ALL ? sendIt() : S.once(keyOf(w, w.slot), sendIt))
         .then(function (r) {
+          if (r && r.skipped) return 0;
           console.log('  ✓ ' + w.who + ' · ' + host + ' → ' + r.statusCode +
                       ' | ' + msg.body);
-          /* רק מה שבאמת יצא נרשם. שליחה שנכשלה תנסה שוב. */
-          if (!ALL) done.push(keyOf(w, w.slot));
           return 1;
         })
         .catch(function (e) {
@@ -508,11 +517,10 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
                       String(e.body || e.message || '').slice(0, 120));
           return 0;
         });
-    })).then(function (res) {
-      return S.sentMark(done).then(function () { return res; });
     });
   });
 }).then(function (res) {
+  S.finish();
   if (!res.length) return;
   var ok = res.reduce(function (a, b) { return a + b; }, 0);
   console.log('\nיצאו: ' + ok + ' · נכשלו: ' + (res.length - ok));
