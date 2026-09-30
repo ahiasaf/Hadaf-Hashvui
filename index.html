@@ -834,6 +834,12 @@ body.tk-sheeting #tk-bar{display:none}
 .pubbar.warn{border-color:var(--gold);background:#FFF8E8}
 .pubbar.warn b{color:#7A5A12}
 .pubbar.ok b{color:var(--ok)}
+.publine{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 8px 7px 12px;border-radius:10px;border:1px solid var(--gold);background:#FFF8E8;
+  font-size:.82rem;font-weight:800;color:#7A5A12}
+.publine button{border:0;border-radius:8px;padding:6px 14px;font-family:inherit;
+  font-size:.8rem;font-weight:800;cursor:pointer;color:#fff;
+  background:linear-gradient(140deg,var(--gold-l),var(--gold))}
 
 #toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom) + 22px);
   z-index:120;margin:0 auto;width:max-content;max-width:calc(100% - 40px);
@@ -2006,7 +2012,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.72';
+var APP_VERSION = '8.99.73';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7271,6 +7277,17 @@ function admPubBar() {
   if (!el) return;
   var dirty = cfgDirty();
   var never = !Object.keys(PUB_CFG || {}).length;
+  /* **הפס המלא — רק ב"מערכת".** בשאר המסכים הוא תפס את ראש המסך
+     בכל כניסה, גם כשאין מה לפרסם. שם נשארת שורה אחת, וגם היא רק
+     כשיש שינויים שלא פורסמו. */
+  if (admTab !== 'sys') {
+    el.innerHTML = dirty
+      ? '<div class="publine"><span>יש שינויים שלא פורסמו</span>' +
+        '<button onclick="publishSettings()">פרסום</button></div>' +
+        '<div id="adm-pub-msg"></div>'
+      : '<div id="adm-pub-msg"></div>';
+    return;
+  }
   if (dirty) {
     el.innerHTML =
       '<div class="pubbar warn"><div><b>יש שינויים שלא פורסמו</b>' +
