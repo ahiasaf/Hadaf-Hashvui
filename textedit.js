@@ -63,7 +63,9 @@ var TX = (function () {
               /* ההודעות שהמורה שולח בוואטסאפ — ראו shlach.html. */
               send:window.SEND,
               /* הלימוד המשותף וההגרלה — ראו pair.js. */
-              pair:window.PAIR };
+              pair:window.PAIR,
+              /* עמדת הלימוד — ראו amda* ב-index.html. */
+              amda:window.AMDA };
     return ROOTS;
   }
   function ref(k) {

@@ -1813,6 +1813,49 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .prow2.ok   .pm{background:var(--green-d)}
 .prow2.no   .pm{background:#B4473A}
 .prow2.warn .pm{background:var(--gold)}
+/* ============================================================
+   עמדת לימוד — מסך מלא, לתלמידים שעומדים בתור.
+   לחיצות גדולות, בלי מספרים ובלי הסברים: שכבה → כיתה → שם →
+   ✓ לרגע, וחזרה להתחלה. ראו amdaOpen.
+   ============================================================ */
+.amda{position:fixed;inset:0;z-index:9000;background:var(--paper);overflow-y:auto;
+      display:none;-webkit-overflow-scrolling:touch;touch-action:manipulation}
+.amda.on{display:block}
+.am-in{max-width:620px;margin:0 auto;padding:14px 16px 40px}
+.am-top{display:flex;align-items:center;gap:10px;padding-bottom:12px;
+        border-bottom:1px solid var(--rule)}
+.am-logo{flex:none;width:44px;height:44px;border-radius:50%;background:#fff;
+         box-shadow:var(--sh-1);display:flex;align-items:center;justify-content:center}
+.am-logo img{width:34px;height:34px;object-fit:contain}
+.am-brand{flex:1;min-width:0;line-height:1.25}
+.am-brand b{display:block;font-size:.95rem;font-weight:800;color:var(--blue-d)}
+.am-brand span{font-size:.76rem;font-weight:700;color:var(--ink-3)}
+.am-x{flex:none;font-size:.76rem;font-weight:700;color:var(--ink-3);
+      background:none;border:1px solid var(--rule);border-radius:9px;padding:6px 10px}
+.am-h{font-size:1.45rem;font-weight:800;color:var(--blue-d);margin:16px 0 0;
+      letter-spacing:-.02em}
+.am-sub{font-size:.85rem;font-weight:700;color:var(--gold-t);margin-bottom:6px}
+.am-q{font-size:1rem;font-weight:800;color:var(--ink-2);margin:18px 2px 9px}
+.am-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.am-b{border:1px solid var(--rule);background:var(--surface);color:var(--ink);
+      border-radius:var(--r);font-size:1.6rem;font-weight:800;padding:16px 0;
+      box-shadow:var(--sh-1)}
+.am-b.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-names{display:flex;flex-direction:column;gap:7px}
+.am-nm{display:flex;align-items:center;gap:10px;width:100%;text-align:right;
+       border:1px solid var(--rule);background:var(--surface);color:var(--ink);
+       border-radius:var(--r);font-size:1.12rem;font-weight:700;padding:15px 16px}
+.am-nm span{flex:1}
+.am-nm i{font-style:normal;font-size:.76rem;font-weight:700;color:var(--green-d)}
+.am-nm.had{background:var(--sunk);color:var(--ink-3)}
+.am-ok{position:fixed;inset:0;z-index:9001;display:none;flex-direction:column;
+       align-items:center;justify-content:center;gap:14px;background:var(--green-d);
+       color:#fff;text-align:center;padding:24px}
+.am-ok.on{display:flex}
+.am-tick{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);
+         font-size:4.4rem;font-weight:800;line-height:120px}
+.am-ok b{font-size:1.5rem;font-weight:800}
+.am-ok span{font-size:1.05rem;font-weight:700;opacity:.9}
 </style>
 </head>
 <body>
@@ -2074,7 +2117,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.86';
+var APP_VERSION = '8.99.87';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7403,6 +7446,14 @@ function renderAdmin() {
   document.getElementById('admin-body').innerHTML = h;
   admPubBar();
   admPane();
+  /* עמדה שהייתה פתוחה חוזרת אחרי רענון — אחרת התלמיד הבא נוחת
+     על מסך הניהול. רק מכאן, כלומר אחרי הסיסמה. */
+  if (Store.get('amdaOn', 0) && !document.querySelector('#amda.on')) {
+    if (!amdaCount(amdaRoster()).n) { Store.set('amdaOn', 0); return; }
+    amdaOpen();
+    admTab = 'what'; admSub.what = 'amda';
+    renderAdmin();
+  }
 }
 /* טיוטה שאינה רצויה — למשל שינוי ישן שנשאר בטלפון — נזרקת, והמכשיר
    חוזר להציג בדיוק את מה שפורסם. המלל אינו נוגע כאן: לו יש
@@ -7806,7 +7857,8 @@ function paintAdmChip() {
 var SUB = {
   /* "אנשים" ראשון: מסך אחד לכל תלמיד והורה — ראו admPeople. */
   /* "הרשמות" ו"משתתפים" נבלעו בו: אותן ישיבות, שני מספרים, ומסך אחד. */
-  what:  [['people','אנשים'], ['calls','שיחות'], ['push','שליחה'],
+  /* "עמדת לימוד" — תלמיד לוחץ שכבה, כיתה ושם. ראו amdaOpen. */
+  what:  [['people','אנשים'], ['amda','עמדת לימוד'], ['calls','שיחות'], ['push','שליחה'],
           ['tmpl','נוסחים'], ['lottery','הגרלה'], ['data','נתונים']],
   /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
      הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
@@ -7867,6 +7919,7 @@ function admPane() {
       setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
     }
     if (sub === 'people')  return admPeople(body);
+    if (sub === 'amda')    return admAmda(body);
     if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
     /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
        ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
@@ -11847,6 +11900,394 @@ function admPriceSet(id, k, v) {
   if (c[id].price > c[id].list) c[id].list = c[id].price;   // מוזל לא גבוה ממלא
   cfgSet('prices', c);
   admPane();
+}
+
+/* ============================================================
+   עמדת לימוד.
+   ============================================================
+   מכשיר אחד בכניסה. תלמיד ניגש, לוחץ שכבה, כיתה ושם — ונרשם
+   שלמד את הדף השבוע. ✓ לרגע, והמסך חוזר להתחלה לתלמיד הבא.
+
+   **הרשימה אינה בריפו.** הריפו ציבורי, והשמות של קטינים. קובץ
+   האקסל של בית הספר נקרא בדפדפן (xlsx.js), נשמר במכשיר ובלשונית
+   פרטית בגיליון (AMDA_ROSTER), ומשם כל מכשיר ניהול אחר טוען אותו.
+
+   **כל סימון נשמר במכשיר קודם**, ורק אחר כך נשלח. `no-cors`
+   תמיד "מצליח", ולכן סימון יוצא מהתור רק כשהוא נראה בקריאה
+   חוזרת של הלשונית (amdaPull). עד אז הוא נשלח שוב — ושורה
+   כפולה בגיליון נבלעת במזהה.
+
+   שכבות ז׳–י׳ בלבד: אלה שבתוכנית.
+   ============================================================ */
+var AMDA_ROSTER = 'תלמידי בית הספר';
+var AMDA_TAB    = 'עמדת לימוד';
+var AMDA_GRADES = ['ז', 'ח', 'ט', 'י'];
+var amdaSt = { g: '', c: '', idle: null, ok: null, pullT: null, flushT: null };
+var amdaMsg = '';
+
+function amdaT(k, v) {
+  var s = String((window.AMDA && AMDA[k]) || '');
+  return v ? s.replace(/\{(\w+)\}/g, function (m, x) { return v[x] != null ? v[x] : m; }) : s;
+}
+function amdaG(g) { return g + '׳'; }                  /* ז → ז׳ */
+function amdaWeek() { return Math.max(0, LWeek()) + 1; }
+function amdaKey(g, c, n) { return g + '|' + c + '|' + n; }
+
+/* { at, g:{ 'ז':{ '3':['כהן משה', ...] } } } */
+function amdaRoster() { return Store.get('amdaRoster', null); }
+function amdaCount(r) {
+  var n = 0, c = 0, g, k;
+  if (!r || !r.g) return { n: 0, c: 0 };
+  for (g in r.g) {
+    if (!r.g.hasOwnProperty(g)) continue;
+    for (k in r.g[g]) { if (r.g[g].hasOwnProperty(k)) { c++; n += r.g[g][k].length; } }
+  }
+  return { n: n, c: c };
+}
+function amdaClasses(g) {
+  var r = amdaRoster(), out = [], k;
+  if (!r || !r.g || !r.g[g]) return out;
+  for (k in r.g[g]) { if (r.g[g].hasOwnProperty(k)) out.push(k); }
+  return out.sort(function (a, b) { return a - b; });
+}
+
+/* ---------- מה כבר סומן ----------
+   `amdaQ` — מה שעוד לא נראה בגיליון. `amdaHad` — מי נרשם, לפי
+   שבוע: מה שסומן כאן, ומה שנקרא מהגיליון (גם ממכשיר אחר). */
+function amdaHad(w) { return (Store.get('amdaHad', {}) || {})[w] || {}; }
+function amdaHadSet(w, key) {
+  var all = Store.get('amdaHad', {}) || {};
+  if (!all[w]) all[w] = {};
+  all[w][key] = 1;
+  Store.set('amdaHad', all);
+}
+
+/* ---------- קריאת הקובץ ---------- */
+function amdaFile() {
+  var inp = document.getElementById('amda-file');
+  if (!inp) return;
+  inp.value = '';
+  inp.click();
+}
+function amdaNeedXlsx() {
+  if (window.XLSX_READ) return Promise.resolve();
+  return new Promise(function (ok, fail) {
+    var s = document.createElement('script');
+    s.src = 'xlsx.js?v=' + APP_VERSION;
+    s.onload = function () { ok(); };
+    s.onerror = function () { fail(new Error('xlsx')); };
+    document.body.appendChild(s);
+  });
+}
+function amdaPicked(inp) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function () {
+    amdaNeedXlsx().then(function () {
+      var r = null;
+      try { r = amdaFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
+      if (!r || !amdaCount(r).n) { alert(amdaT('admBad')); return; }
+      Store.set('amdaRoster', r);
+      amdaMsg = amdaT('admSaving', { n: amdaCount(r).n });
+      admPane();
+      amdaPushRoster(r);
+    }).catch(function () { alert(amdaT('admBad')); });
+  };
+  rd.readAsArrayBuffer(f);
+}
+/* שורה היא תלמיד רק כשיש בה כיתה מהתוכנית ומקבילה מספרית:
+   A שם משפחה · B שם פרטי · C כיתה · D מקבילה. כך שורת הכותרת,
+   שם הגיליון ושורות ריקות נופלות לבד. */
+function amdaFromSheets(sheets) {
+  var r = { at: Date.now(), g: {} }, i, j;
+  for (i = 0; i < sheets.length; i++) {
+    for (j = 0; j < sheets[i].rows.length; j++) {
+      var v = sheets[i].rows[j];
+      var g = String(v.C || '').replace(/["'׳״\s]/g, '');
+      var p = String(v.D || '').match(/^\d+/);
+      var n = (String(v.A || '') + ' ' + String(v.B || '')).replace(/\s+/g, ' ').trim();
+      if (!p || !n || AMDA_GRADES.indexOf(g) < 0) continue;
+      p = String(+p[0]);
+      if (!r.g[g]) r.g[g] = {};
+      if (!r.g[g][p]) r.g[g][p] = [];
+      r.g[g][p].push(n);
+    }
+  }
+  return r;
+}
+
+/* ---------- הרשימה בגיליון ----------
+   נכתבת כולה מחדש (`table`), ונחשבת לשמורה רק כשהקריאה החוזרת
+   מחזירה את אותו מספר תלמידים. */
+function amdaRows(r) {
+  var rows = [], i, j, g, cs;
+  for (i = 0; i < AMDA_GRADES.length; i++) {
+    g = AMDA_GRADES[i];
+    cs = amdaClasses(g);
+    for (j = 0; j < cs.length; j++) {
+      r.g[g][cs[j]].forEach(function (n) { rows.push([g, cs[j], n]); });
+    }
+  }
+  return rows;
+}
+function amdaPushRoster(r) {
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  var n = amdaCount(r).n;
+  if (!key || !url) { amdaMsg = amdaT('admNoSave', { n: n }); admPane(); return; }
+  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'table', tab: AMDA_ROSTER, key: key,
+    cols: JSON.stringify(['שכבה', 'כיתה', 'שם']),
+    rows: JSON.stringify(amdaRows(r)) }) })
+    .catch(function () {})
+    .then(function () {
+      return new Promise(function (ok) { setTimeout(ok, 2500); });
+    })
+    .then(function () { return amdaReadRoster(); })
+    .then(function (got) {
+      amdaMsg = amdaT(got && amdaCount(got).n === n ? 'admSaved' : 'admNoSave', { n: n });
+      admPane();
+    });
+}
+/* null = הקריאה נכשלה או שאין רשימה; אז מה שבמכשיר נשאר. */
+function amdaReadRoster() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(null);
+  return scriptGet({ read: AMDA_ROSTER, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return null;
+    var h = d.rows[0], ig = h.indexOf('שכבה'), ic = h.indexOf('כיתה'), inn = h.indexOf('שם');
+    if (ig < 0 || ic < 0 || inn < 0) return null;
+    var r = { at: Date.now(), g: {} };
+    d.rows.slice(1).forEach(function (x) {
+      var g = String(x[ig] || ''), c = String(x[ic] || ''), n = String(x[inn] || '');
+      if (!g || !c || !n) return;
+      if (!r.g[g]) r.g[g] = {};
+      if (!r.g[g][c]) r.g[g][c] = [];
+      r.g[g][c].push(n);
+    });
+    return amdaCount(r).n ? r : null;
+  }).catch(function () { return null; });
+}
+function amdaPullRoster() {
+  amdaReadRoster().then(function (r) {
+    if (r) { Store.set('amdaRoster', r); amdaMsg = amdaT('admHave', amdaCount(r)); }
+    else amdaMsg = amdaT('admNoPull');
+    admPane();
+  });
+}
+
+/* ---------- הסימונים: שליחה ואימות ---------- */
+function amdaFlush() {
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  var q = Store.get('amdaQ', []) || [], now = Date.now(), sent = 0;
+  if (!key || !url || !q.length) return;
+  q.forEach(function (m) {
+    if (m.sent && now - m.sent < 45000) return;       /* עוד מחכה לאימות */
+    m.sent = now;
+    sent++;
+    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+      action: 'row', tab: AMDA_TAB, key: key,
+      cols: JSON.stringify([['מזהה', m.id], ['שבוע', m.w], ['שכבה', m.g],
+                            ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
+      .catch(function () {});
+  });
+  Store.set('amdaQ', q);
+  if (sent) { clearTimeout(amdaSt.pullT); amdaSt.pullT = setTimeout(amdaPull, 6000); }
+}
+/* קריאה חוזרת: מה שנראה בגיליון יוצא מהתור, ומי שנרשם השבוע —
+   גם ממכשיר אחר — מסומן. קריאה שנכשלה אינה משנה דבר. */
+function amdaPull() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(false);
+  return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var h = d.rows[0] || [], seen = {}, w = amdaWeek();
+    var ii = h.indexOf('מזהה'), iw = h.indexOf('שבוע'), ig = h.indexOf('שכבה'),
+        ic = h.indexOf('כיתה'), inn = h.indexOf('שם');
+    var all = Store.get('amdaHad', {}) || {};
+    if (!all[w]) all[w] = {};
+    d.rows.slice(1).forEach(function (x) {
+      if (ii >= 0) seen[x[ii]] = 1;
+      if (iw >= 0 && String(x[iw]) === String(w) && ig >= 0 && ic >= 0 && inn >= 0) {
+        all[w][amdaKey(String(x[ig]), String(x[ic]), String(x[inn]))] = 1;
+      }
+    });
+    Store.set('amdaHad', all);
+    var q = (Store.get('amdaQ', []) || []).filter(function (m) { return !seen[m.id]; });
+    Store.set('amdaQ', q);
+    if (document.getElementById('amda-adm')) admPane();
+    return true;
+  }).catch(function () { return false; });
+}
+
+/* ---------- העמדה ---------- */
+function amdaOpen() {
+  var r = amdaRoster();
+  if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
+  var el = document.getElementById('amda');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'amda';
+    el.className = 'amda';
+    el.innerHTML = '<div class="am-in" id="am-in"></div>' +
+      '<div class="am-ok" id="am-ok"><div class="am-tick">✓</div><b id="am-okn"></b>' +
+      '<span id="am-okt"></span></div>';
+    document.body.appendChild(el);
+    el.addEventListener('click', amdaTap);
+  }
+  amdaSt.g = ''; amdaSt.c = '';
+  el.className = 'amda on';
+  Store.set('amdaOn', 1);
+  try {
+    var de = document.documentElement;
+    if (de.requestFullscreen) de.requestFullscreen().catch(function () {});
+  } catch (e) {}
+  amdaPaint();
+  amdaFlush();
+  amdaPull().then(function () { amdaPaint(); });
+  clearInterval(amdaSt.flushT);
+  amdaSt.flushT = setInterval(function () {
+    amdaFlush();
+    if (!amdaSt.g) amdaPull().then(function () { if (!amdaSt.g) amdaPaint(); });
+  }, 60000);
+}
+function amdaClose() {
+  if (!confirm(amdaT('exitAsk'))) return;
+  var el = document.getElementById('amda');
+  if (el) el.className = 'amda';
+  Store.set('amdaOn', 0);
+  clearInterval(amdaSt.flushT);
+  clearTimeout(amdaSt.idle);
+  try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); } catch (e) {}
+  admPane();
+}
+function amdaPaint() {
+  var box = document.getElementById('am-in');
+  if (!box) return;
+  var h = '<div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
+          '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' +
+          esc(amdaT('brand2')) + ' · ' + esc(PROGRAM.year) + '</span></div>' +
+          '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
+          '<div class="am-h">' + esc(amdaT('title')) + '</div>' +
+          '<div class="am-sub">' + esc(amdaT('week', { w: amdaWeek() })) + '</div>' +
+          '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
+  AMDA_GRADES.forEach(function (g) {
+    h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
+         esc(amdaG(g)) + '</button>';
+  });
+  h += '</div>';
+  if (amdaSt.g) {
+    h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
+    amdaClasses(amdaSt.g).forEach(function (c) {
+      h += '<button class="am-b' + (amdaSt.c === c ? ' on' : '') + '" data-c="' + esc(c) + '">' +
+           esc(c) + '</button>';
+    });
+    h += '</div>';
+  }
+  if (amdaSt.g && amdaSt.c) {
+    var had = amdaHad(amdaWeek()), list = (amdaRoster().g[amdaSt.g] || {})[amdaSt.c] || [];
+    h += '<div class="am-q" id="am-nq">' + esc(amdaT('pickN')) + '</div><div class="am-names">';
+    list.forEach(function (n, i) {
+      var was = had[amdaKey(amdaSt.g, amdaSt.c, n)];
+      h += '<button class="am-nm' + (was ? ' had' : '') + '" data-n="' + i + '"><span>' + esc(n) +
+           '</span>' + (was ? '<i>✓ ' + esc(amdaT('had')) + '</i>' : '') + '</button>';
+    });
+    h += '</div>';
+  }
+  box.innerHTML = h;
+}
+/* מי שבחר שכבה והלך — המסך חוזר להתחלה לבד. */
+function amdaIdle() {
+  clearTimeout(amdaSt.idle);
+  amdaSt.idle = setTimeout(function () {
+    if (!amdaSt.g) return;
+    amdaSt.g = ''; amdaSt.c = '';
+    amdaPaint();
+    document.getElementById('amda').scrollTop = 0;
+  }, 30000);
+}
+function amdaTap(e) {
+  var el = e.target;
+  while (el && el.id !== 'amda' && !(el.getAttribute &&
+         (el.getAttribute('data-g') || el.getAttribute('data-c') ||
+          el.getAttribute('data-n') || el.getAttribute('data-x')))) el = el.parentNode;
+  if (!el || el.id === 'amda') return;
+  if (document.getElementById('am-ok').className === 'am-ok on') return;
+  if (el.getAttribute('data-x')) { amdaClose(); return; }
+  var box = document.getElementById('amda');
+  if (el.getAttribute('data-g')) {
+    amdaSt.g = el.getAttribute('data-g'); amdaSt.c = '';
+    amdaPaint(); amdaIdle(); return;
+  }
+  if (el.getAttribute('data-c')) {
+    amdaSt.c = el.getAttribute('data-c');
+    amdaPaint(); amdaIdle();
+    var q = document.getElementById('am-nq');
+    if (q) box.scrollTop = Math.max(0, q.offsetTop - 12);
+    return;
+  }
+  var list = (amdaRoster().g[amdaSt.g] || {})[amdaSt.c] || [];
+  var n = list[+el.getAttribute('data-n')];
+  if (!n) return;
+  amdaMark(amdaSt.g, amdaSt.c, n);
+}
+function amdaMark(g, c, n) {
+  var w = amdaWeek(), key = amdaKey(g, c, n);
+  if (!amdaHad(w)[key]) {
+    var q = Store.get('amdaQ', []) || [];
+    q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+             w: w, g: g, c: c, n: n, at: new Date().toISOString() });
+    Store.set('amdaQ', q);
+    amdaHadSet(w, key);
+    amdaFlush();
+  }
+  clearTimeout(amdaSt.idle);
+  document.getElementById('am-okn').textContent = n;
+  document.getElementById('am-okt').textContent = amdaT('done');
+  document.getElementById('am-ok').className = 'am-ok on';
+  setTimeout(function () {
+    document.getElementById('am-ok').className = 'am-ok';
+    amdaSt.g = ''; amdaSt.c = '';
+    amdaPaint();
+    document.getElementById('amda').scrollTop = 0;
+  }, 1300);
+}
+
+/* ---------- המסך בניהול ---------- */
+function admAmda(body) {
+  var r = amdaRoster(), cnt = amdaCount(r), key = (CFG.readKey || '').trim();
+  var w = amdaWeek(), had = amdaHad(w), q = Store.get('amdaQ', []) || [];
+  var by = {}, k, tot = 0;
+  for (k in had) {
+    if (!had.hasOwnProperty(k)) continue;
+    var p = k.split('|'), cl = amdaG(p[0]) + p[1];
+    (by[cl] = by[cl] || []).push(p.slice(2).join('|'));
+    tot++;
+  }
+  var h = '<div class="adm-card" id="amda-adm"><h4>עמדת לימוד</h4>' +
+    '<p class="h">' + esc(amdaT('admLead')) + '</p>' +
+    '<p class="h"><b>' + esc(cnt.n ? amdaT('admHave', cnt) : amdaT('admNone')) + '</b>' +
+    (amdaMsg ? '<br>' + esc(amdaMsg) : '') + '</p>' +
+    (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>') +
+    (cnt.n ? '<button class="btn p" style="width:100%;margin:6px 0 10px" onclick="amdaOpen()">' +
+             esc(amdaT('admOpen')) + '</button>' : '') +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button class="btn g" onclick="amdaFile()">' + esc(cnt.n ? amdaT('admRe') : amdaT('admLoad')) + '</button>' +
+    (key ? '<button class="btn g" onclick="amdaPullRoster()">' + esc(amdaT('admPull')) + '</button>' : '') +
+    '</div><p class="h" style="margin-top:8px">' + esc(amdaT('admHint')) + '</p>' +
+    '<input type="file" id="amda-file" style="display:none" onchange="amdaPicked(this)"' +
+    ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>' +
+    '<div class="adm-card"><h4>' + esc(amdaT('admWeek', { w: w, n: tot })) + '</h4>' +
+    (q.length ? '<p class="h">' + esc(amdaT('admWait', { n: q.length })) + '</p>' : '') +
+    Object.keys(by).sort().map(function (cl) {
+      return '<p class="h"><b>' + esc(cl) + ' · ' + by[cl].length + '</b><br>' +
+             by[cl].map(esc).join(' · ') + '</p>';
+    }).join('') + '</div>';
+  body.innerHTML = h;
+  /* בכל כניסה, לכל היותר פעם בדקה — גם כשהקריאה נכשלה. */
+  if (key && Date.now() - (amdaSt.admAt || 0) > 60000) {
+    amdaSt.admAt = Date.now(); amdaFlush(); amdaPull();
+  }
 }
 
 /* ---- הסוגיה היומית ---- */
