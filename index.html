@@ -2027,7 +2027,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.76';
+var APP_VERSION = '8.99.77';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5230,7 +5230,7 @@ function pushCalls(now) {
     if (rows.length) {
       callSay('שולח…');
       fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
-        body: JSON.stringify({ action:'table', tab: CALL_TAB,
+        body: JSON.stringify({ action:'table', tab: CALL_TAB, key:(CFG.readKey || '').trim(), 
           /* עמודה חדשה **בסוף**. הוספה באמצע מזיזה את כל מה
              שמימינה בשורות שכבר נכתבו. */
           cols: JSON.stringify(['ישיבה','סטטוס','הערה','מתי','איש קשר','עריכה','סבב',
@@ -5269,7 +5269,7 @@ function pushTeamView(list) {
     return [c.name, c.upd || '', JSON.stringify(tg), JSON.stringify(people)];
   });
   fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
-    body: JSON.stringify({ action:'table', tab:'תצוגת צוות', ss:(CFG.contactsSheet || '').trim() || undefined,
+    body: JSON.stringify({ action:'table', tab:'תצוגת צוות', key:(CFG.readKey || '').trim(),  ss:(CFG.contactsSheet || '').trim() || undefined,
       cols: JSON.stringify(['ישיבה','עדכון','תגיות','אנשי קשר']),
       rows: JSON.stringify(rows) }) }).catch(function () {});
 }
@@ -5282,7 +5282,7 @@ function pushTagDefs() {
   if (!API && !CFG.api) return;
   var rows = tagDefs().map(function (t) { return [t.k, t.t, t.team ? 'TRUE' : '']; });
   fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
-    body: JSON.stringify({ action:'table', tab:'הגדרות תגיות', ss:(CFG.contactsSheet || '').trim() || undefined,
+    body: JSON.stringify({ action:'table', tab:'הגדרות תגיות', key:(CFG.readKey || '').trim(),  ss:(CFG.contactsSheet || '').trim() || undefined,
       cols: JSON.stringify(['מפתח','תווית','לצוות']),
       rows: JSON.stringify(rows) }) }).catch(function () {});
 }
@@ -5767,7 +5767,7 @@ function rmSave(list) {
     return [o.id, o.date, o.time, o.text];
   });
   fetch(url, { method:'POST', mode:'no-cors',
-    body: JSON.stringify({ action:'table', tab: RM_TAB,
+    body: JSON.stringify({ action:'table', tab: RM_TAB, key:(CFG.readKey || '').trim(), 
       cols: JSON.stringify(['מזהה', 'תאריך', 'שעה', 'נוסח']),
       rows: JSON.stringify(rows) }) })
     /* הכתיבה אטומה ואינה ראיה. קוראים חזרה, ורק מה שחזר הוא
@@ -5829,7 +5829,7 @@ function rmSubOn() {
       /* נרשם ללשונית ההתראות כמו כל אחד אחר, בתפקיד "רכז" —
          כך השולח המתוזמן מוצא את המנוי בלי מסלול נפרד. */
       return fetch(url, { method:'POST', mode:'no-cors',
-        body: JSON.stringify({ action:'row', tab:'התראות',
+        body: JSON.stringify({ action:'row', tab:'התראות', key:(CFG.readKey || '').trim(), 
           cols: JSON.stringify([
             ['מזהה', rmId()], ['שם', 'רכז התוכנית'],
             ['ישיבה', ''], ['קוד ישיבה', ''],
@@ -7106,7 +7106,7 @@ function writeSettings_(say) {
     var v = CV(k);
     if (v != null) rows.push([k, "'" + JSON.stringify(v)]);
   });
-  queue({ action:'table', tab: SET_TAB,
+  queue({ action:'table', tab: SET_TAB, key:(CFG.readKey || '').trim(), 
           cols: JSON.stringify(['מפתח', 'ערך']),
           rows: JSON.stringify(rows) });
 
@@ -7176,7 +7176,7 @@ function writeSettings_(say) {
    על סמך השליחה עצמה. */
 function publishTexts(say, nCfg) {
   var rows = textPubRows();
-  queue({ action:'texts', rows:JSON.stringify(rows), at:new Date().toISOString() });
+  queue({ action:'texts', key:(CFG.readKey || '').trim(), rows:JSON.stringify(rows), at:new Date().toISOString() });
   say('cond', nCfg + ' הגדרות אושרו · שולח ' + rows.length + ' נוסחים…');
 
   var tries = 0;
@@ -7616,9 +7616,9 @@ function pubWipe() {
   var keepTxt = keepOnly(PUB_SEEN.txt || {}), txtRows = [];
   for (k in keepTxt) if (keepTxt.hasOwnProperty(k)) txtRows.push({ key:k, value:keepTxt[k] });
 
-  queue({ action:'table', tab:SET_TAB, cols:JSON.stringify(['מפתח', 'ערך']),
+  queue({ action:'table', tab:SET_TAB, key:(CFG.readKey || '').trim(),  cols:JSON.stringify(['מפתח', 'ערך']),
           rows:JSON.stringify(setRows) });
-  queue({ action:'texts', rows:JSON.stringify(txtRows), at:new Date().toISOString() });
+  queue({ action:'texts', key:(CFG.readKey || '').trim(), rows:JSON.stringify(txtRows), at:new Date().toISOString() });
 
   /* המכשיר הזה — כמו כולם אחרי המחיקה. */
   PUB_KEYS.forEach(function (q) { if (!KEEP_CFG[q]) delete CFG[q]; });
@@ -10650,7 +10650,7 @@ function dkSave() {
   }
   dkMsg('', 'נשלח · מאמת מול הגיליון…');
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:DECK_SHEET,
+    action:'table', tab:DECK_SHEET, key:(CFG.readKey || '').trim(), 
     cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים', 'כותרת']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
@@ -11181,7 +11181,7 @@ function opToggle(ti, wi) {
   }
   opBusy = true; opMsg = 'נשלח · מאמת מול הגיליון…'; opCls = ''; admPane();
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:OPEN_SHEET,
+    action:'table', tab:OPEN_SHEET, key:(CFG.readKey || '').trim(), 
     cols:JSON.stringify(['מסכת', 'דף', 'נפתח']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
@@ -11292,7 +11292,7 @@ function tmSave(list) {
   if (!API) { tmMsg = 'אין כתובת שרת במכשיר הזה.'; tmCls = 'bad'; admPane(); return; }
   tmBusy = true; tmMsg = 'נשמר · מאמת מול הגיליון…'; tmCls = ''; admPane();
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:TMPL_TAB,
+    action:'table', tab:TMPL_TAB, key:(CFG.readKey || '').trim(), 
     cols:JSON.stringify(['קטגוריה', 'נוסח']),
     /* גרש מוביל — נוסח שמתחיל ב"=" או במספר נשאר טקסט. */
     rows:JSON.stringify(list.map(function (x) { return [x.cat, "'" + x.text]; }))
@@ -11595,20 +11595,30 @@ function admInstallBox() {
 /* רענון בכוח. מוחק את מטמון ה-Service Worker ומשחרר אותו, ואז
    טוען מחדש — הדרך היחידה לוודא שמכשיר לא מחזיק גרסה ישנה.
    localStorage לא נוגעים בו: שם יושבות ההגדרות וההרשמות. */
+/* "רענון מלא" — **בלי unregister ובלי unsubscribe.** עד עכשיו הוא
+   ביטל את רישום ה-Service Worker, ואיתו את מנוי ההתראות של המכשיר —
+   בזמן שהגיליון ממשיך להחזיק את המנוי כאילו הוא חי. עכשיו: בקשת
+   עדכון ל-worker (ואם חדש ממתין — שיתחיל מיד), מחיקת מטמוני הקבצים
+   של האפליקציה בלבד, וטעינה מחדש. המנוי נשאר בדיוק כמו שהיה. */
 function admRefresh() {
-  var done = function () { location.reload(true); };
+  var done = function () { location.reload(); };
   var jobs = [];
   if (window.caches && caches.keys) {
     jobs.push(caches.keys().then(function (ks) {
-      return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      return Promise.all(ks.filter(function (k) { return /^hadaf-/.test(k); })
+        .map(function (k) { return caches['delete'](k); }));
     }));
   }
   if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
     jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
-      return Promise.all(rs.map(function (r) { return r.unregister(); }));
+      return Promise.all(rs.map(function (r) {
+        return Promise.resolve(r.update ? r.update() : 0)['catch'](function () {}).then(function () {
+          if (r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' });
+        });
+      }));
     }));
   }
-  Promise.all(jobs).then(done).catch(done);
+  Promise.all(jobs).then(done)['catch'](done);
 }
 
 function admCopyStudio() {

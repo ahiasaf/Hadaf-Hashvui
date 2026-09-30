@@ -189,7 +189,8 @@ function sentMark(keys) {
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'row', tab:SENT_TAB,
+      /* "נשלחו" אינה לשונית ציבורית — הכתיבה דורשת את הסיסמה. */
+      body: JSON.stringify({ action:'row', tab:SENT_TAB, key: process.env.READ_KEY || '',
         cols: JSON.stringify([['מפתח', k], ['מתי', stamp]]) })
     }).then(function (r) { return r.text(); })
       .then(function (t) {
