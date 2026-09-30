@@ -1890,11 +1890,16 @@ function boardData_(inst, k, withTest, inner) {
         return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
       };
       /* כל המזהים של כל אדם — גם של הורה מישיבה אחרת. */
-      var idsOf = {}, dads = {};
+      var idsOf = {}, dads = {}, info = {};
       for (var d0 = 1; d0 < jr.length; d0++) {
         var pid0x = cell(jr[d0], 'מזהה');
         if (!pid0x) continue;
         idsOf[pid0x] = rowIdsOf_(pid0x, cell(jr[d0], ALIAS_COL));
+        /* לתצוגת כל הישיבות: פרטי ההורה שבשורת הבן, והורים שלא חוברו. */
+        if (all) info[pid0x] = { id: pid0x, first: cell(jr[d0], 'שם'), last: cell(jr[d0], 'משפחה'),
+          phone: cell(jr[d0], 'טלפון'), inst: cell(jr[d0], 'קוד ישיבה'),
+          instName: cell(jr[d0], 'ישיבה'), dad: cell(jr[d0], 'תפקיד') === 'הורה',
+          test: cell(jr[d0], 'בדיקה') === 'כן' ? 1 : 0 };
         if (cell(jr[d0], 'תפקיד') === 'הורה' &&
             (withTest || cell(jr[d0], 'בדיקה') !== 'כן')) {
           dads[pid0x] = { inst: cell(jr[d0], 'קוד ישיבה'), ids: idsOf[pid0x] };
@@ -1962,6 +1967,12 @@ function boardData_(inst, k, withTest, inner) {
         if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
         /* להורה המחובר יש התראות? — לכפתור ✉ ולמספרים בשליחה. */
         if (all) p.parPush = parIds.some(function (x) { return pushSet[x]; }) ? 1 : 0;
+        /* ופרטיו — לשורה הנפתחת במסך "אנשים" של הרכז. */
+        var pp0 = all && pm[pid] && pm[pid].pids ? info[pm[pid].pids[0]] : null;
+        if (pp0) {
+          p.par = { id: pp0.id, first: pp0.first, last: pp0.last, phone: pp0.phone,
+                    push: (idsOf[pp0.id] || [pp0.id]).some(function (x) { return pushSet[x]; }) ? 1 : 0 };
+        }
         for (var t in (done[pid] || {})) p.weeks.push(t);
         /* התקדמות מוחזרת רק לשבוע שלא הושלם — אחרת היא סותרת
            את הסימון ומייצרת שני מספרים לאותו דבר. */
@@ -1975,6 +1986,23 @@ function boardData_(inst, k, withTest, inner) {
 
   var res = { status: 'ok', inst: inst, students: out };
   if (inner) res.dads = dads;
+  /* הורים שלא חוברו לאף תלמיד — כדי שגם הם יופיעו במסך "אנשים".
+     הורה מחובר מופיע בשורה של הבן. */
+  if (all && !inner) {
+    try {
+      var pmA = pairMap_(js.getDataRange().getDisplayValues());
+      res.parents = [];
+      for (var q9 in info) {
+        var o9 = info[q9];
+        if (!o9.dad || (pmA[q9] && pmA[q9].pids && pmA[q9].pids.length)) continue;
+        if (o9.test && !withTest) continue;
+        res.parents.push({ id: o9.id, first: o9.first, last: o9.last, phone: o9.phone,
+          inst: o9.inst, instName: o9.instName, test: o9.test,
+          ids: idsOf[q9] || [q9],
+          push: (idsOf[q9] || [q9]).some(function (x) { return pushSet[x]; }) ? 1 : 0 });
+      }
+    } catch (e9) {}
+  }
   return res;
 }
 

@@ -834,6 +834,13 @@ body.tk-sheeting #tk-bar{display:none}
 .pubbar.warn{border-color:var(--gold);background:#FFF8E8}
 .pubbar.warn b{color:#7A5A12}
 .pubbar.ok b{color:var(--ok)}
+.slog{padding:8px 0;border-top:1px solid var(--rule)}
+.slog:first-of-type{border-top:0}
+.slog-h{font-size:.8rem;color:var(--ink-2)}
+.slog-h span{float:left;color:var(--ink-3);font-size:.74rem}
+.slog-t{font-size:.84rem;margin-top:2px;line-height:1.45}
+.slog-r{font-size:.74rem;font-weight:800;color:var(--ok);margin-top:2px}
+.slog.bad .slog-r{color:#A33}
 .needs{margin:0 0 12px;padding:12px;border-radius:13px;border:1.5px solid #D9822B;background:#FFF6EC}
 .needs-t{font-size:.8rem;font-weight:800;color:#9A4F0C;margin-bottom:6px}
 .need{padding:10px 0;border-top:1px solid rgba(217,130,43,.3)}
@@ -2020,7 +2027,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.75';
+var APP_VERSION = '8.99.76';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7666,8 +7673,10 @@ function paintAdmChip() {
 /* תת-לשוניות. לשונית שיש בה יותר מנושא אחד מקבלת שורה שנייה,
    וכך המפלס העליון נשאר קצר ונקרא במבט. */
 var SUB = {
-  what:  [['reg','הרשמות'], ['part','משתתפים'],
-          ['calls','שיחות'], ['push','התראות'], ['tmpl','נוסחים'], ['data','נתונים']],
+  /* "אנשים" ראשון: מסך אחד לכל תלמיד והורה — ראו admPeople. */
+  what:  [['people','אנשים'], ['reg','הרשמות'], ['part','משתתפים'],
+          ['calls','שיחות'], ['push','שליחה'], ['lottery','הגרלה'],
+          ['tmpl','נוסחים'], ['data','נתונים']],
   /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
      הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
      והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
@@ -7719,6 +7728,8 @@ function admPane() {
       admAutoAt.needs = Date.now();
       setTimeout(function () { needsLoad(); if (stuckRows === null) stuckLoad(); }, 0);
     }
+    if (sub === 'people')  return admPeople(body);
+    if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
     if (sub === 'reg')  return admReg(body);
     /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
        ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
@@ -7792,7 +7803,52 @@ var admAutoAt = {};
      אינו יודע על זה — אצלו "נשלח". כאן שולחים אותה שוב, כמו שהייתה.
    · מי ביקש עזרה בהתקנה ועוד לא טופל.
    ============================================================ */
-var needsFail = null, needsBusy = '', needsMsg = '';
+var needsFail = null, needsBusy = '', needsMsg = '', sayLog = null;
+
+/* ============================================================
+   "אנשים" — הלוח של כל הישיבות, בתוך הניהול.
+   ============================================================
+   "אני צריך לעבור ממשק לממשק… תחושת כפילות." מה שהיה מפוזר
+   בין "משתתפים", הלוח הנפרד ורשימת ההתראות — כאן, במסך אחד:
+   board.html?inst=all&embed=1. הלוח הוא מקור אחד לרשימה, לשליחה
+   ולחיפוש; הניהול רק מארח אותו. הגובה מגיע מבפנים (postMessage),
+   כדי שלא תהיה גלילה בתוך גלילה.
+   ============================================================ */
+var peopleH = 900;
+window.addEventListener('message', function (e) {
+  var d = e && e.data;
+  if (!d || typeof d.dfBoardH !== 'number') return;
+  peopleH = Math.max(300, d.dfBoardH);
+  var f = document.getElementById('people-f');
+  if (f) f.style.height = peopleH + 'px';
+});
+function admPeople(el) {
+  if (!(CFG.readKey || '').trim()) {
+    el.innerHTML = '<div class="adm-card"><h4>חסרה סיסמת הקריאה</h4>' +
+      '<p class="h">רשימת האנשים יושבת בגיליון הפרטי. הדביקו בהגדרות ← ' +
+      '"סיסמת הקריאה".</p><button class="btn p" onclick="admGo(\'sys\')">להגדרות</button></div>';
+    return;
+  }
+  /* מי ביקש עזרה — כאן, ליד האנשים, ולא בין טופסי השליחה. */
+  var stuck = (stuckRows || []).filter(function (p) { return !p.done; }).length;
+  el.innerHTML = (stuck ? admStuck() : '') +
+    '<iframe id="people-f" src="board.html?inst=all&embed=1" title="אנשים" ' +
+    'style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe>';
+}
+
+/* יומן ההודעות — מה יצא, ממי, ומה עלה בגורלו. */
+function sayLogCard() {
+  if (!sayLog) return '';
+  if (!sayLog.length) return '';
+  return '<div class="adm-card"><h4>ההודעות האחרונות</h4>' +
+    sayLog.slice(0, 15).map(function (m) {
+      var bad = m.res.indexOf('נכשלה') === 0 && m.res.indexOf('נשלחה שוב') < 0;
+      return '<div class="slog' + (bad ? ' bad' : '') + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
+        (m.inst ? ' · ' + esc(m.inst) : '') + '<span>' + esc(whenTxt(Date.parse(m.at) || 0)) + '</span></div>' +
+        '<div class="slog-t">' + esc((m.title ? m.title + ' — ' : '') + m.body) + '</div>' +
+        (m.res ? '<div class="slog-r">' + esc(m.res) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+}
 function needsLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key) return Promise.resolve(false);
@@ -7801,6 +7857,11 @@ function needsLoad() {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var rows = d.rows, h = (rows[0] || []).map(function (x) { return String(x).trim(); });
     var c = function (r, k) { var i = h.indexOf(k); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+    sayLog = rows.slice(1).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
+      return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
+               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך') };
+    }).reverse().slice(0, 40);
     needsFail = rows.slice(1).filter(function (r) {
       var t = c(r, 'תוצאה');
       return t.indexOf('נכשלה') === 0 && t.indexOf('נשלחה שוב') < 0 && c(r, 'מזהה שליחה');
@@ -7846,7 +7907,7 @@ function admNeeds() {
       (stuck.length === 1 ? ' ביקש' : ' ביקשו') + ' עזרה בהתקנה</div>' +
       '<div class="need-m">' + stuck.slice(0, 3).map(function (p) { return esc(p.name || ''); }).join(' · ') +
       (stuck.length > 3 ? ' ועוד' : '') + '</div>' +
-      '<button class="btn g" style="margin:8px 0 0" onclick="admSubGo(\'push\')">לפרטים</button></div>';
+      '<button class="btn g" style="margin:8px 0 0" onclick="admSubGo(\'people\')">לפרטים</button></div>';
   }
   if (!h && !needsMsg) return '';
   /* ההתרעות לטלפון יוצאות למכשירים שנרשמו כ"רכז" (שיחות ← תזכורות
@@ -10013,7 +10074,7 @@ function admPush(el) {
   var c = pushCount();
   /* מי שממתין לעזרה — ראשון. שליחת התראה יכולה לחכות דקה;
      תלמיד שנתקע כבר חיכה. */
-  var h = admStuck() + admPairs() +
+  var h = sayLogCard() +
     '<div class="adm-card"><h4>שליחת התראה</h4>' +
     '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
     'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +

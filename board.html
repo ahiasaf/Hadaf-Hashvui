@@ -244,6 +244,22 @@ button.hero:active{transform:scale(.99)}
 .wgrp{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
   margin:13px 0 3px;padding-top:10px;border-top:1px solid var(--rule)}
 .wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
+body.embed header, body.embed footer, body.embed .a11y-skip{display:none}
+body.embed .wrap{padding-top:4px}
+.ichip.sm{font-size:.74rem;padding:5px 10px}
+.lsum{font-size:.82rem;color:var(--ink-2);margin:2px 2px 8px}
+.nm{cursor:pointer}
+.prow.open{background:rgba(23,70,143,.05)}
+.kudo.off{cursor:default;opacity:.55}
+.dt{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--sunk,#F3EEE3);font-size:.84rem}
+.dt-r{display:flex;gap:10px;padding:4px 0;align-items:baseline}
+.dt-r > span:first-child{flex:none;width:4.6rem;color:var(--ink-3);font-weight:700;font-size:.76rem}
+.dt-ph{direction:ltr;unicode-bidi:embed;color:var(--ink);font-weight:700;text-decoration:none;margin-inline-end:10px}
+.dt-wa{color:#1A8F4C;font-weight:800;font-size:.78rem}
+.dt-on{color:#1A8F4C;font-weight:800;font-size:.76rem}
+.dt-off{color:var(--ink-3);font-weight:700;font-size:.76rem}
+.dt-del{margin-top:8px;border:1px solid #D9A1A1;background:#fff;color:#A33;border-radius:9px;
+  padding:6px 12px;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}
 .prow{display:flex;align-items:center;gap:9px;padding:8px 0;
   border-bottom:1px solid var(--rule);font-size:.92rem}
 .prow:last-child{border-bottom:0}
@@ -401,6 +417,18 @@ for (var i = 0; i < INSTITUTIONS.length; i++)
 var ALL = code === 'all';
 var FILT = '';                   /* '' = הכול · קוד ישיבה · '-' = ללא ישיבה */
 var rosterAll = null;
+/* ============================================================
+   מסך "אנשים" של הרכז — הלוח הזה, בתוך הניהול (`&embed=1`).
+   ============================================================
+   מה שהיה מפוזר בין "משתתפים", הלוח ורשימת ההתראות — כאן, בשורה
+   אחת לכל תלמיד: ✉/🔕, התקדמות, הורה מחובר; ולחיצה על השם פותחת
+   את כל השאר (טלפונים, הורה, מחיקה). ההורים שלא חוברו — בסוף.
+   ============================================================ */
+var EMBED = ALL && qs('embed') === '1';
+var LWAY = '', LPUSH = '';       /* סינון הרשימה: דרך לימוד · '✉'/'🔕' */
+var OPEN = '';                   /* מזהה השורה הפתוחה */
+var PARENTS = null;              /* הורים שלא חוברו לבן */
+var DEL_MSG = '';
 if (ALL) inst = { code:'all', name:'כל הישיבות' };
 function instOfP(p) {
   var c = p.inst || '';
@@ -610,7 +638,7 @@ function loadRoster() {
     roster = d.students || [];
     rosterMsg = '';
     LSet('rosterCache:' + code, roster);
-    if (ALL) { rosterAll = roster; applyFilt(); }
+    if (ALL) { rosterAll = roster; PARENTS = d.parents || null; applyFilt(); }
     return roster;
   }).catch(function () { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; });
 }
@@ -773,7 +801,108 @@ function isMine(p) {
 /* הרשימה שמוצגת בפועל. ראש חטיבה וכל מי שלא נרשם — הכול. */
 function shown() {
   if (!roster) return [];
+  if (ALL) return roster.filter(function (p) {
+    if (LWAY && (p.way || '') !== LWAY) return false;
+    if (LPUSH === 'on' && !p.push) return false;
+    if (LPUSH === 'off' && p.push) return false;
+    return true;
+  });
   return mineRam ? roster.filter(isMine) : roster;
+}
+function setL(k, v) { if (k === 'w') LWAY = v; else LPUSH = v; draw(); }
+/* שורת הסינון של הרשימה, ומתחתיה הסיכום — כמה תלמידים, הורים
+   וכמה מהם עם התראות. */
+function lfiltHtml() {
+  if (!ALL || !rosterAll) return '';
+  var base = roster || [];
+  var n = function (f) { return base.filter(f).length; };
+  var c = function (on, t, k, v, cnt) {
+    return '<button class="ichip sm' + (on ? ' on' : '') + '" onclick="setL(\'' + k + '\',\'' + v + '\')">' +
+      esc(t) + (cnt != null ? ' · ' + cnt : '') + '</button>';
+  };
+  var ways = [['לימוד עצמי', 'לבד'], ['חבורת לימוד', 'חבורה'], ['אבות ובנים', 'אב ובן']];
+  var par = (PARENTS || []).filter(parInFilt);
+  var pushK = n(function (p) { return p.push; });
+  var dadN = n(function (p) { return p.par; }) + par.length;
+  return '<div class="lsum"><b>' + base.length + '</b> תלמידים · <b>' + dadN + '</b> הורים · ' +
+    '<b>' + pushK + '</b> תלמידים עם התראות</div>' +
+    '<div class="ichips">' + c(!LWAY, 'כל הדרכים', 'w', '') +
+    ways.map(function (w) { return c(LWAY === w[0], w[1], 'w', w[0], n(function (p) { return p.way === w[0]; })); }).join('') +
+    '</div><div class="ichips">' + c(!LPUSH, 'כולם', 'p', '') +
+    c(LPUSH === 'on', '✉ עם התראות', 'p', 'on', pushK) +
+    c(LPUSH === 'off', '🔕 בלי', 'p', 'off', base.length - pushK) + '</div>';
+}
+function parInFilt(q) {
+  if (FILT && (FILT === '-' ? instOfP(q) !== '-' : instOfP(q) !== FILT)) return false;
+  if (LPUSH === 'on' && !q.push) return false;
+  if (LPUSH === 'off' && q.push) return false;
+  if (LWAY && LWAY !== 'אבות ובנים') return false;
+  return !SRCH || srchHit(q);
+}
+/* ---- הפרטים שנפתחים בלחיצה על שם ---- */
+function telA(ph) {
+  if (!ph) return '';
+  var wa = waNum(ph);
+  return '<a class="dt-ph" href="tel:' + esc(ph) + '">' + esc(ph) + '</a>' +
+    (wa ? '<a class="dt-wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener">וואטסאפ</a>' : '');
+}
+function pushTag(on) {
+  return on ? '<span class="dt-on">✉ עם התראות</span>' : '<span class="dt-off">🔕 בלי התראות</span>';
+}
+function detHtml(p, isPar) {
+  if (!ALL || OPEN !== p.id) return '';
+  var nm = ((p.first || '') + ' ' + (p.last || '')).trim();
+  var h = '<div class="dt">';
+  h += '<div class="dt-r"><span>' + (isPar ? 'ההורה' : 'התלמיד') + '</span>' + pushTag(p.push) + '</div>';
+  h += '<div class="dt-r"><span>טלפון</span><div>' + (telA(p.phone) || '—') + '</div></div>';
+  if (!isPar) {
+    h += '<div class="dt-r"><span>ישיבה</span><div>' + esc(instLbl(p)) +
+      (p.grade ? ' · ' + esc(p.grade + (p.klass || '')) : '') + (p.way ? ' · ' + esc(WayLbl(p.way)) : '') + '</div></div>';
+    if (p.par) {
+      h += '<div class="dt-r"><span>ההורה</span><div><b>' +
+        esc(((p.par.first || '') + ' ' + (p.par.last || '')).trim()) + '</b> ✓ ' + pushTag(p.par.push) +
+        '<br>' + (telA(p.par.phone) || '') + '</div></div>';
+    } else if (p['with']) {
+      h += '<div class="dt-r"><span>ההורה</span><div>' + esc(p['with']) +
+        ' <span class="dt-off">מילא בטופס — ההורה עוד לא נרשם</span></div></div>';
+    }
+  } else {
+    h += '<div class="dt-r"><span>ישיבה</span><div>' + esc(instLbl(p)) +
+      ' <span class="dt-off">לא חובר לבן</span></div></div>';
+  }
+  if ((p.ids || []).length > 1) {
+    h += '<div class="dt-r"><span>מכשירים</span><div>' + p.ids.length + ' (אוחדו לאדם אחד)</div></div>';
+  }
+  h += '<button class="dt-del" data-del="' + esc(p.id) + '" data-nm="' + esc(nm) + '">מחיקה מהרשימה</button>';
+  return h + '</div>';
+}
+function parentsHtml() {
+  if (!ALL || !PARENTS) return '';
+  var list = PARENTS.filter(parInFilt);
+  if (!list.length) return '';
+  return '<div class="card"><h2>הורים שלא חוברו לבן · ' + list.length + '</h2>' +
+    '<p class="h" style="margin:-4px 0 8px">נרשמו כהורים, ועדיין לא נמצא תלמיד שמתאים להם ' +
+    '(טלפון או קישור הזמנה).</p>' +
+    list.map(function (q) {
+      var nm = ((q.first || '') + ' ' + (q.last || '')).trim() || '—';
+      return '<div class="prow"><span class="tick"></span><div style="flex:1" class="nm" data-open="' + esc(q.id) + '">' +
+        '<b>' + esc(nm) + '</b><div class="s">' + esc(instLbl(q)) + (q.test ? ' · ' + UI.rstTag : '') + '</div></div>' +
+        (q.push ? '<span class="kudo" style="cursor:default">✉</span>' : '<span class="kudo off">🔕</span>') +
+        '</div>' + detHtml(q, true);
+    }).join('') + '</div>';
+}
+/* מחיקה — אותו מסלול של "משתתפים" (`delrow`), ורק אחרי שהשרת אישר. */
+function delPerson(id, nm) {
+  if (!id || !confirm('למחוק את ' + nm + ' מהרשימה?')) return;
+  DEL_MSG = 'מוחק…'; draw();
+  askScript({ delrow:'לומדים', col:'מזהה', vals:JSON.stringify([id]), key:acc }).then(function (d) {
+    if (d && d.status === 'success' && d.removed) {
+      rosterAll = (rosterAll || []).filter(function (p) { return p.id !== id; });
+      PARENTS = (PARENTS || []).filter(function (p) { return p.id !== id; });
+      applyFilt(); OPEN = ''; DEL_MSG = nm + ' נמחק.';
+    } else DEL_MSG = 'לא נמחק. ' + ((d && d.message) || (d && d.status === 'success' ? 'השורה לא נמצאה.' : 'אין תשובה.'));
+    draw();
+  });
 }
 
 /* ============================================================
@@ -891,14 +1020,14 @@ function pRow(p, noGrade) {
       (sub ? '<div class="s">' + esc(sub) + '</div>' : '') + '</div>' +
       (p.push ? '<span class="kudo" style="cursor:default">✉</span>' : '') + '</div>';
   }
-  return '<div class="prow' + (did ? ' did' : (f ? ' mid' : '')) + '">' +
+  return '<div class="prow' + (did ? ' did' : (f ? ' mid' : '')) + (OPEN === p.id ? ' open' : '') + '">' +
     '<span class="tick">' + (did ? '✓' : '') + '</span>' +
-    '<div style="flex:1">' +
+    '<div style="flex:1"' + (ALL ? ' class="nm" data-open="' + esc(p.id) + '"' : '') + '>' +
     '<b>' + wayDot(p) + esc(nm) + '</b>' +
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div>' + kudoBtn(p, did) + '</div>' + kudoBox(p);
+    '</div>' + kudoBtn(p, did) + '</div>' + detHtml(p, false) + kudoBox(p);
 }
 
 /* ============================================================
@@ -1417,15 +1546,28 @@ function draw() {
      ולר"ם שנרשם אין פילוח בכלל: הוא רואה את המספר הכולל של
      הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
-    chipsHtml() + sendHtml() +
-    heroHtml(daf, doneN, totN, weekOpen) +
+    chipsHtml() + (EMBED ? lfiltHtml() : '') + sendHtml() +
+    (DEL_MSG ? '<div class="card" style="padding:10px 14px">' + esc(DEL_MSG) + '</div>' : '') +
+    (EMBED ? '' : heroHtml(daf, doneN, totN, weekOpen)) +
     /* **המשבצות מוצגות גם לר"ם.** הן באות מהמונים ולא מהרשימה
        השמית, ולכן הן קיימות גם לפני שהתוכנית התחילה — ובלעדיהן
        ר"ם שפתח את הלוח מוקדם ראה מסך ריק. */
-    '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>' +
-    classesHtml() +
+    /* במסך "אנשים" — שורת הסינון שלמעלה עושה את עבודת המשבצות. */
+    (EMBED ? keyHtml() : '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
+    classesHtml() + parentsHtml() +
     soonLine();
   wire();
+  embedSize();
+}
+/* בתוך הניהול: הגובה עובר לעמוד שמכיל, כדי שלא תהיה גלילה בתוך גלילה. */
+function embedSize() {
+  if (!EMBED || !window.parent || window.parent === window) return;
+  setTimeout(function () {
+    /* גובה התוכן עצמו — לא של המסמך, שאינו קטן מגובה המסגרת ולכן
+       לעולם לא היה מתכווץ. */
+    var m = $('body'), hgt = m ? Math.ceil(m.getBoundingClientRect().bottom + (window.pageYOffset || 0)) + 12 : 0;
+    try { window.parent.postMessage({ dfBoardH: hgt }, '*'); } catch (e) {}
+  }, 30);
 }
 /* ---------- הכותרת ----------
    טבעת ולא מספר יבש. "7 מתוך 17" הוא נתון שצריך לחשב; טבעת
@@ -1493,7 +1635,28 @@ function wire() {
   if (cq) cq.oninput = function () {
     SRCH = cq.value;
     var l = $('cls-list'); if (l) l.innerHTML = classesList();
+    embedSize();
   };
+  var bd = $('body');
+  if (ALL && bd && !bd.getAttribute('data-ow')) {
+    bd.setAttribute('data-ow', '1');
+    bd.addEventListener('click', function (e) {
+      var t = e.target, b;
+      if (SELMODE) return;
+      if ((b = t.closest && t.closest('[data-del]'))) {
+        delPerson(b.getAttribute('data-del'), b.getAttribute('data-nm')); return;
+      }
+      if (t.closest && t.closest('.dt a')) return;
+      if ((b = t.closest && t.closest('[data-open]'))) {
+        var id = b.getAttribute('data-open');
+        OPEN = OPEN === id ? '' : id; DEL_MSG = '';
+        var l = $('cls-list');
+        /* רק הרשימה מצוירת מחדש — החיפוש והמיקום נשארים. */
+        if (l && roster && roster.some(function (p) { return p.id === id; })) { l.innerHTML = classesList(); embedSize(); }
+        else draw();
+      }
+    });
+  }
   sendWire();
   kudoWire();
   if (KUDO_OPEN) kudoPv(kudoName(kudoWho()));
@@ -1515,6 +1678,7 @@ $('foot-how').textContent = ALL ? '' :
    מה שהיה, ולא מסך ריק. */
 /* מהמטמון מיד — רשימה שכבר נטענה פעם מוצגת בלי לחכות לשרת. */
 if (ALL) { mineRam = null; rosterAll = roster; applyFilt(); }
+if (EMBED) document.body.className += ' embed';
 draw();
 if (!ALL) loadBoard().then(draw);
 loadRoster().then(draw);
