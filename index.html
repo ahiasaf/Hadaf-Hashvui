@@ -2028,7 +2028,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.78';
+var APP_VERSION = '8.99.79';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3697,7 +3697,11 @@ function myNote() {
     esc(on ? PANEL.noteOn : PANEL.noteOff) + '</b>' +
     '<span>' + esc(PANEL.noteSub) + '</span>' +
     (on ? '' : '<button class="btn g" id="my-note-go">' +
-               esc(PANEL.noteGo) + '</button>') + '</div>';
+               esc(PANEL.noteGo) + '</button>' +
+               /* חסום בדפדפן — הכפתור לא ישאל שוב. הדרך היא בהגדרות. */
+               (window.APPX && APPX.perm && APPX.perm() === 'denied'
+                 ? '<a href="hitraot.html" style="display:block;margin-top:8px;font-weight:800;' +
+                   'font-size:.86rem;color:var(--blue)">' + esc(UI.hitLink) + '</a>' : '')) + '</div>';
   var b = document.getElementById('my-note-go');
   /* ההפעלה היא שלב 3 של הבקשה האישית — אותו קוד, ולא עותק
      שני שיצא ממנו מסונכרן בחצי שנה. */
@@ -3763,8 +3767,11 @@ function hailBoard() {
 /* גנרי בכוונה — "ראש החטיבה" בלבד, בלי שם. הוא ממילא מזין את
    הפרטים האישיים שלו בעצמו כמה שורות מטה, ואין טעם לנחש אותם
    קודם מרשימת המוסדות. */
+/* השם הפרטי — אחרי שמילא את "איך לפנות אליך?" (ask.js). עד אז
+   הפנייה נקראת בלי שם, ולכן במסלול הזה הפרטים קודמים לה. */
 function headName() {
-  return '';
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || null;
+  return (me && me.first) || '';
 }
 /* איזו ישיבה זו, לצורך הפנייה.
    ============================================================
@@ -3825,6 +3832,9 @@ function askSetup(where) {
        למלא את המסך הזה. הבורר פותח מעצמו, וברירת המחדל היא
        הראשונה ברשימה. ראו `roleInit`/`roleNow` ב-ask.js. */
     roleOptions: [headT('roleYeshiva'), headT('roleChativa'), headT('roleRachez')],
+    /* "איך לפנות אליך?" לפני הפנייה, ושדה טלפון (רשות). */
+    whoFirst: true,
+    phone: true,
     t:     headT,
     klass: false,
     fem:   headFem(),

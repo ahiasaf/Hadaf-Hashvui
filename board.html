@@ -258,6 +258,8 @@ body.embed .wrap{padding-top:4px}
 .dt-wa{color:#1A8F4C;font-weight:800;font-size:.78rem}
 .dt-on{color:#1A8F4C;font-weight:800;font-size:.76rem}
 .dt-off{color:var(--ink-3);font-weight:700;font-size:.76rem}
+.wa-go{display:block;text-align:center;text-decoration:none;background:#1A8F4C !important}
+.kudo.wa{border:0;cursor:pointer;font:inherit}
 .dt-del{margin-top:8px;border:1px solid #D9A1A1;background:#fff;color:#A33;border-radius:9px;
   padding:6px 12px;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}
 .prow{display:flex;align-items:center;gap:9px;padding:8px 0;
@@ -853,7 +855,8 @@ function detHtml(p, isPar) {
   if (!ALL || OPEN !== p.id) return '';
   var nm = ((p.first || '') + ' ' + (p.last || '')).trim();
   var h = '<div class="dt">';
-  h += '<div class="dt-r"><span>' + (isPar ? 'ההורה' : 'התלמיד') + '</span>' + pushTag(p.push) + '</div>';
+  h += '<div class="dt-r"><span>' + (isPar ? 'ההורה' : 'התלמיד') + '</span>' +
+    (isPar || !p.pstate ? pushTag(p.push) : '<span class="' + (p.push ? 'dt-on' : 'dt-off') + '">' + esc(pstateTxt(p)) + '</span>') + '</div>';
   h += '<div class="dt-r"><span>טלפון</span><div>' + (telA(p.phone) || '—') + '</div></div>';
   if (!isPar) {
     h += '<div class="dt-r"><span>ישיבה</span><div>' + esc(instLbl(p)) +
@@ -1027,7 +1030,33 @@ function pRow(p, noGrade) {
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div>' + kudoBtn(p, did) + '</div>' + detHtml(p, false) + kudoBox(p);
+    '</div>' + kudoBtn(p, did) + '</div>' + detHtml(p, false) + waBoxHtml(p) + kudoBox(p);
+}
+/* ============================================================
+   וואטסאפ למי שאין לו התראות — לרכז בלבד.
+   ============================================================
+   שם, מספר, מצב ההתראות, ונוסח מוכן עם הקישור לעמוד "איך מחזירים
+   את ההתראות". הנוסח נערך כאן, ואותו נוסח עובר לוואטסאפ. */
+var WA_OPEN = '', WA_TXT = {};
+function pstateTxt(p) {
+  return { on: '✉ מנוי פעיל', blocked: '🔕 חסם התראות', none: 'לא נרשם להתראות',
+           '?': 'מצב ההתראות לא ידוע' }[p.pstate || 'none'] || '';
+}
+function waDefault(p) {
+  var link = baseUrl() + 'hitraot';
+  return tp(kt('waMsg') || '{name}, שלום! {link}', { name: p.first || '', sig: kudoSig(), link: link });
+}
+function waBoxHtml(p) {
+  if (!ALL || WA_OPEN !== p.id) return '';
+  var wa = waNum(p.phone), txt = WA_TXT[p.id] != null ? WA_TXT[p.id] : waDefault(p);
+  return '<div class="kudo-box"><div class="dt-r"><span>למי</span><div><b>' +
+    esc(((p.first || '') + ' ' + (p.last || '')).trim()) + '</b> · <span class="dt-ph">' +
+    esc(p.phone || '') + '</span></div></div>' +
+    '<div class="dt-r"><span>התראות</span><div>' + esc(pstateTxt(p)) + '</div></div>' +
+    '<textarea id="wa-txt" data-wid="' + esc(p.id) + '">' + esc(txt) + '</textarea>' +
+    '<a class="go wa-go" id="wa-go" target="_blank" rel="noopener" href="https://wa.me/' + wa +
+    '?text=' + encodeURIComponent(txt) + '">פתיחה בוואטסאפ</a>' +
+    '<div class="s">נפתח בוואטסאפ עם הנוסח — השליחה עצמה שם.</div></div>';
 }
 
 /* ============================================================
@@ -1056,9 +1085,11 @@ function kudoBtn(p, did) {
     if (!p.id) return '';
     if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
     if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
-    var wa = waNum(p.phone);
-    return wa ? '<a class="kudo wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener" ' +
-      'title="וואטסאפ — אין לו התראות">וואטסאפ</a>' : '';
+    /* **בלי טלפון — "אין מספר", לא כפתור שבור.** עם טלפון — תיבה עם
+       נוסח מוכן וקישור להחזרת ההתראות (waBoxHtml). פתיחת וואטסאפ
+       אינה שליחה, ולכן אינה מסומנת "נשלח". */
+    return waNum(p.phone) ? '<button class="kudo wa" data-wa="' + esc(p.id) + '">וואטסאפ</button>'
+                          : '<span class="kudo off" title="אין מספר טלפון">אין מספר</span>';
   }
   if (!did || !acc || !p.id) return '';
   if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
@@ -1640,9 +1671,22 @@ function wire() {
   var bd = $('body');
   if (ALL && bd && !bd.getAttribute('data-ow')) {
     bd.setAttribute('data-ow', '1');
+    bd.addEventListener('input', function (e) {
+      if (e.target.id !== 'wa-txt') return;
+      var id = e.target.getAttribute('data-wid'), g = $('wa-go');
+      WA_TXT[id] = e.target.value;
+      var p = (roster || []).filter(function (x) { return x.id === id; })[0];
+      if (g && p) g.href = 'https://wa.me/' + waNum(p.phone) + '?text=' + encodeURIComponent(e.target.value);
+    });
     bd.addEventListener('click', function (e) {
       var t = e.target, b;
       if (SELMODE) return;
+      if ((b = t.closest && t.closest('[data-wa]'))) {
+        var wid = b.getAttribute('data-wa');
+        WA_OPEN = WA_OPEN === wid ? '' : wid;
+        var l0 = $('cls-list'); if (l0) { l0.innerHTML = classesList(); embedSize(); }
+        return;
+      }
       if ((b = t.closest && t.closest('[data-del]'))) {
         delPerson(b.getAttribute('data-del'), b.getAttribute('data-nm')); return;
       }

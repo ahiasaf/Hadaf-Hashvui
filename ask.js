@@ -33,7 +33,7 @@
    ============================================================ */
 var ASK = (function () {
   var C = null;                    /* ההגדרות מהעמוד */
-  var step = 0, busy = false, err = '', skipped = false;
+  var step = 0, busy = false, err = '', skipped = false, addrShown = false;
   /* ============================================================
      תפקיד נבחר — כשיש יותר מתפקיד אחד שיכול למלא את המסך הזה.
      ============================================================
@@ -153,7 +153,9 @@ var ASK = (function () {
     var mk = $('as-mark');
     if (mk && !mk.src) mk.src = window.LOGO_MARK || '';
     step = where();
-    if (step === 1 && !get() && !peek) step = 0;   /* 0 = הפנייה עצמה */
+    /* 0 = הפנייה עצמה. ב-`whoFirst` (ראשי ישיבות וחטיבות) הפרטים
+       קודמים לה — כדי שהפנייה תהיה בשם: "שלום [שם], …". */
+    if (step === 1 && !get() && !peek && !C.whoFirst) step = 0;
     $('asksheet').hidden = false;
     document.body.style.overflow = 'hidden';
     draw();
@@ -277,6 +279,12 @@ var ASK = (function () {
         '<select id="r-grade">' + opts(C.grades || [], me.grade) + '</select>' +
         '<select id="r-klass">' + opts(cls, me.klass) + '</select></div></div>';
     }
+    /* טלפון — רשות, ורק במסלול שביקש אותו. */
+    if (C.phone) {
+      h += '<div class="fld"><label class="label" for="r-phone">' + esc(t('askPhone')) +
+        '</label><input id="r-phone" type="tel" inputmode="tel" autocomplete="tel" value="' +
+        esc(d.phone != null ? d.phone : ((get() || {}).phone || '')) + '"></div>';
+    }
     return h + '<button class="as-go" id="r-next">' + esc(t('askNext')) + '</button>' +
       (err ? '<div class="as-err">' + esc(err) + '</div>' : '');
   }
@@ -350,6 +358,8 @@ var ASK = (function () {
     if (!APPX.canNote() || APPX.perm() === 'denied') {
       return kick(3, t('askNoteH'), '') +
         '<p>' + u('noteOff', { how: APPX.unblock() }) + '</p>' +
+        (window.UI && UI.hitLink ? '<a class="as-thin" style="display:block;text-align:center" href="hitraot.html">' +
+          esc(UI.hitLink) + '</a>' : '') +
         '<button class="as-thin" id="r-later">' + esc(t('askLater')) + '</button>';
     }
     return kick(3, t('askNoteH'), t('askNoteB')) +
@@ -384,7 +394,7 @@ var ASK = (function () {
        מחדש; אין כאן שדה חובה שצריך לאשר, כי תמיד יש ברירת
        מחדל מסומנת. */
     if ((b = $('r-role'))) b.onchange = function () { roleSel = this.value; };
-    if ((b = $('r-go')))   b.onclick = function () { err = ''; go(1); };
+    if ((b = $('r-go')))   b.onclick = function () { err = ''; go(C.whoFirst && get() ? where() : 1); };
     if ((b = $('r-done'))) b.onclick = close;
     /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
        קופצת עליו, ולכן אין ממה להסתיר אותה.
@@ -423,7 +433,8 @@ var ASK = (function () {
     var klass = C.klass ? $('r-klass').value : '';
     /* שומרים לפני שבודקים: ציור מחדש שמוחק את מה שהוקלד הופך
        הודעת שגיאה לעונש. */
-    draft = { first: first, last: last, grade: grade, klass: klass };
+    draft = { first: first, last: last, grade: grade, klass: klass,
+              phone: C.phone && $('r-phone') ? $('r-phone').value : undefined };
     if (first.length < 2) { err = u('errFirst'); draw(); return; }
     if (last.length < 2)  { err = u('errLast'); draw(); return; }
     if (C.klass && (!grade || !klass)) {
@@ -431,10 +442,13 @@ var ASK = (function () {
     }
     err = '';
     var ir = inst();
+    var phone = C.phone && $('r-phone') ? ($('r-phone').value || '').trim() : '';
     set({ id: id(), first: first, last: last, grade: grade, klass: klass,
           inst: ir ? ir.code : '', instName: ir ? ir.name : '',
-          role: roleNow(), at: new Date().toISOString() });
+          role: roleNow(), phone: phone, at: new Date().toISOString() });
     post('רשום', null);
+    /* הפנייה האישית — עכשיו, בשם, ופעם אחת. */
+    if (C.whoFirst && !addrShown) { addrShown = true; go(0); return; }
     go(where());
   }
 
@@ -452,7 +466,7 @@ var ASK = (function () {
       body: JSON.stringify({
         action: 'row', tab: 'התראות',
         cols: JSON.stringify([
-          ['מזהה', me.id || ''], ['שם', name(me)],
+          ['מזהה', me.id || ''], ['שם', name(me)], ['טלפון', me.phone || ''],
           ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
           ['תפקיד', roleNow()],
           ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],

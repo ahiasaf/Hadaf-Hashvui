@@ -636,13 +636,13 @@ var TRIP_UI = (function () {
     w.innerHTML = '<div class="box"><h3>' + esc(t('backH')) + '</h3>' +
       '<p>' + esc(t('backB')) + '</p>' +
       '<button id="trip-cont">' + esc(t('backGo')) + '</button>' +
-      '<button class="alt" id="trip-new">' + esc(t('backNew')) + '</button>' +
-      '<button class="alt" id="trip-end">' + esc(t('backEnd')) + '</button></div>';
+      '<button class="alt" id="trip-new">' + esc(t('backNew')) + '</button></div>';
+    /* "לא עכשיו" ירד: מי שחזר למסע בא להמשיך. יציאה נשארת ב-✕
+       שבפס המסע עצמו. */
     document.body.appendChild(w);
     var kill = function () { if (w.parentNode) w.parentNode.removeChild(w); };
     $('trip-cont').onclick = function () { kill(); after(); };
     $('trip-new').onclick = function () { kill(); restart(); };
-    $('trip-end').onclick = function () { kill(); stop(); };
   }
 
   /* ---------- הדלקה וכיבוי ---------- */

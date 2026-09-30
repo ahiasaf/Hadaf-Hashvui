@@ -598,6 +598,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .getapp .how.warn{background:rgba(192,143,43,.12);color:var(--ink);
   border:1px solid rgba(192,143,43,.35);text-align:right}
 .getapp .how.warn b{color:#8A6316}
+.hitlink{display:block;margin:10px 0 4px;font-size:.86rem;font-weight:800;color:var(--blue,#17468F)}
 .edge-ol{margin:8px 0 6px;padding-inline-start:20px;line-height:1.8}
 .edge-had{display:block;font-size:.78rem;color:var(--ink-3);font-weight:700}
 /* ============================================================
@@ -2696,6 +2697,7 @@ function appNoteCard(box) {
            ? 'ב<b>הגדרות ← הדף השבועי ← התראות</b>.'
            : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>.') +
          '<br>ואפשר גם להמשיך בלי — הדף מחכה לכם כאן בכל מקרה.</p>' +
+         '<a class="hitlink" href="hitraot.html">' + esc(UI.hitLink) + '</a>' +
          '<button class="thin" id="app-skip">להמשיך בלי התראות</button>';
     box.innerHTML = h + '</div>';
   } else {
@@ -3275,6 +3277,7 @@ function wzNote() {
       (isIOS() ? 'ב<b>הגדרות ← הדף השבועי ← התראות</b>'
                : 'ב<b>הגדרות ← אפליקציות ← הדף השבועי ← התראות</b>') +
       ' — ואפשר גם להמשיך בלי. הדף מחכה לך למטה בכל מקרה.</p>' +
+      '<a class="hitlink" href="hitraot.html">' + esc(UI.hitLink) + '</a>' +
       '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
   }
   return wzHead(4, jt('wzNoteT'), jt('wzNoteB')) +

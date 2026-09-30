@@ -414,7 +414,7 @@ def check_share_card():
     שנשלחה כבר אי אפשר לתקן.
     """
     shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html',
-              'board.html', 'learn.html', 'masa.html', 'team.html']
+              'board.html', 'learn.html', 'masa.html', 'team.html', 'hitraot.html']
     card = 'share-card.jpg'
     if not os.path.exists(os.path.join(ROOT, card)):
         BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)

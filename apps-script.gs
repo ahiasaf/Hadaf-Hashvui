@@ -1891,7 +1891,7 @@ function boardData_(inst, k, withTest, inner) {
 
   var out = [];
   /* מי שאישר התראות — מזהה → 1. רק בתצוגת כל הישיבות. */
-  var pushSet = {};
+  var pushSet = {}, blockSet = {}, seenSet = {};
   if (all) {
     try {
       var psh = sheet_('התראות');
@@ -1902,9 +1902,14 @@ function boardData_(inst, k, withTest, inner) {
           if (String(ph[q0]).trim() === 'מנוי') psx = q0;
         }
         if (pix >= 0 && psx >= 0) {
+          var prx = ph.indexOf('תוצאה');
           for (var q1 = 1; q1 < pv.length; q1++) {
             var pid0 = String(pv[q1][pix] || '').trim();
-            if (pid0 && String(pv[q1][psx] || '').trim()) pushSet[pid0] = 1;
+            if (!pid0) continue;
+            if (String(pv[q1][psx] || '').trim()) pushSet[pid0] = 1;
+            /* שורה בלי מנוי = דיווח שההתראות חסומות אצלו (או שלא הצליח). */
+            else if (prx >= 0 && /חסום|נדחה|לא הצליח/.test(String(pv[q1][prx] || ''))) blockSet[pid0] = 1;
+            seenSet[pid0] = 1;
           }
         }
       }
@@ -2008,6 +2013,12 @@ function boardData_(inst, k, withTest, inner) {
         });
         if (inner) { p._ids = idsOf[pid] || [pid]; p._par = parIds; }
         if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
+        /* מצב ההתראות: 'on' מנוי פעיל · 'blocked' דיווח חסימה · 'none'
+           לא נרשם · '?' יש שורה בלי מנוי ובלי סיבה. */
+        if (all) {
+          var any = function (set) { return set[pid] || (p.ids || []).some(function (x) { return set[x]; }); };
+          p.pstate = p.push ? 'on' : any(blockSet) ? 'blocked' : any(seenSet) ? '?' : 'none';
+        }
         /* להורה המחובר יש התראות? — לכפתור ✉ ולמספרים בשליחה. */
         if (all) p.parPush = parIds.some(function (x) { return pushSet[x]; }) ? 1 : 0;
         /* ופרטיו — לשורה הנפתחת במסך "אנשים" של הרכז. */
@@ -3053,7 +3064,7 @@ var PUB_ROW = {
   'לומדים': ['מזהה', 'שם', 'משפחה', 'טלפון', 'ישיבה', 'קוד ישיבה', 'שכבה', 'כיתה',
              'מסגרת', 'תפקיד', 'שם ההורה', 'משפחת ההורה', 'טלפון ההורה', 'לומד עם',
              'הוזמן על ידי', 'מזהה המזמין', 'בדיקה'],
-  'התראות': ['מזהה', 'שם', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
+  'התראות': ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
              'מנוי', 'תוצאה', 'מועד', 'מתי'],
   'לימוד': ['מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה'],
   'זוגות': ['מזהה', 'שם', 'ישיבה', 'קוד ישיבה', 'שכבה', 'כיתה', 'מסלול', 'שבוע', 'דף',

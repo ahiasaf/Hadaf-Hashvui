@@ -479,6 +479,16 @@ var APPX = (function () {
   function upBar() {
     if (!upSaid()) return;
     upSay(false);
+    var el = upEl();
+    /* הנוסח מ-data.js, ככל נוסח אחר. נפילה לברירת מחדל רק אם
+       data.js ישן יושב במטמון. */
+    el.textContent = (window.UI && UI.updated) || 'האפליקציה עודכנה';
+    el.onclick = null;
+    el.style.cursor = 'default';
+    el.className = 'on';
+    setTimeout(function () { el.className = ''; }, 4000);
+  }
+  function upEl() {
     /* בעמוד הראשי כבר יש פס כזה ומעוצב. בשאר העמודים אין,
        ולכן הוא נבנה כאן — אותו מראה בדיוק בשלושתם. */
     var el = document.getElementById('upd');
@@ -498,13 +508,7 @@ var APPX = (function () {
       el.id = 'upd';
       document.body.appendChild(el);
     }
-    /* הנוסח מ-data.js, ככל נוסח אחר. נפילה לברירת מחדל רק אם
-       data.js ישן יושב במטמון. */
-    el.textContent = (window.UI && UI.updated) || 'האפליקציה עודכנה';
-    el.onclick = null;
-    el.style.cursor = 'default';
-    el.className = 'on';
-    setTimeout(function () { el.className = ''; }, 4000);
+    return el;
   }
 
   /* הקלדה פתוחה? ממתינים לסופה. */
@@ -514,6 +518,43 @@ var APPX = (function () {
     var t = (a.tagName || '').toLowerCase();
     return t === 'input' || t === 'textarea' || t === 'select' ||
            a.isContentEditable === true;
+  }
+  /* ============================================================
+     **עדכון שקט.** (בריף 30.9)
+     ============================================================
+     "בכל גרסה חדשה המשתמש רואה את המסך קופץ ואת ההודעה — והמסך
+     הראשי כמעט לא משתנה." מעכשיו: הגרסה החדשה נטענת ברקע, והרענון
+     קורה **כשהאפליקציה ברקע** (המשתמש עבר לאפליקציה אחרת) — הוא
+     אינו רואה אותו, וכשהוא חוזר הכל כבר חדש. פתיחה הבאה ממילא
+     טוענת את החדש.
+
+     **רק תיקון קריטי מודיע** — גרסה שמסומנת ב-`UPD_CRITICAL`
+     ב-data.js (החדש, כפי שהוא בשרת). אז: שורה "יש עדכון חשוב —
+     לחצו", והרענון בלחיצה. לא נוגעים במנוי ההתראות.
+     ============================================================ */
+  var upPending = false;
+  function upLater() {
+    if (upPending) return;
+    upPending = true;
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden && !upBusy) { upBusy = true; location.reload(); }
+    });
+    /* תיקון קריטי? נקרא מה-data.js החדש. */
+    try {
+      fetch('data.js?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          var c = /UPD_CRITICAL\s*=\s*'([^']*)'/.exec(t), v = /DAF_REV\s*=\s*'([^']*)'/.exec(t);
+          if (c && v && c[1] && c[1] === v[1]) upCrit();
+        })['catch'](function () {});
+    } catch (e) {}
+  }
+  function upCrit() {
+    var el = upEl();
+    el.textContent = (window.UI && UI.updCrit) || 'יש עדכון חשוב — לחצו כאן';
+    el.style.cursor = 'pointer';
+    el.className = 'on';
+    el.onclick = function () { upGo(); };
   }
   function upGo() {
     if (upBusy) return;
@@ -525,7 +566,6 @@ var APPX = (function () {
       return;
     }
     upBusy = true;
-    upSay(true);
     location.reload();
   }
 
@@ -537,7 +577,7 @@ var APPX = (function () {
 
     navigator.serviceWorker.addEventListener('controllerchange', function () {
       if (!upHad) return;          /* השתלטות ראשונה אינה עדכון */
-      upGo();
+      upLater();
     });
 
     navigator.serviceWorker.register('sw.js').then(function (reg) {
