@@ -431,6 +431,8 @@ var LWAY = '', LPUSH = '';       /* סינון הרשימה: דרך לימוד �
 var OPEN = '';                   /* מזהה השורה הפתוחה */
 var PARENTS = null;              /* הורים שלא חוברו לבן */
 var DEL_MSG = '';
+/* בתוך הניהול הישיבה נבחרת ברשימה שבחוץ, ומגיעה בכתובת ובהודעה. */
+if (EMBED) FILT = qs('filt') || '';
 if (ALL) inst = { code:'all', name:'כל הישיבות' };
 function instOfP(p) {
   var c = p.inst || '';
@@ -452,7 +454,7 @@ function instLbl(p) {
 }
 function setFilt(v) { FILT = v; view = ''; applyFilt(); draw(); }
 function chipsHtml() {
-  if (!ALL || !rosterAll) return '';
+  if (!ALL || !rosterAll || EMBED) return '';
   var n = {}, tot = rosterAll.length;
   rosterAll.forEach(function (p) { var c = instOfP(p); n[c] = (n[c] || 0) + 1; });
   var chip = function (v, t, k) {
@@ -1590,6 +1592,39 @@ function draw() {
   wire();
   embedSize();
 }
+/* ============================================================
+   בתוך הניהול: הלוח נשאר קבוע, והעמוד שבחוץ מדבר איתו.
+   ============================================================
+   dfFilt — בחירת ישיבה ברשימה שבחוץ. dfReload — "רענון".
+   הלוח אינו נטען מחדש לעולם; ורענון מצייר רק אם הרשימה באמת
+   השתנתה, ושומר את המיקוד בחיפוש — אחרת כל רענון היה מהבהב.
+   ============================================================ */
+function boardSig() { return JSON.stringify(rosterAll || null) + JSON.stringify(PARENTS || null); }
+function boardReload() {
+  var before = boardSig();
+  loadRoster().then(function (r) {
+    try { window.parent.postMessage({ dfBoardN: 1, ok: !!r, msg: r ? '' : rosterMsg }, '*'); } catch (e) {}
+    if (rosterAll && boardSig() === before) return;
+    var a = document.activeElement, id = a && a.id, s0 = a && a.selectionStart, s1 = a && a.selectionEnd;
+    draw();
+    var b = id && $(id);
+    if (b && b.focus && (b.tagName === 'INPUT' || b.tagName === 'TEXTAREA')) {
+      b.focus();
+      try { if (s0 != null) b.setSelectionRange(s0, s1); } catch (e2) {}
+    }
+  });
+}
+if (EMBED) window.addEventListener('message', function (e) {
+  var d = e && e.data;
+  if (!d || e.source !== window.parent) return;
+  if (typeof d.dfFilt === 'string') {
+    if (d.dfFilt === FILT) { embedSize(); return; }
+    /* ישיבה אחרת — חיפוש, בחירה ושורה פתוחה של הקודמת אינם שלה. */
+    FILT = d.dfFilt; view = ''; OPEN = ''; SRCH = ''; SEL = {}; SELMODE = false;
+    applyFilt(); draw();
+  }
+  if (d.dfReload) boardReload();
+});
 /* בתוך הניהול: הגובה עובר לעמוד שמכיל, כדי שלא תהיה גלילה בתוך גלילה. */
 function embedSize() {
   if (!EMBED || !window.parent || window.parent === window) return;
@@ -1725,7 +1760,7 @@ if (ALL) { mineRam = null; rosterAll = roster; applyFilt(); }
 if (EMBED) document.body.className += ' embed';
 draw();
 if (!ALL) loadBoard().then(draw);
-loadRoster().then(draw);
+if (EMBED) boardReload(); else loadRoster().then(draw);
 kudoLoadTmpl();
 </script>
 </body>

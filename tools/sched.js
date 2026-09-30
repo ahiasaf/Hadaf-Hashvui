@@ -121,7 +121,11 @@ function ask(params, tries) {
         var why = '';
         if (/<html/i.test(t)) {
           var tt = /<title>([^<]*)<\/title>/i.exec(t);
-          var er = /(TypeError|ReferenceError|SyntaxError|Exception|Exceeded|Service invoked|Authorization|unable to open|Script function not found|Too many)[^<]{0,160}/i.exec(t);
+          /* **רק מה שכתוב בדף, לא הקוד שבתוכו.** בדף "Page Not
+             Found" של גוגל יש סקריפט עם `TypeError(...)` משלו, וב-30.9
+             הוא נכנס ללוג ונראה כמו תקלה בסקריפט שלנו. */
+          var vis = t.replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ');
+          var er = /(TypeError|ReferenceError|SyntaxError|Exception|Exceeded|Service invoked|Authorization|unable to open|Script function not found|Too many)[^<]{0,160}/i.exec(vis);
           why = ' · ' + (tt ? tt[1].trim() : '') + (er ? ' · ' + er[0].replace(/\s+/g, ' ') : '');
         }
         throw new Error('הסקריפט החזיר ' + (/^<!DOCTYPE|^<html/i.test(t)
