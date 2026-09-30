@@ -3108,7 +3108,10 @@ function wzInstall() {
   /* בדפדפן של סמסונג — בלי כפתור ההתקנה. ההתקנה ממנו נחסמת במכשירים
      רבים ("אפליקציה לא בטוחה נחסמה"), והקישור מוואטסאפ נפתח בו בכל
      מכשיר שבו הוא ברירת המחדל. מסגרת הוואטסאפ שמעל מעבירה לכרום. */
-  var samsungNow = APPX.samsung && APPX.samsung();
+  /* וכך גם כל דפדפן אחר שזוהה בוודאות (אדג', אופרה...): מדריך של
+     כרום מתחת ל"ההתקנה עובדת רק בכרום" סותר את עצמו. */
+  var samsungNow = (APPX.samsung && APPX.samsung()) ||
+                   (APPX.otherBrowser && APPX.otherBrowser());
   /* וגם בלי המדריך: הוא מוביל לאותה התקנה עצמה. */
   var h = samsungNow ? '' : (APPX.bip()
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +

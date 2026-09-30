@@ -82,9 +82,24 @@ var APPX = (function () {
     return /SamsungBrowser/.test(navigator.userAgent || '');
   }
   /* פיירפוקס באנדרואיד — מסלול התקנה משלו במדריך (guide.js). */
+  /* **גם לפי המנוע, לא רק לפי המחרוזת.** פיירפוקס במצב "אתר
+     למחשב שולחני" מזדהה כלינוקס בלי "Android" — ואז קיבל את מסגרת
+     כרום ואת המדריך של כרום, ונתקע. `MozAppearance` קיים רק במנוע
+     של פיירפוקס; ומסך מגע מבדיל טלפון ממחשב. */
   function firefox() {
     var ua = navigator.userAgent || '';
-    return !isIOS() && /Android/.test(ua) && /Firefox\//.test(ua);
+    if (isIOS()) return false;
+    var gecko = /Firefox\//.test(ua) ||
+      (document.documentElement && 'MozAppearance' in document.documentElement.style);
+    if (!gecko) return false;
+    return /Android/.test(ua) || (navigator.maxTouchPoints || 0) > 0;
+  }
+  /* דפדפן אנדרואיד שזוהה בוודאות ואינו כרום. בכרום עצמו אי אפשר
+     לדעת אם זה כרום או החלון של וואטסאפ — הם מזדהים אותו דבר. */
+  function otherBrowser() {
+    var ua = navigator.userAgent || '';
+    return !isIOS() && !firefox() &&
+      /SamsungBrowser|EdgA\/|OPR\/|OPT\/|Opera|YaBrowser|MiuiBrowser|XiaoMi|UCBrowser|DuckDuckGo|HuaweiBrowser|HeyTapBrowser/.test(ua);
   }
 
   /* ההצעה של הדפדפן להתקין. באייפון היא לא קיימת ולעולם לא
@@ -145,7 +160,7 @@ var APPX = (function () {
          ישר בספארי, ולא בדפדפן פנימי, ולכן אין ממה לצאת.
      ומי שהדפדפן כבר הציע לו להתקין, או שהוא בפיירפוקס (שיש לו
      מדריך משלו) — אינו בוואטסאפ, ואינו רואה את המסגרת כלל. */
-  function waIcons() {
+  function waIcons(noWa) {
     var wa = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
       '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
       '<path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.7.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2z"/>' +
@@ -156,7 +171,7 @@ var APPX = (function () {
         '<path d="M16 16L29 8.5A15 15 0 0 1 16 31z" fill="#F4B400"/>' +
         '<path d="M16 16L16 31A15 15 0 0 1 3 8.5z" fill="#0F9D58"/>' +
         '<circle cx="16" cy="16" r="7" fill="#fff"/><circle cx="16" cy="16" r="5.4" fill="#4285F4"/></svg>';
-    return '<span style="flex:none;display:flex;gap:4px">' + wa + br + '</span>';
+    return '<span style="flex:none;display:flex;gap:4px">' + (noWa ? '' : wa) + br + '</span>';
   }
   /* הכתובת שעוברת לכרום נושאת `nointro=1`: מי שעובר מוואטסאפ לכרום
      כבר ראה את הדגמת הפתיחה, והוא באמצע התקנה — לא מראים לו שוב
@@ -179,6 +194,10 @@ var APPX = (function () {
        בטוחה נחסמה", ורק אחרי זה ראה את המסגרת. עכשיו היא שם מההתחלה,
        ואומרת מראש שבכרום זה לא ייחסם. */
     if (isIOS() || firefox() || standalone()) return '';
+    /* כרום שהציע התקנה הוא כרום אמיתי — החלון של וואטסאפ לא מציע.
+       (בסמסונג ההצעה קיימת, והיא בדיוק זו שנחסמת — שם נשארים.) */
+    var other = otherBrowser();
+    if (!other && BIP) return '';
     var U = window.ASK_UI || {};
     var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
       'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +
@@ -190,11 +209,12 @@ var APPX = (function () {
     return '<div class="wa-box" style="margin:0 0 14px;padding:10px 12px;' +
       'border:1.5px solid #25D366;border-radius:14px;background:rgba(37,211,102,.07);' +
       'text-align:start"><div style="display:flex;gap:10px;align-items:center">' +
-      waIcons() + '<div style="flex:1;min-width:0;line-height:1.35">' +
+      waIcons(other) + '<div style="flex:1;min-width:0;line-height:1.35">' +
       '<b style="display:block;font-size:.86rem;font-weight:800;color:#1B2A45">' +
-      esc(U.waBoxT || '') + '</b>' +
-      '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
-      esc(U.waBoxB || '') + '</span></div></div>' +
+      esc((other ? U.waBoxOT : U.waBoxT) || '') + '</b>' +
+      ((other ? U.waBoxOB : U.waBoxB)
+        ? '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
+          esc(other ? U.waBoxOB : U.waBoxB) + '</span>' : '') + '</div></div>' +
       '<div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap">' +
       act + '</div></div>';
   }
@@ -573,7 +593,7 @@ var APPX = (function () {
   return {
     update: update, toBrowser: toBrowser,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
-    iosOther: iosOther, samsung: samsung, firefox: firefox,
+    iosOther: iosOther, samsung: samsung, firefox: firefox, otherBrowser: otherBrowser,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
