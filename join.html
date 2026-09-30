@@ -761,6 +761,33 @@ body.wz input[type=text],body.wz input[type=tel],body.wz select{
 .apic img{width:56px;height:56px;border-radius:14px;display:block;
   box-shadow:0 4px 14px rgba(11,37,80,.22)}
 .apic span{font-size:.72rem;font-weight:800;color:var(--ink-2)}
+/* קודם המחשה, אחריה מינימום מלל (בריף 30.9). לפני ההתקנה — "+" על
+   האייקון: זה מה שיתווסף. אחריה — אצבע וגל: לוחצים עליו. */
+.apic .ap-i{position:relative;display:block}
+.apic.add .ap-add{position:absolute;top:-7px;inset-inline-end:-8px;width:22px;height:22px;
+  border-radius:50%;background:var(--green-d);color:#fff;font-style:normal;font-weight:800;
+  font-size:17px;line-height:22px;text-align:center;box-shadow:0 0 0 2px #fff}
+.apic.tap{margin-bottom:6px}
+.apic.tap span{margin-top:10px}
+.apic.tap .ap-ring{position:absolute;inset:-7px;border-radius:20px;
+  border:2px solid var(--green-d);opacity:0;animation:apRing 1.8s ease-out infinite}
+.apic.tap .ap-tap{position:absolute;bottom:-12px;inset-inline-end:-20px;line-height:0;
+  animation:apTap 1.8s ease-in-out infinite}
+@keyframes apRing{0%{transform:scale(.9);opacity:.85}70%,100%{transform:scale(1.28);opacity:0}}
+@keyframes apTap{0%,55%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(4px,-4px) scale(.9)}}
+@media (prefers-reduced-motion:reduce){
+  .apic.tap .ap-ring,.apic.tap .ap-tap{animation:none}
+  .apic.tap .ap-ring{opacity:.6}
+}
+.wz-open{text-align:center;margin-top:4px}
+.wz-open .note{margin-top:4px}
+.wz-inote,.wzcard > p.wz-inote{margin:10px 0 0;text-align:center;font-size:.95rem;font-weight:800;color:var(--ink)}
+/* עזרה: מה שכבר נמסר מוצג בשורה, ולא נשאל שוב. */
+.hlp-me{margin-top:18px;padding:12px 14px;border-radius:12px;background:var(--sunk);
+  font-size:.92rem;font-weight:700;color:var(--ink);line-height:1.6}
+.hlp-me span{display:block;font-size:.8rem;font-weight:700;color:var(--ink-3)}
+.hlp-me button{margin-top:4px;padding:2px 0;border:0;background:none;font:inherit;
+  font-size:.84rem;font-weight:800;color:var(--blue,#17468F);text-decoration:underline;cursor:pointer}
 
 footer{text-align:center;color:var(--ink-3);font-size:.78rem;font-weight:700;
   margin-top:26px;line-height:1.9}
@@ -2576,21 +2603,13 @@ function standalone()  { return APPX.standalone(); }
 function inApp()       { return APPX.inApp(); }
 function appMark()     { APPX.mark(); }
 function appWasAdded() { return APPX.wasAdded(); }
-function appIcon()     { return APPX.icon(); }
+function appIcon(m)    { return APPX.icon(m); }
 function appHowList()  { return APPX.howList(); }
 
 /* הודעת ההתקנה של הדפדפן מגיעה באיחור של רגע אחרי הטעינה.
    כשהיא מגיעה — מציירים מחדש, כדי שההוראות הידניות יוחלפו
    בכפתור אמיתי. */
 APPX.onBip(function () {
-  if (WZ_ON) { if (wzStep === 1) wzDraw(); }
-  else drawApp();
-});
-/* עברו כמה שניות ואף הצעת התקנה לא הגיעה — ראו `stuck` ב-getapp.js.
-   מציירים מחדש כדי שההוראה "צאו לדפדפן" תופיע, בדיוק כמו שהיא
-   כבר מופיעה למי שזוהה כ-inApp — רק בלי להישען על זיהוי שוואטסאפ
-   באנדרואיד עוקף אותו. */
-if (APPX.onStuck) APPX.onStuck(function () {
   if (WZ_ON) { if (wzStep === 1) wzDraw(); }
   else drawApp();
 });
@@ -2649,30 +2668,10 @@ function drawApp() {
           '<h3>' + esc(JOIN.appTitle) + '</h3>' +
           '<p>משם נדע להודיע לכם כשיש דף חדש — ואם זכיתם בהגרלה.</p>';
 
-  /* חלון בתוך וואטסאפ: משם אי אפשר להתקין בשום דרך, ולכן
-     ההוראה היחידה היא לצאת לדפדפן. `stuck()` תופס גם וואטסאפ
-     באנדרואיד, שאותו inApp() לבדו לא מזהה — ראו getapp.js. */
-  if (inApp() || (window.APPX && APPX.stuck && APPX.stuck())) {
-    h += '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
-         'מכאן אי אפשר להוסיף למסך הבית. ' +
-         (isIOS()
-           ? 'לחצו על כפתור השיתוף שלמטה ובחרו "פתיחה בספארי" — ומשם נמשיך.'
-           : 'לחצו על שלוש הנקודות שלמעלה ובחרו "פתיחה בדפדפן" — ומשם נמשיך.') +
-         '</div>' +
-         '<button class="btn" id="app-copy">העתקת הקישור</button>' +
-         '<div class="how">אפשר גם להעתיק את הקישור ולהדביק אותו בדפדפן.</div>';
-    box.innerHTML = h + '</div>';
-    var cp = $('app-copy');
-    if (cp) cp.onclick = function () {
-      var done = function () { cp.textContent = 'הקישור הועתק ✓'; };
-      if (navigator.clipboard && navigator.clipboard.writeText)
-        navigator.clipboard.writeText(location.href).then(done)['catch'](function () {
-          cp.textContent = 'לא הצלחתי להעתיק';
-        });
-      else cp.textContent = 'לא הצלחתי להעתיק';
-    };
-    return;
-  }
+  /* חלון בתוך אפליקציה (או כרום באייפון): משם אי אפשר להתקין,
+     ולכן המסגרת בלבד — אותה מסגרת של המסע. ראו `wzInstall`. */
+  var out = (APPX.outBox && APPX.outBox()) || '';
+  if (out) { box.innerHTML = h + out + '</div>'; return; }
 
   /* הותקנה, ואנחנו עדיין בספארי. באייפון זה המצב שנתקעים בו
      בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
@@ -2882,24 +2881,10 @@ function showPre() {
     'כאן בדפדפן, היא לא תהיה שם — ונצטרך להירשם שוב. ' +
     'שתי דקות עכשיו, ונרשמים פעם אחת.</p>';
 
-  /* מוואטסאפ אי אפשר להתקין בכלל, וזו ההוראה היחידה שתעזור. */
-  if (inApp()) {
-    h += '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
-         'מכאן אי אפשר להוסיף למסך הבית. לחצו על כפתור השיתוף ' +
-         'שלמטה ובחרו "פתיחה בספארי" — ומשם נמשיך.</div>' +
-         '<button class="btn" id="pre-copy">העתקת הקישור</button>';
-    e.innerHTML = h + '</div>';
-    var cp = $('pre-copy');
-    if (cp) cp.onclick = function () {
-      var ok2 = function () { cp.textContent = 'הקישור הועתק ✓'; };
-      if (navigator.clipboard && navigator.clipboard.writeText)
-        navigator.clipboard.writeText(location.href).then(ok2)['catch'](function () {
-          cp.textContent = 'לא הצלחתי להעתיק';
-        });
-      else cp.textContent = 'לא הצלחתי להעתיק';
-    };
-    return;
-  }
+  /* מתוך אפליקציה (או מכרום באייפון) אי אפשר להתקין — המסגרת
+     שמובילה לספארי, כמו במסע. */
+  var out = (APPX.outBox && APPX.outBox()) || '';
+  if (out) { e.innerHTML = h + out + '</div>'; return; }
 
   /* הדלת כאן מובילה לאותו מקום של המסע: לרכז, ולא לעקיפה.
      המסלול הזה חי רק מאחורי `?wiz=0`, ואין סיבה שתעמוד בו
@@ -3072,46 +3057,33 @@ function wzDraw() {
 /* ---------- שלב 1 ---------- */
 var WZ_GUIDE_DONE = false;
 function wzInstall() {
-  /* כרום או פיירפוקס באייפון — דפדפן אמיתי, ולכן האמת ולא
-     "אתם בתוך וואטסאפ": באייפון רק ספארי מוסיף למסך הבית. */
-  if (window.APPX && APPX.iosOther && APPX.iosOther()) {
-    return '<div class="how warn"><b>' + esc(ASK_UI.iosOthH) + '</b><br>' +
-      esc(ASK_UI.iosOthB) + '</div>' +
-      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>' + wzSkipBtn();
-  }
-  /* `inApp()` מזהה לפי מחרוזת הדפדפן, וזה לא תופס את וואטסאפ
-     באנדרואיד — הוא פותח ב-Custom Tab שמזדהה כמו כרום רגיל.
-     `stuck()` תופס את זה בלי לדעת בדיוק למה: עברו כמה שניות
-     ואף הצעת התקנה לא הגיעה, אז כנראה שההתקנה חסומה מכאן —
-     בדיוק כמו inApp, רק בלי להישען על זיהוי שאפשר לעקוף. */
-  if (inApp() || (window.APPX && APPX.stuck && APPX.stuck())) {
-    /* באנדרואיד יש כפתור שבאמת מעביר לכרום — ראו `APPX.toBrowser`.
-       באייפון אין, ושם נשארת ההנחיה בלבד. ההעתקה נשארת בשניהם:
-       היא הדרך שתמיד עובדת. */
-    var out = (window.APPX && APPX.toBrowser) ? APPX.toBrowser() : '';
-    return '<div class="how warn"><b>נראה שהדף פתוח בתוך וואטסאפ</b><br>' +
-      'מכאן אי אפשר להוסיף למסך הבית. ' +
-      (isIOS()
-        ? 'לחצו על שלוש הנקודות שלמטה ובחרו "פתיחה בדפדפן" — ומשם נמשיך.'
-        : 'נעביר אתכם לדפדפן, ומשם נמשיך.') +
-      '</div>' +
-      (out ? '<a class="wznext" style="display:block;text-align:center;' +
-             'text-decoration:none;box-sizing:border-box" href="' + esc(out) +
-             '">פתיחה בדפדפן</a>' : '') +
-      '<button class="thin" id="wz-copy"><u>העתקת הקישור</u></button>' + wzSkipBtn();
-  }
+  /* ============================================================
+     מי שאינו יכול להתקין מכאן — מסגרת, לא פסקה.
+     ============================================================
+     אפליקציה אחרת (`inApp`), או כרום/פיירפוקס באייפון (`iosOther`):
+     אותה מסגרת ירוקה של כל מסך התקנה — הסמל של המקום שבו הוא,
+     חץ, והסמל של היעד — ובתוכה הכפתור שמעביר (באנדרואיד) והעתקה
+     כגיבוי. באייפון היעד הוא ספארי. ראו `outBox` ב-getapp.js.
+
+     `inApp()` היוריסטיקה ולא ודאות: הוא מזהה סימנים של דפדפן
+     מוטמע (פייסבוק, אינסטגרם, WebView; באייפון — היעדר
+     `navigator.standalone` אחרי החרגת הדפדפנים המוכרים), ולא את
+     וואטסאפ עצמו. וואטסאפ באנדרואיד פותח חלון שמזדהה ככרום
+     וחומק ממנו — ולכן גם במסך הרגיל המסגרת נמצאת בראש (`waBox`).
+     אין ניחוש לפי זמן: `APPX.stuck()` תמיד אומר לא (ראו getapp.js). */
+  var out = (APPX.outBox && APPX.outBox()) || '';
+  if (out) return out + wzSkipBtn();
   /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
      עכשיו "סיימתי" החזיר לתחילת המדריך, כאילו לא קרה כלום. */
+  /* קודם האייקון עם האצבע — "לוחצים על זה" — ואחריו שורה קצרה. */
   if (WZ_GUIDE_DONE) {
-    return '<div class="how"><b>' + esc(jt('wzGuDoneH')) + '</b><br>' +
-      esc(jt('wzGuDoneB')) + '</div>' + appIcon() +
+    return wzOpenIcon() +
       '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>' + wzSkipBtn();
   }
   /* הותקנה, ואנחנו עדיין בדפדפן — באייפון זה המצב שנתקעים בו
      בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
   if (appWasAdded() && !appInstalled()) {
-    return '<div class="how">האפליקציה כבר נוספה. <b>פתחו את האייקון ' +
-      'הזה</b> מהמסך של הטלפון, ומשם נמשיך.</div>' + appIcon();
+    return wzOpenIcon() + wzSkipBtn();
   }
   /* ============================================================
      **המדריך המאויר, ולא רשימה.**
@@ -3144,7 +3116,8 @@ function wzInstall() {
       '</ol><span class="edge-had">' + esc(jt('edgeHad')) + '</span></div>'
     : samsungNow ? '' : (APPX.bip()
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
-      '<p class="note" style="text-align:start">' + esc(jt('wzInstNote')) + '</p>'
+      /* לא הסבר מתחת לכפתור אלא מה שיתווסף: האייקון עצמו, ושורה. */
+      appIcon('add') + '<p class="wz-inote">' + esc(jt('wzInstNote')) + '</p>'
     : (window.GUIDE_UI ? '<div class="wz-guide" id="gu-here"></div>'
                        : appHowList()));
   /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
@@ -3155,6 +3128,14 @@ function wzInstall() {
      נבהל וסוגר. מה שנשאר הוא ההוראות עצמן. */
   if (APPX.waBox) h = APPX.waBox() + h;
   return h + wzSkipBtn();
+}
+/* האפליקציה נוספה — עכשיו פותחים אותה. האייקון עם אצבע וגל,
+   ומתחתיו כותרת ושורה קצרה. */
+function wzOpenIcon() {
+  var b = jt('wzGuDoneB');
+  return '<div class="wz-open">' + appIcon('tap') +
+    '<p class="wz-inote">' + esc(jt('wzGuDoneH')) + '</p>' +
+    (b ? '<p class="note">' + esc(b) + '</p>' : '') + '</div>';
 }
 /* דלת העזרה — **בכל** מסך התקנה. היא הוסתרה במסכים שחזרו מוקדם
    (אייפון בדפדפן אחר, חלון וואטסאפ, אחרי המדריך) — בדיוק במקומות
@@ -3184,7 +3165,7 @@ var hlpV = { name:'', phone:'', what:'' };
 function hlpDiag() {
   var b = [];
   b.push(isIOS() ? 'אייפון' : 'אנדרואיד');
-  if (inApp()) b.push('נפתח בתוך וואטסאפ');
+  if (inApp()) b.push('נפתח בתוך אפליקציה');
   if (standalone()) b.push('כבר באפליקציה');
   if (appWasAdded()) b.push('סומן כמותקן');
   b.push(APPX.bip() ? 'היה כפתור התקנה' : 'בלי כפתור התקנה');
@@ -3196,6 +3177,35 @@ function hlpDiag() {
 
 function hlpSet(k, v) { hlpV[k] = v; }
 
+/* ============================================================
+   מה שכבר נמסר — ושל מי.
+   ============================================================
+   "לא לבקש למלא פעמיים." מה שהוקלד בטופס (גם אם עוד לא נשמר)
+   ומה שנשמר במכשיר — שניהם של **מי שממלא עכשיו**:
+     · השדות `first/last/phone` הם תמיד שלו. הבן או ההורה המקושר
+       יושבים ב-`dad-*`, ואינם נקראים כאן.
+     · הרשומה במכשיר נקראת רק כשהתפקיד שלה הוא התפקיד שעל המסך.
+       אבא שפותח את הקישור להורים בטלפון של הבן אינו מקבל את
+       השם והטלפון של הבן.
+   שום דבר כאן אינו נשמר: בקשת עזרה אינה הרשמה. */
+function hlpPhOk(p) { return String(p || '').replace(/[^0-9]/g, '').length >= 9; }
+function hlpMe() {
+  var me = get('me', null) || {};
+  return (me.role && me.role !== role) ? {} : me;
+}
+function hlpKnown() {
+  var me = hlpMe();
+  var fv = function (id) { var el = $(id); return el ? (el.value || '').trim() : ''; };
+  var f = fv('first'), l = fv('last'), p = fv('phone');
+  return {
+    name: (f || l) ? [f, l].join(' ').trim()
+                   : [me.first || '', me.last || ''].join(' ').trim(),
+    phone: hlpPhOk(p) ? p : (me.phone || p || '')
+  };
+}
+/* `hlpEd` — לחץ "שינוי פרטים": שני השדות גלויים, מלאים במה שידוע. */
+var hlpEd = false;
+
 function wzHelpForm() {
   if (hlpSent) {
     return '<div class="v-ok">✓</div><h2>' + esc(jt('wzHlpOkT')) + '</h2>' +
@@ -3203,21 +3213,34 @@ function wzHelpForm() {
       '<button class="wznext" id="wz-hlp-close">' +
       esc(jt('wzHlpBack')) + '</button>';
   }
-  /* מה שכבר הוקלד במסע אינו נשאל שוב. */
-  var me = get('me', null) || {};
-  var nm = hlpV.name || [me.first || '', me.last || ''].join(' ').trim();
-  var ph = hlpV.phone || me.phone || '';
+  var k = hlpKnown();
+  var nm = hlpV.name || k.name;
+  var ph = hlpV.phone || k.phone;
+  /* שואלים רק מה שחסר. */
+  var askN = hlpEd || !nm, askP = hlpEd || !hlpPhOk(ph);
+  var got = [askN ? '' : nm, askP ? '' : ph].filter(function (x) { return x; });
 
   return '<h2>' + esc(jt('wzHlpT')) + '</h2>' +
-    '<p>' + esc(jt('wzHlpB')) + '</p>' +
-    '<div class="fld" style="margin-top:18px">' +
-    '<label class="label" for="hlp-name">שם מלא</label>' +
-    '<input type="text" id="hlp-name" autocomplete="name" value="' +
-    esc(nm) + '" oninput="hlpSet(\'name\',this.value)"></div>' +
-    '<div class="fld"><label class="label" for="hlp-phone">טלפון</label>' +
-    '<input type="tel" id="hlp-phone" inputmode="tel" autocomplete="tel" ' +
-    'value="' + esc(ph) + '" oninput="hlpSet(\'phone\',this.value)"></div>' +
-    '<div class="fld"><label class="label" for="hlp-what">' +
+    '<p>' + esc(got.length ? (jt('wzHlpBMe') || jt('wzHlpB')) : jt('wzHlpB')) + '</p>' +
+    (got.length
+      ? '<div class="hlp-me"><span>' + esc(jt('wzHlpMe')) + '</span>' +
+        '<bdi>' + esc(got.join(' · ')) + '</bdi><br>' +
+        '<button type="button" id="hlp-edit">' + esc(jt('wzHlpEdit')) + '</button></div>'
+      : '') +
+    (askN
+      ? '<div class="fld" style="margin-top:18px">' +
+        '<label class="label" for="hlp-name">שם מלא</label>' +
+        '<input type="text" id="hlp-name" autocomplete="name" value="' +
+        esc(nm) + '" oninput="hlpSet(\'name\',this.value)"></div>'
+      : '') +
+    (askP
+      ? '<div class="fld"' + (askN ? '' : ' style="margin-top:18px"') + '>' +
+        '<label class="label" for="hlp-phone">טלפון</label>' +
+        '<input type="tel" id="hlp-phone" inputmode="tel" autocomplete="tel" ' +
+        'value="' + esc(ph) + '" oninput="hlpSet(\'phone\',this.value)"></div>'
+      : '') +
+    '<div class="fld"' + (askN || askP ? '' : ' style="margin-top:18px"') + '>' +
+    '<label class="label" for="hlp-what">' +
     esc(jt('wzHlpWhat')) + ' <span class="opt">רשות</span></label>' +
     '<textarea id="hlp-what" rows="2" placeholder="' + esc(jt('wzHlpPh')) +
     '" oninput="hlpSet(\'what\',this.value)">' + esc(hlpV.what) +
@@ -3230,17 +3253,19 @@ function wzHelpForm() {
 }
 
 function hlpSend() {
-  var nm = (hlpV.name || ($('hlp-name') ? $('hlp-name').value : '')).trim();
-  var ph = (hlpV.phone || ($('hlp-phone') ? $('hlp-phone').value : '')).trim();
+  /* שדה מוסתר = מה שכבר ידוע. שדה גלוי = מה שבו. */
+  var kn = hlpKnown();
+  var nm = ($('hlp-name') ? $('hlp-name').value : (hlpV.name || kn.name)).trim();
+  var ph = ($('hlp-phone') ? $('hlp-phone').value : (hlpV.phone || kn.phone)).trim();
   hlpV.name = nm; hlpV.phone = ph;
   hlpErr = '';
   if (!nm) { hlpErr = 'צריך שם, אחרת אי אפשר לפנות אליך.'; wzDraw(); return; }
-  if (ph.replace(/[^0-9]/g, '').length < 9) {
+  if (!hlpPhOk(ph)) {
     hlpErr = 'צריך מספר טלפון שאפשר להתקשר אליו.'; wzDraw(); return;
   }
   if (!API) { hlpErr = jt('wzHlpErr'); wzDraw(); return; }
 
-  var me = get('me', null) || {};
+  var me = hlpMe();
   var q = {
     help: '1', name: nm, phone: ph,
     inst: val('inst') || me.inst || '',
@@ -3322,7 +3347,12 @@ function wzWire() {
   if ((b = $('wz-inst'))) b.onclick = function () {
     APPX.prompt(function () { wzGo(wzWhere()); });
   };
-  if ((b = $('wz-skip'))) b.onclick = function () { hlpErr = ''; wzGo(9); };
+  if ((b = $('wz-skip'))) b.onclick = function () { hlpErr = ''; hlpEd = false; wzGo(9); };
+  if ((b = $('hlp-edit'))) b.onclick = function () {
+    var k = hlpKnown();
+    hlpV.name = hlpV.name || k.name; hlpV.phone = hlpV.phone || k.phone;
+    hlpEd = true; wzDraw();
+  };
   if ((b = $('wz-hlp-go'))) b.onclick = hlpSend;
   if ((b = $('wz-hlp-back'))) b.onclick = function () { wzGo(wzWhere()); };
   if ((b = $('wz-hlp-close'))) b.onclick = function () {

@@ -165,18 +165,74 @@ var APPX = (function () {
          ישר בספארי, ולא בדפדפן פנימי, ולכן אין ממה לצאת.
      ומי שהדפדפן כבר הציע לו להתקין, או שהוא בפיירפוקס (שיש לו
      מדריך משלו) — אינו בוואטסאפ, ואינו רואה את המסגרת כלל. */
-  function waIcons(noWa) {
-    var wa = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
-      '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
+  /* ============================================================
+     "יותר הבנה, פחות מלל" (בריף 30.9, 8.99.81).
+     ============================================================
+     המסגרת מספרת את עצמה בציור: הסמל של המקום שבו האדם נמצא,
+     חץ, והסמל של המקום שאליו עוברים. החץ בין הסמלים ולא על
+     הכפתור — הוא ההסבר, והכפתור הוא הפעולה.
+
+     **כיוון החץ לפי כיוון העמוד.** בעברית "מכאן לשם" נקרא מימין
+     לשמאל: וואטסאפ מימין, כרום משמאל, והחץ מצביע שמאלה. בעמוד
+     משמאל לימין הוא מתהפך מעצמו. הנקודות זורמות לאורכו לאט —
+     ומי שביקש מהטלפון פחות תנועה מקבל חץ עומד. */
+  var IC = {
+    wa: '<circle cx="16" cy="16" r="15" fill="#25D366"/>' +
       '<path fill="#fff" d="M16 7.2a8.8 8.8 0 0 0-7.6 13.2L7.2 24.8l4.5-1.2A8.8 8.8 0 1 0 16 7.2zm0 16a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.7.7.7-2.6-.2-.3A7.2 7.2 0 1 1 16 23.2z"/>' +
-      '<path fill="#fff" d="M20 17.6c-.2-.1-1.3-.7-1.5-.7s-.3-.1-.5.1-.6.7-.7.9-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.4 2.4 0 0 0-.8 1.8 4.2 4.2 0 0 0 .9 2.2 9.6 9.6 0 0 0 3.7 3.3c1.4.6 1.9.6 2.6.5a2.2 2.2 0 0 0 1.5-1c.2-.5.2-.9.1-1l-.3-.3z"/>' +
-      '</svg>';
-    var br = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">' +
-        '<path d="M16 16L3 8.5A15 15 0 0 1 29 8.5z" fill="#DB4437"/>' +
-        '<path d="M16 16L29 8.5A15 15 0 0 1 16 31z" fill="#F4B400"/>' +
-        '<path d="M16 16L16 31A15 15 0 0 1 3 8.5z" fill="#0F9D58"/>' +
-        '<circle cx="16" cy="16" r="7" fill="#fff"/><circle cx="16" cy="16" r="5.4" fill="#4285F4"/></svg>';
-    return '<span style="flex:none;display:flex;gap:4px">' + (noWa ? '' : wa) + br + '</span>';
+      '<path fill="#fff" d="M20 17.6c-.2-.1-1.3-.7-1.5-.7s-.3-.1-.5.1-.6.7-.7.9-.3.2-.5.1a5.9 5.9 0 0 1-2.9-2.6c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4a.8.8 0 0 0-.6.3 2.4 2.4 0 0 0-.8 1.8 4.2 4.2 0 0 0 .9 2.2 9.6 9.6 0 0 0 3.7 3.3c1.4.6 1.9.6 2.6.5a2.2 2.2 0 0 0 1.5-1c.2-.5.2-.9.1-1l-.3-.3z"/>',
+    chrome: '<path d="M16 16L3 8.5A15 15 0 0 1 29 8.5z" fill="#DB4437"/>' +
+      '<path d="M16 16L29 8.5A15 15 0 0 1 16 31z" fill="#F4B400"/>' +
+      '<path d="M16 16L16 31A15 15 0 0 1 3 8.5z" fill="#0F9D58"/>' +
+      '<circle cx="16" cy="16" r="7" fill="#fff"/><circle cx="16" cy="16" r="5.4" fill="#4285F4"/>',
+    safari: '<circle cx="16" cy="16" r="15" fill="#1A8CFF"/><circle cx="16" cy="16" r="12" fill="#fff"/>' +
+      '<path d="M22 10l-7.5 4.5L16 16z" fill="#FF3B30"/><path d="M10 22l4.5-7.5L16 16z" fill="#FF3B30"/>' +
+      '<path d="M22 10l-6 6 1.5 1.5z" fill="#C7CDD6"/><path d="M10 22l6-6-1.5-1.5z" fill="#C7CDD6"/>',
+    /* דפדפן אחר (סמסונג, אופרה, כרום באייפון...) — כדור כללי, ולא
+       סמל של חברה שאולי אינה זו שבידו. */
+    web: '<circle cx="16" cy="16" r="15" fill="#5A6780"/>' +
+      '<g fill="none" stroke="#fff" stroke-width="1.6"><circle cx="16" cy="16" r="9"/>' +
+      '<ellipse cx="16" cy="16" rx="4" ry="9"/><path d="M7 16h18M8.6 11.5h14.8M8.6 20.5h14.8"/></g>'
+  };
+  var TO_C = { chrome: '#4285F4', safari: '#1A8CFF' };
+  function ic(k) {
+    return '<svg viewBox="0 0 32 32" width="36" height="36" aria-hidden="true" ' +
+      'style="display:block;flex:none;filter:drop-shadow(0 2px 4px rgba(11,37,80,.18))">' +
+      IC[k] + '</svg>';
+  }
+  function rtl() {
+    try {
+      var d = window.getComputedStyle && getComputedStyle(document.body || document.documentElement).direction;
+      if (d) return d === 'rtl';
+    } catch (e) {}
+    return (document.documentElement.getAttribute('dir') || '').toLowerCase() === 'rtl';
+  }
+  function flowCss() {
+    if (document.getElementById('wa-flow-css')) return;
+    var s = document.createElement('style');
+    s.id = 'wa-flow-css';
+    s.textContent = '@keyframes waFlow{to{stroke-dashoffset:-14}}' +
+      '.wa-flow{animation:waFlow 1.2s linear infinite}' +
+      '@media (prefers-reduced-motion:reduce){.wa-flow{animation:none}}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  /* מאיפה ← לאן. החץ מצויר ימינה ומתהפך בעמוד מימין לשמאל. */
+  function flow(from, to) {
+    flowCss();
+    var c2 = TO_C[to] || '#4285F4', c1 = from === 'wa' ? '#25D366' : '#8A94A8';
+    var arrow = '<svg viewBox="0 0 60 16" width="60" height="16" aria-hidden="true" ' +
+      'style="display:block;flex:none;overflow:visible' + (rtl() ? ';transform:scaleX(-1)' : '') + '">' +
+      /* userSpaceOnUse: קו ישר הוא תיבה בגובה אפס, ושם מעבר צבע
+         יחסי אינו מצויר כלל. */
+      '<defs><linearGradient id="wa-flow-g" gradientUnits="userSpaceOnUse" x1="3" x2="46" y1="8" y2="8">' +
+      '<stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/>' +
+      '</linearGradient></defs>' +
+      '<path class="wa-flow" d="M3 8H46" fill="none" stroke="url(#wa-flow-g)" ' +
+      'stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 7"/>' +
+      '<path d="M46 2.5L54 8L46 13.5" fill="none" stroke="' + c2 + '" ' +
+      'stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<div aria-hidden="true" style="display:flex;align-items:center;' +
+      'justify-content:center;gap:10px;margin:2px 0 10px">' +
+      ic(from) + arrow + ic(to) + '</div>';
   }
   /* הכתובת שעוברת לכרום נושאת `nointro=1`: מי שעובר מוואטסאפ לכרום
      כבר ראה את הדגמת הפתיחה, והוא באמצע התקנה — לא מראים לו שוב
@@ -192,6 +248,37 @@ var APPX = (function () {
     return 'intent://' + u + '#Intent;scheme=https;package=com.android.chrome;' +
            'S.browser_fallback_url=' + encodeURIComponent(noIntroHref()) + ';end';
   }
+  /* המסגרת עצמה — אחת לכל המסלולים, ורק מה שבתוכה משתנה:
+       from/to — הסמלים שמשני צידי החץ
+       t/b     — הכותרת והשורה שמתחת
+       href    — הכפתור הראשי ("פתיחה בכרום"). בלעדיו — אין כפתור.
+     ההעתקה תמיד שם, **כגיבוי**: קישור קטן ליד הכפתור. רק כשאין
+     כפתור ראשי (אייפון — אין דרך אמינה לפתוח את ספארי מבחוץ)
+     היא נראית ככפתור, כדי שיהיה על מה ללחוץ. */
+  function frame(o) {
+    var U = window.ASK_UI || {};
+    var btn = 'display:inline-block;padding:10px 20px;border:0;border-radius:12px;' +
+      'background:#25D366;color:#fff;font:inherit;font-size:.9rem;font-weight:800;' +
+      'cursor:pointer;text-decoration:none;box-shadow:0 3px 10px rgba(37,211,102,.28)';
+    var copy = o.href
+      ? '<button type="button" data-wa-copy="1" style="margin-inline-start:14px;padding:4px 0;' +
+        'border:0;background:none;color:#5A6780;font:inherit;font-size:.8rem;font-weight:700;' +
+        'text-decoration:underline;cursor:pointer">' + esc(U.waBoxGo || '') + '</button>'
+      : '<button type="button" data-wa-copy="1" style="padding:8px 16px;border:1.5px solid #25D366;' +
+        'border-radius:12px;background:#fff;color:#1B7A43;font:inherit;font-size:.84rem;' +
+        'font-weight:800;cursor:pointer">' + esc(U.waBoxGo || '') + '</button>';
+    return '<div class="wa-box" style="margin:0 0 14px;padding:14px 14px 13px;' +
+      'border:1.5px solid #25D366;border-radius:16px;background:rgba(37,211,102,.07);' +
+      'text-align:center;line-height:1.4">' + flow(o.from, o.to) +
+      (o.t ? '<b style="display:block;font-size:.9rem;font-weight:800;color:#1B2A45">' +
+        esc(o.t) + '</b>' : '') +
+      (o.b ? '<span style="display:block;margin-top:2px;font-size:.82rem;font-weight:600;color:#5A6780">' +
+        esc(o.b) + '</span>' : '') +
+      '<div style="margin-top:11px;display:flex;align-items:center;justify-content:center;' +
+      'flex-wrap:wrap;row-gap:6px">' +
+      (o.href ? '<a href="' + esc(o.href) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' : '') +
+      copy + '</div></div>';
+  }
   function waBox() {
     /* **גם כשיש הצעת התקנה.** קודם המסגרת הוסתרה כשהדפדפן הציע
        להתקין — אבל דפדפן סמסונג מציע, וההתקנה ממנו היא בדיוק זו
@@ -206,23 +293,30 @@ var APPX = (function () {
     var U = window.ASK_UI || {};
     /* בסמסונג — גם למה: אחרת "רק בכרום" נקרא כטעות שלנו. */
     var sub = !other ? U.waBoxB : (samsung() ? (U.waBoxSamB || U.waBoxOB) : U.waBoxOB);
-    var btn = 'display:inline-block;padding:8px 14px;border:0;border-radius:10px;' +
-      'background:#25D366;color:#fff;font:inherit;font-size:.84rem;font-weight:800;' +
-      'cursor:pointer;text-decoration:none';
-    var act = '<a href="' + esc(chromeUrl()) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' +
-        '<button type="button" data-wa-copy="1" style="margin-inline-start:12px;padding:4px 0;' +
-        'border:0;background:none;color:#5A6780;font:inherit;font-size:.8rem;font-weight:700;' +
-        'text-decoration:underline;cursor:pointer">' + esc(U.waBoxGo || '') + '</button>';
-    return '<div class="wa-box" style="margin:0 0 14px;padding:10px 12px;' +
-      'border:1.5px solid #25D366;border-radius:14px;background:rgba(37,211,102,.07);' +
-      'text-align:start"><div style="display:flex;gap:10px;align-items:center">' +
-      waIcons(other) + '<div style="flex:1;min-width:0;line-height:1.35">' +
-      '<b style="display:block;font-size:.86rem;font-weight:800;color:#1B2A45">' +
-      esc((other ? U.waBoxOT : U.waBoxT) || '') + '</b>' +
-      (sub ? '<span style="display:block;font-size:.8rem;font-weight:600;color:#5A6780">' +
-          esc(sub) + '</span>' : '') + '</div></div>' +
-      '<div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap">' +
-      act + '</div></div>';
+    return frame({ from: other ? 'web' : 'wa', to: 'chrome',
+                   t: other ? U.waBoxOT : U.waBoxT, b: sub, href: chromeUrl() });
+  }
+  /* ============================================================
+     המסגרת גם במסך "אתם בתוך אפליקציה".
+     ============================================================
+     עד 8.99.80 המסך הזה חזר מוקדם, עם פסקה צהובה ובלי המסגרת —
+     כלומר דווקא מי שזוהה בוודאות כתקוע קיבל את ההסבר הכי מילולי.
+     עכשיו אותה מסגרת, עם היעד הנכון:
+       · **אנדרואיד** — כרום, וכפתור שפותח אותו (`toBrowser`).
+       · **אייפון** — ספארי. אין כפתור אמין, ולכן ההנחיה וההעתקה.
+       · **כרום/פיירפוקס באייפון** — דפדפן אמיתי, לא אפליקציה.
+         יעד ספארי, והנוסח שלו (`iosOth*`).
+     מחזיר '' כשאין מאיפה לצאת. */
+  function outBox() {
+    var U = window.ASK_UI || {};
+    if (iosOther()) return frame({ from: 'web', to: 'safari', t: U.iosOthH, b: U.iosOthB });
+    if (!inApp()) return '';
+    if (isIOS()) {
+      return frame({ from: 'wa', to: 'safari', t: U.inAppH,
+                     b: [U.inAppB || '', U.inAppIos || ''].join(' ').trim() });
+    }
+    return frame({ from: 'wa', to: 'chrome', t: U.inAppH,
+                   b: U.inAppB, href: toBrowser() });
   }
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
@@ -368,8 +462,20 @@ var APPX = (function () {
     '<circle cx="12" cy="12" r="1.6" fill="#17468F" stroke="none"/>' +
     '<circle cx="12" cy="19" r="1.6" fill="#17468F" stroke="none"/></svg></span>';
 
-  function icon() {
-    return '<div class="apic"><img src="icon-192.png" alt="">' +
+  /* `mode`: '' — האייקון בלבד · 'add' — עם "+", לפני ההתקנה: זה
+     מה שיתווסף · 'tap' — עם אצבע וגלים, אחרי: לוחצים עליו. העיצוב
+     של שני האחרונים ב-join.html (`.apic.add`, `.apic.tap`). */
+  function icon(mode) {
+    var m = mode === 'add' || mode === 'tap' ? mode : '';
+    var fx = m === 'add' ? '<i class="ap-add" aria-hidden="true">+</i>'
+      : m === 'tap' ? '<i class="ap-ring" aria-hidden="true"></i>' +
+        '<i class="ap-tap" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26">' +
+        '<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10l4.3.9a2 2 0 0 1 1.6 2.2l-.6 4.6a3 3 0 0 1-3 2.6h-3.6a3 3 0 0 1-2.4-1.2L5.4 15a1.4 1.4 0 0 1 2.1-1.8L9 14.6z" ' +
+        'fill="#fff" stroke="#1B2A45" stroke-width="1.5" stroke-linejoin="round"/></svg></i>'
+      : '';
+    var img = '<img src="icon-192.png" alt="">';
+    return '<div class="apic' + (m ? ' ' + m : '') + '">' +
+           (m ? '<b class="ap-i">' + img + fx + '</b>' : img) +
            '<span>הדף השבועי</span></div>';
   }
 
@@ -644,7 +750,7 @@ var APPX = (function () {
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },
     stuck: stuck,
-    waBox: waBox,
+    waBox: waBox, outBox: outBox,
     onStuck: function (f) { ON_STUCK.push(f); },
     /* ============================================================
        אישור בחלון ההתקנה אינו התקנה.
