@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>לימוד אינטראקטיבי — הדף השבועי</title>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
@@ -131,8 +131,13 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
 
 /* ---------- הבמה ---------- */
 main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+/* ---------- זום ----------
+   הדפדפן אינו מגדיל את המסך — לא בצביטה ולא בלחיצה כפולה — כי
+   הגדלה שלו מפרקת את הפריסה ומסתירה את הכפתורים. רק הגמרא
+   עצמה מוגדלת, בצביטה על הבמה, ובתוך הבמה בלבד (ראו ZM). */
+*{touch-action:pan-x pan-y}
 .stage{position:relative;overflow:hidden;background:#fff;
-  touch-action:manipulation;cursor:pointer}
+  touch-action:none;cursor:pointer}
 /* בדף המלא האצבע מזיזה את הדף, ולכן הדפדפן לא יקבל אותה לגלילה
    או להגדלה משלו — אחרת כל משיכה נלקחת ממנו ולא מגיעה לכאן. */
 body.whole .stage{touch-action:none;cursor:grab}
@@ -690,6 +695,9 @@ body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
 .qz-opt{display:block;width:100%;text-align:right;margin-top:8px;padding:12px 14px;
   border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff;
   color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
+.qz-opt.right{border-color:#3B7D57;background:rgba(59,125,87,.1)}
+.qz-opt.wrong{border-color:#A5382D;background:rgba(165,56,45,.07)}
+.qz-opt:disabled{cursor:default}
 .qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
   color:#fff;border:0}
 .qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
@@ -958,7 +966,7 @@ nav .sp{flex:1}
   <span class="sp"></span>
   <button id="chtog">פירוש</button>
   <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
-  <button id="dktog" style="display:none">מצגת</button>
+  <button id="dktog" style="display:none">איור</button>
   <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
   <button class="p" id="next">הבא ◂</button>
 </div></nav>
@@ -1357,16 +1365,20 @@ function focus() {
    הגבולות הם גבולות הדף עצמו: אפשר להגיע לכל פינה בו, ואי אפשר
    לאבד אותו מחוץ למסך. */
 var VIEW = null, PAN = { x: 0, y: 0 };
+/* הגדלת הגמרא בצביטה: 1 = הגודל הרגיל, עד פי 2. היא נשמרת בין
+   הקטעים, ומוחלת סביב מרכז הבמה — הקטע נשאר באמצע. */
+var ZM = 1, ZM_MIN = 1, ZM_MAX = 2;
 function applyView(instant) {
   if (!VIEW) return;
-  var v = VIEW;
-  var tx = v.tx + PAN.x, ty = v.ty + PAN.y;
-  tx = v.disp > v.sw ? Math.max(v.sw - v.disp, Math.min(0, tx)) : (v.sw - v.disp) / 2;
-  ty = v.dh > v.sh ? Math.max(v.sh - v.dh, Math.min(0, ty)) : (v.sh - v.dh) / 2;
+  var v = VIEW, z = ZM, disp = v.disp * z, dh = v.dh * z;
+  var cx = v.sw / 2, cy = v.sh / 2;
+  var tx = cx - (cx - v.tx) * z + PAN.x, ty = cy - (cy - v.ty) * z + PAN.y;
+  tx = disp > v.sw ? Math.max(v.sw - disp, Math.min(0, tx)) : (v.sw - disp) / 2;
+  ty = dh > v.sh ? Math.max(v.sh - dh, Math.min(0, ty)) : (v.sh - dh) / 2;
   var h = $('holder');
   h.style.transition = instant ? 'none' : '';
   h.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' +
-                      (v.disp / v.sw).toFixed(4) + ')';
+                      (disp / v.sw).toFixed(4) + ')';
 }
 
 /* ============================================================
@@ -3857,7 +3869,7 @@ function bar() {
      אחת שקטה. */
   $('count').textContent = '';
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
-  $('prev').disabled = IDX === 0;
+  $('prev').disabled = IDX === 0 && !prevDaf(S.daf);
   var last = IDX === FLAT.length - 1;
   $('next').textContent = last
     ? (DONE_SEEN && nextDaf(S.daf) ? 'דף ' + nextDaf(S.daf) + ' ◂' : 'סיום ◂')
@@ -3901,6 +3913,21 @@ var MARKS_FILTERED = null;
 /* הדף הבא, כתובת מלאה. אין כאן בדיקה אם הוא כבר סומן — בכוונה:
    `learn.html` יודע לומר בעצמו "הדף הזה עוד לא הוכן ללימוד", וזו
    תשובה טובה יותר מכפתור שנעלם בלי הסבר. */
+function prevDafUrl() {
+  var d = prevDaf(S.daf);
+  return d ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+             '&daf=' + encodeURIComponent(d) + '&at=end' : null;
+}
+/* "הקודם" בקטע הראשון ממשיך אל הקטע האחרון של הדף שלפניו — כמו
+   ש"הבא" בסוף הדף ממשיך אל הדף הבא. `at=end` אומר לדף שנפתח
+   להתחיל מסופו. */
+function goBack() {
+  if (IDX > 0) { go(IDX - 1); return; }
+  var u = prevDafUrl();
+  if (u) { location.href = u; return; }
+  toast('זה הקטע הראשון');
+}
+var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
   var d = nextDaf(S.daf);
   return d ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
@@ -3999,17 +4026,25 @@ function paintQuiz() {
     return;
   }
   var qi = qIdx_(n, list.length), q = list[qi];
+  /* שאלה שכבר נענתה נכון — מדלגים לבאה שעוד לא נענתה, אם יש */
+  if (!SIDE_ADM && qOk_(n, q)) for (var j = qi + 1; j < list.length; j++) {
+    if (!qOk_(n, list[j])) { Q_AT.i = qi = j; q = list[j]; break; }
+  }
+  var done = qOk_(n, q), tried = (Q_AT.bad && Q_AT.bad[qi]) || {};
   box.innerHTML =
     (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
       .replace('{i}', qi + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     q.a.map(function (t, k) {
-      return '<button class="qz-opt" id="qz-opt' + k + '">' + esc(t) + '</button>';
+      var c = done ? (k === q.correct ? ' right' : '') : (tried[k] ? ' wrong' : '');
+      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' +
+        (done || tried[k] ? ' disabled' : '') + '>' + esc(t) + '</button>';
     }).join('') +
+    (done ? '<div class="qz-res">' + esc(UI.qLocked || '') + '</div>' : '') +
     (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
       'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
-  q.a.forEach(function (t, k) {
-    $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
+  if (!done) q.a.forEach(function (t, k) {
+    if (!tried[k]) $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
   });
   var ed = $('qz-edit');
   if (ed) ed.onclick = function () { qEditOpen_(n); };
@@ -4017,14 +4052,30 @@ function paintQuiz() {
 /* התשובה נשלחת, וחוזרים ללשונית הרגילה — אין יותר "לסגור",
    כי אין חלון: יש רק מעבר בין לשוניות, וזה בדיוק מה שקורה כאן
    לבד. התשובה הנכונה נאמרת בהודעה חולפת (toast). */
+/* תשובה נכונה נועלת את השאלה במכשיר — לפי הדף, הקטע והשאלה עצמה,
+   כך ששאלה שנערכה נפתחת מחדש. */
+function qOkKey_(n, q) { return 'df:qok:' + dmKey(S.mas, S.daf) + ':' + n + ':' + q.q; }
+function qOk_(n, q) {
+  try { return localStorage.getItem(qOkKey_(n, q)) === '1'; } catch (e) { return false; }
+}
 function qAnswer(n, q, k) {
+  if (qOk_(n, q)) return;
   var right = k === q.correct;
   qSend(n, k, right);
-  toast(right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
-              : 'התשובה הנכונה: ' + q.a[q.correct]);
+  /* טעות — נשארים על אותה שאלה, התשובה שנבחרה מסומנת, ומנסים שוב. */
+  if (!right) {
+    toast(UI.qWrong || '');
+    if (Q_AT.n !== n) Q_AT = { n: n, i: 0 };
+    Q_AT.bad = Q_AT.bad || {};
+    (Q_AT.bad[Q_AT.i] = Q_AT.bad[Q_AT.i] || {})[k] = 1;
+    paintChavArea();
+    return;
+  }
+  try { localStorage.setItem(qOkKey_(n, q), '1'); } catch (e) {}
+  toast(UI.qRight || '');
   /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
   var len = qVisible_(n).length;
-  if (Q_AT.n === n && Q_AT.i + 1 < len) { Q_AT.i++; paintChavArea(); return; }
+  if (Q_AT.n === n && Q_AT.i + 1 < len) { Q_AT.i++; Q_AT.bad = null; paintChavArea(); return; }
   Q_AT = { n: n, i: 0 };
   QUIZ_OPEN = false;
   paintChavArea();
@@ -4528,7 +4579,7 @@ function recLabel(a, v) {
   if (a === 'next')   return 'הקטע הבא';
   if (a === 'prev')   return 'הקטע הקודם';
   if (a === 'chav')   return 'חברותא';
-  if (a === 'deck')   return 'מצגת';
+  if (a === 'deck')   return 'איור';
   if (a === 'whole')  return 'כל הדף';
   if (a === 'zoom')   return v > 0 ? 'הגדלת הביאור' : 'הקטנת הביאור';
   if (a === 'invite') return 'ההזמנה — עכשיו אתם';
@@ -4673,6 +4724,17 @@ function pickDaf() {
    הלוח הוא סדר הדפים של התוכנית — כולל ההבדל בין תענית למגילה —
    ולכן אין צורך בטבלה נוספת. שבועות בלי דף (חנוכה, פורים) וה"סיום"
    מדולגים, וכך הדף הבא הוא באמת הבא. */
+/* הדף שלפני זה שעל המסך — אותו סדר, בכיוון ההפוך. */
+function prevDaf(daf) {
+  var cal = calOf(S.mas), prev = null;
+  for (var i = 0; i < cal.length; i++) {
+    var d = cal[i][2];
+    if (!d || d === 'סיום') continue;
+    if (dafKey(d) === dafKey(daf)) return prev;
+    prev = d;
+  }
+  return null;
+}
 function nextDaf(daf) {
   var cal = calOf(S.mas), seen = false;
   for (var i = 0; i < cal.length; i++) {
@@ -4928,8 +4990,11 @@ function boot() {
             $('whole').textContent = 'עם עמעום';
           }
         } catch (e) {}
-        go(0);
-        if (!quiet()) try { resumePos(); } catch (e) {}
+        if (AT_END && !quiet()) go(FLAT.length - 1);
+        else {
+          go(0);
+          if (!quiet()) try { resumePos(); } catch (e) {}
+        }
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
 
@@ -4970,7 +5035,7 @@ window.addEventListener('DOMContentLoaded', function () {
     }
     go(IDX + 1);
   };
-  $('prev').onclick  = function () { go(IDX - 1); };
+  $('prev').onclick  = goBack;
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
      שמעדיף אותו. */
   /* ---------- הקשה על הדף ----------
@@ -4998,15 +5063,44 @@ window.addEventListener('DOMContentLoaded', function () {
   var TAP_BACK = 0.30;              /* החלק העליון של המסך = אחורה */
   var DRAG = null;
 
+  /* ---------- צביטה ----------
+     שתי אצבעות על הבמה מגדילות את הגמרא בלבד (ZM, 100%–200%).
+     צביטה אינה הקשה ואינה גרירה: היא מבטלת את שתיהן, עד שכל
+     האצבעות עוזבות. */
+  var PTS = {}, PINCH = null;
+  var ptsDist = function () {
+    var k = Object.keys(PTS);
+    if (k.length < 2) return 0;
+    var a = PTS[k[0]], b = PTS[k[1]];
+    return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+  };
+  var ptUp = function (e) {
+    delete PTS[e.pointerId];
+    if (PINCH && Object.keys(PTS).length < 2) PINCH = null;
+  };
   $('stage').addEventListener('pointerdown', function (e) {
     if (!FLAT.length) return;
+    PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (Object.keys(PTS).length >= 2) {
+      PINCH = { d0: ptsDist() || 1, z0: ZM };
+      DRAG = null;
+      return;
+    }
     DRAG = { x: e.clientX, y: e.clientY, px: PAN.x, py: PAN.y, moved: 0 };
   });
   $('stage').addEventListener('pointermove', function (e) {
+    if (PTS[e.pointerId]) PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (PINCH) {
+      e.preventDefault();
+      ZM = Math.max(ZM_MIN, Math.min(ZM_MAX, PINCH.z0 * ptsDist() / PINCH.d0));
+      applyView(true);
+      return;
+    }
     if (!DRAG) return;
     var dx = e.clientX - DRAG.x, dy = e.clientY - DRAG.y;
     DRAG.moved = Math.max(DRAG.moved, Math.abs(dx) + Math.abs(dy));
-    if (DIM || DRAG.moved < 6) return;      /* במיקוד הדף נעול */
+    /* במיקוד הדף נעול — אלא אם הוגדל, ואז אפשר להזיז אותו */
+    if ((DIM && ZM <= 1) || DRAG.moved < 6) return;
     e.preventDefault();
     PAN.x = DRAG.px + dx; PAN.y = DRAG.py + dy;
     applyView(true);
@@ -5018,14 +5112,21 @@ window.addEventListener('DOMContentLoaded', function () {
     var r = $('stage').getBoundingClientRect();
     if (!r.height) return;
     if ((e.clientY - r.top) / r.height < TAP_BACK) {
-      if (IDX > 0) go(IDX - 1);
-      else toast('זה הקטע הראשון');
+      goBack();
       return;
     }
     go(IDX + 1);
   };
-  $('stage').addEventListener('pointerup', endDrag);
-  $('stage').addEventListener('pointercancel', function () { DRAG = null; });
+  $('stage').addEventListener('pointerup', function (e) { ptUp(e); endDrag(e); });
+  $('stage').addEventListener('pointercancel', function (e) { ptUp(e); DRAG = null; });
+  /* אייפון אינו מכבד את user-scalable=no; את הצביטה של הדפדפן
+     עוצרים כאן. הבמה מטפלת בצביטה בעצמה, באירועי pointer. */
+  ['gesturestart', 'gesturechange'].forEach(function (t) {
+    document.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false });
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
 
   $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
   $('chclose').onclick = function () { drawer(false); };
@@ -5051,7 +5152,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
-    if (e.key === 'ArrowRight') { go(IDX - 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { goBack(); e.preventDefault(); }
   });
   /* חלון ההתמקדות מחושב פעם אחת, מגובה הבמה. בדפדפן נייד הגובה
      הזה **משתנה תוך כדי**: שורת הכתובת נעלמת בגלילה וחוזרת, וגם

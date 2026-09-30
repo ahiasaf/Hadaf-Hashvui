@@ -2117,7 +2117,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.87';
+var APP_VERSION = '8.99.88';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4901,9 +4901,27 @@ function openQuiz(idx) {
        'הפרטים נשמרים במערכת התוכנית בלבד.</p><div id="q-result"></div>';
   document.getElementById('quiz-body').innerHTML = h;
   state.ans = -1;
+  state.bad = {};
   qManual = false;
   quizWho();
+  /* כבר ענה נכון על החידה הזו במכשיר — מוצגת נעולה, עם התשובה. */
+  if (quizOk(key, idx, q)) {
+    for (var k = 0; k < q.a.length; k++) {
+      var el = document.getElementById('opt' + k);
+      if (el) { el.className = 'opt' + (k === q.correct ? ' right' : ''); el.onclick = null; }
+    }
+    document.getElementById('q-who').innerHTML = '';
+    document.getElementById('q-send').style.display = 'none';
+    document.getElementById('q-result').innerHTML =
+      '<div class="done-box" style="margin-top:14px">' + esc(UI.qLocked || '') + '</div>';
+  }
   show('quiz');
+}
+/* תשובה נכונה נועלת את החידה במכשיר — לפי השבוע, מספר החידה
+   והשאלה עצמה, כך ששאלה שהוחלפה נפתחת מחדש. */
+function quizOkKey(key, idx, q) { return 'df:qok:' + key + ':' + idx + ':' + q.q; }
+function quizOk(key, idx, q) {
+  try { return localStorage.getItem(quizOkKey(key, idx, q)) === '1'; } catch (e) { return false; }
 }
 
 /* יותר מחידה אחת באותו שבוע — מסך בחירה קצר ביניהן. */
@@ -4968,12 +4986,13 @@ function pickAns(i) {
   var q = QUIZ[state.track.id + '-' + (state.week + 1)][state.quizIdx];
   for (var k = 0; k < q.a.length; k++) {
     var el = document.getElementById('opt' + k);
-    if (el) el.className = 'opt' + (k === i ? ' sel' : '');
+    if (el) el.className = 'opt' + (k === i ? ' sel' : (state.bad && state.bad[k] ? ' wrong' : ''));
   }
   document.getElementById('q-send').disabled = false;
 }
 function sendQuiz() {
   var key = state.track.id + '-' + (state.week + 1), q = QUIZ[key][state.quizIdx];
+  if (state.ans < 0 || quizOk(key, state.quizIdx, q)) return;
   var me = quizMe(), inst, name, phone, id = '';
 
   if (me) {
@@ -4990,19 +5009,28 @@ function sendQuiz() {
     localStorage.setItem('dfInst', inst); localStorage.setItem('dfName', name);
   }
 
-  var right = state.ans === q.correct;
+  var right = state.ans === q.correct, tried = state.ans;
+  /* טעות — התשובה שנבחרה מסומנת ונסגרת, והשאר פתוחות לניסיון נוסף.
+     נכונה — הכול ננעל, והחידה נשמרת במכשיר כנענתה. */
+  if (!right) (state.bad = state.bad || {})[tried] = 1;
+  else try { localStorage.setItem(quizOkKey(key, state.quizIdx, q), '1'); } catch (e) {}
   for (var k = 0; k < q.a.length; k++) {
     var el = document.getElementById('opt' + k);
     if (!el) continue;
-    el.className = 'opt' + (k === q.correct ? ' right'
-                          : (k === state.ans && !right ? ' wrong' : ''));
-    el.onclick = null;
+    if (right) {
+      el.className = 'opt' + (k === q.correct ? ' right' : '');
+      el.onclick = null;
+    } else {
+      el.className = 'opt' + (state.bad[k] ? ' wrong' : '');
+      if (state.bad[k]) el.onclick = null;
+    }
   }
+  state.ans = -1;
   document.getElementById('q-send').disabled = true;
   queue({ action:'quiz', week:key, inst:inst, name:name, phone:phone,
-          answer:state.ans, correct:right, at:new Date().toISOString(),
+          answer:tried, correct:right, at:new Date().toISOString(),
           cols: JSON.stringify([['שבוע', key], ['ישיבה', inst], ['שם', name],
-            ['טלפון', phone], ['תשובה', state.ans + 1],
+            ['טלפון', phone], ['תשובה', tried + 1],
             ['נכון', right ? 'נכון' : 'לא נכון'],
             /* המזהה הוא מה שיקשר בין "ענה נכון" לבין תלמיד
                מסוים כשתיערך ההגרלה. */
@@ -5021,8 +5049,7 @@ function sendQuiz() {
   }
   document.getElementById('q-result').innerHTML =
     '<div class="done-box" style="margin-top:14px">' +
-    (right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
-           : 'התשובה הנכונה מסומנת. נכנסת להגרלה השבועית.') + '</div>';
+    esc((right ? UI.qRight : UI.qWrong) || '') + '</div>';
 }
 
 /* ---------- מוסדות ---------- */
@@ -8367,6 +8394,33 @@ function accHtml(c) {
     }).join('') + '</div>';
 }
 
+/* זמן מהגיליון. הקריאה מחזירה את הערך כפי שהוא מוצג בגיליון —
+   "30/09/2026 20:44:12" — ו-Date.parse אינו מכיר את הצורה הזו
+   (הוא החזיר NaN, והמסך הראה "לפני 20727 ימים"). 0 = לא ידוע. */
+function sheetTime(v) {
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(String(v || '').trim());
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+  return Date.parse(v) || 0;
+}
+function sheetAgo(v) { var t = sheetTime(v); return t ? whenTxt(t) : ''; }
+/* הקהל האמיתי של שליחה, מכל עמודות היומן — ולא רק "ישיבה", שבה
+   "כולם" הוא ברירת מחדל ומסתיר את שאר הצמצומים. */
+function sayAud(r) {
+  var out = [], f = {};
+  try { f = JSON.parse(r.flt || '{}') || {}; } catch (e) { f = {}; }
+  if (r.wait) out.push('מי שביקש התראה על הדף');
+  if (f.ids && f.ids.length) out.push(f.ids.length === 1 ? 'אדם אחד נבחר' : f.ids.length + ' אנשים נבחרו');
+  if (f.par === 'p') out.push('הורים');
+  else if (f.par === 'pk') out.push('תלמידים והורים');
+  if (r.role) out.push(r.role === 'אב' ? 'הורים' : r.role === 'תלמיד' ? 'תלמידים' : r.role);
+  if (r.inst && r.inst !== 'כולם') out.push(r.inst);
+  if (r.grade) out.push('שכבה ' + r.grade);
+  if (r.klass) out.push('כיתה ' + r.klass);
+  if (f.way) out.push(f.way);
+  if (f.seg) out.push({ done:'סיימו', todo:'עוד לא סיימו', mid:'התחילו ולא סיימו',
+                        none:'לא התחילו' }[f.seg] + (f.wk ? ' (שבוע ' + f.wk + ')' : ''));
+  return out.length ? out.join(' · ') : 'כל המנויים';
+}
 /* יומן ההודעות — מה יצא, ממי, ומה עלה בגורלו. */
 function sayLogCard() {
   if (!sayLog) return '';
@@ -8376,7 +8430,7 @@ function sayLogCard() {
       var bad = m.res.indexOf('נכשלה') === 0 && m.res.indexOf('נשלחה שוב') < 0;
       var part = m.res.indexOf('חלקית') === 0;
       return '<div class="slog' + (bad ? ' bad' : part ? ' part' : '') + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
-        (m.inst ? ' · ' + esc(m.inst) : '') + '<span>' + esc(whenTxt(Date.parse(m.at) || 0)) + '</span></div>' +
+        ' · ' + esc(m.aud) + '<span>' + esc(sheetAgo(m.at)) + '</span></div>' +
         '<div class="slog-t">' + esc((m.title ? m.title + ' — ' : '') + m.body) + '</div>' +
         (m.res ? '<div class="slog-r">' + esc(m.res) + '</div>' : '') + '</div>';
     }).join('') + '</div>';
@@ -8392,7 +8446,9 @@ function needsLoad() {
     sayLog = rows.slice(1).map(function (r) {
       var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
       return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
-               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך') };
+               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך'),
+               aud: sayAud({ inst: io ? io.name : ic, grade: c(r, 'שכבה'), klass: c(r, 'כיתה'),
+                             role: c(r, 'תפקיד'), flt: c(r, 'פילוח'), wait: c(r, 'ממתינים') }) };
     }).reverse().slice(0, 40);
     needsFail = rows.slice(1).filter(function (r) {
       var t = c(r, 'תוצאה');
@@ -8433,7 +8489,7 @@ function admNeeds() {
   fails.forEach(function (m) {
     h += '<div class="need"><div class="need-h">⚠ הודעה לא יצאה</div>' +
       '<div class="need-m"><b>' + esc(m.who || 'צוות') + '</b>' +
-      (m.inst ? ' · ' + esc(m.inst) : '') + (m.at ? ' · ' + esc(whenTxt(Date.parse(m.at) || 0)) : '') +
+      (m.inst ? ' · ' + esc(m.inst) : '') + (sheetAgo(m.at) ? ' · ' + esc(sheetAgo(m.at)) : '') +
       '</div><div class="need-t">' + (m.title ? '<b>' + esc(m.title) + '</b><br>' : '') +
       esc(m.body) + '</div><div class="need-w">' + esc(m.why) + '</div>' +
       '<button class="btn p" style="margin:8px 0 0"' + (needsBusy ? ' disabled' : '') +
