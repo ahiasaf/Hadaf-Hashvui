@@ -598,7 +598,7 @@ body.mark #toast{top:auto !important}
   <span class="gap"></span>
   <span class="gh" id="ihint"></span>
   <button id="i-split" title="פיצול הקטע כאן">✂</button>
-  <button id="i-del" title="מחיקת הקטע">🗑</button>
+  <button id="i-del" title="איחוד עם הקטע הבא">🔗</button>
   <button class="add" id="i-save">עדכון הקטע</button>
 </div>
 <div class="bar sbar" id="sbar">
@@ -641,6 +641,7 @@ body.mark #toast{top:auto !important}
      הבורר נשען עליהם ואינו מחזיק רשימה משלו. -->
 <script src="data.js"></script>
 <script src="links.js"></script>
+<script src="stepid.js"></script>
 <script type="module">
   /* pdf.js מצורף ולא נטען מרשת חיצונית. נטען כמודול כי זו הצורה
      שבה הוא מפורסם, ומגושר ל-window כדי שהקוד הרגיל שלמטה ישתמש בו. */
@@ -1930,7 +1931,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.82';
+var STUDIO_VER = '8.99.83';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2555,6 +2556,7 @@ function splitDo() {
 
   STEPS.splice(k, 1, one, two);
   seal();
+  if (two.id) NEW_IDS[two.id] = 1;
   touched();
   SPL_UNDO = { key: PKEY, orig: orig, one: one, two: two, prev: prevWas,
                contKey: contKey, contWas: contWas };
@@ -2568,7 +2570,8 @@ function splitDo() {
            (s.c.to > s.c.from ? '–' + (s.c.to + 1) : '');
   };
   say('✓ הקטע פוצל: קטע ' + (a + 1) + ' (' + rng(one) + ') וקטע ' + (a + 2) +
-      ' (' + rng(two) + '). נשמר במכשיר — "שמירה" מעלה לגיליון.' +
+      ' (' + rng(two) + '). הפירוש, ההקלטות, השקף והשאלה נשארו בראשון; השני מתחיל ריק.' +
+      ' נשמר במכשיר — "שמירה" מעלה לגיליון.' +
       '<button class="unsplit" data-unsplit="1">↶ ביטול</button>');
   /* ההודעה נושאת את כפתור הביטול, ולכן היא נשארת זמן לקרוא ולהחליט */
   clearTimeout(TOAST_T);
@@ -2830,7 +2833,7 @@ function markPanel() {
         '<span class="q">' + esc((st.c.text || '').slice(0, 55)) + '…</span></div>';
     }).join('') || '<div class="hint">עדיין אין קטעים.</div>';
     [].forEach.call(document.querySelectorAll('[data-x]'), function (b) {
-      b.onclick = function () { removeStep(+b.dataset.x); };
+      b.onclick = function () { mergeStep(+b.dataset.x); };
     });
   }
   var u = document.getElementById('undo');
@@ -2910,6 +2913,7 @@ function addStep(cont) {
   }
   STEPS.splice(at, 0, step);
   seal();                       /* הרצף נאטם מיד, לפני כל דבר אחר */
+  if (step.id) NEW_IDS[step.id] = 1;
   touched();
   GSEL = null; CSEL_P = null;
   paintChav(1); markDraw();
@@ -3034,7 +3038,10 @@ function showSteps() {
     b.onclick = function () { dropOrphans(); };
   });
   [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
-    b.onclick = function () { removeStep(+b.dataset.del); showSteps(); };
+    b.onclick = function () {
+      box.className = 'splitbox';
+      mergeStep(+b.dataset.del);
+    };
   });
   [].forEach.call(box.querySelectorAll('[data-go]'), function (b) {
     b.onclick = function () {
@@ -3048,14 +3055,148 @@ function showSteps() {
   });
 }
 
-/* מחיקה = הסרת נקודת חיתוך. במודל הזה זה **מאחד** את הקטע עם
-   השכן שלפניו במקום לפעור חור: `seal` מותח את הקודם עד תחילת
-   הבא. אין יותר מצב שבו מחיקה משאירה שטח בלי בעלים. */
+/* הסרת נקודת חיתוך — `seal` מותח את הבא עד סוף הקודם. נשארה רק
+   ל"↶" (ביטול מה שסומן זה עתה). לקטע שכבר שמור — `mergeStep`. */
 function removeStep(i) {
   STEPS.splice(i, 1);
   seal();
   touched();
   paintChav(1); markDraw();
+}
+
+/* ============================================================
+   מזהה קבוע, ואיחוד במקום מחיקה.
+   ============================================================
+   "אף פעם אני לא אמחק קטע — אני רק אפצל קטע אחד לשניים, או
+   אחבר שני קטעים לקטע אחד."
+
+   לכל קטע `id` (ראו stepid.js), והפירוש, השאלות, ההקלטות והשקפים
+   נקשרים אליו ולא למספר. לכן:
+   · פיצול — החלק הראשון הוא עותק של המקורי ושומר את המזהה (ואיתו
+     כל מה ששויך); החלק השני נולד ריק, עם מזהה חדש.
+   · איחוד — הקטע המוקדם נמתח עד סוף השני ושומר את המזהה שלו;
+     המזהה של השני נרשם אצלו ב-`also`, והתוכן של שניהם מוצג ברצף.
+     שום דבר לא נכתב ללשוניות התוכן, ושום קטע אחר לא זז.
+   ============================================================ */
+var NEW_IDS = {};   /* קטעים שסומנו בכניסה הזו — ביטולם אינו מנתק דבר */
+function studioTaken_() {
+  var mas = selVal('mas'), recs = [];
+  for (var k in BOOK) if (k.indexOf(mas + '|') === 0) recs.push({ mas: mas, d: BOOK[k] });
+  return SidTaken(recs, mas);
+}
+function ensureIds_() {
+  var need = STEPS.some(function (s) { return !s.cont && !s.id; });
+  SidEnsure(STEPS, need ? studioTaken_() : {});
+}
+/* המפתח של העמוד שבו יושב קטע מסוים (לעדכון עמוד שכן) */
+function keyOfStep_(st) {
+  for (var k in BOOK) if ((BOOK[k].steps || []).indexOf(st) >= 0) return k;
+  return '';
+}
+function nextPageKey_() {
+  var a = PKEY.split('|');
+  if (a.length < 4) return '';
+  a[3] = String((+a[3] || 1) + 1);
+  return a.join('|');
+}
+/* מצב לשוניות התוכן של הדף: האם עדיין לפי מספרים (לפני ההסבה), ומה
+   העוגנים של המצגת — בשביל האזהרה על שקף שעובר. */
+function studioContent_() {
+  var mas = selVal('mas'), daf = selVal('daf'), rec = BOOK[PKEY] || {};
+  var dafs = [SidDaf(daf)];
+  if (rec.prev > 0 && rec.prevDaf) dafs.push(SidDaf(rec.prevDaf));
+  var tabs = ['פירוש', 'שאלות בדף', 'מצגת'];
+  return Promise.all(tabs.map(function (t) { return sheetCsv(t); })).then(function (res) {
+    var out = { read: true, legacy: false, anch: null };
+    res.forEach(function (rows, ti) {
+      if (!rows) { out.read = false; return; }
+      rows.slice(1).forEach(function (r) {
+        if (r[0] !== mas || dafs.indexOf(SidDaf(r[1])) < 0) return;
+        var v;
+        try { v = JSON.parse(r[2]); } catch (e) { return; }
+        if (!v || typeof v !== 'object') return;
+        if (ti === 2 && SidDaf(r[1]) === SidDaf(daf)) out.anch = v;
+        if (v.__ids) return;
+        for (var k in v) if (v.hasOwnProperty(k) && /^\d+$/.test(k)) out.legacy = true;
+      });
+    });
+    return out;
+  }).catch(function () { return { read: false }; });
+}
+function mergeAsk_(info, b, after) {
+  var msg = 'לאחד את שני הקטעים?\n\n' +
+    'קו ההפרדה ביניהם יוסר בגמרא ובחברותא. הפירוש לנוער, ההקלטות והשאלות של שניהם יוצגו יחד, ברצף.';
+  if (!info.read) msg += '\n\n(לא הצלחתי לקרוא את לשוניות הפירוש והשאלות. אם הדף עוד לא הוסב למזהים, האיחוד עלול להזיז שיוכים של הקטעים שאחריו.)';
+  else if (info.legacy) msg += '\n\n⚠ הדף הזה עוד לא הוסב למזהים קבועים. האיחוד יזיז את הפירוש, השאלות והשקפים של כל הקטעים שאחריו.';
+  else if (info.anch && info.anch.__ids && b && b.id && info.anch[b.id] !== undefined) {
+    if (after && after.id && info.anch[after.id] !== undefined)
+      msg += '\n\nשימו לב: בקטע השני מתחיל שקף, ולקטע שאחריו יש שקף משלו — השקף של הקטע השני לא יוצג יותר ברצף.';
+    else msg += '\n\nהשקף שמתחיל בקטע השני יעבור להתחיל בקטע שאחריו.';
+  }
+  return confirm(msg);
+}
+function mergeStep(i) {
+  var st = STEPS[i];
+  if (!st) return;
+  if (SPL) splitCancel(1);
+  /* האחרון בעמוד מתאחד עם זה שלפניו — תמיד המוקדם הוא שנשאר. */
+  if (!STEPS[i + 1]) {
+    if (i > 0) { mergeStep(i - 1); return; }
+    say('זה הקטע היחיד בעמוד. איחוד עם קטע מעמוד אחר — בדף האינטראקטיבי ("איחוד קטע … עם קטע …").', 1);
+    return;
+  }
+  var nx = STEPS[i + 1], rec = BOOK[PKEY] || {}, pg = +selVal('pg') || 1;
+  if (rec.prev > 0 && i === rec.prev - 1) {
+    say('הקטע הראשון שייך ללימוד של הדף הקודם, והשני לדף הזה — כל אחד על חברותא אחרת. אי אפשר לאחד אותם.', 1);
+    return;
+  }
+  var root = st;
+  if (st.cont) {
+    if (pg === 1) { say('זה המשך של קטע מהדף הקודם, על החברותא של הדף ההוא — אי אפשר לאחד אותו עם קטע של הדף הזה.', 1); return; }
+    root = prevStep();
+    if (!root || root.cont) { say('לא מצאתי את תחילת הקטע בעמוד הקודם — לא אוחד.', 1); return; }
+  }
+  var after = STEPS[i + 2] || null;
+  if (!after) {
+    var nr = BOOK[nextPageKey_()], n0 = nr && nr.steps && nr.steps[0];
+    after = n0 && !n0.cont ? n0 : null;
+  }
+  say('בודק את הפירוש והשקפים של הדף…');
+  studioContent_().then(function (info) {
+    if (!mergeAsk_(info, nx, after)) { say('לא אוחד.'); return; }
+    if (STEPS[i] !== st || STEPS[i + 1] !== nx) { say('הקטעים השתנו בינתיים — לא אוחד.', 1); return; }
+    var from = root.c.from, to = nx.c.to;
+    var r = chavRange(from, to);
+    var c = r ? { from: from, to: to, text: r.text, h: r.h }
+              : { from: from, to: to, text: (root.c.text || '') + ' ' + (nx.c.text || ''),
+                  h: (root.c.h || '') + (nx.c.h || '') };
+    var cp = function () { return { from: c.from, to: c.to, text: c.text, h: c.h }; };
+    st.g = { from: st.g.from, to: { line: nx.g.to.line, x: nx.g.to.x } };
+    st.c = cp();
+    if (!root.id) root.id = SidNew(studioTaken_());
+    var also = (root.also || []).slice();
+    [nx.id].concat(nx.also || []).forEach(function (a) {
+      if (a && a !== root.id && also.indexOf(a) < 0) also.push(a);
+    });
+    if (also.length) root.also = also;
+    if (root !== st) {
+      root.c = cp();
+      var rk = keyOfStep_(root);
+      if (rk && BOOK[rk]) { BOOK[rk].t = Date.now(); DIRTY[rk] = 1; }
+    }
+    STEPS.splice(i + 1, 1);
+    if (rec.prev > i + 1) rec.prev--;
+    /* השני היה האחרון בעמוד, וקטע המשך בראש העמוד הבא המשיך אותו —
+       מעכשיו הוא ממשיך את הקטע המאוחד. */
+    if (i === STEPS.length - 1) {
+      var nk = nextPageKey_(), nb = BOOK[nk], f0 = nb && nb.steps && nb.steps[0];
+      if (f0 && f0.cont) { f0.c = cp(); nb.t = Date.now(); DIRTY[nk] = 1; }
+    }
+    seal();
+    touched();
+    paintChav(1); markDraw(); markPanel();
+    say('✓ אוחד. נשמר במכשיר — "שמירה" מעלה לגיליון.');
+  });
 }
 
 function setMode(m) {
@@ -3326,13 +3467,24 @@ function saveToSheet() {
           'דפים אחרים. נסו שוב.', 1);
       return false;
     }
-    var keep = [], inSheet = {}, mine = {};
+    var keep = [], inSheet = {}, mine = {}, there = {};
     (rows || []).slice(1).forEach(function (r) {
-      inSheet[r[0] + '|' + r[1] + '|' + r[2]] = 1;
+      var rk0 = r[0] + '|' + r[1] + '|' + r[2];
+      inSheet[rk0] = 1;
+      try { there[rk0] = JSON.parse(r[3]); } catch (e) {}
     });
     /* מה שנכתב מכאן: מה שנגעו בו בכניסה הזו, מה שלא נשמר, ומה
        שאין לו שורה בכלל. עותק מקומי ישן של דף אחר — לא. ראו SEEN. */
     for (var k0 in BOOK) {
+      /* עמוד שלא שונה כאן, ובגיליון יש גרסה חדשה ממנו — למשל איחוד
+         שנעשה בדף האינטראקטיבי אחרי שהסטודיו נפתח. העותק שבזיכרון
+         ישן, וכתיבה שלו הייתה מבטלת את האיחוד בשקט. */
+      var sr = there[k0];
+      if (!DIRTY[k0] && sr && (sr.t || 0) > ((BOOK[k0] || {}).t || 0)) {
+        BOOK[k0] = sr;
+        if (k0 === PKEY) { STEPS = sr.steps || []; seal(); }
+        continue;
+      }
       if (SEEN[k0] || DIRTY[k0] || !inSheet[k0]) mine[k0] = 1;
     }
     (rows || []).slice(1).forEach(function (r) {
@@ -4132,6 +4284,8 @@ function seal(report) {
   });
 
   STEPS = out;
+  /* מזהה קבוע לכל קטע (stepid.js). קטע המשך — בלי. */
+  ensureIds_();
   /* `BOOK` מחזיק את אותה רשומה, ולכן היא מתעדכנת יחד. */
   if (BOOK[PKEY]) BOOK[PKEY].steps = STEPS;
   var last = STEPS[STEPS.length - 1];
@@ -4375,7 +4529,15 @@ window.addEventListener('beforeunload', function (e) {
   document.addEventListener('click', function () { m.classList.remove('on'); });
 })();
 document.getElementById('undo').onclick = function () {
-  if (STEPS.length) removeStep(STEPS.length - 1);
+  if (!STEPS.length) return;
+  var last = STEPS[STEPS.length - 1];
+  /* ביטול של מה שסומן עכשיו — כמו תמיד. קטע שכבר נשמר נושא אולי
+     פירוש, הקלטות ושאלות, והמחיקה שלו תנתק אותם: שואלים. */
+  if (last.id && !NEW_IDS[last.id] && !confirm(
+      'הקטע האחרון כבר שמור בגיליון, ואולי יש לו פירוש, הקלטות או שאלות.\n' +
+      'מחיקה תשאיר את השטח לא מסומן ותנתק ממנו את מה ששויך.\n\n' +
+      'לאחד אותו עם הקטע שלפניו — "ביטול" כאן, ואז 🔗.\nלמחוק בכל זאת — "אישור".')) return;
+  removeStep(STEPS.length - 1);
 };
 /* פס הקטע הקיים */
 [].forEach.call(document.querySelectorAll('[data-inudge]'), function (b) {
@@ -4386,13 +4548,22 @@ document.getElementById('i-close').onclick = function () { inspEnd(); };
 document.getElementById('i-save').onclick  = function () { inspSave(); };
 document.getElementById('i-split').onclick = function () { inspSplit(); };
 document.getElementById('s-cancel').onclick = function () { splitCancel(); };
-document.getElementById('s-ok').onclick = function () { splitDo(); };
+document.getElementById('s-ok').onclick = function () {
+  var why = splitWhy();
+  if (why) { say(why + '.', 1); return; }
+  /* דף שעוד לא הוסב למזהים: הפיצול יזיז את כל מה ששויך אחריו. */
+  studioContent_().then(function (info) {
+    if (info.read && !info.legacy) { splitDo(); return; }
+    if (confirm(info.legacy
+        ? '⚠ הדף הזה עוד לא הוסב למזהים קבועים. פיצול יזיז את הפירוש, השאלות והשקפים של כל הקטעים שאחרי הקטע הזה.\n\nלפצל בכל זאת?'
+        : 'לא הצלחתי לקרוא את לשוניות הפירוש והשאלות. אם הדף עוד לא הוסב למזהים, הפיצול עלול להזיז שיוכים של הקטעים שאחריו.\n\nלפצל בכל זאת?')) splitDo();
+  });
+};
 document.getElementById('i-del').onclick   = function () {
   if (INSP < 0) return;
   var k = INSP;
   inspEnd();
-  removeStep(k);
-  say('הקטע נמחק · הוא אוחד עם הקטע שלפניו.');
+  mergeStep(k);
 };
 
 [].forEach.call(document.querySelectorAll('[data-nudge]'), function (b) {

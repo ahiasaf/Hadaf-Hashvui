@@ -2052,6 +2052,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
+<script src="stepid.js"></script>
 <script src="ways.js"></script>
 <script src="links.js"></script>
 <!-- הבקשה האישית. אותו קוד בדיוק של עמוד הצוות, ולכן גם
@@ -2061,7 +2062,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.82';
+var APP_VERSION = '8.99.83';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11978,6 +11979,226 @@ function admInstall() {
   }).catch(function () {});
 }
 
+/* ============================================================
+   מזהים קבועים לקטעים — הבדיקה וההסבה החד-פעמית.
+   ============================================================
+   ראו stepid.js. עד ההסבה, הפירוש, השאלות והשקפים צמודים
+   ל**מספר** הקטע, וכל פיצול או איחוד מזיז את כל מה שאחריו.
+
+   שני שלבים, בכוונה:
+   · **בדיקה** — קוראת את ארבע הלשוניות, מחשבת את ההסבה ומציגה
+     דוח: לכל דף, מספר → מזהה → תחילת הטקסט → מה משויך. לא כותבת
+     כלום. אפשר להוריד את הדוח כקובץ.
+   · **הסבה** — רק אחרי בדיקה, ורק באישור: קודם גיבוי (קובץ במכשיר,
+     ועותק של כל לשונית בלשונית "גיבוי מזהים · …" שנקרא בחזרה
+     ומושווה), ואז כתיבה של ארבע הלשוניות וקריאה חוזרת לאימות.
+   הקריאה דרך הסקריפט (getDisplayValues) ולא דרך gviz — כדי שמה
+   שנכתב בחזרה יהיה אות באות מה שהיה.
+   ============================================================ */
+var SID_TABS = { marks:'סימוני הדף', own:'פירוש', q:'שאלות בדף', deck:'מצגת' };
+var SID = { busy:false, msg:'', cls:'', res:null, tabs:null };
+function sidCard() {
+  var r = SID.res, sum = '';
+  if (r) {
+    var dafs = r.report.length, items = 0, orph = 0, conv = 0;
+    r.report.forEach(function (d) {
+      items += d.items.length;
+      orph += d.orph.own.length + d.orph.q.length + d.orph.deck.length;
+      if (d.was.own === 'n' || d.was.q === 'n' || d.was.deck === 'n') conv++;
+    });
+    sum = '<div class="cond" style="margin-top:10px">' +
+      '<b>' + dafs + '</b> דפים · <b>' + items + '</b> קטעים · ' +
+      '<b>' + r.changedPages + '</b> עמודים יקבלו מזהים · ' +
+      '<b>' + conv + '</b> דפים עם תוכן לפי מספרים' +
+      (orph ? ' · <b style="color:#B3261E">' + orph + '</b> שיוכים למספר שאין לו קטע (יישמרו בצד, לא יימחקו)' : '') +
+      '</div>' + sidTable_(r);
+  }
+  return '<div class="adm-card" style="margin-bottom:11px"><h4>מזהים קבועים לקטעים</h4>' +
+    '<p class="h">כדי שפיצול ואיחוד בסטודיו לא יזיזו את הפירוש, השאלות, ההקלטות והשקפים ' +
+    'של קטעים אחרים. <b>בדיקה</b> אינה משנה דבר. <b>הסבה</b> — רק אחרי בדיקה, ' +
+    'עם גיבוי לפני הכתיבה.</p>' +
+    '<button class="btn g" onclick="sidDry()"' + (SID.busy ? ' disabled' : '') + '>בדיקה — בלי לשנות</button>' +
+    (r ? '<button class="btn g" style="margin-top:8px" onclick="sidSaveReport()">הורדת הדוח</button>' +
+         '<button class="btn gd" style="margin-top:8px" onclick="sidRun()"' +
+         (SID.busy ? ' disabled' : '') + '>הסבה — גיבוי ואז כתיבה</button>' : '') +
+    (SID.msg ? '<div class="' + (SID.cls || 'cond') + '" style="margin-top:10px">' + SID.msg + '</div>' : '') +
+    sum + '</div>';
+}
+function sidTable_(r) {
+  return '<details style="margin-top:8px"><summary>הדוח לפי דף</summary>' +
+    r.report.map(function (d) {
+      var o = d.orph, bad = o.own.concat(o.q, o.deck);
+      return '<div style="margin:10px 0 4px;font-weight:800">' + esc(d.mas) + ' · דף ' + esc(d.daf) +
+        ' · ' + d.groups + ' קטעים' +
+        (bad.length ? ' · <span style="color:#B3261E">מספרים בלי קטע: ' + bad.join(', ') + '</span>' : '') +
+        '</div><div style="font-size:.78rem;line-height:1.6">' +
+        d.items.map(function (it) {
+          var tags = [];
+          if (it.own) tags.push('פירוש');
+          if (it.q) tags.push('שאלה');
+          if (it.slide !== '') tags.push('שקף');
+          return it.n + ' → <code dir="ltr">' + esc(it.id) + '</code> · ' +
+            esc(it.text) + '…' + (it.parts > 1 ? ' (חוצה עמוד)' : '') +
+            (tags.length ? ' · <b>' + tags.join(', ') + '</b>' : '');
+        }).join('<br>') + '</div>';
+    }).join('') + '</details>';
+}
+function sidSay_(cls, msg) { SID.cls = cls; SID.msg = msg; admPane(); }
+function sidRead_() {
+  var key = (CFG.readKey || '').trim(), names = Object.keys(SID_TABS), out = {};
+  return Promise.all(names.map(function (k) {
+    return scriptGet({ read: SID_TABS[k], key: key }).then(function (d) {
+      if (!d || d.status !== 'ok') throw new Error((d && d.message) || SID_TABS[k]);
+      out[k] = d.rows || [];
+    });
+  })).then(function () { return out; });
+}
+/* שורות של לשונית תוכן → מפה לפי דף, והשורה המקורית לצידה. */
+function sidMap_(rows) {
+  var m = {}, at = {};
+  (rows || []).slice(1).forEach(function (r, i) {
+    var mas = String(r[0] || '').trim(), daf = String(r[1] || '').trim(), raw = String(r[2] || '').trim();
+    if (!mas || !daf || !raw) return;
+    var v;
+    try { v = JSON.parse(raw); } catch (e) { v = { __bad: raw }; }
+    m[SidDm(mas, daf)] = v; at[SidDm(mas, daf)] = i + 1;
+  });
+  return { map: m, at: at };
+}
+function sidDry() {
+  if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
+  SID.busy = true; SID.res = null; sidSay_('cond', 'קורא את ארבע הלשוניות…');
+  sidRead_().then(function (t) {
+    var o = sidMap_(t.own), q = sidMap_(t.q), d = sidMap_(t.deck);
+    SID.tabs = t;
+    SID.res = SidMigrate(t.marks, o.map, q.map, d.map);
+    SID.busy = false;
+    sidSay_('ok', 'הבדיקה הסתיימה. לא נכתב דבר.');
+  }).catch(function (e) {
+    SID.busy = false;
+    sidSay_('bad', 'לא הצלחתי לקרוא: ' + esc(e && e.message || ''));
+  });
+}
+function sidSaveReport() {
+  if (!SID.res) return;
+  var lines = ['מסכת,דף,מספר,מזהה,חוצה עמוד,פירוש,שאלה,שקף,תחילת הטקסט'];
+  SID.res.report.forEach(function (d) {
+    d.items.forEach(function (it) {
+      lines.push([d.mas, d.daf, it.n, it.id, it.parts > 1 ? 'כן' : '', it.own ? 'כן' : '',
+                  it.q ? 'כן' : '', it.slide, it.text].map(function (c) {
+        return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"';
+      }).join(','));
+    });
+    ['own', 'q', 'deck'].forEach(function (k) {
+      d.orph[k].forEach(function (n) {
+        lines.push(['"' + d.mas + '"', '"' + d.daf + '"', n, '"בלי קטע — ' + SID_TABS[k] + '"'].join(','));
+      });
+    });
+  });
+  saveFile('hadaf-stepid-report-' + stamp() + '.csv', '﻿' + lines.join('\r\n'));
+}
+/* התוכן אחרי ההסבה → שורות, בסדר המקורי. שורה שלא השתנתה נכתבת
+   בדיוק כפי שנקראה; דף שקיבל רשומה חדשה (פירוש ריק עם המפה
+   הקפואה) נוסף בסוף. */
+function sidRows_(rows, conv) {
+  var src = sidMap_(rows), seen = {}, out = [];
+  (rows || []).slice(1).forEach(function (r) {
+    var k = SidDm(String(r[0] || '').trim(), String(r[1] || '').trim());
+    var v = conv[k];
+    if (v && !seen[k] && JSON.stringify(v) !== JSON.stringify(src.map[k]) && !v.__bad) {
+      seen[k] = 1; out.push([r[0], r[1], JSON.stringify(v)]);
+    } else out.push(r.slice(0, 3));
+    seen[k] = 1;
+  });
+  Object.keys(conv).forEach(function (k) {
+    if (seen[k] || !conv[k] || conv[k].__bad) return;
+    var a = k.split('|');
+    out.push([a[0], sidDafRaw_(k), JSON.stringify(conv[k])]);
+  });
+  return out;
+}
+/* שם הדף כפי שהוא כתוב בלשונית הסימונים (לרשומה חדשה) */
+function sidDafRaw_(k) {
+  var hit = '';
+  (SID.tabs.marks || []).some(function (r) {
+    if (SidDm(String(r[0] || ''), String(r[1] || '')) === k) { hit = r[1]; return true; }
+    return false;
+  });
+  return hit || k.split('|')[1];
+}
+function sidPost_(tab, head, rows) {
+  return fetch((CFG.api || API || '').trim(), { method:'POST', mode:'no-cors',
+    body: JSON.stringify({ action:'table', tab: tab, key:(CFG.readKey || '').trim(),
+      cols: JSON.stringify(head), rows: JSON.stringify(rows) }) });
+}
+/* no-cors אינו אומר כלום — קוראים בחזרה ומשווים, עם כמה ניסיונות */
+function sidCheck_(tab, rows, tries) {
+  return new Promise(function (ok) { setTimeout(ok, tries ? 2000 : 1500); }).then(function () {
+    return scriptGet({ read: tab, key: (CFG.readKey || '').trim() });
+  }).then(function (d) {
+    var got = (d && d.status === 'ok' && d.rows) ? d.rows.slice(1) : null;
+    var same = got && got.length === rows.length && got.every(function (r, i) {
+      return rows[i].every(function (c, j) { return String(c == null ? '' : c) === String(r[j] == null ? '' : r[j]); });
+    });
+    if (same) return true;
+    if ((tries || 0) < 4) return sidCheck_(tab, rows, (tries || 0) + 1);
+    return false;
+  }).catch(function () { return (tries || 0) < 4 ? sidCheck_(tab, rows, (tries || 0) + 1) : false; });
+}
+function sidRun() {
+  if (!SID.res || !SID.tabs || SID.busy) return;
+  var r = SID.res;
+  if (!confirm('להסב את הגיליון למזהים קבועים?\n\n' +
+      'קודם יירד למכשיר קובץ גיבוי, וכל לשונית תועתק ללשונית "גיבוי מזהים · …" ותיבדק.\n' +
+      'רק אחר כך ייכתבו: ' + r.changedPages + ' עמודים בסימוני הדף, והפירוש, השאלות והשקפים של ' +
+      r.report.length + ' דפים.')) return;
+  var t = SID.tabs, names = Object.keys(SID_TABS);
+  SID.busy = true;
+  saveFile('hadaf-stepid-backup-' + stamp() + '.json', JSON.stringify(t));
+  sidSay_('cond', 'מגבה לגיליון…');
+  /* 1 · גיבוי בגיליון, ואימות שלו — לפני כל שינוי */
+  var chain = Promise.resolve(true);
+  names.forEach(function (k) {
+    chain = chain.then(function (ok) {
+      if (!ok) return false;
+      var rows = t[k].slice(1).map(function (x) { return x.slice(0, (t[k][0] || []).length); });
+      if (!rows.length) return true;
+      var tab = 'גיבוי מזהים · ' + SID_TABS[k];
+      return sidPost_(tab, t[k][0], rows).then(function () { return sidCheck_(tab, rows); });
+    });
+  });
+  chain.then(function (ok) {
+    if (!ok) throw new Error('הגיבוי לא אומת — לא נכתב דבר בלשוניות עצמן.');
+    /* 2 · הכתיבה עצמה, ואימות */
+    var plan = {
+      marks: r.marks.slice(1).map(function (x) { return x.slice(0, 4); }),
+      own: sidRows_(t.own, r.own), q: sidRows_(t.q, r.q), deck: sidRows_(t.deck, r.deck)
+    };
+    var heads = { marks: t.marks[0], own: t.own[0] || ['מסכת', 'דף', 'פירוש'],
+                  q: t.q[0] || ['מסכת', 'דף', 'שאלות'], deck: t.deck[0] || ['מסכת', 'דף', 'עוגנים'] };
+    var w = Promise.resolve(true);
+    names.forEach(function (k) {
+      w = w.then(function (ok2) {
+        if (!ok2) return false;
+        sidSay_('cond', 'כותב את "' + SID_TABS[k] + '"…');
+        return sidPost_(SID_TABS[k], heads[k], plan[k]).then(function () {
+          return sidCheck_(SID_TABS[k], plan[k]);
+        }).then(function (good) {
+          if (!good) throw new Error('"' + SID_TABS[k] + '" לא אומתה אחרי הכתיבה. הגיבוי בלשוניות "גיבוי מזהים · …" ובקובץ שירד.');
+          return true;
+        });
+      });
+    });
+    return w;
+  }).then(function () {
+    SID.busy = false; SID.res = null; SID.tabs = null;
+    sidSay_('ok', '✓ ההסבה נכתבה ואומתה בארבע הלשוניות. הגיבוי נשאר בלשוניות "גיבוי מזהים · …".');
+  }).catch(function (e) {
+    SID.busy = false;
+    sidSay_('bad', esc(e && e.message || 'ההסבה נעצרה.'));
+  });
+}
+
 function admSet(el) {
   el.innerHTML =
     /* ---- זמני ---- בדיקת שקפים מדרייב. הקישור כאן ולא בהודעה,
@@ -12048,6 +12269,8 @@ function admSet(el) {
     'חדשה על דפים אקראיים, בלי לגעת בסטודיו ובלי לשמור דבר.</p>' +
     '<a class="btn g" style="display:block;text-align:center;text-decoration:none" ' +
     'href="lab.html">פתיחת המעבדה</a></div>' +
+
+    sidCard() +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>הניהול כאפליקציה</h4>' +
     '<p class="h">אייקון זהב נפרד במסך הבית, שנפתח ישר כאן. הוא חי לצד ' +

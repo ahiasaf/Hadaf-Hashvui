@@ -144,7 +144,9 @@ function LMark(track, wk) {
    `i` הוא הקטע האחרון שנצפה, `n` כמה יש בדף.
    ============================================================ */
 function LPos(track, wk) { return (LGet('pos', {}) || {})[LKey(track, wk)] || null; }
-function LPosSet(track, wk, i, n) {
+/* `id` — המזהה הקבוע של הקטע (stepid.js), כשיש. בזכותו החזרה
+   למקום שורדת פיצול או איחוד שקרו בינתיים. */
+function LPosSet(track, wk, i, n, id) {
   if (!(n > 1)) return;
   var all = LGet('pos', {}) || {}, k = LKey(track, wk);
   var cur = all[k];
@@ -152,6 +154,7 @@ function LPosSet(track, wk, i, n) {
      פחות", ולוח שקופץ אחורה בכל דפדוף אינו אומר דבר. */
   if (cur && cur.n === n && cur.i >= i) return;
   all[k] = { i:i, n:n, at:new Date().toISOString() };
+  if (id) all[k].id = id;
   LSet('pos', all);
 }
 /* 0–1. הקטע האחרון מתוך האחרון, ולכן סיום הוא 1 מלא. */

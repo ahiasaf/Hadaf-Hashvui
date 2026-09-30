@@ -686,6 +686,7 @@ body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
 /* תוכן לשונית החידה — מצויר לתוך `#chb`, אותו מקום בדיוק כמו
    חברותא ופירוש לנוער (ראו paintQuiz). */
 .qz-q{font-weight:800;font-size:1.02rem;margin:6px 0 14px;color:var(--ink,#1B2A45)}
+.qz-of{font-size:.74rem;font-weight:700;color:var(--ink-2,#5A6A85);margin-top:4px}
 .qz-opt{display:block;width:100%;text-align:right;margin-top:8px;padding:12px 14px;
   border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff;
   color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
@@ -1031,6 +1032,7 @@ nav .sp{flex:1}
 <script src="data.js"></script>
 <script src="deck.js"></script>
 <script src="learned.js"></script>
+<script src="stepid.js"></script>
 <script src="pair.js"></script>
 <script src="getapp.js"></script>
 <script src="links.js"></script>
@@ -1680,8 +1682,71 @@ function ownPiecesFrom_(v) {
   if (v.length === undefined) return [];   /* __bad וכד' — לא רשימת חלקים */
   return v;
 }
-function ownPieces_(n) {
-  return ownPiecesFrom_(OWN && OWN[String(n)]);
+function ownPieces_(n) { return ownPiecesIn_(OWN, n); }
+/* אותו דבר מתוך רשומה כלשהי (גם זו שנקראה עכשיו מהגיליון). קטע
+   שאוחד מציג את החלקים של שני הקטעים ברצף — הקלטה נשארת צמודה
+   לחלק שלה, ולכן שתי הקלטות נשמעות זו אחר זו. */
+function ownPiecesIn_(rec, n) {
+  if (!rec) return [];
+  var out = [];
+  sidKeys_(rec, n).forEach(function (k) { out = out.concat(ownPiecesFrom_(rec[k])); });
+  return out;
+}
+
+/* ============================================================
+   מזהה קבוע לקטע — ראו stepid.js.
+   ============================================================
+   `n` נשאר המספר שבו כל הקוד כאן חושב — הוא יציב לאורך טעינה אחת
+   של הדף. רק כאן הוא מתורגם למפתח שבגיליון: ברשומה שהוסבה
+   (`__ids`) — המזהה של הקטע ואחריו מה שאוחד לתוכו (`also`);
+   ברשומה ישנה — המספר, בדיוק כמו פעם.
+
+   רשומה שאין בה עדיין שום מפתח מספרי, בדף שכל קטעיו נושאים מזהה,
+   נכתבת מלכתחילה לפי מזהים. דף שלא הוסב נשאר במספרים. */
+function vOfN_(n) {
+  for (var i = 0; i < FLAT.length; i++) if (FLAT[i].n === n) return FLAT[i];
+  return null;
+}
+function nOfId_(id) {
+  for (var i = 0; i < FLAT.length; i++) {
+    var v = FLAT[i];
+    if (v.id === id || (v.also || []).indexOf(id) >= 0) return v.n;
+  }
+  return 0;
+}
+function flatIds_() {
+  return FLAT.length > 0 && FLAT.every(function (v) { return !!v.id; });
+}
+function sidMode_(rec) {
+  if (rec && rec.__ids) return true;
+  if (rec && typeof rec === 'object') {
+    for (var k in rec) if (rec.hasOwnProperty(k) && /^\d+$/.test(k)) return false;
+  }
+  return flatIds_();
+}
+function sidKeys_(rec, n) {
+  var v = vOfN_(n);
+  if (!v || !v.id || !sidMode_(rec)) return [String(n)];
+  return [v.id].concat(v.also || []);
+}
+/* כתיבה לקטע. `fold` — מה שאוחד לתוכו כבר נכלל בערך החדש, ולכן
+   המפתחות שלו יורדים (פירוש, שאלות). בלי `fold` הם נשארים — עוגן
+   של מצגת שאוחד עובר לקטע הבא, ולא נבלע (ראו slideAt). */
+function sidPut_(rec, n, val, fold) {
+  var ks = sidKeys_(rec, n);
+  if (ks[0] !== String(n)) rec.__ids = 1;
+  if (fold) ks.slice(1).forEach(function (k) {
+    delete rec[k];
+    if (rec.__t) delete rec.__t[k];
+  });
+  if (val === undefined) delete rec[ks[0]]; else rec[ks[0]] = val;
+  return ks[0];
+}
+function sidTime_(rec, n) {
+  var t = rec && rec.__t, best = 0;
+  if (!t) return 0;
+  sidKeys_(rec, n).forEach(function (k) { best = Math.max(best, +t[k] || 0); });
+  return best;
 }
 
 /* גרסה קודמת (קומיט 9db4d2e) ציטטה כאן את מילות הגמרא המודגשות
@@ -1882,7 +1947,38 @@ function ownPsuk_() {
         והטיוטה במכשיר שומרת בינתיים.
    ============================================================ */
 var OWN_DRAFT_KEY = 'df:ownDraft', OWN_AUTO_T = null, OWN_SAVING = false;
-function ownDraftKey_(n) { return dmKey(S.mas, S.daf) + '|' + n; }
+/* טיוטה נקשרת למזהה (`#id`) בדף שהוסב, ולמספר בדף שלא. טיוטה ישנה
+   לפי מספר מתורגמת פעם אחת, דרך המפה הקפואה של ההסבה — ראו
+   `ownDraftIds_`. */
+function ownDraftKey_(n) {
+  var ks = sidKeys_(OWN, n);
+  return dmKey(S.mas, S.daf) + '|' + (ks[0] === String(n) ? n : '#' + ks[0]);
+}
+function ownDraftN_(suffix) {
+  if (suffix.charAt(0) === '#') return nOfId_(suffix.slice(1));
+  return +suffix;
+}
+/* ============================================================
+   טיוטות שנכתבו לפני ההסבה.
+   ============================================================
+   טיוטה במכשיר נשמרה לפי המספר שהיה אז. אחרי ההסבה המספר כבר אינו
+   מפתח — ואם בינתיים פוצל קטע, הוא גם אינו אותו קטע. לכן התרגום
+   הוא דרך המפה שנקפאה ברגע ההסבה (`__n2id`), ולא דרך הסדר של היום. */
+function ownDraftIds_() {
+  var map = OWN && OWN.__ids && OWN.__n2id;
+  if (!map) return;
+  var all = ownDraftAll_(), pre = dmKey(S.mas, S.daf) + '|', moved = 0, k;
+  for (k in all) {
+    if (!all.hasOwnProperty(k) || k.indexOf(pre) !== 0) continue;
+    var suf = k.slice(pre.length);
+    if (!/^\d+$/.test(suf) || !map[suf]) continue;
+    var nk = pre + '#' + map[suf];
+    if (!all[nk] || (all[k].at || 0) > (all[nk].at || 0)) all[nk] = all[k];
+    delete all[k];
+    moved++;
+  }
+  if (moved) try { localStorage.setItem(OWN_DRAFT_KEY, JSON.stringify(all)); } catch (e) {}
+}
 function ownDraftAll_() {
   try { return JSON.parse(localStorage.getItem(OWN_DRAFT_KEY) || '{}') || {}; } catch (e) { return {}; }
 }
@@ -1903,10 +1999,11 @@ function ownDraftPut_() {
    במכשיר בלי שום סימן. עכשיו כל שמירה לוקחת איתה את **כל**
    הטיוטות של הדף, ומתחת לעריכה כתוב אילו קטעים עוד לא עלו. */
 function ownOtherDrafts_(n) {
+  ownDraftIds_();
   var all = ownDraftAll_(), pre = dmKey(S.mas, S.daf) + '|', out = [], k, q;
   for (k in all) {
     if (!all.hasOwnProperty(k) || k.indexOf(pre) !== 0) continue;
-    q = +k.slice(pre.length);
+    q = ownDraftN_(k.slice(pre.length));
     if (!(q > 0) || q === n || !all[k] || !all[k].pieces) continue;
     out.push({ n:q, pieces:ownCleanPieces_(all[k].pieces), at:all[k].at || 0 });
   }
@@ -1960,6 +2057,7 @@ function ownTyped_() {
 
 function ownEditLoad_(n) {
   if (OWN_EDIT && OWN_EDIT_N === n) return;
+  ownDraftIds_();
   var src = ownPieces_(n);
   /* טיוטה שלא הגיעה לגיליון גוברת על מה ששמור שם. */
   var dr = ownDraftAll_()[ownDraftKey_(n)], restored = false;
@@ -1986,10 +2084,7 @@ var OWN_RESTORED = false;
    ממכשיר אחר גרסה חדשה יותר של אותו קטע. */
 var OWN_EDIT_BASE = '';
 /* מתי נשמר כל קטע לאחרונה (`__t` בתוך הרשומה של הדף). */
-function ownTime_(n) {
-  var t = OWN && OWN.__t;
-  return (t && +t[String(n)]) || 0;
-}
+function ownTime_(n) { return sidTime_(OWN, n); }
 function ownEditSync_() {
   if (!OWN_EDIT) return;
   OWN_EDIT.forEach(function (p, i) {
@@ -2295,8 +2390,12 @@ function paintOwn() {
 function paintOwnRead_(n) {
   var box = $('chb'), pieces = ownPieces_(n);
   if (!pieces.length) { box.innerHTML = '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
-  box.innerHTML = pieces.map(function (p) {
-    var lbl = (pieces.length > 1 && p.tag) ? '<div class="own-plbl">' + esc(p.tag) + '</div>' : '';
+  /* אחרי איחוד באים שני חלקים באותו תיוג ("פירוש") ברצף — הם נקראים
+     כהמשך אחד, עם רווח פסקה, בלי כותרת: בדיוק כמו קטע עם חלק אחד. */
+  var mixed = pieces.some(function (p) { return p.tag !== pieces[0].tag; });
+  box.innerHTML = pieces.map(function (p, i) {
+    var same = i > 0 && pieces[i - 1].tag === p.tag;
+    var lbl = (mixed && p.tag && !same) ? '<div class="own-plbl">' + esc(p.tag) + '</div>' : '';
     return lbl + '<div class="own-read">' + ownSan(p.text) + '</div>';
   }).join('');
   box.scrollTop = 0;
@@ -2379,6 +2478,7 @@ function paintOwnEdit_(n) {
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
     '<button class="own-export-btn" id="own-export-open">ייצוא טקסט — פירוש לנוער / חברותא</button>' +
+    (vOfN_(n + 1) ? '<button class="own-export-btn" id="own-merge">איחוד קטע ' + n + ' עם קטע ' + (n + 1) + '</button>' : '') +
     '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
     (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
     '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
@@ -2400,6 +2500,7 @@ function paintOwnEdit_(n) {
   $('own-add').onclick = ownPieceAdd;
   $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
   $('own-export-open').onclick = ownExportOpen;
+  if ($('own-merge')) $('own-merge').onclick = function () { ownEditSync_(); mergeNext_(); };
   OWN_EDIT.forEach(function (p, i) {
     var e = $('own-txt-' + i);
     if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
@@ -2408,6 +2509,144 @@ function paintOwnEdit_(n) {
     var tg = $('own-tag-' + i);
     if (tg) tg.addEventListener('input', ownTyped_);
   });
+}
+
+/* ============================================================
+   איחוד עם הקטע הבא (מנהל בלבד).
+   ============================================================
+   "איחוד יהיה גם בסטודיו וגם בדף האינטראקטיבי: מסירים את קו
+   ההפרדה בגמרא ובחברותא, והפירוש לנוער של שני הקטעים מחובר."
+
+   מה שמשתנה הוא **רק** "סימוני הדף": הקטע הראשון נמתח עד סוף
+   השני, הביאור של שניהם מתחבר, והשני יורד (או נעשה המשך, כשהוא
+   בעמוד הבא). המזהה של הראשון נשאר, והמזהה של השני נרשם אצלו
+   ב-`also` — ולכן הפירוש, ההקלטות והשאלות של שניהם מוצגים ברצף
+   בלי שום כתיבה ללשוניות האחרות, ושום קטע אחר לא זז.
+
+   הכתיבה: קוראים את הלשונית כולה מחדש, מוודאים שהעמודים שנוגעים
+   בהם לא השתנו מאז שהדף נפתח (אחרת — מבקשים רענון, כדי לא לדרוס
+   עבודה מהסטודיו), כותבים, וקוראים שוב לאמת. no-cors אינו הוכחה.
+   ============================================================ */
+function mergeWhy_(n) {
+  var A = FLAT.filter(function (v) { return v.n === n; });
+  var B = FLAT.filter(function (v) { return v.n === n + 1; });
+  if (!A.length || !B.length) return 'אין קטע אחרי הקטע הזה בדף.';
+  var aLast = A[A.length - 1], b = B[0];
+  /* קובץ חברותא אחד לכל דף: ביאור אחד אינו יכול לחצות שני קבצים. */
+  if (SidDaf(aLast.rec.daf) !== SidDaf(b.rec.daf) ||
+      (A[0].st.cont && A[0].rec.pg === 1))
+    return 'שני הקטעים שייכים לשני דפים שונים, וכל אחד מבוסס על חברותא אחרת — אי אפשר לאחד אותם.';
+  if (aLast.rec !== b.rec && b.si !== 0)
+    return 'הקטעים אינם צמודים זה לזה בסימון — צריך לאחד אותם בסטודיו.';
+  return '';
+}
+function mergeLegacy_() {
+  return [OWN, QOWN, ANCH].some(function (r) {
+    if (!r || r.__bad || r.__ids) return false;
+    for (var k in r) if (r.hasOwnProperty(k) && /^\d+$/.test(k)) return true;
+    return false;
+  });
+}
+function mergeNext_() {
+  var st = FLAT[IDX];
+  if (!SIDE_ADM || !st) return;
+  var n = st.n, why = mergeWhy_(n);
+  if (why) { toast(why); return; }
+  if (OWN_EDIT && ownEditDirty_()) { toast('יש בקטע הזה פירוש שעוד לא נשמר — שמרו קודם, ואז אחדו.'); return; }
+  if (!API || !writeKey_()) { toast(NOKEY_MSG); return; }
+  var msg = 'לאחד את קטע ' + n + ' עם קטע ' + (n + 1) + '?\n\n' +
+    'קו ההפרדה ביניהם יוסר בגמרא ובחברותא. הפירוש לנוער, ההקלטות והשאלות של שניהם יוצגו יחד, ברצף.';
+  if (mergeLegacy_()) msg += '\n\n⚠ הדף הזה עוד לא הוסב למזהים קבועים. האיחוד יזיז את הפירוש, השאלות והשקפים של כל הקטעים שאחרי קטע ' + (n + 1) + '.';
+  else if (ANCH && sidMode_(ANCH)) {
+    var B = vOfN_(n + 1), C = vOfN_(n + 2);
+    var bs = B && B.id ? anchPos_(ANCH[B.id]) : 0;
+    var cs = C && C.id ? anchPos_(ANCH[C.id]) : 0;
+    if (bs && C && cs) msg += '\n\nשימו לב: שקף ' + bs + ' מתחיל בקטע ' + (n + 1) +
+      ', ולקטע ' + (n + 2) + ' יש שקף משלו — שקף ' + bs + ' לא יוצג יותר ברצף.';
+    else if (bs) msg += '\n\nשקף ' + bs + ' יעבור להתחיל בקטע הבא.';
+  }
+  if (!window.confirm(msg)) return;
+  toast('מאחד…');
+  var want = {};
+  PAGES.forEach(function (p) { if (p.rec) want[p.rec.key] = p.rec.raw[3]; });
+  sheetCsv(MARK_TAB).then(function (rows) {
+    if (!rows || !hasMine(rows)) throw new Error('read');
+    var head = String((rows[0] || [])[0] || '').indexOf('מסכת') >= 0;
+    var body = head ? rows.slice(1) : rows;
+    var recs = SidParse(body);
+    /* מה שבגיליון עכשיו הוא מה שנפתח כאן? */
+    var stale = recs.some(function (R) { return want[R.key] !== undefined && R.raw[3] !== want[R.key]; });
+    if (stale) { toast('הסימונים של הדף השתנו מאז שנפתח (כנראה בסטודיו). רעננו את הדף ונסו שוב.'); return; }
+    var F = SidFlat(recs, S.mas, S.daf).flat;
+    var A = F.filter(function (v) { return v.n === n; });
+    var B = F.filter(function (v) { return v.n === n + 1; });
+    if (!A.length || !B.length) throw new Error('shape');
+    var root = A[0].st, aLast = A[A.length - 1], b = B[0], bs = b.st;
+    var taken = SidTaken(recs, S.mas), changed = {};
+    if (!root.id) root.id = SidNew(taken);
+    var c = { from: root.c.from, to: bs.c.to,
+              text: (root.c.text || '') + ' ' + (bs.c.text || ''),
+              h: (root.c.h || '') + (bs.c.h || '') };
+    var also = (root.also || []).slice();
+    [bs.id].concat(bs.also || []).forEach(function (a) { if (a && also.indexOf(a) < 0 && a !== root.id) also.push(a); });
+    if (also.length) root.also = also;
+    if (aLast.rec === b.rec) {
+      /* אותו עמוד: הראשון נמתח עד סוף השני, והשני יורד. */
+      aLast.st.g = { from: aLast.st.g.from, to: { line: bs.g.to.line, x: bs.g.to.x } };
+      b.rec.d.steps.splice(b.si, 1);
+      if (b.rec.d.prev > b.si) b.rec.d.prev--;
+    } else {
+      /* השני בעמוד הבא: הוא נשאר במקומו, ונעשה המשך של הראשון. */
+      bs.cont = 1;
+      delete bs.id; delete bs.also;
+    }
+    A.concat(B).forEach(function (v) {
+      if (v.st === bs && aLast.rec === b.rec) return;
+      v.st.c = { from: c.from, to: c.to, text: c.text, h: c.h };
+      changed[v.rec.key] = v.rec;
+    });
+    changed[b.rec.key] = b.rec;
+    var now = Date.now(), out = [];
+    Object.keys(changed).forEach(function (k) { changed[k].d.t = now; });
+    recs.forEach(function (R) {
+      var r = R.raw.slice(0, 4);
+      if (changed[R.key]) r[3] = JSON.stringify(R.d);
+      out.push(r);
+    });
+    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+      action:'table', tab:MARK_TAB, key:cfgReadKey_(),
+      cols: JSON.stringify(['מסכת', 'דף', 'עמוד', 'נתונים']),
+      rows: JSON.stringify(out) }) }).catch(function () {});
+    var sent = {};
+    Object.keys(changed).forEach(function (k) { sent[k] = JSON.stringify(changed[k].d); });
+    mergeVerify_(0, sent, root.id, n);
+  }).catch(function () {
+    toast('לא הצלחתי לקרוא את הגיליון — לא אוחד דבר.');
+  });
+}
+function mergeVerify_(tries, sent, id, n) {
+  setTimeout(function () {
+    sheetCsv(MARK_TAB).then(function (rows) {
+      var recs = SidParse(rows || []), ok = !!rows, left = Object.keys(sent).length;
+      recs.forEach(function (R) {
+        if (sent[R.key] === undefined) return;
+        left--;
+        if (JSON.stringify(R.d) !== sent[R.key]) ok = false;
+      });
+      if (ok && !left) {
+        var built = SidFlat(recs, S.mas, S.daf);
+        PAGES = built.pages; FLAT = built.flat; GROUPS = built.groups;
+        OWN_EDIT = null; OWN_EDIT_N = -1; Q_AT = { n: 0, i: 0 };
+        var at = 0;
+        for (var j = 0; j < FLAT.length; j++) if (FLAT[j].id === id || FLAT[j].n === n) { at = j; break; }
+        toast('✓ אוחד ואומת. קטע ' + n + ' כולל עכשיו את שני הקטעים.');
+        go(at);
+        return;
+      }
+      if (tries < 4) { mergeVerify_(tries + 1, sent, id, n); return; }
+      toast('⚠ האיחוד לא אומת מול הגיליון (אולי הסיסמה שגויה). רעננו את הדף ובדקו.');
+    });
+  }, tries ? 1500 : 1200);
 }
 
 /* הכתיבה היא no-cors ולכן תמיד "מצליחה" — ראו ההערה המקבילה
@@ -2587,10 +2826,10 @@ function ownSaveGo_(n, auto, pieces) {
          אוטומטית פשוט לא נוגעים בו). */
       var clash = [];
       others = ownOtherDrafts_(n).filter(function (d) {
-        if (JSON.stringify(ownPiecesFrom_(cur[String(d.n)])) === JSON.stringify(d.pieces)) {
+        if (JSON.stringify(ownPiecesIn_(cur, d.n)) === JSON.stringify(d.pieces)) {
           ownDraftDrop_(d.n); return false;
         }
-        var t = +cur.__t[String(d.n)] || 0;
+        var t = sidTime_(cur, d.n);
         if (t && d.at && t > d.at) { clash.push(d); return false; }
         return true;
       });
@@ -2604,10 +2843,10 @@ function ownSaveGo_(n, auto, pieces) {
         clash.forEach(function (d) { ownDraftDrop_(d.n); });
       }
       others.forEach(function (d) {
-        if (d.pieces.length) cur[String(d.n)] = d.pieces; else delete cur[String(d.n)];
-        cur.__t[String(d.n)] = Date.now();
+        var dk = sidPut_(cur, d.n, d.pieces.length ? d.pieces : undefined, true);
+        cur.__t[dk] = Date.now();
       });
-      var there = JSON.stringify(ownPiecesFrom_(cur[String(n)]));
+      var there = JSON.stringify(ownPiecesIn_(cur, n));
       if (there !== OWN_EDIT_BASE && there !== JSON.stringify(clean) && OWN_EDIT_N === n) {
         if (auto) return false;
         if (!window.confirm('בגיליון יש לקטע ' + n + ' גרסה שנשמרה ממכשיר אחר אחרי שפתחת אותו כאן.\n\n' +
@@ -2617,9 +2856,9 @@ function ownSaveGo_(n, auto, pieces) {
           return false;
         }
       }
-      if (clean.length) cur[String(n)] = clean; else delete cur[String(n)];
       cur.__t = cur.__t || {};
-      cur.__t[String(n)] = Date.now();
+      var nk = sidPut_(cur, n, clean.length ? clean : undefined, true);
+      cur.__t[nk] = Date.now();
     }).then(function (ok) {
       if (ok === true) {
         /* הבסיס מתעדכן רק כשהגיליון אישר (ראו ownVerify). כששמירה
@@ -2649,9 +2888,9 @@ function ownVerify(tries, n, wantPieces, failed, others) {
     sheetCsv(OWN_TAB).then(function (rows) {
       var m = dmapFromRows(rows);
       var mine = m && m[dmKey(S.mas, S.daf)];
-      var got = ownPiecesFrom_((mine || {})[String(n)]);
+      var got = ownPiecesIn_(mine || {}, n);
       var allOk = others.every(function (d) {
-        return JSON.stringify(ownPiecesFrom_((mine || {})[String(d.n)])) === JSON.stringify(d.pieces);
+        return JSON.stringify(ownPiecesIn_(mine || {}, d.n)) === JSON.stringify(d.pieces);
       });
       if (allOk && JSON.stringify(got) === JSON.stringify(wantPieces)) {
         OMAP = m; OWN = mine;
@@ -3000,6 +3239,7 @@ function anchPos_(v) {
 function slideAt(idx) {
   var st = FLAT[idx];
   if (!st || !ANCH) return 1;
+  if (sidMode_(ANCH)) return slideAtIds_(st);
   var best = 1, bestAt = 0, k;
   for (k in ANCH) {
     if (!ANCH.hasOwnProperty(k)) continue;
@@ -3008,6 +3248,23 @@ function slideAt(idx) {
     var pos = anchPos_(ANCH[k]);
     if (!pos) continue;
     bestAt = at; best = pos;
+  }
+  return Math.max(1, Math.min(deckN() || 1, best));
+}
+
+/* אותו דבר בדף שהוסב: העוגנים לפי מזהה, ולכן הולכים על הקטעים
+   לפי הסדר. עוגן של קטע שאוחד (`also`) **עובר לקטע הבא** — כך
+   השקפים של כל שאר הקטעים נשארים בדיוק כפי שהיו. אם לקטע הבא יש
+   עוגן משלו, שלו גובר (בזה הוזהר מי שאיחד). */
+function slideAtIds_(st) {
+  var best = 1, carry = 0;
+  for (var i = 0; i < FLAT.length && FLAT[i].n <= st.n; i++) {
+    var v = FLAT[i];
+    if (v.part !== 1) continue;
+    var own = v.id ? anchPos_(ANCH[v.id]) : 0;
+    if (own) best = own; else if (carry) best = carry;
+    carry = 0;
+    (v.also || []).forEach(function (a) { var p = anchPos_(ANCH[a]); if (p) carry = p; });
   }
   return Math.max(1, Math.min(deckN() || 1, best));
 }
@@ -3211,9 +3468,9 @@ function sideAdmPaint() {
      יושבת עכשיו בעורך הפירוש (`paintOwn`), לא כאן. */
   if (VOX_RECORDER && VOX_FOR && VOX_FOR.n !== n) ownAudioStop();
 
-  var here = ANCH && ANCH[n] !== undefined;
+  var here = !!ANCH && ANCH[sidKeys_(ANCH, n)[0]] !== undefined;
   var count = 0, k;
-  for (k in (ANCH || {})) if (ANCH.hasOwnProperty(k)) count++;
+  for (k in (ANCH || {})) if (ANCH.hasOwnProperty(k) && k.indexOf('__') !== 0) count++;
 
   box.innerHTML =
     '<div class="t">קטע ' + n + ' · ' + count +
@@ -3229,12 +3486,12 @@ function sideAdmPaint() {
     if (!ANCH) ANCH = {};
     /* שם קובץ ולא מיקום — כדי ששיוך שנעשה היום לא יישבר אם מחר
        נדחף שקף באמצע הרשימה. ראו `anchPos_`. */
-    ANCH[n] = deckFileAt(SLIDE);
+    sidPut_(ANCH, n, deckFileAt(SLIDE), false);
     sideMsg('', '');
     sidePaint();
   };
   if ($('sa-del')) $('sa-del').onclick = function () {
-    delete ANCH[n];
+    sidPut_(ANCH, n, undefined, false);
     sideMsg('', '');
     sideSync(true);
     sidePaint();
@@ -3445,7 +3702,7 @@ function sideInit() {
     ANCH = (got && !got.__bad) ? got : null;
 
     var has = false, q;
-    for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q)) { has = true; break; }
+    for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q) && q.indexOf('__') !== 0) { has = true; break; }
     var show = SIDE_ADM || has;
     var b = $('dktog');
     if (!b || !show) return;
@@ -3499,7 +3756,7 @@ function savePos() {
   if (quiet()) return;            /* הדגמה אינה "מקום שעצרתי בו" */
   var wk = posWeek();
   if (wk < 0 || !FLAT.length) return;
-  try { LPosSet(S.mas, wk, IDX, FLAT.length); } catch (e) {}
+  try { LPosSet(S.mas, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
 }
 /* נשלח ביציאה. `visibilitychange` הוא האירוע היחיד שנורה באמת
    כשסוגרים לשונית בטלפון — `beforeunload` אינו אמין שם. */
@@ -3520,8 +3777,17 @@ function resumePos() {
   if (wk < 0 || !FLAT.length) return;
   if (LDone(S.mas, wk)) return;              /* סיים — אין למה לחזור */
   var p = LPos(S.mas, wk);
-  if (!p || !(p.i > 0) || p.n !== FLAT.length || p.i >= FLAT.length - 1) return;
-  go(p.i);
+  if (!p) return;
+  /* לפי המזהה, כשיש: פיצול או איחוד משנים את האורך ואת המיקום,
+     ובלי זה התלמיד חזר לראש הדף בשקט. אותו קטע — גם אם זז. */
+  var at = -1;
+  if (p.id) for (var j = 0; j < FLAT.length; j++) if (FLAT[j].id === p.id) { at = j; break; }
+  if (at < 0) {
+    if (!(p.i > 0) || p.n !== FLAT.length) return;
+    at = p.i;
+  }
+  if (!(at > 0) || at >= FLAT.length - 1) return;
+  go(at);
   var el = $('resume');
   if (!el) return;
   el.innerHTML = 'המשכנו מהמקום שעצרת · ' +
@@ -3696,7 +3962,22 @@ function loadQuizMap() {
   }).catch(function () { return false; });
 }
 function qPiecesFrom_(v) { return (v && v.length !== undefined) ? v : []; }
-function qPieces_(n) { return qPiecesFrom_(QOWN && QOWN[String(n)]); }
+function qPieces_(n) { return qPiecesIn_(QOWN, n); }
+/* קטע שאוחד נושא את השאלות של שני הקטעים, ברצף — ראו sidKeys_. */
+function qPiecesIn_(rec, n) {
+  if (!rec) return [];
+  var out = [];
+  sidKeys_(rec, n).forEach(function (k) { out = out.concat(qPiecesFrom_(rec[k])); });
+  return out;
+}
+/* איזו שאלה מבין שאלות הקטע מוצגת. כמעט תמיד יש אחת; אחרי איחוד
+   שני קטעים שלכל אחד שאלה — שתיים, והשנייה באה אחרי התשובה. */
+var Q_AT = { n: 0, i: 0 };
+function qIdx_(n, len) {
+  if (Q_AT.n !== n) Q_AT = { n: n, i: 0 };
+  if (Q_AT.i >= len) Q_AT.i = 0;
+  return Q_AT.i;
+}
 /* מה שבאמת מוצג: לתלמיד רק קטע עם שאלה ורק אחרי שהדף פורסם;
    לאחיאסף תמיד, כדי שיוכל להוסיף שאלה גם לקטע שעדיין ריק. */
 function qVisible_(n) {
@@ -3717,8 +3998,10 @@ function paintQuiz() {
     qEditOpen_(n);
     return;
   }
-  var q = list[0];
+  var qi = qIdx_(n, list.length), q = list[qi];
   box.innerHTML =
+    (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
+      .replace('{i}', qi + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     q.a.map(function (t, k) {
       return '<button class="qz-opt" id="qz-opt' + k + '">' + esc(t) + '</button>';
@@ -3739,6 +4022,10 @@ function qAnswer(n, q, k) {
   qSend(n, k, right);
   toast(right ? 'תשובה נכונה! נכנסת להגרלה השבועית.'
               : 'התשובה הנכונה: ' + q.a[q.correct]);
+  /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
+  var len = qVisible_(n).length;
+  if (Q_AT.n === n && Q_AT.i + 1 < len) { Q_AT.i++; paintChavArea(); return; }
+  Q_AT = { n: n, i: 0 };
   QUIZ_OPEN = false;
   paintChavArea();
 }
@@ -3763,7 +4050,7 @@ function qSend(n, k, right) {
    אינה הוכחה לכלום. מצוירת גם היא לתוך `#chb`, לא בחלון. */
 var Q_EDIT = null;
 function qEditOpen_(n) {
-  var cur = qPieces_(n)[0];
+  var all = qPieces_(n), cur = all[qIdx_(n, all.length)];
   Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct }
                : { q:'', a:['', '', '', ''], correct:0 };
   qPaintEdit_(n);
@@ -3832,19 +4119,26 @@ function qEditSave_(n) {
     return;
   }
   if (!QOWN) QOWN = {};
-  QOWN[String(n)] = [{ q:text, a:answers, correct:Q_EDIT.correct }];
+  /* רק השאלה שעל המסך מתחלפת. אחרי איחוד יש לקטע יותר משאלה אחת,
+     וכתיבה של שאלה בודדת הייתה מוחקת את האחרת. */
+  var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
+  list[qi] = { q:text, a:answers, correct:Q_EDIT.correct };
+  sidPut_(QOWN, n, list, true);
   if ($('qe-pub').checked) QOWN.__pub = '1'; else delete QOWN.__pub;
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();
-  qVerify_(0, n, QOWN[String(n)]);
+  qVerify_(0, n, list);
 }
 function qEditDelete_(n) {
   if (!QOWN) return;
   if (!writeKey_()) return;
-  delete QOWN[String(n)];
+  var list = qPieces_(n).slice();
+  list.splice(qIdx_(n, list.length), 1);
+  sidPut_(QOWN, n, list.length ? list : undefined, true);
+  Q_AT = { n: n, i: 0 };
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();
-  qVerify_(0, n, []);
+  qVerify_(0, n, list);
 }
 function qVerify_(tries, n, want) {
   var res = $('qz-res');
@@ -3853,7 +4147,7 @@ function qVerify_(tries, n, want) {
     sheetCsv(Q_TAB).then(function (rows) {
       var m = dmapFromRows(rows);
       var mine = m && m[dmKey(S.mas, S.daf)];
-      var got = qPiecesFrom_((mine || {})[String(n)]);
+      var got = qPiecesIn_(mine || {}, n);
       var r2 = $('qz-res');
       if (JSON.stringify(got) === JSON.stringify(want)) {
         QMAP = m; QOWN = mine;
@@ -4446,68 +4740,21 @@ function loadMarks() {
     return rows;
   }).then(function (rows) {
     if (!hasMine(rows)) return 0;
-    var mine = [], tail = null;
-    /* **בלי `slice(1)`.** כאן ישבה הנחה שהשורה הראשונה היא תמיד
-       הכותרת — נכונה כל עוד נשלפה כל הלשונית, ושגויה מרגע שהשליפה
-       מסננת: התשובה חוזרת בלי שורת הכותרת, והדילוג בלע **שורת
-       נתונים אמיתית** — הראשונה שהתאימה.
+    /* הבנייה עצמה עברה ל-`SidFlat` (stepid.js), כדי שההסבה למזהים,
+       הסטודיו והניהול יחשבו את אותו הסדר ממש. מה שנשמר בה:
 
-       בתענית זו הייתה ע״א, ולכן כל דף נפתח בעמוד ב׳. במגילה
-       השורות הראשונות שהתאימו היו ריקות מקטעים וירדו ממילא, ולכן
-       שם זה לא נראה כלל — אותו באג, ורק במסכת אחת.
-
-       אין צורך לנחש: שורת כותרת אינה נושאת שם מסכת, והשורה הבאה
-       מסננת אותה בעצמה. */
-    rows.forEach(function (r) {
-      if (r[0] !== S.mas) return;
-      /* עמודה "עמוד" נשמרה כ-"מקור|עמוד"; מקור 0 הוא צורת הדף. */
-      var a = String(r[2] || '').split('|');
-      if (a[0] !== '0') return;
-      var d;
-      try { d = JSON.parse(r[3]); } catch (e) { return; }
-      if (!d || !d.steps || !d.steps.length) return;
-      var pg = +a[1] || 1;
-
-      if (dafKey(r[1]) === dafKey(S.daf)) { mine.push({ daf:S.daf, pg:pg, d:d }); return; }
-      /* דף אחר שהצהיר שתחילתו שייכת לדף שלנו — זה הזנב.
-         הוא תמיד בעמוד א׳, כי שם נגמר משפט שגלש מהדף הקודם. */
-      if (pg === 1 && d.prev > 0 && dafKey(d.prevDaf || '') === dafKey(S.daf))
-        tail = { daf:r[1], pg:1, d:d, take:d.prev };
-    });
-    mine.sort(function (p, q) { return p.pg - q.pg; });
-
-    /* הזנב של הדף שלפנינו כבר נלמד שם, ולכן הוא יורד מכאן */
-    var skip = 0;
-    if (mine.length && mine[0].pg === 1 && mine[0].d.prev > 0) skip = mine[0].d.prev;
-
-    PAGES = mine.slice();
-    if (tail) PAGES.push(tail);
-
-    FLAT = [];
-    PAGES.forEach(function (p, i) {
-      var st = p.d.steps;
-      if (p === tail) st = st.slice(0, tail.take);
-      else if (i === 0 && skip) st = st.slice(skip);
-      st.forEach(function (s) {
-        FLAT.push({ p:i, g:s.g, c:s.c, cont: !!s.cont });
-      });
-    });
-    /* קטע ראשון שנותר אחרי הדילוג אינו "המשך" של דבר */
-    if (FLAT.length) FLAT[0].cont = false;
-    /* קטע שחוצה את מעבר העמוד נשמר כשני חלקים עם אותו ביאור,
-       והשני מסומן `cont`. כאן הם מקבלים מספר קטע אחד: התלמיד
-       רואה קודם את הזנב שבסוף עמוד א׳ ואחר כך את הראש שבעמוד ב׳,
-       והמונה לא קופץ. בלי זה מחצית הקטע נבלעת — הלימוד היה מדלג
-       ישר לעמוד הבא ומשאיר את מה שנאמר לפני המעבר. */
-    var num = 0;
-    FLAT.forEach(function (v, i) {
-      if (v.cont && i) { v.n = FLAT[i-1].n; } else { v.n = ++num; }
-    });
-    FLAT.forEach(function (v) {
-      v.parts = FLAT.filter(function (q) { return q.n === v.n; }).length;
-      v.part = FLAT.filter(function (q) { return q.n === v.n; }).indexOf(v) + 1;
-    });
-    GROUPS = num;
+       · שורה בלי מסכת (כותרת) יורדת מעצמה — בלי `slice(1)`. בשליפה
+         מסננת התשובה חוזרת בלי כותרת, והדילוג בלע שורת נתונים
+         אמיתית (בתענית: ע״א, ולכן כל דף נפתח בעמוד ב׳).
+       · עמוד "מקור|עמוד"; רק מקור 0 — צורת הדף.
+       · דף אחר שהצהיר שתחילתו שייכת לדף שלנו — זה הזנב (תמיד
+         בעמוד א׳), והזנב של הדף שלפנינו יורד מכאן.
+       · קטע שחוצה את מעבר העמוד נשמר כשני חלקים, והשני (`cont`)
+         מקבל את אותו מספר — ואת אותו מזהה. */
+    var built = SidFlat(SidParse(rows), S.mas, S.daf);
+    PAGES = built.pages;
+    FLAT = built.flat;
+    GROUPS = built.groups;
     return FLAT.length;
   });
 }
