@@ -1313,6 +1313,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .jump{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;
   margin-bottom:14px}
 .jump a{color:var(--blue);font-weight:800}
+/* מתחת ל"להצטרפות לחצו" — לתלמיד ולהורה שהגיעו לכאן בטעות. */
+.stuhint{font-size:.8rem;color:var(--ink-2);font-weight:700;text-align:center;
+  margin-top:9px;line-height:1.5}
+.stuhint a{color:var(--blue);font-weight:800}
 /* השורה שמסבירה למה שתי מסכתות — שקטה, בדיוק במקום שהשאלה עולה */
 .two-m{font-size:.82rem;color:var(--ink-3);font-weight:700;margin-bottom:12px}
 
@@ -2120,7 +2124,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.92';
+var APP_VERSION = '8.99.93';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2225,6 +2229,10 @@ function show(v) {
     /* תלמיד שחוזר "הביתה" מאחד המסכים שלו כאן — חוזר למסך שלו. */
     var stu = stuDevice();
     if (stu) { stuHomeGo(stu); return; }
+    /* ותלמיד שהגיע עם `st=1` (השאלה השבועית מהדף האינטראקטיבי,
+       בדפדפן שאין בו הרשמה) — גם הוא חוזר למסך שלו ולא נוחת
+       כאן, ליד "להצטרפות לחצו" של הצוות. */
+    if (stuMode) { trackBack(); return; }
     renderHome();
   }
   if (v === 'insts')  renderInsts();
@@ -2252,6 +2260,34 @@ function backToWeek()  { openWeek(state.track.id, state.week); }
    `st=1` בכתובת הוא מה שאומר שמי שמסתכל הוא תלמיד; join.html
    מוסיף אותו לכל קישור שהוא שולח לכאן. */
 var stuMode = /[?&]st=1/.test(location.search);
+/* הישיבה נוסעת הלאה לדף האינטראקטיבי — כדי שהיציאה משם תחזיר
+   את התלמיד לקישור שלו. רק במצב תלמיד. */
+function stuQ() {
+  if (!stuMode) return '';
+  var m = /[?&]inst=([^&#]*)/.exec(location.search);
+  return m && m[1] ? '&inst=' + m[1] : '';
+}
+/* ============================================================
+   "להצטרפות לחצו" — של הצוות, ותלמידים נרשמו בו בטעות.
+   ============================================================
+   במכשיר שאין בו שום סימן של איש צוות (ניהול, ראש מוסד, ר"ם,
+   הרשמת ישיבה) — שורה אחת מתחת לכפתור, ובה הדרך הנכונה
+   לתלמיד ולהורה. הכפתור נשאר: ראש חטיבה חדש נוחת כאן בדיוק
+   באותו מצב, ואסור לחסום אותו. */
+function staffSign() {
+  try {
+    var L = localStorage;
+    return L.getItem('df:admOk') === '1' || !!L.getItem('df:head') ||
+           L.getItem('df:headSeen') === '1' || !!L.getItem('df:ram') ||
+           !!L.getItem('dfReg') || !!L.getItem('df:dfBoard');
+  } catch (e) { return false; }
+}
+function stuHint() {
+  if (staffSign() || !UI.stuHint) return '';
+  var m = /[?&]inst=([^&#]*)/.exec(location.search);
+  return '<p class="stuhint">' + esc(UI.stuHint) + ' <a href="join.html' +
+    (m && m[1] ? '?inst=' + m[1] : '') + '">' + esc(UI.stuHintGo) + '</a></p>';
+}
 function trackBack() {
   if (!stuMode) { show('home'); return; }
   var m = /[?&]inst=([^&]*)/.exec(location.search);
@@ -2454,7 +2490,7 @@ function renderHome() {
                                 list:shek(priceOf(disc[0].id).list) });
   else offer = esc(UI.offerNone);
   document.getElementById('cta').innerHTML =
-    '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>' +
+    '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>' + stuHint() +
     '<p style="font-size:.8rem;color:var(--ink-3);font-weight:700;text-align:center;' +
     'margin-top:9px;line-height:1.5">' +
     (mine ? esc(UI.ctaSubAgain) : fill(UI.ctaSub, { offer:offer })) + '</p>';
@@ -2476,7 +2512,7 @@ function renderHome() {
     top.innerHTML = myInstRow()
       ? '<button class="btn p pnl" onclick="show(\'my\')">' +
         esc(PANEL.btn) + ' ←<small>' + esc(PANEL.btnSub) + '</small></button>'
-      : '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>';
+      : '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>' + stuHint();
   }
 
   /* הרצועה של ראשי החטיבות יושבת ב-HTML הסטטי, ולכן היא
@@ -2714,7 +2750,7 @@ function renderReg() {
        האישית, שם הוא ממילא נרשם להתראות ואנחנו צריכים לדעת
        למי הן. ============================================ */
 
-  var h = fitBlock() +
+  var h = (saved ? '' : stuHint()) + fitBlock() +
     whoBlock +
     /* כמה תלמידים — כבוי כברירת מחדל, ומוחזר מההגדרות. */
     sizeRow() +
@@ -4812,7 +4848,7 @@ function paintInter(id, daf) {
     if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
       '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
-      '&daf=' + encodeURIComponent(daf) + '">' +
+      '&daf=' + encodeURIComponent(daf) + stuQ() + '">' +
       '<span class="ic">◈</span><span>דף אינטראקטיבי' +
       '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
   };
@@ -8395,6 +8431,22 @@ function accWaUrl(a) {
   var txt = fill(textGet('ui.accWa'), { name: first, inst: a.instName || pplName(pplCode(a.inst)) });
   return 'https://wa.me/' + waNum(a.phone) + '?text=' + encodeURIComponent(txt);
 }
+/* לפני האימות: עם טלפון — וואטסאפ אליו, לזיהוי. בלי טלפון —
+   הודעה שהרכז שולח לאן שירצה (וואטסאפ נפתח על בורר אנשי הקשר),
+   ובה קישור שפותח אצל איש הצוות את שדה הטלפון. המספר נכתב
+   בשורה שלו, והוא חוזר לתור הזה — עכשיו עם טלפון. */
+function accIdUrl(a) {
+  var first = String(a.name || '').replace(/^הרב\s+/, '').split(' ')[0];
+  var txt = fill(textGet('ui.accIdWa'), { name: first, inst: a.instName || pplName(pplCode(a.inst)) });
+  return 'https://wa.me/' + waNum(a.phone) + '?text=' + encodeURIComponent(txt);
+}
+function accPhUrl(a) {
+  var base = location.href.split('#')[0].split('?')[0]
+    .replace(/\/index(\.html)?$/, '/').replace(/[^\/]*$/, '');
+  var txt = fill(textGet('ui.accPhWa'), { inst: a.instName || pplName(pplCode(a.inst)),
+                                          url: base + '#phone' });
+  return 'https://wa.me/?text=' + encodeURIComponent(txt);
+}
 function accHtml(c) {
   var list = accList().filter(function (a) { return c === '' || pplCode(a.inst) === c; });
   if (!list.length) return '';
@@ -8407,11 +8459,14 @@ function accHtml(c) {
               : '<i class="pt w">ממתין לאימות</i>';
       return '<div class="acc-r"><div class="acc-n"><b>' + esc(a.name || '—') + '</b> ' + tag +
         '<div class="sub">' + esc([a.role, c === '' ? (a.instName || '') : ''].filter(Boolean).join(' · ')) +
-        (a.phone ? ' · <a href="tel:' + digits(a.phone) + '" dir="ltr">' + esc(a.phone) + '</a>' : ' · אין טלפון') +
+        (a.phone ? ' · <a href="tel:' + digits(a.phone) + '" dir="ltr">' + esc(a.phone) + '</a>'
+                 : ' · <b style="color:var(--bad, #B3261E)">חסר טלפון</b>') +
         (a.has && a.st === 'ממתין' ? ' · כבר נכנס בקישור עם קוד' : '') +
         '</div></div><div class="acc-b">' +
         (a.st !== 'אושר' ? '<button class="btn p" onclick="accSet(' + dq(a.id) + ',\'אושר\')">אישור</button>' : '') +
         (a.st === 'אושר' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accWaUrl(a)) + '">וואטסאפ</a>' : '') +
+        (a.st === 'ממתין' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accIdUrl(a)) + '">וואטסאפ לזיהוי</a>' : '') +
+        (a.st === 'ממתין' && !a.phone ? '<a class="btn g" target="_blank" rel="noopener" href="' + esc(accPhUrl(a)) + '">בקשת טלפון</a>' : '') +
         (a.st !== 'נעול' ? '<button class="btn g" onclick="accSet(' + dq(a.id) + ',\'נעול\')">נעילה</button>' : '') +
         '</div></div>';
     }).join('') + '</div>';
@@ -13036,8 +13091,8 @@ function admSet(el) {
        ריק = הכרטיס אינו מוצג לתלמיד כלל, ואין כפתור שבור. */
     '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>קבוצת הוואטסאפ</h4>' +
-    '<p class="h">מוצעת לתלמיד מיד אחרי שנרשם. להורה שנרשם ' +
-    'לעצמו — לא. ריק = לא מוצע לאיש.<br>' +
+    '<p class="h">מוצעת לתלמיד ולהורה אחרי ההרשמה, כהצעה שקטה ולא כחובה. ' +
+    'ריק = לא מוצע לאיש.<br>' +
     '<b>לא נשמר בקוד ולכן חייב פרסום</b> כדי שיגיע לתלמידים.</p>' +
     '<div class="fld"><div class="label">קישור ההצטרפות</div>' +
     '<input type="text" dir="ltr" placeholder="https://chat.whatsapp.com/…" value="' +
@@ -13764,6 +13819,9 @@ function registerSW() {
   if (qm && trackById(qm[1])) { openWeek(qm[1], +qm[2] - 1); openQuiz(); }
   else if (wm && trackById(wm[1])) { pickTrack(wm[1]); openWeek(wm[1], +wm[2] - 1); }
   else if (tm && trackById(tm[1])) { pickTrack(tm[1]); openTrack(tm[1]); }
+  /* `#phone` — הקישור שהרכז שולח לאיש צוות שנרשם בלי טלפון.
+     פותח את האזור האישי, ושם — אם המספר באמת חסר — השדה. */
+  else if (hash === '#phone' && myInstRow()) { show('my'); accCheck(true); }
   else if (isAdminRoute()) { launchedAsAdmin = true; adminEntry(); } else show('home');
   setTimeout(function () { document.getElementById('splash').className = 'off'; }, 340);
 

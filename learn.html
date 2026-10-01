@@ -904,7 +904,7 @@ nav .sp{flex:1}
 
 <header>
   <div class="hrow">
-    <a class="back" href="./" id="back">▸ יציאה</a>
+    <a class="back" href="join.html" id="back">▸ יציאה</a>
     <div class="ttl"><h1 id="t-daf">לימוד אינטראקטיבי</h1><span id="t-sub"></span></div>
     <!-- ריק. כאן ישב "קטע 17 מתוך 41" — חשבונאות של מי שחילק
          את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
@@ -1026,12 +1026,12 @@ nav .sp{flex:1}
        השורה רק מדווחת. -->
   <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
      font-size:.88rem;margin-top:-4px"></p>
-  <a class="btn p" id="to-quiz" href="./">לשאלה השבועית</a>
+  <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
   <a class="btn nx" id="to-next" href="./">לדף הבא</a>
   <button class="btn" id="stay">חזרה לדף</button>
   <div class="minor">
     <button id="again">מהתחלה</button>
-    <a href="./">חזרה לתוכנית</a>
+    <a href="join.html" id="to-home">חזרה לתוכנית</a>
   </div>
 </div></div>
 
@@ -3919,7 +3919,7 @@ var MARKS_FILTERED = null;
 function prevDafUrl() {
   var d = prevDaf(S.daf);
   return d ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
-             '&daf=' + encodeURIComponent(d) + '&at=end' : null;
+             '&daf=' + encodeURIComponent(d) + '&at=end' + keepQ() : null;
 }
 /* "הקודם" בקטע הראשון ממשיך אל הקטע האחרון של הדף שלפניו — כמו
    ש"הבא" בסוף הדף ממשיך אל הדף הבא. `at=end` אומר לדף שנפתח
@@ -3934,7 +3934,7 @@ var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
   var d = nextDaf(S.daf);
   return d ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
-             '&daf=' + encodeURIComponent(d) : null;
+             '&daf=' + encodeURIComponent(d) + keepQ() : null;
 }
 function finish() {
   var key = S.mas + '-' + (S.week + 1);
@@ -3942,7 +3942,7 @@ function finish() {
   $('done-sub').textContent = 'סיימתם את דף ' + S.daf +
     ', מתחילת הדף ועד סופו.';
   var a = $('to-quiz');
-  if (q) { a.style.display = ''; a.href = './#quiz=' + key; }
+  if (q) { a.style.display = ''; a.href = stuQuizUrl(key); }
   else a.style.display = 'none';
 
   var nd = nextDaf(S.daf), n = $('to-next');
@@ -4292,6 +4292,53 @@ var FROM = (/[?&]from=([\w-]+)/.exec(location.search) || [])[1] || '';
    ראווה ולא כלי: אין ממנה לאן לצאת, ואין בה "להצטרפות" — הנגיעה
    בחלון פותחת את הדף האמיתי במסך מלא, וזה מטופל בעמוד המארח. */
 var EMB = /[?&]embed=1\b/.test(location.search);
+
+/* ============================================================
+   לאן יוצאים — תלמיד חוזר למסך שלו, ולא לעמוד הראשי.
+   ============================================================
+   "יציאה", "חזרה לתוכנית" ו"לשאלה השבועית" הובילו לשורש האתר,
+   בלי `st=1` ובלי הישיבה. משם "להצטרפות לחצו" פתח את הרשמת
+   הצוות, ותלמיד נרשם כאיש צוות בטעות — ונחת בתור האימות.
+   ההגנה שבראש index.html תופסת רק מכשיר שכבר שמור בו תלמיד,
+   ולכן תלמיד בדפדפן נקי עבר דרכה.
+
+   עכשיו: מכשיר שאין בו סימן של צוות (ניהול, ראש מוסד, ר"ם)
+   יוצא אל join.html עם הישיבה, והשאלה השבועית נפתחת עם `st=1`
+   — כך שגם "חזרה" משם מחזירה אותו למסך שלו. מכשיר צוות ממשיך
+   כמו קודם. הישיבה: מהכתובת, ואם אין — מההרשמה שבמכשיר. */
+function staffDev() {
+  try {
+    if (localStorage.getItem('df:admOk') === '1') return true;
+    if (localStorage.getItem('df:head') || localStorage.getItem('df:headSeen') === '1') return true;
+    if (localStorage.getItem('df:ram')) return true;
+  } catch (e) {}
+  return false;
+}
+function stuInst() {
+  var m = /[?&]inst=([^&#]*)/.exec(location.search);
+  if (m && m[1]) return m[1];
+  try {
+    var me = JSON.parse(localStorage.getItem('df:me') || 'null');
+    if (me && me.inst) return encodeURIComponent(me.inst);
+  } catch (e) {}
+  return '';
+}
+function stuHomeUrl() {
+  if (staffDev()) return './';
+  var i = stuInst();
+  return 'join.html' + (i ? '?inst=' + i : '');
+}
+function stuQuizUrl(key) {
+  if (staffDev()) return './#quiz=' + key;
+  var i = stuInst();
+  return 'index.html?st=1' + (i ? '&inst=' + i : '') + '#quiz=' + key;
+}
+/* מה שעובר מדף לדף — הישיבה ומי פתח — כדי שהיציאה מהדף הבא
+   תדע לאן לחזור גם בדפדפן שאין בו הרשמה. */
+function keepQ() {
+  var i = (/[?&]inst=([^&#]*)/.exec(location.search) || [])[1] || '';
+  return (i ? '&inst=' + i : '') + (FROM ? '&from=' + FROM : '');
+}
 var DEMO_T = null;
 
 /* "בלי עקבות ובלי מסכים שממתינים" — נכון לניגון ולהקלטה כאחד,
@@ -4893,6 +4940,12 @@ function boot() {
 
   /* בחלון אין "יציאה": אין לאן. הנגיעה שייכת לעמוד המארח,
      שפותח את הדף האמיתי במסך מלא. */
+  /* ברירת המחדל — המסך של התלמיד. ראו stuHomeUrl. */
+  (function () {
+    var u = stuHomeUrl(), b0 = $('back'), h0 = $('to-home');
+    if (b0) b0.href = u;
+    if (h0) h0.href = u;
+  })();
   if (EMB) {
     document.body.className += ' emb';
     var bk = $('back'); if (bk) bk.style.display = 'none';
@@ -4906,6 +4959,7 @@ function boot() {
       b2.href = location.href.split('#')[0].split('?')[0]
         .replace(/\/learn(\.html)?\/?$/, '/') +
         'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto';
+      var h2 = $('to-home'); if (h2) h2.href = b2.href;
     }
   }
 
