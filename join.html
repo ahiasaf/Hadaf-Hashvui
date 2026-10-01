@@ -224,10 +224,17 @@ body.land .top-say{display:block}
 .demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
 /* אחרי ההדגמה ההירו אינו צריך למלא את המסך: הוא היעד שאליו
    העמוד יורד, ולא המסך הראשון. */
-body.land .hero{min-height:0;padding-top:26px}
+/* הרווח מעל גדול מהצל של החלון: כשהעמוד יורד לכאן (toGo), שולי
+   החלון וצלו נשארים כולם מעל קצה המסך ולא נחתכים בו. */
+body.land .hero{min-height:0;padding-top:48px}
 .hero{scroll-margin-top:18px}
 /* המרווח שהשורה שמעל הבאנר נתנה לו, לפני שהיא עלתה לראש הכחול */
-#wk0{margin-top:22px}
+#wk0{margin-top:12px}
+/* בנחיתה הכל צמוד יותר — כדי שאחרי הירידה לכאן ייראו על מסך
+   אחד הכפתור, הבאנר, וגם תחילת כרטיס ההגרלה שמתחתיו. */
+body.land #hero-go{margin-top:16px}
+body.land #back{margin-top:10px !important}
+body.land .hero .cards{margin-top:14px}
 
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
@@ -3813,17 +3820,26 @@ function landGlide(to, ms, done) {
   requestAnimationFrame(step);
 }
 /* ההדגמה נגמרה — אל "אני מצטרף" והבאנר, והכפתור נדלק לרגע כדי
-   שהעין תדע לאן הגיעה. */
+   שהעין תדע לאן הגיעה.
+
+   **ירידה נקייה:** שורת המצטרפים (או הכפתור, כשאין שורה) יושבת
+   ממש מתחת לקצה העליון, והחלון כולו — כולל הצל שלו — מעל
+   המסך. קודם זה היה `scrollIntoView` אל ראש ההירו, ושארית של
+   החלון נשארה תלויה למעלה. */
 function toGo() {
-  var el = $('hero'), go = $('hero-go');
-  if (!el || !landNow()) return;
+  var go = $('hero-go'), pe = $('peers'), box = $('demo');
+  if (!go || !landNow()) return;
   setTimeout(function () {
-    try { el.scrollIntoView({ behavior:'smooth', block:'start' }); }
-    catch (e) { el.scrollIntoView(); }
-    if (go) {
-      go.className = 'go lit';
-      setTimeout(function () { go.className = 'go'; }, 1800);
+    var top = (pe && pe.getClientRects().length) ? pe : go;
+    var y = top.getBoundingClientRect().top + window.pageYOffset - 14;
+    if (box && !box.hidden) {
+      var under = box.getBoundingClientRect().bottom + window.pageYOffset + 50;
+      if (y < under) y = under;
     }
+    LAND_STOP = false;
+    landGlide(Math.max(0, y), 1100);
+    go.className = 'go lit';
+    setTimeout(function () { go.className = 'go'; }, 1800);
   }, 120);
 }
 
