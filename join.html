@@ -3302,7 +3302,7 @@ function wzDraw() {
     if (GUIDE_UI.force) GUIDE_UI.force(null);
     /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו, אלא ההנחיה
        הבאה באמת: לפתוח את האייקון החדש. ראו WZ_GUIDE_DONE. */
-    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); });
+    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); }, { play: true });
   }
   wzWire();
   window.scrollTo(0, 0);
@@ -3310,6 +3310,32 @@ function wzDraw() {
 
 /* ---------- שלב 1 ---------- */
 var WZ_GUIDE_DONE = false;
+/* ============================================================
+   **כפתור אחד קודם, ורק אחריו ההדגמה.**
+   ============================================================
+   "במקום לגרום למשתמש להתלבט." עד עכשיו מי שאולי בוואטסאפ ראה
+   יחד את "פתיחה בכרום" ומתחתיו את כל שלבי ההתקנה — שתי דרכים,
+   ובחירה. עכשיו: הכפתור לבדו, ואחרי הלחיצה עליו — ההדגמה.
+   מי שכבר היה בכרום מקבל עוד לשונית של אותו עמוד, ולא נורא.
+
+   הכפתור מוצג **בדיוק** איפה שהוצג קודם (`waBox`, ו-`outBox`
+   באנדרואיד) — כאן רק נקבע מה מסתתר עד שלוחצים.
+
+   **והלשונית שנפתחה בכרום כבר לחצה.** היא נושאת `nointro=1`
+   (ראו noIntroHref ב-getapp.js), ושם ההדגמה מוצגת מיד — אחרת
+   היא הייתה מציגה שוב את אותו כפתור, ושולחת לעוד לשונית. */
+var WZ_WENT = /[?&]nointro=1\b/.test(location.search);
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest ? e.target.closest('#wz .wa-box a[href]') : null;
+  if (!a || WZ_WENT) return;
+  WZ_WENT = true;
+  /* אחרי רגע — שהמעבר לכרום ייצא לפני שהכפתור נעלם מהמסך. */
+  setTimeout(function () { if (wzStep === 1) wzDraw(); }, 400);
+});
+/* ההדגמה עצמה — או הרשימה, אם המדריך לא נטען. */
+function wzGuideBox() {
+  return window.GUIDE_UI ? '<div class="wz-guide" id="gu-here"></div>' : appHowList();
+}
 function wzInstall() {
   /* ============================================================
      מי שאינו יכול להתקין מכאן — מסגרת, לא פסקה.
@@ -3326,7 +3352,8 @@ function wzInstall() {
      וחומק ממנו — ולכן גם במסך הרגיל המסגרת נמצאת בראש (`waBox`).
      אין ניחוש לפי זמן: `APPX.stuck()` תמיד אומר לא (ראו getapp.js). */
   var out = (APPX.outBox && APPX.outBox()) || '';
-  if (out) return out + wzSkipBtn();
+  /* באייפון אין במסגרת כפתור (רק העתקה) — שם היא נשארת כמו שהיא. */
+  if (out) return (WZ_WENT && !isIOS() ? wzGuideBox() : out) + wzSkipBtn();
   /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
      עכשיו "סיימתי" החזיר לתחילת המדריך, כאילו לא קרה כלום. */
   /* קודם האייקון עם האצבע — "לוחצים על זה" — ואחריו שורה קצרה. */
@@ -3372,15 +3399,18 @@ function wzInstall() {
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
       /* לא הסבר מתחת לכפתור אלא מה שיתווסף: האייקון עצמו, ושורה. */
       appIcon('add') + '<p class="wz-inote">' + esc(jt('wzInstNote')) + '</p>'
-    : (window.GUIDE_UI ? '<div class="wz-guide" id="gu-here"></div>'
-                       : appHowList()));
+    : wzGuideBox());
   /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
      מסומנות נראות כמו הכפתור הראשי של המסך, וזה בדיוק מה
      שהיא לא אמורה להיות. */
   /* **תיבת "מה זה מוסיף לטלפון" ירדה.** היא נכתבה כדי להרגיע,
      והיא עשתה את ההפך: תלמיד שרואה קיר של מלל בשלב הראשון
      נבהל וסוגר. מה שנשאר הוא ההוראות עצמן. */
-  if (APPX.waBox) h = APPX.waBox() + h;
+  /* מסגרת "פתיחה בכרום": לפני הלחיצה — היא לבדה. אחרי הלחיצה —
+     ההדגמה במקומה, גם בדפדפן של סמסונג (שם לא היה מדריך: הוא
+     מתאר את מה שעושים בכרום, ועכשיו הוא כבר בדרך לשם). */
+  var wa = APPX.waBox ? APPX.waBox() : '';
+  if (wa) h = WZ_WENT ? wzGuideBox() : wa;
   return h + wzSkipBtn();
 }
 /* האפליקציה נוספה — עכשיו פותחים אותה. האייקון עם אצבע וגל,

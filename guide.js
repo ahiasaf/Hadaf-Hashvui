@@ -620,6 +620,7 @@ var GUIDE_UI = (function () {
   function draw() {
     if (!HOST) return;
     var L = LIST || (LIST = steps());
+    if (PLAY) { drawPlay(L); return; }
     HOST.innerHTML =
       '<div class="gu">' +
         '<div class="gu-intro">' + esc(g('intro')) + '</div>' +
@@ -644,15 +645,107 @@ var GUIDE_UI = (function () {
     if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
   }
 
-  function mount(host, onDone) {
+  /* ============================================================
+     **מצב הדגמה: שלב אחד בכל פעם, מעצמו.**
+     ============================================================
+     "רשימת שלבים ארוכה עם מספרים 1-2-3 מעייפת את המשתמשים."
+
+     אותם שלבים, אותו נוסח ואותם צילומים — אבל במקום רשימה
+     שגוללים, הם מתחלפים מעצמם: מופיע שלב, נעלם, מופיע הבא.
+     בסוף נשאר האחרון, ומתחתיו "הצג שוב" ו"סיימתי".
+
+     הבעיה שבגללה הכל עבר לעמוד אחד (ראו draw) עדיין נכונה:
+     מי שלוחץ על שלוש הנקודות כבר לא רואה אותנו. ולכן ההדגמה
+     רצה **עד הסוף לפני** שהוא צריך לעשות משהו, והשורה שמעליה
+     ("קראו עד הסוף") נשארת.
+
+     **כל השלבים באותו תא של רשת**, זה על זה. התא מקבל את גובה
+     הגבוה שבהם, ולכן המעבר בין צילום נמוך לגבוה אינו מזיז את
+     מה שמתחת — בלי למדוד ובלי גובה קבוע, בכל גודל מסך.
+
+     רק join.html מבקש את זה (`{ play: true }`). הניהול, עמוד
+     הצוות והבקשה האישית ממשיכים לראות את הרשימה. */
+  var PLAY = false, PT = null, PAT = 0;
+
+  function drawPlay(L) {
+    HOST.innerHTML =
+      '<div class="gu gu-play">' +
+        '<div class="gu-intro">' + esc(g('intro')) + '</div>' +
+        '<div class="gu-stage" id="gu-stage" aria-live="polite">' +
+        L.map(function (s, i) {
+          var key = s[0], art = s[1];
+          return '<div class="gu-step gu-slide" id="gu-s' + i + '">' +
+            '<div class="gu-num">' + (i + 1) + '</div>' +
+            '<h3>' + esc(g(key)) + '</h3>' +
+            (PICS[key] ? pic(PICS[key]).replace(' loading="lazy"', '') : phone(art())) +
+            '</div>';
+        }).join('') +
+        '</div>' +
+        '<div class="gu-dots" aria-hidden="true">' +
+          L.map(function (s, i) { return '<i id="gu-d' + i + '"></i>'; }).join('') +
+        '</div>' +
+        '<div class="gu-end" id="gu-end">' +
+          '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
+          '<button class="gu-again" id="gu-again">' + esc(g('again')) + '</button>' +
+        '</div>' +
+      '</div>';
+
+    var b = document.getElementById('gu-next');
+    if (b) b.onclick = function () { playStop(); if (ONDONE) ONDONE(); };
+    var a = document.getElementById('gu-again');
+    if (a) a.onclick = function () { playAt(0); };
+    /* לחיצה על הציור — הבא, למי שכבר קרא ולא רוצה לחכות. */
+    var st = document.getElementById('gu-stage');
+    if (st) st.onclick = function () { if (PAT < L.length - 1) playAt(PAT + 1); };
+    playAt(0);
+  }
+
+  /* זמן לכל שלב לפי אורך המשפט: קצר — שלוש שניות, ארוך — עד חמש. */
+  function dwell(i) {
+    var L = LIST || [];
+    var n = L[i] ? g(L[i][0]).length : 0;
+    return Math.max(3000, Math.min(5000, 2200 + n * 70));
+  }
+
+  function playStop() { if (PT) { clearTimeout(PT); PT = null; } }
+
+  function playAt(i) {
+    playStop();
+    var L = LIST || [];
+    /* המסך הוחלף מאז (שלב אחר במסע) — אין למי להציג. */
+    if (!HOST || !document.getElementById('gu-stage')) return;
+    PAT = i;
+    var k, s, d, last = (i === L.length - 1);
+    for (k = 0; k < L.length; k++) {
+      s = document.getElementById('gu-s' + k);
+      d = document.getElementById('gu-d' + k);
+      if (s) s.className = 'gu-step gu-slide' + (k === i ? ' on' : '');
+      if (d) d.className = k === i ? 'on' : (k < i ? 'did' : '');
+    }
+    var end = document.getElementById('gu-end');
+    if (end) end.className = 'gu-end';
+    if (last) {
+      /* הכפתורים מופיעים אחרי רגע — קודם קוראים את השלב האחרון. */
+      PT = setTimeout(function () {
+        var e = document.getElementById('gu-end');
+        if (e) e.className = 'gu-end on';
+      }, 1400);
+      return;
+    }
+    PT = setTimeout(function () { playAt(i + 1); }, dwell(i));
+  }
+
+  function mount(host, onDone, opt) {
+    playStop();
     HOST = host; ONDONE = onDone || null;
+    PLAY = !!(opt && opt.play);
     LIST = steps(); at = 0;
     css();
     draw();
   }
   /* פתיחה מחדש מתחילה מההתחלה: מי שחזר הנה לא השלים, והמשך
      מאמצע הוא ניחוש. */
-  function reset() { at = 0; LIST = null; }
+  function reset() { playStop(); at = 0; LIST = null; }
 
   function css() {
     if (document.getElementById('gu-css')) return;
@@ -722,9 +815,38 @@ var GUIDE_UI = (function () {
       '.gu-back{display:block;width:100%;margin-top:8px;padding:10px;border:0;',
       '  background:none;color:var(--ink-3);font-family:inherit;',
       '  font-size:.86rem;font-weight:700;text-decoration:underline;cursor:pointer}',
+      /* ---- מצב הדגמה (ראו drawPlay) ----
+         כל השלבים באותו תא; הגבוה שבהם קובע את הגובה, והמוצג
+         הוא היחיד שנראה. הצילום מוגבל גם לפי גובה המסך — בטלפון
+         נמוך הוא קטן, כדי שהשלב והכפתורים ייכנסו יחד. */
+      '.gu-stage{display:grid;cursor:pointer}',
+      '.gu-slide{grid-area:1/1;align-self:start;opacity:0;visibility:hidden;',
+      '  transform:translateY(8px);',
+      '  transition:opacity .35s ease,transform .35s ease,visibility 0s linear .35s}',
+      '.gu-slide.on{opacity:1;visibility:visible;transform:none;',
+      '  transition:opacity .35s ease .12s,transform .35s ease .12s,visibility 0s}',
+      '.gu-play .gu-pic img{max-height:290px;max-height:min(290px,32vh)}',
+      '.gu-play .gu-art{height:290px;height:min(290px,32vh)}',
+      '.gu-dots{display:flex;justify-content:center;gap:7px;margin:14px 0 0}',
+      '.gu-dots i{width:8px;height:8px;border-radius:50%;background:var(--rule)}',
+      '.gu-dots i.did{background:var(--gold);opacity:.45}',
+      '.gu-dots i.on{background:var(--gold)}',
+      /* הכפתורים תופסים את מקומם גם כשאינם נראים — כך שום דבר
+         אינו קופץ כשהם מופיעים. */
+      /* שניהם בשורה אחת: בטלפון רגיל (390×844) שורה שנייה ירדה
+         אל מתחת לקצה המסך בשלב האחרון של האייפון. */
+      '.gu-end{display:flex;gap:10px;align-items:stretch;',
+      '  visibility:hidden;opacity:0;transition:opacity .3s}',
+      '.gu-end.on{visibility:visible;opacity:1}',
+      '.gu-end .gu-go{flex:1.5;width:auto}',
+      '.gu-again{flex:1;display:block;margin-top:16px;padding:12px;',
+      '  border:1.5px solid var(--rule);border-radius:12px;background:#fff;',
+      '  color:var(--blue,#17468F);font-family:inherit;font-size:.95rem;',
+      '  font-weight:800;cursor:pointer}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
-      '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}}'
+      '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
+      '  .gu-slide,.gu-slide.on,.gu-end{transition:none;transform:none}}'
     ].join('\n');
     document.head.appendChild(st);
   }
