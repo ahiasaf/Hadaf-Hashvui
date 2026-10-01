@@ -2157,9 +2157,13 @@ function hit(s, x) {
   } catch (e) {}
 }
 function hitHas(s) { return !!(get('hits', {}) || {})[s]; }
-/* הקלדה ראשונה בטופס — של מי שעוד לא נרשם. */
-document.addEventListener('input', function onIn() {
+/* הקלדה ראשונה בטופס — של מי שעוד לא נרשם. **רק בשדות של טופס
+   ההרשמה עצמו**: הקלדה בטופס העזרה (שלב 9, שאפשר להגיע אליו עוד
+   לפני ההתקנה) נספרה כאן, ו"התחילו למלא" עלה מעל "הגיעו לטופס". */
+document.addEventListener('input', function onIn(ev) {
   if (get('me', null)) return;
+  var f = $('form'), t = ev && ev.target;
+  if (!f || !t || !f.contains(t)) return;
   document.removeEventListener('input', onIn, true);
   hit('type');
 }, true);

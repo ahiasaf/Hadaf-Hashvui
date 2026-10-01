@@ -2173,7 +2173,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.98';
+var APP_VERSION = '8.99.99';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8657,9 +8657,28 @@ function pplFun() {
     return '<div class="row" style="padding:7px 0"><span>' + t +
       (sub ? '<div class="sub">' + sub + '</div>' : '') + '</span><b style="white-space:nowrap">' + v + '</b></div>';
   };
-  var nOpen = n('open'), nApp = n('app'), nS2 = P.filter(function (p) { return has(p, 'app') || has(p, 's2'); }).length;
+  /* **כל שלב נספר מתוך מי שעבר את השלב שלפניו** — לא כמספר
+     עצמאי. "הגיעו לטופס" היה רק "נפתח מהאפליקציה" או "שלב 2",
+     ו"התחילו למלא" נספר גם מהקלדה בטופס העזרה — כך יצא שיותר
+     התחילו למלא ממי שהגיע לטופס. עכשיו מי שהקליד, בחר דרך לימוד
+     או נרשם — הגיע לטופס, וכל שלב הוא תת-קבוצה של קודמו. */
+  var any = function (p, l) { for (var i = 0; i < l.length; i++) if (has(p, l[i])) return true; return false; };
+  var cnt = function (f) { return P.filter(f).length; };
+  /* "התחיל למלא" ישן שבא מטופס העזרה (בלי אף שלב אחר של הטופס,
+     ועם "ביקש עזרה") — לא הגיע לטופס. */
+  var FORM = ['app', 's2', 's3', 'join'];
+  var form = function (p) { return any(p, FORM) || (has(p, 'type') && !has(p, 'help')); };
+  var nOpen = cnt(function (p) { return any(p, ['open', 's1']); });
+  var nS1 = n('s1');
+  var nS2 = cnt(form);
+  var nType = cnt(function (p) { return any(p, ['s3', 'join']) || (has(p, 'type') && form(p)); });
+  var nS3 = cnt(function (p) { return any(p, ['s3', 'join']); });
   var nJoin = n('join');
+  var nPush = cnt(function (p) { return has(p, 'push') && has(p, 'join'); });
   var inApp = P.filter(function (p) { return has(p, 'open') && p[4] === 'בתוך אפליקציה'; }).length;
+  /* הגעה לטופס מול פתיחה בדפדפן — באייפון האפליקציה המותקנת היא
+     אחסון נפרד, כלומר "מכשיר" אחר, ולכן היחס קירוב ונעצר ב-100. */
+  var pcCap = function (a, b) { return pc(Math.min(a, b), b); };
 
   h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
     sel('t', [['', 'כל הזמן'], ['today', 'היום'], ['y', 'אתמול'], ['7', '7 ימים']]) +
@@ -8668,12 +8687,12 @@ function pplFun() {
     sel('w', [['', 'בכל מקום'], ['בתוך אפליקציה', 'בתוך וואטסאפ וכד׳'], ['דפדפן', 'דפדפן'], ['מותקן', 'האפליקציה המותקנת']]) +
     '</div>';
   h += row('נפתח בדפדפן', nOpen, inApp + ' מהם בתוך וואטסאפ או אפליקציה אחרת') +
-    row('לחצו "אני מצטרף"', n('s1') + pc(n('s1'), nOpen), 'ועברו למסך ההתקנה') +
-    row('הגיעו לטופס אחרי התקנה', nS2 + pc(nS2, nOpen), 'מתוך מי שנפתח בדפדפן — קירוב לשיעור ההתקנה') +
-    row('התחילו למלא', n('type') + pc(n('type'), nS2)) +
-    row('בחרו דרך לימוד', n('s3') + pc(n('s3'), nS2)) +
+    row('לחצו "אני מצטרף"', nS1 + pc(nS1, nOpen), 'ועברו למסך ההתקנה') +
+    row('הגיעו לטופס אחרי התקנה', nS2 + pcCap(nS2, nOpen), 'מתוך מי שנפתח בדפדפן — קירוב לשיעור ההתקנה') +
+    row('התחילו למלא', nType + pc(nType, nS2)) +
+    row('בחרו דרך לימוד', nS3 + pc(nS3, nS2)) +
     row('נרשמו', nJoin + pc(nJoin, nS2), 'אחוז מתוך מי שהגיע לטופס') +
-    row('אישרו התראות', n('push') + pc(n('push'), nJoin), 'אחוז מתוך הנרשמים') +
+    row('אישרו התראות', nPush + pc(nPush, nJoin), 'אחוז מתוך הנרשמים') +
     row('ביקשו עזרה', n('help'));
 
   /* מה עוצר — השגיאות בטופס, לפי הנוסח. */
@@ -8689,7 +8708,7 @@ function pplFun() {
   P.forEach(function (p) {
     var c = p[1] || '-';
     var x = per[c] || (per[c] = { o:0, j:0 });
-    if (has(p, 'open') || has(p, 'app')) x.o++;
+    if (any(p, ['open', 's1', 'type'].concat(FORM))) x.o++;
     if (has(p, 'join')) x.j++;
   });
   var pk = Object.keys(per).sort(function (a, b) { return per[b].o - per[a].o; });
@@ -8704,7 +8723,7 @@ function pplFun() {
   var day = {};
   P.forEach(function (p) {
     var x = day[p[0]] || (day[p[0]] = { o:0, j:0 });
-    if (has(p, 'open') || has(p, 'app')) x.o++;
+    if (any(p, ['open', 's1', 'type'].concat(FORM))) x.o++;
     if (has(p, 'join')) x.j++;
   });
   var dk = Object.keys(day).sort().reverse();
