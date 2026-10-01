@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 40;
+var SCRIPT_VERSION = 41;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1989,7 +1989,7 @@ function boardData_(inst, k, withTest, inner) {
 
   var out = [];
   /* מי שאישר התראות — מזהה → 1. רק בתצוגת כל הישיבות. */
-  var pushSet = {}, blockSet = {}, seenSet = {};
+  var pushSet = {}, blockSet = {}, seenSet = {}, whySet = {}, devSet = {};
   if (all) {
     try {
       var psh = sheet_('התראות');
@@ -2000,10 +2000,15 @@ function boardData_(inst, k, withTest, inner) {
           if (String(ph[q0]).trim() === 'מנוי') psx = q0;
         }
         if (pix >= 0 && psx >= 0) {
-          var prx = ph.indexOf('תוצאה');
+          var prx = ph.indexOf('תוצאה'), pdx = ph.indexOf('מכשיר');
           for (var q1 = 1; q1 < pv.length; q1++) {
             var pid0 = String(pv[q1][pix] || '').trim();
             if (!pid0) continue;
+            /* המכשיר והסיבה האחרונה שדווחה — כדי שמספר "בלי התראות"
+               יתפרק ל"אייפון שלא הותקן", "חסום", "טרם אושר". */
+            if (pdx >= 0 && String(pv[q1][pdx] || '').trim()) devSet[pid0] = String(pv[q1][pdx]).trim();
+            if (prx >= 0 && !String(pv[q1][psx] || '').trim() && String(pv[q1][prx] || '').trim())
+              whySet[pid0] = String(pv[q1][prx]).trim();
             if (String(pv[q1][psx] || '').trim()) pushSet[pid0] = 1;
             /* שורה בלי מנוי = דיווח שההתראות חסומות אצלו (או שלא הצליח). */
             else if (prx >= 0 && /חסום|נדחה|לא הצליח/.test(String(pv[q1][prx] || ''))) blockSet[pid0] = 1;
@@ -2116,6 +2121,13 @@ function boardData_(inst, k, withTest, inner) {
         if (all) {
           var any = function (set) { return set[pid] || (p.ids || []).some(function (x) { return set[x]; }); };
           p.pstate = p.push ? 'on' : any(blockSet) ? 'blocked' : any(seenSet) ? '?' : 'none';
+          var one = function (set) {
+            if (set[pid]) return set[pid];
+            for (var z = 0; z < (p.ids || []).length; z++) if (set[p.ids[z]]) return set[p.ids[z]];
+            return '';
+          };
+          if (!p.push) p.why = one(whySet);
+          p.dev = one(devSet);
         }
         /* להורה המחובר יש התראות? — לכפתור ✉ ולמספרים בשליחה. */
         if (all) p.parPush = parIds.some(function (x) { return pushSet[x]; }) ? 1 : 0;
