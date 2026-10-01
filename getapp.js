@@ -276,10 +276,26 @@ var APPX = (function () {
         esc(o.b) + '</span>' : '') +
       '<div style="margin-top:11px;display:flex;align-items:center;justify-content:center;' +
       'flex-wrap:wrap;row-gap:6px">' +
-      (o.href ? '<a href="' + esc(o.href) + '" style="' + btn + '">' + esc(U.openGo || '') + '</a>' : '') +
+      (o.href ? '<a href="' + esc(o.href) + '" style="' + btn + '">' + esc(o.go || U.openGo || '') + '</a>' : '') +
       copy + '</div></div>';
   }
-  function waBox() {
+  /* ============================================================
+     `watch` — הנחיה ולא שאלה (עמוד ההצטרפות בלבד).
+     ============================================================
+     "במקום שבן אדם יעצור ויחשוב 'רגע, אני בוואטסאפ?' — הוא לוחץ
+     על כפתור בשנייה אחת." אם היה בוואטסאפ — עבר לכרום; אם היה
+     בכרום — נפתח עוד חלון, ולא קרה כלום.
+
+     ולכן בלי כותרת ובלי הסבר: הסמלים, וכפתור אחד — "צפו בתהליך
+     ההתקנה" (`watchGo`). מה שנפתח בכרום הוא בדיוק ההדגמה.
+     עמודים אחרים (הצוות, הבקשה האישית) אינם מבקשים את זה,
+     ושם המסגרת נשארת כמו שהייתה. */
+  function watchFrame(o, watch) {
+    if (!watch || !o.href) return frame(o);
+    var U = window.ASK_UI || {};
+    return frame({ from: o.from, to: o.to, href: o.href, go: U.watchGo || U.openGo });
+  }
+  function waBox(watch) {
     /* **גם כשיש הצעת התקנה.** קודם המסגרת הוסתרה כשהדפדפן הציע
        להתקין — אבל דפדפן סמסונג מציע, וההתקנה ממנו היא בדיוק זו
        שנחסמת. תלמיד לחץ "הוספה למסך הבית", קיבל "אפליקציה לא
@@ -293,8 +309,8 @@ var APPX = (function () {
     var U = window.ASK_UI || {};
     /* בסמסונג — גם למה: אחרת "רק בכרום" נקרא כטעות שלנו. */
     var sub = !other ? U.waBoxB : (samsung() ? (U.waBoxSamB || U.waBoxOB) : U.waBoxOB);
-    return frame({ from: other ? 'web' : 'wa', to: 'chrome',
-                   t: other ? U.waBoxOT : U.waBoxT, b: sub, href: chromeUrl() });
+    return watchFrame({ from: other ? 'web' : 'wa', to: 'chrome',
+                   t: other ? U.waBoxOT : U.waBoxT, b: sub, href: chromeUrl() }, watch);
   }
   /* ============================================================
      המסגרת גם במסך "אתם בתוך אפליקציה".
@@ -307,7 +323,7 @@ var APPX = (function () {
        · **כרום/פיירפוקס באייפון** — דפדפן אמיתי, לא אפליקציה.
          יעד ספארי, והנוסח שלו (`iosOth*`).
      מחזיר '' כשאין מאיפה לצאת. */
-  function outBox() {
+  function outBox(watch) {
     var U = window.ASK_UI || {};
     if (iosOther()) return frame({ from: 'web', to: 'safari', t: U.iosOthH, b: U.iosOthB });
     if (!inApp()) return '';
@@ -315,8 +331,8 @@ var APPX = (function () {
       return frame({ from: 'wa', to: 'safari', t: U.inAppH,
                      b: [U.inAppB || '', U.inAppIos || ''].join(' ').trim() });
     }
-    return frame({ from: 'wa', to: 'chrome', t: U.inAppH,
-                   b: U.inAppB, href: toBrowser() });
+    return watchFrame({ from: 'wa', to: 'chrome', t: U.inAppH,
+                   b: U.inAppB, href: toBrowser() }, watch);
   }
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {

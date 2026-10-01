@@ -3261,6 +3261,9 @@ function wzDraw() {
     /* להורה נוסח משלו, וכרגע ריק: ההסבר כבר נאמר בעמוד שלפני.
        אותו דפוס של `JOIN.leadDad`. */
     var instB = forDad ? jt('wzInstBDad') : jt('wzInstB');
+    /* מי שלחץ "צפו בתהליך ההתקנה" רואה מתחת לכותרת רק את ההדגמה —
+       בלי "תוכל לקבל עדכונים...": "צפו:" אומר כבר הכל. */
+    if (WZ_WENT && !APPX.bip() && window.GUIDE_UI) instB = '';
     h += '<div class="wzcard">' + wzHead(1, jt('wzInstT'), instB) +
          wzInstall() + '</div>';
   } else if (wzStep === 2) {
@@ -3302,7 +3305,8 @@ function wzDraw() {
     if (GUIDE_UI.force) GUIDE_UI.force(null);
     /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו, אלא ההנחיה
        הבאה באמת: לפתוח את האייקון החדש. ראו WZ_GUIDE_DONE. */
-    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); }, { play: true });
+    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); },
+                   { play: true, go: WZ_WENT });
   }
   wzWire();
   window.scrollTo(0, 0);
@@ -3351,7 +3355,7 @@ function wzInstall() {
      וואטסאפ עצמו. וואטסאפ באנדרואיד פותח חלון שמזדהה ככרום
      וחומק ממנו — ולכן גם במסך הרגיל המסגרת נמצאת בראש (`waBox`).
      אין ניחוש לפי זמן: `APPX.stuck()` תמיד אומר לא (ראו getapp.js). */
-  var out = (APPX.outBox && APPX.outBox()) || '';
+  var out = (APPX.outBox && APPX.outBox(true)) || '';
   /* באייפון אין במסגרת כפתור (רק העתקה) — שם היא נשארת כמו שהיא. */
   if (out) return (WZ_WENT && !isIOS() ? wzGuideBox() : out) + wzSkipBtn();
   /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
@@ -3409,7 +3413,7 @@ function wzInstall() {
   /* מסגרת "פתיחה בכרום": לפני הלחיצה — היא לבדה. אחרי הלחיצה —
      ההדגמה במקומה, גם בדפדפן של סמסונג (שם לא היה מדריך: הוא
      מתאר את מה שעושים בכרום, ועכשיו הוא כבר בדרך לשם). */
-  var wa = APPX.waBox ? APPX.waBox() : '';
+  var wa = APPX.waBox ? APPX.waBox(true) : '';
   if (wa) h = WZ_WENT ? wzGuideBox() : wa;
   return h + wzSkipBtn();
 }

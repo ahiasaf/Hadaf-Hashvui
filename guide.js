@@ -670,6 +670,8 @@ var GUIDE_UI = (function () {
   /* AUTO — ההדגמה רצה מעצמה. ברגע שהיא נגמרת, או שנגעו במד,
      היא עוצרת: מכאן הולכים אחורה וקדימה ביד. */
   var AUTO = false;
+  /* GO — הגיעו לכאן מהכפתור "צפו בתהליך ההתקנה": השורה היא "צפו:" בלבד. */
+  var GO = false;
 
   /* חץ מצויר ולא תו: ‹ ו-› מתהפכים לבד בטקסט מימין לשמאל, ושני
      החצים יצאו פונים לאותו צד. 1 — ימינה, ‎-1 — שמאלה. */
@@ -684,7 +686,7 @@ var GUIDE_UI = (function () {
   function drawPlay(L) {
     HOST.innerHTML =
       '<div class="gu gu-play">' +
-        '<div class="gu-intro">' + esc(g('playIntro') || g('intro')) + '</div>' +
+        '<div class="gu-intro">' + esc((GO && g('playGo')) || g('playIntro') || g('intro')) + '</div>' +
         '<div class="gu-stage" id="gu-stage" aria-live="polite">' +
         L.map(function (s, i) {
           var key = s[0], art = s[1];
@@ -775,6 +777,7 @@ var GUIDE_UI = (function () {
     playStop();
     HOST = host; ONDONE = onDone || null;
     PLAY = !!(opt && opt.play);
+    GO = !!(opt && opt.go);
     LIST = steps(); at = 0;
     css();
     draw();
