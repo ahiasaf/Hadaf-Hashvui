@@ -74,9 +74,19 @@ function scriptUrl() {
    ההרצה כולה, וההודעה פשוט לא יצאה. עכשיו ממתינים וחוזרים. */
 function getJson(q, n) {
   n = n || 1;
-  return fetch(q).then(function (r) { return r.text(); }).then(function (t) {
+  /* הסטטוס ותחילת התשובה נכנסים להודעה — כדי שביומן ייראה מה
+     בדיוק חזר (התחברות, פריסה שנמחקה, עומס), ולא רק "לא JSON". */
+  var st = '';
+  return fetch(q).then(function (r) { st = r.status; return r.text(); }).then(function (t) {
     try { return JSON.parse(t); }
-    catch (e) { throw new Error('גוגל החזיר דף שגיאה במקום נתונים'); }
+    catch (e) {
+      /* דף ההתחברות של גוגל עלול להחזיר את הכתובת המלאה, והמפתח
+         בתוכה. היומן ציבורי — מוחקים אותו בשתי הצורות. */
+      var snip = String(t).split(key).join('***')
+                 .split(encodeURIComponent(key)).join('***');
+      throw new Error('גוגל החזיר דף שגיאה במקום נתונים (סטטוס ' + st + '): ' +
+                      snip.replace(/\s+/g, ' ').slice(0, 200));
+    }
   })['catch'](function (e) {
     if (n >= 3) throw e;
     console.log('ניסיון ' + n + ' נכשל (' + e.message + ') — מנסה שוב בעוד 20 שניות.');
