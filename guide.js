@@ -620,6 +620,7 @@ var GUIDE_UI = (function () {
   function draw() {
     if (!HOST) return;
     var L = LIST || (LIST = steps());
+    if (PLAY) { drawPlay(L); return; }
     HOST.innerHTML =
       '<div class="gu">' +
         '<div class="gu-intro">' + esc(g('intro')) + '</div>' +
@@ -644,15 +645,146 @@ var GUIDE_UI = (function () {
     if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
   }
 
-  function mount(host, onDone) {
+  /* ============================================================
+     **מצב הדגמה: שלב אחד בכל פעם, מעצמו.**
+     ============================================================
+     "רשימת שלבים ארוכה עם מספרים 1-2-3 מעייפת את המשתמשים."
+
+     אותם שלבים, אותו נוסח ואותם צילומים — אבל במקום רשימה
+     שגוללים, הם מתחלפים מעצמם: מופיע שלב, נעלם, מופיע הבא.
+     בסוף נשאר האחרון, ומתחתיו "הצג שוב" ו"סיימתי".
+
+     הבעיה שבגללה הכל עבר לעמוד אחד (ראו draw) עדיין נכונה:
+     מי שלוחץ על שלוש הנקודות כבר לא רואה אותנו. ולכן ההדגמה
+     רצה **עד הסוף לפני** שהוא צריך לעשות משהו, והשורה שמעליה
+     ("קראו עד הסוף") נשארת.
+
+     **כל השלבים באותו תא של רשת**, זה על זה. התא מקבל את גובה
+     הגבוה שבהם, ולכן המעבר בין צילום נמוך לגבוה אינו מזיז את
+     מה שמתחת — בלי למדוד ובלי גובה קבוע, בכל גודל מסך.
+
+     רק join.html מבקש את זה (`{ play: true }`). הניהול, עמוד
+     הצוות והבקשה האישית ממשיכים לראות את הרשימה. */
+  var PLAY = false, PT = null, PAT = 0;
+
+  /* AUTO — ההדגמה רצה מעצמה. ברגע שהיא נגמרת, או שנגעו במד,
+     היא עוצרת: מכאן הולכים אחורה וקדימה ביד. */
+  var AUTO = false;
+  /* GO — הגיעו לכאן מהכפתור "צפו בתהליך ההתקנה": השורה היא "צפו:" בלבד. */
+  var GO = false;
+
+  /* חץ מצויר ולא תו: ‹ ו-› מתהפכים לבד בטקסט מימין לשמאל, ושני
+     החצים יצאו פונים לאותו צד. 1 — ימינה, ‎-1 — שמאלה. */
+  function chev(dir) {
+    return '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ' +
+      'style="display:block;margin:auto"><path d="' +
+      (dir > 0 ? 'M6 3l5 5-5 5' : 'M10 3l-5 5 5 5') + '" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" ' +
+      'stroke-linejoin="round"/></svg>';
+  }
+
+  function drawPlay(L) {
+    HOST.innerHTML =
+      '<div class="gu gu-play">' +
+        '<div class="gu-intro">' + esc((GO && g('playGo')) || g('playIntro') || g('intro')) + '</div>' +
+        '<div class="gu-stage" id="gu-stage" aria-live="polite">' +
+        L.map(function (s, i) {
+          var key = s[0], art = s[1];
+          return '<div class="gu-step gu-slide" id="gu-s' + i + '">' +
+            '<h3>' + esc(g(key)) + '</h3>' +
+            (PICS[key] ? pic(PICS[key]).replace(' loading="lazy"', '') : phone(art())) +
+            '</div>';
+        }).join('') +
+        '</div>' +
+        /* ============================================================
+           המד: עיגול ממוספר לכל שלב, והנוכחי מסומן.
+           ============================================================
+           "ככה הוא יודע — יש פה שלושה שלבים, הנה אני רואה אותם."
+           המספרים לחיצים תמיד; החצים מופיעים כשההדגמה נגמרת. */
+        '<div class="gu-meter" id="gu-meter">' +
+          '<button class="gu-arw" id="gu-prev" aria-label="' + esc(g('back')) + '">' + chev(1) + '</button>' +
+          L.map(function (s, i) {
+            return '<button class="gu-n" id="gu-d' + i + '">' + (i + 1) + '</button>';
+          }).join('') +
+          '<button class="gu-arw" id="gu-fwd" aria-label="' + esc(g('fwd')) + '">' + chev(-1) + '</button>' +
+        '</div>' +
+        '<div class="gu-end" id="gu-end">' +
+          '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
+          '<button class="gu-again" id="gu-again">' + esc(g('again')) + '</button>' +
+        '</div>' +
+      '</div>';
+
+    var by = function (id) { return document.getElementById(id); };
+    by('gu-next').onclick = function () { playStop(); if (ONDONE) ONDONE(); };
+    by('gu-again').onclick = function () { AUTO = true; playAt(0); };
+    by('gu-prev').onclick = function () { AUTO = false; playAt(Math.max(0, PAT - 1)); };
+    by('gu-fwd').onclick  = function () { AUTO = false; playAt(Math.min(L.length - 1, PAT + 1)); };
+    L.forEach(function (s, i) {
+      by('gu-d' + i).onclick = function () { AUTO = false; playAt(i); };
+    });
+    /* לחיצה על הציור — הבא. */
+    by('gu-stage').onclick = function () {
+      if (PAT < L.length - 1) { AUTO = false; playAt(PAT + 1); }
+    };
+    AUTO = true;
+    playAt(0);
+  }
+
+  /* "זה צריך להיות יותר מהיר — אפשר להירדם באמצע."
+     פחות משתי שניות וחצי לשלב: מספיק לקרוא שורה ולראות את הטבעת. */
+  function dwell(i) {
+    var L = LIST || [];
+    var n = L[i] ? g(L[i][0]).length : 0;
+    return Math.max(1700, Math.min(2500, 1200 + n * 30));
+  }
+
+  function playStop() { if (PT) { clearTimeout(PT); PT = null; } }
+
+  function playAt(i) {
+    playStop();
+    var L = LIST || [];
+    /* המסך הוחלף מאז (שלב אחר במסע) — אין למי להציג. */
+    if (!HOST || !document.getElementById('gu-stage')) return;
+    PAT = i;
+    var k, s, d, last = (i === L.length - 1);
+    for (k = 0; k < L.length; k++) {
+      s = document.getElementById('gu-s' + k);
+      d = document.getElementById('gu-d' + k);
+      if (s) s.className = 'gu-step gu-slide' + (k === i ? ' on' : '');
+      if (d) d.className = 'gu-n' + (k === i ? ' on' : (k < i ? ' did' : ''));
+    }
+    var hand = function () {
+      var m = document.getElementById('gu-meter'), e = document.getElementById('gu-end');
+      if (m) m.className = 'gu-meter hand';
+      if (e) e.className = 'gu-end on';
+      var p = document.getElementById('gu-prev'), f = document.getElementById('gu-fwd');
+      if (p) p.disabled = (PAT === 0);
+      if (f) f.disabled = (PAT === L.length - 1);
+    };
+    if (!AUTO) { hand(); return; }
+    var m0 = document.getElementById('gu-meter'), e0 = document.getElementById('gu-end');
+    if (m0) m0.className = 'gu-meter';
+    if (e0) e0.className = 'gu-end';
+    if (last) {
+      /* הסוף: רגע לקרוא את השלב האחרון, ואז הניווט והכפתורים. */
+      PT = setTimeout(function () { AUTO = false; hand(); }, 900);
+      return;
+    }
+    PT = setTimeout(function () { playAt(i + 1); }, dwell(i));
+  }
+
+  function mount(host, onDone, opt) {
+    playStop();
     HOST = host; ONDONE = onDone || null;
+    PLAY = !!(opt && opt.play);
+    GO = !!(opt && opt.go);
     LIST = steps(); at = 0;
     css();
     draw();
   }
   /* פתיחה מחדש מתחילה מההתחלה: מי שחזר הנה לא השלים, והמשך
      מאמצע הוא ניחוש. */
-  function reset() { at = 0; LIST = null; }
+  function reset() { playStop(); at = 0; LIST = null; }
 
   function css() {
     if (document.getElementById('gu-css')) return;
@@ -722,9 +854,52 @@ var GUIDE_UI = (function () {
       '.gu-back{display:block;width:100%;margin-top:8px;padding:10px;border:0;',
       '  background:none;color:var(--ink-3);font-family:inherit;',
       '  font-size:.86rem;font-weight:700;text-decoration:underline;cursor:pointer}',
+      /* ---- מצב הדגמה (ראו drawPlay) ----
+         כל השלבים באותו תא; הגבוה שבהם קובע את הגובה, והמוצג
+         הוא היחיד שנראה. הצילום מוגבל גם לפי גובה המסך — בטלפון
+         נמוך הוא קטן, כדי שהשלב והכפתורים ייכנסו יחד. */
+      '.gu-stage{display:grid;cursor:pointer}',
+      '.gu-slide{grid-area:1/1;align-self:start;opacity:0;visibility:hidden;',
+      '  transform:translateY(8px);',
+      '  transition:opacity .22s ease,transform .22s ease,visibility 0s linear .22s}',
+      '.gu-slide.on{opacity:1;visibility:visible;transform:none;',
+      '  transition:opacity .22s ease .08s,transform .22s ease .08s,visibility 0s}',
+      '.gu-play .gu-pic img{max-height:290px;max-height:min(290px,32vh)}',
+      '.gu-play .gu-art{height:290px;height:min(290px,32vh)}',
+      /* המד: עיגולים ממוספרים, והנוכחי בזהב. החצים תופסים מקום
+         תמיד — כשהם מופיעים בסוף, שום דבר לא זז. */
+      '.gu-meter{display:flex;justify-content:center;align-items:center;',
+      '  gap:6px;margin:14px 0 0}',
+      '.gu-n{width:30px;height:30px;flex:none;border-radius:50%;padding:0;',
+      '  border:1.5px solid var(--rule);background:#fff;color:var(--ink-3);',
+      '  font-family:inherit;font-size:.86rem;font-weight:800;cursor:pointer;',
+      '  transition:background .2s,color .2s,border-color .2s}',
+      '.gu-n.did{border-color:var(--gold);color:var(--gold)}',
+      '.gu-n.on{background:var(--gold);border-color:var(--gold);color:#fff}',
+      '.gu-arw{width:34px;height:34px;flex:none;border:0;border-radius:50%;padding:0;',
+      '  background:var(--sunk);color:var(--blue,#17468F);font-family:inherit;',
+      '  font-size:1.5rem;font-weight:800;line-height:1;cursor:pointer;',
+      '  visibility:hidden}',
+      '.gu-meter.hand .gu-arw{visibility:visible}',
+      '.gu-arw:disabled{opacity:.3;cursor:default}',
+      '.gu-play .gu-slide h3{min-height:2.9em;display:flex;align-items:center;',
+      '  justify-content:center}',
+      /* הכפתורים תופסים את מקומם גם כשאינם נראים — כך שום דבר
+         אינו קופץ כשהם מופיעים. */
+      /* שניהם בשורה אחת: בטלפון רגיל (390×844) שורה שנייה ירדה
+         אל מתחת לקצה המסך בשלב האחרון של האייפון. */
+      '.gu-end{display:flex;gap:10px;align-items:stretch;',
+      '  visibility:hidden;opacity:0;transition:opacity .3s}',
+      '.gu-end.on{visibility:visible;opacity:1}',
+      '.gu-end .gu-go{flex:1.5;width:auto}',
+      '.gu-again{flex:1;display:block;margin-top:16px;padding:12px;',
+      '  border:1.5px solid var(--rule);border-radius:12px;background:#fff;',
+      '  color:var(--blue,#17468F);font-family:inherit;font-size:.95rem;',
+      '  font-weight:800;cursor:pointer}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
-      '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}}'
+      '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
+      '  .gu-slide,.gu-slide.on,.gu-end{transition:none;transform:none}}'
     ].join('\n');
     document.head.appendChild(st);
   }
