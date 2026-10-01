@@ -813,6 +813,11 @@ body.wz input[type=text],body.wz input[type=tel],body.wz select{
 .wagrp.quiet p{font-size:.8rem;margin-top:4px}
 .wagrp.quiet .btn{margin-top:10px;width:auto;display:inline-block;
   padding:8px 16px;font-size:.84rem}
+.notebar{display:flex;align-items:center;gap:12px;text-align:right;padding:12px 14px}
+.notebar > div{flex:1;min-width:0}
+.notebar b{display:block;font-size:.88rem;font-weight:800}
+.notebar span{display:block;font-size:.78rem;font-weight:600;color:var(--ink-2);margin-top:2px;line-height:1.5}
+.notebar .btn{margin-top:0;width:auto;flex:0 0 auto;padding:9px 14px;font-size:.84rem}
 .wagrp .ok{margin-top:11px;font-size:.86rem;font-weight:800;
   color:var(--green-d);text-align:center}
 
@@ -2743,7 +2748,7 @@ function drawApp() {
   var box = $('getapp'); if (!box) return;
   /* במסע ההתקנה וההתראות הן שלבים במד שלמעלה. הכרטיס הזה היה
      אומר את אותו דבר פעם שנייה, בתחתית המסך, ועם מספור אחר. */
-  if (WZ_ON) { box.innerHTML = ''; return; }
+  if (WZ_ON) { noteBar(box); return; }
   if (!JOIN.appTitle) { box.innerHTML = ''; return; }
   var st = appStep();
 
@@ -2830,6 +2835,54 @@ function appNoteCard(box) {
      דף חדש והשאלה נעשתה מוחשית. */
   if (sk) sk.onclick = function () { $('getapp').innerHTML = ''; };
 }
+
+/* ============================================================
+   פס העדכונים — במסך הבית, בכל פתיחה, עד שהם פעילים.
+   ============================================================
+   מי שדילג על שלב ההתראות במסע לא פגש אותו שוב לעולם: מסך הבית
+   לא הזכיר דבר, וכך נשארו כמחצית מהתלמידים בלי עדכונים. הפס
+   קטן, אינו חוסם, והלחיצה ממשיכה את המסע מהשלב הנכון — התקנה
+   או אישור — בלי מסלול חדש. */
+function noteBar(box) {
+  box.innerHTML = '';
+  if (!jt('noteBarT') || !get('me', null)) return;
+  if (/(^|\s)wz(\s|$)/.test(document.body.className)) return;
+  if (appStep() === 3) return;
+  box.innerHTML = '<div class="getapp notebar"><div><b>' + esc(jt('noteBarT')) + '</b>' +
+    (jt('noteBarB') ? '<span>' + esc(jt('noteBarB')) + '</span>' : '') + '</div>' +
+    '<button class="btn" id="nb-go">' + esc(jt('noteBarBtn')) + '</button></div>';
+  $('nb-go').onclick = function () { box.innerHTML = ''; wzStart(); };
+}
+
+/* ============================================================
+   למה אין עדכונים — שורה אחת לגיליון, רק כשהמצב משתנה.
+   ============================================================
+   מי שלא אישר לא השאיר עד עכשיו שום עקבה, ולכן "79 בלי
+   התראות" היה מספר אחד בלי הסבר. עכשיו המכשיר מדווח את הסיבה:
+   אייפון שלא הותקן, חסום, טרם אושר, או דפדפן בלי התראות. שורה
+   בלי מנוי כבר מוכרת לשליחה כ"נתון ולא נמען". */
+function noteWhy() {
+  var me = get('me', null);
+  if (!me || !me.id || noteDone()) return;
+  var why = '';
+  if (isIOS() && !standalone()) why = 'אייפון — לא הותקן';
+  else if (!canNote()) why = 'דפדפן בלי התראות';
+  else if (notePerm() === 'denied') why = 'חסום';
+  else if (notePerm() === 'granted') return;      /* noteHeal מטפל */
+  else why = 'טרם אושר';
+  var tag = me.id + '|' + why;
+  if (get('noteWhy', '') === tag) return;
+  set('noteWhy', tag);
+  queue({ action:'row', tab:'התראות', cols: JSON.stringify([
+    ['מזהה', me.id], ['שם', ((me.first || '') + ' ' + (me.last || '')).trim()],
+    ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
+    ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
+    ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
+    ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
+    ['מנוי', ''], ['תוצאה', why], ['מתי', new Date().toISOString()]
+  ]) });
+}
+setTimeout(function () { try { noteWhy(); } catch (e) {} }, 4000);
 
 /* המסע והכרטיס הישן חולקים את אותה לוגיקת התראות. הציור הוא
    מה שנפרד ביניהם, ולכן הוא עובר דרך נקודה אחת. */

@@ -262,6 +262,9 @@ body.embed .wrap{padding-top:4px}
 .dt-on{color:#1A8F4C;font-weight:800;font-size:.76rem}
 .dt-off{color:var(--ink-3);font-weight:700;font-size:.76rem}
 .wa-go{display:block;text-align:center;text-decoration:none;background:#1A8F4C !important}
+/* תזכורת לבא בתור, וההודעה לקבוצת הכיתה — כפתור מלא מחוץ לתיבה. */
+a.go.wa-go,a.rem-go{margin:6px 0 10px;padding:11px 12px;border-radius:10px;color:#fff;
+  font-weight:800;font-size:.86rem}
 .kudo.wa{border:0;cursor:pointer;font:inherit}
 .dt-del{margin-top:8px;border:1px solid #D9A1A1;background:#fff;color:#A33;border-radius:9px;
   padding:6px 12px;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}
@@ -842,7 +845,8 @@ function lfiltHtml() {
     ways.map(function (w) { return c(LWAY === w[0], w[1], 'w', w[0], n(function (p) { return p.way === w[0]; })); }).join('') +
     '</div><div class="ichips">' + c(!LPUSH, 'כולם', 'p', '') +
     c(LPUSH === 'on', '✉ עם התראות', 'p', 'on', pushK) +
-    c(LPUSH === 'off', '🔕 בלי', 'p', 'off', base.length - pushK) + '</div>';
+    c(LPUSH === 'off', '🔕 בלי', 'p', 'off', base.length - pushK) + '</div>' +
+    (LPUSH === 'off' ? whyHtml(base) + remHtml() : '');
 }
 function parInFilt(q) {
   if (FILT && (FILT === '-' ? instOfP(q) !== '-' : instOfP(q) !== FILT)) return false;
@@ -1049,8 +1053,61 @@ function pRow(p, noGrade) {
    את ההתראות". הנוסח נערך כאן, ואותו נוסח עובר לוואטסאפ. */
 var WA_OPEN = '', WA_TXT = {};
 function pstateTxt(p) {
+  /* הסיבה שהמכשיר עצמו דיווח גוברת על הניחוש — ראו noteWhy ב-join.html. */
+  if (p.pstate !== 'on' && p.why) return '🔕 ' + p.why;
   return { on: '✉ מנוי פעיל', blocked: '🔕 חסם התראות', none: 'לא נרשם להתראות',
            '?': 'מצב ההתראות לא ידוע' }[p.pstate || 'none'] || '';
+}
+/* ============================================================
+   תזכורת לבא בתור — בסינון 🔕 בלוח של הרכז.
+   ============================================================
+   וואטסאפ אינו שולח לרבים, ולכן הכפתור עובר על הרשימה: כל
+   לחיצה פותחת שיחה עם התלמיד הבא שעוד לא קיבל תזכורת השבוע,
+   עם הנוסח המוכן (waDefault), ומסמנת אותו במכשיר הזה. */
+var REM_DAYS = 7;
+function remList() {
+  var at = LGet('remAt', {}) || {}, now = Date.now();
+  return (roster || []).filter(function (p) {
+    if (p.push || !p.id || !waNum(p.phone)) return false;
+    if (FILT && (FILT === '-' ? instOfP(p) !== '-' : instOfP(p) !== FILT)) return false;
+    return !(at[p.id] && now - at[p.id] < REM_DAYS * 86400000);
+  });
+}
+function remHtml() {
+  if (!ALL || LPUSH !== 'off') return '';
+  var l = remList();
+  if (!l.length) return '<div class="lsum">' + esc(kt('remDone')) + '</div>';
+  var p = l[0];
+  return '<a class="go wa-go rem-go" target="_blank" rel="noopener" data-rem="' + esc(p.id) +
+    '" href="https://wa.me/' + waNum(p.phone) + '?text=' + encodeURIComponent(waDefault(p)) + '">' +
+    esc(tp(kt('remNext'), { name: ((p.first || '') + ' ' + (p.last || '')).trim(), n: l.length })) + '</a>';
+}
+/* בלוח של הצוות אין טלפונים, ולכן ההודעה הולכת לקבוצת הכיתה — בלי
+   שמות, עם הקישור לעמוד "איך מפעילים עדכונים". */
+function hitGrpHtml() {
+  if (ALL || EMBED || !kt('hitGrpBtn')) return '';
+  var txt = tp(kt('hitGrpMsg'), { link: baseUrl() + 'hitraot' });
+  return '<div class="card"><h3 style="font-size:.95rem">' + esc(kt('hitGrpH')) + '</h3>' +
+    '<a class="go wa-go" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+    encodeURIComponent(txt) + '">' + esc(kt('hitGrpBtn')) + '</a></div>';
+}
+function remMark(id) {
+  var at = LGet('remAt', {}) || {};
+  at[id] = Date.now(); LSet('remAt', at);
+  setTimeout(draw, 400);
+}
+/* פירוק "בלי התראות" לפי הסיבה שדווחה. */
+function whyHtml(list) {
+  var m = {}, k;
+  list.forEach(function (p) {
+    if (p.push) return;
+    k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
+    m[k] = (m[k] || 0) + 1;
+  });
+  var ks = Object.keys(m).sort(function (a, b) { return m[b] - m[a]; });
+  return ks.length ? '<div class="lsum">' + ks.map(function (x) {
+    return esc(x) + ' <b>' + m[x] + '</b>';
+  }).join(' · ') + '</div>' : '';
 }
 function waDefault(p) {
   var link = baseUrl() + 'hitraot';
@@ -1595,7 +1652,7 @@ function draw() {
        ר"ם שפתח את הלוח מוקדם ראה מסך ריק. */
     /* במסך "אנשים" — שורת הסינון שלמעלה עושה את עבודת המשבצות. */
     (EMBED ? keyHtml() : '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
-    classesHtml() + parentsHtml() +
+    classesHtml() + parentsHtml() + hitGrpHtml() +
     soonLine();
   wire();
   embedSize();
@@ -1705,6 +1762,8 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
+  var rg = document.querySelector('.rem-go');
+  if (rg) rg.onclick = function () { remMark(rg.getAttribute('data-rem')); };
   var cq = $('cls-q');
   if (cq) cq.oninput = function () {
     SRCH = cq.value;

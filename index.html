@@ -2124,7 +2124,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.94';
+var APP_VERSION = '8.99.95';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8192,6 +8192,7 @@ function admPeople(el) {
     '<div id="ppl">' +
     '<div id="ppl-stuck"></div><div id="ppl-conf"></div>' +
     '<div id="ppl-lv">' +
+      '<div id="ppl-snap"></div>' +
       '<div class="adm-card" style="margin-bottom:11px">' +
         '<div class="ppl-bar">' +
           '<input id="ppl-q" type="search" placeholder="⌕ חיפוש ישיבה" aria-label="חיפוש ישיבה" value="' + esc(ppl.q) + '">' +
@@ -8284,7 +8285,52 @@ function pplPaint() {
   document.getElementById('ppl-none').style.display = any || (!q && !ppl.f && !d.rows.length) ? 'none' : '';
 
   pplOrder();
+  pplSet('ppl-snap', pplSnap(d));
   if (open) pplOneHead(d);
+}
+
+/* ============================================================
+   תמונת מצב — הכול במקום אחד, בראש "אנשים".
+   ============================================================
+   "הייתי רוצה שהכל יהיה מרוכז לי במקום אחד." המספרים היו כאן
+   כל הזמן, אבל מפוזרים: הסכום בשורה הראשונה של הרשימה, הגמרות
+   מקופלות בתחתית, הלוח של כל הישיבות מאחורי לחיצה, והשליחה
+   בלשונית אחרת. הכרטיס הזה אומר את שלושת המספרים ופותח את שתי
+   הדלתות. */
+function pplSnap(d) {
+  var src = Store.get('rosterCache:all', null) || [];
+  var known = src.some(function (p) { return p.push != null; });
+  var pushN = src.filter(function (p) { return p.push; }).length;
+  var why = {};
+  src.forEach(function (p) {
+    if (p.push) return;
+    var k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
+    why[k] = (why[k] || 0) + 1;
+  });
+  var instN = d.rows.filter(function (x) { return x.got; }).length;
+  var ords = pplOrderList(), ordN = ords.filter(function (r) { return r.total; }).length;
+  var ordT = ords.reduce(function (a, r) { return a + (r.total || 0); }, 0);
+  var row = function (t, v, sub) {
+    return '<div class="row" style="padding:7px 0"><span>' + t +
+      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</span><b style="white-space:nowrap">' + v + '</b></div>';
+  };
+  return '<div class="adm-card" style="margin-bottom:11px"><h4>תמונת מצב</h4>' +
+    row('נרשמו', d.tot + ' תלמידים', 'מ-' + instN + ' ישיבות · לכל ישיבה — ברשימה למטה') +
+    (known ? row('עם התראות', pushN + ' מתוך ' + src.length,
+      Object.keys(why).sort(function (a, b) { return why[b] - why[a]; }).map(function (k) {
+        return esc(k) + ' ' + why[k];
+      }).join(' · ')) : '') +
+    row('הזמנת גמרות', ordN + ' ישיבות · ' + ordT + ' גמרות',
+        '<a href="#" onclick="var o=document.getElementById(\'ppl-ord\');if(o){o.open=true;o.scrollIntoView({behavior:\'smooth\'});}return false">לפירוט ←</a>') +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+    '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'\')">כל התלמידים · שליחה אישית ←</button>' +
+    '<button class="btn g" style="flex:1 1 12rem" onclick="admSubGo(\'push\')">שליחת התראה ←</button>' +
+    '</div></div>';
+}
+function pplOrderList() {
+  var list = (Store.get('registrations', []) || []).slice(), own = regSaved();
+  if (own && !list.some(function (r) { return r.code === own.code; })) list = [own].concat(list);
+  return list;
 }
 
 /* הזמנת הגמרות — מה שישב בראש "הרשמות", מקופל בתחתית הרשימה. */
@@ -8318,7 +8364,19 @@ function pplOrder() {
       (p.min && gap > 0
         ? ' <span style="font-weight:600;color:var(--ink-3)">(חסרים ' + gap + ')</span>'
         : p.min ? ' ✓' : '') + '</b></div>';
-  }).join('') + '<p class="h" style="margin:9px 0 0">סה"כ להזמנה: ' + shek(sum) + '</p>');
+  }).join('') + '<p class="h" style="margin:9px 0 0">סה"כ להזמנה: ' + shek(sum) + '</p>' +
+    /* מי הזמין — ישיבה ישיבה. "אני לא רואה איזה ישיבות הזמינו." */
+    '<div class="foldh" style="margin-top:12px">לפי ישיבה</div>' +
+    list.filter(function (r) { return r.total; })
+      .sort(function (a, b) { return (b.total || 0) - (a.total || 0); })
+      .map(function (r) {
+        return '<div class="row" style="padding:6px 0"><span>' + esc(pplName(r.code, r)) +
+          (r.who ? '<div class="sub">' + esc(r.who) + '</div>' : '') + '</span><b>' + r.total + '</b></div>';
+      }).join('') +
+    (list.some(function (r) { return !r.total; })
+      ? '<p class="h" style="margin:8px 0 0">נרשמו בלי הזמנה: ' +
+        list.filter(function (r) { return !r.total; }).map(function (r) { return esc(pplName(r.code, r)); }).join(' · ') + '</p>'
+      : ''));
 }
 
 /* ראש הישיבה הפתוחה: המספרים, ומי נרשם בשמה — מה שהיה בכרטיס
