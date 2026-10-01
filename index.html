@@ -1588,6 +1588,19 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .ppl-r2 select{flex:0 1 auto;max-width:60%;font:inherit;font-size:.82rem;padding:7px 10px;
   border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink)}
 .ppl-msg{font-size:.78rem;color:var(--ink-3);font-weight:700;margin-top:8px}
+/* "התלמידים שלי" — שני המספרים בראש המסך. */
+.mine-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mine-h h4{margin:0}
+.mine-pick{flex:0 1 auto;max-width:62%;font:inherit;font-size:.84rem;font-weight:700;padding:8px 10px;
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink)}
+.mine-n{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.mine-n div{background:var(--surface-2);border-radius:13px;padding:13px 8px 11px;text-align:center;
+  display:flex;flex-direction:column;gap:3px}
+.mine-n b{font-size:2.1rem;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--blue-d)}
+.mine-n span{font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.mine-n i{font-style:normal;font-size:.72rem;font-weight:700;color:var(--ink-3);line-height:1.35}
+.mine-st{font-size:.76rem;color:var(--ink-3);font-weight:700;margin:8px 0 2px}
+.mine-note{font-size:.72rem;color:var(--ink-3);font-weight:600;margin:10px 0 0;line-height:1.5}
 .ppl-msg:empty{display:none}
 .pr{display:flex;align-items:center;gap:8px;width:100%;text-align:start;border:0;
   border-bottom:1px solid var(--rule-2);background:none;padding:11px 2px;font:inherit;
@@ -2124,7 +2137,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.96';
+var APP_VERSION = '8.99.97';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7967,8 +7980,10 @@ function admSubBar() {
   var now = admSubNow();
   return '<div class="tabs sub" style="margin-bottom:12px">' +
     list.map(function (t) {
+      /* "התלמידים שלי" — השם מהנוסחים, כדי שיהיה ניתן לעריכה. */
+      var lbl = t[0] === 'people' ? UI.mineTab : t[1];
       return '<button class="' + (now === t[0] ? 'on' : '') +
-             '" onclick="admSubGo(\'' + t[0] + '\')">' + t[1] + '</button>';
+             '" onclick="admSubGo(\'' + t[0] + '\')">' + lbl + '</button>';
     }).join('') + '</div>';
 }
 
@@ -8115,7 +8130,7 @@ window.addEventListener('message', function (e) {
    בהודעה, ורענון מעדכן רק שורות שהשתנו — בלי הבהוב, ובלי לאבד
    חיפוש, מסנן או ישיבה פתוחה.
    ============================================================ */
-var ppl = { q:'', f:'', open:null, y:0, boardMsg:'', boardAt:0 };
+var ppl = { q:'', f:'', open:null, y:0, boardMsg:'', boardAt:0, mine:'' };
 var pplLast = {};
 /* innerHTML רק כשהתוכן השתנה — אחרת לא נוגעים. */
 function pplSet(id, html) {
@@ -8142,7 +8157,11 @@ function pplData() {
   var src = Store.get('rosterCache:all', null);
   if (!src) src = (Store.get('partCache', []) || []).filter(function (p) { return p.role !== 'הורה'; });
   var n = {}, tot = 0;
-  src.forEach(function (p) { var c = pplCode(p.inst); n[c] = (n[c] || 0) + 1; tot++; });
+  /* משתמשי בדיקה אינם נספרים — הם עדיין ברשימה שבלוח, עם התגית. */
+  src.forEach(function (p) {
+    if (p.test) return;
+    var c = pplCode(p.inst); n[c] = (n[c] || 0) + 1; tot++;
+  });
   var regs = (Store.get('registrations', []) || []).slice(), own = regSaved(), reg = {};
   if (own && own.code && !regs.some(function (r) { return r.code === own.code; })) regs.unshift(own);
   regs.forEach(function (r) { if (r.code) reg[r.code] = r; });
@@ -8271,8 +8290,9 @@ function pplPaint() {
     var h = pplRowHtml(x);
     if (b._h !== h) { b._h = h; b.innerHTML = h; }
     var vis = x.c === ''
-      ? !q && !ppl.f
-      : (!ppl.f || x.gap) && (!q || nameKey(x.name).indexOf(q) >= 0);
+      ? !q && !ppl.f && !ppl.mine
+      : (!ppl.f || x.gap) && (!q || nameKey(x.name).indexOf(q) >= 0) &&
+        (!ppl.mine || x.c === ppl.mine);
     if (vis && x.c !== '') any = true;
     var dsp = vis ? '' : 'none';
     if (b.style.display !== dsp) b.style.display = dsp;
@@ -8297,35 +8317,106 @@ function pplPaint() {
    מקופלות בתחתית, הלוח של כל הישיבות מאחורי לחיצה, והשליחה
    בלשונית אחרת. הכרטיס הזה אומר את שלושת המספרים ופותח את שתי
    הדלתות. */
-function pplSnap(d) {
-  var src = Store.get('rosterCache:all', null) || [];
-  var known = src.some(function (p) { return p.push != null; });
-  var pushN = src.filter(function (p) { return p.push; }).length;
-  var why = {};
+
+/* ============================================================
+   "התלמידים שלי" — שני מספרים, ובורר ישיבה שמשנה אותם.
+   ============================================================
+   "אני כן כרגע במתח לדעת כמה הורים נרשמים כמה ילדים נרשמים."
+   התלמידים — מהרשימה שהלוח שומר במכשיר (rosterCache:all).
+   ההורים — מי שמחובר לתלמיד (p.par, מהשרת), ועוד מי שנרשם כהורה
+   ועדיין לא חובר (parentsCache:all, נשמר בלוח). לפי מזהה, ולכן
+   הורה עם שני ילדים נספר פעם אחת. שם שהתלמיד מילא בטופס
+   (p.with) **אינו** הרשמת הורה ואינו נספר.
+
+   קריאה שנכשלה אינה אפס: המטמון נשאר, והשורה אומרת שזה מה
+   שנשמר. רק כשלא נקרא כלום מעולם — מקף, לא 0.
+   ============================================================ */
+function pplMineN(c) {
+  var src = Store.get('rosterCache:all', null);
+  if (!src) return null;
+  var par = Store.get('parentsCache:all', null);
+  var o = { kids:0, con:0, loose:0, parKnown: !!par, push:0, known:false, why:{}, inst:{} };
+  var seen = {};
   src.forEach(function (p) {
-    if (p.push) return;
-    var k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
-    why[k] = (why[k] || 0) + 1;
+    if (p.test || p.role === 'הורה') return;
+    var pc = pplCode(p.inst);
+    if (c && pc !== c) return;
+    o.kids++; o.inst[pc] = 1;
+    if (p.push != null) o.known = true;
+    if (p.push) o.push++;
+    else {
+      var k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
+      o.why[k] = (o.why[k] || 0) + 1;
+    }
+    if (p.par && p.par.id && !seen[p.par.id]) { seen[p.par.id] = 1; o.con++; }
   });
-  var instN = d.rows.filter(function (x) { return x.got; }).length;
-  var ords = pplOrderList(), ordN = ords.filter(function (r) { return r.total; }).length;
-  var ordT = ords.reduce(function (a, r) { return a + (r.total || 0); }, 0);
+  (par || []).forEach(function (p) {
+    if (p.test || !p.id || seen[p.id]) return;
+    if (c && pplCode(p.inst) !== c) return;
+    seen[p.id] = 1; o.loose++;
+  });
+  return o;
+}
+function pplMinePick(c) { ppl.mine = c; pplPaint(); }
+function pplSnap(d) {
+  var c = ppl.mine, n = pplMineN(c);
+  /* הבורר — כל הישיבות בתוכנית, לפי שם; "ללא ישיבה" רק כשיש כאלה. */
+  var all = pplMineN('') || { inst:{} };
+  var cnt = {};
+  d.rows.forEach(function (x) { cnt[x.c] = x.got; });
+  var insts = INSTITUTIONS.slice().sort(function (a, b) {
+    return String(a.name).localeCompare(String(b.name), 'he');
+  });
+  var opt = function (v, t) {
+    return '<option value="' + esc(v) + '"' + (v === c ? ' selected' : '') + '>' + esc(t) +
+      (v && cnt[v] ? ' (' + cnt[v] + ')' : '') + '</option>';
+  };
+  var sel = '<select class="mine-pick" aria-label="' + esc(UI.mineAll) + '" ' +
+    'onchange="pplMinePick(this.value)">' + opt('', UI.mineAll) +
+    insts.map(function (i) { return opt(i.code, i.name); }).join('') +
+    (all.inst['-'] || c === '-' ? opt('-', UI.mineNoInst) : '') + '</select>';
+
+  /* מצב הקריאה — טרי, טוען, או מה שנשמר אחרי כישלון. */
+  var st;
+  if (ppl.boardMsg) st = UI.mineFail.replace('{m}', ppl.boardMsg) + (n ? ' · ' + UI.mineOld : '');
+  else if (ppl.boardAt) st = UI.mineAt.replace('{t}', whenTxt(ppl.boardAt));
+  else st = UI.mineLoad + (n ? ' · ' + UI.mineOld : '');
+
+  var parN = n ? n.con + (n.parKnown ? n.loose : 0) : null;
+  var tile = function (v, t, sub) {
+    return '<div><b>' + (v === null ? '—' : v) + '</b><span>' + esc(t) + '</span>' +
+      (sub ? '<i>' + esc(sub) + '</i>' : '') + '</div>';
+  };
+  var instN = n ? Object.keys(n.inst).filter(function (k) { return k !== '-'; }).length : 0;
+
   var row = function (t, v, sub) {
     return '<div class="row" style="padding:7px 0"><span>' + t +
       (sub ? '<div class="sub">' + sub + '</div>' : '') + '</span><b style="white-space:nowrap">' + v + '</b></div>';
   };
-  return '<div class="adm-card" style="margin-bottom:11px"><h4>תמונת מצב</h4>' +
-    row('נרשמו', d.tot + ' תלמידים', 'מ-' + instN + ' ישיבות · לכל ישיבה — ברשימה למטה') +
-    (known ? row('עם התראות', pushN + ' מתוך ' + src.length,
-      Object.keys(why).sort(function (a, b) { return why[b] - why[a]; }).map(function (k) {
-        return esc(k) + ' ' + why[k];
+  var ords = pplOrderList().filter(function (r) { return !c || r.code === c; });
+  var ordN = ords.filter(function (r) { return r.total; }).length;
+  var ordT = ords.reduce(function (a, r) { return a + (r.total || 0); }, 0);
+
+  return '<div class="adm-card" style="margin-bottom:11px">' +
+    '<div class="mine-h"><h4>' + esc(UI.mineTab) + '</h4>' + sel + '</div>' +
+    '<div class="mine-n">' +
+      tile(n ? n.kids : null, UI.mineKids, n && !c ? UI.mineFrom.replace('{n}', instN) : '') +
+      tile(parN, UI.minePars, n && n.parKnown
+        ? UI.mineParSub.replace('{c}', n.con).replace('{l}', n.loose) : '') +
+    '</div>' +
+    '<div class="mine-st">' + esc(n || ppl.boardMsg || ppl.boardAt ? st : UI.mineNone) + '</div>' +
+    (n && n.known ? row('עם התראות', n.push + ' מתוך ' + n.kids,
+      Object.keys(n.why).sort(function (a, b) { return n.why[b] - n.why[a]; }).map(function (k) {
+        return esc(k) + ' ' + n.why[k];
       }).join(' · ')) : '') +
     row('הזמנת גמרות', ordN + ' ישיבות · ' + ordT + ' גמרות',
         '<a href="#" onclick="var o=document.getElementById(\'ppl-ord\');if(o){o.open=true;o.scrollIntoView({behavior:\'smooth\'});}return false">לפירוט ←</a>') +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-    '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'\')">כל התלמידים · שליחה אישית ←</button>' +
+    (c ? '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'' + esc(c) + '\')">' + esc(UI.mineOpen) + '</button>'
+       : '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'\')">כל התלמידים · שליחה אישית ←</button>') +
     '<button class="btn g" style="flex:1 1 12rem" onclick="admSubGo(\'push\')">שליחת התראה ←</button>' +
-    '</div></div>';
+    '</div>' +
+    '<p class="mine-note">' + esc(UI.mineTest) + '</p></div>';
 }
 function pplOrderList() {
   var list = (Store.get('registrations', []) || []).slice(), own = regSaved();
@@ -8617,7 +8708,7 @@ function needsResend(sid) {
 }
 /* "לאימות" — הרשימה של כל הישיבות, עם כל מי שממתין. */
 function accGo() {
-  ppl.open = ''; ppl.q = ''; ppl.f = '';
+  ppl.open = ''; ppl.q = ''; ppl.f = ''; ppl.mine = '';
   if (admSubNow() === 'people' && document.getElementById('ppl')) return pplOpen('');
   admSubGo('people');
 }

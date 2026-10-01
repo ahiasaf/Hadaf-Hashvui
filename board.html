@@ -654,6 +654,9 @@ function loadRoster() {
     rosterMsg = '';
     LSet('rosterCache:' + code, roster);
     if (ALL) { rosterAll = roster; PARENTS = d.parents || null; applyFilt(); }
+    /* ההורים שלא חוברו — לספירה שבראש "התלמידים שלי" בניהול.
+       רק כשהשרת שלח רשימה: בלעדיה המטמון הקודם נשאר. */
+    if (ALL && d.parents && d.parents.length != null) LSet('parentsCache:all', d.parents);
     return roster;
   }).catch(function () { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; });
 }
