@@ -2076,7 +2076,20 @@ function fArrived(item) {
     .catch(function () { return false; });
 }
 var F_TRIES = 0;   /* בטעינה הזו בלבד — ראו learned.js: L_TRIES */
+/* **ניסיון חוזר בזמן שהמסך פתוח.** בגל הרשמות (קישור שנשלח
+   לאלפים) הכתיבות בשרת עומדות בתור אחת אחרי השנייה, ומי שחיכה
+   יותר מעשרים שניות נדחה. עד עכשיו השורה שלו חיכתה לפתיחה
+   הבאה של הדף — ומי שלא חזר, לא נספר. עכשיו: עוד ניסיון אחרי
+   חצי דקה, ועוד אחד אחרי דקה. השליחה החוזרת דורסת את אותה
+   שורה (upsertCols_), ולכן אינה מכפילה. */
+var F_WAIT = [30000, 60000], F_TIMER = 0;
+function fRetry() {
+  if (F_TIMER || F_TRIES >= 3) return;
+  F_TIMER = setTimeout(function () { F_TIMER = 0; flush(); },
+                       F_WAIT[F_TRIES - 1] || 60000);
+}
 function flush() {
+  if (F_TIMER) { clearTimeout(F_TIMER); F_TIMER = 0; }
   var q = get('join-q', []) || [];
   if (!q.length || !API || !navigator.onLine) return;
   if (F_TRIES >= 3) return;
@@ -2089,7 +2102,7 @@ function flush() {
     })
     .then(function () { return fArrived(item); })
     .then(function (ok) {
-      if (!ok) { F_TRIES++; return; }        /* נשאר בתור לפעם הבאה */
+      if (!ok) { F_TRIES++; fRetry(); return; }   /* נשאר בתור — וינסה שוב */
       var rest = get('join-q', []) || [];
       rest.shift();
       set('join-q', rest);
@@ -2102,7 +2115,7 @@ function flush() {
         });
       }
       flush();
-    }).catch(function () {});
+    }).catch(function () { F_TRIES++; fRetry(); });
 }
 window.addEventListener('online', flush);
 
