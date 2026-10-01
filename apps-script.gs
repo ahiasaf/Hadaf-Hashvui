@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 42;
+var SCRIPT_VERSION = 43;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -328,6 +328,13 @@ function doPost(e) {
          ניסיון-מחדש). */
       /* ואותו אדם ממכשיר אחר — נבלע בשורה שלו. ראו canonJoinCols_. */
       var jcols = parse_(d.cols);
+      /* **קריאה אחת של "לומדים" לכל הרשמה, ולא שלוש.** עד עכשיו
+         כל הרשמה קראה את כל הלשונית שלוש פעמים — לזיהוי כפילות,
+         לחיפוש השורה, ולספירה מחדש — וכל זה בתוך הנעילה, כלומר
+         כל קריאה האריכה את התור של כל מי שאחריו. ראו joinWrite_. */
+      if (!d.ss) {
+        try { return joinWrite_(jcols); } catch (jwe) {}
+      }
       try { jcols = canonJoinCols_(jcols); } catch (cje) {}
       return upsertCols_(d.tab, jcols, 'מזהה', d.ss);
     }
@@ -883,6 +890,26 @@ function doGet(e) {
 
   if (e && e.parameter && e.parameter.arrived) {
     var aid = String(e.parameter.arrived), aHas = false;
+    /* **שורת ההתראות — האם הגיעה, עם מנוי.** עד עכשיו היא יצאה
+       `no-cors` ובלי שום בדיקה: מי שהשורה שלו נדחתה בתור נראה
+       בטלפון "מחובר", ובגיליון — בלי התראות, לתמיד. כאן נשאלת
+       רק עמודת המזהה ועמודת המנוי, מהסוף להתחלה. */
+    if (e.parameter.push) {
+      try {
+        var psh0 = sheet_('התראות'), ph0 = headers_(psh0);
+        var pi0 = ph0.indexOf('מזהה'), pm0 = ph0.indexOf('מנוי');
+        if (aid && pi0 >= 0 && pm0 >= 0 && psh0.getLastRow() > 1) {
+          var pn0 = psh0.getLastRow() - 1;
+          var pids0 = psh0.getRange(2, pi0 + 1, pn0, 1).getValues();
+          var psub0 = psh0.getRange(2, pm0 + 1, pn0, 1).getValues();
+          for (var pz = pn0 - 1; pz >= 0; pz--) {
+            if (String(pids0[pz][0] || '').trim() === aid &&
+                String(psub0[pz][0] || '').trim()) { aHas = true; break; }
+          }
+        }
+      } catch (pe0) {}
+      return reply_(e, { status: 'ok', has: aHas, push: 1 });
+    }
     try {
       if (aid) {
         var ash = sheet_(JOIN_TAB);
@@ -1500,6 +1527,52 @@ function upsertCols_(tab, cols, keyName, ssId) {
     }
   }
   return appendCols_(tab, cols, ssId);
+}
+
+/* ============================================================
+   הרשמה ל"לומדים" — אותה תוצאה כמו canonJoinCols_ + upsertCols_
+   + recount_, בקריאה מלאה אחת של הלשונית.
+   ============================================================
+   הטבלה שנקראה לזיהוי הכפילות משמשת גם לחיפוש השורה וגם
+   לספירה מחדש: השורה שנכתבה מעודכנת גם בזיכרון, והמונה נספר
+   ממנה. מהגיליון נקראת מעבר לזה רק השורה הבודדת שנדרסת
+   (בערכים האמיתיים, לא בתצוגה — כדי שתאריך יישאר תאריך).
+   לשונית ריקה — המסלול הרגיל, כמו קודם.
+   ============================================================ */
+function joinWrite_(cols) {
+  var t = joinTable_();
+  if (t.rows.length < 2) {
+    try { cols = canonJoinCols_(cols, t); } catch (ce) {}
+    return upsertCols_(JOIN_TAB, cols, 'מזהה');
+  }
+  try { cols = canonJoinCols_(cols, t); } catch (ce2) {}
+  var sh = t.sh, head = t.rows[0].map(function (h) { return String(h).trim(); });
+  var ixKey = head.indexOf('מזהה'), keyVal = '';
+  cols.forEach(function (c) { if (c && c[0] === 'מזהה') keyVal = String(c[1] || '').trim(); });
+  var found = -1;
+  if (ixKey >= 0 && keyVal) {
+    for (var r = 1; r < t.rows.length; r++) {
+      if (String(t.rows[r][ixKey] || '').trim() === keyVal) { found = r; break; }
+    }
+  }
+  var row = found > 0 ? sh.getRange(found + 1, 1, 1, head.length).getValues()[0] : [];
+  put_(row, idx_(sh, head, 'תאריך'), new Date());
+  cols.forEach(function (c) {
+    if (!c || c[0] == null || c[0] === '') return;
+    put_(row, idx_(sh, head, String(c[0])), cell_(c[1]));
+  });
+  for (var k = 0; k < row.length; k++) if (row[k] === undefined) row[k] = '';
+  if (found > 0) sh.getRange(found + 1, 1, 1, row.length).setValues([row]);
+  else sh.appendRow(row);
+
+  /* אותה שורה בזיכרון, כמחרוזות — הספירה קוראת ממנה. */
+  var disp = row.map(function (v) { return v instanceof Date ? v.toISOString() : String(v); });
+  t.rows[0] = head.slice();
+  if (found > 0) t.rows[found] = disp; else t.rows.push(disp);
+  recountRows_(t.rows);
+  return found > 0
+    ? json_({ status: 'success', tab: JOIN_TAB, columns: row.length, updated: true })
+    : json_({ status: 'success', tab: JOIN_TAB, columns: row.length });
 }
 
 /* ============================================================
@@ -2133,6 +2206,10 @@ function boardData_(inst, k, withTest, inner) {
           (idsOf[x] || [x]).forEach(function (y) { if (parIds.indexOf(y) < 0) parIds.push(y); });
         });
         if (inner) { p._ids = idsOf[pid] || [pid]; p._par = parIds; }
+        /* **כל ההורים, ולא רק הראשון.** `par` למטה הוא ההורה
+           הראשון בלבד (לשורה הנפתחת); הספירה בניהול צריכה את
+           כולם — תלמיד שאבא ואמא שניהם נרשמו נספר עם שניים. */
+        if (all) p.pars = ((pm[pid] && pm[pid].pids) || []).slice();
         if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
         /* מצב ההתראות: 'on' מנוי פעיל · 'blocked' דיווח חסימה · 'none'
            לא נרשם · '?' יש שורה בלי מנוי ובלי סיבה. */
@@ -2364,7 +2441,7 @@ function aliasMap_(rows) {
 /* לפני כתיבה ל"לומדים": אם המזהה כבר מוכר כנבלע — כותבים על
    הקבוע. אם אינו מוכר אבל האדם מוכר — נבלעים בו. אחרת — כמו
    תמיד, שורה משלו. */
-function canonJoinCols_(cols) {
+function canonJoinCols_(cols, t0) {
   var get = function (n) {
     for (var i = 0; i < cols.length; i++) if (cols[i] && cols[i][0] === n) return String(cols[i][1] || '').trim();
     return '';
@@ -2375,7 +2452,7 @@ function canonJoinCols_(cols) {
   };
   var id = get('מזהה');
   if (!id || id.indexOf(':k') >= 0) return cols;
-  var t = joinTable_();
+  var t = t0 || joinTable_();
   if (t.rows.length < 2) return cols;
   var r = rowOfId_(t, id);
   if (r >= 1) {
@@ -2658,7 +2735,15 @@ function recount_() {
       writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'], []);
       return;
     }
-    var rows = studentRows_(src.getDataRange().getDisplayValues());
+    recountRows_(src.getDataRange().getDisplayValues());
+  } catch (err) {}          /* מונה שנכשל לא יפיל הרשמה של תלמיד */
+}
+
+/* הספירה עצמה, על שורות שכבר נקראו — כדי שההרשמה (joinWrite_)
+   לא תקרא את כל הלשונית פעם נוספת רק בשביל המונה. */
+function recountRows_(all) {
+  try {
+    var rows = studentRows_(all);
 
     /* סך המצטרפים לכל ישיבה */
     var t = tally_(rows, ['קוד ישיבה'], 'מזהה');
@@ -2926,12 +3011,15 @@ function headRow_(sh, cols) {
   sh.setFrozenRows(1);
 }
 
+var SS_OPEN_ = {};
 function sheet_(tab, ssId) {
   /* מפורש גובר, ואחריו הניתוב לפי שם הלשונית. בלי הניתוב הזה כל
      כתיבה של פרטים אישיים הייתה תלויה בכך שהצד ששלח אותה ידע
      לאן — והתלמיד אינו יודע. */
   var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
-  var ss = id ? SpreadsheetApp.openById(String(id))
+  /* פתיחה אחת לכל גיליון בכל הרצה. הרשמה אחת פתחה את הגיליון
+     הסגור שלוש-ארבע פעמים, וכל פתיחה עולה זמן בתוך הנעילה. */
+  var ss = id ? (SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id))))
               : SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheetByName(tab) || ss.insertSheet(tab);
 }

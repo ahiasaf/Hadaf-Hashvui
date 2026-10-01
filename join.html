@@ -2968,12 +2968,45 @@ function noteHeal() {
      כלומר מי שנפל בשיא לא היה מקבל התראות לעולם. לא באותן
      דקות (זה רק מוסיף לשיא), אלא בפתיחה שאחרי עשר דקות לפחות.
      כפילות אינה מזיקה: השליחה מסננת מנוי שחוזר (push-send.js). */
-  var me = get('me', null) || {}, re = '', at = 0;
-  try { re = localStorage.getItem('df:noteRe') || '';
+  var me = get('me', null) || {}, at = 0, ok = '', n = 0;
+  try { ok = localStorage.getItem('df:noteOk') || '';
+        n  = +(localStorage.getItem('df:noteReN') || 0);
         at = +(localStorage.getItem('df:noteAt') || 0); } catch (e) {}
-  if (re === (me.id || '1') || (at && Date.now() - at < 600000)) return;
-  try { localStorage.setItem('df:noteRe', me.id || '1'); } catch (e) {}
+  /* השרת אישר שהשורה עם המנוי בגיליון — אין מה לשלוח שוב.
+     עד שאישר: עוד ניסיון בפתיחה מאוחרת (עשר דקות לפחות אחרי
+     הראשונה), עד חמש פתיחות — ובכל אחת אותה בדיקה (noteVerify). */
+  if (ok === (me.id || '1') || n >= 5 || (at && Date.now() - at < 600000)) return;
+  try { localStorage.setItem('df:noteReN', String(n + 1)); } catch (e) {}
   appSubscribe(true);
+}
+
+/* ============================================================
+   שורת ההתראות — האם באמת הגיעה לגיליון.
+   ============================================================
+   השורה יוצאת `no-cors`, כלומר "נשלח" אינו אומר דבר. כמה
+   שניות אחרי השליחה שואלים את השרת אם יש בלשונית ההתראות שורה
+   עם המזהה הזה **ועם מנוי**. אם לא — שולחים שוב ובודקים שוב,
+   אחרי חצי דקה ואחרי דקה. אישור נשמר במכשיר (noteOk), ורק
+   מכשיר שלא אושר ינסה שוב בפתיחה הבאה (noteHeal). שרת ישן,
+   שאינו מכיר את השאלה, אינו עונה `push` — ואז אין ניסיון חוזר. */
+var NOTE_WAIT = [4000, 30000, 60000];
+function noteVerify(payload, n) {
+  var me = get('me', null) || {};
+  if (!API || !me.id || typeof LJsonp !== 'function' || n >= NOTE_WAIT.length) return;
+  setTimeout(function () {
+    LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'arrived=' +
+           encodeURIComponent(me.id) + '&push=1')
+      .then(function (r) {
+        if (r && r.status === 'ok' && r.has) {
+          try { localStorage.setItem('df:noteOk', me.id); } catch (e) {}
+          return;
+        }
+        if (!r || r.push !== 1) return;
+        if (n + 1 >= NOTE_WAIT.length) return;
+        fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify(payload) })['catch'](function () {});
+        noteVerify(payload, n + 1);
+      })['catch'](function () { noteVerify(payload, n + 1); });
+  }, NOTE_WAIT[n]);
 }
 setTimeout(function () { try { noteHeal(); } catch (e) {} }, 1500);
 /* הכניסה עצמה — רק של מי שעוד לא נרשם. מי שכבר רשום וחוזר אינו
@@ -2987,7 +3020,7 @@ function appSubscribe(quiet) {
     var me = get('me', null) || {};
     /* דרך התור ולא ב-fetch ישיר: הוא שורד רשת שנפלה באמצע,
        בדיוק כמו שורת ההרשמה עצמה. */
-    queue({ action:'row', tab:'התראות', cols: JSON.stringify([
+    var payload = { action:'row', tab:'התראות', cols: JSON.stringify([
       ['מזהה', me.id || ''], ['שם', ((me.first || '') + ' ' + (me.last || '')).trim()],
       ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
       ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
@@ -2998,7 +3031,9 @@ function appSubscribe(quiet) {
       ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
       ['מנוי', JSON.stringify(sub)], ['תוצאה', 'נרשם'],
       ['מתי', new Date().toISOString()]
-    ]) });
+    ]) };
+    queue(payload);
+    noteVerify(payload, 0);
     /* הכתיבה `no-cors` ואטומה, ולכן היא אינה ראיה לכלום. מה
        שנאמר למסך הוא רק מה שנכון מקומית: האישור ניתן והמנוי
        נוצר. ההתראה עצמה היא האישור האמיתי. */

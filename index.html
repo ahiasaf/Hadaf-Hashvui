@@ -1601,6 +1601,38 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .mine-n i{font-style:normal;font-size:.72rem;font-weight:700;color:var(--ink-3);line-height:1.35}
 .mine-st{font-size:.76rem;color:var(--ink-3);font-weight:700;margin:8px 0 2px}
 .mine-note{font-size:.72rem;color:var(--ink-3);font-weight:600;margin:10px 0 0;line-height:1.5}
+/* "עוד" — רשימה מקובצת לפי מטרה. */
+.mo-g{margin-bottom:11px}
+.mo-g summary{cursor:pointer;font-weight:800;font-size:.95rem;color:var(--ink-2)}
+.mo-i{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:0;
+  border-bottom:1px solid var(--rule-2);background:none;padding:12px 2px;font:inherit;font-size:.92rem;
+  font-weight:800;color:var(--ink);cursor:pointer;text-align:start}
+.mo-i:last-child{border-bottom:0}
+.mo-i:active{background:var(--surface-2)}
+.mo-i i{font-style:normal;color:var(--ink-3);font-size:1.1rem}
+.mo-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.mo-top b{font-size:1rem;font-weight:800}
+/* הסבר מקופל — "תצוגה" ו"מתקדם" בשליחה. */
+.hx{margin:2px 0 6px}
+.hx summary{cursor:pointer;font-size:.78rem;font-weight:800;color:var(--blue)}
+.hx[open] summary{margin-bottom:4px}
+/* כרטיס ישיבה מצומצם. */
+.ct-who{font-size:.78rem;font-weight:700;color:var(--ink-3);margin-top:2px}
+.ct-st{font-size:.8rem;font-weight:700;color:var(--ink-2);margin-top:8px}
+.ct-sb{font-weight:800;color:var(--blue-d)}
+.ct-sb.w{color:#8A5A0C}.ct-sb.j{color:#2B6343}.ct-sb.x{color:var(--ink-3)}
+.ct-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap}
+.ct-rd{display:flex;align-items:center;gap:7px;font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.ct-rd input{width:19px;height:19px}
+.ct-sel{font:inherit;font-size:.84rem;font-weight:700;padding:7px 10px;border:1px solid var(--rule);
+  border-radius:10px;background:var(--surface);color:var(--ink)}
+.ct-d{margin-top:8px;border-top:1px solid var(--rule-2);padding-top:7px}
+.ct-d summary{cursor:pointer;font-size:.82rem;font-weight:800;color:var(--ink-2)}
+/* שליחה — למי זה יגיע, ויומן מקובץ. */
+.send-to{font-size:.82rem;font-weight:800;color:var(--blue-d);background:var(--surface-2);
+  border-radius:10px;padding:9px 11px;margin:4px 0 2px}
+.slog-x{margin-top:5px;font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.slog-x summary{cursor:pointer;color:var(--ink-2)}
 .ppl-msg:empty{display:none}
 .pr{display:flex;align-items:center;gap:8px;width:100%;text-align:start;border:0;
   border-bottom:1px solid var(--rule-2);background:none;padding:11px 2px;font:inherit;
@@ -2141,7 +2173,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.97';
+var APP_VERSION = '8.99.98';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6343,62 +6375,43 @@ function renderCalls() {
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
 
   var regs = regByInst(), subs = subsByInst();
+  /* התיעוד האחרון לכל ישיבה — מהיומן, פעם אחת לכל הציור. */
+  var jLast = {};
+  (Store.get('callJournal', []) || []).forEach(function (e) {
+    if (e && e.k && (!jLast[e.k] || (e.at || '') > jLast[e.k])) jLast[e.k] = e.at || '';
+  });
+  /* ============================================================
+     כרטיס מצומצם — מצב אחד עכשיו, פירוט כשצריך.
+     ============================================================
+     התוכנית הארגונית, עמוד 7: בכרטיס היו יחד שלב, תגיות,
+     פעולות שיחה, מידע התקנה, סבב, עדכון והערה — וכל פריט נראה
+     כאילו צריך להחליט עליו עכשיו. נשאר גלוי: מי, באיזה מצב,
+     מתי דיברנו לאחרונה, כמה הוזמן, ושני כפתורי השיחה. הסבב
+     ושינוי המצב בשורה אחת. צוות, תגיות והערה — נפתחים.
+     הפעולות עצמן (setStage, tagTick, setNote…) לא השתנו. */
   shown.forEach(function (o) {
     var c = o.c, i = o.i;
     var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
+    var reg = regOf(c, regs), who = subsOf(c, subs);
+    var stg = STAGES.filter(function (x) { return x.k === c.stage; })[0] || STAGES[0];
+    var la = jLast[nameKey(c.key || c.name)];
+    var laT = la ? Date.parse(la) : 0;
 
     h += '<div class="ct s-' + c.stage + (tagOn(c, 'called') ? ' done' : '') +
-         '"><div class="h"><div>' +
+         '" data-ci="' + i + '"><div class="h"><div style="min-width:0">' +
          '<div class="nm">' + esc(c.name) + '</div>' +
+         (me && me.name ? '<div class="ct-who">' + esc(me.name) + (me.role ? ' · ' + esc(me.role) : '') + '</div>' : '') +
          '</div><div style="display:flex;gap:6px;align-items:center">' +
          (c.last ? '<span class="last">תשפ"ו</span>' : '') +
-         (regOf(c, regs) ? '<span class="signed" title="נרשם דרך האפליקציה">\u2691 נרשם</span>' : '') +
-         (subsOf(c, subs).length
-           ? '<span class="signed inst" title="התקינו את האפליקציה">\u25c9 ' +
-             subsOf(c, subs).length + '</span>' : '') +
+         (reg ? '<span class="signed" title="נרשם דרך האפליקציה">⚑ נרשם</span>' : '') +
+         (who.length ? '<span class="signed inst" title="התקינו את האפליקציה">◉ ' + who.length + '</span>' : '') +
          '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
          '</div></div>';
 
-    /* שורה לכל איש קשר, תמיד — גם כשהוא אחד. ראש החטיבה מעמיד
-       רכז, ואז צריך לדעת בוודאות של מי המספר שמחייגים אליו.
-       ההקשה בוחרת את מי שהכפתורים מצייתים לו, והבחירה נשמרת.
-       תיבת "לצוות" קיימת רק למי שיש לו טלפון — בלי מספר אין מה
-       להציג בעמוד הצוות בכל מקרה. */
-    if (ps.length) {
-      h += '<div class="whos">';
-      ps.forEach(function (q, k) {
-        h += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
-          '" onclick="setMain(' + i + ',' + k + ')">' +
-          '<b>' + esc(q.name || 'ללא שם') + '</b>' +
-          (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
-          (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>' +
-          (q.phone ? '<label class="teamp"><input type="checkbox"' +
-            (personTeamOn(c, k) ? ' checked' : '') +
-            ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
-          '</div>';
-      });
-      h += '</div>';
-    }
+    h += '<div class="ct-st"><b class="ct-sb ' + stg.c + '">' + esc(stg.t) + '</b>' +
+         ' · ' + esc(laT ? UI.callLast.replace('{t}', whenTxt(laT)) : UI.callNever) +
+         (reg && reg.total ? ' · ' + esc(UI.callOrd.replace('{n}', reg.total)) : '') + '</div>';
 
-    /* ומי הם. מספר לבדו אינו עונה על "מי מהם?", וזו השאלה
-       הראשונה שנשאלת אחריו. */
-    var who = subsOf(c, subs);
-    if (who.length) {
-      h += '<div class="instd">התקינו: ' + who.map(function (q) {
-        return esc(q.name || 'ללא שם') +
-               (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
-      }).join(' \u00b7 ') + '</div>';
-    }
-
-    /* הכפתורים נושאים את השם, כדי שלא יהיה ספק לאן הם מחייגים */
-    /* וכשההודעה לכולם דלוקה — הם נושאים גם אותה, כתובה כבר
-       בשמו. `?text=` פותח את וואטסאפ ישירות על השיחה איתו, בלי
-       שלב בחירת איש קשר: מהיר יותר, וגם מוציא מהמשחק את הטעות
-       של שליחה לאדם הלא נכון.
-
-       רק הכפתור הראשי נושא אותה. המספר הנוסף הוא לרוב מזכירה
-       או קו נוסף של אותו אדם, ושתי פניות אישיות זהות לאותו
-       אדם הן בדיוק מה שמסגיר דיוור. */
     var blOn = blastOn(), blKey = blastKey(c, me);
     var blDone = !!blastLog()[blKey];
     var blTxt = (blOn && me) ? '?text=' + encodeURIComponent(blastText(c, me)) : '';
@@ -6424,44 +6437,66 @@ function renderCalls() {
            'אין מספר טלפון</div>';
     }
 
-    h += '<div class="chips">';
-    STAGES.forEach(function (s) {
-      h += '<button class="chip ' + s.c + (c.stage === s.k ? ' on' : '') +
-           '" onclick="setStage(' + i + ',\'' + s.k + '\')">' + s.t + '</button>';
-    });
-    h += '</div>';
+    h += '<div class="ct-row"><label class="ct-rd"><input type="checkbox"' +
+         (tagOn(c, 'called') ? ' checked' : '') + ' onchange="tagTick(' + i + ',\'called\')"> ' +
+         esc(UI.callRound) + '</label>' +
+         '<select class="ct-sel" aria-label="סטטוס" onchange="setStage(' + i + ',this.value)">' +
+         STAGES.map(function (x) {
+           return '<option value="' + x.k + '"' + (x.k === c.stage ? ' selected' : '') + '>' + esc(x.t) + '</option>';
+         }).join('') + '</select></div>';
 
-    /* תגיות — רשימה שאחיאסף קובע, לא קבועה בקוד. ראו "ניהול
-       תגיות". כפתור אחד לכל תגית, בדיוק כמו השלבים למעלה, רק
-       בצבע שונה כדי שלא יתערבבו. */
-    h += '<div class="chips">';
-    tagDefs().forEach(function (t) {
-      h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
-           '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
-    });
-    h += '</div>';
+    /* פרטי צוות והתקנה — מי איש הקשר שהכפתורים מחייגים אליו,
+       מי מוצג בעמוד הצוות, ומי כבר התקין. */
+    var team = '';
+    if (ps.length) {
+      team += '<div class="whos">';
+      ps.forEach(function (q, k) {
+        team += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
+          '" onclick="setMain(' + i + ',' + k + ')">' +
+          '<b>' + esc(q.name || 'ללא שם') + '</b>' +
+          (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
+          (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>' +
+          (q.phone ? '<label class="teamp"><input type="checkbox"' +
+            (personTeamOn(c, k) ? ' checked' : '') +
+            ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
+          '</div>';
+      });
+      team += '</div>';
+    }
+    if (who.length) {
+      team += '<div class="instd">התקינו: ' + who.map(function (q) {
+        return esc(q.name || 'ללא שם') + (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
+      }).join(' · ') + '</div>';
+    }
+    if (team) h += '<details class="ct-d" data-k="team"><summary>' + esc(UI.callTeam) + '</summary>' + team + '</details>';
 
-    /* הערת תכלס — תמיד קיימת לכל מוסד, בניגוד להערה הפרטית
-       שלמטה. "להציג לצוות" קובע רק אם היא **יוצאת** לעמוד הצוות,
-       לא אם אפשר לראות ולערוך אותה כאן — היא חלק קבוע מהכרטיס. */
-    h += '<input class="updline" type="text" maxlength="160" ' +
+    /* תגיות — בלי "התקשרתי בסבב", שיש לו תיבה משלו למעלה. */
+    var tags = tagDefs().filter(function (t) { return t.k !== 'called'; });
+    if (tags.length) {
+      var tOn = tags.filter(function (t) { return tagOn(c, t.k); }).length;
+      h += '<details class="ct-d" data-k="tags"><summary>' + esc(UI.callTags) + (tOn ? ' · ' + tOn : '') + '</summary><div class="chips">';
+      tags.forEach(function (t) {
+        h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
+             '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
+      });
+      h += '</div></details>';
+    }
+
+    /* העדכון (תכלס) — יכול לצאת לעמוד הצוות. ההערה — פרטית,
+       לא יוצאת לשום מקום. שתיהן באותו מקום, כל אחת בתווית שלה. */
+    h += '<details class="ct-d" data-k="note"' +
+         ' ontoggle="var t=this.querySelector(\'textarea\');if(t&&this.open)noteGrow(t)"><summary>' +
+         esc(UI.callNote) + (c.note || c.upd ? ' ✎' : '') + '</summary>' +
+         '<input class="updline" type="text" maxlength="160" ' +
          'placeholder="עדכון קצר (תכלס), משפט–שניים…" value="' + esc(c.upd || '') +
          '" onchange="setUpd(' + i + ',this.value)">' +
          '<label class="teamshow"><input type="checkbox"' +
          (c.teamShow ? ' checked' : '') +
-         ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>';
-
-    /* שלוש שורות ולא אחת, וגדלה עם מה שנכתב. תיבה בגובה שורה
-       הופכת כל הערה ארוכה לחלון הצצה — וההערות האלה הן התיעוד
-       היחיד של השיחה. `oninput` מרחיב בלי לצייר מחדש: ציור
-       מחדש באמצע הקלדה מאבד את הסמן.
-
-       והכי חשוב: זו ההערה הפרטית. היא לא יוצאת לעמוד הצוות ולא
-       לשום מקום אחר — מה שיוצא זה רק שורת העדכון שלמעלה. */
-    h += '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
+         ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' +
+         '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
          '<textarea rows="3" placeholder="הערה מהשיחה…" ' +
          'oninput="noteGrow(this)" ' +
-         'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></div>';
+         'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></details></div>';
   });
 
   /* ההודעה לכולם — בתחתית. היא מבצע שקורה פעם בכמה שבועות,
@@ -6481,7 +6516,16 @@ function renderCalls() {
        '<button class="btn g" onclick="jnlShow()">יומן התיעוד (' +
        (Store.get('callJournal', []) || []).length + ')</button>' +
        '<button class="btn g" onclick="wipeContacts()">מחיקת הרשימה מהמכשיר</button>';
+  /* מה שהיה פתוח נשאר פתוח: כל לחיצה (תגית, סטטוס) מציירת מחדש,
+     והחלק שעבדת בו לא אמור להיסגר לך מתחת לאצבע. */
+  var wasOpen = {};
+  Array.prototype.forEach.call(el.querySelectorAll('.ct[data-ci] details[open]'), function (d) {
+    wasOpen[d.parentNode.getAttribute('data-ci') + '|' + d.getAttribute('data-k')] = 1;
+  });
   el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('.ct[data-ci] details'), function (d) {
+    if (wasOpen[d.parentNode.getAttribute('data-ci') + '|' + d.getAttribute('data-k')]) d.open = true;
+  });
   /* הערה ארוכה שכבר נכתבה נפתחת במלואה, ולא בשלוש שורות עם
      גלילה פנימית. */
   var ta = el.querySelectorAll('.ct textarea');
@@ -7519,7 +7563,7 @@ function loadContactsFromSheet() {
    מסך הניהול.
    לא מקושר מאף מקום באפליקציה — נגיש רק דרך /admin או #admin.
    ============================================================ */
-var admTab = 'what';
+var admTab = 'mine';
 
 function renderAdmin() {
   /* ארבע, ולפי השאלה שנשאלת ולא לפי סוג האובייקט.
@@ -7528,8 +7572,9 @@ function renderAdmin() {
      מתגי התצוגה ישבו תחת "מוסדות", ולכן מי שחיפש הגדרה הלך
      ל"הגדרות" ומצא שם כתובות שרת. עכשיו "מערכת" הוא מה שנוגעים
      בו פעם בשנה, ו"מה מוצג" הוא מה שבאמת משנים. */
-  var TABS = [['what','מה קורה'],['show','מה מוצג'],
-              ['links','קישורים'],['sys','מערכת']];
+  /* (היסטוריה: "מה קורה / מה מוצג / קישורים / מערכת". ראו SUB.) */
+  var TABS = [['mine', UI.mineTab], ['inst', UI.admTabInst],
+              ['amda', UI.admTabAmda], ['more', UI.admTabMore]];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -7540,7 +7585,7 @@ function renderAdmin() {
           '<div class="tabs" style="margin-top:12px">' +
           TABS.map(function (t) {
             return '<button class="' + (admTab === t[0] ? 'on' : '') +
-                   '" onclick="admGo(\'' + t[0] + '\')">' + t[1] + '</button>';
+                   '" onclick="admGo(\'' + t[0] + '\')">' + esc(t[1]) + '</button>';
           }).join('') + '</div>' +
           /* פס הפרסום. יושב מעל כל הלשוניות ולא בתוך אחת מהן, כי
              מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
@@ -7554,7 +7599,7 @@ function renderAdmin() {
   if (Store.get('amdaOn', 0) && !document.querySelector('#amda.on')) {
     if (!amdaCount(amdaRoster()).n) { Store.set('amdaOn', 0); return; }
     amdaOpen();
-    admTab = 'what'; admSub.what = 'amda';
+    admTab = 'amda';
     renderAdmin();
   }
 }
@@ -7580,7 +7625,7 @@ function admPubBar() {
   /* **הפס המלא — רק ב"מערכת".** בשאר המסכים הוא תפס את ראש המסך
      בכל כניסה, גם כשאין מה לפרסם. שם נשארת שורה אחת, וגם היא רק
      כשיש שינויים שלא פורסמו. */
-  if (admTab !== 'sys') {
+  if (!(admTab === 'more' && admSub.more === 'sys')) {
     el.innerHTML = dirty
       ? '<div class="publine"><span>יש שינויים שלא פורסמו</span>' +
         '<button onclick="publishSettings()">פרסום</button></div>' +
@@ -7939,7 +7984,16 @@ function pubWipe() {
   check();
 }
 
-function admGo(t) { admTab = t; renderAdmin(); }
+function admGo(t) {
+  var m = ADM_OLD[t];
+  if (m) { admTab = m[0]; if (m[1]) admSub[m[0]] = m[1]; }
+  else {
+    admTab = t;
+    /* לחיצה על "עוד" כשכבר בתוכו — חזרה לרשימה. */
+    if (t === 'more') admSub.more = '';
+  }
+  renderAdmin();
+}
 /* באפליקציית הניהול המותקנת אין שורת כתובת, ולכן יציאה לאפליקציה
    הרגילה הייתה דרך ללא חזרה — צריך היה לסגור ולפתוח מחדש.
    השבב הצף מחזיר, ומופיע רק שם: בדפדפן רגיל יש כתובת. */
@@ -7955,26 +8009,55 @@ function paintAdmChip() {
   el.className = away ? 'on' : '';
 }
 
-/* תת-לשוניות. לשונית שיש בה יותר מנושא אחד מקבלת שורה שנייה,
-   וכך המפלס העליון נשאר קצר ונקרא במבט. */
+/* ============================================================
+   המבנה: ארבע לשוניות, לפי מה שעושים — ולא לפי סוג המידע.
+   ============================================================
+   התוכנית הארגונית (1.10.2026): "התלמידים שלי" הוא הכניסה,
+   "ישיבות וצוות" הוא מוקד השיחות עם תיק לכל ישיבה, עמדת הלימוד
+   לשונית קבועה בלחיצה אחת, וכל השאר תחת "עוד" — מקובץ לפי
+   מטרה, ו"מתקדם" סגור.
+
+   כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
+   הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
+   כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
 var SUB = {
-  /* "אנשים" ראשון: מסך אחד לכל תלמיד והורה — ראו admPeople. */
-  /* "הרשמות" ו"משתתפים" נבלעו בו: אותן ישיבות, שני מספרים, ומסך אחד. */
-  /* "עמדת לימוד" — תלמיד לוחץ שכבה, כיתה ושם. ראו amdaOpen. */
-  what:  [['people','אנשים'], ['amda','עמדת לימוד'], ['calls','שיחות'], ['push','שליחה'],
-          ['tmpl','נוסחים'], ['lottery','הגרלה'], ['data','נתונים']],
-  /* "תן לי אפשרות לראות את המדריך המלא של כל סוגי המדריכים."
-     הוא היה קבור בתחתית מסך המלל — ומי שיש לו אנדרואיד
-     והאפליקציה כבר מותקנת אצלו לא יפגוש אותו לעולם בדרך
-     הרגילה. לשונית משלו. */
-  show:  [['screens','מסכים'], ['daf','הדף'], ['open','פתיחת דפים'], ['price','מחירים'],
-          ['guide','התקנה'], ['text','מלל']]
+  mine: [['people', 'subList'], ['push', 'subSend']]
 };
-var admSub = {};
-function admSubGo(t) { admSub[admTab] = t; admPane(); }
+/* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
+   אחת הם רצועה שנגררת בטלפון. */
+var MORE = [
+  { g:'moreGDaf', items:[['daf','moreDaf'], ['open','moreOpen']] },
+  { g:'moreGOrd', items:[['orders','moreOrders'], ['price','morePrice']] },
+  { g:'moreGRaf', items:[['lottery','moreLottery']] },
+  { g:'moreGSet', items:[['links','moreLinks'], ['screens','moreScreens'],
+                         ['guide','moreGuide'], ['text','moreText']] },
+  { g:'moreGAdv', adv:1, items:[['data','moreData'], ['sys','moreSys']] }
+];
+/* העלה → הלשונית שלו. "נוסחים" נבלע במסלול השליחה. */
+function admHome(leaf) {
+  if (leaf === 'people' || leaf === 'push' || leaf === 'tmpl') return 'mine';
+  if (leaf === 'calls' || leaf === 'inst') return 'inst';
+  if (leaf === 'amda') return 'amda';
+  for (var i = 0; i < MORE.length; i++) {
+    for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
+  }
+  return '';
+}
+var ADM_OLD = { what:['mine',''], show:['more','screens'], links:['more','links'],
+                sys:['more','sys'], set:['more','sys'] };
+var admSub = { more:'' };
+function admSubGo(t) {
+  if (t === 'tmpl') t = 'push';
+  var home = admHome(t);
+  if (home && home !== admTab) { admTab = home; if (home === 'mine' || home === 'more') admSub[home] = t; return renderAdmin(); }
+  admSub[admTab] = t;
+  if (admTab === 'more') return renderAdmin();       /* פס הפרסום תלוי במסך */
+  admPane();
+}
 function admSubNow() {
+  if (admTab === 'more') return admSub.more || '';
   var list = SUB[admTab];
-  if (!list) return '';
+  if (!list) return admTab === 'inst' ? 'calls' : admTab;
   if (!admSub[admTab]) admSub[admTab] = list[0][0];
   return admSub[admTab];
 }
@@ -7984,81 +8067,171 @@ function admSubBar() {
   var now = admSubNow();
   return '<div class="tabs sub" style="margin-bottom:12px">' +
     list.map(function (t) {
-      /* "התלמידים שלי" — השם מהנוסחים, כדי שיהיה ניתן לעריכה. */
-      var lbl = t[0] === 'people' ? UI.mineTab : t[1];
       return '<button class="' + (now === t[0] ? 'on' : '') +
-             '" onclick="admSubGo(\'' + t[0] + '\')">' + lbl + '</button>';
+             '" onclick="admSubGo(\'' + t[0] + '\')">' + esc(UI[t[1]]) + '</button>';
     }).join('') + '</div>';
+}
+/* "עוד" — הרשימה עצמה. */
+function admMoreMenu() {
+  return MORE.map(function (g) {
+    var items = g.items.map(function (it) {
+      return '<button class="mo-i" onclick="admSubGo(\'' + it[0] + '\')">' +
+        '<span>' + esc(UI[it[1]]) + '</span><i aria-hidden="true">‹</i></button>';
+    }).join('');
+    return g.adv
+      ? '<details class="adm-card mo-g"><summary>' + esc(UI[g.g]) + '</summary>' + items + '</details>'
+      : '<div class="adm-card mo-g"><h4>' + esc(UI[g.g]) + '</h4>' + items + '</div>';
+  }).join('');
+}
+function admMoreTitle(leaf) {
+  for (var i = 0; i < MORE.length; i++) {
+    for (var j = 0; j < MORE[i].items.length; j++) {
+      if (MORE[i].items[j][0] === leaf) return UI[MORE[i].items[j][1]];
+    }
+  }
+  return '';
 }
 
 function admPane() {
   var el = document.getElementById('adm-pane');
   if (!el) return;                 /* נקרא גם ממסך אחר — אין מה לצייר */
-  /* מסך "אנשים" כבר על המסך: מעדכנים רק את מה שהשתנה. בנייה מחדש
-     הייתה יוצרת את הלוח (iframe) מאפס — הבהוב, טעינה, וחיפוש
-     וישיבה פתוחה שנעלמים באמצע עדכון. */
-  if (admTab === 'what' && admSubNow() === 'people' && document.getElementById('ppl')) {
+  /* "אנשים" מצייר את עצמו מחדש בלי לגעת בלוח (iframe): ציור מלא
+     היה יוצר אותו מאפס — הבהוב, טעינה, וחיפוש וישיבה פתוחה
+     שנעלמים באמצע עדכון. */
+  if (admTab === 'mine' && admSubNow() === 'people' && document.getElementById('ppl')) {
     pplSet('adm-needs', admNeeds());
     return pplPaint();
   }
-  /* כל עדכון מצב בפאנל הזה עובר דרך הריסה ובנייה מחדש של כל
-     ה-innerHTML — גם כשמה שהשתנה זו שורת הודעה אחת. אם הגובה
-     הכולל משתנה, הדפדפן קובע מחדש איפה הגלילה נמצאת, וזה בדיוק
-     מה שנראה כמו "קפצתי למקום אחר" — בזמן שההודעה שרצית לראות
-     כן נכתבה, רק לא במקום שאתה מסתכל בו. שומרים את מיקום הגלילה
-     ומחזירים אותו אחרי הציור מחדש, בפריים הבא. */
+  /* ציור מחדש שומר את מקום הגלילה — ראו ההערה ההיסטורית: שורת
+     הודעה שהשתנתה שינתה גובה, והדפדפן "קפץ" למקום אחר. */
   var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
   requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
-  el.innerHTML = (admTab === 'what' ? '<div id="adm-needs">' + admNeeds() + '</div>' : '') +
-                 admSubBar() + '<div id="adm-body"></div>';
+  var top = '';
+  if (admTab === 'mine') top = '<div id="adm-needs">' + admNeeds() + '</div>' + admSubBar();
+  if (admTab === 'more' && sub) {
+    top = '<div class="mo-top"><button class="ppl-back" onclick="admSubGo(\'\')">' +
+          esc(UI.moreBack) + '</button><b>' + esc(admMoreTitle(sub)) + '</b></div>';
+  }
+  el.innerHTML = top + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
 
-  if (admTab === 'links') { admLinks(body); return admMarkHint(); }
-  if (admTab === 'sys')   { admSet(body); return admInstallBox(); }
+  /* "דורש טיפול" נטען בפתיחת "התלמידים שלי" — פעם בשתי דקות. */
+  if (admTab === 'mine' && (CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
+    admAutoAt.needs = Date.now();
+    setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
+  }
 
-  if (admTab === 'what') {
-    /* "דורש טיפול" — נטען בכניסה ל"מה קורה", לכל היותר פעם בשתי דקות. */
-    if ((CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
-      admAutoAt.needs = Date.now();
-      setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
-    }
-    if (sub === 'people')  return admPeople(body);
-    if (sub === 'amda')    return admAmda(body);
-    if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
-    /* **נטען מהגיליון בכל כניסה** (אם עברו שתי דקות), ברקע — מה
-       ששמור מוצג מיד. עד עכשיו הרשימה נשארה ישנה עד שלחצו "רענון",
-       בזמן שהלוח של ראש החטיבה נטען טרי בכל פתיחה. פעם אחת לכל
-       שתי דקות, גם כשהטעינה נכשלה — כדי שלא תסתובב בלולאה. */
-    if (sub === 'push' && (CFG.readKey || '').trim()) {
-      var now = Date.now(), last = admAutoAt[sub] || 0;
-      var fresh = pushRows ? admAutoAt.pushOk || 0 : 0;
-      if (now - last > 120000 && now - fresh > 120000) {
-        admAutoAt[sub] = now;
-        setTimeout(function () {
-          pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
-        }, 0);
-      }
-    }
-    if (sub === 'push') return admPush(body);
-    if (sub === 'tmpl') return admTmpl(body);
-    if (sub === 'data') return admData(body);
-    if (sub === 'calls') {
-      body.innerHTML = '<div id="calls-body"></div>';
-      renderCalls();
-      /* מרעננים מהגיליון בכל כניסה למסך: זה מביא תיעוד שנעשה
-         ממכשיר אחר, ומחזיר את הרשימה אם האחסון המקומי נוקה. */
-      return pullCalls().then(renderCalls).catch(function () {});
+  if (admTab === 'more' && !sub) { body.innerHTML = admMoreMenu(); return; }
+
+  if (sub === 'people')  return admPeople(body);
+  if (sub === 'amda')    return admAmda(body);
+  if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
+  /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
+     אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
+  if (sub === 'push' && (CFG.readKey || '').trim()) {
+    var now = Date.now(), last = admAutoAt[sub] || 0;
+    var fresh = pushRows ? admAutoAt.pushOk || 0 : 0;
+    if (now - last > 120000 && now - fresh > 120000) {
+      admAutoAt[sub] = now;
+      setTimeout(function () {
+        pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
+      }, 0);
     }
   }
-  if (admTab === 'show') {
-    if (sub === 'guide') { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
-    if (sub === 'daf') return admDecks(body);
-    if (sub === 'open') return admOpen(body);
-    if (sub === 'price') return admPrice(body);
-    if (sub === 'text')  return admText(body);
-    admShow(body); return admMarkHint();
+  if (sub === 'push') {
+    /* הנוסחים — בתוך מסלול השליחה, מתחת לה. */
+    body.innerHTML = '<div id="adm-send"></div><div class="sec" style="margin-top:16px"><b>' +
+      esc(UI.sendTmpl) + '</b><i></i></div><div id="adm-tmpl"></div>';
+    admPush(document.getElementById('adm-send'));
+    return admTmpl(document.getElementById('adm-tmpl'));
   }
+  if (sub === 'data') return admData(body);
+  if (sub === 'calls') {
+    body.innerHTML = admInstHead() + '<div id="calls-body"></div>';
+    renderCalls();
+    /* ומושכים מהגיליון ברקע — התיעוד ממכשיר אחר, ומחזיר את
+       הרשימה אם האחסון המקומי נוקה. */
+    return pullCalls().then(renderCalls).catch(function () {});
+  }
+  if (sub === 'links')   { admLinks(body); return admMarkHint(); }
+  if (sub === 'sys')     { admSet(body); return admInstallBox(); }
+  if (sub === 'guide')   { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
+  if (sub === 'daf')     return admDecks(body);
+  if (sub === 'open')    return admOpen(body);
+  if (sub === 'price')   return admPrice(body);
+  if (sub === 'text')    return admText(body);
+  if (sub === 'orders')  return admOrders(body);
+  if (sub === 'screens') { admShow(body); admShowGroup(body); return admMarkHint(); }
+}
+
+/* ============================================================
+   ישיבות וצוות — הראש: כמה אישרו השתתפות, וקישור לעריכה.
+   ============================================================
+   "מי מופיע כבפנים" הוא מתג לכל ישיבה שקובע את רשימת המאושרות
+   באתר הציבורי ובמונה הישיבות. הוא אינו "אנשים אונליין" — ולכן
+   כאן רק הסיכום, והעריכה נשארת בקישורים, ליד שאר ההגדרות. */
+function admInstHead() {
+  var n = INSTITUTIONS.filter(function (i) { return i.joined; }).length;
+  return '<div class="adm-card" style="margin-bottom:11px"><div class="row" style="padding:0">' +
+    '<b>' + esc(UI.instJoined.replace('{n}', n)) + '</b>' +
+    '<button class="ppl-back" onclick="admSubGo(\'links\')">' + esc(UI.instEdit) + '</button></div></div>';
+}
+
+/* ============================================================
+   הזמנות גמרות — אזור משלו, בלי כפילות.
+   ============================================================
+   הסיכום (לפי מסכת, מול המינימום) הוא אותו פירוט שישב מקופל
+   בתחתית "אנשים"; מתחתיו — מי הזמין כמה, לפי ישיבה. בתיק של
+   כל ישיבה מופיע רק המספר שלה. */
+function admOrders(el) {
+  var list = pplOrderList().slice().sort(function (a, b) { return (b.total || 0) - (a.total || 0); });
+  el.innerHTML = '<div class="adm-card" style="margin-bottom:11px"><h4 id="ppl-ords"></h4>' +
+    '<div id="ppl-ordb"></div></div>' +
+    '<div class="adm-card"><h4>' + esc(UI.ordBy) + '</h4>' +
+    (list.length ? list.map(function (r) {
+      var io = INSTITUTIONS.filter(function (x) { return x.code === r.code; })[0];
+      return '<div class="row" style="padding:7px 0"><span>' + esc((io && io.name) || r.inst || r.code || '—') +
+        (r.who ? '<div class="sub">' + esc(r.who) + '</div>' : '') + '</span>' +
+        '<b style="white-space:nowrap">' + esc(UI.ordN.replace('{n}', r.total || 0)) + '</b></div>';
+    }).join('') : '<p class="h">' + esc(UI.ordNone) + '</p>') + '</div>';
+  delete pplLast['ppl-ords']; delete pplLast['ppl-ordb'];
+  pplOrder();
+  if (Date.now() - (admAutoAt.ord || 0) > 120000) {
+    admAutoAt.ord = Date.now();
+    setTimeout(function () { pullRegs(); }, 0);
+  }
+}
+
+/* ============================================================
+   תצוגה — מקובצת לפי מי רואה, וההסבר הארוך מקופל.
+   ============================================================
+   הכרטיסים עצמם לא השתנו; כל אחד נושא `data-g`, וכאן הם
+   מסודרים תחת ארבע כותרות. פסקת ההסבר נפתחת בלחיצה — השורה
+   הקצרה שליד כל מתג נשארת גלויה. */
+var SHOW_G = [['pub','showGPub'], ['kid','showGKid'], ['team','showGTeam'], ['help','showGHelp']];
+function admShowGroup(el) {
+  var cards = Array.prototype.slice.call(el.querySelectorAll('.adm-card[data-g]'));
+  if (!cards.length) return;
+  cards.forEach(function (c) {
+    var p = c.querySelector('p.h');
+    if (!p || p.parentNode !== c) return;
+    var d = document.createElement('details');
+    d.className = 'hx';
+    d.innerHTML = '<summary>' + esc(UI.showWhy) + '</summary>';
+    c.insertBefore(d, p);
+    d.appendChild(p);
+  });
+  var anchor = cards[0];
+  SHOW_G.forEach(function (g) {
+    var mine = cards.filter(function (c) { return c.getAttribute('data-g') === g[0]; });
+    if (!mine.length) return;
+    var hd = document.createElement('div');
+    hd.className = 'sec';
+    hd.innerHTML = '<b>' + esc(UI[g[1]]) + '</b><i></i>';
+    el.insertBefore(hd, anchor);
+    mine.forEach(function (c) { el.insertBefore(c, anchor); });
+  });
 }
 
 /* ============================================================
@@ -8228,8 +8401,6 @@ function admPeople(el) {
         '<p class="h" id="ppl-none" style="display:none;margin:12px 0 4px">אין ישיבה שעונה על החיפוש.</p>' +
         '<button class="btn g" style="margin-top:10px" onclick="pplRefresh()">רענון מהגיליון</button>' +
       '</div>' +
-      '<details id="ppl-ord" class="adm-card" style="margin-bottom:11px">' +
-        '<summary id="ppl-ords"></summary><div id="ppl-ordb" style="margin-top:8px"></div></details>' +
     '</div>' +
     '<div id="ppl-ov" style="display:none">' +
       '<div class="adm-card" style="margin-bottom:11px"><div class="ppl-oh"><b id="ppl-on"></b>' +
@@ -8353,7 +8524,10 @@ function pplMineN(c) {
       var k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
       o.why[k] = (o.why[k] || 0) + 1;
     }
-    if (p.par && p.par.id && !seen[p.par.id]) { seen[p.par.id] = 1; o.con++; }
+    /* כל ההורים של התלמיד (pars, מהשרת) — אבא ואמא שניהם
+       נרשמו = שניים. שרת ישן שולח רק את הראשון (par). */
+    var pids = p.pars && p.pars.length ? p.pars : (p.par && p.par.id ? [p.par.id] : []);
+    pids.forEach(function (x) { if (x && !seen[x]) { seen[x] = 1; o.con++; } });
   });
   (par || []).forEach(function (p) {
     if (p.test || !p.id || seen[p.id]) return;
@@ -8415,7 +8589,7 @@ function pplSnap(d) {
         return esc(k) + ' ' + n.why[k];
       }).join(' · ')) : '') +
     row('הזמנת גמרות', ordN + ' ישיבות · ' + ordT + ' גמרות',
-        '<a href="#" onclick="var o=document.getElementById(\'ppl-ord\');if(o){o.open=true;o.scrollIntoView({behavior:\'smooth\'});}return false">לפירוט ←</a>') +
+        '<a href="#" onclick="admSubGo(\'orders\');return false">לפירוט ←</a>') +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
     (c ? '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'' + esc(c) + '\')">' + esc(UI.mineOpen) + '</button>'
        : '<button class="btn p" style="flex:1 1 12rem" onclick="pplOpen(\'\')">כל התלמידים · שליחה אישית ←</button>') +
@@ -8785,14 +8959,33 @@ function sayAud(r) {
 function sayLogCard() {
   if (!sayLog) return '';
   if (!sayLog.length) return '';
+  /* **אירוע אחד, ולא רצף כישלונות זהים.** אותה הודעה לאותו קהל
+     הופיעה שלוש פעמים ברצף — "נכשלה ל-12" — וכל שורה נראתה
+     כמו בעיה חדשה. מקבצים לפי מי · קהל · נוסח: השורה מציגה את
+     הניסיון האחרון, כמה היו, והיסטוריה מקופלת. שתי הודעות
+     שונות לאותו קהל נשארות נפרדות — הנוסח הוא חלק מהמפתח. */
+  var groups = [], byKey = {};
+  sayLog.forEach(function (m) {
+    var k = (m.who || '') + '\u0001' + (m.aud || '') + '\u0001' + (m.title || '') + '\u0001' + (m.body || '');
+    if (!byKey[k]) { byKey[k] = { last:m, all:[] }; groups.push(byKey[k]); }
+    byKey[k].all.push(m);
+  });
+  var cls = function (m) {
+    var bad = m.res.indexOf('נכשלה') === 0 && m.res.indexOf('נשלחה שוב') < 0;
+    var part = m.res.indexOf('חלקית') === 0;
+    return bad ? ' bad' : part ? ' part' : '';
+  };
   return '<div class="adm-card"><h4>ההודעות האחרונות</h4>' +
-    sayLog.slice(0, 15).map(function (m) {
-      var bad = m.res.indexOf('נכשלה') === 0 && m.res.indexOf('נשלחה שוב') < 0;
-      var part = m.res.indexOf('חלקית') === 0;
-      return '<div class="slog' + (bad ? ' bad' : part ? ' part' : '') + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
+    groups.slice(0, 15).map(function (g) {
+      var m = g.last, n = g.all.length;
+      return '<div class="slog' + cls(m) + '"><div class="slog-h"><b>' + esc(m.who || '—') + '</b>' +
         ' · ' + esc(m.aud) + '<span>' + esc(sheetAgo(m.at)) + '</span></div>' +
         '<div class="slog-t">' + esc((m.title ? m.title + ' — ' : '') + m.body) + '</div>' +
-        (m.res ? '<div class="slog-r">' + esc(m.res) + '</div>' : '') + '</div>';
+        (m.res ? '<div class="slog-r">' + esc(m.res) + '</div>' : '') +
+        (n > 1 ? '<details class="slog-x"><summary>' + esc(UI.logTries.replace('{n}', n)) +
+          ' · ' + esc(UI.logHist) + '</summary>' + g.all.map(function (x) {
+            return '<div>' + esc(sheetAgo(x.at) || x.at || '') + ' — ' + esc(x.res || '') + '</div>';
+          }).join('') + '</details>' : '') + '</div>';
     }).join('') + '</div>';
 }
 function needsLoad() {
@@ -9342,7 +9535,7 @@ function admShow(el) {
      כאן הוא היה מידע על מוסדות במסך שעוסק בתצוגה. */
   var now = rosterMode() === 'now';
   el.innerHTML =
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
+    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מה מוצג בעמוד הראשי</h4>' +
     '<p class="h">כל עוד הישיבות לא אישרו רשמית, המספר היחיד שאפשר ' +
     'לעמוד מאחוריו הוא של אשתקד.</p>' +
     '<div class="row"><div>הישיבות שהיו בתשפ"ו' +
@@ -9357,7 +9550,7 @@ function admShow(el) {
     'renderHome();admPane()" aria-label="תשפז"></button></div></div>' +
 
     /* מה נכנס לרשימת "הדף עצמו" בעמוד השבוע. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מה מוצג בעמוד השבוע</h4>' +
+    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מה מוצג בעמוד השבוע</h4>' +
     '<p class="h">שורות ברשימת "הדף עצמו".</p>' +
     ROW_KEYS.map(function (r) {
       return '<div class="row"><div>' + esc(r[1]) +
@@ -9368,7 +9561,7 @@ function admShow(el) {
 
     /* המדריך. שלושה מיקומים, כי מה שנכון בטלפון אחד מפריע
        למראה של אחר — וזו החלטה של העין ולא של הקוד. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>המדריך</h4>' +
+    '<div class="adm-card" data-g="help" style="margin-bottom:11px"><h4>המדריך</h4>' +
     '<p class="h">סיור של שישה מסכים שנפתח בכניסה הראשונה. ' +
     'הצפייה מכאן עובדת תמיד — גם כשהוא כבוי לכולם.</p>' +
 
@@ -9408,7 +9601,7 @@ function admShow(el) {
        כפתור השליחה, והקישור אינו מוצג בשום מקום שהוא מגיע
        אליו. רשימת הקישורים למטה נשארת — היא כלי של הרכז
        הראשי, ואינה מושפעת. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>הפצת הקישור לתלמידים</h4>' +
+    '<div class="adm-card" data-g="team" style="margin-bottom:11px"><h4>הפצת הקישור לתלמידים</h4>' +
     '<p class="h">כשדלוק — ראש חטיבה שנרשם מקבל בלוח שלו כפתור לשליחת ' +
     'ההזמנה לכיתות ולהורים. כשכבוי — הוא רואה את הלוח בלבד, ואתם ' +
     'מחליטים מתי ולמי למסור את הקישור.</p>' +
@@ -9425,7 +9618,7 @@ function admShow(el) {
     /* ההגרלה השבועית — נפרדת מהגרלת ההצטרפות, כי הן שתי
        הבטחות שונות ואפשר לרצות אחת בלי השנייה. */
     /* השאלה על מספר התלמידים. כבויה, ואפשר להחזיר אותה. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מסך ההרשמה</h4>' +
+    '<div class="adm-card" data-g="kid" style="margin-bottom:11px"><h4>מסך ההרשמה</h4>' +
     '<p class="h">השאלה "' + esc(UI.sizeLabel) + '" — הערכה שראש חטיבה ' +
     'נותן לפני שהוא יודע כמה ייכנסו בפועל. המספר המדויק מגיע ' +
     'ממילא מקישור ההצטרפות.</p>' +
@@ -9442,7 +9635,7 @@ function admShow(el) {
 
        כיבוי אינו מבטל את קישור ההורים: הוא עדיין פותח את הטופס
        על אבא. מה שיורד הוא השאלה, לא היכולת. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>"בן · אבא" בקישור ההצטרפות</h4>' +
+    '<div class="adm-card" data-g="kid" style="margin-bottom:11px"><h4>"בן · אבא" בקישור ההצטרפות</h4>' +
     '<p class="h">שתי אפשרויות בראש הטופס, "בן" מסומן מראש. הן מציגות ' +
     'את אפשרות הלימוד המשותף לכל מי שפותח את הקישור, ומאפשרות לאב ' +
     'למלא את הפרטים שלו ולצרף את בנו.<br>' +
@@ -9456,7 +9649,7 @@ function admShow(el) {
     '" onclick="cfgSet(\'roleAsk\',!roleAskOn());admPane()" ' +
     'aria-label="הבחירה בן ואבא"></button></div></div>' +
 
-    '<div class="adm-card" style="margin-bottom:11px"><h4>ההגרלה השבועית</h4>' +
+    '<div class="adm-card" data-g="kid" style="margin-bottom:11px"><h4>ההגרלה השבועית</h4>' +
     '<p class="h">מוצגת במסך הפתיחה של התלמיד: עונים נכון על החידה — ' +
     'ונכנסים להגרלה של אותו שבוע.</p>' +
     '<div class="row"><div>הגרלה שבועית' +
@@ -9466,7 +9659,7 @@ function admShow(el) {
     '" onclick="cfgSet(\'weekRaffle\',!CV(\'weekRaffle\'));admPane()" ' +
     'aria-label="הגרלה שבועית"></button></div></div>' +
 
-    '<div class="adm-card" style="margin-bottom:11px"><h4>הגרלת ההצטרפות</h4>' +
+    '<div class="adm-card" data-g="kid" style="margin-bottom:11px"><h4>הגרלת ההצטרפות</h4>' +
     '<p class="h">מוצגת במסך ההצטרפות של התלמיד. ההגרלה נערכת בכל ישיבה ' +
     'בנפרד. את משפט הפרס ואת תמונתו ממלאים בטקסטים ← מסך ההצטרפות; ' +
     'כל עוד הם ריקים מוצג רק ההסבר.</p>' +
@@ -9481,7 +9674,7 @@ function admShow(el) {
     /* שני חלקים במסך הבית שאפשר לכבות. נועדו לצילומי מסך: הם
        תופסים גובה, וכיבוי שלהם מעלה את החלק של התלמידים אל
        תוך המסך הראשון. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מסך הבית</h4>' +
+    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מסך הבית</h4>' +
     '<p class="h">לכיבוי זמני כשמצלמים מסך לפרסום.</p>' +
     '<div class="row"><div>לוח התוכנית' +
     '<div class="sub">אב–אלול, תשרי, 30 שבועות, סיום</div></div>' +
@@ -9496,7 +9689,7 @@ function admShow(el) {
     '<button class="sw' + (showRow('cap') ? ' on' : '') +
     '" onclick="homeToggle(\'cap\')" aria-label="הסבר"></button></div></div>' +
 
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
+    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מה שבדרך</h4>' +
     '<p class="h">באנר "בקרוב" בעמוד הראשי, בחלק של ראשי החטיבות.</p>' +
     '<div class="row"><div>לוח ההתקדמות של הישיבה' +
     '<div class="sub">הבטחה למה שעוד לא קיים</div></div>' +
@@ -11059,19 +11252,21 @@ function admPush(el) {
   var c = pushCount();
   /* מי שממתין לעזרה — ראשון. שליחת התראה יכולה לחכות דקה;
      תלמיד שנתקע כבר חיכה. */
-  var h = sayLogCard() +
-    '<div class="adm-card"><h4>שליחת התראה</h4>' +
+  /* ============================================================
+     מסלול שליחה קצר: למי ← מה ← בדיקה ← שליחה.
+     ============================================================
+     התוכנית הארגונית, עמוד 8: הטופס היה גבוה, ושדה היעד
+     הטכני ("לאן ההתראה פותחת") ישב באמצע, לפני כפתור השליחה.
+     עכשיו: קודם הקהל, אחר כך הנוסח, שורה אחת שאומרת למי זה
+     יגיע — והאפשרות הטכנית מקופלת מתחת. האישור לפני השליחה
+     (pushSend) לא השתנה. */
+  var ROLES = [['','כולם'],['צוות','הצוות בלבד'],['תלמיד','התלמידים בלבד']];
+  var roleL = ROLES.filter(function (o) { return o[0] === (pushView.role || ''); })[0] || ROLES[0];
+  var h = '<div class="adm-card"><h4>שליחת התראה</h4>' +
     '<p class="h">ההתראה נחתמת ונשלחת ב-GitHub — המפתח הפרטי אינו ' +
     'בדפדפן ואינו יכול להיות. כאן כותבים, ומשם זה יוצא.</p>' +
-    '<div class="fld"><div class="label">כותרת <i>· רשות</i></div>' +
-    '<input type="text" value="' + esc(pushView.title) +
-    '" placeholder="' + esc(PROGRAM.short) +
-    '" onchange="pushSet(\'title\',this.value)"></div>' +
-    '<div class="fld"><div class="label">הטקסט</div>' +
-    '<textarea rows="3" onchange="pushSet(\'body\',this.value)">' +
-    esc(pushView.body) + '</textarea></div>' +
     '<div class="fld"><div class="label">למי</div><select ' +
-    'onchange="pushSet(\'only\',this.value)">' +
+    'onchange="pushSet(\'only\',this.value);admPane()">' +
     '<option value="">כל מי שנרשם</option>' +
     INSTITUTIONS.map(function (o) {
       return '<option value="' + esc(o.name) + '"' +
@@ -11079,23 +11274,34 @@ function admPush(el) {
              esc(o.name) + '</option>';
     }).join('') + '</select></div>' +
     '<div class="fld"><div class="label">איזה קהל</div><select ' +
-    'onchange="pushSet(\'role\',this.value)">' +
-    [['','כולם'],['צוות','הצוות בלבד'],['תלמיד','התלמידים בלבד']]
-      .map(function (o) {
+    'onchange="pushSet(\'role\',this.value);admPane()">' +
+    ROLES.map(function (o) {
         return '<option value="' + esc(o[0]) + '"' +
                (pushView.role === o[0] ? ' selected' : '') + '>' +
                esc(o[1]) + '</option>';
       }).join('') + '</select></div>' +
-    '<div class="fld"><div class="label">לאן ההתראה פותחת ' +
-    '<i>· נתיב יחסי, ריק = האפליקציה</i></div>' +
-    '<input type="text" value="' + esc(pushView.link) +
-    '" placeholder="tzevet?inst=lapid#my" ' +
-    'onchange="pushSet(\'link\',this.value)"></div>' +
+    '<div class="fld"><div class="label">כותרת <i>· רשות</i></div>' +
+    '<input type="text" value="' + esc(pushView.title) +
+    '" placeholder="' + esc(PROGRAM.short) +
+    '" onchange="pushSet(\'title\',this.value)"></div>' +
+    '<div class="fld"><div class="label">הטקסט</div>' +
+    '<textarea rows="3" onchange="pushSet(\'body\',this.value)">' +
+    esc(pushView.body) + '</textarea></div>' +
+    '<div class="send-to">' + esc(UI.sendTo.replace('{w}',
+      roleL[1] + (pushView.only ? ' · ' + pushView.only : ''))) + '</div>' +
     '<button class="btn p"' + (pushBusy ? ' disabled' : '') +
     ' onclick="pushSend()">' + (pushBusy ? 'שולח…' : 'שליחה') + '</button>' +
     (pushMsg ? '<div class="cond" style="margin-top:10px">' +
                esc(pushMsg) + '</div>' : '') +
-    '</div>';
+    '<details class="hx"' + (pushView.link ? ' open' : '') + '><summary>' + esc(UI.sendAdv) + '</summary>' +
+    '<div class="fld"><div class="label">לאן ההתראה פותחת ' +
+    '<i>· נתיב יחסי, ריק = האפליקציה</i></div>' +
+    '<input type="text" value="' + esc(pushView.link) +
+    '" placeholder="tzevet?inst=lapid#my" ' +
+    'onchange="pushSet(\'link\',this.value)"></div></details>' +
+    '</div>' +
+    /* היומן — אחרי הטופס: קודם שולחים, ואז רואים מה יצא. */
+    sayLogCard();
 
   /* ============================================================
      ההזמנה לפינה האישית.
@@ -11428,7 +11634,7 @@ TX.init({
       openWeek(homeTrack, w.i < 0 ? 0 : w.i);
     }]
   ],
-  onStop: function () { show('admin'); admTab = 'show'; renderAdmin(); }
+  onStop: function () { show('admin'); admTab = 'more'; renderAdmin(); }
 });
 function tkStart() { TX.start(); show('home'); TX.scan(); }
 
@@ -14019,12 +14225,12 @@ function initInstall() {
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredInstall = e;
-    if (admTab === 'set') admInstallBox();
+    if (admTab === 'more' && admSub.more === 'sys') admInstallBox();
   });
   window.addEventListener('appinstalled', function () {
     Store.set(isAdminRoute() ? 'instDoneAdmin' : 'instDone', 1);
     instHide();
-    if (admTab === 'set') admInstallBox();
+    if (admTab === 'more' && admSub.more === 'sys') admInstallBox();
   });
 
 }
