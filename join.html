@@ -1508,7 +1508,8 @@ function drawTop() {
       '<span><b>' + esc(t) + '</b><span>' + esc(body) + '</span></span></div>' : '';
   };
   var cards = '';
-  if (pub.weekRaffle) cards += card('gold', '🎲', JOIN.wkTag, JOIN.wkBody);
+  if (pub.weekRaffle) cards += card('gold', '🎲', JOIN.wkTag,
+                            (forDad && JOIN.wkBodyDad) || JOIN.wkBody);
   if (pub.raffle)     cards += card('gold', '🎁', JOIN.jnTag,
                             JOIN.rfPrize || JOIN.jnBody);
   /* **"הדף כמו שלא ראית" — לאב בלבד.** התלמיד רואה את הדף
