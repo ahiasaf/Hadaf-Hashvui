@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 41;
+var SCRIPT_VERSION = 42;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -251,6 +251,13 @@ function propSrc_(name, fallback) {
 }
 
 function doPost(e) {
+  /* **כניסה לדף ההרשמה — לפני הנעילה, ולא אחריה.** כל שאר
+     הכתיבות עומדות בתור אחת אחרי השנייה; אלפי כניסות שהיו נכנסות
+     לאותו תור היו דוחקות החוצה את ההרשמות עצמן. ראו `hit_`. */
+  try {
+    var hd = JSON.parse(e.postData.contents);
+    if (hd && hd.action === 'hit') return json_(hit_(hd));
+  } catch (he) {}
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -863,6 +870,17 @@ function doGet(e) {
      הלקוח שואל כאן. תשובה כן/לא על מזהה שהוא כבר מחזיק — אין
      כאן מה לדלוף, ולכן בלי סיסמה, בדיוק כמו הקודמים. מוגבל
      ל"לומדים" — הלשונית היחידה שהתור בודק בחזרה. */
+  /* משפך ההרשמה לניהול — מספרים בלבד, אבל רק עם הסיסמה. ראו `funnel_`. */
+  if (e && e.parameter && e.parameter.funnel) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'error',
+        message: READ_KEY ? 'סיסמת קריאה שגויה' : 'לא נקבעה סיסמת קריאה בסקריפט (READ_KEY)' });
+    }
+    var fo;
+    try { fo = funnel_(); } catch (fe) { fo = { status: 'error', message: String(fe) }; }
+    return reply_(e, fo);
+  }
+
   if (e && e.parameter && e.parameter.arrived) {
     var aid = String(e.parameter.arrived), aHas = false;
     try {
@@ -3182,6 +3200,116 @@ var PUB_ROW = {
             'דיווח', 'מתי'],
   'ממתינים לדף': ['מזהה', 'שם', 'ישיבה', 'דף', 'מכשיר', 'מנוי', 'מתי']
 };
+/* ============================================================
+   משפך ההרשמה — כמה נכנסו, ואיפה נעצרו.
+   ============================================================
+   "נרשמו 20 מתוך תפוצה של אלפים" — בלי מספר הנכנסים אין דרך לדעת
+   אם הבעיה בהודעה (מעטים פתחו) או בדרך (רבים פתחו ונעצרו).
+
+   **שלושה דברים שמונעים ממנו להתחרות בהרשמות:**
+   · נכתב **לפני** נעילת הסקריפט (ראו ראש doPost) — אינו עומד
+     בתור של ההרשמות ואינו מאריך אותו.
+   · נכתב **לגיליון נפרד** משלו, בדרייב של הרכז ("כניסות להרשמה"),
+     ולא לגיליון הפרטי שבו נכתבות ההרשמות.
+   · `appendRow` בלבד — בלי לקרוא דבר לפני הכתיבה. הוספת שורה
+     אטומית בגוגל, ולכן גם בלי נעילה שתי כניסות אינן דורסות זו את זו.
+
+   אין כאן פרט אישי: מזהה אקראי של המכשיר (לא זה של ההרשמה), שלב,
+   קוד ישיבה, תלמיד/הורה, סוג מכשיר, ואיפה נפתח. הטלפון מדווח כל
+   שלב פעם אחת בלבד.
+
+   כתיבה ציבורית, ולכן העמודות כאן מוגדרות — כמו PUB_ROW — וכל ערך
+   נחתך. היא אינה ב-PUB_ROW בכוונה: שם היא הייתה פותחת לשונית
+   "כניסות" גם בגיליון הציבורי, דרך המסלול הכללי.
+   ============================================================ */
+var HIT_TAB  = 'כניסות';
+var HIT_COLS = ['תאריך', 'מכשיר', 'שלב', 'קוד ישיבה', 'תפקיד', 'סוג מכשיר', 'איפה', 'פרט'];
+var HIT_STEPS = {
+  open: 'נפתח',          app:  'נפתח מהאפליקציה',
+  s1:   'לחץ מצטרף · התקנה', s2:   'שלב 2 · פרטים',
+  type: 'התחיל למלא',    s3:   'שלב 3 · דרך לימוד',
+  err:  'שגיאה בטופס',   join: 'נרשם',
+  s4:   'שלב 4 · התראות', push: 'אישר התראות',
+  help: 'ביקש עזרה'
+};
+
+function hit_(d) {
+  var st = HIT_STEPS[String(d.s || '')];
+  var id = String(d.h || '').replace(/[^\w-]/g, '').slice(0, 24);
+  if (!st || !id) return { status: 'ignored' };
+  /* ערך שמתחיל ב-= היה נקרא כנוסחה. */
+  var cut = function (v, n) {
+    return String(v == null ? '' : v).slice(0, n).replace(/^[=+\-@]/, "'$&");
+  };
+  var sh = hitSheet_();
+  if (!sh) return { status: 'error', message: 'אין גיליון כניסות' };
+  sh.appendRow([new Date(), id, st, cut(d.i, 20), cut(d.r, 10), cut(d.d, 10),
+                cut(d.w, 16), cut(d.x, 80)]);
+  return { status: 'success' };
+}
+
+/* הגיליון נוצר בכניסה הראשונה. נעילת **המסמך** ולא של הסקריפט —
+   זו של ההרשמות — ורק לרגע היצירה, כדי ששתי כניסות ראשונות לא
+   ייצרו שני גיליונות. */
+function hitSheet_() {
+  var P = PropertiesService.getScriptProperties();
+  var id = P.getProperty('HITS_ID');
+  if (!id) {
+    var lk = LockService.getDocumentLock() || LockService.getUserLock();
+    if (!lk.tryLock(10000)) return null;
+    try {
+      id = P.getProperty('HITS_ID');
+      if (!id) {
+        var nss = SpreadsheetApp.create('הדף השבועי · כניסות להרשמה');
+        var s0 = nss.getSheets()[0];
+        s0.setName(HIT_TAB);
+        s0.appendRow(HIT_COLS);
+        s0.setFrozenRows(1);
+        id = nss.getId();
+        P.setProperty('HITS_ID', id);
+      }
+    } finally { lk.releaseLock(); }
+  }
+  var ss = SpreadsheetApp.openById(id);
+  return ss.getSheetByName(HIT_TAB) || ss.getSheets()[0];
+}
+
+/* מכשיר אחד = שורה אחת: היום שבו נכנס לראשונה, הישיבה, התפקיד,
+   סוג המכשיר, איפה נפתח, והשלבים שעבר. הסינון והחלוקה נעשים
+   בניהול — כך כל צירוף של סינונים אינו דורש בקשה חדשה. */
+function funnel_() {
+  var id = PropertiesService.getScriptProperties().getProperty('HITS_ID');
+  if (!id) return { status: 'ok', people: [], errs: {} };
+  var sh = SpreadsheetApp.openById(id).getSheetByName(HIT_TAB);
+  if (!sh || sh.getLastRow() < 2) return { status: 'ok', people: [], errs: {} };
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, HIT_COLS.length).getValues();
+  var code = {};
+  for (var k in HIT_STEPS) code[HIT_STEPS[k]] = k;
+  var by = {}, order = [], errs = {};
+  for (var r = 0; r < v.length; r++) {
+    var hid = String(v[r][1] || ''), st = code[String(v[r][2] || '')];
+    if (!hid || !st) continue;
+    var p = by[hid];
+    if (!p) {
+      var t = v[r][0] instanceof Date ? v[r][0] : new Date();
+      p = by[hid] = { t: Utilities.formatDate(t, 'Asia/Jerusalem', 'yyyy-MM-dd'),
+                      i: '', r: '', d: '', w: '', s: {} };
+      order.push(hid);
+    }
+    p.s[st] = 1;
+    if (v[r][3]) p.i = String(v[r][3]);
+    if (v[r][4]) p.r = String(v[r][4]);
+    if (v[r][5]) p.d = String(v[r][5]);
+    if (v[r][6]) p.w = String(v[r][6]);
+    if (st === 'err' && v[r][7]) errs[String(v[r][7])] = (errs[String(v[r][7])] || 0) + 1;
+  }
+  return { status: 'ok', errs: errs, at: new Date().toISOString(),
+    people: order.map(function (h) {
+      var p = by[h];
+      return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' ')];
+    }) };
+}
+
 var BACKUP_DAYS = 14;
 
 function backupSS_() {

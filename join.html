@@ -880,6 +880,10 @@ footer a{color:var(--ink-2);font-weight:800}
 @media (prefers-reduced-motion:reduce){.intro-logo span{animation:none}}
 .intro-frame .intro-tap{position:absolute;inset:0;z-index:2}
 </style>
+<!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
+     הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
+     Vercel הוא מחזיר 404, וזה אינו מזיק לכלום. -->
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -2124,6 +2128,42 @@ function flush() {
 }
 window.addEventListener('online', flush);
 
+/* ---------- משפך ההרשמה ----------
+   כל שלב נספר **פעם אחת לכל מכשיר**, בשקט. בלי שם ובלי טלפון:
+   מזהה אקראי משלו (לא `deviceId` של ההרשמה), שלב, ישיבה,
+   תלמיד/הורה, סוג המכשיר, ואיפה נפתח. הכתיבה בשרת אינה עומדת
+   בתור של ההרשמות — ראו `hit_` ב-apps-script.gs. כישלון כאן
+   אינו נוגע בשום דבר אחר במסך. */
+function hit(s, x) {
+  try {
+    if (!API) return;
+    var k = s + (x ? ':' + x : ''), done = get('hits', {}) || {};
+    if (done[k]) return;
+    done[k] = 1; set('hits', done);
+    var hid = get('hid', '');
+    if (!hid) {
+      hid = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      set('hid', hid);
+    }
+    var me = get('me', null) || {};
+    var ua = navigator.userAgent || '';
+    var body = JSON.stringify({ action:'hit', s:s, h:hid, x:x || '',
+      i: me.inst || ($('inst') && $('inst').value) || instCode || '',
+      r: (me.role || role) === 'dad' ? 'הורה' : 'תלמיד',
+      d: isIOS() ? 'אייפון' : (/Android/i.test(ua) ? 'אנדרואיד' : 'מחשב'),
+      w: appInstalled() ? 'מותקן' : (inApp() ? 'בתוך אפליקציה' : 'דפדפן') });
+    if (navigator.sendBeacon && navigator.sendBeacon(API, body)) return;
+    fetch(API, { method:'POST', mode:'no-cors', body:body, keepalive:true })['catch'](function () {});
+  } catch (e) {}
+}
+function hitHas(s) { return !!(get('hits', {}) || {})[s]; }
+/* הקלדה ראשונה בטופס — של מי שעוד לא נרשם. */
+document.addEventListener('input', function onIn() {
+  if (get('me', null)) return;
+  document.removeEventListener('input', onIn, true);
+  hit('type');
+}, true);
+
 function val(id) { return ($(id).value || '').trim(); }
 /* שם הישיבה לפי הקוד שבבורר — **תמיד מהבורר החי**, לא מקוד
    הקישור. הבורר מוצג תמיד (ראו למעלה) והוא מה שקובע בפועל,
@@ -2192,6 +2232,7 @@ $('go').onclick = function () {
     withId: invWid || '',             /* והמזהה שלו — לצימוד */
     at: new Date().toISOString()
   };
+  var fresh = !get('me', null);
   set('me', me);
 
   /* ללשונית "לומדים". הסקריפט מנתב אותה לגיליון הפרטי לפי שמה
@@ -2203,10 +2244,12 @@ $('go').onclick = function () {
      העמודות נשארים כפי שהם בכוונה — שינוי שם כותרת מייצר
      עמודה חדשה וריקה, ומשאיר את כל מה שנכתב עד היום ביתומה. */
   queue(joinRow_(me));
+  if (fresh) hit('join');
 
   showDone(me);
 };
-function say(t) { $('err').textContent = t; }
+/* שגיאה בטופס נספרת לפי הנוסח — כך רואים בניהול מה עוצר אנשים. */
+function say(t) { $('err').textContent = t; if (t) hit('err', String(t).slice(0, 60)); }
 
 /* השורה ב"לומדים" — מההרשמה, ושוב כשמשהו בה משתנה אחר כך
    (הטלפון של הצד השני שהושלם בתיבת ההזמנה). השרת דורס לפי
@@ -2933,6 +2976,11 @@ function noteHeal() {
   appSubscribe(true);
 }
 setTimeout(function () { try { noteHeal(); } catch (e) {} }, 1500);
+/* הכניסה עצמה — רק של מי שעוד לא נרשם. מי שכבר רשום וחוזר אינו
+   חלק מהמשפך. */
+setTimeout(function () {
+  try { if (!get('me', null)) hit(appInstalled() ? 'app' : 'open'); } catch (e) {}
+}, 800);
 
 function appSubscribe(quiet) {
   APPX.subscribe().then(function (sub) {
@@ -2957,6 +3005,7 @@ function appSubscribe(quiet) {
     try { localStorage.setItem('df:noteOn', me.id || '1'); } catch (e) {}
     try { if (!localStorage.getItem('df:noteAt')) localStorage.setItem('df:noteAt', String(Date.now())); } catch (e) {}
     appBusy = false;
+    if (hitHas('join')) hit('push');
     if (quiet) { appRedraw(); return; }
     /* ההתראה עצמה היא האישור האמיתי — שולחים אחת עכשיו ושואלים. */
     noteTest();
@@ -3142,6 +3191,10 @@ function wzDraw() {
   /* בקשת עזרה אינה שלב במסע, ולכן אין לה מד ואין לה מספר.
      מי שהגיע לכאן יצא מהמסלול לרגע — ומד שממשיך לרוץ מאחוריו
      רק אומר לו שוב שהוא תקוע באחד מארבעה. */
+  var wzHit = { 1:'s1', 2:'s2', 3:'s3', 4:'s4', 9:'help' }[wzStep];
+  /* שלב 4 — רק של מי שהרשמתו נספרה כאן; מי שנרשם לפני שהמשפך
+     נולד היה מנפח אותו מעל מספר הנרשמים. */
+  if (wzHit && (wzStep === 9 || (wzStep === 4 ? hitHas('join') : !get('me', null)))) hit(wzHit);
   if (wzStep === 9) {
     e.innerHTML = '<div class="wzcard' + (hlpSent ? ' fin' : '') + '">' +
       wzHelpForm() + '</div>';
