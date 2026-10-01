@@ -667,22 +667,44 @@ var GUIDE_UI = (function () {
      הצוות והבקשה האישית ממשיכים לראות את הרשימה. */
   var PLAY = false, PT = null, PAT = 0;
 
+  /* AUTO — ההדגמה רצה מעצמה. ברגע שהיא נגמרת, או שנגעו במד,
+     היא עוצרת: מכאן הולכים אחורה וקדימה ביד. */
+  var AUTO = false;
+
+  /* חץ מצויר ולא תו: ‹ ו-› מתהפכים לבד בטקסט מימין לשמאל, ושני
+     החצים יצאו פונים לאותו צד. 1 — ימינה, ‎-1 — שמאלה. */
+  function chev(dir) {
+    return '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ' +
+      'style="display:block;margin:auto"><path d="' +
+      (dir > 0 ? 'M6 3l5 5-5 5' : 'M10 3l-5 5 5 5') + '" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" ' +
+      'stroke-linejoin="round"/></svg>';
+  }
+
   function drawPlay(L) {
     HOST.innerHTML =
       '<div class="gu gu-play">' +
-        '<div class="gu-intro">' + esc(g('intro')) + '</div>' +
+        '<div class="gu-intro">' + esc(g('playIntro') || g('intro')) + '</div>' +
         '<div class="gu-stage" id="gu-stage" aria-live="polite">' +
         L.map(function (s, i) {
           var key = s[0], art = s[1];
           return '<div class="gu-step gu-slide" id="gu-s' + i + '">' +
-            '<div class="gu-num">' + (i + 1) + '</div>' +
             '<h3>' + esc(g(key)) + '</h3>' +
             (PICS[key] ? pic(PICS[key]).replace(' loading="lazy"', '') : phone(art())) +
             '</div>';
         }).join('') +
         '</div>' +
-        '<div class="gu-dots" aria-hidden="true">' +
-          L.map(function (s, i) { return '<i id="gu-d' + i + '"></i>'; }).join('') +
+        /* ============================================================
+           המד: עיגול ממוספר לכל שלב, והנוכחי מסומן.
+           ============================================================
+           "ככה הוא יודע — יש פה שלושה שלבים, הנה אני רואה אותם."
+           המספרים לחיצים תמיד; החצים מופיעים כשההדגמה נגמרת. */
+        '<div class="gu-meter" id="gu-meter">' +
+          '<button class="gu-arw" id="gu-prev" aria-label="' + esc(g('back')) + '">' + chev(1) + '</button>' +
+          L.map(function (s, i) {
+            return '<button class="gu-n" id="gu-d' + i + '">' + (i + 1) + '</button>';
+          }).join('') +
+          '<button class="gu-arw" id="gu-fwd" aria-label="' + esc(g('fwd')) + '">' + chev(-1) + '</button>' +
         '</div>' +
         '<div class="gu-end" id="gu-end">' +
           '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
@@ -690,21 +712,28 @@ var GUIDE_UI = (function () {
         '</div>' +
       '</div>';
 
-    var b = document.getElementById('gu-next');
-    if (b) b.onclick = function () { playStop(); if (ONDONE) ONDONE(); };
-    var a = document.getElementById('gu-again');
-    if (a) a.onclick = function () { playAt(0); };
-    /* לחיצה על הציור — הבא, למי שכבר קרא ולא רוצה לחכות. */
-    var st = document.getElementById('gu-stage');
-    if (st) st.onclick = function () { if (PAT < L.length - 1) playAt(PAT + 1); };
+    var by = function (id) { return document.getElementById(id); };
+    by('gu-next').onclick = function () { playStop(); if (ONDONE) ONDONE(); };
+    by('gu-again').onclick = function () { AUTO = true; playAt(0); };
+    by('gu-prev').onclick = function () { AUTO = false; playAt(Math.max(0, PAT - 1)); };
+    by('gu-fwd').onclick  = function () { AUTO = false; playAt(Math.min(L.length - 1, PAT + 1)); };
+    L.forEach(function (s, i) {
+      by('gu-d' + i).onclick = function () { AUTO = false; playAt(i); };
+    });
+    /* לחיצה על הציור — הבא. */
+    by('gu-stage').onclick = function () {
+      if (PAT < L.length - 1) { AUTO = false; playAt(PAT + 1); }
+    };
+    AUTO = true;
     playAt(0);
   }
 
-  /* זמן לכל שלב לפי אורך המשפט: קצר — שלוש שניות, ארוך — עד חמש. */
+  /* "זה צריך להיות יותר מהיר — אפשר להירדם באמצע."
+     פחות משתי שניות וחצי לשלב: מספיק לקרוא שורה ולראות את הטבעת. */
   function dwell(i) {
     var L = LIST || [];
     var n = L[i] ? g(L[i][0]).length : 0;
-    return Math.max(3000, Math.min(5000, 2200 + n * 70));
+    return Math.max(1700, Math.min(2500, 1200 + n * 30));
   }
 
   function playStop() { if (PT) { clearTimeout(PT); PT = null; } }
@@ -720,16 +749,23 @@ var GUIDE_UI = (function () {
       s = document.getElementById('gu-s' + k);
       d = document.getElementById('gu-d' + k);
       if (s) s.className = 'gu-step gu-slide' + (k === i ? ' on' : '');
-      if (d) d.className = k === i ? 'on' : (k < i ? 'did' : '');
+      if (d) d.className = 'gu-n' + (k === i ? ' on' : (k < i ? ' did' : ''));
     }
-    var end = document.getElementById('gu-end');
-    if (end) end.className = 'gu-end';
+    var hand = function () {
+      var m = document.getElementById('gu-meter'), e = document.getElementById('gu-end');
+      if (m) m.className = 'gu-meter hand';
+      if (e) e.className = 'gu-end on';
+      var p = document.getElementById('gu-prev'), f = document.getElementById('gu-fwd');
+      if (p) p.disabled = (PAT === 0);
+      if (f) f.disabled = (PAT === L.length - 1);
+    };
+    if (!AUTO) { hand(); return; }
+    var m0 = document.getElementById('gu-meter'), e0 = document.getElementById('gu-end');
+    if (m0) m0.className = 'gu-meter';
+    if (e0) e0.className = 'gu-end';
     if (last) {
-      /* הכפתורים מופיעים אחרי רגע — קודם קוראים את השלב האחרון. */
-      PT = setTimeout(function () {
-        var e = document.getElementById('gu-end');
-        if (e) e.className = 'gu-end on';
-      }, 1400);
+      /* הסוף: רגע לקרוא את השלב האחרון, ואז הניווט והכפתורים. */
+      PT = setTimeout(function () { AUTO = false; hand(); }, 900);
       return;
     }
     PT = setTimeout(function () { playAt(i + 1); }, dwell(i));
@@ -822,15 +858,29 @@ var GUIDE_UI = (function () {
       '.gu-stage{display:grid;cursor:pointer}',
       '.gu-slide{grid-area:1/1;align-self:start;opacity:0;visibility:hidden;',
       '  transform:translateY(8px);',
-      '  transition:opacity .35s ease,transform .35s ease,visibility 0s linear .35s}',
+      '  transition:opacity .22s ease,transform .22s ease,visibility 0s linear .22s}',
       '.gu-slide.on{opacity:1;visibility:visible;transform:none;',
-      '  transition:opacity .35s ease .12s,transform .35s ease .12s,visibility 0s}',
+      '  transition:opacity .22s ease .08s,transform .22s ease .08s,visibility 0s}',
       '.gu-play .gu-pic img{max-height:290px;max-height:min(290px,32vh)}',
       '.gu-play .gu-art{height:290px;height:min(290px,32vh)}',
-      '.gu-dots{display:flex;justify-content:center;gap:7px;margin:14px 0 0}',
-      '.gu-dots i{width:8px;height:8px;border-radius:50%;background:var(--rule)}',
-      '.gu-dots i.did{background:var(--gold);opacity:.45}',
-      '.gu-dots i.on{background:var(--gold)}',
+      /* המד: עיגולים ממוספרים, והנוכחי בזהב. החצים תופסים מקום
+         תמיד — כשהם מופיעים בסוף, שום דבר לא זז. */
+      '.gu-meter{display:flex;justify-content:center;align-items:center;',
+      '  gap:6px;margin:14px 0 0}',
+      '.gu-n{width:30px;height:30px;flex:none;border-radius:50%;padding:0;',
+      '  border:1.5px solid var(--rule);background:#fff;color:var(--ink-3);',
+      '  font-family:inherit;font-size:.86rem;font-weight:800;cursor:pointer;',
+      '  transition:background .2s,color .2s,border-color .2s}',
+      '.gu-n.did{border-color:var(--gold);color:var(--gold)}',
+      '.gu-n.on{background:var(--gold);border-color:var(--gold);color:#fff}',
+      '.gu-arw{width:34px;height:34px;flex:none;border:0;border-radius:50%;padding:0;',
+      '  background:var(--sunk);color:var(--blue,#17468F);font-family:inherit;',
+      '  font-size:1.5rem;font-weight:800;line-height:1;cursor:pointer;',
+      '  visibility:hidden}',
+      '.gu-meter.hand .gu-arw{visibility:visible}',
+      '.gu-arw:disabled{opacity:.3;cursor:default}',
+      '.gu-play .gu-slide h3{min-height:2.9em;display:flex;align-items:center;',
+      '  justify-content:center}',
       /* הכפתורים תופסים את מקומם גם כשאינם נראים — כך שום דבר
          אינו קופץ כשהם מופיעים. */
       /* שניהם בשורה אחת: בטלפון רגיל (390×844) שורה שנייה ירדה
