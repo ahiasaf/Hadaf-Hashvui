@@ -1877,6 +1877,10 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-ok b{font-size:1.5rem;font-weight:800}
 .am-ok span{font-size:1.05rem;font-weight:700;opacity:.9}
 </style>
+<!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
+     הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
+     Vercel הוא מחזיר 404, וזה אינו מזיק לכלום. -->
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -8204,14 +8208,14 @@ function admPeople(el) {
      נקראת בתוך הלוח, שנטען כאן. */
   if (Date.now() - (admAutoAt.ppl || 0) > 120000) {
     admAutoAt.ppl = Date.now();
-    setTimeout(function () { pullRegs(); conflictLoad(); }, 0);
+    setTimeout(function () { pullRegs(); conflictLoad(); funLoad(); }, 0);
   }
   var o = ppl.open;
   el.innerHTML =
     '<div id="ppl">' +
     '<div id="ppl-stuck"></div><div id="ppl-conf"></div>' +
     '<div id="ppl-lv">' +
-      '<div id="ppl-snap"></div>' +
+      '<div id="ppl-snap"></div><div id="ppl-fun"></div>' +
       '<div class="adm-card" style="margin-bottom:11px">' +
         '<div class="ppl-bar">' +
           '<input id="ppl-q" type="search" placeholder="⌕ חיפוש ישיבה" aria-label="חיפוש ישיבה" value="' + esc(ppl.q) + '">' +
@@ -8306,6 +8310,7 @@ function pplPaint() {
 
   pplOrder();
   pplSet('ppl-snap', pplSnap(d));
+  pplSet('ppl-fun', pplFun());
   if (open) pplOneHead(d);
 }
 
@@ -8418,6 +8423,132 @@ function pplSnap(d) {
     '</div>' +
     '<p class="mine-note">' + esc(UI.mineTest) + '</p></div>';
 }
+/* ============================================================
+   משפך ההרשמה — כמה נכנסו לדף ההרשמה, ואיפה נעצרו.
+   ============================================================
+   "נרשמו 20 מתוך תפוצה של אלפים — העומס, או שהפרסום לא עבד?"
+   בלי מספר הנכנסים אין תשובה. הטלפון מדווח כל שלב פעם אחת
+   (ראו `hit` ב-join.html), והשרת מחזיר שורה לכל מכשיר (ראו
+   `funnel_`). הסינונים כאן, על מה שכבר נקרא — בלי בקשה חדשה.
+
+   מכשיר = דפדפן. מי שפתח בוואטסאפ ואז התקין, נספר פעם ב"נפתח
+   בדפדפן" ופעם ב"נפתח מהאפליקציה" — לכן היחס ביניהם הוא קירוב
+   לשיעור ההתקנה, ולא ספירה של אנשים. */
+var fun = { r:'', d:'', w:'', t:'' }, funMsg = '';
+function funLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  funMsg = 'טוען…'; pplPaint();
+  scriptGet({ funnel:1, key:key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.people) {
+      funMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
+    } else {
+      Store.set('funnel', { people:d.people, errs:d.errs || {}, at:Date.now() });
+      funMsg = '';
+    }
+    pplPaint();
+  }).catch(function () { funMsg = 'לא קיבלתי תשובה מהסקריפט.'; pplPaint(); });
+}
+function funSet(k, v) { fun[k] = v; pplPaint(); }
+function funDay(n) {
+  var t = new Date(Date.now() - n * 864e5 + 3 * 36e5);   /* שעון ישראל, בקירוב */
+  return t.toISOString().slice(0, 10);
+}
+function pplFun() {
+  var F = Store.get('funnel', null);
+  var sel = function (k, opts) {
+    return '<select aria-label="סינון" onchange="funSet(\'' + k + '\',this.value)" style="flex:1 1 7rem">' +
+      opts.map(function (o) {
+        return '<option value="' + o[0] + '"' + (fun[k] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select>';
+  };
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>משפך ההרשמה</h4>';
+  if (!F || !F.people) {
+    return h + '<p class="h">' + esc(funMsg || 'עוד לא נקרא.') + '</p>' +
+      '<button class="btn g" onclick="funLoad()">טעינה</button></div>';
+  }
+  var t0 = fun.t === 'today' ? funDay(0) : fun.t === 'y' ? funDay(1) : fun.t === '7' ? funDay(6) : '';
+  var P = F.people.filter(function (p) {
+    if (fun.r && p[2] !== fun.r) return false;
+    if (fun.d && p[3] !== fun.d) return false;
+    if (fun.w && p[4] !== fun.w) return false;
+    if (fun.t === 'y') return p[0] === t0;
+    if (t0 && p[0] < t0) return false;
+    return true;
+  });
+  var has = function (p, s) { return (' ' + p[5] + ' ').indexOf(' ' + s + ' ') >= 0; };
+  var n = function (s) { return P.filter(function (p) { return has(p, s); }).length; };
+  var pc = function (a, b) { return b ? ' <span style="color:var(--ink-3)">· ' + Math.round(a * 100 / b) + '%</span>' : ''; };
+  var row = function (t, v, sub) {
+    return '<div class="row" style="padding:7px 0"><span>' + t +
+      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</span><b style="white-space:nowrap">' + v + '</b></div>';
+  };
+  var nOpen = n('open'), nApp = n('app'), nS2 = P.filter(function (p) { return has(p, 'app') || has(p, 's2'); }).length;
+  var nJoin = n('join');
+  var inApp = P.filter(function (p) { return has(p, 'open') && p[4] === 'בתוך אפליקציה'; }).length;
+
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+    sel('t', [['', 'כל הזמן'], ['today', 'היום'], ['y', 'אתמול'], ['7', '7 ימים']]) +
+    sel('r', [['', 'כולם'], ['תלמיד', 'תלמידים'], ['הורה', 'הורים']]) +
+    sel('d', [['', 'כל המכשירים'], ['אייפון', 'אייפון'], ['אנדרואיד', 'אנדרואיד'], ['מחשב', 'מחשב']]) +
+    sel('w', [['', 'בכל מקום'], ['בתוך אפליקציה', 'בתוך וואטסאפ וכד׳'], ['דפדפן', 'דפדפן'], ['מותקן', 'האפליקציה המותקנת']]) +
+    '</div>';
+  h += row('נפתח בדפדפן', nOpen, inApp + ' מהם בתוך וואטסאפ או אפליקציה אחרת') +
+    row('לחצו "אני מצטרף"', n('s1') + pc(n('s1'), nOpen), 'ועברו למסך ההתקנה') +
+    row('הגיעו לטופס אחרי התקנה', nS2 + pc(nS2, nOpen), 'מתוך מי שנפתח בדפדפן — קירוב לשיעור ההתקנה') +
+    row('התחילו למלא', n('type') + pc(n('type'), nS2)) +
+    row('בחרו דרך לימוד', n('s3') + pc(n('s3'), nS2)) +
+    row('נרשמו', nJoin + pc(nJoin, nS2), 'אחוז מתוך מי שהגיע לטופס') +
+    row('אישרו התראות', n('push') + pc(n('push'), nJoin), 'אחוז מתוך הנרשמים') +
+    row('ביקשו עזרה', n('help'));
+
+  /* מה עוצר — השגיאות בטופס, לפי הנוסח. */
+  var errs = F.errs || {}, ek = Object.keys(errs).sort(function (a, b) { return errs[b] - errs[a]; });
+  if (ek.length) {
+    h += '<details style="margin-top:8px"><summary>שגיאות בטופס (' + ek.length + ')</summary>' +
+      ek.slice(0, 10).map(function (k) { return row(esc(k), errs[k]); }).join('') +
+      '<p class="h">בלי הסינונים — כל הזמן, כל המכשירים.</p></details>';
+  }
+
+  /* לפי ישיבה — נכנסו מול נרשמו. */
+  var per = {};
+  P.forEach(function (p) {
+    var c = p[1] || '-';
+    var x = per[c] || (per[c] = { o:0, j:0 });
+    if (has(p, 'open') || has(p, 'app')) x.o++;
+    if (has(p, 'join')) x.j++;
+  });
+  var pk = Object.keys(per).sort(function (a, b) { return per[b].o - per[a].o; });
+  if (pk.length) {
+    h += '<details style="margin-top:8px"><summary>לפי ישיבה (' + pk.length + ')</summary>' +
+      pk.map(function (c) {
+        return row(esc(pplName(c, null)), per[c].o + ' נכנסו · ' + per[c].j + ' נרשמו');
+      }).join('') + '</details>';
+  }
+
+  /* לפי יום. */
+  var day = {};
+  P.forEach(function (p) {
+    var x = day[p[0]] || (day[p[0]] = { o:0, j:0 });
+    if (has(p, 'open') || has(p, 'app')) x.o++;
+    if (has(p, 'join')) x.j++;
+  });
+  var dk = Object.keys(day).sort().reverse();
+  if (dk.length) {
+    h += '<details style="margin-top:8px"><summary>לפי יום</summary>' +
+      dk.slice(0, 14).map(function (k) {
+        return row(k.split('-').reverse().join('.'), day[k].o + ' נכנסו · ' + day[k].j + ' נרשמו');
+      }).join('') + '</details>';
+  }
+
+  var first = F.people.length ? F.people.reduce(function (a, p) { return p[0] < a ? p[0] : a; }, F.people[0][0]) : '';
+  h += '<p class="h" style="margin-top:8px">' +
+    (first ? 'נספר מ-' + first.split('-').reverse().join('.') + ' · ' : '') +
+    'נקרא ' + esc(whenTxt(F.at)) + (funMsg ? ' · ' + esc(funMsg) : '') + '</p>' +
+    '<button class="btn g" onclick="funLoad()">רענון</button></div>';
+  return h;
+}
+
 function pplOrderList() {
   var list = (Store.get('registrations', []) || []).slice(), own = regSaved();
   if (own && !list.some(function (r) { return r.code === own.code; })) list = [own].concat(list);
