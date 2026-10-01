@@ -37,11 +37,24 @@
    כאן מה להפסיד.
 
    ------------------------------------------------------------
+   ומנוי שפג
+
+   שירות ההתראות עונה 410: המכשיר הסיר את ההרשאה או את
+   האפליקציה. לנסות שוב על אותו מנוי זה לנסות לנצח — ב-1.10
+   אותם 12 נמענים "נכשלו" כל חצי שעה, וכל הרצה כתבה שורה
+   ביומן ההודעות ושתי שורות לכל אחד ב"נשלחו".
+
+   לכן נרשם "פג:" ואחריו טביעה של המנוי, וההרצה הבאה מדלגת
+   **כל עוד זה אותו מנוי**. מי שיתקין מחדש ירשום מנוי חדש,
+   הטביעה תהיה אחרת, וההודעה תצא אליו מעצמה.
+
+   ------------------------------------------------------------
    רץ ב-GitHub Actions בלבד, כמו כל שליחה: חתימת VAPID דורשת
    מפתח פרטי, והוא בסודות הריפו. לשונית "נשלחו" מונעת כפילות.
    ============================================================ */
 var fs = require('fs');
 var path = require('path');
+var crypto = require('crypto');
 var vm = require('vm');
 var webpush = require('web-push');
 
@@ -62,9 +75,26 @@ var D = require('./push-deliver.js');
 function pushOne(sub, payload, ttl) {
   return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
     if (r.ok) return { statusCode: r.code };
-    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err };
+    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err, gone: !!r.gone };
   });
 }
+
+/* טביעה קצרה של מנוי — כדי לדעת אם "פג" נאמר על המנוי הזה או
+   על אחד קודם. לא המנוי עצמו: "נשלחו" אינה המקום לשמור אותו. */
+var GONE = 'פג:';
+function subPrint(sub) {
+  return crypto.createHash('sha1').update(String(sub && sub.endpoint || ''))
+    .digest('hex').slice(0, 12);
+}
+
+/* ============================================================
+   יומן ההודעות — רק כשמשהו השתנה.
+   ============================================================
+   מה שנכשל נשאר "נכשל" ומנסים שוב בכל הרצה; אם אותם נכשלים
+   נכשלים שוב, אין כאן חדשות. הרשימה שלהם נשמרת כטביעה ב"נשלחו"
+   תחת המפתח הזה, ושורה ביומן נכתבת רק כשמשהו יצא, כשמנוי נמצא
+   פג לראשונה, או כשרשימת הנכשלים אינה זו של ההרצה הקודמת. */
+var LOG_KEY = 'pr|יומן';
 
 /* הנוסח מגיע מ-data.js — כלומר אחיאסף עורך גם את ההתראה הזו
    מהניהול, ככל נוסח אחר בתוכנית. */
@@ -100,14 +130,22 @@ function shabbat(now) {
   return now.day === 5 && now.hour >= 12;
 }
 
+var st = {}, FAILED = [];
 Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
-             S.rows('התראות', key), S.sentLoad(key)])
+             S.rows('התראות', key), S.sentRaw(key)])
   .then(function (r) {
     var pairs = S.byHead(r[0]), who = S.byHead(r[1]), subs = S.byHead(r[2]);
-    var sent = r[3];
+    /* "נכשל" ו"פג:…" — עוד לא יצא. כל השאר נחשב יצא, כמו
+       ב-sentLoad. "פג" נבדק מול המנוי הנוכחי בהמשך. */
+    st = r[3];
+    var sent = {};
+    for (var k in st) {
+      if (st[k] !== 'נכשל' && st[k].indexOf(GONE) !== 0) sent[k] = 1;
+    }
     var now = S.israelNow();
 
-    if (shabbat(now)) { console.log('שבת — לא נשלח דבר.'); return []; }
+    /* null ולא []: שבת אינה "אין נכשלים", והטביעה ביומן נשארת. */
+    if (shabbat(now)) { console.log('שבת — לא נשלח דבר.'); return null; }
 
     var due = pairs.filter(function (o) {
       return o['מזהה'] && o['מסלול'] && o['שבוע'] && !sent[keyOf(o)];
@@ -116,6 +154,14 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
        אותו לאשר שוב. */
     due = due.filter(function (o) {
       return !(o['דיווח'] !== 'ההורה' && o['אושר'] === 'כן');
+    });
+    /* דיווח אחד — הודעה אחת, גם כשהשורה נכתבה פעמיים. האפליקציה
+       שולחת שוב דיווח שלא אומת בכל פתיחה, ושתי שורות זהות יצאו
+       כשתי הודעות באותה הרצה ("נשלחו" נקרא פעם אחת, בתחילתה). */
+    var once1 = {};
+    due = due.filter(function (o) {
+      if (once1[keyOf(o)]) return false;
+      once1[keyOf(o)] = 1; return true;
     });
     if (!due.length) { console.log('אין לימוד משותף שממתין להודעה.'); return []; }
 
@@ -176,6 +222,13 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
         var link = byParent ? './join'
           : './join?pr=' + encodeURIComponent(
               o['מזהה'] + '|' + o['מסלול'] + '|' + o['שבוע']);
+        /* אותו מנוי שכבר נמצא פג — אין טעם לנסות. מנוי חדש לאותו
+           אדם נותן טביעה אחרת, ואז שולחים. */
+        var fp = subPrint(sub);
+        if (st[keyOf(o)] === GONE + fp) {
+          console.log('  · #' + (res.length + 1) + ' — המנוי פג ולא חודש, מדלג');
+          res.push(3); return res;
+        }
         if (DRY) {
           console.log('  · #' + (res.length + 1) + ' → ' + pid);
           res.push(1); return res;
@@ -183,7 +236,7 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
         return S.once(keyOf(o), function () {
           return pushOne(sub, JSON.stringify({ title: T.pushT || '', body: body,
                                                url: link, tag: 'pair' }), 86400);
-        })
+        }, function (e) { return e && e.gone ? GONE + fp : 'נכשל'; })
           .then(function (x) {
             if (x && x.skipped) { res.push(0); return res; }
             /* בלי שמות בלוג: יומני ההרצה של ריפו ציבורי גלויים לכל. */
@@ -193,6 +246,8 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
           .catch(function (e) {
             console.log('  ✗ #' + (res.length + 1) + ' → ' + (e.statusCode || '') + ' ' +
                         String(e.body || e.message || '').slice(0, 120));
+            if (e && e.gone) { res.push(4); return res; }
+            FAILED.push(keyOf(o));
             res.push(2); return res;
           });
       });
@@ -202,17 +257,31 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
     /* מה שנכשל נרשם "נכשל" וינסה שוב בהרצה הבאה — אבא שיתקין מחר
        יקבל את ההודעה מחר. ראו once ב-sched.js. */
     S.finish();
-    if (!res || !res.length) return;
-    /* 1 = יצא · 2 = נכשל · 0 = ממתין (הצד השני לא נרשם/לא התקין) */
-    var ok = res.filter(function (x) { return x === 1; }).length;
-    var bad = res.filter(function (x) { return x === 2; }).length;
-    var wait = res.length - ok - bad;
-    console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · ממתינים: ' + wait);
+    if (res == null) return;
+    /* 1 = יצא · 2 = נכשל · 0 = ממתין (הצד השני לא נרשם/לא התקין)
+       4 = המנוי פג, נמצא עכשיו · 3 = המנוי פג קודם, דולג */
+    var cnt = function (v) { return res.filter(function (x) { return x === v; }).length; };
+    var ok = cnt(1), bad = cnt(2), goneNew = cnt(4), gone = goneNew + cnt(3);
+    var wait = cnt(0);
+    if (res.length) {
+      console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · ממתינים: ' + wait +
+                  ' · מנוי פג: ' + gone + (goneNew ? ' (חדשים: ' + goneNew + ')' : ''));
+    }
     if (DRY) return;
-    /* ממתינים חוזרים בכל הרצה — נרשמים ביומן רק כשמשהו יצא או נכשל. */
-    if (!ok && !bad) return;
-    return S.logRun('לימוד משותף — הודעה להורה או לבן', 'הודעה על לימוד משותף שדווח',
-                    'הורים ובנים שדיווחו', ok, bad, wait);
+    /* טביעת הנכשלים של ההרצה הזו, מול זו של הקודמת. */
+    var sig = FAILED.length
+      ? crypto.createHash('sha1').update(FAILED.sort().join('\n')).digest('hex').slice(0, 12)
+      : 'אין';
+    var prev = st[LOG_KEY] || 'אין';
+    /* ממתינים ומנויים שפג קודם חוזרים בכל הרצה — אינם חדשות. */
+    var news = ok || goneNew || (bad && sig !== prev);
+    var log = news
+      ? S.logRun('לימוד משותף — הודעה להורה או לבן', 'הודעה על לימוד משותף שדווח',
+                 'הורים ובנים שדיווחו', ok, bad, wait, gone)
+      : Promise.resolve(false);
+    return log.then(function () {
+      if (sig !== prev) return S.markOne(LOG_KEY, sig);
+    });
   })
   ['catch'](function (e) {
     console.error('נכשל: ' + (e && e.message || e));

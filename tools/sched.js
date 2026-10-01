@@ -175,14 +175,21 @@ function byHead(r) {
    לשונית שעדיין לא נוצרה היא המקרה היחיד שבו ריק הוא אמת:
    הסקריפט מחזיר עליה `rows` ריק, ולא שגיאה.
    ============================================================ */
-function sentLoad(key) {
+/* המצב האחרון של כל מפתח, כמו שהוא כתוב — למי שצריך לדעת יותר
+   מ"יצא / לא יצא" (pair-send.js: "פג" ועל איזה מנוי). */
+function sentRaw(key) {
   return rows(SENT_TAB, key).then(function (r) {
+    var st = {};
+    byHead(r).forEach(function (o) { if (o['מפתח']) st[o['מפתח']] = o['מצב'] || ''; });
+    return st;
+  });
+}
+function sentLoad(key) {
+  return sentRaw(key).then(function (st) {
     /* **השורה האחרונה של כל מפתח קובעת.** "נכשל" = ינסה שוב.
        כל השאר — "נשלח", "ממתין" (לא ודאי: אולי יצא ולא נרשם),
        ושורות ישנות בלי מצב — נחשבים יצאו. שליחה כפולה לכל הצוות
        גרועה מהודעה אחת שדילגה. */
-    var st = {};
-    byHead(r).forEach(function (o) { if (o['מפתח']) st[o['מפתח']] = o['מצב'] || ''; });
     var seen = {};
     for (var k in st) if (st[k] !== 'נכשל') seen[k] = 1;
     return seen;
@@ -228,10 +235,12 @@ function markOne(k, state) {
    3. יצא ולא נרשם "נשלח" — נשאר "ממתין": לא יישלח שוב, ונאמר
       בקול בסוף ההרצה (UNCERTAIN), וההרצה מסתיימת באדום.
    `send` מחזירה Promise שנכשל כשהשליחה נכשלה.
+   `failState` (רשות) — מה לרשום כשנכשלה, לפי השגיאה. ברירת מחדל
+   "נכשל"; pair-send.js רושם "פג:…" למנוי שפג.
    מחזיר את תוצאת send, או { skipped: true } כשלא נשלח כלל.
    ============================================================ */
 var UNCERTAIN = [];
-function once(k, send) {
+function once(k, send, failState) {
   return markOne(k, 'ממתין').then(function (ok) {
     if (!ok) {
       console.log('  ! לא נרשם מראש — לא נשלח (עדיף לדלג מלשלוח פעמיים): ' + k);
@@ -247,7 +256,7 @@ function once(k, send) {
         return v;
       });
     }, function (e) {
-      return markOne(k, 'נכשל').then(function () { throw e; });
+      return markOne(k, (failState && failState(e)) || 'נכשל').then(function () { throw e; });
     });
   });
 }
@@ -264,11 +273,16 @@ function finish() {
    האחרונות" בניהול, עם הקהל והתוצאה. שורה אחת להרצה, לא לכל
    נמען: מספרים בלבד, בלי שמות.
    ============================================================ */
-function logRun(title, text, aud, n, bad, wait) {
-  if (!n && !bad && !wait) return Promise.resolve(false);
-  var res = (n ? (bad ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + n
-               : bad ? 'נכשלה ל-' + bad : 'אין נמענים עם התראות') +
+/* `gone` (רשות) — נמענים שהמנוי שלהם פג. נאמר בנפרד מ"נכשלה":
+   זו אינה תקלה, וגם אין מה לנסות שוב. */
+function logRun(title, text, aud, n, bad, wait, gone) {
+  gone = gone || 0;
+  if (!n && !bad && !wait && !gone) return Promise.resolve(false);
+  var res = (n ? (bad || gone ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + n
+               : bad ? 'נכשלה ל-' + bad
+               : gone ? 'המנוי פג ל-' + gone : 'אין נמענים עם התראות') +
             (n && bad ? ' · נכשלה ל-' + bad : '') +
+            ((n || bad) && gone ? ' · המנוי פג ל-' + gone : '') +
             (wait ? ' · ממתינים ל-' + wait : '');
   var url = scriptUrl();
   var go = function (k) {
@@ -304,6 +318,7 @@ function sentMark(keys) {
 
 module.exports = { israelNow: israelNow, slotsDue: slotsDue, two: two,
                    ask: ask, rows: rows, byHead: byHead,
-                   sentLoad: sentLoad, sentMark: sentMark, once: once, finish: finish,
+                   sentLoad: sentLoad, sentRaw: sentRaw, markOne: markOne,
+                   sentMark: sentMark, once: once, finish: finish,
                    logRun: logRun,
                    SENT_TAB: SENT_TAB, HOURS: HOURS, scriptUrl: scriptUrl };
