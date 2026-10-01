@@ -179,6 +179,56 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
   letter-spacing:.05em;margin-top:3px}
 
+/* ============================================================
+   מסך הפתיחה — הנראות של עמוד הצוות.
+   ============================================================
+   הראש נצבע כחול והחתימה עוברת למרכז, ומתחתיה הפנייה: "תלמיד
+   אהוב," או "הורה יקר,". אחריהם, על הקרם, השורה האפורה וחלון
+   ההדגמה — ורק אז "אני מצטרף" והבאנר.
+
+   **רק בנחיתה.** `body.land` נקבע ב-landSync לפי מה שבאמת על
+   המסך: במסע, במסך הסיום ובמסך ההתקנה של האייפון הראש חוזר
+   להיות החתימה על הנייר, כמו בעמוד הראשי.
+
+   הערכים מועתקים מ-tzevet.html — מי שנוגע באחד, שיבדוק גם
+   את השני. */
+.top-say{display:none}
+body.land header{color:#fff;text-align:center;
+  padding:calc(env(safe-area-inset-top) + 26px) 18px 30px;
+  background:radial-gradient(120% 100% at 80% 0%,#2C63B6 0%,
+    var(--blue) 38%,var(--blue-d) 82%)}
+body.land .masthead{justify-content:center;padding:0;margin:0 auto 20px}
+body.land .masthead .m{width:54px;height:54px;box-shadow:0 6px 20px rgba(0,0,0,.28)}
+body.land .masthead .m img{width:35px;height:35px}
+body.land .masthead > div{text-align:start}
+body.land .masthead h1{font-size:1.14rem;color:#fff}
+body.land .masthead .yr{color:var(--gold-l)}
+body.land .top-say{display:block}
+.top-say h2{font-size:1.52rem;font-weight:800;line-height:1.25;
+  letter-spacing:-.035em;max-width:22rem;margin:0 auto}
+.top-say p{margin:12px auto 0;font-size:.94rem;font-weight:600;
+  color:rgba(255,255,255,.82);line-height:1.7;max-width:24rem}
+.top-say p:empty,.top-say h2:empty{display:none}
+
+/* השורה האפורה שמעל ההדגמה, והחלון עצמו — כמו בעמוד הצוות. */
+.meet{margin:22px 0 16px;text-align:center;font-size:.97rem;
+  font-weight:700;line-height:1.7;color:var(--ink-2);text-wrap:balance}
+.meet[hidden]{display:none}
+.meet[hidden] + .demo{margin-top:26px}
+.demo{position:relative;border-radius:var(--r);overflow:hidden;
+  box-shadow:0 16px 38px rgba(11,37,80,.3)}
+.demo[hidden]{display:none}
+.demo .df{display:block;width:100%;height:470px;border:0}
+@media (min-height:780px){ .demo .df{height:540px} }
+/* כל החלון הוא הכפתור — פותח את הדף האמיתי. */
+.demo .dtap{position:absolute;inset:0;z-index:3;cursor:pointer}
+/* אחרי ההדגמה ההירו אינו צריך למלא את המסך: הוא היעד שאליו
+   העמוד יורד, ולא המסך הראשון. */
+body.land .hero{min-height:0;padding-top:26px}
+.hero{scroll-margin-top:18px}
+/* המרווח שהשורה שמעל הבאנר נתנה לו, לפני שהיא עלתה לראש הכחול */
+#wk0{margin-top:22px}
+
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
   padding:18px;margin-top:14px;box-shadow:var(--sh-1)}
@@ -293,7 +343,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
    הטופס פתח ב"מי אתה?" ובשני שדות שם, כלומר ביקש התחייבות לפני
    שאמר למה. מי שמגיע לכאן קיבל קישור בקבוצה ואינו יודע דבר. */
 .lead{margin-top:6px;text-align:center}
-.lead p{font-size:1rem;font-weight:700;line-height:1.65;color:var(--ink)}
 /* מתי מתחילים. בין ההצטרפות לדף הראשון יש חודש שבו לא קורה
    דבר, וזו השורה שהופכת אותו למשהו שממתינים לו. */
 .when{display:inline-flex;align-items:center;gap:8px;margin-top:13px;
@@ -304,11 +353,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
    נער מצטרף למקום שהחברים שלו כבר נמצאים בו. */
 .peers{margin-top:11px;font-size:.92rem;font-weight:800;color:var(--green-d);
   text-align:center;text-wrap:balance}
-/* השורה שמעל הבאנר. אבא שנכנס לכאן רואה טופס ומחליט אם למלא
-   אותו; מה שגורם לו למלא הוא לראות **מה** יש מעבר לטופס.
-   ולכן קודם המשפט, מיד אחריו הבאנר עצמו, ורק אז הכפתור. */
-.pitch{margin:22px 0 12px;text-align:center;font-size:1.06rem;font-weight:800;
-  letter-spacing:-.03em;line-height:1.4;color:var(--blue-d);text-wrap:balance}
 
 /* ---------- מסך הפתיחה ----------
    מלא־גובה: הדבר הראשון שנער רואה אינו טופס אלא מה שמחכה לו.
@@ -353,7 +397,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   padding:16px;border:0;border-radius:14px;font-family:inherit;
   font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
   background:linear-gradient(140deg,var(--green-d),var(--green-2));
-  box-shadow:0 6px 18px rgba(74,130,28,.28)}
+  box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
+#hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(74,130,28,.28)}
 
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
@@ -829,6 +874,12 @@ footer a{color:var(--ink-2);font-weight:800}
     <div><h1>הדף השבועי<br>של ישיבות בני עקיבא</h1>
       <div class="yr" id="sub">שנת תשפ"ז</div></div>
   </div>
+  <!-- הפנייה — רק במסך הפתיחה (`body.land`), ואז הראש כולו כחול,
+       בדיוק כמו בעמוד הצוות. ראו landSync. -->
+  <div class="top-say">
+    <h2 id="top-h"></h2>
+    <p id="top-p"></p>
+  </div>
 </header>
 
 <!-- **באייפון ההתקנה קודמת לטופס.** ראו showPre. -->
@@ -854,9 +905,16 @@ footer a{color:var(--ink-2);font-weight:800}
        בלי `?wiz=1` שום דבר מזה אינו פעיל, והעמוד מתנהג בדיוק
        כמו קודם. -->
   <div id="s-land">
-  <div class="hero">
+  <!-- ההדגמה — אותו חלון של עמוד הצוות. הדף האינטראקטיבי האמיתי
+       מנגן את עצמו, וכשהוא נגמר העמוד יורד לבד אל "אני מצטרף"
+       ואל הבאנר. ראו landDemo. -->
+  <p class="meet" id="meet"></p>
+  <div class="demo" id="demo" hidden>
+    <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
+    <div class="dtap" id="demo-tap"></div>
+  </div>
+  <div class="hero" id="hero">
     <div class="lead">
-      <p id="lead"></p>
       <span class="when" id="when" style="display:none"></span>
     </div>
     <div class="peers" id="peers" style="display:none"></div>
@@ -875,7 +933,6 @@ footer a{color:var(--ink-2);font-weight:800}
          מבטיחים. הבאנר מראה. הוא חי, עם השקף של השבוע ועם
          הכפתורים שעובדים — כך שגם אבא וגם תלמיד רואים מה בנו
          להם עוד לפני שמסרו שם. -->
-    <p class="pitch" id="pitch"></p>
     <div id="wk0"></div>
 
     <div class="cards" id="cards"></div>
@@ -1369,25 +1426,18 @@ function tpl(t, v) {
 /* ---------- ציור הראש ----------
    נקרא פעמיים: מיד מהמטמון, ושוב אחרי שהגיליון ענה. */
 function drawTop() {
-  /* בקישור ההורים השורה הפותחת מדברת אל האב. מי שסרק את הפלייר
+  /* הראש הכחול — פנייה לתלמיד או להורה, והשורה האפורה שמעל
+     ההדגמה. בקישור ההורים הנוסח מדבר אל ההורה: מי שסרק את הפלייר
      הגיע לכאן, ואם המסך יפתח באמירה אחרת משלו הוא ייראה כמו
-     מקום אחר. ריק = חוזרים לנוסח הרגיל, ולא לשורה ריקה. */
-  $('lead').textContent = (forDad && JOIN.leadDad) ? JOIN.leadDad : JOIN.lead;
-  /* **תפקיד שנזכר — ואפשר לצאת ממנו מיד.** מי שפתח /join נקי במכשיר
-     שבו פעם נפתח קישור ההורים מקבל את הנוסח להורה. כאן — קישור קטן
-     להחליף, לביקור הזה בלבד: הזיכרון לאייקון של ההורה נשאר. */
-  var dn = $('dad-no');
-  if (!dn) {
-    dn = document.createElement('button');
-    dn.id = 'dad-no'; dn.className = 'thin'; dn.type = 'button';
-    $('lead').parentNode.insertBefore(dn, $('lead').nextSibling);
-    dn.onclick = function () {
-      forDad = false; setRole('kid'); drawTop();
-      try { drawWho(); } catch (e) {}
-    };
-  }
-  dn.textContent = JOIN.notDad || '';
-  dn.style.display = (forDad && !/[?&]for=dad\b/.test(location.search) && JOIN.notDad) ? '' : 'none';
+     מקום אחר. */
+  $('top-h').textContent = forDad ? (JOIN.topDadH || '') : (JOIN.topKidH || '');
+  $('top-p').textContent = forDad ? (JOIN.leadDad || '') : (JOIN.topKid || '');
+  var mt = (forDad ? JOIN.meetDad : JOIN.meetKid) || '';
+  $('meet').textContent = mt;
+  /* בלי חלון — גם בלי השורה שמעליו. בעריכת המלל היא נשארת,
+     כדי שאפשר יהיה להקיש עליה ולערוך. */
+  $('meet').hidden = !mt.trim() ||
+    ($('demo').hidden && !/[?&]tedit=1/.test(location.search));
   var wh = $('who-h'); if (wh) wh.textContent = JOIN.whoH || '';
 
   var s = startsIn();
@@ -1467,9 +1517,6 @@ function drawTop() {
   /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
      שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
      יכולים להיפרד. */
-  var pt = $('pitch');
-  pt.textContent = JOIN.pitch || '';
-  pt.style.display = JOIN.pitch ? '' : 'none';
   drawHero();
 
   /* ההגרלה — רק אם הרכז הדליק אותה. כבויה עד שהפרס מאושר:
@@ -1573,12 +1620,27 @@ var forDad = qs('for') === 'dad';
    להורים חזר לטופס כשהבורר על "בן". בדיוק מה שקרה לישיבה, ובדיוק
    אותו תיקון (ראו `df:inst` למטה): נשמר במכשיר כשמגיעים מקישור,
    ונקרא כשנפתחים מהאייקון, בלי שום פרמטר. קישור אחר (של ישיבה,
-   של הזמנה) הוא שאומר מה נכון, ולכן הוא מוחק את הזיכרון. */
-try {
-  if (forDad) localStorage.setItem('df:forDad', '1');
-  else if (location.search.length > 1) localStorage.removeItem('df:forDad');
-  else forDad = localStorage.getItem('df:forDad') === '1';
-} catch (e) {}
+   של הזמנה) הוא שאומר מה נכון, ולכן הוא מוחק את הזיכרון.
+
+   **הזיכרון נקרא באפליקציה המותקנת בלבד.** בדפדפן, `/join` נקי
+   הוא הקישור לתלמידים — תמיד. קודם הוא נקרא גם בדפדפן, ולכן
+   מכשיר שפעם נפתח בו קישור ההורים קיבל בקישור לתלמידים את מסך
+   ההורה, עם כפתור "לא הורה?" שהיה צריך לחלץ ממנו. */
+var APP_MODE = !!(window.APPX && APPX.standalone && APPX.standalone());
+function memo(key, on) {
+  try {
+    if (on) { localStorage.setItem(key, '1'); return true; }
+    if (location.search.length > 1) { localStorage.removeItem(key); return false; }
+    return APP_MODE && localStorage.getItem(key) === '1';
+  } catch (e) { return on; }
+}
+forDad = memo('df:forDad', forDad);
+/* `?out=1` — **הקישור למי שאינו במוסדות בני עקיבא.** אין בו
+   בורר ישיבה כלל: מה שנרשם הוא "אחר", בדיוק כמו מי שבחר "אחר"
+   ברשימה — אבל בלי לעבור על רשימה של מוסדות שאינם שלו ולסמן
+   שהוא לא באף אחד מהם. כל השאר זהה. נזכר לאפליקציה המותקנת
+   כמו קישור ההורים: ההתקנה באה לפני הפרטים. */
+var OUT = memo('df:out', qs('out') === '1');
 var role = forDad ? 'dad' : 'kid';        /* 'kid' | 'dad' */
 
 /* מתי הבורר מוצג בכלל.
@@ -1812,7 +1874,7 @@ function stage(scroll) {
 
   step('c-who', true);
   step('f-last',  ready('first'));
-  step('instFld', ready('last'));
+  if (!OUT) step('instFld', ready('last'));
   /* "אחר" אינו ישיבה, ולכן אחריו נשאלת השאלה שהרשימה כבר ענתה
      עליה עבור כל השאר.
 
@@ -1929,6 +1991,8 @@ try {
     }
   }
 } catch (e) {}
+/* מחוץ לרשת אין ישיבה, גם לא כזו שנזכרה מביקור קודם. */
+if (OUT && !qs('inst')) instCode = '';
 (function () {
   /* ============================================================
      הבורר מוצג תמיד, גם בקישור של ישיבה מסוימת — **ובלי שום
@@ -1951,6 +2015,11 @@ try {
     GRADES.map(function (g) { return '<option>' + g + '</option>'; }).join('');
   $('klass').innerHTML = '<option value="">—</option>' +
     CLASSES.map(function (c) { return '<option>' + c + '</option>'; }).join('');
+  /* הקישור שמחוץ לרשת: "אחר" כבר נבחר, והבורר אינו על המסך. */
+  if (OUT) {
+    $('inst').value = OTHER.code;
+    $('instFld').style.display = 'none';
+  }
 })();
 
 /* ---------- שליחה ----------
@@ -3542,6 +3611,8 @@ window.addEventListener('load', function () {
   flush();
   /* מהמטמון מיד, ומהגיליון אחר כך. מסך שנפתח בלי רשת נראה כמו
      בפעם הקודמת, ולא נופל חזרה לברירת המחדל שבקוד. */
+  landSync();
+  landDemo();
   drawTop();
   LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
   loadPub().then(function () {
@@ -3608,6 +3679,153 @@ drawWays();
 drawWho();
 applyRole();          /* וזה קורא ל-applyWays כשהממלא אינו אבא */
 stage();
+
+/* ============================================================
+   מסך הפתיחה — הנראות של עמוד הצוות.
+   ============================================================
+   הראש הכחול עם הפנייה, השורה האפורה, וחלון ההדגמה שמנגן
+   לבד. כשההדגמה נגמרת העמוד יורד אל "אני מצטרף" ואל הבאנר —
+   בדיוק כמו שעמוד הצוות יורד אל ההנחיות. הקוד מועתק משם
+   (firstScroll, glide, demoBox), ומי שנוגע באחד — שיבדוק גם
+   את השני.
+
+   `body.land` אומר שמסך הפתיחה הוא מה שעל המסך. הוא נגזר ממה
+   שבאמת מוצג ולא נקבע בכל מקום שמחליף מסך: המסע, מסך הסיום
+   ומסך ההתקנה של האייפון נדלקים מכמה מקומות, ומחלקה שצריך
+   לזכור לכבות בכל אחד מהם היא מחלקה שתישכח באחד. */
+function landNow() {
+  var f = $('form'), d = $('done'), p = $('pre');
+  if (/(^|\s)wz(\s|$)/.test(document.body.className)) return false;
+  if (f && f.style.display === 'none') return false;
+  if (d && /(^|\s)on(\s|$)/.test(d.className)) return false;
+  if (p && /(^|\s)on(\s|$)/.test(p.className)) return false;
+  return true;
+}
+function landSync() {
+  var on = landNow(), b = document.body;
+  var was = /(^|\s)land(\s|$)/.test(b.className);
+  if (on === was) return;
+  b.className = on ? b.className + ' land'
+                   : b.className.replace(/(^|\s)land(?=\s|$)/g, '');
+  /* ההדגמה נעצרת כשעוזבים את הנחיתה — היא כבר אינה על המסך,
+     ואין סיבה שתמשיך לרוץ ברקע של הטופס. */
+  if (!on) {
+    var fr = $('demo-frame');
+    if (fr && fr.getAttribute('src')) fr.src = 'about:blank';
+  }
+  try { heroFit(); } catch (e) {}
+}
+(function () {
+  if (!window.MutationObserver) return;
+  var mo = new MutationObserver(landSync);
+  mo.observe(document.body, { attributes:true, attributeFilter:['class'] });
+  ['form', 'done', 'pre'].forEach(function (id) {
+    var el = $(id);
+    if (el) mo.observe(el, { attributes:true, attributeFilter:['class', 'style'] });
+  });
+})();
+
+/* החלון. הדף האינטראקטיבי האמיתי, `embed=1` — אותו מנגנון של
+   עמוד הצוות. נגיעה בחלון פותחת את הדף האמיתי, כמו "פתיחת הדף"
+   שבבאנר. אין דף לשבוע הזה — אין חלון, וגם לא השורה שמעליו. */
+function landDemo() {
+  var box = $('demo'), f = $('demo-frame');
+  if (!box || !f || f.getAttribute('src')) return;
+  if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
+  var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
+  if (!d) return;
+  box.hidden = false;
+  var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+  f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
+          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
+          (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+
+  window.addEventListener('message', function (e) {
+    if (e.data === 'daf-demo-done') toGo();
+  });
+
+  /* גרירה אינה נגיעה — אצבע שגוללת את העמוד עוברת מעל החלון. */
+  var tap = $('demo-tap'), dr = null;
+  tap.addEventListener('pointerdown', function (e) {
+    dr = { x:e.clientX, y:e.clientY, m:0 };
+  });
+  tap.addEventListener('pointermove', function (e) {
+    if (dr) dr.m = Math.max(dr.m, Math.abs(e.clientX - dr.x) +
+                                  Math.abs(e.clientY - dr.y));
+  });
+  tap.addEventListener('pointerup', function () {
+    var d2 = dr; dr = null;
+    if (d2 && d2.m < 8) stWeek();
+  });
+  tap.addEventListener('pointercancel', function () { dr = null; });
+
+  landScroll();
+}
+
+/* ---------- התזוזה העדינה ----------
+   שתי שניות של המתנה, ואז העמוד מתיישב על הפנייה; שלוש שניות
+   לקרוא, ואז החלון כולו על המסך עם אוויר מתחתיו. כל נגיעה
+   מבטלת — עמוד שזז מתחת לאצבע הוא הדבר המעצבן ביותר שמסך
+   יכול לעשות. */
+var LAND_STOP = false;
+function landScroll() {
+  if (location.hash) return;
+  if (/[?&](go|nointro)=1\b/.test(location.search)) return;
+  if (window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+
+  var mark = function () { LAND_STOP = true; };
+  ['touchstart', 'wheel', 'keydown', 'pointerdown'].forEach(function (ev) {
+    window.addEventListener(ev, mark, true);
+  });
+
+  setTimeout(function () {
+    if (LAND_STOP || window.pageYOffset > 4 || !landNow()) return;
+    var h = $('top-h');
+    if (!h || !h.getClientRects().length) return;
+    var to = h.getBoundingClientRect().top + window.pageYOffset - 20;
+    if (to <= 8) return;
+    landGlide(to, 1500, function () {
+      setTimeout(function () {
+        if (LAND_STOP || !landNow()) return;
+        var box = $('demo');
+        if (!box || box.hidden) return;
+        var r = box.getBoundingClientRect();
+        var y = window.pageYOffset + r.bottom + 22 - window.innerHeight;
+        if (y - window.pageYOffset > 14) landGlide(y, 1100);
+      }, 3000);
+    });
+  }, 2000);
+}
+/* מתחילה כמעט בלי מהירות, צוברת, ונעצרת בעדינות. */
+function landGlide(to, ms, done) {
+  var from = window.pageYOffset, dist = to - from, t0 = 0;
+  var step = function (ts) {
+    if (LAND_STOP) return;
+    if (!t0) t0 = ts;
+    var k = Math.min(1, (ts - t0) / ms);
+    var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    window.scrollTo(0, from + dist * e);
+    if (k < 1) requestAnimationFrame(step);
+    else if (done) done();
+  };
+  requestAnimationFrame(step);
+}
+/* ההדגמה נגמרה — אל "אני מצטרף" והבאנר, והכפתור נדלק לרגע כדי
+   שהעין תדע לאן הגיעה. */
+function toGo() {
+  var el = $('hero'), go = $('hero-go');
+  if (!el || !landNow()) return;
+  setTimeout(function () {
+    try { el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch (e) { el.scrollIntoView(); }
+    if (go) {
+      go.className = 'go lit';
+      setTimeout(function () { go.className = 'go'; }, 1800);
+    }
+  }, 120);
+}
 
 /* ============================================================
    "כבר נרשמתי במכשיר אחר".

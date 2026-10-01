@@ -2120,7 +2120,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.89';
+var APP_VERSION = '8.99.90';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3185,6 +3185,9 @@ function joinUrl(code) {
    הכרטיס שמציג אותו. בלי קוד ישיבה: הוא נשלח לקבוצות הורים
    של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
 function dadUrl() { return joinUrl('') + '?for=dad'; }
+/* הקישור למי שאינו במוסדות בני עקיבא — בלי בורר ישיבה כלל.
+   ראו `OUT` ב-join.html. */
+function outUrl() { return joinUrl('') + '?out=1'; }
 
 
 /* עמוד הנחיתה של הצוות. נושא את קוד הגישה כשיש כזה, ולכן הוא
@@ -9347,6 +9350,21 @@ function admLinks(el) {
     encodeURIComponent(fill(UI.linkWa, { inst:'רשת בני עקיבא', url:joinUrl('') })) +
     '">' + esc(UI.linkWaBtn) + '</a>' +
     '<button class="cp" onclick="copyAny(this,\'' + esc(joinUrl('')) + '\')">' +
+    esc(UI.linkCopy) + '</button></div></div>' +
+
+    /* מחוץ לרשת — אותו מסך בדיוק, בלי רשימת המוסדות. מי שאינו
+       שייך לאף אחד מהם אינו צריך לעבור עליה ולסמן "אחר". */
+    '<div class="adm-card" style="margin-bottom:11px"><h4>קישור לתלמידים מחוץ לרשת</h4>' +
+    '<p class="h">לאנשים שאינם קשורים למוסדות בני עקיבא. אותו מסך בדיוק, ' +
+    '<b>בלי בחירת ישיבה</b> — הם נרשמים כ"אחר", ואינם צריכים לסמן זאת.</p>' +
+    '<div class="url" style="direction:ltr;text-align:start">' +
+    esc(outUrl()) + '</div>' +
+    '<div style="display:flex;gap:7px;margin-top:10px">' +
+    '<a class="btn gr" style="margin:0;flex:1;text-decoration:none" target="_blank" ' +
+    'rel="noopener" href="https://wa.me/?text=' +
+    encodeURIComponent(fill(UI.linkWa, { inst:'הדף השבועי', url:outUrl() })) +
+    '">' + esc(UI.linkWaBtn) + '</a>' +
+    '<button class="cp" onclick="copyAny(this,\'' + esc(outUrl()) + '\')">' +
     esc(UI.linkCopy) + '</button></div></div>' +
 
     /* הקישור להורים — אותו עמוד, פתוח על אבא.
