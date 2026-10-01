@@ -141,12 +141,12 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
         var pk = phoneKey(o['טלפון השותף']);
         var pid = pk && byPhone[pk];
         if (!pid) {
-          console.log('  · ' + name + ' — הצד השני עדיין לא נרשם, ממתין');
+          console.log('  · #' + (res.length + 1) + ' — הצד השני עדיין לא נרשם, ממתין');
           res.push(0); return res;
         }
         var raw = last[pid];
         if (!raw) {
-          console.log('  · ' + name + ' — הצד השני נרשם ולא התקין, ממתין');
+          console.log('  · #' + (res.length + 1) + ' — הצד השני נרשם ולא התקין, ממתין');
           res.push(0); return res;
         }
         var sub;
@@ -177,7 +177,7 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
           : './join?pr=' + encodeURIComponent(
               o['מזהה'] + '|' + o['מסלול'] + '|' + o['שבוע']);
         if (DRY) {
-          console.log('  · ' + name + ' → ' + pid + ' | ' + body);
+          console.log('  · #' + (res.length + 1) + ' → ' + pid);
           res.push(1); return res;
         }
         return S.once(keyOf(o), function () {
@@ -186,13 +186,14 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
         })
           .then(function (x) {
             if (x && x.skipped) { res.push(0); return res; }
-            console.log('  ✓ ' + name + ' → ' + x.statusCode + ' | ' + body);
+            /* בלי שמות בלוג: יומני ההרצה של ריפו ציבורי גלויים לכל. */
+            console.log('  ✓ #' + (res.length + 1) + ' → ' + x.statusCode);
             res.push(1); return res;
           })
           .catch(function (e) {
-            console.log('  ✗ ' + name + ' → ' + (e.statusCode || '') + ' ' +
+            console.log('  ✗ #' + (res.length + 1) + ' → ' + (e.statusCode || '') + ' ' +
                         String(e.body || e.message || '').slice(0, 120));
-            res.push(0); return res;
+            res.push(2); return res;
           });
       });
     }, Promise.resolve([]));
@@ -202,8 +203,16 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
        יקבל את ההודעה מחר. ראו once ב-sched.js. */
     S.finish();
     if (!res || !res.length) return;
-    var ok = res.reduce(function (x, y) { return x + y; }, 0);
-    console.log('\nיצאו: ' + ok + ' · ממתינים: ' + (res.length - ok));
+    /* 1 = יצא · 2 = נכשל · 0 = ממתין (הצד השני לא נרשם/לא התקין) */
+    var ok = res.filter(function (x) { return x === 1; }).length;
+    var bad = res.filter(function (x) { return x === 2; }).length;
+    var wait = res.length - ok - bad;
+    console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · ממתינים: ' + wait);
+    if (DRY) return;
+    /* ממתינים חוזרים בכל הרצה — נרשמים ביומן רק כשמשהו יצא או נכשל. */
+    if (!ok && !bad) return;
+    return S.logRun('לימוד משותף — הודעה להורה או לבן', 'הודעה על לימוד משותף שדווח',
+                    'הורים ובנים שדיווחו', ok, bad, wait);
   })
   ['catch'](function (e) {
     console.error('נכשל: ' + (e && e.message || e));

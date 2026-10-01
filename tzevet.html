@@ -76,6 +76,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#0B2550">
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 /* ============================================================
    עמוד הנחיתה לצוות · /tzevet?inst=<קוד>&k=<קוד גישה>
    ============================================================

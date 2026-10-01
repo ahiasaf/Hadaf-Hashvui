@@ -124,7 +124,17 @@ jobs:
           # מהטופס הידני, או מההצתה שיצאה ממסך הניהול.
           MODE:     ${{ inputs.mode     || github.event.client_payload.mode }}
           SEND_ALL: ${{ inputs.everyone || github.event.client_payload.all }}
+          # שליחה יזומה מהניהול — המזהה שלה ביומן "הודעות". ההרצה
+          # מדווחת עליו בסוף (tools/push-report.js).
+          SID:      ${{ github.event.client_payload.sid }}
         run: node tools/digest-send.js
+
+      - name: דיווח על כישלון
+        if: failure() && github.event_name == 'repository_dispatch'
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          SID:      ${{ github.event.client_payload.sid }}
+        run: node tools/push-report.js crash
 
       # התזכורות שהרכז כתב לעצמו. אותו קרון, כי אין סיבה
       # לשני לוחות זמנים — והן תלויות באותה משבצת של חצי שעה.

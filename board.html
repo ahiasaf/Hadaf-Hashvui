@@ -46,6 +46,9 @@
 <meta name="theme-color" content="#0E2E63">
 <meta name="robots" content="noindex">
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 /* ============================================================
    הלוח של ראש החטיבה.
 
@@ -612,6 +615,11 @@ function jsonp(url) {
 }
 function askScript(params) {
   if (!API_URL) return Promise.resolve(null);
+  /* כתובת שרת ישנה במכשיר — שליחה דרכה יוצאת בלי הסינונים. */
+  if (params && params.fire && APPS_SCRIPT_URL &&
+      String(API_URL).trim() !== String(APPS_SCRIPT_URL).trim()) {
+    return Promise.resolve({ status:'denied', message: (window.UI && UI.apiOld) || '' });
+  }
   var q = Object.keys(params).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   }).join('&');

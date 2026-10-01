@@ -37,6 +37,9 @@
 <meta name="theme-color" content="#F6F1E6">
 <meta name="robots" content="noindex">
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 /* ============================================================
    אב־טיפוס, סבב 2.
    כלל אחד: כל פיקסל צריך להצדיק את קיומו. אין מלבנים, אין

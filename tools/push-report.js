@@ -50,6 +50,10 @@ function report(f) {
 }
 module.exports = { report: report };
 
+/* דיווח "לא נשלח, ולמה" מהרצה שעצרה בכוונה (digest-send.js). */
+if (require.main === module && process.argv[2] === 'why') {
+  report({ why: String(process.argv[3] || '') }).then(function () { process.exit(0); });
+}
 if (require.main === module && process.argv[2] === 'crash') {
   report({ why: 'ההרצה ב-GitHub נפלה' }).then(function () { process.exit(0); });
 }

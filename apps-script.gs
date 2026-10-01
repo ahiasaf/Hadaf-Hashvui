@@ -569,6 +569,9 @@ function doGet(e) {
     var dRepo = prop_('GH_REPO', '');
     if (!dTok)  return reply_(e, { status:'denied', message:'לא הוגדר GH_TOKEN' });
     if (!dRepo) return reply_(e, { status:'denied', message:'לא הוגדר GH_REPO' });
+    /* מזהה לשליחה, כמו ב-ghFire_: ההרצה מדווחת עליו בסוף, והיומן
+       מקבל את התוצאה. */
+    var dSid = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
     try {
       var dRes = UrlFetchApp.fetch(GH_API + dRepo + '/dispatches', {
         method: 'post', contentType: 'application/json',
@@ -578,7 +581,7 @@ function doGet(e) {
         payload: JSON.stringify({
           event_type: 'push-digest',
           client_payload: { mode: String(e.parameter.mode || 'joined'),
-                            all: '1' }
+                            all: '1', sid: dSid }
         }),
         muteHttpExceptions: true
       });
@@ -589,9 +592,10 @@ function doGet(e) {
       }
       try {
         appendCols_('הודעות', [
-          ['מי', 'רכז'], ['ישיבה', 'כל הצוות'],
+          ['מי', 'רכז'], ['ישיבה', 'כל הצוות'], ['קהל', 'כל הצוות'],
           ['כותרת', 'כמה מכיתתך הצטרפו'],
-          ['הטקסט', 'עדכון אישי — כל ר"ם והמספר שלו']
+          ['הטקסט', 'עדכון אישי — כל ר"ם והמספר שלו'],
+          ['מזהה שליחה', dSid], ['תוצאה', 'ממתין']
         ]);
       } catch (e3) {}
       return reply_(e, { status: 'ok' });
@@ -689,7 +693,8 @@ function doGet(e) {
       /* דיווח כפול (מהקוד ומשלב ה-failure) — הסיבה הראשונה נשארת. */
       if (was.indexOf('נכשלה') === 0) now = was;
       sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue(now);
-      if (why && was.indexOf('נכשלה') !== 0) {
+      /* כישלון של התראת מערכת אינו מתריע — ההתרעה עצמה היא התראת מערכת. */
+      if (why && was.indexOf('נכשלה') !== 0 && String(sr.v[sr.ix['מי']] || '') !== 'מערכת') {
         sayAlert_(String(sr.v[sr.ix['מי']] || ''), String(sr.v[sr.ix['ישיבה']] || ''),
                   String(sr.v[sr.ix['הטקסט']] || ''), why);
       }
@@ -3000,27 +3005,28 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
   }
   /* **כל הודעה נרשמת, גם כזו שלא יצאה** — עם כל מה שצריך כדי לשלוח
      אותה שוב בדיוק כמו שהייתה (`?resend=`). ערוץ שידור לקטינים בלי
-     יומן הוא ערוץ שאיש אינו יודע מה עבר בו. התראות מערכת לרכז
-     (`quiet`) אינן נרשמות — הן אינן הודעה של איש. */
-  if (!quiet) {
-    try {
-      appendCols_('הודעות', [
+     יומן הוא ערוץ שאיש אינו יודע מה עבר בו.
+     גם התראות מערכת לרכז (`quiet`) נרשמות, עם התוצאה — אבל כישלון
+     שלהן אינו מתריע (אחרת התרעה על התרעה, בלי סוף). */
+  try {
+    appendCols_('הודעות', [
         ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
+        ['קהל', quiet ? 'מכשירי רכז' : ''],
         ['שכבה', grade || ''], ['כיתה', klass || ''],
         ['כותרת', title], ['הטקסט', body],
         ['תפקיד', role || ''], ['פילוח', String(flt || '').slice(0, 40000)],
         ['יעד', only || ''], ['קישור', link || ''], ['ממתינים', wait || ''],
         ['מזהה שליחה', sid],
         ['תוצאה', res0.status === 'ok' ? 'ממתין' : 'נכשלה: ' + (res0.message || '')]
-      ]);
-    } catch (e3) {}
-    if (res0.status !== 'ok') sayAlert_(who, only, body, res0.message);
-  }
+    ]);
+  } catch (e3) {}
+  if (!quiet && res0.status !== 'ok') sayAlert_(who, only, body, res0.message);
   return res0;
 }
 
 /* התראה לרכז — לכל מכשיר שנרשם בתפקיד "רכז" (ניהול ← ההתראות
-   במכשיר הזה). שקטה: אינה נרשמת, ואינה מתריעה על עצמה אם נכשלה. */
+   במכשיר הזה). נרשמת ביומן ("מערכת" · "מכשירי רכז") עם התוצאה, אבל
+   אינה מתריעה על עצמה אם נכשלה. */
 function coordPing_(title, body) {
   try { ghFire_(title, body, '', '', '', 'מערכת', 'admin', 'רכז', '', '', true); } catch (e) {}
 }

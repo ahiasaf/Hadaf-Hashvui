@@ -259,6 +259,37 @@ function finish() {
   process.exitCode = 1;
 }
 
+/* ============================================================
+   שורה ב"הודעות" — כדי שגם השליחות המתוזמנות יופיעו ב"ההודעות
+   האחרונות" בניהול, עם הקהל והתוצאה. שורה אחת להרצה, לא לכל
+   נמען: מספרים בלבד, בלי שמות.
+   ============================================================ */
+function logRun(title, text, aud, n, bad, wait) {
+  if (!n && !bad && !wait) return Promise.resolve(false);
+  var res = (n ? (bad ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + n
+               : bad ? 'נכשלה ל-' + bad : 'אין נמענים עם התראות') +
+            (n && bad ? ' · נכשלה ל-' + bad : '') +
+            (wait ? ' · ממתינים ל-' + wait : '');
+  var url = scriptUrl();
+  var go = function (k) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'row', tab:'הודעות', key: process.env.READ_KEY || '',
+        cols: JSON.stringify([['מי', 'מערכת'], ['ישיבה', ''], ['קהל', aud],
+                              ['כותרת', title], ['הטקסט', text], ['תוצאה', res]]) })
+    }).then(function (r) { return r.text(); }).then(function (t) {
+      if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) throw new Error(String(t).slice(0, 80));
+      return true;
+    })['catch'](function (e) {
+      if (k >= 3) { console.log('  ! לא נרשם ביומן ההודעות: ' + (e.message || e)); return false; }
+      return new Promise(function (ok) { setTimeout(ok, 1500 * k); })
+        .then(function () { return go(k + 1); });
+    });
+  };
+  return go(1);
+}
+
 /* תאימות: רישום "נשלח" אחרי מעשה (ללא שלב "ממתין"). */
 function sentMark(keys) {
   return keys.reduce(function (chain, k) {
@@ -274,4 +305,5 @@ function sentMark(keys) {
 module.exports = { israelNow: israelNow, slotsDue: slotsDue, two: two,
                    ask: ask, rows: rows, byHead: byHead,
                    sentLoad: sentLoad, sentMark: sentMark, once: once, finish: finish,
+                   logRun: logRun,
                    SENT_TAB: SENT_TAB, HOURS: HOURS, scriptUrl: scriptUrl };

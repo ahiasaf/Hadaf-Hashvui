@@ -7,6 +7,9 @@
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0E2E63">
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 /* ============================================================
    עמוד הפרטים · /info
 

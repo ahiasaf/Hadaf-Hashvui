@@ -140,6 +140,9 @@ function stuHomeGo(me) {
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon-precomposed" href="icon-192.png"></noscript>
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 /* ============================================================
    שפת העיצוב לקוחה מהמצגות ומהסימנייה המודפסת:
    קלף חם, כחול וירוק של בני עקיבא, זהב לרגעים חשובים.
@@ -2117,7 +2120,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.88';
+var APP_VERSION = '8.99.89';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5207,6 +5210,10 @@ var CALL_TAB    = 'יומן שיחות';  // שם | סטטוס | הערה | מת
 var callSync    = { state:'', at:0 };
 
 function scriptGet(params) {
+  /* שליחה דרך שרת ישן יוצאת בלי הסינונים — לכולם. עוצרים כאן. */
+  if (params && (params.fire === 'say' || params.fire === 'digest') && apiOld()) {
+    return Promise.resolve({ status:'denied', message: UI.apiOld || '' });
+  }
   var url = (CFG.api || API || '').trim();
   if (!url) return Promise.reject(new Error('אין כתובת שרת'));
   var q = Object.keys(params).map(function (k) {
@@ -6953,6 +6960,19 @@ function cfgDirty() {
   return false;
 }
 
+/* כתובת השרת שבמכשיר שונה מזו שבקוד. ההגדרה במכשיר נולדה כשעוד
+   לא הייתה כתובת בקוד; היום היא רק מפנה לגרסה ישנה של הסקריפט,
+   שאינה מכירה את הסינונים — ושולחת לכולם. */
+function apiOld() {
+  var a = String(CFG.api || '').trim(), c = String(APPS_SCRIPT_URL || '').trim();
+  return !!(a && c && a !== c);
+}
+function apiReset() {
+  CFG.api = ''; Store.set('cfg', CFG);
+  try { localStorage.removeItem('dfApi'); } catch (e) {}
+  API = APPS_SCRIPT_URL || '';
+  admPane();
+}
 function cfgSet(k, v) {
   CFG[k] = v; Store.set('cfg', CFG); applyCfg();
   if (typeof admPubBar === 'function') admPubBar();
@@ -8406,6 +8426,8 @@ function sheetAgo(v) { var t = sheetTime(v); return t ? whenTxt(t) : ''; }
 /* הקהל האמיתי של שליחה, מכל עמודות היומן — ולא רק "ישיבה", שבה
    "כולם" הוא ברירת מחדל ומסתיר את שאר הצמצומים. */
 function sayAud(r) {
+  /* שליחות מערכת ושליחות מתוזמנות כותבות את הקהל שלהן בעצמן. */
+  if (r.aud) return r.aud;
   var out = [], f = {};
   try { f = JSON.parse(r.flt || '{}') || {}; } catch (e) { f = {}; }
   if (r.wait) out.push('מי שביקש התראה על הדף');
@@ -8448,7 +8470,8 @@ function needsLoad() {
       return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
                body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך'),
                aud: sayAud({ inst: io ? io.name : ic, grade: c(r, 'שכבה'), klass: c(r, 'כיתה'),
-                             role: c(r, 'תפקיד'), flt: c(r, 'פילוח'), wait: c(r, 'ממתינים') }) };
+                             role: c(r, 'תפקיד'), flt: c(r, 'פילוח'), wait: c(r, 'ממתינים'),
+                             aud: c(r, 'קהל') }) };
     }).reverse().slice(0, 40);
     needsFail = rows.slice(1).filter(function (r) {
       var t = c(r, 'תוצאה');
@@ -12975,6 +12998,9 @@ function admSet(el) {
     '<div class="fld"><div class="label">כתובת שרת (Apps Script / Firebase)</div>' +
     '<input type="text" dir="ltr" placeholder="https://script.google.com/…/exec" value="' +
     esc(CFG.api || API) + '" onchange="cfgSet(\'api\',this.value.trim())"></div>' +
+    (apiOld() ? '<div class="cond" style="margin:6px 0">במכשיר הזה שמורה כתובת שרת ' +
+      'ששונה מהכתובת הקבועה שבקוד. שליחת התראות ממנו חסומה עד שחוזרים לקבועה.</div>' +
+      '<button class="btn p" style="margin-bottom:8px" onclick="apiReset()">חזרה לכתובת הקבועה</button>' : '') +
     '<button class="btn g" onclick="admPing()">בדיקת חיבור</button>' +
     '<div id="adm-ping"></div></div>' +
 

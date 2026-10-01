@@ -82,9 +82,12 @@ jobs:
         env:
           VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
           READ_KEY:      ${{ secrets.READ_KEY }}
-          # שני המקורות: הפעלה ידנית מכאן, או הצתה ממסך הניהול.
-          TITLE: ${{ inputs.title || github.event.client_payload.title }}
-          BODY:  ${{ inputs.body  || github.event.client_payload.body }}
+          # הפעלה ידנית מכאן. בהצתה ממסך הניהול הכותרת והטקסט נקראים
+          # מקובץ האירוע (push-send.js) ולא מכאן: כל מה שכתוב ב-env
+          # מודפס ביומן ההרצה, והיומן של ריפו ציבורי גלוי לכל —
+          # והכותרת נושאת לפעמים שם (למשל "לאימות: …").
+          TITLE: ${{ inputs.title }}
+          BODY:  ${{ inputs.body }}
           # ריק = לכולם. אחרת קוד ישיבה, ואז רק היא מקבלת.
           ONLY:  ${{ github.event.client_payload.only }}
           # שכבה וכיתה — ר"ם ששולח לכיתה שלו בלבד.

@@ -32,6 +32,9 @@
 <meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
 <meta name="twitter:card" content="summary_large_image">
 <style>
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 :root{
   --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-t:#8C681F;
   --green-d:#467B1A; --stop:#A5392B;

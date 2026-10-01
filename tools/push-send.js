@@ -32,8 +32,15 @@ function endWith(f, code) {
 
 var priv  = process.env.VAPID_PRIVATE || '';
 var key   = process.env.READ_KEY || '';
-var title = process.env.TITLE || 'הדף השבועי';
-var body  = process.env.BODY  || 'דף חדש מחכה לך.';
+/* בהצתה מהניהול — מהאירוע עצמו ולא מ-env, כדי שלא יודפסו ביומן
+   הציבורי של ההרצה. ראו push-send.yml. */
+var EV = {};
+try {
+  EV = (JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH || '', 'utf8')) || {})
+    .client_payload || {};
+} catch (e) { EV = {}; }
+var title = process.env.TITLE || EV.title || 'הדף השבועי';
+var body  = process.env.BODY  || EV.body  || 'דף חדש מחכה לך.';
 /* לאן ההתראה פותחת. ריק = שורש האפליקציה, כמו תמיד.
    נתיב יחסי בלבד — כתובת מלאה מכאן היא ערוץ הפניה. */
 var link  = String(process.env.LINK || '').trim();

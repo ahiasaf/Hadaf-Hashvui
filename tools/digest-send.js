@@ -110,6 +110,9 @@ var S = require('./sched.js');
 /* מסירה בזהירות (זמן קצוב, ניסיון חוזר) — ראו push-deliver.js.
    נכשל כשהמסירה נכשלה, כדי ש-S.once ירשום "נכשל". */
 var D = require('./push-deliver.js');
+/* שליחה יזומה מהניהול נושאת מזהה (SID) — ההרצה מדווחת עליו, והשורה
+   ביומן מקבל את התוצאה. בלי מזהה (הרצה מתוזמנת) — שורה חדשה ביומן. */
+var report = require('./push-report.js').report;
 function pushOne(sub, payload, ttl) {
   return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
     if (r.ok) return { statusCode: r.code };
@@ -356,6 +359,20 @@ function forOne(P, w, students, wk) {
   return { title: fill(D.title, v), body: fill(body, v) };
 }
 
+/* יציאה בלי לשלוח. בשליחה יזומה מהניהול (SID) — מדווחים קודם למה,
+   כדי שהשורה ביומן לא תישאר "ממתין". סינכרוני: הקוד כאן רץ ברצף. */
+function quit(msg) {
+  console.log(msg);
+  if (process.env.SID && !DRY) {
+    try {
+      require('child_process').execFileSync(process.execPath,
+        [__dirname + '/push-report.js', 'why', 'לא נשלח: ' + msg],
+        { stdio: 'inherit', env: process.env, timeout: 60000 });
+    } catch (e) {}
+  }
+  process.exit(0);
+}
+
 /* ============================================================ */
 var P;
 try { P = loadProgram(); }
@@ -369,8 +386,7 @@ console.log('שעון ישראל: ' + now.date + ' · יום ' + now.day + ' · 
             '  ·  מצב: ' + MODE + (ALL ? ' (לכולם)' : ''));
 
 if (!slots.length) {
-  console.log('אין משבצת לשלוח בה — לא נשלח דבר.');
-  process.exit(0);
+  quit('אין משבצת לשלוח בה — לא נשלח דבר.');
 }
 var slot = slots[slots.length - 1];      /* הנוכחית */
 console.log('משבצות: ' + slots.length + ' · יום ' + slot.day + ' · ' +
@@ -394,20 +410,17 @@ var wk = P.LWeek() + (slot.next ? 1 : 0);
    סוגר אותו בדיוק כשהוא נחוץ. */
 if (MODE === 'learn') {
   if (wk < 0) {
-    console.log('התוכנית עוד לא התחילה (מתחילה ' + P.PROGRAM.startDate +
+    quit('התוכנית עוד לא התחילה (מתחילה ' + P.PROGRAM.startDate +
                 ') — לא נשלח דבר.');
-    process.exit(0);
   }
   if (wk >= P.CAL_TAANIT.length) {
-    console.log('התוכנית הסתיימה — לא נשלח דבר.');
-    process.exit(0);
+    quit('התוכנית הסתיימה — לא נשלח דבר.');
   }
   /* שבוע חופשה: אין דף באף מסלול, ולכן אין על מה לעדכן.
      כך גם חנוכה ופסח יוצאים מהמשחק בלי רשימת חגים נפרדת. */
   var anyDaf = P.TRACKS.some(function (t) { return !!P.LDaf(t.id, wk); });
   if (!anyDaf) {
-    console.log('שבוע ' + (wk + 1) + ' הוא שבוע חופשה — לא נשלח דבר.');
-    process.exit(0);
+    quit('שבוע ' + (wk + 1) + ' הוא שבוע חופשה — לא נשלח דבר.');
   }
   console.log('שבוע ' + (wk + 1) + ' · ' + P.CAL_TAANIT[wk][1]);
 }
@@ -416,8 +429,7 @@ if (MODE === 'learn') {
    שהרכז יזם ביד אינה מצלצלת בטלפון של ר"ם בשבת. המשבצות של
    שבת כבר סוננו ב-`slotsNow`, וזו הרשת האחרונה. */
 if (slot.day === 6 && slot.t < '20:00') {
-  console.log('שבת — לא נשלח דבר.');
-  process.exit(0);
+  quit('שבת — לא נשלח דבר.');
 }
 
 /* מפתח אחד לכל עדכון בכל ההיסטוריה: למי, באיזה יום, ובאיזו
@@ -480,17 +492,18 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
       /* לוח שלא נקרא אינו ישיבה ריקה. עדכון שאומר "אף אחד לא
          למד" על סמך קריאה שנכשלה הוא בדיוק סוג השקר שהפרויקט
          הזה נלחם בו. מדלגים. */
+      /* בלי שמות בלוג: יומני ההרצה של ריפו ציבורי גלויים לכל. */
       if (!students) {
-        console.log('  · ' + w.who + ' — הלוח לא נקרא, מדלג');
+        console.log('  · ' + w.inst + ' — הלוח לא נקרא, מדלג');
         return 0;
       }
       var msg = forOne(P, w, students, wk);
       if (!msg) {
-        console.log('  · ' + w.who + ' — אין לו עדיין תלמידים, מדלג');
+        console.log('  · ' + w.inst + ' — אין עדיין תלמידים, מדלג');
         return 0;
       }
       if (DRY) {
-        console.log('  · ' + w.who + ' · ' + w.slot.t + ' → ' + msg.title +
+        console.log('  · ' + w.inst + ' · ' + w.slot.t + ' → ' + msg.title +
                     ' | ' + msg.body);
         return 1;
       }
@@ -507,26 +520,35 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
       return (ALL ? sendIt() : S.once(keyOf(w, w.slot), sendIt))
         .then(function (r) {
           if (r && r.skipped) return 0;
-          console.log('  ✓ ' + w.who + ' · ' + host + ' → ' + r.statusCode +
-                      ' | ' + msg.body);
+          console.log('  ✓ ' + w.inst + ' · ' + host + ' → ' + r.statusCode);
           return 1;
         })
         .catch(function (e) {
-          console.log('  ✗ ' + w.who + ' · ' + host + ' → ' +
+          console.log('  ✗ ' + w.inst + ' · ' + host + ' → ' +
                       (e.statusCode || '') + ' ' +
                       String(e.body || e.message || '').slice(0, 120));
-          return 0;
+          return 2;
         });
     });
   });
 }).then(function (res) {
   S.finish();
-  if (!res.length) return;
-  var ok = res.reduce(function (a, b) { return a + b; }, 0);
-  console.log('\nיצאו: ' + ok + ' · נכשלו: ' + (res.length - ok));
-  /* מנוי שפג אינו תקלה של הקוד. כולם נכשלו — כן. */
-  if (!ok) process.exit(1);
+  /* 1 = יצא · 2 = נכשל · 0 = דילוג (לוח שלא נקרא, אין תלמידים) */
+  var ok = res.filter(function (x) { return x === 1; }).length;
+  var bad = res.filter(function (x) { return x === 2; }).length;
+  if (res.length) console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · דולגו: ' + (res.length - ok - bad));
+  /* היומן בניהול — גם כשלא יצא דבר בשליחה יזומה (אז התוצאה "אין נמענים"). */
+  var log = DRY ? Promise.resolve()
+    : process.env.SID ? report(res.length ? { n: ok, bad: bad } : { none: 1 })
+    : S.logRun(MODE === 'joined' ? 'כמה מכיתתך הצטרפו' : 'העדכון לצוות',
+               'עדכון אישי לכל איש צוות שביקש אותו', 'צוות שביקש עדכון', ok, bad, 0);
+  return log.then(function () {
+    /* מנוי שפג אינו תקלה של הקוד. כולם נכשלו — כן. */
+    if (res.length && !ok) process.exit(1);
+  });
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
-  process.exit(1);
+  var why = 'ההרצה נפלה: ' + String(e && e.message || e).slice(0, 120);
+  (process.env.SID ? report({ why: why }) : Promise.resolve())
+    .then(function () { process.exit(1); });
 });

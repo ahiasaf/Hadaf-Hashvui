@@ -131,7 +131,7 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
         res.push(0); return res;
       }
       if (DRY) {
-        console.log('  · ' + o['שעה'] + ' | ' + o['נוסח']);
+        console.log('  · ' + o['שעה']);
         res.push(1); return res;
       }
       /* הלחיצה פותחת את מסך השיחות — שם הוא ממילא עומד לפעול. */
@@ -141,13 +141,14 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
       })
         .then(function (r) {
           if (r && r.skipped) { res.push(0); return res; }
-          console.log('  ✓ ' + o['שעה'] + ' → ' + r.statusCode + ' | ' + o['נוסח']);
+          /* בלי הנוסח: הוא כתוב ביד ועלול לכלול שמות, והלוג ציבורי. */
+          console.log('  ✓ ' + o['שעה'] + ' → ' + r.statusCode);
           res.push(1); return res;
         })
         .catch(function (e) {
           console.log('  ✗ ' + o['שעה'] + ' → ' + (e.statusCode || '') + ' ' +
                       String(e.body || e.message || '').slice(0, 120));
-          res.push(0); return res;
+          res.push(2); return res;
         });
     });
   }, Promise.resolve([]));
@@ -155,8 +156,13 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
   /* שליחה שנכשלה נרשמה "נכשל" ותנסה שוב בהרצה הבאה. */
   S.finish();
   if (!res || !res.length) return;
-  var ok = res.reduce(function (x, y) { return x + y; }, 0);
-  console.log('\nיצאו: ' + ok + ' · נכשלו: ' + (res.length - ok));
+  /* 1 = יצא · 2 = נכשל · 0 = אין מנוי / דילוג */
+  var ok = res.filter(function (x) { return x === 1; }).length;
+  var bad = res.filter(function (x) { return x === 2; }).length;
+  console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · בלי מנוי: ' + (res.length - ok - bad));
+  if (DRY) return;
+  return S.logRun('תזכורות לרכז', 'התזכורות שנקבעו במסך השיחות', 'מכשירי רכז',
+                  ok, bad + (res.length - ok - bad), 0);
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
   process.exit(1);
