@@ -2916,8 +2916,20 @@ function noteTest() {
 /* מי שכבר אישר בדפדפן הזה, ואין עדיין מנוי רשום על המזהה שלו
    — נרשם בשקט, בלי לשאול שוב. כך מתרפא גם מי שנרשם לפני התיקון. */
 function noteHeal() {
-  if (!get('me', null) || noteDone()) return;
+  if (!get('me', null)) return;
   if (!canNote() || notePerm() !== 'granted') return;
+  if (!noteDone()) { appSubscribe(true); return; }
+  /* **שליחה שנייה של שורת ההתראות, פעם אחת, בפתיחה מאוחרת יותר.**
+     השורה יוצאת `no-cors` ובלי אימות. בגל הרשמות השרת דוחה
+     כתיבות שחיכו בתור יותר מדי — והטלפון כבר סימן "סיימתי",
+     כלומר מי שנפל בשיא לא היה מקבל התראות לעולם. לא באותן
+     דקות (זה רק מוסיף לשיא), אלא בפתיחה שאחרי עשר דקות לפחות.
+     כפילות אינה מזיקה: השליחה מסננת מנוי שחוזר (push-send.js). */
+  var me = get('me', null) || {}, re = '', at = 0;
+  try { re = localStorage.getItem('df:noteRe') || '';
+        at = +(localStorage.getItem('df:noteAt') || 0); } catch (e) {}
+  if (re === (me.id || '1') || (at && Date.now() - at < 600000)) return;
+  try { localStorage.setItem('df:noteRe', me.id || '1'); } catch (e) {}
   appSubscribe(true);
 }
 setTimeout(function () { try { noteHeal(); } catch (e) {} }, 1500);
@@ -2943,6 +2955,7 @@ function appSubscribe(quiet) {
        שנאמר למסך הוא רק מה שנכון מקומית: האישור ניתן והמנוי
        נוצר. ההתראה עצמה היא האישור האמיתי. */
     try { localStorage.setItem('df:noteOn', me.id || '1'); } catch (e) {}
+    try { if (!localStorage.getItem('df:noteAt')) localStorage.setItem('df:noteAt', String(Date.now())); } catch (e) {}
     appBusy = false;
     if (quiet) { appRedraw(); return; }
     /* ההתראה עצמה היא האישור האמיתי — שולחים אחת עכשיו ושואלים. */
