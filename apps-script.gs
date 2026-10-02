@@ -160,7 +160,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'גישה',
                     /* עמדת הלימוד: רשימת התלמידים של בית הספר, ומי נרשם
                        שלמד. שמות של קטינים — פרטית. ראו amda* ב-index.html. */
-                    'תלמידי בית הספר', 'עמדת לימוד'];
+                    'תלמידי בית הספר', 'עמדת לימוד',
+                    /* מי שהוסר מהרשימה — השורות שלו כפי שהיו, לשחזור.
+                       ראו archivePerson_. */
+                    'ארכיון'];
 
 /* לשונית המוסדות בגיליון הראשי. עמודה A קוד, B שם, C אשתקד,
    D "בפנים". היא ציבורית בכוונה — היא רשימת המוסדות שהאפליקציה
@@ -1469,6 +1472,20 @@ function doGet(e) {
                    parse_(e.parameter.vals), e.parameter.ss);
     } catch (err) { dres = { status: 'error', message: String(err) }; }
     return reply_(e, dres);
+  }
+
+  /* ---- ארכיון: הסרה הפיכה, שחזור, ורשימה (archivePerson_) ---- */
+  if (e && e.parameter && (e.parameter.archive || e.parameter.unarchive || e.parameter.archived)) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: READ_KEY ? 'סיסמה שגויה' : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+    }
+    var ares;
+    try {
+      ares = e.parameter.archive ? archivePerson_(e.parameter.archive)
+           : e.parameter.unarchive ? restorePerson_(e.parameter.unarchive)
+           : archiveList_();
+    } catch (aerr) { ares = { status: 'error', message: String(aerr) }; }
+    return reply_(e, ares);
   }
 
   /* ---- ניקוי כפילויות ב"לומדים" — חד-פעמי, ראו dedupeJoin_ ----
@@ -3017,6 +3034,114 @@ function delRows_(tab, col, vals, ssId) {
   reTally_(tab);
   return { status: 'success', tab: tab, removed: hit.length,
            left: Math.max(0, sh.getLastRow() - 1) };
+}
+
+/* ============================================================
+   הסרה הפיכה — "ארכיון" במקום מחיקה.
+   ============================================================
+   "מחיקה" מהלוח הייתה deleteRow אחרי confirm אחד, ובלי דרך חזרה.
+   עכשיו השורות של האדם ב"לומדים" **עוברות** ללשונית "ארכיון"
+   (פרטית), כמו שהן — כל עמודה בשמה — ומשם אפשר להחזיר אותן.
+
+   מה עובר לארכיון (ונעלם מהרשימה, מהספירה ומהשליחה לפי רשימה):
+     · כל השורות ב"לומדים" שהמזהה שלהן הוא המזהה הזה — כולל
+       "מזהים נוספים", כלומר הכינויים של מכשירים שאוחדו לאדם הזה.
+       הם חוזרים יחד איתו.
+   מה נשאר במקומו, בלי שום שינוי:
+     · ההתקדמות ("לימוד") — לפי מזהה מכשיר. בשחזור היא שוב שלו.
+     · ההורים המקושרים — שורות משלהם. הקישור מחושב מהטלפונים
+       ומקישור ההזמנה (pairMap_), ולכן בהסרה ההורה נעשה "לא
+       מקושר", ובשחזור הקישור חוזר מעצמו.
+     · מנוי ההתראות ("התראות") — אינו נמחק. הסרה אינה ביטול מנוי.
+   שום דבר לא נמחק מהארכיון אוטומטית. שחזור מוחק מהארכיון רק
+   אחרי שהשורות נכתבו בחזרה ל"לומדים" ונקראו משם.
+   ============================================================ */
+var ARCH_TAB = 'ארכיון';
+var ARCH_HEAD = ['מתי', 'מזהה', 'שם', 'משפחה', 'ישיבה', 'תפקיד', 'לשונית', 'שורה'];
+
+function archivePerson_(id) {
+  id = String(id || '').trim();
+  if (!id) return { status: 'error', message: 'חסר מזהה' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var js = sheet_(JOIN_TAB), data = js.getDataRange().getDisplayValues();
+    if (data.length < 2) return { status: 'success', moved: 0 };
+    var head = data[0].map(function (h) { return String(h).trim(); });
+    var ci = head.indexOf('מזהה');
+    if (ci < 0) return { status: 'error', message: 'אין עמודה בשם מזהה' };
+    var c = function (r, n) { var i = head.indexOf(n); return i < 0 ? '' : String(data[r][i] || ''); };
+    var hit = [];
+    for (var r = 1; r < data.length; r++) if (String(data[r][ci]).trim() === id) hit.push(r);
+    if (!hit.length) return { status: 'success', moved: 0 };
+
+    var ash = sheet_(ARCH_TAB);
+    if (!ash.getLastRow()) headRow_(ash, ARCH_HEAD);
+    var before = ash.getLastRow(), at = new Date();
+    hit.forEach(function (r) {
+      var o = {};
+      head.forEach(function (h, i) { if (h) o[h] = data[r][i]; });
+      ash.appendRow([at, id, c(r, 'שם'), c(r, 'משפחה'), c(r, 'ישיבה'), c(r, 'תפקיד'),
+                     JOIN_TAB, JSON.stringify(o)]);
+    });
+    /* נכתב? רק אז מוחקים מהמקור. */
+    if (ash.getLastRow() - before !== hit.length) {
+      return { status: 'error', message: 'הכתיבה לארכיון לא הושלמה — לא הוסר דבר' };
+    }
+    for (var i = hit.length - 1; i >= 0; i--) js.deleteRow(hit[i] + 1);
+    reTally_(JOIN_TAB);
+    return { status: 'success', moved: hit.length };
+  } finally { lock.releaseLock(); }
+}
+
+function restorePerson_(id) {
+  id = String(id || '').trim();
+  if (!id) return { status: 'error', message: 'חסר מזהה' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ash = sheet_(ARCH_TAB);
+    if (ash.getLastRow() < 2) return { status: 'error', message: 'אין בארכיון שורה כזו' };
+    var a = ash.getDataRange().getValues(), ah = a[0].map(function (h) { return String(h).trim(); });
+    var ai = ah.indexOf('מזהה'), ar = ah.indexOf('שורה'), at = ah.indexOf('לשונית');
+    var hit = [];
+    for (var r = 1; r < a.length; r++) {
+      if (String(a[r][ai]).trim() === id && String(a[r][at]) === JOIN_TAB) hit.push(r);
+    }
+    if (!hit.length) return { status: 'error', message: 'אין בארכיון שורה כזו' };
+
+    var js = sheet_(JOIN_TAB), head = headers_(js);
+    hit.forEach(function (r) {
+      var o = JSON.parse(String(a[r][ar] || '{}')), row = [];
+      for (var k in o) put_(row, idx_(js, head, k), cell_(o[k]));
+      for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+      js.appendRow(row);
+    });
+    /* חזר? רק אז יוצא מהארכיון. */
+    var back = 0, jd = js.getDataRange().getDisplayValues(), ji = jd[0].map(function (h) {
+      return String(h).trim(); }).indexOf('מזהה');
+    for (var q = 1; q < jd.length; q++) if (String(jd[q][ji]).trim() === id) back++;
+    if (back < hit.length) return { status: 'error', message: 'השחזור לא נקרא בחזרה — הארכיון נשאר כמו שהוא' };
+    for (var j = hit.length - 1; j >= 0; j--) ash.deleteRow(hit[j] + 1);
+    reTally_(JOIN_TAB);
+    return { status: 'success', restored: hit.length };
+  } finally { lock.releaseLock(); }
+}
+
+/* רשימת הארכיון ללוח: אדם אחד לכל מזהה, בלי טלפון. */
+function archiveList_() {
+  var ash = sheet_(ARCH_TAB), out = [], seen = {};
+  if (ash.getLastRow() < 2) return { status: 'ok', people: [] };
+  var a = ash.getDataRange().getDisplayValues(), h = a[0].map(function (x) { return String(x).trim(); });
+  var c = function (r, n) { var i = h.indexOf(n); return i < 0 ? '' : String(a[r][i] || ''); };
+  for (var r = a.length - 1; r >= 1; r--) {
+    var id = c(r, 'מזהה');
+    if (!id || seen[id]) continue;
+    seen[id] = 1;
+    out.push({ id: id, first: c(r, 'שם'), last: c(r, 'משפחה'), instName: c(r, 'ישיבה'),
+               role: c(r, 'תפקיד'), at: c(r, 'מתי') });
+  }
+  return { status: 'ok', people: out };
 }
 
 /* המונים הציבוריים נגזרים מהלשוניות הפרטיות, ולכן מחיקה חייבת

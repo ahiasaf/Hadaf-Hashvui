@@ -919,10 +919,10 @@ function detHtml(p, isPar) {
   if ((p.ids || []).length > 1) {
     h += '<div class="dt-r"><span>מכשירים</span><div>' + p.ids.length + ' (אוחדו לאדם אחד)</div></div>';
   }
-  /* מחיקה — גלויה וברורה, ולא קישור קטן בתחתית: כפתור אדום ברוחב
-     מלא, והשאלה לפני המחיקה אומרת שאין חזרה. */
-  h += '<button class="dt-del" data-del="' + esc(p.id) + '" data-nm="' + esc(nm) + '">🗑 ' +
-    esc(isPar ? UI.bdDelPar : UI.bdDelKid) + '</button>';
+  /* הסרה לארכיון — גלויה וברורה, כפתור ברוחב מלא. אינה מחיקה:
+     השורה עוברת ללשונית "ארכיון" ואפשר לשחזר (archivePerson_). */
+  h += '<button class="dt-del" data-del="' + esc(p.id) + '" data-nm="' + esc(nm) + '">🗄 ' +
+    esc(isPar ? UI.bdArcPar : UI.bdArcKid) + '</button>';
   return h + '</div>';
 }
 function parentsHtml() {
@@ -940,18 +940,70 @@ function parentsHtml() {
         '</div>' + detHtml(q, true);
     }).join('') + '</div>';
 }
-/* מחיקה — אותו מסלול של "משתתפים" (`delrow`), ורק אחרי שהשרת אישר. */
+/* ============================================================
+   הסרה לארכיון ושחזור — לא מחיקה.
+   ============================================================
+   מה עובר ומה נשאר — בהערה שליד archivePerson_ ב-apps-script.gs.
+   הרשימה מתעדכנת רק אחרי שהשרת אישר. אחרי הסרה — כפתור "ביטול"
+   מיד בהודעה; ובתחתית הלוח — כרטיס "ארכיון" עם כל מי שהוסר. */
+var DEL_UNDO = null;           /* { id, nm } — האחרון שהוסר, לכפתור הביטול */
+var ARC = null, ARC_OPEN = false, ARC_MSG = '';
 function delPerson(id, nm) {
-  if (!id || !confirm(String(UI.bdDelAsk || '').replace('{name}', nm))) return;
-  DEL_MSG = 'מוחק…'; draw();
-  askScript({ delrow:'לומדים', col:'מזהה', vals:JSON.stringify([id]), key:acc }).then(function (d) {
-    if (d && d.status === 'success' && d.removed) {
+  if (!id || !confirm(String(UI.bdArcAsk || '').replace('{name}', nm))) return;
+  DEL_MSG = UI.bdArcBusy; DEL_UNDO = null; draw();
+  askScript({ archive:id, key:acc }).then(function (d) {
+    if (d && d.status === 'success' && d.moved) {
       rosterAll = (rosterAll || []).filter(function (p) { return p.id !== id; });
       PARENTS = (PARENTS || []).filter(function (p) { return p.id !== id; });
-      applyFilt(); OPEN = ''; DEL_MSG = nm + ' נמחק.';
-    } else DEL_MSG = 'לא נמחק. ' + ((d && d.message) || (d && d.status === 'success' ? 'השורה לא נמצאה.' : 'אין תשובה.'));
+      applyFilt(); selPrune(); OPEN = ''; ARC = null;
+      DEL_MSG = String(UI.bdArcDone || '').replace('{name}', nm); DEL_UNDO = { id: id, nm: nm };
+    } else DEL_MSG = String(UI.bdArcFail || '').replace('{m}', (d && d.message) ||
+      (d && d.status === 'success' ? UI.bdArcNone : UI.bdArcNoAns));
     draw();
   });
+}
+function arcRestore(id, nm) {
+  DEL_MSG = UI.bdArcBusy; DEL_UNDO = null; draw();
+  askScript({ unarchive:id, key:acc }).then(function (d) {
+    if (d && d.status === 'success' && d.restored) {
+      DEL_MSG = String(UI.bdArcBack || '').replace('{name}', nm); ARC = null;
+      if (ARC_OPEN) arcLoad();
+      loadRoster().then(draw);
+    } else DEL_MSG = String(UI.bdArcFail || '').replace('{m}', (d && d.message) || UI.bdArcNoAns);
+    draw();
+  });
+}
+function arcLoad() {
+  ARC_MSG = UI.bdArcBusy;
+  askScript({ archived:1, key:acc }).then(function (d) {
+    if (d && d.status === 'ok') { ARC = d.people || []; ARC_MSG = ''; }
+    else ARC_MSG = String(UI.bdArcFail || '').replace('{m}', (d && d.message) || UI.bdArcNoAns);
+    draw();
+  });
+}
+function delMsgHtml() {
+  if (!DEL_MSG) return '';
+  return '<div class="card" style="padding:10px 14px">' + esc(DEL_MSG) +
+    (DEL_UNDO ? ' <button class="klink" data-unarc="' + esc(DEL_UNDO.id) + '" data-nm="' + esc(DEL_UNDO.nm) + '">' +
+      esc(UI.bdArcUndo) + '</button>' : '') + '</div>';
+}
+function arcHtml() {
+  if (!ALL || !rosterAll) return '';
+  var h = '<div class="card"><button class="clsgrp' + (ARC_OPEN ? ' on' : '') + '" data-arc="1" aria-expanded="' +
+    (ARC_OPEN ? 'true' : 'false') + '"><b><i class="chev">' + (ARC_OPEN ? '▾' : '◂') + '</i>' + esc(UI.bdArcT) + '</b>' +
+    '<span>' + (ARC ? ARC.length : '') + '</span></button>';
+  if (ARC_OPEN) {
+    h += '<p class="h" style="margin:6px 0 8px">' + esc(UI.bdArcH) + '</p>';
+    if (ARC_MSG) h += '<p class="h">' + esc(ARC_MSG) + '</p>';
+    else if (ARC && !ARC.length) h += '<p class="h">' + esc(UI.bdArcEmpty) + '</p>';
+    else (ARC || []).forEach(function (q) {
+      var nm = ((q.first || '') + ' ' + (q.last || '')).trim() || '—';
+      h += '<div class="prow"><span class="tick"></span><div style="flex:1"><b>' + esc(nm) + '</b>' +
+        '<div class="s">' + esc([q.instName, q.role, q.at].filter(Boolean).join(' · ')) + '</div></div>' +
+        '<button class="kudo" data-unarc="' + esc(q.id) + '" data-nm="' + esc(nm) + '">' + esc(UI.bdArcRestore) + '</button></div>';
+    });
+  }
+  return h + '</div>';
 }
 
 /* ============================================================
@@ -1785,14 +1837,14 @@ function draw() {
      הישיבה, ואת הכיתה שלו בשמות. ============================ */
   $('body').innerHTML =
     chipsHtml() + (EMBED ? lfiltHtml() : '') + sendHtml() +
-    (DEL_MSG ? '<div class="card" style="padding:10px 14px">' + esc(DEL_MSG) + '</div>' : '') +
+    delMsgHtml() +
     (EMBED ? '' : heroHtml(daf, doneN, totN, weekOpen)) +
     /* **המשבצות מוצגות גם לר"ם.** הן באות מהמונים ולא מהרשימה
        השמית, ולכן הן קיימות גם לפני שהתוכנית התחילה — ובלעדיהן
        ר"ם שפתח את הלוח מוקדם ראה מסך ריק. */
     /* במסך "אנשים" — שורת הסינון שלמעלה עושה את עבודת המשבצות. */
     (EMBED ? keyHtml() : '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
-    classesHtml() + parentsHtml() + hitGrpHtml() +
+    classesHtml() + parentsHtml() + arcHtml() + hitGrpHtml() +
     soonLine();
   wire();
   embedSize();
@@ -1962,6 +2014,14 @@ function wire() {
       }
       if ((b = t.closest && t.closest('[data-del]'))) {
         delPerson(b.getAttribute('data-del'), b.getAttribute('data-nm')); return;
+      }
+      if ((b = t.closest && t.closest('[data-unarc]'))) {
+        arcRestore(b.getAttribute('data-unarc'), b.getAttribute('data-nm')); return;
+      }
+      if ((b = t.closest && t.closest('[data-arc]'))) {
+        ARC_OPEN = !ARC_OPEN;
+        if (ARC_OPEN && !ARC) arcLoad(); else draw();
+        return;
       }
       if (t.closest && t.closest('.dt a')) return;
       if ((b = t.closest && t.closest('[data-open]'))) {
