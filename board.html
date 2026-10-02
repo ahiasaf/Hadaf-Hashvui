@@ -298,6 +298,15 @@ footer a{color:var(--ink-2);font-weight:800}
   margin:18px 0 8px;padding-bottom:7px;
   border-bottom:1px solid var(--rule)}
 .clsgrp:first-of-type{margin-top:10px}
+/* כותרת קבוצה היא כפתור: נפתחת ונסגרת. */
+button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--rule);
+  font:inherit;color:inherit;cursor:pointer;text-align:start;padding:6px 0 7px;margin:12px 0 4px}
+.clsgrp .chev{font-style:normal;display:inline-block;width:1.1em;color:var(--ink-3)}
+.clsgrp.sub{margin:6px 0 2px;border-bottom-style:dashed}
+.clsgrp.sub b{font-size:.88rem}
+.grp-in{padding-inline-start:12px}
+.grp-all{display:flex;gap:14px;margin:8px 0 2px}
+.grp-more{display:block;margin:8px auto 4px}
 .clsgrp b{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
 .clsgrp span{font-size:.82rem;font-weight:800;color:var(--ink-3)}
 .wdot{display:inline-block;width:8px;height:8px;border-radius:50%;
@@ -312,6 +321,8 @@ footer a{color:var(--ink-2);font-weight:800}
   font-weight:800;cursor:pointer}
 .kudo.sent{border-color:transparent;background:none;color:var(--green);cursor:default}
 .kudo-box{margin:2px 0 10px;padding:11px 12px;background:var(--sunk);border-radius:12px}
+.tms{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tms .tm.on{border-style:solid;border-color:var(--blue,#17468F);color:var(--blue,#17468F)}
 .kudo-box .tm{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
   border:1px dashed var(--rule);border-radius:9px;background:var(--surface);font:inherit;
   font-size:.8rem;font-weight:600;cursor:pointer}
@@ -350,6 +361,9 @@ footer a{color:var(--ink-2);font-weight:800}
 .snd-note{font-size:.84rem;font-weight:700;margin-bottom:6px}
 .snd-tm button{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
   border:1px solid var(--rule);border-radius:9px;background:#fff;font:inherit;font-size:.82rem;cursor:pointer}
+/* נוסחים — שבבים עם כותרת קצרה, לא גוף מלא (tmTitle). */
+.tms .tm,.snd-tm.tms button{display:inline-block;width:auto;margin:0;padding:6px 11px;border-radius:18px;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .snd textarea{width:100%;padding:9px 10px;border:1px solid var(--rule);border-radius:10px;font:inherit;font-size:.9rem}
 .snd-per{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:.82rem;font-weight:700}
 .snd-pv{margin-top:8px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
@@ -661,7 +675,7 @@ function loadRoster() {
     roster = d.students || [];
     rosterMsg = '';
     LSet('rosterCache:' + code, roster);
-    if (ALL) { rosterAll = roster; PARENTS = d.parents || null; applyFilt(); }
+    if (ALL) { rosterAll = roster; PARENTS = d.parents || null; applyFilt(); selPrune(); }
     /* ההורים שלא חוברו — לספירה שבראש "התלמידים שלי" בניהול.
        רק כשהשרת שלח רשימה: בלעדיה המטמון הקודם נשאר. */
     if (ALL && d.parents && d.parents.length != null) LSet('parentsCache:all', d.parents);
@@ -969,7 +983,7 @@ function clsKey(p) {
    מסנן את רשימת התלמידים בלבד (המספרים שלמעלה נשארים של הכול),
    ומתעדכן בכל הקלדה בלי לצייר מחדש את התיבה — אחרת הסמן נעלם.
    בשם פרטי ומשפחה; בכל הישיבות — גם בשם הישיבה ובטלפון. */
-var SRCH = '';
+var SRCH = '', SRCH_T = null, SRCH_N = 0;
 function srchKey(v) { return String(v || '').replace(/["'׳״\s\-]/g, '').toLowerCase(); }
 function srchHit(p) {
   var q = srchKey(SRCH);
@@ -994,24 +1008,111 @@ function classesHtml() {
       '<span><i class="wdot" style="background:#C08F2B"></i>אב ובן</span>' +
     '</div></div>';
 }
-function classesList() {
-  var list = shown().filter(srchHit);
-  if (!list.length) return '<p class="h" style="margin:10px 0">לא נמצא אף אחד.</p>';
-  BY_INST = ALL && !FILT;
+/* ============================================================
+   קבוצות מתקפלות, ושורות במנות.
+   ============================================================
+   נמדד: 2,000 תלמידים בכל הישיבות, מעבד מואט פי 6 (טלפון
+   בינוני) — ציור הרשימה 2.6 שניות, וכל הקלדה בחיפוש עוד 0.85.
+   הכול נבנה, גם מה שאיש לא גולל אליו.
+
+   עכשיו: ישיבה ← כיתה, כל אחת כותרת שנפתחת ונסגרת. ברשימה
+   גדולה (יותר מ-GRP_AUTO שורות) הכול סגור עד שפותחים; בחיפוש
+   — כל קבוצה שיש בה תוצאה נפתחת. בתוך קבוצה פתוחה — GRP_PAGE
+   שורות, ואז "עוד". מה שנפתח נשמר במכשיר, ונשאר אחרי רענון.
+   ============================================================ */
+var GRP_AUTO = 40, GRP_PAGE = 60;
+var GRP_OPEN = LGet('bdGrp', {}) || {}, GRP_MORE = {};
+/* `big` — הרשימה (אחרי החיפוש) ארוכה מ-GRP_AUTO. חיפוש שמצא
+   מעט (עד SRCH_OPEN) פותח את כל הקבוצות שיש בהן תוצאה; חיפוש של
+   אות אחת שמוצא את כולם — נשאר מקופל, עם המספרים. */
+var SRCH_OPEN = 120, SRCH_SHUT = {};
+function srchOpen() { return !!SRCH && SRCH_N <= SRCH_OPEN; }
+function grpIsOpen(k, big) {
+  /* בחיפוש — מה שנסגר אתמול אינו מסתיר תוצאה של היום. */
+  if (srchOpen()) return !SRCH_SHUT[k];
+  if (GRP_OPEN[k] != null) return !!GRP_OPEN[k];
+  return !big;
+}
+function grpHead(k, lbl, n, open, sub) {
+  return '<button class="clsgrp' + (sub ? ' sub' : '') + (open ? ' on' : '') + '" data-grp="' + esc(k) + '"' +
+    ' aria-expanded="' + (open ? 'true' : 'false') + '"><b><i class="chev">' + (open ? '▾' : '◂') + '</i>' +
+    esc(lbl) + '</b><span>' + n + '</span></button>';
+}
+function grpRows(k, rows, noGrade) {
+  var lim = GRP_MORE[k] || GRP_PAGE, h = '';
+  for (var i = 0; i < rows.length && i < lim; i++) h += pRow(rows[i], noGrade);
+  if (rows.length > lim) {
+    h += '<button class="klink grp-more" data-more="' + esc(k) + '">' +
+      esc(String(UI.bdMore || '').replace('{n}', Math.min(GRP_PAGE, rows.length - lim))
+        .replace('{left}', rows.length - lim)) + '</button>';
+  }
+  return h;
+}
+function grpBy(list, keyOf) {
   var by = {}, ord = [];
   list.forEach(function (p) {
-    var k = clsKey(p);
+    var k = keyOf(p);
     if (!by[k]) { by[k] = []; ord.push(k); }
     by[k].push(p);
   });
   ord.sort();
-  var html = ord.map(function (k) {
-      return '<div class="clsgrp"><b>' + esc(k) + '</b>' +
-        '<span>' + by[k].length + '</span></div>' +
-        by[k].map(function (q) { return pRow(q, !BY_INST); }).join('');
-    }).join('');
+  return { by: by, ord: ord };
+}
+function clsOnly(p) {
+  var g = p.grade || 'ללא שכבה';
+  return p.klass ? g + '‎' + p.klass : g;
+}
+function classesList() {
+  var list = shown().filter(srchHit);
+  if (!list.length) return '<p class="h" style="margin:10px 0">לא נמצא אף אחד.</p>';
+  BY_INST = ALL && !FILT;
+  var big = list.length > GRP_AUTO;
+  SRCH_N = list.length;
+  var top = grpBy(list, clsKey), html = '';
+  if (big) {
+    html += '<div class="grp-all"><button class="klink" data-grp-all="1">' + esc(UI.bdOpenAll || '') +
+      '</button><button class="klink" data-grp-all="0">' + esc(UI.bdCloseAll || '') + '</button></div>';
+  }
+  top.ord.forEach(function (k) {
+    var rows = top.by[k], gk = (BY_INST ? 'i:' : 'c:' + (FILT || '') + ':') + k;
+    var open = grpIsOpen(gk, big);
+    html += grpHead(gk, k, rows.length, open, false);
+    if (!open) return;
+    if (!BY_INST) { html += grpRows(gk, rows, true); return; }
+    /* בתוך ישיבה — לפי כיתה, גם היא מתקפלת. */
+    var sub = grpBy(rows, clsOnly), subBig = rows.length > GRP_AUTO;
+    sub.ord.forEach(function (c) {
+      var sk = gk + '|' + c, so = grpIsOpen(sk, subBig);
+      html += '<div class="grp-in">' + grpHead(sk, c, sub.by[c].length, so, true) +
+        (so ? grpRows(sk, sub.by[c], true) : '') + '</div>';
+    });
+  });
   BY_INST = false;
   return html;
+}
+/* פתיחה וסגירה — רק הרשימה מצוירת מחדש. */
+function grpToggle(k) {
+  var big = shown().filter(srchHit).length > GRP_AUTO;
+  if (srchOpen()) SRCH_SHUT[k] = !SRCH_SHUT[k];
+  else { GRP_OPEN[k] = grpIsOpen(k, big) ? 0 : 1; LSet('bdGrp', GRP_OPEN); }
+  listRedraw();
+}
+function grpAll(on) {
+  var list = shown().filter(srchHit);
+  BY_INST = ALL && !FILT;
+  var top = grpBy(list, clsKey), so = srchOpen();
+  var set = function (k, v) { if (so) SRCH_SHUT[k] = !v; else GRP_OPEN[k] = v ? 1 : 0; };
+  top.ord.forEach(function (k) {
+    var gk = (BY_INST ? 'i:' : 'c:' + (FILT || '') + ':') + k;
+    set(gk, on);
+    if (BY_INST && on) grpBy(top.by[k], clsOnly).ord.forEach(function (c) { set(gk + '|' + c, 1); });
+  });
+  BY_INST = false;
+  LSet('bdGrp', GRP_OPEN);
+  listRedraw();
+}
+function listRedraw() {
+  var l = $('cls-list'); if (l) { l.innerHTML = classesList(); embedSize(); } else draw();
 }
 
 /* כמה מהדף הוא עבר, 0–1. השרת מחזיר `pos` רק לשבוע שלא הושלם,
@@ -1199,6 +1300,18 @@ function kudoTmpls() {
     return ALL || t.cat === 'done' || t.cat === 'any';
   }).map(function (t) { return tp(t.text, { daf: daf }); });
 }
+/* כותרת קצרה לנוסח — השורה הראשונה, או כמה מילים ראשונות.
+   הנוסח המלא מוצג רק אחרי שבוחרים בו (בתיבה ובתצוגה המקדימה),
+   ולא עשרה גופים מלאים זה מעל זה. */
+function tmTitle(t) {
+  var s = String(t || '').split('\n')[0].replace(/\s+/g, ' ').trim();
+  if (s.length <= 26) return s;
+  var cut = s.slice(0, 24), sp = cut.lastIndexOf(' ');
+  return (sp > 10 ? cut.slice(0, sp) : cut) + '…';
+}
+function tmChip(t, attr, on) {
+  return '<button class="tm' + (on ? ' on' : '') + '" ' + attr + ' title="' + esc(t) + '">' + esc(tmTitle(t)) + '</button>';
+}
 function kudoBox(p) {
   if (KUDO_OPEN !== p.id) return '';
   var first = kudoName(p);
@@ -1211,9 +1324,10 @@ function kudoBox(p) {
     h += '<div class="snd-seg kudo-to">' + to('k', 'kudoToK') + to('p', 'kudoToP') +
       to('pk', 'kudoToB') + '</div>';
   }
-  kudoTmpls().forEach(function (t, i) {
-    h += '<button class="tm" data-kudo-tm="' + i + '">' + esc(t) + '</button>';
-  });
+  var ktm = kudoTmpls();
+  if (ktm.length) h += '<div class="tms">' + ktm.map(function (t, i) {
+    return tmChip(t, 'data-kudo-tm="' + i + '"', KUDO_TXT === t);
+  }).join('') + '</div>';
   h += '<textarea id="kudo-txt" placeholder="' + esc(kt('kudoPh')) + '">' +
     esc(KUDO_TXT) + '</textarea>' +
     '<div class="pv" id="kudo-pv"></div>' +
@@ -1253,6 +1367,7 @@ function kudoWire() {
     if ((b = t.closest && t.closest('[data-kudo-tm]'))) {
       KUDO_TXT = kudoTmpls()[+b.getAttribute('data-kudo-tm')] || KUDO_TXT;
       var ta = $('kudo-txt'); if (ta) ta.value = KUDO_TXT;
+      [].forEach.call(document.querySelectorAll('[data-kudo-tm]'), function (x) { x.classList.toggle('on', x === b); });
       kudoPv(kudoName(kudoWho())); return;
     }
     if (t.id === 'kudo-go') kudoSend();
@@ -1347,6 +1462,13 @@ function sndWeek() {
   var d = LDaf(tr, wk);
   return d ? { wk: wk + 1, daf: d } : null;
 }
+/* אחרי עדכון: הבחירה נשארת, חוץ ממי שכבר אינו ברשימה (נמחק,
+   הועבר לארכיון) — אחרת "נבחרו 5" סופר גם אותו. */
+function selPrune() {
+  var have = {};
+  (rosterAll || []).forEach(function (p) { have[p.id] = 1; });
+  for (var k in SEL) if (SEL[k] && !have[k]) delete SEL[k];
+}
 function selIds() { var o = []; for (var k in SEL) if (SEL[k]) o.push(k); return o; }
 /* התלמידים שיקבלו — לפי כל מה שנבחר. */
 function sndList() {
@@ -1430,8 +1552,8 @@ function sendHtml() {
     (SELMODE ? 'סיום הבחירה' : 'בחירת תלמידים מסוימים מהרשימה') + '</button>';
   var tm = kudoTmpls();
   if (tm.length) {
-    h += '<div class="snd-tm">' + tm.map(function (t, i) {
-      return '<button data-snd="tm:' + i + '">' + esc(t) + '</button>';
+    h += '<div class="snd-tm tms">' + tm.map(function (t, i) {
+      return tmChip(t, 'data-snd="tm:' + i + '"', SND.txt === t);
     }).join('') + '</div>';
   }
   h += '<textarea id="snd-txt" rows="3" placeholder="מה תרצו לומר?">' + esc(SND.txt) + '</textarea>' +
@@ -1795,11 +1917,30 @@ function wire() {
   var rg = document.querySelector('.rem-go');
   if (rg) rg.onclick = function () { remMark(rg.getAttribute('data-rem')); };
   var cq = $('cls-q');
+  /* הקלדה מציירת רק את הרשימה, ורק כשהאצבע נחה (SRCH_T) —
+     לא בכל אות. */
   if (cq) cq.oninput = function () {
-    SRCH = cq.value;
-    var l = $('cls-list'); if (l) l.innerHTML = classesList();
-    embedSize();
+    clearTimeout(SRCH_T);
+    SRCH_T = setTimeout(function () {
+      SRCH = cq.value; GRP_MORE = {}; SRCH_SHUT = {};
+      var l = $('cls-list'); if (l) l.innerHTML = classesList();
+      embedSize();
+    }, 180);
   };
+  var cl = $('cls-list');
+  if (cl && !cl.getAttribute('data-gw')) {
+    cl.setAttribute('data-gw', '1');
+    cl.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-grp],[data-more],[data-grp-all]');
+      if (!b) return;
+      e.stopPropagation();
+      if (b.hasAttribute('data-grp')) grpToggle(b.getAttribute('data-grp'));
+      else if (b.hasAttribute('data-more')) {
+        var mk = b.getAttribute('data-more');
+        GRP_MORE[mk] = (GRP_MORE[mk] || GRP_PAGE) + GRP_PAGE; listRedraw();
+      } else grpAll(b.getAttribute('data-grp-all') === '1');
+    });
+  }
   var bd = $('body');
   if (ALL && bd && !bd.getAttribute('data-ow')) {
     bd.setAttribute('data-ow', '1');
