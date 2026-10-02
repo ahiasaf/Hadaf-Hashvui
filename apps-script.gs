@@ -127,7 +127,8 @@ var SCRIPT_VERSION = 43;
    **ואפשר לא למלא כאן כלום.** ראו PROP_ הסבר למטה: הערך יכול
    לשבת במאפייני הפרויקט, ואז הדבקה של קוד חדש אינה נוגעת בו.
 
-   ריק = הכל נכתב לגיליון הראשי, כלומר בגלוי. */
+   ריק = כל כתיבה או קריאה של לשונית פרטית נכשלת בשגיאה (privId_) —
+   לעולם לא נופלת לגיליון הראשי, שמשותף לצפייה. */
 var PRIVATE_ID_FALLBACK = '';
 
 /* לשוניות שיש בהן פרטים אישיים. אלה נכתבות לגיליון הפרטי.
@@ -470,6 +471,132 @@ function doPost(e) {
    ?callback=foo מחזיר JavaScript במקום JSON. הסיבה: Apps Script
    מפנה את /exec לדומיין אחר, ודפדפנים חוסמים לעיתים את הקריאה
    הרגילה בגלל CORS. טעינה כתגית <script> עוקפת את זה תמיד. */
+/* PUB_FILES:BEGIN — נוצר ע"י tools/pub-files.py מתוך links.js. לא לערוך ביד. */
+var PUB_FILES = {
+  '1-18OZtTIGmzlKPb2fJv8rXm4XAE_ZpM6':1,
+  '1-cQnJAT1DD9zmvE1CLRV2uR79n07ZGmo':1,
+  '100vQRoT_YHfoyC6oNfC_mUTZHy35s21f':1,
+  '10DhhsbD2j2u73HY01-EE8RRajKUtP3w3':1,
+  '10dmqoQ8Twn43CfH5aFeWAv-kMyN-IHvT':1,
+  '10qUo0sAJzylaHfuDhzALuM2FFqrIMgxl':1,
+  '11ciDuuX1E6O1Hq6PX3lPhvu8D7LL1K5T':1,
+  '11iKHnQC_hraGLwaVPXm2MD09M-ler7P_':1,
+  '121hHlNOexj9-zg1bSkVVs6dPEarnacY1':1,
+  '128m2l5orxv8xceOXEf7NjiFsW1VG13BY':1,
+  '128xURI4BuQKjZ1ZFm5c30sGMxv8kezSQ':1,
+  '12JV4XoN5I9P5WUV4cs290cxy08AzBDyd':1,
+  '131GnIwz3sED2s0QmtcLfwP2d3XyQkzVD':1,
+  '132yi9Yh00oIzr1rC6rSXG-XoPYyat5fI':1,
+  '13LcNESt9Efa5sodxITvKTKqnJmfi3x45':1,
+  '14L6Wa3uU3aT99q_HaNtk6XDtNJEvjDPJ':1,
+  '14ZB5Gu6mLSbnXwPL7TYJeZadQ6XCffB4':1,
+  '17T4km4zHZjRJjhkjpKFMMlpdJubf8gl8':1,
+  '1Aq_O1TKQ_GrsgNdBP-ahPbC6h6TIsPBn':1,
+  '1BumonBVUFjQtoBgflCPhEu2vo9q6Kny6':1,
+  '1Ci1a_icmOj6ovJbIUKVxWOrZSQz6feMV':1,
+  '1D3w0z2R3W2b9w5YAJRS8xU9CnLTHSBXX':1,
+  '1EElE25RV6kJG09SC7dcfl0TQZ2_zbshy':1,
+  '1EIbTKQRQ6k6wMNxji_nlGy6_eiZ3uwW5':1,
+  '1EmVybSpGB-K0vhDSq1AV1SSefJQoa7vi':1,
+  '1FLkKW_k1jFjzf9vqxfuGW6zPNYkJGR3L':1,
+  '1FTPKlaK28nfzJrWt-HdoYJsp4h4UVVOL':1,
+  '1Gz-MoZW5jkhUZqvztNnnMipL0PnFkl9R':1,
+  '1H2UVrWXpV-PGBdrpW6UaC3oj_OOxz8rA':1,
+  '1H7fsl27Pfdg72ZqHAgM9PVa7s3i7E9UX':1,
+  '1HBZO-ijDRDpqbABuPTfx5ZzpdNC-eEqi':1,
+  '1HTooGUPgkL67l4lOlhYR2nigwsir9Eee':1,
+  '1HaKUwTTvNDQ_5ML1fLRva7LQOf7STGiR':1,
+  '1Hqz_4_QtBLVszES-llqkCeBCtC9YUrQT':1,
+  '1I-sgGyjeZovIa4VC1_dARsx_TlSxRO_V':1,
+  '1I0AYKrTixDW1JHdDMEYXCU_Gmmr_-zK8':1,
+  '1IOHksTXJCYkzaq8kSP6oIUUnIbLmA3qH':1,
+  '1IahziitJ8HB-Vm7K9FyiH_Adjjhqi26t':1,
+  '1In_NeFCY9gObkAY1QO0gwLGQwJWKR76B':1,
+  '1JgZG-H4uyFw0VQZBn5FTjSkExj5veihi':1,
+  '1JtK2UGxuFmdLx4XvoKDHTCTnohk8wITN':1,
+  '1KKf6DEq_7CiPoC0cPBjhnOIpcFfUmbpW':1,
+  '1KT2rbVqTwikIbMxzNbHfHLGp-2FbTqZ0':1,
+  '1KUSzqMayZ2BaLphtjcu0N0HUPEDuLJvG':1,
+  '1L4lYRiMWE-rcDODtnbrDkXKSQ4ey-OO1':1,
+  '1M0xYqNjgZDdKB7nFYKEDzKkRH5fCD8lB':1,
+  '1M84vGWxGc7vxGPIbr3H5beSTT5cFVL1J':1,
+  '1MRfAdCDEpCc9TI4DBy74CtPO2CtLK4cH':1,
+  '1MmIogTUqzQBuexbyHs8ymbbag6GSuqp-':1,
+  '1MofhPSCZuQvXwzMXVnvVPh3rGLjg8t-r':1,
+  '1MtILOIjgSnT25t6_-oaVUSiNYXXmOh04':1,
+  '1NOsIRIGSNUqJvA4xpbjRcZKfra8XsYAI':1,
+  '1OQNDlosmCUmsIsBjVkcfMu_cxkF0UXkK':1,
+  '1OrpTZUaKec7RJCNpYhPUbv61tRpnTBQ0':1,
+  '1Q-T0Xlb8wrxVyW1Y1wVyvcI0dwZSQkhh':1,
+  '1RO01oypIlVWo7oBBA7NlunI-RpDrMC4t':1,
+  '1RVrySQXtbNxHwTaMo5_f8cM6BTu-DvWZ':1,
+  '1RWErD6BXWpL5rQt8wfl-whpEwfrUI-HB':1,
+  '1T5OCwjyW3_R6MQAwqGUTeDTiGFubDxuW':1,
+  '1TMpaBVBHJ9XSclwHiK0cRoNOtoIIXYnW':1,
+  '1T_uNtvzN7xCgf9BOvXJdMiIO_Jh1rgYw':1,
+  '1U-zxADCMkx4Sww75OlzLjzywDngm2j7M':1,
+  '1UN_-6JXwr56dZARGfAVSoNx6-AcdHD3U':1,
+  '1UVCf78i95N1TqBwDmJlV8vtoAfG_zjlT':1,
+  '1VF5y6h7SFqj0mJazvq0Qb7mSE6gzynyi':1,
+  '1VRD_nHYPPb9JXea0CmY9uPvf3dYM2rs_':1,
+  '1Xk_NR-ExpECxjQBz2kTrp307I7V_YbiR':1,
+  '1YJfMCpI6esilHZLMsRRrvAMlVgJiYQbF':1,
+  '1ZBZHe4DG6ZUr7ewCxW5n-7jgbTuEAJzj':1,
+  '1ZPbs-wEYGWrirm_7y2ufYvuYAXTlAtgW':1,
+  '1ZQlQ1e5XKSbD2CiDuFXVx_Q1ah7aTIg7':1,
+  '1Z_8coYCxWKUZ11PUraX23vzxxLREjJ2D':1,
+  '1_TyjorSaMwSH-_aKAUqBBLKvJuC75SiW':1,
+  '1_m27z0yNNNVH6OMbxSMq5gtDEkrA4tBU':1,
+  '1aWFOVeNEZMYU8ERNdOUQK1dTHnWeIuth':1,
+  '1cBht14YL_AvcdK0hZCo7NX3Fhx1UACRn':1,
+  '1cDm5StXXz51fY6TI4ayIS4sr4kgsyDYY':1,
+  '1cN5K0sacdCX-JnZykeJMKGKvAkHQMVjl':1,
+  '1ckplHsOUylWTnhFozCRvr5AnhsW_7Y3S':1,
+  '1dC3JKUVUCos6VIjpHU6BJGRXAsfNdQUQ':1,
+  '1dPSOuOcBSTU5g3jGIlmvOdmc_yqif-YH':1,
+  '1ezDQeToHM8LA9wxyC2u7yPaVUP6xqSBK':1,
+  '1fXW04Gm0r7HzKinDytv2xeY3_94wR_h6':1,
+  '1g2n6dXWropWnRZMlV_Xtz8qYdIwJeyLS':1,
+  '1g7pqQ6-QUYze_bJREnG9AERQBT19oa9Y':1,
+  '1gEFe9thEJcu4m3AIXP_p7sms4dXUxGc9':1,
+  '1gdW3-_uh1sz7zx5z4Qe_pzQ0uBeaodfL':1,
+  '1gfu6m-7MkinAOPe6Iqlryd5CBuUwhC-V':1,
+  '1gz8GBXH3n0vly13ocmgL0dyMS3OIvPbc':1,
+  '1hFoenNL9OOryLz0zP00VkiYwsfAJakko':1,
+  '1hOBzmU-VmCc7NeONBQK-EFr7Yhd80ca7':1,
+  '1hVJ_1KtJD-AWAl-eqgO9gVPyXrc4slgF':1,
+  '1i8-gce36esBuROkC4L5G8o3-aJnEYC0a':1,
+  '1kMzNXOjy7wuNCcc9-ohZ5u9kk3C-a9Ru':1,
+  '1kbnaCiTq9ChNdr1bKwsF6y49n-XXXEEv':1,
+  '1lXNy317-_ehG_ZIp74Xnz0o96fE1PxdD':1,
+  '1myvyZtAVqRIQh7VTmJQBFMcf5g-IRKfK':1,
+  '1nUF-ycIzYfSzprzd-yfuF6t3HBL8HQUT':1,
+  '1nyTRhQNTFNXl5QdgztVpqC72f9tvSvWi':1,
+  '1oSF3XwfI3M3SzKZTc1Dy6YFtF7xION-C':1,
+  '1oy-O9PrbTzeo87fReWFv0iP7x9E0Fauq':1,
+  '1p9KN8a7Th2Oc6Kly51J66lBNnYPcsPkL':1,
+  '1pKBK1wynQ8FtcHYlu8WvsNaezXHgM4FT':1,
+  '1pnuIcAKisPbLW31KdcRwk3SirOAfhhpu':1,
+  '1q3w59GtP-JwN78OGlipR8yeOrgWT3G4C':1,
+  '1qgsnSUv6inAdCyp6OS8tZcoXAuLnrQxW':1,
+  '1sQRy-r-9wgrnB7nY8a8mmZjTQ5jrffEd':1,
+  '1skjXnFU2p0GfsrBzthj8_B9p8qzsaE6m':1,
+  '1tEQYEhJv6SGiQddyWGCoZ4Dv2syH2a5d':1,
+  '1tLNfIMLVQ4U6lPiRro0vLeHrSy1tfLz-':1,
+  '1wDn8PmX-kXMpJ4KZpc-JgzcGXO-7Pd99':1,
+  '1wMtGZN_TPLItGK0F7q-_3huSW-jJVJbY':1,
+  '1wdpRaGj4C9ZKaeqbseVI3zBCxo09bZzR':1,
+  '1xK_9dYsSqQwuH1W3roA8tEuGi1lWXMg3':1,
+  '1xROb7OsUg1LZr9yVW7y9RTgvj7v5XUFr':1,
+  '1xXPW1LMjeyeIkeNi-xIkkmXnvFyQunJJ':1,
+  '1yizv4Ta4nWtJ1kLlKGanNFNOsm9nXBuU':1,
+  '1yuBLm541fFnolPm-DMbEOcvKAwRyIWyY':1,
+  '1zG8RC6GWp1PEPPUkZQEhwuCmIYeALss6':1,
+  '1zUsLsEu2Vh7TvtsncWj3SVeDhq0ZEi19':1,
+  '1zes_6M4E8V1EBs8SuKJuTyPgU_2sIh53':1
+};
+/* PUB_FILES:END */
+
 function doGet(e) {
   /* ---- קובץ מהדרייב ----
      הסטודיו צריך את קובץ הדף כדי לצייר אותו ולזהות בו שורות,
@@ -477,10 +604,17 @@ function doGet(e) {
      גוגל אינה שולחת שם את כותרת ה-CORS. הסקריפט הזה רץ בחשבון
      שלך, ולכן הוא יכול לקרוא מהדרייב שלך ולהעביר הלאה. הקבצים
      נשארים פרטיים; רק מי שיודע את המזהה מקבל אותם. */
+  /* **רק נכסי הלמידה הציבוריים** (PUB_FILES — צורת הדף ופירוש
+     החברותא מ-links.js). עד עכשיו כל מזהה של כל קובץ בדרייב שלך
+     הוחזר לכל מי שביקש. עם סיסמת הסקריפט — כל קובץ, כמו קודם. */
   if (e && e.parameter && e.parameter.file) {
-    var res;
+    var res, fid = String(e.parameter.file);
+    var fKey = READ_KEY && String(e.parameter.key || '') === READ_KEY;
+    if (!PUB_FILES[fid] && !fKey) {
+      return reply_(e, { status: 'denied', message: 'הקובץ אינו ברשימת קבצי הלמידה הציבוריים' });
+    }
     try {
-      var f = DriveApp.getFileById(String(e.parameter.file));
+      var f = DriveApp.getFileById(fid);
       res = { status: 'ok', name: f.getName(), mime: f.getMimeType(),
               data: Utilities.base64Encode(f.getBlob().getBytes()) };
     } catch (err) {
@@ -1386,7 +1520,7 @@ function doGet(e) {
     try {
       /* אותו ניתוב של הכתיבה: לשונית פרטית נקראת מהגיליון
          הפרטי, בלי שהקורא יידע את המזהה שלו. */
-      var pid = PRIVATE_TABS.indexOf(want) >= 0 ? PRIVATE_ID : '';
+      var pid = e.parameter.ss ? '' : privId_(want);
       var id  = e.parameter.ss || pid;
       var book = id ? SpreadsheetApp.openById(String(id))
                     : SpreadsheetApp.getActiveSpreadsheet();
@@ -2825,7 +2959,7 @@ function writeTable_(tab, cols, rows, ssId) {
    מסתמכת על "כנראה הצליח".
    ============================================================ */
 function clearTab_(tab, ssId) {
-  var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
+  var id = ssId || privId_(tab);
   var ss = id ? SpreadsheetApp.openById(String(id))
               : SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(tab);
@@ -2838,6 +2972,21 @@ function clearTab_(tab, ssId) {
            removed: last - 1, left: Math.max(0, sh.getLastRow() - 1) };
 }
 
+/* ============================================================
+   לאיזה גיליון הולכת לשונית — ולשונית פרטית **רק** לגיליון הפרטי.
+   ============================================================
+   עד עכשיו PRIVATE_ID ריק פירושו "הכול לגיליון הראשי": מאפיין
+   שנמחק, או קוד שהודבק בלי המאפיינים, והשמות והטלפונים נכתבו
+   בשקט לגיליון שמשותף לצפייה. עכשיו זו שגיאה — הכתיבה נכשלת
+   והקורא מקבל את ההודעה, ושום דבר אינו נכתב לגלוי.
+   לשונית שאינה פרטית — '' (הגיליון הראשי), כמו קודם. */
+function privId_(tab) {
+  if (PRIVATE_TABS.indexOf(tab) < 0) return '';
+  if (!PRIVATE_ID) throw new Error('חסר PRIVATE_ID — הלשונית "' + tab +
+    '" פרטית, ולא תיכתב לגיליון הציבורי. יש להגדיר את מזהה הגיליון הפרטי במאפייני הסקריפט.');
+  return PRIVATE_ID;
+}
+
 /* מחיקת שורות לפי ערך בעמודה — שורה אחת או כמה, בלי לגעת בשאר.
    `col` הוא שם הכותרת ולא מספר: מיקום העמודה משתנה כשנוסף שדה
    חדש באפליקציה, והשם אינו משתנה.
@@ -2845,7 +2994,7 @@ function clearTab_(tab, ssId) {
    המחיקה מלמטה למעלה, אחרת כל מחיקה מזיזה את מה שמתחתיה
    והאינדקסים הבאים מצביעים על השורה הלא נכונה. */
 function delRows_(tab, col, vals, ssId) {
-  var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
+  var id = ssId || privId_(tab);
   var ss = id ? SpreadsheetApp.openById(String(id))
               : SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(tab);
@@ -3038,7 +3187,7 @@ function sheet_(tab, ssId) {
   /* מפורש גובר, ואחריו הניתוב לפי שם הלשונית. בלי הניתוב הזה כל
      כתיבה של פרטים אישיים הייתה תלויה בכך שהצד ששלח אותה ידע
      לאן — והתלמיד אינו יודע. */
-  var id = ssId || (PRIVATE_TABS.indexOf(tab) >= 0 ? PRIVATE_ID : '');
+  var id = ssId || privId_(tab);
   /* פתיחה אחת לכל גיליון בכל הרצה. הרשמה אחת פתחה את הגיליון
      הסגור שלוש-ארבע פעמים, וכל פתיחה עולה זמן בתוך הנעילה. */
   var ss = id ? (SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id))))

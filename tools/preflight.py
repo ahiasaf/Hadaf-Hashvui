@@ -518,6 +518,91 @@ def check_texts():
     if not miss and not ghost and not nolabel:
         OK.append('כל %d הנוסחים ניתנים לעריכה בניהול, וכולם מתוארים' % tot)
 
+# מספרי דוגמה שמופיעים בהערות ובשדות "לדוגמה" — לא של אף אחד.
+PII_DUMMY = set(['1234567', '7654321', '9998888', '0000000', '1111111'])
+# שמות "ממלאי מקום" שמותר לכתוב בקוד ובבדיקות.
+PII_PLACEHOLDER = set(['דוגמה', 'בדיקה', 'ישראל', 'ישראלי', 'פלוני', 'אלמוני',
+                       'הורה', 'תלמיד', 'משה', 'כהן', 'לוי', 'רכז', 'התוכנית'])
+
+
+def check_pii():
+    """אין בריפו טלפונים או שמות של תלמידים והורים. הריפו ציבורי.
+
+    שלוש בדיקות:
+    · טלפון נייד ישראלי (05X, ‎+972 5X, ‎9725X) בכל קובץ טקסט. מספר
+      דוגמה מובהק (1234567 וכו') מותר.
+    · שם בדפוס של נתונים — first/last/parentName או 'שם'/'משפחה'
+      ולצידם ערך עברי — חוץ מממלאי מקום (PII_PLACEHOLDER).
+    · קובץ טבלה (csv/tsv/xlsx/vcf) שבכותרת שלו טלפון או משפחה.
+
+    ושמות אמיתיים: אם קיים קובץ מקומי — בנתיב שב-HADAF_NAMES, או
+    ‎~/.hadaf-names — שם אחד בכל שורה, הוא נסרק גם הוא. הקובץ הזה
+    לעולם אינו נכנס לריפו.
+    """
+    import subprocess
+    try:
+        files = [x for x in subprocess.check_output(
+            ['git', '-c', 'core.quotepath=off', 'ls-files', '-z'], cwd=ROOT).decode('utf-8').split('\0') if x]
+    except Exception:                         # noqa: BLE001
+        WARN.append('בדיקת פרטים אישיים לא רצה (אין git)')
+        return
+    skip = re.compile(r'\.(png|jpe?g|webp|gif|ico|pdf|woff2?|ttf|otf|mp3|m4a|mp4|zip)$', re.I)
+    phone = re.compile(r'(?<![\w/=.%-])(?:\+?972[- ]?|0)(5\d)[- ]?(\d{3})[- ]?(\d{4})(?!\d)')
+    name = re.compile(u"(?:\\b(?:first|last|parentName|fullName)\\s*:|['\"](?:שם|משפחה|שם ההורה)['\"]\\s*:|\\[\\s*['\"](?:שם|משפחה|שם ההורה)['\"]\\s*,)"
+                      u"\\s*['\"]([\u0590-\u05FF][\u0590-\u05FF\"' -]{1,30})['\"]")
+    real = []
+    npath = os.environ.get('HADAF_NAMES') or os.path.expanduser('~/.hadaf-names')
+    if os.path.exists(npath):
+        # מילה שלמה בלבד — "רועי" אינו "ארועים". ולא בטקסטי הגמרא.
+        real = [re.compile(u'(?<![\u0590-\u05FF])' + re.escape(x.strip()) + u'(?![\u0590-\u05FF])')
+                for x in io.open(npath, encoding='utf-8') if len(x.strip()) > 2]
+    corpus = re.compile(r'(chav|sfarim|daf|sugya|slides)/')
+    hits = []
+    for f in files:
+        if skip.search(f) or f == 'tools/preflight.py':
+            continue
+        full = os.path.join(ROOT, f)
+        if os.path.getsize(full) > 3000000:
+            continue
+        try:
+            txt = io.open(full, encoding='utf-8').read()
+        except Exception:                     # noqa: BLE001
+            continue
+        if re.search(r'\.(csv|tsv|vcf)$', f, re.I):
+            head = txt.split('\n', 1)[0]
+            if re.search(u'טלפון|משפחה|phone|tel', head, re.I):
+                hits.append('%s — טבלה עם טלפון/משפחה' % f)
+        for i, line in enumerate(txt.split('\n'), 1):
+            for m in phone.finditer(line):
+                if m.group(2) + m.group(3) not in PII_DUMMY and \
+                        len(set(m.group(2) + m.group(3))) > 1:
+                    hits.append('%s:%d — טלפון' % (f, i))
+            for m in name.finditer(line):
+                if any(w not in PII_PLACEHOLDER for w in m.group(1).split()):
+                    hits.append(u'%s:%d — שם בנתונים (%s)' % (f, i, m.group(1)))
+            for r in ([] if corpus.match(f) else real):
+                if r.search(line):
+                    hits.append('%s:%d — שם מהרשימה המקומית' % (f, i))
+    for f in files:
+        if re.search(r'\.(xlsx|xls)$', f, re.I):
+            hits.append('%s — גיליון בריפו' % f)
+    if hits:
+        BAD.append('פרטים אישיים בריפו (הריפו ציבורי): ' + ' · '.join(hits[:12]))
+    else:
+        OK.append('אין טלפונים או שמות בריפו%s' % (' (גם מול הרשימה המקומית)' if real else ''))
+
+
+def check_pub_files():
+    """הרשימה של קבצי הדרייב הציבוריים בסקריפט תואמת ל-links.js."""
+    import subprocess
+    r = subprocess.call([sys.executable, os.path.join(ROOT, 'tools', 'pub-files.py'), '--check'],
+                        stdout=subprocess.DEVNULL)
+    if r:
+        BAD.append('PUB_FILES ב-apps-script.gs אינו תואם ל-links.js — '
+                   'הריצו python3 tools/pub-files.py')
+    else:
+        OK.append('קבצי הלמידה הציבוריים בסקריפט תואמים ל-links.js')
+
 
 def main():
     for fn in (check_version, check_font, check_texts,
@@ -525,7 +610,7 @@ def main():
                check_shared_globals, check_inst_manifests,
                check_share_card,
                check_decks, check_daf_index,
-               check_calendar):
+               check_calendar, check_pii, check_pub_files):
         try:
             fn()
         except Exception as e:                # noqa: BLE001
