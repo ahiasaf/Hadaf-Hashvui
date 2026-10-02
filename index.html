@@ -589,65 +589,9 @@ body.tk-sheeting #tk-bar{display:none}
 .track .pn{font-size:.74rem;font-weight:800;color:var(--ink-3);
   font-variant-numeric:tabular-nums;flex:none}
 
-/* ---------- מסלול כמסע ---------- */
-.bm{border-radius:var(--r);overflow:hidden;background:var(--surface);box-shadow:var(--sh-2)}
-.bm .head{padding:20px 16px;color:#fff;text-align:center;position:relative;overflow:hidden}
-.bm.t-b .head{background:linear-gradient(150deg,var(--blue-d),var(--blue) 70%,var(--blue-l))}
-.bm.t-g .head{background:linear-gradient(150deg,#2F5A12,var(--green-d) 65%,var(--green))}
-.bm .head b{display:block;font-size:1.3rem;font-weight:800;letter-spacing:-.03em}
-.bm .head i{display:block;width:38px;height:2px;background:var(--gold-l);
-  border-radius:2px;margin:9px auto 8px}
-.bm .head span{font-size:.78rem;opacity:.85;font-weight:600}
-.trail{padding:8px 16px 18px}
-
-.step{position:relative;display:grid;grid-template-columns:44px 1fr;gap:14px;
-  align-items:center;padding:7px 0;cursor:pointer}
-/* קו המסע — עובר מאחורי העיגולים */
-.step:before{content:"";position:absolute;top:0;bottom:0;right:21px;width:2px;
-  background:var(--rule);z-index:0}
-.step:first-of-type:before{top:50%}
-.step.last:before{bottom:50%}
-.step.done:before,.step.cur:before{background:var(--rule)}
-.step .dot{position:relative;z-index:1;width:44px;height:44px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.98rem;
-  background:var(--surface);border:2px solid var(--rule);color:var(--ink-3);
-  transition:transform .2s cubic-bezier(.22,1,.36,1)}
-.step:active .dot{transform:scale(.9)}
-.step.done .dot{background:var(--sunk);border-color:var(--rule);color:var(--ink-3)}
-/* ✓ על מה שהתלמיד סימן שלמד. הסימנייה היא המקום שבו ההתקדמות
-   השנתית חיה ממילא, ולכן זו התוספת הנכונה — ולא רשת של כל
-   הדפים במסך הבית שלו, שרק מזכירה בכל כניסה מה פספס. */
-.step.learned .dot{background:var(--green);border-color:var(--green-d);color:#fff}
-.step.learned .p:after{content:"✓";margin-inline-start:7px;color:var(--green-d);
-  font-weight:800}
-.bm.t-b .step.learned.cur .dot,.bm.t-g .step.learned.cur .dot{
-  background:linear-gradient(150deg,var(--green),var(--green-d));border-color:transparent}
-.bm.t-b .step.cur .dot{background:linear-gradient(150deg,var(--blue-l),var(--blue));
-  border-color:var(--blue);color:#fff;box-shadow:0 0 0 5px rgba(23,70,143,.14),var(--sh-2);
-  width:52px;height:52px;font-size:1.15rem}
-.bm.t-g .step.cur .dot{background:linear-gradient(150deg,var(--green),var(--green-d));
-  border-color:var(--green-d);color:#fff;box-shadow:0 0 0 5px rgba(111,168,59,.18),var(--sh-2);
-  width:52px;height:52px;font-size:1.15rem}
-.step.cur{grid-template-columns:52px 1fr;padding:12px 0}
-.step.cur:before{right:25px}
-.step.off{cursor:default;opacity:.6}
-.step.off .dot{border-style:dashed;font-size:.62rem;font-weight:700;
-  width:34px;height:34px;margin-inline-start:5px}
-.step.siyum .dot{border-color:var(--gold);color:var(--gold);font-size:.6rem;
-  background:rgba(192,143,43,.08)}
-.step .txt{min-width:0}
-.step .p{font-weight:800;font-size:1rem;letter-spacing:-.01em}
-.step.done .p,.step.off .p{font-weight:700;color:var(--ink-2)}
-.step .d{font-size:.75rem;color:var(--ink-3);font-weight:600;margin-top:1px}
-.step.cur .p{font-size:1.12rem}
-.badge{display:inline-block;font-size:.6rem;font-weight:800;letter-spacing:.05em;
-  background:linear-gradient(135deg,var(--gold-l),var(--gold));color:#fff;
-  border-radius:20px;padding:3px 9px;margin-inline-start:7px;vertical-align:middle;
-  box-shadow:0 2px 6px rgba(192,143,43,.35)}
-.chap{display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding-inline-start:2px}
-.chap b{font-size:.7rem;font-weight:800;color:var(--gold);letter-spacing:.12em;white-space:nowrap}
-.chap i{flex:1;height:1px;background:linear-gradient(90deg,var(--rule),transparent)}
-.chap:before{content:"◆";color:var(--gold);font-size:.55rem;opacity:.7}
+/* ---------- מסלול כמסע ----------
+   העיצוב עבר ל-trail.js — רכיב משותף לעמוד המסלול ולבורר הדף
+   בדף האינטראקטיבי. */
 
 /* ---------- כללי ---------- */
 .card{background:var(--surface);border-radius:var(--r-m);padding:15px;
@@ -2195,7 +2139,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
     <!-- ===== מסלול ===== -->
     <div id="v-track" class="view">
       <button class="back" onclick="trackBack()">→ חזרה</button>
-      <div class="bm" id="bm"></div>
+      <div id="bm"></div>
     </div>
 
     <!-- ===== שבוע ===== -->
@@ -2290,6 +2234,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
+<script src="trail.js"></script>
 <script src="stepid.js"></script>
 <script src="ways.js"></script>
 <script src="links.js"></script>
@@ -2300,7 +2245,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.112';
+var APP_VERSION = '8.99.113';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2381,13 +2326,11 @@ function dafDone(tr) {
     if (tr.cal[i][2] && tr.cal[i][2] !== 'סיום') n++;
   return n;
 }
-var HEBV = {'א':1,'ב':2,'ג':3,'ד':4,'ה':5,'ו':6,'ז':7,'ח':8,'ט':9,'י':10,'כ':20,'ל':30};
 function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
-function dafToNum(d) {
-  var s = dafKey(d), n = 0;
-  for (var i = 0; i < s.length; i++) n += (HEBV[s[i]] || 0);
-  return n;
-}
+/* שם הדף של שורת לוח, עם העמוד כשנלמד עמוד אחד (ב. ב:). להצגה. */
+function rowDaf(row) { return row && row[2] ? row[2] + LAmMark(LAmOf(row)) : ''; }
+/* המפתח של הסוגיה היומית: 'ב:' לעמוד ב שנלמד לבד, אחרת הדף. */
+function sugKey(row) { return dafKey((row && row[2]) || '') + (LAmOf(row) === 2 ? ':' : ''); }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
@@ -2505,7 +2448,7 @@ function openWeekNow() {
   var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
   if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
   location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
-                  '&daf=' + encodeURIComponent(d);
+                  '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk);
 }
 function openTrackNow() { openTrack(homeTrack); }
 
@@ -3809,7 +3752,7 @@ function boardHtml(code, name, hail, go) {
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
   var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
-  var daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  var daf = row && row[2] && row[2] !== 'סיום' ? rowDaf(row) : null;
   var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
 
   var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
@@ -4332,7 +4275,7 @@ function sayReach() {
 function sayWeek() {
   var wk = weekIndex(), tr = trackById(homeTrack);
   if (wk < 0 || !tr) return null;
-  var row = tr.cal[wk], daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  var row = tr.cal[wk], daf = row && row[2] && row[2] !== 'סיום' ? rowDaf(row) : null;
   if (!daf) return null;
   var did = typeof LCount === 'function' ? LCount(homeTrack, wk, myBoard()) : 0;
   return { wk: wk + 1, daf: daf, did: did || 0 };
@@ -4765,49 +4708,19 @@ function reveal() {
   }, 1200);
 }
 
-/* ---------- מסלול כמסע ---------- */
+/* ---------- מסלול כמסע ----------
+   הציור ב-trail.js, משותף לבורר הדף שבדף האינטראקטיבי. */
 function openTrack(id) {
   var tr = trackById(id); state.track = tr;
-  var wi = weekIndex(), chaps = CHAPTERS[id], shown = {};
-
-  var h = '<div class="head"><b>מסכת ' + esc(tr.masechet) + '</b><i></i><span>' +
-          tr.dapim + ' דפים · תשפ"ז</span></div><div class="trail">';
-
-  tr.cal.forEach(function (row, i) {
-    var daf = row[2];
-    if (daf && daf !== 'סיום') {
-      var num = dafToNum(daf);
-      chaps.forEach(function (c, ci) {
-        if (!shown[ci] && num >= c.from) {
-          shown[ci] = 1;
-          h += '<div class="chap"><b>' + esc(c.n) + '</b><i></i></div>';
-        }
-      });
-    }
-    var open = daf && daf !== 'סיום';
-    var cls = 'step';
-    if (!daf) cls += ' off';
-    else if (daf === 'סיום') cls += ' siyum';
-    if (i === wi) cls += ' cur';
-    if (wi >= 0 && i < wi) cls += ' done';
-    /* מה שסומן כנלמד — מהמכשיר, ולכן זמין גם בלי רשת. */
-    if (open && typeof LDone === 'function' && LDone(id, i)) cls += ' learned';
-    if (i === tr.cal.length - 1) cls += ' last';
-
-    h += '<div class="' + cls + '"' +
-         (open ? ' onclick="openWeek(\'' + id + '\',' + i + ')"' : '') + '>' +
-         '<span class="dot">' + (daf ? (daf === 'סיום' ? 'סיום' : esc(daf)) : 'חופשה') + '</span>' +
-         '<div class="txt"><div class="p">' + esc(row[1]) +
-         (i === wi ? '<span class="badge">השבוע</span>' : '') + '</div>' +
-         '<div class="d">' + esc(row[0]) + '</div></div></div>';
-  });
-
+  var wi = weekIndex();
   var bm = document.getElementById('bm');
-  bm.className = 'bm ' + (id === 'taanit' ? 't-b' : 't-g');
-  bm.innerHTML = h + '</div>';
+  bm.innerHTML = TrailHtml({ tr: tr, units: TrailWeeks(tr), wi: wi, here: -1,
+    attr: function (u) {
+      return u.kind === 'daf' ? ' onclick="openWeek(\'' + id + '\',' + u.wk + ')"' : '';
+    } });
   show('track');
   if (wi > 2) {
-    var cur = bm.querySelector('.step.cur');
+    var cur = bm.querySelector('.trl-step.cur');
     if (cur) setTimeout(function () { cur.scrollIntoView({ block:'center' }); }, 70);
   }
 }
@@ -4822,9 +4735,9 @@ function openWeek(id, i) {
 
   var h = '<div class="' + tone + '"><div class="wtop">' +
           '<div><div class="k">מסכת ' + esc(tr.masechet) + ' · ' + esc(row[1]) + '</div>' +
-          '<h2>' + esc(DeckTitle(id, i + 1) || 'דף ' + row[2]) + '</h2>' +
+          '<h2>' + esc(DeckTitle(id, i + 1) || 'דף ' + rowDaf(row)) + '</h2>' +
           '<div class="k" style="font-weight:600">' + esc(row[0]) + '</div></div>' +
-          '<span class="dafbig">' + esc(row[2]) + '</span></div></div>';
+          '<span class="dafbig">' + esc(rowDaf(row)) + '</span></div></div>';
 
   /* 1. הדף עצמו — זה העיקר, ולכן הוא ראשון */
   var lnk = function (href, ic, t, sub, cls) {
@@ -4838,7 +4751,8 @@ function openWeek(id, i) {
      `pages[דף]` הוא [חוברת, עמוד] — חוברת, כי כל כמה פרקים יש
      חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
      עם {p}) עדיין נתמכת, כדי שעריכה ידנית בניהול לא תישבר. */
-  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[dafKey(row[2])];
+  /* ב: — העמוד של עמוד ב בחוברת, ולא של תחילת הדף (ראו SUGYA). */
+  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[sugKey(row)] || (sg.pages || {})[dafKey(row[2])];
   var sgPage = '', sgHref = sg.base || '';
   if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) {
     sgPage = sgp[1];
@@ -4906,7 +4820,7 @@ function openWeek(id, i) {
   }
 
   document.getElementById('week-body').innerHTML = h;
-  paintInter(id, row[2]);
+  paintInter(id, row[2], LAmOf(row));
   show('week');
 }
 function notYet() { alert('הקישור יתווסף בקרוב.'); return false; }
@@ -5014,7 +4928,7 @@ function loadMarked() {
     })
     .catch(function () { return null; });
 }
-function paintInter(id, daf) {
+function paintInter(id, daf, am) {
   var box = document.getElementById('w-inter');
   if (!box) return;
   if (!showRow('inter')) { box.innerHTML = ''; return; }
@@ -5038,7 +4952,7 @@ function paintInter(id, daf) {
     if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
       '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
-      '&daf=' + encodeURIComponent(daf) + stuQ() + '">' +
+      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + stuQ() + '">' +
       '<span class="ic">◈</span><span>דף אינטראקטיבי' +
       '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
   };
@@ -5054,7 +4968,7 @@ function deckOpen(i) {
   if (!state.deck.length) return;
   state.di = i || 0;
   document.getElementById('d-where').textContent =
-    'מסכת ' + state.track.masechet + ' · דף ' + state.track.cal[state.week][2];
+    'מסכת ' + state.track.masechet + ' · דף ' + rowDaf(state.track.cal[state.week]);
   document.getElementById('deck').className = 'on';
   deckPaint();
 }
@@ -5115,7 +5029,7 @@ function openQuiz(idx) {
       ? '<button class="btn g" style="margin-bottom:12px" onclick="openQuiz()">→ כל החידות</button>'
       : '') +
       '<div class="sec"><b>' + (list.length > 1 ? 'חידה ' + (idx + 1) + ' · ' : 'החידה השבועית · ') +
-      'דף ' + esc(state.track.cal[state.week][2]) + '</b><i></i></div>' +
+      'דף ' + esc(rowDaf(state.track.cal[state.week])) + '</b><i></i></div>' +
       '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
   q.a.forEach(function (t, i) {
     h += '<button class="opt" id="opt' + i + '" onclick="pickAns(' + i + ')">' +
@@ -5159,7 +5073,7 @@ function quizOk(key, idx, q) {
 /* יותר מחידה אחת באותו שבוע — מסך בחירה קצר ביניהן. */
 function openQuizList(key, list) {
   var h = '<div class="sec"><b>החידות · דף ' +
-          esc(state.track.cal[state.week][2]) + '</b><i></i></div>';
+          esc(rowDaf(state.track.cal[state.week])) + '</b><i></i></div>';
   h += list.map(function (q, i) {
     return '<button class="btn gr" style="margin-top:8px" onclick="openQuiz(' + i + ')">' +
            'חידה ' + (i + 1) + ' — ' + esc(q.q) + '</button>';
@@ -7225,7 +7139,13 @@ function applyCfg() {
 
   var wa = CV('coordWa'), sg = CV('sugya'), jn = CV('joined'), pr = CV('prices');
   if (wa) COORD_WA = wa;
-  if (sg) { for (var t in sg) SUGYA[t] = sg[t]; }
+  if (sg) { for (var t in sg) {
+    /* עמוד ב שנלמד לבד ('ב:') נוסף לקוד אחרי שההגדרה נשמרה. הגדרה
+       ישנה אינה מכירה אותו, ובלי ההשלמה ב: היה נפתח בעמוד של ב. */
+    var dp = (SUGYA[t] && SUGYA[t].pages) || {}, sp = sg[t] && sg[t].pages;
+    if (sp) for (var pk in dp) if (/:$/.test(pk) && sp[pk] == null) sp[pk] = dp[pk];
+    SUGYA[t] = sg[t];
+  } }
   if (jn) INSTITUTIONS.forEach(function (i) {
             if (jn[i.code] != null) i.joined = !!jn[i.code]; });
   /* מיזוג ולא החלפה: הגדרה ישנה שנשמרה במכשיר בלי `min` לא תמחק
@@ -10354,7 +10274,7 @@ function admShow(el) {
     '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מסך הבית</h4>' +
     '<p class="h">לכיבוי זמני כשמצלמים מסך לפרסום.</p>' +
     '<div class="row"><div>לוח התוכנית' +
-    '<div class="sub">אב–אלול, תשרי, 30 שבועות, סיום</div></div>' +
+    '<div class="sub">אב–אלול, תשרי, 31 שבועות, סיום</div></div>' +
     '<button class="sw' + (showRow('plan') ? ' on' : '') +
     '" onclick="homeToggle(\'plan\')" aria-label="לוח"></button></div>' +
     '<div class="row"><div>הפס "עכשיו"' +
@@ -12836,12 +12756,12 @@ function admDecks(el) {
     tr.cal.map(function (r, k) {
       if (!r[2] || r[2] === 'סיום') return '';
       return '<option value="' + (k + 1) + '"' + (k + 1 === dkSel.wk ? ' selected' : '') +
-             '>שבוע ' + (k + 1) + ' · ' + esc(r[1]) + ' · דף ' + esc(r[2]) + '</option>';
+             '>שבוע ' + (k + 1) + ' · ' + esc(r[1]) + ' · דף ' + esc(rowDaf(r)) + '</option>';
     }).join('') + '</select></div>' +
 
     '<div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
     ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
-    esc(row[2] || '') + '"</span></label>' +
+    esc(rowDaf(row)) + '"</span></label>' +
     '<input type="text" id="dk-ttl" value="' + esc(dkTitle) +
     '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
     'onchange="dkSetTitle(this.value)"></div>' +
@@ -12951,14 +12871,14 @@ function admDecks(el) {
      היה מסך נפרד ובו רשימה של שלושים שורות. הוא נבלע לכאן, כי
      "איזה עמוד בחוברת" הוא נתון של הדף ולא נושא בפני עצמו. */
   var sg = SUGYA[dkSel.mas] || {};
-  var dfk = dafKey(row[2] || '');
+  var dfk = sugKey(row);
   var pg = ((CV('sugya') || {})[dkSel.mas] || sg).pages || sg.pages || {};
   var pv = pg[dfk], two = pv && pv.length === 2;
   var pn = two ? pv[1] : (pv || '');
   var purl = (two && (sg.books || {})[pv[0]]) ? sg.books[pv[0]] + pn + '/' : '';
   h += '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>הסוגיה היומית — העמוד בחוברת</h4>' +
-    '<p class="h">באיזה עמוד בחוברת החיצונית מתחיל דף ' + esc(row[2] || '') + '. ' +
+    '<p class="h">באיזה עמוד בחוברת החיצונית מתחיל דף ' + esc(rowDaf(row)) + '. ' +
     'ריק = הקישור לחוברת לא יוצג לשבוע הזה.' +
     (purl ? ' <a href="' + purl + '" target="_blank" rel="noopener">בדיקה ↗</a>' : '') +
     '</p>' +
@@ -13006,9 +12926,10 @@ function admOpen(el) {
       esc(t.masechet) + '</h4>';
     t.cal.forEach(function (r, wi) {
       if (!r[2] || r[2] === 'סיום') return;
-      var on = !!map[OpenKey(t.id, r[2])];
+      /* ב. וב: — שתי שורות, וכל אחת נפתחת בשבוע שלה. */
+      var on = OpenIs(t.id, r[2], OpenAm(r));
       h += '<div class="row" style="align-items:center;gap:9px">' +
-        '<span style="flex:1;min-width:0"><b>דף ' + esc(r[2]) + '</b>' +
+        '<span style="flex:1;min-width:0"><b>דף ' + esc(r[2] + LAmMark(OpenAm(r))) + '</b>' +
         '<span class="h" style="display:block;margin:0">שבוע ' + (wi + 1) +
         ' · ' + esc(r[1]) + '</span></span>' +
         (on
@@ -13025,18 +12946,22 @@ function admOpen(el) {
 }
 
 function opToggle(ti, wi) {
-  var t = TRACKS[ti], daf = t.cal[wi][2], key = OpenKey(t.id, daf);
-  var was = OpenIs(t.id, daf);
+  var t = TRACKS[ti], am = OpenAm(t.cal[wi]), daf = t.cal[wi][2], key = OpenKey(t.id, daf, am);
+  var was = OpenIs(t.id, daf, am), nm = daf + LAmMark(am);
   if (!API) { opMsg = 'אין כתובת שרת במכשיר הזה.'; opCls = 'bad'; admPane(); return; }
   if (!confirm(was
-      ? 'לסגור את דף ' + daf + ' במסכת ' + t.masechet + '? תלמידים לא יוכלו להיכנס אליו.'
-      : 'לפתוח את דף ' + daf + ' במסכת ' + t.masechet + '? הוא ייפתח מיד לכל ' +
+      ? 'לסגור את דף ' + nm + ' במסכת ' + t.masechet + '? תלמידים לא יוכלו להיכנס אליו.'
+      : 'לפתוח את דף ' + nm + ' במסכת ' + t.masechet + '? הוא ייפתח מיד לכל ' +
         'התלמידים, ומי שביקש התראה יקבל אותה עכשיו.')) return;
 
   var next = {}, k;
   var cur = OpenMap();
   for (k in cur) if (cur.hasOwnProperty(k)) next[k] = cur[k];
-  if (was) delete next[key];
+  if (was) {
+    delete next[key];
+    /* השורה הישנה של הדף כולו פותחת את ב. — ראו OpenIs. */
+    if (am === 1) delete next[OpenKey(t.id, daf)];
+  }
   else next[key] = new Date().toISOString().slice(0, 10);
 
   var rows = [];
@@ -13053,20 +12978,20 @@ function opToggle(ti, wi) {
     cols:JSON.stringify(['מסכת', 'דף', 'נפתח']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
-  opVerify(t, daf, !was, 0);
+  opVerify(t, daf, am, !was, 0);
 }
 
-function opVerify(t, daf, want, tries) {
+function opVerify(t, daf, am, want, tries) {
   setTimeout(function () {
     OpenLoad().then(function (got) {
-      if (got && OpenIs(t.id, daf) === want) {
+      if (got && OpenIs(t.id, daf, am) === want) {
         if (!want) {
           opBusy = false; opCls = 'ok';
-          opMsg = 'דף ' + daf + ' נסגר.'; admPane(); return;
+          opMsg = 'דף ' + daf + LAmMark(am) + ' נסגר.'; admPane(); return;
         }
-        opNotify(t, daf); return;
+        opNotify(t, daf, am); return;
       }
-      if (tries < 4) { opVerify(t, daf, want, tries + 1); return; }
+      if (tries < 4) { opVerify(t, daf, am, want, tries + 1); return; }
       opBusy = false; opCls = 'bad';
       opMsg = 'לא הצלחתי לאמת שהשינוי הגיע לגיליון. נסו שוב.';
       admPane();
@@ -13075,19 +13000,20 @@ function opVerify(t, daf, want, tries) {
 }
 
 /* ההתראה — רק למי שביקש אותה על הדף הזה. */
-function opNotify(t, daf) {
+function opNotify(t, daf, am) {
   var key = (CFG.readKey || '').trim();
-  var v = { mas: t.masechet, daf: daf };
+  var v = { mas: t.masechet, daf: daf + LAmMark(am) };
   var done = function (txt, cls) {
     opBusy = false; opCls = cls;
-    opMsg = 'דף ' + daf + ' נפתח לכל התלמידים. ' + txt;
+    opMsg = 'דף ' + v.daf + ' נפתח לכל התלמידים. ' + txt;
     admPane();
   };
   if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
   scriptGet({ fire:'say', key:key,
               title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
-              wait:OpenKey(t.id, daf),
-              url:'learn?mas=' + t.id + '&daf=' + OpenKey(t.id, daf).split('|')[1] })
+              wait:OpenKey(t.id, daf, am),
+              url:'learn?mas=' + t.id + '&daf=' + OpenKey(t.id, daf).split('|')[1] +
+                  (am ? '&amud=' + am : '') })
     .then(function (d) {
       if (d && d.status === 'ok') done('התקבל לשליחה. התוצאה — ב"מה קורה ← שליחה".', 'ok');
       else done('ההתראה לא יצאה: ' + ((d && d.message) || 'אין תשובה מהסקריפט.'), 'bad');

@@ -294,9 +294,9 @@ function renderMine() {
     '<button class="ed" onclick="renderSay()">שינוי</button></div>';
 
   h += '<div class="stage"><div class="eyebrow">' + esc(when) + '<s></s>' +
-    (w.row[2] && w.row[2] !== 'סיום' ? 'דף ' + esc(w.row[2]) : '') + '</div>' +
+    (w.row[2] && w.row[2] !== 'סיום' ? 'דף ' + esc(CalDaf(w.row)) : '') + '</div>' +
     '<h2>' + esc(DeckTitle(w.tr.id, w.i + 1) ||
-                 (w.row[2] ? 'דף ' + w.row[2] : w.row[1])) + '</h2>' +
+                 (w.row[2] ? 'דף ' + CalDaf(w.row) : w.row[1])) + '</h2>' +
     '<div class="meta">' + esc(w.row[1]) + ' · ' + esc(w.row[0]) + '</div>';
   var dk = DeckOf(w.tr.id, w.i + 1);
   if (dk) {
@@ -367,7 +367,7 @@ function deckOpen(i) {
   for (var n = 1; n <= dk.files.length; n++) deck.imgs.push(DeckSrc(dk, n));
   deck.i = i || 0;
   document.getElementById('d-where').textContent =
-    'מסכת ' + trackById(t).masechet + ' · דף ' + contentFor(t).row[2];
+    'מסכת ' + trackById(t).masechet + ' · דף ' + CalDaf(contentFor(t).row);
   document.getElementById('deck').className = 'on';
   deckPaint();
 }

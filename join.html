@@ -2811,12 +2811,13 @@ function appUrl(hash) {
 function stWeek() {
   var wi = LWeek(), tr = myTrack();
   var d = (typeof LDaf === 'function') ? LDaf(tr, wi < 0 ? 0 : wi) : '';
+  var am = (typeof LAm === 'function') ? LAm(tr, wi < 0 ? 0 : wi) : 0;   /* ב: — ראו LDafQ */
   if (!d) {
     location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1));
     return;
   }
   location.href = 'learn.html?mas=' + encodeURIComponent(tr) +
-                  '&daf=' + encodeURIComponent(d) +
+                  '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
                   /* שהיציאה מהדף תחזיר הורה למסך ההורה — ראו stuDad ב-learn.html. */
                   (role === 'dad' ? '&for=dad' : '');
@@ -2866,8 +2867,9 @@ document.addEventListener('keydown', function (e) {
    הדף בוודאי מוכן, ואין כאן הבטחה שתיפול. */
 function dafUrl(tr, wk) {
   var d = LDaf(tr, wk) || '';
+  var am = (typeof LAm === 'function') ? LAm(tr, wk) : 0;   /* ב: — ראו LDafQ */
   return 'learn.html?mas=' + encodeURIComponent(tr) +
-         '&daf=' + encodeURIComponent(d);
+         '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '');
 }
 
 function markWeek() {
@@ -4115,11 +4117,12 @@ function landDemo() {
   if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
   var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
+  var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   if (!d) return;
   box.hidden = false;
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
   f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
-          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
+          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   window.addEventListener('message', function (e) {
@@ -4371,6 +4374,7 @@ var INTRO_ON = false;
                    /[?&](nointro=1|tedit=1)/.test(location.search))) return;
   var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
+  var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   if (!d) return;
   if (!preview) { try { localStorage.setItem('df:introSeen', '1'); } catch (e) {} }
 
@@ -4382,7 +4386,7 @@ var INTRO_ON = false;
     '<div class="intro-logo"><span><img alt="" src="' + esc(window.LOGO_MARK || '') + '"></span></div>' +
     '<iframe title="' + esc(JOIN.introT) + '" ' +
     'scrolling="no" src="' + esc(base + 'learn.html?mas=' + encodeURIComponent(tr) +
-      '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=join' +
+      '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
       (instCode ? '&inst=' + encodeURIComponent(instCode) : '')) + '"></iframe>' +
     /* נגיעה בחלון אינה מפעילה כפתור זעיר שבתוכו — ההדגמה מנגנת לבד. */
     '<div class="intro-tap"></div></div></div>';

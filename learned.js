@@ -74,14 +74,52 @@ function LWeek() {
   }
   return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
 }
-/* הדף של שבוע מסוים במסלול. null = שבוע חופשה. */
-function LDaf(track, wk) {
+/* הדף של שבוע מסוים במסלול. null = שבוע חופשה.
+   שם הדף בלבד — בלי העמוד. הוא המפתח לכל מה שנשמר לפי דף (הקישורים,
+   הסימונים, תמונות הדף), ולכן ב. וב: מחזירים שניהם 'ב'. העמוד —
+   ב-`LAm`, והשם להצגה — ב-`LDafName`. */
+function LRow(track, wk) {
   for (var i = 0; i < TRACKS.length; i++) {
-    if (TRACKS[i].id !== track) continue;
-    var row = TRACKS[i].cal[wk];
-    return row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+    if (TRACKS[i].id === track) return TRACKS[i].cal[wk] || null;
   }
   return null;
+}
+function LDaf(track, wk) {
+  var row = LRow(track, wk);
+  return row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+}
+/* העמוד שנלמד בשבוע: 0 = הדף כולו, 1 = ע״א, 2 = ע״ב.
+   האיבר הרביעי בשורת הלוח (ראו CAL_TAANIT). */
+function LAmOf(row) {
+  var a = row && row[3];
+  return a === 'א' ? 1 : a === 'ב' ? 2 : 0;
+}
+function LAm(track, wk) { return LAmOf(LRow(track, wk)); }
+/* ב. ב: — הכתיב המקובל לעמוד. דף שלם — בלי סימן. */
+function LAmMark(am) { return am === 1 ? '.' : am === 2 ? ':' : ''; }
+function LDafName(track, wk) {
+  var d = LDaf(track, wk);
+  return d ? d + LAmMark(LAm(track, wk)) : null;
+}
+/* הפרמטרים לכתובת הדף האינטראקטיבי — `daf=ב&amud=2`. בלי העמוד
+   ב: היה נפתח כ-ב., כי שניהם אותו דף. */
+function LDafQ(track, wk) {
+  var d = LDaf(track, wk), am = LAm(track, wk);
+  return d ? 'daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') : '';
+}
+/* השבוע של דף ועמוד במסלול. עמוד 0, או דף שאינו מתחלק — השבוע
+   הראשון של הדף. -1 = הדף אינו בלוח. */
+function LWeekOf(track, daf, am) {
+  var t = null, k = String(daf || '').replace(/["'׳״\s]/g, ''), first = -1;
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === track) t = TRACKS[i];
+  if (!t || !k) return -1;
+  for (var w = 0; w < t.cal.length; w++) {
+    var row = t.cal[w];
+    if (!row[2] || String(row[2]).replace(/["'׳״\s]/g, '') !== k) continue;
+    if (first < 0) first = w;
+    if (!am || LAmOf(row) === am) return w;
+  }
+  return first;
 }
 
 /* ---------- מה סומן ---------- */
@@ -120,7 +158,7 @@ function LMark(track, wk) {
     var pz = LPos(track, wk);
     q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
       ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
-      ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
+      ['מסלול', track], ['שבוע', wk + 1], ['דף', LDafName(track, wk) || ''],
       ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : ''],
       ['בדיקה', LTester() ? 'כן' : '']
     ]) });
@@ -180,7 +218,7 @@ function LPosSend(track, wk) {
   var q = LGet('learn-q', []) || [];
   q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
     ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
-    ['מסלול', track], ['שבוע', wk + 1], ['דף', LDaf(track, wk) || ''],
+    ['מסלול', track], ['שבוע', wk + 1], ['דף', LDafName(track, wk) || ''],
     ['קטע', p.i + 1], ['מתוך', p.n],
     ['בדיקה', LTester() ? 'כן' : '']
   ]) });
@@ -382,3 +420,74 @@ function LSyncId(force, after) {
   }).catch(function () {});
 }
 if (typeof window !== 'undefined') setTimeout(function () { LSyncId(); }, 2500);
+
+/* ============================================================
+   תענית: דף ב התחלק לשני שבועות — העברה חד-פעמית במכשיר.
+   ============================================================
+   שבוע 1 הוא ב. ושבוע 2 הוא ב:, ולכן דפים ג–כ"ד זזו שבוע אחד
+   קדימה (י זז שניים — חנוכה נשארה במקומה). כל מה שהמכשיר שמר
+   לפי 'taanit|שבוע' עובר לשבוע החדש של **אותו דף**: "נלמד",
+   המקום בדף, מה שכבר דווח, המונים שבמטמון, התורים שעוד לא
+   נשלחו, והמצגות שבמטמון. הגיליון עובר בצד השרת — ראו
+   `taanitShift_` ב-apps-script.gs.
+
+   הדגל נשמר אחרי ההעברה, ולכן היא רצה פעם אחת בכל מכשיר. */
+var L_SHIFT = 'shift-taanit-ab';
+/* השבוע הישן → החדש. */
+var L_SHIFT_MAP = { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
+  14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25 };
+
+function LShiftKey(k, sep) {
+  var p = String(k).split(sep);
+  if (p[0] !== 'taanit') return k;
+  var nw = L_SHIFT_MAP[parseInt(p[1], 10)];
+  if (!nw) return k;
+  p[1] = String(nw);
+  return p.join(sep);
+}
+function LShiftObj(o, sep) {
+  if (!o || typeof o !== 'object') return o;
+  var out = {};
+  for (var k in o) if (o.hasOwnProperty(k)) out[LShiftKey(k, sep)] = o[k];
+  return out;
+}
+/* שורה בתור: [['מסלול','taanit'],['שבוע',N],…] בתוך cols. */
+function LShiftQ(q) {
+  (q || []).forEach(function (it) {
+    if (!it || !it.cols) return;
+    try {
+      var c = JSON.parse(it.cols), tr = '';
+      c.forEach(function (p) { if (p && p[0] === 'מסלול') tr = p[1]; });
+      if (tr !== 'taanit') return;
+      c.forEach(function (p) {
+        if (p && p[0] === 'שבוע' && L_SHIFT_MAP[parseInt(p[1], 10)]) p[1] = L_SHIFT_MAP[parseInt(p[1], 10)];
+      });
+      it.cols = JSON.stringify(c);
+    } catch (e) {}
+  });
+  return q;
+}
+function LShift() {
+  try {
+    if (LGet(L_SHIFT, null)) return;
+    /* מכשיר שעוד לא שמר כלום — אין מה להעביר. */
+    ['learned', 'pos', 'pos-sent', 'pairs'].forEach(function (k) {
+      var v = LGet(k, null);
+      if (v) LSet(k, LShiftObj(v, '|'));
+    });
+    var lc = LGet('learnCount', null);
+    if (lc) LSet('learnCount', LShiftObj(lc, '|'));
+    ['learn-q', 'pair-q'].forEach(function (k) {
+      var q = LGet(k, null);
+      if (q && q.length) LSet(k, LShiftQ(q));
+    });
+    var dk = LGet('deckCache', null);
+    if (dk) {
+      LSet('deckCache', LShiftObj(dk, '-'));
+      /* deck.js כבר קרא את המטמון לזיכרון, בחלק מהעמודים לפנינו. */
+      if (typeof DECKS !== 'undefined' && DECKS) DECKS = LGet('deckCache', null);
+    }
+    LSet(L_SHIFT, new Date().toISOString());
+  } catch (e) {}
+}
+LShift();

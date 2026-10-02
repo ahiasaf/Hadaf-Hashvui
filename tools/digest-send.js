@@ -351,7 +351,7 @@ function forOne(P, w, students, wk) {
   var daf = '', parasha = '';
   for (var t2 = 0; t2 < P.TRACKS.length; t2++) {
     var row = P.TRACKS[t2].cal[wk];
-    if (row && row[2] && row[2] !== 'סיום') { daf = row[2]; parasha = row[1]; break; }
+    if (row && row[2] && row[2] !== 'סיום') { daf = row[2] + P.LAmMark(P.LAmOf(row)); parasha = row[1]; break; }
   }
   var v = { cls: cls, n: mine.length, done: done, daf: daf, parasha: parasha };
   var body = w.slot.next ? D.fresh

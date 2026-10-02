@@ -1670,10 +1670,12 @@ function onMas() {
   var m = selVal('mas');
   var cal = CAL[m] || [];
   var links = (window.DAF_LINKS || {})[m] || {};
-  var opts = [];
+  var opts = [], seen = {};
   cal.forEach(function (row, i) {
     var d = row[2];
-    if (!d || d === 'סיום' || !links[dafKey(d)]) return;
+    /* דף שנלמד בשני שבועות (ב. ב:) — פעם אחת: הסימון הוא של הדף. */
+    if (!d || d === 'סיום' || !links[dafKey(d)] || seen[dafKey(d)]) return;
+    seen[dafKey(d)] = 1;
     /* הדף ראשון, ולא השבוע. ברצועת הניווט השם נחתך כשאין מקום,
        והחלק שחייב לשרוד הוא זה שאומר איפה אנחנו. */
     opts.push([d, 'דף ' + d + ' · שבוע ' + (i + 1) + ' · ' + row[1]]);
@@ -1931,7 +1933,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.112';
+var STUDIO_VER = '8.99.113';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון

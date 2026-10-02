@@ -195,8 +195,11 @@ var OPEN_SHEET = 'דפים פתוחים';
 var OPEN_CACHE = 'df:openCache';
 var OPENS = null;          /* 'taanit|ג' -> 1, או null = טרם נקרא */
 
-function OpenKey(mas, daf) {
-  return mas + '|' + String(daf || '').replace(/["'׳״\s]/g, '');
+/* `am` — עמוד שנפתח לבד (ראו האיבר הרביעי ב-CAL_TAANIT): 1 = ב.,
+   2 = ב:. בלעדיו — הדף כולו. כך בלשונית: 'ב.' ו-'ב:' הן שתי שורות. */
+function OpenKey(mas, daf, am) {
+  return mas + '|' + String(daf || '').replace(/["'׳״\s]/g, '') +
+         (am === 1 ? '.' : am === 2 ? ':' : '');
 }
 function OpenCached() {
   try {
@@ -223,13 +226,30 @@ function OpenDefault() {
   var out = {};
   (typeof TRACKS !== 'undefined' ? TRACKS : []).forEach(function (t) {
     for (var i = 0; i < t.cal.length; i++) {
-      if (t.cal[i][2] && t.cal[i][2] !== 'סיום') { out[OpenKey(t.id, t.cal[i][2])] = '1'; break; }
+      if (t.cal[i][2] && t.cal[i][2] !== 'סיום') {
+        out[OpenKey(t.id, t.cal[i][2], OpenAm(t.cal[i]))] = '1'; break;
+      }
     }
   });
   return out;
 }
 function OpenMap() { return OPENS || OpenDefault(); }
-function OpenIs(mas, daf) { return !!OpenMap()[OpenKey(mas, daf)]; }
+/* העמוד של שורת לוח — כמו LAmOf ב-learned.js, שאינו נטען בכל עמוד. */
+function OpenAm(row) { var a = row && row[3]; return a === 'א' ? 1 : a === 'ב' ? 2 : 0; }
+/* שם הדף של שורת לוח להצגה — ב. ב: כשנלמד עמוד אחד. כאן ולא
+   ב-learned.js, כי מסך המסע (masa.html) אינו טוען אותו. */
+function CalDaf(row) {
+  var am = OpenAm(row);
+  return row && row[2] ? row[2] + (am === 1 ? '.' : am === 2 ? ':' : '') : '';
+}
+/* ב: נפתח רק בשורה משלו. ב. נפתח גם בשורה הישנה של הדף כולו
+   ('ב'), שנכתבה לפני שהדף התחלק — אחרת השבוע הראשון היה ננעל. */
+function OpenIs(mas, daf, am) {
+  var m = OpenMap();
+  if (am === 2) return !!m[OpenKey(mas, daf, 2)];
+  if (am === 1) return !!(m[OpenKey(mas, daf, 1)] || m[OpenKey(mas, daf)]);
+  return !!m[OpenKey(mas, daf)];
+}
 
 /* Promise שנפתר תמיד: true = נקרא מהגיליון, false = נשאר מה שהיה. */
 function OpenLoad() {

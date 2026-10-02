@@ -117,7 +117,9 @@ var PAIR_UI = (function () {
   function send(track, wk) {
     var m = me(); if (!m || !m.id) return;
     var url = api(); if (!url) return;
-    var daf = (typeof LDaf === 'function') ? (LDaf(track, wk) || '') : '';
+    /* עם העמוד (ב. ב:) — השרת משייך לפיו את השורה לשבוע. */
+    var daf = (typeof LDafName === 'function') ? (LDafName(track, wk) || '')
+            : (typeof LDaf === 'function') ? (LDaf(track, wk) || '') : '';
     var row = { action:'row', tab:'זוגות', cols: JSON.stringify([
       ['מתי', new Date().toISOString()],
       ['מזהה', m.id], ['שם', ((m.first || '') + ' ' + (m.last || '')).trim()],
@@ -406,8 +408,8 @@ var PAIR_UI = (function () {
   function confirmShow(p, urgent) {
     var m = me() || {};
     var who = (m.dadFirst || '').trim() || t('kid');
-    var daf = (typeof LDaf === 'function')
-      ? (LDaf(p.track, (parseInt(p.wk, 10) || 1) - 1) || '') : '';
+    var daf = (typeof LDafName === 'function')
+      ? (LDafName(p.track, (parseInt(p.wk, 10) || 1) - 1) || '') : '';
     var wrap = show('<h3>' + esc(fill(t('okAskH'), { daf: daf ? 'דף ' + daf : '' })) +
       '</h3><p>' + esc(fill(t('okAskB'), { name: who })) + '</p>' +
       '<button class="pr-go" id="pr-ok">' + esc(t('okYes')) + '</button>' +

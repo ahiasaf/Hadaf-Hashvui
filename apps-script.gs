@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 44;
+var SCRIPT_VERSION = 45;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -266,6 +266,10 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    /* פעם אחת, לפני כל כתיבה — ראו taanitShift_. */
+    try {
+      if (!PropertiesService.getScriptProperties().getProperty(TAANIT_SHIFT_KEY)) taanitShift_();
+    } catch (se) {}
     var d = JSON.parse(e.postData.contents);
 
     /* ---- הצורה הכללית: האפליקציה נוקבת בלשונית ובעמודות ----
@@ -973,8 +977,9 @@ function doGet(e) {
                              isAdm ? String(P.role || '')
                                    : (P.aud === 'parents' ? 'אב' : 'תלמיד'),
                              /* "הדף נפתח" — רק לרכז, ורק לממתינים של
-                                אותו דף. הצורה נבדקת: 'taanit|ג'. */
-                             isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}$/.test(String(P.wait || ''))
+                                אותו דף. הצורה נבדקת: 'taanit|ג', ועמוד שנפתח
+                                לבד — 'taanit|ב.' או 'taanit|ב:'. */
+                             isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}[.:]?$/.test(String(P.wait || ''))
                                ? String(P.wait) : '',
                              sayFlt_(P.flt));
     /* **איש הצוות אינו רואה כישלון** — הוא עובר לרכז (נרשם ביומן
@@ -3208,7 +3213,84 @@ function setupTriggers() {
   return 'הטריגר הותקן · ספירה מחדש כל שעה' + '\n' + setupClock();
 }
 /* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
-function autoRecount() { recount_(); recountLearn_(true); backupDaily_(); }
+function autoRecount() {
+  try { taanitShift_(); } catch (e) {}
+  recount_(); recountLearn_(true); backupDaily_();
+}
+
+/* ============================================================
+   תענית: דף ב התחלק לשני שבועות.
+   ============================================================
+   שבוע 1 הוא ב. ושבוע 2 הוא ב: — ולכן דפים ג–כ"ד זזו שבוע אחד
+   קדימה (י, שנפל לפני חנוכה, זז שניים: חנוכה נשארה במקומה).
+   מכ"ה והלאה לא זז דבר. ראו CAL_TAANIT ב-data.js.
+
+   כל מה שנשמר בגיליון לפי מספר שבוע עובר לשבוע החדש של **אותו
+   דף**:
+   · "לימוד" ו"זוגות" — לפי עמודת הדף שבשורה, ולכן זה נכון גם
+     לשורה שנכתבה כבר בגרסה החדשה וגם לשורה ממכשיר שעוד לא
+     התעדכן. לכן זה רץ שוב בכל שעה, ואינו מזיז שורה פעמיים.
+   · "מצגות" — אין בה דף, ולכן היא עוברת פעם אחת בלבד, לפי
+     השבוע הישן, ונרשמת כ"בוצע".
+   אחרי שינוי — ספירה מלאה, והסימנייה של הספירה התוספתית נמחקת.
+   ============================================================ */
+var TAANIT_SHIFT_KEY = 'taanitShiftAB';
+/* הדף → השבוע בלוח החדש. 'ב.' ו-'ב:' הם שני העמודים של דף ב. */
+var TAANIT_WK = { 'ב.':1, 'ב:':2, 'ג':3, 'ד':4, 'ה':5, 'ו':6, 'ז':7, 'ח':8, 'ט':9,
+  'י':11, 'יא':12, 'יב':13, 'יג':14, 'יד':15, 'טו':16, 'טז':17, 'יז':18, 'יח':19,
+  'יט':20, 'כ':21, 'כא':22, 'כב':23, 'כג':24, 'כד':25 };
+/* השבוע הישן → החדש, לשורה שאין בה דף. */
+var TAANIT_OLD = { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
+  14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25 };
+
+function taanitWk_(daf, wk, once) {
+  var d = String(daf || '').replace(/["'׳״\s]/g, '');
+  /* דף ב בלי עמוד — שורה ישנה (הדף כולו, שבוע 1) או ממכשיר שעוד
+     לא התעדכן. שבוע 1 או 2 נשאר כמו שהוא. */
+  if (d === 'ב') return wk === 2 ? 2 : 1;
+  if (TAANIT_WK[d]) return TAANIT_WK[d];
+  if (!d && once && TAANIT_OLD[wk]) return TAANIT_OLD[wk];
+  return wk;
+}
+
+/* `byDaf` — יש עמודת דף. בלעדיה רק בהרצה הראשונה. */
+function taanitTab_(tab, trackCol, byDaf, once) {
+  var id = privId_(tab);
+  var ss = id ? SpreadsheetApp.openById(String(id)) : SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(tab);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var rows = sh.getDataRange().getDisplayValues(), head = rows[0], ix = {};
+  for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
+  var it = ix[trackCol], iw = ix['שבוע'], idf = byDaf ? ix['דף'] : undefined;
+  if (it === undefined || iw === undefined) return 0;
+  if (!byDaf && !once) return 0;
+  var col = [], n = 0;
+  for (var r = 1; r < rows.length; r++) {
+    var wk = parseInt(rows[r][iw], 10), nw = wk;
+    var tr = String(rows[r][it] || '').trim();
+    if ((tr === 'taanit' || tr === 'תענית') && wk > 0) {
+      nw = taanitWk_(idf === undefined ? '' : rows[r][idf], wk, once);
+    }
+    if (nw !== wk) n++;
+    col.push([nw > 0 ? nw : rows[r][iw]]);
+  }
+  if (n) sh.getRange(2, iw + 1, col.length, 1).setValues(col);
+  return n;
+}
+
+function taanitShift_() {
+  var P = PropertiesService.getScriptProperties();
+  var once = !P.getProperty(TAANIT_SHIFT_KEY);
+  var n = taanitTab_(LEARN_TAB, 'מסלול', true, once) +
+          taanitTab_('זוגות', 'מסלול', true, once);
+  if (once) n += taanitTab_('מצגות', 'מסכת', false, true);
+  if (once) P.setProperty(TAANIT_SHIFT_KEY, new Date().toISOString());
+  if (n) {
+    try { P.deleteProperty(MARK_KEY); } catch (e) {}
+    recountLearn_(true);
+  }
+  return n;
+}
 
 /* ============================================================
    השעון של השליחות המתוזמנות.

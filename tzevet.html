@@ -874,9 +874,10 @@ function setTrack(t) { track = t; drawStage(); }
 function goDaf() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
+  var am = (typeof LAm === 'function') ? LAm(track, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   if (!d) { goApp(); return; }
   location.href = base() + 'learn.html?mas=' + encodeURIComponent(track) +
-                  '&daf=' + encodeURIComponent(d) + '&from=tzevet' +
+                  '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&from=tzevet' +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 }
 /* המצגת יושבת במסך הראשי, ומציג המצגות שלה הוא קוד שכבר קיים
@@ -1036,11 +1037,12 @@ function demoBox() {
   if (/[?&]tedit=1/.test(location.search)) { box.hidden = true; return; }
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
+  var am = (typeof LAm === 'function') ? LAm(track, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   /* אין דף לשבוע הזה — אין מה להדגים, והחלון פשוט אינו מוצג. */
   if (!d) { box.hidden = true; return; }
 
   f.src = base() + 'learn.html?mas=' + encodeURIComponent(track) +
-          '&daf=' + encodeURIComponent(d) + '&demo=1&embed=1&from=tzevet' +
+          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=tzevet' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   /* אין כאן יותר "מתי היא עולה": היא שם מההתחלה, ומתחילה
@@ -1271,7 +1273,7 @@ function drawBoard() {
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === track) tr = TRACKS[i];
   if (!tr) tr = TRACKS[0];
   var row = wk >= 0 ? tr.cal[wk] : null, row0 = tr.cal[0];
-  var daf = row && row[2] && row[2] !== 'סיום' ? row[2] : null;
+  var daf = row && row[2] && row[2] !== 'סיום' ? row[2] + LAmMark(LAmOf(row)) : null;
   var did = (wk >= 0 && typeof LCount === 'function')
           ? LCount(tr.id, wk, instRow.code) : 0;
 
