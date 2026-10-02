@@ -855,9 +855,13 @@ nav .sp{flex:1}
    מול 81 בטלפון, ועם התיקון כאן — 80. ובהירות ממוצעת 218 מול
    211, וכאן 214.
 
-   רק מ-1000px ומעלה. בטלפון אין מה לתקן, ותיקון שם רק היה
-   מכהה דף שכבר נכון.                                          */
-@media (min-width:1000px){
+   **לפי צפיפות המסך ולא לפי רוחב החלון.** קודם זה היה
+   `min-width:1000px`, ולכן באותו מחשב הדף היה פעם חד ופעם שטוף:
+   חלון שהוצמד לחצי מסך, זום 110%, כלי מפתחים פתוחים — ירד מתחת
+   ל-1000 והפיצוי נעלם. נמדד (2.10): ב-990px הדיו הכהה ביותר
+   יוצא 18, ב-1010px — 5. מה שגורם לשטיפה הוא פיקסל אחד לנקודה,
+   ולכן זה מה שהכלל שואל עכשיו. טלפון (2× ומעלה) אינו מושפע. */
+@media (-webkit-max-device-pixel-ratio:1.49), (max-resolution:1.49dppx){
   #page{filter:contrast(1.16) brightness(.985)}
 }
 
@@ -898,6 +902,32 @@ nav .sp{flex:1}
     padding-inline:0}
 }
 
+
+/* ---------- בחירת דף ועמוד (pickOpen) ---------- */
+.ttl{cursor:pointer;-webkit-tap-highlight-color:transparent}
+#t-daf::after{content:' \25BE';font-size:.75em;opacity:.7}
+.pick{position:fixed;inset:0;z-index:30;display:none;align-items:flex-end;justify-content:center;
+  background:rgba(11,37,80,.45)}
+.pick.on{display:flex}
+.pk-box{background:var(--surface);width:100%;max-width:30rem;max-height:78vh;display:flex;
+  flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(11,37,80,.3);
+  padding:14px 16px calc(16px + env(safe-area-inset-bottom));animation:pkUp .22s ease-out}
+@keyframes pkUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.pk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.pk-h b{font-size:1.05rem;color:var(--blue-d)}
+.pk-x{border:0;background:none;font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
+.pk-am{display:flex;gap:6px;background:var(--paper);border-radius:14px;padding:4px;margin-bottom:12px}
+.pk-am button{flex:1;height:44px;border:0;border-radius:11px;background:none;font:inherit;
+  font-weight:800;font-size:.95rem;color:var(--ink-2);cursor:pointer}
+.pk-am button.on{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(23,70,143,.3)}
+.pk-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:8px;
+  overflow-y:auto;padding:2px;-webkit-overflow-scrolling:touch}
+.pk-g button{height:52px;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  font:inherit;font-size:1.1rem;font-weight:800;color:var(--ink);cursor:pointer}
+.pk-g button.cur{background:var(--gold);border-color:var(--gold);color:#fff}
+.pk-g button.lock{opacity:.45}
+@media (hover:hover){.pk-g button:hover{border-color:var(--gold)}}
+@media (min-width:821px){.pick{align-items:center}.pk-box{border-radius:20px}}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -909,7 +939,7 @@ nav .sp{flex:1}
 <header>
   <div class="hrow">
     <a class="back" href="join.html" id="back">▸ יציאה</a>
-    <div class="ttl"><h1 id="t-daf">לימוד אינטראקטיבי</h1><span id="t-sub"></span></div>
+    <div class="ttl" id="ttl" role="button" tabindex="0" onclick="pickOpen()"><h1 id="t-daf">לימוד אינטראקטיבי</h1><span id="t-sub"></span></div>
     <!-- ריק. כאן ישב "קטע 17 מתוך 41" — חשבונאות של מי שחילק
          את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
          את אותו דבר בלי מספר. המקום נשמר. -->
@@ -919,6 +949,7 @@ nav .sp{flex:1}
 </header>
 <!-- נדלקת רק כשחזרנו לאמצע דף, ומתפוגגת לבד. -->
 <div class="resume" id="resume"></div>
+<div class="pick" id="pick" onclick="if(event.target===this)pickClose()"></div>
 
 <main>
   <!-- האזור הצדדי **ראשון** בסדר ה-DOM, ולכן במסך RTL הוא הימני
@@ -3819,6 +3850,125 @@ function resumeTop() {
 }
 
 /* ============================================================
+   המקום האחרון במכשיר — דף, עמוד וקטע.
+   ============================================================
+   `savePos` למעלה שומר רק את הדף של השבוע, רק קדימה, ולא אחרי
+   סיום — כי הוא משרת את הלוח של הצוות. תלמיד שחזר לדף ישן, דפדף
+   אחורה לעיין, או פתח את הדף הבא — חזר לקטע הראשון. כאן נשמר
+   **בדיוק** איפה הוא עמד, בכל דף ובכל כיוון, במכשיר בלבד (לא נשלח
+   לשום מקום). מזהה הקטע קודם — פיצול או איחוד לא מזיזים אותו. */
+var SPOT_KEY = 'df:spot';
+function spotGet() {
+  try { return JSON.parse(localStorage.getItem(SPOT_KEY) || 'null'); } catch (e) { return null; }
+}
+function spotSave() {
+  if (quiet() || EMB || !FLAT.length || !FLAT[IDX]) return;
+  var pp = PAGES[FLAT[IDX].p] || {};
+  try {
+    localStorage.setItem(SPOT_KEY, JSON.stringify({ mas: S.mas, daf: S.daf, i: IDX,
+      n: FLAT.length, id: FLAT[IDX].id || '', pg: pp.pg || 1, at: Date.now() }));
+  } catch (e) {}
+}
+function spotIdx(p) {
+  if (p.id) for (var j = 0; j < FLAT.length; j++) if (FLAT[j].id === p.id) return j;
+  return (p.n === FLAT.length && p.i >= 0 && p.i < FLAT.length) ? p.i : -1;
+}
+function resumeBar(html) {
+  var el = $('resume');
+  if (!el) return;
+  el.innerHTML = html;
+  el.className = 'resume on';
+  setTimeout(function () { el.className = 'resume on fade'; }, 6000);
+}
+/* אותו דף — חוזרים לקטע. true = חזר. */
+function spotResume() {
+  var p = spotGet();
+  if (!p || p.mas !== S.mas || dafKey(p.daf) !== dafKey(S.daf)) return false;
+  var at = spotIdx(p);
+  if (!(at > 0)) return false;
+  go(at);
+  resumeBar('המשכנו מהמקום שעצרת · <button onclick="resumeTop()">מתחילת הדף</button>');
+  return true;
+}
+/* דף אחר באותה מסכת, בשבוע האחרון — לא קופצים אליו בלי לשאול
+   (אולי הוא בא בכוונה לדף של השבוע), אלא מציעים בשורה אחת. */
+function spotOffer() {
+  var p = spotGet();
+  if (!p || p.mas !== S.mas || dafKey(p.daf) === dafKey(S.daf)) return;
+  if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
+  var u = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(p.daf) + keepQ();
+  resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.pg || 1) })) +
+    ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
+}
+function fillT(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+
+/* ============================================================
+   בחירת דף ועמוד — חלון תחתון.
+   ============================================================
+   הקשה על הכותרת פותחת רשת של מספרי הדפים ומעליה א/ב. הכול
+   בגודל אגודל, ובמחשב זה אותו חלון ממורכז בתחתית. דף שעוד לא
+   נפתח מוצג חיוור — עדיין לחיץ, ושם הוא יקבל את מסך "ייפתח
+   בקרוב" עם בקשת ההתראה. */
+var PICK_AM = 1;
+function pickDafs() {
+  var cal = calOf(S.mas), out = [], seen = {};
+  for (var i = 0; i < cal.length; i++) {
+    var d = cal[i][2];
+    if (!d || d === 'סיום' || seen[dafKey(d)]) continue;
+    seen[dafKey(d)] = 1; out.push(d);
+  }
+  return out;
+}
+function pickOpen() {
+  if (quiet() || EMB) return;
+  var st = FLAT[IDX];
+  PICK_AM = st && PAGES[st.p] && dafKey(PAGES[st.p].daf) === dafKey(S.daf) ? (PAGES[st.p].pg === 2 ? 2 : 1) : 1;
+  pickDraw();
+  $('pick').className = 'pick on';
+  setTimeout(function () {
+    var c = document.querySelector('#pick .pk-g .cur');
+    if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center' });
+  }, 30);
+}
+function pickClose() { $('pick').className = 'pick'; }
+function pickDraw() {
+  var cur = dafKey(S.daf);
+  $('pick').innerHTML = '<div class="pk-box" role="dialog" aria-modal="true">' +
+    '<div class="pk-h"><b>' + esc(UI.pickT) + '</b>' +
+    '<button class="pk-x" onclick="pickClose()" aria-label="' + esc(UI.pickClose) + '">✕</button></div>' +
+    '<div class="pk-am">' + [1, 2].map(function (a) {
+      return '<button class="' + (PICK_AM === a ? 'on' : '') + '" onclick="PICK_AM=' + a + ';pickDraw()">' +
+        esc(a === 1 ? UI.pickA : UI.pickB) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="pk-g">' + pickDafs().map(function (d) {
+      var c = (dafKey(d) === cur ? 'cur' : '') + (OpenIs(S.mas, d) ? '' : ' lock');
+      return '<button class="' + c + '" data-d="' + esc(d) + '">' + esc(d) + '</button>';
+    }).join('') + '</div></div>';
+  var bs = document.querySelectorAll('#pick .pk-g button');
+  for (var i = 0; i < bs.length; i++) bs[i].onclick = function () { pickGo(this.getAttribute('data-d')); };
+}
+function amudIdx(pg) {
+  for (var j = 0; j < FLAT.length; j++) {
+    var pp = PAGES[FLAT[j].p];
+    if (pp && pp.pg === pg && dafKey(pp.daf) === dafKey(S.daf)) return j;
+  }
+  return -1;
+}
+function pickGo(d) {
+  pickClose();
+  if (dafKey(d) === dafKey(S.daf) && FLAT.length) {
+    var j = amudIdx(PICK_AM);
+    if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(PICK_AM) }));
+    return;
+  }
+  location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(d) +
+    '&amud=' + PICK_AM + keepQ();
+}
+var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
+
+/* ============================================================
    ניווט.
    ============================================================ */
 function go(i) {
@@ -3830,7 +3980,7 @@ function go(i) {
              : showPage(PAGES[st.p].daf, PAGES[st.p].pg);
   render.then(function () {
     SHOWN = st.p;
-    paint(); focus(); paintChavArea(); bar(); sideSync(); savePos();
+    paint(); focus(); paintChavArea(); bar(); sideSync(); savePos(); spotSave();
     recStep('go', IDX);
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
@@ -5067,9 +5217,12 @@ function boot() {
           }
         } catch (e) {}
         if (AT_END && !quiet()) go(FLAT.length - 1);
+        else if (AMUD_Q && !quiet() && amudIdx(AMUD_Q) >= 0) go(amudIdx(AMUD_Q));
         else {
           go(0);
-          if (!quiet()) try { resumePos(); } catch (e) {}
+          /* קודם המקום המדויק שבמכשיר; אחריו ההתקדמות של השבוע;
+             ואם לא חזרנו לשום מקום — הצעה לדף שבו עצר. */
+          if (!quiet()) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
         }
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
