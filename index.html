@@ -2243,7 +2243,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.105';
+var APP_VERSION = '8.99.106';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7892,10 +7892,15 @@ function admPushTab(el) {
     needsLoad(); pplFrame({ dfReload: 1 });
   }, 30000);
 }
-/* "התקבלה … ל-12 · נכשלה ל-2 · המנוי פג ל-1" → מספרים. */
+/* "התקבלה אצל שירות ההתראות ל-12 · נכשלה ל-2 · המנוי פג ל-1" → מספרים.
+   `gone` — גם "אין מנוי פעיל ל-N" (כך כותב sayDone בסקריפט).
+   `open` — "נפתחה ל-N", רק אם יום אחד היומן ירשום את זה; היום אין. */
 function sayNums(res) {
   var g = function (re) { var m = re.exec(res || ''); return m ? +m[1] : 0; };
-  return { ok: g(/התקבלה[^·]*?ל-(\d+)/), bad: g(/נכשלה ל-(\d+)/), gone: g(/פג ל-(\d+)/) };
+  var o = { ok: g(/התקבלה[^·]*?ל-(\d+)/), bad: g(/נכשלה ל-(\d+)/),
+            gone: g(/(?:פג|אין מנוי פעיל) ל-(\d+)/), open: g(/נפתחה ל-(\d+)/) };
+  o.sent = o.ok + o.bad + o.gone;
+  return o;
 }
 function admPushViz() {
   var src = (Store.get('rosterCache:all', null) || []).filter(function (p) {
@@ -7915,23 +7920,28 @@ function admPushViz() {
     { n: st.on, t: UI.pOn, c: 'g' }, { n: st.gone, t: UI.pGone, c: 'o' },
     { n: st.blocked, t: UI.pBlocked, c: 'r' }, { n: st.none, t: UI.pNone, c: 'n' }, { n: st.unk, t: UI.unknown, c: 'u' }
   ]) + '<h5 style="margin-top:12px">' + esc(UI.pBrT) + '</h5>' + vBars(br) : '<p class="h">' + esc(UI.whyNone) + '</p>');
-  /* מה יצא לאחרונה — כל הודעה: הגיעו / תקלה / פג. */
+  /* מה יצא לאחרונה — כל הודעה: נשלחה / התקבלה בשירות ההתראות /
+     תקלה / פג, ו"נפתחה" רק כשיש נתון. לא "הגיעו": השרת אינו יודע. */
   var log = (sayLog || []).slice(0, 8);
-  var tot = { ok: 0, bad: 0, gone: 0 };
+  var tot = { ok: 0, bad: 0, gone: 0, sent: 0, open: 0 };
   var rows = log.map(function (m) {
-    var n = sayNums(m.res), all = n.ok + n.bad + n.gone;
-    tot.ok += n.ok; tot.bad += n.bad; tot.gone += n.gone;
+    var n = sayNums(m.res), all = n.sent;
+    tot.ok += n.ok; tot.bad += n.bad; tot.gone += n.gone; tot.sent += n.sent; tot.open += n.open;
     var w = function (v) { return all ? (v * 100 / all).toFixed(1) : 0; };
     return '<div class="pl"><div class="pl-h"><b>' + esc(m.title || m.body.slice(0, 40)) + '</b><span>' + esc(sheetAgo(m.at)) + '</span></div>' +
       '<div class="pl-s">' + esc(m.who || '') + (m.aud ? ' · ' + esc(m.aud) : '') + '</div>' +
       (all ? '<div class="vs sm"><i class="g" style="width:' + w(n.ok) + '%"></i><i class="r" style="width:' + w(n.bad) + '%"></i>' +
              '<i class="o" style="width:' + w(n.gone) + '%"></i></div>' +
-             '<div class="pl-n">✓ ' + n.ok + (n.bad ? ' · ✗ ' + n.bad : '') + (n.gone ? ' · ⌛ ' + n.gone : '') + '</div>'
+             '<div class="pl-n">' + esc(UI.pRowSent.replace('{n}', n.sent)) + ' · ' +
+               esc(UI.pRowRecv.replace('{n}', n.ok)) + (n.open ? ' · ' + esc(UI.pRowOpen.replace('{n}', n.open)) : '') +
+               (n.bad ? ' · ✗ ' + n.bad : '') + (n.gone ? ' · ⌛ ' + n.gone : '') + '</div>'
            : '<div class="pl-n">' + esc(m.res || '') + '</div>') + '</div>';
   }).join('');
-  h += vCard('📤', UI.pLastT, (log.length ? vTiles([
-      { n: tot.ok, t: UI.pGot, c: 'g' }, { n: tot.bad, t: UI.pBad, c: tot.bad ? 'r' : '' }, { n: tot.gone, t: UI.pGone, c: 'o' }
-    ]) + rows : '<p class="h">' + esc(UI.whyNone) + '</p>') +
+  var tl = [{ n: tot.sent, t: UI.pSent, c: '' }, { n: tot.ok, t: UI.pRecv, c: 'g' }];
+  if (tot.open) tl.push({ n: tot.open, t: UI.pOpen, c: 'g' });
+  tl.push({ n: tot.bad, t: UI.pBad, c: tot.bad ? 'r' : '' }, { n: tot.gone, t: UI.pGone, c: 'o' });
+  h += vCard('📤', UI.pLastT, (log.length ? vTiles(tl) + '<p class="h">' + esc(UI.pRecvH) + '</p>' + rows
+    : '<p class="h">' + esc(UI.whyNone) + '</p>') +
     '<p class="h live">● ' + esc(UI.pLive) + '</p>');
   return h;
 }

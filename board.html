@@ -1168,7 +1168,7 @@ function kudoBtn(p, did) {
   if (ALL) {
     if (SELMODE) return '';
     if (!p.id) return '';
-    if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
+    if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
     if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
     /* **בלי טלפון — "אין מספר", לא כפתור שבור.** עם טלפון — תיבה עם
        נוסח מוכן וקישור להחזרת ההתראות (waBoxHtml). פתיחת וואטסאפ
@@ -1177,7 +1177,7 @@ function kudoBtn(p, did) {
                           : '<span class="kudo off" title="אין מספר טלפון">אין מספר</span>';
   }
   if (!did || !acc || !p.id) return '';
-  if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoSent')) + '</span>';
+  if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
   return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>';
 }
 function kudoSig() {
@@ -1529,9 +1529,9 @@ function sndSend() {
   askScript(q).then(function (d) {
     SND.busy = false;
     if (d && d.status === 'ok') {
-      SND.ok = true; SND.msg = '✓ נשלח' +
-        (d.dads != null ? ' — ' + d.dads + ' הורים' + (d.kids ? ' ו-' + d.kids + ' תלמידים' : '') : '') +
-        '. התוצאה — ביומן (ניהול ← שליחה).';
+      /* השרת קיבל את הבקשה — זה לא "נשלח". התוצאה נרשמת ביומן. */
+      SND.ok = true; SND.msg = String(UI.bdSndOk || '').replace('{who}',
+        d.dads != null ? ' — ' + d.dads + ' הורים' + (d.kids ? ' ו-' + d.kids + ' תלמידים' : '') : '');
       SND.txt = ''; SEL = {}; SELMODE = false;
     } else {
       SND.ok = false; SND.msg = 'לא נשלח. ' + ((d && d.message) || 'אין תשובה מהשרת.');
