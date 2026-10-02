@@ -1910,14 +1910,12 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-ok span{font-size:1.05rem;font-weight:700;opacity:.9}
 
 /* ---------- מסך הניהול: מוסד, רענון, לשוניות ויזואליות (adm2) ---------- */
-.adm-top{display:flex;gap:8px;align-items:stretch;margin-top:12px}
 #ip-w{flex:1;min-width:0}
 .ip{position:relative}
 .ip-b{width:100%;display:flex;align-items:center;gap:8px;padding:11px 13px;border:1.5px solid var(--rule);
   border-radius:var(--r-m);background:var(--surface);font:inherit;font-size:.95rem;color:var(--ink);cursor:pointer;text-align:start}
 .ip-b b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ip-b i{font-style:normal;color:var(--ink-3)}
-.ip-ic{font-size:1.1em}
 .ip-p{position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:40;background:var(--surface);border-radius:var(--r-m);
   box-shadow:0 14px 40px rgba(11,37,80,.22);padding:8px;border:1px solid var(--rule)}
 .ip-p[hidden]{display:none}
@@ -1937,6 +1935,31 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
   font-size:.74rem;line-height:1.15;white-space:normal}
 .adm-tabs button i{font-style:normal;font-size:1.15rem;line-height:1}
 .stu-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 2px 8px}
+/* ---------- מסך הניהול בשפה של אזור הניהול האישי ----------
+   אותה כותרת (.my-top), אותם כרטיסים (.tile), אותו כפתור כחול.
+   השוני היחיד — הזהב שמתחת לכותרת הוא הבורר, ולא שם קבוע. */
+.adm-nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.adm-nav .back{text-decoration:none;margin:0}
+.adm-hd{margin:10px 0 16px}
+.adm-hd-r{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.adm-hd .adm-rf{flex:0 0 40px;height:40px;border-radius:50%;border:1px solid var(--rule);
+  font-size:1.15rem;box-shadow:var(--sh-1)}
+.adm-hd .ip-b{width:auto;max-width:100%;display:inline-flex;padding:2px 0;border:0;border-radius:0;
+  background:none;font-size:.95rem;font-weight:800;color:var(--gold-t)}
+.adm-hd .ip-b b{flex:0 1 auto;font-size:1rem;letter-spacing:-.01em;color:var(--gold-t)}
+.adm-hd .ip-o span{display:inline;font-size:inherit;font-weight:inherit;color:inherit;margin:0}
+.adm-hd .ip-b i{color:var(--gold-t);font-size:.8rem}
+.adm-hd .ip-p{top:calc(100% + 4px)}
+.adm-tabs.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;background:none;padding:0;border-radius:0}
+.adm-tabs.tabs button{padding:11px 2px 9px;border-radius:13px;border:1px solid var(--rule);
+  background:var(--surface);color:var(--ink-2);font-size:.72rem;gap:5px}
+.adm-tabs.tabs button i{font-size:1.35rem}
+.adm-tabs.tabs button.on{background:linear-gradient(140deg,var(--blue-l),var(--blue));
+  border-color:transparent;color:#fff;box-shadow:var(--sh-2)}
+#stu-det{scroll-margin-top:10px}
+#stu .brd{margin-bottom:4px}
+#v-admin .adm-card{border:1px solid var(--rule)}
+.adm-ver{margin-top:22px;text-align:center;font-size:.72rem;font-weight:700;color:var(--ink-3)}
 .stu-m{font-size:.74rem;color:var(--ink-3);font-weight:700}
 .vc{margin-bottom:11px}
 .vc h4 span{font-size:1.1em}
@@ -2243,7 +2266,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.110';
+var APP_VERSION = '8.99.111';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3735,8 +3758,20 @@ function renderNet() {
   el.innerHTML = '<div class="nb-track">' + set + set + '</div>';
 }
 
-function boardHtml(code, name, hail) {
-  var j = bJoin(code), n = j ? j.n : 0;
+/* `go` — מסך הניהול: אותו כרטיס בדיוק, אבל "לראות פירוט" נשאר
+   במסך (הפירוט יושב מתחת) ולא עובר ללוח של ישיבה אחת. וכשאין
+   קוד — כל הישיבות, בסכימה של אותם מונים. */
+function bJoinAll() {
+  var m = Store.get('joinCount', {}) || {}, n = 0, w = {}, any = false;
+  Object.keys(m).forEach(function (c) {
+    var x = m[c]; if (!x) return;
+    any = true; n += x.n || 0;
+    (x.ways || []).forEach(function (p) { w[p[0]] = (w[p[0]] || 0) + (p[1] || 0); });
+  });
+  return any ? { n:n, ways:Object.keys(w).map(function (k) { return [k, w[k]]; }) } : null;
+}
+function boardHtml(code, name, hail, go) {
+  var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
   var wk = weekIndex(), tr = homeTrack;
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
   var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
@@ -3751,7 +3786,7 @@ function boardHtml(code, name, hail) {
   /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
   var hero = n
     ? '<b>' + n + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
-      '</small></b><span>' + esc(UI.cbHeroSub) + '</span>'
+      '</small></b><span>' + esc(code ? UI.cbHeroSub : UI.admHeroAll) + '</span>'
     : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
       '<p>' + esc(UI.cbEmptySub) + '</p>';
 
@@ -3832,7 +3867,9 @@ function boardHtml(code, name, hail) {
      לה פס עם הכתובת. הלוח הוא עמוד שלנו, והוא צריך להיפתח
      בתוך האפליקציה כמו כל מסך אחר.
      ============================================================ */
-  var full = '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+  var full = go
+    ? '<button class="btn p" style="margin-top:10px" onclick="' + go + '">' + esc(UI.cbBoard) + ' ←</button>'
+    : '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
     'href="' + esc(boardUrl(code)) + '">' + esc(UI.cbBoard) + ' ←</a>';
 
   /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
@@ -7669,7 +7706,7 @@ function admIpList() {
 function admIpHtml() {
   return '<div class="ip" id="ip">' +
     '<button class="ip-b" onclick="admIpToggle()" aria-expanded="' + admIpOpen + '">' +
-      '<span class="ip-ic" aria-hidden="true">🏫</span><b>' + esc(admInstName(ADM_INST)) + '</b><i aria-hidden="true">▾</i></button>' +
+      '<b>' + esc(admInstName(ADM_INST)) + '</b><i aria-hidden="true">▾</i></button>' +
     '<div class="ip-p"' + (admIpOpen ? '' : ' hidden') + '>' +
       '<input id="ip-q" type="search" placeholder="⌕ ' + esc(UI.admInstQ) + '" aria-label="' + esc(UI.admInstQ) + '" value="' + esc(admIpQ) + '">' +
       '<div class="ip-l" id="ip-l">' + admIpList() + '</div></div></div>';
@@ -7714,6 +7751,7 @@ function admRefreshAll() {
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
   }
   pplFrame({ dfReload: 1 });
+  loadCounts().then(function () { if (admTab === 'stu') admLive(); })['catch'](function () {});
   setTimeout(admRefreshBtn, 1600);
 }
 function admRefreshBtn() {
@@ -7761,12 +7799,19 @@ function vCard(icon, title, body, id) {
 function admStudents(el) {
   if (!(CFG.readKey || '').trim()) return admPeople(el);    /* בלי סיסמה — אותה הודעה */
   el.innerHTML = '<div id="stu">' +
-    '<div id="stu-head"></div><div id="ppl-conf"></div>' +
+    '<div class="my-sec"><h3>' + esc(PANEL.brdH) + '</h3><p>' + esc(PANEL.brdSub) + '</p>' +
+    '<div id="stu-brd"></div></div>' +
+    '<div class="my-sec" id="stu-det"><div id="stu-head"></div><div id="ppl-conf"></div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
       (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') + '" title="' + esc(UI.admTStu) + '" ' +
-      'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div>';
+      'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div></div>';
   pplLast = {};
   admLive();
+}
+/* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס. */
+function admDet() {
+  var d = document.getElementById('stu-det');
+  if (d && d.scrollIntoView) d.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 /* ראש קטן מעל הלוח: כמה נרשמו, כמה דיווח ראש החטיבה, והפער. */
 function admStuHead() {
@@ -7968,6 +8013,7 @@ document.addEventListener('click', function (e) {
 function admLive() {
   admRefreshBtn();
   if (admTab === 'stu') {
+    pplSet('stu-brd', boardHtml(ADM_INST, admInstName(ADM_INST), false, 'admDet()'));
     pplSet('stu-head', admStuHead());
     var conf = (conflictRows || []).filter(function (p) { return !p.done; }).length;
     pplSet('ppl-conf', conf ? '<div style="margin-bottom:11px">' + admConflicts() + '</div>' : '');
@@ -7995,17 +8041,20 @@ function renderAdmin() {
   /* (היסטוריה: "מה קורה / מה מוצג / קישורים / מערכת". ראו SUB.) */
   var TABS = [['stu', UI.admTStu, '👥'], ['setup', UI.admTSetup, '📲'], ['push', UI.admTPush, '🔔'],
               ['inst', UI.admTabInst, '🏫'], ['more', UI.admTabMore, '⋯']];
-  var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
-          '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
-          '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
-          esc(PROGRAM.contact.coord) + ' · גרסה ' + APP_VERSION + '</div></div>' +
-          '<div style="display:flex;gap:7px;align-items:center">' +
-          '<a class="back" style="text-decoration:none" href="studio.html">סטודיו ↗</a>' +
-          '<button class="back" onclick="admExit()">לאפליקציה →</button></div></div>' +
+  /* ============================================================
+     **אותו מסך כמו אזור הניהול האישי של ישיבה.**
+     ============================================================
+     "אותו עיצוב, אותם רכיבים ואותה נראות, בלי לבנות עיצוב נפרד."
+     הכותרת היא `.my-top` — שם האזור, ומתחתיו בזהב מה שהוא מכסה.
+     אצל ישיבה זו הישיבה; כאן זה הבורר עצמו: "כולם" או ישיבה אחת.
+     ============================================================ */
+  var h = '<div class="adm-nav"><button class="back" onclick="admExit()">→ ' + esc(UI.admToApp) + '</button>' +
+          '<a class="back" href="studio.html">' + esc(UI.admStudio) + ' ↗</a></div>' +
           /* המוסד ורענון אחד — מעל הכול, וחלים על כל הלשוניות. */
-          '<div class="adm-top"><div id="ip-w">' + admIpHtml() + '</div>' +
+          '<div class="my-top adm-hd"><div class="adm-hd-r"><b>' + esc(UI.admTitle) + '</b>' +
           '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
-          '<div class="tabs adm-tabs" style="margin-top:10px">' +
+          '<div id="ip-w">' + admIpHtml() + '</div></div>' +
+          '<div class="tabs adm-tabs">' +
           TABS.map(function (t) {
             return '<button class="' + (admTab === t[0] ? 'on' : '') +
                    '" onclick="admGo(\'' + t[0] + '\')"><i aria-hidden="true">' + t[2] + '</i>' + esc(t[1]) + '</button>';
@@ -8013,7 +8062,8 @@ function renderAdmin() {
           /* פס הפרסום. יושב מעל כל הלשוניות ולא בתוך אחת מהן, כי
              מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
           '<div id="adm-pub" style="margin-top:12px"></div>' +
-          '<div id="adm-pane" style="margin-top:14px"></div>';
+          '<div id="adm-pane" style="margin-top:14px"></div>' +
+          '<p class="adm-ver">' + esc(UI.admVer) + ' ' + APP_VERSION + '</p>';
   document.getElementById('admin-body').innerHTML = h;
   admIpWire();
   admPubBar();
