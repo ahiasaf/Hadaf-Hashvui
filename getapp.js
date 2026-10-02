@@ -110,8 +110,20 @@ var APPX = (function () {
   /* ההצעה של הדפדפן להתקין. באייפון היא לא קיימת ולעולם לא
      תגיע — שם נשארות ההוראות בלבד. */
   var BIP = null, ON_BIP = [];
+  /* ============================================================
+     דיווח אנונימי לניהול ← התקנה: הוצעה התקנה, מה ענו לה, ומה
+     ענו לבקשת ההתראות. רק join.html מגדיר את `APPX_HIT` (ראו hit
+     שם); עד שהוא נטען — בתור. בשאר העמודים זה לא הולך לשום מקום. */
+  var TEL_Q = [];
+  function tel(s, x) {
+    try { if (window.APPX_HIT) window.APPX_HIT(s, x); else if (TEL_Q.length < 10) TEL_Q.push([s, x]); } catch (e) {}
+  }
+  function telFlush() {
+    var q = TEL_Q; TEL_Q = [];
+    q.forEach(function (a) { tel(a[0], a[1]); });
+  }
   window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault(); BIP = e;
+    e.preventDefault(); BIP = e; tel('bip');
     ON_BIP.forEach(function (f) { try { f(); } catch (x) {} });
   });
   window.addEventListener('appinstalled', function () {
@@ -391,13 +403,14 @@ var APPX = (function () {
     var after = function (p) {
       if (done) return;
       done = true;
+      tel('perm', p === 'granted' ? 'granted' : (p === 'denied' ? 'denied' : 'dismissed'));
       cb(p === 'granted' ? 'granted' : (p === 'denied' ? 'denied' : 'default'));
     };
-    if (!canNote()) { cb('none'); return; }
+    if (!canNote()) { tel('perm', 'unsupported'); cb('none'); return; }
     try {
       var pr = Notification.requestPermission(after);
       if (pr && pr.then) pr.then(after)['catch'](function () { after('default'); });
-    } catch (e) { cb('none'); }
+    } catch (e) { tel('perm', 'unsupported'); cb('none'); }
   }
 
   /* מנוי שנוצר עם מפתח ישן נראה תקין, אבל דחיפה שלנו לא תגיע
@@ -800,6 +813,7 @@ var APPX = (function () {
         after(okd, why);
       };
       var back = function (r) {
+        tel('inst', r && r.outcome === 'accepted' ? 'accepted' : 'dismissed');
         if (!(r && r.outcome === 'accepted')) { finish(false, 'no'); return; }
         BIP = null;
         /* אושר — ועכשיו ממתינים לראיה. חלון של שמונה שניות:
@@ -811,7 +825,7 @@ var APPX = (function () {
       if (p.userChoice && p.userChoice.then) p.userChoice.then(back)['catch'](back);
       else back(null);
     },
-    canNote: canNote, perm: perm, ask: ask, subscribe: subscribe, demo: demo,
+    canNote: canNote, perm: perm, ask: ask, subscribe: subscribe, demo: demo, telFlush: telFlush,
     howList: howList, icon: icon, unblock: unblock,
     SHARE: SHARE, DOTS_H: DOTS_H, DOTS_V: DOTS_V
   };

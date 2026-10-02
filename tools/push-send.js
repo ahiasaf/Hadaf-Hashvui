@@ -25,6 +25,7 @@ var fs = require('fs');
 /* הדיווח לסקריפט בסוף ההרצה — ראו push-report.js. */
 var report = require('./push-report.js').report;
 var D = require('./push-deliver.js');
+var S = require('./sched.js'), GONE_ST = {};
 var GONE = 0;
 function endWith(f, code) {
   return report(f).then(function () { process.exit(code); });
@@ -336,7 +337,12 @@ loadSubs().then(applyFlt).then(function (list) {
       console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' + (r.code || '') + ' ' +
                   (r.gone ? 'המנוי פג' : (r.err || '')));
       /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
-      if (r.gone) GONE++;
+      if (r.gone) {
+        GONE++;
+        /* נרשם "פג" למנוי הזה — הניהול מציג אותו כך, והעדכון לר"מים
+           והתזכורות לא ינסו אותו שוב. ראו markGone ב-sched.js. */
+        return S.markGone(GONE_ST, it.sub).then(function () { return 0; }, function () { return 0; });
+      }
       return 0;
     });
   });

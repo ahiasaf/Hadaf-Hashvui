@@ -249,6 +249,8 @@ button.hero:active{transform:scale(.99)}
 .wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
 body.embed header, body.embed footer, body.embed .a11y-skip{display:none}
 body.embed .wrap{padding-top:4px}
+/* במסגרת שבניהול אין גלילה פנימית — הגובה מגיע לעמוד שמכיל (embedSize). */
+html.embed,html.embed body{overflow:hidden}
 .ichip.sm{font-size:.74rem;padding:5px 10px}
 .lsum{font-size:.82rem;color:var(--ink-2);margin:2px 2px 8px}
 .nm{cursor:pointer}
@@ -359,6 +361,8 @@ footer a{color:var(--ink-2);font-weight:800}
 .snd-msg.ok{color:var(--green,#2E7D52)}
 .srch{display:block;width:100%;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--rule);
   border-radius:10px;font:inherit;font-size:.92rem;background:#fff}
+.dt-del{display:block;width:100%;margin-top:12px;padding:11px 12px;border:0;background:#C0392B;
+  color:#fff;font-size:.86rem;font-weight:800;border-radius:11px;cursor:pointer}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -897,7 +901,10 @@ function detHtml(p, isPar) {
   if ((p.ids || []).length > 1) {
     h += '<div class="dt-r"><span>מכשירים</span><div>' + p.ids.length + ' (אוחדו לאדם אחד)</div></div>';
   }
-  h += '<button class="dt-del" data-del="' + esc(p.id) + '" data-nm="' + esc(nm) + '">מחיקה מהרשימה</button>';
+  /* מחיקה — גלויה וברורה, ולא קישור קטן בתחתית: כפתור אדום ברוחב
+     מלא, והשאלה לפני המחיקה אומרת שאין חזרה. */
+  h += '<button class="dt-del" data-del="' + esc(p.id) + '" data-nm="' + esc(nm) + '">🗑 ' +
+    esc(isPar ? UI.bdDelPar : UI.bdDelKid) + '</button>';
   return h + '</div>';
 }
 function parentsHtml() {
@@ -917,7 +924,7 @@ function parentsHtml() {
 }
 /* מחיקה — אותו מסלול של "משתתפים" (`delrow`), ורק אחרי שהשרת אישר. */
 function delPerson(id, nm) {
-  if (!id || !confirm('למחוק את ' + nm + ' מהרשימה?')) return;
+  if (!id || !confirm(String(UI.bdDelAsk || '').replace('{name}', nm))) return;
   DEL_MSG = 'מוחק…'; draw();
   askScript({ delrow:'לומדים', col:'מזהה', vals:JSON.stringify([id]), key:acc }).then(function (d) {
     if (d && d.status === 'success' && d.removed) {
@@ -1062,7 +1069,7 @@ var WA_OPEN = '', WA_TXT = {};
 function pstateTxt(p) {
   /* הסיבה שהמכשיר עצמו דיווח גוברת על הניחוש — ראו noteWhy ב-join.html. */
   if (p.pstate !== 'on' && p.why) return '🔕 ' + p.why;
-  return { on: '✉ מנוי פעיל', blocked: '🔕 חסם התראות', none: 'לא נרשם להתראות',
+  return { on: '✉ מנוי פעיל', gone: '⌛ פג', blocked: '🔕 חסם התראות', none: 'לא נרשם להתראות',
            '?': 'מצב ההתראות לא ידוע' }[p.pstate || 'none'] || '';
 }
 /* ============================================================
@@ -1703,7 +1710,19 @@ function embedSize() {
   setTimeout(function () {
     /* גובה התוכן עצמו — לא של המסמך, שאינו קטן מגובה המסגרת ולכן
        לעולם לא היה מתכווץ. */
-    var m = $('body'), hgt = m ? Math.ceil(m.getBoundingClientRect().bottom + (window.pageYOffset || 0)) + 12 : 0;
+    /* **התחתית של כל מה שבגוף, ולא רק של #body.** העטיפה שמתחת
+       (וריפודה) הוסיפה ~26px שלא נמדדו — המסגרת יצאה קצרה מהתוכן,
+       נעשתה גלילה קטנה בתוך גלילה, ובטלפון האצבע "נתקעה" בה:
+       הגלילה הלכה למסגרת ולא לעמוד. */
+    var hgt = 0, kids = document.body.children, y0 = window.pageYOffset || 0;
+    for (var i = 0; i < kids.length; i++) {
+      var k = kids[i];
+      if (k.tagName === 'SCRIPT' || !k.getClientRects().length) continue;
+      var st = getComputedStyle(k);
+      hgt = Math.max(hgt, k.getBoundingClientRect().bottom + y0 + (parseFloat(st.marginBottom) || 0));
+    }
+    /* וריפוד הגוף עצמו (34px בתחתית) — גם הוא חלק מהגובה. */
+    hgt = Math.ceil(hgt + (parseFloat(getComputedStyle(document.body).paddingBottom) || 0)) + 4;
     try { window.parent.postMessage({ dfBoardH: hgt }, '*'); } catch (e) {}
   }, 30);
 }
@@ -1831,7 +1850,7 @@ $('foot-how').textContent = ALL ? '' :
    מה שהיה, ולא מסך ריק. */
 /* מהמטמון מיד — רשימה שכבר נטענה פעם מוצגת בלי לחכות לשרת. */
 if (ALL) { mineRam = null; rosterAll = roster; applyFilt(); }
-if (EMBED) document.body.className += ' embed';
+if (EMBED) { document.body.className += ' embed'; document.documentElement.className += ' embed'; }
 draw();
 if (!ALL) loadBoard().then(draw);
 if (EMBED) boardReload(); else loadRoster().then(draw);

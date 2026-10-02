@@ -2150,16 +2150,64 @@ function hit(s, x) {
     }
     var me = get('me', null) || {};
     var ua = navigator.userAgent || '';
+    /* כמה שניות עברו מהדיווח הקודם — הזמן שבילה בשלב שלפני. */
+    var now = Date.now(), t0 = +get('hitT', 0) || 0;
+    set('hitT', now);
+    var bi = uaInfo();
     var body = JSON.stringify({ action:'hit', s:s, h:hid, x:x || '',
       i: me.inst || ($('inst') && $('inst').value) || instCode || '',
       r: (me.role || role) === 'dad' ? 'הורה' : 'תלמיד',
       d: isIOS() ? 'אייפון' : (/Android/i.test(ua) ? 'אנדרואיד' : 'מחשב'),
-      w: appInstalled() ? 'מותקן' : (inApp() ? 'בתוך אפליקציה' : 'דפדפן') });
+      w: appInstalled() ? 'מותקן' : (inApp() ? 'בתוך אפליקציה' : 'דפדפן'),
+      b: bi.b, v: bi.v, o: bi.o, wa: bi.wa,
+      bp: (window.APPX && APPX.bip && APPX.bip()) ? 1 : 0,
+      pm: (window.APPX && APPX.canNote && APPX.canNote()) ? APPX.perm() : 'unsupported',
+      sec: t0 ? Math.min(86400, Math.round((now - t0) / 1000)) : '' });
     if (navigator.sendBeacon && navigator.sendBeacon(API, body)) return;
     fetch(API, { method:'POST', mode:'no-cors', body:body, keepalive:true })['catch'](function () {});
   } catch (e) {}
 }
 function hitHas(s) { return !!(get('hits', {}) || {})[s]; }
+/* ============================================================
+   מה הניהול צריך כדי להבין למה נופלים — אנונימי לגמרי.
+   ============================================================
+   דפדפן וגרסה, מערכת וגרסה, וסימן לדפדפן הפנימי של וואטסאפ.
+   בלי שם, בלי טלפון: המזהה הוא `hid` של המכשיר. ערך שלא זוהה
+   נשאר ריק — והניהול מציג "לא ידוע". */
+function uaInfo() {
+  var ua = navigator.userAgent || '', m, b = '', v = '', o = '';
+  var pick = function (re, name) { if (b) return; m = re.exec(ua); if (m) { b = name; v = m[1] || ''; } };
+  pick(/SamsungBrowser\/(\d+)/, 'Samsung');
+  pick(/EdgA?\/(\d+)/, 'Edge');
+  pick(/(?:OPR|Opera)\/(\d+)/, 'Opera');
+  pick(/(?:Firefox|FxiOS)\/(\d+)/, 'Firefox');
+  pick(/CriOS\/(\d+)/, 'Chrome iOS');
+  pick(/Chrome\/(\d+)/, 'Chrome');
+  pick(/Version\/(\d+)[\d.]* (?:Mobile\/\S+ )?Safari/, 'Safari');
+  if ((m = /OS (\d+)[_\d]* like Mac/.exec(ua))) o = 'iOS ' + m[1];
+  else if ((m = /Android (\d+)/.exec(ua))) o = 'Android ' + m[1];
+  else if (/Windows/.test(ua)) o = 'Windows';
+  else if (/Mac OS X/.test(ua)) o = 'Mac';
+  else if (/Linux/.test(ua)) o = 'Linux';
+  return { b: b, v: v, o: o, wa: /WhatsApp/i.test(ua) ? 1 : 0 };
+}
+function uaBr() { var u = uaInfo(); return (u.b + (u.v ? ' ' + u.v : '') + (u.wa ? ' · WhatsApp' : '')).trim(); }
+/* getapp.js מדווח מכאן: הוצעה התקנה, תשובה להתקנה ולהתראות. */
+window.APPX_HIT = function (s, x) { hit(s, x); };
+if (window.APPX && APPX.telFlush) APPX.telFlush();
+/* שגיאות קוד — עד שלוש שונות למכשיר. */
+var JSERR_N = 0;
+window.addEventListener('error', function (e) {
+  if (JSERR_N >= 3) return;
+  JSERR_N++;
+  hit('jserr', String((e && e.message) || 'error').slice(0, 70));
+});
+/* יציאה מהעמוד — באיזה שלב, ואחרי כמה זמן (sec). פעם אחת לשלב. */
+window.addEventListener('pagehide', function () {
+  if (get('me', null) && wzStep !== 4) return;
+  var b0 = document.body.className;
+  hit('bye', / wz /.test(b0) ? 'w' + wzStep : 'form');
+});
 /* הקלדה ראשונה בטופס — של מי שעוד לא נרשם. **רק בשדות של טופס
    ההרשמה עצמו**: הקלדה בטופס העזרה (שלב 9, שאפשר להגיע אליו עוד
    לפני ההתקנה) נספרה כאן, ו"התחילו למלא" עלה מעל "הגיעו לטופס". */
@@ -2930,7 +2978,7 @@ function noteWhy() {
     ['ישיבה', me.instName || ''], ['קוד ישיבה', me.inst || ''],
     ['תפקיד', me.role === 'dad' ? 'אב' : 'תלמיד'],
     ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
-    ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
+    ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'], ['דפדפן', uaBr()],
     ['מנוי', ''], ['תוצאה', why], ['מתי', new Date().toISOString()]
   ]) });
 }
@@ -3037,7 +3085,7 @@ function appSubscribe(quiet) {
          בלעדיהן אפשר לפלח רק לפי ישיבה, ו"מילה לתלמידים שלך"
          הייתה מגיעה לכל הישיבה. */
       ['שכבה', me.grade || ''], ['כיתה', me.klass || ''],
-      ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'],
+      ['מכשיר', isIOS() ? 'אייפון' : 'אנדרואיד'], ['דפדפן', uaBr()],
       ['מנוי', JSON.stringify(sub)], ['תוצאה', 'נרשם'],
       ['מתי', new Date().toISOString()]
     ]) };

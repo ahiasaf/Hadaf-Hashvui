@@ -1908,6 +1908,76 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
          font-size:4.4rem;font-weight:800;line-height:120px}
 .am-ok b{font-size:1.5rem;font-weight:800}
 .am-ok span{font-size:1.05rem;font-weight:700;opacity:.9}
+
+/* ---------- מסך הניהול: מוסד, רענון, לשוניות ויזואליות (adm2) ---------- */
+.adm-top{display:flex;gap:8px;align-items:stretch;margin-top:12px}
+#ip-w{flex:1;min-width:0}
+.ip{position:relative}
+.ip-b{width:100%;display:flex;align-items:center;gap:8px;padding:11px 13px;border:1.5px solid var(--rule);
+  border-radius:var(--r-m);background:var(--surface);font:inherit;font-size:.95rem;color:var(--ink);cursor:pointer;text-align:start}
+.ip-b b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ip-b i{font-style:normal;color:var(--ink-3)}
+.ip-ic{font-size:1.1em}
+.ip-p{position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:40;background:var(--surface);border-radius:var(--r-m);
+  box-shadow:0 14px 40px rgba(11,37,80,.22);padding:8px;border:1px solid var(--rule)}
+.ip-p[hidden]{display:none}
+.ip-p input{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--rule);border-radius:10px;font:inherit;margin-bottom:6px}
+.ip-l{max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ip-o{display:flex;width:100%;align-items:center;gap:8px;padding:11px 10px;border:0;border-radius:9px;background:none;
+  font:inherit;font-size:.9rem;color:var(--ink);cursor:pointer;text-align:start}
+.ip-o span{flex:1}
+.ip-o i{font-style:normal;font-weight:800;color:var(--ink-3);font-size:.8rem}
+.ip-o.on{background:rgba(23,70,143,.1);color:var(--blue);font-weight:800}
+.adm-rf{flex:0 0 50px;border:1.5px solid var(--rule);border-radius:var(--r-m);background:var(--surface);
+  font-size:1.35rem;color:var(--blue);cursor:pointer}
+.adm-rf.busy{animation:admSpin .9s linear infinite}
+@keyframes admSpin{to{transform:rotate(360deg)}}
+.adm-tabs{flex-wrap:nowrap}
+.adm-tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;flex:1 1 0;min-width:0;
+  font-size:.74rem;line-height:1.15;white-space:normal}
+.adm-tabs button i{font-style:normal;font-size:1.15rem;line-height:1}
+.stu-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 2px 8px}
+.stu-m{font-size:.74rem;color:var(--ink-3);font-weight:700}
+.vc{margin-bottom:11px}
+.vc h4 span{font-size:1.1em}
+.vc h5{margin:10px 0 6px;font-size:.78rem;color:var(--ink-3)}
+.vt{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:8px;margin-bottom:6px}
+.vt-i{background:var(--sunk);border-radius:12px;padding:10px 6px;text-align:center}
+.vt-i b{display:block;font-size:1.45rem;font-weight:800;color:var(--blue-d,#0B2550)}
+.vt-i span{font-size:.72rem;font-weight:700;color:var(--ink-3)}
+.vt-i.g b{color:#1A8F4C}.vt-i.r b{color:#C0392B}.vt-i.o b{color:#B7791F}
+.vs{display:flex;height:16px;border-radius:9px;overflow:hidden;background:var(--sunk)}
+.vs.sm{height:8px;margin-top:6px}
+.vs i,.vs-k i{display:block}
+.vs i.g,.vs-k i.g{background:#2EAA62}
+.vs i.r,.vs-k i.r{background:#D9534F}
+.vs i.o,.vs-k i.o{background:#E0A030}
+.vs i.n,.vs-k i.n{background:#B9C2D0}
+.vs i.u,.vs-k i.u{background:#DDE2EA}
+.vs-k{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:7px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
+.vs-k span{display:flex;align-items:center;gap:5px}
+.vs-k i{width:10px;height:10px;border-radius:3px}
+.vg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px}
+.vb{display:grid;grid-template-columns:minmax(70px,38%) 1fr auto;align-items:center;gap:8px;padding:3px 0;font-size:.8rem}
+.vb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vb i{display:block;height:9px;border-radius:6px;background:var(--sunk);overflow:hidden}
+.vb s{display:block;height:100%;background:#4A7BD0;text-decoration:none}
+.vb s.r{background:#D9534F}.vb s.a{background:#E0A030}
+.vb b{font-size:.78rem;min-width:1.6em;text-align:end}
+.nd summary{cursor:pointer;font-weight:800;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:6px}
+.nd summary::-webkit-details-marker{display:none}
+.nd summary::after{content:'▾';margin-inline-start:auto;color:var(--ink-3)}
+.nd[open] summary::after{content:'▴'}
+.nd-n{font-style:normal;min-width:1.6em;padding:1px 7px;border-radius:9px;background:var(--sunk);font-size:.78rem;text-align:center}
+.nd-n.on{background:#D9534F;color:#fff}
+.nd-auto{margin-top:10px;font-size:.74rem}
+.nd .needs-t{display:none}
+.nd .needs{margin-top:10px}
+.pl{padding:9px 0;border-top:1px solid var(--rule)}
+.pl-h{display:flex;justify-content:space-between;gap:8px;font-size:.86rem}
+.pl-h span,.pl-s,.pl-n{font-size:.72rem;color:var(--ink-3);font-weight:700}
+.pl-n{margin-top:3px}
+.h.live{color:#1A8F4C}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -2173,7 +2243,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.103';
+var APP_VERSION = '8.99.104';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7563,7 +7633,347 @@ function loadContactsFromSheet() {
    מסך הניהול.
    לא מקושר מאף מקום באפליקציה — נגיש רק דרך /admin או #admin.
    ============================================================ */
-var admTab = 'mine';
+var admTab = 'stu';
+
+/* ============================================================
+   מסך הניהול — חמש לשוניות, מוסד אחד למעלה, רענון אחד.
+   ============================================================
+   החלטות אחיאסף (2.10): "התלמידים" (הלוח המשותף + כלי מנהל),
+   "התקנה" (המשפך, דורש טיפול, למה נופלים), "התראות" (מה יצא, מה
+   הגיע, מצב המנויים), "ישיבות וצוות", ו"עוד" (גמרות, הגרלה,
+   הגדרות). למעלה — בורר מוסד עם חיפוש, ברירת מחדל "כולם", שחל על
+   כל הלשוניות; וכפתור רענון אחד שמושך הכול. בכניסה — רענון לבד.
+
+   **הלוח הוא לוח הצוות עצמו** (board.html, בהיקף כל הישיבות):
+   הסיכום, הרשימה והסינונים הם אותו קוד שהצוות רואה, וכלי המנהל
+   (פרטי אדם, מחיקה, הודעה אישית, שליחה לנבחרים, הורים לא מקושרים)
+   נדלקים בו רק במצב הזה. מה שהצוות רואה לא השתנה.
+   ============================================================ */
+var ADM_INST = Store.get('admInst', '') || '';
+var admIpOpen = false, admIpQ = '', admBusyAt = 0;
+function admInstName(c) { return c ? pplName(c, null) : UI.admAll; }
+function admIpList() {
+  var d = pplData(), cnt = {};
+  d.rows.forEach(function (x) { cnt[x.c] = x.got; });
+  var q = nameKey(admIpQ);
+  var items = [['', UI.admAll, d.tot]].concat(INSTITUTIONS.slice().sort(function (a, b) {
+    return String(a.name).localeCompare(String(b.name), 'he');
+  }).map(function (i) { return [i.code, i.name, cnt[i.code] || 0]; }));
+  if (cnt['-']) items.push(['-', UI.admNoInst, cnt['-']]);
+  return items.filter(function (it) { return !q || it[0] === '' || nameKey(it[1]).indexOf(q) >= 0; })
+    .map(function (it) {
+      return '<button class="ip-o' + (it[0] === ADM_INST ? ' on' : '') + '" data-ip="' + esc(it[0]) + '">' +
+        '<span>' + esc(it[1]) + '</span><i>' + it[2] + '</i></button>';
+    }).join('');
+}
+function admIpHtml() {
+  return '<div class="ip" id="ip">' +
+    '<button class="ip-b" onclick="admIpToggle()" aria-expanded="' + admIpOpen + '">' +
+      '<span class="ip-ic" aria-hidden="true">🏫</span><b>' + esc(admInstName(ADM_INST)) + '</b><i aria-hidden="true">▾</i></button>' +
+    '<div class="ip-p"' + (admIpOpen ? '' : ' hidden') + '>' +
+      '<input id="ip-q" type="search" placeholder="⌕ ' + esc(UI.admInstQ) + '" aria-label="' + esc(UI.admInstQ) + '" value="' + esc(admIpQ) + '">' +
+      '<div class="ip-l" id="ip-l">' + admIpList() + '</div></div></div>';
+}
+function admIpWire() {
+  var q = document.getElementById('ip-q'), l = document.getElementById('ip-l');
+  if (q) q.oninput = function () { admIpQ = q.value; l.innerHTML = admIpList(); };
+  if (l) l.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-ip]');
+    if (b) admInstPick(b.getAttribute('data-ip'));
+  };
+}
+function admIpToggle() {
+  admIpOpen = !admIpOpen; admIpQ = '';
+  var w = document.getElementById('ip-w');
+  if (w) { w.innerHTML = admIpHtml(); admIpWire(); }
+  var q = document.getElementById('ip-q');
+  if (admIpOpen && q) try { q.focus(); } catch (e) {}
+}
+document.addEventListener('click', function (e) {
+  if (!admIpOpen) return;
+  var ip = document.getElementById('ip');
+  /* הכפתור עצמו מצויר מחדש בלחיצה — יעד שכבר אינו במסמך אינו "בחוץ". */
+  if (ip && document.documentElement.contains(e.target) && !ip.contains(e.target)) admIpToggle();
+});
+function admInstPick(c) {
+  ADM_INST = c || ''; Store.set('admInst', ADM_INST);
+  ppl.mine = ADM_INST;
+  admIpOpen = false;
+  var w = document.getElementById('ip-w');
+  if (w) { w.innerHTML = admIpHtml(); admIpWire(); }
+  pplFrame({ dfFilt: ADM_INST });
+  admPane();
+}
+
+/* רענון אחד לכל מה שבניהול — והלוח שבתוכו. */
+function admRefreshAll() {
+  var key = (CFG.readKey || '').trim();
+  admBusyAt = Date.now(); admRefreshBtn();
+  if (key) {
+    pullRegs(); conflictLoad(); funLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
+    try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
+  }
+  pplFrame({ dfReload: 1 });
+  setTimeout(admRefreshBtn, 1600);
+}
+function admRefreshBtn() {
+  var b = document.getElementById('adm-rf');
+  if (!b) return;
+  var busy = Date.now() - admBusyAt < 1500;
+  b.className = 'adm-rf' + (busy ? ' busy' : '');
+  b.setAttribute('aria-label', busy ? UI.admRefreshing : UI.admRefresh);
+}
+
+/* ---------- חלקים ויזואליים ---------- */
+function vTiles(list) {
+  return '<div class="vt">' + list.map(function (x) {
+    return '<div class="vt-i ' + (x.c || '') + '"><b>' + (x.n == null ? '—' : x.n) + '</b><span>' + esc(x.t) + '</span></div>';
+  }).join('') + '</div>';
+}
+/* פס אחד מחולק — חלקי השלם בצבעים, ומקרא קצר מתחת. */
+function vStack(parts) {
+  var tot = parts.reduce(function (a, p) { return a + (p.n || 0); }, 0);
+  if (!tot) return '';
+  return '<div class="vs">' + parts.map(function (p) {
+    return p.n ? '<i class="' + p.c + '" style="width:' + (p.n * 100 / tot).toFixed(1) + '%"></i>' : '';
+  }).join('') + '</div><div class="vs-k">' + parts.map(function (p) {
+    return p.n ? '<span><i class="' + p.c + '"></i>' + esc(p.t) + ' <b>' + p.n + '</b></span>' : '';
+  }).join('') + '</div>';
+}
+/* שורות עם פס אופקי, מהגדול לקטן. */
+function vBars(map, max0, cls) {
+  var ks = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; });
+  if (!ks.length) return '<p class="h">' + esc(UI.whyNone) + '</p>';
+  var max = max0 || map[ks[0]] || 1;
+  return ks.slice(0, 8).map(function (k) {
+    return '<div class="vb"><span>' + esc(k) + '</span><i><s class="' + (cls || '') + '" style="width:' +
+      Math.max(3, map[k] * 100 / max).toFixed(1) + '%"></s></i><b>' + map[k] + '</b></div>';
+  }).join('');
+}
+function vCard(icon, title, body, id) {
+  return '<div class="adm-card vc"' + (id ? ' id="' + id + '"' : '') + '><h4><span aria-hidden="true">' + icon + '</span> ' +
+    esc(title) + '</h4>' + body + '</div>';
+}
+
+/* ============================================================
+   "התלמידים" — הלוח המשותף, בהיקף המוסד שנבחר למעלה.
+   ============================================================ */
+function admStudents(el) {
+  if (!(CFG.readKey || '').trim()) return admPeople(el);    /* בלי סיסמה — אותה הודעה */
+  el.innerHTML = '<div id="stu">' +
+    '<div id="stu-head"></div><div id="ppl-conf"></div>' +
+    '<iframe id="people-f" src="board.html?inst=all&embed=1' +
+      (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') + '" title="' + esc(UI.admTStu) + '" ' +
+      'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div>';
+  pplLast = {};
+  admLive();
+}
+/* ראש קטן מעל הלוח: כמה נרשמו, כמה דיווח ראש החטיבה, והפער. */
+function admStuHead() {
+  var d = pplData(), x = null;
+  if (!ADM_INST) x = { c:'', got:d.tot, rep:d.repTot || null, gap:0 };
+  d.rows.forEach(function (y) { if (y.c === ADM_INST) x = y; });
+  if (!x) x = { c:ADM_INST, got:0, rep:null, gap:0 };
+  var m = [];
+  if (ppl.boardMsg) m.push(esc(ppl.boardMsg));
+  else if (ppl.boardAt) m.push(esc(UI.admUpd) + ' ' + esc(whenTxt(ppl.boardAt)));
+  return '<div class="stu-h"><span class="pr-t">' + pplTags(x) + '</span>' +
+    (m.length ? '<span class="stu-m">' + m.join(' · ') + '</span>' : '') + '</div>';
+}
+
+/* ============================================================
+   "התקנה" — המשפך, דורש טיפול (מקופל), ולמה נופלים.
+   ============================================================ */
+function admSetup(el) {
+  el.innerHTML = '<div id="st-need"></div><div id="ppl-fun"></div><div id="st-why"></div><div id="st-stuck"></div>';
+  pplLast = {};
+  admLive();
+}
+/* ============================================================
+   ניקוי אוטומטי של "דורש טיפול".
+   ============================================================
+   מי שביקש עזרה בהתקנה **והשלים הכול** אינו דורש טיפול עוד. "הכול":
+     · נרשם — נמצא ברשימה (לפי הטלפון, או שם מלא + ישיבה);
+     · מקושר — הורה מחובר, כשדרך הלימוד שלו "אבות ובנים";
+     · מנוי התראות פעיל — לא חסום, לא "פג", לא "לא ידוע".
+   רק יורד מהרשימה הזו (במכשיר, בכל רענון מחדש). שום דבר לא נמחק
+   מהגיליון, ובוודאי לא הנרשם עצמו. */
+function stuckFull(p) {
+  var src = Store.get('rosterCache:all', null);
+  if (!src) return false;
+  var ph = digits(p.phone).slice(-9), nm = nameKey(p.name || '');
+  var hit = src.filter(function (s) {
+    if (s.test || s.role === 'הורה') return false;
+    if (ph.length >= 9 && digits(s.phone).slice(-9) === ph) return true;
+    return nm && nameKey(((s.first || '') + ' ' + (s.last || '')).trim()) === nm &&
+           (!stuckInst(p) || pplCode(s.inst) === stuckInst(p));
+  })[0];
+  if (!hit) return false;
+  if (hit.way === 'אבות ובנים' && !hit.par) return false;
+  return !!hit.push && hit.pstate !== 'gone';
+}
+function stuckOpen() {
+  return (stuckRows || []).filter(function (p) {
+    if (p.done || stuckFull(p)) return false;
+    return !ADM_INST || stuckInst(p) === ADM_INST;
+  });
+}
+function admSetupNeeds() {
+  var all = (stuckRows || []).filter(function (p) { return !p.done; });
+  var auto = all.filter(stuckFull).length;
+  var inner = admNeeds();
+  var n = (needsFail || []).length + stuckOpen().length + accWait(null).length;
+  return '<details class="adm-card vc nd"' + (n ? ' open' : '') + '><summary><span aria-hidden="true">🛎</span> ' +
+    esc(UI.admNeedsT) + ' <i class="nd-n' + (n ? ' on' : '') + '">' + n + '</i></summary>' +
+    (inner || '<p class="h">✓ ' + esc(UI.admNeedsNone) + '</p>') +
+    '<p class="h nd-auto">🧹 ' + esc(fill(UI.admAutoN, { n: auto })) + '<br>' + esc(UI.admAutoDef) + '</p></details>';
+}
+/* מה נאסף על מי שלא השלים — דפדפן, מערכת, איפה עצר ולמה. */
+var STEP_K = ['open', 'app', 's1', 's2', 's3', 'join', 's4', 'push', 'help'];
+function stepName(s) { return UI['st_' + s] || s; }
+function permName(s) {
+  return { granted: UI.permOk, denied: UI.permNo, dismissed: UI.permX, unsupported: UI.permUns,
+           'default': UI.permNot }[s] || UI.permNot;
+}
+function admWhy() {
+  var F = Store.get('funnel', null);
+  if (!F || !F.people) return '';
+  var P = F.people.filter(function (p) {
+    if (ADM_INST && (p[1] || '-') !== ADM_INST) return false;
+    /* "השלים" = נרשם ואישר התראות. כל השאר — נפל באיזה שלב. */
+    var s = ' ' + p[5] + ' ';
+    return !(s.indexOf(' join ') >= 0 && s.indexOf(' push ') >= 0);
+  });
+  var rich = P.filter(function (p) { return p.length > 6 && (p[6] || p[8] || p[11] || p[13]); });
+  if (!rich.length) return vCard('🔍', UI.whyT, '<p class="h">' + esc(UI.whyNone) + '</p>');
+  var by = function (f) { var m = {}; rich.forEach(function (p) { var k = f(p); if (k) m[k] = (m[k] || 0) + 1; }); return m; };
+  var unk = UI.unknown;
+  var last = by(function (p) { return stepName(p[13] || 'open'); });
+  var br = by(function (p) { return p[6] ? p[6] + (p[7] ? ' ' + p[7] : '') : unk; });
+  var os = by(function (p) { return p[8] || unk; });
+  var pm = by(function (p) { return p[11] ? permName(p[11]) : null; });
+  var wa = rich.filter(function (p) { return p[9] === '1'; }).length;
+  var bp = rich.filter(function (p) { return p[10] === '1'; }).length;
+  var ins = by(function (p) { return p[12] === 'accepted' ? UI.instOk : p[12] === 'dismissed' ? UI.instNo : null; });
+  var secs = rich.map(function (p) { return +p[14] || 0; }).filter(function (x) { return x > 0; }).sort(function (a, b) { return a - b; });
+  var med = secs.length ? secs[secs.length >> 1] : null;
+  var je = F.jserrs || {};
+  var h = vTiles([
+    { n: rich.length, t: UI.whyN, c: 'r' },
+    { n: Math.round(wa * 100 / rich.length) + '%', t: UI.whyWa },
+    { n: Math.round(bp * 100 / rich.length) + '%', t: UI.whyBip },
+    { n: med == null ? null : (med < 60 ? med + '″' : Math.round(med / 60) + '′'), t: UI.whySec }
+  ]);
+  h += '<div class="vg"><div><h5>' + esc(UI.whyLast) + '</h5>' + vBars(last, 0, 'r') + '</div>' +
+       '<div><h5>' + esc(UI.whyBr) + '</h5>' + vBars(br) + '</div>' +
+       '<div><h5>' + esc(UI.whyOs) + '</h5>' + vBars(os) + '</div>' +
+       '<div><h5>' + esc(UI.whyPerm) + '</h5>' + vBars(pm, 0, 'a') +
+         (Object.keys(ins).length ? '<h5>' + esc(UI.whyInst) + '</h5>' + vBars(ins, 0, 'a') : '') + '</div></div>';
+  if (Object.keys(je).length) h += '<details><summary>' + esc(UI.whyErr) + ' (' + Object.keys(je).length + ')</summary>' + vBars(je, 0, 'r') + '</details>';
+  return vCard('🔍', UI.whyT, h);
+}
+
+/* ============================================================
+   "התראות" — ויזואלי: מצב המנויים, דפדפנים, מה יצא ומה הגיע.
+   מתעדכן לבד כל 30 שניות כל עוד הלשונית פתוחה.
+   ============================================================ */
+var admLiveT = null;
+function admPushTab(el) {
+  el.innerHTML = '<div id="pu-viz"></div><div id="adm-send"></div><div class="sec" style="margin-top:16px"><b>' +
+    esc(UI.sendTmpl) + '</b><i></i></div><div id="adm-tmpl"></div>';
+  pplLast = {};
+  admLive();
+  admPush(document.getElementById('adm-send'));
+  admTmpl(document.getElementById('adm-tmpl'));
+  if (!admLiveT) admLiveT = setInterval(function () {
+    if (admTab !== 'push' || document.hidden || !document.getElementById('pu-viz')) {
+      clearInterval(admLiveT); admLiveT = null; return;
+    }
+    needsLoad(); pplFrame({ dfReload: 1 });
+  }, 30000);
+}
+/* "התקבלה … ל-12 · נכשלה ל-2 · המנוי פג ל-1" → מספרים. */
+function sayNums(res) {
+  var g = function (re) { var m = re.exec(res || ''); return m ? +m[1] : 0; };
+  return { ok: g(/התקבלה[^·]*?ל-(\d+)/), bad: g(/נכשלה ל-(\d+)/), gone: g(/פג ל-(\d+)/) };
+}
+function admPushViz() {
+  var src = (Store.get('rosterCache:all', null) || []).filter(function (p) {
+    return !p.test && p.role !== 'הורה' && (!ADM_INST || pplCode(p.inst) === ADM_INST);
+  });
+  var st = { on: 0, gone: 0, blocked: 0, none: 0, unk: 0 }, br = {};
+  src.forEach(function (p) {
+    var s = p.pstate === 'gone' ? 'gone' : p.push ? 'on' : (p.pstate || 'none');
+    if (s === 'on') st.on++; else if (s === 'gone') st.gone++; else if (s === 'blocked') st.blocked++;
+    else if (s === '?') st.unk++; else st.none++;
+    if (p.push || s === 'gone') {
+      var k = s === 'gone' ? '⌛ ' + UI.pGone : (p.br || UI.unknown);
+      br[k] = (br[k] || 0) + 1;
+    }
+  });
+  var h = vCard('📶', UI.pStateT, src.length ? vStack([
+    { n: st.on, t: UI.pOn, c: 'g' }, { n: st.gone, t: UI.pGone, c: 'o' },
+    { n: st.blocked, t: UI.pBlocked, c: 'r' }, { n: st.none, t: UI.pNone, c: 'n' }, { n: st.unk, t: UI.unknown, c: 'u' }
+  ]) + '<h5 style="margin-top:12px">' + esc(UI.pBrT) + '</h5>' + vBars(br) : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  /* מה יצא לאחרונה — כל הודעה: הגיעו / תקלה / פג. */
+  var log = (sayLog || []).slice(0, 8);
+  var tot = { ok: 0, bad: 0, gone: 0 };
+  var rows = log.map(function (m) {
+    var n = sayNums(m.res), all = n.ok + n.bad + n.gone;
+    tot.ok += n.ok; tot.bad += n.bad; tot.gone += n.gone;
+    var w = function (v) { return all ? (v * 100 / all).toFixed(1) : 0; };
+    return '<div class="pl"><div class="pl-h"><b>' + esc(m.title || m.body.slice(0, 40)) + '</b><span>' + esc(sheetAgo(m.at)) + '</span></div>' +
+      '<div class="pl-s">' + esc(m.who || '') + (m.aud ? ' · ' + esc(m.aud) : '') + '</div>' +
+      (all ? '<div class="vs sm"><i class="g" style="width:' + w(n.ok) + '%"></i><i class="r" style="width:' + w(n.bad) + '%"></i>' +
+             '<i class="o" style="width:' + w(n.gone) + '%"></i></div>' +
+             '<div class="pl-n">✓ ' + n.ok + (n.bad ? ' · ✗ ' + n.bad : '') + (n.gone ? ' · ⌛ ' + n.gone : '') + '</div>'
+           : '<div class="pl-n">' + esc(m.res || '') + '</div>') + '</div>';
+  }).join('');
+  h += vCard('📤', UI.pLastT, (log.length ? vTiles([
+      { n: tot.ok, t: UI.pGot, c: 'g' }, { n: tot.bad, t: UI.pBad, c: tot.bad ? 'r' : '' }, { n: tot.gone, t: UI.pGone, c: 'o' }
+    ]) + rows : '<p class="h">' + esc(UI.whyNone) + '</p>') +
+    '<p class="h live">● ' + esc(UI.pLive) + '</p>');
+  return h;
+}
+
+/* ============================================================
+   "ישיבות וצוות" — רשימת הישיבות (נרשמו · דווחו · פער). לחיצה
+   בוחרת את הישיבה למעלה ועוברת ל"התלמידים".
+   ============================================================ */
+function admInstList() {
+  var d = pplData();
+  var rows = d.rows.filter(function (x) { return !ADM_INST || x.c === ADM_INST; });
+  return '<div class="adm-card" style="margin-bottom:11px"><div id="ppl-list2">' + rows.map(function (x) {
+    return '<button class="pr" data-c2="' + esc(x.c) + '">' + pplRowHtml(x) + '</button>';
+  }).join('') + '</div>' + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div>' : '') + '</div>';
+}
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-c2]');
+  if (!b) return;
+  admInstPick(b.getAttribute('data-c2'));
+  admGo('stu');
+});
+/* כל עדכון של נתונים — רק מה שעל המסך ומה שהשתנה. */
+function admLive() {
+  admRefreshBtn();
+  if (admTab === 'stu') {
+    pplSet('stu-head', admStuHead());
+    var conf = (conflictRows || []).filter(function (p) { return !p.done; }).length;
+    pplSet('ppl-conf', conf ? '<div style="margin-bottom:11px">' + admConflicts() + '</div>' : '');
+  }
+  if (admTab === 'setup') {
+    pplSet('st-need', admSetupNeeds());
+    pplSet('ppl-fun', pplFun());
+    pplSet('st-why', admWhy());
+    pplSet('st-stuck', stuckOpen().length || stuckRows === null ? '<div style="margin-bottom:11px">' + admStuck() + '</div>' : '');
+  }
+  if (admTab === 'push') pplSet('pu-viz', admPushViz());
+  if (admTab === 'inst' && document.getElementById('in-list')) {
+    pplSet('in-list', admInstList());
+    if (ADM_INST) { ppl.open = ADM_INST; pplOneHead(pplData()); }
+  }
+}
 
 function renderAdmin() {
   /* ארבע, ולפי השאלה שנשאלת ולא לפי סוג האובייקט.
@@ -7573,8 +7983,8 @@ function renderAdmin() {
      ל"הגדרות" ומצא שם כתובות שרת. עכשיו "מערכת" הוא מה שנוגעים
      בו פעם בשנה, ו"מה מוצג" הוא מה שבאמת משנים. */
   /* (היסטוריה: "מה קורה / מה מוצג / קישורים / מערכת". ראו SUB.) */
-  var TABS = [['mine', UI.mineTab], ['inst', UI.admTabInst],
-              ['amda', UI.admTabAmda], ['more', UI.admTabMore]];
+  var TABS = [['stu', UI.admTStu, '👥'], ['setup', UI.admTSetup, '📲'], ['push', UI.admTPush, '🔔'],
+              ['inst', UI.admTabInst, '🏫'], ['more', UI.admTabMore, '⋯']];
   var h = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div><div style="font-size:1.15rem;font-weight:800;letter-spacing:-.03em">ניהול התוכנית</div>' +
           '<div style="font-size:.76rem;color:var(--ink-3);font-weight:700">' +
@@ -7582,24 +7992,30 @@ function renderAdmin() {
           '<div style="display:flex;gap:7px;align-items:center">' +
           '<a class="back" style="text-decoration:none" href="studio.html">סטודיו ↗</a>' +
           '<button class="back" onclick="admExit()">לאפליקציה →</button></div></div>' +
-          '<div class="tabs" style="margin-top:12px">' +
+          /* המוסד ורענון אחד — מעל הכול, וחלים על כל הלשוניות. */
+          '<div class="adm-top"><div id="ip-w">' + admIpHtml() + '</div>' +
+          '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
+          '<div class="tabs adm-tabs" style="margin-top:10px">' +
           TABS.map(function (t) {
             return '<button class="' + (admTab === t[0] ? 'on' : '') +
-                   '" onclick="admGo(\'' + t[0] + '\')">' + esc(t[1]) + '</button>';
+                   '" onclick="admGo(\'' + t[0] + '\')"><i aria-hidden="true">' + t[2] + '</i>' + esc(t[1]) + '</button>';
           }).join('') + '</div>' +
           /* פס הפרסום. יושב מעל כל הלשוניות ולא בתוך אחת מהן, כי
              מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
           '<div id="adm-pub" style="margin-top:12px"></div>' +
           '<div id="adm-pane" style="margin-top:14px"></div>';
   document.getElementById('admin-body').innerHTML = h;
+  admIpWire();
   admPubBar();
   admPane();
+  /* רענון לבד בכניסה — פעם אחת לכל פתיחה של המסך. */
+  if (!admAutoAt.all) { admAutoAt.all = Date.now(); setTimeout(admRefreshAll, 0); }
   /* עמדה שהייתה פתוחה חוזרת אחרי רענון — אחרת התלמיד הבא נוחת
      על מסך הניהול. רק מכאן, כלומר אחרי הסיסמה. */
   if (Store.get('amdaOn', 0) && !document.querySelector('#amda.on')) {
     if (!amdaCount(amdaRoster()).n) { Store.set('amdaOn', 0); return; }
     amdaOpen();
-    admTab = 'amda';
+    admTab = 'more'; admSub.more = 'amda';
     renderAdmin();
   }
 }
@@ -8020,36 +8436,36 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = {
-  mine: [['people', 'subList'], ['push', 'subSend']]
-};
+var SUB = {};
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
-  { g:'moreGDaf', items:[['daf','moreDaf'], ['open','moreOpen']] },
   { g:'moreGOrd', items:[['orders','moreOrders'], ['price','morePrice']] },
   { g:'moreGRaf', items:[['lottery','moreLottery']] },
   { g:'moreGSet', items:[['links','moreLinks'], ['screens','moreScreens'],
                          ['guide','moreGuide'], ['text','moreText']] },
+  { g:'moreGDaf', items:[['daf','moreDaf'], ['open','moreOpen']] },
+  { g:'admTabAmda', items:[['amda','admTabAmda']] },
   { g:'moreGAdv', adv:1, items:[['data','moreData'], ['sys','moreSys']] }
 ];
 /* העלה → הלשונית שלו. "נוסחים" נבלע במסלול השליחה. */
 function admHome(leaf) {
-  if (leaf === 'people' || leaf === 'push' || leaf === 'tmpl') return 'mine';
+  if (leaf === 'people') return 'stu';
+  if (leaf === 'push' || leaf === 'tmpl') return 'push';
+  if (leaf === 'setup') return 'setup';
   if (leaf === 'calls' || leaf === 'inst') return 'inst';
-  if (leaf === 'amda') return 'amda';
   for (var i = 0; i < MORE.length; i++) {
     for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
   }
   return '';
 }
-var ADM_OLD = { what:['mine',''], show:['more','screens'], links:['more','links'],
+var ADM_OLD = { what:['stu',''], mine:['stu',''], amda:['more','amda'], show:['more','screens'], links:['more','links'],
                 sys:['more','sys'], set:['more','sys'] };
 var admSub = { more:'' };
 function admSubGo(t) {
   if (t === 'tmpl') t = 'push';
   var home = admHome(t);
-  if (home && home !== admTab) { admTab = home; if (home === 'mine' || home === 'more') admSub[home] = t; return renderAdmin(); }
+  if (home && home !== admTab) { admTab = home; if (home === 'more') admSub[home] = t; return renderAdmin(); }
   admSub[admTab] = t;
   if (admTab === 'more') return renderAdmin();       /* פס הפרסום תלוי במסך */
   admPane();
@@ -8057,7 +8473,7 @@ function admSubGo(t) {
 function admSubNow() {
   if (admTab === 'more') return admSub.more || '';
   var list = SUB[admTab];
-  if (!list) return admTab === 'inst' ? 'calls' : admTab;
+  if (!list) return { stu:'people', inst:'calls' }[admTab] || admTab;
   if (!admSub[admTab]) admSub[admTab] = list[0][0];
   return admSub[admTab];
 }
@@ -8098,9 +8514,10 @@ function admPane() {
   /* "אנשים" מצייר את עצמו מחדש בלי לגעת בלוח (iframe): ציור מלא
      היה יוצר אותו מאפס — הבהוב, טעינה, וחיפוש וישיבה פתוחה
      שנעלמים באמצע עדכון. */
-  if (admTab === 'mine' && admSubNow() === 'people' && document.getElementById('ppl')) {
-    pplSet('adm-needs', admNeeds());
-    return pplPaint();
+  if (admTab === 'stu' && document.getElementById('stu')) return admLive();
+  if (admTab === 'setup' && document.getElementById('st-why')) return admLive();
+  if (admTab === 'push' && document.getElementById('pu-viz') && document.getElementById('adm-send')) {
+    admLive(); return admPush(document.getElementById('adm-send'));
   }
   /* ציור מחדש שומר את מקום הגלילה — ראו ההערה ההיסטורית: שורת
      הודעה שהשתנתה שינתה גובה, והדפדפן "קפץ" למקום אחר. */
@@ -8108,7 +8525,7 @@ function admPane() {
   requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
   var sub = admSubNow();
   var top = '';
-  if (admTab === 'mine') top = '<div id="adm-needs">' + admNeeds() + '</div>' + admSubBar();
+
   if (admTab === 'more' && sub) {
     top = '<div class="mo-top"><button class="ppl-back" onclick="admSubGo(\'\')">' +
           esc(UI.moreBack) + '</button><b>' + esc(admMoreTitle(sub)) + '</b></div>';
@@ -8117,14 +8534,15 @@ function admPane() {
   var body = document.getElementById('adm-body');
 
   /* "דורש טיפול" נטען בפתיחת "התלמידים שלי" — פעם בשתי דקות. */
-  if (admTab === 'mine' && (CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
+  if (admTab === 'setup' && (CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
     admAutoAt.needs = Date.now();
     setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
   }
 
   if (admTab === 'more' && !sub) { body.innerHTML = admMoreMenu(); return; }
 
-  if (sub === 'people')  return admPeople(body);
+  if (sub === 'people')  return admStudents(body);
+  if (sub === 'setup')   return admSetup(body);
   if (sub === 'amda')    return admAmda(body);
   if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
@@ -8139,16 +8557,11 @@ function admPane() {
       }, 0);
     }
   }
-  if (sub === 'push') {
-    /* הנוסחים — בתוך מסלול השליחה, מתחת לה. */
-    body.innerHTML = '<div id="adm-send"></div><div class="sec" style="margin-top:16px"><b>' +
-      esc(UI.sendTmpl) + '</b><i></i></div><div id="adm-tmpl"></div>';
-    admPush(document.getElementById('adm-send'));
-    return admTmpl(document.getElementById('adm-tmpl'));
-  }
+  if (sub === 'push') return admPushTab(body);
   if (sub === 'data') return admData(body);
   if (sub === 'calls') {
-    body.innerHTML = admInstHead() + '<div id="calls-body"></div>';
+    body.innerHTML = '<div id="in-list"></div>' + admInstHead() + '<div id="calls-body"></div>';
+    admLive();
     renderCalls();
     /* ומושכים מהגיליון ברקע — התיעוד ממכשיר אחר, ומחזיר את
        הרשימה אם האחסון המקומי נוקה. */
@@ -8436,7 +8849,7 @@ function admPeople(el) {
 /* כל עדכון עובר כאן, ונוגע רק במה שהשתנה. */
 function pplPaint() {
   var list = document.getElementById('ppl-list');
-  if (!list) return;
+  if (!list) return admLive();
   var d = pplData(), open = ppl.open !== null;
 
   var stuck = (stuckRows || []).filter(function (p) { return !p.done; }).length;
@@ -8628,7 +9041,7 @@ function funLoad() {
     if (!d || d.status !== 'ok' || !d.people) {
       funMsg = (d && d.message) || 'לא קיבלתי תשובה מהסקריפט.';
     } else {
-      Store.set('funnel', { people:d.people, errs:d.errs || {}, at:Date.now() });
+      Store.set('funnel', { people:d.people, errs:d.errs || {}, jserrs:d.jserrs || {}, at:Date.now() });
       funMsg = '';
     }
     pplPaint();
@@ -8654,6 +9067,7 @@ function pplFun() {
   }
   var t0 = fun.t === 'today' ? funDay(0) : fun.t === 'y' ? funDay(1) : fun.t === '7' ? funDay(6) : '';
   var P = F.people.filter(function (p) {
+    if (ADM_INST && (p[1] || '-') !== ADM_INST) return false;
     if (fun.r && p[2] !== fun.r) return false;
     if (fun.d && p[3] !== fun.d) return false;
     if (fun.w && p[4] !== fun.w) return false;
@@ -8838,6 +9252,7 @@ function pplFrame(msg) {
   if (f && f.contentWindow) try { f.contentWindow.postMessage(msg, '*'); } catch (e) {}
 }
 function pplOpen(c) {
+  if (!document.getElementById('ppl-list')) { admInstPick(c); if (admTab !== 'stu') admGo('stu'); return; }
   ppl.y = window.pageYOffset || document.documentElement.scrollTop || 0;
   ppl.open = c;
   pplPaint();
@@ -9063,12 +9478,11 @@ function needsResend(sid) {
 /* "לאימות" — הרשימה של כל הישיבות, עם כל מי שממתין. */
 function accGo() {
   ppl.open = ''; ppl.q = ''; ppl.f = ''; ppl.mine = '';
-  if (admSubNow() === 'people' && document.getElementById('ppl')) return pplOpen('');
-  admSubGo('people');
+  admGo('inst');
 }
 function admNeeds() {
   var fails = needsFail || [];
-  var stuck = (stuckRows || []).filter(function (p) { return !p.done; });
+  var stuck = stuckOpen();
   var h = '';
   fails.forEach(function (m) {
     h += '<div class="need"><div class="need-h">⚠ הודעה לא יצאה</div>' +
@@ -9085,7 +9499,7 @@ function admNeeds() {
       (stuck.length === 1 ? ' ביקש' : ' ביקשו') + ' עזרה בהתקנה</div>' +
       '<div class="need-m">' + stuck.slice(0, 3).map(function (p) { return esc(p.name || ''); }).join(' · ') +
       (stuck.length > 3 ? ' ועוד' : '') + '</div>' +
-      '<button class="btn g" style="margin:8px 0 0" onclick="admSubGo(\'people\')">לפרטים</button></div>';
+      '<button class="btn g" style="margin:8px 0 0" onclick="var e=document.getElementById(\'st-stuck\');if(e)e.scrollIntoView({behavior:\'smooth\'})">לפרטים</button></div>';
   }
   var aw = accWait(null);
   if (aw.length) {
@@ -11065,7 +11479,7 @@ function admStuck() {
     }
     return h + '</div>';
   }
-  var open = stuckRows.filter(function (p) { return !p.done; });
+  var open = stuckOpen();
   if (!open.length && !stuckAll) {
     h += '<p class="h">אף אחד לא ממתין. ' +
          (stuckRows.length ? 'כולם טופלו.' : 'עוד לא ביקש אף אחד עזרה.') +

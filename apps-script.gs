@@ -2080,7 +2080,7 @@ function boardData_(inst, k, withTest, inner) {
 
   var out = [];
   /* מי שאישר התראות — מזהה → 1. רק בתצוגת כל הישיבות. */
-  var pushSet = {}, blockSet = {}, seenSet = {}, whySet = {}, devSet = {};
+  var pushSet = {}, blockSet = {}, seenSet = {}, whySet = {}, devSet = {}, goneSet = {}, lastSub = {}, brSet = {};
   if (all) {
     try {
       var psh = sheet_('התראות');
@@ -2091,19 +2091,36 @@ function boardData_(inst, k, withTest, inner) {
           if (String(ph[q0]).trim() === 'מנוי') psx = q0;
         }
         if (pix >= 0 && psx >= 0) {
-          var prx = ph.indexOf('תוצאה'), pdx = ph.indexOf('מכשיר');
+          var prx = ph.indexOf('תוצאה'), pdx = ph.indexOf('מכשיר'), pbx = ph.indexOf('דפדפן');
           for (var q1 = 1; q1 < pv.length; q1++) {
             var pid0 = String(pv[q1][pix] || '').trim();
             if (!pid0) continue;
             /* המכשיר והסיבה האחרונה שדווחה — כדי שמספר "בלי התראות"
                יתפרק ל"אייפון שלא הותקן", "חסום", "טרם אושר". */
             if (pdx >= 0 && String(pv[q1][pdx] || '').trim()) devSet[pid0] = String(pv[q1][pdx]).trim();
+            /* הדפדפן והגרסה שדיווח המכשיר (ריק בשורות ישנות — "לא ידוע"). */
+            if (pbx >= 0 && String(pv[q1][pbx] || '').trim()) brSet[pid0] = String(pv[q1][pbx]).trim();
             if (prx >= 0 && !String(pv[q1][psx] || '').trim() && String(pv[q1][prx] || '').trim())
               whySet[pid0] = String(pv[q1][prx]).trim();
-            if (String(pv[q1][psx] || '').trim()) pushSet[pid0] = 1;
+            if (String(pv[q1][psx] || '').trim()) { pushSet[pid0] = 1; lastSub[pid0] = String(pv[q1][psx]); }
             /* שורה בלי מנוי = דיווח שההתראות חסומות אצלו (או שלא הצליח). */
             else if (prx >= 0 && /חסום|נדחה|לא הצליח/.test(String(pv[q1][prx] || ''))) blockSet[pid0] = 1;
             seenSet[pid0] = 1;
+          }
+          /* ============================================================
+             מנוי שפג (404/410) — "פג", ולא "מנוי פעיל".
+             ============================================================
+             השליחות (tools/sched.js · markGone) רושמות ב"נשלחו" מפתח
+             `פג|<טביעה>` — 12 תווי SHA-1 של כתובת הדחיפה. כאן נבדק
+             **המנוי האחרון** של כל מזהה: פג — אין לו התראות, והמצב 'gone'.
+             מנוי חדש נותן טביעה אחרת, ולכן חוזר להיות פעיל מעצמו. */
+          var gone = goneKeys_();
+          if (gone) {
+            for (var gp in lastSub) {
+              var ep = '';
+              try { ep = String(JSON.parse(lastSub[gp]).endpoint || ''); } catch (ge) {}
+              if (ep && gone[subPrint_(ep)]) { delete pushSet[gp]; goneSet[gp] = 1; }
+            }
           }
         }
       }
@@ -2215,7 +2232,7 @@ function boardData_(inst, k, withTest, inner) {
            לא נרשם · '?' יש שורה בלי מנוי ובלי סיבה. */
         if (all) {
           var any = function (set) { return set[pid] || (p.ids || []).some(function (x) { return set[x]; }); };
-          p.pstate = p.push ? 'on' : any(blockSet) ? 'blocked' : any(seenSet) ? '?' : 'none';
+          p.pstate = p.push ? 'on' : any(goneSet) ? 'gone' : any(blockSet) ? 'blocked' : any(seenSet) ? '?' : 'none';
           var one = function (set) {
             if (set[pid]) return set[pid];
             for (var z = 0; z < (p.ids || []).length; z++) if (set[p.ids[z]]) return set[p.ids[z]];
@@ -2223,6 +2240,7 @@ function boardData_(inst, k, withTest, inner) {
           };
           if (!p.push) p.why = one(whySet);
           p.dev = one(devSet);
+          p.br = one(brSet);
         }
         /* להורה המחובר יש התראות? — לכפתור ✉ ולמספרים בשליחה. */
         if (all) p.parPush = parIds.some(function (x) { return pushSet[x]; }) ? 1 : 0;
@@ -3282,7 +3300,7 @@ var PUB_ROW = {
              'מסגרת', 'תפקיד', 'שם ההורה', 'משפחת ההורה', 'טלפון ההורה', 'לומד עם',
              'הוזמן על ידי', 'מזהה המזמין', 'בדיקה'],
   'התראות': ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
-             'מנוי', 'תוצאה', 'מועד', 'מתי'],
+             'מנוי', 'תוצאה', 'מועד', 'מתי', 'דפדפן'],
   'לימוד': ['מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה'],
   'זוגות': ['מזהה', 'שם', 'ישיבה', 'קוד ישיבה', 'שכבה', 'כיתה', 'מסלול', 'שבוע', 'דף',
             'דיווח', 'מתי'],
@@ -3311,14 +3329,19 @@ var PUB_ROW = {
    "כניסות" גם בגיליון הציבורי, דרך המסלול הכללי.
    ============================================================ */
 var HIT_TAB  = 'כניסות';
-var HIT_COLS = ['תאריך', 'מכשיר', 'שלב', 'קוד ישיבה', 'תפקיד', 'סוג מכשיר', 'איפה', 'פרט'];
+var HIT_COLS = ['תאריך', 'מכשיר', 'שלב', 'קוד ישיבה', 'תפקיד', 'סוג מכשיר', 'איפה', 'פרט',
+                /* למה נופלים (ניהול ← התקנה) — אנונימי, ראו uaInfo ב-join.html */
+                'דפדפן', 'גרסה', 'מערכת', 'וואטסאפ', 'הוצעה התקנה', 'התראות', 'שניות'];
 var HIT_STEPS = {
   open: 'נפתח',          app:  'נפתח מהאפליקציה',
   s1:   'לחץ מצטרף · התקנה', s2:   'שלב 2 · פרטים',
   type: 'התחיל למלא',    s3:   'שלב 3 · דרך לימוד',
   err:  'שגיאה בטופס',   join: 'נרשם',
   s4:   'שלב 4 · התראות', push: 'אישר התראות',
-  help: 'ביקש עזרה'
+  help: 'ביקש עזרה',
+  bip:  'הוצעה התקנה',  inst: 'תשובה להתקנה',
+  perm: 'תשובה להתראות', jserr: 'שגיאת קוד',
+  bye:  'יצא מהעמוד'
 };
 
 function hit_(d) {
@@ -3331,8 +3354,11 @@ function hit_(d) {
   };
   var sh = hitSheet_();
   if (!sh) return { status: 'error', message: 'אין גיליון כניסות' };
+  /* גיליון ישן — כותרות העמודות החדשות נוספות פעם אחת. */
+  if (sh.getLastColumn() < HIT_COLS.length) sh.getRange(1, 1, 1, HIT_COLS.length).setValues([HIT_COLS]);
   sh.appendRow([new Date(), id, st, cut(d.i, 20), cut(d.r, 10), cut(d.d, 10),
-                cut(d.w, 16), cut(d.x, 80)]);
+                cut(d.w, 16), cut(d.x, 80), cut(d.b, 16), cut(d.v, 8), cut(d.o, 16),
+                d.wa ? 1 : '', d.bp ? 1 : '', cut(d.pm, 12), cut(d.sec, 6)]);
   return { status: 'success' };
 }
 
@@ -3365,15 +3391,37 @@ function hitSheet_() {
 /* מכשיר אחד = שורה אחת: היום שבו נכנס לראשונה, הישיבה, התפקיד,
    סוג המכשיר, איפה נפתח, והשלבים שעבר. הסינון והחלוקה נעשים
    בניהול — כך כל צירוף של סינונים אינו דורש בקשה חדשה. */
+/* טביעת מנוי — זהה ל-subPrint ב-tools/sched.js. */
+function subPrint_(endpoint) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(endpoint), Utilities.Charset.UTF_8);
+  var h = '';
+  for (var i = 0; i < 6; i++) { var v = (b[i] + 256) % 256; h += (v < 16 ? '0' : '') + v.toString(16); }
+  return h;
+}
+/* הטביעות שנמצאו פג, מ"נשלחו". null = לא נקרא (ואז לא משנים דבר). */
+function goneKeys_() {
+  try {
+    var sh = sheet_('נשלחו');
+    if (!sh || sh.getLastRow() < 2) return {};
+    var v = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues(), out = {};
+    for (var i = 0; i < v.length; i++) {
+      var k = String(v[i][0] || '');
+      if (k.indexOf('פג|') === 0) out[k.slice(3)] = 1;
+    }
+    return out;
+  } catch (e) { return null; }
+}
+
 function funnel_() {
   var id = PropertiesService.getScriptProperties().getProperty('HITS_ID');
   if (!id) return { status: 'ok', people: [], errs: {} };
   var sh = SpreadsheetApp.openById(id).getSheetByName(HIT_TAB);
   if (!sh || sh.getLastRow() < 2) return { status: 'ok', people: [], errs: {} };
-  var v = sh.getRange(2, 1, sh.getLastRow() - 1, HIT_COLS.length).getValues();
+  var nc = Math.min(HIT_COLS.length, sh.getLastColumn());
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, nc).getValues();
   var code = {};
   for (var k in HIT_STEPS) code[HIT_STEPS[k]] = k;
-  var by = {}, order = [], errs = {};
+  var by = {}, order = [], errs = {}, jserrs = {};
   for (var r = 0; r < v.length; r++) {
     var hid = String(v[r][1] || ''), st = code[String(v[r][2] || '')];
     if (!hid || !st) continue;
@@ -3381,7 +3429,8 @@ function funnel_() {
     if (!p) {
       var t = v[r][0] instanceof Date ? v[r][0] : new Date();
       p = by[hid] = { t: Utilities.formatDate(t, 'Asia/Jerusalem', 'yyyy-MM-dd'),
-                      i: '', r: '', d: '', w: '', s: {} };
+                      i: '', r: '', d: '', w: '', s: {},
+                      b: '', bv: '', o: '', wa: '', bp: '', pm: '', ins: '', last: '', sec: '', bye: '', je: '' };
       order.push(hid);
     }
     p.s[st] = 1;
@@ -3390,11 +3439,28 @@ function funnel_() {
     if (v[r][5]) p.d = String(v[r][5]);
     if (v[r][6]) p.w = String(v[r][6]);
     if (st === 'err' && v[r][7]) errs[String(v[r][7])] = (errs[String(v[r][7])] || 0) + 1;
+    /* העמודות החדשות — רק בשורות שנכתבו אחריהן. */
+    var c = function (n) { return nc > n ? String(v[r][n] == null ? '' : v[r][n]) : ''; };
+    if (c(8)) { p.b = c(8); p.bv = c(9); }
+    if (c(10)) p.o = c(10);
+    if (c(11)) p.wa = '1';
+    if (c(12)) p.bp = '1';
+    if (st === 'bip') p.bp = '1';
+    if (st === 'perm') p.pm = String(v[r][7] || '');
+    if (st === 'inst') p.ins = String(v[r][7] || '');
+    if (st === 'jserr' && v[r][7]) {
+      p.je = String(v[r][7]);
+      jserrs[p.je] = (jserrs[p.je] || 0) + 1;
+    }
+    /* השלב האחרון שהגיע אליו, ומתי יצא ממנו. */
+    if (st === 'bye') { p.bye = String(v[r][7] || ''); p.sec = c(14); }
+    else if (['bip', 'inst', 'perm', 'jserr', 'err', 'type'].indexOf(st) < 0) p.last = st;
   }
-  return { status: 'ok', errs: errs, at: new Date().toISOString(),
+  return { status: 'ok', errs: errs, jserrs: jserrs, at: new Date().toISOString(),
     people: order.map(function (h) {
       var p = by[h];
-      return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' ')];
+      return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' '),
+              p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je];
     }) };
 }
 
