@@ -66,3 +66,40 @@ function WayEsc(t) {
     return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
   });
 }
+
+/* ============================================================
+   כמה תלמידים, כמה הורים — ספירה אחת לשני המסכים.
+   ============================================================
+   הלוח (lfiltHtml) והתקציר בניהול (pplMineN) ספרו כל אחד בדרכו,
+   והלוח ספר "תלמידים שיש להם הורה" ועוד הורים לא מקושרים: הורה
+   עם שני ילדים נספר פעמיים, ואמא שנרשמה ליד אבא לא נספרה כלל.
+
+   כאן ההורים נספרים **לפי מזהה ההורה**, פעם אחת כל אחד:
+   · `pars` — כל ההורים המקושרים לתלמיד (מהשרת, בלי הורי בדיקה).
+     שרת ישן שולח רק את הראשון (`par`).
+   · `loose` — הורים שנרשמו ולא חוברו לאף תלמיד.
+   רשומת בדיקה (`test`) אינה נספרת בשום סכום — רק ב-`testN`,
+   כדי שהמסך יוכל לומר שהיא קיימת.
+
+   `keepKid(p)` / `keepPar(q)` — הסינון של המסך (ישיבה, דרך וכו'). */
+function PplCount(kids, loose, keepKid, keepPar) {
+  var o = { kids:0, par:0, con:0, loose:0, push:0, testN:0 }, seen = {};
+  (kids || []).forEach(function (p) {
+    if (!p || p.role === 'הורה') return;
+    if (keepKid && !keepKid(p)) return;
+    if (p.test) { o.testN++; return; }
+    o.kids++;
+    if (p.push) o.push++;
+    var pids = p.pars && p.pars.length ? p.pars : (p.par && p.par.id ? [p.par.id] : []);
+    pids.forEach(function (x) { if (x && !seen[x]) { seen[x] = 1; o.con++; } });
+  });
+  (loose || []).forEach(function (q) {
+    if (!q || !q.id) return;
+    if (keepPar && !keepPar(q)) return;
+    if (q.test) { o.testN++; return; }
+    if (seen[q.id]) return;
+    seen[q.id] = 1; o.loose++;
+  });
+  o.par = o.con + o.loose;
+  return o;
+}

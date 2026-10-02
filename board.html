@@ -847,11 +847,15 @@ function lfiltHtml() {
       esc(t) + (cnt != null ? ' · ' + cnt : '') + '</button>';
   };
   var ways = [['לימוד עצמי', 'לבד'], ['חבורת לימוד', 'חבורה'], ['אבות ובנים', 'אב ובן']];
-  var par = (PARENTS || []).filter(parInFilt);
+  /* הסיכום — לפי מזהה הורה ייחודי ובלי רשומות בדיקה (PplCount,
+     ways.js). הורים לא מקושרים — לפי הישיבה בלבד, כמו התלמידים. */
+  var sum = PplCount(base, PARENTS || [], null, function (q) {
+    return !FILT || (FILT === '-' ? instOfP(q) === '-' : instOfP(q) === FILT);
+  });
   var pushK = n(function (p) { return p.push; });
-  var dadN = n(function (p) { return p.par; }) + par.length;
-  return '<div class="lsum"><b>' + base.length + '</b> תלמידים · <b>' + dadN + '</b> הורים · ' +
-    '<b>' + pushK + '</b> תלמידים עם התראות</div>' +
+  return '<div class="lsum"><b>' + sum.kids + '</b> תלמידים · <b>' + sum.par + '</b> הורים · ' +
+    '<b>' + sum.push + '</b> תלמידים עם התראות' +
+    (sum.testN ? ' · ' + esc(String(UI.bdTestN || '').replace('{n}', sum.testN)) : '') + '</div>' +
     '<div class="ichips">' + c(!LWAY, 'כל הדרכים', 'w', '') +
     ways.map(function (w) { return c(LWAY === w[0], w[1], 'w', w[0], n(function (p) { return p.way === w[0]; })); }).join('') +
     '</div><div class="ichips">' + c(!LPUSH, 'כולם', 'p', '') +

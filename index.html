@@ -2243,7 +2243,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.104';
+var APP_VERSION = '8.99.105';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8936,28 +8936,22 @@ function pplMineN(c) {
   if (!src) return null;
   var par = Store.get('parentsCache:all', null);
   var o = { kids:0, con:0, loose:0, parKnown: !!par, push:0, known:false, why:{}, inst:{} };
-  var seen = {};
   src.forEach(function (p) {
     if (p.test || p.role === 'הורה') return;
     var pc = pplCode(p.inst);
     if (c && pc !== c) return;
-    o.kids++; o.inst[pc] = 1;
+    o.inst[pc] = 1;
     if (p.push != null) o.known = true;
-    if (p.push) o.push++;
-    else {
+    if (!p.push) {
       var k = p.why || (p.pstate === 'blocked' ? 'חסום' : 'לא דיווח');
       o.why[k] = (o.why[k] || 0) + 1;
     }
-    /* כל ההורים של התלמיד (pars, מהשרת) — אבא ואמא שניהם
-       נרשמו = שניים. שרת ישן שולח רק את הראשון (par). */
-    var pids = p.pars && p.pars.length ? p.pars : (p.par && p.par.id ? [p.par.id] : []);
-    pids.forEach(function (x) { if (x && !seen[x]) { seen[x] = 1; o.con++; } });
   });
-  (par || []).forEach(function (p) {
-    if (p.test || !p.id || seen[p.id]) return;
-    if (c && pplCode(p.inst) !== c) return;
-    seen[p.id] = 1; o.loose++;
-  });
+  /* הספירה עצמה — אותה פונקציה של הלוח (PplCount, ways.js): הורים
+     לפי מזהה ייחודי, בלי רשומות בדיקה. */
+  var inC = function (p) { return !c || pplCode(p.inst) === c; };
+  var n = PplCount(src, par || [], inC, inC);
+  o.kids = n.kids; o.push = n.push; o.con = n.con; o.loose = n.loose;
   return o;
 }
 function pplMinePick(c) { ppl.mine = c; pplPaint(); }

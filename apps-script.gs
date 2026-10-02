@@ -2226,7 +2226,11 @@ function boardData_(inst, k, withTest, inner) {
         /* **כל ההורים, ולא רק הראשון.** `par` למטה הוא ההורה
            הראשון בלבד (לשורה הנפתחת); הספירה בניהול צריכה את
            כולם — תלמיד שאבא ואמא שניהם נרשמו נספר עם שניים. */
-        if (all) p.pars = ((pm[pid] && pm[pid].pids) || []).slice();
+        /* בלי הורי בדיקה: הספירה (PplCount ב-ways.js) אינה כוללת
+           רשומות בדיקה, וכאן אין לה דרך לדעת מי מהם בדיקה. */
+        if (all) p.pars = ((pm[pid] && pm[pid].pids) || []).filter(function (x) {
+          return !(info[x] && info[x].test);
+        });
         if (all) p.push = pushSet[pid] || (p.ids || []).some(function (x) { return pushSet[x]; }) ? 1 : 0;
         /* מצב ההתראות: 'on' מנוי פעיל · 'blocked' דיווח חסימה · 'none'
            לא נרשם · '?' יש שורה בלי מנוי ובלי סיבה. */
