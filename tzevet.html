@@ -1943,6 +1943,9 @@ ASK.init({
   t:      tz,
   klass:  true,
   grades: RAM_GRADES,
+  /* טלפון חובה — כמו בטופס של הרכזים בעמוד הראשי. */
+  phone:    true,
+  phoneReq: true,
   inst:   function () { return instRow; },
   when:   function () { return myFmt(myWhen() || []); },
   onClose: function () { brdShow(); }
