@@ -1987,6 +1987,40 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .vb s{display:block;height:100%;background:#4A7BD0;text-decoration:none}
 .vb s.r{background:#D9534F}.vb s.a{background:#E0A030}
 .vb b{font-size:.78rem;min-width:1.6em;text-align:end}
+/* מסלולי כניסה */
+.trf{display:flex;gap:6px;margin:10px 0 6px}
+.trf button{border:1px solid var(--rule,#E5DAC3);background:var(--card,#fff);color:var(--ink-2);border-radius:99px;padding:5px 13px;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.trf button.on{background:var(--blue-d,#0B2550);border-color:var(--blue-d,#0B2550);color:#fff}
+.trl{display:flex;flex-direction:column;gap:4px}
+.trr{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;width:100%;padding:7px 8px;border:0;border-radius:10px;background:var(--sunk);font:inherit;font-size:.78rem;color:var(--ink);cursor:pointer;text-align:start}
+.trr.op{outline:2px solid var(--blue-d,#0B2550)}
+.trr time{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.trr .ic{white-space:nowrap}
+.trr .ic small{font-size:.66rem;color:var(--ink-3);font-weight:700}
+.trp{display:flex;gap:2px;align-items:center;min-width:0;overflow:hidden}
+.trp i{flex:none;width:12px;height:12px;border-radius:3px}
+.trp i.k{outline:2px solid #E5B854;outline-offset:1px}
+.trr b{font-size:.74rem;color:var(--ink-3);white-space:nowrap}
+.trd{display:flex;flex-direction:column;gap:0;margin:4px 0 10px;padding:10px;border-radius:12px;background:var(--card,#fff);border:1px solid var(--rule,#E5DAC3)}
+.trm{font-size:.74rem;color:var(--ink-3);font-weight:700;margin-bottom:8px}
+.trs{position:relative;padding:8px 10px;border-radius:10px;border-inline-start:6px solid #4A7BD0;background:var(--sunk)}
+.trs.end{background:#FBE3E1;border-color:#C0392B}
+.trs-h{display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:.84rem}
+.trs-h span{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.trs-t{height:6px;border-radius:4px;background:rgba(0,0,0,.07);margin-top:6px;overflow:hidden}
+.trs-t s{display:block;height:100%;background:currentColor;opacity:.55}
+.trs-c{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.trs-c em{font-style:normal;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--card,#fff);border:1px solid var(--rule,#E5DAC3)}
+.trs-c em.k{background:#E5B854;border-color:#E5B854;color:#1B2A45}
+.trs-c em.q{opacity:.55}
+.tra{text-align:center;color:var(--ink-3);font-size:.8rem;line-height:1.1;padding:1px 0}
+.c-land{color:#4A7BD0;border-color:#4A7BD0}.c-intro{color:#7A8BA8;border-color:#7A8BA8}
+.c-inst{color:#E0A030;border-color:#E0A030}.c-form{color:#2E9E8F;border-color:#2E9E8F}
+.c-note{color:#8E5BD0;border-color:#8E5BD0}.c-help{color:#D9534F;border-color:#D9534F}
+.c-done{color:#1A8F4C;border-color:#1A8F4C}
+.trp i.c-land{background:#4A7BD0}.trp i.c-intro{background:#7A8BA8}.trp i.c-inst{background:#E0A030}
+.trp i.c-form{background:#2E9E8F}.trp i.c-note{background:#8E5BD0}.trp i.c-help{background:#D9534F}
+.trp i.c-done{background:#1A8F4C}.trp i.end{background:#C0392B;width:16px}
 .nd summary{cursor:pointer;font-weight:800;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:6px}
 .nd summary::-webkit-details-marker{display:none}
 .nd summary::after{content:'▾';margin-inline-start:auto;color:var(--ink-3)}
@@ -2266,7 +2300,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.111';
+var APP_VERSION = '8.99.112';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7747,7 +7781,7 @@ function admRefreshAll() {
   var key = (CFG.readKey || '').trim();
   admBusyAt = Date.now(); admRefreshBtn();
   if (key) {
-    pullRegs(); conflictLoad(); funLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
+    pullRegs(); conflictLoad(); funLoad(); trLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
   }
   pplFrame({ dfReload: 1 });
@@ -7830,7 +7864,7 @@ function admStuHead() {
    "התקנה" — המשפך, דורש טיפול (מקופל), ולמה נופלים.
    ============================================================ */
 function admSetup(el) {
-  el.innerHTML = '<div id="st-need"></div><div id="ppl-fun"></div><div id="st-why"></div><div id="st-stuck"></div>';
+  el.innerHTML = '<div id="st-need"></div><div id="ppl-fun"></div><div id="st-why"></div><div id="st-trail"></div><div id="st-stuck"></div>';
   pplLast = {};
   admLive();
 }
@@ -7916,6 +7950,150 @@ function admWhy() {
          (Object.keys(ins).length ? '<h5>' + esc(UI.whyInst) + '</h5>' + vBars(ins, 0, 'a') : '') + '</div></div>';
   if (Object.keys(je).length) h += '<details><summary>' + esc(UI.whyErr) + ' (' + Object.keys(je).length + ')</summary>' + vBars(je, 0, 'r') + '</details>';
   return vCard('🔍', UI.whyT, h);
+}
+
+/* ============================================================
+   מסלולי כניסה — מה עבר על כל מי שנכנס, מסך אחר מסך.
+   ============================================================
+   כל טעינה של דף ההרשמה היא כניסה (ראו TRL ב-join.html, `trails_`
+   בסקריפט). שורה לכל כניסה, מהחדשה לישנה; לחיצה פותחת את המסלול:
+   מסך מתחת למסך, פס הזמן בכל אחד, הכפתורים שנלחצו, והאחרון באדום.
+   אנונימי — מזהה אקראי, קודי מסכים וכפתורים. */
+var trv = { t: 'today', open: '', n: 40 }, trMsg = '';
+function trLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  scriptGet({ trails:1, days:14, key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה רשימה ריקה — המטמון נשאר. */
+    if (!d || d.status !== 'ok' || !d.rows) { trMsg = (d && d.message) || UI.trFail; }
+    else { Store.set('trails', { rows: d.rows, at: Date.now() }); trMsg = ''; }
+    if (admTab === 'setup') pplSet('st-trail', admTrail());
+  }).catch(function () { trMsg = UI.trFail; if (admTab === 'setup') pplSet('st-trail', admTrail()); });
+}
+function trSet(k, v) {
+  trv[k] = k === 'open' && trv.open === v ? '' : v;
+  if (k === 't') trv.n = 40;
+  pplSet('st-trail', admTrail());
+}
+var TR_GRP = { land:'c-land', intro:'c-intro', form:'c-form', pre:'c-inst', w0:'c-land', w1:'c-inst', w2:'c-form',
+               w3:'c-form', w4:'c-note', w8:'c-form', w9:'c-help', done:'c-done' };
+var TR_IC = { 'hero-go':'👆', wa:'💬', chrome:'🌐', 'wz-skip':'🆘', 'wz-hlp-go':'🆘', 'wz-inst':'📥', bip:'📥',
+              'inst.accepted':'✅', 'inst.dismissed':'✖', 'perm.granted':'🔔', 'perm.denied':'🔕',
+              'perm.dismissed':'🔕', 'perm.unsupported':'🔕', 'wz-note':'🔔', go:'✍', join:'✔',
+              err:'⚠', jserr:'🐞', out:'↗', back:'↩', tel:'📞' };
+function trName(p, c) { return UI[p + String(c).replace(/[.-]/g, '_')] || c; }
+function trDur(s) {
+  s = Math.max(0, Math.round(s || 0));
+  return s < 60 ? s + '″' : s < 3600 ? Math.floor(s / 60) + '′' + (s % 60 ? (s % 60) + '″' : '') : Math.round(s / 360) / 10 + 'h';
+}
+/* שורה מהשרת → כניסה. [זמן, מזהה, מכשיר, נרשם, ישיבה, תפקיד, סוג, איפה, דפדפן, גרסה, מערכת, וואטסאפ, מסלול] */
+function trRows() {
+  var T = Store.get('trails', null);
+  if (!T || !T.rows) return null;
+  var out = [];
+  T.rows.forEach(function (r) {
+    var tr;
+    try { tr = JSON.parse(r[12]); } catch (e) { return; }
+    if (!tr || !tr[2] || !tr[2].length) return;
+    var ev = tr[2], tot = 0;
+    ev.forEach(function (x) { tot += +x[2] || 0; });
+    var clk = [];
+    ev.forEach(function (x) { clk = clk.concat(x[3] || []); });
+    out.push({ id: r[1], dev: r[2], j: !!r[3], inst: r[4], role: r[5], d: r[6], w: r[7],
+               b: r[8], bv: r[9], o: r[10], wa: !!r[11], t: (+tr[0] || 0) * 1000 || +r[0], ev: ev,
+               tot: tot, clk: clk, join: clk.indexOf('hero-go') >= 0 });
+  });
+  out.sort(function (a, b) { return b.t - a.t; });
+  return out;
+}
+function trDay(t) { var d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function trHm(t) {
+  var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return (trDay(t) === trDay(Date.now()) ? '' : d.getDate() + '.' + (d.getMonth() + 1) + ' ') + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function trWhere(x) {
+  return (x.w === 'app' ? '📲' : x.w === 'inapp' || x.wa ? '💬' : '🌐') + ' ' +
+    '<small>' + esc((x.b || UI.unknown) + (x.bv ? ' ' + x.bv : '')) + '</small>';
+}
+function trPath(x) {
+  return x.ev.map(function (e, i) {
+    var last = i === x.ev.length - 1 && !x.j;
+    return '<i class="' + (TR_GRP[e[0]] || 'c-land') + (last ? ' end' : '') +
+      ((e[3] || []).indexOf('hero-go') >= 0 ? ' k' : '') + '" title="' + esc(trName('trs_', e[0])) + '"></i>';
+  }).join('');
+}
+function trOne(x) {
+  var max = 1;
+  x.ev.forEach(function (e) { if (+e[2] > max) max = +e[2]; });
+  var meta = [trName('trd_', x.d), x.o, trName('trw_', x.w), x.role === 'dad' ? UI.trDad : '',
+              x.inst ? pplName(x.inst, null) : ''].filter(Boolean).join(' · ');
+  return '<div class="trd"><div class="trm">' + esc(meta) + '</div>' +
+    x.ev.map(function (e, i) {
+      var g = TR_GRP[e[0]] || 'c-land', end = i === x.ev.length - 1 && !x.j;
+      var cs = (e[3] || []).map(function (c) {
+        var q = c === 'out' || c === 'back' || c === 'btn' || c === 'link';
+        return '<em class="' + (c === 'hero-go' ? 'k' : q ? 'q' : '') + '">' + (TR_IC[c] ? TR_IC[c] + ' ' : '') +
+          esc(trName('trc_', c)) + '</em>';
+      }).join('');
+      return (i ? '<div class="tra" aria-hidden="true">↓</div>' : '') +
+        '<div class="trs ' + g + (end ? ' end' : '') + '"><div class="trs-h"><b>' + esc(trName('trs_', e[0])) +
+        (end ? ' · ' + esc(UI.trLast) : '') + '</b><span>' + trDur(e[2]) + '</span></div>' +
+        '<div class="trs-t"><s style="width:' + Math.max(2, e[2] * 100 / max).toFixed(1) + '%"></s></div>' +
+        (cs ? '<div class="trs-c">' + cs + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+}
+function admTrail() {
+  var all = trRows();
+  if (!all) {
+    return vCard('🧭', UI.trT, '<p class="h">' + esc(trMsg || UI.trNone) + '</p>' +
+      '<button class="btn g" onclick="trLoad()">' + esc(UI.trLoad) + '</button>');
+  }
+  var today = trDay(Date.now());
+  var L = all.filter(function (x) {
+    if (ADM_INST && (x.inst || '-') !== ADM_INST) return false;
+    return trv.t !== 'today' || trDay(x.t) === today;
+  });
+  /* כמה כניסות לכל מכשיר — מי שחזר כמה פעמים. */
+  var per = {};
+  L.forEach(function (x) { if (x.dev) per[x.dev] = (per[x.dev] || 0) + 1; });
+  var nJoin = L.filter(function (x) { return x.join; }).length;
+  var nReg = L.filter(function (x) { return x.j; }).length;
+  var out = L.filter(function (x) { return !x.j; });
+  var avg = out.length ? out.reduce(function (a, x) { return a + x.tot; }, 0) / out.length : null;
+  var pc = function (a) { return L.length ? ' <small>' + Math.round(a * 100 / L.length) + '%</small>' : ''; };
+  var reach = {}, exit = {};
+  L.forEach(function (x) {
+    var seen = {};
+    x.ev.forEach(function (e) { seen[trName('trs_', e[0])] = 1; });
+    Object.keys(seen).forEach(function (k) { reach[k] = (reach[k] || 0) + 1; });
+    if (!x.j) { var k = trName('trs_', x.ev[x.ev.length - 1][0]); exit[k] = (exit[k] || 0) + 1; }
+  });
+  var h = '<div class="trf">' +
+    '<button class="' + (trv.t === 'today' ? 'on' : '') + '" onclick="trSet(\'t\',\'today\')">' + esc(UI.trToday) + '</button>' +
+    '<button class="' + (trv.t !== 'today' ? 'on' : '') + '" onclick="trSet(\'t\',\'all\')">' + esc(UI.trAll) + '</button></div>';
+  h += vTiles([
+    { n: L.length, t: UI.trN },
+    { n: nJoin + pc(nJoin), t: UI.trJoin },
+    { n: nReg + pc(nReg), t: UI.trReg, c: 'g' },
+    { n: avg == null ? null : trDur(avg), t: UI.trAvg, c: 'r' }
+  ]);
+  if (L.length) {
+    h += '<div class="vg"><div><h5>' + esc(UI.trScr) + '</h5>' + vBars(reach) + '</div>' +
+         '<div><h5>' + esc(UI.trExit) + '</h5>' + vBars(exit, 0, 'r') + '</div></div>';
+  }
+  h += '<div class="trl" style="margin-top:10px">' + L.slice(0, trv.n).map(function (x) {
+    var sid = String(x.id).replace(/[^\w-]/g, ''), op = trv.open === sid;
+    return '<button class="trr' + (op ? ' op' : '') + '" onclick="trSet(\'open\',\'' + sid + '\')" aria-expanded="' + op + '">' +
+      '<time>' + trHm(x.t) + '</time><span class="ic">' + trWhere(x) +
+      (per[x.dev] > 1 ? ' <small>×' + per[x.dev] + '</small>' : '') + '</span>' +
+      '<span class="trp">' + trPath(x) + '</span><b>' + (x.j ? '✔ ' : '') + trDur(x.tot) + '</b></button>' +
+      (op ? trOne(x) : '');
+  }).join('') + '</div>';
+  if (L.length > trv.n) h += '<button class="btn g" style="margin-top:8px" onclick="trv.n+=40;pplSet(\'st-trail\',admTrail())">' + esc(UI.trMore) + ' (' + (L.length - trv.n) + ')</button>';
+  var T = Store.get('trails', null);
+  h += '<p class="h" style="margin-top:8px">' + esc(whenTxt(T.at)) + (trMsg ? ' · ' + esc(trMsg) : '') + '</p>' +
+    '<button class="btn g" onclick="trLoad()">' + esc(UI.trLoad) + '</button>';
+  return vCard('🧭', UI.trT, h);
 }
 
 /* ============================================================
@@ -8022,6 +8200,7 @@ function admLive() {
     pplSet('st-need', admSetupNeeds());
     pplSet('ppl-fun', pplFun());
     pplSet('st-why', admWhy());
+    pplSet('st-trail', admTrail());
     pplSet('st-stuck', stuckOpen().length || stuckRows === null ? '<div style="margin-bottom:11px">' + admStuck() + '</div>' : '');
   }
   if (admTab === 'push') pplSet('pu-viz', admPushViz());

@@ -2137,8 +2137,107 @@ window.addEventListener('online', flush);
    תלמיד/הורה, סוג המכשיר, ואיפה נפתח. הכתיבה בשרת אינה עומדת
    בתור של ההרשמות — ראו `hit_` ב-apps-script.gs. כישלון כאן
    אינו נוגע בשום דבר אחר במסך. */
+/* ============================================================
+   מסלול הכניסה — מה עבר על מי שנכנס, מסך אחר מסך.
+   ============================================================
+   המשפך (`hit`) סופר כל שלב פעם אחת למכשיר — ואינו יודע באיזה
+   סדר, כמה זמן, מה נלחץ, ולאן חזר. כאן כל טעינה של הדף היא
+   "כניסה" עם מזהה אקראי משלה, והרצף כולו נשלח מחדש בכל מעבר
+   מסך, בכל לחיצה (באיחור קל) וביציאה. השרת שומר את האחרון.
+
+   קודים בלבד: קוד המסך, ומזהה הכפתור שנלחץ (`id` שלו, או `wa`
+   לוואטסאפ, `chrome` לפתיחה בכרום). שום ערך שהוקלד, שום שם
+   ושום טלפון. "נרשם" הוא כן/לא. ראו `trail_` ב-apps-script.gs.
+
+   המסך נגזר ממה שבאמת מוצג, פעם בשנייה — לא מכל מקום שמחליף
+   מסך, מאותה סיבה של `landNow`: מקום שצריך לזכור לדווח ממנו
+   הוא מקום שיישכח.
+
+   הזמן במסך הוא זמן **גלוי** בלבד: כשהדף מוסתר (עבר לוואטסאפ,
+   נעל מסך) השעון עוצר, ונרשם `out`; כשחזר — `back`. */
+var TRL = { v: 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            t0: Date.now(), e: [], cur: null, on: 0, last: '', n: 0, tm: 0, j: 0 };
+function trlScr() {
+  var b = ' ' + document.body.className + ' ';
+  var it = $('intro-in');
+  if (it && it.className.indexOf('out') < 0) return 'intro';
+  if (/\swz\s/.test(b)) return 'w' + (typeof wzStep === 'number' ? wzStep : 0);
+  var d = $('done'), p = $('pre');
+  if (d && /(^|\s)on(\s|$)/.test(d.className)) return 'done';
+  if (p && /(^|\s)on(\s|$)/.test(p.className)) return 'pre';
+  if (typeof landNow === 'function' && landNow()) return 'land';
+  return 'form';
+}
+function trlRun() {
+  if (TRL.cur && TRL.on) { TRL.cur[2] += Date.now() - TRL.on; TRL.on = document.hidden ? 0 : Date.now(); }
+}
+function trlMark(c) {
+  if (!TRL.cur || TRL.cur[3].length >= 14) return;
+  TRL.cur[3].push(String(c).replace(/[^\w.-]/g, '').slice(0, 24));
+  trlSend(2000);
+}
+function trlTick() {
+  var s;
+  try { s = trlScr(); } catch (e) { return; }
+  if (s === TRL.last) return;
+  trlRun();
+  if (TRL.e.length >= 60) return;
+  TRL.last = s;
+  TRL.cur = [s, Math.round((Date.now() - TRL.t0) / 1000), 0, []];
+  TRL.e.push(TRL.cur);
+  if (!TRL.on && !document.hidden) TRL.on = Date.now();
+  trlSend(1200);
+}
+function trlSend(wait) {
+  if (TRL.tm) { clearTimeout(TRL.tm); TRL.tm = 0; }
+  if (wait) { TRL.tm = setTimeout(function () { TRL.tm = 0; trlSend(0); }, wait); return; }
+  try {
+    if (!API || !TRL.e.length || TRL.n >= 50) return;
+    TRL.n++;
+    trlRun();
+    var hid = get('hid', '');
+    if (!hid) {
+      hid = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      set('hid', hid);
+    }
+    var me = get('me', null) || {}, ua = navigator.userAgent || '', bi = uaInfo();
+    var ev = TRL.e.map(function (x) { return [x[0], x[1], Math.round(x[2] / 1000), x[3]]; });
+    var body = JSON.stringify({ action:'trail', v: TRL.v, h: hid,
+      j: (TRL.j || me.first) ? 1 : 0,
+      i: me.inst || ($('inst') && $('inst').value) || instCode || '',
+      r: (me.role || role) === 'dad' ? 'dad' : 'kid',
+      d: isIOS() ? 'ios' : (/Android/i.test(ua) ? 'and' : 'pc'),
+      w: appInstalled() ? 'app' : (inApp() ? 'inapp' : 'web'),
+      b: bi.b, bv: bi.v, o: bi.o, wa: bi.wa,
+      tr: JSON.stringify([Math.round(TRL.t0 / 1000), Math.round((Date.now() - TRL.t0) / 1000), ev]) });
+    if (navigator.sendBeacon && navigator.sendBeacon(API, body)) return;
+    fetch(API, { method:'POST', mode:'no-cors', body:body, keepalive:true })['catch'](function () {});
+  } catch (e) {}
+}
+document.addEventListener('click', function (e) {
+  try {
+    var el = e.target && e.target.closest ? e.target.closest('a,button') : null;
+    if (!el) return;
+    var h = el.getAttribute('href') || '';
+    trlMark(/wa\.me|whatsapp/i.test(h) ? 'wa' : /^intent:|googlechrome|x-safari/i.test(h) ? 'chrome'
+          : /^tel:/i.test(h) ? 'tel' : (el.id || (el.tagName === 'A' ? 'link' : 'btn')));
+  } catch (x) {}
+}, true);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { trlRun(); TRL.on = 0; trlMark('out'); trlSend(0); }
+  else { TRL.on = Date.now(); trlMark('back'); }
+});
+window.addEventListener('pagehide', function () { trlRun(); trlSend(0); });
+setInterval(trlTick, 1000);
+setTimeout(trlTick, 50);
+
 function hit(s, x) {
   try {
+    /* למסלול הכניסה — כל פעם, לא רק בפעם הראשונה. */
+    if (/^(bip|inst|perm|err|jserr|join)$/.test(s)) {
+      if (s === 'join') TRL.j = 1;
+      trlMark(s === 'inst' || s === 'perm' ? s + '.' + (x || '') : s);
+    }
     if (!API) return;
     var k = s + (x ? ':' + x : ''), done = get('hits', {}) || {};
     if (done[k]) return;

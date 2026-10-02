@@ -261,6 +261,7 @@ function doPost(e) {
   try {
     var hd = JSON.parse(e.postData.contents);
     if (hd && hd.action === 'hit') return json_(hit_(hd));
+    if (hd && hd.action === 'trail') return json_(trail_(hd));
   } catch (he) {}
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -1050,6 +1051,16 @@ function doGet(e) {
     var fo;
     try { fo = funnel_(); } catch (fe) { fo = { status: 'error', message: String(fe) }; }
     return reply_(e, fo);
+  }
+  /* מסלולי הכניסה — אותה סיסמה. ראו `trails_`. */
+  if (e && e.parameter && e.parameter.trails) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'error',
+        message: READ_KEY ? 'סיסמת קריאה שגויה' : 'לא נקבעה סיסמת קריאה בסקריפט (READ_KEY)' });
+    }
+    var tro;
+    try { tro = trails_(+e.parameter.days || 14); } catch (te) { tro = { status: 'error', message: String(te) }; }
+    return reply_(e, tro);
   }
 
   if (e && e.parameter && e.parameter.arrived) {
@@ -3767,6 +3778,77 @@ function funnel_() {
       return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' '),
               p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je];
     }) };
+}
+
+/* ============================================================
+   מסלול הכניסה — מה עבר על כל מי שנכנס, מסך אחר מסך.
+   ============================================================
+   המשפך למעלה סופר כל שלב פעם אחת למכשיר, ולכן אינו יודע באיזה
+   סדר, כמה זמן, מה נלחץ, ולאן חזר. כאן — כל טעינה של דף
+   ההרשמה היא "כניסה" עם מזהה אקראי משלה, והטלפון שולח את כל
+   הרצף שלה מחדש בכל מעבר מסך וביציאה (ראו TRL ב-join.html).
+
+   אותם כללים של `hit_`: לפני הנעילה, לגיליון הכניסות הנפרד,
+   `appendRow` בלבד ובלי לקרוא. כל שליחה היא שורה חדשה, והקריאה
+   (`trails_`) לוקחת לכל כניסה את השורה האחרונה שלה.
+
+   אין כאן פרט מזהה: מזהה הכניסה ומזהה המכשיר אקראיים (לא אלה
+   של ההרשמה), והרצף הוא קודי מסכים וקודי כפתורים בלבד. "נרשם"
+   הוא סימן כן/לא — בלי שום קישור לשורה בלשונית "לומדים". */
+var TRAIL_TAB  = 'מסלולים';
+var TRAIL_COLS = ['תאריך', 'כניסה', 'מכשיר', 'נרשם', 'קוד ישיבה', 'תפקיד', 'סוג מכשיר', 'איפה',
+                  'דפדפן', 'גרסה', 'מערכת', 'וואטסאפ', 'מסלול'];
+
+function trail_(d) {
+  var id = String(d.v || '').replace(/[^\w-]/g, '').slice(0, 24);
+  var hid = String(d.h || '').replace(/[^\w-]/g, '').slice(0, 24);
+  var tr = String(d.tr || '');
+  if (!id || !tr) return { status: 'ignored' };
+  /* רק קודים — כל מה שאינו אות לטינית, ספרה או סימן מבנה נזרק. */
+  tr = tr.replace(/[^\w\[\],:.\-"]/g, '').slice(0, 6000);
+  var cut = function (v, n) {
+    return String(v == null ? '' : v).slice(0, n).replace(/^[=+\-@]/, "'$&");
+  };
+  var sh = hitSheet_();
+  if (!sh) return { status: 'error', message: 'אין גיליון כניסות' };
+  var ss = sh.getParent(), ts = ss.getSheetByName(TRAIL_TAB);
+  if (!ts) {
+    var lk = LockService.getDocumentLock() || LockService.getUserLock();
+    if (!lk.tryLock(10000)) return { status: 'error', message: 'busy' };
+    try {
+      ts = ss.getSheetByName(TRAIL_TAB);
+      if (!ts) { ts = ss.insertSheet(TRAIL_TAB); ts.appendRow(TRAIL_COLS); ts.setFrozenRows(1); }
+    } finally { lk.releaseLock(); }
+  }
+  ts.appendRow([new Date(), id, hid, d.j ? 1 : '', cut(d.i, 20), cut(d.r, 10), cut(d.d, 10),
+                cut(d.w, 16), cut(d.b, 16), cut(d.bv, 8), cut(d.o, 16), d.wa ? 1 : '', "'" + tr]);
+  return { status: 'success' };
+}
+
+/* לכל כניסה — השורה האחרונה שלה (הרצף המלא ביותר), רק מ-`days`
+   הימים האחרונים, מהחדשה לישנה. */
+function trails_(days) {
+  var id = PropertiesService.getScriptProperties().getProperty('HITS_ID');
+  if (!id) return { status: 'ok', rows: [] };
+  var sh = SpreadsheetApp.openById(id).getSheetByName(TRAIL_TAB);
+  if (!sh || sh.getLastRow() < 2) return { status: 'ok', rows: [] };
+  var from = Date.now() - Math.min(90, Math.max(1, days)) * 864e5;
+  var n = sh.getLastRow() - 1, take = Math.min(n, 20000);
+  var v = sh.getRange(n - take + 2, 1, take, TRAIL_COLS.length).getValues();
+  var by = {}, order = [];
+  for (var r = v.length - 1; r >= 0; r--) {
+    var t = v[r][0] instanceof Date ? v[r][0].getTime() : 0;
+    if (t && t < from) break;
+    var k = String(v[r][1] || '');
+    if (!k || by[k]) continue;
+    by[k] = 1;
+    order.push([t, k, String(v[r][2] || ''), v[r][3] ? 1 : 0, String(v[r][4] || ''),
+                String(v[r][5] || ''), String(v[r][6] || ''), String(v[r][7] || ''),
+                String(v[r][8] || ''), String(v[r][9] || ''), String(v[r][10] || ''),
+                v[r][11] ? 1 : 0, String(v[r][12] || '').replace(/^'/, '')]);
+    if (order.length >= 1500) break;
+  }
+  return { status: 'ok', rows: order, at: new Date().toISOString() };
 }
 
 var BACKUP_DAYS = 14;
