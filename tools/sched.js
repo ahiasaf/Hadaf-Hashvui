@@ -316,9 +316,49 @@ function sentMark(keys) {
   }, Promise.resolve(0));
 }
 
+/* ============================================================
+   מנוי שפג (404/410) — משותף לעדכון לר"מים ולתזכורות לרכז.
+   ============================================================
+   המכשיר הסיר את ההרשאה או את האפליקציה. לנסות שוב על אותו
+   מנוי זה לנסות לנצח, ולכתוב שורה ביומן בכל הרצה. לכן נרשם ב"נשלחו"
+   מפתח `פג|<טביעה>` — טביעה של המנוי, לא המנוי עצמו — וכל הרצה
+   מדלגת עליו **כל עוד זה אותו מנוי**. מי שיתקין או יאשר מחדש
+   רושם מנוי חדש, הטביעה אחרת, והשליחה חוזרת אליו מעצמה.
+   (pair-send.js עושה אותו דבר על המפתח של כל הודעה.) */
+var GONE = 'פג:';
+function subPrint(sub) {
+  return require('crypto').createHash('sha1')
+    .update(String(sub && sub.endpoint || '')).digest('hex').slice(0, 12);
+}
+function goneKey(sub) { return 'פג|' + subPrint(sub); }
+/* האם המנוי הזה כבר נמצא פג — לפי המפתח הכללי, או לפי מצב ההודעה. */
+function isGone(st, k, sub) {
+  return !!(st[goneKey(sub)] || (k && st[k] === GONE + subPrint(sub)));
+}
+/* מה שנחשב "יצא" מתוך sentRaw: "נכשל" ו"פג:…" — עוד לא. */
+function sentFrom(st) {
+  var seen = {};
+  for (var k in st) {
+    if (st[k] !== 'נכשל' && st[k].indexOf(GONE) !== 0 && k.indexOf('פג|') !== 0) seen[k] = 1;
+  }
+  return seen;
+}
+/* נמצא פג עכשיו: מצב ההודעה, ומפתח המנוי — פעם אחת. */
+function failGone(sub) {
+  return function (e) { return e && e.gone ? GONE + subPrint(sub) : 'נכשל'; };
+}
+function markGone(st, sub) {
+  var k = goneKey(sub);
+  if (st[k]) return Promise.resolve(true);
+  st[k] = 'פג';
+  return markOne(k, 'פג');
+}
+
 module.exports = { israelNow: israelNow, slotsDue: slotsDue, two: two,
                    ask: ask, rows: rows, byHead: byHead,
                    sentLoad: sentLoad, sentRaw: sentRaw, markOne: markOne,
                    sentMark: sentMark, once: once, finish: finish,
                    logRun: logRun,
+                   GONE: GONE, subPrint: subPrint, goneKey: goneKey, isGone: isGone,
+                   sentFrom: sentFrom, failGone: failGone, markGone: markGone,
                    SENT_TAB: SENT_TAB, HOURS: HOURS, scriptUrl: scriptUrl };

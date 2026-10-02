@@ -51,7 +51,7 @@ var D = require('./push-deliver.js');
 function pushOne(sub, payload, ttl) {
   return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
     if (r.ok) return { statusCode: r.code };
-    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err };
+    throw { statusCode: r.code, gone: !!r.gone, body: r.gone ? 'המנוי פג' : r.err };
   });
 }
 function rows(tab)   { return S.rows(tab, key); }
@@ -93,9 +93,14 @@ function title(o) {
    לשלוח בהרצה הזו. תזכורת שתגיע פעמיים גרועה מתזכורת שתגיע
    בהרצה הבאה.
    ============================================================ */
-Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
+/* sentRaw ולא sentLoad: "פג:…" על מנוי ישן אינו "יצא" — אם הותקן
+   מחדש, התזכורת יוצאת אל המנוי החדש. ראו isGone ב-sched.js. */
+var st = {}, STILL = [], LOG_KEY = 'rm|יומן';
+Promise.all([rows('תזכורות'), rows('התראות'), S.sentRaw(key)])
   .then(function (all) {
-  var rem = byHead(all[0]), subs = byHead(all[1]), sent = all[2];
+  var rem = byHead(all[0]), subs = byHead(all[1]);
+  st = all[2];
+  var sent = S.sentFrom(st);
 
   var times = {};
   slots.forEach(function (sl) { times[sl.t] = 1; });
@@ -122,6 +127,7 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
       var raw = last[o['מזהה']];
       if (!raw) {
         console.log('  ! אין מנוי למזהה ' + o['מזהה'] + ' — מדלג');
+        STILL.push(keyOf(o));
         res.push(0); return res;
       }
       var sub;
@@ -129,6 +135,11 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
       catch (e) {
         console.log('  ! מנוי פגום למזהה ' + o['מזהה']);
         res.push(0); return res;
+      }
+      /* אותו מנוי שכבר נמצא פג — לא מנסים שוב, ולא כותבים שורה. */
+      if (S.isGone(st, keyOf(o), sub)) {
+        console.log('  · ' + o['שעה'] + ' — המנוי פג ולא חודש, מדלג');
+        res.push(3); return res;
       }
       if (DRY) {
         console.log('  · ' + o['שעה']);
@@ -138,7 +149,7 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
       return S.once(keyOf(o), function () {
         return pushOne(sub, JSON.stringify({ title: title(o), body: o['נוסח'],
                                              url: './#admin', tag: 'remind' }), 3600);
-      })
+      }, S.failGone(sub))
         .then(function (r) {
           if (r && r.skipped) { res.push(0); return res; }
           /* בלי הנוסח: הוא כתוב ביד ועלול לכלול שמות, והלוג ציבורי. */
@@ -148,6 +159,8 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
         .catch(function (e) {
           console.log('  ✗ ' + o['שעה'] + ' → ' + (e.statusCode || '') + ' ' +
                       String(e.body || e.message || '').slice(0, 120));
+          if (e && e.gone) return S.markGone(st, sub).then(function () { res.push(4); return res; });
+          STILL.push(keyOf(o));
           res.push(2); return res;
         });
     });
@@ -156,13 +169,25 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentLoad(key)])
   /* שליחה שנכשלה נרשמה "נכשל" ותנסה שוב בהרצה הבאה. */
   S.finish();
   if (!res || !res.length) return;
-  /* 1 = יצא · 2 = נכשל · 0 = אין מנוי / דילוג */
-  var ok = res.filter(function (x) { return x === 1; }).length;
-  var bad = res.filter(function (x) { return x === 2; }).length;
-  console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · בלי מנוי: ' + (res.length - ok - bad));
+  /* 1 = יצא · 2 = נכשל · 0 = אין מנוי / דילוג
+     4 = המנוי פג, נמצא עכשיו · 3 = המנוי פג קודם, דולג */
+  var cnt = function (v) { return res.filter(function (x) { return x === v; }).length; };
+  var ok = cnt(1), bad = cnt(2), none = cnt(0), goneNew = cnt(4), gone = goneNew + cnt(3);
+  console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · בלי מנוי: ' + none +
+              ' · מנוי פג: ' + gone + (goneNew ? ' (חדשים: ' + goneNew + ')' : ''));
   if (DRY) return;
-  return S.logRun('תזכורות לרכז', 'התזכורות שנקבעו במסך השיחות', 'מכשירי רכז',
-                  ok, bad + (res.length - ok - bad), 0);
+  /* שורה ביומן רק כשמשהו השתנה: מנוי שפג קודם ודולג אינו חדשות,
+     וגם אותם נכשלים/חסרי מנוי של ההרצה הקודמת (טביעה ב"נשלחו"). */
+  var sig = STILL.length
+    ? require('crypto').createHash('sha1').update(STILL.sort().join('\n')).digest('hex').slice(0, 12)
+    : 'אין';
+  var prev = st[LOG_KEY] || 'אין';
+  var news = ok || goneNew || ((bad || none) && sig !== prev);
+  var log = news
+    ? S.logRun('תזכורות לרכז', 'התזכורות שנקבעו במסך השיחות', 'מכשירי רכז',
+               ok, bad + none, 0, gone)
+    : Promise.resolve(false);
+  return log.then(function () { if (sig !== prev) return S.markOne(LOG_KEY, sig); });
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
   process.exit(1);

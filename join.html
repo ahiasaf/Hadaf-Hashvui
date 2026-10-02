@@ -2670,7 +2670,9 @@ function stWeek() {
   }
   location.href = 'learn.html?mas=' + encodeURIComponent(tr) +
                   '&daf=' + encodeURIComponent(d) +
-                  (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+                  (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
+                  /* שהיציאה מהדף תחזיר הורה למסך ההורה — ראו stuDad ב-learn.html. */
+                  (role === 'dad' ? '&for=dad' : '');
 }
 function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {
@@ -3313,6 +3315,19 @@ function wzDraw() {
   }
   wzWire();
   window.scrollTo(0, 0);
+  if (wzStep === 1) setTimeout(wzToInst, 250);
+}
+/* בטלפון קטן כפתורי ההתקנה נופלים מתחת לקצה המסך, והתלמיד רואה
+   רק כותרת ומד — ולא יודע שיש למטה משהו ללחוץ עליו. גוללים בעדינות
+   עד שהכפתור (או המסגרת/ההדגמה) נכנס כולו, אבל לא מעבר לראשו. */
+function wzToInst() {
+  if (wzStep !== 1) return;
+  var t = $('wz-inst') || document.querySelector('#wz .wa-box, #wz .out-box, #gu-here, #wz .how');
+  if (!t || !t.getClientRects().length) return;
+  var r = t.getBoundingClientRect(), vh = window.innerHeight || 0;
+  if (!vh || r.bottom <= vh - 8) return;
+  var dy = Math.min(r.bottom - vh + 24, r.top - 12);
+  if (dy > 0) window.scrollBy({ top: dy, behavior: 'smooth' });
 }
 
 /* ---------- שלב 1 ---------- */

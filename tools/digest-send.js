@@ -116,7 +116,7 @@ var report = require('./push-report.js').report;
 function pushOne(sub, payload, ttl) {
   return D.deliver(webpush, sub, payload, { TTL: ttl }).then(function (r) {
     if (r.ok) return { statusCode: r.code };
-    throw { statusCode: r.code, body: r.gone ? 'המנוי פג' : r.err };
+    throw { statusCode: r.code, gone: !!r.gone, body: r.gone ? 'המנוי פג' : r.err };
   });
 }
 function israelNow() { return S.israelNow(); }
@@ -440,8 +440,12 @@ function keyOf(w, sl) {
 
 /* הרישום נקרא לפני הכול: קריאה שנכשלה אינה "עוד לא נשלח
    כלום". עדכון שיוצא פעמיים לכל הצוות גרוע מהרצה שדילגה. */
-Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
-  var all = both[0], sent = both[1];
+/* sentRaw: "פג:…" ומפתחות המנויים שפגו — ראו isGone ב-sched.js. */
+var st = {}, STILL = [], LOG_KEY = 'dg|' + MODE + '|יומן';
+Promise.all([loadWants(), S.sentRaw(key)]).then(function (both) {
+  var all = both[0];
+  st = both[1];
+  var sent = S.sentFrom(st);
   /* `ALL` — הודעה שהרכז החליט לשלוח, ולכן היא אינה נשענת על
      התזכורות של איש. בלעדיו: רק מי שביקש, ורק במשבצות שעדיין
      לא טופלו. */
@@ -502,6 +506,12 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
         console.log('  · ' + w.inst + ' — אין עדיין תלמידים, מדלג');
         return 0;
       }
+      /* אותו מנוי שכבר נמצא פג — לא מנסים שוב, ולא כותבים שורה.
+         מי שיאשר מחדש רושם מנוי חדש, והעדכון חוזר אליו מעצמו. */
+      if (!ALL && S.isGone(st, keyOf(w, w.slot), w.sub)) {
+        console.log('  · ' + w.inst + ' — המנוי פג ולא חודש, מדלג');
+        return 3;
+      }
       if (DRY) {
         console.log('  · ' + w.inst + ' · ' + w.slot.t + ' → ' + msg.title +
                     ' | ' + msg.body);
@@ -517,7 +527,7 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
       };
       /* "ממתין" לפני, "נשלח"/"נכשל" אחרי — ראו once ב-sched.js.
          במצב "לכולם" (בדיקה) אין רישום כלל. */
-      return (ALL ? sendIt() : S.once(keyOf(w, w.slot), sendIt))
+      return (ALL ? sendIt() : S.once(keyOf(w, w.slot), sendIt, S.failGone(w.sub)))
         .then(function (r) {
           if (r && r.skipped) return 0;
           console.log('  ✓ ' + w.inst + ' · ' + host + ' → ' + r.statusCode);
@@ -527,24 +537,41 @@ Promise.all([loadWants(), S.sentLoad(key)]).then(function (both) {
           console.log('  ✗ ' + w.inst + ' · ' + host + ' → ' +
                       (e.statusCode || '') + ' ' +
                       String(e.body || e.message || '').slice(0, 120));
+          if (e && e.gone) {
+            return (ALL ? Promise.resolve() : S.markGone(st, w.sub)).then(function () { return 4; });
+          }
+          STILL.push(keyOf(w, w.slot));
           return 2;
         });
     });
   });
 }).then(function (res) {
   S.finish();
-  /* 1 = יצא · 2 = נכשל · 0 = דילוג (לוח שלא נקרא, אין תלמידים) */
-  var ok = res.filter(function (x) { return x === 1; }).length;
-  var bad = res.filter(function (x) { return x === 2; }).length;
-  if (res.length) console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · דולגו: ' + (res.length - ok - bad));
+  /* 1 = יצא · 2 = נכשל · 0 = דילוג (לוח שלא נקרא, אין תלמידים)
+     4 = המנוי פג, נמצא עכשיו · 3 = המנוי פג קודם, דולג */
+  var cnt = function (v) { return res.filter(function (x) { return x === v; }).length; };
+  var ok = cnt(1), bad = cnt(2), goneNew = cnt(4), gone = goneNew + cnt(3);
+  if (res.length) console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · מנוי פג: ' + gone +
+                              (goneNew ? ' (חדשים: ' + goneNew + ')' : '') +
+                              ' · דולגו: ' + cnt(0));
+  /* שורה ביומן רק כשמשהו השתנה — מנוי שפג קודם ודולג, או אותם
+     נכשלים של ההרצה הקודמת, אינם חדשות. */
+  var sig = STILL.length
+    ? require('crypto').createHash('sha1').update(STILL.sort().join('\n')).digest('hex').slice(0, 12)
+    : 'אין';
+  var prev = st[LOG_KEY] || 'אין';
+  var news = ok || goneNew || (bad && sig !== prev);
   /* היומן בניהול — גם כשלא יצא דבר בשליחה יזומה (אז התוצאה "אין נמענים"). */
   var log = DRY ? Promise.resolve()
-    : process.env.SID ? report(res.length ? { n: ok, bad: bad } : { none: 1 })
+    : process.env.SID ? report(res.length ? { n: ok, bad: bad, gone: gone } : { none: 1 })
+    : !news ? Promise.resolve()
     : S.logRun(MODE === 'joined' ? 'כמה מכיתתך הצטרפו' : 'העדכון לצוות',
-               'עדכון אישי לכל איש צוות שביקש אותו', 'צוות שביקש עדכון', ok, bad, 0);
+               'עדכון אישי לכל איש צוות שביקש אותו', 'צוות שביקש עדכון', ok, bad, 0, gone);
   return log.then(function () {
+    if (!DRY && !process.env.SID && sig !== prev) return S.markOne(LOG_KEY, sig);
+  }).then(function () {
     /* מנוי שפג אינו תקלה של הקוד. כולם נכשלו — כן. */
-    if (res.length && !ok) process.exit(1);
+    if (!ok && (bad || cnt(0))) process.exit(1);
   });
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));

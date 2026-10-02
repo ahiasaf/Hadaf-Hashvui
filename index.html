@@ -2173,7 +2173,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.101';
+var APP_VERSION = '8.99.102';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8184,9 +8184,20 @@ function admInstHead() {
    הסיכום (לפי מסכת, מול המינימום) הוא אותו פירוט שישב מקופל
    בתחתית "אנשים"; מתחתיו — מי הזמין כמה, לפי ישיבה. בתיק של
    כל ישיבה מופיע רק המספר שלה. */
+/* המועד האחרון להזמנה — באזור הגמרות ולא ב"מערכת". מפורסם,
+   ולכן ראש חטיבה רואה תאריך ולא צריך לתרגם "סוף אלול" בראש.
+   ריק = לא מוצג כלל. */
+function orderByCard() {
+  return '<div class="adm-card" style="margin-bottom:11px"><h4>מועד אחרון להזמנת גמרות</h4>' +
+    '<p class="h">מופיע בטופס ההרשמה, ליד הכמויות. ריק = לא מוצג. ' +
+    'את נוסח המשפט משנים בטקסטים ← הזמנת גמרות.</p>' +
+    '<div class="fld"><input type="date" dir="ltr" value="' +
+    esc(CV('orderBy') != null ? CV('orderBy') : ORDER_BY) +
+    '" onchange="cfgSet(\'orderBy\',this.value);admPane()"></div></div>';
+}
 function admOrders(el) {
   var list = pplOrderList().slice().sort(function (a, b) { return (b.total || 0) - (a.total || 0); });
-  el.innerHTML = '<div class="adm-card" style="margin-bottom:11px"><h4 id="ppl-ords"></h4>' +
+  el.innerHTML = orderByCard() + '<div class="adm-card" style="margin-bottom:11px"><h4 id="ppl-ords"></h4>' +
     '<div id="ppl-ordb"></div></div>' +
     '<div class="adm-card"><h4>' + esc(UI.ordBy) + '</h4>' +
     (list.length ? list.map(function (r) {
@@ -13606,15 +13617,6 @@ function admSet(el) {
 
     /* הסטודיו נגיש רק מכאן. הוא אינו מקושר מהאפליקציה ואינו
        במניפסט, ומי שלא נכנס לניהול אינו אמור לדעת עליו. */
-    /* המועד האחרון להזמנה. מפורסם, ולכן ראש חטיבה רואה תאריך
-       ולא צריך לתרגם "סוף אלול" בראש. ריק = לא מוצג כלל. */
-    '<div class="adm-card" style="margin-bottom:11px"><h4>מועד אחרון להזמנת גמרות</h4>' +
-    '<p class="h">מופיע בטופס ההרשמה, ליד הכמויות. ריק = לא מוצג. ' +
-    'את נוסח המשפט משנים בטקסטים ← הזמנת גמרות.</p>' +
-    '<div class="fld"><input type="date" dir="ltr" value="' +
-    esc(CV('orderBy') != null ? CV('orderBy') : ORDER_BY) +
-    '" onchange="cfgSet(\'orderBy\',this.value);admPane()"></div></div>' +
-
     '<div class="adm-card" style="margin-bottom:11px"><h4>סטודיו הסימון</h4>' +
     '<p class="h">חלוקת הדף לקטעים וקישורם לביאור חברותא. ' +
     'נפתח כאפליקציה נפרדת, עם אייקון משלה.</p>' +
