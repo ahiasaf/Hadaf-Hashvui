@@ -1118,7 +1118,10 @@ function classesList() {
   var list = shown().filter(srchHit);
   if (!list.length) return '<p class="h" style="margin:10px 0">לא נמצא אף אחד.</p>';
   BY_INST = ALL && !FILT;
-  var big = list.length > GRP_AUTO;
+  /* קיפול אוטומטי — רק בלוח של כל הישיבות. ראש ישיבה עם חמישים
+     תלמידים ראה שש כותרות סגורות ואף שם, ובלי "ישר כוח". בלוח
+     של ישיבה אחת הכיתות פתוחות; אפשר עדיין לסגור כיתה ביד. */
+  var big = ALL && list.length > GRP_AUTO;
   SRCH_N = list.length;
   var top = grpBy(list, clsKey), html = '';
   if (big) {
@@ -1144,7 +1147,7 @@ function classesList() {
 }
 /* פתיחה וסגירה — רק הרשימה מצוירת מחדש. */
 function grpToggle(k) {
-  var big = shown().filter(srchHit).length > GRP_AUTO;
+  var big = ALL && shown().filter(srchHit).length > GRP_AUTO;
   if (srchOpen()) SRCH_SHUT[k] = !SRCH_SHUT[k];
   else { GRP_OPEN[k] = grpIsOpen(k, big) ? 0 : 1; LSet('bdGrp', GRP_OPEN); }
   listRedraw();

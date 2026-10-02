@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 43;
+var SCRIPT_VERSION = 44;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -600,6 +600,26 @@ var PUB_FILES = {
 };
 /* PUB_FILES:END */
 
+/* הורדה ישירה של קובץ משותף-בקישור, בלי Drive API. מחזיר null
+   כשמה שחזר אינו הקובץ עצמו (דף כניסה או דף אזהרה של גוגל). */
+function pubFetch_(fid) {
+  try {
+    var r = UrlFetchApp.fetch('https://drive.google.com/uc?export=download&id=' +
+                              encodeURIComponent(fid),
+                              { muteHttpExceptions: true, followRedirects: true });
+    if (r.getResponseCode() !== 200) return null;
+    var b = r.getBlob(), mime = String(b.getContentType() || '');
+    if (/text\/html/i.test(mime)) return null;
+    var cd = String(r.getHeaders()['Content-Disposition'] || ''), nm = '';
+    var m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+    if (m) { try { nm = decodeURIComponent(m[1]); } catch (x) { nm = m[1]; } }
+    return { status: 'ok', name: nm || fid, mime: mime || 'application/pdf',
+             data: Utilities.base64Encode(b.getBytes()), via: 'direct' };
+  } catch (err) {
+    return null;
+  }
+}
+
 function doGet(e) {
   /* ---- קובץ מהדרייב ----
      הסטודיו צריך את קובץ הדף כדי לצייר אותו ולזהות בו שורות,
@@ -621,7 +641,14 @@ function doGet(e) {
       res = { status: 'ok', name: f.getName(), mime: f.getMimeType(),
               data: Utilities.base64Encode(f.getBlob().getBytes()) };
     } catch (err) {
-      res = { status: 'error', message: String(err) };
+      /* DriveApp נשען על Drive API בפרויקט ה-GCP של הסקריפט. כשגוגל
+         אינה מצליחה להפעיל אותו שם ("Permission denied while enabling
+         APIs: drive") — כל קובץ נכשל, גם ציבורי. קבצי הלמידה משותפים
+         "לכל מי שיש לו הקישור", ולכן אפשר להוריד אותם ישירות בלי
+         ה-API. רק לקבצים שברשימה — קובץ פרטי (עם סיסמה) אינו
+         נגיש כך ממילא. */
+      res = PUB_FILES[fid] ? pubFetch_(fid) : null;
+      if (!res) res = { status: 'error', message: String(err) };
     }
     return reply_(e, res);
   }
