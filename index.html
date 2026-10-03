@@ -2026,6 +2026,53 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .pl-h span,.pl-s,.pl-n{font-size:.72rem;color:var(--ink-3);font-weight:700}
 .pl-n{margin-top:3px}
 .h.live{color:#1A8F4C}
+/* ניהול ← התקנה: ארבעה מספרים, צריכים עזרה, משפך, מחקר. שפת לוח הישיבות. */
+.st-n{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+.st-n>div,.st-n>button{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-m,16px);
+  padding:13px 4px 11px;text-align:center;box-shadow:var(--sh-1);font:inherit;color:inherit;display:flex;
+  flex-direction:column;align-items:center;gap:5px;min-width:0}
+.st-n>button{cursor:pointer}
+.st-n b{font-size:2rem;font-weight:800;line-height:1;letter-spacing:-.04em;color:var(--blue-d,#0B2550)}
+.st-n>div:first-child b{color:var(--gold)}
+.st-n span{font-size:.7rem;font-weight:800;color:var(--ink-3);line-height:1.25}
+.st-n>button.r{background:#FBE3E1;border-color:#E8A9A2}
+.st-n>button.r b{color:#C0392B}
+.st-n>button.r span{color:#9B2C20}
+.st-hp{scroll-margin-top:10px}
+.st-hp h4 .nd-n{margin-inline-start:4px}
+.st-ok{font-size:.95rem;font-weight:800;color:#1A8F4C;margin:4px 0 0}
+.st-r{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--rule-2,var(--rule))}
+.st-r:first-of-type{border-top:0}
+.st-r.ok{opacity:.55}
+.st-w{flex:1;min-width:0}
+.st-w b{display:block;font-size:.92rem;font-weight:800}
+.st-w span{display:block;font-size:.74rem;font-weight:700;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-b.btn{width:auto;flex:none;margin:0;padding:8px 13px;font-size:.8rem}
+.st-d{flex:none;font-weight:800;color:#1A8F4C;padding:0 8px}
+.st-more{margin-top:8px;border:0;background:none;padding:0;font:inherit;font-size:.76rem;font-weight:800;color:var(--ink-3);text-decoration:underline;cursor:pointer}
+.fn{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:4px}
+.fn-r{width:100%;display:flex;flex-direction:column;align-items:center;gap:3px}
+.fn-l{font-size:.74rem;font-weight:800;color:var(--ink-2)}
+.fn-l i{font-style:normal;font-weight:700;color:var(--ink-3)}
+.fn-b{height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(140deg,var(--blue-l),var(--blue));box-shadow:var(--sh-1);transition:width .5s cubic-bezier(.4,0,.2,1)}
+.fn-b b{color:#fff;font-size:1rem;font-weight:800}
+.fn-r:last-child .fn-b{background:linear-gradient(140deg,#E5B854,var(--gold))}
+.st-res>summary,.st-f>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-weight:800}
+.st-res>summary::-webkit-details-marker,.st-f>summary::-webkit-details-marker{display:none}
+.st-res>summary::after,.st-f>summary::after{content:'▾';margin-inline-start:auto;color:var(--ink-3)}
+.st-res[open]>summary::after,.st-f[open]>summary::after{content:'▴'}
+.st-res>summary{font-size:.95rem}
+.st-f{border-top:1px solid var(--rule-2,var(--rule));padding:10px 0}
+.st-res[open]>summary{margin-bottom:6px}
+.st-f>summary{font-size:.86rem;color:var(--ink-2)}
+.st-fb{padding-top:6px}
+.st-ft{margin-top:8px}
+.trk{display:flex;flex-wrap:wrap;gap:4px 10px;margin:4px 0 8px;font-size:.7rem;font-weight:700;color:var(--ink-2)}
+.trk span{display:inline-flex;align-items:center;gap:4px;color:var(--ink-2)}
+.trk i{display:inline-block;width:10px;height:10px;border-radius:3px;background:currentColor}
+.trk i.end{background:#C0392B}
+.trk i.k{background:var(--sunk);outline:2px solid #E5B854;outline-offset:1px}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -2292,7 +2339,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.120';
+var APP_VERSION = '8.99.121';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7828,12 +7875,79 @@ function admStuHead() {
 }
 
 /* ============================================================
-   "התקנה" — המשפך, דורש טיפול (מקופל), ולמה נופלים.
-   ============================================================ */
+   "התקנה" — ארבעה מספרים, מי צריך עזרה, משפך אחד, ומחקר סגור.
+   ============================================================
+   מה שעושים למעלה, מה שחוקרים למטה ומקופל. כל מספר מופיע פעם
+   אחת: "אני מצטרף" ו"נרשמו" במשפך, "איפה עצרו" ב"למה נופלים",
+   ומי שביקש עזרה — רק ברשימה עצמה. החישובים לא השתנו. */
+var stOpen = {};
 function admSetup(el) {
-  el.innerHTML = '<div id="st-need"></div><div id="ppl-fun"></div><div id="st-why"></div><div id="st-trail"></div><div id="st-stuck"></div>';
+  el.innerHTML = '<div id="st-tiles"></div><div id="st-help"></div><div id="st-alert"></div><div id="ppl-fun"></div>' +
+    '<details class="adm-card st-res"' + (stOpen.res ? ' open' : '') + ' ontoggle="stOpen.res=this.open">' +
+    '<summary><span aria-hidden="true">🔬</span> ' + esc(UI.stResT) + '</summary>' +
+    '<div id="st-why"></div><div id="st-trail"></div><div id="st-err"></div><div id="st-inst"></div>' +
+    '<div id="st-day"></div><div id="st-foot"></div></details>';
   pplLast = {};
   admLive();
+}
+/* קיפול בתוך "מחקר" — כל אחד לבד, וזוכר אם נפתח גם כשהנתונים מתעדכנים. */
+function stFold(k, icon, title, body) {
+  return '<details class="st-f"' + (stOpen[k] ? ' open' : '') + ' ontoggle="stOpen[\'' + k + '\']=this.open">' +
+    '<summary><span aria-hidden="true">' + icon + '</span> ' + esc(title) + '</summary><div class="st-fb">' + body + '</div></details>';
+}
+/* ארבעת המספרים. "נרשמו" — כמו בלוח הישיבות; "אישרו התראות" —
+   כמו בלשונית ההתראות; "הצטרפו היום" — "נרשמו" של המשפך, היום. */
+function admSetupTiles() {
+  var F = Store.get('funnel', null), has = F && F.people;
+  var fAll = has ? funCount(funPeople(F, '')) : null;
+  var j = ADM_INST ? bJoin(ADM_INST) : bJoinAll();
+  var src = Store.get('rosterCache:all', null);
+  var ros = src ? src.filter(function (p) {
+    return !p.test && p.role !== 'הורה' && (!ADM_INST || pplCode(p.inst) === ADM_INST);
+  }) : null;
+  var reg = j ? j.n : ros ? ros.length : fAll ? fAll.join : null;
+  var push = ros ? ros.filter(function (p) { return p.push && p.pstate !== 'gone'; }).length : fAll ? fAll.push : null;
+  var today = has ? funCount(funPeople(F, 'today')).join : null;
+  var stuck = stuckRows ? stuckOpen().length : null;
+  var t = function (v, s) { return '<b>' + (v == null ? '—' : v) + '</b><span>' + esc(s) + '</span>'; };
+  return '<div class="st-n"><div>' + t(reg, UI.stReg) + '</div><div>' + t(push, UI.stPush) + '</div>' +
+    '<button class="' + (stuck ? 'r' : '') + '" onclick="stGoHelp()">' + t(stuck, UI.stStuck) + '</button>' +
+    '<div>' + t(today, UI.stToday) + '</div></div>';
+}
+function stGoHelp() {
+  var e = document.getElementById('st-help');
+  if (e && e.scrollIntoView) e.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+/* "צריכים עזרה" — הרשימה עצמה. אותם stuckOpen ו-stuckFull: מי
+   שנחשב תקוע לא השתנה, רק איפה הוא מוצג. */
+function admSetupHelp() {
+  var open = stuckRows ? stuckOpen() : [];
+  var h = '<div class="adm-card vc st-hp"><h4><span aria-hidden="true">🙋</span> ' + esc(UI.stHelpT) +
+    (open.length ? ' <i class="nd-n on">' + open.length + '</i>' : '') + '</h4>';
+  var msg = stuckMsg && stuckMsg !== 'nokey' && stuckMsg !== 'טוען…' ? stuckMsg : '';
+  if (!stuckRows) {
+    return h + (msg ? '<div class="cond">' + esc(msg) + '</div>' : '<p class="h">' + esc(UI.stWait) + '</p>') + '</div>';
+  }
+  var list = stuckAll ? stuckRows : open;
+  if (!list.length) h += '<p class="st-ok">✓ ' + esc(UI.stNone) + '</p>';
+  h += list.map(function (p) {
+    var num = waNum(p.phone);
+    return '<div class="st-r' + (p.done ? ' ok' : '') + '"><div class="st-w"><b>' + esc(p.name || '—') + '</b>' +
+      '<span>' + esc([p.inst, p.dev].filter(Boolean).join(' · ')) + '</span></div>' +
+      (num
+        ? '<a class="btn gr st-b" target="_blank" rel="noopener" href="https://wa.me/' + num + '?text=' +
+          encodeURIComponent(stuckText(p)) + '">' + esc(UI.stWa) + '</a>'
+        : '<span class="h">' + esc(UI.stNoNum) + '</span>') +
+      (p.done ? '<span class="st-d" aria-hidden="true">✓</span>'
+        : '<button class="btn g st-b"' + (stuckBusy === p.row ? ' disabled' : '') + ' onclick="stuckDone(' + p.row + ')">' +
+          esc(stuckBusy === p.row ? UI.stBusy : UI.stDone) + '</button>') + '</div>';
+  }).join('');
+  if (stuckRows.length > open.length) {
+    h += '<button class="st-more" onclick="stuckShowAll()">' +
+      esc(stuckAll ? UI.stHideDone : fill(UI.stShowDone, { n: stuckRows.length - open.length })) + '</button>';
+  }
+  if (msg) h += '<div class="cond" style="margin-top:10px">' + esc(msg) + '</div>';
+  return h + '</div>';
 }
 /* ============================================================
    ניקוי אוטומטי של "דורש טיפול".
@@ -7864,16 +7978,6 @@ function stuckOpen() {
     return !ADM_INST || stuckInst(p) === ADM_INST;
   });
 }
-function admSetupNeeds() {
-  var all = (stuckRows || []).filter(function (p) { return !p.done; });
-  var auto = all.filter(stuckFull).length;
-  var inner = admNeeds();
-  var n = (needsFail || []).length + stuckOpen().length + accWait(null).length;
-  return '<details class="adm-card vc nd"' + (n ? ' open' : '') + '><summary><span aria-hidden="true">🛎</span> ' +
-    esc(UI.admNeedsT) + ' <i class="nd-n' + (n ? ' on' : '') + '">' + n + '</i></summary>' +
-    (inner || '<p class="h">✓ ' + esc(UI.admNeedsNone) + '</p>') +
-    '<p class="h nd-auto">🧹 ' + esc(fill(UI.admAutoN, { n: auto })) + '<br>' + esc(UI.admAutoDef) + '</p></details>';
-}
 /* מה נאסף על מי שלא השלים — דפדפן, מערכת, איפה עצר ולמה. */
 var STEP_K = ['open', 'app', 's1', 's2', 's3', 'join', 's4', 'push', 'help'];
 function stepName(s) { return UI['st_' + s] || s; }
@@ -7891,7 +7995,7 @@ function admWhy() {
     return !(s.indexOf(' join ') >= 0 && s.indexOf(' push ') >= 0);
   });
   var rich = P.filter(function (p) { return p.length > 6 && (p[6] || p[8] || p[11] || p[13]); });
-  if (!rich.length) return vCard('🔍', UI.whyT, '<p class="h">' + esc(UI.whyNone) + '</p>');
+  if (!rich.length) return stFold('why', '🔍', UI.whyT, '<p class="h">' + esc(UI.whyNone) + '</p>');
   var by = function (f) { var m = {}; rich.forEach(function (p) { var k = f(p); if (k) m[k] = (m[k] || 0) + 1; }); return m; };
   var unk = UI.unknown;
   var last = by(function (p) { return stepName(p[13] || 'open'); });
@@ -7916,7 +8020,7 @@ function admWhy() {
        '<div><h5>' + esc(UI.whyPerm) + '</h5>' + vBars(pm, 0, 'a') +
          (Object.keys(ins).length ? '<h5>' + esc(UI.whyInst) + '</h5>' + vBars(ins, 0, 'a') : '') + '</div></div>';
   if (Object.keys(je).length) h += '<details><summary>' + esc(UI.whyErr) + ' (' + Object.keys(je).length + ')</summary>' + vBars(je, 0, 'r') + '</details>';
-  return vCard('🔍', UI.whyT, h);
+  return stFold('why', '🔍', UI.whyT, h);
 }
 
 /* ============================================================
@@ -7926,7 +8030,7 @@ function admWhy() {
    בסקריפט). שורה לכל כניסה, מהחדשה לישנה; לחיצה פותחת את המסלול:
    מסך מתחת למסך, פס הזמן בכל אחד, הכפתורים שנלחצו, והאחרון באדום.
    אנונימי — מזהה אקראי, קודי מסכים וכפתורים. */
-var trv = { t: 'today', open: '', n: 40 }, trMsg = '';
+var trv = { t: 'today', open: '', n: 10 }, trMsg = '';
 function trLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key) return;
@@ -7939,7 +8043,7 @@ function trLoad() {
 }
 function trSet(k, v) {
   trv[k] = k === 'open' && trv.open === v ? '' : v;
-  if (k === 't') trv.n = 40;
+  if (k === 't') trv.n = 10;
   pplSet('st-trail', admTrail());
 }
 var TR_GRP = { land:'c-land', intro:'c-intro', form:'c-form', pre:'c-inst', w0:'c-land', w1:'c-inst', w2:'c-form',
@@ -8009,12 +8113,20 @@ function trOne(x) {
         (cs ? '<div class="trs-c">' + cs + '</div>' : '') + '</div>';
     }).join('') + '</div>';
 }
+/* מקרא הריבועים — צבע לכל קבוצת מסכים, ושני הסימונים. */
+var TR_KEY = [['c-land', 'trs_land'], ['c-intro', 'trs_intro'], ['c-inst', 'trs_w1'], ['c-form', 'trs_form'],
+              ['c-note', 'trs_w4'], ['c-help', 'trs_w9'], ['c-done', 'trs_done']];
+function trKey() {
+  return '<div class="trk">' + TR_KEY.map(function (k) {
+    return '<span><i class="' + k[0] + '"></i>' + esc(UI[k[1]] || '') + '</span>';
+  }).join('') + '<span><i class="end"></i>' + esc(UI.trLast) + '</span>' +
+    '<span><i class="k"></i>' + esc(UI.trc_hero_go) + '</span></div>';
+}
+/* הכניסות עצמן. הספירות ("כמה לחצו", "איפה יצאו") כבר במשפך
+   וב"למה נופלים" — כאן רק הרשימה, עשר אחרונות ו"עוד". */
 function admTrail() {
   var all = trRows();
-  if (!all) {
-    return vCard('🧭', UI.trT, '<p class="h">' + esc(trMsg || UI.trNone) + '</p>' +
-      '<button class="btn g" onclick="trLoad()">' + esc(UI.trLoad) + '</button>');
-  }
+  if (!all) return stFold('trail', '🧭', UI.trT, '<p class="h">' + esc(trMsg || UI.trNone) + '</p>');
   var today = trDay(Date.now());
   var L = all.filter(function (x) {
     if (ADM_INST && (x.inst || '-') !== ADM_INST) return false;
@@ -8023,32 +8135,12 @@ function admTrail() {
   /* כמה כניסות לכל מכשיר — מי שחזר כמה פעמים. */
   var per = {};
   L.forEach(function (x) { if (x.dev) per[x.dev] = (per[x.dev] || 0) + 1; });
-  var nJoin = L.filter(function (x) { return x.join; }).length;
-  var nReg = L.filter(function (x) { return x.j; }).length;
-  var out = L.filter(function (x) { return !x.j; });
-  var avg = out.length ? out.reduce(function (a, x) { return a + x.tot; }, 0) / out.length : null;
-  var pc = function (a) { return L.length ? ' <small>' + Math.round(a * 100 / L.length) + '%</small>' : ''; };
-  var reach = {}, exit = {};
-  L.forEach(function (x) {
-    var seen = {};
-    x.ev.forEach(function (e) { seen[trName('trs_', e[0])] = 1; });
-    Object.keys(seen).forEach(function (k) { reach[k] = (reach[k] || 0) + 1; });
-    if (!x.j) { var k = trName('trs_', x.ev[x.ev.length - 1][0]); exit[k] = (exit[k] || 0) + 1; }
-  });
   var h = '<div class="trf">' +
     '<button class="' + (trv.t === 'today' ? 'on' : '') + '" onclick="trSet(\'t\',\'today\')">' + esc(UI.trToday) + '</button>' +
     '<button class="' + (trv.t !== 'today' ? 'on' : '') + '" onclick="trSet(\'t\',\'all\')">' + esc(UI.trAll) + '</button></div>';
-  h += vTiles([
-    { n: L.length, t: UI.trN },
-    { n: nJoin + pc(nJoin), t: UI.trJoin },
-    { n: nReg + pc(nReg), t: UI.trReg, c: 'g' },
-    { n: avg == null ? null : trDur(avg), t: UI.trAvg, c: 'r' }
-  ]);
-  if (L.length) {
-    h += '<div class="vg"><div><h5>' + esc(UI.trScr) + '</h5>' + vBars(reach) + '</div>' +
-         '<div><h5>' + esc(UI.trExit) + '</h5>' + vBars(exit, 0, 'r') + '</div></div>';
-  }
-  h += '<div class="trl" style="margin-top:10px">' + L.slice(0, trv.n).map(function (x) {
+  h += trKey();
+  if (!L.length) h += '<p class="h">' + esc(UI.whyNone) + '</p>';
+  h += '<div class="trl">' + L.slice(0, trv.n).map(function (x) {
     var sid = String(x.id).replace(/[^\w-]/g, ''), op = trv.open === sid;
     return '<button class="trr' + (op ? ' op' : '') + '" onclick="trSet(\'open\',\'' + sid + '\')" aria-expanded="' + op + '">' +
       '<time>' + trHm(x.t) + '</time><span class="ic">' + trWhere(x) +
@@ -8056,11 +8148,10 @@ function admTrail() {
       '<span class="trp">' + trPath(x) + '</span><b>' + (x.j ? '✔ ' : '') + trDur(x.tot) + '</b></button>' +
       (op ? trOne(x) : '');
   }).join('') + '</div>';
-  if (L.length > trv.n) h += '<button class="btn g" style="margin-top:8px" onclick="trv.n+=40;pplSet(\'st-trail\',admTrail())">' + esc(UI.trMore) + ' (' + (L.length - trv.n) + ')</button>';
+  if (L.length > trv.n) h += '<button class="btn g" style="margin-top:8px" onclick="trv.n+=20;pplSet(\'st-trail\',admTrail())">' + esc(UI.trMore) + ' (' + (L.length - trv.n) + ')</button>';
   var T = Store.get('trails', null);
-  h += '<p class="h" style="margin-top:8px">' + esc(whenTxt(T.at)) + (trMsg ? ' · ' + esc(trMsg) : '') + '</p>' +
-    '<button class="btn g" onclick="trLoad()">' + esc(UI.trLoad) + '</button>';
-  return vCard('🧭', UI.trT, h);
+  h += '<p class="h" style="margin-top:8px">' + esc(whenTxt(T.at)) + (trMsg ? ' · ' + esc(trMsg) : '') + '</p>';
+  return stFold('trail', '🧭', UI.trT, h);
 }
 
 /* ============================================================
@@ -8164,11 +8255,16 @@ function admLive() {
     pplSet('ppl-conf', conf ? '<div style="margin-bottom:11px">' + admConflicts() + '</div>' : '');
   }
   if (admTab === 'setup') {
-    pplSet('st-need', admSetupNeeds());
+    pplSet('st-tiles', admSetupTiles());
+    pplSet('st-help', admSetupHelp());
+    pplSet('st-alert', admNeeds(1));
     pplSet('ppl-fun', pplFun());
     pplSet('st-why', admWhy());
     pplSet('st-trail', admTrail());
-    pplSet('st-stuck', stuckOpen().length || stuckRows === null ? '<div style="margin-bottom:11px">' + admStuck() + '</div>' : '');
+    pplSet('st-err', funErrs());
+    pplSet('st-inst', funByInst());
+    pplSet('st-day', funByDay());
+    pplSet('st-foot', funFoot());
   }
   if (admTab === 'push') pplSet('pu-viz', admPushViz());
   if (admTab === 'inst' && document.getElementById('in-list')) {
@@ -9232,7 +9328,7 @@ function pplSnap(d) {
    מכשיר = דפדפן. מי שפתח בוואטסאפ ואז התקין, נספר פעם ב"נפתח
    בדפדפן" ופעם ב"נפתח מהאפליקציה" — לכן היחס ביניהם הוא קירוב
    לשיעור ההתקנה, ולא ספירה של אנשים. */
-var fun = { r:'', d:'', w:'', t:'' }, funMsg = '';
+var fun = { t:'' }, funMsg = '';
 function funLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key) return;
@@ -9252,119 +9348,99 @@ function funDay(n) {
   var t = new Date(Date.now() - n * 864e5 + 3 * 36e5);   /* שעון ישראל, בקירוב */
   return t.toISOString().slice(0, 10);
 }
+/* המכשירים שבהיקף — המוסד שנבחר למעלה, והיום או כל הזמן. */
+function funPeople(F, t) {
+  var t0 = t === 'today' ? funDay(0) : '';
+  return F.people.filter(function (p) {
+    if (ADM_INST && (p[1] || '-') !== ADM_INST) return false;
+    return !t0 || p[0] >= t0;
+  });
+}
+function funHas(p, s) { return (' ' + p[5] + ' ').indexOf(' ' + s + ' ') >= 0; }
+function funAny(p, l) { for (var i = 0; i < l.length; i++) if (funHas(p, l[i])) return true; return false; }
+/* "התחיל למלא" ישן שבא מטופס העזרה (בלי אף שלב אחר של הטופס,
+   ועם "ביקש עזרה") — לא הגיע לטופס. */
+var FUN_FORM = ['app', 's2', 's3', 'join'];
+function funForm(p) { return funAny(p, FUN_FORM) || (funHas(p, 'type') && !funHas(p, 'help')); }
+/* **כל שלב נספר מתוך מי שעבר את השלב שלפניו** — לא כמספר
+   עצמאי. "הגיעו לטופס" היה רק "נפתח מהאפליקציה" או "שלב 2",
+   ו"התחילו למלא" נספר גם מהקלדה בטופס העזרה — כך יצא שיותר
+   התחילו למלא ממי שהגיע לטופס. עכשיו מי שהקליד, בחר דרך לימוד
+   או נרשם — הגיע לטופס, וכל שלב הוא תת-קבוצה של קודמו. */
+function funCount(P) {
+  var cnt = function (f) { return P.filter(f).length; };
+  return {
+    open: cnt(function (p) { return funAny(p, ['open', 's1']); }),
+    s1:   cnt(function (p) { return funHas(p, 's1'); }),
+    s2:   cnt(funForm),
+    join: cnt(function (p) { return funHas(p, 'join'); }),
+    push: cnt(function (p) { return funHas(p, 'push') && funHas(p, 'join'); })
+  };
+}
+/* משפך אחד, חמישה שלבים, מסנן אחד. הפס של כל שלב ביחס ל"נפתחו",
+   והאחוז הקטן — מתוך "נפתחו" בלבד. מכשיר = דפדפן: מי שהתקין
+   נספר בטופס כמכשיר אחר, ולכן השלב נעצר ב-100. */
 function pplFun() {
   var F = Store.get('funnel', null);
-  var sel = function (k, opts) {
-    return '<select aria-label="סינון" onchange="funSet(\'' + k + '\',this.value)" style="flex:1 1 7rem">' +
-      opts.map(function (o) {
-        return '<option value="' + o[0] + '"' + (fun[k] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-      }).join('') + '</select>';
-  };
-  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>משפך ההרשמה</h4>';
-  if (!F || !F.people) {
-    return h + '<p class="h">' + esc(funMsg || 'עוד לא נקרא.') + '</p>' +
-      '<button class="btn g" onclick="funLoad()">טעינה</button></div>';
-  }
-  var t0 = fun.t === 'today' ? funDay(0) : fun.t === 'y' ? funDay(1) : fun.t === '7' ? funDay(6) : '';
-  var P = F.people.filter(function (p) {
-    if (ADM_INST && (p[1] || '-') !== ADM_INST) return false;
-    if (fun.r && p[2] !== fun.r) return false;
-    if (fun.d && p[3] !== fun.d) return false;
-    if (fun.w && p[4] !== fun.w) return false;
-    if (fun.t === 'y') return p[0] === t0;
-    if (t0 && p[0] < t0) return false;
-    return true;
-  });
-  var has = function (p, s) { return (' ' + p[5] + ' ').indexOf(' ' + s + ' ') >= 0; };
-  var n = function (s) { return P.filter(function (p) { return has(p, s); }).length; };
-  var pc = function (a, b) { return b ? ' <span style="color:var(--ink-3)">· ' + Math.round(a * 100 / b) + '%</span>' : ''; };
-  var row = function (t, v, sub) {
-    return '<div class="row" style="padding:7px 0"><span>' + t +
-      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</span><b style="white-space:nowrap">' + v + '</b></div>';
-  };
-  /* **כל שלב נספר מתוך מי שעבר את השלב שלפניו** — לא כמספר
-     עצמאי. "הגיעו לטופס" היה רק "נפתח מהאפליקציה" או "שלב 2",
-     ו"התחילו למלא" נספר גם מהקלדה בטופס העזרה — כך יצא שיותר
-     התחילו למלא ממי שהגיע לטופס. עכשיו מי שהקליד, בחר דרך לימוד
-     או נרשם — הגיע לטופס, וכל שלב הוא תת-קבוצה של קודמו. */
-  var any = function (p, l) { for (var i = 0; i < l.length; i++) if (has(p, l[i])) return true; return false; };
-  var cnt = function (f) { return P.filter(f).length; };
-  /* "התחיל למלא" ישן שבא מטופס העזרה (בלי אף שלב אחר של הטופס,
-     ועם "ביקש עזרה") — לא הגיע לטופס. */
-  var FORM = ['app', 's2', 's3', 'join'];
-  var form = function (p) { return any(p, FORM) || (has(p, 'type') && !has(p, 'help')); };
-  var nOpen = cnt(function (p) { return any(p, ['open', 's1']); });
-  var nS1 = n('s1');
-  var nS2 = cnt(form);
-  var nType = cnt(function (p) { return any(p, ['s3', 'join']) || (has(p, 'type') && form(p)); });
-  var nS3 = cnt(function (p) { return any(p, ['s3', 'join']); });
-  var nJoin = n('join');
-  var nPush = cnt(function (p) { return has(p, 'push') && has(p, 'join'); });
-  var inApp = P.filter(function (p) { return has(p, 'open') && p[4] === 'בתוך אפליקציה'; }).length;
-  /* הגעה לטופס מול פתיחה בדפדפן — באייפון האפליקציה המותקנת היא
-     אחסון נפרד, כלומר "מכשיר" אחר, ולכן היחס קירוב ונעצר ב-100. */
-  var pcCap = function (a, b) { return pc(Math.min(a, b), b); };
-
-  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
-    sel('t', [['', 'כל הזמן'], ['today', 'היום'], ['y', 'אתמול'], ['7', '7 ימים']]) +
-    sel('r', [['', 'כולם'], ['תלמיד', 'תלמידים'], ['הורה', 'הורים']]) +
-    sel('d', [['', 'כל המכשירים'], ['אייפון', 'אייפון'], ['אנדרואיד', 'אנדרואיד'], ['מחשב', 'מחשב']]) +
-    sel('w', [['', 'בכל מקום'], ['בתוך אפליקציה', 'בתוך וואטסאפ וכד׳'], ['דפדפן', 'דפדפן'], ['מותקן', 'האפליקציה המותקנת']]) +
-    '</div>';
-  h += row('נפתח בדפדפן', nOpen, inApp + ' מהם בתוך וואטסאפ או אפליקציה אחרת') +
-    row('לחצו "אני מצטרף"', nS1 + pc(nS1, nOpen), 'ועברו למסך ההתקנה') +
-    row('הגיעו לטופס אחרי התקנה', nS2 + pcCap(nS2, nOpen), 'מתוך מי שנפתח בדפדפן — קירוב לשיעור ההתקנה') +
-    row('התחילו למלא', nType + pc(nType, nS2)) +
-    row('בחרו דרך לימוד', nS3 + pc(nS3, nS2)) +
-    row('נרשמו', nJoin + pc(nJoin, nS2), 'אחוז מתוך מי שהגיע לטופס') +
-    row('אישרו התראות', nPush + pc(nPush, nJoin), 'אחוז מתוך הנרשמים') +
-    row('ביקשו עזרה', n('help'));
-
-  /* מה עוצר — השגיאות בטופס, לפי הנוסח. */
-  var errs = F.errs || {}, ek = Object.keys(errs).sort(function (a, b) { return errs[b] - errs[a]; });
-  if (ek.length) {
-    h += '<details style="margin-top:8px"><summary>שגיאות בטופס (' + ek.length + ')</summary>' +
-      ek.slice(0, 10).map(function (k) { return row(esc(k), errs[k]); }).join('') +
-      '<p class="h">בלי הסינונים — כל הזמן, כל המכשירים.</p></details>';
-  }
-
-  /* לפי ישיבה — נכנסו מול נרשמו. */
-  var per = {};
-  P.forEach(function (p) {
-    var c = p[1] || '-';
+  var h = '<div class="adm-card vc"><h4><span aria-hidden="true">⏬</span> ' + esc(UI.funT) + '</h4>';
+  if (!F || !F.people) return h + '<p class="h">' + esc(funMsg || UI.funNone) + '</p></div>';
+  var n = funCount(funPeople(F, fun.t)), top = n.open;
+  var st = [[UI.funOpen, n.open], [UI.funGo, n.s1], [UI.funForm, n.s2], [UI.funJoin, n.join], [UI.funPush, n.push]];
+  h += '<div class="trf">' +
+    '<button class="' + (fun.t === 'today' ? 'on' : '') + '" onclick="funSet(\'t\',\'today\')">' + esc(UI.trToday) + '</button>' +
+    '<button class="' + (fun.t !== 'today' ? 'on' : '') + '" onclick="funSet(\'t\',\'\')">' + esc(UI.funAll) + '</button></div>';
+  h += '<div class="fn">' + st.map(function (s, i) {
+    var w = top ? Math.min(100, s[1] * 100 / top) : (s[1] ? 100 : 0);
+    return '<div class="fn-r"><div class="fn-l">' + esc(s[0]) +
+      (i && top ? ' <i>' + Math.min(100, Math.round(s[1] * 100 / top)) + '%</i>' : '') + '</div>' +
+      '<div class="fn-b" style="width:' + Math.max(16, w).toFixed(1) + '%"><b>' + s[1] + '</b></div></div>';
+  }).join('') + '</div>';
+  if (funMsg) h += '<p class="h" style="margin-top:8px">' + esc(funMsg) + '</p>';
+  return h + '</div>';
+}
+/* מה שהיה בתחתית המשפך — עכשיו ב"מחקר", כל אחד מקופל לבד. */
+function funRow(t, v) {
+  return '<div class="row" style="padding:7px 0"><span>' + t + '</span><b style="white-space:nowrap">' + v + '</b></div>';
+}
+function funErrs() {
+  var F = Store.get('funnel', null);
+  var errs = (F && F.errs) || {}, ek = Object.keys(errs).sort(function (a, b) { return errs[b] - errs[a]; });
+  return stFold('err', '⚠', UI.resErr, ek.length
+    ? ek.slice(0, 10).map(function (k) { return funRow(esc(k), errs[k]); }).join('')
+    : '<p class="h">' + esc(UI.whyNone) + '</p>');
+}
+/* נכנסו מול נרשמו — לפי מפתח (ישיבה או יום). */
+function funPer(key) {
+  var F = Store.get('funnel', null), per = {};
+  if (!F || !F.people) return per;
+  funPeople(F, '').forEach(function (p) {
+    var c = key(p);
     var x = per[c] || (per[c] = { o:0, j:0 });
-    if (any(p, ['open', 's1', 'type'].concat(FORM))) x.o++;
-    if (has(p, 'join')) x.j++;
+    if (funAny(p, ['open', 's1', 'type'].concat(FUN_FORM))) x.o++;
+    if (funHas(p, 'join')) x.j++;
   });
+  return per;
+}
+function funInRow(x) { return esc(fill(UI.resRow, { o: x.o, j: x.j })); }
+function funByInst() {
+  var per = funPer(function (p) { return p[1] || '-'; });
   var pk = Object.keys(per).sort(function (a, b) { return per[b].o - per[a].o; });
-  if (pk.length) {
-    h += '<details style="margin-top:8px"><summary>לפי ישיבה (' + pk.length + ')</summary>' +
-      pk.map(function (c) {
-        return row(esc(pplName(c, null)), per[c].o + ' נכנסו · ' + per[c].j + ' נרשמו');
-      }).join('') + '</details>';
-  }
-
-  /* לפי יום. */
-  var day = {};
-  P.forEach(function (p) {
-    var x = day[p[0]] || (day[p[0]] = { o:0, j:0 });
-    if (any(p, ['open', 's1', 'type'].concat(FORM))) x.o++;
-    if (has(p, 'join')) x.j++;
-  });
-  var dk = Object.keys(day).sort().reverse();
-  if (dk.length) {
-    h += '<details style="margin-top:8px"><summary>לפי יום</summary>' +
-      dk.slice(0, 14).map(function (k) {
-        return row(k.split('-').reverse().join('.'), day[k].o + ' נכנסו · ' + day[k].j + ' נרשמו');
-      }).join('') + '</details>';
-  }
-
+  return stFold('inst', '🏫', UI.resInst, pk.length
+    ? pk.map(function (c) { return funRow(esc(pplName(c, null)), funInRow(per[c])); }).join('')
+    : '<p class="h">' + esc(UI.whyNone) + '</p>');
+}
+function funByDay() {
+  var per = funPer(function (p) { return p[0]; });
+  var dk = Object.keys(per).sort().reverse();
+  return stFold('day', '📅', UI.resDay, dk.length
+    ? dk.slice(0, 14).map(function (k) { return funRow(k.split('-').reverse().join('.'), funInRow(per[k])); }).join('')
+    : '<p class="h">' + esc(UI.whyNone) + '</p>');
+}
+function funFoot() {
+  var F = Store.get('funnel', null);
+  if (!F || !F.people) return '';
   var first = F.people.length ? F.people.reduce(function (a, p) { return p[0] < a ? p[0] : a; }, F.people[0][0]) : '';
-  h += '<p class="h" style="margin-top:8px">' +
-    (first ? 'נספר מ-' + first.split('-').reverse().join('.') + ' · ' : '') +
-    'נקרא ' + esc(whenTxt(F.at)) + (funMsg ? ' · ' + esc(funMsg) : '') + '</p>' +
-    '<button class="btn g" onclick="funLoad()">רענון</button></div>';
-  return h;
+  return '<p class="h st-ft">' + esc(fill(UI.resFoot, { d: first ? first.split('-').reverse().join('.') : '—', t: whenTxt(F.at) })) + '</p>';
 }
 
 function pplOrderList() {
@@ -9680,9 +9756,12 @@ function accGo() {
   ppl.open = ''; ppl.q = ''; ppl.f = ''; ppl.mine = '';
   admGo('inst');
 }
-function admNeeds() {
+/* `bare` — בלשונית "התקנה": בלי מי שביקש עזרה (הוא ברשימה שלו
+   למעלה) ובלי הכותרת. נשארות ההודעות שלא יצאו והממתינים לאימות,
+   ורק כשיש כאלה. */
+function admNeeds(bare) {
   var fails = needsFail || [];
-  var stuck = stuckOpen();
+  var stuck = bare ? [] : stuckOpen();
   var h = '';
   fails.forEach(function (m) {
     h += '<div class="need"><div class="need-h">⚠ הודעה לא יצאה</div>' +
@@ -9714,7 +9793,7 @@ function admNeeds() {
   /* ההתרעות לטלפון יוצאות למכשירים שנרשמו כ"רכז" (שיחות ← תזכורות
      לעצמי). מי שלא נרשם — מוזמן, בשורה אחת. */
   var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
-  return '<div class="needs"><div class="needs-t">דורש טיפול</div>' + h +
+  return '<div class="needs">' + (bare ? '' : '<div class="needs-t">דורש טיפול</div>') + h +
     (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') +
     (subbed ? '' : '<button style="margin-top:8px;border:0;background:none;padding:0;font:inherit;font-size:.8rem;font-weight:800;color:#9A4F0C;text-decoration:underline;cursor:pointer" onclick="rmSubOn()">' +
       'להתרעות על זה בטלפון הזה ←</button>') + '</div>';
