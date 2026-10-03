@@ -4042,10 +4042,11 @@ function bar() {
   if (st) {
     var pp = PAGES[st.p];
     var same = dafKey(pp.daf) === dafKey(S.daf);
-    /* ביחידה של עמוד אחד (ב. / ב:) העמוד כבר בכותרת — הוא נאמר שוב
-       רק כשהקטע גולש לעמוד האחר. */
-    $('t-daf').textContent = (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) +
-      (same && S.am && pp.pg === S.am ? '' : ' ' + amud(pp.pg));
+    /* ביחידה של עמוד אחד (ב. / ב:) העמוד כבר בכותרת. קטע שגולש לעמוד
+       האחר — "דף ב.-ב:". */
+    $('t-daf').textContent = same && S.am
+      ? HEAD + (pp.pg === S.am ? '' : '-' + S.daf + LAmMark(pp.pg))
+      : (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) + ' ' + amud(pp.pg);
   }
   /* מספר הקטע ירד. לתלמיד לא אכפת שהוא בקטע 17 מתוך 41 — זו
      חשבונאות של מי שחילק את הדף, לא של מי שלומד אותו. פס
