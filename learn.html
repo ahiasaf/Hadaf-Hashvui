@@ -517,6 +517,9 @@ body.side-on #side{display:flex}
   cursor:pointer}
 .sd-f button:disabled{opacity:.38;cursor:default}
 .sd-n{font-weight:800;font-size:.76rem;color:var(--ink-3)}
+/* "שקף קודם / הבא" — רק אצל מי שמשייך, בכל רוחב. לתלמיד המצגת
+   נוסעת עם הקטע שבו הוא עומד, והחצים הבטיחו שליטה שאינה קיימת. */
+body:not(.side-adm) .sd-f{display:none}
 /* במחשב אין כותרת ואין חצים למי שרק צופה. הסגירה היא כפתור
    "מצגת" שבשורת הניווט — אותו כפתור שפתח — ולכן ✕ נוסף בתוך
    הפאנל הוא דרך שנייה לאותו דבר. וההגדלה אינה עושה דבר במסך
@@ -4038,9 +4041,11 @@ function bar() {
      שעל המסך. תלמיד שרואה "דף ג׳ ע״א" יודע איפה לפתוח. */
   if (st) {
     var pp = PAGES[st.p];
-    $('t-daf').textContent = (dafKey(pp.daf) === dafKey(S.daf)
-      ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) +
-      ' ' + amud(pp.pg);
+    var same = dafKey(pp.daf) === dafKey(S.daf);
+    /* ביחידה של עמוד אחד (ב. / ב:) העמוד כבר בכותרת — הוא נאמר שוב
+       רק כשהקטע גולש לעמוד האחר. */
+    $('t-daf').textContent = (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) +
+      (same && S.am && pp.pg === S.am ? '' : ' ' + amud(pp.pg));
   }
   /* מספר הקטע ירד. לתלמיד לא אכפת שהוא בקטע 17 מתוך 41 — זו
      חשבונאות של מי שחילק את הדף, לא של מי שלומד אותו. פס
@@ -5198,7 +5203,9 @@ function boot() {
   if (window.PAIR_UI && !OPEN_OK) PAIR_UI.flush();
 
   S = pickDaf();
-  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf;
+  /* ב. / ב: — היחידה, ולא רק הדף. הקטע האחרון של ב. גולש לראש
+     ע״ב, ובלי הסימן "דף ב ע״ב" נראה כאילו כבר עברנו ל-ב:. */
+  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
   $('t-daf').textContent = HEAD;
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';

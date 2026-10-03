@@ -2292,7 +2292,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.118';
+var APP_VERSION = '8.99.119';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12815,6 +12815,10 @@ function admDecks(el) {
              ' · דף ' + esc(rowDaf(r)) + '</option>';
     }).join('') + '</select></div>' +
     (why[dkSel.wk] ? '<p class="dkm-why">⚠ ' + esc(why[dkSel.wk]) + '</p>' : '') +
+    /* אותו חלון, ולכן אותו מכשיר שנכנס לניהול — הדף נפתח כרכז, עם
+       השקפים והחצים לשיוך. */
+    '<a class="btn g" style="margin-bottom:10px" href="learn.html?mas=' + dkSel.mas + '&' +
+    LDafQ(dkSel.mas, dkSel.wk - 1) + '">↗ ' + esc(UI.dkmLearn) + '</a>' +
 
     '<div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
     ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
