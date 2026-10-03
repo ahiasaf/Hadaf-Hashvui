@@ -2292,7 +2292,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.117';
+var APP_VERSION = '8.99.118';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12405,7 +12405,7 @@ function dkSetTitle(v) { dkTitle = String(v || '').trim(); dkStash(); dkAutoSave
 
 function dkGo(mas, wk) {
   dkSel = { mas: mas, wk: wk };
-  dkSlPick = {};
+  dkSlPick = {}; dkBust = Date.now();
   dkPool = null;
   dkLoadSel();
   admPane();
@@ -12754,6 +12754,7 @@ function dkUpload(items) {
          פעם "הוספה", ולפעמים זה נשכח — בדיוק ה"שקפים חדשים ולא
          רואה אותם" שדווח. שקף שהועלה כאן נועד להיכנס למצגת. */
       names.forEach(function (n) { dkAddSilent_(n); });
+      dkBust = Date.now();
       dkStash();
       admPane();
       dkPdfMsg('ok', 'הועלו ' + items.length + ' שקפים ונוספו למצגת · שבוע ' +
@@ -12833,23 +12834,19 @@ function admDecks(el) {
   var nSel = dkSlSel().length;
   h += '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4 class="dkm-hd">הסדר · ' + dkList.length + ' שקפים' +
-    (dkList.length ? '<button class="dkm-lnk" onclick="dkSlAll()">' +
+    (dkList.length ? '<button class="dkm-lnk" id="dk-slall" onclick="dkSlAll()">' +
       esc(nSel === dkList.length ? UI.dkmClear : UI.dkmPickAll) + '</button>' : '') + '</h4>' +
     (dkList.length ? '<p class="h">' + esc(UI.dkmTapH) + '</p>' : '');
   if (!dkList.length) {
     h += '<p class="h">אין עדיין שקפים במצגת של שבוע זה. הוסיפו מהרשימה שלמטה.</p>';
   } else {
-    /* אחת לציור, לא אחת לתמונה: מספיק כדי שגרסה שנדרסה הרגע תיראה
-       אצלך מיד, בלי לגלוש בסתר. תמונות שנטענות בלי הפרמטר הזה
-       (מה שהתלמיד מקבל) ממשיכות להיות ממטמון-קודם, כמו תמיד —
-       וזה בכוונה: זו הדרך היחידה שדף נשאר מהיר על רשת חלשה. */
-    var dkBust = Date.now();
+    /* `dkBust` — ראו ההגדרה שלו. */
     h += dkList.map(function (f, i) {
       var on = !!dkSlPick[dkPath(f)];
       return '<div class="row' + (on ? ' dkm-on' : '') + '" style="align-items:center;gap:9px">' +
         '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
         /* לחיצה על השקף — בחירה להעברה או לשכפול. */
-        '<button class="dkm-sl" aria-pressed="' + on + '" aria-label="' + (i + 1) +
+        '<button class="dkm-sl" data-i="' + i + '" aria-pressed="' + on + '" aria-label="' + (i + 1) +
         '" onclick="dkSlTap(' + i + ')">' +
         '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="">' +
         (on ? '<i>✓</i>' : '') + '</button>' +
@@ -12865,7 +12862,7 @@ function admDecks(el) {
         '</div>';
     }).join('');
   }
-  h += dkSlBar();
+  h += '<div id="dk-slbar">' + dkSlBar() + '</div>';
   h += '</div>';
 
   /* ---- שקפים שהועלו לשבוע הזה ואינם במצגת ----
@@ -12879,7 +12876,7 @@ function admDecks(el) {
       '<p class="h">הועלו לשבוע הזה ואינם במצגת. "הוספה" מחזירה שקף לסוף הרשימה.</p>' +
       rest.map(function (f) {
         return '<div class="row" style="align-items:center;gap:9px">' +
-          '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + Date.now() + '" alt="" ' +
+          '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + dkBust + '" alt="" ' +
           'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
           'border:1px solid var(--rule);background:var(--sunk)">' +
           '<span style="flex:1"></span>' +
@@ -13073,17 +13070,39 @@ function dkmThumb(deck) {
    השקפים = כל המצגת. הבחירה היא נתיבים, לא מקומות — היא שורדת
    סידור מחדש. */
 var dkSlPick = {};
+/* הפרמטר שמוסף לכתובת השקפים בעורך: מתחלף כשנכנסים לשבוע וכשמעלים
+   שקף — כך שקף שנדרס הרגע נראה מיד. לא בכל ציור: מספר חדש בכל
+   ציור היה טוען מחדש את כל התמונות בכל לחיצה. */
+var dkBust = Date.now();
 function dkSlSel() { return dkList.filter(function (f) { return !!dkSlPick[dkPath(f)]; }).map(dkPath); }
 function dkSlTap(i) {
   var p = dkPath(dkList[i]);
   if (dkSlPick[p]) delete dkSlPick[p]; else dkSlPick[p] = 1;
-  admPane();
+  dkSlPaint();
 }
 function dkSlAll() {
   var all = dkSlSel().length === dkList.length;
   dkSlPick = {};
   if (!all) dkList.forEach(function (f) { dkSlPick[dkPath(f)] = 1; });
-  admPane();
+  dkSlPaint();
+}
+function dkSlClear() { dkSlPick = {}; dkSlPaint(); }
+/* בחירה נוגעת רק בסימון, בפס ובקישור — לא בציור של המסך. ציור מלא
+   בונה מחדש את כל התמונות, והן מהבהבות בכל לחיצה. */
+function dkSlPaint() {
+  var bs = document.querySelectorAll('.dkm-sl'), i;
+  for (i = 0; i < bs.length; i++) {
+    var b = bs[i], f = dkList[+b.getAttribute('data-i')];
+    var on = !!(f && dkSlPick[dkPath(f)]), ck = b.querySelector('i');
+    b.setAttribute('aria-pressed', String(on));
+    if (b.parentNode) b.parentNode.classList[on ? 'add' : 'remove']('dkm-on');
+    if (on && !ck) { ck = document.createElement('i'); ck.textContent = '✓'; b.appendChild(ck); }
+    if (!on && ck) ck.parentNode.removeChild(ck);
+  }
+  var bar = document.getElementById('dk-slbar');
+  if (bar) bar.innerHTML = dkSlBar();
+  var al = document.getElementById('dk-slall');
+  if (al) al.textContent = dkSlSel().length === dkList.length ? UI.dkmClear : UI.dkmPickAll;
 }
 /* הפס שמתחת לרשימה — רק כשנבחר משהו. */
 function dkSlBar() {
@@ -13092,7 +13111,7 @@ function dkSlBar() {
   return '<div class="dkm-bar"><b>' + esc(fill(UI.dkmSelN, { n: n })) + '</b>' +
     '<button class="btn p" onclick="dkmOpen(\'mv\')">⇄ ' + esc(UI.dkmMv) + '</button>' +
     '<button class="btn p" onclick="dkmOpen(\'cp\')">⧉ ' + esc(UI.dkmCp) + '</button>' +
-    '<button class="btn g" onclick="dkSlPick={};admPane()">' + esc(UI.dkmClear) + '</button>' +
+    '<button class="btn g" onclick="dkSlClear()">' + esc(UI.dkmClear) + '</button>' +
     '</div>';
 }
 /* ⚠ של השבוע שבעורך — שורה בכרטיס, ו-⚠ ליד השבוע בבורר. */
