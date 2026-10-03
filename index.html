@@ -646,7 +646,20 @@ body.tk-sheeting #tk-bar{display:none}
 .dkm-mn small{display:block;font-size:.74rem;color:var(--ink-3);font-weight:600;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dkm-mn .dkm-why{color:#8A3226;font-weight:800;white-space:normal}
-.dkm-aud{border-inline-start:3px solid var(--gold)}
+.dkm-row.cur{border-inline-start:3px solid var(--blue);padding-inline-start:6px}
+.dkm-tw{position:relative;flex:none;display:block}
+.dkm-n{position:absolute;bottom:-5px;inset-inline-start:-5px;min-width:20px;height:20px;
+  padding:0 5px;box-sizing:border-box;border-radius:10px;background:var(--blue);color:#fff;
+  font-style:normal;font-size:.7rem;font-weight:800;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 0 0 2px var(--surface)}
+.dkm-all summary{list-style:none;cursor:pointer;display:flex;align-items:center}
+.dkm-all summary::-webkit-details-marker{display:none}
+.dkm-all summary h4{flex:1;margin:0}
+.dkm-all summary::after{content:'▾';font-weight:800;color:var(--ink-3)}
+.dkm-all[open] summary::after{content:'▴'}
+.dkm-all[open] summary{margin-bottom:8px}
+.dkm-wn{background:rgba(192,143,43,.18);color:#7A5512;border-radius:20px;padding:2px 9px;
+  font-size:.7rem;font-weight:800}
 .dkm-bar{position:sticky;bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:7px;
   margin-top:10px;padding:10px;border-radius:var(--r-s);background:var(--surface);
   box-shadow:var(--sh-2);border:1px solid var(--rule)}
@@ -2296,7 +2309,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.114';
+var APP_VERSION = '8.99.115';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12797,7 +12810,7 @@ function admDecks(el) {
   var tr = trackById(dkSel.mas);
   var row = tr.cal[dkSel.wk - 1] || ['', '', ''];
 
-  var h = dkmCards(dkSel.mas) +
+  var h = dkmAllCard(dkSel.mas) +
     '<div class="adm-card" style="margin-bottom:11px"><h4>המצגת של השבוע</h4>' +
     '<p class="h">אילו שקפים, ובאיזה סדר. כל שינוי נשמר ומתפרסם לבד.</p>' +
 
@@ -12860,7 +12873,6 @@ function admDecks(el) {
     }).join('');
   }
   h += '</div>';
-  h += dkmAllCard(dkSel.mas);
 
   /* ---- שקפים שהועלו לשבוע הזה ואינם במצגת ----
      שקף שהוסר מהמצגת נשאר בריפו, ומכאן אפשר להחזיר אותו. כשאין
@@ -13065,15 +13077,18 @@ function dkmThumb(deck) {
 }
 function dkmLine(mas, it, why) {
   var k = it.key, on = !!dkmPick[k];
-  return '<div class="dkm-row' + (on ? ' on' : '') + '">' +
+  var cur = dkSel && dkSel.mas === mas && dkSel.wk === it.wk;
+  return '<div class="dkm-row' + (on ? ' on' : '') + (cur ? ' cur' : '') + '">' +
     '<input type="checkbox" aria-label="' + esc(dkmDafTxt(mas, it.wk)) + '"' +
     (on ? ' checked' : '') + ' onchange="dkmTick(\'' + k + '\',this.checked)">' +
-    dkmThumb(it.deck) +
-    '<button class="dkm-mn" onclick="dkGo(\'' + mas + '\',' + it.wk + ');' +
-    'window.scrollTo(0,0)"><b>' + esc(dkmDafTxt(mas, it.wk)) + '</b> · ' +
-    esc(dkmAmTxt(mas, it.wk)) +
-    '<small>' + esc(it.deck.title || UI.dkmNoTtl) + ' · ' +
-    esc(fill(UI.dkmSlides, { n: it.deck.files.length })) + '</small>' +
+    /* מספר השקפים על התמונה — התמונה היא רק השקף הראשון, ובלי
+       המספר היא נראתה כמו מצגת של שקף אחד. */
+    '<span class="dkm-tw">' + dkmThumb(it.deck) + '<i class="dkm-n" aria-label="' +
+    esc(fill(UI.dkmSlides, { n: it.deck.files.length })) + '">' + it.deck.files.length +
+    '</i></span>' +
+    '<button class="dkm-mn" onclick="dkGo(\'' + mas + '\',' + it.wk + ')">' +
+    '<b>' + esc(dkmDafTxt(mas, it.wk)) + '</b> · ' + esc(dkmAmTxt(mas, it.wk)) +
+    '<small>' + esc(it.deck.title || UI.dkmNoTtl) + '</small>' +
     (why ? '<small class="dkm-why">⚠ ' + esc(why) + '</small>' : '') + '</button>' +
     '<button class="dk-ic" title="' + esc(UI.dkmMvT) + '" aria-label="' + esc(UI.dkmMvT) +
     '" onclick="dkmOpen(\'mv\',[\'' + k + '\'])">⇄</button>' +
@@ -13081,25 +13096,24 @@ function dkmLine(mas, it, why) {
     '" onclick="dkmOpen(\'cp\',[\'' + k + '\'])">⧉</button>' +
     '</div>';
 }
-/* שני הכרטיסים שבמסך הדף: הבדיקה (רק כשיש מה לבדוק) וכל המצגות. */
-function dkmCards(mas) {
-  var aud = dkmAudit(mas), h = '';
-  if (aud.length) {
-    h += '<div class="adm-card dkm-aud" style="margin-bottom:11px"><h4>⚠ ' +
-      esc(UI.dkmAudT) + ' <span class="pill-n">' + aud.length + '</span></h4>' +
-      '<p class="h">' + esc(UI.dkmAudH) + '</p>' +
-      aud.map(function (it) { return dkmLine(mas, it, it.why); }).join('') + '</div>';
-  }
-  return h;
-}
+/* **רשימה אחת, בראש המסך.** הבדיקה אינה כרטיס נפרד: מצגת שנראית לא
+   במקום מקבלת ⚠ ושורת סיבה בתוך הרשימה עצמה, ובכותרת — כמה כאלה
+   יש. זה כלי קבוע ולא חד-פעמי: הוא תופס מצגת שהשקפים שלה הועלו
+   לדף אחר, ודף שהתחלק לעמודים ורק לאחד מהם יש מצגת — בכל שבוע.
+   מתקפל; פתוח מעצמו רק כשיש ⚠. */
+var dkmShow = null;   /* null = לפי ⚠ · true/false = מה שהרכז בחר */
 function dkmAllCard(mas) {
-  var list = dkmList(mas), n = 0, k;
+  var list = dkmList(mas), why = {}, nw = 0, n = 0, k;
+  dkmAudit(mas).forEach(function (it) { why[it.key] = it.why; nw++; });
   for (k in dkmPick) if (dkmPick.hasOwnProperty(k) && dkmPick[k]) n++;
-  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.dkmAllT) +
-    ' <span class="pill-n">' + list.length + '</span></h4>';
-  if (!list.length) return h + '<p class="h">' + esc(UI.dkmNone) + '</p></div>';
+  var open = dkmShow === null ? (nw > 0 || n > 0) : dkmShow;
+  var h = '<details class="adm-card dkm-all" style="margin-bottom:11px"' + (open ? ' open' : '') +
+    ' ontoggle="dkmShow=this.open"><summary><h4>' + esc(UI.dkmAllT) +
+    ' <span class="pill-n">' + list.length + '</span>' +
+    (nw ? ' <span class="dkm-wn">⚠ ' + nw + '</span>' : '') + '</h4></summary>';
+  if (!list.length) return h + '<p class="h">' + esc(UI.dkmNone) + '</p></details>';
   h += '<p class="h">' + esc(UI.dkmAllH) + '</p>' +
-    list.map(function (it) { return dkmLine(mas, it, ''); }).join('');
+    list.map(function (it) { return dkmLine(mas, it, why[it.key] || ''); }).join('');
   if (n) {
     h += '<div class="dkm-bar"><b>' + esc(fill(UI.dkmSelN, { n: n })) + '</b>' +
       '<button class="btn p" onclick="dkmOpen(\'mv\')">⇄ ' + esc(UI.dkmMv) + '</button>' +
@@ -13107,7 +13121,7 @@ function dkmAllCard(mas) {
       '<button class="btn g" onclick="dkmPick={};admPane()">' + esc(UI.dkmClear) + '</button>' +
       '</div>';
   }
-  return h + '</div>';
+  return h + '</details>';
 }
 function dkmTick(k, on) {
   if (on) dkmPick[k] = 1; else delete dkmPick[k];
