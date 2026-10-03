@@ -253,6 +253,16 @@ body.embed .wrap{padding-top:4px}
 html.embed,html.embed body{overflow:hidden}
 .ichip.sm{font-size:.74rem;padding:5px 10px}
 .lsum{font-size:.82rem;color:var(--ink-2);margin:2px 2px 8px}
+/* מתג ההתראות: כותרת, ושלושה חלקים שווים בשורה אחת */
+.lseg{display:flex;align-items:center;gap:9px;margin:0 0 12px}
+.lseg-h{font-size:.8rem;font-weight:800;color:var(--ink-2);flex:none}
+.lseg-g{flex:1;display:flex;border:1px solid var(--rule);border-radius:999px;
+  background:var(--sunk);padding:3px;gap:3px;min-width:0}
+.lseg-b{flex:1;min-width:0;border:0;background:transparent;border-radius:999px;
+  padding:7px 4px;font:inherit;font-size:.8rem;font-weight:800;color:var(--ink-2);
+  cursor:pointer;white-space:nowrap}
+.lseg-b i{font-style:normal;opacity:.75}
+.lseg-b.on{background:var(--blue,#17468F);color:#fff;box-shadow:var(--sh-1)}
 .nm{cursor:pointer}
 .prow.open{background:rgba(23,70,143,.05)}
 .kudo.off{cursor:default;opacity:.55}
@@ -461,6 +471,7 @@ var PARENTS = null;              /* הורים שלא חוברו לבן */
 var DEL_MSG = '';
 /* בתוך הניהול הישיבה נבחרת ברשימה שבחוץ, ומגיעה בכתובת ובהודעה. */
 if (EMBED) FILT = qs('filt') || '';
+if (EMBED) LWAY = qs('way') || '';
 if (ALL) inst = { code:'all', name:'כל הישיבות' };
 function instOfP(p) {
   var c = p.inst || '';
@@ -855,12 +866,20 @@ function setL(k, v) { if (k === 'w') LWAY = v; else LPUSH = v; draw(); }
 function lfiltHtml() {
   if (!ALL || !rosterAll) return '';
   var base = roster || [];
-  var n = function (f) { return base.filter(f).length; };
-  var c = function (on, t, k, v, cnt) {
-    return '<button class="ichip sm' + (on ? ' on' : '') + '" onclick="setL(\'' + k + '\',\'' + v + '\')">' +
-      esc(t) + (cnt != null ? ' · ' + cnt : '') + '</button>';
+  /* בלי רשומות בדיקה — כמו הסיכום שמעליהן, אחרת שני מספרים
+     סמוכים לא מסתדרים. */
+  var n = function (f) { return base.filter(function (p) { return !p.test && f(p); }).length; };
+  /* ============================================================
+     **דרכי הלימוד אינן כאן.** שורת "כל הדרכים · לבד · חבורה ·
+     אב ובן" ישבה מתחת לשלוש המשבצות הצבעוניות של הניהול, עם
+     אותם שלושה דברים במספרים קצת אחרים — ונקראה כנתון שני ולא
+     כסינון. עכשיו המשבצות עצמן מסננות (dfWay, admWay ב-index).
+     ההתראות — מתג אחד ברוחב מלא, עם כותרת שאומרת מה הוא.
+     ============================================================ */
+  var seg = function (v, t, cnt) {
+    return '<button class="lseg-b' + (LPUSH === v ? ' on' : '') + '" onclick="setL(\'p\',\'' + v + '\')"' +
+      ' aria-pressed="' + (LPUSH === v) + '">' + esc(t) + (cnt != null ? ' <i>' + cnt + '</i>' : '') + '</button>';
   };
-  var ways = [['לימוד עצמי', 'לבד'], ['חבורת לימוד', 'חבורה'], ['אבות ובנים', 'אב ובן']];
   /* הסיכום — לפי מזהה הורה ייחודי ובלי רשומות בדיקה (PplCount,
      ways.js). הורים לא מקושרים — לפי הישיבה בלבד, כמו התלמידים. */
   var sum = PplCount(base, PARENTS || [], null, function (q) {
@@ -870,11 +889,10 @@ function lfiltHtml() {
   return '<div class="lsum"><b>' + sum.kids + '</b> תלמידים · <b>' + sum.par + '</b> הורים · ' +
     '<b>' + sum.push + '</b> תלמידים עם התראות' +
     (sum.testN ? ' · ' + esc(String(UI.bdTestN || '').replace('{n}', sum.testN)) : '') + '</div>' +
-    '<div class="ichips">' + c(!LWAY, 'כל הדרכים', 'w', '') +
-    ways.map(function (w) { return c(LWAY === w[0], w[1], 'w', w[0], n(function (p) { return p.way === w[0]; })); }).join('') +
-    '</div><div class="ichips">' + c(!LPUSH, 'כולם', 'p', '') +
-    c(LPUSH === 'on', '✉ עם התראות', 'p', 'on', pushK) +
-    c(LPUSH === 'off', '🔕 בלי', 'p', 'off', base.length - pushK) + '</div>' +
+    '<div class="lseg"><span class="lseg-h">' + esc(UI.bdPushH || '') + '</span><div class="lseg-g">' +
+    seg('', UI.bdPushAll || '', null) +
+    seg('on', '✉ ' + (UI.bdPushOn || ''), pushK) +
+    seg('off', '🔕 ' + (UI.bdPushOff || ''), n(function (p) { return !p.push; })) + '</div></div>' +
     (LPUSH === 'off' ? whyHtml(base) + remHtml() : '');
 }
 function parInFilt(q) {
@@ -1115,9 +1133,20 @@ function clsOnly(p) {
   return p.klass ? g + '‎' + p.klass : g;
 }
 function classesList() {
+  BY_INST = ALL && !FILT;
+  /* ============================================================
+     בניהול, כשנבחרו "כל הישיבות" — אין רשימה לפי ישיבה.
+     ============================================================
+     "הנתונים האלה חוזרים על עצמם כמה פעמים בניהול שלי": הבורר
+     שמתחת לכותרת כבר מראה כל ישיבה ומספר, ולשונית "ישיבות
+     וצוות" היא המקום של הפירוט. כאן נשאר החיפוש — שם או טלפון
+     בכל הישיבות — וסינון (דרך, התראות) שמראה את מי שעונה עליו. */
+  if (EMBED && BY_INST && !SRCH && !LWAY && !LPUSH) {
+    BY_INST = false;
+    return '<p class="h" style="margin:10px 0">' + esc(UI.bdPickInst || '') + '</p>';
+  }
   var list = shown().filter(srchHit);
   if (!list.length) return '<p class="h" style="margin:10px 0">לא נמצא אף אחד.</p>';
-  BY_INST = ALL && !FILT;
   /* קיפול אוטומטי — רק בלוח של כל הישיבות. ראש ישיבה עם חמישים
      תלמידים ראה שש כותרות סגורות ואף שם, ובלי "ישר כוח". בלוח
      של ישיבה אחת הכיתות פתוחות; אפשר עדיין לסגור כיתה ביד. */
@@ -1882,6 +1911,10 @@ if (EMBED) window.addEventListener('message', function (e) {
     /* ישיבה אחרת — חיפוש, בחירה ושורה פתוחה של הקודמת אינם שלה. */
     FILT = d.dfFilt; view = ''; OPEN = ''; SRCH = ''; SEL = {}; SELMODE = false;
     applyFilt(); draw();
+  }
+  /* דרך לימוד — מהמשבצות שבניהול. '' = כולן. */
+  if (typeof d.dfWay === 'string' && d.dfWay !== LWAY) {
+    LWAY = d.dfWay; OPEN = ''; draw();
   }
   if (d.dfReload) boardReload();
 });

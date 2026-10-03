@@ -1024,6 +1024,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   color:var(--c);letter-spacing:-.03em;margin-top:6px}
 .tile span{display:block;font-size:.71rem;font-weight:800;color:var(--ink-2);
   margin-top:3px;line-height:1.3}
+/* בניהול המשבצות לחיצות — הן מסננות את רשימת התלמידים */
+.tile.go{cursor:pointer;box-shadow:var(--sh-1);transition:transform .14s}
+.tile.go:active{transform:scale(.975)}
+.tile.sel{outline:2px solid var(--c);outline-offset:-2px}
+.tile .chev{position:absolute;inset-block-start:8px;inset-inline-start:9px;
+  font-style:normal;color:var(--ink-3);font-size:.72rem;font-weight:800}
 
 /* ============================================================
    הכפתור שמוביל לאזור הניהול.
@@ -2292,7 +2298,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.120';
+var APP_VERSION = '8.99.121';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3846,7 +3852,9 @@ function boardHtml(code, name, hail, go) {
   if (j && typeof WaysTiles === 'function') {
     var wmap = {};
     (j.ways || []).forEach(function (p2) { wmap[p2[0]] = p2[1]; });
-    chips = WaysTiles(function (kk) { return wmap[kk] || 0; }, {});
+    /* בניהול (`go`) המשבצות מסננות את הרשימה שמתחת — ראו admWay. */
+    chips = WaysTiles(function (kk) { return wmap[kk] || 0; },
+                      go ? { go:'admWay', sel:ADM_WAY } : {});
   }
 
   /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר
@@ -7733,6 +7741,19 @@ document.addEventListener('click', function (e) {
   /* הכפתור עצמו מצויר מחדש בלחיצה — יעד שכבר אינו במסמך אינו "בחוץ". */
   if (ip && document.documentElement.contains(e.target) && !ip.contains(e.target)) admIpToggle();
 });
+/* ============================================================
+   שלוש המשבצות הצבעוניות — הן הסינון של הרשימה.
+   ============================================================
+   מתחתן ישבה שורת כפתורים "כל הדרכים · לבד · חבורה · אב ובן"
+   שאמרה אותו דבר במספרים קצת אחרים, ולא היה ברור שהיא מסננת.
+   עכשיו לוחצים על המשבצת; לחיצה שנייה מבטלת. */
+var ADM_WAY = '';
+function admWay(k) {
+  ADM_WAY = ADM_WAY === k ? '' : (k || '');
+  pplFrame({ dfWay: ADM_WAY });
+  admLive();
+  if (ADM_WAY) admDet();
+}
 function admInstPick(c) {
   ADM_INST = c || ''; Store.set('admInst', ADM_INST);
   ppl.mine = ADM_INST;
@@ -7804,7 +7825,8 @@ function admStudents(el) {
     '<div id="stu-brd"></div></div>' +
     '<div class="my-sec" id="stu-det"><div id="stu-head"></div><div id="ppl-conf"></div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
-      (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') + '" title="' + esc(UI.admTStu) + '" ' +
+      (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') +
+      (ADM_WAY ? '&way=' + encodeURIComponent(ADM_WAY) : '') + '" title="' + esc(UI.admTStu) + '" ' +
       'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div></div>';
   pplLast = {};
   admLive();

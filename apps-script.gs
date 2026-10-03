@@ -2940,6 +2940,25 @@ function studentRows_(rows) {
   return out;
 }
 
+/* השורה האחרונה של כל מזהה (שורה בלי מזהה — נשארת). */
+function lastPerId_(rows) {
+  if (!rows || rows.length < 2) return rows;
+  var head = rows[0], iId = -1, at = {}, out = [head];
+  for (var i = 0; i < head.length; i++) {
+    if (String(head[i]).trim() === 'מזהה') iId = i;
+  }
+  if (iId < 0) return rows;
+  for (var r = 1; r < rows.length; r++) {
+    var id = String(rows[r][iId] || '').trim();
+    if (id) at[id] = r;
+  }
+  for (var r2 = 1; r2 < rows.length; r2++) {
+    var id2 = String(rows[r2][iId] || '').trim();
+    if (!id2 || at[id2] === r2) out.push(rows[r2]);
+  }
+  return out;
+}
+
 function recount_() {
   try {
     var src = sheet_(JOIN_TAB);
@@ -2968,8 +2987,12 @@ function recountRows_(all) {
     /* ופילוח — לפי שכבה ולפי מסגרת. הלוח של ראש החטיבה מציג
        אותו, וזה עדיין מספרים בלבד: מי שרואה "ח׳ — 11" אינו
        יודע מי אחד עשר. */
-    var byG = tally_(rows, ['קוד ישיבה', 'שכבה'],  'מזהה');
-    var byW = tally_(rows, ['קוד ישיבה', 'מסגרת'], 'מזהה');
+    /* **כל תלמיד פעם אחת — לפי השורה האחרונה שלו.** תלמיד
+       שנרשם "לבד" ותיקן ל"חבורה" נספר בשתיהן, והמשבצות בניהול
+       הראו 113+17+97 ליד 222 תלמידים. */
+    var last = lastPerId_(rows);
+    var byG = tally_(last, ['קוד ישיבה', 'שכבה'],  'מזהה');
+    var byW = tally_(last, ['קוד ישיבה', 'מסגרת'], 'מזהה');
     var pack = function (t2) {
       var out = {};
       if (!t2) return out;
