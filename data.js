@@ -65,7 +65,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.116';
+var DAF_REV = '8.99.117';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -858,7 +858,6 @@ var UI = {
   dkmSelN:   'נבחרו {n}',
   dkmClear:  'ניקוי',
   dkmPickDaf: 'לאיזה דף?',
-  dkmPickAm: 'איזה עמוד?',
   dkmAmA:    'עמוד א׳',
   dkmAmB:    'עמוד ב׳',
   dkmWhole:  'הדף כולו',
@@ -3931,8 +3930,7 @@ var TEXT_FIELDS = [
   { k:'ui.dkmCpT',    lbl:'כותרת חלון השכפול' },
   { k:'ui.dkmSelN',   lbl:'פס הבחירה · {n} כמה נבחרו' },
   { k:'ui.dkmClear',  lbl:'ביטול הבחירה' },
-  { k:'ui.dkmPickDaf', lbl:'שלב 1 — בחירת דף' },
-  { k:'ui.dkmPickAm', lbl:'שלב 2 — בחירת עמוד' },
+  { k:'ui.dkmPickDaf', lbl:'מעל בורר הדף והעמוד' },
   { k:'ui.dkmAmA',    lbl:'עמוד א' },
   { k:'ui.dkmAmB',    lbl:'עמוד ב' },
   { k:'ui.dkmWhole',  lbl:'דף שלא התחלק לעמודים' },
