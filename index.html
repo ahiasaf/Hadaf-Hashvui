@@ -720,6 +720,44 @@ body.tk-sheeting #tk-bar{display:none}
 .msg{text-align:center;color:var(--ink-3);font-size:.9rem;padding:34px 12px;font-weight:600}
 
 /* ---------- מסך שבוע ---------- */
+/* הדף האינטראקטיבי — כרטיסים גדולים, חידה, וקרדיט בתחתית */
+.wk-cards{display:grid;gap:16px;margin:30px 14px 0}
+.wcard{display:flex;align-items:center;gap:14px;width:100%;background:var(--surface);
+  border:0;border-radius:22px;padding:14px 18px;min-height:118px;box-shadow:var(--sh-1);
+  text-decoration:none;color:var(--ink);font:inherit;text-align:start;cursor:pointer;
+  transition:transform .15s}
+.wcard:active{transform:scale(.99)}
+.wcard.dim{opacity:.55;cursor:default}
+/* האיור על רקע לבן — "מכפלה" מעלימה את הלבן אל צבע הכרטיס, בלי קו מסביב */
+.wc-pic{width:70px;height:104px;object-fit:contain;flex:none;mix-blend-mode:multiply}
+.wc-t{flex:1;font-weight:800;font-size:1.25rem;letter-spacing:-.02em;line-height:1.25}
+.wc-t.sm{font-size:.95rem;color:var(--ink-2)}
+.wc-t small{display:block;font-size:.8rem;font-weight:600;color:var(--ink-3);margin-top:3px;letter-spacing:0}
+.wc-go{width:20px;height:20px;flex:none;color:var(--ink-3)}
+.wc-logo{flex:1;display:flex;justify-content:center}
+.wc-logo img{display:block;width:100%;max-width:250px;height:auto}
+.wcard.small{min-height:0;padding:14px 18px}
+.wcard.small .wc-t{font-size:1.02rem}
+.wk-quiz{display:flex;align-items:center;justify-content:center;gap:9px;width:min(80%,300px);
+  margin:32px auto 0;padding:17px 20px;border:0;border-radius:999px;cursor:pointer;
+  background:linear-gradient(180deg,#4E8B22,#2F6512);color:#fff;font:inherit;font-weight:800;
+  font-size:1.12rem;box-shadow:0 8px 20px rgba(47,101,18,.28)}
+.wk-quiz:active{transform:scale(.98)}
+.wk-quiz svg{width:21px;height:21px;fill:currentColor;flex:none}
+.wk-foot{margin:56px 0 6px;padding-top:18px;border-top:1px solid var(--rule);text-align:center;
+  font-size:.86rem;font-weight:600;color:var(--ink-3);line-height:1.95}
+.wk-foot a{color:var(--blue);text-decoration:none}
+/* המדריך ליומי */
+.ym-note{background:var(--sunk);border-radius:var(--r-s);padding:11px 13px;font-weight:800;
+  font-size:.9rem;margin:0 0 14px}
+.ym-step{margin-bottom:16px}
+.ym-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1rem}
+.ym-h b{width:24px;height:24px;border-radius:50%;background:var(--green-d);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:.82rem}
+.ym-step p{margin:5px 0 8px;font-size:.9rem;color:var(--ink-2);font-weight:600}
+.ym-step img{display:block;width:100%;max-width:378px;border-radius:12px;box-shadow:var(--sh-1)}
+.ym-step p.ym-pic{font-size:.78rem;color:var(--ink-3);margin-top:6px}
+
 .wtop{display:flex;justify-content:space-between;align-items:center;gap:12px;
   background:var(--surface);border-radius:var(--r);padding:15px;box-shadow:var(--sh-2)}
 .wtop .k{font-size:.73rem;font-weight:800;color:var(--ink-3);letter-spacing:.06em}
@@ -2461,7 +2499,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.134';
+var APP_VERSION = '8.99.135';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2664,9 +2702,13 @@ function contentFor(id) {
 /* **הכפתור הגדול בבאנר מוביל ישר לדף האינטראקטיבי.** הוא
    הוביל עד עכשיו למסך השבוע — שהוא תחנה, ומי שלחץ "פתיחת
    הדף" ציפה לדף. תחנה בדרך אל מה שביקשו היא מקום לנשור בו. */
+/* **אלא אם הרכז החזיר את עמוד הביניים** (ניהול ← מה מוצג ←
+   `rows.mid`, כבוי כברירת מחדל): אז הכפתור פותח קודם את "הדף
+   האינטראקטיבי" — הכרטיסים, החידה והקרדיט — ומשם לדף. */
 function openWeekNow() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
+  if (d && showRow('mid')) { openWeek(homeTrack, wk < 0 ? 0 : wk); return; }
   if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
   location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
                   '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
@@ -5008,14 +5050,7 @@ function openWeek(id, i) {
           '<div class="k" style="font-weight:600">' + esc(row[0]) + '</div></div>' +
           '<span class="dafbig">' + esc(rowDaf(row)) + '</span></div></div>';
 
-  /* 1. הדף עצמו — זה העיקר, ולכן הוא ראשון */
-  var lnk = function (href, ic, t, sub, cls) {
-    return href
-      ? '<a class="lnk ' + (cls || '') + '" href="' + href + '" target="_blank" rel="noopener">' +
-        '<span class="ic">' + ic + '</span><span>' + t + '<small>' + sub + '</small></span></a>'
-      : '<a class="lnk dim" href="#" onclick="return notYet()">' +
-        '<span class="ic">' + ic + '</span><span>' + t + '<small>' + sub + '</small></span></a>';
-  };
+
   /* הסוגיה היומית: הדף מצביע על העמוד שלו בחוברת ולא על תחילתה.
      `pages[דף]` הוא [חוברת, עמוד] — חוברת, כי כל כמה פרקים יש
      חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
@@ -5031,62 +5066,62 @@ function openWeek(id, i) {
     sgHref = sg.fmt.replace('{p}', sgPage);
   }
 
-  h += '<div class="sec" style="margin-top:16px"><b>הדף עצמו</b><i></i></div><div class="links">' +
-       /* גם אלה ניתנים לכיבוי עכשיו. כשהלימוד האינטראקטיבי נותן
-          את הדף ואת הביאור באותו מסך, שתי השורות האלה הן שתי דרכים
-          נוספות לאותו דבר — והבחירה מה להציג היא של הרכז. */
-       (showRow('daf')  ? lnk(lk[0], '⤓', 'צורת הדף', 'הדף להדפסה') : '') +
-       (showRow('chav') ? lnk(lk[1], 'פ', 'פירוש חברותא', 'ביאור על הדף') : '') +
-       /* הלימוד האינטראקטיבי הוא עוד דרך ללמוד את אותו דף, ולכן
-          מקומו כאן ולא כגוש נפרד. הוא נכנס מאוחר, אחרי שהגיליון
-          עונה — כפתור שמבטיח לימוד ומגיע למסך ריק גרוע מכפתור
-          שאינו קיים — ולכן הוא תא ריק שממתין. */
+  /* ============================================================
+     הדף האינטראקטיבי — העמוד שבין הבאנר לדף.
+     ============================================================
+     כרטיסים גדולים במקום רשימת קישורים: הדף, הסוגיה היומית,
+     ובמסכת מגילה גם יומי. אחריהם החידה, ובתחתית הקרדיט. אזור
+     השקפים ירד מכאן — המצגת נפתחת מהבאנר שבמסך הראשי, ולכן
+     `state.deck` עדיין נבנה כאן (openFromHome נשען עליו). */
+  var go = '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" ' +
+           'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var card = function (href, cls, inner) {
+    return href
+      ? '<a class="wcard ' + cls + '" href="' + href + '" target="_blank" rel="noopener">' + inner + go + '</a>'
+      : '<a class="wcard dim ' + cls + '" href="#" onclick="return notYet()">' + inner + '</a>';
+  };
+  h += '<div class="wk-cards">' +
+       /* הלימוד האינטראקטיבי נכנס מאוחר, אחרי שהגיליון עונה —
+          כפתור שמבטיח לימוד ומגיע למסך ריק גרוע מכפתור שאינו
+          קיים — ולכן הוא תא ריק שממתין. ראו paintInter. */
        '<div id="w-inter"></div>' +
        (showRow('sugya')
-         ? lnk(sgHref, '◆', 'הסוגיה היומית',
-               sgPage ? 'נפתח בעמוד ' + sgPage + ' בחוברת' : 'החוברת הדיגיטלית', 'sug')
+         ? card(sgHref, 'logo sug', '<span class="wc-logo"><img src="weekpics/sugya-logo.png" alt="' +
+                esc(UI.wkSugAlt) + '"></span>')
          : '') +
+       /* יומי — במסכת מגילה בלבד, וכבוי עד שהרכז מדליק בניהול.
+          אין כאן קישור לאפליקציה: הוא טרם נקבע, ולא ממציאים. */
+       (id === 'megila' && showRow('yomi')
+         ? '<button class="wcard small" onclick="yomiGuide()"><span class="wc-t">' +
+           esc(UI.wkYomi) + '<small>' + esc(UI.wkYomiSub) + '</small></span>' + go + '</button>'
+         : '') +
+       /* צורת הדף והחברותא — כבויים כברירת מחדל, ונשארים בידי הרכז. */
+       (showRow('daf')  ? card(lk[0], 'small', '<span class="wc-t">צורת הדף<small>הדף להדפסה</small></span>') : '') +
+       (showRow('chav') ? card(lk[1], 'small', '<span class="wc-t">פירוש חברותא<small>ביאור על הדף</small></span>') : '') +
        '</div>';
 
-  /* 2. החידה */
-  if (q && q.length) h += '<div class="sec" style="margin-top:18px"><b>' +
-              (q.length > 1 ? 'החידות השבועיות' : 'החידה השבועית') + '</b><i></i></div>' +
-              '<button class="btn gr" onclick="openQuiz()">לחידה — ולהגרלה</button>';
+  /* החידה — כפתור אחד, ובלי כותרת מעליו */
+  if (q && q.length) h += '<button class="wk-quiz" onclick="openQuiz()">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v3h3v2a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1' +
+    'A5 5 0 0 1 8.4 12H8a4 4 0 0 1-4-4V6h3V3zm10 5v2a2 2 0 0 0 1-1.7V8h-1zM6 8v.3A2 2 0 0 0 7 10V8H6z"/></svg>' +
+    esc(UI.wkQuiz) + '</button>';
 
-  /* 3. המצגת — כלי עזר, ולכן אחרונה */
   var dk = DeckOf(id, i + 1);
+  state.deck = [];
   if (dk) {
-    state.deck = [];
-    for (var n = 1; n <= dk.files.length; n++)
-      state.deck.push({ img: DeckSrc(dk, n) });
-    h += '<div class="sec" style="margin-top:20px"><b>מצגת עזר · ' + dk.files.length +
-         ' שקפים</b><i></i></div>' +
-         '<button class="btn p" onclick="deckOpen()">▶ הצגה על המסך</button>' +
-         '<div class="thumbs">';
-    state.deck.forEach(function (s, k) {
-      h += '<img class="thumb" loading="lazy" src="' + s.img +
-           '" alt="שקף ' + (k + 1) + '" onclick="deckOpen(' + k + ')">';
-    });
-    h += '</div>';
+    for (var n = 1; n <= dk.files.length; n++) state.deck.push({ img: DeckSrc(dk, n) });
   } else if (c) {
-    var live = c.slides.filter(function (s) { return s.h || s.t; });
-    state.deck = live;
-    h += '<button class="btn p" style="margin-top:14px" onclick="deckOpen()">▶ הצגה על המסך</button>' +
-         '<div class="sec" style="margin-top:14px"><b>' + live.length + ' שקפים</b><i></i></div>' +
-         '<div class="slides">';
-    live.forEach(function (s, k) {
-      h += '<div class="slide" onclick="deckOpen(' + k + ')">' +
-           (s.k ? '<div class="k">' + esc(s.k) + '</div>' : '') +
-           (s.h ? '<h4>' + esc(s.h) + '</h4>' : '') +
-           (s.t ? '<p>' + esc(s.t) + '</p>' : '') + '</div>';
-    });
-    h += '</div>';
-  } else {
-    state.deck = [];
-    h += '<div class="card" style="margin-top:14px;text-align:center">' +
-         '<h3>' + esc(UI.weekSoonT) + '</h3>' +
-         '<p>' + esc(UI.weekSoonP) + '</p></div>';
+    state.deck = c.slides.filter(function (s) { return s.h || s.t; });
   }
+
+  /* הקרדיט — קבוע, מאותם שדות של שער הדף. שדה ריק אינו מוצג. */
+  h += '<div class="wk-foot">' +
+       (GATE.gemara ? '<div>' + esc(GATE.gemara) + '</div>' : '') +
+       (GATE.gemUrl && GATE.gemBuy ? '<div><a href="' + esc(GATE.gemUrl) + '" target="_blank" rel="noopener">' +
+         esc(GATE.gemBuy) + '</a></div>' : '') +
+       (GATE.chav ? '<div>' + (GATE.chavK ? esc(GATE.chavK) + ': ' : '') + esc(GATE.chav) +
+         (GATE.chavBy ? ', ' + esc(GATE.chavBy) : '') + '</div>' : '') +
+       '</div>';
 
   document.getElementById('week-body').innerHTML = h;
   paintInter(id, row[2], LAmOf(row));
@@ -5131,6 +5166,9 @@ function toast(t) {
    מעכשיו הקוד הוא האמת, והשכבה רק מאשרת אותה. */
 var INTER_PUBLIC = true;
 var ROW_DEF = { inter:true, sugya:true, daf:false, chav:false, soon:false,
+                /* mid — "פתיחת הדף" עוברת בעמוד הביניים · yomi — הכרטיס
+                   של יומי במסכת מגילה. שניהם כבויים עד שהרכז מדליק. */
+                mid:false, yomi:false,
                 /* שני אלה אינם שורות בעמוד השבוע אלא חלקים במסך
                    הבית. הם כאן כדי לחלוק את אותו מנגנון מתגים —
                    אין סיבה לשני מנגנונים שעושים אותו דבר.
@@ -5211,8 +5249,8 @@ function paintInter(id, daf, am) {
      ============================================================ */
   var soon = function (el) {
     el.innerHTML = UI.interSoon
-      ? '<div class="lnk dim" aria-disabled="true"><span class="ic">◈</span>' +
-        '<span>' + esc(UI.interSoon) + '</span></div>'
+      ? '<div class="wcard dim" aria-disabled="true"><img class="wc-pic" src="weekpics/phone.webp" alt="">' +
+        '<span class="wc-t sm">' + esc(UI.interSoon) + '</span></div>'
       : '';
   };
   var draw = function (m) {
@@ -5220,10 +5258,12 @@ function paintInter(id, daf, am) {
     if (!el || !m) return;
     if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
-      '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
+      '<a class="wcard inter" href="learn.html?mas=' + encodeURIComponent(id) +
       '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + '">' +
-      '<span class="ic">◈</span><span>דף אינטראקטיבי' +
-      '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
+      '<img class="wc-pic" src="weekpics/phone.webp" alt="">' +
+      '<span class="wc-t">' + esc(UI.wkInter) + '</span>' +
+      '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
   };
   /* קריאה שנכשלה אינה "אין דפים מסומנים": בלי מפה כלל מציגים
      את השורה, ולא כפתור מומצא. */
@@ -10595,9 +10635,12 @@ function admShow(el) {
     'renderHome();admPane()" aria-label="תשפז"></button></div></div>' +
 
     /* מה נכנס לרשימת "הדף עצמו" בעמוד השבוע. */
-    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>מה מוצג בעמוד השבוע</h4>' +
-    '<p class="h">שורות ברשימת "הדף עצמו".</p>' +
-    ROW_KEYS.map(function (r) {
+    '<div class="adm-card" data-g="pub" style="margin-bottom:11px"><h4>' + esc(UI.admWkH) + '</h4>' +
+    '<p class="h">' + esc(UI.admWkP) + '</p>' +
+    /* שני המתגים של העמוד עצמו — לא שורות בו, ולכן מחוץ ל-ROW_KEYS
+       (שם הם היו נכנסים גם ל"כך זה נראה" של כל מסכת). */
+    ROW_KEYS.concat([['mid', UI.admMid, UI.admMidSub], ['yomi', UI.admYomi, UI.admYomiSub]])
+      .map(function (r) {
       return '<div class="row"><div>' + esc(r[1]) +
         '<div class="sub" id="rk-' + r[0] + '">' + esc(r[2]) + '</div></div>' +
         '<button class="sw' + (showRow(r[0]) ? ' on' : '') +
@@ -16038,9 +16081,29 @@ function sugyaTip(href) {
     window.open(href, '_blank', 'noopener');
   };
 }
+/* ============================================================
+   יומי — המדריך ללימוד מגילה באפליקציה.
+   ============================================================
+   ארבעה שלבים, כל אחד עם הצילום שלו. הצילומים חתוכים כך שאין
+   בהם שם או תמונת פרופיל. הצילום של שלב 4 מראה מסלול אחר —
+   הוא דוגמה לחצים, ולא מוצג כאילו מגילה כבר פתוחה שם. */
+function yomiGuide() {
+  var h = '<div>' +
+    (UI.yomiNote ? '<p class="ym-note">' + esc(UI.yomiNote) + '</p>' : '');
+  for (var k = 1; k <= 4; k++) {
+    h += '<div class="ym-step"><div class="ym-h"><b>' + k + '</b>' + esc(UI['yomi' + k + 'T']) + '</div>' +
+         '<p>' + esc(UI['yomi' + k]) + '</p>' +
+         '<img src="weekpics/yomi' + k + '.webp" alt="" loading="lazy">' +
+         (k === 4 && UI.yomi4Pic ? '<p class="ym-pic">' + esc(UI.yomi4Pic) + '</p>' : '') + '</div>';
+  }
+  h += '<button class="btn gr" onclick="sheetClose()">' + esc(UI.yomiOk) + '</button></div>';
+  document.getElementById('sheet-t').textContent = UI.yomiT;
+  document.getElementById('sheet-l').innerHTML = h;
+  document.getElementById('sheet').className = 'on';
+}
 /* נתפס בעלייה, כדי שיעבוד גם על קישור שנבנה מחדש בכל ציור */
 document.addEventListener('click', function (e) {
-  var a = e.target && e.target.closest && e.target.closest('a.lnk.sug');
+  var a = e.target && e.target.closest && e.target.closest('a.lnk.sug, a.wcard.sug');
   if (!a || !a.getAttribute('href') || a.getAttribute('href') === '#') return;
   var seen = false;
   try { seen = localStorage.getItem(SUG_TIP) === '1'; } catch (x) {}

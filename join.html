@@ -2843,7 +2843,9 @@ function stWeek() {
   var wi = LWeek(), tr = myTrack();
   var d = (typeof LDaf === 'function') ? LDaf(tr, wi < 0 ? 0 : wi) : '';
   var am = (typeof LAm === 'function') ? LAm(tr, wi < 0 ? 0 : wi) : 0;   /* ב: — ראו LDafQ */
-  if (!d) {
+  /* הרכז החזיר את עמוד הביניים (ניהול ← מה מוצג · `rows.mid`) —
+     אותו כלל כמו openWeekNow במסך הראשי. */
+  if (!d || (pub.rows || {}).mid) {
     location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1));
     return;
   }

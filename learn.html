@@ -1643,6 +1643,12 @@ function chavCache(i, html) {
   return html || '';
 }
 
+/* מספרי ההערות של חברותא — "(112)" — מפנים להערות שאינן כאן,
+   ולכן אינם מוצגים. רק סוגריים שיש בהם ספרות בלבד; סוגריים עם
+   טקסט נשארים כמו שהם. בתצוגה בלבד — הסימון והייצוא לא משתנים. */
+function chavNoRefs(html) {
+  return String(html || '').replace(/[ \u00a0]*\(\s*\d+\s*\)/g, '');
+}
 function paintChav() {
   var st = FLAT[IDX], box = $('chb');
   $('chnum').textContent = '';       /* אותו מספר, אותה סיבה */
@@ -1678,7 +1684,7 @@ function paintChav() {
       ? '<p>' + esc(st.c.text) + '</p>'
       : '<div class="none">לקטע הזה לא צורף ביאור.</div>';
   }
-  box.innerHTML = html;
+  box.innerHTML = chavNoRefs(html);
   box.scrollTop = 0;
 }
 
