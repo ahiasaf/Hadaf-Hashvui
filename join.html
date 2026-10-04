@@ -2270,6 +2270,10 @@ function hit(s, x) {
       r: (me.role || role) === 'dad' ? 'הורה' : 'תלמיד',
       d: isIOS() ? 'אייפון' : (/Android/i.test(ua) ? 'אנדרואיד' : 'מחשב'),
       w: appInstalled() ? 'מותקן' : (inApp() ? 'בתוך אפליקציה' : 'דפדפן'),
+      /* עומד (האפליקציה המותקנת) מול דפדפן. באייפון הם שני אחסונים
+         נפרדים — מי שהתקין נספר פעמיים, ולכן ההמרה בניהול נספרת
+         רק על סשנים בדפדפן. */
+      sa: standalone() ? 1 : 0,
       b: bi.b, v: bi.v, o: bi.o, wa: bi.wa,
       bp: (window.APPX && APPX.bip && APPX.bip()) ? 1 : 0,
       pm: (window.APPX && APPX.canNote && APPX.canNote()) ? APPX.perm() : 'unsupported',

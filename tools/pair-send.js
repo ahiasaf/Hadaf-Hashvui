@@ -150,6 +150,8 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
     var due = pairs.filter(function (o) {
       return o['מזהה'] && o['מסלול'] && o['שבוע'] && !sent[keyOf(o)];
     });
+    /* המדווח בחר לא לשלוח לצד השני התראה (pair.js). */
+    due = due.filter(function (o) { return o['בלי התראה'] !== 'כן'; });
     /* "במידה וטרם אישר" — שורה שההורה כבר אישר אינה מזמינה
        אותו לאשר שוב. */
     due = due.filter(function (o) {

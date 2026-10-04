@@ -3876,7 +3876,7 @@ var PUB_ROW = {
              'מנוי', 'תוצאה', 'מועד', 'מתי', 'דפדפן'],
   'לימוד': ['מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה'],
   'זוגות': ['מזהה', 'שם', 'ישיבה', 'קוד ישיבה', 'שכבה', 'כיתה', 'מסלול', 'שבוע', 'דף',
-            'דיווח', 'מתי'],
+            'דיווח', 'מתי', 'בלי התראה'],
   'ממתינים לדף': ['מזהה', 'שם', 'ישיבה', 'דף', 'מכשיר', 'מנוי', 'מתי']
 };
 /* ============================================================
@@ -3904,7 +3904,9 @@ var PUB_ROW = {
 var HIT_TAB  = 'כניסות';
 var HIT_COLS = ['תאריך', 'מכשיר', 'שלב', 'קוד ישיבה', 'תפקיד', 'סוג מכשיר', 'איפה', 'פרט',
                 /* למה נופלים (ניהול ← התקנה) — אנונימי, ראו uaInfo ב-join.html */
-                'דפדפן', 'גרסה', 'מערכת', 'וואטסאפ', 'הוצעה התקנה', 'התראות', 'שניות'];
+                'דפדפן', 'גרסה', 'מערכת', 'וואטסאפ', 'הוצעה התקנה', 'התראות', 'שניות',
+                /* עומד = נפתח באפליקציה המותקנת; ריק = דפדפן */
+                'עומד'];
 var HIT_STEPS = {
   open: 'נפתח',          app:  'נפתח מהאפליקציה',
   s1:   'לחץ מצטרף · התקנה', s2:   'שלב 2 · פרטים',
@@ -3931,7 +3933,8 @@ function hit_(d) {
   if (sh.getLastColumn() < HIT_COLS.length) sh.getRange(1, 1, 1, HIT_COLS.length).setValues([HIT_COLS]);
   sh.appendRow([new Date(), id, st, cut(d.i, 20), cut(d.r, 10), cut(d.d, 10),
                 cut(d.w, 16), cut(d.x, 80), cut(d.b, 16), cut(d.v, 8), cut(d.o, 16),
-                d.wa ? 1 : '', d.bp ? 1 : '', cut(d.pm, 12), cut(d.sec, 6)]);
+                d.wa ? 1 : '', d.bp ? 1 : '', cut(d.pm, 12), cut(d.sec, 6),
+                (d.sa && String(d.sa) !== '0') ? 1 : '']);
   return { status: 'success' };
 }
 
@@ -4003,7 +4006,7 @@ function funnel_() {
       var t = v[r][0] instanceof Date ? v[r][0] : new Date();
       p = by[hid] = { t: Utilities.formatDate(t, 'Asia/Jerusalem', 'yyyy-MM-dd'),
                       i: '', r: '', d: '', w: '', s: {},
-                      b: '', bv: '', o: '', wa: '', bp: '', pm: '', ins: '', last: '', sec: '', bye: '', je: '' };
+                      b: '', bv: '', o: '', wa: '', bp: '', pm: '', ins: '', last: '', sec: '', bye: '', je: '', sa: '' };
       order.push(hid);
     }
     p.s[st] = 1;
@@ -4018,6 +4021,7 @@ function funnel_() {
     if (c(10)) p.o = c(10);
     if (c(11)) p.wa = '1';
     if (c(12)) p.bp = '1';
+    if (c(15)) p.sa = '1';
     if (st === 'bip') p.bp = '1';
     if (st === 'perm') p.pm = String(v[r][7] || '');
     if (st === 'inst') p.ins = String(v[r][7] || '');
@@ -4033,7 +4037,7 @@ function funnel_() {
     people: order.map(function (h) {
       var p = by[h];
       return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' '),
-              p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je];
+              p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je, p.sa];
     }) };
 }
 

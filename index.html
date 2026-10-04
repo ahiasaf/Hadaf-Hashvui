@@ -33,6 +33,7 @@ function stuHomeGo(me) {
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
 <title>הדף השבועי של בני עקיבא</title>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
@@ -148,6 +149,10 @@ html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
    קלף חם, כחול וירוק של בני עקיבא, זהב לרגעים חשובים.
    ============================================================ */
 :root{
+  /* בהיר בלבד — דפדפן במחשב עם ערכת נושא כהה (Chrome/Edge "כהה
+     אוטומטי") צבע את המסך מחדש בצבעים דהויים, ורק כשהערכה פעילה
+     בזמן הטעינה. ראו גם ה-meta שבראש הקובץ. */
+  color-scheme:only light;
   --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE; --cyan:#29ABE2;
   --green:#6FA83B; --green-d:#467B1A; --green-2:#3A6615;
   --gold:#C08F2B; --gold-l:#E5B854;
@@ -180,9 +185,18 @@ html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
 img:not([src]){visibility:hidden}
 html,body{overflow-x:hidden}
 img{max-width:100%}
+/* ============================================================
+   **בלי `background-attachment:fixed`.** במחשב הזוהר הבהיר שבראש
+   הרקע (#FBF7EF) נשאר צמוד לחלון, ולכן כל כרטיס בחצי העליון של
+   המסך ישב על רקע כמעט זהה לצבע הכרטיס (#FFFDF8) — דהוי ובלי
+   הפרדה. באייפון `fixed` אינו נתמך ומתנהג כגלילה, ולכן בטלפון זה
+   נראה תקין. גובה הזוהר הוא 60% מגובה החלון, ולכן התוצאה השתנתה
+   לפי גודל החלון — "פעם עבד ופעם לא". עכשיו הזוהר גולל עם הדף,
+   בדיוק כמו בטלפון.
+   ============================================================ */
 body{background:var(--paper);
      background-image:radial-gradient(120% 60% at 50% 0%,#FBF7EF 0%,transparent 60%);
-     background-attachment:fixed;
+     background-repeat:no-repeat;
      color:var(--ink);min-height:100vh;line-height:1.55;
      -webkit-font-smoothing:antialiased}
 .app{display:block;width:100%;max-width:580px;margin:0 auto;min-height:100vh;
@@ -634,6 +648,11 @@ body.tk-sheeting #tk-bar{display:none}
   width:38px;height:38px;flex:none;display:inline-flex;align-items:center;
   justify-content:center;text-decoration:none;font-family:inherit}
 .dk-ic[disabled]{opacity:.3;cursor:default}
+.dk-grip{flex:none;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+  color:var(--ink-3);font-weight:900;letter-spacing:-3px;padding:10px 6px;font-size:18px;line-height:1}
+.dk-drow{position:relative;transition:transform .15s}
+.dk-drow.dk-drag{transition:none;z-index:2;background:var(--surface);box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:.95}
+.dk-drow.dk-drag .dk-grip{cursor:grabbing}
 .dk-ic.warn{color:#B3261E;border-color:rgba(179,38,30,.35)}
 /* העברה ושכפול מצגות בין עמודים — שורה ברשימה, וחלון תחתון. */
 .dkm-hd{display:flex;align-items:center;gap:8px}
@@ -2419,7 +2438,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.129';
+var APP_VERSION = '8.99.130';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7900,11 +7919,33 @@ function admRefreshAll() {
   admBusyAt = Date.now(); admRefreshBtn();
   if (key) {
     pullRegs(); conflictLoad(); funLoad(); trLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
+    admRosterLoad();
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
   }
   pplFrame({ dfReload: 1 });
   loadCounts().then(function () { if (admTab === 'stu') admLive(); })['catch'](function () {});
   setTimeout(admRefreshBtn, 1600);
+}
+/* רשימת הנרשמים של כל הישיבות — ישירות, ולא רק כשהלוח (iframe)
+   נטען. "דורש טיפול" נשען עליה כדי להוריד את מי שהשלים הכול
+   (stuckFull), והמספרים בראש "התקנה" — גם. כישלון משאיר את
+   המטמון הקודם; רק תשובה תקינה מחליפה אותו. */
+function admRosterLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  scriptGet({ board:'*', key:key, test:'1' }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.students || d.students.length == null) return;
+    Store.set('rosterCache:all', d.students);
+    if (d.parents && d.parents.length != null) Store.set('parentsCache:all', d.parents);
+    admLive();
+  })['catch'](function () {});
+}
+/* רענון אוטומטי פעם אחת בכל פתיחה של האפליקציה, בכניסה לניהול. */
+var admEntered = false;
+function admEnterOnce() {
+  if (admEntered) return;
+  admEntered = true;
+  setTimeout(admRefreshAll, 0);
 }
 function admRefreshBtn() {
   var b = document.getElementById('adm-rf');
@@ -9334,7 +9375,7 @@ function admPeople(el) {
       '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div></div>' +
     '</div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
-      (o ? '&filt=' + encodeURIComponent(o) : '') + '" title="אנשים" ' +
+      (o ? '&filt=' + encodeURIComponent(o) : '') + '" title="אנשים" scrolling="no" ' +
       'style="width:100%;border:0;display:none;height:' + peopleH + 'px"></iframe>' +
     '</div>';
   pplLast = { 'adm-needs': admNeeds() };
@@ -9584,7 +9625,12 @@ function pplFun() {
   var F = Store.get('funnel', null);
   var h = '<div class="adm-card vc"><h4><span aria-hidden="true">⏬</span> ' + esc(UI.funT) + '</h4>';
   if (!F || !F.people) return h + '<p class="h">' + esc(funMsg || UI.funNone) + '</p></div>';
-  var n = funCount(funPeople(F, fun.t)), top = n.open;
+  /* ההמרה — רק על סשנים בדפדפן. סשן מהאפליקציה המותקנת (p[17]) הוא
+     באייפון אחסון נפרד, ולכן אותו אדם נספר בו בפעם השנייה. שורות
+     מלפני שהשדה נוסף — נחשבות דפדפן. */
+  var all = funPeople(F, fun.t);
+  var brw = all.filter(function (p) { return p[17] !== '1'; });
+  var n = funCount(brw), top = n.open;
   var st = [[UI.funOpen, n.open], [UI.funGo, n.s1], [UI.funForm, n.s2], [UI.funJoin, n.join], [UI.funPush, n.push]];
   h += '<div class="trf">' +
     '<button class="' + (fun.t === 'today' ? 'on' : '') + '" onclick="funSet(\'t\',\'today\')">' + esc(UI.trToday) + '</button>' +
@@ -9595,6 +9641,8 @@ function pplFun() {
       (i && top ? ' <i>' + Math.min(100, Math.round(s[1] * 100 / top)) + '%</i>' : '') + '</div>' +
       '<div class="fn-b" style="width:' + Math.max(16, w).toFixed(1) + '%"><b>' + s[1] + '</b></div></div>';
   }).join('') + '</div>';
+  if (all.length > brw.length) h += '<p class="h" style="margin-top:8px">' +
+    esc(fill(UI.funSa, { n: all.length - brw.length })) + '</p>';
   if (funMsg) h += '<p class="h" style="margin-top:8px">' + esc(funMsg) + '</p>';
   return h + '</div>';
 }
@@ -9995,10 +10043,15 @@ function admNeeds(bare) {
   /* ההתרעות לטלפון יוצאות למכשירים שנרשמו כ"רכז" (שיחות ← תזכורות
      לעצמי). מי שלא נרשם — מוזמן, בשורה אחת. */
   var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
-  return '<div class="needs">' + (bare ? '' : '<div class="needs-t">דורש טיפול</div>') + h +
+  var inner = '<div class="needs">' + (bare ? '' : '<div class="needs-t">דורש טיפול</div>') + h +
     (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') +
     (subbed ? '' : '<button style="margin-top:8px;border:0;background:none;padding:0;font:inherit;font-size:.8rem;font-weight:800;color:#9A4F0C;text-decoration:underline;cursor:pointer" onclick="rmSubOn()">' +
       'להתרעות על זה בטלפון הזה ←</button>') + '</div>';
+  /* נשאר למעלה, אבל נפתח ונסגר — והמצב נזכר במכשיר. */
+  var n = fails.length + stuck.length + aw.length;
+  return '<details class="adm-card nd"' + (Store.get('ndOpen', 1) ? ' open' : '') +
+    ' ontoggle="Store.set(\'ndOpen\',this.open?1:0)" style="margin-bottom:11px"><summary>⚠ ' + esc(UI.admNeedsT) +
+    (n ? ' <i class="nd-n on">' + n + '</i>' : '') + '</summary>' + inner + '</details>';
 }
 
 /* שם עמודה → מפתח. הקריאה לפי שם ולא לפי מיקום: עמודה שתתווסף
@@ -12694,6 +12747,67 @@ function dkGo(mas, wk) {
 }
 function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
 function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
+/* ============================================================
+   גרירה לסידור. החצים נשארים כגיבוי.
+   ============================================================
+   Pointer Events — אותו קוד למגע ולעכבר. הידית נושאת
+   `touch-action:none`, ולכן רק נגיעה בה תופסת את האצבע; נגיעה
+   בכל מקום אחר בשורה גוללת את המסך כרגיל. בסיום — אותו מסלול
+   כמו החצים: dkStash, ציור, ופרסום אוטומטי. */
+var dkDrag_ = null;
+function dkDragStart(ev, i) {
+  if (ev.button > 0) return;
+  var row = ev.target.closest ? ev.target.closest('.dk-drow') : null;
+  if (!row) return;
+  ev.preventDefault();
+  var rows = [].slice.call(row.parentNode.querySelectorAll('.dk-drow'));
+  /* מרכזי השורות בקואורדינטות של הדף — נמדדים פעם אחת, לפני שמשהו זז. */
+  var cs = rows.map(function (r) { var b = r.getBoundingClientRect(); return b.top + b.height / 2 + window.pageYOffset; });
+  dkDrag_ = { from: i, to: i, y0: ev.clientY + window.pageYOffset, row: row, rows: rows, cs: cs,
+              h: row.getBoundingClientRect().height, id: ev.pointerId };
+  row.classList.add('dk-drag');
+  try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
+  document.addEventListener('pointermove', dkDragMove);
+  document.addEventListener('pointerup', dkDragEnd);
+  document.addEventListener('pointercancel', dkDragEnd);
+}
+function dkDragMove(ev) {
+  var d = dkDrag_;
+  if (!d || ev.pointerId !== d.id) return;
+  ev.preventDefault();
+  var dy = ev.clientY + window.pageYOffset - d.y0;
+  d.row.style.transform = 'translateY(' + dy + 'px)';
+  /* היעד — לפי מרכז השורה הנגררת מול מרכזי השאר. */
+  var mid = d.cs[d.from] + dy, to = d.from;
+  d.cs.forEach(function (c, k) {
+    if (k < d.from && mid < c) to = Math.min(to, k);
+    if (k > d.from && mid > c) to = Math.max(to, k);
+  });
+  d.to = to;
+  d.rows.forEach(function (r, k) {
+    if (k === d.from) return;
+    var sh = (k > d.from && k <= to) ? -d.h : (k < d.from && k >= to) ? d.h : 0;
+    r.style.transform = sh ? 'translateY(' + sh + 'px)' : '';
+  });
+  /* קרוב לשוליים — המסך גולל, כדי שאפשר יהיה לגרור רחוק. */
+  if (ev.clientY < 60) window.scrollBy(0, -12);
+  else if (ev.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+}
+function dkDragEnd(ev) {
+  var d = dkDrag_;
+  if (!d || (ev && ev.pointerId !== d.id)) return;
+  dkDrag_ = null;
+  document.removeEventListener('pointermove', dkDragMove);
+  document.removeEventListener('pointerup', dkDragEnd);
+  document.removeEventListener('pointercancel', dkDragEnd);
+  d.rows.forEach(function (r) { r.style.transform = ''; });
+  d.row.classList.remove('dk-drag');
+  if (ev && ev.type === 'pointercancel') return;
+  if (d.to === d.from) return;
+  var f = dkList.splice(d.from, 1)[0];
+  dkList.splice(d.to, 0, f);
+  dkStash(); admPane(); dkAutoSave_();
+}
 function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
 /* נתיב מלא ולא שם: כך שקף מתיקייה אחרת יושב באותה רשימה, ואפשר
    לשזור שתי מצגות זו בזו. */
@@ -13128,7 +13242,9 @@ function admDecks(el) {
     /* `dkBust` — ראו ההגדרה שלו. */
     h += dkList.map(function (f, i) {
       var on = !!dkSlPick[dkPath(f)];
-      return '<div class="row' + (on ? ' dkm-on' : '') + '" style="align-items:center;gap:9px">' +
+      return '<div class="row dk-drow' + (on ? ' dkm-on' : '') + '" data-i="' + i + '" style="align-items:center;gap:9px">' +
+        /* ידית הגרירה — רק עליה הגלילה כבויה, ולכן שאר השורה גוללת כרגיל. */
+        '<span class="dk-grip" onpointerdown="dkDragStart(event,' + i + ')" aria-label="' + esc(UI.dkmDrag) + '" role="button">⋮⋮</span>' +
         '<span style="font-weight:800;width:1.6em;text-align:center">' + (i + 1) + '</span>' +
         /* לחיצה על השקף — בחירה להעברה או לשכפול. */
         '<button class="dkm-sl" data-i="' + i + '" aria-pressed="' + on + '" aria-label="' + (i + 1) +
@@ -13703,6 +13819,8 @@ function opNotify(t, daf, am) {
     admPane();
   };
   if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
+  /* אישור לפני כל שליחה לתלמידים — הדף כבר נפתח, רק ההתראה מחכה. */
+  if (!confirm(UI.openPushAsk)) { done(UI.openPushNo, 'ok'); return; }
   scriptGet({ fire:'say', key:key,
               title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
               wait:OpenKey(t.id, daf, am),
@@ -15590,7 +15708,7 @@ function isAdminRoute() {
   return /\/admin\/?$/.test(location.pathname) || location.hash === '#admin';
 }
 function adminEntry() {
-  if (Store.get('admOk')) { renderAdmin(); show('admin'); }
+  if (Store.get('admOk')) { renderAdmin(); show('admin'); admEnterOnce(); }
   else show('gate');
 }
 window.addEventListener('hashchange', function () { if (isAdminRoute()) adminEntry(); });
@@ -15620,7 +15738,7 @@ function tryCode() {
   if (teamCode === ADMIN_PIN) {
     teamCode = ''; paintPins();
     Store.set('admOk', 1);
-    renderAdmin(); show('admin');
+    renderAdmin(); show('admin'); admEnterOnce();
     return;
   }
   document.getElementById('gate-msg').textContent = 'קוד שגוי';

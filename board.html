@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
 <title>הלוח — הדף השבועי של בני עקיבא</title>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
@@ -316,6 +317,10 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
 .clsgrp.sub b{font-size:.88rem}
 .grp-in{padding-inline-start:12px}
 .grp-all{display:flex;gap:14px;margin:8px 0 2px}
+.grp-jump{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px}
+.grp-jump>span{font-size:.78rem;font-weight:800;color:var(--ink-3)}
+.grp-jump .chip{font:inherit;font-size:.78rem;font-weight:800;padding:5px 10px;border-radius:999px;
+  border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
 .grp-more{display:block;margin:8px auto 4px}
 .clsgrp b{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
 .clsgrp span{font-size:.82rem;font-weight:800;color:var(--ink-3)}
@@ -494,8 +499,13 @@ function instLbl(p) {
 function setFilt(v) { FILT = v; view = ''; applyFilt(); draw(); }
 function chipsHtml() {
   if (!ALL || !rosterAll || EMBED) return '';
-  var n = {}, tot = rosterAll.length;
-  rosterAll.forEach(function (p) { var c = instOfP(p); n[c] = (n[c] || 0) + 1; });
+  /* תלמידים בלבד, בלי רשומות בדיקה — כמו הסיכום (PplCount). קודם
+     ספר כל שורה, ולכן הורה שנרשם כשורה נספר כתלמיד נוסף. */
+  var n = {}, tot = 0;
+  rosterAll.forEach(function (p) {
+    if (p.test || p.role === 'הורה') return;
+    var c = instOfP(p); n[c] = (n[c] || 0) + 1; tot++;
+  });
   var chip = function (v, t, k) {
     return '<button class="ichip' + (FILT === v ? ' on' : '') +
       '" onclick="setFilt(\'' + v + '\')">' + esc(t) + ' · ' + k + '</button>';
@@ -749,7 +759,7 @@ function didWeek(p) {
 function wayCount(w) {
   if (roster) {
     var n = 0;
-    roster.forEach(function (p) { if ((p.way || '') === w) n++; });
+    roster.forEach(function (p) { if (!p.test && p.role !== 'הורה' && (p.way || '') === w) n++; });
     return n;
   }
   var hit = 0;
@@ -1157,6 +1167,13 @@ function classesList() {
     html += '<div class="grp-all"><button class="klink" data-grp-all="1">' + esc(UI.bdOpenAll || '') +
       '</button><button class="klink" data-grp-all="0">' + esc(UI.bdCloseAll || '') + '</button></div>';
   }
+  /* דילוג מהיר לישיבה — שורת שבבים עם שם ומספר. הקשה פותחת את
+     הקבוצה וגוללת אליה, בלי לעבור על כל מה שלפניה. */
+  if (BY_INST && top.ord.length > 2) {
+    html += '<div class="grp-jump"><span>' + esc(UI.bdJump || '') + '</span>' + top.ord.map(function (k) {
+      return '<button class="chip" data-jump="' + esc('i:' + k) + '">' + esc(k) + ' · ' + top.by[k].length + '</button>';
+    }).join('') + '</div>';
+  }
   top.ord.forEach(function (k) {
     var rows = top.by[k], gk = (BY_INST ? 'i:' : 'c:' + (FILT || '') + ':') + k;
     var open = grpIsOpen(gk, big);
@@ -1194,6 +1211,18 @@ function grpAll(on) {
   BY_INST = false;
   LSet('bdGrp', GRP_OPEN);
   listRedraw();
+}
+function grpJump(k) {
+  if (srchOpen()) SRCH_SHUT[k] = false;
+  else { GRP_OPEN[k] = 1; LSet('bdGrp', GRP_OPEN); }
+  listRedraw();
+  var hs = document.querySelectorAll('[data-grp]');
+  for (var i = 0; i < hs.length; i++) {
+    if (hs[i].getAttribute('data-grp') !== k) continue;
+    /* בתוך הניהול — הגלילה עוברת לעמוד שמכיל (אותו מקור). */
+    try { hs[i].scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { hs[i].scrollIntoView(); }
+    break;
+  }
 }
 function listRedraw() {
   var l = $('cls-list'); if (l) { l.innerHTML = classesList(); embedSize(); } else draw();
@@ -1468,6 +1497,7 @@ function kudoWho() {
 function kudoSend() {
   var p = kudoWho(), txt = (KUDO_TXT || '').trim();
   if (!p.id || txt.length < 2 || KUDO_BUSY) return;
+  if (!confirm(kt('kudoAsk').replace('{name}', kudoName(p)))) return;
   KUDO_BUSY = true; KUDO_ERR = ''; draw();
   var par = p.withOk && KUDO_TO !== 'k' ? KUDO_TO : '';
   var ids = (p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60);
@@ -1846,8 +1876,11 @@ function draw() {
 
   /* המספר שראש חטיבה פותח את הלוח בשבילו, ורק הוא, למעלה.
      כשיש רשימה שמית — סופרים ממנה, כי היא מדויקת יותר מהמונה. */
-  var doneN = roster ? roster.filter(didWeek).length : didWk;
-  var totN  = roster ? roster.length : n;
+  /* תלמידים בלבד — הורה שנרשם כשורה ורשומת בדיקה (בלוח של כל
+     הישיבות) אינם "מתוך". כמו PplCount ב-ways.js. */
+  var kidsN = roster ? roster.filter(function (p) { return p.role !== 'הורה' && !(ALL && p.test); }) : null;
+  var doneN = kidsN ? kidsN.filter(didWeek).length : didWk;
+  var totN  = kidsN ? kidsN.length : n;
 
   /* ============================================================
      הסדר: מספר אחד ← דרכי הלימוד ← התלמידים לפי כיתה.
@@ -2019,10 +2052,11 @@ function wire() {
   if (cl && !cl.getAttribute('data-gw')) {
     cl.setAttribute('data-gw', '1');
     cl.addEventListener('click', function (e) {
-      var b = e.target.closest && e.target.closest('[data-grp],[data-more],[data-grp-all]');
+      var b = e.target.closest && e.target.closest('[data-grp],[data-more],[data-grp-all],[data-jump]');
       if (!b) return;
       e.stopPropagation();
-      if (b.hasAttribute('data-grp')) grpToggle(b.getAttribute('data-grp'));
+      if (b.hasAttribute('data-jump')) grpJump(b.getAttribute('data-jump'));
+      else if (b.hasAttribute('data-grp')) grpToggle(b.getAttribute('data-grp'));
       else if (b.hasAttribute('data-more')) {
         var mk = b.getAttribute('data-more');
         GRP_MORE[mk] = (GRP_MORE[mk] || GRP_PAGE) + GRP_PAGE; listRedraw();
@@ -2092,6 +2126,13 @@ $('foot-how').textContent = ALL ? '' :
 /* מהמטמון מיד — רשימה שכבר נטענה פעם מוצגת בלי לחכות לשרת. */
 if (ALL) { mineRam = null; rosterAll = roster; applyFilt(); }
 if (EMBED) { document.body.className += ' embed'; document.documentElement.className += ' embed'; }
+/* כל שינוי גובה — גם כזה שלא עבר דרך draw (תמונה, גופן, שורה
+   שנפתחה) — נמדד מחדש. מסגרת קצרה מהתוכן היא גלילה בתוך גלילה,
+   ובאייפון האצבע "נתקעת" בה: `overflow:hidden` על המסמך אינו
+   עוצר שם גלילת מגע בתוך iframe. */
+if (EMBED && window.ResizeObserver) {
+  try { new ResizeObserver(function () { embedSize(); }).observe(document.body); } catch (e) {}
+}
 draw();
 if (!ALL) loadBoard().then(draw);
 if (EMBED) boardReload(); else loadRoster().then(draw);

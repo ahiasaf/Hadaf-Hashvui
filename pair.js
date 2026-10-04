@@ -114,7 +114,7 @@ var PAIR_UI = (function () {
     return (cfg.api ||
       (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim();
   }
-  function send(track, wk) {
+  function send(track, wk, mute) {
     var m = me(); if (!m || !m.id) return;
     var url = api(); if (!url) return;
     /* עם העמוד (ב. ב:) — השרת משייך לפיו את השורה לשבוע. */
@@ -146,7 +146,10 @@ var PAIR_UI = (function () {
       ['קרבה', side() === 'parent' ? 'בן'
                                    : (m.parent === 'mom' ? 'אמא' : 'אבא')],
       ['שם השותף', m.dadFirst || ''],
-      ['טלפון השותף', m.dadPhone || '']
+      ['טלפון השותף', m.dadPhone || ''],
+      /* בחר לא לשלוח לצד השני התראה — השורה נרשמת (ההגרלה), ו-
+         tools/pair-send.js מדלג עליה. */
+      ['בלי התראה', mute ? 'כן' : '']
     ]) };
     var q = [];
     try { q = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
@@ -355,7 +358,9 @@ var PAIR_UI = (function () {
     var b = document.getElementById('pr-y');
     if (b) b.onclick = function () {
       keep(key(track, wk));
-      send(track, wk);
+      /* אישור לפני ההודעה לצד השני. ההגרלה נרשמת בכל מקרה. */
+      var ask = fill(t('notifyAsk'), { 'שותף': who });
+      send(track, wk, !!ask && !confirm(ask));
       win(m, sd);
     };
     b = document.getElementById('pr-n');
