@@ -2079,6 +2079,24 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .trk i{display:inline-block;width:10px;height:10px;border-radius:3px;background:currentColor}
 .trk i.end{background:#C0392B}
 .trk i.k{background:var(--sunk);outline:2px solid #E5B854;outline-offset:1px}
+/* זמן בכל מסך */
+.sc-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:8px}
+.sc{position:relative;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--card,#fff);border:1px solid var(--rule,#E5DAC3)}
+.sc.bad{border:2px solid #C0392B;box-shadow:0 0 0 3px #FBE3E1}
+.sc.none{opacity:.5}
+.sc img,.sc-p{display:block;width:100%;aspect-ratio:390/560;object-fit:cover;object-position:top;background:var(--sunk);border-bottom:1px solid var(--rule,#E5DAC3)}
+.sc-p{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;color:var(--ink-3)}
+.sc-i{position:absolute;top:6px;inset-inline-start:6px;min-width:22px;height:22px;border-radius:11px;background:var(--blue-d,#0B2550);color:#fff;font-size:.74rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.sc-b{padding:8px 9px 9px;display:flex;flex-direction:column;gap:3px}
+.sc-h{font-size:.82rem;font-weight:800}
+.sc-t{display:flex;align-items:baseline;gap:5px}
+.sc-t b{font-size:1.35rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sc-t small{font-size:.68rem;color:var(--ink-3);font-weight:700}
+.sc-r{font-size:.74rem;color:var(--ink-2);font-weight:700}
+.sc-x{font-size:.74rem;font-weight:800;color:#C0392B}
+.sc-x.z{color:var(--ink-3);font-weight:700}
+.sc-s{margin:14px 0 0;font-size:.8rem;color:var(--ink-2)}
+.sc-f{margin-top:10px}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -2345,7 +2363,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.122';
+var APP_VERSION = '8.99.123';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7907,7 +7925,7 @@ function admSetup(el) {
   el.innerHTML = '<div id="st-tiles"></div><div id="st-help"></div><div id="st-alert"></div><div id="ppl-fun"></div>' +
     '<details class="adm-card st-res"' + (stOpen.res ? ' open' : '') + ' ontoggle="stOpen.res=this.open">' +
     '<summary><span aria-hidden="true">🔬</span> ' + esc(UI.stResT) + '</summary>' +
-    '<div id="st-why"></div><div id="st-trail"></div><div id="st-err"></div><div id="st-inst"></div>' +
+    '<div id="st-why"></div><div id="st-scr"></div><div id="st-trail"></div><div id="st-err"></div><div id="st-inst"></div>' +
     '<div id="st-day"></div><div id="st-foot"></div></details>';
   pplLast = {};
   admLive();
@@ -8060,8 +8078,8 @@ function trLoad() {
     /* קריאה שנכשלה אינה רשימה ריקה — המטמון נשאר. */
     if (!d || d.status !== 'ok' || !d.rows) { trMsg = (d && d.message) || UI.trFail; }
     else { Store.set('trails', { rows: d.rows, at: Date.now() }); trMsg = ''; }
-    if (admTab === 'setup') pplSet('st-trail', admTrail());
-  }).catch(function () { trMsg = UI.trFail; if (admTab === 'setup') pplSet('st-trail', admTrail()); });
+    if (admTab === 'setup') trShow();
+  }).catch(function () { trMsg = UI.trFail; if (admTab === 'setup') trShow(); });
 }
 function trSet(k, v) {
   trv[k] = k === 'open' && trv.open === v ? '' : v;
@@ -8175,6 +8193,85 @@ function admTrail() {
   h += '<p class="h" style="margin-top:8px">' + esc(whenTxt(T.at)) + (trMsg ? ' · ' + esc(trMsg) : '') + '</p>';
   return stFold('trail', '🧭', UI.trT, h);
 }
+/* שני הקיפולים שנשענים על המסלולים — מתעדכנים יחד. */
+function trShow() {
+  pplSet('st-scr', admScr());
+  pplSet('st-trail', admTrail());
+}
+
+/* ============================================================
+   זמן בכל מסך — מסכי ההצטרפות בתמונה, ועל כל אחד כמה זמן שהו בו.
+   ============================================================
+   מאותם מסלולים בדיוק (trRows). לכל מסך: כמה הגיעו, החציון של
+   הזמן בו (גלוי בלבד — ראו TRL ב-join.html), וכמה נפלו בו —
+   כלומר זה המסך האחרון שלהם והם לא נרשמו — ואחרי כמה זמן.
+   חציון ולא ממוצע: אחד שהשאיר את הטופס פתוח עשר דקות מושך
+   ממוצע לשמיים, ואת החציון הוא כמעט לא מזיז.
+   התמונות ב-joinpics/ מצולמות מהמסך האמיתי (tools/joinpics.js) —
+   משנים מסך, מצלמים מחדש. */
+var SC_MAIN = ['land', 'w1', 'w2', 'w3', 'w4'];
+var SC_PIC = { land:1, w1:1, w2:1, w3:1, w4:1, w8:1, w9:1 };
+var scv = { t: 'all' };
+function scSet(t) { scv.t = t; pplSet('st-scr', admScr()); }
+function scMed(a) {
+  if (!a.length) return null;
+  a = a.slice().sort(function (x, y) { return x - y; });
+  var m = a.length >> 1;
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+}
+function admScr() {
+  var all = trRows();
+  if (!all) return stFold('scr', '⏱', UI.scT, '<p class="h">' + esc(trMsg || UI.trNone) + '</p>');
+  var today = trDay(Date.now());
+  var L = all.filter(function (x) {
+    if (ADM_INST && (x.inst || '-') !== ADM_INST) return false;
+    return scv.t !== 'today' || trDay(x.t) === today;
+  });
+  /* לכל מסך: זמני השהייה (כניסה שחזרה למסך — מחוברים), וזמני מי שנפל בו. */
+  var S = {}, order = [];
+  L.forEach(function (x) {
+    var mine = {};
+    x.ev.forEach(function (e) {
+      var k = e[0];
+      if (!(k in mine)) mine[k] = 0;
+      mine[k] += +e[2] || 0;
+    });
+    var last = x.ev[x.ev.length - 1][0];
+    Object.keys(mine).forEach(function (k) {
+      if (!S[k]) { S[k] = { got: 0, t: [], lost: [] }; order.push(k); }
+      S[k].got++;
+      S[k].t.push(mine[k]);
+      if (!x.j && k === last && k !== 'done') S[k].lost.push(mine[k]);
+    });
+  });
+  var worst = '', wn = 0;
+  order.forEach(function (k) { if (S[k].lost.length > wn) { wn = S[k].lost.length; worst = k; } });
+  var card = function (k, i) {
+    var d = S[k] || { got: 0, t: [], lost: [] }, med = scMed(d.t), lm = scMed(d.lost);
+    var pc = L.length ? Math.round(d.got * 100 / L.length) : 0;
+    return '<div class="sc' + (k === worst ? ' bad' : '') + (d.got ? '' : ' none') + '">' +
+      (i ? '<span class="sc-i">' + i + '</span>' : '') +
+      (SC_PIC[k] ? '<img src="joinpics/' + k + '.webp" alt="" loading="lazy">'
+                 : '<div class="sc-p">' + esc(trName('trs_', k)) + '</div>') +
+      '<div class="sc-b"><b class="sc-h">' + esc(trName('trs_', k)) + '</b>' +
+      '<div class="sc-t"><b>' + (med == null ? '—' : trDur(med)) + '</b><small>' + esc(UI.scTyp) + '</small></div>' +
+      '<div class="sc-r">' + esc(fill(UI.scGot, { n: d.got })) + (L.length ? ' · ' + pc + '%' : '') + '</div>' +
+      '<div class="sc-x' + (d.lost.length ? '' : ' z') + '">' + (d.lost.length
+        ? esc(fill(UI.scLost, { n: d.lost.length })) + ' · ' + esc(fill(UI.scAfter, { t: trDur(lm) }))
+        : esc(UI.scNoLost)) + '</div></div></div>';
+  };
+  var h = '<div class="trf">' +
+    '<button class="' + (scv.t === 'today' ? 'on' : '') + '" onclick="scSet(\'today\')">' + esc(UI.trToday) + '</button>' +
+    '<button class="' + (scv.t !== 'today' ? 'on' : '') + '" onclick="scSet(\'all\')">' + esc(UI.trAll) + '</button></div>';
+  if (!L.length) return stFold('scr', '⏱', UI.scT, h + '<p class="h">' + esc(UI.whyNone) + '</p>');
+  h += '<p class="h">' + esc(fill(UI.scN, { n: L.length })) + '</p>';
+  h += '<div class="sc-g">' + SC_MAIN.map(function (k, i) { return card(k, i + 1); }).join('') + '</div>';
+  var side = order.filter(function (k) { return SC_MAIN.indexOf(k) < 0; });
+  if (side.length) h += '<h5 class="sc-s">' + esc(UI.scSide) + '</h5><div class="sc-g">' +
+    side.map(function (k) { return card(k, 0); }).join('') + '</div>';
+  h += '<p class="h sc-f">' + esc(UI.scFoot) + '</p>';
+  return stFold('scr', '⏱', UI.scT, h);
+}
 
 /* ============================================================
    "התראות" — ויזואלי: מצב המנויים, דפדפנים, מה יצא ומה הגיע.
@@ -8282,7 +8379,7 @@ function admLive() {
     pplSet('st-alert', admNeeds(1));
     pplSet('ppl-fun', pplFun());
     pplSet('st-why', admWhy());
-    pplSet('st-trail', admTrail());
+    trShow();
     pplSet('st-err', funErrs());
     pplSet('st-inst', funByInst());
     pplSet('st-day', funByDay());
