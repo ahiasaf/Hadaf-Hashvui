@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="robots" content="noindex,nofollow">
 <title>סטודיו הדף — זיהוי אזורים ושורות</title>
 <!-- אפליקציה בפני עצמה, עם אייקון משלה. הסטודיו נמסר לעוזרי
@@ -168,6 +168,12 @@ button.c.fix{opacity:1;cursor:default;background:var(--blue);
    בצד, ושום דבר אינו במקומו. `pan-x pan-y` משאיר את הגלילה
    באצבע אחת לדפדפן — חלקה ובלי קוד — ואת הפינץ' רק לנו. */
 .stage{touch-action:pan-x pan-y}
+/* העמוד כולו נעול: בלי זום של הדפדפן ובלי גלילה הצידה. צביטה מחוץ
+   לדף (בפאנל, בכותרת) או הקשה כפולה הגדילו את כל המסך, ומשם הוא
+   זז הצידה — הכותרת והפס נחתכו בקצה. הזום של הדף עצמו נשאר — הוא
+   בקוד שלנו, לא של הדפדפן. */
+html{touch-action:pan-x pan-y}
+html,body{overflow-x:clip}
 /* הלחיצה הארוכה על הדף הייתה בלתי שמישה: אנדרואיד ואייפון פותחים
    עליה את תפריט התמונה של הדפדפן ("העתקת תמונה / הורדת תמונה"),
    והאירוע שלנו לא הגיע. הדף כאן אינו תמונה שמורידים אלא משטח
@@ -463,7 +469,6 @@ body.mark #daf{min-width:0;flex:1 1 auto;font-size:.92rem}
 #unsaved{width:auto;background:transparent !important;color:var(--gold-l) !important;
   border:1.5px solid var(--gold-l);font-size:.82rem;font-weight:800;padding:0 10px}
 /* כפתור שאין בו שימוש כרגע — אינו מוצג, ולא מוצג אפור */
-body.mark #i-startg.off{display:none}
 /* הבועה בסימון — מעל הפס התחתון, בשורה מלאה */
 body.mark #toast{top:auto !important}
 @media (max-width:460px){
@@ -589,9 +594,6 @@ body.mark #toast{top:auto !important}
      כאן לא מוסיפים קטע אלא משנים אחד. -->
 <div class="bar ibar" id="ibar">
   <button id="i-close" title="סגירה">✕</button>
-  <span class="fg" id="i-startg">התחלה
-    <button data-inudge="start,-1" title="מילה אחורה">▸</button>
-    <button data-inudge="start,1" title="מילה קדימה">◂</button></span>
   <span class="fg">סוף
     <button data-inudge="end,-1" title="מילה אחורה">▸</button>
     <button data-inudge="end,1" title="מילה קדימה">◂</button></span>
@@ -1933,7 +1935,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.123';
+var STUDIO_VER = '8.99.124';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2718,10 +2720,6 @@ function bindMarkHandles() {
 function markPanel() {
   /* הפס של קטע קיים מדבר על עצמו, ואינו מציע "הוספה" */
   var ih = document.getElementById('ihint');
-  var sNudge = document.querySelectorAll('[data-inudge^="start"]');
-  [].forEach.call(sNudge, function (btn) { btn.disabled = INSP <= 0; });
-  var sg = document.getElementById('i-startg');
-  if (sg) sg.classList.toggle('off', INSP <= 0);
   if (ih && INSP >= 0 && STEPS[INSP]) {
     var ist = STEPS[INSP], ic = ist.c || {};
     ih.textContent = 'קטע ' + (INSP + 1) + ' · שורות ' +
