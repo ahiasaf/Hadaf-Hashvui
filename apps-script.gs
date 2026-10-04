@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 45;
+var SCRIPT_VERSION = 46;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -161,6 +161,9 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* עמדת הלימוד: רשימת התלמידים של בית הספר, ומי נרשם
                        שלמד. שמות של קטינים — פרטית. ראו amda* ב-index.html. */
                     'תלמידי בית הספר', 'עמדת לימוד',
+                    /* מי מהעמדה זוהה כתלמיד רשום באפליקציה, ואיזה דף
+                       נרשם לו משם. ראו amdaSync_. */
+                    'עמדה — שיוך',
                     /* מי שהוסר מהרשימה — השורות שלו כפי שהיו, לשחזור.
                        ראו archivePerson_. */
                     'ארכיון'];
@@ -1319,6 +1322,14 @@ function doGet(e) {
     } catch (ife) {}
     return reply_(e, ifr);
   }
+  /* `?amdaFor=` — האפליקציה של התלמיד שואלת: נרשם לי דף בעמדת
+     הלימוד? קוראת רק את לשונית השיוך הקטנה, ולא את "לימוד". מי
+     שמחזיק את המזהה יודע ממילא מי הוא; חוזרים רק 'מסלול|שבוע'. */
+  if (e && e.parameter && e.parameter.amdaFor) {
+    var afr = { status: 'ok', learned: [] };
+    try { afr.learned = amdaLearnedOf_(String(e.parameter.amdaFor).trim()); } catch (afe) {}
+    return reply_(e, afr);
+  }
   if (e && e.parameter && e.parameter.whoIs) {
     var wres = { status: 'ok', me: null, learned: [] };
     try {
@@ -1594,6 +1605,9 @@ function doGet(e) {
          ביום שמישהו יתקן אחד מהם, וזה כבר קרה בפרויקט הזה
          יותר מפעם אחת. */
       if (want === JOIN_TAB) rd.pairs = pairMap_(rd.rows);
+      /* העמדה קוראת את הלשונית כמה שניות אחרי כל סימון — וזה
+         הרגע לשייך את מי שלמד דף לחשבון שלו באפליקציה. */
+      if (want === AMDA_TAB_) amdaSyncSoon_();
     } catch (err) {
       rd = { status: 'error', message: String(err) };
     }
@@ -2705,6 +2719,140 @@ function learnedOf_(ids) {
   return out;
 }
 
+/* ============================================================
+   עמדת הלימוד → האפליקציה של התלמיד.
+   ============================================================
+   מי שנרשם בעמדה בשיעור של הדף השבועי — למד את הדף. אם הוא
+   רשום גם באפליקציה (אותו מוסד, אותו שם, אותה שכבה), נכתבת לו
+   שורת סיום ב"לימוד", כאילו סימן בעצמו: הוא נספר במונים ובלוח,
+   והאפליקציה שלו מסמנת את הדף (`?amdaFor=`).
+
+   ההתאמה שמרנית: שם משפחה + שם פרטי, באותו מוסד. שכבה שמולאה
+   ואינה תואמת — לא אותו אדם. שני מועמדים — מכריעה הכיתה, ואם
+   עדיין שניים — לא משייכים כלל. עדיף תלמיד שלא סומן לו מאשר
+   תלמיד שסומן לו דף של אחר.
+
+   לשונית "עמדה — שיוך" זוכרת מה כבר נכתב, ולכן הרצה חוזרת
+   אינה כותבת שוב. שורה כפולה ב"לימוד" לא הייתה מזיקה (הספירה
+   לפי מזהה), אבל אין סיבה לייצר אותה.
+   ============================================================ */
+var AMDA_TAB_  = 'עמדת לימוד';
+var AMDA_LINK_ = 'עמדה — שיוך';
+
+function amdaNorm_(s) {
+  return String(s || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim();
+}
+function amdaTable_(tab) {
+  var sh = sheet_(tab);
+  var rows = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
+  var ix = {};
+  if (rows.length) for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
+  return { sh: sh, rows: rows,
+           c: function (r, n) { return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim(); } };
+}
+/* לכל היותר פעם בדקה, ורק כשהנעילה פנויה — הקריאה של העמדה
+   אינה מחכה לשיוך. */
+function amdaSyncSoon_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache.get('amdaSync')) return;
+    cache.put('amdaSync', '1', 60);
+    amdaSyncLocked_();
+  } catch (e) {}
+}
+function amdaSyncLocked_() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(8000)) return 0;
+  try { return amdaSync_(); } finally { lock.releaseLock(); }
+}
+function amdaSync_() {
+  var at = amdaTable_(AMDA_TAB_);
+  if (at.rows.length < 2) return 0;
+  /* מה שכבר שויך: 'מזהה|מסלול|שבוע' */
+  var lt = amdaTable_(AMDA_LINK_), had = {};
+  for (var l = 1; l < lt.rows.length; l++) {
+    had[lt.c(lt.rows[l], 'מזהה') + '|' + lt.c(lt.rows[l], 'מסלול') + '|' + lt.c(lt.rows[l], 'שבוע')] = 1;
+    had['k:' + lt.c(lt.rows[l], 'מפתח')] = 1;
+  }
+  /* המועמדים: שורות של שיעור בדף, עם מוסד, מסלול ושבוע. */
+  var want = [], seen = {};
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r], cx = function (n) { return at.c(x, n); };
+    if (cx('סוג') !== 'דף' || !cx('קוד ישיבה') || !cx('מסלול') || !cx('שבוע')) continue;
+    var key = [cx('קוד ישיבה'), cx('שכבה'), cx('כיתה'), amdaNorm_(cx('שם')),
+               cx('מסלול'), cx('שבוע')].join('|');
+    if (seen[key] || had['k:' + key]) continue;
+    seen[key] = 1;
+    want.push({ key: key, inst: cx('קוד ישיבה'), g: amdaNorm_(cx('שכבה')), c: cx('כיתה'),
+                n: amdaNorm_(cx('שם')), track: cx('מסלול'), wk: cx('שבוע'), daf: cx('דף') });
+  }
+  if (!want.length) return 0;
+
+  /* "לומדים" לפי מוסד ושם — בשני הסדרים, כי הקובץ של בית הספר
+     הוא "משפחה פרטי" והטופס שואל כל אחד בנפרד. */
+  var jt = joinTable_(), byName = {};
+  for (var j = 1; j < jt.rows.length; j++) {
+    var jr = jt.rows[j];
+    if (jt.c(jr, 'תפקיד') === 'הורה' || !jt.c(jr, 'מזהה')) continue;
+    var f = amdaNorm_(jt.c(jr, 'שם')), ln = amdaNorm_(jt.c(jr, 'משפחה'));
+    if (!f || !ln) continue;
+    [ln + ' ' + f, f + ' ' + ln].forEach(function (nm) {
+      var k2 = jt.c(jr, 'קוד ישיבה') + '|' + nm;
+      (byName[k2] = byName[k2] || []).push(j);
+    });
+  }
+  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0;
+  var lsh = lt.sh, lhead = headers_(lsh);
+  want.forEach(function (w) {
+    var cand = (byName[w.inst + '|' + w.n] || []).filter(function (j, i, a) {
+      if (a.indexOf(j) !== i) return false;
+      var g = amdaNorm_(jt.c(jt.rows[j], 'שכבה'));
+      return !g || g === w.g;
+    });
+    if (cand.length > 1) {
+      cand = cand.filter(function (j) {
+        return String(jt.c(jt.rows[j], 'כיתה')).replace(/\D/g, '') === String(w.c).replace(/\D/g, '');
+      });
+    }
+    if (cand.length !== 1) return;
+    var id = jt.c(jt.rows[cand[0]], 'מזהה');
+    var tag = id + '|' + w.track + '|' + w.wk;
+    if (!had[tag]) {
+      var row = [];
+      put_(row, idx_(sh, head, 'תאריך'), new Date());
+      [['מזהה', id], ['קוד ישיבה', w.inst], ['מסלול', w.track], ['שבוע', w.wk],
+       ['דף', w.daf], ['קטע', ''], ['מתוך', ''], ['בדיקה', ''], ['מקור', 'עמדת לימוד']
+      ].forEach(function (p) { put_(row, idx_(sh, head, p[0]), cell_(p[1])); });
+      for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+      sh.appendRow(row);
+      markBump_(w.wk, sh.getLastRow());
+      if (+w.wk > lastWk) lastWk = +w.wk;
+      wrote++;
+      had[tag] = 1;
+    }
+    var lr = [];
+    put_(lr, idx_(lsh, lhead, 'תאריך'), new Date());
+    [['מזהה', id], ['מסלול', w.track], ['שבוע', w.wk], ['דף', w.daf], ['מפתח', w.key]
+    ].forEach(function (p) { put_(lr, idx_(lsh, lhead, p[0]), cell_(p[1])); });
+    for (var q = 0; q < lr.length; q++) if (lr[q] === undefined) lr[q] = '';
+    lsh.appendRow(lr);
+  });
+  if (wrote) recountLearn_();
+  return wrote;
+}
+/* 'מסלול|שבוע' שנרשמו למזהה הזה מהעמדה. */
+function amdaLearnedOf_(id) {
+  var out = [], seen = {};
+  if (!id) return out;
+  var lt = amdaTable_(AMDA_LINK_);
+  for (var r = 1; r < lt.rows.length; r++) {
+    if (lt.c(lt.rows[r], 'מזהה') !== id) continue;
+    var tag = lt.c(lt.rows[r], 'מסלול') + '|' + lt.c(lt.rows[r], 'שבוע');
+    if (!seen[tag]) { seen[tag] = 1; out.push(tag); }
+  }
+  return out;
+}
+
 /* ניקוי חד-פעמי: אותו אדם בכמה שורות → שורה אחת. נשאר המזהה
    של השורה הראשונה (המכשיר שנרשם ראשון), עם הפרטים של האחרונה
    (הם העדכניים), וכל שאר המזהים עוברים ל"מזהים נוספים". */
@@ -3238,6 +3386,8 @@ function setupTriggers() {
 /* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
 function autoRecount() {
   try { taanitShift_(); } catch (e) {}
+  /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
+  try { amdaSyncLocked_(); } catch (ae) {}
   recount_(); recountLearn_(true); backupDaily_();
 }
 

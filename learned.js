@@ -422,6 +422,30 @@ function LSyncId(force, after) {
 if (typeof window !== 'undefined') setTimeout(function () { LSyncId(); }, 2500);
 
 /* ============================================================
+   נרשמתי בעמדת הלימוד.
+   ============================================================
+   תלמיד שנרשם בעמדה בשיעור של הדף השבועי — למד את הדף, גם אם
+   לא נגע באפליקציה. השרת משייך אותו לחשבון שלו (`amdaSync_`
+   ב-apps-script.gs), וכאן המכשיר שואל מה נרשם לו ומסמן.
+
+   לכל היותר פעם ברבע שעה: השאלה קלה (לשונית קטנה), אבל היא
+   נשאלת מכל תלמיד בכל פתיחה. `after` — לצייר מחדש כשנוסף דף.
+   ============================================================ */
+function LAmdaSync(after) {
+  var me = LMe(), url = LApi();
+  if (!me || !me.id || !url) return;
+  if (Date.now() - (LGet('amda-ask', 0) || 0) < 15 * 60000) return;
+  LSet('amda-ask', Date.now());
+  LJsonp(url + '?amdaFor=' + encodeURIComponent(me.id)).then(function (r) {
+    if (!r || r.status !== 'ok' || !r.learned || !r.learned.length) return;
+    var all = LGet('learned', {}) || {}, fresh = r.learned.filter(function (t) { return t && !all[t]; });
+    if (!fresh.length) return;
+    LMergeLearned(fresh);
+    if (after) after();
+  }).catch(function () {});
+}
+
+/* ============================================================
    תענית: דף ב התחלק לשני שבועות — העברה חד-פעמית במכשיר.
    ============================================================
    שבוע 1 הוא ב. ושבוע 2 הוא ב:, ולכן דפים ג–כ"ד זזו שבוע אחד

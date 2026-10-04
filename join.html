@@ -2131,6 +2131,18 @@ function flush() {
 }
 window.addEventListener('online', flush);
 
+/* דף שנרשם לתלמיד בעמדת הלימוד — מסומן גם כאן, בפתיחה ובחזרה
+   לאפליקציה. ראו LAmdaSync ב-learned.js. */
+function amdaHere() {
+  if (typeof LAmdaSync !== 'function') return;
+  LAmdaSync(function () {
+    if ($('done').className !== 'on') return;
+    drawWeek(); drawInv();
+  });
+}
+setTimeout(amdaHere, 3000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) amdaHere(); });
+
 /* ---------- משפך ההרשמה ----------
    כל שלב נספר **פעם אחת לכל מכשיר**, בשקט. בלי שם ובלי טלפון:
    מזהה אקראי משלו (לא `deviceId` של ההרשמה), שלב, ישיבה,
