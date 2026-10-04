@@ -3904,6 +3904,26 @@ function spotOffer() {
   resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.pg || 1) })) +
     ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
 }
+/* **קופצים, לא שואלים — כשהתקדם מעבר לדף של השבוע.** מי שנכנס
+   מהבית נוחת על הדף של השבוע, וכשכבר המשיך קדימה (ב. ← ג.)
+   השורה "עצרת בדף ג" הייתה עוד לחיצה בדרך למקום שממילא רצה בו.
+   רק בכניסה מבחוץ: מעבר בתוך הדף (הבא, הקודם, המסלול) נושא
+   `hop=1` — אחרת "הקודם" מ-ג היה מחזיר אותו מיד ל-ג. ורק קדימה:
+   מי שחזר לעיין בדף של שבוע שעבר לא נשלח לשם ביום ראשון.
+   true = יוצאים. */
+function spotJump() {
+  if (quiet() || EMB || AT_END || /[?&]hop=1\b/.test(location.search)) return false;
+  if (posWeek() < 0) return false;
+  var p = spotGet();
+  if (!p || p.mas !== S.mas || !(Date.now() - (p.at || 0) < 7 * 864e5)) return false;
+  var u = units(), here = unitAt(u), to = -1;
+  for (var i = 0; i < u.length; i++)
+    if (dafKey(u[i].daf) === dafKey(p.daf) && (p.am == null || u[i].am === p.am)) { to = i; break; }
+  if (here < 0 || to <= here) return false;
+  location.replace('learn.html?mas=' + encodeURIComponent(S.mas) + '&' +
+    unitQ({ daf: u[to].daf, am: p.am || 0 }) + keepQ());
+  return true;
+}
 function fillT(t, v) {
   return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
 }
@@ -4536,7 +4556,7 @@ function stuQuizUrl(key) {
 function keepQ() {
   var i = (/[?&]inst=([^&#]*)/.exec(location.search) || [])[1] || '';
   return (i ? '&inst=' + i : '') + (FROM ? '&from=' + FROM : '') +
-         (/[?&]for=dad\b/.test(location.search) ? '&for=dad' : '');
+         (/[?&]for=dad\b/.test(location.search) ? '&for=dad' : '') + '&hop=1';
 }
 var DEMO_T = null;
 
@@ -5204,6 +5224,7 @@ function boot() {
   if (window.PAIR_UI && !OPEN_OK) PAIR_UI.flush();
 
   S = pickDaf();
+  if (spotJump()) return;
   /* ב. / ב: — היחידה, ולא רק הדף. הקטע האחרון של ב. גולש לראש
      ע״ב, ובלי הסימן "דף ב ע״ב" נראה כאילו כבר עברנו ל-ב:. */
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);

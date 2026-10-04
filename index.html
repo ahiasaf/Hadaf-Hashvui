@@ -2363,7 +2363,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.125';
+var APP_VERSION = '8.99.126';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8834,9 +8834,18 @@ function admGo(t) {
 /* באפליקציית הניהול המותקנת אין שורת כתובת, ולכן יציאה לאפליקציה
    הרגילה הייתה דרך ללא חזרה — צריך היה לסגור ולפתוח מחדש.
    השבב הצף מחזיר, ומופיע רק שם: בדפדפן רגיל יש כתובת. */
+/* נזכר בחלון עצמו (sessionStorage), ולא רק בזיכרון של העמוד:
+   יציאה מהדף האינטראקטיבי טוענת את העמוד מחדש, והשבב נעלם —
+   ואיתו הדרך חזרה לניהול. */
 var launchedAsAdmin = false;
+try { launchedAsAdmin = sessionStorage.getItem('df:admLaunch') === '1'; } catch (e) {}
 function admExit() { location.hash = ''; show('home'); paintAdmChip(); }
-function admBack()  { show('admin'); paintAdmChip(); }
+/* אחרי חזרה מהדף האינטראקטיבי העמוד נטען מחדש, והניהול עוד לא
+   צויר — ולכן דרך הכניסה הרגילה (שגם בודקת שהמכשיר מורשה). */
+function admBack() {
+  if (document.querySelector('#v-admin .adm-nav')) show('admin'); else adminEntry();
+  paintAdmChip();
+}
 function paintAdmChip() {
   var el = document.getElementById('adm-chip');
   if (!el) return;
@@ -15513,7 +15522,11 @@ function registerSW() {
   /* `#phone` — הקישור שהרכז שולח לאיש צוות שנרשם בלי טלפון.
      פותח את האזור האישי, ושם — אם המספר באמת חסר — השדה. */
   else if (hash === '#phone' && myInstRow()) { show('my'); accCheck(true); }
-  else if (isAdminRoute()) { launchedAsAdmin = true; adminEntry(); } else show('home');
+  else if (isAdminRoute()) {
+    launchedAsAdmin = true;
+    try { sessionStorage.setItem('df:admLaunch', '1'); } catch (e) {}
+    adminEntry();
+  } else show('home');
   setTimeout(function () { document.getElementById('splash').className = 'off'; }, 340);
 
   /* המדריך, בכניסה הראשונה בלבד.
