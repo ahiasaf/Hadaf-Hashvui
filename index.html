@@ -2363,7 +2363,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.126';
+var APP_VERSION = '8.99.127';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8355,7 +8355,7 @@ function admInstList() {
   var rows = d.rows.filter(function (x) { return !ADM_INST || x.c === ADM_INST; });
   return '<div class="adm-card" style="margin-bottom:11px"><div id="ppl-list2">' + rows.map(function (x) {
     return '<button class="pr" data-c2="' + esc(x.c) + '">' + pplRowHtml(x) + '</button>';
-  }).join('') + '</div>' + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div>' : '') + '</div>';
+  }).join('') + '</div>' + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div>' : '') + '<div id="ppl-acc"></div></div>';
 }
 
 document.addEventListener('click', function (e) {
@@ -8387,8 +8387,15 @@ function admLive() {
   }
   if (admTab === 'push') pplSet('pu-viz', admPushViz());
   if (admTab === 'inst' && document.getElementById('in-list')) {
+    var inWas = pplLast['in-list'];
     pplSet('in-list', admInstList());
+    /* הרשימה צוירה מחדש — התיבות שבתוכה ריקות, והזיכרון של pplSet
+       היה משאיר אותן כך. */
+    if (pplLast['in-list'] !== inWas) { delete pplLast['ppl-oi']; delete pplLast['ppl-acc']; }
     if (ADM_INST) { ppl.open = ADM_INST; pplOneHead(pplData()); }
+    /* בלי ישיבה שנבחרה — הממתינים לאימות מכל הישיבות. לשם מוביל
+       "לאימות" שב"דורש טיפול", ובלי זה הרשימה לא הופיעה בשום מקום. */
+    else pplSet('ppl-acc', accHtml('', 1));
   }
 }
 
@@ -9750,8 +9757,10 @@ function accPhUrl(a) {
                                           url: base + '#phone' });
   return 'https://wa.me/?text=' + encodeURIComponent(txt);
 }
-function accHtml(c) {
-  var list = accList().filter(function (a) { return c === '' || pplCode(a.inst) === c; });
+function accHtml(c, waitOnly) {
+  var list = accList().filter(function (a) {
+    return (c === '' || pplCode(a.inst) === c) && (!waitOnly || a.st === 'ממתין');
+  });
   if (!list.length) return '';
   list.sort(function (x, y) { return (x.st === 'ממתין' ? 0 : 1) - (y.st === 'ממתין' ? 0 : 1); });
   return '<div class="acc"><div class="acc-h">בניהול האישי</div>' +
