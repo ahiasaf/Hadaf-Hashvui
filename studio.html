@@ -1935,7 +1935,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.124';
+var STUDIO_VER = '8.99.125';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2376,7 +2376,9 @@ function inspect(k, line) {
   CSEL_P = (st.c && st.c.from != null && !(st.cont && (+selVal('pg') || 1) === 1))
     ? { a: st.c.from, b: st.c.to == null ? st.c.from : st.c.to } : null;
   document.body.classList.add('insp');
-  markDraw(); paintChav(1); markPanel(); zoomToSel();
+  /* צביעה בלבד — הדף אינו מוגדל ואינו זז. ההגדלה הקפיצה את
+     המסך לצד הדף, הרחק מהגמרא שעליה עבדו. */
+  markDraw(); paintChav(1); markPanel();
 }
 function inspEnd() {
   INSP = -1; INSP_LINE = -1; GSEL = null; CSEL_P = null; SPL = null;
@@ -2457,7 +2459,7 @@ function inspSplit() {
   GSEL = { a: { i: f.line, x: f.x }, b: end };
   CSEL_P = { a: st.c.from, b: st.c.to };
   document.body.classList.add('splt');
-  markDraw(); paintChav(1); markPanel(); zoomToSel();
+  markDraw(); paintChav(1); markPanel();
   say('✂ בחרו בחברותא את הפסקה האחרונה של החלק הראשון, ובגמרא את השורה שבה הוא נגמר.');
 }
 /* נקודת הסיום של החלק הראשון, כפי שהיא בבחירה */
