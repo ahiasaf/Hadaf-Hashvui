@@ -261,6 +261,22 @@ def check_calendar():
             WARN.append('%s — דפים שאינם במאגר: %s' % (mas, ' · '.join(gone)))
 
 
+def check_prog_start():
+    """תחילת שבוע 1 כתובה פעמיים: ב-data.js (האפליקציה) וב-apps-script.gs
+    (הסימנייה של "לימוד"). כשהן נפרדות, הלוח של הצוות קורא שבוע אחר
+    מזה שהאפליקציה מציגה — ומי שסיים נעלם ממנו.
+    """
+    a = re.search(r"startDate:\s*'([^']+)'", read('data.js'))
+    b = re.search(r"PROG_START\s*=\s*'([^']+)'", read('apps-script.gs'))
+    if not a or not b:
+        BAD.append('לא מצאתי את תחילת התוכנית ב-data.js או ב-apps-script.gs')
+    elif a.group(1) != b.group(1):
+        BAD.append('תחילת התוכנית שונה: data.js=%s · apps-script.gs=%s'
+                   % (a.group(1), b.group(1)))
+    else:
+        OK.append('תחילת התוכנית זהה בשני הקבצים (%s)' % a.group(1))
+
+
 def check_shared_globals():
     """קובץ משותף שנשען על משהו שקיים רק בעמוד אחד.
 
@@ -610,7 +626,7 @@ def main():
                check_shared_globals, check_inst_manifests,
                check_share_card,
                check_decks, check_daf_index,
-               check_calendar, check_pii, check_pub_files):
+               check_calendar, check_prog_start, check_pii, check_pub_files):
         try:
             fn()
         except Exception as e:                # noqa: BLE001

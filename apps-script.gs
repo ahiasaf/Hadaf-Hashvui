@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 48;
+var SCRIPT_VERSION = 49;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1975,8 +1975,28 @@ function doneRows_(rows) {
    הסימנייה שגויה מסיבה כלשהי, המספרים מתקנים את עצמם תוך שעה
    ולא נשארים שבורים.
    ============================================================ */
-var MARK_KEY = 'learnMark';
+/* מפתח חדש (8.99.133): הסימנייה הישנה הוצבה לפי "השורה שהרגע
+   נכתבה פחות 200", ובשבוע הראשון היא חתכה את כל מי שסיים בפתיחה
+   המוקדמת. מפתח אחר = הישנה פשוט אינה נקראת יותר. */
+var MARK_KEY = 'learnMark2';
 var MARK_PAD = 200;
+
+/* תחילת שבוע 1 — חייב להיות זהה ל-PROGRAM.startDate ב-data.js
+   (tools/preflight.py בודק). */
+var PROG_START = '2026-10-04';
+
+/* השבוע של הלוח לפי התאריך, 1 והלאה. לפני ההתחלה (פתיחה מוקדמת) —
+   שבוע 1. זה השבוע שהלוח של הצוות מציג, ולא השבוע של השורה
+   האחרונה שנכתבה: תלמיד שמקדים ומסמן את הדף של השבוע הבא אינו
+   מתחיל שבוע חדש לכולם. */
+function progWeek_() {
+  var tz = 'Asia/Jerusalem';
+  try { tz = Session.getScriptTimeZone() || tz; } catch (e) {}
+  var today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  var days = Math.round((Date.parse(today + 'T00:00:00Z') -
+                         Date.parse(PROG_START + 'T00:00:00Z')) / 864e5);
+  return !(days >= 0) ? 1 : Math.floor(days / 7) + 1;
+}
 
 function markGet_() {
   try {
@@ -1994,14 +2014,37 @@ function markSet_(wk, row) {
 
 /* נקרא אחרי כל הוספה ללשונית "לימוד". `wk` הוא השבוע של השורה
    שהרגע נכתבה, ו-`row` מספרה. */
+/* **השבוע נקבע לפי התאריך, והגבול — לפי השורה הראשונה שלו.**
+
+   קודם הגבול הוצב ב"שורה שהרגע נכתבה פחות 200" בכל פעם שהגיעה
+   שורה משבוע גבוה יותר, או כשלא הייתה סימנייה. שני דברים הזיזו
+   אותו באמצע שבוע: תלמיד שהקדים וסימן את ב: (שבוע 2), והעברת
+   מגילה שמחקה את הסימנייה. בשני המקרים כל מי שסיים לפני כן —
+   ובשבוע הראשון זה כל מי שלמד בפתיחה המוקדמת — נעלם מהלוח של
+   הצוות ומהמונה. עכשיו הגבול זז רק כשהלוח עובר לשבוע חדש, והוא
+   יושב לפני השורה הראשונה שנושאת את השבוע הזה. */
 function markBump_(wk, row) {
-  var n = parseInt(wk, 10);
-  if (!(n > 0)) return;
+  var cur = progWeek_();
   var m = markGet_();
-  /* קדימה בלבד. שורה שמגיעה באיחור משבוע שעבר אינה מזיזה את
-     הגבול אחורה — היא רק נקראת יחד עם השבוע הנוכחי. */
-  if (m && parseInt(m.wk, 10) >= n) return;
-  markSet_(n, row - MARK_PAD);
+  /* קדימה בלבד, ורק עם הלוח. */
+  if (m && parseInt(m.wk, 10) >= cur) return;
+  markFind_(cur);
+}
+/* עמודת השבוע בלבד — קריאה אחת, פעם בשבוע. */
+function markFind_(cur) {
+  var sh = sheet_(LEARN_TAB);
+  if (!sh) return;
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], iw = -1;
+  for (var h = 0; h < head.length; h++) if (String(head[h]).trim() === 'שבוע') iw = h;
+  if (iw < 0) return;
+  var col = sh.getRange(2, iw + 1, last - 1, 1).getDisplayValues();
+  var first = last + 1;
+  for (var i = 0; i < col.length; i++) {
+    if (parseInt(col[i][0], 10) >= cur) { first = i + 2; break; }
+  }
+  markSet_(cur, first - MARK_PAD);
 }
 
 /* שורות "לימוד" מהסימנייה ואילך, עם שורת הכותרת בראשן. בלי
