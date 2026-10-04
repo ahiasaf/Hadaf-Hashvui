@@ -281,3 +281,44 @@ function OpenLoad() {
     .catch(function () { return false; });
 }
 OPENS = OpenCached();
+
+/* ============================================================
+   כיווץ תמונה לפני העלאה.
+   ============================================================
+   כל תמונה שעולה לריפו (שקף בניהול, שקף לחלק בפירוש) עוברת כאן:
+   WebP באיכות 75, ורוחב עד 1800 פיקסלים. האיכות אינה יורדת
+   מ-70 — זה הרף. PDF ווידאו אינם עוברים כאן (ה-PDF נחתך לשקפים
+   במסלול משלו). GIF ו-SVG — כמו שהם: אנימציה ווקטור לא שורדים
+   קנבס.
+
+   `done(r)` — r = { url: data:… , ext: 'webp' }, או null = להעלות
+   את המקור כמו שהוא: דפדפן שאינו יודע לכתוב WebP (אייפון ישן מחזיר
+   PNG בשקט), תמונה שלא נטענה, או כיווץ שיצא כבד מהמקור כשלא היה
+   צריך להקטין. */
+var IMG_MAX_W = 1800, IMG_Q = 0.75, IMG_Q_MIN = 0.70;
+function ImgShrink(file, done) {
+  if (!file || !/^image\//.test(file.type || '') || /gif|svg/i.test(file.type)) { done(null); return; }
+  var fr = new FileReader();
+  fr.onerror = function () { done(null); };
+  fr.onload = function () {
+    var im = new Image();
+    im.onerror = function () { done(null); };
+    im.onload = function () {
+      try {
+        var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+        if (!w || !h) { done(null); return; }
+        var k = w > IMG_MAX_W ? IMG_MAX_W / w : 1;
+        var cv = document.createElement('canvas');
+        cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+        cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        var url = cv.toDataURL('image/webp', Math.max(IMG_Q_MIN, IMG_Q));
+        if (url.indexOf('data:image/webp') !== 0) { done(null); return; }
+        /* ‎3/4 מאורך ה-base64 הוא גודל הקובץ */
+        if (k === 1 && url.length * 0.75 > file.size) { done(null); return; }
+        done({ url: url, ext: 'webp' });
+      } catch (e) { done(null); }
+    };
+    im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}

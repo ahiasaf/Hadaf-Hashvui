@@ -250,6 +250,10 @@ body.land .hero .cards{margin-top:14px}
 .fld .label{display:block;font-size:.78rem;font-weight:800;color:var(--ink-2);
   margin-bottom:5px}
 .fld .label i{font-style:normal;font-weight:700;color:var(--ink-3)}
+/* "לא חובה" בטלפון של תלמיד — קטן ואפור, בלי הדגשה: ברירת המחדל
+   היא למלא, ורק מי שנתקע ישים לב שאפשר לדלג. */
+.fld .label .phopt{font-weight:400;color:var(--ink-3);font-size:.7rem;
+  margin-inline-start:6px}
 /* "רשות" — כדי שלא ייראה כשדה חובה נוסף שנפתח לו פתאום */
 .fld .label .opt{font-weight:700;color:var(--ink-3);font-size:.72rem;
   background:var(--sunk);border-radius:6px;padding:1px 6px;margin-inline-start:5px}
@@ -617,6 +621,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 #done .again{display:block;margin:18px auto 0;background:none;border:0;font-family:inherit;
   font-size:.82rem;font-weight:800;color:var(--ink-3);text-decoration:underline;
   cursor:pointer}
+/* תזכורת הטלפון — שורה שקטה, לא כרטיס. ראו `drawPhNag`. */
+.phnag{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:10px 12px;
+  background:var(--sunk);border-radius:var(--r-s);font-size:.84rem;color:var(--ink-2)}
+.phnag span{flex:1}
+.phnag button{background:none;border:0;font-family:inherit;cursor:pointer;padding:4px 6px}
+.phnag .pn-go{color:var(--blue);font-weight:800;text-decoration:underline}
+.phnag .pn-x{color:var(--ink-3);font-size:1rem;line-height:1}
 
 /* ---------- האפליקציה על מסך הבית ----------
    הקישור מגיע בוואטסאפ פעם אחת. מי שלא הוסיף אותו למסך הבית
@@ -1019,15 +1030,6 @@ footer a{color:var(--ink-2);font-weight:800}
       <input id="oth-from" type="text" maxlength="60"
              placeholder="בית ספר, ישיבה, או עיר">
     </div>
-    <!-- חובה. זה הערוץ היחיד שדרכו אפשר להודיע לזוכה בהגרלה,
-         ובלעדיו הזכייה שלו פשוט לא מגיעה אליו.
-
-         ולפני השכבה — גם בסדר החשיפה וגם **בסדר ה-HTML**.
-         סדר החשיפה תוקן בלי סדר המסמך, והתוצאה הייתה ששדה
-         השכבה נפתח מעל הטלפון: הוא פשוט היה קודם. -->
-    <div class="fld stg" id="f-phone">
-    <label class="label" id="l-phone" for="phone">טלפון</label>
-      <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
     <!-- שכבה וכיתה בשורה אחת. שתי שאלות שהן שאלה אחת — "איפה
          אתה לומד" — ושתי שורות נפרדות היו מרגישות כמו טופס
          שגדל. השכבה מימין כי היא הראשונה שנבחרת. -->
@@ -1039,6 +1041,14 @@ footer a{color:var(--ink-2);font-weight:800}
           <select id="klass"></select></div>
       </div>
     </div>
+    <!-- הטלפון — אחרון, גם בסדר החשיפה וגם **בסדר ה-HTML** (סדר
+         חשיפה בלי סדר מסמך פותח שדה מעל שדה). אצל תלמיד הוא לא חובה (מי שלא זוכר את
+         המספר ממשיך, ומקבל תזכורת עדינה באפליקציה — `phoneNag`
+         ב-index.html). אצל הורה — חובה, והשכבה מוסתרת אצלו,
+         ולכן אצלו הטלפון נפתח ישר אחרי השם. -->
+    <div class="fld stg" id="f-phone">
+    <label class="label" id="l-phone" for="phone">טלפון</label>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
   </div>
 
   <button class="wznext" id="wz-next"></button>
@@ -1124,6 +1134,7 @@ footer a{color:var(--ink-2);font-weight:800}
          להזמנה ולקבוצה — כלומר אחרי שני דברים שאפשר לדלג
          עליהם, ובמקום שרוב התלמידים לא גללו אליו. היא השלב
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
+    <div id="phnag"></div>
     <div id="getapp"></div>
     <div id="inv"></div>
     <div id="inv2"></div>
@@ -1920,13 +1931,18 @@ function stage(scroll) {
      החשיפה ההדרגתית היא החלק שבאמת חסם: `f-grade` ואחריה
      דרך הלימוד והכפתור נפתחו רק אחרי טלפון שלם, ולכן שדה
      ריק לא רק דחה בשליחה אלא עצר את הטופס באמצע. */
-  /* טלפון לפני שכבה. הטלפון הוא הערוץ היחיד שדרכו אפשר להודיע
-     לזוכה, ולכן הוא נשאל כשהתשומת לב עדיין מלאה. */
-  step('f-phone', ready('last'));
+  /* תלמיד: שכבה ואחריה טלפון, והטלפון אינו חובה — אינו עוצר
+     את המשך הטופס. הורה: אין לו שכבה, והטלפון נפתח אחרי השם
+     ונשאר חובה. */
   var free = val('inst') === OTHER.code;
+  var kidOpt = role !== 'dad';
+  if (kidOpt) step('f-grade', ready('last'));
+  step('f-phone', kidOpt ? (ready('last') && !!val('grade')) : ready('last'));
   var lp = $('l-phone');
-  if (lp) lp.innerHTML = free ? 'טלפון <i>· לא חובה</i>' : 'טלפון';
-  var phoneOk = free || phoneDone(val('phone'));
+  if (lp) lp.innerHTML = kidOpt
+    ? 'טלפון <span class="phopt">' + esc(JOIN.phoneOpt) + '</span>'
+    : (free ? 'טלפון <i>· לא חובה</i>' : 'טלפון');
+  var phoneOk = free || kidOpt || phoneDone(val('phone'));
   /* אבא אינו עובר דרך שכבה ודרך לימוד — הן מוסתרות אצלו
      (`applyRole`), ולכן גם אינן יכולות להיות תנאי להמשך.
 
@@ -1940,8 +1956,7 @@ function stage(scroll) {
     $('dad').className = phoneOk ? 'card on' : 'card';
     step('go', phoneOk);
   } else {
-    step('f-grade', phoneOk);
-    step('c-ways', phoneOk && (!!val('grade') || WZ_ON));
+    step('c-ways', ready('last') && (!!val('grade') || WZ_ON));
     step('go', !!way);
   }
   /* ההזמנה — נפתחת מהבחירה ולא מהרצף */
@@ -2363,7 +2378,7 @@ $('go').onclick = function () {
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
-  if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
+  if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return say(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
       : 'צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
@@ -3872,6 +3887,11 @@ function wzWire() {
 
 /* אותם תנאים בדיוק של השליחה, ולא העתק שלהם: תנאי שמתפצל
    לשני מקומות מתפצל גם בהתנהגות ביום שמישהו מתקן אחד מהם. */
+/* תלמיד שהשאיר את הטלפון ריק — עובר. מספר שהתחיל להיכתב
+   ונקטע עדיין נבדק, כמו קודם. */
+function phoneSkip() {
+  return role !== 'dad' && !(val('phone').match(/\d/g) || []).length;
+}
 function wzDetOk() {
   var e = $('wz-err');
   var no = function (m) { if (e) e.textContent = m; return false; };
@@ -3880,7 +3900,7 @@ function wzDetOk() {
   if (!val('first') || !val('last')) return no('צריך שם פרטי ושם משפחה.');
   if (!code) return no('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                        'יש "אחר" בסוף הרשימה.');
-  if (code !== OTHER.code && (val('phone').match(/\d/g) || []).length < 9)
+  if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return no(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
       : 'צריך מספר טלפון — לשם נודיע אם זכית בהגרלה.');
@@ -3912,7 +3932,50 @@ function showDone(me) {
   drawWa();
   drawWeek();
   drawApp();
+  drawPhNag();
   window.scrollTo(0, 0);
+}
+
+/* ============================================================
+   תזכורת להשלים טלפון.
+   ============================================================
+   הטלפון אינו חובה בהרשמת תלמיד. מי שדילג רואה כאן, בפתיחות
+   הבאות (לא ביום ההרשמה), שורה שקטה שמציעה להשלים. לא התראה
+   ולא הודעה. ✕ — נעלמת לשלושה ימים; גם בלי ✕ היא אינה חוזרת
+   יותר מפעם בשלושה ימים (יום שבו הוצגה — מוצגת בו עד שנסגרת).
+   ברגע שיש מספר — אינה מוצגת. */
+var PHNAG_GAP = 3 * 864e5;
+function phNagDay() { var d = new Date(); d.setHours(0, 0, 0, 0); return +d; }
+function phNagNeed(me) {
+  if (!me || !me.first || me.role === 'dad' || me.inst === OTHER.code) return false;
+  return (String(me.phone || '').match(/\d/g) || []).length < 9;
+}
+function drawPhNag() {
+  var el = $('phnag'); if (!el) return;
+  var me = get('me', null);
+  if (!phNagNeed(me)) { el.innerHTML = ''; return; }
+  var today = phNagDay(), st = get('phnag', null);
+  /* הפעם הראשונה — יום ההרשמה. רק רושמים, ומחכים ליום הבא. */
+  if (!st) { set('phnag', { next: today + 864e5, day: 0 }); el.innerHTML = ''; return; }
+  if (st.day !== today) {
+    if (Date.now() < (st.next || 0)) { el.innerHTML = ''; return; }
+    st = { next: today + PHNAG_GAP, day: today };
+    set('phnag', st);
+  }
+  el.innerHTML = '<div class="phnag"><span>' + esc(JOIN.phNagT) + '</span>' +
+    '<button class="pn-go" id="pn-go">' + esc(JOIN.phNagGo) + '</button>' +
+    '<button class="pn-x" id="pn-x" aria-label="' + esc(JOIN.phNagX) + '">✕</button></div>';
+  $('pn-x').onclick = function () {
+    set('phnag', { next: Date.now() + PHNAG_GAP, day: 0 });
+    el.innerHTML = '';
+  };
+  $('pn-go').onclick = function () {
+    $('again').onclick();
+    setTimeout(function () {
+      var p = $('phone'); if (!p) return;
+      try { p.scrollIntoView({ block:'center' }); p.focus(); } catch (e) {}
+    }, 120);
+  };
 }
 
 /* התווית היא שמו המלא. וכשהבן והאב מחוברים — היא אומרת גם את

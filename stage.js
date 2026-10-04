@@ -119,8 +119,9 @@ function RailHtml(o) {
   var mark = wi < 0 ? 0 : wi, rail = '', done = 0;
   for (var i = 0; i < tr.cal.length; i++) {
     var r = tr.cal[i];
-    if (r[2] && r[2] !== 'סיום' && wi >= 0 && i <= wi) done++;
-    var cls = !r[2] ? 'off' : r[2] === 'סיום' ? 'fin'
+    /* עמוד ב שנלמד בשבוע משלו (ב:) אינו דף נוסף במונה. */
+    if (r[2] && r[2] !== 'סיום' && r[3] !== 'ב' && wi >= 0 && i <= wi) done++;
+    var cls = !r[2] ? 'off' : (r[2] === 'סיום' || r[4] === 'סיום') ? 'fin'
             : i === mark ? 'now' : (wi >= 0 && i < wi) ? 'done' : '';
     rail += '<i class="' + cls + '"></i>';
   }

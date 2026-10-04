@@ -1229,6 +1229,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 
 /* הפס. מתמלא משמאל לימין בעברית — כלומר מהצד שבו מתחילים. */
 .brd-bar{margin-top:17px;padding-top:16px;border-top:1px solid var(--rule-2)}
+/* הסינון לפי מסכת מתחת לפס — בניהול בלבד (boardHtml). */
+.brd-mas{margin-top:10px}
 .brd-bar .t{height:12px;border-radius:12px;background:var(--sunk);overflow:hidden}
 .brd-bar .t i{display:block;height:100%;border-radius:12px;
   background:linear-gradient(90deg,var(--green),var(--green-d));
@@ -2459,7 +2461,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.131';
+var APP_VERSION = '8.99.132';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2537,7 +2539,7 @@ function dafDone(tr) {
   var wi = weekIndex(), n = 0;
   if (wi < 0) return 0;
   for (var i = 0; i <= wi && i < tr.cal.length; i++)
-    if (tr.cal[i][2] && tr.cal[i][2] !== 'סיום') n++;
+    if (tr.cal[i][2] && tr.cal[i][2] !== 'סיום' && tr.cal[i][3] !== 'ב') n++;
   return n;
 }
 function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
@@ -3970,13 +3972,50 @@ function bJoinAll() {
   });
   return any ? { n:n, ways:Object.keys(w).map(function (k) { return [k, w[k]]; }) } : null;
 }
+/* ============================================================
+   הספירה לפי מסכת — בניהול.
+   ============================================================
+   "סיימו דף ב" ירד מעשרות לשלושה, בלי שאיש נגע בנתונים: הלוח ספר
+   את המסכת שנבחרה **במסך הראשי** (`homeTrack`), ומי שהציץ שם
+   במגילה ראה בניהול את המונה של מגילה. בניהול יש עכשיו בורר משלו —
+   הכל / תענית / מגילה — וברירת המחדל היא הכל. מחוץ לניהול (`go`
+   ריק) לא השתנה דבר. */
+/* נטען בשימוש הראשון — `Store` מוגדר הרבה יותר למטה בקובץ. */
+var ADM_MAS = null;
+function admMas(k) {
+  ADM_MAS = k || 'all'; Store.set('admMas', ADM_MAS);
+  admLive();
+}
+function brdTracks(go) {
+  if (!go) return [homeTrack];
+  if (ADM_MAS === null) ADM_MAS = Store.get('admMas', 'all');
+  if (ADM_MAS !== 'all' && trackById(ADM_MAS)) return [ADM_MAS];
+  return TRACKS.map(function (t) { return t.id; });
+}
 function boardHtml(code, name, hail, go) {
   var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
-  var wk = weekIndex(), tr = homeTrack;
+  var wk = weekIndex(), trs = brdTracks(go), tr = trs[0];
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
   var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
-  var daf = row && row[2] && row[2] !== 'סיום' ? rowDaf(row) : null;
-  var did = wk >= 0 && typeof LCount === 'function' ? LCount(tr, wk, code) : 0;
+  var cnt = function (t) { return wk >= 0 && typeof LCount === 'function' ? LCount(t, wk, code) : 0; };
+  var dafs = [], did = 0;
+  trs.forEach(function (t) {
+    var r = wk >= 0 ? trackById(t).cal[wk] : null;
+    var d = r && r[2] && r[2] !== 'סיום' ? rowDaf(r) : null;
+    if (d && dafs.indexOf(d) < 0) dafs.push(d);
+    did += cnt(t);
+  });
+  var daf = dafs.length ? dafs.join(' / ') : null;
+  /* הבורר — רק בניהול, ורק כשיש יותר ממסכת אחת. */
+  var masBar = !go || TRACKS.length < 2 ? '' :
+    '<div class="chips brd-mas">' +
+    [['all', UI.admMasAll, TRACKS.reduce(function (a, t) { return a + cnt(t.id); }, 0)]]
+      .concat(TRACKS.map(function (t) { return [t.id, t.masechet, cnt(t.id)]; }))
+      .map(function (o) {
+        var on = (ADM_MAS === o[0]) || (o[0] === 'all' && !trackById(ADM_MAS));
+        return '<button class="chip' + (on ? ' on' : '') + '" onclick="admMas(\'' + o[0] + '\')">' +
+          esc(o[1]) + (wk >= 0 ? '<b>' + o[2] + '</b>' : '') + '</button>';
+      }).join('') + '</div>';
 
   var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
   /* **הבקשה אינה כאן.** היא יצאה מהלוח לכרטיס משלה, שיושב
@@ -3996,7 +4035,7 @@ function boardHtml(code, name, hail, go) {
   if (n && daf) {
     bar = '<div class="brd-bar"><div class="t"><i style="width:' +
       Math.max(3, Math.round(did / n * 100)) + '%"></i></div>' +
-      '<span>' + esc(fill(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>';
+      '<span>' + esc(fill(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>' + masBar;
   } else if (n && row0) {
     /* השבוע הראשון בשפת הסימנייה: עיגול הדף, הפרשה, התאריך
        העברי. המסלול השנתי כבר מעוצב — אין סיבה לכתוב במילים
@@ -8544,7 +8583,9 @@ function renderAdmin() {
      אצל ישיבה זו הישיבה; כאן זה הבורר עצמו: "כולם" או ישיבה אחת.
      ============================================================ */
   var h = '<div class="adm-nav"><button class="back" onclick="admExit()">→ ' + esc(UI.admToApp) + '</button>' +
-          '<a class="back" href="studio.html">' + esc(UI.admStudio) + ' ↗</a></div>' +
+          '<a class="back" href="studio.html">' + esc(UI.admStudio) + ' ↗</a>' +
+          /* המצגות — בלחיצה אחת מכל מסך בניהול, בלי לגלול ל"עוד". */
+          '<button class="back" onclick="admSubGo(\'daf\')">🖼 ' + esc(UI.admDecks) + '</button></div>' +
           /* המוסד ורענון אחד — מעל הכול, וחלים על כל הלשוניות. */
           '<div class="my-top adm-hd"><div class="adm-hd-r"><b>' + esc(UI.admTitle) + '</b>' +
           '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
@@ -12832,6 +12873,72 @@ function dkDragEnd(ev) {
 function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
 /* נתיב מלא ולא שם: כך שקף מתיקייה אחרת יושב באותה רשימה, ואפשר
    לשזור שתי מצגות זו בזו. */
+/* ============================================================
+   מחיקה לצמיתות — רק לקובץ שאינו במצגת של השבוע.
+   ============================================================
+   לפני האישור בודקים אם שבוע אחר נשען על אותו קובץ (שורה בלשונית
+   "מצגות" עם נתיב מלא, או מצגת שבקוד), ואומרים את זה בשאלה. אחרי
+   השליחה — שאלה חוזרת ל-GitHub, כי `no-cors` תמיד "מצליח". */
+function dkRmWhere(path) {
+  var out = [];
+  var add = function (key) {
+    var p = String(key).split('-'), wk = p.pop(), t = trackById(p.join('-'));
+    var w = fill(UI.dkRmWk, { mas: t ? t.masechet : p.join('-'), wk: wk });
+    if (out.indexOf(w) < 0) out.push(w);
+  };
+  var k;
+  for (k in (DECKS || {})) {
+    if (!DECKS.hasOwnProperty(k) || !DECKS[k]) continue;
+    (DECKS[k].files || []).forEach(function (f) {
+      if ((f.indexOf('/') >= 0 ? f : DECKS[k].dir + '/' + f) === path) add(k);
+    });
+  }
+  for (k in (typeof CONTENT !== 'undefined' ? CONTENT : {})) {
+    var d = CONTENT[k] && CONTENT[k].deck;
+    if (!d || DECKS && DECKS[k]) continue;
+    var m = /\/(\d+)\.jpg$/.exec(path);
+    if (m && path.indexOf(d.dir + '/') === 0 && +m[1] >= 1 && +m[1] <= d.n) add(k);
+  }
+  return out;
+}
+function dkRmMsg(cls, t) {
+  var el = document.getElementById('dk-rm-msg');
+  /* הכרטיס נעלם כשנמחק הקובץ האחרון שבו — אז ההודעה עוברת לראש העורך. */
+  if (!el) { dkPdfMsg(cls, t); return; }
+  el.innerHTML = t ? '<p class="h" style="margin-top:8px' +
+    (cls === 'ok' ? ';color:var(--ok)' : cls === 'bad' ? ';color:var(--stop)' : '') +
+    '">' + esc(t) + '</p>' : '';
+}
+function dkRm(f) {
+  if (!API) return;
+  if (!(CFG.readKey || '').trim()) { dkRmMsg('bad', UI.dkmNoKey); return; }
+  var path = f.indexOf('/') >= 0 ? f : dkDir + '/' + f;
+  var where = dkRmWhere(path);
+  var q = fill(UI.dkRmQ, { f: f }) +
+    (where.length ? '\n\n' + fill(UI.dkRmUsed, { where: where.join(', ') }) : '');
+  if (!window.confirm(q)) return;
+  dkRmMsg('', UI.dkRmBusy);
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
+  }) }).catch(function () {}).then(function () { dkRmCheck(path, f, 0); });
+}
+function dkRmCheck(path, f, tries) {
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        path.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
+    .then(function (r) {
+      if (r.status === 404) {
+        dkPool = (dkPool || []).filter(function (x) { return x !== f; });
+        admPane(); dkRmMsg('ok', UI.dkRmOk);
+        return;
+      }
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1); }, 2200); return; }
+      dkRmMsg('bad', UI.dkRmBad);
+    })
+    .catch(function () {
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1); }, 2200); return; }
+      dkRmMsg('bad', UI.dkRmBad);
+    });
+}
 function dkAdd(f) {
   dkAddSilent_(f);
   dkStash(); admPane(); dkAutoSave_();
@@ -13193,13 +13300,19 @@ function dkImgPick(inp) {
   function next() {
     if (n >= fs.length) { dkUpload(items); return; }
     var f = fs[n++];
-    var r = new FileReader();
-    r.onload = function () {
-      items.push({ name: f.name.replace(/[^\w.\-]/g, '_'), url: r.result });
-      next();
-    };
-    r.onerror = function () { next(); };
-    r.readAsDataURL(f);
+    var nm = f.name.replace(/[^\w.\-]/g, '_');
+    /* WebP ‏75, עד 1800 רוחב — ראו ImgShrink ב-deck.js. לא הצליח —
+       המקור, כמו קודם. */
+    ImgShrink(f, function (sm) {
+      if (sm) {
+        items.push({ name: nm.replace(/\.[^.]*$/, '') + '.' + sm.ext, url: sm.url });
+        next(); return;
+      }
+      var r = new FileReader();
+      r.onload = function () { items.push({ name: nm, url: r.result }); next(); };
+      r.onerror = function () { next(); };
+      r.readAsDataURL(f);
+    });
   }
   dkPdfMsg('', 'קורא ' + fs.length + ' קבצים…');
   next();
@@ -13304,8 +13417,10 @@ function admDecks(el) {
           '<span style="flex:1"></span>' +
           '<button class="btn g" style="width:auto;flex:none;padding:9px 16px" ' +
           'onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
+          '<button class="dk-ic warn" onclick="dkRm(\'' + esc(f) + '\')" ' +
+          'title="' + esc(UI.dkRm) + '" aria-label="' + esc(UI.dkRm) + '">🗑</button>' +
           '</div>';
-      }).join('') + '</div>';
+      }).join('') + '<div id="dk-rm-msg"></div></div>';
   }
 
   /* ---- המרה מ-PDF ---- */
@@ -15794,8 +15909,22 @@ function admImport() {
 function isAdminRoute() {
   return /\/admin\/?$/.test(location.pathname) || location.hash === '#admin';
 }
+/* בקשה שהשאיר הדף האינטראקטיבי ("ניהול המצגות ↗"): לפתוח את עורך
+   המצגות על השבוע שהיה שם. נקראת פעם אחת ונמחקת. */
+function admTakeGo() {
+  var g = null;
+  try { g = JSON.parse(localStorage.getItem('df:admGo') || 'null');
+        localStorage.removeItem('df:admGo'); } catch (e) {}
+  if (!g || g.sub !== 'daf') return;
+  admTab = 'more'; admSub.more = 'daf';
+  if (g.mas && trackById(g.mas) && g.wk > 0) {
+    dkSel = { mas: g.mas, wk: g.wk };
+    dkSlPick = {}; dkBust = Date.now(); dkPool = null;
+    dkLoadSel(); dkAsk();
+  }
+}
 function adminEntry() {
-  if (Store.get('admOk')) { renderAdmin(); show('admin'); admEnterOnce(); }
+  if (Store.get('admOk')) { admTakeGo(); renderAdmin(); show('admin'); admEnterOnce(); }
   else show('gate');
 }
 window.addEventListener('hashchange', function () { if (isAdminRoute()) adminEntry(); });

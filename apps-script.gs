@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 47;
+var SCRIPT_VERSION = 48;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -275,6 +275,9 @@ function doPost(e) {
     try {
       if (!PropertiesService.getScriptProperties().getProperty(TAANIT_SHIFT_KEY)) taanitShift_();
     } catch (se) {}
+    try {
+      if (!PropertiesService.getScriptProperties().getProperty(MEGILA_SHIFT_KEY)) megilaShift_();
+    } catch (se2) {}
     var d = JSON.parse(e.postData.contents);
 
     /* ---- הצורה הכללית: האפליקציה נוקבת בלשונית ובעמודות ----
@@ -396,6 +399,17 @@ function doPost(e) {
                             : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
       }
       return json_(ghPut_(d.path, d.b64, d.msg));
+    }
+    /* מחיקת קובץ לצמיתות מהריפו (ניהול ← הדף ← "מחיקה לצמיתות"),
+       כדי לפנות מקום. אותה סיסמה, ורק בתיקיות של מה שהועלה —
+       ראו ghDel_. */
+    if (d.action === 'ghdel') {
+      if (!READ_KEY || String(d.key || '') !== READ_KEY) {
+        return json_({ status: 'denied',
+          message: READ_KEY ? 'סיסמה שגויה'
+                            : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+      }
+      return json_(ghDel_(d.path, d.msg));
     }
 
     /* ---- מחיקה ----
@@ -3388,6 +3402,7 @@ function setupTriggers() {
 /* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
 function autoRecount() {
   try { taanitShift_(); } catch (e) {}
+  try { megilaShift_(); } catch (e) {}
   /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
   try { amdaSyncLocked_(); } catch (ae) {}
   recount_(); recountLearn_(true); backupDaily_();
@@ -3418,18 +3433,39 @@ var TAANIT_WK = { 'ב.':1, 'ב:':2, 'ג':3, 'ד':4, 'ה':5, 'ו':6, 'ז':7, 'ח'
 var TAANIT_OLD = { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
   14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25 };
 
-function taanitWk_(daf, wk, once) {
+/* ============================================================
+   מגילה — אותו פיצול (8.99.132).
+   ============================================================
+   שבוע 1 = ב., שבוע 2 = ב:, וכל דף מ-ג והלאה זז שבוע (י — שניים,
+   חנוכה במקומה). במגילה אין חופשה שסופגת את ההזזה, ולכן ל"ב נלמד
+   בשבוע הסיום (36). אותו מנגנון בדיוק של תענית, עם מפות משלה.
+   ============================================================ */
+var MEGILA_SHIFT_KEY = 'megilaShiftAB';
+var MEGILA_WK = { 'ב.':1, 'ב:':2, 'ג':3, 'ד':4, 'ה':5, 'ו':6, 'ז':7, 'ח':8, 'ט':9,
+  'י':11, 'יא':12, 'יב':13, 'יג':14, 'יד':15, 'טו':16, 'טז':17, 'יז':18, 'יח':19,
+  'יט':20, 'כ':21, 'כא':22, 'כב':23, 'כג':24, 'כד':25, 'כה':26, 'כו':27,
+  'כז':31, 'כח':32, 'כט':33, 'ל':34, 'לא':35, 'לב':36, 'לב.':36 };
+var MEGILA_OLD = { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
+  14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25,
+  25:26, 26:27, 27:31, 31:32, 32:33, 33:34, 34:35, 35:36 };
+
+var SHIFT_TAANIT = { names: ['taanit', 'תענית'], wk: TAANIT_WK, old: TAANIT_OLD };
+var SHIFT_MEGILA = { names: ['megila', 'מגילה'], wk: MEGILA_WK, old: MEGILA_OLD };
+
+function taanitWk_(daf, wk, once, sp) {
+  sp = sp || SHIFT_TAANIT;
   var d = String(daf || '').replace(/["'׳״\s]/g, '');
   /* דף ב בלי עמוד — שורה ישנה (הדף כולו, שבוע 1) או ממכשיר שעוד
      לא התעדכן. שבוע 1 או 2 נשאר כמו שהוא. */
   if (d === 'ב') return wk === 2 ? 2 : 1;
-  if (TAANIT_WK[d]) return TAANIT_WK[d];
-  if (!d && once && TAANIT_OLD[wk]) return TAANIT_OLD[wk];
+  if (sp.wk[d]) return sp.wk[d];
+  if (!d && once && sp.old[wk]) return sp.old[wk];
   return wk;
 }
 
 /* `byDaf` — יש עמודת דף. בלעדיה רק בהרצה הראשונה. */
-function taanitTab_(tab, trackCol, byDaf, once) {
+function taanitTab_(tab, trackCol, byDaf, once, sp) {
+  sp = sp || SHIFT_TAANIT;
   var id = privId_(tab);
   var ss = id ? SpreadsheetApp.openById(String(id)) : SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(tab);
@@ -3443,8 +3479,8 @@ function taanitTab_(tab, trackCol, byDaf, once) {
   for (var r = 1; r < rows.length; r++) {
     var wk = parseInt(rows[r][iw], 10), nw = wk;
     var tr = String(rows[r][it] || '').trim();
-    if ((tr === 'taanit' || tr === 'תענית') && wk > 0) {
-      nw = taanitWk_(idf === undefined ? '' : rows[r][idf], wk, once);
+    if (sp.names.indexOf(tr) >= 0 && wk > 0) {
+      nw = taanitWk_(idf === undefined ? '' : rows[r][idf], wk, once, sp);
     }
     if (nw !== wk) n++;
     col.push([nw > 0 ? nw : rows[r][iw]]);
@@ -3460,6 +3496,20 @@ function taanitShift_() {
           taanitTab_('זוגות', 'מסלול', true, once);
   if (once) n += taanitTab_('מצגות', 'מסכת', false, true);
   if (once) P.setProperty(TAANIT_SHIFT_KEY, new Date().toISOString());
+  if (n) {
+    try { P.deleteProperty(MARK_KEY); } catch (e) {}
+    recountLearn_(true);
+  }
+  return n;
+}
+
+function megilaShift_() {
+  var P = PropertiesService.getScriptProperties();
+  var once = !P.getProperty(MEGILA_SHIFT_KEY);
+  var n = taanitTab_(LEARN_TAB, 'מסלול', true, once, SHIFT_MEGILA) +
+          taanitTab_('זוגות', 'מסלול', true, once, SHIFT_MEGILA);
+  if (once) n += taanitTab_('מצגות', 'מסכת', false, true, SHIFT_MEGILA);
+  if (once) P.setProperty(MEGILA_SHIFT_KEY, new Date().toISOString());
   if (n) {
     try { P.deleteProperty(MARK_KEY); } catch (e) {}
     recountLearn_(true);
@@ -3829,6 +3879,39 @@ function ghPut_(path, b64, msg) {
     if (code === 200 || code === 201) return { status:'ok', path:path, replaced:!!sha };
     return { status:'error', code:code,
              message: String(res.getContentText()).slice(0, 200) };
+  } catch (e) {
+    return { status:'error', message: String(e) };
+  }
+}
+
+/* מוחק קובץ אחד מהענף הראשי. רק מתחת ל-slides/ ול-audio/ — מה
+   שהרכז העלה בעצמו. קוד, נתונים ועמודי הדף אינם נמחקים מכאן. */
+function ghDel_(path, msg) {
+  var tok  = prop_('GH_TOKEN', '');
+  var repo = prop_('GH_REPO', '');
+  if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
+  if (!repo) return { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
+  path = String(path || '').replace(/^\/+/, '');
+  if (!path || path.indexOf('..') >= 0 || !/^(slides|audio)\/[^\/]+\/[^\/]+$/.test(path)) {
+    return { status:'error', message:'נתיב לא חוקי' };
+  }
+  var url = GH_API + repo + '/contents/' + path;
+  var head = { Authorization: 'Bearer ' + tok,
+               Accept: 'application/vnd.github+json',
+               'X-GitHub-Api-Version': '2022-11-28' };
+  try {
+    var got = UrlFetchApp.fetch(url + '?ref=main', { headers: head, muteHttpExceptions: true });
+    if (got.getResponseCode() === 404) return { status:'ok', path:path, gone:true };
+    var sha = (JSON.parse(got.getContentText()) || {}).sha || '';
+    if (!sha) return { status:'error', message:'הקובץ לא נמצא' };
+    var res = UrlFetchApp.fetch(url, {
+      method: 'delete', contentType: 'application/json', headers: head,
+      payload: JSON.stringify({ message: msg || ('מחיקת ' + path), sha: sha, branch: 'main' }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code === 200) return { status:'ok', path:path };
+    return { status:'error', code:code, message: String(res.getContentText()).slice(0, 200) };
   } catch (e) {
     return { status:'error', message: String(e) };
   }

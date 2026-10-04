@@ -460,62 +460,71 @@ function LAmdaSync(after) {
    `taanitShift_` ב-apps-script.gs.
 
    הדגל נשמר אחרי ההעברה, ולכן היא רצה פעם אחת בכל מכשיר. */
-var L_SHIFT = 'shift-taanit-ab';
-/* השבוע הישן → החדש. */
-var L_SHIFT_MAP = { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
-  14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25 };
+/* כל העברה: מסלול, דגל משלה, ומפה. מגילה (8.99.132) — אותו פיצול
+   של דף ב, וכל השאר זז שבוע (י שניים — חנוכה), עד ל"ב שנכנס לשבוע
+   הסיום. ראו CAL_MEGILA ו-`megilaShift_` ב-apps-script.gs. */
+var L_SHIFTS = [
+  { flag: 'shift-taanit-ab', tr: 'taanit',
+    map: { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
+      14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25 } },
+  { flag: 'shift-megila-ab', tr: 'megila',
+    map: { 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:11, 11:12, 12:13, 13:14,
+      14:15, 15:16, 16:17, 17:18, 18:19, 19:20, 20:21, 21:22, 22:23, 23:24, 24:25,
+      25:26, 26:27, 27:31, 31:32, 32:33, 33:34, 34:35, 35:36 } }
+];
 
-function LShiftKey(k, sep) {
+function LShiftKey(k, sep, sh) {
   var p = String(k).split(sep);
-  if (p[0] !== 'taanit') return k;
-  var nw = L_SHIFT_MAP[parseInt(p[1], 10)];
+  if (p[0] !== sh.tr) return k;
+  var nw = sh.map[parseInt(p[1], 10)];
   if (!nw) return k;
   p[1] = String(nw);
   return p.join(sep);
 }
-function LShiftObj(o, sep) {
+function LShiftObj(o, sep, sh) {
   if (!o || typeof o !== 'object') return o;
   var out = {};
-  for (var k in o) if (o.hasOwnProperty(k)) out[LShiftKey(k, sep)] = o[k];
+  for (var k in o) if (o.hasOwnProperty(k)) out[LShiftKey(k, sep, sh)] = o[k];
   return out;
 }
 /* שורה בתור: [['מסלול','taanit'],['שבוע',N],…] בתוך cols. */
-function LShiftQ(q) {
+function LShiftQ(q, sh) {
   (q || []).forEach(function (it) {
     if (!it || !it.cols) return;
     try {
       var c = JSON.parse(it.cols), tr = '';
       c.forEach(function (p) { if (p && p[0] === 'מסלול') tr = p[1]; });
-      if (tr !== 'taanit') return;
+      if (tr !== sh.tr) return;
       c.forEach(function (p) {
-        if (p && p[0] === 'שבוע' && L_SHIFT_MAP[parseInt(p[1], 10)]) p[1] = L_SHIFT_MAP[parseInt(p[1], 10)];
+        if (p && p[0] === 'שבוע' && sh.map[parseInt(p[1], 10)]) p[1] = sh.map[parseInt(p[1], 10)];
       });
       it.cols = JSON.stringify(c);
     } catch (e) {}
   });
   return q;
 }
-function LShift() {
+function LShiftOne(sh) {
   try {
-    if (LGet(L_SHIFT, null)) return;
+    if (LGet(sh.flag, null)) return;
     /* מכשיר שעוד לא שמר כלום — אין מה להעביר. */
     ['learned', 'pos', 'pos-sent', 'pairs'].forEach(function (k) {
       var v = LGet(k, null);
-      if (v) LSet(k, LShiftObj(v, '|'));
+      if (v) LSet(k, LShiftObj(v, '|', sh));
     });
     var lc = LGet('learnCount', null);
-    if (lc) LSet('learnCount', LShiftObj(lc, '|'));
+    if (lc) LSet('learnCount', LShiftObj(lc, '|', sh));
     ['learn-q', 'pair-q'].forEach(function (k) {
       var q = LGet(k, null);
-      if (q && q.length) LSet(k, LShiftQ(q));
+      if (q && q.length) LSet(k, LShiftQ(q, sh));
     });
     var dk = LGet('deckCache', null);
     if (dk) {
-      LSet('deckCache', LShiftObj(dk, '-'));
+      LSet('deckCache', LShiftObj(dk, '-', sh));
       /* deck.js כבר קרא את המטמון לזיכרון, בחלק מהעמודים לפנינו. */
       if (typeof DECKS !== 'undefined' && DECKS) DECKS = LGet('deckCache', null);
     }
-    LSet(L_SHIFT, new Date().toISOString());
+    LSet(sh.flag, new Date().toISOString());
   } catch (e) {}
 }
+function LShift() { L_SHIFTS.forEach(LShiftOne); }
 LShift();

@@ -122,7 +122,6 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
 .back{color:#fff;text-decoration:none;font-weight:800;font-size:.82rem;opacity:.85;
   border:1px solid rgba(255,255,255,.32);border-radius:9px;padding:6px 10px;white-space:nowrap}
 .ttl{flex:1;min-width:0;line-height:1.25}
-.pgo{background:none;font-family:inherit;cursor:pointer}
 .ttl h1{margin:0;display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
 .ttl span{display:block;font-size:.74rem;font-weight:700;opacity:.72}
 #count{font-size:.74rem;font-weight:800;opacity:.8;white-space:nowrap}
@@ -756,6 +755,9 @@ body.leaving{opacity:0;transition:opacity .32s ease}
 .rec-a button.pri{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent}
 nav button.on{background:var(--blue);color:#fff;border-color:transparent}
+/* "איור" — יש איור שעוד לא נצפה (ראו `dkFresh`). מסגרת צהובה בולטת,
+   שנעלמת כשפותחים. */
+nav button.fresh{border:2px solid #F2C230;box-shadow:0 0 0 3px rgba(242,194,48,.35)}
 nav button:disabled{opacity:.38;cursor:default}
 nav .sp{flex:1}
 @media (max-width:420px){
@@ -935,9 +937,6 @@ nav .sp{flex:1}
 <header>
   <div class="hrow">
     <a class="back" href="join.html" id="back">▸ יציאה</a>
-    <!-- מעבר בין עמודים — אותו בורר שנפתח בהקשה על הכותרת (pickOpen),
-         ורק עמודים שנפתחו (pickDafs). הנוסח מ-UI.pickBtn. -->
-    <button class="back pgo" id="pgo" type="button" onclick="pickOpen()" style="display:none"></button>
     <div class="ttl" id="ttl" role="button" tabindex="0" onclick="pickOpen()"><h1 id="t-daf">לימוד אינטראקטיבי</h1><span id="t-sub"></span></div>
     <!-- ריק. כאן ישב "קטע 17 מתוך 41" — חשבונאות של מי שחילק
          את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
@@ -2382,27 +2381,34 @@ function ownPieceSlideUpload(i, file) {
     ownMsg('bad', 'צריך סיסמת סקריפט במכשיר כדי להעלות שקף — ניהול ← מערכת.');
     paintOwnEdit_(n); return;
   }
-  var fr = new FileReader();
-  fr.onload = function () {
-    var fname = 'piece-' + n + '-' + pid + '.' + ownSlideExt_(file.type);
-    var path = (DECK.dir ? DECK.dir + '/' : '') + fname;
-    ownMsg('', 'מעלה שקף…'); paintOwnEdit_(n);
-    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-      action:'ghput', key:cfgReadKey_(), path:path, b64:ownB64FromBuf_(fr.result),
-      msg:'שקף לחלק בקטע ' + n
-    }) }).catch(function () {}).then(function () {
-      ownUploadVerify_(path, 0, function (ok) {
-        if (ok && OWN_EDIT && OWN_EDIT_N === n) {
-          OWN_EDIT.forEach(function (p) { if (p._id === pid) p.slide = fname; });
-          ownMsg('ok', 'השקף עלה. הוא ישויך לחלק בלחיצה על שמירה.');
-        } else {
-          ownMsg('bad', 'העלאת השקף נכשלה — אפשר לנסות שוב.');
-        }
-        if (OWN_EDIT_N === n) paintOwnEdit_(n);
-      });
+  /* WebP ‏75, עד 1800 רוחב (ImgShrink ב-deck.js); לא הצליח — המקור. */
+  ImgShrink(file, function (sm) {
+    if (sm) { ownPieceSlidePut_(n, pid, sm.ext, sm.url.split(',')[1]); return; }
+    var fr = new FileReader();
+    fr.onload = function () {
+      ownPieceSlidePut_(n, pid, ownSlideExt_(file.type), ownB64FromBuf_(fr.result));
+    };
+    fr.readAsArrayBuffer(file);
+  });
+}
+function ownPieceSlidePut_(n, pid, ext, b64) {
+  var fname = 'piece-' + n + '-' + pid + '.' + ext;
+  var path = (DECK.dir ? DECK.dir + '/' : '') + fname;
+  ownMsg('', 'מעלה שקף…'); paintOwnEdit_(n);
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'ghput', key:cfgReadKey_(), path:path, b64:b64,
+    msg:'שקף לחלק בקטע ' + n
+  }) }).catch(function () {}).then(function () {
+    ownUploadVerify_(path, 0, function (ok) {
+      if (ok && OWN_EDIT && OWN_EDIT_N === n) {
+        OWN_EDIT.forEach(function (p) { if (p._id === pid) p.slide = fname; });
+        ownMsg('ok', 'השקף עלה. הוא ישויך לחלק בלחיצה על שמירה.');
+      } else {
+        ownMsg('bad', 'העלאת השקף נכשלה — אפשר לנסות שוב.');
+      }
+      if (OWN_EDIT_N === n) paintOwnEdit_(n);
     });
-  };
-  fr.readAsArrayBuffer(file);
+  });
 }
 
 /* פירוש — טקסט חופשי נטו, ולכל חלק גם הקלטה ושקף אפשריים (ראו
@@ -3324,10 +3330,38 @@ function slideAtIds_(st) {
 /* `auto` = נפתחה מאליה בכניסה, ולא מלחיצה של אדם. פתיחה כזו
    אינה נשמרת כהעדפה: אחרת חלון צר באותו מחשב היה נפתח אחר כך
    עם מצגת שאיש לא ביקש. */
+/* ============================================================
+   איור חדש — מסגרת צהובה על "איור".
+   ============================================================
+   כשהקטע שעל המסך מביא שקף שהלומד עוד לא ראה, והמצגת סגורה —
+   הכפתור מקבל מסגרת. פתיחה (או מצגת שכבר פתוחה) מסמנת את השקף
+   כנצפה, והמסגרת יורדת. מה שנצפה נשמר במכשיר לפי דף, כדי שחזרה
+   לדף לא תדליק שוב את מה שכבר ראו. */
+function dkSeenKey() { return 'df:dkSeen:' + S.mas + '|' + S.daf; }
+function dkSeen() {
+  try { return JSON.parse(localStorage.getItem(dkSeenKey()) || '{}') || {}; } catch (e) { return {}; }
+}
+function dkSeenAdd(n) {
+  if (!n) return;
+  var m = dkSeen();
+  if (m[n]) return;
+  m[n] = 1;
+  try { localStorage.setItem(dkSeenKey(), JSON.stringify(m)); } catch (e) {}
+}
+function dkFresh() {
+  var b = $('dktog');
+  if (!b || !DECK || b.style.display === 'none') return;
+  var n = 0;
+  try { n = slideAt(IDX); } catch (e) { return; }
+  if (document.body.classList.contains('side-on')) dkSeenAdd(n);
+  b.classList.toggle('fresh', !document.body.classList.contains('side-on') && !dkSeen()[n]);
+}
 function sideOpen(on, auto) {
   document.body.classList.toggle('side-on', !!on);
   var b = $('dktog');
   if (b) b.classList.toggle('on', !!on);
+  if (on && DECK) dkSeenAdd(slideAt(IDX));
+  dkFresh();
   if (!quiet() && !auto) try {
     localStorage.setItem('df:side', on ? '1' : '0');
   } catch (e) {}
@@ -3353,6 +3387,7 @@ function sideSync(force) {
      שלחיצה על "מצגת" תראה שקף ולא תיבה ריקה — וזה נכון בדיוק
      במקרה שבו הלומד דפדף הרבה לפני שפתח אותה. */
   slidePre(slideAt(IDX));
+  dkFresh();
   if (!document.body.classList.contains('side-on')) return;
   var want = slideAt(IDX);
   sideVoxPaint();
@@ -3531,6 +3566,7 @@ function sideAdmPaint() {
     'שקף ' + SLIDE + ' מתחיל כאן</button>' +
     (here ? '<button id="sa-del">ביטול העוגן</button>' : '') +
     '<button id="sa-save">שמירה לכולם</button>' +
+    '<button id="sa-dk">' + esc(UI.sdDecks || '') + ' ↗</button>' +
     '</div><div class="msg" id="sa-msg"></div>';
 
   $('sa-set').onclick = function () {
@@ -3548,6 +3584,15 @@ function sideAdmPaint() {
     sidePaint();
   };
   $('sa-save').onclick = sideSave;
+  /* אל עורך המצגות בניהול, על אותו שבוע. הניהול קורא את הבקשה
+     פעם אחת (`admTakeGo` ב-index.html) ומוחק אותה. */
+  $('sa-dk').onclick = function () {
+    try {
+      localStorage.setItem('df:admGo', JSON.stringify(
+        { sub:'daf', mas:S.mas, wk:(S.week >= 0 ? S.week + 1 : 0) }));
+    } catch (e) {}
+    location.href = '/#admin';
+  };
 }
 
 /* ============================================================
@@ -3761,6 +3806,7 @@ function sideInit() {
     b.onclick = function () {
       sideOpen(!document.body.classList.contains('side-on'));
     };
+    dkFresh();
     /* השקף הראשון מובא כבר עכשיו, לפני שאיש לחץ. */
     slidePre(slideAt(IDX));
     slidePre(slideAt(IDX) + 1);
@@ -5230,14 +5276,6 @@ function boot() {
     document.body.className += ' emb';
     var bk = $('back'); if (bk) bk.style.display = 'none';
   }
-  /* הכפתור ליד "יציאה" — לא בחלון ולא בהדגמה, כמו pickOpen עצמה. */
-  (function () {
-    var pg = $('pgo');
-    if (!pg || EMB || quiet()) return;
-    pg.textContent = UI.pickBtn || UI.pickT || '';
-    pg.setAttribute('aria-label', UI.pickT || '');
-    pg.style.display = '';
-  })();
   /* מי שהגיע מעמוד הצוות חוזר לשם, ולא למסך של תלמיד. הקוד
      אינו נוסע בכתובת — הוא נשמר במכשיר, והלוח שם ייפתח בלעדיו. */
   if (FROM === 'tzevet') {

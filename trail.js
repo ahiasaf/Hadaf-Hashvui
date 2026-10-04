@@ -45,8 +45,11 @@ function TrailMark(am) { return am === 1 ? '.' : am === 2 ? ':' : ''; }
 function TrailWeeks(tr) {
   return tr.cal.map(function (row, i) {
     var d = row[2];
+    /* `fin` — שבוע הסיום שיש בו גם דף (מגילה: ל"ב, ראו CAL_MEGILA).
+       הוא דף לכל דבר, ומצויר כעיגול הסיום עם הדף בתוכו. */
     return { wk: i, row: row, daf: d, am: TrailAm(row),
-             kind: !d ? 'off' : d === 'סיום' ? 'siyum' : 'daf', half: false };
+             kind: !d ? 'off' : d === 'סיום' ? 'siyum' : 'daf', half: false,
+             fin: row[4] === 'סיום' };
   });
 }
 function TrailAmudim(tr) {
@@ -55,9 +58,10 @@ function TrailAmudim(tr) {
     var d = row[2];
     if (!d || d === 'סיום') return;
     var am = TrailAm(row);
-    if (am) { out.push({ wk: i, row: row, daf: d, am: am, kind: 'daf', half: false }); return; }
-    out.push({ wk: i, row: row, daf: d, am: 1, kind: 'daf', half: false });
-    out.push({ wk: i, row: row, daf: d, am: 2, kind: 'daf', half: true });
+    var fin = row[4] === 'סיום';
+    if (am) { out.push({ wk: i, row: row, daf: d, am: am, kind: 'daf', half: false, fin: fin }); return; }
+    out.push({ wk: i, row: row, daf: d, am: 1, kind: 'daf', half: false, fin: fin });
+    out.push({ wk: i, row: row, daf: d, am: 2, kind: 'daf', half: true, fin: fin });
   });
   return out;
 }
@@ -96,6 +100,7 @@ function TrailHtml(o) {
     var cls = 'trl-step';
     if (u.kind === 'off') cls += ' off';
     else if (u.kind === 'siyum') cls += ' siyum';
+    else if (u.fin) cls += ' siyum sfin';
     if (u.half) cls += ' half';
     if (u.wk === wi) cls += first ? ' cur' : ' now';
     if (wi >= 0 && u.wk < wi) cls += ' done';
@@ -173,6 +178,8 @@ var TRAIL_CSS =
   'width:34px;height:34px;margin-inline-start:5px}' +
 '.trl-step.siyum .trl-dot{border-color:var(--t-gold);color:var(--t-gold);font-size:.6rem;' +
   'background:rgba(192,143,43,.08)}' +
+/* עיגול הסיום שבתוכו דף (ל"ב במגילה) — בגודל של דף. */
+'.trl-step.siyum.sfin .trl-dot{font-size:.95rem}' +
 /* עמוד שני באותו שבוע — אותו קו, עיגול קטן יותר. */
 '.trl-step.half{padding:2px 0}' +
 '.trl-step.half .trl-dot{width:36px;height:36px;margin-inline-start:4px;font-size:.9rem}' +
