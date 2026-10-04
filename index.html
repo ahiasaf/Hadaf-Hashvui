@@ -1916,6 +1916,51 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-cr{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;
       border-top:1px solid var(--rule);font-size:.88rem;color:var(--ink)}
 .am-cr i{font-style:normal;font-size:.76rem;font-weight:700;color:var(--ink-3);white-space:nowrap}
+.am-red{font-style:normal;color:#B4473A}
+/* מפת הכיתה — מנקודת המבט של המורה: שולחן המורה למטה, שולחן
+   ראשון בכל טור הוא הקרוב אליו, כיסא מעל כל חצי שולחן. */
+.am-room{margin:6px 0 14px;padding:12px 8px 0;background:var(--sunk);border-radius:var(--r)}
+.am-cols{display:flex;gap:7px;align-items:flex-end}
+.am-col{flex:1;min-width:0;display:flex;flex-direction:column-reverse;gap:10px}
+.am-desk{display:flex;flex-direction:column;gap:2px}
+.am-pair{display:flex;gap:2px}
+.am-seat{flex:1;min-width:0;min-height:46px;position:relative;border:0;background:none;padding:3px 0 0;
+      color:#B9A27A;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit}
+.am-seat svg{width:22px;height:22px;fill:currentColor}
+.am-seat b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      font-size:.6rem;font-weight:800;line-height:1.15;color:var(--ink)}
+.am-seat.taken{color:var(--blue)}
+.am-seat.bad{color:#B4473A}
+.am-seat.free{color:var(--green-d)}
+.am-seat.mine{outline:2px solid var(--gold);outline-offset:-1px;border-radius:8px}
+.am-seat[disabled]{opacity:.55}
+.am-seat i{position:absolute;top:-3px;font-style:normal;font-size:.58rem;font-weight:800;color:#fff;
+      border-radius:8px;padding:0 4px;line-height:14px}
+.am-seat i.p{inset-inline-start:0;background:var(--green-d)}
+.am-seat i.d{inset-inline-end:0;background:#B4473A}
+.am-tbl{height:12px;border-radius:4px;background:#B98A4E;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.am-tdesk{width:45%;margin:14px auto 0;padding:6px 0;border-radius:8px 8px 0 0;background:var(--blue-d);
+      color:#fff;text-align:center;font-size:.74rem;font-weight:800}
+.am-skip{display:block;margin:6px auto 0;padding:9px 22px;font-size:.9rem}
+.am-lead{margin:8px 2px;font-size:.85rem;font-weight:700;color:var(--ink-3)}
+.am-chips{display:flex;flex-wrap:wrap;gap:6px}
+.am-chip{border:1px solid var(--rule);background:var(--surface);border-radius:20px;padding:7px 12px;
+      font:inherit;font-size:.85rem;font-weight:700;color:var(--ink)}
+.am-chip.away{background:var(--sunk);color:var(--ink-3)}
+.am-chip.on{background:var(--gold-t);border-color:var(--gold-t);color:#fff}
+.am-sheet{position:fixed;inset:0;z-index:9002;display:flex;align-items:flex-end;background:rgba(11,37,80,.35)}
+.am-sh-in{width:100%;max-width:620px;margin:0 auto;padding:18px 16px 26px;border-radius:18px 18px 0 0;
+      background:var(--paper);display:flex;flex-direction:column;gap:10px}
+.am-sh-in b{font-size:1.3rem;font-weight:800;color:var(--blue-d)}
+.am-sh-in span{font-size:.85rem;font-weight:700;color:var(--ink-3)}
+.am-mk{display:flex;gap:8px}
+.am-mp,.am-md{flex:1;border:0;border-radius:var(--r);padding:16px 0;color:#fff;
+      font:inherit;font-size:1.1rem;font-weight:800}
+.am-mp{background:var(--green-d)}
+.am-md{background:#B4473A}
+.am-minus{flex:0 0 64px;border:1px solid var(--rule);background:var(--surface);border-radius:var(--r);
+      font:inherit;font-weight:800;color:var(--ink-2)}
+.am-mk .am-x{flex:1;padding:12px 0;font-size:.9rem}
 
 /* ---------- מסך הניהול: מוסד, רענון, לשוניות ויזואליות (adm2) ---------- */
 #ip-w{flex:1;min-width:0}
@@ -2374,7 +2419,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.128';
+var APP_VERSION = '8.99.129';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -13823,7 +13868,7 @@ var AMDA_GRADES = ['ז', 'ח', 'ט', 'י'];
    לגיליון (`קוד עמדה`), ובית המדרש הנודד נספר לפיו בנפרד. */
 var AMDA_SLOTS  = ['Pray', 'B10', 'B1230', 'B1430', 'Noded'];
 var AMDA_NODED  = 'Noded';
-var amdaSt = { g: '', c: '', idle: null, ok: null, pullT: null, flushT: null, slot: '', track: '' };
+var amdaSt = { g: '', c: '', pick: '', idle: null, ok: null, pullT: null, flushT: null, slot: '', track: '' };
 var amdaMsg = '';
 
 function amdaT(k, v) {
@@ -13839,7 +13884,10 @@ function amdaDay() {
 }
 
 /* ---------- המועדים ---------- */
-function amdaSlotName(id) { return amdaT('slot' + id); }
+function amdaSlotName(id) {
+  var l = amdaLesson(id);
+  return l ? amdaLessonName(l) : amdaT('slot' + id);
+}
 function amdaSlotWin(id) {
   var m = /(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/.exec(amdaT('slot' + id + 'T'));
   return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null;
@@ -13857,7 +13905,7 @@ function amdaSlotNow() {
   return last;
 }
 function amdaSlotSel() {
-  if (AMDA_SLOTS.indexOf(amdaSt.slot) < 0) amdaSt.slot = amdaSlotNow();
+  if (AMDA_SLOTS.indexOf(amdaSt.slot) < 0 && !amdaLesson(amdaSt.slot)) amdaSt.slot = amdaSlotNow();
   return amdaSt.slot;
 }
 /* הפתיחה הנוכחית: באיזה מועד, והאם בדף ('d') או בנושא אחר ('o'). */
@@ -14054,7 +14102,8 @@ function amdaPullRoster() {
 function amdaFlush() {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
   var q = amdaQ(), now = Date.now(), sent = 0;
-  if (!key || !url || !q.length) return;
+  if (!key || !url) return;
+  sent += amdaFlushMarks(key, url);
   q.forEach(function (m) {
     if (m.sent && now - m.sent < 45000) return;       /* עוד מחכה לאימות */
     m.sent = now;
@@ -14066,7 +14115,7 @@ function amdaFlush() {
                             ['עמדה', m.slot ? amdaSlotName(m.slot) : ''], ['קוד עמדה', m.slot || ''],
                             ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
                             ['מסלול', daf ? m.track : ''], ['דף', daf ? (m.daf || '') : ''],
-                            ['קוד ישיבה', m.inst || ''],
+                            ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
                             ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
       .catch(function () {});
   });
@@ -14083,7 +14132,7 @@ function amdaPull() {
   if (!key) return Promise.resolve(false);
   return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
-    var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay();
+    var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay(), seatEv = [], lesAtt = {};
     var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
     d.rows.slice(1).forEach(function (x) {
       var id = col(x, 'מזהה'), g = col(x, 'שכבה'), c = col(x, 'כיתה'), n = col(x, 'שם');
@@ -14092,17 +14141,22 @@ function amdaPull() {
       var m = { day: col(x, 'יום'), slot: col(x, 'קוד עמדה'), w: col(x, 'שבוע'),
                 kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd' };
       var sess = amdaSessOf(m), sk = amdaKey(g, c, n);
+      if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: col(x, 'מקום') });
       if (once[sess + '#' + sk]) return;
+      if (m.slot.charAt(0) === 'L') lesAtt[sk] = (lesAtt[sk] || 0) + 1;
       once[sess + '#' + sk] = 1;
       (cnt[sk] = cnt[sk] || [0, 0, 0])[amdaBucket(m.slot, m.kind)]++;
       if (m.day === today) (had[sess] = had[sess] || {})[sk] = 1;
     });
     Store.set('amdaHad2', had);
     Store.set('amdaCnt', cnt);
+    Store.set('amdaLesAtt', lesAtt);
     Store.set('amdaQ', amdaQ().filter(function (m) { return !seen[m.id]; }));
+    return amdaPullMarks(key, seatEv);
+  }).catch(function () { return false; }).then(function (ok) {
     if (document.getElementById('amda-adm')) admPane();
-    return true;
-  }).catch(function () { return false; });
+    return ok;
+  });
 }
 
 /* ---------- העמדה ----------
@@ -14123,7 +14177,7 @@ function amdaOpen(kind) {
     document.body.appendChild(el);
     el.addEventListener('click', amdaTap);
   }
-  amdaSt.g = ''; amdaSt.c = '';
+  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
   el.className = 'amda on';
   Store.set('amdaOn', 1);
   try {
@@ -14152,30 +14206,43 @@ function amdaClose() {
 function amdaPaint() {
   var box = document.getElementById('am-in');
   if (!box) return;
-  var s = amdaSess(), daf = s.kind !== 'o';
+  var s = amdaSess(), daf = s.kind !== 'o', les = amdaLesson(s.slot);
+  /* שיעור כיתה: רק הכיתה הזו, בלי לבחור שכבה וכיתה. */
+  if (les) { amdaSt.g = les.g; amdaSt.c = les.c; }
   var h = '<div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
           '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' +
           esc(amdaT('brand2')) + ' · ' + esc(PROGRAM.year) + '</span></div>' +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
           '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
           '<div class="am-sub">' + esc(amdaSlotName(s.slot)) +
-          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') + '</div>' +
-          '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
-  AMDA_GRADES.forEach(function (g) {
-    h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
-         esc(amdaG(g)) + '</button>';
-  });
-  h += '</div>';
-  if (amdaSt.g) {
-    h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
-    amdaClasses(amdaSt.g).forEach(function (c) {
-      h += '<button class="am-b' + (amdaSt.c === c ? ' on' : '') + '" data-c="' + esc(c) + '">' +
-           esc(c) + '</button>';
+          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') + '</div>';
+  /* שלב המקום: אחרי השם, במפת הכיתה. */
+  if (les && amdaSt.pick) {
+    var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
+    h += '<div class="am-q">' + esc(amdaSt.pick) + ' — ' + esc(amdaT('pickSeat')) + '</div>' +
+         amdaMapHtml(les, amdaOcc(les, sess), { mine: amdaSeats(les.id)[me] || '', me: me }) +
+         '<button class="am-x am-skip" data-s="-">' + esc(amdaT('seatSkip')) + '</button>';
+    box.innerHTML = h;
+    return;
+  }
+  if (!les) {
+    h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
+    AMDA_GRADES.forEach(function (g) {
+      h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
+           esc(amdaG(g)) + '</button>';
     });
     h += '</div>';
+    if (amdaSt.g) {
+      h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
+      amdaClasses(amdaSt.g).forEach(function (c) {
+        h += '<button class="am-b' + (amdaSt.c === c ? ' on' : '') + '" data-c="' + esc(c) + '">' +
+             esc(c) + '</button>';
+      });
+      h += '</div>';
+    }
   }
   if (amdaSt.g && amdaSt.c) {
-    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = (amdaRoster().g[amdaSt.g] || {})[amdaSt.c] || [];
+    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c);
     h += '<div class="am-q" id="am-nq">' + esc(amdaT('pickN')) + '</div><div class="am-names">';
     list.forEach(function (n, i) {
       var was = had[amdaKey(amdaSt.g, amdaSt.c, n)];
@@ -14186,12 +14253,13 @@ function amdaPaint() {
   }
   box.innerHTML = h;
 }
+function amdaList(g, c) { return ((amdaRoster() || {}).g || {})[g] ? (amdaRoster().g[g][c] || []) : []; }
 /* מי שבחר שכבה והלך — המסך חוזר להתחלה לבד. */
 function amdaIdle() {
   clearTimeout(amdaSt.idle);
   amdaSt.idle = setTimeout(function () {
-    if (!amdaSt.g) return;
-    amdaSt.g = ''; amdaSt.c = '';
+    if (!amdaSt.g && !amdaSt.pick) return;
+    amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
     amdaPaint();
     document.getElementById('amda').scrollTop = 0;
   }, 30000);
@@ -14199,7 +14267,7 @@ function amdaIdle() {
 function amdaTap(e) {
   var el = e.target;
   while (el && el.id !== 'amda' && !(el.getAttribute &&
-         (el.getAttribute('data-g') || el.getAttribute('data-c') ||
+         (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
@@ -14216,23 +14284,36 @@ function amdaTap(e) {
     if (q) box.scrollTop = Math.max(0, q.offsetTop - 12);
     return;
   }
-  var list = (amdaRoster().g[amdaSt.g] || {})[amdaSt.c] || [];
-  var n = list[+el.getAttribute('data-n')];
+  if (el.getAttribute('data-s')) {
+    if (el.disabled || !amdaSt.pick) return;
+    var seat = el.getAttribute('data-s'), who = amdaSt.pick;
+    amdaSt.pick = '';
+    amdaMark(amdaSt.g, amdaSt.c, who, seat === '-' ? '' : seat);
+    return;
+  }
+  var n = amdaList(amdaSt.g, amdaSt.c)[+el.getAttribute('data-n')];
   if (!n) return;
-  amdaMark(amdaSt.g, amdaSt.c, n);
+  /* בשיעור כיתה — קודם המקום, ורק אז הרישום. */
+  if (amdaLesson(amdaSess().slot)) {
+    amdaSt.pick = n; amdaPaint(); amdaIdle(); box.scrollTop = 0; return;
+  }
+  amdaMark(amdaSt.g, amdaSt.c, n, '');
 }
 /* היום והשבוע — של רגע הלחיצה, ולא של פתיחת העמדה: מכשיר שנשאר
-   פתוח עד מחר רושם את מחר. */
-function amdaMark(g, c, n) {
+   פתוח עד מחר רושם את מחר. מי שכבר נרשם במועד הזה ובחר מקום —
+   רק המקום נשלח. */
+function amdaMark(g, c, n, seat) {
   var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n);
   if (!amdaHadNow(day + '|' + s.slot)[key]) {
     var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
     q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
              w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
-             track: track, daf: LDafName(track, wk) || '', inst: amdaInst(),
+             track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: seat || '',
              g: g, c: c, n: n, at: new Date().toISOString() });
     Store.set('amdaQ', q);
     amdaFlush();
+  } else if (seat) {
+    amdaMarkAdd(s.slot, g, c, n, 'seat', 0, seat);
   }
   clearTimeout(amdaSt.idle);
   document.getElementById('am-okn').textContent = n;
@@ -14240,10 +14321,390 @@ function amdaMark(g, c, n) {
   document.getElementById('am-ok').className = 'am-ok on';
   setTimeout(function () {
     document.getElementById('am-ok').className = 'am-ok';
-    amdaSt.g = ''; amdaSt.c = '';
+    amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
     amdaPaint();
     document.getElementById('amda').scrollTop = 0;
   }, 1300);
+}
+
+/* ============================================================
+   שיעור כיתה — כיתה אחת, מפת מקומות, ולוח סימון למורה.
+   ============================================================
+   שיעור קבוע (למשל ז׳4 ביום ראשון) הוא מועד נוסף ברשימה, שהמזהה
+   שלו 'L' + מזהה השיעור. בעמדה מופיעים רק תלמידי הכיתה; אחרי השם
+   — מפת הכיתה, והתלמיד לוחץ איפה הוא יושב.
+
+   **המפה מנקודת המבט של המורה:** שולחן המורה למטה, הטורים מימין
+   לשמאל כפי שהמורה רואה אותם, ושולחן ראשון בכל טור הוא הקרוב
+   אליו. `cols` — כמה שולחנות בכל טור, "3,3,3,4,4". שני מקומות
+   לכל שולחן. מקום = 'טור-שולחן-צד' (צד 1 ימין).
+
+   **לוח הכיתה** — אותה מפה עם השמות. לחיצה על תלמיד: השתתפות
+   יפה (+1, ירוק) או ביטול תורה (+1, אדום), ומינוס לתיקון. נצבר
+   לאורך השנה. הסימונים ושינויי מקום נכתבים ללשונית "עמדה —
+   סימונים", באותו תור מאומת של הרישום.
+
+   השיעורים עצמם נשמרים במכשיר ובלשונית "עמדה — שיעורים", כדי
+   שגם הטלפון של המורה יכיר את המפה.
+   ============================================================ */
+var AMDA_MARKS   = 'עמדה — סימונים';
+var AMDA_LESSONS = 'עמדה — שיעורים';
+var AMDA_MK = { p: 'השתתפות יפה', d: 'ביטול תורה', seat: 'מקום' };
+var AMDA_LES_DEF = [{ id: 'ז4-0', g: 'ז', c: '4', day: 0, cols: '3,3,3,4,4' }];
+
+function amdaLessons() {
+  var l = Store.get('amdaLessons', null);
+  return l || AMDA_LES_DEF;
+}
+function amdaLesson(slot) {
+  if (!slot || slot.charAt(0) !== 'L') return null;
+  var id = slot.slice(1);
+  return amdaLessons().filter(function (l) { return l.id === id; })[0] || null;
+}
+function amdaLessonName(l) {
+  var days = amdaT('days').split(',');
+  return amdaT('lessonName', { cls: amdaG(l.g) + l.c, day: (days[l.day] || '').trim() });
+}
+function amdaCols(l) {
+  return String(l.cols || '').split(',').map(function (x) { return parseInt(x, 10) || 0; })
+    .filter(function (x) { return x > 0; });
+}
+
+/* ---------- הסימונים: תור ושליחה ---------- */
+function amdaMq() { return Store.get('amdaMq', []) || []; }
+function amdaMarkAdd(slot, g, c, n, mark, delta, seat) {
+  var q = amdaMq();
+  q.push({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+           day: amdaDay(), slot: slot, g: g, c: c, n: n, mark: mark, delta: delta || 0,
+           seat: seat || '', at: new Date().toISOString() });
+  Store.set('amdaMq', q);
+  amdaFlush();
+}
+function amdaFlushMarks(key, url) {
+  var q = amdaMq(), now = Date.now(), sent = 0;
+  q.forEach(function (m) {
+    if (m.sent && now - m.sent < 45000) return;
+    m.sent = now;
+    sent++;
+    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+      action: 'row', tab: AMDA_MARKS, key: key,
+      cols: JSON.stringify([['מזהה', m.id], ['יום', m.day], ['עמדה', amdaSlotName(m.slot)],
+                            ['קוד עמדה', m.slot], ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n],
+                            ['סימון', AMDA_MK[m.mark] || ''], ['שינוי', m.delta], ['מקום', m.seat],
+                            ['מתי', m.at]]) }) })
+      .catch(function () {});
+  });
+  Store.set('amdaMq', q);
+  return sent;
+}
+/* הסימונים מהגיליון: מה שנראה יוצא מהתור, והמקומות והספירות
+   מחושבים מחדש. `seatEv` — אירועי המקום מלשונית הרישום, כדי
+   שהאחרון בזמן יגבר משתי הלשוניות יחד. */
+function amdaPullMarks(key, seatEv) {
+  return scriptGet({ read: AMDA_MARKS, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var h = d.rows[0] || [], seen = {}, tot = {}, day = {}, today = amdaDay();
+    var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
+    d.rows.slice(1).forEach(function (x) {
+      var id = col(x, 'מזהה'), sk = amdaKey(col(x, 'שכבה'), col(x, 'כיתה'), col(x, 'שם'));
+      if (id) seen[id] = 1;
+      var mk = col(x, 'סימון'), slot = col(x, 'קוד עמדה');
+      if (mk === AMDA_MK.seat) { seatEv.push({ at: col(x, 'מתי'), slot: slot, sk: sk, seat: col(x, 'מקום') }); return; }
+      var b = mk === AMDA_MK.p ? 0 : mk === AMDA_MK.d ? 1 : -1, dl = parseInt(col(x, 'שינוי'), 10) || 0;
+      if (b < 0 || !dl) return;
+      (tot[sk] = tot[sk] || [0, 0])[b] += dl;
+      if (col(x, 'יום') === today) {
+        var ss = today + '|' + slot;
+        ((day[ss] = day[ss] || {})[sk] = day[ss][sk] || [0, 0])[b] += dl;
+      }
+    });
+    Store.set('amdaMk', tot);
+    Store.set('amdaMkDay', day);
+    Store.set('amdaMq', amdaMq().filter(function (m) { return !seen[m.id]; }));
+    return true;
+  }).catch(function () { return false; }).then(function (ok) {
+    /* המקומות — רק כשגם הסימונים נקראו; אחרת מה שבמכשיר נשאר. */
+    if (!ok) return false;
+    var seats = {};
+    seatEv.sort(function (a, b) { return a.at < b.at ? -1 : a.at > b.at ? 1 : 0; });
+    seatEv.forEach(function (e) {
+      if (!e.slot || e.slot.charAt(0) !== 'L') return;
+      var lid = e.slot.slice(1);
+      seats[lid] = seats[lid] || {};
+      if (e.seat) {
+        /* מקום שמישהו אחר תפס — מתפנה ממנו. */
+        for (var k in seats[lid]) { if (seats[lid][k] === e.seat) delete seats[lid][k]; }
+        seats[lid][e.sk] = e.seat;
+      }
+    });
+    Store.set('amdaSeat', seats);
+    return true;
+  });
+}
+
+/* ---------- מה ידוע: מקומות וסימונים, כולל מה שעוד בתור ---------- */
+function amdaSeats(lid) {
+  var all = (Store.get('amdaSeat', {}) || {})[lid] || {}, out = {}, k, ev = [];
+  for (k in all) { if (all.hasOwnProperty(k)) out[k] = all[k]; }
+  amdaQ().forEach(function (m) { if (m.seat && m.slot === 'L' + lid) ev.push(m); });
+  amdaMq().forEach(function (m) { if (m.mark === 'seat' && m.seat && m.slot === 'L' + lid) ev.push(m); });
+  ev.sort(function (a, b) { return a.at < b.at ? -1 : 1; });
+  ev.forEach(function (m) {
+    for (var x in out) { if (out[x] === m.seat) delete out[x]; }
+    out[amdaKey(m.g, m.c, m.n)] = m.seat;
+  });
+  return out;
+}
+/* מקום → תלמיד, רק של מי שנרשם היום לשיעור. */
+function amdaOcc(les, sess) {
+  var had = amdaHadNow(sess), seats = amdaSeats(les.id), occ = {}, k;
+  for (k in seats) { if (seats.hasOwnProperty(k) && had[k]) occ[seats[k]] = k; }
+  return occ;
+}
+function amdaMkOf(sk, sess) {
+  var base = sess ? (((Store.get('amdaMkDay', {}) || {})[sess] || {})[sk])
+                  : (Store.get('amdaMk', {}) || {})[sk];
+  var out = base ? base.slice() : [0, 0];
+  amdaMq().forEach(function (m) {
+    if (amdaKey(m.g, m.c, m.n) !== sk || m.mark === 'seat') return;
+    if (sess && m.day + '|' + m.slot !== sess) return;
+    out[m.mark === 'p' ? 0 : 1] += m.delta;
+  });
+  return out;
+}
+
+/* ---------- המפה ----------
+   `occ` מקום → תלמיד. בעמדה (`o.me`): תפוס — לא לחיץ, והמקום
+   הקודם של התלמיד מודגש. בלוח (`o.board`): השם וסימוני היום. */
+var AMDA_CHAIR = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="9" rx="3"/>' +
+                 '<rect x="3" y="12" width="18" height="5" rx="2"/><rect x="5" y="17" width="2.4" height="5" rx="1"/>' +
+                 '<rect x="16.6" y="17" width="2.4" height="5" rx="1"/></svg>';
+function amdaFirst(sk) { var p = amdaNm(sk).split(' '); return p[p.length - 1]; }
+function amdaMapHtml(les, occ, o) {
+  var cols = amdaCols(les), h = '<div class="am-room"><div class="am-cols">';
+  cols.forEach(function (n, i) {
+    h += '<div class="am-col">';
+    for (var r = 1; r <= n; r++) {
+      h += '<div class="am-desk"><div class="am-pair">';
+      for (var sd = 1; sd <= 2; sd++) {
+        var id = (i + 1) + '-' + r + '-' + sd, who = occ[id], cls = 'am-seat';
+        var lbl = '', dis = false;
+        if (who) {
+          cls += ' taken';
+          lbl = '<b>' + esc(amdaFirst(who)) + '</b>';
+          if (o.me && who !== o.me) dis = true;
+          if (o.board) {
+            var mk = amdaMkOf(who, o.sess);
+            if (mk[0] > 0) lbl += '<i class="p">' + mk[0] + '</i>';
+            if (mk[1] > 0) { lbl += '<i class="d">' + mk[1] + '</i>'; cls += ' bad'; }
+          }
+        }
+        if (o.me && id === o.mine) cls += ' mine';
+        if (o.board && o.sel && !who) cls += ' free';
+        h += '<button class="' + cls + '" data-s="' + id + '"' + (dis ? ' disabled' : '') +
+             ' aria-label="' + esc(who ? amdaNm(who) : amdaT('seatFree')) + '">' +
+             AMDA_CHAIR + lbl + '</button>';
+      }
+      h += '</div><div class="am-tbl"></div></div>';
+    }
+    h += '</div>';
+  });
+  return h + '</div><div class="am-tdesk">' + esc(amdaT('teacher')) + '</div></div>';
+}
+
+/* ---------- לוח הכיתה ---------- */
+function amdaBoard(slot) {
+  var les = amdaLesson(slot);
+  if (!les) return;
+  amdaSt.bSlot = slot; amdaSt.bSel = ''; amdaSt.bWho = '';
+  var el = document.getElementById('amcb');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'amcb';
+    el.className = 'amda';
+    document.body.appendChild(el);
+    el.addEventListener('click', amdaBoardTap);
+  }
+  el.className = 'amda on';
+  amdaBoardPaint();
+  amdaFlush();
+  amdaPull().then(amdaBoardPaint);
+  clearInterval(amdaSt.bT);
+  amdaSt.bT = setInterval(function () {
+    amdaFlush();
+    if (!amdaSt.bWho) amdaPull().then(amdaBoardPaint);
+  }, 20000);
+}
+function amdaBoardPaint() {
+  var el = document.getElementById('amcb'), les = amdaLesson(amdaSt.bSlot);
+  if (!el || el.className !== 'amda on' || !les) return;
+  var sess = amdaDay() + '|' + amdaSt.bSlot, had = amdaHadNow(sess), occ = amdaOcc(les, sess);
+  var seated = {}, k;
+  for (k in occ) { if (occ.hasOwnProperty(k)) seated[occ[k]] = 1; }
+  var list = amdaList(les.g, les.c), noSeat = [], away = [];
+  list.forEach(function (n) {
+    var sk = amdaKey(les.g, les.c, n);
+    if (!had[sk]) away.push(sk); else if (!seated[sk]) noSeat.push(sk);
+  });
+  var chip = function (sk, cls) {
+    return '<button class="am-chip' + cls + (amdaSt.bSel === sk ? ' on' : '') + '" data-k="' + esc(sk) + '">' +
+           esc(amdaNm(sk)) + '</button>';
+  };
+  var h = '<div class="am-in"><div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
+    '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' + esc(amdaT('brand2')) + ' · ' +
+    esc(PROGRAM.year) + '</span></div><button class="am-x" data-bx="1">' + esc(amdaT('bClose')) + '</button></div>' +
+    '<div class="am-h">' + esc(amdaLessonName(les)) + '</div>' +
+    '<div class="am-sub">' + esc(amdaT('bHere', { n: Object.keys(had).length, of: list.length })) + '</div>' +
+    '<p class="am-lead">' + esc(amdaSt.bSel ? amdaT('bPlace', { n: amdaNm(amdaSt.bSel) }) : amdaT('bLead')) + '</p>' +
+    amdaMapHtml(les, occ, { board: 1, sess: sess, sel: amdaSt.bSel });
+  if (noSeat.length) h += '<div class="am-q">' + esc(amdaT('bNoSeat')) + '</div><div class="am-chips">' +
+    noSeat.map(function (sk) { return chip(sk, ''); }).join('') + '</div>';
+  if (away.length) h += '<div class="am-q">' + esc(amdaT('bAbsent')) + '</div><div class="am-chips">' +
+    away.map(function (sk) { return chip(sk, ' away'); }).join('') + '</div>';
+  h += '</div>';
+  if (amdaSt.bWho) {
+    var w = amdaSt.bWho, td = amdaMkOf(w, sess), tt = amdaMkOf(w);
+    h += '<div class="am-sheet" data-m="x"><div class="am-sh-in" data-m="in"><b>' + esc(amdaNm(w)) + '</b>' +
+      '<span>' + esc(amdaT('bToday', { p: td[0], d: td[1] })) + '<br>' +
+      esc(amdaT('bTotal', { a: (amdaLesAtt()[w] || 0), p: tt[0], d: tt[1] })) + '</span>' +
+      '<div class="am-mk"><button class="am-mp" data-m="p">+ ' + esc(amdaT('mkP')) + '</button>' +
+      '<button class="am-minus" data-m="p-">−1</button></div>' +
+      '<div class="am-mk"><button class="am-md" data-m="d">+ ' + esc(amdaT('mkD')) + '</button>' +
+      '<button class="am-minus" data-m="d-">−1</button></div>' +
+      '<div class="am-mk"><button class="am-x" data-m="move">' + esc(amdaT('bMove')) + '</button>' +
+      '<button class="am-x" data-m="x">' + esc(amdaT('bClose')) + '</button></div></div></div>';
+  }
+  var y = el.firstChild ? el.scrollTop : 0;
+  el.innerHTML = h;
+  el.scrollTop = y;
+}
+function amdaBoardTap(e) {
+  var el = e.target;
+  while (el && el.id !== 'amcb' && !(el.getAttribute &&
+         (el.getAttribute('data-s') || el.getAttribute('data-k') || el.getAttribute('data-m') ||
+          el.getAttribute('data-bx')))) el = el.parentNode;
+  if (!el || el.id === 'amcb') return;
+  var les = amdaLesson(amdaSt.bSlot), sess = amdaDay() + '|' + amdaSt.bSlot;
+  if (!les) return;
+  if (el.getAttribute('data-bx')) {
+    clearInterval(amdaSt.bT);
+    document.getElementById('amcb').className = 'amda';
+    admPane(); return;
+  }
+  var m = el.getAttribute('data-m');
+  if (m) {
+    var p = amdaNm(amdaSt.bWho);
+    if (m === 'in') return;
+    if (m === 'x') amdaSt.bWho = '';
+    else if (m === 'move') { amdaSt.bSel = amdaSt.bWho; amdaSt.bWho = ''; }
+    else amdaMarkAdd(amdaSt.bSlot, les.g, les.c, p, m.charAt(0), m.length > 1 ? -1 : 1, '');
+    amdaBoardPaint(); return;
+  }
+  var k = el.getAttribute('data-k');
+  if (k) {
+    var had = amdaHadNow(sess);
+    if (!had[k]) {
+      if (!confirm(amdaT('bAskHere', { n: amdaNm(k) }))) return;
+      amdaHereBy(les, k);
+    }
+    amdaSt.bSel = amdaSt.bSel === k ? '' : k;
+    amdaBoardPaint(); return;
+  }
+  var id = el.getAttribute('data-s'), occ = amdaOcc(les, sess);
+  if (occ[id]) { amdaSt.bWho = occ[id]; amdaSt.bSel = ''; amdaBoardPaint(); return; }
+  if (amdaSt.bSel) {
+    amdaMarkAdd(amdaSt.bSlot, les.g, les.c, amdaNm(amdaSt.bSel), 'seat', 0, id);
+    amdaSt.bSel = '';
+    amdaBoardPaint();
+  }
+}
+/* המורה מסמן נוכחות למי שלא נרשם בעמדה — אותו רישום בדיוק. */
+function amdaHereBy(les, sk) {
+  var s = amdaSess(), q = amdaQ(), wk = Math.max(0, LWeek()), track = amdaTrack();
+  var kind = s.slot === amdaSt.bSlot ? s.kind : 'o';
+  q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+           w: wk + 1, day: amdaDay(), slot: amdaSt.bSlot, kind: kind === 'd' ? 'd' : 'o',
+           track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '',
+           g: les.g, c: les.c, n: amdaNm(sk), at: new Date().toISOString() });
+  Store.set('amdaQ', q);
+  amdaFlush();
+}
+/* כמה פעמים כל תלמיד היה בשיעורי כיתה — מהגיליון ומהתור. */
+function amdaLesAtt() {
+  var base = Store.get('amdaLesAtt', {}) || {}, out = {}, k;
+  for (k in base) { if (base.hasOwnProperty(k)) out[k] = base[k]; }
+  amdaQ().forEach(function (m) {
+    if (amdaLesson(m.slot)) { var sk = amdaKey(m.g, m.c, m.n); out[sk] = (out[sk] || 0) + 1; }
+  });
+  return out;
+}
+
+/* ---------- עריכת השיעורים ---------- */
+function amdaLesSave(list) {
+  Store.set('amdaLessons', list);
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  if (!key || !url) { amdaMsg = amdaT('lesNoSave'); admPane(); return; }
+  amdaMsg = amdaT('lesSaving'); admPane();
+  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'table', tab: AMDA_LESSONS, key: key,
+    cols: JSON.stringify(['מזהה', 'שכבה', 'כיתה', 'יום', 'טורים']),
+    rows: JSON.stringify(list.map(function (l) { return [l.id, l.g, l.c, l.day, l.cols]; })) }) })
+    .catch(function () {})
+    .then(function () { return new Promise(function (ok) { setTimeout(ok, 2500); }); })
+    .then(amdaLesRead)
+    .then(function (got) {
+      amdaMsg = amdaT(got && got.length === list.length ? 'lesSaved' : 'lesNoSave');
+      admPane();
+    });
+}
+/* null = הקריאה נכשלה, או שהלשונית עוד לא נכתבה מעולם. */
+function amdaLesRead() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(null);
+  return scriptGet({ read: AMDA_LESSONS, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows || !d.rows.length) return null;
+    var h = d.rows[0], col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
+    if (h.indexOf('מזהה') < 0) return null;
+    return d.rows.slice(1).map(function (x) {
+      return { id: col(x, 'מזהה'), g: col(x, 'שכבה'), c: col(x, 'כיתה'),
+               day: parseInt(col(x, 'יום'), 10) || 0, cols: col(x, 'טורים') };
+    }).filter(function (l) { return l.id && l.g && l.c; });
+  }).catch(function () { return null; });
+}
+function amdaLesAdd() {
+  var g = document.getElementById('les-g').value, c = String(document.getElementById('les-c').value).replace(/\D/g, '');
+  var day = parseInt(document.getElementById('les-d').value, 10) || 0;
+  var cols = String(document.getElementById('les-cols').value).replace(/\s/g, '');
+  if (!g || !c || !/^\d+(,\d+)*$/.test(cols)) { alert(amdaT('lesBad')); return; }
+  var id = g + c + '-' + day, list = amdaLessons().filter(function (l) { return l.id !== id; });
+  list.push({ id: id, g: g, c: c, day: day, cols: cols });
+  amdaLesSave(list);
+}
+function amdaLesDel(id) {
+  if (!confirm(amdaT('lesDel'))) return;
+  amdaLesSave(amdaLessons().filter(function (l) { return l.id !== id; }));
+}
+function amdaLesCard() {
+  var days = amdaT('days').split(',');
+  return '<div class="adm-card"><h4>' + esc(amdaT('lessonsH')) + '</h4>' +
+    '<p class="h">' + esc(amdaT('lessonsLead')) + '</p>' +
+    amdaLessons().map(function (l) {
+      return '<div class="am-cr"><span>' + esc(amdaLessonName(l)) + '</span><i>' + esc(l.cols) +
+             ' <button class="am-x" onclick="amdaLesDel(\'' + esc(l.id) + '\')">✕</button></i></div>';
+    }).join('') +
+    '<div class="am-q">' + esc(amdaT('lessonAdd')) + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<select id="les-g" aria-label="' + esc(amdaT('lessonG')) + '">' +
+      AMDA_GRADES.map(function (g) { return '<option value="' + g + '">' + esc(amdaG(g)) + '</option>'; }).join('') +
+    '</select>' +
+    '<input id="les-c" type="tel" style="width:90px" aria-label="' + esc(amdaT('lessonC')) + '" placeholder="' + esc(amdaT('lessonC')) + '">' +
+    '<select id="les-d" aria-label="' + esc(amdaT('lessonDay')) + '">' +
+      days.map(function (d, i) { return '<option value="' + i + '">' + esc(d.trim()) + '</option>'; }).join('') +
+    '</select></div>' +
+    '<p class="h" style="margin-top:8px">' + esc(amdaT('lessonCols')) + '</p>' +
+    '<input id="les-cols" type="text" style="width:100%" value="3,3,3,4,4" aria-label="' + esc(amdaT('lessonCols')) + '">' +
+    '<button class="btn g" style="width:100%;margin-top:8px" onclick="amdaLesAdd()">' +
+      esc(amdaT('lessonAdd')) + '</button></div>';
 }
 
 /* ---------- המסך בניהול ---------- */
@@ -14278,9 +14739,10 @@ function admAmda(body) {
     (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>');
   if (cnt.n) {
     h += '<div class="am-q">' + esc(amdaT('admWhen')) + '</div><div class="am-sl">' +
-      AMDA_SLOTS.map(function (id) {
-        return '<button class="' + (id === slot ? 'on' : '') + '" onclick="amdaPickSlot(\'' + id + '\')">' +
-               esc(amdaSlotName(id)) + '<i>' + esc(amdaT('slot' + id + 'T')) + '</i></button>';
+      AMDA_SLOTS.concat(amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
+        var les = amdaLesson(id);
+        return '<button class="' + (id === slot ? 'on' : '') + '" onclick="amdaPickSlot(\'' + esc(id) + '\')">' +
+               esc(amdaSlotName(id)) + '<i>' + esc(les ? amdaT('lessonTag') : amdaT('slot' + id + 'T')) + '</i></button>';
       }).join('') + '</div>';
     if (tracks.length > 1) {
       h += '<div class="am-q">' + esc(amdaT('admTrack')) + '</div><div class="am-sl">' +
@@ -14293,7 +14755,9 @@ function admAmda(body) {
     h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpen(\'d\')">' +
            esc(amdaT('admOpen')) + '</button>' +
          '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpen(\'o\')">' +
-           esc(amdaT('admOpenO')) + '</button>';
+           esc(amdaT('admOpenO')) + '</button>' +
+         (amdaLesson(slot) ? '<button class="btn p" style="width:100%;margin:0 0 12px" onclick="amdaBoard(\'' +
+           esc(slot) + '\')">' + esc(amdaT('admBoard')) + '</button>' : '');
   }
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
     '<button class="btn g" onclick="amdaFile()">' + esc(cnt.n ? amdaT('admRe') : amdaT('admLoad')) + '</button>' +
@@ -14331,14 +14795,23 @@ function admAmda(body) {
       cl.keys.sort(function (a, b) { return amdaNm(a) < amdaNm(b) ? -1 : 1; });
       return '<details class="am-cl"><summary>' + esc(cl.name) + ' · ' + cl.keys.length + '</summary>' +
         cl.keys.map(function (k) {
+          var mk = amdaMkOf(k);
           return '<div class="am-cr"><span>' + esc(amdaNm(k)) + '</span><i>' +
-                 esc(amdaT('admCntRow', { d: all[k][0], o: all[k][1], n: all[k][2] })) + '</i></div>';
+                 esc(amdaT('admCntRow', { d: all[k][0], o: all[k][1], n: all[k][2] })) +
+                 (mk[0] || mk[1] ? '<br>' + esc(amdaT('admCntP', { p: mk[0] })) +
+                   (mk[1] ? ' · <em class="am-red">' + esc(amdaT('admCntD', { d: mk[1] })) + '</em>' : '') : '') +
+                 '</i></div>';
         }).join('') + '</details>';
-    }).join('') + '</div>';
+    }).join('') + '</div>' + (cnt.n ? amdaLesCard() : '');
   body.innerHTML = h;
   /* בכל כניסה, לכל היותר פעם בדקה — גם כשהקריאה נכשלה. */
   if (key && Date.now() - (amdaSt.admAt || 0) > 60000) {
     amdaSt.admAt = Date.now(); amdaFlush(); amdaPull();
+    amdaLesRead().then(function (l) {
+      if (!l || JSON.stringify(l) === JSON.stringify(amdaLessons())) return;
+      Store.set('amdaLessons', l);
+      admPane();
+    });
   }
 }
 
