@@ -671,11 +671,25 @@ var APPX = (function () {
      לחצו", והרענון בלחיצה. לא נוגעים במנוי ההתראות.
      ============================================================ */
   var upPending = false;
+  /* **מעבר לעמוד אחר גם הוא "הסתתרות".** לחיצה על "פתיחת הדף"
+     הסתירה את המסך בדרך אל הדף — והרענון שחיכה לרגע הזה ביטל את
+     המעבר וטען מחדש את המסך הראשי. מי שלחץ ראה את המסך "מתרענן",
+     ורק בלחיצה השנייה עבר. עכשיו: מי שעוזב את העמוד אינו מרוענן —
+     העמוד הבא ממילא נטען בגרסה החדשה. וגם רגע של המתנה, כי בחלק
+     מהדפדפנים ההסתתרות מגיעה לפני הסימן שעוזבים. */
+  var upLeaving = false;
+  window.addEventListener('beforeunload', function () { upLeaving = true; });
+  window.addEventListener('pagehide', function () { upLeaving = true; });
+  window.addEventListener('pageshow', function () { upLeaving = false; });
   function upLater() {
     if (upPending) return;
     upPending = true;
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden && !upBusy) { upBusy = true; location.reload(); }
+      if (!document.hidden) { upLeaving = false; return; }
+      if (upBusy || upLeaving) return;
+      setTimeout(function () {
+        if (document.hidden && !upBusy && !upLeaving) { upBusy = true; location.reload(); }
+      }, 400);
     });
     /* תיקון קריטי? נקרא מה-data.js החדש. */
     try {

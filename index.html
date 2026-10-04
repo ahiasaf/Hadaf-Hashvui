@@ -2461,7 +2461,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.133';
+var APP_VERSION = '8.99.134';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2602,6 +2602,11 @@ function stuQ() {
   var m = /[?&]inst=([^&#]*)/.exec(location.search);
   return m && m[1] ? '&inst=' + m[1] : '';
 }
+/* מה שנוסע לדף האינטראקטיבי: תלמיד — הישיבה שלו; כל השאר —
+   `from=home`, כדי ש"יציאה" תחזיר לכאן. בלעדיו הדף ניחש לפי
+   סימנים במכשיר, ומכשיר של רכז שפתח פעם את קישור ההורים
+   יצא למסך ההורים. */
+function fromQ() { return stuMode ? stuQ() : '&from=home'; }
 /* ============================================================
    "להצטרפות לחצו" — של הצוות, ותלמידים נרשמו בו בטעות.
    ============================================================
@@ -2664,7 +2669,7 @@ function openWeekNow() {
   var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
   if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
   location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
-                  '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk);
+                  '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
 }
 function openTrackNow() { openTrack(homeTrack); }
 
@@ -5216,7 +5221,7 @@ function paintInter(id, daf, am) {
     if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
       '<a class="lnk inter" href="learn.html?mas=' + encodeURIComponent(id) +
-      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + stuQ() + '">' +
+      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + '">' +
       '<span class="ic">◈</span><span>דף אינטראקטיבי' +
       '<small>ללמוד את הדף שלב אחר שלב</small></span></a>';
   };
@@ -13347,7 +13352,7 @@ function admDecks(el) {
     /* אותו חלון, ולכן אותו מכשיר שנכנס לניהול — הדף נפתח כרכז, עם
        השקפים והחצים לשיוך. */
     '<a class="btn g" style="margin-bottom:10px" href="learn.html?mas=' + dkSel.mas + '&' +
-    LDafQ(dkSel.mas, dkSel.wk - 1) + '">↗ ' + esc(UI.dkmLearn) + '</a>' +
+    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home">↗ ' + esc(UI.dkmLearn) + '</a>' +
 
     '<div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
     ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
