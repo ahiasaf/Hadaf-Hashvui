@@ -1435,17 +1435,70 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .inst .tg{font-size:.61rem;font-weight:800;color:var(--gold);flex:none;letter-spacing:.05em}
 
 /* ---------- מוקד שיחות ---------- */
-/* חמישה שבבים ברוחב טלפון: גלילה אופקית במקום שורה שנשברת
-   ומשאירה שבב בודד לבדו למטה. */
-.callbar{display:grid;grid-template-columns:repeat(6,minmax(62px,1fr));gap:8px;
-  overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-.callbar::-webkit-scrollbar{display:none}
-.cb{background:var(--surface);border-radius:var(--r-s);padding:12px 6px;text-align:center;
-  box-shadow:var(--sh-1);cursor:pointer;border:2px solid transparent;transition:border-color .15s}
-.cb.on{border-color:var(--blue)}
-.cb b{display:block;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;
-  line-height:1;letter-spacing:-.03em}
-.cb span{font-size:.66rem;color:var(--ink-3);font-weight:700;display:block;margin-top:4px}
+/* התמונה הגדולה. צבע אחד לכל ערך, בכל מקום: ירוק כן · אדום לא ·
+   כתום ספק · אפור לא ידוע. הדירוג: ירוק חזק · זהב חם · אדום חלש ·
+   אפור לא ברור. */
+.ysh-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+@media (min-width:560px){.ysh-sum{grid-template-columns:repeat(4,1fr)}}
+.ysh-c{background:var(--surface);border-radius:18px;padding:16px 10px 14px;text-align:center;
+  box-shadow:var(--sh-1);cursor:pointer;border:2px solid transparent;font:inherit;color:var(--ink);
+  border-top:5px solid var(--blue);transition:border-color .15s}
+.ysh-c.k-grp{border-top-color:#2E9A5B}.ysh-c.k-team{border-top-color:var(--cyan)}
+.ysh-c.k-zoom{border-top-color:var(--gold)}
+.ysh-c.on{border-color:var(--blue)}
+.ysh-c b{display:block;font-size:2rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em}
+.ysh-c b small{font-size:1rem;color:var(--ink-3);font-weight:700}
+.ysh-c span{display:block;font-size:.8rem;font-weight:800;color:var(--ink-2);margin-top:6px}
+.ysh-c i{display:block;font-style:normal;font-size:.7rem;font-weight:700;color:#7D8696;margin-top:4px}
+.ysh-rates{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.ysh-rt{border:2px solid transparent;border-radius:14px;padding:10px 4px;text-align:center;
+  cursor:pointer;font:inherit;color:#fff}
+.ysh-rt b{display:block;font-size:1.35rem;font-weight:800;line-height:1}
+.ysh-rt span{display:block;font-size:.72rem;font-weight:800;margin-top:3px}
+.ysh-rt.on{border-color:var(--ink)}
+.ysh-rt.r-strong,.ysh-tag.r-strong{background:#2E9A5B}
+.ysh-rt.r-warm,.ysh-tag.r-warm{background:#C08F2B}
+.ysh-rt.r-weak,.ysh-tag.r-weak{background:#C2463A}
+.ysh-rt.r-unclear,.ysh-tag.r-unclear{background:#9AA3B2}
+.ysh-empty{font-size:.82rem;color:var(--ink-3);font-weight:700;text-align:center;padding:12px 8px}
+.ysh-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.ysh-bar .ct-sel{width:100%}
+.ysh-cnt{font-size:.8rem;font-weight:700;color:var(--ink-2);margin-top:8px;text-align:center}
+.ysh-cnt .back{display:inline;padding:0;margin:0;color:var(--blue)}
+.ysh-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.ysh-row,.ysh-leg{display:grid;grid-template-columns:1fr auto 64px;gap:10px;align-items:center}
+.ysh-row{background:var(--surface);border:none;border-radius:16px;padding:13px 14px;box-shadow:var(--sh-1);
+  font:inherit;color:var(--ink);text-align:start;cursor:pointer;width:100%}
+.ysh-leg{padding:12px 14px 2px;font-size:.62rem;font-weight:800;color:var(--ink-3)}
+.ysh-leg i{font-style:normal;display:inline-block;width:42px;text-align:center;line-height:1.1}
+.ysh-nm{font-weight:800;font-size:.95rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ysh-act{color:#2E9A5B;font-size:.85rem}
+.ysh-dots{display:flex;gap:0}
+.ysh-dots .ysh-dot{margin:0 14px}
+.ysh-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:#C9CED8;flex:none}
+.ysh-dot.v-y{background:#2E9A5B}.ysh-dot.v-n{background:#C2463A}
+.ysh-dot.v-m{background:#E08A2E}.ysh-dot.v-u{background:#C9CED8}
+.ysh-tag{display:inline-block;color:#fff;font-size:.74rem;font-weight:800;border-radius:999px;
+  padding:4px 10px;text-align:center;white-space:nowrap}
+.ysh-hd{background:var(--surface);border-radius:20px;padding:18px 16px;box-shadow:var(--sh-1);margin-top:6px}
+.ysh-hd h2{font-size:1.4rem;margin:0 0 12px}
+.ysh-board{display:block;text-align:center;background:var(--blue);color:#fff;font-weight:800;
+  font-size:1.05rem;border-radius:14px;padding:15px 12px;text-decoration:none}
+.ysh-board.off{background:#C9CED8;color:#fff;cursor:default}
+.ysh-board small{display:block;font-size:.72rem;font-weight:700;margin-top:3px}
+.ysh-ind{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.ysh-pill{display:inline-flex;align-items:center;gap:7px;background:var(--surface-2);border-radius:999px;
+  padding:6px 12px;font-size:.82rem;font-weight:800;color:var(--ink-2)}
+.ysh-snote{margin-top:12px;font-size:.92rem;font-weight:600;color:var(--ink);line-height:1.5}
+.ysh-upd{margin-top:8px;font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.ysh-h{font-size:1rem;margin:20px 4px 8px}
+.ysh-log{background:var(--surface);border-radius:16px;box-shadow:var(--sh-1);padding:4px 14px}
+.ysh-li{padding:11px 0;border-bottom:1px solid var(--rule-2)}
+.ysh-li:last-child{border-bottom:none}
+.ysh-lh{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;font-size:.78rem;color:var(--ink-3)}
+.ysh-lh b{color:var(--ink-2)}
+.ysh-ln{font-size:.88rem;color:var(--ink);margin-top:4px;line-height:1.5;white-space:pre-wrap}
 .ct{background:var(--surface);border-radius:var(--r-m);padding:15px;box-shadow:var(--sh-1);
   border-inline-start:4px solid var(--rule)}
 .ct.s-joined{border-inline-start-color:var(--green)}
@@ -2499,7 +2552,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.135';
+var APP_VERSION = '8.99.136';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5605,6 +5658,7 @@ function jnl(c) {
        בעמודה משלה) והאנשים לא. זה מה שקרה. */
     j.push({ k:k, name:c.name, stage:c.stage, note:c.note || '',
              upd:c.upd || '', tags:c.tags || {},
+             who: (mainOf(c) || {}).name || '',
              people: c.edited ? peopleOf(c) : null, last: !!c.last,
              at:c.at || new Date().toISOString() });
     if (j.length > 3000) j = j.slice(-3000);
@@ -5659,6 +5713,12 @@ function jnlRestore(list) {
    ------------------------------------------------------------ */
 var CONTACT_TAB = 'אנשי קשר';    // שם | תפקידים | טלפון | טלפון2 | תשפ"ו
 var CALL_TAB    = 'יומן שיחות';  // שם | סטטוס | הערה | מתי
+/* שתי לשוניות שהאפליקציה **רק קוראת** — אינסטינקט כותב אליהן
+   ישירות בגיליון. הן אינן נשלחות חזרה ב-pushCalls, ולכן מה
+   שנכתב שם אינו נמחק בשמירה הבאה (כמו שקרה ב"יומן שיחות").
+   הסקריפט מסרב ל-`table` עליהן — ראו YSH_TABS_ ב-apps-script.gs. */
+var YSH_TAB     = 'מצב ישיבות';   // ישיבה | בקבוצה | בדף צוות | זום | דירוג | רכז פעיל | הערת מצב | עודכן
+var YADD_TAB    = 'הוספות יומן';  // ישיבה | מתי | איש קשר | הערה | מזהה
 var callSync    = { state:'', at:0 };
 
 function scriptGet(params) {
@@ -5744,16 +5804,22 @@ function regOf(c, map) {
 function pullCalls() {
   callSay('טוען מהגיליון…');
   var ss = (CFG.contactsSheet || '').trim();
+  var key = (CFG.readKey || '').trim();
   var ask = function (tab) {
     var p = { read: tab };
     if (ss) p.ss = ss;
+    if (key) p.key = key;
     return scriptGet(p).then(function (d) {
       return (d && d.status === 'ok' && d.rows) ? d.rows : null;
     }).catch(function () { return null; });
   };
 
-  return Promise.all([ask(CONTACT_TAB), ask(CALL_TAB)]).then(function (r) {
+  return Promise.all([ask(CONTACT_TAB), ask(CALL_TAB),
+                      ask(YSH_TAB), ask(YADD_TAB)]).then(function (r) {
     var people = r[0], log = r[1];
+    /* לפני הכל: גם כשאנשי הקשר לא נטענו, המצב והיומן מאינסטינקט
+       מתעדכנים. null = הקריאה נכשלה ← המטמון נשאר. */
+    yshStore(r[2], r[3]);
     if (!people || people.length < 2) {
       callSay('לא נמצאה לשונית "' + CONTACT_TAB + '".');
       return false;
@@ -5857,7 +5923,7 @@ function pullCalls() {
 
 /* כתיבה חזרה. נדחית בשנייה וחצי, כי בזמן שיחה לוחצים סטטוס
    ומקלידים הערה ברצף, ואין טעם בשלוש כתיבות. */
-var callTimer = null;
+var callTimer = null, callSeq = 0;
 function anyTag_(c) {
   return !!(c.tags && Object.keys(c.tags).some(function (k) { return c.tags[k]; }));
 }
@@ -5889,6 +5955,20 @@ function pushCalls(now) {
        כשהרשימה המקומית התרוקנה לרגע. אין מצב שבו זה רצוי. */
     if (rows.length) {
       callSay('שולח…');
+      /* קודם קוראים את הלשונית: שורה שנכתבה שם ממקום אחר (מכשיר
+         אחר, אינסטינקט) ואינה במכשיר — נשמרת, ולא נמחקת בכתיבה. */
+      /* שמירה חדשה שיצאה בזמן הקריאה — היא זו שתכתוב. בלי זה
+         קריאה איטית הייתה שולחת תמונה ישנה אחרי חדשה. */
+      var my = ++callSeq;
+      callLogRead().then(function (sheet) {
+        if (my === callSeq) callSend(callMergeRows(rows, list, sheet));
+      });
+    } else {
+      callSay('אין מה לשמור — הגיליון לא נגע');
+    }
+    pushTeamView(list);
+  };
+  var callSend = function (rows) {
       fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
         body: JSON.stringify({ action:'table', tab: CALL_TAB, key:(CFG.readKey || '').trim(), 
           /* עמודה חדשה **בסוף**. הוספה באמצע מזיזה את כל מה
@@ -5901,12 +5981,52 @@ function pushCalls(now) {
            על שמירה שלא קרתה. */
         .then(function () { callSay(rows.length + ' שיחות נשלחו · שמור גם במכשיר'); })
         .catch(function () { callSay('נשמר על המכשיר · הגיליון לא נענה'); });
-    } else {
-      callSay('אין מה לשמור — הגיליון לא נגע');
-    }
-    pushTeamView(list);
   };
   now ? go() : (callTimer = setTimeout(go, 1500));
+}
+
+/* הלשונית כפי שהיא עכשיו בגיליון — מאותו מקום שאליו pushCalls
+   כותב (בלי `ss`). null = לא נקראה, ואז כותבים כמו קודם. */
+function callLogRead() {
+  var p = { read: CALL_TAB }, key = (CFG.readKey || '').trim();
+  if (key) p.key = key;
+  return scriptGet(p).then(function (d) {
+    return (d && d.status === 'ok' && d.rows) ? d.rows : null;
+  }).catch(function () { return null; });
+}
+/* חותמת זמן מהגיליון. ISO כפי שהאפליקציה כותבת, וגם תאריך
+   שהגיליון הפך לתצוגה מקומית (יום/חודש/שנה). מה שלא מזוהה = 0,
+   כלומר "ישן" — ואז המכשיר גובר. */
+function tsOf(v) {
+  var s = String(v || '').trim(), m;
+  if (!s) return 0;
+  if (/^\d{4}-\d\d-\d\d/.test(s)) {
+    var t = Date.parse(s.length > 10 ? s.replace(' ', 'T') : s);
+    return isNaN(t) ? 0 : t;
+  }
+  m = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:[ ,]+(\d{1,2}):(\d\d)(?::(\d\d))?)?/.exec(s);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+  return 0;
+}
+/* המיזוג: לכל ישיבה — החותמת החדשה יותר מנצחת. ישיבה שיש לה
+   שורה בגיליון ואין לה כרטיס במכשיר — השורה נשארת כמות שהיא. */
+function callMergeRows(rows, list, sheet) {
+  if (!sheet || sheet.length < 2) return rows;
+  var W = 10, out = rows.slice(), at = {}, mine = {};
+  out.forEach(function (r, n) { at[nameKey(r[0])] = n; });
+  list.forEach(function (c) { mine[nameKey(c.key || c.name)] = c; });
+  sheet.slice(1).forEach(function (r) {
+    if (!r || !String(r[0] || '').trim()) return;
+    var k = nameKey(r[0]), row = [];
+    for (var x = 0; x < W; x++) row.push(r[x] == null ? '' : r[x]);
+    var c = mine[k];
+    if (!c) { if (at[k] == null) { at[k] = out.length; out.push(row); } return; }
+    if (tsOf(r[3]) > tsOf(c.at)) {
+      if (at[k] == null) { at[k] = out.length; out.push(row); }
+      else out[at[k]] = row;
+    }
+  });
+  return out;
 }
 
 /* ============================================================
@@ -6595,6 +6715,256 @@ function rmDay(d) {
   return p.length === 3 ? p[2] + '/' + p[1] : d;
 }
 
+/* ============================================================
+   התמונה הגדולה — מצב כל הישיבות במבט אחד.
+   ============================================================
+   אחיאסף אינו נכנס לגיליונות. אינסטינקט מעדכן שם את "מצב
+   ישיבות" ואת "הוספות יומן", והמוקד רק מציג: מספרים למעלה,
+   רשימה קצרה מתחת, וכל ישיבה במסך מלא משלה.
+
+   צבעים קבועים בכל מקום: ירוק כן · אדום לא · כתום ספק · אפור
+   לא ידוע. כרטיס סופר רק "כן"; ספק ולא ידוע נספרים בנפרד ואינם
+   נבלעים ב"לא". */
+
+/* מפתח ישיבה סלחני: שני שמות שנבדלים רק ברווח, גרש, מקף או
+   סוגריים — אותה ישיבה. כך שורה שנכתבה "בר-יוחאי" נקשרת
+   ל"בר יוחאי" שבמוקד, ושתי רשומות כאלה במוקד מוצגות כאחת. */
+function yshKey(s) {
+  return nameKey(s).replace(/[()\[\]{}\-–—־_.,:]/g, '').replace(/\s+/g, '');
+}
+/* המפתח הקנוני של ישיבה: הקוד שלה ברשימת המוסדות, כשהשם מזוהה
+   שם ("יב״ע אביר יעקב" ו"אביר יעקב" — אותו קוד). בלי זיהוי —
+   המפתח הסלחני. והשם המוצג — השם שברשימת המוסדות. */
+function yshGk(s) { var i = instByName(s); return i ? '@' + i.code : yshKey(s); }
+function yshNm(s) { var i = instByName(s); return i ? i.name : String(s || '').trim(); }
+/* y כן · n לא · m ספק · u לא ידוע (ריק או ערך שלא זוהה). */
+function yshVal(v) {
+  var t = String(v == null ? '' : v).trim().toLowerCase();
+  if (!t) return 'u';
+  if (/^(כן|v|✓|✔|true|yes|1)$/.test(t)) return 'y';
+  if (/^(לא|x|✗|✘|false|no|0)$/.test(t)) return 'n';
+  if (/^(ספק|\?|אולי)$/.test(t)) return 'm';
+  return 'u';
+}
+/* דירוג: חזק / חם / חלש, וכל השאר (גם ריק) — לא ברור. */
+var YSH_RATE = ['strong', 'warm', 'weak', 'unclear'];
+function yshRate(v) {
+  var t = String(v || '');
+  if (t.indexOf('חזק') >= 0) return 'strong';
+  if (t.indexOf('חלש') >= 0) return 'weak';
+  if (t.indexOf('חם') >= 0) return 'warm';
+  return 'unclear';
+}
+/* העמודות נמצאות לפי הכותרת, ולא לפי המקום — עמודה שהוזזה
+   בגיליון לא תשבור. בלי כותרת מוכרת — לפי הסדר המתועד. */
+var YSH_COLS  = ['ישיבה', 'בקבוצה', 'בדף צוות', 'זום', 'דירוג', 'רכז פעיל', 'הערת מצב', 'עודכן'];
+var YADD_COLS = ['ישיבה', 'מתי', 'איש קשר', 'הערה', 'מזהה'];
+function yshCols(head, names) {
+  var h = (head || []).map(function (x) { return String(x || '').trim(); });
+  return names.map(function (n, i) { var at = h.indexOf(n); return at >= 0 ? at : i; });
+}
+/* null = הקריאה נכשלה ← המטמון נשאר כמו שהוא. לשונית ריקה או
+   חסרה ← המטמון מתרוקן. שני המצבים אינם אותו דבר. */
+function yshStore(st, ad) {
+  if (st) {
+    var m = {}, ci = yshCols(st[0], YSH_COLS);
+    st.slice(1).forEach(function (r) {
+      var nm = String(r[ci[0]] || '').trim();
+      if (!nm) return;
+      var k = yshKey(nm), upd = String(r[ci[7]] || '').trim();
+      /* אותה ישיבה פעמיים — העדכנית גוברת. */
+      if (m[k] && tsOf(m[k].upd) > tsOf(upd)) return;
+      m[k] = { name:nm, grp:yshVal(r[ci[1]]), team:yshVal(r[ci[2]]),
+               zoom:yshVal(r[ci[3]]), rate:yshRate(r[ci[4]]), act:yshVal(r[ci[5]]),
+               note:String(r[ci[6]] || '').trim(), upd:upd };
+    });
+    Store.set('yshState', m);
+  }
+  if (ad) {
+    var l = [], seen = {}, cj = yshCols(ad[0], YADD_COLS);
+    ad.slice(1).forEach(function (r) {
+      var nm = String(r[cj[0]] || '').trim();
+      if (!nm) return;
+      var at = String(r[cj[1]] || '').trim(), note = String(r[cj[3]] || '').trim();
+      /* "מזהה" מונע כפילות כשאותה שורה הודבקה פעמיים. */
+      var sig = String(r[cj[4]] || '').trim() || (yshKey(nm) + '|' + at + '|' + note);
+      if (seen[sig]) return;
+      seen[sig] = 1;
+      l.push({ n:nm, at:at, who:String(r[cj[2]] || '').trim(), note:note });
+    });
+    Store.set('yshAdds', l);
+  }
+}
+
+/* ישיבה = כל רשומות המוקד שמפתחן זהה, ועליהן שורת המצב. שורת
+   מצב בלי רשומה במוקד מוצגת בכל זאת — כדי ששם שנכתב אחרת
+   ייראה, ולא ייעלם בשקט. */
+function yshEntries(list) {
+  var st = Store.get('yshState', {}) || {}, by = {}, out = [];
+  list.forEach(function (c, i) {
+    var nm = c.key || c.name, k = yshGk(nm);
+    if (!k) return;
+    if (!by[k]) { by[k] = { k:k, name:yshNm(nm), recs:[], st:null }; out.push(by[k]); }
+    by[k].recs.push({ c:c, i:i });
+  });
+  Object.keys(st).forEach(function (sk) {
+    var k = yshGk(st[sk].name);
+    if (!by[k]) { by[k] = { k:k, name:yshNm(st[sk].name), recs:[], st:null }; out.push(by[k]); }
+    /* שתי שורות מצב לאותה ישיבה — העדכנית גוברת. */
+    if (!by[k].st || tsOf(st[sk].upd) > tsOf(by[k].st.upd)) by[k].st = st[sk];
+  });
+  return out;
+}
+function yshOf(e, f) { return e.st ? e.st[f] : (f === 'rate' ? 'unclear' : 'u'); }
+var YSH_IND = [['grp', 'yshGrp'], ['team', 'yshTeam'], ['zoom', 'yshZoom']];
+
+/* כמה דורשת טיפול: לא בקבוצה ודירוג לא ברור — למעלה. */
+function yshNeed(e) {
+  var g = yshOf(e, 'grp'), r = yshOf(e, 'rate');
+  return (g === 'n' ? 8 : g === 'y' ? 0 : 6) +
+         (r === 'unclear' ? 4 : r === 'weak' ? 3 : r === 'warm' ? 1 : 0) +
+         (yshOf(e, 'zoom') === 'y' ? 0 : 1) + (yshOf(e, 'team') === 'y' ? 0 : 1);
+}
+function yshLastAt(e, jLast) {
+  var t = e.st ? tsOf(e.st.upd) : 0;
+  e.recs.forEach(function (o) {
+    t = Math.max(t, tsOf(o.c.at), tsOf(jLast[nameKey(o.c.key || o.c.name)]));
+  });
+  return t;
+}
+function yshWhen(v) {
+  var t = tsOf(v);
+  if (!t) return String(v || '');
+  var d = new Date(t), z = function (x) { return (x < 10 ? '0' : '') + x; };
+  return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2) +
+         ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+
+function yshCard(f, n, of, lbl, sub) {
+  return '<button class="ysh-c' + (f ? ' k-' + f : '') + (f && state.yf === f ? ' on' : '') +
+    '" onclick="yshFilter(\'' + f + '\')"><b>' + n + (of ? '<small>' + of + '</small>' : '') + '</b>' +
+    '<span>' + esc(lbl) + '</span>' + (sub ? '<i>' + esc(sub) + '</i>' : '') + '</button>';
+}
+function yshBoard(ents) {
+  var N = ents.length, h = '<div class="ysh-sum">' + yshCard('', N, '', UI.yshTotal, '');
+  YSH_IND.forEach(function (d) {
+    var n = { y:0, n:0, m:0, u:0 };
+    ents.forEach(function (e) { n[yshOf(e, d[0])]++; });
+    var gray = [];
+    if (n.m) gray.push(fill(UI.yshMaybeN, { n:n.m }));
+    if (n.u) gray.push(fill(UI.yshUnkN, { n:n.u }));
+    h += yshCard(d[0], n.y, '/' + N, UI[d[1]], gray.join(' · '));
+  });
+  h += '</div><div class="ysh-rates">';
+  YSH_RATE.forEach(function (r) {
+    var n = ents.filter(function (e) { return yshOf(e, 'rate') === r; }).length;
+    h += '<button class="ysh-rt ' + 'r-' + r + (state.yf === 'r:' + r ? ' on' : '') +
+         '" onclick="yshFilter(\'r:' + r + '\')"><b>' + n + '</b><span>' +
+         esc(UI['yshR_' + r]) + '</span></button>';
+  });
+  h += '</div>';
+  if (!ents.some(function (e) { return e.st; })) h += '<div class="ysh-empty">' + esc(UI.yshNoSheet) + '</div>';
+  return h;
+}
+function yshRow(e, n) {
+  var dots = YSH_IND.map(function (d) {
+    var v = yshOf(e, d[0]);
+    return '<i class="ysh-dot ' + 'v-' + v + '" title="' + esc(UI[d[1]] + ' · ' + UI['yshV_' + v]) + '"></i>';
+  }).join('');
+  var r = yshOf(e, 'rate');
+  return '<button class="ysh-row" onclick="yshOpen(' + n + ')">' +
+    '<span class="ysh-nm">' + esc(e.name) +
+    (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act" title="' + esc(UI.yshActive) + '">★</span>' : '') +
+    '</span><span class="ysh-dots">' + dots + '</span>' +
+    '<span class="ysh-tag ' + 'r-' + r + '">' + esc(UI['yshR_' + r]) + '</span></button>';
+}
+var yshShown = [];
+function yshFilter(f) { state.yf = (!f || state.yf === f) ? '' : f; renderCalls(); }
+function yshSort(v)   { state.ysort = v; renderCalls(); }
+function yshOpen(n) {
+  var e = yshShown[n];
+  if (!e) return;
+  state.yshY = window.pageYOffset || 0;
+  state.yshOpen = e.k;
+  renderCalls();
+  window.scrollTo(0, 0);
+}
+function yshClose() {
+  state.yshOpen = '';
+  renderCalls();
+  window.scrollTo(0, state.yshY || 0);
+}
+
+/* יומן הישיבה — ציר אחד: מה שתועד באפליקציה (יומן התיעוד
+   שבמכשיר, רק השינויים) ועוד "הוספות יומן" מאינסטינקט. */
+function yshLogHtml(e) {
+  var items = [], keys = {}, prev = {};
+  e.recs.forEach(function (o) { keys[nameKey(o.c.key || o.c.name)] = 1; });
+  (Store.get('callJournal', []) || []).forEach(function (j) {
+    if (!j || !keys[j.k]) return;
+    var p = prev[j.k] || { note:'', stage:'new' }, note = j.note || '', add = note;
+    /* ההערה נשמרת כולה בכל פעם; מציגים רק מה שנוסף לה. */
+    if (note === p.note) add = '';
+    else if (p.note && note.indexOf(p.note) === 0) add = note.slice(p.note.length).trim();
+    var stCh = !!j.stage && j.stage !== p.stage;
+    prev[j.k] = { note:note, stage:j.stage };
+    if (!add && !stCh) return;
+    items.push({ t:tsOf(j.at), at:j.at, who:j.who || '', note:add, stg:stCh ? j.stage : '' });
+  });
+  /* מכשיר בלי יומן (מכשיר חדש) — לפחות מה שבגיליון עכשיו. */
+  e.recs.forEach(function (o) {
+    var c = o.c;
+    if (prev[nameKey(c.key || c.name)] || (!c.note && c.stage === 'new')) return;
+    items.push({ t:tsOf(c.at), at:c.at, who:(mainOf(c) || {}).name || '',
+                 note:c.note || '', stg:c.stage !== 'new' ? c.stage : '' });
+  });
+  (Store.get('yshAdds', []) || []).forEach(function (a) {
+    if (yshGk(a.n) === e.k) items.push({ t:tsOf(a.at), at:a.at, who:a.who, note:a.note, stg:'' });
+  });
+  if (!items.length) return '<div class="ysh-empty">' + esc(UI.yshLogNone) + '</div>';
+  items.sort(function (a, b) { return b.t - a.t; });
+  return '<div class="ysh-log">' + items.map(function (it) {
+    var sg = it.stg ? STAGES.filter(function (x) { return x.k === it.stg; })[0] : null;
+    return '<div class="ysh-li"><div class="ysh-lh"><b>' + esc(yshWhen(it.at)) + '</b>' +
+      (it.who ? '<span>' + esc(it.who) + '</span>' : '') +
+      (sg ? '<span class="ct-sb ' + sg.c + '">' + esc(sg.t) + '</span>' : '') + '</div>' +
+      (it.note ? '<div class="ysh-ln">' + esc(it.note) + '</div>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+
+/* מסך הפרט — מסך מלא לישיבה אחת. כרטיסי אנשי הקשר הם בדיוק
+   הכרטיסים של המוקד (ctCard), עם כל הכפתורים והעריכה שלהם. */
+function yshDetail(e, ctx) {
+  var inst = null;
+  e.recs.some(function (o) { inst = instByName(o.c.key || o.c.name); return !!inst; });
+  if (!inst) inst = instByName(e.name);
+  var r = yshOf(e, 'rate'), act = yshOf(e, 'act');
+  var h = '<button class="back" onclick="yshClose()">' + esc(UI.yshBack) + '</button>' +
+    '<div class="ysh-hd"><h2>' + esc(e.name) + '</h2>' +
+    /* בלי קוד ישיבה אין לוח לפתוח — הכפתור נשאר, אפור. */
+    (inst ? '<a class="ysh-board" href="' + esc(tzevetUrl(inst.code)) +
+            '" target="_blank" rel="noopener">' + esc(UI.yshBoard) + '</a>'
+          : '<span class="ysh-board off" aria-disabled="true">' + esc(UI.yshBoard) +
+            '<small>' + esc(UI.yshNoBoard) + '</small></span>') +
+    '<div class="ysh-ind">' + YSH_IND.map(function (d) {
+      var v = yshOf(e, d[0]);
+      return '<span class="ysh-pill" title="' + esc(UI['yshV_' + v]) + '"><i class="ysh-dot ' + 'v-' + v + '"></i>' +
+             esc(UI[d[1]]) + '</span>';
+    }).join('') + '</div><div class="ysh-ind">' +
+    '<span class="ysh-tag ' + 'r-' + r + '">' + esc(UI.yshRate) + ': ' + esc(UI['yshR_' + r]) + '</span>' +
+    '<span class="ysh-pill"><i class="ysh-dot ' + 'v-' + act + '"></i>' + esc(UI.yshActive) + ': ' +
+    esc(UI['yshV_' + act]) + '</span></div>' +
+    (e.st && e.st.note ? '<div class="ysh-snote">' + esc(e.st.note) + '</div>' : '') +
+    '<div class="ysh-upd">' + esc(e.st ? (e.st.upd ? fill(UI.yshUpd, { t:yshWhen(e.st.upd) }) : '')
+                                       : UI.yshNoData) + '</div></div>';
+  if (e.recs.length) {
+    h += '<h3 class="ysh-h">' + esc(UI.yshPeople) + '</h3>';
+    if (e.recs.length > 1) h += '<div class="ysh-empty">' + esc(fill(UI.yshDup, { n:e.recs.length })) + '</div>';
+    e.recs.forEach(function (o) { h += ctCard(o.c, o.i, ctx); });
+  }
+  return h + '<h3 class="ysh-h">' + esc(UI.yshLog) + '</h3>' + yshLogHtml(e);
+}
+
 function renderCalls() {
   var list = contacts();
   var el = document.getElementById('calls-body');
@@ -6620,6 +6990,22 @@ function renderCalls() {
     return;
   }
 
+  var regs = regByInst(), subs = subsByInst();
+  /* התיעוד האחרון לכל ישיבה — מהיומן, פעם אחת לכל הציור. */
+  var jLast = {};
+  (Store.get('callJournal', []) || []).forEach(function (e) {
+    if (e && e.k && (!jLast[e.k] || (e.at || '') > jLast[e.k])) jLast[e.k] = e.at || '';
+  });
+  var ctx = { regs:regs, subs:subs, jLast:jLast };
+  var ents = yshEntries(list);
+
+  /* מסך הפרט — במקום כל השאר, לא חלון מעל. */
+  if (state.yshOpen) {
+    var open = ents.filter(function (e) { return e.k === state.yshOpen; })[0];
+    if (open) { ctPaint(el, yshDetail(open, ctx)); return; }
+    state.yshOpen = '';
+  }
+
   var counts = { all:list.length };
   STAGES.forEach(function (s) {
     counts[s.k] = list.filter(function (c) { return c.stage === s.k; }).length;
@@ -6627,8 +7013,7 @@ function renderCalls() {
   /* הממשיכים מאשתקד הם השיחות הראשונות, ולכן הם קבוצה לעצמם
      ולא רק סדר מיון: אפשר לראות רק אותם ולעבור עליהם. */
   counts.last = list.filter(function (c) { return c.last; }).length;
-  var regMap = regByInst();
-  counts.signed = list.filter(function (c) { return !!regOf(c, regMap); }).length;
+  counts.signed = list.filter(function (c) { return !!regOf(c, regs); }).length;
 
   var h = '<div class="hero" style="padding:20px"><span class="glow g1"></span>' +
           '<span class="glow g3"></span><h2 style="font-size:1.3rem">מוקד שיחות</h2>' +
@@ -6645,49 +7030,8 @@ function renderCalls() {
               }).length + ' בלי טלפון'
             : '') + '</div>';
 
-  /* התזכורות בראש: זה מה שהוא בא לראות כשהוא פותח את המסך
-     בבוקר, לפני שהוא מחליט למי מתקשרים. */
-  h += rmCard();
-  h += teamLogCard();
-
-  h += '<div class="callbar">' +
-       '<div class="cb' + (state.filter === 'all' ? ' on' : '') +
-       '" onclick="callFilter(\'all\')"><b>' + counts.all + '</b><span>הכל</span></div>' +
-       '<div class="cb' + (state.filter === 'last' ? ' on' : '') +
-       '" onclick="callFilter(\'last\')"><b>' + counts.last +
-       '</b><span>תשפ״ו</span></div>' +
-       '<div class="cb' + (state.filter === 'new' ? ' on' : '') +
-       '" onclick="callFilter(\'new\')"><b>' + counts.new + '</b><span>לא דיברתי</span></div>' +
-       '<div class="cb' + (state.filter === 'warm' ? ' on' : '') +
-       '" onclick="callFilter(\'warm\')"><b>' + counts.warm + '</b><span>מתעניין</span></div>' +
-       '<div class="cb' + (state.filter === 'joined' ? ' on' : '') +
-       '" onclick="callFilter(\'joined\')"><b>' + counts.joined + '</b><span>הצטרפו</span></div>' +
-       /* **עובדה, לא סימון.** מי שלחץ על הכפתור הצהוב והשורה
-          שלו נכתבה לגיליון. זה לא נקבע ביד, ולכן זה גם לא
-          מתנגש עם "הצטרפו" שאחיאסף מסמן אחרי שיחה. */
-       '<div class="cb' + (state.filter === 'signed' ? ' on' : '') +
-       '" onclick="callFilter(\'signed\')"><b>' + counts.signed + '</b><span>נרשמו</span></div>' +
-       '</div>';
-
-  /* ============================================================
-     הסבב — וי לכל מי שדיברת איתו הפעם.
-     ============================================================
-     "אני עושה סבב שאני מדבר איתם, ומדי פעם יהיו סבבים כאלה.
-     אין לי שום דרך לסמן בקלילות שעשיתי סבב."
-
-     **וזה לא אותו דבר כמו שלב השיחה.** "מתעניין" או "הצטרף"
-     הם מצב שנשאר; הסבב הוא "עברתי עליו **הפעם**", והוא מתאפס
-     כשמתחיל סבב חדש. שני דברים שהיו חולקים סימון אחד היו
-     מוחקים זה את זה בכל איפוס.
-     ============================================================ */
-  var did = list.filter(function (c) { return tagOn(c, 'called'); }).length;
-  h += '<div class="card" style="margin:10px 0 0;padding:14px 15px">' +
-       '<div class="row" style="padding:0">' +
-       '<div><b>הסבב הנוכחי</b><div class="sub">' +
-       (did ? did + ' מתוך ' + list.length + ' \u00b7 סמנו \u2713 אחרי כל שיחה'
-            : 'סמנו \u2713 על כל מי שדיברתם איתו') + '</div></div>' +
-       (did ? '<button class="back" onclick="roundReset()">סבב חדש</button>' : '') +
-       '</div></div>';
+  /* התמונה הגדולה — לפני הכל. */
+  h += yshBoard(ents);
 
   /* ============================================================
      החיפוש — ממש מעל הרשימה שהוא מסנן.
@@ -6699,175 +7043,115 @@ function renderCalls() {
      מילה־מילה ולא מחרוזת אחת, מאותה סיבה שבעורך המלל: מי
      שהקליד "הראל חולון" לא אמור להיכשל כי בגיליון כתוב
      "יב״ע הראל — חולון". */
-  h += '<div class="fld" style="margin:10px 0 0">' +
-       '<input type="text" id="call-find" placeholder="חיפוש ישיבה או שם\u2026" ' +
+  h += '<div class="fld" style="margin:14px 0 0">' +
+       '<input type="text" id="call-find" placeholder="חיפוש ישיבה או שם…" ' +
        'oninput="callFind(this.value)" value="' + esc(state.find || '') + '"></div>';
 
-  // הממשיכים מתשפ"ו קודם — הם השיחות הקלות והמשכנעות
+  /* המסננים של שלבי השיחה ושל המיון — שתי תיבות בחירה, ולא שורת
+     כפתורים: יהיו כאן עשרות ישיבות, והרשימה היא העיקר. */
+  var opt = function (v, cur, t) {
+    return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + esc(t) + '</option>';
+  };
+  var fl = state.filter || 'all', so = state.ysort || 'need';
+  h += '<div class="ysh-bar">' +
+       '<select class="ct-sel" aria-label="' + esc(UI.yshShow) + '" onchange="callFilter(this.value)">' +
+       opt('all', fl, UI.yshFAll + ' (' + counts.all + ')') +
+       opt('last', fl, UI.yshFLast + ' (' + counts.last + ')') +
+       opt('new', fl, UI.yshFNew + ' (' + counts.new + ')') +
+       opt('warm', fl, UI.yshFWarm + ' (' + counts.warm + ')') +
+       opt('joined', fl, UI.yshFJoined + ' (' + counts.joined + ')') +
+       /* **עובדה, לא סימון.** מי שלחץ על הכפתור הצהוב והשורה
+          שלו נכתבה לגיליון. */
+       opt('signed', fl, UI.yshFSigned + ' (' + counts.signed + ')') + '</select>' +
+       '<select class="ct-sel" aria-label="' + esc(UI.yshSortBy) + '" onchange="yshSort(this.value)">' +
+       opt('need', so, UI.yshSortNeed) + opt('name', so, UI.yshSortName) +
+       opt('recent', so, UI.yshSortRecent) + '</select></div>';
+
   var words = String(state.find || '').trim().split(/\s+/).filter(Boolean);
-  var hits = function (c) {
+  var hits = function (e) {
     if (!words.length) return true;
-    var hay = (c.name || '') + ' ' +
-              peopleOf(c).map(function (q) {
-                return (q.name || '') + ' ' + (q.role || '');
-              }).join(' ');
+    var hay = (e.name || '') + ' ' + e.recs.map(function (o) {
+      return (o.c.name || '') + ' ' + peopleOf(o.c).map(function (q) {
+        return (q.name || '') + ' ' + (q.role || '');
+      }).join(' ');
+    }).join(' ');
     for (var w = 0; w < words.length; w++) {
       if (hay.indexOf(words[w]) < 0) return false;
     }
     return true;
   };
-  var shown = list.map(function (c, i) { return { c:c, i:i }; })
-    .filter(function (o) {
-      if (!hits(o.c)) return false;
-      if (state.filter === 'all')  return true;
-      if (state.filter === 'last') return !!o.c.last;
-      if (state.filter === 'signed') return !!regOf(o.c, regMap);
-      return o.c.stage === state.filter;
-    })
-    .sort(function (a, b) { return (b.c.last ? 1 : 0) - (a.c.last ? 1 : 0); });
+  var stageOk = function (c) {
+    if (fl === 'last') return !!c.last;
+    if (fl === 'signed') return !!regOf(c, regs);
+    return c.stage === fl;
+  };
+  var yf = state.yf || '';
+  var shown = ents.filter(function (e) {
+    if (!hits(e)) return false;
+    if (fl !== 'all' && !e.recs.some(function (o) { return stageOk(o.c); })) return false;
+    if (yf.indexOf('r:') === 0) return yshOf(e, 'rate') === yf.slice(2);
+    if (yf) return yshOf(e, yf) !== 'y';
+    return true;
+  });
+  var nameCmp = function (a, b) { return String(a.name).localeCompare(String(b.name), 'he'); };
+  var lastOf = function (e) { return e.recs.some(function (o) { return o.c.last; }) ? 1 : 0; };
+  shown.forEach(function (e) { e.need = yshNeed(e); e.t = yshLastAt(e, jLast); });
+  shown.sort(so === 'name' ? nameCmp
+    : so === 'recent' ? function (a, b) { return (b.t - a.t) || nameCmp(a, b); }
+    /* דורש טיפול קודם; בתוך כל דרגה — הממשיכים מתשפ"ו, ואז א-ב. */
+    : function (a, b) { return (b.need - a.need) || (lastOf(b) - lastOf(a)) || nameCmp(a, b); });
+  yshShown = shown;
 
+  if (yf || fl !== 'all') {
+    h += '<div class="ysh-cnt">' + esc(fill(UI.yshShown, { n:shown.length })) +
+         ' · <button class="back" onclick="state.filter=\'all\';yshFilter(\'\')">' +
+         esc(UI.yshClear) + '</button></div>';
+  }
   if (!shown.length && words.length) {
-    h += '<div class="msg">לא נמצאה ישיבה או שם שמתאים ל\u201c' +
-         esc(state.find) + '\u201d.</div>';
+    h += '<div class="msg">לא נמצאה ישיבה או שם שמתאים ל“' +
+         esc(state.find) + '”.</div>';
   } else if (!shown.length) h += '<div class="msg">' +
-    (state.filter === 'last'
+    (fl === 'last'
       ? 'אף שם ברשימה לא זוהה כישיבה שהייתה בתשפ"ו. בדקו ששמות ' +
         'הישיבות בגיליון זהים לאלה שבמסך "מוסדות".'
-      : state.filter === 'signed'
-        ? 'עוד לא נרשמה אף ישיבה דרך הכפתור \u2014 או שרשימת ההרשמות ' +
-          'עוד לא נטענה. היא נטענת ב"מה קורה \u2190 אנשים".'
+      : fl === 'signed'
+        ? 'עוד לא נרשמה אף ישיבה דרך הכפתור — או שרשימת ההרשמות ' +
+          'עוד לא נטענה. היא נטענת ב"מה קורה ← אנשים".'
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
+  else {
+    h += '<div class="ysh-leg"><span></span><span class="ysh-dots">' +
+         YSH_IND.map(function (d) { return '<i>' + esc(UI[d[1]]) + '</i>'; }).join('') +
+         '</span><span></span></div><div class="ysh-list">' +
+         shown.map(yshRow).join('') + '</div>';
+  }
 
-  var regs = regByInst(), subs = subsByInst();
-  /* התיעוד האחרון לכל ישיבה — מהיומן, פעם אחת לכל הציור. */
-  var jLast = {};
-  (Store.get('callJournal', []) || []).forEach(function (e) {
-    if (e && e.k && (!jLast[e.k] || (e.at || '') > jLast[e.k])) jLast[e.k] = e.at || '';
-  });
+  /* התזכורות ומה שהצוות עשה — מיד אחרי הרשימה. קודם התמונה
+     והרשימה, ורק אז כל השאר: בלי גלילה ארוכה עד הישיבות. */
+  h += rmCard();
+  h += teamLogCard();
+
   /* ============================================================
-     כרטיס מצומצם — מצב אחד עכשיו, פירוט כשצריך.
+     הסבב — וי לכל מי שדיברת איתו הפעם.
      ============================================================
-     התוכנית הארגונית, עמוד 7: בכרטיס היו יחד שלב, תגיות,
-     פעולות שיחה, מידע התקנה, סבב, עדכון והערה — וכל פריט נראה
-     כאילו צריך להחליט עליו עכשיו. נשאר גלוי: מי, באיזה מצב,
-     מתי דיברנו לאחרונה, כמה הוזמן, ושני כפתורי השיחה. הסבב
-     ושינוי המצב בשורה אחת. צוות, תגיות והערה — נפתחים.
-     הפעולות עצמן (setStage, tagTick, setNote…) לא השתנו. */
-  shown.forEach(function (o) {
-    var c = o.c, i = o.i;
-    var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
-    var reg = regOf(c, regs), who = subsOf(c, subs);
-    var stg = STAGES.filter(function (x) { return x.k === c.stage; })[0] || STAGES[0];
-    var la = jLast[nameKey(c.key || c.name)];
-    var laT = la ? Date.parse(la) : 0;
+     "אני עושה סבב שאני מדבר איתם, ומדי פעם יהיו סבבים כאלה.
+     אין לי שום דרך לסמן בקלילות שעשיתי סבב."
 
-    h += '<div class="ct s-' + c.stage + (tagOn(c, 'called') ? ' done' : '') +
-         '" data-ci="' + i + '"><div class="h"><div style="min-width:0">' +
-         '<div class="nm">' + esc(c.name) + '</div>' +
-         (me && me.name ? '<div class="ct-who">' + esc(me.name) + (me.role ? ' · ' + esc(me.role) : '') + '</div>' : '') +
-         '</div><div style="display:flex;gap:6px;align-items:center">' +
-         (c.last ? '<span class="last">תשפ"ו</span>' : '') +
-         (reg ? '<span class="signed" title="נרשם דרך האפליקציה">⚑ נרשם</span>' : '') +
-         (who.length ? '<span class="signed inst" title="התקינו את האפליקציה">◉ ' + who.length + '</span>' : '') +
-         '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
-         '</div></div>';
-
-    h += '<div class="ct-st"><b class="ct-sb ' + stg.c + '">' + esc(stg.t) + '</b>' +
-         ' · ' + esc(laT ? UI.callLast.replace('{t}', whenTxt(laT)) : UI.callNever) +
-         (reg && reg.total ? ' · ' + esc(UI.callOrd.replace('{n}', reg.total)) : '') + '</div>';
-
-    var blOn = blastOn(), blKey = blastKey(c, me);
-    var blDone = !!blastLog()[blKey];
-    var blTxt = (blOn && me) ? '?text=' + encodeURIComponent(blastText(c, me)) : '';
-    var dial = function (name, ph, faint) {
-      var live = blOn && !faint;
-      return '<div class="acts"' + (faint ? ' style="margin-top:8px"' : '') + '>' +
-        '<a class="call"' + (faint ? ' style="opacity:.82"' : '') +
-        ' href="tel:' + digits(ph) + '">📞 ' + esc(name) + '</a>' +
-        '<a class="wa"' + (faint ? ' style="opacity:.82"' : '') +
-        ' href="https://wa.me/' + waNum(ph) + (live ? blTxt : '') +
-        '" target="_blank" rel="noopener"' +
-        (live ? ' onclick="blastMark(this.getAttribute(\'data-bk\'))" data-bk="' +
-                esc(blKey) + '"' : '') + '>' +
-        (live ? (blDone ? '✓ נשלחה' : 'שליחת ההודעה')
-              : 'וואטסאפ') + '</a></div>';
-    };
-
-    if (me && me.phone) {
-      h += dial(me.name || 'חייג', me.phone, false);
-      if (me.phone2) h += dial((me.name || '') + ' · נוסף', me.phone2, true);
-    } else {
-      h += '<div style="font-size:.83rem;color:var(--stop);font-weight:800;margin-top:10px">' +
-           'אין מספר טלפון</div>';
-    }
-
-    h += '<div class="ct-row"><label class="ct-rd"><input type="checkbox"' +
-         (tagOn(c, 'called') ? ' checked' : '') + ' onchange="tagTick(' + i + ',\'called\')"> ' +
-         esc(UI.callRound) + '</label>' +
-         '<select class="ct-sel" aria-label="סטטוס" onchange="setStage(' + i + ',this.value)">' +
-         STAGES.map(function (x) {
-           return '<option value="' + x.k + '"' + (x.k === c.stage ? ' selected' : '') + '>' + esc(x.t) + '</option>';
-         }).join('') + '</select></div>';
-
-    /* פרטי צוות והתקנה — מי איש הקשר שהכפתורים מחייגים אליו,
-       מי מוצג בעמוד הצוות, ומי כבר התקין. */
-    var team = '';
-    if (ps.length) {
-      team += '<div class="whos">';
-      ps.forEach(function (q, k) {
-        team += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
-          '" onclick="setMain(' + i + ',' + k + ')">' +
-          '<b>' + esc(q.name || 'ללא שם') + '</b>' +
-          (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
-          (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>' +
-          (q.phone ? '<label class="teamp"><input type="checkbox"' +
-            (personTeamOn(c, k) ? ' checked' : '') +
-            ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
-          '</div>';
-      });
-      team += '</div>';
-    }
-    if (who.length) {
-      team += '<div class="instd">התקינו: ' + who.map(function (q) {
-        return esc(q.name || 'ללא שם') + (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
-      }).join(' · ') + '</div>';
-    }
-    if (team) h += '<details class="ct-d" data-k="team"><summary>' + esc(UI.callTeam) + '</summary>' + team + '</details>';
-
-    /* תגיות — בלי "התקשרתי בסבב", שיש לו תיבה משלו למעלה. */
-    var tags = tagDefs().filter(function (t) { return t.k !== 'called'; });
-    if (tags.length) {
-      var tOn = tags.filter(function (t) { return tagOn(c, t.k); }).length;
-      h += '<details class="ct-d" data-k="tags"><summary>' + esc(UI.callTags) + (tOn ? ' · ' + tOn : '') + '</summary><div class="chips">';
-      tags.forEach(function (t) {
-        h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
-             '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
-      });
-      h += '</div></details>';
-    }
-
-    /* העדכון (תכלס) — יכול לצאת לעמוד הצוות. ההערה — פרטית,
-       לא יוצאת לשום מקום. שתיהן באותו מקום, כל אחת בתווית שלה. */
-    h += '<details class="ct-d" data-k="note"' +
-         ' ontoggle="var t=this.querySelector(\'textarea\');if(t&&this.open)noteGrow(t)"><summary>' +
-         esc(UI.callNote) + (c.note || c.upd ? ' ✎' : '') + '</summary>' +
-         '<input class="updline" type="text" maxlength="160" ' +
-         'placeholder="עדכון קצר (תכלס), משפט–שניים…" value="' + esc(c.upd || '') +
-         '" onchange="setUpd(' + i + ',this.value)">' +
-         '<label class="teamshow"><input type="checkbox"' +
-         (c.teamShow ? ' checked' : '') +
-         ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' +
-         '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
-         '<textarea rows="3" placeholder="הערה מהשיחה…" ' +
-         'oninput="noteGrow(this)" ' +
-         'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></details></div>';
-  });
+     **וזה לא אותו דבר כמו שלב השיחה.** "מתעניין" או "הצטרף"
+     הם מצב שנשאר; הסבב הוא "עברתי עליו **הפעם**", והוא מתאפס
+     כשמתחיל סבב חדש. הסימון עצמו — בכרטיס, במסך הישיבה.
+     ============================================================ */
+  var did = list.filter(function (c) { return tagOn(c, 'called'); }).length;
+  h += '<div class="card" style="margin:10px 0 0;padding:14px 15px">' +
+       '<div class="row" style="padding:0">' +
+       '<div><b>הסבב הנוכחי</b><div class="sub">' +
+       (did ? did + ' מתוך ' + list.length + ' · סמנו ✓ אחרי כל שיחה'
+            : 'סמנו ✓ על כל מי שדיברתם איתו') + '</div></div>' +
+       (did ? '<button class="back" onclick="roundReset()">סבב חדש</button>' : '') +
+       '</div></div>';
 
   /* ההודעה לכולם — בתחתית. היא מבצע שקורה פעם בכמה שבועות,
-     והמסך הזה נפתח כל יום כדי לדבר עם אנשים. כרטיס גדול
-     שיושב באמצע הדרך אל הרשימה הוא מכשול, לא תזכורת.
-     והיא מחושבת על כל הרשימה ולא על המסנן: "נשלחו 7 מתוך 9"
-     שמשתנה כשלוחצים על מסנן הוא מספר שאי אפשר לסמוך עליו. */
+     והמסך הזה נפתח כל יום כדי לדבר עם אנשים. והיא מחושבת על כל
+     הרשימה ולא על המסנן. */
   h += blastCard(list);
 
   h += '<button class="btn g" style="margin-top:8px" onclick="bulkImportOpen()">' +
@@ -6880,8 +7164,11 @@ function renderCalls() {
        '<button class="btn g" onclick="jnlShow()">יומן התיעוד (' +
        (Store.get('callJournal', []) || []).length + ')</button>' +
        '<button class="btn g" onclick="wipeContacts()">מחיקת הרשימה מהמכשיר</button>';
-  /* מה שהיה פתוח נשאר פתוח: כל לחיצה (תגית, סטטוס) מציירת מחדש,
-     והחלק שעבדת בו לא אמור להיסגר לך מתחת לאצבע. */
+  ctPaint(el, h);
+}
+/* ציור, ומה שהיה פתוח נשאר פתוח: כל לחיצה (תגית, סטטוס) מציירת
+   מחדש, והחלק שעבדת בו לא אמור להיסגר לך מתחת לאצבע. */
+function ctPaint(el, h) {
   var wasOpen = {};
   Array.prototype.forEach.call(el.querySelectorAll('.ct[data-ci] details[open]'), function (d) {
     wasOpen[d.parentNode.getAttribute('data-ci') + '|' + d.getAttribute('data-k')] = 1;
@@ -6894,6 +7181,125 @@ function renderCalls() {
      גלילה פנימית. */
   var ta = el.querySelectorAll('.ct textarea');
   for (var z = 0; z < ta.length; z++) noteGrow(ta[z]);
+}
+/* ============================================================
+   כרטיס מצומצם — מצב אחד עכשיו, פירוט כשצריך.
+   ============================================================
+   התוכנית הארגונית, עמוד 7: בכרטיס היו יחד שלב, תגיות,
+   פעולות שיחה, מידע התקנה, סבב, עדכון והערה — וכל פריט נראה
+   כאילו צריך להחליט עליו עכשיו. נשאר גלוי: מי, באיזה מצב,
+   מתי דיברנו לאחרונה, כמה הוזמן, ושני כפתורי השיחה. הסבב
+   ושינוי המצב בשורה אחת. צוות, תגיות והערה — נפתחים.
+   מוצג במסך הישיבה (yshDetail). */
+function ctCard(c, i, ctx) {
+  var h = '', regs = ctx.regs, subs = ctx.subs, jLast = ctx.jLast;
+  var ps = peopleOf(c), me = mainOf(c), pi = Math.min(c.primary || 0, ps.length - 1);
+  var reg = regOf(c, regs), who = subsOf(c, subs);
+  var stg = STAGES.filter(function (x) { return x.k === c.stage; })[0] || STAGES[0];
+  var la = jLast[nameKey(c.key || c.name)];
+  var laT = la ? Date.parse(la) : 0;
+
+  h += '<div class="ct s-' + c.stage + (tagOn(c, 'called') ? ' done' : '') +
+       '" data-ci="' + i + '"><div class="h"><div style="min-width:0">' +
+       '<div class="nm">' + esc(c.name) + '</div>' +
+       (me && me.name ? '<div class="ct-who">' + esc(me.name) + (me.role ? ' · ' + esc(me.role) : '') + '</div>' : '') +
+       '</div><div style="display:flex;gap:6px;align-items:center">' +
+       (c.last ? '<span class="last">תשפ"ו</span>' : '') +
+       (reg ? '<span class="signed" title="נרשם דרך האפליקציה">⚑ נרשם</span>' : '') +
+       (who.length ? '<span class="signed inst" title="התקינו את האפליקציה">◉ ' + who.length + '</span>' : '') +
+       '<button class="edit" onclick="editContact(' + i + ')" title="עריכה">✎</button>' +
+       '</div></div>';
+
+  h += '<div class="ct-st"><b class="ct-sb ' + stg.c + '">' + esc(stg.t) + '</b>' +
+       ' · ' + esc(laT ? UI.callLast.replace('{t}', whenTxt(laT)) : UI.callNever) +
+       (reg && reg.total ? ' · ' + esc(UI.callOrd.replace('{n}', reg.total)) : '') + '</div>';
+
+  var blOn = blastOn(), blKey = blastKey(c, me);
+  var blDone = !!blastLog()[blKey];
+  var blTxt = (blOn && me) ? '?text=' + encodeURIComponent(blastText(c, me)) : '';
+  var dial = function (name, ph, faint) {
+    var live = blOn && !faint;
+    return '<div class="acts"' + (faint ? ' style="margin-top:8px"' : '') + '>' +
+      '<a class="call"' + (faint ? ' style="opacity:.82"' : '') +
+      ' href="tel:' + digits(ph) + '">📞 ' + esc(name) + '</a>' +
+      '<a class="wa"' + (faint ? ' style="opacity:.82"' : '') +
+      ' href="https://wa.me/' + waNum(ph) + (live ? blTxt : '') +
+      '" target="_blank" rel="noopener"' +
+      (live ? ' onclick="blastMark(this.getAttribute(\'data-bk\'))" data-bk="' +
+              esc(blKey) + '"' : '') + '>' +
+      (live ? (blDone ? '✓ נשלחה' : 'שליחת ההודעה')
+            : 'וואטסאפ') + '</a></div>';
+  };
+
+  if (me && me.phone) {
+    h += dial(me.name || 'חייג', me.phone, false);
+    if (me.phone2) h += dial((me.name || '') + ' · נוסף', me.phone2, true);
+  } else {
+    h += '<div style="font-size:.83rem;color:var(--stop);font-weight:800;margin-top:10px">' +
+         'אין מספר טלפון</div>';
+  }
+
+  h += '<div class="ct-row"><label class="ct-rd"><input type="checkbox"' +
+       (tagOn(c, 'called') ? ' checked' : '') + ' onchange="tagTick(' + i + ',\'called\')"> ' +
+       esc(UI.callRound) + '</label>' +
+       '<select class="ct-sel" aria-label="סטטוס" onchange="setStage(' + i + ',this.value)">' +
+       STAGES.map(function (x) {
+         return '<option value="' + x.k + '"' + (x.k === c.stage ? ' selected' : '') + '>' + esc(x.t) + '</option>';
+       }).join('') + '</select></div>';
+
+  /* פרטי צוות והתקנה — מי איש הקשר שהכפתורים מחייגים אליו,
+     מי מוצג בעמוד הצוות, ומי כבר התקין. */
+  var team = '';
+  if (ps.length) {
+    team += '<div class="whos">';
+    ps.forEach(function (q, k) {
+      team += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
+        '" onclick="setMain(' + i + ',' + k + ')">' +
+        '<b>' + esc(q.name || 'ללא שם') + '</b>' +
+        (q.role ? '<i>' + esc(q.role) + '</i>' : '') +
+        (q.phone ? '' : '<i style="color:var(--stop)">אין מספר</i>') + '</button>' +
+        (q.phone ? '<label class="teamp"><input type="checkbox"' +
+          (personTeamOn(c, k) ? ' checked' : '') +
+          ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
+        '</div>';
+    });
+    team += '</div>';
+  }
+  if (who.length) {
+    team += '<div class="instd">התקינו: ' + who.map(function (q) {
+      return esc(q.name || 'ללא שם') + (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
+    }).join(' · ') + '</div>';
+  }
+  if (team) h += '<details class="ct-d" data-k="team"><summary>' + esc(UI.callTeam) + '</summary>' + team + '</details>';
+
+  /* תגיות — בלי "התקשרתי בסבב", שיש לו תיבה משלו למעלה. */
+  var tags = tagDefs().filter(function (t) { return t.k !== 'called'; });
+  if (tags.length) {
+    var tOn = tags.filter(function (t) { return tagOn(c, t.k); }).length;
+    h += '<details class="ct-d" data-k="tags"><summary>' + esc(UI.callTags) + (tOn ? ' · ' + tOn : '') + '</summary><div class="chips">';
+    tags.forEach(function (t) {
+      h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
+           '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
+    });
+    h += '</div></details>';
+  }
+
+  /* העדכון (תכלס) — יכול לצאת לעמוד הצוות. ההערה — פרטית,
+     לא יוצאת לשום מקום. שתיהן באותו מקום, כל אחת בתווית שלה. */
+  h += '<details class="ct-d" data-k="note"' +
+       ' ontoggle="var t=this.querySelector(\'textarea\');if(t&&this.open)noteGrow(t)"><summary>' +
+       esc(UI.callNote) + (c.note || c.upd ? ' ✎' : '') + '</summary>' +
+       '<input class="updline" type="text" maxlength="160" ' +
+       'placeholder="עדכון קצר (תכלס), משפט–שניים…" value="' + esc(c.upd || '') +
+       '" onchange="setUpd(' + i + ',this.value)">' +
+       '<label class="teamshow"><input type="checkbox"' +
+       (c.teamShow ? ' checked' : '') +
+       ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' +
+       '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
+       '<textarea rows="3" placeholder="הערה מהשיחה…" ' +
+       'oninput="noteGrow(this)" ' +
+       'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></details></div>';
+  return h;
 }
 function callFilter(f) { state.filter = f; renderCalls(); }
 /* החיפוש חי בזיכרון בלבד — הוא אינו הגדרה ואינו אמור לשרוד
