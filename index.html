@@ -2552,7 +2552,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.136';
+var APP_VERSION = '8.99.137';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7420,7 +7420,25 @@ function editSave() {
   c.at = new Date().toISOString();
   jnl(c);
   saveContacts(l);
-  editClose(); renderCalls(); pushCalls(1);
+  editClose(); renderCalls(); pushCalls(1); contactBack(c);
+}
+/* איש קשר שנערך או נוסף — גם ללשונית "אנשי קשר" בגיליון שהשרת
+   מכיר (CONTACTS_ID). התשובה אמיתית (GET), ולכן מה שנאמר כאן נכון. */
+function contactBack(c) {
+  var key = (CFG.readKey || '').trim();
+  if (!c || !key) return Promise.resolve(false);
+  var ppl = peopleOf(c).map(function (q) {
+    return { name:q.name || '', phone:q.phone || '', phone2:q.phone2 || '' };
+  });
+  return scriptGet({ contactSave: JSON.stringify({ name:c.key || c.name, people:ppl, last:!!c.last }),
+                     key:key }).then(function (d) {
+    if (d && d.saved) { callSay(UI.callCSaved); return true; }
+    callSay(d && d.status && d.status !== 'ok' ? fill(UI.callCFail, { t:d.message || d.status })
+                                               : UI.callCOld);
+    return false;
+  }).catch(function (e) {
+    callSay(fill(UI.callCFail, { t:String(e && e.message || e) })); return false;
+  });
 }
 
 /* ============================================================

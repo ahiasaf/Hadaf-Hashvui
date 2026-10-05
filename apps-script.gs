@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 50;
+var SCRIPT_VERSION = 51;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1564,6 +1564,27 @@ function doGet(e) {
                    parse_(e.parameter.vals), e.parameter.ss);
     } catch (err) { dres = { status: 'error', message: String(err) }; }
     return reply_(e, dres);
+  }
+
+  /* ============================================================
+     איש קשר שנוסף או נערך במוקד — חזרה ללשונית "אנשי קשר".
+     ============================================================
+     עד עכשיו הוא חי על המכשיר, ובעמודת "עריכה" של היומן. כאן הוא
+     נכתב לגיליון שהשרת מכיר (CONTACTS_ID, ובלעדיו PRIVATE_ID) —
+     **לעולם לא לגיליון הראשי**, שפתוח לקריאה. אין שם כזה — שגיאה.
+
+     הוספה בלבד: שורה קיימת (לפי שם הישיבה) מקבלת בסופה רק מי
+     שאינו בה כבר, לפי שם או לפי טלפון. שום תא קיים אינו נדרס.
+     GET ולא POST: התשובה כאן אמיתית, וזו האימות. */
+  if (e && e.parameter && e.parameter.contactSave) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied',
+        message: READ_KEY ? 'סיסמה שגויה' : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
+    }
+    var cres;
+    try { cres = contactSave_(parse_(e.parameter.contactSave)); }
+    catch (err) { cres = { status: 'error', message: String(err) }; }
+    return reply_(e, cres);
   }
 
   /* ---- ארכיון: הסרה הפיכה, שחזור, ורשימה (archivePerson_) ---- */
@@ -3275,6 +3296,61 @@ function writeTable_(tab, cols, rows, ssId) {
    הפרסום שדיווח על הצלחה שלא קרתה, שום פעולה הרסנית כאן אינה
    מסתמכת על "כנראה הצליח".
    ============================================================ */
+/* ראו `contactSave` ב-doGet. אותה השוואת שמות של המוקד (nameKey
+   ב-index.html): בלי גרשיים ובלי רווחים כפולים. */
+var CONTACT_TAB_ = 'אנשי קשר';
+function ckey_(v) {
+  return String(v == null ? '' : v).replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+    .replace(/^'/, '').replace(/["'\u05F4\u05F3]/g, '').replace(/\s+/g, ' ').trim();
+}
+function contactSave_(cd) {
+  if (!CONTACTS_ID) throw new Error('חסר CONTACTS_ID וגם PRIVATE_ID — אנשי קשר לא נכתבים לגיליון הראשי');
+  var name = String(cd && cd.name || '').trim();
+  if (!name) return { status: 'error', message: 'חסר שם ישיבה' };
+  var people = (cd.people || []).filter(function (q) { return q && (q.name || q.phone); });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet_(CONTACT_TAB_, CONTACTS_ID);
+    var data = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+    var want = ckey_(name), at = -1;
+    for (var r = 0; r < data.length; r++) {
+      for (var c = 0; c < Math.min(3, data[r].length); c++) {
+        if (ckey_(data[r][c]) === want) { at = r; break; }
+      }
+      if (at >= 0) break;
+    }
+    var digits = function (v) { return String(v || '').replace(/\D/g, ''); };
+    if (at < 0) {
+      var row = [name];
+      people.forEach(function (q) {
+        row.push(String(q.name || ''));
+        if (q.phone) row.push(cell_(String(q.phone)));
+        if (q.phone2) row.push(cell_(String(q.phone2)));
+      });
+      if (cd.last) row.push('TRUE');
+      sh.appendRow(row);
+      return { status: 'ok', saved: 1, created: 1, added: people.length };
+    }
+    var have = {}, phones = {}, last = 0;
+    data[at].forEach(function (v, i) {
+      if (String(v).trim()) last = i + 1;
+      var k = ckey_(v); if (k) have[k] = 1;
+      var d = digits(v); if (d.length >= 9) phones[d] = 1;
+    });
+    var add = [];
+    people.forEach(function (q) {
+      var p1 = digits(q.phone), p2 = digits(q.phone2);
+      if ((q.name && have[ckey_(q.name)]) || (p1 && phones[p1]) || (p2 && phones[p2])) return;
+      add.push(String(q.name || ''));
+      if (q.phone) add.push(cell_(String(q.phone)));
+      if (q.phone2) add.push(cell_(String(q.phone2)));
+    });
+    if (add.length) sh.getRange(at + 1, last + 1, 1, add.length).setValues([add]);
+    return { status: 'ok', saved: 1, created: 0, added: add.length ? 1 : 0 };
+  } finally { lock.releaseLock(); }
+}
+
 function clearTab_(tab, ssId) {
   var id = ssId || privId_(tab);
   var ss = id ? SpreadsheetApp.openById(String(id))

@@ -102,6 +102,43 @@ function scriptUrl() {
    סיכוי אמיתי לחלוף לפני שהצעד נכשל — ובלי לפגוע בהרצה
    הרגילה, שאינה נוגעת בהמתנה הזו כלל.
    ============================================================ */
+/* ============================================================
+   זמן קצוב לכל פנייה לסקריפט.
+   ============================================================
+   ב-5.10 ב-10:40 ההרצה נמשכה שמונה דקות: גוגל החזיק כל בקשה
+   כחצי דקה ויותר ואז ענה "Page Not Found · unable to open the
+   file at this time", וכל אחד משלושת הצעדים ניסה חמש פעמים.
+   בלי זמן קצוב, בקשה שנתקעת לגמרי הייתה מחכה עד שהריצה כולה
+   נהרגת. 45 שניות — תשובה תקינה, גם עם נעילה, חוזרת הרבה לפני. */
+var ASK_MS = 45000;
+function tfetch(url, opts) {
+  var ac = typeof AbortController === 'function' ? new AbortController() : null;
+  var t = ac ? setTimeout(function () { ac.abort(); }, ASK_MS) : null;
+  var o = opts || {};
+  if (ac) o.signal = ac.signal;
+  return fetch(url, o).then(function (r) { return r.text(); })
+    .then(function (txt) { if (t) clearTimeout(t); return txt; },
+          function (e) {
+            if (t) clearTimeout(t);
+            if (e && e.name === 'AbortError') {
+              var x = new Error('הסקריפט לא ענה תוך ' + (ASK_MS / 1000) + ' שניות');
+              x.google = 1;
+              throw x;
+            }
+            throw e;
+          });
+}
+
+/* גוגל לא זמין (דף שגיאה שלו, או שלא ענה בזמן) — זו לא תקלה בקוד
+   שלנו, וההרצה הבאה (חצי שעה) משלימה את המשבצות שהתפספסו. לכן
+   אזהרה כתומה ולא ריצה אדומה. כל שגיאה אחרת — אדומה כמו קודם. */
+function quitIfGoogle(e) {
+  if (!(e && e.google)) return false;
+  console.log('::warning::גוגל לא זמין כרגע — ההרצה הבאה תשלים: ' + (e.message || e));
+  process.exit(0);
+  return true;
+}
+
 function ask(params, tries) {
   var url = scriptUrl();
   if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
@@ -110,8 +147,7 @@ function ask(params, tries) {
   }).join('&');
   var left = tries == null ? 5 : tries;
   var go = function (n) {
-    return fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now())
-      .then(function (r) { return r.text(); })
+    return tfetch(url + (url.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now())
       .then(function (txt) {
         var t = String(txt || '').trim();
         if (t.charAt(0) === '{' || t.charAt(0) === '[') return JSON.parse(t);
@@ -128,9 +164,12 @@ function ask(params, tries) {
           var er = /(TypeError|ReferenceError|SyntaxError|Exception|Exceeded|Service invoked|Authorization|unable to open|Script function not found|Too many)[^<]{0,160}/i.exec(vis);
           why = ' · ' + (tt ? tt[1].trim() : '') + (er ? ' · ' + er[0].replace(/\s+/g, ' ') : '');
         }
-        throw new Error('הסקריפט החזיר ' + (/^<!DOCTYPE|^<html/i.test(t)
+        var he = new Error('הסקריפט החזיר ' + (/^<!DOCTYPE|^<html/i.test(t)
           ? 'דף HTML ולא JSON' : 'תשובה שאינה JSON') +
           ' (' + t.slice(0, 60).replace(/\s+/g, ' ') + '…)' + why);
+        /* דף של גוגל — לא שגיאה של הסקריפט שלנו (שעונה תמיד JSON). */
+        if (/<html/i.test(t)) he.google = 1;
+        throw he;
       })
       .catch(function (e) {
         if (n <= 1) throw e;
@@ -200,13 +239,13 @@ function sentLoad(key) {
 function markOne(k, state) {
   var url = scriptUrl();
   var tryOnce = function () {
-    return fetch(url, {
+    return tfetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       /* "נשלחו" אינה לשונית ציבורית — הכתיבה דורשת את הסיסמה. */
       body: JSON.stringify({ action:'row', tab:SENT_TAB, key: process.env.READ_KEY || '',
         cols: JSON.stringify([['מפתח', k], ['מצב', state], ['מתי', new Date().toISOString()]]) })
-    }).then(function (r) { return r.text(); }).then(function (t) {
+    }).then(function (t) {
       /* `appendCols_` עונה "success", ומסלולים אחרים "ok". */
       if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) {
         throw new Error(String(t).slice(0, 80).replace(/\s+/g, ' '));
@@ -286,13 +325,13 @@ function logRun(title, text, aud, n, bad, wait, gone) {
             (wait ? ' · ממתינים ל-' + wait : '');
   var url = scriptUrl();
   var go = function (k) {
-    return fetch(url, {
+    return tfetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action:'row', tab:'הודעות', key: process.env.READ_KEY || '',
         cols: JSON.stringify([['מי', 'מערכת'], ['ישיבה', ''], ['קהל', aud],
                               ['כותרת', title], ['הטקסט', text], ['תוצאה', res]]) })
-    }).then(function (r) { return r.text(); }).then(function (t) {
+    }).then(function (t) {
       if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) throw new Error(String(t).slice(0, 80));
       return true;
     })['catch'](function (e) {
@@ -355,7 +394,7 @@ function markGone(st, sub) {
 }
 
 module.exports = { israelNow: israelNow, slotsDue: slotsDue, two: two,
-                   ask: ask, rows: rows, byHead: byHead,
+                   ask: ask, rows: rows, quitIfGoogle: quitIfGoogle, byHead: byHead,
                    sentLoad: sentLoad, sentRaw: sentRaw, markOne: markOne,
                    sentMark: sentMark, once: once, finish: finish,
                    logRun: logRun,

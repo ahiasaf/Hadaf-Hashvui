@@ -189,6 +189,7 @@ Promise.all([rows('תזכורות'), rows('התראות'), S.sentRaw(key)])
     : Promise.resolve(false);
   return log.then(function () { if (sig !== prev) return S.markOne(LOG_KEY, sig); });
 })['catch'](function (e) {
+  S.quitIfGoogle(e);
   console.error('נכשל: ' + (e && e.message || e));
   process.exit(1);
 });
