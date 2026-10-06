@@ -2,60 +2,98 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=1080">
+<meta name="viewport" content="width=478">
 <title>סרטון הדף השבועי</title>
 <!--
-  סרטון קצר להצגת הדף השבועי — 7 מסכים, 1080x1920, אנכי.
-  אינו חלק מהאפליקציה ואינו מקושר ממנה. נבנה לסרטון בלבד.
+  סרטון "למה בנינו את הדף השבועי" — 11 חלקים, 40.33 שניות, 60fps.
 
-  פתיחה רגילה בדפדפן: מנגן בלולאה (לתצוגה מקדימה).
-  ?t=12.5           — קופא על השנייה הזו.
-  render.js         — קורא ל-seek(t) פריים אחר פריים ומקליט ל-mp4.
+  הבמה בנויה ביחידות של 478x850 (המידות שבבריף) ו-render.js מצלם
+  אותה בצפיפות פיקסלים 2.26, כך שהפלט הוא 1080x1920.
 
-  כל האנימציה נגזרת מ-t בלבד (בלי CSS transitions), כך שכל
-  פריים יוצא זהה בכל הרצה.
+  פתיחה רגילה בדפדפן: מנגן בלולאה.  ?t=19.25 — קופא על השנייה הזו.
+  כל פריים נגזר מ-t בלבד. כל מעבר עובר דרך xfade אחת:
+  הנכנס עולה smoothstep מ-0 ל-1, והיוצא הוא בדיוק 1 פחות הנכנס
+  (mix-blend-mode: plus-lighter — חיבור, בלי צלילה לרקע באמצע).
+  הכותרת והרקע מצוירים פעם אחת ואינם זזים לעולם.
 -->
 <style>
 @font-face{font-family:'Heebo';font-weight:100 900;src:url(heebo-hebrew.woff2) format('woff2');
   unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
 @font-face{font-family:'Heebo';font-weight:100 900;src:url(heebo-latin.woff2) format('woff2');
   unicode-range:U+0000-00FF,U+2000-206F}
-:root{--navy:#0B2550;--blue:#17468F;--gold:#c9962f;--gold-l:#E5B854}
-html,body{margin:0;background:var(--navy)}
-#stage{position:relative;width:1080px;height:1920px;overflow:hidden;
-  font-family:'Heebo',sans-serif;color:#fff;
-  background:radial-gradient(120% 70% at 50% 38%,#163f86 0%,#0d2c5f 55%,#0A2149 100%)}
-.blob{position:absolute;border-radius:50%;filter:blur(2px)}
-.b1{width:620px;height:620px;right:-260px;top:-240px;background:var(--gold);opacity:.10}
-.b2{width:520px;height:520px;left:-240px;bottom:-200px;background:#3574CE;opacity:.16}
+:root{--gold:#CE9B2E;--white:#EEF3FB}
+html,body{margin:0;background:#00164A}
+#stage{position:relative;width:478px;height:850px;overflow:hidden;font-family:'Heebo',sans-serif;
+  color:var(--white);background:linear-gradient(#00164A,#001343)}
+.arc{position:absolute;border-radius:50%;border:38px solid rgba(255,255,255,.025)}
+.arc.l{width:520px;height:520px;left:-400px;top:250px}
+.arc.r{width:600px;height:600px;right:-470px;top:-60px;border-color:rgba(0,0,0,.08)}
+.band{position:absolute;left:0;right:0;top:0;height:112px;
+  background:linear-gradient(rgba(0,8,34,.45) 0,rgba(0,8,34,.3) 88%,rgba(60,100,180,.12) 100%)}
 
-/* כותרת קבועה: הסמל העגול בעיגול לבן, השם והשנה */
-.mast{position:absolute;top:84px;right:0;left:0;display:flex;align-items:center;
-  justify-content:center;gap:26px}
-.mast .m{width:132px;height:132px;border-radius:50%;background:#fff;display:flex;
-  align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(0,0,0,.25)}
-.mast .m img{width:88px;height:88px;object-fit:contain}
-.mast .t b{display:block;font-size:56px;font-weight:900;line-height:1.05}
-.mast .t span{display:block;font-size:34px;font-weight:500;opacity:.85;line-height:1.25}
-.mast .t i{font-style:normal;color:var(--gold-l);font-weight:800;font-size:30px;letter-spacing:.04em}
+/* הכותרת — שכבה קבועה מעל הכל */
+.mast{position:absolute;top:41px;left:0;right:0;height:56px;display:flex;align-items:center;
+  justify-content:center;gap:11px;padding-left:4px;z-index:9}
+.mast .m{width:56px;height:56px;border-radius:50%;background:#fff;display:flex;
+  align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.mast .m img{width:38px;height:38px;object-fit:contain}
+.mast .t b{display:block;font-size:22px;font-weight:800;line-height:1.05}
+.mast .t span{display:block;font-size:14px;font-weight:400;opacity:.85;line-height:1.3}
+.mast .t i{display:block;font-style:normal;color:var(--gold);font-weight:800;font-size:13px;line-height:1.1}
 
-.scr{position:absolute;inset:0;opacity:0}
-.box{position:absolute;left:50%;overflow:hidden;border-radius:34px;background:#fff;
-  box-shadow:0 24px 70px rgba(0,0,0,.42),0 0 0 6px rgba(255,255,255,.08)}
-.box .lay{position:absolute;left:0;top:0;transform-origin:0 0}
-.box img{display:block}
-.hl{position:absolute;background:#FFD400;mix-blend-mode:multiply;border-radius:6px}
+#media,#caps{position:absolute;inset:0;isolation:isolate}
+.sec,.cap{position:absolute;inset:0;mix-blend-mode:plus-lighter;opacity:0}
+.sub{position:absolute;inset:0;mix-blend-mode:plus-lighter}
+.card{position:absolute;overflow:hidden;border-radius:12px;background:#fff;
+  box-shadow:0 10px 26px rgba(0,0,0,.45)}
+.card.flat{border-radius:0;box-shadow:none;background:#000}
+.card.framed{border:4px solid #fff;border-radius:10px}
+.card .in{position:absolute;left:0;top:0;transform-origin:0 0}
+.card img{display:block;width:100%;height:100%}
+.hl{position:absolute;background:#FFD400;mix-blend-mode:multiply;border-radius:5px}
 
-.say{position:absolute;right:70px;left:70px;top:1440px;height:380px;display:flex;
-  align-items:center;justify-content:center;text-align:center;
-  font-size:94px;font-weight:900;line-height:1.16;letter-spacing:-.5px;
-  text-shadow:0 4px 18px rgba(0,0,0,.35)}
-.say g{color:var(--gold)}
+.cap{display:flex;align-items:center;justify-content:center;text-align:center}
+.cap div{font-size:35px;font-weight:800;line-height:50px;letter-spacing:-.2px}
+.cap g{color:var(--gold)}
+
+/* בקשה — ארבע שורות במשקלים שונים */
+.ask div{line-height:1.25}
+.ask .a1{font-size:46px;font-weight:800;color:var(--gold);line-height:52px}
+.ask .a2{font-size:27px;font-weight:400;line-height:36px}
+.ask .a3{font-size:35px;font-weight:800;line-height:44px}
+.ask .a4{font-size:27px;font-weight:400;line-height:36px}
+
+/* וואטסאפ — מצויר בקוד */
+.wa{position:absolute;left:28px;top:178px;width:421px;height:469px;border-radius:12px;overflow:hidden;
+  background:#E7DED4;box-shadow:0 10px 26px rgba(0,0,0,.45);direction:rtl}
+.wa .bar{position:absolute;left:0;right:0;top:0;height:54px;background:#0B5D51;display:flex;
+  align-items:center;padding:0 12px;gap:10px}
+.wa .av{width:34px;height:34px;border-radius:50%;background:#C9CED3;position:relative;overflow:hidden;flex:none}
+.wa .av:before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;left:10px;top:6px}
+.wa .av:after{content:'';position:absolute;width:26px;height:20px;border-radius:50%;background:#fff;left:4px;top:23px}
+.wa .nm b{display:block;font-size:16px;font-weight:700;color:#fff;line-height:1.2}
+.wa .nm span{display:block;font-size:12px;color:#CFE6E1;line-height:1.3}
+.wa .back{position:absolute;left:12px;top:15px;width:11px;height:11px;border-top:3px solid #fff;
+  border-right:3px solid #fff;transform:rotate(45deg) translate(2px,-2px)}
+.wa .bub{position:absolute;left:12px;top:70px;min-width:150px;max-width:300px;background:#D9FDD3;
+  border-radius:8px;padding:8px 11px 20px;box-shadow:0 1px 1px rgba(0,0,0,.12);
+  font-size:15px;line-height:21px;color:#111B21;font-weight:400;text-align:right}
+.wa .bub .cur{display:inline-block;width:3px;height:17px;background:#0B5D51;vertical-align:-3px;margin-right:1px}
+.wa .bub .tm{position:absolute;left:10px;bottom:4px;font-size:11px;color:#667781;direction:ltr}
+.wa .bub .tk{color:#53BDEB;font-size:12px;letter-spacing:-4px;margin-left:5px;opacity:0}
+.wa .inp{position:absolute;left:10px;right:10px;bottom:10px;height:38px;border-radius:19px;background:#fff;
+  font-size:14px;color:#8696A0;line-height:38px;padding-right:16px}
+.wa .inp:after{content:'';position:absolute;left:12px;top:11px;width:14px;height:14px;border-radius:50%;
+  border:2px solid #8696A0}
+.thanks{position:absolute;left:0;right:0;top:400px;text-align:center;font-size:92px;font-weight:900;
+  color:var(--gold);line-height:100px;text-shadow:0 6px 24px rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="arc l"></div><div class="arc r"></div><div class="band"></div>
+  <div id="media"></div>
+  <div id="caps"></div>
   <div class="mast">
     <div class="m"><img id="mk" alt=""></div>
     <div class="t"><b>הדף השבועי</b><span>של בני עקיבא</span><i>תשפ"ז</i></div>
@@ -64,139 +102,246 @@ html,body{margin:0;background:var(--navy)}
 
 <script src="../../logo.js"></script>
 <script>
-/* תיבת התמונה: עד 960 רוחב, 1120 גובה, ממורכזת סביב y=830.
-   כל צילום מוגדר בחיתוך התחלה וחיתוך סיום (פיקסלים של הקובץ),
-   באותו יחס — המעבר ביניהם הוא הזום. */
-var BOX_W = 960, BOX_H = 1120, BOX_CY = 830;
-
-function shot(src, w, h, a, b, hls) { return { src: src, w: w, h: h, a: a, b: b, hls: hls || [] }; }
-function zoomTo(c, f, ax, ay) {        // חיתוך קטן פי f, מעוגן בנקודה יחסית (ax,ay)
-  var w = c[2] * f, h = c[3] * f;
-  return [c[0] + (c[2] - w) * ax, c[1] + (c[3] - h) * ay, w, h];
-}
-
-var SLIDE = [0, 240, 945, 1400];      // בלי שורת הדפדפן והכתובת
-var MARK  = [0, 240, 945, 1400];
-
-var SCREENS = [
-  { d: 3.5, say: 'למה בנינו את <g>הדף השבועי</g>?', pop: true,
-    shots: [shot('img/1-phone.jpg', 900, 900, [0, 0, 900, 900], [30, 30, 840, 840])] },
-  { d: 6, say: 'כדי ש<g>אבות ובנים</g> ישבו יחד בבית וילמדו גמרא!',
-    shots: [
-      shot('img/2a-sukka.jpg', 1100, 619, [0, 0, 1100, 619], zoomTo([0, 0, 1100, 619], .88, .5, .45)),
-      shot('img/2b-sukka.jpg', 1100, 825, [0, 0, 1100, 825], zoomTo([0, 0, 1100, 825], .88, .55, .5)),
-      shot('img/2c-sukka.jpg', 825, 1100, [0, 0, 825, 1100], zoomTo([0, 0, 825, 1100], .88, .6, .45))
-    ] },
-  { d: 3.5, say: 'להרחיב את <g>מעגל המשתתפים</g> בשיעורי הלשמה!',
-    shots: [shot('img/3-stats.jpg', 1080, 786, [0, 0, 1080, 786], zoomTo([0, 0, 1080, 786], .9, .5, .4))] },
-  { d: 3.5, say: 'למעביר השיעור יש <g>כלי מוכן!</g>',
-    shots: [shot('img/4-tool.jpg', 1078, 1463, [0, 0, 1078, 1463], zoomTo([0, 0, 1078, 1463], .86, .5, .45))] },
-  { d: 3.5, say: '<g>מצגת עם איורים</g> שמסבירים את הגמרא',
-    shots: [shot('img/5-slide.jpg', 945, 2048, SLIDE, zoomTo(SLIDE, .87, .5, 1))] },
-  { d: 4, say: '<g>סימון</g> שמאפשר לתלמידים לעקוב אחרי הדף',
-    shots: [shot('img/6-mark.jpg', 945, 2048, MARK, zoomTo(MARK, .86, .5, .2), [
-      { r: [40, 622, 728, 58], t0: .7, t1: 1.6 },
-      { r: [518, 682, 387, 54], t0: 1.6, t1: 2.1 }
-    ])] },
-  { d: 3.5, say: 'אחרי השיעור: חוזרים בבית ועונים על <g>החידון</g>',
-    shots: [shot('img/7-quiz.jpg', 1074, 1148, [0, 0, 1074, 1148], zoomTo([0, 0, 1074, 1148], .8, .9, 0))] }
-];
-
-var FADE = 0.4;                         // מעבר דעיכה בין מסכים
-
-/* בניית המסכים */
-var stage = document.getElementById('stage'), T = 0, i, j;
-document.getElementById('mk').src = LOGO_MARK;
-for (i = 0; i < SCREENS.length; i++) {
-  var s = SCREENS[i];
-  s.start = T; T += s.d;
-  s.el = document.createElement('div'); s.el.className = 'scr';
-  for (j = 0; j < s.shots.length; j++) {
-    var sh = s.shots[j], k = Math.min(BOX_W / sh.a[2], BOX_H / sh.a[3]);
-    sh.bw = Math.round(sh.a[2] * k); sh.bh = Math.round(sh.a[3] * k);
-    sh.box = document.createElement('div'); sh.box.className = 'box';
-    sh.box.style.width = sh.bw + 'px'; sh.box.style.height = sh.bh + 'px';
-    sh.box.style.marginLeft = (-sh.bw / 2) + 'px';
-    sh.box.style.top = Math.round(BOX_CY - sh.bh / 2) + 'px';
-    sh.lay = document.createElement('div'); sh.lay.className = 'lay';
-    sh.lay.style.width = sh.w + 'px'; sh.lay.style.height = sh.h + 'px';
-    var im = new Image(); im.src = sh.src; im.width = sh.w; im.height = sh.h;
-    sh.lay.appendChild(im);
-    for (var q = 0; q < sh.hls.length; q++) {
-      var h = sh.hls[q]; h.el = document.createElement('div'); h.el.className = 'hl';
-      h.el.style.top = h.r[1] + 'px'; h.el.style.height = h.r[3] + 'px';
-      sh.lay.appendChild(h.el);
-    }
-    sh.box.appendChild(sh.lay); s.el.appendChild(sh.box);
-  }
-  s.txt = document.createElement('div'); s.txt.className = 'say'; s.txt.innerHTML = '<span>' + s.say + '</span>';
-  s.el.appendChild(s.txt);
-  stage.appendChild(s.el);
-}
-var TOTAL = T;
-
+/* ---------- עזרים ---------- */
 function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
-function ease(x) { x = clamp(x); return x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
-function out(x) { x = clamp(x); return 1 - Math.pow(1 - x, 3); }
-function back(x) { x = clamp(x); var c = 1.5; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+function smooth(x) { x = clamp(x); return x * x * (3 - 2 * x); }
+function easeOut(x) { x = clamp(x); return 1 - Math.pow(1 - x, 3); }
 function lerp(a, b, x) { return a + (b - a) * x; }
-
-function place(sh, p) {                 // p: 0..1 לאורך הזום
-  var c = [], n;
-  for (n = 0; n < 4; n++) c[n] = lerp(sh.a[n], sh.b[n], p);
-  var k = sh.bw / c[2];
-  sh.lay.style.transform = 'scale(' + k + ') translate(' + (-c[0]) + 'px,' + (-c[1]) + 'px)';
+/* המעבר היחיד בסרטון: 0 לפני t0, 1 אחרי t0+dur, smoothstep ביניהם */
+function xfade(t, w) { return w ? smooth((t - w[0]) / (w[1] - w[0])) : 1; }
+function el(tag, cls, parent, html) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  if (parent) parent.appendChild(e);
+  return e;
 }
+
+/* כרטיס תמונה. box: [מרכז x, מרכז y, רוחב, גובה] ביחידות הבמה.
+   crop: חיתוך בפיקסלים של הקובץ (ברירת מחדל — כולו). */
+function card(parent, o) {
+  var c = el('div', 'card' + (o.cls ? ' ' + o.cls : ''), parent);
+  var b = o.box, bw = b[2], bh = b[3];
+  c.style.left = (b[0] - bw / 2) + 'px'; c.style.top = (b[1] - bh / 2) + 'px';
+  c.style.width = bw + 'px'; c.style.height = bh + 'px';
+  var crop = o.crop || [0, 0, o.iw, o.ih], k = bw / crop[2];
+  var inn = el('div', 'in', c);
+  inn.style.width = (o.iw * k) + 'px'; inn.style.height = (o.ih * k) + 'px';
+  inn.style.left = (-crop[0] * k) + 'px'; inn.style.top = (-crop[1] * k) + 'px';
+  var im = el('img', '', inn); im.src = o.src; im.alt = '';
+  o.el = c; o.inn = inn; o.k = k; o.bw = bw; o.bh = bh; o.crop = crop;
+  (o.hls || []).forEach(function (h) {
+    h.el = el('div', 'hl', inn);
+    h.el.style.top = (h.r[1] * k) + 'px'; h.el.style.height = (h.r[3] * k) + 'px';
+  });
+  return o;
+}
+/* זום איטי: scale סביב נקודה יחסית בתיבה, ללא עיגול לפיקסלים */
+function zoom(o, z) {
+  var ox = o.bw * o.ax, oy = o.bh * o.ay;
+  o.inn.style.transform = 'translate(' + (ox * (1 - z)) + 'px,' + (oy * (1 - z)) + 'px) scale(' + z + ')';
+}
+
+var media = document.getElementById('media'), caps = document.getElementById('caps');
+document.getElementById('mk').src = LOGO_MARK;
+var CY = 367;                                   // מרכז כל כרטיס — קבוע
+
+/* ---------- החלקים ----------
+   in: חלון הכניסה (גם של המשפט, אלא אם יש cin).  היציאה נגזרת מהבא. */
+var S = [];
+
+/* 1 · טלפון "מאימתי" */
+S.push({ in: null, cap: 'למה בנינו את <g>הדף</g><br><g>השבועי</g>?',
+  build: function (L) { card(L, { src: 'img/1-phone.jpg', iw: 900, ih: 900, box: [238, CY, 424, 424] }); } });
+
+/* 2 · שלוש תמונות, 2 שניות כל אחת */
+S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>יחד בבית וילמדו גמרא!',
+  build: function (L, s) {
+    var A = el('div', 'sub', L), B = el('div', 'sub', L), C = el('div', 'sub', L);
+    card(A, { src: 'img/2a-sukka.jpg', iw: 1100, ih: 619, box: [238.5, CY, 425, 239] });
+    card(B, { src: 'img/2b-sukka.jpg', iw: 1100, ih: 825, box: [238.5, CY, 425, 319] });
+    card(C, { src: 'img/2c-sukka.jpg', iw: 825, ih: 1100, box: [238.5, CY, 352, 470] });
+    s.subs = [A, B, C];
+  },
+  tick: function (t, s) {
+    var b = xfade(t, [4.5, 4.85]), c = xfade(t, [6.5, 6.87]);
+    s.subs[0].style.opacity = 1 - b;
+    s.subs[1].style.opacity = b * (1 - c);
+    s.subs[2].style.opacity = c;
+  } });
+
+/* 3 · מספרים */
+S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
+  build: function (L) { card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306] }); } });
+
+/* 4 · דף ראשון — כלי למעביר השיעור */
+S.push({ in: [12.0, 12.4], cap: 'למעביר השיעור יש<br><g>כלי מוכן!</g>',
+  build: function (L, s) {
+    s.c = card(L, { src: 'img/4-tool.jpg', iw: 1078, ih: 1463, box: [239, CY, 364, 494], ax: .5, ay: .45 });
+  },
+  tick: function (t, s) { zoom(s.c, lerp(1, 1.03, clamp((t - 12.0) / 4.1))); } });
+
+/* 5 · ערימת שלושה איורים. סדר מאחור לפנים: סוכות, טבלה, מים */
+S.push({ in: [15.6, 16.1], cap: '<g>איורים</g><br>שמסבירים את הגמרא',
+  build: function (L, s) {
+    s.cards = [
+      { src: 'img/5b-sukkot.jpg', iw: 1536, ih: 1024, c: [254, 300], w: 364, r: 4, t0: 16.9 },
+      { src: 'img/5a-table.jpg', iw: 1376, ih: 768, c: [227, 497], w: 363, r: -5.6, t0: 15.6 },
+      { src: 'img/5c-water.jpg', iw: 1376, ih: 768, c: [234, 408], w: 364, r: -2.5, t0: 17.8 }
+    ].map(function (o) {
+      var h = o.w * o.ih / o.iw;
+      o.box = [o.c[0], o.c[1], o.w, h]; o.cls = 'framed';
+      return card(L, o);
+    });
+  },
+  tick: function (t, s) {
+    s.cards.forEach(function (o) {
+      var p = smooth((t - o.t0) / .4);
+      o.el.style.opacity = o.t0 === 15.6 ? 1 : p;     // הראשון נכנס עם החלק
+      var q = o.t0 === 15.6 ? smooth((t - 15.6) / .5) : p;
+      o.el.style.transform = 'translateY(' + lerp(25, 0, q) + 'px) rotate(' + lerp(o.r + 1.5, o.r, q) + 'deg)';
+    });
+  } });
+
+/* 6 · דף שני — הסימון הצהוב */
+var MARK = [0, 240, 945, 1400];
+S.push({ in: [19.0, 19.5], cap: '<g>סימון</g> שמאפשר<br>לתלמידים לעקוב אחרי<br>הדף',
+  build: function (L, s) {
+    s.c = card(L, { src: 'img/6-mark.jpg', iw: 945, ih: 2048, crop: MARK, box: [239, CY, 317, 470],
+      ax: .5, ay: .3, hls: [
+        { r: [40, 622, 728, 58], t0: 19.7, t1: 20.5 },
+        { r: [518, 682, 387, 54], t0: 20.5, t1: 21.0 }] });
+  },
+  tick: function (t, s) {
+    var o = s.c;
+    zoom(o, lerp(1, 1.04, smooth((t - 19.0) / 4.45)));
+    o.hls.forEach(function (h) {
+      var f = smooth((t - h.t0) / (h.t1 - h.t0));
+      // מימין לשמאל, כמו קריאה
+      h.el.style.width = (h.r[2] * f * o.k) + 'px';
+      h.el.style.left = ((h.r[0] + h.r[2] * (1 - f)) * o.k) + 'px';
+      h.el.style.opacity = f > 0 ? .55 : 0;
+    });
+  } });
+
+/* 7 · חידון */
+S.push({ in: [23.0, 23.45], cap: 'אחרי השיעור: חוזרים<br>בבית ועונים על <g>החידון</g>',
+  cout: [26.3, 26.5],
+  build: function (L, s) {
+    s.c = card(L, { src: 'img/7-quiz.jpg', iw: 1074, ih: 1148, box: [238.5, CY, 423, 452], ax: .6, ay: .2 });
+  },
+  tick: function (t, s) { zoom(s.c, lerp(1, 1.05, smooth((t - 24.0) / 1.9))); } });
+
+/* 8 · המחשב. LAPTOP: תיקיית פריימים + מיפוי זמן פלט→מקור.
+   בין שני פריימים סמוכים — מיזוג (לא שכפול), כך שההאטה חלקה. */
+var LAPTOP = window.LAPTOP || {
+  dir: 'laptop/', fps: 60, n: 192, start: 1,
+  // תחליף זמני: חיתוך מתוך v24 (מ-26.8), שכבר ממופה בזמן. בלי קצוות המעברים שלו
+  map: [[26.3, 0.27], [27.05, 0.27], [29.78, 2.98], [30.4, 2.98]]
+};
+S.push({ in: [26.3, 27.05], cin: [26.5, 27.05],
+  cap: '<div class="ask"><div class="a1">בקשה</div><div class="a2">קטנה מכם:</div>' +
+       '<div class="a3">עזרו לנו</div><div class="a4">שהדף יגיע לכל תלמיד!</div></div>',
+  capY: 685,
+  build: function (L, s) {
+    var c = el('div', 'card flat', L);
+    c.style.cssText = 'left:0;top:128px;width:478px;height:420px';
+    s.a = el('img', '', c); s.b = el('img', '', c);
+    [s.a, s.b].forEach(function (im) {
+      im.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:plus-lighter';
+    });
+    s.wrap = c;
+  },
+  tick: function (t, s) {
+    var m = LAPTOP.map, i = 0, src;
+    while (i < m.length - 2 && t > m[i + 1][0]) i++;
+    src = lerp(m[i][1], m[i + 1][1], clamp((t - m[i][0]) / (m[i + 1][0] - m[i][0])));
+    var f = src * LAPTOP.fps, f0 = Math.floor(f), w = f - f0;
+    f0 = Math.max(0, Math.min(LAPTOP.n - 2, f0));
+    var p = function (n) { n = n + LAPTOP.start; return LAPTOP.dir + (n < 10 ? '00' : n < 100 ? '0' : '') + n + '.jpg'; };
+    if (s.a.getAttribute('src') !== p(f0)) s.a.src = p(f0);
+    if (s.b.getAttribute('src') !== p(f0 + 1)) s.b.src = p(f0 + 1);
+    s.a.style.opacity = 1 - w; s.b.style.opacity = w;
+  } });
+
+/* 9 · הכיתה — זום-אאוט אחד חלק */
+S.push({ in: [29.8, 30.4], cap: '<g>הציגו את הדף</g><br>לתלמידים בכיתות',
+  build: function (L, s) {
+    var c = el('div', 'card flat', L);
+    c.style.cssText = 'left:0;top:128px;width:478px;height:420px';
+    s.im = el('img', '', c); s.im.src = 'img/9-class.jpg';
+    s.im.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;width:944px;height:1098px';
+  },
+  tick: function (t, s) {
+    var a = [10, 205, 480, 421.8], b = [0, 190, 944, 829.4];   // חיתוך התחלה / סוף, יחס 478:420
+    var p = easeOut((t - 30.4) / 2.6), c = [];
+    for (var n = 0; n < 4; n++) c[n] = lerp(a[n], b[n], p);
+    var k = 478 / c[2];
+    s.im.style.transform = 'scale(' + k + ') translate(' + (-c[0]) + 'px,' + (-c[1]) + 'px)';
+  } });
+
+/* 10 · וואטסאפ */
+var MSG = 'הורים יקרים! היום למדנו בכיתה את הדף השבועי. מוזמנים ללמוד עם הילדים גם בבית.';
+S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מהלב', outMax: .85,
+  build: function (L, s) {
+    var w = el('div', 'wa', L,
+      '<div class="bar"><div class="av"></div><div class="nm"><b>רב הכיתה</b><span>מקליד...</span></div>' +
+      '<i class="back"></i></div>' +
+      '<div class="bub"><span class="tx"></span><span class="cur"></span>' +
+      '<span class="tm"><span class="tk">✓✓</span>14:32</span></div>' +
+      '<div class="inp">כתבו הודעה</div>');
+    s.st = w.querySelector('.nm span'); s.bub = w.querySelector('.bub');
+    s.tx = w.querySelector('.tx'); s.cur = w.querySelector('.cur'); s.tk = w.querySelector('.tk');
+  },
+  tick: function (t, s) {
+    s.bub.style.opacity = t < 33.95 ? 0 : 1;
+    var n = Math.floor(clamp((t - 34.2) / (36.6 - 34.2)) * MSG.length + (t >= 34.2 ? 1 : 0));
+    n = Math.min(n, MSG.length);
+    if (s.tx.textContent.length !== n) s.tx.textContent = MSG.slice(0, n);
+    var sent = t >= 37.2;
+    s.cur.style.visibility = sent || (t > 36.6 && Math.floor((t - 36.6) / .4) % 2 === 1) ? 'hidden' : 'visible';
+    s.tk.style.opacity = sent ? 1 : 0;
+    var st = sent ? 'מחובר' : 'מקליד...';
+    if (s.st.textContent !== st) s.st.textContent = st;
+  } });
+
+/* 11 · תודה!! */
+S.push({ in: [38.85, 39.3], cap: '',
+  build: function (L) { el('div', 'thanks', L, 'תודה!!'); } });
+
+/* ---------- בנייה ---------- */
+S.forEach(function (s) {
+  s.L = el('div', 'sec', media);
+  s.build(s.L, s);
+  s.C = el('div', 'cap', caps, s.cap ? (s.cap.indexOf('<div') === 0 ? s.cap : '<div>' + s.cap + '</div>') : '');
+  var y = s.capY || 718;
+  s.C.style.top = (y - 110) + 'px'; s.C.style.bottom = 'auto'; s.C.style.height = '220px';
+});
+
+var TOTAL = 40 + 1 / 3;
 
 function seek(t) {
-  for (var i = 0; i < SCREENS.length; i++) {
-    var s = SCREENS[i], lt = t - s.start, end = s.d;
-    // דעיכה פנימה בתחילת המסך (חוץ מהראשון), החוצה — כשהבא נכנס
-    var op = 1;
-    if (i > 0) op = Math.min(op, clamp(lt / FADE));
-    if (i < SCREENS.length - 1) op = Math.min(op, clamp((end + FADE - lt) / FADE));
-    if (lt < 0 || lt > end + FADE) op = 0;
-    s.el.style.opacity = op;
-    if (!op) continue;
-
-    // המשפט: עולה ונכנס
-    var tx = out((lt - (s.pop ? .55 : .2)) / .5);
-    s.txt.style.opacity = tx;
-    s.txt.style.transform = 'translateY(' + lerp(40, 0, tx) + 'px)';
-
-    var n = s.shots.length, per = s.d / n;
-    for (var j = 0; j < n; j++) {
-      var sh = s.shots[j], st = lt - j * per;
-      // כמה תמונות במסך אחד: כל אחת דועכת פנימה על קודמתה
-      var so = n === 1 ? 1 : (j === 0 ? 1 : clamp(st / .35));
-      if (n > 1 && st < 0) so = 0;
-      if (n > 1 && j < n - 1 && st > per + .35) so = 0;
-      sh.box.style.opacity = so;
-      sh.box.style.zIndex = j;
-      place(sh, ease(st / (n > 1 ? per + .35 : s.d + FADE)));
-      if (s.pop) {
-        var pp = back(lt / .8);
-        sh.box.style.transform = 'scale(' + lerp(.72, 1, pp) + ')';
-        sh.box.style.opacity = clamp(lt / .3);
-      }
-      for (var q = 0; q < sh.hls.length; q++) {
-        var h = sh.hls[q], f = ease((lt - h.t0) / (h.t1 - h.t0));
-        // מימין לשמאל, כמו קריאה
-        h.el.style.width = (h.r[2] * f) + 'px';
-        h.el.style.left = (h.r[0] + h.r[2] * (1 - f)) + 'px';
-        h.el.style.opacity = f > 0 ? .55 : 0;
-      }
-    }
+  for (var i = 0; i < S.length; i++) {
+    var s = S[i], nx = S[i + 1];
+    var inM = xfade(t, s.in), outM = nx ? xfade(t, nx.in) * (s.outMax || 1) : 0;
+    var inC = xfade(t, s.cin || s.in), outC = nx ? xfade(t, s.cout || nx.cin || nx.in) * (s.outMax || 1) : 0;
+    var a = inM * (1 - outM), c = inC * (1 - outC);
+    s.L.style.opacity = a; s.C.style.opacity = c;
+    s.L.style.visibility = a > 0 ? 'visible' : 'hidden';
+    s.C.style.visibility = c > 0 ? 'visible' : 'hidden';
+    if (a > 0 && s.tick) s.tick(t, s);
   }
 }
 
+/* render.js: מחכה שהתמונות של הפריים הנוכחי יפוענחו */
+window.seekAsync = function (t) {
+  seek(t);
+  var ps = [], imgs = document.images;
+  for (var n = 0; n < imgs.length; n++) if (imgs[n].getAttribute('src')) ps.push(imgs[n].decode().catch(function () {}));
+  return Promise.all(ps).then(function () { return document.fonts.ready; });
+};
 window.seek = seek;
 window.TOTAL = TOTAL;
-window.ready = function () {             // render.js מחכה לגופן ולתמונות
-  var imgs = document.images, n;
-  for (n = 0; n < imgs.length; n++) if (!imgs[n].complete) return false;
-  return document.fonts ? document.fonts.status === 'loaded' : true;
-};
 
 var mt = /[?&]t=([\d.]+)/.exec(location.search);
 if (mt) seek(parseFloat(mt[1]));
@@ -204,10 +349,10 @@ else if (!/[?&]render/.test(location.search)) {
   var t0 = null;
   (function loop(now) {
     if (t0 === null) t0 = now;
-    seek(((now - t0) / 1000) % (TOTAL + .8));
+    seek(((now - t0) / 1000) % TOTAL);
     requestAnimationFrame(loop);
   })(performance.now());
-}
+} else seek(0);
 </script>
 </body>
 </html>
