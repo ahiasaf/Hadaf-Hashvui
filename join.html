@@ -217,6 +217,16 @@ body.land .top-say{display:block}
   font-weight:700;line-height:1.7;color:var(--ink-2);text-wrap:balance}
 .meet[hidden]{display:none}
 .meet[hidden] + .demo{margin-top:26px}
+/* "אני מצטרף" שבא במקום השורה האפורה — ראו meetSwap. */
+.meet{transition:opacity .6s ease}
+.meet.fade{opacity:0}
+#meet-go{display:block;width:100%;text-align:center;margin:22px 0 16px;
+  padding:0 16px;border:0;border-radius:14px;font-family:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));
+  box-shadow:0 6px 18px rgba(74,130,28,.28);opacity:0;transition:opacity .6s ease}
+#meet-go[hidden]{display:none}
+#meet-go.on{opacity:1}
 .demo{position:relative;border-radius:var(--r);overflow:hidden;
   box-shadow:0 16px 38px rgba(11,37,80,.3)}
 .demo[hidden]{display:none}
@@ -412,15 +422,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   background:linear-gradient(140deg,var(--green-d),var(--green-2));
   box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
 #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(74,130,28,.28)}
-/* "אני מצטרף" שמתחת לחלון ההדגמה — אותו כפתור בדיוק. ההדגמה
-   ארוכה, ומי שכבר השתכנע באמצעה לא צריך לחכות לסופה כדי למצוא
-   איך מצטרפים. */
-#demo-go{display:block;width:100%;text-align:center;margin-top:16px;
-  padding:16px;border:0;border-radius:14px;font-family:inherit;
-  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
-  background:linear-gradient(140deg,var(--green-d),var(--green-2));
-  box-shadow:0 6px 18px rgba(74,130,28,.28)}
-#demo-go[hidden]{display:none}
 
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
@@ -955,13 +956,14 @@ footer a{color:var(--ink-2);font-weight:800}
   <!-- ההדגמה — אותו חלון של עמוד הצוות. הדף האינטראקטיבי האמיתי
        מנגן את עצמו, וכשהוא נגמר העמוד יורד לבד אל "אני מצטרף"
        ואל הבאנר. ראו landDemo. -->
+  <!-- לפני השורה ולא אחריה: `.meet[hidden] + .demo` צריך שהשורה
+       תהיה צמודה לחלון. -->
+  <button id="meet-go" hidden></button>
   <p class="meet" id="meet"></p>
   <div class="demo" id="demo" hidden>
     <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
     <div class="dtap" id="demo-tap"></div>
   </div>
-  <!-- הכפתור השני, צמוד לחלון — ראו landScroll. -->
-  <button id="demo-go" hidden></button>
   <div class="hero" id="hero">
     <div class="lead">
       <span class="when" id="when" style="display:none"></span>
@@ -1563,7 +1565,6 @@ function drawTop() {
   }
   $('cards').innerHTML = cards;
   $('hero-go').textContent = JOIN.goBtn + ' ←';
-  $('demo-go').textContent = JOIN.goBtn + ' ←';
 
   /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
      שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
@@ -4038,7 +4039,7 @@ $('hero-go').onclick = function () {
   if (WZ_ON) { wzStart(); return; }
   toForm(true);
 };
-$('demo-go').onclick = function () { $('hero-go').onclick(); };
+$('meet-go').onclick = function () { $('hero-go').onclick(); };
 
 /* `?go=1` — מי שבא מההדגמה. הוא כבר ראה את הדף עובד ולחץ
    "להצטרפות", ולכן מסך הפתיחה כבר עשה את שלו: נוחתים ישר
@@ -4216,7 +4217,6 @@ function landDemo() {
   var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   if (!d) return;
   box.hidden = false;
-  $('demo-go').hidden = false;
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
   f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
           '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
@@ -4224,6 +4224,7 @@ function landDemo() {
 
   window.addEventListener('message', function (e) {
     if (e.data === 'daf-demo-done') toGo();
+    if (e.data === 'daf-demo-start') setTimeout(meetSwap, 4000);
   });
 
   /* גרירה אינה נגיעה — אצבע שגוללת את העמוד עוברת מעל החלון. */
@@ -4244,10 +4245,29 @@ function landDemo() {
   landScroll();
 }
 
+/* ---------- השורה האפורה מפנה מקום ל"אני מצטרף" ----------
+   ההדגמה ארוכה. ארבע שניות אחרי שהיא התחילה — כשהשורה כבר
+   נקראה — היא דוהה, ובמקומה עולה הכפתור, כך שמי שהשתכנע באמצע
+   לא צריך לחכות לסוף. הכפתור תופס בדיוק את גובה השורה, ולכן
+   החלון שמתחת אינו זז. הכפתור הקיים שמתחת לחלון נשאר במקומו. */
+function meetSwap() {
+  var m = $('meet'), b = $('meet-go');
+  if (!m || !b || m.hidden || !b.hidden || !landNow()) return;
+  if (/[?&]tedit=1/.test(location.search)) return;
+  var h = m.offsetHeight;
+  m.className = 'meet fade';
+  setTimeout(function () {
+    b.textContent = JOIN.goBtn + ' ←';
+    b.style.height = Math.max(h, 52) + 'px';
+    m.style.display = 'none';
+    b.hidden = false;
+    setTimeout(function () { b.className = 'on'; }, 30);
+  }, 600);
+}
+
 /* ---------- התזוזה העדינה ----------
    שתי שניות של המתנה, ואז העמוד מתיישב על הפנייה; שלוש שניות
-   לקרוא, ואז החלון כולו על המסך — **יחד עם "אני מצטרף" שמתחתיו**
-   — עם אוויר מתחתיהם. כל נגיעה
+   לקרוא, ואז החלון כולו על המסך עם אוויר מתחתיו. כל נגיעה
    מבטלת — עמוד שזז מתחת לאצבע הוא הדבר המעצבן ביותר שמסך
    יכול לעשות. */
 var LAND_STOP = false;
@@ -4271,9 +4291,8 @@ function landScroll() {
     landGlide(to, 1500, function () {
       setTimeout(function () {
         if (LAND_STOP || !landNow()) return;
-        var box = $('demo'), dg = $('demo-go');
+        var box = $('demo');
         if (!box || box.hidden) return;
-        if (dg && !dg.hidden) box = dg;
         var r = box.getBoundingClientRect();
         var y = window.pageYOffset + r.bottom + 22 - window.innerHeight;
         if (y - window.pageYOffset > 14) landGlide(y, 1100);
@@ -4303,11 +4322,8 @@ function landGlide(to, ms, done) {
    המסך. קודם זה היה `scrollIntoView` אל ראש ההירו, ושארית של
    החלון נשארה תלויה למעלה. */
 function toGo() {
-  var go = $('hero-go'), pe = $('peers'), box = $('demo'), dg = $('demo-go');
+  var go = $('hero-go'), pe = $('peers'), box = $('demo');
   if (!go || !landNow()) return;
-  /* הכפתור שמתחת לחלון עולה עם החלון אל מעל המסך, והכל מתחתיו
-     נוחת בדיוק כמו לפניו. */
-  if (box && !box.hidden && dg && !dg.hidden) box = dg;
   setTimeout(function () {
     var top = (pe && pe.getClientRects().length) ? pe : go;
     var y = top.getBoundingClientRect().top + window.pageYOffset - 14;
