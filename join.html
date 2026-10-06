@@ -412,6 +412,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   background:linear-gradient(140deg,var(--green-d),var(--green-2));
   box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
 #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(74,130,28,.28)}
+/* "אני מצטרף" שמתחת לחלון ההדגמה — אותו כפתור בדיוק. ההדגמה
+   ארוכה, ומי שכבר השתכנע באמצעה לא צריך לחכות לסופה כדי למצוא
+   איך מצטרפים. */
+#demo-go{display:block;width:100%;text-align:center;margin-top:16px;
+  padding:16px;border:0;border-radius:14px;font-family:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));
+  box-shadow:0 6px 18px rgba(74,130,28,.28)}
+#demo-go[hidden]{display:none}
 
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
@@ -951,6 +960,8 @@ footer a{color:var(--ink-2);font-weight:800}
     <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
     <div class="dtap" id="demo-tap"></div>
   </div>
+  <!-- הכפתור השני, צמוד לחלון — ראו landScroll. -->
+  <button id="demo-go" hidden></button>
   <div class="hero" id="hero">
     <div class="lead">
       <span class="when" id="when" style="display:none"></span>
@@ -1552,6 +1563,7 @@ function drawTop() {
   }
   $('cards').innerHTML = cards;
   $('hero-go').textContent = JOIN.goBtn + ' ←';
+  $('demo-go').textContent = JOIN.goBtn + ' ←';
 
   /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
      שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
@@ -4026,6 +4038,7 @@ $('hero-go').onclick = function () {
   if (WZ_ON) { wzStart(); return; }
   toForm(true);
 };
+$('demo-go').onclick = function () { $('hero-go').onclick(); };
 
 /* `?go=1` — מי שבא מההדגמה. הוא כבר ראה את הדף עובד ולחץ
    "להצטרפות", ולכן מסך הפתיחה כבר עשה את שלו: נוחתים ישר
@@ -4203,6 +4216,7 @@ function landDemo() {
   var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
   if (!d) return;
   box.hidden = false;
+  $('demo-go').hidden = false;
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
   f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
           '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
@@ -4232,7 +4246,8 @@ function landDemo() {
 
 /* ---------- התזוזה העדינה ----------
    שתי שניות של המתנה, ואז העמוד מתיישב על הפנייה; שלוש שניות
-   לקרוא, ואז החלון כולו על המסך עם אוויר מתחתיו. כל נגיעה
+   לקרוא, ואז החלון כולו על המסך — **יחד עם "אני מצטרף" שמתחתיו**
+   — עם אוויר מתחתיהם. כל נגיעה
    מבטלת — עמוד שזז מתחת לאצבע הוא הדבר המעצבן ביותר שמסך
    יכול לעשות. */
 var LAND_STOP = false;
@@ -4256,8 +4271,9 @@ function landScroll() {
     landGlide(to, 1500, function () {
       setTimeout(function () {
         if (LAND_STOP || !landNow()) return;
-        var box = $('demo');
+        var box = $('demo'), dg = $('demo-go');
         if (!box || box.hidden) return;
+        if (dg && !dg.hidden) box = dg;
         var r = box.getBoundingClientRect();
         var y = window.pageYOffset + r.bottom + 22 - window.innerHeight;
         if (y - window.pageYOffset > 14) landGlide(y, 1100);
@@ -4287,8 +4303,11 @@ function landGlide(to, ms, done) {
    המסך. קודם זה היה `scrollIntoView` אל ראש ההירו, ושארית של
    החלון נשארה תלויה למעלה. */
 function toGo() {
-  var go = $('hero-go'), pe = $('peers'), box = $('demo');
+  var go = $('hero-go'), pe = $('peers'), box = $('demo'), dg = $('demo-go');
   if (!go || !landNow()) return;
+  /* הכפתור שמתחת לחלון עולה עם החלון אל מעל המסך, והכל מתחתיו
+     נוחת בדיוק כמו לפניו. */
+  if (box && !box.hidden && dg && !dg.hidden) box = dg;
   setTimeout(function () {
     var top = (pe && pe.getClientRects().length) ? pe : go;
     var y = top.getBoundingClientRect().top + window.pageYOffset - 14;
