@@ -327,7 +327,8 @@ S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מ
 
 /* 11 · תודה!! */
 S.push({ in: [38.85, 39.3], cap: '',
-  build: function (L) { el('div', 'thanks', L, 'תודה!!'); } });
+  // שכבה רגילה מעל (לא חיבור), שהזהב לא יתבהר על רקע הצ'אט
+  build: function (L) { L.style.mixBlendMode = 'normal'; el('div', 'thanks', L, 'תודה!!'); } });
 
 /* ---------- בנייה ---------- */
 S.forEach(function (s) {

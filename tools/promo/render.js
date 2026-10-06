@@ -56,7 +56,9 @@ function run(args) {
   await done;
   await browser.close();
 
-  if (fs.existsSync(MUSIC)) {
+  if (process.env.FROM) {                      // קטע בלבד — לשתילה, בלי שמע
+    console.log('\nקטע ' + from + '–' + to + ' → ' + SILENT);
+  } else if (fs.existsSync(MUSIC)) {
     var dur = (to - from) / FPS;
     await run(['-loglevel', 'error', '-y', '-i', SILENT, '-ss', String(process.env.MUSIC_SS || 0), '-i', MUSIC,
       '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (dur - 1) + ':d=1,' +
