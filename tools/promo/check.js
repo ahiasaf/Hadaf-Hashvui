@@ -34,10 +34,11 @@ if (!bad) console.log('   אין ✓');
 
 console.log('\n2. שכפול פריימים בקטעים האיטיים:');
 [[12.4, 15.6], [19.5, 23.0], [24.0, 26.0], [27.1, 29.7], [30.5, 33.2]].forEach(function (r) {
+  // פריים משוכפל = "עמק": הפרש זעיר בין שני הפרשים גדולים, שוב ושוב
   var a = Math.round(r[0] * FPS), b = Math.round(r[1] * FPS), alt = 0, n = 0;
-  for (var j = a + 1; j < b; j++) {
-    var p = D[j - 1], q = D[j];
-    if (Math.max(p, q) > .3) { n++; if (Math.min(p, q) < .25 * Math.max(p, q)) alt++; }
+  for (var j = a + 1; j < b - 1; j++) {
+    var hi = Math.min(D[j - 1], D[j + 1]);
+    if (hi > .03) { n++; if (D[j] < .25 * hi) alt++; }
   }
   console.log('   ' + r[0] + '–' + r[1] + ' ש׳: ' + (n ? Math.round(100 * alt / n) + '% זוגות מתחלפים' : 'כמעט ללא תנועה') +
     (n && alt / n > .3 ? '  ✗' : '  ✓'));
