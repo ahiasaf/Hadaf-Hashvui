@@ -7,7 +7,7 @@
    כל פריים: seekAsync(t), המתנה לפענוח התמונות, צילום, ל-ffmpeg.
 
    מוזיקה: music.m4a בתיקייה הזו (לא בריפו). MUSIC_SS — שנייה בקובץ
-   שממנה מתחילים (ברירת מחדל 0). כניסה 0.25 ש', יציאה בשנייה האחרונה,
+   שממנה מתחילים (ברירת מחדל 0). כניסה 0.25 ש', דעיכה בשתי השניות האחרונות,
    והאורך נחתך בדיוק לאורך הווידאו.
    הפלט: tools/promo/hadaf-promo.mp4                                   */
 var path = require('path');
@@ -65,7 +65,7 @@ function run(args) {
       'format=duration', '-of', 'csv=p=0', MUSIC]).toString() - ss;
     var end = Math.min(dur, len);
     await run(['-loglevel', 'error', '-y', '-i', SILENT, '-ss', String(ss), '-i', MUSIC,
-      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (end - 1) + ':d=1,' +
+      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (end - 2) + ':d=2,' +
       'aformat=sample_rates=48000:channel_layouts=stereo[a]',
       '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', String(dur),
       '-movflags', '+faststart', OUT]);
