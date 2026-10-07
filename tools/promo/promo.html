@@ -371,7 +371,7 @@ S.push({ in: [29.8, 30.4], cap: '<g>הציגו את הדף</g><br>לתלמידי
 var MSG = 'הורים יקרים! היום הראיתי לבנים את הדף השבועי. עודדתי אותם ללמוד בבית! זה מתאים מאוד ללימוד של אבות ובנים!';
 // הקלדה בקצב קבוע (~32 תווים בשנייה, כמו בבריף), ו"נשלח" חצי שנייה אחרי
 var TYPE_END = 34.2 + MSG.length / 32, SENT = TYPE_END + .5;
-S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מהלב', outMax: .85,
+S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מהלב', outMax: .85, outRest: [39.3, 40.5],
   build: function (L, s) {
     var w = el('div', 'wa', L,
       '<div class="bar"><div class="av"></div><div class="nm"><b>רב הכיתה</b><span>מקליד...</span></div>' +
@@ -435,9 +435,11 @@ function seek(t) {
     var s = S[i], nx = S[i + 1];
     // כל חלק רץ בציר הזמן שבו נכתב; היציאה נמדדת בציר של הבא
     var ti = i >= SHIFT_FROM ? t + SHIFT : t, tn = i + 1 >= SHIFT_FROM ? t + SHIFT : t;
-    var inM = xfade(ti, s.in), outM = nx ? xfade(tn, nx.in) * (s.outMax || 1) : 0;
+    // outMax: היוצא נשאר עמום מאחורי הבא; outRest: ואז נעלם עד הסוף
+    var om = s.outMax ? lerp(s.outMax, 1, xfade(ti, s.outRest)) : 1;
+    var inM = xfade(ti, s.in), outM = nx ? xfade(tn, nx.in) * om : 0;
     var inC = xfade(ti, s.cin || s.in);
-    var outC = nx ? (s.cout ? xfade(ti, s.cout) : xfade(tn, nx.cin || nx.in)) * (s.outMax || 1) : 0;
+    var outC = nx ? (s.cout ? xfade(ti, s.cout) : xfade(tn, nx.cin || nx.in)) * om : 0;
     var a = inM * (1 - outM), c = inC * (1 - outC);
     s.L.style.opacity = a; s.C.style.opacity = c;
     s.C.style.transform = 'translateY(' + (1 - inC) * 14 + 'px)';   // המשפט הנכנס עולה קלות
