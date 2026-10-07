@@ -59,9 +59,13 @@ function run(args) {
   if (process.env.FROM) {                      // קטע בלבד — לשתילה, בלי שמע
     console.log('\nקטע ' + from + '–' + to + ' → ' + SILENT);
   } else if (fs.existsSync(MUSIC)) {
-    var dur = (to - from) / FPS;
-    await run(['-loglevel', 'error', '-y', '-i', SILENT, '-ss', String(process.env.MUSIC_SS || 0), '-i', MUSIC,
-      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (dur - 1) + ':d=1,' +
+    var dur = (to - from) / FPS, ss = +(process.env.MUSIC_SS || 0);
+    // השיר קצר מהסרטון? היציאה נגמרת עם סוף השיר, לא נחתכת באמצע
+    var len = +require('child_process').execFileSync('ffprobe', ['-v', 'error', '-show_entries',
+      'format=duration', '-of', 'csv=p=0', MUSIC]).toString() - ss;
+    var end = Math.min(dur, len);
+    await run(['-loglevel', 'error', '-y', '-i', SILENT, '-ss', String(ss), '-i', MUSIC,
+      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (end - 1) + ':d=1,' +
       'aformat=sample_rates=48000:channel_layouts=stereo[a]',
       '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', String(dur),
       '-movflags', '+faststart', OUT]);

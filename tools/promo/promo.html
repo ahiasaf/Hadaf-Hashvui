@@ -47,7 +47,6 @@ html,body{margin:0;background:#00164A}
 .card{position:absolute;overflow:hidden;border-radius:12px;background:#fff;
   box-shadow:0 10px 26px rgba(0,0,0,.45)}
 .card.flat{border-radius:0;box-shadow:none;background:#000}
-.card.framed{border:4px solid #fff;border-radius:10px}
 .card .in{position:absolute;left:0;top:0}
 .card img{display:block;width:100%;height:100%}
 
@@ -84,8 +83,6 @@ html,body{margin:0;background:#00164A}
   font-size:14px;color:#8696A0;line-height:38px;padding-right:16px}
 .wa .inp:after{content:'';position:absolute;left:12px;top:11px;width:14px;height:14px;border-radius:50%;
   border:2px solid #8696A0}
-.thanks{position:absolute;left:0;right:0;top:400px;text-align:center;font-size:92px;font-weight:900;
-  color:var(--gold);line-height:100px;text-shadow:0 6px 24px rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
@@ -151,7 +148,7 @@ function canvasIn(parent, w, h) {
   return cv;
 }
 /* מצייר את המלבן r (פיקסלי הקובץ) על כל ה-canvas, ומחזיר המרה לנקודות */
-function drawRect(cv, img, r, hls) {
+function drawRect(cv, img, r, hls, post) {
   var x = cv.getContext('2d'), sx = cv.width / r[2], sy = cv.height / r[3];
   x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
   x.globalCompositeOperation = 'source-over';
@@ -163,11 +160,42 @@ function drawRect(cv, img, r, hls) {
     x.fillRect((left - r[0]) * sx, (h.r[1] - r[1]) * sy, w * sx, h.r[3] * sy);
     x.globalAlpha = 1;
   });
+  if (post) {
+    x.save(); x.globalCompositeOperation = 'source-over';
+    x.setTransform(sx, 0, 0, sy, -r[0] * sx, -r[1] * sy);
+    post(x, img); x.restore();
+  }
 }
 /* זום איטי סביב נקודה יחסית (ax, ay) בתיבה */
 function zoom(o, z) {
   var c = o.crop, w = c[2] / z, h = c[3] / z;
-  drawRect(o.cv, o.img, [c[0] + (c[2] - w) * o.ax, c[1] + (c[3] - h) * o.ay, w, h], o.hls);
+  drawRect(o.cv, o.img, [c[0] + (c[2] - w) * o.ax, c[1] + (c[3] - h) * o.ay, w, h], o.hls, o.post);
+}
+
+/* זום רציף לאורך כל זמן הנראות: z0→z1 בין t0 ל-t1 */
+function drift(o, t, t0, t1, z0, z1) { zoom(o, lerp(z0, z1, smooth((t - t0) / (t1 - t0)))); }
+
+/* מונה: ספרה אחת מתגלגלת למעלה ומתחלפת. ink: גבולות הדיו של הספרה
+   הישנה בפיקסלי הקובץ (נמדדו), box: האזור שמתגלגל, strip: שורת רקע
+   נקייה מעליה שמכסה את הספרה הישנה. הספרה החדשה מכוילת לאותו גובה
+   ולאותו קצה ימני. */
+function roll(x, img, d, p) {
+  var b = d.box, ink = d.ink;
+  if (!d.size) {
+    x.textAlign = 'left'; x.direction = 'ltr'; x.font = '700 100px Heebo';
+    var m = x.measureText(d.to);
+    d.size = 100 * (ink[3] - ink[1]) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+    x.font = '700 ' + d.size + 'px Heebo'; m = x.measureText(d.to);
+    d.x = ink[2] - m.actualBoundingBoxRight; d.y = ink[3] - m.actualBoundingBoxDescent;
+  }
+  x.save();
+  x.beginPath(); x.rect(b[0], b[1], b[2], b[3]); x.clip();
+  x.drawImage(img, b[0], d.strip[0], b[2], d.strip[1], b[0], b[1], b[2], b[3]);
+  if (p < 1) x.drawImage(img, b[0], b[1], b[2], b[3], b[0], b[1] - p * b[3], b[2], b[3]);
+  x.fillStyle = d.color; x.font = '700 ' + d.size + 'px Heebo';
+  x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.direction = 'ltr';
+  x.fillText(d.to, d.x, d.y + (1 - p) * b[3]);
+  x.restore();
 }
 
 var media = document.getElementById('media'), caps = document.getElementById('caps');
@@ -180,15 +208,19 @@ var S = [];
 
 /* 1 · טלפון "מאימתי" */
 S.push({ in: null, cap: 'למה בנינו את <g>הדף</g><br><g>השבועי</g>?',
-  build: function (L) { card(L, { src: 'img/1-phone.jpg', iw: 900, ih: 900, box: [238, CY, 424, 424] }); } });
+  build: function (L, s) {
+    s.c = card(L, { src: 'img/1-phone.jpg', iw: 900, ih: 900, box: [238, CY, 424, 424], ax: .5, ay: .45 });
+  },
+  tick: function (t, s) { drift(s.c, t, 0, 2.9, 1, 1.07); } });
 
 /* 2 · שלוש תמונות, 2 שניות כל אחת */
 S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>יחד בבית וילמדו גמרא!',
   build: function (L, s) {
     var A = el('div', 'sub', L), B = el('div', 'sub', L), C = el('div', 'sub', L);
-    card(A, { src: 'img/2a-sukka.jpg', iw: 1100, ih: 619, box: [238.5, CY, 425, 239] });
-    card(B, { src: 'img/2b-sukka.jpg', iw: 1100, ih: 825, box: [238.5, CY, 425, 319] });
-    card(C, { src: 'img/2c-sukka.jpg', iw: 825, ih: 1100, box: [238.5, CY, 352, 470] });
+    s.ph = [
+      card(A, { src: 'img/2a-sukka.jpg', iw: 1100, ih: 619, box: [238.5, CY, 425, 239], ax: .5, ay: .45 }),
+      card(B, { src: 'img/2b-sukka.jpg', iw: 1100, ih: 825, box: [238.5, CY, 425, 319], ax: .62, ay: .4 }),
+      card(C, { src: 'img/2c-sukka.jpg', iw: 825, ih: 1100, box: [238.5, CY, 352, 470], ax: .5, ay: .35 })];
     s.subs = [A, B, C];
   },
   tick: function (t, s) {
@@ -196,40 +228,77 @@ S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>�
     s.subs[0].style.opacity = 1 - b;
     s.subs[1].style.opacity = b * (1 - c);
     s.subs[2].style.opacity = c;
+    // כל תמונה מתקרבת לאט לאורך כל הזמן שהיא על המסך
+    drift(s.ph[0], t, 2.5, 4.85, 1, 1.09);
+    drift(s.ph[1], t, 4.5, 6.87, 1, 1.09);
+    drift(s.ph[2], t, 6.5, 8.9, 1, 1.09);
   } });
 
 /* 3 · מספרים */
 S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
-  build: function (L) { card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306] }); } });
+  build: function (L, s) {
+    // 237→238 אחרי שנייה וחצי: הגדול, "אבות ובנים" 102→103, ו"מתוך 237" בשורה התחתונה
+    var D = [
+      { ink: [669, 46, 723, 124], box: [667.5, 34, 61, 100], strip: [4, 26], color: '#C18E2C', to: '8', t0: 10.4 },
+      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3', t0: 10.65 },
+      { ink: [610, 726, 629, 754], box: [608, 718, 25, 40], strip: [704, 12], color: '#1B2A45', to: '8', t0: 10.9 }];
+    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .3,
+      post: function (x, img) {
+        D.forEach(function (d) { var p = smooth((s.t - d.t0) / .4); if (p > 0) roll(x, img, d, p); });
+        // "+1" ירוק שעולה ונמוג ליד המספר הגדול
+        var q = clamp((s.t - 10.4) / 1.1);
+        if (q > 0 && q < 1) {
+          x.globalAlpha = Math.sin(q * Math.PI); x.fillStyle = '#467B1A';
+          x.font = '800 54px Heebo'; x.textAlign = 'right'; x.direction = 'ltr';
+          x.fillText('+1', 810, 105 - easeOut(q) * 50); x.globalAlpha = 1;
+        }
+      } });
+  },
+  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 12.4, 1, 1.06); } });
 
 /* 4 · דף ראשון — כלי למעביר השיעור */
 S.push({ in: [12.0, 12.4], cap: 'למעביר השיעור יש<br><g>כלי מוכן!</g>',
   build: function (L, s) {
     s.c = card(L, { src: 'img/4-tool.jpg', iw: 1078, ih: 1463, box: [239, CY, 364, 494], ax: .5, ay: .45 });
   },
-  tick: function (t, s) { zoom(s.c, lerp(1, 1.03, clamp((t - 12.0) / 4.1))); } });
+  tick: function (t, s) { drift(s.c, t, 12.0, 16.1, 1, 1.1); } });
 
-/* 5 · ערימת שלושה איורים. סדר מאחור לפנים: סוכות, טבלה, מים */
+/* 5 · ערימת שלושה איורים. כל כרטיס חדש נוחת מעל הקודם.
+   מצויר על canvas אחד (סיבוב ותזוזה תת-פיקסליים), והערימה כולה
+   מתקרבת לאט לאורך החלק. */
 S.push({ in: [15.6, 16.1], cap: '<g>איורים</g><br>שמסבירים את הגמרא',
   build: function (L, s) {
+    s.cv = canvasIn(L, 478, 850);
     s.cards = [
-      { src: 'img/5b-sukkot.jpg', iw: 1536, ih: 1024, c: [254, 300], w: 364, r: 4, t0: 16.9 },
-      { src: 'img/5a-table.jpg', iw: 1376, ih: 768, c: [227, 497], w: 363, r: -5.6, t0: 15.6 },
-      { src: 'img/5c-water.jpg', iw: 1376, ih: 768, c: [234, 408], w: 364, r: -2.5, t0: 17.8 }
-    ].map(function (o) {
-      var h = o.w * o.ih / o.iw;
-      o.box = [o.c[0], o.c[1], o.w, h]; o.cls = 'framed';
-      return card(L, o);
-    });
+      { src: 'img/5a-table.jpg', iw: 1376, ih: 768, c: [227, 497], w: 363, r: -5.6, t0: 15.6, d: .5 },
+      { src: 'img/5b-sukkot.jpg', iw: 1536, ih: 1024, c: [254, 300], w: 364, r: 4, t0: 16.9, d: .4 },
+      { src: 'img/5c-water.jpg', iw: 1376, ih: 768, c: [234, 408], w: 364, r: -2.5, t0: 17.8, d: .4 }
+    ].map(function (o) { o.h = o.w * o.ih / o.iw; o.img = preload(o.src); return o; });
   },
   tick: function (t, s) {
+    var x = s.cv.getContext('2d'), k = s.cv.width / 478, z = lerp(1, 1.06, smooth((t - 15.6) / 3.9));
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, s.cv.width, s.cv.height);
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
     s.cards.forEach(function (o) {
-      var p = smooth((t - o.t0) / .4);
-      o.el.style.opacity = o.t0 === 15.6 ? 1 : p;     // הראשון נכנס עם החלק
-      var q = o.t0 === 15.6 ? smooth((t - 15.6) / .5) : p;
-      o.el.style.transform = 'translateY(' + lerp(25, 0, q) + 'px) rotate(' + lerp(o.r + 1.5, o.r, q) + 'deg)';
+      var p = smooth((t - o.t0) / o.d);
+      if (p <= 0) return;
+      var a = o.t0 === 15.6 ? 1 : p, B = 4, w = o.w, h = o.h;   // הראשון נכנס עם החלק עצמו
+      x.setTransform(k, 0, 0, k, 0, 0);
+      x.translate(240, 400); x.scale(z, z); x.translate(-240, -400);
+      x.translate(o.c[0], o.c[1] + lerp(25, 0, p)); x.rotate(lerp(o.r + 1.5, o.r, p) * Math.PI / 180);
+      x.globalAlpha = a;
+      x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 26 * k; x.shadowOffsetY = 10 * k;
+      rrect(x, -w / 2, -h / 2, w, h, 10); x.fillStyle = '#fff'; x.fill();
+      x.shadowColor = 'transparent';
+      x.save(); rrect(x, -w / 2 + B, -h / 2 + B, w - 2 * B, h - 2 * B, 7); x.clip();
+      if (o.img.naturalWidth) x.drawImage(o.img, -w / 2 + B, -h / 2 + B, w - 2 * B, h - 2 * B);
+      x.restore(); x.globalAlpha = 1;
     });
   } });
+function rrect(x, l, t, w, h, r) {
+  x.beginPath(); x.moveTo(l + r, t); x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r);
+  x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r); x.closePath();
+}
 
 /* 6 · דף שני — הסימון הצהוב */
 var MARK = [0, 240, 945, 1400];
@@ -243,7 +312,7 @@ S.push({ in: [19.0, 19.5], cap: '<g>סימון</g> שמאפשר<br>לתלמיד�
   tick: function (t, s) {
     var o = s.c;
     o.hls.forEach(function (h) { h.f = smooth((t - h.t0) / (h.t1 - h.t0)); });
-    zoom(o, lerp(1, 1.04, smooth((t - 19.0) / 4.45)));
+    drift(o, t, 19.0, 23.45, 1, 1.12);
   } });
 
 /* 7 · חידון */
@@ -252,7 +321,7 @@ S.push({ in: [23.0, 23.45], cap: 'אחרי השיעור: חוזרים<br>בבי�
   build: function (L, s) {
     s.c = card(L, { src: 'img/7-quiz.jpg', iw: 1074, ih: 1148, box: [238.5, CY, 423, 452], ax: .6, ay: .2 });
   },
-  tick: function (t, s) { zoom(s.c, lerp(1, 1.05, smooth((t - 24.0) / 1.9))); } });
+  tick: function (t, s) { drift(s.c, t, 23.0, 27.05, 1, 1.1); } });
 
 /* 8 · המחשב. LAPTOP: תיקיית פריימים + מיפוי זמן פלט→מקור.
    בין שני פריימים סמוכים — מיזוג (לא שכפול), כך שההאטה חלקה. */
@@ -328,7 +397,16 @@ S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מ
 /* 11 · תודה!! */
 S.push({ in: [38.85, 39.3], cap: '',
   // שכבה רגילה מעל (לא חיבור), שהזהב לא יתבהר על רקע הצ'אט
-  build: function (L) { L.style.mixBlendMode = 'normal'; el('div', 'thanks', L, 'תודה!!'); } });
+  build: function (L, s) { L.style.mixBlendMode = 'normal'; s.cv = canvasIn(L, 478, 850); },
+  tick: function (t, s) {
+    var x = s.cv.getContext('2d'), k = s.cv.width / 478;
+    var z = lerp(.8, 1, easeOut((t - 38.85) / .7)) * lerp(1, 1.08, smooth((t - 39.3) / (TOTAL - 39.3)));
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, s.cv.width, s.cv.height);
+    x.setTransform(k * z, 0, 0, k * z, 239 * k, 450 * k);
+    x.font = '900 92px Heebo'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = 'rtl';
+    x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 24 * k; x.shadowOffsetY = 6 * k;
+    x.fillStyle = '#CE9B2E'; x.fillText('תודה!!', 0, 0);
+  } });
 
 /* ---------- בנייה ---------- */
 S.forEach(function (s) {
@@ -339,7 +417,7 @@ S.forEach(function (s) {
   s.C.style.top = (y - 110) + 'px'; s.C.style.bottom = 'auto'; s.C.style.height = '220px';
 });
 
-var TOTAL = 40 + 1 / 3;
+var TOTAL = 40 + 1 / 3 + 1.5;                  // מסך התודה נשאר שנייה וחצי יותר
 
 function seek(t) {
   for (var i = 0; i < S.length; i++) {
@@ -348,6 +426,7 @@ function seek(t) {
     var inC = xfade(t, s.cin || s.in), outC = nx ? xfade(t, s.cout || nx.cin || nx.in) * (s.outMax || 1) : 0;
     var a = inM * (1 - outM), c = inC * (1 - outC);
     s.L.style.opacity = a; s.C.style.opacity = c;
+    s.C.style.transform = 'translateY(' + (1 - inC) * 14 + 'px)';   // המשפט הנכנס עולה קלות
     s.L.style.visibility = a > 0 ? 'visible' : 'hidden';
     s.C.style.visibility = c > 0 ? 'visible' : 'hidden';
     if (a > 0 && s.tick) s.tick(t, s);
@@ -356,7 +435,8 @@ function seek(t) {
 
 /* render.js: מחכה שהתמונות של הפריים הנוכחי יפוענחו */
 window.seekAsync = function (t) {
-  return Promise.all(PRE).then(function () { return seekDom(t); });
+  return Promise.all(PRE.concat([document.fonts.load('900 92px Heebo', 'תודה'), document.fonts.load('700 70px Heebo', '0123456789+'), document.fonts.load('800 54px Heebo', '+1')]))
+    .then(function () { return seekDom(t); });
 };
 function seekDom(t) {
   seek(t);

@@ -5,7 +5,7 @@
       פי 2.5 מהחציון של 3 שכנים מכל צד, ועוד 1.0.
    2. שכפול פריימים: בקטעי זום איטי — אסור דפוס 0.1/1.7/0.1/1.7.
    3. הכותרת: אזור הלוגו זהה בכל הפריימים.
-   4. אורך: 2420 פריימים, ושמע באותו אורך.                              */
+   4. אורך: 2510 פריימים (41.83 ש׳), ושמע באותו אורך.                              */
 var spawn = require('child_process').spawnSync;
 var path = require('path');
 var FILE = process.argv[2] || path.join(__dirname, 'hadaf-promo.mp4');
@@ -23,7 +23,7 @@ function median(xs) { xs = xs.slice().sort(function (a, b) { return a - b; }); r
 
 var F = frames('fps=' + FPS + ',scale=' + W + ':' + H, W, H), D = [], bad = 0;
 for (var i = 1; i < F.length; i++) D.push(mad(F[i - 1], F[i]));
-console.log('פריימים: ' + F.length + (F.length === 2420 ? ' ✓' : ' ✗ (צריך 2420)'));
+console.log('פריימים: ' + F.length + (F.length === 2510 ? ' ✓' : ' ✗ (צריך 2510)'));
 
 console.log('\n1. קפיצות:');
 for (i = 3; i < D.length - 3; i++) {
@@ -33,7 +33,7 @@ for (i = 3; i < D.length - 3; i++) {
 if (!bad) console.log('   אין ✓');
 
 console.log('\n2. שכפול פריימים בקטעים האיטיים:');
-[[12.4, 15.6], [19.5, 23.0], [24.0, 26.0], [27.1, 29.7], [30.5, 33.2]].forEach(function (r) {
+[[0.2, 2.4], [3.0, 4.4], [9.0, 10.3], [12.4, 15.6], [16.2, 16.8], [19.5, 23.0], [23.5, 26.2], [27.1, 29.7], [30.5, 33.2], [39.4, 41.7]].forEach(function (r) {
   // פריים משוכפל = "עמק": הפרש זעיר בין שני הפרשים גדולים, שוב ושוב
   var a = Math.round(r[0] * FPS), b = Math.round(r[1] * FPS), alt = 0, n = 0;
   for (var j = a + 1; j < b - 1; j++) {
