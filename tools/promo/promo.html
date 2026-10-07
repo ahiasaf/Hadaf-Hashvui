@@ -368,7 +368,9 @@ S.push({ in: [29.8, 30.4], cap: '<g>הציגו את הדף</g><br>לתלמידי
   } });
 
 /* 10 · וואטסאפ */
-var MSG = 'הורים יקרים! היום למדנו בכיתה את הדף השבועי. מוזמנים ללמוד עם הילדים גם בבית.';
+var MSG = 'הורים יקרים! היום הראיתי לבנים את הדף השבועי. עודדתי אותם ללמוד בבית! זה מתאים מאוד ללימוד של אבות ובנים!';
+// הקלדה בקצב קבוע (~32 תווים בשנייה, כמו בבריף), ו"נשלח" חצי שנייה אחרי
+var TYPE_END = 34.2 + MSG.length / 32, SENT = TYPE_END + .5;
 S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מהלב', outMax: .85,
   build: function (L, s) {
     var w = el('div', 'wa', L,
@@ -382,11 +384,11 @@ S.push({ in: [33.3, 33.9], cap: '<g>ושלחו להורים</g><br>הודעה מ
   },
   tick: function (t, s) {
     s.bub.style.opacity = t < 33.95 ? 0 : 1;
-    var n = Math.floor(clamp((t - 34.2) / (36.6 - 34.2)) * MSG.length + (t >= 34.2 ? 1 : 0));
+    var n = Math.floor(clamp((t - 34.2) / (TYPE_END - 34.2)) * MSG.length + (t >= 34.2 ? 1 : 0));
     n = Math.min(n, MSG.length);
     if (s.tx.textContent.length !== n) s.tx.textContent = MSG.slice(0, n);
-    var sent = t >= 37.2;
-    s.cur.style.visibility = sent || (t > 36.6 && Math.floor((t - 36.6) / .4) % 2 === 1) ? 'hidden' : 'visible';
+    var sent = t >= SENT;
+    s.cur.style.visibility = sent || (t > TYPE_END && Math.floor((t - TYPE_END) / .4) % 2 === 1) ? 'hidden' : 'visible';
     s.tk.style.opacity = sent ? 1 : 0;
     var st = sent ? 'מחובר' : 'מקליד...';
     if (s.st.textContent !== st) s.st.textContent = st;
