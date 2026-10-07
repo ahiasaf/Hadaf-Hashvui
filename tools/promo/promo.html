@@ -401,11 +401,22 @@ S.push({ in: [38.85, 39.3], cap: '',
   tick: function (t, s) {
     var x = s.cv.getContext('2d'), k = s.cv.width / 478;
     var z = lerp(.8, 1, easeOut((t - 38.85) / .7)) * lerp(1, 1.08, smooth((t - 39.3) / (TOTAL - 39.3)));
+    // טקסט שמוגדל ב-fillText נקפץ בין גדלים קבועים; מציירים פעם אחת
+    // בחדות גבוהה ומקטינים כתמונה — חלק לגמרי
+    if (!s.img) {
+      var R = 3 * k, W = 440, H = 170, c = document.createElement('canvas');
+      c.width = Math.round(W * R); c.height = Math.round(H * R);
+      var y = c.getContext('2d');
+      y.setTransform(R, 0, 0, R, W / 2 * R, H / 2 * R);
+      y.font = '900 92px Heebo'; y.textAlign = 'center'; y.textBaseline = 'middle'; y.direction = 'rtl';
+      y.shadowColor = 'rgba(0,0,0,.45)'; y.shadowBlur = 24 * R; y.shadowOffsetY = 6 * R;
+      y.fillStyle = '#CE9B2E'; y.fillText('תודה!!', 0, 0);
+      s.img = c; s.W = W; s.H = H;
+    }
     x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, s.cv.width, s.cv.height);
-    x.setTransform(k * z, 0, 0, k * z, 239 * k, 450 * k);
-    x.font = '900 92px Heebo'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = 'rtl';
-    x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 24 * k; x.shadowOffsetY = 6 * k;
-    x.fillStyle = '#CE9B2E'; x.fillText('תודה!!', 0, 0);
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    var w = s.W * z * k, h = s.H * z * k;
+    x.drawImage(s.img, 239 * k - w / 2, 450 * k - h / 2, w, h);
   } });
 
 /* ---------- בנייה ---------- */
