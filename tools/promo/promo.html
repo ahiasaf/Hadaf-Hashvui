@@ -124,6 +124,7 @@ function card(parent, o) {
   c.style.width = bw + 'px'; c.style.height = bh + 'px';
   var crop = o.crop || [0, 0, o.iw, o.ih], k = bw / crop[2];
   o.el = c; o.k = k; o.bw = bw; o.bh = bh; o.crop = crop;
+  if (o.radius) c.style.borderRadius = o.radius + 'px';    // כמו הפינות שבצילום עצמו
   if (o.ax != null) {
     o.cv = canvasIn(c, bw, bh);
     o.img = preload(o.src);
@@ -254,12 +255,12 @@ S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>
    מסך המספרים קוצר בשנייה. seek מתרגם (ראו SHIFT). */
 var SHIFT_FROM = S.length, SHIFT = 1;
 
-/* 4 · דף ראשון — כלי למעביר השיעור */
+/* 4 · הכלי למעביר השיעור: המלבן הכחול שפותח את האפליקציה לכל לומד */
 S.push({ in: [12.0, 12.4], cap: 'למעביר השיעור יש<br><g>כלי מוכן!</g>',
   build: function (L, s) {
-    s.c = card(L, { src: 'img/4-tool.jpg', iw: 1078, ih: 1463, box: [239, CY, 364, 494], ax: .5, ay: .45 });
+    s.c = card(L, { src: 'img/4-banner.jpg', iw: 1001, ih: 1267, box: [239, CY, 371, 470], ax: .5, ay: .4, radius: 17 });
   },
-  tick: function (t, s) { drift(s.c, t, 12.0, 16.1, 1, 1.1); } });
+  tick: function (t, s) { drift(s.c, t, 12.0, 16.1, 1, 1.06); } });
 
 /* 5 · ערימת שלושה איורים. כל כרטיס חדש נוחת מעל הקודם.
    מצויר על canvas אחד (סיבוב ותזוזה תת-פיקסליים), והערימה כולה
