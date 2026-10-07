@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=478">
 <title>סרטון הדף השבועי</title>
 <!--
-  סרטון "למה בנינו את הדף השבועי" — 11 חלקים, 40.33 שניות, 60fps.
+  סרטון "למה בנינו את הדף השבועי" — 11 חלקים, 40.83 שניות, 60fps, בלי שמע.
 
   הבמה בנויה ביחידות של 478x850 (המידות שבבריף) ו-render.js מצלם
   אותה בצפיפות פיקסלים 2.26, כך שהפלט הוא 1080x1920.
@@ -56,10 +56,10 @@ html,body{margin:0;background:#00164A}
 
 /* בקשה — ארבע שורות במשקלים שונים */
 .ask div{line-height:1.25}
-.ask .a1{font-size:46px;font-weight:800;color:var(--gold);line-height:52px}
-.ask .a2{font-size:27px;font-weight:400;line-height:36px}
-.ask .a3{font-size:35px;font-weight:800;line-height:44px}
-.ask .a4{font-size:27px;font-weight:400;line-height:36px}
+.ask .a1{font-size:66px;font-weight:900;color:var(--gold);line-height:70px}
+.ask .a2{font-size:33px;font-weight:500;line-height:42px}
+.ask .a3{font-size:50px;font-weight:900;line-height:58px}
+.ask .a4{font-size:33px;font-weight:500;line-height:42px}
 
 /* וואטסאפ — מצויר בקוד */
 .wa{position:absolute;left:28px;top:178px;width:421px;height:469px;border-radius:12px;overflow:hidden;
@@ -175,7 +175,7 @@ function zoom(o, z) {
 /* זום רציף לאורך כל זמן הנראות: z0→z1 בין t0 ל-t1 */
 function drift(o, t, t0, t1, z0, z1) { zoom(o, lerp(z0, z1, smooth((t - t0) / (t1 - t0)))); }
 
-/* מונה: ספרה אחת מתגלגלת למעלה ומתחלפת. ink: גבולות הדיו של הספרה
+/* מונה: ספרה אחת מתחלפת (p=1 — מיד; p בין 0 ל-1 — גלגול). ink: גבולות הדיו של הספרה
    הישנה בפיקסלי הקובץ (נמדדו), box: האזור שמתגלגל, strip: שורת רקע
    נקייה מעליה שמכסה את הספרה הישנה. הספרה החדשה מכוילת לאותו גובה
    ולאותו קצה ימני. */
@@ -237,24 +237,22 @@ S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>�
 /* 3 · מספרים */
 S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
   build: function (L, s) {
-    // 237→238 אחרי שנייה וחצי: הגדול, "אבות ובנים" 102→103, ו"מתוך 237" בשורה התחתונה
+    // אחרי שנייה וחצי, בקפיצה אחת: 237→238 בגדול, "אבות ובנים" 102→103,
+    // ו"מתוך 237" בשורה התחתונה
     var D = [
-      { ink: [669, 46, 723, 124], box: [667.5, 34, 61, 100], strip: [4, 26], color: '#C18E2C', to: '8', t0: 10.4 },
-      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3', t0: 10.65 },
-      { ink: [610, 726, 629, 754], box: [608, 718, 25, 40], strip: [704, 12], color: '#1B2A45', to: '8', t0: 10.9 }];
+      { ink: [669, 46, 723, 124], box: [667.5, 34, 61, 100], strip: [4, 26], color: '#C18E2C', to: '8' },
+      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' },
+      { ink: [610, 726, 629, 754], box: [608, 718, 25, 40], strip: [704, 12], color: '#1B2A45', to: '8' }];
     s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .3,
       post: function (x, img) {
-        D.forEach(function (d) { var p = smooth((s.t - d.t0) / .4); if (p > 0) roll(x, img, d, p); });
-        // "+1" ירוק שעולה ונמוג ליד המספר הגדול
-        var q = clamp((s.t - 10.4) / 1.1);
-        if (q > 0 && q < 1) {
-          x.globalAlpha = Math.sin(q * Math.PI); x.fillStyle = '#467B1A';
-          x.font = '800 54px Heebo'; x.textAlign = 'right'; x.direction = 'ltr';
-          x.fillText('+1', 810, 105 - easeOut(q) * 50); x.globalAlpha = 1;
-        }
+        if (s.t >= 10.4) D.forEach(function (d) { roll(x, img, d, 1); });
       } });
   },
-  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 12.4, 1, 1.06); } });
+  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 11.4, 1, 1.06); } });
+
+/* מכאן והלאה הזמנים כתובים בציר המקורי (v24), והחלקים מוקדמים בשנייה:
+   מסך המספרים קוצר בשנייה. seek מתרגם (ראו SHIFT). */
+var SHIFT_FROM = S.length, SHIFT = 1;
 
 /* 4 · דף ראשון — כלי למעביר השיעור */
 S.push({ in: [12.0, 12.4], cap: 'למעביר השיעור יש<br><g>כלי מוכן!</g>',
@@ -306,8 +304,8 @@ S.push({ in: [19.0, 19.5], cap: '<g>סימון</g> שמאפשר<br>לתלמיד�
   build: function (L, s) {
     s.c = card(L, { src: 'img/6-mark.jpg', iw: 945, ih: 2048, crop: MARK, box: [239, CY, 317, 470],
       ax: .5, ay: .3, hls: [
-        { r: [40, 622, 728, 58], t0: 19.7, t1: 20.5 },
-        { r: [518, 682, 387, 54], t0: 20.5, t1: 21.0 }] });
+        { r: [40, 622, 728, 58], t0: 20.2, t1: 21.0 },
+        { r: [518, 682, 387, 54], t0: 21.0, t1: 21.5 }] });
   },
   tick: function (t, s) {
     var o = s.c;
@@ -319,9 +317,9 @@ S.push({ in: [19.0, 19.5], cap: '<g>סימון</g> שמאפשר<br>לתלמיד�
 S.push({ in: [23.0, 23.45], cap: 'אחרי השיעור: חוזרים<br>בבית ועונים על <g>החידון</g>',
   cout: [26.3, 26.5],
   build: function (L, s) {
-    s.c = card(L, { src: 'img/7-quiz.jpg', iw: 1074, ih: 1148, box: [238.5, CY, 423, 452], ax: .6, ay: .2 });
+    s.c = card(L, { src: 'img/7-quiz.jpg', iw: 1074, ih: 1148, box: [238.5, CY, 423, 452], ax: .75, ay: .12 });
   },
-  tick: function (t, s) { drift(s.c, t, 23.0, 27.05, 1, 1.1); } });
+  tick: function (t, s) { drift(s.c, t, 23.0, 27.05, 1, 1.32); } });
 
 /* 8 · המחשב. LAPTOP: תיקיית פריימים + מיפוי זמן פלט→מקור.
    בין שני פריימים סמוכים — מיזוג (לא שכפול), כך שההאטה חלקה. */
@@ -333,7 +331,7 @@ var LAPTOP = window.LAPTOP || {
 S.push({ in: [26.3, 27.05], cin: [26.5, 27.05],
   cap: '<div class="ask"><div class="a1">בקשה</div><div class="a2">קטנה מכם:</div>' +
        '<div class="a3">עזרו לנו</div><div class="a4">שהדף יגיע לכל תלמיד!</div></div>',
-  capY: 685,
+  capY: 700,
   build: function (L, s) {
     var c = el('div', 'card flat', L);
     c.style.cssText = 'left:0;top:128px;width:478px;height:420px';
@@ -400,7 +398,7 @@ S.push({ in: [38.85, 39.3], cap: '',
   build: function (L, s) { L.style.mixBlendMode = 'normal'; s.cv = canvasIn(L, 478, 850); },
   tick: function (t, s) {
     var x = s.cv.getContext('2d'), k = s.cv.width / 478;
-    var z = lerp(.8, 1, easeOut((t - 38.85) / .7)) * lerp(1, 1.08, smooth((t - 39.3) / (TOTAL - 39.3)));
+    var z = lerp(.8, 1, easeOut((t - 38.85) / .7)) * lerp(1, 1.08, smooth((t - 39.3) / (TOTAL + SHIFT - 39.3)));
     // טקסט שמוגדל ב-fillText נקפץ בין גדלים קבועים; מציירים פעם אחת
     // בחדות גבוהה ומקטינים כתמונה — חלק לגמרי
     if (!s.img) {
@@ -428,25 +426,28 @@ S.forEach(function (s) {
   s.C.style.top = (y - 110) + 'px'; s.C.style.bottom = 'auto'; s.C.style.height = '220px';
 });
 
-var TOTAL = 40 + 1 / 3 + 1.5;                  // מסך התודה נשאר שנייה וחצי יותר
+var TOTAL = 40 + 1 / 3 + 1.5 - SHIFT;          // תודה ארוכה בשנייה וחצי, המספרים קצרים בשנייה
 
 function seek(t) {
   for (var i = 0; i < S.length; i++) {
     var s = S[i], nx = S[i + 1];
-    var inM = xfade(t, s.in), outM = nx ? xfade(t, nx.in) * (s.outMax || 1) : 0;
-    var inC = xfade(t, s.cin || s.in), outC = nx ? xfade(t, s.cout || nx.cin || nx.in) * (s.outMax || 1) : 0;
+    // כל חלק רץ בציר הזמן שבו נכתב; היציאה נמדדת בציר של הבא
+    var ti = i >= SHIFT_FROM ? t + SHIFT : t, tn = i + 1 >= SHIFT_FROM ? t + SHIFT : t;
+    var inM = xfade(ti, s.in), outM = nx ? xfade(tn, nx.in) * (s.outMax || 1) : 0;
+    var inC = xfade(ti, s.cin || s.in);
+    var outC = nx ? (s.cout ? xfade(ti, s.cout) : xfade(tn, nx.cin || nx.in)) * (s.outMax || 1) : 0;
     var a = inM * (1 - outM), c = inC * (1 - outC);
     s.L.style.opacity = a; s.C.style.opacity = c;
     s.C.style.transform = 'translateY(' + (1 - inC) * 14 + 'px)';   // המשפט הנכנס עולה קלות
     s.L.style.visibility = a > 0 ? 'visible' : 'hidden';
     s.C.style.visibility = c > 0 ? 'visible' : 'hidden';
-    if (a > 0 && s.tick) s.tick(t, s);
+    if (a > 0 && s.tick) s.tick(ti, s);
   }
 }
 
 /* render.js: מחכה שהתמונות של הפריים הנוכחי יפוענחו */
 window.seekAsync = function (t) {
-  return Promise.all(PRE.concat([document.fonts.load('900 92px Heebo', 'תודה'), document.fonts.load('700 70px Heebo', '0123456789+'), document.fonts.load('800 54px Heebo', '+1')]))
+  return Promise.all(PRE.concat([document.fonts.load('900 92px Heebo', 'תודה'), document.fonts.load('700 70px Heebo', '0123456789+')]))
     .then(function () { return seekDom(t); });
 };
 function seekDom(t) {
