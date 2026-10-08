@@ -2171,6 +2171,10 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .adm-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:inherit;font-size:.85rem;font-weight:800;
   color:var(--gold-t);background:none;border:1px solid var(--gold);border-radius:20px;padding:4px 11px;cursor:pointer}
 .hot-sec{scroll-margin-top:10px}
+.dk-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
+.dk-top .btn{margin:0;width:100%}
+.dk-top a.btn{grid-column:1/-1;text-decoration:none;text-align:center}
+.dk-open .btn{margin-top:4px}
 /* מוקד השיחות — שורה פתוחה לכל ישיבה */
 .yr-list{display:grid;gap:9px;margin-top:10px}
 .yr{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:11px 12px;box-shadow:var(--sh-1)}
@@ -2610,7 +2614,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.145';
+var APP_VERSION = '8.99.146';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14107,22 +14111,20 @@ function admDecks(el) {
              ' · דף ' + esc(rowDaf(r)) + '</option>';
     }).join('') + '</select></div>' +
     (why[dkSel.wk] ? '<p class="dkm-why">⚠ ' + esc(why[dkSel.wk]) + '</p>' : '') +
+    /* ============================================================
+       הכל למעלה, בלי גלילה (8.10.2026): שתי העלאות זו ליד זו, והדף
+       האינטראקטיבי. "להעלות PDF במקום אחד ותמונה במקום אחר — החלוקה
+       לא חכמה." השדות עצמם נסתרים; הכפתורים פותחים אותם.
+       ============================================================ */
+    '<div class="dk-top">' +
+    '<button class="btn p" onclick="document.getElementById(\'dk-img\').click()">🖼 ' + esc(UI.dkUpImg) + '</button>' +
+    '<button class="btn p" onclick="document.getElementById(\'dk-pdf\').click()">📄 ' + esc(UI.dkUpPdf) + '</button>' +
     /* אותו חלון, ולכן אותו מכשיר שנכנס לניהול — הדף נפתח כרכז, עם
        השקפים והחצים לשיוך. */
-    '<a class="btn g" style="margin-bottom:10px" href="learn.html?mas=' + dkSel.mas + '&' +
-    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home">↗ ' + esc(UI.dkmLearn) + '</a>' +
-
-    '<div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
-    ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
-    esc(rowDaf(row)) + '"</span></label>' +
-    '<input type="text" id="dk-ttl" value="' + esc(dkTitle) +
-    '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
-    'onchange="dkSetTitle(this.value)"></div>' +
-
-    '<div class="fld" style="margin-top:10px"><label class="label" for="dk-img">' +
-    'הוספת שקפים (תמונות)</label>' +
-    '<input type="file" id="dk-img" accept="image/*" multiple ' +
-    'onchange="dkImgPick(this)"></div>' +
+    '<a class="btn g" href="learn.html?mas=' + dkSel.mas + '&' +
+    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home">↗ ' + esc(UI.dkmLearn) + '</a></div>' +
+    '<input type="file" id="dk-img" accept="image/*" multiple hidden onchange="dkImgPick(this)">' +
+    '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" hidden onchange="dkPdfPick(this)">' +
     '<div class="dk-msg"></div>' +
     '<div id="dk-msg"></div></div>';
 
@@ -14186,16 +14188,10 @@ function admDecks(el) {
       }).join('') + '<div id="dk-rm-msg"></div></div>';
   }
 
-  /* ---- המרה מ-PDF ---- */
-  h += '<div class="adm-card" style="margin-bottom:11px">' +
-    '<h4>יש לכם PDF במקום תמונות?</h4>' +
-    '<p class="h">נוטבוק-LM מייצא PDF או PowerPoint, ואנחנו צריכים ' +
-    'תמונות. בחרו כאן את ה-PDF — הוא נחתך לשקפים <b>כאן במכשיר</b>, ' +
-    'ומשם נכנס למצגת בלחיצה.</p>' +
-    '<div class="fld"><label class="label" for="dk-pdf">קובץ PDF</label>' +
-    '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" ' +
-    'onchange="dkPdfPick(this)"></div>' +
-    '<div class="dk-msg"></div>';
+  /* ---- המרה מ-PDF — רק אחרי שנבחר קובץ בכפתור שלמעלה. ה-PDF נחתך
+     לשקפים כאן במכשיר, ובוחרים אילו נכנסים. ---- */
+  if (dkPdf && dkPdf.length) h += '<div class="adm-card" style="margin-bottom:11px">' +
+    '<h4>' + esc(UI.dkPdfH) + '</h4>';
   if (dkPdf && dkPdf.length) {
     var dkSelN = dkPdfSelected().length;
     h += '<button class="btn gd" style="margin-top:8px" ' +
@@ -14226,7 +14222,15 @@ function admDecks(el) {
           'color:var(--ink-3);font-weight:800">' + esc(sl.name) + '</span></div>';
       }).join('') + '</div>';
   }
-  h += '</div>';
+  if (dkPdf && dkPdf.length) h += '</div>';
+
+  /* ---- הכותרת בבאנר — ירדה מהראש; משנים אותה לעיתים רחוקות ---- */
+  h += '<div class="adm-card" style="margin-bottom:11px"><div class="fld"><label class="label" for="dk-ttl">הכותרת בבאנר הכחול' +
+    ' <span style="font-weight:700;color:var(--ink-3)">· ריק = "דף ' +
+    esc(rowDaf(row)) + '"</span></label>' +
+    '<input type="text" id="dk-ttl" value="' + esc(dkTitle) +
+    '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
+    'onchange="dkSetTitle(this.value)"></div></div>';
 
   /* ---- הסוגיה היומית — העמוד של הדף הזה ----
      היה מסך נפרד ובו רשימה של שלושים שורות. הוא נבלע לכאן, כי
@@ -14247,6 +14251,26 @@ function admDecks(el) {
     '<input type="tel" id="dk-sug" style="width:110px;text-align:center" value="' +
     esc(pn) + '" onchange="admSugyaPage(\'' + dfk + '\',this.value);admPane()"></div>' +
     '</div>';
+
+  /* ---- סוף העבודה: פתיחת הדף לתלמידים ----
+     "ברגע שאני מסיים לעבוד במצגת ובדף האינטראקטיבי — אני פותח את
+     הדף." אותה פתיחה של "פתיחת דפים" (opToggle), כאן, לשבוע שבעורך. */
+  if (!opAsked) { opAsked = true; OpenLoad().then(function () { admPane(); }); }
+  var ti = TRACKS.indexOf(tr), wi = dkSel.wk - 1, am = OpenAm(row), isOpen = row[2] && OpenIs(tr.id, row[2], am);
+  h += '<div class="adm-card dk-open" style="margin-bottom:11px"><h4>' + esc(UI.dkOpenH) + '</h4>';
+  if (isOpen) {
+    h += '<p class="h"><b style="color:var(--ok)">✓ ' + esc(fill(UI.dkIsOpen, { daf: row[2] + LAmMark(am) })) + '</b></p>' +
+      '<button class="btn g" ' + (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">' + esc(UI.dkClose) + '</button>';
+  } else if (row[2]) {
+    h += '<p class="h">' + esc(UI.dkNotifyQ) + '</p><div class="am-sl">' +
+      '<button class="' + (opAud === 'wait' ? 'on' : '') + '" onclick="opAud=\'wait\';admPane()">' + esc(UI.dkNotifyW) + '</button>' +
+      '<button class="' + (opAud === 'all' ? 'on' : '') + '" onclick="opAud=\'all\';admPane()">' + esc(UI.dkNotifyA) + '</button></div>' +
+      '<button class="btn gd" ' + (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">🔓 ' +
+      esc(fill(UI.dkOpenGo, { daf: row[2] + LAmMark(am) })) + '</button>';
+  }
+  if (opMsg) h += '<p class="h" style="margin-top:9px;color:var(--' +
+    (opCls === 'ok' ? 'ok' : opCls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(opMsg) + '</p>';
+  h += '</div>';
 
   el.innerHTML = h;
 }
@@ -14709,6 +14733,8 @@ function opVerify(t, daf, am, want, tries) {
 }
 
 /* ההתראה — רק למי שביקש אותה על הדף הזה. */
+/* למי ההתראה כשנפתח דף: 'wait' רק מי שביקש · 'all' כל התלמידים. */
+var opAud = 'wait';
 function opNotify(t, daf, am) {
   var key = (CFG.readKey || '').trim();
   var v = { mas: t.masechet, daf: daf + LAmMark(am) };
@@ -14719,10 +14745,11 @@ function opNotify(t, daf, am) {
   };
   if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
   /* אישור לפני כל שליחה לתלמידים — הדף כבר נפתח, רק ההתראה מחכה. */
-  if (!confirm(UI.openPushAsk)) { done(UI.openPushNo, 'ok'); return; }
+  var all = opAud === 'all';
+  if (!confirm(all ? UI.openPushAskAll : UI.openPushAsk)) { done(UI.openPushNo, 'ok'); return; }
   scriptGet({ fire:'say', key:key,
               title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
-              wait:OpenKey(t.id, daf, am),
+              wait: all ? '' : OpenKey(t.id, daf, am),
               url:'learn?mas=' + t.id + '&daf=' + OpenKey(t.id, daf).split('|')[1] +
                   (am ? '&amud=' + am : '') })
     .then(function (d) {
