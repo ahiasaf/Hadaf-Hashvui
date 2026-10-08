@@ -2227,6 +2227,36 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 button.yr-c.auto{cursor:pointer}
 .yr-c button{font:inherit;border:0;background:none;color:inherit;padding:0 0 0 2px;cursor:pointer}
 .yr-tmp{border-top:1px dashed var(--rule);padding-top:8px}
+/* שפה ויזואלית: פס צבע לפי שלב, נקודות משימה, וסימונים בצבעים */
+.yr{border-inline-start:6px solid #C9CFDB}
+.yr.st-talked{border-inline-start-color:#3574CE}
+.yr.st-warm{border-inline-start-color:#E0A82E}
+.yr.st-joined{border-inline-start-color:#2E8B57}
+.yr.st-no{border-inline-start-color:#B4473A;opacity:.85}
+.yr-st{flex:none;font:inherit;font-size:.72rem;font-weight:800;border-radius:20px;padding:3px 9px;cursor:pointer;
+  border:1px solid transparent;background:#EEF1F6;color:#4A5878}
+.yr-st.st-talked{background:#E3EDFB;color:#1D4F9A}
+.yr-st.st-warm{background:#FBF0D6;color:#7A5300}
+.yr-st.st-joined{background:#DFF2E7;color:#1E6B40}
+.yr-st.st-no{background:#F7E3E0;color:#8E2F24}
+.yr-n.z{color:var(--ink-3);background:var(--sunk)}
+.yr-pr{display:flex;gap:4px;margin-top:6px}
+.yr-pr i{width:22px;height:5px;border-radius:3px;background:var(--rule)}
+.yr-pr i.on{background:#2E8B57}
+.yr-c.k-g{background:#2E8B57;border-color:#2E8B57;color:#fff}
+.yr-c.k-y{background:#E0A82E;border-color:#E0A82E;color:#2B1D00}
+.yr-c.k-r{background:#B4473A;border-color:#B4473A;color:#fff}
+.yr-c.k-b{background:#3574CE;border-color:#3574CE;color:#fff}
+.yr-c.k-n{background:#8A93A6;border-color:#8A93A6;color:#fff}
+.tmp-ed{margin-top:10px}
+.tmp-o{display:flex;align-items:center;gap:6px;margin:6px 0}
+.tmp-o input{flex:1;min-width:0}
+.tmp-dot{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.tmp-dot.on{border-color:var(--ink)}
+.tmp-dot.k-g{background:#2E8B57}.tmp-dot.k-y{background:#E0A82E}.tmp-dot.k-r{background:#B4473A}
+.tmp-dot.k-b{background:#3574CE}.tmp-dot.k-n{background:#8A93A6}
+.ct-o{display:block}
+.ct-dh{font-size:.82rem;font-weight:800;color:var(--gold-t);margin-bottom:6px}
 .yr-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
 .yr-bar b{font-size:.8rem;color:var(--ink-3)}
 .ct-nx{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
@@ -2643,7 +2673,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.150';
+var APP_VERSION = '8.99.151';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6151,10 +6181,12 @@ function pushTeamView(list) {
    ============================================================ */
 function pushTagDefs() {
   if (!API && !CFG.api) return;
-  var rows = tagDefs().map(function (t) { return [t.k, t.t, t.team ? 'TRUE' : '', t.tmp ? 'TRUE' : '']; });
+  var rows = tagDefs().map(function (t) {
+    return [t.k, t.t, t.team ? 'TRUE' : '', t.tmp ? 'TRUE' : '', t.opts && t.opts.length ? JSON.stringify(t.opts) : ''];
+  });
   fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
     body: JSON.stringify({ action:'table', tab:'הגדרות תגיות', key:(CFG.readKey || '').trim(),  ss:(CFG.contactsSheet || '').trim() || undefined,
-      cols: JSON.stringify(['מפתח','תווית','לצוות','זמני']),
+      cols: JSON.stringify(['מפתח','תווית','לצוות','זמני','אפשרויות']),
       rows: JSON.stringify(rows) }) }).catch(function () {});
 }
 function pullTagDefs() {
@@ -6165,8 +6197,10 @@ function pullTagDefs() {
     var out = [];
     d.rows.slice(1).forEach(function (r) {
       if (!r[0]) return;
+      var op = null;
+      try { op = r[4] ? JSON.parse(r[4]) : null; } catch (oe) { op = null; }
       out.push({ k:r[0], t:r[1] || r[0], team: YES.test(String(r[2] || '').trim()),
-                 tmp: YES.test(String(r[3] || '').trim()) });
+                 tmp: YES.test(String(r[3] || '').trim()), opts: op && op.length ? op : undefined });
     });
     if (out.length) saveTagDefsLocal(out);
     return true;
@@ -6989,16 +7023,33 @@ function yshMain(e, subs) {
   return best;
 }
 function yshTagOn(e, k) { return e.recs.some(function (o) { return tagOn(o.c, k); }); }
+/* הערך של סימון: true (✓), או מספר האפשרות (1…) בסימון עם אפשרויות. */
+function yshTagVal(e, k) {
+  var v = 0;
+  e.recs.forEach(function (o) { var x = o.c.tags && o.c.tags[k]; if (x && !v) v = x === true ? 1 : +x || 1; });
+  return v;
+}
 function yshTick(n, k) {
   var e = yshShown[n]; if (!e || !e.recs.length) return;
-  var on = yshTagOn(e, k), l = contacts(), now = new Date().toISOString();
+  var def = tagDefs().filter(function (t) { return t.k === k; })[0];
+  var nOpt = def && def.opts ? def.opts.length : 0;
+  var cur = yshTagVal(e, k), next = nOpt ? (cur >= nOpt ? 0 : cur + 1) : (cur ? 0 : true);
+  var l = contacts(), now = new Date().toISOString();
   e.recs.forEach(function (o) {
     if (!l[o.i]) return;
     if (!l[o.i].tags) l[o.i].tags = {};
-    if (on) delete l[o.i].tags[k]; else if (o === e.recs[0]) l[o.i].tags[k] = true;
+    if (!next) delete l[o.i].tags[k]; else if (o === e.recs[0]) l[o.i].tags[k] = next; else delete l[o.i].tags[k];
     l[o.i].at = now; jnl(l[o.i]);
   });
   saveContacts(l); renderCalls(); pushCalls();
+}
+/* השלב הבא, בלחיצה על התגית שבשורה. */
+function yshStage(n) {
+  var e = yshShown[n]; if (!e || !e.recs.length) return;
+  var i = e.recs[0].i, c = contacts()[i]; if (!c) return;
+  var at = 0;
+  STAGES.forEach(function (x, j) { if (x.k === c.stage) at = j; });
+  setStage(i, STAGES[(at + 1) % STAGES.length].k);
 }
 function tmpDefs() { return tagDefs().filter(function (t) { return t.tmp; }); }
 function yshRow(e, n) {
@@ -7013,14 +7064,27 @@ function yshRow(e, n) {
   var due = '';
   e.recs.forEach(function (o) { var d = o.c.tags && o.c.tags.__due; if (d && (!due || d < due)) due = d; });
   var reg = e.recs.some(function (o) { return !!regOf(o.c, cx.regs || {}); });
-  var chip = function (k, t) {
-    var on = yshTagOn(e, k);
-    return '<button class="yr-c' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
-      (on ? '✓ ' : '') + esc(t) + '</button>';
+  var chip = function (k, t, def) {
+    var v = yshTagVal(e, k);
+    if (def && def.opts && def.opts.length) {
+      var o = v > 0 ? def.opts[v - 1] : null;
+      var kc = o ? ' k-' + (o.c || 'n') : '';
+      return '<button class="yr-c' + kc + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
+        esc(t) + (o ? ': ' + esc(o.t) : '') + '</button>';
+    }
+    return '<button class="yr-c' + (v ? ' on' : '') + '" aria-pressed="' + !!v + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
+      (v ? '✓ ' : '') + esc(t) + '</button>';
   };
-  var h = '<div class="yr"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
+  /* השלב — פס צבע בצד השורה ותגית; לחיצה מעבירה לשלב הבא. */
+  var stg = c0 ? (STAGES.filter(function (x) { return x.k === c0.stage; })[0] || STAGES[0]) : STAGES[0];
+  var done = CALL_TASKS.filter(function (t) { return yshTagOn(e, t[0]); }).length;
+  var sc = 'st-' + stg.k;
+  var h = '<div class="yr ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
     (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act">★</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
-    '<span class="yr-n">' + esc(fill(UI.yrGot, { n: got })) + '</span></div>';
+    (c0 ? '<button class="yr-st ' + sc + '" onclick="yshStage(' + n + ')">' + esc(stg.t) + '</button>' : '') +
+    '<span class="yr-n' + (got ? '' : ' z') + '">' + esc(fill(UI.yrGot, { n: got })) + '</span></div>' +
+    '<div class="yr-pr" aria-label="' + esc(fill(UI.yrTasks, { n: done, of: CALL_TASKS.length })) + '">' +
+      CALL_TASKS.map(function (t) { return '<i class="' + (yshTagOn(e, t[0]) ? 'on' : '') + '"></i>'; }).join('') + '</div>';
   if (m && m.q) {
     h += '<div class="yr-who"><span>' + esc(m.q.name || '') + (m.q.role ? ' · ' + esc(m.q.role) : '') + '</span>' +
       (m.q.phone ? '<a class="yr-b" href="tel:' + digits(m.q.phone) + '" aria-label="' + esc(UI.yrCall) + '">📞</a>' +
@@ -7038,18 +7102,52 @@ function yshRow(e, n) {
   var tm = tmpDefs();
   if (tm.length || yshTagOn(e, 'called')) {
     h += '<div class="yr-ch yr-tmp">' + chip('called', UI.yrRound) +
-      tm.map(function (t) { return chip(t.k, t.t); }).join('') + '</div>';
+      tm.map(function (t) { return chip(t.k, t.t, t); }).join('') + '</div>';
   }
   return h + '</div>';
 }
 var yshCtx = null;
 /* "+ סימון" — עמודה זמנית לכל הישיבות (למשל "זום"), ומחיקה בסוף הסבב. */
-function tmpAdd() {
-  var name = prompt(UI.tmpAsk);
-  if (!name || !name.trim()) return;
+/* ============================================================
+   סימון חדש — ✓ פשוט, או אפשרויות עם צבע לכל אחת.
+   ============================================================
+   "רצה בירוק, לא רצה באדום — מערכת גמישה שאני יכול לשחק עם
+   הסימנים ולראות מי נגד מי." העורך נפתח בתוך המוקד, לא בחלון. */
+var TMP_COLORS = ['g', 'y', 'r', 'b', 'n'];
+var tmpEd = null;
+function tmpAdd() { tmpEd = { t: '', opt: false, opts: [{ t: '', c: 'g' }, { t: '', c: 'r' }] }; renderCalls(); }
+function tmpEdSet(k, v) { if (tmpEd) tmpEd[k] = v; if (k === 'opt') renderCalls(); }
+function tmpOptSet(i, k, v) { if (tmpEd && tmpEd.opts[i]) { tmpEd.opts[i][k] = v; if (k === 'c') renderCalls(); } }
+function tmpOptAdd() { if (tmpEd) { tmpEd.opts.push({ t: '', c: TMP_COLORS[tmpEd.opts.length % TMP_COLORS.length] }); renderCalls(); } }
+function tmpOptDel(i) { if (tmpEd) { tmpEd.opts.splice(i, 1); renderCalls(); } }
+function tmpSave() {
+  if (!tmpEd || !String(tmpEd.t).trim()) { tmpEd = null; renderCalls(); return; }
+  var opts = tmpEd.opt ? tmpEd.opts.filter(function (o) { return String(o.t).trim(); })
+                                   .map(function (o) { return { t: String(o.t).trim(), c: o.c }; }) : [];
   var d = tagDefs().slice();
-  d.push({ k: tagKeyOf_(), t: name.trim(), team: false, tmp: true });
+  d.push({ k: tagKeyOf_(), t: String(tmpEd.t).trim(), team: false, tmp: true, opts: opts.length ? opts : undefined });
+  tmpEd = null;
   saveTagDefs(d);
+}
+function tmpEdHtml() {
+  if (!tmpEd) return '';
+  return '<div class="adm-card tmp-ed"><div class="fld"><label class="label" for="tmp-t">' + esc(UI.tmpAsk) + '</label>' +
+    '<input id="tmp-t" type="text" value="' + esc(tmpEd.t) + '" oninput="tmpEdSet(\'t\',this.value)"></div>' +
+    '<div class="wantbar" onclick="tmpEdSet(\'opt\',' + !tmpEd.opt + ')"><div><b>' + esc(UI.tmpOptQ) + '</b><span>' +
+      esc(UI.tmpOptSub) + '</span></div><button class="sw' + (tmpEd.opt ? ' on' : '') + '" aria-label="' +
+      esc(UI.tmpOptQ) + '"></button></div>' +
+    (tmpEd.opt ? tmpEd.opts.map(function (o, i) {
+      return '<div class="tmp-o"><input type="text" value="' + esc(o.t) + '" placeholder="' + esc(UI.tmpOptPh) +
+        '" oninput="tmpOptSet(' + i + ',\'t\',this.value)">' +
+        TMP_COLORS.map(function (c) {
+          var dc = 'k-' + c + (o.c === c ? ' on' : '');
+          return '<button class="tmp-dot ' + dc + '" aria-label="' + c +
+            '" onclick="tmpOptSet(' + i + ',\'c\',\'' + c + '\')"></button>';
+        }).join('') + '<button class="ce-x" onclick="tmpOptDel(' + i + ')" aria-label="✕">✕</button></div>';
+    }).join('') + '<button class="yr-c" onclick="tmpOptAdd()">' + esc(UI.tmpOptAdd) + '</button>' : '') +
+    '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn p" style="margin:0" onclick="tmpSave()">' +
+      esc(UI.tmpSave) + '</button><button class="btn g" style="margin:0" onclick="tmpEd=null;renderCalls()">' +
+      esc(UI.tmpCancel) + '</button></div></div>';
 }
 function tmpDrop(k) {
   var t = tagDefs().filter(function (x) { return x.k === k; })[0];
@@ -7158,17 +7256,24 @@ function yshDetail(e, ctx) {
             '" target="_blank" rel="noopener">' + esc(UI.yshBoard) + '</a>'
           : '<span class="ysh-board off" aria-disabled="true">' + esc(UI.yshBoard) +
             '<small>' + esc(UI.yshNoBoard) + '</small></span>') +
-    '<div class="ysh-ind">' + YSH_IND.map(function (d) {
+    (!e.st ? '' : '<div class="ysh-ind">' + YSH_IND.map(function (d) {
       var v = yshOf(e, d[0]);
       return '<span class="ysh-pill" title="' + esc(UI['yshV_' + v]) + '"><i class="ysh-dot ' + 'v-' + v + '"></i>' +
              esc(UI[d[1]]) + '</span>';
     }).join('') + '</div><div class="ysh-ind">' +
     '<span class="ysh-tag ' + 'r-' + r + '">' + esc(UI.yshRate) + ': ' + esc(UI['yshR_' + r]) + '</span>' +
     '<span class="ysh-pill"><i class="ysh-dot ' + 'v-' + act + '"></i>' + esc(UI.yshActive) + ': ' +
-    esc(UI['yshV_' + act]) + '</span></div>' +
+    esc(UI['yshV_' + act]) + '</span></div>') +
     (e.st && e.st.note ? '<div class="ysh-snote">' + esc(e.st.note) + '</div>' : '') +
-    '<div class="ysh-upd">' + esc(e.st ? (e.st.upd ? fill(UI.yshUpd, { t:yshWhen(e.st.upd) }) : '')
-                                       : UI.yshNoData) + '</div></div>';
+    (e.st && e.st.upd ? '<div class="ysh-upd">' + esc(fill(UI.yshUpd, { t:yshWhen(e.st.upd) })) + '</div>' : '') + '</div>';
+  /* אותה שורה של המוקד — משימות, סימונים, ספירה — בראש התיק. */
+  /* התיק נבנה בלי לעבור על הרשימה, ולכן הישיבה מוצבת כאן במקום שלה
+     ב-yshShown — כדי שהלחיצות בשורה (yshTick, yshStage) יגיעו אליה. */
+  var nIx = -1;
+  for (var yi = 0; yi < yshShown.length; yi++) if (yshShown[yi].k === e.k) nIx = yi;
+  if (nIx < 0) { yshShown.push(e); nIx = yshShown.length - 1; } else yshShown[nIx] = e;
+  e.t = yshLastAt(e, ctx.jLast || {});
+  h += '<div class="yr-list" style="margin:0 0 12px">' + yshRow(e, nIx) + '</div>';
   if (e.recs.length) {
     h += '<h3 class="ysh-h">' + esc(UI.yshPeople) + '</h3>';
     if (e.recs.length > 1) h += '<div class="ysh-empty">' + esc(fill(UI.yshDup, { n:e.recs.length })) + '</div>';
@@ -7339,7 +7444,7 @@ function renderCalls() {
           'עוד לא נטענה. היא נטענת ב"מה קורה ← אנשים".'
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
   else {
-    h += tmpBar() + '<div class="yr-list">' + shown.map(function (e, n) { return yshRow(e, n); }).join('') + '</div>';
+    h += tmpBar() + tmpEdHtml() + '<div class="yr-list">' + shown.map(function (e, n) { return yshRow(e, n); }).join('') + '</div>';
   }
 
   /* התזכורות ומה שהצוות עשה — מיד אחרי הרשימה. קודם התמונה
@@ -7492,32 +7597,31 @@ function ctCard(c, i, ctx) {
       return esc(q.name || 'ללא שם') + (q.role ? ' <i>' + esc(q.role) + '</i>' : '');
     }).join(' · ') + '</div>';
   }
-  if (team) h += '<details class="ct-d" data-k="team"><summary>' + esc(UI.callTeam) + '</summary>' + team + '</details>';
+  /* "לא צריך לפתוח מגירות" — הכל גלוי, כל חלק בכותרת משלו. */
+  if (team) h += '<div class="ct-d ct-o"><div class="ct-dh">' + esc(UI.callTeam) + '</div>' + team + '</div>';
 
   /* תגיות — בלי "התקשרתי בסבב", שיש לו תיבה משלו למעלה. */
   var tags = tagDefs().filter(function (t) { return t.k !== 'called'; });
   if (tags.length) {
     var tOn = tags.filter(function (t) { return tagOn(c, t.k); }).length;
-    h += '<details class="ct-d" data-k="tags"><summary>' + esc(UI.callTags) + (tOn ? ' · ' + tOn : '') + '</summary><div class="chips">';
+    h += '<div class="ct-d ct-o"><div class="ct-dh">' + esc(UI.callTags) + (tOn ? ' · ' + tOn : '') + '</div><div class="chips">';
     tags.forEach(function (t) {
       h += '<button class="chip w tg' + (tagOn(c, t.k) ? ' on' : '') +
            '" onclick="tagTick(' + i + ',\'' + t.k + '\')">' + esc(t.t) + '</button>';
     });
-    h += '</div></details>';
+    h += '</div></div>';
   }
 
   /* העדכון (תכלס) — יכול לצאת לעמוד הצוות. ההערה — פרטית,
      לא יוצאת לשום מקום. שתיהן באותו מקום, כל אחת בתווית שלה. */
-  h += '<details class="ct-d" data-k="note"' +
-       ' ontoggle="var t=this.querySelector(\'textarea\');if(t&&this.open)noteGrow(t)"><summary>' +
-       esc(UI.callNote) + (c.note || c.upd ? ' ✎' : '') + '</summary>' +
+  h += '<div class="ct-d ct-o"><div class="ct-dh">' + esc(UI.callNote) + '</div>' +
        '<label class="teamshow"><input type="checkbox"' +
        (c.teamShow ? ' checked' : '') +
        ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' +
        '<div class="notelbl">הערה לעצמך — פרטי, לא נראה לאיש</div>' +
        '<textarea rows="3" placeholder="הערה מהשיחה…" ' +
        'oninput="noteGrow(this)" ' +
-       'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></details></div>';
+       'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + '</textarea></div></div>';
   return h;
 }
 function callFilter(f) { state.filter = f; renderCalls(); }
@@ -7687,7 +7791,8 @@ function tagEditOpen() {
   box.className = 'on';
 }
 function tgRow(t, k) {
-  return '<div class="ce-row tg-row" data-k="' + esc(t.k) + '"' + (t.tmp ? ' data-tmp="1"' : '') + '>' +
+  return '<div class="ce-row tg-row" data-k="' + esc(t.k) + '"' + (t.tmp ? ' data-tmp="1"' : '') +
+    (t.opts ? ' data-opts="' + esc(JSON.stringify(t.opts)) + '"' : '') + '>' +
     '<input class="tg-t" type="text" value="' + esc(t.t) + '">' +
     '<label class="tg-team"><input type="checkbox" class="tg-team-c"' +
     (t.team ? ' checked' : '') + '>לצוות</label>' +
@@ -7710,7 +7815,10 @@ function tagEditSave() {
     var t = row.querySelector('.tg-t').value.trim();
     if (!t) return;
     var k = row.getAttribute('data-k') || tagKeyOf_();
-    defs.push({ k:k, t:t, team: row.querySelector('.tg-team-c').checked, tmp: row.getAttribute('data-tmp') === '1' });
+    var op = null;
+    try { op = row.getAttribute('data-opts') ? JSON.parse(row.getAttribute('data-opts')) : null; } catch (oe) { op = null; }
+    defs.push({ k:k, t:t, team: row.querySelector('.tg-team-c').checked, tmp: row.getAttribute('data-tmp') === '1',
+                opts: op || undefined });
   });
   saveTagDefs(defs);
   tagEditClose();
