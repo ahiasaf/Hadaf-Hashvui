@@ -120,7 +120,7 @@ function stuHomeGo(me) {
   }
 
   (function () {
-    var adm = /\/admin\/?$/.test(location.pathname) || location.hash === '#admin';
+    var adm = /\/admin\/?$/.test(location.pathname) || /^#admin(-acc|-help)?$/.test(location.hash);
     var icon = adm ? 'icon-admin-192.png' : 'icon-192.png';
     document.write(
       '<link rel="manifest" href="' +
@@ -2559,7 +2559,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.140';
+var APP_VERSION = '8.99.141';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8995,9 +8995,12 @@ function admPushViz() {
 function admInstList() {
   var d = pplData();
   var rows = d.rows.filter(function (x) { return !ADM_INST || x.c === ADM_INST; });
-  return '<div class="adm-card" style="margin-bottom:11px"><div id="ppl-list2">' + rows.map(function (x) {
+  /* בלי ישיבה שנבחרה — הממתינים לאימות למעלה, לפני רשימת הישיבות,
+     ולא אחריה (שם צריך היה לגלול עד הסוף כדי למצוא אותם). */
+  return '<div class="adm-card" style="margin-bottom:11px">' + (ADM_INST ? '' : '<div id="ppl-acc"></div>') +
+    '<div id="ppl-list2">' + rows.map(function (x) {
     return '<button class="pr" data-c2="' + esc(x.c) + '">' + pplRowHtml(x) + '</button>';
-  }).join('') + '</div>' + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div>' : '') + '<div id="ppl-acc"></div></div>';
+  }).join('') + '</div>' + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div>' : '') + '</div>';
 }
 
 document.addEventListener('click', function (e) {
@@ -9597,6 +9600,10 @@ function admPane() {
      שנעלמים באמצע עדכון. */
   if (admTab === 'stu' && document.getElementById('stu')) return admLive();
   if (admTab === 'setup' && document.getElementById('st-why')) return admLive();
+  /* "ישיבות וצוות" — כל טעינה ברקע (אימות, הודעות, שיחות…) ציירה את
+     המסך כולו מחדש, וכפתור "אישור" התחלף מתחת לאצבע. עכשיו רק מה
+     שהשתנה; רשימת השיחות מתעדכנת דרך renderCalls שלה. */
+  if (admTab === 'inst' && document.getElementById('in-list') && document.getElementById('calls-body')) return admLive();
   if (admTab === 'push' && document.getElementById('pu-viz') && document.getElementById('adm-send')) {
     admLive(); return admPush(document.getElementById('adm-send'));
   }
@@ -10543,7 +10550,10 @@ function needsResend(sid) {
 /* "לאימות" — הרשימה של כל הישיבות, עם כל מי שממתין. */
 function accGo() {
   ppl.open = ''; ppl.q = ''; ppl.f = ''; ppl.mine = '';
+  /* ישיבה שנשארה בחורה הסתירה את הממתינים מכל השאר. */
+  ADM_INST = ''; Store.set('admInst', ''); admIpOpen = false; pplFrame({ dfFilt: '' });
   admGo('inst');
+  admScrollTo('ppl-acc');
 }
 /* `bare` — בלשונית "התקנה": בלי מי שביקש עזרה (הוא ברשימה שלו
    למעלה) ובלי הכותרת. נשארות ההודעות שלא יצאו והממתינים לאימות,
@@ -16698,7 +16708,27 @@ function admImport() {
 
 /* ---- ניתוב נסתר ל-/admin ---- */
 function isAdminRoute() {
-  return /\/admin\/?$/.test(location.pathname) || location.hash === '#admin';
+  return /\/admin\/?$/.test(location.pathname) || /^#admin(-acc|-help)?$/.test(location.hash);
+}
+/* ההתראה לרכז נוחתת על הדבר עצמו, ולא על "התלמידים":
+   #admin-acc — הממתינים לאימות; #admin-help — מי שביקש עזרה.
+   בורר הישיבה מתאפס, כי ישיבה שנשארה בחורה מפעם קודמת הסתירה
+   ממתינים מישיבה אחרת. העוגן חוזר ל-#admin, כדי שרענון לא יקפיץ שוב. */
+function admTakeHash() {
+  var m = /^#admin-(acc|help)$/.exec(location.hash);
+  if (!m) return '';
+  try { history.replaceState(null, '', location.pathname + location.search + '#admin'); } catch (e) {}
+  ADM_INST = ''; Store.set('admInst', ''); admIpOpen = false; pplFrame({ dfFilt: '' });
+  ppl.open = null; ppl.q = ''; ppl.f = ''; ppl.mine = '';
+  admTab = m[1] === 'acc' ? 'inst' : 'setup';
+  return m[1] === 'acc' ? 'ppl-acc' : 'st-help';
+}
+function admScrollTo(id) {
+  if (!id) return;
+  setTimeout(function () {
+    var e = document.getElementById(id);
+    if (e) try { e.scrollIntoView({ block: 'start' }); } catch (x) { e.scrollIntoView(); }
+  }, 60);
 }
 /* בקשה שהשאיר הדף האינטראקטיבי ("ניהול המצגות ↗"): לפתוח את עורך
    המצגות על השבוע שהיה שם. נקראת פעם אחת ונמחקת. */
@@ -16715,7 +16745,12 @@ function admTakeGo() {
   }
 }
 function adminEntry() {
-  if (Store.get('admOk')) { admTakeGo(); renderAdmin(); show('admin'); admEnterOnce(); }
+  if (Store.get('admOk')) {
+    var to = admTakeHash();
+    admTakeGo(); renderAdmin(); show('admin'); admEnterOnce(); admScrollTo(to);
+    /* האפליקציה כבר הייתה פתוחה — הרשימה במטמון עוד לא מכירה את מי שהתריע. */
+    if (to === 'ppl-acc') accLoad(); else if (to) stuckLoad();
+  }
   else show('gate');
 }
 window.addEventListener('hashchange', function () { if (isAdminRoute()) adminEntry(); });
@@ -16745,7 +16780,8 @@ function tryCode() {
   if (teamCode === ADMIN_PIN) {
     teamCode = ''; paintPins();
     Store.set('admOk', 1);
-    renderAdmin(); show('admin'); admEnterOnce();
+    var to = admTakeHash();
+    renderAdmin(); show('admin'); admEnterOnce(); admScrollTo(to);
     return;
   }
   document.getElementById('gate-msg').textContent = 'קוד שגוי';

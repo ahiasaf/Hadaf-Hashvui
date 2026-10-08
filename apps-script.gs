@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 51;
+var SCRIPT_VERSION = 52;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -744,7 +744,7 @@ function doGet(e) {
     /* מי שנתקע כבר מחכה — הרכז יודע מיד, ולא בכניסה הבאה לניהול. */
     coordPing_('🙋 ביקשו עזרה בהתקנה',
       hName + (H.instName ? ' · ' + String(H.instName) : '') +
-      (H.what ? ' — ' + String(H.what).slice(0, 80) : ''));
+      (H.what ? ' — ' + String(H.what).slice(0, 80) : ''), './#admin-help');
     return reply_(e, { status: 'ok' });
   }
 
@@ -2320,7 +2320,7 @@ function accAsk_(inst, dev, has) {
     /* הרכז יודע מיד — זה מה שמאפשר "בשעות הקרובות". */
     coordPing_('🔑 לאימות: ' + (g('שם') || 'איש צוות'),
       (g('ישיבה') || inst) + (g('תפקיד') ? ' · ' + g('תפקיד') : '') +
-      (g('טלפון') ? ' · ' + g('טלפון') : ''));
+      (g('טלפון') ? ' · ' + g('טלפון') : ''), './#admin-acc');
   } else {
     upsertCols_(ACC_TAB, cols, 'מזהה');
   }
@@ -3934,8 +3934,9 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
 /* התראה לרכז — לכל מכשיר שנרשם בתפקיד "רכז" (ניהול ← ההתראות
    במכשיר הזה). נרשמת ביומן ("מערכת" · "מכשירי רכז") עם התוצאה, אבל
    אינה מתריעה על עצמה אם נכשלה. */
-function coordPing_(title, body) {
-  try { ghFire_(title, body, '', '', '', 'מערכת', 'admin', 'רכז', '', '', true); } catch (e) {}
+/* `link` — לאן הלחיצה על ההתראה מובילה. בלעדיו — מסך הניהול. */
+function coordPing_(title, body, link) {
+  try { ghFire_(title, body, '', '', '', 'מערכת', link || 'admin', 'רכז', '', '', true); } catch (e) {}
 }
 function sayAlert_(who, only, body, why) {
   coordPing_('⚠ הודעה לא יצאה',
