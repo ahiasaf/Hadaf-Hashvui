@@ -2172,6 +2172,13 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .adm-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:inherit;font-size:.85rem;font-weight:800;
   color:var(--gold-t);background:none;border:1px solid var(--gold);border-radius:20px;padding:4px 11px;cursor:pointer}
 .hot-sec{scroll-margin-top:10px}
+/* הגרלה — התמונה */
+.pp{border:1px solid var(--rule);border-radius:14px;background:var(--paper);padding:10px 12px;margin:0 0 12px}
+.pp-h{font-size:.78rem;font-weight:800;color:var(--gold-t);margin:10px 0 4px}
+.pp-h:first-child{margin-top:0}
+.pp-r{display:flex;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px dashed var(--rule-2, var(--rule))}
+.pp-r b{flex:none;min-width:64px;font-size:1rem;font-weight:800;color:var(--blue-d);font-variant-numeric:tabular-nums}
+.pp-r span{font-size:.84rem;color:var(--ink-2)}
 /* מבנה א — שורה למעלה, סרגל קבוע למטה */
 .adm-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
 .adm-bar b{flex:1;min-width:0;font-size:1.25rem;font-weight:800;color:var(--blue-d);letter-spacing:-.02em}
@@ -2636,7 +2643,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.149';
+var APP_VERSION = '8.99.150';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12787,7 +12794,7 @@ function pairLoad() {
              : String(row[ix[k]] == null ? '' : row[ix[k]]).trim();
       };
       if (!g('שם')) continue;
-      out.push({ at:g('מתי'), name:g('שם'), inst:g('ישיבה'),
+      out.push({ at:g('מתי'), id:g('מזהה'), ic:g('קוד ישיבה'), name:g('שם'), inst:g('ישיבה'),
                  grade:g('שכבה'), klass:g('כיתה'),
                  track:g('מסלול'), wk:parseInt(g('שבוע'), 10) || 0,
                  daf:g('דף'), rel:g('קרבה'), by:g('דיווח'),
@@ -12823,8 +12830,19 @@ function admPairs() {
     if (o.wk && weeks.indexOf(o.wk) < 0) weeks.push(o.wk);
   });
   weeks.sort(function (a2, b2) { return b2 - a2; });
-  var list = pairWk ? pairRows.filter(function (o) { return o.wk === pairWk; })
-                    : pairRows;
+  var list0 = pairWk ? pairRows.filter(function (o) { return o.wk === pairWk; })
+                     : pairRows;
+  /* **אותו לימוד דווח כמה פעמים** ("לאה מסומנת שוב ושוב") — כל לחיצה
+     על "דיווח" כתבה שורה. כאן: שורה אחת לכל תלמיד ושבוע, העדכנית
+     (הרשימה כבר מהחדש לישן), עם מספר הדיווחים. */
+  var seenP = {}, list = [];
+  list0.forEach(function (o) {
+    var k = (o.id || o.name) + '|' + o.track + '|' + o.wk;
+    if (seenP[k]) { seenP[k].n++; return; }
+    seenP[k] = { o: o, n: 1 }; list.push(o); o._k = k;
+  });
+  list.forEach(function (o) { o._n = seenP[o._k].n; });
+  if (pairWk === 0) h += pairPicture(pairRows);
   h += '<p class="h"><b>' + list.length + '</b> ' +
        (list.length === 1 ? 'זוג' : 'זוגות') +
        (pairWk ? ' בשבוע ' + pairWk : ' בסך הכול') + '.</p>';
@@ -12853,11 +12871,61 @@ function admPairs() {
         : o.okd === 'לא'  ? ' · ההורה אמר שלא למדו'
                           : ' · ממתין לאישור ההורה') +
       (o.pName ? ' — ' + esc(o.pName) : '') +
-      (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span></div></div>';
+      (o.pPhone ? ' · ' + esc(o.pPhone) : '') + '</span>' +
+      (o._n > 1 ? '<span style="color:var(--ink-3)">' + esc(fill(UI.pairDup, { n: o._n })) + '</span>' : '') +
+      '</div></div>';
   }).join('') + '</div>' +
   '<button class="btn g" style="margin-top:10px" ' +
   'onclick="pairLoad()">רענון</button></div>';
   return h;
+}
+
+/* ============================================================
+   התמונה — מה אנחנו יודעים על הלימוד עם ההורים.
+   ============================================================
+   "אני משוכנע שיש הרבה יותר הורים ובנים שלמדו — למה אני רואה מעט?"
+   הרשימה כאן היא רק מי ש**דיווח** על לימוד משותף. אבא ובן שכל אחד
+   מהם סימן באפליקציה שלו — לא מופיעים בה. לכן שלוש שורות נפרדות:
+   מה דווח, מה רואים בלוח (תלמיד שהורה שלו רשום), ומה חשוד. */
+function pairPicture(rows) {
+  var uniq = {}, by = { kid: 0, par: 0 }, ok = { y: 0, n: 0, w: 0 }, kids = {};
+  rows.forEach(function (o) {
+    var k = (o.id || o.name) + '|' + o.track + '|' + o.wk;
+    if (uniq[k]) return;
+    uniq[k] = o; kids[o.id || o.name] = 1;
+    if (o.by === 'ההורה') by.par++; else by.kid++;
+    if (o.okd === 'כן') ok.y++; else if (o.okd === 'לא') ok.n++; else ok.w++;
+  });
+  var nU = Object.keys(uniq).length;
+  var ros = (Store.get('rosterCache:all', null) || []).filter(function (p) { return !p.test && p.role !== 'הורה'; });
+  var withPar = ros.filter(function (p) { return p.pars && p.pars.length; });
+  var withParLearned = withPar.filter(function (p) { return p.weeks && p.weeks.length; }).length;
+  var notRep = withPar.filter(function (p) { return p.weeks && p.weeks.length && !kids[p.id]; }).length;
+  /* מבצע לפיד: מיום כיפור עד סוף סוכות תשפ"ז (21.9–3.10.2026). */
+  var sukkot = {};
+  rows.forEach(function (o) {
+    var t = Date.parse(o.at || '');
+    if ((o.ic === 'lapid' || /לפיד/.test(o.inst)) && t >= Date.UTC(2026, 8, 20, 21) && t < Date.UTC(2026, 9, 4, 21)) {
+      sukkot[o.id || o.name] = o.name;
+    }
+  });
+  var sk = Object.keys(sukkot).map(function (k) { return sukkot[k]; });
+  var li = function (b, t) { return '<div class="pp-r"><b>' + b + '</b><span>' + esc(t) + '</span></div>'; };
+  return '<div class="pp">' +
+    '<div class="pp-h">' + esc(UI.ppRep) + '</div>' +
+    li(rows.length + ' → ' + nU, UI.ppRows) +
+    li(Object.keys(kids).length, UI.ppKids) +
+    li(ok.y + ' · ' + ok.w + ' · ' + ok.n, UI.ppOk) +
+    li(by.kid + ' · ' + by.par, UI.ppBy) +
+    '<div class="pp-h">' + esc(UI.ppBoard) + '</div>' +
+    (ros.length ? li(withPar.length, UI.ppWithPar) + li(withParLearned, UI.ppWithParL) + li(notRep, UI.ppNotRep)
+                : '<p class="h">' + esc(UI.ppNoRos) + '</p>') +
+    '<div class="pp-h">' + esc(UI.ppSus) + '</div>' +
+    li(by.par, UI.ppSusPar) +
+    '<div class="pp-h">' + esc(UI.ppSuk) + '</div>' +
+    li(sk.length, UI.ppSukN) +
+    (sk.length ? '<p class="h">' + sk.map(esc).join(' · ') + '</p>' : '') +
+    '</div>';
 }
 
 function admStuck() {
