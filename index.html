@@ -2673,7 +2673,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.151';
+var APP_VERSION = '8.99.152';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6107,7 +6107,8 @@ function pushCalls(now) {
 }
 
 /* הלשונית כפי שהיא עכשיו בגיליון — מאותו מקום שאליו pushCalls
-   כותב (בלי `ss`). null = לא נקראה, ואז כותבים כמו קודם. */
+   כותב (בלי `ss`, כלומר לגיליון אנשי הקשר שהשרת מכיר).
+   null = לא נקראה, ואז כותבים כמו קודם. */
 function callLogRead() {
   var p = { read: CALL_TAB }, key = (CFG.readKey || '').trim();
   if (key) p.key = key;
@@ -6192,6 +6193,9 @@ function pushTagDefs() {
 function pullTagDefs() {
   var ss = (CFG.contactsSheet || '').trim();
   var p = { read:'הגדרות תגיות' }; if (ss) p.ss = ss;
+  /* הלשונית עברה לגיליון הפרטי (CALL_TABS_ ב-apps-script.gs),
+     ושם קוראים רק עם הסיסמה. */
+  var key = (CFG.readKey || '').trim(); if (key) p.key = key;
   return scriptGet(p).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return false;
     var out = [];

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 54;
+var SCRIPT_VERSION = 55;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -177,7 +177,25 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* המוקד: מצב כל ישיבה ויומן נוסף — אינסטינקט כותב,
                        האפליקציה רק קוראת. שמות אנשי קשר — פרטית.
                        ראו YSH_TABS_. */
-                    'מצב ישיבות', 'הוספות יומן'];
+                    'מצב ישיבות', 'הוספות יומן',
+                    /* שאר המוקד — ראו CALL_TABS_ למטה. */
+                    'אנשי קשר', 'יומן שיחות', 'תצוגת צוות', 'הגדרות תגיות',
+                    'פעולות צוות'];
+
+/* ============================================================
+   הלשוניות של מוקד השיחות — תמיד לגיליון אנשי הקשר.
+   ============================================================
+   עד עכשיו הן הלכו לגיליון שהמכשיר נקב בו (`ss`, השדה "מזהה
+   גיליון אנשי הקשר" בניהול), ובלעדיו — לגיליון הראשי, שפתוח
+   לצפייה לכל מי שיש לו את הקישור. השדה היה ריק, ולכן הטלפונים
+   של אנשי הצוות בישיבות, היומן וההערות ישבו בגלוי. וגם נשברו:
+   עמוד הצוות קרא את "תצוגת צוות" מ-CONTACTS_ID, והאפליקציה כתבה
+   אותה לראשי.
+
+   מכאן: בלי `ss` הן הולכות ל-CONTACTS_ID (ובלעדיו PRIVATE_ID),
+   ונקראות רק עם הסיסמה. מה שכבר נכתב לראשי עובר לשם פעם אחת —
+   ראו moveOutOfPublic_. */
+var CALL_TABS_ = ['אנשי קשר', 'יומן שיחות', 'תצוגת צוות', 'הגדרות תגיות', 'פעולות צוות'];
 
 /* ============================================================
    שתי הלשוניות של התמונה הגדולה במוקד.
@@ -301,6 +319,7 @@ function doPost(e) {
     try {
       if (!PropertiesService.getScriptProperties().getProperty(MEGILA_SHIFT_KEY)) megilaShift_();
     } catch (se2) {}
+    try { moveOutOfPublic_(); } catch (se3) {}
     var d = JSON.parse(e.postData.contents);
 
     /* ---- הצורה הכללית: האפליקציה נוקבת בלשונית ובעמודות ----
@@ -677,6 +696,17 @@ function pubFetch_(fid) {
 }
 
 function doGet(e) {
+  /* פעם אחת — ראו moveOutOfPublic_. כאן ולא רק ב-doPost, כי
+     המוקד קורא ב-GET, ואחרי הפריסה הקריאה הראשונה שלו כבר
+     הולכת לגיליון הפרטי. */
+  try {
+    if (!PropertiesService.getScriptProperties().getProperty(PUB_MOVE_KEY)) {
+      var mvLock = LockService.getScriptLock();
+      if (mvLock.tryLock(15000)) {
+        try { moveOutOfPublic_(); } finally { mvLock.releaseLock(); }
+      }
+    }
+  } catch (mve) {}
   /* ---- קובץ מהדרייב ----
      הסטודיו צריך את קובץ הדף כדי לצייר אותו ולזהות בו שורות,
      והדפדפן אינו מרשה לקוד שלנו למשוך בייטים מ-drive.google.com:
@@ -1698,7 +1728,8 @@ function doGet(e) {
               keySrc:  propSrc_('READ_KEY',   READ_KEY_FALLBACK),
               teamOn:  !!TEAM_KEY,
               autoOn:  hasTrigger_(), gh: ghCheck_(),
-              backup:  prop_('LAST_BACKUP', ''), backupErr: prop_('BACKUP_ERR', '') };
+              backup:  prop_('LAST_BACKUP', ''), backupErr: prop_('BACKUP_ERR', ''),
+              pubMove: prop_('PUB_MOVE_LOG', '') };
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     out.sheet = ss.getName();
@@ -3575,9 +3606,84 @@ function clearTab_(tab, ssId) {
    לשונית שאינה פרטית — '' (הגיליון הראשי), כמו קודם. */
 function privId_(tab) {
   if (PRIVATE_TABS.indexOf(tab) < 0) return '';
+  if (CALL_TABS_.indexOf(tab) >= 0 && CONTACTS_ID) return CONTACTS_ID;
   if (!PRIVATE_ID) throw new Error('חסר PRIVATE_ID — הלשונית "' + tab +
     '" פרטית, ולא תיכתב לגיליון הציבורי. יש להגדיר את מזהה הגיליון הפרטי במאפייני הסקריפט.');
   return PRIVATE_ID;
+}
+
+/* ============================================================
+   מה שנשאר בגיליון הראשי ושייך לפרטי — עובר לשם, פעם אחת.
+   ============================================================
+   הראשי פתוח לצפייה, והמזהה שלו יושב בקוד הציבורי. נמצאו בו:
+   אנשי הקשר בישיבות עם הטלפונים, יומן השיחות, תצוגת הצוות —
+   וגם עותקים ישנים של "הרשמות", "תלמידי בית הספר" ו"עמדת לימוד"
+   מלפני שהן עברו לפרטי.
+
+   כל לשונית מ-PRIVATE_TABS שנמצאת בראשי מועתקת ליעד שלה
+   (privId_), ורק אחרי שההעתק נקרא חזרה ונמצא זהה תא בתא — היא
+   נמחקת מהראשי. לשונית מוקד שאין לה עדיין נתונים ביעד נכנסת
+   בשמה, כדי שהמוקד ימשיך לעבוד מאותו רגע. כל השאר — בשם צדדי
+   ("· מהגיליון הציבורי"), כי ביעד כבר יש לשונית חיה בשם הזה,
+   ואסור לערבב לתוכה שורות במבנה ישן.
+
+   מועתק כמו שהוא מוצג (getDisplayValues) ובתבנית טקסט: אחרת
+   גוגל הופך טלפון למספר ומוחק את האפס שבראשו, ו-TRUE לבוליאני.
+   כישלון בלשונית אחת — היא נשארת במקומה, והניסיון חוזר בקריאה
+   הבאה. הדגל נקבע רק כשהכל עבר. */
+var PUB_MOVE_KEY = 'publicMovedV1';
+function moveOutOfPublic_() {
+  var P = PropertiesService.getScriptProperties();
+  if (P.getProperty(PUB_MOVE_KEY)) return;
+  /* חסר יעד, למשל — לא לנסות בכל בקשה לנצח. "בדיקת חיבור" מראה
+     את PUB_MOVE_LOG. */
+  var tries = +(P.getProperty('PUB_MOVE_TRY') || 0);
+  if (tries >= 5) return;
+  var pub = SpreadsheetApp.getActiveSpreadsheet();
+  if (!pub) return;
+  var log = [], bad = 0;
+  PRIVATE_TABS.forEach(function (tab) {
+    var src = pub.getSheetByName(tab);
+    if (!src) return;
+    try {
+      var id = privId_(tab);
+      if (!id || String(id) === pub.getId()) { bad++; log.push(tab + ': אין יעד'); return; }
+      var dst = SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id)));
+      var vals = src.getLastRow() ? src.getDataRange().getDisplayValues() : [];
+      if (vals.length) {
+        var live = dst.getSheetByName(tab);
+        var name = tab;
+        if (CALL_TABS_.indexOf(tab) < 0 || (live && live.getLastRow() > 1)) {
+          name = tab + ' · מהגיליון הציבורי';
+          for (var k = 2; dst.getSheetByName(name); k++) name = tab + ' · מהגיליון הציבורי ' + k;
+        }
+        var sh = dst.getSheetByName(name) || dst.insertSheet(name);
+        if (sh.getLastRow()) sh.clear();
+        var rg = sh.getRange(1, 1, vals.length, vals[0].length);
+        rg.setNumberFormat('@');
+        rg.setValues(vals);
+        SpreadsheetApp.flush();
+        var back = rg.getDisplayValues();
+        for (var r = 0; r < vals.length; r++) {
+          for (var c = 0; c < vals[r].length; c++) {
+            if (String(back[r][c]) !== String(vals[r][c])) {
+              throw new Error('ההעתק אינו זהה בשורה ' + (r + 1));
+            }
+          }
+        }
+        log.push(tab + ' → ' + name + ' (' + vals.length + ')');
+      } else {
+        log.push(tab + ': ריקה');
+      }
+      pub.deleteSheet(src);
+    } catch (err) {
+      bad++;
+      log.push(tab + ': ' + (err && err.message || err));
+    }
+  });
+  P.setProperty('PUB_MOVE_LOG', new Date().toISOString() + ' · ' + log.join(' · '));
+  if (!bad) P.setProperty(PUB_MOVE_KEY, new Date().toISOString());
+  else P.setProperty('PUB_MOVE_TRY', String(tries + 1));
 }
 
 /* מחיקת שורות לפי ערך בעמודה — שורה אחת או כמה, בלי לגעת בשאר.
