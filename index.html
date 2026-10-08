@@ -2614,7 +2614,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.146';
+var APP_VERSION = '8.99.147';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7203,6 +7203,11 @@ function renderCalls() {
   var h = '<div class="my-top" style="margin:0"><b>מוקד שיחות</b><span>' + counts.joined +
           ' מתוך ' + list.length + ' ישיבות הצטרפו · ' +
           (list.length - counts.new) + ' שיחות בוצעו</span></div>' +
+          /* "משהו בולט שיאללה אני שולח לראש ישיבה בלי מאמץ" — עמוד אחד
+             עם שלושת הקישורים (kishurim.html). וואטסאפ נפתח על בורר אנשי הקשר. */
+          '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' +
+          'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa,
+            { url: joinUrl('').replace('join.html', 'kishurim.html') })) + '">📨 ' + esc(UI.kishBtn) + '</a>' +
           '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
           esc(callSync.state || 'נשמר על המכשיר') +
           (list.filter(function (c) {
@@ -10783,7 +10788,9 @@ function admHotList() {
   return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue() };
 }
 function admHotStrip() {
-  if (admTab === 'hot') return '';
+  /* רק במסך הפתיחה ("התלמידים ← הלוח"). בכל מסך אחר הוא דחף את
+     התוכן למטה. ההתראה עצמה עדיין נוחתת ישר על "דחוף". */
+  if (admTab !== 'stu') return '';
   var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length;
   if (!n) return '';
   var bits = [];
@@ -15280,19 +15287,28 @@ function amdaExitAsk() {
   if (!box || document.getElementById('am-ex')) return;
   var les = amdaLesson(s.slot), d = document.createElement('div');
   d.className = 'am-ex'; d.id = 'am-ex';
+  /* מתג אחד ולא שני כפתורים — כמו "להזמין גמרות?" בטופס ההרשמה. */
+  var was = s.kind === 'o' ? 'o' : 'd', now = was;
   d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('exitQ')) + '</b>' +
-    '<button class="' + (s.kind !== 'o' ? 'on' : '') + '" data-ek="d">' + esc(amdaT('exitD')) + '</button>' +
-    '<button class="' + (s.kind === 'o' ? 'on' : '') + '" data-ek="o">' +
-      esc(amdaT(les ? 'exitL' : 'exitO')) + '</button>' +
+    '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
+      esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (now === 'd' ? ' on' : '') +
+      '" data-ek="t" aria-label="' + esc(amdaT('exitD')) + '"></button></div>' +
+    '<button class="on" data-ek="x">' + esc(amdaT('exitGo')) + '</button>' +
     '<button class="bk" data-ek="-">' + esc(amdaT('exitStay')) + '</button></div>';
   box.appendChild(d);
   d.onclick = function (e) {
     var b = e.target.closest && e.target.closest('[data-ek]');
     if (!b) return;
     var k = b.getAttribute('data-ek');
+    if (k === 't') {
+      now = now === 'd' ? 'o' : 'd';
+      var sw = d.querySelector('.sw');
+      if (sw) sw.className = 'sw' + (now === 'd' ? ' on' : '');
+      return;
+    }
     d.parentNode.removeChild(d);
     if (k === '-') return;
-    if (k !== (s.kind === 'o' ? 'o' : 'd')) amdaKindSet(k);
+    if (now !== was) amdaKindSet(now);
     amdaClose(true);
   };
 }
@@ -15355,7 +15371,11 @@ function amdaPaint() {
             esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
           '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
-          '<div class="am-sub">' + esc(amdaSlotName(s.slot)) +
+          /* מה לומדים עכשיו — גלוי למעלה: הדף (ואיזה) או נושא אחר, ובאיזה מועד. */
+          '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
+          (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
+            { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
+          ' · ' + esc(amdaSlotName(s.slot)) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') + '</div>';
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {

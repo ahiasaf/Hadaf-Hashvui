@@ -62,6 +62,8 @@ var TX = (function () {
               trip:window.TRIP,
               /* ההודעות שהמורה שולח בוואטסאפ — ראו shlach.html. */
               send:window.SEND,
+              /* הקישורים לישיבה — ראו kishurim.html. */
+              kish:window.KISHURIM,
               /* הלימוד המשותף וההגרלה — ראו pair.js. */
               pair:window.PAIR,
               /* עמדת הלימוד — ראו amda* ב-index.html. */
