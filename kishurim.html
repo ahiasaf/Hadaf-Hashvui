@@ -26,7 +26,7 @@
 <meta property="og:locale" content="he_IL">
 <meta property="og:type" content="website">
 <meta property="og:title" content="הקישורים לישיבה · הדף השבועי של בני עקיבא">
-<meta property="og:description" content="שלושה קישורים — לראש החטיבה ולרכז, לר״מים, ולתלמידים ולהורים. לכל אחד הודעה מוכנה בוואטסאפ.">
+<meta property="og:description" content="ארבעה קישורים — לראש החטיבה ולרכז, לר״מים, לתלמידים ולהורים. לכל אחד הודעה מוכנה בוואטסאפ.">
 <meta property="og:url" content="https://hadaf-hashvui.vercel.app/kishurim">
 <meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
 <meta property="og:image:type" content="image/jpeg">
@@ -53,7 +53,8 @@ html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
    * ראש החטיבה ורכז התוכנית — המסע (`?masa=1`). שם בוחרים ישיבה
      ותפקיד, מתקינים, והלוח נפתח אחרי אישור הרכז.
    * הר"מים — עמוד הצוות ("רב ומחנך אהוב").
-   * התלמידים וההורים — קישור ההצטרפות הכללי. כל אחד בוחר ישיבה.
+   * התלמידים — קישור ההצטרפות; ההורים — `?for=dad`. ההודעות שלהם הן
+     הנוסחים שבניהול ← קישורים להפצה (ui.linkWa, ui.dadWa).
 
    **כללי, בלי ישיבה.** בחירת הישיבה קורית בתוך כל אחד מהקישורים,
    ולכן אותו עמוד נשלח לכל ראשי הישיבות כמו שהוא.
@@ -162,16 +163,20 @@ function base() {
 var WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>';
 function draw() {
   var K = window.KISHURIM || {}, b = base();
+  var U = window.UI || {};
+  /* [מפתח, כתובת, ההודעה]. לתלמידים ולהורים — הנוסחים שבניהול ←
+     קישורים להפצה, כמו שהם. */
   var links = [
-    ['head', b + '?masa=1'],
-    ['rm',   b + 'tzevet.html'],
-    ['kids', b + 'join.html']
+    ['head', b + '?masa=1', K.headWa],
+    ['rm',   b + 'tzevet.html', K.rmWa],
+    ['kids', b + 'join.html', fill(U.linkWa, { inst: K.kidsInst || '', url: '{קישור}' })],
+    ['par',  b + 'join.html?for=dad', fill(U.dadWa, { url: '{קישור}' })]
   ];
   $('t-h1').textContent = K.h1 || '';
   $('t-lead').textContent = K.lead || '';
   document.title = (K.h1 || '') + ' · הדף השבועי של בני עקיבא';
   $('cards').innerHTML = links.map(function (l) {
-    var k = l[0], url = l[1], msg = fill(K[k + 'Wa'], { 'קישור': url });
+    var k = l[0], url = l[1], msg = fill(l[2], { 'קישור': url });
     return '<section class="card"><h2>' + esc(K[k + 'H']) + '</h2>' +
       '<p class="sub">' + esc(K[k + 'Sub']) + '</p>' +
       '<a class="go" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">' +

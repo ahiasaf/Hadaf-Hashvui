@@ -2022,10 +2022,11 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-ex-in{width:100%;max-width:420px;background:var(--paper);border-radius:18px;padding:20px 16px;
           box-shadow:var(--sh-2, 0 10px 30px rgba(0,0,0,.25))}
 .am-ex-in b{display:block;font-size:1.15rem;font-weight:800;color:var(--blue-d);margin-bottom:12px}
-.am-ex-in button{display:block;width:100%;margin:0 0 9px;font:inherit;font-size:1rem;font-weight:800;
+.am-ex-in>button{display:block;width:100%;margin:0 0 9px;font:inherit;font-size:1rem;font-weight:800;
           border-radius:12px;padding:13px 10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink-2)}
-.am-ex-in button.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.am-ex-in button.bk{border:0;background:none;color:var(--ink-3);font-size:.9rem}
+.am-ex-in>button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-ex-in .wantbar{margin:0 0 12px;text-align:right}
+.am-ex-in>button.bk{border:0;background:none;color:var(--ink-3);font-size:.9rem}
 .am-tick{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);
          font-size:4.4rem;font-weight:800;line-height:120px}
 .am-ok b{font-size:1.5rem;font-weight:800}
@@ -2614,7 +2615,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.147';
+var APP_VERSION = '8.99.148';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7208,6 +7209,7 @@ function renderCalls() {
           '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' +
           'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa,
             { url: joinUrl('').replace('join.html', 'kishurim.html') })) + '">📨 ' + esc(UI.kishBtn) + '</a>' +
+          '<button class="back" style="margin:6px 0 0" onclick="admSubGo(\'links\')">✎ ' + esc(UI.kishTexts) + '</button>' +
           '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
           esc(callSync.state || 'נשמר על המכשיר') +
           (list.filter(function (c) {
@@ -9727,18 +9729,17 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = { daf: [['daf', 'moreDaf'], ['open', 'moreOpen']] };
+var SUB = { daf: [['daf', 'moreDaf']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
-  { g:'admTabAmda', items:[['amda','admTabAmda'], ['amdawa','moreAmdaWa']] },
-  { g:'moreGRaf', items:[['lottery','moreLottery']] },
-  { g:'moreGOrd', items:[['orders','moreOrders'], ['price','morePrice']] },
-  { g:'moreGSet', items:[['links','moreLinks'], ['guide','moreGuide']] },
-  /* מה שכמעט לא נוגעים בו — במגירה סגורה, ולא נמחק: בלי המלל
-     והמערכת אין עריכת נוסח, סיסמאות וגיבוי. */
-  { g:'moreGAdv', adv:1, items:[['screens','moreScreens'], ['text','moreText'],
-                                ['data','moreData'], ['sys','moreSys']] }
+  /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['lottery','moreLottery']] },
+  /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
+     עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
+  { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
+                                ['price','morePrice'], ['guide','moreGuide'], ['text','moreText'],
+                                ['screens','moreScreens'], ['data','moreData'], ['sys','moreSys']] }
 ];
 /* העלה → הלשונית שלו. "נוסחים" נבלע במסלול השליחה. */
 function admHome(leaf) {
@@ -9746,7 +9747,7 @@ function admHome(leaf) {
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
   if (leaf === 'setup') return 'setup';
   if (leaf === 'calls' || leaf === 'inst') return 'inst';
-  if (leaf === 'daf' || leaf === 'open') return 'daf';
+  if (leaf === 'daf') return 'daf';
   if (leaf === 'hot') return 'hot';
   for (var i = 0; i < MORE.length; i++) {
     for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
@@ -14239,41 +14240,28 @@ function admDecks(el) {
     '" placeholder="למשל: מאימתי מזכירין גבורות גשמים" ' +
     'onchange="dkSetTitle(this.value)"></div></div>';
 
-  /* ---- הסוגיה היומית — העמוד של הדף הזה ----
-     היה מסך נפרד ובו רשימה של שלושים שורות. הוא נבלע לכאן, כי
-     "איזה עמוד בחוברת" הוא נתון של הדף ולא נושא בפני עצמו. */
-  var sg = SUGYA[dkSel.mas] || {};
-  var dfk = sugKey(row);
-  var pg = ((CV('sugya') || {})[dkSel.mas] || sg).pages || sg.pages || {};
-  var pv = pg[dfk], two = pv && pv.length === 2;
-  var pn = two ? pv[1] : (pv || '');
-  var purl = (two && (sg.books || {})[pv[0]]) ? sg.books[pv[0]] + pn + '/' : '';
-  h += '<div class="adm-card" style="margin-bottom:11px">' +
-    '<h4>הסוגיה היומית — העמוד בחוברת</h4>' +
-    '<p class="h">באיזה עמוד בחוברת החיצונית מתחיל דף ' + esc(rowDaf(row)) + '. ' +
-    'ריק = הקישור לחוברת לא יוצג לשבוע הזה.' +
-    (purl ? ' <a href="' + purl + '" target="_blank" rel="noopener">בדיקה ↗</a>' : '') +
-    '</p>' +
-    '<div class="fld"><label class="label" for="dk-sug">עמוד</label>' +
-    '<input type="tel" id="dk-sug" style="width:110px;text-align:center" value="' +
-    esc(pn) + '" onchange="admSugyaPage(\'' + dfk + '\',this.value);admPane()"></div>' +
-    '</div>';
-
+  /* (הסוגיה היומית — העמוד בחוברת: ירד מהמסך ב-8.10.2026, "לא אשנה
+     את זה, הנתונים טובים". הנתונים נשארו ב-SUGYA ובהגדרות.) */
   /* ---- סוף העבודה: פתיחת הדף לתלמידים ----
      "ברגע שאני מסיים לעבוד במצגת ובדף האינטראקטיבי — אני פותח את
      הדף." אותה פתיחה של "פתיחת דפים" (opToggle), כאן, לשבוע שבעורך. */
   if (!opAsked) { opAsked = true; OpenLoad().then(function () { admPane(); }); }
   var ti = TRACKS.indexOf(tr), wi = dkSel.wk - 1, am = OpenAm(row), isOpen = row[2] && OpenIs(tr.id, row[2], am);
   h += '<div class="adm-card dk-open" style="margin-bottom:11px"><h4>' + esc(UI.dkOpenH) + '</h4>';
-  if (isOpen) {
-    h += '<p class="h"><b style="color:var(--ok)">✓ ' + esc(fill(UI.dkIsOpen, { daf: row[2] + LAmMark(am) })) + '</b></p>' +
-      '<button class="btn g" ' + (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">' + esc(UI.dkClose) + '</button>';
-  } else if (row[2]) {
-    h += '<p class="h">' + esc(UI.dkNotifyQ) + '</p><div class="am-sl">' +
-      '<button class="' + (opAud === 'wait' ? 'on' : '') + '" onclick="opAud=\'wait\';admPane()">' + esc(UI.dkNotifyW) + '</button>' +
-      '<button class="' + (opAud === 'all' ? 'on' : '') + '" onclick="opAud=\'all\';admPane()">' + esc(UI.dkNotifyA) + '</button></div>' +
-      '<button class="btn gd" ' + (opBusy ? 'disabled ' : '') + 'onclick="opToggle(' + ti + ',' + wi + ')">🔓 ' +
-      esc(fill(UI.dkOpenGo, { daf: row[2] + LAmMark(am) })) + '</button>';
+  /* מתג ולא כפתור: "כל דבר שהוא כן/לא — כפתור הזזה, ואני רואה אם
+     זה דלוק או כבוי." */
+  if (row[2]) {
+    h += '<div class="wantbar"' + (opBusy ? '' : ' onclick="opToggle(' + ti + ',' + wi + ')"') + '><div><b>' +
+      esc(fill(UI.dkOpenGo, { daf: row[2] + LAmMark(am) })) + '</b><span>' +
+      esc(isOpen ? fill(UI.dkIsOpen, { daf: row[2] + LAmMark(am) }) : UI.dkLocked) + '</span></div>' +
+      '<button class="sw' + (isOpen ? ' on' : '') + '" aria-pressed="' + !!isOpen + '" aria-label="' +
+      esc(UI.dkOpenH) + '"' + (opBusy ? ' disabled' : '') + '></button></div>';
+    if (!isOpen) {
+      h += '<div class="wantbar" style="margin-top:8px" onclick="opAud=opAud===\'all\'?\'wait\':\'all\';admPane()"><div><b>' +
+        esc(UI.dkNotifyA) + '</b><span>' + esc(UI.dkNotifyW2) + '</span></div>' +
+        '<button class="sw' + (opAud === 'all' ? ' on' : '') + '" aria-pressed="' + (opAud === 'all') + '" aria-label="' +
+        esc(UI.dkNotifyA) + '"></button></div>';
+    }
   }
   if (opMsg) h += '<p class="h" style="margin-top:9px;color:var(--' +
     (opCls === 'ok' ? 'ok' : opCls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(opMsg) + '</p>';
@@ -16269,6 +16257,11 @@ function amdaWaGo(a) {
   if (!s || !s.p) return false;
   var msg = String(Store.get('amdaWaMsg', '') || '').split('{שם}').join(s.f || '');
   a.href = 'https://wa.me/972' + s.p.slice(1) + (msg.trim() ? '?text=' + encodeURIComponent(msg) : '');
+  /* אחרי שליחה — החיפוש מתרוקן, מוכן לשם הבא. */
+  setTimeout(function () {
+    var q = document.getElementById('aw-q');
+    if (q && amdaWa.q) { q.value = ''; amdaWaFind(''); try { q.focus(); } catch (e) {} }
+  }, 400);
   return true;
 }
 function amdaWaFind(v) {
@@ -16296,35 +16289,38 @@ function amdaWaMsgSet(v) { Store.set('amdaWaMsg', v); }
 
 function admAmdaWa(body) {
   var p = amdaPh(), key = (CFG.readKey || '').trim(), ix = amdaWaIdx(), i;
-  var h = '<div class="adm-card" id="aw-adm"><h4>' + esc(amdaT('waH')) + '</h4>' +
+  /* החיפוש ראשון — "כל פעם שאתה נכנס אתה רוצה ישר לשלוח וואטסאפ
+     לתלמיד". טעינת הקובץ — בתחתית, כי עושים אותה פעם בכמה זמן. */
+  var up = '<div class="adm-card" id="aw-adm" style="margin-top:11px"><h4>' + esc(amdaT('waH')) + '</h4>' +
     '<p class="h">' + esc(amdaT('waLead')) + '</p>' +
     '<p class="h"><b>' + esc(p && p.rows.length ? amdaT('waHave', { p: ix.have, n: ix.n }) : amdaT('waNone')) + '</b>' +
     (amdaWa.msg ? '<br>' + esc(amdaWa.msg) : '') + '</p>' +
     (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>');
   if (p && p.rows.length) {
-    if (ix.none) h += '<p class="h">' + esc(amdaT('waNoNum', { n: ix.none })) + '</p>';
+    if (ix.none) up += '<p class="h">' + esc(amdaT('waNoNum', { n: ix.none })) + '</p>';
     if (ix.odd.length) {
-      h += '<details class="am-cl"><summary>' + esc(amdaT('waOdd', { n: ix.odd.length })) + '</summary>' +
+      up += '<details class="am-cl"><summary>' + esc(amdaT('waOdd', { n: ix.odd.length })) + '</summary>' +
         ix.odd.map(function (s) {
           return '<div class="am-cr"><span>' + esc(s.n) + '</span><i>' + esc(amdaG(s.g)) + '</i></div>';
         }).join('') + '</details>';
     }
   }
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+  up += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
     '<button class="btn g" onclick="amdaWaFile()">' + esc(amdaT(p && p.rows.length ? 'waRe' : 'waLoad')) + '</button>' +
     (key ? '<button class="btn g" onclick="amdaWaPull()">' + esc(amdaT('waPull')) + '</button>' : '') +
     '</div><p class="h" style="margin-top:8px">' + esc(amdaT('waHint')) + '</p>' +
     '<input type="file" id="aw-file" style="display:none" onchange="amdaWaPicked(this)"' +
     ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';
 
+  var h = '';
   if (ix.all.length) {
-    h += '<div class="adm-card"><div class="am-q" style="margin-top:0">' + esc(amdaT('waMsg')) + '</div>' +
-      '<textarea class="aw-ta" rows="3" aria-label="' + esc(amdaT('waMsg')) + '" oninput="amdaWaMsgSet(this.value)">' +
-      esc(Store.get('amdaWaMsg', '') || '') + '</textarea>' +
-      '<div class="am-q">' + esc(amdaT('waFind')) + '</div>' +
-      '<input type="search" class="aw-q" aria-label="' + esc(amdaT('waFind')) + '" value="' + esc(amdaWa.q) +
+    h += '<div class="adm-card"><div class="am-q" style="margin-top:0">' + esc(amdaT('waFind')) + '</div>' +
+      '<input type="search" class="aw-q" id="aw-q" aria-label="' + esc(amdaT('waFind')) + '" value="' + esc(amdaWa.q) +
       '" oninput="amdaWaFind(this.value)">' +
       '<div id="aw-res">' + amdaWaResHtml() + '</div>' +
+      '<div class="am-q">' + esc(amdaT('waMsg')) + '</div>' +
+      '<textarea class="aw-ta" rows="3" aria-label="' + esc(amdaT('waMsg')) + '" oninput="amdaWaMsgSet(this.value)">' +
+      esc(Store.get('amdaWaMsg', '') || '') + '</textarea>' +
       '<div class="am-q">' + esc(amdaT('waPickG')) + '</div><div class="am-grid">';
     AMDA_GRADES.forEach(function (g) {
       h += '<button class="am-b' + (amdaWa.g === g ? ' on' : '') + '" onclick="amdaWaPick(\'g\',\'' + g + '\')">' +
@@ -16356,7 +16352,8 @@ function admAmdaWa(body) {
     }
     h += '</div>';
   }
-  body.innerHTML = h;
+  body.innerHTML = h + up;
+  if (!amdaWa.q) { var qi = document.getElementById('aw-q'); if (qi) try { qi.focus(); } catch (e) {} }
   /* במכשיר בלי טלפונים — טעינה מהגיליון בכניסה, לכל היותר פעם בדקה. */
   if (key && !(p && p.rows.length) && Date.now() - amdaWa.admAt > 60000) {
     amdaWa.admAt = Date.now();
