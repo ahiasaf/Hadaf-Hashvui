@@ -2160,6 +2160,17 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .adm-tabs.tabs button{padding:11px 2px 9px;border-radius:13px;border:1px solid var(--rule);
   background:var(--surface);color:var(--ink-2);font-size:.72rem;gap:5px}
 .adm-tabs.tabs button i{font-size:1.35rem}
+.adm-tabs.tabs.t4{grid-template-columns:repeat(4,1fr)}
+.adm-nav{flex-wrap:wrap}
+.adm-q{display:flex;gap:6px;flex-wrap:wrap}
+.adm-q .back{font-size:.8rem;padding:7px 10px}
+.hot-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 12px;
+  font:inherit;font-size:.95rem;font-weight:800;text-align:right;color:#fff;background:#B3261E;border:0;
+  border-radius:13px;padding:12px 14px;box-shadow:var(--sh-2);cursor:pointer}
+.hot-strip span{font-size:.82rem;opacity:.92}
+.adm-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:inherit;font-size:.85rem;font-weight:800;
+  color:var(--gold-t);background:none;border:1px solid var(--gold);border-radius:20px;padding:4px 11px;cursor:pointer}
+.hot-sec{scroll-margin-top:10px}
 .adm-tabs.tabs button.on{background:linear-gradient(140deg,var(--blue-l),var(--blue));
   border-color:transparent;color:#fff;box-shadow:var(--sh-2)}
 #stu-det{scroll-margin-top:10px}
@@ -2572,7 +2583,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.143';
+var APP_VERSION = '8.99.144';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8393,7 +8404,10 @@ var admTab = 'stu';
    (פרטי אדם, מחיקה, הודעה אישית, שליחה לנבחרים, הורים לא מקושרים)
    נדלקים בו רק במצב הזה. מה שהצוות רואה לא השתנה.
    ============================================================ */
-var ADM_INST = Store.get('admInst', '') || '';
+/* **מתחיל תמיד בכולם.** ישיבה שנשארה בחורה מפעם קודמת הסתירה
+   בשקט חצי מהמסך ("דברים נעלמים"). בוחרים ישיבה מתוך "ישיבות וצוות",
+   ושבב בראש המסך אומר שהיא בחורה, עם ✕. */
+var ADM_INST = '';
 var admIpOpen = false, admIpQ = '', admBusyAt = 0;
 function admInstName(c) { return c ? pplName(c, null) : UI.admAll; }
 function admIpList() {
@@ -9025,6 +9039,8 @@ document.addEventListener('click', function (e) {
 /* כל עדכון של נתונים — רק מה שעל המסך ומה שהשתנה. */
 function admLive() {
   admRefreshBtn();
+  pplSet('adm-hot', admHotStrip());
+  if (admTab === 'hot') pplSet('hot-body', admHotHtml());
   if (admTab === 'stu') {
     pplSet('stu-brd', boardHtml(ADM_INST, admInstName(ADM_INST), false, 'admDet()'));
     pplSet('stu-head', admStuHead());
@@ -9034,7 +9050,8 @@ function admLive() {
   if (admTab === 'setup') {
     pplSet('st-tiles', admSetupTiles());
     pplSet('st-help', admSetupHelp());
-    pplSet('st-alert', admNeeds(1));
+    /* מה שדחוף — בפס האדום ובמסך "דחוף", ולא כאן פעם שנייה. */
+    pplSet('st-alert', '');
     pplSet('ppl-fun', pplFun());
     pplSet('st-why', admWhy());
     trShow();
@@ -9065,8 +9082,16 @@ function renderAdmin() {
      ל"הגדרות" ומצא שם כתובות שרת. עכשיו "מערכת" הוא מה שנוגעים
      בו פעם בשנה, ו"מה מוצג" הוא מה שבאמת משנים. */
   /* (היסטוריה: "מה קורה / מה מוצג / קישורים / מערכת". ראו SUB.) */
-  var TABS = [['stu', UI.admTStu, '👥'], ['setup', UI.admTSetup, '📲'], ['push', UI.admTPush, '🔔'],
-              ['inst', UI.admTabInst, '🏫'], ['more', UI.admTabMore, '⋯']];
+  /* ============================================================
+     ארבעה אזורים (8.10.2026): התלמידים · הדף · הישיבות · כלים.
+     ============================================================
+     "התקנה" ו"התראות" הן עכשיו לשוניות-משנה של "התלמידים" — אותם
+     מסכים, אותם שמות פנימיים (admTab 'setup'/'push'), ולכן כל מה
+     שבודק `admTab === 'setup'` ממשיך לעבוד. "דחוף" (admTab 'hot')
+     אינו לשונית: הפס האדום מוביל אליו, ורק כשיש בו משהו. */
+  var TABS = [['stu', UI.admTStu, '👥'], ['daf', UI.admTDaf, '📖'],
+              ['inst', UI.admTabInst, '🏫'], ['more', UI.admTTools, '🧰']];
+  var grp = admTab === 'setup' || admTab === 'push' ? 'stu' : admTab;
   /* ============================================================
      **אותו מסך כמו אזור הניהול האישי של ישיבה.**
      ============================================================
@@ -9074,28 +9099,37 @@ function renderAdmin() {
      הכותרת היא `.my-top` — שם האזור, ומתחתיו בזהב מה שהוא מכסה.
      אצל ישיבה זו הישיבה; כאן זה הבורר עצמו: "כולם" או ישיבה אחת.
      ============================================================ */
+  /* שלושת הדברים שנכנסים אליהם הכי הרבה — בלחיצה אחת מכל מסך. */
   var h = '<div class="adm-nav"><button class="back" onclick="admExit()">→ ' + esc(UI.admToApp) + '</button>' +
-          '<a class="back" href="studio.html">' + esc(UI.admStudio) + ' ↗</a>' +
-          /* המצגות — בלחיצה אחת מכל מסך בניהול, בלי לגלול ל"עוד". */
+          '<div class="adm-q">' +
+          '<button class="back" onclick="amdaQuick()">🧭 ' + esc(amdaT('quick')) + '</button>' +
           '<button class="back" onclick="admSubGo(\'daf\')">🖼 ' + esc(UI.admDecks) + '</button>' +
-          /* עמדת הלימוד — בלחיצה אחת: המועד של עכשיו, והדף לפי השעה. */
-          '<button class="back" onclick="amdaQuick()">🧭 ' + esc(amdaT('quick')) + '</button></div>' +
-          /* המוסד ורענון אחד — מעל הכול, וחלים על כל הלשוניות. */
+          '<button class="back" onclick="admGo(\'inst\')">🏫 ' + esc(UI.navCalls) + '</button></div></div>' +
+          /* רענון אחד, מעל הכול. ישיבה שנבחרה — שבב עם ✕. */
           '<div class="my-top adm-hd"><div class="adm-hd-r"><b>' + esc(UI.admTitle) + '</b>' +
           '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
-          '<div id="ip-w">' + admIpHtml() + '</div></div>' +
-          '<div class="tabs adm-tabs">' +
+          (ADM_INST ? '<button class="adm-chip" onclick="admInstPick(\'\');renderAdmin()" aria-label="' +
+            esc(UI.instChipX) + '">🏫 ' + esc(admInstName(ADM_INST)) + ' <span aria-hidden="true">✕</span></button>' : '') +
+          '</div>' +
+          '<div id="adm-hot"></div>' +
+          '<div class="tabs adm-tabs t4">' +
           TABS.map(function (t) {
-            return '<button class="' + (admTab === t[0] ? 'on' : '') +
+            return '<button class="' + (grp === t[0] ? 'on' : '') +
                    '" onclick="admGo(\'' + t[0] + '\')"><i aria-hidden="true">' + t[2] + '</i>' + esc(t[1]) + '</button>';
           }).join('') + '</div>' +
+          /* "התלמידים": הלוח · שליחה והודעות · התקנה. */
+          (grp === 'stu' ? '<div class="tabs sub" style="margin-top:10px">' +
+            [['stu', UI.stuSubBoard], ['push', UI.stuSubSend], ['setup', UI.stuSubSetup]].map(function (t) {
+              return '<button class="' + (admTab === t[0] ? 'on' : '') + '" onclick="admGo(\'' + t[0] + '\')">' +
+                     esc(t[1]) + '</button>';
+            }).join('') + '</div>' : '') +
           /* פס הפרסום. יושב מעל כל הלשוניות ולא בתוך אחת מהן, כי
              מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
           '<div id="adm-pub" style="margin-top:12px"></div>' +
           '<div id="adm-pane" style="margin-top:14px"></div>' +
           '<p class="adm-ver">' + esc(UI.admVer) + ' ' + APP_VERSION + '</p>';
   document.getElementById('admin-body').innerHTML = h;
-  admIpWire();
+  delete pplLast['adm-hot']; pplSet('adm-hot', admHotStrip());
   admPubBar();
   admPane();
   /* רענון לבד בכניסה — פעם אחת לכל פתיחה של המסך. */
@@ -9535,17 +9569,18 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = {};
+var SUB = { daf: [['daf', 'moreDaf'], ['open', 'moreOpen']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
-  { g:'moreGOrd', items:[['orders','moreOrders'], ['price','morePrice']] },
-  { g:'moreGRaf', items:[['lottery','moreLottery']] },
-  { g:'moreGSet', items:[['links','moreLinks'], ['screens','moreScreens'],
-                         ['guide','moreGuide'], ['text','moreText']] },
-  { g:'moreGDaf', items:[['daf','moreDaf'], ['open','moreOpen']] },
   { g:'admTabAmda', items:[['amda','admTabAmda'], ['amdawa','moreAmdaWa']] },
-  { g:'moreGAdv', adv:1, items:[['data','moreData'], ['sys','moreSys']] }
+  { g:'moreGRaf', items:[['lottery','moreLottery']] },
+  { g:'moreGOrd', items:[['orders','moreOrders'], ['price','morePrice']] },
+  { g:'moreGSet', items:[['links','moreLinks'], ['guide','moreGuide']] },
+  /* מה שכמעט לא נוגעים בו — במגירה סגורה, ולא נמחק: בלי המלל
+     והמערכת אין עריכת נוסח, סיסמאות וגיבוי. */
+  { g:'moreGAdv', adv:1, items:[['screens','moreScreens'], ['text','moreText'],
+                                ['data','moreData'], ['sys','moreSys']] }
 ];
 /* העלה → הלשונית שלו. "נוסחים" נבלע במסלול השליחה. */
 function admHome(leaf) {
@@ -9553,6 +9588,8 @@ function admHome(leaf) {
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
   if (leaf === 'setup') return 'setup';
   if (leaf === 'calls' || leaf === 'inst') return 'inst';
+  if (leaf === 'daf' || leaf === 'open') return 'daf';
+  if (leaf === 'hot') return 'hot';
   for (var i = 0; i < MORE.length; i++) {
     for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
   }
@@ -9564,7 +9601,7 @@ var admSub = { more:'' };
 function admSubGo(t) {
   if (t === 'tmpl') t = 'push';
   var home = admHome(t);
-  if (home && home !== admTab) { admTab = home; if (home === 'more') admSub[home] = t; return renderAdmin(); }
+  if (home && home !== admTab) { admTab = home; if (home === 'more' || home === 'daf') admSub[home] = t; return renderAdmin(); }
   admSub[admTab] = t;
   if (admTab === 'more') return renderAdmin();       /* פס הפרסום תלוי במסך */
   admPane();
@@ -9614,6 +9651,7 @@ function admPane() {
      היה יוצר אותו מאפס — הבהוב, טעינה, וחיפוש וישיבה פתוחה
      שנעלמים באמצע עדכון. */
   if (admTab === 'stu' && document.getElementById('stu')) return admLive();
+  if (admTab === 'hot' && document.getElementById('hot-body')) return admLive();
   if (admTab === 'setup' && document.getElementById('st-why')) return admLive();
   /* "ישיבות וצוות" — כל טעינה ברקע (אימות, הודעות, שיחות…) ציירה את
      המסך כולו מחדש, וכפתור "אישור" התחלף מתחת לאצבע. עכשיו רק מה
@@ -9643,6 +9681,15 @@ function admPane() {
   }
 
   if (admTab === 'more' && !sub) { body.innerHTML = admMoreMenu(); return; }
+  if (admTab === 'hot') { body.innerHTML = '<div id="hot-body"></div>'; pplLast['hot-body'] = ''; admLive(); return; }
+  /* "הדף": הדף והמצגת · פתיחת דפים, והסטודיו בקישור. */
+  if (admTab === 'daf') {
+    body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+      '<div style="flex:1;min-width:0">' + admSubBar().replace('margin-bottom:12px', 'margin:0') + '</div>' +
+      '<a class="back" style="text-decoration:none;margin:0;flex:none" href="studio.html">' + esc(UI.admStudio) + ' ↗</a></div>' +
+      '<div id="daf-body"></div>';
+    body = document.getElementById('daf-body');
+  }
 
   if (sub === 'people')  return admStudents(body);
   if (sub === 'setup')   return admSetup(body);
@@ -10567,8 +10614,54 @@ function accGo() {
   ppl.open = ''; ppl.q = ''; ppl.f = ''; ppl.mine = '';
   /* ישיבה שנשארה בחורה הסתירה את הממתינים מכל השאר. */
   ADM_INST = ''; Store.set('admInst', ''); admIpOpen = false; pplFrame({ dfFilt: '' });
-  admGo('inst');
-  admScrollTo('ppl-acc');
+  admGo('hot');
+  admScrollTo('hot-acc');
+}
+/* ============================================================
+   "דחוף" — הפס האדום, והמסך שהוא פותח.
+   ============================================================
+   "עמדת התראה בולטת באדום אם יש משהו דחוף, וכשלוחצים — נכנסים
+   בנפרד לדברים הדחופים. הנפרדות הזאת עושה לי סדר." אין משהו —
+   אין פס. כל הישיבות, תמיד: דחוף אינו מסונן לפי ישיבה. */
+function admHotList() {
+  var all = (stuckRows || []).filter(function (p) { return !p.done && !stuckFull(p); });
+  return { fail: needsFail || [], help: all, acc: accWait(null) };
+}
+function admHotStrip() {
+  if (admTab === 'hot') return '';
+  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length;
+  if (!n) return '';
+  var bits = [];
+  if (L.acc.length) bits.push('🔑 ' + L.acc.length);
+  if (L.help.length) bits.push('🙋 ' + L.help.length);
+  if (L.fail.length) bits.push('✉ ' + L.fail.length);
+  return '<button class="hot-strip" onclick="admGo(\'hot\')"><b>' + esc(fill(UI.hotStrip, { n: n })) +
+    '</b><span>' + esc(bits.join(' · ')) + ' ←</span></button>';
+}
+function admHotHtml() {
+  var L = admHotList(), h = '<div class="my-top" style="margin:0 0 12px"><b>' + esc(UI.hotH) + '</b></div>';
+  if (L.acc.length) {
+    h += '<div class="adm-card hot-sec" id="hot-acc" style="margin-bottom:11px"><h4>' + esc(UI.hotAcc) + '</h4>' +
+      accHtml('', 1) + '</div>';
+  }
+  if (L.help.length) h += '<div class="hot-sec" id="hot-help">' + admSetupHelp() + '</div>';
+  if (L.fail.length) {
+    h += '<div class="adm-card hot-sec" id="hot-fail" style="margin-bottom:11px"><h4>' + esc(UI.hotFail) + '</h4>' +
+      L.fail.map(function (m) {
+        return '<div class="need"><div class="need-m"><b>' + esc(m.who || 'צוות') + '</b>' +
+          (m.inst ? ' · ' + esc(m.inst) : '') + (sheetAgo(m.at) ? ' · ' + esc(sheetAgo(m.at)) : '') +
+          '</div><div class="need-t">' + (m.title ? '<b>' + esc(m.title) + '</b><br>' : '') +
+          esc(m.body) + '</div><div class="need-w">' + esc(m.why) + '</div>' +
+          '<button class="btn p" style="margin:8px 0 0"' + (needsBusy ? ' disabled' : '') +
+          ' onclick="needsResend(\'' + esc(m.sid) + '\')">' +
+          (needsBusy === m.sid ? 'שולח…' : 'שליחה חוזרת — כמו שהייתה') + '</button></div>';
+      }).join('') + (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') + '</div>';
+  }
+  /* "ההיסטוריה" נשמרת: כאן נשאר הפריט עד שמטופל, וכשאין כלום — אומרים. */
+  if (!L.acc.length && !L.help.length && !L.fail.length) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
+  var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
+  if (!subbed) h += '<button class="adm-chip" onclick="rmSubOn()">' + esc(UI.hotSub) + '</button>';
+  return h;
 }
 /* `bare` — בלשונית "התקנה": בלי מי שביקש עזרה (הוא ברשימה שלו
    למעלה) ובלי הכותרת. נשארות ההודעות שלא יצאו והממתינים לאימות,
@@ -16843,8 +16936,8 @@ function admTakeHash() {
   try { history.replaceState(null, '', location.pathname + location.search + '#admin'); } catch (e) {}
   ADM_INST = ''; Store.set('admInst', ''); admIpOpen = false; pplFrame({ dfFilt: '' });
   ppl.open = null; ppl.q = ''; ppl.f = ''; ppl.mine = '';
-  admTab = m[1] === 'acc' ? 'inst' : 'setup';
-  return m[1] === 'acc' ? 'ppl-acc' : 'st-help';
+  admTab = 'hot';
+  return m[1] === 'acc' ? 'hot-acc' : 'hot-help';
 }
 function admScrollTo(id) {
   if (!id) return;
@@ -16860,7 +16953,7 @@ function admTakeGo() {
   try { g = JSON.parse(localStorage.getItem('df:admGo') || 'null');
         localStorage.removeItem('df:admGo'); } catch (e) {}
   if (!g || g.sub !== 'daf') return;
-  admTab = 'more'; admSub.more = 'daf';
+  admTab = 'daf'; admSub.daf = 'daf';
   if (g.mas && trackById(g.mas) && g.wk > 0) {
     dkSel = { mas: g.mas, wk: g.wk };
     dkSlPick = {}; dkBust = Date.now(); dkPool = null;
