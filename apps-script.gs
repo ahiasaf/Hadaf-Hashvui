@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 52;
+var SCRIPT_VERSION = 53;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -163,6 +163,9 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'תלמידי בית הספר', 'עמדת לימוד',
                     /* הטלפונים של תלמידי העמדה — לכפתור הוואטסאפ בניהול. */
                     'טלפוני תלמידים',
+                    /* כל תלמידי הרשת (קוד ישיבה, שכבה, כיתה, משפחה, פרטי,
+                       טלפון) — מודבק ידנית. העמדה לוקחת ממנו שם וטלפון. */
+                    'תלמידי הרשת',
                     /* מי מהעמדה זוהה כתלמיד רשום באפליקציה, ואיזה דף
                        נרשם לו משם. ראו amdaSync_. */
                     'עמדה — שיוך',
@@ -2518,6 +2521,8 @@ function boardData_(inst, k, withTest, inner) {
           role:  cell(row, 'תפקיד'),
           with:  cell(row, 'שם ההורה'),        /* שם פרטי בלבד */
           test:  isTest ? 1 : 0,
+          /* נוצר מהעמדה ועוד לא נכנס מאף מכשיר — "לא התקין". */
+          nodev: /^Am/.test(pid) && !cell(row, ALIAS_COL) ? 1 : 0,
           weeks: [],
           pos:   {}                            /* 'מסלול|שבוע' → 0–1 */
         };
@@ -2800,11 +2805,37 @@ function canonJoinCols_(cols, t0) {
     return cols;
   }
   r = rowOfKey_(t, personKey_(get('טלפון'), get('שם'), get('משפחה'), get('תפקיד') === 'הורה'));
+  /* תלמיד שלמד בעמדה לפני שהתקין — יש לו כבר שורה (מזהה Am…).
+     ההרשמה האמיתית נבלעת בה, וכל מה שנספר לו בעמדה נשאר שלו. */
+  if (r < 1 && get('תפקיד') !== 'הורה') {
+    r = rowOfAmda_(t, get('קוד ישיבה'), get('שם'), get('משפחה'), get('שכבה'));
+  }
   if (r < 1) return cols;
   var al = t.c(t.rows[r], ALIAS_COL);
   setv('מזהה', t.c(t.rows[r], 'מזהה'));
   setv(ALIAS_COL, (al ? al + ' ' : '') + id);
   return cols;
+}
+
+/* שורה שהעמדה יצרה (מזהה Am…) לאותו תלמיד: אותו מוסד, אותו שם
+   (בכל סדר — בשורה שלא פוצלה השם המלא יושב כולו ב"שם"), ושכבה
+   שאינה סותרת. רק אחת — שתיים זה לא בטוח, ואז לא נבלעים. */
+function rowOfAmda_(t, inst, first, last, grade) {
+  inst = String(inst || '').trim();
+  var f = nk_(first), l = nk_(last), g = amdaNorm_(grade).replace(/["'׳״]/g, '');
+  if (!inst || !f || !l) return -1;
+  var hit = -1;
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r];
+    if (!/^Am/.test(t.c(row, 'מזהה')) || t.c(row, 'קוד ישיבה') !== inst) continue;
+    var sf = nk_(t.c(row, 'שם')), sl = nk_(t.c(row, 'משפחה'));
+    if (!(sf + sl === f + l || sl + sf === f + l || sf + sl === l + f)) continue;
+    var sg = amdaNorm_(t.c(row, 'שכבה')).replace(/["'׳״]/g, '');
+    if (g && sg && g !== sg) continue;
+    if (hit > 0) return -1;
+    hit = r;
+  }
+  return hit;
 }
 
 /* מה שסומן כסיום, לכל המזהים של אדם אחד — 'מסלול|שבוע'. כל
@@ -2910,8 +2941,8 @@ function amdaSync_() {
       (byName[k2] = byName[k2] || []).push(j);
     });
   }
-  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0;
-  var lsh = lt.sh, lhead = headers_(lsh);
+  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0;
+  var lsh = lt.sh, lhead = headers_(lsh), dir = null, jhead = null, instNm = {};
   want.forEach(function (w) {
     var cand = (byName[w.inst + '|' + w.n] || []).filter(function (j, i, a) {
       if (a.indexOf(j) !== i) return false;
@@ -2923,8 +2954,26 @@ function amdaSync_() {
         return String(jt.c(jt.rows[j], 'כיתה')).replace(/\D/g, '') === String(w.c).replace(/\D/g, '');
       });
     }
-    if (cand.length !== 1) return;
-    var id = jt.c(jt.rows[cand[0]], 'מזהה');
+    var id = '';
+    if (cand.length === 1) id = jt.c(jt.rows[cand[0]], 'מזהה');
+    else if (!cand.length) {
+      /* **למד בעמדה ועוד לא התקין.** בלי שורה ב"לומדים" הוא לא
+         נספר בשום מקום — לא בלוח, לא במונה השבועי ולא בניהול.
+         נוצרת לו שורה (מזהה Am… קבוע לפי מוסד·שכבה·כיתה·שם, כך
+         שהרצה חוזרת מוצאת אותה), עם הטלפון מרשימת התלמידים אם
+         יש. כשיירשם באמת — ההרשמה נבלעת בה (rowOfAmda_). */
+      if (dir === null) dir = amdaDir_();
+      if (!jhead) {
+        jhead = headers_(jt.sh);
+        for (var q = 1; q < jt.rows.length; q++) {
+          var qc = jt.c(jt.rows[q], 'קוד ישיבה');
+          if (qc && !instNm[qc]) instNm[qc] = jt.c(jt.rows[q], 'ישיבה');
+        }
+      }
+      id = amdaLearner_(jt, jhead, w, dir, instNm);
+      if (id === '+') { made++; id = amdaId_(w); }
+    }
+    if (!id) return;
     var tag = id + '|' + w.track + '|' + w.wk;
     if (!had[tag]) {
       var row = [];
@@ -2946,8 +2995,65 @@ function amdaSync_() {
     for (var q = 0; q < lr.length; q++) if (lr[q] === undefined) lr[q] = '';
     lsh.appendRow(lr);
   });
+  if (made) recount_();
   if (wrote) recountLearn_();
   return wrote;
+}
+
+/* מזהה קבוע לתלמיד מהעמדה: אותו תלמיד → אותו מזהה בכל הרצה. */
+function amdaId_(w) {
+  var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,
+    [w.inst, w.g, String(w.c).replace(/\D/g, ''), w.n].join('|'), Utilities.Charset.UTF_8);
+  return 'Am' + Utilities.base64EncodeWebSafe(raw).replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+}
+/* רשימות התלמידים בגיליון הפרטי — לפיצול השם ולטלפון.
+   "תלמידי הרשת" (עם קוד ישיבה) ו"טלפוני תלמידים" (קובץ של בית
+   ספר אחד, בלי קוד — תקף לכל מוסד). מפתח: מוסד|שכבה|"משפחה פרטי". */
+function amdaDir_() {
+  var out = {};
+  var add = function (inst, g, last, first, ph) {
+    last = String(last || '').replace(/\s+/g, ' ').trim();
+    first = String(first || '').replace(/\s+/g, ' ').trim();
+    if (!last || !first) return;
+    var k = inst + '|' + amdaNorm_(g).replace(/["'׳״]/g, '') + '|' + amdaNorm_(last + ' ' + first);
+    out[k] = out[k] === undefined ? { l: last, f: first, p: String(ph || '').trim() } : null;  /* כפול — לא בטוח */
+  };
+  [['תלמידי הרשת', 1], ['טלפוני תלמידים', 0]].forEach(function (d) {
+    try {
+      var ss = SpreadsheetApp.openById(PRIVATE_ID).getSheetByName(d[0]);
+      if (!ss || ss.getLastRow() < 2) return;
+      var v = ss.getDataRange().getDisplayValues(), h = v[0].map(function (x) { return String(x).trim(); });
+      var c = function (re) { for (var i = 0; i < h.length; i++) if (re.test(h[i])) return i; return -1; };
+      var iI = c(/^קוד ישיבה$/), iG = c(/שכבה/), iL = c(/משפחה/), iF = c(/פרטי/), iP = c(/טלפון|נייד/);
+      if (iG < 0 || iL < 0 || iF < 0 || (d[1] && iI < 0)) return;
+      for (var r = 1; r < v.length; r++) {
+        add(d[1] ? String(v[r][iI] || '').trim() : '*', v[r][iG], v[r][iL], v[r][iF], iP >= 0 ? v[r][iP] : '');
+      }
+    } catch (e) {}
+  });
+  return out;
+}
+/* שורה ב"לומדים" לתלמיד מהעמדה. מחזיר את המזהה אם כבר קיימת,
+   '+' אם נוצרה עכשיו, '' אם אין מספיק פרטים. */
+function amdaLearner_(jt, head, w, dir, instNm) {
+  var id = amdaId_(w);
+  if (rowOfId_(jt, id) >= 1) return id;
+  if (!w.inst || !w.n) return '';
+  var hit = dir[w.inst + '|' + w.g + '|' + w.n] || dir['*|' + w.g + '|' + w.n] || null;
+  var first = hit ? hit.f : w.n, last = hit ? hit.l : '';
+  var row = [], sh = jt.sh;
+  put_(row, idx_(sh, head, 'תאריך'), new Date());
+  [['מזהה', id], ['ישיבה', instNm[w.inst] || ''], ['קוד ישיבה', w.inst], ['שם', first],
+   ['משפחה', last], ['שכבה', w.g], ['כיתה', w.c], ['טלפון', hit ? hit.p : ''],
+   ['מקור', 'עמדת לימוד']
+  ].forEach(function (p) { put_(row, idx_(sh, head, p[0]), cell_(p[1])); });
+  for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+  sh.appendRow(row);
+  /* גם בזיכרון — תלמיד שלמד בשני שבועות לא ייווצר פעמיים. */
+  var mem = [];
+  for (var j = 0; j < head.length; j++) mem.push(row[j] === undefined ? '' : String(row[j]).replace(/^'/, ''));
+  jt.rows.push(mem);
+  return '+';
 }
 /* 'מסלול|שבוע' שנרשמו למזהה הזה מהעמדה. */
 function amdaLearnedOf_(id) {

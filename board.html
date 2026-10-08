@@ -866,6 +866,7 @@ function shown() {
     if (LWAY && (p.way || '') !== LWAY) return false;
     if (LPUSH === 'on' && !p.push) return false;
     if (LPUSH === 'off' && p.push) return false;
+    if (LPUSH === 'nodev' && !p.nodev) return false;
     return true;
   });
   return mineRam ? roster.filter(isMine) : roster;
@@ -896,19 +897,23 @@ function lfiltHtml() {
     return !FILT || (FILT === '-' ? instOfP(q) === '-' : instOfP(q) === FILT);
   });
   var pushK = n(function (p) { return p.push; });
+  /* למדו בעמדה ועוד לא התקינו — רשימה משלהם, עם הודעת התקנה. */
+  var noDevK = n(function (p) { return p.nodev; });
   return '<div class="lsum"><b>' + sum.kids + '</b> תלמידים · <b>' + sum.par + '</b> הורים · ' +
     '<b>' + sum.push + '</b> תלמידים עם התראות' +
     (sum.testN ? ' · ' + esc(String(UI.bdTestN || '').replace('{n}', sum.testN)) : '') + '</div>' +
     '<div class="lseg"><span class="lseg-h">' + esc(UI.bdPushH || '') + '</span><div class="lseg-g">' +
     seg('', UI.bdPushAll || '', null) +
     seg('on', '✉ ' + (UI.bdPushOn || ''), pushK) +
-    seg('off', '🔕 ' + (UI.bdPushOff || ''), n(function (p) { return !p.push; })) + '</div></div>' +
-    (LPUSH === 'off' ? whyHtml(base) + remHtml() : '');
+    seg('off', '🔕 ' + (UI.bdPushOff || ''), n(function (p) { return !p.push; })) +
+    (noDevK || LPUSH === 'nodev' ? seg('nodev', '📵 ' + kt('noDevF'), noDevK) : '') + '</div></div>' +
+    (LPUSH === 'off' ? whyHtml(base) + remHtml() : LPUSH === 'nodev' ? remHtml() : '');
 }
 function parInFilt(q) {
   if (FILT && (FILT === '-' ? instOfP(q) !== '-' : instOfP(q) !== FILT)) return false;
   if (LPUSH === 'on' && !q.push) return false;
   if (LPUSH === 'off' && q.push) return false;
+  if (LPUSH === 'nodev') return false;
   if (LWAY && LWAY !== 'אבות ובנים') return false;
   return !SRCH || srchHit(q);
 }
@@ -1258,6 +1263,8 @@ function pRow(p, noGrade) {
      בדיוק ההבחנה שמעניינת — מי באמת לומד עם אביו. */
   if (p.with)  bits.push('עם ' + p.with + (p.withOk ? ' ✓' : ''));
   if (p.test)  bits.push(UI.rstTag);
+  /* למד בעמדת הלימוד ונספר — אבל עוד לא נכנס מטלפון משלו. */
+  if (p.nodev) bits.push('📵 ' + kt('noDevTag'));
   var sub = bits.join(' · ');
   /* פס ולא אחוז. "29%" מזמין השוואה בין תלמידים, והוא גם מדויק
      יותר ממה שהוא באמת — קטע 12 מתוך 41 אינו 29 אחוז מהלימוד.
@@ -1301,12 +1308,13 @@ function remList() {
   var at = LGet('remAt', {}) || {}, now = Date.now();
   return (roster || []).filter(function (p) {
     if (p.push || !p.id || !waNum(p.phone)) return false;
+    if (LPUSH === 'nodev' && !p.nodev) return false;
     if (FILT && (FILT === '-' ? instOfP(p) !== '-' : instOfP(p) !== FILT)) return false;
     return !(at[p.id] && now - at[p.id] < REM_DAYS * 86400000);
   });
 }
 function remHtml() {
-  if (!ALL || LPUSH !== 'off') return '';
+  if (!ALL || (LPUSH !== 'off' && LPUSH !== 'nodev')) return '';
   var l = remList();
   if (!l.length) return '<div class="lsum">' + esc(kt('remDone')) + '</div>';
   var p = l[0];
@@ -1342,6 +1350,12 @@ function whyHtml(list) {
   }).join(' · ') + '</div>' : '';
 }
 function waDefault(p) {
+  /* מי שעוד לא התקין — קישור ההצטרפות של הישיבה שלו, לא "איך
+     מחזירים התראות". הדף שלמד בעמדה כבר מחכה לו שם. */
+  if (p.nodev) {
+    return tp(kt('waInstall') || '{name}, שלום! {link}', { name: p.first || '', sig: kudoSig(),
+      link: baseUrl() + 'join.html?inst=' + encodeURIComponent(p.inst || '') });
+  }
   var link = baseUrl() + 'hitraot';
   return tp(kt('waMsg') || '{name}, שלום! {link}', { name: p.first || '', sig: kudoSig(), link: link });
 }
