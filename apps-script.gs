@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 53;
+var SCRIPT_VERSION = 54;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -500,6 +500,11 @@ function doPost(e) {
       ['תשובה', d.answer + 1], ['נכון', d.correct ? 'נכון' : 'לא נכון']
     ]);
 
+    /* העמדה: "מה למדתם עכשיו?" — אחרי מעשה. ראו amdaKind_. */
+    if (d.action === 'amdakind') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      return json_(amdaKind_(d));
+    }
     if (d.action === 'texts' && !wAdm) {
       return json_({ status: 'denied', message: 'פרסום המלל דורש את סיסמת הסקריפט' });
     }
@@ -2919,12 +2924,15 @@ function amdaSync_() {
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r], cx = function (n) { return at.c(x, n); };
     if (cx('סוג') !== 'דף' || !cx('קוד ישיבה') || !cx('מסלול') || !cx('שבוע')) continue;
+    /* "השתתף" בלבד — נספר בעמדה, אבל לא כמי שלמד את הדף. */
+    if (cx('רמה') === AMDA_LV_P_) continue;
     var key = [cx('קוד ישיבה'), cx('שכבה'), cx('כיתה'), amdaNorm_(cx('שם')),
                cx('מסלול'), cx('שבוע')].join('|');
     if (seen[key] || had['k:' + key]) continue;
     seen[key] = 1;
     want.push({ key: key, inst: cx('קוד ישיבה'), g: amdaNorm_(cx('שכבה')), c: cx('כיתה'),
-                n: amdaNorm_(cx('שם')), track: cx('מסלול'), wk: cx('שבוע'), daf: cx('דף') });
+                n: amdaNorm_(cx('שם')), track: cx('מסלול'), wk: cx('שבוע'), daf: cx('דף'),
+                quiz: cx('רמה').indexOf('חידון') >= 0 });
   }
   if (!want.length) return 0;
 
@@ -2988,6 +2996,19 @@ function amdaSync_() {
       wrote++;
       had[tag] = 1;
     }
+    /* "ענה על החידון" — נרשם כמו תשובה נכונה מהדף האינטראקטיבי,
+       עם המקור. מערכת ההגרלות תקרא את זה כשתיבנה. */
+    if (w.quiz) {
+      try {
+        var qsh = sheet_('חידות'), qh = headers_(qsh), qr = [];
+        put_(qr, idx_(qsh, qh, 'תאריך'), new Date());
+        [['דף', w.track + '|' + w.daf], ['קטע', 'עמדת לימוד'], ['שבוע', w.track + '-' + w.wk],
+         ['ישיבה', w.inst], ['שם', w.n], ['נכון', 'נכון'], ['מזהה', id], ['מקור', 'עמדת לימוד']
+        ].forEach(function (p) { put_(qr, idx_(qsh, qh, p[0]), cell_(p[1])); });
+        for (var qi = 0; qi < qr.length; qi++) if (qr[qi] === undefined) qr[qi] = '';
+        qsh.appendRow(qr);
+      } catch (qe) {}
+    }
     var lr = [];
     put_(lr, idx_(lsh, lhead, 'תאריך'), new Date());
     [['מזהה', id], ['מסלול', w.track], ['שבוע', w.wk], ['דף', w.daf], ['מפתח', w.key]
@@ -2998,6 +3019,77 @@ function amdaSync_() {
   if (made) recount_();
   if (wrote) recountLearn_();
   return wrote;
+}
+
+var AMDA_LV_P_ = 'השתתף';
+
+/* ============================================================
+   "מה למדתם עכשיו?" — שינוי של פתיחה שלמה, אחרי מעשה.
+   ============================================================
+   כל השורות של אותו יום ומועד מקבלות את הסוג (דף/שיעור), את
+   הדף ואת הרמה. מי שהפסיק להיחשב כמי שלמד (נושא אחר, או
+   "השתתף" בלבד) — שורת הסיום שהעמדה כתבה לו יורדת, אלא אם
+   למד את אותו דף בעמדה בפתיחה אחרת. מי שהתחיל להיחשב — השיוך
+   הרגיל (amdaSync_) כותב לו. */
+function amdaKind_(d) {
+  var day = String(d.day || '').trim(), slot = String(d.slot || '').trim();
+  var dafK = d.kind === 'd', lvl = String(d.lvl || '').trim();
+  if (!day || !slot) return { status: 'error', message: 'חסר יום או מועד' };
+  var at = amdaTable_(AMDA_TAB_), sh = at.sh, head = headers_(sh), n = 0, drop = {};
+  var iK = idx_(sh, head, 'סוג'), iT = idx_(sh, head, 'מסלול'), iD = idx_(sh, head, 'דף'), iL = idx_(sh, head, 'רמה');
+  var key = function (x) {
+    return [at.c(x, 'קוד ישיבה'), at.c(x, 'שכבה'), at.c(x, 'כיתה'), amdaNorm_(at.c(x, 'שם')),
+            at.c(x, 'מסלול'), at.c(x, 'שבוע')].join('|');
+  };
+  var learned = function (x) { return at.c(x, 'סוג') === 'דף' && at.c(x, 'רמה') !== AMDA_LV_P_; };
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r];
+    if (at.c(x, 'יום') !== day || at.c(x, 'קוד עמדה') !== slot) continue;
+    var was = learned(x), oldKey = key(x);
+    var trk = dafK ? String(d.track || at.c(x, 'מסלול') || '') : '';
+    var daf = dafK ? String(d.daf || at.c(x, 'דף') || '') : '';
+    sh.getRange(r + 1, iK + 1).setValue(dafK ? 'דף' : 'שיעור');
+    sh.getRange(r + 1, iT + 1).setValue(trk);
+    sh.getRange(r + 1, iD + 1).setValue(daf);
+    sh.getRange(r + 1, iL + 1).setValue(lvl);
+    if (was && !(dafK && lvl !== AMDA_LV_P_)) drop[oldKey] = 1;
+    n++;
+  }
+  /* מי שעדיין לומד את אותו דף בפתיחה אחרת — נשאר. */
+  if (Object.keys(drop).length) {
+    var at2 = amdaTable_(AMDA_TAB_);
+    for (var r2 = 1; r2 < at2.rows.length; r2++) {
+      var y = at2.rows[r2];
+      if (at2.c(y, 'סוג') === 'דף' && at2.c(y, 'רמה') !== AMDA_LV_P_) {
+        delete drop[[at2.c(y, 'קוד ישיבה'), at2.c(y, 'שכבה'), at2.c(y, 'כיתה'), amdaNorm_(at2.c(y, 'שם')),
+                     at2.c(y, 'מסלול'), at2.c(y, 'שבוע')].join('|')];
+      }
+    }
+    amdaUnlink_(drop);
+  }
+  amdaSync_();
+  recountLearn_(true);
+  return { status: 'ok', rows: n };
+}
+/* מוריד את השיוך ואת שורת הסיום שהעמדה כתבה, לכל מפתח ב-`keys`. */
+function amdaUnlink_(keys) {
+  var lt = amdaTable_(AMDA_LINK_), gone = {}, del = [];
+  for (var l = 1; l < lt.rows.length; l++) {
+    if (!keys[lt.c(lt.rows[l], 'מפתח')]) continue;
+    gone[lt.c(lt.rows[l], 'מזהה') + '|' + lt.c(lt.rows[l], 'מסלול') + '|' + lt.c(lt.rows[l], 'שבוע')] = 1;
+    del.push(l + 1);
+  }
+  del.sort(function (a, b) { return b - a; }).forEach(function (r) { lt.sh.deleteRow(r); });
+  if (!del.length) return;
+  var sh = sheet_(LEARN_TAB);
+  if (sh.getLastRow() < 2) return;
+  var v = sh.getDataRange().getDisplayValues(), h = v[0], ix = {}, dl = [];
+  for (var i = 0; i < h.length; i++) ix[String(h[i]).trim()] = i;
+  for (var r = v.length - 1; r >= 1; r--) {
+    if (String(v[r][ix['מקור']] || '') !== 'עמדת לימוד') continue;
+    if (gone[v[r][ix['מזהה']] + '|' + v[r][ix['מסלול']] + '|' + v[r][ix['שבוע']]]) dl.push(r + 1);
+  }
+  dl.forEach(function (r) { sh.deleteRow(r); });
 }
 
 /* מזהה קבוע לתלמיד מהעמדה: אותו תלמיד → אותו מזהה בכל הרצה. */

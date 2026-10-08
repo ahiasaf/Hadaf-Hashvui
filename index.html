@@ -2013,6 +2013,19 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
        align-items:center;justify-content:center;gap:14px;background:var(--green-d);
        color:#fff;text-align:center;padding:24px}
 .am-ok.on{display:flex}
+/* מתג "הדף השבועי / נושא אחר" בראש העמדה, ושאלת היציאה. */
+.am-kd{flex:none;font:inherit;font-size:.74rem;font-weight:800;border-radius:9px;padding:6px 9px;
+       border:1px solid var(--gold);background:var(--surface);color:var(--gold-t)}
+.am-kd.o{border-color:var(--rule);color:var(--ink-3)}
+.am-ex{position:fixed;inset:0;z-index:9002;display:flex;align-items:center;justify-content:center;
+       background:rgba(11,37,80,.55);padding:16px}
+.am-ex-in{width:100%;max-width:420px;background:var(--paper);border-radius:18px;padding:20px 16px;
+          box-shadow:var(--sh-2, 0 10px 30px rgba(0,0,0,.25))}
+.am-ex-in b{display:block;font-size:1.15rem;font-weight:800;color:var(--blue-d);margin-bottom:12px}
+.am-ex-in button{display:block;width:100%;margin:0 0 9px;font:inherit;font-size:1rem;font-weight:800;
+          border-radius:12px;padding:13px 10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink-2)}
+.am-ex-in button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-ex-in button.bk{border:0;background:none;color:var(--ink-3);font-size:.9rem}
 .am-tick{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);
          font-size:4.4rem;font-weight:800;line-height:120px}
 .am-ok b{font-size:1.5rem;font-weight:800}
@@ -2559,7 +2572,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.142';
+var APP_VERSION = '8.99.143';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9064,7 +9077,9 @@ function renderAdmin() {
   var h = '<div class="adm-nav"><button class="back" onclick="admExit()">→ ' + esc(UI.admToApp) + '</button>' +
           '<a class="back" href="studio.html">' + esc(UI.admStudio) + ' ↗</a>' +
           /* המצגות — בלחיצה אחת מכל מסך בניהול, בלי לגלול ל"עוד". */
-          '<button class="back" onclick="admSubGo(\'daf\')">🖼 ' + esc(UI.admDecks) + '</button></div>' +
+          '<button class="back" onclick="admSubGo(\'daf\')">🖼 ' + esc(UI.admDecks) + '</button>' +
+          /* עמדת הלימוד — בלחיצה אחת: המועד של עכשיו, והדף לפי השעה. */
+          '<button class="back" onclick="amdaQuick()">🧭 ' + esc(amdaT('quick')) + '</button></div>' +
           /* המוסד ורענון אחד — מעל הכול, וחלים על כל הלשוניות. */
           '<div class="my-top adm-hd"><div class="adm-hd-r"><b>' + esc(UI.admTitle) + '</b>' +
           '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
@@ -14653,7 +14668,37 @@ function amdaSlotSel() {
   return amdaSt.slot;
 }
 /* הפתיחה הנוכחית: באיזה מועד, והאם בדף ('d') או בנושא אחר ('o'). */
-function amdaSess() { return Store.get('amdaSess', null) || { slot: amdaSlotSel(), kind: 'd' }; }
+function amdaSess() { return Store.get('amdaSess', null) || { slot: amdaSlotSel(), kind: amdaKindEff(), lv: amdaLv() }; }
+/* ============================================================
+   הדף השבועי — מתג אחד, שנדלק לבד בשעות שהוגדרו.
+   ============================================================
+   AMDA.dafTimes: "ה 14:00-14:45, א 11:30-12:30" — יום בעברית
+   ושעות. בתוכן — הדף השבועי; מחוץ להן — נושא אחר. `amdaSt.kind`
+   ריק = לפי השעה; 'd'/'o' = מה שנבחר ידנית בניהול. */
+var AMDA_DOW = { 'א': 0, 'ב': 1, 'ג': 2, 'ד': 3, 'ה': 4, 'ו': 5, 'ש': 6 };
+function amdaDafWins() {
+  return amdaT('dafTimes').split(/[,;\n]/).map(function (x) {
+    var m = /^\s*([א-ש])['׳]?\s+(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})\s*$/.exec(x);
+    return m && AMDA_DOW[m[1]] != null ? [AMDA_DOW[m[1]], (+m[2]) * 60 + (+m[3]), (+m[4]) * 60 + (+m[5])] : null;
+  }).filter(Boolean);
+}
+function amdaKindAuto() {
+  var d = new Date(), dow = d.getDay(), t = d.getHours() * 60 + d.getMinutes();
+  return amdaDafWins().some(function (w) { return w[0] === dow && t >= w[1] && t < w[2]; }) ? 'd' : 'o';
+}
+function amdaKindEff() { return amdaSt.kind || amdaKindAuto(); }
+/* מי שנרשם בדף השבועי: 'למד וחידון' (ברירת המחדל), 'למד', או 'השתתף'. */
+var AMDA_LV = ['למד וחידון', 'למד', 'השתתף'];
+function amdaLv() { var v = Store.get('amdaLv', ''); return AMDA_LV.indexOf(v) >= 0 ? v : AMDA_LV[0]; }
+function amdaLvSet(v) { Store.set('amdaLv', v); admPane(); }
+function amdaKindPick(k) { amdaSt.kind = amdaSt.kind === k ? '' : k; admPane(); }
+/* לחיצה אחת מכל מקום בניהול: המועד של עכשיו, והדף השבועי לפי השעה. */
+function amdaQuick() {
+  var r = amdaRoster();
+  if (!r || !amdaCount(r).n) { admSubGo('amda'); return; }
+  amdaSt.slot = ''; amdaSt.kind = '';
+  amdaOpen(amdaKindAuto());
+}
 /* ספירות נפרדות: 0 הדף השבועי · 1 שיעורים אחרים · 2 בית מדרש נודד —
    שלושתם שיעורי רשות, ועליהם יינתנו פרסים. 3 שיעור כיתה — שיעור
    חובה, עולם אחר, ואינו נכנס לאף אחת מהן (גם כשלמדו בו את הדף). */
@@ -14865,6 +14910,7 @@ function amdaFlush() {
                             ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
                             ['מסלול', daf ? m.track : ''], ['דף', daf ? (m.daf || '') : ''],
                             ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
+                            ['רמה', daf ? (m.lv || '') : ''],
                             ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
       .catch(function () {});
   });
@@ -14914,7 +14960,7 @@ function amdaPull() {
 function amdaOpen(kind) {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
-  if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack() });
+  if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack(), lv: amdaLv() });
   var el = document.getElementById('amda');
   if (!el) {
     el = document.createElement('div');
@@ -14942,8 +14988,67 @@ function amdaOpen(kind) {
     if (!amdaSt.g) amdaPull().then(function () { if (!amdaSt.g) amdaPaint(); });
   }, 60000);
 }
-function amdaClose() {
-  if (!confirm(amdaT('exitAsk'))) return;
+/* היציאה שואלת מה למדו — אם שכחת להדליק את "הדף השבועי" בהתחלה
+   (או הדלקת בטעות), זה המקום לתקן. שינוי חל על כל מי שנרשם. */
+function amdaExitAsk() {
+  var s = amdaSess(), box = document.getElementById('amda');
+  if (!box || document.getElementById('am-ex')) return;
+  var les = amdaLesson(s.slot), d = document.createElement('div');
+  d.className = 'am-ex'; d.id = 'am-ex';
+  d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('exitQ')) + '</b>' +
+    '<button class="' + (s.kind !== 'o' ? 'on' : '') + '" data-ek="d">' + esc(amdaT('exitD')) + '</button>' +
+    '<button class="' + (s.kind === 'o' ? 'on' : '') + '" data-ek="o">' +
+      esc(amdaT(les ? 'exitL' : 'exitO')) + '</button>' +
+    '<button class="bk" data-ek="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  box.appendChild(d);
+  d.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-ek]');
+    if (!b) return;
+    var k = b.getAttribute('data-ek');
+    d.parentNode.removeChild(d);
+    if (k === '-') return;
+    if (k !== (s.kind === 'o' ? 'o' : 'd')) amdaKindSet(k);
+    amdaClose(true);
+  };
+}
+/* החלפת הסוג של הפתיחה הזו — גם למי שכבר נרשם (amdakind בסקריפט). */
+function amdaKindSet(k) {
+  var s = amdaSess(), day = amdaDay(), key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  s.kind = k; Store.set('amdaSess', s);
+  /* מה שעוד בתור — יוצא כבר בסוג החדש. */
+  var q = amdaQ();
+  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = s.lv || amdaLv(); } });
+  Store.set('amdaQ', q);
+  amdaFlush();
+  if (!key || !url) return;
+  var track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
+  var body = { action: 'amdakind', key: key, day: day, slot: s.slot, kind: k,
+               track: track, daf: LDafName(track, wk) || '', lvl: k === 'd' ? (s.lv || amdaLv()) : '' };
+  var tries = 0;
+  var send = function () {
+    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).catch(function () {});
+    /* no-cors אטום — קוראים חזרה ומוודאים שכל השורות של הפתיחה בסוג החדש. */
+    setTimeout(function () {
+      scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
+        if (!d || d.status !== 'ok' || !d.rows) throw 0;
+        var h = d.rows[0] || [], iD = h.indexOf('יום'), iS = h.indexOf('קוד עמדה'), iK = h.indexOf('סוג');
+        var bad = d.rows.slice(1).some(function (x) {
+          return x[iD] === day && x[iS] === s.slot && x[iK] !== (k === 'o' ? 'שיעור' : 'דף');
+        });
+        if (bad) throw 0;
+        amdaMsg = amdaT('kindOk', { k: amdaT(k === 'o' ? 'exitO' : 'exitD') });
+        amdaPull();
+      })['catch'](function () {
+        if (++tries < 2) return send();
+        amdaMsg = amdaT('kindFail');
+        if (document.getElementById('amda-adm')) admPane();
+      });
+    }, 7000);
+  };
+  setTimeout(send, 2500);
+}
+function amdaClose(sure) {
+  if (sure !== true) { amdaExitAsk(); return; }
   var el = document.getElementById('amda');
   if (el) el.className = 'amda';
   Store.set('amdaOn', 0);
@@ -14961,6 +15066,8 @@ function amdaPaint() {
   var h = '<div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
           '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' +
           esc(amdaT('brand2')) + ' · ' + esc(PROGRAM.year) + '</span></div>' +
+          (les ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
+            esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
           '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
           '<div class="am-sub">' + esc(amdaSlotName(s.slot)) +
@@ -15017,10 +15124,14 @@ function amdaTap(e) {
   var el = e.target;
   while (el && el.id !== 'amda' && !(el.getAttribute &&
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
-          el.getAttribute('data-n') || el.getAttribute('data-x')))) el = el.parentNode;
+          el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x')) { amdaClose(); return; }
+  if (el.getAttribute('data-k')) {
+    amdaKindSet(amdaSess().kind === 'o' ? 'd' : 'o');
+    amdaPaint(); return;
+  }
   var box = document.getElementById('amda');
   if (el.getAttribute('data-g')) {
     amdaSt.g = el.getAttribute('data-g'); amdaSt.c = '';
@@ -15071,7 +15182,7 @@ function amdaMark(g, c, n) {
     var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
     q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
              w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
-             track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '',
+             track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
              g: g, c: c, n: n, at: new Date().toISOString() });
     Store.set('amdaQ', q);
     amdaFlush();
@@ -15561,10 +15672,22 @@ function admAmda(body) {
         '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpen(\'d\')">' +
           esc(amdaT('admOpenLD')) + '</button>';
     } else {
-      h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpen(\'d\')">' +
-             esc(amdaT('admOpen')) + '</button>' +
-           '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpen(\'o\')">' +
-             esc(amdaT('admOpenO')) + '</button>';
+      /* מתג אחד לדף השבועי — דלוק לבד בשעות שהוגדרו — וכפתור פתיחה אחד. */
+      var kd = amdaKindEff(), lv = amdaLv();
+      h += '<div class="am-q">' + esc(amdaT('admDaf')) + '</div><div class="am-sl">' +
+        '<button class="' + (kd === 'd' ? 'on' : '') + '" onclick="amdaKindPick(\'d\')">' + esc(amdaT('admDafOn')) + '</button>' +
+        '<button class="' + (kd === 'o' ? 'on' : '') + '" onclick="amdaKindPick(\'o\')">' + esc(amdaT('admDafOff')) + '</button></div>' +
+        '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT(amdaSt.kind ? 'admDafHand' : 'admDafAuto',
+          { t: amdaT('dafTimes') || '—' })) + '</p>';
+      if (kd === 'd') {
+        h += '<div class="am-q">' + esc(amdaT('admLv')) + '</div><div class="am-sl">' +
+          AMDA_LV.map(function (v, i) {
+            return '<button class="' + (lv === v ? 'on' : '') + '" onclick="amdaLvSet(\'' + v + '\')">' +
+              esc(amdaT('lv' + i)) + '</button>';
+          }).join('') + '</div>';
+      }
+      h += '<button class="btn p" style="width:100%;margin:6px 0 12px" onclick="amdaOpen(amdaKindEff())">' +
+             esc(amdaT('admOne')) + '</button>';
     }
   }
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
