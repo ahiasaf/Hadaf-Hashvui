@@ -2172,6 +2172,27 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .adm-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:inherit;font-size:.85rem;font-weight:800;
   color:var(--gold-t);background:none;border:1px solid var(--gold);border-radius:20px;padding:4px 11px;cursor:pointer}
 .hot-sec{scroll-margin-top:10px}
+/* מבנה א — שורה למעלה, סרגל קבוע למטה */
+.adm-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.adm-bar b{flex:1;min-width:0;font-size:1.25rem;font-weight:800;color:var(--blue-d);letter-spacing:-.02em}
+.adm-ic{flex:none;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--surface);
+  color:var(--blue-d);font:inherit;font-size:1.15rem;display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:var(--sh-1);cursor:pointer;position:relative;padding:0}
+.adm-bell.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.adm-bar .adm-rf{flex:none;border-radius:50%;border:1px solid var(--rule);font-size:1.15rem}
+.adm-bell em{position:absolute;top:-4px;inset-inline-end:-4px;min-width:20px;height:20px;border-radius:10px;padding:0 5px;
+  background:#B3261E;color:#fff;font-style:normal;font-size:.72rem;font-weight:800;line-height:20px;text-align:center;
+  box-shadow:0 0 0 2px var(--paper)}
+#admin-body{padding-bottom:86px}
+.adm-bn{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,1fr);
+  background:var(--surface);border-top:1px solid var(--rule);box-shadow:0 -4px 18px rgba(37,29,12,.08);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom, 0px))}
+.adm-bn button{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;font:inherit;
+  color:var(--ink-3);padding:5px 0;cursor:pointer;min-width:0}
+.adm-bn i{font-style:normal;font-size:1.3rem;line-height:1}
+.adm-bn span{font-size:.68rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.adm-bn button.on{color:var(--blue)}
+.adm-bn button.on i{transform:translateY(-1px)}
 .dk-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
 .dk-top .btn{margin:0;width:100%}
 .dk-top a.btn{grid-column:1/-1;text-decoration:none;text-align:center}
@@ -2615,7 +2636,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.148';
+var APP_VERSION = '8.99.149';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8674,7 +8695,7 @@ function admRefreshBtn() {
   var b = document.getElementById('adm-rf');
   if (!b) return;
   var busy = Date.now() - admBusyAt < 1500;
-  b.className = 'adm-rf' + (busy ? ' busy' : '');
+  b.className = 'adm-ic adm-rf' + (busy ? ' busy' : '');
   b.setAttribute('aria-label', busy ? UI.admRefreshing : UI.admRefresh);
 }
 
@@ -9199,7 +9220,7 @@ document.addEventListener('click', function (e) {
 /* כל עדכון של נתונים — רק מה שעל המסך ומה שהשתנה. */
 function admLive() {
   admRefreshBtn();
-  pplSet('adm-hot', admHotStrip());
+  admBell();
   if (admTab === 'hot') pplSet('hot-body', admHotHtml());
   if (admTab === 'stu') {
     pplSet('stu-brd', boardHtml(ADM_INST, admInstName(ADM_INST), false, 'admDet()'));
@@ -9249,8 +9270,6 @@ function renderAdmin() {
      מסכים, אותם שמות פנימיים (admTab 'setup'/'push'), ולכן כל מה
      שבודק `admTab === 'setup'` ממשיך לעבוד. "דחוף" (admTab 'hot')
      אינו לשונית: הפס האדום מוביל אליו, ורק כשיש בו משהו. */
-  var TABS = [['stu', UI.admTStu, '👥'], ['daf', UI.admTDaf, '📖'],
-              ['inst', UI.admTabInst, '🏫'], ['more', UI.admTTools, '🧰']];
   var grp = admTab === 'setup' || admTab === 'push' ? 'stu' : admTab;
   /* ============================================================
      **אותו מסך כמו אזור הניהול האישי של ישיבה.**
@@ -9259,24 +9278,25 @@ function renderAdmin() {
      הכותרת היא `.my-top` — שם האזור, ומתחתיו בזהב מה שהוא מכסה.
      אצל ישיבה זו הישיבה; כאן זה הבורר עצמו: "כולם" או ישיבה אחת.
      ============================================================ */
-  /* שלושת הדברים שנכנסים אליהם הכי הרבה — בלחיצה אחת מכל מסך. */
-  var h = '<div class="adm-nav"><button class="back" onclick="admExit()">→ ' + esc(UI.admToApp) + '</button>' +
-          '<div class="adm-q">' +
-          '<button class="back" onclick="amdaQuick()">🧭 ' + esc(amdaT('quick')) + '</button>' +
-          '<button class="back" onclick="admSubGo(\'daf\')">🖼 ' + esc(UI.admDecks) + '</button>' +
-          '<button class="back" onclick="admGo(\'inst\')">🏫 ' + esc(UI.navCalls) + '</button></div></div>' +
-          /* רענון אחד, מעל הכול. ישיבה שנבחרה — שבב עם ✕. */
-          '<div class="my-top adm-hd"><div class="adm-hd-r"><b>' + esc(UI.admTitle) + '</b>' +
-          '<button id="adm-rf" class="adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
+  /* ============================================================
+     מבנה א (8.10.2026): שורה אחת למעלה, סרגל קבוע למטה.
+     ============================================================
+     "שלושה לחצנים קטנים, מתחתם ארבעה, וביניהם נדחף הדחוף — באיזו
+     אפליקציה בעולם יש כזה." עכשיו כמו כל אפליקציה: למעלה חזרה,
+     כותרת, פעמון (המספר האדום הוא "דחוף") ורענון; למטה חמשת
+     האזורים, תמיד באותו מקום. `adm-nav` נשאר שם המחלקה — admBack
+     מזהה לפיו שהניהול כבר צויר. */
+  var NAV = [['stu', UI.admTStu, '👥'], ['daf', UI.admTDaf, '📖'], ['inst', UI.navInst, '🏫'],
+             ['amda', amdaT('quick'), '🧭'], ['more', UI.admTTools, '☰']];
+  var h = '<div class="adm-nav adm-bar">' +
+          '<button class="adm-ic" onclick="admExit()" aria-label="' + esc(UI.admToApp) + '">→</button>' +
+          '<b>' + esc(UI.admTitle) + '</b>' +
+          '<button class="adm-ic adm-bell' + (admTab === 'hot' ? ' on' : '') + '" onclick="admGo(\'hot\')" aria-label="' +
+            esc(UI.hotH) + '">🔔<em id="adm-bell-n"></em></button>' +
+          '<button id="adm-rf" class="adm-ic adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
+          /* ישיבה שנבחרה — שבב עם ✕. */
           (ADM_INST ? '<button class="adm-chip" onclick="admInstPick(\'\');renderAdmin()" aria-label="' +
             esc(UI.instChipX) + '">🏫 ' + esc(admInstName(ADM_INST)) + ' <span aria-hidden="true">✕</span></button>' : '') +
-          '</div>' +
-          '<div id="adm-hot"></div>' +
-          '<div class="tabs adm-tabs t4">' +
-          TABS.map(function (t) {
-            return '<button class="' + (grp === t[0] ? 'on' : '') +
-                   '" onclick="admGo(\'' + t[0] + '\')"><i aria-hidden="true">' + t[2] + '</i>' + esc(t[1]) + '</button>';
-          }).join('') + '</div>' +
           /* "התלמידים": הלוח · שליחה והודעות · התקנה. */
           (grp === 'stu' ? '<div class="tabs sub" style="margin-top:10px">' +
             [['stu', UI.stuSubBoard], ['push', UI.stuSubSend], ['setup', UI.stuSubSetup]].map(function (t) {
@@ -9287,9 +9307,15 @@ function renderAdmin() {
              מה שמשנים בכל אחת מהן דורש אותו פרסום עצמו. */
           '<div id="adm-pub" style="margin-top:12px"></div>' +
           '<div id="adm-pane" style="margin-top:14px"></div>' +
-          '<p class="adm-ver">' + esc(UI.admVer) + ' ' + APP_VERSION + '</p>';
+          '<p class="adm-ver">' + esc(UI.admVer) + ' ' + APP_VERSION + '</p>' +
+          '<nav class="adm-bn" aria-label="' + esc(UI.admTitle) + '">' + NAV.map(function (t) {
+            var on = t[0] === 'amda' ? (admTab === 'more' && admSub.more === 'amda') : grp === t[0] && !(t[0] === 'more' && admSub.more === 'amda');
+            return '<button class="' + (on ? 'on' : '') + '" onclick="' +
+              (t[0] === 'amda' ? 'amdaQuick()' : 'admGo(\'' + t[0] + '\')') + '"' + (on ? ' aria-current="page"' : '') +
+              '><i aria-hidden="true">' + t[2] + '</i><span>' + esc(t[1]) + '</span></button>';
+          }).join('') + '</nav>';
   document.getElementById('admin-body').innerHTML = h;
-  delete pplLast['adm-hot']; pplSet('adm-hot', admHotStrip());
+  delete pplLast['adm-bell-n']; admBell();
   admPubBar();
   admPane();
   /* רענון לבד בכניסה — פעם אחת לכל פתיחה של המסך. */
@@ -10788,19 +10814,14 @@ function admHotList() {
   var all = (stuckRows || []).filter(function (p) { return !p.done && !stuckFull(p); });
   return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue() };
 }
-function admHotStrip() {
-  /* רק במסך הפתיחה ("התלמידים ← הלוח"). בכל מסך אחר הוא דחף את
-     התוכן למטה. ההתראה עצמה עדיין נוחתת ישר על "דחוף". */
-  if (admTab !== 'stu') return '';
+/* המספר האדום על הפעמון — כמה דברים מחכים ב"דחוף". */
+function admBell() {
   var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length;
-  if (!n) return '';
-  var bits = [];
-  if (L.acc.length) bits.push('🔑 ' + L.acc.length);
-  if (L.help.length) bits.push('🙋 ' + L.help.length);
-  if (L.fail.length) bits.push('✉ ' + L.fail.length);
-  if (L.calls.length) bits.push('📞 ' + L.calls.length);
-  return '<button class="hot-strip" onclick="admGo(\'hot\')"><b>' + esc(fill(UI.hotStrip, { n: n })) +
-    '</b><span>' + esc(bits.join(' · ')) + ' ←</span></button>';
+  var e = document.getElementById('adm-bell-n');
+  if (!e) return;
+  var t = n ? String(n) : '';
+  if (pplLast['adm-bell-n'] === t) return;
+  pplLast['adm-bell-n'] = t; e.textContent = t; e.style.display = n ? '' : 'none';
 }
 function admHotHtml() {
   var L = admHotList(), h = '<div class="my-top" style="margin:0 0 12px"><b>' + esc(UI.hotH) + '</b></div>';
