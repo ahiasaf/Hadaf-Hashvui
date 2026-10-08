@@ -2171,6 +2171,33 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .adm-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font:inherit;font-size:.85rem;font-weight:800;
   color:var(--gold-t);background:none;border:1px solid var(--gold);border-radius:20px;padding:4px 11px;cursor:pointer}
 .hot-sec{scroll-margin-top:10px}
+/* מוקד השיחות — שורה פתוחה לכל ישיבה */
+.yr-list{display:grid;gap:9px;margin-top:10px}
+.yr{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:11px 12px;box-shadow:var(--sh-1)}
+.yr-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.yr-nm{flex:1;min-width:0;text-align:right;font:inherit;font-size:1rem;font-weight:800;color:var(--blue-d);
+  background:none;border:0;padding:0;cursor:pointer}
+.yr-nm i{font-style:normal;color:var(--ink-3)}
+.yr-n{flex:none;font-size:.8rem;font-weight:800;color:var(--green-d);background:rgba(46,125,79,.1);border-radius:20px;padding:3px 9px}
+.yr-who{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:.85rem;font-weight:700;color:var(--ink-2)}
+.yr-who span{flex:1;min-width:0}
+.yr-b{flex:none;text-decoration:none;font-size:1.05rem;width:36px;height:36px;display:inline-flex;align-items:center;
+  justify-content:center;border:1px solid var(--rule);border-radius:50%;background:var(--paper)}
+.yr-nx{display:flex;gap:8px;justify-content:space-between;margin-top:6px;font-size:.84rem;color:var(--ink-2)}
+.yr-no{color:var(--ink-3)}
+.yr-t{flex:none;color:var(--ink-3);font-size:.76rem;font-weight:700}
+.yr-ch{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.yr-c{font:inherit;font-size:.76rem;font-weight:800;border:1px solid var(--rule);background:var(--paper);color:var(--ink-2);
+  border-radius:20px;padding:5px 10px;cursor:pointer;text-decoration:none}
+.yr-c.on{background:var(--green-d);border-color:var(--green-d);color:#fff}
+.yr-c.auto{border-style:dashed;cursor:default}
+button.yr-c.auto{cursor:pointer}
+.yr-c button{font:inherit;border:0;background:none;color:inherit;padding:0 0 0 2px;cursor:pointer}
+.yr-tmp{border-top:1px dashed var(--rule);padding-top:8px}
+.yr-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
+.yr-bar b{font-size:.8rem;color:var(--ink-3)}
+.ct-nx{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.ct-nx label{display:flex;flex-direction:column;gap:4px;font-size:.74rem;font-weight:800;color:var(--ink-3);min-width:0}
 .adm-tabs.tabs button.on{background:linear-gradient(140deg,var(--blue-l),var(--blue));
   border-color:transparent;color:#fff;box-shadow:var(--sh-2)}
 #stu-det{scroll-margin-top:10px}
@@ -2583,7 +2610,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.144';
+var APP_VERSION = '8.99.145';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6091,10 +6118,10 @@ function pushTeamView(list) {
    ============================================================ */
 function pushTagDefs() {
   if (!API && !CFG.api) return;
-  var rows = tagDefs().map(function (t) { return [t.k, t.t, t.team ? 'TRUE' : '']; });
+  var rows = tagDefs().map(function (t) { return [t.k, t.t, t.team ? 'TRUE' : '', t.tmp ? 'TRUE' : '']; });
   fetch((CFG.api || API).trim(), { method:'POST', mode:'no-cors',
     body: JSON.stringify({ action:'table', tab:'הגדרות תגיות', key:(CFG.readKey || '').trim(),  ss:(CFG.contactsSheet || '').trim() || undefined,
-      cols: JSON.stringify(['מפתח','תווית','לצוות']),
+      cols: JSON.stringify(['מפתח','תווית','לצוות','זמני']),
       rows: JSON.stringify(rows) }) }).catch(function () {});
 }
 function pullTagDefs() {
@@ -6105,7 +6132,8 @@ function pullTagDefs() {
     var out = [];
     d.rows.slice(1).forEach(function (r) {
       if (!r[0]) return;
-      out.push({ k:r[0], t:r[1] || r[0], team: YES.test(String(r[2] || '').trim()) });
+      out.push({ k:r[0], t:r[1] || r[0], team: YES.test(String(r[2] || '').trim()),
+                 tmp: YES.test(String(r[3] || '').trim()) });
     });
     if (out.length) saveTagDefsLocal(out);
     return true;
@@ -6897,17 +6925,137 @@ function yshBoard(ents) {
   if (!ents.some(function (e) { return e.st; })) h += '<div class="ysh-empty">' + esc(UI.yshNoSheet) + '</div>';
   return h;
 }
+/* ============================================================
+   שורה פתוחה לכל ישיבה (8.10.2026).
+   ============================================================
+   "אתה נכנס ורואה מלא דברים סגורים שצריך לפתוח." כאן — בלי לפתוח:
+   כמה נרשמו, איש הקשר הראשי וכפתורי שיחה, הצעד הבא ומתי דיברנו,
+   שלוש המשימות הקבועות, והסימונים הזמניים. לחיצה על השם — התיק.
+
+   **איש הקשר הראשי:** רכז התוכנית, ואם אין — ראש החטיבה. מי מהם
+   שהתקין עולה ראשון; אם שניהם — הרכז. */
+var CALL_TASKS = [['task_coord', 'taskCoord'], ['task_rm', 'taskRm'], ['task_kids', 'taskKids']];
+function yshInst(e) {
+  var inst = null;
+  e.recs.some(function (o) { inst = instByName(o.c.key || o.c.name); return !!inst; });
+  return inst || instByName(e.name);
+}
+function yshMain(e, subs) {
+  var best = null, bs = -1;
+  e.recs.forEach(function (o) {
+    var who = subsOf(o.c, subs).map(function (q) { return nameKey(q.name); });
+    peopleOf(o.c).forEach(function (q) {
+      if (!q.phone) return;
+      var r = String(q.role || ''), sc = /רכז/.test(r) ? 2 : /ראש/.test(r) ? 1 : 0;
+      var nk = nameKey(q.name);
+      if (nk && who.some(function (w) { return w && (w.indexOf(nk) >= 0 || nk.indexOf(w) >= 0); })) sc += 4;
+      if (sc > bs) { bs = sc; best = { q: q, c: o.c, i: o.i }; }
+    });
+  });
+  if (!best && e.recs.length) best = { q: mainOf(e.recs[0].c), c: e.recs[0].c, i: e.recs[0].i };
+  return best;
+}
+function yshTagOn(e, k) { return e.recs.some(function (o) { return tagOn(o.c, k); }); }
+function yshTick(n, k) {
+  var e = yshShown[n]; if (!e || !e.recs.length) return;
+  var on = yshTagOn(e, k), l = contacts(), now = new Date().toISOString();
+  e.recs.forEach(function (o) {
+    if (!l[o.i]) return;
+    if (!l[o.i].tags) l[o.i].tags = {};
+    if (on) delete l[o.i].tags[k]; else if (o === e.recs[0]) l[o.i].tags[k] = true;
+    l[o.i].at = now; jnl(l[o.i]);
+  });
+  saveContacts(l); renderCalls(); pushCalls();
+}
+function tmpDefs() { return tagDefs().filter(function (t) { return t.tmp; }); }
 function yshRow(e, n) {
-  var dots = YSH_IND.map(function (d) {
-    var v = yshOf(e, d[0]);
-    return '<i class="ysh-dot ' + 'v-' + v + '" title="' + esc(UI[d[1]] + ' · ' + UI['yshV_' + v]) + '"></i>';
-  }).join('');
-  var r = yshOf(e, 'rate');
-  return '<button class="ysh-row" onclick="yshOpen(' + n + ')">' +
-    '<span class="ysh-nm">' + esc(e.name) +
-    (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act" title="' + esc(UI.yshActive) + '">★</span>' : '') +
-    '</span><span class="ysh-dots">' + dots + '</span>' +
-    '<span class="ysh-tag ' + 'r-' + r + '">' + esc(UI['yshR_' + r]) + '</span></button>';
+  var cx = yshCtx || {}, inst = yshInst(e), m = yshMain(e, cx.subs || {});
+  var got = 0;
+  if (inst) pplData().rows.forEach(function (x) { if (x.c === inst.code) got = x.got; });
+  var acc = inst ? accList().filter(function (a) { return pplCode(a.inst) === inst.code; }) : [];
+  var accT = acc.some(function (a) { return a.st === 'אושר'; }) ? UI.yrAccOk
+           : acc.some(function (a) { return a.st === 'ממתין'; }) ? UI.yrAccWait : '';
+  var c0 = e.recs.length ? e.recs[0].c : null, upd = '';
+  e.recs.forEach(function (o) { if (!upd && o.c.upd) upd = o.c.upd; });
+  var due = '';
+  e.recs.forEach(function (o) { var d = o.c.tags && o.c.tags.__due; if (d && (!due || d < due)) due = d; });
+  var reg = e.recs.some(function (o) { return !!regOf(o.c, cx.regs || {}); });
+  var chip = function (k, t) {
+    var on = yshTagOn(e, k);
+    return '<button class="yr-c' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
+      (on ? '✓ ' : '') + esc(t) + '</button>';
+  };
+  var h = '<div class="yr"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
+    (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act">★</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
+    '<span class="yr-n">' + esc(fill(UI.yrGot, { n: got })) + '</span></div>';
+  if (m && m.q) {
+    h += '<div class="yr-who"><span>' + esc(m.q.name || '') + (m.q.role ? ' · ' + esc(m.q.role) : '') + '</span>' +
+      (m.q.phone ? '<a class="yr-b" href="tel:' + digits(m.q.phone) + '" aria-label="' + esc(UI.yrCall) + '">📞</a>' +
+        '<a class="yr-b" target="_blank" rel="noopener" href="https://wa.me/' + waNum(m.q.phone) + '" aria-label="' +
+        esc(UI.yrWa) + '">💬</a>' : '') + '</div>';
+  }
+  h += '<div class="yr-nx">' + (upd ? '⏭ ' + esc(upd) : '<span class="yr-no">' + esc(UI.yrNoNext) + '</span>') +
+    '<span class="yr-t">' + esc(e.t ? whenTxt(e.t) : UI.callNever) + (due ? ' · ⏰ ' + esc(due.split('-').reverse().slice(0, 2).join('/')) : '') +
+    '</span></div><div class="yr-ch">' +
+    CALL_TASKS.map(function (t) { return chip(t[0], UI[t[1]]); }).join('') +
+    (reg ? '<span class="yr-c auto">⚑ ' + esc(UI.yrReg) + '</span>' : '') +
+    (accT ? '<span class="yr-c auto">' + esc(accT) + '</span>' : '') +
+    (inst ? '<button class="yr-c auto" onclick="admInstPick(\'' + esc(inst.code) + '\');admGo(\'stu\')">👁 ' +
+      esc(UI.yrBoard) + '</button>' : '') + '</div>';
+  var tm = tmpDefs();
+  if (tm.length || yshTagOn(e, 'called')) {
+    h += '<div class="yr-ch yr-tmp">' + chip('called', UI.yrRound) +
+      tm.map(function (t) { return chip(t.k, t.t); }).join('') + '</div>';
+  }
+  return h + '</div>';
+}
+var yshCtx = null;
+/* "+ סימון" — עמודה זמנית לכל הישיבות (למשל "זום"), ומחיקה בסוף הסבב. */
+function tmpAdd() {
+  var name = prompt(UI.tmpAsk);
+  if (!name || !name.trim()) return;
+  var d = tagDefs().slice();
+  d.push({ k: tagKeyOf_(), t: name.trim(), team: false, tmp: true });
+  saveTagDefs(d);
+}
+function tmpDrop(k) {
+  var t = tagDefs().filter(function (x) { return x.k === k; })[0];
+  if (!t || !confirm(fill(UI.tmpDropAsk, { t: t.t }))) return;
+  var l = contacts();
+  l.forEach(function (c) { if (c.tags) delete c.tags[k]; });
+  saveContacts(l);
+  saveTagDefs(tagDefs().filter(function (x) { return x.k !== k; }));
+  pushCalls(1);
+}
+function tmpBar() {
+  var tm = tmpDefs();
+  return '<div class="yr-bar"><b>' + esc(UI.tmpH) + '</b>' + tm.map(function (t) {
+    var n = contacts().filter(function (c) { return tagOn(c, t.k); }).length;
+    return '<span class="yr-c on">' + esc(t.t) + ' · ' + n + ' <button onclick="tmpDrop(\'' + esc(t.k) + '\')" aria-label="' +
+      esc(fill(UI.tmpDropAsk, { t: t.t })) + '">✕</button></span>';
+  }).join('') + '<button class="yr-c" onclick="tmpAdd()">' + esc(UI.tmpAdd) + '</button></div>';
+}
+/* "תזכיר לי ב…" — התאריך נשמר על הישיבה (קופץ ב"דחוף" ביום הזה), ותזכורת
+   נדחפת למכשיר בתשע בבוקר. ריק = בלי תזכורת. */
+function callDue(i, v) {
+  var l = contacts(); if (!l[i]) return;
+  if (!l[i].tags) l[i].tags = {};
+  if (v) l[i].tags.__due = v; else delete l[i].tags.__due;
+  l[i].at = new Date().toISOString();
+  jnl(l[i]); saveContacts(l); pushCalls();
+  if (v) {
+    rmNew = { date: v, time: '09:00', text: l[i].name + ' — ' + (l[i].upd || UI.callDueTxt) };
+    rmAdd();
+  }
+  if (document.querySelector('#adm-pane #calls-body')) renderCalls();
+}
+function callDueDone(i) { callDue(i, ''); admPane(); }
+function callsDue() {
+  var today = rmToday();
+  return contacts().map(function (c, i) { return { c: c, i: i }; }).filter(function (o) {
+    var d = o.c.tags && o.c.tags.__due;
+    return d && d <= today;
+  });
 }
 var yshShown = [];
 function yshFilter(f) { state.yf = (!f || state.yf === f) ? '' : f; renderCalls(); }
@@ -7046,11 +7194,11 @@ function renderCalls() {
   counts.last = list.filter(function (c) { return c.last; }).length;
   counts.signed = list.filter(function (c) { return !!regOf(c, regs); }).length;
 
-  var h = '<div class="hero" style="padding:20px"><span class="glow g1"></span>' +
-          '<span class="glow g3"></span><h2 style="font-size:1.3rem">מוקד שיחות</h2>' +
-          '<div class="rule"></div><div class="sub">' + counts.joined +
+  yshCtx = ctx;
+  /* שורה אחת במקום כרזה — הרשימה היא העיקר, ולא גוללים אליה. */
+  var h = '<div class="my-top" style="margin:0"><b>מוקד שיחות</b><span>' + counts.joined +
           ' מתוך ' + list.length + ' ישיבות הצטרפו · ' +
-          (list.length - counts.new) + ' שיחות בוצעו</div></div>' +
+          (list.length - counts.new) + ' שיחות בוצעו</span></div>' +
           '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
           esc(callSync.state || 'נשמר על המכשיר') +
           (list.filter(function (c) {
@@ -7061,8 +7209,10 @@ function renderCalls() {
               }).length + ' בלי טלפון'
             : '') + '</div>';
 
-  /* התמונה הגדולה — לפני הכל. */
-  h += yshBoard(ents);
+  /* התמונה הגדולה — מקופלת, ונזכרת פתוחה אם פתחת. */
+  h += '<details class="adm-card" style="margin:10px 0 0"' + (Store.get('yshBrdOpen', 0) ? ' open' : '') +
+       ' ontoggle="Store.set(\'yshBrdOpen\',this.open?1:0)"><summary>' + esc(UI.yshBigH) + '</summary>' +
+       yshBoard(ents) + '</details>';
 
   /* ============================================================
      החיפוש — ממש מעל הרשימה שהוא מסנן.
@@ -7150,10 +7300,7 @@ function renderCalls() {
           'עוד לא נטענה. היא נטענת ב"מה קורה ← אנשים".'
         : 'אין מוסדות בקטגוריה הזו.') + '</div>';
   else {
-    h += '<div class="ysh-leg"><span></span><span class="ysh-dots">' +
-         YSH_IND.map(function (d) { return '<i>' + esc(UI[d[1]]) + '</i>'; }).join('') +
-         '</span><span></span></div><div class="ysh-list">' +
-         shown.map(yshRow).join('') + '</div>';
+    h += tmpBar() + '<div class="yr-list">' + shown.map(function (e, n) { return yshRow(e, n); }).join('') + '</div>';
   }
 
   /* התזכורות ומה שהצוות עשה — מיד אחרי הרשימה. קודם התמונה
@@ -7262,6 +7409,11 @@ function ctCard(c, i, ctx) {
             : 'וואטסאפ') + '</a></div>';
   };
 
+  /* הצעד הבא, ומתי לחזור — גלויים, לא בתוך "הערה". */
+  h += '<div class="ct-nx"><label>' + esc(UI.callNext) + '<input class="updline" type="text" maxlength="160" ' +
+       'placeholder="' + esc(UI.callNextPh) + '" value="' + esc(c.upd || '') + '" onchange="setUpd(' + i + ',this.value)"></label>' +
+       '<label>' + esc(UI.callDue) + '<input type="date" value="' + esc((c.tags && c.tags.__due) || '') +
+       '" onchange="callDue(' + i + ',this.value)"></label></div>';
   if (me && me.phone) {
     h += dial(me.name || 'חייג', me.phone, false);
     if (me.phone2) h += dial((me.name || '') + ' · נוסף', me.phone2, true);
@@ -7320,9 +7472,6 @@ function ctCard(c, i, ctx) {
   h += '<details class="ct-d" data-k="note"' +
        ' ontoggle="var t=this.querySelector(\'textarea\');if(t&&this.open)noteGrow(t)"><summary>' +
        esc(UI.callNote) + (c.note || c.upd ? ' ✎' : '') + '</summary>' +
-       '<input class="updline" type="text" maxlength="160" ' +
-       'placeholder="עדכון קצר (תכלס), משפט–שניים…" value="' + esc(c.upd || '') +
-       '" onchange="setUpd(' + i + ',this.value)">' +
        '<label class="teamshow"><input type="checkbox"' +
        (c.teamShow ? ' checked' : '') +
        ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' +
@@ -7499,7 +7648,7 @@ function tagEditOpen() {
   box.className = 'on';
 }
 function tgRow(t, k) {
-  return '<div class="ce-row tg-row" data-k="' + esc(t.k) + '">' +
+  return '<div class="ce-row tg-row" data-k="' + esc(t.k) + '"' + (t.tmp ? ' data-tmp="1"' : '') + '>' +
     '<input class="tg-t" type="text" value="' + esc(t.t) + '">' +
     '<label class="tg-team"><input type="checkbox" class="tg-team-c"' +
     (t.team ? ' checked' : '') + '>לצוות</label>' +
@@ -7522,7 +7671,7 @@ function tagEditSave() {
     var t = row.querySelector('.tg-t').value.trim();
     if (!t) return;
     var k = row.getAttribute('data-k') || tagKeyOf_();
-    defs.push({ k:k, t:t, team: row.querySelector('.tg-team-c').checked });
+    defs.push({ k:k, t:t, team: row.querySelector('.tg-team-c').checked, tmp: row.getAttribute('data-tmp') === '1' });
   });
   saveTagDefs(defs);
   tagEditClose();
@@ -9656,7 +9805,8 @@ function admPane() {
   /* "ישיבות וצוות" — כל טעינה ברקע (אימות, הודעות, שיחות…) ציירה את
      המסך כולו מחדש, וכפתור "אישור" התחלף מתחת לאצבע. עכשיו רק מה
      שהשתנה; רשימת השיחות מתעדכנת דרך renderCalls שלה. */
-  if (admTab === 'inst' && document.getElementById('in-list') && document.getElementById('calls-body')) return admLive();
+  /* `#adm-pane` במפורש: יש `calls-body` נוסף במסך המוקד הישן (v-calls). */
+  if (admTab === 'inst' && document.querySelector('#adm-pane #calls-body')) { admLive(); return renderCalls(); }
   if (admTab === 'push' && document.getElementById('pu-viz') && document.getElementById('adm-send')) {
     admLive(); return admPush(document.getElementById('adm-send'));
   }
@@ -9711,7 +9861,8 @@ function admPane() {
   if (sub === 'push') return admPushTab(body);
   if (sub === 'data') return admData(body);
   if (sub === 'calls') {
-    body.innerHTML = '<div id="in-list"></div>' + admInstHead() + '<div id="calls-body"></div>';
+    /* מוקד השיחות בלבד: הספירה, האימות והלוח של כל ישיבה — בשורה שלה. */
+    body.innerHTML = '<div id="calls-body"></div>' + admInstHead();
     admLive();
     renderCalls();
     /* ומושכים מהגיליון ברקע — התיעוד ממכשיר אחר, ומחזיר את
@@ -10625,16 +10776,17 @@ function accGo() {
    אין פס. כל הישיבות, תמיד: דחוף אינו מסונן לפי ישיבה. */
 function admHotList() {
   var all = (stuckRows || []).filter(function (p) { return !p.done && !stuckFull(p); });
-  return { fail: needsFail || [], help: all, acc: accWait(null) };
+  return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue() };
 }
 function admHotStrip() {
   if (admTab === 'hot') return '';
-  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length;
+  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length;
   if (!n) return '';
   var bits = [];
   if (L.acc.length) bits.push('🔑 ' + L.acc.length);
   if (L.help.length) bits.push('🙋 ' + L.help.length);
   if (L.fail.length) bits.push('✉ ' + L.fail.length);
+  if (L.calls.length) bits.push('📞 ' + L.calls.length);
   return '<button class="hot-strip" onclick="admGo(\'hot\')"><b>' + esc(fill(UI.hotStrip, { n: n })) +
     '</b><span>' + esc(bits.join(' · ')) + ' ←</span></button>';
 }
@@ -10643,6 +10795,19 @@ function admHotHtml() {
   if (L.acc.length) {
     h += '<div class="adm-card hot-sec" id="hot-acc" style="margin-bottom:11px"><h4>' + esc(UI.hotAcc) + '</h4>' +
       accHtml('', 1) + '</div>';
+  }
+  if (L.calls.length) {
+    h += '<div class="adm-card hot-sec" id="hot-calls" style="margin-bottom:11px"><h4>' + esc(UI.hotCalls) + '</h4>' +
+      L.calls.map(function (o) {
+        var q = (yshMain({ recs: [o] }, subsByInst()) || {}).q || {};
+        return '<div class="need"><div class="need-m"><b>' + esc(o.c.name) + '</b>' +
+          (q.name ? ' · ' + esc(q.name) : '') + '</div>' +
+          (o.c.upd ? '<div class="need-t">⏭ ' + esc(o.c.upd) + '</div>' : '') +
+          '<div class="yr-ch" style="margin-top:8px">' +
+          (q.phone ? '<a class="yr-c" href="tel:' + digits(q.phone) + '">📞 ' + esc(UI.yrCall) + '</a>' +
+            '<a class="yr-c" target="_blank" rel="noopener" href="https://wa.me/' + waNum(q.phone) + '">💬 ' + esc(UI.yrWa) + '</a>' : '') +
+          '<button class="yr-c on" onclick="callDueDone(' + o.i + ')">✓ ' + esc(UI.hotCallDone) + '</button></div></div>';
+      }).join('') + '</div>';
   }
   if (L.help.length) h += '<div class="hot-sec" id="hot-help">' + admSetupHelp() + '</div>';
   if (L.fail.length) {
@@ -10658,7 +10823,7 @@ function admHotHtml() {
       }).join('') + (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') + '</div>';
   }
   /* "ההיסטוריה" נשמרת: כאן נשאר הפריט עד שמטופל, וכשאין כלום — אומרים. */
-  if (!L.acc.length && !L.help.length && !L.fail.length) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
+  if (!L.acc.length && !L.help.length && !L.fail.length && !L.calls.length) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
   var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
   if (!subbed) h += '<button class="adm-chip" onclick="rmSubOn()">' + esc(UI.hotSub) + '</button>';
   return h;
