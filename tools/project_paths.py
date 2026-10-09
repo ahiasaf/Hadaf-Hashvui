@@ -17,9 +17,9 @@ def project_path(*parts):
     if first == "sugya":
         return str(ROOT / "docs/research" / relative)
     if str(relative) == "data.js":
-        return str(ROOT / "src/config/program.js")
+        return str(ROOT / "src/generated/data.js")
     if str(relative) == "links.js":
-        return str(ROOT / "src/config/links.js")
+        return str(ROOT / "src/generated/links.js")
     if str(relative) == "sw.js":
         return str(ROOT / "src/service-worker.js")
     if len(relative.parts) == 1 and relative.suffix == ".js":

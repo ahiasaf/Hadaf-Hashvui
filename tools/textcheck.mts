@@ -1,12 +1,5 @@
-import { readFileSync } from "node:fs";
-import vm from "node:vm";
-const context: Record<string, unknown> = { console };
-context.window = context;
-vm.createContext(context);
-vm.runInContext(
-  readFileSync(new URL("../src/config/program.js", import.meta.url), "utf8"),
-  context,
-);
+import { programContent } from "../src/config/content.ts";
+const context: Record<string, unknown> = programContent();
 const roots: Record<string, string> = {
   fit: "FIT",
   ui: "UI",

@@ -43,10 +43,13 @@ for (const name of await fs.readdir("src/shared")) {
     );
 }
 await script(
-  await fs.readFile("src/config/program.js", "utf8"),
+  await fs.readFile("src/generated/data.js", "utf8"),
   "dist/data.js",
 );
-await script(await fs.readFile("src/config/links.js", "utf8"), "dist/links.js");
+await script(
+  await fs.readFile("src/generated/links.js", "utf8"),
+  "dist/links.js",
+);
 await fs.mkdir("dist/tool-styles", { recursive: true });
 for (const name of await fs.readdir("src/features")) {
   const directory = path.join("src/features", name);

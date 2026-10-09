@@ -43,11 +43,11 @@
   "outputDirectory": "dist",
   "framework": "astro",
   "functions": {
+    "api/action.ts": {
+      "maxDuration": 60
+    },
     "api/*.ts": {
       "maxDuration": 20
-    },
-    "api/action.ts": {
-      "maxDuration": 120
     }
   },
   "regions": ["fra1"]

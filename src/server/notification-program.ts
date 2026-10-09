@@ -1,14 +1,8 @@
-import fs from "node:fs";
-import vm from "node:vm";
+import { programContent } from "../config/content.ts";
 import type { Track } from "../lib/calendar.ts";
 import { stringRecord } from "./database.ts";
 export function notificationProgram() {
-  const context: Record<string, unknown> = {};
-  vm.runInNewContext(
-    fs.readFileSync(new URL("../config/program.js", import.meta.url), "utf8"),
-    context,
-    { timeout: 1000 },
-  );
+  const context = programContent();
   const metadata = context.PROGRAM as {
     startDate?: unknown;
     year?: unknown;

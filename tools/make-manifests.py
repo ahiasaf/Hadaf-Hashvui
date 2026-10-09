@@ -31,10 +31,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    d = io.open(project_path( 'data.js'), encoding='utf-8').read()
-    blk = d[d.index('var INSTITUTIONS = ['):]
-    blk = blk[:blk.index('\n];')]
-    codes = re.findall(r"code:'([a-z]+)'", blk)
+    data = json.load(io.open(project_path('src','config','program.json'), encoding='utf-8'))
+    codes = [institution['code'] for institution in data['INSTITUTIONS']]
 
     base = json.load(io.open(project_path( 'join-manifest.json'),
                              encoding='utf-8'))

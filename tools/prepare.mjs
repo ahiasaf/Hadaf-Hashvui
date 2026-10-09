@@ -1,14 +1,18 @@
 import fs from "node:fs/promises";
-import vm from "node:vm";
+import {
+  programContent,
+  programScript,
+  linksScript,
+} from "../src/config/content.ts";
 import path from "node:path";
 import sharp from "sharp";
 import { createHash } from "node:crypto";
 import { stagePublisherAssets } from "./publisher-assets.mjs";
 await stagePublisherAssets();
-const source = await fs.readFile("src/config/program.js", "utf8");
-const context = {};
-vm.runInNewContext(source, context, { timeout: 1000 });
+const context = programContent();
 await fs.mkdir("src/generated", { recursive: true });
+await fs.writeFile("src/generated/data.js", programScript());
+await fs.writeFile("src/generated/links.js", linksScript());
 const media = {};
 const defaults = {};
 for (const [key, content] of Object.entries(context.CONTENT)) {

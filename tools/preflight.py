@@ -55,7 +55,7 @@ def check_version():
             # נדבק לכתובת של כל תמונת דף. כשהוא נשאר מאחור, מכשיר
             # שכבר פתח את הדף ממשיך להציג את התמונה הישנה — ואת
             # הסימונים החדשים עליה, במקום הלא נכון.
-            ('data.js', 'data.js', r"DAF_REV\s*=\s*'([^']+)'")):
+            ('data.js', 'data.js', r"DAF_REV\s*=\s*[\"']([^\"']+)[\"']")):
         m = re.search(pat, read(path))
         if not m:
             BAD.append('לא מצאתי מספר גרסה ב-%s' % label)
@@ -177,8 +177,8 @@ def check_decks():
     `deck:{dir,n}` אומר לאפליקציה לבקש 01.jpg עד n. שקף חסר אינו
     שגיאה בקוד — הוא ריבוע שבור על המסך, באמצע שיעור.
     """
-    src = read('data.js')
-    decks = re.findall(r"deck:\s*\{\s*dir:\s*'([^']+)'\s*,\s*n:\s*(\d+)", src)
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    decks = [(item['deck']['dir'],item['deck']['n']) for item in content['CONTENT'].values() if item.get('deck')]
     if not decks:
         WARN.append('לא נמצאה אף מצגת ב-data.js')
         return
@@ -247,22 +247,18 @@ def check_calendar():
     זו אזהרה ולא כישלון: המאגר נבנה בהדרגה בכוונה, ודף שטרם הומר
     עדיין עובד דרך הדרייב. אבל כדאי לדעת מראש על איזה שבוע מדובר.
     """
-    src = read('data.js')
-    p = project_path( 'daf', 'index.json')
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    p = project_path('daf', 'index.json')
     if not os.path.exists(p):
         return
     idx = json.loads(io.open(p, encoding='utf-8').read())
-    for name, mas in (('CAL_TAANIT', 'taanit'), ('CAL_MEGILA', 'megila')):
-        m = re.search(name + r'\s*=\s*\[(.*?)\n\];', src, re.S)
-        if not m:
-            continue
+    for mas, calendar in content['CALENDARS'].items():
         gone = []
-        for wk, row in enumerate(re.findall(r'\[(.*?)\]', m.group(1), re.S), 1):
-            cells = re.findall(r"'((?:[^'\\]|\\.)*)'", row)
-            if len(cells) < 3:
-                continue                      # שבוע בלי דף (חג) — null
-            daf = cells[2].replace('\\', '').replace('"', '').replace("'", '')
-            if daf in ('סיום',) or not daf:
+        for wk, cells in enumerate(calendar, 1):
+            if len(cells) < 3 or not cells[2]:
+                continue
+            daf = cells[2].replace('"', '').replace("'", '')
+            if daf == 'סיום':
                 continue
             if daf not in idx.get(mas, {}):
                 gone.append('שבוע %d · דף %s' % (wk, daf))
@@ -275,7 +271,7 @@ def check_prog_start():
     (הסימנייה של "לימוד"). כשהן נפרדות, הלוח של הצוות קורא שבוע אחר
     מזה שהאפליקציה מציגה — ומי שסיים נעלם ממנו.
     """
-    a = re.search(r"startDate:\s*'([^']+)'", read('data.js'))
+    a = re.search(r"[\"']startDate[\"']:\s*[\"']([^\"']+)[\"']", read('data.js'))
     b = re.search(r"PROG_START\s*=\s*'([^']+)'", read('apps-script.gs'))
     if not a or not b:
         BAD.append('לא מצאתי את תחילת התוכנית ב-data.js או ב-apps-script.gs')
@@ -364,10 +360,8 @@ def check_inst_manifests():
     ישיבה שנוספה ל-INSTITUTIONS בלי מניפסט היא בדיוק התקלה
     השקטה הזאת, ולכן הבדיקה כאן ולא בראש של מישהו.
     """
-    d = read('data.js')
-    blk = d[d.index('var INSTITUTIONS = ['):]
-    blk = blk[:blk.index('\n];')]
-    codes = re.findall(r"code:'([a-z]+)'", blk)
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    codes = [institution['code'] for institution in content['INSTITUTIONS']]
     if not codes:
         BAD.append('לא נמצאו קודי ישיבות ב-data.js')
         return

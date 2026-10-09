@@ -1,6 +1,5 @@
 src/generated/
 src/shared/
-src/config/
 src/features/
 src/service-worker.js
 dist/

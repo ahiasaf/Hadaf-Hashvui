@@ -1,3 +1,4 @@
+import { programContent } from "../src/config/content.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -24,8 +25,7 @@ async function load(file, context = {}, modules = {}) {
   });
   return exports;
 }
-const program = {};
-vm.runInNewContext(await fs.readFile("src/config/program.js", "utf8"), program);
+const program = programContent();
 const shareLinks = await load("src/lib/share-links.ts");
 const invitations = await load(
   "src/lib/invitations.ts",

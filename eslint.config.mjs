@@ -8,7 +8,6 @@ export default ts.config(
       "node_modules/**",
       "src/generated/**",
       "src/shared/**",
-      "src/config/**",
       "src/features/**",
       "src/service-worker.js",
       "src/**/*.astro",

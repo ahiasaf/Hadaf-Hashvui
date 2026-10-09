@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { programContent } from "../config/content.ts";
 import {
   appendDatabaseRecord,
   database,
@@ -14,17 +14,8 @@ export type Report = {
   run?: boolean | number;
 };
 export class SourceUnavailable extends Error {}
-let script = "";
 export function scriptUrl() {
-  if (!script) {
-    const source = readFileSync(
-      new URL("../config/program.js", import.meta.url),
-      "utf8",
-    );
-    script = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(source)?.[1] || "";
-  }
-  if (!script) throw new Error("Apps Script configuration missing");
-  return script;
+  return programContent().APPS_SCRIPT_URL;
 }
 export function pause(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));

@@ -37,7 +37,7 @@ export default async function handler(
       ("sid" in result || pairWrite)
     )
       waitUntil(
-        flushNotificationOutbox().catch(() =>
+        flushNotificationOutbox(undefined, 45000).catch(() =>
           console.error(
             "Notification background delivery failed; inspect pending ledger",
           ),
