@@ -2673,7 +2673,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.152';
+var APP_VERSION = '8.99.153';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8365,6 +8365,14 @@ function instFromRows(rows) {
   });
   if (!out.length)     return { ok:false, why:'לא נמצאו מוסדות בלשונית' };
   if (odd > out.length) return { ok:false, why:'הלשונית אינה נראית כרשימת מוסדות' };
+  /* קוד באנגלית אינו מספיק: "דפים פתוחים" (taanit, megila) עבר את
+     הבדיקה, כשהיא נעשתה הלשונית הראשונה, ודרס את כל הישיבות —
+     וכל ראש חטיבה ראה שוב "להצטרפות". רוב הקודים חייבים להיות
+     מוכרים מהרשימה שבקוד; ישיבה חדשה או שתיים — עוברות. */
+  var known = out.filter(function (i) {
+    return INST_BUILTIN.some(function (b) { return b.code === i.code; });
+  }).length;
+  if (!known || known * 2 < out.length) return { ok:false, why:'הקודים בלשונית אינם קודי ישיבות' };
   return { ok:true, list:out };
 }
 
