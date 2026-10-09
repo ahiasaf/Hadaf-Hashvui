@@ -235,21 +235,57 @@ S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>�
     drift(s.ph[2], t, 6.5, 8.9, 1, 1.09);
   } });
 
-/* 3 · מספרים */
+/* 3 · מספרים. אחרי שנייה וחצי, בקפיצה: סך התלמידים +1 ו"אבות ובנים" +1.
+   באותו רגע "סיימו את הדף" עולה עד המספר האמיתי שבצילום, והרצועה
+   מתמלאת איתו. השורה התחתונה והרצועה מצוירות מחדש בכל פריים;
+   המילים העבריות שבשורה נלקחות מהצילום עצמו, רק המספרים מצוירים.
+   STATS: [לפני, אחרי]. done[1] = המספר שבצילום. */
+var STATS = { total: [237, 238], done: [87, 99], at: 10.3, run: .6 };
 S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
   build: function (L, s) {
-    // אחרי שנייה וחצי, בקפיצה אחת: 237→238 בגדול, "אבות ובנים" 102→103,
-    // ו"מתוך 237" בשורה התחתונה
     var D = [
       { ink: [669, 46, 723, 124], box: [667.5, 34, 61, 100], strip: [4, 26], color: '#C18E2C', to: '8' },
-      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' },
-      { ink: [610, 726, 629, 754], box: [608, 718, 25, 40], strip: [704, 12], color: '#1B2A45', to: '8' }];
-    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .3,
+      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
+    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .75,
       post: function (x, img) {
-        if (s.t >= 10.4) D.forEach(function (d) { roll(x, img, d, 1); });
+        var on = s.t >= STATS.at, p = easeOut((s.t - STATS.at) / STATS.run);
+        if (on) D.forEach(function (d) { roll(x, img, d, 1); });
+        var all = STATS.total[on ? 1 : 0], dv = lerp(STATS.done[0], STATS.done[1], p);
+        statBar(x, dv / all, img);
+        statLine(x, img, String(Math.round(dv)), String(all));
       } });
   },
-  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 11.4, 1, 1.06); } });
+  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 11.4, 1, 1.04); } });   // השורה התחתונה נשארת בפריים
+
+/* הרצועה: מסלול 39–1041, גובה 649–683, מתמלאת מימין */
+function statBar(x, f, img) {
+  var L = 39, R = 1041, T = 649, H = 34, w = Math.max(H, (R - L) * f);
+  x.drawImage(img, 30, 626, 1020, 12, 30, 644, 1020, 46);       // מוחק גם את צל הרצועה הישנה
+  rrect(x, L, T, R - L, H, H / 2); x.fillStyle = '#EFE7D4'; x.fill();
+  var g = x.createLinearGradient(R - w, 0, R, 0);
+  g.addColorStop(0, '#7AB045'); g.addColorStop(1, '#4A811E');
+  rrect(x, R - w, T, w, H, H / 2); x.fillStyle = g; x.fill();
+}
+/* "{n} מתוך {all} סיימו את דף ב." — ממורכז כמו באפליקציה */
+var LINE = { base: 754, h: 28, gap: [13, 12, 14], mitoch: [641, 732], rest: [293, 552], cx: 539.5, y: 716, yh: 65 };
+function statLine(x, img, n, all) {
+  var l = LINE;
+  x.drawImage(img, 280, 704, 520, 12, 280, l.y, 520, l.yh);    // רקע נקי מעל השורה (כולל ה-ך היורדת)
+  x.textAlign = 'left'; x.direction = 'ltr';
+  if (!l.size) {
+    x.font = '700 100px Heebo'; var m = x.measureText('237');
+    l.size = 100 * l.h / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+  }
+  x.font = '700 ' + l.size + 'px Heebo'; x.fillStyle = '#172335';
+  var ink = function (t) { var m = x.measureText(t); return [m.actualBoundingBoxLeft, m.actualBoundingBoxRight]; };
+  var a = ink(n), b = ink(all), wa = a[0] + a[1], wb = b[0] + b[1];
+  var w1 = l.mitoch[1] - l.mitoch[0], w2 = l.rest[1] - l.rest[0];
+  var tot = wa + l.gap[0] + w1 + l.gap[1] + wb + l.gap[2] + w2, r = l.cx + tot / 2;
+  x.fillText(n, r - a[1], l.base); r -= wa + l.gap[0];
+  x.drawImage(img, l.mitoch[0], l.y, w1, l.yh, r - w1, l.y, w1, l.yh); r -= w1 + l.gap[1];
+  x.fillText(all, r - b[1], l.base); r -= wb + l.gap[2];
+  x.drawImage(img, l.rest[0], l.y, w2, l.yh, r - w2, l.y, w2, l.yh);
+}
 
 /* מכאן והלאה הזמנים כתובים בציר המקורי (v24), והחלקים מוקדמים בשנייה:
    מסך המספרים קוצר בשנייה. seek מתרגם (ראו SHIFT). */
