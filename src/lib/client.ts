@@ -50,7 +50,9 @@ const pending = new Map<
 >();
 const publicCachePrefix = "df:public:";
 const refreshKey = "df:public-refresh-until";
+let publicGeneration = 0;
 export function clearPublicCache() {
+  publicGeneration++;
   pending.clear();
   try {
     for (const key of Object.keys(sessionStorage)) {
@@ -87,6 +89,7 @@ export function sheet(tab: string, fresh = false, query = "") {
   } catch {
     /* Storage is optional. */
   }
+  const generation = publicGeneration;
   const task = fetch(
     "/api/sheets?" +
       new URLSearchParams({
@@ -102,10 +105,11 @@ export function sheet(tab: string, fresh = false, query = "") {
     if (!response.ok) throw new Error("Read failed");
     const rows = parseCsv(await response.text());
     try {
-      sessionStorage.setItem(
-        storageKey,
-        JSON.stringify({ rows, expires: Date.now() + lifetime }),
-      );
+      if (generation === publicGeneration)
+        sessionStorage.setItem(
+          storageKey,
+          JSON.stringify({ rows, expires: Date.now() + lifetime }),
+        );
     } catch {
       /* Storage is optional. */
     }

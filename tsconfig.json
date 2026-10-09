@@ -14,6 +14,7 @@
     ".astro/types.d.ts",
     "src/**/*",
     "api/**/*",
+    "tools/*.mts",
     "astro.config.mjs"
   ],
   "exclude": [

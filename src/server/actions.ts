@@ -1,42 +1,7 @@
+import { publicColumns } from "./action-policy.ts";
+import { databaseEnabled, stringRecord } from "./database.ts";
+import { databaseAction } from "./database-actions.ts";
 import settings from "../generated/settings.json" with { type: "json" };
-const publicColumns: Record<string, string[]> = {
-  לומדים: [
-    "מזהה",
-    "שם",
-    "משפחה",
-    "טלפון",
-    "ישיבה",
-    "קוד ישיבה",
-    "שכבה",
-    "כיתה",
-    "מסגרת",
-    "תפקיד",
-    "שם ההורה",
-    "משפחת ההורה",
-    "טלפון ההורה",
-    "לומד עם",
-    "הוזמן על ידי",
-    "מזהה המזמין",
-    "בדיקה",
-  ],
-  לימוד: ["מזהה", "קוד ישיבה", "מסלול", "שבוע", "דף", "קטע", "מתוך", "בדיקה"],
-  התראות: [
-    "מזהה",
-    "שם",
-    "טלפון",
-    "ישיבה",
-    "קוד ישיבה",
-    "תפקיד",
-    "שכבה",
-    "כיתה",
-    "מכשיר",
-    "מנוי",
-    "תוצאה",
-    "מועד",
-    "מתי",
-    "דפדפן",
-  ],
-};
 const reads = new Set([
   "board",
   "key",
@@ -82,12 +47,13 @@ export async function forwardAction(input: unknown, request = fetch) {
       !payload.key
     )
       throw new Error("Authentication required");
+    if (databaseEnabled()) return databaseAction("read", stringRecord(payload));
     const url = new URL(settings.api);
     for (const [key, value] of Object.entries(payload))
       url.searchParams.set(key, String(value));
     response = await request(url, { signal: AbortSignal.timeout(18000) });
   } else if (envelope.operation === "write") {
-    if (!["row", "table", "ghput"].includes(String(payload.action)))
+    if (!["row", "table", "ghput", "teamlog"].includes(String(payload.action)))
       throw new Error("Invalid write");
     if (!payload.key) {
       if (
@@ -120,6 +86,29 @@ export async function forwardAction(input: unknown, request = fetch) {
         throw new Error("Invalid columns");
     }
     if (payload.ss) throw new Error("Custom sheets are unsupported");
+    if (payload.action === "teamlog") {
+      const cols: unknown = JSON.parse(String(payload.cols));
+      if (
+        !payload.key ||
+        Object.keys(payload).some(
+          (key) => !["action", "key", "cols"].includes(key),
+        ) ||
+        !Array.isArray(cols) ||
+        cols.length !== 3 ||
+        !cols.every(
+          (pair) =>
+            Array.isArray(pair) &&
+            pair.length === 2 &&
+            ["מי", "ישיבה", "פעולה"].includes(pair[0]) &&
+            typeof pair[1] === "string" &&
+            pair[1].length < 1000,
+        ) ||
+        new Set(cols.map((pair) => pair[0])).size !== 3
+      )
+        throw new Error("Invalid team log");
+    }
+    if (databaseEnabled())
+      return databaseAction("write", stringRecord(payload));
     response = await request(settings.api, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },

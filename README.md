@@ -29,8 +29,8 @@ Build before running tests. Browser checks use bundled public-content fixtures a
 
 ## Content and deployment
 
-`src/config/program.js` remains the content source, including editable UI copy. Google Sheets provides published overrides; private rows and credentials remain in the existing Apps Script backend. Same-origin public reads are deduplicated, cached briefly, and bounded by timeouts.
+`src/config/program.js` remains the content source, including editable UI copy. Google Sheets provides published overrides; production private rows remain in Apps Script. An isolated Neon candidate has passed source parity checks; its optional runtime stays disabled until the remaining workflow cutover gates pass. Same-origin public reads are deduplicated, cached briefly, and bounded by timeouts.
 
 Vercel builds `dist/` and deploys branch previews. `/api/sheets` exposes only approved public tabs; `/api/wait` returns success only after the existing backend acknowledges a notification request. Repository secrets remain server-side; this frontend migration does not deploy the shared Apps Script backend.
 
-See [architecture](docs/architecture.md) and [acceptance checklist](docs/migration-checklist.md). `/admin` remains a direct-entry tool. `/tyuta` retains local draft recovery.
+See [database migration and owner setup](docs/database-migration.md), [architecture](docs/architecture.md) and [acceptance checklist](docs/migration-checklist.md). `/admin` remains a direct-entry tool. `/tyuta` retains local draft recovery.

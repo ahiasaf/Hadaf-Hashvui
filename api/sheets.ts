@@ -1,3 +1,4 @@
+import { databaseEnabled, readDatabaseSheet } from "../src/server/database.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { publicTabs, readPublicSheet } from "../src/server/upstream.ts";
 export default async function handler(
@@ -17,11 +18,17 @@ export default async function handler(
     return;
   }
   try {
-    const text = await readPublicSheet(
-      tab,
-      url.searchParams.get("tq") || "",
-      url.searchParams.get("headers") || "",
-    );
+    const text = databaseEnabled()
+      ? await readDatabaseSheet(
+          tab,
+          url.searchParams.get("tq") || "",
+          url.searchParams.has("fresh"),
+        )
+      : await readPublicSheet(
+          tab,
+          url.searchParams.get("tq") || "",
+          url.searchParams.get("headers") || "",
+        );
     res.writeHead(200, {
       "Content-Type": "text/csv;charset=utf-8",
       "Cache-Control": url.searchParams.has("fresh")

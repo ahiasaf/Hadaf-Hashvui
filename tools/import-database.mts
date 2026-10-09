@@ -1,10 +1,11 @@
 import fs from "node:fs/promises";
 import { neon } from "@neondatabase/serverless";
 import { prepareSnapshot } from "../src/server/snapshot.ts";
+import { splitSql, runtimeMigrations } from "../src/server/migrations.ts";
 const args = process.argv.slice(2);
 if (!args[0] || args.some((arg) => arg.startsWith("--") && arg !== "--apply"))
   throw new Error(
-    "Usage: node tools/import-database.mjs SNAPSHOT.json [--apply]",
+    "Usage: node tools/import-database.mts SNAPSHOT.json [--apply]",
   );
 const { snapshot, people, aliases, progress, report } = prepareSnapshot(
   JSON.parse(await fs.readFile(args[0], "utf8")),
@@ -26,11 +27,7 @@ if (!args.includes("--apply")) {
     new URL("../backend/database/001-preview.sql", import.meta.url),
     "utf8",
   );
-  const queries = schema
-    .split(";")
-    .map((query) => query.trim())
-    .filter(Boolean)
-    .map((query) => sql.query(query));
+  const queries = splitSql(schema).map((query) => sql.query(query));
   for (const table of snapshot.tables) {
     const tableHash = report.sourceHash;
     queries.push(
@@ -81,6 +78,17 @@ if (!args.includes("--apply")) {
   queries.push(
     sql`INSERT INTO migration_runs (source_hash,captured_at,report) VALUES (${report.sourceHash},${snapshot.capturedAt},${JSON.stringify(report)}::jsonb)`,
   );
+  queries.push(
+    sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, hash text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())`,
+  );
+  for (const migration of await runtimeMigrations()) {
+    queries.push(
+      ...migration.statements.map((statement) => sql.query(statement)),
+    );
+    queries.push(
+      sql`INSERT INTO schema_migrations(name,hash) VALUES (${migration.name},${migration.hash})`,
+    );
+  }
   await sql.transaction(queries);
   const counts =
     await sql`SELECT (SELECT count(*)::int FROM people) AS people,(SELECT count(*)::int FROM person_aliases) AS aliases,(SELECT count(*)::int FROM progress_events) AS progress`;

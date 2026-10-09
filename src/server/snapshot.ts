@@ -31,7 +31,8 @@ export function prepareSnapshot(input: unknown) {
     names.add(table.name);
     const headers = table.rows[0] || [];
     if (
-      new Set(headers).size !== headers.length ||
+      (["לומדים", "לימוד"].includes(table.name) &&
+        new Set(headers).size !== headers.length) ||
       table.rows.some((row) => row.length > headers.length)
     )
       throw new Error("Invalid columns");

@@ -43,6 +43,10 @@ export async function readPublicSheet(
   const text = await response.text();
   if (/^\s*</.test(text)) throw new Error("Unexpected sheet response");
   const rows = parseCsv(text);
+  validatePublicRows(tab, rows);
+  return text;
+}
+export function validatePublicRows(tab: string, rows: string[][]) {
   const header = rows[0] || [];
   if (
     !header.length ||
@@ -87,7 +91,6 @@ export async function readPublicSheet(
   };
   if ((required[tab] || []).some((value) => !header.includes(value)))
     throw new Error("Unexpected public schema");
-  return text;
 }
 export async function requestNotification(payload: unknown, request = fetch) {
   if (!payload || typeof payload !== "object")
@@ -133,6 +136,19 @@ export async function requestNotification(payload: unknown, request = fetch) {
     !sub.keys?.p256dh
   )
     throw new Error("Invalid subscription");
+  const { databaseEnabled, appendDatabaseRecord } =
+    await import("./database.ts");
+  if (databaseEnabled()) {
+    const result: unknown = await appendDatabaseRecord("ממתינים לדף", cols);
+    if (
+      !result ||
+      typeof result !== "object" ||
+      !("status" in result) ||
+      result.status !== "success"
+    )
+      throw new Error("Write was not acknowledged");
+    return { status: "ok" };
+  }
   const response = await request(settings.api, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },

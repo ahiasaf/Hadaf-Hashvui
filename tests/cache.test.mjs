@@ -126,3 +126,33 @@ test("private reads share only in-flight work, separate credentials and return i
   assert.equal(calls, 3);
   assert.equal(Object.keys(env.sessionStorage).length, 0);
 });
+
+test("an older pending read cannot restore a cache invalidated by a save", async () => {
+  let release;
+  let reads = 0;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const env = environment(async (_url, options) => {
+    if (options.method === "POST") return Response.json({ status: "ok" });
+    reads++;
+    if (reads === 1) {
+      await gate;
+      return new Response("key,value\nA,OLD");
+    }
+    return new Response("key,value\nA,NEW");
+  });
+  const oldRead = env.api.sheet("טקסטים");
+  await env.api.action("write", { action: "table", key: "TEST" });
+  release();
+  await oldRead;
+  assert.equal(
+    Object.keys(env.sessionStorage).filter((key) =>
+      key.startsWith("df:public:"),
+    ).length,
+    0,
+  );
+  const current = await env.api.sheet("טקסטים");
+  assert.equal(current[1][1], "NEW");
+  assert.equal(reads, 2);
+});
