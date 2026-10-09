@@ -2,15 +2,15 @@
 # פריסת ה-Apps Script אוטומטית.
 #
 # עד עכשיו כל שינוי בסקריפט דרש העתקה ידנית לעורך של גוגל
-# ופריסה מחדש — ובכל פעם מחדש. זה חוב, וזו גם המלכודת שכבר
+# ופריסה מחדש - ובכל פעם מחדש. זה חוב, וזו גם המלכודת שכבר
 # מחקה פעמיים את PRIVATE_ID ו-READ_KEY.
 #
 # מכאן והלאה: כל דחיפה שנוגעת ב-apps-script.gs פורסת אותו
-# בעצמה. הכתובת אינה משתנה — הפריסה הקיימת מתעדכנת ולא נוצרת
+# בעצמה. הכתובת אינה משתנה - הפריסה הקיימת מתעדכנת ולא נוצרת
 # חדשה, ולכן האפליקציה ממשיכה לדבר עם אותה כתובת.
 #
 # ------------------------------------------------------------
-# הפעלה — פעם אחת, ואז לא נוגעים
+# הפעלה - פעם אחת, ואז לא נוגעים
 # ------------------------------------------------------------
 # 1. script.google.com/home/usersettings → Apps Script API: On
 #
@@ -20,15 +20,15 @@
 # 3. ב-GitHub: Settings → Secrets and variables → Actions →
 #    New repository secret. שלושה:
 #
-#      CLASPRC_JSON    — כל התוכן של ~/.clasprc.json
-#      SCRIPT_ID       — עורך Apps Script → Project Settings
-#      DEPLOYMENT_ID   — Deploy → Manage deployments (AKfycb...)
+#      CLASPRC_JSON    - כל התוכן של ~/.clasprc.json
+#      SCRIPT_ID       - עורך Apps Script → Project Settings
+#      DEPLOYMENT_ID   - Deploy → Manage deployments (AKfycb...)
 #
 # ------------------------------------------------------------
 # על הסוד
 # ------------------------------------------------------------
 # CLASPRC_JSON הוא אסימון גישה לחשבון גוגל שלך, בהיקף של
-# Apps Script. GitHub שומר אותו מוצפן ואינו מציג אותו שוב —
+# Apps Script. GitHub שומר אותו מוצפן ואינו מציג אותו שוב -
 # גם לא לך. הוא **לעולם אינו נכנס לריפו**, שהוא ציבורי.
 #
 # לבטל: clasp logout, או myaccount.google.com/permissions.
@@ -37,7 +37,7 @@
 # הערה למי שעורך את הקובץ הזה
 # ------------------------------------------------------------
 # **אין להשתמש ב-`secrets` בתוך `if:`.** ההקשר הזה אינו זמין
-# בתנאים, ו-GitHub פוסל את הקובץ כולו — לא את השלב, את הקובץ.
+# בתנאים, ו-GitHub פוסל את הקובץ כולו - לא את השלב, את הקובץ.
 # הריצה נכשלת מיד, בלי שום job ובלי לוג שאפשר לקרוא, וזה נראה
 # בדיוק כמו פריסה שנכשלה. מעבירים סודות דרך `env` בלבד, ואת
 # ההחלטה עושים בתוך `run`.
@@ -47,7 +47,7 @@ name: פריסת הסקריפט
 on:
   push:
     branches: [main]
-    paths: ['apps-script.gs']
+    paths: ["backend/apps-script.gs"]
   workflow_dispatch:
 
 jobs:
@@ -58,18 +58,18 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: פריסה
         env:
-          CLASPRC_JSON:  ${{ secrets.CLASPRC_JSON }}
-          SCRIPT_ID:     ${{ secrets.SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
           DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
         run: |
           set -euo pipefail
 
           if [ -z "${CLASPRC_JSON:-}" ] || [ -z "${SCRIPT_ID:-}" ]; then
-            echo "::notice::הסודות טרם הוגדרו — ראו את ההסבר בראש הקובץ. מדלג."
+            echo "::notice::הסודות טרם הוגדרו - ראו את ההסבר בראש הקובץ. מדלג."
             exit 0
           fi
 
@@ -83,7 +83,7 @@ jobs:
           # refresh_token בלבד. clasp 2 נחנק עליו בשגיאה שאינה
           # מסגירה דבר: "Cannot read properties of undefined".
           #
-          # כאן מזהים את שתי הצורות. אם יש רק refresh_token —
+          # כאן מזהים את שתי הצורות. אם יש רק refresh_token -
           # פודים ממנו access_token מול גוגל וכותבים את הצורה
           # שגרסה 2 מצפה לה. צורה שלישית שלא נראתה עדיין תדפיס
           # את שמות המפתחות שנמצאו (בלי ערכים), כדי שאפשר יהיה
@@ -151,18 +151,18 @@ jobs:
           rm -f raw.json creds.env
 
           # clasp דורש את שני הקבצים האלה, והם נגזרים מהסוד ולא
-          # יושבים בריפו — כדי שמזהה הפרויקט לא יהיה ציבורי.
+          # יושבים בריפו - כדי שמזהה הפרויקט לא יהיה ציבורי.
           mkdir -p build
-          cp apps-script.gs build/Code.gs
+          cp backend/apps-script.gs build/Code.gs
           # oauthScopes מפורש, ולא סמכות על ניחוש אוטומטי.
           #
           # בלי השורה הזו קרה בדיוק זה: הקוד קורא ל-UrlFetchApp
           # (כתיבה ל-GitHub) כבר חודשים, אבל מסך ההרשאה של גוגל
-          # מעולם לא ביקש את זה — כי הניחוש האוטומטי של גוגל
+          # מעולם לא ביקש את זה - כי הניחוש האוטומטי של גוגל
           # רץ כשעורכים בעורך הדפדפן, לא כשדוחפים קוד דרך clasp.
           # התוצאה: כל קריאה ל-ghPut_/ghCheck_ נפלה בשקט על
           # "You do not have permission… script.external_request",
-          # והרכז לא קיבל אף פעם הזדמנות לאשר — כי גוגל לא חשבה
+          # והרכז לא קיבל אף פעם הזדמנות לאשר - כי גוגל לא חשבה
           # שיש מה לאשר.
           cat > build/appsscript.json <<'JSON'
           {
@@ -183,15 +183,15 @@ jobs:
 
           clasp push --force
 
-          VER=$(grep -oE 'SCRIPT_VERSION[[:space:]]*=[[:space:]]*[0-9]+' apps-script.gs \
+          VER=$(grep -oE 'SCRIPT_VERSION[[:space:]]*=[[:space:]]*[0-9]+' backend/apps-script.gs \
                 | grep -oE '[0-9]+' | head -1)
 
           # עדכון הפריסה **הקיימת**. פריסה חדשה הייתה נותנת כתובת
           # חדשה שהאפליקציה אינה מכירה, וכל כתיבה הייתה ממשיכה
-          # ללכת לשום מקום — התקלה שכבר עלתה לנו חודש.
+          # ללכת לשום מקום - התקלה שכבר עלתה לנו חודש.
           if [ -n "${DEPLOYMENT_ID:-}" ]; then
             clasp deploy -i "$DEPLOYMENT_ID" -d "v${VER:-auto} · ${GITHUB_SHA:0:7}"
             echo "::notice::הסקריפט נפרס · SCRIPT_VERSION ${VER:-?}"
           else
-            echo "::warning::הקוד נדחף, אבל DEPLOYMENT_ID חסר — הפריסה לא עודכנה."
+            echo "::warning::הקוד נדחף, אבל DEPLOYMENT_ID חסר - הפריסה לא עודכנה."
           fi

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 מה יש בקובצי הוורד של חברותא, ואיך הם מתייחסים למה שכבר סימנו.
@@ -36,7 +37,7 @@ import urllib.request
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'docs', 'word-probe.txt')
+OUT = project_path( 'docs', 'word-probe.txt')
 
 DOCS = [
     {'mas': 'taanit', 'title': 'תענית', 'id': '1gD-7aD5Ri-jj4PDGXs1ygFYK3Lu_kbxq'},

@@ -1,0 +1,35 @@
+{
+  "title": "הקישורים · הדף השבועי של בני עקיבא",
+  "original": "kishurim",
+  "attributes": "",
+  "links": [
+    "<link rel=\"icon\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon-precomposed\" href=\"icon-192.png\">"
+  ],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/a11y.js"
+    },
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/textedit.js"
+    },
+    {
+      "type": "",
+      "src": "/logo.js"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-05-01-fill.js"
+      ]
+    }
+  ]
+}

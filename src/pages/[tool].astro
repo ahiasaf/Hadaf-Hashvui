@@ -1,0 +1,90 @@
+---
+interface Script {
+  type: string;
+  src?: string;
+  inline?: string;
+  files?: string[];
+}
+interface Page {
+  title: string;
+  original: string;
+  links: string[];
+  scripts: Script[];
+}
+const pages = import.meta.glob("../features/*/page.json", {
+  eager: true,
+  import: "default",
+});
+const views = import.meta.glob("../features/*/view.html", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
+const modules = import.meta.glob("../features/*/*.mjs", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
+export function getStaticPaths() {
+  const pages = import.meta.glob("../features/*/page.json", {
+    eager: true,
+    import: "default",
+  });
+  return Object.keys(pages).map((path) => ({
+    params: { tool: path.split("/")[2] },
+  }));
+}
+const name = Astro.params.tool!;
+const page = pages[`../features/${name}/page.json`] as Page;
+const view = views[`../features/${name}/view.html`] as string;
+---
+
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#112c50" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{page.title}</title>
+    <meta
+      property="og:description"
+      content="הדף השבועי של רשת ישיבות בני עקיבא"
+    />
+    <meta
+      property="og:url"
+      content={new URL(Astro.url.pathname, Astro.site).href}
+    />
+    <meta property="og:title" content={page.title} />
+    <meta
+      property="og:image"
+      content={new URL("share-card.jpg", Astro.site).href}
+    />
+    <Fragment set:html={page.links.join("\n")} />
+    <link rel="stylesheet" href={`/tool-styles/${name}.css`} />
+    <link rel="stylesheet" href="/mobile.css" />
+  </head>
+  <body>
+    <Fragment set:html={view} />
+    <script is:inline src="/net-config.js"></script>
+    <script is:inline src="/net.js"></script>
+    <script is:inline src="/media.js"></script>
+    {page.scripts.map((script, index) =>
+      script.inline ? (
+        <script
+          is:inline
+          type="module"
+          set:html={modules[`../features/${name}/${script.inline}`]}
+        />
+      ) : (
+        <script
+          is:inline
+          src={script.src || `/scripts/${name}/entry-${index}.js`}
+        ></script>
+      ),
+    )}
+  </body>
+</html>

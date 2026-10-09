@@ -1,0 +1,159 @@
+---
+import { lessonHref, lessonRow, studyUnits, type Track } from "../lib/calendar";
+interface Props {
+  tracks: Track[];
+  initialWeek: number;
+  startDate: string;
+  titles: Record<string, string>;
+  ui: Record<string, string>;
+}
+const { tracks, initialWeek, startDate, titles, ui } = Astro.props;
+const track = tracks[0];
+const { row, index } = lessonRow(track, initialWeek);
+const hasLesson = !!row[2] && row[2] !== "סיום";
+---
+
+<section class="lesson" id="lesson" aria-label={ui.siteLesson}>
+  <div class="lesson-top">
+    <span class="eyebrow">{ui.siteLesson}</span>
+    <span class="week-label" data-week>
+      {ui.siteCurrentWeek} {index + 1}/{track.cal.length}
+    </span>
+  </div>
+  <div class="track-switch" role="group" aria-label={ui.siteChoose}>
+    {tracks.map((item, i) => (
+      <a
+        href={lessonHref(
+          item,
+          item.cal[Math.min(initialWeek, item.cal.length - 1)],
+        )}
+        role="button"
+        aria-pressed={i === 0}
+        data-track={item.id}
+      >
+        {"מסכת " + item.name}
+      </a>
+    ))}
+  </div>
+  <div class="lesson-content" aria-live="polite">
+    {
+      /* Every track is prerendered and stacked in one grid cell, so the panel
+         height is the tallest variant and the action never moves on switch. */
+      tracks.map((item, i) => {
+        const { row, index } = lessonRow(item, initialWeek);
+        const active = !!row[2] && row[2] !== "סיום";
+        return (
+          <div
+            class="lesson-variant"
+            data-variant={item.id}
+            aria-hidden={i !== 0}
+          >
+            <p class="lesson-daf" data-daf>
+              {active
+                ? "דף " + row[2] + (row[3] ? " · עמוד " + row[3] : "")
+                : row[1]}
+            </p>
+            <h2 data-lesson-title>
+              {active
+                ? titles[item.id + "-" + (index + 1)] || "מסכת " + item.name
+                : ui.sitePause}
+            </h2>
+            <p class="lesson-date" data-date>
+              {row[1]} · {row[0]}
+            </p>
+          </div>
+        );
+      })
+    }
+  </div>
+  <a
+    class="button button-gold"
+    data-open
+    href={hasLesson ? lessonHref(track, row) : "/calendar"}
+  >
+    {hasLesson ? ui.siteOpen : ui.siteCalendar}
+  </a>
+  <div class="lesson-bottom">
+    <span data-count>
+      {studyUnits(track)} {ui.siteStudyUnits}
+    </span>
+    <a data-calendar href={"/calendar#" + track.id}>
+      {ui.siteCalendar}
+    </a>
+  </div>
+</section>
+<script define:vars={{ tracks, startDate, titles, ui }}>
+  (() => {
+    const section = document.getElementById("lesson");
+    const day = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const week = Math.max(
+      0,
+      Math.floor(
+        (Date.parse(day + "T00:00:00Z") -
+          Date.parse(startDate + "T00:00:00Z")) /
+          604800000,
+      ),
+    );
+    function current(track) {
+      const index = Math.min(week, track.cal.length - 1);
+      const row = track.cal[index];
+      return { index, row, active: !!row[2] && row[2] !== "סיום" };
+    }
+    // Fill every variant for the real week, so the reserved height is right before any switch.
+    tracks.forEach((track) => {
+      const { index, row, active } = current(track);
+      const variant = section.querySelector(
+        '[data-variant="' + track.id + '"]',
+      );
+      variant.querySelector("[data-daf]").textContent = active
+        ? "דף " + row[2] + (row[3] ? " · עמוד " + row[3] : "")
+        : row[1];
+      variant.querySelector("[data-lesson-title]").textContent = active
+        ? titles[track.id + "-" + (index + 1)] || "מסכת " + track.name
+        : ui.sitePause;
+      variant.querySelector("[data-date]").textContent =
+        row[1] + " · " + row[0];
+    });
+    function show(id) {
+      const track = tracks.find((item) => item.id === id);
+      const { index, row, active } = current(track);
+      section.querySelector("[data-week]").textContent =
+        ui.siteCurrentWeek + " " + (index + 1) + "/" + track.cal.length;
+      section
+        .querySelectorAll("[data-variant]")
+        .forEach((variant) =>
+          variant.setAttribute(
+            "aria-hidden",
+            String(variant.dataset.variant !== id),
+          ),
+        );
+      const params = new URLSearchParams({ mas: track.id, daf: row[2] || "" });
+      if (row[3]) params.set("amud", row[3] === "א" ? "1" : "2");
+      const open = section.querySelector("[data-open]");
+      open.href = active ? "/learn?" + params.toString() : "/calendar";
+      open.firstChild.textContent = active ? ui.siteOpen : ui.siteCalendar;
+      section.querySelector("[data-count]").textContent =
+        track.cal.filter((row) => row[2] && row[2] !== "סיום").length +
+        " " +
+        ui.siteStudyUnits;
+      section.querySelector("[data-calendar]").href = "/calendar#" + track.id;
+      section
+        .querySelectorAll("[data-track]")
+        .forEach((tab) =>
+          tab.setAttribute("aria-pressed", String(tab.dataset.track === id)),
+        );
+    }
+    section.querySelectorAll("[data-track]").forEach((tab) =>
+      tab.addEventListener("click", (event) => {
+        event.preventDefault();
+        show(tab.dataset.track);
+      }),
+    );
+    show(tracks[0].id);
+  })();
+</script>

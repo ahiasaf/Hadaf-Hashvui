@@ -1,0 +1,17 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Roster from "../components/Roster";
+import program from "../generated/program.json";
+---
+
+<Site>
+  <Roster
+    institutions={program.institutions}
+    startDate={program.startDate}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">לוח הישיבה דורש JavaScript וקוד גישה.</p>
+  </noscript>
+</Site>

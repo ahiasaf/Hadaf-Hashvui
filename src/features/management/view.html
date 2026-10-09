@@ -1,0 +1,242 @@
+
+
+
+
+<div class="t-invite" id="t-invite"></div>
+
+<div id="tour" aria-hidden="true">
+  <div class="t-ring" id="t-ring"></div>
+  <div class="t-mark" id="t-mark">◷</div>
+  <div class="t-sheet" id="t-card"></div>
+</div>
+
+<button class="t-float" id="t-float" onclick="tourOpen(0)"
+        aria-label="מדריך" style="display:none">?</button>
+
+<div id="splash">
+  <span class="slogo"><img id="splash-logo" alt="מרכז ישיבות ואולפנות בני עקיבא"></span>
+  <b>הדף השבועי</b><i></i>
+  <span style="opacity:.62;font-size:.82rem;font-weight:700">שנת תשפ"ז</span>
+  <small id="splash-slow">החיבור איטי - טוען מהמכשיר…</small>
+</div>
+
+<div id="inst">
+  <div class="hd"><img id="inst-icon" src="icon-192.png" alt=""><b>להוסיף את הדף השבועי למסך הבית?</b></div>
+  <p id="inst-txt"></p>
+  <div class="row" id="inst-row"></div>
+</div>
+
+<button id="adm-chip" onclick="admBack()">ניהול →</button>
+
+
+
+<div class="app">
+
+  <div class="strip" id="offline">אין חיבור - מוצג המידע השמור</div>
+  <div class="strip" id="queued"></div>
+
+  <main class="content">
+
+    <!-- ===== בית ===== -->
+    <div id="v-home" class="view">
+
+      <div class="masthead">
+        <span class="m"><img id="hdr-mark" alt=""></span>
+        <div><h1>הדף השבועי<br>של ישיבות בני עקיבא</h1>
+          <div class="yr">שנת תשפ"ז</div></div>
+        <button class="t-mast" id="t-mast" onclick="tourOpen(0)"
+                aria-label="מדריך" style="display:none">?</button>
+      </div>
+
+      <!-- שלב א׳ · לוח השנה - על הקרקע -->
+      <section class="sec-b" id="sec-plan">
+        <div class="zlabel"><span class="tag a">לוח התוכנית</span>
+          <span>תשפ"ז - מההרשמה ועד חגיגת הסיום.</span></div>
+        <div id="plan"></div>
+      </section>
+
+      <!-- ============================================================
+           כפתור ההצטרפות, פעם ראשונה.
+           ============================================================
+           הוא יושב גם למטה, בסוף המסלול, אחרי כל הסיבות. אבל
+           ראש חטיבה שכבר שוחח איתנו ויודע למה הוא בא אינו צריך
+           לגלול דרך כל השכנוע - הוא צריך כפתור. אותו כפתור
+           בדיוק, ואותו נוסח: מי שגלל עד הסוף מוצא את מה שכבר
+           ראה, ולא שני דברים שנראים דומה. -->
+      <div id="cta-top" class="cta-top"></div>
+
+      <!-- שלב ב׳ · עולם התלמידים - הלוח הקריר, הסטייה היחידה -->
+      <section class="sec-b band rv">
+        <div class="zlabel"><span class="tag" id="stagetag">מה התלמידים יראו</span>
+          <span id="stagecap">המסך שנפתח אצל התלמיד ואצל מעביר השיעור, בכל שבוע.</span></div>
+        <div id="stage"></div>
+        <div id="mini" style="margin-top:14px"></div>
+      </section>
+
+      <!-- שלב ג׳ · ראשי החטיבות - חזרה לקרקע -->
+      <section class="sec-b rv">
+        <div class="zlabel"><span class="tag a" id="z-tag">לראשי החטיבות</span>
+          <span id="z-sub">הצטרפות לתוכנית והזמנת הגמרות.</span></div>
+        <div id="rings"></div>
+        <div id="inbox"></div>
+        <!-- מה שעוד לא קיים, ומובטח. ממש לפני כפתור ההרשמה: זו
+             הסיבה האחרונה שראש חטיבה שומע לפני שהוא מחליט. -->
+        <div id="soon"></div>
+        <!-- הרשת. מיד לפני הכפתור: זה ההקשר האחרון שראש חטיבה
+             מקבל לפני שהוא מחליט - הוא אינו הראשון וגם לא לבד. -->
+        <div id="netbar"></div>
+        <div id="cta" style="margin-top:16px"></div>
+      </section>
+
+      <!-- ============================================================
+           **ומה שאינו ייצוגי אינו כאן.**
+           ============================================================
+           "העמוד הראשי הוא ייצוגי בלבד."
+
+           הלוח, ההנחיה לר"מים והבקשה האישית ישבו כאן וערבבו
+           שלושה דברים שונים במסך אחד: מה שמציגים לאורח, מה
+           שעושים אחרי ההרשמה, ומה שמנהלים אחר כך. מי שנרשם
+           נכנס לאזור הניהול האישי מלמעלה, ושם הכול לפי סדר.
+
+           `#coord` נשאר במסמך, ריק ומוסתר, כי `renderBoard`
+           הוא שמאתחל את `ASK` - ראו שם. -->
+      <div id="coord" hidden>
+        <span id="c-tag"></span><span id="c-sub"></span>
+        <div id="c-pend"></div>
+        <div id="board"></div>
+      </div>
+
+      <!-- הכפתור שפותח את המדריך שוב. ריק כשהרכז בחר מיקום אחר. -->
+      <div id="t-foot-wrap"></div>
+
+      <footer><i></i>
+        רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
+        <a href="accessibility.html">הצהרת נגישות</a> · <a href="info.html#h-priv">מדיניות פרטיות</a> · <a href="info.html">פרטים</a>
+      </footer>
+
+    </div>
+
+    <!-- ============================================================
+         אזור הניהול האישי.
+         ============================================================
+         "אנחנו צריכים לייצר חוויה נפרדת: יש את האפליקציה, ויש
+         את הניהול."
+
+         שלושה דברים, ובסדר הזה: הלוח אומר מה קורה, ההודעה היא
+         מה שעושים עם זה, והעדכונים הם הצנוע מבין השלושה ולכן
+         אחרון. ============================================ -->
+    <div id="v-my" class="view">
+      <button class="back" onclick="show('home')" id="my-back">→ חזרה</button>
+      <div id="my-body"></div>
+    </div>
+
+    <!-- ===== מסלול הרשמה ===== -->
+    <div id="v-reg" class="view">
+      <button class="back" onclick="show('home')">→ חזרה</button>
+      <div id="reg-body"></div>
+    </div>
+
+    <!-- ===== מסלול ===== -->
+    <div id="v-track" class="view">
+      <button class="back" onclick="trackBack()">→ חזרה</button>
+      <div id="bm"></div>
+    </div>
+
+    <!-- ===== שבוע ===== -->
+    <div id="v-week" class="view">
+      <button class="back" onclick="backToTrack()">→ חזרה למסלול</button>
+      <div id="week-body"></div>
+    </div>
+
+    <!-- ===== חידה ===== -->
+    <div id="v-quiz" class="view">
+      <button class="back" onclick="backToWeek()">→ חזרה לדף</button>
+      <div id="quiz-body"></div>
+    </div>
+
+        <!-- ===== מוסדות ===== -->
+    <div id="v-insts" class="view">
+      <button class="back" onclick="show('home')">→ חזרה</button>
+      <div class="sec"><b>ישיבות בתוכנית · תשפ"ז</b><i></i></div>
+      <div class="card" style="padding:6px 18px" id="inst-list"></div>
+      <p style="font-size:.78rem;color:var(--ink-3);text-align:center;font-weight:600">
+        סימון זהב - ישיבות שלמדו כבר בתשפ"ו.</p>
+    </div>
+
+    <!-- ===== שער ===== -->
+    <div id="v-gate" class="view">
+      <button class="back" onclick="show('home')">→ חזרה</button>
+      <div style="text-align:center;font-weight:800;font-size:1.15rem;letter-spacing:-.02em">
+        כניסת צוות</div>
+      <p style="text-align:center;font-size:.87rem;color:var(--ink-3);font-weight:600">
+        הלימוד השבועי פתוח לכולם גם בלי קוד.</p>
+      <div class="pins" id="pins"><i></i><i></i><i></i><i></i></div>
+      <div class="pad" id="pad"></div>
+      <div id="gate-msg" style="text-align:center;font-size:.86rem;color:var(--stop);
+           font-weight:800;min-height:24px"></div>
+    </div>
+
+    <!-- ===== ניהול (נסתר; נגיש רק דרך /admin) ===== -->
+    <div id="v-admin" class="view">
+      <div id="admin-body"></div>
+    </div>
+
+    <!-- ===== מוקד שיחות ===== -->
+    <div id="v-calls" class="view">
+      <button class="back" onclick="show('home')">→ יציאה</button>
+      <div id="calls-body"></div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- הגדלת תמונת ספר. שכבה נפרדת מנגן המצגות: אין כאן ניווט,
+     רק תמונה אחת, וסגירה בלחיצה בכל מקום. -->
+<div id="zoom" onclick="zoomClose()">
+  <button aria-label="סגירה" onclick="zoomClose()">✕</button>
+  <div class="zin"><img alt=""></div>
+</div>
+
+<div id="deck">
+  <div class="dtop">
+    <span id="d-where"></span>
+    <button onclick="deckClose()" style="background:none;border:none;color:#fff;
+            font-size:1.35rem;cursor:pointer;opacity:.65">✕</button>
+  </div>
+  <div class="dbody">
+    <img id="d-img" alt="">
+    <div id="d-text">
+      <div class="dk" id="d-k"></div>
+      <div class="dh" id="d-h"></div>
+      <div class="dt" id="d-t"></div>
+    </div>
+  </div>
+  <div class="dots" id="d-dots"></div>
+  <div class="dnav">
+    <button id="d-prev" onclick="deckGo(-1)">→ הקודם</button>
+    <button id="d-next" onclick="deckGo(1)">הבא ←</button>
+  </div>
+</div>
+
+<div id="sheet" onclick="if(event.target.id==='sheet'||event.target.className==='veil')sheetClose()">
+  <div class="veil"></div>
+  <div class="panel"><div class="hd"><i></i><b id="sheet-t"></b></div>
+  <div class="list" id="sheet-l"></div></div>
+</div>
+
+<div id="upd"></div>
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- הבקשה האישית. אותו קוד בדיוק של עמוד הצוות, ולכן גם
+     ראש החטיבה מקבל בדיוק את מה שהר"מים כבר מכירים. -->

@@ -1,0 +1,27 @@
+{
+  "title": "מעבדת הזיהוי - הדף השבועי",
+  "original": "lab",
+  "attributes": "",
+  "links": [],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/links.js"
+    },
+    {
+      "type": "module",
+      "inline": "entry-03.mjs"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-04-01-say.js",
+        "entry-04-02-st.js"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 המרת דף מהמאגר שבדרייב לתמונות שהאפליקציה מגישה.
@@ -38,7 +39,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'daf')
+OUT = project_path( 'daf')
 INDEX = os.path.join(OUT, 'index.json')
 
 W_GEMARA = 2000

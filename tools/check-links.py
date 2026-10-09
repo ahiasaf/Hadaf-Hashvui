@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 בדיקת מאגר הדפים — האם כל קישור מצביע על הקובץ הנכון.
@@ -116,7 +117,7 @@ def daf_in(name, daf):
 
 
 def main():
-    links = js_value(os.path.join(ROOT, 'links.js'), 'DAF_LINKS')
+    links = js_value(project_path( 'links.js'), 'DAF_LINKS')
     only = sys.argv[1] if len(sys.argv) > 1 else None
 
     seen, problems, checked = {}, [], 0

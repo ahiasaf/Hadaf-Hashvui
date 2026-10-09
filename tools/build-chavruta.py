@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 מאגר הביאור, מקובצי הוורד המקוריים.
@@ -42,7 +43,7 @@ import urllib.request
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'chav')
+OUT = project_path( 'chav')
 
 DOCS = {
     'taanit': {'title': 'תענית', 'id': '1gD-7aD5Ri-jj4PDGXs1ygFYK3Lu_kbxq'},

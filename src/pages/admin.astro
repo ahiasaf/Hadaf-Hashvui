@@ -1,0 +1,17 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Admin from "../components/Admin";
+import program from "../generated/program.json";
+---
+
+<Site title="ניהול התוכנית">
+  <Admin
+    institutions={program.institutions}
+    startDate={program.startDate}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">ניהול התוכנית דורש JavaScript וסיסמת רכז.</p>
+  </noscript>
+</Site>

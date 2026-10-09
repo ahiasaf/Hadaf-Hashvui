@@ -1,0 +1,76 @@
+---
+import Site from "../layouts/Site.astro";
+import WeeklyLesson from "../components/WeeklyLesson.astro";
+import Institutions from "../components/Institutions.astro";
+import program from "../generated/program.json";
+import { weekIndex } from "../lib/calendar";
+const titles = Object.fromEntries(
+  Object.entries(program.content).map(([key, value]) => [key, value.title]),
+);
+const lessonUi = Object.fromEntries(
+  Object.entries(program.ui).filter(([key]) =>
+    [
+      "siteLesson",
+      "siteCurrentWeek",
+      "siteChoose",
+      "siteFinish",
+      "sitePause",
+      "siteOpen",
+      "siteCalendar",
+      "siteStudyUnits",
+    ].includes(key),
+  ),
+);
+---
+
+<Site>
+  <script is:inline>
+    if (location.hash === "#admin")
+      location.replace("/management" + location.search + "#admin");
+    else if (location.hash && !["#lesson", "#main"].includes(location.hash))
+      location.replace("/management" + location.search + location.hash);
+    else if (/[?&](m|inst|k)=/.test(location.search))
+      location.replace("/tzevet" + location.search);
+  </script>
+  <div class="hero container">
+    <div class="hero-copy">
+      <h1>
+        המסכת שלנו.
+        <br />
+        <span>דף אחד בכל שבוע.</span>
+      </h1>
+      <p class="hero-summary" data-copy="ui.siteSummary">
+        {program.ui.siteSummary}
+      </p>
+    </div>
+    <WeeklyLesson
+      tracks={program.tracks}
+      initialWeek={weekIndex(program.startDate)}
+      startDate={program.startDate}
+      titles={titles}
+      ui={lessonUi}
+    />
+  </div>
+  <section class="paths container" aria-label="הצטרפות לתוכנית">
+    <div class="path">
+      <h2>מצטרפים ללימוד</h2>
+      <p>{program.ui.siteJoinHint}</p>
+      <a class="button button-blue" href="/join">
+        {program.ui.siteJoin}
+      </a>
+    </div>
+    <div class="path">
+      <h2>הלימוד בישיבה</h2>
+      <p>{program.ui.siteStaffHint}</p>
+      <a class="button button-outline" href="/tzevet">
+        {program.ui.siteStaffAction}
+      </a>
+      <a class="secondary-link" href="/management#reg">
+        {program.ui.siteOrder}
+      </a>
+    </div>
+  </section>
+  <!-- Only the institutions list needs the CSV helper; load it after the hero and paths have parsed. -->
+  <script is:inline src="/net.js"></script>
+  <Institutions />
+</Site>

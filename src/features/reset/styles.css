@@ -1,0 +1,40 @@
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-t:#8C681F;
+  --green-d:#467B1A; --stop:#A5392B;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 34px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:16px;
+  padding:18px;margin-top:14px}
+.card h2{font-size:1.1rem;font-weight:800;color:var(--blue-d)}
+.card p{margin-top:8px;font-size:.9rem;font-weight:600;color:var(--ink-2)}
+.now{margin-top:12px;padding:10px 12px;background:var(--sunk);border-radius:12px;
+  font-size:.86rem;font-weight:700}
+.warn{margin-top:12px;padding:10px 12px;border-radius:12px;font-size:.84rem;
+  font-weight:700;color:var(--stop);background:rgba(165,57,43,.08)}
+.chk{display:flex;gap:9px;align-items:flex-start;margin-top:14px;font-size:.88rem;
+  font-weight:700;color:var(--ink)}
+.chk input{margin-top:5px;width:18px;height:18px;flex:none}
+.go{display:block;width:100%;margin-top:16px;padding:15px;border:0;border-radius:14px;
+  background:var(--blue);color:#fff;font-size:1rem;font-weight:800;cursor:pointer}
+.go[disabled]{opacity:.55}
+.lnk{display:block;margin-top:12px;text-align:center;font-size:.82rem;font-weight:700;
+  color:var(--ink-3);background:none;border:0;text-decoration:underline;cursor:pointer;width:100%}
+.ok{margin-top:14px;font-size:1rem;font-weight:800;color:var(--green-d)}

@@ -101,7 +101,7 @@ var LOG_KEY = 'pr|יומן';
 var T = (function () {
   var c = {}; c.window = c; vm.createContext(c);
   vm.runInContext(fs.readFileSync(
-    path.join(path.dirname(__dirname), 'data.js'), 'utf8'), c);
+    path.join(path.dirname(__dirname), 'src/config/program.js'), 'utf8'), c);
   return c.PAIR || {};
 })();
 function fill(s, v) {

@@ -95,7 +95,7 @@ function loadProgram() {
   ctx.location = ctx.window.location;
   ctx.self = ctx;
   vm.createContext(ctx);
-  ['data.js', 'learned.js'].forEach(function (f) {
+  ['src/config/program.js', 'src/shared/learned.js'].forEach(function (f) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   });
   if (!ctx.PROGRAM || !ctx.TRACKS || typeof ctx.LWeek !== 'function') {
@@ -166,7 +166,7 @@ function slotsNow(now) {
 
 /* ---------- הגיליון ---------- */
 function scriptUrl() {
-  var src = fs.readFileSync(path.join(ROOT, 'data.js'), 'utf8');
+  var src = fs.readFileSync(path.join(ROOT, 'src/config/program.js'), 'utf8');
   var m = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(src);
   return m ? m[1] : '';
 }

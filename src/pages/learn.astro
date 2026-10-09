@@ -1,0 +1,25 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Reader from "../components/Reader";
+import program from "../generated/program.json";
+import images from "../generated/library.json";
+---
+
+<Site>
+  <Reader
+    tracks={program.tracks}
+    startDate={program.startDate}
+    libraryUrl={images.url}
+    client:load
+  />
+  <noscript>
+    <section class="workspace">
+      <h1>צורת הדף</h1>
+      <p>למעבר בין קטעים ופירוש יש להפעיל JavaScript.</p>
+      <a class="button button-blue" href="/calendar">
+        לתוכנית הלימוד
+      </a>
+    </section>
+  </noscript>
+</Site>

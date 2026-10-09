@@ -1,113 +1,91 @@
-/* ============================================================
-   צילום מסכי ההצטרפות — לניהול ← התקנה ← מחקר ← "זמן בכל מסך".
-   ============================================================
-   הניהול מציג כל מסך של join.html בתמונה, ועליה כמה זמן שהו בו.
-   התמונות ב-joinpics/ צולמו מהקוד האמיתי, בטלפון אנדרואיד בגודל
-   390×844. **שיניתם מסך בהצטרפות — מריצים שוב:**
-
-       node tools/joinpics.js
-
-   הסקריפט מרים שרת מקומי משורש הריפו (כמו Vercel, בלי `.html`),
-   חוסם כל בקשה החוצה — כך שאף צילום לא נספר ככניסה אמיתית ולא
-   נכתב לגיליון — ומצלם כל מסך דרך הפונקציות של הדף עצמו.
-
-   שני דברים שאינם כמו בשטח, בכוונה:
-   · ההדגמה במסך הפתיחה: הסימונים שלה באים מהגיליון, שחסום כאן,
-     ולכן בתוך החלון מוצג עמוד הגמרא עצמו.
-   · בקשת ההתראות מוצגת במצב "עוד לא נשאלו" — מה שרוב התלמידים
-     רואים — ולא "חסומות", שהוא ברירת המחדל של דפדפן אוטומטי.
-
-   צריך Playwright (מותקן בסביבת הפיתוח). הפלט: webp ברוחב 360.
-   ============================================================ */
-var http = require('http'), fs = require('fs'), path = require('path');
-var pw = require('playwright');
-
-var ROOT = path.dirname(__dirname), OUT = path.join(ROOT, 'joinpics'), PORT = 8897;
-var TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
-              '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp',
-              '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
-/* מה מצלמים: קוד המסך (כמו ב-trlScr) ← שלב במסע. */
-var STEPS = [2, 3, 4, 9, 8];
-
-function serve() {
-  return http.createServer(function (q, r) {
-    var u = decodeURIComponent(q.url.split('?')[0]);
-    if (/\/$/.test(u)) u += 'index.html';
-    var f = path.join(ROOT, u);
-    if (f.indexOf(ROOT) !== 0) { r.writeHead(403); return r.end(); }
-    if (!fs.existsSync(f) && fs.existsSync(f + '.html')) f += '.html';
-    fs.readFile(f, function (e, d) {
-      if (e) { r.writeHead(404); return r.end(); }
-      r.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' });
-      r.end(d);
-    });
-  }).listen(PORT);
-}
-
-function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
-
-/* צילום מלא (פי 2) ← webp ברוחב 360, דרך הדפדפן עצמו — בלי ספריות נוספות. */
-function save(page, shot, name) {
-  var src = 'data:image/png;base64,' + shot.toString('base64');
-  return page.evaluate(function (src) {
-    var i = new Image();
-    i.src = src;
-    return i.decode().then(function () {
-      var W = 360, H = Math.round(i.height * W / i.width), c = document.createElement('canvas');
-      c.width = W; c.height = H;
-      var x = c.getContext('2d');
-      x.imageSmoothingQuality = 'high';
-      x.drawImage(i, 0, 0, W, H);
-      return c.toDataURL('image/webp', 0.72);
-    });
-  }, src).then(function (d) {
-    fs.writeFileSync(path.join(OUT, name + '.webp'), Buffer.from(d.split(',')[1], 'base64'));
-    console.log('  ✓ joinpics/' + name + '.webp');
-  });
-}
-
-(async function () {
-  var srv = serve(), b = await pw.chromium.launch();
+/* Generate screenshots of the actual signup flow using isolated browser fixtures. */
+const http = require("node:http");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const { chromium } = require("@playwright/test");
+const sharp = require("sharp");
+const root = path.resolve(__dirname, "../dist");
+const output = path.resolve(__dirname, "../static/joinpics");
+const types = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".woff2": "font/woff2",
+};
+(async () => {
+  const server = http
+    .createServer(async (request, response) => {
+      try {
+        let name = decodeURIComponent(
+          new URL(request.url, "http://localhost").pathname,
+        );
+        if (name === "/") name = "/index.html";
+        else if (!path.extname(name)) name += ".html";
+        const file = path.resolve(root, "." + name);
+        if (!file.startsWith(root + path.sep)) throw new Error("Invalid path");
+        response.setHeader(
+          "Content-Type",
+          types[path.extname(file)] || "application/octet-stream",
+        );
+        response.end(await fs.readFile(file));
+      } catch {
+        response.writeHead(404);
+        response.end();
+      }
+    })
+    .listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  let browser;
   try {
-    fs.mkdirSync(OUT, { recursive: true });
-    var c = await b.newContext({
-      viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
-      locale: 'he-IL',
-      userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) ' +
-                 'Chrome/120.0 Mobile Safari/537.36' });
-    /* שום דבר לא יוצא מהמחשב: לא הגיליון, לא הסקריפט, לא הספירה. */
-    await c.route(new RegExp('^(?!http://localhost:' + PORT + ')'), function (r) { r.abort(); });
-    await c.addInitScript(function () {
-      try { Object.defineProperty(Notification, 'permission', { get: function () { return 'default'; } }); } catch (e) {}
+    browser = await chromium.launch({
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+        ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+        : {}),
     });
-    var p = await c.newPage();
-    p.on('pageerror', function (e) { console.log('  ! ' + e.message); });
-    await p.goto('http://localhost:' + PORT + '/join', { waitUntil: 'load' });
-    await wait(1500);
-
-    await p.evaluate(function () {
-      var f = document.getElementById('demo-frame');
-      if (!f) return;
-      f.removeAttribute('src');
-      f.srcdoc = '<body style="margin:0;background:#f5f0e6">' +
-        '<img src="/daf/taanit/%D7%91-a.webp" style="width:100%;display:block"></body>';
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      reducedMotion: "reduce",
     });
-    await wait(800);
-    await save(p, await p.screenshot(), 'land');
-
-    await p.evaluate(function () { wzStart(); });
-    await wait(900);
-    await save(p, await p.screenshot(), 'w1');
-
-    /* מכאן — כאילו האפליקציה כבר מותקנת, כמו אצל מי שהמשיך. */
-    await p.evaluate(function () { APPX.installed = function () { return true; }; });
-    for (var i = 0; i < STEPS.length; i++) {
-      await p.evaluate(function (n) { wzGo(n); window.scrollTo(0, 0); }, STEPS[i]);
-      await wait(900);
-      await save(p, await p.screenshot(), 'w' + STEPS[i]);
+    await context.route("https://**", (route) => route.abort());
+    await context.route("**/api/**", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({ json: { status: "ok", id: "SCREENSHOT_DEMO" } })
+        : route.fulfill({ body: "key,value", contentType: "text/csv" }),
+    );
+    const page = await context.newPage();
+    await fs.mkdir(output, { recursive: true });
+    async function save(name) {
+      await sharp(await page.screenshot({ fullPage: true }))
+        .resize({ width: 360 })
+        .webp({ quality: 80 })
+        .toFile(path.join(output, name + ".webp"));
+      console.log("Signup screenshot:", name);
     }
+    await page.goto("http://127.0.0.1:" + server.address().port + "/join");
+    await page.getByRole("button", { name: "מתחילים", exact: true }).waitFor();
+    await save("landing");
+    await page.getByRole("button", { name: "מתחילים", exact: true }).click();
+    await save("form");
+    await page.getByLabel("שם פרטי", { exact: true }).first().fill("תלמיד");
+    await page.getByLabel("שם משפחה", { exact: true }).first().fill("לדוגמה");
+    await page.getByLabel("טלפון", { exact: true }).fill("0500000000");
+    await page.getByLabel("ישיבה", { exact: true }).selectOption({ index: 1 });
+    await page.getByLabel("שכבה", { exact: true }).selectOption("ז");
+    await page
+      .getByRole("button", { name: "שמירת ההרשמה", exact: true })
+      .click();
+    await page.getByRole("heading", { name: "שלום, תלמיד" }).waitFor();
+    await save("registered");
   } finally {
-    await b.close();
-    srv.close();
+    await browser?.close();
+    server.close();
   }
-})().catch(function (e) { console.error(e); process.exit(1); });
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

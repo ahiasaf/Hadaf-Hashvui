@@ -1,0 +1,54 @@
+
+
+<div class="wrap">
+
+  <div class="top">
+    <h1 id="ttl">מפקד טיול</h1>
+    <span class="rnd" id="rnd"></span>
+    <button class="edit" id="bEdit">רשימה</button>
+  </div>
+
+  <!-- ===== מסך א׳ · הרשימה ===== -->
+  <div class="view" id="vSetup">
+    <p class="lead">הדבק כאן את שמות התלמידים - שם בכל שורה.
+      הרשימה נשמרת בטלפון הזה בלבד, ואפשר לערוך אותה בכל רגע.</p>
+    <label class="fld" for="iTtl">שם הכיתה</label>
+    <input class="txt" id="iTtl" type="text" placeholder="ז׳5 · יום טיול">
+    <label class="fld" for="iNames">שמות התלמידים</label>
+    <textarea class="txt tall" id="iNames" placeholder="ישראל ישראלי&#10;משה כהן&#10;..."></textarea>
+    <p class="hint">מספור בתחילת שורה (1. או 1) ) יוסר לבד. סימונים
+      שכבר קיימים נשמרים לתלמידים שנשארו ברשימה.</p>
+    <div class="acts">
+      <button class="btn go" id="bSave">שמור רשימה</button>
+      <button class="btn ghost" id="bCancel">ביטול</button>
+    </div>
+    <div class="reset">
+      <button class="btn ghost" id="bNotes">שלח את ההערות לוואטסאפ</button>
+      <p class="hint">ההערות שכתבת על התלמידים, במסר אחד. הן אינן
+        נכללות בדיווחי הנוכחות - אלה נשלחים הלאה, וההערות לא.</p>
+      <button class="btn ghost" id="bRestart">התחל יום טיול מחדש</button>
+      <p class="hint">מחזיר את כל התלמידים לרשימה ופותח מחדש את מפקד
+        העלייה. השמות ואישורי ההורים נשארים.</p>
+    </div>
+  </div>
+
+  <!-- ===== מסך ב׳ · המפקד ===== -->
+  <div class="view" id="vList">
+    <div id="list"></div>
+  </div>
+
+</div>
+
+<div class="bar" id="bar">
+  <div class="in">
+    <div class="tally">
+      <span class="big" id="cnt">0</span>
+      <span class="of" id="of">מתוך 0</span>
+      <span class="miss" id="miss"></span>
+    </div>
+    <div class="acts">
+      <button class="btn go" id="bMain">סיום עלייה לאוטובוס</button>
+      <button class="btn" id="bWa">וואטסאפ</button>
+    </div>
+  </div>
+</div>

@@ -18,7 +18,7 @@ var ROOT = path.dirname(__dirname);
 var ctx = { console: console };
 ctx.window = ctx;
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'data.js'), 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'src/config/program.js'), 'utf8'), ctx);
 
 /* אותה רשימה בדיוק כמו ב-`roots()` שב-textedit.js. אם נוסף שם
    שורש חדש ולא כאן, הבדיקה תצעק שהיא אינה מכירה אותו. */

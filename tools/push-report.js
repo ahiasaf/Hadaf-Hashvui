@@ -9,7 +9,7 @@
 var fs = require('fs');
 
 function scriptUrl() {
-  var src = fs.readFileSync(__dirname + '/../data.js', 'utf8');
+  var src = fs.readFileSync(__dirname + '/../src/config/program.js', 'utf8');
   var m = /APPS_SCRIPT_URL\s*=\s*\n?\s*'([^']+)'/.exec(src);
   return m ? m[1] : '';
 }

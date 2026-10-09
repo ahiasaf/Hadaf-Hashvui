@@ -1,0 +1,20 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import StudentHome from "../components/StudentHome";
+import program from "../generated/program.json";
+---
+
+<Site manifest="/join-manifest.json">
+  <StudentHome
+    tracks={program.tracks}
+    startDate={program.startDate}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">
+      להרשמה ולעדכון ההתקדמות יש להפעיל JavaScript.{" "}
+      <a href="/calendar">תוכנית הלימוד זמינה כאן.</a>
+    </p>
+  </noscript>
+</Site>

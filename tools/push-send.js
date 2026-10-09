@@ -64,7 +64,7 @@ if (!key)  { console.error('חסר READ_KEY בסודות הריפו.');      pro
 /* כתובת הסקריפט יושבת ב-data.js ממילא — אין סיבה לשכפל אותה
    לסוד נוסף שיישכח ביום שהיא תתחלף. */
 function scriptUrl() {
-  var src = fs.readFileSync(__dirname + '/../data.js', 'utf8');
+  var src = fs.readFileSync(__dirname + '/../src/config/program.js', 'utf8');
   var m = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(src) ||
           /APPS_SCRIPT_URL\s*=\s*\n?\s*'([^']+)'/.exec(src);
   return m ? m[1] : '';

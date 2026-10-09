@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 מיפוי "הסוגיה היומית" — מאיזה עמוד בחוברת מתחיל כל חצי דף.
@@ -57,7 +58,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'sugya')
+OUT = project_path( 'sugya')
 PDFS = os.path.join(OUT, 'pdf')
 
 UA = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'

@@ -82,7 +82,7 @@ function slotsDue(now, hours) {
 
 /* ---------- הגשר לגיליון ---------- */
 function scriptUrl() {
-  var src = fs.readFileSync(path.join(ROOT, 'data.js'), 'utf8');
+  var src = fs.readFileSync(path.join(ROOT, 'src/config/program.js'), 'utf8');
   var m = /APPS_SCRIPT_URL\s*=\s*'([^']+)'/.exec(src);
   return m ? m[1] : '';
 }

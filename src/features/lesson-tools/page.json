@@ -1,0 +1,75 @@
+{
+  "title": "אפשרויות לימוד נוספות · הדף השבועי",
+  "original": "lesson-tools",
+  "links": [
+    "<link rel=\"icon\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"icon-192.png\">"
+  ],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/_vercel/insights/script.js"
+    },
+    {
+      "type": "",
+      "src": "/a11y.js"
+    },
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/deck.js"
+    },
+    {
+      "type": "",
+      "src": "/learned.js"
+    },
+    {
+      "type": "",
+      "src": "/trail.js"
+    },
+    {
+      "type": "",
+      "src": "/stepid.js"
+    },
+    {
+      "type": "",
+      "src": "/pair.js"
+    },
+    {
+      "type": "",
+      "src": "/getapp.js"
+    },
+    {
+      "type": "",
+      "src": "/links.js"
+    },
+    {
+      "type": "",
+      "src": "/trip.js"
+    },
+    {
+      "type": "module",
+      "inline": "entry-0.mjs"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-1-01.js",
+        "entry-1-02.js",
+        "entry-1-03.js",
+        "entry-1-04.js",
+        "entry-1-05.js",
+        "entry-1-06.js",
+        "entry-1-07.js",
+        "entry-1-08.js",
+        "entry-1-09.js",
+        "entry-1-10.js",
+        "entry-1-11.js"
+      ]
+    }
+  ]
+}

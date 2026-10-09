@@ -1,20 +1,50 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/admin", "destination": "/" }
-  ],
+  "rewrites": [],
   "headers": [
     {
-      "source": "/(join-manifest.json|index.html|admin.html|learn.html|rights.html|accessibility.html|info.html|slidetest.html|lab.html|voicetest.html|pushtest.html|tzevet.html|shlach.html|kishurim.html|masa.html|masa.js|tiul.html|data.js|links.js|stage.js|learned.js|textedit.js|a11y.js|deck.js|trail.js|qr.js|xlsx.js|join.html|join2.html|board.html|hitraot.html|sw.js)",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+      "source": "/(sw.js|data.js|links.js|net.js|net-config.js|media.js|mobile.css|manifest.json|join-manifest.json|admin-manifest.json|studio-manifest.json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
     },
     {
-      "source": "/m/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+      "source": "/(scripts|tool-styles)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
     },
     {
-      "source": "/(slides|sfarim|daf)/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "source": "/(_astro|media|fonts)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(slides|sfarim|daf|chav|m|mh|weekpics|joinpics|guidepics|flyer)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
     }
-  ]
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "astro",
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 20
+    }
+  }
 }
