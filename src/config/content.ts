@@ -3,7 +3,7 @@ import copy from "./copy.json" with { type: "json" };
 import links from "./links.json" with { type: "json" };
 const { CALENDARS, TRACKS, ...constants } = program;
 const tracks = TRACKS.map(({ calendarKey, ...track }) => {
-  if (!Object.hasOwn(CALENDARS, calendarKey))
+  if (!Object.prototype.hasOwnProperty.call(CALENDARS, calendarKey))
     throw new Error("Unknown program calendar");
   const cal = CALENDARS[calendarKey as keyof typeof CALENDARS];
   if (
