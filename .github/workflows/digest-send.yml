@@ -39,6 +39,7 @@ jobs:
     env:
       READ_KEY: ${{ secrets.READ_KEY }}
       VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+      HADAF_NOTIFICATION_DELIVERY: ${{ vars.HADAF_NOTIFICATION_DELIVERY }}
       DRY_RUN: ${{ inputs.dry }}
       HADAF_DATABASE_BACKEND: ${{ inputs.backend == 'neon-preview' && 'neon' || vars.HADAF_DATABASE_BACKEND }}
       DATABASE_URL: ${{ inputs.backend == 'neon-preview' && secrets.NEON_PREVIEW_DATABASE_URL || secrets.DATABASE_URL }}
@@ -58,7 +59,10 @@ jobs:
           cache: npm
       - id: dependencies
         run: npm ci --ignore-scripts --omit=dev
+      - name: Recover confirmed failed outbox deliveries
+        run: node tools/outbox-send.mts
       - name: Staff digest
+        if: "!cancelled() && steps.dependencies.outcome == 'success'"
         run: node tools/digest-send.mts
         env:
           FORCE_SLOT: ${{ inputs.slot }}

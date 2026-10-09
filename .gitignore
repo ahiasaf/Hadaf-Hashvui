@@ -25,3 +25,5 @@ docs/marks-word.json
 .env
 .env.*
 !.env.example
+
+.artifacts/

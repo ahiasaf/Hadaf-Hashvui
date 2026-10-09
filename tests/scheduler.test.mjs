@@ -176,3 +176,28 @@ test("bounded delivery preserves ordering and rejects zero-worker configurations
   assert.equal(max, 2);
   await assert.rejects(mapLimit([1], 0, async (value) => value));
 });
+test("missing delivery acknowledgement is never retried as a confirmed failure", async () => {
+  let attempts = 0;
+  const result = await deliver(
+    {
+      sendNotification: async () => {
+        attempts++;
+        throw new Error("TEST_NETWORK_TIMEOUT");
+      },
+    },
+    subscription,
+    "TEST",
+  );
+  assert.equal(result.uncertain, true);
+  assert.equal(attempts, 1);
+  const fixture = store(),
+    scheduler = createScheduler(fixture.store);
+  await assert.rejects(
+    scheduler.once("AMBIGUOUS", async () => {
+      throw { uncertain: true };
+    }),
+  );
+  assert.equal(fixture.states.get("AMBIGUOUS"), "ממתין");
+  const duplicate = await scheduler.once("AMBIGUOUS", async () => "DUPLICATE");
+  assert.deepEqual(duplicate, { skipped: true });
+});

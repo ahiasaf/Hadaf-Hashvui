@@ -147,6 +147,15 @@ export function createScheduler(store: LedgerStore) {
     try {
       value = await send();
     } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "uncertain" in error &&
+        error.uncertain
+      ) {
+        uncertain.add(key);
+        throw error;
+      }
       const state = failState?.(error) || "נכשל";
       try {
         if (

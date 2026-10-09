@@ -125,8 +125,8 @@ export function selectRecipients(
   }
   return { recipients, blocked };
 }
-export function filterAudience(
-  recipients: Recipient[],
+export function filterAudience<T extends { id: string; first: string }>(
+  recipients: T[],
   filter: AudienceFilter,
   people: string[][],
   progress: string[][],

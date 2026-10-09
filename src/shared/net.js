@@ -3,7 +3,7 @@
   if (!root.fetch || root.DFNet) return;
   var original = root.fetch.bind(root), owner = root;
   try { if (root.parent !== root && root.parent.location.origin === root.location.origin && root.parent.DFNet) owner = root.parent; } catch (e) {}
-  var pending = {}, cached = {}, fresh = {};
+  var pending = {}, cached = {}, fresh = {}, notificationRequests = {};
   function csv(text) {
     var rows = [], row = [], field = '', quoted = false;
     for (var i = 0; i < text.length; i++) {
@@ -40,6 +40,18 @@
       return original(input, options);
     }
     if (typeof input !== 'string') return original(input, options);
+    if (root.DF_API && url.indexOf(root.DF_API + '?') === 0) {
+      var query = new URL(url);
+      if (query.searchParams.get('fire') === 'say') {
+        var payload = {}; query.searchParams.forEach(function (value, name) { payload[name] = value; });
+        var identity = JSON.stringify(payload);
+        if (!notificationRequests[identity]) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
+        if (Date.now() - notificationRequests[identity].at > 300000) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
+        payload.requestId = notificationRequests[identity].id;
+        return original('/api/action', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'notify',payload:payload})});
+      }
+    }
+
     var match = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/([^/]+)\/gviz\/tq\?/.exec(url);
     if (match && root.DF_SHEET_ID && match[1] === root.DF_SHEET_ID) {
       var parsed = new URL(url), tab = parsed.searchParams.get('sheet') || '';

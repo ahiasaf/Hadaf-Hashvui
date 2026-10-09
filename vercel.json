@@ -45,6 +45,9 @@
   "functions": {
     "api/*.ts": {
       "maxDuration": 20
+    },
+    "api/action.ts": {
+      "maxDuration": 120
     }
   },
   "regions": ["fra1"]

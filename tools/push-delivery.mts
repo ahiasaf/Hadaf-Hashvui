@@ -14,6 +14,7 @@ export type Delivery = {
   ok: boolean;
   code?: number;
   gone?: boolean;
+  uncertain?: boolean;
   tries: number;
   err?: string;
 };
@@ -27,14 +28,17 @@ export async function deliver(
   sender: PushSender,
   subscription: Subscription,
   payload: string,
-  options: { TTL?: number } = {},
+  options: { TTL?: number; attempts?: number; timeout?: number } = {},
   sleep = pause,
 ): Promise<Delivery> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const maximum = options.attempts ?? 3;
+  if (!Number.isInteger(maximum) || maximum < 1 || maximum > 3)
+    throw new Error("Invalid delivery attempt limit");
+  for (let attempt = 1; attempt <= maximum; attempt++) {
     try {
       const result = await sender.sendNotification(subscription, payload, {
         TTL: options.TTL ?? 3600,
-        timeout: 15000,
+        timeout: options.timeout ?? 15000,
       });
       if (
         typeof result.statusCode !== "number" ||
@@ -48,9 +52,16 @@ export async function deliver(
           error && typeof error === "object" ? error : {}
         ) as Failure,
         code = failure.statusCode;
+      if (!code)
+        return {
+          ok: false,
+          uncertain: true,
+          tries: attempt,
+          err: "Push delivery acknowledgement missing",
+        };
       if (code === 404 || code === 410)
         return { ok: false, code, gone: true, tries: attempt };
-      if ((code && code !== 429 && code < 500) || attempt === 3)
+      if ((code && code !== 429 && code < 500) || attempt === maximum)
         return {
           ok: false,
           code,

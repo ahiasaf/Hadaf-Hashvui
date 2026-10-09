@@ -27,7 +27,9 @@ await fs.copyFile("src/generated/media.js", "dist/media.js");
 await fs.copyFile("src/styles/mobile.css", "dist/mobile.css");
 await fs.writeFile(
   "dist/net-config.js",
-  "window.DF_SHEET_ID=" +
+  "window.DF_API=" +
+    JSON.stringify(settings.api) +
+    ";window.DF_SHEET_ID=" +
     JSON.stringify(settings.sheetId) +
     ";window.DF_PUBLIC_TABS=" +
     JSON.stringify([...publicTabs]) +

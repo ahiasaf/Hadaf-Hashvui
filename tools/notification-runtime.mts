@@ -31,6 +31,7 @@ export function runtime() {
         throw Object.assign(new Error("Notification delivery failed"), {
           statusCode: result.code,
           gone: !!result.gone,
+          uncertain: !!result.uncertain,
         });
       return { statusCode: result.code };
     },

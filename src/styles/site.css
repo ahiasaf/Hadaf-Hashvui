@@ -510,7 +510,8 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 20px;
-  min-height: 86px;
+  min-height: 72px;
+  padding-block: 8px;
   border-bottom: 1px solid var(--line);
 }
 .calendar-number {

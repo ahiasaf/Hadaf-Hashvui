@@ -1,12 +1,17 @@
 /* Generate screenshots of the actual signup flow using isolated browser fixtures. */
-const http = require("node:http");
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const { chromium } = require("@playwright/test");
-const sharp = require("sharp");
-const root = path.resolve(__dirname, "../dist");
-const output = path.resolve(__dirname, "../static/joinpics");
-const types = {
+import http from "node:http";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { AddressInfo } from "node:net";
+import { chromium, type Browser } from "@playwright/test";
+import sharp from "sharp";
+const directory = fileURLToPath(new URL(".", import.meta.url));
+const root = path.resolve(directory, "../dist");
+const output = path.resolve(
+  process.env.JOINPICS_OUTPUT || path.join(directory, "../.artifacts/joinpics"),
+);
+const types: Record<string, string> = {
   ".html": "text/html",
   ".js": "text/javascript",
   ".css": "text/css",
@@ -19,7 +24,7 @@ const types = {
     .createServer(async (request, response) => {
       try {
         let name = decodeURIComponent(
-          new URL(request.url, "http://localhost").pathname,
+          new URL(request.url || "/", "http://localhost").pathname,
         );
         if (name === "/") name = "/index.html";
         else if (!path.extname(name)) name += ".html";
@@ -36,8 +41,8 @@ const types = {
       }
     })
     .listen(0, "127.0.0.1");
-  await new Promise((resolve) => server.once("listening", resolve));
-  let browser;
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  let browser: Browser | undefined;
   try {
     browser = await chromium.launch({
       ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
@@ -59,17 +64,20 @@ const types = {
     );
     const page = await context.newPage();
     await fs.mkdir(output, { recursive: true });
-    async function save(name) {
+    async function save(name: string) {
       await sharp(await page.screenshot({ fullPage: true }))
         .resize({ width: 360 })
         .webp({ quality: 80 })
         .toFile(path.join(output, name + ".webp"));
       console.log("Signup screenshot:", name);
     }
-    await page.goto("http://127.0.0.1:" + server.address().port + "/join");
-    await page.getByRole("button", { name: "מתחילים", exact: true }).waitFor();
-    await save("landing");
-    await page.getByRole("button", { name: "מתחילים", exact: true }).click();
+    await page.goto(
+      "http://127.0.0.1:" + (server.address() as AddressInfo).port + "/join",
+    );
+    await page
+      .getByRole("heading", { name: "מצטרפים ללימוד", exact: true })
+      .waitFor();
+
     await save("form");
     await page.getByLabel("שם פרטי", { exact: true }).first().fill("תלמיד");
     await page.getByLabel("שם משפחה", { exact: true }).first().fill("לדוגמה");

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
+import { webcrypto as crypto } from "node:crypto";
 import {
   readPublicSheet,
   requestNotification,
@@ -93,6 +94,7 @@ function client(fetcher) {
   window.parent = window;
   vm.runInNewContext(code, {
     window,
+    crypto,
     URL,
     Response,
     Promise,
@@ -259,4 +261,25 @@ test("a missing Google tab falling back to contact data is never forwarded", asy
     ),
     "code,name,last,joined",
   );
+});
+
+test("notification retries retain one identity and keep private text out of request URLs", async () => {
+  const calls = [];
+  const window = client(async (url, options) => {
+    calls.push({ url, payload: JSON.parse(options.body) });
+    return Response.json({ status: "ok" });
+  });
+  window.DF_API = "https://script.invalid/exec";
+  const url = window.DF_API + "?fire=say&key=TEST_KEY&body=TEST_PRIVATE_TEXT";
+  await window.fetch(url);
+  await window.fetch(url);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, "/api/action");
+  assert.equal(calls[0].payload.operation, "notify");
+  assert.equal(
+    calls[0].payload.payload.requestId,
+    calls[1].payload.payload.requestId,
+  );
+  assert.equal(calls[0].payload.payload.body, "TEST_PRIVATE_TEXT");
+  assert.ok(!calls[0].url.includes("TEST_KEY"));
 });

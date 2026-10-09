@@ -31,7 +31,42 @@ export async function forwardAction(input: unknown, request = fetch) {
   )
     throw new Error("Invalid payload");
   let response: Response;
-  if (envelope.operation === "read") {
+  if (envelope.operation === "notify") {
+    const fields = new Set([
+      "requestId",
+      "fire",
+      "inst",
+      "k",
+      "key",
+      "title",
+      "body",
+      "only",
+      "grade",
+      "klass",
+      "who",
+      "aud",
+      "flt",
+      "url",
+      "role",
+      "wait",
+      "test",
+    ]);
+    if (
+      Object.keys(payload).some((key) => !fields.has(key)) ||
+      (payload.fire && payload.fire !== "say")
+    )
+      throw new Error("Invalid notification request");
+    if (databaseEnabled()) {
+      const { queueNotificationRequest } =
+        await import("./notification-request.ts");
+      return queueNotificationRequest(stringRecord(payload));
+    }
+    const url = new URL(settings.api);
+    for (const [key, value] of Object.entries(payload))
+      if (key !== "requestId") url.searchParams.set(key, String(value));
+    url.searchParams.set("fire", "say");
+    response = await request(url, { signal: AbortSignal.timeout(18000) });
+  } else if (envelope.operation === "read") {
     if (
       Object.keys(payload).some((key) => !reads.has(key)) ||
       !["board", "read", "whoIs", "idFor", "amdaFor", "codes", "team"].some(
@@ -53,7 +88,11 @@ export async function forwardAction(input: unknown, request = fetch) {
       url.searchParams.set(key, String(value));
     response = await request(url, { signal: AbortSignal.timeout(18000) });
   } else if (envelope.operation === "write") {
-    if (!["row", "table", "ghput", "teamlog"].includes(String(payload.action)))
+    if (
+      !["row", "table", "ghput", "ghdel", "teamlog"].includes(
+        String(payload.action),
+      )
+    )
       throw new Error("Invalid write");
     if (!payload.key) {
       if (

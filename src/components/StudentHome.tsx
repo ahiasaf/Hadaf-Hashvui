@@ -94,6 +94,7 @@ export default function StudentHome({
               }
               key={index}
               href={lessonHref(track, row)}
+              aria-current={index === current ? "true" : undefined}
             >
               <span className="week-label">שבוע {index + 1}</span>
               <strong>

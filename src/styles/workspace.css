@@ -233,7 +233,7 @@ legend {
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 6px 18px;
-  padding: 18px 8px;
+  padding: 18px 10px;
   border-block: 1px solid var(--line);
 }
 .track-tabs + .progress-overview {
@@ -249,13 +249,14 @@ progress {
   height: 8px;
   accent-color: var(--blue);
 }
+/* One line per week: week, daf, status. Rows share one inline padding so the current row stays aligned. */
 .lesson-row {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 8px;
-  min-height: 56px;
+  padding: 12px 10px;
+  min-height: 52px;
   text-decoration: none;
   border-bottom: 1px solid var(--line);
   border-radius: 10px;
@@ -270,17 +271,26 @@ progress {
 .lesson-row .week-label {
   color: var(--muted);
 }
+.lesson-row .week-label,
+.lesson-row > span:last-child {
+  flex: none;
+  white-space: nowrap;
+}
 .lesson-row strong {
   flex: 1;
+  min-width: 0;
 }
 .lesson-row > span:last-child {
   font-size: 0.83rem;
   color: var(--muted);
+  text-align: end;
 }
 .lesson-row.is-current {
   background: #e9eff5;
-  padding-inline: 16px;
-  border-radius: 10px;
+}
+.lesson-row.is-current > span:last-child {
+  color: var(--blue);
+  font-weight: 650;
 }
 .institution-select {
   max-width: 440px;
@@ -398,20 +408,21 @@ progress {
 }
 .reader-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 8px 20px;
   flex-wrap: wrap;
 }
 .reader-heading h1 {
-  font-size: 2.2rem;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  margin: 0;
 }
 .reader-progress {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-block: 16px 24px;
   font-size: 0.85rem;
 }
 .reader-grid {
@@ -501,8 +512,17 @@ progress {
   text-align: center;
 }
 .completion > span {
+  display: block;
   font-size: 3rem;
+  line-height: 1;
   color: var(--green);
+  animation: pop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
 }
 button:disabled {
   opacity: 0.6;
@@ -528,14 +548,15 @@ summary {
     grid-row: 1;
   }
   .lesson-row {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .lesson-row strong {
-    min-width: 60%;
+    gap: 12px;
   }
   .lesson-row > span:last-child {
-    margin-inline-start: auto;
+    font-size: 0.78rem;
+  }
+  /* Phone: both links share the first row, the title sits under them at full width. */
+  .reader-heading h1 {
+    order: 1;
+    flex-basis: 100%;
   }
   .reader-controls {
     gap: 10px;

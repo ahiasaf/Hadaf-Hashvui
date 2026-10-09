@@ -102,3 +102,106 @@ test("digest schedules reject invalid hours while retaining multiple choices", (
   assert.deepEqual(parseWhen("5@25:00"), []);
   assert.deepEqual(parseWhen("off"), []);
 });
+test("parent targeting follows scoped children and canonical device links", async () => {
+  const { parentNotificationTargets } =
+    await import("../src/server/parent-notification-targets.ts");
+  const people = [
+    [
+      "מזהה",
+      "שם",
+      "תפקיד",
+      "קוד ישיבה",
+      "שכבה",
+      "כיתה",
+      "טלפון",
+      "טלפון ההורה",
+      "מזהים נוספים",
+      "מזהה המזמין",
+    ],
+    [
+      "CHILD",
+      "Example",
+      "תלמיד",
+      "demo",
+      "9",
+      "A",
+      "0501111111",
+      "0509998888",
+      "CHILD_DEVICE",
+      "",
+    ],
+    [
+      "PARENT",
+      "ExampleParent",
+      "הורה",
+      "other",
+      "",
+      "",
+      "0509998888",
+      "",
+      "PARENT_DEVICE",
+      "",
+    ],
+    [
+      "OTHER_CHILD",
+      "OtherExample",
+      "תלמיד",
+      "other",
+      "9",
+      "A",
+      "0500000000",
+      "0501111111",
+      "",
+      "",
+    ],
+    [
+      "OTHER_PARENT",
+      "OtherParent",
+      "הורה",
+      "other",
+      "",
+      "",
+      "0501111111",
+      "",
+      "",
+      "",
+    ],
+  ];
+  const progress = [
+    ["מזהה", "שבוע", "קטע", "מתוך"],
+    ["CHILD_DEVICE", "2", "4", "4"],
+  ];
+  const parents = parentNotificationTargets(
+    people,
+    progress,
+    { seg: "done", wk: 2 },
+    "demo",
+    "9",
+    "A",
+    false,
+  );
+  assert.deepEqual([...parents].sort(), ["PARENT", "PARENT_DEVICE"]);
+  const both = parentNotificationTargets(
+    people,
+    progress,
+    {},
+    "demo",
+    "9",
+    "A",
+    true,
+  );
+  assert.ok(both.has("CHILD_DEVICE"));
+  assert.ok(!both.has("OTHER_PARENT"));
+  assert.equal(
+    parentNotificationTargets(
+      people,
+      progress,
+      { seg: "todo", wk: 2 },
+      "demo",
+      "9",
+      "A",
+      false,
+    ).size,
+    0,
+  );
+});

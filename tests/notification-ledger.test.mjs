@@ -70,5 +70,26 @@ test(
       )[0].found,
       false,
     );
+    const manual = "TEST_MANUAL_" + randomUUID();
+    await sql`SELECT append_sheet_record('הודעות',${JSON.stringify([
+      ["מזהה שליחה", manual],
+      ["מי", "Example"],
+      ["תוצאה", "ממתין"],
+    ])}::jsonb)`;
+    await sql`SELECT report_notification(${manual},'נכשלה: TEST_FAILURE',false)`;
+    await sql`SELECT report_notification(${manual},'נכשלה: TEST_SECOND_FAILURE',false)`;
+    assert.equal(
+      (
+        await sql`SELECT count(*)::int AS n FROM notification_events WHERE key=${"failure|" + manual}`
+      )[0].n,
+      1,
+    );
+    assert.equal(
+      (
+        await sql`SELECT count(*)::int AS n FROM notification_events WHERE key=${"failure|" + sid}`
+      )[0].n,
+      0,
+      "System notification failures must not create alert loops",
+    );
   },
 );

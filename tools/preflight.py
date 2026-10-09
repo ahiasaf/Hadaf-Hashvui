@@ -517,7 +517,7 @@ def check_texts():
     import subprocess
     try:
         out = subprocess.check_output(
-            ['node', project_path( 'tools', 'textcheck.js')],
+            ['node', project_path( 'tools', 'textcheck.mts')],
             stderr=subprocess.STDOUT).decode('utf-8')
     except Exception as e:                    # noqa: BLE001
         WARN.append('בדיקת המלל לא רצה (צריך node): %s' % e)

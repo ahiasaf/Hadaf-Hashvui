@@ -236,6 +236,10 @@ export async function databaseAction(
       return appendDatabaseRecord(payload.tab, cols);
     }
     requireAdmin(payload);
+    if (["ghput", "ghdel"].includes(payload.action)) {
+      const { publishRepositoryFile } = await import("./github-publisher.ts");
+      return publishRepositoryFile(payload);
+    }
     if (payload.action === "table") {
       if (["מצב ישיבות", "הוספות יומן"].includes(payload.tab))
         throw new Error("Source-owned table cannot be replaced");
