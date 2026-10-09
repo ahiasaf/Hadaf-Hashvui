@@ -4158,7 +4158,7 @@ function bar() {
   $('prev').disabled = IDX === 0 && !prevDaf();
   var last = IDX === FLAT.length - 1;
   $('next').textContent = last
-    ? (DONE_SEEN && nextDaf() ? 'דף ' + unitName(nextDaf()) + ' ◂' : 'סיום ◂')
+    ? ((DONE_SEEN || !isWeekDaf()) && nextDaf() ? 'דף ' + unitName(nextDaf()) + ' ◂' : 'סיום ◂')
     : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
 }
 /* ---------- מדידת זמנים ----------
@@ -4219,11 +4219,25 @@ function nextDafUrl() {
   return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
              '&' + unitQ(u) + keepQ() : null;
 }
+/* האם הדף הפתוח הוא הדף של השבוע הנוכחי. רק בו יש מסך סיום. */
+function isWeekDaf() {
+  if (typeof LWeek !== 'function') return false;
+  var wk = LWeek();
+  return wk >= 0 && wk === S.week;
+}
 function finish() {
+  /* דף שאינו של השבוע — אין מסך סיום ואין סימון. ממשיכים בשקט
+     לדף הבא, כמו דפדוף בגמרא. אין דף הבא — נשארים במקום. */
+  if (!isWeekDaf()) {
+    DONE_SEEN = true;
+    var nu = nextDafUrl();
+    if (nu) location.href = nu;
+    bar();
+    return;
+  }
   var key = S.mas + '-' + (S.week + 1);
   var q = window.QUIZ && QUIZ[key];
-  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + LAmMark(S.am) +
-    ', מתחילת הדף ועד סופו.';
+  $('done-sub').textContent = JOIN.weekDone;
   var a = $('to-quiz');
   if (q) { a.style.display = ''; a.href = stuQuizUrl(key); }
   else a.style.display = 'none';
