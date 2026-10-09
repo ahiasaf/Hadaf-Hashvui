@@ -2673,7 +2673,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.154';
+var APP_VERSION = '8.99.155';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8967,7 +8967,7 @@ function admParCard() {
       var nm = ((q.first || '') + ' ' + (q.last || '')).trim() || '—';
       var wa = !q.push && q.phone ? waNum(q.phone) : '';
       var msg = String(Store.get('parLinkMsg', null) != null ? Store.get('parLinkMsg', '') : (UI.parLinkMsg || ''))
-        .split('{name}').join(q.first || '');
+        .split('{name}').join(q.first || '') + '\n' + joinUrl('') + '#invite';
       return '<div class="row" style="padding:7px 0;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b>' + esc(nm) +
         '</b><span class="h" style="display:block;margin:0">' + esc(q.instName || pplName(pplCode(q.inst), null)) + '</span></span>' +
         (q.push ? '<span title="' + esc(UI.parHasPush) + '">✉</span>'
@@ -8998,8 +8998,10 @@ function admParSend() {
       parSend.msg = bad ? fill(UI.parBad, { m: bad }) : fill(UI.parOk, { n: ok });
       delete pplLast['st-par']; admLive(); return;
     }
+    /* 'join#invite' ולא join.html — השרת מתיר נתיב בלי נקודה,
+       ו-cleanUrls מגיש אותו. ההאש פותח ישר את מסך ההזמנה. */
     scriptGet({ fire: 'say', key: key, title: PROGRAM.short, who: 'רכז', body: txt,
-                flt: JSON.stringify({ ids: chunks[j], per: per }) })
+                url: 'join#invite', flt: JSON.stringify({ ids: chunks[j], per: per }) })
       .then(function (d) {
         if (d && d.status === 'ok') ok += chunks[j].length; else bad = (d && d.message) || UI.parNoAns;
         next(j + 1);

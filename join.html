@@ -600,6 +600,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .inv .btn{margin-top:11px;font-size:.95rem;padding:14px}
 .inv .btn.off{background:var(--sunk);color:var(--ink-3);box-shadow:none;
   pointer-events:none}
+.inv textarea{width:100%;font:inherit;font-size:.9rem;line-height:1.6}
+.inv-tip{margin-top:9px !important;padding:10px 12px;border-radius:12px;background:var(--sunk);
+  font-size:.82rem !important;color:var(--ink-2) !important}
 .inv .ok{margin-top:11px;font-size:.86rem;font-weight:800;color:var(--green-d);
   text-align:center}
 
@@ -2564,6 +2567,14 @@ function pairAsk_() {
   document.body.appendChild(sc);
 }
 
+/* ============================================================
+   הזמנה מתוך התראה של הרכז (#invite).
+   ============================================================
+   "הורים שלא חוברו לבן" מקבלים מהרכז הודעה עם כפתור שנוחת כאן —
+   ישר על ההזמנה, גם אם כבר נשלחה פעם, וגם כשהשם של הבן לא ידוע.
+   ההודעה לבן פתוחה לעריכה ("כתבו לו במילים שלכם"), והקישור האישי
+   — שהוא מה שמחבר ביניהם — מתווסף לסופה אם נמחק. */
+var INV_FORCE = location.hash === '#invite';
 function drawInv() {
   var box = $('inv'); if (!box) return;
   var me = get('me', null) || {};
@@ -2572,40 +2583,67 @@ function drawInv() {
   /* מחוברים — זה כבר כתוב בתווית השם (paintName_). אין הזמנה. */
   if (pw && (me.way === 'dad' || me.role === 'dad')) return;
   pairAsk_();
+  var force = INV_FORCE && me.role === 'dad';
+  /* מההתראה של הרכז ההורה מזמין את הבן — הפנייה בשמו, והקישור
+     נפתח לו כבן. רשומה ישנה בלי rel הייתה כותבת "היי אבא". */
+  if (force && me.rel !== 'kid') me.rel = 'kid';
   /* רק למי שבחר ללמוד עם מישהו, ורק אם ידוע מי הוא. */
-  if (me.way !== 'dad' || !me.dadFirst) return;
+  if (!force && (me.way !== 'dad' || !me.dadFirst)) return;
   /* מי שהגיע דרך הזמנה — הצד השני כבר בפנים. הזמנה חוזרת אליו
      נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
-  if (me.from) return;
-  if (get('inv-sent', 0)) {
+  if (!force && me.from) return;
+  if (!force && get('inv-sent', 0)) {
     box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div></div>';
     return;
   }
 
-  var them = me.dadFirst, phone = me.dadPhone || '';
+  var them = me.dadFirst || '', phone = me.dadPhone || '';
   var okPhone = (phone.match(/\d/g) || []).length >= 9;
-  box.innerHTML = '<div class="inv">' +
-    '<h3>' + esc(tpl(JOIN.invTitle, { them:them })) + '</h3>' +
+  var msg0 = function () {
+    /* בן נקרא בשמו — גם בשם שהוקלד הרגע, לפני שנשמר. */
+    var g = me.rel === 'kid' ? (them || greetName(me)) : (them ? greetName(me) : '');
+    return tpl(JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
+  };
+  box.innerHTML = '<div class="inv" id="inv-card">' +
+    '<h3>' + esc(them ? tpl(JOIN.invTitle, { them:them }) : JOIN.invTitleAny) + '</h3>' +
     '<p>' + esc(JOIN.invBody) + '</p>' +
+    (them ? '' : '<div class="fld"><label class="label" for="inv-nm">' + esc(JOIN.invNameKid) + '</label>' +
+      '<input id="inv-nm" type="text" value=""></div>') +
     (okPhone ? ''
       : '<div class="fld"><label class="label" for="inv-ph">' +
-        esc(tpl(JOIN.invPhone, { them:them })) + '</label>' +
+        esc(them ? tpl(JOIN.invPhone, { them:them }) : JOIN.invPhoneAny) + '</label>' +
         '<input id="inv-ph" type="tel" inputmode="tel" value="' + esc(phone) + '"></div>' +
         '<p id="inv-need" style="font-size:.79rem;color:var(--ink-3);' +
         'font-weight:700;margin-top:7px">' + esc(JOIN.invNeed) + '</p>') +
+    /* ההודעה עצמה — טיוטה, לא נוסח סגור. */
+    '<div class="fld"><label class="label" for="inv-msg">' + esc(JOIN.invEdit) + '</label>' +
+    '<textarea id="inv-msg" rows="5">' + esc(msg0()) + '</textarea></div>' +
+    '<p class="inv-tip">' + esc(JOIN.invTip) + '</p>' +
     '<button class="btn' + (okPhone ? '' : ' off') + '" id="inv-go">' +
       esc(JOIN.invBtn) + '</button></div>';
 
-  var ph = $('inv-ph'), go = $('inv-go');
-  if (ph) ph.oninput = function () {
-    var ok = (ph.value.match(/\d/g) || []).length >= 9;
+  var ph = $('inv-ph'), go = $('inv-go'), nmI = $('inv-nm'), ta = $('inv-msg');
+  var check = function () {
+    var ok = (String(ph ? ph.value : phone).match(/\d/g) || []).length >= 9 && (!nmI || (nmI.value || '').trim());
     go.className = 'btn' + (ok ? '' : ' off');
     /* ההסבר למה הכפתור כבוי מיותר ברגע שהוא נדלק. */
     var nd = $('inv-need'); if (nd) nd.style.display = ok ? 'none' : '';
   };
+  if (ph) ph.oninput = check;
+  /* שם הבן שהוקלד עכשיו — נכנס גם לפנייה שבטיוטה, כל עוד לא נערכה. */
+  var edited = false;
+  if (ta) ta.oninput = function () { edited = true; };
+  if (nmI) nmI.oninput = function () {
+    them = (nmI.value || '').trim();
+    if (!edited && ta) ta.value = msg0();
+    check();
+  };
+  check();
   go.onclick = function () {
     var num = ph ? ph.value : phone;
     if ((String(num).match(/\d/g) || []).length < 9) return;
+    if (nmI && !(nmI.value || '').trim()) return;
+    if (nmI) me.dadFirst = (nmI.value || '').trim();
     /* נשמר ברשומה, כדי שהמספר לא יאבד אם הוא ייסגר וייפתח. */
     me.dadPhone = num; set('me', me);
     /* וגם לגיליון. עד עכשיו המספר נשמר רק כאן — ולכן אבא שהשלים
@@ -2613,14 +2651,20 @@ function drawInv() {
        והבן לא ראה "עם אבא". */
     queue(joinRow_(me));
     set('inv-sent', 1);
-    window.open('https://wa.me/' + waNum(num) + '?text=' +
-      encodeURIComponent(tpl(JOIN.invMsg, {
-        /* בפנייה — "אבא", לא השם. הבן הזין אותו כדי שנדע מי
-           זה, לא כדי לקרוא לאבא שלו בשמו. */
-        me: me.first, them: greetName(me), url: invUrl(me)
-      })), '_blank');
+    /* הקישור האישי הוא מה שמחבר — אם נמחק מהטיוטה, חוזר לסופה. */
+    var url = invUrl(me), txt = ta ? String(ta.value || '') : msg0();
+    if (txt.indexOf(url) < 0) txt = txt.replace(/\s+$/, '') + '\n\n' + url;
+    INV_FORCE = false;
+    window.open('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(txt), '_blank');
     drawInv();
   };
+  if (force) {
+    setTimeout(function () {
+      var c = $('inv-card');
+      if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start' });
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }, 300);
+  }
 }
 
 /* ============================================================
