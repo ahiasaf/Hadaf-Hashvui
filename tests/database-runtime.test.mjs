@@ -43,10 +43,10 @@ test(
       ["מזהה", id],
       ["שם", "TestChild"],
       ["משפחה", "FixtureFamily"],
-      ["טלפון", "0500000001"],
+      ["טלפון", "0501111111"],
       ["קוד ישיבה", "demo"],
       ["תפקיד", "תלמיד"],
-      ["טלפון ההורה", "0500000002"],
+      ["טלפון ההורה", "0509998888"],
     ];
     const first = await write("לומדים", student("TEST_CHILD"));
     assert.equal(first.status, "success");
@@ -58,7 +58,7 @@ test(
       ["מזהה", "TEST_PARENT"],
       ["שם", "TestParent"],
       ["משפחה", "FixtureFamily"],
-      ["טלפון", "0500000002"],
+      ["טלפון", "0509998888"],
       ["קוד ישיבה", "demo"],
       ["תפקיד", "הורה"],
     ]);
@@ -81,7 +81,7 @@ test(
     const restored = await forwardAction({
       operation: "read",
       payload: {
-        whoIs: "+972500000001",
+        whoIs: "+972501111111",
         first: "TestChild",
         last: "FixtureFamily",
         role: "kid",

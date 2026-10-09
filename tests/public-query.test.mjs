@@ -29,9 +29,9 @@ test("unsupported syntax and injection are rejected rather than forwarded", () =
 test("CSV output preserves quotes, line breaks and leading phone zeros", () => {
   assert.equal(
     csvText([
-      ["שם", "טלפון"],
+      ["label", "phone"],
       ['a,b\n"c', "0500000000"],
     ]),
-    'שם,טלפון\n"a,b\n""c",0500000000',
+    'label,phone\n"a,b\n""c",0500000000',
   );
 });
