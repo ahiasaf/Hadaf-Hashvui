@@ -1923,7 +1923,8 @@ function draw() {
        ר"ם שפתח את הלוח מוקדם ראה מסך ריק. */
     /* במסך "אנשים" — שורת הסינון שלמעלה עושה את עבודת המשבצות. */
     (EMBED ? keyHtml() : '<div class="card">' + tilesHtml() + wayOpenHtml() + keyHtml() + '</div>') +
-    classesHtml() + parentsHtml() + arcHtml() + hitGrpHtml() +
+    /* בניהול (EMBED) — ההורים שלא חוברו עברו ל"התקנה", עם שליחה לכולם. */
+    classesHtml() + (EMBED ? '' : parentsHtml()) + arcHtml() + hitGrpHtml() +
     soonLine();
   wire();
   embedSize();
