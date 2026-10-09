@@ -10,6 +10,8 @@ STATIC = ROOT / "static"
 def project_path(*parts):
     relative = Path(*parts)
     first = relative.parts[0]
+    if first in {"slides", "audio"}:
+        return str(ROOT / relative)
     if first == "apps-script.gs":
         return str(ROOT / "backend" / relative)
     if first == "sugya":
@@ -29,7 +31,6 @@ def project_path(*parts):
         in {
             "daf",
             "chav",
-            "slides",
             "sfarim",
             "fonts",
             "m",

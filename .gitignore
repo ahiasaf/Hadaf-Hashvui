@@ -4,6 +4,8 @@ dist/
 .astro/
 .vercel/
 src/generated/
+static/slides/
+static/audio/
 
 # Local checks, screenshots and research
 playwright-report/

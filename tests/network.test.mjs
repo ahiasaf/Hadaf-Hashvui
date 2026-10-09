@@ -8,6 +8,40 @@ import {
   sheetUrl,
 } from "../src/server/upstream.ts";
 const code = await fs.readFile("src/shared/net.js", "utf8");
+test("management institution loading rejects lesson-tab fallback while allowing a new school beside known codes", async () => {
+  const source = await fs.readFile(
+    "src/features/management/entry-21-14-bulkImportClose.js",
+    "utf8",
+  );
+  const context = {
+    INST_BUILTIN: [{ code: "alpha" }, { code: "beta" }],
+    YES: /^(true|1|כן)$/i,
+    trackById: () => null,
+  };
+  vm.runInNewContext(
+    source.slice(
+      source.indexOf("function instFromRows"),
+      source.indexOf("function loadInstitutions"),
+    ),
+    context,
+  );
+  assert.equal(
+    context.instFromRows([
+      ["מסכת", "דף"],
+      ["taanit", "ב"],
+      ["megila", "ב"],
+    ]).ok,
+    false,
+  );
+  assert.equal(
+    context.instFromRows([
+      ["code", "name"],
+      ["alpha", "Example A"],
+      ["new", "Example B"],
+    ]).ok,
+    true,
+  );
+});
 test("management private reads share in-flight requests without retaining results or URL credentials", async () => {
   const source = await fs.readFile(
     "src/features/management/entry-21-08-quizWho.js",

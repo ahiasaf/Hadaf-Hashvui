@@ -7,7 +7,8 @@
 - `src/server`, `api`: same-origin public reads and authenticated or acknowledged private actions.
 - `src/config`, `src/shared`: maintained program configuration and classic scripts required by operational tools.
 - `src/features`: specialist views, styles and ordered script units, rendered as Astro routes.
-- `static`: original learning images, slides, fonts, manifests and other public content.
+- `static`: original learning images, fonts, manifests and other public content.
+- `slides`, `audio` (when recordings exist): publisher-managed source assets. Existing Apps Script uploads and GitHub Contents verification require these root paths. Preparation mirrors them into ignored `static` folders, preserving public URLs and including future uploads in each build.
 - `backend`: shared Apps Script implementation, preserving the latest main-branch private call-center routing update.
 - `tools`, `tests`: build, maintenance and verification.
 - `src/generated`, `dist`, `.astro`, `.vercel`: ignored generated output.

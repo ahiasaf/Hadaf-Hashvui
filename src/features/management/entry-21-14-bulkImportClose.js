@@ -551,6 +551,14 @@ function instFromRows(rows) {
         ok: false,
         why: "הלשונית אינה נראית כרשימת מוסדות"
     };
+    // A fallback lesson tab can contain valid-looking ASCII codes without being institutions.
+    var known = out.filter(function(i) {
+        return INST_BUILTIN.some(function(b) { return b.code === i.code; });
+    }).length;
+    if (!known || known * 2 < out.length) return {
+        ok: false,
+        why: "הקודים בלשונית אינם קודי ישיבות"
+    };
     return {
         ok: true,
         list: out
