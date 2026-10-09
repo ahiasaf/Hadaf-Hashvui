@@ -1,6 +1,5 @@
 import { stored, writeRow, type Person } from "./client";
-const publicKey =
-  "BJ7oHIPuCdvARkdolXpxYXtnm43UNUOgiUNrf2FBA-QD8L_utJaYPKc5hr1NEYnbbdNVYqY5UxdX7lg-i_wIELw";
+import { pushPublicKey as publicKey } from "../config/push";
 export async function subscribe() {
   if (
     !("serviceWorker" in navigator) ||

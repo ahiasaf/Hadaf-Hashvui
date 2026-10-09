@@ -1,172 +1,80 @@
-# ============================================================
-# העדכון המתוזמן — כל ר"ם, במועד שהוא בחר.
-# ============================================================
-# בפינה שבעמוד הצוות כל ר"ם בונה לעצמו תזכורות — ימים ושעה,
-# כמה שירצה — ומקבל עדכון על הלימוד של תלמידיו. זה מה
-# שמקיים את ההבטחה.
-#
-# ובנוסף: "כמה מכיתתך הצטרפו", שהרכז מוציא ביד ממסך הניהול
-# לכל ר"ם בבת אחת — כל אחד עם המספר שלו.
-#
-# ------------------------------------------------------------
-# למה בכל חצי שעה
-# ------------------------------------------------------------
-# כל ר"ם בונה לעצמו את התזכורות — ימים ושעה, כמה שירצה —
-# ולכן אין "משמרות" קבועות שאפשר לכוון אליהן קרון. הקרון רץ
-# בכל חצי שעה, והקוד מעגל את השעה הישראלית כלפי מטה לחצי
-# שעה ומטפל במשבצת הזו בלבד.
-#
-# כך אין כפילות: כל משבצת מטופלת על ידי הרצה אחת בדיוק.
-# הרצה שאיחרה בעשר דקות עדיין מטפלת במשבצת שלה; הרצה
-# שאיחרה מעבר לחצי שעה מפספסת — ופספוס עדיף על כפילות.
-#
-# הקרון רץ ב-UTC ואינו יודע על שעון קיץ, ולכן השעה הישראלית
-# מחושבת בקוד ולא בלוח הזמנים.
-#
-# ------------------------------------------------------------
-# מה לא נשלח
-# ------------------------------------------------------------
-#   · בשבת — בשום מצב, גם לא הודעה שהרכז יזם.
-#   · בשבוע חופשה — שבוע שאין בו דף. כך גם חנוכה ופסח יוצאים
-#     מהמשחק בלי רשימת חגים נפרדת.
-#   · לפני תחילת התוכנית ואחרי סיומה.
-#   · למי שלא קבע לעצמו אף תזכורת.
-#
-# שלושת האחרונים שייכים לעדכון על הלימוד בלבד. "כמה הצטרפו"
-# מדבר על הרשמה ולא על דף, ולכן הוא נכון דווקא *לפני* שהיא
-# מתחילה — זה הזמן שבו תלמידים נרשמים.
-#
-# ------------------------------------------------------------
-# לבדוק בלי לשלוח
-# ------------------------------------------------------------
-# Actions → "העדכון המתוזמן" → Run workflow, ולסמן "הרצה
-# יבשה". הכול מחושב ומודפס, ואף התראה אינה יוצאת. אפשר גם
-# לכפות משבצת — `יום:שעה`, כשהיום 0=ראשון — כדי לראות מה
-# היה נשלח בשישי בתשע: `5:09:00`.
-# ============================================================
-name: העדכון המתוזמן
-
+name: Scheduled notifications
 on:
   schedule:
-    - cron: '0,30 * * * *'
-
-  # ------------------------------------------------------------
-  # ושעון שני, כי הראשון אינו מספיק
-  # ------------------------------------------------------------
-  # הקרון של GitHub הוא מאמץ סביר ולא הבטחה: הוא התבקש לרוץ
-  # כל חצי שעה, וביומן ההרצות נראו כשש הרצות ביממה במקום
-  # ארבעים ושמונה. הטריגר של גוגל כן רץ בזמן, והוא מצית כאן
-  # `push-clock` דרך אותו גשר של "כמה הצטרפו".
-  #
-  # שני השעונים חיים זה לצד זה בכוונה: אם אחד שותק, השני
-  # מריץ. מה שמונע כפילות אינו התזמון אלא לשונית "נשלחו".
+    - cron: "0,30 * * * *"
   repository_dispatch:
     types: [push-digest, push-clock]
-
   workflow_dispatch:
     inputs:
       dry:
-        description: 'הרצה יבשה — לחשב ולהדפיס בלי לשלוח'
+        description: Calculate recipients without delivery or data writes
         type: boolean
-        required: false
         default: true
       slot:
-        description: 'לכפות משבצת, יום:שעה (למשל 5:09:00). ריק = לפי השעון'
-        required: false
-        default: ''
+        description: Optional Jerusalem day and time, such as 5:09:00
+        default: ""
       mode:
-        description: 'מה שולחים'
+        description: Digest content
         type: choice
-        required: false
-        default: 'learn'
-        options: ['learn', 'joined']
+        default: learn
+        options: [learn, joined]
       everyone:
-        description: 'לשלוח לכל הצוות, בלי קשר לתזכורות שלו'
+        description: Include staff regardless of their reminder schedule
         type: boolean
-        required: false
         default: false
-
-# ============================================================
-# הרצה אחת בכל רגע נתון.
-# ============================================================
-# שני שעונים מציתים את אותה עבודה, ושתי הרצות שרצות יחד היו
-# קוראות את "נשלחו" לפני ששתיהן כתבו אליה — כלומר אותה הודעה
-# פעמיים. תור, ולא ביטול: הרצה שכבר שולחת אינה נקטעת באמצע.
-concurrency:
-  group: sched-send
-  cancel-in-progress: false
-
-# הרשאות מינימליות: השליחה אינה נוגעת בריפו כלל.
+      backend:
+        description: Data source (preview requires a dry run)
+        type: choice
+        default: configured
+        options: [configured, neon-preview]
 permissions:
   contents: read
-
+concurrency:
+  group: ${{ inputs.backend == 'neon-preview' && 'notification-preview' || 'sched-send' }}
+  cancel-in-progress: false
 jobs:
   digest:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      READ_KEY: ${{ secrets.READ_KEY }}
+      VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+      DRY_RUN: ${{ inputs.dry }}
+      HADAF_DATABASE_BACKEND: ${{ inputs.backend == 'neon-preview' && 'neon' || vars.HADAF_DATABASE_BACKEND }}
+      DATABASE_URL: ${{ inputs.backend == 'neon-preview' && secrets.NEON_PREVIEW_DATABASE_URL || secrets.DATABASE_URL }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Require dry delivery for preview data
+        env:
+          PREVIEW: ${{ inputs.backend == 'neon-preview' }}
+        run: |
+          if [ "$PREVIEW" = true ] && [ "$DRY_RUN" != true ]; then
+            echo "Preview data may only be used for dry verification."
+            exit 1
+          fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: '20'
-
-      # גרסה נעוצה. ספריית שליחה שמתעדכנת לבד היא בדיוק מה
-      # שנשבר ביום שבו צריך שיעבוד.
-      - name: התקנת ספריית השליחה
-        run: npm install --no-save web-push@3.6.7
-
-      - name: שליחה
+          node-version: "24"
+          cache: npm
+      - id: dependencies
+        run: npm ci --ignore-scripts --omit=dev
+      - name: Staff digest
+        run: node tools/digest-send.mts
         env:
-          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
-          READ_KEY:      ${{ secrets.READ_KEY }}
-          DRY_RUN:       ${{ inputs.dry }}
-          FORCE_SLOT:    ${{ inputs.slot }}
-          # מהטופס הידני, או מההצתה שיצאה ממסך הניהול.
-          MODE:     ${{ inputs.mode     || github.event.client_payload.mode }}
+          FORCE_SLOT: ${{ inputs.slot }}
+          MODE: ${{ inputs.mode || github.event.client_payload.mode }}
           SEND_ALL: ${{ inputs.everyone || github.event.client_payload.all }}
-          # שליחה יזומה מהניהול — המזהה שלה ביומן "הודעות". ההרצה
-          # מדווחת עליו בסוף (tools/push-report.js).
-          SID:      ${{ github.event.client_payload.sid }}
-        run: node tools/digest-send.js
-
-      - name: דיווח על כישלון
-        if: failure() && github.event_name == 'repository_dispatch'
+          SID: ${{ github.event.client_payload.sid }}
+      - name: Report infrastructure failure
+        if: failure() && inputs.dry != true && github.event_name == 'repository_dispatch'
+        run: node tools/push-report.mts crash
         env:
-          READ_KEY: ${{ secrets.READ_KEY }}
-          SID:      ${{ github.event.client_payload.sid }}
-        run: node tools/push-report.js crash
-
-      # התזכורות שהרכז כתב לעצמו. אותו קרון, כי אין סיבה
-      # לשני לוחות זמנים — והן תלויות באותה משבצת של חצי שעה.
-      #
-      # `if: always()` כדי שכישלון של העדכון המתוזמן לא יבלע
-      # אותן: שני דברים שונים לגמרי שרצים באותה דקה.
-      # `push-clock` הוא שעון, ולכן הוא מריץ הכול כמו הקרון.
-      # `push-digest` הוא "כמה הצטרפו" שהרכז יזם — שם אין מקום
-      # לתזכורות שלו, והן היו יוצאות באמצע פעולה אחרת.
-      - name: תזכורות לרכז
+          SID: ${{ github.event.client_payload.sid }}
+      - name: Coordinator reminders
         if: >-
-          always() && (github.event_name != 'repository_dispatch' ||
+          !cancelled() && steps.dependencies.outcome == 'success' && (github.event_name != 'repository_dispatch' ||
           github.event.action == 'push-clock')
-        env:
-          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
-          READ_KEY:      ${{ secrets.READ_KEY }}
-          DRY_RUN:       ${{ inputs.dry }}
-        run: node tools/remind-send.js
-
-      # ============================================================
-      # ההודעה להורה על לימוד משותף.
-      # ============================================================
-      # הבן סימן "למדנו ביחד", ומכאן יוצאת הבשורה לאבא. אותו
-      # קרון, כי אין סיבה לשלישי — וממילא "נשלחו" הוא שמונע
-      # כפילות ולא התזמון.
-      #
-      # `if: always()` כדי שכישלון של העדכון המתוזמן לא יבלע
-      # אותה, בדיוק כמו התזכורות.
-      - name: לימוד משותף — הודעה להורה
-        if: always()
-        env:
-          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
-          READ_KEY:      ${{ secrets.READ_KEY }}
-          DRY_RUN:       ${{ inputs.dry }}
-        run: node tools/pair-send.js
+        run: node tools/remind-send.mts
+      - name: Shared learning notifications
+        if: "!cancelled() && steps.dependencies.outcome == 'success'"
+        run: node tools/pair-send.mts

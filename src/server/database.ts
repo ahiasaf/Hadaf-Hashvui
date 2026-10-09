@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { timingSafeEqual } from "node:crypto";
-import { publicTabs, validatePublicRows } from "./upstream.ts";
+import { publicTabs, validatePublicRows } from "./public-schema.ts";
 import { compilePredicate, csvText, parsePublicQuery } from "./public-query.ts";
 export function databaseEnabled() {
   return process.env.HADAF_DATABASE_BACKEND === "neon";

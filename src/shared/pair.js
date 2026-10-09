@@ -148,7 +148,7 @@ var PAIR_UI = (function () {
       ['שם השותף', m.dadFirst || ''],
       ['טלפון השותף', m.dadPhone || ''],
       /* בחר לא לשלוח לצד השני התראה - השורה נרשמת (ההגרלה), ו-
-         tools/pair-send.js מדלג עליה. */
+         tools/pair-send.mts מדלג עליה. */
       ['בלי התראה', mute ? 'כן' : '']
     ]) };
     var q = [];

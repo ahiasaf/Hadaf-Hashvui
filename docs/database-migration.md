@@ -63,3 +63,11 @@ After every operational capability passes, take a fresh consistent source snapsh
 ## Performance evidence
 
 A local Fedora client querying Frankfurt measured warm uncached public counters at 69-71 ms and process-cache hits at 0.02-0.03 ms. The authenticated 276-student roster measured 205-515 ms on repeated reads after batching its independent queries. Its first sampled read took 2.1 seconds. These are local backend samples, not browser load times, Vercel measurements or a cold-start guarantee. The free Neon compute can suspend. Cold starts and authenticated deployed APIs still need owner-assisted verification.
+
+## Typed notification jobs
+
+Manual delivery, staff digests, coordinator reminders and shared-learning jobs now run on Node 24 TypeScript. They use the configured source, which remains Apps Script until `HADAF_DATABASE_BACKEND=neon` is explicitly set. Migration `004-notification-ledger.sql` adds transactional delivery claims, retryable confirmed failures and monotonic report updates. Uncertain delivery acknowledgements stay pending and require investigation before retry.
+
+For preview verification, the owner can set the Actions secret `NEON_PREVIEW_DATABASE_URL` to the imported candidate branch, select `neon-preview`, and keep the dry-run checkbox enabled. The workflow rejects live preview delivery. Dry jobs do not write reports, ledger entries or send notifications. Public logs contain counts only. Production uses `DATABASE_URL` and the repository variable `HADAF_DATABASE_BACKEND`; leave that variable unset until the remaining management, dispatch and publishing migration is verified.
+
+Local verification confirmed one winning claim across eight concurrent workers on synthetic data, retries after acknowledged failure, pending-delivery blocking and late-report protection. Read-only dry targeting against the candidate snapshot selected 310 subscriptions and 13 staff digests. Raw source parity stayed at 37 tables and 7,663 rows. These are eligibility counts, not delivery proof. The legacy coordinator failure-alert trigger is not yet reproduced by Neon report updates and remains a cutover gate.

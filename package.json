@@ -11,8 +11,8 @@
     "preview": "node tools/preview.mjs",
     "test": "node --test tests/*.test.mjs",
     "lint": "eslint src tools/*.{mjs,mts} api tests && node tools/check-legacy.mjs",
-    "format": "prettier --write src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/check.yml docs/architecture.md README.md",
-    "format:check": "prettier --check src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/check.yml docs/architecture.md README.md",
+    "format": "prettier --write src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/*.yml docs/architecture.md README.md",
+    "format:check": "prettier --check src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/*.yml docs/architecture.md README.md",
     "check": "astro check",
     "prebuild": "node tools/prepare.mjs",
     "predev": "node tools/prepare.mjs",
@@ -26,7 +26,8 @@
     "oxc-transform-react": "^0.145.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
@@ -35,6 +36,7 @@
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/web-push": "^3.6.4",
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "html-minifier-terser": "^7.2.0",

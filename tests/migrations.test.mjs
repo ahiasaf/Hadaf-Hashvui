@@ -16,7 +16,7 @@ test("runtime migrations are ordered and produce complete SQL statements", async
   const migrations = await runtimeMigrations();
   assert.deepEqual(
     migrations.map((migration) => migration.name),
-    ["002-runtime.sql", "003-public-counts.sql"],
+    ["002-runtime.sql", "003-public-counts.sql", "004-notification-ledger.sql"],
   );
   assert.ok(
     migrations.every(
