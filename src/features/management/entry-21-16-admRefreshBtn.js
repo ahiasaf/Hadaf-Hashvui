@@ -79,7 +79,7 @@ function admStuHead() {
 var stOpen = {};
 
 function admSetup(el) {
-    el.innerHTML = '<div id="st-tiles"></div><div id="st-help"></div><div id="st-alert"></div><div id="ppl-fun"></div>' + '<details class="adm-card st-res"' + (stOpen.res ? " open" : "") + ' ontoggle="stOpen.res=this.open">' + '<summary><span aria-hidden="true">🔬</span> ' + esc(UI.stResT) + "</summary>" + '<div id="st-why"></div><div id="st-scr"></div><div id="st-trail"></div><div id="st-err"></div><div id="st-inst"></div>' + '<div id="st-day"></div><div id="st-foot"></div></details>';
+    el.innerHTML = '<div id="st-tiles"></div><div id="st-help"></div><div id="st-par"></div><div id="st-alert"></div><div id="ppl-fun"></div>' + '<details class="adm-card st-res"' + (stOpen.res ? " open" : "") + ' ontoggle="stOpen.res=this.open">' + '<summary><span aria-hidden="true">🔬</span> ' + esc(UI.stResT) + "</summary>" + '<div id="st-why"></div><div id="st-scr"></div><div id="st-trail"></div><div id="st-err"></div><div id="st-inst"></div>' + '<div id="st-day"></div><div id="st-foot"></div></details>';
     pplLast = {};
     admLive();
 }
@@ -114,6 +114,98 @@ function stGoHelp() {
         behavior: "smooth",
         block: "start"
     });
+}
+
+/* Parents not yet linked to a student: one message to all, push or WhatsApp. */
+var parSend = {
+    busy: false,
+    msg: ""
+};
+
+function admParList() {
+    return (Store.get("parentsCache:all", null) || []).filter(function(q) {
+        return !q.test;
+    });
+}
+
+function admParCard() {
+    var L = admParList();
+    if (!L.length) return "";
+    var push = L.filter(function(q) {
+        return q.push;
+    });
+    var txt = Store.get("parLinkMsg", null);
+    if (txt == null) txt = UI.parLinkMsg || "";
+    return '<div class="adm-card vc"><h4><span aria-hidden="true">👨‍👦</span> ' + esc(fill(UI.parH, {
+        n: L.length
+    })) + '</h4><p class="h">' + esc(UI.parSub) + "</p>" + '<textarea id="par-txt" rows="4" oninput="Store.set(\'parLinkMsg\',this.value)">' + esc(txt) + "</textarea>" + '<p class="h" style="margin:6px 0">' + esc(UI.parName) + "</p>" + '<button class="btn p" style="margin:0"' + (parSend.busy || !push.length ? " disabled" : "") + ' onclick="admParSend()">' + esc(parSend.busy ? UI.parBusy : fill(UI.parGo, {
+        n: push.length
+    })) + "</button>" + (L.length > push.length ? '<p class="h" style="margin-top:6px">' + esc(fill(UI.parNoPush, {
+        n: L.length - push.length
+    })) + "</p>" : "") + (parSend.msg ? '<div class="cond" style="margin-top:8px">' + esc(parSend.msg) + "</div>" : "") + '<div style="margin-top:10px">' + L.map(function(q) {
+        var nm = ((q.first || "") + " " + (q.last || "")).trim() || "-";
+        var wa = !q.push && q.phone ? waNum(q.phone) : "";
+        var msg = txt.split("{name}").join(q.first || "") + "\n" + joinUrl("") + "#invite";
+        return '<div class="row" style="padding:7px 0;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b>' + esc(nm) + '</b><span class="h" style="display:block;margin:0">' + esc(q.instName || pplName(pplCode(q.inst), null)) + "</span></span>" + (q.push ? '<span title="' + esc(UI.parHasPush) + '">✉</span>' : wa ? '<a class="yr-c" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent(msg) + '">💬</a>' : '<span class="h" style="margin:0">🔕</span>') + "</div>";
+    }).join("") + "</div></div>";
+}
+
+/* Up to 60 devices per request, so large groups go out in sequential chunks. */
+function admParSend() {
+    var key = (CFG.readKey || "").trim();
+    var el = document.getElementById("par-txt");
+    var txt = String(el ? el.value : "").trim();
+    if (!key || txt.length < 2 || parSend.busy) return;
+    var ids = [];
+    admParList().forEach(function(q) {
+        if (!q.push) return;
+        (q.ids && q.ids.length ? q.ids : [ q.id ]).forEach(function(x) {
+            if (ids.indexOf(x) < 0) ids.push(x);
+        });
+    });
+    if (!ids.length) return;
+    if (!confirm(fill(UI.parAsk, {
+        n: ids.length
+    }) + "\n\n" + txt)) return;
+    var per = txt.indexOf("{name}") >= 0 ? 1 : 0, chunks = [];
+    for (var i = 0; i < ids.length; i += 60) chunks.push(ids.slice(i, i + 60));
+    parSend.busy = true;
+    parSend.msg = "";
+    delete pplLast["st-par"];
+    admLive();
+    var ok = 0, bad = "";
+    var next = function(j) {
+        if (j >= chunks.length) {
+            parSend.busy = false;
+            parSend.msg = bad ? fill(UI.parBad, {
+                m: bad
+            }) : fill(UI.parOk, {
+                n: ok
+            });
+            delete pplLast["st-par"];
+            admLive();
+            return;
+        }
+        scriptGet({
+            fire: "say",
+            key: key,
+            title: PROGRAM.short,
+            who: "רכז",
+            body: txt,
+            url: "join#invite",
+            flt: JSON.stringify({
+                ids: chunks[j],
+                per: per
+            })
+        }).then(function(d) {
+            if (d && d.status === "ok") ok += chunks[j].length; else bad = d && d.message || UI.parNoAns;
+            next(j + 1);
+        })["catch"](function() {
+            bad = UI.parNoAns;
+            next(j + 1);
+        });
+    };
+    next(0);
 }
 
 function admSetupHelp() {

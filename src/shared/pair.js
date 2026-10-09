@@ -340,7 +340,48 @@ var PAIR_UI = (function () {
     });
     return true;
   }
+  /* ============================================================
+     במכשיר של ההורה — "ישר כוח" כברירת מחדל, לא שאלה.
+     ============================================================
+     "ברירת מחדל: ישר כוח על הלימוד עם בנך, ורק כפתור קטן 'למדתי
+     לבד'." ההורה צירף את הבן כדי ללמוד איתו, ולכן ההנחה היא שכך
+     היה. הרישום נשלח כשסוגרים את המסך (או כשיוצאים מהאפליקציה) —
+     ו"למדתי לבד" מבטל אותו לפני שיצא. כך אין מה למחוק אחר כך. */
+  function parentWin(track, wk) {
+    var m = me(), who = other(m), gone = false;
+    keep(key(track, wk));
+    /* pagehide לבדו אינו אמין בטלפון — אפליקציה שיורדת לרקע לא
+       תמיד יורה אותו. הרישום נכנס לתור במכשיר, ולכן גם כך הוא
+       שורד את הסגירה. */
+    var bg = function () { if (document.visibilityState === 'hidden') go(); };
+    var off = function () {
+      window.removeEventListener('pagehide', go);
+      document.removeEventListener('visibilitychange', bg);
+    };
+    var go = function () {
+      if (gone) return;
+      gone = true; off();
+      send(track, wk, false);
+    };
+    window.addEventListener('pagehide', go);
+    document.addEventListener('visibilitychange', bg);
+    var camp = t('campH');
+    show(SEAL + (camp ? '<p style="margin:0 0 10px;font-size:.82rem;font-weight:700;' +
+                        'color:var(--gold-d,#8A6416)">' + esc(camp) + '</p>' : '') +
+      '<h3>' + esc(fill(t('dfltH'), { 'בן': who })) + '</h3>' +
+      '<p>' + esc(fill(t('dfltB'), { 'בן': who })) + '</p>' +
+      '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>' +
+      '<button class="pr-thin" id="pr-alone">' + esc(t('alone')) + '</button>');
+    var b = document.getElementById('pr-x');
+    if (b) b.onclick = function () { go(); shut(); };
+    b = document.getElementById('pr-alone');
+    if (b) b.onclick = function () {
+      gone = true; off();
+      shut();
+    };
+  }
   function askShow(track, wk, sd) {
+    if (sd === 'parent' && t('dfltH')) { parentWin(track, wk); return true; }
     var m = me();
     var who = other(m);
     var head = sd === 'parent' ? fill(t('askKidH'), { 'בן': who })

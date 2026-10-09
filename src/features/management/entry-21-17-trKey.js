@@ -292,6 +292,7 @@ function admLive() {
     if (admTab === "setup") {
         pplSet("st-tiles", admSetupTiles());
         pplSet("st-help", admSetupHelp());
+        pplSet("st-par", admParCard());
         pplSet("st-alert", "");
         pplSet("ppl-fun", pplFun());
         pplSet("st-why", admWhy());
