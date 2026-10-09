@@ -5,11 +5,13 @@ interface Props {
   title?: string;
   description?: string;
   manifest?: string;
+  robots?: string;
 }
 const {
   title = program.ui.siteTitle,
   description = program.ui.siteSummary,
   manifest = "/manifest.json",
+  robots,
 } = Astro.props;
 ---
 
@@ -24,6 +26,7 @@ const {
     <meta name="theme-color" content="#112c50" />
     <meta name="color-scheme" content="only light" />
     <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta
@@ -56,8 +59,10 @@ const {
         </span>
       </a>
       <nav aria-label="ניווט ראשי">
-        <a href="/join">הרשמה</a>
-        <a href="/tzevet">לצוות</a>
+        <a href="/app">הדף שלי</a>
+        <a href="/join" class="nav-join">
+          מצטרפים
+        </a>
       </nav>
     </header>
     <script>
@@ -72,6 +77,8 @@ const {
     <footer class="site-footer container">
       <p>רשת ישיבות בני עקיבא · הדף השבועי · {program.year}</p>
       <nav aria-label="מידע">
+        <a href="/tzevet">לצוותי הישיבות</a>
+        <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
         <a href="/accessibility">{program.ui.siteAccessibility}</a>
         <a href="/info#privacy">{program.ui.sitePrivacy}</a>
         <a href="/info">{program.ui.siteInfo}</a>

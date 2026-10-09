@@ -101,3 +101,28 @@ test("expired and failed responses cause a fresh read instead of retaining an em
   await env.reload().sheet("סימוני הדף");
   assert.equal(calls, 3);
 });
+
+test("private reads share only in-flight work, separate credentials and return independent values", async () => {
+  let calls = 0;
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const env = environment(async (_url, options) => {
+    calls++;
+    assert.equal(options.cache, "no-store");
+    await gate;
+    return Response.json({ status: "ok", students: [{ first: "Example" }] });
+  });
+  const first = env.api.action("read", { board: "TEST", k: "A" });
+  const second = env.api.action("read", { k: "A", board: "TEST" });
+  const other = env.api.action("read", { board: "TEST", k: "B" });
+  assert.equal(calls, 2);
+  release();
+  const results = await Promise.all([first, second, other]);
+  results[0].students[0].first = "Changed";
+  assert.equal(results[1].students[0].first, "Example");
+  await env.api.action("read", { board: "TEST", k: "A" });
+  assert.equal(calls, 3);
+  assert.equal(Object.keys(env.sessionStorage).length, 0);
+});

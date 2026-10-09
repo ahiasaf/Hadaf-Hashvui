@@ -10,9 +10,9 @@ import {
 import Reminders from "./Reminders";
 type Institution = { code: string; name: string };
 const ways = [
-  ["solo", "לימוד עצמי"],
-  ["dad", "אבות ובנים"],
-  ["chav", "חברותא"],
+  ["solo", "לבד, בקצב שלי"],
+  ["dad", "עם אבא או אמא"],
+  ["chav", "עם חבר"],
 ];
 export default function Signup({
   institutions,
@@ -21,16 +21,18 @@ export default function Signup({
 }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [draft, setDraft] = useState<Person | null>(null);
-  const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [restore, setRestore] = useState(false);
   const [initialInst, setInitialInst] = useState("");
+  const [role, setRole] = useState("kid");
   useEffect(() => {
     const existing = stored<Person | null>("me", null);
     setPerson(existing);
     setDraft(existing);
-    setInitialInst(new URLSearchParams(location.search).get("inst") || "");
+    const params = new URLSearchParams(location.search);
+    setInitialInst(params.get("inst") || "");
+    setRole(existing?.role || (params.get("for") === "dad" ? "dad" : "kid"));
   }, []);
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,7 +125,6 @@ export default function Signup({
           className="text-button"
           onClick={() => {
             setPerson(null);
-            setStep(1);
           }}
         >
           עדכון פרטי ההרשמה
@@ -131,31 +132,26 @@ export default function Signup({
         <Reminders />
       </section>
     );
-  if (!step && !restore)
-    return (
-      <section className="workspace narrow swap" key="intro">
-        <h1>דף בשבוע, בקצב שלכם.</h1>
-        <p>בוחרים ישיבה ודרך לימוד. אפשר ללמוד לבד, עם אבא או בחברותא.</p>
-        <button className="button button-blue" onClick={() => setStep(1)}>
-          מתחילים
-        </button>
-        <button className="text-button" onClick={() => setRestore(true)}>
-          כבר נרשמתם? שחזור ההרשמה
-        </button>
-        <a className="secondary-link" href="/calendar">
-          לראות את תוכנית הלימוד
-        </a>
-      </section>
-    );
   return (
     <section
       className="workspace narrow swap"
       key={restore ? "restore" : "form"}
     >
-      <h1>{restore ? "שחזור ההרשמה" : "פרטי ההרשמה"}</h1>
+      <h1>
+        {restore
+          ? "שחזור ההרשמה"
+          : role === "dad"
+            ? "מצטרפים ללימוד עם הילדים"
+            : "מצטרפים ללימוד"}
+      </h1>
+      {!restore && (
+        <button className="text-button" onClick={() => setRestore(true)}>
+          כבר נרשמתם? שחזור ההרשמה
+        </button>
+      )}
       <form onSubmit={submit} className="flow-form">
         <fieldset>
-          <legend>תפקיד</legend>
+          <legend>נרשמים בתור</legend>
           {[
             ["kid", "תלמיד"],
             ["dad", "הורה"],
@@ -165,7 +161,8 @@ export default function Signup({
                 type="radio"
                 name="role"
                 value={value}
-                defaultChecked={value === "kid"}
+                checked={value === role}
+                onChange={() => setRole(value)}
               />
               {label}
             </label>
@@ -254,11 +251,12 @@ export default function Signup({
               <select
                 aria-label="דרך לימוד"
                 name="way"
-                defaultValue={draft?.way || "solo"}
+                key={role}
+                defaultValue={draft?.way || (role === "dad" ? "dad" : "solo")}
               >
                 {ways.map((way) => (
                   <option value={way[0]} key={way[0]}>
-                    {way[1]}
+                    {way[0] === "dad" && role === "dad" ? "עם הילדים" : way[1]}
                   </option>
                 ))}
               </select>
@@ -307,17 +305,22 @@ export default function Signup({
         <button className="button button-blue" disabled={busy}>
           {busy ? "בודקים ושומרים…" : restore ? "שחזור ההרשמה" : "שמירת ההרשמה"}
         </button>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => {
-            setRestore(false);
-            setStep(0);
-            setError("");
-          }}
-        >
-          חזרה
-        </button>
+        {restore ? (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setRestore(false);
+              setError("");
+            }}
+          >
+            חזרה להרשמה
+          </button>
+        ) : (
+          <a className="secondary-link" href="/">
+            חזרה לדף הבית
+          </a>
+        )}
       </form>
     </section>
   );

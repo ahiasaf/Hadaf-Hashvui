@@ -66,7 +66,7 @@ async function demoReply(req, res, url) {
         status: "ok",
         students: demoStudents.map((person) => ({
           ...person,
-          learned: demoProgress.get(person.id) || [],
+          weeks: demoProgress.get(person.id) || [],
         })),
       };
     } else if (payload.read)

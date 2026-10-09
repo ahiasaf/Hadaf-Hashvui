@@ -11,6 +11,7 @@ type Student = {
   phone?: string;
   inst?: string;
   learned?: string[];
+  weeks?: string[];
   pos?: Record<string, number>;
   test?: boolean;
   push?: boolean;
@@ -73,7 +74,9 @@ export default function Roster({
   }
   const week = weekIndex(startDate) + 1;
   const done = (student: Student) =>
-    (student.learned || []).some((tag) => tag.split("|")[1] === String(week));
+    (student.weeks || student.learned || []).some(
+      (tag) => tag.split("|")[1] === String(week),
+    );
   const filtered = useMemo(
     () =>
       (students || []).filter(
@@ -218,7 +221,10 @@ export default function Roster({
                       {student.phone}
                     </a>
                   )}
-                  <p>יחידות לימוד שהושלמו: {student.learned?.length || 0}</p>
+                  <p>
+                    יחידות לימוד שהושלמו:{" "}
+                    {(student.weeks || student.learned || []).length}
+                  </p>
                 </div>
               </details>
             ))}

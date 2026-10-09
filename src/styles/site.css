@@ -1,15 +1,15 @@
 :root {
-  --paper: #f7f3ea;
-  --surface: #fffdf8;
-  --ink: #0b2550;
-  --muted: #52647b;
-  --blue: #17468f;
-  --blue-l: #2c63b6;
+  --paper: #f5f8ff;
+  --surface: #ffffff;
+  --ink: #17345d;
+  --muted: #526783;
+  --blue: #225bd5;
+  --blue-l: #174ab7;
   --gold: #c08f2b;
-  --gold-l: #e5b854;
+  --gold-l: #ffd36a;
   --gold-t: #8c681f;
-  --line: #e5dac3;
-  --tint: #e9eef6;
+  --line: #dbe5f3;
+  --tint: #e8f0ff;
   --green: #436648;
   font-family:
     system-ui,
@@ -28,12 +28,6 @@ body {
   margin: 0;
   line-height: 1.65;
   padding-bottom: env(safe-area-inset-bottom);
-  background-image: radial-gradient(
-    120% 60% at 50% 0%,
-    #fdfaf3 0%,
-    transparent 60%
-  );
-  background-repeat: no-repeat;
 }
 button,
 input,
@@ -60,7 +54,7 @@ img {
   max-width: 100%;
 }
 .container {
-  width: min(1120px, calc(100% - 64px));
+  width: min(1040px, calc(100% - 64px));
   margin-inline: auto;
 }
 .skip {
@@ -85,8 +79,7 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding-block: 18px;
-  border-bottom: 1px solid var(--line);
+  padding-block: 20px;
 }
 .brand {
   display: flex;
@@ -99,13 +92,9 @@ img {
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
-  border-radius: 50%;
-  background: #fff;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  box-shadow:
-    0 1px 2px rgba(37, 29, 12, 0.06),
-    0 6px 16px rgba(37, 29, 12, 0.09);
 }
 .brand-mark img {
   width: 32px;
@@ -129,6 +118,7 @@ img {
 .site-header nav {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 .site-header nav a {
   min-height: 44px;
@@ -139,6 +129,7 @@ img {
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
+  white-space: nowrap;
   transition: background 0.15s;
 }
 .site-header nav a:hover {
@@ -147,12 +138,18 @@ img {
 .site-header nav a:active {
   background: #dce4f0;
 }
+.site-header nav .nav-join {
+  color: var(--blue);
+}
+.site-header nav .nav-join:hover {
+  background: var(--tint);
+}
 .hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 56px;
+  gap: 48px;
   align-items: center;
-  padding-block: 36px 44px;
+  padding-block: 28px 48px;
 }
 .eyebrow {
   font-size: 0.8rem;
@@ -166,39 +163,32 @@ h1 {
   line-height: 1.22;
   letter-spacing: -0.025em;
   margin: 0 0 22px;
-  font-weight: 700;
+  font-weight: 800;
 }
 h1 span {
   color: var(--blue);
-}
-.hero h1::after {
-  content: "";
-  display: block;
-  width: 46px;
-  height: 3px;
-  border-radius: 3px;
-  background: var(--gold-l);
-  margin-top: 20px;
 }
 .hero-summary {
   font-size: 1.1rem;
   max-width: 32rem;
   color: var(--muted);
-  line-height: 1.85;
+  line-height: 1.7;
   margin: 0;
 }
+.study-together {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 18px 0 0;
+}
 .lesson {
-  color: #fff;
-  border-radius: 14px;
-  padding: 26px;
+  color: var(--ink);
+  border-radius: 24px;
+  padding: 28px;
   position: relative;
-  background: radial-gradient(
-    130% 105% at 78% -10%,
-    var(--blue-l) 0%,
-    var(--blue) 34%,
-    var(--ink) 78%
-  );
-  box-shadow: 0 10px 40px rgba(11, 37, 80, 0.2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 5px 0 #dbe5f3;
 }
 .lesson-top {
   display: flex;
@@ -208,44 +198,49 @@ h1 span {
   margin-bottom: 20px;
 }
 .lesson-top .eyebrow {
-  color: var(--gold-l);
+  color: var(--ink);
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .week-label {
   font-size: 0.78rem;
-  color: #c5d4e7;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .track-switch {
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--tint);
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
 }
 .track-switch a {
   flex: 1;
   min-height: 46px;
   text-align: center;
   padding: 10px 4px;
-  margin-bottom: -1px;
-  border-bottom: 3px solid transparent;
+  border-radius: 9px;
   text-decoration: none;
   font-weight: 650;
   font-size: 0.92rem;
-  color: #c5d4e7;
+  color: var(--muted);
   transition:
     color 0.18s,
     border-color 0.18s,
     background 0.15s;
 }
 .track-switch a:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--blue);
+  background: #dce8ff;
 }
 .track-switch a:active {
-  background: rgba(255, 255, 255, 0.12);
+  background: #ccddfb;
 }
 .track-switch a[aria-pressed="true"] {
   color: #fff;
-  border-bottom-color: var(--gold-l);
+  background: var(--blue);
 }
 /* Both tracks share one grid cell: the panel keeps the taller height and text crossfades. */
 .lesson-content {
@@ -272,20 +267,20 @@ h1 span {
   }
 }
 .lesson-daf {
-  color: var(--gold-l);
-  font-size: 0.88rem;
+  color: var(--blue);
+  font-size: 0.95rem;
   font-weight: 650;
   margin: 0 0 8px;
 }
 .lesson h2 {
-  font-size: 1.45rem;
+  font-size: 1.6rem;
   line-height: 1.35;
   margin: 0 0 12px;
-  font-weight: 650;
+  font-weight: 750;
 }
 .lesson-date {
   font-size: 0.84rem;
-  color: #c5d4e7;
+  color: var(--muted);
   margin: 0;
 }
 .button {
@@ -295,7 +290,7 @@ h1 span {
   gap: 10px;
   min-height: 50px;
   padding: 12px 20px;
-  border-radius: 10px;
+  border-radius: 14px;
   text-decoration: none;
   font-weight: 700;
   transition:
@@ -312,20 +307,20 @@ h1 span {
 .button-gold {
   background: var(--gold-l);
   color: #182c44;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 0 #e5b744;
 }
 .button-gold:hover {
   background: #efd098;
 }
 .button-blue {
-  background: var(--ink);
+  background: var(--blue);
   color: white;
 }
 .button-blue:hover {
-  background: var(--blue);
+  background: var(--blue-l);
 }
 .button-outline {
-  border: 1px solid #aab7c6;
+  border: 1.5px solid var(--muted);
   background: var(--surface);
 }
 .button-outline:hover {
@@ -338,7 +333,7 @@ h1 span {
   align-items: center;
   margin-top: 18px;
   font-size: 0.78rem;
-  color: #c5d4e7;
+  color: var(--muted);
 }
 .lesson-bottom a {
   min-height: 44px;
@@ -349,8 +344,14 @@ h1 span {
   display: grid;
   grid-template-columns: 1fr 1fr;
   border-block: 1px solid var(--line);
-  padding-block: 28px;
+  padding-block: 32px;
   gap: 48px;
+}
+.registration-note {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-block: 0 20px;
 }
 .path + .path {
   border-inline-start: 1px solid var(--line);
@@ -449,7 +450,7 @@ h1 span {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  align-items: center;
+  align-items: start;
   margin-top: 24px;
   color: var(--muted);
   font-size: 0.76rem;
@@ -457,7 +458,7 @@ h1 span {
 .site-footer nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 4px 16px;
 }
 .site-footer nav a {
   display: flex;
@@ -560,8 +561,8 @@ h1 span {
     width: calc(100% - 40px);
   }
   .hero {
-    gap: 32px;
-    padding-block: 36px 44px;
+    gap: 24px;
+    padding-block: 20px 36px;
     grid-template-columns: 1fr;
   }
   .hero-copy,
@@ -572,9 +573,6 @@ h1 span {
   /* Stacked hero reads as one centered intro above the lesson panel. */
   .hero-copy {
     text-align: center;
-  }
-  .hero h1::after {
-    margin-inline: auto;
   }
   .hero-summary {
     font-size: 1rem;
@@ -619,7 +617,7 @@ h1 span {
     font-size: 1rem;
   }
   .brand > span > span {
-    font-size: 0.7rem;
+    display: none;
   }
   .site-header nav {
     gap: 2px;
@@ -629,25 +627,22 @@ h1 span {
     font-size: 0.85rem;
   }
   .hero {
-    padding-block: 24px 32px;
-    gap: 24px;
+    padding-block: 16px 32px;
+    gap: 22px;
   }
   h1 {
-    font-size: 1.95rem;
-    margin-bottom: 16px;
-  }
-  .hero h1::after {
-    margin-top: 14px;
+    font-size: 2.25rem;
+    margin-bottom: 12px;
   }
   .hero-summary {
     font-size: 0.97rem;
   }
   .lesson {
-    padding: 20px;
-    border-radius: 12px;
+    padding: 22px;
+    border-radius: 20px;
   }
   .lesson h2 {
-    font-size: 1.3rem;
+    font-size: 1.45rem;
   }
   .paths {
     grid-template-columns: 1fr;

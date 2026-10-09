@@ -117,14 +117,16 @@ export function sheet(tab: string, fresh = false, query = "") {
   });
   return task;
 }
-export async function action<T = Record<string, unknown>>(
+const privateReads = new Map<string, Promise<string>>();
+async function sendAction(
   operation: "read" | "write",
   payload: Record<string, string>,
-): Promise<T> {
+) {
   const response = await fetch("/api/action", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ operation, payload }),
+    cache: "no-store",
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok) throw new Error("Action failed");
@@ -132,7 +134,27 @@ export async function action<T = Record<string, unknown>>(
   if (!["ok", "success"].includes(result.status))
     throw new Error("Action was not acknowledged");
   if (operation === "write") clearPublicCache();
-  return result;
+  return JSON.stringify(result);
+}
+export async function action<T = Record<string, unknown>>(
+  operation: "read" | "write",
+  payload: Record<string, string>,
+): Promise<T> {
+  if (operation === "write")
+    return JSON.parse(await sendAction(operation, payload));
+  const key = JSON.stringify(
+    Object.entries(payload).sort(([a], [b]) => a.localeCompare(b)),
+  );
+  let task = privateReads.get(key);
+  if (!task) {
+    task = sendAction(operation, payload);
+    privateReads.set(key, task);
+  }
+  try {
+    return JSON.parse(await task);
+  } finally {
+    if (privateReads.get(key) === task) privateReads.delete(key);
+  }
 }
 export function writeRow(tab: string, cols: [string, string][], key = "") {
   return action("write", {

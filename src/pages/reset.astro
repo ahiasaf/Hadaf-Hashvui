@@ -1,0 +1,13 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import DeviceReset from "../components/DeviceReset";
+import program from "../generated/program.json";
+---
+
+<Site title={program.ui.rstT} robots="noindex,nofollow">
+  <DeviceReset copy={program.ui} client:load />
+  <noscript>
+    <p class="workspace notice">ניקוי המכשיר דורש JavaScript.</p>
+  </noscript>
+</Site>

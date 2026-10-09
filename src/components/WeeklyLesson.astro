@@ -15,7 +15,31 @@ const hasLesson = !!row[2] && row[2] !== "סיום";
 
 <section class="lesson" id="lesson" aria-label={ui.siteLesson}>
   <div class="lesson-top">
-    <span class="eyebrow">{ui.siteLesson}</span>
+    <span class="eyebrow">
+      <svg
+        class="study-book"
+        viewBox="0 0 32 32"
+        width="32"
+        height="32"
+        aria-hidden="true"
+      >
+        <path
+          d="M16 8C12 5 7 5 3 7v19c4-2 9-2 13 1 4-3 9-3 13-1V7c-4-2-9-2-13 1Z"
+          fill="#fff1c5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M16 8v19M7 11h5M7 15h5M20 11h5M20 15h5M20 19h5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+      </svg>
+      {ui.siteLesson}
+    </span>
     <span class="week-label" data-week>
       {ui.siteCurrentWeek} {index + 1}/{track.cal.length}
     </span>

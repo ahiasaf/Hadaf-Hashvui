@@ -89,7 +89,7 @@ try {
                 first: "תלמיד",
                 last: "לדוגמה",
                 grade: "ז",
-                learned: ["taanit|1"],
+                weeks: ["taanit|1"],
                 push: true,
               },
             ],
@@ -177,7 +177,6 @@ try {
   await prepare(context);
   const page = await context.newPage();
   await page.goto(base + "/join");
-  await page.getByRole("button", { name: "מתחילים", exact: true }).click();
   await page.getByLabel("שם פרטי", { exact: true }).first().fill("תלמיד");
   await page.getByLabel("שם משפחה", { exact: true }).first().fill("לדוגמה");
   await page.getByLabel("טלפון", { exact: true }).fill("0500000000");
@@ -278,6 +277,14 @@ try {
   await page.getByLabel("קוד גישה", { exact: true }).fill("DEMO");
   await page.getByRole("button", { name: "פתיחת הלוח", exact: true }).click();
   await page.getByText("תלמיד לדוגמה", { exact: true }).waitFor();
+  assert.equal(
+    await page
+      .locator(".stats div")
+      .filter({ hasText: "סיימו השבוע" })
+      .locator("strong")
+      .textContent(),
+    "1",
+  );
   await page.getByLabel("חיפוש תלמיד", { exact: true }).fill("לא נמצא");
   await page.getByText("לא נמצאו תלמידים בחיפוש הזה.").waitFor();
   await page.goto(base + "/admin");

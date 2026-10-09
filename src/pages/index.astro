@@ -35,13 +35,14 @@ const lessonUi = Object.fromEntries(
   <div class="hero container">
     <div class="hero-copy">
       <h1>
-        המסכת שלנו.
+        פותחים דף.
         <br />
-        <span>דף אחד בכל שבוע.</span>
+        <span>לומדים יחד.</span>
       </h1>
       <p class="hero-summary" data-copy="ui.siteSummary">
         {program.ui.siteSummary}
       </p>
+      <p class="study-together">לבד, עם חברים או עם ההורים.</p>
     </div>
     <WeeklyLesson
       tracks={program.tracks}
@@ -51,22 +52,25 @@ const lessonUi = Object.fromEntries(
       ui={lessonUi}
     />
   </div>
+  <p class="registration-note container">
+    אפשר להתחיל ללמוד גם בלי הרשמה. נרשמים כדי לשמור את ההתקדמות.
+  </p>
   <section class="paths container" aria-label="הצטרפות לתוכנית">
     <div class="path">
-      <h2>מצטרפים ללימוד</h2>
+      <h2>לתלמידים</h2>
       <p>{program.ui.siteJoinHint}</p>
       <a class="button button-blue" href="/join">
         {program.ui.siteJoin}
       </a>
     </div>
     <div class="path">
-      <h2>הלימוד בישיבה</h2>
-      <p>{program.ui.siteStaffHint}</p>
-      <a class="button button-outline" href="/tzevet">
-        {program.ui.siteStaffAction}
+      <h2>להורים</h2>
+      <p>להורים שרוצים להצטרף: דף אחד בשבוע, ושיחה שממשיכה גם אחריו.</p>
+      <a class="button button-outline" href="/join?for=dad">
+        מצטרפים כהורים
       </a>
-      <a class="secondary-link" href="/management#reg">
-        {program.ui.siteOrder}
+      <a class="secondary-link" href="/app">
+        כבר נרשמתם? ללימוד שלכם
       </a>
     </div>
   </section>

@@ -60,7 +60,7 @@
   margin-inline: auto;
 }
 .workspace .button-outline {
-  border-color: var(--line);
+  border-color: var(--muted);
 }
 .workspace .button + .button,
 .workspace .button + .text-button {
