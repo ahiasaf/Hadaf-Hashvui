@@ -5,10 +5,9 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "noEmit": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "include": [
     ".astro/types.d.ts",
@@ -20,6 +19,9 @@
   "exclude": [
     "dist",
     "node_modules",
-    "src/shared", "src/config", "src/features", "src/service-worker.js"
+    "src/shared",
+    "src/config",
+    "src/features",
+    "src/service-worker.js"
   ]
 }
