@@ -189,6 +189,15 @@ const program = {
 };
 await fs.writeFile("src/generated/program.json", JSON.stringify(program));
 await fs.writeFile(
+  "src/generated/tool-copy.json",
+  JSON.stringify({
+    share: context.KISHURIM,
+    send: context.SEND,
+    retired: context.TEXT_RETIRED,
+    appName: context.PROGRAM.short,
+  }),
+);
+await fs.writeFile(
   "src/generated/settings.json",
   JSON.stringify({ sheetId: context.SHEET_ID, api: context.APPS_SCRIPT_URL }),
 );

@@ -1,0 +1,151 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import NotificationCheck, {
+  notificationKeys,
+} from "../components/NotificationCheck";
+import program from "../generated/program.json";
+import { pickRetired, pickStrings } from "../lib/share-links";
+import toolCopy from "../generated/tool-copy.json";
+const copy = pickStrings(program.ui, notificationKeys);
+const retired = pickRetired(toolCopy.retired);
+const appName = toolCopy.appName || "הדף השבועי";
+---
+
+<Site
+  title={copy.hitT}
+  manifest="/join-manifest.json"
+  robots="noindex,nofollow"
+>
+  <NotificationCheck
+    copy={copy}
+    logo={program.media["logo-mark.png"]}
+    appName={appName}
+    retired={retired}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">בדיקת ההתראות דורשת JavaScript.</p>
+  </noscript>
+</Site>
+
+<style is:global>
+  .step-number {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: #fff;
+    font-weight: 800;
+  }
+  .phone-steps {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 0;
+    display: grid;
+    gap: 22px;
+  }
+  .phone-steps li {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+  }
+  .phone-steps strong {
+    font-size: 1rem;
+  }
+  .phone-screen {
+    width: min(100%, 230px);
+    border: 2px solid var(--line);
+    border-radius: 18px;
+    background: #1d2230;
+    color: #e8ecf5;
+    padding: 14px 12px;
+    font-size: 0.8rem;
+    text-align: start;
+    display: grid;
+    gap: 6px;
+  }
+  .phone-screen.is-centered {
+    justify-items: center;
+    text-align: center;
+  }
+  .phone-hint {
+    color: var(--gold-l);
+  }
+  .phone-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 0 0 3px var(--gold);
+    justify-self: center;
+  }
+  .phone-icon.is-settings {
+    background: #8e8e93;
+    color: #fff;
+    font-size: 1.5rem;
+  }
+  .phone-popup,
+  .phone-row {
+    background: #2c3244;
+    border-radius: 10px;
+    padding: 9px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .phone-row.is-target {
+    box-shadow: 0 0 0 2px var(--gold);
+  }
+  .phone-row small {
+    display: block;
+    color: #8e97ad;
+    font-size: 0.7rem;
+  }
+  .phone-info {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    display: inline-grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 0.8rem;
+  }
+  .phone-toggle {
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background: #3b82f6;
+    position: relative;
+    flex: none;
+  }
+  .phone-toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    inset-inline-end: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+  }
+  .notification-check .surface {
+    margin-top: 28px;
+  }
+  .copy-editor {
+    text-align: start;
+  }
+  .copy-editor label {
+    margin-top: 16px;
+  }
+  .copy-editor em {
+    font-style: normal;
+    color: var(--gold-t);
+  }
+</style>

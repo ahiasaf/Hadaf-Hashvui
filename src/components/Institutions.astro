@@ -1,5 +1,4 @@
 ---
-import settings from "../generated/settings.json";
 import program from "../generated/program.json";
 const institutions = program.institutions.filter((item) => item.joined);
 ---
@@ -8,6 +7,12 @@ const institutions = program.institutions.filter((item) => item.joined);
   class="institutions container"
   aria-labelledby="inst-title"
   data-institutions
+  data-copy={JSON.stringify({
+    error: program.ui.siteReadError,
+    loading: program.ui.siteLoading,
+    live: program.ui.siteInstLive,
+    empty: program.ui.siteInstEmpty,
+  })}
 >
   <div class="section-intro">
     <h2 id="inst-title">{program.ui.siteInstTitle}</h2>
@@ -27,74 +32,8 @@ const institutions = program.institutions.filter((item) => item.joined);
     {program.ui.siteRetry}
   </button>
 </section>
-<script
-  define:vars={{
-    sheetId: settings.sheetId,
-    ui: {
-      error: program.ui.siteReadError,
-      loading: program.ui.siteLoading,
-      live: program.ui.siteInstLive,
-      empty: program.ui.siteInstEmpty,
-    },
-  }}
->
-  (function () {
-    var root = document.querySelector("[data-institutions]");
-    if (!root) return;
-    var status = root.querySelector("[data-inst-status]"),
-      retry = root.querySelector("[data-inst-retry]");
-    function load() {
-      retry.hidden = true;
-      status.textContent = ui.loading;
-      root.setAttribute("aria-busy", "true");
-      fetch("/api/sheets?tab=" + encodeURIComponent("מוסדות"))
-        .then(function (r) {
-          if (!r.ok) throw new Error("network");
-          return r.text();
-        })
-        .then(function (text) {
-          var rows = window.DFNet.csv(text);
-          if (
-            !rows.length ||
-            rows[0].length < 4 ||
-            !/^(code|קוד)$/i.test(rows[0][0]) ||
-            !/^(name|שם|ישיבה)$/i.test(rows[0][1] || "")
-          )
-            throw new Error("schema");
-          var joined = rows.slice(1).filter(function (row) {
-            return /^(true|1|כן)$/i.test(String(row[3]).trim());
-          });
-          var list = root.querySelector("[data-inst-list]");
-          list.classList.remove("swap");
-          void list.offsetWidth;
-          list.classList.add("swap");
-          list.textContent = "";
-          joined.forEach(function (row) {
-            var item = document.createElement("li");
-            item.textContent = row[1];
-            list.appendChild(item);
-          });
-          root.querySelector("[data-inst-count]").textContent =
-            joined.length + " / " + (rows.length - 1);
-          status.textContent = joined.length ? ui.live : ui.empty;
-        })
-        .catch(function () {
-          status.textContent = ui.error;
-          retry.hidden = false;
-        })
-        .finally(function () {
-          root.removeAttribute("aria-busy");
-        });
-    }
-    retry.addEventListener("click", load);
-    if ("IntersectionObserver" in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        if (entries[0].isIntersecting) {
-          observer.disconnect();
-          load();
-        }
-      });
-      observer.observe(root);
-    } else load();
-  })();
+<script>
+  import { sheet } from "../lib/client";
+  import { initializeInstitutions } from "../lib/institution-list";
+  initializeInstitutions(sheet);
 </script>

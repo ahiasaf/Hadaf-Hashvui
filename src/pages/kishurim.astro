@@ -1,0 +1,54 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import ShareLinks from "../components/ShareLinks";
+import program from "../generated/program.json";
+import { kishurimKeys, pickRetired, pickStrings } from "../lib/share-links";
+import toolCopy from "../generated/tool-copy.json";
+const copy = pickStrings(toolCopy.share, kishurimKeys);
+const retired = pickRetired(toolCopy.retired);
+---
+
+<Site title={copy.h1} robots="noindex,nofollow">
+  <ShareLinks
+    copy={copy}
+    invites={{ linkWa: program.ui.linkWa, dadWa: program.ui.dadWa }}
+    retired={retired}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">
+      שליחת הקישורים דורשת JavaScript. הקישורים עצמם: <a href="/">/?masa=1</a>,
+      <a href="/tzevet">/tzevet</a>, <a href="/join">/join</a>,
+      <a href="/join?for=dad">/join?for=dad</a>.
+    </p>
+  </noscript>
+</Site>
+
+<style is:global>
+  .button-whatsapp {
+    background: #1e8c40;
+    color: #fff;
+  }
+  .button-whatsapp:hover {
+    background: #187334;
+  }
+  .button-whatsapp[aria-disabled="true"] {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .share-link .text-button {
+    display: block;
+    margin-inline: auto;
+  }
+  .copy-editor {
+    text-align: start;
+  }
+  .copy-editor label {
+    margin-top: 16px;
+  }
+  .copy-editor em {
+    font-style: normal;
+    color: var(--gold-t);
+  }
+</style>

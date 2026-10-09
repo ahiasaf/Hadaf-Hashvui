@@ -1,0 +1,41 @@
+---
+// Legacy entry point: forwards to /join while keeping every query parameter except the old wizard step.
+---
+
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>הדף השבועי, הצטרפות</title>
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=/join" />
+    </noscript>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #0b2550;
+      }
+      a {
+        display: block;
+        padding: 20px;
+        color: #fff;
+        font: 16px system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="/join">להצטרפות</a>
+    <script is:inline>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        params.delete("wiz");
+        var query = params.toString();
+        location.replace("/join" + (query ? "?" + query : ""));
+      })();
+    </script>
+  </body>
+</html>

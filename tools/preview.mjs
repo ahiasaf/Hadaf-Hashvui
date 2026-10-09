@@ -56,7 +56,25 @@ async function demoReply(req, res, url) {
       res.end('{"status":"denied"}');
       return;
     }
-    if (payload.board) {
+    if (payload.team) {
+      if (payload.key !== "DEMO") {
+        res.writeHead(403);
+        res.end('{"status":"denied"}');
+        return;
+      }
+      result = {
+        status: "ok",
+        rows: [
+          ["ישיבה", "עדכון", "תגיות", "אנשי קשר"],
+          [
+            "ישיבה לדוגמה",
+            "נרשמו תלמידים חדשים",
+            '["משתתפים"]',
+            '[{"name":"איש קשר לדוגמה","phone":"0500000000"}]',
+          ],
+        ],
+      };
+    } else if (payload.board) {
       if (payload.key !== "DEMO" && payload.k !== "DEMO") {
         res.writeHead(403);
         res.end('{"status":"denied"}');
@@ -102,6 +120,12 @@ async function demoReply(req, res, url) {
         id: payload.idFor,
         learned: demoProgress.get(payload.idFor) || [],
       };
+  } else if (payload.action === "teamlog") {
+    if (payload.key !== "DEMO") {
+      res.writeHead(403);
+      res.end('{"status":"denied"}');
+      return;
+    }
   } else if (payload.action === "row") {
     const columns = Object.fromEntries(JSON.parse(payload.cols));
     if (payload.tab === "לומדים") {

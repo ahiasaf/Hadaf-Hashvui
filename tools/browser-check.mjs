@@ -79,6 +79,21 @@ try {
             learned: ["taanit|1"],
           },
         });
+      if (payload.team)
+        return route.fulfill({
+          json: {
+            status: "ok",
+            rows: [
+              ["ישיבה", "עדכון", "תגיות", "אנשי קשר"],
+              [
+                "ישיבה לדוגמה",
+                "עדכון לדוגמה",
+                '["משתתפים"]',
+                '[{"name":"איש קשר לדוגמה","phone":"0500000000"}]',
+              ],
+            ],
+          },
+        });
       if (payload.board)
         return route.fulfill({
           json: {
@@ -125,6 +140,11 @@ try {
     "/learn?mas=taanit&daf=ב&amud=1",
     "/info",
     "/accessibility",
+    "/kishurim",
+    "/shlach",
+    "/hitraot",
+    "/slidetest",
+    "/team",
   ];
   for (const width of [320, 360, 390, 768, 1440]) {
     const context = await browser.newContext({
@@ -311,6 +331,58 @@ try {
     .click();
   await page.getByRole("status").waitFor();
   await context.close();
+  const toolsContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await prepare(toolsContext);
+  const toolsPage = await toolsContext.newPage();
+  await toolsPage.goto(base + "/team?k=DEMO");
+  await toolsPage.getByRole("button", { name: "אחיאסף", exact: true }).click();
+  await toolsPage.getByText("איש קשר לדוגמה", { exact: true }).waitFor();
+  const initialCard = await toolsPage.locator(".team-card").boundingBox();
+  writeFailure = true;
+  await toolsPage
+    .locator(".contact-actions a")
+    .first()
+    .evaluate((link) => {
+      link.addEventListener("click", (event) => event.preventDefault());
+      link.click();
+    });
+  await toolsPage
+    .getByRole("button", { name: "רישום חוזר", exact: true })
+    .waitFor();
+  const failedCard = await toolsPage.locator(".team-card").boundingBox();
+  assert.ok(
+    Math.abs(initialCard.height - failedCard.height) < 1,
+    "Team logging shifts its contact card",
+  );
+  writeFailure = false;
+  await toolsPage
+    .getByRole("button", { name: "רישום חוזר", exact: true })
+    .click();
+  await toolsPage
+    .getByRole("button", { name: "רישום חוזר", exact: true })
+    .waitFor({ state: "hidden" });
+  assert.equal(
+    await toolsPage.evaluate(() => localStorage.getItem("df:teamKey")),
+    null,
+  );
+  await toolsPage.goto(base + "/shlach");
+  assert.ok(
+    await toolsPage.locator(".invitation > .button").first().isDisabled(),
+  );
+  await toolsPage.locator(".grade-grid button").first().click();
+  assert.ok(
+    await toolsPage.locator(".invitation > .button").first().isEnabled(),
+  );
+  await toolsPage.reload();
+  assert.ok(
+    await toolsPage.locator(".invitation > .button").first().isEnabled(),
+  );
+  await toolsContext.close();
+  console.log(
+    "Typed team log retry, stable card layout and invitation grade persistence passed.",
+  );
   const restoreContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });

@@ -1,0 +1,100 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import TeamBoard from "../components/TeamBoard";
+---
+
+<Site title="עמוד הצוות" robots="noindex,nofollow">
+  <TeamBoard client:load />
+  <noscript>
+    <p class="workspace notice">עמוד הצוות דורש JavaScript וקוד גישה.</p>
+  </noscript>
+</Site>
+
+<style is:global>
+  .member-pick {
+    display: grid;
+    gap: 10px;
+  }
+  .member-pick .button {
+    margin-inline: auto;
+  }
+  .member-line .text-button {
+    min-height: auto;
+    padding: 0;
+  }
+  .team-card {
+    text-align: start;
+  }
+  .team-update {
+    margin: 8px 0 0;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: #fbf3e0;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .tag-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag-list li {
+    border: 1px solid #e0c98f;
+    background: var(--surface);
+    color: var(--gold-t);
+    border-radius: 30px;
+    padding: 2px 11px;
+    font-size: 0.74rem;
+    font-weight: 750;
+  }
+  .contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .contact-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .team-board .contact-actions .button {
+    width: auto;
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+  .button-whatsapp {
+    background: #1e8c40;
+    color: #fff;
+  }
+  .button-whatsapp:hover {
+    background: #187334;
+  }
+  .contact-feedback {
+    flex-basis: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .contact .form-hint {
+    flex-basis: 100%;
+  }
+  .log-failed {
+    color: #7e3024;
+  }
+  .log-failed .text-button {
+    min-height: auto;
+    padding: 0;
+  }
+  .team-board .notice .button {
+    margin-top: 12px;
+  }
+</style>
