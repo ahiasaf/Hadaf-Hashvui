@@ -23,7 +23,7 @@ The first command validates and reports counts only. The second requires a serve
 - Compare PostgreSQL and Sheets results, including alias and parent matching, then run a bounded final synchronization and switch the authoritative backend once. Avoid unsynchronized dual writes.
 - Keep the source snapshot and existing backend available for rollback. Remove the old backend only after cutover and runtime verification.
 
-The free database can suspend while idle. Measure cold and warm queries separately. A paid always-active compute is an optional later decision, not enabled by this migration. Keep Vercel functions and the database in the same region when connecting them.
+The free database can suspend while idle. Measure cold and warm queries separately. A paid always-active compute is an optional later decision, not enabled by this migration. The branch configuration selects `fra1` for API functions, matching Neon Frankfurt, to avoid a cross-region database hop. This setting is supported by [Vercel function-region configuration](https://vercel.com/docs/functions/configuring-functions/region). Verify the deployed region after the owner connects it.
 
 ## Verified source import
 
