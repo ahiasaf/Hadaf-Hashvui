@@ -30,6 +30,7 @@ on:
           - align # התאמת הסימונים לוורד
           - apply # כתיבת ההתאמה לגיליון (עם גיבוי)
           - chavruta # בניית מאגר הביאור מקובצי הוורד
+          - database-export # Encrypted read-only database migration snapshot
           - fix-bold # התאמה + כתיבה, בריצה אחת
       args:
         description: "פרמטרים (למשל: taanit_a_b ב ג ד)"
@@ -42,6 +43,7 @@ permissions:
 
 jobs:
   run:
+    if: inputs.job != 'database-export'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -119,3 +121,28 @@ jobs:
             sleep $((2 ** i))
           done
           exit 1
+
+  database-export:
+    if: inputs.job == 'database-export'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+      - name: Export and encrypt source data
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          READ_KEY: ${{ secrets.READ_KEY }}
+          MIGRATION_EXPORT_KEY: ${{ secrets.MIGRATION_EXPORT_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/export-database.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-database-export
+          path: database-export.enc
+          retention-days: 1
+          if-no-files-found: error
