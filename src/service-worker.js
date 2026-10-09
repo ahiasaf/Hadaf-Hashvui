@@ -1,0 +1,187 @@
+/* Public shell and asset cache. Private API responses always stay on the network. */
+var CACHE_NAME = 'hadaf-v9.0.0';
+// Cache only the public shell during installation. Learning/admin assets are cached on demand.
+// The build adds the current fingerprinted Astro assets to this list.
+var CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+
+// מהרשת קודם: קוד, תמונות הספרים, ורשימת הדפים שבמאגר.
+// עמודי הדף עצמם (daf/*.webp) הם מהמטמון קודם — הם כבדים ולעולם
+// אינם משתנים, וזה מה שמאפשר ללמוד את הדף גם בלי רשת.
+var CODE = /\.(html|js)$|\/$|\/(app|join|learn|calendar|admin|board|tzevet)$|\/sfarim\/|\/daf\/index\.json$/;
+
+// כמה להמתין לרשת לפני שנופלים למטמון. מספיק לחיבור סביר, קצר מכדי להרגיז.
+var NET_TIMEOUT = 2500;
+
+/* ---- לא ממתינים לרשות ----
+   עובד־שירות חדש נכנס כברירת מחדל ל"המתנה" ומחליף את הישן רק
+   כשכל הלשוניות נסגרות. באפליקציה שהוסיפו למסך הבית זה כמעט
+   לעולם לא קורה: היא נשארת פתוחה שבועות. לכן גרסה חדשה הייתה
+   יושבת במכשיר ולא נכנסת לתפקיד, וראש חטיבה המשיך לראות את
+   הגרסה של לפני שבועיים.
+
+   `skipWaiting` מוותר על ההמתנה, `clients.claim` שלמטה לוקח
+   שליטה מיד, והעמוד מרענן את עצמו פעם אחת (`getapp.js`). */
+self.addEventListener('install', function (e) {
+  e.waitUntil(caches.open(CACHE_NAME).then(function (c) {
+    return c.addAll(CORE);
+  }).then(function () { return self.skipWaiting(); }));
+});
+
+self.addEventListener('activate', function (e) {
+  e.waitUntil(
+    caches.keys().then(function (ks) {
+      return Promise.all(ks.filter(function (k) { return k !== CACHE_NAME; })
+                           .map(function (k) { return caches.delete(k); }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+/* ============================================================
+   התראה שמגיעה מבחוץ.
+   ============================================================
+   עד כאן ה-Worker ידע רק להגיש קבצים. זה מה שמאפשר לאפליקציה
+   להקפיץ תזכורת **כשהיא סגורה** — כלומר את מה שקבוצת וואטסאפ
+   עשתה, רק עם האייקון שלנו ובלי קבוצה.
+
+   `userVisibleOnly` מחייב שכל דחיפה תציג משהו, ולכן אין כאן
+   מסלול שקט: גם דחיפה בלי תוכן מציגה כותרת. אחרת הדפדפן מציג
+   במקומנו הודעה גנרית משלו, וזה נראה כמו תקלה.
+
+   הלחיצה פותחת חלון קיים אם יש, ורק אחרת פותחת חדש — אחרת כל
+   תזכורת הייתה מותירה עוד לשונית. */
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { if (e.data) d = e.data.json(); }
+  catch (x) { try { d = { body: e.data.text() }; } catch (y) { d = {}; } }
+  e.waitUntil(self.registration.showNotification(d.title || 'הדף השבועי', {
+    body: d.body || '',
+    icon: './icon-192.png',
+    tag:  d.tag || 'daf',
+    dir:  'rtl',
+    lang: 'he',
+    data: { url: d.url || './' }
+  }));
+});
+
+/* ============================================================
+   לחיצה על התראה — פותחת את מה שההתראה הבטיחה.
+   ============================================================
+   קודם עמד כאן "אם יש חלון פתוח, תמקד אותו" — **והכתובת
+   שבהתראה נזרקה**. כל התראה, על מה שלא תהיה, החזירה את
+   המשתמש לאותו מסך שבמקרה היה פתוח אצלו. התראה שמזמינה
+   לפינה האישית ונוחתת על מסך אחר היא התראה שנכשלה, וגרוע
+   מכך — היא מלמדת שאין טעם ללחוץ.
+
+   שלושה מצבים, לפי הסדר:
+     · חלון שכבר עומד על היעד — למקד אותו.
+     · חלון פתוח על משהו אחר — לנווט אותו ליעד ולמקד.
+     · אין חלון — לפתוח אחד.
+
+   `navigate` ולא רק `openWindow`, כי באפליקציה שנוספה למסך
+   הבית יש חלון אחד והוא כבר פתוח: `openWindow` שם עלול לא
+   לעשות דבר. ============================================ */
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var raw = (e.notification.data && e.notification.data.url) || './';
+  var target;
+  try { target = new URL(raw, self.location.href).href; }
+  catch (x) { target = self.location.origin + '/'; }
+  /* יעד מחוץ למקור שלנו אינו יעד — התראה אינה ערוץ ניתוב. */
+  if (target.indexOf(self.location.origin) !== 0) {
+    target = self.location.origin + '/';
+  }
+  var same = function (u) {
+    /* `#my` אינו עמוד אחר — חלון שעומד על אותו נתיב הוא היעד,
+       ומנווטים אותו כדי שהעוגן ייתפס. */
+    return u.split('#')[0] === target.split('#')[0];
+  };
+  e.waitUntil(
+    self.clients.matchAll({ type:'window', includeUncontrolled:true })
+      .then(function (ws) {
+        var i;
+        for (i = 0; i < ws.length; i++) {
+          if (ws[i].url === target && 'focus' in ws[i]) return ws[i].focus();
+        }
+        for (i = 0; i < ws.length; i++) {
+          if ('navigate' in ws[i]) {
+            return ws[i].navigate(target).then(function (c) {
+              return (c && 'focus' in c) ? c.focus() : null;
+            })['catch'](function () {
+              return self.clients.openWindow(target);
+            });
+          }
+        }
+        for (i = 0; i < ws.length; i++) {
+          if (same(ws[i].url) && 'focus' in ws[i]) return ws[i].focus();
+        }
+        return self.clients.openWindow(target);
+      })
+  );
+});
+
+self.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+self.addEventListener('fetch', function (e) {
+  var req = e.request;
+  if (req.method !== 'GET') return;
+  var url = new URL(req.url);
+  if (url.pathname.indexOf('/api/') === 0) return; // Never persist API responses in the service worker.
+  if (url.origin !== self.location.origin) return;   // גוגל שיטס וכד' — ישר לרשת
+
+  var save = function (res) {
+    if (res && res.status === 200) {
+      var copy = res.clone();
+      e.waitUntil(caches.open(CACHE_NAME).then(function (c) { return c.put(req, copy); }));
+    }
+    return res;
+  };
+
+  if (url.pathname.indexOf('/_astro/') !== 0 && (req.mode === 'navigate' || CODE.test(url.pathname))) {
+    /* הרשת מקבלת הזדמנות ראשונה — אבל לא בלי הגבלה.
+       אם היא איטית או תקועה, העותק השמור מנצח, והרשת ממשיכה
+       ברקע לעדכן את המטמון. אין עותק שמור — ממתינים לרשת עד הסוף,
+       כי אין למה ליפול. */
+    var live = fetch(req).then(save).catch(function () { return null; });
+    e.waitUntil(live);
+
+    e.respondWith(
+      caches.match(req).then(function (m) {
+        /* הנפילה ל-index.html היא **רק** לניווט — עמוד שנפתח בלי
+           רשת. כאן היא חלה על כל בקשה שתואמת ל-CODE, ולכן קובץ
+           נתונים שלא נמצא במטמון קיבל בתשובה מסמך HTML.
+
+           זה מה שקרה ל-`daf/index.json`: הוא חזר כ-index.html,
+           `r.json()` נכשל, רשימת המאגר יצאה ריקה, והלימוד הסיק
+           שאין תמונה לדף — ופנה למסלול הדרייב. משם ארבע שניות
+           טעינה, **וגם** דף שמצויר מ-PDF דו-עמודי בקנה מידה אחר
+           מזה שהסימונים מכוילים אליו. שתי התקלות, מקור אחד. */
+        /* ולאיזה עמוד נופלים — לפי מה שביקשו. מסך התלמיד הוא
+           קובץ אחר, ותלמיד שפתח את האפליקציה בלי רשת קיבל עד
+           עכשיו את המסך של ראשי החטיבה. */
+        var home = /join/.test(url.pathname) ? './join.html' : './index.html';
+        return m || (req.mode === 'navigate' ? caches.match(home) : null);
+      }).then(function (cached) {
+        if (!cached) return live;   // אין למה ליפול — ממתינים לרשת עד הסוף
+
+        return new Promise(function (done) {
+          var settled = false;
+          var finish = function (r) { if (!settled) { settled = true; done(r); } };
+          live.then(function (r) { finish(r || cached); });   // כולל כישלון מיידי
+          setTimeout(function () { finish(cached); }, NET_TIMEOUT);
+        });
+      })
+    );
+    return;
+  }
+
+  e.respondWith(
+    caches.match(req).then(function (cached) {
+      if (cached && /\/(?:_astro|media|fonts)\//.test(url.pathname)) return cached;
+      var net = fetch(req).then(save).catch(function () { return null; });
+      e.waitUntil(net);
+      return cached || net;
+    })
+  );
+});

@@ -1,0 +1,28 @@
+{
+  "title": "המסע - הדף השבועי של בני עקיבא",
+  "original": "masa",
+  "attributes": "",
+  "links": [],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/logo.js"
+    },
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/deck.js"
+    },
+    {
+      "type": "",
+      "src": "/links.js"
+    },
+    {
+      "type": "",
+      "src": "/masa.js"
+    }
+  ]
+}

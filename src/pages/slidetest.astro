@@ -1,0 +1,110 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import SlidePreview from "../components/SlidePreview";
+// The reference slide that the original check page verified.
+const defaultId = "1N8I8RnFBvH-F9Lw-YvotIj1M2w2hU7lF";
+---
+
+<Site title="בדיקת שקף מדרייב" robots="noindex,nofollow">
+  <SlidePreview defaultId={defaultId} client:load />
+  <noscript>
+    <p class="workspace notice">בדיקת הטעינה דורשת JavaScript.</p>
+  </noscript>
+</Site>
+
+<style is:global>
+  .verdict {
+    display: grid;
+    gap: 2px;
+    text-align: start;
+  }
+  .verdict .eyebrow {
+    margin: 0;
+  }
+  .verdict strong {
+    font-size: 1.05rem;
+  }
+  .probe-list {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 0;
+    display: grid;
+    gap: 14px;
+    text-align: start;
+  }
+  .probe {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .probe-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 15px;
+  }
+  .chip {
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 750;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: var(--tint);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .chip.is-pending {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .chip.is-ok {
+    background: #edf4ea;
+    color: var(--green);
+  }
+  .chip.is-failed {
+    background: #faeee8;
+    color: #7e3024;
+  }
+  .probe code {
+    display: block;
+    padding: 8px 13px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--tint);
+    border-block: 1px solid var(--line);
+    text-align: left;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .probe-shot {
+    min-height: 120px;
+    display: grid;
+    place-items: center;
+    padding: 12px;
+  }
+  .probe-shot img {
+    max-height: 220px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+  .slide-preview .flow-form {
+    margin-top: 28px;
+  }
+  .slide-preview input {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+  }
+  .checklist {
+    text-align: start;
+    padding-inline-start: 20px;
+    color: var(--muted);
+  }
+  .checklist li {
+    margin-bottom: 6px;
+  }
+  .checklist b {
+    color: var(--ink);
+  }
+</style>

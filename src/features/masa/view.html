@@ -1,0 +1,37 @@
+
+
+<div class="lab">גרסת ניסוי</div>
+
+<div class="app">
+
+  <!-- ===== המשפט ===== -->
+  <div id="v-say" class="view">
+    <div class="brand"><img id="brand-mark" alt=""><span>הדף השבועי · תשפ"ז</span></div>
+    <div id="say-body"></div>
+  </div>
+
+  <!-- ===== הרשמה ===== -->
+  <div id="v-join" class="view">
+    <div class="top"><button onclick="backToSay()">→ חזרה</button></div>
+    <div id="join-body"></div>
+  </div>
+
+  <!-- ===== המסך האישי ===== -->
+  <div id="v-mine" class="view"><div id="mine-body"></div></div>
+
+</div>
+
+<div id="sheet" onclick="if(event.target.id==='sheet'||event.target.className==='veil')sheetClose()">
+  <div class="veil"></div>
+  <div class="panel"><div class="h"><i></i><b id="sheet-t"></b></div>
+    <div class="l" id="sheet-l"></div></div>
+</div>
+
+<div id="deck">
+  <div class="dt"><span id="d-where"></span><button onclick="deckClose()">✕</button></div>
+  <div class="db"><img id="d-img" alt=""></div>
+  <div class="dn">
+    <button id="d-prev" onclick="deckGo(-1)">→ הקודם</button>
+    <button id="d-next" onclick="deckGo(1)">הבא ←</button>
+  </div>
+</div>

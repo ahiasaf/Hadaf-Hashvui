@@ -1,0 +1,88 @@
+---
+import "../styles/site.css";
+import program from "../generated/program.json";
+interface Props {
+  title?: string;
+  description?: string;
+  manifest?: string;
+  robots?: string;
+}
+const {
+  title = program.ui.siteTitle,
+  description = program.ui.siteSummary,
+  manifest = "/manifest.json",
+  robots,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#112c50" />
+    <meta name="color-scheme" content="only light" />
+    <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta
+      property="og:image"
+      content={new URL("share-card.jpg", Astro.site).href}
+    />
+    <meta
+      property="og:url"
+      content={new URL(Astro.url.pathname, Astro.site).href}
+    />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="manifest" href={manifest} />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>{title} | הדף השבועי</title>
+  </head>
+  <body>
+    <a class="skip" href="#main">
+      דילוג לתוכן
+    </a>
+    <header class="site-header container">
+      <a class="brand" href="/" aria-label="הדף השבועי, דף הבית">
+        <span class="brand-mark">
+          <img src="/logo-mark.png" width="44" height="44" alt="" />
+        </span>
+        <span>
+          <strong>הדף השבועי</strong>
+          <span>
+            של ישיבות בני עקיבא · <b class="brand-year">{program.year}</b>
+          </span>
+        </span>
+      </a>
+      <nav aria-label="ניווט ראשי">
+        <a href="/app">הדף שלי</a>
+        <a href="/join" class="nav-join">
+          מצטרפים
+        </a>
+      </nav>
+    </header>
+    <script>
+      import { refreshCopy } from "../lib/copy";
+      window.addEventListener("load", () => void refreshCopy(), { once: true });
+      if ("serviceWorker" in navigator)
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+    </script>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer container">
+      <p>רשת ישיבות בני עקיבא · הדף השבועי · {program.year}</p>
+      <nav aria-label="מידע">
+        <a href="/tzevet">לצוותי הישיבות</a>
+        <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
+        <a href="/accessibility">{program.ui.siteAccessibility}</a>
+        <a href="/info#privacy">{program.ui.sitePrivacy}</a>
+        <a href="/info">{program.ui.siteInfo}</a>
+      </nav>
+    </footer>
+  </body>
+</html>

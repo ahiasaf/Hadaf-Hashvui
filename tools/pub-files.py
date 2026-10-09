@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 אילו קבצי דרייב הסקריפט מוכן להגיש בלי סיסמה (`?file=<id>`).
@@ -22,12 +23,12 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GS = os.path.join(ROOT, 'apps-script.gs')
+GS = project_path( 'apps-script.gs')
 BEGIN, END = '/* PUB_FILES:BEGIN', '/* PUB_FILES:END */'
 
 
 def wanted():
-    src = io.open(os.path.join(ROOT, 'links.js'), encoding='utf-8').read()
+    src = io.open(project_path( 'links.js'), encoding='utf-8').read()
     return sorted(set(re.findall(r'/d/([-\w]{20,})', src)))
 
 

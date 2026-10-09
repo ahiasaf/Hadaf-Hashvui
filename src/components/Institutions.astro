@@ -1,0 +1,39 @@
+---
+import program from "../generated/program.json";
+const institutions = program.institutions.filter((item) => item.joined);
+---
+
+<section
+  class="institutions container"
+  aria-labelledby="inst-title"
+  data-institutions
+  data-copy={JSON.stringify({
+    error: program.ui.siteReadError,
+    loading: program.ui.siteLoading,
+    live: program.ui.siteInstLive,
+    empty: program.ui.siteInstEmpty,
+  })}
+>
+  <div class="section-intro">
+    <h2 id="inst-title">{program.ui.siteInstTitle}</h2>
+    <span class="institution-count" data-inst-count>
+      {institutions.length} / {program.institutions.length}
+    </span>
+  </div>
+  <ul class="institution-list" data-inst-list>
+    {institutions.map((item) => (
+      <li>{item.name}</li>
+    ))}
+  </ul>
+  <p class="data-status" data-inst-status role="status">
+    {program.ui.siteInstSnapshot}
+  </p>
+  <button class="text-button" data-inst-retry hidden>
+    {program.ui.siteRetry}
+  </button>
+</section>
+<script>
+  import { sheet } from "../lib/client";
+  import { initializeInstitutions } from "../lib/institution-list";
+  initializeInstitutions(sheet);
+</script>

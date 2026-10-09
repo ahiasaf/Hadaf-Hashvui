@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 התאמת הסימונים שכבר נעשו אל קובץ הוורד המקורי של חברותא.
@@ -46,8 +47,8 @@ import urllib.request
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPORT = os.path.join(ROOT, 'docs', 'chav-align.txt')
-FIXED = os.path.join(ROOT, 'docs', 'marks-word.json')
+REPORT = project_path( 'docs', 'chav-align.txt')
+FIXED = project_path( 'docs', 'marks-word.json')
 
 SHEET = '1OdC-qFaX3sK6nZMgmWWXb8LDUvQSir2ItZKt-f1yop0'
 TAB = 'סימוני הדף'

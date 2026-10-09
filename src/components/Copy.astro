@@ -1,0 +1,10 @@
+---
+interface Props {
+  field: string;
+  value: string;
+  as?: "p" | "h1" | "h2" | "h3" | "span";
+}
+const { field, value, as: Tag = "p" } = Astro.props;
+---
+
+<Tag data-copy={field} set:html={value} />

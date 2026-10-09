@@ -1,0 +1,32 @@
+
+
+<header>
+  <b>מעבדת הזיהוי</b>
+  <span class="v" id="ver"></span>
+  <select id="mas"></select>
+  <select id="daf"></select>
+  <select id="pg"></select>
+  <button id="prev">▸ הקודם</button>
+  <button class="p" id="next">הבא ◂</button>
+  <div id="stat">בוחרים מסכת ודף.</div>
+</header>
+
+<div class="stage"><div class="holder" id="holder">
+  <img id="page" alt="">
+  <svg id="ov" preserveAspectRatio="none"></svg>
+</div></div>
+
+<div class="panel">
+  <h4>מה נמדד</h4>
+  <div class="grid" id="stats"></div>
+  <div class="hist" id="hist"></div>
+  <div class="score">
+    <button class="y" id="hit">✓ תפס</button>
+    <button class="n" id="miss">✗ פספס</button>
+  </div>
+  <div class="tally" id="tally"></div>
+  <p class="hint">זהב - מה שנמצא, לפי גודל הכתב בלבד. ירוק מקווקו -
+     גבולות הדף אחרי הסרת השוליים. העמודות הן גובה האותיות לאורך
+     רוחב הדף, והזהובות הן הרצועות שרובן גמרא.
+     <br>"תפס / פספס" נשמר על המכשיר, וכך יש מספר ולא תחושה.</p>
+</div>

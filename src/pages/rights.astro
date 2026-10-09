@@ -1,0 +1,33 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Copy from "../components/Copy.astro";
+import program from "../generated/program.json";
+const text = program.rights;
+---
+
+<Site title="זכויות התוכן">
+  <article class="workspace document narrow">
+    <h1>זכויות התוכן</h1>
+    {["gem", "chav"].map((key) => (
+      <section>
+        <Copy
+          field={`rights.${key}`}
+          value={text[key as keyof typeof text]}
+          as="h2"
+        />
+        <Copy
+          field={`rights.${key}Line`}
+          value={text[`${key}Line` as keyof typeof text]}
+        />
+        <Copy
+          field={`rights.${key}Note`}
+          value={text[`${key}Note` as keyof typeof text]}
+        />
+      </section>
+    ))}
+    <a class="secondary-link" href="/info#privacy">
+      פרטיות ופרטי התוכנית
+    </a>
+  </article>
+</Site>

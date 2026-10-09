@@ -1,0 +1,120 @@
+---
+import { lessonHref, lessonRow, studyUnits, type Track } from "../lib/calendar";
+interface Props {
+  tracks: Track[];
+  initialWeek: number;
+  startDate: string;
+  titles: Record<string, string>;
+  ui: Record<string, string>;
+}
+const { tracks, initialWeek, startDate, titles, ui } = Astro.props;
+const track = tracks[0];
+const { row, index } = lessonRow(track, initialWeek);
+const hasLesson = !!row[2] && row[2] !== "סיום";
+---
+
+<section class="lesson" id="lesson" aria-label={ui.siteLesson}>
+  <div class="lesson-top">
+    <span class="eyebrow">
+      <svg
+        class="study-book"
+        viewBox="0 0 32 32"
+        width="32"
+        height="32"
+        aria-hidden="true"
+      >
+        <path
+          d="M16 8C12 5 7 5 3 7v19c4-2 9-2 13 1 4-3 9-3 13-1V7c-4-2-9-2-13 1Z"
+          fill="#fff1c5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M16 8v19M7 11h5M7 15h5M20 11h5M20 15h5M20 19h5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+      </svg>
+      {ui.siteLesson}
+    </span>
+    <span class="week-label" data-week>
+      {ui.siteCurrentWeek} {index + 1}/{track.cal.length}
+    </span>
+  </div>
+  <div class="track-switch" role="group" aria-label={ui.siteChoose}>
+    {tracks.map((item, i) => (
+      <a
+        href={lessonHref(
+          item,
+          item.cal[Math.min(initialWeek, item.cal.length - 1)],
+        )}
+        role="button"
+        aria-pressed={i === 0}
+        data-track={item.id}
+      >
+        {"מסכת " + item.name}
+      </a>
+    ))}
+  </div>
+  <div class="lesson-content" aria-live="polite">
+    {
+      /* Every track is prerendered and stacked in one grid cell, so the panel
+         height is the tallest variant and the action never moves on switch. */
+      tracks.map((item, i) => {
+        const { row, index } = lessonRow(item, initialWeek);
+        const active = !!row[2] && row[2] !== "סיום";
+        return (
+          <div
+            class="lesson-variant"
+            data-variant={item.id}
+            aria-hidden={i !== 0}
+          >
+            <p class="lesson-daf" data-daf>
+              {active
+                ? "דף " + row[2] + (row[3] ? " · עמוד " + row[3] : "")
+                : row[1]}
+            </p>
+            <h2 data-lesson-title>
+              {active
+                ? titles[item.id + "-" + (index + 1)] || "מסכת " + item.name
+                : ui.sitePause}
+            </h2>
+            <p class="lesson-date" data-date>
+              {row[1]} · {row[0]}
+            </p>
+          </div>
+        );
+      })
+    }
+  </div>
+  <a
+    class="button button-gold"
+    data-open
+    href={hasLesson ? lessonHref(track, row) : "/calendar"}
+  >
+    {hasLesson ? ui.siteOpen : ui.siteCalendar}
+  </a>
+  <div class="lesson-bottom">
+    <span data-count>
+      {studyUnits(track)} {ui.siteStudyUnits}
+    </span>
+    <a data-calendar href={"/calendar#" + track.id}>
+      {ui.siteCalendar}
+    </a>
+  </div>
+</section>
+<script
+  id="weekly-config"
+  type="application/json"
+  set:html={JSON.stringify({ tracks, startDate, titles, ui }).replaceAll(
+    "<",
+    "\\u003c",
+  )}
+/>
+<script>
+  import { initializeWeeklyLesson } from "../lib/weekly-lesson";
+  initializeWeeklyLesson();
+</script>

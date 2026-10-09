@@ -1,0 +1,151 @@
+
+<div id="toast"></div>
+
+<!-- הכותרת תפסה חצי מסך בטלפון: שני בוררים שאין בהם צורך יומיומי,
+     כפתור פתיחת קובץ שאיש לא ידע למה הוא, וכפתור JSON שנדרש פעם
+     בחודש. מה שנשאר הוא מה שנוגעים בו בכל דף - לאן ללכת, ומה
+     לעשות כאן. השאר עבר לתפריט ⋯.
+
+     הניווט הוא רצועה אחת: חץ, שם הדף, העמוד, חץ. שם הדף עצמו הוא
+     הבורר - הקשה עליו פותחת את רשימת כל הדפים. -->
+<header>
+  <h1>סטודיו הדף</h1>
+  <span id="ver"></span>
+  <select id="mas"></select>
+  <nav class="nav">
+    <button id="pgprev" title="הקודם">▸</button>
+    <select id="daf"></select>
+    <select id="pg" class="amud"></select>
+    <button id="pgnext" title="הבא">◂</button>
+  </nav>
+  <!-- החברותא אינה זקוקה לכיול - היא טקסט, ופיצול הפסקאות נעשה
+       תוך כדי הלימוד. הבורר נשאר כאן מוסתר כי המפתח של כל רשומה
+       בגיליון בנוי ממנו, ושינוי המפתח היה מנתק את כל מה שנשמר. -->
+  <select id="src" hidden></select>
+  <span id="stat"></span>
+  <span class="sp"></span>
+  <button id="mode">סימון קטעים ←</button>
+  <button id="reset">זיהוי מחדש</button>
+</header>
+
+<div class="wrap">
+  <!-- כפתורי הזום יושבים **מחוץ** ל-.stage בכוונה. ראו .stagebox
+       בגיליון הסגנון: בתוך מסגרת נגללת הם נגללים יחד עם הדף. -->
+  <div class="stagebox">
+    <div class="zbar">
+      <button id="zin" title="הגדלה">+</button>
+      <button id="zout" title="הקטנה">−</button>
+      <button id="zfit" title="התאמה למסך">⤢</button>
+    </div>
+    <div class="stage">
+      <div id="holder">
+        <img id="page" alt="">
+        <svg id="ov" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="chav" id="chav">
+    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><button id="fixoff" type="button">✕ ביטול תיקון</button><span id="chpg"></span></div>
+    <div class="chb" id="chb"></div>
+  </div>
+
+  <aside>
+    <h2>מה שזוהה</h2>
+    <p class="h">הירוק המקווקו הוא גוש הכתב, הכחול הוא המסגרת
+      הפנימית של הגמרא. כל שינוי מחשב את השורות מחדש מיד.</p>
+    <div id="stats"></div>
+    <h2 style="margin-top:14px">אזורים</h2>
+    <div id="zones"></div>
+    <div class="hint">לחיצה על אזור פותחת את הכלים שלו.
+      <b>טורים</b> = אילו טורים האזור מכסה; הגמרא תמיד בפנים,
+      וצד נוסף נדלק כשטור הפירוש שם נגמר.
+      <b>שורות</b> = הוספה והסרה בקצה העליון או התחתון, שורה
+      בכל לחיצה. השורה שזזה מהבהבת על הדף - ירוק נכנס, אדום יצא.</div>
+    <div id="msg"></div>
+  </aside>
+
+  <aside id="marker">
+    <h2>סימון קטעים</h2>
+    <p class="h" id="mhelp"></p>
+    <div id="mcur"></div>
+    <button class="p" id="addstep" style="width:100%;margin-top:10px" disabled>
+      הוספת הקטע</button>
+    <h2 style="margin-top:16px">הקטעים <span id="mcount"></span></h2>
+    <div id="steps"></div>
+  </aside>
+</div>
+
+<div class="bar">
+  <button id="more" title="עוד פעולות">⋯</button>
+  <button id="unsaved" title="יש שינויים שטרם נשמרו בגיליון - לחצו לשמירה"
+          style="display:none">שמירה</button>
+  <button id="undo" title="ביטול הקטע האחרון">↶</button>
+  <span class="fg">סוף
+    <!-- הכיוונים היו הפוכים, וזה שיתק את הכפתור שבו באמת משתמשים.
+         בכל האפליקציה `▸` הוא אחורה (`▸ הקודם`, `▸ יציאה`) ו-`◂`
+         הוא קדימה (`הבא ◂`) - כך נקרא עברית. כאן זה היה הפוך.
+
+         והמחיר לא היה בלבול בלבד: הסוף נקבע בהקשה בקצה השורה,
+         כלומר בערך המרבי. מי שלחץ `▸` כדי למשוך אותו אחורה קיבל
+         בפועל "קדימה", הערך כבר היה בתקרה, והכפתור נחסם - שום
+         דבר לא זז, כמה שלא לוחצים. זה נראה ככפתור מקולקל. -->
+    <button data-nudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-nudge="end,1" title="מילה קדימה">◂</button></span>
+  <button id="clearsel" title="ניקוי הסימון">✕</button>
+  <span class="gap"></span>
+  <span class="gh" id="ghint"></span>
+  <button class="add" id="addstep2">הוספת הקטע</button>
+</div>
+
+<!-- הפס של קטע שכבר קיים. אותם כפתורי כוונון, ופעולות אחרות:
+     כאן לא מוסיפים קטע אלא משנים אחד. -->
+<div class="bar ibar" id="ibar">
+  <button id="i-close" title="סגירה">✕</button>
+  <span class="fg">סוף
+    <button data-inudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-inudge="end,1" title="מילה קדימה">◂</button></span>
+  <span class="gap"></span>
+  <span class="gh" id="ihint"></span>
+  <button id="i-split" title="פיצול הקטע כאן">✂</button>
+  <button id="i-del" title="איחוד עם הקטע הבא">🔗</button>
+  <button class="add" id="i-save">עדכון הקטע</button>
+</div>
+<div class="bar sbar" id="sbar">
+  <button id="s-cancel" title="ביטול הפיצול">ביטול</button>
+  <span class="fg">סוף החלק הראשון
+    <button data-inudge="end,-1" title="מילה אחורה">▸</button>
+    <button data-inudge="end,1" title="מילה קדימה">◂</button></span>
+  <span class="gap"></span>
+  <span class="gh" id="shint"></span>
+  <button class="add" id="s-ok">✂ פיצול כאן</button>
+</div>
+
+<!-- מה שנחוץ פעם או פעמיים בדף, ולא בכל קטע -->
+<div class="menu" id="menu">
+  <div class="mstate" id="gstate"></div>
+  <!-- בכותרת הוא תפס שליש מהרוחב, ונוגעים בו פעם בדף -->
+  <button id="mode2">→ חזרה לכיול</button>
+  <button id="layout">מסך מלא</button>
+  <button id="swap">⇄ החלפת צדדים</button>
+  <button id="steplist">☰ רשימת הקטעים · עריכה</button>
+  <button id="splitpara">✂ פיצול פסקה בחברותא</button>
+  <button id="hidepara">⊘ הסתרת פסקה בחברותא</button>
+  <button id="fixpara">✎ תיקון טקסט בחברותא</button>
+  <button id="stoppt">⌁ נקודת עצירה - סוף הדף הקודם</button>
+  <hr>
+  <!-- פעם בחודש, ולא באמצע עבודה -->
+  <label class="alt" id="pick" title="קובץ PDF של דף, או תמונה">
+    📄 פתיחת קובץ ידנית<input type="file" id="file"
+    accept="application/pdf,image/*" hidden></label>
+  <button id="save">⬇ שמירת JSON</button>
+  <hr>
+  <button class="p" id="save2">שמירה בגיליון</button>
+</div>
+
+<!-- יריעת הבחירה של הפעולות הנדירות: פיצול פסקה בחברותא,
+     וקביעת נקודת עצירה. התוכן נבנה בכל פתיחה. -->
+<div class="splitbox" id="splitbox"></div>
+
+<!-- לוח השנה וקישורי הדפים - אותם קבצים שהאפליקציה משתמשת בהם.
+     הבורר נשען עליהם ואינו מחזיק רשימה משלו. -->

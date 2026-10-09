@@ -1,0 +1,12 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import DraftRecovery from "../components/DraftRecovery";
+---
+
+<Site title="טיוטות שנשמרו במכשיר" robots="noindex,nofollow">
+  <DraftRecovery client:load />
+  <noscript>
+    <p class="workspace notice">הצגת הטיוטות דורשת JavaScript.</p>
+  </noscript>
+</Site>

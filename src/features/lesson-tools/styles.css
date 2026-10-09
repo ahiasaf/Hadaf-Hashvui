@@ -1,0 +1,882 @@
+
+/* ============================================================
+   לימוד אינטראקטיבי - המסך של התלמיד.
+
+   מה שמנחה את המסך הזה: התוכנית נועדה מראש גם לתלמיד שקשה לו
+   ללמוד גמרא. שני הקשיים הראשונים שלו אינם הארמית - הם "איפה
+   אני נמצא על הדף" ו"איפה הקטע הזה נגמר". לכן:
+
+   * הדף נשאר דף. לא כרטיסיות ולא טקסט מועתק - התלמיד רואה את
+     צורת הדף האמיתית, כפי שהיא בגמרא שלפניו, ולומד למצוא בה את
+     מקומו. מה שמשתנה הוא רק מה מואר.
+
+   * העמימות היא הלב. שאר הדף אינו נעלם - הוא מעומעם. התלמיד
+     רואה בכל רגע שהקטע שלו הוא חלק ממשהו גדול יותר, ובכל זאת
+     אינו צריך להחליט היכן להתחיל לקרוא.
+
+   * בנייד אי אפשר להראות דף וילנה שלם וגם לקרוא אותו. לכן החלון
+     נע: הזום נקבע לפי הקטע הנוכחי ומעט מסביבו, והמעבר בין
+     הקטעים הוא תנועה על הדף ולא קפיצה בין מסכים.
+
+   * החברותא היא מגירה, ולא כפתור לכל קטע. תלמיד שהחליט לפתוח
+     אותה - היא רצה איתו עד סוף הדף. תלמיד שלא - המסך שלם בלעדיה.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold:#C08F2B; --gold-l:#E5B854;
+  --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --ink-3:#5C687E; --rule:#E5DAC3; --ok:#3A7B56;
+  /* רקע החידה - אותה משפחה כמו paper/surface (חמים, לא צבעוני),
+     רק קריר יותר: תזכורת עדינה ש"עכשיו זה משהו אחר", בלי לצאת
+     מהפשטות של שאר הדף. ראו body.quiz-on .chav למטה. */
+  --quiz-bg:#EEF3FB; --quiz-rule:#D6E3F5;
+  --bar:64px;
+  /* רוחב הבמה במחשב, ורוחב הבמה+החברותא יחד. ראו הערת
+     "מסך מחשב" למטה - אלה אינם מספרי טעם אלא תקרה שנגזרת
+     מרזולוציית קובצי הדף. */
+  --col:580px; --wide:960px; --chav:380px;
+}
+*{box-sizing:border-box}
+/* ההבהוב הכחול שאנדרואיד מצייר על כל הקשה. על כפתור הוא משוב
+   מועיל; על הדף עצמו הוא ריבוע כחול שמכסה חצי עמוד לרגע, בלי
+   שהוא אומר דבר - הקטע הבא ממילא מואר. */
+#stage,#stage *{-webkit-tap-highlight-color:transparent}
+
+/* תמונה שעוד אין לה כתובת - לא מציגים סימן שבור.
+   הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
+   עד שהוא נוחת, ל-<img> אין src בכלל - והדפדפן מצייר במקומו
+   ריבוע שבור. בקליטה טובה זה מהבהב לרגע; בקליטה חלשה זה מה
+   שרואים במשך שניות, ובדיוק במסך הראשון של האפליקציה.
+
+   visibility ולא display: המסגרת שומרת על מקומה, ולכן כשהלוגו
+   מגיע שום דבר לא קופץ. */
+img:not([src]){visibility:hidden}
+html,body{height:100%}
+/* ---------- הגובה, ולמה לא 100% ----------
+   `focus()` בונה את חלון ההתמקדות מ-`stage.clientHeight`, ולכן הוא
+   תלוי בגובה האמיתי של המסך. `height:100%` בדפדפן נייד נמדד מול
+   ה-viewport **הגדול** - זה שבלי שורת הכתובת - ולכן הבמה יוצאת
+   גבוהה ממה שנראה בפועל, והקטע ממורכז בתיבה שחלקה מוסתר מתחת
+   לשורת הכתובת ולסרגל התחתון.
+
+   באפליקציה המותקנת אין שורות כאלה, הגבהים זהים, והכל נראה תקין -
+   וזה בדיוק מה שהיה: נכון במותקנת, שגוי באנדרואיד ובאייפון.
+
+   `dvh` הוא הגובה שבאמת פנוי כרגע. `vh` נשאר לפניו כנפילה לאחור
+   לדפדפן שאינו מכיר אותו, ושם ההתנהגות היא כשהייתה. */
+body{margin:0;background:var(--paper);color:var(--ink);overflow:hidden;
+  height:100vh;height:100dvh;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  display:flex;flex-direction:column}
+
+/* ---------- כותרת ---------- */
+header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 9px) 14px 0;flex:0 0 auto}
+.hrow{display:flex;align-items:center;gap:12px;padding-bottom:9px}
+.back{color:#fff;text-decoration:none;font-weight:800;font-size:.82rem;opacity:.85;
+  border:1px solid rgba(255,255,255,.32);border-radius:9px;padding:6px 10px;white-space:nowrap}
+.ttl{flex:1;min-width:0;line-height:1.25}
+.ttl h1{margin:0;display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.ttl span{display:block;font-size:.74rem;font-weight:700;opacity:.72}
+#count{font-size:.74rem;font-weight:800;opacity:.8;white-space:nowrap}
+.prog{height:3px;background:rgba(255,255,255,.2)}
+.prog i{display:block;height:100%;width:0;background:var(--gold-l);
+  transition:width .35s ease}
+
+/* ---------- הבמה ---------- */
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+/* ---------- זום ----------
+   הדפדפן אינו מגדיל את המסך - לא בצביטה ולא בלחיצה כפולה - כי
+   הגדלה שלו מפרקת את הפריסה ומסתירה את הכפתורים. רק הגמרא
+   עצמה מוגדלת, בצביטה על הבמה, ובתוך הבמה בלבד (ראו ZM). */
+*{touch-action:pan-x pan-y}
+html,body{overflow-x:clip;overscroll-behavior-x:none}
+.stage{position:relative;overflow:hidden;background:#fff;
+  touch-action:none;cursor:pointer}
+/* בדף המלא האצבע מזיזה את הדף, ולכן הדפדפן לא יקבל אותה לגלילה
+   או להגדלה משלו - אחרת כל משיכה נלקחת ממנו ולא מגיעה לכאן. */
+body.whole .stage{touch-action:none;cursor:grab}
+body.whole .stage:active{cursor:grabbing}
+#holder{position:absolute;top:0;left:0;width:100%;transform-origin:0 0;
+  transition:transform .5s cubic-bezier(.33,.1,.2,1);line-height:0}
+/* ---------- הגנה על צורת הדף ----------
+   הוצאת ח. וגשל ביקשה שלא יהיה אפשר להוריד את הדף. לחיצה
+   ארוכה על תמונה פותחת בטלפון תפריט עם "הורדת תמונה", וזה מה
+   שנחסם כאן: התפריט, הגרירה, והסימון.
+
+   חשוב לומר מה זה **לא**: צילום מסך עדיין עובד, וכתובת התמונה
+   עדיין קיימת למי שיודע לחפש אותה. אין דרך למנוע את זה בדפדפן,
+   ואין טעם להעמיד פנים שיש. מה שנחסם הוא ההורדה בלחיצה אחת -
+   וזה בדיוק מה שהתבקש. */
+#page{width:100%;display:block;
+  -webkit-touch-callout:none;         /* התפריט של ספארי */
+  -webkit-user-select:none;user-select:none;
+  -webkit-user-drag:none;user-drag:none;
+  pointer-events:none}                /* ההקשה נתפסת בבמה, לא בתמונה */
+#ov{position:absolute;inset:0;width:100%;height:100%}
+
+.veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--paper);z-index:5;padding:24px;text-align:center}
+.veil.off{display:none}
+.veil div{max-width:30ch}
+.veil b{display:block;font-size:1rem;font-weight:800}
+.veil small{display:block;margin-top:8px;font-size:.82rem;color:var(--ink-2);
+  font-weight:700;line-height:1.6}
+.spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+  border:3px solid var(--rule);border-top-color:var(--gold);
+  animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* דף נעול - הכפתור לבקשת התראה, והקישור לדף שכבר פתוח. */
+.lockbtn{display:block;margin:16px auto 0;padding:11px 18px;border:0;border-radius:12px;
+  background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
+  font:inherit;font-weight:800;font-size:.9rem;cursor:pointer;line-height:1.4}
+.lockbtn[disabled]{opacity:.6;cursor:default}
+.lockback{display:inline-block;margin-top:14px;font-weight:800;color:var(--blue)}
+
+/* ---------- מגירת החברותא ---------- */
+.chav{display:none;background:var(--surface);border-inline-start:1px solid var(--rule);
+  flex-direction:column;min-height:0;transition:background .25s ease}
+body.chav-on .chav{display:flex}
+/* מצב חידה - רקע קריר-עדין שונה מהחברותא/פירוש, כדי שהמעבר
+   ירגיש כמו "עכשיו זה משחק", בלי גרפיקה נוספת. */
+body.quiz-on .chav{background:var(--quiz-bg)}
+body.quiz-on .chd{border-bottom-color:var(--quiz-rule)}
+body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
+.chd{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-bottom:1px solid var(--rule);font-weight:800;font-size:.84rem;color:var(--blue)}
+.chd .sp{flex:1}
+.chd button{border:0;background:none;font-size:1rem;color:var(--ink-3);cursor:pointer;
+  font-weight:800;padding:2px 6px}
+/* ---------- הגופן של החברותא ----------
+   היה כאן גופן סריפי, והוא לא החזיק: בעברית על מסך טלפון הסריפים
+   נעשים קווים דקים, והעין נאבקת בהם לפני שהיא מגיעה למילה. הביאור
+   נקרא ברצף ולא בעיון, ולכן הוא עובר לגופן המערכת - Roboto/Noto
+   באנדרואיד, San Francisco באייפון - שנבנו בדיוק לקריאה על מסך,
+   ומגיעים מותקנים ולכן אינם נטענים מרשת חיצונית.
+
+   בנוסף, גם הגופן הנוח ביותר אינו נוח לכולם: יש כפתורי א−/א+
+   שמזיזים את הגודל, והבחירה נשמרת. */
+.chb{flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;
+  font-size:calc(1.05rem * var(--cz,1));line-height:1.85;
+  letter-spacing:.005em;color:#22314D;
+  /* מילה ארוכה מרוחב העמודה - מראה מקום, ציטוט עם גרשיים, או
+     כל רצף בלי רווח - גולשת מהתיבה במקום להישבר, ואז השורה
+     יוצאת מהמסך. בעברית זה נדיר ולכן זה מתגלה מאוחר, ובדיוק
+     בגופן מוגדל (א+) שבו העמודה צרה יותר ביחס למילה. */
+  overflow-wrap:break-word;word-break:break-word}
+.chb p{margin:0 0 13px}
+.chb b{color:var(--blue-d);font-weight:700}
+.chd .zoom{display:flex;gap:4px}
+.chd .zoom button{border:1px solid var(--rule);border-radius:7px;padding:2px 8px;
+  font-size:.86rem;color:var(--ink-2);line-height:1.5}
+.chb .none{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:.82rem;font-weight:700;
+  color:var(--ink-3);line-height:1.7}
+
+/* ---------- לשונית שנייה בתוך המגירה: "פירוש לנוער" ----------
+   הלשוניות עצמן יושבות בכותרת הקבועה של המגירה (`#cht` בתוך
+   `.chd`) ולא בזרם התוכן - כך שהן תמיד באותו מקום בדיוק, קבוע,
+   בלי לתפוס גובה מהטקסט. */
+.cht{display:flex;gap:6px}
+.cht button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:9px;
+  padding:4px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
+.cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
+.cht-lbl{font-weight:800;color:var(--blue);font-size:.84rem}
+/* פירוש נטו - בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
+   (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות - ראו את ההערה
+   למעלה על boldOnly ב-git log.) */
+.own-pub{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;
+  border-radius:9px;background:rgba(178,59,59,.08);font-size:.74rem;font-weight:800;
+  color:#8a3a3a}
+.own-pub.on{background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
+.own-pub button{margin-inline-start:auto;border:1px solid currentColor;background:none;
+  border-radius:8px;padding:4px 10px;font-weight:800;font-size:.72rem;color:inherit;cursor:pointer}
+.own-edit{min-height:90px;outline:none}
+.own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
+.own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
+.own-read{margin:0 0 6px;line-height:1.85}
+/* גופן פסוקים - פרנק-רוהל, הצורה המוכרת מהתנ"ך. יושב בריפו
+   (fonts/), בלי CDN. רחב ומעט גדול יותר, כדי שהפסוק ייקרא כציטוט. */
+@font-face{font-family:'FrankRuhlDaf';font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(fonts/frank-ruhl-hebrew.woff2) format('woff2')}
+.psuk{font-family:'FrankRuhlDaf','Frank Ruhl Libre','David',serif;font-size:1.1em;
+  font-weight:500;letter-spacing:0}
+.psuk b{font-weight:800}
+.own-tools button.icon.own-psuk-btn{width:auto;padding:0 9px;font-family:'FrankRuhlDaf',serif;font-size:.86rem}
+.chb .own-save{border:1px solid rgba(192,143,43,.45);background:var(--gold,#C08F2B);
+  color:#fff;border-radius:9px;padding:7px 16px;font-weight:800;font-size:.8rem;cursor:pointer}
+.chb .own-local{margin-top:6px;font-size:.7rem;font-weight:700;color:var(--ok,#3B7D57);min-height:1em}
+.chb .own-msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;color:var(--ink-2)}
+/* פס מצב השמירה - מקום אחד שאומר תמיד אם מה שכתבת בגיליון. */
+.chb .own-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;
+  border-radius:10px;font-size:.78rem;font-weight:800;line-height:1.45;
+  background:rgba(59,125,87,.1);color:var(--ok,#3B7D57)}
+.chb .own-bar.pend{background:rgba(192,143,43,.14);color:#8C5A0B}
+.chb .own-bar.bad{background:rgba(178,59,59,.12);color:#B23B3B}
+.chb .own-bar button{margin-inline-start:auto;flex:none;border:1px solid currentColor;
+  background:none;color:inherit;border-radius:8px;padding:3px 10px;font:inherit;cursor:pointer}
+.chb .own-msg.ok{color:var(--ok,#3B7D57)}
+.chb .own-msg.bad{color:#B23B3B}
+/* חלקי-הפירוש - כל חלק (תיוג+טקסט+שקף+הקלטה) בכרטיס נפרד,
+   כדי שיהיה ברור בעין שאלה יחידות נבדלות ולא זרם אחד רציף. */
+.own-piece{border:1px solid var(--rule);border-radius:11px;padding:9px 10px;margin-bottom:10px}
+.own-piece-h{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.own-piece-h .sp{flex:1}
+/* תג קטן וממורכז - לא תיבת טופס גדולה. עדיין ניתן לעריכה (שם
+   חופשי: "פירוש"/"הקדמה"/"העשרה" וכל דבר אחר), רק לא תופס שורה. */
+.own-tag{width:5.5em;max-width:38vw;flex:0 0 auto;border:1px solid transparent;border-radius:20px;
+  padding:3px 10px;font-weight:800;font-size:.74rem;color:var(--blue);
+  background:rgba(23,70,143,.08);text-align:center}
+.own-tag:focus{border-color:rgba(192,143,43,.45);background:#fff}
+.own-mv{border:1px solid rgba(192,143,43,.3);background:#fff;border-radius:7px;
+  width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
+.own-mv:disabled{opacity:.3;cursor:default}
+.own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
+/* בולד/ביטול/חזרה + מצב השקף - שורה אחת, מיד מתחת לתיבת הטקסט
+   של החלק. תוויות קצרות בכוונה כדי שלא יעברו שורה בטלפון צר. */
+.own-tools{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
+  font-size:.72rem;color:var(--ink-2)}
+.own-tools .sp{flex:1}
+.own-tools button.icon{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:7px;
+  width:24px;height:24px;font-weight:800;font-size:.76rem;color:var(--ink-2);cursor:pointer;
+  flex:0 0 auto;padding:0}
+.own-slide-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.own-tools button:not(.icon){border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
+.own-slide-up{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer;flex:0 0 auto}
+.own-slide-up input{display:none}
+/* רשת בחירת שקף - מודאל, לא תופס מקום כשסגור (`.sheet` קיים). */
+.own-pick{padding:22px}
+.own-pick-card{background:var(--surface);border-radius:18px;padding:16px;max-width:30rem;
+  width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(11,37,80,.3)}
+.own-pick-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  font-weight:800;color:var(--blue-d)}
+.own-pick-h button{border:0;background:none;font-size:1.1rem;color:var(--ink-2);cursor:pointer}
+.own-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow-y:auto}
+.own-pick-th{border:2px solid transparent;border-radius:10px;padding:0;cursor:pointer;
+  background:none;position:relative;overflow:hidden;aspect-ratio:4/3}
+.own-pick-th img{display:block;width:100%;height:100%;object-fit:cover}
+.own-pick-th span{position:absolute;bottom:3px;inset-inline-end:5px;background:rgba(11,37,80,.75);
+  color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
+.own-export{padding:22px}
+.own-export-card textarea{flex:1;min-height:40vh;box-sizing:border-box;resize:vertical;
+  border:1px solid var(--rule);border-radius:9px;padding:10px;font:inherit;font-size:.82rem;
+  line-height:1.6;color:var(--ink);background:#fff;margin-bottom:10px}
+.own-export-copy-btn{display:block;width:100%;box-sizing:border-box;border:1px solid rgba(192,143,43,.45);
+  background:var(--gold,#C08F2B);color:#fff;border-radius:9px;padding:9px;font-weight:800;
+  font-size:.84rem;cursor:pointer}
+.own-export-card .exp-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.own-export-card .exp-row b{font-size:.76rem;font-weight:800;color:var(--ink-2);min-width:3.2em}
+.exp-chip{border:1px solid var(--rule);background:#fff;border-radius:99px;padding:5px 11px;
+  font:inherit;font-size:.78rem;font-weight:700;color:var(--ink-2);cursor:pointer}
+.exp-chip.on{background:var(--blue-d,#17468F);border-color:var(--blue-d,#17468F);color:#fff}
+.exp-rng{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:.78rem;
+  font-weight:700;color:var(--ink-2)}
+.exp-rng select{font:inherit;font-size:.8rem;padding:4px 6px;border:1px solid var(--rule);border-radius:7px}
+.exp-here{border:1px dashed rgba(192,143,43,.6);background:#FFFBF2;border-radius:7px;padding:4px 8px;
+  font:inherit;font-size:.72rem;font-weight:800;color:#8A6412;cursor:pointer}
+.own-audio{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px}
+.own-audio audio{flex:1;min-width:0;height:32px}
+.own-audio button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:4px 10px;font-weight:700;font-size:.74rem;color:var(--ink-2);cursor:pointer;
+  white-space:nowrap;flex:0 0 auto}
+.own-audio button.hot{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
+.own-audio button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
+.own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
+  padding:2px 4px}
+.own-add{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px dashed rgba(192,143,43,.5);
+  background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
+.own-export-btn{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px solid var(--rule);
+  background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
+
+@media (max-width:820px){
+  body.chav-on main{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+  .chav{border-inline-start:0;border-top:1px solid var(--rule);
+    box-shadow:0 -8px 22px rgba(37,29,12,.10)}
+  /* גם כאן דרך המשתנה. בלי זה הכלל הזה דרס את הגודל שנבחר,
+     וכפתורי א−/א+ פעלו במחשב ולא עשו דבר בטלפון - כלומר בדיוק
+     במקום שבו הם נחוצים. */
+  .chb{font-size:calc(1rem * var(--cz,1));padding:12px 14px 18px}
+}
+
+/* ============================================================
+   האזור הצדדי.
+   ============================================================
+   הדף האינטראקטיבי אינו משתנה כאן. הוא בנוי לפרופורציה של טלפון
+   ונשאר בה גם במחשב - 580px, ממורכז - וזו החלטה ותיקה שנשמרת:
+   רוחב הבמה הוא שקובע את ההגדלה, ובמה שנמתחת עם החלון מציירת
+   דף ענק ומטושטש.
+
+   מה שנוסף הוא מה שיש **מסביב** לו. במסך רחב נשאר שטח פנוי גדול
+   משמאל, והוא עומד ריק. פתיחת האזור מצמידה את הדף לימין -
+   באותו רוחב בדיוק, כלומר באותה חדות בדיוק - והשטח שנפתח משמאל
+   מקבל תוכן. המצגת היא הדייר הראשון שם, לא הייעוד: `#side`
+   מארח מה שיהיה.
+
+   מי שאינו פותח את האזור אינו רואה שום הבדל מהיום. אין כאן שום
+   שינוי במצב הסגור.
+   ============================================================ */
+/* ---------- האזור הצדדי ----------
+   כחול עמוק היה טעות, ולא רק "חזק מדי". באפליקציה הזו יש חוק
+   אחד: **סטייה אחת בלבד** - קרקע חמה, ומשטח קריר אחד שבולט
+   ממנה. הדף הוא הסטייה, כי הוא הנושא. שני האגפים שלצידו -
+   הביאור והמצגת - הם אותו סוג דבר: הם משרתים אותו. שני דברים
+   שממלאים אותו תפקיד צריכים להיראות אותו דבר, ולכן המצגת
+   מקבלת בדיוק את הקרקע של החברותא.
+
+   וזה גם מה שפתר את מה שהעין לא הצליחה לסדר: שלושה טורים בשלושה
+   משקלים, שכל אחד מהם תובע תשומת לב אחרת. עכשיו שני אגפים
+   שקטים ומרכז אחד בהיר.
+
+   הגוון אינו שטוח: שיפוע עדין בתוך אותה משפחת צבע, כדי שהאזור
+   לא ייראה מת. שיפוע שמורגש כצבע שני הוא כבר סטייה שנייה.
+
+   `border-inline-end` ולא `start`: המצגת בימין, והקצה שנוגע בדף
+   הוא השמאלי - בדיוק כמו הקו שבין הדף לחברותא, ובאותו צבע. */
+#side{display:none;flex-direction:column;min-height:0;
+  background:linear-gradient(180deg,var(--surface) 0%,#FAF6EC 100%);
+  border-inline-end:1px solid var(--rule)}
+body.side-on #side{display:flex}
+
+/* ---------- מסך מחשב: עמודה אמיתית ----------
+   הדף מקבל רוחב קבוע (--col) והאזור לוקח את השאר. כשהמצגת
+   פתוחה `--col` יורד ל-520 והחברותא ל-340, כדי שהשקף יקבל רוחב
+   שבו הוא באמת שקף. `focus()` מחשב הגדלה חדשה לאותה תמונה, ולכן
+   הדף שומר על מבנהו במדויק - הוא רק קטן.
+
+   grid-template-columns אינו מונפש בכל דפדפן. במקום להישען
+   עליו, ההנפשה יושבת על האזור עצמו - הוא נכנס מהצד ומתבהר -
+   וכך התנועה נראית זהה גם היכן שהרשת קופצת.
+
+   **1200 ולא 1000.** שלוש עמודות צריכות רוחב אמיתי, ומתחת ל-1200
+   הן נדחסות עד שהשקף יוצא בגודל בול. אייפד לרוחב הוא 1024 בדיוק,
+   וגם נייד Windows בהגדלת תצוגה 125% נופל כאן. מתחת לגבול הזה
+   המצגת עוברת לחלון הצף - אותו חלון של הטלפון, שנפתח בהקשה. */
+@media (min-width:1200px){
+  /* שקף אינו תמונה נלווית. כשהמצגת פתוחה היא צריכה רוחב אמיתי,
+     ולכן הדף והחברותא מוותרים לה על עשירית מרוחבם. הדף שומר על
+     מבנהו במדויק - `focus()` מחשב הגדלה חדשה לאותה תמונה - והמקום
+     שהתפנה עובר כולו לשקף. בלי המצגת שניהם חוזרים לרוחבם המלא. */
+  body.side-on{--col:520px; --chav:340px}
+  /* ימין ← שמאל: מצגת · דף · חברותא. */
+  body.side-on main{max-width:none;grid-template-columns:minmax(0,1fr) var(--col)}
+  body.side-on.chav-on main{
+    max-width:none;grid-template-columns:minmax(0,1fr) var(--col) var(--chav)}
+  body.side-on .stage{max-width:var(--col)}
+  #side{animation:sideIn .42s cubic-bezier(.33,.1,.2,1)}
+}
+@keyframes sideIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+
+/* ---------- מסך צר: המצגת יושבת במקומה של החברותא ----------
+   קודם היא ריחפה מעל הדף, וזו הייתה טעות שלקח זמן לראות.
+
+   הדף ממרכז את הקטע המואר **בשטח שנשאר לו**. כשהחברותא פתוחה
+   הגמרא מצטמצמת למעלה והקטע יושב גבוה; כשהיא סגורה הגמרא מקבלת
+   את כל המסך והקטע יורד בדיוק למרכז - לשם שהחלון הצף ריחף.
+   כלומר המצגת כיסתה בדיוק את מה שהיא באה להסביר. ובהדגמה, שבה
+   החברותא תמיד פתוחה, היא כיסתה את הביאור.
+
+   עכשיו היא שכבה אמיתית באותה משבצת של החברותא - אותו מקום,
+   אותו גובה, אותו קו. הגמרא מצטמצמת מאליה וממרכזת את הקטע במה
+   שנשאר, בלי שאיש יחשב מיקום.
+
+   **שתיהן דלוקות = המצגת מעל.** מכבים אותה וחוזרים לביאור שהיה
+   שם כל הזמן. וכך המצגת היא גם פירוש בפני עצמו למי שרוצה אותה
+   במקום הביאור - אבות ובנים, או חזרה על הסוגיה.
+
+   מ-1200 ומעלה אין כאן שינוי: שם יש מקום אמיתי לשלושתם. */
+@media (max-width:1199px){
+  /* אטומה, ומעל. `#side` ראשון ב-DOM כדי שיהיה הימני ביותר
+     במסך רחב, ובלי `z-index` הביאור היה נצבע מעליו דווקא כאן. */
+  #side{z-index:2;border-inline-end:0}
+  .stage{grid-row:1;grid-column:1}
+}
+@media (min-width:821px) and (max-width:1199px){
+  /* אייפד לרוחב: עמודה ימנית, ברוחב של הביאור. */
+  body.side-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
+  .chav,#side{grid-row:1;grid-column:2}
+  #side{border-inline-start:1px solid var(--rule)}
+}
+@media (max-width:820px){
+  /* טלפון: השורה התחתונה, בגובה של הביאור בדיוק. */
+  body.side-on main{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+  .chav,#side{grid-row:2;grid-column:1}
+  #side{border-top:1px solid var(--rule);
+    box-shadow:0 -8px 22px rgba(37,29,12,.10)}
+  /* השקף ממלא את הגובה שיש וממורכז בו. במחשב הוא נשאר צמוד
+     למעלה, כי שם הוא בעמודה גבוהה לצד הביאור ושני אגפים
+     שמתחילים בגבהים שונים מכריחים את העין לקפוץ. כאן זו שורה
+     נמוכה, ומרכוז הוא מה שנראה בה מסודר. */
+  .sd-b{flex:1 1 auto;min-height:0;align-items:center;padding:10px 14px}
+  .sd-b img{max-height:100%;object-fit:contain}
+}
+/* ---------- ניהול במסך צר: הפאנל גלש ובלע את סרגל הניווט ----------
+   שוחזר בצילום מסך: 44vh נמדד על הביאור (טקסט גולל בעצמו), אבל
+   בניהול יש גם שקף וגם שורת שיוך/הקלטה מתחתיו, וזה לא נכנס יחד.
+   בלי גלילה־כרשת־ביטחון התוצאה גלשה מתחת ל-#side וכיסתה בדיוק
+   את הכפתורים הקבועים (הבא/כל הדף/מצגת/חברותא/הקודם). */
+@media (max-width:820px){
+  body.side-adm.side-on main{grid-template-rows:minmax(0,1fr) minmax(0,60vh)}
+  body.side-adm #side{overflow-y:auto}
+}
+/* ---------- מקלדת פתוחה, בכתיבת הפירוש ----------
+   רק אצל אחיאסף (side-adm), ורק כשבאמת יש מקלדת על המסך (ראו
+   ה-JS ליד ownKbWatch) - הדף כמעט נעלם והמגירה מקבלת כמעט הכל,
+   כדי שיישאר לו שטח לקרוא את מה שהוא כותב מעל המקלדת. */
+@media (max-width:820px){
+  body.side-adm.kb-open.chav-on main{grid-template-rows:minmax(0,64px) minmax(0,1fr)}
+}
+
+/* ---------- תוכן האזור ---------- */
+.sd-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 14px 0;
+  font-weight:800;font-size:.76rem;color:var(--ink-3)}
+.sd-h .sp{flex:1}
+.sd-h button{border:1px solid var(--rule);background:var(--paper);border-radius:8px;
+  font-size:.9rem;color:var(--ink-2);cursor:pointer;font-weight:800;padding:3px 9px}
+/* למעלה, ולא במרכז. שלושה טורים שמתחילים בשלושה גבהים שונים
+   מכריחים את העין לקפוץ, וזה מה שנקרא כ"משהו לא מסתדר".
+
+   הריפוד זהה לזה של הביאור (14px 16px), ולכן שני האגפים מתחילים
+   באותה שורה בדיוק. ומה שמתפנה מתחת נשאר פנוי - יש לו ייעוד. */
+.sd-b{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:center;
+  padding:14px 16px}
+/* על רקע בהיר השקף צריך גבול משלו, אחרת הוא נשפך אל הקרקע.
+   `--rule` היה חיוור מדי מול שקפים שהרקע שלהם בהיר בעצמו, ולכן
+   קו מעט כהה יותר. קו ולא צל: צל מחזיר את תחושת הקופסה הצפה. */
+.sd-b img{max-width:100%;display:block;border-radius:12px;
+  border:1px solid rgba(27,42,69,.22)}
+/* ---------- השקף שעוד בדרך ----------
+   התיבה **אינה מתרוקנת**. השקף שעל המסך נשאר עד שהבא מוכן, ואז
+   הם מתחלפים. קודם היא התרוקנה ורק אז התחילה להביא את התמונה,
+   ולכן כל מעבר היה ריק ואחריו קפיצה.
+
+   הסימן הזה מופיע רק כשבאמת ממתינים, וברוב המקרים איש לא יראה
+   אותו: השקפים מובאים ברקע לפני שמבקשים אותם. ראו slidePre. */
+.sd-b{position:relative}
+.sd-b img{transition:opacity .22s}
+.sd-b.wait img{opacity:.4}
+.sd-b.wait::after{content:'';position:absolute;left:50%;top:50%;
+  width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;
+  border:2px solid rgba(27,42,69,.16);border-top-color:var(--blue);
+  animation:sp .9s linear infinite}
+/* חצי הדפדוף שייכים לשיוך ולא לצפייה. תלמיד אינו מזיז את
+   המצגת - היא נוסעת עם הדף - ומספר שקפים שהוא אינו שולט בו
+   רק מבטיח שליטה שאינה קיימת. */
+.sd-f{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 14px 12px}
+.sd-f .sp{flex:1}
+.sd-f button{border:1px solid var(--rule);background:var(--paper);
+  border-radius:9px;padding:5px 12px;font-weight:800;font-size:.8rem;color:var(--ink);
+  cursor:pointer}
+.sd-f button:disabled{opacity:.38;cursor:default}
+.sd-n{font-weight:800;font-size:.76rem;color:var(--ink-3)}
+/* "שקף קודם / הבא" - רק אצל מי שמשייך, בכל רוחב. לתלמיד המצגת
+   נוסעת עם הקטע שבו הוא עומד, והחצים הבטיחו שליטה שאינה קיימת. */
+body:not(.side-adm) .sd-f{display:none}
+/* במחשב אין כותרת ואין חצים למי שרק צופה. הסגירה היא כפתור
+   "מצגת" שבשורת הניווט - אותו כפתור שפתח - ולכן ✕ נוסף בתוך
+   הפאנל הוא דרך שנייה לאותו דבר. וההגדלה אינה עושה דבר במסך
+   שממילא רחב. */
+@media (min-width:1200px){
+  body:not(.side-adm) .sd-h,
+  body:not(.side-adm) .sd-f{display:none}
+  /* תקרה לשקף: קובצי המצגת ברוחב 1376, ומעבר לזה המסך רק מותח
+     אותם. במסך רחב מאוד השקף עוצר ונשאר במרכז העמודה. */
+  .sd-b img{max-width:min(100%,900px)}
+}
+
+
+/* ---------- שכבת השיוך ----------
+   פתוחה רק כשהניהול פתוח במכשיר. תלמיד אינו רואה אותה כלל. */
+/* שכבת השיוך - למטה, ומופרדת בקו. היא כלי ולא תוכן, ולכן היא
+   יושבת בתחתית האגף ולא בתוך זרם הצפייה. */
+.sd-a{flex:0 0 auto;margin-top:auto;border-top:1px solid var(--rule);
+  padding:10px 14px;background:rgba(192,143,43,.08)}
+.sd-a .t{font-size:.72rem;font-weight:800;color:var(--ink-2);margin-bottom:8px}
+.sd-a .r{display:flex;gap:6px;flex-wrap:wrap}
+.sd-a button{border:1px solid rgba(192,143,43,.45);background:#fff;
+  border-radius:9px;padding:6px 11px;font-weight:800;font-size:.76rem;
+  color:var(--blue);cursor:pointer}
+.sd-a button.hot{background:var(--gold, #C08F2B);border-color:var(--gold, #C08F2B);
+  color:#fff}
+.sd-a .msg{margin-top:8px;font-size:.72rem;font-weight:700;line-height:1.5;
+  color:var(--ink-2)}
+.sd-a .msg.ok{color:var(--ok, #3B7D57)}
+.sd-a .msg.bad{color:#B23B3B}
+
+/* ---------- עריכת חלק (טקסט + הקלטה) ---------- */
+.vox-txt{width:100%;box-sizing:border-box;min-height:70px;resize:vertical;
+  border:1px solid rgba(192,143,43,.45);border-radius:9px;padding:8px 10px;
+  font:inherit;font-size:.82rem;line-height:1.6;color:var(--ink, #22314D);
+  background:#fff;margin-bottom:8px}
+.vox-empty{font-size:.76rem;font-weight:700;color:var(--ink-2);margin:0 0 8px}
+.sd-a button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
+
+/* ---------- הפירוש הקולי - כפתורי השמעה בפאנל המצגת ----------
+   מתחת לניווט השקפים, מעל שכבת השיוך (שקיימת רק לניהול). גלוי
+   לכולם - זה בדיוק ה"פירוש קולי" שרואה תלמיד. */
+.sd-vox{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+.sd-vox:empty{display:none;padding:0}
+.sd-vp{border:1px solid var(--blue);background:#fff;border-radius:20px;
+  padding:5px 13px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
+.sd-vp.on{background:var(--blue);color:#fff}
+
+/* ---------- "המשכנו מהמקום שעצרת" ----------
+   שורה דקה מתחת לכותרת ולא חלון: היא מדווחת, אינה שואלת, ואינה
+   עוצרת את מי שממילא רצה להמשיך. מי שדווקא רוצה מהתחלה מקבל
+   כפתור באותה שורה. */
+.resume{display:none;position:relative;z-index:6;align-items:center;gap:9px;
+  padding:9px 14px;background:rgba(192,143,43,.14);
+  border-bottom:1px solid rgba(192,143,43,.3);
+  font-size:.79rem;font-weight:800;color:#7A5710;
+  transition:opacity .5s ease,max-height .5s ease;max-height:60px}
+.resume.on{display:flex}
+.resume.fade{opacity:0;max-height:0;padding-top:0;padding-bottom:0;
+  border-bottom-width:0;overflow:hidden}
+.resume button{margin-inline-start:auto;border:1px solid rgba(192,143,43,.5);
+  background:#fff;border-radius:9px;padding:4px 10px;font:inherit;
+  font-size:.75rem;font-weight:800;color:var(--blue);cursor:pointer}
+
+/* ---------- שורת הניווט ---------- */
+/* ---------- בחלון ההדגמה ----------
+   שורת הניווט יורדת. בחלון של 350 פיקסלים חמישה כפתורים
+   נשברים לשתי שורות וגוזלים כמעט שליש מהגובה - ואיש אינו לוחץ
+   עליהם ממילא: הנגיעה בחלון שייכת לעמוד המארח, שפותח את הדף
+   האמיתי במסך מלא. מה שהם מבטיחים - חברותא ומצגת - ההדגמה
+   מראה בעצמה. */
+body.emb nav{display:none}
+/* וכפתורי הביאור, וחצי הדפדוף והסגירה של המצגת. בחלון אף
+   אחד מהם אינו ניתן ללחיצה - הנגיעה שייכת לעמוד המארח - והם
+   רק גוזלים מקום ומבטיחים שליטה שאינה קיימת שם. */
+body.emb .chd button,body.emb .chd .zoom,
+body.emb .sd-f,body.emb .sd-h button{display:none}
+nav{flex:0 0 auto;display:block;
+  padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);
+  background:var(--surface);border-top:1px solid var(--rule);
+  box-shadow:0 -3px 14px rgba(37,29,12,.06)}
+/* `wrap`: בהגדלת טקסט ל-200% - או בטלפון צר מאוד - חמישה
+   כפתורים אינם נכנסים בשורה אחת, והם נדחקו אל מחוץ למסך.
+   שורה שנייה עדיפה על כפתור שאי אפשר להגיע אליו. */
+.nrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+nav button{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
+  border:1px solid var(--rule);border-radius:10px;padding:10px 13px;
+  background:#fff;color:var(--ink);white-space:nowrap}
+nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:var(--ink);border-color:transparent;padding:10px 18px}
+
+/* ---------- הבועה המרחפת ----------
+   פס תחתון היה טעות: הוא גזל גובה מהחברותא ודחק אותה כלפי מעלה
+   בדיוק ברגע שמסתכלים על הדף. בועה מרחפת אומרת את אותו דבר
+   ואינה נוגעת בפריסה.
+
+   ועיגול, לא מלבן. מלבן קטן עם מילה בתוכו נקרא כתווית - משהו
+   שהמערכת אומרת על עצמה - והעין מדלגת עליו. עיגול פועם נקרא
+   כדבר שפונה אליך.
+
+   שלושה מצבים באותו מקום ולא שלושה אלמנטים: מי שעקב אחריו
+   כשאמר "הדגמה" מוצא באותה פינה גם את ההזמנה וגם את היציאה. */
+.dbadge{display:none;position:absolute;top:12px;left:12px;z-index:8;
+  align-items:center;justify-content:center;text-align:center;
+  width:74px;height:74px;border-radius:50%;padding:6px;
+  background:var(--blue-d);color:#fff;pointer-events:none;
+  font-size:.8rem;font-weight:800;line-height:1.25;letter-spacing:-.01em;
+  box-shadow:0 4px 18px rgba(11,37,80,.34);
+  /* המעבר בין המצבים. הבועה גדלה ומתחלפת בצבע, ולא קופצת. */
+  transition:width .34s cubic-bezier(.34,1.3,.5,1),
+             height .34s cubic-bezier(.34,1.3,.5,1),
+             background .34s ease, opacity .26s ease, transform .26s ease}
+.dbadge.on{display:flex}
+/* בחלון ההדגמה הדף עצמו מוצג בקטן, והתגית במידה המלאה כיסתה
+   שליש מרוחבו. צנועה יותר - נאמרת, ולא משתלטת. */
+body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
+  padding:4px;font-size:.66rem;box-shadow:0 3px 12px rgba(11,37,80,.3)}
+
+/* עיגול החידה הצף - בפינה השמאלית התחתונה של הדף, רחוק מ-dbadge
+   (שלמעלה) ומהאצבע שמדפדפת. האייקון עצמו כבר עגול ומעוצב
+   (icon-quiz.png, שקוף מסביב), ולכן בלי רקע משלו - רק הרמה קלה
+   מהדף, ומתג "lit" כשהחידה פתוחה.
+
+   **תנועה עדינה**: ריחוף קטן ונטייה קלה, פעם בכמה שניות - מספיק
+   כדי שהעין תמצא אותו, לא מספיק כדי להסיח מהגמרא. נעצרת כשהחידה
+   פתוחה, ובהגדרת "הפחתת תנועה" במכשיר. */
+.qfab{display:none;position:absolute;bottom:14px;left:14px;z-index:8;
+  width:62px;height:62px;border-radius:50%;padding:0;border:0;
+  background:transparent;cursor:pointer;box-shadow:0 4px 16px rgba(11,37,80,.3);
+  transition:transform .2s ease,box-shadow .2s ease;
+  animation:qfloat 3.6s ease-in-out infinite}
+.qfab.on{display:flex}
+.qfab img{width:100%;height:100%;border-radius:50%;display:block}
+.qfab.lit{animation:none;transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
+body.emb .qfab{width:50px;height:50px;bottom:8px;left:8px}
+@keyframes qfloat{
+  0%,55%,100% {transform:translateY(0) rotate(0)}
+  65%         {transform:translateY(-6px) rotate(-6deg)}
+  75%         {transform:translateY(0) rotate(4deg)}
+  85%         {transform:translateY(-3px) rotate(-2deg)}
+}
+/* הכיתוב שליד העיגול - רק בפעמים הראשונות (ראו qHintShow).
+   החץ פונה אל העיגול, שמשמאלו. */
+.qhint{display:none;position:absolute;bottom:30px;left:90px;z-index:8;
+  background:var(--blue,#0B2550);color:#fff;font-weight:800;font-size:.86rem;
+  padding:8px 13px;border-radius:12px;white-space:nowrap;cursor:pointer;
+  box-shadow:0 4px 14px rgba(11,37,80,.28);opacity:0;transition:opacity .35s ease;
+  animation:qnudge 1.8s ease-in-out infinite}
+.qhint::before{content:'';position:absolute;left:-7px;top:50%;margin-top:-7px;
+  border-style:solid;border-width:7px 8px 7px 0;
+  border-color:transparent var(--blue,#0B2550) transparent transparent}
+.qhint.on{display:block}
+.qhint.in{opacity:1}
+body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
+@keyframes qnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+@media (prefers-reduced-motion:reduce){
+  .qfab,.qhint{animation:none}
+}
+/* החלפת התוכן - נדעכת רגע, מתחלפת, וחוזרת. */
+.dbadge.swap{opacity:0;transform:scale(.86)}
+
+/* פועם בעדינות. לא הבהוב אלא נשימה: 4.5% הם ההבדל בין "משהו
+   חי כאן" לבין משהו שמושך את העין מהדף. */
+.dbadge.on{animation:breathe 2.8s ease-in-out infinite}
+@keyframes breathe{
+  0%,100%{box-shadow:0 4px 18px rgba(11,37,80,.34)}
+  50%    {box-shadow:0 6px 26px rgba(11,37,80,.46)}
+}
+.dbadge.ask,.dbadge.fin{width:104px;height:104px;font-size:.94rem}
+.dbadge.ask{animation:breathe 2.2s ease-in-out infinite, grow 2.2s ease-in-out infinite}
+@keyframes grow{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+/* תוכן לשונית החידה - מצויר לתוך `#chb`, אותו מקום בדיוק כמו
+   חברותא ופירוש לנוער (ראו paintQuiz). */
+.qz-q{font-weight:800;font-size:1.02rem;margin:6px 0 14px;color:var(--ink,#1B2A45)}
+.qz-of{font-size:.74rem;font-weight:700;color:var(--ink-2,#5A6A85);margin-top:4px}
+.qz-opt{display:block;width:100%;text-align:right;margin-top:8px;padding:12px 14px;
+  border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff;
+  color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
+.qz-opt.right{border-color:#3B7D57;background:rgba(59,125,87,.1)}
+.qz-opt.wrong{border-color:#A5382D;background:rgba(165,56,45,.07)}
+.qz-opt:disabled{cursor:default}
+.qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
+  color:#fff;border:0}
+.qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
+  border-radius:10px;border:1.5px solid var(--rule,#E4DCC8);box-sizing:border-box;margin-top:8px}
+textarea.qz-in{min-height:60px;resize:vertical}
+.qz-arow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.qz-arow .qz-in{margin-top:0}
+.qz-pub{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.84rem;
+  font-weight:700;color:var(--ink-2,#5A6780)}
+.qz-res{margin-top:12px;padding:11px;border-radius:10px;
+  background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
+
+/* והיציאה - ירוקה, וזו היחידה שלוחצים עליה. בשתי האחרות נגיעה
+   שייכת לדף שמתחת. */
+.dbadge.fin{background:linear-gradient(150deg,var(--green-d,#467B1A),var(--green-2,#3A6615));
+  box-shadow:0 4px 18px rgba(58,102,21,.4);pointer-events:auto;cursor:pointer;
+  border:0;font-family:inherit;
+  animation:breathe-g 2.6s ease-in-out infinite}
+@keyframes breathe-g{
+  0%,100%{box-shadow:0 4px 18px rgba(58,102,21,.4)}
+  50%    {box-shadow:0 7px 28px rgba(58,102,21,.55)}
+}
+@media (prefers-reduced-motion:reduce){
+  .dbadge.on,.dbadge.ask,.dbadge.fin{animation:none}
+}
+/* היציאה מהעמוד - דעיכה רכה לפני המעבר, כדי שלא יהיה קפיצה. */
+body.leaving{opacity:0;transition:opacity .32s ease}
+
+/* ---------- לוח המקליט ----------
+   בתחתית ולא בפינה: בטלפון פינה היא רבע מהדף, והמקליט צריך
+   להיות נוכח לאורך כל ההקלטה בלי להסתיר את מה שמקליטים. */
+.rec{display:none;flex:0 0 auto;max-height:44vh;overflow:auto;
+  padding:11px 14px;background:var(--blue-d);color:#fff}
+.rec.on{display:block}
+.rec-h b{font-size:.9rem;font-weight:800}
+.rec-b{margin-top:6px;font-size:.8rem;line-height:1.65;
+  color:rgba(255,255,255,.88);font-weight:600}
+.rec-b b{color:#fff}
+.rec-l{margin:0;padding-inline-start:20px;font-size:.8rem;line-height:1.9}
+.rec-l i{display:inline-block;min-width:56px;font-style:normal;
+  font-weight:800;color:var(--gold-l)}
+.rec-t{margin:7px 0 0;font-size:.76rem;color:rgba(255,255,255,.7)}
+.rec-x{width:100%;margin-top:7px;box-sizing:border-box;font-family:inherit;
+  font-size:.68rem;direction:ltr;text-align:start;border-radius:8px;
+  border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.22);
+  color:rgba(255,255,255,.85);padding:6px 8px;resize:vertical}
+.rec-a{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.rec-a button{flex:1 1 auto;font-family:inherit;font-weight:800;
+  font-size:.82rem;cursor:pointer;border-radius:10px;padding:9px 12px;
+  border:1px solid rgba(255,255,255,.35);background:none;color:#fff}
+.rec-a button.pri{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:var(--ink);border-color:transparent}
+nav button.on{background:var(--blue);color:#fff;border-color:transparent}
+/* "איור" - יש איור שעוד לא נצפה (ראו `dkFresh`). מסגרת צהובה בולטת,
+   שנעלמת כשפותחים. */
+nav button.fresh{border:2px solid #F2C230;box-shadow:0 0 0 3px rgba(242,194,48,.35)}
+nav button:disabled{opacity:.38;cursor:default}
+nav .sp{flex:1}
+@media (max-width:420px){
+  nav{gap:6px;padding-inline:8px}
+  nav button{padding:10px 10px;font-size:.8rem}
+  nav button.p{padding:10px 14px}
+}
+/* המרווח הגמיש מוותר על מקומו ברגע שהשורה נשברת, אחרת הוא
+   דוחף את הכפתור האחרון לשורה משלו וממשיך להחזיק את הרוחב. */
+@media (max-width:300px){
+  nav .sp{flex-basis:100%;height:0}
+}
+
+/* ---------- כרטיסים צפים ---------- */
+.sheet{position:fixed;inset:0;z-index:20;display:none;
+  align-items:center;justify-content:center;padding:22px;
+  background:rgba(11,37,80,.55);backdrop-filter:blur(3px)}
+.sheet.on{display:flex}
+.card{background:var(--surface);border-radius:18px;padding:24px 22px;max-width:26rem;
+  width:100%;box-shadow:0 18px 50px rgba(11,37,80,.3);text-align:center}
+.card h2{margin:0 0 6px;font-size:1.5rem;font-weight:800;letter-spacing:-.02em;
+  color:var(--blue-d)}
+.card p{margin:0 0 14px;font-size:.9rem;font-weight:700;color:var(--ink-2);
+  line-height:1.75}
+/* ---------- שער הדף ----------
+   נפתח בכניסה הראשונה בלבד. הוצאת ח. וגשל אישרה את השימוש
+   בצורת הדף וביקשה קישור לרכישה; זה המקום. */
+.gate .card{padding:28px 22px 22px}
+#g-logo{display:block;margin:0 auto 16px;width:max-content}
+#g-logo img{display:block;max-height:96px;max-width:180px}
+.gk{font-size:.7rem;font-weight:800;letter-spacing:.1em;color:var(--ink-3)}
+.gn{font-size:1.06rem;font-weight:800;color:var(--blue-d);margin-top:3px;
+  line-height:1.45}
+.gn.sm{font-size:.98rem}
+.gby{font-size:.85rem;font-weight:700;color:var(--ink-2);margin-top:2px}
+.gbuy{display:inline-block;margin-top:8px;font-size:.85rem;font-weight:800;
+  color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.grule{display:block;width:44px;height:2px;border-radius:2px;background:var(--gold-l);
+  margin:19px auto}
+.gate .btn{margin-top:20px}
+.sheet.fade{opacity:0;transition:opacity .45s ease}
+
+.card .btn{display:block;width:100%;margin-top:9px;text-align:center;text-decoration:none;
+  font-family:inherit;font-weight:800;font-size:.92rem;cursor:pointer;border:1px solid var(--rule);
+  border-radius:12px;padding:13px;background:#fff;color:var(--ink)}
+.card .btn.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  color:var(--ink);border-color:transparent}
+.seal{font-size:2.4rem;line-height:1;margin-bottom:8px}
+#toast{position:fixed;inset-inline:0;bottom:calc(var(--bar) + 22px);z-index:30;
+  margin:0 auto;width:max-content;max-width:80vw;pointer-events:none;
+  background:rgba(11,37,80,.92);color:#fff;font-size:.84rem;font-weight:800;
+  padding:10px 16px;border-radius:999px;opacity:0;transition:opacity .18s}
+#toast.on{opacity:1}
+/* "לדף הבא" אינו הפעולה הראשית אבל הוא אחת משתי הפעולות
+   האמיתיות כאן, ולכן הוא מסומן ולא נבלע בין הקישורים הצדדיים. */
+.card .btn.nx{background:var(--blue);color:#fff;border-color:transparent}
+/* מהתחלה וחזרה לתוכנית - נחוצים, ולא מה שבאו בשבילו. */
+.card .minor{display:flex;gap:14px;justify-content:center;align-items:center;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.card .minor button,.card .minor a{background:none;border:0;padding:4px;
+  font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-3);
+  text-decoration:none;cursor:pointer}
+/* ---------- מסך מחשב ----------
+   קובצי הדף הם 1600px רוחב, וזה הגג - אין מה להגדיל מעבר להם.
+   `focus()` גוזר את ההגדלה מרוחב הבמה (`disp = sw / fw`, ורוחב
+   הטור הוא כשליש מהדף), ולכן במה שנמתחת עם החלון מותחת גם את
+   התמונה: במסך 1440 הדף יצא מצויר ברוחב ~3200px מתוך מקור של
+   1600 - פי שניים, וזה בדיוק ה"ענקי ומטושטש" שנראה שם. בטלפון
+   הבמה צרה ולכן הבעיה לא קיימת, וגם לא התגלתה.
+
+   הפתרון הוא זה שכבר עובד ב-index.html: רוחב קבוע וממורכז,
+   ולא פריסה שנמתחת. הבמה נעצרת ב-580px - אותו רוחב שהאפליקציה
+   הראשית עובדת בו - ואז ההגדלה יוצאת ~1.1 מהמקור, כלומר חדה,
+   בדיוק כמו בטלפון.
+
+   כשהחברותא פתוחה, הבמה והמגירה יחד תופסות 960: הבמה מקבלת
+   580 והמגירה 380, ולכן **רוחב הבמה זהה בשני המצבים** והחדות
+   אינה משתנה כשפותחים את המגירה. המצגת היא החריג היחיד: היא
+   מורידה את השניים ב-10% (520 ו-340) ולוקחת את ההפרש.
+
+   הכל יושב בתוך min-width, ולכן הטלפון אינו מושפע מכאן כלל -
+   שום כלל כאן אינו נקרא מתחת ל-1000px.
+   ============================================================ */
+/* התקרה על הבמה נכנסת ברגע שיש יותר רוחב ממה שהיא צריכה, ולא
+   רק במחשב: טאבלט ב-820 הוא בדיוק המקרה שנפל בין הכיסאות -
+   רחב מכדי להיות טלפון, וצר מכדי להיכנס לכלל שלמטה. נמדד על 39
+   אזורים אמיתיים מתוך הסימונים: הטור החציוני יוצא כאן ×0.71
+   מהמקור (כלומר מוקטן, חד לגמרי), והטור הצר ביותר ×1.23. */
+@media (min-width:620px){
+  .stage{max-width:var(--col);width:100%;margin-inline:auto}
+}
+
+/* ---------- הדף במסך מחשב נראה חיוור יותר מאשר בטלפון ----------
+   וזה נכון, ולא אשליה. מדדנו: אותו קטע דף מצויר בטלפון על 1170
+   פיקסלים אמיתיים ובמסך מחשב על 580 - מסך טלפון צפוף פי שלושה.
+   קווי האות של דפוס וילנא דקים מפיקסל, ובצפיפות נמוכה הם נמרחים
+   אל הקרם שמאחוריהם: השחור נעשה אפור, והדף נראה שטוף.
+
+   את הצפיפות אי אפשר לשנות - היא של המסך, לא של הקוד. אבל אפשר
+   לפצות על מה שהיא עושה. נמדד על אותו קטע: ניגודיות 77 במחשב
+   מול 81 בטלפון, ועם התיקון כאן - 80. ובהירות ממוצעת 218 מול
+   211, וכאן 214.
+
+   **לפי צפיפות המסך ולא לפי רוחב החלון.** קודם זה היה
+   `min-width:1000px`, ולכן באותו מחשב הדף היה פעם חד ופעם שטוף:
+   חלון שהוצמד לחצי מסך, זום 110%, כלי מפתחים פתוחים - ירד מתחת
+   ל-1000 והפיצוי נעלם. נמדד (2.10): ב-990px הדיו הכהה ביותר
+   יוצא 18, ב-1010px - 5. מה שגורם לשטיפה הוא פיקסל אחד לנקודה,
+   ולכן זה מה שהכלל שואל עכשיו. טלפון (2× ומעלה) אינו מושפע. */
+@media (-webkit-max-device-pixel-ratio:1.49), (max-resolution:1.49dppx){
+  #page{filter:contrast(1.16) brightness(.985)}
+}
+
+@media (min-width:1000px){
+  .hrow,.prog{max-width:var(--wide);margin-inline:auto;width:100%}
+  main{max-width:var(--wide);margin-inline:auto;width:100%}
+  /* ---------- שורת הניווט מיושרת לדף, ולא למסך ----------
+     "הקודם" ו"הבא" הם התנועה בתוך הדף, ולכן מקומם בדיוק בשני
+     קצותיו. כשהם מיושרים לרוחב החלון הם מתרחקים ממנו: "הקודם"
+     נשאר בקצה אחד של המסך והשאר נערמים בקצה השני, מתחת למצגת
+     ולחברותא - כלומר מתחת לדברים שהם אינם שייכים להם.
+
+     הפס נשאר ברוחב מלא - הרקע, הקו העליון והצל נבנו לכך - ורק
+     תוכנו מיושר. אותה רשת בדיוק כמו `main`, והשורה יושבת תמיד
+     בעמודה של הדף. דפדפן שאינו מכיר רשת מתעלם ונשאר עם השורה
+     ברוחב מלא, וזה תקין.
+
+     `--col` הוא רוחב הדף, ולכן "הקודם" בקצה הימני שלו ו"הבא"
+     בשמאלי - בכל אחד ממצבי הפריסה, ובלי לחשב שום מיקום. */
+  nav{display:grid;padding-inline:0;
+      grid-template-columns:minmax(0,1fr) var(--col) minmax(0,1fr)}
+  .nrow{grid-column:2}
+
+  /* חברותא פתוחה - הדף ראשון, ואחריו המגירה. מתחת ל-1200 זהו
+     המצב גם כשהמצגת פתוחה, כי שם היא צפה ואינה תופסת עמודה. */
+  body.chav-on nav{
+    grid-template-columns:minmax(0,1fr) var(--col) minmax(0,380px);
+    padding-inline:calc((100% - var(--wide)) / 2)}
+}
+
+/* מצגת בעמודה - הדף בעמודה השנייה, וכך גם השורה. הריפוד חוזר
+   לאפס: כאן `main` נפרש על כל הרוחב ואינו ממורכז. */
+@media (min-width:1200px){
+  body.side-on nav{grid-template-columns:minmax(0,1fr) var(--col);
+    padding-inline:0}
+  body.side-on.chav-on nav{
+    grid-template-columns:minmax(0,1fr) var(--col) var(--chav);
+    padding-inline:0}
+}
+
+
+/* ---------- בחירת דף ועמוד (pickOpen) ---------- */
+.ttl{cursor:pointer;-webkit-tap-highlight-color:transparent}
+#t-daf::after{content:' \25BE';font-size:.75em;opacity:.7}
+.pick{position:fixed;inset:0;z-index:30;display:none;align-items:flex-end;justify-content:center;
+  background:rgba(11,37,80,.45)}
+.pick.on{display:flex}
+.pk-box{background:var(--surface);width:100%;max-width:30rem;max-height:78vh;display:flex;
+  flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(11,37,80,.3);
+  padding:14px 16px calc(16px + env(safe-area-inset-bottom));animation:pkUp .22s ease-out}
+@keyframes pkUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.pk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.pk-h b{font-size:1.05rem;color:var(--blue-d)}
+.pk-x{border:0;background:none;font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
+/* כרטיס המסלול (trail.js) בתוך החלון - הוא שגולל, והכותרת נשארת. */
+.pk-tr{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px;min-height:0;
+  overscroll-behavior:contain}
+@media (min-width:821px){.pick{align-items:center}.pk-box{border-radius:20px}}

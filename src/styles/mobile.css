@@ -1,0 +1,154 @@
+/* Shared touch and focus treatment for retained learning and staff tools. */
+a,
+button,
+[role="button"],
+input,
+select {
+  touch-action: manipulation;
+}
+button,
+a[role="button"],
+.tab,
+.tabs button,
+.acts button,
+.controls button,
+#back,
+#to-home,
+#t-daf,
+.secondary-link {
+  min-height: 44px;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #bd9036;
+  outline-offset: 3px;
+}
+button[disabled] {
+  cursor: wait;
+}
+.retry-network {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 10px 20px;
+  border: 1px solid #a7b6c7;
+  border-radius: 10px;
+  background: #fff;
+  color: #112c50;
+  font: 700 1rem system-ui;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .back,
+  .foot a,
+  footer a,
+  .site-footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .masthead {
+    gap: 12px;
+  }
+  .seg button,
+  .tabs button,
+  .tab {
+    min-height: 46px;
+  }
+  .step-dots {
+    gap: 8px;
+  }
+  .card,
+  .panel {
+    box-shadow: 0 4px 14px rgba(16, 41, 74, 0.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root {
+  --paper: #f7f4ed;
+  --surface: #fffdfa;
+  --blue-d: #112c50;
+  --blue: #214e89;
+  --gold-t: #8a6420;
+}
+.stage,
+.demo {
+  box-shadow: 0 10px 28px rgba(16, 41, 74, 0.1);
+}
+.showcase .frame {
+  transform: none;
+  box-shadow: none;
+}
+.stage .acts button,
+.btn,
+.cta button {
+  border-radius: 10px;
+  min-height: 48px;
+}
+.stage .pick button {
+  min-height: 46px;
+}
+header .masthead h1 {
+  letter-spacing: -0.02em;
+}
+
+#back,
+#to-home {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 10px;
+}
+.foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
+/* Operational tools share the same restrained feedback as public screens. */
+button,
+.btn,
+[role="button"] {
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.view.on {
+  animation: tool-fade 0.2s ease-out;
+}
+@keyframes tool-fade {
+  from {
+    opacity: 0.5;
+  }
+}
+.adm-card {
+  border: 0;
+  border-bottom: 1px solid var(--line, #e5dac3);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.adm-card .adm-card {
+  padding-inline: 0;
+}

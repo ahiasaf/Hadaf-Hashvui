@@ -1,0 +1,43 @@
+{
+  "title": "סטודיו הדף - זיהוי אזורים ושורות",
+  "original": "studio",
+  "attributes": "",
+  "links": [
+    "<link rel=\"manifest\" href=\"studio-manifest.json\">",
+    "<link rel=\"icon\" href=\"icon-studio-192.png\">",
+    "<link rel=\"apple-touch-icon\" href=\"icon-studio-192.png\">",
+    "<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"icon-studio-192.png\">"
+  ],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/links.js"
+    },
+    {
+      "type": "",
+      "src": "/stepid.js"
+    },
+    {
+      "type": "module",
+      "inline": "entry-04.mjs"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-05-01-ink.js",
+        "entry-05-02-analyseSimple.js",
+        "entry-05-03-chavStore.js",
+        "entry-05-04-restoreCal.js",
+        "entry-05-05-inspSplit.js",
+        "entry-05-06-prevStep.js",
+        "entry-05-07-keepLocal.js",
+        "entry-05-08-runsHtml.js",
+        "entry-05-09-chavText.js"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "מפקד טיול",
+  "original": "tiul",
+  "attributes": "",
+  "links": [],
+  "scripts": [
+    {
+      "type": "",
+      "files": [
+        "entry-01-01-bootstrap.js"
+      ]
+    }
+  ]
+}

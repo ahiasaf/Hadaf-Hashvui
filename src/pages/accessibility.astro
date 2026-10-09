@@ -1,0 +1,30 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Copy from "../components/Copy.astro";
+import program from "../generated/program.json";
+const text = program.accessibility;
+---
+
+<Site title={text.title}>
+  <article class="workspace document narrow">
+    <Copy field="a11y.title" value={text.title} as="h1" />
+    <Copy field="a11y.lead" value={text.lead} />
+    {["std", "did", "gap", "call"].map((key) => (
+      <section>
+        <Copy
+          field={`a11y.${key}H`}
+          value={text[`${key}H` as keyof typeof text]}
+          as="h2"
+        />
+        <Copy field={`a11y.${key}`} value={text[key as keyof typeof text]} />
+      </section>
+    ))}
+    <p>
+      <span data-copy="a11y.coordName">{text.coordName}</span>{" "}
+      <span data-copy="a11y.coordWay">{text.coordWay}</span>
+    </p>
+    <Copy field="a11y.coordNone" value={text.coordNone} />
+    <Copy field="a11y.date" value={text.date} />
+  </article>
+</Site>

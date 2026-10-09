@@ -1,0 +1,154 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Invitations from "../components/Invitations";
+import program from "../generated/program.json";
+import { sendKeys } from "../lib/invitations";
+import { pickRetired, pickStrings } from "../lib/share-links";
+import toolCopy from "../generated/tool-copy.json";
+const copy = pickStrings(toolCopy.send, sendKeys);
+const retired = pickRetired(toolCopy.retired);
+const media: Record<string, string> = program.media;
+// WhatsApp receives the original JPEG; the page shows the optimized preview.
+const flyers = {
+  sons: {
+    display: media["flyer/sons.jpg"] || "/flyer/sons.jpg",
+    file: "/flyer/sons.jpg",
+    download: "hadaf-sons.jpg",
+  },
+  par: {
+    display: media["flyer/parents.jpg"] || "/flyer/parents.jpg",
+    file: "/flyer/parents.jpg",
+    download: "hadaf-parents.jpg",
+  },
+};
+---
+
+<Site title={copy.h1} robots="noindex,nofollow">
+  <Invitations
+    copy={copy}
+    institutions={program.institutions}
+    flyers={flyers}
+    retired={retired}
+    client:load
+  />
+  <noscript>
+    <p class="workspace notice">
+      שליחת ההודעות דורשת JavaScript. הפליירים:{" "}
+      <a href="/flyer/sons.jpg">לתלמידים</a>,{" "}
+      <a href="/flyer/parents.jpg">להורים</a>.
+    </p>
+  </noscript>
+</Site>
+
+<style is:global>
+  .step-number {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    margin-inline-end: 10px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 800;
+    vertical-align: middle;
+  }
+  .grade-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .grade-grid button {
+    min-height: 52px;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 1.1rem;
+    font-weight: 750;
+    transition:
+      background 0.15s,
+      color 0.15s,
+      border-color 0.15s,
+      transform 0.12s;
+  }
+  .grade-grid button:hover {
+    background: var(--tint);
+  }
+  .grade-grid button:active {
+    transform: scale(0.97);
+  }
+  .grade-grid button[aria-pressed="true"] {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+  }
+  .invitation {
+    margin-top: 20px;
+  }
+  .invitation .button {
+    min-height: 62px;
+  }
+  .invitation .button span {
+    display: grid;
+    line-height: 1.3;
+  }
+  .invitation .button small {
+    font-weight: 600;
+    font-size: 0.8rem;
+    opacity: 0.85;
+  }
+  .invitation .text-button,
+  .invitation .form-hint {
+    display: block;
+    margin: 8px auto 0;
+    text-align: center;
+  }
+  .invitation-preview {
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--tint);
+  }
+  .invitation-preview img {
+    width: 100%;
+    max-width: 15rem;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  .invitations .invitation-message {
+    margin: 14px 0;
+    text-align: start;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+    color: var(--ink);
+  }
+  .whatsapp-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 24px auto 0;
+    max-width: 22rem;
+  }
+  .whatsapp-hint strong {
+    text-align: start;
+  }
+  .invitation-target {
+    margin-top: 12px;
+  }
+  .copy-editor {
+    text-align: start;
+  }
+  .copy-editor label {
+    margin-top: 16px;
+  }
+  .copy-editor em {
+    font-style: normal;
+    color: var(--gold-t);
+  }
+</style>

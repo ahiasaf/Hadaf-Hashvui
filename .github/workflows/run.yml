@@ -1,7 +1,7 @@
 # ============================================================
 # הרצת כלים מהנייד.
 #
-# הרכז עובד מהטלפון. הכלים שב-tools/ דורשים פייתון, poppler ורשת —
+# הרכז עובד מהטלפון. הכלים שב-tools/ דורשים פייתון, poppler ורשת -
 # דברים שאין בטלפון ואין טעם להתקין בו. במקום זה הם רצים כאן, על
 # מכונת GitHub, והתוצאות נדחפות חזרה לריפו.
 #
@@ -17,24 +17,25 @@ on:
   workflow_dispatch:
     inputs:
       job:
-        description: 'איזו משימה'
+        description: "איזו משימה"
         required: true
-        default: 'sugya'
+        default: "sugya"
         type: choice
         options:
-          - sugya          # מיפוי הסוגיה היומית
-          - library        # המרת צורות הדף לתמונות
-          - check-links    # בדיקת קישורי הדפים
-          - dflip          # מה הפליפבוק מקבל מהכתובת
-          - word           # מה יש בקובצי הוורד של חברותא
-          - align          # התאמת הסימונים לוורד
-          - apply          # כתיבת ההתאמה לגיליון (עם גיבוי)
-          - chavruta       # בניית מאגר הביאור מקובצי הוורד
-          - fix-bold       # התאמה + כתיבה, בריצה אחת
+          - sugya # מיפוי הסוגיה היומית
+          - library # המרת צורות הדף לתמונות
+          - check-links # בדיקת קישורי הדפים
+          - dflip # מה הפליפבוק מקבל מהכתובת
+          - word # מה יש בקובצי הוורד של חברותא
+          - align # התאמת הסימונים לוורד
+          - apply # כתיבת ההתאמה לגיליון (עם גיבוי)
+          - chavruta # בניית מאגר הביאור מקובצי הוורד
+          - database-export # Encrypted read-only database migration snapshot
+          - fix-bold # התאמה + כתיבה, בריצה אחת
       args:
-        description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
+        description: "פרמטרים (למשל: taanit_a_b ב ג ד)"
         required: false
-        default: ''
+        default: ""
         type: string
 
 permissions:
@@ -42,13 +43,14 @@ permissions:
 
 jobs:
   run:
+    if: inputs.job != 'database-export'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       # poppler דרוש רק ל-library, אבל הוא זול ומותקן תמיד כדי
       # ששינוי משימה לא ידרוש עריכה של הקובץ הזה.
@@ -59,17 +61,21 @@ jobs:
           pip install --quiet pdfplumber pillow
 
       - name: הרצה
+        env:
+          INPUT_JOB: ${{ inputs.job }}
+          INPUT_ARGS: ${{ inputs.args }}
         run: |
           set -o pipefail
-          case "${{ inputs.job }}" in
-            sugya)       python3 tools/sugya-index.py   ${{ inputs.args }} ;;
-            library)     python3 tools/build-library.py ${{ inputs.args }} ;;
-            check-links) python3 tools/check-links.py   ${{ inputs.args }} ;;
-            dflip)       python3 tools/dflip-probe.py   ${{ inputs.args }} ;;
-            word)        python3 tools/word-probe.py    ${{ inputs.args }} ;;
-            align)       python3 tools/chav-align.py    ${{ inputs.args }} ;;
-            apply)       python3 tools/chav-apply.py    ${{ inputs.args }} ;;
-            chavruta)    python3 tools/build-chavruta.py ${{ inputs.args }} ;;
+          read -r -a tool_args <<< "$INPUT_ARGS"
+          case "$INPUT_JOB" in
+            sugya)       python3 tools/sugya-index.py "${tool_args[@]}" ;;
+            library)     python3 tools/build-library.py "${tool_args[@]}" ;;
+            check-links) python3 tools/check-links.py "${tool_args[@]}" ;;
+            dflip)       python3 tools/dflip-probe.py "${tool_args[@]}" ;;
+            word)        python3 tools/word-probe.py "${tool_args[@]}" ;;
+            align)       python3 tools/chav-align.py "${tool_args[@]}" ;;
+            apply)       python3 tools/chav-apply.py "${tool_args[@]}" ;;
+            chavruta)    python3 tools/build-chavruta.py "${tool_args[@]}" ;;
             # שניהם בריצה אחת: הקובץ שהראשון כותב מוחרג מהריפו
             # (הוא מחזיק טלפונים ושמות), ולכן הוא אינו שורד בין ריצות.
             fix-bold)    python3 tools/chav-align.py && python3 tools/chav-apply.py write ;;
@@ -82,34 +88,61 @@ jobs:
           name: ${{ inputs.job }}-output
           path: |
             run.log
-            sugya/
+            docs/research/sugya/
             docs/
-            daf/index.json
+            static/daf/index.json
           if-no-files-found: ignore
 
       - name: דחיפה
         if: always()
+        env:
+          INPUT_JOB: ${{ inputs.job }}
         run: |
           git config user.name  'hadaf-bot'
           git config user.email 'hadaf-bot@users.noreply.github.com'
           # כל תיקייה בנפרד: git add נכשל על נתיב שאינו קיים ואז
           # אינו מוסיף **כלום**, גם לא את מה שכן נוצר. וב-if ולא ב-&&,
           # כי הצעד רץ תחת `bash -e` ותנאי שקרי היה מפיל אותו.
-          for d in sugya daf docs chav; do
+          for d in static/daf static/chav docs; do
             if [ -d "$d" ]; then git add -A "$d"; fi
           done
           echo '--- מה נוצר ---'
-          ls -la sugya 2>/dev/null | head -30
+          ls -la docs/research/sugya 2>/dev/null | head -30
           echo '--- מה מוכן לדחיפה ---'
           git status --short | head -30
           if git diff --cached --quiet; then
             echo 'אין שינוי לדחוף'
             exit 0
           fi
-          git commit -m "תוצאות ${{ inputs.job }} ${{ inputs.args }}"
+          git commit -m "chore: update ${INPUT_JOB} output"
           for i in 1 2 3 4; do
             git pull --rebase origin "${GITHUB_REF_NAME}" && \
             git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
             sleep $((2 ** i))
           done
           exit 1
+
+  database-export:
+    if: inputs.job == 'database-export'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+      - name: Export and encrypt source data
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          READ_KEY: ${{ secrets.READ_KEY }}
+          MIGRATION_EXPORT_KEY: ${{ secrets.MIGRATION_EXPORT_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/export-database.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: encrypted-database-export
+          path: database-export.enc
+          retention-days: 1
+          if-no-files-found: error

@@ -1,0 +1,142 @@
+{
+  "title": "הדף השבועי של בני עקיבא",
+  "original": "index",
+  "attributes": "",
+  "links": [
+    "<link rel=\"icon\" href=\"icon-192.png\">",
+    "<link rel=\"manifest\" href=\"manifest.json\">",
+    "<link rel=\"apple-touch-icon\" href=\"icon-192.png\">",
+    "<link rel=\"apple-touch-icon-precomposed\" href=\"icon-192.png\">"
+  ],
+  "scripts": [
+    {
+      "type": "",
+      "files": [
+        "entry-01-01-stuDevice.js"
+      ]
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-02-01-homeManifest.js"
+      ]
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-04-01-bootstrap.js"
+      ]
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-05-01-bootstrap.js"
+      ]
+    },
+    {
+      "type": "",
+      "src": "/a11y.js"
+    },
+    {
+      "type": "",
+      "src": "/logo.js"
+    },
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/deck.js"
+    },
+    {
+      "type": "",
+      "src": "/textedit.js"
+    },
+    {
+      "type": "",
+      "src": "/stage.js"
+    },
+    {
+      "type": "",
+      "src": "/learned.js"
+    },
+    {
+      "type": "",
+      "src": "/trail.js"
+    },
+    {
+      "type": "",
+      "src": "/stepid.js"
+    },
+    {
+      "type": "",
+      "src": "/ways.js"
+    },
+    {
+      "type": "",
+      "src": "/links.js"
+    },
+    {
+      "type": "",
+      "src": "/getapp.js"
+    },
+    {
+      "type": "",
+      "src": "/guide.js"
+    },
+    {
+      "type": "",
+      "src": "/ask.js"
+    },
+    {
+      "type": "",
+      "src": "/trip.js"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-21-01-weekIndex.js",
+        "entry-21-02-openFromHome.js",
+        "entry-21-03-orderRows.js",
+        "entry-21-04-copyTeam.js",
+        "entry-21-05-accCheck.js",
+        "entry-21-06-sayHtml.js",
+        "entry-21-07-openWeek.js",
+        "entry-21-08-quizWho.js",
+        "entry-21-09-anyTag_.js",
+        "entry-21-10-blastReset.js",
+        "entry-21-11-yshStore.js",
+        "entry-21-12-yshFilter.js",
+        "entry-21-13-ctPaint.js",
+        "entry-21-14-bulkImportClose.js",
+        "entry-21-15-textsFromRows.js",
+        "entry-21-16-admRefreshBtn.js",
+        "entry-21-17-trKey.js",
+        "entry-21-18-cfgDropDraft.js",
+        "entry-21-19-admGo.js",
+        "entry-21-20-pplTags.js",
+        "entry-21-21-funInRow.js",
+        "entry-21-22-needsResend.js",
+        "entry-21-23-gradeOf.js",
+        "entry-21-24-waPickSet.js",
+        "entry-21-25-codeNew.js",
+        "entry-21-26-textOrphans.js",
+        "entry-21-27-pairLoad.js",
+        "entry-21-28-pushInvite.js",
+        "entry-21-29-tkStart.js",
+        "entry-21-30-dkPdfMsg.js",
+        "entry-21-31-dkmClone.js",
+        "entry-21-32-opToggle.js",
+        "entry-21-33-amdaFromSheets.js",
+        "entry-21-34-amdaReset.js",
+        "entry-21-35-amdaLesSave.js",
+        "entry-21-36-amdaWaGrade.js",
+        "entry-21-37-admPing.js",
+        "entry-21-38-sidHead_.js",
+        "entry-21-39-isAdminRoute.js",
+        "entry-21-40-tourTry.js"
+      ]
+    }
+  ]
+}

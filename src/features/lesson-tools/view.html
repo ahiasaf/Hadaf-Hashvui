@@ -1,0 +1,138 @@
+
+
+<header>
+  <div class="hrow">
+    <a class="back" href="join.html" id="back">▸ יציאה</a>
+    <div class="ttl" id="ttl" role="button" tabindex="0" onclick="pickOpen()"><h1 id="t-daf">לימוד אינטראקטיבי</h1><span id="t-sub"></span></div>
+    <!-- ריק. כאן ישב "קטע 17 מתוך 41" - חשבונאות של מי שחילק
+         את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
+         את אותו דבר בלי מספר. המקום נשמר. -->
+    <span id="count"></span>
+  </div>
+  <div class="prog"><i id="bar"></i></div>
+</header>
+<!-- נדלקת רק כשחזרנו לאמצע דף, ומתפוגגת לבד. -->
+<div class="resume" id="resume"></div>
+<div class="pick" id="pick" onclick="if(event.target===this)pickClose()"></div>
+
+<main>
+  <!-- האזור הצדדי **ראשון** בסדר ה-DOM, ולכן במסך RTL הוא הימני
+       ביותר: המצגת מימין לדף, והחברותא משמאלו. הדף באמצע, בין
+       מה שמראים לו לבין מה שמסבירים לו. -->
+  <aside id="side"></aside>
+
+  <section class="stage" id="stage">
+    <div id="holder">
+      <img id="page" alt="צורת הדף" draggable="false">
+      <svg id="ov" preserveAspectRatio="none"></svg>
+    </div>
+    <!-- הבועה. שלושה מצבים באותו מקום: "הדגמה" בזמן שהיא רצה,
+         ההזמנה לגעת כשהיא נגמרת, וכפתור היציאה אחרי שנגעו.
+         מרחפת מעל הדף ואינה תופסת מקום בפריסה - פס תחתון דחק
+         את החברותא כלפי מעלה ושיבש את הדף. -->
+    <div class="dbadge" id="dbadge"></div>
+    <!-- עיגול החידה. צף, קבוע במקום, בפינה השמאלית התחתונה, ולידו
+         כיתוב שמופיע רק בפעמים הראשונות. לחיצה עליו מחליפה את תוכן המגירה - ראו
+         quizFabPaint/paintChavArea - ולא פותחת חלון או לשונית. -->
+    <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה"></button>
+    <div class="qhint" id="qhint" role="button" tabindex="0"></div>
+    <div class="veil" id="veil"><div>
+      <div class="spin"></div>
+      <b id="veil-t">מביא את הדף…</b>
+      <small id="veil-s">רגע אחד</small>
+    </div></div>
+  </section>
+
+  <aside class="chav" id="chav">
+    <div class="chd"><span class="cht" id="cht"></span>
+      <span class="zoom"><button id="czm" title="הקטנת הטקסט">א−</button>
+        <button id="czp" title="הגדלת הטקסט">א+</button></span>
+      <span class="sp"></span>
+      <span id="chnum" style="font-weight:700;color:var(--ink-3);font-size:.78rem"></span>
+      <button id="chclose" title="סגירה">✕</button></div>
+    <div class="chb" id="chb"></div>
+  </aside>
+</main>
+
+<!-- לוח המקליט. מוסתר תמיד, ונדלק רק ב-`?rec=1`. -->
+<div class="rec" id="rec">
+  <div class="rec-h"><b>מקליט הדגמה</b></div>
+  <div class="rec-b" id="rec-b"></div>
+  <div class="rec-a" id="rec-a"></div>
+</div>
+
+<nav><div class="nrow">
+  <button id="prev">▸ הקודם</button>
+  <span class="sp"></span>
+  <button id="chtog">פירוש</button>
+  <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
+  <button id="dktog" style="display:none">איור</button>
+  <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
+  <button class="p" id="next">הבא ◂</button>
+</div></nav>
+
+<!-- ============================================================
+     שער הדף.
+     ============================================================
+     הוצאת ח. וגשל נתנה רשות להשתמש בצורת הדף וביקשה שיהיה
+     קישור לרכישה. זה המקום שבו הבקשה מתקיימת.
+
+     שער ולא חלון קופץ: בגמרא מודפסת עוברים דרך השער בכל פתיחה,
+     ואיש אינו מתלונן - כי עוברים בו מהר והוא יפה. בכניסה
+     הראשונה הוא ממתין ללחיצה, כדי שייקרא באמת פעם אחת. בכל
+     כניסה אחרת הוא מתפוגג לבד אחרי שנייה וחצי, ולחיצה מדלגת.
+
+     והקישור עצמו חי גם מחוץ לשער - בתחתית פאנל החברותא. קישור
+     שקיים רק שנייה וחצי אינו קישור רכישה, ואם אנחנו הוגנים
+     איתם צריך שיהיה להם אחד שאפשר להשתמש בו כשבאמת רוצים. -->
+<div class="sheet gate" id="gate"><div class="card">
+  <a id="g-logo" target="_blank" rel="noopener"><img id="g-logoimg" alt=""></a>
+  <div class="gn" id="g-gem"></div>
+  <a class="gbuy" id="g-gembuy" target="_blank" rel="noopener"></a>
+  <i class="grule"></i>
+  <div class="gk" id="g-k2"></div>
+  <div class="gn sm" id="g-chav"></div>
+  <div class="gby" id="g-chavby"></div>
+  <button class="btn p" id="gate-go"></button>
+</div></div>
+
+<!-- בחירת שקף קיים לחלק-פירוש - רשת ממוזערים, לא רשימת מספרים.
+     "שקף 5" לא אומר לאחיאסף כלום, הוא צריך לראות מה עליו. נפתח
+     מעל הכל (מחלקת .sheet הקיימת) ולא תופס מקום כשהוא סגור. -->
+<div class="sheet own-pick" id="own-pick"></div>
+
+<!-- ייצוא הפירוש לכל הדף - טקסט ממוספר לקטעים, בלי תיוג חלקים,
+     להדבקה החוצה (GPT, מסמך וכד'). אותה מחלקת .sheet. -->
+<div class="sheet own-export" id="own-export"></div>
+
+<!-- **מסך הפתיחה "הדף, קטע אחר קטע" ירד.** הוא הסביר שלושה
+     דברים שהדף מלמד בעצמו תוך שתי לחיצות: מה מואר, איך
+     מתקדמים, ומה עושה חברותא. מסך שעומד בין אדם לבין הדבר
+     שבא לראות גובה מחיר ודאי בשביל תועלת משוערת.
+
+     הקרדיטים שהיו בתחתיתו לא אבדו: הם בשער שנפתח לפניו,
+     ובתחתית פאנל החברותא. -->
+
+<!-- מסך הסיום. שתי הפעולות שתלמיד באמת רוצה כאן הן החידה
+     והדף הבא, ולכן הן למעלה ובולטות. "חזרה לדף" סוגר את
+     המסך ומשאיר אותו על הדף - מי שסיים לא בהכרח סיים להסתכל. -->
+<div class="sheet" id="done"><div class="card">
+  <div class="seal">📖</div>
+  <h2>ישר כוח!</h2>
+  <p id="done-sub"></p>
+  <!-- הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד
+       סופו, ולבקש ממנו לאשר את מה שהרגע עשה זו שאלה מיותרת.
+       השורה רק מדווחת. -->
+  <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
+     font-size:.88rem;margin-top:-4px"></p>
+  <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
+  <a class="btn nx" id="to-next" href="./">לדף הבא</a>
+  <button class="btn" id="stay">חזרה לדף</button>
+  <div class="minor">
+    <button id="again">מהתחלה</button>
+    <a href="join.html" id="to-home">חזרה לתוכנית</a>
+  </div>
+</div></div>
+
+<!-- לוח השנה, קישורי הדפים וכתובת המחבר - אותם קבצים שהאפליקציה
+     עצמה נשענת עליהם. אין כאן מאגר נפרד. -->

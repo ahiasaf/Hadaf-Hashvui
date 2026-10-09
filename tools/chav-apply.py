@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 כתיבת הסימונים המותאמים לוורד חזרה לגיליון.
@@ -36,8 +37,8 @@ import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FIXED = os.path.join(ROOT, 'docs', 'marks-word.json')
-BACKUP = os.path.join(ROOT, 'docs', 'marks-backup.json')
+FIXED = project_path( 'docs', 'marks-word.json')
+BACKUP = project_path( 'docs', 'marks-backup.json')
 
 TAB = 'סימוני הדף'
 UA = {'User-Agent': 'Mozilla/5.0'}
@@ -53,7 +54,7 @@ def js_value(path, name):
 
 
 def sheet_id():
-    return js_value(os.path.join(ROOT, 'data.js'), 'SHEET_ID')
+    return js_value(project_path( 'data.js'), 'SHEET_ID')
 
 
 def read_now():
@@ -119,7 +120,7 @@ def main():
         print('\nריצה יבשה. להרצה אמיתית: chav-apply.py write')
         return 0
 
-    api = js_value(os.path.join(ROOT, 'data.js'), 'APPS_SCRIPT_URL').strip()
+    api = js_value(project_path( 'data.js'), 'APPS_SCRIPT_URL').strip()
     # גוף JSON, ובדיוק באותה צורה שבה האפליקציה שולחת: `doPost`
     # עושה JSON.parse על גוף הבקשה, ו-`cols`/`rows` הם מחרוזות
     # מקוננות. טופס urlencode נפל שם בשקט ולא נכתב דבר.

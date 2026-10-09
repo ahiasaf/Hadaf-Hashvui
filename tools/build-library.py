@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 בניית מאגר צורות הדף שהאתר מגיש בעצמו.
@@ -54,7 +55,7 @@ import time
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'daf')
+OUT = project_path( 'daf')
 INDEX = os.path.join(OUT, 'index.json')
 
 WIDTH = 1600
@@ -205,8 +206,8 @@ ALIAS = {'תענית': 'taanit', 'מגילה': 'megila', 'מגלה': 'megila'}
 
 
 if __name__ == '__main__':
-    api = js_value(os.path.join(ROOT, 'data.js'), 'APPS_SCRIPT_URL').strip()
-    links = js_value(os.path.join(ROOT, 'links.js'), 'DAF_LINKS')
+    api = js_value(project_path( 'data.js'), 'APPS_SCRIPT_URL').strip()
+    links = js_value(project_path( 'links.js'), 'DAF_LINKS')
     args = [a for a in sys.argv[1:] if a != 'force']
     FORCE = len(args) != len(sys.argv[1:])
     want_mas = args[0] if args else None

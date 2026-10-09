@@ -1,3 +1,4 @@
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """מניפסט לכל ישיבה — לתלמיד (m/) ולראש החטיבה (mh/).
 
@@ -30,14 +31,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    d = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    blk = d[d.index('var INSTITUTIONS = ['):]
-    blk = blk[:blk.index('\n];')]
-    codes = re.findall(r"code:'([a-z]+)'", blk)
+    data = json.load(io.open(project_path('src','config','program.json'), encoding='utf-8'))
+    codes = [institution['code'] for institution in data['INSTITUTIONS']]
 
-    base = json.load(io.open(os.path.join(ROOT, 'join-manifest.json'),
+    base = json.load(io.open(project_path( 'join-manifest.json'),
                              encoding='utf-8'))
-    out = os.path.join(ROOT, 'm')
+    out = project_path( 'm')
     if not os.path.isdir(out):
         os.makedirs(out)
     for old in glob.glob(os.path.join(out, '*.json')):
@@ -55,9 +54,9 @@ def main():
             json.dumps(man, ensure_ascii=False, indent=2) + '\n')
 
     # ---- ולראש החטיבה, עם אותו היגיון בדיוק ----
-    home = json.load(io.open(os.path.join(ROOT, 'manifest.json'),
+    home = json.load(io.open(project_path( 'manifest.json'),
                              encoding='utf-8'))
-    outh = os.path.join(ROOT, 'mh')
+    outh = project_path( 'mh')
     if not os.path.isdir(outh):
         os.makedirs(outh)
     for old in glob.glob(os.path.join(outh, '*.json')):
@@ -82,7 +81,7 @@ def main():
 
     # ומי שמתקין מתוך המסע בלי שהישיבה ידועה עדיין — וזה הרוב,
     # כי באייפון ההתקנה קודמת להרשמה.
-    io.open(os.path.join(ROOT, 'manifest-masa.json'), 'w',
+    io.open(project_path( 'manifest-masa.json'), 'w',
             encoding='utf-8').write(
         json.dumps(head_manifest('/?masa=go'), ensure_ascii=False,
                    indent=2) + '\n')

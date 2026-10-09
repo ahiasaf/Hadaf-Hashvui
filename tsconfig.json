@@ -1,0 +1,27 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "src/**/*",
+    "api/**/*",
+    "tools/*.mts",
+    "astro.config.mjs"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/shared",
+    "src/config",
+    "src/features",
+    "src/service-worker.js"
+  ]
+}

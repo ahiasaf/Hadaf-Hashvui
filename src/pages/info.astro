@@ -1,0 +1,43 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import Copy from "../components/Copy.astro";
+import program from "../generated/program.json";
+const text = program.info;
+---
+
+<Site title={text.title}>
+  <article class="workspace document narrow">
+    <Copy field="info.title" value={text.title} as="h1" />
+    <section id="privacy">
+      <Copy field="info.privH" value={text.privH} as="h2" />
+      <Copy field="info.priv" value={text.priv} />
+    </section>
+    <section>
+      <Copy field="info.a11yH" value={text.a11yH} as="h2" />
+      <Copy field="info.a11y" value={text.a11y} />
+      <a class="secondary-link" href="/accessibility">
+        {text.a11yGo}
+      </a>
+    </section>
+    <section>
+      <Copy field="info.credH" value={text.credH} as="h2" />
+      <Copy field="info.cred" value={text.cred} />
+      {["gem", "chav", "daf"].map((key) => (
+        <div>
+          <Copy
+            field={`info.${key}H`}
+            value={text[`${key}H` as keyof typeof text]}
+            as="h3"
+          />
+          <Copy field={`info.${key}`} value={text[key as keyof typeof text]} />
+          <Copy
+            field={`info.${key}Note`}
+            value={text[`${key}Note` as keyof typeof text] || ""}
+          />
+        </div>
+      ))}
+    </section>
+    <p class="form-hint">גרסה 9.0.0</p>
+  </article>
+</Site>

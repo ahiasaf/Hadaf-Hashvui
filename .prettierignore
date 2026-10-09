@@ -1,0 +1,6 @@
+src/generated/
+src/shared/
+src/features/
+src/service-worker.js
+dist/
+node_modules/

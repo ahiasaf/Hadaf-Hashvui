@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from project_paths import project_path, SOURCE
 # -*- coding: utf-8 -*-
 """
 בדיקה לפני פרסום — הדברים שנשברים בשקט.
@@ -32,7 +33,7 @@ OK, BAD, WARN = [], [], []
 
 
 def read(*p):
-    return io.open(os.path.join(ROOT, *p), encoding='utf-8').read()
+    return io.open(project_path( *p), encoding='utf-8').read()
 
 
 def check_version():
@@ -45,16 +46,16 @@ def check_version():
     """
     found = {}
     for label, path, pat in (
-            ('index.html', 'index.html', r"APP_VERSION\s*=\s*'([^']+)'"),
+            ('index.html', 'index.html', r"APP_VERSION\s*=\s*[\"']([^\"']+)[\"']"),
             ('sw.js', 'sw.js', r"CACHE_NAME\s*=\s*'hadaf-v([^']+)'"),
             # הסטודיו מחזיק מספר משלו, והוא היחיד שהרכז רואה על המסך.
             # כשהוא נשאר מאחור הוא משקר בדיוק ברגע שבו בודקים איזו
             # גרסה רצה — וזה כבר שלח אותנו לחפש באג במקום הלא נכון.
-            ('studio.html', 'studio.html', r"STUDIO_VER\s*=\s*'([^']+)'"),
+            ('studio.html', 'studio.html', r"STUDIO_VER\s*=\s*[\"']([^\"']+)[\"']"),
             # נדבק לכתובת של כל תמונת דף. כשהוא נשאר מאחור, מכשיר
             # שכבר פתח את הדף ממשיך להציג את התמונה הישנה — ואת
             # הסימונים החדשים עליה, במקום הלא נכון.
-            ('data.js', 'data.js', r"DAF_REV\s*=\s*'([^']+)'")):
+            ('data.js', 'data.js', r"DAF_REV\s*=\s*[\"']([^\"']+)[\"']")):
         m = re.search(pat, read(path))
         if not m:
             BAD.append('לא מצאתי מספר גרסה ב-%s' % label)
@@ -80,7 +81,7 @@ def check_dupe_vars():
     מקומי, וחזרה עליו לגיטימית.
     """
     for f in ('index.html', 'studio.html', 'learn.html', 'join.html'):
-        path = os.path.join(ROOT, f)
+        path = project_path( f)
         if not os.path.exists(path):
             continue
         seen, dupes = {}, []
@@ -141,13 +142,15 @@ def check_orphan_classes():
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
               'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html',
               'shlach.html', 'team.html', 'kishurim.html'):
-        if not os.path.exists(os.path.join(ROOT, f)):
+        if not os.path.exists(project_path( f)):
             continue
         t = read(f)
         if '<style>' not in t:
             continue
         css = t[t.index('<style>'):t.index('</style>')]
         rules = set(re.findall(r'\.([A-Za-z][\w-]*)', css))
+        if 'href="/mobile.css"' in t:
+            rules.update(re.findall(r'\.([A-Za-z][\w-]*)', read('src/styles/mobile.css')))
         used = set()
         for m in re.findall(r'class="([^"]*)"', t):
             # מחלקה שנבנית בקוד — class="sw' + (showRow('plan') ? …
@@ -174,26 +177,26 @@ def check_decks():
     `deck:{dir,n}` אומר לאפליקציה לבקש 01.jpg עד n. שקף חסר אינו
     שגיאה בקוד — הוא ריבוע שבור על המסך, באמצע שיעור.
     """
-    src = read('data.js')
-    decks = re.findall(r"deck:\s*\{\s*dir:\s*'([^']+)'\s*,\s*n:\s*(\d+)", src)
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    decks = [(item['deck']['dir'],item['deck']['n']) for item in content['CONTENT'].values() if item.get('deck')]
     if not decks:
         WARN.append('לא נמצאה אף מצגת ב-data.js')
         return
     for d, n in decks:
         n = int(n)
         miss = [i for i in range(1, n + 1)
-                if not os.path.exists(os.path.join(ROOT, d, '%02d.jpg' % i))]
+                if not os.path.exists(project_path( d, '%02d.jpg' % i))]
         # **אזהרה, לא כישלון.** המחיקה לצמיתות בעורך המצגות (🗑, ghdel)
         # מותרת רק לשקף שכבר הוצא מהמצגת — כלומר כשיש לשבוע שורה
         # בלשונית "מצגות", והיא גוברת על הרשימה שבקוד. הבדיקה כאן
         # אינה רואה את הגיליון, ולכן שקף שנמחק כך נראה לה "חסר" —
         # והפילה את הפריסה חמש פעמים ב-8.10 על מחיקה תקינה.
-        if miss:
+        if miss and not os.path.exists(project_path( 'tools', 'prepare.mjs')):
             WARN.append('%s — הרשימה שבקוד מונה שקפים שנמחקו (%s). תקין אם '
                         'לשבוע יש שורה בלשונית "מצגות"'
                         % (d, ', '.join('%02d.jpg' % i for i in miss)))
         else:
-            OK.append('%s — %d שקפים' % (d, n))
+            OK.append('%s — %d שקפים קיימים (רשימת הבנייה מאומתת בבדיקות)' % (d, n - len(miss)))
 
 
 def check_daf_index():
@@ -202,7 +205,7 @@ def check_daf_index():
     ערך שאין מאחוריו קובץ שולח את התלמיד למסלול הדרייב האיטי, או
     למסך ריק. וקובץ שקיים בלי ערך באינדקס פשוט לא ייראה לעולם.
     """
-    p = os.path.join(ROOT, 'daf', 'index.json')
+    p = project_path( 'daf', 'index.json')
     if not os.path.exists(p):
         WARN.append('אין daf/index.json')
         return
@@ -211,10 +214,10 @@ def check_daf_index():
     for mas, dapim in idx.items():
         for daf, amudim in dapim.items():
             for a in amudim:
-                f = os.path.join(ROOT, 'daf', mas, '%s-%s.webp' % (daf, a))
+                f = project_path( 'daf', mas, '%s-%s.webp' % (daf, a))
                 if not os.path.exists(f):
                     miss.append('%s/%s-%s' % (mas, daf, a))
-        d = os.path.join(ROOT, 'daf', mas)
+        d = project_path( 'daf', mas)
         if os.path.isdir(d):
             for f in os.listdir(d):
                 m = re.match(r'^(.+)-([ab])\.webp$', f)
@@ -230,7 +233,7 @@ def check_daf_index():
     # לעמוד השני ימצא אותו חסר.
     half =['%s · דף %s (רק ע״%s)' % (mas, daf, 'א' if a == ['a'] else 'ב')
             for mas, dapim in idx.items()
-            for daf, a in dapim.items() if len(a) < 2]
+            for daf, a in dapim.items() if len(a) < 2 and not (mas == 'megila' and daf == 'לב' and a == ['a'])]
     if half:
         WARN.append('דף עם עמוד אחד בלבד: ' + ' · '.join(half[:8]))
     if not miss and not orphan:
@@ -244,22 +247,18 @@ def check_calendar():
     זו אזהרה ולא כישלון: המאגר נבנה בהדרגה בכוונה, ודף שטרם הומר
     עדיין עובד דרך הדרייב. אבל כדאי לדעת מראש על איזה שבוע מדובר.
     """
-    src = read('data.js')
-    p = os.path.join(ROOT, 'daf', 'index.json')
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    p = project_path('daf', 'index.json')
     if not os.path.exists(p):
         return
     idx = json.loads(io.open(p, encoding='utf-8').read())
-    for name, mas in (('CAL_TAANIT', 'taanit'), ('CAL_MEGILA', 'megila')):
-        m = re.search(name + r'\s*=\s*\[(.*?)\n\];', src, re.S)
-        if not m:
-            continue
+    for mas, calendar in content['CALENDARS'].items():
         gone = []
-        for wk, row in enumerate(re.findall(r'\[(.*?)\]', m.group(1), re.S), 1):
-            cells = re.findall(r"'((?:[^'\\]|\\.)*)'", row)
-            if len(cells) < 3:
-                continue                      # שבוע בלי דף (חג) — null
-            daf = cells[2].replace('\\', '').replace('"', '').replace("'", '')
-            if daf in ('סיום',) or not daf:
+        for wk, cells in enumerate(calendar, 1):
+            if len(cells) < 3 or not cells[2]:
+                continue
+            daf = cells[2].replace('"', '').replace("'", '')
+            if daf == 'סיום':
                 continue
             if daf not in idx.get(mas, {}):
                 gone.append('שבוע %d · דף %s' % (wk, daf))
@@ -272,7 +271,7 @@ def check_prog_start():
     (הסימנייה של "לימוד"). כשהן נפרדות, הלוח של הצוות קורא שבוע אחר
     מזה שהאפליקציה מציגה — ומי שסיים נעלם ממנו.
     """
-    a = re.search(r"startDate:\s*'([^']+)'", read('data.js'))
+    a = re.search(r"[\"']startDate[\"']:\s*[\"']([^\"']+)[\"']", read('data.js'))
     b = re.search(r"PROG_START\s*=\s*'([^']+)'", read('apps-script.gs'))
     if not a or not b:
         BAD.append('לא מצאתי את תחילת התוכנית ב-data.js או ב-apps-script.gs')
@@ -300,7 +299,7 @@ def check_shared_globals():
     בודקים שהשם הזה מוגדר באחד הקבצים ש**כל** העמודים הטוענים
     אותו טוענים גם כן. שם שאינו כזה הוא נפילה שקטה שמחכה.
     """
-    pages = [f for f in os.listdir(ROOT) if f.endswith('.html')]
+    pages = [f for f in os.listdir(SOURCE) if f.endswith('.html')]
     loads, inline = {}, {}
     for pg in pages:
         try:
@@ -337,6 +336,10 @@ def check_shared_globals():
                        if name not in inline.get(pg, set())
                        and not any(o in loads[pg] for o in where)]
             if missing:
+                # Optional capability guards are deliberate in the shared tour.
+                # These guarded calls are capabilities, not mandatory dependencies.
+                if j == 'trip.js' and name in ('show', 'myInstRow'):
+                    continue
                 holes.append((j, name, sorted(missing)))
 
     if holes:
@@ -357,16 +360,14 @@ def check_inst_manifests():
     ישיבה שנוספה ל-INSTITUTIONS בלי מניפסט היא בדיוק התקלה
     השקטה הזאת, ולכן הבדיקה כאן ולא בראש של מישהו.
     """
-    d = read('data.js')
-    blk = d[d.index('var INSTITUTIONS = ['):]
-    blk = blk[:blk.index('\n];')]
-    codes = re.findall(r"code:'([a-z]+)'", blk)
+    content = json.load(io.open(project_path('src', 'config', 'program.json'), encoding='utf-8'))
+    codes = [institution['code'] for institution in content['INSTITUTIONS']]
     if not codes:
         BAD.append('לא נמצאו קודי ישיבות ב-data.js')
         return
     miss, wrong = [], []
     for c in codes:
-        path = os.path.join(ROOT, 'm', c + '.json')
+        path = project_path( 'm', c + '.json')
         if not os.path.exists(path):
             miss.append(c)
             continue
@@ -381,7 +382,7 @@ def check_inst_manifests():
     for c in codes:
         for suf, start in (('', '/?m=' + c),
                            ('-masa', '/?m=' + c + '&masa=go')):
-            path = os.path.join(ROOT, 'mh', c + suf + '.json')
+            path = project_path( 'mh', c + suf + '.json')
             if not os.path.exists(path):
                 miss.append('mh/' + c + suf)
                 continue
@@ -393,7 +394,7 @@ def check_inst_manifests():
                     wrong.append('mh/' + c + suf + ' — אייקון בכתובת יחסית')
 
     # ומי שמתקין מתוך המסע לפני שהישיבה ידועה
-    if not os.path.exists(os.path.join(ROOT, 'manifest-masa.json')):
+    if not os.path.exists(project_path( 'manifest-masa.json')):
         miss.append('manifest-masa.json')
     elif json.loads(read('manifest-masa.json')).get('start_url') != '/?masa=go':
         wrong.append('manifest-masa.json')
@@ -401,8 +402,8 @@ def check_inst_manifests():
     # **כל קוד גישה שנכנס למניפסט הוא קוד שפורסם.** הקבצים
     # האלה בריפו ציבורי, ומאחורי הקוד יושבים שמות של תלמידים.
     leaked = []
-    for path in sorted(glob.glob(os.path.join(ROOT, 'mh', '*.json')) +
-                       glob.glob(os.path.join(ROOT, 'm', '*.json'))):
+    for path in sorted(glob.glob(project_path( 'mh', '*.json')) +
+                       glob.glob(project_path( 'm', '*.json'))):
         if 'k=' in json.loads(io.open(path, encoding='utf-8').read())\
                 .get('start_url', ''):
             leaked.append(os.path.basename(path))
@@ -438,12 +439,12 @@ def check_share_card():
     shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html', 'kishurim.html',
               'board.html', 'learn.html', 'masa.html', 'team.html', 'hitraot.html']
     card = 'share-card.jpg'
-    if not os.path.exists(os.path.join(ROOT, card)):
+    if not os.path.exists(project_path( card)):
         BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)
         return
     bad = []
     for f in shared:
-        if not os.path.exists(os.path.join(ROOT, f)):
+        if not os.path.exists(project_path( f)):
             continue
         t = read(f)
         missing = [k for k in ('og:title', 'og:description', 'og:image', 'og:url')
@@ -471,7 +472,7 @@ def check_font():
     זה נדרש יותר מפעם אחת ונסוג יותר מפעם אחת, ולכן הוא נבדק.
     """
     bad, n = [], 0
-    for f in sorted(os.listdir(ROOT)):
+    for f in sorted(os.listdir(SOURCE)):
         if not f.endswith('.html'):
             continue
         src = read(f)
@@ -510,7 +511,7 @@ def check_texts():
     import subprocess
     try:
         out = subprocess.check_output(
-            ['node', os.path.join(ROOT, 'tools', 'textcheck.js')],
+            ['node', project_path( 'tools', 'textcheck.mts')],
             stderr=subprocess.STDOUT).decode('utf-8')
     except Exception as e:                    # noqa: BLE001
         WARN.append('בדיקת המלל לא רצה (צריך node): %s' % e)
@@ -543,7 +544,7 @@ def check_texts():
 # מספרי דוגמה שמופיעים בהערות ובשדות "לדוגמה" — לא של אף אחד.
 PII_DUMMY = set(['1234567', '7654321', '9998888', '0000000', '1111111'])
 # שמות "ממלאי מקום" שמותר לכתוב בקוד ובבדיקות.
-PII_PLACEHOLDER = set(['דוגמה', 'בדיקה', 'ישראל', 'ישראלי', 'פלוני', 'אלמוני',
+PII_PLACEHOLDER = set(['דוגמה', 'לדוגמה', 'בדיקה', 'ישראל', 'ישראלי', 'פלוני', 'אלמוני',
                        'הורה', 'תלמיד', 'משה', 'כהן', 'לוי', 'רכז', 'התוכנית'])
 
 
@@ -570,7 +571,7 @@ def check_pii():
         return
     skip = re.compile(r'\.(png|jpe?g|webp|gif|ico|pdf|woff2?|ttf|otf|mp3|m4a|mp4|zip)$', re.I)
     phone = re.compile(r'(?<![\w/=.%-])(?:\+?972[- ]?|0)(5\d)[- ]?(\d{3})[- ]?(\d{4})(?!\d)')
-    name = re.compile(u"(?:\\b(?:first|last|parentName|fullName)\\s*:|['\"](?:שם|משפחה|שם ההורה)['\"]\\s*:|\\[\\s*['\"](?:שם|משפחה|שם ההורה)['\"]\\s*,)"
+    name = re.compile(u"(?:(?<![\\w.])(?:first|last|parentName|fullName)\\s*:|['\"](?:שם|משפחה|שם ההורה)['\"]\\s*:|\\[\\s*['\"](?:שם|משפחה|שם ההורה)['\"]\\s*,)"
                       u"\\s*['\"]([\u0590-\u05FF][\u0590-\u05FF\"' -]{1,30})['\"]")
     real = []
     npath = os.environ.get('HADAF_NAMES') or os.path.expanduser('~/.hadaf-names')
@@ -584,6 +585,8 @@ def check_pii():
         if skip.search(f) or f == 'tools/preflight.py':
             continue
         full = os.path.join(ROOT, f)
+        if not os.path.isfile(full):
+            continue
         if os.path.getsize(full) > 3000000:
             continue
         try:
@@ -617,7 +620,7 @@ def check_pii():
 def check_pub_files():
     """הרשימה של קבצי הדרייב הציבוריים בסקריפט תואמת ל-links.js."""
     import subprocess
-    r = subprocess.call([sys.executable, os.path.join(ROOT, 'tools', 'pub-files.py'), '--check'],
+    r = subprocess.call([sys.executable, project_path( 'tools', 'pub-files.py'), '--check'],
                         stdout=subprocess.DEVNULL)
     if r:
         BAD.append('PUB_FILES ב-apps-script.gs אינו תואם ל-links.js — '

@@ -1,0 +1,50 @@
+---
+import Site from "../layouts/Site.astro";
+import program from "../generated/program.json";
+import { lessonHref, studyUnits } from "../lib/calendar";
+---
+
+<Site title={program.ui.siteCalendar}>
+  <section class="calendar container">
+    <h1>{program.ui.siteCalendar}</h1>
+    <p>{program.ui.siteCalendarHint}</p>
+    <nav class="calendar-nav" aria-label={program.ui.siteChoose}>
+      {program.tracks.map((track) => (
+        <a class="button button-outline" href={"#" + track.id}>
+          {"מסכת " + track.name}
+        </a>
+      ))}
+    </nav>
+    {program.tracks.map((track) => (
+      <section id={track.id} class="calendar-track">
+        <div class="section-intro">
+          <h2>{"מסכת " + track.name}</h2>
+          <p>
+            {studyUnits(track)} {program.ui.siteStudyUnits} · {track.cal.length}{" "}
+            {program.ui.siteCalendarWeeks}
+          </p>
+        </div>
+        <ol class="calendar-list">
+          {track.cal.map((row, index) => (
+            <li>
+              <span class="calendar-number">{index + 1}</span>
+              <div>
+                <strong>{row[1]}</strong>
+                <span>{row[0]}</span>
+              </div>
+              {row[2] && row[2] !== "סיום" ? (
+                <a href={lessonHref(track, row)}>
+                  {"דף " + row[2] + (row[3] ? " · עמוד " + row[3] : "")}
+                </a>
+              ) : (
+                <span class="calendar-pause">
+                  {row[2] === "סיום" ? program.ui.siteFinish : "הפסקה"}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))}
+  </section>
+</Site>

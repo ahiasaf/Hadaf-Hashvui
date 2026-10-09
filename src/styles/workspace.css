@@ -1,0 +1,628 @@
+.workspace {
+  width: min(1120px, calc(100% - 64px));
+  text-align: start;
+  margin: 40px auto 56px;
+}
+.narrow {
+  max-width: 560px;
+}
+.workspace h1 {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  margin-bottom: 12px;
+}
+.workspace h1 + p,
+.page-intro h1 + p {
+  margin-top: 0;
+}
+.workspace h2 {
+  font-size: 1.35rem;
+  margin: 0 0 16px;
+}
+.workspace > p,
+.page-intro > p {
+  color: var(--muted);
+}
+/* Intros, narrow compositions and standalone actions are centered; forms, prose and tables stay at the RTL start. */
+.page-intro,
+.narrow,
+.reader > .surface {
+  text-align: center;
+}
+.page-intro > p,
+.narrow > p {
+  max-width: 34rem;
+  margin-inline: auto;
+}
+.flow-form,
+.document {
+  text-align: start;
+}
+.workspace .button {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid transparent;
+  justify-content: center;
+}
+.narrow .button,
+.reader > .surface .button,
+.reminders .button,
+.narrow .text-button,
+.page-intro + .institution-select {
+  margin-inline: auto;
+}
+.narrow > .text-button {
+  display: block;
+}
+.reader-controls .button {
+  max-width: none;
+}
+.completion .button {
+  margin-inline: auto;
+}
+.workspace .button-outline {
+  border-color: var(--muted);
+}
+.workspace .button + .button,
+.workspace .button + .text-button {
+  margin-top: 12px;
+}
+.workspace > .text-button {
+  display: block;
+}
+.flow-form {
+  display: grid;
+  gap: 16px;
+}
+.workspace > .flow-form.narrow {
+  margin-inline: auto;
+}
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  min-width: 0;
+}
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 46px;
+  background: var(--surface);
+  border: 1px solid #adb9c7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 0.15s;
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #8696aa;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--blue);
+}
+/* Compact custom select: the chevron sits at the inline end (left in RTL). */
+select {
+  appearance: none;
+  padding-inline-end: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%2317468f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 16px;
+  background-position: 12px center;
+}
+input[type="radio"] {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--blue);
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+legend {
+  margin-bottom: 8px;
+  font-weight: 650;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 18px;
+  min-height: 46px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.choice:hover {
+  background: var(--tint);
+}
+.choice:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--tint);
+}
+.form-grid,
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.surface {
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  min-width: 0;
+}
+.surface p {
+  color: var(--muted);
+}
+.form-hint {
+  color: var(--muted);
+  font-size: 0.83rem;
+  font-weight: 400;
+}
+.notice {
+  border-inline-start: 3px solid var(--blue);
+  padding: 16px 20px;
+  background: #e9eff5;
+  border-radius: 8px;
+  animation: fade-in 0.22s ease-out;
+}
+.notice.error {
+  background: #faeee8;
+  border-color: #a34332;
+  color: #7e3024;
+}
+.notice.success {
+  background: #edf4ea;
+  border-color: var(--green);
+  color: var(--green);
+}
+.notice .button {
+  margin-top: 12px;
+}
+.track-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-block: 24px;
+  border-bottom: 1px solid var(--line);
+}
+/* One weight for every tab, so selection never changes a tab's width. */
+.track-tabs button {
+  min-height: 48px;
+  padding: 10px 22px;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-weight: 650;
+  border-radius: 8px 8px 0 0;
+  transition:
+    color 0.18s,
+    border-color 0.18s,
+    background 0.15s;
+}
+.track-tabs button:hover {
+  color: var(--ink);
+  background: var(--tint);
+}
+.track-tabs button:active {
+  background: #dce4f0;
+}
+.page-intro + .track-tabs {
+  justify-content: center;
+}
+.track-tabs button[aria-pressed="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+.progress-overview {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 18px 10px;
+  border-block: 1px solid var(--line);
+}
+.track-tabs + .progress-overview {
+  border-top: 0;
+  margin-top: -24px;
+}
+.progress-overview strong {
+  font-size: 2.5rem;
+  grid-row: span 2;
+}
+progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--blue);
+}
+/* One line per week: week, daf, status. Rows share one inline padding so the current row stays aligned. */
+.lesson-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px;
+  min-height: 52px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.lesson-row:hover {
+  background: var(--tint);
+}
+.lesson-row:active {
+  background: #dce4f0;
+}
+.lesson-row .week-label {
+  color: var(--muted);
+}
+.lesson-row .week-label,
+.lesson-row > span:last-child {
+  flex: none;
+  white-space: nowrap;
+}
+.lesson-row strong {
+  flex: 1;
+  min-width: 0;
+}
+.lesson-row > span:last-child {
+  font-size: 0.83rem;
+  color: var(--muted);
+  text-align: end;
+}
+.lesson-row.is-current {
+  background: #e9eff5;
+}
+.lesson-row.is-current > span:last-child {
+  color: var(--blue);
+  font-weight: 650;
+}
+.institution-select {
+  max-width: 440px;
+  margin-block: 20px;
+}
+.share-url {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  padding-block: 16px;
+}
+.access-form,
+.roster-filters {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-block: 24px;
+}
+.access-form label,
+.roster-filters label {
+  flex: 1;
+  min-width: 180px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  text-align: center;
+  border-block: 1px solid var(--line);
+  margin-top: 24px;
+  padding: 20px 0;
+}
+.stats strong {
+  display: block;
+  font-size: 2.5rem;
+}
+.stats span {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.student-row {
+  border-bottom: 1px solid var(--line);
+}
+.student-row summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  cursor: pointer;
+  padding: 12px 8px;
+}
+.student-row strong,
+.student-row small {
+  display: block;
+}
+.student-row small {
+  color: var(--muted);
+}
+.student-row summary > span:last-child {
+  font-size: 0.83rem;
+}
+.student-details {
+  padding: 0 16px 16px;
+}
+.status-done {
+  color: var(--green);
+}
+.admin-nav,
+.panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.panel-top h2 {
+  margin: 0;
+}
+.editor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.editor-actions .button {
+  margin: 0 !important;
+}
+.file-input {
+  max-width: 250px;
+}
+.table-scroll {
+  overflow: auto;
+  margin-block: 20px;
+}
+.content-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.content-table td,
+.content-table th {
+  text-align: start;
+  vertical-align: top;
+  border: 1px solid var(--line);
+  padding: 8px;
+}
+.content-table textarea {
+  min-width: 150px;
+  min-height: 72px;
+  max-width: 440px;
+  resize: vertical;
+  font-size: 0.8rem;
+}
+.reader-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+}
+.reader-heading h1 {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  margin: 0;
+}
+.reader-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-block: 16px 24px;
+  font-size: 0.85rem;
+}
+.reader-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.page-image {
+  position: relative;
+  direction: ltr;
+  overflow: auto;
+  max-height: 70vh;
+  margin-top: 24px;
+}
+.page-image img {
+  width: 100%;
+  height: auto;
+}
+.page-image svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.page-image rect {
+  fill: #e3b85138;
+  stroke: #9f752f;
+  stroke-width: 0.0015;
+}
+.page-image.zoomed img {
+  width: 1600px;
+  max-width: none;
+}
+.page-image.zoomed svg {
+  width: 1600px;
+  height: auto;
+  aspect-ratio: 1600 / 2200;
+}
+/* Keep explanations readable without moving the scan or actions between segments. */
+.lesson-text {
+  white-space: pre-wrap;
+  font-size: 1.12rem;
+  line-height: 1.9;
+  height: clamp(11rem, 26svh, 18rem);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: 8px;
+  margin: 0;
+}
+.chevron {
+  flex: 0 0 16px;
+  transition: transform 0.15s;
+}
+.button:hover .chevron-forward {
+  transform: translateX(-2px);
+}
+.button:hover .chevron-back {
+  transform: translateX(2px);
+}
+.notice,
+.student-details {
+  animation: fade-in 0.22s ease-out;
+}
+.notice[role="status"]:not(.success) {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.reader-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--paper);
+  padding-block: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+}
+.reader-controls .button {
+  flex: 1;
+  margin: 0 !important;
+}
+.completion {
+  text-align: center;
+}
+.completion > span {
+  display: block;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--green);
+  animation: pop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+summary {
+  min-height: 44px;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .workspace {
+    width: calc(100% - 32px);
+    margin-top: 28px;
+  }
+  .workspace-grid,
+  .reader-grid {
+    grid-template-columns: 1fr;
+  }
+  .surface {
+    padding: 20px 0;
+  }
+  .reader-explanation {
+    grid-row: 1;
+  }
+  .lesson-row {
+    gap: 12px;
+  }
+  .lesson-row > span:last-child {
+    font-size: 0.78rem;
+  }
+  /* Phone: both links share the first row, the title sits under them at full width. */
+  .reader-heading h1 {
+    order: 1;
+    flex-basis: 100%;
+  }
+  .reader-controls {
+    gap: 10px;
+  }
+  .reader-controls .button {
+    padding-inline: 10px;
+    font-size: 0.85rem;
+  }
+  .stats strong {
+    font-size: 2rem;
+  }
+  .stats span {
+    font-size: 0.75rem;
+  }
+}
+
+.page-canvas {
+  position: relative;
+  max-width: none;
+}
+.page-canvas img {
+  width: 100%;
+  max-width: none;
+}
+.page-canvas svg {
+  width: 100%;
+  height: 100%;
+}
+.reminders {
+  margin-block: 24px;
+}
+
+.document {
+  max-width: 760px;
+}
+.document section {
+  margin-block: 32px;
+}
+.document p {
+  white-space: pre-line;
+}
+.document h3 {
+  margin-top: 28px;
+}
+
+.reader-page {
+  padding: 0;
+  border: 0;
+}
+.reader-explanation {
+  border-top: 2px solid var(--gold);
+}
+.reader-explanation h2 {
+  color: var(--gold-t);
+  font-size: 0.88rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
+@media (min-width: 701px) {
+  .workspace-grid {
+    gap: 28px 48px;
+  }
+}
+@media (min-width: 701px) and (max-width: 800px) {
+  .workspace {
+    width: calc(100% - 40px);
+  }
+}
