@@ -7,11 +7,7 @@ import {
   type Recipient,
 } from "./notification-recipients.ts";
 import { pushPublicKey, pushSubject } from "../config/push.ts";
-import {
-  deliver,
-  mapLimit,
-  type PushSender,
-} from "../../tools/push-delivery.mts";
+import { deliver, mapLimit, type PushSender } from "./push-delivery.ts";
 import { reportOperationalMessage } from "./operational-store.ts";
 export type NotificationPayload = {
   title: string;

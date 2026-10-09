@@ -8,7 +8,7 @@ import {
   goneKey,
   isGone,
 } from "../tools/scheduler.mts";
-import { deliver, mapLimit } from "../tools/push-delivery.mts";
+import { deliver, mapLimit } from "../src/server/push-delivery.ts";
 const subscription = {
   endpoint: "https://example.invalid/fixture",
   keys: { auth: "TEST", p256dh: "TEST" },

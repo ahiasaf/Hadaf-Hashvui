@@ -1,4 +1,4 @@
-import type { Subscription } from "../../tools/push-delivery.mts";
+import type { Subscription } from "./push-delivery.ts";
 export type Recipient = {
   sub: Subscription;
   id: string;

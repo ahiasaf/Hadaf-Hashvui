@@ -18,7 +18,7 @@ import {
   parseStudents,
   type Student,
 } from "../src/server/notification-digest.ts";
-import { mapLimit } from "./push-delivery.mts";
+import { mapLimit } from "../src/server/push-delivery.ts";
 import { report } from "./push-report.mts";
 async function main() {
   const job = runtime(),

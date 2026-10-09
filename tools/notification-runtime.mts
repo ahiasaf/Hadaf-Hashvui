@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { createHash } from "node:crypto";
 import { pushPublicKey, pushSubject } from "../src/config/push.ts";
-import { deliver, type Subscription } from "./push-delivery.mts";
+import { deliver, type Subscription } from "../src/server/push-delivery.ts";
 export type Payload = {
   title: string;
   body: string;

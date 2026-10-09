@@ -1,4 +1,4 @@
-import { pause } from "../src/server/operational-store.ts";
+import { pause } from "./operational-store.ts";
 export type Subscription = {
   endpoint: string;
   keys: { auth: string; p256dh: string };

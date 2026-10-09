@@ -5,7 +5,7 @@ import {
   printSummary,
   failJob,
 } from "./notification-runtime.mts";
-import { mapLimit } from "./push-delivery.mts";
+import { mapLimit } from "../src/server/push-delivery.ts";
 import { report } from "./push-report.mts";
 import * as schedule from "./scheduler.mts";
 import {
