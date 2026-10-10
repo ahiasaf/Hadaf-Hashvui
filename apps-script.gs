@@ -802,7 +802,8 @@ function doGet(e) {
      התקנת שעון השליחות — בהקשה אחת, ולא מתוך עורך הקוד.
      ============================================================
      `?setup=clock&key=<סיסמת הקריאה>` מתקין, `setup=clockoff`
-     מסיר, ו-`setup=clockstate` אומר מה מותקן. הכול דורש את
+     מסיר, `setup=clockstate` אומר מה מותקן ומתי השעון הצית
+     לאחרונה, ו-`setup=clockfire` מצית עכשיו. הכול דורש את
      סיסמת הקריאה: מי שמתקין שעון מצית הרצות ב-GitHub.
 
      למה כאן ולא ב-`setupTriggers`: כדי שזה יקרה בפועל. פתיחת
@@ -810,19 +811,26 @@ function doGet(e) {
      הסוג של צעד שנדחה ולא נעשה.
      ============================================================ */
   if (e && e.parameter && e.parameter.setup &&
-      /^clock(off|state)?$/.test(String(e.parameter.setup))) {
+      /^clock(off|state|fire)?$/.test(String(e.parameter.setup))) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     }
     var what = String(e.parameter.setup);
     try {
       if (what === 'clockstate') {
-        return reply_(e, { status:'ok', clock: hasClock_(),
+        return reply_(e, { status:'ok', clock: hasClock_(), last: clockLast_(),
           message: hasClock_() ? 'שעון השליחות פעיל · כל חצי שעה'
                                : 'שעון השליחות אינו מותקן' });
       }
+      /* "שליחת בדיקה" — מצית עכשיו את אותה הרצה שהשעון מצית,
+         בלי לחכות לחצי השעה הבאה. */
+      if (what === 'clockfire') {
+        var f = clockFire_('CLOCK_TEST');
+        return reply_(e, { status:'ok', clock: hasClock_(), last: clockLast_(),
+                           fired: f, message: '' });
+      }
       var msg = what === 'clockoff' ? removeClock() : setupClock();
-      return reply_(e, { status:'ok', clock: hasClock_(), message: msg });
+      return reply_(e, { status:'ok', clock: hasClock_(), last: clockLast_(), message: msg });
     } catch (errC) {
       return reply_(e, { status:'error', message: String(errC) });
     }
@@ -4050,19 +4058,47 @@ function megilaShift_() {
    ============================================================ */
 function clockTick() {
   backupDaily_();
+  clockFire_('CLOCK_LAST');
+}
+
+/* ============================================================
+   ההצתה עצמה — ורישום של מה שקרה.
+   ============================================================
+   "מה שחשוב לי לדעת זה שהשעון בפועל עובד."
+
+   "מותקן" אומר רק שהטריגר קיים. עכשיו כל הצתה נרשמת: מתי,
+   ומה GitHub ענה (204 = קיבל). כך מסך הניהול מראה "הפעלה
+   אחרונה לפני 4 דקות", ושעון שנתקע נראה מיד.
+
+   `CLOCK_LAST` — ההצתות של הטריגר. `CLOCK_TEST` — "שליחת
+   בדיקה" ממסך התזכורות, בנפרד, כדי שבדיקה לא תסתיר שעון
+   שהפסיק לרוץ. */
+function clockFire_(slot) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
-  if (!tok || !repo) return;
+  var rec = { at: new Date().toISOString(), code: 0, err: '' };
+  if (!tok || !repo) {
+    rec.err = 'חסרים GH_TOKEN או GH_REPO';
+  } else {
+    try {
+      var r = UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
+        method: 'post', contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + tok,
+                   Accept: 'application/vnd.github+json',
+                   'X-GitHub-Api-Version': '2022-11-28' },
+        payload: JSON.stringify({ event_type: 'push-clock', client_payload: {} }),
+        muteHttpExceptions: true
+      });
+      rec.code = r.getResponseCode();
+    } catch (e) { rec.err = String(e).slice(0, 200); }
+  }
   try {
-    UrlFetchApp.fetch(GH_API + repo + '/dispatches', {
-      method: 'post', contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + tok,
-                 Accept: 'application/vnd.github+json',
-                 'X-GitHub-Api-Version': '2022-11-28' },
-      payload: JSON.stringify({ event_type: 'push-clock', client_payload: {} }),
-      muteHttpExceptions: true
-    });
-  } catch (e) {}
+    PropertiesService.getScriptProperties().setProperty(slot, JSON.stringify(rec));
+  } catch (e2) {}
+  return rec;
+}
+function clockLast_() {
+  try { return JSON.parse(prop_('CLOCK_LAST', '') || 'null'); } catch (e) { return null; }
 }
 
 /* התקנה והסרה. הרצה חוזרת אינה מכפילה — מוחקת קודם. */

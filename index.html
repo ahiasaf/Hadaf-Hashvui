@@ -2715,7 +2715,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.166';
+var APP_VERSION = '8.99.167';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6719,8 +6719,9 @@ function rmParse(rows) {
   return out;
 }
 
-/* כתיבה: הלשונית נכתבת מחדש בשלמותה, כמו יומן השיחות. */
-function rmSave(list) {
+/* כתיבה: הלשונית נכתבת מחדש בשלמותה, כמו יומן השיחות.
+   `after` — רץ רק אם הקריאה החוזרת הצליחה. */
+function rmSave(list, after) {
   var url = (CFG.api || API || '').trim();
   if (!url) { rmMsg = 'אין כתובת שרת.'; admPane(); return; }
   rmBusy = true; rmMsg = 'שומר…'; admPane();
@@ -6735,7 +6736,63 @@ function rmSave(list) {
        מה שמוצג. */
     .then(function () { return new Promise(function (r) { setTimeout(r, 1200); }); })
     .then(function () { rmBusy = false; return rmLoad(); })
+    .then(function (ok) { if (ok && after) after(); })
     .catch(function () { rmBusy = false; rmMsg = 'השמירה לא אושרה.'; admPane(); });
+}
+
+/* ============================================================
+   שליחת בדיקה אליי.
+   ============================================================
+   "איך אני יכול לשלוח לעצמי? כדאי שיהיה אופציה כזאת בשביל
+   בדיקות."
+
+   לא קיצור דרך — **המסלול האמיתי כולו.** נכתבת תזכורת לדקה
+   הזו, ומיד מוצתת אותה הרצה שהשעון מצית כל חצי שעה. כשההתראה
+   מגיעה, נבדקו הגיליון, הגשר של גוגל, GitHub והמנוי שבמכשיר.
+
+   הדקה המדויקת (ולא חצי השעה) היא מה שמאפשר בדיקה שנייה
+   באותה חצי שעה — ראו `slotOf` ב-tools/remind-send.js.
+   בדיקה קודמת שנשארה ברשימה מוסרת, כדי שהרשימה לא תתמלא. */
+var RM_TEST = 'בדיקה · ';
+var rmTestMsg = '';
+function rmIsTest(o) { return String(o.text || '').indexOf(RM_TEST) === 0; }
+function rmTest() {
+  if (rmBusy) return;
+  if (!(CFG.readKey || '').trim()) { rmMsg = 'nokey'; admPane(); return; }
+  if (rmRows === null) {
+    rmLoad().then(function (ok) { if (ok) rmTest(); });
+    return;
+  }
+  var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  var hm = z(d.getHours()) + ':' + z(d.getMinutes());
+  var me = { id: rmId(), date: rmToday(), time: hm,
+             text: RM_TEST + 'אם זה הגיע — התזכורות עובדות (נשלח ב-' + hm + ')' };
+  var list = rmRows.filter(function (o) { return !rmIsTest(o); });
+  list.push(me);
+  rmTestMsg = 'שומר את הבדיקה…'; admPane();
+  rmSave(list, function () {
+    /* מה שלא חזר בקריאה — לא נשמר, ואין טעם להצית. */
+    var there = (rmRows || []).some(function (o) {
+      return o.date === me.date && o.time === me.time && rmIsTest(o);
+    });
+    if (!there) { rmTestMsg = 'הבדיקה לא נשמרה בגיליון. נסה שוב.'; admPane(); return; }
+    rmTestMsg = 'מצית את השליחה…'; admPane();
+    scriptGet({ setup: 'clockfire', key: (CFG.readKey || '').trim() }).then(function (r) {
+      var f = r && r.fired;
+      if (!r || r.status !== 'ok' || !f) {
+        rmTestMsg = (r && r.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      } else if (f.err || f.code !== 204) {
+        rmTestMsg = 'GitHub לא קיבל את ההצתה (' + (f.err || f.code) + '). ' +
+                    'הבדיקה תצא בכל זאת בהפעלה הבאה של השעון.';
+      } else {
+        rmTestMsg = 'נשלח. ההתראה אמורה להגיע לטלפון הזה תוך דקה–שתיים.';
+      }
+      admPane();
+    }).catch(function () {
+      rmTestMsg = 'לא קיבלתי תשובה מהסקריפט. הבדיקה תצא בהפעלה הבאה של השעון.';
+      admPane();
+    });
+  });
 }
 
 function rmAdd() {
@@ -6878,7 +6935,10 @@ function rmCard() {
       '<button class="btn g" onclick="rmCancel()">ביטול</button>';
   } else {
     h += '<button class="btn p" style="margin-top:10px" onclick="rmOpen()">' +
-         (list.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>';
+         (list.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>' +
+         '<button class="btn g" onclick="rmTest()"' + (rmBusy ? ' disabled' : '') +
+         '>שליחת בדיקה אליי</button>';
+    if (rmTestMsg) h += '<div class="msg">' + esc(rmTestMsg) + '</div>';
   }
   if (rmMsg && rmMsg !== 'nokey') h += '<div class="msg">' + esc(rmMsg) + '</div>';
   return h + '</div>';
@@ -16919,15 +16979,50 @@ function admSugyaPage(daf, v) {
    הכפתור כאן ולא בעורך Apps Script: פתיחת העורך מהטלפון
    ובחירת פונקציה מרשימה היא צעד שנדחה ולא נעשה.
    ============================================================ */
-var clockMsg = '', clockOn = null;
+var clockMsg = '', clockOn = null, clockLast = null, clockAsked = false;
+/* ============================================================
+   "מצב: טרם נבדק" אחרי כל גרסה.
+   ============================================================
+   המצב נשמר רק בזיכרון של העמוד, ולכן כל טעינה מחדש שכחה
+   אותו — והמסך אמר "טרם נבדק" על שעון שרץ כל הזמן. עכשיו
+   הכרטיס שואל בעצמו כשהוא מוצג, ומראה מתי השעון הצית לאחרונה
+   ומה GitHub ענה. "מותקן" אינו "עובד"; הפעלה לפני 4 דקות כן. */
+function clockAgo(iso) {
+  var t = Date.parse(iso || '');
+  if (!t) return null;
+  return Math.max(0, Math.round((Date.now() - t) / 60000));
+}
+function clockHm(iso) {
+  var d = new Date(iso), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function clockLine() {
+  if (clockOn === null) return { t: clockAsked ? 'בודק…' : 'טרם נבדק', bad: false };
+  if (!clockOn) return { t: 'אינו מותקן', bad: true };
+  var L = clockLast, min = L ? clockAgo(L.at) : null;
+  /* השעון מותקן אבל עוד לא הצית מאז שהרישום נוסף — זה קורה
+     פעם אחת, בחצי השעה הראשונה אחרי העדכון. */
+  if (min === null) return { t: 'פעיל · עוד לא נרשמה הפעלה (תיכף)', bad: false };
+  var ago = min < 1 ? 'עכשיו' : min < 60 ? 'לפני ' + min + ' דק׳'
+          : 'לפני ' + Math.floor(min / 60) + ' שע׳ ו-' + (min % 60) + ' דק׳';
+  var head = 'הפעלה אחרונה: ' + clockHm(L.at) + ' (' + ago + ')';
+  if (L.err) return { t: head + ' · נכשלה: ' + L.err, bad: true };
+  if (L.code !== 204) return { t: head + ' · GitHub החזיר ' + L.code, bad: true };
+  /* חצי שעה ועוד מרווח: הטריגר של גוגל רץ בתוך החלון, לא בדקה. */
+  if (min > 65) return { t: head + ' · השעון אמור להצית כל חצי שעה — הוא נתקע', bad: true };
+  return { t: 'פעיל · ' + head + ' · GitHub קיבל', bad: false };
+}
 function clockCard() {
-  var state = clockOn === null ? 'טרם נבדק'
-            : (clockOn ? 'פעיל · מצית הרצה כל חצי שעה' : 'אינו מותקן');
+  if (!clockAsked && (CFG.readKey || '').trim()) {
+    clockAsked = true;
+    setTimeout(function () { clockGo('clockstate', true); }, 0);
+  }
+  var st = clockLine();
   return '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>שעון השליחות</h4>' +
     '<p class="h">מה שמקפיץ את התזכורות שלך ואת העדכון לר"מים ' +
     'במועד. הקרון של גיטהאב מאחר ומדלג — הטריגר של גוגל לא.<br>' +
-    '<b>מצב: ' + esc(state) + '</b></p>' +
+    '<b' + (st.bad ? ' style="color:#b3261e"' : '') + '>מצב: ' + esc(st.t) + '</b></p>' +
     '<button class="btn p" style="margin:0 0 8px" ' +
     'onclick="clockGo(\'clock\')">התקנת השעון</button>' +
     '<button class="btn g" style="margin:0" ' +
@@ -16938,27 +17033,36 @@ function clockCard() {
      'text-align:start;padding:14px 4px">' + esc(clockMsg) + '</div>' : '') +
     '</div>';
 }
-function clockGo(what) {
+/* `quiet` — הבדיקה האוטומטית בפתיחת הכרטיס: בלי "רגע…" ובלי
+   הודעה, רק שורת המצב מתעדכנת. */
+function clockGo(what, quiet) {
   var k = (CFG.readKey || '').trim();
   if (!k) {
+    if (quiet) return;
     clockMsg = 'חסרה סיסמת הקריאה. הכניסו אותה בכרטיס שרת ההרשמות.';
     admPane(); return;
   }
-  clockMsg = 'רגע…'; admPane();
+  clockAsked = true;
+  if (!quiet) { clockMsg = 'רגע…'; admPane(); }
   scriptGet({ setup: what, key: k }).then(function (d) {
     /* **קריאה שנכשלה אינה "לא מותקן".** תשובה בלי `status`
        אומרת שלא הגענו לסקריפט, ולא שהשעון כבוי. */
     if (!d || !d.status) {
-      clockMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane(); return;
+      if (!quiet) clockMsg = 'לא קיבלתי תשובה מהסקריפט.';
+      admPane(); return;
     }
     if (d.status !== 'ok') {
-      clockMsg = d.message || 'הסקריפט סירב.'; admPane(); return;
+      if (!quiet) clockMsg = d.message || 'הסקריפט סירב.';
+      admPane(); return;
     }
     clockOn = !!d.clock;
-    clockMsg = d.message || '';
+    if ('last' in d) clockLast = d.last;
+    /* "פעיל · כל חצי שעה" כבר כתוב בשורת המצב — לא חוזרים עליו. */
+    clockMsg = what === 'clockstate' ? '' : (d.message || '');
     admPane();
   }).catch(function () {
-    clockMsg = 'לא קיבלתי תשובה מהסקריפט.'; admPane();
+    if (!quiet) clockMsg = 'לא קיבלתי תשובה מהסקריפט.';
+    admPane();
   });
 }
 
