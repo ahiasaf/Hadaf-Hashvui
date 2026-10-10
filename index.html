@@ -2206,7 +2206,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .dk-open .btn{margin-top:4px}
 /* מוקד השיחות — שורה פתוחה לכל ישיבה */
 .yr-list{display:grid;gap:9px;margin-top:10px}
-.yr{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:11px 12px;box-shadow:var(--sh-1)}
+.ysh{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:11px 12px;box-shadow:var(--sh-1)}
 .yr-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .yr-nm{flex:1;min-width:0;text-align:right;font:inherit;font-size:1rem;font-weight:800;color:var(--blue-d);
   background:none;border:0;padding:0;cursor:pointer}
@@ -2228,11 +2228,11 @@ button.yr-c.auto{cursor:pointer}
 .yr-c button{font:inherit;border:0;background:none;color:inherit;padding:0 0 0 2px;cursor:pointer}
 .yr-tmp{border-top:1px dashed var(--rule);padding-top:8px}
 /* שפה ויזואלית: פס צבע לפי שלב, נקודות משימה, וסימונים בצבעים */
-.yr{border-inline-start:6px solid #C9CFDB}
-.yr.st-talked{border-inline-start-color:#3574CE}
-.yr.st-warm{border-inline-start-color:#E0A82E}
-.yr.st-joined{border-inline-start-color:#2E8B57}
-.yr.st-no{border-inline-start-color:#B4473A;opacity:.85}
+.ysh{border-inline-start:6px solid #C9CFDB}
+.ysh.st-talked{border-inline-start-color:#3574CE}
+.ysh.st-warm{border-inline-start-color:#E0A82E}
+.ysh.st-joined{border-inline-start-color:#2E8B57}
+.ysh.st-no{border-inline-start-color:#B4473A;opacity:.85}
 .yr-st{flex:none;font:inherit;font-size:.72rem;font-weight:800;border-radius:20px;padding:3px 9px;cursor:pointer;
   border:1px solid transparent;background:#EEF1F6;color:#4A5878}
 .yr-st.st-talked{background:#E3EDFB;color:#1D4F9A}
@@ -2673,7 +2673,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.157';
+var APP_VERSION = '8.99.158';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7083,7 +7083,7 @@ function yshRow(e, n) {
   var stg = c0 ? (STAGES.filter(function (x) { return x.k === c0.stage; })[0] || STAGES[0]) : STAGES[0];
   var done = CALL_TASKS.filter(function (t) { return yshTagOn(e, t[0]); }).length;
   var sc = 'st-' + stg.k;
-  var h = '<div class="yr ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
+  var h = '<div class="ysh ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
     (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act">★</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
     (c0 ? '<button class="yr-st ' + sc + '" onclick="yshStage(' + n + ')">' + esc(stg.t) + '</button>' : '') +
     '<span class="yr-n' + (got ? '' : ' z') + '">' + esc(fill(UI.yrGot, { n: got })) + '</span></div>' +
