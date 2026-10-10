@@ -1,12 +1,15 @@
 ---
 import "../styles/workspace.css";
 import Site from "../layouts/Site.astro";
-import DeviceReset from "../components/DeviceReset";
+import DeviceReset, { resetKeys } from "../components/DeviceReset";
 import program from "../generated/program.json";
+import { pickStrings } from "../lib/share-links";
+// Only the reset strings travel to the island, not the whole UI dictionary.
+const copy = pickStrings(program.ui, resetKeys);
 ---
 
 <Site title={program.ui.rstT} robots="noindex,nofollow">
-  <DeviceReset copy={program.ui} client:load />
+  <DeviceReset copy={copy} client:load />
   <noscript>
     <p class="workspace notice">ניקוי המכשיר דורש JavaScript.</p>
   </noscript>

@@ -706,3 +706,301 @@ summary {
     width: calc(100% - 40px);
   }
 }
+
+/* ---------- Custom form controls: one column, big targets, gentle feedback ---------- */
+.narrow .flow-form {
+  gap: 18px;
+}
+.flow-form .form-grid {
+  gap: 14px;
+}
+label {
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: var(--blue-d);
+}
+.field-note {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--stop);
+  animation: notice-in 0.3s var(--spring);
+}
+.field-note[hidden] {
+  display: none;
+}
+input[aria-invalid="true"] {
+  border-color: var(--stop);
+  box-shadow: 0 0 0 4px rgba(165, 56, 45, 0.1);
+}
+/* Segmented control: two radios under one sliding thumb. */
+.seg {
+  --tab: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--sunk);
+  isolation: isolate;
+}
+.seg-field {
+  display: block;
+}
+.seg-field legend,
+.way-cards legend {
+  margin: 0 0 10px;
+  padding: 0;
+  font-weight: 750;
+  color: var(--blue-d);
+}
+.seg::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  inset-inline-start: 4px;
+  width: calc(50% - 4px);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  z-index: -1;
+  transform: translateX(calc(var(--tab) * -100%));
+  transition: transform 0.4s var(--spring);
+}
+.seg label {
+  position: relative;
+  display: block;
+  margin: 0;
+}
+.seg input,
+.way-cards input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.seg span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 11px;
+  font-weight: 800;
+  color: var(--ink-2);
+  transition: color 0.25s;
+}
+.seg input:checked + span {
+  color: var(--blue-d);
+}
+.seg input:focus-visible + span,
+.way-cards input:focus-visible + span {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+/* Choice cards for the learning way. */
+.way-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.way-cards legend {
+  grid-column: 1 / -1;
+}
+.way-cards label {
+  position: relative;
+  margin: 0;
+}
+.way-cards span {
+  display: grid;
+  gap: 2px;
+  min-height: 64px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--rule);
+  background: var(--surface);
+  text-align: center;
+  align-content: center;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.25s,
+    transform 0.25s var(--spring);
+}
+.way-cards strong {
+  font-size: 0.95rem;
+  color: var(--blue-d);
+}
+.way-cards small {
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.way-cards input:checked + span {
+  border-color: var(--blue-d);
+  box-shadow:
+    inset 0 0 0 1px var(--blue-d),
+    var(--sh-1);
+  transform: translateY(-2px);
+}
+.way-cards label:active span {
+  transform: scale(0.97);
+}
+/* Collapsed partner details. */
+.more {
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  padding: 0 14px;
+}
+.more summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 750;
+  color: var(--blue-d);
+  list-style: none;
+}
+.more summary::-webkit-details-marker {
+  display: none;
+}
+.more summary::before {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--sunk);
+  font-weight: 800;
+  transition: transform 0.3s var(--spring);
+}
+.more[open] summary::before {
+  transform: rotate(45deg);
+}
+.more summary small {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.more[open] > :not(summary) {
+  animation: notice-in 0.35s var(--ease);
+}
+.more > .form-grid,
+.more > label {
+  margin-bottom: 14px;
+}
+/* A busy action shows a spinner instead of freezing. */
+.button.is-busy::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  border-inline-end-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Registration saved. */
+.done-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--green-d);
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: 800;
+  animation: pop 0.5s var(--spring);
+}
+/* Secondary links and hints under forms sit in the middle. */
+.narrow .secondary-link,
+.workspace > .secondary-link,
+.flow-form > .secondary-link,
+.flow-form > .text-button {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.flow-form > .form-hint {
+  text-align: center;
+}
+.access-form {
+  justify-content: center;
+}
+@media (max-width: 560px) {
+  .way-cards {
+    grid-template-columns: 1fr;
+  }
+  .way-cards span {
+    min-height: 54px;
+    grid-template-columns: auto 1fr;
+    text-align: start;
+    align-items: center;
+    gap: 0 10px;
+  }
+}
+/* Install and reminders: one short step, centered, nothing when done. */
+.install {
+  margin-block: 28px 8px;
+  padding: 20px 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: var(--sh-1);
+  text-align: center;
+}
+.install-title {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--blue-d);
+}
+.install-text {
+  margin: 0 0 14px;
+  color: var(--ink-2);
+  font-size: 0.92rem;
+}
+.install .reminders {
+  margin: 0;
+}
+.install-steps {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  text-align: start;
+}
+.install-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.95rem;
+  animation: row-in 0.5s var(--ease) both;
+}
+.install-steps li + li {
+  animation-delay: 120ms;
+}
+.install-steps svg {
+  flex: none;
+  color: var(--blue);
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--sh-1);
+}

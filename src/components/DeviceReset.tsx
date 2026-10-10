@@ -6,25 +6,26 @@ import {
   type DeviceState,
 } from "../lib/device-reset";
 
-export type ResetCopy = {
-  rstT: string;
-  rstB: string;
-  rstNow: string;
-  rstNone: string;
-  rstAdm: string;
-  rstMe: string;
-  rstHead: string;
-  rstTestOn: string;
-  rstAdmWarn: string;
-  rstTest: string;
-  rstGo: string;
-  rstAsk: string;
-  rstBusy: string;
-  rstDone: string;
-  rstNext: string;
-  rstMark: string;
-  rstUnmark: string;
-};
+export const resetKeys = [
+  "rstT",
+  "rstB",
+  "rstNow",
+  "rstNone",
+  "rstAdm",
+  "rstMe",
+  "rstHead",
+  "rstTestOn",
+  "rstAdmWarn",
+  "rstTest",
+  "rstGo",
+  "rstAsk",
+  "rstBusy",
+  "rstDone",
+  "rstNext",
+  "rstMark",
+  "rstUnmark",
+] as const;
+export type ResetCopy = Record<(typeof resetKeys)[number], string>;
 
 type Phase = "idle" | "confirm" | "busy" | "done";
 

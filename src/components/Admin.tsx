@@ -153,7 +153,10 @@ export default function Admin({
             />
           </label>
           <p className="form-hint">הסיסמה נבדקת בשרת ואינה נשמרת במכשיר.</p>
-          <button className="button button-blue" disabled={busy}>
+          <button
+            className={"button button-blue" + (busy ? " is-busy" : "")}
+            disabled={busy}
+          >
             {busy ? "בודקים גישה…" : "כניסה לניהול"}
           </button>
           <a className="secondary-link" href="/management#admin">

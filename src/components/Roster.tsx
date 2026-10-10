@@ -128,7 +128,10 @@ export default function Roster({
             </label>
           </>
         )}
-        <button className="button button-blue" disabled={busy}>
+        <button
+          className={"button button-blue" + (busy ? " is-busy" : "")}
+          disabled={busy}
+        >
           {busy ? "טוענים את הלוח…" : students ? "רענון הלוח" : "פתיחת הלוח"}
         </button>
       </form>

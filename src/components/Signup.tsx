@@ -1,4 +1,11 @@
-import { useEffect, useState, type SubmitEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type FocusEvent,
+  type SubmitEvent,
+} from "react";
 import {
   action,
   joinColumns,
@@ -7,15 +14,17 @@ import {
   writeRow,
   type Person,
 } from "../lib/client";
-import Reminders from "./Reminders";
-import InvitePanel from "./InvitePanel";
+import Install from "./Install";
 import { inviteDraft, type InviteCopy } from "../lib/invite";
 type Institution = { code: string; name: string };
+// The invitation panel is only needed by parents arriving from a push.
+const InvitePanel = lazy(() => import("./InvitePanel"));
 const ways = [
-  ["solo", "לבד, בקצב שלי"],
-  ["dad", "עם אבא או אמא"],
-  ["chav", "עם חבר"],
+  ["solo", "לבד", "בקצב שלי"],
+  ["dad", "עם ההורים", "אבא או אמא"],
+  ["chav", "עם חבר", "חברותא"],
 ];
+const phonePattern = /^0[2-9][0-9 -]{7,12}$/;
 export default function Signup({
   institutions,
   invite,
@@ -30,6 +39,8 @@ export default function Signup({
   const [restore, setRestore] = useState(false);
   const [initialInst, setInitialInst] = useState("");
   const [role, setRole] = useState("kid");
+  const [way, setWay] = useState("");
+  const [phoneBad, setPhoneBad] = useState(false);
   const [inviting, setInviting] = useState(false);
   useEffect(() => {
     const existing = stored<Person | null>("me", null);
@@ -42,12 +53,17 @@ export default function Signup({
     const params = new URLSearchParams(location.search);
     setInitialInst(params.get("inst") || "");
     setRole(existing?.role || (params.get("for") === "dad" ? "dad" : "kid"));
+    setWay(existing?.way || (invited ? "dad" : ""));
     setInviting(
       location.hash === "#invite" &&
         !!existing &&
         ["dad", "parent"].includes(existing.role),
     );
   }, []);
+  function checkPhone(event: FocusEvent<HTMLInputElement>) {
+    const value = event.target.value.trim();
+    setPhoneBad(!!value && !phonePattern.test(value));
+  }
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -130,24 +146,39 @@ export default function Signup({
     return (
       <section className="workspace narrow swap" key="invite">
         <p className="eyebrow">{person.instName}</p>
-        <InvitePanel
-          me={person}
-          copy={invite}
-          onSent={(next) => {
-            setPerson(next);
-            setDraft(next);
-            history.replaceState(null, "", location.pathname + location.search);
-          }}
-        />
+        <Suspense
+          fallback={
+            <p className="notice" role="status">
+              טוענים…
+            </p>
+          }
+        >
+          <InvitePanel
+            me={person}
+            copy={invite}
+            onSent={(next) => {
+              setPerson(next);
+              setDraft(next);
+              history.replaceState(
+                null,
+                "",
+                location.pathname + location.search,
+              );
+            }}
+          />
+        </Suspense>
       </section>
     );
   if (person)
     return (
-      <section className="workspace narrow swap" key="done">
+      <section className="workspace narrow swap done" key="done">
+        <span className="done-mark" aria-hidden="true">
+          ✓
+        </span>
         <p className="eyebrow">{person.instName}</p>
         <h1>שלום, {person.first}</h1>
         <p>ההרשמה נשמרה. הדף של השבוע כבר מחכה לכם.</p>
-        <a className="button button-blue" href="/app">
+        <a className="button button-gold" href="/app">
           ללימוד שלי
         </a>
         <button
@@ -158,44 +189,57 @@ export default function Signup({
         >
           עדכון פרטי ההרשמה
         </button>
-        <Reminders />
+        <Install />
       </section>
     );
+  const selectedWay = way || (role === "dad" ? "dad" : "solo");
   return (
     <section
       className="workspace narrow swap"
       key={restore ? "restore" : "form"}
     >
-      <h1>
-        {restore
-          ? "שחזור ההרשמה"
-          : role === "dad"
-            ? "מצטרפים ללימוד עם הילדים"
-            : "מצטרפים ללימוד"}
-      </h1>
+      <div className="page-intro">
+        <h1>
+          {restore
+            ? "שחזור ההרשמה"
+            : role === "dad"
+              ? "מצטרפים ללימוד עם הילדים"
+              : "מצטרפים ללימוד"}
+        </h1>
+        <p>
+          {restore
+            ? "אותם פרטים שנרשמתם איתם, והדף שלכם חוזר."
+            : "דקה אחת, ואתם בפנים."}
+        </p>
+      </div>
       {!restore && (
         <button className="text-button" onClick={() => setRestore(true)}>
           כבר נרשמתם? שחזור ההרשמה
         </button>
       )}
       <form onSubmit={submit} className="flow-form">
-        <fieldset>
+        <fieldset className="seg-field">
           <legend>נרשמים בתור</legend>
-          {[
-            ["kid", "תלמיד"],
-            ["dad", "הורה"],
-          ].map(([value, label]) => (
-            <label className="choice" key={value}>
-              <input
-                type="radio"
-                name="role"
-                value={value}
-                checked={value === role}
-                onChange={() => setRole(value)}
-              />
-              {label}
-            </label>
-          ))}
+          <div
+            className="seg"
+            style={{ "--tab": role === "dad" ? 1 : 0 } as React.CSSProperties}
+          >
+            {[
+              ["kid", "תלמיד"],
+              ["dad", "הורה"],
+            ].map(([value, label]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="role"
+                  value={value}
+                  checked={value === role}
+                  onChange={() => setRole(value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
         </fieldset>
         <div className="form-grid">
           <label>
@@ -231,8 +275,19 @@ export default function Signup({
             required
             pattern="0[2-9][0-9 \-]{7,12}"
             placeholder="05XXXXXXXX"
+            aria-invalid={phoneBad || undefined}
+            aria-describedby="phone-note"
+            onBlur={checkPhone}
+            onInput={(event) =>
+              phoneBad &&
+              phonePattern.test(event.currentTarget.value.trim()) &&
+              setPhoneBad(false)
+            }
           />
         </label>
+        <p className="field-note" id="phone-note" hidden={!phoneBad}>
+          המספר צריך להתחיל ב-0 ולהכיל 9 או 10 ספרות.
+        </p>
         {!restore && (
           <>
             <label>
@@ -272,26 +327,43 @@ export default function Signup({
                   name="klass"
                   defaultValue={draft?.klass}
                   maxLength={15}
+                  autoComplete="off"
                 />
               </label>
             </div>
-            <label>
-              דרך לימוד
-              <select
-                aria-label="דרך לימוד"
-                name="way"
-                key={role}
-                defaultValue={draft?.way || (role === "dad" ? "dad" : "solo")}
-              >
-                {ways.map((way) => (
-                  <option value={way[0]} key={way[0]}>
-                    {way[0] === "dad" && role === "dad" ? "עם הילדים" : way[1]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <details>
-              <summary>פרטי השותף ללימוד (אפשר למלא בהמשך)</summary>
+            <fieldset className="way-cards">
+              <legend>איך לומדים?</legend>
+              {ways.map(([value, label, hint]) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name="way"
+                    value={value}
+                    checked={selectedWay === value}
+                    onChange={() => setWay(value)}
+                  />
+                  <span>
+                    <strong>
+                      {value === "dad" && role === "dad" ? "עם הילדים" : label}
+                    </strong>
+                    <small>{hint}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <details
+              className="more"
+              key={selectedWay}
+              open={selectedWay !== "solo"}
+            >
+              <summary>
+                {selectedWay === "chav"
+                  ? "פרטי החבר"
+                  : role === "dad"
+                    ? "פרטי הבן"
+                    : "פרטי ההורה"}{" "}
+                <small>(אפשר למלא בהמשך)</small>
+              </summary>
               <div className="form-grid">
                 <label>
                   שם פרטי
@@ -299,6 +371,7 @@ export default function Signup({
                     name="dadFirst"
                     defaultValue={draft?.dadFirst}
                     maxLength={60}
+                    autoComplete="off"
                   />
                 </label>
                 <label>
@@ -307,6 +380,7 @@ export default function Signup({
                     name="dadLast"
                     defaultValue={draft?.dadLast}
                     maxLength={60}
+                    autoComplete="off"
                   />
                 </label>
               </div>
@@ -314,16 +388,14 @@ export default function Signup({
                 טלפון השותף
                 <input
                   type="tel"
+                  inputMode="tel"
                   name="dadPhone"
                   defaultValue={draft?.dadPhone}
                   dir="ltr"
+                  autoComplete="off"
                 />
               </label>
             </details>
-            <p className="form-hint">
-              הפרטים נשמרים במערכת הפרטית של התוכנית.{" "}
-              <a href="/info#privacy">מידע על פרטיות</a>
-            </p>
           </>
         )}
         {error && (
@@ -331,9 +403,18 @@ export default function Signup({
             {error}
           </p>
         )}
-        <button className="button button-blue" disabled={busy}>
+        <button
+          className={"button button-gold" + (busy ? " is-busy" : "")}
+          disabled={busy}
+        >
           {busy ? "בודקים ושומרים…" : restore ? "שחזור ההרשמה" : "שמירת ההרשמה"}
         </button>
+        {!restore && (
+          <p className="form-hint">
+            הפרטים נשמרים במערכת הפרטית של התוכנית.{" "}
+            <a href="/info#privacy">מידע על פרטיות</a>
+          </p>
+        )}
         {restore ? (
           <button
             type="button"
