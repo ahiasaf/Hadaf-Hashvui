@@ -1,14 +1,86 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, Pool } from "@neondatabase/serverless";
 import { timingSafeEqual } from "node:crypto";
 import { publicTabs, validatePublicRows } from "./public-schema.ts";
 import { compilePredicate, csvText, parsePublicQuery } from "./public-query.ts";
-export function databaseEnabled() {
-  return process.env.HADAF_DATABASE_BACKEND === "neon";
+export type BackendState = "legacy" | "frozen" | "neon";
+export class WritesPaused extends Error {
+  constructor() {
+    super("Writes are paused for the database migration");
+  }
+}
+let resolved: { state: BackendState; expires: number } | undefined;
+export function resetBackendState() {
+  resolved = undefined;
+}
+// The cutover marker is the only production switch. Activation is one-way, so it stays cached.
+export async function readCutoverState(): Promise<BackendState> {
+  try {
+    const rows =
+      await database()`SELECT state,frozen_until>now() AS freezing FROM cutover_state WHERE id`;
+    if (rows[0]?.state === "active") return "neon";
+    return rows[0]?.state === "frozen" && rows[0].freezing
+      ? "frozen"
+      : "legacy";
+  } catch (error) {
+    // Only a database that has never been prepared for cutover means "not migrated".
+    if ((error as { code?: string }).code === "42P01") return "legacy";
+    throw error;
+  }
+}
+export async function backendState(
+  read = readCutoverState,
+): Promise<BackendState> {
+  const mode = process.env.HADAF_DATABASE_BACKEND;
+  if (mode === "neon") return "neon";
+  if (mode !== "auto" || !process.env.DATABASE_URL) return "legacy";
+  if (resolved && resolved.expires > Date.now()) return resolved.state;
+  // A failed marker read fails the request: falling back could write to the retired source.
+  const state = await read();
+  resolved = {
+    state,
+    expires: state === "neon" ? Infinity : Date.now() + 15000,
+  };
+  return state;
+}
+export async function databaseEnabled() {
+  return (await backendState()) === "neon";
+}
+export async function requireWritable() {
+  if ((await backendState()) === "frozen") throw new WritesPaused();
 }
 export function database() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("Database configuration missing");
   return neon(url, { fetchOptions: { signal: AbortSignal.timeout(8000) } });
+}
+export type Query = (
+  text: string,
+  parameters?: unknown[],
+) => Promise<Record<string, unknown>[]>;
+// Read-modify-write operations hold one advisory lock, matching the Apps Script script lock.
+export async function withTransaction<T>(work: (query: Query) => Promise<T>) {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("Database configuration missing");
+  const pool = new Pool({ connectionString: url });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SET LOCAL statement_timeout = 20000");
+    await client.query("SELECT pg_advisory_xact_lock(1736901330)");
+    const result = await work(
+      async (text, parameters = []) =>
+        (await client.query(text, parameters)).rows,
+    );
+    await client.query("COMMIT");
+    invalidateDatabaseCache();
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
+  }
 }
 export function authorized(
   value: string | undefined,

@@ -1,0 +1,47 @@
+name: Database cutover
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: Report counts and pending migrations without pausing writes or importing
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: database-cutover
+  cancel-in-progress: false
+jobs:
+  cutover:
+    # Starts after successful production deployments only once the owner selects "auto", so it spends no minutes before.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.HADAF_DATABASE_BACKEND == 'auto' &&
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+      READ_KEY: ${{ secrets.READ_KEY }}
+      HADAF_DATABASE_BACKEND: ${{ vars.HADAF_DATABASE_BACKEND }}
+      HADAF_NOTIFICATION_DELIVERY: ${{ vars.HADAF_NOTIFICATION_DELIVERY }}
+      DRY_RUN: ${{ inputs.dry }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts --omit=dev
+      - name: Migrate production data into Neon
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            node tools/cutover.mts --dry-run
+          else
+            node tools/cutover.mts
+          fi

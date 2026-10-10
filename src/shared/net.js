@@ -33,23 +33,35 @@
     }, function (error) { clearTimeout(timer); delete pending[key]; throw error; });
     return pending[key].then(function (response) { return response.clone(); });
   }
+  /* Legacy tools address the Apps Script URL. Every such call goes through the same-origin API,
+     which serves it from the authoritative backend: Apps Script before cutover, Neon after.
+     Drive file downloads stay direct because they are not database operations. */
+  function isApi(url) {
+    return !!root.DF_API && (url === root.DF_API || url.indexOf(root.DF_API + '?') === 0);
+  }
+  function isFile(url) {
+    try { return new URL(url).searchParams.has('file'); } catch (e) { return false; }
+  }
+  function legacy(payload) {
+    return original('/api/action', {method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({operation:'legacy',payload:payload})});
+  }
   function sharedFetch(input, options) {
     var url = typeof input === 'string' ? input : input.url;
     if (options && options.method && options.method.toUpperCase() !== 'GET') {
       try { var body = JSON.parse(options.body || '{}'); if (body.tab) { cached = {}; fresh[body.tab] = Date.now(); } } catch (e) {}
+      if (typeof input === 'string' && isApi(url)) return legacy({method:'POST',body:typeof options.body === 'string' ? options.body : '{}'});
       return original(input, options);
     }
     if (typeof input !== 'string') return original(input, options);
-    if (root.DF_API && url.indexOf(root.DF_API + '?') === 0) {
+    if (isApi(url) && !isFile(url)) {
       var query = new URL(url);
-      if (query.searchParams.get('fire') === 'say') {
-        var payload = {}; query.searchParams.forEach(function (value, name) { payload[name] = value; });
-        var identity = JSON.stringify(payload);
-        if (!notificationRequests[identity]) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
-        if (Date.now() - notificationRequests[identity].at > 300000) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
-        payload.requestId = notificationRequests[identity].id;
-        return original('/api/action', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'notify',payload:payload})});
-      }
+      if (query.searchParams.get('fire') !== 'say') return legacy({method:'GET',query:query.search.slice(1)});
+      var payload = {}; query.searchParams.forEach(function (value, name) { payload[name] = value; });
+      var identity = JSON.stringify(payload);
+      if (!notificationRequests[identity]) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
+      if (Date.now() - notificationRequests[identity].at > 300000) notificationRequests[identity] = {id: crypto.randomUUID(), at: Date.now()};
+      payload.requestId = notificationRequests[identity].id;
+      return original('/api/action', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'notify',payload:payload})});
     }
 
     var match = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/([^/]+)\/gviz\/tq\?/.exec(url);
@@ -68,4 +80,24 @@
   }
   root.DFNet = { read: read, csv: csv, clear: function () { cached = {}; } };
   root.fetch = sharedFetch;
+  /* JSONP fallbacks set script.src to the Apps Script URL. Serve those through the same route and
+     call the page's callback, so no fallback can reach a retired backend directly. */
+  var source = root.HTMLScriptElement && Object.getOwnPropertyDescriptor(root.HTMLScriptElement.prototype, 'src');
+  if (source && source.set) Object.defineProperty(root.HTMLScriptElement.prototype, 'src', {
+    configurable: true, enumerable: source.enumerable, get: source.get,
+    set: function (value) {
+      var url = String(value), script = this;
+      if (!isApi(url) || isFile(url)) return source.set.call(this, value);
+      var query = new URL(url), name = query.searchParams.get('callback') || query.searchParams.get('cb');
+      query.searchParams.delete('callback'); query.searchParams.delete('cb');
+      sharedFetch(query.href).then(function (response) {
+        if (!response.ok) throw new Error('Legacy request failed');
+        return response.json();
+      }).then(function (data) {
+        if (name && typeof root[name] === 'function') root[name](data);
+      }).catch(function () {
+        if (typeof script.onerror === 'function') script.onerror(new Event('error'));
+      });
+    }
+  });
 })(window);

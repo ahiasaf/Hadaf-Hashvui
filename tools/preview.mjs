@@ -41,7 +41,7 @@ async function demoReply(req, res, url) {
   let source = "";
   for await (const chunk of req) {
     source += chunk;
-    if (source.length > 2200000) {
+    if (source.length > 4500000) {
       res.writeHead(413);
       res.end();
       return;
@@ -182,7 +182,7 @@ http
         let body = "";
         for await (const chunk of req) {
           body += chunk;
-          if (body.length > 2200000) {
+          if (body.length > 4500000) {
             res.writeHead(413);
             res.end();
             return;

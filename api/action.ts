@@ -5,6 +5,7 @@ import {
   immediateNotificationsEnabled,
 } from "../src/server/notification-outbox.ts";
 import { forwardAction } from "../src/server/actions.ts";
+import { WritesPaused } from "../src/server/database.ts";
 export default async function handler(
   req: IncomingMessage & { body?: unknown },
   res: ServerResponse,
@@ -31,10 +32,10 @@ export default async function handler(
       "payload" in envelope &&
       envelope.payload?.tab === "זוגות";
     if (
-      immediateNotificationsEnabled() &&
+      (await immediateNotificationsEnabled()) &&
       result &&
       typeof result === "object" &&
-      ("sid" in result || pairWrite)
+      ("sid" in result || "notified" in result || pairWrite)
     )
       waitUntil(
         flushNotificationOutbox(undefined, 45000).catch(() =>
@@ -45,8 +46,12 @@ export default async function handler(
       );
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(result));
-  } catch {
-    res.writeHead(502, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "error" }));
+  } catch (error) {
+    const paused = error instanceof WritesPaused;
+    res.writeHead(paused ? 503 : 502, {
+      "Content-Type": "application/json",
+      ...(paused ? { "Retry-After": "120" } : {}),
+    });
+    res.end(JSON.stringify({ status: paused ? "paused" : "error" }));
   }
 }

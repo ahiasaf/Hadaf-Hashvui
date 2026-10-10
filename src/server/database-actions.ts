@@ -268,11 +268,8 @@ export async function databaseAction(
   if (payload.board) return board(payload);
   if (payload.read) {
     requireAdmin(payload);
-    return {
-      status: "ok",
-      tab: payload.read,
-      rows: await readDatabaseTable(payload.read),
-    };
+    const { readLegacyTable } = await import("./legacy-neon.ts");
+    return readLegacyTable(payload);
   }
   if (payload.team) {
     if (!authorized(payload.key, process.env.TEAM_KEY))

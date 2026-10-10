@@ -29,7 +29,7 @@ Build before running tests. Browser checks use bundled public-content fixtures a
 
 ## Content and deployment
 
-`src/config/program.js` remains the content source, including editable UI copy. Google Sheets provides published overrides; production private rows remain in Apps Script. An isolated Neon candidate has passed source parity checks; its optional runtime stays disabled until the remaining workflow cutover gates pass. Same-origin public reads are deduplicated, cached briefly, and bounded by timeouts.
+`src/config/program.js` remains the content source, including editable UI copy. Google Sheets and Apps Script stay authoritative until the production cutover moves all data into Neon PostgreSQL; every backend call already has a Neon handler. Same-origin public reads are deduplicated, answered from the device cache while they refresh, and bounded by timeouts.
 
 Vercel builds `dist/` and deploys branch previews. `/api/sheets` exposes only approved public tabs; `/api/wait` returns success only after the existing backend acknowledges a notification request. Repository secrets remain server-side; this frontend migration does not deploy the shared Apps Script backend.
 
