@@ -2715,7 +2715,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.167';
+var APP_VERSION = '8.99.168';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17297,14 +17297,14 @@ function admInstall() {
    · **בדיקה** — קוראת את ארבע הלשוניות, מחשבת את ההסבה ומציגה
      דוח: לכל דף, מספר → מזהה → תחילת הטקסט → מה משויך. לא כותבת
      כלום. אפשר להוריד את הדוח כקובץ.
-   · **הסבה** — רק אחרי בדיקה, ורק באישור: קודם גיבוי (קובץ במכשיר,
-     ועותק של כל לשונית בלשונית "גיבוי מזהים · …" שנקרא בחזרה
-     ומושווה), ואז כתיבה של ארבע הלשוניות וקריאה חוזרת לאימות.
+   · **הסבה** — רק אחרי בדיקה, ורק באישור, לשונית אחת בכל לחיצה:
+     הסקריפט מגבה אותה ל"גיבוי מזהים · …" ומאמת, כותב, מאמת שוב,
+     ואם לא — מחזיר. ראו "ההסבה בחלקים" למטה.
    הקריאה דרך הסקריפט (getDisplayValues) ולא דרך gviz — כדי שמה
    שנכתב בחזרה יהיה אות באות מה שהיה.
    ============================================================ */
 var SID_TABS = { marks:'סימוני הדף', own:'פירוש', q:'שאלות בדף', deck:'מצגת' };
-var SID = { busy:false, msg:'', cls:'', res:null, tabs:null };
+var SID = { busy:false, msg:'', cls:'', res:null, tabs:null, plan:null, todo:null, next:'', bad:'' };
 function sidCard() {
   var r = SID.res, sum = '';
   if (r) {
@@ -17314,7 +17314,7 @@ function sidCard() {
       orph += d.orph.own.length + d.orph.q.length + d.orph.deck.length;
       if (d.was.own === 'n' || d.was.q === 'n' || d.was.deck === 'n') conv++;
     });
-    sum = '<div class="cond" style="margin-top:10px">' +
+    sum = sidProg_() + '<div class="cond" style="margin-top:10px">' +
       '<b>' + dafs + '</b> דפים · <b>' + items + '</b> קטעים · ' +
       '<b>' + r.changedPages + '</b> עמודים יקבלו מזהים · ' +
       '<b>' + conv + '</b> דפים עם תוכן לפי מספרים' +
@@ -17323,12 +17323,13 @@ function sidCard() {
   }
   return '<div class="adm-card" style="margin-bottom:11px"><h4>מזהים קבועים לקטעים</h4>' +
     '<p class="h">כדי שפיצול ואיחוד בסטודיו לא יזיזו את הפירוש, השאלות, ההקלטות והשקפים ' +
-    'של קטעים אחרים. <b>בדיקה</b> אינה משנה דבר. <b>הסבה</b> — רק אחרי בדיקה, ' +
-    'עם גיבוי לפני הכתיבה. <b>שחזור</b> — מחזיר את ארבע הלשוניות למצב שבגיבוי.</p>' +
+    'של קטעים אחרים. <b>בדיקה</b> אינה משנה דבר. <b>הסבה</b> — לשונית אחת בכל לחיצה, ' +
+    'עם גיבוי מאומת לפני הכתיבה; לחיצה הבאה ממשיכה מאיפה שנעצרה. ' +
+    '<b>שחזור</b> — מחזיר כל לשונית שהוסבה למצב שבגיבוי שלה.</p>' +
     '<button class="btn g" onclick="sidDry()"' + (SID.busy ? ' disabled' : '') + '>בדיקה — בלי לשנות</button>' +
     (r ? '<button class="btn g" style="margin-top:8px" onclick="sidSaveReport()">הורדת הדוח</button>' +
-         '<button class="btn gd" style="margin-top:8px" onclick="sidRun()"' +
-         (SID.busy ? ' disabled' : '') + '>הסבה — גיבוי ואז כתיבה</button>' : '') +
+         (SID.next ? '<button class="btn gd" style="margin-top:8px" onclick="sidRun()"' +
+         (SID.busy ? ' disabled' : '') + '>הסבה — החלק הבא: ' + esc(SID_TABS[SID.next]) + '</button>' : '') : '') +
     /* תמיד גלוי: מי שצריך לשחזר לא תמיד הריץ בדיקה באותה כניסה */
     '<button class="btn g" style="margin-top:8px" onclick="sidRestore()"' +
     (SID.busy ? ' disabled' : '') + '>שחזור מהגיבוי</button>' +
@@ -17380,9 +17381,7 @@ function sidDry() {
   if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
   SID.busy = true; SID.res = null; sidSay_('cond', 'קורא את ארבע הלשוניות…');
   sidRead_().then(function (t) {
-    var o = sidMap_(t.own), q = sidMap_(t.q), d = sidMap_(t.deck);
-    SID.tabs = t;
-    SID.res = SidMigrate(t.marks, o.map, q.map, d.map);
+    sidState_(t);
     SID.busy = false;
     sidSay_('ok', 'הבדיקה הסתיימה. לא נכתב דבר.');
   }).catch(function (e) {
@@ -17417,8 +17416,9 @@ function sidRows_(rows, conv) {
     var k = SidDm(String(r[0] || '').trim(), String(r[1] || '').trim());
     var v = conv[k];
     if (v && !seen[k] && JSON.stringify(v) !== JSON.stringify(src.map[k]) && !v.__bad) {
-      seen[k] = 1; out.push([r[0], r[1], JSON.stringify(v)]);
-    } else out.push(r.slice(0, 3));
+      seen[k] = 1;
+      var nr = r.slice(); nr[2] = JSON.stringify(v); out.push(nr);
+    } else out.push(r.slice());
     seen[k] = 1;
   });
   Object.keys(conv).forEach(function (k) {
@@ -17437,25 +17437,6 @@ function sidDafRaw_(k) {
   });
   return hit || k.split('|')[1];
 }
-function sidPost_(tab, head, rows) {
-  return fetch((CFG.api || API || '').trim(), { method:'POST', mode:'no-cors',
-    body: JSON.stringify({ action:'table', tab: tab, key:(CFG.readKey || '').trim(),
-      cols: JSON.stringify(head), rows: JSON.stringify(rows) }) });
-}
-/* no-cors אינו אומר כלום — קוראים בחזרה ומשווים, עם כמה ניסיונות */
-function sidCheck_(tab, rows, tries) {
-  return new Promise(function (ok) { setTimeout(ok, tries ? 2000 : 1500); }).then(function () {
-    return scriptGet({ read: tab, key: (CFG.readKey || '').trim() });
-  }).then(function (d) {
-    var got = (d && d.status === 'ok' && d.rows) ? d.rows.slice(1) : null;
-    var same = got && got.length === rows.length && got.every(function (r, i) {
-      return rows[i].every(function (c, j) { return String(c == null ? '' : c) === String(r[j] == null ? '' : r[j]); });
-    });
-    if (same) return true;
-    if ((tries || 0) < 4) return sidCheck_(tab, rows, (tries || 0) + 1);
-    return false;
-  }).catch(function () { return (tries || 0) < 4 ? sidCheck_(tab, rows, (tries || 0) + 1) : false; });
-}
 var SID_BAK = 'גיבוי מזהים · ';
 var SID_HEAD = { marks:['מסכת', 'דף', 'עמוד', 'נתונים'], own:['מסכת', 'דף', 'פירוש'],
                  q:['מסכת', 'דף', 'שאלות'], deck:['מסכת', 'דף', 'עוגנים'] };
@@ -17463,125 +17444,179 @@ function sidHead_(k, rows) {
   var h = rows && rows[0];
   return (h && String(h[0] || '').indexOf('מסכת') >= 0) ? h : SID_HEAD[k];
 }
-/* יש בכלל מה להסב? עמוד בלי מזהה, או תוכן שעדיין לפי מספרים. */
-function sidTodo_(r) {
-  return r.changedPages > 0 || r.report.some(function (d) {
-    return d.was.own !== 'ids' || d.was.q === 'n' || d.was.deck === 'n';
+/* ============================================================
+   ההסבה בחלקים — לשונית אחת בכל לחיצה.
+   ============================================================
+   הגרסה הקודמת עשתה הכול בלחיצה אחת, וגיבתה מהמכשיר: שלחה כל
+   לשונית כטבלה וקראה בחזרה. גוגל ממיר בדרך מלל שנראה כמו מספר,
+   ולכן הגיבוי לא אומת — "הגיבוי לא אומת — לא נכתב דבר".
+
+   עכשיו כל לחיצה: קוראים מחדש את ארבע הלשוניות, מחשבים את
+   ההסבה, ושולחים לסקריפט **לשונית אחת** — הראשונה שעוד לא
+   הוסבה. הסקריפט מגבה אותה בעצמו (העתק של הלשונית), בודק את
+   הגיבוי, כותב בפעולה אחת, מאמת, ואם לא — מחזיר את מה שהיה
+   (sidStep_ ב-apps-script.gs). אחר כך המכשיר קורא שוב ובודק בעצמו.
+   הסדר: "סימוני הדף" קודם — בלי המזהים שם, לפירוש אין למה להיקשר.
+   לחיצה שנקטעה באמצע — הלחיצה הבאה רואה מה כבר בגיליון וממשיכה.
+   ============================================================ */
+var SID_VER = 56;
+/* שורות הלשונית בלי הכותרת, כמחרוזות ברוחב קבוע — להשוואה */
+function sidFlat_(rows, w) {
+  return JSON.stringify((rows || []).map(function (r) {
+    var o = [];
+    for (var j = 0; j < w; j++) o.push(String(r && r[j] != null ? r[j] : ''));
+    return o;
+  }));
+}
+function sidWidth_(rows) {
+  var w = 0;
+  (rows || []).forEach(function (r) { if (r && r.length > w) w = r.length; });
+  return w;
+}
+/* סימוני הדף אחרי ההסבה — באותו סדר ובאותו מספר שורות כמו בגיליון.
+   SidParse מדלג על שורה בלי מסכת; כאן היא נשארת במקומה. */
+function sidMarksPlan_(rows, r) {
+  var data = rows.slice(1), plan = data.map(function (x) { return x.slice(); });
+  var recs = SidParse(data), conv = r.marks.slice(1);
+  recs.forEach(function (R, j) { if (conv[j]) plan[R.i] = conv[j].slice(); });
+  return plan;
+}
+function sidState_(t) {
+  var o = sidMap_(t.own), q = sidMap_(t.q), d = sidMap_(t.deck);
+  SID.tabs = t;
+  SID.res = SidMigrate(t.marks, o.map, q.map, d.map);
+  var plan = {}, todo = {}, next = '', bad = '';
+  Object.keys(SID_TABS).forEach(function (k) {
+    var rows = t[k] || [];
+    if (rows.length && String((rows[0] || [])[0] || '').indexOf('מסכת') < 0) bad = bad || SID_TABS[k];
+    plan[k] = k === 'marks' ? sidMarksPlan_(rows, SID.res) : sidRows_(rows, SID.res[k]);
+    var w = Math.max(sidWidth_(rows), sidWidth_(plan[k]));
+    todo[k] = sidFlat_(rows.slice(1), w) !== sidFlat_(plan[k], w);
+    if (todo[k] && !next) next = k;
+  });
+  SID.plan = plan; SID.todo = todo; SID.next = bad ? '' : next; SID.bad = bad;
+  return SID;
+}
+function sidProg_() {
+  if (!SID.todo) return '';
+  if (SID.bad) return '<div class="bad" style="margin-top:10px">ללשונית "' + esc(SID.bad) +
+    '" אין שורת כותרת — ההסבה לא תרוץ עליה.</div>';
+  return '<div class="cond" style="margin-top:10px">' + Object.keys(SID_TABS).map(function (k) {
+    return (SID.todo[k] ? '◻ ' : '✓ ') + esc(SID_TABS[k]) + (SID.todo[k] ? ' — ממתינה' : ' — מוסבת');
+  }).join('<br>') + '</div>';
+}
+/* התשובה של הסקריפט לצעד שנשלח (rid), בקריאה חוזרת עד שהיא מגיעה */
+function sidWait_(rid, tries) {
+  return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () {
+    return scriptGet({ sidStep: 1, key: (CFG.readKey || '').trim() }).catch(function () { return null; });
+  }).then(function (d) {
+    if (d && d.sid && d.sid.rid === rid) return d.sid;
+    if ((tries || 0) < 40) return sidWait_(rid, (tries || 0) + 1);
+    throw new Error('לא התקבלה תשובה מהסקריפט. ייתכן שהוא עוד עובד — לחצו "בדיקה" בעוד דקה: ' +
+                    'היא תראה מה כבר נכתב, וההסבה תמשיך משם.');
+  });
+}
+function sidSend_(body) {
+  var rid = 'r' + Date.now() + Math.floor(Math.random() * 1000);
+  body.action = 'sidStep'; body.rid = rid; body.key = (CFG.readKey || '').trim();
+  /* no-cors: גם "כישלון" ברשת אינו אומר שלא נכתב — שואלים את הסקריפט */
+  return fetch((CFG.api || API || '').trim(), { method:'POST', mode:'no-cors', body: JSON.stringify(body) })
+    .catch(function () {}).then(function () { return sidWait_(rid, 0); });
+}
+/* הסקריפט בגרסה שמכירה את הצעד? בלי זה הבקשה הייתה נבלעת בשקט. */
+function sidServer_() {
+  return scriptGet({ sidStep: 1, key: (CFG.readKey || '').trim() }).then(function (d) {
+    if (!d || !(+d.version >= SID_VER)) throw new Error('הסקריפט בגוגל עוד לא עודכן לגרסה ' + SID_VER +
+      ' (עכשיו: ' + esc(String(d && d.version || '?')) + '). נסו שוב בעוד כמה דקות. לא נכתב דבר.');
+    if (d.status === 'denied') throw new Error('הסקריפט דחה את הסיסמה. לא נכתב דבר.');
+  });
+}
+function sidRun() {
+  if (!SID.res || SID.busy) return;
+  if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
+  var k = '', name = '';
+  SID.busy = true; sidSay_('cond', 'קורא שוב את ארבע הלשוניות…');
+  sidServer_().then(function () { return sidRead_(); }).then(function (t) {
+    sidState_(t);
+    if (SID.bad) throw new Error('ללשונית "' + SID.bad + '" אין שורת כותרת. לא נכתב דבר.');
+    k = SID.next;
+    if (!k) { SID.busy = false; sidSay_('ok', '✓ ארבע הלשוניות כבר מוסבות. לא נכתב דבר.'); return null; }
+    name = SID_TABS[k];
+    var left = Object.keys(SID_TABS).filter(function (x) { return SID.todo[x]; }).length;
+    if (!confirm('להסב את "' + name + '"?\n\nנותרו ' + left + ' מתוך 4 לשוניות. ' +
+        'הסקריפט יעתיק קודם את הלשונית ל"' + SID_BAK + name + '" ויבדוק את ההעתק, ' +
+        'ורק אז יכתוב ויאמת. לא מאומת — הוא מחזיר את מה שהיה.\n' +
+        'גם למכשיר יירד קובץ של הלשונית כפי שהיא עכשיו.')) {
+      SID.busy = false; sidSay_('cond', 'בוטל. לא נכתב דבר.'); return null;
+    }
+    saveFile('hadaf-stepid-' + k + '-' + stamp() + '.json', JSON.stringify(t[k]));
+    sidSay_('cond', 'מגבה, כותב ומאמת את "' + name + '"…');
+    return sidSend_({ tab: name, head: JSON.stringify(sidHead_(k, t[k])),
+                      base: JSON.stringify(t[k]), plan: JSON.stringify(SID.plan[k]) })
+      .then(function (res) {
+        if (res.status === 'rolledback') throw new Error('"' + name + '": ' + esc(res.message || '') +
+          ' — ' + esc(res.back || '') + '. הגיבוי: "' + esc(res.backup || '') + '".');
+        if (res.status === 'changed') throw new Error('"' + name + '" השתנתה בגיליון בזמן הלחיצה. לא נכתב דבר — לחצו שוב.');
+        if (res.status !== 'ok') throw new Error('"' + name + '": ' + esc(res.message || res.status || '') + '. לא נכתב דבר.');
+        /* אימות שני, מהמכשיר: קוראים שוב ומחשבים מחדש */
+        return sidRead_().then(function (t2) {
+          var want = SID.plan[k];
+          sidState_(t2);
+          var w = Math.max(sidWidth_(want), sidWidth_(t2[k]));
+          if (sidFlat_(t2[k].slice(1), w) !== sidFlat_(want, w))
+            throw new Error('הסקריפט דיווח שנכתב, אבל "' + name + '" אינה זהה לתוכנית. הגיבוי: "' + esc(res.backup || '') + '".');
+          var rest = Object.keys(SID_TABS).filter(function (x) { return SID.todo[x]; });
+          SID.busy = false;
+          sidSay_('ok', '✓ "' + esc(name) + '" ' + (res.already ? 'כבר הייתה מוסבת' :
+            'הוסבה ואומתה: ' + res.cells + ' תאים, ' + res.added + ' שורות נוספו') +
+            '. גיבוי: "' + esc(res.backup || '') + '".' +
+            (res.aside ? ' גיבוי ישן באותו שם הועבר ל"' + esc(res.aside) + '".' : '') +
+            (rest.length ? ' נותרו: ' + rest.map(function (x) { return esc(SID_TABS[x]); }).join(', ') + '.'
+                         : ' ארבע הלשוניות מוסבות.'));
+        });
+      });
+  }).catch(function (e) {
+    SID.busy = false;
+    sidSay_('bad', (e && e.message) || 'ההסבה נעצרה.');
   });
 }
 /* ============================================================
    שחזור מהגיבוי.
    ============================================================
-   "אם משהו לא מסתדר — עצור ותחזיר מהגיבוי." לחיצה אחת: קוראים את
-   ארבע לשוניות "גיבוי מזהים · …", מורידים למכשיר קובץ של המצב
-   הנוכחי (שגם השחזור עצמו יהיה הפיך), כותבים כל אחת בחזרה למקור,
-   וקוראים שוב לוודא שהמקור זהה לגיבוי. חסרה לשונית גיבוי אחת —
-   לא נוגעים בכלום.
+   "אם משהו לא מסתדר — עצור ותחזיר מהגיבוי." כל לשונית שיש לה
+   גיבוי שהסקריפט לקח ואימת חוזרת אליו; לשונית בלי גיבוי כזה —
+   לא נגעו בה בהסבה, ולא נוגעים בה עכשיו. מה שיש בלשונית לפני
+   השחזור נשמר בגיליון בשם צדדי, וגם יורד למכשיר.
    ============================================================ */
 function sidRestore() {
   if (SID.busy) return;
   if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
-  var key = (CFG.readKey || '').trim(), names = Object.keys(SID_TABS), bak = {}, cur = {};
-  SID.busy = true; sidSay_('cond', 'קורא את לשוניות הגיבוי…');
-  Promise.all(names.map(function (k) {
-    return Promise.all([scriptGet({ read: SID_BAK + SID_TABS[k], key: key }),
-                        scriptGet({ read: SID_TABS[k], key: key })]).then(function (res) {
-      var b = res[0], c = res[1];
-      if (!b || b.status !== 'ok' || !b.rows || !b.rows.length)
-        throw new Error('אין לשונית גיבוי "' + SID_BAK + SID_TABS[k] + '" — לא שוחזר דבר.');
-      if (!c || c.status !== 'ok') throw new Error('לא הצלחתי לקרוא את "' + SID_TABS[k] + '" — לא שוחזר דבר.');
-      bak[k] = b.rows; cur[k] = c.rows || [];
-    });
-  })).then(function () {
-    SID.busy = false;
-    var lines = names.map(function (k) {
-      return SID_TABS[k] + ': עכשיו ' + Math.max(0, cur[k].length - 1) + ' שורות · בגיבוי ' + (bak[k].length - 1);
-    }).join('\n');
-    if (!confirm('להחזיר את ארבע הלשוניות למצב שבגיבוי?\n\n' + lines +
-        '\n\nמה שנכתב בהן אחרי הגיבוי יוחלף. קודם יירד למכשיר קובץ של המצב הנוכחי.')) {
-      sidSay_('cond', 'השחזור בוטל. לא נכתב דבר.'); return null;
-    }
-    SID.busy = true;
+  if (!confirm('להחזיר למצב שבגיבוי כל לשונית שהוסבה?\n\n' +
+      'מה שנכתב בהן אחרי הגיבוי יוחלף. מה שיש בהן עכשיו יישמר בגיליון בשם צדדי, ויירד גם למכשיר.')) return;
+  var names = Object.keys(SID_TABS), done = [], skip = [];
+  SID.busy = true; sidSay_('cond', 'קורא את המצב הנוכחי…');
+  sidServer_().then(function () { return sidRead_(); }).then(function (cur) {
     saveFile('hadaf-before-restore-' + stamp() + '.json', JSON.stringify(cur));
-    var w = Promise.resolve(true);
+    var w = Promise.resolve();
     names.forEach(function (k) {
       w = w.then(function () {
         sidSay_('cond', 'משחזר את "' + SID_TABS[k] + '"…');
-        var head = sidHead_(k, bak[k]);
-        var rows = bak[k].slice(1).map(function (x) { return x.slice(0, head.length); });
-        return sidPost_(SID_TABS[k], head, rows).then(function () {
-          return sidCheck_(SID_TABS[k], rows);
-        }).then(function (good) {
-          if (!good) throw new Error('"' + SID_TABS[k] + '" לא אומתה אחרי השחזור. הגיבוי עדיין בלשוניות "' + SID_BAK + '…", ומה שהיה לפני השחזור — בקובץ שירד.');
-        });
-      });
-    });
-    return w.then(function () {
-      SID.busy = false; SID.res = null; SID.tabs = null;
-      sidSay_('ok', '✓ שוחזר ואומת: ארבע הלשוניות זהות לגיבוי.');
-    });
-  }).catch(function (e) {
-    SID.busy = false;
-    sidSay_('bad', esc(e && e.message || 'השחזור נעצר.'));
-  });
-}
-function sidRun() {
-  if (!SID.res || !SID.tabs || SID.busy) return;
-  var r = SID.res;
-  /* אין מה להסב — לא נוגעים. ריצה כזו הייתה דורסת את הגיבוי של
-     המצב שלפני ההסבה בגיבוי של המצב שאחריה, והשחזור היה מאבד את
-     הדרך חזרה. */
-  if (!sidTodo_(r)) { sidSay_('ok', 'אין מה להסב — הגיליון כבר לפי מזהים. לא נכתב דבר.'); return; }
-  if (!confirm('להסב את הגיליון למזהים קבועים?\n\n' +
-      'קודם יירד למכשיר קובץ גיבוי, וכל לשונית תועתק ללשונית "גיבוי מזהים · …" ותיבדק.\n' +
-      'רק אחר כך ייכתבו: ' + r.changedPages + ' עמודים בסימוני הדף, והפירוש, השאלות והשקפים של ' +
-      r.report.length + ' דפים.')) return;
-  var t = SID.tabs, names = Object.keys(SID_TABS);
-  SID.busy = true;
-  saveFile('hadaf-stepid-backup-' + stamp() + '.json', JSON.stringify(t));
-  sidSay_('cond', 'מגבה לגיליון…');
-  /* 1 · גיבוי בגיליון, ואימות שלו — לפני כל שינוי */
-  var chain = Promise.resolve(true);
-  /* גם לשונית ריקה מגובה (כותרת בלבד): ההסבה עשויה להוסיף לה שורות,
-     והשחזור צריך לדעת שהיא הייתה ריקה ולהחזיר אותה ריקה. */
-  names.forEach(function (k) {
-    chain = chain.then(function (ok) {
-      if (!ok) return false;
-      var head = sidHead_(k, t[k]);
-      var rows = t[k].slice(1).map(function (x) { return x.slice(0, head.length); });
-      var tab = SID_BAK + SID_TABS[k];
-      return sidPost_(tab, head, rows).then(function () { return sidCheck_(tab, rows); });
-    });
-  });
-  chain.then(function (ok) {
-    if (!ok) throw new Error('הגיבוי לא אומת — לא נכתב דבר בלשוניות עצמן.');
-    /* 2 · הכתיבה עצמה, ואימות */
-    var plan = {
-      marks: r.marks.slice(1).map(function (x) { return x.slice(0, 4); }),
-      own: sidRows_(t.own, r.own), q: sidRows_(t.q, r.q), deck: sidRows_(t.deck, r.deck)
-    };
-    var heads = { marks: sidHead_('marks', t.marks), own: sidHead_('own', t.own),
-                  q: sidHead_('q', t.q), deck: sidHead_('deck', t.deck) };
-    var w = Promise.resolve(true);
-    names.forEach(function (k) {
-      w = w.then(function (ok2) {
-        if (!ok2) return false;
-        sidSay_('cond', 'כותב את "' + SID_TABS[k] + '"…');
-        return sidPost_(SID_TABS[k], heads[k], plan[k]).then(function () {
-          return sidCheck_(SID_TABS[k], plan[k]);
-        }).then(function (good) {
-          if (!good) throw new Error('"' + SID_TABS[k] + '" לא אומתה אחרי הכתיבה. הגיבוי בלשוניות "גיבוי מזהים · …" ובקובץ שירד.');
-          return true;
+        return sidSend_({ tab: SID_TABS[k], mode: 'restore' }).then(function (res) {
+          if (res.status === 'nobak') { skip.push(SID_TABS[k]); return; }
+          if (res.status !== 'ok') throw new Error('"' + SID_TABS[k] + '": ' + esc(res.message || res.status || '') +
+            (done.length ? '. כבר שוחזרו: ' + done.join(', ') : ''));
+          done.push(SID_TABS[k]);
         });
       });
     });
     return w;
   }).then(function () {
-    SID.busy = false; SID.res = null; SID.tabs = null;
-    sidSay_('ok', '✓ ההסבה נכתבה ואומתה בארבע הלשוניות. הגיבוי נשאר בלשוניות "גיבוי מזהים · …".');
+    SID.busy = false; SID.res = null; SID.tabs = null; SID.todo = null; SID.next = '';
+    sidSay_('ok', (done.length ? '✓ שוחזרו ואומתו: ' + done.join(', ') + '.' : 'לא שוחזר דבר.') +
+      (skip.length ? ' בלי גיבוי מאומת (לא נגעו בהן): ' + skip.join(', ') + '.' : ''));
   }).catch(function (e) {
     SID.busy = false;
-    sidSay_('bad', esc(e && e.message || 'ההסבה נעצרה.'));
+    sidSay_('bad', (e && e.message) || 'השחזור נעצר.');
   });
 }
 

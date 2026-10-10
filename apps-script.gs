@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 55;
+var SCRIPT_VERSION = 56;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -381,6 +381,12 @@ function doPost(e) {
         }
         d.cols = JSON.stringify(keep);
       }
+    }
+    /* ההסבה למזהים קבועים — לשונית אחת בכל קריאה. ראו sidStep_. */
+    if (d.action === 'sidStep') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      try { backupDaily_(); } catch (sbe) {}
+      return json_(sidStepRun_(d));
     }
     if (d.action === 'row' && d.tab === JOIN_TAB) {
       markJoined_(instOf_(parse_(d.cols)), '');
@@ -1730,6 +1736,17 @@ function doGet(e) {
 
      getDisplayValues ולא getValues: מספר טלפון שמתחיל באפס הוא
      מספר בעיני הגיליון, ו-getValues היה מחזיר 527997944. */
+  /* התוצאה של הצעד האחרון בהסבה למזהים — POST ב-no-cors אטום,
+     ולכן הצד השני שואל כאן. ראו sidStep_. */
+  if (e && e.parameter && e.parameter.sidStep) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', version: SCRIPT_VERSION });
+    }
+    var sr = prop_('SID_STEP', '');
+    var so = null;
+    try { so = sr ? JSON.parse(sr) : null; } catch (sre) { so = null; }
+    return reply_(e, { status: 'ok', version: SCRIPT_VERSION, sid: so });
+  }
   if (e && e.parameter && e.parameter.read) {
     var want = String(e.parameter.read), rd;
 
@@ -3560,6 +3577,176 @@ function recountRows_(all) {
 
 /* טבלת הגדרות (כרגע: המלל) — נכתבת מחדש בשלמותה בכל פרסום,
    אחרת נוסח שנמחק היה נשאר בגיליון וממשיך לדרוס את הקוד. */
+/* ============================================================
+   ההסבה למזהים קבועים — צעד אחד: לשונית אחת, מתחילתה ועד סופה,
+   בתוך הרצה אחת של הסקריפט.
+   ============================================================
+   "אני חושש שההסבה מהכפתור ארוכה מדי ושהסקריפט ייגמר לו הזמן
+   באמצע." הגרסה הקודמת גיבתה מהמכשיר: קראה כל לשונית כמלל,
+   שלחה אותה חזרה כטבלה, והשוותה — וגוגל ממיר בדרך מלל שנראה
+   כמו מספר או תאריך, ולכן הגיבוי לא אומת אף פעם.
+
+   כאן הכול בצד של גוגל, לשונית אחת בכל לחיצה:
+   1. הלשונית חייבת להיות בדיוק מה שהמכשיר קרא בבדיקה (`base`).
+      השתנתה מאז — לא נוגעים, ומבקשים בדיקה חדשה.
+   2. **גיבוי:** העתק מלא של הלשונית (copyTo) בשם "גיבוי מזהים ·
+      …", ונבדק תא בתא מול המקור. גיבוי ישן באותו שם שאינו זהה
+      למצב הנוכחי — מקבל שם צדדי, לא נמחק.
+   3. **כתיבה בפעולה אחת** (setValues על כל השורות): תא שלא
+      השתנה נכתב מ-getValues, כלומר בדיוק בסוג שהיה. מותר לשנות
+      רק את עמודת הנתונים, ומותר רק להוסיף שורות — לא למחוק.
+   4. **אימות** מול התוכנית. לא זהה — מחזירים את מה שהיה, באותה
+      הרצה, ובודקים שחזר. כך כשל אינו משאיר לשונית חצי מוסבת.
+   התוצאה נשמרת ב-SID_STEP, והמכשיר קורא אותה ב-GET (?sidStep).
+   ============================================================ */
+var SID_TABS_ = { 'סימוני הדף': 3, 'פירוש': 2, 'שאלות בדף': 2, 'מצגת': 2 };
+var SID_BAK_ = 'גיבוי מזהים · ';
+function sidStepRun_(d) {
+  var out;
+  try { out = sidStep_(d); }
+  catch (err) { out = { status: 'error', message: String(err) }; }
+  out.rid = String(d.rid || ''); out.tab = String(d.tab || ''); out.mode = String(d.mode || 'write');
+  out.t = new Date().toISOString();
+  try { PropertiesService.getScriptProperties().setProperty('SID_STEP', JSON.stringify(out)); } catch (pe) {}
+  return out;
+}
+function sidStr_(rows, w) {
+  return (rows || []).map(function (r) {
+    var o = [];
+    for (var j = 0; j < w; j++) o.push(String(r && r[j] != null ? r[j] : ''));
+    return o;
+  });
+}
+function sidSame_(a, b, w) {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(sidStr_(a, w)) === JSON.stringify(sidStr_(b, w));
+}
+function sidDiff_(a, b, w) {
+  var A = sidStr_(a, w), B = sidStr_(b, w), n = Math.max(A.length, B.length);
+  for (var i = 0; i < n; i++) {
+    if (!A[i] || !B[i]) return 'שורה ' + (i + 1) + ' חסרה';
+    for (var j = 0; j < w; j++) if (A[i][j] !== B[i][j]) {
+      return 'שורה ' + (i + 1) + ', עמודה ' + (j + 1) + ': ' + A[i][j].length + ' תווים מול ' + B[i][j].length;
+    }
+  }
+  return '';
+}
+/* אילו גיבויים נלקחו ואומתו בצד של גוגל */
+function sidBakOk_(tab, set) {
+  var P = PropertiesService.getScriptProperties(), m = {};
+  try { m = JSON.parse(P.getProperty('SID_BAK_OK') || '{}') || {}; } catch (e) { m = {}; }
+  if (!set) return !!m[tab];
+  m[tab] = sidStamp_();
+  P.setProperty('SID_BAK_OK', JSON.stringify(m));
+  return true;
+}
+function sidShow_(sh) {
+  return sh && sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+}
+function sidStamp_() {
+  return Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
+}
+function sidStep_(d) {
+  var tab = String(d.tab || '');
+  if (!SID_TABS_.hasOwnProperty(tab)) return { status: 'error', message: 'לשונית לא מוכרת' };
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(tab), bakName = SID_BAK_ + tab, bak = ss.getSheetByName(bakName);
+  if (String(d.mode || '') === 'restore') return sidRestore_(ss, sh, bak, tab);
+
+  var base = parse_(d.base) || [], plan = parse_(d.plan) || [], head = parse_(d.head) || [];
+  if (!sh) {
+    if (base.length) return { status: 'changed', message: 'הלשונית חסרה' };
+    sh = ss.insertSheet(tab);
+    headRow_(sh, head);
+    base = [head];
+  }
+  var cur = sidShow_(sh), W = Math.max(sh.getLastColumn(), head.length, 1);
+  if (!sidSame_(cur, base, W)) {
+    /* כבר הוסבה (לחיצה קודמת שהסתיימה בלי שהמכשיר שמע)? */
+    if (sidSame_(cur, [cur[0] || head].concat(plan), W) && bak) {
+      return { status: 'ok', already: true, cells: 0, added: 0, backup: bakName };
+    }
+    return { status: 'changed', message: 'הלשונית השתנתה מאז הבדיקה' };
+  }
+  var data = cur.length - 1;
+  if (plan.length < data) return { status: 'error', message: 'התוכנית מוחקת שורות — לא נכתב דבר' };
+
+  /* --- 2 · גיבוי --- */
+  var bakNote = '';
+  if (bak && !sidSame_(sidShow_(bak), cur, W)) {
+    bak.setName(bakName + ' · קודם ' + sidStamp_());
+    bakNote = bak.getName();
+    bak = null;
+  }
+  if (!bak) {
+    bak = sh.copyTo(ss).setName(bakName);
+    SpreadsheetApp.flush();
+  }
+  var bakCheck = sidDiff_(sidShow_(bak), cur, W);
+  if (bakCheck) return { status: 'backup', message: 'הגיבוי לא זהה למקור (' + bakCheck + ') — לא נכתב דבר', backup: bakName };
+  sidBakOk_(tab, true);
+
+  /* --- 3 · כתיבה --- */
+  var col = SID_TABS_[tab], cells = 0, n = plan.length;
+  if (!n) return { status: 'ok', cells: 0, added: 0, backup: bakName, aside: bakNote };
+  var rng = sh.getRange(2, 1, n, W);
+  var old = data ? sh.getRange(2, 1, data, W).getValues() : [];
+  var fx = data ? sh.getRange(2, 1, data, W).getFormulas() : [];
+  var next = [], blank = [];
+  for (var i = 0; i < n; i++) {
+    var row = [];
+    for (var j = 0; j < W; j++) {
+      var want = String(plan[i][j] != null ? plan[i][j] : '');
+      if (i < data) {
+        var had = cur[i + 1][j] != null ? String(cur[i + 1][j]) : '';
+        if (want === had) { row.push(old[i][j]); continue; }
+        if (j !== col) return { status: 'error', message: 'שינוי מחוץ לעמודת הנתונים (שורה ' + (i + 2) + ') — לא נכתב דבר' };
+        if (fx[i][j]) return { status: 'error', message: 'נוסחה בשורה ' + (i + 2) + ' — לא נכתב דבר' };
+        if (want.length > 50000) return { status: 'error', message: 'תא ארוך מדי בשורה ' + (i + 2) + ' — לא נכתב דבר' };
+        cells++;
+      }
+      row.push(want);
+    }
+    next.push(row);
+  }
+  for (var b = 0; b < n; b++) {
+    blank.push(b < data ? old[b] : (function () { var z = []; for (var q = 0; q < W; q++) z.push(''); return z; })());
+  }
+  if (!cells && n === data) return { status: 'ok', cells: 0, added: 0, backup: bakName, aside: bakNote };
+  rng.setValues(next);
+  SpreadsheetApp.flush();
+
+  /* --- 4 · אימות, ואם לא — חזרה למה שהיה --- */
+  var miss = sidDiff_(sidShow_(sh).slice(1), plan, W);
+  if (!miss) return { status: 'ok', cells: cells, added: n - data, backup: bakName, aside: bakNote };
+  rng.setValues(blank);
+  SpreadsheetApp.flush();
+  var back = sidDiff_(sidShow_(sh), cur, W);
+  return { status: 'rolledback', message: 'הכתיבה לא אומתה (' + miss + ')',
+           back: back ? 'לא חזרה במלואה: ' + back : 'הוחזרה ואומתה', backup: bakName };
+}
+/* שחזור לשונית אחת מהגיבוי שלה. מה שיש בה עכשיו נשמר קודם בשם
+   צדדי — גם השחזור הפיך. */
+function sidRestore_(ss, sh, bak, tab) {
+  /* רק גיבוי שנלקח ואומת כאן. "גיבוי מזהים · …" מהגרסה הקודמת
+     (מהמכשיר, שלא אומת) אינו משמש לשחזור. */
+  if (!bak || !sidBakOk_(tab)) return { status: 'nobak', message: 'אין גיבוי מאומת ל"' + tab + '"' };
+  var want = sidShow_(bak);
+  if (!sh) sh = ss.insertSheet(tab);
+  var aside = '';
+  if (sh.getLastRow()) {
+    aside = tab + ' · לפני שחזור ' + sidStamp_();
+    sh.copyTo(ss).setName(aside);
+  }
+  var W = Math.max(sh.getLastColumn(), bak.getLastColumn(), 1);
+  if (sh.getLastRow()) sh.getRange(1, 1, sh.getLastRow(), W).clearContent();
+  if (bak.getLastRow()) bak.getRange(1, 1, bak.getLastRow(), W).copyTo(sh.getRange(1, 1));
+  SpreadsheetApp.flush();
+  var miss = sidDiff_(sidShow_(sh), want, W);
+  return miss ? { status: 'error', message: 'השחזור לא אומת (' + miss + '). מה שהיה לפניו: "' + aside + '"', aside: aside }
+              : { status: 'ok', restored: true, aside: aside };
+}
+
 function writeTable_(tab, cols, rows, ssId) {
   var sh = sheet_(tab, ssId);
   if (!sh.getLastRow()) headRow_(sh, cols);
