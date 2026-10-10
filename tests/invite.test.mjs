@@ -15,20 +15,20 @@ const parent = {
   id: "abc123",
   inst: "lapid",
   instName: "לפיד",
-  first: "יאיר",
+  first: "משה",
   last: "כהן",
   phone: "050-1234567",
   role: "dad",
   way: "dad",
   grade: "ז",
   klass: "1",
-  dadFirst: "נועם",
-  dadPhone: "0521112222",
+  dadFirst: "ישראל",
+  dadPhone: "0529998888",
 };
 
 test("WhatsApp numbers drop formatting and use the 972 prefix", () => {
   assert.equal(whatsappNumber("050-123 4567"), "972501234567");
-  assert.equal(whatsappNumber("+972 52 111 2222"), "972521112222");
+  assert.equal(whatsappNumber("+972 52 999 8888"), "972529998888");
   assert.equal(phoneReady("05012345"), false);
   assert.equal(phoneReady("050 123 4567"), true);
 });
@@ -38,14 +38,14 @@ test("personal invite link carries the yeshiva, the son and the sender", () => {
   assert.equal(url.pathname, "/join");
   assert.equal(url.searchParams.get("inst"), "lapid");
   assert.equal(url.searchParams.get("rel"), "kid");
-  assert.equal(url.searchParams.get("f"), "נועם");
-  assert.equal(url.searchParams.get("sf"), "יאיר");
+  assert.equal(url.searchParams.get("f"), "ישראל");
+  assert.equal(url.searchParams.get("sf"), "משה");
   assert.equal(url.searchParams.get("sp"), "050-1234567");
   assert.deepEqual(inviteDraft(url.search), {
-    first: "נועם",
+    first: "ישראל",
     last: "",
-    phone: "0521112222",
-    dadFirst: "יאיר",
+    phone: "0529998888",
+    dadFirst: "משה",
     dadLast: "כהן",
     dadPhone: "050-1234567",
   });
@@ -55,15 +55,15 @@ test("personal invite link carries the yeshiva, the son and the sender", () => {
 test("the invite text keeps the link even after the parent edits it out", () => {
   const url = "https://example.test/join?inst=lapid";
   const text = inviteMessage("היי {them}, {me} מזמין:\n{url}", {
-    me: "יאיר",
-    them: "נועם",
+    me: "משה",
+    them: "ישראל",
     url,
   });
   assert.equal(withInviteUrl(text, url), text);
-  assert.equal(withInviteUrl("היי נועם  \n", url), "היי נועם\n\n" + url);
+  assert.equal(withInviteUrl("היי ישראל  \n", url), "היי ישראל\n\n" + url);
   assert.match(
-    whatsappInvite("0521112222", "שלום"),
-    /^https:\/\/wa\.me\/972521112222\?text=%D7/,
+    whatsappInvite("0529998888", "שלום"),
+    /^https:\/\/wa\.me\/972529998888\?text=%D7/,
   );
 });
 

@@ -35,14 +35,14 @@ const snapshot = {
           "KID1",
           "Example",
           "Family",
-          "0500000001",
+          "0501111111",
           "School A",
           "S1",
           "ט",
           "2",
           "אבות ובנים",
           "תלמיד",
-          "0500000002",
+          "0502222222",
           "",
           "",
           "",
@@ -51,7 +51,7 @@ const snapshot = {
           "DAD1",
           "Parent",
           "Family",
-          "0500000002",
+          "0502222222",
           "School A",
           "S1",
           "",
@@ -67,7 +67,7 @@ const snapshot = {
           "KID2",
           "Second",
           "Person",
-          "0500000003",
+          "0503333333",
           "School A",
           "S1",
           "ט",
@@ -83,7 +83,7 @@ const snapshot = {
           "KID3",
           "Second",
           "Person",
-          "0500000003",
+          "0503333333",
           "School A",
           "S1",
           "ט",
@@ -131,24 +131,24 @@ const snapshot = {
       name: "התראות",
       rows: [
         ["מזהה", "שם", "טלפון", "ישיבה", "קוד ישיבה", "תפקיד", "מנוי"],
-        ["STAFFDEVICE1", "Staff", "0500000009", "School A", "S1", 'ר"ם', ""],
+        ["STAFFDEVICE1", "Staff", "0504444444", "School A", "S1", 'ר"ם', ""],
       ],
     },
     {
       name: "זוגות",
       rows: [
         ["מזהה", "מסלול", "שבוע", "דיווח", "טלפון השותף"],
-        ["KID1", "taanit", "2", "הבן", "0500000002"],
+        ["KID1", "taanit", "2", "הבן", "0502222222"],
       ],
     },
     {
       name: "הרשמות",
       rows: [
         ["ישיבה", "קוד", "איש קשר", "טלפון", 'סה"כ גמרות'],
-        ["School A", "S1", "Head One", "0500000010", "20"],
+        ["School A", "S1", "Head One", "0505555555", "20"],
       ],
     },
-    { name: "תקועים", rows: [["שם", "טלפון", "טופל"]] },
+    { name: "תקועים", rows: [["טופל", "שם", "טלפון"]] },
     {
       name: "עמדת לימוד",
       rows: [
@@ -184,7 +184,7 @@ const snapshot = {
       name: "אנשי קשר",
       rows: [
         ["ישיבה", "שם", "טלפון"],
-        ["School A", "Contact", "0500000011"],
+        ["School A", "Contact", "0506666666"],
       ],
     },
     { name: "public:לומדים", rows: [["מזהה"], ["OLDCOPY"]] },
@@ -311,7 +311,7 @@ test(
       true,
     );
     assert.deepEqual(
-      (await legacy("GET", { pendingFor: "050-000-0002" })).pending,
+      (await legacy("GET", { pendingFor: "050-222-2222" })).pending,
       { id: "KID1", track: "taanit", wk: "2" },
     );
     assert.equal(
@@ -319,7 +319,7 @@ test(
       1,
     );
     assert.equal(
-      (await legacy("GET", { pendingFor: "0500000002" })).pending,
+      (await legacy("GET", { pendingFor: "0502222222" })).pending,
       null,
     );
     assert.equal((await legacy("GET", { arrived: "DAD1B" })).has, true);
@@ -335,7 +335,7 @@ test(
         await legacy("GET", {
           help: "1",
           name: "Example",
-          phone: "0500000001",
+          phone: "0501111111",
           what: "install",
         })
       ).status,
@@ -384,7 +384,7 @@ test(
       inst: "School A",
       code: "S1",
       who: "Head Two",
-      phone: "0500000012",
+      phone: "0507777777",
       total: 30,
       mas: ["taanit"],
     });
@@ -423,7 +423,7 @@ test(
       key: READ,
       contactSave: JSON.stringify({
         name: "School B",
-        people: [{ name: "B1", phone: "0500000020" }],
+        people: [{ name: "B1", phone: "0508888888" }],
       }),
     });
     assert.equal(created.created, 1);
@@ -432,8 +432,8 @@ test(
       contactSave: JSON.stringify({
         name: "School A",
         people: [
-          { name: "Contact", phone: "0500000011" },
-          { name: "New", phone: "0500000021" },
+          { name: "Contact", phone: "0506666666" },
+          { name: "New", phone: "0509999999" },
         ],
       }),
     });
@@ -442,9 +442,9 @@ test(
     assert.deepEqual(contacts.rows[1], [
       "School A",
       "Contact",
-      "0500000011",
+      "0506666666",
       "New",
-      "0500000021",
+      "0509999999",
     ]);
 
     // Archive is reversible and keeps people in sync.

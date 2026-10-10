@@ -80,8 +80,8 @@ const people = [
     "מזהה המזמין",
     "מזהים נוספים",
   ],
-  ["KID", "Example", "Family", "תלמיד", "050-000-0001", "050-000-0002", "", ""],
-  ["DAD", "Parent", "Family", "הורה", "+972 50 000 0002", "", "", "DAD2"],
+  ["KID", "Example", "Family", "תלמיד", "050-111-1111", "050-999-8888", "", ""],
+  ["DAD", "Parent", "Family", "הורה", "+972 50 999 8888", "", "", "DAD2"],
   ["KID2", "Second", "Other", "תלמיד", "", "", "DAD2", ""],
 ];
 test("pair map links parents and students by phone and invitation alias", () => {
@@ -108,20 +108,20 @@ test("progress, pair confirmations and pending reports match the source rules", 
   });
   const pairs = [
     ["מזהה", "מסלול", "שבוע", "דיווח", "טלפון השותף", "אושר"],
-    ["KID", "taanit", "2", "הבן", "0500000002", ""],
-    ["DAD", "taanit", "3", "ההורה", "0500000001", "כן"],
+    ["KID", "taanit", "2", "הבן", "0509998888", ""],
+    ["DAD", "taanit", "3", "ההורה", "0501111111", "כן"],
   ];
-  assert.deepEqual(pendingFor(pairs, "050-000-0002"), {
+  assert.deepEqual(pendingFor(pairs, "050-999-8888"), {
     id: "KID",
     track: "taanit",
     wk: "2",
   });
   assert.equal(pendingFor(pairs, "0599999999"), null);
-  assert.deepEqual(pairSeen(pairs, "+972500000001", "taanit|3", "kid"), {
+  assert.deepEqual(pairSeen(pairs, "+972501111111", "taanit|3", "kid"), {
     id: "DAD",
     ok: "כן",
   });
-  assert.equal(pairSeen(pairs, "0500000001", "taanit|3", "parent"), null);
+  assert.equal(pairSeen(pairs, "0501111111", "taanit|3", "parent"), null);
 });
 
 test("contact saves append only unknown names and phones", () => {
