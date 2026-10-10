@@ -2294,6 +2294,29 @@ button.yr-c.auto{cursor:pointer}
 .vb s{display:block;height:100%;background:#4A7BD0;text-decoration:none}
 .vb s.r{background:#D9534F}.vb s.a{background:#E0A030}
 .vb b{font-size:.78rem;min-width:1.6em;text-align:end}
+/* שימוש בשירות ההתראות — עמודות לפי שבוע, ושורות "מי שלח מה" */
+.u4 .vt{grid-template-columns:repeat(2,1fr)}
+@media (min-width:560px){.u4 .vt{grid-template-columns:repeat(4,1fr)}}
+.ut{width:100%;border-collapse:collapse;font-size:.8rem}
+.ut th{font-size:.68rem;font-weight:700;color:var(--ink-3);text-align:center;padding:0 4px 4px}
+.ut td{padding:5px 4px;border-top:1px solid var(--rule);text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+.ut td:first-child{text-align:start;font-weight:700;width:58%}
+.ut td:first-child s{display:block;height:5px;border-radius:3px;background:#4A7BD0;margin-top:4px;text-decoration:none}
+.uw{display:flex;align-items:flex-end;gap:6px;height:96px;margin:4px 0 2px}
+.uw div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.uw i{display:block;width:100%;max-width:34px;border-radius:6px 6px 2px 2px;background:#4A7BD0}
+.uw i.z{background:var(--sunk)}
+.uw b{font-size:.74rem;font-weight:800;color:var(--ink-2);margin-bottom:3px}
+.uw span{font-size:.64rem;font-weight:700;color:var(--ink-3);margin-top:4px;white-space:nowrap}
+.ur{padding:8px 0;border-top:1px solid var(--rule)}
+.ur-h{display:flex;align-items:center;gap:7px;font-size:.8rem}
+.ur-h b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ur-h time{margin-inline-start:auto;font-size:.72rem;font-weight:700;color:var(--ink-3);white-space:nowrap}
+.ur-t{font-size:.8rem;color:var(--ink-2);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ur-m{font-size:.72rem;font-weight:700;color:var(--ink-3);margin-top:3px}
+.uc{flex:none;font-size:.68rem;font-weight:800;border-radius:99px;padding:2px 8px;background:var(--sunk);color:var(--ink-2)}
+.uc.ok{background:#E3F4EA;color:#1A8F4C}.uc.part{background:#FBF0DA;color:#9A6512}
+.uc.bad{background:#FBE3E1;color:#B03A2E}
 /* מסלולי כניסה */
 .trf{display:flex;gap:6px;margin:10px 0 6px}
 .trf button{border:1px solid var(--rule,#E5DAC3);background:var(--card,#fff);color:var(--ink-2);border-radius:99px;padding:5px 13px;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
@@ -2673,7 +2696,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.159';
+var APP_VERSION = '8.99.160';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9365,7 +9388,7 @@ function admPushViz() {
       br[k] = (br[k] || 0) + 1;
     }
   });
-  var h = vCard('📶', UI.pStateT, src.length ? vStack([
+  var h = admUseViz() + vCard('📶', UI.pStateT, src.length ? vStack([
     { n: st.on, t: UI.pOn, c: 'g' }, { n: st.gone, t: UI.pGone, c: 'o' },
     { n: st.blocked, t: UI.pBlocked, c: 'r' }, { n: st.none, t: UI.pNone, c: 'n' }, { n: st.unk, t: UI.unknown, c: 'u' }
   ]) + '<h5 style="margin-top:12px">' + esc(UI.pBrT) + '</h5>' + vBars(br) : '<p class="h">' + esc(UI.whyNone) + '</p>');
@@ -9393,6 +9416,80 @@ function admPushViz() {
     : '<p class="h">' + esc(UI.whyNone) + '</p>') +
     '<p class="h live">● ' + esc(UI.pLive) + '</p>');
   return h;
+}
+
+/* ============================================================
+   שימוש בשירות ההתראות — במבט אחד.
+   ============================================================
+   כמה הודעות יצאו השבוע ובחודש, כמה שולחים פעילים, לכמה מכשירים
+   הגיעו; עמודה לכל אחד משמונת השבועות האחרונים; ישיבות לפי מספר
+   ההודעות; ו"מי שלח מה" עם הסטטוס. התראות המערכת לרכז אינן נספרות.
+   הכול מהיומן הפרטי ("הודעות"), שנקרא רק עם הסיסמה — לא נשמר בריפו. */
+/* הסטטוס של שורה ביומן: מהעמודה "סטטוס שליחה", ובשורות ישנות — מ"תוצאה". */
+function useSt(st, res) {
+  if (st === 'נשלח') return 'ok';
+  if (st === 'חלקי') return 'part';
+  if (st === 'נכשל') return 'bad';
+  if (st === 'אין נמענים') return 'none';
+  res = res || '';
+  if (res.indexOf('נכשלה') === 0) return 'bad';
+  if (res.indexOf('חלקית') === 0) return 'part';
+  if (res.indexOf('התקבלה') === 0) return 'ok';
+  if (res.indexOf('אין נמענים') === 0) return 'none';
+  return 'wait';
+}
+function useWhen(t) {
+  if (!t) return '';
+  var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getDate() + '.' + (d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function admUseViz() {
+  if (!sayAll) return '';
+  var now = Date.now(), DAY = 864e5;
+  var L = sayAll.filter(function (m) {
+    return !m.sys && m.t && (!ADM_INST || m.code === ADM_INST);
+  });
+  var wk = 0, mo = 0, reach = 0, who = {}, cols = [0, 0, 0, 0, 0, 0, 0, 0], byI = {}, order = [];
+  L.forEach(function (m) {
+    var age = now - m.t, w = Math.floor(age / (7 * DAY));
+    if (w >= 0 && w < 8) cols[w]++;
+    if (age >= 30 * DAY) return;
+    var k = m.code ? m.inst : UI.uAll;
+    if (!byI[k]) { byI[k] = { wk: 0, mo: 0, who: {} }; order.push(k); }
+    byI[k].mo++; mo++; reach += m.got || 0;
+    if (age < 7 * DAY) { byI[k].wk++; wk++; }
+    if (m.who) { who[m.who] = 1; byI[k].who[m.who] = 1; }
+  });
+  var h = '<div class="u4">' + vTiles([{ n: wk, t: UI.uWeek, c: '' }, { n: mo, t: UI.uMonth, c: '' },
+                  { n: Object.keys(who).length, t: UI.uSenders, c: 'g' }, { n: reach, t: UI.uReach, c: 'g' }]) + '</div>';
+  /* שמונה שבועות — הישן מימין, כמו ציר זמן בעברית. תחת כל עמודה
+     התאריך שבו השבוע הזה התחיל. */
+  var max = Math.max.apply(null, cols) || 1;
+  h += '<h5>' + esc(UI.uWeeksT) + '</h5><div class="uw">' + cols.slice().reverse().map(function (n, i) {
+    var w = 7 - i, d0 = new Date(now - (w + 1) * 7 * DAY + DAY);
+    return '<div><b>' + n + '</b><i class="' + (n ? '' : 'z') + '" style="height:' +
+      Math.max(4, Math.round(n * 70 / max)) + 'px"></i><span>' +
+      esc(w ? d0.getDate() + '.' + (d0.getMonth() + 1) : UI.uWkNow) + '</span></div>';
+  }).join('') + '</div>';
+  /* לפי ישיבה: שולחים · השבוע · 30 יום, מהפעילה ביותר. */
+  order.sort(function (a, b) { return byI[b].mo - byI[a].mo; });
+  var top = order.length ? byI[order[0]].mo : 1;
+  h += '<h5>' + esc(UI.uInstT) + '</h5>' + (order.length ? '<table class="ut"><tr><th></th><th>' +
+    esc(UI.uColWho) + '</th><th>' + esc(UI.uColWk) + '</th><th>' + esc(UI.uColMo) + '</th></tr>' +
+    order.map(function (k) {
+      var x = byI[k];
+      return '<tr><td>' + esc(k) + '<s style="width:' + Math.max(4, Math.round(x.mo * 100 / top)) + '%"></s></td><td>' +
+        Object.keys(x.who).length + '</td><td>' + x.wk + '</td><td>' + x.mo + '</td></tr>';
+    }).join('') + '</table>' : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  var lbl = { ok: UI.uStOk, part: UI.uStPart, bad: UI.uStBad, none: UI.uStNone, wait: UI.uStWait };
+  h += '<h5>' + esc(UI.uRecentT) + '</h5>' + (L.length ? L.slice(0, 12).map(function (m) {
+    return '<div class="ur"><div class="ur-h"><span class="uc ' + m.st + '">' + esc(lbl[m.st]) + '</span>' +
+      '<b>' + esc(m.who || '—') + (m.code ? ' · ' + esc(m.inst) : '') + '</b><time>' + esc(useWhen(m.t)) + '</time></div>' +
+      '<div class="ur-t">' + esc((m.title ? m.title + ' — ' : '') + m.body) + '</div>' +
+      (m.got ? '<div class="ur-m">' + esc(fill(UI.uTo, { n: m.got })) + '</div>' : '') + '</div>';
+  }).join('') : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  h += '<p class="h">' + esc(UI.uPriv) + '</p>';
+  return vCard('📊', UI.uT, h);
 }
 
 /* ============================================================
@@ -10231,7 +10328,7 @@ var admAutoAt = {};
      אינו יודע על זה — אצלו "נשלח". כאן שולחים אותה שוב, כמו שהייתה.
    · מי ביקש עזרה בהתקנה ועוד לא טופל.
    ============================================================ */
-var needsFail = null, needsBusy = '', needsMsg = '', sayLog = null;
+var needsFail = null, needsBusy = '', needsMsg = '', sayLog = null, sayAll = null;
 
 /* ============================================================
    "אנשים" — הלוח של כל הישיבות, בתוך הניהול.
@@ -10962,6 +11059,15 @@ function needsLoad() {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var rows = d.rows, h = (rows[0] || []).map(function (x) { return String(x).trim(); });
     var c = function (r, k) { var i = h.indexOf(k); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+    sayAll = rows.slice(1).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic || x.name === ic; })[0];
+      return { who: c(r, 'מי'), inst: io ? io.name : ic, code: io ? io.code : '',
+               sys: c(r, 'מי') === 'מערכת' || c(r, 'קהל') === 'מכשירי רכז',
+               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), title: c(r, 'כותרת'),
+               st: useSt(c(r, 'סטטוס שליחה'), c(r, 'תוצאה')),
+               got: c(r, 'קיבלו') !== '' ? +c(r, 'קיבלו') || 0 : sayNums(c(r, 'תוצאה')).ok,
+               t: sheetTime(c(r, 'תאריך')) };
+    }).reverse();
     sayLog = rows.slice(1).map(function (r) {
       var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
       return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
@@ -10971,13 +11077,16 @@ function needsLoad() {
                              aud: c(r, 'קהל') }) };
     }).reverse().slice(0, 40);
     needsFail = rows.slice(1).filter(function (r) {
-      var t = c(r, 'תוצאה');
-      return t.indexOf('נכשלה') === 0 && t.indexOf('נשלחה שוב') < 0 && c(r, 'מזהה שליחה');
+      var t = c(r, 'תוצאה'), st = useSt(c(r, 'סטטוס שליחה'), t);
+      /* גם "חלקי" — שליחה חוזרת מגיעה רק למי שלא קיבל (מניעת כפילות
+         ב-push-send.js), ולכן בטוח להציע אותה. */
+      return (st === 'bad' || st === 'part') && t.indexOf('נשלחה שוב') < 0 &&
+             c(r, 'מזהה שליחה') && c(r, 'מי') !== 'מערכת';
     }).map(function (r) {
       var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
       return { sid: c(r, 'מזהה שליחה'), who: c(r, 'מי'), inst: io ? io.name : ic,
                title: c(r, 'כותרת'), body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'),
-               why: c(r, 'תוצאה').replace(/^נכשלה:\s*/, ''),
+               why: c(r, 'תוצאה').replace(/^(נכשלה|חלקית):\s*/, ''),
                at: c(r, 'תאריך') };
     }).reverse();
     admPane(); return true;

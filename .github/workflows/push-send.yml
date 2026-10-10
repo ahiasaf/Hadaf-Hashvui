@@ -66,6 +66,9 @@ permissions:
 jobs:
   send:
     runs-on: ubuntu-latest
+    # הקריאה מהגיליון מנסה שוב עד כ-23 דקות כשגוגל לא זמין (ראו
+    # getJson ב-push-send.js). מעבר לזה — משהו תקוע באמת.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 

@@ -14,9 +14,13 @@ function scriptUrl() {
   return m ? m[1] : '';
 }
 
-/* f: { n, bad, gone, why, none, run }
+/* f: { n, bad, gone, prev, det, why, none, run }
+   prev = מכשירים שכבר קיבלו את ההודעה בהרצה קודמת (ולכן דולגו).
+   det  = הסיבה המדויקת לכישלון מכשירים ("שגיאה 500 ×2").
    **רק status=ok הוא דיווח שהגיע.** תשובת HTTP כלשהי (דף שגיאה של
-   גוגל, סירוב) אינה ראיה. עד שלושה ניסיונות, 15 שניות לכל אחד. */
+   גוגל, סירוב) אינה ראיה. הדיווח הסופי הוא מה שמפעיל את ההתרעה
+   לרכז — ולכן עד שישה ניסיונות, בהמתנה גדלה (כשתי דקות וחצי), כדי
+   שתקלה רגעית של גוגל לא תבלע גם אותו. "בשליחה" — שלושה מספיקים. */
 function report(f) {
   var sid = String(process.env.SID || '').trim();
   var key = process.env.READ_KEY || '';
@@ -26,9 +30,11 @@ function report(f) {
   if (f.n != null)  q += '&n=' + f.n;
   if (f.bad != null) q += '&bad=' + f.bad;
   if (f.gone != null) q += '&gone=' + f.gone;
+  if (f.prev) q += '&prev=' + f.prev;
+  if (f.det) q += '&det=' + encodeURIComponent(String(f.det).slice(0, 120));
   if (f.none) q += '&none=1';
   if (f.run) q += '&run=1';
-  if (f.why) q += '&why=' + encodeURIComponent(String(f.why).slice(0, 180));
+  if (f.why) q += '&why=' + encodeURIComponent(String(f.why).slice(0, 300));
   var once = function () {
     var ac = typeof AbortController === 'function' ? new AbortController() : null;
     var t = ac ? setTimeout(function () { ac.abort(); }, 15000) : null;
@@ -40,10 +46,11 @@ function report(f) {
         return true;
       });
   };
+  var max = f.run ? 3 : 6;
   var go = function (n) {
     return once()['catch'](function (e) {
-      if (n >= 3) { console.log('  ! הדיווח לסקריפט לא הגיע: ' + (e.message || e)); return false; }
-      return new Promise(function (ok) { setTimeout(ok, 3000 * n); }).then(function () { return go(n + 1); });
+      if (n >= max) { console.log('  ! הדיווח לסקריפט לא הגיע: ' + (e.message || e)); return false; }
+      return new Promise(function (ok) { setTimeout(ok, 5000 * Math.pow(2, n - 1)); }).then(function () { return go(n + 1); });
     });
   };
   return go(1);

@@ -180,7 +180,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'מצב ישיבות', 'הוספות יומן',
                     /* שאר המוקד — ראו CALL_TABS_ למטה. */
                     'אנשי קשר', 'יומן שיחות', 'תצוגת צוות', 'הגדרות תגיות',
-                    'פעולות צוות'];
+                    'פעולות צוות',
+                    /* לכל הודעה — אילו מכשירים כבר קיבלו אותה (טביעת מנוי).
+                       מה שמונע שליחה כפולה בשליחה חוזרת. ראו push-send.js. */
+                    'מסירות'];
 
 /* ============================================================
    הלשוניות של מוקד השיחות — תמיד לגיליון אנשי הקשר.
@@ -940,27 +943,55 @@ function doGet(e) {
     try {
       var sr = sayRow_(String(e.parameter.sayDone));
       if (!sr) return reply_(e, { status:'ok', none: 1 });
-      var why = String(e.parameter.why || '').slice(0, 200);
+      var why = String(e.parameter.why || '').slice(0, 300);
       var nOk = parseInt(e.parameter.n, 10) || 0;
       var nBad = parseInt(e.parameter.bad, 10) || 0;
       var nGone = parseInt(e.parameter.gone, 10) || 0;
+      /* prev = מכשירים שכבר קיבלו את ההודעה בשליחה קודמת, ודולגו
+         (מניעת כפילות). det = הסיבה המדויקת לכישלון מכשירים. */
+      var nPrev = parseInt(e.parameter.prev, 10) || 0;
+      var det = String(e.parameter.det || '').slice(0, 120);
       var was = String(sr.v[sr.ix['תוצאה']] || '');
+      var final0 = was && was !== 'ממתין' && was !== 'בשליחה';
+      /* "בשליחה" אינו דורס תוצאה שכבר הגיעה. */
+      if (e.parameter.run) {
+        if (!final0) sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue('בשליחה');
+        return reply_(e, { status:'ok' });
+      }
+      /* דיווח כפול (מהקוד ומשלב ה-failure) — הדיווח הראשון קובע,
+         וההתרעה יוצאת פעם אחת. */
+      if (final0) return reply_(e, { status:'ok', dup: 1 });
+      var got = nOk + nPrev;
       /* "התקבלה אצל שירות ההתראות" — ולא "הגיעה": תשובה תקינה של
          שירות ההתראות אינה ראיה שמישהו ראה אותה. */
-      var tail = (nBad ? ' · נכשלה ל-' + nBad : '') + (nGone ? ' · אין מנוי פעיל ל-' + nGone : '');
-      var now = e.parameter.run ? 'בשליחה'
-              : why ? 'נכשלה: ' + why
-              : e.parameter.none ? 'אין נמענים עם התראות' + tail
-              : (nBad ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + nOk + tail;
-      /* "בשליחה" אינו דורס תוצאה שכבר הגיעה. */
-      if (e.parameter.run && was && was !== 'ממתין') now = was;
-      /* דיווח כפול (מהקוד ומשלב ה-failure) — הסיבה הראשונה נשארת. */
-      if (was.indexOf('נכשלה') === 0) now = was;
+      var tail = (nPrev ? ' · כבר קיבלו קודם ' + nPrev : '') +
+                 (nBad ? ' · נכשלה ל-' + nBad : '') + (nGone ? ' · אין מנוי פעיל ל-' + nGone : '') +
+                 (det ? ' (' + det + ')' : '');
+      /* הסטטוס — שלושה מצבים ברורים, ועוד "אין נמענים" שאינו תקלה. */
+      var stt = why ? (got ? 'חלקי' : 'נכשל')
+              : e.parameter.none ? 'אין נמענים'
+              : nBad ? (got ? 'חלקי' : 'נכשל')
+              : got ? 'נשלח' : 'אין נמענים';
+      var now = stt === 'נכשל' ? 'נכשלה: ' + (why || 'כל ' + nBad + ' המכשירים דחו') + tail
+              : stt === 'אין נמענים' ? 'אין נמענים עם התראות' + tail
+              : (stt === 'חלקי' ? 'חלקית: ' : '') + 'התקבלה אצל שירות ההתראות ל-' + nOk + tail +
+                (why ? ' · נעצרה: ' + why : '');
+      var sHead = headers_(sr.sh);
       sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue(now);
-      /* כישלון של התראת מערכת אינו מתריע — ההתרעה עצמה היא התראת מערכת. */
-      if (why && was.indexOf('נכשלה') !== 0 && String(sr.v[sr.ix['מי']] || '') !== 'מערכת') {
-        sayAlert_(String(sr.v[sr.ix['מי']] || ''), String(sr.v[sr.ix['ישיבה']] || ''),
-                  String(sr.v[sr.ix['הטקסט']] || ''), why);
+      sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'סטטוס שליחה') + 1).setValue(stt);
+      sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'קיבלו') + 1).setValue(got);
+      var g0 = function (k) { return sr.ix[k] === undefined ? '' : String(sr.v[sr.ix[k]] || ''); };
+      /* התראת מערכת לרכז אינה מתריעה על עצמה — אחרת התרעה על התרעה. */
+      if (g0('מי') !== 'מערכת' && g0('קהל') !== 'מכשירי רכז') {
+        var nm = { ok: [], gone: [], bad: [], inst: {} };
+        try { nm = sayNames_(g0('מזהה הודעה') || String(e.parameter.sayDone), !!g0('ממתינים')); } catch (eN) {}
+        var full = sayNamesTxt_(nm, 0);
+        if (full) {
+          try { sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'נמענים') + 1).setValue(full.slice(0, 45000)); } catch (eW) {}
+        }
+        sayReport_(stt, g0('מי'), nm.inst[g0('ישיבה')] || g0('ישיבה'), g0('הטקסט'),
+                   stt === 'נשלח' || stt === 'אין נמענים' ? '' : (why || det),
+                   { ok: nOk, prev: nPrev, bad: nBad, gone: nGone }, nm);
       }
       return reply_(e, { status:'ok' });
     } catch (errD) {
@@ -978,8 +1009,19 @@ function doGet(e) {
       var rr = sayRow_(String(e.parameter.resend));
       if (!rr) return reply_(e, { status:'error', message:'ההודעה לא נמצאה ביומן' });
       var g = function (k) { return rr.ix[k] === undefined ? '' : String(rr.v[rr.ix[k]] || ''); };
+      /* **שליחה שעדיין רצה אינה נשלחת שוב.** שתי הרצות במקביל לאותה
+         הודעה עלולות שתיהן לעבור את בדיקת הכפילות לפני שהראשונה רשמה
+         משהו. אחרי חצי שעה בלי דיווח — ההרצה מתה, ומותר. */
+      var rAt = rr.ix['תאריך'] === undefined ? null : rr.v[rr.ix['תאריך']];
+      var rAge = rAt instanceof Date ? (Date.now() - rAt.getTime()) : 1e9;
+      if ((g('תוצאה') === 'ממתין' || g('תוצאה') === 'בשליחה') && rAge < 30 * 60000) {
+        return reply_(e, { status:'error', message:'ההודעה עדיין בשליחה — אפשר לנסות שוב בעוד כמה דקות' });
+      }
+      /* אותו מזהה הודעה — כך push-send.js יודע מי כבר קיבל אותה,
+         ושולח רק למי שלא. */
       var r2 = ghFire_(g('כותרת'), g('הטקסט'), g('יעד'), g('שכבה'), g('כיתה'),
-                       g('מי'), g('קישור'), g('תפקיד'), g('ממתינים'), g('פילוח'));
+                       g('מי'), g('קישור'), g('תפקיד'), g('ממתינים'), g('פילוח'), false,
+                       g('מזהה הודעה') || g('מזהה שליחה'));
       if (r2.status === 'ok') {
         rr.sh.getRange(rr.r, rr.ix['תוצאה'] + 1).setValue(g('תוצאה') + ' · נשלחה שוב');
       }
@@ -4168,7 +4210,7 @@ function sayFlt_(raw) {
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, quiet) {
+function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, quiet, mid) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!body) return { status:'error',  message:'אין מה לשלוח' };
@@ -4176,6 +4218,19 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
      עליו בסוף (`?sayDone=`) — "יצאה ל-N" או "נכשלה". בלעדיו "נשלח"
      במסך אמר רק שגוגל קיבל את הבקשה, ולא שמשהו הגיע למישהו. */
   var sid = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+  /* **מזהה הודעה** — קבוע לאורך כל השליחות החוזרות של אותה הודעה,
+     בשונה מ-sid שחדש בכל הרצה. push-send.js בודק לפיו בלשונית
+     "מסירות" מי כבר קיבל, ולא שולח לו שוב. נוסע בתוך הפילוח, כי
+     המטען כבר מלא (עשרה שדות). התראות מערכת לרכז — בלי: הן קצרות,
+     ואין טעם להוסיף להן קריאה נוספת מגוגל. */
+  mid = quiet ? '' : String(mid || sid);
+  var fltOut = flt || '';
+  if (mid) {
+    var fo = {};
+    try { fo = JSON.parse(String(flt || '{}')) || {}; } catch (eF) { fo = {}; }
+    fo.mid = mid;
+    fltOut = JSON.stringify(fo);
+  }
   var res0;
   if (!tok)  res0 = { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
   else if (!repo) res0 = { status:'denied', message:'לא הוגדר GH_REPO במאפייני הסקריפט' };
@@ -4200,7 +4255,7 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
                             /* הפילוח — ראו sayFlt_. JSON אחד, כי
                                GitHub מקבל עד עשרה שדות במטען. זה
                                העשירי: המזהה. */
-                            flt: flt || '', sid: sid }
+                            flt: fltOut, sid: sid }
         }),
         muteHttpExceptions: true
       });
@@ -4227,8 +4282,9 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
         ['כותרת', title], ['הטקסט', body],
         ['תפקיד', role || ''], ['פילוח', String(flt || '').slice(0, 40000)],
         ['יעד', only || ''], ['קישור', link || ''], ['ממתינים', wait || ''],
-        ['מזהה שליחה', sid],
-        ['תוצאה', res0.status === 'ok' ? 'ממתין' : 'נכשלה: ' + (res0.message || '')]
+        ['מזהה שליחה', sid], ['מזהה הודעה', mid],
+        ['תוצאה', res0.status === 'ok' ? 'ממתין' : 'נכשלה: ' + (res0.message || '')],
+        ['סטטוס שליחה', res0.status === 'ok' ? '' : 'נכשל']
     ]);
   } catch (e3) {}
   if (!quiet && res0.status !== 'ok') sayAlert_(who, only, body, res0.message);
@@ -4242,10 +4298,112 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
 function coordPing_(title, body, link) {
   try { ghFire_(title, body, '', '', '', 'מערכת', link || 'admin', 'רכז', '', '', true); } catch (e) {}
 }
+/* ההודעה לא הגיעה בכלל ל-GitHub — כלומר לא נשלחה לאף אחד. */
 function sayAlert_(who, only, body, why) {
-  coordPing_('⚠ הודעה לא יצאה',
-    (who || 'רכז') + (only ? ' · ' + only : '') + ': ' +
-    String(body || '').slice(0, 80) + (why ? ' (' + String(why).slice(0, 60) + ')' : ''));
+  sayReport_('נכשל', who, only, body, why, { ok: 0, prev: 0, bad: 0, gone: 0 }, null);
+}
+
+/* ============================================================
+   הדיווח לרכז על כל שליחה — גם כשהצליחה.
+   ============================================================
+   כותרת עם סטטוס ברור ("לא נשלחה כלל" / "נשלחה חלקית" / "נשלחה"),
+   ובגוף: השולח, הישיבה, ההודעה, הסיבה המדויקת כשנכשל, והנמענים —
+   מי קיבל ומי לא (מנוי פג), לפי ישיבה וכיתה.
+
+   **השמות נשארים פרטיים:** הם נוסעים רק בהתראה למכשירי הרכז,
+   ונשמרים בגיליון הפרטי ("הודעות" · "נמענים"). לא בקוד, לא ביומן
+   ההרצה של GitHub (push-send.js אינו מדפיס תוכן), ולא בריפו. */
+function sayReport_(stt, who, inst, body, why, c, nm) {
+  var head = { 'נשלח': '✓ נשלחה', 'חלקי': '⚠ נשלחה חלקית', 'נכשל': '⚠ לא נשלחה כלל',
+               'אין נמענים': 'ℹ לא נשלחה — אין נמענים' }[stt] || stt;
+  var cnt = [];
+  if (c.ok) cnt.push('קיבלו עכשיו ' + c.ok);
+  if (c.prev) cnt.push('קיבלו כבר קודם ' + c.prev);
+  if (c.bad) cnt.push('נכשלו ' + c.bad);
+  if (c.gone) cnt.push('מנוי פג ' + c.gone);
+  var txt = (who || 'רכז') + (inst ? ' · ' + inst : '') + '\n' +
+    '«' + String(body || '').replace(/\{name\}[,،]?\s*/g, '').slice(0, 110) + '»' +
+    (why ? '\nסיבה: ' + String(why).slice(0, 200) : '') +
+    (cnt.length ? '\n' + cnt.join(' · ') + ' (מכשירים)' : '');
+  var names = nm ? sayNamesTxt_(nm, 1300 - txt.length) : '';
+  coordPing_(head + ' · ' + (who || 'רכז'), txt + (names ? '\n' + names : ''));
+}
+
+/* מי קיבל את ההודעה ומי לא — לפי "מסירות" (המצב האחרון של כל
+   מכשיר בהודעה הזו) מול "התראות" (שם, ישיבה, כיתה של כל מנוי).
+   הטביעה זהה לזו של push-send.js: sha1 של כתובת המנוי, 12 תווים. */
+function sayNames_(mid, wait) {
+  var out = { ok: [], gone: [], bad: [], inst: {} };
+  var dsh = sheet_('מסירות');
+  var st = {};
+  if (dsh.getLastRow() >= 2) {
+    var dv = dsh.getDataRange().getValues(), dh = {};
+    for (var i = 0; i < dv[0].length; i++) dh[String(dv[0][i]).trim()] = i;
+    for (var r = 1; r < dv.length; r++) {
+      if (String(dv[r][dh['מזהה הודעה']] || '') !== mid) continue;
+      var s0 = String(dv[r][dh['מצב']] || '');
+      String(dv[r][dh['מכשירים']] || '').split(',').forEach(function (p) { if (p) st[p] = s0; });
+    }
+  }
+  var tabs = wait ? ['ממתינים לדף', 'התראות'] : ['התראות'];
+  var who = {};
+  tabs.forEach(function (tn) {
+    var sh = sheet_(tn);
+    if (sh.getLastRow() < 2) return;
+    var v = sh.getDataRange().getValues(), h = {};
+    for (var j = 0; j < v[0].length; j++) h[String(v[0][j]).trim()] = j;
+    if (h['מנוי'] === undefined) return;
+    var g = function (row, k) { return h[k] === undefined ? '' : String(row[h[k]] || '').trim(); };
+    for (var q = 1; q < v.length; q++) {
+      var ins = g(v[q], 'ישיבה'), code = g(v[q], 'קוד ישיבה');
+      if (code && ins) out.inst[code] = ins;
+      var raw = g(v[q], 'מנוי');
+      if (!raw) continue;
+      var ep = '';
+      try { ep = (JSON.parse(raw) || {}).endpoint || ''; } catch (eJ) { continue; }
+      if (!ep) continue;
+      var p = subPrint_(ep);
+      if (!st[p] || who[p]) continue;
+      who[p] = { n: g(v[q], 'שם') || '—', at: [ins || code, g(v[q], 'כיתה')].filter(String).join(' ') };
+    }
+  });
+  var seen = {};
+  for (var pk in st) {
+    if (!st.hasOwnProperty(pk)) continue;
+    var w = who[pk] || { n: '?', at: '' };
+    var bin = st[pk] === 'נשלח' || st[pk] === 'ממתין' ? 'ok' : st[pk] === 'פג' ? 'gone' : 'bad';
+    var key = bin + '|' + w.n + '|' + w.at;
+    if (seen[key]) continue;           /* אדם עם שני מכשירים — פעם אחת */
+    seen[key] = 1;
+    out[bin].push(w);
+  }
+  return out;
+}
+function subPrint_(ep) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(ep), Utilities.Charset.UTF_8);
+  var hx = '';
+  for (var i = 0; i < 6; i++) hx += ('0' + ((b[i] + 256) % 256).toString(16)).slice(-2);
+  return hx;
+}
+/* "✓ קיבלו (12): ישיבת X ט1 — דני, יוסי · …". max>0 — קיצור להתראה. */
+function sayNamesTxt_(nm, max) {
+  var part = function (list, lbl) {
+    if (!list.length) return '';
+    var by = {}, order = [];
+    list.forEach(function (w) {
+      if (!by[w.at]) { by[w.at] = []; order.push(w.at); }
+      by[w.at].push(w.n);
+    });
+    order.sort();
+    return lbl + ' (' + list.length + '): ' + order.map(function (k) {
+      return (k ? k + ' — ' : '') + by[k].join(', ');
+    }).join(' · ');
+  };
+  var lines = [part(nm.ok, '✓ קיבלו'), part(nm.gone, '⌛ לא קיבלו — מנוי פג'),
+               part(nm.bad, '✗ לא קיבלו — תקלה')].filter(String);
+  var t = lines.join('\n');
+  if (max > 0 && t.length > max) t = t.slice(0, Math.max(0, max - 30)) + '… (הרשימה המלאה בגיליון)';
+  return t;
 }
 
 /* שורת היומן של שליחה, לפי המזהה שלה. null = אין (למשל התראת מערכת). */
