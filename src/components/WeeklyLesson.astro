@@ -1,118 +1,163 @@
 ---
 import { lessonHref, lessonRow, studyUnits, type Track } from "../lib/calendar";
+import { deckHref, unitsDone } from "../lib/weekly-lesson";
 interface Props {
   tracks: Track[];
   initialWeek: number;
   startDate: string;
   titles: Record<string, string>;
+  covers: Record<string, string>;
   ui: Record<string, string>;
 }
-const { tracks, initialWeek, startDate, titles, ui } = Astro.props;
+const { tracks, initialWeek, startDate, titles, covers, ui } = Astro.props;
 const track = tracks[0];
 const { row, index } = lessonRow(track, initialWeek);
 const hasLesson = !!row[2] && row[2] !== "סיום";
+const firstCover = covers[track.id + "-" + (index + 1)] || "";
 ---
 
 <section class="lesson" id="lesson" aria-label={ui.siteLesson}>
   <div class="lesson-top">
-    <span class="eyebrow">
-      <svg
-        class="study-book"
-        viewBox="0 0 32 32"
-        width="32"
-        height="32"
-        aria-hidden="true"
-      >
-        <path
-          d="M16 8C12 5 7 5 3 7v19c4-2 9-2 13 1 4-3 9-3 13-1V7c-4-2-9-2-13 1Z"
-          fill="#fff1c5"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linejoin="round"
-        />
-        <path
-          d="M16 8v19M7 11h5M7 15h5M20 11h5M20 15h5M20 19h5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-        />
-      </svg>
+    <p class="stage-eyebrow">
+      <span class="stage-dot" aria-hidden="true"></span>
       {ui.siteLesson}
-    </span>
-    <span class="week-label" data-week>
-      {ui.siteCurrentWeek} {index + 1}/{track.cal.length}
-    </span>
-  </div>
-  <div class="track-switch" role="group" aria-label={ui.siteChoose}>
-    {tracks.map((item, i) => (
-      <a
-        href={lessonHref(
-          item,
-          item.cal[Math.min(initialWeek, item.cal.length - 1)],
-        )}
-        role="button"
-        aria-pressed={i === 0}
-        data-track={item.id}
-      >
-        {"מסכת " + item.name}
-      </a>
-    ))}
+    </p>
+    <div class="track-switch" role="group" aria-label={ui.siteChoose}>
+      <span class="track-thumb" aria-hidden="true"></span>
+      {tracks.map((item, i) => (
+        <a
+          href={lessonHref(
+            item,
+            item.cal[Math.min(initialWeek, item.cal.length - 1)],
+          )}
+          role="button"
+          aria-pressed={i === 0}
+          data-track={item.id}
+        >
+          {"מסכת " + item.name}
+        </a>
+      ))}
+    </div>
   </div>
   <div class="lesson-content" aria-live="polite">
     {
       /* Every track is prerendered and stacked in one grid cell, so the panel
-         height is the tallest variant and the action never moves on switch. */
+         height is the tallest variant and the actions never move on switch. */
       tracks.map((item, i) => {
         const { row, index } = lessonRow(item, initialWeek);
         const active = !!row[2] && row[2] !== "סיום";
+        const cover = covers[item.id + "-" + (index + 1)] || "";
+        const done = unitsDone(item, index);
+        const units = studyUnits(item);
         return (
           <div
             class="lesson-variant"
             data-variant={item.id}
             aria-hidden={i !== 0}
           >
-            <p class="lesson-daf" data-daf>
-              {active
-                ? "דף " + row[2] + (row[3] ? " · עמוד " + row[3] : "")
-                : row[1]}
-            </p>
-            <h2 data-lesson-title>
-              {active
-                ? titles[item.id + "-" + (index + 1)] || "מסכת " + item.name
-                : ui.sitePause}
-            </h2>
-            <p class="lesson-date" data-date>
-              {row[1]} · {row[0]}
-            </p>
+            <div class="lesson-text">
+              <p class="week-label" data-week>
+                {ui.siteCurrentWeek} {index + 1} מתוך {item.cal.length}
+                {active
+                  ? " · דף " + row[2] + (row[3] ? " ע״" + row[3] : "")
+                  : ""}
+              </p>
+              <h2 data-lesson-title>
+                {active
+                  ? titles[item.id + "-" + (index + 1)] || "מסכת " + item.name
+                  : ui.sitePause}
+              </h2>
+              <p class="lesson-date" data-date>
+                {row[1]} · {row[0]}
+              </p>
+              <div class="year-progress">
+                <span>
+                  דפים במסלול:{" "}
+                  <b data-progress>
+                    {done} מתוך {units}
+                  </b>
+                </span>
+                <div class="dots" aria-hidden="true">
+                  {Array.from({ length: units }, (_, n) => (
+                    <i
+                      data-dot
+                      class={n < done ? "is-done" : ""}
+                      style={`--i:${n}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div class="showcase">
+              <div class={"frame" + (cover ? "" : " is-empty")} data-frame>
+                {cover && (
+                  <img
+                    src={cover}
+                    alt={"השקף הראשון, מסכת " + item.name}
+                    width="1376"
+                    height="774"
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchpriority={i === 0 ? "high" : "low"}
+                    decoding="async"
+                  />
+                )}
+                <div class="frame-empty">
+                  <svg
+                    viewBox="0 0 32 32"
+                    width="34"
+                    height="34"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M16 8C12 5 7 5 3 7v19c4-2 9-2 13 1 4-3 9-3 13-1V7c-4-2-9-2-13 1Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M16 8v19"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    />
+                  </svg>
+                  <span>{ui.deckSoon}</span>
+                </div>
+              </div>
+            </div>
           </div>
         );
       })
     }
   </div>
-  <a
-    class="button button-gold"
-    data-open
-    href={hasLesson ? lessonHref(track, row) : "/calendar"}
-  >
-    {hasLesson ? ui.siteOpen : ui.siteCalendar}
-  </a>
-  <div class="lesson-bottom">
-    <span data-count>
-      {studyUnits(track)} {ui.siteStudyUnits}
-    </span>
-    <a data-calendar href={"/calendar#" + track.id}>
-      {ui.siteCalendar}
+  <div class="lesson-actions">
+    <a
+      class="button button-light"
+      data-open
+      href={hasLesson ? lessonHref(track, row) : "/calendar"}
+    >
+      {hasLesson ? ui.deckGo : ui.siteCalendar}
+    </a>
+    <a
+      class="deck-link"
+      data-deck
+      href={hasLesson && firstCover ? deckHref(track, index) : "/calendar"}
+    >
+      {hasLesson && firstCover ? ui.deckAlt : ui.siteCalendar}
     </a>
   </div>
 </section>
 <script
   id="weekly-config"
   type="application/json"
-  set:html={JSON.stringify({ tracks, startDate, titles, ui }).replaceAll(
-    "<",
-    "\\u003c",
-  )}
+  set:html={JSON.stringify({
+    tracks,
+    startDate,
+    titles,
+    covers,
+    ui,
+  }).replaceAll("<", "\\u003c")}
 />
 <script>
   import { initializeWeeklyLesson } from "../lib/weekly-lesson";

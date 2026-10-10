@@ -95,12 +95,19 @@ export default function StudentHome({
               key={index}
               href={lessonHref(track, row)}
               aria-current={index === current ? "true" : undefined}
+              style={{ "--i": index } as React.CSSProperties}
             >
               <span className="week-label">שבוע {index + 1}</span>
               <strong>
                 דף {row[2]} {row[3] ? "ע״" + row[3] : ""}
               </strong>
-              <span>
+              <span
+                className={
+                  completed[track.id + "|" + (index + 1)]
+                    ? "status-done"
+                    : undefined
+                }
+              >
                 {completed[track.id + "|" + (index + 1)]
                   ? "✓ הושלם"
                   : index === current

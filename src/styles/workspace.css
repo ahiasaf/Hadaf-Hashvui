@@ -87,24 +87,28 @@ input,
 select,
 textarea {
   width: 100%;
-  min-height: 46px;
+  min-height: 48px;
   background: var(--surface);
-  border: 1px solid #adb9c7;
-  border-radius: 8px;
-  padding: 10px 12px;
+  border: 1.5px solid #cfc3a8;
+  border-radius: 10px;
+  padding: 10px 14px;
   color: var(--ink);
   font: inherit;
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 input:hover,
 select:hover,
 textarea:hover {
-  border-color: #8696aa;
+  border-color: #b3a383;
 }
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(23, 70, 143, 0.12);
+  outline: none;
 }
 /* Compact custom select: the chevron sits at the inline end (left in RTL). */
 select {
@@ -146,11 +150,12 @@ legend {
     border-color 0.15s;
 }
 .choice:hover {
-  background: var(--tint);
+  background: var(--surface);
 }
 .choice:has(input:checked) {
-  border-color: var(--blue);
-  background: var(--tint);
+  border-color: var(--blue-d);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
 }
 .form-grid,
 .workspace-grid {
@@ -173,21 +178,41 @@ legend {
   font-weight: 400;
 }
 .notice {
-  border-inline-start: 3px solid var(--blue);
+  border-inline-start: 3px solid var(--gold);
   padding: 16px 20px;
-  background: #e9eff5;
-  border-radius: 8px;
-  animation: fade-in 0.22s ease-out;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--sh-1);
+  animation: notice-in 0.4s var(--spring);
+}
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
 }
 .notice.error {
-  background: #faeee8;
-  border-color: #a34332;
+  background: #fbefe9;
+  border-color: var(--stop);
   color: #7e3024;
+  animation:
+    notice-in 0.4s var(--spring),
+    shake 0.5s var(--ease) 0.1s;
+}
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-5px);
+  }
+  40%,
+  80% {
+    transform: translateX(5px);
+  }
 }
 .notice.success {
-  background: #edf4ea;
-  border-color: var(--green);
-  color: var(--green);
+  background: #edf4e6;
+  border-color: var(--green-d);
+  color: var(--green-d);
 }
 .notice .button {
   margin-top: 12px;
@@ -247,7 +272,44 @@ legend {
 progress {
   width: 100%;
   height: 8px;
-  accent-color: var(--blue);
+  accent-color: var(--gold);
+}
+.progress-overview strong {
+  color: var(--blue-d);
+}
+/* Parent invitation panel. */
+.invite h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+.invite > p {
+  color: var(--ink-2);
+  margin: 0;
+}
+.invite textarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.invite-tip {
+  font-size: 0.86rem;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.button-whatsapp {
+  background: #1e8c40;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(30, 140, 64, 0.25);
+}
+.button-whatsapp:hover {
+  background: #187334;
+}
+.button-whatsapp[aria-disabled="true"] {
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
 }
 /* One line per week: week, daf, status. Rows share one inline padding so the current row stays aligned. */
 .lesson-row {
@@ -286,11 +348,29 @@ progress {
   text-align: end;
 }
 .lesson-row.is-current {
-  background: #e9eff5;
+  background: var(--surface);
+  box-shadow:
+    inset 3px 0 0 var(--gold),
+    var(--sh-1);
 }
 .lesson-row.is-current > span:last-child {
-  color: var(--blue);
-  font-weight: 650;
+  color: var(--gold-t);
+  font-weight: 800;
+}
+/* Rows enter one after another when a track opens. */
+.lesson-list .lesson-row {
+  animation: row-in 0.5s var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 14) * 40ms);
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+.lesson-row .status-done {
+  color: var(--green-d);
+  font-weight: 800;
 }
 .institution-select {
   max-width: 440px;

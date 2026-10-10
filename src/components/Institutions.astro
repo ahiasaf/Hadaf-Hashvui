@@ -1,10 +1,11 @@
 ---
 import program from "../generated/program.json";
 const institutions = program.institutions.filter((item) => item.joined);
+const open = program.institutions.length - institutions.length;
 ---
 
 <section
-  class="institutions container"
+  class="institutions"
   aria-labelledby="inst-title"
   data-institutions
   data-copy={JSON.stringify({
@@ -12,18 +13,24 @@ const institutions = program.institutions.filter((item) => item.joined);
     loading: program.ui.siteLoading,
     live: program.ui.siteInstLive,
     empty: program.ui.siteInstEmpty,
+    open: program.ui.inOpen,
   })}
 >
-  <div class="section-intro">
-    <h2 id="inst-title">{program.ui.siteInstTitle}</h2>
+  <div class="section-intro" data-reveal>
+    <h2 id="inst-title">{program.ui.inTitleNow}</h2>
     <span class="institution-count" data-inst-count>
-      {institutions.length} / {program.institutions.length}
+      {institutions.length} מתוך {program.institutions.length}
     </span>
   </div>
-  <ul class="institution-list" data-inst-list>
-    {institutions.map((item) => (
-      <li>{item.name}</li>
+  <ul class="institution-list" data-inst-list data-reveal>
+    {institutions.map((item, index) => (
+      <li style={`--i:${Math.min(index, 24)}`}>{item.name}</li>
     ))}
+    {open > 0 && (
+      <li class="is-open" style={`--i:${institutions.length}`}>
+        {program.ui.inOpen.replace("{n}", String(open))}
+      </li>
+    )}
   </ul>
   <p class="data-status" data-inst-status role="status">
     {program.ui.siteInstSnapshot}

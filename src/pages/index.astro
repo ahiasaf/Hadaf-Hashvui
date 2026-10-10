@@ -3,7 +3,9 @@ import Site from "../layouts/Site.astro";
 import WeeklyLesson from "../components/WeeklyLesson.astro";
 import Institutions from "../components/Institutions.astro";
 import program from "../generated/program.json";
+import config from "../config/program.json";
 import { weekIndex } from "../lib/calendar";
+import { currentPhase } from "../lib/timeline";
 const titles = Object.fromEntries(
   Object.entries(program.content).map(([key, value]) => [key, value.title]),
 );
@@ -15,12 +17,31 @@ const lessonUi = Object.fromEntries(
       "siteChoose",
       "siteFinish",
       "sitePause",
-      "siteOpen",
       "siteCalendar",
-      "siteStudyUnits",
+      "deckGo",
+      "deckAlt",
+      "deckSoon",
     ].includes(key),
   ),
 );
+// First slide of every week folder, already fingerprinted by the build.
+const media: Record<string, string> = program.media;
+const covers: Record<string, string> = {};
+for (const key of Object.keys(media).sort()) {
+  const match = key.match(/^slides\/([a-z]+-\d+)\//);
+  if (match && !covers[match[1]]) covers[match[1]] = media[key];
+}
+const phases = config.PHASES;
+const phaseNow = currentPhase(phases);
+const lastYear = config.PROGRAM.lastYear;
+const institutions = program.institutions;
+const joined = institutions.filter((item) => item.joined).length;
+const ringLength = 2 * Math.PI * 54;
+const hero = [
+  ["1", "נרשמים", "דקה אחת, ושומרים את ההתקדמות."],
+  ["2", "פותחים את הדף", "קטע אחר קטע, עם ביאור לצידו."],
+  ["3", "מסמנים שסיימתם", "עוד דף בדרך לסיום המסכת."],
+];
 ---
 
 <Site>
@@ -32,49 +53,149 @@ const lessonUi = Object.fromEntries(
     else if (/[?&](m|inst|k)=/.test(location.search))
       location.replace("/tzevet" + location.search);
   </script>
-  <div class="hero container">
+  <section class="hero container" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <h1>
-        פותחים דף.
-        <br />
-        <span>לומדים יחד.</span>
+      <p class="eyebrow rise" style="--n:0" data-copy="ui.siteEyebrow">
+        {program.ui.siteEyebrow}
+      </p>
+      <h1 id="hero-title" class="rise" style="--n:1" data-copy="ui.siteTitle">
+        {program.ui.siteTitle}
       </h1>
-      <p class="hero-summary" data-copy="ui.siteSummary">
+      <p class="hero-summary rise" style="--n:2" data-copy="ui.siteSummary">
         {program.ui.siteSummary}
       </p>
-      <p class="study-together">לבד, עם חברים או עם ההורים.</p>
+      <div class="hero-actions rise" style="--n:3">
+        <a class="button button-gold" href="/join">
+          {program.ui.ctaBtn}
+        </a>
+      </div>
+      <p class="hero-note rise" style="--n:4">
+        לבד, עם חברים או עם ההורים. אפשר להתחיל ללמוד גם בלי הרשמה.
+      </p>
     </div>
-    <WeeklyLesson
-      tracks={program.tracks}
-      initialWeek={weekIndex(program.startDate)}
-      startDate={program.startDate}
-      titles={titles}
-      ui={lessonUi}
-    />
+    <div class="hero-mark rise" style="--n:2" aria-hidden="true">
+      <img src="/logo-mark.png" width="340" height="320" alt="" />
+      <span class="hero-year">{program.year}</span>
+    </div>
+  </section>
+  <div class="stage-band" data-reveal>
+    <div class="container">
+      <WeeklyLesson
+        tracks={program.tracks}
+        initialWeek={weekIndex(program.startDate)}
+        startDate={program.startDate}
+        titles={titles}
+        covers={covers}
+        ui={lessonUi}
+      />
+    </div>
   </div>
-  <p class="registration-note container">
-    אפשר להתחיל ללמוד גם בלי הרשמה. נרשמים כדי לשמור את ההתקדמות.
-  </p>
+  <section class="timeline container" aria-label="לוח התוכנית" data-reveal>
+    <ol
+      class="phases"
+      data-timeline
+      data-phases={JSON.stringify(phases)}
+      style={`--progress:${phaseNow / (phases.length - 1)}`}
+    >
+      {phases.map((phase, i) => (
+        <li
+          data-phase
+          class={i < phaseNow ? "is-done" : i === phaseNow ? "is-now" : ""}
+        >
+          <i aria-hidden="true" />
+          <b>{phase.t}</b>
+          <small>{phase.sub}</small>
+        </li>
+      ))}
+    </ol>
+  </section>
+  <section class="steps container" aria-labelledby="steps-title">
+    <h2 id="steps-title" data-reveal>
+      איך זה עובד?
+    </h2>
+    <ol class="step-list">
+      {hero.map(([n, title, text], i) => (
+        <li data-reveal style={`--n:${i}`}>
+          <span class="step-badge">{n}</span>
+          <strong>{title}</strong>
+          <span>{text}</span>
+        </li>
+      ))}
+    </ol>
+  </section>
+  <section class="numbers-band" aria-label="התוכנית במספרים">
+    <div class="container">
+      <div class="rings">
+        <div class="ring ring-gold" data-reveal style="--n:0">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-track" cx="60" cy="60" r="54"></circle>
+            <circle
+              class="ring-fill"
+              cx="60"
+              cy="60"
+              r="54"
+              style={`--length:${ringLength};--part:1`}
+            ></circle>
+          </svg>
+          <div class="ring-in">
+            <b data-count-to={lastYear.students}>{lastYear.students}</b>
+            <span
+              set:html={program.ui.ringStudents.replace(
+                "{mas}",
+                lastYear.masechet,
+              )}
+            />
+          </div>
+        </div>
+        <div class="ring ring-blue" data-reveal style="--n:1">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-track" cx="60" cy="60" r="54"></circle>
+            <circle
+              class="ring-fill"
+              cx="60"
+              cy="60"
+              r="54"
+              style={`--length:${ringLength};--part:${joined / institutions.length}`}
+            ></circle>
+          </svg>
+          <div class="ring-in">
+            <b data-count-to={joined}>{joined}</b>
+            <span set:html={program.ui.ringInstNow} />
+          </div>
+        </div>
+      </div>
+      <!-- Only the institutions list needs the CSV helper; load it after the hero has parsed. -->
+      <script is:inline src="/net.js"></script>
+      <Institutions />
+    </div>
+  </section>
   <section class="paths container" aria-label="הצטרפות לתוכנית">
-    <div class="path">
-      <h2>לתלמידים</h2>
+    <div class="path" data-reveal style="--n:0">
+      <p class="eyebrow">{program.ui.siteStudent}</p>
+      <h2>{program.ui.siteJoin}</h2>
       <p>{program.ui.siteJoinHint}</p>
-      <a class="button button-blue" href="/join">
-        {program.ui.siteJoin}
+      <a class="button button-gold" href="/join">
+        {program.ui.ctaBtn}
+      </a>
+      <a class="secondary-link" href="/app">
+        כבר נרשמתם? הדף שלי
       </a>
     </div>
-    <div class="path">
-      <h2>להורים</h2>
-      <p>להורים שרוצים להצטרף: דף אחד בשבוע, ושיחה שממשיכה גם אחריו.</p>
+    <div class="path" data-reveal style="--n:1">
+      <p class="eyebrow">להורים</p>
+      <h2>לומדים עם הבן</h2>
+      <p>דף אחד בשבוע, ביחד. נרשמים כהורה ומזמינים את הבן בקישור אישי.</p>
       <a class="button button-outline" href="/join?for=dad">
         מצטרפים כהורים
       </a>
-      <a class="secondary-link" href="/app">
-        כבר נרשמתם? ללימוד שלכם
+      <a class="secondary-link" href="/tzevet">
+        {program.ui.siteStaff}
       </a>
     </div>
   </section>
-  <!-- Only the institutions list needs the CSV helper; load it after the hero and paths have parsed. -->
-  <script is:inline src="/net.js"></script>
-  <Institutions />
 </Site>
+<script>
+  import { paintTimeline } from "../lib/timeline";
+  const timeline = document.querySelector<HTMLElement>("[data-timeline]");
+  if (timeline) paintTimeline(timeline, JSON.parse(timeline.dataset.phases!));
+</script>

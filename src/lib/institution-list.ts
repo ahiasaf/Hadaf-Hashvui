@@ -1,5 +1,18 @@
 type ReadSheet = (tab: string, fresh?: boolean) => Promise<string[][]>;
-type Copy = { error: string; loading: string; live: string; empty: string };
+type Copy = {
+  error: string;
+  loading: string;
+  live: string;
+  empty: string;
+  open: string;
+};
+export function chip(name: string, index: number, open = false) {
+  const item = document.createElement("li");
+  item.textContent = name;
+  item.style.setProperty("--i", String(Math.min(index, 24)));
+  if (open) item.className = "is-open";
+  return item;
+}
 export function initializeInstitutions(read: ReadSheet) {
   const root = document.querySelector<HTMLElement>("[data-institutions]");
   if (!root) return;
@@ -26,17 +39,22 @@ export function initializeInstitutions(read: ReadSheet) {
         .slice(1)
         .filter((row) => /^(true|1|כן)$/i.test((row[3] || "").trim()));
       const list = root!.querySelector<HTMLElement>("[data-inst-list]")!;
-      list.classList.remove("swap");
+      const total = rows.length - 1;
+      const items = joined.map((row, index) => chip(row[1], index));
+      if (total > joined.length)
+        items.push(
+          chip(
+            copy.open.replace("{n}", String(total - joined.length)),
+            joined.length,
+            true,
+          ),
+        );
+      list.classList.remove("is-in");
       void list.offsetWidth;
-      list.classList.add("swap");
-      const items = joined.map((row) => {
-        const item = document.createElement("li");
-        item.textContent = row[1];
-        return item;
-      });
       list.replaceChildren(...items);
+      list.classList.add("is-in");
       root!.querySelector<HTMLElement>("[data-inst-count]")!.textContent =
-        joined.length + " / " + (rows.length - 1);
+        joined.length + " מתוך " + total;
       status.textContent = joined.length ? copy.live : copy.empty;
     } catch {
       status.textContent = copy.error;

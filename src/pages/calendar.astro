@@ -24,9 +24,9 @@ import { lessonHref, studyUnits } from "../lib/calendar";
             {program.ui.siteCalendarWeeks}
           </p>
         </div>
-        <ol class="calendar-list">
+        <ol class="calendar-list" data-reveal>
           {track.cal.map((row, index) => (
-            <li>
+            <li style={`--i:${index}`}>
               <span class="calendar-number">{index + 1}</span>
               <div>
                 <strong>{row[1]}</strong>
