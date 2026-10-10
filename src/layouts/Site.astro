@@ -43,6 +43,11 @@ const {
     <title>{title} | הדף השבועי</title>
     <script is:inline>
       document.documentElement.classList.add("js");
+      addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        window.__installPrompt = event;
+        dispatchEvent(new Event("df-install-ready"));
+      });
     </script>
   </head>
   <body>
@@ -82,10 +87,7 @@ const {
     </main>
     <footer class="site-footer">
       <div class="container">
-        <p>
-          <img src="/logo-mark.png" width="28" height="28" alt="" />
-          רשת ישיבות בני עקיבא · הדף השבועי · {program.year}
-        </p>
+        <p>רשת ישיבות בני עקיבא · הדף השבועי · {program.year}</p>
         <nav aria-label="מידע">
           <a href="/tzevet">לצוותי הישיבות</a>
           <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
