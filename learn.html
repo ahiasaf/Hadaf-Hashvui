@@ -680,6 +680,18 @@ body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
 @media (prefers-reduced-motion:reduce){
   .qfab,.qhint{animation:none}
 }
+/* בטלפון — צמוד לפינה השמאלית התחתונה של **המסך**, מעל שורת
+   הכפתורים, ולא לתחתית הבמה. כשהמגירה פתוחה הבמה היא רק החצי
+   העליון, והעיגול ריחף באמצע הגמרא. `--navh` הוא גובה שורת
+   הכפתורים, נמדד ב-qfabPlace_ (היא יכולה לרדת לשתי שורות).
+   הריפוד בתחתית המגירה — כדי שהשורה האחרונה לא תיבלע מתחת לעיגול. */
+@media (max-width:820px){
+  .qfab{position:fixed;bottom:calc(var(--navh,62px) + 12px);left:12px}
+  .qhint{position:fixed;bottom:calc(var(--navh,62px) + 28px);left:86px}
+  body.qfab-on .chb{padding-bottom:86px}
+  body.kb-open .qfab,body.kb-open .qhint{display:none}
+}
+body.emb .qfab,body.emb .qhint{position:absolute}
 /* החלפת התוכן — נדעכת רגע, מתחלפת, וחוזרת. */
 .dbadge.swap{opacity:0;transform:scale(.86)}
 
@@ -3059,6 +3071,8 @@ function quizFabPaint() {
   if (!fab) return;
   var can = !!(st && (SIDE_ADM || qVisible_(st.n).length));
   fab.classList.toggle('on', can);
+  document.body.classList.toggle('qfab-on', can);
+  qfabPlace_();
   fab.classList.toggle('lit', !!QUIZ_OPEN);
   fab.onclick = function () {
     qHintDone_();
@@ -3071,6 +3085,13 @@ function quizFabPaint() {
   if (can && !QUIZ_OPEN) qHintShow_();
   else qHintHide_();
 }
+
+/* גובה שורת הכפתורים, בשביל מיקום העיגול בטלפון (ראו `--navh`). */
+function qfabPlace_() {
+  var nv = document.querySelector('nav');
+  if (nv && nv.offsetHeight) document.documentElement.style.setProperty('--navh', nv.offsetHeight + 'px');
+}
+window.addEventListener('resize', qfabPlace_);
 
 /* הכיתוב שליד העיגול — "זמן לענות על חידה". מופיע רק בפעמים
    הראשונות: פעם אחת בכל כניסה לדף, עד QHINT_MAX כניסות, ונעלם
