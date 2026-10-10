@@ -8,26 +8,32 @@ const source = ts.transpileModule(
   await fs.readFile("src/lib/client.ts", "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS } },
 ).outputText;
-function environment(request) {
-  const exports = {};
-  const sessionStorage = {};
-  Object.defineProperties(sessionStorage, {
-    getItem: { value: (key) => sessionStorage[key] ?? null },
+function storage() {
+  const store = {};
+  Object.defineProperties(store, {
+    getItem: { value: (key) => store[key] ?? null },
     setItem: {
       value: (key, value) => {
-        sessionStorage[key] = value;
+        store[key] = value;
       },
     },
     removeItem: {
       value: (key) => {
-        delete sessionStorage[key];
+        delete store[key];
       },
     },
   });
+  return store;
+}
+function environment(request) {
+  const exports = {};
+  const sessionStorage = storage(),
+    localStorage = storage();
   const context = {
     exports,
     require: () => ({ parseCsv }),
     sessionStorage,
+    localStorage,
     fetch: request,
     AbortSignal,
     URLSearchParams,
@@ -39,6 +45,7 @@ function environment(request) {
   return {
     api: exports,
     sessionStorage,
+    localStorage,
     reload: () => {
       const next = {};
       vm.runInNewContext(source, { ...context, exports: next });
@@ -76,11 +83,11 @@ test("successful writes invalidate public caches while private data never enters
   await env.api.sheet("טקסטים");
   await env.api.action("read", { board: "TEST", k: "TEST" });
   assert.ok(!JSON.stringify(env.sessionStorage).includes("PRIVATE"));
+  assert.ok(!JSON.stringify(env.localStorage).includes("PRIVATE"));
   await env.api.action("write", { action: "table", key: "TEST" });
   assert.equal(
-    Object.keys(env.sessionStorage).filter((key) =>
-      key.startsWith("df:public:"),
-    ).length,
+    Object.keys(env.localStorage).filter((key) => key.startsWith("df:public:"))
+      .length,
     0,
   );
   await env.reload().sheet("טקסטים");
@@ -94,12 +101,61 @@ test("expired and failed responses cause a fresh read instead of retaining an em
   );
   await assert.rejects(env.api.sheet("סימוני הדף"));
   await env.api.sheet("סימוני הדף");
-  const key = Object.keys(env.sessionStorage)[0];
-  const value = JSON.parse(env.sessionStorage[key]);
-  value.expires = 0;
-  env.sessionStorage[key] = JSON.stringify(value);
+  const key = Object.keys(env.localStorage)[0];
+  const value = JSON.parse(env.localStorage[key]);
+  value.at = 0;
+  env.localStorage[key] = JSON.stringify(value);
   await env.reload().sheet("סימוני הדף");
   assert.equal(calls, 3);
+});
+test("a stale device copy answers instantly and one background read refreshes it", async () => {
+  let calls = 0,
+    release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const env = environment(async () => {
+    calls++;
+    if (calls > 1) await gate;
+    return new Response("key,value\nA," + (calls === 1 ? "OLD" : "NEW"));
+  });
+  await env.api.sheet("טקסטים");
+  const key = "df:public:טקסטים|";
+  const value = JSON.parse(env.localStorage[key]);
+  value.at = Date.now() - 600000;
+  env.localStorage[key] = JSON.stringify(value);
+  const next = env.reload();
+  const [first, second] = await Promise.all([
+    next.sheet("טקסטים"),
+    next.sheet("טקסטים"),
+  ]);
+  assert.equal(first[1][1], "OLD");
+  assert.equal(second[1][1], "OLD");
+  assert.equal(calls, 2);
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(JSON.parse(env.localStorage[key]).value[1][1], "NEW");
+});
+test("own progress lookups are revalidated from the device while staff reads are never stored", async () => {
+  let calls = 0;
+  const env = environment(async (_url, options) => {
+    calls++;
+    const payload = JSON.parse(options.body).payload;
+    return Response.json(
+      payload.idFor
+        ? { status: "ok", id: "CANONICAL", learned: ["taanit|" + calls] }
+        : { status: "ok", students: ["PRIVATE"] },
+    );
+  });
+  const first = await env.api.action("read", { idFor: "DEVICE" });
+  assert.equal(JSON.stringify(first.learned), '["taanit|1"]');
+  const second = await env.reload().action("read", { idFor: "DEVICE" });
+  assert.equal(JSON.stringify(second.learned), '["taanit|1"]');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(calls, 2);
+  assert.match(env.localStorage["df:own:idFor:DEVICE"], /taanit\|2/);
+  await env.api.action("read", { board: "*", key: "TEST" });
+  assert.ok(!JSON.stringify(env.localStorage).includes("PRIVATE"));
 });
 
 test("private reads share only in-flight work, separate credentials and return independent values", async () => {
@@ -125,6 +181,7 @@ test("private reads share only in-flight work, separate credentials and return i
   await env.api.action("read", { board: "TEST", k: "A" });
   assert.equal(calls, 3);
   assert.equal(Object.keys(env.sessionStorage).length, 0);
+  assert.equal(Object.keys(env.localStorage).length, 0);
 });
 
 test("an older pending read cannot restore a cache invalidated by a save", async () => {
@@ -147,9 +204,8 @@ test("an older pending read cannot restore a cache invalidated by a save", async
   release();
   await oldRead;
   assert.equal(
-    Object.keys(env.sessionStorage).filter((key) =>
-      key.startsWith("df:public:"),
-    ).length,
+    Object.keys(env.localStorage).filter((key) => key.startsWith("df:public:"))
+      .length,
     0,
   );
   const current = await env.api.sheet("טקסטים");

@@ -25,6 +25,7 @@ test("runtime migrations are ordered and produce complete SQL statements", async
       "007-pair-delivery-window.sql",
       "008-pair-notification-cancellation.sql",
       "009-notification-failure-alerts.sql",
+      "010-cutover.sql",
     ],
   );
   assert.ok(

@@ -99,7 +99,7 @@ export function quitIfGoogle(error: unknown) {
 export type LedgerStore = {
   read: (tab: string, key: string) => Promise<string[][]>;
   write: (tab: string, cols: [string, string][]) => Promise<void>;
-  isNeon: () => boolean;
+  isNeon: () => boolean | Promise<boolean>;
   claim: (key: string) => Promise<boolean>;
   settle: (key: string, state: string) => Promise<boolean>;
 };
@@ -132,7 +132,7 @@ export function createScheduler(store: LedgerStore) {
   ): Promise<T | { skipped: true }> {
     let claimed: boolean;
     try {
-      claimed = store.isNeon()
+      claimed = (await store.isNeon())
         ? await store.claim(key)
         : await markOne(key, "ממתין");
     } catch {
@@ -140,7 +140,7 @@ export function createScheduler(store: LedgerStore) {
       return { skipped: true };
     }
     if (!claimed) {
-      if (!store.isNeon()) uncertain.add(key);
+      if (!(await store.isNeon())) uncertain.add(key);
       return { skipped: true };
     }
     let value: T;
@@ -159,7 +159,7 @@ export function createScheduler(store: LedgerStore) {
       const state = failState?.(error) || "נכשל";
       try {
         if (
-          !(store.isNeon()
+          !((await store.isNeon())
             ? await store.settle(key, state)
             : await markOne(key, state))
         )
@@ -171,7 +171,7 @@ export function createScheduler(store: LedgerStore) {
     }
     try {
       if (
-        !(store.isNeon()
+        !((await store.isNeon())
           ? await store.settle(key, "נשלח")
           : await markOne(key, "נשלח"))
       )

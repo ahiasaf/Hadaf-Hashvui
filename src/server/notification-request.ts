@@ -14,7 +14,7 @@ import {
 export async function queueNotificationRequest(
   payload: Record<string, string>,
 ) {
-  requireImmediateNotifications();
+  await requireImmediateNotifications();
   const admin = authorized(payload.key, process.env.READ_KEY),
     scope = admin ? payload.only || "" : payload.inst;
   if (!admin) {
@@ -119,5 +119,15 @@ export async function queueNotificationRequest(
     !!filter.per,
     createHash("sha256").update(JSON.stringify(identity)).digest("hex"),
     payload.who || (admin ? "רכז" : "צוות"),
+    undefined,
+    [
+      ["יעד", scope],
+      ["שכבה", identity.grade],
+      ["כיתה", identity.klass],
+      ["תפקיד", identity.role],
+      ["ממתינים", wait],
+      ["קישור", url],
+      ["פילוח", (payload.flt || "").slice(0, 40000)],
+    ],
   );
 }

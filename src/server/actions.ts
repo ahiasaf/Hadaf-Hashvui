@@ -1,5 +1,5 @@
 import { publicColumns } from "./action-policy.ts";
-import { databaseEnabled, stringRecord } from "./database.ts";
+import { databaseEnabled, requireWritable, stringRecord } from "./database.ts";
 import { databaseAction } from "./database-actions.ts";
 import settings from "../generated/settings.json" with { type: "json" };
 const reads = new Set([
@@ -27,9 +27,15 @@ export async function forwardAction(input: unknown, request = fetch) {
   if (
     !payload ||
     Object.values(payload).some((value) => typeof value !== "string") ||
-    JSON.stringify(payload).length > 2200000
+    // Legacy uploads carry base64 media; Vercel accepts request bodies up to 4.5 MB.
+    JSON.stringify(payload).length >
+      (envelope.operation === "legacy" ? 4400000 : 2200000)
   )
     throw new Error("Invalid payload");
+  if (envelope.operation === "legacy") {
+    const { legacyAction } = await import("./legacy-actions.ts");
+    return legacyAction(stringRecord(payload), request);
+  }
   let response: Response;
   if (envelope.operation === "notify") {
     const fields = new Set([
@@ -56,7 +62,8 @@ export async function forwardAction(input: unknown, request = fetch) {
       (payload.fire && payload.fire !== "say")
     )
       throw new Error("Invalid notification request");
-    if (databaseEnabled()) {
+    await requireWritable();
+    if (await databaseEnabled()) {
       const { queueNotificationRequest } =
         await import("./notification-request.ts");
       return queueNotificationRequest(stringRecord(payload));
@@ -82,7 +89,8 @@ export async function forwardAction(input: unknown, request = fetch) {
       !payload.key
     )
       throw new Error("Authentication required");
-    if (databaseEnabled()) return databaseAction("read", stringRecord(payload));
+    if (await databaseEnabled())
+      return databaseAction("read", stringRecord(payload));
     const url = new URL(settings.api);
     for (const [key, value] of Object.entries(payload))
       url.searchParams.set(key, String(value));
@@ -146,7 +154,8 @@ export async function forwardAction(input: unknown, request = fetch) {
       )
         throw new Error("Invalid team log");
     }
-    if (databaseEnabled())
+    await requireWritable();
+    if (await databaseEnabled())
       return databaseAction("write", stringRecord(payload));
     response = await request(settings.api, {
       method: "POST",

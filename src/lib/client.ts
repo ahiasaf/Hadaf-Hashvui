@@ -49,40 +49,57 @@ const pending = new Map<
   { task: Promise<string[][]>; expires: number }
 >();
 const publicCachePrefix = "df:public:";
+const ownCachePrefix = "df:own:";
 const refreshKey = "df:public-refresh-until";
+const day = 86400000;
 let publicGeneration = 0;
+type Saved<T> = { value: T; at: number };
+// Device cache for validated public tables and the device's own progress lookups only.
+function saved<T>(key: string): Saved<T> | null {
+  try {
+    const entry = JSON.parse(localStorage.getItem(key) || "null");
+    return entry && typeof entry.at === "number" && "value" in entry
+      ? entry
+      : null;
+  } catch {
+    return null;
+  }
+}
+function save(key: string, value: unknown) {
+  const text = JSON.stringify({ value, at: Date.now() });
+  try {
+    localStorage.setItem(key, text);
+  } catch {
+    // A full device drops this cache, never other app data, then tries once more.
+    try {
+      for (const name of Object.keys(localStorage))
+        if (name.startsWith(publicCachePrefix)) localStorage.removeItem(name);
+      localStorage.setItem(key, text);
+    } catch {
+      /* Storage is optional. */
+    }
+  }
+}
 export function clearPublicCache() {
   publicGeneration++;
   pending.clear();
   try {
-    for (const key of Object.keys(sessionStorage)) {
-      if (key.startsWith(publicCachePrefix)) sessionStorage.removeItem(key);
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(publicCachePrefix)) localStorage.removeItem(key);
     }
     sessionStorage.setItem(refreshKey, String(Date.now() + 300000));
   } catch {
     /* Storage is optional. */
   }
 }
+// Stale-while-revalidate: a stored copy answers instantly while one network read refreshes it.
 export function sheet(tab: string, fresh = false, query = "") {
   if (!publicTables.has(tab))
     return Promise.reject(new Error("Not a public table"));
   const cacheKey = tab + "|" + query;
   const storageKey = publicCachePrefix + cacheKey;
-  const lifetime = ["דפים פתוחים", "מונים", "מוני-לימוד"].includes(tab)
-    ? 30000
-    : 300000;
-  const cached = pending.get(cacheKey);
-  if (!fresh && cached && cached.expires > Date.now()) return cached.task;
-  if (!fresh) {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(storageKey) || "null");
-      if (saved?.expires > Date.now() && Array.isArray(saved.rows)) {
-        return Promise.resolve(saved.rows as string[][]);
-      }
-    } catch {
-      /* Continue with a validated network read. */
-    }
-  }
+  const live = ["דפים פתוחים", "מונים", "מוני-לימוד"].includes(tab);
+  const lifetime = live ? 30000 : 300000;
   let bypass = fresh;
   try {
     bypass ||= Number(sessionStorage.getItem(refreshKey)) > Date.now();
@@ -90,36 +107,42 @@ export function sheet(tab: string, fresh = false, query = "") {
     /* Storage is optional. */
   }
   const generation = publicGeneration;
-  const task = fetch(
-    "/api/sheets?" +
-      new URLSearchParams({
-        tab,
-        ...(query ? { tq: query } : {}),
-        ...(bypass ? { fresh: String(Date.now()) } : {}),
-      }),
-    {
-      signal: AbortSignal.timeout(10000),
-      ...(bypass ? { cache: "no-store" as const } : {}),
-    },
-  ).then(async (response) => {
-    if (!response.ok) throw new Error("Read failed");
-    const rows = parseCsv(await response.text());
-    try {
-      if (generation === publicGeneration)
-        sessionStorage.setItem(
-          storageKey,
-          JSON.stringify({ rows, expires: Date.now() + lifetime }),
-        );
-    } catch {
-      /* Storage is optional. */
+  const load = () => {
+    const task = fetch(
+      "/api/sheets?" +
+        new URLSearchParams({
+          tab,
+          ...(query ? { tq: query } : {}),
+          ...(bypass ? { fresh: String(Date.now()) } : {}),
+        }),
+      {
+        signal: AbortSignal.timeout(10000),
+        ...(bypass ? { cache: "no-store" as const } : {}),
+      },
+    ).then(async (response) => {
+      if (!response.ok) throw new Error("Read failed");
+      const rows = parseCsv(await response.text());
+      if (generation === publicGeneration) save(storageKey, rows);
+      return rows;
+    });
+    pending.set(cacheKey, { task, expires: Date.now() + lifetime });
+    task.catch(() => {
+      if (pending.get(cacheKey)?.task === task) pending.delete(cacheKey);
+    });
+    return task;
+  };
+  const cached = fresh ? undefined : pending.get(cacheKey);
+  const current = cached && cached.expires > Date.now() ? cached.task : null;
+  const stored = fresh ? null : saved<string[][]>(storageKey);
+  if (stored && Array.isArray(stored.value)) {
+    const age = Date.now() - stored.at;
+    if (age < lifetime) return Promise.resolve(stored.value);
+    if (age < (live ? day : 7 * day)) {
+      if (!current) load().catch(() => undefined);
+      return Promise.resolve(stored.value);
     }
-    return rows;
-  });
-  pending.set(cacheKey, { task, expires: Date.now() + lifetime });
-  task.catch(() => {
-    if (pending.get(cacheKey)?.task === task) pending.delete(cacheKey);
-  });
-  return task;
+  }
+  return current || load();
 }
 const privateReads = new Map<string, Promise<string>>();
 async function sendAction(
@@ -140,12 +163,32 @@ async function sendAction(
   if (operation === "write") clearPublicCache();
   return JSON.stringify(result);
 }
+// Keyless lookups of this device's own progress; staff and private reads are never stored.
+function ownLookup(payload: Record<string, string>) {
+  const keys = Object.keys(payload);
+  return keys.length === 1 && ["idFor", "amdaFor"].includes(keys[0])
+    ? ownCachePrefix + keys[0] + ":" + payload[keys[0]]
+    : "";
+}
 export async function action<T = Record<string, unknown>>(
   operation: "read" | "write",
   payload: Record<string, string>,
 ): Promise<T> {
   if (operation === "write")
     return JSON.parse(await sendAction(operation, payload));
+  const own = ownLookup(payload);
+  if (own) {
+    const refresh = sendAction(operation, payload).then((text) => {
+      save(own, JSON.parse(text));
+      return text;
+    });
+    const stored = saved<T>(own);
+    if (stored) {
+      refresh.catch(() => undefined);
+      return stored.value;
+    }
+    return JSON.parse(await refresh);
+  }
   const key = JSON.stringify(
     Object.entries(payload).sort(([a], [b]) => a.localeCompare(b)),
   );

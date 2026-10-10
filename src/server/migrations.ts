@@ -83,7 +83,8 @@ export function splitSql(source: string): string[] {
 export async function runtimeMigrations() {
   const folder = new URL("../../backend/database/", import.meta.url);
   const names = (await fs.readdir(folder))
-    .filter((name) => /^00[2-9]-[a-z-]+\.sql$/.test(name))
+    // 001 is the import schema; every later numbered file is a runtime migration.
+    .filter((name) => /^\d{3}-[a-z-]+\.sql$/.test(name) && name > "002")
     .sort();
   return Promise.all(
     names.map(async (name) => {

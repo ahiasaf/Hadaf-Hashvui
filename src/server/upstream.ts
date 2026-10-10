@@ -78,9 +78,10 @@ export async function requestNotification(payload: unknown, request = fetch) {
     !sub.keys?.p256dh
   )
     throw new Error("Invalid subscription");
-  const { databaseEnabled, appendDatabaseRecord } =
+  const { databaseEnabled, appendDatabaseRecord, requireWritable } =
     await import("./database.ts");
-  if (databaseEnabled()) {
+  await requireWritable();
+  if (await databaseEnabled()) {
     const result: unknown = await appendDatabaseRecord("ממתינים לדף", cols);
     if (
       !result ||

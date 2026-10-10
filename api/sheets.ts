@@ -18,7 +18,7 @@ export default async function handler(
     return;
   }
   try {
-    const text = databaseEnabled()
+    const text = (await databaseEnabled())
       ? await readDatabaseSheet(
           tab,
           url.searchParams.get("tq") || "",

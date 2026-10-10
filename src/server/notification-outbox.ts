@@ -15,13 +15,14 @@ export type NotificationPayload = {
   url: string;
   tag?: string;
 };
-export function immediateNotificationsEnabled() {
+export async function immediateNotificationsEnabled() {
   return (
-    databaseEnabled() && process.env.HADAF_NOTIFICATION_DELIVERY === "direct"
+    process.env.HADAF_NOTIFICATION_DELIVERY === "direct" &&
+    (await databaseEnabled())
   );
 }
-export function requireImmediateNotifications() {
-  if (!immediateNotificationsEnabled() || !process.env.VAPID_PRIVATE)
+export async function requireImmediateNotifications() {
+  if (!(await immediateNotificationsEnabled()) || !process.env.VAPID_PRIVATE)
     throw new Error("Immediate notification delivery is not configured");
 }
 export async function enqueueNotification(
@@ -32,6 +33,8 @@ export async function enqueueNotification(
   hash: string,
   who: string,
   deliveryKey?: string,
+  // Targeting columns let an administrator resend the logged message unchanged.
+  details: [string, string][] = [],
 ) {
   if (!/^[\w.-]{1,100}$/.test(sid))
     throw new Error("Invalid notification request identity");
@@ -61,13 +64,14 @@ export async function enqueueNotification(
     ["כותרת", payload.title],
     ["הטקסט", payload.body],
     ["תוצאה", rows.length ? "ממתין" : "אין נמענים עם התראות"],
+    ...details,
   ]);
   const result =
     await database()`SELECT enqueue_notification_request(${sid},${hash},${columns}::jsonb,${JSON.stringify(rows)}::jsonb) AS created`;
   return { status: "ok", sid, queued: rows.length, reused: !result[0].created };
 }
 export async function drainNotificationOutbox(sender?: PushSender, limit = 16) {
-  requireImmediateNotifications();
+  await requireImmediateNotifications();
   if (!sender) {
     webpush.setVapidDetails(
       pushSubject,

@@ -1,6 +1,7 @@
 import { programContent } from "../config/content.ts";
 import {
   appendDatabaseRecord,
+  backendState,
   database,
   databaseEnabled,
   stringRows,
@@ -77,7 +78,8 @@ export async function operationalAsk(
   params: Record<string, string>,
   tries = 3,
 ): Promise<Record<string, unknown>> {
-  if (!databaseEnabled()) return legacyRequest(params, undefined, tries);
+  if (!(await databaseEnabled()))
+    return legacyRequest(params, undefined, tries);
   if (params.read) {
     const rows =
       await database()`SELECT headers,(SELECT coalesce(jsonb_agg(cells ORDER BY ordinal),'[]'::jsonb) FROM sheet_rows WHERE table_name=${params.read}) AS rows FROM sheet_tables WHERE name=${params.read}`;
@@ -104,7 +106,9 @@ export async function operationalAsk(
   throw new Error("Unsupported operational request");
 }
 export async function operationalWrite(tab: string, cols: [string, string][]) {
-  if (databaseEnabled()) {
+  if ((await backendState()) === "frozen")
+    throw new SourceUnavailable("Writes are paused for the database migration");
+  if (await databaseEnabled()) {
     await appendDatabaseRecord(tab, cols);
     return;
   }
@@ -146,7 +150,9 @@ export function reportText(report: Report) {
         : (bad ? "חלקית: " : "") + "התקבלה אצל שירות ההתראות ל-" + n + tail;
 }
 export async function reportOperationalMessage(sid: string, report: Report) {
-  if (!databaseEnabled()) {
+  if ((await backendState()) === "frozen")
+    throw new SourceUnavailable("Writes are paused for the database migration");
+  if (!(await databaseEnabled())) {
     const params: Record<string, string> = {
       sayDone: sid,
       key: process.env.READ_KEY || "",

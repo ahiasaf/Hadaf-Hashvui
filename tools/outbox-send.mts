@@ -3,7 +3,7 @@ import { flushNotificationOutbox } from "../src/server/notification-outbox.ts";
 import { boolean, failJob } from "./notification-runtime.mts";
 async function main() {
   if (
-    !databaseEnabled() ||
+    !(await databaseEnabled()) ||
     process.env.HADAF_NOTIFICATION_DELIVERY !== "direct"
   )
     return;
