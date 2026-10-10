@@ -981,6 +981,16 @@ function doGet(e) {
       sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'סטטוס שליחה') + 1).setValue(stt);
       sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'קיבלו') + 1).setValue(got);
       var g0 = function (k) { return sr.ix[k] === undefined ? '' : String(sr.v[sr.ix[k]] || ''); };
+      /* **יצאה באיחור** — מהבקשה ועד הדיווח. מעל 3 דקות זה כבר לא "מיד",
+         והשולח (והרכז) צריכים לדעת: הודעה על שיעור בשמונה שיצאה ב-20:15
+         אינה אותה הודעה. */
+      var at0 = sr.ix['תאריך'] === undefined ? null : sr.v[sr.ix['תאריך']];
+      var late = at0 instanceof Date ? Math.round((Date.now() - at0.getTime()) / 60000) : 0;
+      if (late >= 3 && (stt === 'נשלח' || stt === 'חלקי')) {
+        now += ' · יצאה באיחור של ' + late + ' דקות';
+        sr.sh.getRange(sr.r, sr.ix['תוצאה'] + 1).setValue(now);
+      } else late = 0;
+      try { dlvPrune_(); } catch (eP) {}
       /* התראת מערכת לרכז אינה מתריעה על עצמה — אחרת התרעה על התרעה. */
       if (g0('מי') !== 'מערכת' && g0('קהל') !== 'מכשירי רכז') {
         var nm = { ok: [], gone: [], bad: [], inst: {} };
@@ -991,7 +1001,7 @@ function doGet(e) {
         }
         sayReport_(stt, g0('מי'), nm.inst[g0('ישיבה')] || g0('ישיבה'), g0('הטקסט'),
                    stt === 'נשלח' || stt === 'אין נמענים' ? '' : (why || det),
-                   { ok: nOk, prev: nPrev, bad: nBad, gone: nGone }, nm);
+                   { ok: nOk, prev: nPrev, bad: nBad, gone: nGone, late: late }, nm);
       }
       return reply_(e, { status:'ok' });
     } catch (errD) {
@@ -4324,7 +4334,8 @@ function sayReport_(stt, who, inst, body, why, c, nm) {
   var txt = (who || 'רכז') + (inst ? ' · ' + inst : '') + '\n' +
     '«' + String(body || '').replace(/\{name\}[,،]?\s*/g, '').slice(0, 110) + '»' +
     (why ? '\nסיבה: ' + String(why).slice(0, 200) : '') +
-    (cnt.length ? '\n' + cnt.join(' · ') + ' (מכשירים)' : '');
+    (cnt.length ? '\n' + cnt.join(' · ') + ' (מכשירים)' : '') +
+    (c.late ? '\n⏱ יצאה באיחור של ' + c.late + ' דקות' : '');
   var names = nm ? sayNamesTxt_(nm, 1300 - txt.length) : '';
   coordPing_(head + ' · ' + (who || 'רכז'), txt + (names ? '\n' + names : ''));
 }
@@ -4378,6 +4389,30 @@ function sayNames_(mid, wait) {
     out[bin].push(w);
   }
   return out;
+}
+/* "מסירות" נקראת במלואה בכל שליחה — ולכן אסור לה לגדול בלי סוף.
+   פעם ביום: שורות בנות יותר מ-30 יום נמחקות. אחרי חודש איש אינו שולח
+   שוב את אותה הודעה. השורות נכתבות לפי סדר הזמן, ולכן הישנות בראש. */
+function dlvPrune_() {
+  var P = PropertiesService.getScriptProperties();
+  var today = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  if (P.getProperty('DLV_PRUNE') === today) return;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    var sh = sheet_('מסירות');
+    if (sh.getLastRow() >= 2) {
+      var h = headers_(sh), it = h.indexOf('תאריך');
+      if (it < 0) return;
+      var v = sh.getRange(2, it + 1, sh.getLastRow() - 1, 1).getValues();
+      var edge = Date.now() - 30 * 864e5, k = 0;
+      while (k < v.length && v[k][0] instanceof Date && v[k][0].getTime() < edge) k++;
+      /* גוגל אינו מוחק את כל השורות שמתחת לכותרת הקפואה — שורה אחת נשארת. */
+      if (k >= v.length) k = v.length - 1;
+      if (k > 0) sh.deleteRows(2, k);
+    }
+    P.setProperty('DLV_PRUNE', today);
+  } finally { lock.releaseLock(); }
 }
 function subPrint_(ep) {
   var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(ep), Utilities.Charset.UTF_8);

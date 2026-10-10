@@ -1818,6 +1818,7 @@ function myDraw() {
     '<button class="mygo" id="my-go"' +
     (myBusy || n === 0 || myDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (myBusy ? 'שולח…' : esc(tz('mySayGo'))) + '</button>' +
+    '<p class="myto">' + esc(UI.sayLate) + '</p>' +
     (myErr ? '<div class="myerr">' + esc(myErr) + '</div>' : '') +
     '</div>';
   myWire();

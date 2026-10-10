@@ -2696,7 +2696,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.160';
+var APP_VERSION = '8.99.161';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4934,6 +4934,7 @@ function sayHtml() {
     '<button class="mygo" id="say-go"' +
     (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
+    '<p class="myto">' + esc(UI.sayLate) + '</p>' +
     (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '');
 
   /* ---- מה שכבר יצא מכאן ---- */
@@ -13497,6 +13498,7 @@ function admPush(el) {
       roleL[1] + (pushView.only ? ' · ' + pushView.only : ''))) + '</div>' +
     '<button class="btn p"' + (pushBusy ? ' disabled' : '') +
     ' onclick="pushSend()">' + (pushBusy ? 'שולח…' : 'שליחה') + '</button>' +
+    '<p class="myto">' + esc(UI.sayLate) + '</p>' +
     (pushMsg ? '<div class="cond" style="margin-top:10px">' +
                esc(pushMsg) + '</div>' : '') +
     '<details class="hx"' + (pushView.link ? ' open' : '') + '><summary>' + esc(UI.sendAdv) + '</summary>' +
