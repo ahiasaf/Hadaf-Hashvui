@@ -8,6 +8,8 @@ import {
   type Person,
 } from "../lib/client";
 import Reminders from "./Reminders";
+import InvitePanel from "./InvitePanel";
+import { inviteDraft, type InviteCopy } from "../lib/invite";
 type Institution = { code: string; name: string };
 const ways = [
   ["solo", "לבד, בקצב שלי"],
@@ -16,8 +18,10 @@ const ways = [
 ];
 export default function Signup({
   institutions,
+  invite,
 }: {
   institutions: Institution[];
+  invite: InviteCopy;
 }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [draft, setDraft] = useState<Person | null>(null);
@@ -26,13 +30,23 @@ export default function Signup({
   const [restore, setRestore] = useState(false);
   const [initialInst, setInitialInst] = useState("");
   const [role, setRole] = useState("kid");
+  const [inviting, setInviting] = useState(false);
   useEffect(() => {
     const existing = stored<Person | null>("me", null);
+    // A son opening the parent's personal link starts with both names filled in.
+    const invited = existing ? null : inviteDraft(location.search);
     setPerson(existing);
-    setDraft(existing);
+    setDraft(
+      existing || (invited ? ({ ...invited, way: "dad" } as Person) : null),
+    );
     const params = new URLSearchParams(location.search);
     setInitialInst(params.get("inst") || "");
     setRole(existing?.role || (params.get("for") === "dad" ? "dad" : "kid"));
+    setInviting(
+      location.hash === "#invite" &&
+        !!existing &&
+        ["dad", "parent"].includes(existing.role),
+    );
   }, []);
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,6 +126,21 @@ export default function Signup({
       setBusy(false);
     }
   }
+  if (person && inviting)
+    return (
+      <section className="workspace narrow swap" key="invite">
+        <p className="eyebrow">{person.instName}</p>
+        <InvitePanel
+          me={person}
+          copy={invite}
+          onSent={(next) => {
+            setPerson(next);
+            setDraft(next);
+            history.replaceState(null, "", location.pathname + location.search);
+          }}
+        />
+      </section>
+    );
   if (person)
     return (
       <section className="workspace narrow swap" key="done">

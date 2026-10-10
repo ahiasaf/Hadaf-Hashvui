@@ -3,10 +3,14 @@ import "../styles/workspace.css";
 import Site from "../layouts/Site.astro";
 import Signup from "../components/Signup";
 import program from "../generated/program.json";
+import copy from "../config/copy.json";
+import { inviteKeys } from "../lib/invite";
+import { pickStrings } from "../lib/share-links";
+const invite = pickStrings(copy.JOIN, inviteKeys);
 ---
 
 <Site manifest="/join-manifest.json">
-  <Signup institutions={program.institutions} client:load />
+  <Signup institutions={program.institutions} invite={invite} client:load />
   <noscript>
     <p class="workspace notice">
       להרשמה ולעדכון ההתקדמות יש להפעיל JavaScript.{" "}
