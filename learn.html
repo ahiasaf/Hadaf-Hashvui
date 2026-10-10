@@ -3639,7 +3639,6 @@ function sideAdmPaint() {
     '<button id="sa-set" class="' + (here ? 'hot' : '') + '">' +
     'שקף ' + SLIDE + ' מתחיל כאן</button>' +
     (here ? '<button id="sa-del">ביטול העוגן</button>' : '') +
-    '<button id="sa-save">שמירה לכולם</button>' +
     '<button id="sa-dk">' + esc(UI.sdDecks || '') + ' ↗</button>' +
     '</div><div class="msg" id="sa-msg"></div>';
 
@@ -3648,16 +3647,18 @@ function sideAdmPaint() {
     /* שם קובץ ולא מיקום — כדי ששיוך שנעשה היום לא יישבר אם מחר
        נדחף שקף באמצע הרשימה. ראו `anchPos_`. */
     sidPut_(ANCH, n, deckFileAt(SLIDE), false);
-    sideMsg('', '');
     sidePaint();
+    sideAutoSave();
   };
   if ($('sa-del')) $('sa-del').onclick = function () {
     sidPut_(ANCH, n, undefined, false);
-    sideMsg('', '');
     sideSync(true);
     sidePaint();
+    sideAutoSave();
   };
-  $('sa-save').onclick = sideSave;
+  /* ציור מחדש (דפדוף שקף) בונה את התיבה מחדש — ההודעה האחרונה
+     חוזרת אליה, כדי ש"שומר…" לא ייעלם באמצע. */
+  sideMsg(SIDE_MSG[0], SIDE_MSG[1]);
   /* אל עורך המצגות בניהול, על אותו שבוע. הניהול קורא את הבקשה
      פעם אחת (`admTakeGo` ב-index.html) ומוחק אותה. */
   $('sa-dk').onclick = function () {
@@ -3796,14 +3797,32 @@ function ownAudioDel(i) {
   OWN_EDIT[i].audio = '';
   paintOwn();
 }
+var SIDE_MSG = ['', ''];
 function sideMsg(cls, txt) {
+  SIDE_MSG = [cls, txt];
   var m = $('sa-msg');
   if (m) { m.className = 'msg ' + cls; m.innerHTML = txt; }
 }
 
+/* שמירה אוטומטית: כל שינוי עוגן נשמר לבד, בלי כפתור. כמה לחיצות
+   ברצף (עוגן פה, ביטול שם) מתקבצות לשליחה אחת, שניה וקצת אחרי
+   הלחיצה האחרונה — כך הסקריפט מקבל בקשה אחת ולא עשר. מי שיוצא
+   מהדף לפני שעברה השנייה — השליחה יוצאת מיד ביציאה. */
+var SIDE_T = null, SIDE_GEN = 0;
+function sideAutoSave() {
+  if (SIDE_T) clearTimeout(SIDE_T);
+  SIDE_T = setTimeout(function () { sideSave(false); }, 1200);
+  sideMsg('', UI.sdSaving || '');
+}
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden' && SIDE_T) sideSave(true);
+});
+window.addEventListener('pagehide', function () { if (SIDE_T) sideSave(true); });
+
 /* הכתיבה היא no-cors ולכן תמיד "מצליחה". ההודעה שנשמר נאמרת
    רק אחרי קריאה חוזרת שמצאה בגיליון בדיוק את מה שנשלח. */
-function sideSave() {
+function sideSave(leaving) {
+  if (SIDE_T) { clearTimeout(SIDE_T); SIDE_T = null; }
   if (!API) { sideMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_()) { sideMsg('bad', NOKEY_MSG); return; }
   DMAP[dmKey(S.mas, S.daf)] = ANCH || {};
@@ -3816,33 +3835,50 @@ function sideSave() {
     for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
     if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
   }
-  sideMsg('', 'נשלח · מאמת מול הגיליון…');
-  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+  var gen = ++SIDE_GEN;
+  var body = JSON.stringify({
     action:'table', tab:DECK_TAB, key:cfgReadKey_(),
     cols:JSON.stringify(['מסכת', 'דף', 'עוגנים']),
     rows:JSON.stringify(rows)
-  }) }).catch(function () {});
-  sideVerify(0);
+  });
+  sideMsg('', UI.sdSaving || '');
+  /* ביציאה מהדף — `keepalive`, כדי שהבקשה תשרוד את סגירת הלשונית.
+     לדפדפן יש תקרה לגוף כזה (64KB); מעליה שולחים רגיל. */
+  var opt = { method:'POST', mode:'no-cors', body:body };
+  if (leaving && body.length < 60000) opt.keepalive = true;
+  fetch(API, opt).catch(function () {});
+  if (!leaving) sideVerify(0, gen);
 }
-function sideVerify(tries) {
+/* שמירה שלא אומתה אינה נזנחת: עוד ניסיון בעוד דקה, עד שתצליח.
+   ממתינה ב-SIDE_T — ולכן גם יוצאת מיד אם עוזבים את הדף. */
+function sideRetry_() {
+  if (!SIDE_T) SIDE_T = setTimeout(function () { sideSave(false); }, 60000);
+}
+function sideVerify(tries, gen) {
   setTimeout(function () {
+    /* בינתיים יצאה שמירה חדשה — היא שתאמת, לא זו. */
+    if (gen !== SIDE_GEN) return;
     sheetCsv(DECK_TAB).then(function (rows) {
+      if (gen !== SIDE_GEN) return;
       var m = dmapFromRows(rows);
       var mine = m && m[dmKey(S.mas, S.daf)];
       var want = JSON.stringify(ANCH || {});
       if (mine && JSON.stringify(mine) === want) {
         DMAP = m;
-        sideMsg('ok', 'נשמר ואומת. מעכשיו המצגת זורמת כך אצל כל מי שפותח את הדף.');
+        sideMsg('ok', UI.sdSaved || '');
         return;
       }
-      if (tries < 4) { sideVerify(tries + 1); return; }
+      if (tries < 4) { sideVerify(tries + 1, gen); return; }
       sideMsg('bad', '<b>לא אומת.</b> ' + (!m
         ? 'הגיליון לא נענה, או שלשונית "מצגת" לא נוצרה.'
         : 'מה שחזר מהגיליון אינו מה שנשלח.') +
-        ' השיוך קיים במסך הזה בלבד — אפשר לנסות שוב.');
+        ' השיוך קיים במסך הזה בלבד — ננסה שוב לבד בעוד דקה.');
+      sideRetry_();
     }).catch(function () {
-      if (tries < 4) sideVerify(tries + 1);
-      else sideMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
+      if (gen !== SIDE_GEN) return;
+      if (tries < 4) { sideVerify(tries + 1, gen); return; }
+      sideMsg('bad', 'לא הצלחתי לקרוא מהגיליון. ננסה שוב לבד בעוד דקה.');
+      sideRetry_();
     });
   }, tries ? 5000 : 2500);
 }
