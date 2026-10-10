@@ -394,7 +394,7 @@ h1 {
 }
 .hero-mark {
   position: relative;
-  width: min(100%, 330px);
+  width: min(100%, 220px);
   justify-self: center;
 }
 .hero-mark img {
@@ -729,13 +729,13 @@ html:not(.js) .phases::after {
 }
 .dots {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin-top: 10px;
 }
 .dots i {
-  width: 11px;
-  height: 11px;
+  flex: 0 1 11px;
+  min-width: 4px;
+  aspect-ratio: 1;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   transform: scale(0.85);
@@ -1345,10 +1345,6 @@ html:not(.js) .ring-fill {
   .lesson-actions .button {
     min-height: 54px;
     font-size: 1rem;
-  }
-  .dots i {
-    width: 9px;
-    height: 9px;
   }
   .steps {
     padding-block: 40px 24px;
