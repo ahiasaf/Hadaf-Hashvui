@@ -78,8 +78,14 @@ function PlusIcon() {
 export default function Install() {
   const [step, setStep] = useState<InstallStep | null>(null);
   const [busy, setBusy] = useState(false);
+  // Two stages when the device still needs the app; the bar fills as they complete.
+  const [staged, setStaged] = useState(false);
   useEffect(() => {
-    const refresh = () => setStep(currentStep());
+    const refresh = () => {
+      const next = currentStep();
+      setStep(next);
+      if (next !== "notify" && next !== "done") setStaged(true);
+    };
     refresh();
     addEventListener("df-install-ready", refresh);
     addEventListener("appinstalled", refresh);
@@ -106,9 +112,22 @@ export default function Install() {
     }
   }
   if (!step || step === "done") return null;
+  const bar = staged && (
+    <div className="install-bar">
+      <p className="flow-count" aria-live="polite">
+        שלב {step === "notify" ? 2 : 1} מתוך 2
+      </p>
+      <div className="flow-track">
+        <i
+          style={{ "--p": step === "notify" ? 1 : 0.5 } as React.CSSProperties}
+        />
+      </div>
+    </div>
+  );
   if (step === "notify")
     return (
       <div className="install swap">
+        {bar}
         <p className="install-title">תזכורת קטנה בכל שבוע?</p>
         <p className="install-text">
           הודעה אחת כשהדף החדש נפתח. אפשר לבטל בכל רגע.
@@ -118,6 +137,7 @@ export default function Install() {
     );
   return (
     <div className="install swap">
+      {bar}
       <p className="install-title">
         {step === "install-prompt" || step === "install-ios"
           ? "האפליקציה על מסך הבית"

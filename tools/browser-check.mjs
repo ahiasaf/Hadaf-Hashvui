@@ -197,13 +197,26 @@ try {
   await prepare(context);
   const page = await context.newPage();
   await page.goto(base + "/join");
-  await page.getByLabel("שם פרטי", { exact: true }).first().fill("תלמיד");
-  await page.getByLabel("שם משפחה", { exact: true }).first().fill("לדוגמה");
+  // Signup is a step flow: big choices advance on tap, Enter continues, a reload resumes.
+  await page.getByRole("button", { name: /^תלמיד/ }).click();
+  await page.getByLabel("שם פרטי", { exact: true }).fill("תלמיד");
+  await page.getByLabel("שם משפחה", { exact: true }).fill("לדוגמה");
+  await page.getByLabel("שם משפחה", { exact: true }).press("Enter");
   await page.getByLabel("טלפון", { exact: true }).fill("0500000000");
+  await page.reload();
+  await page.getByText("שלב 3 מתוך 7", { exact: true }).waitFor();
+  assert.equal(
+    await page.getByLabel("טלפון", { exact: true }).inputValue(),
+    "0500000000",
+  );
+  await page.getByRole("button", { name: "המשך", exact: true }).click();
   await page
-    .getByLabel("ישיבה", { exact: true })
-    .selectOption(program.institutions[0].code);
-  await page.getByLabel("שכבה", { exact: true }).selectOption("ז");
+    .getByRole("button", { name: program.institutions[0].name, exact: true })
+    .click();
+  await page.getByRole("button", { name: "ז", exact: true }).click();
+  await page.getByRole("button", { name: "המשך", exact: true }).click();
+  await page.getByRole("button", { name: /^לבד/ }).click();
+  await page.getByText("שלב 7 מתוך 7", { exact: true }).waitFor();
   writeFailure = true;
   await page.getByRole("button", { name: "שמירת ההרשמה", exact: true }).click();
   await page.getByRole("alert").waitFor();
@@ -394,7 +407,9 @@ try {
     .click();
   await restored.getByLabel("שם פרטי", { exact: true }).fill("תלמיד");
   await restored.getByLabel("שם משפחה", { exact: true }).fill("לדוגמה");
+  await restored.getByRole("button", { name: "המשך", exact: true }).click();
   await restored.getByLabel("טלפון", { exact: true }).fill("0500000000");
+  await restored.getByRole("button", { name: "המשך", exact: true }).click();
   await restored
     .getByRole("button", { name: "שחזור ההרשמה", exact: true })
     .click();
