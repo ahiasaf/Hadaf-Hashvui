@@ -790,6 +790,9 @@ nav button.on{background:var(--blue);color:#fff;border-color:transparent}
    שנעלמת כשפותחים. */
 nav button.fresh{border:2px solid #F2C230;box-shadow:0 0 0 3px rgba(242,194,48,.35)}
 nav button:disabled{opacity:.38;cursor:default}
+/* נלחץ ויוצאים לדף הבא — נראה לחוץ, לא כבוי */
+nav button.busy:disabled{opacity:1;filter:brightness(.92);transform:translateY(1px);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.28)}
 nav .sp{flex:1}
 @media (max-width:420px){
   nav{gap:6px;padding-inline:8px}
@@ -1150,6 +1153,11 @@ var IDX = 0, DIM = true, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
    אליו — מי שסגר אותו כדי להסתכל שוב לא רוצה לפגוש אותו בכל
    הקשה על "הבא". */
 var DONE_SEEN = false;
+/* BUILT — הדף כולו לפני החיתוך לעמוד (ב. / ב:).
+   LEAVING — כבר יצאנו לדף אחר: לחיצות נוספות אינן נספרות.
+   READY_AT — מתי הלימוד נפתח; לחיצה כפולה שנמשכה מהדף הקודם
+   אינה מקדמת כאן צעד. */
+var BUILT = null, LEAVING = false, READY_AT = 0;
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -4038,7 +4046,7 @@ function spotOffer() {
       (dafKey(p.daf) === dafKey(S.daf) && (p.am == null || p.am === S.am))) return;
   if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
   var u = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
-  resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.pg || 1) })) +
+  resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.am || p.pg || 1) })) +
     ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
 }
 /* **קופצים, לא שואלים — כשהתקדם מעבר לדף של השבוע.** מי שנכנס
@@ -4147,6 +4155,7 @@ function pickGo(k) {
     if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
     return;
   }
+  if (rowAm && unitSwap({ daf: u.daf, am: rowAm, wk: LWeekOf(S.mas, u.daf, rowAm) })) return;
   location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
     (rowAm || u.am === 2 ? '&amud=' + u.am : '') + keepQ();
 }
@@ -4156,7 +4165,7 @@ var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
    ניווט.
    ============================================================ */
 function go(i) {
-  if (i < 0) return;
+  if (i < 0 || LEAVING) return;
   if (i >= FLAT.length) { finish(); return; }
   IDX = i;
   var st = FLAT[IDX];
@@ -4166,6 +4175,7 @@ function go(i) {
     SHOWN = st.p;
     paint(); focus(); paintChavArea(); bar(); sideSync(); savePos(); spotSave();
     recStep('go', IDX);
+    if (IDX === FLAT.length - 1) preNext();
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
 /* מצב התצוגה במקום אחד: הכפתור, המחלקה על הגוף, והציור.
@@ -4215,8 +4225,13 @@ function bar() {
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0 && !prevDaf();
   var last = IDX === FLAT.length - 1;
+  if (LEAVING) return;
+  /* בקטע האחרון — תמיד "סיום", גם בדף של שבוע שעבר: הלימוד של
+     השבוע נגמר כאן, גם כשהוא גולש לעמוד הבא. "דף ב:" על מסך שכבר
+     מראה את ב: נראה כמו טעות. אחרי מסך הסיום — הדף הבא. */
+  var nd = last && DONE_SEEN ? nextDaf() : null;
   $('next').textContent = last
-    ? ((DONE_SEEN || !isWeekDaf()) && nextDaf() ? 'דף ' + unitName(nextDaf()) + ' ◂' : 'סיום ◂')
+    ? (nd ? nextLabel(nd, UI.lrnNextSame, UI.lrnNext) : UI.lrnFin)
     : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
 }
 /* ---------- מדידת זמנים ----------
@@ -4266,16 +4281,82 @@ function prevDafUrl() {
    ש"הבא" בסוף הדף ממשיך אל הדף הבא. `at=end` אומר לדף שנפתח
    להתחיל מסופו. */
 function goBack() {
+  if (LEAVING) return;
   if (IDX > 0) { go(IDX - 1); return; }
+  if (unitSwap(prevDaf(), true)) return;
   var u = prevDafUrl();
-  if (u) { location.href = u; return; }
+  if (u) { leave($('prev'), u); return; }
   toast('זה הקטע הראשון');
 }
 var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
   var u = nextDaf();
   return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
-             '&' + unitQ(u) + keepQ() : null;
+             '&' + unitQ(u) + '&at=start' + keepQ() : null;
+}
+/* מי שהגיע ב"הבא" מהדף הקודם מתחיל מהקטע הראשון — לא מקום ישן
+   שנשמר בו פעם. אחרת הלימוד "קופץ כמה שורות", ונראה שדילגנו. */
+var AT_START = /[?&]at=start\b/.test(location.search);
+
+/* הכיתוב של "הלאה" — המשך אותו דף, או הדף הבא בשמו. */
+function nextLabel(u, same, other) {
+  return dafKey(u.daf) === dafKey(S.daf) ? same : fillT(other, { daf: unitName(u) });
+}
+/* יוצאים לדף אחר: הכפתור נראה לחוץ ואומר "טוען…", וכל לחיצה
+   נוספת — על הכפתורים או על הדף — אינה נספרת. בלי זה לחיצה שנייה
+   בזמן ההמתנה קידמה צעד, או נכנסה לדף הבא באמצע. */
+function leave(btn, url) {
+  LEAVING = true;
+  buttons(false);
+  if (btn && btn.tagName === 'BUTTON') { btn.classList.add('busy'); btn.textContent = UI.lrnBusy; }
+  location.href = url;
+}
+/* חזרה בכפתור "אחורה" של הדפדפן מגיעה מהמטמון, כשהיציאה עוד
+   נעולה — משחררים. */
+window.addEventListener('pageshow', function (e) {
+  if (!e.persisted || !LEAVING) return;
+  LEAVING = false;
+  var b = $('next'); if (b) b.classList.remove('busy');
+  var b2 = $('prev'); if (b2) b2.classList.remove('busy');
+  buttons(true); bar();
+});
+
+/* ---------- מעבר בתוך אותו דף ----------
+   ב. ו-ב: הם אותו דף, והוא כבר טעון: הקטעים, התמונה, החברותא.
+   לכן עוברים ביניהם במקום — בלי טעינה מחדש. רק מה ששייך לשבוע
+   מתחלף: הכותרת, הכתובת, המצגת והמקום השמור.
+   false = לא כאן (דף אחר, דף נעול, או שאין בעמוד קטעים) — והקורא
+   יוצא לכתובת כרגיל. */
+function unitSwap(u, atEnd) {
+  if (!u || !BUILT || LEAVING || dafKey(u.daf) !== dafKey(S.daf) || u.am === S.am) return false;
+  if (!OpenIs(S.mas, u.daf, u.am) && !SIDE_ADM && !quiet()) return false;
+  var cut = amudCut(BUILT, u.am);
+  if (!cut.flat.length) return false;
+  sendPos();                                   /* ההתקדמות של השבוע שעוזבים */
+  /* המצגת היא של השבוע — נסגרת לפני ההחלפה, ונבנית מחדש אחריה. */
+  if (document.body.classList.contains('side-on')) sideOpen(false, true);
+  var dk = $('dktog'); if (dk) dk.style.display = 'none';
+  DECK = null; SIDE_FR = null;
+  S.am = u.am; S.week = u.wk;
+  PAGES = cut.pages; FLAT = cut.flat; GROUPS = cut.groups;
+  DONE_SEEN = false;
+  $('done').className = 'sheet';
+  var r = $('resume'); if (r) r.className = 'resume';
+  headPaint();
+  try {
+    history.replaceState(null, '', 'learn.html?mas=' + encodeURIComponent(S.mas) + '&' + unitQ(u) + keepQ());
+  } catch (e) {}
+  go(atEnd ? FLAT.length - 1 : 0);
+  try { sideInit(); } catch (e) {}
+  READY_AT = Date.now();
+  return true;
+}
+/* הכותרת: המסכת, הדף והעמוד, והשבוע. */
+function headPaint() {
+  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
+  $('t-daf').textContent = HEAD;
+  $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
+    ((calOf(S.mas)[S.week] || [])[1] || '') : '';
 }
 /* האם הדף הפתוח הוא הדף של השבוע הנוכחי. רק בו יש מסך סיום. */
 function isWeekDaf() {
@@ -4286,10 +4367,13 @@ function isWeekDaf() {
 function finish() {
   /* דף שאינו של השבוע — אין מסך סיום ואין סימון. ממשיכים בשקט
      לדף הבא, כמו דפדוף בגמרא. אין דף הבא — נשארים במקום. */
-  if (!isWeekDaf()) {
+  /* הלימוד של השבוע נגמר — מסך הסיום, גם בדף של שבוע שעבר (שם
+     בלי סימון: markThisDaf מסמן רק את השבוע הנוכחי). דף שאינו
+     בלוח בכלל — ממשיכים בשקט, כמו דפדוף בגמרא. */
+  if (S.week < 0) {
     DONE_SEEN = true;
     var nu = nextDafUrl();
-    if (nu) location.href = nu;
+    if (nu) leave($('next'), nu);
     bar();
     return;
   }
@@ -4302,7 +4386,7 @@ function finish() {
 
   var nd = nextDaf(), n = $('to-next');
   if (nd) { n.style.display = ''; n.href = nextDafUrl();
-            n.textContent = 'לדף הבא — דף ' + unitName(nd) + ' ◂'; }
+            n.textContent = nextLabel(nd, UI.lrnToSame, UI.lrnToNext); }
   else n.style.display = 'none';
 
   /* ---- סימון הלימוד ----
@@ -5181,10 +5265,12 @@ function nextDaf() {
 }
 /* הדף **האחר** הבא — לזנב שגולש מסוף הדף. אחרי ב. בא ב:, שהוא
    אותו דף, והזנב יושב בתחילת ג. */
-function nextOtherDaf() {
-  var u = units(), i = unitAt(u);
+function nextOtherDaf() { return otherAfter(S.daf); }
+function otherAfter(daf) {
+  var u = units(), i = -1;
+  for (var k = 0; k < u.length; k++) if (dafKey(u[k].daf) === dafKey(daf)) { i = k; break; }
   for (var j = i + 1; i >= 0 && j < u.length; j++)
-    if (dafKey(u[j].daf) !== dafKey(S.daf)) return u[j].daf;
+    if (dafKey(u[j].daf) !== dafKey(daf)) return u[j].daf;
   return null;
 }
 /* מחרוזת לשאילתת הגיליון. שמות הדפים מכילים גרש וגרשיים — `כ'`
@@ -5196,9 +5282,10 @@ function qLit(v) {
   if (v.indexOf('"') < 0) return '"' + v + '"';
   return null;
 }
-function marksQuery() {
+function marksQuery(daf) {
+  daf = daf || S.daf;
   var forms = {}, list = [];
-  [S.daf, nextOtherDaf()].forEach(function (d) {
+  [daf, otherAfter(daf)].forEach(function (d) {
     if (!d) return;
     /* גם הצורה עם הגרשיים וגם בלעדיה: הסטודיו כותב את השם כפי
        שהוא בבורר, ואיננו רוצים לתלות את הכל בניחוש איזו צורה. */
@@ -5237,17 +5324,58 @@ function marksQuery() {
    שלם בשבוע של ע״א, וב-ע״ב הוא אינו נפתח באמצע משפט. הזנב שגולש
    אל הדף הבא שייך ל-ע״ב — כמו בסוף כל דף. מספרי הקטעים והמזהים
    נשארים כמו שהם, ולכן החברותא, החידות והמקום השמור אינם זזים. */
-function amudCut(built) {
-  if (!S.am) return built;
+function amudCut(built, am) {
+  if (am === undefined) am = S.am;
+  if (!am) return built;
   var keep = {};
   built.flat.forEach(function (v) {
     if (v.part !== 1) return;
     var pp = built.pages[v.p] || {};
-    var am = dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
-    if (am === S.am) keep[v.n] = 1;
+    var am2 = dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
+    if (am2 === am) keep[v.n] = 1;
   });
   return { pages: built.pages, groups: built.groups,
            flat: built.flat.filter(function (v) { return keep[v.n]; }) };
+}
+/* ---------- הדף הבא מובא מראש ----------
+   בקטע האחרון של הדף, ברקע: הסימונים של הדף הבא (השליפה האיטית
+   ביותר בפתיחה) ותמונת העמוד הראשון שלו. הסימונים נשמרים ללשונית
+   הזו בלבד (sessionStorage) לשתי דקות, והדף הבא לוקח אותם במקום
+   לחכות לגיליון. שליפה שנכשלה או שלא החזירה את המסכת — לא נשמרת,
+   והדף הבא שולף כרגיל. */
+var MARK_PRE = 'df:markPre', MARK_PRE_MS = 120000, PRE_DONE = '';
+function markPreTake(q) {
+  if (!q || quiet()) return null;
+  try {
+    var o = JSON.parse(sessionStorage.getItem(MARK_PRE) || 'null');
+    sessionStorage.removeItem(MARK_PRE);
+    if (!o || o.q !== q || !(Date.now() - o.at < MARK_PRE_MS)) return null;
+    var rows = csvRows(o.t || '');
+    return hasMine(rows) ? rows : null;
+  } catch (e) { return null; }
+}
+function preNext() {
+  var u = nextDaf();
+  if (!u || dafKey(u.daf) === dafKey(S.daf) || quiet()) return;
+  var q = marksQuery(u.daf);
+  if (!q || PRE_DONE === q) return;
+  PRE_DONE = q;
+  var src = libSrc(u.daf, 1);
+  if (src) { var im = new Image(); im.src = src; }
+  var id = window.SHEET_ID;
+  try {
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (cfg.sheetId) id = cfg.sheetId;
+  } catch (e) {}
+  if (!id) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(MARK_TAB) +
+        '&tq=' + encodeURIComponent('select ' + q) + '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t || !hasMine(csvRows(t))) return;
+      try { sessionStorage.setItem(MARK_PRE, JSON.stringify({ q: q, at: Date.now(), t: t })); } catch (e) {}
+    })['catch'](function () {});
 }
 function hasMine(rows) {
   if (!rows) return false;
@@ -5256,7 +5384,8 @@ function hasMine(rows) {
 }
 function loadMarks() {
   var q = marksQuery();
-  return sheetCsv(MARK_TAB, q).then(function (rows) {
+  var pre = markPreTake(q);
+  return (pre ? Promise.resolve(pre) : sheetCsv(MARK_TAB, q)).then(function (rows) {
     MARKS_FILTERED = !!(q && rows && rows.length >= 2);
     if (q && !hasMine(rows)) return sheetCsv(MARK_TAB);
     return rows;
@@ -5273,7 +5402,9 @@ function loadMarks() {
          בעמוד א׳), והזנב של הדף שלפנינו יורד מכאן.
        · קטע שחוצה את מעבר העמוד נשמר כשני חלקים, והשני (`cont`)
          מקבל את אותו מספר — ואת אותו מזהה. */
-    var built = amudCut(SidFlat(SidParse(rows), S.mas, S.daf));
+    /* הדף כולו נשמר: המעבר מ-ב. ל-ב: חותך ממנו שוב, בלי לטעון. */
+    BUILT = SidFlat(SidParse(rows), S.mas, S.daf);
+    var built = amudCut(BUILT);
     PAGES = built.pages;
     FLAT = built.flat;
     GROUPS = built.groups;
@@ -5382,10 +5513,7 @@ function boot() {
   if (spotJump()) return;
   /* ב. / ב: — היחידה, ולא רק הדף. הקטע האחרון של ב. גולש לראש
      ע״ב, ובלי הסימן "דף ב ע״ב" נראה כאילו כבר עברנו ל-ב:. */
-  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
-  $('t-daf').textContent = HEAD;
-  $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
-    ((calOf(S.mas)[S.week] || [])[1] || '') : '';
+  headPaint();
   document.title = 'דף ' + S.daf + ' — לימוד אינטראקטיבי';
 
   /* מי שמשייך יודע לכתוב פירוש גם בדף שעוד אין לו מצגת — "הפירוש
@@ -5444,6 +5572,7 @@ function boot() {
       return showPage(PAGES[0].daf, PAGES[0].pg).then(function () {
         SHOWN = 0;
         unveil(); buttons(true);
+        READY_AT = Date.now();
         /* בהדגמה המסך נפתח תמיד באותה צורה — חברותא פתוחה
            ומיקוד דלוק — ולא כפי שהמכשיר הזה מכוון. הדגמה שנראית
            אחרת בכל טלפון אינה הדגמה. */
@@ -5468,7 +5597,7 @@ function boot() {
           go(0);
           /* קודם המקום המדויק שבמכשיר; אחריו ההתקדמות של השבוע;
              ואם לא חזרנו לשום מקום — הצעה לדף שבו עצר. */
-          if (!quiet()) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
+          if (!quiet() && !AT_START) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
         }
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
@@ -5504,11 +5633,18 @@ window.addEventListener('DOMContentLoaded', function () {
     /* בסוף הדף, ואחרי שמסך הסיום כבר הוצג פעם אחת, "הבא" ממשיך
        אל הדף הבא ממש — כמו שדפדוף בגמרא ממשיך. דף שטרם סומן יענה
        שם בעצמו שהוא עוד לא מוכן, וזו תשובה ולא מבוי סתום. */
+    if (LEAVING || Date.now() - READY_AT < 450) return;
     if (IDX === FLAT.length - 1 && DONE_SEEN) {
+      if (unitSwap(nextDaf())) return;
       var u = nextDafUrl();
-      if (u) { location.href = u; return; }
+      if (u) { leave($('next'), u); return; }
     }
     go(IDX + 1);
+  };
+  /* "להמשך" במסך הסיום — אותו דף נשאר במקום. */
+  $('to-next').onclick = function (e) {
+    if (unitSwap(nextDaf())) { e.preventDefault(); return; }
+    LEAVING = true; buttons(false);
   };
   $('prev').onclick  = goBack;
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
@@ -5588,6 +5724,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (d.moved >= 6) return;               /* זו הייתה גרירה */
     var r = $('stage').getBoundingClientRect();
     if (!r.height) return;
+    if (Date.now() - READY_AT < 450) return;
     if ((e.clientY - r.top) / r.height < TAP_BACK) {
       goBack();
       return;
