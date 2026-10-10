@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { action, stored, store, type Person } from "../lib/client";
 import { lessonHref, studyUnits, weekIndex, type Track } from "../lib/calendar";
-import Reminders from "./Reminders";
+import Install from "./Install";
 export default function StudentHome({
   tracks,
   startDate,
@@ -85,6 +85,7 @@ export default function StudentHome({
           לעדכן גם את הישיבה.
         </p>
       )}
+      {person && <Install />}
       <div className="lesson-list swap" key={"list-" + trackId}>
         {track.cal.map((row, index) =>
           !row[2] || row[2] === "סיום" ? null : (
@@ -120,7 +121,6 @@ export default function StudentHome({
           ),
         )}
       </div>
-      {person && <Reminders />}
       <a className="secondary-link" href="/join">
         פרטי ההרשמה שלי
       </a>
