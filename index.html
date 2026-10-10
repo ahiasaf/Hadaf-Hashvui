@@ -682,6 +682,9 @@ body.tk-sheeting #tk-bar{display:none}
   border-radius:50%;background:var(--blue);color:#fff;font-style:normal;font-size:.72rem;
   font-weight:800;line-height:20px;text-align:center}
 .dkm-on .dkm-sl{border-color:var(--blue)}
+.dkm-gone{display:flex;align-items:center;justify-content:center;width:88px;height:50px;
+  border-radius:6px;border:1px dashed #B3261E;background:rgba(179,38,30,.06);color:#B3261E;
+  font-size:.72rem;font-weight:800;line-height:1.2;text-align:center;padding:2px}
 .row.dkm-on{background:rgba(23,70,143,.06)}
 .dkm-th{width:64px;height:36px;object-fit:cover;border-radius:6px;flex:none;display:block;
   border:1px solid var(--rule);background:var(--sunk)}
@@ -2712,7 +2715,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.162';
+var APP_VERSION = '8.99.163';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5489,7 +5492,7 @@ function paintInter(id, daf, am) {
 /* ---------- הקרנה ---------- */
 function deckOpen(i) {
   if (!state.deck.length) return;
-  state.di = i || 0;
+  state.di = i || 0; state.dd = 1;
   document.getElementById('d-where').textContent =
     'מסכת ' + state.track.masechet + ' · דף ' + rowDaf(state.track.cal[state.week]);
   document.getElementById('deck').className = 'on';
@@ -5498,13 +5501,21 @@ function deckOpen(i) {
 function deckClose() { document.getElementById('deck').className = ''; }
 function deckGo(d) {
   var n = state.di + d;
-  if (n < 0 || n >= state.deck.length) return;
-  state.di = n; deckPaint();
+  /* מדלגים על שקף שהקובץ שלו חסר — ראו DeckGone ב-deck.js */
+  while (n >= 0 && n < state.deck.length && DeckGone(state.deck[n].img)) n += d;
+  if (n < 0 || n >= state.deck.length) return false;
+  state.dd = d; state.di = n; deckPaint();
+  return true;
 }
 function deckPaint() {
   var s = state.deck[state.di];
   var img = document.getElementById('d-img'), txt = document.getElementById('d-text');
   if (s.img) {
+    img.onerror = function () {
+      if (state.deck[state.di] !== s) return;
+      DECK_GONE[s.img] = 1;
+      if (!deckGo(state.dd || 1) && !deckGo(-(state.dd || 1))) img.style.display = 'none';
+    };
     img.src = s.img; img.style.display = 'block'; txt.style.display = 'none';
     var nx = state.deck[state.di + 1];          // טעינה מוקדמת — מעבר מיידי בכיתה
     if (nx && nx.img) { var pre = new Image(); pre.src = nx.img; }
@@ -14126,6 +14137,7 @@ function dkRmCheck(path, f, tries) {
         dkPool = (dkPool || []).filter(function (x) { return x !== f; });
         /* קובץ שנמחק אינו יכול להישאר בבאנר. */
         if (dkCover === path) { dkCover = ''; dkStash(); dkAutoSave_(); }
+        dkGoneStrip(path);
         admPane(); dkRmMsg('ok', UI.dkRmOk);
         return;
       }
@@ -14158,6 +14170,52 @@ function dkAutoSave_() {
 }
 /* הנתיב שממנו נטען שקף ברשימה, ולתצוגה — שתי המילים האחרונות. */
 function dkPath(f) { return f.indexOf('/') >= 0 ? f : dkDir + '/' + f; }
+/* ============================================================
+   שקף שהקובץ שלו חסר (10.10.2026)
+   ============================================================
+   "יש פה שקף שלא נטען." המצגת הפנתה לקובץ שנמחק לצמיתות, והעורך
+   הראה סמל של תמונה שבורה. תמונה שלא נטענה עדיין אינה "נמחקה" —
+   שקף שזה עתה הועלה נמצא בפריסה עוד דקה-שתיים. לכן שואלים את
+   GitHub: 404 שם = הקובץ באמת איננו. כל תשובה אחרת (קיים, רשת,
+   מכסה) — לא מסמנים דבר.
+   1 = חסר · 0 = בבדיקה · false = קיים ב-GitHub (כנראה בפריסה). */
+var DK_MISS = {};
+function dkMissChk(img) {
+  var p = img.getAttribute('data-p');
+  if (!p || DK_MISS.hasOwnProperty(p)) return;
+  DK_MISS[p] = 0;
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        p.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
+    .then(function (r) {
+      if (r.status === 404) { DK_MISS[p] = 1; admPane(); return; }
+      DK_MISS[p] = r.ok ? false : undefined;
+      if (DK_MISS[p] === undefined) delete DK_MISS[p];
+    })
+    .catch(function () { delete DK_MISS[p]; });
+}
+/* אחרי מחיקה לצמיתות: הקובץ יוצא גם מהגיבויים של "↶ ביטול" ומהטיוטות
+   שבמכשיר. אחרת "ביטול" (או טיוטה ישנה של שבוע אחר) מחזיר למצגת
+   הפניה לקובץ שכבר איננו — וזה השקף השבור שדווח. */
+function dkGoneStrip(path) {
+  var strip = function (d) {
+    if (!d || !d.files) return;
+    var dir = String(d.dir || '').split(/\s+/)[0].replace(/^\/+|\/+$/g, '');
+    d.files = d.files.filter(function (f) {
+      return (f.indexOf('/') >= 0 ? f : dir + '/' + f) !== path;
+    });
+    var c = String(d.cover || '');
+    if (c && (c.indexOf('/') >= 0 ? c : dir + '/' + c) === path) d.cover = '';
+  };
+  var st = Store.get(DKM_BAK, []) || [];
+  st.forEach(function (b) { for (var k in (b.map || {})) if (b.map.hasOwnProperty(k)) strip(b.map[k]); });
+  Store.set(DKM_BAK, st);
+  var c = CV('decks');
+  if (c) {
+    for (var k in c) if (c.hasOwnProperty(k)) strip(c[k]);
+    cfgSet('decks', c);
+  }
+  DK_MISS[path] = 1;
+}
 function dkShort(f) {
   var p = dkPath(f).split('/');
   return p.length > 1 ? p[p.length - 2] + '/' + p[p.length - 1] : p[0];
@@ -14592,7 +14650,11 @@ function admDecks(el) {
         /* לחיצה על השקף — בחירה להעברה או לשכפול. */
         '<button class="dkm-sl" data-i="' + i + '" aria-pressed="' + on + '" aria-label="' + (i + 1) +
         '" onclick="dkSlTap(' + i + ')">' +
-        '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="">' +
+        /* קובץ שאינו קיים עוד (נמחק לצמיתות) — אומרים את זה, במקום
+           סמל של תמונה שבורה. ראו `dkMissChk`. */
+        (DK_MISS[dkPath(f)] === 1 ? '<span class="dkm-gone">' + esc(UI.dkmGone) + '</span>' :
+        '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="" data-p="' +
+        esc(dkPath(f)) + '" onerror="dkMissChk(this)">') +
         (on ? '<i>✓</i>' : '') + '</button>' +
         '<span style="flex:1"></span>' +
         '<button class="dk-ic dk-star' + (dkPath(f) === cvNow ? ' on' : '') +

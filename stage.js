@@ -100,7 +100,7 @@ function StageHtml(o) {
        חייב להוביל לעיקר. המצגת לא איבדה מקום — השקף שמעליהם
        הוא בעצמו לחיצה שפותחת אותה, וזה יעד גדול מכל כפתור. */
     s += '<div class="showcase"><div class="frame" onclick="' + call(o.deck) + '">' +
-         '<img src="' + StCover(dk) + '" alt="השקף הראשון"></div></div>' +
+         '<img src="' + StCover(dk) + '" alt="השקף הראשון" onerror="this.style.visibility=\'hidden\'"></div></div>' +
          '<div class="acts">' +
          '<button class="go" onclick="' + call(o.week) + '">' + StEsc(UI.deckGo) + '</button>' +
          '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>' +
