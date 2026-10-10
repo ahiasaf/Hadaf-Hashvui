@@ -62,6 +62,9 @@ function DeckFromRows(rows) {
     var dir = (String(r[2] || '').trim().split(/\s+/)[0] || '').replace(/^\/+|\/+$/g, '');
     var fs  = String(r[3] || '').split(',');
     var ttl = String(r[4] || '').trim();
+    /* השער — השקף שבבאנר בעמוד הראשי. ריק = השקף הראשון. עמודה
+       שישית, ולכן שורה ישנה בלעדיה ממשיכה בדיוק כמו קודם. */
+    var cov = (String(r[5] || '').trim().split(/\s+/)[0] || '');
     if (!mas || !(wk > 0)) return;
     var files = [];
     fs.forEach(function (f) {
@@ -70,7 +73,7 @@ function DeckFromRows(rows) {
     });
     /* שורה בלי קבצים אינה שגיאה — היא "לשבוע הזה אין מצגת",
        וזו הדרך לבטל מצגת בלי למחוק שורה. */
-    out[mas + '-' + wk] = { dir: dir, files: files, title: ttl };
+    out[mas + '-' + wk] = { dir: dir, files: files, title: ttl, cover: cov };
   });
   return out;
 }
@@ -167,6 +170,17 @@ function DeckSrc(deck, i) {
   /* וגם כאן — המטמון במכשיר עוד נושא את התא כפי שנקרא לפני התיקון. */
   var dir = (String(deck.dir || '').split(/\s+/)[0] || '');
   return f.indexOf('/') >= 0 ? f : dir + '/' + f;
+}
+
+/* השקף שבבאנר בעמוד הראשי. הרכז בוחר אותו בניהול, והוא יכול
+   להיות גם שקף שאינו במצגת עצמה — שקף שהועלה רק כדי להיות כותרת
+   הלימוד. לא נבחר — השקף הראשון, כמו תמיד. */
+function DeckCover(deck) {
+  if (!deck) return '';
+  var c = String(deck.cover || '');
+  if (!c) return DeckSrc(deck, 1);
+  var dir = (String(deck.dir || '').split(/\s+/)[0] || '');
+  return c.indexOf('/') >= 0 ? c : dir + '/' + c;
 }
 
 /* המטמון נטען מיד עם הקובץ, לפני כל ציור — אחרת הציור הראשון

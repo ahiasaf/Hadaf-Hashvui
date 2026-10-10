@@ -300,7 +300,7 @@ function renderMine() {
     '<div class="meta">' + esc(w.row[1]) + ' · ' + esc(w.row[0]) + '</div>';
   var dk = DeckOf(w.tr.id, w.i + 1);
   if (dk) {
-    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + DeckSrc(dk, 1) +
+    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + DeckCover(dk) +
       '" alt="השקף הראשון"></div>' +
       '<button class="go" onclick="deckOpen(0)">▶ הצגה על המסך</button>';
   } else {

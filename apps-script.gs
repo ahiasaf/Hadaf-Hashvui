@@ -3555,6 +3555,13 @@ function recountRows_(all) {
 function writeTable_(tab, cols, rows, ssId) {
   var sh = sheet_(tab, ssId);
   if (!sh.getLastRow()) headRow_(sh, cols);
+  /* עמודה שנוספה לכתיבה (למשל "שער" במצגות) — הכותרת שלה נוספת
+     ללשונית קיימת, בלי לגעת בכותרות שכבר שם. */
+  else if (sh.getLastColumn() < cols.length) {
+    var hc = sh.getLastColumn();
+    sh.getRange(1, hc + 1, 1, cols.length - hc).setValues([cols.slice(hc)])
+      .setFontWeight('bold').setBackground('#17468F').setFontColor('#FFFFFF');
+  }
   var last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, sh.getLastColumn()).clearContent();
   if (rows.length) {

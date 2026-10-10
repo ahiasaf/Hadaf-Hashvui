@@ -654,6 +654,22 @@ body.tk-sheeting #tk-bar{display:none}
 .dk-drow.dk-drag{transition:none;z-index:2;background:var(--surface);box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:.95}
 .dk-drow.dk-drag .dk-grip{cursor:grabbing}
 .dk-ic.warn{color:#B3261E;border-color:rgba(179,38,30,.35)}
+/* השער — הכוכב ליד כל שקף, והשורה שמראה מה בבאנר */
+/* שורה בסדר המצגת נושאת עכשיו חמישה כפתורים — צפוף יותר, כדי
+   שהאחרון לא ייחתך ברוחב של טלפון. */
+.dk-drow{gap:5px!important}
+.dk-drow .dk-ic{width:32px;height:36px;font-size:.98rem}
+.dk-drow .dk-grip{padding:10px 3px}
+.dk-drow .dkm-sl img{width:76px!important;height:43px!important}
+.dk-star{color:var(--ink-3)}
+.dk-star.on{color:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);background:rgba(192,143,43,.1)}
+.dk-cov{display:flex;align-items:center;gap:11px;margin:4px 0 6px;padding:9px;
+  border:1px solid var(--gold,#C08F2B);border-radius:11px;background:rgba(192,143,43,.07)}
+.dk-cov img{width:112px;height:63px;object-fit:cover;border-radius:7px;flex:none;
+  display:block;background:var(--sunk)}
+.dk-cov div{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.dk-cov b{font-size:.86rem;font-weight:800}
+.dk-cov span{font-size:.8rem;color:var(--ink-2);font-weight:700}
 /* העברה ושכפול מצגות בין עמודים — שורה ברשימה, וחלון תחתון. */
 .dkm-hd{display:flex;align-items:center;gap:8px}
 .dkm-lnk{margin-inline-start:auto;background:none;border:none;padding:4px 0;font:inherit;
@@ -2696,7 +2712,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.161';
+var APP_VERSION = '8.99.162';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -13932,6 +13948,7 @@ var dkList = [];     /* הסדר — מה שנשמר */
 var dkPool = null;   /* מה שיש בתיקייה בפועל; null = טרם נשאל */
 var dkBusy = false;
 var dkTitle = '';    /* הכותרת שבבאנר הכחול */
+var dkCover = '';    /* השקף שבבאנר, נתיב מלא; ריק = הראשון במצגת */
 var dkPdf  = null;   /* השקפים שנחתכו מ-PDF, לפני הורדה */
 
 function dkKey() { return dkSel.mas + '-' + dkSel.wk; }
@@ -13953,19 +13970,30 @@ function dkLoadSel() {
   dkDir = dkDefDir();
   if (draft) {
     dkList = full(draft);
-    dkTitle = draft.title || ''; return;
+    dkTitle = draft.title || ''; dkCover = draft.cover || ''; return;
   }
   dkTitle = DeckTitle(dkSel.mas, dkSel.wk);
   var d = DeckOf(dkSel.mas, dkSel.wk);
+  dkCover = d && d.cover ? DeckCover(d) : '';
   if (d) { dkList = full(d); return; }
   dkDir = dkDefDir(); dkList = [];
 }
 function dkStash() {
   var c = CV('decks') || {};
-  c[dkKey()] = { dir: dkDir, files: dkList.slice(), title: dkTitle };
+  c[dkKey()] = { dir: dkDir, files: dkList.slice(), title: dkTitle, cover: dkCover };
   cfgSet('decks', c);
 }
 function dkSetTitle(v) { dkTitle = String(v || '').trim(); dkStash(); dkAutoSave_(); }
+/* השער. לחיצה על הכוכב של השער הנוכחי מחזירה לברירת המחדל —
+   השקף הראשון. שקף שהוסר מהמצגת יכול להישאר שער: כך שקף שנועד
+   רק לכותרת הלימוד אינו מופיע במצגת עצמה. */
+function dkSetCover(f) {
+  var p = f ? dkPath(f) : '';
+  dkCover = (p && p !== dkCover) ? p : '';
+  dkStash(); admPane(); dkAutoSave_();
+}
+/* מה שרואים בפועל בעמוד הראשי. */
+function dkCoverNow() { return dkCover || (dkList.length ? dkPath(dkList[0]) : ''); }
 
 function dkGo(mas, wk) {
   dkSel = { mas: mas, wk: wk };
@@ -14096,6 +14124,8 @@ function dkRmCheck(path, f, tries) {
     .then(function (r) {
       if (r.status === 404) {
         dkPool = (dkPool || []).filter(function (x) { return x !== f; });
+        /* קובץ שנמחק אינו יכול להישאר בבאנר. */
+        if (dkCover === path) { dkCover = ''; dkStash(); dkAutoSave_(); }
         admPane(); dkRmMsg('ok', UI.dkRmOk);
         return;
       }
@@ -14181,13 +14211,15 @@ function dkSave() {
     if (!ok || !DECKS) { dkMsg('bad', UI.dkmNoRead); return; }
     var mine = (CV('decks') || {})[key], map = dkmClone(DECKS);
     if (!mine) { dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.'); return; }
-    map[key] = { dir: mine.dir, files: mine.files.slice(), title: mine.title || '' };
+    map[key] = { dir: mine.dir, files: mine.files.slice(), title: mine.title || '',
+                 cover: mine.cover || '' };
     dkWriteMap(map, function (good) {
       if (!good) { dkMsg('bad', 'לא הצלחתי לאמת שהשמירה הגיעה לגיליון. נסו שוב.'); return; }
       /* הטיוטה ירדה — אלא אם נערך עוד משהו בינתיים. */
       var c = CV('decks') || {}, now = c[key];
       if (now && now.files.join(',') === mine.files.join(',') &&
-          (now.title || '') === (mine.title || '')) {
+          (now.title || '') === (mine.title || '') &&
+          (now.cover || '') === (mine.cover || '')) {
         delete c[key]; cfgSet('decks', c);
       }
       dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.');
@@ -14536,6 +14568,17 @@ function admDecks(el) {
     (dkList.length ? '<button class="dkm-lnk" id="dk-slall" onclick="dkSlAll()">' +
       esc(nSel === dkList.length ? UI.dkmClear : UI.dkmPickAll) + '</button>' : '') + '</h4>' +
     (dkList.length ? '<p class="h">' + esc(UI.dkmTapH) + '</p>' : '');
+  /* השער — מה שרואים בבאנר בעמוד הראשי, ובחירה בכוכב ליד כל שקף. */
+  var cvNow = dkCoverNow(), cvAt = -1;
+  dkList.forEach(function (f, i) { if (dkPath(f) === cvNow) cvAt = i; });
+  if (cvNow) {
+    h += '<div class="dk-cov"><img src="' + esc(cvNow) + '?adm=' + dkBust + '" alt="">' +
+      '<div><b>★ ' + esc(UI.dkCovH) + '</b><span>' +
+      esc(!dkCover ? UI.dkCovFirst : cvAt >= 0 ? fill(UI.dkCovN, { n: cvAt + 1 }) : UI.dkCovOut) +
+      '</span>' + (dkCover ? '<button class="dkm-lnk" onclick="dkSetCover(\'\')">' +
+      esc(UI.dkCovReset) + '</button>' : '') + '</div></div>' +
+      '<p class="h">' + esc(UI.dkCovTip) + '</p>';
+  }
   if (!dkList.length) {
     h += '<p class="h">אין עדיין שקפים במצגת של שבוע זה. הוסיפו מהרשימה שלמטה.</p>';
   } else {
@@ -14552,6 +14595,10 @@ function admDecks(el) {
         '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="">' +
         (on ? '<i>✓</i>' : '') + '</button>' +
         '<span style="flex:1"></span>' +
+        '<button class="dk-ic dk-star' + (dkPath(f) === cvNow ? ' on' : '') +
+        '" onclick="dkSetCover(dkList[' + i + '])" aria-pressed="' + (dkPath(f) === cvNow) +
+        '" aria-label="' + esc(UI.dkCovSet) + '" title="' + esc(UI.dkCovSet) + '">' +
+        (dkPath(f) === cvNow ? '★' : '☆') + '</button>' +
         '<button class="dk-ic" onclick="dkUp(' + i + ')"' +
         (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
         '<button class="dk-ic" onclick="dkDown(' + i + ')"' +
@@ -14581,6 +14628,10 @@ function admDecks(el) {
           'style="width:88px;height:50px;object-fit:cover;border-radius:6px;' +
           'border:1px solid var(--rule);background:var(--sunk)">' +
           '<span style="flex:1"></span>' +
+          '<button class="dk-ic dk-star' + (dkDir + '/' + f === cvNow ? ' on' : '') +
+          '" onclick="dkSetCover(\'' + esc(dkDir + '/' + f) + '\')" aria-pressed="' +
+          (dkDir + '/' + f === cvNow) + '" aria-label="' + esc(UI.dkCovSet) + '" title="' +
+          esc(UI.dkCovSet) + '">' + (dkDir + '/' + f === cvNow ? '★' : '☆') + '</button>' +
           '<button class="btn g" style="width:auto;flex:none;padding:9px 16px" ' +
           'onclick="dkAdd(\'' + esc(f) + '\')">הוספה +</button>' +
           '<button class="dk-ic warn" onclick="dkRm(\'' + esc(f) + '\')" ' +
@@ -14703,7 +14754,7 @@ function dkmDeck(mas, wk) {
   if (!d) return null;
   var files = [];
   for (var i = 1; i <= d.files.length; i++) files.push(DeckSrc(d, i));
-  return { files: files, title: DeckTitle(mas, wk) || '' };
+  return { files: files, title: DeckTitle(mas, wk) || '', cover: d.cover ? DeckCover(d) : '' };
 }
 /* כל השבועות במסכת שיש להם מצגת. */
 function dkmList(mas) {
@@ -14774,7 +14825,7 @@ function dkmAudit(mas) {
 /* ---------- ציור: שורה של מצגת ---------- */
 function dkmThumb(deck) {
   return deck.files.length
-    ? '<img class="dkm-th" loading="lazy" alt="" src="' + esc(deck.files[0]) + '">'
+    ? '<img class="dkm-th" loading="lazy" alt="" src="' + esc(deck.cover || deck.files[0]) + '">'
     : '<span class="dkm-th"></span>';
 }
 /* ---------- בחירת שקפים בעורך ----------
@@ -14925,12 +14976,12 @@ function dkWriteMap(map, done) {
   for (k in map) {
     if (!map.hasOwnProperty(k)) continue;
     rows.push([dkmMas(k), String(dkmWk(k)), map[k].dir || '',
-               (map[k].files || []).join(','), map[k].title || '']);
+               (map[k].files || []).join(','), map[k].title || '', map[k].cover || '']);
   }
   rows.sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]; });
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
     action:'table', tab:DECK_SHEET, key:(CFG.readKey || '').trim(),
-    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים', 'כותרת']),
+    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים', 'כותרת', 'שער']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
   var tries = 0;
@@ -14949,7 +15000,8 @@ function dkmSame(a, b) {
   for (k in a) {
     if (!a.hasOwnProperty(k)) continue;
     if (!b[k] || (b[k].files || []).join(',') !== (a[k].files || []).join(',') ||
-        String(b[k].title || '') !== String(a[k].title || '')) return false;
+        String(b[k].title || '') !== String(a[k].title || '') ||
+        String(b[k].cover || '') !== String(a[k].cover || '')) return false;
   }
   for (k in b) if (b.hasOwnProperty(k) && !a[k]) return false;
   return true;
@@ -14967,7 +15019,7 @@ function dkmRun() {
      שעל המסך. */
   clearTimeout(dkAutoT_);
   var srcKey = o.mas + '-' + o.wk;
-  var src = { dir: dkDir, files: dkList.map(dkPath), title: dkTitle };
+  var src = { dir: dkDir, files: dkList.map(dkPath), title: dkTitle, cover: dkCover };
   o.st = 'busy'; o.msg = UI.dkmBusy; dkmPaint();
   DeckLoad().then(function (ok) {
     if (!ok || !DECKS) { o.st = 'end'; o.msg = UI.dkmNoRead; dkmPaint(); return; }
@@ -14977,12 +15029,16 @@ function dkmRun() {
     o.files.forEach(function (f) { if (files.indexOf(f) < 0) files.push(f); });
     /* העברה: מה שנשאר במקור. כשלא נשאר כלום — שורה ריקה, שגוברת
        גם על מצגת שבקוד (CONTENT). */
+    /* שער שעבר יחד עם השקף — יורד מהמקור. */
     map[srcKey] = { dir: src.dir, title: src.title,
+      cover: o.mode === 'mv' && o.files.indexOf(src.cover) >= 0 ? '' : src.cover,
       files: o.mode === 'mv' ? src.files.filter(function (f) { return o.files.indexOf(f) < 0; })
                              : src.files };
     /* מצגת שהגיעה כולה — עם הכותרת שלה, אם ליעד אין. */
+    var whole = o.files.length === src.files.length;
     map[tk] = { dir: 'slides/' + tk, files: files,
-      title: tgt.title || (o.files.length === src.files.length ? src.title : '') };
+      title: tgt.title || (whole ? src.title : ''),
+      cover: tgt.cover || (whole && o.files.indexOf(src.cover) >= 0 ? src.cover : '') };
     dkmBakPush(before);
     dkWriteMap(map, function (good) {
       o.st = good ? 'done' : 'end';
