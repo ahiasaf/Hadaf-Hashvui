@@ -476,6 +476,23 @@ body.side-on #side{display:flex}
 @media (max-width:820px){
   body.side-adm.kb-open.chav-on main{grid-template-rows:minmax(0,64px) minmax(0,1fr)}
 }
+/* ---------- טלפון: המצגת בגובה שלה, לא בגובה קבוע ----------
+   44vh/60vh הם **תקרה**, לא גובה. שקף ברוחב טלפון יוצא נמוך
+   מהם, והשאר נשאר שטח ריק מתחת לכפתורים — וגם אצל התלמיד, מעל
+   ומתחת לשקף. עכשיו השורה מתכווצת לתוכן, והגמרא מקבלת את השאר.
+
+   החברותא יושבת באותה משבצת, מתחת למצגת, והטקסט הארוך שלה היה
+   מותח את השורה בחזרה לתקרה. `contain:size` מוציא אותה מהחישוב
+   — היא עדיין שם, עם מקום הגלילה שלה, ומתמלאת לגובה השורה.
+
+   ושקף שעוד לא נטען תופס את מקומו מראש (16:9 — כל קובצי המצגות),
+   אחרת הפאנל נפתח נמוך וקופץ כשהתמונה מגיעה. */
+@media (max-width:820px){
+  body.side-on main{grid-template-rows:minmax(0,1fr) fit-content(44vh)}
+  body.side-adm.side-on main{grid-template-rows:minmax(0,1fr) fit-content(60vh)}
+  body.side-on .chav{contain:size}
+  .sd-b img:not([src]){width:100%;aspect-ratio:16/9}
+}
 
 /* ---------- תוכן האזור ---------- */
 .sd-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 14px 0;
