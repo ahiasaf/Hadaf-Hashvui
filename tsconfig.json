@@ -2,6 +2,7 @@
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "resolveJsonModule": true,
     "allowJs": true,
     "allowImportingTsExtensions": true,
