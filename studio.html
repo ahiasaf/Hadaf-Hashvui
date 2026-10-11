@@ -1940,7 +1940,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.171';
+var STUDIO_VER = '8.99.172';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2107,6 +2107,8 @@ function lastChav() {
 function loadPageState() {
   var k = pageKey();
   if (k === PKEY) return;
+  /* יוצאים מעמוד שנערך ולא נשמר — מדווחים לגיליון (ראו reportDraft_) */
+  if (PKEY) reportDraft_(PKEY);
   PKEY = k;
   var rec = BOOK[k];
   STEPS = rec ? rec.steps : [];
@@ -3706,11 +3708,171 @@ function saveToSheet() {
         }
         var n = 0; for (var q in BOOK) n += (BOOK[q].steps || []).length;
         DIRTY = {}; keepLocal(); markPanel();
+        dropDrafts_(Object.keys(mine));
         say('נשמר בגיליון · ' + n + ' קטעים · לשונית "' + MARK_TAB + '"');
         return true;
       });
   }).catch(function () { say('השמירה נכשלה.', 1); return false; });
 }
+
+/* ============================================================
+   עריכה שלא נשמרה — מדווחת לגיליון.
+   ============================================================
+   "צריך לדווח לגיליון שנעשתה פעולת עריכה, ועל איזה דף — כך שאם
+   אפתח את האפליקציה במכשיר הזה או באחר, היא תעדכן אותי מיד
+   ותשאל אם לשמור. פעולה אחת לכל עמוד."
+
+   ביציאה מעמוד שנערך ולא נשמר (ובמעבר הסטודיו לרקע) נכתבת שורה
+   ללשונית "טיוטות סטודיו": המפתח, שם העמוד, המכשיר, והעמוד עצמו.
+   זו הוספת שורה, לא כתיבה מחדש של "סימוני הדף" — ולכן קלה.
+   בפתיחה (`checkDrafts_`) מה שחדש מהגיליון נאמר בשמו, ו"אישור"
+   שומר אותו. שמירה מוחקת את השורות של מה שנשמר.
+   ============================================================ */
+var DRAFT_TAB = 'טיוטות סטודיו';
+var DRAFT_SENT = {};   /* מפתח → ה-`t` שכבר דווח, שלא יישלח פעמיים */
+function devId_() {
+  try {
+    var d = localStorage.getItem('df:studioDev');
+    if (!d) {
+      d = Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('df:studioDev', d);
+    }
+    return d;
+  } catch (e) { return ''; }
+}
+/* הסיסמה בלי לשאול — דיווח אינו סיבה לקפוץ על המשתמש */
+function keyQuiet_() {
+  try { return String((JSON.parse(localStorage.getItem('df:cfg') || '{}') || {}).readKey || '').trim(); }
+  catch (e) { return ''; }
+}
+function draftRow_(k) {
+  var rec = BOOK[k];
+  if (!API || !DIRTY[k] || !rec || !((rec.steps && rec.steps.length) || rec.cal)) return null;
+  if (DRAFT_SENT[k] === (rec.t || 0)) return null;
+  var key = keyQuiet_();
+  if (!key) return null;
+  return JSON.stringify({ action: 'row', tab: DRAFT_TAB, key: key,
+    cols: JSON.stringify([['מפתח', k], ['עמוד', keyLabel(k)], ['מכשיר', devId_()],
+                          ['נתונים', JSON.stringify(rec)]]) });
+}
+function reportDraft_(k) {
+  var body = draftRow_(k);
+  if (!body) return;
+  var t = BOOK[k].t || 0;
+  DRAFT_SENT[k] = t;
+  /* no-cors אינו הוכחה: קוראים חזרה, ואם השורה לא שם — הדיווח
+     יישלח שוב ביציאה הבאה מהעמוד. */
+  fetch(API, { method: 'POST', mode: 'no-cors', body: body })
+    .then(function () { return new Promise(function (ok) { setTimeout(ok, 1500); }); })
+    .then(function () { return sheetCsv(DRAFT_TAB); })
+    .then(function (rows) {
+      var got = draftsOf_(rows);
+      if (!got || !got[k] || (got[k].d.t || 0) < t) delete DRAFT_SENT[k];
+    })
+    .catch(function () { delete DRAFT_SENT[k]; });
+}
+/* הסטודיו יורד לרקע או נסגר — כל מה שנערך ולא דווח, בלי לחכות */
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'hidden') return;
+  try { keepPageState(); } catch (e) {}
+  for (var k in DIRTY) {
+    var body = draftRow_(k);
+    if (!body) continue;
+    DRAFT_SENT[k] = BOOK[k].t || 0;
+    try { fetch(API, { method: 'POST', mode: 'no-cors', keepalive: true, body: body })
+            .catch(function () {}); } catch (e) {}
+  }
+});
+/* הלשונית → { מפתח: { d: העמוד, dev, label } }, האחרון לכל מפתח.
+   null = לא נקראה (או שהגיעה לשונית אחרת) — לא "אין טיוטות". */
+function draftsOf_(rows) {
+  if (!rows || !rows.length) return null;
+  var h = rows[0].map(function (x) { return String(x).trim(); });
+  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iM = h.indexOf('מכשיר'), iL = h.indexOf('עמוד');
+  if (iK < 0 || iD < 0) return null;
+  var out = {};
+  rows.slice(1).forEach(function (r) {
+    var k = String(r[iK] || '').trim(), d = null;
+    try { d = JSON.parse(r[iD]); } catch (e) {}
+    if (!k || !d) return;
+    if (out[k] && (out[k].d.t || 0) >= (d.t || 0)) return;
+    out[k] = { d: d, dev: iM >= 0 ? String(r[iM] || '') : '', label: iL >= 0 ? String(r[iL] || '') : '' };
+  });
+  return out;
+}
+function dropDrafts_(keys) {
+  var key = keyQuiet_();
+  if (!API || !key || !keys.length) return;
+  keys.forEach(function (k) { delete DRAFT_SENT[k]; });
+  fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'delrow', tab: DRAFT_TAB, key: key, col: 'מפתח', vals: JSON.stringify(keys) }) })
+    .catch(function () {});
+}
+function draftWhen_(t) {
+  if (!t) return '';
+  var d = new Date(t), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function checkDrafts_() {
+  if (!API) return;
+  Promise.all([sheetCsv(DRAFT_TAB), sheetCsv(MARK_TAB)]).then(function (res) {
+    var dr = draftsOf_(res[0]) || {}, marks = res[1];
+    /* בלי "סימוני הדף" אי אפשר לדעת מה כבר נשמר — לא שואלים */
+    if (!marks || !marks.length) return;
+    var saved = {};
+    marks.slice(1).forEach(function (r) {
+      var rk = r[0] + '|' + r[1] + '|' + r[2], d = null;
+      try { d = JSON.parse(r[3]); } catch (e) {}
+      saved[rk] = (d && d.t) || 0;
+    });
+    var me = devId_(), list = [], stale = [];
+    for (var k in dr) {
+      var t = dr[k].d.t || 0;
+      if (t <= (saved[k] || 0)) { stale.push(k); continue; }
+      /* מה שבמכשיר הזה חדש יותר מהדיווח — הוא שנשאל עליו, למטה */
+      if (DIRTY[k] && BOOK[k] && (BOOK[k].t || 0) >= t) continue;
+      list.push({ k: k, d: dr[k].d, t: t, label: dr[k].label || keyLabel(k),
+                  here: dr[k].dev && dr[k].dev === me });
+    }
+    /* וגם מה שנשאר לא שמור במכשיר הזה עצמו */
+    for (var lk in DIRTY) {
+      var r0 = BOOK[lk];
+      if (!r0 || !((r0.steps && r0.steps.length) || r0.cal)) continue;
+      if (list.some(function (x) { return x.k === lk; })) continue;
+      if ((r0.t || 0) <= (saved[lk] || 0)) continue;
+      list.push({ k: lk, d: null, t: r0.t || 0, label: keyLabel(lk), here: true });
+    }
+    if (stale.length) dropDrafts_(stale);
+    if (!list.length) return;
+    var msg = 'יש עריכה שלא נשמרה בגיליון:\n\n' + list.map(function (x) {
+      return '· ' + x.label + ' — ' + (x.here ? 'במכשיר הזה' : 'במכשיר אחר') +
+             (x.t ? ', ' + draftWhen_(x.t) : '');
+    }).join('\n') + '\n\nלשמור אותה עכשיו בגיליון?';
+    if (!confirm(msg)) {
+      var other = list.filter(function (x) { return x.d; });
+      if (other.length && confirm('למחוק את הדיווח על העריכה?\n\n' +
+          'העריכה לא תישמר בגיליון, וההודעה לא תופיע שוב.\n' +
+          '"ביטול" — ההודעה תופיע שוב בפתיחה הבאה.')) {
+        dropDrafts_(other.map(function (x) { return x.k; }));
+      }
+      return;
+    }
+    var cur = false;
+    list.forEach(function (x) {
+      if (x.d) BOOK[x.k] = x.d;
+      DIRTY[x.k] = 1;
+      if (x.k === PKEY) cur = true;
+    });
+    /* העמוד שעל המסך הוחלף — טוענים אותו מחדש, אחרת השמירה הייתה
+       כותבת את מה שעל המסך במקום את העריכה */
+    if (cur) { PKEY = ''; loadPageState(); paintChav(); markDraw(); }
+    keepLocal(); markPanel();
+    saveToSheet();
+  });
+}
+window.addEventListener('load', function () {
+  if (window.DAF_LINKS) setTimeout(checkDrafts_, 2500);
+});
 
 function loadFromSheet() {
   return sheetCsv(MARK_TAB).then(function (rows) {
