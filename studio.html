@@ -1945,7 +1945,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.184';
+var STUDIO_VER = '8.99.185';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3702,12 +3702,20 @@ function saveToSheet() {
          שנעשה בדף האינטראקטיבי אחרי שהסטודיו נפתח. העותק שבזיכרון
          ישן, וכתיבה שלו הייתה מבטלת את האיחוד בשקט. */
       var sr = there[k0];
-      if (!DIRTY[k0] && sr && (sr.t || 0) > ((BOOK[k0] || {}).t || 0)) {
-        BOOK[k0] = sr;
+      /* גם עמוד "שלא נשמר": עריכה כאן מחתימה אותו בזמן העריכה,
+         ולכן גיליון חדש ממנו = מישהו שמר אחריו (או תיקון). עותק
+         ישן שנשאר במכשיר מלפני ההסבה החזיר כך עמודים בלי המזהים. */
+      if (sr && (sr.t || 0) > ((BOOK[k0] || {}).t || 0)) {
+        BOOK[k0] = sr; delete DIRTY[k0];
         if (k0 === PKEY) { STEPS = sr.steps || []; seal(); }
         continue;
       }
       if (SEEN[k0] || DIRTY[k0] || !inSheet[k0]) mine[k0] = 1;
+    }
+    /* מה שבגיליון כבר נושא מזהה — נשאר עם אותו מזהה. ראו SidAdopt. */
+    for (var k1 in mine) {
+      if (there[k1] && BOOK[k1] && SidAdopt(BOOK[k1].steps, there[k1].steps, NEW_IDS) &&
+          k1 === PKEY) STEPS = BOOK[k1].steps;
     }
     (rows || []).slice(1).forEach(function (r) {
       /* שומרים כל מה ששייך לדפים אחרים, ומחליפים רק את שלנו */

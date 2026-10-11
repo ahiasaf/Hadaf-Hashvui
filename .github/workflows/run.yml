@@ -33,6 +33,7 @@ on:
           - fix-bold       # התאמה + כתיבה, בריצה אחת
           - stepid         # הסבה למזהים קבועים: check (קריאה) או next (לשונית אחת)
           - anchors        # עוגני מצגת לפי מספר → שם קובץ: check (קריאה) או nums
+          - repair         # תיקון 11.10: עמודים שחזרו מעותק ישן — check (קריאה) או fix
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -76,7 +77,7 @@ jobs:
             # (הוא מחזיק טלפונים ושמות), ולכן הוא אינו שורד בין ריצות.
             fix-bold)    python3 tools/chav-align.py && python3 tools/chav-apply.py write ;;
             # בצעד נפרד למטה — רק הוא מקבל את READ_KEY
-            stepid|anchors) echo 'ראו הצעד הבא' ;;
+            stepid|anchors|repair) echo 'ראו הצעד הבא' ;;
           esac 2>&1 | tee run.log
 
       # ההסבה למזהים קבועים — מכאן ולא מהטלפון. ראו tools/sid-run.js.
@@ -98,6 +99,16 @@ jobs:
         run: |
           set -o pipefail
           node tools/deck-fix.js "${FIX_MODE:-check}" 2>&1 | tee run.log
+
+      # תענית ב'–ה' חוזרים מהגיבוי, עם המזהים של ההסבה. ראו tools/sid-repair.js.
+      - name: תיקון אחרי ההסבה
+        if: inputs.job == 'repair'
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          FIX_MODE: ${{ inputs.args }}
+        run: |
+          set -o pipefail
+          node tools/sid-repair.js ${FIX_MODE:-check} 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
       - uses: actions/upload-artifact@v4
