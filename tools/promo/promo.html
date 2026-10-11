@@ -247,23 +247,40 @@ S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>
   build: function (L, s) {
     var D = [{ ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
     var TOP = { ink: [556, 46, 723, 124], box: [550, 30, 180, 104], strip: [4, 26], color: '#C18E2C' };
-    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .8,
-      post: function (x, img) {
+    // הכרטיס כולו זז (גדל ומסתובב קלות) ולא רק התוכן בתוכו — זום פנימי
+    // חזק היה חותך את המספר הגדול או את השורה התחתונה. מצויר על canvas
+    // של כל הבמה; התוכן (צילום + מספרים) נבנה קודם על canvas בגודל הצילום.
+    s.cv = canvasIn(L, 478, 850); s.img = preload('img/3-stats.jpg');
+    s.off = document.createElement('canvas'); s.off.width = 1080; s.off.height = 781;
+    s.post = function (x, img) {
         var on = s.t >= STATS.at, p = easeOut((s.t - STATS.at) / STATS.run);
         if (on) D.forEach(function (d) { roll(x, img, d, 1); });
         statNum(x, img, TOP, String(STATS.top[on ? 1 : 0]));
         var all = STATS.all[on ? 1 : 0], dv = lerp(STATS.done[0], STATS.done[1], p);
         statBar(x, dv / all, img);
         statLine(x, img, String(Math.round(dv)), String(all));
-      } });
+      };
   },
   tick: function (t, s) {
-    // זום עם החלקה קלה מצד לצד. העוגן (ay=.8) שומר בפריים גם את המספר
-    // הגדול למעלה וגם את השורה התחתונה; 1.065 הוא המקסימום שמשאיר את שניהם
     s.t = t;
-    var p = smooth((t - 8.5) / 2.9);
-    s.c.ax = lerp(.38, .62, p);
-    zoom(s.c, lerp(1, 1.065, p));
+    if (!s.img.naturalWidth) return;
+    var o = s.off.getContext('2d');
+    o.setTransform(1, 0, 0, 1, 0, 0); o.drawImage(s.img, 0, 0);
+    s.post(o, s.img);
+    // גדל מ-0.93 ל-1.07, מסתובב מ-‎-2° ל-‎+1°, ועולה מעט
+    var p = smooth((t - 8.5) / 2.9), z = lerp(.93, 1.07, p);
+    var w = 423 * z, h = 306 * z, k = s.cv.width / 478;
+    var x = s.cv.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, s.cv.width, s.cv.height);
+    x.setTransform(k, 0, 0, k, 0, 0);
+    x.translate(238.5, CY + lerp(10, -6, p)); x.rotate(lerp(-2, 1, p) * Math.PI / 180);
+    x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 26 * k; x.shadowOffsetY = 10 * k;
+    rrect(x, -w / 2, -h / 2, w, h, 12 * z); x.fillStyle = '#F7F2E8'; x.fill();
+    x.shadowColor = 'transparent';
+    x.save(); rrect(x, -w / 2, -h / 2, w, h, 12 * z); x.clip();
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(s.off, -w / 2, -h / 2, w, h);
+    x.restore();
   } });
 
 /* מספר שלם במקום מספר שבצילום: מוחק את התיבה ברקע נקי מעליה, ומצייר
