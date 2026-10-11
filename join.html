@@ -600,7 +600,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .inv .btn{margin-top:11px;font-size:.95rem;padding:14px}
 .inv .btn.off{background:var(--sunk);color:var(--ink-3);box-shadow:none;
   pointer-events:none}
-.inv textarea{width:100%;font:inherit;font-size:.9rem;line-height:1.6}
 .inv-tip{margin-top:9px !important;padding:10px 12px;border-radius:12px;background:var(--sunk);
   font-size:.82rem !important;color:var(--ink-2) !important}
 .inv .ok{margin-top:11px;font-size:.86rem;font-weight:800;color:var(--green-d);
@@ -1140,6 +1139,11 @@ footer a{color:var(--ink-2);font-weight:800}
        ירד. "הישיבה רואה כמה לומדים אצלה" אינו תמיד גורם חיובי,
        "מתחילים בבראשית" כבר כתוב בבאנר, ו"נעדכן אותך" מבטיח
        ערוץ שאיננו יודעים שיהיה. -->
+  <!-- **ההזמנה ראשונה.** היא ישבה מתחת לכרטיס הדף, למסלול
+       ולעדכונים — שלושה מסכים של גלילה, וילד שראה וי ירוק לא
+       הגיע אליה. מי שבחר "עם אבא" רואה אותה מיד. ריקה אצל כל
+       השאר, ולכן אינה תופסת מקום. -->
+  <div class="wrap"><div id="inv"></div></div>
   <div class="zone">
     <span class="tag" id="d-name"></span>
     <div id="wk"></div>
@@ -1154,7 +1158,6 @@ footer a{color:var(--ink-2);font-weight:800}
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
     <div id="phnag"></div>
     <div id="getapp"></div>
-    <div id="inv"></div>
     <div id="inv2"></div>
     <div id="kids"></div>
     <div id="wagrp"></div>
@@ -2572,9 +2575,19 @@ function pairAsk_() {
    ============================================================
    "הורים שלא חוברו לבן" מקבלים מהרכז הודעה עם כפתור שנוחת כאן —
    ישר על ההזמנה, גם אם כבר נשלחה פעם, וגם כשהשם של הבן לא ידוע.
-   ההודעה לבן פתוחה לעריכה ("כתבו לו במילים שלכם"), והקישור האישי
-   — שהוא מה שמחבר ביניהם — מתווסף לסופה אם נמחק. */
+
+   **בלי תיבת עריכה.** "ילדים צריכים כמה שפחות משימות, וזה נכון
+   גם להורים." הנוסח מגיע מוכן, ומי שרוצה לשנות — משנה בוואטסאפ
+   עצמו, לפני שהוא לוחץ שלח. */
 var INV_FORCE = location.hash === '#invite';
+/* הנוסח המוכן. בן נקרא בשמו; אבא — "אבא" (ראו greetName). */
+function invMsg_(me, them) {
+  var g = me.rel === 'kid' ? (them || greetName(me)) : (them ? greetName(me) : '');
+  return tpl(JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
+}
+function invWa_(me, num, txt) {
+  window.open('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(txt), '_blank');
+}
 function drawInv() {
   var box = $('inv'); if (!box) return;
   var me = get('me', null) || {};
@@ -2593,17 +2606,18 @@ function drawInv() {
      נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
   if (!force && me.from) return;
   if (!force && get('inv-sent', 0)) {
-    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div></div>';
+    /* "נשלחה" אינו ודאות: מי שחזר מוואטסאפ בלי ללחוץ שלח נשאר
+       בלי דרך לשלוח. המספר כבר שמור — לחיצה אחת פותחת שוב. */
+    var okPh = (String(me.dadPhone || '').match(/\d/g) || []).length >= 9;
+    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div>' +
+      (okPh ? '<button class="more-link" id="inv-again">' + esc(JOIN.invAgain) + '</button>' : '') +
+      '</div>';
+    if (okPh) $('inv-again').onclick = function () { invWa_(me, me.dadPhone, invMsg_(me, me.dadFirst || '')); };
     return;
   }
 
   var them = me.dadFirst || '', phone = me.dadPhone || '';
   var okPhone = (phone.match(/\d/g) || []).length >= 9;
-  var msg0 = function () {
-    /* בן נקרא בשמו — גם בשם שהוקלד הרגע, לפני שנשמר. */
-    var g = me.rel === 'kid' ? (them || greetName(me)) : (them ? greetName(me) : '');
-    return tpl(JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
-  };
   box.innerHTML = '<div class="inv" id="inv-card">' +
     '<h3>' + esc(them ? tpl(JOIN.invTitle, { them:them }) : JOIN.invTitleAny) + '</h3>' +
     '<p>' + esc(JOIN.invBody) + '</p>' +
@@ -2615,14 +2629,11 @@ function drawInv() {
         '<input id="inv-ph" type="tel" inputmode="tel" value="' + esc(phone) + '"></div>' +
         '<p id="inv-need" style="font-size:.79rem;color:var(--ink-3);' +
         'font-weight:700;margin-top:7px">' + esc(JOIN.invNeed) + '</p>') +
-    /* ההודעה עצמה — טיוטה, לא נוסח סגור. */
-    '<div class="fld"><label class="label" for="inv-msg">' + esc(JOIN.invEdit) + '</label>' +
-    '<textarea id="inv-msg" rows="5">' + esc(msg0()) + '</textarea></div>' +
     '<p class="inv-tip">' + esc(JOIN.invTip) + '</p>' +
     '<button class="btn' + (okPhone ? '' : ' off') + '" id="inv-go">' +
       esc(JOIN.invBtn) + '</button></div>';
 
-  var ph = $('inv-ph'), go = $('inv-go'), nmI = $('inv-nm'), ta = $('inv-msg');
+  var ph = $('inv-ph'), go = $('inv-go'), nmI = $('inv-nm');
   var check = function () {
     var ok = (String(ph ? ph.value : phone).match(/\d/g) || []).length >= 9 && (!nmI || (nmI.value || '').trim());
     go.className = 'btn' + (ok ? '' : ' off');
@@ -2630,14 +2641,7 @@ function drawInv() {
     var nd = $('inv-need'); if (nd) nd.style.display = ok ? 'none' : '';
   };
   if (ph) ph.oninput = check;
-  /* שם הבן שהוקלד עכשיו — נכנס גם לפנייה שבטיוטה, כל עוד לא נערכה. */
-  var edited = false;
-  if (ta) ta.oninput = function () { edited = true; };
-  if (nmI) nmI.oninput = function () {
-    them = (nmI.value || '').trim();
-    if (!edited && ta) ta.value = msg0();
-    check();
-  };
+  if (nmI) nmI.oninput = check;
   check();
   go.onclick = function () {
     var num = ph ? ph.value : phone;
@@ -2651,11 +2655,8 @@ function drawInv() {
        והבן לא ראה "עם אבא". */
     queue(joinRow_(me));
     set('inv-sent', 1);
-    /* הקישור האישי הוא מה שמחבר — אם נמחק מהטיוטה, חוזר לסופה. */
-    var url = invUrl(me), txt = ta ? String(ta.value || '') : msg0();
-    if (txt.indexOf(url) < 0) txt = txt.replace(/\s+$/, '') + '\n\n' + url;
     INV_FORCE = false;
-    window.open('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(txt), '_blank');
+    invWa_(me, num, invMsg_(me, me.dadFirst || ''));
     drawInv();
   };
   if (force) {
