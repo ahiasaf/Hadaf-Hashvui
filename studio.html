@@ -307,6 +307,8 @@ body.mark.gsel #clearsel{display:inline-block}
   white-space:nowrap}
 .splitbox .row .del{flex:0 0 auto;align-self:stretch;padding:0 14px;border:0;
   background:#FBEFED;color:var(--stop);font-weight:800;font-size:.95rem}
+.splitbox .row .mrg{flex:0 0 auto;align-self:stretch;padding:0 12px;border:0;
+  background:#EEF3FB;font-size:.95rem}
 .splitbox .gap{background:#FFF8E8;border:1px dashed var(--gold);color:#7A5A12;
   border-radius:10px;padding:9px 11px;margin-bottom:6px;
   font-size:.83rem;font-weight:800}
@@ -436,6 +438,7 @@ body.mark.solo:not(.on-chav) .chav{display:none}
 .step{border:1px solid var(--rule);border-radius:9px;padding:8px 10px;margin-top:7px;
   font-size:.77rem;font-weight:700;line-height:1.5}
 .step .x{float:left;color:var(--stop);font-weight:800;cursor:pointer;padding:0 5px}
+.step .lk{float:left;cursor:pointer;padding:0 5px}
 .step .q{color:var(--ink-2);display:block;margin-top:3px}
 #mcur{font-size:.79rem;font-weight:700;line-height:1.6}
 #mcur .ok{color:var(--ok)} #mcur .no{color:var(--ink-3)}
@@ -1935,7 +1938,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.169';
+var STUDIO_VER = '8.99.170';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2829,13 +2832,17 @@ function markPanel() {
   var box = document.getElementById('steps');
   if (box) {
     box.innerHTML = STEPS.map(function (st, i) {
-      return '<div class="step"><span class="x" data-x="' + i + '">✕</span>' +
+      return '<div class="step"><span class="x" data-x="' + i + '" title="מחיקה">✕</span>' +
+        '<span class="lk" data-lk="' + i + '" title="איחוד עם הקטע הבא">🔗</span>' +
         '<b>' + (i + 1) + '.</b> שורות ' + (st.g.from.line + 1) + '–' + (st.g.to.line + 1) +
         ' · פסקה ' + (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
         '<span class="q">' + esc((st.c.text || '').slice(0, 55)) + '…</span></div>';
     }).join('') || '<div class="hint">עדיין אין קטעים.</div>';
     [].forEach.call(document.querySelectorAll('[data-x]'), function (b) {
-      b.onclick = function () { mergeStep(+b.dataset.x); };
+      b.onclick = function () { deleteStep(+b.dataset.x); };
+    });
+    [].forEach.call(document.querySelectorAll('[data-lk]'), function (b) {
+      b.onclick = function () { mergeStep(+b.dataset.lk); };
     });
   }
   var u = document.getElementById('undo');
@@ -3003,8 +3010,9 @@ function dropOrphans() {
 function showSteps() {
   var box = document.getElementById('splitbox');
   var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' +
-    '<p>הקשה על קטע מציגה אותו על הדף. ✕ מוחק אותו בלבד — ' +
-    'השאר נשארים, ואפשר להוסיף חדש במקומו.</p>';
+    '<p>הקשה על קטע מציגה אותו על הדף. 🔗 מאחד אותו עם הקטע שאחריו — ' +
+    'הפירוש, ההקלטות והשאלות של שניהם נשארים. ✕ מוחק אותו: השורות ' +
+    'שלו עוברות לקטע שאחריו, ומה ששויך לו לא יוצג יותר.</p>';
   if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
   var orph = orphanKeys();
   if (orph.length) {
@@ -3031,7 +3039,8 @@ function showSteps() {
       (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
       (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
       '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
-      '<button class="del" data-del="' + r.i + '">✕</button></div>';
+      '<button class="mrg" data-mrg="' + r.i + '" title="איחוד עם הקטע הבא">🔗</button>' +
+      '<button class="del" data-del="' + r.i + '" title="מחיקה">✕</button></div>';
   });
   html += '<button class="cl" onclick="document.getElementById(\'splitbox\').className=\'splitbox\'">סגירה</button></div>';
   box.innerHTML = html;
@@ -3039,10 +3048,16 @@ function showSteps() {
   [].forEach.call(box.querySelectorAll('.dx'), function (b) {
     b.onclick = function () { dropOrphans(); };
   });
+  [].forEach.call(box.querySelectorAll('[data-mrg]'), function (b) {
+    b.onclick = function () {
+      box.className = 'splitbox';
+      mergeStep(+b.dataset.mrg);
+    };
+  });
   [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
     b.onclick = function () {
       box.className = 'splitbox';
-      mergeStep(+b.dataset.del);
+      deleteStep(+b.dataset.del);
     };
   });
   [].forEach.call(box.querySelectorAll('[data-go]'), function (b) {
@@ -3058,7 +3073,7 @@ function showSteps() {
 }
 
 /* הסרת נקודת חיתוך — `seal` מותח את הבא עד סוף הקודם. נשארה רק
-   ל"↶" (ביטול מה שסומן זה עתה). לקטע שכבר שמור — `mergeStep`. */
+   ל"↶" ול-✕ (`deleteStep`). איחוד — `mergeStep`. */
 function removeStep(i) {
   STEPS.splice(i, 1);
   seal();
@@ -3109,7 +3124,7 @@ function studioContent_() {
   if (rec.prev > 0 && rec.prevDaf) dafs.push(SidDaf(rec.prevDaf));
   var tabs = ['פירוש', 'שאלות בדף', 'מצגת'];
   return Promise.all(tabs.map(function (t) { return sheetCsv(t); })).then(function (res) {
-    var out = { read: true, legacy: false, anch: null };
+    var out = { read: true, legacy: false, anch: null, has: {} };
     res.forEach(function (rows, ti) {
       if (!rows) { out.read = false; return; }
       rows.slice(1).forEach(function (r) {
@@ -3118,12 +3133,27 @@ function studioContent_() {
         try { v = JSON.parse(r[2]); } catch (e) { return; }
         if (!v || typeof v !== 'object') return;
         if (ti === 2 && SidDaf(r[1]) === SidDaf(daf)) out.anch = v;
-        if (v.__ids) return;
+        if (v.__ids) {
+          /* מה ששויך לכל מזהה — בשביל השאלה לפני מחיקה */
+          for (var q in v) if (v.hasOwnProperty(q) && q.indexOf('__') !== 0 && hasVal_(v[q])) {
+            out.has[q] = out.has[q] || [];
+            if (out.has[q].indexOf(ti) < 0) out.has[q].push(ti);
+          }
+          return;
+        }
         for (var k in v) if (v.hasOwnProperty(k) && /^\d+$/.test(k)) out.legacy = true;
       });
     });
     return out;
   }).catch(function () { return { read: false }; });
+}
+/* יש בערך משהו של ממש? רשומת פירוש ריקה נושאת עדיין תווית ("פירוש")
+   וחותמת זמן — אלה לבדן אינן תוכן. */
+function hasVal_(v) {
+  if (v == null || v === '') return false;
+  if (typeof v !== 'object') return true;
+  for (var k in v) if (v.hasOwnProperty(k) && k !== 'tag' && k.charAt(0) !== '_' && hasVal_(v[k])) return true;
+  return false;
 }
 function mergeAsk_(info, b, after) {
   var msg = 'לאחד את שני הקטעים?\n\n' +
@@ -3198,6 +3228,57 @@ function mergeStep(i) {
     touched();
     paintChav(1); markDraw(); markPanel();
     say('✓ אוחד. נשמר במכשיר — "שמירה" מעלה לגיליון.');
+  });
+}
+
+/* ============================================================
+   מחיקת קטע — לצד האיחוד.
+   ============================================================
+   "אני בא למחוק קטע, ובמקום למחוק הוא שואל אותי לגבי לאחד."
+   ✕ מוחק, 🔗 מאחד. במחיקה השורות של הקטע עוברות לקטע שאחריו
+   (`seal` אוטם את הרצף), ומה ששויך למזהה שלו נשאר בגיליון בלי
+   קטע שמציג אותו. לכן שואלים — רק כשבאמת יש לו משהו.
+   ============================================================ */
+function deleteStep(i) {
+  var st = STEPS[i];
+  if (!st) return;
+  if (SPL) splitCancel(1);
+  var rec = BOOK[PKEY] || {};
+  if (i === STEPS.length - 1) {
+    var nr = BOOK[nextPageKey_()], n0 = nr && nr.steps && nr.steps[0];
+    if (n0 && n0.cont) {
+      say('הקטע הזה ממשיך בראש העמוד הבא. מחקו קודם את ההמשך שם, ואז אותו.', 1);
+      return;
+    }
+  }
+  var go = function () {
+    if (STEPS[i] !== st) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
+    if (rec.prev > i) rec.prev--;
+    removeStep(i);
+    markPanel();
+    say('✓ נמחק. נשמר במכשיר — "שמירה" מעלה לגיליון.');
+  };
+  /* קטע המשך אינו נושא תוכן משלו, וקטע שסומן עכשיו — עוד אין לו */
+  var ids = st.cont ? [] : [st.id].concat(st.also || []).filter(Boolean);
+  if (!ids.length || (NEW_IDS[st.id] && !st.also)) { go(); return; }
+  say('בודק מה שויך לקטע…');
+  studioContent_().then(function (info) {
+    var names = ['פירוש או הקלטה', 'שאלות', 'שקף שמתחיל בו'], got = [];
+    ids.forEach(function (d) {
+      ((info.has || {})[d] || []).forEach(function (t) {
+        if (got.indexOf(names[t]) < 0) got.push(names[t]);
+      });
+    });
+    var msg = '';
+    if (!info.read) msg = 'לא הצלחתי לבדוק אם יש לקטע פירוש, הקלטות או שאלות. ' +
+      'אם יש — הם לא יוצגו יותר.\n\nלמחוק בכל זאת?';
+    else if (info.legacy) msg = '⚠ הדף הזה עוד לא הוסב למזהים קבועים. המחיקה תזיז את ' +
+      'הפירוש, השאלות והשקפים של כל הקטעים שאחריו.\n\nלמחוק בכל זאת?';
+    else if (got.length) msg = 'למחוק את הקטע?\n\nיש לו ' + got.join(', ') +
+      '. אחרי המחיקה הם לא יוצגו יותר לאף אחד.\n\n' +
+      'כדי לשמור עליהם — "ביטול", ואז 🔗 לאיחוד עם הקטע שאחריו.';
+    if (msg && !confirm(msg)) { say('לא נמחק.'); return; }
+    go();
   });
 }
 
