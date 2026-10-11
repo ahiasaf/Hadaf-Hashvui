@@ -8,7 +8,11 @@ import settings from "../src/generated/settings.json" with { type: "json" };
 import { publicTabs } from "../src/server/upstream.ts";
 async function script(source, target) {
   for (const [original, optimized] of Object.entries(mediaMap.media)) {
-    if (!/^(sfarim|weekpics|flyer)\//.test(original)) continue;
+    if (
+      !/^(sfarim|weekpics|flyer)\//.test(original) &&
+      !/^logo-(mark|full)\.png$/.test(original)
+    )
+      continue;
     source = source
       .replaceAll(JSON.stringify(original), JSON.stringify(optimized))
       .replaceAll("'" + original + "'", JSON.stringify(optimized));

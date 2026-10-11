@@ -1,0 +1,197 @@
+/* Shared public-site chrome for the remaining specialist workspaces. */
+.tool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px max(24px, calc((100% - 1080px) / 2));
+  background: var(--surface, #fffdf8);
+  border-bottom: 1px solid var(--rule, #e5dac3);
+  color: var(--blue-d, #0b2550);
+  font:
+    600 14px/1.4 system-ui,
+    sans-serif;
+  flex-shrink: 0;
+}
+.tool-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+.tool-brand img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.tool-brand strong,
+.tool-brand small {
+  display: block;
+}
+.tool-brand strong {
+  font-size: 20px;
+  letter-spacing: -0.025em;
+}
+.tool-brand small {
+  color: var(--ink-2, #5a6780);
+  font-size: 12px;
+}
+.tool-year {
+  color: var(--gold-t, #8c681f);
+  font-size: 12px;
+}
+.tool-header nav {
+  display: flex;
+  gap: 20px;
+  position: static;
+  background: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+.tool-header nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+.tool :focus-visible {
+  outline: 3px solid var(--gold, #c08f2b);
+  outline-offset: 3px;
+}
+.tool button,
+.tool select,
+.tool input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 44px;
+}
+.tool button {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.tool-noscript {
+  padding: 24px;
+  background: #fffdf8;
+  color: #0b2550;
+  text-align: center;
+}
+/* Registration keeps its existing data flow and field identifiers. */
+.tool-management .app {
+  max-width: 1080px;
+}
+.tool-management .content {
+  padding: 32px 0 64px;
+}
+.tool-management .view {
+  max-width: 720px;
+  margin-inline: auto;
+}
+.tool-management .masthead {
+  display: none;
+}
+.tool-management #v-reg > .back {
+  justify-self: start;
+  margin-bottom: 16px;
+}
+.tool-management #reg-body {
+  padding: 32px;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+.tool-management .fit {
+  box-shadow: none;
+  background: var(--paper);
+}
+.tool-management .btn.gr {
+  background: var(--blue-d);
+  color: #fff;
+}
+.tool-management .pk,
+.tool-management input,
+.tool-management textarea {
+  border-radius: 10px;
+}
+/* Editing tools use a quiet toolbar below the common navigation. */
+.tool-studio > header,
+.tool-lab > header {
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding: 12px 24px;
+}
+.tool-studio header select,
+.tool-studio .nav,
+.tool-lab header select,
+.tool-lab header button {
+  background: var(--paper);
+  color: var(--blue-d);
+  border: 1px solid var(--rule);
+}
+.tool-studio .nav select,
+.tool-studio .nav button {
+  color: var(--blue-d);
+}
+.tool-studio header button,
+.tool-lab header button.p {
+  background: var(--blue-d);
+  color: #fff;
+}
+.tool-studio .wrap {
+  gap: 24px;
+  padding: 24px;
+}
+.tool-masa .app {
+  max-width: 640px;
+  padding-top: 40px;
+}
+.tool-masa .brand {
+  display: none;
+}
+.tool-tiul .wrap {
+  max-width: 720px;
+  padding-top: 32px;
+}
+@media (max-width: 640px) {
+  .tool-header {
+    padding: 12px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .tool-brand strong {
+    font-size: 18px;
+  }
+  .tool-year {
+    display: none;
+  }
+  .tool-header nav {
+    gap: 16px;
+    font-size: 13px;
+  }
+  .tool-management .content {
+    padding: 20px 16px 40px;
+  }
+  .tool-management #reg-body {
+    padding: 20px 16px;
+  }
+  .tool-studio .wrap {
+    padding: 12px;
+    gap: 16px;
+  }
+  .tool-studio > header,
+  .tool-lab > header {
+    padding: 10px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tool *,
+  .tool *::before,
+  .tool *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

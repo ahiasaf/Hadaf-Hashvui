@@ -264,6 +264,7 @@ function loadMarks() {
     if (q && !hasMine(rows)) return sheetCsv(MARK_TAB);
     return rows;
   }).then(function (rows) {
+    if (!rows) throw new Error('Lesson marks unavailable');
     if (!hasMine(rows)) return 0;
     /* הבנייה עצמה עברה ל-`SidFlat` (stepid.js), כדי שההסבה למזהים,
        הסטודיו והניהול יחשבו את אותו הסדר ממש. מה שנשמר בה:
@@ -309,20 +310,23 @@ function lockShow() {
     h += '<br><a class="lockback" href="learn.html?mas=' + encodeURIComponent(S.mas) +
       '&' + unitQ({ daf: cur, am: cam }) + '">' + esc(UI.lockBack) + '</a>';
   }
+  h += '<span id="lock-message"></span>';
   veil(UI.lockT, h, false);
   var b = $('lock-ask');
   if (b) b.onclick = lockAsk;
 }
 function lockAsk() {
   var b = $('lock-ask');
-  if (b) b.disabled = true;
-  var no = function () {
-    if (b) { b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockNo) + '</b>'; }
+  if (b) { b.disabled = true; b.textContent = 'שומרים…'; }
+  var no = function (reason) {
+    if (b) { b.disabled = false; b.textContent = UI.lockAsk; }
+    var message = $('lock-message');
+    if (message) { message.setAttribute('role', 'alert'); message.textContent = typeof reason === 'string' ? reason : 'לא הצלחנו לשמור את הבקשה. בדקו את החיבור ונסו שוב.'; }
   };
-  if (!window.APPX || !API) { no(); return; }
+  if (!window.APPX || !API) { no(UI.lockNo); return; }
   APPX.subscribe().then(function (sub) {
     var me = (typeof LMe === 'function') ? LMe() : null;
-    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+    return fetch('/api/wait', { method:'POST', headers:{'Content-Type':'application/json'}, signal:AbortSignal.timeout(20000), body: JSON.stringify({
       action:'row', tab:'ממתינים לדף', cols: JSON.stringify([
         ['דף', lockKey()],
         ['מזהה', (me && me.id) || ''],
@@ -332,8 +336,14 @@ function lockAsk() {
         ['מנוי', JSON.stringify(sub)],
         ['מתי', new Date().toISOString()]
       ])
-    }) }).catch(function () {});
-    try { localStorage.setItem('df:wait:' + lockKey(), '1'); } catch (e) {}
-    if (b) b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockOk) + '</b>';
+    }) }).then(function (response) {
+      if (!response.ok) throw new Error('Reminder unavailable');
+      return response.json();
+    }).then(function (result) {
+      if (result.status !== 'ok') throw new Error('Reminder not acknowledged');
+      try { localStorage.setItem('df:wait:' + lockKey(), '1'); } catch (e) {}
+      if (b) b.outerHTML = '<b role="status" style="margin-top:14px">' + esc(UI.lockOk) + '</b>';
+      var message = $('lock-message'); if (message) message.textContent = '';
+    });
   })['catch'](no);
 }

@@ -72,6 +72,7 @@ function adminEntry() {
 
 window.addEventListener("hashchange", function() {
     if (isAdminRoute()) adminEntry();
+    else if (location.hash === "#reg") show("reg");
 });
 
 (function() {

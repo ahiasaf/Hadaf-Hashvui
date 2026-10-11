@@ -96,6 +96,9 @@ function show(v) {
     for (var i = 0; i < all.length; i++) all[i].className = "view";
     var el = document.getElementById("v-" + v);
     if (el) el.className = "view on";
+    if (v === "reg" || v === "home") {
+        history.replaceState(null, "", location.pathname + location.search + (v === "reg" ? "#reg" : ""));
+    }
     window.scrollTo(0, 0);
     if (v === "home") {
         var stu = stuDevice();
@@ -242,6 +245,7 @@ document.addEventListener("visibilitychange", function() {
 });
 
 function renderHome() {
+    if (location.hash === "#reg") return;
     tourLauncher();
     var w = contentFor(homeTrack), tr = w.tr, row = w.row, c = w.c;
     var wi = weekIndex();

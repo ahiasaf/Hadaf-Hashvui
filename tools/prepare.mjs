@@ -81,6 +81,17 @@ await sharp(logoBytes)
   .webp({ lossless: true })
   .toFile("src/generated/media/brand/" + logoName);
 media["logo-mark.png"] = "/media/brand/" + logoName;
+const fullLogoBytes = await fs.readFile("static/logo-full.png");
+const fullLogoHash = createHash("sha256")
+  .update(fullLogoBytes)
+  .digest("hex")
+  .slice(0, 12);
+const fullLogoName = "logo-full." + fullLogoHash + ".webp";
+await sharp(fullLogoBytes)
+  .resize({ width: 344, withoutEnlargement: true })
+  .webp({ lossless: true })
+  .toFile("src/generated/media/brand/" + fullLogoName);
+media["logo-full.png"] = "/media/brand/" + fullLogoName;
 const iconBytes = await fs.readFile("static/icon-192.png");
 const iconHash = createHash("sha256")
   .update(iconBytes)

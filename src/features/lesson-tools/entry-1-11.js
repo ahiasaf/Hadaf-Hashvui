@@ -97,7 +97,7 @@ function boot() {
      פסק זמן של 2.5 שניות. */
   var lib = loadLib();
   tick('lib', lib);
-  var marks = tick('marks', loadMarks().catch(function () { return 0; }));
+  var marks = tick('marks', loadMarks());
   var gem = tick('gemara', lib.then(function () { return loadGemara(); }));
   Promise.all([marks, gem])
     .then(function (res) {
@@ -160,7 +160,12 @@ function boot() {
     })
     .catch(function () {
       veil('לא הצלחתי להביא את הדף',
-           'צריך חיבור לרשת. נסו שוב בעוד רגע.', false);
+           '<span role="alert">צריך חיבור לרשת. נסו שוב בעוד רגע.</span>' +
+           '<button class="lockbtn" id="lesson-retry">ניסיון נוסף</button>', false);
+      $('lesson-retry').onclick = function () {
+        if (window.DFNet) window.DFNet.clear();
+        boot();
+      };
     });
 }
 

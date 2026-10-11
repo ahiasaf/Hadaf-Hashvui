@@ -147,6 +147,11 @@ try {
     "/hitraot",
     "/slidetest",
     "/team",
+    "/management#reg",
+    "/studio",
+    "/lab",
+    "/masa",
+    "/tiul",
   ];
   for (const width of [320, 360, 390, 768, 1440]) {
     const context = await browser.newContext({
@@ -230,84 +235,65 @@ try {
     JSON.parse(await page.evaluate(() => localStorage.getItem("df:me"))).id,
     "demo-student",
   );
+  await page.clock.setFixedTime(
+    new Date(program.startDate + "T12:00:00+03:00"),
+  );
+  await page.evaluate(() => localStorage.setItem("df:gate", "1"));
   readFailure = true;
   await page.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
   await page.getByRole("alert").waitFor();
-  assert.equal(await page.getByText("הדף עדיין לא מוכן ללימוד").count(), 0);
+  assert.equal(
+    await page.getByText("הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע").count(),
+    0,
+  );
   readFailure = false;
   await page.getByRole("button", { name: "ניסיון נוסף", exact: true }).click();
-  await page.getByText(/^קטע 1 מתוך/).waitFor();
-  const firstScan = await page.locator(".page-image").boundingBox();
-  const firstControls = await page.locator(".reader-controls").boundingBox();
-  await page.getByRole("button", { name: "הקטע הבא", exact: true }).click();
-  await page.getByText(/^קטע 2 מתוך/).waitFor();
-  const secondScan = await page.locator(".page-image").boundingBox();
-  const secondControls = await page.locator(".reader-controls").boundingBox();
+  await page
+    .locator("#count")
+    .filter({ hasText: /^קטע 1 מתוך/ })
+    .waitFor();
+  const stage = await page.locator("#stage").boundingBox();
+  const controls = await page.locator("body > nav").boundingBox();
+  await page.locator("#next").click();
+  await page
+    .locator("#count")
+    .filter({ hasText: /^קטע 2 מתוך/ })
+    .waitFor();
   assert.ok(
-    Math.abs(firstScan.y - secondScan.y) < 1,
-    "Scan moves between explanations",
+    Math.abs(stage.y - (await page.locator("#stage").boundingBox()).y) < 1,
   );
   assert.ok(
-    Math.abs(firstControls.y - secondControls.y) < 1,
-    "Reader actions move between explanations",
-  );
-  assert.equal(
-    await page
-      .getByRole("region", { name: "פירוש חברותא" })
-      .getAttribute("tabindex"),
-    "0",
+    Math.abs(controls.y - (await page.locator("body > nav").boundingBox()).y) <
+      1,
   );
   await page.reload();
-  await page.getByText(/^קטע 2 מתוך/).waitFor();
-  await page.getByRole("button", { name: "הגדלה", exact: true }).click();
+  await page
+    .locator("#count")
+    .filter({ hasText: /^קטע 2 מתוך/ })
+    .waitFor();
+  await page.locator("#whole").click();
   assert.ok(
     await page
-      .locator(".page-canvas")
-      .evaluate((element) => element.getBoundingClientRect().width >= 1600),
+      .locator("body")
+      .evaluate((element) => element.classList.contains("whole")),
   );
-  await page.getByRole("button", { name: "תצוגה רגילה", exact: true }).click();
+  await page.locator("#whole").click();
   let count = 0;
-  let scrolledExplanation = false;
   while (
-    await page.getByRole("button", { name: "הקטע הבא", exact: true }).count()
+    !(await page
+      .locator("#done")
+      .evaluate((element) => element.classList.contains("on")))
   ) {
-    await page.getByRole("button", { name: "הקטע הבא", exact: true }).click();
-    const explanation = page.getByRole("region", { name: "פירוש חברותא" });
-    if (
-      !scrolledExplanation &&
-      (await explanation.evaluate(
-        (element) => element.scrollHeight > element.clientHeight,
-      ))
-    ) {
-      await explanation.focus();
-      await explanation.press("End");
-      await page.waitForTimeout(250);
-      assert.ok(
-        await explanation.evaluate((element) => element.scrollTop > 0),
-        "Long explanation cannot be scrolled with the keyboard",
-      );
-      scrolledExplanation = true;
-    }
+    await page.locator("#next").click();
     if (++count > 150) throw new Error("Reader navigation did not terminate");
   }
-  assert.ok(scrolledExplanation, "Long explanation fixture was not exercised");
-  const continuationPosition = await page
-    .locator(".segment-indicator")
-    .textContent();
-  await page.reload();
-  await page.getByText(continuationPosition, { exact: true }).waitFor();
-  await page.getByText("המשך הקטע מהעמוד הקודם", { exact: true }).waitFor();
-  await page
-    .getByRole("button", { name: "סיימתי את הדף", exact: true })
-    .click();
-  await page
-    .getByRole("heading", { name: "עוד דף בדרך לסיום המסכת." })
-    .waitFor();
+  await page.getByRole("heading", { name: "ישר כוח!", exact: true }).waitFor();
   assert.ok(
     JSON.parse(await page.evaluate(() => localStorage.getItem("df:learned")))[
       "taanit|1"
     ],
   );
+  await page.clock.setFixedTime(new Date());
   await page.goto(base + "/board?inst=" + program.institutions[0].code);
   await page.getByLabel("קוד גישה", { exact: true }).fill("DEMO");
   await page.getByRole("button", { name: "פתיחת הלוח", exact: true }).click();
@@ -422,6 +408,41 @@ try {
     )["taanit|1"],
   );
   await restoreContext.close();
+  const aliasContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await prepare(aliasContext);
+  await aliasContext.addInitScript(() => {
+    if (location.protocol === "http:") localStorage.setItem("df:gate", "1");
+  });
+  const alias = await aliasContext.newPage();
+  const layouts = [];
+  for (const route of ["/learn", "/lesson-tools"]) {
+    await alias.goto(base + route + "?mas=taanit&daf=ב&amud=1");
+    await alias
+      .locator("#count")
+      .filter({ hasText: /^קטע 1 מתוך/ })
+      .waitFor();
+    layouts.push(await alias.locator("#stage").boundingBox());
+    assert.equal(
+      await alias.evaluate(
+        () =>
+          window.performance
+            .getEntriesByType("resource")
+            .filter((resource) => resource.name.includes("pdf.min.mjs")).length,
+      ),
+      0,
+    );
+  }
+  assert.deepEqual(layouts[0], layouts[1]);
+  await alias.evaluate(async () => {
+    await window.DF_LOAD_PDF();
+  });
+  assert.ok(await alias.evaluate(() => !!window.pdfjsLib?.getDocument));
+  await aliasContext.close();
+  console.log(
+    "Learning aliases share a layout; PDF fallback loads only on demand.",
+  );
   const offlineContext = await browser.newContext();
   const offlinePage = await offlineContext.newPage();
   await offlinePage.goto(base);
@@ -451,9 +472,13 @@ try {
     const subscription = {
       endpoint: "https://example.invalid/push",
       keys: { auth: "DEMO", p256dh: "DEMO" },
+      unsubscribe: async () => true,
     };
     const registration = {
-      pushManager: { getSubscription: async () => subscription },
+      pushManager: {
+        getSubscription: async () => subscription,
+        subscribe: async () => subscription,
+      },
     };
     Object.defineProperty(navigator, "serviceWorker", {
       value: {
@@ -466,19 +491,16 @@ try {
   waitFailure = true;
   const locked = await lockContext.newPage();
   await locked.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
-  await locked
-    .getByRole("button", { name: "הודיעו לי כשהדף נפתח", exact: true })
-    .click();
+  await locked.locator("#gate-go").click();
+  await locked.locator("#lock-ask").click();
   await locked.getByRole("alert").waitFor();
   assert.equal(
     await locked.evaluate(() => localStorage.getItem("df:wait:taanit|ב.")),
     null,
   );
   waitFailure = false;
-  await locked
-    .getByRole("button", { name: "הודיעו לי כשהדף נפתח", exact: true })
-    .click();
-  await locked.getByRole("status").waitFor();
+  await locked.locator("#lock-ask").click();
+  await locked.locator("#veil [role=status]").waitFor();
   assert.equal(
     await locked.evaluate(() => localStorage.getItem("df:wait:taanit|ב.")),
     "1",
@@ -495,6 +517,11 @@ try {
   });
   await prepare(legacyContext);
   const legacyPage = await legacyContext.newPage();
+  await legacyPage.goto(base + "/management#reg");
+  await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
+  assert.equal(await legacyPage.locator("#v-home.on").count(), 0);
+  await legacyPage.reload();
+  await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
   await legacyPage.goto(base + "/#admin");
   await legacyPage.waitForURL("**/management#admin");
   await legacyPage.locator("#pad button").first().waitFor();

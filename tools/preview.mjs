@@ -207,8 +207,8 @@ http
           contents
             .toString()
             .replace(
-              "<body>",
-              '<body><div dir="rtl" style="background:#112c50;color:white;padding:6px 12px;text-align:center;font:14px system-ui">הדגמה בלבד · קוד לניהול: <b dir="ltr">DEMO</b></div>',
+              /<body\b[^>]*>/,
+              '$&<div dir="rtl" style="background:#112c50;color:white;padding:6px 12px;text-align:center;font:14px system-ui">הדגמה בלבד · קוד לניהול: <b dir="ltr">DEMO</b></div>',
             ),
         );
       const contentType =

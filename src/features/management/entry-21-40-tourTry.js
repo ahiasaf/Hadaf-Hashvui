@@ -184,6 +184,8 @@ function registerSW() {
     } else if (tm && trackById(tm[1])) {
         pickTrack(tm[1]);
         openTrack(tm[1]);
+    } else if (hash === "#reg") {
+        show("reg");
     } else if (hash === "#phone" && myInstRow()) {
         show("my");
         accCheck(true);
@@ -196,7 +198,7 @@ function registerSW() {
     } else show("home");
     setTimeout(function() {
         document.getElementById("splash").className = "off";
-    }, 340);
+    }, 0);
     tourFirst.ok = !isAdminRoute() && !qm && !location.search;
     setTimeout(tourMaybe, 950);
 })();

@@ -1,0 +1,24 @@
+---
+import program from "../generated/program.json";
+---
+
+<div class="tool-header">
+  <a class="tool-brand" href="/" aria-label="הדף השבועי, דף הבית">
+    <img
+      src={program.media["logo-mark.png"]}
+      width="44"
+      height="44"
+      alt=""
+      decoding="async"
+    />
+    <span>
+      <strong>הדף השבועי</strong>
+      <small>של ישיבות בני עקיבא</small>
+    </span>
+    <span class="tool-year">{program.year}</span>
+  </a>
+  <nav aria-label="ניווט ראשי">
+    <a href="/app">הדף שלי</a>
+    <a href="/calendar">תוכנית הלימוד</a>
+  </nav>
+</div>

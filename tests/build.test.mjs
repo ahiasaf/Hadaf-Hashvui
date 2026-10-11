@@ -96,10 +96,35 @@ test("workspace pages link the workspace stylesheet and the home stays without i
     "tzevet",
     "board",
     "admin",
-    "learn",
     "info",
     "accessibility",
     "rights",
   ])
     assert.ok((await styles(page)).includes(".workspace{"), page);
+});
+
+test("both learning URLs share the interactive screen without React or eager PDF loading", async () => {
+  const learn = await fs.readFile("dist/learn.html", "utf8");
+  const tools = await fs.readFile("dist/lesson-tools.html", "utf8");
+  for (const html of [learn, tools]) {
+    assert.ok(html.includes('id="stage"'));
+    assert.ok(html.includes('id="chav"'));
+    assert.ok(!html.includes("astro-island"));
+    assert.match(html, /import\(["']\.\/vendor\/pdfjs\/pdf.min.mjs["']\)/);
+    for (const tag of html.matchAll(/<script\b[^>]*src=[^>]*>/g)) {
+      assert.ok(tag[0].includes("defer"), tag[0]);
+    }
+  }
+  const sources = (html) =>
+    [...html.matchAll(/src="([^" ]+\.js)"/g)].map((match) => match[1]);
+  assert.deepEqual(sources(learn), sources(tools));
+});
+
+test("specialist logos use shared fingerprinted images instead of embedded PNG data", async () => {
+  const script = await fs.readFile("dist/logo.js", "utf8");
+  assert.ok(!script.includes("data:image"));
+  assert.ok(Buffer.byteLength(script) < 300);
+  for (const match of script.matchAll(/["'](\/media\/brand\/[^"']+)["']/g)) {
+    await fs.access("dist" + match[1]);
+  }
 });

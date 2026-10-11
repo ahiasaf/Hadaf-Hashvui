@@ -341,8 +341,11 @@ var BYTES = {}, DOCS = {}, IMG = {};
 
 function pdfReady() {
   if (window.pdfjsLib) return Promise.resolve();
-  return new Promise(function (ok) {
-    window.addEventListener('pdfjs-ready', function () { ok(); }, { once:true });
+  if (window.DF_LOAD_PDF) return window.DF_LOAD_PDF();
+  return new Promise(function (ok, fail) {
+    window.addEventListener('pdf-loader-ready', function () {
+      window.DF_LOAD_PDF().then(ok, fail);
+    }, { once:true });
   });
 }
 function jsonp(url) {
