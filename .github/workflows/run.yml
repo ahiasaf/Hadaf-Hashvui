@@ -31,6 +31,7 @@ on:
           - apply          # כתיבת ההתאמה לגיליון (עם גיבוי)
           - chavruta       # בניית מאגר הביאור מקובצי הוורד
           - fix-bold       # התאמה + כתיבה, בריצה אחת
+          - stepid         # הסבה למזהים קבועים: check (קריאה) או next (לשונית אחת)
       args:
         description: 'פרמטרים (למשל: taanit_a_b ב ג ד)'
         required: false
@@ -73,7 +74,20 @@ jobs:
             # שניהם בריצה אחת: הקובץ שהראשון כותב מוחרג מהריפו
             # (הוא מחזיק טלפונים ושמות), ולכן הוא אינו שורד בין ריצות.
             fix-bold)    python3 tools/chav-align.py && python3 tools/chav-apply.py write ;;
+            # בצעד נפרד למטה — רק הוא מקבל את READ_KEY
+            stepid)      echo 'ראו הצעד הבא' ;;
           esac 2>&1 | tee run.log
+
+      # ההסבה למזהים קבועים — מכאן ולא מהטלפון. ראו tools/sid-run.js.
+      # הסוד מועבר רק לצעד הזה, ולא לכל הכלים שלמעלה.
+      - name: הסבה למזהים
+        if: inputs.job == 'stepid'
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          SID_MODE: ${{ inputs.args }}
+        run: |
+          set -o pipefail
+          node tools/sid-run.js "${SID_MODE:-check}" 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה
       - uses: actions/upload-artifact@v4
