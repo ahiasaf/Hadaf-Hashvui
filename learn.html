@@ -1777,6 +1777,20 @@ var OWN_TAB = 'פירוש';
 var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: [חלקים] | טקסט ישן} */
 var OWN = null;        /* הפירוש של הדף שעל המסך, או null אם אין */
 var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי */
+/* **הבחירה האחרונה נזכרת במכשיר.** מי שבחר "פירוש לנוער" פותח
+   את הדף הבא — ואת הקטע הבא — ישר עליו. נפרד מ-CHAV_TAB בכוונה:
+   קטע בלי פירוש מחזיר את המגירה לחברותא, וזה אינו אמור למחוק
+   את מה שהתלמיד בחר. רק לחיצה על לשונית משנה את הזיכרון. */
+var CHAV_PREF_KEY = 'df:chavTab';
+var CHAV_PREF = (function () {
+  try { return localStorage.getItem(CHAV_PREF_KEY) === 'own' ? 'own' : 'chav'; }
+  catch (e) { return 'chav'; }
+})();
+function chavPick_(t) {
+  CHAV_TAB = CHAV_PREF = t;
+  try { localStorage.setItem(CHAV_PREF_KEY, t); } catch (e) {}
+  paintChavArea();
+}
 /* האם החידה פתוחה כרגע במקום תוכן המגירה. עצמאי מ-CHAV_TAB בכוונה:
    סגירת החידה (X, או תשובה) חוזרת לאיזו לשונית שהייתה פתוחה קודם,
    ולא תמיד ל'chav' — ראו quizFabPaint/qAnswer. */
@@ -3251,6 +3265,7 @@ function paintChavArea() {
   var st = FLAT[IDX];
   var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
   var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+  if (CHAV_PREF === 'own' && canOwn) CHAV_TAB = 'own';
   if (CHAV_TAB === 'own' && !canOwn) CHAV_TAB = 'chav';
   if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
   document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
@@ -3259,8 +3274,8 @@ function paintChavArea() {
   if (QUIZ_OPEN) paintQuiz();
   else if (CHAV_TAB === 'own' && canOwn) paintOwn();
   else paintChav();
-  if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
-  if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
+  if ($('cht-chav')) $('cht-chav').onclick = function () { chavPick_('chav'); };
+  if ($('cht-own'))  $('cht-own').onclick  = function () { chavPick_('own'); };
   if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
   quizFabPaint();
 }

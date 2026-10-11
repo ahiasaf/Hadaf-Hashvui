@@ -763,6 +763,9 @@ body.tk-sheeting #tk-bar{display:none}
   font-size:1.12rem;box-shadow:0 8px 20px rgba(47,101,18,.28)}
 .wk-quiz:active{transform:scale(.98)}
 .wk-quiz svg{width:21px;height:21px;fill:currentColor;flex:none}
+.wk-keep{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin:30px 14px 0;font-size:.95rem;font-weight:800;color:var(--ink-2)}
+.wk-keep small{display:block;font-size:.78rem;font-weight:600;color:var(--ink-3);margin-top:2px}
 .wk-foot{margin:56px 0 6px;padding-top:18px;border-top:1px solid var(--rule);text-align:center;
   font-size:.86rem;font-weight:600;color:var(--ink-3);line-height:1.95}
 .wk-foot a{color:var(--blue);text-decoration:none}
@@ -2728,7 +2731,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.186';
+var APP_VERSION = '8.99.187';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2937,7 +2940,22 @@ function contentFor(id) {
 function openWeekNow() {
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
-  if (d && showRow('mid')) { openWeek(homeTrack, wk < 0 ? 0 : wk); return; }
+  if (d && showRow('mid')) {
+    var pk = wkKeepOn() ? Store.get('wkPick') : null, w0 = wk < 0 ? 0 : wk;
+    var mk = MARKED || Store.get('markedCache') || {};
+    var sh = pk === 'sugya' && showRow('sugya') ? sugHref(homeTrack, trackById(homeTrack).cal[w0]) : '';
+    if (sh) {
+      /* חלון חדש, כמו מהכרטיס עצמו — חוסם חלונות מחזיר לכאן */
+      /* בלי 'noopener' בפרמטרים — איתו window.open מחזיר null
+         תמיד, והעמוד הזה היה עובר לחוברת גם הוא. */
+      var win = window.open(sh, '_blank');
+      if (win) { try { win.opener = null; } catch (e) {} } else location.href = sh;
+      return;
+    }
+    if (!(pk === 'inter' && showRow('inter') && (mk[homeTrack] || {})[dafKey(d)])) {
+      openWeek(homeTrack, w0); return;
+    }
+  }
   if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
   location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
                   '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
@@ -5266,6 +5284,32 @@ function openTrack(id) {
   }
 }
 
+/* הכתובת של הדף בחוברת "הסוגיה היומית" — ראו ההסבר ב-openWeek */
+function sugHref(id, row) {
+  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[sugKey(row)] || (sg.pages || {})[dafKey(row[2])];
+  if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) return sg.books[sgp[0]] + sgp[1] + '/';
+  if (sgp && sg.base && sg.fmt) return sg.fmt.replace('{p}', sgp);
+  return sg.base || '';
+}
+
+/* ============================================================
+   "זכרו את הבחירה" — בתחתית עמוד הביניים.
+   ============================================================
+   כבוי עד שמישהו מדליק. דלוק — הלחיצה על הדף האינטראקטיבי או
+   על הסוגיה היומית נזכרת במכשיר, ו"פתיחת הדף" שבבאנר מדלגת
+   מעכשיו על עמוד הביניים ופותחת ישר אותה. כשהבחירה אינה זמינה
+   השבוע (דף שעוד לא סומן, חוברת בלי העמוד) — עמוד הביניים
+   חוזר כרגיל, ובו המתג, כדי שאפשר יהיה לכבות.
+   מסלול השנה פותח תמיד את עמוד הביניים: שם בוחרים דף מסוים. */
+function wkKeepOn() { return Store.get('wkKeep') === 1; }
+function wkKeepToggle(b) {
+  var on = !wkKeepOn();
+  if (on) Store.set('wkKeep', 1); else { Store.del('wkKeep'); Store.del('wkPick'); }
+  b.className = 'sw' + (on ? ' on' : '');
+  b.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function wkPick(k) { if (wkKeepOn()) Store.set('wkPick', k); }
+
 /* ---------- שבוע ---------- */
 function openWeek(id, i) {
   var tr = trackById(id); state.track = tr; state.week = i;
@@ -5286,15 +5330,7 @@ function openWeek(id, i) {
      חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
      עם {p}) עדיין נתמכת, כדי שעריכה ידנית בניהול לא תישבר. */
   /* ב: — העמוד של עמוד ב בחוברת, ולא של תחילת הדף (ראו SUGYA). */
-  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[sugKey(row)] || (sg.pages || {})[dafKey(row[2])];
-  var sgPage = '', sgHref = sg.base || '';
-  if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) {
-    sgPage = sgp[1];
-    sgHref = sg.books[sgp[0]] + sgPage + '/';
-  } else if (sgp && sg.base && sg.fmt) {
-    sgPage = sgp;
-    sgHref = sg.fmt.replace('{p}', sgPage);
-  }
+  var sgHref = sugHref(id, row);
 
   /* ============================================================
      הדף האינטראקטיבי — העמוד שבין הבאנר לדף.
@@ -5305,9 +5341,10 @@ function openWeek(id, i) {
      `state.deck` עדיין נבנה כאן (openFromHome נשען עליו). */
   var go = '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" ' +
            'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  var card = function (href, cls, inner) {
+  var card = function (href, cls, inner, pick) {
     return href
-      ? '<a class="wcard ' + cls + '" href="' + href + '" target="_blank" rel="noopener">' + inner + go + '</a>'
+      ? '<a class="wcard ' + cls + '" href="' + href + '" target="_blank" rel="noopener"' +
+        (pick ? ' onclick="wkPick(\'' + pick + '\')"' : '') + '>' + inner + go + '</a>'
       : '<a class="wcard dim ' + cls + '" href="#" onclick="return notYet()">' + inner + '</a>';
   };
   h += '<div class="wk-cards">' +
@@ -5317,7 +5354,7 @@ function openWeek(id, i) {
        '<div id="w-inter"></div>' +
        (showRow('sugya')
          ? card(sgHref, 'logo sug', '<span class="wc-logo"><img src="weekpics/sugya-logo.png" alt="' +
-                esc(UI.wkSugAlt) + '"></span>')
+                esc(UI.wkSugAlt) + '"></span>', 'sugya')
          : '') +
        /* יומי — במסכת מגילה בלבד, וכבוי עד שהרכז מדליק בניהול.
           אין כאן קישור לאפליקציה: הוא טרם נקבע, ולא ממציאים. */
@@ -5342,6 +5379,15 @@ function openWeek(id, i) {
     for (var n = 1; n <= dk.files.length; n++) state.deck.push({ img: DeckSrc(dk, n) });
   } else if (c) {
     state.deck = c.slides.filter(function (s) { return s.h || s.t; });
+  }
+
+  /* המתג — רק כשיש בין מה לבחור */
+  if (showRow('inter') || showRow('sugya')) {
+    var kon = wkKeepOn();
+    h += '<div class="wk-keep"><div>' + esc(UI.wkKeep) +
+         (UI.wkKeepSub ? '<small>' + esc(UI.wkKeepSub) + '</small>' : '') + '</div>' +
+         '<button class="sw' + (kon ? ' on' : '') + '" role="switch" aria-checked="' + kon + '" ' +
+         'aria-label="' + esc(UI.wkKeep) + '" onclick="wkKeepToggle(this)"></button></div>';
   }
 
   /* הקרדיט — קבוע, מאותם שדות של שער הדף. שדה ריק אינו מוצג. */
@@ -5489,7 +5535,7 @@ function paintInter(id, daf, am) {
     if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
       '<a class="wcard inter" href="learn.html?mas=' + encodeURIComponent(id) +
-      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + '">' +
+      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + '" onclick="wkPick(\'inter\')">' +
       '<img class="wc-pic" src="weekpics/phone.webp" alt="">' +
       '<span class="wc-t">' + esc(UI.wkInter) + '</span>' +
       '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" ' +
