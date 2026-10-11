@@ -2134,6 +2134,10 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-tile.on small{color:#fff;opacity:.85}
 .am-tile.on .am-dig,.am-tile.on .am-ic{background:#fff;color:var(--blue-d)}
 .am-tile.on .am-ic b{color:var(--blue-d)}
+/* החלפת המועד מתוך העמדה — ליד שם המועד, ובחלון את אותם אריחים. */
+.am-wd{font:inherit;font-size:.74rem;font-weight:800;border:1px solid var(--gold);border-radius:9px;
+      background:var(--surface);color:var(--gold-t);padding:2px 8px;margin-inline-start:4px;vertical-align:1px}
+.am-ex-in .am-ws-sub{display:block;margin:-6px 0 12px;font-size:.8rem;font-weight:700;color:var(--ink-3)}
 
 /* ---------- מסך הניהול: מוסד, רענון, לשוניות ויזואליות (adm2) ---------- */
 #ip-w{flex:1;min-width:0}
@@ -2715,7 +2719,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.178';
+var APP_VERSION = '8.99.179';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15889,6 +15893,31 @@ function amdaExitAsk() {
     amdaClose(true);
   };
 }
+/* החלפת המועד מתוך העמדה — כשהשעה בחרה לא נכון. אותם אריחים
+   כמו בניהול, בלי שיעורי הכיתה (הם מסך אחר). מכאן והלאה נרשמים
+   במועד החדש; מי שכבר נרשם נשאר במועד הקודם. */
+function amdaSlotAsk() {
+  var s = amdaSess(), box = document.getElementById('amda');
+  if (!box || document.getElementById('am-ex')) return;
+  var d = document.createElement('div');
+  d.className = 'am-ex'; d.id = 'am-ex';
+  d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('slotQ')) + '</b>' +
+    '<span class="am-ws-sub">' + esc(amdaT('slotSub')) + '</span>' + amdaTiles(s.slot, true) +
+    '<button class="bk" data-ws="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  box.appendChild(d);
+  d.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-ws]');
+    if (!b && e.target !== d) return;
+    var id = b ? b.getAttribute('data-ws') : '-';
+    d.parentNode.removeChild(d);
+    if (id === '-' || id === s.slot) return;
+    s.slot = id; amdaSt.slot = id;
+    Store.set('amdaSess', s);
+    amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
+    amdaPaint();
+    box.scrollTop = 0;
+  };
+}
 /* החלפת הסוג של הפתיחה הזו — גם למי שכבר נרשם (amdakind בסקריפט). */
 function amdaKindSet(k) {
   var s = amdaSess(), day = amdaDay(), key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
@@ -15953,7 +15982,8 @@ function amdaPaint() {
           (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
             { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
           ' · ' + esc(amdaSlotName(s.slot)) +
-          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') + '</div>';
+          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
+          (les ? '' : '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button>') + '</div>';
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {
     var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
@@ -16006,10 +16036,12 @@ function amdaTap(e) {
   var el = e.target;
   while (el && el.id !== 'amda' && !(el.getAttribute &&
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
-          el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k')))) el = el.parentNode;
+          el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
+          el.getAttribute('data-w')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x')) { amdaClose(); return; }
+  if (el.getAttribute('data-w')) { amdaSlotAsk(); return; }
   if (el.getAttribute('data-k')) {
     amdaKindSet(amdaSess().kind === 'o' ? 'd' : 'o');
     amdaPaint(); return;
@@ -16484,10 +16516,11 @@ var AMDA_ICON = {
   L: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="16" rx="2"/>' +
      '<rect x="8" y="23" width="2.4" height="6" rx="1.2"/><rect x="21.6" y="23" width="2.4" height="6" rx="1.2"/></svg>'
 };
-function amdaTiles(slot) {
+/* `kiosk` — בתוך העמדה: בלי שיעורי כיתה, ובחירה דרך data-ws. */
+function amdaTiles(slot, kiosk) {
   var d = new Date(), dow = d.getDay(), t = d.getHours() * 60 + d.getMinutes();
   return '<div class="am-tiles">' +
-    AMDA_SLOTS.concat(amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
+    AMDA_SLOTS.concat(kiosk ? [] : amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
       var les = amdaLesson(id), big = les ? '' : amdaT('slot' + id + 'Big');
       var face = les ? '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(amdaG(les.g) + les.c) + '</b></span>'
                : big ? '<span class="am-dig">' + esc(big) + '</span>'
@@ -16495,7 +16528,8 @@ function amdaTiles(slot) {
       var sub = les ? (amdaT('days').split(',')[les.day] || '').trim() : amdaT('slot' + id + 'T');
       var w = les ? null : amdaSlotWin(id);
       var isNow = les ? les.day === dow : !!(w && t >= w[0] && t < w[1]);
-      return '<button class="am-tile' + (id === slot ? ' on' : '') + '" onclick="amdaPickSlot(\'' + esc(id) + '\')">' +
+      return '<button class="am-tile' + (id === slot ? ' on' : '') + '" ' +
+        (kiosk ? 'data-ws="' + esc(id) + '">' : 'onclick="amdaPickSlot(\'' + esc(id) + '\')">') +
         (isNow ? '<em>' + esc(amdaT('slotNow')) + '</em>' : '') + face +
         '<b>' + esc(les ? amdaT('lessonTag') : amdaSlotName(id)) + '</b><small>' + esc(sub) + '</small></button>';
     }).join('') + '</div>';
