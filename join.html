@@ -4094,6 +4094,17 @@ $('meet-go').onclick = function () { $('hero-go').onclick(); };
 if (/[?&]go=1\b/.test(location.search)) {
   window.addEventListener('load', function () { setTimeout(toForm, 60); });
 }
+/* `?notes=1` — "לחיבור ההתראות" מהדף האינטראקטיבי (דף נעול, או
+   חידון שעוד לא עלה). נוחתים ישר במסע, בשלב שבו הוא עומד — אותו
+   מסע שהשורה "nb-go" פותחת. מי שכבר מחובר — אין מה לפתוח. */
+if (WZ_ON && /[?&]notes=1\b/.test(location.search)) {
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (appStep() === 3) return;
+      if (document.body.className.indexOf(' wz ') < 0) wzStart();
+    }, 80);
+  });
+}
 /* `?nointro=1` — מי שעבר מוואטסאפ לכרום באמצע ההתקנה (ראו chromeUrl
    ב-getapp.js). הוא כבר לחץ "אני מצטרף" בצד השני, ולכן ממשיכים
    ישר במסע — לא חוזרים אותו לנחיתה. שאר הפרמטרים (ישיבה, הורה,

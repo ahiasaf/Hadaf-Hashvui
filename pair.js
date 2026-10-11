@@ -90,8 +90,10 @@ var PAIR_UI = (function () {
     try { return JSON.parse(localStorage.getItem('df:pairs') || '{}') || {}; }
     catch (e) { return {}; }
   }
-  function keep(k) {
-    var all = got(); all[k] = new Date().toISOString();
+  /* `v` — 'alone' כשההורה אמר "למדתי לבד": נשמר כדי שלא יישאל שוב
+     על אותו שבוע, אבל אינו "נרשם" (ראו line). */
+  function keep(k, v) {
+    var all = got(); all[k] = v || new Date().toISOString();
     try { localStorage.setItem('df:pairs', JSON.stringify(all)); } catch (e) {}
   }
   function done(track, wk) { return !!got()[key(track, wk)]; }
@@ -515,6 +517,121 @@ var PAIR_UI = (function () {
     document.body.appendChild(sc);
   }
 
+  /* ============================================================
+     בתוך מסך הסיום — שורה, לא חלון.
+     ============================================================
+     "היו פה בעצם שתי הודעות — צריך לייעל את התהליך."
+
+     מסך הסיום של הדף האינטראקטיבי כבר אומר "ישר כוח", וחלון
+     הזיווג נפתח מעליו ואמר את זה שוב — והסתיר את הכפתור לחידון.
+     כאן הלימוד המשותף הוא שורה אחת בתוך אותו מסך.
+
+     **בונוס, לא תנאי.** מה שמכניס להגרלה הוא החידון; הלימוד עם
+     ההורה רק מוסיף. לכן השורה קטנה, והכפתור הראשי במסך הוא החידון.
+
+     ההתראה לצד השני יוצאת תמיד — בלי חלון "לשלוח?". היא מה
+     שמחבר את ההורה, ואין סיבה לשאול עליה.
+     ============================================================ */
+  function lineCss() {
+    if (document.getElementById('prl-css')) return;
+    var st = document.createElement('style');
+    st.id = 'prl-css';
+    st.textContent = [
+      '.prl{margin:2px 0 12px;padding:11px 13px;border-radius:12px;',
+      '  background:#FBF5E8;border:1px solid #EADCBE;font-size:.86rem;',
+      '  font-weight:700;line-height:1.6;color:var(--ink,#1B2A45)}',
+      '.prl.ok{display:flex;gap:8px;align-items:flex-start;text-align:start;',
+      '  background:#F1F7EA;border-color:#CFE2BC}',
+      '.prl.ok b{color:var(--green-d,#467B1A);flex:none}',
+      '.prl-b{display:inline-block;margin-top:8px;padding:8px 16px;border-radius:999px;',
+      '  border:1.5px solid var(--green-d,#467B1A);background:#fff;',
+      '  color:var(--green-d,#467B1A);font-family:inherit;font-weight:800;',
+      '  font-size:.86rem;cursor:pointer}',
+      '.prl-a{display:block;margin:7px auto 0;border:0;background:none;padding:4px;',
+      '  color:var(--ink-3,#5C687E);font-family:inherit;font-size:.8rem;',
+      '  font-weight:700;text-decoration:underline;cursor:pointer}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  function line(track, wk, box) {
+    if (!box) return false;
+    box.innerHTML = ''; box.style.display = 'none';
+    var sd = side();
+    if (!sd) return false;
+    var m = me(), who = other(m), k = key(track, wk);
+    var v = sd === 'parent' ? { 'בן': who } : { 'הורה': who };
+    var put = function (html) {
+      lineCss(); box.innerHTML = html; box.style.display = '';
+    };
+    var okRow = function (txt) {
+      put('<div class="prl ok"><b>✓</b><span>' + esc(fill(txt, v)) + '</span></div>');
+    };
+    /* כבר נרשם (או שההורה אמר "לבד") — לא שואלים שוב. */
+    var had = got()[k];
+    if (had === 'alone') return false;
+    if (had) { okRow(t(sd === 'parent' ? 'lnHadKid' : 'lnHad')); return true; }
+
+    if (sd === 'kid') {
+      put('<div class="prl">' + esc(fill(t('lnAsk'), v)) + '<br>' +
+          '<button class="prl-b" id="prl-y">' + esc(t('lnYes')) + '</button></div>');
+      var y = document.getElementById('prl-y');
+      if (y) y.onclick = function () {
+        keep(k); send(track, wk, false); okRow(t('lnOk'));
+      };
+      /* ההורה כבר סימן? אז אין מה לשאול — רק לומר. */
+      seen(track, wk, sd, function (hit) {
+        if (!hit || !hit.id || got()[k]) return;
+        keep(k); okRow(t('lnBoth'));
+      });
+      return true;
+    }
+
+    /* ---- ההורה: ברירת מחדל "למדתם יחד" ----
+       הרישום יוצא כשעוזבים את המסך — כל לחיצה בו, יציאה מהדף או
+       ירידה לרקע — ו"למדתי לבד" מבטל אותו לפני שיצא. */
+    var gone = false, card = box.parentNode;
+    var bg = function () { if (document.visibilityState === 'hidden') go(); };
+    var tap = function (e) {
+      var a = e.target;
+      while (a && a !== card) { if (a.id === 'prl-n') return; a = a.parentNode; }
+      go();
+    };
+    var off = function () {
+      window.removeEventListener('pagehide', go);
+      document.removeEventListener('visibilitychange', bg);
+      if (card) card.removeEventListener('click', tap, true);
+    };
+    var go = function () {
+      if (gone) return;
+      gone = true; off();
+      keep(k); send(track, wk, false);
+    };
+    window.addEventListener('pagehide', go);
+    document.addEventListener('visibilitychange', bg);
+    if (card) card.addEventListener('click', tap, true);
+    put('<div class="prl">' + esc(fill(t('lnPar'), v)) +
+        '<button class="prl-a" id="prl-n">' + esc(t('alone')) + '</button></div>');
+    var n = document.getElementById('prl-n');
+    if (n) n.onclick = function () {
+      gone = true; off(); keep(k, 'alone');
+      put('<div class="prl">' + esc(fill(t('lnAloneOk'), v)) + '</div>');
+    };
+    /* הבן כבר דיווח — לא רושמים פעם שנייה; רק מאשרים את מה שהוא סימן. */
+    seen(track, wk, sd, function (hit) {
+      if (!hit || !hit.id || gone) return;
+      gone = true; off(); keep(k);
+      if (hit.ok === 'כן') { okRow(t('lnHadKid')); return; }
+      put('<div class="prl">' + esc(fill(t('lnHit'), v)) + '<br>' +
+          '<button class="prl-b" id="prl-ok">' + esc(t('lnHitYes')) + '</button></div>');
+      var b = document.getElementById('prl-ok');
+      if (b) b.onclick = function () {
+        mark({ id: hit.id, track: track, wk: String(wk + 1) }, true);
+        okRow(t('lnHitOk'));
+      };
+    });
+    return true;
+  }
+
   /* התור מנסה שוב בכל פתיחה — אותו דפוס של `learn-q`. */
   function boot() {
     TRIES = 0; flush();
@@ -524,7 +641,7 @@ var PAIR_UI = (function () {
     if (!confirm_()) setTimeout(pending, 600);
   }
 
-  return { ask: ask, word: word, other: other, side: side,
+  return { ask: ask, line: line, word: word, other: other, side: side,
            wanted: wanted, done: done, confirm: confirm_,
            flush: boot, close: shut };
 })();

@@ -847,6 +847,14 @@ nav .sp{flex:1}
 #toast.on{opacity:1}
 /* ✕ של מסך הסיום — בפינה, מחוץ לזרימת התוכן. */
 .dn-card{position:relative}
+/* החידון עוד לא עלה — במקום הכפתור הראשי, באותו מקום */
+.dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
+  border:1.5px dashed var(--gold);background:#FFFBF2}
+.dn-soon>b{display:block;font-size:1rem;font-weight:800;color:var(--blue-d)}
+/* "רוצה התראה?" — בדף הנעול ובמסך הסיום */
+.nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
+.nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
+a.lockbtn{display:inline-block;text-decoration:none}
 .dn-x{position:absolute;top:6px;inset-inline-end:6px;border:0;background:none;
   font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
 /* ---------- מסך מחשב ----------
@@ -1089,7 +1097,13 @@ nav .sp{flex:1}
        השורה רק מדווחת. -->
   <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
      font-size:.88rem;margin-top:-4px"></p>
-  <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
+  <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
+  <div id="done-pair" style="display:none"></div>
+  <a class="btn p" id="to-quiz" href="join.html"></a>
+  <!-- החידון של השבוע עוד לא עלה — "רוצה התראה?" -->
+  <div id="done-soon" class="dn-soon" style="display:none">
+    <b id="dn-soon-t"></b><div id="dn-soon-n"></div>
+  </div>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -4406,9 +4420,14 @@ function finish() {
   markThisDaf();
   DONE_SEEN = true;      /* מכאן "הבא" כבר אינו מחזיר לכאן — ראו paint() */
 
-  /* המסך קיים בשביל החידה. אין חידה, או שכבר נענתה במכשיר —
-     לא נפתח דבר; מי שסימן את השבוע מקבל רק הודעה קצרה. */
-  if (!quizOpen(key)) {
+  /* המסך קיים בשביל החידון. נפתח כשיש חידון שעוד לא נענה, כשהחידון
+     של השבוע עוד לא עלה ("יפורסם בקרוב" — ואפשר לבקש התראה), או
+     כשיש שורת לימוד משותף לענות עליה. אחרת — לא נפתח דבר, ומי
+     שסימן את השבוע מקבל רק הודעה קצרה. */
+  var hasQ = !!(window.QUIZ && QUIZ[key] && QUIZ[key].length);
+  var qOpen = quizOpen(key), soon = !hasQ && isWeekDaf();
+  var pairOn = $('done-pair').style.display !== 'none';
+  if (!qOpen && !soon && !pairOn) {
     if ($('done-mark').style.display !== 'none') toast(JOIN.markedOk);
     bar();
     return;
@@ -4418,7 +4437,14 @@ function finish() {
   var par = (calOf(S.mas)[S.week] || [])[1] || '';
   $('done-sub').textContent = isWeekDaf() || !par ? JOIN.weekDone
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
-  $('to-quiz').href = stuQuizUrl(key);
+  var a = $('to-quiz'), sn = $('done-soon');
+  a.style.display = qOpen ? '' : 'none';
+  a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz;
+  sn.style.display = soon ? '' : 'none';
+  if (soon) {
+    $('dn-soon-t').textContent = UI.soonT;
+    ntBox($('dn-soon-n'), 'חידון|' + key, UI.soonAsk, UI.soonOk);
+  }
   $('done').className = 'sheet on';
   bar();
 }
@@ -4703,6 +4729,8 @@ function qVerify_(tries, n, want) {
 function markThisDaf() {
   var m = $('done-mark');
   m.style.display = 'none';
+  var pb = $('done-pair');
+  if (pb) { pb.innerHTML = ''; pb.style.display = 'none'; }
   if (typeof LWeek !== 'function') return;
 
   var wk = LWeek();
@@ -4722,7 +4750,8 @@ function markThisDaf() {
      נשאל לעולם, למרות שהוא ממש עכשיו סיים ללמוד עם ההורה. ask()
      כבר שומר בעצמו על "לא לשאול פעמיים על אותו שבוע" (ראו
      done()/df:pairs ב-pair.js) — אין צורך בעוד שער כאן. */
-  if (window.PAIR_UI) PAIR_UI.ask(S.mas, wk);
+  /* ולא בחלון נוסף מעל מסך הסיום — שורה בתוכו. ראו line ב-pair.js. */
+  if (window.PAIR_UI) PAIR_UI.line(S.mas, wk, pb);
 }
 
 /* תפריט ההקשה הארוכה. `contextmenu` הוא מה שנפתח בלחיצה ארוכה
@@ -5457,14 +5486,9 @@ function loadMarks() {
    ב-index.html). */
 var OPEN_OK = false;
 function lockKey() { return OpenKey(S.mas, S.daf, S.am); }
-function lockAsked() {
-  try { return localStorage.getItem('df:wait:' + lockKey()) === '1'; } catch (e) { return false; }
-}
 function lockShow() {
   var h = esc(String(UI.lockS).replace(/\{daf\}/g, S.daf + LAmMark(S.am)));
-  h += lockAsked()
-    ? '<br><b style="margin-top:14px">' + esc(UI.lockOk) + '</b>'
-    : '<button class="lockbtn" id="lock-ask">' + esc(UI.lockAsk) + '</button>';
+  h += '<div id="lock-nt"></div>';
   /* הדף של השבוע, אם הוא פתוח ואינו הדף הזה — כדי שלא יהיה
      מבוי סתום. */
   var wk = Math.max(0, weekIndex());
@@ -5474,21 +5498,51 @@ function lockShow() {
       '&' + unitQ({ daf: cur, am: cam }) + '">' + esc(UI.lockBack) + '</a>';
   }
   veil(UI.lockT, h, false);
-  var b = $('lock-ask');
-  if (b) b.onclick = lockAsk;
+  ntBox($('lock-nt'), lockKey(), UI.lockAsk, UI.lockOk);
 }
-function lockAsk() {
-  var b = $('lock-ask');
-  if (b) b.disabled = true;
+
+/* ============================================================
+   "רוצה לקבל התראה?" — אחד, לדף הנעול ולחידון שעוד לא עלה.
+   ============================================================
+   שלושה מצבים, לפי המכשיר:
+   · ההתראות כבר פועלות — כפתור אחד, והבקשה נרשמת בלשונית
+     "ממתינים לדף" עם המנוי. ההתראה יוצאת רק למי שביקש — `wait`
+     ב-fire:'say' (ראו opNotify ב-index.html).
+   · עוד לא חוברו — הכפתור מוביל למדריך החיבור, אותו מסע שבמסך
+     התלמיד (`join?notes=1`). "זו הזדמנות לגרום לו לרצות."
+   · חסומות — לעמוד שמסביר איך פותחים אותן.
+   `key` — הערך בעמודה "דף": דף (OpenKey) או `חידון|<מסכת>-<שבוע>`. */
+function ntAsked(key) {
+  try { return localStorage.getItem('df:wait:' + key) === '1'; } catch (e) { return false; }
+}
+function ntSetupUrl() {
+  var u = stuHomeUrl();
+  if (!/join/.test(u)) u = 'join.html';
+  return u + (u.indexOf('?') < 0 ? '?' : '&') + 'notes=1';
+}
+function ntBox(box, key, ask, ok) {
+  if (!box) return;
+  if (ntAsked(key)) { box.innerHTML = '<b class="nt-ok">✓ ' + esc(ok) + '</b>'; return; }
+  var p = (window.APPX && APPX.canNote && APPX.canNote()) ? APPX.perm() : 'none';
+  var h = '<div class="nt-q">' + esc(ask) + '</div>';
+  if (p === 'granted') h += '<button class="lockbtn">' + esc(UI.ntYes) + '</button>';
+  else if (p === 'denied') h += '<a class="lockback" href="hitraot.html">' + esc(UI.hitLink) + '</a>';
+  else h += '<a class="lockbtn" href="' + esc(ntSetupUrl()) + '">' + esc(UI.ntSetup) + '</a>';
+  box.innerHTML = h;
+  var b = box.querySelector('button.lockbtn');
+  if (b) b.onclick = function () { ntAsk(box, key, ok, b); };
+}
+function ntAsk(box, key, ok, b) {
+  b.disabled = true;
   var no = function () {
-    if (b) { b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockNo) + '</b>'; }
+    box.innerHTML = '<b class="nt-ok" style="color:var(--ink-2)">' + esc(UI.lockNo) + '</b>';
   };
   if (!window.APPX || !API) { no(); return; }
   APPX.subscribe().then(function (sub) {
     var me = (typeof LMe === 'function') ? LMe() : null;
     fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
       action:'row', tab:'ממתינים לדף', cols: JSON.stringify([
-        ['דף', lockKey()],
+        ['דף', key],
         ['מזהה', (me && me.id) || ''],
         ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
         ['ישיבה', (me && me.instName) || ''],
@@ -5497,8 +5551,8 @@ function lockAsk() {
         ['מתי', new Date().toISOString()]
       ])
     }) }).catch(function () {});
-    try { localStorage.setItem('df:wait:' + lockKey(), '1'); } catch (e) {}
-    if (b) b.outerHTML = '<b style="margin-top:14px">' + esc(UI.lockOk) + '</b>';
+    try { localStorage.setItem('df:wait:' + key, '1'); } catch (e) {}
+    box.innerHTML = '<b class="nt-ok">✓ ' + esc(ok) + '</b>';
   })['catch'](no);
 }
 
