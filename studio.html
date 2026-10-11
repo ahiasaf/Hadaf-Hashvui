@@ -629,7 +629,6 @@ body.mark #toast{top:auto !important}
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
   <button id="hidepara">⊘ הסתרת פסקה בחברותא</button>
   <button id="fixpara">✎ תיקון טקסט בחברותא</button>
-  <button id="stoppt">⌁ נקודת עצירה — סוף הדף הקודם</button>
   <hr>
   <!-- פעם בחודש, ולא באמצע עבודה -->
   <label class="alt" id="pick" title="קובץ PDF של דף, או תמונה">
@@ -1942,7 +1941,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.176';
+var STUDIO_VER = '8.99.177';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2178,6 +2177,7 @@ function keepPageState() {
   if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
   if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
+  if (typeof was.upto === 'number') { BOOK[PKEY].upto = was.upto; BOOK[PKEY].uptoDaf = was.uptoDaf; }
   if (was.t) BOOK[PKEY].t = was.t;
   SEEN[PKEY] = 1;
 }
@@ -2555,8 +2555,11 @@ function splitDo() {
   /* נקודת עצירה: "N קטעים ראשונים שייכים לדף הקודם". פיצול של
      אחד מהם מוסיף קטע לפני הגבול, והגבול צריך לזוז איתו. */
   var rec = BOOK[PKEY] || {};
-  var prevWas = rec.prev;
+  var prevWas = rec.prev, uptoWas = rec.upto;
   if (rec.prev > 0 && k < rec.prev) rec.prev++;
+  /* וסוף שבוע מוקדם (`upto`): פיצול של קטע שלפני הגבול או עליו
+     מוסיף קטע לפני הגבול. */
+  if (typeof rec.upto === 'number' && k <= rec.upto) rec.upto++;
 
   /* קטע המשך בראש העמוד הבא נושא את הביאור של האחרון כאן. מרגע
      שהאחרון פוצל, ההמשך שייך לחלק השני בלבד. */
@@ -2579,7 +2582,7 @@ function splitDo() {
   seal();
   if (two.id) NEW_IDS[two.id] = 1;
   touched();
-  SPL_UNDO = { key: PKEY, orig: orig, one: one, two: two, prev: prevWas,
+  SPL_UNDO = { key: PKEY, orig: orig, one: one, two: two, prev: prevWas, upto: uptoWas,
                contKey: contKey, contWas: contWas };
   SPL = null;
   document.body.classList.remove('splt');
@@ -2611,6 +2614,7 @@ function splitUndo() {
   STEPS.splice(a, 2, u.orig);
   var rec = BOOK[PKEY] || {};
   if (u.prev !== undefined) rec.prev = u.prev;
+  if (u.upto !== undefined) rec.upto = u.upto;
   if (u.contKey) {
     var nr = BOOK[u.contKey], n0 = nr && nr.steps && nr.steps[0];
     if (n0 && n0.cont) { n0.c = u.contWas; nr.t = Date.now(); DIRTY[u.contKey] = 1; }
@@ -3271,6 +3275,10 @@ function mergeStep(i) {
     return;
   }
   var nx = STEPS[i + 1], rec = BOOK[PKEY] || {}, pg = +selVal('pg') || 1;
+  if (typeof rec.upto === 'number' && i === rec.upto) {
+    say('השבוע נגמר בין שני הקטעים האלה — כל אחד שייך לשבוע אחר. אי אפשר לאחד אותם.', 1);
+    return;
+  }
   if (rec.prev > 0 && i === rec.prev - 1) {
     say('הקטע הראשון שייך ללימוד של הדף הקודם, והשני לדף הזה — כל אחד על חברותא אחרת. אי אפשר לאחד אותם.', 1);
     return;
@@ -3311,6 +3319,7 @@ function mergeStep(i) {
     }
     STEPS.splice(i + 1, 1);
     if (rec.prev > i + 1) rec.prev--;
+    if (typeof rec.upto === 'number' && rec.upto > i) rec.upto--;
     /* השני היה האחרון בעמוד, וקטע המשך בראש העמוד הבא המשיך אותו —
        מעכשיו הוא ממשיך את הקטע המאוחד. */
     if (i === STEPS.length - 1) {
@@ -3347,6 +3356,10 @@ function deleteStep(i) {
   var go = function () {
     if (STEPS[i] !== st) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
     if (rec.prev > i) rec.prev--;
+    if (typeof rec.upto === 'number' && rec.upto >= i) {
+      rec.upto--;
+      if (rec.upto < 0) { delete rec.upto; delete rec.uptoDaf; }
+    }
     removeStep(i);
     markPanel();
     say('✓ נמחק. נשמר במכשיר — "שמירה" מעלה לגיליון.');
@@ -3890,7 +3903,9 @@ function loadFromSheet() {
         if (!rec.splits && was.splits) rec.splits = was.splits;
         if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
         if (!rec.fixes && was.fixes) rec.fixes = was.fixes;
-        if (!rec.prev && was.prev) { rec.prev = was.prev; rec.prevDaf = was.prevDaf; }
+        /* `prev` ו-`upto` — לא מהמכשיר. הם נקבעים בדף האינטראקטיבי,
+           ומה שבגיליון הוא הקובע: ערך ישן שנשמר כאן היה מחזיר נקודת
+           עצירה שבוטלה שם, ושמירה הבאה הייתה כותבת אותה בחזרה. */
       }
       BOOK[k] = rec; SEEN[k] = 1; n++;
     };
@@ -4822,87 +4837,14 @@ document.getElementById('addstep2').onclick = function () {
 };
 document.getElementById('contjoin').onclick = function () { addStep(true, true); };
 
-/* ============================================================
-   נקודת עצירה.
-
-   העמוד היומי אינו נגמר תמיד בסוף הדף. לפעמים המשפט נמשך עוד
-   כמה שורות אל הדף הבא, ואז שיעור של דף ב׳ צריך להימשך אל תוך
-   דף ג׳ עד לאותה נקודה — ולימוד של דף ג׳ צריך להתחיל אחריה.
-
-   הסימון נעשה כאן, בדף שאליו גלש הקטע, כי רק כשמסמנים אותו
-   רואים היכן הוא באמת נגמר. נשמר על הדף הזה ולא על הקודם:
-   `prev` — כמה מהקטעים הראשונים שייכים לדף שלפני, ו-`prevDaf`
-   שמו של אותו דף. כך מסך הלימוד מוצא את הזנב בלי לדעת דבר על
-   סדר הדפים במסכת.
-
-   בלי סימון — שום דבר לא משתנה.
-   ============================================================ */
-function prevDafName() {
-  var el = document.getElementById('daf');
-  var it = el && el._items && el._items[+el.value - 1];
-  return it ? it[0] : '';
-}
-
-function stopSheet() {
-  var box = document.getElementById('splitbox');
-  var pg = +selVal('pg') || 1;
-  var pd = prevDafName();
-  var rec = BOOK[PKEY] || {};
-  var cur = rec.prev || 0;
-
-  if (pg !== 1) {
-    box.innerHTML = '<div class="sh"><b>רק בעמוד א׳</b>' +
-      '<p>נקודת העצירה מסמנת היכן נגמר שיעור הדף הקודם, ולכן ' +
-      'היא נקבעת בעמוד א׳ של הדף שאליו הוא גלש.</p>' +
-      '<button class="cl">סגירה</button></div>';
-  } else if (!pd) {
-    box.innerHTML = '<div class="sh"><b>זה הדף הראשון</b>' +
-      '<p>אין לפניו דף שאליו אפשר לצרף קטעים.</p>' +
-      '<button class="cl">סגירה</button></div>';
-  } else if (!STEPS.length) {
-    box.innerHTML = '<div class="sh"><b>עוד אין קטעים בעמוד</b>' +
-      '<p>סמנו קודם את הקטעים, ואז אפשר לקבוע עד היכן נמשך ' +
-      'השיעור של דף ' + esc(pd) + '.</p>' +
-      '<button class="cl">סגירה</button></div>';
-  } else {
-    box.innerHTML = '<div class="sh"><b>עד היכן נמשך דף ' + esc(pd) + '?</b>' +
-      '<p>הקטעים שתבחרו יילמדו בסוף דף ' + esc(pd) + ', ולא ' +
-      'בתחילת הדף הזה.</p>' +
-      '<button class="sp" data-n="0">' +
-      (cur ? 'ביטול — הדף נגמר בגבול הרגיל' : '◂ אין המשך (ברירת המחדל)') +
-      '</button>' +
-      STEPS.map(function (st, k) {
-        var n = k + 1;
-        return '<button class="sp" data-n="' + n + '"' +
-          (n === cur ? ' style="border-color:var(--gold);background:#FFFBF2"' : '') +
-          '>עד קטע ' + n + (n === cur ? ' · מסומן כעת' : '') + '</button>';
-      }).join('') +
-      '<button class="cl">ביטול</button></div>';
-  }
-  box.className = 'splitbox on';
-  [].forEach.call(box.querySelectorAll('.sp'), function (b) {
-    b.onclick = function () { setStop(+b.dataset.n, pd); };
-  });
-  [].forEach.call(box.querySelectorAll('.cl'), function (b) {
-    b.onclick = function () { box.className = 'splitbox'; };
-  });
-}
-
-function setStop(n, pd) {
-  document.getElementById('splitbox').className = 'splitbox';
-  keepPageState();                       /* קודם המצב, אחרת ידרוס */
-  var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
-  if (n > 0) { rec.prev = n; rec.prevDaf = pd; }
-  else { delete rec.prev; delete rec.prevDaf; }
-  touched();
-  markPanel();
-  say(n ? n + ' קטעים ראשונים שייכים לדף ' + pd + '.'
-        : 'נקודת העצירה בוטלה — הדף נגמר בגבול הרגיל.');
-}
+/* נקודת העצירה ("עד היכן נמשך הדף הקודם") עברה לדף האינטראקטיבי —
+   "כאן נגמר השבוע", במצב עריכה. שם רואים את הקטעים ברצף, כפי
+   שהתלמיד לומד אותם, וגם שבוע שנגמר לפני סוף הדף (`upto`) נקבע
+   שם. הסטודיו רק שומר על השדות (`prev`/`prevDaf`, `upto`/`uptoDaf`)
+   ומזיז אותם כשקטעים מתפצלים, מתאחדים או נמחקים. */
 
 /* תפריט הפעולות הנדירות */
 document.getElementById('unsaved').onclick = function () { saveToSheet(); };
-document.getElementById('stoppt').onclick = function () { stopSheet(); };
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }

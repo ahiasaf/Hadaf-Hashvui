@@ -334,6 +334,21 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   padding:2px 4px}
 .own-add{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px dashed rgba(192,143,43,.5);
   background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
+#peekbadge{display:none;position:fixed;z-index:15;top:calc(var(--top, 64px) + 8px);
+  inset-inline:0;margin:0 auto;width:max-content;max-width:86vw;padding:6px 14px;
+  border-radius:999px;background:#7A4E0E;color:#fff;font-size:.8rem;font-weight:800;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
+#peekbadge.on{display:block}
+/* "כאן נגמר השבוע" — במצב עריכה, בכל קטע עד שנבחר אחד */
+.we-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px;
+  border-radius:12px;border:1.5px dashed var(--gold);background:#FFFBF2;
+  font-size:.86rem;font-weight:800;color:var(--blue-d)}
+.we-row.on{border-style:solid;background:#F1F7EA;border-color:#9CC27A}
+.we-row .sp{flex:1}
+.we-row button{border:0;background:none;font-family:inherit;font-weight:800;
+  font-size:.84rem;color:var(--blue);text-decoration:underline;cursor:pointer;padding:4px}
+.we-row button.we-go{text-decoration:none;background:var(--gold);color:#fff;
+  border-radius:999px;padding:7px 14px}
 .own-export-btn{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px solid var(--rule);
   background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
 
@@ -1340,6 +1355,7 @@ function lineH(d) {
    ============================================================ */
 function paint() {
   var st = FLAT[IDX], ov = $('ov');
+  peekBadge(st);
   if (!st) { ov.innerHTML = ''; return; }
   var d = PAGES[st.p].d;
   var VW = 1000, VH = Math.round(1000 * R);
@@ -1369,6 +1385,19 @@ function paint() {
         'stroke-linejoin="round" opacity=".5"/>'
     : '<path d="' + path + '" fill="#E3B44A" opacity=".42" ' +
         'style="mix-blend-mode:multiply"/>';
+}
+
+/* קטע מחוץ לשבוע — רק במצב עריכה (ראו flatOpt). תווית קבועה
+   מעל הבמה, כדי שלא יתבלבל עם מה שהתלמיד רואה. */
+function peekBadge(st) {
+  var el = $('peekbadge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'peekbadge';
+    document.body.appendChild(el);
+  }
+  el.textContent = UI.wePeek || '';
+  el.className = st && st.peek ? 'on' : '';
 }
 
 /* ההתמקדות: חלון נע על הדף.
@@ -2583,8 +2612,9 @@ function paintOwnEdit_(n) {
   html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
+    weHtml(FLAT[IDX]) +
     '<button class="own-export-btn" id="own-export-open">ייצוא טקסט — פירוש לנוער / חברותא</button>' +
-    (vOfN_(n + 1) ? '<button class="own-export-btn" id="own-merge">איחוד קטע ' + n + ' עם קטע ' + (n + 1) + '</button>' : '') +
+    (vOfN_(n + 1) && !vOfN_(n + 1).peek && !(FLAT[IDX] || {}).peek ? '<button class="own-export-btn" id="own-merge">איחוד קטע ' + n + ' עם קטע ' + (n + 1) + '</button>' : '') +
     '<div class="own-pub' + (pubOn ? ' on' : '') + '"><span>' +
     (pubOn ? 'מפורסם — כל התלמידים רואים את הדף הזה' : 'טיוטה — רק אתה רואה') +
     '</span><button id="own-pub-btn">' + (pubOn ? 'החזרה לטיוטה' : 'פרסום לכל הדף') + '</button></div>';
@@ -2607,6 +2637,7 @@ function paintOwnEdit_(n) {
   $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
   $('own-export-open').onclick = ownExportOpen;
   if ($('own-merge')) $('own-merge').onclick = function () { ownEditSync_(); mergeNext_(); };
+  weBind(FLAT[IDX]);
   OWN_EDIT.forEach(function (p, i) {
     var e = $('own-txt-' + i);
     if (e) e.addEventListener('blur', function () { document.body.classList.remove('kb-open'); });
@@ -2654,6 +2685,9 @@ function mergeLegacy_() {
   });
 }
 function mergeNext_() {
+  /* שני צדי סוף השבוע — כל אחד שייך לשבוע אחר. */
+  var wa = vOfN_(FLAT[IDX] && FLAT[IDX].n), wb = vOfN_((FLAT[IDX] && FLAT[IDX].n) + 1);
+  if (wa && wb && !wa.peek && wb.peek) { toast(UI.weNoMerge || ''); return; }
   var st = FLAT[IDX];
   if (!SIDE_ADM || !st) return;
   var n = st.n, why = mergeWhy_(n);
@@ -2701,6 +2735,8 @@ function mergeNext_() {
       aLast.st.g = { from: aLast.st.g.from, to: { line: bs.g.to.line, x: bs.g.to.x } };
       b.rec.d.steps.splice(b.si, 1);
       if (b.rec.d.prev > b.si) b.rec.d.prev--;
+      /* סוף שבוע מוקדם בעמוד הזה — הקטע שירד היה לפני הגבול או עליו. */
+      if (typeof b.rec.d.upto === 'number' && b.rec.d.upto >= b.si) b.rec.d.upto--;
     } else {
       /* השני בעמוד הבא: הוא נשאר במקומו, ונעשה המשך של הראשון. */
       bs.cont = 1;
@@ -2730,6 +2766,145 @@ function mergeNext_() {
     toast('לא הצלחתי לקרוא את הגיליון — לא אוחד דבר.');
   });
 }
+/* ============================================================
+   "כאן נגמר השבוע" — בדף האינטראקטיבי, במצב עריכה.
+   ============================================================
+   "לפעמים זה לא בדיוק בסיום הדף — לפעמים זה גולש או מקדים."
+
+   כל עוד לא נקבע סוף מיוחד, הכפתור מופיע בכל קטע (והקטע האחרון
+   של הדף אומר שכאן נגמר השבוע כרגע). מרגע שנבחר קטע — הכפתור
+   נעלם מכל השאר, ורק בקטע המסומן יש "ביטול". ביטול מחזיר אותו
+   לכל הקטעים.
+
+   שני מקרים, כפתור אחד:
+   · **גולש** — הקטע מהדף הבא: `prev`/`prevDaf` על עמוד א׳ שלו,
+     בדיוק כמו נקודת העצירה שהייתה בסטודיו.
+   · **מקדים** — קטע באמצע הדף: `upto` (אינדקס הקטע בעמוד) ו-`uptoDaf`
+     (הדף הבא, שבתחילת השבוע שלו יילמד מה שנשאר). ראו SidFlat.
+   השניים אינם דרים יחד: קביעה של אחד מנקה את השני.
+
+   הכתיבה — כל הלשונית, כמו באיחוד, עם בדיקה שלא השתנתה מאז שנפתח
+   הדף וקריאה חוזרת שמאמתת. ============================================ */
+function weOk_() {
+  return SIDE_ADM && S.week >= 0 && S.am !== 1 && !!otherAfter(S.daf);
+}
+function weEndN_() {
+  for (var i = FLAT.length - 1; i >= 0; i--) if (!FLAT[i].peek) return FLAT[i].n;
+  return 0;
+}
+/* החלק האחרון של קטע (קטע שחוצה עמוד נשמר כשני חלקים) */
+function weLast_(n) {
+  var v = null;
+  for (var i = 0; i < FLAT.length; i++) if (FLAT[i].n === n) v = FLAT[i];
+  return v;
+}
+function weHtml(st) {
+  if (!weOk_() || !st) return '';
+  var pg = PAGES[st.p] || {};
+  if (pg.head) return '';           /* שייך לגבול של הדף הקודם */
+  var endN = weEndN_(), custom = !!(BUILT && (BUILT.cut || BUILT.over));
+  if (custom) {
+    if (st.n !== endN) return '';
+    return '<div class="we-row on"><span>' + esc(UI.weIs) + '</span><span class="sp"></span>' +
+      '<button id="we-undo">' + esc(UI.weUndo) + '</button></div>';
+  }
+  if (st.n === endN) return '<div class="we-row on"><span>' + esc(UI.weDflt) + '</span></div>';
+  return '<div class="we-row"><span>' + esc(UI.weQ) + '</span><span class="sp"></span>' +
+    '<button class="we-go" id="we-go">' + esc(UI.weHere) + '</button></div>';
+}
+function weBind(st) {
+  if (!st) return;
+  var g = $('we-go'), u = $('we-undo');
+  if (g) g.onclick = function () { ownEditSync_(); weSet(weLast_(st.n)); };
+  if (u) u.onclick = function () { ownEditSync_(); weSet(null); };
+}
+function weSet(v) {
+  toast(UI.weSaving || '');
+  var nx = otherAfter(S.daf), want = {};
+  PAGES.forEach(function (p) { if (p.rec) want[p.rec.key] = p.rec.raw[3]; });
+  sheetCsv(MARK_TAB).then(function (rows) {
+    if (!rows || !hasMine(rows)) throw new Error('read');
+    var hd = String((rows[0] || [])[0] || '').indexOf('מסכת') >= 0;
+    var recs = SidParse(hd ? rows.slice(1) : rows);
+    var stale = recs.some(function (R) { return want[R.key] !== undefined && R.raw[3] !== want[R.key]; });
+    if (stale) { toast(UI.weStale || ''); return; }
+    var me = SidDaf(S.daf), changed = {}, own = [], myName = S.daf;
+    recs.forEach(function (R) {
+      if (R.mas !== S.mas || R.src !== '0' || !R.d) return;
+      if (SidDaf(R.daf) === me) {
+        own.push(R); myName = R.daf;
+        if (R.d.upto !== undefined || R.d.uptoDaf !== undefined) {
+          delete R.d.upto; delete R.d.uptoDaf; changed[R.key] = R;
+        }
+      }
+      if (R.pg === 1 && SidDaf(R.d.prevDaf || '') === me &&
+          (R.d.prev !== undefined || R.d.prevDaf !== undefined)) {
+        delete R.d.prev; delete R.d.prevDaf; changed[R.key] = R;
+      }
+    });
+    if (v) {
+      var T = null;
+      recs.forEach(function (R) { if (R.key === v.rec.key) T = R; });
+      if (!T || !T.d || !T.d.steps || !T.d.steps[v.si]) throw new Error('shape');
+      if (SidDaf(T.daf) === me) {
+        /* הקטע האחרון של הדף — זה הגבול הרגיל, אין מה לשמור */
+        var last = null;
+        own.forEach(function (R) {
+          if (R.d.steps && R.d.steps.length && (!last || R.pg > last.pg)) last = R;
+        });
+        if (!(last === T && v.si === T.d.steps.length - 1)) {
+          T.d.upto = v.si; T.d.uptoDaf = nx; changed[T.key] = T;
+        }
+      } else {
+        T.d.prev = v.si + 1; T.d.prevDaf = myName; changed[T.key] = T;
+      }
+    }
+    var keys = Object.keys(changed);
+    if (!keys.length) { weRebuild_(recs, v); toast(UI.weSaved || ''); return; }
+    var now = Date.now(), out = [], sent = {};
+    keys.forEach(function (k) { changed[k].d.t = now; sent[k] = JSON.stringify(changed[k].d); });
+    recs.forEach(function (R) {
+      var r = R.raw.slice(0, 4);
+      if (changed[R.key]) r[3] = JSON.stringify(R.d);
+      out.push(r);
+    });
+    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+      action:'table', tab:MARK_TAB, key:cfgReadKey_(),
+      cols: JSON.stringify(['מסכת', 'דף', 'עמוד', 'נתונים']),
+      rows: JSON.stringify(out) }) }).catch(function () {});
+    weVerify_(0, sent, v);
+  }).catch(function () { toast(UI.weFail || ''); });
+}
+function weVerify_(tries, sent, v) {
+  setTimeout(function () {
+    sheetCsv(MARK_TAB).then(function (rows) {
+      var recs = SidParse(rows || []), ok = !!rows, left = Object.keys(sent).length;
+      recs.forEach(function (R) {
+        if (sent[R.key] === undefined) return;
+        left--;
+        if (JSON.stringify(R.d) !== sent[R.key]) ok = false;
+      });
+      if (ok && !left) { weRebuild_(recs, v); toast(UI.weSaved || ''); return; }
+      if (tries < 4) { weVerify_(tries + 1, sent, v); return; }
+      toast(UI.weFail || '');
+    }).catch(function () {
+      if (tries < 4) { weVerify_(tries + 1, sent, v); return; }
+      toast(UI.weFail || '');
+    });
+  }, tries ? 1500 : 1200);
+}
+/* בונים מחדש ונשארים על אותו קטע (לפי המזהה, כי המספרים זזים) */
+function weRebuild_(recs, v) {
+  var id = v ? v.id : (FLAT[IDX] && FLAT[IDX].id), n0 = FLAT[IDX] && FLAT[IDX].n;
+  BUILT = SidFlat(recs, S.mas, S.daf, flatOpt());
+  var built = amudCut(BUILT);
+  PAGES = built.pages; FLAT = built.flat; GROUPS = built.groups;
+  var at = 0;
+  for (var j = 0; j < FLAT.length; j++) if ((id && FLAT[j].id === id) || (!id && FLAT[j].n === n0)) { at = j; break; }
+  go(at);
+  paintChavArea();
+}
+
 function mergeVerify_(tries, sent, id, n) {
   setTimeout(function () {
     sheetCsv(MARK_TAB).then(function (rows) {
@@ -2740,7 +2915,7 @@ function mergeVerify_(tries, sent, id, n) {
         if (JSON.stringify(R.d) !== sent[R.key]) ok = false;
       });
       if (ok && !left) {
-        var built = amudCut(SidFlat(recs, S.mas, S.daf));
+        var built = amudCut(SidFlat(recs, S.mas, S.daf, flatOpt()));
         PAGES = built.pages; FLAT = built.flat; GROUPS = built.groups;
         OWN_EDIT = null; OWN_EDIT_N = -1; Q_AT = { n: 0, i: 0 };
         var at = 0;
@@ -5331,6 +5506,19 @@ function nextDaf() {
 /* הדף **האחר** הבא — לזנב שגולש מסוף הדף. אחרי ב. בא ב:, שהוא
    אותו דף, והזנב יושב בתחילת ג. */
 function nextOtherDaf() { return otherAfter(S.daf); }
+function otherBefore(daf) {
+  var u = units(), i = -1;
+  for (var k = 0; k < u.length; k++) if (dafKey(u[k].daf) === dafKey(daf)) { i = k; break; }
+  for (var j = i - 1; j >= 0; j--)
+    if (dafKey(u[j].daf) !== dafKey(daf)) return u[j].daf;
+  return null;
+}
+/* במצב עריכה — גם מה שמחוץ לשבוע (`peek`): שאר הדף אחרי נקודת
+   סיום מוקדמת, והעמוד הראשון של הדף הבא. כך "כאן נגמר השבוע"
+   יכול להיקבע בכל קטע, גם כשהשבוע גולש. התלמיד אינו רואה אותם. */
+function flatOpt() {
+  return SIDE_ADM ? { peek: 1, next: otherAfter(S.daf) } : null;
+}
 function otherAfter(daf) {
   var u = units(), i = -1;
   for (var k = 0; k < u.length; k++) if (dafKey(u[k].daf) === dafKey(daf)) { i = k; break; }
@@ -5350,7 +5538,9 @@ function qLit(v) {
 function marksQuery(daf) {
   daf = daf || S.daf;
   var forms = {}, list = [];
-  [daf, otherAfter(daf)].forEach(function (d) {
+  /* והדף שלפני — כשהשבוע שלו נגמר לפני סופו, מה שאחרי נקודת
+     הסיום פותח את השבוע שלנו (ראו `upto` ב-SidFlat). */
+  [daf, otherAfter(daf), otherBefore(daf)].forEach(function (d) {
     if (!d) return;
     /* גם הצורה עם הגרשיים וגם בלעדיה: הסטודיו כותב את השם כפי
        שהוא בבורר, ואיננו רוצים לתלות את הכל בניחוש איזו צורה. */
@@ -5396,7 +5586,8 @@ function amudCut(built, am) {
   built.flat.forEach(function (v) {
     if (v.part !== 1) return;
     var pp = built.pages[v.p] || {};
-    var am2 = dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
+    /* הראש מהדף הקודם (שבוע שנגמר שם מוקדם) פותח את ע״א. */
+    var am2 = pp.head ? 1 : dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
     if (am2 === am) keep[v.n] = 1;
   });
   return { pages: built.pages, groups: built.groups,
@@ -5468,7 +5659,7 @@ function loadMarks() {
        · קטע שחוצה את מעבר העמוד נשמר כשני חלקים, והשני (`cont`)
          מקבל את אותו מספר — ואת אותו מזהה. */
     /* הדף כולו נשמר: המעבר מ-ב. ל-ב: חותך ממנו שוב, בלי לטעון. */
-    BUILT = SidFlat(SidParse(rows), S.mas, S.daf);
+    BUILT = SidFlat(SidParse(rows), S.mas, S.daf, flatOpt());
     var built = amudCut(BUILT);
     PAGES = built.pages;
     FLAT = built.flat;
