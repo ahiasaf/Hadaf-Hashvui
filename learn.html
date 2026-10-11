@@ -845,9 +845,10 @@ nav .sp{flex:1}
   background:rgba(11,37,80,.92);color:#fff;font-size:.84rem;font-weight:800;
   padding:10px 16px;border-radius:999px;opacity:0;transition:opacity .18s}
 #toast.on{opacity:1}
-/* "לדף הבא" אינו הפעולה הראשית אבל הוא אחת משתי הפעולות
-   האמיתיות כאן, ולכן הוא מסומן ולא נבלע בין הקישורים הצדדיים. */
-.card .btn.nx{background:var(--blue);color:#fff;border-color:transparent}
+/* ✕ של מסך הסיום — בפינה, מחוץ לזרימת התוכן. */
+.dn-card{position:relative}
+.dn-x{position:absolute;top:6px;inset-inline-end:6px;border:0;background:none;
+  font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
 /* מהתחלה וחזרה לתוכנית — נחוצים, ולא מה שבאו בשבילו. */
 .card .minor{display:flex;gap:14px;justify-content:center;align-items:center;
   margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
@@ -1081,10 +1082,11 @@ nav .sp{flex:1}
      הקרדיטים שהיו בתחתיתו לא אבדו: הם בשער שנפתח לפניו,
      ובתחתית פאנל החברותא. -->
 
-<!-- מסך הסיום. שתי הפעולות שתלמיד באמת רוצה כאן הן החידה
-     והדף הבא, ולכן הן למעלה ובולטות. "חזרה לדף" סוגר את
-     המסך ומשאיר אותו על הדף — מי שסיים לא בהכרח סיים להסתכל. -->
-<div class="sheet" id="done"><div class="card">
+<!-- מסך הסיום. נפתח רק כשיש חידה לשבוע שעוד לא נענתה — זו
+     הפעולה היחידה שלו. מי שלא רוצה סוגר ב־✕ ונשאר על הדף,
+     והפס למטה כבר מציע את הדף הבא. -->
+<div class="sheet" id="done"><div class="card dn-card">
+  <button class="dn-x" id="done-x">✕</button>
   <div class="seal">📖</div>
   <h2>ישר כוח!</h2>
   <p id="done-sub"></p>
@@ -1094,8 +1096,6 @@ nav .sp{flex:1}
   <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
      font-size:.88rem;margin-top:-4px"></p>
   <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
-  <a class="btn nx" id="to-next" href="./">לדף הבא</a>
-  <button class="btn" id="stay">חזרה לדף</button>
   <div class="minor">
     <button id="again">מהתחלה</button>
     <a href="join.html" id="to-home">חזרה לתוכנית</a>
@@ -4409,25 +4409,40 @@ function finish() {
     return;
   }
   var key = S.mas + '-' + (S.week + 1);
-  var q = window.QUIZ && QUIZ[key];
-  $('done-sub').textContent = JOIN.weekDone;
-  var a = $('to-quiz');
-  if (q) { a.style.display = ''; a.href = stuQuizUrl(key); }
-  else a.style.display = 'none';
-
-  var nd = nextDaf(), n = $('to-next');
-  if (nd) { n.style.display = ''; n.href = nextDafUrl();
-            n.textContent = nextLabel(nd, UI.lrnToSame, UI.lrnToNext); }
-  else n.style.display = 'none';
 
   /* ---- סימון הלימוד ----
      אוטומטי, ורק לדף של השבוע הנוכחי. מי שחוזר בפברואר לדף
      ישן כדי לחזור עליו אינו מסמן בכך את השבוע ההוא. */
   markThisDaf();
-
   DONE_SEEN = true;      /* מכאן "הבא" כבר אינו מחזיר לכאן — ראו paint() */
+
+  /* המסך קיים בשביל החידה. אין חידה, או שכבר נענתה במכשיר —
+     לא נפתח דבר; מי שסימן את השבוע מקבל רק הודעה קצרה. */
+  if (!quizOpen(key)) {
+    if ($('done-mark').style.display !== 'none') toast(JOIN.markedOk);
+    bar();
+    return;
+  }
+  /* "השבועי" — רק בדף של השבוע הזה. מי שמשלים שבוע שעבר מקבל
+     את שם השבוע כפי שהוא כתוב במסלול. */
+  var par = (calOf(S.mas)[S.week] || [])[1] || '';
+  $('done-sub').textContent = isWeekDaf() || !par ? JOIN.weekDone
+    : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
+  $('to-quiz').href = stuQuizUrl(key);
   $('done').className = 'sheet on';
   bar();
+}
+/* יש לשבוע חידה שעוד לא נענתה נכון במכשיר? אותו מפתח שהאפליקציה
+   שומרת כשהחידה ננעלת (quizOkKey ב־index.html). */
+function quizOpen(key) {
+  var list = window.QUIZ && QUIZ[key];
+  if (!list || !list.length) return false;
+  for (var i = 0; i < list.length; i++) {
+    var ok = false;
+    try { ok = localStorage.getItem('df:qok:' + key + ':' + i + ':' + list[i].q) === '1'; } catch (e) {}
+    if (!ok) return true;
+  }
+  return false;
 }
 
 /* ============================================================
@@ -5672,11 +5687,6 @@ window.addEventListener('DOMContentLoaded', function () {
     }
     go(IDX + 1);
   };
-  /* "להמשך" במסך הסיום — אותו דף נשאר במקום. */
-  $('to-next').onclick = function (e) {
-    if (unitSwap(nextDaf())) { e.preventDefault(); return; }
-    LEAVING = true; buttons(false);
-  };
   $('prev').onclick  = goBack;
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
      שמעדיף אותו. */
@@ -5789,7 +5799,8 @@ window.addEventListener('DOMContentLoaded', function () {
 
   $('again').onclick = function () { $('done').className = 'sheet'; go(0); };
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
-  $('stay').onclick  = function () { $('done').className = 'sheet'; bar(); };
+  $('done-x').setAttribute('aria-label', UI.pickClose || '');
+  $('done-x').onclick = function () { $('done').className = 'sheet'; bar(); };
   document.addEventListener('keydown', function (e) {
     /* מי שכותב — המקלדת שלו. רווח וחיצים בתוך שדה עריכה
        (הפירוש לנוער, תגיות, כל קלט) אינם מזיזים את הדף. */
