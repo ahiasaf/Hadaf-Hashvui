@@ -2719,7 +2719,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.180';
+var APP_VERSION = '8.99.181';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16113,7 +16113,7 @@ function amdaMark(g, c, n) {
 /* ============================================================
    שיעור כיתה — כיתה אחת, מפת מקומות, ולוח סימון למורה.
    ============================================================
-   שיעור קבוע (למשל ט׳5 ביום ראשון) הוא מועד נוסף ברשימה, שהמזהה
+   שיעור קבוע (למשל ז׳5 ביום ראשון) הוא מועד נוסף ברשימה, שהמזהה
    שלו 'L' + מזהה השיעור. בעמדה מופיעים רק תלמידי הכיתה, והרישום
    רגיל לגמרי: שם, ✓. כשביקשת מקומות (`amdaSeatAsk`) — אחרי ה-✓
    נפתחת מפת הכיתה, והתלמיד לוחץ איפה הוא יושב. המקום נזכר עד
@@ -16135,7 +16135,7 @@ function amdaMark(g, c, n) {
 var AMDA_MARKS   = 'עמדה — סימונים';
 var AMDA_LESSONS = 'עמדה — שיעורים';
 var AMDA_MK = { p: 'השתתפות יפה', d: 'ביטול תורה', seat: 'מקום' };
-var AMDA_LES_DEF = [{ id: 'ט5-0', g: 'ט', c: '5', day: 0, cols: '3,3,3,4,4' }];
+var AMDA_LES_DEF = [{ id: 'ז5-0', g: 'ז', c: '5', day: 0, cols: '3,3,3,4,4' }];
 /* מפת המקומות אחרי הרישום — רק כשביקשת, לכל שיעור בנפרד, במכשיר
    של העמדה. */
 function amdaSeatAsk(lid) { return !!(Store.get('amdaSeatAsk', {}) || {})[lid]; }
