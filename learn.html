@@ -849,12 +849,6 @@ nav .sp{flex:1}
 .dn-card{position:relative}
 .dn-x{position:absolute;top:6px;inset-inline-end:6px;border:0;background:none;
   font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
-/* מהתחלה וחזרה לתוכנית — נחוצים, ולא מה שבאו בשבילו. */
-.card .minor{display:flex;gap:14px;justify-content:center;align-items:center;
-  margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
-.card .minor button,.card .minor a{background:none;border:0;padding:4px;
-  font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-3);
-  text-decoration:none;cursor:pointer}
 /* ---------- מסך מחשב ----------
    קובצי הדף הם 1600px רוחב, וזה הגג — אין מה להגדיל מעבר להם.
    `focus()` גוזר את ההגדלה מרוחב הבמה (`disp = sw / fw`, ורוחב
@@ -1096,10 +1090,6 @@ nav .sp{flex:1}
   <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
      font-size:.88rem;margin-top:-4px"></p>
   <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
-  <div class="minor">
-    <button id="again">מהתחלה</button>
-    <a href="join.html" id="to-home">חזרה לתוכנית</a>
-  </div>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -5529,9 +5519,8 @@ function boot() {
      שפותח את הדף האמיתי במסך מלא. */
   /* ברירת המחדל — המסך של התלמיד. ראו stuHomeUrl. */
   (function () {
-    var u = stuHomeUrl(), b0 = $('back'), h0 = $('to-home');
+    var u = stuHomeUrl(), b0 = $('back');
     if (b0) b0.href = u;
-    if (h0) h0.href = u;
   })();
   if (EMB) {
     document.body.className += ' emb';
@@ -5546,7 +5535,6 @@ function boot() {
       b2.href = location.href.split('#')[0].split('?')[0]
         .replace(/\/learn(\.html)?\/?$/, '/') +
         'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto';
-      var h2 = $('to-home'); if (h2) h2.href = b2.href;
     }
   }
 
@@ -5797,7 +5785,6 @@ window.addEventListener('DOMContentLoaded', function () {
      שייקרא באמת; אחר כך הוא מתפוגג לבד, ולחיצה מדלגת. */
   gateOpen();
 
-  $('again').onclick = function () { $('done').className = 'sheet'; go(0); };
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
   $('done-x').setAttribute('aria-label', UI.pickClose || '');
   $('done-x').onclick = function () { $('done').className = 'sheet'; bar(); };
