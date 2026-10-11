@@ -219,7 +219,16 @@ export default function Signup({
     return (
       <section className="workspace narrow celebrate" key="done">
         <span className="done-mark" aria-hidden="true">
-          ✓
+          <svg viewBox="0 0 32 32" width="36" height="36">
+            <path
+              d="M7 16.5l6 6L25 10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
         <p className="eyebrow">{person.instName}</p>
         <h1>שלום, {person.first}</h1>

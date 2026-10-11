@@ -98,11 +98,6 @@ textarea {
     border-color 0.2s,
     box-shadow 0.2s;
 }
-input:hover,
-select:hover,
-textarea:hover {
-  border-color: #b3a383;
-}
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -148,9 +143,6 @@ legend {
   transition:
     background 0.15s,
     border-color 0.15s;
-}
-.choice:hover {
-  background: var(--surface);
 }
 .choice:has(input:checked) {
   border-color: var(--blue-d);
@@ -239,10 +231,6 @@ legend {
     border-color 0.18s,
     background 0.15s;
 }
-.track-tabs button:hover {
-  color: var(--ink);
-  background: var(--tint);
-}
 .track-tabs button:active {
   background: #dce4f0;
 }
@@ -303,9 +291,6 @@ progress {
   color: #fff;
   box-shadow: 0 8px 20px rgba(30, 140, 64, 0.25);
 }
-.button-whatsapp:hover {
-  background: #187334;
-}
 .button-whatsapp[aria-disabled="true"] {
   opacity: 0.55;
   box-shadow: none;
@@ -323,9 +308,6 @@ progress {
   border-bottom: 1px solid var(--line);
   border-radius: 10px;
   transition: background 0.15s;
-}
-.lesson-row:hover {
-  background: var(--tint);
 }
 .lesson-row:active {
   background: #dce4f0;
@@ -558,12 +540,6 @@ progress {
 .chevron {
   flex: 0 0 16px;
   transition: transform 0.15s;
-}
-.button:hover .chevron-forward {
-  transform: translateX(-2px);
-}
-.button:hover .chevron-back {
-  transform: translateX(2px);
 }
 .notice,
 .student-details {
@@ -1029,9 +1005,6 @@ input[aria-invalid="true"] {
   font-weight: 750;
   transition: background 0.2s;
 }
-.flow-back:hover {
-  background: var(--sunk);
-}
 .flow-count {
   margin: 0;
   font-size: 0.82rem;
@@ -1184,11 +1157,6 @@ input[aria-invalid="true"] {
   color: var(--ink-2);
   font-weight: 600;
 }
-.choice-big:hover {
-  border-color: var(--blue);
-  transform: translateY(-2px);
-  box-shadow: var(--sh-1);
-}
 .choice-big:active {
   transform: scale(0.98);
 }
@@ -1314,4 +1282,187 @@ input[aria-invalid="true"] {
 .install-bar .flow-count {
   text-align: start;
   margin-bottom: 6px;
+}
+
+/* Hover effects only where a pointer can hover; touch keeps press states. */
+@media (hover: hover) {
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: #b3a383;
+  }
+  .choice:hover {
+    background: var(--surface);
+  }
+  .track-tabs button:hover {
+    color: var(--ink);
+    background: var(--tint);
+  }
+  .button-whatsapp:hover {
+    background: #187334;
+  }
+  .lesson-row:hover {
+    background: var(--tint);
+  }
+  .button:hover .chevron-forward {
+    transform: translateX(-2px);
+  }
+  .button:hover .chevron-back {
+    transform: translateX(2px);
+  }
+  .flow-back:hover {
+    background: var(--sunk);
+  }
+  .choice-big:hover {
+    border-color: var(--blue);
+    transform: translateY(-2px);
+    box-shadow: var(--sh-1);
+  }
+}
+
+/* ---------- Motion on workspace screens ---------- */
+/* Opening choreography: each block of a screen lands after the previous one. */
+.js .workspace:not(.reader) > * {
+  animation: rise var(--t-slow) var(--ease) both;
+}
+.js .workspace:not(.reader) > :nth-child(2) {
+  animation-delay: 70ms;
+}
+.js .workspace:not(.reader) > :nth-child(3) {
+  animation-delay: 140ms;
+}
+.js .workspace:not(.reader) > :nth-child(4) {
+  animation-delay: 210ms;
+}
+.js .workspace:not(.reader) > :nth-child(5) {
+  animation-delay: 280ms;
+}
+.js .workspace:not(.reader) > :nth-child(n + 6) {
+  animation-delay: 340ms;
+}
+/* Rows and cards enter staggered: students, team cards, stats, surfaces. */
+.student-row,
+.team-card,
+.stats > div,
+.workspace-grid > .surface,
+.member-pick .button {
+  animation: row-in 0.5s var(--ease) both;
+}
+.student-row:nth-child(2),
+.team-card:nth-child(2),
+.stats > div:nth-child(2),
+.workspace-grid > .surface:nth-child(2),
+.member-pick .button:nth-child(2) {
+  animation-delay: 60ms;
+}
+.student-row:nth-child(3),
+.team-card:nth-child(3),
+.stats > div:nth-child(3),
+.workspace-grid > .surface:nth-child(3),
+.member-pick .button:nth-child(3) {
+  animation-delay: 120ms;
+}
+.student-row:nth-child(4),
+.team-card:nth-child(4),
+.workspace-grid > .surface:nth-child(4),
+.member-pick .button:nth-child(4) {
+  animation-delay: 180ms;
+}
+.student-row:nth-child(n + 5),
+.team-card:nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+/* Surfaces and rows respond to touch and pointer. */
+.surface,
+.student-row,
+.team-card {
+  transition:
+    transform var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease),
+    border-color var(--t-base);
+}
+.student-row summary:active,
+.lesson-row:active,
+.calendar-list a:active {
+  transform: scale(0.985);
+}
+/* Tabs: the active underline slides in. */
+.track-tabs button {
+  position: relative;
+  border-bottom-color: transparent !important;
+}
+.track-tabs button::after {
+  content: "";
+  position: absolute;
+  inset-inline: 10px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transition: transform var(--t-base) var(--ease);
+}
+.track-tabs button[aria-pressed="true"]::after {
+  transform: scaleX(1);
+}
+/* Progress bars fill smoothly when their value changes. */
+progress {
+  transition: opacity var(--t-base);
+}
+progress::-webkit-progress-value {
+  transition: inline-size var(--t-slow) var(--ease);
+}
+progress::-moz-progress-bar {
+  transition: inline-size var(--t-slow) var(--ease);
+}
+/* Checkbox and radio choices press. */
+.choice:active {
+  transform: scale(0.98);
+}
+/* Success: the check draws itself, then the halo breathes out. */
+.done-mark svg {
+  width: 36px;
+  height: 36px;
+}
+.done-mark path {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: draw-check 0.6s var(--ease) 0.25s forwards;
+}
+@keyframes draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* Status messages slide up from below. */
+.notice[role="status"],
+.data-status {
+  animation: notice-in var(--t-base) var(--spring);
+}
+/* Selects and inputs lift slightly while focused. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  transform: translateY(-1px);
+}
+input,
+select,
+textarea {
+  transition:
+    border-color var(--t-fast),
+    box-shadow var(--t-base) var(--ease),
+    transform var(--t-base) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .workspace > *,
+  .student-row,
+  .team-card,
+  .stats > div,
+  .workspace-grid > .surface,
+  .member-pick .button {
+    animation: none;
+  }
+  .done-mark path {
+    stroke-dashoffset: 0;
+  }
 }

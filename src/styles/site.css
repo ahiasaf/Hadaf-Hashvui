@@ -158,9 +158,6 @@ h3 {
   place-items: center;
   transition: transform 0.4s var(--spring);
 }
-.brand:hover .brand-mark {
-  transform: rotate(-8deg) scale(1.05);
-}
 .brand-mark img {
   width: 32px;
   height: 30px;
@@ -209,18 +206,12 @@ h3 {
     background 0.2s,
     transform 0.2s;
 }
-.site-header nav a:hover {
-  background: var(--sunk);
-}
 .site-header nav a:active {
   transform: scale(0.97);
 }
 .site-header nav .nav-join {
   background: var(--blue-d);
   color: #fff;
-}
-.site-header nav .nav-join:hover {
-  background: var(--blue);
 }
 
 /* ---------- Buttons ---------- */
@@ -249,10 +240,6 @@ h3 {
 .deck-link:focus-visible {
   outline-offset: 3px;
 }
-.button:hover,
-.deck-link:hover {
-  transform: translateY(-2px);
-}
 .button:active,
 .deck-link:active {
   transform: translateY(1px) scale(0.985);
@@ -269,11 +256,6 @@ h3 {
   box-shadow:
     0 2px 0 #8c6520,
     0 8px 22px rgba(192, 143, 43, 0.35);
-}
-.button-gold:hover {
-  box-shadow:
-    0 3px 0 #8c6520,
-    0 14px 30px rgba(192, 143, 43, 0.4);
 }
 /* Shine sweep across the gold action. */
 .button-gold::after {
@@ -304,16 +286,10 @@ h3 {
   color: #fff;
   box-shadow: 0 8px 20px rgba(23, 70, 143, 0.25);
 }
-.button-blue:hover {
-  background: var(--blue-l);
-}
 .button-outline {
   border: 2px solid var(--blue-d);
   color: var(--blue-d);
   background: transparent;
-}
-.button-outline:hover {
-  background: var(--surface);
 }
 .button-light {
   background: #fff;
@@ -326,9 +302,6 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.22);
   padding-inline: 18px;
 }
-.deck-link:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
 .text-button {
   border: 0;
   background: transparent;
@@ -338,9 +311,6 @@ h3 {
   text-underline-offset: 4px;
   min-height: 44px;
   padding: 8px 0;
-}
-.text-button:hover {
-  color: var(--blue-l);
 }
 .text-button[hidden] {
   display: none;
@@ -640,9 +610,6 @@ html:not(.js) .phases::after {
   color: rgba(255, 255, 255, 0.66);
   transition: color 0.25s;
 }
-.track-switch a:hover {
-  color: #fff;
-}
 .track-switch a[aria-pressed="true"] {
   color: #fff;
 }
@@ -829,9 +796,6 @@ html:not(.js) .dots i.is-done {
   font-size: 1.15rem;
   margin-bottom: 6px;
   transition: transform 0.4s var(--spring);
-}
-.step-list li:hover .step-badge {
-  transform: scale(1.12) rotate(-6deg);
 }
 .step-list strong {
   font-size: 1.2rem;
@@ -1151,11 +1115,6 @@ html:not(.js) .ring-fill {
     transform 0.2s var(--ease),
     box-shadow 0.2s;
 }
-.calendar-list a:hover {
-  background: #fff;
-  transform: translateY(-2px);
-  box-shadow: var(--sh-2);
-}
 .calendar-list a:active {
   transform: scale(0.98);
 }
@@ -1357,5 +1316,210 @@ html:not(.js) .ring-fill {
   }
   .frame {
     transform: none;
+  }
+}
+
+/* Hover effects only where a pointer can hover; touch keeps press states. */
+@media (hover: hover) {
+  .brand:hover .brand-mark {
+    transform: rotate(-8deg) scale(1.05);
+  }
+  .site-header nav a:hover {
+    background: var(--sunk);
+  }
+  .site-header nav .nav-join:hover {
+    background: var(--blue);
+  }
+  .button:hover,
+  .deck-link:hover {
+    transform: translateY(-2px);
+  }
+  .button-gold:hover {
+    box-shadow:
+      0 3px 0 #8c6520,
+      0 14px 30px rgba(192, 143, 43, 0.4);
+  }
+  .button-blue:hover {
+    background: var(--blue-l);
+  }
+  .button-outline:hover {
+    background: var(--surface);
+  }
+  .deck-link:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .text-button:hover {
+    color: var(--blue-l);
+  }
+  .track-switch a:hover {
+    color: #fff;
+  }
+  .step-list li:hover .step-badge {
+    transform: scale(1.12) rotate(-6deg);
+  }
+  .calendar-list a:hover {
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: var(--sh-2);
+  }
+}
+
+/* ============================================================
+   Motion system: one set of timings, opening choreography, live
+   states for every interactive element. Transform and opacity only.
+   ============================================================ */
+:root {
+  --t-fast: 0.18s;
+  --t-base: 0.3s;
+  --t-slow: 0.6s;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Page opening: the header settles, the title lands, content follows. */
+.js .site-header {
+  animation: header-in var(--t-slow) var(--ease) both;
+}
+@keyframes header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+.js main > :not([data-reveal]):not(.hero):not(.stage-band) {
+  animation: rise var(--t-slow) var(--ease) both;
+  animation-delay: 80ms;
+}
+.js .site-footer {
+  animation: fade-up var(--t-slow) var(--ease) 0.2s both;
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+/* Links: the underline grows from the start. */
+.secondary-link,
+.site-footer nav a,
+.form-hint a,
+.hero-note a {
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-size: 0% 2px;
+  background-position: right bottom;
+  transition: background-size var(--t-base) var(--ease);
+}
+[dir="ltr"] .secondary-link,
+[dir="ltr"] .site-footer nav a {
+  background-position: left bottom;
+}
+.secondary-link:focus-visible,
+.site-footer nav a:focus-visible,
+.form-hint a:focus-visible {
+  background-size: 100% 2px;
+}
+.text-button {
+  text-decoration-thickness: 1.5px;
+  transition:
+    text-decoration-color var(--t-base),
+    color var(--t-fast);
+}
+.text-button:active {
+  text-decoration-color: transparent;
+}
+/* Buttons: press feedback for every pointer. */
+.button:active,
+.deck-link:active,
+.text-button:active,
+.flow-back:active,
+.site-header nav a:active {
+  transition-duration: 0.08s;
+}
+.button-outline:active,
+.button-blue:active,
+.button-light:active {
+  filter: brightness(0.96);
+}
+/* Images fade in once they have pixels; nothing is hidden without JavaScript. */
+.js img.is-loading {
+  opacity: 0;
+}
+.js img.is-loaded {
+  animation: img-in var(--t-slow) var(--ease);
+}
+@keyframes img-in {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+/* Loading skeleton: shimmering lines while a screen waits for its data. */
+[aria-busy="true"]:empty {
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r);
+}
+[aria-busy="true"]:empty::before {
+  content: "";
+  position: absolute;
+  inset: 24px 0 auto;
+  height: 160px;
+  background:
+    linear-gradient(var(--sunk) 0 0) 0 0 / 46% 28px no-repeat,
+    linear-gradient(var(--sunk) 0 0) 0 44px / 90% 16px no-repeat,
+    linear-gradient(var(--sunk) 0 0) 0 72px / 74% 16px no-repeat,
+    linear-gradient(var(--sunk) 0 0) 0 116px / 100% 44px no-repeat;
+  border-radius: 8px;
+  opacity: 0.9;
+}
+[aria-busy="true"]:empty::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-out) infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+/* Disclosure content unfolds. */
+details > :not(summary) {
+  animation: notice-in var(--t-base) var(--ease);
+}
+details summary {
+  transition: color var(--t-fast);
+}
+/* Track switch and tab presses. */
+.track-switch a:active {
+  transform: scale(0.97);
+}
+/* Calendar rows lift under a pointer and press on touch. */
+.calendar-list a:active {
+  transform: scale(0.98);
+}
+/* Footer links share the header press. */
+.site-footer nav a:active {
+  opacity: 0.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .site-header,
+  .js main > *,
+  .js .site-footer,
+  .js img {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .js img.is-loading {
+    opacity: 1;
   }
 }

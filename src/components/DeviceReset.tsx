@@ -68,7 +68,16 @@ export default function DeviceReset({ copy }: { copy: ResetCopy }) {
     return (
       <section className="workspace narrow celebrate" role="status">
         <span className="done-mark" aria-hidden="true">
-          ✓
+          <svg viewBox="0 0 32 32" width="36" height="36">
+            <path
+              d="M7 16.5l6 6L25 10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
         <h1>{copy.rstDone}</h1>
         <p>{copy.rstNext}</p>

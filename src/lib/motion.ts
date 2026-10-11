@@ -20,8 +20,27 @@ function countUp(element: HTMLElement) {
   requestAnimationFrame(frame);
 }
 
+// Images fade in once decoded; a capture listener also covers images React adds later.
+function watchImages() {
+  const settle = (image: HTMLImageElement) => {
+    image.classList.remove("is-loading");
+    image.classList.add("is-loaded");
+  };
+  for (const image of document.images)
+    if (!image.complete) image.classList.add("is-loading");
+  for (const type of ["load", "error"])
+    document.addEventListener(
+      type,
+      (event) => {
+        if (event.target instanceof HTMLImageElement) settle(event.target);
+      },
+      true,
+    );
+}
+
 export function initializeMotion() {
   const root = document.documentElement;
+  if (!reduced()) watchImages();
   const header = document.querySelector<HTMLElement>(".site-header");
   if (header) {
     const paint = () => header.classList.toggle("is-stuck", scrollY > 8);
