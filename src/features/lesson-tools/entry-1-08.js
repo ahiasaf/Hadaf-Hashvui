@@ -109,7 +109,7 @@ function bar() {
 
      המקום נשאר: הוא קטן, הוא בכותרת, והוא בדיוק הגודל של שורה
      אחת שקטה. */
-  $('count').textContent = '';
+  $('count').textContent = FLAT.length ? 'קטע ' + (IDX + 1) + ' מתוך ' + FLAT.length : '';
   $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
   $('prev').disabled = IDX === 0 && !prevDaf();
   var last = IDX === FLAT.length - 1;

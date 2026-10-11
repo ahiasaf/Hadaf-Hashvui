@@ -294,15 +294,16 @@ function sidTime_(rec, n) {
    ולחפש בו `function boldOnly` אם ירצה לחזור לזה, כאן או בפרויקט
    אחר. */
 function chavTabHtml(st) {
-  if (!st) return '<span class="cht-lbl">חברותא</span>';
+  if (!st) return '<span class="cht-lbl">ביאור חברותא</span>';
   /* לתלמיד: לא מספיק שיש טקסט לקטע - הדף כולו צריך להיות
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
   var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
   /* החידה כבר לא לשונית כאן - היא עיגול צף משלה (qfab), שמחליף
      את התוכן של האזור הזה כשלוחצים עליו. ראו quizFabPaint(). */
-  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
-  return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
+  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">ביאור חברותא</span>' +
+    '<small class="cht-hint">הסבר צמוד לקטע, כמו חברותא לצידך</small>';
+  return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">ביאור חברותא</button>' +
     '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
 }
 /* כותרת המגירה כשהחידה פתוחה - תופסת את מקום כפתורי חברותא/פירוש

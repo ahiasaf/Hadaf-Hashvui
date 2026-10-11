@@ -217,7 +217,7 @@ function paint() {
              y0: +(r.y0 * VH).toFixed(1), y1: +(r.y1 * VH).toFixed(1) };
   });
   ov.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH);
-  if (!b.length) { ov.innerHTML = ''; return; }
+  if (!b.length) { ov.innerHTML = ''; if (typeof glowPaint === 'function') glowPaint(); return; }
   var path = outline(b);
 
   /* שני מצבים, שתי שפות.
@@ -238,6 +238,7 @@ function paint() {
         'stroke-linejoin="round" opacity=".5"/>'
     : '<path d="' + path + '" fill="#E3B44A" opacity=".42" ' +
         'style="mix-blend-mode:multiply"/>';
+  if (typeof glowPaint === 'function') glowPaint();
 }
 
 /* ההתמקדות: חלון נע על הדף.

@@ -950,7 +950,6 @@ header{background:radial-gradient(120% 140% at 85% -20%,#2C63B6 0%,var(--blue) 4
 /* ---------- מגירת החברותא: לשוניות ככפתורי זהב, גמרא בפרנק-רוהל ---------- */
 .chav{background:var(--surface)}
 .chd{padding:10px 14px;gap:8px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
-.cht{gap:4px;padding:3px;border-radius:12px;background:var(--sunk)}
 .cht button{min-height:36px;padding:6px 12px;border:0;border-radius:9px;background:transparent;
   color:var(--ink-2);font-size:.8rem;transition:background var(--t-base) var(--ease),color var(--t-fast),transform var(--t-fast)}
 .cht button.on{background:var(--surface);color:var(--blue-d);box-shadow:var(--sh-1)}
@@ -1051,4 +1050,108 @@ nav button:disabled{opacity:.35}
   body.chav-on .chav,.veil::after,nav button.p::after,nav button.fresh{animation:none!important}
   .veil::after{display:none}
   #toast{transform:none}
+}
+
+
+/* ============================================================
+   מבנה חדש: כותרת נקייה, גיליון ביאור שגובהו לפי התוכן, סרגל עם
+   פעולה ראשית אחת, ומסגרת זהב שנוסעת בין הקטעים.
+   ============================================================ */
+/* ---------- כותרת: חץ · שם הדף במרכז · מונה הקטעים ---------- */
+.hrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:8px;
+  padding-bottom:8px;min-height:56px}
+.back{width:44px;height:44px;padding:0;justify-content:center;border-radius:50%;
+  border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.1)}
+.back svg{display:block}
+.ttl{align-items:center;text-align:center;margin:0;padding:4px 10px;justify-self:center;max-width:100%}
+.ttl h1{font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ttl span{font-size:.74rem}
+#count{font-size:.72rem;font-weight:800;color:var(--gold-l);letter-spacing:.02em;
+  background:rgba(255,255,255,.1);border-radius:99px;padding:4px 9px;white-space:nowrap;
+  font-variant-numeric:tabular-nums;min-width:44px;text-align:center;transition:opacity var(--t-base)}
+#count:empty{opacity:0}
+.prog{height:5px;background:rgba(255,255,255,.14)}
+
+/* ---------- הגיליון התחתון ----------
+   בטלפון: השורה השנייה גבוהה כגובה התוכן, בין רצפה לתקרה. הצצה
+   משאירה רק את הכותרת; מסך מלא נותן לביאור כמעט הכל. */
+@media (max-width:820px){
+  body.chav-on main{grid-template-rows:minmax(0,1fr) auto}
+  .chav{position:relative;min-height:140px;max-height:46vh;border-radius:22px 22px 0 0;
+    border-top:1px solid var(--rule);box-shadow:0 -10px 30px rgba(37,29,12,.12);
+    transition:max-height .35s var(--ease),min-height .35s var(--ease)}
+  body.sheet-peek .chav{min-height:0;max-height:62px}
+  body.sheet-peek .chb{overflow:hidden}
+  body.sheet-full .chav{min-height:min(82vh,82dvh);max-height:min(82vh,82dvh)}
+  .chd{padding-top:18px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+    border-radius:22px 22px 0 0}
+  .chd:active{cursor:grabbing}
+  .grip{position:absolute;top:6px;left:50%;width:44px;height:5px;margin-left:-22px;border-radius:5px;
+    background:var(--rule);transition:background var(--t-fast),transform var(--t-base) var(--spring)}
+  .chd:active .grip{background:var(--gold);transform:scaleX(1.15)}
+  /* המצגת באותה משבצת: שומרת על גובה קבוע כמו קודם. */
+  body.side-on main{grid-template-rows:minmax(0,1fr) minmax(0,44vh)}
+}
+@media (min-width:821px){.grip{display:none}}
+/* ---------- כותרת המגירה: לשוניות קריאות, גודל טקסט אחד, סגירה ברורה ---------- */
+.chd{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px}
+.chd .sp,.chd #chnum{display:none}
+.cht{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.cht:has(button){flex-direction:row;flex-wrap:wrap;gap:4px;padding:3px;border-radius:12px;background:var(--sunk)}
+.cht-lbl{font-size:.95rem;font-weight:800;line-height:1.2}
+.cht-hint{display:block;font-size:.72rem;font-weight:600;color:var(--ink-2);line-height:1.3}
+body.quiz-on .cht{flex-direction:row;align-items:center;gap:8px}
+.chd .zoom{gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--surface)}
+.chd .zoom button{border:0;border-radius:0;min-width:40px;font-weight:800;font-size:.82rem;color:var(--blue-d)}
+.chd .zoom button + button{border-inline-start:1px solid var(--rule)}
+.chd button#chclose{display:grid;place-items:center;width:36px;min-width:36px;padding:0;border-radius:50%;
+  background:var(--sunk);color:var(--blue-d)}
+.chd button#chclose svg{display:block}
+/* ---------- טיפוגרפיה של הביאור ---------- */
+.chb{padding:14px 18px 18px;line-height:1.9;font-size:calc(1.02rem * var(--cz,1))}
+.chb p{margin:0 0 12px}
+.chb p:last-child{margin-bottom:0}
+.chb b{font-family:'FrankRuhlDaf','Frank Ruhl Libre','David',serif;font-size:1.18em;font-weight:700;
+  color:var(--gold-t);letter-spacing:0}
+/* ---------- הסרגל: הקודם כחץ, מתגים כקבוצה, הבא בזהב ---------- */
+.nrow{flex-wrap:nowrap;gap:8px}
+nav button#prev{width:48px;min-width:48px;padding:0;border-radius:50%;display:grid;place-items:center}
+nav button#prev svg{display:block}
+nav .tools{display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--sunk);flex:0 1 auto;min-width:0}
+nav .tools button{min-height:42px;padding:8px 12px;border:0;border-radius:11px;background:transparent;
+  color:var(--ink-2);font-size:.82rem;box-shadow:none}
+nav .tools button.on{background:var(--surface);color:var(--blue-d);box-shadow:var(--sh-1)}
+nav .tools button.fresh{background:var(--surface);box-shadow:0 0 0 3px rgba(192,143,43,.25)}
+nav button.p{flex:1 1 auto;max-width:none;min-width:0;min-height:52px;font-size:.98rem;border-radius:16px}
+nav .sp{display:none}
+@media (max-width:360px){nav .tools button{padding-inline:9px;font-size:.78rem}}
+@media (min-width:1000px){nav .sp{display:none}nav button.p{max-width:240px;margin-inline-start:auto}}
+/* ---------- מסגרת הזהב שנוסעת ---------- */
+#glow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;
+  transition:opacity var(--t-base)}
+#glow rect{fill:none;stroke:#C08F2B;stroke-width:2;vector-effect:non-scaling-stroke;
+  filter:drop-shadow(0 0 3px rgba(229,184,84,.55));
+  transition:x .55s var(--ease),y .55s var(--ease),width .55s var(--ease),height .55s var(--ease);
+  animation:lt-glow 2.8s ease-in-out infinite}
+@keyframes lt-glow{50%{filter:drop-shadow(0 0 8px rgba(229,184,84,.8))}}
+#ov path[stroke]{opacity:0}
+/* ---------- מסך הסיום ---------- */
+.done-card .seal{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:#fff;
+  box-shadow:0 8px 24px rgba(192,143,43,.4)}
+.done-card .seal svg{display:block}
+.done-card .seal path{stroke-dasharray:48;stroke-dashoffset:48;animation:lt-draw .6s var(--ease) .25s forwards}
+@keyframes lt-draw{to{stroke-dashoffset:0}}
+.done-card h2{font-size:1.9rem}
+.done-card p{font-size:.95rem}
+/* ---------- דף נעול / שגיאה בבמה ---------- */
+.veil div{background:var(--surface);border:1px solid var(--rule);border-radius:20px;padding:26px 22px;
+  box-shadow:var(--sh-2);max-width:32ch;animation:lt-card .45s var(--spring)}
+.veil b{font-size:1.2rem}
+/* ---------- בחירת דף ---------- */
+.pk-h{padding-inline:2px}
+.pk-h b{font-size:1.25rem}
+@media (prefers-reduced-motion:reduce){
+  #glow rect{animation:none;transition:none}
+  .chav{transition:none}
+  .done-card .seal path{stroke-dashoffset:0;animation:none}
 }
