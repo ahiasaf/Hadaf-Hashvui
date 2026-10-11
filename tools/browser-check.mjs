@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { chromium } from "@playwright/test";
+import { weekIndex } from "../src/lib/calendar.ts";
 const server = spawn(process.execPath, ["tools/preview.mjs"], {
   env: { ...process.env, PORT: "4322" },
   stdio: "pipe",
@@ -104,7 +105,8 @@ try {
                 first: "תלמיד",
                 last: "לדוגמה",
                 grade: "ז",
-                weeks: ["taanit|1"],
+                // The board counts completions of the current program week.
+                weeks: ["taanit|" + (weekIndex(program.startDate) + 1)],
                 push: true,
               },
             ],
