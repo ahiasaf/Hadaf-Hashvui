@@ -670,6 +670,15 @@ body.tk-sheeting #tk-bar{display:none}
 .dk-cov div{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
 .dk-cov b{font-size:.86rem;font-weight:800}
 .dk-cov span{font-size:.8rem;color:var(--ink-2);font-weight:700}
+/* שורת סדר המצגת — בלי חיצים ובלי כוכב: השקף ממלא את הרוחב, כדי
+   שאפשר יהיה לראות מה כתוב בו. הורדה והסרה זו מעל זו בצד. */
+.dk-drow .dkm-sl{flex:1;min-width:0}
+.dk-drow .dkm-sl img,.dk-drow .dkm-gone{width:100%!important;height:auto!important;aspect-ratio:16/9}
+.dk-side{display:flex;flex-direction:column;gap:6px;flex:none}
+.dk-drow .dk-side .dk-ic{width:36px;height:36px}
+.dk-covb{position:absolute;bottom:5px;inset-inline-start:5px;font-style:normal;font-size:.8rem;
+  line-height:1;padding:4px 7px;border-radius:99px;background:var(--gold,#C08F2B);color:#fff;font-weight:800}
+.dkm-bar .btn.dk-bcov{flex:1 1 100%}
 /* העברה ושכפול מצגות בין עמודים — שורה ברשימה, וחלון תחתון. */
 .dkm-hd{display:flex;align-items:center;gap:8px}
 .dkm-lnk{margin-inline-start:auto;background:none;border:none;padding:4px 0;font:inherit;
@@ -2731,7 +2740,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.188';
+var APP_VERSION = '8.99.189';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14186,8 +14195,6 @@ function dkGo(mas, wk) {
   admPane();
   dkAsk();
 }
-function dkUp(i)   { if (i > 0) { var t = dkList[i-1]; dkList[i-1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
-function dkDown(i) { if (i < dkList.length - 1) { var t = dkList[i+1]; dkList[i+1] = dkList[i]; dkList[i] = t; dkStash(); admPane(); dkAutoSave_(); } }
 /* ============================================================
    גרירה לסידור. החצים נשארים כגיבוי.
    ============================================================
@@ -14845,21 +14852,15 @@ function admDecks(el) {
         (DK_MISS[dkPath(f)] === 1 ? '<span class="dkm-gone">' + esc(UI.dkmGone) + '</span>' :
         '<img loading="lazy" src="' + esc(dkPath(f)) + '?adm=' + dkBust + '" alt="" data-p="' +
         esc(dkPath(f)) + '" onerror="dkMissChk(this)">') +
-        (on ? '<i>✓</i>' : '') + '</button>' +
-        '<span style="flex:1"></span>' +
-        '<button class="dk-ic dk-star' + (dkPath(f) === cvNow ? ' on' : '') +
-        '" onclick="dkSetCover(dkList[' + i + '])" aria-pressed="' + (dkPath(f) === cvNow) +
-        '" aria-label="' + esc(UI.dkCovSet) + '" title="' + esc(UI.dkCovSet) + '">' +
-        (dkPath(f) === cvNow ? '★' : '☆') + '</button>' +
-        '<button class="dk-ic" onclick="dkUp(' + i + ')"' +
-        (i === 0 ? ' disabled' : '') + ' aria-label="העלאה">↑</button>' +
-        '<button class="dk-ic" onclick="dkDown(' + i + ')"' +
-        (i === dkList.length - 1 ? ' disabled' : '') + ' aria-label="הורדה">↓</button>' +
+        (on ? '<i>✓</i>' : '') +
+        /* השער מסומן על השקף עצמו; בוחרים אותו מהפס שלמטה. */
+        (dkPath(f) === cvNow ? '<em class="dk-covb">★</em>' : '') + '</button>' +
+        '<span class="dk-side">' +
         '<a class="dk-ic" href="' + esc(dkPath(f)) +
         '" download="' + esc(dkShort(f).split('/').pop()) +
         '" aria-label="הורדה למכשיר לעריכה">⇩</a>' +
         '<button class="dk-ic warn" onclick="dkDel(' + i + ')" aria-label="הסרה">✕</button>' +
-        '</div>';
+        '</span></div>';
     }).join('');
   }
   h += '<div id="dk-slbar">' + dkSlBar() + '</div>';
@@ -15127,7 +15128,16 @@ function dkSlBar() {
     '<button class="btn p" onclick="dkmOpen(\'mv\')">⇄ ' + esc(UI.dkmMv) + '</button>' +
     '<button class="btn p" onclick="dkmOpen(\'cp\')">⧉ ' + esc(UI.dkmCp) + '</button>' +
     '<button class="btn g" onclick="dkSlClear()">' + esc(UI.dkmClear) + '</button>' +
+    /* שקף אחד בחור — אפשר לקבוע אותו כשער (או להחזיר את ברירת המחדל). */
+    (n === 1 ? '<button class="btn g dk-bcov" onclick="dkSlCover()">★ ' +
+      esc(dkSlSel()[0] === dkCover ? UI.dkCovReset : UI.dkCovSet) + '</button>' : '') +
     '</div>';
+}
+function dkSlCover() {
+  var p = dkSlSel()[0];
+  if (!p) return;
+  dkSlPick = {};
+  dkSetCover(p);   /* אותו שער שוב — חזרה לשקף הראשון */
 }
 /* ⚠ של השבוע שבעורך — שורה בכרטיס, ו-⚠ ליד השבוע בבורר. */
 function dkmWhy(mas) {
