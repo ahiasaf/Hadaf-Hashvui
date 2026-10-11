@@ -2083,11 +2083,17 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
       font-size:.6rem;font-weight:800;line-height:1.15;color:var(--ink)}
 .am-seat.taken{color:var(--blue)}
 .am-seat.bad{color:#B4473A}
+/* סימוני היום בולטים: כיסא ושם בירוק (השתתפות יפה) או באדום (ביטול תורה). */
+.am-seat.good{color:var(--green-d)}
+.am-seat.good b{color:var(--green-d)}
+.am-seat.bad b{color:#B4473A}
+.am-chip.good{background:var(--green-d);border-color:var(--green-d);color:#fff}
+.am-chip.bad{background:#B4473A;border-color:#B4473A;color:#fff}
 .am-seat.free{color:var(--green-d)}
 .am-seat.mine{outline:2px solid var(--gold);outline-offset:-1px;border-radius:8px}
 .am-seat[disabled]{opacity:.55}
-.am-seat i{position:absolute;top:-3px;font-style:normal;font-size:.58rem;font-weight:800;color:#fff;
-      border-radius:8px;padding:0 4px;line-height:14px}
+.am-seat i{position:absolute;top:-3px;font-style:normal;font-size:.68rem;font-weight:800;color:#fff;
+      border-radius:8px;padding:0 4px;line-height:16px}
 .am-seat i.p{inset-inline-start:0;background:var(--green-d)}
 .am-seat i.d{inset-inline-end:0;background:#B4473A}
 .am-tbl{height:12px;border-radius:4px;background:#B98A4E;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
@@ -2722,7 +2728,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.183';
+var APP_VERSION = '8.99.184';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15696,6 +15702,8 @@ function amdaFromSheets(sheets) {
       var p = String(v.D || '').match(/^\d+/);
       var n = (String(v.A || '') + ' ' + String(v.B || '')).replace(/\s+/g, ' ').trim();
       if (!p || !n || AMDA_GRADES.indexOf(g) < 0) continue;
+      var f = String(v.B || '').trim().split(/\s+/)[0];
+      if (f) (r.f = r.f || {})[n] = f;
       p = String(+p[0]);
       if (!r.g[g]) r.g[g] = {};
       if (!r.g[g][p]) r.g[g][p] = [];
@@ -15715,7 +15723,7 @@ function amdaRows(r) {
     if (!r.g[g]) continue;
     cs = Object.keys(r.g[g]).sort(function (a, b) { return a - b; });
     for (j = 0; j < cs.length; j++) {
-      r.g[g][cs[j]].forEach(function (n) { rows.push([g, cs[j], n, inst]); });
+      r.g[g][cs[j]].forEach(function (n) { rows.push([g, cs[j], n, inst, (r.f || {})[n] || '']); });
     }
   }
   return rows;
@@ -15726,7 +15734,7 @@ function amdaPushRoster(r) {
   if (!key || !url) { amdaMsg = amdaT('admNoSave', { n: n }); admPane(); return; }
   fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
     action: 'table', tab: AMDA_ROSTER, key: key,
-    cols: JSON.stringify(['שכבה', 'כיתה', 'שם', 'קוד ישיבה']),
+    cols: JSON.stringify(['שכבה', 'כיתה', 'שם', 'קוד ישיבה', 'פרטי']),
     rows: JSON.stringify(amdaRows(r)) }) })
     .catch(function () {})
     .then(function () {
@@ -15746,13 +15754,14 @@ function amdaReadRoster() {
   return scriptGet({ read: AMDA_ROSTER, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return null;
     var h = d.rows[0], ig = h.indexOf('שכבה'), ic = h.indexOf('כיתה'), inn = h.indexOf('שם'),
-        ii = h.indexOf('קוד ישיבה');
+        ii = h.indexOf('קוד ישיבה'), iff = h.indexOf('פרטי');
     if (ig < 0 || ic < 0 || inn < 0) return null;
     var r = { at: Date.now(), inst: '', g: {} };
     d.rows.slice(1).forEach(function (x) {
       var g = String(x[ig] || ''), c = String(x[ic] || ''), n = String(x[inn] || '');
       if (!g || !c || !n) return;
       if (ii >= 0 && !r.inst) r.inst = String(x[ii] || '');
+      if (iff >= 0 && x[iff]) (r.f = r.f || {})[n] = String(x[iff]);
       if (!r.g[g]) r.g[g] = {};
       if (!r.g[g][c]) r.g[g][c] = [];
       r.g[g][c].push(n);
@@ -15812,7 +15821,7 @@ function amdaPull() {
       var m = { day: col(x, 'יום'), slot: col(x, 'קוד עמדה'), w: col(x, 'שבוע'),
                 kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd' };
       var sess = amdaSessOf(m), sk = amdaKey(g, c, n);
-      if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: col(x, 'מקום') });
+      if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) });
       if (once[sess + '#' + sk]) return;
       if (m.slot.charAt(0) === 'L') lesAtt[sk] = (lesAtt[sk] || 0) + 1;
       once[sess + '#' + sk] = 1;
@@ -16265,7 +16274,7 @@ function amdaPullMarks(key, seatEv) {
       var id = col(x, 'מזהה'), sk = amdaKey(col(x, 'שכבה'), col(x, 'כיתה'), col(x, 'שם'));
       if (id) seen[id] = 1;
       var mk = col(x, 'סימון'), slot = col(x, 'קוד עמדה');
-      if (mk === AMDA_MK.seat) { seatEv.push({ at: col(x, 'מתי'), slot: slot, sk: sk, seat: col(x, 'מקום') }); return; }
+      if (mk === AMDA_MK.seat) { seatEv.push({ at: col(x, 'מתי'), slot: slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) }); return; }
       var b = mk === AMDA_MK.p ? 0 : mk === AMDA_MK.d ? 1 : -1, dl = parseInt(col(x, 'שינוי'), 10) || 0;
       if (b < 0 || !dl) return;
       (tot[sk] = tot[sk] || [0, 0])[b] += dl;
@@ -16296,6 +16305,19 @@ function amdaPullMarks(key, seatEv) {
     Store.set('amdaSeat', seats);
     return true;
   });
+}
+
+/* מקום כפי שחזר מהגיליון. "2-1-1" נקרא שם כתאריך (2.1.2001), ולכן
+   מקומות שכבר נשמרו נעלמו מהמפה ברגע שיצאו מהתור. הסקריפט שומר
+   מעכשיו טקסט; כאן משחזרים גם את מה שכבר נשמר כתאריך — הצד הוא
+   השנה, הטור והשולחן בסדר שבו נכתבו (או הפוך, כשהשנה בהתחלה). */
+function amdaSeatId(v) {
+  v = String(v || '').trim();
+  if (!v || /^\d+-\d+-[12]$/.test(v)) return v;
+  var n = v.match(/\d+/g);
+  if (!n || n.length !== 3) return v;
+  if (+n[0] >= 1000) return (+n[2]) + '-' + (+n[1]) + '-' + (+n[0] % 10);
+  return (+n[0]) + '-' + (+n[1]) + '-' + (+n[2] % 10);
 }
 
 /* ---------- מה ידוע: מקומות וסימונים, כולל מה שעוד בתור ---------- */
@@ -16335,7 +16357,14 @@ function amdaMkOf(sk, sess) {
 var AMDA_CHAIR = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="9" rx="3"/>' +
                  '<rect x="3" y="12" width="18" height="5" rx="2"/><rect x="5" y="17" width="2.4" height="5" rx="1"/>' +
                  '<rect x="16.6" y="17" width="2.4" height="5" rx="1"/></svg>';
-function amdaFirst(sk) { var p = amdaNm(sk).split(' '); return p[p.length - 1]; }
+/* על המפה — השם הפרטי הראשון. הוא נשמר בנפרד מקובץ האקסל (`f`);
+   רשימה ישנה בלעדיו — המילה האחרונה, כמו קודם. */
+function amdaFirst(sk) {
+  var n = amdaNm(sk), f = ((amdaRoster() || {}).f || {})[n];
+  if (f) return f;
+  var p = n.split(' ');
+  return p[p.length - 1];
+}
 function amdaMapHtml(les, occ, o) {
   var cols = amdaCols(les), h = '<div class="am-room"><div class="am-cols">';
   cols.forEach(function (n, i) {
@@ -16353,6 +16382,7 @@ function amdaMapHtml(les, occ, o) {
             var mk = amdaMkOf(who, o.sess);
             if (mk[0] > 0) lbl += '<i class="p">' + mk[0] + '</i>';
             if (mk[1] > 0) { lbl += '<i class="d">' + mk[1] + '</i>'; cls += ' bad'; }
+            else if (mk[0] > 0) cls += ' good';
           }
         }
         if (o.me && id === o.mine) cls += ' mine';
@@ -16403,6 +16433,8 @@ function amdaBoardPaint() {
     if (!had[sk]) away.push(sk); else if (!seated[sk]) noSeat.push(sk);
   });
   var chip = function (sk, cls) {
+    var mk = amdaMkOf(sk, sess);
+    cls += mk[1] > 0 ? ' bad' : mk[0] > 0 ? ' good' : '';
     return '<button class="am-chip' + cls + (amdaSt.bSel === sk ? ' on' : '') + '" data-k="' + esc(sk) + '">' +
            esc(amdaNm(sk)) + '</button>';
   };

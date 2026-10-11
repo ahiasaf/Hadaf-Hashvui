@@ -4418,6 +4418,8 @@ function parse_(v) {
 function cell_(v) {
   if (v == null) return '';
   if (typeof v === 'string' && /^0\d{7,}$/.test(v.replace(/[-\s]/g, ''))) return "'" + v;
+  /* מקום בכיתה ("2-1-1") — אחרת הגיליון הופך אותו לתאריך. */
+  if (typeof v === 'string' && /^\d{1,2}-\d{1,2}-\d{1,2}$/.test(v)) return "'" + v;
   return v;
 }
 
