@@ -239,23 +239,40 @@ S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>�
    באותו רגע "סיימו את הדף" עולה עד המספר האמיתי שבצילום, והרצועה
    מתמלאת איתו. השורה התחתונה והרצועה מצוירות מחדש בכל פריים;
    המילים העבריות שבשורה נלקחות מהצילום עצמו, רק המספרים מצוירים.
-   STATS: [לפני, אחרי]. done[1] = המספר שבצילום. */
-var STATS = { total: [237, 238], done: [87, 99], at: 10.3, run: .6 };
+   STATS: [לפני, אחרי]. top — המספר הגדול (מעודכן, לא מהצילום);
+   all/done — השורה התחתונה, כמו בצילום (בתחילת שבוע מעטים סיימו,
+   ולכן היא לא מתעדכנת למספרים של היום). */
+var STATS = { top: [306, 307], all: [237, 238], done: [87, 99], at: 10.3, run: .6 };
 S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
   build: function (L, s) {
-    var D = [
-      { ink: [669, 46, 723, 124], box: [667.5, 34, 61, 100], strip: [4, 26], color: '#C18E2C', to: '8' },
-      { ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
+    var D = [{ ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
+    var TOP = { ink: [556, 46, 723, 124], box: [550, 30, 180, 104], strip: [4, 26], color: '#C18E2C' };
     s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .75,
       post: function (x, img) {
         var on = s.t >= STATS.at, p = easeOut((s.t - STATS.at) / STATS.run);
         if (on) D.forEach(function (d) { roll(x, img, d, 1); });
-        var all = STATS.total[on ? 1 : 0], dv = lerp(STATS.done[0], STATS.done[1], p);
+        statNum(x, img, TOP, String(STATS.top[on ? 1 : 0]));
+        var all = STATS.all[on ? 1 : 0], dv = lerp(STATS.done[0], STATS.done[1], p);
         statBar(x, dv / all, img);
         statLine(x, img, String(Math.round(dv)), String(all));
       } });
   },
   tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 11.4, 1, 1.04); } });   // השורה התחתונה נשארת בפריים
+
+/* מספר שלם במקום מספר שבצילום: מוחק את התיבה ברקע נקי מעליה, ומצייר
+   באותו גובה דיו, ממורכז על מרכז המספר המקורי */
+function statNum(x, img, d, txt) {
+  var b = d.box, ink = d.ink;
+  x.drawImage(img, b[0], d.strip[0], b[2], d.strip[1], b[0], b[1], b[2], b[3]);
+  x.textAlign = 'left'; x.direction = 'ltr';
+  if (!d.size) {
+    x.font = '700 100px Heebo'; var m = x.measureText('0123');
+    d.size = 100 * (ink[3] - ink[1]) / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+  }
+  x.font = '700 ' + d.size + 'px Heebo'; x.fillStyle = d.color;
+  var m2 = x.measureText(txt), w = m2.actualBoundingBoxLeft + m2.actualBoundingBoxRight;
+  x.fillText(txt, (ink[0] + ink[2]) / 2 - w / 2 + m2.actualBoundingBoxLeft, ink[3]);
+}
 
 /* הרצועה: מסלול 39–1041, גובה 649–683, מתמלאת מימין */
 function statBar(x, f, img) {
