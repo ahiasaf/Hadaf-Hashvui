@@ -590,6 +590,8 @@ body.mark #toast{top:auto !important}
   <button id="clearsel" title="ניקוי הסימון">✕</button>
   <span class="gap"></span>
   <span class="gh" id="ghint"></span>
+  <button id="contjoin" style="display:none"
+          title="המשך הקטע מהעמוד הקודם — והפסקה שנבחרה בחברותא מצטרפת לביאור שלו">↩ חיבור</button>
   <button class="add" id="addstep2">הוספת הקטע</button>
 </div>
 
@@ -1938,7 +1940,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.170';
+var STUDIO_VER = '8.99.171';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2079,8 +2081,11 @@ function lastChav() {
   /* קטע המשך (`cont`) אינו צורך פסקאות משלו — הוא נושא את הביאור
      של הקטע שלפני המעבר. בראש דף הוא אפילו נושא מספרי פסקאות של
      קובץ חברותא **אחר**, של הדף הקודם. לכן אינו נספר כאן. */
-  for (var j = STEPS.length - 1; j >= 0; j--)
+  for (var j = STEPS.length - 1; j >= 0; j--) {
     if (!STEPS[j].cont) return STEPS[j].c.to;
+    /* המשך שצירף פסקאות משלו (`cj`) — הן כבר תפוסות */
+    if (STEPS[j].cj) return STEPS[j].cj.to;
+  }
   /* סורקים את כל עמודי הדף שלפני העמוד הנוכחי ולוקחים את הפסקה
      הגבוהה ביותר ששובצה. סריקה ולא "העמוד הקודם בלבד": עמוד אחד
      יכול להיעדר מהזיכרון ברגע הלא נכון, ואז המונה חזר לאפס
@@ -2091,7 +2096,10 @@ function lastChav() {
     if (k.indexOf(pre) !== 0) continue;
     if ((+k.slice(pre.length) || 1) >= pg) continue;
     var st = BOOK[k].steps || [];
-    for (var i = 0; i < st.length; i++) if (!st[i].cont) best = Math.max(best, st[i].c.to);
+    for (var i = 0; i < st.length; i++) {
+      if (!st[i].cont) best = Math.max(best, st[i].c.to);
+      else if (st[i].cj) best = Math.max(best, st[i].cj.to);
+    }
   }
   return best;
 }
@@ -2790,6 +2798,10 @@ function markPanel() {
     b2.disabled = !(ready || cont);
     b2.dataset.cont = cont ? '1' : '';
   }
+  /* נבחרה גם פסקה בחברותא, וזה ראש עמוד שאפשר להמשיך בו: הכפתור
+     הראשי נשאר "הוספת הקטע", ולצידו החיבור לקטע הקודם. */
+  var bj = document.getElementById('contjoin');
+  if (bj) bj.style.display = ready && INSP < 0 && canContinue() ? '' : 'none';
   var b1 = document.getElementById('addstep');
   /* בזמן בחינה או פיצול הבחירה היא של קטע קיים — "הוספה" שלה
      הייתה מכפילה אותו */
@@ -2898,10 +2910,83 @@ function canContinue() {
   return !!(GSEL && !STEPS.length && prevStep());
 }
 
-function addStep(cont) {
+/* ============================================================
+   "↩ חיבור" — המשך שמביא איתו גם פסקה מהחברותא.
+   ============================================================
+   "החברותא מראה לי רק את העמוד שאני עומד בו. סימנתי את הקטע
+   האחרון בגמרא ובחברותא, עברתי עמוד, סימנתי שם את הראשון בגמרא
+   ובחברותא — ולא הייתה דרך לומר שזה חלק מהקודם."
+
+   המשפט נחתך במעבר גם בחברותא, ו"↩ המשך הקטע" הרגיל לוקח רק את
+   הביאור שנבחר למטה. כאן הפסקה שנבחרה בראש העמוד מצטרפת אליו:
+   הקטע שבעמוד הקודם וההמשך נושאים שניהם את הביאור המחובר.
+
+   · באותו דף (עמוד ב׳) הקובץ אחד, ולכן הקטע הקודם פשוט נמתח עד
+     הפסקה שנבחרה.
+   · בראש דף חדש הפסקאות בקובץ אחר. הטקסט מתחבר, והמספרים שלהן
+     נשמרים בהמשך (`cj`), כדי שהקטע הבא יתחיל אחריהן.
+   `cj` נשמר בשני המקרים — ממנו יודעים לבטל, ולהשלים כשפעולה
+   אחרת בנתה את הביאור של הקטע הקודם מחדש.
+   ============================================================ */
+function crossDaf_() { return (+selVal('pg') || 1) === 1; }
+function joinedC_(pv, cj) {
+  if (!crossDaf_()) {
+    var r = chavRange(pv.c.from, cj.to);
+    return r ? { from: pv.c.from, to: cj.to, text: r.text, h: r.h } : null;
+  }
+  var ph = pv.c.h || (pv.c.text ? '<p>' + esc(pv.c.text) + '</p>' : '');
+  return { from: pv.c.from, to: pv.c.to,
+           text: (pv.c.text || '') + ' ' + cj.text, h: ph + cj.h };
+}
+function joinHas_(pv, cj) {
+  return crossDaf_() ? String(pv.c.h || '').slice(-cj.h.length) === cj.h
+                     : pv.c.to >= cj.to;
+}
+function setRootC_(pv, c) {
+  pv.c = c;
+  var k = keyOfStep_(pv);
+  if (k && BOOK[k]) { BOOK[k].t = Date.now(); DIRTY[k] = 1; }
+}
+/* המשך שמוסר — הפסקה חוזרת להיות פנויה, והקטע הקודם מתקצר */
+function unjoin_(st) {
+  if (!st || !st.cont || !st.cj) return;
+  var pv = prevStep(), cj = st.cj;
+  if (!pv || pv === st || pv.cont || !joinHas_(pv, cj)) return;
+  var c;
+  if (crossDaf_()) {
+    var t = String(pv.c.text || ''), tt = ' ' + cj.text;
+    c = { from: pv.c.from, to: pv.c.to,
+          text: t.slice(-tt.length) === tt ? t.slice(0, -tt.length) : t,
+          h: String(pv.c.h || '').slice(0, -cj.h.length) };
+  } else {
+    if (pv.c.to !== cj.to) return;
+    var r = cj.from - 1 >= pv.c.from ? chavRange(pv.c.from, cj.from - 1) : null;
+    if (!r) return;
+    c = { from: pv.c.from, to: cj.from - 1, text: r.text, h: r.h };
+  }
+  setRootC_(pv, c);
+}
+
+function addStep(cont, join) {
   if (INSP >= 0) return;
   var prev = cont ? prevStep() : null;
   if (!GSEL || (cont ? !prev : !CSEL_P)) return;
+  var cj = null, jc = null;
+  if (cont && join) {
+    if (!CSEL_P) return;
+    if (!CHV) { say('החברותא עוד לא נטענה — נסו שוב בעוד רגע.', 1); return; }
+    if (prev.cont) { say('הקטע בעמוד הקודם הוא עצמו המשך — אי אפשר לצרף אליו פסקה מכאן.', 1); return; }
+    if (!crossDaf_() && CSEL_P.a <= prev.c.to) {
+      say('הפסקה הזו כבר שייכת לקטע בעמוד הקודם.', 1); return;
+    }
+    var r = chavRange(CSEL_P.a, CSEL_P.b);
+    if (!r) { say('הפסקאות שנבחרו מוסתרות — אין מה לצרף.', 1); return; }
+    cj = { from: CSEL_P.a, to: CSEL_P.b, text: r.text, h: r.h };
+    jc = joinedC_(prev, cj);
+    if (!jc) { say('לא הצלחתי לחבר את הביאור — לא נוסף.', 1); return; }
+    /* קודם הקטע הקודם: `seal` מעתיק ממנו אל ההמשך */
+    setRootC_(prev, jc);
+  }
   var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
   var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
   var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
@@ -2915,6 +3000,7 @@ function addStep(cont) {
                        : { from: CSEL_P.a, to: CSEL_P.b,
                            text: chavText(), h: chavRich() } };
   if (cont) step.cont = 1;
+  if (cj) step.cj = cj;
   var at = STEPS.length;
   for (var i = 0; i < STEPS.length; i++) {
     var f = STEPS[i].g.from;
@@ -2926,6 +3012,8 @@ function addStep(cont) {
   touched();
   GSEL = null; CSEL_P = null;
   paintChav(1); markDraw();
+  if (cj) say('✓ המשך הקטע נוסף, והפסקה צורפה לביאור שלו — גם בעמוד הקודם. ' +
+              'נשמר במכשיר — "שמירה" מעלה לגיליון.');
 }
 /* ---------- רשימת הקטעים, בטלפון ----------
    הרשימה עם כפתורי המחיקה קיימת מזמן — אבל היא יושבת בפאנל הצדדי,
@@ -3075,6 +3163,7 @@ function showSteps() {
 /* הסרת נקודת חיתוך — `seal` מותח את הבא עד סוף הקודם. נשארה רק
    ל"↶" ול-✕ (`deleteStep`). איחוד — `mergeStep`. */
 function removeStep(i) {
+  unjoin_(STEPS[i]);
   STEPS.splice(i, 1);
   seal();
   touched();
@@ -4287,7 +4376,7 @@ function seal(report) {
     /* הקטעים הראשונים שייכים לדף הקודם — נקודת האפס היא סופם. */
     var cut = STEPS[rec0.prev - 1];
     base = { line: cut.g.to.line, x: cut.g.to.x };
-    baseC = cut.c.to + 1;
+    baseC = (cut.cont && cut.cj ? cut.cj.to : cut.c.to) + 1;
   } else {
     var pageStart = STEPS.length ? null : null;
     baseC = 0;
@@ -4298,8 +4387,10 @@ function seal(report) {
       if (k0.indexOf(pre) !== 0 || k0 === PKEY) continue;
       if ((+k0.slice(pre.length) || 1) >= pgn) continue;
       var pst = BOOK[k0].steps || [];
-      for (var j0 = 0; j0 < pst.length; j0++)
+      for (var j0 = 0; j0 < pst.length; j0++) {
         if (!pst[j0].cont) best = Math.max(best, pst[j0].c.to);
+        else if (pst[j0].cj) best = Math.max(best, pst[j0].cj.to);
+      }
     }
     baseC = best + 1;
   }
@@ -4327,6 +4418,13 @@ function seal(report) {
          לעמוד. */
       if (st.cont) {
         var pv = prevStep();
+        /* המשך שצירף פסקה (`cj`): הקטע שבעמוד הקודם חייב לשאת אותה.
+           פעולה שבנתה את הביאור שלו מחדש (פיצול, איחוד) השמיטה
+           אותה — מחזירים, לפני שההמשך מעתיק ממנו. */
+        if (pv && pv !== st && st.cj && !pv.cont && !joinHas_(pv, st.cj)) {
+          var jc0 = joinedC_(pv, st.cj);
+          if (jc0) { setRootC_(pv, jc0); fixed++; CONT_FIXED = true; }
+        }
         if (pv && pv !== st && (st.c.from !== pv.c.from || st.c.to !== pv.c.to ||
                                 st.c.h !== pv.c.h)) {
           st.c = { from: pv.c.from, to: pv.c.to, text: pv.c.text, h: pv.c.h };
@@ -4354,7 +4452,7 @@ function seal(report) {
          פסקאות שנשארו יתומות בין השניים נכנסות לקטע הזה. */
       /* אחרי קטע המשך — ממשיכים מנקודת האפס של העמוד, לא ממנו:
          הפסקאות שלו שייכות לעמוד הקודם (או לקובץ של הדף הקודם). */
-      var nextC = prev.cont ? baseC : prev.c.to + 1;
+      var nextC = prev.cont ? (prev.cj ? prev.cj.to + 1 : baseC) : prev.c.to + 1;
       if (st.c.from !== nextC) {
         st.c.from = nextC;
         if (st.c.to < st.c.from) st.c.to = st.c.from;
@@ -4490,6 +4588,7 @@ document.getElementById('addstep').onclick = function () { addStep(); };
 document.getElementById('addstep2').onclick = function () {
   addStep(this.dataset.cont === '1');
 };
+document.getElementById('contjoin').onclick = function () { addStep(true, true); };
 
 /* ============================================================
    נקודת עצירה.
