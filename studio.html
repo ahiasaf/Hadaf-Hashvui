@@ -1349,6 +1349,9 @@ document.getElementById('reset').onclick = function () {
      אחרת הוא כותב את הכיול הנוכחי בחזרה ואין מה לזרוק. */
   FRESH = true;
   run();
+  /* הזיהוי החדש הוא עכשיו הכיול של העמוד. בלי זה הגיליון —
+     שעדיין מחזיק את הכיול הקודם — היה מחזיר אותו בקריאה הבאה. */
+  if (S) touched();
 };
 
 document.getElementById('save').onclick = function () {
@@ -1717,6 +1720,7 @@ function onDaf() {
      כך שגם קובץ ה-JSON יצא ובו הדף הקודם. שניהם נטענים עכשיו. */
   if (typeof setHideMode === 'function') setHideMode(false);
   if (MODE === 'mark') { loadChav(); loadFromSheet().then(afterSheet); }
+  else loadFromSheet().then(afterSheetCal_);
 }
 /* סימונים שנשמרו לפני שההדגשות נשמרו איתם נשענים על קובץ
    החברותא בכל פתיחה במסך הלימוד — וזה איטי ושביר. כשהקובץ
@@ -1778,7 +1782,7 @@ function bareTxt(t) { return String(t || '').replace(/\s+/g, ''); }
 
 function afterSheet(n) {
   if (!n) return;
-  PKEY = ''; loadPageState(); paintChav(); markDraw(); backfillChav();
+  PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); backfillChav();
   say('נטענו סימונים קודמים מ-' + n + ' עמודים');
 }
 /* ---------- מאיזו תמונה מכיילים ----------
@@ -1941,7 +1945,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.177';
+var STUDIO_VER = '8.99.178';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2023,8 +2027,37 @@ function restoreCal() {
                lines: (z.lines || []).map(function (l) { return [l[0]*h, l[1]*h]; }) };
     })
   };
-  S.outer = S.inner = S.core;
+  /* המסגרת הפנימית היא `spine` ולא `core`. כאן נכתב פעם
+     `S.inner = S.core`, וכל כיול שחזר מהשמירה איבד את המסגרת
+     הפנימית: מתגי הטורים לא עשו דבר, ואזור שנוסף נפרש על כל
+     הרוחב. */
+  S.outer = S.core;
+  S.inner = S.spine.length === 2 ? S.spine : S.core;
   return true;
+}
+/* הכיול שבגיליון — גם על המסך, ולא רק בזיכרון.
+
+   "כיילתי, וזה עובד מצוין. נכנס שוב לסטודיו — וזה משתבש מחדש."
+   הכיול נשמר כראוי, אבל בכניסה הסטודיו מצייר את העמוד **לפני**
+   שהגיליון ענה. בלי עותק מקומי (מכשיר אחר, אפליקציה מותקנת מול
+   דפדפן, אחסון שהתנקה) רץ הזיהוי האוטומטי. הגיליון הגיע אחר כך,
+   נכנס לזיכרון — והמסך נשאר עם הזיהוי האוטומטי, וגם הסימון
+   נעשה על השורות שלו. מעבר עמוד היה אף כותב אותו על הכיול הטוב.
+
+   לכן: אחרי כל קריאה מהגיליון, כשלעמוד שעל המסך יש כיול שמור —
+   הוא מה שמוצג. */
+function calFromBook_() {
+  if (!D || !S || !PKEY) return false;
+  var rec = BOOK[PKEY];
+  if (!rec || !rec.cal || !rec.zones || !rec.zones.length) return false;
+  if (!restoreCal()) return false;
+  sel = Math.max(0, Math.min(sel, S.zones.length - 1));
+  return true;
+}
+function afterSheetCal_(n) {
+  if (!n || MODE === 'mark') return;
+  PKEY = ''; loadPageState();
+  if (calFromBook_()) draw();
 }
 
 /* ============================================================
