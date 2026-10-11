@@ -2731,7 +2731,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.187';
+var APP_VERSION = '8.99.188';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7113,7 +7113,50 @@ function yshEntries(list) {
     /* שתי שורות מצב לאותה ישיבה — העדכנית גוברת. */
     if (!by[k].st || tsOf(st[sk].upd) > tsOf(by[k].st.upd)) by[k].st = st[sk];
   });
-  return out;
+  return yshFold(out);
+}
+/* ============================================================
+   מעבר שני: שם שלא זוהה מצטרף לישיבה שהוא חלק ממנה.
+   ============================================================
+   "ישיבת לפיד נחום" הופיעה פעמיים: שורה אחת מהשם שברשימת
+   המוסדות, ושורה שנייה משם שנכתב אחרת ולא זוהה (תיקו מול מוסד
+   אחר, או רשימת מוסדות מהגיליון שכתובה אחרת). שם לא מזוהה
+   מתמזג לקבוצה אחרת רק כשההתאמה חד־משמעית: המילים שלו כלולות
+   בשלה (או להפך), או שתי מילים משותפות לפחות — ומועמד אחד
+   בלבד. שתי ישיבות מזוהות לעולם אינן מתמזגות זו בזו. */
+function yshWords(e) {
+  var w = {};
+  [e.name].concat(e.recs.map(function (o) { return o.c.key || o.c.name; }))
+    .concat(e.st ? [e.st.name] : []).forEach(function (s) {
+      instWords(s).forEach(function (x) { w[x] = 1; });
+    });
+  return w;
+}
+function yshFold(out) {
+  var ws = out.map(yshWords);
+  var gone = {};
+  out.forEach(function (e, a) {
+    if (e.k.charAt(0) === '@') return;
+    var mine = Object.keys(ws[a]);
+    if (!mine.length) return;
+    var best = -1, bestN = 0, tie = 0;
+    out.forEach(function (f, b) {
+      if (b === a || gone[b]) return;
+      var his = Object.keys(ws[b]);
+      var n = mine.filter(function (x) { return ws[b][x]; }).length;
+      if (!n || (n < 2 && n !== mine.length && n !== his.length)) return;
+      if (n > bestN) { bestN = n; best = b; tie = 1; }
+      else if (n === bestN) tie++;
+    });
+    if (best < 0 || tie > 1) return;
+    var to = out[best];
+    e.recs.forEach(function (r) { to.recs.push(r); });
+    if (e.st && (!to.st || tsOf(e.st.upd) > tsOf(to.st.upd))) to.st = e.st;
+    to.alias = (to.alias || []).concat([e.k], e.alias || []);
+    Object.keys(ws[a]).forEach(function (x) { ws[best][x] = 1; });
+    gone[a] = 1;
+  });
+  return out.filter(function (e, a) { return !gone[a]; });
 }
 function yshOf(e, f) { return e.st ? e.st[f] : (f === 'rate' ? 'unclear' : 'u'); }
 var YSH_IND = [['grp', 'yshGrp'], ['team', 'yshTeam'], ['zoom', 'yshZoom']];
@@ -7403,7 +7446,8 @@ function yshLogHtml(e) {
                  note:c.note || '', stg:c.stage !== 'new' ? c.stage : '' });
   });
   (Store.get('yshAdds', []) || []).forEach(function (a) {
-    if (yshGk(a.n) === e.k) items.push({ t:tsOf(a.at), at:a.at, who:a.who, note:a.note, stg:'' });
+    var ak = yshGk(a.n);
+    if (ak === e.k || (e.alias || []).indexOf(ak) >= 0) items.push({ t:tsOf(a.at), at:a.at, who:a.who, note:a.note, stg:'' });
   });
   if (!items.length) return '<div class="ysh-empty">' + esc(UI.yshLogNone) + '</div>';
   items.sort(function (a, b) { return b.t - a.t; });
@@ -7497,20 +7541,29 @@ function renderCalls() {
     state.yshOpen = '';
   }
 
-  var counts = { all:list.length };
+  /* **סופרים ישיבות, לא רשומות.** שתי רשומות של אותה ישיבה
+     נספרו פעמיים — "מתוך 41" כשיש 40, ו"מתעניין (2)" על ישיבה
+     אחת. ישיבה נספרת בקטגוריה אם אחת מהרשומות שלה שם — בדיוק
+     כמו המסנן שמתחת. */
+  var yEnts = ents.filter(function (e) { return e.recs.length; });
+  var yCount = function (ok) {
+    return yEnts.filter(function (e) { return e.recs.some(function (o) { return ok(o.c); }); }).length;
+  };
+  var counts = { all:ents.length };
   STAGES.forEach(function (s) {
-    counts[s.k] = list.filter(function (c) { return c.stage === s.k; }).length;
+    counts[s.k] = yCount(function (c) { return c.stage === s.k; });
   });
   /* הממשיכים מאשתקד הם השיחות הראשונות, ולכן הם קבוצה לעצמם
      ולא רק סדר מיון: אפשר לראות רק אותם ולעבור עליהם. */
-  counts.last = list.filter(function (c) { return c.last; }).length;
-  counts.signed = list.filter(function (c) { return !!regOf(c, regs); }).length;
+  counts.last = yCount(function (c) { return c.last; });
+  counts.signed = yCount(function (c) { return !!regOf(c, regs); });
+  counts.talked = yCount(function (c) { return c.stage !== 'new'; });
 
   yshCtx = ctx;
   /* שורה אחת במקום כרזה — הרשימה היא העיקר, ולא גוללים אליה. */
   var h = '<div class="my-top" style="margin:0"><b>מוקד שיחות</b><span>' + counts.joined +
-          ' מתוך ' + list.length + ' ישיבות הצטרפו · ' +
-          (list.length - counts.new) + ' שיחות בוצעו</span></div>' +
+          ' מתוך ' + yEnts.length + ' ישיבות הצטרפו · ' +
+          counts.talked + ' שיחות בוצעו</span></div>' +
           /* "משהו בולט שיאללה אני שולח לראש ישיבה בלי מאמץ" — עמוד אחד
              עם שלושת הקישורים (kishurim.html). וואטסאפ נפתח על בורר אנשי הקשר. */
           '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' +
