@@ -31,9 +31,7 @@ function boot() {
     var b2 = $('back');
     if (b2) {
       var inst = (/[?&]inst=([^&]*)/.exec(location.search) || [])[1] || '';
-      b2.href = location.href.split('#')[0].split('?')[0]
-        .replace(/\/learn(\.html)?\/?$/, '/') +
-        'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto';
+      b2.href = '/tzevet' + (inst ? '?inst=' + inst : '') + '#howto';
       var h2 = $('to-home'); if (h2) h2.href = b2.href;
     }
   }

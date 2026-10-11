@@ -307,7 +307,7 @@ function lockShow() {
   var wk = Math.max(0, weekIndex());
   var crow = calOf(S.mas)[wk] || [], cur = crow[2], cam = LAmOf(crow);
   if (cur && cur !== 'סיום' && wk !== S.week && OpenIs(S.mas, cur, cam)) {
-    h += '<br><a class="lockback" href="learn.html?mas=' + encodeURIComponent(S.mas) +
+    h += '<br><a class="lockback" href="/lesson-tools?mas=' + encodeURIComponent(S.mas) +
       '&' + unitQ({ daf: cur, am: cam }) + '">' + esc(UI.lockBack) + '</a>';
   }
   h += '<span id="lock-message"></span>';

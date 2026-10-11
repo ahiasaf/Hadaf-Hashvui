@@ -330,6 +330,7 @@ function spotSave() {
   var pp = PAGES[FLAT[IDX].p] || {};
   try {
     /* `am` - היחידה (ב. או ב:), `pg` - העמוד שעל המסך בתוכה. */
+    localStorage.setItem('df:track', JSON.stringify(S.mas));
     localStorage.setItem(SPOT_KEY, JSON.stringify({ mas: S.mas, daf: S.daf, am: S.am, i: IDX,
       n: FLAT.length, id: FLAT[IDX].id || '', pg: pp.pg || 1, at: Date.now() }));
   } catch (e) {}
@@ -365,7 +366,7 @@ function spotOffer() {
   if (!p || p.mas !== S.mas ||
       (dafKey(p.daf) === dafKey(S.daf) && (p.am == null || p.am === S.am))) return;
   if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
-  var u = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
+  var u = '/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
   resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.pg || 1) })) +
     ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
 }
@@ -385,7 +386,7 @@ function spotJump() {
   for (var i = 0; i < u.length; i++)
     if (dafKey(u[i].daf) === dafKey(p.daf) && (p.am == null || u[i].am === p.am)) { to = i; break; }
   if (here < 0 || to <= here) return false;
-  location.replace('learn.html?mas=' + encodeURIComponent(S.mas) + '&' +
+  location.replace('/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&' +
     unitQ({ daf: u[to].daf, am: p.am || 0 }) + keepQ());
   return true;
 }

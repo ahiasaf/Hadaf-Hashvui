@@ -234,6 +234,27 @@ try {
   await prepare(context);
   const page = await context.newPage();
   await page.goto(base + "/join");
+  // The dashboard remembers the selected track and offers the unfinished interactive lesson.
+  await page.goto(base + "/app");
+  await page.getByRole("button", { name: "מגילה", exact: true }).click();
+  await page.reload();
+  await page
+    .locator('.track-tabs button[aria-pressed="true"]')
+    .filter({ hasText: "מגילה" })
+    .waitFor();
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "df:spot",
+      JSON.stringify({ mas: "megila", daf: "ב", am: 2, i: 1, n: 5 }),
+    );
+  });
+  await page.reload();
+  await page.getByRole("link", { name: "להמשך הלימוד", exact: true }).waitFor();
+  assert.match(
+    await page.locator("[data-continue]").getAttribute("href"),
+    /^\/lesson-tools\?.*mas=megila.*amud=2/,
+  );
+  await page.goto(base + "/join");
   // Signup is a step flow: big choices advance on tap, Enter continues, a reload resumes.
   await page.getByRole("button", { name: /^תלמיד/ }).click();
   await page.getByLabel("שם פרטי", { exact: true }).fill("תלמיד");
@@ -282,6 +303,7 @@ try {
     .locator("#count")
     .filter({ hasText: /^קטע 1 מתוך/ })
     .waitFor();
+  assert.equal(await page.locator("#back").getAttribute("href"), "/app");
   const stage = await page.locator("#stage").boundingBox();
   const controls = await page.locator("body > nav").boundingBox();
   await page.locator("#next").click();
@@ -323,6 +345,11 @@ try {
       "taanit|1"
     ],
   );
+  assert.match(
+    await page.locator("#to-next").getAttribute("href"),
+    /^\/lesson-tools\?/,
+  );
+  assert.equal(await page.locator("#to-home").getAttribute("href"), "/app");
   await page.clock.setFixedTime(new Date());
   await page.goto(base + "/board?inst=" + program.institutions[0].code);
   await page.getByLabel("קוד גישה", { exact: true }).fill("DEMO");
@@ -540,7 +567,7 @@ try {
   const staticPage = await noJs.newPage();
   await staticPage.goto(base);
   assert.ok(await staticPage.getByRole("heading", { level: 1 }).count());
-  assert.ok(await staticPage.locator('a[href^="/learn?"]').count());
+  assert.ok(await staticPage.locator('a[href^="/lesson-tools?"]').count());
   await noJs.close();
   const legacyContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

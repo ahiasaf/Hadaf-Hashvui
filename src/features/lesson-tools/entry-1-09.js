@@ -131,25 +131,8 @@ function stuInst() {
   } catch (e) {}
   return '';
 }
-/* **הורה חוזר כהורה.** "יציאה" החזירה ל-`join.html?inst=…` בלי
-   `for=dad`, ו-memo() ב-join מוחק את סימון ההורה בכל כתובת עם
-   פרמטרים - ואבא נחת במסך של בן. עכשיו הסימון נוסע איתו: מהכתובת,
-   מההרשמה שבמכשיר (role), או מהזיכרון של קישור ההורים. */
-function stuDad() {
-  if (/[?&]for=dad\b/.test(location.search)) return true;
-  try {
-    var me = JSON.parse(localStorage.getItem('df:me') || 'null');
-    if (me && me.role) return me.role === 'dad';
-    return localStorage.getItem('df:forDad') === '1';
-  } catch (e) { return false; }
-}
 function stuHomeUrl() {
-  /* מי שנכנס מהמסך הראשי חוזר אליו - הכתובת יודעת, המכשיר מנחש. */
-  if (FROM === 'home' || staffDev()) return './';
-  var i = stuInst(), q = [];
-  if (i) q.push('inst=' + i);
-  if (stuDad()) q.push('for=dad');
-  return 'join.html' + (q.length ? '?' + q.join('&') : '');
+  return FROM === 'home' ? '/' : '/app';
 }
 function stuQuizUrl(key) {
   if (FROM === 'home' || staffDev()) return './#quiz=' + key;
@@ -350,7 +333,7 @@ function bubble(mode) {
 function demoOut() {
   if (REC) return;              /* במקליט אין לאן ללכת - עוד מכוונים */
   var base = location.href.split('#')[0].split('?')[0]
-    .replace(/\/learn(\.html)?\/?$/, '/');
+    .replace(/\/(?:learn|lesson-tools)(\.html)?\/?$/, '/');
   var inst = (/[?&]inst=([^&]*)/.exec(location.search) || [])[1] || '';
   var u = FROM === 'tzevet'
     ? base + 'tzevet.html' + (inst ? '?inst=' + inst : '') + '#howto'

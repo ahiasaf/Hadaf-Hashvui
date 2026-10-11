@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { action, stored, store, type Person } from "../lib/client";
 import { lessonHref, studyUnits, weekIndex, type Track } from "../lib/calendar";
 import Install from "./Install";
+type ReadingSpot = {
+  mas: string;
+  daf: string;
+  am: number;
+  i: number;
+  n: number;
+};
+
 export default function StudentHome({
   tracks,
   startDate,
@@ -12,7 +20,13 @@ export default function StudentHome({
   const [person, setPerson] = useState<Person | null>(null);
   const [completed, setCompleted] = useState<Record<string, string>>({});
   const [trackId, setTrackId] = useState(tracks[0].id);
+  const [spot, setSpot] = useState<ReadingSpot | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
   useEffect(() => {
+    const savedSpot = stored<ReadingSpot | null>("spot", null);
+    const selected = stored("track", savedSpot?.mas || tracks[0].id);
+    if (tracks.some((track) => track.id === selected)) setTrackId(selected);
+    setSpot(savedSpot);
     const existing = stored<Person | null>("me", null);
     setPerson(existing);
     setCompleted(stored("learned", {}));
@@ -41,17 +55,29 @@ export default function StudentHome({
         setCompleted(progress);
       })
       .catch(() => {
-        /* Existing local progress stays available while offline. */
+        if (active) setSyncFailed(true);
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [tracks]);
   const track = tracks.find((item) => item.id === trackId)!;
   const current = Math.min(weekIndex(startDate), track.cal.length - 1);
   const count = track.cal.filter(
     (row, index) => row[2] && completed[track.id + "|" + (index + 1)],
   ).length;
+  const resumeRow =
+    spot?.mas === trackId && spot.i > 0 && spot.i < spot.n - 1
+      ? track.cal.find(
+          (row) =>
+            row[2] === spot.daf &&
+            (row[3] === "א" ? 1 : row[3] === "ב" ? 2 : 0) === spot.am,
+        )
+      : undefined;
+  const currentRow = track.cal[current];
+  const studyRow =
+    resumeRow ||
+    (currentRow[2] && currentRow[2] !== "סיום" ? currentRow : null);
   return (
     <section className="workspace">
       <div className="page-intro">
@@ -64,11 +90,44 @@ export default function StudentHome({
           <button
             key={item.id}
             aria-pressed={item.id === trackId}
-            onClick={() => setTrackId(item.id)}
+            onClick={() => {
+              setTrackId(item.id);
+              store("track", item.id);
+            }}
           >
             {item.name}
           </button>
         ))}
+      </div>
+      <div className="study-next surface">
+        <p className="eyebrow">
+          {resumeRow ? "ממשיכים מהמקום שעצרתם" : "הלימוד השבועי"}
+        </p>
+        <h2>
+          {studyRow
+            ? "מסכת " +
+              track.name +
+              ", דף " +
+              studyRow[2] +
+              (studyRow[3] ? " ע״" + studyRow[3] : "")
+            : "השבוע אין דף חדש"}
+        </h2>
+        {resumeRow && (
+          <p>
+            קטע {spot!.i + 1} מתוך {spot!.n}
+          </p>
+        )}
+        <a
+          className="button button-gold"
+          data-continue
+          href={studyRow ? lessonHref(track, studyRow) : "/calendar#" + trackId}
+        >
+          {studyRow
+            ? resumeRow
+              ? "להמשך הלימוד"
+              : "פתיחת הדף"
+            : "לתוכנית הלימוד"}
+        </a>
       </div>
       <div className="progress-overview swap" key={"progress-" + trackId}>
         <strong>{count}</strong>
@@ -83,6 +142,11 @@ export default function StudentHome({
         <p className="notice">
           ההתקדמות נשמרת במכשיר. <a href="/join">הצטרפות לתוכנית</a> מאפשרת
           לעדכן גם את הישיבה.
+        </p>
+      )}
+      {syncFailed && (
+        <p className="notice" role="status">
+          ההתקדמות במכשיר זמינה. העדכון מהישיבה לא הגיע, ננסה שוב בכניסה הבאה.
         </p>
       )}
       {person && <Install />}

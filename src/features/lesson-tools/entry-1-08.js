@@ -45,7 +45,7 @@ function pickGo(k) {
     if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
     return;
   }
-  location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
+  location.href = '/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
     (rowAm || u.am === 2 ? '&amud=' + u.am : '') + keepQ();
 }
 var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
@@ -157,7 +157,7 @@ var MARKS_FILTERED = null;
    תשובה טובה יותר מכפתור שנעלם בלי הסבר. */
 function prevDafUrl() {
   var u = prevDaf();
-  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+  return u ? '/lesson-tools?mas=' + encodeURIComponent(S.mas) +
              '&' + unitQ(u) + '&at=end' + keepQ() : null;
 }
 /* "הקודם" בקטע הראשון ממשיך אל הקטע האחרון של הדף שלפניו - כמו
@@ -172,7 +172,7 @@ function goBack() {
 var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
   var u = nextDaf();
-  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+  return u ? '/lesson-tools?mas=' + encodeURIComponent(S.mas) +
              '&' + unitQ(u) + keepQ() : null;
 }
 function finish() {

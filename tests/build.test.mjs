@@ -9,7 +9,7 @@ test("calendar separates learning units from calendar weeks", () => {
   assert.equal(program.tracks[0].cal.length, 36);
   assert.match(
     lessonHref(program.tracks[0], program.tracks[0].cal[1]),
-    /amud=2/,
+    /^\/lesson-tools\?.*amud=2/,
   );
 });
 test("week changes at Jerusalem calendar midnight, not browser timezone", () => {

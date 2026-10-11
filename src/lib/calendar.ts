@@ -28,7 +28,7 @@ export function lessonHref(track: Track, row: CalendarRow) {
   const params = new URLSearchParams({ mas: track.id, daf: row[2] || "" });
   if (row[3] === "א" || row[3] === "ב")
     params.set("amud", row[3] === "א" ? "1" : "2");
-  return "/learn?" + params.toString();
+  return "/lesson-tools?" + params.toString();
 }
 export function studyUnits(track: Track) {
   return track.cal.filter((row) => row[2] && row[2] !== "סיום").length;

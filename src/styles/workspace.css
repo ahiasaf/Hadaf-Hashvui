@@ -1466,3 +1466,15 @@ textarea {
     stroke-dashoffset: 0;
   }
 }
+
+.study-next {
+  padding: 24px;
+  margin-block: 24px;
+  text-align: center;
+}
+.study-next .button {
+  margin-inline: auto;
+}
+.study-next > p:not(.eyebrow) {
+  color: var(--muted);
+}
