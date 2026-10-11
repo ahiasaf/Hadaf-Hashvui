@@ -37,20 +37,36 @@ vm.runInContext(fs.readFileSync(path.join(ROOT, 'stepid.js'), 'utf8'), ctx);
 vm.runInContext(html.slice(a, b) + '\nthis.SID = SID; this.SID_VER = SID_VER;', ctx);
 var TABS = ctx.SID_TABS;
 
-function get(params) {
+function get(params, tries) {
   var q = Object.keys(params).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   }).join('&');
-  return fetch(URL_ + '?' + q, { redirect: 'follow' }).then(function (r) { return r.json(); });
-}
-function readAll() {
-  var out = {};
-  return Promise.all(Object.keys(TABS).map(function (k) {
-    return get({ read: TABS[k], key: key }).then(function (d) {
-      if (!d || d.status !== 'ok') throw new Error('קריאת "' + TABS[k] + '" נכשלה: ' + (d && d.message || ''));
-      out[k] = d.rows || [];
+  tries = tries || 0;
+  return fetch(URL_ + '?' + q, { redirect: 'follow' }).then(function (r) {
+    return r.text().then(function (txt) {
+      try { return JSON.parse(txt); }
+      catch (e) { throw new Error('תשובה שאינה JSON (HTTP ' + r.status + ', ' + txt.length + ' תווים)'); }
     });
-  })).then(function () { return out; });
+  }).catch(function (e) {
+    /* גוגל מחזיר לפעמים דף שגיאה רגעי — מנסים שוב, ולא יותר מארבע פעמים */
+    if (tries >= 4) throw e;
+    console.log('  ניסיון חוזר (' + (tries + 1) + '): ' + (e && e.message || e));
+    return sleep(3000 * (tries + 1)).then(function () { return get(params, tries + 1); });
+  });
+}
+/* אחת אחרי השנייה, לא במקביל */
+function readAll() {
+  var out = {}, chain = Promise.resolve();
+  Object.keys(TABS).forEach(function (k) {
+    chain = chain.then(function () {
+      return get({ read: TABS[k], key: key }).then(function (d) {
+        if (!d || d.status !== 'ok') throw new Error('קריאת "' + TABS[k] + '" נכשלה: ' + (d && d.message || ''));
+        out[k] = d.rows || [];
+        console.log('  נקראה "' + TABS[k] + '": ' + Math.max(0, out[k].length - 1) + ' שורות');
+      }, function (e) { throw new Error('קריאת "' + TABS[k] + '": ' + (e && e.message || e)); });
+    });
+  });
+  return chain.then(function () { return out; });
 }
 function sleep(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 function report(S) {
