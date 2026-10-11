@@ -1723,6 +1723,8 @@ function onDaf() {
    החברותא בכל פתיחה במסך הלימוד — וזה איטי ושביר. כשהקובץ
    ממילא פתוח כאן, ממלאים את מה שחסר, וזה נשמר בשמירה הבאה. */
 function backfillChav() {
+  var purged = purgeHidden_();
+  if (purged) say('פסקה מוסתרת הוצאה מ-' + purged + ' עמודים שבהם עוד הופיעה. שמרו כדי לקבע.');
   if (!STEPS.length) return 0;
   /* החברותא והגיליון מגיעים בסדר משתנה, ושניהם קוראים לכאן.
      כשהחברותא עוד בדרך אין מה לומר — הצד השני יקרא שוב. */
@@ -1940,7 +1942,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.172';
+var STUDIO_VER = '8.99.173';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -4268,10 +4270,78 @@ function toggleHide(i) {
     if (rec.hidden.indexOf(sig) < 0) rec.hidden.push(sig);
     CHV[i].off = true;
   }
+  /* ============================================================
+     הקטעים שכבר מחזיקים את הפסקה.
+     ============================================================
+     "הוריתי להסתיר את הקטע שכתוב בו 'למחוק', אבל הוא עדיין מופיע."
+
+     התלמיד אינו קורא את החברותא — הוא קורא את הטקסט ששמור בקטע
+     (`c.h`). ההסתרה סימנה את הפסקה כאן בלבד, וקטע שכבר שובץ
+     המשיך להחזיק אותה. התיקון (✎) כבר עדכן את הקטעים; ההסתרה לא.
+     עכשיו גם היא — בשני עמודי הדף, כמו התיקון. */
+  if (CHV[i].off) dropHiddenPara_(i);
+  else refreshHolders_(i);
   redrawChav();
   touched();
   say(CHV[i].off ? 'הפסקה הוסתרה — לא תופיע אצל התלמיד'
                  : 'הפסקה הוחזרה.');
+}
+function paraHtml_(p) { return '<p>' + runsHtml(p.runs || []) + '</p>'; }
+/* מוציא פסקה אחת מהטקסט השמור של קטע. לפי הנוסח ולא לפי חישוב
+   מחדש של הטווח — כך זה נכון גם לקטע שצירף פסקה מעמוד אחר. */
+function stripPara_(c, p) {
+  if (!c) return false;
+  var ph = paraHtml_(p), pt = runsText(p.runs);
+  var h = String(c.h || ''), at = h.indexOf(ph);
+  /* יש טקסט מעוצב — הוא הקובע. אין (רשומה ישנה) — לפי הטקסט הפשוט. */
+  if (h && at < 0) return false;
+  if (at >= 0) c.h = h.slice(0, at) + h.slice(at + ph.length);
+  var t = String(c.text || '');
+  if (pt && t.indexOf(pt) >= 0) {
+    if (t.indexOf(' ' + pt) >= 0) t = t.replace(' ' + pt, '');
+    else if (t.indexOf(pt + ' ') >= 0) t = t.replace(pt + ' ', '');
+    else t = t.replace(pt, '');
+    c.text = t;
+  } else if (at < 0) return false;
+  return true;
+}
+function holds_(c, i) {
+  return c && c.from != null && i >= c.from && i <= (c.to == null ? c.from : c.to);
+}
+function dropHiddenPara_(i) {
+  var p = CHV[i], now = Date.now(), n = 0;
+  if (!p) return 0;
+  hiddenKeys().forEach(function (k) {
+    var hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      if (holds_(st.c, i) && stripPara_(st.c, p)) hit = true;
+      if (holds_(st.cj, i) && stripPara_(st.cj, p)) hit = true;
+    });
+    if (hit) { n++; if (k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; } }
+  });
+  return n;
+}
+function refreshHolders_(i) {
+  var now = Date.now();
+  hiddenKeys().forEach(function (k) {
+    var hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      var c = st.c;
+      if (st.cj || !holds_(c, i)) return;
+      var got = chavRange(c.from, c.to == null ? c.from : c.to);
+      if (got) { c.text = got.text; c.h = got.h; hit = true; }
+    });
+    if (hit && k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; }
+  });
+}
+/* בכניסה לדף: פסקה שהוסתרה לפני התיקון הזה ועדיין יושבת בקטע
+   שמור — יוצאת ממנו. רץ אחרי שגם החברותא וגם הגיליון הגיעו. */
+function purgeHidden_() {
+  if (!CHV) return 0;
+  var n = 0;
+  for (var i = 0; i < CHV.length; i++) if (CHV[i].off) n += dropHiddenPara_(i);
+  if (n) touched();
+  return n;
 }
 
 function paraText(i) {
