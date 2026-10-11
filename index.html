@@ -2719,7 +2719,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.179';
+var APP_VERSION = '8.99.180';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15894,7 +15894,7 @@ function amdaExitAsk() {
   };
 }
 /* החלפת המועד מתוך העמדה — כשהשעה בחרה לא נכון. אותם אריחים
-   כמו בניהול, בלי שיעורי הכיתה (הם מסך אחר). מכאן והלאה נרשמים
+   כמו בניהול, כולל שיעורי הכיתה (מסך הכיתה עם המפה). מכאן והלאה נרשמים
    במועד החדש; מי שכבר נרשם נשאר במועד הקודם. */
 function amdaSlotAsk() {
   var s = amdaSess(), box = document.getElementById('amda');
@@ -15983,7 +15983,7 @@ function amdaPaint() {
             { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
           ' · ' + esc(amdaSlotName(s.slot)) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
-          (les ? '' : '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button>') + '</div>';
+          '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>';
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {
     var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
@@ -16516,11 +16516,11 @@ var AMDA_ICON = {
   L: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="16" rx="2"/>' +
      '<rect x="8" y="23" width="2.4" height="6" rx="1.2"/><rect x="21.6" y="23" width="2.4" height="6" rx="1.2"/></svg>'
 };
-/* `kiosk` — בתוך העמדה: בלי שיעורי כיתה, ובחירה דרך data-ws. */
+/* `kiosk` — בתוך העמדה: הבחירה דרך data-ws ולא דרך הניהול. */
 function amdaTiles(slot, kiosk) {
   var d = new Date(), dow = d.getDay(), t = d.getHours() * 60 + d.getMinutes();
   return '<div class="am-tiles">' +
-    AMDA_SLOTS.concat(kiosk ? [] : amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
+    AMDA_SLOTS.concat(amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
       var les = amdaLesson(id), big = les ? '' : amdaT('slot' + id + 'Big');
       var face = les ? '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(amdaG(les.g) + les.c) + '</b></span>'
                : big ? '<span class="am-dig">' + esc(big) + '</span>'
