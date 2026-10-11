@@ -2715,7 +2715,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.168';
+var APP_VERSION = '8.99.169';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14137,7 +14137,7 @@ function dkDragEnd(ev) {
   dkList.splice(d.to, 0, f);
   dkStash(); admPane(); dkAutoSave_();
 }
-function dkDel(i)  { dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
+function dkDel(i)  { ANCH_OUT.push(dkPath(dkList[i])); dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
 /* נתיב מלא ולא שם: כך שקף מתיקייה אחרת יושב באותה רשימה, ואפשר
    לשזור שתי מצגות זו בזו. */
 /* ============================================================
@@ -14181,15 +14181,31 @@ function dkRm(f) {
   if (!(CFG.readKey || '').trim()) { dkRmMsg('bad', UI.dkmNoKey); return; }
   var path = f.indexOf('/') >= 0 ? f : dkDir + '/' + f;
   var where = dkRmWhere(path);
-  var q = fill(UI.dkRmQ, { f: f }) +
-    (where.length ? '\n\n' + fill(UI.dkRmUsed, { where: where.join(', ') }) : '');
-  if (!window.confirm(q)) return;
-  dkRmMsg('', UI.dkRmBusy);
-  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
-  }) }).catch(function () {}).then(function () { dkRmCheck(path, f, 0); });
+  dkRmMsg('', UI.anchBusy);
+  /* העוגנים לשקף הזה — נאמרים בשאלה, ויוצאים אחרי שהקובץ נמחק.
+     קריאה שנכשלה אינה עוצרת את המחיקה: הכרטיס "עוגנים יתומים"
+     ימצא אותם אחר כך. */
+  anchRead_().then(function (t) {
+    return anchFind_(t, function (v) { return v === path; });
+  }, function () { return null; }).then(function (anch) {
+    var q = fill(UI.dkRmQ, { f: f }) +
+      (where.length ? '\n\n' + fill(UI.dkRmUsed, { where: where.join(', ') }) : '') +
+      (anch && anch.length ? '\n\n' + fill(UI.anchRmQ, { list: anchDesc_(anch) }) : '');
+    if (!window.confirm(q)) { dkRmMsg('', ''); return; }
+    dkRmMsg('', UI.dkRmBusy);
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+      action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
+    }) }).catch(function () {}).then(function () {
+      dkRmCheck(path, f, 0, anch && anch.length ? function () {
+        dkRmMsg('', UI.anchBusy);
+        anchDrop_([path]).then(function (good) {
+          dkRmMsg(good ? 'ok' : 'bad', good ? UI.dkRmOk + ' ' + UI.anchDone : UI.anchBad);
+        });
+      } : null);
+    });
+  });
 }
-function dkRmCheck(path, f, tries) {
+function dkRmCheck(path, f, tries, after) {
   fetch('https://api.github.com/repos/' + REPO + '/contents/' +
         path.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
     .then(function (r) {
@@ -14199,13 +14215,14 @@ function dkRmCheck(path, f, tries) {
         if (dkCover === path) { dkCover = ''; dkStash(); dkAutoSave_(); }
         dkGoneStrip(path);
         admPane(); dkRmMsg('ok', UI.dkRmOk);
+        if (after) after();
         return;
       }
-      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1); }, 2200); return; }
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1, after); }, 2200); return; }
       dkRmMsg('bad', UI.dkRmBad);
     })
     .catch(function () {
-      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1); }, 2200); return; }
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1, after); }, 2200); return; }
       dkRmMsg('bad', UI.dkRmBad);
     });
 }
@@ -14341,6 +14358,7 @@ function dkSave() {
         delete c[key]; cfgSet('decks', c);
       }
       dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.');
+      anchAfterOut_(map);
     });
   });
 }
@@ -17620,6 +17638,151 @@ function sidRestore() {
   });
 }
 
+/* ============================================================
+   עוגנים לשקף שאיננו.
+   ============================================================
+   "כאשר אני מוחק שקף, צריך להימחק גם העוגן שלו, כדי שלא יהיה עוגן
+   יתום." עוגן ששקף שלו אינו ברשימה לא עושה כלום (`anchPos_` בדף
+   האינטראקטיבי מדלג עליו), ולכן הסרתו אינה משנה דבר לתלמיד — היא
+   רק מנקה. שלושה מקומות:
+   · 🗑 מחיקה לצמיתות — השאלה מונה את העוגנים, והם יוצאים אחרי
+     שהקובץ נמחק.
+   · ✕ הוצאה מהמצגת — אחרי השמירה, אם השקף אינו עוד באף מצגת,
+     שואלים אם להסיר את העוגנים שלו.
+   · כרטיס "עוגנים יתומים" במערכת — בדיקה של הכול, והסרה באישור.
+   ההסרה עצמה בסקריפט (deckDrop_), ואחריה קריאה חוזרת שמוודאת.
+   ============================================================ */
+var ANCH_TAB = 'מצגת', ANCHC = { busy:false, msg:'', cls:'', list:null, nums:0 };
+function anchRead_() {
+  var key = (CFG.readKey || '').trim();
+  return Promise.all([scriptGet({ read: ANCH_TAB, key: key }),
+                      scriptGet({ read: 'סימוני הדף', key: key })]).then(function (r) {
+    if (!r[0] || r[0].status !== 'ok' || !r[1] || r[1].status !== 'ok') throw new Error('read');
+    return { deck: r[0].rows || [], marks: r[1].rows || [] };
+  });
+}
+/* כל העוגנים שהערך שלהם עונה על `test`, עם מספר הקטע לתצוגה */
+function anchFind_(t, test) {
+  var out = [], recs = SidParse((t.marks || []).slice(1)), flat = {};
+  (t.deck || []).slice(1).forEach(function (r) {
+    var o;
+    try { o = JSON.parse(r[2]); } catch (e) { return; }
+    if (!o || typeof o !== 'object') return;
+    for (var k in o) {
+      if (!o.hasOwnProperty(k) || k.indexOf('__') === 0 || !test(o[k])) continue;
+      var n = /^\d+$/.test(k) ? +k : 0;
+      if (!n) {
+        var fk = r[0] + '|' + SidDaf(r[1]);
+        if (!flat[fk]) flat[fk] = SidFlat(recs, r[0], r[1]).flat;
+        flat[fk].some(function (v) {
+          if (v.part === 1 && (v.id === k || (v.also || []).indexOf(k) >= 0)) { n = v.n; return true; }
+          return false;
+        });
+      }
+      out.push({ mas: r[0], daf: r[1], key: k, val: o[k], n: n });
+    }
+  });
+  return out;
+}
+function anchDesc_(list) {
+  return list.map(function (a) {
+    var t = trackById(a.mas);
+    return (t ? t.masechet : a.mas) + ' ' + a.daf + (a.n ? ' · ' + fill(UI.anchSeg, { n: a.n }) : '');
+  }).join(', ');
+}
+/* כל השקפים שבמצגות, כנתיב מלא — כמו dkRmWhere */
+function anchInDecks_(map) {
+  var all = {}, k;
+  for (k in (map || {})) {
+    if (!map.hasOwnProperty(k) || !map[k]) continue;
+    (map[k].files || []).forEach(function (f) { all[f.indexOf('/') >= 0 ? f : map[k].dir + '/' + f] = 1; });
+  }
+  for (k in (typeof CONTENT !== 'undefined' ? CONTENT : {})) {
+    var d = CONTENT[k] && CONTENT[k].deck;
+    if (!d || !d.dir || (map && map[k])) continue;
+    for (var i = 1; i <= d.n; i++) all[d.dir + '/' + (i < 10 ? '0' : '') + i + '.jpg'] = 1;
+  }
+  return all;
+}
+function anchShown_(all, v) {
+  if (typeof v !== 'string') return true;
+  if (v.indexOf('/') >= 0) return !!all[v];
+  for (var p in all) if (all.hasOwnProperty(p) && p.slice(-(v.length + 1)) === '/' + v) return true;
+  return false;
+}
+/* הסרה, ואחריה קריאה חוזרת עד שאין עוד עוגן לנתיבים האלה */
+function anchDrop_(paths) {
+  var want = {};
+  paths.forEach(function (p) { want[p] = 1; });
+  return fetch((CFG.api || API || '').trim(), { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'deckDrop', key:(CFG.readKey || '').trim(), paths: JSON.stringify(paths) }) })
+    .catch(function () {}).then(function () { return anchGone_(want, 0); });
+}
+function anchGone_(want, tries) {
+  return new Promise(function (ok) { setTimeout(ok, tries ? 2500 : 1500); }).then(function () {
+    return anchRead_();
+  }).then(function (t) {
+    if (!anchFind_(t, function (v) { return typeof v === 'string' && !!want[v]; }).length) return true;
+    return tries < 4 ? anchGone_(want, tries + 1) : false;
+  }, function () { return tries < 4 ? anchGone_(want, tries + 1) : false; });
+}
+/* ✕ — שקפים שהוצאו מהמצגת מאז השמירה האחרונה. אחרי שהשמירה אומתה
+   (`dkSave`), מי שאינו עוד באף מצגת — העוגנים שלו מוצעים להסרה. */
+var ANCH_OUT = [];
+function anchAfterOut_(map) {
+  var out = ANCH_OUT.slice(), all = anchInDecks_(map);
+  ANCH_OUT = [];
+  out = out.filter(function (p, i) { return out.indexOf(p) === i && !all[p]; });
+  if (!out.length || !(CFG.readKey || '').trim()) return;
+  anchRead_().then(function (t) {
+    var list = anchFind_(t, function (v) { return out.indexOf(v) >= 0; });
+    if (!list.length) return;
+    if (!window.confirm(fill(UI.anchOutQ, { list: anchDesc_(list) }))) return;
+    dkMsg('', UI.anchBusy);
+    anchDrop_(out).then(function (good) { dkMsg(good ? 'ok' : 'bad', good ? UI.anchDone : UI.anchBad); });
+  }).catch(function () {});
+}
+function anchCard() {
+  var L = ANCHC.list;
+  return '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.anchTitle) + '</h4>' +
+    '<p class="h">' + esc(UI.anchIntro) + '</p>' +
+    '<button class="btn g" onclick="anchCheck()"' + (ANCHC.busy ? ' disabled' : '') + '>' + esc(UI.anchChk) + '</button>' +
+    (L && L.length ? '<div class="cond" style="margin-top:10px">' + esc(UI.anchFound) + '<br>' +
+       L.map(function (a) { return esc(anchDesc_([a])) + ' → <code dir="ltr">' + esc(a.val) + '</code>'; }).join('<br>') +
+       '</div><button class="btn gd" style="margin-top:8px" onclick="anchClean()"' +
+       (ANCHC.busy ? ' disabled' : '') + '>' + esc(UI.anchDelAll) + '</button>' : '') +
+    (ANCHC.msg ? '<div class="' + (ANCHC.cls || 'cond') + '" style="margin-top:10px">' + esc(ANCHC.msg) + '</div>' : '') +
+    '</div>';
+}
+function anchSay_(cls, msg) { ANCHC.cls = cls; ANCHC.msg = msg; admPane(); }
+function anchCheck() {
+  if (!(CFG.readKey || '').trim()) { anchSay_('bad', UI.dkmNoKey); return; }
+  ANCHC.busy = true; ANCHC.list = null; anchSay_('cond', UI.anchBusy);
+  DeckLoad().then(function (ok) {
+    if (!ok || !DECKS) throw new Error('decks');
+    return anchRead_();
+  }).then(function (t) {
+    var all = anchInDecks_(DECKS);
+    ANCHC.list = anchFind_(t, function (v) { return !anchShown_(all, v); });
+    ANCHC.nums = anchFind_(t, function (v) { return typeof v === 'number'; }).length;
+    ANCHC.busy = false;
+    anchSay_(ANCHC.list.length ? 'cond' : 'ok', (ANCHC.list.length ? '' : UI.anchNone + ' ') +
+      (ANCHC.nums ? fill(UI.anchNums, { n: ANCHC.nums }) : ''));
+  }).catch(function () { ANCHC.busy = false; anchSay_('bad', UI.anchNoRead); });
+}
+function anchClean() {
+  var L = ANCHC.list;
+  if (!L || !L.length || ANCHC.busy) return;
+  if (!window.confirm(fill(UI.anchDelQ, { n: L.length, list: anchDesc_(L) }))) return;
+  var paths = [];
+  L.forEach(function (a) { if (paths.indexOf(a.val) < 0) paths.push(a.val); });
+  ANCHC.busy = true; anchSay_('cond', UI.anchBusy);
+  anchDrop_(paths).then(function (good) {
+    ANCHC.busy = false; if (good) ANCHC.list = [];
+    anchSay_(good ? 'ok' : 'bad', good ? UI.anchDone : UI.anchBad);
+  });
+}
+
 function admSet(el) {
   el.innerHTML =
     /* ---- זמני ---- בדיקת שקפים מדרייב. הקישור כאן ולא בהודעה,
@@ -17685,7 +17848,7 @@ function admSet(el) {
     '<a class="btn g" style="display:block;text-align:center;text-decoration:none" ' +
     'href="lab.html">פתיחת המעבדה</a></div>' +
 
-    sidCard() +
+    sidCard() + anchCard() +
 
     '<div class="adm-card" style="margin-bottom:11px"><h4>הניהול כאפליקציה</h4>' +
     '<p class="h">אייקון זהב נפרד במסך הבית, שנפתח ישר כאן. הוא חי לצד ' +

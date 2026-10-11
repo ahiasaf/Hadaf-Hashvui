@@ -3826,20 +3826,15 @@ function sideSave(leaving) {
   if (!API) { sideMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_()) { sideMsg('bad', NOKEY_MSG); return; }
   DMAP[dmKey(S.mas, S.daf)] = ANCH || {};
-  var rows = [], k;
-  for (k in DMAP) {
-    if (!DMAP.hasOwnProperty(k)) continue;
-    var v = DMAP[k], parts = k.split('|');
-    if (v && v.__bad) { rows.push([parts[0], parts[1], v.__bad]); continue; }
-    var has = false, q;
-    for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
-    if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
-  }
+  /* רק השורה של הדף הזה — לא הלשונית כולה. דף שנשאר פתוח מהבוקר
+     דרס כך עוגנים שנשמרו בינתיים ממכשיר אחר, גם בדפים אחרים.
+     ראו deckRow_ ב-apps-script.gs. */
+  var has = false, q;
+  for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q)) { has = true; break; }
   var gen = ++SIDE_GEN;
   var body = JSON.stringify({
-    action:'table', tab:DECK_TAB, key:cfgReadKey_(),
-    cols:JSON.stringify(['מסכת', 'דף', 'עוגנים']),
-    rows:JSON.stringify(rows)
+    action:'deckRow', key:cfgReadKey_(), mas:S.mas, daf:S.daf,
+    val: has ? JSON.stringify(ANCH) : ''
   });
   sideMsg('', UI.sdSaving || '');
   /* ביציאה מהדף — `keepalive`, כדי שהבקשה תשרוד את סגירת הלשונית.

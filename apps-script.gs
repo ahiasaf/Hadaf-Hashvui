@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 56;
+var SCRIPT_VERSION = 57;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -381,6 +381,13 @@ function doPost(e) {
         }
         d.cols = JSON.stringify(keep);
       }
+    }
+    /* עוגני המצגת: שורה של דף אחד, או הסרת עוגנים לשקף שנמחק.
+       ראו deckRow_ ו-deckDrop_. */
+    if (d.action === 'deckRow' || d.action === 'deckDrop') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      try { backupDaily_(); } catch (dbe) {}
+      return json_(d.action === 'deckRow' ? deckRow_(d) : deckDrop_(d));
     }
     /* ההסבה למזהים קבועים — לשונית אחת בכל קריאה. ראו sidStep_. */
     if (d.action === 'sidStep') {
@@ -3745,6 +3752,62 @@ function sidRestore_(ss, sh, bak, tab) {
   var miss = sidDiff_(sidShow_(sh), want, W);
   return miss ? { status: 'error', message: 'השחזור לא אומת (' + miss + '). מה שהיה לפניו: "' + aside + '"', aside: aside }
               : { status: 'ok', restored: true, aside: aside };
+}
+
+/* ============================================================
+   עוגני המצגת — כתיבה של דף אחד, לא של הלשונית כולה.
+   ============================================================
+   עד עכשיו כל שמירת עוגן בדף האינטראקטיבי כתבה את כל הלשונית
+   "מצגת" ממה שהדף זכר מרגע שנפתח. דף שנשאר פתוח מהבוקר דרס כך
+   עוגן שנשמר בצהריים ממכשיר אחר — גם בדפים אחרים לגמרי.
+   כאן משתנה רק התא של הדף המבוקש. `base` (לא חובה): לכתוב רק אם
+   התא עדיין בדיוק כך — לתיקון חד-פעמי שאסור לו לדרוס עבודה. */
+var DECK_TAB_ = 'מצגת';
+function deckSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(DECK_TAB_);
+  if (!sh) { sh = ss.insertSheet(DECK_TAB_); headRow_(sh, ['מסכת', 'דף', 'עוגנים']); }
+  return sh;
+}
+function deckDafKey_(v) { return String(v == null ? '' : v).replace(/["'׳״\s]/g, ''); }
+function deckRow_(d) {
+  var mas = String(d.mas || '').trim(), dk = deckDafKey_(d.daf);
+  var val = String(d.val == null ? '' : d.val);
+  if (!mas || !dk) return { status: 'error', message: 'חסרים מסכת או דף' };
+  var sh = deckSheet_(), last = sh.getLastRow();
+  var rows = last ? sh.getRange(1, 1, last, 3).getDisplayValues() : [];
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() !== mas || deckDafKey_(rows[i][1]) !== dk) continue;
+    if (d.base != null && rows[i][2] !== String(d.base)) return { status: 'changed', row: i + 1 };
+    if (rows[i][2] !== val) sh.getRange(i + 1, 3).setValue(val);
+    return { status: 'ok', row: i + 1 };
+  }
+  if (d.base != null && String(d.base) !== '') return { status: 'changed' };
+  if (val) sh.getRange(Math.max(last, 1) + 1, 1, 1, 3).setValues([[mas, String(d.daf), val]]);
+  return { status: 'ok', added: !!val };
+}
+/* שקף שנמחק (או שאינו עוד באף מצגת) — העוגנים אליו יוצאים מכל
+   הדפים. רק ערך שהוא בדיוק אחד מהנתיבים; עוגן לפי מספר לא נוגע. */
+function deckDrop_(d) {
+  var want = {}, out = [];
+  (parse_(d.paths) || []).forEach(function (p) { if (p) want[String(p)] = 1; });
+  var sh = deckSheet_(), last = sh.getLastRow();
+  var rows = last ? sh.getRange(1, 1, last, 3).getDisplayValues() : [];
+  for (var i = 1; i < rows.length; i++) {
+    var o;
+    try { o = JSON.parse(rows[i][2]); } catch (e) { continue; }
+    if (!o || typeof o !== 'object') continue;
+    var ch = false;
+    for (var k in o) {
+      if (!o.hasOwnProperty(k) || k.indexOf('__') === 0) continue;
+      if (typeof o[k] === 'string' && want[o[k]]) {
+        out.push({ mas: rows[i][0], daf: rows[i][1], key: k, val: o[k] });
+        delete o[k]; ch = true;
+      }
+    }
+    if (ch) sh.getRange(i + 1, 3).setValue(JSON.stringify(o));
+  }
+  return { status: 'ok', removed: out };
 }
 
 function writeTable_(tab, cols, rows, ssId) {
