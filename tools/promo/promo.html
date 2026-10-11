@@ -247,7 +247,7 @@ S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>
   build: function (L, s) {
     var D = [{ ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
     var TOP = { ink: [556, 46, 723, 124], box: [550, 30, 180, 104], strip: [4, 26], color: '#C18E2C' };
-    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .75,
+    s.c = card(L, { src: 'img/3-stats.jpg', iw: 1080, ih: 781, box: [238.5, CY, 423, 306], ax: .5, ay: .8,
       post: function (x, img) {
         var on = s.t >= STATS.at, p = easeOut((s.t - STATS.at) / STATS.run);
         if (on) D.forEach(function (d) { roll(x, img, d, 1); });
@@ -257,7 +257,14 @@ S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>
         statLine(x, img, String(Math.round(dv)), String(all));
       } });
   },
-  tick: function (t, s) { s.t = t; drift(s.c, t, 8.5, 11.4, 1, 1.04); } });   // השורה התחתונה נשארת בפריים
+  tick: function (t, s) {
+    // זום עם החלקה קלה מצד לצד. העוגן (ay=.8) שומר בפריים גם את המספר
+    // הגדול למעלה וגם את השורה התחתונה; 1.065 הוא המקסימום שמשאיר את שניהם
+    s.t = t;
+    var p = smooth((t - 8.5) / 2.9);
+    s.c.ax = lerp(.38, .62, p);
+    zoom(s.c, lerp(1, 1.065, p));
+  } });
 
 /* מספר שלם במקום מספר שבצילום: מוחק את התיבה ברקע נקי מעליה, ומצייר
    באותו גובה דיו, ממורכז על מרכז המספר המקורי */
