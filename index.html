@@ -2137,6 +2137,9 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 /* החלפת המועד מתוך העמדה — ליד שם המועד, ובחלון את אותם אריחים. */
 .am-wd{font:inherit;font-size:.74rem;font-weight:800;border:1px solid var(--gold);border-radius:9px;
       background:var(--surface);color:var(--gold-t);padding:2px 8px;margin-inline-start:4px;vertical-align:1px}
+.am-tools{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
+.am-tools .am-wd{margin:0;padding:6px 10px;font-size:.8rem}
+.am-wd.off{border-color:var(--rule);color:var(--ink-3)}
 .am-ex-in .am-ws-sub{display:block;margin:-6px 0 12px;font-size:.8rem;font-weight:700;color:var(--ink-3)}
 
 /* ---------- מסך הניהול: מוסד, רענון, לשוניות ויזואליות (adm2) ---------- */
@@ -2719,7 +2722,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.182';
+var APP_VERSION = '8.99.183';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15988,7 +15991,12 @@ function amdaPaint() {
             { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
           ' · ' + esc(amdaSlotName(s.slot)) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
-          '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>';
+          '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>' +
+          /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
+             ומתג בחירת המקום — גם מתוך העמדה, לא רק מהניהול. */
+          (les ? '<div class="am-tools"><button class="am-wd" data-lb="1">' + esc(amdaT('kBoard')) + '</button>' +
+            '<button class="am-wd' + (amdaSeatAsk(les.id) ? '' : ' off') + '" data-la="1">' +
+            esc(amdaT(amdaSeatAsk(les.id) ? 'kSeatOn' : 'kSeatOff')) + '</button></div>' : '');
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {
     var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
@@ -16042,11 +16050,17 @@ function amdaTap(e) {
   while (el && el.id !== 'amda' && !(el.getAttribute &&
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
-          el.getAttribute('data-w')))) el = el.parentNode;
+          el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x')) { amdaClose(); return; }
   if (el.getAttribute('data-w')) { amdaSlotAsk(); return; }
+  if (el.getAttribute('data-lb')) { amdaBoard(amdaSess().slot); return; }
+  if (el.getAttribute('data-la')) {
+    var lid = (amdaLesson(amdaSess().slot) || {}).id;
+    if (lid) amdaSeatAskSet(lid, !amdaSeatAsk(lid));
+    amdaPaint(); return;
+  }
   if (el.getAttribute('data-k')) {
     amdaKindSet(amdaSess().kind === 'o' ? 'd' : 'o');
     amdaPaint(); return;
@@ -16141,9 +16155,12 @@ var AMDA_MARKS   = 'עמדה — סימונים';
 var AMDA_LESSONS = 'עמדה — שיעורים';
 var AMDA_MK = { p: 'השתתפות יפה', d: 'ביטול תורה', seat: 'מקום' };
 var AMDA_LES_DEF = [{ id: 'ז5-0', g: 'ז', c: '5', day: 0, cols: '3,3,3,4,4' }];
-/* מפת המקומות אחרי הרישום — רק כשביקשת, לכל שיעור בנפרד, במכשיר
-   של העמדה. */
-function amdaSeatAsk(lid) { return !!(Store.get('amdaSeatAsk', {}) || {})[lid]; }
+/* מפת המקומות אחרי הרישום — דלוקה כברירת מחדל, ואפשר לכבות לכל
+   שיעור בנפרד, במכשיר של העמדה. */
+function amdaSeatAsk(lid) {
+  var v = (Store.get('amdaSeatAsk', {}) || {})[lid];
+  return v == null ? true : !!v;
+}
 function amdaSeatAskSet(lid, on) {
   var m = Store.get('amdaSeatAsk', {}) || {};
   m[lid] = on ? 1 : 0;
