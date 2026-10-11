@@ -2719,7 +2719,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.181';
+var APP_VERSION = '8.99.182';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15910,13 +15910,18 @@ function amdaSlotAsk() {
     if (!b && e.target !== d) return;
     var id = b ? b.getAttribute('data-ws') : '-';
     d.parentNode.removeChild(d);
-    if (id === '-' || id === s.slot) return;
-    s.slot = id; amdaSt.slot = id;
-    Store.set('amdaSess', s);
-    amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
-    amdaPaint();
-    box.scrollTop = 0;
+    if (id === '*') { amdaClassAsk(amdaSlotGo); return; }
+    amdaSlotGo(id);
   };
+}
+function amdaSlotGo(id) {
+  var s = amdaSess(), box = document.getElementById('amda');
+  if (!box || !id || id === '-' || id === s.slot) return;
+  s.slot = id; amdaSt.slot = id;
+  Store.set('amdaSess', s);
+  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
+  amdaPaint();
+  box.scrollTop = 0;
 }
 /* החלפת הסוג של הפתיחה הזו — גם למי שכבר נרשם (amdakind בסקריפט). */
 function amdaKindSet(k) {
@@ -16153,7 +16158,47 @@ function amdaLessons() {
 function amdaLesson(slot) {
   if (!slot || slot.charAt(0) !== 'L') return null;
   var id = slot.slice(1);
-  return amdaLessons().filter(function (l) { return l.id === id; })[0] || null;
+  var l = amdaLessons().filter(function (x) { return x.id === id; })[0];
+  if (l) return l;
+  /* כיתה שנפתחה ב"כיתה אחרת" — אותו מזהה כמו שיעור קבוע (שכבה,
+     כיתה, יום), ולכן נספרת ונראית בלוח בדיוק כמוהו. */
+  var m = /^([זחטי])(\d+)-([0-6])$/.exec(id);
+  return m ? { id: id, g: m[1], c: m[2], day: +m[3], cols: '3,3,3,4,4', any: 1 } : null;
+}
+/* "כיתה אחרת": שכבה ואז כיתה, בחלון. `done(slot)` מקבל את המועד. */
+function amdaClassAsk(done) {
+  if (document.getElementById('am-ex')) return;
+  var host = document.getElementById('amda');
+  if (!host || host.className.indexOf(' on') < 0) host = document.body;
+  var d = document.createElement('div'), g = '';
+  d.className = 'am-ex'; d.id = 'am-ex';
+  var paint = function () {
+    var h = '<div class="am-ex-in"><b>' + esc(amdaT('anyQ')) + '</b>' +
+      '<span class="am-ws-sub">' + esc(amdaT('anySub')) + '</span><div class="am-grid">';
+    AMDA_GRADES.forEach(function (x) {
+      h += '<button class="am-b' + (g === x ? ' on' : '') + '" data-ag="' + x + '">' + esc(amdaG(x)) + '</button>';
+    });
+    h += '</div>';
+    if (g) {
+      h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
+      amdaClasses(g).forEach(function (c) {
+        h += '<button class="am-b" data-ac="' + esc(c) + '">' + esc(amdaG(g) + c) + '</button>';
+      });
+      h += '</div>';
+    }
+    d.innerHTML = h + '<button class="bk" data-ac="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  };
+  paint();
+  host.appendChild(d);
+  d.onclick = function (e) {
+    e.stopPropagation();
+    var b = e.target.closest && e.target.closest('[data-ag],[data-ac]');
+    if (!b && e.target !== d) return;
+    if (b && b.getAttribute('data-ag')) { g = b.getAttribute('data-ag'); paint(); return; }
+    var c = b ? b.getAttribute('data-ac') : '-';
+    d.parentNode.removeChild(d);
+    if (c !== '-') done('L' + g + c + '-' + new Date().getDay());
+  };
 }
 function amdaLessonName(l) {
   var days = amdaT('days').split(',');
@@ -16502,7 +16547,10 @@ function amdaLesCard() {
 }
 
 /* ---------- המסך בניהול ---------- */
-function amdaPickSlot(id) { amdaSt.slot = id; admPane(); }
+function amdaPickSlot(id) {
+  if (id === '*') { amdaClassAsk(function (x) { amdaSt.slot = x; admPane(); }); return; }
+  amdaSt.slot = id; admPane();
+}
 /* ---------- בורר המועדים — אריחים שקוראים בשנייה ----------
    הפסקות: השעה בספרות של שעון דיגיטלי. אחרי התפילה — שמש עולה,
    בית המדרש הנודד — ירח, שיעור כיתה — לוח. המועד של עכשיו מסומן. */
@@ -16532,7 +16580,15 @@ function amdaTiles(slot, kiosk) {
         (kiosk ? 'data-ws="' + esc(id) + '">' : 'onclick="amdaPickSlot(\'' + esc(id) + '\')">') +
         (isNow ? '<em>' + esc(amdaT('slotNow')) + '</em>' : '') + face +
         '<b>' + esc(les ? amdaT('lessonTag') : amdaSlotName(id)) + '</b><small>' + esc(sub) + '</small></button>';
-    }).join('') + '</div>';
+    }).join('') + amdaAnyTile(slot, kiosk) + '</div>';
+}
+/* האריח "כיתה אחרת" — כשכיתה כזו פתוחה, הוא מראה אותה ומסומן. */
+function amdaAnyTile(slot, kiosk) {
+  var les = amdaLesson(slot), on = !!(les && les.any);
+  return '<button class="am-tile' + (on ? ' on' : '') + '" ' +
+    (kiosk ? 'data-ws="*">' : 'onclick="amdaPickSlot(\'*\')">') +
+    '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(on ? amdaG(les.g) + les.c : '?') + '</b></span>' +
+    '<b>' + esc(amdaT('anyTag')) + '</b><small>' + esc(amdaT('anyTile')) + '</small></button>';
 }
 function amdaPickTrack(id) { amdaSt.track = id; admPane(); }
 /* תלמידים לפי כיתה, בסדר השכבות ואז המקבילות. `keys` — מפתחות
