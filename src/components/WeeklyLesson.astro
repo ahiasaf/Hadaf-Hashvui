@@ -1,6 +1,6 @@
 ---
 import { lessonHref, lessonRow, studyUnits, type Track } from "../lib/calendar";
-import { deckHref, unitsDone } from "../lib/weekly-lesson";
+import { unitsDone } from "../lib/weekly-lesson";
 interface Props {
   tracks: Track[];
   initialWeek: number;
@@ -11,9 +11,8 @@ interface Props {
 }
 const { tracks, initialWeek, startDate, titles, covers, ui } = Astro.props;
 const track = tracks[0];
-const { row, index } = lessonRow(track, initialWeek);
+const { row } = lessonRow(track, initialWeek);
 const hasLesson = !!row[2] && row[2] !== "סיום";
-const firstCover = covers[track.id + "-" + (index + 1)] || "";
 ---
 
 <section class="lesson" id="lesson" aria-label={ui.siteLesson}>
@@ -25,19 +24,21 @@ const firstCover = covers[track.id + "-" + (index + 1)] || "";
     <div class="track-switch" role="group" aria-label={ui.siteChoose}>
       <span class="track-thumb" aria-hidden="true"></span>
       {tracks.map((item, i) => (
-        <a
-          href={lessonHref(
-            item,
-            item.cal[Math.min(initialWeek, item.cal.length - 1)],
-          )}
-          role="button"
-          aria-pressed={i === 0}
-          data-track={item.id}
-        >
+        <button type="button" aria-pressed={i === 0} data-track={item.id}>
           {"מסכת " + item.name}
-        </a>
+        </button>
       ))}
     </div>
+    <noscript>
+      <style is:inline>
+        .track-switch {
+          display: none;
+        }
+      </style>
+      <a class="button button-light" href="/calendar">
+        {ui.siteCalendar}
+      </a>
+    </noscript>
   </div>
   <div class="lesson-content" aria-live="polite">
     {
@@ -138,13 +139,6 @@ const firstCover = covers[track.id + "-" + (index + 1)] || "";
       href={hasLesson ? lessonHref(track, row) : "/calendar"}
     >
       {hasLesson ? ui.deckGo : ui.siteCalendar}
-    </a>
-    <a
-      class="deck-link"
-      data-deck
-      href={hasLesson && firstCover ? deckHref(track, index) : "/calendar"}
-    >
-      {hasLesson && firstCover ? ui.deckAlt : ui.siteCalendar}
     </a>
   </div>
 </section>

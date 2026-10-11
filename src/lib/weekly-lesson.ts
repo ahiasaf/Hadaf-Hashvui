@@ -12,13 +12,6 @@ type Settings = {
   covers: Record<string, string>;
   ui: Record<string, string>;
 };
-export function deckHref(track: Track, index: number) {
-  const row = track.cal[index];
-  const params = new URLSearchParams({ mas: track.id, daf: row[2] || "" });
-  if (row[3] === "א" || row[3] === "ב")
-    params.set("amud", row[3] === "א" ? "1" : "2");
-  return "/lesson-tools?" + params.toString();
-}
 // Dapim learned so far, counting the current week as started.
 export function unitsDone(track: Track, week: number) {
   return track.cal.filter(
@@ -89,7 +82,7 @@ export function initializeWeeklyLesson() {
   function show(id: string) {
     const track = tracks.find((track) => track.id === id);
     if (!track) return;
-    const { index, row, active } = current(track);
+    const { row, active } = current(track);
     section!
       .querySelectorAll<HTMLElement>("[data-variant]")
       .forEach((variant) =>
@@ -101,10 +94,6 @@ export function initializeWeeklyLesson() {
     const open = section!.querySelector<HTMLAnchorElement>("[data-open]")!;
     open.href = active ? lessonHref(track, row) : "/calendar";
     open.textContent = active ? ui.deckGo : ui.siteCalendar;
-    const deck = section!.querySelector<HTMLAnchorElement>("[data-deck]")!;
-    const hasDeck = active && !!covers[track.id + "-" + (index + 1)];
-    deck.href = hasDeck ? deckHref(track, index) : "/calendar#" + track.id;
-    deck.textContent = hasDeck ? ui.deckAlt : ui.siteCalendar;
     const tabs = [...section!.querySelectorAll<HTMLElement>("[data-track]")];
     tabs.forEach((tab) =>
       tab.setAttribute("aria-pressed", String(tab.dataset.track === id)),

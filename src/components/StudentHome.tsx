@@ -121,9 +121,11 @@ export default function StudentHome({
           ),
         )}
       </div>
-      <a className="secondary-link" href="/join">
-        פרטי ההרשמה שלי
-      </a>
+      {person && (
+        <a className="secondary-link" href="/join">
+          פרטי ההרשמה שלי
+        </a>
+      )}
     </section>
   );
 }

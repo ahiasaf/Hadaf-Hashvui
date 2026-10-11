@@ -13,6 +13,12 @@ const {
   manifest = "/manifest.json",
   robots,
 } = Astro.props;
+const path =
+  Astro.url.pathname
+    .replace(/\.html$/, "")
+    .replace(/\/$/, "")
+    .replace(/^\/index$/, "") || "/";
+const showJoin = !["/", "/app", "/join", "/tzevet"].includes(path);
 ---
 
 <!doctype html>
@@ -66,12 +72,16 @@ const {
           </span>
           <span class="brand-year">{program.year}</span>
         </a>
-        <nav aria-label="ניווט ראשי">
-          <a href="/app">הדף שלי</a>
-          <a href="/join" class="nav-join">
-            מצטרפים
-          </a>
-        </nav>
+        {path !== "/app" && (
+          <nav aria-label="ניווט ראשי">
+            <a href="/app">הדף שלי</a>
+            {showJoin && (
+              <a href="/join" class="nav-join">
+                מצטרפים
+              </a>
+            )}
+          </nav>
+        )}
       </div>
     </header>
     <script>
@@ -89,11 +99,13 @@ const {
       <div class="container">
         <p>רשת ישיבות בני עקיבא · הדף השבועי · {program.year}</p>
         <nav aria-label="מידע">
-          <a href="/tzevet">לצוותי הישיבות</a>
+          {path !== "/tzevet" && <a href="/tzevet">לצוותי הישיבות</a>}
           <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
-          <a href="/accessibility">{program.ui.siteAccessibility}</a>
+          {path !== "/accessibility" && path !== "/info" && (
+            <a href="/accessibility">{program.ui.siteAccessibility}</a>
+          )}
           <a href="/info#privacy">{program.ui.sitePrivacy}</a>
-          <a href="/info">{program.ui.siteInfo}</a>
+          {path !== "/info" && <a href="/info">{program.ui.siteInfo}</a>}
         </nav>
       </div>
     </footer>

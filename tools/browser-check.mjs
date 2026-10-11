@@ -164,6 +164,27 @@ try {
       await page.goto(base + route);
       await page.waitForTimeout(250);
       assert.equal(await page.locator("html").getAttribute("dir"), "rtl");
+      if (
+        ["/app", "/join", "/tzevet", "/info", "/accessibility"].includes(route)
+      ) {
+        assert.equal(
+          await page
+            .locator(
+              `.site-header a[href="${route}"], .site-footer a[href="${route}"]`,
+            )
+            .count(),
+          0,
+          `${route} repeats a link to the current page`,
+        );
+      }
+      if (route === "/app") {
+        assert.equal(await page.locator('a[href="/join"]').count(), 1);
+        assert.equal(
+          await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
+          0,
+        );
+      }
+
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -172,8 +193,13 @@ try {
       );
     }
     await page.goto(base);
+    assert.equal(await page.locator(".lesson-actions a").count(), 1);
+    assert.equal(await page.locator(".track-switch a").count(), 0);
+    assert.equal(await page.locator('a[href="/join"]').count(), 1);
+    assert.equal(await page.locator('a[href="/tzevet"]').count(), 1);
+    await page.locator('.track-switch [aria-pressed="false"]').focus();
     const beforeSwitch = await page.locator(".lesson .button").boundingBox();
-    await page.locator('[aria-pressed="false"]').first().click();
+    await page.keyboard.press("Space");
     await page.waitForTimeout(250);
     const afterSwitch = await page.locator(".lesson .button").boundingBox();
     assert.ok(
@@ -183,6 +209,10 @@ try {
     assert.equal(
       await page.locator('.track-switch [aria-pressed="true"]').textContent(),
       "מסכת מגילה",
+    );
+    assert.match(
+      await page.locator("[data-open]").getAttribute("href"),
+      /mas=megila/,
     );
     assert.ok(
       await page

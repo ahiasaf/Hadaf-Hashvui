@@ -596,7 +596,11 @@ html:not(.js) .phases::after {
 [dir="ltr"] .track-thumb {
   transform: translateX(calc(var(--tab) * 100%));
 }
-.track-switch a {
+.track-switch button {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
   position: relative;
   min-height: 48px;
   display: flex;
@@ -610,7 +614,7 @@ html:not(.js) .phases::after {
   color: rgba(255, 255, 255, 0.66);
   transition: color 0.25s;
 }
-.track-switch a[aria-pressed="true"] {
+.track-switch button[aria-pressed="true"] {
   color: #fff;
 }
 /* Both tracks share one grid cell: the panel keeps the taller height and content crossfades. */
@@ -746,13 +750,12 @@ html:not(.js) .dots i.is-done {
 }
 .lesson-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 30px;
   max-width: 520px;
 }
-.lesson-actions .button,
-.lesson-actions .deck-link {
+.lesson-actions .button {
   min-height: 58px;
   font-size: 1.05rem;
 }
@@ -1243,7 +1246,6 @@ html:not(.js) .ring-fill {
     font-size: 1.55rem;
   }
   .lesson-actions {
-    grid-template-columns: minmax(0, 1fr) auto;
     margin-top: 22px;
   }
   .lesson-actions .button {
@@ -1351,7 +1353,7 @@ html:not(.js) .ring-fill {
   .text-button:hover {
     color: var(--blue-l);
   }
-  .track-switch a:hover {
+  .track-switch button:hover {
     color: #fff;
   }
   .step-list li:hover .step-badge {
@@ -1499,7 +1501,7 @@ details summary {
   transition: color var(--t-fast);
 }
 /* Track switch and tab presses. */
-.track-switch a:active {
+.track-switch button:active {
   transform: scale(0.97);
 }
 /* Calendar rows lift under a pointer and press on touch. */
