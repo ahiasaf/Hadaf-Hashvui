@@ -164,6 +164,17 @@ try {
       await page.goto(base + route);
       await page.waitForTimeout(250);
       assert.equal(await page.locator("html").getAttribute("dir"), "rtl");
+      if (route.startsWith("/learn?") || route.startsWith("/lesson-tools?")) {
+        assert.ok(
+          (await page.locator("#t-daf").boundingBox()).height < 32,
+          `Shared styles enlarge the lesson title at ${width}px`,
+        );
+        assert.ok(
+          (await page.locator("body > header").boundingBox()).height <= 72,
+          `Lesson toolbar crowds the reading area at ${width}px`,
+        );
+      }
+
       if (
         ["/app", "/join", "/tzevet", "/info", "/accessibility"].includes(route)
       ) {

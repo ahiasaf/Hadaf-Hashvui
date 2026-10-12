@@ -1155,3 +1155,36 @@ nav .sp{display:none}
   .chav{transition:none}
   .done-card .seal path{stroke-dashoffset:0;animation:none}
 }
+
+/* ============================================================
+   מגן הזהות מול העטיפה המשותפת (Tool.astro).
+   העמוד נטען עכשיו עם specialist.css ועם mobile.css, ושניהם
+   מזריקים כללים כלליים: min-height של 44px לכל כפתור ולכותרת
+   (#t-daf), צל על .stage, לוח צבעים שונה ב-:root, ומעבר שמוחק
+   את אנימציות הלחיצה. הכללים כאן מנצחים אותם בספציפיות, ולא
+   בסדר הטעינה, ולכן אינם תלויים במיקום ה-link בראש העמוד.
+   ============================================================ */
+/* לוח הצבעים של הדף, מוצהר על body ולכן גובר על :root מאוחר. */
+body{--blue:#17468F;--blue-d:#0B2550;--gold-t:#8C681F;--paper:#F6F1E6;--surface:#FFFDF8}
+/* הכותרת חזרה לגובה טבעי: בלי 44px כפויים על שם הדף. */
+h1#t-daf{min-height:0}
+/* הבמה בלי צל זר: היא ממלאת את המסך, צל רק מלכלך את הקצוות. */
+main .stage{box-shadow:none}
+/* לשוניות המגירה נשארות דקות, עם תנועת הלחיצה שלהן. */
+.chd .cht button{min-height:36px;
+  transition:background var(--t-base) var(--ease),color var(--t-fast),transform var(--t-fast)}
+/* כפתורי הסרגל שומרים על הקפיץ והצל שלהם. */
+nav .nrow button{transition:transform var(--t-base) var(--spring),background var(--t-fast),
+  color var(--t-fast),border-color var(--t-fast),box-shadow var(--t-base)}
+/* עיגול החידה: גודל קבוע ותנועה רכה, לא כפתור-מערכת. */
+.stage .qfab{min-height:0;transition:transform .2s ease,box-shadow .2s ease}
+
+/* ---------- עידון: כותרת נמוכה ושורת "המשכנו" שקטה ---------- */
+header{padding-top:calc(env(safe-area-inset-top) + 6px)}
+.hrow{min-height:50px;padding-bottom:6px}
+.ttl{line-height:1.22}
+.ttl h1{font-size:1rem}
+.ttl span{font-size:.72rem}
+.prog{height:4px}
+.resume{padding:8px 14px}
+.resume button{min-height:36px;padding:4px 14px;border-radius:99px}
