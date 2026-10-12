@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 57;
+var SCRIPT_VERSION = 58;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1500,7 +1500,8 @@ function doGet(e) {
           rel: rel === 'חבר' ? 'friend' : rel === 'בן' ? 'kid' : 'dad',
           inst: wc('קוד ישיבה'), instName: wc('ישיבה'),
           first: wc('שם'), last: wc('משפחה'), grade: wc('שכבה'), klass: wc('כיתה'),
-          way: WAY_OF[wc('מסגרת')] || wc('מסגרת'),
+          way: (function (v) { return WAY_OF[v] || v; })(
+                 amdaWay_(amdaGroupIds_(), wc('מזהה'), wc('מסגרת'))),
           dadFirst: wc('שם ההורה'), dadLast: wc('משפחת ההורה'),
           from: wc('הוזמן על ידי'), withId: wc('מזהה המזמין')
         };
@@ -2632,7 +2633,7 @@ function boardData_(inst, k, withTest, inner) {
           dads[pid0x] = { inst: cell(jr[d0], 'קוד ישיבה'), ids: idsOf[pid0x] };
         } else delete dads[pid0x];
       }
-      var byId = {}, order = [];
+      var byId = {}, order = [], grp = amdaGroupIds_();
       for (var d = 1; d < jr.length; d++) {
         var row = jr[d];
         if (!all && cell(row, 'קוד ישיבה') !== inst) continue;
@@ -2665,7 +2666,7 @@ function boardData_(inst, k, withTest, inner) {
              הראשון ופשוט לא נמסרה הלאה — ובלעדיה אי אפשר
              להראות לר"ם את הכיתה שלו. שכבה היא ארבע כיתות. */
           klass: cell(row, 'כיתה'),
-          way:   cell(row, 'מסגרת'),
+          way:   amdaWay_(grp, pid, cell(row, 'מסגרת')),
           role:  cell(row, 'תפקיד'),
           with:  cell(row, 'שם ההורה'),        /* שם פרטי בלבד */
           test:  isTest ? 1 : 0,
@@ -3027,6 +3028,34 @@ function learnedOf_(ids) {
 var AMDA_TAB_  = 'עמדת לימוד';
 var AMDA_LINK_ = 'עמדה — שיוך';
 
+/* ============================================================
+   **מי שאיש צוות סימן בעמדה — לומד בחבורה.**
+   ============================================================
+   "תלמיד שאיש צוות סימן בעמדת הלימוד עובר אוטומטית ל'לומד
+   בחבורה', גם אם סימן לעצמו 'לומד לבד'. סימון הצוות הוא הקובע."
+
+   **נקבע בקריאה, ולא נכתב לשורה.** שורת "לומדים" שייכת למכשיר
+   של התלמיד, והרשמה חוזרת ממנו הייתה מחזירה "לבד" ודורסת. כאן
+   — בכל מקום שמציג או סופר דרך לימוד (הלוח, המונים, המכשיר) —
+   מי שיש לו שורה ב"עמדה — שיוך" נספר בחבורה. "אבות ובנים" נשאר:
+   הוא לומד עם אביו, והעמדה אינה סותרת את זה.
+   ============================================================ */
+var AMDA_WAY_ = 'חבורת לימוד';
+function amdaGroupIds_() {
+  var out = {};
+  try {
+    var lt = amdaTable_(AMDA_LINK_);
+    for (var i = 1; i < lt.rows.length; i++) {
+      var id = lt.c(lt.rows[i], 'מזהה');
+      if (id) out[id] = 1;
+    }
+  } catch (e) { Logger.log('amdaGroupIds_: ' + e); }
+  return out;
+}
+function amdaWay_(grp, id, way) {
+  return (grp && grp[id] && (!way || way === 'לימוד עצמי')) ? AMDA_WAY_ : way;
+}
+
 function amdaNorm_(s) {
   return String(s || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim();
 }
@@ -3092,7 +3121,7 @@ function amdaSync_() {
       (byName[k2] = byName[k2] || []).push(j);
     });
   }
-  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0;
+  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0, linked = 0;
   var lsh = lt.sh, lhead = headers_(lsh), dir = null, jhead = null, instNm = {};
   want.forEach(function (w) {
     var cand = (byName[w.inst + '|' + w.n] || []).filter(function (j, i, a) {
@@ -3158,8 +3187,10 @@ function amdaSync_() {
     ].forEach(function (p) { put_(lr, idx_(lsh, lhead, p[0]), cell_(p[1])); });
     for (var q = 0; q < lr.length; q++) if (lr[q] === undefined) lr[q] = '';
     lsh.appendRow(lr);
+    linked++;
   });
-  if (made) recount_();
+  /* שיוך חדש יכול להעביר תלמיד ל"לומד בחבורה" — המשבצות נספרות מחדש. */
+  if (made || linked) recount_();
   if (wrote) recountLearn_();
   return wrote;
 }
@@ -3538,6 +3569,27 @@ function studentRows_(rows) {
   return out;
 }
 
+/* דרך הלימוד אחרי סימון העמדה (ראו amdaWay_) — על עותק, כדי לא
+   לשנות את השורות שהקורא עוד משתמש בהן. */
+function amdaWayRows_(rows) {
+  if (!rows || rows.length < 2) return rows;
+  var head = rows[0], iId = -1, iW = -1;
+  for (var i = 0; i < head.length; i++) {
+    var h = String(head[i]).trim();
+    if (h === 'מזהה') iId = i;
+    if (h === 'מסגרת') iW = i;
+  }
+  if (iId < 0 || iW < 0) return rows;
+  var grp = amdaGroupIds_(), out = [head];
+  for (var r = 1; r < rows.length; r++) {
+    var id = String(rows[r][iId] || '').trim();
+    var w = String(rows[r][iW] || '').trim(), w2 = amdaWay_(grp, id, w);
+    if (w2 === w) { out.push(rows[r]); continue; }
+    var c = rows[r].slice(); c[iW] = w2; out.push(c);
+  }
+  return out;
+}
+
 /* השורה האחרונה של כל מזהה (שורה בלי מזהה — נשארת). */
 function lastPerId_(rows) {
   if (!rows || rows.length < 2) return rows;
@@ -3588,7 +3640,7 @@ function recountRows_(all) {
     /* **כל תלמיד פעם אחת — לפי השורה האחרונה שלו.** תלמיד
        שנרשם "לבד" ותיקן ל"חבורה" נספר בשתיהן, והמשבצות בניהול
        הראו 113+17+97 ליד 222 תלמידים. */
-    var last = lastPerId_(rows);
+    var last = amdaWayRows_(lastPerId_(rows));
     var byG = tally_(last, ['קוד ישיבה', 'שכבה'],  'מזהה');
     var byW = tally_(last, ['קוד ישיבה', 'מסגרת'], 'מזהה');
     var pack = function (t2) {

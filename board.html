@@ -245,6 +245,21 @@ button.hero:active{transform:scale(.99)}
 .klink{display:block;margin-top:7px;background:none;border:0;padding:0;
   color:var(--blue);font-weight:800;font-size:.8rem;font-family:inherit;
   cursor:pointer;text-decoration:underline}
+.klink[disabled]{opacity:.6;cursor:default}
+.kstill{display:block;margin-top:6px;color:var(--ink-2)}
+/* פירוט של דרך לימוד — מסך משלו: חזרה, כותרת, והרשימה. */
+.wback{background:none;border:0;color:var(--blue);font-weight:800;
+  font-size:.86rem;font-family:inherit;cursor:pointer;padding:0 0 10px}
+.wtitle{margin:0 0 4px;font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
+.wtitle + .open{margin-top:0;border-top:0;padding-top:2px}
+/* מסך הבית — כפתור קבוע בפינה. באפליקציה שבמסך הבית אין חזרה
+   של הדפדפן, ובלעדיו מי שנכנס ללוח נשאר תקוע בו. */
+.homefab{position:fixed;bottom:16px;bottom:calc(16px + env(safe-area-inset-bottom));
+  inset-inline-end:16px;z-index:50;display:flex;align-items:center;gap:6px;
+  padding:11px 16px;border-radius:999px;background:var(--blue);color:#fff;
+  font-weight:800;font-size:.88rem;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.homefab svg{width:17px;height:17px;flex:none}
+body.has-fab{padding-bottom:80px}
 .wgrp{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
   margin:13px 0 3px;padding-top:10px;border-top:1px solid var(--rule)}
 .wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
@@ -544,6 +559,18 @@ var acc = '';
 try { acc = localStorage.getItem(accKey()) || ''; } catch (e) {}
 if (ALL) acc = String((LGet('cfg', {}) || {}).readKey || '').trim();
 
+/* הקוד כבר הגיע לאפליקציה במכשיר הזה (אחרי שהרכז אישר — ראו
+   accCheck ב-index.html), והלוח נפתח בקישור שנבנה לפני כן, בלי
+   הקוד. אותו אדם, אותו מכשיר — לוקחים אותו משם. */
+function appCode() {
+  if (ALL) return '';
+  return String((LGet('instCodes', {}) || {})[code] || '');
+}
+if (!acc && appCode()) {
+  acc = appCode();
+  try { localStorage.setItem(accKey(), acc); } catch (e) {}
+}
+
 (function () {
   var k = qs('k');
   if (!k) return;
@@ -704,6 +731,57 @@ function loadRoster() {
   }).catch(function () { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; });
 }
 
+/* ============================================================
+   מחכים לאישור — והמסך מתעדכן לבד.
+   ============================================================
+   "אחרי שהרכז אישר, מסך ההמתנה לא התעדכן." שני מקורות לקוד:
+   האפליקציה שבמכשיר כבר קיבלה אותו (instCodes), או שאלה ישירה
+   של השרת בשם המכשיר — אותה שאלה שהאפליקציה שואלת (`acc`).
+   כל חצי דקה כשהמסך מול העיניים, מיד כשחוזרים אליו, ובכפתור.
+   ============================================================ */
+var WAIT_REF = '';               /* '' · 'busy' · 'still' — הרענון הידני */
+function waitMe() {
+  try {
+    var m = JSON.parse(localStorage.getItem('df:head') || 'null');
+    return (m && m.id && m.inst === code) ? m : null;
+  } catch (e) { return null; }
+}
+function waitTry() {
+  if (ALL || acc || !inst) return Promise.resolve(false);
+  var k = appCode();
+  var ask = k ? Promise.resolve(k) : (function () {
+    var me = waitMe();
+    if (!me) return Promise.resolve('');
+    return askScript({ acc: code, dev: me.id, has: '0' }).then(function (d) {
+      if (!d || d.status !== 'ok' || !d.k) return '';
+      /* גם לאפליקציה — כדי שאזור הניהול ייפתח בלי לשאול שוב. */
+      var m = LGet('instCodes', {}) || {};
+      m[code] = d.k; LSet('instCodes', m);
+      return d.k;
+    });
+  })();
+  return ask.then(function (k2) {
+    if (!k2 || acc) return false;
+    acc = k2;
+    try { localStorage.setItem(accKey(), k2); } catch (e) {}
+    return loadRoster().then(function () { draw(); return true; });
+  });
+}
+function waitRefresh() {
+  if (WAIT_REF === 'busy') return;
+  WAIT_REF = 'busy'; draw();
+  waitTry().then(function (ok) { WAIT_REF = ok ? '' : 'still'; draw(); },
+                 function () { WAIT_REF = 'still'; draw(); });
+}
+if (!ALL) {
+  setInterval(function () {
+    if (!acc && document.visibilityState !== 'hidden') waitTry();
+  }, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (!acc && document.visibilityState !== 'hidden') waitTry();
+  });
+}
+
 function keyAsk() {
   var v = prompt('הזינו את קוד הגישה של הישיבה (שש אותיות):', '');
   if (v == null) return;
@@ -738,8 +816,15 @@ var view = '';                 /* '' · 'way:<מסגרת>' · 'week' */
    לאן "לחזור" — וכפתור חזרה שמוביל למקום שאף פעם לא עזבת הוא
    בדיוק מה שהופך שתי רמות של אותה שאלה לשני מסכים. */
 function go(v) {
+  var was = view;
   view = (view === v) ? '' : v;
   draw();
+  /* פירוט של דרך לימוד הוא מסך משלו (ראו wayScreen) — נכנסים
+     אליו ויוצאים ממנו מראש העמוד. */
+  if (!EMBED && (view.indexOf('way:') === 0 || was.indexOf('way:') === 0)) {
+    window.scrollTo(0, 0);
+    return;
+  }
   if (view) setTimeout(function () {
     var el = document.querySelector('.open');
     if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior:'smooth' });
@@ -795,7 +880,15 @@ function weekOpenHtml() {
     '<p class="h" style="margin-top:10px">"סיים" = הגיע לסוף הדף האינטראקטיבי, ' +
     'ענה על החידה השבועית, או סימן בעצמו.</p></div>';
 }
-function wayOpenHtml() {
+function wayScreen() {
+  var w = view.slice(4);
+  return '<div class="card">' +
+    '<button class="wback" id="wback">→ ' + esc(UI.bdBack || '') + '</button>' +
+    '<h2 class="wtitle">' + esc(wayLbl(w)) + ' · ' + wayCount(w) + '</h2>' +
+    wayOpenHtml(true) + '</div>';
+}
+/* `titled` — במסך משלו הכותרת כבר אומרת את השם והמספר. */
+function wayOpenHtml(titled) {
   if (!roster || view.indexOf('way:') !== 0) return '';
   var w = view.slice(4);
   var list = roster.filter(function (p) { return (p.way || '') === w; });
@@ -807,7 +900,7 @@ function wayOpenHtml() {
   });
   gord.sort();
   return '<div class="open">' +
-    '<div class="wgrp">' + esc(wayLbl(w)) + ' · ' + list.length + '</div>' +
+    (titled ? '' : '<div class="wgrp">' + esc(wayLbl(w)) + ' · ' + list.length + '</div>') +
     gord.map(function (g) {
       return (gord.length > 1
                 ? '<div class="wgrp">' + esc(g) + ' · ' + byGrade[g].length + '</div>'
@@ -1796,11 +1889,21 @@ function keyHtml() {
     return '<div class="keyline">הלוח של כל הישיבות נפתח רק במכשיר שבו שמורה ' +
       'סיסמת הסקריפט (ניהול ← מערכת).</div>';
   }
+  /* ============================================================
+     **עד שהרכז מאשר — "אנא המתן", ולא "יש לי קוד".**
+     ============================================================
+     "אין קוד יותר. האישור דרך הרכז." ראש החטיבה שנרשם אינו
+     מחזיק שום קוד שאפשר להקליד; מה שהוא צריך לדעת הוא שבודקים
+     אותו ושזה יגיע. ועם זה — רענון ביד, והבדיקה העצמית כל חצי
+     דקה (ראו waitTry).
+     ============================================================ */
   if (!acc) {
-    return '<div class="keyline">המספרים כאן פתוחים. ' +
-      '<b>לראות שמות</b> — צריך את קוד הישיבה.' +
+    return '<div class="keyline">' + esc(UI.bdWait || '') +
       (rosterMsg ? '<br><b>' + esc(rosterMsg) + '</b>' : '') +
-      '<button class="klink" id="kask">יש לי קוד</button></div>';
+      '<button class="klink" id="kre"' + (WAIT_REF === 'busy' ? ' disabled' : '') + '>' +
+      esc(WAIT_REF === 'busy' ? UI.bdWaitBusy : UI.bdWaitRe) + '</button>' +
+      (WAIT_REF === 'still' ? '<span class="kstill">' + esc(UI.bdWaitStill) + '</span>' : '') +
+      '</div>';
   }
   return '<div class="keyline">' + esc(rosterMsg || 'טוען את הרשימה…') +
     (rosterMsg ? '<button class="klink" id="kask">הזנת הקוד ידנית</button>' : '') +
@@ -1882,6 +1985,21 @@ function draw() {
       '<div class="card"><div class="empty"><div class="big">📩</div>' +
       '<p>עוד לא הצטרף אף אחד.<br>הקישור לתלמידים נמצא בעמוד הצוות, ' +
       'ומרגע שיישלח — כאן יופיע מי לומד.</p></div></div>' + soonLine();
+    wire();
+    return;
+  }
+
+  /* ============================================================
+     **דרך לימוד אחת — מסך משלה.**
+     ============================================================
+     "אחרי לחיצה על 'לומד בחבורה' הפירוט נפתח, אבל 'התלמידים לפי
+     כיתה' נשאר מתחתיו. כשנבחרה קטגוריה — להציג רק אותה."
+     ו"אפשרות לחזור אחורה" — באייפון, באפליקציה שבמסך הבית, אין
+     כפתור חזרה של הדפדפן. ולכן: חזרה בראש המסך, ומסך הבית
+     בכפתור הקבוע (ראו homeFab).
+     ============================================================ */
+  if (!EMBED && roster && view.indexOf('way:') === 0) {
+    $('body').innerHTML = chipsHtml() + delMsgHtml() + wayScreen() + soonLine();
     wire();
     return;
   }
@@ -2022,7 +2140,8 @@ function heroHtml(daf, done, tot, canOpen) {
     '<span class="tag">השבוע</span>' +
     '<h3>דף ' + esc(daf) + '</h3>' +
     '<div class="lead"><b>' + done + '</b> מתוך ' + tot + ' סיימו את הדף</div>' +
-    (canOpen ? '' : '<div class="sub">השמות נפתחים עם קוד הגישה</div>') +
+    /* עד האישור — השורה שמתחת למשבצות אומרת את זה. */
+    (canOpen || !acc ? '' : '<div class="sub">השמות נפתחים עם קוד הגישה</div>') +
     (canOpen ? '<i class="chev">' + tag + '</i>' : '') +
     '</div>' + ringHtml(done, tot);
   return canOpen
@@ -2050,6 +2169,8 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
+  var kr = $('kre'); if (kr) kr.onclick = waitRefresh;
+  var wb = $('wback'); if (wb) wb.onclick = function () { go(''); };
   var rg = document.querySelector('.rem-go');
   if (rg) rg.onclick = function () { remMark(rg.getAttribute('data-rem')); };
   var cq = $('cls-q');
@@ -2149,6 +2270,39 @@ if (EMBED && window.ResizeObserver) {
   try { new ResizeObserver(function () { embedSize(); }).observe(document.body); } catch (e) {}
 }
 draw();
+/* ============================================================
+   **מסך הבית — כפתור קבוע.**
+   ============================================================
+   "בלי להשאיר אותו תקוע. לא למשוך אותו החוצה מאזור הצוות."
+   ראש החטיבה חוזר לאזור הניהול האישי שלו (`#phone` בעמוד
+   הראשי), והר"ם — לעמוד הצוות של הישיבה. לא לעמוד הבית של
+   התלמידים.
+   ============================================================ */
+function homeHref() {
+  var head = !!waitMe();
+  /* אותו סדר של myBoard() בעמוד הראשי: ההרשמה, ואז הלוח הנבחר. */
+  if (!head) {
+    try {
+      var rg = JSON.parse(localStorage.getItem('dfReg') || 'null');
+      head = (rg && rg.code ? rg.code
+                            : JSON.parse(localStorage.getItem('df:dfBoard') || '""')) === code;
+    } catch (e) {}
+  }
+  return head ? baseUrl() + '#phone'
+              : baseUrl() + 'tzevet.html?inst=' + encodeURIComponent(code);
+}
+function homeFab() {
+  if (EMBED || ALL || !inst || $('homefab')) return;
+  var a = document.createElement('a');
+  a.id = 'homefab'; a.className = 'homefab'; a.href = homeHref();
+  a.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5L10 3.5l7 6V17h-4.6v-4.4H7.6V17H3z" ' +
+    'fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>' +
+    '<span>' + esc(UI.bdHome || '') + '</span>';
+  document.body.appendChild(a);
+  document.body.className += ' has-fab';
+}
+homeFab();
+
 if (!ALL) loadBoard().then(draw);
 if (EMBED) boardReload(); else loadRoster().then(draw);
 kudoLoadTmpl();

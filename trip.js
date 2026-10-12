@@ -775,8 +775,16 @@ var TRIP_UI = (function () {
     document.addEventListener('DOMContentLoaded', boot);
   } else boot();
 
+  /* דילוג על משימה שאינה רלוונטית — "לעבור לשלב הבא" שמתחת
+     לכפתור השליחה לר"מים. רק כשהמסע באמת עומד עליה. */
+  function skip(k) {
+    if (!on() || step().k !== k) return false;
+    bump();
+    return true;
+  }
+
   return { start:start, stop:stop, on:on, paint:paint, check:check,
-           tour:tour, restart:restart,
+           tour:tour, restart:restart, skip:skip,
            at:function () { return st ? st.i : -1; },
            steps:function () { return STEPS.length; } };
 })();

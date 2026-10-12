@@ -1155,6 +1155,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   color:var(--ink-3);margin-top:4px;line-height:1.55}
 .my-note .btn{margin-top:12px;width:100%}
 .my-wait{border-color:rgba(192,143,43,.45);background:#FFFAEE}
+.my-wait .my-re{background:#fff}
+.my-wait .my-still{color:var(--ink-2);margin-top:8px}
 
 /* ההכנה לשלב שאחרי הלחיצה, גם בתוך הלוח. */
 .brd-wahow{margin-top:8px;font-size:.74rem;font-weight:600;
@@ -1203,6 +1205,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   text-decoration:none;cursor:pointer}
 .thx-how{margin:11px 0 0;font-size:.84rem;font-weight:600;
   color:var(--ink-3);line-height:1.65}
+.thx-skip{display:block;width:100%;margin-top:14px;padding:13px;
+  border:1.5px solid var(--rule);border-radius:12px;background:var(--surface);
+  color:var(--blue);font-weight:800;font-size:.95rem;cursor:pointer;font-family:inherit}
 /* מפריד בין שני הקישורים. מספר ולא כותרת: אלה שתי פעולות
    ברצף, לא שני נושאים. */
 .linkbox .lstep{margin-top:15px;padding-top:13px;border-top:1px solid var(--rule-2);
@@ -1918,8 +1923,6 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .say-sel{display:flex;gap:8px;margin-top:8px}
 .say-sel select{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--rule);
   border-radius:10px;background:var(--surface);font:inherit;font-size:.84rem;color:var(--ink)}
-.say-sum{margin-top:12px;padding:9px 12px;border-radius:10px;background:rgba(23,70,143,.07);
-  font-size:.84rem;font-weight:600;color:var(--ink)}
 .say-more{display:block;margin-top:9px;padding:0;border:0;background:none;
   font:inherit;font-size:.8rem;font-weight:700;color:var(--blue);cursor:pointer}
 .say-tm{display:flex;flex-direction:column;gap:6px;margin-top:7px}
@@ -1930,10 +1933,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   font-weight:700;color:var(--ink-2)}
 .say-sig{margin-top:10px;font-size:.84rem;font-weight:700;color:var(--ink-2)}
 .say-sig b{color:var(--ink)}
-.say-sig button{border:0;background:none;padding:0 4px;font:inherit;color:var(--blue);
-  text-decoration:underline;cursor:pointer}
-.say-sig input{width:100%;margin-top:6px;padding:9px 11px;border:1px solid var(--rule);
-  border-radius:10px;font:inherit}
+.say-hr{margin:16px 0 0;border:0;border-top:1px solid var(--rule)}
 .say-pv{margin-top:12px;background:#1B2230;border-radius:16px;padding:11px 12px 13px}
 .say-pv-h{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.6);margin-bottom:8px}
 .say-pv-n{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.95);
@@ -2740,7 +2740,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.191';
+var APP_VERSION = '8.99.192';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2834,6 +2834,8 @@ function esc(s) {
 
 /* ---------- ניווט ---------- */
 function show(v) {
+  /* מסך התודה שאחרי ההרשמה נשאר כל עוד לא יצאו ממנו. */
+  if (v !== 'reg') regThx = null;
   var all = document.querySelectorAll('.view');
   for (var i = 0; i < all.length; i++) all[i].className = 'view';
   var el = document.getElementById('v-' + v);
@@ -3321,8 +3323,9 @@ function renderRegPre() {
     GUIDE_UI.mount(document.getElementById('reg-gu'), function () {
       /* סיים את המדריך ועדיין כאן — כלומר האייקון טרם נפתח.
          מציירים מחדש, וההוראה האחרונה חוזרת. */
+      regGuEnd = true;
       renderRegPre();
-    });
+    }, { play: true, end: regGuEnd });
   }
   var sk = document.getElementById('reg-pre-skip');
   if (sk) sk.onclick = function () {
@@ -3344,7 +3347,37 @@ function regDupWarn() {
   return !!(row && row.joined);
 }
 
+/* המדריך שבהרשמה הגיע עד "סיימתי" — מעכשיו עומד על השלב האחרון. */
+var regGuEnd = false;
+/* ============================================================
+   **השליחה לר"מים — מסך משלה, ולא תחתית הטופס.**
+   ============================================================
+   "השלב הזה צריך להיות במסך נפרד ונקי, לא בתחתית המסך הקודם."
+
+   קודם ההנחיה נפתחה מתחת לטופס שזה עתה נשלח, ומי שהסתכל על
+   המסך ראה בעיקר את הטופס. עכשיו, מרגע שההרשמה נקלטה, הטופס
+   יורד והמסך הוא ההנחיה בלבד — עד שיוצאים ממנו (ראו `show`).
+   `regThx` — מה שנכתב מתחת לכפתור ששלח (קישור לרכז, אם יש).
+   ============================================================ */
+var regThx = null;
+function renderRegThx() {
+  var code = myBoard();
+  var inst = code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  if (!inst) { regThx = null; return false; }
+  document.getElementById('reg-body').innerHTML =
+    '<div id="r-done">' + (regThx.done || '') + '</div>' +
+    '<div id="head-next">' + thanksHtml(code, inst.name) + '</div>';
+  window.scrollTo(0, 0);
+  return true;
+}
+/* "לעבור לשלב הבא" — לא תמיד יש צוות ר"מים לשלוח לו. במסע: השלב
+   הבא שלו. בלי מסע: מה שבא אחרי זה בכל מקרה — אזור הניהול. */
+function thxSkip() {
+  if (window.TRIP_UI && TRIP_UI.on() && TRIP_UI.skip('s2')) return;
+  show('my'); renderMy();
+}
 function renderReg() {
+  if (regThx && renderRegThx()) return;
   if (regPreNeeded()) { renderRegPre(); return; }
   var saved = regSaved();
   /* הקישור האישי ממלא את הישיבה מראש. אחרי ההרשמה השמורה
@@ -4068,7 +4101,7 @@ function regDone(txt, viaWa) {
     sb.className = 'btn gr sent';
     sb.disabled = true;
   }
-  document.getElementById('r-done').innerHTML =
+  var doneH =
     /* בלי מספר אין קישור: `wa.me/` ריק הוא כפתור שמוביל לשגיאה.
        המספר מגיע מההגדרות שפורסמו — ראו COORD_WA ב-data.js. */
     (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' +
@@ -4076,6 +4109,7 @@ function regDone(txt, viaWa) {
              'href="https://wa.me/' + COORD_WA + '?text=' + encodeURIComponent(txt) +
              '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : '') +
     '';
+  document.getElementById('r-done').innerHTML = doneH;
   renderHome();
 
   /* ============================================================
@@ -4104,7 +4138,9 @@ function regDone(txt, viaWa) {
   var code = myBoard();
   var inst = code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
   if (inst) {
-    document.getElementById('head-next').innerHTML = thanksHtml(code, inst.name);
+    regThx = { done: doneH };
+    renderRegThx();
+    return;
   }
   document.getElementById('r-done').scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -4446,26 +4482,30 @@ function myInstRow() {
    עד אז: הודעה אחת, מכובדת, במקום השמות. ראו `acc` בסקריפט.
    ============================================================ */
 var accSt = '', accPh = true, accBusy = false, accPhSent = false, accPosted = false;
-function accCheck(force) {
+/* הרענון הידני: '' · 'busy' בזמן הבדיקה · 'still' — נבדק, ועדיין ממתין. */
+var accRef = '';
+/* `after` — נקרא בסוף, בכל מקרה (גם כשלא נשאל השרת). */
+function accCheck(force, after) {
+  var fin = function () { if (after) after(); };
   var code = myBoard();
   var me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
-  if (!code || !me || !me.id || me.inst !== code) return;
-  if (!(ASK.seen && ASK.seen())) return;
+  if (!code || !me || !me.id || me.inst !== code) return fin();
+  if (!(ASK.seen && ASK.seen())) return fin();
   var url = (CFG.api || API || '').trim();
-  if (!url || accBusy) return;
+  if (!url || accBusy) return fin();
   var has = !!instCode(code), last = Store.get('accAt', 0);
   /* מי שכבר יש לו קוד — נבדק לעיתים רחוקות, רק כדי שנעילה תתפוס. */
-  if (!force && Date.now() - last < (has ? 3600000 : 60000)) return;
+  if (!force && Date.now() - last < (has ? 3600000 : 60000)) return fin();
   accBusy = true;
   Store.set('accAt', Date.now());
   scriptGet({ acc: code, dev: me.id, has: has ? '1' : '0' }).then(function (d) {
     accBusy = false;
-    if (!d || !d.status) return;
+    if (!d || !d.status) return fin();
     var was = accSt;
     if (d.status === 'ok' && d.k) {
       accSt = 'ok';
       if (d.k !== instCode(code)) { setInstCode(code, d.k); codeBad = false; renderBoard(); accRe(); }
-      return;
+      return fin();
     }
     if (d.status === 'locked') {
       accSt = 'locked';
@@ -4478,7 +4518,23 @@ function accCheck(force) {
     }
     accPh = d.phone !== false;
     if (!has && (was !== accSt || !accPh)) accRe();
-  }).catch(function () { accBusy = false; });
+    fin();
+  }).catch(function () { accBusy = false; fin(); });
+}
+/* ============================================================
+   **רענון ביד — כפתור, ולא "משיכה".**
+   ============================================================
+   "אחרי שהרכז אישר, מסך ההמתנה לא התעדכן." הבדיקה האוטומטית
+   (כל חצי דקה, ומיד כשחוזרים לאפליקציה) קיימת — אבל מי שמחכה
+   מול המסך צריך דרך לומר "עכשיו". באייפון, באפליקציה שבמסך
+   הבית, אין משיכה לרענון בכלל; כפתור עובד בכל מכשיר. */
+function accRefresh() {
+  if (accRef === 'busy') return;
+  accRef = 'busy'; accRe();
+  accCheck(true, function () {
+    accRef = instCode(myBoard()) ? '' : 'still';
+    accRe();
+  });
 }
 /* **מי שממתין מול המסך — רואה את האישור בלי לפתוח מחדש.** כל חצי
    דקה, רק כשהאזור האישי פתוח ובחזית, ורק עד שמגיע הקוד. וכשחוזרים
@@ -4504,6 +4560,12 @@ function accWaitHtml() {
         esc(PANEL.waitPh) + '</label>' +
         '<input id="acc-ph" type="tel" inputmode="tel" autocomplete="tel" style="margin-top:6px">' +
         '<button class="btn p" onclick="accPhone()">' + esc(PANEL.waitGo) + '</button>';
+  }
+  if (accSt !== 'locked') {
+    h += '<button class="btn g my-re" onclick="accRefresh()"' +
+      (accRef === 'busy' ? ' disabled' : '') + '>' +
+      esc(accRef === 'busy' ? PANEL.waitBusy : PANEL.waitRe) + '</button>' +
+      (accRef === 'still' ? '<span class="my-still">' + esc(PANEL.waitStill) + '</span>' : '');
   }
   return h + '</div>';
 }
@@ -4841,7 +4903,7 @@ function tmplLoad() {
    **כל בחירה רק מצמצמת.** השרת קובע את הישיבה לפי קוד הגישה,
    והפילוח מסונן בתוכה בלבד — ראו sayFlt_ ב-apps-script.gs.
    ============================================================ */
-var sayOpt = { seg:'', aud:'kids', way:'', grade:'', per:true, more:false, sigEd:false };
+var sayOpt = { seg:'', aud:'kids', way:'', grade:'', per:true, more:false };
 var SAY_WAYS = [['', 'sayWayAll'], ['לימוד עצמי', 'sayWaySelf'],
                 ['חבורת לימוד', 'sayWayChav'], ['אבות ובנים', 'sayWayDad']];
 
@@ -4989,25 +5051,27 @@ function sayHtml() {
   h += '<label class="say-per"><input type="checkbox" id="say-per"' +
     (sayOpt.per ? ' checked' : '') + '> ' + esc(headT('sayPer')) + '</label>';
 
-  /* ---- החתימה ---- */
-  h += '<div class="say-sig"><span>' + esc(headT('saySigL')) + ':</span> ';
-  if (sayOpt.sigEd) {
-    h += '<input type="text" id="say-sig" value="' + esc(saySig()) + '">';
-  } else {
-    h += '<b>' + esc(saySig()) + '</b> <button data-say="sig">' +
-      esc(headT('saySigEdit')) + '</button>';
-  }
-  h += '</div>' + sayPreview();
+  /* ============================================================
+     **הסדר: מה לומר ← לשלוח ← מתי זה מגיע ← איך זה ייראה.**
+     ============================================================
+     "סדר חדש, מלמעלה למטה": עד התיבה — כמו שהיה. מתחתיה הכפתור,
+     מתחתיו ההערה החשובה (ההודעה מגיעה בדרך כלל תוך דקה), פס,
+     ורק אז "כך זה ייראה בטלפון".
 
-  var c = sayCount();
-  h += (n ? '<div class="say-sum"><b>' + esc(headT('sayToH')) + '</b> ' + esc(sayToLabel()) +
-      (c != null ? ' · <b>' + c + '</b>' : '') + '</div>' : '') +
-    '<p class="myto">' + (n ? esc(headT('sayToInst')) : esc(headT('sayNone'))) + '</p>' +
+     **"נשלח אל: תלמידים · 231" ו"רק למי שהתקין" ירדו מהעמוד** —
+     הם עולים בשלב האישור, אחרי הלחיצה (ראו saySend). ו"שינוי"
+     ליד החתימה ירד לגמרי.
+     ============================================================ */
+  h += '<div class="say-sig"><span>' + esc(headT('saySigL')) + ':</span> ' +
+    '<b>' + esc(saySig()) + '</b></div>';
+
+  h += (n ? '' : '<p class="myto">' + esc(headT('sayNone')) + '</p>') +
     '<button class="mygo" id="say-go"' +
     (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
+    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '') +
     '<p class="myto">' + esc(UI.sayLate) + '</p>' +
-    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '');
+    '<hr class="say-hr">' + sayPreview();
 
   /* ---- מה שכבר יצא מכאן ---- */
   var log = Store.get('sayLog', []) || [];
@@ -5053,21 +5117,12 @@ function sayWire() {
   if (sgr) sgr.onchange = function () { sayOpt.grade = sgr.value; sayPaint(); };
   var per = document.getElementById('say-per');
   if (per) per.onchange = function () { sayOpt.per = per.checked; sayPaint(); };
-  var sg = document.getElementById('say-sig');
-  if (sg) {
-    sg.focus();
-    sg.onchange = sg.onblur = function () {
-      Store.set('saySig', sg.value.trim());
-      sayOpt.sigEd = false; sayPaint();
-    };
-  }
   var box = document.getElementById('my-say');
   if (box) box.onclick = function (e) {
     var b = e.target.closest ? e.target.closest('[data-say]') : null;
     if (!b) return;
     var a = b.getAttribute('data-say'), k = a.split(':')[0], v = a.slice(k.length + 1);
     if (k === 'more') sayOpt.more = !sayOpt.more;
-    else if (k === 'sig') sayOpt.sigEd = true;
     else if (k === 'tm') sayDraft = sayTmpls()[+v] || sayDraft;
     else if (k === 'aud') sayOpt.aud = v;
     else sayOpt[k] = v;
@@ -5104,7 +5159,12 @@ function saySend() {
   var code = myBoard(), k = instCode(code);
   if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
   var to = sayToLabel();
-  if (!confirm(headT('sayAsk') + '\n' + to + '\n\n' + txt)) return;
+  /* הפרטים שירדו מהעמוד — למי, כמה, ושזה רק למי שהתקין — כאן,
+     ברגע האישור. */
+  var cnt = sayCount();
+  if (!confirm(headT('sayAsk') + '\n' + headT('sayToH') + ' ' + to +
+               (cnt != null ? ' · ' + cnt : '') + '\n' + headT('sayToInst') +
+               '\n\n' + txt)) return;
 
   var url = (CFG.api || API || '').trim();
   if (!url) { sayErr = headT('sayErr'); sayPaint(); return; }
@@ -5190,6 +5250,8 @@ function thanksHtml(code, name) {
     'href="https://wa.me/?text=' + encodeURIComponent(wa) + '">' +
     esc(UI.thanksGo) + '</a>' +
     '<p class="thx-how">' + esc(UI.thanksHow) + '</p>' +
+    /* "לא תמיד יש צוות שיש לו ר"מים לשלוח להם." ראו thxSkip. */
+    '<button class="thx-skip" onclick="thxSkip()">' + esc(TRIP.s2skip) + '</button>' +
     '</div>';
 }
 
