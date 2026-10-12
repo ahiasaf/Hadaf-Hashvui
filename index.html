@@ -2779,7 +2779,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.203';
+var APP_VERSION = '8.99.204';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12472,8 +12472,67 @@ function admWaCard() {
         '<a class="btn gr" target="_blank" rel="noopener" ' +
         'href="https://wa.me/?text=' + encodeURIComponent(out) +
         '">שליחה בוואטסאפ</a>' +
+        (raw !== TX.base(m.k)
+          ? '<button class="btn g" style="margin-top:8px" onclick="admWaOrig(\'' + m.k + '\')">' +
+            'חזרה למקור</button><div id="wa-orig-' + m.k.replace('.', '-') + '"></div>'
+          : '') +
         '</div>';
     }).join('') + '</div>';
+}
+
+/* "חזרה למקור" — הנוסח שבקוד, אצל כולם. מוחק את מה שנערך בהודעה
+   הזו: מהמכשיר, ומהגיליון (שאחרת ממשיך לגבור על הקוד). ושאר
+   הנוסחים נשארים כמו שהם. `no-cors` מצליח תמיד, ולכן קוראים
+   חזרה ומוודאים שהשורה ירדה. */
+function admWaOrig(k) {
+  if (!confirm('להחזיר את ההודעה לנוסח המקורי? מה שערכת בה יימחק.')) return;
+  var t = CFG.texts || {};
+  delete t[k];
+  cfgSet('texts', t);
+  PUBLISHED = PUBLISHED || {};
+  delete PUBLISHED[k];
+  Store.set('textCache', PUBLISHED);
+  relayerTexts();
+  repaintTexts();
+  admPane();
+  if (!API) return;
+  var rows = textPubRows();
+  queue({ action:'texts', key:(CFG.readKey || '').trim(), rows:JSON.stringify(rows), at:new Date().toISOString() });
+  var say = function (cls, h) {
+    var el = document.getElementById('wa-orig-' + k.replace('.', '-'));
+    if (!el) {
+      /* הכפתור ירד עם הציור מחדש — ההודעה כבר מקורית. */
+      var box = document.querySelector('.wamsg textarea[onchange*="' + k + '"]');
+      if (!box) return;
+      el = document.createElement('div');
+      el.id = 'wa-orig-' + k.replace('.', '-');
+      box.parentNode.appendChild(el);
+    }
+    el.innerHTML = '<div class="' + cls + '" style="margin-top:8px">' + h + '</div>';
+  };
+  say('cond', 'מוחק מהגיליון…');
+  var tries = 0;
+  var check = function () {
+    return new Promise(function (ok) { setTimeout(ok, tries ? 4000 : 2200); })
+      .then(function () { return fetchSheet(CFG.sheetId || SHEET_ID, 'טקסטים'); })
+      .then(function (back) {
+        var map = textsFromRows(back);
+        if (map && map[k] == null) {
+          Store.set('textCache', map);
+          PUBLISHED = map;
+          relayerTexts(); repaintTexts();
+          say('done-box', 'חזר לנוסח המקורי אצל כולם.');
+          return;
+        }
+        if (++tries < 4) return check();
+        say('cond', 'במכשיר הזה ההודעה חזרה למקור, אבל לא הצלחתי לוודא ' +
+            'שהיא נמחקה מהגיליון. נסו שוב בעוד רגע.');
+      }, function () {
+        if (++tries < 4) return check();
+        say('cond', 'לא הצלחתי לקרוא את הגיליון. נסו שוב בעוד רגע.');
+      });
+  };
+  check();
 }
 
 /* ============================================================
