@@ -16,6 +16,51 @@ var reg = {
     qty: {}
 };
 
+/* אשף ההרשמה בשלושה שלבים. השלב נשמר מחוץ ל-render,
+   ולכן כל ציור מחדש (בחירת ישיבה, מסכתות, כמויות) נשאר
+   באותו שלב. הפס משקף את השלב האמיתי בלבד. */
+var regStage = 1;
+var REG_STEP_NAMES = [ "הישיבה", "הלימוד", "גמרות ושליחה" ];
+
+function regGo(n, focusEl) {
+    if (n > regStage && regStage === 1) {
+        var name = reg.inst === "other" ? reg.instOther : (INSTITUTIONS.filter(function(i) {
+            return i.code === reg.inst;
+        })[0] || {}).name;
+        var err = document.getElementById("r-err1");
+        if (!name) {
+            if (err) { err.textContent = "נא לבחור ישיבה."; err.hidden = false; }
+            var field = reg.inst === "other" ? document.getElementById("r-otherName") : document.querySelector("#r-step-1 .pk");
+            if (field) field.focus();
+            return;
+        }
+        if (err) err.hidden = true;
+    }
+    regStage = n;
+    for (var i = 1; i <= 3; i++) {
+        var s = document.getElementById("r-step-" + i);
+        if (s) s.className = "rstep" + (i === n ? " on" : "");
+    }
+    var f = document.getElementById("rp-fill"), l = document.getElementById("rp-lbl");
+    if (f) f.style.width = Math.round(n * 100 / 3) + "%";
+    if (l) l.textContent = "שלב " + n + " מתוך 3 · " + REG_STEP_NAMES[n - 1];
+    var t = focusEl || document.getElementById("r-step-" + n);
+    if (t && t.focus) t.focus();
+    var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+        top: 0,
+        behavior: calm ? "auto" : "smooth"
+    });
+}
+
+function regProg() {
+    return '<div class="qprog rprog"><span id="rp-lbl" aria-live="polite">שלב ' + regStage + " מתוך 3 · " + REG_STEP_NAMES[regStage - 1] + '</span><i><b id="rp-fill" style="width:' + Math.round(regStage * 100 / 3) + '%"></b></i></div>';
+}
+
+function regStep(n, inner) {
+    return '<section class="rstep' + (regStage === n ? " on" : "") + '" id="r-step-' + n + '" tabindex="-1" aria-label="' + esc(REG_STEP_NAMES[n - 1]) + '">' + inner + "</section>";
+}
+
 function regSaved() {
     try {
         return JSON.parse(localStorage.getItem("dfReg") || "null");
@@ -37,6 +82,7 @@ function regReset() {
         want: null,
         qty: {}
     };
+    regStage = 1;
     renderReg();
     window.scrollTo({
         top: 0,
@@ -151,7 +197,10 @@ function renderReg() {
         return i.code === reg.inst;
     })[0] || {}).name || "";
     var whoBlock = '<div class="foldh" id="r-who-step" style="margin-top:22px">' + esc(UI.s4) + "</div>" + pkField("", instName, UI.instLabel, "pickInst()") + '<div class="fld" id="r-other" style="display:' + (reg.inst === "other" ? "block" : "none") + '">' + '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) + '" onchange="regSet(\'instOther\',this.value)"></div>';
-    var h = (saved ? "" : stuHint()) + fitBlock() + whoBlock + sizeRow() + masRow() + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="jumpTo(\'r-who-step\');return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div>' + recBlocks() + '<div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + orderRows() + regTotal() + "</div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<button class="btn gr" id="r-send" style="margin-top:20px" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div id="r-done"></div>' + '<div id="head-next"></div>';
+    var step1 = (saved ? "" : stuHint()) + fitBlock() + whoBlock + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="jumpTo(\'r-who-step\');return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
+    var step2 = sizeRow() + masRow() + '<div class="rnav"><button class="btn g" onclick="regGo(1)">→ חזרה</button>' + '<button class="btn gd" onclick="regGo(3)">המשך</button></div>';
+    var step3 = (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div>' + recBlocks() + '<div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + orderRows() + regTotal() + "</div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<button class="btn gr" id="r-send" style="margin-top:20px" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div class="rnav"><button class="btn g" onclick="regGo(2)">→ חזרה</button></div>' + '<div id="r-done"></div>' + '<div id="head-next"></div>';
+    var h = regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3);
     document.getElementById("reg-body").innerHTML = h;
     foldInit();
 }

@@ -1239,7 +1239,7 @@ header{padding-top:calc(env(safe-area-inset-top) + 6px)}
   body.sheet-peek .chav{max-height:72px}
 
   /* ---------- הסרגל התחתון: שלושה בלבד, בהישג האגודל ---------- */
-  nav{padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);box-shadow:0 -1px 0 var(--rule)}
+  nav{position:relative;z-index:9;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);box-shadow:0 -1px 0 var(--rule)}
   .nrow{gap:10px;flex-wrap:nowrap}
   nav button#prev{width:52px;min-width:52px;min-height:52px}
   nav button.p{min-height:52px;font-size:1rem;border-radius:16px}
@@ -1277,4 +1277,9 @@ header{padding-top:calc(env(safe-area-inset-top) + 6px)}
 @media (max-width:359px){#count{display:none}}
 @media (max-width:820px) and (prefers-reduced-motion:reduce){
   .tools-menu .tools{animation:none}
+}
+
+/* In the shared panel, illustration temporarily replaces the explanation. */
+@media (max-width:1199px){
+  body.side-on .chav{display:none}
 }

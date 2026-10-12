@@ -316,6 +316,7 @@ function paintChavArea() {
   if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
   if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
   quizFabPaint();
+  syncViewControls();
 }
 
 /* העיגול הצף של החידה - צף מעל הבמה, לא בזרם התוכן, כדי שיהיה
@@ -328,11 +329,11 @@ function quizFabPaint() {
   if (!fab) return;
   var can = !!(st && (SIDE_ADM || qVisible_(st.n).length));
   fab.classList.toggle('on', can);
-  fab.classList.toggle('lit', !!QUIZ_OPEN);
+  fab.classList.toggle('lit', !!QUIZ_OPEN && explanationVisible());
   fab.onclick = function () {
     qHintDone_();
-    QUIZ_OPEN = !QUIZ_OPEN;
-    if (QUIZ_OPEN && !document.body.classList.contains('chav-on')) drawer(true);
+    QUIZ_OPEN = !QUIZ_OPEN || !explanationVisible();
+    if (QUIZ_OPEN && !explanationVisible()) drawer(true);
     else paintChavArea();
   };
   var hint = $('qhint');

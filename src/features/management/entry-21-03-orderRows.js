@@ -139,14 +139,26 @@ function sendReg() {
     var name = reg.inst === "other" ? reg.instOther : (INSTITUTIONS.filter(function(i) {
         return i.code === reg.inst;
     })[0] || {}).name;
+    var e1 = document.getElementById("r-err1"), e3 = document.getElementById("r-err3");
+    if (e1) e1.hidden = true;
+    if (e3) e3.hidden = true;
     if (!name) {
-        alert("נא לבחור ישיבה.");
+        if (e1) {
+            e1.textContent = "נא לבחור ישיבה.";
+            e1.hidden = false;
+        }
+        regGo(1, document.querySelector("#r-step-1 .pk"));
         return;
     }
     if (!reg.want) reg.qty = {};
     var total = regTotalQty();
     if (reg.want && !total) {
-        alert("נא למלא כמה גמרות להזמין, או לכבות את המתג.");
+        if (e3) {
+            e3.textContent = "נא למלא כמה גמרות להזמין, או לכבות את המתג.";
+            e3.hidden = false;
+        }
+        var qi = document.querySelector("#r-fold input");
+        if (qi) qi.focus();
         return;
     }
     var row = INSTITUTIONS.filter(function(i) {

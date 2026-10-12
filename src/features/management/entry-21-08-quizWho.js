@@ -14,7 +14,7 @@ function quizWho() {
     var qInstName = (INSTITUTIONS.filter(function(i) {
         return i.code === myInst;
     })[0] || {}).name || "";
-    el.innerHTML = (typeof LMe === "function" && LMe() ? '<div class="qback"><button onclick="qManual=false;quizWho()">→ חזרה</button>' + esc(UI.qManual) + "</div>" : "") + pkField("הישיבה שלי", qInstName, "בחרו ישיבה", "pickQuizInst()") + '<div class="fld"><div class="label">השם שלי</div>' + '<input type="text" id="q-name" placeholder="שם מלא" value="' + esc(myName) + '"></div>' + '<div class="fld"><div class="label">טלפון - לשליחת הפרס</div>' + '<input type="tel" id="q-phone" placeholder="05X-XXXXXXX" value="' + esc(myPhone()) + '"></div>';
+    el.innerHTML = (typeof LMe === "function" && LMe() ? '<div class="qback"><button onclick="qManual=false;quizWho()">→ חזרה</button>' + esc(UI.qManual) + "</div>" : "") + pkField("הישיבה שלי", qInstName, "בחרו ישיבה", "pickQuizInst()") + '<div class="fld"><label class="label" for="q-name">השם שלי</label>' + '<input type="text" id="q-name" placeholder="שם מלא" value="' + esc(myName) + '"></div>' + '<div class="fld"><label class="label" for="q-phone">טלפון - לשליחת הפרס</label>' + '<input type="tel" id="q-phone" placeholder="05X-XXXXXXX" value="' + esc(myPhone()) + '"></div>';
 }
 
 function myPhone() {
@@ -29,9 +29,16 @@ function pickQuizInst() {
             t: i.name
         };
     }), myInst, function(v) {
+        /* רק השדות מצוירים מחדש: התשובה שנבחרה ומה שהוקלד נשמרים. */
         myInst = v;
         localStorage.setItem("dfInst", v);
-        openQuiz();
+        var n = document.getElementById("q-name"), ph = document.getElementById("q-phone");
+        var nv = n ? n.value : null, pv = ph ? ph.value : null;
+        quizWho();
+        n = document.getElementById("q-name");
+        ph = document.getElementById("q-phone");
+        if (n && nv !== null) n.value = nv;
+        if (ph && pv !== null) ph.value = pv;
     });
 }
 
@@ -43,6 +50,11 @@ function pickAns(i) {
         if (el) el.className = "opt" + (k === i ? " sel" : state.bad && state.bad[k] ? " wrong" : "");
     }
     document.getElementById("q-send").disabled = false;
+    var r = document.getElementById("q-result");
+    if (r) r.innerHTML = "";
+    if (typeof quizStep === "function") setTimeout(function() {
+        if (state.ans === i) quizStep(2);
+    }, 240);
 }
 
 function sendQuiz() {
@@ -59,9 +71,17 @@ function sendQuiz() {
         name = document.getElementById("q-name").value.trim();
         phone = document.getElementById("q-phone").value.trim();
         if (!inst || !name) {
-            alert("נא לבחור ישיבה ולמלא שם.");
+            var er = document.getElementById("q-err");
+            if (er) {
+                er.textContent = "נא לבחור ישיבה ולמלא שם.";
+                er.hidden = false;
+            }
+            var miss = !inst ? document.querySelector("#q-who .pk") : document.getElementById("q-name");
+            if (miss) miss.focus();
             return;
         }
+        var er2 = document.getElementById("q-err");
+        if (er2) er2.hidden = true;
         myInst = inst;
         myName = name;
         localStorage.setItem("dfInst", inst);
@@ -100,7 +120,24 @@ function sendQuiz() {
             LMark(state.track.id, state.week);
         } catch (e) {}
     }
-    document.getElementById("q-result").innerHTML = '<div class="done-box" style="margin-top:14px">' + esc((right ? UI.qRight : UI.qWrong) || "") + "</div>";
+    if (right) {
+        /* הזרימה הושלמה: השאלה נשארת עם התשובה הנכונה גלויה,
+           ומתחתיה חותמת הצלחה והצעד הבא. הניסוח נשאר כשהיה:
+           הרישום ממתין בתור ואינו מוצג כמאושר בשרת. */
+        var fl = document.getElementById("qflow");
+        if (fl) fl.className = "qflow locked";
+        var sa = document.getElementById("q-step-a");
+        if (sa) sa.className = "qstep on";
+        document.getElementById("q-result").innerHTML = '<div class="q-done">' + '<div class="q-seal" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' + '<div class="done-box">' + esc(UI.qRight || "") + "</div>" + '<button class="btn gd" onclick="backToWeek()">→ חזרה לדף</button>' + (QUIZ[key].length > 1 ? '<button class="btn g" onclick="openQuiz()">→ כל החידות</button>' : "") + "</div>";
+    } else {
+        document.getElementById("q-result").innerHTML = '<div class="q-miss">' + esc(UI.qWrong || "") + "</div>";
+        if (typeof quizStep === "function") quizStep(1);
+        var te = document.getElementById("opt" + tried);
+        if (te) {
+            te.classList.add("jolt");
+            te.focus();
+        }
+    }
 }
 
 function renderInsts() {

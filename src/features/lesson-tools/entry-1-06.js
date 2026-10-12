@@ -1,11 +1,34 @@
 
+function explanationVisible() {
+  return document.body.classList.contains('chav-on') &&
+    !(sidePhone() && document.body.classList.contains('side-on'));
+}
+
+function syncViewControls() {
+  var explanation = explanationVisible();
+  var illustration = document.body.classList.contains('side-on');
+  [['chtog', explanation && !QUIZ_OPEN], ['dktog', illustration]].forEach(function (v) {
+    var b = $(v[0]);
+    if (b) { b.classList.toggle('on', v[1]); b.setAttribute('aria-pressed', String(v[1])); }
+  });
+  $('chav').setAttribute('aria-hidden', String(!explanation));
+  $('side').setAttribute('aria-hidden', String(!illustration));
+  var quiz = $('qfab');
+  if (quiz) {
+    quiz.classList.toggle('lit', !!QUIZ_OPEN && explanation);
+    quiz.setAttribute('aria-pressed', String(!!QUIZ_OPEN && explanation));
+  }
+}
+
 function drawer(on) {
+  if (on && sidePhone() && document.body.classList.contains('side-on')) sideOpen(false);
+  if (!on) { QUIZ_OPEN = false; document.body.classList.remove('quiz-on'); }
   document.body.classList.toggle('chav-on', on);
-  $('chtog').classList.toggle('on', on);
   if (!quiet()) try { localStorage.setItem('df:chav', on ? '1' : '0'); } catch (e) {}
   recStep('chav');
   /* הקובץ נטען רק אם יש קטע שנשמר לפני שהמבנה נשמר יחד איתו */
   if (on) { if (needChav()) loadChav(); paintChavArea(); }
+  syncViewControls();
   /* המגירה משנה את גודל הבמה, ולכן החלון מחושב מחדש */
   setTimeout(focus, 30);
 }
@@ -225,6 +248,7 @@ function sideOpen(on, auto) {
   if (!quiet() && !auto) try {
     localStorage.setItem('df:side', on ? '1' : '0');
   } catch (e) {}
+  syncViewControls();
   recStep('deck');
   if (!on) sideVoxStop_();
   if (on) sideSync(true);
@@ -236,6 +260,10 @@ function sideOpen(on, auto) {
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
 }
+var paneLayout = window.matchMedia('(max-width:1199px)');
+if (paneLayout.addEventListener) paneLayout.addEventListener('change', syncViewControls);
+else if (paneLayout.addListener) paneLayout.addListener(syncViewControls);
+
 /* ---------- ציור ---------- */
 function sideSync(force) {
   if (!DECK) return;

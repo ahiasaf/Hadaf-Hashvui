@@ -29,6 +29,10 @@ try {
     await fs.readFile("src/generated/program.json", "utf8"),
   );
   const errors = [];
+  const lessonData = (data) =>
+    '"מסכת","דף","נתונים"\n"taanit","ב","' +
+    JSON.stringify(data).replaceAll('"', '""') +
+    '"';
   let readFailure = false,
     closed = false,
     writeFailure = false,
@@ -45,16 +49,23 @@ try {
       const body =
         tab === "סימוני הדף"
           ? lesson
-          : tab === "דפים פתוחים"
-            ? '"מסכת","דף","נפתח"\n' +
-              (closed
-                ? ""
-                : '"taanit","ב.","2026-10-04"\n"taanit","ב:","2026-10-04"')
-            : tab === "טקסטים"
-              ? '"מפתח","נוסח"'
-              : tab === "מוסדות"
-                ? '"code","name","last","joined"\n"demo","ישיבה לדוגמה","true","true"'
-                : '"מסכת","דף","נתונים"';
+          : tab === "מצגת"
+            ? lessonData({ 1: 1 })
+            : tab === "שאלות בדף"
+              ? lessonData({
+                  __pub: 1,
+                  1: [{ q: "שאלת בדיקה", a: ["כן", "לא"], correct: 0 }],
+                })
+              : tab === "דפים פתוחים"
+                ? '"מסכת","דף","נפתח"\n' +
+                  (closed
+                    ? ""
+                    : '"taanit","ב.","2026-10-04"\n"taanit","ב:","2026-10-04"')
+                : tab === "טקסטים"
+                  ? '"מפתח","נוסח"'
+                  : tab === "מוסדות"
+                    ? '"code","name","last","joined"\n"demo","ישיבה לדוגמה","true","true"'
+                    : '"מסכת","דף","נתונים"';
       return route.fulfill({ contentType: "text/csv;charset=utf-8", body });
     });
     await context.route("**/api/action", (route) => {
@@ -315,6 +326,64 @@ try {
     .filter({ hasText: /^קטע 1 מתוך/ })
     .waitFor();
   assert.equal(await page.locator("#back").getAttribute("href"), "/app");
+  async function viewToggle(id) {
+    await page.waitForFunction(
+      (id) => document.getElementById(id).style.display !== "none",
+      id,
+    );
+    if (
+      (await page.locator("#viewmenu > summary").isVisible()) &&
+      (await page.locator("#viewmenu").getAttribute("open")) === null
+    )
+      await page.locator("#viewmenu > summary").click();
+    await page.locator("#" + id).click();
+  }
+  await viewToggle("dktog");
+  assert.equal(
+    await page.locator("#dktog").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    await page.locator("#chtog").getAttribute("aria-pressed"),
+    "false",
+  );
+  assert.equal(await page.locator("#chav").isVisible(), false);
+  await viewToggle("chtog");
+  assert.equal(await page.locator("#side").isVisible(), false);
+  assert.equal(
+    await page.locator("#chtog").getAttribute("aria-pressed"),
+    "true",
+  );
+  await viewToggle("dktog");
+  await page.locator("#sd-x").click();
+  assert.equal(await page.locator("#chav").isVisible(), true);
+  await viewToggle("dktog");
+  const beforeQuestion = await page.locator("#count").textContent();
+  await page.locator("#qfab").click();
+  await page.getByText("שאלת בדיקה", { exact: true }).waitFor();
+  assert.equal(await page.locator("#count").textContent(), beforeQuestion);
+  assert.equal(await page.locator("#side").isVisible(), false);
+  await viewToggle("chtog");
+  assert.equal(await page.getByText("שאלת בדיקה", { exact: true }).count(), 0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await viewToggle("dktog");
+  assert.equal(
+    await page.locator("#chtog").getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    await page.locator("#dktog").getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.waitForTimeout(100);
+  assert.equal(
+    await page.locator("#chtog").getAttribute("aria-pressed"),
+    "false",
+  );
+  assert.equal(await page.locator("#chav").getAttribute("aria-hidden"), "true");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await viewToggle("dktog");
   const stage = await page.locator("#stage").boundingBox();
   const controls = await page.locator("body > nav").boundingBox();
   await page.locator("#next").click();
@@ -365,6 +434,16 @@ try {
     await page
       .locator("body")
       .evaluate((element) => element.classList.contains("whole")),
+  );
+  await page.reload();
+  await page
+    .locator("#count")
+    .filter({ hasText: /^קטע 2 מתוך/ })
+    .waitFor();
+  assert.equal(await page.locator("#whole").textContent(), "כל הדף");
+  assert.equal(
+    await page.locator("#whole").getAttribute("aria-pressed"),
+    "true",
   );
   await page.locator("#viewmenu > summary").click();
   await page.locator("#whole").click();
@@ -609,12 +688,92 @@ try {
   await noJs.close();
   const legacyContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
   });
   await prepare(legacyContext);
   const legacyPage = await legacyContext.newPage();
+  await legacyPage.goto(base + "/management?st=1#quiz=taanit-1");
+  await legacyPage.locator("#splash.off").waitFor({ state: "attached" });
+  await legacyPage.evaluate(() => {
+    window.QUIZ["taanit-1"] = [
+      { q: "חידת בדיקה", a: ["נכון", "ניסיון נוסף"], correct: 0 },
+    ];
+    window.openWeek("taanit", 0);
+    window.openQuiz(0);
+  });
+  await legacyPage.locator("#opt1").click();
+  await legacyPage.locator("#q-step-b.on").waitFor();
+  await legacyPage.locator("#q-send").click();
+  await legacyPage.locator("#q-err:not([hidden])").waitFor();
+  await legacyPage.locator("#q-name").fill("תלמיד בדיקה");
+  await legacyPage.locator("#q-phone").fill("0500000000");
+  await legacyPage.locator("#q-who .pk").click();
+  await legacyPage.locator("#sheet-l .it").first().click();
+  assert.equal(await legacyPage.locator("#q-name").inputValue(), "תלמיד בדיקה");
+  assert.equal(await legacyPage.locator("#q-phone").inputValue(), "0500000000");
+  assert.equal(await legacyPage.evaluate(() => window.state.ans), 1);
+  await legacyPage.locator("#q-send").click();
+  await legacyPage.locator("#q-step-a.on .opt.wrong").waitFor();
+  await legacyPage.locator("#opt0").click();
+  await legacyPage.locator("#q-step-b.on").waitFor();
+  await legacyPage.locator("#q-send").click();
+  await legacyPage.locator(".q-done").waitFor();
+  assert.equal(
+    await legacyPage
+      .locator(".q-seal path")
+      .evaluate(
+        (el) =>
+          el.ownerDocument.defaultView.getComputedStyle(el).strokeDashoffset,
+      ),
+    "0px",
+  );
+  await legacyPage.reload();
+  await legacyPage.locator("#splash.off").waitFor({ state: "attached" });
+  await legacyPage.evaluate(() => {
+    window.QUIZ["taanit-1"] = [
+      { q: "חידת בדיקה", a: ["נכון", "ניסיון נוסף"], correct: 0 },
+    ];
+    window.openWeek("taanit", 0);
+    window.openQuiz(0);
+  });
+  assert.equal(await legacyPage.locator("#qflow.locked").count(), 1);
+  assert.equal(await legacyPage.locator("#opt0.right").count(), 1);
+  console.log(
+    "Quiz steps, inline validation, retained identity, retry and solved persistence passed.",
+  );
   await legacyPage.goto(base + "/management#reg");
   await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
   assert.equal(await legacyPage.locator("#v-home.on").count(), 0);
+  await legacyPage.locator("#r-step-1 .rnav button").click();
+  await legacyPage.locator("#r-err1:not([hidden])").waitFor();
+  assert.equal(await legacyPage.locator("#r-step-1.on").count(), 1);
+  await legacyPage.locator("#r-step-1 .pk").click();
+  await legacyPage.locator("#sheet-l .it").first().click();
+  await legacyPage.locator("#r-step-1 .rnav button").click();
+  await legacyPage.locator("#r-step-2.on").waitFor();
+  await legacyPage.locator("#r-step-2 .mascard").first().click();
+  assert.equal(await legacyPage.locator("#r-step-2.on .mascard.on").count(), 1);
+  await legacyPage.locator("#r-step-2 .rnav .gd").click();
+  await legacyPage.locator("#r-step-3.on").waitFor();
+  await legacyPage.locator("#r-wantsw").click();
+  await legacyPage.locator("#r-send").click();
+  await legacyPage.locator("#r-err3:not([hidden])").waitFor();
+  await legacyPage.locator("#r-fold .ctl button").nth(1).click();
+  assert.equal(await legacyPage.locator("#r-step-3.on").count(), 1);
+  assert.equal(
+    await legacyPage.locator("#r-fold input").first().inputValue(),
+    "5",
+  );
+  await legacyPage.locator("#r-step-3 .rnav button").click();
+  assert.equal(await legacyPage.locator("#r-step-2.on .mascard.on").count(), 1);
+  await legacyPage.locator("#r-step-2 .rnav .gd").click();
+  assert.equal(
+    await legacyPage.locator("#r-fold input").first().inputValue(),
+    "5",
+  );
+  console.log(
+    "School steps, required school, retained track and quantity, and order validation passed.",
+  );
   await legacyPage.reload();
   await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
   await legacyPage.goto(base + "/#admin");

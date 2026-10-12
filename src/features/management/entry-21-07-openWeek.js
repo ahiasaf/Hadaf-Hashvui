@@ -220,17 +220,21 @@ function openQuiz(idx) {
     var qInstName = (INSTITUTIONS.filter(function(i) {
         return i.code === myInst;
     })[0] || {}).name || "";
-    var h = (list.length > 1 ? '<button class="btn g" style="margin-bottom:12px" onclick="openQuiz()">→ כל החידות</button>' : "") + '<div class="sec"><b>' + (list.length > 1 ? "חידה " + (idx + 1) + " · " : "החידה השבועית · ") + "דף " + esc(rowDaf(state.track.cal[state.week])) + "</b><i></i></div>" + '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
+    var locked = quizOk(key, idx, q);
+    var h = (list.length > 1 ? '<button class="btn g" style="margin-bottom:12px" onclick="openQuiz()">→ כל החידות</button>' : "") + '<div class="sec"><b>' + (list.length > 1 ? "חידה " + (idx + 1) + " · " : "החידה השבועית · ") + "דף " + esc(rowDaf(state.track.cal[state.week])) + "</b><i></i></div>";
+    h += '<div class="qflow' + (locked ? " locked" : "") + '" id="qflow">' + '<div class="qprog"><span id="qp-lbl" aria-live="polite">שלב 1 מתוך 2 · בחירת התשובה</span><i><b id="qp-fill"></b></i></div>';
+    h += '<section class="qstep on" id="q-step-a">' + '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
     q.a.forEach(function(t, i) {
         h += '<button class="opt" id="opt' + i + '" onclick="pickAns(' + i + ')">' + '<span class="n">' + (i + 1) + "</span><span>" + esc(t) + "</span></button>";
     });
-    h += '</div><div style="margin-top:18px" id="q-who"></div>' + '<button class="btn p" id="q-send" onclick="sendQuiz()" disabled>שליחה</button>' + '<p style="font-size:.76rem;color:var(--ink-3);text-align:center;margin-top:10px;font-weight:600">' + 'הפרטים נשמרים במערכת התוכנית בלבד.</p><div id="q-result"></div>';
+    h += "</div></section>";
+    h += '<section class="qstep" id="q-step-b">' + '<button class="qchg" id="q-chg" type="button" onclick="quizStep(1)" aria-label="שינוי תשובה"></button>' + '<div style="margin-top:18px" id="q-who"></div>' + '<div class="q-err" id="q-err" role="alert" hidden></div>' + '<button class="btn p" id="q-send" onclick="sendQuiz()" disabled>שליחה</button>' + '<p style="font-size:.76rem;color:var(--ink-3);text-align:center;margin-top:10px;font-weight:600">' + 'הפרטים נשמרים במערכת התוכנית בלבד.</p></section></div>' + '<div id="q-result" aria-live="polite"></div>';
     document.getElementById("quiz-body").innerHTML = h;
     state.ans = -1;
     state.bad = {};
     qManual = false;
     quizWho();
-    if (quizOk(key, idx, q)) {
+    if (locked) {
         for (var k = 0; k < q.a.length; k++) {
             var el = document.getElementById("opt" + k);
             if (el) {
@@ -243,6 +247,31 @@ function openQuiz(idx) {
         document.getElementById("q-result").innerHTML = '<div class="done-box" style="margin-top:14px">' + esc(UI.qLocked || "") + "</div>";
     }
     show("quiz");
+}
+
+/* מנוע השלבים של החידה: 1 - בחירת תשובה, 2 - פרטים ושליחה.
+   הפס מתמלא לפי השלב האמיתי - אין התקדמות מדומה. */
+function quizStep(n) {
+    var a = document.getElementById("q-step-a"), b = document.getElementById("q-step-b");
+    if (!a || !b) return;
+    a.className = "qstep" + (n === 1 ? " on" : "");
+    b.className = "qstep" + (n === 2 ? " on" : "");
+    var f = document.getElementById("qp-fill"), l = document.getElementById("qp-lbl");
+    if (f) f.style.width = n === 2 ? "100%" : "50%";
+    if (l) l.textContent = n === 2 ? "שלב 2 מתוך 2 · הפרטים לשליחה" : "שלב 1 מתוך 2 · בחירת התשובה";
+    var c = document.getElementById("q-chg");
+    if (c && n === 2 && state.ans >= 0) {
+        var q = QUIZ[state.track.id + "-" + (state.week + 1)][state.quizIdx];
+        c.innerHTML = '<span class="n">' + (state.ans + 1) + '</span><span class="t">' + esc(q && q.a[state.ans] || "") + '</span><span class="chg">שינוי</span>';
+    }
+    if (n === 2) {
+        var nm = document.getElementById("q-name");
+        var tgt = nm && !nm.value ? nm : document.getElementById("q-send");
+        if (tgt) tgt.focus();
+    } else if (state.ans >= 0) {
+        var o = document.getElementById("opt" + state.ans);
+        if (o) o.focus();
+    }
 }
 
 function quizOkKey(key, idx, q) {

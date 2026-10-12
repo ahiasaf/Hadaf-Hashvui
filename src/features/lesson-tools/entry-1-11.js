@@ -118,9 +118,7 @@ function boot() {
              נשמרת; רק היעדר בחירה נקרא עכשיו כ"פתוחה". */
           if (localStorage.getItem('df:chav') !== '0') drawer(true);
           if (localStorage.getItem('df:dim') === '0') {
-            DIM = false; setWhole(true);
-            $('whole').classList.add('on');
-            $('whole').textContent = 'עם עמעום';
+            setWhole(true);
           }
         } catch (e) {}
         if (AT_END && !quiet()) go(FLAT.length - 1);
@@ -223,6 +221,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (PINCH && Object.keys(PTS).length < 2) PINCH = null;
   };
   $('stage').addEventListener('pointerdown', function (e) {
+    if (e.target.closest && e.target.closest('button,a,[role="button"]')) return;
     if (!FLAT.length) return;
     PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (Object.keys(PTS).length >= 2) {
@@ -273,7 +272,10 @@ window.addEventListener('DOMContentLoaded', function () {
     if (e.touches && e.touches.length > 1) e.preventDefault();
   }, { passive: false });
 
-  $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
+  $('chtog').onclick = function () {
+    if (QUIZ_OPEN) { QUIZ_OPEN = false; drawer(true); }
+    else drawer(!explanationVisible());
+  };
   $('chclose').onclick = function () { drawer(false); };
   $('czm').onclick = function () { chavZoom(-1); };
   $('czp').onclick = function () { chavZoom(1); };
@@ -294,7 +296,8 @@ window.addEventListener('DOMContentLoaded', function () {
     /* מי שכותב - המקלדת שלו. רווח וחיצים בתוך שדה עריכה
        (הפירוש לנוער, תגיות, כל קלט) אינם מזיזים את הדף. */
     var t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(t.tagName) ||
+      (t.closest && t.closest('a,summary,[role="button"]')))) return;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'ArrowLeft' || e.key === ' ') { go(IDX + 1); e.preventDefault(); }
     if (e.key === 'ArrowRight') { goBack(); e.preventDefault(); }

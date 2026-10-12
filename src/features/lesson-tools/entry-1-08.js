@@ -75,7 +75,8 @@ function setWhole(on) {
   var el = $('whole');
   el.classList.toggle('on', on);
   if (!on) ZM = 1;                /* במיקוד אין זום */
-  el.textContent = on ? 'מיקוד' : 'כל הדף';
+  el.textContent = 'כל הדף';
+  el.setAttribute('aria-pressed', String(!!on));
   el.title = on ? 'חזרה למיקוד בקטע' : 'הצגת הדף כולו, עם אפשרות לגרור';
   document.body.classList.toggle('whole', on);
   if (FLAT.length) paint();

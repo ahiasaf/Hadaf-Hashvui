@@ -2047,3 +2047,68 @@ button.yr-c.auto{cursor:pointer}
 .sc-x.z{color:var(--ink-3);font-weight:700}
 .sc-s{margin:14px 0 0;font-size:.8rem;color:var(--ink-2)}
 .sc-f{margin-top:10px}
+
+/* ============================================================
+   החידון כזרימת שלבים: תשובה, אז פרטים, אז תוצאה.
+   התקדמות אמיתית (2 שלבים), זהב וכחול על קלף, תנועה קצרה.
+   ============================================================ */
+.qprog{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.qprog span{font-size:.75rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;white-space:nowrap}
+.qprog i{flex:1;height:4px;border-radius:99px;background:var(--sunk);overflow:hidden;display:block}
+.qprog b{display:block;height:100%;width:50%;border-radius:99px;
+  background:linear-gradient(90deg,var(--gold-l),var(--gold));
+  transition:width .45s cubic-bezier(.22,1,.36,1)}
+.qstep{display:none}
+.qstep.on{display:block;animation:qstep .32s cubic-bezier(.22,1,.36,1)}
+@keyframes qstep{from{opacity:0;transform:translateY(10px)}}
+/* נפתרה כבר (או הרגע): רק השאלה החשופה, בלי פס ובלי שלב הפרטים. */
+.qflow.locked .qprog,.qflow.locked #q-step-b{display:none}
+.qflow.locked #q-step-a{display:block;animation:none}
+/* התשובה שנבחרה, ככרטיס שחזרה אליו בנגיעה. */
+.qchg{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;margin-bottom:6px;
+  background:var(--surface);border:1.5px dashed var(--gold);border-radius:var(--r-s);
+  padding:11px 14px;font-family:inherit;font-size:.92rem;font-weight:700;color:inherit;
+  cursor:pointer;text-align:start;transition:border-color .15s,transform .14s}
+.qchg:active{transform:scale(.99)}
+.qchg .n{width:26px;height:26px;border-radius:9px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:.76rem;font-weight:800;background:var(--blue);color:#fff}
+.qchg .t{flex:1;min-width:0}
+.qchg .chg{flex:none;font-size:.78rem;font-weight:800;color:var(--blue);text-decoration:underline}
+/* בחירה וטעות: תנועה קצרה ומורגשת. */
+.opt{min-height:52px}
+.opt.sel{animation:qpick .3s cubic-bezier(.34,1.4,.5,1)}
+@keyframes qpick{40%{transform:scale(.985)}}
+.opt.jolt{animation:qjolt .45s ease}
+@keyframes qjolt{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.q-err,.r-err{background:rgba(165,56,45,.08);border:1.5px solid var(--stop);color:var(--stop);
+  border-radius:var(--r-s);padding:10px 13px;font-size:.85rem;font-weight:800;margin-bottom:11px}
+.q-miss{background:rgba(165,56,45,.07);border:1.5px solid var(--stop);color:var(--stop);
+  border-radius:var(--r-m);padding:14px;font-weight:800;font-size:.92rem;text-align:center;
+  margin-top:14px;animation:qstep .3s ease}
+/* הצלחה: חותמת זהב והצעד הבא. */
+.q-done{margin-top:16px;display:grid;gap:10px;animation:qstep .35s ease}
+.q-seal{width:64px;height:64px;margin:0 auto;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(140deg,var(--gold-l),var(--gold));
+  box-shadow:0 8px 22px rgba(192,143,43,.4);animation:qseal .5s cubic-bezier(.34,1.4,.5,1)}
+@keyframes qseal{from{transform:scale(.5);opacity:0}}
+.q-seal path{stroke-dasharray:48;stroke-dashoffset:48;animation:qdraw .55s ease .25s forwards}
+@keyframes qdraw{to{stroke-dashoffset:0}}
+/* השליחה בזהב - בחידון בלבד, שאר הטפסים אינם מושפעים. */
+#v-quiz .btn.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));color:var(--ink)}
+#v-quiz .btn{min-height:50px}
+.fld label.label{display:block}
+/* יעדי מגע נוחים בכפתורי הטקסט הקטנים של החידון. */
+.qas button,.qback button{min-height:44px;padding-block:8px}
+@media (prefers-reduced-motion:reduce){.q-seal path{stroke-dashoffset:0}}
+
+/* ============================================================
+   הרשמת ישיבה בשלושה שלבים: ישיבה, לימוד, גמרות ושליחה.
+   אותם פס ואותן תנועות כמו בחידון (qprog/qstep). */
+.rprog{margin-bottom:16px}
+.rstep{display:none}
+.rstep.on{display:block;animation:qstep .32s cubic-bezier(.22,1,.36,1)}
+.rstep:focus{outline:none}
+.rnav{display:flex;gap:10px;margin-top:20px}
+.rnav .btn{margin-top:0;min-height:50px}
+.rnav .btn.g{flex:0 0 auto;width:auto;padding-inline:20px}
+.rnav .btn.gd{flex:1}

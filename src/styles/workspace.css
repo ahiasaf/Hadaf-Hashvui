@@ -1478,3 +1478,65 @@ textarea {
 .study-next > p:not(.eyebrow) {
   color: var(--muted);
 }
+
+/* Each completed form step gets a check; the next fields arrive in sequence. */
+.flow-dots i {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+}
+.flow-dots .is-done i {
+  background: var(--ok);
+  color: #fff;
+}
+.flow-dots .is-done i::after {
+  content: "✓";
+  font-size: 11px;
+  animation: form-check 280ms var(--spring) both;
+}
+.flow-step {
+  animation-duration: 500ms;
+}
+.flow-step .flow-form > * {
+  animation: form-field 320ms var(--ease) both;
+}
+.flow-step .flow-form > :nth-child(2) {
+  animation-delay: 45ms;
+}
+.flow-step .flow-form > :nth-child(3) {
+  animation-delay: 90ms;
+}
+.flow-step .flow-form > :nth-child(4) {
+  animation-delay: 135ms;
+}
+.flow-step .flow-form > :nth-child(n + 5) {
+  animation-delay: 180ms;
+}
+@keyframes form-check {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes form-field {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-step,
+  .flow-step .flow-form > *,
+  .flow-dots .is-done i::after {
+    animation: none !important;
+  }
+}

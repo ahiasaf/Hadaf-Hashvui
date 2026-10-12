@@ -77,10 +77,10 @@
       <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M2 4.5h12M2 11.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10.5" cy="4.5" r="2.2" fill="currentColor"/><circle cx="5.5" cy="11.5" r="2.2" fill="currentColor"/></svg>
     </summary>
     <div class="tools" role="group" aria-label="תצוגה">
-      <button id="chtog">פירוש</button>
+      <button id="chtog" aria-controls="chav" aria-pressed="false">ביאור</button>
       <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
-      <button id="dktog" style="display:none">איור</button>
-      <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
+      <button id="dktog" aria-controls="side" aria-pressed="false" style="display:none">איור</button>
+      <button id="whole" aria-pressed="false" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
     </div>
   </details>
   <span class="sp"></span>
