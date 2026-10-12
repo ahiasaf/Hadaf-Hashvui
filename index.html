@@ -1570,6 +1570,22 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .wprow .wp{flex:1}
 .teamp{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;
   color:var(--ink-3);white-space:nowrap;flex:none}
+/* ✉ — מכתב אישי לאיש צוות שנרשם, ומה שנפתח מתחתיו. */
+.stf-m{flex:none;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--blue);
+  background:var(--surface);color:var(--blue);font-size:1.05rem;cursor:pointer;line-height:1}
+.stf-m.on{background:var(--blue);color:#fff}
+.stf-box{margin-top:8px}
+.stf-box textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--rule);
+  border-radius:10px;font:inherit;font-size:.88rem}
+.stf-go{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
+.stf-go .btn{margin:0}
+.stf-msg{margin-top:8px;font-size:.8rem;font-weight:800;line-height:1.5}
+.stf-msg.ok{color:var(--green-d)}
+.stf-msg.bad{color:var(--stop)}
+.stf-msg small{display:block;font-weight:700;color:var(--ink-3)}
+.stf-list{display:grid;gap:10px}
+.ct.stf-r{border-inline-start-color:var(--blue)}
+.stf-no{margin-top:8px;font-size:.76rem;font-weight:700;color:var(--ink-3)}
 .teamshow{display:flex;align-items:center;gap:7px;margin-top:11px;
   font-size:.76rem;font-weight:700;color:var(--ink-2)}
 .updline{width:100%;box-sizing:border-box;margin-top:7px;padding:9px 11px;
@@ -2748,7 +2764,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.195';
+var APP_VERSION = '8.99.196';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6118,6 +6134,140 @@ function regOf(c, map) {
   return i ? (map[i.code] || null) : null;
 }
 
+/* ============================================================
+   אנשי הצוות שנרשמו בעצמם — ומכתב אישי לכל אחד.
+   ============================================================
+   "ברגע שאיש צוות נרשם — הוא איש צוות בישיבה, גם אם אני לא
+   הוספתי אותו." המקור הוא לשונית ההתראות (pushCache): מי שמילא
+   את הבקשה האישית (ask.js) כתב שם שם, טלפון, ישיבה ותפקיד.
+
+   **נגזר, לא נכתב.** שום דבר אינו נוסף לגיליון אנשי הקשר: כך
+   הרשימה אינה מתיישנת, אינה דורסת עריכה ידנית, ואינה מזיזה את
+   האינדקסים של "מחייגים אליו" ו"לצוות". מי שכבר רשום כאיש קשר
+   (אותו טלפון, או אותו שם) אינו מוצג פעמיים — הוא מקבל ✉
+   בשורה שלו בכרטיס.
+
+   "צוות" — כמו ב-push-send.js: כל מי שאינו תלמיד, הורה או רכז. */
+function stfOf(code) {
+  var by = {}, out = [];
+  if (!code) return out;
+  (Store.get('pushCache', []) || []).forEach(function (p) {
+    var rv = p.role || '';
+    if (!rv || rv === 'תלמיד' || rv === 'הורה' || rv === 'אב' || rv === 'רכז' || !p.name) return;
+    var c = p.code;
+    if (!c && p.inst) { var ii = instByName(p.inst); c = ii ? ii.code : ''; }
+    if (c !== code) return;
+    var k = nameKey(p.name), o = by[k];
+    if (!o) { o = by[k] = { name:p.name, role:rv, ph:'', ids:[], sub:false, hit:false }; out.push(o); }
+    if (p.id && o.ids.indexOf(p.id) < 0) o.ids.push(p.id);
+    if (!o.ph && p.ph) o.ph = p.ph;
+    if (p.ever || p.sub) o.sub = true;
+  });
+  return out;
+}
+/* אותו אדם? תשע הספרות האחרונות של הטלפון, או השם. */
+function stfSame(q, s) {
+  var a = digits(q.phone).slice(-9), b = digits(s.ph).slice(-9);
+  if (a.length === 9 && a === b) return true;
+  return !!q.name && nameKey(q.name) === nameKey(s.name);
+}
+
+/* המכתב. נפתח במקום, מתחת לשם — לא מסך נוסף. */
+var STF = { open:'', txt:'', busy:false, msg:'', msgAt:'', ok:false }, stfShown = [];
+function stfK(s) { return nameKey(s.name) + '|' + (s.ids[0] || ''); }
+function stfIx(s) {
+  var ix = stfShown.indexOf(s);
+  if (ix < 0) { stfShown.push(s); ix = stfShown.length - 1; }
+  return ix;
+}
+function stfBtn(s) {
+  if (!s || !s.sub || !s.ids.length) return '';
+  return '<button class="stf-m' + (STF.open === stfK(s) ? ' on' : '') + '" onclick="stfOpen(' + stfIx(s) +
+         ')" aria-label="' + esc(fill(UI.stfAria, { name:s.name })) + '">✉</button>';
+}
+function stfBox(s) {
+  var k = stfK(s), h = '';
+  if (STF.open === k) {
+    h += '<div class="stf-box"><textarea id="stf-txt" rows="3" maxlength="400" placeholder="' +
+         esc(fill(UI.stfPh, { name:s.name })) + '" oninput="STF.txt=this.value">' + esc(STF.txt) + '</textarea>' +
+         '<div class="stf-go"><button class="btn p"' + (STF.busy ? ' disabled' : '') +
+         ' onclick="stfSend(' + stfIx(s) + ')">' + esc(STF.busy ? UI.stfBusy : UI.stfGo) + '</button>' +
+         '<button class="btn g" onclick="stfClose()">' + esc(UI.stfCancel) + '</button></div></div>';
+  }
+  if (STF.msg && STF.msgAt === k) {
+    h += '<div class="stf-msg ' + (STF.ok ? 'ok' : 'bad') + '">' + esc(STF.msg) +
+         (STF.ok ? '<small>' + esc(UI.sayLate) + '</small>' : '') + '</div>';
+  }
+  return h;
+}
+function stfOpen(ix) {
+  var s = stfShown[ix]; if (!s) return;
+  var k = stfK(s);
+  if (STF.open === k) { stfClose(); return; }
+  STF.open = k; STF.txt = ''; STF.msg = '';
+  renderCalls();
+  var el = document.getElementById('stf-txt');
+  if (el) el.focus();
+}
+function stfClose() { STF.open = ''; STF.txt = ''; renderCalls(); }
+function stfSend(ix) {
+  var s = stfShown[ix], txt = (STF.txt || '').trim();
+  if (!s || STF.busy || txt.length < 2) return;
+  var k = stfK(s), key = (CFG.readKey || '').trim();
+  var done = function (ok, m) {
+    STF.busy = false; STF.ok = ok; STF.msg = m; STF.msgAt = k;
+    if (ok) { STF.open = ''; STF.txt = ''; }
+    renderCalls();
+  };
+  if (!key) { done(false, UI.stfNoKey); return; }
+  if (!confirm(fill(UI.stfAsk, { name:s.name }) + '\n\n' + txt)) return;
+  STF.busy = true; renderCalls();
+  var inst = '';
+  (Store.get('pushCache', []) || []).some(function (p) {
+    if (s.ids.indexOf(p.id) >= 0 && p.code) { inst = p.code; return true; }
+    return false;
+  });
+  /* לפי מזהים בלבד, בלי תפקיד: השרת מסנן את לשונית ההתראות
+     למזהים האלה, ולכן זה מגיע לו — לכל המכשירים שלו — ולא לאיש
+     אחר. לחיצה על ההתראה פותחת לו את הפינה שלו. */
+  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt,
+              url: /^[A-Za-z0-9_\-]{1,40}$/.test(inst) ? 'tzevet?inst=' + inst + '#my' : '',
+              flt: JSON.stringify({ ids: s.ids.slice(0, 60) }) })
+    .then(function (d) {
+      if (d && d.status === 'ok') done(true, fill(UI.stfOk, { name:s.name }));
+      else done(false, fill(UI.stfBad, { m: (d && d.message) || UI.parNoAns }));
+    })['catch'](function () { done(false, fill(UI.stfBad, { m: UI.parNoAns })); });
+}
+/* הכרטיס של מי שנרשם ואינו ברשימת אנשי הקשר — באותו מבנה של
+   ctCard: מי, ושני כפתורי השיחה. */
+function stfCard(s) {
+  return '<div class="ct stf-r"><div class="h"><div style="min-width:0">' +
+    '<div class="nm">' + esc(s.name) + '</div>' +
+    '<div class="ct-who">' + esc(s.role) + ' · ' + esc(UI.stfSelf) + '</div></div>' +
+    stfBtn(s) + '</div>' +
+    (s.ph ? '<div class="acts"><a class="call" href="tel:' + digits(s.ph) + '">📞 ' + esc(s.name) + '</a>' +
+            '<a class="wa" href="https://wa.me/' + waNum(s.ph) + '" target="_blank" rel="noopener">' +
+            esc(UI.stfWa) + '</a></div>' : '') +
+    (s.sub ? '' : '<div class="stf-no">' + esc(UI.stfNoSub) + '</div>') +
+    stfBox(s) + '</div>';
+}
+
+/* פינת ההתראות במסך השיחות — טעינה שקטה, פעם בשתי דקות לכל
+   היותר. בלי זה מי שנרשם הבוקר לא היה מופיע עד ביקור במסך
+   "שליחה". **קריאה שנכשלה אינה לשונית ריקה** — המטמון נשאר. */
+var stfLoadAt = 0;
+function stfLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key || Date.now() - stfLoadAt < 120000) return;
+  stfLoadAt = Date.now();
+  scriptGet({ read:'התראות', key:key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return;
+    pushRows = pushParse(d.rows);
+    Store.set('pushCache', pushRows);
+    if (document.getElementById('calls-body')) renderCalls();
+  })['catch'](function () {});
+}
+
 function pullCalls() {
   callSay('טוען מהגיליון…');
   var ss = (CFG.contactsSheet || '').trim();
@@ -7578,11 +7728,21 @@ function yshDetail(e, ctx) {
   if (nIx < 0) { yshShown.push(e); nIx = yshShown.length - 1; } else yshShown[nIx] = e;
   e.t = yshLastAt(e, ctx.jLast || {});
   h += '<div class="yr-list" style="margin:0 0 12px">' + yshRow(e, nIx) + '</div>';
+  /* מי שנרשם בעצמו — ✉ ליד שמו בכרטיס אם הוא כבר איש קשר,
+     ואחרת כרטיס משלו מתחת. */
+  stfShown = [];
+  ctx.stf = inst ? stfOf(inst.code) : [];
   if (e.recs.length) {
     h += '<h3 class="ysh-h">' + esc(UI.yshPeople) + '</h3>';
     if (e.recs.length > 1) h += '<div class="ysh-empty">' + esc(fill(UI.yshDup, { n:e.recs.length })) + '</div>';
     e.recs.forEach(function (o) { h += ctCard(o.c, o.i, ctx); });
   }
+  var rest = ctx.stf.filter(function (s) { return !s.hit; });
+  if (rest.length) {
+    h += '<h3 class="ysh-h">' + esc(UI.yshStaff) + '</h3><div class="stf-list">' +
+         rest.map(stfCard).join('') + '</div>';
+  }
+  ctx.stf = [];
   return h + '<h3 class="ysh-h">' + esc(UI.yshLog) + '</h3>' + yshLogHtml(e);
 }
 
@@ -7893,6 +8053,8 @@ function ctCard(c, i, ctx) {
   if (ps.length) {
     team += '<div class="whos">';
     ps.forEach(function (q, k) {
+      var sm = (ctx.stf || []).filter(function (s) { return stfSame(q, s); })[0];
+      if (sm) sm.hit = true;
       team += '<div class="wprow"><button class="wp' + (k === pi ? ' on' : '') +
         '" onclick="setMain(' + i + ',' + k + ')">' +
         '<b>' + esc(q.name || 'ללא שם') + '</b>' +
@@ -7901,7 +8063,7 @@ function ctCard(c, i, ctx) {
         (q.phone ? '<label class="teamp"><input type="checkbox"' +
           (personTeamOn(c, k) ? ' checked' : '') +
           ' onchange="setPersonTeam(' + i + ',' + k + ',this.checked)">לצוות</label>' : '') +
-        '</div>';
+        stfBtn(sm) + '</div>' + (sm ? stfBox(sm) : '');
     });
     team += '</div>';
   }
@@ -10484,6 +10646,7 @@ function admPane() {
     body.innerHTML = '<div id="calls-body"></div>' + admInstHead();
     admLive();
     renderCalls();
+    stfLoad();
     /* ומושכים מהגיליון ברקע — התיעוד ממכשיר אחר, ומחזיר את
        הרשימה אם האחסון המקומי נוקה. */
     return pullCalls().then(renderCalls).catch(function () {});
@@ -13606,13 +13769,19 @@ function pushParse(rows) {
                   הוא המזהה היחיד שאפשר להצליב לפיו. */
                code:g('קוד ישיבה'), role:g('תפקיד'),
                grade:g('שכבה'), klass:g('כיתה'), dev:g('מכשיר'),
-               sub:!!g('מנוי'), res:g('תוצאה'), at:g('מתי') || g('תאריך') });
+               sub:!!g('מנוי'), res:g('תוצאה'), at:g('מתי') || g('תאריך'),
+               ph:g('טלפון') });
   }
-  /* מכשיר שנרשם פעמיים — האחרון קובע. */
+  /* מכשיר שנרשם פעמיים — האחרון קובע. הטלפון ו"אישר אי פעם"
+     נשמרים מהשורות הקודמות: איש צוות שעדכן את פרטיו כותב שורה
+     בלי מנוי, והשליחה עדיין מוצאת את המנוי שלו (push-send.js
+     עובר על כל השורות). בלי זה ה-✉ שלו היה נעלם. */
   var byId = {}, ord = [];
   out.forEach(function (p) {
-    var k = p.id || (p.name + '|' + p.dev);
-    if (!(k in byId)) ord.push(k);
+    var k = p.id || (p.name + '|' + p.dev), old = byId[k];
+    if (!old) ord.push(k);
+    p.ever = p.sub || !!(old && old.ever);
+    if (!p.ph && old) p.ph = old.ph;
     byId[k] = p;
   });
   return ord.map(function (k) { return byId[k]; });
