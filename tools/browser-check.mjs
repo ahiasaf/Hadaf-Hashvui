@@ -257,6 +257,24 @@ try {
     assert.equal(await whatsappTab.getAttribute("aria-selected"), "true");
     await remindersTab.click();
     await whatsappTab.click();
+    assert.equal(
+      await page.evaluate(async () => {
+        document.getElementById("community-whatsapp-tab").focus();
+        window.dispatchEvent(new window.Event("pageshow"));
+        const track = document.querySelector(
+          '.track-switch [aria-pressed="false"]',
+        );
+        track.focus();
+        await new Promise((resolve) =>
+          window.requestAnimationFrame(() =>
+            window.requestAnimationFrame(resolve),
+          ),
+        );
+        return document.activeElement === track;
+      }),
+      true,
+      "Community settings refresh steals track selector focus",
+    );
     assert.ok((await whatsappTab.boundingBox()).height >= 44);
     assert.ok(
       await community.evaluate(

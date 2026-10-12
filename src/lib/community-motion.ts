@@ -46,8 +46,10 @@ export function updateCommunity(
     root.style.height = "";
     root.inert = false;
   }
+  const tabs = root.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  const removing = (joined && !tabs[0].hidden) || (notified && !tabs[1].hidden);
   if (immediate) {
-    const focused = root.contains(document.activeElement);
+    const focused = removing && root.contains(document.activeElement);
     apply();
     if (focused)
       requestAnimationFrame(() =>
@@ -55,8 +57,6 @@ export function updateCommunity(
       );
     return Promise.resolve();
   }
-  const tabs = root.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-  const removing = (joined && !tabs[0].hidden) || (notified && !tabs[1].hidden);
   if (!removing) {
     apply();
     return Promise.resolve();
