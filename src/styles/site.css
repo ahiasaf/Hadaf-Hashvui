@@ -994,6 +994,13 @@ html:not(.js) .ring-fill {
   margin-top: 10px;
 }
 
+.signed-in [data-guest-only] {
+  display: none !important;
+}
+.signed-in .paths {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* ---------- Calendar page ---------- */
 .calendar {
   padding-block: 40px 48px;

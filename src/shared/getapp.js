@@ -722,6 +722,7 @@ var APPX = (function () {
   }
 
   function update() {
+    if (window.DF_APP && window.DF_APP.update) { window.DF_APP.update(); return; }
     if (upReady || !('serviceWorker' in navigator)) return;
     upReady = true;
     upBar();                       /* אולי בדיוק חזרנו מרענון */

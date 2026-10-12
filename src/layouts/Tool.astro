@@ -69,6 +69,7 @@ const view = views[`../features/${name}/view.html`] as string;
     {name !== "lesson-tools" && <ToolBrand />}
     <Fragment set:html={view} />
     {name === "management" && <SiteFooter registration />}
+    <script is:inline defer src="/app-shell.js"></script>
     <script is:inline defer src="/net-config.js"></script>
     <script is:inline defer src="/net.js"></script>
     <script is:inline defer src="/media.js"></script>

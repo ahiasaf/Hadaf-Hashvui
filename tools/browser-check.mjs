@@ -63,9 +63,11 @@ try {
                     : '"taanit","ב.","2026-10-04"\n"taanit","ב:","2026-10-04"')
                 : tab === "טקסטים"
                   ? '"מפתח","נוסח"'
-                  : tab === "מוסדות"
-                    ? '"code","name","last","joined"\n"demo","ישיבה לדוגמה","true","true"'
-                    : '"מסכת","דף","נתונים"';
+                  : tab === "הגדרות"
+                    ? '"מפתח","ערך"\n"waGroup","""https://chat.whatsapp.com/DEMO1234567890"""'
+                    : tab === "מוסדות"
+                      ? '"code","name","last","joined"\n"demo","ישיבה לדוגמה","true","true"'
+                      : '"מסכת","דף","נתונים"';
       return route.fulfill({ contentType: "text/csv;charset=utf-8", body });
     });
     await context.route("**/api/action", (route) => {
@@ -213,6 +215,13 @@ try {
         ),
         `${route} overflows at ${width}px`,
       );
+      if (route === "/tzevet" || route === "/management#reg") {
+        const identity = await page.locator(".footer-identity").boundingBox();
+        assert.ok(
+          Math.abs(identity.x + identity.width / 2 - width / 2) < 2,
+          `Footer identity is not centered at ${width}px`,
+        );
+      }
     }
     await page.goto(base);
     assert.equal(await page.locator(".lesson-actions a").count(), 1);
@@ -363,6 +372,9 @@ try {
     .filter({ hasText: /^קטע 1 מתוך/ })
     .waitFor();
   assert.equal(await page.locator("#back").getAttribute("href"), "/app");
+  await page.locator("#ttl").press("Enter");
+  await page.locator("#pick.on").waitFor();
+  await page.locator(".pk-x").click();
   async function viewToggle(id) {
     await page.waitForFunction(
       (id) => document.getElementById(id).style.display !== "none",
@@ -655,6 +667,105 @@ try {
   console.log(
     "Learning aliases share a layout; PDF fallback loads only on demand.",
   );
+  const signedContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await prepare(signedContext);
+  await signedContext.addInitScript(() => {
+    if (location.protocol === "http:")
+      localStorage.setItem("df:me", JSON.stringify({ id: "signed-student" }));
+  });
+  const signed = await signedContext.newPage();
+  await signed.goto(base + "/calendar");
+  assert.equal(await signed.locator(".nav-join").isVisible(), false);
+  await signed.goto(base);
+  assert.equal(
+    await signed.locator('.hero-actions a[href="/join"]').isVisible(),
+    false,
+  );
+  assert.equal(
+    await signed.locator("[data-guest-only].path").isVisible(),
+    false,
+  );
+  await signed.locator("[data-community]").waitFor();
+  assert.equal(
+    await signed.locator("[data-community]").getAttribute("href"),
+    "https://chat.whatsapp.com/DEMO1234567890",
+  );
+  await signed.evaluate(() => {
+    localStorage.removeItem("df:me");
+    window.dispatchEvent(new window.Event("df-account-change"));
+  });
+  assert.equal(
+    await signed.locator('.hero-actions a[href="/join"]').isVisible(),
+    true,
+  );
+  await signedContext.close();
+  console.log(
+    "Account-aware join prompts and published WhatsApp group link passed.",
+  );
+
+  const installedContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  await prepare(installedContext);
+  await installedContext.addInitScript(() => {
+    if (location.protocol !== "http:") return;
+    localStorage.setItem("df:gate", "1");
+    Object.defineProperty(navigator, "standalone", { value: true });
+    window.__lessonViewportHeight = 640;
+    Object.defineProperty(window.visualViewport, "height", {
+      get: () => window.__lessonViewportHeight,
+    });
+  });
+  await installedContext.route("**/api/sheets?**", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("tab") === "סימוני הדף")
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    await route.fallback();
+  });
+  const installed = await installedContext.newPage();
+  await installed.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
+  await installed.locator('#veil[aria-busy="true"] .load-page').waitFor();
+  assert.equal(
+    await installed.locator("#veil-t").textContent(),
+    "פותחים את הדף",
+  );
+  await installed
+    .locator("#count")
+    .filter({ hasText: /^קטע 1 מתוך/ })
+    .waitFor();
+  await installed.evaluate(() => {
+    document.querySelector("body > nav").style.paddingBottom = "42px";
+    document.querySelector("body > header").style.paddingTop = "28px";
+  });
+  await installed.locator("#chd").click({ position: { x: 20, y: 8 } });
+  await installed.locator("body.sheet-full").waitFor();
+  for (const height of [640, 480]) {
+    await installed.evaluate((height) => {
+      window.__lessonViewportHeight = height;
+      window.visualViewport.dispatchEvent(new window.Event("resize"));
+    }, height);
+    const nav = await installed.locator("body > nav").boundingBox();
+    const next = await installed.locator("#next").boundingBox();
+    const explanation = await installed.locator("#chav").boundingBox();
+    assert.ok(
+      nav.y + nav.height <= height + 1,
+      "Installed lesson navigation falls below the visible viewport",
+    );
+    assert.ok(
+      next.y + next.height <= height - 32,
+      "Bottom safe area covers the next button",
+    );
+    assert.ok(
+      explanation.y + explanation.height <= nav.y + 1,
+      "Expanded explanation overlaps the bottom controls",
+    );
+  }
+  await installedContext.close();
+  console.log(
+    "Compact loading screen and installed-app viewport with safe areas passed.",
+  );
   const offlineContext = await browser.newContext();
   const offlinePage = await offlineContext.newPage();
   await offlinePage.goto(base);
@@ -687,6 +798,7 @@ try {
       unsubscribe: async () => true,
     };
     const registration = {
+      update: async () => {},
       pushManager: {
         getSubscription: async () => subscription,
         subscribe: async () => subscription,
@@ -694,6 +806,8 @@ try {
     };
     Object.defineProperty(navigator, "serviceWorker", {
       value: {
+        controller: null,
+        addEventListener: () => {},
         register: async () => registration,
         ready: Promise.resolve(registration),
       },
@@ -712,7 +826,7 @@ try {
   );
   waitFailure = false;
   await locked.locator("#lock-ask").click();
-  await locked.locator("#veil [role=status]").waitFor();
+  await locked.locator("#veil-s [role=status]").waitFor();
   assert.equal(
     await locked.evaluate(() => localStorage.getItem("df:wait:taanit|ב.")),
     "1",
@@ -809,6 +923,41 @@ try {
   await legacyPage.locator("#r-step-2 .rnav .gd").click();
   await legacyPage.locator("#r-step-3.on").waitFor();
   await legacyPage.locator("#r-wantsw").click();
+  assert.equal(
+    await legacyPage.locator("#r-wantsw").getAttribute("aria-checked"),
+    "true",
+  );
+  assert.equal(
+    await legacyPage.locator("#r-fold").evaluate((el) => el.inert),
+    false,
+  );
+  for (const width of [320, 390, 1440]) {
+    await legacyPage.setViewportSize({ width, height: 844 });
+    const row = await legacyPage
+      .locator(".order-track .num")
+      .first()
+      .boundingBox();
+    const controls = await legacyPage
+      .locator(".order-track .ctl")
+      .first()
+      .boundingBox();
+    assert.ok(
+      controls.x >= row.x &&
+        controls.x + controls.width <= row.x + row.width + 1,
+    );
+    assert.ok(
+      (
+        await legacyPage
+          .locator(".order-track .ctl button")
+          .first()
+          .boundingBox()
+      ).width >= 44,
+    );
+  }
+  await legacyPage.setViewportSize({ width: 390, height: 844 });
+  await legacyPage.locator(".order-preview summary").first().click();
+  assert.equal(await legacyPage.locator(".order-preview[open]").count(), 1);
+  await legacyPage.locator(".order-preview summary").first().click();
   await legacyPage.locator("#r-send").click();
   await legacyPage.locator("#r-err3:not([hidden])").waitFor();
   await legacyPage.locator("#r-fold .ctl button").nth(1).click();
@@ -823,6 +972,11 @@ try {
   assert.equal(
     await legacyPage.locator("#r-fold input").first().inputValue(),
     "5",
+  );
+  await legacyPage.locator("#r-wantsw").click();
+  assert.equal(
+    await legacyPage.locator("#r-fold").evaluate((el) => el.inert),
+    true,
   );
   console.log(
     "School steps, required school, retained track and quantity, and order validation passed.",

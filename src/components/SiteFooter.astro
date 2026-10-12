@@ -18,6 +18,12 @@ const { registration = false } = Astro.props;
           <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
         )}
       </nav>
+      <nav aria-label="עדכונים">
+        <a data-community hidden target="_blank" rel="noopener">
+          קבוצת הוואטסאפ
+        </a>
+        {path !== "/hitraot" && <a href="/hitraot">עדכונים ותזכורות</a>}
+      </nav>
       <nav aria-label="מידע">
         {path !== "/accessibility" && path !== "/info" && (
           <a href="/accessibility">{program.ui.siteAccessibility}</a>
@@ -29,6 +35,33 @@ const { registration = false } = Astro.props;
   </div>
 </footer>
 
+<script>
+  import { sheet } from "../lib/client";
+  void sheet("הגדרות")
+    .then((rows) => {
+      const row = rows.find((row) => row[0] === "waGroup");
+      if (!row) return;
+      const value: unknown = JSON.parse(row[1]);
+      if (typeof value !== "string") return;
+      const url = new URL(value);
+      if (
+        url.protocol !== "https:" ||
+        url.host !== "chat.whatsapp.com" ||
+        !/^\/[A-Za-z0-9]{6,}$/.test(url.pathname)
+      )
+        return;
+      for (const link of document.querySelectorAll<HTMLAnchorElement>(
+        "[data-community]",
+      )) {
+        link.href = url.origin + url.pathname;
+        link.hidden = false;
+      }
+    })
+    .catch(() => {
+      /* Only the published group link is offered. */
+    });
+</script>
+
 <style>
   .site-footer {
     margin-top: 32px;
@@ -36,7 +69,7 @@ const { registration = false } = Astro.props;
     border-top: 1px solid var(--rule);
     background: var(--surface-2);
     color: var(--ink-2);
-    text-align: start;
+    text-align: center;
     font-size: 0.8rem;
   }
   .footer-inner {
@@ -44,9 +77,10 @@ const { registration = false } = Astro.props;
     margin-inline: auto;
     padding-block: 24px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 20px 32px;
+    justify-content: center;
+    gap: 16px;
   }
   .footer-identity {
     display: grid;
@@ -68,7 +102,7 @@ const { registration = false } = Astro.props;
     display: flex;
     flex-wrap: wrap;
     gap: 0 20px;
-    justify-content: start;
+    justify-content: center;
   }
   .site-footer nav a {
     display: inline-flex;
@@ -82,10 +116,13 @@ const { registration = false } = Astro.props;
     color: var(--blue-d);
     text-decoration: underline;
   }
+  .site-footer nav a[hidden] {
+    display: none;
+  }
   @media (max-width: 700px) {
     .footer-inner {
       flex-direction: column;
-      align-items: stretch;
+      align-items: center;
       gap: 16px;
     }
     .footer-links {

@@ -62,7 +62,7 @@ function boot() {
   /* דף שהרכז עוד לא פתח - ראו "פתיחת דפים" ב-deck.js. הרכז עצמו
      (ומי שמריץ הדגמה) נכנס תמיד: הוא זה שמכין את הדף. */
   if (!OPEN_OK && S.daf) {
-    veil('מביא את הדף…', '');
+    veil('פותחים את הדף', 'טוענים את הדף והביאור');
     buttons(false);
     OpenLoad().then(function () {
       OPEN_OK = true;
@@ -84,7 +84,7 @@ function boot() {
      מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
   loadQuizMap().then(function () { if (FLAT.length) paintChavArea(); });
 
-  veil('מביא את הדף…', 'צורת הדף והסימונים');
+  veil('פותחים את הדף', 'טוענים את הדף והביאור');
   buttons(false);
   /* שלוש המשיכות רצות **במקביל**, ולא בטור.
      קודם `loadLib()` חסם את השאר, ורק כשסיים יצאו הסימונים
@@ -330,7 +330,12 @@ window.addEventListener('DOMContentLoaded', function () {
   };
 
   var t = null;
-  var refocus = function () { clearTimeout(t); t = setTimeout(focus, 120); };
+  var refocus = function () {
+    var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (height > 0) document.documentElement.style.setProperty('--lesson-height', height + 'px');
+    clearTimeout(t); t = setTimeout(focus, 120);
+  };
+  refocus();
   window.addEventListener('resize', refocus);
   window.addEventListener('orientationchange', refocus);
   if (window.visualViewport) {

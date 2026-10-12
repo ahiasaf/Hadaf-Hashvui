@@ -2,12 +2,12 @@
 var CACHE_NAME = 'hadaf-v9.0.0';
 // Cache only the public shell during installation. Learning/admin assets are cached on demand.
 // The build adds the current fingerprinted Astro assets to this list.
-var CORE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+var CORE = ['./', './index.html', './app-shell.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 // מהרשת קודם: קוד, תמונות הספרים, ורשימת הדפים שבמאגר.
 // עמודי הדף עצמם (daf/*.webp) הם מהמטמון קודם — הם כבדים ולעולם
 // אינם משתנים, וזה מה שמאפשר ללמוד את הדף גם בלי רשת.
-var CODE = /\.(html|js)$|\/$|\/(app|join|learn|calendar|admin|board|tzevet)$|\/sfarim\/|\/daf\/index\.json$/;
+var CODE = /\.(html|js|css)$|\/$|\/(app|join|learn|calendar|admin|board|tzevet)$|\/sfarim\/|\/daf\/index\.json$/;
 
 // כמה להמתין לרשת לפני שנופלים למטמון. מספיק לחיבור סביר, קצר מכדי להרגיז.
 var NET_TIMEOUT = 2500;

@@ -1,6 +1,6 @@
 function orderRows() {
-    return '<div style="display:grid;gap:16px">' + TRACKS.map(function(t) {
-        return '<div><div class="mtitle">מסכת ' + esc(t.masechet) + "</div>" + '<div style="display:grid;gap:9px">' + SFARIM.map(function(s) {
+    return '<div class="order-rows">' + TRACKS.map(function(t) {
+        return '<div class="order-track"><div class="mtitle">מסכת ' + esc(t.masechet) + "</div>" + '<div style="display:grid;gap:9px">' + SFARIM.map(function(s) {
             return numRow(qk(t.id, s.id), s.name, shek(priceOf(s.id).price) + " לחוברת");
         }).join("") + "</div></div>";
     }).join("") + "</div>";
@@ -17,7 +17,7 @@ function regTotal() {
         sum += n * p.price;
         save += n * (p.list - p.price);
     });
-    return '<div class="total" style="margin-top:14px"><div class="n">' + shek(sum) + "</div>" + (save ? '<div class="t">' + fill(UI.saving, {
+    return '<div class="total"><div class="n">' + shek(sum) + "</div>" + (save ? '<div class="t">' + fill(UI.saving, {
         sum: shek(save)
     }) + "</div>" : "") + "</div>";
 }
@@ -67,7 +67,9 @@ function foldInit() {
     var f = foldEl();
     if (!f) return;
     var sw = document.getElementById("r-wantsw");
-    if (sw) sw.className = reg.want ? "sw on" : "sw";
+    if (sw) { sw.className = reg.want ? "sw on" : "sw"; sw.setAttribute("aria-checked", String(!!reg.want)); }
+    f.inert = !reg.want;
+    f.setAttribute("aria-hidden", String(!reg.want));
     f.style.transition = "none";
     f.style.maxHeight = reg.want ? "none" : "0";
     void f.offsetHeight;
@@ -78,8 +80,10 @@ function wantToggle(e) {
     if (e) e.stopPropagation();
     reg.want = !reg.want;
     var f = foldEl(), sw = document.getElementById("r-wantsw");
-    if (sw) sw.className = reg.want ? "sw on" : "sw";
+    if (sw) { sw.className = reg.want ? "sw on" : "sw"; sw.setAttribute("aria-checked", String(!!reg.want)); }
     if (!f) return;
+    f.inert = !reg.want;
+    f.setAttribute("aria-hidden", String(!reg.want));
     if (reg.want) {
         f.style.maxHeight = f.scrollHeight + "px";
         setTimeout(function() {
@@ -102,7 +106,7 @@ function sizeStep(d) {
 }
 
 function numRow(id, label, sub) {
-    return '<div class="num"><div class="lbl">' + esc(label) + "<small>" + esc(sub) + "</small></div><span></span>" + '<div class="ctl"><button onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" onchange="qtySet(\'' + id + "',this.value)\">" + "<button onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
+    return '<div class="num"><label class="lbl" for="r-' + id + '">' + esc(label) + "<small>" + esc(sub) + "</small></label>" + '<div class="ctl"><button onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" inputmode="numeric" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" onchange="qtySet(\'' + id + "',this.value)\">" + "<button onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
 }
 
 function qtySet(id, v) {

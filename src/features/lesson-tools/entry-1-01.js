@@ -41,12 +41,13 @@ function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
 function fileId(url) { var m = /\/d\/([-\w]{20,})/.exec(url || ''); return m ? m[1] : null; }
 
 function veil(title, sub, spin) {
-  $('veil').className = 'veil';
+  $('veil').className = 'veil' + (spin === false ? ' is-message' : '');
+  $('veil').setAttribute('aria-busy', String(spin !== false));
   $('veil-t').textContent = title;
   $('veil-s').innerHTML = sub || '';
   $('veil').querySelector('.spin').style.display = spin === false ? 'none' : '';
 }
-function unveil() { $('veil').className = 'veil off'; }
+function unveil() { $('veil').className = 'veil off'; $('veil').setAttribute('aria-busy', 'false'); }
 
 /* ============================================================
    הגיליון.

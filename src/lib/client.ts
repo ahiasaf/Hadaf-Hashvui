@@ -25,6 +25,7 @@ export function stored<T>(key: string, fallback: T): T {
 export function store(key: string, value: unknown) {
   try {
     localStorage.setItem("df:" + key, JSON.stringify(value));
+    if (key === "me") window.dispatchEvent(new Event("df-account-change"));
   } catch {
     /* Private mode can disable storage. */
   }

@@ -278,7 +278,11 @@ export default function Signup({
     </label>
   );
   return (
-    <section className="workspace narrow" key={restore ? "restore" : "form"}>
+    <section
+      className="workspace narrow"
+      data-update-draft
+      key={restore ? "restore" : "form"}
+    >
       {current === "role" && (
         <Stepper
           step={step}

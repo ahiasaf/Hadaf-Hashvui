@@ -199,7 +199,7 @@ function renderReg() {
     var whoBlock = '<div class="foldh" id="r-who-step" style="margin-top:22px">' + esc(UI.s4) + "</div>" + pkField("", instName, UI.instLabel, "pickInst()") + '<div class="fld" id="r-other" style="display:' + (reg.inst === "other" ? "block" : "none") + '">' + '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) + '" onchange="regSet(\'instOther\',this.value)"></div>';
     var step1 = (saved ? "" : stuHint()) + fitBlock() + whoBlock + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="jumpTo(\'r-who-step\');return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
     var step2 = sizeRow() + masRow() + '<div class="rnav"><button class="btn g" onclick="regGo(1)">→ חזרה</button>' + '<button class="btn gd" onclick="regGo(3)">המשך</button></div>';
-    var step3 = (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div>' + recBlocks() + '<div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;margin-bottom:11px;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + orderRows() + regTotal() + "</div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<button class="btn gr" id="r-send" style="margin-top:20px" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div class="rnav"><button class="btn g" onclick="regGo(2)">→ חזרה</button></div>' + '<div id="r-done"></div>' + '<div id="head-next"></div>';
+    var step3 = (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + "</div>" + orderRows() + regTotal() + "</div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div class="rnav"><button class="btn g" onclick="regGo(2)">→ חזרה</button></div>' + '<div id="r-done"></div>' + '<div id="head-next"></div>';
     var h = regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3);
     document.getElementById("reg-body").innerHTML = h;
     foldInit();
@@ -225,7 +225,7 @@ function recBlocks() {
     var img = function(s, pic, cls) {
         return '<img loading="lazy" class="' + cls + '" src="' + esc(pic.src) + '" alt="' + esc(s.name) + '" onclick="zoom(\'' + esc(pic.src) + "','" + esc(pic.hi || "") + "')\">";
     };
-    return '<div style="display:grid;gap:13px">' + SFARIM.map(function(s) {
+    return '<div class="order-books">' + SFARIM.map(function(s) {
         var p = priceOf(s.id), pics = s.pics || [];
         var cover = pics.filter(function(q) {
             return q.small;
@@ -233,9 +233,9 @@ function recBlocks() {
         var open = pics.filter(function(q) {
             return !q.small;
         });
-        return '<div class="rec ' + s.tone + '">' + '<div class="head"><p>' + s.rec + "</p>" + (cover ? img(s, cover, "cover") : "") + "</div>" + (open.length ? '<div class="pics">' + open.map(function(q) {
+        return '<div class="rec ' + s.tone + '">' + '<div class="head"><p>' + s.rec + "</p>" + (cover ? img(s, cover, "cover") : "") + "</div>" + (open.length ? '<details class="order-preview"><summary>דוגמה מתוך הגמרא</summary><div class="pics">' + open.map(function(q) {
             return img(s, q, "");
-        }).join("") + "</div>" : "") + '<div class="pr"><b>' + shek(p.price) + "</b> לחוברת" + (p.off ? " <s>" + shek(p.list) + "</s>" : "") + "</div>" + (p.off ? condNote(s.name, p.min) : "") + "</div>";
+        }).join("") + "</div></details>" : "") + '<div class="pr"><b>' + shek(p.price) + "</b> לחוברת" + (p.off ? " <s>" + shek(p.list) + "</s>" : "") + "</div>" + (p.off ? condNote(s.name, p.min) : "") + "</div>";
     }).join("") + "</div>";
 }
 

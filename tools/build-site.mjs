@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { releaseFingerprint } from "./release-fingerprint.mjs";
 import { minify as minifyJs } from "terser";
 import { minify as minifyHtml } from "html-minifier-terser";
 import mediaMap from "../src/generated/program.json" with { type: "json" };
@@ -145,10 +145,7 @@ async function dependencies(asset) {
 for (const asset of [...requested]) await dependencies(asset);
 const core = assets.filter((asset) => requested.has(asset));
 let worker = await fs.readFile("src/service-worker.js", "utf8");
-const release = createHash("sha256")
-  .update(home + core.join("|") + worker)
-  .digest("hex")
-  .slice(0, 12);
+const release = await releaseFingerprint("dist", worker);
 worker = worker.replace(/(var CACHE_NAME = '[^']+)'/, "$1-" + release + "'");
 worker = worker
   .replace("var CORE = [", "var CORE = " + JSON.stringify(core) + ".concat([")
