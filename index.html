@@ -2740,7 +2740,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.193';
+var APP_VERSION = '8.99.194';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4331,6 +4331,10 @@ function brdTracks(go) {
   if (ADM_MAS !== 'all' && trackById(ADM_MAS)) return [ADM_MAS];
   return TRACKS.map(function (t) { return t.id; });
 }
+/* משבצת באזור הניהול → הלוח, על הפירוט של הדרך הזו. */
+function brdWay(k) {
+  location.href = boardUrl(myBoard()) + '&way=' + encodeURIComponent(k);
+}
 function boardHtml(code, name, hail, go) {
   var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
   var wk = weekIndex(), trs = brdTracks(go), tr = trs[0];
@@ -4401,8 +4405,17 @@ function boardHtml(code, name, hail, go) {
     var wmap = {};
     (j.ways || []).forEach(function (p2) { wmap[p2[0]] = p2[1]; });
     /* בניהול (`go`) המשבצות מסננות את הרשימה שמתחת — ראו admWay. */
+    /* ============================================================
+       **באזור הניהול האישי — לחיצה על משבצת פותחת את הפירוט שלה.**
+       ============================================================
+       מעבר ללוח, ישר על מסך הדרך שנלחצה (`?way=`), ולא רשימה
+       שנפתחת כאן: הרשימה, החיפוש וה"ישר כוח" כבר חיים שם, ושני
+       עותקים של אותה רשימה הם בדיוק מה שנפרד בשקט עם הזמן.
+       רק כשיש קוד גישה — בלעדיו הלוח אומר "אנא המתן", ומשבצת
+       שמובילה לשם מבטיחה שמות שאינם. */
     chips = WaysTiles(function (kk) { return wmap[kk] || 0; },
-                      go ? { go:'admWay', sel:ADM_WAY } : {});
+                      go ? { go:'admWay', sel:ADM_WAY }
+                         : (instCode(code) ? { go:'brdWay' } : {}));
   }
 
   /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר

@@ -492,6 +492,14 @@ var DEL_MSG = '';
 /* בתוך הניהול הישיבה נבחרת ברשימה שבחוץ, ומגיעה בכתובת ובהודעה. */
 if (EMBED) FILT = qs('filt') || '';
 if (EMBED) LWAY = qs('way') || '';
+/* ============================================================
+   **נכנסו מהמשבצת באזור הניהול — `?way=`.**
+   ============================================================
+   הלוח נפתח ישר על פירוט הדרך שנלחצה (ראו wayScreen), ו"חזרה"
+   מחזירה לאן שבאו — לאזור הניהול — ולא ללוח שלא ראו. נקרא כאן,
+   לפני שהכתובת מנוקה מהקוד (replaceState שלמטה). */
+var WAY_IN = EMBED ? '' : (qs('way') || '');
+var WAY_FROM = !!WAY_IN;
 if (ALL) inst = { code:'all', name:'כל הישיבות' };
 function instOfP(p) {
   var c = p.inst || '';
@@ -811,12 +819,13 @@ function keyAsk() {
    הראשי. הכיתוב ב-`WAYS_T` שב-data.js, ולכן נערך בניהול. */
 function wayLbl(w) { return WayLbl(w); }
 
-var view = '';                 /* '' · 'way:<מסגרת>' · 'week' */
+var view = WAY_IN ? 'way:' + WAY_IN : '';   /* '' · 'way:<מסגרת>' · 'week' */
 /* לחיצה שנייה על אותו דבר סוגרת. הלוח נשאר במקומו, ולכן אין
    לאן "לחזור" — וכפתור חזרה שמוביל למקום שאף פעם לא עזבת הוא
    בדיוק מה שהופך שתי רמות של אותה שאלה לשני מסכים. */
 function go(v) {
   var was = view;
+  WAY_FROM = false;            /* מכאן — חזרה היא ללוח עצמו */
   view = (view === v) ? '' : v;
   draw();
   /* פירוט של דרך לימוד הוא מסך משלו (ראו wayScreen) — נכנסים
@@ -2170,7 +2179,10 @@ function soonLine() {
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
   var kr = $('kre'); if (kr) kr.onclick = waitRefresh;
-  var wb = $('wback'); if (wb) wb.onclick = function () { go(''); };
+  var wb = $('wback'); if (wb) wb.onclick = function () {
+    if (WAY_FROM && history.length > 1) { history.back(); return; }
+    go('');
+  };
   var rg = document.querySelector('.rem-go');
   if (rg) rg.onclick = function () { remMark(rg.getAttribute('data-rem')); };
   var cq = $('cls-q');
