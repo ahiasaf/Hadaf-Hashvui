@@ -90,6 +90,13 @@ function buttons(on) {
 /* איזה עמוד מוצג - ולא רק איזה דף. עמוד שגוי הוא התקלה הכי קלה
    לפספס וגם הכי קלה לראות, אם רק כתוב מה אמור להיות על המסך. */
 function amud(pg) { return pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : 'עמוד ' + pg; }
+function setLessonTitle(title) {
+  var split = title.indexOf(' · ');
+  $('t-mas').textContent = split < 0 ? title : title.slice(0, split);
+  $('t-page').textContent = split < 0 ? '' : title.slice(split + 3);
+  $('t-page').hidden = split < 0;
+  $('ttl').setAttribute('aria-label', title + ' · בחירת דף ועמוד');
+}
 
 function bar() {
   var st = FLAT[IDX];
@@ -100,9 +107,9 @@ function bar() {
     var same = dafKey(pp.daf) === dafKey(S.daf);
     /* ביחידה של עמוד אחד (ב. / ב:) העמוד כבר בכותרת. קטע שגולש לעמוד
        האחר - "דף ב.-ב:". */
-    $('t-daf').textContent = same && S.am
+    setLessonTitle(same && S.am
       ? HEAD + (pp.pg === S.am ? '' : '-' + S.daf + LAmMark(pp.pg))
-      : (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) + ' ' + amud(pp.pg);
+      : (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) + ' ' + amud(pp.pg));
   }
   /* מספר הקטע ירד. לתלמיד לא אכפת שהוא בקטע 17 מתוך 41 - זו
      חשבונאות של מי שחילק את הדף, לא של מי שלומד אותו. פס

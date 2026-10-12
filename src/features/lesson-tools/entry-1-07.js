@@ -301,15 +301,11 @@ function resumePos() {
   }
   if (!(at > 0) || at >= FLAT.length - 1) return;
   go(at);
-  var el = $('resume');
-  if (!el) return;
-  el.innerHTML = 'המשכנו מהמקום שעצרת · ' +
-    '<button onclick="resumeTop()">מתחילת הדף</button>';
-  el.className = 'resume on';
-  setTimeout(function () { el.className = 'resume on fade'; }, 4200);
+  resumeBar('המשכנו מהמקום שעצרת · ' +
+    '<button onclick="resumeTop()">מתחילת הדף</button>', 4200);
 }
 function resumeTop() {
-  var el = $('resume'); if (el) el.className = 'resume';
+  resumeHide();
   go(0);
 }
 
@@ -339,12 +335,36 @@ function spotIdx(p) {
   if (p.id) for (var j = 0; j < FLAT.length; j++) if (FLAT[j].id === p.id) return j;
   return (p.n === FLAT.length && p.i >= 0 && p.i < FLAT.length) ? p.i : -1;
 }
-function resumeBar(html) {
+var RESUME_TICK = 0, RESUME_END = 0;
+function resumeHide(fade) {
+  clearInterval(RESUME_TICK);
+  clearTimeout(RESUME_END);
   var el = $('resume');
   if (!el) return;
-  el.innerHTML = html;
+  el.className = fade ? 'resume on fade' : 'resume';
+  el.inert = true;
+  el.setAttribute('aria-hidden', 'true');
+}
+function resumeBar(html, duration) {
+  var el = $('resume');
+  if (!el) return;
+  resumeHide();
+  duration = duration || 6000;
+  var seconds = Math.ceil(duration / 1000), until = Date.now() + duration;
+  el.innerHTML = '<div class="resume-message" role="status">' + html + '</div>' +
+    '<span class="resume-timer" role="progressbar" aria-label="זמן עד סגירת ההודעה" ' +
+    'aria-valuemin="0" aria-valuemax="' + seconds + '" aria-valuenow="' + seconds + '"><i></i></span>';
   el.className = 'resume on';
-  setTimeout(function () { el.className = 'resume on fade'; }, 6000);
+  el.inert = false;
+  el.setAttribute('aria-hidden', 'false');
+  var meter = el.querySelector('.resume-timer'), fill = meter.firstChild;
+  function tick() {
+    var left = Math.max(0, until - Date.now());
+    fill.style.transform = 'scaleX(' + (left / duration) + ')';
+    meter.setAttribute('aria-valuenow', String(Math.ceil(left / 1000)));
+  }
+  RESUME_TICK = setInterval(tick, 200);
+  RESUME_END = setTimeout(function () { tick(); resumeHide(true); }, duration);
 }
 /* אותו דף - חוזרים לקטע. true = חזר. */
 function spotResume() {

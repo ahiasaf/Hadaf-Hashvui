@@ -726,6 +726,71 @@ try {
   console.log(
     "Learning aliases share a layout; PDF fallback loads only on demand.",
   );
+  const resumeContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  await prepare(resumeContext);
+  await resumeContext.addInitScript(() => {
+    if (location.protocol === "http:") localStorage.setItem("df:gate", "1");
+  });
+  const resumePage = await resumeContext.newPage();
+  await resumePage.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
+  await resumePage
+    .locator("#count")
+    .filter({ hasText: /^קטע 1 מתוך/ })
+    .waitFor();
+  await resumePage.locator("#next").click();
+  await resumePage
+    .locator("#count")
+    .filter({ hasText: /^קטע 2 מתוך/ })
+    .waitFor();
+  await resumePage.reload();
+  await resumePage
+    .locator("#count")
+    .filter({ hasText: /^קטע 2 מתוך/ })
+    .waitFor();
+  const resumeMeter = resumePage.locator("#resume .resume-timer");
+  await resumeMeter.waitFor();
+  assert.equal(await resumeMeter.getAttribute("aria-valuemax"), "6");
+  await resumePage.evaluate(() => window.resumeHide());
+  await resumePage.clock.install();
+  await resumePage.evaluate(() =>
+    window.resumeBar(
+      'המשכנו מהמקום שעצרת · <button onclick="resumeTop()">מתחילת הדף</button>',
+    ),
+  );
+  await resumePage.clock.runFor(1000);
+  assert.equal(await resumeMeter.getAttribute("aria-valuenow"), "5");
+  await resumePage.evaluate(() =>
+    window.resumeBar("המשכנו מהמקום שעצרת", 4200),
+  );
+  await resumePage.clock.runFor(3500);
+  assert.equal(
+    await resumePage.locator("#resume").getAttribute("aria-hidden"),
+    "false",
+  );
+  await resumePage.clock.runFor(700);
+  assert.equal(
+    await resumePage.locator("#resume").getAttribute("aria-hidden"),
+    "true",
+  );
+  assert.equal(
+    await resumePage.locator("#resume").evaluate((element) => element.inert),
+    true,
+  );
+  await resumePage.evaluate(() => {
+    window.resumeBar("המשכנו מהמקום שעצרת");
+    window.resumeTop();
+  });
+  await resumePage.clock.runFor(6500);
+  assert.equal(
+    await resumePage.locator("#resume").getAttribute("class"),
+    "resume",
+  );
+  await resumePage.clock.resume();
+  await resumeContext.close();
+  console.log("Resume countdown, replacement and dismissal cleanup passed.");
   const signedContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });

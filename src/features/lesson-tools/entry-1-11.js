@@ -1,6 +1,7 @@
 
 
 function boot() {
+  resumeHide();
   API = (window.APPS_SCRIPT_URL || '').trim();
   try {
     var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
@@ -46,7 +47,7 @@ function boot() {
   /* ב. / ב: - היחידה, ולא רק הדף. הקטע האחרון של ב. גולש לראש
      ע״ב, ובלי הסימן "דף ב ע״ב" נראה כאילו כבר עברנו ל-ב:. */
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
-  $('t-daf').textContent = HEAD;
+  setLessonTitle(HEAD);
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
     ((calOf(S.mas)[S.week] || [])[1] || '') : '';
   document.title = 'דף ' + S.daf + ' - לימוד אינטראקטיבי';
