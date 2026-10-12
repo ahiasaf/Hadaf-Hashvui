@@ -79,9 +79,20 @@ import "../styles/community.css";
         type="button"
         class="community-confirm"
         data-community-confirm
+        aria-label="כבר בקבוצה"
+        title="כבר בקבוצה"
         hidden
       >
-        כבר בקבוצה
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="m7.5 12 3 3 6-6" />
+        </svg>
       </button>
       <p data-community-status role="status">
         טוענים את קישור הקבוצה…
@@ -110,10 +121,29 @@ import "../styles/community.css";
         data-community-enable
         hidden
       >
-        הפעלת תזכורות לדף השבועי
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" />
+        </svg>
+        <span>הפעלת התראות</span>
       </button>
       <a class="button button-gold" href="/hitraot" data-community-help>
-        הגדרת התראות <span aria-hidden="true">←</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 16v1" />
+        </svg>
+        <span>הגדרת התראות</span>
       </a>
       <p data-community-notification-status role="alert" hidden></p>
     </div>
@@ -129,6 +159,7 @@ import "../styles/community.css";
   } from "../lib/community";
   import { enableReminders } from "../lib/notifications";
   import { stored, type Person } from "../lib/client";
+  import { updateCommunity } from "../lib/community-motion";
   const root = document.querySelector<HTMLElement>("[data-community-tabs]");
   if (root) {
     const tabs = Array.from(
@@ -151,18 +182,22 @@ import "../styles/community.css";
     )!;
     function refresh() {
       const person = stored<Person | null>("me", null);
-      tabs[0].hidden = groupJoined(group) || confirmedGroup;
-      tabs[1].hidden =
+      const joined = groupJoined(group) || confirmedGroup;
+      const notified =
         remindersEnabled() ||
         (!!confirmedPerson && confirmedPerson === person?.id);
-      const visible = tabs.filter((tab) => !tab.hidden);
-      root!.hidden = !visible.length;
-      const list = root!.querySelector<HTMLElement>('[role="tablist"]')!;
-      list.toggleAttribute("data-single", visible.length === 1);
-      const current = tabs.findIndex(
-        (tab) => !tab.hidden && tab.getAttribute("aria-selected") === "true",
-      );
-      select(current >= 0 ? current : tabs.indexOf(visible[0]));
+      void updateCommunity(root, joined, notified, () => {
+        tabs[0].hidden = joined;
+        tabs[1].hidden = notified;
+        const visible = tabs.filter((tab) => !tab.hidden);
+        root!.hidden = !visible.length;
+        const list = root!.querySelector<HTMLElement>('[role="tablist"]')!;
+        list.toggleAttribute("data-single", visible.length === 1);
+        const current = tabs.findIndex(
+          (tab) => !tab.hidden && tab.getAttribute("aria-selected") === "true",
+        );
+        select(current >= 0 ? current : tabs.indexOf(visible[0]));
+      });
       const canEnable =
         !!person?.id &&
         "Notification" in window &&
@@ -171,7 +206,10 @@ import "../styles/community.css";
         Notification.permission !== "denied";
       enable.hidden = !canEnable;
       help.className = canEnable ? "community-help" : "button button-gold";
-      help.textContent = canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות";
+      help.querySelector("span")!.textContent = canEnable
+        ? "עזרה בהפעלת ההתראות"
+        : "הגדרת התראות";
+      help.title = canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות";
     }
     function select(index: number, focus = false) {
       tabs.forEach((tab, i) => {
@@ -217,28 +255,28 @@ import "../styles/community.css";
       confirmedGroup = true;
       confirmGroup(group);
       refresh();
-      tabs.find((tab) => !tab.hidden)?.focus();
     });
     enable.addEventListener("click", async () => {
       const status = root.querySelector<HTMLElement>(
         "[data-community-notification-status]",
       )!;
       enable.disabled = true;
-      enable.textContent = "בודקים ושומרים…";
+      enable.querySelector("span")!.textContent = "בודקים ושומרים…";
       status.hidden = true;
       const account = stored<Person | null>("me", null)?.id || "";
       try {
         await enableReminders();
         confirmedPerson = account;
+        if (account === stored<Person | null>("me", null)?.id)
+          enable.querySelector("path")!.setAttribute("d", "m5 12 4 4 10-10");
         refresh();
-        tabs.find((tab) => !tab.hidden)?.focus();
       } catch {
         status.textContent =
           "הבקשה לא אושרה. בדקו את הרשאת ההתראות והחיבור ונסו שוב.";
         status.hidden = false;
       } finally {
         enable.disabled = false;
-        enable.textContent = "הפעלת תזכורות לדף השבועי";
+        enable.querySelector("span")!.textContent = "הפעלת התראות";
       }
     });
     tabs.forEach((tab, index) => {

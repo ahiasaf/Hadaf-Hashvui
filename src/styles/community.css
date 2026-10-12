@@ -22,14 +22,49 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 4px 0;
-  background: transparent;
-  border: 0;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 50%;
   color: var(--ink-2);
   font: inherit;
   font-size: 0.8rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    transform 0.2s var(--ease),
+    border-color 0.2s;
+}
+.community-confirm {
+  color: var(--green-d);
+}
+.community-confirm svg,
+.community-help svg,
+.community-action .button svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.community-help span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.community-confirm:hover,
+.community-help:hover {
+  background: var(--sunk);
+  border-color: var(--gold);
+}
+.community-confirm:active,
+.community-help:active {
+  transform: scale(0.94);
 }
 .community .reminders .button {
   background: var(--gold);
@@ -117,17 +152,17 @@
   gap: 14px;
   white-space: nowrap;
 }
-.community-action .button span {
+.community-action .button span[aria-hidden] {
   transition: transform 0.25s var(--ease);
 }
 @media (hover: hover) {
   .community-tabs button:hover {
     transform: translateY(-1px);
   }
-  .community-action .button:hover span {
+  .community-action .button:hover span[aria-hidden] {
     transform: translateX(-3px);
   }
-  .community-action .button-whatsapp:hover span {
+  .community-action .button-whatsapp:hover span[aria-hidden] {
     transform: translate(-2px, -2px);
   }
 }
@@ -187,6 +222,10 @@
     animation: none;
   }
   .community-tabs button,
+  .community-confirm,
+  .community-help,
+  .community-confirm:active,
+  .community-help:active,
   .community-action .button span {
     transition: none;
     transform: none;

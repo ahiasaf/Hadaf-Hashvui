@@ -884,9 +884,7 @@ try {
   );
   await updatesPage.getByRole("tab", { name: "עדכונים ותזכורות" }).click();
   writeFailure = true;
-  await updatesPage
-    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
-    .click();
+  await updatesPage.getByRole("button", { name: "הפעלת התראות" }).click();
   await updatesPage.locator(".community .notice.error").waitFor();
   assert.equal(
     await updatesPage.evaluate(() => localStorage.getItem("df:noteOn")),
@@ -899,9 +897,7 @@ try {
     true,
   );
   writeFailure = false;
-  await updatesPage
-    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
-    .click();
+  await updatesPage.getByRole("button", { name: "הפעלת התראות" }).click();
   await updatesPage
     .getByRole("tab", { name: "עדכונים ותזכורות" })
     .waitFor({ state: "hidden" });
@@ -915,11 +911,41 @@ try {
   await updatesPage.getByRole("button", { name: "כבר בקבוצה" }).waitFor();
   assert.equal(
     await updatesPage
+      .getByRole("button", { name: "כבר בקבוצה" })
+      .locator("svg")
+      .count(),
+    1,
+  );
+  assert.equal(
+    await updatesPage.getByRole("button", { name: "כבר בקבוצה" }).innerText(),
+    "",
+  );
+  assert.ok(
+    (
+      await updatesPage
+        .getByRole("button", { name: "כבר בקבוצה" })
+        .boundingBox()
+    ).width >= 44,
+  );
+  assert.equal(
+    await updatesPage
       .getByRole("tab", { name: "עדכונים ותזכורות" })
       .isVisible(),
     false,
   );
+  await updatesPage.emulateMedia({ reducedMotion: "no-preference" });
   await updatesPage.getByRole("button", { name: "כבר בקבוצה" }).click();
+  await updatesPage.waitForFunction(() => {
+    const root = document.querySelector("[data-community-tabs]");
+    return (
+      root &&
+      root.inert &&
+      !root.hidden &&
+      root
+        .getAnimations()
+        .some((animation) => animation.playState === "running")
+    );
+  });
   await updatesPage
     .locator("[data-community-tabs]")
     .waitFor({ state: "hidden" });
@@ -944,9 +970,7 @@ try {
     false,
   );
   writeFailure = true;
-  await updatesPage
-    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
-    .click();
+  await updatesPage.getByRole("button", { name: "הפעלת התראות" }).click();
   await updatesPage
     .locator("[data-community-notification-status]:not([hidden])")
     .waitFor();
@@ -955,9 +979,7 @@ try {
     "demo-student",
   );
   writeFailure = false;
-  await updatesPage
-    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
-    .click();
+  await updatesPage.getByRole("button", { name: "הפעלת התראות" }).click();
   await updatesPage
     .locator("[data-community-tabs][hidden]")
     .waitFor({ state: "attached" });

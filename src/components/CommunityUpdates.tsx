@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { stored, type Person } from "../lib/client";
 import {
   communityGroup,
@@ -8,6 +8,7 @@ import {
 } from "../lib/community";
 import Reminders from "./Reminders";
 import "../styles/community.css";
+import { updateCommunity } from "../lib/community-motion";
 
 export default function CommunityUpdates() {
   const [group, setGroup] = useState<string | null>(null);
@@ -20,13 +21,20 @@ export default function CommunityUpdates() {
   );
   const [person, setPerson] = useState<Person | null>(null);
   const [selected, setSelected] = useState(0);
+  const root = useRef<HTMLElement>(null);
+  const update = useCallback((joined: boolean, notified: boolean) => {
+    void updateCommunity(root.current, joined, notified, () => {
+      setJoined(joined);
+      setNotified(notified);
+    });
+  }, []);
   useEffect(() => {
     let active = true;
     communityGroup()
       .then((url) => {
         if (active) {
           setGroup(url);
-          setJoined(groupJoined(url));
+          update(groupJoined(url), remindersEnabled());
         }
       })
       .catch(() => {})
@@ -36,12 +44,11 @@ export default function CommunityUpdates() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [update]);
   useEffect(() => {
     const refresh = () => {
       setPerson(stored<Person | null>("me", null));
-      setJoined(groupJoined(group));
-      setNotified(remindersEnabled());
+      update(groupJoined(group), remindersEnabled());
     };
     refresh();
     const events = [
@@ -54,7 +61,7 @@ export default function CommunityUpdates() {
     events.forEach((event) => window.addEventListener(event, refresh));
     return () =>
       events.forEach((event) => window.removeEventListener(event, refresh));
-  }, [group]);
+  }, [group, update]);
   const visible = [!joined ? 0 : -1, !notified ? 1 : -1].filter(
     (index) => index >= 0,
   );
@@ -88,23 +95,12 @@ export default function CommunityUpdates() {
       )
       ?.focus();
   }
-  function focusNext() {
-    requestAnimationFrame(() => {
-      const next =
-        document.querySelector<HTMLButtonElement>(
-          '.community [role="tab"]:not([hidden])',
-        ) ||
-        document.querySelector<HTMLAnchorElement>(
-          '[data-continue], .celebrate > a[href="/app"]',
-        );
-      next?.focus();
-    });
-  }
   return (
     <section
       className="community is-in"
       aria-label="עדכונים מהדף השבועי"
       data-community-tabs
+      ref={root}
     >
       <div
         className="community-tabs"
@@ -177,13 +173,23 @@ export default function CommunityUpdates() {
             <button
               type="button"
               className="community-confirm"
+              aria-label="כבר בקבוצה"
+              title="כבר בקבוצה"
               onClick={() => {
                 confirmGroup(group);
-                setJoined(true);
-                focusNext();
+                update(true, remindersEnabled());
               }}
             >
-              כבר בקבוצה
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m7.5 12 3 3 6-6" />
+              </svg>
             </button>
           )}
           {!group && (
@@ -214,8 +220,7 @@ export default function CommunityUpdates() {
               key={person!.id}
               onEnabled={() => {
                 if (stored<Person | null>("me", null)?.id === person!.id) {
-                  setNotified(true);
-                  focusNext();
+                  update(groupJoined(group) || joined, true);
                 }
               }}
             />
@@ -223,8 +228,19 @@ export default function CommunityUpdates() {
           <a
             className={canEnable ? "community-help" : "button button-gold"}
             href="/hitraot"
+            title={canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}
           >
-            {canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 16v1" />
+            </svg>
+            <span>{canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}</span>
           </a>
         </div>
       </div>
