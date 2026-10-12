@@ -2793,7 +2793,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.206';
+var APP_VERSION = '8.99.207';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3964,9 +3964,8 @@ function outUrl() { return joinUrl('') + '?out=1'; }
    מכיל גם את הלוח — הוא נשלח לר"מים בלבד. בלי קוד הוא עדיין
    עובד: הלוח שבתוכו יבקש אותו בעצמו. */
 function tzevetUrl(code) {
-  var u = joinUrl(code).replace('join.html', 'tzevet.html');
-  var k = code ? instCode(code) : '';
-  return k ? u + '&k=' + encodeURIComponent(k) : u;
+  /* בלי קוד בקישור: הלוח נפתח לפי האישור של הרכז, לא לפי הקוד. */
+  return joinUrl(code).replace('join.html', 'tzevet.html');
 }
 
 /* ההדגמה — הדף האינטראקטיבי מנגן את עצמו.
@@ -4013,16 +4012,21 @@ var codeBad = false;
 function codeCheck(code) {
   var k = instCode(code), url = (CFG.api || API || '').trim();
   if (!code || !k || !url) return;
+  /* הקוד לבד אינו פותח — השרת שואל על האישור של המכשיר. מי שעוד
+     לא אושר מאבד את הקוד, ונכנס לתהליך ההמתנה (accCheck). */
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
   fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
-        'board=' + encodeURIComponent(code) + '&k=' + encodeURIComponent(k))
+        'board=' + encodeURIComponent(code) + '&k=' + encodeURIComponent(k) +
+        '&dev=' + encodeURIComponent(me.id || ''))
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (!d || d.status !== 'denied') return;   /* תקין, או שלא נענה */
+      if (!d || !/^(denied|wait|locked|unknown)$/.test(d.status)) return;   /* תקין, או שלא נענה */
       var m = Store.get('instCodes', {}) || {};
       delete m[code];
       Store.set('instCodes', m);
-      codeBad = true;
+      codeBad = d.status === 'denied';
       renderBoard();
+      accCheck(true);
     })
     .catch(function () {});           /* אין רשת — לא מסיקים דבר */
 }
@@ -4565,11 +4569,13 @@ function accCheck(force, after) {
   if (!(ASK.seen && ASK.seen())) return fin();
   var url = (CFG.api || API || '').trim();
   if (!url || accBusy) return fin();
-  var has = !!instCode(code), last = Store.get('accAt', 0);
+  /* `accAt2` — מפתח חדש, כדי שכל מכשיר יישאל מיד אחרי העדכון
+     שבו הגישה עברה לאישור בלבד. */
+  var has = !!instCode(code), last = Store.get('accAt2', 0);
   /* מי שכבר יש לו קוד — נבדק לעיתים רחוקות, רק כדי שנעילה תתפוס. */
   if (!force && Date.now() - last < (has ? 3600000 : 60000)) return fin();
   accBusy = true;
-  Store.set('accAt', Date.now());
+  Store.set('accAt2', Date.now());
   scriptGet({ acc: code, dev: me.id, has: has ? '1' : '0' }).then(function (d) {
     accBusy = false;
     if (!d || !d.status) return fin();
@@ -4579,9 +4585,11 @@ function accCheck(force, after) {
       if (d.k !== instCode(code)) { setInstCode(code, d.k); codeBad = false; renderBoard(); accRe(); }
       return fin();
     }
+    /* קוד בלי אישור אינו שווה דבר — יורד מהמכשיר, והמסך עובר
+       להמתנה. ההתראה לרכז יוצאת מהשרת ברגע השאלה. */
+    if (has) { var m = Store.get('instCodes', {}) || {}; delete m[code]; Store.set('instCodes', m); renderBoard(); has = false; }
     if (d.status === 'locked') {
       accSt = 'locked';
-      if (has) { var m = Store.get('instCodes', {}) || {}; delete m[code]; Store.set('instCodes', m); renderBoard(); }
     } else {
       accSt = 'wait';
       /* השורה ב"התראות" עוד לא נכתבה (או נכתבה בלי טלפון) —
@@ -5332,7 +5340,7 @@ function saySend() {
   sayBusy = true; sayPaint();
   /* הכותרת היא החתימה; הפנייה בשם נכנסת בשרת, לכל נמען בנפרד
      — ראו `personal` ב-tools/push-send.js. */
-  var q = { fire:'say', inst:code, k:k,
+  var q = { fire:'say', inst:code, k:k, dev: me.id || '',
             title: saySig(), body: (sayOpt.per ? '{name}, ' : '') + txt,
             grade: sayOpt.grade, klass:'', who: who,
             aud: sayOpt.aud, flt: JSON.stringify(flt) };
@@ -6967,11 +6975,8 @@ function blastUrl(c) {
   var base = joinUrl('').replace('join.html', '');
   if (!inst) return base;
   var u = base + '?m=' + encodeURIComponent(inst.code);
-  /* **וגם קוד הגישה.** כך גם השני שמצטרף מאותו מוסד מקבל את
-     הקוד האמיתי ולא מייצר לעצמו אחד שהשרת דוחה. אותו מודל של
-     הקישור לר"מים, ואותה החלטה: מי ששולח בוחר למי. */
-  var k = instCode(inst.code);
-  return k ? u + '&k=' + encodeURIComponent(k) : u;
+  /* בלי קוד גישה: מי שמצטרף נרשם, והרכז מאשר אותו. */
+  return u;
 }
 function blastText(c, q) {
   var inst = instByName(c.key || c.name);

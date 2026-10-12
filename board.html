@@ -710,7 +710,7 @@ function askScript(params) {
 function loadRoster() {
   if (!acc) return Promise.resolve(null);
   /* מכשיר בדיקה רואה גם את משתמשי הבדיקה — ראו /reset. */
-  var q = ALL ? { board:'*', key:acc } : { board:code, k:acc };
+  var q = ALL ? { board:'*', key:acc } : { board:code, k:acc, dev:devId() };
   /* בכל הישיבות — גם משתמשי בדיקה, עם התגית שלהם. הרכז הוא מי
      שבודק; תלמיד בדיקה שנוצר ממכשיר בדיקה נעלם מהלוח שלו, והוא
      מופיע במשתתפים — ולכן "לא מוצא את עצמי". */
@@ -720,7 +720,7 @@ function loadRoster() {
     if (d.status !== 'ok') {
       /* קוד שגוי אינו נשמר — אחרת הוא היה נדבק למכשיר ומונע
          מהקישור הנכון לעבוד בפעם הבאה. */
-      if (d.status === 'denied' && !ALL) {
+      if (/^(denied|wait|locked|unknown)$/.test(d.status) && !ALL) {
         acc = ''; try { localStorage.removeItem(accKey()); } catch (e) {}
       }
       rosterMsg = d.message || 'לא הצלחתי לפתוח את הרשימה.';
@@ -745,12 +745,19 @@ function loadRoster() {
    של השרת בשם המכשיר — אותה שאלה שהאפליקציה שואלת (`acc`).
    כל חצי דקה כשהמסך מול העיניים, ומיד כשחוזרים אליו.
    ============================================================ */
+/* מי המכשיר — ראש חטיבה (df:head) או ר"ם (df:ram), של הישיבה
+   הזו. הלוח נפתח לפי האישור שלו, לא לפי הקוד — ראו accGate_. */
 function waitMe() {
-  try {
-    var m = JSON.parse(localStorage.getItem('df:head') || 'null');
-    return (m && m.id && m.inst === code) ? m : null;
-  } catch (e) { return null; }
+  var keys = ['df:head', 'df:ram'];
+  for (var i = 0; i < keys.length; i++) {
+    try {
+      var m = JSON.parse(localStorage.getItem(keys[i]) || 'null');
+      if (m && m.id && m.inst === code) return m;
+    } catch (e) {}
+  }
+  return null;
 }
+function devId() { var m = waitMe(); return m ? m.id : ''; }
 function waitTry() {
   if (ALL || acc || !inst) return Promise.resolve(false);
   var k = appCode();
@@ -781,16 +788,6 @@ if (!ALL) {
   });
 }
 
-function keyAsk() {
-  var v = prompt('הזינו את קוד הגישה של הישיבה (שש אותיות):', '');
-  if (v == null) return;
-  v = String(v).trim().toLowerCase();
-  if (!v) return;
-  acc = v;
-  try { localStorage.setItem(accKey(), v); } catch (e) {}
-  rosterMsg = 'בודק…'; draw();
-  loadRoster().then(draw);
-}
 
 /* ============================================================
    לוח שליטה, לא רשימה.
@@ -1612,7 +1609,7 @@ function kudoSend() {
     ? { fire:'say', key:acc, title:kudoSig(), body:'{name}, ' + txt, who:'רכז',
         role: par ? '' : 'תלמיד',
         flt: JSON.stringify(par ? { ids:ids, per:1, par:par } : { ids:ids, per:1 }) }
-    : { fire:'say', inst:code, k:acc, title:kudoSig(), body:'{name}, ' + txt,
+    : { fire:'say', inst:code, k:acc, dev:devId(), title:kudoSig(), body:'{name}, ' + txt,
         grade:'', klass:'', who:kudoSig(),
         aud: par === 'p' ? 'parents' : par === 'pk' ? 'both' : 'kids',
         flt: JSON.stringify({ ids:[p.id], per:1 }) })
@@ -1903,7 +1900,6 @@ function keyHtml() {
       (rosterMsg ? '<br><b>' + esc(rosterMsg) + '</b>' : '') + '</div>';
   }
   return '<div class="keyline">' + esc(rosterMsg || 'טוען את הרשימה…') +
-    (rosterMsg ? '<button class="klink" id="kask">הזנת הקוד ידנית</button>' : '') +
     '</div>';
 }
 
@@ -2165,7 +2161,6 @@ function soonLine() {
 }
 
 function wire() {
-  var ka = $('kask'); if (ka) ka.onclick = keyAsk;
   var wb = $('wback'); if (wb) wb.onclick = function () {
     if (WAY_FROM && history.length > 1) { history.back(); return; }
     go('');

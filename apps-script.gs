@@ -1079,9 +1079,14 @@ function doGet(e) {
        שאפשר לערוך לו את הכתובת. */
     if (!isAdm) {
       if (!inst) return reply_(e, { status:'denied', message:'חסר קוד ישיבה' });
-      var want = getCode_(inst);
-      if (!want || String(P.k || '') !== want) {
-        return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
+      if (ACC_ONLY) {
+        var gS = accGate_(inst, P.dev, !!P.k);
+        if (gS) return reply_(e, gS);
+      } else {
+        var want = getCode_(inst);
+        if (!want || String(P.k || '') !== want) {
+          return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
+        }
       }
     }
     /* **הכתובת נבדקת כאן, ולא נסמכת על השולח.** קישור חופשי
@@ -1598,6 +1603,14 @@ function doGet(e) {
     if (String(e.parameter.board) === '*' && !isAdm) {
       return reply_(e, { status: 'denied', message: 'הלוח של כל הישיבות נפתח רק בסיסמת הרכז.' });
     }
+    if (isAdm && String(e.parameter.board) === '*') { try { accSeed_(); } catch (eS) {} }
+    /* **הלוח נפתח לפי האישור, לא לפי הקוד** — ראו accGate_. */
+    if (!isAdm && ACC_ONLY) {
+      var bInst = String(e.parameter.board);
+      var gB = accGate_(bInst, e.parameter.dev, !!e.parameter.k);
+      if (gB) return reply_(e, gB);
+      bk = ensureCode_(bInst, newCode_());
+    }
     try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
     return reply_(e, bd);
@@ -1619,34 +1632,6 @@ function doGet(e) {
         rows: tsh.getLastRow() ? tsh.getDataRange().getDisplayValues() : [] });
     } catch (err4) {
       return reply_(e, { status: 'error', message: String(err4) });
-    }
-  }
-
-  /* ---- הקודים · לרכז בלבד ----
-     `codes` מחזיר את כולם, `newcode` מייצר חדש למוסד אחד —
-     למקרה שקישור דלף לקבוצה שלא היה אמור להגיע אליה. */
-  if (e && e.parameter && (e.parameter.codes || e.parameter.newcode)) {
-    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
-      return reply_(e, { status: 'denied',
-        message: READ_KEY ? 'סיסמה שגויה'
-                          : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
-    }
-    try {
-      if (e.parameter.newcode) {
-        var nc = setCode_(String(e.parameter.newcode), newCode_());
-        return reply_(e, { status: 'ok', inst: String(e.parameter.newcode), code: nc });
-      }
-      var csh = codeRows_(), cmap = {};
-      if (csh.getLastRow() >= 2) {
-        var cv = csh.getRange(2, 1, csh.getLastRow() - 1, 2).getDisplayValues();
-        for (var q = 0; q < cv.length; q++) {
-          var kk = String(cv[q][0]).trim();
-          if (kk) cmap[kk] = String(cv[q][1]).trim();
-        }
-      }
-      return reply_(e, { status: 'ok', codes: cmap });
-    } catch (err2) {
-      return reply_(e, { status: 'error', message: String(err2) });
     }
   }
 
@@ -2439,18 +2424,21 @@ function accAsk_(inst, dev, has) {
   if (!sh.getLastRow()) headRow_(sh, ACC_HEAD);
   var head = headers_(sh), ix = {};
   for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
-  var st = '', row = -1;
+  var st = '', row = -1, was = '';
   if (sh.getLastRow() > 1) {
     var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
     for (var a = 0; a < av.length; a++) {
       if (String(av[a][ix['מזהה']] || '').trim() !== dev) continue;
-      row = a + 2; st = String(av[a][ix['מצב']] || '').trim(); break;
+      row = a + 2; st = String(av[a][ix['מצב']] || '').trim();
+      was = String(av[a][ix['קוד ישיבה']] || '').trim(); break;
     }
   }
+  /* אישור הוא לישיבה אחת. מכשיר שעבר לישיבה אחרת — מאושר מחדש. */
+  var moved = row >= 0 && st === 'אושר' && was && was !== inst;
   var cols = [['מזהה', dev], ['שם', g('שם')], ['טלפון', g('טלפון')],
               ['ישיבה', g('ישיבה')], ['קוד ישיבה', inst], ['תפקיד', g('תפקיד')],
               ['קוד במכשיר', has ? 'כן' : ''], ['נראה', new Date()]];
-  if (row < 0) {
+  if (row < 0 || moved) {
     st = 'ממתין';
     cols.push(['מצב', st]); cols.push(['ביקש', new Date()]);
     upsertCols_(ACC_TAB, cols, 'מזהה');
@@ -2479,6 +2467,82 @@ function accRow_(dev) {
              inst: String(av[a][ix['קוד ישיבה']] || '').trim() };
   }
   return null;
+}
+
+/* ============================================================
+   הגישה לצוות — לפי האישור של הרכז, ולא לפי הקוד.
+   ============================================================
+   "אני רוצה שאיש צוות יוכל להיכנס רק אם אישרתי אותו ספציפית."
+   הקוד של הישיבה הגיע בקישורים, והועבר הלאה — ולכן הוא אינו
+   פותח יותר כלום. הלוח והשליחה לתלמידים נפתחים רק למכשיר שיש
+   לו "אושר" בלשונית "גישה", ורק לישיבה שלו.
+
+   מכשיר שעוד לא אושר (גם אם יש לו קוד מפעם) — נרשם כממתין,
+   והרכז מקבל התראה מיד (accAsk_). מכשיר שאינו מוכר — מתבקש
+   להירשם כאיש צוות באפליקציה.
+
+   `ACC_ONLY = false` מחזיר את הגישה לפי הקוד, כמו שהייתה. */
+var ACC_ONLY = true;
+/* null = מותר. אחרת — התשובה ללקוח. */
+function accGate_(inst, dev, hadCode) {
+  inst = String(inst || '').trim(); dev = String(dev || '').trim();
+  /* הדרך הקצרה — מאושר לישיבה הזו, בלי לקרוא את "התראות". */
+  var mine = dev ? accRow_(dev) : null;
+  if (mine && mine.st === 'אושר' && mine.inst === inst) return null;
+  var a = dev ? accAsk_(inst, dev, hadCode) : { status: 'none' };
+  if (a.status === 'ok') return null;
+  if (a.status === 'locked') return { status: 'locked',
+    message: 'הגישה ללוח של הישיבה נעולה. לפרטים — פנו לרכז התוכנית.' };
+  if (a.status === 'wait') return { status: 'wait', phone: a.phone,
+    message: 'הבקשה שלך אצל רכז התוכנית. ברגע שיאשר — הלוח ייפתח כאן.' };
+  return { status: 'unknown',
+    message: 'כדי לראות את הלוח — הירשמו כאיש צוות באפליקציה. רכז התוכנית יאשר.' };
+}
+
+/* פעם אחת: כל מכשיר של איש צוות שכבר רשום ב"התראות" ואין לו
+   שורה ב"גישה" — נכנס כממתין, בלי לחכות שיפתח את הלוח. התראה
+   אחת לרכז עם המספר, ולא אחת לכל אחד. */
+function accSeed_() {
+  var pr = PropertiesService.getScriptProperties();
+  if (pr.getProperty('accSeed1')) return;
+  pr.setProperty('accSeed1', String(new Date()));
+  var ps = sheet_('התראות');
+  if (ps.getLastRow() < 2) return;
+  var pv = ps.getDataRange().getDisplayValues(), ph = pv[0], pi = {};
+  for (var i = 0; i < ph.length; i++) pi[String(ph[i]).trim()] = i;
+  if (pi['מזהה'] === undefined || pi['קוד ישיבה'] === undefined || pi['תפקיד'] === undefined) return;
+  var g = function (row, k) { return pi[k] === undefined ? '' : String(row[pi[k]] || '').trim(); };
+  var NOT_STAFF = { '': 1, 'תלמיד': 1, 'הורה': 1, 'אב': 1, 'רכז': 1 };
+  var last = {};
+  for (var r = 1; r < pv.length; r++) {
+    var dev = g(pv[r], 'מזהה'), inst = g(pv[r], 'קוד ישיבה');
+    if (!dev || dev.length < 6 || !inst || NOT_STAFF[g(pv[r], 'תפקיד')]) continue;
+    last[dev] = pv[r];
+  }
+  var sh = sheet_(ACC_TAB);
+  if (!sh.getLastRow()) headRow_(sh, ACC_HEAD);
+  var head = headers_(sh), ix = {}, have = {};
+  for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
+  if (sh.getLastRow() > 1) {
+    var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
+    for (var a = 0; a < av.length; a++) have[String(av[a][ix['מזהה']] || '').trim()] = 1;
+  }
+  var add = [], now = new Date();
+  for (var d in last) {
+    if (!last.hasOwnProperty(d) || have[d]) continue;
+    var row = [], v = { 'מזהה': d, 'שם': g(last[d], 'שם'), 'טלפון': g(last[d], 'טלפון'),
+      'ישיבה': g(last[d], 'ישיבה'), 'קוד ישיבה': g(last[d], 'קוד ישיבה'),
+      'תפקיד': g(last[d], 'תפקיד'), 'מצב': 'ממתין', 'ביקש': now };
+    for (var c = 0; c < head.length; c++) {
+      var hk = String(head[c]).trim();
+      row.push(v[hk] === undefined ? '' : v[hk]);
+    }
+    add.push(row);
+  }
+  if (!add.length) return;
+  sh.getRange(sh.getLastRow() + 1, 1, add.length, head.length).setValues(add);
+  coordPing_('🔑 ' + add.length + ' אנשי צוות ממתינים לאימות',
+    'הלוח נפתח עכשיו רק למי שאישרת. הם ברשימת הממתינים.', './#admin-acc');
 }
 
 /* בהרשמה: יוצרים אם אין, ולא דורסים אם יש. ראש חטיבה שנרשם שוב

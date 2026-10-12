@@ -1245,12 +1245,14 @@ function mineCount(me) {
 }
 function loadMyRoster() {
   var me = ramMine();
-  if (!me || !accCode || !instCode || typeof APPS_SCRIPT_URL === 'undefined') return;
+  /* בלי תנאי של קוד: הלוח נפתח לפי האישור של המכשיר (dev). */
+  if (!me || !me.id || !instCode || typeof APPS_SCRIPT_URL === 'undefined') return;
   var url = String(APPS_SCRIPT_URL || '').trim();
   if (!url) return;
   fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
         'board=' + encodeURIComponent(instCode) +
-        '&k=' + encodeURIComponent(accCode))
+        '&k=' + encodeURIComponent(accCode || '') +
+        '&dev=' + encodeURIComponent(me.id))
     .then(function (r) { return r.json(); })
     .then(function (d) {
       /* **קריאה שנכשלה אינה רשימה ריקה.** בלי התנאי הזה כל
@@ -1909,7 +1911,7 @@ function mySend() {
   if (!url) { myErr = tz('mySayErr'); myDraw(); return; }
 
   myBusy = true; myDraw();
-  var q = { fire:'say', inst: instCode, k: accCode,
+  var q = { fire:'say', inst: instCode, k: accCode || '', dev: me.id || '',
             title: ramName(me) || PROGRAM.short, body: txt,
             grade: me.grade || '', klass: me.klass || '',
             who: ramName(me) };
