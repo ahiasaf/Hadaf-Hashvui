@@ -164,6 +164,9 @@ function esc(t) {
     return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
   });
 }
+/* הקישורים כאן אינם של ישיבה: השורה "צוות {inst}" יורדת,
+   והחתימה נשארת "באהבה," פתוחה. */
+function noInst(t) { return String(t == null ? '' : t).replace(/[^\n]*\{inst\}[^\n]*/g, ''); }
 /* הבסיס של האתר — שתי הצורות, עם .html ובלי (cleanUrls בייצור). */
 function base() {
   return location.href.split('#')[0].split('?')[0].replace(/kishurim(\.html)?$/, '');
@@ -177,8 +180,8 @@ function draw() {
   var links = [
     ['head', b + '?masa=1', K.headWa],
     ['rm',   b + 'tzevet.html', K.rmWa],
-    ['kids', b + 'join.html', fill(U.linkWa, { inst: K.kidsInst || '', url: '{קישור}' })],
-    ['par',  b + 'join.html?for=dad', fill(U.dadWa, { url: '{קישור}' })]
+    ['kids', b + 'join.html', fill(noInst(U.linkWa), { url: '{קישור}' })],
+    ['par',  b + 'join.html?for=dad', fill(noInst(U.dadWa), { url: '{קישור}' })]
   ];
   $('t-h1').textContent = K.h1 || '';
   $('t-lead').textContent = K.lead || '';
