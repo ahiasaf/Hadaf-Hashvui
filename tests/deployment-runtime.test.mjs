@@ -19,7 +19,11 @@ test("emitted API modules load without TypeScript source files", async () => {
       path.resolve("node_modules"),
       path.join(directory, "node_modules"),
     );
-    const files = ["src/lib/csv.ts", "src/generated/settings.json"];
+    const files = [
+      "src/lib/csv.ts",
+      "src/lib/institution-visibility.ts",
+      "src/generated/settings.json",
+    ];
     for (const folder of ["api", "src/server", "src/config"])
       for (const name of await fs.readdir(folder))
         if (/\.(ts|json)$/.test(name)) files.push(path.join(folder, name));

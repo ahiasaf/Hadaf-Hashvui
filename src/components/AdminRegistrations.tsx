@@ -1,3 +1,4 @@
+import { isSampleInstitution } from "../lib/institution-visibility";
 import { useEffect, useMemo, useState } from "react";
 import { action } from "../lib/client";
 export default function AdminRegistrations({
@@ -34,13 +35,19 @@ export default function AdminRegistrations({
     row[headers.indexOf(name)] || "";
   const latest = useMemo(() => {
     const seen = new Map<string, string[]>();
-    for (const row of rows?.slice(1) || [])
-      seen.set(
-        row[headers.indexOf("קוד")] ||
-          row[headers.indexOf("ישיבה")] ||
-          String(seen.size),
-        row,
-      );
+    for (const [index, row] of (rows?.slice(1) || []).entries()) {
+      const name = row[headers.indexOf("ישיבה")] || "";
+      if (isSampleInstitution(name)) continue;
+      const code = (row[headers.indexOf("קוד")] || "").trim();
+      const identity =
+        code && code !== "other"
+          ? "code:" + code
+          : name.trim()
+            ? "name:" + name.trim()
+            : "row:" + index;
+      seen.delete(identity);
+      seen.set(identity, row);
+    }
     return [...seen.values()].reverse();
   }, [rows, headers]);
   const quantity = (row: string[]) =>

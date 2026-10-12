@@ -1,3 +1,6 @@
+import { parseCsv } from "../src/lib/csv.ts";
+import { isSampleInstitution } from "../src/lib/institution-visibility.ts";
+import { csvText } from "../src/server/public-query.ts";
 import { databaseEnabled, readDatabaseSheet } from "../src/server/database.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { publicTabs, readPublicSheet } from "../src/server/upstream.ts";
@@ -38,7 +41,23 @@ export default async function handler(
           : "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
       "X-Content-Type-Options": "nosniff",
     });
-    res.end(text);
+    if (tab === "מוסדות") {
+      const rows = parseCsv(text);
+      const name =
+        rows[0]?.findIndex((header) =>
+          /^(name|שם|ישיבה)$/i.test(header.trim()),
+        ) ?? -1;
+      res.end(
+        name >= 0
+          ? csvText([
+              rows[0],
+              ...rows
+                .slice(1)
+                .filter((row) => !isSampleInstitution(row[name] || "")),
+            ])
+          : text,
+      );
+    } else res.end(text);
   } catch {
     res.writeHead(502, { "Cache-Control": "no-store" });
     res.end("Public sheet unavailable");

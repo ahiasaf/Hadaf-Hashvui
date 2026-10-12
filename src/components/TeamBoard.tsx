@@ -1,3 +1,4 @@
+import { isSampleInstitution } from "../lib/institution-visibility";
 import { useCallback, useEffect, useState } from "react";
 import {
   loadTeam,
@@ -33,7 +34,12 @@ export default function TeamBoard() {
   const load = useCallback(async () => {
     setBoard({ phase: "loading" });
     try {
-      setBoard({ phase: "ready", cards: await loadTeam(key) });
+      setBoard({
+        phase: "ready",
+        cards: (await loadTeam(key)).filter(
+          (card) => !isSampleInstitution(card.name),
+        ),
+      });
     } catch {
       setBoard({
         phase: "error",

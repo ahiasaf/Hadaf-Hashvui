@@ -9,12 +9,14 @@ export default function Staff({
   tracks: Track[];
   startDate: string;
 }) {
+  const [ready, setReady] = useState(false);
   const [inst, setInst] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [fallback, setFallback] = useState(false);
   useEffect(() => {
     setInst(new URLSearchParams(location.search).get("inst") || "");
+    setReady(true);
   }, []);
   const query = inst ? "?inst=" + encodeURIComponent(inst) : "";
   async function copy() {
@@ -52,6 +54,7 @@ export default function Staff({
         הישיבה שלי
         <select
           aria-label="הישיבה שלי"
+          disabled={!ready}
           value={inst}
           onChange={(event) => {
             setInst(event.target.value);
@@ -108,7 +111,11 @@ export default function Staff({
           <h2>מצרפים את התלמידים</h2>
           <p>{name ? "הזמנה ללימוד של " + name : "הזמנה ללימוד השבועי"}</p>
           <div className="invitation-actions">
-            <button className="button button-blue" onClick={share}>
+            <button
+              className="button button-blue"
+              disabled={!ready}
+              onClick={share}
+            >
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -122,7 +129,11 @@ export default function Staff({
               </svg>
               שיתוף הזמנה
             </button>
-            <button className="button button-outline" onClick={copy}>
+            <button
+              className="button button-outline"
+              disabled={!ready}
+              onClick={copy}
+            >
               {copied ? "הקישור הועתק" : "העתקת קישור לתלמידים"}
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { isSampleInstitution } from "./institution-visibility";
 type ReadSheet = (tab: string, fresh?: boolean) => Promise<string[][]>;
 type Copy = {
   error: string;
@@ -35,11 +36,14 @@ export function initializeInstitutions(read: ReadSheet) {
         !/^(name|שם|ישיבה)$/i.test(rows[0][1] || "")
       )
         throw new Error("Invalid institutions schema");
-      const joined = rows
+      const records = rows
         .slice(1)
-        .filter((row) => /^(true|1|כן)$/i.test((row[3] || "").trim()));
+        .filter((row) => !isSampleInstitution(row[1] || ""));
+      const joined = records.filter((row) =>
+        /^(true|1|כן)$/i.test((row[3] || "").trim()),
+      );
       const list = root!.querySelector<HTMLElement>("[data-inst-list]")!;
-      const total = rows.length - 1;
+      const total = records.length;
       const items = joined.map((row, index) => chip(row[1], index));
       if (total > joined.length)
         items.push(

@@ -95,6 +95,25 @@ export default function CommunityUpdates() {
       )
       ?.focus();
   }
+  const notificationHelp = (
+    <a
+      className={canEnable ? "community-help" : "button button-gold"}
+      href="/hitraot"
+      title={canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 16v1" />
+      </svg>
+      <span>{canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}</span>
+    </a>
+  );
   return (
     <section
       className="community is-in"
@@ -153,22 +172,12 @@ export default function CommunityUpdates() {
         tabIndex={0}
         hidden={current !== 0}
       >
-        <div>
-          <p className="community-kicker">הדף של השבוע, ישר לוואטסאפ</p>
-          <h2>נשארים בעניינים</h2>
-          <p>עדכוני התוכנית והשאלון השבועי בקבוצה השקטה של הדף השבועי.</p>
-        </div>
-        <div className="community-action">
-          <a
-            className="button button-whatsapp"
-            data-community
-            href={group || undefined}
-            hidden={!group}
-            target="_blank"
-            rel="noopener"
-          >
-            מצטרפים לקבוצה <span aria-hidden="true">↗</span>
-          </a>
+        <div className="community-heading">
+          <div className="community-copy">
+            <p className="community-kicker">הדף של השבוע, ישר לוואטסאפ</p>
+            <h2>נשארים בעניינים</h2>
+            <p>עדכוני התוכנית והשאלון השבועי בקבוצה השקטה של הדף השבועי.</p>
+          </div>
           {group && (
             <button
               type="button"
@@ -192,6 +201,18 @@ export default function CommunityUpdates() {
               </svg>
             </button>
           )}
+        </div>
+        <div className="community-action">
+          <a
+            className="button button-whatsapp"
+            data-community
+            href={group || undefined}
+            hidden={!group}
+            target="_blank"
+            rel="noopener"
+          >
+            מצטרפים לקבוצה <span aria-hidden="true">↗</span>
+          </a>
           {!group && (
             <p role="status">
               {loaded
@@ -209,10 +230,13 @@ export default function CommunityUpdates() {
         tabIndex={0}
         hidden={current !== 1}
       >
-        <div>
-          <p className="community-kicker">התזכורת שלכם ללימוד</p>
-          <h2>זוכרים לפתוח את הדף</h2>
-          <p>מפעילים התראות במכשיר כדי לקבל עדכון כשהדף נפתח.</p>
+        <div className="community-heading">
+          <div className="community-copy">
+            <p className="community-kicker">התזכורת שלכם ללימוד</p>
+            <h2>זוכרים לפתוח את הדף</h2>
+            <p>מפעילים התראות במכשיר כדי לקבל עדכון כשהדף נפתח.</p>
+          </div>
+          {canEnable && notificationHelp}
         </div>
         <div className="community-action">
           {canEnable && (
@@ -225,23 +249,7 @@ export default function CommunityUpdates() {
               }}
             />
           )}
-          <a
-            className={canEnable ? "community-help" : "button button-gold"}
-            href="/hitraot"
-            title={canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 16v1" />
-            </svg>
-            <span>{canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות"}</span>
-          </a>
+          {!canEnable && notificationHelp}
         </div>
       </div>
     </section>

@@ -66,7 +66,7 @@ try {
                   : tab === "הגדרות"
                     ? '"מפתח","ערך"\n"waGroup","""https://chat.whatsapp.com/DEMO1234567890"""'
                     : tab === "מוסדות"
-                      ? '"code","name","last","joined"\n"demo","ישיבה לדוגמה","true","true"'
+                      ? '"code","name","last","joined"\n"demo","ישיבת בדיקה","true","true"'
                       : '"מסכת","דף","נתונים"';
       return route.fulfill({ contentType: "text/csv;charset=utf-8", body });
     });
@@ -100,7 +100,7 @@ try {
             rows: [
               ["ישיבה", "עדכון", "תגיות", "אנשי קשר"],
               [
-                "ישיבה לדוגמה",
+                "ישיבת בדיקה",
                 "עדכון לדוגמה",
                 '["משתתפים"]',
                 '[{"name":"איש קשר לדוגמה","phone":"0500000000"}]',
@@ -143,6 +143,9 @@ try {
               ["ישיבת בדיקה", "TEST", "רכז קודם", "20"],
               ["ישיבה ללא הזמנה", "OTHER", "רכז", "0"],
               ["ישיבת בדיקה", "TEST", "רכז מעודכן", "30"],
+              ["ישיבה א מחוץ לרשת", "other", "רכז א", "12"],
+              ["ישיבה ב מחוץ לרשת", "other", "רכז ב", "15"],
+              ["ישיבה לדוגמה", "demo", "רכז בדיקה", "99"],
             ],
           },
         });
@@ -675,13 +678,13 @@ try {
     .locator(".admin-school-record summary")
     .getByText("רכז מעודכן", { exact: true })
     .waitFor();
-  assert.equal(await page.locator(".admin-school-record").count(), 2);
+  assert.equal(await page.locator(".admin-school-record").count(), 4);
   await page
     .locator(".admin-section-nav")
     .getByRole("button", { name: "הזמנות", exact: true })
     .click();
   await page.getByText("30 גמרות", { exact: true }).waitFor();
-  assert.equal(await page.locator(".admin-school-record").count(), 1);
+  assert.equal(await page.locator(".admin-school-record").count(), 3);
   await page.getByRole("button", { name: "מלל", exact: true }).click();
   await page
     .getByRole("textbox", { name: "נוסח, שורה 1", exact: true })
@@ -929,7 +932,7 @@ try {
           last: "תלמיד",
           phone: "0500000000",
           inst: "DEMO",
-          instName: "ישיבה לדוגמה",
+          instName: "ישיבת בדיקה",
           role: "boy",
         }),
       );
@@ -1356,6 +1359,18 @@ try {
   await legacyPage.locator("#r-step-1 .rnav button").click();
   await legacyPage.locator("#r-err1:not([hidden])").waitFor();
   assert.equal(await legacyPage.locator("#r-step-1.on").count(), 1);
+  await legacyPage.evaluate(() => {
+    window.reg.inst = "other";
+    window.reg.instOther = "   ";
+    window.renderReg();
+  });
+  await legacyPage.locator("#r-step-1 .rnav button").click();
+  assert.equal(await legacyPage.locator("#r-step-1.on").count(), 1);
+  assert.equal(await legacyPage.locator("#r-err1").isVisible(), true);
+  await legacyPage.evaluate(() => {
+    window.reg.inst = "";
+    window.renderReg();
+  });
   await legacyPage.locator("#r-step-1 .pk").click();
   await legacyPage.locator("#sheet-l .it").first().click();
   await legacyPage.locator("#r-step-1 .rnav button").click();
@@ -1367,6 +1382,20 @@ try {
     "step",
   );
   await legacyPage.locator("#r-step-2 .mascard").first().click();
+  assert.equal(
+    await legacyPage
+      .locator("#r-step-2 .mascard")
+      .first()
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    await legacyPage
+      .locator("#r-step-2 .mascard")
+      .first()
+      .evaluate((el) => document.activeElement === el),
+    true,
+  );
   assert.equal(await legacyPage.locator("#r-step-2.on .mascard.on").count(), 1);
   await legacyPage.locator("#r-step-2 .rnav .gd").click();
   await legacyPage.locator("#r-step-3.on").waitFor();
@@ -1427,7 +1456,7 @@ try {
     await legacyPage.locator("#r-fold input").first().inputValue(),
     "5",
   );
-  await legacyPage.locator("#r-step-3 .rnav button").click();
+  await legacyPage.locator("#r-step-3 .rnav .g").click();
   assert.equal(await legacyPage.locator("#r-step-2.on .mascard.on").count(), 1);
   await legacyPage.locator("#r-step-2 .rnav .gd").click();
   assert.equal(
@@ -1441,6 +1470,73 @@ try {
   );
   console.log(
     "School steps, required school, retained track and quantity, and order validation passed.",
+  );
+  const registrationPosts = [];
+  let registerFailure = true;
+  await legacyPage.route("**/api/action", async (route) => {
+    const envelope = route.request().postDataJSON();
+    const body =
+      envelope.operation === "legacy" && envelope.payload.method === "POST"
+        ? JSON.parse(envelope.payload.body)
+        : null;
+    if (body?.action !== "register") return route.fallback();
+    registrationPosts.push(body);
+    await route.fulfill({
+      json: registerFailure ? { status: "error" } : { status: "ok" },
+    });
+  });
+  await legacyPage.evaluate(() => {
+    const input = document.querySelector("#r-fold input");
+    window.reg.qty = {};
+    window.qtySet(input.id.slice(2), 0);
+  });
+  await legacyPage.locator("#r-wantsw").click();
+  await legacyPage.locator("#r-fold input").first().fill("5");
+  await legacyPage.locator("#r-send").click();
+  await legacyPage
+    .getByRole("button", { name: "ניסיון שליחה נוסף", exact: true })
+    .waitFor();
+  assert.equal(await legacyPage.locator("#r-send.sent").count(), 0);
+  assert.equal(
+    await legacyPage.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("dfQueue")).filter(
+          (item) => item.action === "register",
+        ).length,
+    ),
+    1,
+  );
+  registerFailure = false;
+  await legacyPage.evaluate(() => {
+    window.sendReg();
+    window.sendReg();
+  });
+  await legacyPage.locator("#r-send.sent").waitFor();
+  assert.equal(registrationPosts.length, 2);
+  assert.equal(registrationPosts[0].total, 5);
+  assert.equal(registrationPosts[0].requestId, registrationPosts[1].requestId);
+  assert.equal(
+    await legacyPage.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("dfQueue")).filter(
+          (item) => item.action === "register",
+        ).length,
+    ),
+    0,
+  );
+  await legacyPage.locator("#r-fold input").first().fill("7");
+  assert.equal(await legacyPage.locator("#r-send").isEnabled(), true);
+  await legacyPage.locator("#r-fold .ctl button").nth(1).click();
+  assert.equal(await legacyPage.locator("#r-send").isEnabled(), true);
+  assert.equal(await legacyPage.locator("#r-send.sent").count(), 0);
+  assert.equal(
+    await legacyPage
+      .locator("#v-reg > .registration-home")
+      .getAttribute("href"),
+    "/",
+  );
+  console.log(
+    "Registration waits for acknowledgement, retains failed requests, deduplicates retries and permits order updates.",
   );
   await legacyPage.reload();
   await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();

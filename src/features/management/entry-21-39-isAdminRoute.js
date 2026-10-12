@@ -199,35 +199,57 @@ function pkField(label, value, placeholder, onOpen) {
     return '<div class="fld">' + (label ? '<div class="label">' + label + "</div>" : "") + '<button class="pk' + (value ? "" : " empty") + '" onclick="' + onOpen + '">' + "<span>" + esc(value || placeholder) + '</span><span class="cv"></span></button></div>';
 }
 
-function queue(payload) {
+var queueSending = false, queueCallbacks = {};
+function queue(payload, done, failed) {
     var q = JSON.parse(localStorage.getItem("dfQueue") || "[]");
-    q.push(payload);
+    var id = payload.requestId;
+    if (id && !q.some(function(item) { return item.requestId === id; })) q.push(payload);
+    else if (!id) q.push(payload);
+    if (id && done) queueCallbacks[id] = { done: done, failed: failed };
     localStorage.setItem("dfQueue", JSON.stringify(q));
     paintQueue();
+    if (!navigator.onLine && failed) failed();
     flush();
 }
 
 function flush() {
     var q = JSON.parse(localStorage.getItem("dfQueue") || "[]");
-    if (!q.length || !API || !navigator.onLine) return;
+    if (queueSending || !q.length || !API || !navigator.onLine) return;
+    queueSending = true;
+    var payload = q[0];
     fetch(API, {
         method: "POST",
         mode: "no-cors",
-        body: JSON.stringify(q[0])
-    }).then(function() {
+        body: JSON.stringify(payload)
+    }).then(function(response) {
+        if (!response.ok) throw new Error("Write failed");
+        return response.json();
+    }).then(function(result) {
+        if (!result || ["ok", "success"].indexOf(result.status) < 0) throw new Error("Write was not acknowledged");
         var rest = JSON.parse(localStorage.getItem("dfQueue") || "[]");
-        rest.shift();
+        var index = rest.findIndex(function(item) { return payload.requestId ? item.requestId === payload.requestId : JSON.stringify(item) === JSON.stringify(payload); });
+        if (index >= 0) rest.splice(index, 1);
         localStorage.setItem("dfQueue", JSON.stringify(rest));
+        var callback = queueCallbacks[payload.requestId];
+        delete queueCallbacks[payload.requestId];
+        queueSending = false;
         paintQueue();
+        if (callback) callback.done();
         flush();
-    }).catch(function() {});
+    }).catch(function() {
+        queueSending = false;
+        Object.keys(queueCallbacks).forEach(function(id) {
+            var callback = queueCallbacks[id];
+            if (callback.failed) callback.failed();
+        });
+    });
 }
 
 function paintQueue() {
     var n = JSON.parse(localStorage.getItem("dfQueue") || "[]").length;
     var el = document.getElementById("queued");
     el.className = n ? "strip on" : "strip";
-    el.textContent = !n ? "" : n === 1 ? "תשובה אחת ממתינה לשליחה" : n + " תשובות ממתינות לשליחה";
+    el.textContent = !n ? "" : n === 1 ? "בקשה אחת ממתינה לשליחה" : n + " בקשות ממתינות לשליחה";
 }
 
 function paintNet() {

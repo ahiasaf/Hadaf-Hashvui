@@ -34,11 +34,11 @@ function legacyCopy(txt, done) {
 function regDone(txt, viaWa) {
     var sb = document.getElementById("r-send");
     if (sb) {
-        sb.textContent = UI.sent;
+        sb.textContent = viaWa ? "ההרשמה נשמרה במכשיר" : UI.sent;
         sb.className = "btn gr sent";
         sb.disabled = true;
     }
-    document.getElementById("r-done").innerHTML = (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' + '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' + 'href="https://wa.me/' + COORD_WA + "?text=" + encodeURIComponent(txt) + '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : "") + "";
+    document.getElementById("r-done").innerHTML = (viaWa ? '<p>ההרשמה נשמרה במכשיר. אפשר לשלוח אותה לרכז בוואטסאפ.</p>' : '<p>ההרשמה נשלחה ואושרה.</p>') + (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' + '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' + 'href="https://wa.me/' + COORD_WA + "?text=" + encodeURIComponent(txt) + '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : "") + "";
     renderHome();
     var code = myBoard();
     var inst = code && INSTITUTIONS.filter(function(i) {
@@ -47,6 +47,7 @@ function regDone(txt, viaWa) {
     if (inst) {
         document.getElementById("head-next").innerHTML = thanksHtml(code, inst.name);
     }
+    if (!document.getElementById("v-reg").classList.contains("on")) return;
     document.getElementById("r-done").scrollIntoView({
         behavior: "smooth",
         block: "start"

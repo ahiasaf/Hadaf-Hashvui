@@ -363,3 +363,78 @@
     animation: none;
   }
 }
+
+.tool-management .registration-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+.registration-form .rnav .btn.g {
+  background: transparent;
+  border: 1px solid var(--rule);
+  box-shadow: none;
+  margin: 0;
+  min-width: 88px;
+}
+.registration-form .rnav {
+  direction: rtl;
+  justify-content: start;
+}
+.registration-form #r-send {
+  min-height: 52px;
+  margin: 0;
+}
+.registration-form #r-send.is-busy {
+  opacity: 0.75;
+  cursor: wait;
+}
+.registration-form #r-done {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+.registration-form #r-done:not(:empty) {
+  padding-block: 12px;
+  animation: registration-enter 180ms ease;
+}
+
+.registration-form .rsubmit #r-send {
+  flex: 1;
+  width: auto;
+}
+
+/* Keep the action row still when the first typed quantity produces a total. */
+.registration-form #r-total > .total,
+.registration-form #r-total > .order-empty {
+  min-height: 144px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.registration-form #r-total > .order-empty {
+  padding: 20px;
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.registration-form #r-send.is-busy::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 8px;
+  vertical-align: middle;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: registration-spin 800ms linear infinite;
+}
+@keyframes registration-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

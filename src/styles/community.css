@@ -26,7 +26,7 @@
   width: 44px;
   height: 44px;
   padding: 0;
-  margin-top: 10px;
+  margin-top: 0;
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: 50%;
@@ -233,4 +233,30 @@
 }
 html:not(.js) [data-community-status] {
   display: none;
+}
+
+.community-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.community-copy {
+  flex: 1;
+  min-width: 0;
+}
+.community-heading .community-confirm,
+.community-heading .community-help {
+  flex: none;
+  margin-top: 0;
+}
+@media (max-width: 700px) {
+  .community-tabs button {
+    flex-direction: row;
+    text-align: start;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+  .community-heading {
+    gap: 12px;
+  }
 }

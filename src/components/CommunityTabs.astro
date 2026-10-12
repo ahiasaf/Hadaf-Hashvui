@@ -60,21 +60,12 @@ import "../styles/community.css";
     aria-labelledby="community-whatsapp-tab"
     tabindex="0"
   >
-    <div>
-      <p class="community-kicker">הדף של השבוע, ישר לוואטסאפ</p>
-      <h2>נשארים בעניינים</h2>
-      <p>עדכוני התוכנית והשאלון השבועי בקבוצה השקטה של הדף השבועי.</p>
-    </div>
-    <div class="community-action">
-      <a
-        class="button button-whatsapp"
-        data-community
-        hidden
-        target="_blank"
-        rel="noopener"
-      >
-        מצטרפים לקבוצה <span aria-hidden="true">↗</span>
-      </a>
+    <div class="community-heading">
+      <div class="community-copy">
+        <p class="community-kicker">הדף של השבוע, ישר לוואטסאפ</p>
+        <h2>נשארים בעניינים</h2>
+        <p>עדכוני התוכנית והשאלון השבועי בקבוצה השקטה של הדף השבועי.</p>
+      </div>
       <button
         type="button"
         class="community-confirm"
@@ -94,6 +85,17 @@ import "../styles/community.css";
           <path d="m7.5 12 3 3 6-6" />
         </svg>
       </button>
+    </div>
+    <div class="community-action">
+      <a
+        class="button button-whatsapp"
+        data-community
+        hidden
+        target="_blank"
+        rel="noopener"
+      >
+        מצטרפים לקבוצה <span aria-hidden="true">↗</span>
+      </a>
       <p data-community-status role="status">
         טוענים את קישור הקבוצה…
       </p>
@@ -109,10 +111,12 @@ import "../styles/community.css";
     aria-labelledby="community-reminders-tab"
     tabindex="0"
   >
-    <div>
-      <p class="community-kicker">התזכורת שלכם ללימוד</p>
-      <h2>זוכרים לפתוח את הדף</h2>
-      <p>מדריך קצר להפעלת ההתראות במכשיר ובדיקה שהן מגיעות.</p>
+    <div class="community-heading">
+      <div class="community-copy">
+        <p class="community-kicker">התזכורת שלכם ללימוד</p>
+        <h2>זוכרים לפתוח את הדף</h2>
+        <p>מדריך קצר להפעלת ההתראות במכשיר ובדיקה שהן מגיעות.</p>
+      </div>
     </div>
     <div class="community-action">
       <button
@@ -205,6 +209,12 @@ import "../styles/community.css";
         "serviceWorker" in navigator &&
         Notification.permission !== "denied";
       enable.hidden = !canEnable;
+      const helpSlot = root!.querySelector<HTMLElement>(
+        canEnable
+          ? "#community-reminders .community-heading"
+          : "#community-reminders .community-action",
+      )!;
+      if (help.parentElement !== helpSlot) helpSlot.append(help);
       help.className = canEnable ? "community-help" : "button button-gold";
       help.querySelector("span")!.textContent = canEnable
         ? "עזרה בהפעלת ההתראות"

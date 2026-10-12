@@ -36,6 +36,7 @@ function masOn(id) {
 }
 
 function masTog(id) {
+    regEdited();
     var l = (reg.mas || []).slice(), i = l.indexOf(id);
     if (i < 0) l.push(id); else l.splice(i, 1);
     reg.mas = l;
@@ -43,9 +44,9 @@ function masTog(id) {
 }
 
 function masRow() {
-    return '<div class="masbox"><div class="lbl">' + esc(UI.masLabel) + "</div>" + '<div class="mascards">' + TRACKS.map(function(t) {
+    return '<div class="masbox"><div class="lbl">' + esc(UI.masLabel) + "</div>" + '<div class="mascards" role="group" aria-label="' + esc(UI.masLabel) + '">' + TRACKS.map(function(t) {
         var on = masOn(t.id);
-        return '<button class="mascard' + (on ? " on" : "") + '" onclick="masTog(\'' + t.id + "')\">" + '<span class="v">' + (on ? "✓" : "") + "</span>" + "<b>מסכת " + esc(t.masechet) + "</b>" + "<small>" + t.dapim + " דפים</small></button>";
+        return '<button id="r-mas-' + t.id + '" aria-pressed="' + String(on) + '" class="mascard' + (on ? " on" : "") + '" onclick="masTog(\'' + t.id + "')\">" + '<span class="v">' + (on ? "✓" : "") + "</span>" + "<b>מסכת " + esc(t.masechet) + "</b>" + "<small>" + t.dapim + " דפים</small></button>";
     }).join("") + "</div>" + '<p class="hint">' + esc(UI.masHint) + "</p></div>";
 }
 
@@ -77,6 +78,8 @@ function foldInit() {
 }
 
 function wantToggle(e) {
+    if (regSending) return;
+    regEdited();
     if (e) e.stopPropagation();
     reg.want = !reg.want;
     var f = foldEl(), sw = document.getElementById("r-wantsw");
@@ -101,6 +104,7 @@ function wantToggle(e) {
 }
 
 function sizeSet(v) {
+    regEdited();
     reg.size = Math.max(0, parseInt(v, 10) || 0);
     renderReg();
 }
@@ -110,10 +114,12 @@ function sizeStep(d) {
 }
 
 function numRow(id, label, sub) {
-    return '<div class="num"><label class="lbl" for="r-' + id + '">' + esc(label) + "<small>" + esc(sub) + "</small></label>" + '<div class="ctl"><button aria-label="' + esc("הפחתת כמות " + label) + '" onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" inputmode="numeric" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" onchange="qtySet(\'' + id + "',this.value)\">" + "<button aria-label=\"" + esc("הגדלת כמות " + label) + "\" onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
+    return '<div class="num"><label class="lbl" for="r-' + id + '">' + esc(label) + "<small>" + esc(sub) + "</small></label>" + '<div class="ctl"><button aria-label="' + esc("הפחתת כמות " + label) + '" onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" inputmode="numeric" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" oninput="regEdited()" onchange="qtySet(\'' + id + "',this.value)\">" + "<button aria-label=\"" + esc("הגדלת כמות " + label) + "\" onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
 }
 
 function qtySet(id, v) {
+    if (regSending) return;
+    regEdited();
     reg.qty[id] = Math.max(0, parseInt(v, 10) || 0);
     var input = document.getElementById("r-" + id);
     if (input) input.value = reg.qty[id];
@@ -147,6 +153,7 @@ function qtyStep(id, d) {
 }
 
 function regSet(k, v) {
+    regEdited();
     reg[k] = v;
     if (k === "inst") renderReg();
 }
@@ -167,8 +174,23 @@ function pickInst() {
     });
 }
 
+var regSending = false, regAccepted = false, regRequest = null;
+function regEdited() {
+    if (!regAccepted) return;
+    regAccepted = false;
+    var button = document.getElementById("r-send"), status = document.getElementById("r-done");
+    if (button) { button.disabled = false; button.className = "btn gr"; button.textContent = UI.update; }
+    if (status) status.textContent = "יש שינויים שלא נשלחו.";
+}
+function regSendingState(pending) {
+    regSending = pending;
+    document.querySelectorAll("#reg-body input, #reg-body .pk, #reg-body .mascard, #reg-body .ctl button, #r-wantsw").forEach(function(control) { control.disabled = pending; });
+    var button = document.getElementById("r-send");
+    if (button) { button.disabled = pending; button.classList.toggle("is-busy", pending); }
+}
 function sendReg() {
-    var name = reg.inst === "other" ? reg.instOther : (INSTITUTIONS.filter(function(i) {
+    if (regSending) return;
+    var name = reg.inst === "other" ? String(reg.instOther || "").trim() : (INSTITUTIONS.filter(function(i) {
         return i.code === reg.inst;
     })[0] || {}).name;
     var e1 = document.getElementById("r-err1"), e3 = document.getElementById("r-err3");
@@ -224,6 +246,12 @@ function sendReg() {
     payload.qty = reg.qty;
     payload.seferName = orderSummary(reg.qty) || "לא נבחר";
     if (access) payload.access = access;
+    var identity = JSON.stringify(Object.keys(payload).filter(function(key) { return key !== "at"; }).map(function(key) { return [key, payload[key]]; }));
+    if (regRequest && regRequest.identity === identity) payload = regRequest.payload;
+    else {
+        payload.requestId = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+        regRequest = { identity: identity, payload: payload };
+    }
     localStorage.setItem("dfReg", JSON.stringify(payload));
     var all = Store.get("registrations", []) || [];
     all = all.filter(function(r) {
@@ -240,11 +268,22 @@ function sendReg() {
         var sent = {};
         for (var f in payload) sent[f] = payload[f];
         sent.cols = JSON.stringify(regCols(name, total, payload.seferName));
-        queue(sent);
-        regDone(txt, false);
-        setTimeout(function() {
-            codeCheck(reg.inst);
-        }, 2500);
+        regSendingState(true);
+        document.getElementById("r-send").textContent = "שומרים את ההרשמה…";
+        document.getElementById("r-done").textContent = "ממתינים לאישור השליחה.";
+        queue(sent, function() {
+            if (!regRequest || regRequest.payload.requestId !== sent.requestId) return;
+            regSendingState(false);
+            regAccepted = true;
+            regDone(txt, false);
+            setTimeout(function() { codeCheck(sent.code); }, 2500);
+        }, function() {
+            if (!regRequest || regRequest.payload.requestId !== sent.requestId) return;
+            regSendingState(false);
+            var button = document.getElementById("r-send"), status = document.getElementById("r-done");
+            if (button) button.textContent = "ניסיון שליחה נוסף";
+            if (status) status.textContent = "השליחה לא אושרה. ההרשמה נשמרה במכשיר וממתינה לשליחה. אפשר לנסות שוב.";
+        });
     } else {
         regDone(txt, true);
     }
