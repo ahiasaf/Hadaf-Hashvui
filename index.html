@@ -1154,6 +1154,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .my-note span{display:block;font-size:.82rem;font-weight:600;
   color:var(--ink-3);margin-top:4px;line-height:1.55}
 .my-note .btn{margin-top:12px;width:100%}
+/* הבקשה נשתלת כאן רק בשביל המסך שנפתח — לא בשביל שורת ההזמנה. */
+#my-ask #askrow{display:none!important}
 .my-wait{border-color:rgba(192,143,43,.45);background:#FFFAEE}
 .shr h3{margin:0;font-size:1rem;font-weight:800;letter-spacing:-.02em}
 .shr > p{margin:3px 0 11px;font-size:.82rem;font-weight:600;color:var(--ink-3);line-height:1.55}
@@ -2764,7 +2766,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.196';
+var APP_VERSION = '8.99.197';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4717,12 +4719,24 @@ function myNote() {
                /* חסום בדפדפן — הכפתור לא ישאל שוב. הדרך היא בהגדרות. */
                (window.APPX && APPX.perm && APPX.perm() === 'denied'
                  ? '<a href="hitraot.html" style="display:block;margin-top:8px;font-weight:800;' +
-                   'font-size:.86rem;color:var(--blue)">' + esc(UI.hitLink) + '</a>' : '')) + '</div>';
+                   'font-size:.86rem;color:var(--blue)">' + esc(UI.hitLink) + '</a>' : '')) +
+    '<div id="my-ask"></div></div>';
   var b = document.getElementById('my-note-go');
   /* ההפעלה היא שלב 3 של הבקשה האישית — אותו קוד, ולא עותק
      שני שיצא ממנו מסונכרן בחצי שנה. */
+  /* ============================================================
+     **הכפתור שלא הגיב.**
+     ============================================================
+     "הבחור לוחץ על הפעלת עדכונים וזה לא עובד." המסך של הבקשה
+     יושב במסך הבית (`#ask-here`), ומסך הבית מוסתר כשאזור
+     הניהול פתוח — ולכן הוא נפתח, אבל במקום שאי אפשר לראות.
+     גם מי שחסום להתראות לא ראה את ההוראות לשחרור, וגם מי
+     ששחרר לא ראה את כפתור האישור. משתילים אותו כאן, ליד
+     הכפתור, לפני שפותחים. ============================================ */
   if (b) b.onclick = function () {
-    if (typeof ASK !== 'undefined' && ASK.at) ASK.at(3);
+    if (typeof ASK === 'undefined' || !ASK.at) return;
+    askSetup('my-ask');
+    ASK.at(3);
   };
 }
 
@@ -4865,6 +4879,10 @@ function askSetup(where) {
        ומה שמחכה לו עכשיו הוא הלוח — בעמוד הראשי, מעל הבאנר
        של התלמידים. זו אינה קפיצה באמצע קריאה אלא המשך. */
     onClose: function () {
+      /* נפתח מכרטיס העדכונים — מציירים את האזור מחדש, כדי
+         שהכרטיס ייעלם אם העדכונים הופעלו. הבקשה חוזרת למסך
+         הבית מעצמה (`renderBoard`). */
+      if (document.getElementById('my-ask')) { renderMy(); return; }
       if (ASK.seen && ASK.seen()) setTimeout(hailBoard, 250);
       sayPaint();
     }
