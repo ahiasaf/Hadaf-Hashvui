@@ -2740,7 +2740,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.189';
+var APP_VERSION = '8.99.190';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18234,8 +18234,11 @@ function adminEntry() {
   if (Store.get('admOk')) {
     var to = admTakeHash();
     admTakeGo(); renderAdmin(); show('admin'); admEnterOnce(); admScrollTo(to);
-    /* האפליקציה כבר הייתה פתוחה — הרשימה במטמון עוד לא מכירה את מי שהתריע. */
-    if (to === 'ppl-acc') accLoad(); else if (to) stuckLoad();
+    /* האפליקציה כבר הייתה פתוחה — הרשימה במטמון עוד לא מכירה את מי שהתריע.
+       העוגן הוא 'hot-acc' (admTakeHash); בדיקה מול שם ישן השאירה את
+       הממתין החדש מחוץ למסך, עד רענון ידני. */
+    if (to === 'hot-acc') accLoad().then(function () { admScrollTo(to); });
+    else if (to) stuckLoad();
   }
   else show('gate');
 }
