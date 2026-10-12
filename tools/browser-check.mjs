@@ -334,12 +334,39 @@ try {
     .locator("#count")
     .filter({ hasText: /^קטע 2 מתוך/ })
     .waitFor();
+  await page.locator("#viewmenu > summary").press("Enter");
+  const textSize = await page
+    .locator("#chb")
+    .evaluate((e) =>
+      parseFloat(e.ownerDocument.defaultView.getComputedStyle(e).fontSize),
+    );
+  await page.locator("#czp").click();
+  assert.ok(
+    (await page
+      .locator("#chb")
+      .evaluate((e) =>
+        parseFloat(e.ownerDocument.defaultView.getComputedStyle(e).fontSize),
+      )) > textSize,
+  );
+  assert.notEqual(await page.locator("#viewmenu").getAttribute("open"), null);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator("#viewmenu").getAttribute("open"), null);
+  assert.ok(
+    await page
+      .locator("#viewmenu > summary")
+      .evaluate((e) => document.activeElement === e),
+  );
+  const countBeforeMenu = await page.locator("#count").textContent();
+  await page.locator("#viewmenu > summary").press("Space");
+  assert.equal(await page.locator("#count").textContent(), countBeforeMenu);
   await page.locator("#whole").click();
+  assert.equal(await page.locator("#viewmenu").getAttribute("open"), null);
   assert.ok(
     await page
       .locator("body")
       .evaluate((element) => element.classList.contains("whole")),
   );
+  await page.locator("#viewmenu > summary").click();
   await page.locator("#whole").click();
   let count = 0;
   while (

@@ -70,12 +70,19 @@
   <button id="prev" aria-label="הקטע הקודם" title="הקטע הקודם">
     <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <div class="tools" role="group" aria-label="תצוגה">
-    <button id="chtog">פירוש</button>
-    <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
-    <button id="dktog" style="display:none">איור</button>
-    <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
-  </div>
+  <!-- בטלפון מתגי התצוגה מקופלים לתפריט; במחשב ה-details נשאר
+       פתוח ושקוף והקבוצה נראית כשהייתה. ראו viewMenuInit(). -->
+  <details class="tools-menu" id="viewmenu">
+    <summary aria-label="אפשרויות תצוגה" title="תצוגה">
+      <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M2 4.5h12M2 11.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10.5" cy="4.5" r="2.2" fill="currentColor"/><circle cx="5.5" cy="11.5" r="2.2" fill="currentColor"/></svg>
+    </summary>
+    <div class="tools" role="group" aria-label="תצוגה">
+      <button id="chtog">פירוש</button>
+      <!-- מוסתר עד שיודעים שיש לדף הזה מצגת. ראו sideInit(). -->
+      <button id="dktog" style="display:none">איור</button>
+      <button id="whole" title="מעבר בין מיקוד לדף המלא">כל הדף</button>
+    </div>
+  </details>
   <span class="sp"></span>
   <button class="p" id="next">הבא ◂</button>
 </div></nav>

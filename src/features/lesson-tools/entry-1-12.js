@@ -69,3 +69,61 @@ function glowPaint() {
 }
 
 document.addEventListener('DOMContentLoaded', sheetInit);
+
+/* ============================================================
+   תפריט התצוגה (#viewmenu).
+   ============================================================
+   בטלפון שלושת מתגי התצוגה מקופלים לתפריט details שנפתח מעל
+   הסרגל: הקשה על summary פותחת (מקלדת: Enter/רווח, מובנה),
+   הקשה על מתג מפעילה אותו וסוגרת, והקשה מחוץ לתפריט סוגרת.
+   במחשב ה-details מוחזק פתוח ושקוף (display:contents) והקבוצה
+   נראית בדיוק כשהייתה. ES5 בלבד. */
+function viewMenuInit() {
+  var d = document.getElementById('viewmenu');
+  if (!d) return;
+  var mq = window.matchMedia('(max-width:820px)');
+  var zoom = document.querySelector('#chd .zoom');
+  var tools = d.querySelector('.tools');
+  var tc = document.querySelector('meta[name="theme-color"]');
+  var tc0 = tc ? tc.getAttribute('content') : '';
+  function fit() {
+    var phone = mq.matches;
+    d.open = !phone;
+    /* כפתורי הגודל עוברים לתפריט בטלפון וחוזרים למגירה במחשב:
+       אותו צומת DOM, אותם מזהים ומאזינים. */
+    if (zoom && tools) {
+      if (phone) {
+        if (zoom.parentNode !== tools) tools.appendChild(zoom);
+      } else if (zoom.parentNode !== document.getElementById('chd')) {
+        var chd = document.getElementById('chd');
+        if (chd) chd.insertBefore(zoom, document.getElementById('chclose'));
+      }
+    }
+    /* שורת המצב תואמת לסרגל: קלף בטלפון, כחול במחשב. */
+    if (tc) tc.setAttribute('content', phone ? '#FFFDF8' : tc0);
+  }
+  fit();
+  if (mq.addEventListener) mq.addEventListener('change', fit);
+  else if (mq.addListener) mq.addListener(fit);
+  document.addEventListener('click', function (e) {
+    if (!mq.matches || !d.open) return;
+    var t = e.target;
+    if (!d.contains(t)) { d.open = false; return; }
+    if (!t.closest) return;
+    if (t.closest('.zoom')) return;
+    if (t.closest('.tools button')) d.open = false;
+  });
+  d.addEventListener('keydown', function (e) {
+    /* Native menu/button activation must not advance the lesson. */
+    if (mq.matches && (e.key === ' ' || e.keyCode === 32)) e.stopPropagation();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!mq.matches || !d.open) return;
+    if (e.key === 'Escape' || e.keyCode === 27) {
+      d.open = false;
+      var s = d.querySelector('summary');
+      if (s) s.focus();
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', viewMenuInit);
