@@ -245,8 +245,6 @@ button.hero:active{transform:scale(.99)}
 .klink{display:block;margin-top:7px;background:none;border:0;padding:0;
   color:var(--blue);font-weight:800;font-size:.8rem;font-family:inherit;
   cursor:pointer;text-decoration:underline}
-.klink[disabled]{opacity:.6;cursor:default}
-.kstill{display:block;margin-top:6px;color:var(--ink-2)}
 /* פירוט של דרך לימוד — מסך משלו: חזרה, כותרת, והרשימה. */
 .wback{background:none;border:0;color:var(--blue);font-weight:800;
   font-size:.86rem;font-family:inherit;cursor:pointer;padding:0 0 10px}
@@ -745,9 +743,8 @@ function loadRoster() {
    "אחרי שהרכז אישר, מסך ההמתנה לא התעדכן." שני מקורות לקוד:
    האפליקציה שבמכשיר כבר קיבלה אותו (instCodes), או שאלה ישירה
    של השרת בשם המכשיר — אותה שאלה שהאפליקציה שואלת (`acc`).
-   כל חצי דקה כשהמסך מול העיניים, מיד כשחוזרים אליו, ובכפתור.
+   כל חצי דקה כשהמסך מול העיניים, ומיד כשחוזרים אליו.
    ============================================================ */
-var WAIT_REF = '';               /* '' · 'busy' · 'still' — הרענון הידני */
 function waitMe() {
   try {
     var m = JSON.parse(localStorage.getItem('df:head') || 'null');
@@ -774,12 +771,6 @@ function waitTry() {
     try { localStorage.setItem(accKey(), k2); } catch (e) {}
     return loadRoster().then(function () { draw(); return true; });
   });
-}
-function waitRefresh() {
-  if (WAIT_REF === 'busy') return;
-  WAIT_REF = 'busy'; draw();
-  waitTry().then(function (ok) { WAIT_REF = ok ? '' : 'still'; draw(); },
-                 function () { WAIT_REF = 'still'; draw(); });
 }
 if (!ALL) {
   setInterval(function () {
@@ -1907,12 +1898,9 @@ function keyHtml() {
      דקה (ראו waitTry).
      ============================================================ */
   if (!acc) {
+    /* בלי כפתור רענון — הבדיקה העצמית כל חצי דקה (waitTry). */
     return '<div class="keyline">' + esc(UI.bdWait || '') +
-      (rosterMsg ? '<br><b>' + esc(rosterMsg) + '</b>' : '') +
-      '<button class="klink" id="kre"' + (WAIT_REF === 'busy' ? ' disabled' : '') + '>' +
-      esc(WAIT_REF === 'busy' ? UI.bdWaitBusy : UI.bdWaitRe) + '</button>' +
-      (WAIT_REF === 'still' ? '<span class="kstill">' + esc(UI.bdWaitStill) + '</span>' : '') +
-      '</div>';
+      (rosterMsg ? '<br><b>' + esc(rosterMsg) + '</b>' : '') + '</div>';
   }
   return '<div class="keyline">' + esc(rosterMsg || 'טוען את הרשימה…') +
     (rosterMsg ? '<button class="klink" id="kask">הזנת הקוד ידנית</button>' : '') +
@@ -2178,7 +2166,6 @@ function soonLine() {
 
 function wire() {
   var ka = $('kask'); if (ka) ka.onclick = keyAsk;
-  var kr = $('kre'); if (kr) kr.onclick = waitRefresh;
   var wb = $('wback'); if (wb) wb.onclick = function () {
     if (WAY_FROM && history.length > 1) { history.back(); return; }
     go('');
