@@ -4268,14 +4268,13 @@ function landDemo() {
   var box = $('demo'), f = $('demo-frame');
   if (!box || !f || f.getAttribute('src')) return;
   if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
-  var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
-  var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
-  var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
-  if (!d) return;
+  /* תמיד אותו דף — ראו DEMO_UNIT ב-data.js. */
+  var U = window.DEMO_UNIT;
+  if (!U) return;
   box.hidden = false;
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
-  f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
-          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
+  f.src = base + 'learn.html?mas=' + encodeURIComponent(U.mas) +
+          '&daf=' + encodeURIComponent(U.daf) + '&amud=' + U.am + '&demo=1&embed=1&from=join' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   window.addEventListener('message', function (e) {

@@ -2779,7 +2779,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.199';
+var APP_VERSION = '8.99.200';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3963,9 +3963,10 @@ function tzevetUrl(code) {
    הכתובת אינה מוצגת בשום מקום והיא אינה נשלחת לאיש — זו פעולה
    שפותחים אצלנו, על מקרן או ביד, ולא קישור. */
 function demoUrl(mode) {
+  var U = window.DEMO_UNIT || { mas: 'taanit', daf: 'ב', am: 1 };
   return joinUrl('').replace('join.html', 'learn.html') +
-         '?mas=taanit&daf=' + encodeURIComponent('ב') +
-         '&' + (mode || 'demo') + '=1';
+         '?mas=' + encodeURIComponent(U.mas) + '&daf=' + encodeURIComponent(U.daf) +
+         '&amud=' + U.am + '&' + (mode || 'demo') + '=1';
 }
 
 /* הקוד שמופץ. 'other' הוא ישיבה שאינה ברשימה ואין לה קוד —

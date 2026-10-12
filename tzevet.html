@@ -1037,14 +1037,13 @@ function demoBox() {
   /* במצב עריכת מלל אין הדגמה: היא אינה נושאת מלל שנערך,
      והחלון רק היה גונב את המקום ממה שכן. */
   if (/[?&]tedit=1/.test(location.search)) { box.hidden = true; return; }
-  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
-  var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
-  var am = (typeof LAm === 'function') ? LAm(track, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
-  /* אין דף לשבוע הזה — אין מה להדגים, והחלון פשוט אינו מוצג. */
-  if (!d) { box.hidden = true; return; }
+  /* תמיד אותו דף — ראו DEMO_UNIT ב-data.js. לא הדף של השבוע:
+     עליו לא הוקלט התסריט ולא סודרה המצגת. */
+  var U = window.DEMO_UNIT;
+  if (!U) { box.hidden = true; return; }
 
-  f.src = base() + 'learn.html?mas=' + encodeURIComponent(track) +
-          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=tzevet' +
+  f.src = base() + 'learn.html?mas=' + encodeURIComponent(U.mas) +
+          '&daf=' + encodeURIComponent(U.daf) + '&amud=' + U.am + '&demo=1&embed=1&from=tzevet' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   /* אין כאן יותר "מתי היא עולה": היא שם מההתחלה, ומתחילה
