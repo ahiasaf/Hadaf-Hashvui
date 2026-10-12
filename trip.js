@@ -139,7 +139,25 @@ var TRIP_UI = (function () {
          מד השלבים של האשף הוא הסימן שהוא בפנים: הוא מצויר רק
          משלב 1 והלאה, ולא במסך שמציע להתחיל.
          ============================================================ */
-      busy:function () { return !!document.querySelector('#as-body .as-bar'); },
+      /* ============================================================
+         **האשף פתוח — לא "קיים במסמך".**
+         ============================================================
+         "תקוע על השלב הזה." האשף נשאר במסמך גם אחרי שנסגר (הוא
+         רק מוסתר), ולכן הבדיקה הישנה — יש מד שלבים — הייתה אמת
+         לנצח: מי שעבר את האשף בלי להפעיל עדכונים נשאר מול "עקבו
+         אחרי ההוראות שלמטה", ולמטה לא היה שום אשף.
+         ============================================================ */
+      busy:function () {
+        var sh = document.getElementById('asksheet');
+        return !!(sh && !sh.hidden && sh.querySelector('#as-body .as-bar'));
+      },
+      /* האשף נסגר והעדכונים עדיין כבויים — נשאר רק הכפתור
+         "הפעלת עדכונים" באזור הניהול. מצביעים עליו. */
+      off:function () {
+        var b = document.getElementById('my-note-go');
+        return !!(b && b.offsetParent);
+      },
+      offSel:'#my-note-go',
       enter:function () {
         /* המסך הזה חי בעמוד הראשי בלבד. מי שעומד בעמוד אחר
            כשהשלב מתחיל מקבל הוראה שמצביעה על כפתור שאינו
@@ -176,7 +194,8 @@ var TRIP_UI = (function () {
   function mode() {
     var s = step();
     return st.i + ':' + (st.hail ? 'h' : '') +
-           ':' + (!st.hail && s.busy && s.busy() ? 'b' : '');
+           ':' + (!st.hail && s.busy && s.busy() ? 'b' : '') +
+           (!st.hail && s.off && s.off() ? 'o' : '');
   }
 
   /* ---------- העיצוב ----------
@@ -379,6 +398,9 @@ var TRIP_UI = (function () {
        להסתכל למטה.
        ============================================================ */
     var busy = !st.hail && s.busy && s.busy();
+    var off = !st.hail && !busy && s.off && s.off();
+    var sel = off ? s.offSel : s.sel;
+    var tk = busy ? s.k + 'busy' : off ? s.k + 'off' : s.k;
 
     /* ============================================================
        הבדיקה האחרונה מנהלת מסך משלה.
@@ -389,8 +411,8 @@ var TRIP_UI = (function () {
     if (s.test && !st.hail) { paintTest(el, bars); return; }
 
     el.className = st.hail ? 'hail' : '';
-    var ttl = st.hail ? t(s.hail) : t(busy ? s.k + 'busy' : s.k);
-    var sub = st.hail ? t(s.hail + 'B') : t(busy ? s.k + 'busyB' : s.k + 'b');
+    var ttl = st.hail ? t(s.hail) : t(tk);
+    var sub = st.hail ? t(s.hail + 'B') : t(busy || off ? tk + 'B' : s.k + 'b');
     /* כפתור רק כשיש מה ללחוץ עליו: היכרות, ברכה, וסיום.
        במשימה אין כפתור — מה שמקדם אותה הוא לעשות אותה.
 
@@ -412,7 +434,7 @@ var TRIP_UI = (function () {
        ומי שעינו נפלה על האפליקציה מזהה את מה שראה למעלה.
        הוא נקרא מהאלמנט האמיתי, ולכן אינו יכול להתיישן.
        ============================================================ */
-    var mini = (!st.hail && !busy && s.sel) ? miniOf(s.sel) : '';
+    var mini = (!st.hail && !busy && sel) ? miniOf(sel) : '';
 
     el.innerHTML = '<div class="in">' +
       '<div class="bars">' + bars + '</div>' +
@@ -446,13 +468,13 @@ var TRIP_UI = (function () {
       aimed = mode();
       if (first && s.enter && !st.hail) { try { s.enter(); } catch (e) {} }
       setTimeout(function () {
-        aim((st.hail || busy) ? '' : s.sel);
+        aim((st.hail || busy) ? '' : sel);
         /* המזערה נקראת מהאלמנט, ולכן היא מצוירת אחרי שהוא
            הגיע למסך — ולא לפניו. */
         var m = $('trip');
-        if (m && !st.hail && !busy && s.sel) {
+        if (m && !st.hail && !busy && sel) {
           var box = m.querySelector('.mini');
-          var now = miniOf(s.sel);
+          var now = miniOf(sel);
           /* לפני ההוראה ולא אחריה — אותו סדר של הציור הראשון. */
           if (now && !box) {
             var line = m.querySelector('.txt .s');
