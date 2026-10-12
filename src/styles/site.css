@@ -408,6 +408,7 @@ h1 {
 }
 .phases {
   --progress: 0;
+  isolation: isolate;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -420,6 +421,7 @@ h1 {
 .phases::after {
   content: "";
   position: absolute;
+  z-index: 0;
   top: 8px;
   height: 3px;
   inset-inline: 12.5%;
@@ -441,6 +443,7 @@ html:not(.js) .phases::after {
 }
 .phases li {
   position: relative;
+  z-index: 1;
   text-align: center;
   padding: 30px 6px 0;
   min-width: 0;

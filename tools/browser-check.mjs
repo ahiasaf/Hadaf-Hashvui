@@ -224,6 +224,26 @@ try {
       }
     }
     await page.goto(base);
+    await page.locator("[data-institutions]").scrollIntoViewIfNeeded();
+    await page
+      .locator("[data-inst-status][hidden]")
+      .waitFor({ state: "attached" });
+    assert.equal(await page.locator("[data-inst-status]").textContent(), "");
+    await page.locator(".phases").scrollIntoViewIfNeeded();
+    assert.ok(
+      await page.locator(".phases li i").evaluateAll((dots) =>
+        dots.every((dot) => {
+          const box = dot.getBoundingClientRect();
+          return (
+            document.elementFromPoint(
+              box.x + box.width / 2,
+              box.y + box.height / 2,
+            ) === dot
+          );
+        }),
+      ),
+      `Timeline rail paints over the dots at ${width}px`,
+    );
     assert.equal(await page.locator(".lesson-actions a").count(), 1);
     assert.equal(await page.locator(".track-switch a").count(), 0);
     assert.equal(await page.locator('a[href="/join"]').count(), 1);

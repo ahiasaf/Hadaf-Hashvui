@@ -2,7 +2,6 @@ type ReadSheet = (tab: string, fresh?: boolean) => Promise<string[][]>;
 type Copy = {
   error: string;
   loading: string;
-  live: string;
   empty: string;
   open: string;
 };
@@ -24,6 +23,7 @@ export function initializeInstitutions(read: ReadSheet) {
     if (pending) return;
     pending = true;
     retry.hidden = true;
+    status.hidden = false;
     status.textContent = copy.loading;
     root!.setAttribute("aria-busy", "true");
     try {
@@ -55,7 +55,8 @@ export function initializeInstitutions(read: ReadSheet) {
       list.classList.add("is-in");
       root!.querySelector<HTMLElement>("[data-inst-count]")!.textContent =
         joined.length + " מתוך " + total;
-      status.textContent = joined.length ? copy.live : copy.empty;
+      status.textContent = joined.length ? "" : copy.empty;
+      status.hidden = joined.length > 0;
     } catch {
       status.textContent = copy.error;
       retry.hidden = false;
