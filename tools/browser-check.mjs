@@ -1278,6 +1278,11 @@ try {
     1,
   );
   assert.equal(await legacyPage.locator("#v-home.on").count(), 0);
+  assert.equal(
+    new URL(await legacyPage.evaluate(() => window.joinUrl("halihot")))
+      .pathname,
+    "/join.html",
+  );
   await legacyPage.locator("#r-step-1 .rnav button").click();
   await legacyPage.locator("#r-err1:not([hidden])").waitFor();
   assert.equal(await legacyPage.locator("#r-step-1.on").count(), 1);
@@ -1285,6 +1290,12 @@ try {
   await legacyPage.locator("#sheet-l .it").first().click();
   await legacyPage.locator("#r-step-1 .rnav button").click();
   await legacyPage.locator("#r-step-2.on").waitFor();
+  assert.equal(
+    await legacyPage
+      .locator('[data-reg-stage="2"]')
+      .getAttribute("aria-current"),
+    "step",
+  );
   await legacyPage.locator("#r-step-2 .mascard").first().click();
   assert.equal(await legacyPage.locator("#r-step-2.on .mascard.on").count(), 1);
   await legacyPage.locator("#r-step-2 .rnav .gd").click();
@@ -1322,12 +1333,25 @@ try {
     );
   }
   await legacyPage.setViewportSize({ width: 390, height: 844 });
+  await legacyPage.locator(".registration-catalog > summary").click();
   await legacyPage.locator(".order-preview summary").first().click();
   assert.equal(await legacyPage.locator(".order-preview[open]").count(), 1);
   await legacyPage.locator(".order-preview summary").first().click();
   await legacyPage.locator("#r-send").click();
   await legacyPage.locator("#r-err3:not([hidden])").waitFor();
+  await legacyPage.locator(".order-preview summary").first().click();
+  await legacyPage.evaluate(() => {
+    window.__quantityInput = document.querySelector("#r-fold input");
+  });
   await legacyPage.locator("#r-fold .ctl button").nth(1).click();
+  assert.equal(
+    await legacyPage.evaluate(
+      () => window.__quantityInput === document.querySelector("#r-fold input"),
+    ),
+    true,
+  );
+  assert.equal(await legacyPage.locator(".order-preview[open]").count(), 1);
+  assert.match(await legacyPage.locator("#r-total").innerText(), /5 גמרות/);
   assert.equal(await legacyPage.locator("#r-step-3.on").count(), 1);
   assert.equal(
     await legacyPage.locator("#r-fold input").first().inputValue(),

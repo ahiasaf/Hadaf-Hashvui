@@ -37,6 +37,14 @@ function regGo(n, focusEl) {
         if (err) err.hidden = true;
     }
     regStage = n;
+    if (n === 3) {
+        var review = document.querySelector(".registration-review");
+        if (review) {
+            var school = reg.inst === "other" ? reg.instOther : (INSTITUTIONS.filter(function(item) { return item.code === reg.inst; })[0] || {}).name;
+            review.querySelector("b").textContent = school || "";
+            review.querySelector("p").textContent = (reg.mas || []).map(function(id) { return trackById(id) ? "מסכת " + trackById(id).masechet : id; }).join(" · ") || "המסכת תיבחר בהמשך";
+        }
+    }
     for (var i = 1; i <= 3; i++) {
         var s = document.getElementById("r-step-" + i);
         if (s) s.className = "rstep" + (i === n ? " on" : "");
@@ -44,6 +52,11 @@ function regGo(n, focusEl) {
     var f = document.getElementById("rp-fill"), l = document.getElementById("rp-lbl");
     if (f) f.style.width = Math.round(n * 100 / 3) + "%";
     if (l) l.textContent = "שלב " + n + " מתוך 3 · " + REG_STEP_NAMES[n - 1];
+    document.querySelectorAll("[data-reg-stage]").forEach(function(item) {
+        var step = Number(item.getAttribute("data-reg-stage"));
+        item.className = step < n ? "is-done" : step === n ? "is-current" : "";
+        if (step === n) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
+    });
     var t = focusEl || document.getElementById("r-step-" + n);
     if (t && t.focus) t.focus();
     var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -58,7 +71,9 @@ function regProg() {
 }
 
 function regStep(n, inner) {
-    return '<section class="rstep' + (regStage === n ? " on" : "") + '" id="r-step-' + n + '" tabindex="-1" aria-label="' + esc(REG_STEP_NAMES[n - 1]) + '">' + inner + "</section>";
+    var titles = [ "איזו ישיבה מצטרפת?", "מה לומדים השנה?", "גמרות ללימוד שלכם" ];
+    var notes = [ "בוחרים ישיבה וממלאים פרטי קשר, אם תרצו.", "אפשר לבחור מסכת אחת או ללמוד את שתיהן.", "ההזמנה לבחירתכם. אפשר להירשם גם בלי להזמין." ];
+    return '<section class="rstep' + (regStage === n ? " on" : "") + '" id="r-step-' + n + '" tabindex="-1" aria-label="' + esc(REG_STEP_NAMES[n - 1]) + '">' + '<header class="registration-step-title"><h2>' + titles[n - 1] + '</h2><p>' + notes[n - 1] + '</p></header>' + inner + "</section>";
 }
 
 function regSaved() {
@@ -193,15 +208,20 @@ function renderReg() {
         reg.want = saved.want != null ? !!saved.want : regTotalQty(reg.qty) > 0;
         reg.instOther = saved.instOther || "";
     }
-    var instName = reg.inst === "other" ? "ישיבה אחרת" : (INSTITUTIONS.filter(function(i) {
+    var instName = reg.inst === "other" ? reg.instOther || "ישיבה אחרת" : (INSTITUTIONS.filter(function(i) {
         return i.code === reg.inst;
     })[0] || {}).name || "";
     var whoBlock = '<div class="foldh" id="r-who-step" style="margin-top:22px">' + esc(UI.s4) + "</div>" + pkField("", instName, UI.instLabel, "pickInst()") + '<div class="fld" id="r-other" style="display:' + (reg.inst === "other" ? "block" : "none") + '">' + '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) + '" onchange="regSet(\'instOther\',this.value)"></div>';
-    var step1 = (saved ? "" : stuHint()) + fitBlock() + whoBlock + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="jumpTo(\'r-who-step\');return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
+    var step1 = whoBlock + '<div class="registration-contact"><div class="fld"><label for="r-contact">איש קשר (לא חובה)</label><input id="r-contact" autocomplete="name" value="' + esc(reg.who) + '" oninput="regSet(\'who\',this.value)"></div><div class="fld"><label for="r-contact-phone">טלפון (לא חובה)</label><input id="r-contact-phone" type="tel" autocomplete="tel" dir="ltr" value="' + esc(reg.phone) + '" oninput="regSet(\'phone\',this.value)"></div></div>'  + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="regGo(1, document.querySelector(\'#r-step-1 .pk\'));return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
     var step2 = sizeRow() + masRow() + '<div class="rnav"><button class="btn g" onclick="regGo(1)">→ חזרה</button>' + '<button class="btn gd" onclick="regGo(3)">המשך</button></div>';
-    var step3 = (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + "</div>" + orderRows() + regTotal() + "</div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div class="rnav"><button class="btn g" onclick="regGo(2)">→ חזרה</button></div>' + '<div id="r-done"></div>' + '<div id="head-next"></div>';
-    var h = regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3);
+    var review = '<div class="registration-review"><span>ההרשמה שלכם</span><b>' + esc(instName) + '</b><p>' + esc((reg.mas || []).map(function(id) { return trackById(id) ? "מסכת " + trackById(id).masechet : id; }).join(" · ") || "המסכת תיבחר בהמשך") + '</p></div>';
+    var step3 = review + (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + orderRows() + '<div id="r-total" aria-live="polite">' + regTotal() + '</div><details class="registration-catalog"><summary>סוגי הגמרות ודוגמאות</summary>' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + '</div></details></div></div>' + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button>" + '<div class="rnav"><button class="btn g" onclick="regGo(2)">→ חזרה</button></div>' + '<div id="r-done"></div>' + '<div id="head-next"></div>';
+    var intro = '<header class="registration-intro"><p>לצוותי הישיבות</p><h1>מצטרפים לשנה של לימוד.</h1><span>הרשמת ישיבה והזמנת גמרות</span></header>';
+    var rail = '<aside class="registration-rail"><ol>' + REG_STEP_NAMES.map(function(name, i) { return '<li data-reg-stage="' + (i + 1) + '" class="' + (i + 1 < regStage ? 'is-done' : i + 1 === regStage ? 'is-current' : '') + '"' + (i + 1 === regStage ? ' aria-current="step"' : '') + '><span>' + (i + 1) + '</span><b>' + name + '</b></li>'; }).join('') + '</ol><details class="registration-help"><summary>למי התוכנית מתאימה?</summary>' + fitBlock() + '</details></aside>';
+    var h = intro + '<div class="registration-layout">' + rail + '<div class="registration-form">' + regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3) + '</div></div>';
+    var focused = document.activeElement, focusId = focused && focused.id;
     document.getElementById("reg-body").innerHTML = h;
+    if (focusId) { var replacement = document.getElementById(focusId); if (replacement) replacement.focus({ preventScroll: true }); }
     foldInit();
 }
 

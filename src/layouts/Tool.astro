@@ -1,5 +1,6 @@
 ---
 import "../styles/specialist.css";
+import registrationStyles from "../styles/registration.css?url";
 import ToolBrand from "../components/ToolBrand.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 
@@ -64,6 +65,9 @@ const view = views[`../features/${name}/view.html`] as string;
     <Fragment set:html={page.links.join("\n")} />
     <link rel="stylesheet" href={`/tool-styles/${name}.css`} />
     <link rel="stylesheet" href="/mobile.css" />
+    {name === "management" && (
+      <link rel="stylesheet" href={registrationStyles} />
+    )}
   </head>
   <body class={`tool tool-${name}`}>
     {name !== "lesson-tools" && <ToolBrand />}

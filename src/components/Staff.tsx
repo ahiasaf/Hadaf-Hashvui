@@ -12,6 +12,7 @@ export default function Staff({
   const [inst, setInst] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [fallback, setFallback] = useState(false);
   useEffect(() => {
     setInst(new URLSearchParams(location.search).get("inst") || "");
   }, []);
@@ -21,9 +22,26 @@ export default function Staff({
       await navigator.clipboard.writeText(location.origin + "/join" + query);
       setCopied(true);
     } catch {
-      setError("אפשר להעתיק את כתובת ההרשמה המוצגת כאן.");
+      setFallback(true);
+      setError("אפשר לבחור ולהעתיק את הקישור בשדה שנפתח.");
     }
   }
+  async function share() {
+    const url = location.origin + "/join" + query;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "הדף השבועי",
+          text: "מצטרפים ללימוד השבועי",
+          url,
+        });
+      } catch (failure) {
+        if (!(failure instanceof DOMException && failure.name === "AbortError"))
+          await copy();
+      }
+    } else await copy();
+  }
+  const name = institutions.find((item) => item.code === inst)?.name;
   return (
     <section className="workspace">
       <div className="page-intro">
@@ -38,6 +56,8 @@ export default function Staff({
           onChange={(event) => {
             setInst(event.target.value);
             setCopied(false);
+            setError("");
+            setFallback(false);
           }}
         >
           <option value="">בחירת ישיבה</option>
@@ -71,18 +91,75 @@ export default function Staff({
             כל תוכנית הלימוד
           </a>
         </section>
-        <section className="surface">
+        <section className="surface school-invitation">
+          <span className="invitation-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="28"
+              height="28"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            >
+              <path d="M4 5h16v14H4zM4 6l8 7 8-7" />
+              <path d="M8 19v2m8-2v2" />
+            </svg>
+          </span>
           <h2>מצרפים את התלמידים</h2>
-          <p>שלחו את הקישור בכיתה או בקבוצת הישיבה.</p>
-          <a className="button button-blue" href={"/join" + query}>
-            פתיחת ההרשמה
-          </a>
-          <button className="button button-outline" onClick={copy}>
-            {copied ? "✓ הקישור הועתק" : "העתקת קישור לתלמידים"}
-          </button>
-          <code className="share-url" dir="ltr">
-            /join{query}
-          </code>
+          <p>{name ? "הזמנה ללימוד של " + name : "הזמנה ללימוד השבועי"}</p>
+          <div className="invitation-actions">
+            <button className="button button-blue" onClick={share}>
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <path d="M12 16V3m-5 5 5-5 5 5M5 12v8h14v-8" />
+              </svg>
+              שיתוף הזמנה
+            </button>
+            <button className="button button-outline" onClick={copy}>
+              {copied ? "הקישור הועתק" : "העתקת קישור לתלמידים"}
+            </button>
+          </div>
+          <div className="invitation-secondary">
+            <a
+              href={
+                "https://wa.me/?text=" +
+                encodeURIComponent(
+                  "מצטרפים לדף השבועי " +
+                    (typeof location !== "undefined" ? location.origin : "") +
+                    "/join" +
+                    query,
+                )
+              }
+              target="_blank"
+              rel="noopener"
+            >
+              שליחה בוואטסאפ
+            </a>
+            <a href={"/join" + query}>פתיחת ההרשמה</a>
+          </div>
+          <p className="invitation-feedback" role="status">
+            {copied
+              ? "מוכן לשליחה בכיתה או בקבוצת הישיבה."
+              : "ההזמנה תפתח את ההרשמה עם הישיבה שבחרתם."}
+          </p>
+          {fallback && (
+            <label>
+              קישור להעתקה
+              <input
+                readOnly
+                dir="ltr"
+                value={location.origin + "/join" + query}
+                onFocus={(event) => event.target.select()}
+              />
+            </label>
+          )}
           {error && <p role="alert">{error}</p>}
         </section>
         <section className="surface">

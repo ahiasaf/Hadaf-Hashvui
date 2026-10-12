@@ -10,14 +10,14 @@ function regTotal() {
     var picked = SFARIM.filter(function(s) {
         return sefTotal(s.id) > 0;
     });
-    if (!picked.length) return "";
+    if (!picked.length) return '<p class="order-empty">בחרו כמויות כדי לראות את סיכום ההזמנה.</p>';
     var sum = 0, save = 0;
     picked.forEach(function(s) {
         var n = sefTotal(s.id), p = priceOf(s.id);
         sum += n * p.price;
         save += n * (p.list - p.price);
     });
-    return '<div class="total"><div class="n">' + shek(sum) + "</div>" + (save ? '<div class="t">' + fill(UI.saving, {
+    return '<div class="total"><span>' + regTotalQty() + ' גמרות</span><div class="n">' + shek(sum) + "</div>" + (save ? '<div class="t">' + fill(UI.saving, {
         sum: shek(save)
     }) + "</div>" : "") + "</div>";
 }
@@ -84,6 +84,10 @@ function wantToggle(e) {
     if (!f) return;
     f.inert = !reg.want;
     f.setAttribute("aria-hidden", String(!reg.want));
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        f.style.maxHeight = reg.want ? "none" : "0";
+        return;
+    }
     if (reg.want) {
         f.style.maxHeight = f.scrollHeight + "px";
         setTimeout(function() {
@@ -106,12 +110,36 @@ function sizeStep(d) {
 }
 
 function numRow(id, label, sub) {
-    return '<div class="num"><label class="lbl" for="r-' + id + '">' + esc(label) + "<small>" + esc(sub) + "</small></label>" + '<div class="ctl"><button onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" inputmode="numeric" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" onchange="qtySet(\'' + id + "',this.value)\">" + "<button onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
+    return '<div class="num"><label class="lbl" for="r-' + id + '">' + esc(label) + "<small>" + esc(sub) + "</small></label>" + '<div class="ctl"><button aria-label="' + esc("הפחתת כמות " + label) + '" onclick="qtyStep(\'' + id + "',-5)\">−</button>" + '<input type="tel" inputmode="numeric" id="r-' + id + '" value="' + (reg.qty[id] || 0) + '" onchange="qtySet(\'' + id + "',this.value)\">" + "<button aria-label=\"" + esc("הגדלת כמות " + label) + "\" onclick=\"qtyStep('" + id + "',5)\">+</button></div></div>";
 }
 
 function qtySet(id, v) {
     reg.qty[id] = Math.max(0, parseInt(v, 10) || 0);
-    renderReg();
+    var input = document.getElementById("r-" + id);
+    if (input) input.value = reg.qty[id];
+    var total = document.getElementById("r-total");
+    if (total) total.innerHTML = regTotal();
+    var books = document.querySelector("#r-fold .order-books");
+    if (books) {
+        var holder = document.createElement("div");
+        holder.innerHTML = recBlocks();
+        var next = holder.firstElementChild;
+        books.querySelectorAll("details").forEach(function(detail, i) {
+            var previews = next.querySelectorAll("details");
+            if (previews[i]) previews[i].open = detail.open;
+        });
+        books.replaceWith(next);
+    }
+    TRACKS.forEach(function(track) {
+        SFARIM.forEach(function(sefer) {
+            var label = document.querySelector('label[for="r-' + qk(track.id, sefer.id) + '"] small');
+            if (label) label.textContent = shek(priceOf(sefer.id).price) + " לחוברת";
+        });
+    });
+    var fold = foldEl();
+    if (fold && reg.want && fold.style.maxHeight !== "none") fold.style.maxHeight = fold.scrollHeight + "px";
+    var error = document.getElementById("r-err3");
+    if (error) error.hidden = true;
 }
 
 function qtyStep(id, d) {
@@ -234,8 +262,7 @@ function regCols(name, total, summary) {
 }
 
 function joinUrl(code) {
-    var base = location.href.split("#")[0].split("?")[0].replace(/(index\.html)?$/, "").replace(/\/admin\/?$/, "/");
-    return base + "join.html" + (code ? "?inst=" + encodeURIComponent(code) : "");
+    return location.origin + "/join.html" + (code ? "?inst=" + encodeURIComponent(code) : "");
 }
 
 function dadUrl() {
@@ -310,7 +337,7 @@ function linkBlock(title) {
     });
     return '<div class="linkbox">' + "<b>" + esc(fill(title, {
         inst: name
-    })) + "</b>" + '<div class="lstep">' + esc(UI.linkStep1) + "</div>" + "<p>" + esc(UI.linkNote) + "</p>" + '<div class="url">' + esc(url) + "</div>" + '<div class="acts">' + '<a class="btn gr" href="https://wa.me/?text=' + encodeURIComponent(wa) + '" ' + 'target="_blank" rel="noopener">' + esc(UI.linkWaBtn) + "</a>" + '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' + esc(UI.linkCopy) + "</button>" + "</div>" + waHow(UI.waHowKids) + '<div class="lstep">' + esc(UI.linkStep3) + "</div>" + "<p>" + esc(UI.boardNote) + "</p>" + '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '">' + esc(UI.boardBtn) + "</a>" + "</div>";
+    })) + "</b>" + '<div class="lstep">' + esc(UI.linkStep1) + "</div>" + "<p>" + esc(UI.linkNote) + "</p>" + '<a class="registration-invite" href="' + esc(url) + '">פתיחת ההזמנה לתלמידים</a>' + '<div class="acts">' + '<a class="btn gr" href="https://wa.me/?text=' + encodeURIComponent(wa) + '" ' + 'target="_blank" rel="noopener">' + esc(UI.linkWaBtn) + "</a>" + '<button class="cp" id="lnk-cp" onclick="copyJoin(this)">' + esc(UI.linkCopy) + "</button>" + "</div>" + waHow(UI.waHowKids) + '<div class="lstep">' + esc(UI.linkStep3) + "</div>" + "<p>" + esc(UI.boardNote) + "</p>" + '<a class="btn p" style="margin-top:11px" href="' + esc(boardUrl(code)) + '">' + esc(UI.boardBtn) + "</a>" + "</div>";
 }
 
 function copyAny(btn, url) {

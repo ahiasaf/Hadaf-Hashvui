@@ -1,0 +1,365 @@
+/* Registration follows the public paper, navy and gold theme. */
+.tool-management #v-reg {
+  max-width: 1040px;
+}
+.tool-management #v-reg #reg-body {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.registration-intro {
+  padding: 8px 0 32px;
+  border-bottom: 1px solid var(--rule);
+}
+.registration-intro > p {
+  color: var(--gold-t);
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.registration-intro h1 {
+  color: var(--blue-d);
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+}
+.registration-intro > span {
+  color: var(--ink-2);
+}
+.registration-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 48px;
+  padding-top: 32px;
+}
+.registration-rail ol {
+  display: grid;
+  gap: 24px;
+  list-style: none;
+}
+.registration-rail li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-2);
+  transition: color 240ms ease;
+}
+.registration-rail li > span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--surface);
+  transition:
+    background 240ms ease,
+    box-shadow 240ms ease;
+}
+.registration-rail .is-current {
+  color: var(--blue-d);
+}
+.registration-rail .is-current > span {
+  background: var(--blue-d);
+  color: white;
+  box-shadow: 0 0 0 5px rgba(11, 37, 80, 0.07);
+}
+.registration-rail .is-done > span {
+  background: var(--gold);
+  color: var(--surface);
+  border-color: var(--gold);
+}
+.registration-help {
+  margin-top: 36px;
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.registration-help summary {
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.tool-management .registration-help .fit {
+  padding: 16px 0;
+  border: 0;
+  background: none;
+  margin: 0;
+}
+.tool-management .registration-help .fit ul {
+  display: grid;
+  gap: 12px;
+}
+.tool-management .registration-help .fit li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tool-management .registration-help .fit li i {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  box-shadow: none;
+}
+.registration-form {
+  min-width: 0;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+}
+.registration-form .rprog {
+  margin-bottom: 28px;
+}
+.registration-step-title {
+  margin-bottom: 24px;
+}
+.registration-step-title h2 {
+  font-size: 1.5rem;
+  color: var(--blue-d);
+  letter-spacing: -0.025em;
+  margin-bottom: 8px;
+}
+.registration-step-title p {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.registration-form #r-who-step {
+  display: none;
+}
+.registration-form .pk {
+  min-height: 56px;
+  background: var(--paper);
+}
+.registration-contact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.registration-contact .fld {
+  margin: 0;
+}
+.registration-contact label {
+  display: block;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+.registration-form .fld input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 12px;
+}
+.registration-form .jump {
+  text-align: start;
+  margin-top: 20px;
+  font-size: 0.8rem;
+}
+.registration-form .mascards {
+  gap: 12px;
+}
+.registration-form .mascard {
+  min-height: 120px;
+  border: 1px solid var(--rule);
+  box-shadow: none;
+  background: var(--paper);
+}
+.registration-form .mascard.on {
+  border-color: var(--blue-d);
+  background: rgba(11, 37, 80, 0.04);
+}
+.registration-review {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  gap: 6px;
+}
+.registration-review > span {
+  color: var(--gold-t);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.registration-review b {
+  color: var(--blue-d);
+  font-size: 1.1rem;
+}
+.registration-review p {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+.registration-form .wantbar {
+  background: var(--paper);
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  margin: 0;
+}
+.registration-form #r-fold[aria-hidden="true"] {
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+}
+.registration-form #r-fold {
+  transition:
+    max-height 300ms ease,
+    opacity 200ms ease,
+    visibility 300ms;
+}
+.registration-form .order-content {
+  padding-top: 20px;
+}
+.registration-form .order-books {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.registration-form .order-books .rec {
+  box-shadow: none;
+  padding: 14px;
+  background: var(--paper);
+}
+.registration-form .order-books .head {
+  flex-direction: column-reverse;
+  align-items: start;
+}
+.registration-form .order-books .head p {
+  font-size: 0.8rem;
+}
+.registration-form .order-track .num {
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--surface);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 16px 0;
+}
+.registration-form .order-track .mtitle {
+  color: var(--blue-d);
+  margin-bottom: 4px;
+}
+.registration-form .ctl input {
+  width: 52px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.registration-form .ctl button {
+  box-shadow: none;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+}
+.registration-form .total {
+  background: var(--blue-d);
+  color: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0;
+}
+.registration-form .total .n {
+  color: white;
+}
+.registration-form .total .t {
+  color: var(--gold-l);
+}
+.order-empty {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  padding: 12px;
+}
+.registration-form .rnav {
+  border-top: 1px solid var(--rule);
+  padding-top: 20px;
+  margin-top: 28px;
+}
+.registration-form .rstep.on {
+  animation: registration-enter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.registration-invite {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--blue-d);
+  font-weight: 700;
+}
+@keyframes registration-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 700px) {
+  .registration-intro {
+    padding-bottom: 24px;
+  }
+  .registration-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-top: 24px;
+  }
+  .registration-rail ol {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .registration-rail li {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+  .registration-help {
+    margin-top: 20px;
+  }
+  .registration-form {
+    padding: 20px 16px;
+  }
+  .registration-contact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .registration-form .order-books {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .registration-form .order-books .head {
+    flex-direction: row;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .registration-form .rstep.on {
+    animation: none;
+  }
+}
+
+.registration-catalog {
+  border-top: 1px solid var(--rule);
+  padding-top: 8px;
+}
+.registration-catalog > summary {
+  min-height: 48px;
+  cursor: pointer;
+  color: var(--blue-d);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+.registration-catalog[open] > summary {
+  margin-bottom: 16px;
+}
+.registration-catalog .order-help {
+  margin-top: 20px;
+}
+.registration-form #r-total .total {
+  animation: registration-enter 180ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .registration-form #r-total .total {
+    animation: none;
+  }
+}

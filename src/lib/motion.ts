@@ -43,9 +43,18 @@ export function initializeMotion() {
   if (!reduced()) watchImages();
   const header = document.querySelector<HTMLElement>(".site-header");
   if (header) {
-    const paint = () => header.classList.toggle("is-stuck", scrollY > 8);
-    paint();
-    addEventListener("scroll", paint, { passive: true });
+    let stuck = scrollY > 8;
+    header.classList.toggle("is-stuck", stuck);
+    addEventListener(
+      "scroll",
+      () => {
+        const next = scrollY > 8;
+        if (next === stuck) return;
+        stuck = next;
+        header.classList.toggle("is-stuck", next);
+      },
+      { passive: true },
+    );
   }
   const targets = document.querySelectorAll<HTMLElement>("[data-reveal]");
   const counters = document.querySelectorAll<HTMLElement>("[data-count-to]");

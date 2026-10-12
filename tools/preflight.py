@@ -151,6 +151,8 @@ def check_orphan_classes():
         rules = set(re.findall(r'\.([A-Za-z][\w-]*)', css))
         if 'href="/mobile.css"' in t:
             rules.update(re.findall(r'\.([A-Za-z][\w-]*)', read('src/styles/mobile.css')))
+        if f == 'index.html':
+            rules.update(re.findall(r'\.([A-Za-z][\w-]*)', read('src/styles/registration.css')))
         used = set()
         for m in re.findall(r'class="([^"]*)"', t):
             # מחלקה שנבנית בקוד — class="sw' + (showRow('plan') ? …

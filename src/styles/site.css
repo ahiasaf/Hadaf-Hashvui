@@ -1504,3 +1504,76 @@ details summary {
     opacity: 1;
   }
 }
+
+/* Clear invitation actions without exposing routing details. */
+.invitation-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--gold-t);
+  background: var(--paper);
+  border-radius: 50%;
+  margin-bottom: 16px;
+}
+.invitation-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.invitation-actions .button svg {
+  flex: none;
+}
+.invitation-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 12px;
+}
+.invitation-secondary a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.invitation-feedback {
+  min-height: 2.8em;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+.school-invitation {
+  animation: rise 350ms var(--ease) both;
+}
+.hero-summary {
+  margin-inline: auto;
+}
+.hero-actions .button {
+  gap: 12px;
+}
+.hero-actions .button-outline {
+  min-width: 0;
+}
+#lesson {
+  scroll-margin-top: 100px;
+}
+.landing-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+@media (max-width: 600px) {
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-actions .button {
+    width: 100%;
+    min-height: 50px;
+  }
+}
+
+.js .hero .rise {
+  animation-duration: 480ms;
+  animation-delay: calc(var(--n, 0) * 50ms);
+}
