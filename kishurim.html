@@ -49,7 +49,8 @@ html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
    הקישורים לישיבה · /kishurim
    ============================================================
    עמוד אחד שהרכז שולח לראש ישיבה "בלי מאמץ", והוא מעביר הלאה.
-   שלושה קישורים, ולכל אחד כפתור וואטסאפ עם הודעה מוכנה:
+   שלושה קישורים, ולכל אחד כפתור וואטסאפ עם הודעה מוכנה, ולצידו
+   "פתיחה אצלי" — למי שהקישור שייך לו עצמו — והעתקה:
    * ראש החטיבה ורכז התוכנית — המסע (`?masa=1`). שם בוחרים ישיבה
      ותפקיד, מתקינים, והלוח נפתח אחרי אישור הרכז.
    * הר"מים — עמוד הצוות ("רב ומחנך אהוב").
@@ -117,6 +118,13 @@ header .lead{margin:12px auto 0;font-size:.94rem;font-weight:600;
 .go svg{width:22px;height:22px;fill:#fff;flex:none}
 .cp{display:block;width:100%;margin-top:8px;font:inherit;font-size:.86rem;font-weight:800;color:var(--blue);
   background:none;border:1px solid var(--rule);border-radius:11px;padding:9px;cursor:pointer}
+/* פתיחה כאן ועכשיו — למי שקיבל את העמוד ורוצה להיכנס בעצמו (ראש
+   ישיבה שהוא גם ראש החטיבה). ליד ההעתקה, באותו משקל. */
+.more{display:flex;gap:8px;margin-top:8px}
+.more .cp{margin-top:0;flex:1}
+.op{flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;
+  font-size:.86rem;font-weight:800;color:var(--blue);border:1px solid var(--rule);
+  border-radius:11px;padding:9px;line-height:1.75}
 footer{text-align:center;color:var(--ink-3);font-size:.8rem;font-weight:600;
   margin-top:26px;line-height:1.9}
 footer a{color:var(--ink-2)}
@@ -181,7 +189,8 @@ function draw() {
       '<p class="sub">' + esc(K[k + 'Sub']) + '</p>' +
       '<a class="go" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">' +
       WA + esc(K[k + 'Btn']) + '</a>' +
-      '<button class="cp" data-url="' + esc(url) + '">' + esc(K.copy) + '</button></section>';
+      '<div class="more"><a class="op" href="' + esc(url) + '">' + esc(K.open) + '</a>' +
+      '<button class="cp" data-url="' + esc(url) + '">' + esc(K.copy) + '</button></div></section>';
   }).join('');
 }
 $('cards').addEventListener('click', function (e) {
