@@ -1311,14 +1311,6 @@ input[aria-invalid="true"] {
     display: block;
   }
 }
-.install-bar {
-  margin-bottom: 14px;
-}
-.install-bar .flow-count {
-  text-align: start;
-  margin-bottom: 6px;
-}
-
 /* Hover effects only where a pointer can hover; touch keeps press states. */
 @media (hover: hover) {
   input:hover,

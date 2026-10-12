@@ -76,4 +76,7 @@ export async function enableReminders() {
   } catch {
     /* Storage is optional. */
   }
+  window.dispatchEvent(
+    new CustomEvent("df-reminders-change", { detail: { id: me.id } }),
+  );
 }

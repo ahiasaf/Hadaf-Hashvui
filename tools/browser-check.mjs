@@ -825,6 +825,146 @@ try {
     true,
   );
   await signedContext.close();
+  const updatesContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  await prepare(updatesContext);
+  await updatesContext.addInitScript(() => {
+    if (location.protocol !== "http:") return;
+    if (!localStorage.getItem("df:me"))
+      localStorage.setItem(
+        "df:me",
+        JSON.stringify({
+          id: "demo-student",
+          first: "בדיקה",
+          last: "תלמיד",
+          phone: "0500000000",
+          inst: "DEMO",
+          instName: "ישיבה לדוגמה",
+          role: "boy",
+        }),
+      );
+    window.Notification = class {
+      static permission = "granted";
+      static requestPermission() {
+        return Promise.resolve("granted");
+      }
+    };
+    window.PushManager = function () {};
+    const registration = {
+      addEventListener() {},
+      update: () => Promise.resolve(),
+      pushManager: {
+        getSubscription: () =>
+          Promise.resolve({
+            endpoint: "https://example.invalid/community-test",
+            keys: { p256dh: "TEST", auth: "TEST" },
+          }),
+      },
+    };
+    Object.defineProperty(navigator, "serviceWorker", {
+      value: {
+        register: () => Promise.resolve(registration),
+        ready: Promise.resolve(registration),
+        addEventListener() {},
+      },
+    });
+  });
+  const updatesPage = await updatesContext.newPage();
+  await updatesPage.goto(base + "/app");
+  await updatesPage
+    .locator("[data-community-tabs] [data-community][href]")
+    .waitFor();
+  assert.equal(
+    await updatesPage
+      .getByText("תזכורת קטנה בכל שבוע?", { exact: true })
+      .count(),
+    0,
+  );
+  await updatesPage.getByRole("tab", { name: "עדכונים ותזכורות" }).click();
+  writeFailure = true;
+  await updatesPage
+    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
+    .click();
+  await updatesPage.locator(".community .notice.error").waitFor();
+  assert.equal(
+    await updatesPage.evaluate(() => localStorage.getItem("df:noteOn")),
+    null,
+  );
+  assert.equal(
+    await updatesPage
+      .getByRole("tab", { name: "עדכונים ותזכורות" })
+      .isVisible(),
+    true,
+  );
+  writeFailure = false;
+  await updatesPage
+    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
+    .click();
+  await updatesPage
+    .getByRole("tab", { name: "עדכונים ותזכורות" })
+    .waitFor({ state: "hidden" });
+  assert.equal(
+    await updatesPage
+      .getByText("התזכורות נרשמו ואושרו.", { exact: true })
+      .count(),
+    0,
+  );
+  await updatesPage.reload();
+  await updatesPage.getByRole("button", { name: "כבר בקבוצה" }).waitFor();
+  assert.equal(
+    await updatesPage
+      .getByRole("tab", { name: "עדכונים ותזכורות" })
+      .isVisible(),
+    false,
+  );
+  await updatesPage.getByRole("button", { name: "כבר בקבוצה" }).click();
+  await updatesPage
+    .locator("[data-community-tabs]")
+    .waitFor({ state: "hidden" });
+  await updatesPage.reload();
+  await updatesPage.getByRole("heading", { name: "שלום, בדיקה" }).waitFor();
+  assert.equal(await updatesPage.locator("[data-community-tabs]").count(), 0);
+  await updatesPage.goto(base);
+  await updatesPage
+    .locator("[data-community-tabs][hidden]")
+    .waitFor({ state: "attached" });
+  await updatesPage.evaluate(() => {
+    const person = JSON.parse(localStorage.getItem("df:me"));
+    localStorage.setItem(
+      "df:me",
+      JSON.stringify({ ...person, id: "another-account" }),
+    );
+    window.dispatchEvent(new window.Event("df-account-change"));
+  });
+  await updatesPage.getByRole("tab", { name: "עדכונים ותזכורות" }).waitFor();
+  assert.equal(
+    await updatesPage.getByRole("tab", { name: "קבוצת הוואטסאפ" }).isVisible(),
+    false,
+  );
+  writeFailure = true;
+  await updatesPage
+    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
+    .click();
+  await updatesPage
+    .locator("[data-community-notification-status]:not([hidden])")
+    .waitFor();
+  assert.equal(
+    await updatesPage.evaluate(() => localStorage.getItem("df:noteOn")),
+    "demo-student",
+  );
+  writeFailure = false;
+  await updatesPage
+    .getByRole("button", { name: "הפעלת תזכורות לדף השבועי" })
+    .click();
+  await updatesPage
+    .locator("[data-community-tabs][hidden]")
+    .waitFor({ state: "attached" });
+  await updatesContext.close();
+  console.log(
+    "Community enrollment retry, confirmed-only hiding, persistence and account scope passed.",
+  );
   console.log(
     "Account-aware join prompts and published WhatsApp group link passed.",
   );

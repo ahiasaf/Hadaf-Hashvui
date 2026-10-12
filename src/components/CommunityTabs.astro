@@ -1,3 +1,7 @@
+---
+import "../styles/community.css";
+---
+
 <section
   class="community container"
   aria-label="עדכונים מהדף השבועי"
@@ -71,6 +75,14 @@
       >
         מצטרפים לקבוצה <span aria-hidden="true">↗</span>
       </a>
+      <button
+        type="button"
+        class="community-confirm"
+        data-community-confirm
+        hidden
+      >
+        כבר בקבוצה
+      </button>
       <p data-community-status role="status">
         טוענים את קישור הקבוצה…
       </p>
@@ -92,14 +104,31 @@
       <p>מדריך קצר להפעלת ההתראות במכשיר ובדיקה שהן מגיעות.</p>
     </div>
     <div class="community-action">
-      <a class="button button-gold" href="/hitraot">
+      <button
+        type="button"
+        class="button button-gold"
+        data-community-enable
+        hidden
+      >
+        הפעלת תזכורות לדף השבועי
+      </button>
+      <a class="button button-gold" href="/hitraot" data-community-help>
         הגדרת התראות <span aria-hidden="true">←</span>
       </a>
+      <p data-community-notification-status role="alert" hidden></p>
     </div>
   </div>
 </section>
 
 <script>
+  import {
+    communityGroup,
+    groupJoined,
+    confirmGroup,
+    remindersEnabled,
+  } from "../lib/community";
+  import { enableReminders } from "../lib/notifications";
+  import { stored, type Person } from "../lib/client";
   const root = document.querySelector<HTMLElement>("[data-community-tabs]");
   if (root) {
     const tabs = Array.from(
@@ -108,6 +137,42 @@
     const panels = Array.from(
       root.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
     );
+    let group: string | null = null,
+      confirmedGroup = false,
+      confirmedPerson = "";
+    const enable = root.querySelector<HTMLButtonElement>(
+      "[data-community-enable]",
+    )!;
+    const help = root.querySelector<HTMLAnchorElement>(
+      "[data-community-help]",
+    )!;
+    const confirm = root.querySelector<HTMLButtonElement>(
+      "[data-community-confirm]",
+    )!;
+    function refresh() {
+      const person = stored<Person | null>("me", null);
+      tabs[0].hidden = groupJoined(group) || confirmedGroup;
+      tabs[1].hidden =
+        remindersEnabled() ||
+        (!!confirmedPerson && confirmedPerson === person?.id);
+      const visible = tabs.filter((tab) => !tab.hidden);
+      root!.hidden = !visible.length;
+      const list = root!.querySelector<HTMLElement>('[role="tablist"]')!;
+      list.toggleAttribute("data-single", visible.length === 1);
+      const current = tabs.findIndex(
+        (tab) => !tab.hidden && tab.getAttribute("aria-selected") === "true",
+      );
+      select(current >= 0 ? current : tabs.indexOf(visible[0]));
+      const canEnable =
+        !!person?.id &&
+        "Notification" in window &&
+        "PushManager" in window &&
+        "serviceWorker" in navigator &&
+        Notification.permission !== "denied";
+      enable.hidden = !canEnable;
+      help.className = canEnable ? "community-help" : "button button-gold";
+      help.textContent = canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות";
+    }
     function select(index: number, focus = false) {
       tabs.forEach((tab, i) => {
         tab.setAttribute("aria-selected", String(i === index));
@@ -117,17 +182,82 @@
       if (focus) tabs[index].focus();
     }
     root.querySelector<HTMLElement>('[role="tablist"]')!.hidden = false;
-    select(0);
+    refresh();
+    for (const event of [
+      "storage",
+      "pageshow",
+      "df-account-change",
+      "df-community-change",
+      "df-reminders-change",
+    ])
+      window.addEventListener(event, refresh);
+    void communityGroup()
+      .then((url) => {
+        group = url;
+        const link = root.querySelector<HTMLAnchorElement>("[data-community]")!;
+        if (url) {
+          link.href = url;
+          link.hidden = false;
+          confirm.hidden = false;
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        const status = root.querySelector<HTMLElement>(
+          "[data-community-status]",
+        )!;
+        status.hidden = !!group;
+        if (!group)
+          status.textContent =
+            "קישור הקבוצה אינו זמין כרגע. אפשר לנסות שוב מאוחר יותר.";
+        refresh();
+      });
+    confirm.addEventListener("click", () => {
+      if (!group) return;
+      confirmedGroup = true;
+      confirmGroup(group);
+      refresh();
+      tabs.find((tab) => !tab.hidden)?.focus();
+    });
+    enable.addEventListener("click", async () => {
+      const status = root.querySelector<HTMLElement>(
+        "[data-community-notification-status]",
+      )!;
+      enable.disabled = true;
+      enable.textContent = "בודקים ושומרים…";
+      status.hidden = true;
+      const account = stored<Person | null>("me", null)?.id || "";
+      try {
+        await enableReminders();
+        confirmedPerson = account;
+        refresh();
+        tabs.find((tab) => !tab.hidden)?.focus();
+      } catch {
+        status.textContent =
+          "הבקשה לא אושרה. בדקו את הרשאת ההתראות והחיבור ונסו שוב.";
+        status.hidden = false;
+      } finally {
+        enable.disabled = false;
+        enable.textContent = "הפעלת תזכורות לדף השבועי";
+      }
+    });
     tabs.forEach((tab, index) => {
       tab.addEventListener("click", () => select(index));
       tab.addEventListener("keydown", (event) => {
         let next: number;
-        if (event.key === "Home") next = 0;
-        else if (event.key === "End") next = tabs.length - 1;
+        const visible = tabs
+          .map((tab, i) => (tab.hidden ? -1 : i))
+          .filter((i) => i >= 0);
+        if (event.key === "Home") next = visible[0];
+        else if (event.key === "End") next = visible[visible.length - 1];
         else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
           const rtl = getComputedStyle(root).direction === "rtl";
           const forward = event.key === (rtl ? "ArrowLeft" : "ArrowRight");
-          next = (index + (forward ? 1 : -1) + tabs.length) % tabs.length;
+          next =
+            visible[
+              (visible.indexOf(index) + (forward ? 1 : -1) + visible.length) %
+                visible.length
+            ];
         } else return;
         event.preventDefault();
         select(next, true);
@@ -135,178 +265,3 @@
     });
   }
 </script>
-
-<style>
-  .community {
-    margin-block: 32px 56px;
-    border: 1px solid var(--rule);
-    border-radius: 20px;
-    overflow: clip;
-    background: var(--surface);
-    box-shadow: var(--sh-1);
-  }
-  .community-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 6px;
-    gap: 6px;
-    background: var(--sunk);
-    border-bottom: 1px solid var(--rule);
-  }
-  .community-tabs button {
-    min-height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border: 0;
-    border-radius: 13px;
-    background: transparent;
-    color: var(--ink-2);
-    font-weight: 750;
-    transition:
-      background 0.2s,
-      color 0.2s,
-      box-shadow 0.2s,
-      transform 0.2s var(--ease);
-  }
-  .community-tabs button:active {
-    transform: scale(0.97);
-  }
-  .community-tabs button[aria-selected="true"] {
-    background: var(--blue-d);
-    color: var(--surface);
-    box-shadow: var(--sh-1);
-  }
-  #community-whatsapp-tab[aria-selected="true"] {
-    background: var(--green-d);
-  }
-  #community-whatsapp .community-kicker {
-    color: var(--green-d);
-  }
-  .button-whatsapp {
-    background: var(--green-d);
-    border-color: var(--green-d);
-    color: #fff;
-  }
-  .button-whatsapp:hover {
-    background: #386615;
-    border-color: #386615;
-  }
-  .community-tabs svg {
-    width: 22px;
-    height: 22px;
-    flex: none;
-  }
-  .community-panel {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 28px;
-    padding: 36px;
-  }
-  .community.is-in .community-panel > div {
-    animation: community-enter 0.5s var(--ease) both;
-  }
-  .community.is-in .community-panel > .community-action {
-    animation-delay: 0.08s;
-  }
-  .community-kicker {
-    color: var(--gold-t);
-    font-size: 0.8rem;
-    font-weight: 750;
-    margin: 0 0 8px;
-  }
-  .community-panel h2 {
-    margin: 0 0 10px;
-    font-size: clamp(1.45rem, 3vw, 1.9rem);
-  }
-  .community-panel p:not(.community-kicker) {
-    margin: 0;
-    color: var(--ink-2);
-    font-size: 0.95rem;
-    max-width: 48ch;
-  }
-  .community-action .button {
-    gap: 14px;
-    white-space: nowrap;
-  }
-  .community-action .button span {
-    transition: transform 0.25s var(--ease);
-  }
-  @media (hover: hover) {
-    .community-tabs button:hover {
-      transform: translateY(-1px);
-    }
-    .community-action .button:hover span {
-      transform: translateX(-3px);
-    }
-    .community-action .button-whatsapp:hover span {
-      transform: translate(-2px, -2px);
-    }
-  }
-  .community-action [role="status"] {
-    font-size: 0.8rem;
-  }
-  .community [hidden] {
-    display: none;
-  }
-  .community :is(button, a, [role="tabpanel"]):focus-visible {
-    outline: 3px solid var(--blue-l);
-    outline-offset: 3px;
-  }
-  @keyframes community-enter {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  @media (max-width: 700px) {
-    .community {
-      margin-block: 24px 40px;
-      border-radius: 16px;
-    }
-    .community-tabs {
-      padding: 5px;
-      gap: 4px;
-    }
-    .community-tabs button {
-      min-height: 62px;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 0.8rem;
-      padding: 8px 4px;
-    }
-    .community-tabs svg {
-      width: 20px;
-      height: 20px;
-    }
-    .community-panel {
-      grid-template-columns: 1fr;
-      gap: 24px;
-      padding: 24px 20px;
-      min-height: 244px;
-    }
-    .community-action .button {
-      width: 100%;
-      justify-content: space-between;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .community.is-in .community-panel > div {
-      animation: none;
-    }
-    .community-tabs button,
-    .community-action .button span {
-      transition: none;
-      transform: none;
-    }
-  }
-  :global(html:not(.js)) [data-community-status] {
-    display: none;
-  }
-</style>

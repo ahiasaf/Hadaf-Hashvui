@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { stored, type Person } from "../lib/client";
 import { nextStep, readDevice, type InstallStep } from "../lib/install";
-import Reminders from "./Reminders";
+import CommunityUpdates from "./CommunityUpdates";
 
 type PromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -74,17 +74,14 @@ function PlusIcon() {
   );
 }
 
-// The app on the home screen, then reminders: one short step at a time, skipping what is done.
+// Offer installation where needed, then only update options not yet completed.
 export default function Install() {
   const [step, setStep] = useState<InstallStep | null>(null);
   const [busy, setBusy] = useState(false);
-  // Two stages when the device still needs the app; the bar fills as they complete.
-  const [staged, setStaged] = useState(false);
   useEffect(() => {
     const refresh = () => {
       const next = currentStep();
       setStep(next);
-      if (next !== "notify" && next !== "done") setStaged(true);
     };
     refresh();
     addEventListener("df-install-ready", refresh);
@@ -111,33 +108,10 @@ export default function Install() {
       setBusy(false);
     }
   }
-  if (!step || step === "done") return null;
-  const bar = staged && (
-    <div className="install-bar">
-      <p className="flow-count" aria-live="polite">
-        שלב {step === "notify" ? 2 : 1} מתוך 2
-      </p>
-      <div className="flow-track">
-        <i
-          style={{ "--p": step === "notify" ? 1 : 0.5 } as React.CSSProperties}
-        />
-      </div>
-    </div>
-  );
-  if (step === "notify")
-    return (
-      <div className="install swap">
-        {bar}
-        <p className="install-title">תזכורת קטנה בכל שבוע?</p>
-        <p className="install-text">
-          הודעה אחת כשהדף החדש נפתח. אפשר לבטל בכל רגע.
-        </p>
-        <Reminders />
-      </div>
-    );
+  if (!step) return null;
+  if (step === "notify" || step === "done") return <CommunityUpdates />;
   return (
     <div className="install swap">
-      {bar}
       <p className="install-title">
         {step === "install-prompt" || step === "install-ios"
           ? "האפליקציה על מסך הבית"

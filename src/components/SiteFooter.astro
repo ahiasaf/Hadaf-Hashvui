@@ -39,42 +39,18 @@ const home = path === "/" || path === "/index";
 </footer>
 
 <script>
-  import { sheet } from "../lib/client";
-  void sheet("הגדרות")
-    .then((rows) => {
-      const row = rows.find((row) => row[0] === "waGroup");
-      if (!row) return;
-      const value: unknown = JSON.parse(row[1]);
-      if (typeof value !== "string") return;
-      const url = new URL(value);
-      if (
-        url.protocol !== "https:" ||
-        url.host !== "chat.whatsapp.com" ||
-        !/^\/[A-Za-z0-9]{6,}$/.test(url.pathname)
-      )
-        return;
+  import { communityGroup } from "../lib/community";
+  void communityGroup()
+    .then((url) => {
+      if (!url) return;
       for (const link of document.querySelectorAll<HTMLAnchorElement>(
-        "[data-community]",
+        ".site-footer [data-community]",
       )) {
-        link.href = url.origin + url.pathname;
+        link.href = url;
         link.hidden = false;
       }
     })
-    .catch(() => {
-      /* Only the published group link is offered. */
-    })
-    .finally(() => {
-      for (const status of document.querySelectorAll<HTMLElement>(
-        "[data-community-status]",
-      )) {
-        status.hidden = !!status.parentElement?.querySelector(
-          "[data-community][href]",
-        );
-        if (!status.hidden)
-          status.textContent =
-            "קישור הקבוצה אינו זמין כרגע. אפשר לנסות שוב מאוחר יותר.";
-      }
-    });
+    .catch(() => {});
 </script>
 
 <style>

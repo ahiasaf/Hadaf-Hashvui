@@ -1291,14 +1291,14 @@ header{padding-top:calc(env(safe-area-inset-top) + 6px)}
 }
 
 /* The whole title opens the lesson picker, with a visible action instead of a tiny arrow. */
-#ttl{display:flex;flex-direction:row;align-items:center;gap:12px;margin:0;padding:6px 10px;border:1px solid var(--rule);
-  border-radius:12px;background:var(--surface);color:var(--blue-d);min-height:44px;cursor:pointer}
+#ttl{display:flex;flex-direction:row;align-items:center;gap:12px;margin:0;padding:6px 10px;border:0;
+  border-radius:0;background:transparent;color:var(--blue-d);min-height:44px;cursor:pointer}
 #ttl{width:100%;justify-self:stretch;text-align:start}
 #ttl .lesson-title{flex:1;min-width:0}
 #ttl #t-daf{display:flex;align-items:center;gap:7px;line-height:1.35;margin:0 0 2px;overflow:visible}
 #ttl #t-mas{font-size:inherit;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:1;color:var(--blue-d)}
-#ttl #t-page{flex:none;font-size:.75rem;font-weight:850;line-height:1.4;padding:2px 7px;
-  border:1px solid var(--rule);border-radius:7px;background:var(--sunk);color:var(--gold-t);direction:rtl;opacity:1}
+#ttl #t-page{flex:none;font-size:.8rem;font-weight:850;line-height:1.4;padding:0;
+  border:0;border-radius:0;background:transparent;color:var(--gold-t);direction:rtl;opacity:1}
 #ttl #t-page[hidden]{display:none}
 #ttl .lesson-choose{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none;
   font-size:.65rem;font-weight:800;line-height:1.2;opacity:1;color:var(--blue);padding-inline-start:10px;border-inline-start:1px solid var(--rule)}

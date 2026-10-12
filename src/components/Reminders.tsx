@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { stored, type Person } from "../lib/client";
+import { remindersEnabled } from "../lib/community";
 import { enableReminders, waitForLesson } from "../lib/notifications";
-export default function Reminders({ lessonKey = "" }: { lessonKey?: string }) {
+export default function Reminders({
+  lessonKey = "",
+  onEnabled,
+}: {
+  lessonKey?: string;
+  onEnabled?: () => void;
+}) {
   const [busy, setBusy] = useState(false),
     [done, setDone] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
     try {
-      const me = stored<Person | null>("me", null);
       setDone(
         lessonKey
           ? localStorage.getItem("df:wait:" + lessonKey) === "1"
-          : !!me && localStorage.getItem("df:noteOn") === me.id,
+          : remindersEnabled(),
       );
     } catch {
       /* Storage is optional. */
@@ -24,6 +29,7 @@ export default function Reminders({ lessonKey = "" }: { lessonKey?: string }) {
       if (lessonKey) await waitForLesson(lessonKey);
       else await enableReminders();
       setDone(true);
+      onEnabled?.();
     } catch {
       setError(
         "הבקשה לא אושרה. אפשר לבדוק את הרשאת ההתראות והחיבור ולנסות שוב. באייפון יש לפתוח מהאפליקציה שנוספה למסך הבית.",
@@ -32,13 +38,12 @@ export default function Reminders({ lessonKey = "" }: { lessonKey?: string }) {
       setBusy(false);
     }
   }
+  if (done && !lessonKey) return null;
   return (
     <div className="reminders">
       {done ? (
         <p role="status" className="notice success swap">
-          {lessonKey
-            ? "הבקשה נשמרה. נודיע לכם כשהדף ייפתח."
-            : "התזכורות נרשמו ואושרו."}
+          הבקשה נשמרה. נודיע לכם כשהדף ייפתח.
         </p>
       ) : (
         <button

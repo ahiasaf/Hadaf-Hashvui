@@ -1,0 +1,197 @@
+.community {
+  margin-block: 32px 56px;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  overflow: clip;
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+.community-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 6px;
+  gap: 6px;
+  background: var(--sunk);
+  border-bottom: 1px solid var(--rule);
+}
+.community-tabs[data-single] {
+  grid-template-columns: 1fr;
+}
+.community-confirm,
+.community-help {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 0;
+  background: transparent;
+  border: 0;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.community .reminders .button {
+  background: var(--gold);
+  color: var(--blue-d);
+  border-color: transparent;
+}
+.community-action .notice.error {
+  margin-top: 12px;
+}
+.community-tabs button {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 750;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s var(--ease);
+}
+.community-tabs button:active {
+  transform: scale(0.97);
+}
+.community-tabs button[aria-selected="true"] {
+  background: var(--blue-d);
+  color: var(--surface);
+  box-shadow: var(--sh-1);
+}
+#community-whatsapp-tab[aria-selected="true"] {
+  background: var(--green-d);
+}
+#community-whatsapp .community-kicker {
+  color: var(--green-d);
+}
+.button-whatsapp {
+  background: var(--green-d);
+  border-color: var(--green-d);
+  color: #fff;
+}
+.button-whatsapp:hover {
+  background: #386615;
+  border-color: #386615;
+}
+.community-tabs svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.community-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 28px;
+  padding: 36px;
+}
+.community.is-in .community-panel > div {
+  animation: community-enter 0.5s var(--ease) both;
+}
+.community.is-in .community-panel > .community-action {
+  animation-delay: 0.08s;
+}
+.community-kicker {
+  color: var(--gold-t);
+  font-size: 0.8rem;
+  font-weight: 750;
+  margin: 0 0 8px;
+}
+.community-panel h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.45rem, 3vw, 1.9rem);
+}
+.community-panel p:not(.community-kicker) {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+  max-width: 48ch;
+}
+.community-action .button {
+  gap: 14px;
+  white-space: nowrap;
+}
+.community-action .button span {
+  transition: transform 0.25s var(--ease);
+}
+@media (hover: hover) {
+  .community-tabs button:hover {
+    transform: translateY(-1px);
+  }
+  .community-action .button:hover span {
+    transform: translateX(-3px);
+  }
+  .community-action .button-whatsapp:hover span {
+    transform: translate(-2px, -2px);
+  }
+}
+.community-action [role="status"] {
+  font-size: 0.8rem;
+}
+.community [hidden] {
+  display: none;
+}
+.community :is(button, a, [role="tabpanel"]):focus-visible {
+  outline: 3px solid var(--blue-l);
+  outline-offset: 3px;
+}
+@keyframes community-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 700px) {
+  .community {
+    margin-block: 24px 40px;
+    border-radius: 16px;
+  }
+  .community-tabs {
+    padding: 5px;
+    gap: 4px;
+  }
+  .community-tabs button {
+    min-height: 62px;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    padding: 8px 4px;
+  }
+  .community-tabs svg {
+    width: 20px;
+    height: 20px;
+  }
+  .community-panel {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 20px;
+    min-height: 244px;
+  }
+  .community-action .button {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .community.is-in .community-panel > div {
+    animation: none;
+  }
+  .community-tabs button,
+  .community-action .button span {
+    transition: none;
+    transform: none;
+  }
+}
+html:not(.js) [data-community-status] {
+  display: none;
+}
