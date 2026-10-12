@@ -2766,7 +2766,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.197';
+var APP_VERSION = '8.99.198';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4706,10 +4706,13 @@ function shareHtml(code, name) {
     row(PANEL.shrRam, PANEL.shrRamSub, fill(UI.teamWa, { inst:name, url:tzevetUrl(code) })) +
     '</div>';
 }
+/* ההרשאה כפי שהייתה כשהכרטיס צויר — ראו `myNotePermWatch`. */
+var myNotePerm = '';
 function myNote() {
   var el = document.getElementById('my-note');
   if (!el) return;
   var on = myNoteOn();
+  myNotePerm = (window.APPX && APPX.perm) ? APPX.perm() : '';
   el.innerHTML =
     '<div class="my-note' + (on ? ' on' : '') + '"><b>' +
     esc(on ? PANEL.noteOn : PANEL.noteOff) + '</b>' +
@@ -4739,6 +4742,35 @@ function myNote() {
     ASK.at(3);
   };
 }
+
+/* ============================================================
+   **מי ששחרר את החסימה — רואה את זה בלי לרענן.**
+   ============================================================
+   "בנינו מנגנון שכל חצי דקה האפליקציה בודקת אם השתחררו
+   העדכונים." הבדיקה של חצי הדקה שהייתה כאן בדקה רק את אישור
+   הרכז (`accWaiting`), ולא את ההתראות: מי שהלך להגדרות, שחרר
+   וחזר — מצא את אותו מסך בדיוק. עכשיו ההרשאה נבדקת כל חצי דקה
+   וברגע שחוזרים לאפליקציה (משם חוזרים מההגדרות), ואם השתנתה —
+   הכרטיס והמסך הפתוח מצוירים מחדש. הבדיקה מקומית, בלי רשת.
+   ============================================================ */
+function myNotePermWatch() {
+  if (!document.querySelector('#v-my.on') || !document.getElementById('my-note')) return;
+  if (!window.APPX || !APPX.perm) return;
+  var p = APPX.perm();
+  if (p === myNotePerm) return;
+  var sh = document.getElementById('asksheet');
+  /* המסך פתוח — מציירים רק אותו. האזור מצויר בסגירה (onClose). */
+  if (sh && !sh.hidden && sh.getClientRects().length) {
+    myNotePerm = p;
+    if (typeof ASK !== 'undefined' && ASK.draw) ASK.draw();
+    return;
+  }
+  if (myNoteOn()) accRe(); else myNote();
+}
+setInterval(myNotePermWatch, 30000);
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') myNotePermWatch();
+});
 
 /* המספר עולה מאפס. זו התנועה היחידה שיש בה משמעות — היא
    מראה שהמספר נמדד ולא הודפס. רצה רק ברגע הברכה. */
