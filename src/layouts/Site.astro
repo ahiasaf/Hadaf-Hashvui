@@ -19,7 +19,7 @@ const path =
     .replace(/\.html$/, "")
     .replace(/\/$/, "")
     .replace(/^\/index$/, "") || "/";
-const showJoin = !["/", "/app", "/join", "/tzevet"].includes(path);
+const showJoin = !["/", "/app", "/join", "/tzevet", "/admin"].includes(path);
 ---
 
 <!doctype html>

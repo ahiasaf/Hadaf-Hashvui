@@ -49,6 +49,13 @@ const view = views[`../features/${name}/view.html`] as string;
     <meta name="theme-color" content="#112c50" />
     <meta name="robots" content="noindex,nofollow" />
     <title>{page.title}</title>
+    {name === "management" && <script is:inline>
+      if (
+        location.hash === "#admin" &&
+        !new URLSearchParams(location.search).has("legacy")
+      )
+        location.replace("/admin" + location.search);
+    </script>}
     <meta
       property="og:description"
       content="הדף השבועי של רשת ישיבות בני עקיבא"

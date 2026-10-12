@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { forwardAction } from "../src/server/actions.ts";
+import { databaseAction } from "../src/server/database-actions.ts";
 test("private tables and global participant reads require a key", async () => {
   let calls = 0;
   const request = async () => {
@@ -12,6 +13,7 @@ test("private tables and global participant reads require a key", async () => {
     { board: "*" },
     { codes: "1" },
     { team: "1" },
+    { health: "1" },
     { ss: "OTHER", read: "לומדים", key: "TEST" },
   ]) {
     await assert.rejects(
@@ -67,4 +69,34 @@ test("read credentials are forwarded only upstream and not included in the respo
     },
   );
   assert.ok(!JSON.stringify(result).includes("TEST_KEY"));
+});
+
+test("admin health uses the protected read path and requires acknowledgement", async () => {
+  const result = await forwardAction(
+    { operation: "read", payload: { health: "1", key: "TEST_KEY" } },
+    async (url) => {
+      assert.equal(url.searchParams.get("health"), "1");
+      assert.equal(url.searchParams.get("key"), "TEST_KEY");
+      return Response.json({
+        status: "ok",
+        backend: "neon",
+        tabs: [{ name: "מוסדות", rows: 24 }],
+      });
+    },
+  );
+  assert.equal(result.backend, "neon");
+  assert.ok(!JSON.stringify(result).includes("TEST_KEY"));
+  await assert.rejects(
+    forwardAction(
+      { operation: "read", payload: { health: "1", key: "INVALID" } },
+      async () => Response.json({ status: "denied" }),
+    ),
+  );
+});
+
+test("Neon health rejects unauthenticated requests before accessing the database", async () => {
+  await assert.rejects(
+    databaseAction("read", { health: "1", key: "" }),
+    /Access denied/,
+  );
 });

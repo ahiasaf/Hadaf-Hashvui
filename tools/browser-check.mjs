@@ -125,6 +125,27 @@ try {
             ],
           },
         });
+      if (payload.health)
+        return route.fulfill({
+          json: {
+            status: "ok",
+            backend: "neon",
+            tabs: [{ name: "סימוני הדף", rows: 17 }],
+            privTabs: [{ name: "הרשמות", rows: 3 }],
+          },
+        });
+      if (payload.read === "הרשמות")
+        return route.fulfill({
+          json: {
+            status: "ok",
+            rows: [
+              ["ישיבה", "קוד", "איש קשר", 'סה"כ גמרות'],
+              ["ישיבת בדיקה", "TEST", "רכז קודם", "20"],
+              ["ישיבה ללא הזמנה", "OTHER", "רכז", "0"],
+              ["ישיבת בדיקה", "TEST", "רכז מעודכן", "30"],
+            ],
+          },
+        });
       if (payload.read)
         return route.fulfill({
           json: {
@@ -612,6 +633,22 @@ try {
   await page.goto(base + "/admin");
   await page.getByLabel("סיסמת הקריאה", { exact: true }).fill("DEMO");
   await page.getByRole("button", { name: "כניסה לניהול", exact: true }).click();
+  await page.getByText("Neon · מחובר", { exact: true }).waitFor();
+  await page
+    .locator(".admin-section-nav")
+    .getByRole("button", { name: "ישיבות", exact: true })
+    .click();
+  await page
+    .locator(".admin-school-record summary")
+    .getByText("רכז מעודכן", { exact: true })
+    .waitFor();
+  assert.equal(await page.locator(".admin-school-record").count(), 2);
+  await page
+    .locator(".admin-section-nav")
+    .getByRole("button", { name: "הזמנות", exact: true })
+    .click();
+  await page.getByText("30 גמרות", { exact: true }).waitFor();
+  assert.equal(await page.locator(".admin-school-record").count(), 1);
   await page.getByRole("button", { name: "מלל", exact: true }).click();
   await page
     .getByRole("textbox", { name: "נוסח, שורה 1", exact: true })
@@ -1375,7 +1412,15 @@ try {
   await legacyPage.reload();
   await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
   await legacyPage.goto(base + "/#admin");
-  await legacyPage.waitForURL("**/management#admin");
+  await legacyPage.waitForURL("**/admin");
+  await legacyPage.getByLabel("סיסמת הקריאה", { exact: true }).waitFor();
+  assert.equal(
+    await legacyPage
+      .getByText("הסיסמה נבדקת בשרת ואינה נשמרת במכשיר.", { exact: true })
+      .count(),
+    0,
+  );
+  await legacyPage.goto(base + "/management?legacy=1#admin");
   await legacyPage.locator("#pad button").first().waitFor();
   const pin = await legacyPage.evaluate(() => window.ADMIN_PIN);
   for (const digit of pin)
@@ -1385,7 +1430,9 @@ try {
       .click();
   await legacyPage.locator("#v-admin.on").waitFor();
   await legacyContext.close();
-  console.log("Original admin bookmark and local PIN flow passed.");
+  console.log(
+    "Admin bookmark opens the new workspace; additional PIN tools remain available.",
+  );
   assert.deepEqual(errors, []);
   console.log(
     "Signup acknowledgements, lesson parsing/resume/completion, private roster, admin retry, locked notifications and no-JS fallback passed.",

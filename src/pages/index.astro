@@ -48,7 +48,7 @@ const hero = [
 <Site>
   <script is:inline>
     if (location.hash === "#admin")
-      location.replace("/management" + location.search + "#admin");
+      location.replace("/admin" + location.search);
     else if (location.hash && !["#lesson", "#main"].includes(location.hash))
       location.replace("/management" + location.search + location.hash);
     else if (/[?&](m|inst|k)=/.test(location.search))

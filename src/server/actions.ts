@@ -16,6 +16,7 @@ const reads = new Set([
   "amdaFor",
   "codes",
   "team",
+  "health",
 ]);
 export async function forwardAction(input: unknown, request = fetch) {
   if (!input || typeof input !== "object") throw new Error("Invalid action");
@@ -76,15 +77,23 @@ export async function forwardAction(input: unknown, request = fetch) {
   } else if (envelope.operation === "read") {
     if (
       Object.keys(payload).some((key) => !reads.has(key)) ||
-      !["board", "read", "whoIs", "idFor", "amdaFor", "codes", "team"].some(
-        (key) => payload[key],
-      )
+      ![
+        "board",
+        "read",
+        "whoIs",
+        "idFor",
+        "amdaFor",
+        "codes",
+        "team",
+        "health",
+      ].some((key) => payload[key])
     )
       throw new Error("Invalid read");
     if (
       (payload.read ||
         payload.codes ||
         payload.team ||
+        payload.health ||
         payload.board === "*") &&
       !payload.key
     )

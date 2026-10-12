@@ -265,6 +265,11 @@ export async function databaseAction(
     }
     throw new Error("Unsupported database write");
   }
+  if (payload.health) {
+    requireAdmin(payload);
+    const { neonLegacyGet } = await import("./legacy-neon.ts");
+    return neonLegacyGet("health", payload);
+  }
   if (payload.board) return board(payload);
   if (payload.read) {
     requireAdmin(payload);

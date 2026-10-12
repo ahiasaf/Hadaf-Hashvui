@@ -1,0 +1,573 @@
+/* Admin tools share the public paper, navy and gold identity. */
+.admin-workspace {
+  max-width: 1240px;
+}
+.admin-login-workspace {
+  margin-block: 64px 80px;
+}
+.admin-login {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  max-width: 960px;
+  margin-inline: auto;
+}
+.admin-login-intro h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  max-width: 7em;
+  line-height: 1.15;
+}
+.admin-login-art {
+  width: min(260px, 80%);
+  margin-top: 20px;
+  color: var(--gold-t);
+  animation: rise 600ms var(--ease) both;
+}
+.admin-login-form {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 32px;
+  border-radius: 16px;
+}
+.admin-login-form h2 {
+  margin: 0 0 12px;
+}
+.admin-password {
+  position: relative;
+}
+.admin-password input {
+  padding-inline-end: 54px;
+}
+.admin-password-toggle {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 2px;
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 32px;
+}
+.admin-header .eyebrow {
+  margin-bottom: 6px;
+}
+.admin-header h1 {
+  margin: 0;
+}
+.admin-header .button {
+  width: auto;
+  min-width: 88px;
+}
+.admin-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 36px;
+}
+.admin-sidebar {
+  align-self: start;
+  position: sticky;
+  top: 100px;
+}
+.admin-section-nav {
+  display: grid;
+  gap: 6px;
+}
+.admin-section-nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: start;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+.admin-section-nav button:hover {
+  background: var(--surface-2);
+  color: var(--blue-d);
+}
+.admin-section-nav button[aria-pressed="true"] {
+  background: var(--blue-d);
+  color: var(--surface);
+}
+.admin-extra {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  margin-top: 24px;
+}
+.admin-main {
+  min-width: 0;
+}
+.admin-panel {
+  animation: admin-enter 260ms var(--ease) both;
+  min-width: 0;
+}
+.admin-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.admin-panel-heading h2 {
+  margin: 0;
+}
+.admin-panel-heading .eyebrow {
+  margin-bottom: 8px;
+}
+.admin-panel-heading .button {
+  width: auto;
+}
+.admin-connection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  min-height: 32px;
+}
+.admin-connection::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.admin-metrics button {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 24px;
+  border-radius: 12px;
+  color: var(--blue-d);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+.admin-metrics button:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+.admin-metrics strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+.admin-metrics span {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+.admin-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.admin-shortcuts button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 12px;
+  text-align: start;
+  color: var(--blue-d);
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease;
+}
+.admin-shortcuts button:hover {
+  background: var(--surface-2);
+  border-color: var(--gold);
+}
+.admin-shortcuts button > svg {
+  flex: none;
+  color: var(--gold-t);
+}
+.admin-shortcuts button > span:nth-child(2) {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+}
+.admin-shortcuts b {
+  font-size: 1rem;
+}
+.admin-shortcuts small {
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.admin-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  border-top: 1px solid var(--rule);
+  margin-top: 32px;
+  padding-top: 16px;
+}
+.admin-tools a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.admin-record-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 20px;
+}
+.admin-record-toolbar label {
+  flex: 1;
+  min-width: 180px;
+}
+.admin-record-toolbar .button {
+  width: auto;
+}
+.admin-registration-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.admin-school-record {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.admin-school-record > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 88px;
+  padding: 20px;
+  cursor: pointer;
+}
+.admin-school-record summary > span:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.admin-school-record small {
+  color: var(--ink-2);
+}
+.admin-order-count {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  color: var(--gold-t);
+}
+.admin-school-details {
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+  animation: admin-enter 200ms ease;
+}
+.admin-school-details > div {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.admin-school-details > div > span {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+.admin-school-details > div > b {
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+.admin-pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+  font-size: 0.8rem;
+}
+.admin-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.admin-editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.admin-editor-toolbar .button {
+  width: auto;
+  margin: 0;
+}
+.admin-file-tools {
+  margin-inline-start: auto;
+}
+.admin-file-tools summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.admin-file-tools[open] {
+  flex-basis: 100%;
+}
+.admin-file-tools .file-input {
+  margin-block: 12px;
+}
+.admin-editor-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+}
+.admin-record-picker {
+  min-width: 0;
+}
+.admin-record-list {
+  display: grid;
+  gap: 6px;
+  margin-block: 12px 20px;
+}
+.admin-record-list button {
+  display: grid;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-inline-start-width: 3px;
+  background: transparent;
+  padding: 12px;
+  min-height: 60px;
+  text-align: start;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.admin-record-list button[aria-pressed="true"] {
+  border-color: var(--rule);
+  border-inline-start-color: var(--gold);
+  background: var(--surface);
+}
+.admin-record-list b,
+.admin-record-list small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.admin-record-list b {
+  font-size: 0.8rem;
+}
+.admin-record-list small {
+  color: var(--ink-2);
+  font-size: 0.75rem;
+}
+.admin-record-fields {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 0;
+  animation: admin-enter 200ms ease;
+}
+.admin-record-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.admin-record-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.admin-record-heading span {
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.admin-record-fields textarea {
+  resize: vertical;
+  min-width: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.admin-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+.admin-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: admin-spin 800ms linear infinite;
+}
+@keyframes admin-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .admin-sidebar {
+    position: static;
+    min-width: 0;
+  }
+  .admin-section-nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .admin-section-nav button {
+    flex: none;
+    padding-inline: 14px;
+  }
+  .admin-extra {
+    margin-top: 4px;
+  }
+  .admin-editor-layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .admin-login-workspace {
+    margin-block: 28px 48px;
+  }
+  .admin-login {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .admin-login-intro h1 {
+    max-width: none;
+    font-size: 2rem;
+  }
+  .admin-login-art {
+    display: none;
+  }
+  .admin-login-form {
+    padding: 24px 20px;
+  }
+  .admin-header {
+    gap: 12px;
+  }
+  .admin-header h1 {
+    font-size: 1.7rem;
+  }
+  .admin-metrics {
+    gap: 8px;
+  }
+  .admin-metrics button {
+    padding: 16px 10px;
+  }
+  .admin-metrics strong {
+    font-size: 1.7rem;
+  }
+  .admin-metrics span {
+    font-size: 0.7rem;
+  }
+  .admin-shortcuts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .admin-shortcuts button {
+    padding: 20px;
+  }
+  .admin-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-record-list {
+    max-height: 240px;
+    overflow-y: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-record-fields {
+    padding: 20px 16px;
+  }
+  .admin-school-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-school-record summary {
+    padding: 16px;
+  }
+  .admin-editor-toolbar {
+    padding: 12px;
+  }
+  .admin-editor-toolbar .button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-panel,
+  .admin-login-art,
+  .admin-record-fields,
+  .admin-school-details,
+  .admin-spinner {
+    animation: none;
+  }
+}

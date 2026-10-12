@@ -38,3 +38,5 @@ Private actions use POST and `no-store`; Apps Script retains its existing author
 This branch deploys a frontend preview, without merging main or redeploying the shared Apps Script backend. No private deployment secrets are bundled in browser props or generated output. The isolated local demo uses fixtures and in-memory writes, never production writes.
 
 Megila ends on 32a, matching its one-page terminal source. Taanit 31 has no source URL in the original content. A real publisher source is required to fill that gap. Existing library originals are retained, while obsolete voice/push experiment pages and generated research output are removed.
+
+Admin bookmarks (`/#admin` and `/management#admin`) open `/admin`. The server validates the coordinator password, and the new workspace reads Neon health, registrations, orders and content through authenticated same-origin actions. Registration views show the latest entry per school; the editor renders one selected record and paginates its searchable list. Failed saves preserve the draft. The remaining specialist tools are available through `/management?legacy=1#admin`.
