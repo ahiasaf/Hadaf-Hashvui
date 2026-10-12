@@ -3,6 +3,7 @@ import program from "../generated/program.json";
 const path =
   Astro.url.pathname.replace(/\.html$/, "").replace(/\/$/, "") || "/";
 const { registration = false } = Astro.props;
+const home = path === "/" || path === "/index";
 ---
 
 <footer class="site-footer">
@@ -18,12 +19,14 @@ const { registration = false } = Astro.props;
           <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
         )}
       </nav>
-      <nav aria-label="עדכונים">
-        <a data-community hidden target="_blank" rel="noopener">
-          קבוצת הוואטסאפ
-        </a>
-        {path !== "/hitraot" && <a href="/hitraot">עדכונים ותזכורות</a>}
-      </nav>
+      {!home && (
+        <nav aria-label="עדכונים">
+          <a data-community hidden target="_blank" rel="noopener">
+            קבוצת הוואטסאפ
+          </a>
+          {path !== "/hitraot" && <a href="/hitraot">עדכונים ותזכורות</a>}
+        </nav>
+      )}
       <nav aria-label="מידע">
         {path !== "/accessibility" && path !== "/info" && (
           <a href="/accessibility">{program.ui.siteAccessibility}</a>
@@ -59,6 +62,18 @@ const { registration = false } = Astro.props;
     })
     .catch(() => {
       /* Only the published group link is offered. */
+    })
+    .finally(() => {
+      for (const status of document.querySelectorAll<HTMLElement>(
+        "[data-community-status]",
+      )) {
+        status.hidden = !!status.parentElement?.querySelector(
+          "[data-community][href]",
+        );
+        if (!status.hidden)
+          status.textContent =
+            "קישור הקבוצה אינו זמין כרגע. אפשר לנסות שוב מאוחר יותר.";
+      }
     });
 </script>
 

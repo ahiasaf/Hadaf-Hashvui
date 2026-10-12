@@ -224,6 +224,45 @@ try {
       }
     }
     await page.goto(base);
+    const community = page.locator("[data-community-tabs]");
+    await community.scrollIntoViewIfNeeded();
+    const whatsappTab = community.getByRole("tab", { name: "קבוצת הוואטסאפ" });
+    const remindersTab = community.getByRole("tab", {
+      name: "עדכונים ותזכורות",
+    });
+    await community.locator("[data-community][href]").waitFor();
+    assert.equal(await whatsappTab.getAttribute("aria-selected"), "true");
+    assert.equal(
+      await page.locator(".site-footer [data-community]").count(),
+      0,
+    );
+    assert.equal(
+      await page.locator('.site-footer a[href="/hitraot"]').count(),
+      0,
+    );
+    await whatsappTab.focus();
+    await page.keyboard.press("ArrowLeft");
+    assert.equal(await remindersTab.getAttribute("aria-selected"), "true");
+    assert.equal(
+      await community.locator("#community-whatsapp").isVisible(),
+      false,
+    );
+    assert.equal(
+      await community
+        .getByRole("link", { name: /הגדרת התראות/ })
+        .getAttribute("href"),
+      "/hitraot",
+    );
+    await page.keyboard.press("Home");
+    assert.equal(await whatsappTab.getAttribute("aria-selected"), "true");
+    await remindersTab.click();
+    await whatsappTab.click();
+    assert.ok((await whatsappTab.boundingBox()).height >= 44);
+    assert.ok(
+      await community.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    );
     await page.locator("[data-institutions]").scrollIntoViewIfNeeded();
     await page
       .locator("[data-inst-status][hidden]")
@@ -852,11 +891,42 @@ try {
     "1",
   );
   await lockContext.close();
+  const unavailableContext = await browser.newContext();
+  await prepare(unavailableContext);
+  await unavailableContext.route("**/api/sheets?**", (route) => {
+    if (new URL(route.request().url()).searchParams.get("tab") !== "הגדרות")
+      return route.fallback();
+    return route.fulfill({
+      contentType: "text/csv",
+      body: '"מפתח","ערך"\n"waGroup","""https://example.com/untrusted"""',
+    });
+  });
+  const unavailablePage = await unavailableContext.newPage();
+  await unavailablePage.goto(base);
+  await unavailablePage
+    .getByText("קישור הקבוצה אינו זמין כרגע. אפשר לנסות שוב מאוחר יותר.")
+    .waitFor();
+  assert.equal(
+    await unavailablePage.locator("[data-community]").isVisible(),
+    false,
+  );
+  await unavailablePage.getByRole("tab", { name: "עדכונים ותזכורות" }).click();
+  assert.equal(
+    await unavailablePage
+      .getByRole("link", { name: /הגדרת התראות/ })
+      .isVisible(),
+    true,
+  );
+  await unavailableContext.close();
   const noJs = await browser.newContext({ javaScriptEnabled: false });
   const staticPage = await noJs.newPage();
   await staticPage.goto(base);
   assert.ok(await staticPage.getByRole("heading", { level: 1 }).count());
   assert.ok(await staticPage.locator('a[href^="/lesson-tools?"]').count());
+  assert.equal(
+    await staticPage.locator("#community-reminders a").isVisible(),
+    true,
+  );
   await noJs.close();
   const legacyContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

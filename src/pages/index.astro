@@ -2,6 +2,7 @@
 import Site from "../layouts/Site.astro";
 import WeeklyLesson from "../components/WeeklyLesson.astro";
 import Institutions from "../components/Institutions.astro";
+import CommunityTabs from "../components/CommunityTabs.astro";
 import program from "../generated/program.json";
 import config from "../config/program.json";
 import { weekIndex } from "../lib/calendar";
@@ -165,6 +166,7 @@ const hero = [
       <Institutions />
     </div>
   </section>
+  <CommunityTabs />
   <section class="paths container" aria-label="הצטרפות לתוכנית">
     <div class="path" data-reveal style="--n:0">
       <p class="eyebrow">{program.ui.siteStudent}</p>
