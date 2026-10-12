@@ -891,6 +891,38 @@ try {
     "1",
   );
   await lockContext.close();
+  const motionContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "no-preference",
+  });
+  await prepare(motionContext);
+  const motionPage = await motionContext.newPage();
+  await motionPage.goto(base);
+  await motionPage.locator("[data-community-tabs]").scrollIntoViewIfNeeded();
+  await motionPage.locator("[data-community-tabs].is-in").waitFor();
+  await motionPage.getByRole("tab", { name: "עדכונים ותזכורות" }).click();
+  assert.equal(
+    await motionPage
+      .locator("#community-reminders > div")
+      .evaluateAll((elements) =>
+        elements.every((element) => element.getAnimations().length > 0),
+      ),
+    true,
+  );
+  await motionPage.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(
+    await motionPage
+      .locator("#community-reminders > div")
+      .evaluateAll((elements) =>
+        elements.every(
+          (element) =>
+            element.ownerDocument.defaultView.getComputedStyle(element)
+              .animationName === "none",
+        ),
+      ),
+    true,
+  );
+  await motionContext.close();
   const unavailableContext = await browser.newContext();
   await prepare(unavailableContext);
   await unavailableContext.route("**/api/sheets?**", (route) => {

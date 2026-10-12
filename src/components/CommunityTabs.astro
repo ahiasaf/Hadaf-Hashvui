@@ -2,6 +2,7 @@
   class="community container"
   aria-label="עדכונים מהדף השבועי"
   data-community-tabs
+  data-reveal
 >
   <div
     class="community-tabs"
@@ -166,7 +167,11 @@
     transition:
       background 0.2s,
       color 0.2s,
-      box-shadow 0.2s;
+      box-shadow 0.2s,
+      transform 0.2s var(--ease);
+  }
+  .community-tabs button:active {
+    transform: scale(0.97);
   }
   .community-tabs button[aria-selected="true"] {
     background: var(--blue-d);
@@ -199,7 +204,12 @@
     align-items: center;
     gap: 28px;
     padding: 36px;
-    animation: community-enter 0.24s var(--ease);
+  }
+  .community.is-in .community-panel > div {
+    animation: community-enter 0.5s var(--ease) both;
+  }
+  .community.is-in .community-panel > .community-action {
+    animation-delay: 0.08s;
   }
   .community-kicker {
     color: var(--gold-t);
@@ -221,6 +231,20 @@
     gap: 14px;
     white-space: nowrap;
   }
+  .community-action .button span {
+    transition: transform 0.25s var(--ease);
+  }
+  @media (hover: hover) {
+    .community-tabs button:hover {
+      transform: translateY(-1px);
+    }
+    .community-action .button:hover span {
+      transform: translateX(-3px);
+    }
+    .community-action .button-whatsapp:hover span {
+      transform: translate(-2px, -2px);
+    }
+  }
   .community-action [role="status"] {
     font-size: 0.8rem;
   }
@@ -234,7 +258,7 @@
   @keyframes community-enter {
     from {
       opacity: 0;
-      transform: translateY(5px);
+      transform: translateY(10px);
     }
     to {
       opacity: 1;
@@ -273,11 +297,13 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .community-panel {
+    .community.is-in .community-panel > div {
       animation: none;
     }
-    .community-tabs button {
+    .community-tabs button,
+    .community-action .button span {
       transition: none;
+      transform: none;
     }
   }
   :global(html:not(.js)) [data-community-status] {
