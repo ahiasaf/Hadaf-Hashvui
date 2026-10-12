@@ -165,6 +165,39 @@ try {
       }),
     );
   }
+  const delayedAdminContext = await browser.newContext();
+  await prepare(delayedAdminContext);
+  let releaseAdminScripts;
+  const adminScriptsReady = new Promise((resolve) => {
+    releaseAdminScripts = resolve;
+  });
+  await delayedAdminContext.route("**/_astro/*.js", async (route) => {
+    await adminScriptsReady;
+    await route.continue();
+  });
+  const delayedAdminPage = await delayedAdminContext.newPage();
+  await delayedAdminPage.goto(base + "/admin", { waitUntil: "commit" });
+  await delayedAdminPage
+    .locator(".admin-login-form input")
+    .waitFor({ state: "attached" });
+  assert.equal(
+    await delayedAdminPage.locator(".admin-login-form input").isDisabled(),
+    true,
+  );
+  assert.equal(
+    await delayedAdminPage.locator(".admin-login-form > button").isDisabled(),
+    true,
+  );
+  releaseAdminScripts();
+  await delayedAdminPage
+    .getByLabel("סיסמת הקריאה", { exact: true })
+    .fill("DEMO");
+  await delayedAdminPage
+    .getByRole("button", { name: "כניסה לניהול", exact: true })
+    .click();
+  await delayedAdminPage.getByText("Neon · מחובר", { exact: true }).waitFor();
+  await delayedAdminContext.close();
+  console.log("Admin controls stay inactive until their handlers are ready.");
   const routes = [
     "/",
     "/calendar",

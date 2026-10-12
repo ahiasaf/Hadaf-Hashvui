@@ -20,6 +20,8 @@ export default function Admin({
   institutions: { code: string; name: string }[];
   startDate: string;
 }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const [key, setKey] = useState("");
   const [inputKey, setInputKey] = useState("");
   const [tab, setTab] = useState("סקירה");
@@ -206,7 +208,11 @@ export default function Admin({
               <circle cx="90" cy="116" r="6" fill="currentColor" />
             </svg>
           </div>
-          <form className="flow-form admin-login-form" onSubmit={login}>
+          <form
+            className="flow-form admin-login-form"
+            onSubmit={login}
+            aria-busy={!ready || busy}
+          >
             <h2>כניסה לניהול</h2>
             <label>
               סיסמת הקריאה
@@ -217,12 +223,13 @@ export default function Admin({
                   onChange={(event) => setInputKey(event.target.value)}
                   autoComplete="current-password"
                   required
-                  disabled={busy}
+                  disabled={!ready || busy}
                 />
                 <button
                   type="button"
                   className="admin-password-toggle"
                   aria-label={visiblePassword ? "הסתרת סיסמה" : "הצגת סיסמה"}
+                  disabled={!ready || busy}
                   aria-pressed={visiblePassword}
                   onClick={() => setVisiblePassword(!visiblePassword)}
                 >
@@ -243,9 +250,11 @@ export default function Admin({
             </label>
             <button
               className={"button button-blue" + (busy ? " is-busy" : "")}
-              disabled={busy}
+              disabled={!ready || busy}
             >
-              {busy ? (
+              {!ready ? (
+                "טוענים…"
+              ) : busy ? (
                 <>
                   <span className="admin-spinner" aria-hidden="true" />
                   בודקים גישה…
