@@ -3,7 +3,6 @@ import program from "../generated/program.json";
 const path =
   Astro.url.pathname.replace(/\.html$/, "").replace(/\/$/, "") || "/";
 const { registration = false } = Astro.props;
-const home = path === "/" || path === "/index";
 ---
 
 <footer class="site-footer">
@@ -19,14 +18,6 @@ const home = path === "/" || path === "/index";
           <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
         )}
       </nav>
-      {!home && (
-        <nav aria-label="עדכונים">
-          <a data-community hidden target="_blank" rel="noopener">
-            קבוצת הוואטסאפ
-          </a>
-          {path !== "/hitraot" && <a href="/hitraot">עדכונים ותזכורות</a>}
-        </nav>
-      )}
       <nav aria-label="מידע">
         {path !== "/accessibility" && path !== "/info" && (
           <a href="/accessibility">{program.ui.siteAccessibility}</a>
@@ -37,21 +28,6 @@ const home = path === "/" || path === "/index";
     </div>
   </div>
 </footer>
-
-<script>
-  import { communityGroup } from "../lib/community";
-  void communityGroup()
-    .then((url) => {
-      if (!url) return;
-      for (const link of document.querySelectorAll<HTMLAnchorElement>(
-        ".site-footer [data-community]",
-      )) {
-        link.href = url;
-        link.hidden = false;
-      }
-    })
-    .catch(() => {});
-</script>
 
 <style>
   .site-footer {
@@ -106,9 +82,6 @@ const home = path === "/" || path === "/index";
   .site-footer nav a:hover {
     color: var(--blue-d);
     text-decoration: underline;
-  }
-  .site-footer nav a[hidden] {
-    display: none;
   }
   @media (max-width: 700px) {
     .footer-inner {
