@@ -167,6 +167,9 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // גוגל שיטס וכד' — ישר לרשת
+  // סרטון התדמית: כבד, ונגן הווידאו מבקש טווחים. מטמון הדפדפן מחזיק
+  // אותו, ו-index.html טוען אותו ברקע — לא כאן.
+  if (/\/promo\//.test(url.pathname)) return;
 
   var save = function (res) {
     if (res && res.status === 200) {

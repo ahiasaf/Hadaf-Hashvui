@@ -1460,6 +1460,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   box-shadow:0 18px 50px rgba(0,0,0,.5)}
 #zoom button{position:fixed;top:14px;inset-inline-end:14px;background:none;
   border:none;color:#fff;font-size:1.5rem;cursor:pointer;opacity:.7;line-height:1;z-index:1}
+/* סרטון התדמית — נפתח בלחיצה על הלוגו שבבית. */
+#promo{position:fixed;inset:0;z-index:125;display:none;background:#000;
+  align-items:center;justify-content:center}
+#promo.on{display:flex;animation:fade .18s ease}
+#promo video{max-width:100%;max-height:100%;width:auto;height:100%;display:block}
+#promo button{position:fixed;top:14px;inset-inline-end:14px;background:none;
+  border:none;color:#fff;font-size:1.5rem;cursor:pointer;opacity:.8;line-height:1;z-index:1}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 /* כותרת המסכת בטופס ההזמנה */
 .mtitle{font-size:1rem;font-weight:800;letter-spacing:-.02em;margin-bottom:8px;
@@ -2562,7 +2569,7 @@ button.yr-c.auto{cursor:pointer}
     <div id="v-home" class="view">
 
       <div class="masthead">
-        <span class="m"><img id="hdr-mark" alt=""></span>
+        <span class="m" onclick="promoOpen()"><img id="hdr-mark" alt=""></span>
         <div><h1>הדף השבועי<br>של ישיבות בני עקיבא</h1>
           <div class="yr">שנת תשפ"ז</div></div>
         <button class="t-mast" id="t-mast" onclick="tourOpen(0)"
@@ -2714,6 +2721,12 @@ button.yr-c.auto{cursor:pointer}
 
 <!-- הגדלת תמונת ספר. שכבה נפרדת מנגן המצגות: אין כאן ניווט,
      רק תמונה אחת, וסגירה בלחיצה בכל מקום. -->
+<!-- סרטון התדמית. אין לו קישור גלוי — נפתח בלחיצה על הלוגו. -->
+<div id="promo" onclick="if(event.target===this)promoClose()">
+  <button id="promo-x" onclick="promoClose()">✕</button>
+  <video id="promo-v" controls playsinline preload="auto"></video>
+</div>
+
 <div id="zoom" onclick="zoomClose()">
   <button aria-label="סגירה" onclick="zoomClose()">✕</button>
   <div class="zin"><img alt=""></div>
@@ -3575,6 +3588,44 @@ function zoom(base, hi) {
   }
 }
 function zoomClose() { document.getElementById('zoom').classList.remove('on'); }
+
+/* סרטון התדמית — נטען ברקע מיד עם פתיחת העמוד, כדי שהלחיצה על
+   הלוגו תנגן אותו בלי המתנה. נשמר כ-blob בזיכרון: נגן הווידאו
+   מבקש טווחים, וב-iOS טווח מהמטמון לא תמיד מנוגן — blob תמיד כן.
+   הקובץ במטמון הדפדפן לשנה (vercel.json), כך שבפתיחה הבאה אין
+   הורדה חוזרת. עובד השירות לא נוגע בו בכוונה (sw.js).
+   מחליפים סרטון → שם קובץ חדש, אחרת המכשירים יחזיקו את הישן. */
+var PROMO_SRC = 'promo/hadaf-promo.mp4';
+var promoBlob = '';
+function promoLoad() {
+  if (promoBlob || !window.fetch || !window.URL || !URL.createObjectURL) return;
+  fetch(PROMO_SRC).then(function (r) {
+    if (!r.ok) throw 0;
+    return r.blob();
+  }).then(function (b) {
+    promoBlob = URL.createObjectURL(b);
+    var v = document.getElementById('promo-v');
+    if (v && !v.getAttribute('src')) v.src = promoBlob;
+  }).catch(function () {});
+}
+function promoOpen() {
+  var p = document.getElementById('promo'), v = document.getElementById('promo-v');
+  if (!p || !v) return;
+  var x = document.getElementById('promo-x');
+  if (x) x.setAttribute('aria-label', UI.promoX || '');
+  if (!v.getAttribute('src')) v.src = promoBlob || PROMO_SRC;
+  p.className = 'on';
+  try { v.currentTime = 0; } catch (e) {}
+  var pr = v.play();
+  if (pr && pr.catch) pr.catch(function () {});
+}
+function promoClose() {
+  var p = document.getElementById('promo'), v = document.getElementById('promo-v');
+  if (v) v.pause();
+  if (p) p.className = '';
+}
+if (document.readyState === 'complete') setTimeout(promoLoad, 0);
+else window.addEventListener('load', function () { setTimeout(promoLoad, 0); });
 
 function jumpTo(id) {
   var el = document.getElementById(id);
@@ -5746,6 +5797,9 @@ function deckPaint() {
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && document.getElementById('zoom').classList.contains('on')) {
     zoomClose(); return;
+  }
+  if (e.key === 'Escape' && document.getElementById('promo').className === 'on') {
+    promoClose(); return;
   }
   if (document.getElementById('deck').className !== 'on') return;
   if (e.key === 'ArrowLeft')  deckGo(1);
