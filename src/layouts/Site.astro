@@ -1,6 +1,7 @@
 ---
 import "../styles/site.css";
 import program from "../generated/program.json";
+import SiteFooter from "../components/SiteFooter.astro";
 interface Props {
   title?: string;
   description?: string;
@@ -95,19 +96,6 @@ const showJoin = !["/", "/app", "/join", "/tzevet"].includes(path);
     <main id="main">
       <slot />
     </main>
-    <footer class="site-footer">
-      <div class="container">
-        <p>רשת ישיבות בני עקיבא · הדף השבועי · {program.year}</p>
-        <nav aria-label="מידע">
-          {path !== "/tzevet" && <a href="/tzevet">לצוותי הישיבות</a>}
-          <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
-          {path !== "/accessibility" && path !== "/info" && (
-            <a href="/accessibility">{program.ui.siteAccessibility}</a>
-          )}
-          <a href="/info#privacy">{program.ui.sitePrivacy}</a>
-          {path !== "/info" && <a href="/info">{program.ui.siteInfo}</a>}
-        </nav>
-      </div>
-    </footer>
+    <SiteFooter />
   </body>
 </html>

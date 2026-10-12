@@ -1601,13 +1601,6 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   background:linear-gradient(140deg,var(--gold-l),var(--gold));
   box-shadow:0 6px 22px rgba(122,86,16,.42)}
 #adm-chip.on{display:block}
-footer{padding:24px 16px 32px;text-align:center;color:var(--ink-3);font-size:.75rem;
-  line-height:1.85;font-weight:600}
-footer b{color:var(--ink-2);font-weight:800}
-footer a{color:var(--ink-2);font-weight:800}
-footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 auto 12px}
-
-
 .plist{margin-top:12px;border-top:1px solid var(--rule)}
 .prow2{display:flex;align-items:flex-start;gap:11px;padding:11px 2px;
   border-bottom:1px solid var(--rule)}
@@ -2112,3 +2105,14 @@ button.yr-c.auto{cursor:pointer}
 .rnav .btn{margin-top:0;min-height:50px}
 .rnav .btn.g{flex:0 0 auto;width:auto;padding-inline:20px}
 .rnav .btn.gd{flex:1}
+
+/* Give the weekly question, answers and step header separate breathing room. */
+#quiz-body{display:grid;gap:20px}
+#quiz-body > .sec{margin:0}
+.qflow .qprog{display:grid;gap:10px;margin-bottom:20px}
+.qflow .qprog i{width:100%}
+.qflow .qstep.on{display:grid;gap:16px}
+.qflow .qq{line-height:1.6;padding:20px}
+.qflow .opt{min-height:60px;padding:14px 16px;line-height:1.55}
+.qflow .opt > span:last-child{flex:1;min-width:0}
+.qflow.locked #q-step-a{display:grid}

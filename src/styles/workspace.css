@@ -243,27 +243,62 @@ legend {
 }
 .progress-overview {
   display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 6px 18px;
-  padding: 18px 10px;
-  border-block: 1px solid var(--line);
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
 }
-.track-tabs + .progress-overview {
-  border-top: 0;
-  margin-top: -24px;
+.progress-summary,
+.progress-count {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
-.progress-overview strong {
-  font-size: 2.5rem;
-  grid-row: span 2;
+.progress-summary {
+  justify-content: space-between;
 }
-progress {
-  width: 100%;
-  height: 8px;
-  accent-color: var(--gold);
+.progress-count {
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
-.progress-overview strong {
+.progress-count strong {
+  font-size: 2rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   color: var(--blue-d);
+}
+.progress-count > span {
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+.progress-percent {
+  font-size: 0.85rem;
+  color: var(--gold-t);
+  font-weight: 800;
+}
+.progress-overview progress {
+  display: block;
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--sunk);
+  color: var(--blue);
+}
+.progress-overview progress::-webkit-progress-bar {
+  background: var(--sunk);
+  border-radius: 99px;
+}
+.progress-overview progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--blue), var(--blue-d));
+  border-radius: 99px;
+}
+.progress-overview progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--blue), var(--blue-d));
+  border-radius: 99px;
 }
 /* Parent invitation panel. */
 .invite h2 {

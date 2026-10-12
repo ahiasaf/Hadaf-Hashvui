@@ -994,37 +994,6 @@ html:not(.js) .ring-fill {
   margin-top: 10px;
 }
 
-/* ---------- Footer ---------- */
-.site-footer {
-  border-top: 1px solid var(--rule);
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: 0.8rem;
-  font-weight: 650;
-  margin-top: 24px;
-}
-.site-footer .container {
-  padding-block: 28px 24px;
-  display: grid;
-  justify-items: center;
-  text-align: center;
-  gap: 4px;
-}
-.site-footer p {
-  margin: 0;
-}
-.site-footer nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0 20px;
-}
-.site-footer nav a {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-}
-
 /* ---------- Calendar page ---------- */
 .calendar {
   padding-block: 40px 48px;

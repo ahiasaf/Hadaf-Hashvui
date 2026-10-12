@@ -1,0 +1,96 @@
+---
+import program from "../generated/program.json";
+const path =
+  Astro.url.pathname.replace(/\.html$/, "").replace(/\/$/, "") || "/";
+const { registration = false } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-identity">
+      <strong>הדף השבועי</strong>
+      <span>רשת ישיבות בני עקיבא · {program.year}</span>
+    </div>
+    <div class="footer-links">
+      <nav aria-label="לישיבות">
+        {path !== "/tzevet" && <a href="/tzevet">לצוותי הישיבות</a>}
+        {!registration && (
+          <a href="/management#reg">הרשמת ישיבה והזמנת גמרות</a>
+        )}
+      </nav>
+      <nav aria-label="מידע">
+        {path !== "/accessibility" && path !== "/info" && (
+          <a href="/accessibility">{program.ui.siteAccessibility}</a>
+        )}
+        <a href="/info#privacy">{program.ui.sitePrivacy}</a>
+        {path !== "/info" && <a href="/info">{program.ui.siteInfo}</a>}
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 32px;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    text-align: start;
+    font-size: 0.8rem;
+  }
+  .footer-inner {
+    width: min(1080px, calc(100% - 40px));
+    margin-inline: auto;
+    padding-block: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px 32px;
+  }
+  .footer-identity {
+    display: grid;
+    gap: 4px;
+    flex: none;
+  }
+  .footer-identity strong {
+    font-size: 0.95rem;
+    color: var(--blue-d);
+  }
+  .footer-identity span {
+    font-size: 0.75rem;
+  }
+  .footer-links {
+    display: grid;
+    gap: 2px;
+  }
+  .site-footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 20px;
+    justify-content: start;
+  }
+  .site-footer nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--ink-2);
+    font-weight: 650;
+    text-decoration: none;
+  }
+  .site-footer nav a:hover {
+    color: var(--blue-d);
+    text-decoration: underline;
+  }
+  @media (max-width: 700px) {
+    .footer-inner {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+    }
+    .footer-links {
+      border-top: 1px solid var(--rule);
+      padding-top: 8px;
+    }
+  }
+</style>

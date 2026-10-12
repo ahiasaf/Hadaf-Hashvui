@@ -255,6 +255,43 @@ try {
   });
   await prepare(context);
   const page = await context.newPage();
+  const progressTotal = program.tracks[0].cal.filter(
+    (row) => row[2] && row[2] !== "סיום",
+  ).length;
+  for (const units of [0, 8, progressTotal]) {
+    await page.goto(base + "/app");
+    await page.evaluate(
+      ({ units, cal }) => {
+        const learned = {};
+        let count = 0;
+        cal.forEach((row, index) => {
+          if (row[2] && (count++ < units || row[2] === "סיום"))
+            learned["taanit|" + (index + 1)] = "2026-10-12";
+        });
+        localStorage.setItem("df:learned", JSON.stringify(learned));
+        localStorage.setItem("df:track", "taanit");
+      },
+      { units, cal: program.tracks[0].cal },
+    );
+    await page.reload();
+    await page
+      .locator(".progress-count strong")
+      .filter({ hasText: new RegExp("^" + units + "$") })
+      .waitFor();
+    assert.equal(
+      await page.locator(".progress-overview progress").getAttribute("value"),
+      String(units),
+    );
+    assert.equal(
+      await page.locator(".progress-percent").textContent(),
+      Math.round((units / progressTotal) * 100) + "%",
+    );
+    assert.ok(
+      (await page.locator(".progress-overview progress").boundingBox())
+        .height >= 12,
+    );
+  }
+  await page.evaluate(() => localStorage.removeItem("df:learned"));
   await page.goto(base + "/join");
   // The dashboard remembers the selected track and offers the unfinished interactive lesson.
   await page.goto(base + "/app");
@@ -701,6 +738,12 @@ try {
     window.openWeek("taanit", 0);
     window.openQuiz(0);
   });
+  const questionBox = await legacyPage.locator(".qq").boundingBox();
+  const answerBox = await legacyPage.locator("#opt0").boundingBox();
+  assert.ok(
+    answerBox.y - questionBox.y - questionBox.height >= 15,
+    "Question card touches the first answer",
+  );
   await legacyPage.locator("#opt1").click();
   await legacyPage.locator("#q-step-b.on").waitFor();
   await legacyPage.locator("#q-send").click();
@@ -743,6 +786,15 @@ try {
   );
   await legacyPage.goto(base + "/management#reg");
   await legacyPage.locator("#v-reg.on #reg-body button").first().waitFor();
+  assert.equal(await legacyPage.locator("footer").count(), 1);
+  assert.equal(
+    await legacyPage.locator('footer a[href="/management#reg"]').count(),
+    0,
+  );
+  assert.equal(
+    await legacyPage.locator('footer a[href="/info#privacy"]').count(),
+    1,
+  );
   assert.equal(await legacyPage.locator("#v-home.on").count(), 0);
   await legacyPage.locator("#r-step-1 .rnav button").click();
   await legacyPage.locator("#r-err1:not([hidden])").waitFor();

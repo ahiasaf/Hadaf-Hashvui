@@ -64,8 +64,11 @@ export default function StudentHome({
   const track = tracks.find((item) => item.id === trackId)!;
   const current = Math.min(weekIndex(startDate), track.cal.length - 1);
   const count = track.cal.filter(
-    (row, index) => row[2] && completed[track.id + "|" + (index + 1)],
+    (row, index) =>
+      row[2] && row[2] !== "סיום" && completed[track.id + "|" + (index + 1)],
   ).length;
+  const total = studyUnits(track);
+  const percent = Math.round((count / total) * 100);
   const resumeRow =
     spot?.mas === trackId && spot.i > 0 && spot.i < spot.n - 1
       ? track.cal.find(
@@ -130,13 +133,20 @@ export default function StudentHome({
         </a>
       </div>
       <div className="progress-overview swap" key={"progress-" + trackId}>
-        <strong>{count}</strong>
-        <span>יחידות הושלמו מתוך {studyUnits(track)}</span>
-        <progress
-          max={studyUnits(track)}
-          value={count}
-          aria-label="התקדמות במסכת"
-        />
+        <div className="progress-summary">
+          <div className="progress-count">
+            <strong>
+              <bdi>{count}</bdi>
+            </strong>
+            <span>
+              מתוך <bdi>{total}</bdi> יחידות הושלמו
+            </span>
+          </div>
+          <span className="progress-percent">
+            <bdi>{percent}%</bdi>
+          </span>
+        </div>
+        <progress max={total} value={count} aria-label="התקדמות במסכת" />
       </div>
       {!person && (
         <p className="notice">
