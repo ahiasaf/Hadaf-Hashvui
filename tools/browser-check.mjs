@@ -420,6 +420,7 @@ try {
   );
   assert.equal(await page.locator("#chav").getAttribute("aria-hidden"), "true");
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => !document.getElementById("viewmenu").open);
   await viewToggle("dktog");
   const stage = await page.locator("#stage").boundingBox();
   const controls = await page.locator("body > nav").boundingBox();

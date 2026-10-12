@@ -1489,6 +1489,12 @@ textarea {
     transform var(--t-base) var(--ease);
 }
 @media (prefers-reduced-motion: reduce) {
+  .progress-overview progress::-webkit-progress-value {
+    transition: none;
+  }
+  .progress-overview progress::-moz-progress-bar {
+    transition: none;
+  }
   .js .workspace > *,
   .student-row,
   .team-card,
