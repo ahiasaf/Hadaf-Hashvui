@@ -1566,9 +1566,22 @@ function doGet(e) {
       return reply_(e, { status: 'error', message: 'מצב לא מוכר' });
     }
     try {
-      upsertCols_(ACC_TAB, [['מזהה', String(e.parameter.accset)], ['מצב', ast],
+      var aid = String(e.parameter.accset), was = accRow_(aid);
+      upsertCols_(ACC_TAB, [['מזהה', aid], ['מצב', ast],
                             ['הוחלט', new Date()]], 'מזהה');
-      return reply_(e, { status: 'ok' });
+      /* **אושר — הוא יודע מיד.** התראה למכשיר שלו בלבד, רק במעבר
+         לאישור (לא כשמאשרים שוב), והלחיצה פותחת לו את האזור האישי
+         ובודקת שם. הנוסח מגיע מהניהול (ui.accOkT / ui.accOkB),
+         כדי שייערך ב"מלל" ולא כאן. */
+      var pushed = false;
+      if (ast === 'אושר' && was && was.st !== 'אושר' && was.inst &&
+          e.parameter.t && e.parameter.b) {
+        var rP = ghFire_(String(e.parameter.t).slice(0, 120), String(e.parameter.b).slice(0, 400),
+                         was.inst, '', '', 'מערכת', './#phone', '', '',
+                         JSON.stringify({ ids: [aid] }));
+        pushed = !!(rP && rP.status === 'ok');
+      }
+      return reply_(e, { status: 'ok', pushed: pushed });
     } catch (errS) { return reply_(e, { status: 'error', message: String(errS) }); }
   }
 
@@ -2450,6 +2463,21 @@ function accAsk_(inst, dev, has) {
   if (st === 'נעול') return { status: 'locked', phone: !!g('טלפון') };
   if (st !== 'אושר') return { status: 'wait', phone: !!g('טלפון') };
   return { status: 'ok', k: ensureCode_(inst, newCode_()) };
+}
+
+/* השורה של מכשיר אחד ב"גישה" — המצב והישיבה, לפני שמשנים. */
+function accRow_(dev) {
+  var sh = sheet_(ACC_TAB);
+  if (sh.getLastRow() < 2) return null;
+  var head = headers_(sh), ix = {};
+  for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
+  var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
+  for (var a = 0; a < av.length; a++) {
+    if (String(av[a][ix['מזהה']] || '').trim() !== dev) continue;
+    return { st: String(av[a][ix['מצב']] || '').trim(),
+             inst: String(av[a][ix['קוד ישיבה']] || '').trim() };
+  }
+  return null;
 }
 
 /* בהרשמה: יוצרים אם אין, ולא דורסים אם יש. ראש חטיבה שנרשם שוב

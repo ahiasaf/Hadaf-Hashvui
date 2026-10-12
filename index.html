@@ -2740,7 +2740,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.190';
+var APP_VERSION = '8.99.191';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4480,6 +4480,19 @@ function accCheck(force) {
     if (!has && (was !== accSt || !accPh)) accRe();
   }).catch(function () { accBusy = false; });
 }
+/* **מי שממתין מול המסך — רואה את האישור בלי לפתוח מחדש.** כל חצי
+   דקה, רק כשהאזור האישי פתוח ובחזית, ורק עד שמגיע הקוד. וכשחוזרים
+   לאפליקציה (מההתראה, או סתם) — בודקים מיד. */
+function accWaiting() {
+  return accSt === 'wait' && document.visibilityState !== 'hidden' &&
+    !!document.querySelector('#v-my.on') && !instCode(myBoard());
+}
+setInterval(function () { if (accWaiting()) accCheck(true); }, 30000);
+document.addEventListener('visibilitychange', function () { if (accWaiting()) accCheck(true); });
+/* ההתראה "אושרת" נוחתת על #phone גם כשהאפליקציה כבר פתוחה. */
+window.addEventListener('hashchange', function () {
+  if (location.hash === '#phone' && myInstRow()) { show('my'); accCheck(true); }
+});
 /* רק כשהאזור האישי פתוח — אחרת אין מה לצייר. */
 function accRe() { if (document.querySelector('#v-my.on')) renderMy(); }
 function accWaitHtml() {
@@ -11143,7 +11156,13 @@ function accSet(id, st) {
   if (st === 'נעול' && !confirm('לנעול את ' + (a.name || 'איש הצוות') + '?\n' +
       'הוא יחזור לראות מספרים בלבד, בלי שמות ובלי שליחה לתלמידים.')) return;
   accMsg = 'שומר…'; admPane();
-  scriptGet({ accset:id, st:st, key:key }).then(function (d) {
+  var q = { accset:id, st:st, key:key };
+  /* באישור — גם הנוסח של ההתראה אליו. השרת שולח רק במעבר לאישור. */
+  if (st === 'אושר') {
+    var iv = { inst: a.instName || pplName(pplCode(a.inst)) };
+    q.t = fill(textGet('ui.accOkT'), iv); q.b = fill(textGet('ui.accOkB'), iv);
+  }
+  scriptGet(q).then(function (d) {
     if (!d || d.status !== 'ok') { accMsg = 'לא נשמר. ' + ((d && d.message) || 'אין תשובה מהסקריפט.'); admPane(); return; }
     /* ולוודא — no-cors אינו כאן, אבל קריאה חוזרת היא מה שמאשר. */
     accMsg = ''; a.st = st; Store.set('accCache', accRows);
