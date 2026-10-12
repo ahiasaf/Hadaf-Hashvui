@@ -2793,7 +2793,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.205';
+var APP_VERSION = '8.99.206';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10788,8 +10788,8 @@ function admPane() {
    ישיבות וצוות — הראש: כמה אישרו השתתפות, וקישור לעריכה.
    ============================================================
    "מי מופיע כבפנים" הוא מתג לכל ישיבה שקובע את רשימת המאושרות
-   באתר הציבורי ובמונה הישיבות. הסיכום גלוי, והרשימה (מתג וקוד
-   לכל ישיבה) נפתחת מתחתיו — admInstInner. */
+   באתר הציבורי ובמונה הישיבות. הסיכום גלוי, והרשימה נפתחת
+   מתחתיו — admInstInner. */
 function admInstHead() {
   return '<div class="adm-card" id="in-codes" style="margin-bottom:11px">' + admInstInner() + '</div>';
 }
@@ -12646,7 +12646,7 @@ function admLinks(el) {
    ============================================================
    קודם היו כאן שתי רשימות של אותן ישיבות זו אחר זו (קודים,
    ואז מתג "בפנים"), ושתיהן ב"קישורים להפצה". עכשיו כל ישיבה
-   מופיעה פעם אחת, עם הקוד והמתג, ומקופלת מתחת לסיכום. */
+   מופיעה פעם אחת עם המתג, ומקופלת מתחת לסיכום. */
 var instOpen = false;
 function instOpenSet() { instOpen = !instOpen; instPaint(); }
 /* "ישיבות וצוות" אינו מצויר מחדש כולו (ראו admPane), ולכן הרשימה
@@ -12671,145 +12671,16 @@ function admInstInner() {
     'onclick="loadInstitutions().then(function(){renderHome();instPaint();})">' +
     'ניסיון טעינה מחדש</button></div></div>';
   return head + src +
-    '<p class="h" style="margin-top:9px"><b>המתג</b> — מי מופיע כ"בפנים" בעמוד ' +
-    'הראשי ובעיגול המונה. <b>הקוד</b> — מצורף לקישור הצוות, ומאחוריו הלוח ' +
-    'של הישיבה. ↻ מחליף קוד, והקישור הקודם מפסיק לעבוד.</p>' +
-    (linkState.msg ? '<div class="cond" style="margin-top:9px">' +
-                     linkState.msg + '</div>' : '') +
-    '<div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">' +
-    '<button class="btn g" style="margin:0;flex:1" ' +
-    'onclick="codesLoad()">משיכת הקודים מהגיליון</button>' +
-    '<button class="btn g" style="margin:0;flex:1" ' +
-    'onclick="codesFill()">קוד לכל מי שאין לו</button></div>' +
+    '<p class="h" style="margin-top:9px">המתג קובע מי מופיע כ"בפנים" ' +
+    'בעמוד הראשי ובעיגול המונה.</p>' +
+    /* בלי קודים: אנשי הצוות נרשמים, והרכז מאשר כל אחד. */
     INSTITUTIONS.map(function (i) {
-      var k = instCode(i.code);
       return '<div class="row"><div>' + esc(i.name) +
-        '<div class="sub">' + (k ? 'קוד ✓' : 'אין קוד') +
-        (i.last ? ' · למדו בתשפ"ו' : '') + '</div></div>' +
-        '<div style="display:flex;gap:8px;align-items:center;flex:0 0 auto">' +
-        '<button class="cp" onclick="codeNew(' + dq(i.code) + ',' + dq(i.name) + ')">' +
-        (k ? '↻' : 'קוד') + '</button>' +
+        (i.last ? '<div class="sub">למדו בתשפ"ו</div>' : '') + '</div>' +
         '<button class="sw' + (i.joined ? ' on' : '') +
-        '" onclick="admToggle(\'' + i.code + '\')" aria-label="שיוך"></button>' +
-        '</div></div>';
+        '" onclick="admToggle(\'' + i.code + '\')" aria-label="שיוך"></button></div>';
     }).join('');
 }
-/* ---- הקודים מול הגיליון ----
-   הקודים נשמרים גם על המכשיר, אבל המכשיר אינו מקור האמת: רכז
-   שהחליף טלפון, או שני מכשירים שונים, מוצאים כאן את מה שבאמת
-   רשום בגיליון. */
-var linkState = { msg:'' };
-
-function codesLoad() {
-  var key = (CFG.readKey || '').trim();
-  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
-              instPaint(); return; }
-  linkState.msg = 'קורא…'; instPaint();
-  scriptGet({ codes:1, key:key }).then(function (d) {
-    if (!d || d.status !== 'ok') {
-      linkState.msg = esc((d && d.message) || 'לא קיבלתי תשובה מהסקריפט.');
-      instPaint(); return;
-    }
-    var m = Store.get('instCodes', {}) || {}, n = 0;
-    for (var c in (d.codes || {})) { m[c] = d.codes[c]; n++; }
-    Store.set('instCodes', m);
-    linkState.msg = n ? n + ' קודים נטענו מהגיליון.'
-                      : 'אין עדיין קודים בגיליון. לחצו "קוד" ליד מוסד כדי לייצר.';
-    instPaint();
-  }).catch(function () {
-    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; instPaint();
-  });
-}
-
-/* ============================================================
-   קוד לכל מוסד שאין לו — בלחיצה אחת.
-   ============================================================
-   עד היום קוד נוצר רק כשמוסד סיים הרשמה במסך הראשי, ובפועל
-   אף אחד לא עשה את זה: הקישור הגיע אליהם, והם לא לחצו. אנשים
-   עסוקים, והמסקנה אינה לחכות להם — היא לתת להם לוח שעובד
-   מהרגע הראשון, ושההרשמה תגיע אחר כך.
-
-   **רק למי שאין לו.** `newcode` מייצר חדש ודורס את הקיים, וקוד
-   שנדרס מפיל את הקישור שכבר בידי הצוות. לכן קודם מושכים את
-   מה שיש בגיליון, ורק מי שנשאר בלי — מקבל.
-
-   אחד־אחד ולא בבת אחת: כל בקשה נועלת את הגיליון בשרת, ועשרים
-   וארבע במקביל היו נחסמות זו בזו.
-   ============================================================ */
-function codesFill() {
-  var key = (CFG.readKey || '').trim();
-  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
-              instPaint(); return; }
-  linkState.msg = 'קורא מה כבר קיים…'; instPaint();
-
-  scriptGet({ codes:1, key:key }).then(function (d) {
-    /* קריאה שנכשלה אינה "אין קודים". ייצור על סמך כישלון היה
-       דורס את כל הקודים הקיימים בבת אחת. */
-    if (!d || d.status !== 'ok') {
-      linkState.msg = esc((d && d.message) || 'לא הצלחתי לקרוא את הקודים. ' +
-                          'לא נגעתי בכלום.');
-      instPaint(); return null;
-    }
-    var m = Store.get('instCodes', {}) || {};
-    for (var c in (d.codes || {})) m[c] = d.codes[c];
-    Store.set('instCodes', m);
-
-    var need = INSTITUTIONS.filter(function (i) {
-      return i.code && i.code !== 'other' && !(m[i.code] || '').trim();
-    });
-    if (!need.length) {
-      linkState.msg = 'לכל המוסדות כבר יש קוד.'; instPaint(); return null;
-    }
-    if (!confirm('לייצר קוד ל־' + need.length + ' מוסדות שאין להם?\n\n' +
-                 'מי שכבר יש לו קוד — לא ייגע, והקישור שבידיו ימשיך לעבוד.')) {
-      linkState.msg = ''; instPaint(); return null;
-    }
-
-    var done = 0, failed = 0;
-    var step = function (i) {
-      if (i >= need.length) {
-        linkState.msg = done + ' קודים נוצרו' +
-          (failed ? ' · ' + failed + ' נכשלו' : '') + '.';
-        instPaint(); return null;
-      }
-      linkState.msg = 'מייצר… ' + (i + 1) + ' מתוך ' + need.length; instPaint();
-      return scriptGet({ newcode:need[i].code, key:key }).then(function (r) {
-        if (r && r.status === 'ok' && r.code) { setInstCode(need[i].code, r.code); done++; }
-        else failed++;
-        return step(i + 1);
-      }).catch(function () { failed++; return step(i + 1); });
-    };
-    return step(0);
-  }).catch(function () {
-    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; instPaint();
-  });
-}
-
-/* קוד חדש מבטל את הקודם. זה בדיוק מה שרוצים כשקישור הודבק
-   בקבוצה שלא היה אמור להגיע אליה — ולכן זו גם פעולה שמפילה את
-   הקישור שכבר בידי הצוות, וצריך לומר את זה. */
-function codeNew(code, name) {
-  var key = (CFG.readKey || '').trim();
-  if (!key) { linkState.msg = 'חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.';
-              instPaint(); return; }
-  var had = instCode(code);
-  if (had && !confirm('קוד חדש ל' + name + ' יבטל את הקישור שכבר בידי הצוות, ' +
-                      'ותצטרכו לשלוח להם את החדש.\n\nלהמשיך?')) return;
-  linkState.msg = 'מייצר…'; instPaint();
-  scriptGet({ newcode:code, key:key }).then(function (d) {
-    if (!d || d.status !== 'ok' || !d.code) {
-      linkState.msg = esc((d && d.message) || 'לא קיבלתי תשובה מהסקריפט.');
-      instPaint(); return;
-    }
-    setInstCode(code, d.code);
-    linkState.msg = 'קוד חדש ל' + esc(name) + ' · <b dir="ltr">' + esc(d.code) +
-                    '</b> · שלחו להם את הקישור הכחול מחדש.';
-    instPaint();
-  }).catch(function () {
-    linkState.msg = 'לא קיבלתי תשובה מהסקריפט.'; instPaint();
-  });
-}
-
 var ROW_KEYS = [
   ['inter', 'דף אינטראקטיבי', 'ללמוד את הדף שלב אחר שלב · מוצג רק לדף שסומן'],
   ['daf',   'צורת הדף',       'קובץ הדף להדפסה'],
