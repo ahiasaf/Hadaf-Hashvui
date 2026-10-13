@@ -2793,7 +2793,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.211';
+var APP_VERSION = '8.99.212';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4641,6 +4641,67 @@ function accPhone() {
   setTimeout(function () { accCheck(true); }, 4000);
 }
 
+/* ============================================================
+   נוכחות בשיעור — אצל איש הצוות.
+   ============================================================
+   אותה עמדה שהרכז פותח בניהול, עם שני הבדלים: הרשימה מגיעה
+   מהשרת — רק תלמידי הישיבה שהמכשיר אושר אליה, ורק שם, שכבה
+   וכיתה (netroster) — והרישום עובר בזהות המכשיר ולא בסיסמה.
+   בפעם הראשונה: הסבר קצר, עם ההמלצה לתת לתלמידים לסמן את עצמם.
+   הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
+var attIntroOn = false, attMsg = '';
+/* איש צוות אחראי על כל הישיבה — כל הכיתות של השכבות שבתוכנית. */
+var ATT_GRADES = ['ז', 'ח'];
+function attHtml() {
+  if (attIntroOn) {
+    return '<div class="my-sec"><h3>' + esc(PANEL.attIntroH) + '</h3>' +
+      String(PANEL.attIntro).split('\n').map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<button class="btn p" onclick="attOpen(true)">' + esc(PANEL.attGo) + '</button>' +
+      '<button class="btn g" onclick="attIntroOn=false;renderMy()">' + esc(PANEL.attLater) + '</button></div></div>';
+  }
+  return '<div class="my-sec"><button class="btn p" style="width:100%;font-size:1.08rem" onclick="attOpen()">' +
+    esc(PANEL.attBtn) + '</button><p>' + esc(attMsg || PANEL.attSub) + '</p>' +
+    '<button class="btn g" onclick="attIntroOn=true;renderMy()">' + esc(PANEL.attHow) + '</button></div>';
+}
+function attOpen(fromIntro) {
+  var code = myBoard(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
+  if (!code || !me || !me.id || !instCode(code)) return;
+  if (!fromIntro && !Store.get('attIntro', 0)) { attIntroOn = true; renderMy(); return; }
+  Store.set('attIntro', 1);
+  attIntroOn = false; attMsg = PANEL.attLoad; renderMy();
+  var go = function (r) {
+    attMsg = '';
+    AMDA_STAFF = { inst: code, dev: me.id, r: r };
+    amdaSt.slot = ''; amdaSt.kind = '';
+    amdaOpen('d');
+  };
+  scriptGet({ netroster: code, dev: me.id }).then(function (d) {
+    if (!d || d.status !== 'ok') {
+      /* האישור בוטל — גם הגיבוי במכשיר יורד. */
+      if (d && (d.status === 'locked' || d.status === 'wait' || d.status === 'unknown')) Store.set('attR', null);
+      attMsg = (d && d.message) || PANEL.attFail; renderMy(); return;
+    }
+    var r = { at: Date.now(), inst: code, g: {} };
+    (d.rows || []).forEach(function (x) {
+      var g = String(x[0] || ''), c = String(x[1] || ''), n = String(x[2] || '');
+      if (!n || !c || ATT_GRADES.indexOf(g) < 0) return;
+      if (!r.g[g]) r.g[g] = {};
+      (r.g[g][c] = r.g[g][c] || []).push(n);
+    });
+    Object.keys(r.g).forEach(function (g) {
+      Object.keys(r.g[g]).forEach(function (c) { r.g[g][c].sort(function (a, b) { return a.localeCompare(b, 'he'); }); });
+    });
+    if (!amdaCount(r).n) { attMsg = PANEL.attNone; renderMy(); return; }
+    Store.set('attR', r);
+    go(r);
+  })['catch'](function () {
+    var r = Store.get('attR', null);
+    if (r && r.inst === code && amdaCount(r).n) go(r);
+    else { attMsg = PANEL.attFail; renderMy(); }
+  });
+}
+
 function renderMy() {
   var el = document.getElementById('my-body');
   if (!el) return;
@@ -4688,6 +4749,9 @@ function renderMy() {
   el.innerHTML =
     '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
     '<span>' + esc(inst.name) + '</span></div>' +
+
+    /* נוכחות בשיעור — ראשונה: זה מה שעושים בכל שיעור. רק אחרי האישור. */
+    (instCode(code) ? attHtml() : '') +
 
     /* עד האימות — ההודעה במקום השמות וההודעה לתלמידים. */
     (instCode(code) ? '' : '<div class="my-sec">' + accWaitHtml() + '</div>') +
@@ -15947,7 +16011,10 @@ function amdaBucket(slot, kind) {
 function amdaC4(a) { a = a || []; return [a[0] || 0, a[1] || 0, a[2] || 0, a[3] || 0]; }
 
 /* { at, inst, g:{ 'ז':{ '3':['כהן משה', ...] } } } */
-function amdaRoster() { return Store.get('amdaRoster', null); }
+/* נוכחות בשיעור אצל איש צוות: הרשימה של הישיבה שלו מהשרת (שם, שכבה
+   וכיתה בלבד), והרישום עובר בזהות המכשיר — בלי סיסמת הרכז. ראו attOpen. */
+var AMDA_STAFF = null;                 /* { inst, dev, r } כשפתוח אצל איש צוות */
+function amdaRoster() { return AMDA_STAFF ? AMDA_STAFF.r : Store.get('amdaRoster', null); }
 function amdaCount(r) {
   var n = 0, c = 0, g, k;
   if (!r || !r.g) return { n: 0, c: 0 };
@@ -16137,16 +16204,18 @@ function amdaPullRoster() {
 /* ---------- הרישומים: שליחה ואימות ---------- */
 function amdaFlush() {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
-  var q = amdaQ(), now = Date.now(), sent = 0;
-  if (!key || !url) return;
-  sent += amdaFlushMarks(key, url);
+  var q = amdaQ(), now = Date.now(), sent = 0, stf = AMDA_STAFF;
+  if ((!key && !stf) || !url) return;
+  if (!stf) sent += amdaFlushMarks(key, url);
   q.forEach(function (m) {
     if (m.sent && now - m.sent < 45000) return;       /* עוד מחכה לאימות */
     m.sent = now;
     sent++;
     var daf = m.kind !== 'o' && m.track;
+    /* איש צוות — בזהות המכשיר; השרת בודק שהוא מאושר לישיבה הזו. */
+    var auth = stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-      action: 'row', tab: AMDA_TAB, key: key,
+      action: 'row', tab: AMDA_TAB, key: auth.key, dev: auth.dev, inst: auth.inst,
       cols: JSON.stringify([['מזהה', m.id], ['שבוע', m.w], ['יום', m.day || ''],
                             ['עמדה', m.slot ? amdaSlotName(m.slot) : ''], ['קוד עמדה', m.slot || ''],
                             ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
@@ -16165,9 +16234,9 @@ function amdaFlush() {
    שורה ישנה, מלפני המועדים, היא רישום לדף השבוע שלה.
    קריאה שנכשלה אינה משנה דבר. */
 function amdaPull() {
-  var key = (CFG.readKey || '').trim();
-  if (!key) return Promise.resolve(false);
-  return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
+  var key = (CFG.readKey || '').trim(), stf = AMDA_STAFF;
+  if (!key && !stf) return Promise.resolve(false);
+  return scriptGet(stf ? { netmarks: stf.inst, dev: stf.dev } : { read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay(), seatEv = [], lesAtt = {};
     var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
@@ -16189,7 +16258,8 @@ function amdaPull() {
     Store.set('amdaCnt', cnt);
     Store.set('amdaLesAtt', lesAtt);
     Store.set('amdaQ', amdaQ().filter(function (m) { return !seen[m.id]; }));
-    return amdaPullMarks(key, seatEv);
+    /* סימוני שיעורי כיתה — של הרכז בלבד. */
+    return stf ? true : amdaPullMarks(key, seatEv);
   }).catch(function () { return false; }).then(function (ok) {
     if (document.getElementById('amda-adm')) admPane();
     return ok;
@@ -16329,6 +16399,9 @@ function amdaKindSet(k) {
   setTimeout(send, 2500);
 }
 function amdaClose(sure) {
+  /* איש צוות: יציאה פשוטה. שאלת "מה למדו" משנה רישומים בגיליון,
+     וזו פעולה של הרכז. */
+  if (sure !== true && AMDA_STAFF) { if (confirm(amdaT('exitAsk'))) amdaClose(true); return; }
   if (sure !== true) { amdaExitAsk(); return; }
   var el = document.getElementById('amda');
   if (el) el.className = 'amda';
@@ -16336,6 +16409,13 @@ function amdaClose(sure) {
   clearInterval(amdaSt.flushT);
   clearTimeout(amdaSt.idle);
   try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); } catch (e) {}
+  if (AMDA_STAFF) {
+    /* מה שעוד בתור — יוצא עכשיו, בזמן שזהות המכשיר עוד כאן. */
+    amdaFlush();
+    AMDA_STAFF = null;
+    renderMy();
+    return;
+  }
   admPane();
 }
 function amdaPaint() {
@@ -16374,7 +16454,8 @@ function amdaPaint() {
   }
   if (!les) {
     h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
-    AMDA_GRADES.forEach(function (g) {
+    /* רק שכבות שיש בהן תלמידים ברשימה — אצל איש צוות ז׳ וח׳ בלבד. */
+    AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
       h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
            esc(amdaG(g)) + '</button>';
     });

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 58;
+var SCRIPT_VERSION = 59;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -166,6 +166,8 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* כל תלמידי הרשת (קוד ישיבה, שכבה, כיתה, משפחה, פרטי,
                        טלפון) — מודבק ידנית. העמדה לוקחת ממנו שם וטלפון. */
                     'תלמידי הרשת',
+                    /* מי שלף את רשימת התלמידים של ישיבה, ומתי — ראו netRoster_. */
+                    'יומן מאגר',
                     /* מי מהעמדה זוהה כתלמיד רשום באפליקציה, ואיזה דף
                        נרשם לו משם. ראו amdaSync_. */
                     'עמדה — שיוך',
@@ -363,6 +365,24 @@ function doPost(e) {
        · **עם הסיסמה** — הכול, כמו קודם.
        · **סיסמה לא הוגדרה בסקריפט** — המסלול הניהולי סגור, לא פתוח. */
     var wAdm = !!READ_KEY && String(d.key || '') === READ_KEY;
+    /* ---- נוכחות בשיעור — מאיש צוות שהרכז אישר ----
+       בלי סיסמת הרכז: שורה אחת ללשונית העמדה, רק כשהמכשיר מאושר
+       לאותה ישיבה (accGate_), ורק בעמודות של העמדה. קוד הישיבה
+       בשורה נכפה להיות זה שהמכשיר אושר אליו — איש צוות אינו יכול
+       לרשום נוכחות בשם ישיבה אחרת. */
+    if (!wAdm && d.action === 'row' && d.tab === AMDA_TAB_ && d.dev && d.inst) {
+      var aInst = String(d.inst);
+      if (accGate_(aInst, String(d.dev), true)) {
+        return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
+      }
+      var aOk = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
+                 'רמה', 'שכבה', 'כיתה', 'שם', 'מתי'];
+      var aCols = (parse_(d.cols) || []).filter(function (p) {
+        return p && aOk.indexOf(String(p[0] || '')) >= 0;
+      });
+      aCols.push(['קוד ישיבה', aInst]);
+      return appendCols_(AMDA_TAB_, aCols);
+    }
     if (d.action === 'row' || d.action === 'table') {
       if (!wAdm) {
         if (d.action !== 'row' || d.ss || !PUB_ROW[d.tab]) {
@@ -1589,6 +1609,25 @@ function doGet(e) {
       }
       return reply_(e, { status: 'ok', pushed: pushed });
     } catch (errS) { return reply_(e, { status: 'error', message: String(errS) }); }
+  }
+
+  /* ---- נוכחות בשיעור: הרשימה והרישומים של ישיבה אחת ----
+     לאיש צוות שהרכז אישר לאותה ישיבה (accGate_), או בסיסמת הרכז.
+     `netroster` — שכבה, כיתה ושם בלבד: בלי טלפונים, לעולם.
+     `netmarks`  — מה שנרשם בעמדה, רק של הישיבה הזו. */
+  if (e && e.parameter && (e.parameter.netroster || e.parameter.netmarks)) {
+    var nInst = String(e.parameter.netroster || e.parameter.netmarks);
+    var nAdm = !!READ_KEY && String(e.parameter.key || '') === READ_KEY;
+    if (!nAdm) {
+      var gN = accGate_(nInst, e.parameter.dev, true);
+      if (gN) return reply_(e, gN);
+    }
+    try {
+      return reply_(e, e.parameter.netroster ? netRoster_(nInst, String(e.parameter.dev || (nAdm ? 'רכז' : '')))
+                                             : netMarks_(nInst));
+    } catch (eN) {
+      return reply_(e, { status: 'error', message: String(eN) });
+    }
   }
 
   if (e && e.parameter && e.parameter.board) {
@@ -3328,6 +3367,38 @@ function amdaUnlink_(keys) {
     if (gone[v[r][ix['מזהה']] + '|' + v[r][ix['מסלול']] + '|' + v[r][ix['שבוע']]]) dl.push(r + 1);
   }
   dl.forEach(function (r) { sh.deleteRow(r); });
+}
+
+/* ============================================================
+   נוכחות בשיעור — הרשימה של ישיבה אחת, מתוך "תלמידי הרשת".
+   ============================================================
+   הלשונית מחזיקה גם טלפונים (של התלמיד ושל ההורה). מכאן יוצאים
+   **רק** שכבה, כיתה ושם — רק של ז׳ וח׳, ורק של הישיבה שהמכשיר אושר אליה. כל
+   שליפה נרשמת ב"יומן מאגר": מי, איזו ישיבה, כמה, ומתי. */
+var NET_TAB_ = 'תלמידי הרשת';
+function netRoster_(inst, dev) {
+  var t = amdaTable_(NET_TAB_), out = [];
+  for (var r = 1; r < t.rows.length; r++) {
+    if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
+    var g = t.c(t.rows[r], 'שכבה').replace(/["'׳״\s]/g, ''), c = t.c(t.rows[r], 'כיתה');
+    var n = (t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי')).replace(/\s+/g, ' ').trim();
+    /* השכבות שבתוכנית בלבד — ז׳ וח׳. מה שאין בו צורך אינו יוצא. */
+    if (g && c && n && (g === 'ז' || g === 'ח')) out.push([g, c, n]);
+  }
+  try {
+    appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
+                              ['תלמידים', out.length]]);
+  } catch (eL) {}
+  return { status: 'ok', inst: inst, rows: out };
+}
+/* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
+function netMarks_(inst) {
+  var t = amdaTable_(AMDA_TAB_);
+  if (!t.rows.length) return { status: 'ok', rows: [] };
+  var out = [t.rows[0]];
+  for (var r = 1; r < t.rows.length; r++) if (t.c(t.rows[r], 'קוד ישיבה') === inst) out.push(t.rows[r]);
+  try { amdaSyncSoon_(); } catch (eS) {}
+  return { status: 'ok', rows: out };
 }
 
 /* מזהה קבוע לתלמיד מהעמדה: אותו תלמיד → אותו מזהה בכל הרצה. */
