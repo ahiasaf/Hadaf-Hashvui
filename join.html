@@ -1611,6 +1611,15 @@ var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנת�
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
 /* מה שכבר נמסר עליי, ומה שידוע על מי שהזמין. */
 var pre  = { first:qs('f'), last:qs('l'), phone:qs('p') };
+/* מי שננעל ובחר "תלמיד" (lock.js) — השם, הטלפון והישיבה כבר
+   ידועים. נקרא פעם אחת, ונשאר לו למלא רק מה שחסר. */
+(function () {
+  var lp = null;
+  try { lp = JSON.parse(localStorage.getItem('df:lockPre') || 'null');
+        localStorage.removeItem('df:lockPre'); } catch (e) {}
+  if (!lp || pre.first) return;
+  pre = { first: lp.first || '', last: lp.last || '', phone: lp.phone || '', inst: lp.inst || '' };
+})();
 var sndr = { first:qs('sf'), last:qs('sl'), phone:qs('sp') };
 
 /* ============================================================
@@ -4497,6 +4506,10 @@ drawBack_();
   if (pre.first) $('first').value = pre.first;
   if (pre.last)  $('last').value  = pre.last;
   if (pre.phone) $('phone').value = pre.phone;
+  /* הישיבה — רק כשהגיעה מהמכשיר עצמו (lock.js), ולא מקישור
+     שהועבר הלאה. ראו "הבורר מוצג תמיד" למעלה. */
+  if (pre.inst && $('inst').querySelector('option[value="' + pre.inst.replace(/[^a-z0-9_-]/gi, '') + '"]'))
+    $('inst').value = pre.inst;
   /* הצד השני — הוא זה שהזמין, ולכן הוא "מי לומד איתך". */
   if (sndr.first) $('dad-first').value = sndr.first;
   if (sndr.last)  $('dad-last').value  = sndr.last;

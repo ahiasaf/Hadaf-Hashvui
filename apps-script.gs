@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 59;
+var SCRIPT_VERSION = 60;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -448,6 +448,10 @@ function doPost(e) {
     if (d.action === 'table' && YSH_TABS_.hasOwnProperty(d.tab)) {
       return json_({ status: 'denied',
         message: 'הלשונית ' + d.tab + ' נכתבת רק בגיליון — לא נדרסת מהאפליקציה' });
+    }
+    /* מאגר חדש — המטמון של הרשימות לפי ישיבה מתחלף (netRoster_). */
+    if (d.action === 'table' && d.tab === NET_TAB_) {
+      try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
     }
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
@@ -1577,8 +1581,14 @@ function doGet(e) {
      שכבר עובד עם הקוד (הלוח, השליחה) עובד כמו שהוא.
 
      `acc`    ציבורי: מזהה מכשיר + ישיבה → ok+קוד · wait · locked.
+              עם `pick=staff|kid` — מי שננעל בוחר (accPick_).
      `accset` לרכז: אישור / נעילה. */
   if (e && e.parameter && e.parameter.acc) {
+    if (e.parameter.pick) {
+      try { return reply_(e, accPick_(String(e.parameter.acc), String(e.parameter.dev || ''),
+                                      String(e.parameter.pick), String(e.parameter.ph || ''))); }
+      catch (errP) { return reply_(e, { status: 'error', message: String(errP) }); }
+    }
     try { return reply_(e, accAsk_(String(e.parameter.acc), String(e.parameter.dev || ''),
                                    e.parameter.has === '1')); }
     catch (errA) { return reply_(e, { status: 'error', message: String(errA) }); }
@@ -2463,18 +2473,21 @@ function accAsk_(inst, dev, has) {
   if (!sh.getLastRow()) headRow_(sh, ACC_HEAD);
   var head = headers_(sh), ix = {};
   for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
-  var st = '', row = -1, was = '';
+  var st = '', row = -1, was = '', oldPh = '';
   if (sh.getLastRow() > 1) {
     var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
     for (var a = 0; a < av.length; a++) {
       if (String(av[a][ix['מזהה']] || '').trim() !== dev) continue;
       row = a + 2; st = String(av[a][ix['מצב']] || '').trim();
-      was = String(av[a][ix['קוד ישיבה']] || '').trim(); break;
+      was = String(av[a][ix['קוד ישיבה']] || '').trim();
+      oldPh = ix['טלפון'] === undefined ? '' : String(av[a][ix['טלפון']] || '').trim(); break;
     }
   }
   /* אישור הוא לישיבה אחת. מכשיר שעבר לישיבה אחרת — מאושר מחדש. */
   var moved = row >= 0 && st === 'אושר' && was && was !== inst;
-  var cols = [['מזהה', dev], ['שם', g('שם')], ['טלפון', g('טלפון')],
+  /* טלפון שנמסר במסך הנעילה (accPick_) נשאר, עד שיגיע אחד מ"התראות". */
+  var phNow = g('טלפון') || oldPh;
+  var cols = [['מזהה', dev], ['שם', g('שם')], ['טלפון', phNow],
               ['ישיבה', g('ישיבה')], ['קוד ישיבה', inst], ['תפקיד', g('תפקיד')],
               ['קוד במכשיר', has ? 'כן' : ''], ['נראה', new Date()]];
   if (row < 0 || moved) {
@@ -2488,9 +2501,79 @@ function accAsk_(inst, dev, has) {
   } else {
     upsertCols_(ACC_TAB, cols, 'מזהה');
   }
-  if (st === 'נעול') return { status: 'locked', phone: !!g('טלפון') };
-  if (st !== 'אושר') return { status: 'wait', phone: !!g('טלפון') };
+  if (st === 'נעול') return { status: 'locked', phone: !!phNow };
+  if (st !== 'אושר') return { status: 'wait', phone: !!phNow };
   return { status: 'ok', k: ensureCode_(inst, newCode_()) };
+}
+
+/* ============================================================
+   מי שננעל בוחר: "איש צוות" או "תלמיד".
+   ============================================================
+   רק ממצב "נעול" — מאושר וממתין אינם נוגעים כאן בדבר.
+
+   staff — חוזר ל"ממתין", והרכז מקבל את ההתראה הקיימת
+           (coordPing_ בלבד, לאף אחד אחר). לכל היותר פעם בשעה
+           לאותו מכשיר. `ph` — הטלפון שהוקלד במסך, כשחסר.
+   kid   — התפקיד הופך ל"תלמיד" ב"גישה" וב"התראות", והוא יוצא
+           מ"ממתינים לאימות" (בלקוח) ומ"צריכים עזרה" (כאן,
+           "טופל"). בלי שום התראה. המצב נשאר "נעול": תלמיד אינו
+           מקבל לעולם את קוד הישיבה. */
+function accPick_(inst, dev, pick, ph) {
+  inst = String(inst || '').trim(); dev = String(dev || '').trim();
+  if (pick !== 'staff' && pick !== 'kid') return { status: 'error', message: 'בחירה לא מוכרת' };
+  var a = accAsk_(inst, dev, false);
+  if (a.status !== 'locked') return a;
+  var r = accRow_(dev) || {};
+  if (pick === 'staff') {
+    var digits = String(ph || '').replace(/[^0-9+]/g, '').slice(0, 16);
+    var phone = r.phone || (digits.replace(/[^0-9]/g, '').length >= 9 ? digits : '');
+    var cols = [['מזהה', dev], ['מצב', 'ממתין'], ['ביקש', new Date()]];
+    if (phone && !r.phone) cols.push(['טלפון', phone]);
+    upsertCols_(ACC_TAB, cols, 'מזהה');
+    var cache = null, seen = false;
+    try { cache = CacheService.getScriptCache(); seen = !!cache.get('accRe:' + dev); } catch (eC) {}
+    if (!seen) {
+      try { if (cache) cache.put('accRe:' + dev, '1', 3600); } catch (eP) {}
+      coordPing_('🔑 ביקש שוב אימות',
+        (r.name || 'איש צוות') + ' · ' + (r.instName || inst) +
+        (r.role ? ' · ' + r.role : '') + ' · ' + (phone || 'חסר טלפון'), './#admin-acc');
+    }
+    return { status: 'wait', phone: !!phone };
+  }
+  upsertCols_(ACC_TAB, [['מזהה', dev], ['תפקיד', 'תלמיד']], 'מזהה');
+  /* "התראות" — כל השורות של המכשיר בישיבה הזו. */
+  var ps = sheet_('התראות');
+  if (ps.getLastRow() > 1) {
+    var ph2 = headers_(ps), iD = ph2.indexOf('מזהה'), iI = ph2.indexOf('קוד ישיבה'),
+        iR = ph2.indexOf('תפקיד');
+    if (iD >= 0 && iR >= 0) {
+      var pv = ps.getRange(2, 1, ps.getLastRow() - 1, ph2.length).getDisplayValues();
+      for (var i = 0; i < pv.length; i++) {
+        if (String(pv[i][iD] || '').trim() !== dev) continue;
+        if (iI >= 0 && String(pv[i][iI] || '').trim() !== inst) continue;
+        ps.getRange(i + 2, iR + 1).setValue('תלמיד');
+      }
+    }
+  }
+  /* "צריכים עזרה" — לפי הטלפון, ובלעדיו לפי שם + ישיבה. */
+  try {
+    var ts = sheet_('תקועים');
+    if (ts.getLastRow() > 1) {
+      var th = headers_(ts), tN = th.indexOf('שם'), tP = th.indexOf('טלפון'),
+          tC = th.indexOf('קוד ישיבה'), tD = idx_(ts, th, 'טופל');
+      var tv = ts.getRange(2, 1, ts.getLastRow() - 1, th.length).getDisplayValues();
+      var myPh = String(r.phone || '').replace(/[^0-9]/g, '').slice(-9);
+      for (var t = 0; t < tv.length; t++) {
+        if (String(tv[t][tD] || '').trim()) continue;
+        var hp = tP < 0 ? '' : String(tv[t][tP] || '').replace(/[^0-9]/g, '').slice(-9);
+        var same = myPh ? hp === myPh
+          : (r.name && tN >= 0 && String(tv[t][tN] || '').trim() === r.name &&
+             (tC < 0 || String(tv[t][tC] || '').trim() === inst));
+        if (same) ts.getRange(t + 2, tD + 1).setValue(new Date());
+      }
+    }
+  } catch (eT) {}
+  return { status: 'kid' };
 }
 
 /* השורה של מכשיר אחד ב"גישה" — המצב והישיבה, לפני שמשנים. */
@@ -2502,8 +2585,9 @@ function accRow_(dev) {
   var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
   for (var a = 0; a < av.length; a++) {
     if (String(av[a][ix['מזהה']] || '').trim() !== dev) continue;
-    return { st: String(av[a][ix['מצב']] || '').trim(),
-             inst: String(av[a][ix['קוד ישיבה']] || '').trim() };
+    var cv = function (k) { return ix[k] === undefined ? '' : String(av[a][ix[k]] || '').trim(); };
+    return { st: cv('מצב'), inst: cv('קוד ישיבה'),
+             name: cv('שם'), phone: cv('טלפון'), instName: cv('ישיבה'), role: cv('תפקיד') };
   }
   return null;
 }
@@ -3376,7 +3460,29 @@ function amdaUnlink_(keys) {
    **רק** שכבה, כיתה ושם — רק של ז׳ וח׳, ורק של הישיבה שהמכשיר אושר אליה. כל
    שליפה נרשמת ב"יומן מאגר": מי, איזו ישיבה, כמה, ומתי. */
 var NET_TAB_ = 'תלמידי הרשת';
+/* **זיכרון לכל ישיבה.** הלשונית גדולה (עשרות אלפי שורות), וקריאה
+   מלאה בכל פתיחה היא שניות של המתנה — ובבוקר כולם פותחים יחד. הרשימה
+   של ישיבה נשמרת במטמון של הסקריפט לשש שעות, תחת "גרסת מאגר" שמתחלפת
+   בכל העלאה (ראו `table` ב-doPost) — מאגר חדש אינו מחכה למטמון ישן. */
 function netRoster_(inst, dev) {
+  var out = null, ck = '';
+  try {
+    var ver = PropertiesService.getScriptProperties().getProperty('netVer') || '0';
+    ck = 'nr' + ver + '_' + inst;
+    var hit = CacheService.getScriptCache().get(ck);
+    if (hit) out = JSON.parse(hit);
+  } catch (eC) { out = null; }
+  if (!out) {
+    out = netRosterRead_(inst);
+    try { if (ck) CacheService.getScriptCache().put(ck, JSON.stringify(out), 21600); } catch (eP) {}
+  }
+  try {
+    appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
+                              ['תלמידים', out.length]]);
+  } catch (eL) {}
+  return { status: 'ok', inst: inst, rows: out };
+}
+function netRosterRead_(inst) {
   var t = amdaTable_(NET_TAB_), out = [];
   for (var r = 1; r < t.rows.length; r++) {
     if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
@@ -3385,11 +3491,7 @@ function netRoster_(inst, dev) {
     /* השכבות שבתוכנית בלבד — ז׳ וח׳. מה שאין בו צורך אינו יוצא. */
     if (g && c && n && (g === 'ז' || g === 'ח')) out.push([g, c, n]);
   }
-  try {
-    appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
-                              ['תלמידים', out.length]]);
-  } catch (eL) {}
-  return { status: 'ok', inst: inst, rows: out };
+  return out;
 }
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
 function netMarks_(inst) {
