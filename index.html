@@ -2838,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.220';
+var APP_VERSION = '8.99.221';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12778,6 +12778,11 @@ function waEditSet(k) {
 /* כל הודעה: מפתח הנוסח, למי, ואיזה קישור היא נושאת. */
 function waMsgs() {
   return [
+    /* המסע — לצוות המוביל: ראש החטיבה, ראש הישיבה ורכז התוכנית.
+       הקישור החשוב ביותר, ולכן ראשון. הישיבה נבחרת בתוך המסע, ולכן
+       הקישור אחד לכולם. הנוסח הוא זה של /kishurim — נוסח אחד. */
+    { k:'kish.headWa', lbl:'לצוות — ראש החטיבה, ראש הישיבה והרכז',
+      url:function () { return tripUrl(); } },
     { k:'ui.teamWa', lbl:'לר״מים ולראשי חטיבות',
       url:function (c) { return tzevetUrl(c); } },
     { k:'ui.linkWa', lbl:'לתלמידים',
@@ -12794,6 +12799,9 @@ function waInst() {
 /* ההודעה כמו שתצא. */
 function waOut(m, raw) {
   var row = waInst(), url = m.url(row ? row.code : '', waPick === '~out');
+  /* נוסחי /kishurim כותבים {קישור} במקום {url}, ו-fill אינו קורא
+     שמות בעברית. */
+  raw = String(raw == null ? '' : raw).split('{קישור}').join('{url}');
   return row ? fill(raw, { inst:row.name, url:url })
              : fill(noInst(raw), { url:url });
 }
