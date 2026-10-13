@@ -2813,7 +2813,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.218';
+var APP_VERSION = '8.99.219';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17467,7 +17467,16 @@ function netNorm(s) {
     .replace(/ישיבת|ישיבה|אולפנת|אולפנה|בני עקיבא|בנ"ע|בנע|יב"ע|יבע|תיכונית|תורנית/g, '')
     .replace(/["'׳״\-\s]/g, '').replace(/[וי]/g, '');
 }
-function netGuess(name) {
+/* מה נחשב ישיבה בשם המוסד של המשרד. אולפנות ובתי ספר אחרים — לא. */
+var NET_KIND = /ישיב|ק\. ?חינוך|קרית חינוך|מוסדות בני עקיבא/;
+/* שמות במשרד שאינם דומים לשם באפליקציה. נבדק מול השם + המיקום,
+   ולפני כל ניחוש אחר: "נווה הרצוג" במשרד היא "יבנה" אצלנו, וכל
+   מוסד בני עקיבא במירון הוא בר יוחאי. */
+var NET_ALIAS = [['נווה הרצוג', 'yavne'], ['מירון', 'baryohai'], ['חולון', 'harel'],
+                 ['רחובות', 'hadarom'], ['קרית הרצוג', 'kiryat'], ['שדה יעקב', 'tikvot'], [' עלי ', 'eli']];
+function netGuess(name, place) {
+  var all = ' ' + name + ' ' + (place || '') + ' ', a;
+  for (a = 0; a < NET_ALIAS.length; a++) if (all.indexOf(NET_ALIAS[a][0]) >= 0) return NET_ALIAS[a][1];
   var n = netNorm(name), best = '', i;
   if (n.length < 2) return '';
   for (i = 0; i < INSTITUTIONS.length; i++) {
@@ -17495,7 +17504,7 @@ function netGuess(name) {
 /* הגיליון של משרד החינוך: שורת כותרת, ואחריה שורה לכל תלמיד — ולפעמים
    שורה לכל הורה של אותו תלמיד. העמודות מזוהות לפי הכותרת. */
 function netFromSheets(sheets) {
-  var out = { rows: [], insts: {} }, seen = {};
+  var out = { rows: [], insts: {}, other: {} }, seen = {};
   sheets.forEach(function (sh) {
     var rows = sh.rows, hi = -1, col = {}, i, j;
     for (i = 0; i < Math.min(rows.length, 15) && hi < 0; i++) {
@@ -17513,13 +17522,18 @@ function netFromSheets(sheets) {
       var first = g(x, 'שם פרטי כינוי') || g(x, 'שם פרטי');
       var last = g(x, 'שם משפחה כינוי') || g(x, 'שם משפחה');
       if (!sym || !gr || !first) continue;
-      /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
-         ואין סיבה שיישבו בגיליון. */
-      if (ATT_GRADES.indexOf(gr) < 0) continue;
       /* רק בנים — כשבקובץ יש עמודת "מין". */
       if (col['מין'] && g(x, 'מין') !== 'זכר') continue;
-      /* רק ישיבות — "ישיבת" בשם המוסד. בתי ספר אחרים ברשת אינם בתוכנית. */
-      if (g(x, 'שם מוסד').indexOf('ישיבת') < 0) continue;
+      /* רק ישיבות. במשרד השם כתוב בכמה צורות: "ישיבת…", "ישיבה תיכונית
+         בנ"ע עלי", "ק.חינוך בנ"ע חולון", "מוסדות בני עקיבא מירון". */
+      if (!NET_KIND.test(g(x, 'שם מוסד'))) continue;
+      /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
+         ואין סיבה שיישבו בגיליון. ישיבה שאין בה ז׳–ח׳ נרשמת בצד,
+         כדי שיהיה ברור למה היא לא ברשימה. */
+      if (ATT_GRADES.indexOf(gr) < 0) {
+        if (!out.other[sym]) out.other[sym] = netPlace(g(x, 'שם מוסד'), g(x, 'שם רשות חינוך') || g(x, 'ישוב מוסד'));
+        continue;
+      }
       var cls = (g(x, 'מקבילה').match(/\d+/) || [''])[0];
       var kid = netTel(g(x, 'מספר נייד 1')) || netTel(g(x, 'מספר נייד 2'));
       var par = netTel(g(x, 'נייד 1')) || netTel(g(x, 'נייד 2'));
@@ -17535,12 +17549,16 @@ function netFromSheets(sheets) {
       }
       seen[key] = out.rows.length;
       out.rows.push([sym, gr, cls, last, first, kid, par, par ? rel : '']);
-      if (!out.insts[sym]) out.insts[sym] = { name: g(x, 'שם מוסד'), city: g(x, 'ישוב מוסד'), n: 0 };
+      /* מיקום הישיבה = "שם רשות חינוך" (ניר גלים → חבל יבנה); ישוב — כשאין. */
+      if (!out.insts[sym]) out.insts[sym] = { name: g(x, 'שם מוסד'), city: g(x, 'ישוב מוסד'),
+        loc: g(x, 'שם רשות חינוך') || g(x, 'ישוב מוסד'), n: 0 };
       out.insts[sym].n++;
     }
   });
+  for (var k in out.insts) if (out.insts.hasOwnProperty(k)) delete out.other[k];
   return out;
 }
+function netPlace(name, loc) { return name + (loc && name.indexOf(loc) < 0 ? ' (' + loc + ')' : ''); }
 
 function netFile() {
   var inp = document.getElementById('nt-file');
@@ -17565,7 +17583,7 @@ function netPicked(inp) {
       var map = Store.get('netMap', {}) || {}, k;
       r.map = {};
       for (k in r.insts) if (r.insts.hasOwnProperty(k)) {
-        r.map[k] = map[k] !== undefined ? map[k] : netGuess(r.insts[k].name);
+        r.map[k] = map[k] !== undefined ? map[k] : netGuess(r.insts[k].name, r.insts[k].loc + ' ' + r.insts[k].city);
       }
       NET = r; netMsg = '';
       admPane();
@@ -17633,10 +17651,12 @@ function admNet(body) {
     syms.forEach(function (k) {
       var it = NET.insts[k];
       h += '<div style="margin:8px 0"><div class="h"><b>' + esc(it.name || k) + '</b> · ' +
-        esc(it.city) + ' · ' + it.n + '</div>' +
+        esc(fill(UI.netLoc, { l: netPlace(it.loc || it.city, it.city) })) + ' · ' + it.n + '</div>' +
         '<select style="width:100%;padding:8px;font:inherit" onchange="netMapSet(\'' + esc(k) + '\', this.value)">' +
         opts(NET.map[k]) + '</select></div>';
     });
+    var oth = Object.keys(NET.other || {}).map(function (k) { return NET.other[k]; });
+    if (oth.length) h += '<p class="h">' + esc(fill(UI.netNoGr, { l: oth.join(' · ') })) + '</p>';
     h += '<p class="h"><b>' + esc(fill(UI.netSum, sm)) + '</b></p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       (sm.n && key ? '<button class="btn" onclick="netSave()">' + esc(UI.netSave) + '</button>' : '') +
