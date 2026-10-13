@@ -361,21 +361,32 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .note{font-size:.76rem;font-weight:600;color:var(--ink-3);text-align:center;
   margin-top:11px;line-height:1.65}
 .err{color:#A5382D;font-weight:800;font-size:.82rem;margin-top:10px;min-height:1.2em}
-/* ---------- אורך מספר הטלפון ----------
-   עשרה קווים קטנים מתחת לשדה, וכל ספרה ממלאת אחד. ילד שהחסיר
-   ספרה רואה קו ריק; מי שהוסיף — רואה את כולם מתחלפים לכתום.
-   שלושה ואז שבעה, כמו שהמספר נכתב (05X-XXXXXXX). */
-.phm{display:flex;direction:ltr;gap:4px;margin-top:7px;padding:0 2px}
-.phm i{flex:1;height:4px;border-radius:3px;background:var(--rule);
-  transition:background .15s}
-.phm i:nth-child(3){margin-right:9px}
-.phm i.on{background:var(--green)}
-.phm.full i{background:var(--green-d)}
-.phm.over i{background:var(--gold)}
+/* ---------- הטלפון בריבועים ----------
+   "ריבועים שבתוכם מקלידים את המספר." עשרה ריבועים, וכל ספרה
+   יושבת באחד — ילד שהחסיר ספרה רואה ריבוע ריק בסוף, ומי
+   שהוסיף רואה ריבוע אחד־עשר בכתום. שלושה ואז שבעה, כמו
+   שהמספר נכתב (05X-XXXXXXX).
+
+   השדה האמיתי נשאר מתחת, שקוף: המקלדת, ההדבקה וההשלמה
+   האוטומטית של הטלפון עובדים כרגיל, והריבועים רק מציגים. */
+.phw{position:relative}
+.phw input{color:transparent;-webkit-text-fill-color:transparent;
+  caret-color:transparent;background:transparent;border-color:transparent}
+.phw input::selection{background:transparent}
+.phb{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;
+  direction:ltr;gap:4px;pointer-events:none}
+.phb b{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+  background:#fff;border:1px solid var(--rule);border-radius:9px;
+  font-size:1.15rem;font-weight:800;color:var(--ink);
+  transition:border-color .15s}
+.phb b:nth-child(3){margin-right:8px}
+.phb b.on{border-color:var(--green)}
+.phw.foc .phb b.cur{border:2px solid var(--blue-l)}
+.phb b.ex{border-color:var(--gold);background:#FBF1DC}
+.phw.bad .phb b{border-color:#A5382D}
 /* ההודעה — שורה בתוך הטופס, מתחת לשדה. לא חלון של הדפדפן. */
 .phe{color:#A5382D;font-weight:800;font-size:.78rem;margin-top:6px}
 .phe:empty{display:none}
-input.phbad{border-color:#A5382D}
 
 /* ---------- מה זה, בראש העמוד ----------
    הטופס פתח ב"מי אתה?" ובשני שדות שם, כלומר ביקש התחייבות לפני
@@ -1938,10 +1949,10 @@ document.addEventListener('blur', function (e) {
 }, true);
 
 /* ============================================================
-   אורך המספר — קווים מתחת לשדה, והודעה רק כשממשיכים.
+   הטלפון בריבועים, והודעה רק כשממשיכים.
    ============================================================
    ילד מחסיר ספרה או מוסיף אחת, ומספר כזה אינו מגיע לאף אחד.
-   הקווים מראים את האורך תוך כדי הקלדה — בלי לומר שום דבר.
+   הריבועים מראים את האורך תוך כדי הקלדה — בלי לומר שום דבר.
    ההודעה נאמרת רק כשיצא מהשדה או לחץ "המשך": שגיאה שקופצת
    אחרי חמש ספרות מבלבלת את מי שעוד באמצע. שדה ריק אינו
    שגיאה — מי שחייב טלפון מקבל על כך את ההודעה הרגילה. */
@@ -1951,17 +1962,12 @@ function phDigits(v) {
   if (d.indexOf('972') === 0 && d.length > 10) d = '0' + d.slice(3);
   return d;
 }
-/* '' — ריק או תקין · 'short' · 'long'.
-   נייד הוא עשר ספרות. תשע — רק קווי (02/03/04/08/09); תשע
-   שמתחילות ב-05 הן נייד שחסרה בו ספרה. ותשע בלי האפס
-   בהתחלה (5XXXXXXXX) הן נייד שלם. */
+/* '' — ריק או תקין · 'short' · 'long'. נייד הוא עשר ספרות,
+   ואין כאן טלפונים של הבית. */
 function phBad(v) {
-  var d = phDigits(v), n = d.length;
-  if (!n) return '';
-  if (n > 10) return 'long';
-  if (n === 10) return d.charAt(0) === '0' ? '' : 'long';
-  if (n === 9 && (/^0[234689]/.test(d) || d.charAt(0) === '5')) return '';
-  return 'short';
+  var n = phDigits(v).length;
+  if (!n || n === 10) return '';
+  return n > 10 ? 'long' : 'short';
 }
 function phOk(v) { return !!phDigits(v).length && !phBad(v); }
 function phIs(el) {
@@ -1969,38 +1975,69 @@ function phIs(el) {
   for (var i = 0; i < PH_IDS.length; i++) if (PH_IDS[i] === el.id) return true;
   return false;
 }
-/* הקווים וההודעה נולדים ליד השדה — גם לשדות שנבנים אחר כך */
+/* הריבועים וההודעה נולדים סביב השדה. השדה עובר לתוך עטיפה —
+   ולכן רק כשאינו בפוקוס (העברה הייתה מורידה את המקלדת). */
+function phWrap(el) {
+  var w = el.parentNode;
+  if (w && w.className && /(^|\s)phw(\s|$)/.test(w.className)) return w;
+  if (document.activeElement === el) return null;
+  w = document.createElement('div');
+  w.className = 'phw';
+  el.parentNode.insertBefore(w, el);
+  w.appendChild(el);
+  el.setAttribute('dir', 'ltr');
+  var b = document.createElement('div');
+  b.className = 'phb'; b.setAttribute('aria-hidden', 'true');
+  w.appendChild(b);
+  var er = document.createElement('div');
+  er.className = 'phe'; er.id = el.id + '-phe';
+  er.setAttribute('role', 'alert');
+  w.parentNode.insertBefore(er, w.nextSibling);
+  phMeter(el);
+  return w;
+}
+/* רק מה שהשתנה — המעקב אחרי הדף (למטה) רואה כל שינוי */
 function phMeter(el) {
-  var m = $(el.id + '-phm');
-  if (!m) {
-    m = document.createElement('div');
-    m.className = 'phm'; m.id = el.id + '-phm';
-    m.setAttribute('aria-hidden', 'true');
-    m.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>';
-    var er = document.createElement('div');
-    er.className = 'phe'; er.id = el.id + '-phe';
-    er.setAttribute('role', 'alert');
-    el.parentNode.insertBefore(er, el.nextSibling);
-    el.parentNode.insertBefore(m, el.nextSibling);
+  var w = phWrap(el); if (!w) return null;
+  var b = w.lastChild, d = phDigits(el.value), n = Math.max(10, d.length);
+  while (b.childNodes.length < n) b.appendChild(document.createElement('b'));
+  while (b.childNodes.length > n) b.removeChild(b.lastChild);
+  for (var i = 0; i < n; i++) {
+    var c = b.childNodes[i], t = d.charAt(i);
+    var k = i >= 10 ? 'ex' : (t ? 'on' : (i === d.length ? 'cur' : ''));
+    if (c.textContent !== t) c.textContent = t;
+    if (c.className !== k) c.className = k;
   }
-  var n = phDigits(el.value).length, bad = phBad(el.value);
-  var cells = m.getElementsByTagName('i');
-  for (var i = 0; i < cells.length; i++) cells[i].className = i < n ? 'on' : '';
-  m.className = 'phm' + (bad === 'long' ? ' over' : (n && !bad && n >= 10 ? ' full' : ''));
-  return m;
+  return w;
+}
+function phScan() {
+  for (var i = 0; i < PH_IDS.length; i++) {
+    var el = $(PH_IDS[i]);
+    if (el && !/(^|\s)phw(\s|$)/.test(el.parentNode.className || '')) phMeter(el);
+  }
+}
+/* שדות שנבנים אחר כך (ההזמנה, הוספת בן, "כבר נרשמתי") מקבלים
+   ריבועים ברגע שהם נולדים. */
+if (window.MutationObserver) {
+  new MutationObserver(phScan).observe(document.documentElement, { childList:true, subtree:true });
+}
+function phCls(w, c, on) {
+  var has = new RegExp('(^|\\s)' + c + '(\\s|$)').test(w.className);
+  if (on && !has) w.className += ' ' + c;
+  if (!on && has) w.className = w.className.replace(new RegExp('\\s*\\b' + c + '\\b', 'g'), '');
 }
 /* `show` — לומר עכשיו (יצא מהשדה / לחץ המשך). בלעדיו רק
    מנקים: מי שתיקן רואה את ההודעה נעלמת, ואין הודעה חדשה. */
 function phSay(el, show) {
   if (!el) return '';
-  phMeter(el);
+  var w = phMeter(el);
   var bad = phBad(el.value), er = $(el.id + '-phe');
   if (!bad) {
     if (er) er.textContent = '';
-    el.className = el.className.replace(/ ?phbad\b/g, '');
+    if (w) phCls(w, 'bad', false);
   } else if (show) {
     if (er) er.textContent = bad === 'long' ? JOIN.phLong : JOIN.phShort;
-    if (el.className.indexOf('phbad') < 0) el.className += ' phbad';
+    if (w) phCls(w, 'bad', true);
   }
   return bad;
 }
@@ -2015,11 +2052,25 @@ function phStop(id) {
 document.addEventListener('input', function (e) {
   if (phIs(e.target)) phSay(e.target, false);
 }, true);
+/* הסמן תמיד בסוף. הוא שקוף, ולכן מי שנגע בצד שמאל של השדה
+   היה מקליד בתחילת המספר בלי לדעת. */
+function phEnd(el) {
+  setTimeout(function () {
+    try { var n = el.value.length; el.setSelectionRange(n, n); } catch (e) {}
+  }, 0);
+}
 document.addEventListener('focus', function (e) {
-  if (phIs(e.target)) phMeter(e.target);
+  if (!phIs(e.target)) return;
+  var w = phMeter(e.target); if (w) phCls(w, 'foc', true);
+  phEnd(e.target);
+}, true);
+document.addEventListener('click', function (e) {
+  if (phIs(e.target)) phEnd(e.target);
 }, true);
 document.addEventListener('blur', function (e) {
-  if (phIs(e.target)) phSay(e.target, true);
+  if (!phIs(e.target)) return;
+  var w = phMeter(e.target); if (w) phCls(w, 'foc', false);
+  phSay(e.target, true);
 }, true);
 
 /* `scroll` — האם לגלול אל מה שנחשף. בעלייה הראשונה **לא**:
