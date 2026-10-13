@@ -1581,3 +1581,40 @@ textarea {
     animation: none !important;
   }
 }
+
+/* Desktop refinements preserve the phone composition below 901px. */
+@media (min-width: 901px) {
+  .workspace {
+    width: min(1080px, calc(100% - 64px));
+  }
+  .workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .workspace-grid > .surface {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .workspace-grid > .surface > .button {
+    margin-top: auto;
+    margin-inline: auto;
+  }
+  .invitation-actions {
+    justify-items: center;
+  }
+  .invitation-actions .button + .button {
+    margin-top: 0;
+  }
+  .lesson-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 24px;
+  }
+  .lesson-list .lesson-row {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+}

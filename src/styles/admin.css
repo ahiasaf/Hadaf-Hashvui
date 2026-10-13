@@ -571,3 +571,16 @@
     animation: none;
   }
 }
+
+@media (min-width: 901px) {
+  .admin-login-intro {
+    text-align: center;
+  }
+  .admin-login-intro h1,
+  .admin-login-art {
+    margin-inline: auto;
+  }
+  .admin-login-art {
+    display: block;
+  }
+}

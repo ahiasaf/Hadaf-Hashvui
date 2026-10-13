@@ -1597,3 +1597,24 @@ details summary {
   animation-duration: 480ms;
   animation-delay: calc(var(--n, 0) * 50ms);
 }
+
+@media (min-width: 901px) {
+  .lesson-variant {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lesson-actions {
+    max-width: calc((100% - 48px) / 2);
+  }
+  .path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-inline: 24px;
+  }
+  .path + .path {
+    padding-inline-start: 24px;
+  }
+  .path .button {
+    margin-top: auto;
+  }
+}

@@ -280,3 +280,15 @@ html:not(.js) [data-community-status] {
     gap: 12px;
   }
 }
+
+@media (min-width: 901px) {
+  .community-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    gap: 32px;
+    padding: 32px;
+  }
+  .community-action .button {
+    width: 100%;
+    justify-content: center;
+  }
+}

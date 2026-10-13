@@ -438,3 +438,10 @@
     transform: rotate(360deg);
   }
 }
+
+@media (min-width: 901px) {
+  .registration-intro,
+  .registration-step-title {
+    text-align: center;
+  }
+}
