@@ -2813,7 +2813,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.215';
+var APP_VERSION = '8.99.216';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17502,6 +17502,8 @@ function netFromSheets(sheets) {
       /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
          ואין סיבה שיישבו בגיליון. */
       if (ATT_GRADES.indexOf(gr) < 0) continue;
+      /* רק בנים — כשבקובץ יש עמודת "מין". */
+      if (col['מין'] && g(x, 'מין') !== 'זכר') continue;
       var cls = (g(x, 'מקבילה').match(/\d+/) || [''])[0];
       var kid = netTel(g(x, 'מספר נייד 1')) || netTel(g(x, 'מספר נייד 2'));
       var par = netTel(g(x, 'נייד 1')) || netTel(g(x, 'נייד 2'));
