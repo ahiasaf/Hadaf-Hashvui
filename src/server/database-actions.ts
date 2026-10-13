@@ -81,11 +81,6 @@ async function canonical(id: string) {
     await database()`SELECT person_id FROM person_aliases WHERE alias_id=${id}`;
   return rows.length ? String(rows[0].person_id) : "";
 }
-async function schoolCode(inst: string) {
-  const rows =
-    await database()`SELECT cells->>1 AS code FROM sheet_rows WHERE table_name='קודים' AND cells->>0=${inst} ORDER BY ordinal DESC LIMIT 1`;
-  return rows.length ? String(rows[0].code || "") : "";
-}
 async function relationships(ids: string[], includeTest: boolean) {
   const rows =
     await database()`WITH me AS (SELECT * FROM people WHERE id=ANY(${ids}::text[])), candidates AS (
@@ -129,9 +124,9 @@ async function board(payload: Payload) {
     all = scope === "*";
   if (all && !admin) throw new Error("Access denied");
   if (!all && !admin) {
-    const code = await schoolCode(scope);
-    if (!code) return { status: "nocode" };
-    if (!authorized(payload.k, code)) throw new Error("Access denied");
+    const { checkStaffAccess } = await import("./legacy-neon.ts");
+    const access = await checkStaffAccess(scope, payload.dev || "");
+    if (access.status !== "ok") return access;
   }
   const includeTest = payload.test === "1";
   const rows =

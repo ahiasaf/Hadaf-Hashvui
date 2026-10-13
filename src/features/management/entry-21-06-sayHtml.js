@@ -1,56 +1,101 @@
 function sayHtml() {
-    var n = sayReach();
-    if (n === null) return "";
-    var w = sayWeek(), j = bJoin(myBoard()) || {};
-    var h = '<div class="mycard"><h3>' + esc(headT("sayH")) + "</h3>" + "<p>" + esc(headT("sayB")) + "</p>";
-    var kids = sayOpt.aud === "kids", plain = kids && !sayOpt.way && !sayOpt.grade;
-    var seg = function(on, label, cnt, act) {
-        return '<button class="' + (on ? "on" : "") + '" data-say="' + act + '">' + esc(label) + (cnt != null ? "<small>" + cnt + "</small>" : "") + "</button>";
-    };
-    h += '<div class="say-row"><span>' + esc(headT("sayWho")) + '</span><div class="say-seg">' + seg(kids, headT("sayAudKids"), null, "aud:kids") + seg(sayOpt.aud === "parents", headT("sayAudParS"), null, "aud:parents") + seg(sayOpt.aud === "both", headT("sayAudBoth"), null, "aud:both") + "</div></div>";
-    if (!kids) h += '<p class="myto">' + esc(headT("sayParNote")) + "</p>";
-    if (w) {
-        h += '<div class="say-row"><span>' + esc(headT("saySegH")) + '</span><div class="say-seg">' + seg(!sayOpt.seg, headT("saySegAll"), plain ? n : null, "seg:") + seg(sayOpt.seg === "done", headT("saySegDoneS"), plain ? w.did : null, "seg:done") + seg(sayOpt.seg === "todo", headT("saySegTodo"), plain ? Math.max(0, n - w.did) : null, "seg:todo") + "</div></div>";
+  var n = sayReach();
+  if (n === null) return '';
+  var w = sayWeek(), j = bJoin(myBoard()) || {};
+  var h = '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
+    '<p>' + esc(headT('sayB')) + '</p>';
+
+  /* ---- למי ----
+     שתי שורות, ובכל אחת בחירה אחת בלבד - מתג ולא ענן כפתורים:
+     "למי" (תלמידים / הורים) ו"מי מהם" (כולם / סיימו / לא סיימו).
+     "עוד לא סיימו" כבר כולל את מי שבאמצע ואת מי שלא התחיל, ולכן
+     הפיצול ההוא ירד - הוא נראה כמו כפילות. דרך לימוד ושכבה יושבות
+     מתחת ל"סינון נוסף", כרשימות נפתחות. */
+  var kids = sayOpt.aud === 'kids', plain = kids && !sayOpt.way && !sayOpt.grade;
+  var seg = function (on, label, cnt, act) {
+    return '<button class="' + (on ? 'on' : '') + '" data-say="' + act + '">' + esc(label) +
+      (cnt != null ? '<small>' + cnt + '</small>' : '') + '</button>';
+  };
+  h += '<div class="say-row"><span>' + esc(headT('sayWho')) + '</span><div class="say-seg">' +
+    seg(kids, headT('sayAudKids'), null, 'aud:kids') +
+    seg(sayOpt.aud === 'parents', headT('sayAudParS'), null, 'aud:parents') +
+    seg(sayOpt.aud === 'both', headT('sayAudBoth'), null, 'aud:both') + '</div></div>';
+  /* הורים - אלה שמחוברים לתלמידים שבקבוצה. הפילוח שמתחת
+     (סיימו, דרך לימוד, שכבה) הוא של הבן. */
+  if (!kids) h += '<p class="myto">' + esc(headT('sayParNote')) + '</p>';
+  if (w) {
+    h += '<div class="say-row"><span>' + esc(headT('saySegH')) + '</span><div class="say-seg">' +
+      seg(!sayOpt.seg, headT('saySegAll'), plain ? n : null, 'seg:') +
+      seg(sayOpt.seg === 'done', headT('saySegDoneS'), plain ? w.did : null, 'seg:done') +
+      seg(sayOpt.seg === 'todo', headT('saySegTodo'), plain ? Math.max(0, n - w.did) : null, 'seg:todo') +
+      '</div></div>';
+  }
+  h += '<button class="say-more" data-say="more">' + esc(headT('sayMore')) +
+    (sayOpt.way || sayOpt.grade ? ' · ' + esc(headT('sayMoreOn')) : '') +
+    (sayOpt.more ? ' ▴' : ' ▾') + '</button>';
+  if (sayOpt.more) {
+    h += '<div class="say-sel"><select id="say-way" aria-label="' + esc(headT('sayWayAll')) + '">' +
+      SAY_WAYS.map(function (x) {
+        var c = x[0] && kids ? pairN(j.ways, x[0]) : null;
+        return '<option value="' + esc(x[0]) + '"' + (sayOpt.way === x[0] ? ' selected' : '') + '>' +
+          esc(headT(x[1])) + (c != null ? ' (' + c + ')' : '') + '</option>';
+      }).join('') + '</select>';
+    if ((j.grades || []).length > 1) {
+      h += '<select id="say-grade" aria-label="' + esc(headT('sayGrAll')) + '">' +
+        '<option value="">' + esc(headT('sayGrAll')) + '</option>' +
+        (j.grades || []).map(function (g) {
+          return '<option value="' + esc(g[0]) + '"' + (sayOpt.grade === g[0] ? ' selected' : '') + '>' +
+            esc(fill(headT('sayGrOne'), { g:g[0] })) + ' (' + g[1] + ')</option>';
+        }).join('') + '</select>';
     }
-    h += '<button class="say-more" data-say="more">' + esc(headT("sayMore")) + (sayOpt.way || sayOpt.grade ? " · " + esc(headT("sayMoreOn")) : "") + (sayOpt.more ? " ▴" : " ▾") + "</button>";
-    if (sayOpt.more) {
-        h += '<div class="say-sel"><select id="say-way" aria-label="' + esc(headT("sayWayAll")) + '">' + SAY_WAYS.map(function(x) {
-            var c = x[0] && kids ? pairN(j.ways, x[0]) : null;
-            return '<option value="' + esc(x[0]) + '"' + (sayOpt.way === x[0] ? " selected" : "") + ">" + esc(headT(x[1])) + (c != null ? " (" + c + ")" : "") + "</option>";
-        }).join("") + "</select>";
-        if ((j.grades || []).length > 1) {
-            h += '<select id="say-grade" aria-label="' + esc(headT("sayGrAll")) + '">' + '<option value="">' + esc(headT("sayGrAll")) + "</option>" + (j.grades || []).map(function(g) {
-                return '<option value="' + esc(g[0]) + '"' + (sayOpt.grade === g[0] ? " selected" : "") + ">" + esc(fill(headT("sayGrOne"), {
-                    g: g[0]
-                })) + " (" + g[1] + ")</option>";
-            }).join("") + "</select>";
-        }
-        h += "</div>";
-    }
-    var tm = sayTmpls();
-    if (tm.length) {
-        h += '<div class="say-h">' + esc(headT("sayTmplH")) + '</div><div class="say-tm">' + tm.map(function(t, i) {
-            return '<button data-say="tm:' + i + '">' + esc(t) + "</button>";
-        }).join("") + "</div>";
-    }
-    h += '<textarea id="say-txt" rows="3" placeholder="' + esc(headT("sayPh")) + '">' + esc(sayDraft) + "</textarea>";
-    h += '<label class="say-per"><input type="checkbox" id="say-per"' + (sayOpt.per ? " checked" : "") + "> " + esc(headT("sayPer")) + "</label>";
-    h += '<div class="say-sig"><span>' + esc(headT("saySigL")) + ":</span> ";
-    if (sayOpt.sigEd) {
-        h += '<input type="text" id="say-sig" value="' + esc(saySig()) + '">';
-    } else {
-        h += "<b>" + esc(saySig()) + '</b> <button data-say="sig">' + esc(headT("saySigEdit")) + "</button>";
-    }
-    h += "</div>" + sayPreview();
-    var c = sayCount();
-    h += (n ? '<div class="say-sum"><b>' + esc(headT("sayToH")) + "</b> " + esc(sayToLabel()) + (c != null ? " · <b>" + c + "</b>" : "") + "</div>" : "") + '<p class="myto">' + (n ? esc(headT("sayToInst")) : esc(headT("sayNone"))) + "</p>" + '<button class="mygo" id="say-go"' + (sayBusy || !n || sayDraft.trim().length < 2 ? " disabled" : "") + ">" + (sayBusy ? "שולח…" : esc(headT("sayGo"))) + "</button>" + (sayErr ? '<div class="myerr">' + esc(sayErr) + "</div>" : "");
-    var log = Store.get("sayLog", []) || [];
-    if (log.length) {
-        h += '<div class="say-h">' + esc(headT("sayLogH")) + '</div><div class="say-log">' + log.slice(0, 5).map(function(l) {
-            return "<div><span>" + esc(l.when) + " · " + esc(l.to) + "</span>" + esc(l.text) + "</div>";
-        }).join("") + "</div>";
-    }
-    return h + "</div>";
+    h += '</div>';
+  }
+
+  /* ---- נוסחים מוכנים ---- */
+  var tm = sayTmpls();
+  if (tm.length) {
+    h += '<div class="say-h">' + esc(headT('sayTmplH')) + '</div><div class="say-tm">' +
+      tm.map(function (t, i) {
+        return '<button data-say="tm:' + i + '">' + esc(t) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  h += '<textarea id="say-txt" rows="3" placeholder="' + esc(headT('sayPh')) +
+    '">' + esc(sayDraft) + '</textarea>';
+  h += '<label class="say-per"><input type="checkbox" id="say-per"' +
+    (sayOpt.per ? ' checked' : '') + '> ' + esc(headT('sayPer')) + '</label>';
+
+  /* ============================================================
+     **הסדר: מה לומר ← לשלוח ← מתי זה מגיע ← איך זה ייראה.**
+     ============================================================
+     "סדר חדש, מלמעלה למטה": עד התיבה - כמו שהיה. מתחתיה הכפתור,
+     מתחתיו ההערה החשובה (ההודעה מגיעה בדרך כלל תוך דקה), פס,
+     ורק אז "כך זה ייראה בטלפון".
+
+     **"נשלח אל: תלמידים · 231" ו"רק למי שהתקין" ירדו מהעמוד** -
+     הם עולים בשלב האישור, אחרי הלחיצה (ראו saySend). ו"שינוי"
+     ליד החתימה ירד לגמרי.
+     ============================================================ */
+  h += '<div class="say-sig"><span>' + esc(headT('saySigL')) + ':</span> ' +
+    '<b>' + esc(saySig()) + '</b></div>';
+
+  h += (n ? '' : '<p class="myto">' + esc(headT('sayNone')) + '</p>') +
+    '<button class="mygo" id="say-go"' +
+    (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
+    '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
+    (sayErr ? '<div class="myerr">' + esc(sayErr) + '</div>' : '') +
+    '<p class="myto">' + esc(UI.sayLate) + '</p>' +
+    '<hr class="say-hr">' + sayPreview();
+
+  /* ---- מה שכבר יצא מכאן ---- */
+  var log = Store.get('sayLog', []) || [];
+  if (log.length) {
+    h += '<div class="say-h">' + esc(headT('sayLogH')) + '</div><div class="say-log">' +
+      log.slice(0, 5).map(function (l) {
+        return '<div><span>' + esc(l.when) + ' · ' + esc(l.to) + '</span>' + esc(l.text) + '</div>';
+      }).join('') + '</div>';
+  }
+  return h + '</div>';
 }
 
 function sayToLabel() {
@@ -74,50 +119,37 @@ function sayToLabel() {
 }
 
 function sayWire() {
-    var t = document.getElementById("say-txt");
-    if (t) {
-        t.oninput = function() {
-            sayDraft = t.value;
-            var g = document.getElementById("say-go");
-            if (g) g.disabled = sayBusy || !sayReach() || sayDraft.trim().length < 2;
-            var pv = document.querySelector(".say-pv");
-            if (pv) pv.outerHTML = sayPreview();
-        };
-    }
-    var sw = document.getElementById("say-way");
-    if (sw) sw.onchange = function() {
-        sayOpt.way = sw.value;
-        sayPaint();
+  var t = document.getElementById('say-txt');
+  if (t) {
+    /* מעדכנים את הכפתור והתצוגה בלי לצייר מחדש - ציור מחדש
+       באמצע הקלדה מאבד את הסמן, וזו כבר הייתה תקלה כאן. */
+    t.oninput = function () {
+      sayDraft = t.value;
+      var g = document.getElementById('say-go');
+      if (g) g.disabled = sayBusy || !sayReach() || sayDraft.trim().length < 2;
+      var pv = document.querySelector('.say-pv');
+      if (pv) pv.outerHTML = sayPreview();
     };
-    var sgr = document.getElementById("say-grade");
-    if (sgr) sgr.onchange = function() {
-        sayOpt.grade = sgr.value;
-        sayPaint();
-    };
-    var per = document.getElementById("say-per");
-    if (per) per.onchange = function() {
-        sayOpt.per = per.checked;
-        sayPaint();
-    };
-    var sg = document.getElementById("say-sig");
-    if (sg) {
-        sg.focus();
-        sg.onchange = sg.onblur = function() {
-            Store.set("saySig", sg.value.trim());
-            sayOpt.sigEd = false;
-            sayPaint();
-        };
-    }
-    var box = document.getElementById("my-say");
-    if (box) box.onclick = function(e) {
-        var b = e.target.closest ? e.target.closest("[data-say]") : null;
-        if (!b) return;
-        var a = b.getAttribute("data-say"), k = a.split(":")[0], v = a.slice(k.length + 1);
-        if (k === "more") sayOpt.more = !sayOpt.more; else if (k === "sig") sayOpt.sigEd = true; else if (k === "tm") sayDraft = sayTmpls()[+v] || sayDraft; else if (k === "aud") sayOpt.aud = v; else sayOpt[k] = v;
-        sayPaint();
-    };
-    var g = document.getElementById("say-go");
-    if (g) g.onclick = saySend;
+  }
+  var sw = document.getElementById('say-way');
+  if (sw) sw.onchange = function () { sayOpt.way = sw.value; sayPaint(); };
+  var sgr = document.getElementById('say-grade');
+  if (sgr) sgr.onchange = function () { sayOpt.grade = sgr.value; sayPaint(); };
+  var per = document.getElementById('say-per');
+  if (per) per.onchange = function () { sayOpt.per = per.checked; sayPaint(); };
+  var box = document.getElementById('my-say');
+  if (box) box.onclick = function (e) {
+    var b = e.target.closest ? e.target.closest('[data-say]') : null;
+    if (!b) return;
+    var a = b.getAttribute('data-say'), k = a.split(':')[0], v = a.slice(k.length + 1);
+    if (k === 'more') sayOpt.more = !sayOpt.more;
+    else if (k === 'tm') sayDraft = sayTmpls()[+v] || sayDraft;
+    else if (k === 'aud') sayOpt.aud = v;
+    else sayOpt[k] = v;
+    sayPaint();
+  };
+  var g = document.getElementById('say-go');
+  if (g) g.onclick = saySend;
 }
 
 function sayPaint() {
@@ -139,80 +171,57 @@ function sayPaint() {
 }
 
 function saySend() {
-    var txt = (sayDraft || "").trim();
-    sayErr = "";
-    if (txt.length < 2) {
-        sayErr = headT("sayEmpty");
+  var txt = (sayDraft || '').trim();
+  sayErr = '';
+  if (txt.length < 2) { sayErr = headT('sayEmpty'); sayPaint(); return; }
+  var code = myBoard(), k = instCode(code);
+  if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
+  var to = sayToLabel();
+  /* הפרטים שירדו מהעמוד - למי, כמה, ושזה רק למי שהתקין - כאן,
+     ברגע האישור. */
+  var cnt = sayCount();
+  if (!confirm(headT('sayAsk') + '\n' + headT('sayToH') + ' ' + to +
+               (cnt != null ? ' · ' + cnt : '') + '\n' + headT('sayToInst') +
+               '\n\n' + txt)) return;
+
+  var url = (CFG.api || API || '').trim();
+  if (!url) { sayErr = headT('sayErr'); sayPaint(); return; }
+
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
+  var who = (typeof ASK !== 'undefined' && ASK.name) ? ASK.name(me) : '';
+  var w = sayWeek();
+  var flt = { per: sayOpt.per ? 1 : 0 };
+  if (sayOpt.seg && w) { flt.seg = sayOpt.seg; flt.wk = w.wk; }
+  if (sayOpt.way) flt.way = sayOpt.way;
+  sayBusy = true; sayPaint();
+  /* הכותרת היא החתימה; הפנייה בשם נכנסת בשרת, לכל נמען בנפרד
+     - ראו `personal` ב-tools/push-send.js. */
+  var q = { fire:'say', inst:code, k:k, dev: me.id || '',
+            title: saySig(), body: (sayOpt.per ? '{name}, ' : '') + txt,
+            grade: sayOpt.grade, klass:'', who: who,
+            aud: sayOpt.aud, flt: JSON.stringify(flt) };
+  var qs = Object.keys(q).map(function (x) {
+    return encodeURIComponent(x) + '=' + encodeURIComponent(q[x]);
+  }).join('&');
+  fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + qs)
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      sayBusy = false;
+      if (d && d.status === 'ok') {
+        var log = Store.get('sayLog', []) || [];
+        var now = new Date();
+        log.unshift({ when: now.getDate() + '.' + (now.getMonth() + 1), to: to, text: txt });
+        Store.set('sayLog', log.slice(0, 20));
+        sayDraft = ''; sayErr = '';
         sayPaint();
-        return;
-    }
-    var code = myBoard(), k = instCode(code);
-    if (!code || !k) {
-        sayErr = headT("sayErr");
+        alert(headT('saySent'));
+      } else {
+        sayErr = headT('sayErr') + ' ' + ((d && d.message) || '');
         sayPaint();
-        return;
-    }
-    var to = sayToLabel();
-    if (!confirm(headT("sayAsk") + "\n" + to + "\n\n" + txt)) return;
-    var url = (CFG.api || API || "").trim();
-    if (!url) {
-        sayErr = headT("sayErr");
-        sayPaint();
-        return;
-    }
-    var me = typeof ASK !== "undefined" && ASK.get && ASK.get() || {};
-    var who = typeof ASK !== "undefined" && ASK.name ? ASK.name(me) : "";
-    var w = sayWeek();
-    var flt = {
-        per: sayOpt.per ? 1 : 0
-    };
-    if (sayOpt.seg && w) {
-        flt.seg = sayOpt.seg;
-        flt.wk = w.wk;
-    }
-    if (sayOpt.way) flt.way = sayOpt.way;
-    sayBusy = true;
-    sayPaint();
-    var q = {
-        fire: "say",
-        inst: code,
-        k: k,
-        title: saySig(),
-        body: (sayOpt.per ? "{name}, " : "") + txt,
-        grade: sayOpt.grade,
-        klass: "",
-        who: who,
-        aud: sayOpt.aud,
-        flt: JSON.stringify(flt)
-    };
-    var qs = Object.keys(q).map(function(x) {
-        return encodeURIComponent(x) + "=" + encodeURIComponent(q[x]);
-    }).join("&");
-    fetch(url + (url.indexOf("?") < 0 ? "?" : "&") + qs).then(function(r) {
-        return r.json();
-    }).then(function(d) {
-        sayBusy = false;
-        if (d && d.status === "ok") {
-            var log = Store.get("sayLog", []) || [];
-            var now = new Date;
-            log.unshift({
-                when: now.getDate() + "." + (now.getMonth() + 1),
-                to: to,
-                text: txt
-            });
-            Store.set("sayLog", log.slice(0, 20));
-            sayDraft = "";
-            sayErr = "";
-            sayPaint();
-            alert(headT("saySent"));
-        } else {
-            sayErr = headT("sayErr") + " " + (d && d.message || "");
-            sayPaint();
-        }
-    }).catch(function() {
-        sayBusy = false;
-        sayErr = headT("sayErr");
-        sayPaint();
+      }
+    })
+    .catch(function () {
+      sayBusy = false; sayErr = headT('sayErr'); sayPaint();
     });
 }
 
@@ -226,14 +235,7 @@ function paras(t, cls) {
     }).join("");
 }
 
-function thanksHtml(code, name) {
-    if (!code) return "";
-    var wa = fill(UI.teamWa, {
-        inst: name,
-        url: tzevetUrl(code)
-    });
-    return '<div class="thx">' + (UI.thanksH ? "<h3>" + esc(UI.thanksH) + "</h3>" : "") + paras(UI.thanksBody) + '<a class="thx-go" target="_blank" rel="noopener" ' + "onclick=\"try{localStorage.setItem('df:ramsWa','1')}catch(e){}\" " + 'href="https://wa.me/?text=' + encodeURIComponent(wa) + '">' + esc(UI.thanksGo) + "</a>" + '<p class="thx-how">' + esc(UI.thanksHow) + "</p>" + "</div>";
-}
+
 
 function renderBoard(hail) {
     var el = document.getElementById("coord");
@@ -343,3 +345,29 @@ function openTrack(id) {
         }, 70);
     }
 }
+
+/* הכתובת של הדף בחוברת "הסוגיה היומית" - ראו ההסבר ב-openWeek */
+function sugHref(id, row) {
+  var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[sugKey(row)] || (sg.pages || {})[dafKey(row[2])];
+  if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) return sg.books[sgp[0]] + sgp[1] + '/';
+  if (sgp && sg.base && sg.fmt) return sg.fmt.replace('{p}', sgp);
+  return sg.base || '';
+}
+
+/* ============================================================
+   "זכרו את הבחירה" - בתחתית עמוד הביניים.
+   ============================================================
+   כבוי עד שמישהו מדליק. דלוק - הלחיצה על הדף האינטראקטיבי או
+   על הסוגיה היומית נזכרת במכשיר, ו"פתיחת הדף" שבבאנר מדלגת
+   מעכשיו על עמוד הביניים ופותחת ישר אותה. כשהבחירה אינה זמינה
+   השבוע (דף שעוד לא סומן, חוברת בלי העמוד) - עמוד הביניים
+   חוזר כרגיל, ובו המתג, כדי שאפשר יהיה לכבות.
+   מסלול השנה פותח תמיד את עמוד הביניים: שם בוחרים דף מסוים. */
+function wkKeepOn() { return Store.get('wkKeep') === 1; }
+function wkKeepToggle(b) {
+  var on = !wkKeepOn();
+  if (on) Store.set('wkKeep', 1); else { Store.del('wkKeep'); Store.del('wkPick'); }
+  b.className = 'sw' + (on ? ' on' : '');
+  b.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function wkPick(k) { if (wkKeepOn()) Store.set('wkPick', k); }

@@ -382,8 +382,8 @@ def check_inst_manifests():
                 wrong.append(c + ' — אייקון בכתובת יחסית')
     # ---- ואותו דבר לראש החטיבה. אותה תקלה בדיוק, עמוד אחר ----
     for c in codes:
-        for suf, start in (('', '/?m=' + c),
-                           ('-masa', '/?m=' + c + '&masa=go')):
+        for suf, start in (('', '/management?m=' + c + '&staff=' + c + '#phone'),
+                           ('-masa', '/management?m=' + c + '&staff=' + c + '&masa=go#phone')):
             path = project_path( 'mh', c + suf + '.json')
             if not os.path.exists(path):
                 miss.append('mh/' + c + suf)
@@ -398,7 +398,7 @@ def check_inst_manifests():
     # ומי שמתקין מתוך המסע לפני שהישיבה ידועה
     if not os.path.exists(project_path( 'manifest-masa.json')):
         miss.append('manifest-masa.json')
-    elif json.loads(read('manifest-masa.json')).get('start_url') != '/?masa=go':
+    elif json.loads(read('manifest-masa.json')).get('start_url') != '/management?masa=go':
         wrong.append('manifest-masa.json')
 
     # **כל קוד גישה שנכנס למניפסט הוא קוד שפורסם.** הקבצים

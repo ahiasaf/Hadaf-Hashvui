@@ -308,3 +308,12 @@ export const {
   logRun,
   markGone,
 } = scheduler;
+
+export async function recordClockRun(failed: boolean) {
+  await operationalWrite("פעילות השעון", [
+    ["מתי", new Date().toISOString()],
+    ["קוד", failed ? "500" : "204"],
+    ["שגיאה", failed ? "הרצת התזכורות הסתיימה בכשל" : ""],
+    ["הרצה", process.env.GITHUB_RUN_ID || "manual"],
+  ]);
+}

@@ -184,10 +184,25 @@ function nextDaf() {
 }
 /* הדף **האחר** הבא - לזנב שגולש מסוף הדף. אחרי ב. בא ב:, שהוא
    אותו דף, והזנב יושב בתחילת ג. */
-function nextOtherDaf() {
-  var u = units(), i = unitAt(u);
+function nextOtherDaf() { return otherAfter(S.daf); }
+function otherBefore(daf) {
+  var u = units(), i = -1;
+  for (var k = 0; k < u.length; k++) if (dafKey(u[k].daf) === dafKey(daf)) { i = k; break; }
+  for (var j = i - 1; j >= 0; j--)
+    if (dafKey(u[j].daf) !== dafKey(daf)) return u[j].daf;
+  return null;
+}
+/* במצב עריכה - גם מה שמחוץ לשבוע (`peek`): שאר הדף אחרי נקודת
+   סיום מוקדמת, והעמוד הראשון של הדף הבא. כך "כאן נגמר השבוע"
+   יכול להיקבע בכל קטע, גם כשהשבוע גולש. התלמיד אינו רואה אותם. */
+function flatOpt() {
+  return SIDE_ADM ? { peek: 1, next: otherAfter(S.daf) } : null;
+}
+function otherAfter(daf) {
+  var u = units(), i = -1;
+  for (var k = 0; k < u.length; k++) if (dafKey(u[k].daf) === dafKey(daf)) { i = k; break; }
   for (var j = i + 1; i >= 0 && j < u.length; j++)
-    if (dafKey(u[j].daf) !== dafKey(S.daf)) return u[j].daf;
+    if (dafKey(u[j].daf) !== dafKey(daf)) return u[j].daf;
   return null;
 }
 /* מחרוזת לשאילתת הגיליון. שמות הדפים מכילים גרש וגרשיים - `כ'`
@@ -199,9 +214,12 @@ function qLit(v) {
   if (v.indexOf('"') < 0) return '"' + v + '"';
   return null;
 }
-function marksQuery() {
+function marksQuery(daf) {
+  daf = daf || S.daf;
   var forms = {}, list = [];
-  [S.daf, nextOtherDaf()].forEach(function (d) {
+  /* והדף שלפני - כשהשבוע שלו נגמר לפני סופו, מה שאחרי נקודת
+     הסיום פותח את השבוע שלנו (ראו `upto` ב-SidFlat). */
+  [daf, otherAfter(daf), otherBefore(daf)].forEach(function (d) {
     if (!d) return;
     /* גם הצורה עם הגרשיים וגם בלעדיה: הסטודיו כותב את השם כפי
        שהוא בבורר, ואיננו רוצים לתלות את הכל בניחוש איזו צורה. */
@@ -240,17 +258,59 @@ function marksQuery() {
    שלם בשבוע של ע״א, וב-ע״ב הוא אינו נפתח באמצע משפט. הזנב שגולש
    אל הדף הבא שייך ל-ע״ב - כמו בסוף כל דף. מספרי הקטעים והמזהים
    נשארים כמו שהם, ולכן החברותא, החידות והמקום השמור אינם זזים. */
-function amudCut(built) {
-  if (!S.am) return built;
+function amudCut(built, am) {
+  if (am === undefined) am = S.am;
+  if (!am) return built;
   var keep = {};
   built.flat.forEach(function (v) {
     if (v.part !== 1) return;
     var pp = built.pages[v.p] || {};
-    var am = dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
-    if (am === S.am) keep[v.n] = 1;
+    /* הראש מהדף הקודם (שבוע שנגמר שם מוקדם) פותח את ע״א. */
+    var am2 = pp.head ? 1 : dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
+    if (am2 === am) keep[v.n] = 1;
   });
   return { pages: built.pages, groups: built.groups,
            flat: built.flat.filter(function (v) { return keep[v.n]; }) };
+}
+/* ---------- הדף הבא מובא מראש ----------
+   בקטע האחרון של הדף, ברקע: הסימונים של הדף הבא (השליפה האיטית
+   ביותר בפתיחה) ותמונת העמוד הראשון שלו. הסימונים נשמרים ללשונית
+   הזו בלבד (sessionStorage) לשתי דקות, והדף הבא לוקח אותם במקום
+   לחכות לגיליון. שליפה שנכשלה או שלא החזירה את המסכת - לא נשמרת,
+   והדף הבא שולף כרגיל. */
+var MARK_PRE = 'df:markPre', MARK_PRE_MS = 120000, PRE_DONE = '';
+function markPreTake(q) {
+  if (!q || quiet()) return null;
+  try {
+    var o = JSON.parse(sessionStorage.getItem(MARK_PRE) || 'null');
+    sessionStorage.removeItem(MARK_PRE);
+    if (!o || o.q !== q || !(Date.now() - o.at < MARK_PRE_MS)) return null;
+    var rows = csvRows(o.t || '');
+    return hasMine(rows) ? rows : null;
+  } catch (e) { return null; }
+}
+function preNext() {
+  var u = nextDaf();
+  if (!u || dafKey(u.daf) === dafKey(S.daf) || quiet()) return;
+  var q = marksQuery(u.daf);
+  if (!q || PRE_DONE === q) return;
+  PRE_DONE = q;
+  var src = libSrc(u.daf, 1);
+  if (src) { var im = new Image(); im.src = src; }
+  var id = window.SHEET_ID;
+  try {
+    var cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}');
+    if (cfg.sheetId) id = cfg.sheetId;
+  } catch (e) {}
+  if (!id) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(MARK_TAB) +
+        '&tq=' + encodeURIComponent('select ' + q) + '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t || !hasMine(csvRows(t))) return;
+      try { sessionStorage.setItem(MARK_PRE, JSON.stringify({ q: q, at: Date.now(), t: t })); } catch (e) {}
+    })['catch'](function () {});
 }
 function hasMine(rows) {
   if (!rows) return false;
@@ -258,32 +318,24 @@ function hasMine(rows) {
   return false;
 }
 function loadMarks() {
-  var q = marksQuery();
-  return sheetCsv(MARK_TAB, q).then(function (rows) {
-    MARKS_FILTERED = !!(q && rows && rows.length >= 2);
-    if (q && !hasMine(rows)) return sheetCsv(MARK_TAB);
-    return rows;
-  }).then(function (rows) {
-    if (!rows) throw new Error('Lesson marks unavailable');
-    if (!hasMine(rows)) return 0;
-    /* הבנייה עצמה עברה ל-`SidFlat` (stepid.js), כדי שההסבה למזהים,
-       הסטודיו והניהול יחשבו את אותו הסדר ממש. מה שנשמר בה:
-
-       · שורה בלי מסכת (כותרת) יורדת מעצמה - בלי `slice(1)`. בשליפה
-         מסננת התשובה חוזרת בלי כותרת, והדילוג בלע שורת נתונים
-         אמיתית (בתענית: ע״א, ולכן כל דף נפתח בעמוד ב׳).
-       · עמוד "מקור|עמוד"; רק מקור 0 - צורת הדף.
-       · דף אחר שהצהיר שתחילתו שייכת לדף שלנו - זה הזנב (תמיד
-         בעמוד א׳), והזנב של הדף שלפנינו יורד מכאן.
-       · קטע שחוצה את מעבר העמוד נשמר כשני חלקים, והשני (`cont`)
-         מקבל את אותו מספר - ואת אותו מזהה. */
-    var built = amudCut(SidFlat(SidParse(rows), S.mas, S.daf));
-    PAGES = built.pages;
-    FLAT = built.flat;
-    GROUPS = built.groups;
-    return FLAT.length;
-  });
+    var q = marksQuery();
+    var pre = markPreTake(q);
+    return (pre ? Promise.resolve(pre) : sheetCsv(MARK_TAB, q)).then(function(rows) {
+        MARKS_FILTERED = !!(q && rows && rows.length >= 2);
+        if (q && !hasMine(rows)) return sheetCsv(MARK_TAB);
+        return rows;
+    }).then(function(rows) {
+        if (!rows) throw new Error("Lesson marks unavailable");
+        if (!hasMine(rows)) return 0;
+        BUILT = SidFlat(SidParse(rows), S.mas, S.daf, flatOpt());
+        var built = amudCut(BUILT);
+        PAGES = built.pages;
+        FLAT = built.flat;
+        GROUPS = built.groups;
+        return FLAT.length;
+    });
 }
+
 
 /* ============================================================
    דף נעול.
@@ -294,56 +346,81 @@ function loadMarks() {
    ב-index.html). */
 var OPEN_OK = false;
 function lockKey() { return OpenKey(S.mas, S.daf, S.am); }
-function lockAsked() {
-  try { return localStorage.getItem('df:wait:' + lockKey()) === '1'; } catch (e) { return false; }
-}
+
 function lockShow() {
-  var h = esc(String(UI.lockS).replace(/\{daf\}/g, S.daf + LAmMark(S.am)));
-  h += lockAsked()
-    ? '<br><b style="margin-top:14px">' + esc(UI.lockOk) + '</b>'
-    : '<button class="lockbtn" id="lock-ask">' + esc(UI.lockAsk) + '</button>';
-  /* הדף של השבוע, אם הוא פתוח ואינו הדף הזה - כדי שלא יהיה
-     מבוי סתום. */
-  var wk = Math.max(0, weekIndex());
-  var crow = calOf(S.mas)[wk] || [], cur = crow[2], cam = LAmOf(crow);
-  if (cur && cur !== 'סיום' && wk !== S.week && OpenIs(S.mas, cur, cam)) {
-    h += '<br><a class="lockback" href="/lesson-tools?mas=' + encodeURIComponent(S.mas) +
-      '&' + unitQ({ daf: cur, am: cam }) + '">' + esc(UI.lockBack) + '</a>';
-  }
-  h += '<span id="lock-message"></span>';
-  veil(UI.lockT, h, false);
-  var b = $('lock-ask');
-  if (b) b.onclick = lockAsk;
+    var h = esc(String(UI.lockS).replace(/\{daf\}/g, S.daf + LAmMark(S.am)));
+    h += '<div id="lock-nt"></div>';
+    var wk = Math.max(0, weekIndex());
+    var crow = calOf(S.mas)[wk] || [], cur = crow[2], cam = LAmOf(crow);
+    if (cur && cur !== "סיום" && wk !== S.week && OpenIs(S.mas, cur, cam)) {
+        h += '<br><a class="lockback" href="/lesson-tools?mas=' + encodeURIComponent(S.mas) + "&" + unitQ({
+            daf: cur,
+            am: cam
+        }) + '">' + esc(UI.lockBack) + "</a>";
+    }
+    h += '<span id="lock-message"></span>';
+    veil(UI.lockT, h, false);
+    ntBox($("lock-nt"), lockKey(), UI.lockAsk, UI.lockOk);
 }
-function lockAsk() {
-  var b = $('lock-ask');
-  if (b) { b.disabled = true; b.textContent = 'שומרים…'; }
-  var no = function (reason) {
-    if (b) { b.disabled = false; b.textContent = UI.lockAsk; }
-    var message = $('lock-message');
-    if (message) { message.setAttribute('role', 'alert'); message.textContent = typeof reason === 'string' ? reason : 'לא הצלחנו לשמור את הבקשה. בדקו את החיבור ונסו שוב.'; }
+
+
+/* ============================================================
+   "רוצה לקבל התראה?" - אחד, לדף הנעול ולחידון שעוד לא עלה.
+   ============================================================
+   שלושה מצבים, לפי המכשיר:
+   · ההתראות כבר פועלות - כפתור אחד, והבקשה נרשמת בלשונית
+     "ממתינים לדף" עם המנוי. ההתראה יוצאת רק למי שביקש - `wait`
+     ב-fire:'say' (ראו opNotify ב-index.html).
+   · עוד לא חוברו - הכפתור מוביל למדריך החיבור, אותו מסע שבמסך
+     התלמיד (`join?notes=1`). "זו הזדמנות לגרום לו לרצות."
+   · חסומות - לעמוד שמסביר איך פותחים אותן.
+   `key` - הערך בעמודה "דף": דף (OpenKey) או `חידון|<מסכת>-<שבוע>`. */
+function ntAsked(key) {
+  try { return localStorage.getItem('df:wait:' + key) === '1'; } catch (e) { return false; }
+}
+function ntSetupUrl() {
+  var u = stuHomeUrl();
+  if (!/join/.test(u)) u = 'join.html';
+  return u + (u.indexOf('?') < 0 ? '?' : '&') + 'notes=1';
+}
+function ntBox(box, key, ask, ok) {
+  if (!box) return;
+  if (ntAsked(key)) { box.innerHTML = '<b class="nt-ok">✓ ' + esc(ok) + '</b>'; return; }
+  var p = (window.APPX && APPX.canNote && APPX.canNote()) ? APPX.perm() : 'none';
+  var h = '<div class="nt-q">' + esc(ask) + '</div>';
+  if (p === 'granted') h += '<button class="lockbtn">' + esc(UI.ntYes) + '</button>';
+  else if (p === 'denied') h += '<a class="lockback" href="hitraot.html">' + esc(UI.hitLink) + '</a>';
+  else h += '<a class="lockbtn" href="' + esc(ntSetupUrl()) + '">' + esc(UI.ntSetup) + '</a>';
+  box.innerHTML = h;
+  var b = box.querySelector('button.lockbtn');
+  if (b) b.onclick = function () { ntAsk(box, key, ok, b); };
+}
+function ntAsk(box, key, ok, b) {
+  b.disabled = true;
+  var no = function () {
+    b.disabled = false;
+    var message = box.querySelector('[role="alert"]');
+    if (!message) { message = document.createElement('p'); message.setAttribute('role', 'alert'); box.appendChild(message); }
+    message.textContent = 'לא הצלחנו לשמור את הבקשה. בדקו את החיבור ונסו שוב.';
   };
-  if (!window.APPX || !API) { no(UI.lockNo); return; }
+  if (!window.APPX || !API) { no(); return; }
   APPX.subscribe().then(function (sub) {
     var me = (typeof LMe === 'function') ? LMe() : null;
     return fetch('/api/wait', { method:'POST', headers:{'Content-Type':'application/json'}, signal:AbortSignal.timeout(20000), body: JSON.stringify({
       action:'row', tab:'ממתינים לדף', cols: JSON.stringify([
-        ['דף', lockKey()],
-        ['מזהה', (me && me.id) || ''],
+        ['דף', key], ['מזהה', (me && me.id) || ''],
         ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
         ['ישיבה', (me && me.instName) || ''],
         ['מכשיר', APPX.isIOS() ? 'אייפון' : 'אנדרואיד'],
-        ['מנוי', JSON.stringify(sub)],
-        ['מתי', new Date().toISOString()]
+        ['מנוי', JSON.stringify(sub)], ['מתי', new Date().toISOString()]
       ])
     }) }).then(function (response) {
       if (!response.ok) throw new Error('Reminder unavailable');
       return response.json();
     }).then(function (result) {
       if (result.status !== 'ok') throw new Error('Reminder not acknowledged');
-      try { localStorage.setItem('df:wait:' + lockKey(), '1'); } catch (e) {}
-      if (b) b.outerHTML = '<b role="status" style="margin-top:14px">' + esc(UI.lockOk) + '</b>';
-      var message = $('lock-message'); if (message) message.textContent = '';
+      try { localStorage.setItem('df:wait:' + key, '1'); } catch (e) {}
+      box.innerHTML = '<b class="nt-ok" role="status">✓ ' + esc(ok) + '</b>';
     });
   })['catch'](no);
 }

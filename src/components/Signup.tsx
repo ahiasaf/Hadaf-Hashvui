@@ -13,7 +13,8 @@ import { inviteDraft, type InviteCopy } from "../lib/invite";
 import {
   emptyAnswers,
   parseDraft,
-  phonePattern,
+  normalizePhone,
+  validPhone,
   restoreSteps,
   stepLabels,
   stepValid,
@@ -49,15 +50,23 @@ export default function Signup({
   const [touched, setTouched] = useState(false);
   const [inviting, setInviting] = useState(false);
   useEffect(() => {
-    const existing = stored<Person | null>("me", null);
+    const locked = stored<Partial<Answers> | null>("lockPre", null);
+    const existing = locked ? null : stored<Person | null>("me", null);
     const params = new URLSearchParams(location.search);
     setPerson(existing);
     setInviting(
-      location.hash === "#invite" &&
+      (location.hash === "#invite" || !stored("inv-sent", false)) &&
         !!existing &&
         ["dad", "parent"].includes(existing.role),
     );
-    const saved = existing ? null : parseDraft(stored(draftKey, null));
+    if (locked)
+      try {
+        localStorage.removeItem("df:lockPre");
+      } catch {
+        /* Storage is optional. */
+      }
+    const saved =
+      existing || locked ? null : parseDraft(stored(draftKey, null));
     if (saved) {
       setAnswers(saved.answers);
       setStep(saved.step);
@@ -69,8 +78,9 @@ export default function Signup({
         ...emptyAnswers,
         ...(existing || {}),
         ...(invited || {}),
+        ...(locked || {}),
         role: existing?.role || (params.get("for") === "dad" ? "dad" : "kid"),
-        inst: existing?.inst || params.get("inst") || "",
+        inst: existing?.inst || locked?.inst || params.get("inst") || "",
         way: existing?.way || (invited ? "dad" : ""),
       });
       if (existing) setStep(1);
@@ -104,7 +114,7 @@ export default function Signup({
   }
   function next(event?: SubmitEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (!stepValid(current, answers)) {
+    if (!stepValid(current, answers, restore)) {
       setTouched(true);
       return;
     }
@@ -122,14 +132,14 @@ export default function Signup({
           id?: string;
           learned?: string[];
         }>("read", {
-          whoIs: answers.phone.trim(),
+          whoIs: normalizePhone(answers.phone),
           first: answers.first.trim(),
           last: answers.last.trim(),
           role: answers.role,
         });
         const recovered = result.me || result.person;
         if (!recovered?.id) throw new Error("Not found");
-        recovered.phone = answers.phone.replace(/[^0-9]/g, "");
+        recovered.phone = normalizePhone(answers.phone);
         store("me", recovered);
         const completed = stored<Record<string, string>>("learned", {});
         for (const tag of result.learned || []) {
@@ -140,8 +150,8 @@ export default function Signup({
         setPerson(recovered);
       } else {
         const inst = institutions.find((item) => item.code === answers.inst);
-        const phone = answers.phone.replace(/[^0-9]/g, "");
-        if (!inst || !/^0[2-9]\d{7,8}$/.test(phone))
+        const phone = normalizePhone(answers.phone);
+        if (!inst || (phone ? !validPhone(phone) : answers.role === "dad"))
           throw new Error("Invalid phone");
         const nextPerson: Person = {
           id:
@@ -176,6 +186,7 @@ export default function Signup({
           nextPerson.id = acknowledgement.id;
         store("me", nextPerson);
         setExistingId(nextPerson.id);
+        if (nextPerson.role === "dad") setInviting(true);
         setPerson(nextPerson);
       }
       store(draftKey, null);
@@ -253,7 +264,7 @@ export default function Signup({
         </button>
       </section>
     );
-  const invalid = touched && !stepValid(current, answers);
+  const invalid = touched && !stepValid(current, answers, restore);
   const labels = steps.map((id) => stepLabels[id]);
   const back = step > 1 ? () => go(step - 1) : undefined;
   const nextButton = (label = "המשך") => (
@@ -375,9 +386,11 @@ export default function Signup({
               autoFocus: true,
               "aria-invalid": invalid || undefined,
               "aria-describedby": "phone-note",
+              "aria-description":
+                !parent && !restore ? "אפשר להמשיך בלי מספר טלפון" : undefined,
             })}
             <p className="field-note" id="phone-note" hidden={!invalid}>
-              המספר צריך להתחיל ב-0 ולהכיל 9 או 10 ספרות.
+              המספר צריך להכיל 10 ספרות. אפשר גם עם קידומת +972.
             </p>
             {nextButton()}
           </form>
@@ -572,7 +585,7 @@ export default function Signup({
                 <a href="/info#privacy">מידע על פרטיות</a>
               </p>
             )}
-            {!phonePattern.test(answers.phone) && (
+            {!validPhone(answers.phone) && (
               <p className="field-note" role="alert">
                 הטלפון לא תקין. חזרו לשלב הטלפון.
               </p>

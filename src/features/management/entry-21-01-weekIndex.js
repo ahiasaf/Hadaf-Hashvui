@@ -1,5 +1,6 @@
 var APP_VERSION = "9.0.0";
 
+
 var API = localStorage.getItem("dfApi") || APPS_SCRIPT_URL || "";
 
 var myInst = localStorage.getItem("dfInst") || "";
@@ -33,6 +34,8 @@ var urlInst = "", urlKey = "";
         var m = q.match(new RegExp("[?&]" + n + "=([^&#]*)"));
         return m ? decodeURIComponent(m[1].replace(/\+/g, " ")).trim() : "";
     };
+    var staff = grab("staff");
+    if (staff && INSTITUTIONS.some(function (i) { return i.code === staff; })) Store.set("dfBoard", staff);
     var v = grab("m");
     if (!v) return;
     var known = false, i;
@@ -198,17 +201,27 @@ function contentFor(id) {
 }
 
 function openWeekNow() {
-    var wk = typeof LWeek === "function" ? LWeek() : -1;
-    var d = typeof LDaf === "function" ? LDaf(homeTrack, wk < 0 ? 0 : wk) : "";
-    if (d && showRow("mid")) {
-        openWeek(homeTrack, wk < 0 ? 0 : wk);
-        return;
+  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
+  var d  = (typeof LDaf === 'function') ? LDaf(homeTrack, wk < 0 ? 0 : wk) : '';
+  if (d && showRow('mid')) {
+    var pk = wkKeepOn() ? Store.get('wkPick') : null, w0 = wk < 0 ? 0 : wk;
+    var mk = MARKED || Store.get('markedCache') || {};
+    var sh = pk === 'sugya' && showRow('sugya') ? sugHref(homeTrack, trackById(homeTrack).cal[w0]) : '';
+    if (sh) {
+      /* חלון חדש, כמו מהכרטיס עצמו - חוסם חלונות מחזיר לכאן */
+      /* בלי 'noopener' בפרמטרים - איתו window.open מחזיר null
+         תמיד, והעמוד הזה היה עובר לחוברת גם הוא. */
+      var win = window.open(sh, '_blank');
+      if (win) { try { win.opener = null; } catch (e) {} } else location.href = sh;
+      return;
     }
-    if (!d) {
-        openWeek(homeTrack, weekOf(trackById(homeTrack)));
-        return;
+    if (!(pk === 'inter' && showRow('inter') && (mk[homeTrack] || {})[dafKey(d)])) {
+      openWeek(homeTrack, w0); return;
     }
-    location.href = "learn.html?mas=" + encodeURIComponent(homeTrack) + "&" + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
+  }
+  if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
+  location.href = '/lesson-tools?mas=' + encodeURIComponent(homeTrack) +
+                  '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
 }
 
 function openTrackNow() {

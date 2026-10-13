@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type SubmitEvent } from "react";
 import { joinColumns, store, writeRow, type Person } from "../lib/client";
 import {
   inviteMessage,
@@ -22,7 +22,9 @@ export default function InvitePanel({
 }) {
   const [name, setName] = useState(me.dadFirst || "");
   const [phone, setPhone] = useState(me.dadPhone || "");
-  const [edited, setEdited] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const sending = useRef(false);
   const [sent, setSent] = useState(false);
   const [touched, setTouched] = useState(false);
   const steps: StepId[] = [
@@ -39,7 +41,7 @@ export default function InvitePanel({
     them: name.trim() || "בן",
     url,
   });
-  const message = edited || draft;
+  const message = draft;
   const them = name.trim();
   const valid =
     current === "name"
@@ -47,34 +49,43 @@ export default function InvitePanel({
       : current === "phone"
         ? phoneReady(phone)
         : true;
-  function advance(event: React.FormEvent) {
+  function advance(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!valid) {
       setTouched(true);
       return;
     }
     setTouched(false);
-    if (current === "message") send();
+    if (current === "message") void send();
     else setStep(step + 1);
   }
-  function send() {
-    if (!them || !phoneReady(phone)) return;
-    store("me", next);
-    writeRow("לומדים", joinColumns(next)).catch(() => {
-      /* The device keeps the son's details even if the sheet is offline. */
-    });
+  async function send() {
+    if (!them || !phoneReady(phone) || sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setError("");
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
     try {
-      localStorage.setItem("df:inv-sent", "1");
+      await writeRow("לומדים", joinColumns(next));
+      store("me", next);
+      try {
+        localStorage.setItem("df:inv-sent", "1");
+      } catch {
+        /* Storage is optional. */
+      }
+      const target = whatsappInvite(phone, withInviteUrl(message, url));
+      if (popup) popup.location.href = target;
+      else location.assign(target);
+      setSent(true);
+      onSent(next);
     } catch {
-      /* Storage is optional. */
+      popup?.close();
+      setError("פרטי ההזמנה לא נשמרו. אפשר לנסות שוב.");
+    } finally {
+      sending.current = false;
+      setBusy(false);
     }
-    window.open(
-      whatsappInvite(phone, withInviteUrl(message, url)),
-      "_blank",
-      "noopener",
-    );
-    setSent(true);
-    onSent(next);
   }
   if (sent)
     return (
@@ -91,8 +102,16 @@ export default function InvitePanel({
             />
           </svg>
         </span>
-        <h1>ההזמנה בדרך</h1>
-        <p>{copy.invSent}</p>
+        <h1>ההזמנה מוכנה</h1>
+        <p>הפרטים נשמרו. משלימים את השליחה בוואטסאפ.</p>
+        <a
+          className="button button-whatsapp"
+          href={whatsappInvite(phone, withInviteUrl(message, url))}
+          target="_blank"
+          rel="noopener"
+        >
+          פתיחה שוב בוואטסאפ
+        </a>
         <a className="button button-gold" href="/app">
           לדף של השבוע
         </a>
@@ -168,11 +187,7 @@ export default function InvitePanel({
           <>
             <label>
               {copy.invEdit}
-              <textarea
-                rows={6}
-                value={message}
-                onChange={(event) => setEdited(event.target.value)}
-              />
+              <textarea rows={6} value={message} readOnly />
             </label>
             <p className="invite-tip">{copy.invTip}</p>
           </>
@@ -184,9 +199,19 @@ export default function InvitePanel({
               : "button button-blue"
           }
           type="submit"
+          disabled={busy}
         >
-          {current === "message" ? copy.invBtn : "המשך"}
+          {busy
+            ? "שומרים את ההזמנה…"
+            : current === "message"
+              ? copy.invBtn
+              : "המשך"}
         </button>
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
       </form>
     </Stepper>
   );

@@ -646,14 +646,25 @@ try {
       "taanit|1"
     ],
   );
+  assert.equal(await page.locator("#to-next").count(), 0);
+  assert.equal(await page.locator("#to-home").count(), 0);
   assert.match(
-    await page.locator("#to-next").getAttribute("href"),
-    /^\/lesson-tools\?/,
+    await page.locator("#to-quiz").getAttribute("href"),
+    /^\/management(?:\?|#)/,
   );
-  assert.equal(await page.locator("#to-home").getAttribute("href"), "/app");
+  await page.locator("#done-x").click();
+  assert.equal(await page.locator("#done").getAttribute("class"), "sheet");
   await page.clock.setFixedTime(new Date());
+  await page.evaluate(
+    (code) =>
+      localStorage.setItem(
+        "df:head",
+        JSON.stringify({ id: "approved-test-device", inst: code }),
+      ),
+    program.institutions[0].code,
+  );
   await page.goto(base + "/board?inst=" + program.institutions[0].code);
-  await page.getByLabel("קוד גישה", { exact: true }).fill("DEMO");
+  await page.getByLabel("קוד ישיבה (אם קיבלתם)", { exact: true }).fill("DEMO");
   await page.getByRole("button", { name: "פתיחת הלוח", exact: true }).click();
   await page.getByText("תלמיד לדוגמה", { exact: true }).waitFor();
   assert.equal(
@@ -1166,7 +1177,10 @@ try {
   await prepare(lockContext);
   await lockContext.addInitScript(() => {
     Object.defineProperty(window, "Notification", {
-      value: { requestPermission: async () => "granted" },
+      value: {
+        permission: "granted",
+        requestPermission: async () => "granted",
+      },
     });
     Object.defineProperty(window, "PushManager", { value: function () {} });
     const subscription = {
@@ -1195,14 +1209,14 @@ try {
   const locked = await lockContext.newPage();
   await locked.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
   await locked.locator("#gate-go").click();
-  await locked.locator("#lock-ask").click();
+  await locked.locator("#lock-nt button.lockbtn").click();
   await locked.getByRole("alert").waitFor();
   assert.equal(
     await locked.evaluate(() => localStorage.getItem("df:wait:taanit|ב.")),
     null,
   );
   waitFailure = false;
-  await locked.locator("#lock-ask").click();
+  await locked.locator("#lock-nt button.lockbtn").click();
   await locked.locator("#veil-s [role=status]").waitFor();
   assert.equal(
     await locked.evaluate(() => localStorage.getItem("df:wait:taanit|ב.")),

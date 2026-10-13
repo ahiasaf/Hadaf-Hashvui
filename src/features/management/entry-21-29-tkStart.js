@@ -43,7 +43,8 @@ var dkPool = null;
 
 var dkBusy = false;
 
-var dkTitle = "";
+var dkTitle = "";    /* הכותרת שבבאנר הכחול */
+var dkCover = '';
 
 var dkPdf = null;
 
@@ -56,37 +57,32 @@ function dkDefDir() {
 }
 
 function dkLoadSel() {
-    var full = function(d) {
-        var dir = (String(d.dir || "").split(/\s+/)[0] || dkDefDir()).replace(/^\/+|\/+$/g, "");
-        return d.files.map(function(f) {
-            return f.indexOf("/") >= 0 ? f : dir + "/" + f;
-        });
-    };
-    var draft = (CV("decks") || {})[dkKey()];
-    dkDir = dkDefDir();
-    if (draft) {
-        dkList = full(draft);
-        dkTitle = draft.title || "";
-        return;
-    }
-    dkTitle = DeckTitle(dkSel.mas, dkSel.wk);
-    var d = DeckOf(dkSel.mas, dkSel.wk);
-    if (d) {
-        dkList = full(d);
-        return;
-    }
-    dkDir = dkDefDir();
-    dkList = [];
+  /* **התיקייה אינה עוד נתון שהרכז רואה או עורך.** "למה אני אמור
+     לדעת את שם התיקייה?" - ובצדק: שדה חופשי שבו מילה אחת בטעות
+     ("slides/taanit-1 לא") שברה את כל שקפי השבוע. כל שבוע מעלה
+     לתיקייה משלו, והרשימה נשמרת בנתיבים מלאים - כך שגם מצגת
+     ישנה שנשמרה בשמות קצרים נפתחת נכון, ונשמרת מעכשיו בלעדיהם. */
+  var full = function (d) {
+    var dir = (String(d.dir || '').split(/\s+/)[0] || dkDefDir()).replace(/^\/+|\/+$/g, '');
+    return d.files.map(function (f) { return f.indexOf('/') >= 0 ? f : dir + '/' + f; });
+  };
+  var draft = (CV('decks') || {})[dkKey()];
+  dkDir = dkDefDir();
+  if (draft) {
+    dkList = full(draft);
+    dkTitle = draft.title || ''; dkCover = draft.cover || ''; return;
+  }
+  dkTitle = DeckTitle(dkSel.mas, dkSel.wk);
+  var d = DeckOf(dkSel.mas, dkSel.wk);
+  dkCover = d && d.cover ? DeckCover(d) : '';
+  if (d) { dkList = full(d); return; }
+  dkDir = dkDefDir(); dkList = [];
 }
 
 function dkStash() {
-    var c = CV("decks") || {};
-    c[dkKey()] = {
-        dir: dkDir,
-        files: dkList.slice(),
-        title: dkTitle
-    };
-    cfgSet("decks", c);
+  var c = CV('decks') || {};
+  c[dkKey()] = { dir: dkDir, files: dkList.slice(), title: dkTitle, cover: dkCover };
+  cfgSet('decks', c);
 }
 
 function dkSetTitle(v) {
@@ -94,6 +90,16 @@ function dkSetTitle(v) {
     dkStash();
     dkAutoSave_();
 }
+/* השער. לחיצה על הכוכב של השער הנוכחי מחזירה לברירת המחדל -
+   השקף הראשון. שקף שהוסר מהמצגת יכול להישאר שער: כך שקף שנועד
+   רק לכותרת הלימוד אינו מופיע במצגת עצמה. */
+function dkSetCover(f) {
+  var p = f ? dkPath(f) : '';
+  dkCover = (p && p !== dkCover) ? p : '';
+  dkStash(); admPane(); dkAutoSave_();
+}
+/* מה שרואים בפועל בעמוד הראשי. */
+function dkCoverNow() { return dkCover || (dkList.length ? dkPath(dkList[0]) : ''); }
 
 function dkGo(mas, wk) {
     dkSel = {
@@ -108,27 +114,9 @@ function dkGo(mas, wk) {
     dkAsk();
 }
 
-function dkUp(i) {
-    if (i > 0) {
-        var t = dkList[i - 1];
-        dkList[i - 1] = dkList[i];
-        dkList[i] = t;
-        dkStash();
-        admPane();
-        dkAutoSave_();
-    }
-}
 
-function dkDown(i) {
-    if (i < dkList.length - 1) {
-        var t = dkList[i + 1];
-        dkList[i + 1] = dkList[i];
-        dkList[i] = t;
-        dkStash();
-        admPane();
-        dkAutoSave_();
-    }
-}
+
+
 
 var dkDrag_ = null;
 
@@ -201,12 +189,7 @@ function dkDragEnd(ev) {
     dkAutoSave_();
 }
 
-function dkDel(i) {
-    dkList.splice(i, 1);
-    dkStash();
-    admPane();
-    dkAutoSave_();
-}
+function dkDel(i)  { ANCH_OUT.push(dkPath(dkList[i])); dkList.splice(i, 1); dkStash(); admPane(); dkAutoSave_(); }
 
 function dkRmWhere(path) {
     var out = [];
@@ -244,59 +227,54 @@ function dkRmMsg(cls, t) {
 }
 
 function dkRm(f) {
-    if (!API) return;
-    if (!(CFG.readKey || "").trim()) {
-        dkRmMsg("bad", UI.dkmNoKey);
-        return;
-    }
-    var path = f.indexOf("/") >= 0 ? f : dkDir + "/" + f;
-    var where = dkRmWhere(path);
-    var q = fill(UI.dkRmQ, {
-        f: f
-    }) + (where.length ? "\n\n" + fill(UI.dkRmUsed, {
-        where: where.join(", ")
-    }) : "");
-    if (!window.confirm(q)) return;
-    dkRmMsg("", UI.dkRmBusy);
-    fetch(API, {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({
-            action: "ghdel",
-            key: (CFG.readKey || "").trim(),
-            path: path,
-            msg: "מחיקת " + path
-        })
-    }).catch(function() {}).then(function() {
-        dkRmCheck(path, f, 0);
+  if (!API) return;
+  if (!(CFG.readKey || '').trim()) { dkRmMsg('bad', UI.dkmNoKey); return; }
+  var path = f.indexOf('/') >= 0 ? f : dkDir + '/' + f;
+  var where = dkRmWhere(path);
+  dkRmMsg('', UI.anchBusy);
+  /* העוגנים לשקף הזה - נאמרים בשאלה, ויוצאים אחרי שהקובץ נמחק.
+     קריאה שנכשלה אינה עוצרת את המחיקה: הכרטיס "עוגנים יתומים"
+     ימצא אותם אחר כך. */
+  anchRead_().then(function (t) {
+    return anchFind_(t, function (v) { return v === path; });
+  }, function () { return null; }).then(function (anch) {
+    var q = fill(UI.dkRmQ, { f: f }) +
+      (where.length ? '\n\n' + fill(UI.dkRmUsed, { where: where.join(', ') }) : '') +
+      (anch && anch.length ? '\n\n' + fill(UI.anchRmQ, { list: anchDesc_(anch) }) : '');
+    if (!window.confirm(q)) { dkRmMsg('', ''); return; }
+    dkRmMsg('', UI.dkRmBusy);
+    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+      action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
+    }) }).catch(function () {}).then(function () {
+      dkRmCheck(path, f, 0, anch && anch.length ? function () {
+        dkRmMsg('', UI.anchBusy);
+        anchDrop_([path]).then(function (good) {
+          dkRmMsg(good ? 'ok' : 'bad', good ? UI.dkRmOk + ' ' + UI.anchDone : UI.anchBad);
+        });
+      } : null);
     });
+  });
 }
 
-function dkRmCheck(path, f, tries) {
-    fetch("https://api.github.com/repos/" + REPO + "/contents/" + path.split("/").map(encodeURIComponent).join("/") + "?ref=main&t=" + Date.now()).then(function(r) {
-        if (r.status === 404) {
-            dkPool = (dkPool || []).filter(function(x) {
-                return x !== f;
-            });
-            admPane();
-            dkRmMsg("ok", UI.dkRmOk);
-            return;
-        }
-        if (tries < 5) {
-            setTimeout(function() {
-                dkRmCheck(path, f, tries + 1);
-            }, 2200);
-            return;
-        }
-        dkRmMsg("bad", UI.dkRmBad);
-    }).catch(function() {
-        if (tries < 5) {
-            setTimeout(function() {
-                dkRmCheck(path, f, tries + 1);
-            }, 2200);
-            return;
-        }
-        dkRmMsg("bad", UI.dkRmBad);
+function dkRmCheck(path, f, tries, after) {
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        path.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
+    .then(function (r) {
+      if (r.status === 404) {
+        dkPool = (dkPool || []).filter(function (x) { return x !== f; });
+        /* קובץ שנמחק אינו יכול להישאר בבאנר. */
+        if (dkCover === path) { dkCover = ''; dkStash(); dkAutoSave_(); }
+        dkGoneStrip(path);
+        admPane(); dkRmMsg('ok', UI.dkRmOk);
+        if (after) after();
+        return;
+      }
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1, after); }, 2200); return; }
+      dkRmMsg('bad', UI.dkRmBad);
+    })
+    .catch(function () {
+      if (tries < 5) { setTimeout(function () { dkRmCheck(path, f, tries + 1, after); }, 2200); return; }
+      dkRmMsg('bad', UI.dkRmBad);
     });
 }
 
@@ -321,6 +299,52 @@ function dkAutoSave_() {
 
 function dkPath(f) {
     return f.indexOf("/") >= 0 ? f : dkDir + "/" + f;
+}
+/* ============================================================
+   שקף שהקובץ שלו חסר (10.10.2026)
+   ============================================================
+   "יש פה שקף שלא נטען." המצגת הפנתה לקובץ שנמחק לצמיתות, והעורך
+   הראה סמל של תמונה שבורה. תמונה שלא נטענה עדיין אינה "נמחקה" -
+   שקף שזה עתה הועלה נמצא בפריסה עוד דקה-שתיים. לכן שואלים את
+   GitHub: 404 שם = הקובץ באמת איננו. כל תשובה אחרת (קיים, רשת,
+   מכסה) - לא מסמנים דבר.
+   1 = חסר · 0 = בבדיקה · false = קיים ב-GitHub (כנראה בפריסה). */
+var DK_MISS = {};
+function dkMissChk(img) {
+  var p = img.getAttribute('data-p');
+  if (!p || DK_MISS.hasOwnProperty(p)) return;
+  DK_MISS[p] = 0;
+  fetch('https://api.github.com/repos/' + REPO + '/contents/' +
+        p.split('/').map(encodeURIComponent).join('/') + '?ref=main&t=' + Date.now())
+    .then(function (r) {
+      if (r.status === 404) { DK_MISS[p] = 1; admPane(); return; }
+      DK_MISS[p] = r.ok ? false : undefined;
+      if (DK_MISS[p] === undefined) delete DK_MISS[p];
+    })
+    .catch(function () { delete DK_MISS[p]; });
+}
+/* אחרי מחיקה לצמיתות: הקובץ יוצא גם מהגיבויים של "↶ ביטול" ומהטיוטות
+   שבמכשיר. אחרת "ביטול" (או טיוטה ישנה של שבוע אחר) מחזיר למצגת
+   הפניה לקובץ שכבר איננו - וזה השקף השבור שדווח. */
+function dkGoneStrip(path) {
+  var strip = function (d) {
+    if (!d || !d.files) return;
+    var dir = String(d.dir || '').split(/\s+/)[0].replace(/^\/+|\/+$/g, '');
+    d.files = d.files.filter(function (f) {
+      return (f.indexOf('/') >= 0 ? f : dir + '/' + f) !== path;
+    });
+    var c = String(d.cover || '');
+    if (c && (c.indexOf('/') >= 0 ? c : dir + '/' + c) === path) d.cover = '';
+  };
+  var st = Store.get(DKM_BAK, []) || [];
+  st.forEach(function (b) { for (var k in (b.map || {})) if (b.map.hasOwnProperty(k)) strip(b.map[k]); });
+  Store.set(DKM_BAK, st);
+  var c = CV('decks');
+  if (c) {
+    for (var k in c) if (c.hasOwnProperty(k)) strip(c[k]);
+    cfgSet('decks', c);
+  }
+  DK_MISS[path] = 1;
 }
 
 function dkShort(f) {
@@ -365,40 +389,28 @@ function dkAsk() {
 }
 
 function dkSave() {
-    if (!API) {
-        dkMsg("bad", "אין כתובת שרת במכשיר הזה.");
-        return;
-    }
-    var key = dkKey();
-    dkMsg("", UI.dkmBusy);
-    DeckLoad().then(function(ok) {
-        if (!ok || !DECKS) {
-            dkMsg("bad", UI.dkmNoRead);
-            return;
-        }
-        var mine = (CV("decks") || {})[key], map = dkmClone(DECKS);
-        if (!mine) {
-            dkMsg("ok", "פורסם. התלמידים יראו את זה בפתיחה הבאה.");
-            return;
-        }
-        map[key] = {
-            dir: mine.dir,
-            files: mine.files.slice(),
-            title: mine.title || ""
-        };
-        dkWriteMap(map, function(good) {
-            if (!good) {
-                dkMsg("bad", "לא הצלחתי לאמת שהשמירה הגיעה לגיליון. נסו שוב.");
-                return;
-            }
-            var c = CV("decks") || {}, now = c[key];
-            if (now && now.files.join(",") === mine.files.join(",") && (now.title || "") === (mine.title || "")) {
-                delete c[key];
-                cfgSet("decks", c);
-            }
-            dkMsg("ok", "פורסם. התלמידים יראו את זה בפתיחה הבאה.");
-        });
+  if (!API) { dkMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
+  var key = dkKey();
+  dkMsg('', UI.dkmBusy);
+  DeckLoad().then(function (ok) {
+    if (!ok || !DECKS) { dkMsg('bad', UI.dkmNoRead); return; }
+    var mine = (CV('decks') || {})[key], map = dkmClone(DECKS);
+    if (!mine) { dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.'); return; }
+    map[key] = { dir: mine.dir, files: mine.files.slice(), title: mine.title || '',
+                 cover: mine.cover || '' };
+    dkWriteMap(map, function (good) {
+      if (!good) { dkMsg('bad', 'לא הצלחתי לאמת שהשמירה הגיעה לגיליון. נסו שוב.'); return; }
+      /* הטיוטה ירדה - אלא אם נערך עוד משהו בינתיים. */
+      var c = CV('decks') || {}, now = c[key];
+      if (now && now.files.join(',') === mine.files.join(',') &&
+          (now.title || '') === (mine.title || '') &&
+          (now.cover || '') === (mine.cover || '')) {
+        delete c[key]; cfgSet('decks', c);
+      }
+      dkMsg('ok', 'פורסם. התלמידים יראו את זה בפתיחה הבאה.');
+      anchAfterOut_(map);
     });
+  });
 }
 
 (function() {

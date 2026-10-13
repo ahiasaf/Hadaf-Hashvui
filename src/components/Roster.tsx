@@ -1,4 +1,16 @@
-import { useEffect, useMemo, useState, type SubmitEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SubmitEvent,
+} from "react";
+import {
+  staffIdentity,
+  clearStaffCaches,
+  staffRequest,
+} from "../lib/staff-access";
 import { action } from "../lib/client";
 import { weekIndex } from "../lib/calendar";
 type Student = {
@@ -34,6 +46,9 @@ export default function Roster({
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [grade, setGrade] = useState("");
+  const [accessState, setAccessState] = useState("");
+  const [phone, setPhone] = useState("");
+  const generation = useRef(0);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const inst = params.get("inst") || "";
@@ -48,26 +63,84 @@ export default function Roster({
       setKey(params.get("k") || saved);
     }
   }, [adminKey]);
-  async function load(event?: SubmitEvent) {
-    event?.preventDefault();
+  const load = useCallback(
+    async (event?: SubmitEvent) => {
+      event?.preventDefault();
+      const request = ++generation.current;
+      setBusy(true);
+      setError("");
+      setStudents(null);
+      try {
+        const identity = staffIdentity(code);
+        const result = await action<{ status: string; students?: Student[] }>(
+          "read",
+          adminKey
+            ? { board: "*", key: adminKey }
+            : { board: code, k: key, dev: identity?.id || "" },
+        );
+        if (request !== generation.current) return;
+        if (["wait", "locked", "unknown"].includes(result.status)) {
+          setAccessState(result.status);
+          if (result.status === "locked") clearStaffCaches();
+          return;
+        }
+        if (!Array.isArray(result.students)) throw new Error("Invalid roster");
+        setAccessState("ok");
+        setStudents(result.students);
+      } catch {
+        if (request === generation.current)
+          setError("לא הצלחנו לפתוח את הלוח. בדקו את החיבור ונסו שוב.");
+      } finally {
+        if (request === generation.current) setBusy(false);
+      }
+    },
+    [code, key, adminKey],
+  );
+  useEffect(() => {
+    if (accessState !== "wait") return;
+    const refresh = () => {
+      if (document.visibilityState !== "hidden") void load();
+    };
+    const timer = setInterval(refresh, 30000);
+    addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [accessState, load]);
+  useEffect(
+    () => () => {
+      generation.current++;
+    },
+    [],
+  );
+  async function chooseRole(pick: string) {
+    const identity = staffIdentity(code);
+    if (!identity) return;
+    if (pick === "kid" && !window.confirm("לעבור להרשמה כתלמיד?")) return;
     setBusy(true);
     setError("");
-    setStudents(null);
     try {
-      const result = await action<{ students: Student[] }>(
-        "read",
-        adminKey ? { board: "*", key: adminKey } : { board: code, k: key },
-      );
-      if (!Array.isArray(result.students)) throw new Error("Invalid roster");
-      setStudents(result.students);
-      if (!adminKey)
-        try {
-          localStorage.setItem("boardKey:" + code, key);
-        } catch {
-          /* Storage is optional. */
-        }
+      const reply = await staffRequest({
+        acc: code,
+        dev: identity.id,
+        pick,
+        ...(phone ? { ph: phone } : {}),
+      });
+      if (reply.status === "wait") setAccessState("wait");
+      else if (reply.status === "kid") {
+        clearStaffCaches();
+        localStorage.setItem("df:stuLock", JSON.stringify(code));
+        localStorage.setItem(
+          "df:lockPre",
+          JSON.stringify({ ...identity, phone: phone || identity.phone || "" }),
+        );
+        location.assign("/join?inst=" + encodeURIComponent(code));
+      } else throw new Error("Role request not acknowledged");
     } catch {
-      setError("לא הצלחנו לפתוח את הלוח. בדקו את קוד הגישה והחיבור, ונסו שוב.");
+      setError("הבקשה לא אושרה. אפשר לנסות שוב.");
     } finally {
       setBusy(false);
     }
@@ -91,7 +164,7 @@ export default function Roster({
       {!adminKey && (
         <div className="page-intro">
           <h1>התקדמות התלמידים</h1>
-          <p>רשימת התלמידים זמינה רק עם קוד הגישה של הישיבה.</p>
+          <p>רשימת התלמידים זמינה לאיש צוות שהרכז אישר לישיבה הזו.</p>
         </div>
       )}
       <form onSubmit={load} className="access-form">
@@ -103,8 +176,11 @@ export default function Roster({
                 aria-label="ישיבה"
                 value={code}
                 onChange={(event) => {
+                  generation.current++;
                   setCode(event.target.value);
                   setStudents(null);
+                  setAccessState("");
+                  setError("");
                 }}
                 required
               >
@@ -117,13 +193,12 @@ export default function Roster({
               </select>
             </label>
             <label>
-              קוד גישה
+              קוד ישיבה (אם קיבלתם)
               <input
                 type="password"
                 value={key}
                 onChange={(event) => setKey(event.target.value)}
                 autoComplete="current-password"
-                required
               />
             </label>
           </>
@@ -135,6 +210,54 @@ export default function Roster({
           {busy ? "טוענים את הלוח…" : students ? "רענון הלוח" : "פתיחת הלוח"}
         </button>
       </form>
+      {!adminKey && accessState && accessState !== "ok" && (
+        <section className="notice" role="status">
+          <h2>
+            {accessState === "wait"
+              ? "ממתינים לאישור הרכז"
+              : accessState === "locked"
+                ? "איש צוות או תלמיד?"
+                : "כניסה לצוות הישיבה"}
+          </h2>
+          {accessState === "wait" ? (
+            <p>הבקשה אצל רכז התוכנית. הלוח ייפתח כאן כשיאשר.</p>
+          ) : accessState === "locked" ? (
+            <div className="flow-form">
+              <label>
+                טלפון (לא חובה)
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  autoComplete="tel"
+                />
+              </label>
+              <button
+                className="button button-blue"
+                disabled={busy}
+                onClick={() => void chooseRole("staff")}
+              >
+                אני איש צוות
+              </button>
+              <button
+                className="button button-outline"
+                disabled={busy}
+                onClick={() => void chooseRole("kid")}
+              >
+                אני תלמיד
+              </button>
+            </div>
+          ) : (
+            <a
+              className="button button-blue"
+              href={"/management?staff=" + encodeURIComponent(code) + "#phone"}
+            >
+              הרשמה כאיש צוות
+            </a>
+          )}
+        </section>
+      )}
       {error && (
         <p className="notice error" role="alert">
           {error}

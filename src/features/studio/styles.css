@@ -343,3 +343,9 @@ body.mark #toast{top:auto !important}
 }
 
 .chb p.cp.used{box-shadow:inset 3px 0 0 rgba(23,70,143,.45)}
+
+/* Styles for newly imported upstream controls; existing layout rules are retained. */
+
+.splitbox .row .mrg{flex:0 0 auto;align-self:stretch;padding:0 12px;border:0;
+  background:#EEF3FB;font-size:.95rem}
+.step .lk{float:left;cursor:pointer;padding:0 5px}

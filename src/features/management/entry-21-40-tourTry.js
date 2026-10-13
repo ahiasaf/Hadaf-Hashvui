@@ -4,12 +4,14 @@ function tourTry() {
     if (a) location.href = a.getAttribute("href");
 }
 
-document.addEventListener("keydown", function(e) {
-    if (!tourOn()) return;
-    if (e.key === "Escape") tourClose();
-    if (e.key === "ArrowLeft") tourGo(1);
-    if (e.key === "ArrowRight") tourGo(-1);
+document.addEventListener('keydown', function (e) {
+  if (!tourOn()) return;
+  if (e.key === 'Escape') tourClose();
+  if (e.key === 'ArrowLeft')  tourGo(1);
+  if (e.key === 'ArrowRight') tourGo(-1);
 });
+
+
 
 function tourReflow() {
     if (!tourOn()) return;

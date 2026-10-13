@@ -1,9 +1,7 @@
 function amdaReset() {
-    amdaSt.g = "";
-    amdaSt.c = "";
-    amdaSt.pick = "";
-    amdaPaint();
-    document.getElementById("amda").scrollTop = 0;
+  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = ''; amdaSt.all = false; amdaSt.sel = {};
+  amdaPaint();
+  document.getElementById('amda').scrollTop = 0;
 }
 
 function amdaOk(n, txt, after) {
@@ -16,38 +14,32 @@ function amdaOk(n, txt, after) {
         after();
     }, 1300);
 }
+/* היום והשבוע - של רגע הלחיצה, ולא של פתיחת העמדה: מכשיר שנשאר
+   פתוח עד מחר רושם את מחר. מי שכבר נרשם במועד הזה ובחר מקום -
+   רק המקום נשלח. */
+/* רישום אחד לתור, בלי מסך. מחזיר true אם נוסף (ולא נרשם כבר). */
+function amdaMarkRec(g, c, n) {
+  var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n);
+  if (amdaHadNow(day + '|' + s.slot)[key]) return false;
+  var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
+  q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+           w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
+           track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
+           g: g, c: c, n: n, at: new Date().toISOString() });
+  Store.set('amdaQ', q);
+  return true;
+}
 
 function amdaMark(g, c, n) {
-    var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n), les = amdaLesson(s.slot);
-    if (!amdaHadNow(day + "|" + s.slot)[key]) {
-        var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
-        q.push({
-            id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            w: wk + 1,
-            day: day,
-            slot: s.slot,
-            kind: s.kind === "o" ? "o" : "d",
-            track: track,
-            daf: LDafName(track, wk) || "",
-            inst: amdaInst(),
-            seat: "",
-            lv: s.lv || amdaLv(),
-            g: g,
-            c: c,
-            n: n,
-            at: (new Date).toISOString()
-        });
-        Store.set("amdaQ", q);
-        amdaFlush();
-    }
-    amdaOk(n, amdaT(s.kind === "o" ? "doneO" : "done"), function() {
-        if (les && amdaSeatAsk(les.id)) {
-            amdaSt.pick = n;
-            amdaPaint();
-            amdaIdle();
-            document.getElementById("amda").scrollTop = 0;
-        } else amdaReset();
-    });
+  var s = amdaSess(), les = amdaLesson(s.slot);
+  if (amdaMarkRec(g, c, n)) amdaFlush();
+  /* שיעור כיתה שבו ביקשת מקומות: אחרי ה-✓ - מפת הכיתה. */
+  amdaOk(n, amdaT(s.kind === 'o' ? 'doneO' : 'done'), function () {
+    if (les && amdaSeatAsk(les.id)) {
+      amdaSt.pick = n; amdaPaint(); amdaIdle();
+      document.getElementById('amda').scrollTop = 0;
+    } else amdaReset();
+  });
 }
 
 var AMDA_MARKS = "עמדה - סימונים";
@@ -60,16 +52,11 @@ var AMDA_MK = {
     seat: "מקום"
 };
 
-var AMDA_LES_DEF = [ {
-    id: "ט5-0",
-    g: "ט",
-    c: "5",
-    day: 0,
-    cols: "3,3,3,4,4"
-} ];
+var AMDA_LES_DEF = [{ id: 'ז5-0', g: 'ז', c: '5', day: 0, cols: '3,3,3,4,4' }];
 
 function amdaSeatAsk(lid) {
-    return !!(Store.get("amdaSeatAsk", {}) || {})[lid];
+  var v = (Store.get('amdaSeatAsk', {}) || {})[lid];
+  return v == null ? true : !!v;
 }
 
 function amdaSeatAskSet(lid, on) {
@@ -85,11 +72,49 @@ function amdaLessons() {
 }
 
 function amdaLesson(slot) {
-    if (!slot || slot.charAt(0) !== "L") return null;
-    var id = slot.slice(1);
-    return amdaLessons().filter(function(l) {
-        return l.id === id;
-    })[0] || null;
+  if (!slot || slot.charAt(0) !== 'L') return null;
+  var id = slot.slice(1);
+  var l = amdaLessons().filter(function (x) { return x.id === id; })[0];
+  if (l) return l;
+  /* כיתה שנפתחה ב"כיתה אחרת" - אותו מזהה כמו שיעור קבוע (שכבה,
+     כיתה, יום), ולכן נספרת ונראית בלוח בדיוק כמוהו. */
+  var m = /^([זחטי])(\d+)-([0-6])$/.exec(id);
+  return m ? { id: id, g: m[1], c: m[2], day: +m[3], cols: '3,3,3,4,4', any: 1 } : null;
+}
+/* "כיתה אחרת": שכבה ואז כיתה, בחלון. `done(slot)` מקבל את המועד. */
+function amdaClassAsk(done) {
+  if (document.getElementById('am-ex')) return;
+  var host = document.getElementById('amda');
+  if (!host || host.className.indexOf(' on') < 0) host = document.body;
+  var d = document.createElement('div'), g = '';
+  d.className = 'am-ex'; d.id = 'am-ex';
+  var paint = function () {
+    var h = '<div class="am-ex-in"><b>' + esc(amdaT('anyQ')) + '</b>' +
+      '<span class="am-ws-sub">' + esc(amdaT('anySub')) + '</span><div class="am-grid">';
+    AMDA_GRADES.forEach(function (x) {
+      h += '<button class="am-b' + (g === x ? ' on' : '') + '" data-ag="' + x + '">' + esc(amdaG(x)) + '</button>';
+    });
+    h += '</div>';
+    if (g) {
+      h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
+      amdaClasses(g).forEach(function (c) {
+        h += '<button class="am-b" data-ac="' + esc(c) + '">' + esc(amdaG(g) + c) + '</button>';
+      });
+      h += '</div>';
+    }
+    d.innerHTML = h + '<button class="bk" data-ac="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  };
+  paint();
+  host.appendChild(d);
+  d.onclick = function (e) {
+    e.stopPropagation();
+    var b = e.target.closest && e.target.closest('[data-ag],[data-ac]');
+    if (!b && e.target !== d) return;
+    if (b && b.getAttribute('data-ag')) { g = b.getAttribute('data-ag'); paint(); return; }
+    var c = b ? b.getAttribute('data-ac') : '-';
+    d.parentNode.removeChild(d);
+    if (c !== '-') done('L' + g + c + '-' + new Date().getDay());
+  };
 }
 
 function amdaLessonName(l) {
@@ -152,65 +177,58 @@ function amdaFlushMarks(key, url) {
 }
 
 function amdaPullMarks(key, seatEv) {
-    return scriptGet({
-        read: AMDA_MARKS,
-        key: key
-    }).then(function(d) {
-        if (!d || d.status !== "ok" || !d.rows) return false;
-        var h = d.rows[0] || [], seen = {}, tot = {}, day = {}, today = amdaDay();
-        var col = function(x, n) {
-            var i = h.indexOf(n);
-            return i < 0 ? "" : String(x[i] || "");
-        };
-        d.rows.slice(1).forEach(function(x) {
-            var id = col(x, "מזהה"), sk = amdaKey(col(x, "שכבה"), col(x, "כיתה"), col(x, "שם"));
-            if (id) seen[id] = 1;
-            var mk = col(x, "סימון"), slot = col(x, "קוד עמדה");
-            if (mk === AMDA_MK.seat) {
-                seatEv.push({
-                    at: col(x, "מתי"),
-                    slot: slot,
-                    sk: sk,
-                    seat: col(x, "מקום")
-                });
-                return;
-            }
-            var b = mk === AMDA_MK.p ? 0 : mk === AMDA_MK.d ? 1 : -1, dl = parseInt(col(x, "שינוי"), 10) || 0;
-            if (b < 0 || !dl) return;
-            (tot[sk] = tot[sk] || [ 0, 0 ])[b] += dl;
-            if (col(x, "יום") === today) {
-                var ss = today + "|" + slot;
-                ((day[ss] = day[ss] || {})[sk] = day[ss][sk] || [ 0, 0 ])[b] += dl;
-            }
-        });
-        Store.set("amdaMk", tot);
-        Store.set("amdaMkDay", day);
-        Store.set("amdaMq", amdaMq().filter(function(m) {
-            return !seen[m.id];
-        }));
-        return true;
-    }).catch(function() {
-        return false;
-    }).then(function(ok) {
-        if (!ok) return false;
-        var seats = {};
-        seatEv.sort(function(a, b) {
-            return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;
-        });
-        seatEv.forEach(function(e) {
-            if (!e.slot || e.slot.charAt(0) !== "L") return;
-            var lid = e.slot.slice(1);
-            seats[lid] = seats[lid] || {};
-            if (e.seat) {
-                for (var k in seats[lid]) {
-                    if (seats[lid][k] === e.seat) delete seats[lid][k];
-                }
-                seats[lid][e.sk] = e.seat;
-            }
-        });
-        Store.set("amdaSeat", seats);
-        return true;
+  return scriptGet({ read: AMDA_MARKS, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var h = d.rows[0] || [], seen = {}, tot = {}, day = {}, today = amdaDay();
+    var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
+    d.rows.slice(1).forEach(function (x) {
+      var id = col(x, 'מזהה'), sk = amdaKey(col(x, 'שכבה'), col(x, 'כיתה'), col(x, 'שם'));
+      if (id) seen[id] = 1;
+      var mk = col(x, 'סימון'), slot = col(x, 'קוד עמדה');
+      if (mk === AMDA_MK.seat) { seatEv.push({ at: col(x, 'מתי'), slot: slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) }); return; }
+      var b = mk === AMDA_MK.p ? 0 : mk === AMDA_MK.d ? 1 : -1, dl = parseInt(col(x, 'שינוי'), 10) || 0;
+      if (b < 0 || !dl) return;
+      (tot[sk] = tot[sk] || [0, 0])[b] += dl;
+      if (col(x, 'יום') === today) {
+        var ss = today + '|' + slot;
+        ((day[ss] = day[ss] || {})[sk] = day[ss][sk] || [0, 0])[b] += dl;
+      }
     });
+    Store.set('amdaMk', tot);
+    Store.set('amdaMkDay', day);
+    Store.set('amdaMq', amdaMq().filter(function (m) { return !seen[m.id]; }));
+    return true;
+  }).catch(function () { return false; }).then(function (ok) {
+    /* המקומות - רק כשגם הסימונים נקראו; אחרת מה שבמכשיר נשאר. */
+    if (!ok) return false;
+    var seats = {};
+    seatEv.sort(function (a, b) { return a.at < b.at ? -1 : a.at > b.at ? 1 : 0; });
+    seatEv.forEach(function (e) {
+      if (!e.slot || e.slot.charAt(0) !== 'L') return;
+      var lid = e.slot.slice(1);
+      seats[lid] = seats[lid] || {};
+      if (e.seat) {
+        /* מקום שמישהו אחר תפס - מתפנה ממנו. */
+        for (var k in seats[lid]) { if (seats[lid][k] === e.seat) delete seats[lid][k]; }
+        seats[lid][e.sk] = e.seat;
+      }
+    });
+    Store.set('amdaSeat', seats);
+    return true;
+  });
+}
+
+/* מקום כפי שחזר מהגיליון. "2-1-1" נקרא שם כתאריך (2.1.2001), ולכן
+   מקומות שכבר נשמרו נעלמו מהמפה ברגע שיצאו מהתור. הסקריפט שומר
+   מעכשיו טקסט; כאן משחזרים גם את מה שכבר נשמר כתאריך - הצד הוא
+   השנה, הטור והשולחן בסדר שבו נכתבו (או הפוך, כשהשנה בהתחלה). */
+function amdaSeatId(v) {
+  v = String(v || '').trim();
+  if (!v || /^\d+-\d+-[12]$/.test(v)) return v;
+  var n = v.match(/\d+/g);
+  if (!n || n.length !== 3) return v;
+  if (+n[0] >= 1000) return (+n[2]) + '-' + (+n[1]) + '-' + (+n[0] % 10);
+  return (+n[0]) + '-' + (+n[1]) + '-' + (+n[2] % 10);
 }
 
 function amdaSeats(lid) {
@@ -258,41 +276,43 @@ function amdaMkOf(sk, sess) {
 var AMDA_CHAIR = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="9" rx="3"/>' + '<rect x="3" y="12" width="18" height="5" rx="2"/><rect x="5" y="17" width="2.4" height="5" rx="1"/>' + '<rect x="16.6" y="17" width="2.4" height="5" rx="1"/></svg>';
 
 function amdaFirst(sk) {
-    var p = amdaNm(sk).split(" ");
-    return p[p.length - 1];
+  var n = amdaNm(sk), f = ((amdaRoster() || {}).f || {})[n];
+  if (f) return f;
+  var p = n.split(' ');
+  return p[p.length - 1];
 }
 
 function amdaMapHtml(les, occ, o) {
-    var cols = amdaCols(les), h = '<div class="am-room"><div class="am-cols">';
-    cols.forEach(function(n, i) {
-        h += '<div class="am-col">';
-        for (var r = 1; r <= n; r++) {
-            h += '<div class="am-desk"><div class="am-pair">';
-            for (var sd = 1; sd <= 2; sd++) {
-                var id = i + 1 + "-" + r + "-" + sd, who = occ[id], cls = "am-seat";
-                var lbl = "", dis = false;
-                if (who) {
-                    cls += " taken";
-                    lbl = "<b>" + esc(amdaFirst(who)) + "</b>";
-                    if (o.me && who !== o.me) dis = true;
-                    if (o.board) {
-                        var mk = amdaMkOf(who, o.sess);
-                        if (mk[0] > 0) lbl += '<i class="p">' + mk[0] + "</i>";
-                        if (mk[1] > 0) {
-                            lbl += '<i class="d">' + mk[1] + "</i>";
-                            cls += " bad";
-                        }
-                    }
-                }
-                if (o.me && id === o.mine) cls += " mine";
-                if (o.board && o.sel && !who) cls += " free";
-                h += '<button class="' + cls + '" data-s="' + id + '"' + (dis ? " disabled" : "") + ' aria-label="' + esc(who ? amdaNm(who) : amdaT("seatFree")) + '">' + AMDA_CHAIR + lbl + "</button>";
-            }
-            h += '</div><div class="am-tbl"></div></div>';
+  var cols = amdaCols(les), h = '<div class="am-room"><div class="am-cols">';
+  cols.forEach(function (n, i) {
+    h += '<div class="am-col">';
+    for (var r = 1; r <= n; r++) {
+      h += '<div class="am-desk"><div class="am-pair">';
+      for (var sd = 1; sd <= 2; sd++) {
+        var id = (i + 1) + '-' + r + '-' + sd, who = occ[id], cls = 'am-seat';
+        var lbl = '', dis = false;
+        if (who) {
+          cls += ' taken';
+          lbl = '<b>' + esc(amdaFirst(who)) + '</b>';
+          if (o.me && who !== o.me) dis = true;
+          if (o.board) {
+            var mk = amdaMkOf(who, o.sess);
+            if (mk[0] > 0) lbl += '<i class="p">' + mk[0] + '</i>';
+            if (mk[1] > 0) { lbl += '<i class="d">' + mk[1] + '</i>'; cls += ' bad'; }
+            else if (mk[0] > 0) cls += ' good';
+          }
         }
-        h += "</div>";
-    });
-    return h + '</div><div class="am-tdesk">' + esc(amdaT("teacher")) + "</div></div>";
+        if (o.me && id === o.mine) cls += ' mine';
+        if (o.board && o.sel && !who) cls += ' free';
+        h += '<button class="' + cls + '" data-s="' + id + '"' + (dis ? ' disabled' : '') +
+             ' aria-label="' + esc(who ? amdaNm(who) : amdaT('seatFree')) + '">' +
+             AMDA_CHAIR + lbl + '</button>';
+      }
+      h += '</div><div class="am-tbl"></div></div>';
+    }
+    h += '</div>';
+  });
+  return h + '</div><div class="am-tdesk">' + esc(amdaT('teacher')) + '</div></div>';
 }
 
 function amdaBoard(slot) {
@@ -321,52 +341,49 @@ function amdaBoard(slot) {
 }
 
 function amdaBoardPaint() {
-    var el = document.getElementById("amcb"), les = amdaLesson(amdaSt.bSlot);
-    if (!el || el.className !== "amda on" || !les) return;
-    var sess = amdaDay() + "|" + amdaSt.bSlot, had = amdaHadNow(sess), occ = amdaOcc(les, sess);
-    var seated = {}, k;
-    for (k in occ) {
-        if (occ.hasOwnProperty(k)) seated[occ[k]] = 1;
-    }
-    var list = amdaList(les.g, les.c), noSeat = [], away = [];
-    list.forEach(function(n) {
-        var sk = amdaKey(les.g, les.c, n);
-        if (!had[sk]) away.push(sk); else if (!seated[sk]) noSeat.push(sk);
-    });
-    var chip = function(sk, cls) {
-        return '<button class="am-chip' + cls + (amdaSt.bSel === sk ? " on" : "") + '" data-k="' + esc(sk) + '">' + esc(amdaNm(sk)) + "</button>";
-    };
-    var h = '<div class="am-in"><div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' + '<div class="am-brand"><b>' + esc(amdaT("brand1")) + "</b><span>" + esc(amdaT("brand2")) + " · " + esc(PROGRAM.year) + '</span></div><button class="am-x" data-bx="1">' + esc(amdaT("bClose")) + "</button></div>" + '<div class="am-h">' + esc(amdaLessonName(les)) + "</div>" + '<div class="am-sub">' + esc(amdaT("bHere", {
-        n: Object.keys(had).length,
-        of: list.length
-    })) + "</div>" + '<p class="am-lead">' + esc(amdaSt.bSel ? amdaT("bPlace", {
-        n: amdaNm(amdaSt.bSel)
-    }) : amdaT("bLead")) + "</p>" + amdaMapHtml(les, occ, {
-        board: 1,
-        sess: sess,
-        sel: amdaSt.bSel
-    });
-    if (noSeat.length) h += '<div class="am-q">' + esc(amdaT("bNoSeat")) + '</div><div class="am-chips">' + noSeat.map(function(sk) {
-        return chip(sk, "");
-    }).join("") + "</div>";
-    if (away.length) h += '<div class="am-q">' + esc(amdaT("bAbsent")) + '</div><div class="am-chips">' + away.map(function(sk) {
-        return chip(sk, " away");
-    }).join("") + "</div>";
-    h += "</div>";
-    if (amdaSt.bWho) {
-        var w = amdaSt.bWho, td = amdaMkOf(w, sess), tt = amdaMkOf(w);
-        h += '<div class="am-sheet" data-m="x"><div class="am-sh-in" data-m="in"><b>' + esc(amdaNm(w)) + "</b>" + "<span>" + esc(amdaT("bToday", {
-            p: td[0],
-            d: td[1]
-        })) + "<br>" + esc(amdaT("bTotal", {
-            a: amdaLesAtt()[w] || 0,
-            p: tt[0],
-            d: tt[1]
-        })) + "</span>" + '<div class="am-mk"><button class="am-mp" data-m="p"><span class="am-sym">✓</span>' + esc(amdaT("mkP")) + "</button>" + '<button class="am-md" data-m="d"><span class="am-sym">✗</span>' + esc(amdaT("mkD")) + "</button></div>" + '<div class="am-mk"><button class="am-minus" data-m="p-">' + esc(amdaT("mkUndoP")) + "</button>" + '<button class="am-minus" data-m="d-">' + esc(amdaT("mkUndoD")) + "</button></div>" + '<div class="am-mk"><button class="am-x" data-m="move">' + esc(amdaT("bMove")) + "</button>" + '<button class="am-x" data-m="x">' + esc(amdaT("bClose")) + "</button></div></div></div>";
-    }
-    var y = el.firstChild ? el.scrollTop : 0;
-    el.innerHTML = h;
-    el.scrollTop = y;
+  var el = document.getElementById('amcb'), les = amdaLesson(amdaSt.bSlot);
+  if (!el || el.className !== 'amda on' || !les) return;
+  var sess = amdaDay() + '|' + amdaSt.bSlot, had = amdaHadNow(sess), occ = amdaOcc(les, sess);
+  var seated = {}, k;
+  for (k in occ) { if (occ.hasOwnProperty(k)) seated[occ[k]] = 1; }
+  var list = amdaList(les.g, les.c), noSeat = [], away = [];
+  list.forEach(function (n) {
+    var sk = amdaKey(les.g, les.c, n);
+    if (!had[sk]) away.push(sk); else if (!seated[sk]) noSeat.push(sk);
+  });
+  var chip = function (sk, cls) {
+    var mk = amdaMkOf(sk, sess);
+    cls += mk[1] > 0 ? ' bad' : mk[0] > 0 ? ' good' : '';
+    return '<button class="am-chip' + cls + (amdaSt.bSel === sk ? ' on' : '') + '" data-k="' + esc(sk) + '">' +
+           esc(amdaNm(sk)) + '</button>';
+  };
+  var h = '<div class="am-in"><div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
+    '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' + esc(amdaT('brand2')) + ' · ' +
+    esc(PROGRAM.year) + '</span></div><button class="am-x" data-bx="1">' + esc(amdaT('bClose')) + '</button></div>' +
+    '<div class="am-h">' + esc(amdaLessonName(les)) + '</div>' +
+    '<div class="am-sub">' + esc(amdaT('bHere', { n: Object.keys(had).length, of: list.length })) + '</div>' +
+    '<p class="am-lead">' + esc(amdaSt.bSel ? amdaT('bPlace', { n: amdaNm(amdaSt.bSel) }) : amdaT('bLead')) + '</p>' +
+    amdaMapHtml(les, occ, { board: 1, sess: sess, sel: amdaSt.bSel });
+  if (noSeat.length) h += '<div class="am-q">' + esc(amdaT('bNoSeat')) + '</div><div class="am-chips">' +
+    noSeat.map(function (sk) { return chip(sk, ''); }).join('') + '</div>';
+  if (away.length) h += '<div class="am-q">' + esc(amdaT('bAbsent')) + '</div><div class="am-chips">' +
+    away.map(function (sk) { return chip(sk, ' away'); }).join('') + '</div>';
+  h += '</div>';
+  if (amdaSt.bWho) {
+    var w = amdaSt.bWho, td = amdaMkOf(w, sess), tt = amdaMkOf(w);
+    h += '<div class="am-sheet" data-m="x"><div class="am-sh-in" data-m="in"><b>' + esc(amdaNm(w)) + '</b>' +
+      '<span>' + esc(amdaT('bToday', { p: td[0], d: td[1] })) + '<br>' +
+      esc(amdaT('bTotal', { a: (amdaLesAtt()[w] || 0), p: tt[0], d: tt[1] })) + '</span>' +
+      '<div class="am-mk"><button class="am-mp" data-m="p"><span class="am-sym">✓</span>' + esc(amdaT('mkP')) + '</button>' +
+      '<button class="am-md" data-m="d"><span class="am-sym">✗</span>' + esc(amdaT('mkD')) + '</button></div>' +
+      '<div class="am-mk"><button class="am-minus" data-m="p-">' + esc(amdaT('mkUndoP')) + '</button>' +
+      '<button class="am-minus" data-m="d-">' + esc(amdaT('mkUndoD')) + '</button></div>' +
+      '<div class="am-mk"><button class="am-x" data-m="move">' + esc(amdaT('bMove')) + '</button>' +
+      '<button class="am-x" data-m="x">' + esc(amdaT('bClose')) + '</button></div></div></div>';
+  }
+  var y = el.firstChild ? el.scrollTop : 0;
+  el.innerHTML = h;
+  el.scrollTop = y;
 }
 
 function amdaBoardTap(e) {

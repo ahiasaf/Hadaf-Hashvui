@@ -4,6 +4,7 @@ import { databaseAction } from "./database-actions.ts";
 import settings from "../generated/settings.json" with { type: "json" };
 const reads = new Set([
   "board",
+  "dev",
   "key",
   "k",
   "test",
@@ -43,6 +44,7 @@ export async function forwardAction(input: unknown, request = fetch) {
       "requestId",
       "fire",
       "inst",
+      "dev",
       "k",
       "key",
       "title",
@@ -98,6 +100,7 @@ export async function forwardAction(input: unknown, request = fetch) {
       !payload.key
     )
       throw new Error("Authentication required");
+    if (payload.board && payload.dev && !payload.key) await requireWritable();
     if (await databaseEnabled())
       return databaseAction("read", stringRecord(payload));
     const url = new URL(settings.api);
@@ -175,6 +178,12 @@ export async function forwardAction(input: unknown, request = fetch) {
   } else throw new Error("Invalid operation");
   if (!response.ok) throw new Error("Upstream action failed");
   const result = await response.json();
+  if (
+    envelope.operation === "read" &&
+    payload.board &&
+    ["wait", "locked", "unknown"].includes(result.status)
+  )
+    return result;
   if (!["ok", "success"].includes(result.status))
     throw new Error(
       result.status === "denied"

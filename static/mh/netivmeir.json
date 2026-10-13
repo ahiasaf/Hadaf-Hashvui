@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=netivmeir",
+  "start_url": "/management?m=netivmeir&staff=netivmeir#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

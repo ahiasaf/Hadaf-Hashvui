@@ -2,9 +2,11 @@
 import Tool from "../layouts/Tool.astro";
 export function getStaticPaths() {
   const pages = import.meta.glob("../features/*/page.json");
-  return Object.keys(pages).map((path) => ({
-    params: { tool: path.split("/")[2] },
-  }));
+  return Object.keys(pages)
+    .filter((path) => path.split("/")[2] !== "board-tools")
+    .map((path) => ({
+      params: { tool: path.split("/")[2] },
+    }));
 }
 ---
 

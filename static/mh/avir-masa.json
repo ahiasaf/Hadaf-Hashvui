@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=avir&masa=go",
+  "start_url": "/management?m=avir&staff=avir&masa=go#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

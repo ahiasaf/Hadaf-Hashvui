@@ -130,13 +130,7 @@ var SID_TABS = {
     deck: "מצגת"
 };
 
-var SID = {
-    busy: false,
-    msg: "",
-    cls: "",
-    res: null,
-    tabs: null
-};
+var SID = { busy:false, msg:'', cls:'', res:null, tabs:null, plan:null, todo:null, next:'', bad:'' };
 
 function sidCard() {
     var r = SID.res, sum = "";
@@ -147,10 +141,11 @@ function sidCard() {
             orph += d.orph.own.length + d.orph.q.length + d.orph.deck.length;
             if (d.was.own === "n" || d.was.q === "n" || d.was.deck === "n") conv++;
         });
-        sum = '<div class="cond" style="margin-top:10px">' + "<b>" + dafs + "</b> דפים · <b>" + items + "</b> קטעים · " + "<b>" + r.changedPages + "</b> עמודים יקבלו מזהים · " + "<b>" + conv + "</b> דפים עם תוכן לפי מספרים" + (orph ? ' · <b style="color:#B3261E">' + orph + "</b> שיוכים למספר שאין לו קטע (יישמרו בצד, לא יימחקו)" : "") + "</div>" + sidTable_(r);
+        sum = sidProg_() + '<div class="cond" style="margin-top:10px">' + "<b>" + dafs + "</b> דפים · <b>" + items + "</b> קטעים · " + "<b>" + r.changedPages + "</b> עמודים יקבלו מזהים · " + "<b>" + conv + "</b> דפים עם תוכן לפי מספרים" + (orph ? ' · <b style="color:#B3261E">' + orph + "</b> שיוכים למספר שאין לו קטע (יישמרו בצד, לא יימחקו)" : "") + "</div>" + sidTable_(r);
     }
-    return '<div class="adm-card" style="margin-bottom:11px"><h4>מזהים קבועים לקטעים</h4>' + '<p class="h">כדי שפיצול ואיחוד בסטודיו לא יזיזו את הפירוש, השאלות, ההקלטות והשקפים ' + "של קטעים אחרים. <b>בדיקה</b> אינה משנה דבר. <b>הסבה</b> - רק אחרי בדיקה, " + "עם גיבוי לפני הכתיבה. <b>שחזור</b> - מחזיר את ארבע הלשוניות למצב שבגיבוי.</p>" + '<button class="btn g" onclick="sidDry()"' + (SID.busy ? " disabled" : "") + ">בדיקה - בלי לשנות</button>" + (r ? '<button class="btn g" style="margin-top:8px" onclick="sidSaveReport()">הורדת הדוח</button>' + '<button class="btn gd" style="margin-top:8px" onclick="sidRun()"' + (SID.busy ? " disabled" : "") + ">הסבה - גיבוי ואז כתיבה</button>" : "") + '<button class="btn g" style="margin-top:8px" onclick="sidRestore()"' + (SID.busy ? " disabled" : "") + ">שחזור מהגיבוי</button>" + (SID.msg ? '<div class="' + (SID.cls || "cond") + '" style="margin-top:10px">' + SID.msg + "</div>" : "") + sum + "</div>";
+    return '<div class="adm-card" style="margin-bottom:11px"><h4>מזהים קבועים לקטעים</h4>' + '<p class="h">כדי שפיצול ואיחוד בסטודיו לא יזיזו את הפירוש, השאלות, ההקלטות והשקפים ' + "של קטעים אחרים. <b>בדיקה</b> אינה משנה דבר. <b>הסבה</b> - לשונית אחת בכל לחיצה, " + "עם גיבוי מאומת לפני הכתיבה; לחיצה הבאה ממשיכה מאיפה שנעצרה. " + "<b>שחזור</b> - מחזיר כל לשונית שהוסבה למצב שבגיבוי שלה.</p>" + '<button class="btn g" onclick="sidDry()"' + (SID.busy ? " disabled" : "") + ">בדיקה - בלי לשנות</button>" + (r ? '<button class="btn g" style="margin-top:8px" onclick="sidSaveReport()">הורדת הדוח</button>' + (SID.next ? '<button class="btn gd" style="margin-top:8px" onclick="sidRun()"' + (SID.busy ? " disabled" : "") + ">הסבה - החלק הבא: " + esc(SID_TABS[SID.next]) + "</button>" : "") : "") + '<button class="btn g" style="margin-top:8px" onclick="sidRestore()"' + (SID.busy ? " disabled" : "") + ">שחזור מהגיבוי</button>" + (SID.msg ? '<div class="' + (SID.cls || "cond") + '" style="margin-top:10px">' + SID.msg + "</div>" : "") + sum + "</div>";
 }
+
 
 function sidTable_(r) {
     return '<details style="margin-top:8px"><summary>הדוח לפי דף</summary>' + r.report.map(function(d) {
@@ -209,23 +204,16 @@ function sidMap_(rows) {
 }
 
 function sidDry() {
-    if (!(CFG.readKey || "").trim()) {
-        sidSay_("bad", "צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).");
-        return;
-    }
-    SID.busy = true;
-    SID.res = null;
-    sidSay_("cond", "קורא את ארבע הלשוניות…");
-    sidRead_().then(function(t) {
-        var o = sidMap_(t.own), q = sidMap_(t.q), d = sidMap_(t.deck);
-        SID.tabs = t;
-        SID.res = SidMigrate(t.marks, o.map, q.map, d.map);
-        SID.busy = false;
-        sidSay_("ok", "הבדיקה הסתיימה. לא נכתב דבר.");
-    }).catch(function(e) {
-        SID.busy = false;
-        sidSay_("bad", "לא הצלחתי לקרוא: " + esc(e && e.message || ""));
-    });
+  if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
+  SID.busy = true; SID.res = null; sidSay_('cond', 'קורא את ארבע הלשוניות…');
+  sidRead_().then(function (t) {
+    sidState_(t);
+    SID.busy = false;
+    sidSay_('ok', 'הבדיקה הסתיימה. לא נכתב דבר.');
+  }).catch(function (e) {
+    SID.busy = false;
+    sidSay_('bad', 'לא הצלחתי לקרוא: ' + esc(e && e.message || ''));
+  });
 }
 
 function sidSaveReport() {
@@ -247,22 +235,22 @@ function sidSaveReport() {
 }
 
 function sidRows_(rows, conv) {
-    var src = sidMap_(rows), seen = {}, out = [];
-    (rows || []).slice(1).forEach(function(r) {
-        var k = SidDm(String(r[0] || "").trim(), String(r[1] || "").trim());
-        var v = conv[k];
-        if (v && !seen[k] && JSON.stringify(v) !== JSON.stringify(src.map[k]) && !v.__bad) {
-            seen[k] = 1;
-            out.push([ r[0], r[1], JSON.stringify(v) ]);
-        } else out.push(r.slice(0, 3));
-        seen[k] = 1;
-    });
-    Object.keys(conv).forEach(function(k) {
-        if (seen[k] || !conv[k] || conv[k].__bad) return;
-        var a = k.split("|");
-        out.push([ a[0], sidDafRaw_(k), JSON.stringify(conv[k]) ]);
-    });
-    return out;
+  var src = sidMap_(rows), seen = {}, out = [];
+  (rows || []).slice(1).forEach(function (r) {
+    var k = SidDm(String(r[0] || '').trim(), String(r[1] || '').trim());
+    var v = conv[k];
+    if (v && !seen[k] && JSON.stringify(v) !== JSON.stringify(src.map[k]) && !v.__bad) {
+      seen[k] = 1;
+      var nr = r.slice(); nr[2] = JSON.stringify(v); out.push(nr);
+    } else out.push(r.slice());
+    seen[k] = 1;
+  });
+  Object.keys(conv).forEach(function (k) {
+    if (seen[k] || !conv[k] || conv[k].__bad) return;
+    var a = k.split('|');
+    out.push([a[0], sidDafRaw_(k), JSON.stringify(conv[k])]);
+  });
+  return out;
 }
 
 function sidDafRaw_(k) {
@@ -275,41 +263,4 @@ function sidDafRaw_(k) {
         return false;
     });
     return hit || k.split("|")[1];
-}
-
-function sidPost_(tab, head, rows) {
-    return fetch((CFG.api || API || "").trim(), {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({
-            action: "table",
-            tab: tab,
-            key: (CFG.readKey || "").trim(),
-            cols: JSON.stringify(head),
-            rows: JSON.stringify(rows)
-        })
-    });
-}
-
-function sidCheck_(tab, rows, tries) {
-    return new Promise(function(ok) {
-        setTimeout(ok, tries ? 2e3 : 1500);
-    }).then(function() {
-        return scriptGet({
-            read: tab,
-            key: (CFG.readKey || "").trim()
-        });
-    }).then(function(d) {
-        var got = d && d.status === "ok" && d.rows ? d.rows.slice(1) : null;
-        var same = got && got.length === rows.length && got.every(function(r, i) {
-            return rows[i].every(function(c, j) {
-                return String(c == null ? "" : c) === String(r[j] == null ? "" : r[j]);
-            });
-        });
-        if (same) return true;
-        if ((tries || 0) < 4) return sidCheck_(tab, rows, (tries || 0) + 1);
-        return false;
-    }).catch(function() {
-        return (tries || 0) < 4 ? sidCheck_(tab, rows, (tries || 0) + 1) : false;
-    });
 }

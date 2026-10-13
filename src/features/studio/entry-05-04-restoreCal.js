@@ -1,41 +1,51 @@
 function restoreCal() {
-    var rec = BOOK[PKEY];
-    if (!rec || !rec.cal || !rec.zones || !rec.zones.length) return false;
-    var w = D.w, h = D.h, c = rec.cal;
-    S = {
-        w: w,
-        h: h,
-        sc: w / REF_W,
-        simple: !!c.simple,
-        bbox: (c.bbox || [ 0, 0, 1, 1 ]).map(function(v, i) {
-            return v * (i % 2 ? h : w);
-        }),
-        gpitch: (c.gpitch || 0) * h,
-        cpitch: (c.cpitch || 0) * h,
-        core: [ rec.core[0] * w, rec.core[1] * w ],
-        spine: (c.spine || []).map(function(v) {
-            return v * w;
-        }),
-        grid: (c.grid || []).map(function(v) {
-            return v * w;
-        }),
-        zones: rec.zones.map(function(z) {
-            return {
-                y0: z.y0 * h,
-                y1: z.y1 * h,
-                a: z.a * w,
-                b: z.b * w,
-                inA: !!z.inA,
-                inB: !!z.inB,
-                pitch: (c.gpitch || 0) * h,
-                lines: (z.lines || []).map(function(l) {
-                    return [ l[0] * h, l[1] * h ];
-                })
-            };
-        })
-    };
-    S.outer = S.inner = S.core;
-    return true;
+  var rec = BOOK[PKEY];
+  if (!rec || !rec.cal || !rec.zones || !rec.zones.length) return false;
+  var w = D.w, h = D.h, c = rec.cal;
+  S = {
+    w:w, h:h, sc: w / REF_W, simple: !!c.simple,
+    bbox: (c.bbox || [0,0,1,1]).map(function (v, i) { return v * (i % 2 ? h : w); }),
+    gpitch: (c.gpitch || 0) * h, cpitch: (c.cpitch || 0) * h,
+    core: [rec.core[0] * w, rec.core[1] * w],
+    spine: (c.spine || []).map(function (v) { return v * w; }),
+    grid:  (c.grid  || []).map(function (v) { return v * w; }),
+    zones: rec.zones.map(function (z) {
+      return { y0: z.y0 * h, y1: z.y1 * h, a: z.a * w, b: z.b * w,
+               inA: !!z.inA, inB: !!z.inB, pitch: (c.gpitch || 0) * h,
+               lines: (z.lines || []).map(function (l) { return [l[0]*h, l[1]*h]; }) };
+    })
+  };
+  /* המסגרת הפנימית היא `spine` ולא `core`. כאן נכתב פעם
+     `S.inner = S.core`, וכל כיול שחזר מהשמירה איבד את המסגרת
+     הפנימית: מתגי הטורים לא עשו דבר, ואזור שנוסף נפרש על כל
+     הרוחב. */
+  S.outer = S.core;
+  S.inner = S.spine.length === 2 ? S.spine : S.core;
+  return true;
+}
+/* הכיול שבגיליון - גם על המסך, ולא רק בזיכרון.
+
+   "כיילתי, וזה עובד מצוין. נכנס שוב לסטודיו - וזה משתבש מחדש."
+   הכיול נשמר כראוי, אבל בכניסה הסטודיו מצייר את העמוד **לפני**
+   שהגיליון ענה. בלי עותק מקומי (מכשיר אחר, אפליקציה מותקנת מול
+   דפדפן, אחסון שהתנקה) רץ הזיהוי האוטומטי. הגיליון הגיע אחר כך,
+   נכנס לזיכרון - והמסך נשאר עם הזיהוי האוטומטי, וגם הסימון
+   נעשה על השורות שלו. מעבר עמוד היה אף כותב אותו על הכיול הטוב.
+
+   לכן: אחרי כל קריאה מהגיליון, כשלעמוד שעל המסך יש כיול שמור -
+   הוא מה שמוצג. */
+function calFromBook_() {
+  if (!D || !S || !PKEY) return false;
+  var rec = BOOK[PKEY];
+  if (!rec || !rec.cal || !rec.zones || !rec.zones.length) return false;
+  if (!restoreCal()) return false;
+  sel = Math.max(0, Math.min(sel, S.zones.length - 1));
+  return true;
+}
+function afterSheetCal_(n) {
+  if (!n || MODE === 'mark') return;
+  PKEY = ''; loadPageState();
+  if (calFromBook_()) draw();
 }
 
 var MODE = "cal";
@@ -62,21 +72,36 @@ function LIB_OK() {
 }
 
 function lastChav() {
-    for (var j = STEPS.length - 1; j >= 0; j--) if (!STEPS[j].cont) return STEPS[j].c.to;
-    var pre = [ selVal("mas"), selVal("daf"), selVal("src") ].join("|") + "|";
-    var pg = +selVal("pg") || 1, best = -1;
-    for (var k in BOOK) {
-        if (k.indexOf(pre) !== 0) continue;
-        if ((+k.slice(pre.length) || 1) >= pg) continue;
-        var st = BOOK[k].steps || [];
-        for (var i = 0; i < st.length; i++) if (!st[i].cont) best = Math.max(best, st[i].c.to);
+  /* קטע המשך (`cont`) אינו צורך פסקאות משלו - הוא נושא את הביאור
+     של הקטע שלפני המעבר. בראש דף הוא אפילו נושא מספרי פסקאות של
+     קובץ חברותא **אחר**, של הדף הקודם. לכן אינו נספר כאן. */
+  for (var j = STEPS.length - 1; j >= 0; j--) {
+    if (!STEPS[j].cont) return STEPS[j].c.to;
+    /* המשך שצירף פסקאות משלו (`cj`) - הן כבר תפוסות */
+    if (STEPS[j].cj) return STEPS[j].cj.to;
+  }
+  /* סורקים את כל עמודי הדף שלפני העמוד הנוכחי ולוקחים את הפסקה
+     הגבוהה ביותר ששובצה. סריקה ולא "העמוד הקודם בלבד": עמוד אחד
+     יכול להיעדר מהזיכרון ברגע הלא נכון, ואז המונה חזר לאפס
+     והקטע הראשון של העמוד החדש בלע את כל הדף. */
+  var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+  var pg = +selVal('pg') || 1, best = -1;
+  for (var k in BOOK) {
+    if (k.indexOf(pre) !== 0) continue;
+    if ((+k.slice(pre.length) || 1) >= pg) continue;
+    var st = BOOK[k].steps || [];
+    for (var i = 0; i < st.length; i++) {
+      if (!st[i].cont) best = Math.max(best, st[i].c.to);
+      else if (st[i].cj) best = Math.max(best, st[i].cj.to);
     }
-    return best;
+  }
+  return best;
 }
 
 function loadPageState() {
     var k = pageKey();
     if (k === PKEY) return;
+    if (PKEY) reportDraft_(PKEY);
     PKEY = k;
     var rec = BOOK[k];
     STEPS = rec ? rec.steps : [];
@@ -95,6 +120,7 @@ function loadPageState() {
     document.body.classList.remove("splt");
 }
 
+
 function keyLabel(k) {
     var a = String(k).split("|");
     var mas = (MAS.filter(function(m) {
@@ -106,55 +132,46 @@ function keyLabel(k) {
 }
 
 function keepPageState() {
-    if (!PKEY || !S) return;
-    var was = BOOK[PKEY] || {};
-    BOOK[PKEY] = {
-        w: S.w,
-        h: S.h,
-        label: keyLabel(PKEY),
-        core: [ S.core[0] / S.w, S.core[1] / S.w ],
-        zones: S.zones.map(function(z) {
-            return {
-                y0: z.y0 / S.h,
-                y1: z.y1 / S.h,
-                a: z.a / S.w,
-                b: z.b / S.w,
-                inA: !!z.inA,
-                inB: !!z.inB,
-                lines: (z.lines || []).map(function(l) {
-                    return [ l[0] / S.h, l[1] / S.h ];
-                })
-            };
-        }),
-        cal: {
-            bbox: S.bbox.map(function(v, i) {
-                return v / (i % 2 ? S.h : S.w);
-            }),
-            gpitch: S.gpitch / S.h,
-            cpitch: S.cpitch / S.h,
-            spine: (S.spine || []).map(function(v) {
-                return v / S.w;
-            }),
-            grid: (S.grid || []).map(function(v) {
-                return v / S.w;
-            }),
-            simple: !!S.simple
-        },
-        steps: STEPS
-    };
-    if (!STEPS.length && was.steps && was.steps.length) {
-        BOOK[PKEY].steps = was.steps;
-        STEPS = was.steps;
-    }
-    if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
-    if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
-    if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
-    if (was.prev) {
-        BOOK[PKEY].prev = was.prev;
-        BOOK[PKEY].prevDaf = was.prevDaf;
-    }
-    if (was.t) BOOK[PKEY].t = was.t;
-    SEEN[PKEY] = 1;
+  if (!PKEY || !S) return;
+  /* מה שאינו נגזר מהמסך - פיצולי פסקאות, נקודת עצירה - חייב
+     לשרוד. הכתיבה כאן בונה את הרשומה מחדש, ובלי ההעברה למטה
+     כל פיצול שנעשה נמחק ברגע שעוברים עמוד. */
+  var was = BOOK[PKEY] || {};
+  BOOK[PKEY] = { w:S.w, h:S.h, label: keyLabel(PKEY),
+    core:[S.core[0]/S.w, S.core[1]/S.w],
+    zones: S.zones.map(function (z) {
+      return { y0:z.y0/S.h, y1:z.y1/S.h, a:z.a/S.w, b:z.b/S.w,
+               inA: !!z.inA, inB: !!z.inB,
+               lines:(z.lines||[]).map(function(l){ return [l[0]/S.h, l[1]/S.h]; }) };
+    }),
+    /* מה שדרוש כדי להחזיר את הכיול בדיוק כפי שהושאר. בלי זה
+       הזיהוי רץ מחדש בכל חזרה לעמוד, וכל תיקון ידני נמחק. */
+    cal: { bbox: S.bbox.map(function (v, i) { return v / (i % 2 ? S.h : S.w); }),
+           gpitch: S.gpitch / S.h, cpitch: S.cpitch / S.h,
+           spine: (S.spine || []).map(function (v) { return v / S.w; }),
+           grid: (S.grid || []).map(function (v) { return v / S.w; }),
+           simple: !!S.simple },
+    steps: STEPS };
+  /* הכלל שהיה חסר, וזה שמחק את העבודה: רשומה שיש בה קטעים לא
+     מוחלפת ברשומה בלי קטעים.
+
+     כשמחליפים דף, משיכת ה-PDF וטעינת הסימונים מהגיליון רצות
+     במקביל. אם ה-PDF הגיע ראשון והגיליון עוד לא ענה - או נכשל -
+     `loadPageState` לא מצא רשומה והסיק "אין קטעים". כל פעולה
+     אחריו כתבה את הריק הזה על גבי רשומה מלאה, והשמירה הבאה
+     העבירה אותו לגיליון. הסטודיו לא ידע להבחין בין "אין" לבין
+     "עוד לא שמעתי", וזה ההבדל היחיד שהיה חשוב. */
+  if (!STEPS.length && was.steps && was.steps.length) {
+    BOOK[PKEY].steps = was.steps;
+    STEPS = was.steps;
+  }
+  if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
+  if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
+  if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
+  if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
+  if (typeof was.upto === 'number') { BOOK[PKEY].upto = was.upto; BOOK[PKEY].uptoDaf = was.uptoDaf; }
+  if (was.t) BOOK[PKEY].t = was.t;
+  SEEN[PKEY] = 1;
 }
 
 var GSEL = null;

@@ -19,6 +19,8 @@ export const privateTabs = new Set([
   "עמדת לימוד",
   "טלפוני תלמידים",
   "תלמידי הרשת",
+  "יומן מאגר",
+  "מסירות",
   "עמדה — שיוך",
   "עמדה — סימונים",
   "עמדה — שיעורים",
@@ -104,7 +106,7 @@ const has = (params: Record<string, string>, name: string) => !!params[name];
 const getRoutes: [string, (params: Record<string, string>) => boolean][] = [
   ["file", (p) => has(p, "file")],
   ["help", (p) => p.help === "1"],
-  ["setup", (p) => /^clock(off|state)?$/.test(p.setup || "")],
+  ["setup", (p) => /^clock(off|state|fire)?$/.test(p.setup || "")],
   ["digest", (p) => p.fire === "digest"],
   ["helpdone", (p) => has(p, "helpdone")],
   ["conflictdone", (p) => has(p, "conflictdone")],
@@ -125,6 +127,9 @@ const getRoutes: [string, (params: Record<string, string>) => boolean][] = [
   ["pendingFor", (p) => has(p, "pendingFor")],
   ["acc", (p) => has(p, "acc")],
   ["accset", (p) => has(p, "accset")],
+  ["netroster", (p) => has(p, "netroster")],
+  ["netmarks", (p) => has(p, "netmarks")],
+  ["sidStep", (p) => has(p, "sidStep")],
   ["board", (p) => has(p, "board")],
   ["team", (p) => has(p, "team")],
   ["codes", (p) => has(p, "codes") || has(p, "newcode")],
@@ -150,6 +155,8 @@ const getWrites = new Set([
   "pairok",
   "acc",
   "accset",
+  "netroster",
+  "netmarks",
   "recount",
   "delete",
   "contactSave",
@@ -159,6 +166,7 @@ export function legacyGetRoute(params: Record<string, string>): Route {
   const name = getRoutes.find(([, match]) => match(params))?.[0] || "health";
   const write =
     getWrites.has(name) ||
+    (name === "board" && !!params.dev && !params.key) ||
     (name === "codes" && has(params, "newcode")) ||
     (name === "archive" && !has(params, "archived")) ||
     // Reading the station list starts its learner matching in Apps Script.

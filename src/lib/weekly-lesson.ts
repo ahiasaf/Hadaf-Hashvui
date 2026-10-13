@@ -1,3 +1,5 @@
+import { sheet } from "./client";
+import { deckCovers } from "./deck-covers";
 import {
   lessonHref,
   lessonRow,
@@ -79,6 +81,37 @@ export function initializeWeeklyLesson() {
         dot.classList.toggle("is-done", i < unitsDone(track, index)),
       );
   }
+  // Published covers override the fallback without blocking the first render.
+  void sheet("מצגות")
+    .then((rows) => {
+      const published = deckCovers(rows);
+      for (const track of tracks) {
+        const { index } = current(track),
+          deck = published[track.id + "-" + (index + 1)];
+        if (!deck) continue;
+        const variant = section.querySelector<HTMLElement>(
+          `[data-variant="${track.id}"]`,
+        )!;
+        const frame = variant.querySelector<HTMLElement>("[data-frame]")!,
+          image = frame.querySelector<HTMLImageElement>("img");
+        frame.classList.toggle("is-empty", !deck.src);
+        if (deck.src) {
+          if (image) image.src = deck.src;
+          else {
+            const added = new Image();
+            added.alt = "השקף שנבחר ללימוד השבועי";
+            added.decoding = "async";
+            added.src = deck.src;
+            frame.prepend(added);
+          }
+        }
+        if (deck.title)
+          variant.querySelector<HTMLElement>(
+            "[data-lesson-title]",
+          )!.textContent = deck.title;
+      }
+    })
+    .catch(() => undefined);
   function show(id: string) {
     const track = tracks.find((track) => track.id === id);
     if (!track) return;

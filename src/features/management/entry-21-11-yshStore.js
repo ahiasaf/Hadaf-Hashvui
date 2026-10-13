@@ -40,38 +40,63 @@ function yshStore(st, ad) {
 }
 
 function yshEntries(list) {
-    var st = Store.get("yshState", {}) || {}, by = {}, out = [];
-    list.forEach(function(c, i) {
-        var nm = c.key || c.name, k = yshGk(nm);
-        if (!k) return;
-        if (!by[k]) {
-            by[k] = {
-                k: k,
-                name: yshNm(nm),
-                recs: [],
-                st: null
-            };
-            out.push(by[k]);
-        }
-        by[k].recs.push({
-            c: c,
-            i: i
-        });
+  var st = Store.get('yshState', {}) || {}, by = {}, out = [];
+  list.forEach(function (c, i) {
+    var nm = c.key || c.name, k = yshGk(nm);
+    if (!k) return;
+    if (!by[k]) { by[k] = { k:k, name:yshNm(nm), recs:[], st:null }; out.push(by[k]); }
+    by[k].recs.push({ c:c, i:i });
+  });
+  Object.keys(st).forEach(function (sk) {
+    var k = yshGk(st[sk].name);
+    if (!by[k]) { by[k] = { k:k, name:yshNm(st[sk].name), recs:[], st:null }; out.push(by[k]); }
+    /* שתי שורות מצב לאותה ישיבה - העדכנית גוברת. */
+    if (!by[k].st || tsOf(st[sk].upd) > tsOf(by[k].st.upd)) by[k].st = st[sk];
+  });
+  return yshFold(out);
+}
+/* ============================================================
+   מעבר שני: שם שלא זוהה מצטרף לישיבה שהוא חלק ממנה.
+   ============================================================
+   "ישיבת לפיד נחום" הופיעה פעמיים: שורה אחת מהשם שברשימת
+   המוסדות, ושורה שנייה משם שנכתב אחרת ולא זוהה (תיקו מול מוסד
+   אחר, או רשימת מוסדות מהגיליון שכתובה אחרת). שם לא מזוהה
+   מתמזג לקבוצה אחרת רק כשההתאמה חד־משמעית: המילים שלו כלולות
+   בשלה (או להפך), או שתי מילים משותפות לפחות - ומועמד אחד
+   בלבד. שתי ישיבות מזוהות לעולם אינן מתמזגות זו בזו. */
+function yshWords(e) {
+  var w = {};
+  [e.name].concat(e.recs.map(function (o) { return o.c.key || o.c.name; }))
+    .concat(e.st ? [e.st.name] : []).forEach(function (s) {
+      instWords(s).forEach(function (x) { w[x] = 1; });
     });
-    Object.keys(st).forEach(function(sk) {
-        var k = yshGk(st[sk].name);
-        if (!by[k]) {
-            by[k] = {
-                k: k,
-                name: yshNm(st[sk].name),
-                recs: [],
-                st: null
-            };
-            out.push(by[k]);
-        }
-        if (!by[k].st || tsOf(st[sk].upd) > tsOf(by[k].st.upd)) by[k].st = st[sk];
+  return w;
+}
+function yshFold(out) {
+  var ws = out.map(yshWords);
+  var gone = {};
+  out.forEach(function (e, a) {
+    if (e.k.charAt(0) === '@') return;
+    var mine = Object.keys(ws[a]);
+    if (!mine.length) return;
+    var best = -1, bestN = 0, tie = 0;
+    out.forEach(function (f, b) {
+      if (b === a || gone[b]) return;
+      var his = Object.keys(ws[b]);
+      var n = mine.filter(function (x) { return ws[b][x]; }).length;
+      if (!n || (n < 2 && n !== mine.length && n !== his.length)) return;
+      if (n > bestN) { bestN = n; best = b; tie = 1; }
+      else if (n === bestN) tie++;
     });
-    return out;
+    if (best < 0 || tie > 1) return;
+    var to = out[best];
+    e.recs.forEach(function (r) { to.recs.push(r); });
+    if (e.st && (!to.st || tsOf(e.st.upd) > tsOf(to.st.upd))) to.st = e.st;
+    to.alias = (to.alias || []).concat([e.k], e.alias || []);
+    Object.keys(ws[a]).forEach(function (x) { ws[best][x] = 1; });
+    gone[a] = 1;
+  });
+  return out.filter(function (e, a) { return !gone[a]; });
 }
 
 function yshOf(e, f) {
@@ -238,68 +263,58 @@ function tmpDefs() {
 }
 
 function yshRow(e, n) {
-    var cx = yshCtx || {}, inst = yshInst(e), m = yshMain(e, cx.subs || {});
-    var got = 0;
-    if (inst) pplData().rows.forEach(function(x) {
-        if (x.c === inst.code) got = x.got;
-    });
-    var acc = inst ? accList().filter(function(a) {
-        return pplCode(a.inst) === inst.code;
-    }) : [];
-    var accT = acc.some(function(a) {
-        return a.st === "אושר";
-    }) ? UI.yrAccOk : acc.some(function(a) {
-        return a.st === "ממתין";
-    }) ? UI.yrAccWait : "";
-    var c0 = e.recs.length ? e.recs[0].c : null, upd = "";
-    e.recs.forEach(function(o) {
-        if (!upd && o.c.upd) upd = o.c.upd;
-    });
-    var due = "";
-    e.recs.forEach(function(o) {
-        var d = o.c.tags && o.c.tags.__due;
-        if (d && (!due || d < due)) due = d;
-    });
-    var reg = e.recs.some(function(o) {
-        return !!regOf(o.c, cx.regs || {});
-    });
-    var chip = function(k, t, def) {
-        var v = yshTagVal(e, k);
-        if (def && def.opts && def.opts.length) {
-            var o = v > 0 ? def.opts[v - 1] : null;
-            var kc = o ? " k-" + (o.c || "n") : "";
-            return '<button class="yr-c' + kc + '" onclick="yshTick(' + n + ",'" + k + "')\">" + esc(t) + (o ? ": " + esc(o.t) : "") + "</button>";
-        }
-        return '<button class="yr-c' + (v ? " on" : "") + '" aria-pressed="' + !!v + '" onclick="yshTick(' + n + ",'" + k + "')\">" + (v ? "✓ " : "") + esc(t) + "</button>";
-    };
-    var stg = c0 ? STAGES.filter(function(x) {
-        return x.k === c0.stage;
-    })[0] || STAGES[0] : STAGES[0];
-    var done = CALL_TASKS.filter(function(t) {
-        return yshTagOn(e, t[0]);
-    }).length;
-    var sc = "st-" + stg.k;
-    var h = '<div class="yr ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) + (yshOf(e, "act") === "y" ? ' <span class="ysh-act">★</span>' : "") + ' <i aria-hidden="true">‹</i></button>' + (c0 ? '<button class="yr-st ' + sc + '" onclick="yshStage(' + n + ')">' + esc(stg.t) + "</button>" : "") + '<span class="yr-n' + (got ? "" : " z") + '">' + esc(fill(UI.yrGot, {
-        n: got
-    })) + "</span></div>" + '<div class="yr-pr" aria-label="' + esc(fill(UI.yrTasks, {
-        n: done,
-        of: CALL_TASKS.length
-    })) + '">' + CALL_TASKS.map(function(t) {
-        return '<i class="' + (yshTagOn(e, t[0]) ? "on" : "") + '"></i>';
-    }).join("") + "</div>";
-    if (m && m.q) {
-        h += '<div class="yr-who"><span>' + esc(m.q.name || "") + (m.q.role ? " · " + esc(m.q.role) : "") + "</span>" + (m.q.phone ? '<a class="yr-b" href="tel:' + digits(m.q.phone) + '" aria-label="' + esc(UI.yrCall) + '">📞</a>' + '<a class="yr-b" target="_blank" rel="noopener" href="https://wa.me/' + waNum(m.q.phone) + '" aria-label="' + esc(UI.yrWa) + '">💬</a>' : "") + "</div>";
+  var cx = yshCtx || {}, inst = yshInst(e), m = yshMain(e, cx.subs || {});
+  var got = 0;
+  if (inst) pplData().rows.forEach(function (x) { if (x.c === inst.code) got = x.got; });
+  var acc = inst ? accList().filter(function (a) { return pplCode(a.inst) === inst.code; }) : [];
+  var accT = acc.some(function (a) { return a.st === 'אושר'; }) ? UI.yrAccOk
+           : acc.some(function (a) { return a.st === 'ממתין'; }) ? UI.yrAccWait : '';
+  var c0 = e.recs.length ? e.recs[0].c : null, upd = '';
+  e.recs.forEach(function (o) { if (!upd && o.c.upd) upd = o.c.upd; });
+  var due = '';
+  e.recs.forEach(function (o) { var d = o.c.tags && o.c.tags.__due; if (d && (!due || d < due)) due = d; });
+  var reg = e.recs.some(function (o) { return !!regOf(o.c, cx.regs || {}); });
+  var chip = function (k, t, def) {
+    var v = yshTagVal(e, k);
+    if (def && def.opts && def.opts.length) {
+      var o = v > 0 ? def.opts[v - 1] : null;
+      var kc = o ? ' k-' + (o.c || 'n') : '';
+      return '<button class="yr-c' + kc + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
+        esc(t) + (o ? ': ' + esc(o.t) : '') + '</button>';
     }
-    h += '<div class="yr-nx">' + (upd ? "⏭ " + esc(upd) : '<span class="yr-no">' + esc(UI.yrNoNext) + "</span>") + '<span class="yr-t">' + esc(e.t ? whenTxt(e.t) : UI.callNever) + (due ? " · ⏰ " + esc(due.split("-").reverse().slice(0, 2).join("/")) : "") + '</span></div><div class="yr-ch">' + CALL_TASKS.map(function(t) {
-        return chip(t[0], UI[t[1]]);
-    }).join("") + (reg ? '<span class="yr-c auto">⚑ ' + esc(UI.yrReg) + "</span>" : "") + (accT ? '<span class="yr-c auto">' + esc(accT) + "</span>" : "") + (inst ? '<button class="yr-c auto" onclick="admInstPick(\'' + esc(inst.code) + "');admGo('stu')\">👁 " + esc(UI.yrBoard) + "</button>" : "") + "</div>";
-    var tm = tmpDefs();
-    if (tm.length || yshTagOn(e, "called")) {
-        h += '<div class="yr-ch yr-tmp">' + chip("called", UI.yrRound) + tm.map(function(t) {
-            return chip(t.k, t.t, t);
-        }).join("") + "</div>";
-    }
-    return h + "</div>";
+    return '<button class="yr-c' + (v ? ' on' : '') + '" aria-pressed="' + !!v + '" onclick="yshTick(' + n + ',\'' + k + '\')">' +
+      (v ? '✓ ' : '') + esc(t) + '</button>';
+  };
+  /* השלב - פס צבע בצד השורה ותגית; לחיצה מעבירה לשלב הבא. */
+  var stg = c0 ? (STAGES.filter(function (x) { return x.k === c0.stage; })[0] || STAGES[0]) : STAGES[0];
+  var done = CALL_TASKS.filter(function (t) { return yshTagOn(e, t[0]); }).length;
+  var sc = 'st-' + stg.k;
+  var h = '<div class="ysh ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
+    (yshOf(e, 'act') === 'y' ? ' <span class="ysh-act">★</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
+    (c0 ? '<button class="yr-st ' + sc + '" onclick="yshStage(' + n + ')">' + esc(stg.t) + '</button>' : '') +
+    '<span class="yr-n' + (got ? '' : ' z') + '">' + esc(fill(UI.yrGot, { n: got })) + '</span></div>' +
+    '<div class="yr-pr" aria-label="' + esc(fill(UI.yrTasks, { n: done, of: CALL_TASKS.length })) + '">' +
+      CALL_TASKS.map(function (t) { return '<i class="' + (yshTagOn(e, t[0]) ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+  if (m && m.q) {
+    h += '<div class="yr-who"><span>' + esc(m.q.name || '') + (m.q.role ? ' · ' + esc(m.q.role) : '') + '</span>' +
+      (m.q.phone ? '<a class="yr-b" href="tel:' + digits(m.q.phone) + '" aria-label="' + esc(UI.yrCall) + '">📞</a>' +
+        '<a class="yr-b" target="_blank" rel="noopener" href="https://wa.me/' + waNum(m.q.phone) + '" aria-label="' +
+        esc(UI.yrWa) + '">💬</a>' : '') + '</div>';
+  }
+  h += '<div class="yr-nx">' + (upd ? '⏭ ' + esc(upd) : '<span class="yr-no">' + esc(UI.yrNoNext) + '</span>') +
+    '<span class="yr-t">' + esc(e.t ? whenTxt(e.t) : UI.callNever) + (due ? ' · ⏰ ' + esc(due.split('-').reverse().slice(0, 2).join('/')) : '') +
+    '</span></div><div class="yr-ch">' +
+    CALL_TASKS.map(function (t) { return chip(t[0], UI[t[1]]); }).join('') +
+    (reg ? '<span class="yr-c auto">⚑ ' + esc(UI.yrReg) + '</span>' : '') +
+    (accT ? '<span class="yr-c auto">' + esc(accT) + '</span>' : '') +
+    (inst ? '<button class="yr-c auto" onclick="admInstPick(\'' + esc(inst.code) + '\');admGo(\'stu\')">👁 ' +
+      esc(UI.yrBoard) + '</button>' : '') + '</div>';
+  var tm = tmpDefs();
+  if (tm.length || yshTagOn(e, 'called')) {
+    h += '<div class="yr-ch yr-tmp">' + chip('called', UI.yrRound) +
+      tm.map(function (t) { return chip(t.k, t.t, t); }).join('') + '</div>';
+  }
+  return h + '</div>';
 }
 
 var yshCtx = null;

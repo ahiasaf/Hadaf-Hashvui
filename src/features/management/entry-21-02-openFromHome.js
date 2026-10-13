@@ -147,34 +147,76 @@ function regPreNeeded() {
 }
 
 function renderRegPre() {
-    var el = document.getElementById("reg-body");
-    if (!el) return;
-    var h = '<div class="mycard">';
-    if (window.APPX && APPX.iosOther && APPX.iosOther()) {
-        h += '<div class="cond"><b>' + esc(ASK_UI.iosOthH) + "</b><br>" + esc(ASK_UI.iosOthB) + "</div>" + '<button class="btn g" style="margin-top:12px;width:100%" ' + 'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) + "</button></div>";
-        el.innerHTML = h;
-        return;
-    }
-    if (window.APPX && (APPX.inApp() || APPX.stuck && APPX.stuck())) {
-        var br = APPX.toBrowser ? APPX.toBrowser() : "";
-        h += '<div class="cond"><b>' + esc(ASK_UI.inAppH) + "</b><br>" + esc(ASK_UI.inAppB) + " " + esc(APPX.isIOS() ? ASK_UI.inAppIos : ASK_UI.inAppNot) + "</div>" + (br ? '<a class="btn b" style="margin-top:12px;width:100%;' + "display:block;text-align:center;text-decoration:none;" + 'box-sizing:border-box" href="' + esc(br) + '">' + esc(ASK_UI.openGo) + "</a>" : "") + '<button class="btn g" style="margin-top:12px;width:100%" ' + 'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) + "</button></div>";
-        el.innerHTML = h;
-        return;
-    }
-    var inTrip = window.TRIP_UI && TRIP_UI.on() || /[?&]masa=1(&|$)/i.test(location.search);
-    h += (APPX.waBox ? APPX.waBox() : "") + '<div id="reg-gu"></div>' + (inTrip ? "" : '<button class="btn g pnl" id="reg-pre-skip" style="margin-top:14px">' + esc(UI.preSkip) + "<small>" + esc(UI.preSkipSub) + "</small></button>") + "</div>";
+  var el = document.getElementById('reg-body');
+  if (!el) return;
+  /* `mycard` ולא הכרטיס של האשף: הסגנון ההוא מוזרק על ידי
+     ask.js ברגע שהוא נשתל, ומסך שמסתמך עליו לפני כן מצויר
+     בלי עיצוב. */
+  /* בלי כותרת ובלי פסקה שמסבירה למה - ראו `UI.preSkip` ב-data.js.
+     המדריך פותח בהוראה הראשונה. */
+  var h = '<div class="mycard">';
+
+  /* מוואטסאפ אי אפשר להוסיף למסך הבית בכלל, וזו ההוראה
+     היחידה שתעזור שם. */
+  /* כרום או פיירפוקס באייפון - דפדפנים אמיתיים, ולכן לא
+     אומרים להם "אתם בתוך וואטסאפ" אלא את האמת: באייפון רק
+     ספארי מוסיף למסך הבית. */
+  if (window.APPX && APPX.iosOther && APPX.iosOther()) {
+    h += '<div class="cond"><b>' + esc(ASK_UI.iosOthH) + '</b><br>' +
+         esc(ASK_UI.iosOthB) + '</div>' +
+         '<button class="btn g" style="margin-top:12px;width:100%" ' +
+         'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) +
+         '</button></div>';
     el.innerHTML = h;
-    if (window.GUIDE_UI) {
-        GUIDE_UI.force(null);
-        GUIDE_UI.mount(document.getElementById("reg-gu"), function() {
-            renderRegPre();
-        });
-    }
-    var sk = document.getElementById("reg-pre-skip");
-    if (sk) sk.onclick = function() {
-        regPreSkip = true;
-        renderReg();
-    };
+    return;
+  }
+  /* `APPX.stuck()` תופס גם וואטסאפ באנדרואיד - הוא פותח
+     ב-Custom Tab שמזדהה כמו כרום רגיל ב-user agent, ולכן
+     inApp() לבדו לא מזהה אותו. ראו getapp.js. */
+  if (window.APPX && (APPX.inApp() || (APPX.stuck && APPX.stuck()))) {
+    /* הכפתור שבאמת מעביר - באנדרואיד. באייפון `toBrowser`
+       מחזיר ריק, ושם נשארת ההנחיה וההעתקה. */
+    var br = APPX.toBrowser ? APPX.toBrowser() : '';
+    h += '<div class="cond"><b>' +
+         esc(ASK_UI.inAppH) + '</b><br>' + esc(ASK_UI.inAppB) + ' ' +
+         esc(APPX.isIOS() ? ASK_UI.inAppIos : ASK_UI.inAppNot) + '</div>' +
+         (br ? '<a class="btn b" style="margin-top:12px;width:100%;' +
+               'display:block;text-align:center;text-decoration:none;' +
+               'box-sizing:border-box" href="' + esc(br) + '">' +
+               esc(ASK_UI.openGo) + '</a>' : '') +
+         '<button class="btn g" style="margin-top:12px;width:100%" ' +
+         'onclick="copyAny(this, location.href)">' + esc(UI.preCopy) +
+         '</button></div>';
+    el.innerHTML = h;
+    return;
+  }
+
+  /* במסע (trip.js) אין את כפתור הדילוג: המסע כולו קיים בשביל
+     להוביל להתקנה, וכפתור "להירשם בלי להתקין" סותר את המטרה
+     שלו. מחוץ למסע - הרשמה רגילה בדפדפן - הכפתור נשאר, כי שם
+     אין "מסע" שמנחה, ומי שממש לא רוצה להתקין צריך דרך להמשיך. */
+  var inTrip = (window.TRIP_UI && TRIP_UI.on()) || /[?&]masa=1(&|$)/i.test(location.search);
+  h += (APPX.waBox ? APPX.waBox() : '') + '<div id="reg-gu"></div>' +
+       (inTrip ? '' :
+         '<button class="btn g pnl" id="reg-pre-skip" style="margin-top:14px">' +
+         esc(UI.preSkip) + '<small>' + esc(UI.preSkipSub) + '</small></button>') +
+       '</div>';
+  el.innerHTML = h;
+
+  if (window.GUIDE_UI) {
+    GUIDE_UI.force(null);
+    GUIDE_UI.mount(document.getElementById('reg-gu'), function () {
+      /* סיים את המדריך ועדיין כאן - כלומר האייקון טרם נפתח.
+         מציירים מחדש, וההוראה האחרונה חוזרת. */
+      regGuEnd = true;
+      renderRegPre();
+    }, { play: true, end: regGuEnd });
+  }
+  var sk = document.getElementById('reg-pre-skip');
+  if (sk) sk.onclick = function () {
+    regPreSkip = true;
+    renderReg();
+  };
 }
 
 if (window.APPX && APPX.onStuck) APPX.onStuck(function() {
@@ -189,6 +231,9 @@ function regDupWarn() {
     })[0];
     return !!(row && row.joined);
 }
+
+/* המדריך שבהרשמה הגיע עד "סיימתי" - מעכשיו עומד על השלב האחרון. */
+var regGuEnd = false;
 
 function renderReg() {
     if (regPreNeeded()) {
@@ -213,19 +258,29 @@ function renderReg() {
         return i.code === reg.inst;
     })[0] || {}).name || "";
     var whoBlock = '<div class="foldh" id="r-who-step" style="margin-top:22px">' + esc(UI.s4) + "</div>" + pkField("", instName, UI.instLabel, "pickInst()") + '<div class="fld" id="r-other" style="display:' + (reg.inst === "other" ? "block" : "none") + '">' + '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) + '" onchange="regSet(\'instOther\',this.value)"></div>';
-    var step1 = whoBlock + '<div class="registration-contact"><div class="fld"><label for="r-contact">איש קשר (לא חובה)</label><input id="r-contact" autocomplete="name" value="' + esc(reg.who) + '" oninput="regSet(\'who\',this.value)"></div><div class="fld"><label for="r-contact-phone">טלפון (לא חובה)</label><input id="r-contact-phone" type="tel" autocomplete="tel" dir="ltr" value="' + esc(reg.phone) + '" oninput="regSet(\'phone\',this.value)"></div></div>'  + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="regGo(1, document.querySelector(\'#r-step-1 .pk\'));return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
+    var step1 = whoBlock + '<div class="registration-contact"><div class="fld"><label for="r-contact">איש קשר (לא חובה)</label><input id="r-contact" autocomplete="name" value="' + esc(reg.who) + '" oninput="regSet(\'who\',this.value)"></div><div class="fld"><label for="r-contact-phone">טלפון (לא חובה)</label><input id="r-contact-phone" type="tel" autocomplete="tel" dir="ltr" value="' + esc(reg.phone) + '" oninput="regSet(\'phone\',this.value)"></div></div>' + (saved ? '<p class="jump">' + esc(UI.savedNote) + " · " + '<a href="#" onclick="regGo(1, document.querySelector(\'#r-step-1 .pk\'));return false">' + esc(UI.savedGo) + "</a> · " + '<a href="#" onclick="regReset();return false">' + esc(UI.savedNew) + "</a></p>" : "") + (saved || myBoard() ? boardBlock() : '<p class="jump"><a href="#" onclick="boardBack();return false">' + esc(UI.cbBack) + "</a></p>") + '<div class="r-err" id="r-err1" role="alert" hidden></div>' + '<div class="rnav"><button class="btn gd" onclick="regGo(2)">המשך</button></div>';
     var step2 = sizeRow() + masRow() + '<div class="rnav"><button class="btn g" onclick="regGo(1)">חזרה</button>' + '<button class="btn gd" onclick="regGo(3)">המשך</button></div>';
-    var review = '<div class="registration-review"><span>ההרשמה שלכם</span><b>' + esc(instName) + '</b><p>' + esc((reg.mas || []).map(function(id) { return trackById(id) ? "מסכת " + trackById(id).masechet : id; }).join(" · ") || "המסכת תיבחר בהמשך") + '</p></div>';
-    var step3 = review + (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + orderRows() + '<div id="r-total" aria-live="polite">' + regTotal() + '</div><details class="registration-catalog"><summary>סוגי הגמרות ודוגמאות</summary>' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + '</div></details></div></div>' + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<div class="rnav rsubmit"><button class="btn g" onclick="regGo(2)">חזרה</button><button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + '</button></div>' + '<div id="r-done" role="status" aria-live="polite"></div>' + '<div id="head-next"></div>';
+    var review = '<div class="registration-review"><span>ההרשמה שלכם</span><b>' + esc(instName) + "</b><p>" + esc((reg.mas || []).map(function(id) {
+        return trackById(id) ? "מסכת " + trackById(id).masechet : id;
+    }).join(" · ") || "המסכת תיבחר בהמשך") + "</p></div>";
+    var step3 = review + (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + orderRows() + '<div id="r-total" aria-live="polite">' + regTotal() + '</div><details class="registration-catalog"><summary>סוגי הגמרות ודוגמאות</summary>' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + "</div></details></div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<div class="rnav rsubmit"><button class="btn g" onclick="regGo(2)">חזרה</button><button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button></div>" + '<div id="r-done" role="status" aria-live="polite"></div>' + '<div id="head-next"></div>';
     var intro = '<header class="registration-intro"><p>לצוותי הישיבות</p><h1>מצטרפים לשנה של לימוד.</h1><span>הרשמת ישיבה והזמנת גמרות</span></header>';
-    var rail = '<aside class="registration-rail"><ol>' + REG_STEP_NAMES.map(function(name, i) { return '<li data-reg-stage="' + (i + 1) + '" class="' + (i + 1 < regStage ? 'is-done' : i + 1 === regStage ? 'is-current' : '') + '"' + (i + 1 === regStage ? ' aria-current="step"' : '') + '><span>' + (i + 1) + '</span><b>' + name + '</b></li>'; }).join('') + '</ol><details class="registration-help"><summary>למי התוכנית מתאימה?</summary>' + fitBlock() + '</details></aside>';
-    var h = intro + '<div class="registration-layout">' + rail + '<div class="registration-form">' + regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3) + '</div></div>';
+    var rail = '<aside class="registration-rail"><ol>' + REG_STEP_NAMES.map(function(name, i) {
+        return '<li data-reg-stage="' + (i + 1) + '" class="' + (i + 1 < regStage ? "is-done" : i + 1 === regStage ? "is-current" : "") + '"' + (i + 1 === regStage ? ' aria-current="step"' : "") + "><span>" + (i + 1) + "</span><b>" + name + "</b></li>";
+    }).join("") + '</ol><details class="registration-help"><summary>למי התוכנית מתאימה?</summary>' + fitBlock() + "</details></aside>";
+    var h = intro + '<div class="registration-layout">' + rail + '<div class="registration-form">' + regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3) + "</div></div>";
     var focused = document.activeElement, focusId = focused && focused.id;
     document.getElementById("reg-body").innerHTML = h;
-    if (focusId) { var replacement = document.getElementById(focusId); if (replacement) replacement.focus({ preventScroll: true }); }
+    if (focusId) {
+        var replacement = document.getElementById(focusId);
+        if (replacement) replacement.focus({
+            preventScroll: true
+        });
+    }
     foldInit();
     if (regSending) regSendingState(true);
 }
+
 
 var FIT_ICONS = {
     group: '<circle cx="5" cy="8.4" r="2.2"/><circle cx="12" cy="8.4" r="2.2"/>' + '<circle cx="19" cy="8.4" r="2.2"/>' + '<path d="M1.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>' + '<path d="M8.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>' + '<path d="M15.7 19.2c0-2.4 1.5-4 3.3-4s3.3 1.6 3.3 4"/>',
@@ -279,6 +334,40 @@ function zoom(base, hi) {
 function zoomClose() {
     document.getElementById("zoom").classList.remove("on");
 }
+
+/* סרטון התדמית - נטען ברקע מיד עם פתיחת העמוד, כדי שהלחיצה על
+   הלוגו תנגן אותו בלי המתנה. נשמר כ-blob בזיכרון: נגן הווידאו
+   מבקש טווחים, וב-iOS טווח מהמטמון לא תמיד מנוגן - blob תמיד כן.
+   הקובץ במטמון הדפדפן לשנה (vercel.json), כך שבפתיחה הבאה אין
+   הורדה חוזרת. עובד השירות לא נוגע בו בכוונה (sw.js).
+   מחליפים סרטון → שם קובץ חדש, אחרת המכשירים יחזיקו את הישן. */
+var PROMO_SRC = 'promo/hadaf-promo.mp4';
+var promoBlob = '';
+function promoLoad() {
+  var video = document.getElementById('promo-v');
+  var connection = navigator.connection;
+  if (!video || connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || ''))) return;
+  video.preload = 'metadata';
+  if (!video.getAttribute('src')) video.src = PROMO_SRC;
+}
+function promoOpen() {
+  var p = document.getElementById('promo'), v = document.getElementById('promo-v');
+  if (!p || !v) return;
+  var x = document.getElementById('promo-x');
+  if (x) x.setAttribute('aria-label', UI.promoX || '');
+  if (!v.getAttribute('src')) v.src = promoBlob || PROMO_SRC;
+  p.className = 'on';
+  try { v.currentTime = 0; } catch (e) {}
+  var pr = v.play();
+  if (pr && pr.catch) pr.catch(function () {});
+}
+function promoClose() {
+  var p = document.getElementById('promo'), v = document.getElementById('promo-v');
+  if (v) v.pause();
+  if (p) p.className = '';
+}
+if (document.readyState === 'complete') setTimeout(promoLoad, 0);
+else window.addEventListener('load', function () { setTimeout(promoLoad, 0); });
 
 function jumpTo(id) {
     var el = document.getElementById(id);

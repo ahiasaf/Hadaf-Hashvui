@@ -59,21 +59,27 @@ function admTakeGo() {
 }
 
 function adminEntry() {
-    if (Store.get("admOk")) {
-        var to = admTakeHash();
-        admTakeGo();
-        renderAdmin();
-        show("admin");
-        admEnterOnce();
-        admScrollTo(to);
-        if (to === "ppl-acc") accLoad(); else if (to) stuckLoad();
-    } else show("gate");
+  if (Store.get('admOk')) {
+    var to = admTakeHash();
+    admTakeGo(); renderAdmin(); show('admin'); admEnterOnce(); admScrollTo(to);
+    /* האפליקציה כבר הייתה פתוחה - הרשימה במטמון עוד לא מכירה את מי שהתריע.
+       העוגן הוא 'hot-acc' (admTakeHash); בדיקה מול שם ישן השאירה את
+       הממתין החדש מחוץ למסך, עד רענון ידני. */
+    if (to === 'hot-acc') accLoad().then(function () { admScrollTo(to); });
+    else if (to) stuckLoad();
+  }
+  else show('gate');
 }
 
+
 window.addEventListener("hashchange", function() {
-    if (isAdminRoute()) adminEntry();
-    else if (location.hash === "#reg") show("reg");
+    if (isAdminRoute()) adminEntry(); else if (location.hash === "#reg") show("reg");
+    if (location.hash === "#phone" && myInstRow()) {
+        show("my");
+        accCheck(true);
+    }
 });
+
 
 (function() {
     var h = "";
@@ -174,26 +180,27 @@ function yomiGuide() {
     document.getElementById("sheet-l").innerHTML = h;
     document.getElementById("sheet").className = "on";
 }
-
-document.addEventListener("click", function(e) {
-    var a = e.target && e.target.closest && e.target.closest("a.lnk.sug, a.wcard.sug");
-    if (!a || !a.getAttribute("href") || a.getAttribute("href") === "#") return;
-    var seen = false;
-    try {
-        seen = localStorage.getItem(SUG_TIP) === "1";
-    } catch (x) {}
-    if (seen) return;
-    e.preventDefault();
-    sugyaTip(a.getAttribute("href"));
+/* נתפס בעלייה, כדי שיעבוד גם על קישור שנבנה מחדש בכל ציור */
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest && e.target.closest('a.lnk.sug, a.wcard.sug');
+  if (!a || !a.getAttribute('href') || a.getAttribute('href') === '#') return;
+  var seen = false;
+  try { seen = localStorage.getItem(SUG_TIP) === '1'; } catch (x) {}
+  if (seen) return;
+  e.preventDefault();
+  sugyaTip(a.getAttribute('href'));
 }, true);
+
+
 
 function sheetClose() {
     document.getElementById("sheet").className = "";
 }
-
-document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape" && document.getElementById("sheet").className === "on") sheetClose();
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.getElementById('sheet').className === 'on') sheetClose();
 });
+
+
 
 function pkField(label, value, placeholder, onOpen) {
     return '<div class="fld">' + (label ? '<div class="label">' + label + "</div>" : "") + '<button class="pk' + (value ? "" : " empty") + '" onclick="' + onOpen + '">' + "<span>" + esc(value || placeholder) + '</span><span class="cv"></span></button></div>';

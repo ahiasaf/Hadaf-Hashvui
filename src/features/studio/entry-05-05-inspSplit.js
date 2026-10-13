@@ -181,8 +181,9 @@ function splitDo() {
         }
     };
     var rec = BOOK[PKEY] || {};
-    var prevWas = rec.prev;
+    var prevWas = rec.prev, uptoWas = rec.upto;
     if (rec.prev > 0 && k < rec.prev) rec.prev++;
+    if (typeof rec.upto === "number" && k <= rec.upto) rec.upto++;
     var contKey = null, contWas = null;
     if (k === STEPS.length - 1) {
         var ka = PKEY.split("|");
@@ -213,6 +214,7 @@ function splitDo() {
         one: one,
         two: two,
         prev: prevWas,
+        upto: uptoWas,
         contKey: contKey,
         contWas: contWas
     };
@@ -231,6 +233,7 @@ function splitDo() {
     }, 12e3);
 }
 
+
 function splitUndo() {
     var u = SPL_UNDO;
     var a = u && u.key === PKEY ? STEPS.indexOf(u.one) : -1;
@@ -243,6 +246,7 @@ function splitUndo() {
     STEPS.splice(a, 2, u.orig);
     var rec = BOOK[PKEY] || {};
     if (u.prev !== undefined) rec.prev = u.prev;
+    if (u.upto !== undefined) rec.upto = u.upto;
     if (u.contKey) {
         var nr = BOOK[u.contKey], n0 = nr && nr.steps && nr.steps[0];
         if (n0 && n0.cont) {
@@ -258,6 +262,7 @@ function splitUndo() {
     markDraw();
     say("↶ הפיצול בוטל - הקטע חזר להיות אחד.");
 }
+
 
 document.addEventListener("click", function(ev) {
     var t = ev.target;
@@ -411,6 +416,8 @@ function markPanel() {
         b2.disabled = !(ready || cont);
         b2.dataset.cont = cont ? "1" : "";
     }
+    var bj = document.getElementById("contjoin");
+    if (bj) bj.style.display = ready && INSP < 0 && canContinue() ? "" : "none";
     var b1 = document.getElementById("addstep");
     if (b1) b1.disabled = !ready || INSP >= 0;
     var state = "עמוד " + (+selVal("pg") === 1 ? "א׳" : +selVal("pg") === 2 ? "ב׳" : selVal("pg")) + " · ממשיכים משורה " + (nextStart().i + 1) + " ומפסקה " + (USED_C + 2);
@@ -437,11 +444,16 @@ function markPanel() {
     var box = document.getElementById("steps");
     if (box) {
         box.innerHTML = STEPS.map(function(st, i) {
-            return '<div class="step"><span class="x" data-x="' + i + '">✕</span>' + "<b>" + (i + 1) + ".</b> שורות " + (st.g.from.line + 1) + "-" + (st.g.to.line + 1) + " · פסקה " + (st.c.from + 1) + (st.c.to > st.c.from ? "-" + (st.c.to + 1) : "") + '<span class="q">' + esc((st.c.text || "").slice(0, 55)) + "…</span></div>";
+            return '<div class="step"><span class="x" data-x="' + i + '" title="מחיקה">✕</span>' + '<span class="lk" data-lk="' + i + '" title="איחוד עם הקטע הבא">🔗</span>' + "<b>" + (i + 1) + ".</b> שורות " + (st.g.from.line + 1) + "-" + (st.g.to.line + 1) + " · פסקה " + (st.c.from + 1) + (st.c.to > st.c.from ? "-" + (st.c.to + 1) : "") + '<span class="q">' + esc((st.c.text || "").slice(0, 55)) + "…</span></div>";
         }).join("") || '<div class="hint">עדיין אין קטעים.</div>';
         [].forEach.call(document.querySelectorAll("[data-x]"), function(b) {
             b.onclick = function() {
-                mergeStep(+b.dataset.x);
+                deleteStep(+b.dataset.x);
+            };
+        });
+        [].forEach.call(document.querySelectorAll("[data-lk]"), function(b) {
+            b.onclick = function() {
+                mergeStep(+b.dataset.lk);
             };
         });
     }

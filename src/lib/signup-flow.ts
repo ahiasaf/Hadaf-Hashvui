@@ -27,7 +27,14 @@ export const emptyAnswers: Answers = {
   dadLast: "",
   dadPhone: "",
 };
-export const phonePattern = /^0[2-9][0-9 -]{7,12}$/;
+export const phonePattern = /^0[2-9]\d{8}$/;
+export function normalizePhone(value: string) {
+  const digits = value.replace(/[^0-9]/g, "");
+  return digits.startsWith("972") ? "0" + digits.slice(3) : digits;
+}
+export function validPhone(value: string) {
+  return phonePattern.test(normalizePhone(value));
+}
 
 export function stepsFor(answers: Pick<Answers, "way">): StepId[] {
   const steps: StepId[] = [
@@ -57,14 +64,17 @@ export const stepLabels: Record<StepId, string> = {
 export const restoreSteps: StepId[] = ["name", "phone", "confirm"];
 
 // A step is complete when its answers are present and valid.
-export function stepValid(step: StepId, answers: Answers) {
+export function stepValid(step: StepId, answers: Answers, restoring = false) {
   switch (step) {
     case "role":
       return answers.role === "kid" || answers.role === "dad";
     case "name":
       return !!answers.first.trim() && !!answers.last.trim();
     case "phone":
-      return phonePattern.test(answers.phone.trim());
+      return (
+        (!restoring && answers.role === "kid" && !answers.phone.trim()) ||
+        validPhone(answers.phone)
+      );
     case "inst":
       return !!answers.inst;
     case "grade":

@@ -35,26 +35,33 @@ function amudIdx(pg) {
    ב-ב: (עמוד שנלמד לבד) `amud` הוא חלק מהיחידה; בדף שלם ע״א אינו
    נשלח, כדי שהחזרה למקום השמור תעבוד כרגיל, וע״ב - קפיצה. */
 function pickGo(k) {
-  var u = PICK_U[k];
-  pickClose();
-  if (!u) return;
-  var rowAm = LAmOf(u.row);
-  if (dafKey(u.daf) === dafKey(S.daf) && rowAm === S.am && FLAT.length) {
-    if (S.am) return;
-    var j = amudIdx(u.am);
-    if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
-    return;
-  }
-  location.href = '/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
-    (rowAm || u.am === 2 ? '&amud=' + u.am : '') + keepQ();
+    var u = PICK_U[k];
+    pickClose();
+    if (!u) return;
+    var rowAm = LAmOf(u.row);
+    if (dafKey(u.daf) === dafKey(S.daf) && rowAm === S.am && FLAT.length) {
+        if (S.am) return;
+        var j = amudIdx(u.am);
+        if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, {
+            amud: amud(u.am)
+        }));
+        return;
+    }
+    if (rowAm && unitSwap({
+        daf: u.daf,
+        am: rowAm,
+        wk: LWeekOf(S.mas, u.daf, rowAm)
+    })) return;
+    location.href = "/lesson-tools?mas=" + encodeURIComponent(S.mas) + "&daf=" + encodeURIComponent(u.daf) + (rowAm || u.am === 2 ? "&amud=" + u.am : "") + keepQ();
 }
+
 var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
 
 /* ============================================================
    ניווט.
    ============================================================ */
 function go(i) {
-  if (i < 0) return;
+  if (i < 0 || LEAVING) return;
   if (i >= FLAT.length) { finish(); return; }
   IDX = i;
   var st = FLAT[IDX];
@@ -64,6 +71,7 @@ function go(i) {
     SHOWN = st.p;
     paint(); focus(); paintChavArea(); bar(); sideSync(); savePos(); spotSave();
     recStep('go', IDX);
+    if (IDX === FLAT.length - 1) preNext();
   }).catch(function () { veil('לא הצלחתי לצייר את העמוד', '', false); });
 }
 /* מצב התצוגה במקום אחד: הכפתור, המחלקה על הגוף, והציור.
@@ -99,32 +107,21 @@ function setLessonTitle(title) {
 }
 
 function bar() {
-  var st = FLAT[IDX];
-  /* כשהשיעור גולש אל הדף הבא, הכותרת אומרת את הדף האמיתי
-     שעל המסך. תלמיד שרואה "דף ג׳ ע״א" יודע איפה לפתוח. */
-  if (st) {
-    var pp = PAGES[st.p];
-    var same = dafKey(pp.daf) === dafKey(S.daf);
-    /* ביחידה של עמוד אחד (ב. / ב:) העמוד כבר בכותרת. קטע שגולש לעמוד
-       האחר - "דף ב.-ב:". */
-    setLessonTitle(same && S.am
-      ? HEAD + (pp.pg === S.am ? '' : '-' + S.daf + LAmMark(pp.pg))
-      : (same ? HEAD : 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + pp.daf) + ' ' + amud(pp.pg));
-  }
-  /* מספר הקטע ירד. לתלמיד לא אכפת שהוא בקטע 17 מתוך 41 - זו
-     חשבונאות של מי שחילק את הדף, לא של מי שלומד אותו. פס
-     ההתקדמות שמתחת כבר אומר איפה הוא, בעין ובלי מספר.
-
-     המקום נשאר: הוא קטן, הוא בכותרת, והוא בדיוק הגודל של שורה
-     אחת שקטה. */
-  $('count').textContent = FLAT.length ? 'קטע ' + (IDX + 1) + ' מתוך ' + FLAT.length : '';
-  $('bar').style.width = ((IDX + 1) / FLAT.length * 100) + '%';
-  $('prev').disabled = IDX === 0 && !prevDaf();
-  var last = IDX === FLAT.length - 1;
-  $('next').textContent = last
-    ? (DONE_SEEN && nextDaf() ? 'דף ' + unitName(nextDaf()) + ' ◂' : 'סיום ◂')
-    : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
+    var st = FLAT[IDX];
+    if (st) {
+        var pp = PAGES[st.p];
+        var same = dafKey(pp.daf) === dafKey(S.daf);
+        setLessonTitle(same && S.am ? HEAD + (pp.pg === S.am ? "" : "-" + S.daf + LAmMark(pp.pg)) : (same ? HEAD : "מסכת " + (MAS_NAME[S.mas] || "") + " · דף " + pp.daf) + " " + amud(pp.pg));
+    }
+    $("count").textContent = FLAT.length ? "קטע " + (IDX + 1) + " מתוך " + FLAT.length : "";
+    $("bar").style.width = (IDX + 1) / FLAT.length * 100 + "%";
+    $("prev").disabled = IDX === 0 && !prevDaf();
+    var last = IDX === FLAT.length - 1;
+    if (LEAVING) return;
+    var nd = last && DONE_SEEN ? nextDaf() : null;
+    $("next").textContent = last ? nd ? nextLabel(nd, UI.lrnNextSame, UI.lrnNext) : UI.lrnFin : st && st.part < st.parts ? "המשך ◂" : "הבא ◂";
 }
+
 /* ---------- מדידת זמנים ----------
    "לוקח שש שניות" היא תלונה שאי אפשר לתקן בלי לדעת לאן הזמן הלך,
    ובטלפון אין קונסולה להסתכל בה. `learn.html?debug=1` מציג את
@@ -172,39 +169,133 @@ function prevDafUrl() {
    ש"הבא" בסוף הדף ממשיך אל הדף הבא. `at=end` אומר לדף שנפתח
    להתחיל מסופו. */
 function goBack() {
+  if (LEAVING) return;
   if (IDX > 0) { go(IDX - 1); return; }
+  if (unitSwap(prevDaf(), true)) return;
   var u = prevDafUrl();
-  if (u) { location.href = u; return; }
+  if (u) { leave($('prev'), u); return; }
   toast('זה הקטע הראשון');
 }
 var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
-  var u = nextDaf();
-  return u ? '/lesson-tools?mas=' + encodeURIComponent(S.mas) +
-             '&' + unitQ(u) + keepQ() : null;
+    var u = nextDaf();
+    return u ? "/lesson-tools?mas=" + encodeURIComponent(S.mas) + "&" + unitQ(u) + "&at=start" + keepQ() : null;
+}
+
+/* מי שהגיע ב"הבא" מהדף הקודם מתחיל מהקטע הראשון - לא מקום ישן
+   שנשמר בו פעם. אחרת הלימוד "קופץ כמה שורות", ונראה שדילגנו. */
+var AT_START = /[?&]at=start\b/.test(location.search);
+
+/* הכיתוב של "הלאה" - המשך אותו דף, או הדף הבא בשמו. */
+function nextLabel(u, same, other) {
+  return dafKey(u.daf) === dafKey(S.daf) ? same : fillT(other, { daf: unitName(u) });
+}
+/* יוצאים לדף אחר: הכפתור נראה לחוץ ואומר "טוען…", וכל לחיצה
+   נוספת - על הכפתורים או על הדף - אינה נספרת. בלי זה לחיצה שנייה
+   בזמן ההמתנה קידמה צעד, או נכנסה לדף הבא באמצע. */
+function leave(btn, url) {
+  LEAVING = true;
+  buttons(false);
+  if (btn && btn.tagName === 'BUTTON') { btn.classList.add('busy'); btn.textContent = UI.lrnBusy; }
+  location.href = url;
+}
+/* חזרה בכפתור "אחורה" של הדפדפן מגיעה מהמטמון, כשהיציאה עוד
+   נעולה - משחררים. */
+window.addEventListener('pageshow', function (e) {
+  if (!e.persisted || !LEAVING) return;
+  LEAVING = false;
+  var b = $('next'); if (b) b.classList.remove('busy');
+  var b2 = $('prev'); if (b2) b2.classList.remove('busy');
+  buttons(true); bar();
+});
+
+/* ---------- מעבר בתוך אותו דף ----------
+   ב. ו-ב: הם אותו דף, והוא כבר טעון: הקטעים, התמונה, החברותא.
+   לכן עוברים ביניהם במקום - בלי טעינה מחדש. רק מה ששייך לשבוע
+   מתחלף: הכותרת, הכתובת, המצגת והמקום השמור.
+   false = לא כאן (דף אחר, דף נעול, או שאין בעמוד קטעים) - והקורא
+   יוצא לכתובת כרגיל. */
+function unitSwap(u, atEnd) {
+  if (!u || !BUILT || LEAVING || dafKey(u.daf) !== dafKey(S.daf) || u.am === S.am) return false;
+  if (!OpenIs(S.mas, u.daf, u.am) && !SIDE_ADM && !quiet()) return false;
+  var cut = amudCut(BUILT, u.am);
+  if (!cut.flat.length) return false;
+  sendPos();                                   /* ההתקדמות של השבוע שעוזבים */
+  /* המצגת היא של השבוע - נסגרת לפני ההחלפה, ונבנית מחדש אחריה. */
+  if (document.body.classList.contains('side-on')) sideOpen(false, true);
+  var dk = $('dktog'); if (dk) dk.style.display = 'none';
+  DECK = null; SIDE_FR = null;
+  S.am = u.am; S.week = u.wk;
+  PAGES = cut.pages; FLAT = cut.flat; GROUPS = cut.groups;
+  DONE_SEEN = false;
+  $('done').className = 'sheet';
+  var r = $('resume'); if (r) r.className = 'resume';
+  headPaint();
+  try {
+    history.replaceState(null, '', '/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&' + unitQ(u) + keepQ());
+  } catch (e) {}
+  go(atEnd ? FLAT.length - 1 : 0);
+  try { sideInit(); } catch (e) {}
+  return true;
+}
+/* הכותרת: המסכת, הדף והעמוד, והשבוע. */
+function headPaint() {
+  HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
+  setLessonTitle(HEAD);
+  $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
+    ((calOf(S.mas)[S.week] || [])[1] || '') : '';
+}
+/* האם הדף הפתוח הוא הדף של השבוע הנוכחי. רק בו יש מסך סיום. */
+function isWeekDaf() {
+  if (typeof LWeek !== 'function') return false;
+  var wk = LWeek();
+  return wk >= 0 && wk === S.week;
 }
 function finish() {
-  var key = S.mas + '-' + (S.week + 1);
-  var q = window.QUIZ && QUIZ[key];
-  $('done-sub').textContent = 'סיימתם את דף ' + S.daf + LAmMark(S.am) +
-    ', מתחילת הדף ועד סופו.';
-  var a = $('to-quiz');
-  if (q) { a.style.display = ''; a.href = stuQuizUrl(key); }
-  else a.style.display = 'none';
+    if (S.week < 0) {
+        DONE_SEEN = true;
+        var nu = nextDafUrl();
+        if (nu) leave($("next"), nu);
+        bar();
+        return;
+    }
+    var key = S.mas + "-" + (S.week + 1);
+    markThisDaf();
+    DONE_SEEN = true;
+    var hasQ = !!(window.QUIZ && QUIZ[key] && QUIZ[key].length);
+    var qOpen = quizOpen(key), soon = !hasQ && isWeekDaf();
+    var pairOn = $("done-pair").style.display !== "none";
+    if (!qOpen && !soon && !pairOn) {
+        if ($("done-mark").style.display !== "none") toast(JOIN.markedOk);
+        bar();
+        return;
+    }
+    var par = (calOf(S.mas)[S.week] || [])[1] || "";
+    $("done-sub").textContent = isWeekDaf() || !par ? JOIN.weekDone : String(JOIN.weekDoneOf || JOIN.weekDone).replace("{par}", String(par).trim());
+    var a = $("to-quiz"), sn = $("done-soon");
+    a.style.display = qOpen ? "" : "none";
+    a.href = stuQuizUrl(key);
+    a.textContent = UI.dnQuiz;
+    sn.style.display = soon ? "" : "none";
+    if (soon) {
+        $("dn-soon-t").textContent = UI.soonT;
+        ntBox($("dn-soon-n"), "חידון|" + key, UI.soonAsk, UI.soonOk);
+    }
+    $("done").className = "sheet on";
+    bar();
+}
 
-  var nd = nextDaf(), n = $('to-next');
-  if (nd) { n.style.display = ''; n.href = nextDafUrl();
-            n.textContent = 'לדף הבא - דף ' + unitName(nd) + ' ◂'; }
-  else n.style.display = 'none';
-
-  /* ---- סימון הלימוד ----
-     אוטומטי, ורק לדף של השבוע הנוכחי. מי שחוזר בפברואר לדף
-     ישן כדי לחזור עליו אינו מסמן בכך את השבוע ההוא. */
-  markThisDaf();
-
-  DONE_SEEN = true;      /* מכאן "הבא" כבר אינו מחזיר לכאן - ראו paint() */
-  $('done').className = 'sheet on';
-  bar();
+/* יש לשבוע חידה שעוד לא נענתה נכון במכשיר? אותו מפתח שהאפליקציה
+   שומרת כשהחידה ננעלת (quizOkKey ב־index.html). */
+function quizOpen(key) {
+  var list = window.QUIZ && QUIZ[key];
+  if (!list || !list.length) return false;
+  for (var i = 0; i < list.length; i++) {
+    var ok = false;
+    try { ok = localStorage.getItem('df:qok:' + key + ':' + i + ':' + list[i].q) === '1'; } catch (e) {}
+    if (!ok) return true;
+  }
+  return false;
 }
 
 /* ============================================================

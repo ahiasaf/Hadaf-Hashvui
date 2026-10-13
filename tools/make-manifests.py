@@ -72,18 +72,18 @@ def main():
 
     for c in codes:
         io.open(os.path.join(outh, c + '.json'), 'w', encoding='utf-8').write(
-            json.dumps(head_manifest('/?m=' + c), ensure_ascii=False,
+            json.dumps(head_manifest('/management?m=' + c + '&staff=' + c + '#phone'), ensure_ascii=False,
                        indent=2) + '\n')
         io.open(os.path.join(outh, c + '-masa.json'), 'w',
                 encoding='utf-8').write(
-            json.dumps(head_manifest('/?m=' + c + '&masa=go'),
+            json.dumps(head_manifest('/management?m=' + c + '&staff=' + c + '&masa=go#phone'),
                        ensure_ascii=False, indent=2) + '\n')
 
     # ומי שמתקין מתוך המסע בלי שהישיבה ידועה עדיין — וזה הרוב,
     # כי באייפון ההתקנה קודמת להרשמה.
     io.open(project_path( 'manifest-masa.json'), 'w',
             encoding='utf-8').write(
-        json.dumps(head_manifest('/?masa=go'), ensure_ascii=False,
+        json.dumps(head_manifest('/management?masa=go'), ensure_ascii=False,
                    indent=2) + '\n')
 
     print('%d מניפסטים נכתבו ל-m/, %d ל-mh/' % (len(codes), len(codes) * 2))

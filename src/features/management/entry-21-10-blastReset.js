@@ -18,12 +18,12 @@ function waGreet() {
 }
 
 function blastUrl(c) {
-    var inst = instByName(c.key || c.name);
-    var base = joinUrl("").replace("join.html", "");
-    if (!inst) return base;
-    var u = base + "?m=" + encodeURIComponent(inst.code);
-    var k = instCode(inst.code);
-    return k ? u + "&k=" + encodeURIComponent(k) : u;
+  var inst = instByName(c.key || c.name);
+  var base = joinUrl('').replace('join.html', '');
+  if (!inst) return base;
+  var u = base + '?m=' + encodeURIComponent(inst.code);
+  /* בלי קוד גישה: מי שמצטרף נרשם, והרכז מאשר אותו. */
+  return u;
 }
 
 function blastText(c, q) {
@@ -153,41 +153,78 @@ function rmParse(rows) {
     return out;
 }
 
-function rmSave(list) {
-    var url = (CFG.api || API || "").trim();
-    if (!url) {
-        rmMsg = "אין כתובת שרת.";
-        admPane();
-        return;
-    }
-    rmBusy = true;
-    rmMsg = "שומר…";
-    admPane();
-    var rows = list.map(function(o) {
-        return [ o.id, o.date, o.time, o.text ];
+function rmSave(list, after) {
+  var url = (CFG.api || API || '').trim();
+  if (!url) { rmMsg = 'אין כתובת שרת.'; admPane(); return; }
+  rmBusy = true; rmMsg = 'שומר…'; admPane();
+  var rows = list.map(function (o) {
+    return [o.id, o.date, o.time, o.text];
+  });
+  fetch(url, { method:'POST', mode:'no-cors',
+    body: JSON.stringify({ action:'table', tab: RM_TAB, key:(CFG.readKey || '').trim(),
+      cols: JSON.stringify(['מזהה', 'תאריך', 'שעה', 'נוסח']),
+      rows: JSON.stringify(rows) }) })
+    /* הכתיבה אטומה ואינה ראיה. קוראים חזרה, ורק מה שחזר הוא
+       מה שמוצג. */
+    .then(function () { return new Promise(function (r) { setTimeout(r, 1200); }); })
+    .then(function () { rmBusy = false; return rmLoad(); })
+    .then(function (ok) { if (ok && after) after(); })
+    .catch(function () { rmBusy = false; rmMsg = 'השמירה לא אושרה.'; admPane(); });
+}
+
+/* ============================================================
+   שליחת בדיקה אליי.
+   ============================================================
+   "איך אני יכול לשלוח לעצמי? כדאי שיהיה אופציה כזאת בשביל
+   בדיקות."
+
+   לא קיצור דרך - **המסלול האמיתי כולו.** נכתבת תזכורת לדקה
+   הזו, ומיד מוצתת אותה הרצה שהשעון מצית כל חצי שעה. כשההתראה
+   מגיעה, נבדקו הגיליון, הגשר של גוגל, GitHub והמנוי שבמכשיר.
+
+   הדקה המדויקת (ולא חצי השעה) היא מה שמאפשר בדיקה שנייה
+   באותה חצי שעה - ראו `slotOf` ב-tools/remind-send.js.
+   בדיקה קודמת שנשארה ברשימה מוסרת, כדי שהרשימה לא תתמלא. */
+var RM_TEST = 'בדיקה · ';
+var rmTestMsg = '';
+function rmIsTest(o) { return String(o.text || '').indexOf(RM_TEST) === 0; }
+function rmTest() {
+  if (rmBusy) return;
+  if (!(CFG.readKey || '').trim()) { rmMsg = 'nokey'; admPane(); return; }
+  if (rmRows === null) {
+    rmLoad().then(function (ok) { if (ok) rmTest(); });
+    return;
+  }
+  var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  var hm = z(d.getHours()) + ':' + z(d.getMinutes());
+  var me = { id: rmId(), date: rmToday(), time: hm,
+             text: RM_TEST + 'אם זה הגיע - התזכורות עובדות (נשלח ב-' + hm + ')' };
+  var list = rmRows.filter(function (o) { return !rmIsTest(o); });
+  list.push(me);
+  rmTestMsg = 'שומר את הבדיקה…'; admPane();
+  rmSave(list, function () {
+    /* מה שלא חזר בקריאה - לא נשמר, ואין טעם להצית. */
+    var there = (rmRows || []).some(function (o) {
+      return o.date === me.date && o.time === me.time && rmIsTest(o);
     });
-    fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({
-            action: "table",
-            tab: RM_TAB,
-            key: (CFG.readKey || "").trim(),
-            cols: JSON.stringify([ "מזהה", "תאריך", "שעה", "נוסח" ]),
-            rows: JSON.stringify(rows)
-        })
-    }).then(function() {
-        return new Promise(function(r) {
-            setTimeout(r, 1200);
-        });
-    }).then(function() {
-        rmBusy = false;
-        return rmLoad();
-    }).catch(function() {
-        rmBusy = false;
-        rmMsg = "השמירה לא אושרה.";
-        admPane();
+    if (!there) { rmTestMsg = 'הבדיקה לא נשמרה בגיליון. נסה שוב.'; admPane(); return; }
+    rmTestMsg = 'מצית את השליחה…'; admPane();
+    scriptGet({ setup: 'clockfire', key: (CFG.readKey || '').trim() }).then(function (r) {
+      var f = r && r.fired;
+      if (!r || r.status !== 'ok' || !f) {
+        rmTestMsg = (r && r.message) || 'לא קיבלתי תשובה מהסקריפט.';
+      } else if (f.err || f.code !== 204) {
+        rmTestMsg = 'GitHub לא קיבל את ההצתה (' + (f.err || f.code) + '). ' +
+                    'הבדיקה תצא בכל זאת בהפעלה הבאה של השעון.';
+      } else {
+        rmTestMsg = 'נשלח. ההתראה אמורה להגיע לטלפון הזה תוך דקה-שתיים.';
+      }
+      admPane();
+    }).catch(function () {
+      rmTestMsg = 'לא קיבלתי תשובה מהסקריפט. הבדיקה תצא בהפעלה הבאה של השעון.';
+      admPane();
     });
+  });
 }
 
 function rmAdd() {
@@ -288,36 +325,80 @@ function rmSubOn() {
 }
 
 function rmCard() {
-    var subbed = Store.get("rmSub", 0) && window.APPX && APPX.perm() === "granted";
-    var h = '<div class="card" style="margin-bottom:11px">' + '<div class="row" style="padding:0 0 8px"><div><b>תזכורות לעצמי</b>' + '<div class="sub">נדחפות למכשיר הזה בשעה שתבחר</div></div></div>';
-    if (!subbed) {
-        h += '<div class="cond" style="margin:0 0 10px">' + "התזכורות יישמרו, אבל לא יקפצו עד שההתראות מאושרות במכשיר הזה." + '<div style="margin-top:8px"><button class="btn p" style="margin:0" ' + 'onclick="rmSubOn()">אישור התראות</button></div>' + (rmSubMsg ? '<div class="msg">' + esc(rmSubMsg) + "</div>" : "") + "</div>";
+  var subbed = Store.get('rmSub', 0) &&
+               window.APPX && APPX.perm() === 'granted';
+  var h = '<div class="card" style="margin-bottom:11px">' +
+    '<div class="row" style="padding:0 0 8px"><div><b>תזכורות לעצמי</b>' +
+    '<div class="sub">נדחפות למכשיר הזה בשעה שתבחר</div></div></div>';
+
+  /* ============================================================
+     **האישור אינו שער.**
+     ============================================================
+     קודם הכרטיס הראה **רק** את כפתור האישור, וכל השאר היה
+     מאחוריו - כלומר מי שלא אישר עדיין לא ראה בכלל איפה כותבים
+     תזכורת, ולא ידע שיש כאן דבר כזה. "לא ראיתי איפה אני כותב
+     תזכורת חדשה."
+
+     עכשיו הטופס תמיד כאן, והחוסר נאמר בשורה אחת מעליו. */
+  if (!subbed) {
+    h += '<div class="cond" style="margin:0 0 10px">' +
+         'התזכורות יישמרו, אבל לא יקפצו עד שההתראות מאושרות במכשיר הזה.' +
+         '<div style="margin-top:8px"><button class="btn p" style="margin:0" ' +
+         'onclick="rmSubOn()">אישור התראות</button></div>' +
+         (rmSubMsg ? '<div class="msg">' + esc(rmSubMsg) + '</div>' : '') +
+         '</div>';
+  }
+
+  if (rmRows === null) {
+    h += '<p class="h">הרשימה נשמרת בגיליון, בלשונית "' + RM_TAB + '".</p>' +
+         '<button class="btn g" onclick="rmLoad()">טעינה מהגיליון</button>';
+    if (rmMsg === 'nokey') {
+      h += '<div class="msg">צריך להזין את סיסמת הקריאה בהגדרות ' +
+           'כדי לקרוא את התזכורות שכבר נשמרו.</div>';
+    } else if (rmMsg) {
+      h += '<div class="msg">' + esc(rmMsg) + '</div>';
     }
-    if (rmRows === null) {
-        h += '<p class="h">הרשימה נשמרת בגיליון, בלשונית "' + RM_TAB + '".</p>' + '<button class="btn g" onclick="rmLoad()">טעינה מהגיליון</button>';
-        if (rmMsg === "nokey") {
-            h += '<div class="msg">צריך להזין את סיסמת הקריאה בהגדרות ' + "כדי לקרוא את התזכורות שכבר נשמרו.</div>";
-        } else if (rmMsg) {
-            h += '<div class="msg">' + esc(rmMsg) + "</div>";
-        }
-    }
-    var list = rmRows || [];
-    if (list.length) {
-        h += '<div class="whens">' + list.map(function(o, i) {
-            return '<div class="whenrow"><span class="wt">' + esc(o.time) + "</span>" + '<span class="wd">' + esc(rmDay(o.date)) + " · " + esc(o.text) + "</span>" + '<button onclick="rmDrop(' + i + ')">הסרה</button></div>';
-        }).join("") + "</div>";
-    } else if (rmRows) {
-        h += '<p class="h">אין תזכורות ממתינות.</p>';
-    }
-    if (rmNew) {
-        h += '<div class="fld" style="margin-top:12px">' + '<div class="label">מתי</div><div class="pair">' + '<input type="date" value="' + esc(rmNew.date) + '" onchange="rmSet(\'date\',this.value)">' + "<select onchange=\"rmSet('time',this.value)\">" + rmTimes().map(function(t) {
-            return "<option" + (t === rmNew.time ? " selected" : "") + ">" + t + "</option>";
-        }).join("") + "</select></div></div>" + '<div class="fld"><textarea rows="2" placeholder="מה להזכיר לך?" ' + "oninput=\"rmSet('text',this.value)\">" + esc(rmNew.text) + "</textarea></div>" + '<button class="btn p" onclick="rmAdd()"' + (rmBusy ? " disabled" : "") + ">" + (rmBusy ? "שומר…" : "שמירת התזכורת") + "</button>" + '<button class="btn g" onclick="rmCancel()">ביטול</button>';
-    } else {
-        h += '<button class="btn p" style="margin-top:10px" onclick="rmOpen()">' + (list.length ? "תזכורת נוספת" : "תזכורת חדשה") + "</button>";
-    }
-    if (rmMsg && rmMsg !== "nokey") h += '<div class="msg">' + esc(rmMsg) + "</div>";
-    return h + "</div>";
+  }
+
+  /* **וגם בלי הרשימה אפשר לכתוב.** קריאה שנכשלה אינה סיבה
+     לחסום כתיבה - היא רק אומרת שאיננו יודעים מה כבר יש. משתנה
+     מקומי ולא דריסה של `rmRows`: ציור אינו אמור לשנות מצב, ואם
+     היה דורס - הכפתור "טעינה מהגיליון" לא היה חוזר לעולם. */
+  var list = rmRows || [];
+
+  if (list.length) {
+    h += '<div class="whens">' + list.map(function (o, i) {
+      return '<div class="whenrow"><span class="wt">' + esc(o.time) + '</span>' +
+        '<span class="wd">' + esc(rmDay(o.date)) + ' · ' + esc(o.text) + '</span>' +
+        '<button onclick="rmDrop(' + i + ')">הסרה</button></div>';
+    }).join('') + '</div>';
+  } else if (rmRows) {
+    h += '<p class="h">אין תזכורות ממתינות.</p>';
+  }
+
+  if (rmNew) {
+    h += '<div class="fld" style="margin-top:12px">' +
+      '<div class="label">מתי</div><div class="pair">' +
+      '<input type="date" value="' + esc(rmNew.date) +
+      '" onchange="rmSet(\'date\',this.value)">' +
+      '<select onchange="rmSet(\'time\',this.value)">' +
+      rmTimes().map(function (t) {
+        return '<option' + (t === rmNew.time ? ' selected' : '') + '>' + t + '</option>';
+      }).join('') + '</select></div></div>' +
+      '<div class="fld"><textarea rows="2" placeholder="מה להזכיר לך?" ' +
+      'oninput="rmSet(\'text\',this.value)">' + esc(rmNew.text) + '</textarea></div>' +
+      '<button class="btn p" onclick="rmAdd()"' + (rmBusy ? ' disabled' : '') + '>' +
+      (rmBusy ? 'שומר…' : 'שמירת התזכורת') + '</button>' +
+      '<button class="btn g" onclick="rmCancel()">ביטול</button>';
+  } else {
+    h += '<button class="btn p" style="margin-top:10px" onclick="rmOpen()">' +
+         (list.length ? 'תזכורת נוספת' : 'תזכורת חדשה') + '</button>' +
+         '<button class="btn g" onclick="rmTest()"' + (rmBusy ? ' disabled' : '') +
+         '>שליחת בדיקה אליי</button>';
+    if (rmTestMsg) h += '<div class="msg">' + esc(rmTestMsg) + '</div>';
+  }
+  if (rmMsg && rmMsg !== 'nokey') h += '<div class="msg">' + esc(rmMsg) + '</div>';
+  return h + '</div>';
 }
 
 function rmDay(d) {

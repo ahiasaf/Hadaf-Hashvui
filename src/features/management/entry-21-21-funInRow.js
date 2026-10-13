@@ -222,8 +222,9 @@ function accLoad() {
 }
 
 function accList() {
-    if (accRows === null) accRows = Store.get("accCache", null);
-    return accRows || [];
+  if (accRows === null) accRows = Store.get('accCache', null);
+  /* מי שננעל ובחר "תלמיד" (accPick_) - אינו איש צוות, ואינו כאן. */
+  return (accRows || []).filter(function (a) { return a.role !== 'תלמיד'; });
 }
 
 function accWait(inst) {
@@ -233,33 +234,24 @@ function accWait(inst) {
 }
 
 function accSet(id, st) {
-    var key = (CFG.readKey || "").trim();
-    var a = accList().filter(function(x) {
-        return x.id === id;
-    })[0];
-    if (!key || !a) return;
-    if (st === "נעול" && !confirm("לנעול את " + (a.name || "איש הצוות") + "?\n" + "הוא יחזור לראות מספרים בלבד, בלי שמות ובלי שליחה לתלמידים.")) return;
-    accMsg = "שומר…";
-    admPane();
-    scriptGet({
-        accset: id,
-        st: st,
-        key: key
-    }).then(function(d) {
-        if (!d || d.status !== "ok") {
-            accMsg = "לא נשמר. " + (d && d.message || "אין תשובה מהסקריפט.");
-            admPane();
-            return;
-        }
-        accMsg = "";
-        a.st = st;
-        Store.set("accCache", accRows);
-        admPane();
-        accLoad();
-    }).catch(function() {
-        accMsg = "לא נשמר. אין תשובה מהסקריפט.";
-        admPane();
-    });
+  var key = (CFG.readKey || '').trim();
+  var a = accList().filter(function (x) { return x.id === id; })[0];
+  if (!key || !a) return;
+  if (st === 'נעול' && !confirm('לנעול את ' + (a.name || 'איש הצוות') + '?\n' +
+      'הוא יחזור לראות מספרים בלבד, בלי שמות ובלי שליחה לתלמידים.')) return;
+  accMsg = 'שומר…'; admPane();
+  var q = { accset:id, st:st, key:key };
+  /* באישור - גם הנוסח של ההתראה אליו. השרת שולח רק במעבר לאישור. */
+  if (st === 'אושר') {
+    var iv = { inst: a.instName || pplName(pplCode(a.inst)) };
+    q.t = fill(textGet('ui.accOkT'), iv); q.b = fill(textGet('ui.accOkB'), iv);
+  }
+  scriptGet(q).then(function (d) {
+    if (!d || d.status !== 'ok') { accMsg = 'לא נשמר. ' + ((d && d.message) || 'אין תשובה מהסקריפט.'); admPane(); return; }
+    /* ולוודא - no-cors אינו כאן, אבל קריאה חוזרת היא מה שמאשר. */
+    accMsg = ''; a.st = st; Store.set('accCache', accRows);
+    admPane(); accLoad();
+  }).catch(function () { accMsg = 'לא נשמר. אין תשובה מהסקריפט.'; admPane(); });
 }
 
 function accWaUrl(a) {
@@ -368,62 +360,43 @@ function sayLogCard() {
 }
 
 function needsLoad() {
-    var key = (CFG.readKey || "").trim();
-    if (!key) return Promise.resolve(false);
-    return scriptGet({
-        read: "הודעות",
-        key: key
-    }).then(function(d) {
-        if (!d || d.status !== "ok" || !d.rows) return false;
-        var rows = d.rows, h = (rows[0] || []).map(function(x) {
-            return String(x).trim();
-        });
-        var c = function(r, k) {
-            var i = h.indexOf(k);
-            return i < 0 ? "" : String(r[i] == null ? "" : r[i]);
-        };
-        sayLog = rows.slice(1).map(function(r) {
-            var ic = c(r, "ישיבה"), io = (INSTITUTIONS || []).filter(function(x) {
-                return x.code === ic;
-            })[0];
-            return {
-                who: c(r, "מי"),
-                inst: io ? io.name : ic,
-                title: c(r, "כותרת"),
-                body: c(r, "הטקסט").replace(/\{name\}/g, "[שם]"),
-                res: c(r, "תוצאה"),
-                at: c(r, "תאריך"),
-                aud: sayAud({
-                    inst: io ? io.name : ic,
-                    grade: c(r, "שכבה"),
-                    klass: c(r, "כיתה"),
-                    role: c(r, "תפקיד"),
-                    flt: c(r, "פילוח"),
-                    wait: c(r, "ממתינים"),
-                    aud: c(r, "קהל")
-                })
-            };
-        }).reverse().slice(0, 40);
-        needsFail = rows.slice(1).filter(function(r) {
-            var t = c(r, "תוצאה");
-            return t.indexOf("נכשלה") === 0 && t.indexOf("נשלחה שוב") < 0 && c(r, "מזהה שליחה");
-        }).map(function(r) {
-            var ic = c(r, "ישיבה"), io = (INSTITUTIONS || []).filter(function(x) {
-                return x.code === ic;
-            })[0];
-            return {
-                sid: c(r, "מזהה שליחה"),
-                who: c(r, "מי"),
-                inst: io ? io.name : ic,
-                title: c(r, "כותרת"),
-                body: c(r, "הטקסט").replace(/\{name\}/g, "[שם]"),
-                why: c(r, "תוצאה").replace(/^נכשלה:\s*/, ""),
-                at: c(r, "תאריך")
-            };
-        }).reverse();
-        admPane();
-        return true;
-    }).catch(function() {
-        return false;
-    });
+  var key = (CFG.readKey || '').trim();
+  if (!key) return Promise.resolve(false);
+  return scriptGet({ read:'הודעות', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה "אין כישלונות" - משאירים את מה שהיה. */
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var rows = d.rows, h = (rows[0] || []).map(function (x) { return String(x).trim(); });
+    var c = function (r, k) { var i = h.indexOf(k); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+    sayAll = rows.slice(1).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic || x.name === ic; })[0];
+      return { who: c(r, 'מי'), inst: io ? io.name : ic, code: io ? io.code : '',
+               sys: c(r, 'מי') === 'מערכת' || c(r, 'קהל') === 'מכשירי רכז',
+               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), title: c(r, 'כותרת'),
+               st: useSt(c(r, 'סטטוס שליחה'), c(r, 'תוצאה')),
+               got: c(r, 'קיבלו') !== '' ? +c(r, 'קיבלו') || 0 : sayNums(c(r, 'תוצאה')).ok,
+               t: sheetTime(c(r, 'תאריך')) };
+    }).reverse();
+    sayLog = rows.slice(1).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
+      return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
+               body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך'),
+               aud: sayAud({ inst: io ? io.name : ic, grade: c(r, 'שכבה'), klass: c(r, 'כיתה'),
+                             role: c(r, 'תפקיד'), flt: c(r, 'פילוח'), wait: c(r, 'ממתינים'),
+                             aud: c(r, 'קהל') }) };
+    }).reverse().slice(0, 40);
+    needsFail = rows.slice(1).filter(function (r) {
+      var t = c(r, 'תוצאה'), st = useSt(c(r, 'סטטוס שליחה'), t);
+      /* גם "חלקי" - שליחה חוזרת מגיעה רק למי שלא קיבל (מניעת כפילות
+         ב-push-send.js), ולכן בטוח להציע אותה. */
+      return (st === 'bad' || st === 'part') && t.indexOf('נשלחה שוב') < 0 &&
+             c(r, 'מזהה שליחה') && c(r, 'מי') !== 'מערכת';
+    }).map(function (r) {
+      var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
+      return { sid: c(r, 'מזהה שליחה'), who: c(r, 'מי'), inst: io ? io.name : ic,
+               title: c(r, 'כותרת'), body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'),
+               why: c(r, 'תוצאה').replace(/^(נכשלה|חלקית):\s*/, ''),
+               at: c(r, 'תאריך') };
+    }).reverse();
+    admPane(); return true;
+  }).catch(function () { return false; });
 }

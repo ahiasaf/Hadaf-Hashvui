@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=lapid&masa=go",
+  "start_url": "/management?m=lapid&staff=lapid&masa=go#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

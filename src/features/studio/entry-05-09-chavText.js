@@ -86,67 +86,19 @@ document.getElementById("addstep").onclick = function() {
 document.getElementById("addstep2").onclick = function() {
     addStep(this.dataset.cont === "1");
 };
+document.getElementById('contjoin').onclick = function () { addStep(true, true); };
 
-function prevDafName() {
-    var el = document.getElementById("daf");
-    var it = el && el._items && el._items[+el.value - 1];
-    return it ? it[0] : "";
-}
 
-function stopSheet() {
-    var box = document.getElementById("splitbox");
-    var pg = +selVal("pg") || 1;
-    var pd = prevDafName();
-    var rec = BOOK[PKEY] || {};
-    var cur = rec.prev || 0;
-    if (pg !== 1) {
-        box.innerHTML = '<div class="sh"><b>רק בעמוד א׳</b>' + "<p>נקודת העצירה מסמנת היכן נגמר שיעור הדף הקודם, ולכן " + "היא נקבעת בעמוד א׳ של הדף שאליו הוא גלש.</p>" + '<button class="cl">סגירה</button></div>';
-    } else if (!pd) {
-        box.innerHTML = '<div class="sh"><b>זה הדף הראשון</b>' + "<p>אין לפניו דף שאליו אפשר לצרף קטעים.</p>" + '<button class="cl">סגירה</button></div>';
-    } else if (!STEPS.length) {
-        box.innerHTML = '<div class="sh"><b>עוד אין קטעים בעמוד</b>' + "<p>סמנו קודם את הקטעים, ואז אפשר לקבוע עד היכן נמשך " + "השיעור של דף " + esc(pd) + ".</p>" + '<button class="cl">סגירה</button></div>';
-    } else {
-        box.innerHTML = '<div class="sh"><b>עד היכן נמשך דף ' + esc(pd) + "?</b>" + "<p>הקטעים שתבחרו יילמדו בסוף דף " + esc(pd) + ", ולא " + "בתחילת הדף הזה.</p>" + '<button class="sp" data-n="0">' + (cur ? "ביטול - הדף נגמר בגבול הרגיל" : "◂ אין המשך (ברירת המחדל)") + "</button>" + STEPS.map(function(st, k) {
-            var n = k + 1;
-            return '<button class="sp" data-n="' + n + '"' + (n === cur ? ' style="border-color:var(--gold);background:#FFFBF2"' : "") + ">עד קטע " + n + (n === cur ? " · מסומן כעת" : "") + "</button>";
-        }).join("") + '<button class="cl">ביטול</button></div>';
-    }
-    box.className = "splitbox on";
-    [].forEach.call(box.querySelectorAll(".sp"), function(b) {
-        b.onclick = function() {
-            setStop(+b.dataset.n, pd);
-        };
-    });
-    [].forEach.call(box.querySelectorAll(".cl"), function(b) {
-        b.onclick = function() {
-            box.className = "splitbox";
-        };
-    });
-}
 
-function setStop(n, pd) {
-    document.getElementById("splitbox").className = "splitbox";
-    keepPageState();
-    var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
-    if (n > 0) {
-        rec.prev = n;
-        rec.prevDaf = pd;
-    } else {
-        delete rec.prev;
-        delete rec.prevDaf;
-    }
-    touched();
-    markPanel();
-    say(n ? n + " קטעים ראשונים שייכים לדף " + pd + "." : "נקודת העצירה בוטלה - הדף נגמר בגבול הרגיל.");
-}
+
+
+
 
 document.getElementById("unsaved").onclick = function() {
     saveToSheet();
 };
 
-document.getElementById("stoppt").onclick = function() {
-    stopSheet();
-};
+
 
 document.getElementById("steplist").onclick = function() {
     showSteps();

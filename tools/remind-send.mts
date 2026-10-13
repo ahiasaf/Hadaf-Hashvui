@@ -123,4 +123,17 @@ async function main() {
     process.exitCode = 1;
   if (counts.failed) process.exitCode = 1;
 }
-void main().catch(failJob);
+void main()
+  .then(async () => {
+    if (!/^(1|true|yes)$/i.test(process.env.DRY_RUN || ""))
+      await schedule.recordClockRun(!!process.exitCode);
+  })
+  .catch(async () => {
+    if (!/^(1|true|yes)$/i.test(process.env.DRY_RUN || ""))
+      try {
+        await schedule.recordClockRun(true);
+      } catch {
+        /* Preserve the original job failure. */
+      }
+    failJob();
+  });

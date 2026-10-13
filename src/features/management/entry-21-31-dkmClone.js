@@ -39,14 +39,11 @@ function dkmAmTxt(mas, wk) {
 }
 
 function dkmDeck(mas, wk) {
-    var d = DeckOf(mas, wk);
-    if (!d) return null;
-    var files = [];
-    for (var i = 1; i <= d.files.length; i++) files.push(DeckSrc(d, i));
-    return {
-        files: files,
-        title: DeckTitle(mas, wk) || ""
-    };
+  var d = DeckOf(mas, wk);
+  if (!d) return null;
+  var files = [];
+  for (var i = 1; i <= d.files.length; i++) files.push(DeckSrc(d, i));
+  return { files: files, title: DeckTitle(mas, wk) || '', cover: d.cover ? DeckCover(d) : '' };
 }
 
 function dkmList(mas) {
@@ -141,7 +138,9 @@ function dkmAudit(mas) {
 }
 
 function dkmThumb(deck) {
-    return deck.files.length ? '<img class="dkm-th" loading="lazy" alt="" src="' + esc(deck.files[0]) + '">' : '<span class="dkm-th"></span>';
+  return deck.files.length
+    ? '<img class="dkm-th" loading="lazy" alt="" src="' + esc(deck.cover || deck.files[0]) + '">'
+    : '<span class="dkm-th"></span>';
 }
 
 var dkSlPick = {};
@@ -195,11 +194,22 @@ function dkSlPaint() {
 }
 
 function dkSlBar() {
-    var n = dkSlSel().length;
-    if (!n) return "";
-    return '<div class="dkm-bar"><b>' + esc(fill(UI.dkmSelN, {
-        n: n
-    })) + "</b>" + '<button class="btn p" onclick="dkmOpen(\'mv\')">⇄ ' + esc(UI.dkmMv) + "</button>" + '<button class="btn p" onclick="dkmOpen(\'cp\')">⧉ ' + esc(UI.dkmCp) + "</button>" + '<button class="btn g" onclick="dkSlClear()">' + esc(UI.dkmClear) + "</button>" + "</div>";
+  var n = dkSlSel().length;
+  if (!n) return '';
+  return '<div class="dkm-bar"><b>' + esc(fill(UI.dkmSelN, { n: n })) + '</b>' +
+    '<button class="btn p" onclick="dkmOpen(\'mv\')">⇄ ' + esc(UI.dkmMv) + '</button>' +
+    '<button class="btn p" onclick="dkmOpen(\'cp\')">⧉ ' + esc(UI.dkmCp) + '</button>' +
+    '<button class="btn g" onclick="dkSlClear()">' + esc(UI.dkmClear) + '</button>' +
+    /* שקף אחד בחור - אפשר לקבוע אותו כשער (או להחזיר את ברירת המחדל). */
+    (n === 1 ? '<button class="btn g dk-bcov" onclick="dkSlCover()">★ ' +
+      esc(dkSlSel()[0] === dkCover ? UI.dkCovReset : UI.dkCovSet) + '</button>' : '') +
+    '</div>';
+}
+function dkSlCover() {
+  var p = dkSlSel()[0];
+  if (!p) return;
+  dkSlPick = {};
+  dkSetCover(p);   /* אותו שער שוב - חזרה לשקף הראשון */
 }
 
 function dkmWhy(mas) {
@@ -307,48 +317,40 @@ function dkmPaint() {
 }
 
 function dkWriteMap(map, done) {
-    var rows = [], k;
-    for (k in map) {
-        if (!map.hasOwnProperty(k)) continue;
-        rows.push([ dkmMas(k), String(dkmWk(k)), map[k].dir || "", (map[k].files || []).join(","), map[k].title || "" ]);
-    }
-    rows.sort(function(a, b) {
-        return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1];
-    });
-    fetch(API, {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({
-            action: "table",
-            tab: DECK_SHEET,
-            key: (CFG.readKey || "").trim(),
-            cols: JSON.stringify([ "מסכת", "שבוע", "תיקייה", "קבצים", "כותרת" ]),
-            rows: JSON.stringify(rows)
-        })
-    }).catch(function() {});
-    var tries = 0;
-    (function chk() {
-        setTimeout(function() {
-            DeckLoad().then(function() {
-                if (dkmSame(map, DECKS)) {
-                    done(true);
-                    return;
-                }
-                if (++tries < 5) chk(); else done(false);
-            });
-        }, tries ? 2500 : 1400);
-    })();
+  var rows = [], k;
+  for (k in map) {
+    if (!map.hasOwnProperty(k)) continue;
+    rows.push([dkmMas(k), String(dkmWk(k)), map[k].dir || '',
+               (map[k].files || []).join(','), map[k].title || '', map[k].cover || '']);
+  }
+  rows.sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]; });
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'table', tab:DECK_SHEET, key:(CFG.readKey || '').trim(),
+    cols:JSON.stringify(['מסכת', 'שבוע', 'תיקייה', 'קבצים', 'כותרת', 'שער']),
+    rows:JSON.stringify(rows)
+  }) }).catch(function () {});
+  var tries = 0;
+  (function chk() {
+    setTimeout(function () {
+      DeckLoad().then(function () {
+        if (dkmSame(map, DECKS)) { done(true); return; }
+        if (++tries < 5) chk(); else done(false);
+      });
+    }, tries ? 2500 : 1400);
+  })();
 }
 
 function dkmSame(a, b) {
-    if (!b) return false;
-    var k;
-    for (k in a) {
-        if (!a.hasOwnProperty(k)) continue;
-        if (!b[k] || (b[k].files || []).join(",") !== (a[k].files || []).join(",") || String(b[k].title || "") !== String(a[k].title || "")) return false;
-    }
-    for (k in b) if (b.hasOwnProperty(k) && !a[k]) return false;
-    return true;
+  if (!b) return false;
+  var k;
+  for (k in a) {
+    if (!a.hasOwnProperty(k)) continue;
+    if (!b[k] || (b[k].files || []).join(',') !== (a[k].files || []).join(',') ||
+        String(b[k].title || '') !== String(a[k].title || '') ||
+        String(b[k].cover || '') !== String(a[k].cover || '')) return false;
+  }
+  for (k in b) if (b.hasOwnProperty(k) && !a[k]) return false;
+  return true;
 }
 
 function dkmBakPush(map) {
@@ -361,64 +363,41 @@ function dkmBakPush(map) {
 }
 
 function dkmRun() {
-    var o = dkmOp;
-    if (!API || !(CFG.readKey || "").trim()) {
-        o.st = "end";
-        o.msg = UI.dkmNoKey;
-        dkmPaint();
-        return;
-    }
-    clearTimeout(dkAutoT_);
-    var srcKey = o.mas + "-" + o.wk;
-    var src = {
-        dir: dkDir,
-        files: dkList.map(dkPath),
-        title: dkTitle
-    };
-    o.st = "busy";
-    o.msg = UI.dkmBusy;
-    dkmPaint();
-    DeckLoad().then(function(ok) {
-        if (!ok || !DECKS) {
-            o.st = "end";
-            o.msg = UI.dkmNoRead;
-            dkmPaint();
-            return;
-        }
-        var before = dkmClone(DECKS), map = dkmClone(DECKS), mas = o.mas;
-        var tk = mas + "-" + o.to, tgt = dkmDeck(mas, o.to) || {
-            files: [],
-            title: ""
-        };
-        var files = tgt.files.slice();
-        o.files.forEach(function(f) {
-            if (files.indexOf(f) < 0) files.push(f);
-        });
-        map[srcKey] = {
-            dir: src.dir,
-            title: src.title,
-            files: o.mode === "mv" ? src.files.filter(function(f) {
-                return o.files.indexOf(f) < 0;
-            }) : src.files
-        };
-        map[tk] = {
-            dir: "slides/" + tk,
-            files: files,
-            title: tgt.title || (o.files.length === src.files.length ? src.title : "")
-        };
-        dkmBakPush(before);
-        dkWriteMap(map, function(good) {
-            o.st = good ? "done" : "end";
-            o.msg = good ? UI.dkmDone : UI.dkmFail;
-            o.undo = good;
-            if (good) {
-                dkSlPick = {};
-                dkmDropDrafts();
-            }
-            dkmPaint();
-            admPane();
-        });
+  var o = dkmOp;
+  if (!API || !(CFG.readKey || '').trim()) { o.st = 'end'; o.msg = UI.dkmNoKey; dkmPaint(); return; }
+  /* עריכה שעוד ממתינה לשמירה נכנסת לאותה כתיבה - המקור הוא מה
+     שעל המסך. */
+  clearTimeout(dkAutoT_);
+  var srcKey = o.mas + '-' + o.wk;
+  var src = { dir: dkDir, files: dkList.map(dkPath), title: dkTitle, cover: dkCover };
+  o.st = 'busy'; o.msg = UI.dkmBusy; dkmPaint();
+  DeckLoad().then(function (ok) {
+    if (!ok || !DECKS) { o.st = 'end'; o.msg = UI.dkmNoRead; dkmPaint(); return; }
+    var before = dkmClone(DECKS), map = dkmClone(DECKS), mas = o.mas;
+    var tk = mas + '-' + o.to, tgt = dkmDeck(mas, o.to) || { files: [], title: '' };
+    var files = tgt.files.slice();
+    o.files.forEach(function (f) { if (files.indexOf(f) < 0) files.push(f); });
+    /* העברה: מה שנשאר במקור. כשלא נשאר כלום - שורה ריקה, שגוברת
+       גם על מצגת שבקוד (CONTENT). */
+    /* שער שעבר יחד עם השקף - יורד מהמקור. */
+    map[srcKey] = { dir: src.dir, title: src.title,
+      cover: o.mode === 'mv' && o.files.indexOf(src.cover) >= 0 ? '' : src.cover,
+      files: o.mode === 'mv' ? src.files.filter(function (f) { return o.files.indexOf(f) < 0; })
+                             : src.files };
+    /* מצגת שהגיעה כולה - עם הכותרת שלה, אם ליעד אין. */
+    var whole = o.files.length === src.files.length;
+    map[tk] = { dir: 'slides/' + tk, files: files,
+      title: tgt.title || (whole ? src.title : ''),
+      cover: tgt.cover || (whole && o.files.indexOf(src.cover) >= 0 ? src.cover : '') };
+    dkmBakPush(before);
+    dkWriteMap(map, function (good) {
+      o.st = good ? 'done' : 'end';
+      o.msg = good ? UI.dkmDone : UI.dkmFail;
+      o.undo = good;
+      if (good) { dkSlPick = {}; dkmDropDrafts(); }
+      dkmPaint(); admPane();
     });
+  });
 }
 
 function dkmUndo() {

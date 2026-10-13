@@ -43,7 +43,11 @@ function ctCard(c, i, ctx) {
     if (ps.length) {
         team += '<div class="whos">';
         ps.forEach(function(q, k) {
-            team += '<div class="wprow"><button class="wp' + (k === pi ? " on" : "") + '" onclick="setMain(' + i + "," + k + ')">' + "<b>" + esc(q.name || "ללא שם") + "</b>" + (q.role ? "<i>" + esc(q.role) + "</i>" : "") + (q.phone ? "" : '<i style="color:var(--stop)">אין מספר</i>') + "</button>" + (q.phone ? '<label class="teamp"><input type="checkbox"' + (personTeamOn(c, k) ? " checked" : "") + ' onchange="setPersonTeam(' + i + "," + k + ',this.checked)">לצוות</label>' : "") + "</div>";
+            var sm = (ctx.stf || []).filter(function(s) {
+                return stfSame(q, s);
+            })[0];
+            if (sm) sm.hit = true;
+            team += '<div class="wprow"><button class="wp' + (k === pi ? " on" : "") + '" onclick="setMain(' + i + "," + k + ')">' + "<b>" + esc(q.name || "ללא שם") + "</b>" + (q.role ? "<i>" + esc(q.role) + "</i>" : "") + (q.phone ? "" : '<i style="color:var(--stop)">אין מספר</i>') + "</button>" + (q.phone ? '<label class="teamp"><input type="checkbox"' + (personTeamOn(c, k) ? " checked" : "") + ' onchange="setPersonTeam(' + i + "," + k + ',this.checked)">לצוות</label>' : "") + stfBtn(sm) + "</div>" + (sm ? stfBox(sm) : "");
         });
         team += "</div>";
     }
@@ -69,6 +73,7 @@ function ctCard(c, i, ctx) {
     h += '<div class="ct-d ct-o"><div class="ct-dh">' + esc(UI.callNote) + "</div>" + '<label class="teamshow"><input type="checkbox"' + (c.teamShow ? " checked" : "") + ' onchange="setTeamShow(' + i + ',this.checked)">להציג את המוסד הזה בעמוד הצוות</label>' + '<div class="notelbl">הערה לעצמך - פרטי, לא נראה לאיש</div>' + '<textarea rows="3" placeholder="הערה מהשיחה…" ' + 'oninput="noteGrow(this)" ' + 'onchange="setNote(' + i + ',this.value)">' + esc(c.note) + "</textarea></div></div>";
     return h;
 }
+
 
 function callFilter(f) {
     state.filter = f;

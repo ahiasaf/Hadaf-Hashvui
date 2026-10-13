@@ -38,14 +38,15 @@ var SUB = {
     daf: [ [ "daf", "moreDaf" ] ]
 };
 
-var MORE = [ {
-    g: "moreGSet",
-    items: [ [ "links", "moreLinks" ], [ "amdawa", "moreAmdaWa" ], [ "lottery", "moreLottery" ] ]
-}, {
-    g: "moreGAdv",
-    adv: 1,
-    items: [ [ "amda", "admTabAmda" ], [ "open", "moreOpen" ], [ "orders", "moreOrders" ], [ "price", "morePrice" ], [ "guide", "moreGuide" ], [ "text", "moreText" ], [ "screens", "moreScreens" ], [ "data", "moreData" ], [ "sys", "moreSys" ] ]
-} ];
+var MORE = [
+  /* עמדת הלימוד עצמה - בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery']] },
+  /* מה שנסגר לשנה הזו - במגירה, ולא נמחק: בלי המלל והמערכת אין
+     עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
+  { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
+                                ['price','morePrice'], ['guide','moreGuide'], ['text','moreText'],
+                                ['screens','moreScreens'], ['data','moreData'], ['sys','moreSys']] }
+];
 
 function admHome(leaf) {
     if (leaf === "people") return "stu";
@@ -126,109 +127,96 @@ function admMoreTitle(leaf) {
 }
 
 function admPane() {
-    var el = document.getElementById("adm-pane");
-    if (!el) return;
-    if (admTab === "stu" && document.getElementById("stu")) return admLive();
-    if (admTab === "hot" && document.getElementById("hot-body")) return admLive();
-    if (admTab === "setup" && document.getElementById("st-why")) return admLive();
-    if (admTab === "inst" && document.querySelector("#adm-pane #calls-body")) {
-        admLive();
-        return renderCalls();
+  var el = document.getElementById('adm-pane');
+  if (!el) return;                 /* נקרא גם ממסך אחר - אין מה לצייר */
+  /* "אנשים" מצייר את עצמו מחדש בלי לגעת בלוח (iframe): ציור מלא
+     היה יוצר אותו מאפס - הבהוב, טעינה, וחיפוש וישיבה פתוחה
+     שנעלמים באמצע עדכון. */
+  if (admTab === 'stu' && document.getElementById('stu')) return admLive();
+  if (admTab === 'hot' && document.getElementById('hot-body')) return admLive();
+  if (admTab === 'setup' && document.getElementById('st-why')) return admLive();
+  /* "ישיבות וצוות" - כל טעינה ברקע (אימות, הודעות, שיחות…) ציירה את
+     המסך כולו מחדש, וכפתור "אישור" התחלף מתחת לאצבע. עכשיו רק מה
+     שהשתנה; רשימת השיחות מתעדכנת דרך renderCalls שלה. */
+  /* `#adm-pane` במפורש: יש `calls-body` נוסף במסך המוקד הישן (v-calls). */
+  if (admTab === 'inst' && document.querySelector('#adm-pane #calls-body')) { admLive(); return renderCalls(); }
+  if (admTab === 'push' && document.getElementById('pu-viz') && document.getElementById('adm-send')) {
+    admLive(); return admPush(document.getElementById('adm-send'));
+  }
+  /* ציור מחדש שומר את מקום הגלילה - ראו ההערה ההיסטורית: שורת
+     הודעה שהשתנתה שינתה גובה, והדפדפן "קפץ" למקום אחר. */
+  var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+  requestAnimationFrame(function () { window.scrollTo(0, scrollY); });
+  var sub = admSubNow();
+  var top = '';
+
+  if (admTab === 'more' && sub) {
+    top = '<div class="mo-top"><button class="ppl-back" onclick="admSubGo(\'\')">' +
+          esc(UI.moreBack) + '</button><b>' + esc(admMoreTitle(sub)) + '</b></div>';
+  }
+  el.innerHTML = top + '<div id="adm-body"></div>';
+  var body = document.getElementById('adm-body');
+
+  /* "דורש טיפול" נטען בפתיחת "התלמידים שלי" - פעם בשתי דקות. */
+  if (admTab === 'setup' && (CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
+    admAutoAt.needs = Date.now();
+    setTimeout(function () { needsLoad(); accLoad(); if (stuckRows === null) stuckLoad(); }, 0);
+  }
+
+  if (admTab === 'more' && !sub) { body.innerHTML = admMoreMenu(); return; }
+  if (admTab === 'hot') { body.innerHTML = '<div id="hot-body"></div>'; pplLast['hot-body'] = ''; admLive(); return; }
+  /* "הדף": הדף והמצגת · פתיחת דפים, והסטודיו בקישור. */
+  if (admTab === 'daf') {
+    body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+      '<div style="flex:1;min-width:0">' + admSubBar().replace('margin-bottom:12px', 'margin:0') + '</div>' +
+      '<a class="back" style="text-decoration:none;margin:0;flex:none" href="studio.html">' + esc(UI.admStudio) + ' ↗</a></div>' +
+      '<div id="daf-body"></div>';
+    body = document.getElementById('daf-body');
+  }
+
+  if (sub === 'people')  return admStudents(body);
+  if (sub === 'setup')   return admSetup(body);
+  if (sub === 'amda')    return admAmda(body);
+  if (sub === 'amdawa')  return admAmdaWa(body);
+  if (sub === 'net')     return admNet(body);
+  if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
+  /* השליחה - הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
+     אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
+  if (sub === 'push' && (CFG.readKey || '').trim()) {
+    var now = Date.now(), last = admAutoAt[sub] || 0;
+    var fresh = pushRows ? admAutoAt.pushOk || 0 : 0;
+    if (now - last > 120000 && now - fresh > 120000) {
+      admAutoAt[sub] = now;
+      setTimeout(function () {
+        pushLoad().then(function (ok) { if (ok) admAutoAt.pushOk = Date.now(); });
+      }, 0);
     }
-    if (admTab === "push" && document.getElementById("pu-viz") && document.getElementById("adm-send")) {
-        admLive();
-        return admPush(document.getElementById("adm-send"));
-    }
-    var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-    requestAnimationFrame(function() {
-        window.scrollTo(0, scrollY);
-    });
-    var sub = admSubNow();
-    var top = "";
-    if (admTab === "more" && sub) {
-        top = '<div class="mo-top"><button class="ppl-back" onclick="admSubGo(\'\')">' + esc(UI.moreBack) + "</button><b>" + esc(admMoreTitle(sub)) + "</b></div>";
-    }
-    el.innerHTML = top + '<div id="adm-body"></div>';
-    var body = document.getElementById("adm-body");
-    if (admTab === "setup" && (CFG.readKey || "").trim() && Date.now() - (admAutoAt.needs || 0) > 12e4) {
-        admAutoAt.needs = Date.now();
-        setTimeout(function() {
-            needsLoad();
-            accLoad();
-            if (stuckRows === null) stuckLoad();
-        }, 0);
-    }
-    if (admTab === "more" && !sub) {
-        body.innerHTML = admMoreMenu();
-        return;
-    }
-    if (admTab === "hot") {
-        body.innerHTML = '<div id="hot-body"></div>';
-        pplLast["hot-body"] = "";
-        admLive();
-        return;
-    }
-    if (admTab === "daf") {
-        body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' + '<div style="flex:1;min-width:0">' + admSubBar().replace("margin-bottom:12px", "margin:0") + "</div>" + '<a class="back" style="text-decoration:none;margin:0;flex:none" href="studio.html">' + esc(UI.admStudio) + " ↗</a></div>" + '<div id="daf-body"></div>';
-        body = document.getElementById("daf-body");
-    }
-    if (sub === "people") return admStudents(body);
-    if (sub === "setup") return admSetup(body);
-    if (sub === "amda") return admAmda(body);
-    if (sub === "amdawa") return admAmdaWa(body);
-    if (sub === "lottery") {
-        body.innerHTML = admPairs();
-        return;
-    }
-    if (sub === "push" && (CFG.readKey || "").trim()) {
-        var now = Date.now(), last = admAutoAt[sub] || 0;
-        var fresh = pushRows ? admAutoAt.pushOk || 0 : 0;
-        if (now - last > 12e4 && now - fresh > 12e4) {
-            admAutoAt[sub] = now;
-            setTimeout(function() {
-                pushLoad().then(function(ok) {
-                    if (ok) admAutoAt.pushOk = Date.now();
-                });
-            }, 0);
-        }
-    }
-    if (sub === "push") return admPushTab(body);
-    if (sub === "data") return admData(body);
-    if (sub === "calls") {
-        body.innerHTML = '<div id="calls-body"></div>' + admInstHead();
-        admLive();
-        renderCalls();
-        return pullCalls().then(renderCalls).catch(function() {});
-    }
-    if (sub === "links") {
-        admLinks(body);
-        return admMarkHint();
-    }
-    if (sub === "sys") {
-        admSet(body);
-        return admInstallBox();
-    }
-    if (sub === "guide") {
-        body.innerHTML = guCard();
-        return setTimeout(guPaint, 0);
-    }
-    if (sub === "daf") return admDecks(body);
-    if (sub === "open") return admOpen(body);
-    if (sub === "price") return admPrice(body);
-    if (sub === "text") return admText(body);
-    if (sub === "orders") return admOrders(body);
-    if (sub === "screens") {
-        admShow(body);
-        admShowGroup(body);
-        return admMarkHint();
-    }
+  }
+  if (sub === 'push') return admPushTab(body);
+  if (sub === 'data') return admData(body);
+  if (sub === 'calls') {
+    /* מוקד השיחות בלבד: הספירה, האימות והלוח של כל ישיבה - בשורה שלה. */
+    body.innerHTML = '<div id="calls-body"></div>' + admInstHead();
+    admLive();
+    renderCalls();
+    stfLoad();
+    /* ומושכים מהגיליון ברקע - התיעוד ממכשיר אחר, ומחזיר את
+       הרשימה אם האחסון המקומי נוקה. */
+    return pullCalls().then(renderCalls).catch(function () {});
+  }
+  if (sub === 'links')   { admLinks(body); return admMarkHint(); }
+  if (sub === 'sys')     { admSet(body); return admInstallBox(); }
+  if (sub === 'guide')   { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
+  if (sub === 'daf')     return admDecks(body);
+  if (sub === 'open')    return admOpen(body);
+  if (sub === 'price')   return admPrice(body);
+  if (sub === 'text')    return admText(body);
+  if (sub === 'orders')  return admOrders(body);
+  if (sub === 'screens') { admShow(body); admShowGroup(body); return admMarkHint(); }
 }
 
 function admInstHead() {
-    var n = INSTITUTIONS.filter(function(i) {
-        return i.joined;
-    }).length;
-    return '<div class="adm-card" style="margin-bottom:11px"><div class="row" style="padding:0">' + "<b>" + esc(UI.instJoined.replace("{n}", n)) + "</b>" + '<button class="ppl-back" onclick="admSubGo(\'links\')">' + esc(UI.instEdit) + "</button></div></div>";
+  return '<div class="adm-card" id="in-codes" style="margin-bottom:11px">' + admInstInner() + '</div>';
 }
 
 function orderByCard() {
@@ -305,7 +293,7 @@ var partState = {
 
 var admAutoAt = {};
 
-var needsFail = null, needsBusy = "", needsMsg = "", sayLog = null;
+var needsFail = null, needsBusy = '', needsMsg = '', sayLog = null, sayAll = null;
 
 var peopleH = 900;
 

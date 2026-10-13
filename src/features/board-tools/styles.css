@@ -1,0 +1,361 @@
+
+/* המסך לא זז לצדדים: לחיצה כפולה אקראית אינה מגדילה, ואלמנט שבורח
+   מרוחב המסך אינו יוצר גלילה אופקית. צביטה מכוונת נשארת (נגישות). */
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+/* ============================================================
+   הלוח של ראש החטיבה.
+
+   קישור קבוע אחד למוסד: board.html?inst=avir
+
+   מספרים בלבד - וזו החלטה, לא חוסר.
+   ------------------------------------
+   הקישור הזה מועבר. ראש חטיבה שולח לר״ם, ר״ם לר״ם אחר, ומישהו
+   מדביק אותו בקבוצה. אם הוא היה מכיל שמות של תלמידים, כל
+   העברה כזו הייתה דליפה של רשימת קטינים - בדיוק מה שהגיליון
+   הפרטי והסיסמה באו למנוע. לכן הוא קורא **רק** מהלשוניות
+   הציבוריות, שיש בהן קוד ישיבה ומספר.
+
+   השמות יושבים בפאנל הניהול של הרכז, מאחורי סיסמת הקריאה.
+
+   וזה גם המקום שבו הוא מוצא שוב את קישור ההצטרפות: קישור אחד
+   לזכור במקום שניים.
+   ============================================================ */
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --blue-l:#3574CE;
+  --green:#6FA83B; --green-d:#467B1A;
+  --gold:#C08F2B; --gold-l:#E5B854; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --sunk:#EFE6D3;
+  --ink:#1B2A45; --ink-2:#5A6780; --ink-3:#5C687E; --rule:#E5DAC3;
+  --r:16px; --r-s:12px;
+  --sh-1:0 1px 2px rgba(37,29,12,.05), 0 2px 8px rgba(37,29,12,.05);
+  --sh-2:0 2px 4px rgba(37,29,12,.06), 0 10px 26px rgba(37,29,12,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+
+/* תמונה שעוד אין לה כתובת - לא מציגים סימן שבור.
+   הלוגו מוטמע ב-logo.js, והקובץ הזה שוקל 88KB ומגיע מהרשת.
+   עד שהוא נוחת, ל-<img> אין src בכלל - והדפדפן מצייר במקומו
+   ריבוע שבור. בקליטה טובה זה מהבהב לרגע; בקליטה חלשה זה מה
+   שרואים במשך שניות, ובדיוק במסך הראשון של האפליקציה.
+
+   visibility ולא display: המסגרת שומרת על מקומה, ולכן כשהלוגו
+   מגיע שום דבר לא קופץ. */
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 34px)}
+
+/* ---------- חתימת התוכנית ----------
+   זהה לעמוד הראשי. הסמל העגול על רקע לבן, השם בשתי שורות,
+   ומתחת - הישיבה או השנה. */
+/* הפס הכחול ירד. הוא הפך את הכותרת לרצועה נפרדת שיושבת מעל
+   העמוד במקום להיות חלק ממנו - ובעמוד הראשי הסמל פשוט צף על
+   אותו רקע קרם כמו כל השאר. אותה כותרת, אותו רקע, אותם צבעים. */
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:18px 14px 20px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  padding:18px;margin-top:14px;box-shadow:var(--sh-1)}
+.card h2{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.card .h{font-size:.8rem;font-weight:600;color:var(--ink-3);margin-top:3px;line-height:1.6}
+
+/* שלושת המספרים. גדולים, כי הם הסיבה שהוא פתח את הדף. */
+/* ---------- הכותרת של הלוח ----------
+   קודם ישבו כאן שלוש משבצות מספרים, ומתחתיהן שלוש משבצות מסגרות:
+   שלוש מתחת לשלוש, ואחת מהן - "אבות ובנים" - הופיעה פעמיים.
+
+   מה שראש חטיבה באמת פותח את הלוח כדי לדעת הוא שאלה אחת: **כמה
+   למדו את הדף של השבוע**. לכן היא לבדה למעלה, ובגודל שאומר שהיא
+   העיקר. "מצטרפים" הוא הקשר שלה ולא מספר מתחרה, ולכן הוא שורה
+   קטנה מתחתיה. */
+.hero{margin-top:16px;background:linear-gradient(160deg,var(--blue-d),var(--blue));
+  color:#fff;border-radius:var(--r-m, 20px);padding:18px;box-shadow:var(--sh-2);
+  display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;
+  width:100%;text-align:start;border:0;font:inherit}
+.hero .tag{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.04em;
+  background:rgba(255,255,255,.16);border-radius:20px;padding:3px 9px}
+.hero h3{font-size:1.24rem;font-weight:800;letter-spacing:-.03em;margin-top:7px}
+.hero .lead{font-size:.92rem;font-weight:700;margin-top:5px;color:rgba(255,255,255,.88)}
+.hero .lead b{font-size:1.05rem}
+.hero .sub{font-size:.75rem;font-weight:700;margin-top:7px;color:rgba(255,255,255,.62)}
+/* בשורה ולא בפינה. מיקום מוחלט הניח שיש מקום פנוי מתחת לטקסט,
+   ובשם ישיבה ארוך הוא פשוט התיישב עליו. */
+.hero .chev{display:inline-block;margin-top:9px;font-size:.75rem;font-weight:800;
+  color:#fff;background:rgba(255,255,255,.15);border-radius:20px;padding:4px 11px}
+button.hero{cursor:pointer}
+button.hero:active{transform:scale(.99)}
+/* הטבעת. מספר לבדו הוא נתון; טבעת שמתמלאת היא מצב - ורואים
+   אותה בלי לקרוא. */
+.ring{flex:0 0 auto;position:relative;width:84px;height:84px}
+.ring svg{transform:rotate(-90deg)}
+.ring .bg{fill:none;stroke:rgba(255,255,255,.18);stroke-width:9}
+.ring .fg{fill:none;stroke:var(--gold-l, #E3B44A);stroke-width:9;stroke-linecap:round;
+  transition:stroke-dasharray .7s cubic-bezier(.3,.1,.2,1)}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;line-height:1}
+.ring .mid b{font-size:1.5rem;font-weight:800;letter-spacing:-.04em}
+.ring .mid span{font-size:.66rem;font-weight:800;color:rgba(255,255,255,.72);
+  margin-top:3px;white-space:nowrap}
+
+/* פילוח. מוט ולא עוגה: השוואה בין שכבות נקראת בעין בשורות
+   באורך שונה, ובעוגה צריך לפענח אותה. */
+.bars{margin-top:12px;display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:2.6rem 1fr 2rem;align-items:center;gap:9px}
+.bar .k{font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.bar .t{height:9px;border-radius:9px;background:var(--sunk);overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:9px;
+  background:linear-gradient(90deg,var(--blue-l),var(--blue))}
+.bar .n{font-size:.84rem;font-weight:800;text-align:start}
+
+.wk{margin-top:12px;padding-top:13px;border-top:1px solid var(--rule)}
+.wk b{font-size:1.02rem;font-weight:800}
+.wk .of{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-top:3px}
+
+.btn{display:block;width:100%;text-align:center;font-size:.98rem;font-weight:800;
+  border:0;border-radius:14px;padding:15px;margin-top:11px;cursor:pointer;
+  font-family:inherit;color:#fff;text-decoration:none;
+  background:linear-gradient(140deg,var(--green),var(--green-d));
+  box-shadow:0 6px 18px rgba(74,130,28,.26)}
+.btn.g{background:var(--sunk);color:var(--ink-2);box-shadow:none}
+/* כחול לצוות, ירוק לתלמידים. ההבדל הוא לא קישוט: שני קישורים
+   שנראים אותו דבר הם הזמנה לשלוח את הלא־נכון, וזו טעות שאי
+   אפשר להחזיר ממנה. הצבע, הכותרת והפס בצד עושים את ההבחנה
+   לפני שקוראים מילה. */
+.btn.b{background:linear-gradient(140deg,var(--blue-l),var(--blue));
+  box-shadow:0 6px 18px rgba(23,70,143,.26)}
+/* הכרטיס המשני. שקט יותר מזה שמעליו - הוא רשת ביטחון, לא
+   פעולה שמחפשים. */
+.card.team{background:var(--sunk);box-shadow:none;border:1px solid var(--rule)}
+.card.team h2{color:var(--ink-2)}
+.card.team .btn{padding:12px;font-size:.9rem}
+.card.team .url{background:var(--surface)}
+.url{margin-top:11px;background:var(--sunk);border-radius:10px;padding:9px 11px;
+  font-size:.76rem;font-weight:700;color:var(--ink-2);direction:ltr;text-align:left;
+  overflow-wrap:anywhere;line-height:1.5}
+
+/* ---------- שלוש המסגרות ----------
+   משבצת עם אייקון ומספר, ולא צ'יפ עם תווית. האיור הוא מה שמבדיל
+   בין שלוש הקטגוריות בסריקה של חצי שנייה, והמספר הוא מה שהופך
+   את המשבצת ממילה למשפט. */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}
+.tile{position:relative;text-align:center;padding:13px 6px 11px;border-radius:13px;
+  border:1px solid var(--rule);background:var(--surface);font-family:inherit;
+  display:block;width:100%;transition:transform .14s,box-shadow .14s}
+.tile.go{cursor:pointer;box-shadow:var(--sh-1)}
+.tile.go:active{transform:scale(.975)}
+.tile svg{width:26px;height:26px;fill:var(--c);opacity:.92}
+.tile b{display:block;font-size:1.5rem;font-weight:800;line-height:1.05;
+  color:var(--c);letter-spacing:-.03em;margin-top:6px}
+.tile span{display:block;font-size:.71rem;font-weight:800;color:var(--ink-2);
+  margin-top:3px;line-height:1.3}
+.chev{font-style:normal;color:var(--ink-3);font-size:.8rem;font-weight:800}
+.tile .chev{position:absolute;inset-block-start:8px;inset-inline-start:9px;
+  font-size:.72rem}
+
+/* הפס השבועי כפתור - אותו מראה, ועכשיו הוא נפתח */
+/* כשהוא נפתח הוא חייב להיראות כמו משהו שנפתח. פס אפור עם חץ
+   קטן נקרא כטקסט, ואיש לא לוחץ על טקסט. */
+.wk.go{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;text-align:start;cursor:pointer;font-family:inherit;font-size:inherit;
+  margin-top:12px;padding:12px 13px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--sunk);transition:transform .14s}
+.wk.go:active{transform:scale(.99)}
+.wk.go .chev{font-size:1rem;color:var(--blue)}
+/* הפירוט נפתח מתחת למה שנלחץ, ולא מחליף את המסך. שתי השאלות -
+   "כמה" ו"מי" - הן אותה שאלה בשתי רמות, ומסך שמחליף מסך הפך
+   אותן לשני מקומות שצריך לנווט ביניהם. */
+.open{margin-top:11px;border-top:1px solid var(--rule);padding-top:11px;
+  animation:opIn .22s ease-out}
+@keyframes opIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.tile.sel{outline:2px solid var(--c);outline-offset:-2px}
+/* מי שבאמצע - פס דק מתחת לשם. לא אחוז, ולא צבע שני שמתחרה
+   בירוק של מי שסיים: זהב, כלומר בדרך. */
+.pbar{margin-top:6px;height:5px;border-radius:5px;background:var(--sunk);
+  overflow:hidden;max-width:190px}
+.pbar i{display:block;height:100%;border-radius:5px;
+  background:linear-gradient(90deg,var(--gold-l, #E3B44A),var(--gold, #C08F2B));
+  transition:width .7s cubic-bezier(.3,.1,.2,1)}
+.prow.mid .tick{background:rgba(192,143,43,.18);border-color:rgba(192,143,43,.45)}
+
+/* ---------- מסך הפירוט ----------
+   שם אחד בשורה, וסימן אחד. הרכז סורק ומחפש את מי שלא סימן -
+   ולכן ה-✓ הוא מה שבולט, ולא הצבע של השורה. */
+.detail .back{background:none;border:0;color:var(--blue);font-weight:800;
+  font-size:.83rem;font-family:inherit;cursor:pointer;padding:0 0 9px}
+.keyline{margin-top:11px;font-size:.78rem;font-weight:700;color:var(--ink-3);
+  line-height:1.65;background:var(--sunk);border-radius:11px;padding:10px 12px}
+.klink{display:block;margin-top:7px;background:none;border:0;padding:0;
+  color:var(--blue);font-weight:800;font-size:.8rem;font-family:inherit;
+  cursor:pointer;text-decoration:underline}
+/* פירוט של דרך לימוד - מסך משלו: חזרה, כותרת, והרשימה. */
+.wback{background:none;border:0;color:var(--blue);font-weight:800;
+  font-size:.86rem;font-family:inherit;cursor:pointer;padding:0 0 10px}
+.wtitle{margin:0 0 4px;font-size:1.15rem;font-weight:800;letter-spacing:-.02em}
+.wtitle + .open{margin-top:0;border-top:0;padding-top:2px}
+/* מסך הבית - כפתור קבוע בפינה. באפליקציה שבמסך הבית אין חזרה
+   של הדפדפן, ובלעדיו מי שנכנס ללוח נשאר תקוע בו. */
+.homefab{position:fixed;bottom:16px;bottom:calc(16px + env(safe-area-inset-bottom));
+  inset-inline-end:16px;z-index:50;display:flex;align-items:center;gap:6px;
+  padding:11px 16px;border-radius:999px;background:var(--blue);color:#fff;
+  font-weight:800;font-size:.88rem;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.homefab svg{width:17px;height:17px;flex:none}
+body.has-fab{padding-bottom:80px}
+.wgrp{font-size:.74rem;font-weight:800;color:var(--ink-3);letter-spacing:.02em;
+  margin:13px 0 3px;padding-top:10px;border-top:1px solid var(--rule)}
+.wgrp:first-of-type{margin-top:6px;padding-top:0;border-top:0}
+body.embed header, body.embed footer, body.embed .a11y-skip{display:none}
+body.embed .wrap{padding-top:4px}
+/* במסגרת שבניהול אין גלילה פנימית - הגובה מגיע לעמוד שמכיל (embedSize). */
+html.embed,html.embed body{overflow:hidden}
+.ichip.sm{font-size:.74rem;padding:5px 10px}
+.lsum{font-size:.82rem;color:var(--ink-2);margin:2px 2px 8px}
+/* מתג ההתראות: כותרת, ושלושה חלקים שווים בשורה אחת */
+.lseg{display:flex;align-items:center;gap:9px;margin:0 0 12px}
+.lseg-h{font-size:.8rem;font-weight:800;color:var(--ink-2);flex:none}
+.lseg-g{flex:1;display:flex;border:1px solid var(--rule);border-radius:999px;
+  background:var(--sunk);padding:3px;gap:3px;min-width:0}
+.lseg-b{flex:1;min-width:0;border:0;background:transparent;border-radius:999px;
+  padding:7px 4px;font:inherit;font-size:.8rem;font-weight:800;color:var(--ink-2);
+  cursor:pointer;white-space:nowrap}
+.lseg-b i{font-style:normal;opacity:.75}
+.lseg-b.on{background:var(--blue,#17468F);color:#fff;box-shadow:var(--sh-1)}
+.nm{cursor:pointer}
+.prow.open{background:rgba(23,70,143,.05)}
+.kudo.off{cursor:default;opacity:.55}
+.dt{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--sunk,#F3EEE3);font-size:.84rem}
+.dt-r{display:flex;gap:10px;padding:4px 0;align-items:baseline}
+.dt-r > span:first-child{flex:none;width:4.6rem;color:var(--ink-3);font-weight:700;font-size:.76rem}
+.dt-ph{direction:ltr;unicode-bidi:embed;color:var(--ink);font-weight:700;text-decoration:none;margin-inline-end:10px}
+.dt-wa{color:#1A8F4C;font-weight:800;font-size:.78rem}
+.dt-on{color:#1A8F4C;font-weight:800;font-size:.76rem}
+.dt-off{color:var(--ink-3);font-weight:700;font-size:.76rem}
+.wa-go{display:block;text-align:center;text-decoration:none;background:#1A8F4C !important}
+/* תזכורת לבא בתור, וההודעה לקבוצת הכיתה - כפתור מלא מחוץ לתיבה. */
+a.go.wa-go,a.rem-go{margin:6px 0 10px;padding:11px 12px;border-radius:10px;color:#fff;
+  font-weight:800;font-size:.86rem}
+.kudo.wa{border:0;cursor:pointer;font:inherit}
+.dt-del{margin-top:8px;border:1px solid #D9A1A1;background:#fff;color:#A33;border-radius:9px;
+  padding:6px 12px;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}
+.prow{display:flex;align-items:center;gap:9px;padding:8px 0;
+  border-bottom:1px solid var(--rule);font-size:.92rem}
+.prow:last-child{border-bottom:0}
+.prow b{font-weight:800}
+.prow .s{font-size:.76rem;font-weight:700;color:var(--ink-3);margin-top:1px}
+.prow .tick{flex:none;width:22px;height:22px;border-radius:50%;
+  background:var(--sunk);color:transparent;display:flex;align-items:center;
+  justify-content:center;font-size:.8rem;font-weight:800}
+.prow.did .tick{background:var(--green);color:#fff}
+.empty{text-align:center;padding:8px 0 4px}
+.empty .big{font-size:2.2rem;line-height:1}
+.empty p{font-size:.9rem;font-weight:700;color:var(--ink-2);margin-top:9px;line-height:1.7}
+
+.soon{margin-top:14px;font-size:.82rem;font-weight:700;color:var(--ink-3);
+  text-align:center;line-height:1.7}
+footer{text-align:center;color:var(--ink-3);font-size:.76rem;font-weight:700;
+  margin-top:22px;line-height:1.9}
+footer b{display:block;color:var(--ink-2)}
+footer a{color:var(--ink-2);font-weight:800}
+
+/* ---------- התלמידים לפי כיתה ----------
+   כותרת כיתה ומספר, ואז השמות. נקודת צבע לצד כל שם באותם
+   שלושה צבעים של הבאנר שלמעלה - הוא כבר ראה אותם, ולכן
+   אינו צריך לחזור למקרא בשביל כל שורה. */
+.clsgrp{display:flex;align-items:center;justify-content:space-between;
+  margin:18px 0 8px;padding-bottom:7px;
+  border-bottom:1px solid var(--rule)}
+.clsgrp:first-of-type{margin-top:10px}
+/* כותרת קבוצה היא כפתור: נפתחת ונסגרת. */
+button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--rule);
+  font:inherit;color:inherit;cursor:pointer;text-align:start;padding:6px 0 7px;margin:12px 0 4px}
+.clsgrp .chev{font-style:normal;display:inline-block;width:1.1em;color:var(--ink-3)}
+.clsgrp.sub{margin:6px 0 2px;border-bottom-style:dashed}
+.clsgrp.sub b{font-size:.88rem}
+.grp-in{padding-inline-start:12px}
+.grp-all{display:flex;gap:14px;margin:8px 0 2px}
+.grp-jump{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px}
+.grp-jump>span{font-size:.78rem;font-weight:800;color:var(--ink-3)}
+.grp-jump .chip{font:inherit;font-size:.78rem;font-weight:800;padding:5px 10px;border-radius:999px;
+  border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.grp-more{display:block;margin:8px auto 4px}
+.clsgrp b{font-size:.98rem;font-weight:800;letter-spacing:-.02em}
+.clsgrp span{font-size:.82rem;font-weight:800;color:var(--ink-3)}
+.wdot{display:inline-block;width:8px;height:8px;border-radius:50%;
+  margin-inline-end:7px;vertical-align:1px;flex:0 0 auto}
+.legend{display:flex;gap:14px;justify-content:center;margin-top:18px;
+  padding-top:13px;border-top:1px solid var(--rule);
+  font-size:.78rem;font-weight:700;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center}
+/* "ישר כוח" לתלמיד אחד - ליד מי שסיים. */
+.kudo{flex:none;border:1px solid rgba(192,143,43,.45);background:rgba(192,143,43,.1);
+  color:var(--ink);border-radius:20px;padding:6px 11px;font:inherit;font-size:.76rem;
+  font-weight:800;cursor:pointer}
+.kudo.sent{border-color:transparent;background:none;color:var(--green);cursor:default}
+.kudo-box{margin:2px 0 10px;padding:11px 12px;background:var(--sunk);border-radius:12px}
+.tms{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tms .tm.on{border-style:solid;border-color:var(--blue,#17468F);color:var(--blue,#17468F)}
+.kudo-box .tm{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
+  border:1px dashed var(--rule);border-radius:9px;background:var(--surface);font:inherit;
+  font-size:.8rem;font-weight:600;cursor:pointer}
+.kudo-box textarea{width:100%;min-height:64px;padding:9px 10px;border:1px solid var(--rule);
+  border-radius:9px;font:inherit;font-size:.86rem;box-sizing:border-box}
+.kudo-box .pv{margin-top:7px;font-size:.8rem;font-weight:600;color:var(--ink-2)}
+.kudo-box .go{display:block;width:100%;margin-top:9px;padding:11px;border:0;border-radius:10px;
+  background:var(--blue);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.kudo-box .go[disabled]{opacity:.55}
+.kudo-box .s{margin-top:6px;font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.ichips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.ichip{border:1px solid var(--rule);background:var(--surface,#fff);color:var(--ink-2);
+  border-radius:999px;padding:7px 13px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
+.ichip.on{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
+.kudo.wa{border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.1);color:#128C4A;text-decoration:none}
+.prow.sel{cursor:pointer}
+.prow.sel .tick{font-size:1.1rem}
+.prow.sel.on{background:rgba(23,70,143,.06)}
+.snd-open{display:block;width:100%;margin:0 0 12px;padding:12px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--surface,#fff);color:var(--blue,#17468F);font:inherit;
+  font-weight:800;font-size:.95rem;cursor:pointer}
+.snd{margin-bottom:12px}
+.snd-h{display:flex;align-items:center;margin-bottom:10px}
+.snd-h b{flex:1;font-size:1rem}
+.snd-x{border:0;background:none;font-size:1.1rem;cursor:pointer;color:var(--ink-3)}
+.snd-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.85rem;font-weight:700}
+.snd-row span{width:52px;color:var(--ink-3)}
+.snd-seg{flex:1;display:flex;gap:4px;background:var(--sunk);padding:3px;border-radius:10px}
+.snd-seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:8px;font:inherit;
+  font-size:.82rem;font-weight:800;color:var(--ink-3);cursor:pointer}
+.snd-seg button.on{background:#fff;color:var(--blue,#17468F)}
+.kudo-to{margin-bottom:8px;background:#fff}
+.kudo-to button.on{background:var(--blue,#17468F);color:#fff}
+.snd-sel{display:flex;gap:6px;margin-bottom:6px}
+.snd-sel select{flex:1;padding:8px;border:1px solid var(--rule);border-radius:9px;font:inherit;font-size:.85rem}
+.snd-note{font-size:.84rem;font-weight:700;margin-bottom:6px}
+.snd-tm button{display:block;width:100%;text-align:start;margin-bottom:6px;padding:8px 10px;
+  border:1px solid var(--rule);border-radius:9px;background:#fff;font:inherit;font-size:.82rem;cursor:pointer}
+/* נוסחים - שבבים עם כותרת קצרה, לא גוף מלא (tmTitle). */
+.tms .tm,.snd-tm.tms button{display:inline-block;width:auto;margin:0;padding:6px 11px;border-radius:18px;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.snd textarea{width:100%;padding:9px 10px;border:1px solid var(--rule);border-radius:10px;font:inherit;font-size:.9rem}
+.snd-per{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:.82rem;font-weight:700}
+.snd-pv{margin-top:8px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
+.snd-sum{margin-top:10px;font-size:.84rem;line-height:1.6}
+.snd-go{display:block;width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;
+  background:var(--blue,#17468F);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.snd-go[disabled]{opacity:.55}
+.snd-msg{margin-top:8px;font-size:.84rem;font-weight:700;color:#B23B3B}
+.snd-msg.ok{color:var(--green,#2E7D52)}
+.srch{display:block;width:100%;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:10px;font:inherit;font-size:.92rem;background:#fff}
+.dt-del{display:block;width:100%;margin-top:12px;padding:11px 12px;border:0;background:#C0392B;
+  color:#fff;font-size:.86rem;font-weight:800;border-radius:11px;cursor:pointer}
+
+body.embed > .tool-header{display:none}

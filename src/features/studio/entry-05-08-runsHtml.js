@@ -135,9 +135,68 @@ function toggleHide(i) {
         if (rec.hidden.indexOf(sig) < 0) rec.hidden.push(sig);
         CHV[i].off = true;
     }
+    if (CHV[i].off) dropHiddenPara_(i); else refreshHolders_(i);
     redrawChav();
     touched();
     say(CHV[i].off ? "הפסקה הוסתרה - לא תופיע אצל התלמיד" : "הפסקה הוחזרה.");
+}
+
+function paraHtml_(p) { return '<p>' + runsHtml(p.runs || []) + '</p>'; }
+/* מוציא פסקה אחת מהטקסט השמור של קטע. לפי הנוסח ולא לפי חישוב
+   מחדש של הטווח - כך זה נכון גם לקטע שצירף פסקה מעמוד אחר. */
+function stripPara_(c, p) {
+  if (!c) return false;
+  var ph = paraHtml_(p), pt = runsText(p.runs);
+  var h = String(c.h || ''), at = h.indexOf(ph);
+  /* יש טקסט מעוצב - הוא הקובע. אין (רשומה ישנה) - לפי הטקסט הפשוט. */
+  if (h && at < 0) return false;
+  if (at >= 0) c.h = h.slice(0, at) + h.slice(at + ph.length);
+  var t = String(c.text || '');
+  if (pt && t.indexOf(pt) >= 0) {
+    if (t.indexOf(' ' + pt) >= 0) t = t.replace(' ' + pt, '');
+    else if (t.indexOf(pt + ' ') >= 0) t = t.replace(pt + ' ', '');
+    else t = t.replace(pt, '');
+    c.text = t;
+  } else if (at < 0) return false;
+  return true;
+}
+function holds_(c, i) {
+  return c && c.from != null && i >= c.from && i <= (c.to == null ? c.from : c.to);
+}
+function dropHiddenPara_(i) {
+  var p = CHV[i], now = Date.now(), n = 0;
+  if (!p) return 0;
+  hiddenKeys().forEach(function (k) {
+    var hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      if (holds_(st.c, i) && stripPara_(st.c, p)) hit = true;
+      if (holds_(st.cj, i) && stripPara_(st.cj, p)) hit = true;
+    });
+    if (hit) { n++; if (k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; } }
+  });
+  return n;
+}
+function refreshHolders_(i) {
+  var now = Date.now();
+  hiddenKeys().forEach(function (k) {
+    var hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      var c = st.c;
+      if (st.cj || !holds_(c, i)) return;
+      var got = chavRange(c.from, c.to == null ? c.from : c.to);
+      if (got) { c.text = got.text; c.h = got.h; hit = true; }
+    });
+    if (hit && k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; }
+  });
+}
+/* בכניסה לדף: פסקה שהוסתרה לפני התיקון הזה ועדיין יושבת בקטע
+   שמור - יוצאת ממנו. רץ אחרי שגם החברותא וגם הגיליון הגיעו. */
+function purgeHidden_() {
+  if (!CHV) return 0;
+  var n = 0;
+  for (var i = 0; i < CHV.length; i++) if (CHV[i].off) n += dropHiddenPara_(i);
+  if (n) touched();
+  return n;
 }
 
 function paraText(i) {
@@ -367,110 +426,141 @@ function chavRange(a, b) {
 var CONT_FIXED = false;
 
 function seal(report) {
-    if (!STEPS.length) {
-        USED_G = null;
-        USED_C = lastChav();
-        return 0;
-    }
-    var fixed = 0;
-    STEPS.sort(function(a, b) {
-        return pos(a.g.from) - pos(b.g.from);
-    });
-    var rec0 = BOOK[PKEY] || {};
-    var base = {
-        line: 0,
-        x: 0
-    };
-    var baseC = 0;
-    if (rec0.prev > 0 && STEPS[rec0.prev - 1]) {
-        var cut = STEPS[rec0.prev - 1];
-        base = {
-            line: cut.g.to.line,
-            x: cut.g.to.x
-        };
-        baseC = cut.c.to + 1;
-    } else {
-        var pageStart = STEPS.length ? null : null;
-        baseC = 0;
-        var pre = [ selVal("mas"), selVal("daf"), selVal("src") ].join("|") + "|";
-        var pgn = +selVal("pg") || 1, best = -1;
-        for (var k0 in BOOK) {
-            if (k0.indexOf(pre) !== 0 || k0 === PKEY) continue;
-            if ((+k0.slice(pre.length) || 1) >= pgn) continue;
-            var pst = BOOK[k0].steps || [];
-            for (var j0 = 0; j0 < pst.length; j0++) if (!pst[j0].cont) best = Math.max(best, pst[j0].c.to);
-        }
-        baseC = best + 1;
-    }
-    var out = [];
-    STEPS.forEach(function(st, si) {
-        var prev = out[out.length - 1];
-        if (!prev && si === 0) {
-            if (Math.abs(pos(st.g.from) - pos(base)) > 1e-6) {
-                st.g.from = {
-                    line: base.line,
-                    x: base.x
-                };
-                fixed++;
-            }
-            if (st.cont) {
-                var pv = prevStep();
-                if (pv && pv !== st && (st.c.from !== pv.c.from || st.c.to !== pv.c.to || st.c.h !== pv.c.h)) {
-                    st.c = {
-                        from: pv.c.from,
-                        to: pv.c.to,
-                        text: pv.c.text,
-                        h: pv.c.h
-                    };
-                    fixed++;
-                    CONT_FIXED = true;
-                }
-            } else if (st.c.from !== baseC) {
-                st.c.from = baseC;
-                if (st.c.to < st.c.from) st.c.to = st.c.from;
-                fixed++;
-                var g0 = chavRange(st.c.from, st.c.to);
-                if (g0) {
-                    st.c.text = g0.text;
-                    st.c.h = g0.h;
-                }
-            }
-        }
-        if (prev) {
-            if (pos(st.g.to) <= pos(prev.g.to) + 1e-6) {
-                fixed++;
-                return;
-            }
-            if (Math.abs(pos(st.g.from) - pos(prev.g.to)) > 1e-6) {
-                st.g.from = {
-                    line: prev.g.to.line,
-                    x: prev.g.to.x
-                };
-                fixed++;
-            }
-            var nextC = prev.cont ? baseC : prev.c.to + 1;
-            if (st.c.from !== nextC) {
-                st.c.from = nextC;
-                if (st.c.to < st.c.from) st.c.to = st.c.from;
-                fixed++;
-                var got = chavRange(st.c.from, st.c.to);
-                if (got) {
-                    st.c.text = got.text;
-                    st.c.h = got.h;
-                }
-            }
-        }
-        out.push(st);
-    });
-    STEPS = out;
-    ensureIds_();
-    if (BOOK[PKEY]) BOOK[PKEY].steps = STEPS;
-    var last = STEPS[STEPS.length - 1];
-    USED_G = last ? {
-        line: last.g.to.line,
-        x: last.g.to.x
-    } : null;
+  /* ============================================================
+     עמוד שנמחקו ממנו כל הקטעים.
+     ============================================================
+     "ביטלתי את כל השיוך של העמוד, ואז ניסיתי לפצל פסקה - וקיבלתי
+     'אפשר לפצל רק פסקה שטרם שובצה'." היציאה המוקדמת כאן דילגה
+     על עדכון USED_G/USED_C שבסוף, ולכן אחרי מחיקת הקטע האחרון
+     הסטודיו עוד "זכר" את הפסקאות ואת השורות שהיו משובצות. */
+  if (!STEPS.length) {
+    USED_G = null;
     USED_C = lastChav();
-    if (fixed && report) say(fixed + " רצפים נסגרו אוטומטית.");
-    return fixed;
+    return 0;
+  }
+  var fixed = 0;
+
+  /* לפי סדר הדף. הסדר הוא המבנה - בלעדיו "הקודם" חסר משמעות. */
+  STEPS.sort(function (a, b) { return pos(a.g.from) - pos(b.g.from); });
+
+  /* ---------- נקודת האפס ----------
+     החוק חל גם על הקטע הראשון, ובלעדיו הוא חסר.
+
+     `seal` אכף רצף רק **בין** קטעים, ולכן מחיקה מתחילת העמוד
+     השאירה את הראשון תלוי באוויר: הוא נשאר במקום שבו התחיל
+     פעם, וכל מה שלפניו - שורות ופסקאות כאחד - נשאר בלי בעלים.
+     זה בדיוק מה שקרה אחרי מחיקת שבעת הראשונים: הקטע הראשון
+     נשאר בשורה 6.54 ובפסקה 2, ושורות 0-6 ופסקאות 0-1 נעלמו
+     מהחשבון בלי שאיש יאמר.
+
+     במודל נקודות החיתוך יש נקודה אפס, והיא ראש העמוד. בגמרא
+     תמיד שורה 0 - מספרי השורות מתאפסים בכל עמוד. בחברותא לא:
+     הפסקאות רצות ברצף על פני שני עמודי הדף, ולכן ראש העמוד הוא
+     מה שנגמר בעמוד הקודם ועוד אחת. נקודת עצירה (`prev`) גוברת
+     על שניהם, כי שם נקבע במפורש שהתחלת העמוד שייכת לדף שקדם. */
+  var rec0 = BOOK[PKEY] || {};
+  var base = { line: 0, x: 0 };
+  var baseC = 0;
+  if (rec0.prev > 0 && STEPS[rec0.prev - 1]) {
+    /* הקטעים הראשונים שייכים לדף הקודם - נקודת האפס היא סופם. */
+    var cut = STEPS[rec0.prev - 1];
+    base = { line: cut.g.to.line, x: cut.g.to.x };
+    baseC = (cut.cont && cut.cj ? cut.cj.to : cut.c.to) + 1;
+  } else {
+    var pageStart = STEPS.length ? null : null;
+    baseC = 0;
+    /* עמוד שאינו הראשון בדף: הפסקאות ממשיכות מהעמוד שלפניו. */
+    var pre = [selVal('mas'), selVal('daf'), selVal('src')].join('|') + '|';
+    var pgn = +selVal('pg') || 1, best = -1;
+    for (var k0 in BOOK) {
+      if (k0.indexOf(pre) !== 0 || k0 === PKEY) continue;
+      if ((+k0.slice(pre.length) || 1) >= pgn) continue;
+      var pst = BOOK[k0].steps || [];
+      for (var j0 = 0; j0 < pst.length; j0++) {
+        if (!pst[j0].cont) best = Math.max(best, pst[j0].c.to);
+        else if (pst[j0].cj) best = Math.max(best, pst[j0].cj.to);
+      }
+    }
+    baseC = best + 1;
+  }
+
+  var out = [];
+  STEPS.forEach(function (st, si) {
+    var prev = out[out.length - 1];
+    if (!prev && si === 0) {
+      /* הראשון נמתח עד ראש העמוד. */
+      if (Math.abs(pos(st.g.from) - pos(base)) > 1e-6) {
+        st.g.from = { line: base.line, x: base.x };
+        fixed++;
+      }
+      /* ============================================================
+         "לחצתי 'המשך הקטע', והמערכת סימנה לי בחברותא קטע חדש שלא
+         ביקשתי."
+         ============================================================
+         קטע המשך נושא את הביאור של הקטע שלפני המעבר - זה כל עניינו.
+         אבל כאן הוא נאטם כמו כל קטע ראשון: הפסקה שלו "תוקנה" לזו
+         שאחרי העמוד הקודם, ובמקום הביאור של המשפט שהתחיל למטה הוא
+         קיבל את הפסקה הבאה ("תמהה הגמרא: וכי מאחר…").
+
+         עכשיו הוא פטור מאטימת החברותא, ומקבל תמיד את הביאור של
+         הקטע שהוא ממשיך. זה גם מתקן את מה שכבר נשמר שבור - בכניסה
+         לעמוד. */
+      if (st.cont) {
+        var pv = prevStep();
+        /* המשך שצירף פסקה (`cj`): הקטע שבעמוד הקודם חייב לשאת אותה.
+           פעולה שבנתה את הביאור שלו מחדש (פיצול, איחוד) השמיטה
+           אותה - מחזירים, לפני שההמשך מעתיק ממנו. */
+        if (pv && pv !== st && st.cj && !pv.cont && !joinHas_(pv, st.cj)) {
+          var jc0 = joinedC_(pv, st.cj);
+          if (jc0) { setRootC_(pv, jc0); fixed++; CONT_FIXED = true; }
+        }
+        if (pv && pv !== st && (st.c.from !== pv.c.from || st.c.to !== pv.c.to ||
+                                st.c.h !== pv.c.h)) {
+          st.c = { from: pv.c.from, to: pv.c.to, text: pv.c.text, h: pv.c.h };
+          fixed++;
+          CONT_FIXED = true;
+        }
+      } else if (st.c.from !== baseC) {
+        st.c.from = baseC;
+        if (st.c.to < st.c.from) st.c.to = st.c.from;
+        fixed++;
+        var g0 = chavRange(st.c.from, st.c.to);
+        if (g0) { st.c.text = g0.text; st.c.h = g0.h; }
+      }
+    }
+    if (prev) {
+      /* קטע שנבלע כולו בקודמו - כפילות. יורד. */
+      if (pos(st.g.to) <= pos(prev.g.to) + 1e-6) { fixed++; return; }
+      /* ההתחלה **היא** הסוף של הקודם. כאן נסגר חור וכאן מתבטלת
+         חפיפה, ושניהם באותה שורה אחת. */
+      if (Math.abs(pos(st.g.from) - pos(prev.g.to)) > 1e-6) {
+        st.g.from = { line: prev.g.to.line, x: prev.g.to.x };
+        fixed++;
+      }
+      /* אותו כלל בחברותא: הפסקה הראשונה היא זו שאחרי הקודמת.
+         פסקאות שנשארו יתומות בין השניים נכנסות לקטע הזה. */
+      /* אחרי קטע המשך - ממשיכים מנקודת האפס של העמוד, לא ממנו:
+         הפסקאות שלו שייכות לעמוד הקודם (או לקובץ של הדף הקודם). */
+      var nextC = prev.cont ? (prev.cj ? prev.cj.to + 1 : baseC) : prev.c.to + 1;
+      if (st.c.from !== nextC) {
+        st.c.from = nextC;
+        if (st.c.to < st.c.from) st.c.to = st.c.from;
+        fixed++;
+        var got = chavRange(st.c.from, st.c.to);
+        if (got) { st.c.text = got.text; st.c.h = got.h; }
+      }
+    }
+    out.push(st);
+  });
+
+  STEPS = out;
+  /* מזהה קבוע לכל קטע (stepid.js). קטע המשך - בלי. */
+  ensureIds_();
+  /* `BOOK` מחזיק את אותה רשומה, ולכן היא מתעדכנת יחד. */
+  if (BOOK[PKEY]) BOOK[PKEY].steps = STEPS;
+  var last = STEPS[STEPS.length - 1];
+  USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
+  USED_C = lastChav();
+  if (fixed && report) say(fixed + ' רצפים נסגרו אוטומטית.');
+  return fixed;
 }

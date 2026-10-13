@@ -26,95 +26,87 @@ function yshClose() {
 }
 
 function yshLogHtml(e) {
-    var items = [], keys = {}, prev = {};
-    e.recs.forEach(function(o) {
-        keys[nameKey(o.c.key || o.c.name)] = 1;
-    });
-    (Store.get("callJournal", []) || []).forEach(function(j) {
-        if (!j || !keys[j.k]) return;
-        var p = prev[j.k] || {
-            note: "",
-            stage: "new"
-        }, note = j.note || "", add = note;
-        if (note === p.note) add = ""; else if (p.note && note.indexOf(p.note) === 0) add = note.slice(p.note.length).trim();
-        var stCh = !!j.stage && j.stage !== p.stage;
-        prev[j.k] = {
-            note: note,
-            stage: j.stage
-        };
-        if (!add && !stCh) return;
-        items.push({
-            t: tsOf(j.at),
-            at: j.at,
-            who: j.who || "",
-            note: add,
-            stg: stCh ? j.stage : ""
-        });
-    });
-    e.recs.forEach(function(o) {
-        var c = o.c;
-        if (prev[nameKey(c.key || c.name)] || !c.note && c.stage === "new") return;
-        items.push({
-            t: tsOf(c.at),
-            at: c.at,
-            who: (mainOf(c) || {}).name || "",
-            note: c.note || "",
-            stg: c.stage !== "new" ? c.stage : ""
-        });
-    });
-    (Store.get("yshAdds", []) || []).forEach(function(a) {
-        if (yshGk(a.n) === e.k) items.push({
-            t: tsOf(a.at),
-            at: a.at,
-            who: a.who,
-            note: a.note,
-            stg: ""
-        });
-    });
-    if (!items.length) return '<div class="ysh-empty">' + esc(UI.yshLogNone) + "</div>";
-    items.sort(function(a, b) {
-        return b.t - a.t;
-    });
-    return '<div class="ysh-log">' + items.map(function(it) {
-        var sg = it.stg ? STAGES.filter(function(x) {
-            return x.k === it.stg;
-        })[0] : null;
-        return '<div class="ysh-li"><div class="ysh-lh"><b>' + esc(yshWhen(it.at)) + "</b>" + (it.who ? "<span>" + esc(it.who) + "</span>" : "") + (sg ? '<span class="ct-sb ' + sg.c + '">' + esc(sg.t) + "</span>" : "") + "</div>" + (it.note ? '<div class="ysh-ln">' + esc(it.note) + "</div>" : "") + "</div>";
-    }).join("") + "</div>";
+  var items = [], keys = {}, prev = {};
+  e.recs.forEach(function (o) { keys[nameKey(o.c.key || o.c.name)] = 1; });
+  (Store.get('callJournal', []) || []).forEach(function (j) {
+    if (!j || !keys[j.k]) return;
+    var p = prev[j.k] || { note:'', stage:'new' }, note = j.note || '', add = note;
+    /* ההערה נשמרת כולה בכל פעם; מציגים רק מה שנוסף לה. */
+    if (note === p.note) add = '';
+    else if (p.note && note.indexOf(p.note) === 0) add = note.slice(p.note.length).trim();
+    var stCh = !!j.stage && j.stage !== p.stage;
+    prev[j.k] = { note:note, stage:j.stage };
+    if (!add && !stCh) return;
+    items.push({ t:tsOf(j.at), at:j.at, who:j.who || '', note:add, stg:stCh ? j.stage : '' });
+  });
+  /* מכשיר בלי יומן (מכשיר חדש) - לפחות מה שבגיליון עכשיו. */
+  e.recs.forEach(function (o) {
+    var c = o.c;
+    if (prev[nameKey(c.key || c.name)] || (!c.note && c.stage === 'new')) return;
+    items.push({ t:tsOf(c.at), at:c.at, who:(mainOf(c) || {}).name || '',
+                 note:c.note || '', stg:c.stage !== 'new' ? c.stage : '' });
+  });
+  (Store.get('yshAdds', []) || []).forEach(function (a) {
+    var ak = yshGk(a.n);
+    if (ak === e.k || (e.alias || []).indexOf(ak) >= 0) items.push({ t:tsOf(a.at), at:a.at, who:a.who, note:a.note, stg:'' });
+  });
+  if (!items.length) return '<div class="ysh-empty">' + esc(UI.yshLogNone) + '</div>';
+  items.sort(function (a, b) { return b.t - a.t; });
+  return '<div class="ysh-log">' + items.map(function (it) {
+    var sg = it.stg ? STAGES.filter(function (x) { return x.k === it.stg; })[0] : null;
+    return '<div class="ysh-li"><div class="ysh-lh"><b>' + esc(yshWhen(it.at)) + '</b>' +
+      (it.who ? '<span>' + esc(it.who) + '</span>' : '') +
+      (sg ? '<span class="ct-sb ' + sg.c + '">' + esc(sg.t) + '</span>' : '') + '</div>' +
+      (it.note ? '<div class="ysh-ln">' + esc(it.note) + '</div>' : '') + '</div>';
+  }).join('') + '</div>';
 }
 
 function yshDetail(e, ctx) {
-    var inst = null;
-    e.recs.some(function(o) {
-        inst = instByName(o.c.key || o.c.name);
-        return !!inst;
-    });
-    if (!inst) inst = instByName(e.name);
-    var r = yshOf(e, "rate"), act = yshOf(e, "act");
-    var h = '<button class="back" onclick="yshClose()">' + esc(UI.yshBack) + "</button>" + '<div class="ysh-hd"><h2>' + esc(e.name) + "</h2>" + (inst ? '<a class="ysh-board" href="' + esc(tzevetUrl(inst.code)) + '" target="_blank" rel="noopener">' + esc(UI.yshBoard) + "</a>" : '<span class="ysh-board off" aria-disabled="true">' + esc(UI.yshBoard) + "<small>" + esc(UI.yshNoBoard) + "</small></span>") + (!e.st ? "" : '<div class="ysh-ind">' + YSH_IND.map(function(d) {
-        var v = yshOf(e, d[0]);
-        return '<span class="ysh-pill" title="' + esc(UI["yshV_" + v]) + '"><i class="ysh-dot ' + "v-" + v + '"></i>' + esc(UI[d[1]]) + "</span>";
-    }).join("") + '</div><div class="ysh-ind">' + '<span class="ysh-tag ' + "r-" + r + '">' + esc(UI.yshRate) + ": " + esc(UI["yshR_" + r]) + "</span>" + '<span class="ysh-pill"><i class="ysh-dot ' + "v-" + act + '"></i>' + esc(UI.yshActive) + ": " + esc(UI["yshV_" + act]) + "</span></div>") + (e.st && e.st.note ? '<div class="ysh-snote">' + esc(e.st.note) + "</div>" : "") + (e.st && e.st.upd ? '<div class="ysh-upd">' + esc(fill(UI.yshUpd, {
-        t: yshWhen(e.st.upd)
-    })) + "</div>" : "") + "</div>";
-    var nIx = -1;
-    for (var yi = 0; yi < yshShown.length; yi++) if (yshShown[yi].k === e.k) nIx = yi;
-    if (nIx < 0) {
-        yshShown.push(e);
-        nIx = yshShown.length - 1;
-    } else yshShown[nIx] = e;
-    e.t = yshLastAt(e, ctx.jLast || {});
-    h += '<div class="yr-list" style="margin:0 0 12px">' + yshRow(e, nIx) + "</div>";
-    if (e.recs.length) {
-        h += '<h3 class="ysh-h">' + esc(UI.yshPeople) + "</h3>";
-        if (e.recs.length > 1) h += '<div class="ysh-empty">' + esc(fill(UI.yshDup, {
-            n: e.recs.length
-        })) + "</div>";
-        e.recs.forEach(function(o) {
-            h += ctCard(o.c, o.i, ctx);
-        });
-    }
-    return h + '<h3 class="ysh-h">' + esc(UI.yshLog) + "</h3>" + yshLogHtml(e);
+  var inst = null;
+  e.recs.some(function (o) { inst = instByName(o.c.key || o.c.name); return !!inst; });
+  if (!inst) inst = instByName(e.name);
+  var r = yshOf(e, 'rate'), act = yshOf(e, 'act');
+  var h = '<button class="back" onclick="yshClose()">' + esc(UI.yshBack) + '</button>' +
+    '<div class="ysh-hd"><h2>' + esc(e.name) + '</h2>' +
+    /* בלי קוד ישיבה אין לוח לפתוח - הכפתור נשאר, אפור. */
+    (inst ? '<a class="ysh-board" href="' + esc(tzevetUrl(inst.code)) +
+            '" target="_blank" rel="noopener">' + esc(UI.yshBoard) + '</a>'
+          : '<span class="ysh-board off" aria-disabled="true">' + esc(UI.yshBoard) +
+            '<small>' + esc(UI.yshNoBoard) + '</small></span>') +
+    (!e.st ? '' : '<div class="ysh-ind">' + YSH_IND.map(function (d) {
+      var v = yshOf(e, d[0]);
+      return '<span class="ysh-pill" title="' + esc(UI['yshV_' + v]) + '"><i class="ysh-dot ' + 'v-' + v + '"></i>' +
+             esc(UI[d[1]]) + '</span>';
+    }).join('') + '</div><div class="ysh-ind">' +
+    '<span class="ysh-tag ' + 'r-' + r + '">' + esc(UI.yshRate) + ': ' + esc(UI['yshR_' + r]) + '</span>' +
+    '<span class="ysh-pill"><i class="ysh-dot ' + 'v-' + act + '"></i>' + esc(UI.yshActive) + ': ' +
+    esc(UI['yshV_' + act]) + '</span></div>') +
+    (e.st && e.st.note ? '<div class="ysh-snote">' + esc(e.st.note) + '</div>' : '') +
+    (e.st && e.st.upd ? '<div class="ysh-upd">' + esc(fill(UI.yshUpd, { t:yshWhen(e.st.upd) })) + '</div>' : '') + '</div>';
+  /* אותה שורה של המוקד - משימות, סימונים, ספירה - בראש התיק. */
+  /* התיק נבנה בלי לעבור על הרשימה, ולכן הישיבה מוצבת כאן במקום שלה
+     ב-yshShown - כדי שהלחיצות בשורה (yshTick, yshStage) יגיעו אליה. */
+  var nIx = -1;
+  for (var yi = 0; yi < yshShown.length; yi++) if (yshShown[yi].k === e.k) nIx = yi;
+  if (nIx < 0) { yshShown.push(e); nIx = yshShown.length - 1; } else yshShown[nIx] = e;
+  e.t = yshLastAt(e, ctx.jLast || {});
+  h += '<div class="yr-list" style="margin:0 0 12px">' + yshRow(e, nIx) + '</div>';
+  /* מי שנרשם בעצמו - ✉ ליד שמו בכרטיס אם הוא כבר איש קשר,
+     ואחרת כרטיס משלו מתחת. */
+  stfShown = [];
+  ctx.stf = inst ? stfOf(inst.code) : [];
+  if (e.recs.length) {
+    h += '<h3 class="ysh-h">' + esc(UI.yshPeople) + '</h3>';
+    if (e.recs.length > 1) h += '<div class="ysh-empty">' + esc(fill(UI.yshDup, { n:e.recs.length })) + '</div>';
+    e.recs.forEach(function (o) { h += ctCard(o.c, o.i, ctx); });
+  }
+  var rest = ctx.stf.filter(function (s) { return !s.hit; });
+  if (rest.length) {
+    h += '<h3 class="ysh-h">' + esc(UI.yshStaff) + '</h3><div class="stf-list">' +
+         rest.map(stfCard).join('') + '</div>';
+  }
+  ctx.stf = [];
+  return h + '<h3 class="ysh-h">' + esc(UI.yshLog) + '</h3>' + yshLogHtml(e);
 }
 
 function renderCalls() {
@@ -145,23 +137,36 @@ function renderCalls() {
         }
         state.yshOpen = "";
     }
+    var yEnts = ents.filter(function(e) {
+        return e.recs.length;
+    });
+    var yCount = function(ok) {
+        return yEnts.filter(function(e) {
+            return e.recs.some(function(o) {
+                return ok(o.c);
+            });
+        }).length;
+    };
     var counts = {
-        all: list.length
+        all: ents.length
     };
     STAGES.forEach(function(s) {
-        counts[s.k] = list.filter(function(c) {
+        counts[s.k] = yCount(function(c) {
             return c.stage === s.k;
-        }).length;
+        });
     });
-    counts.last = list.filter(function(c) {
+    counts.last = yCount(function(c) {
         return c.last;
-    }).length;
-    counts.signed = list.filter(function(c) {
+    });
+    counts.signed = yCount(function(c) {
         return !!regOf(c, regs);
-    }).length;
+    });
+    counts.talked = yCount(function(c) {
+        return c.stage !== "new";
+    });
     yshCtx = ctx;
-    var h = '<div class="my-top" style="margin:0"><b>מוקד שיחות</b><span>' + counts.joined + " מתוך " + list.length + " ישיבות הצטרפו · " + (list.length - counts.new) + " שיחות בוצעו</span></div>" + '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' + 'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa, {
-        url: joinUrl("").replace("join.html", "kishurim.html")
+    var h = '<div class="my-top" style="margin:0"><b>מוקד שיחות</b><span>' + counts.joined + " מתוך " + yEnts.length + " ישיבות הצטרפו · " + counts.talked + " שיחות בוצעו</span></div>" + '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' + 'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa, {
+        url: joinUrl("").replace("/join", "kishurim.html")
     })) + '">📨 ' + esc(UI.kishBtn) + "</a>" + '<button class="back" style="margin:6px 0 0" onclick="admSubGo(\'links\')">✎ ' + esc(UI.kishTexts) + "</button>" + '<div id="call-sync" class="msg" style="margin:10px 0 0">' + esc(callSync.state || "נשמר על המכשיר") + (list.filter(function(c) {
         return !peopleOf(c).some(function(q) {
             return q.phone;

@@ -22,6 +22,7 @@ export async function queueNotificationRequest(
     const board = await databaseAction("read", {
       board: scope,
       k: payload.k || "",
+      dev: payload.dev || "",
     });
     if (
       !board ||

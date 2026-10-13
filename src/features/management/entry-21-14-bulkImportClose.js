@@ -414,6 +414,9 @@ function fill(tpl, vars) {
         return vars[k] != null ? vars[k] : m;
     });
 }
+/* הודעה שאין מאחוריה ישיבה (קישור כללי): השורה שיש בה {inst} -
+   "צוות {inst}" - יורדת, והחתימה נשארת "באהבה," פתוחה. */
+function noInst(tpl) { return String(tpl).replace(/[^\n]*\{inst\}[^\n]*/g, ''); }
 
 applyCfg();
 

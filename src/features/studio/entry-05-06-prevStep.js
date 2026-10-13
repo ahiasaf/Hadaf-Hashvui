@@ -35,53 +35,110 @@ function canContinue() {
     return !!(GSEL && !STEPS.length && prevStep());
 }
 
-function addStep(cont) {
-    if (INSP >= 0) return;
-    var prev = cont ? prevStep() : null;
-    if (!GSEL || (cont ? !prev : !CSEL_P)) return;
-    var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
-    var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
-    var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
-    var step = {
-        g: {
-            from: {
-                line: i0,
-                x: +xa.toFixed(3)
-            },
-            to: {
-                line: i1,
-                x: +xb.toFixed(3)
-            }
-        },
-        c: cont ? {
-            from: prev.c.from,
-            to: prev.c.to,
-            text: prev.c.text,
-            h: prev.c.h
-        } : {
-            from: CSEL_P.a,
-            to: CSEL_P.b,
-            text: chavText(),
-            h: chavRich()
-        }
-    };
-    if (cont) step.cont = 1;
-    var at = STEPS.length;
-    for (var i = 0; i < STEPS.length; i++) {
-        var f = STEPS[i].g.from;
-        if (f.line > i0 || f.line === i0 && f.x >= xa) {
-            at = i;
-            break;
-        }
+/* ============================================================
+   "↩ חיבור" - המשך שמביא איתו גם פסקה מהחברותא.
+   ============================================================
+   "החברותא מראה לי רק את העמוד שאני עומד בו. סימנתי את הקטע
+   האחרון בגמרא ובחברותא, עברתי עמוד, סימנתי שם את הראשון בגמרא
+   ובחברותא - ולא הייתה דרך לומר שזה חלק מהקודם."
+
+   המשפט נחתך במעבר גם בחברותא, ו"↩ המשך הקטע" הרגיל לוקח רק את
+   הביאור שנבחר למטה. כאן הפסקה שנבחרה בראש העמוד מצטרפת אליו:
+   הקטע שבעמוד הקודם וההמשך נושאים שניהם את הביאור המחובר.
+
+   · באותו דף (עמוד ב׳) הקובץ אחד, ולכן הקטע הקודם פשוט נמתח עד
+     הפסקה שנבחרה.
+   · בראש דף חדש הפסקאות בקובץ אחר. הטקסט מתחבר, והמספרים שלהן
+     נשמרים בהמשך (`cj`), כדי שהקטע הבא יתחיל אחריהן.
+   `cj` נשמר בשני המקרים - ממנו יודעים לבטל, ולהשלים כשפעולה
+   אחרת בנתה את הביאור של הקטע הקודם מחדש.
+   ============================================================ */
+function crossDaf_() { return (+selVal('pg') || 1) === 1; }
+function joinedC_(pv, cj) {
+  if (!crossDaf_()) {
+    var r = chavRange(pv.c.from, cj.to);
+    return r ? { from: pv.c.from, to: cj.to, text: r.text, h: r.h } : null;
+  }
+  var ph = pv.c.h || (pv.c.text ? '<p>' + esc(pv.c.text) + '</p>' : '');
+  return { from: pv.c.from, to: pv.c.to,
+           text: (pv.c.text || '') + ' ' + cj.text, h: ph + cj.h };
+}
+function joinHas_(pv, cj) {
+  return crossDaf_() ? String(pv.c.h || '').slice(-cj.h.length) === cj.h
+                     : pv.c.to >= cj.to;
+}
+function setRootC_(pv, c) {
+  pv.c = c;
+  var k = keyOfStep_(pv);
+  if (k && BOOK[k]) { BOOK[k].t = Date.now(); DIRTY[k] = 1; }
+}
+/* המשך שמוסר - הפסקה חוזרת להיות פנויה, והקטע הקודם מתקצר */
+function unjoin_(st) {
+  if (!st || !st.cont || !st.cj) return;
+  var pv = prevStep(), cj = st.cj;
+  if (!pv || pv === st || pv.cont || !joinHas_(pv, cj)) return;
+  var c;
+  if (crossDaf_()) {
+    var t = String(pv.c.text || ''), tt = ' ' + cj.text;
+    c = { from: pv.c.from, to: pv.c.to,
+          text: t.slice(-tt.length) === tt ? t.slice(0, -tt.length) : t,
+          h: String(pv.c.h || '').slice(0, -cj.h.length) };
+  } else {
+    if (pv.c.to !== cj.to) return;
+    var r = cj.from - 1 >= pv.c.from ? chavRange(pv.c.from, cj.from - 1) : null;
+    if (!r) return;
+    c = { from: pv.c.from, to: cj.from - 1, text: r.text, h: r.h };
+  }
+  setRootC_(pv, c);
+}
+
+function addStep(cont, join) {
+  if (INSP >= 0) return;
+  var prev = cont ? prevStep() : null;
+  if (!GSEL || (cont ? !prev : !CSEL_P)) return;
+  var cj = null, jc = null;
+  if (cont && join) {
+    if (!CSEL_P) return;
+    if (!CHV) { say('החברותא עוד לא נטענה - נסו שוב בעוד רגע.', 1); return; }
+    if (prev.cont) { say('הקטע בעמוד הקודם הוא עצמו המשך - אי אפשר לצרף אליו פסקה מכאן.', 1); return; }
+    if (!crossDaf_() && CSEL_P.a <= prev.c.to) {
+      say('הפסקה הזו כבר שייכת לקטע בעמוד הקודם.', 1); return;
     }
-    STEPS.splice(at, 0, step);
-    seal();
-    if (step.id) NEW_IDS[step.id] = 1;
-    touched();
-    GSEL = null;
-    CSEL_P = null;
-    paintChav(1);
-    markDraw();
+    var r = chavRange(CSEL_P.a, CSEL_P.b);
+    if (!r) { say('הפסקאות שנבחרו מוסתרות - אין מה לצרף.', 1); return; }
+    cj = { from: CSEL_P.a, to: CSEL_P.b, text: r.text, h: r.h };
+    jc = joinedC_(prev, cj);
+    if (!jc) { say('לא הצלחתי לחבר את הביאור - לא נוסף.', 1); return; }
+    /* קודם הקטע הקודם: `seal` מעתיק ממנו אל ההמשך */
+    setRootC_(prev, jc);
+  }
+  var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
+  var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
+  var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
+  /* הקטעים רצים לפי סדר השורות, ולכן קטע חדש נכנס במקומו ולא
+     בהכרח בסוף. בלי זה, תיקון של קטע אחד באמצע הדף חייב פירוק של
+     כל מה שאחריו: מוחקים אותו, ומה שמוסיפים במקומו נופל בסוף. */
+  var step = { g: { from: { line: i0, x: +xa.toFixed(3) },
+                    to:   { line: i1, x: +xb.toFixed(3) } },
+               c: cont ? { from: prev.c.from, to: prev.c.to,
+                           text: prev.c.text, h: prev.c.h }
+                       : { from: CSEL_P.a, to: CSEL_P.b,
+                           text: chavText(), h: chavRich() } };
+  if (cont) step.cont = 1;
+  if (cj) step.cj = cj;
+  var at = STEPS.length;
+  for (var i = 0; i < STEPS.length; i++) {
+    var f = STEPS[i].g.from;
+    if (f.line > i0 || (f.line === i0 && f.x >= xa)) { at = i; break; }
+  }
+  STEPS.splice(at, 0, step);
+  seal();                       /* הרצף נאטם מיד, לפני כל דבר אחר */
+  if (step.id) NEW_IDS[step.id] = 1;
+  touched();
+  GSEL = null; CSEL_P = null;
+  paintChav(1); markDraw();
+  if (cj) say('✓ המשך הקטע נוסף, והפסקה צורפה לביאור שלו - גם בעמוד הקודם. ' +
+              'נשמר במכשיר - "שמירה" מעלה לגיליון.');
 }
 
 function stepRows() {
@@ -137,7 +194,7 @@ function dropOrphans() {
 
 function showSteps() {
     var box = document.getElementById("splitbox");
-    var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' + "<p>הקשה על קטע מציגה אותו על הדף. ✕ מוחק אותו בלבד - " + "השאר נשארים, ואפשר להוסיף חדש במקומו.</p>";
+    var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' + "<p>הקשה על קטע מציגה אותו על הדף. 🔗 מאחד אותו עם הקטע שאחריו - " + "הפירוש, ההקלטות והשאלות של שניהם נשארים. ✕ מוחק אותו: השורות " + "שלו עוברות לקטע שאחריו, ומה ששויך לו לא יוצג יותר.</p>";
     if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
     var orph = orphanKeys();
     if (orph.length) {
@@ -153,7 +210,7 @@ function showSteps() {
             return;
         }
         var st = r.st;
-        html += '<div class="row">' + '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + ".</b> שורות " + (st.g.from.line + 1) + "-" + (st.g.to.line + 1) + " · פסקה " + (st.c.from + 1) + (st.c.to > st.c.from ? "-" + (st.c.to + 1) : "") + "<i>" + esc((st.c.text || "").slice(0, 60)) + "</i></button>" + '<button class="del" data-del="' + r.i + '">✕</button></div>';
+        html += '<div class="row">' + '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + ".</b> שורות " + (st.g.from.line + 1) + "-" + (st.g.to.line + 1) + " · פסקה " + (st.c.from + 1) + (st.c.to > st.c.from ? "-" + (st.c.to + 1) : "") + "<i>" + esc((st.c.text || "").slice(0, 60)) + "</i></button>" + '<button class="mrg" data-mrg="' + r.i + '" title="איחוד עם הקטע הבא">🔗</button>' + '<button class="del" data-del="' + r.i + '" title="מחיקה">✕</button></div>';
     });
     html += "<button class=\"cl\" onclick=\"document.getElementById('splitbox').className='splitbox'\">סגירה</button></div>";
     box.innerHTML = html;
@@ -163,10 +220,16 @@ function showSteps() {
             dropOrphans();
         };
     });
+    [].forEach.call(box.querySelectorAll("[data-mrg]"), function(b) {
+        b.onclick = function() {
+            box.className = "splitbox";
+            mergeStep(+b.dataset.mrg);
+        };
+    });
     [].forEach.call(box.querySelectorAll("[data-del]"), function(b) {
         b.onclick = function() {
             box.className = "splitbox";
-            mergeStep(+b.dataset.del);
+            deleteStep(+b.dataset.del);
         };
     });
     [].forEach.call(box.querySelectorAll("[data-go]"), function(b) {
@@ -191,12 +254,13 @@ function showSteps() {
     });
 }
 
+
 function removeStep(i) {
-    STEPS.splice(i, 1);
-    seal();
-    touched();
-    paintChav(1);
-    markDraw();
+  unjoin_(STEPS[i]);
+  STEPS.splice(i, 1);
+  seal();
+  touched();
+  paintChav(1); markDraw();
 }
 
 var NEW_IDS = {};
@@ -230,43 +294,41 @@ function nextPageKey_() {
 }
 
 function studioContent_() {
-    var mas = selVal("mas"), daf = selVal("daf"), rec = BOOK[PKEY] || {};
-    var dafs = [ SidDaf(daf) ];
-    if (rec.prev > 0 && rec.prevDaf) dafs.push(SidDaf(rec.prevDaf));
-    var tabs = [ "פירוש", "שאלות בדף", "מצגת" ];
-    return Promise.all(tabs.map(function(t) {
-        return sheetCsv(t);
-    })).then(function(res) {
-        var out = {
-            read: true,
-            legacy: false,
-            anch: null
-        };
-        res.forEach(function(rows, ti) {
-            if (!rows) {
-                out.read = false;
-                return;
-            }
-            rows.slice(1).forEach(function(r) {
-                if (r[0] !== mas || dafs.indexOf(SidDaf(r[1])) < 0) return;
-                var v;
-                try {
-                    v = JSON.parse(r[2]);
-                } catch (e) {
-                    return;
-                }
-                if (!v || typeof v !== "object") return;
-                if (ti === 2 && SidDaf(r[1]) === SidDaf(daf)) out.anch = v;
-                if (v.__ids) return;
-                for (var k in v) if (v.hasOwnProperty(k) && /^\d+$/.test(k)) out.legacy = true;
-            });
-        });
-        return out;
-    }).catch(function() {
-        return {
-            read: false
-        };
+  var mas = selVal('mas'), daf = selVal('daf'), rec = BOOK[PKEY] || {};
+  var dafs = [SidDaf(daf)];
+  if (rec.prev > 0 && rec.prevDaf) dafs.push(SidDaf(rec.prevDaf));
+  var tabs = ['פירוש', 'שאלות בדף', 'מצגת'];
+  return Promise.all(tabs.map(function (t) { return sheetCsv(t); })).then(function (res) {
+    var out = { read: true, legacy: false, anch: null, has: {} };
+    res.forEach(function (rows, ti) {
+      if (!rows) { out.read = false; return; }
+      rows.slice(1).forEach(function (r) {
+        if (r[0] !== mas || dafs.indexOf(SidDaf(r[1])) < 0) return;
+        var v;
+        try { v = JSON.parse(r[2]); } catch (e) { return; }
+        if (!v || typeof v !== 'object') return;
+        if (ti === 2 && SidDaf(r[1]) === SidDaf(daf)) out.anch = v;
+        if (v.__ids) {
+          /* מה ששויך לכל מזהה - בשביל השאלה לפני מחיקה */
+          for (var q in v) if (v.hasOwnProperty(q) && q.indexOf('__') !== 0 && hasVal_(v[q])) {
+            out.has[q] = out.has[q] || [];
+            if (out.has[q].indexOf(ti) < 0) out.has[q].push(ti);
+          }
+          return;
+        }
+        for (var k in v) if (v.hasOwnProperty(k) && /^\d+$/.test(k)) out.legacy = true;
+      });
     });
+    return out;
+  }).catch(function () { return { read: false }; });
+}
+/* יש בערך משהו של ממש? רשומת פירוש ריקה נושאת עדיין תווית ("פירוש")
+   וחותמת זמן - אלה לבדן אינן תוכן. */
+function hasVal_(v) {
+  if (v == null || v === '') return false;
+  if (typeof v !== 'object') return true;
+  for (var k in v) if (v.hasOwnProperty(k) && k !== 'tag' && k.charAt(0) !== '_' && hasVal_(v[k])) return true;
+  return false;
 }
 
 function mergeAsk_(info, b, after) {
@@ -290,6 +352,10 @@ function mergeStep(i) {
         return;
     }
     var nx = STEPS[i + 1], rec = BOOK[PKEY] || {}, pg = +selVal("pg") || 1;
+    if (typeof rec.upto === "number" && i === rec.upto) {
+        say("השבוע נגמר בין שני הקטעים האלה - כל אחד שייך לשבוע אחר. אי אפשר לאחד אותם.", 1);
+        return;
+    }
     if (rec.prev > 0 && i === rec.prev - 1) {
         say("הקטע הראשון שייך ללימוד של הדף הקודם, והשני לדף הזה - כל אחד על חברותא אחרת. אי אפשר לאחד אותם.", 1);
         return;
@@ -366,6 +432,7 @@ function mergeStep(i) {
         }
         STEPS.splice(i + 1, 1);
         if (rec.prev > i + 1) rec.prev--;
+        if (typeof rec.upto === "number" && rec.upto > i) rec.upto--;
         if (i === STEPS.length - 1) {
             var nk = nextPageKey_(), nb = BOOK[nk], f0 = nb && nb.steps && nb.steps[0];
             if (f0 && f0.cont) {
@@ -381,6 +448,62 @@ function mergeStep(i) {
         markPanel();
         say('✓ אוחד. נשמר במכשיר - "שמירה" מעלה לגיליון.');
     });
+}
+
+
+/* ============================================================
+   מחיקת קטע - לצד האיחוד.
+   ============================================================
+   "אני בא למחוק קטע, ובמקום למחוק הוא שואל אותי לגבי לאחד."
+   ✕ מוחק, 🔗 מאחד. במחיקה השורות של הקטע עוברות לקטע שאחריו
+   (`seal` אוטם את הרצף), ומה ששויך למזהה שלו נשאר בגיליון בלי
+   קטע שמציג אותו. לכן שואלים - רק כשבאמת יש לו משהו.
+   ============================================================ */
+function deleteStep(i) {
+  var st = STEPS[i];
+  if (!st) return;
+  if (SPL) splitCancel(1);
+  var rec = BOOK[PKEY] || {};
+  if (i === STEPS.length - 1) {
+    var nr = BOOK[nextPageKey_()], n0 = nr && nr.steps && nr.steps[0];
+    if (n0 && n0.cont) {
+      say('הקטע הזה ממשיך בראש העמוד הבא. מחקו קודם את ההמשך שם, ואז אותו.', 1);
+      return;
+    }
+  }
+  var go = function () {
+    if (STEPS[i] !== st) { say('הקטעים השתנו בינתיים - לא נמחק.', 1); return; }
+    if (rec.prev > i) rec.prev--;
+    if (typeof rec.upto === 'number' && rec.upto >= i) {
+      rec.upto--;
+      if (rec.upto < 0) { delete rec.upto; delete rec.uptoDaf; }
+    }
+    removeStep(i);
+    markPanel();
+    say('✓ נמחק. נשמר במכשיר - "שמירה" מעלה לגיליון.');
+  };
+  /* קטע המשך אינו נושא תוכן משלו, וקטע שסומן עכשיו - עוד אין לו */
+  var ids = st.cont ? [] : [st.id].concat(st.also || []).filter(Boolean);
+  if (!ids.length || (NEW_IDS[st.id] && !st.also)) { go(); return; }
+  say('בודק מה שויך לקטע…');
+  studioContent_().then(function (info) {
+    var names = ['פירוש או הקלטה', 'שאלות', 'שקף שמתחיל בו'], got = [];
+    ids.forEach(function (d) {
+      ((info.has || {})[d] || []).forEach(function (t) {
+        if (got.indexOf(names[t]) < 0) got.push(names[t]);
+      });
+    });
+    var msg = '';
+    if (!info.read) msg = 'לא הצלחתי לבדוק אם יש לקטע פירוש, הקלטות או שאלות. ' +
+      'אם יש - הם לא יוצגו יותר.\n\nלמחוק בכל זאת?';
+    else if (info.legacy) msg = '⚠ הדף הזה עוד לא הוסב למזהים קבועים. המחיקה תזיז את ' +
+      'הפירוש, השאלות והשקפים של כל הקטעים שאחריו.\n\nלמחוק בכל זאת?';
+    else if (got.length) msg = 'למחוק את הקטע?\n\nיש לו ' + got.join(', ') +
+      '. אחרי המחיקה הם לא יוצגו יותר לאף אחד.\n\n' +
+      'כדי לשמור עליהם - "ביטול", ואז 🔗 לאיחוד עם הקטע שאחריו.';
+    if (msg && !confirm(msg)) { say('לא נמחק.'); return; }
+    go();
+  });
 }
 
 function setMode(m) {

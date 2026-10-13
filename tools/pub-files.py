@@ -33,7 +33,7 @@ def wanted():
 
 
 def block(ids):
-    return (BEGIN + ' — נוצר ע"י tools/pub-files.py מתוך links.js. לא לערוך ביד. */\n'
+    return (BEGIN + ' - נוצר ע"י tools/pub-files.py מתוך links.js. לא לערוך ביד. */\n'
             'var PUB_FILES = {\n' +
             ',\n'.join("  '%s':1" % i for i in ids) + '\n};\n' + END)
 

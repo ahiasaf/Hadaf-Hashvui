@@ -197,20 +197,23 @@ var LIB_READY = fetch("daf/index.json").then(function(r) {
 });
 
 function onDaf() {
-    var c = curDaf();
-    var opts = [];
-    if (fileId(c.links[0])) opts.push([ "0", "צורת הדף" ]);
-    if (fileId(c.links[1])) opts.push([ "1", "חברותא" ]);
-    fillSel(document.getElementById("src"), opts);
-    onSrc();
-    if (typeof setHideMode === "function") setHideMode(false);
-    if (MODE === "mark") {
-        loadChav();
-        loadFromSheet().then(afterSheet);
-    }
+  var c = curDaf();
+  var opts = [];
+  if (fileId(c.links[0])) opts.push(['0', 'צורת הדף']);
+  if (fileId(c.links[1])) opts.push(['1', 'חברותא']);
+  fillSel(document.getElementById('src'), opts);
+  onSrc();
+  /* החלפת דף בתוך מסך הסימון החליפה רק את התמונה: החברותא נשארה
+     של הדף הקודם, והסימונים של הדף החדש כלל לא נטענו מהגיליון -
+     כך שגם קובץ ה-JSON יצא ובו הדף הקודם. שניהם נטענים עכשיו. */
+  if (typeof setHideMode === 'function') setHideMode(false);
+  if (MODE === 'mark') { loadChav(); loadFromSheet().then(afterSheet); }
+  else loadFromSheet().then(afterSheetCal_);
 }
 
 function backfillChav() {
+    var purged = purgeHidden_();
+    if (purged) say("פסקה מוסתרת הוצאה מ-" + purged + " עמודים שבהם עוד הופיעה. שמרו כדי לקבע.");
     if (!STEPS.length) return 0;
     if (!CHV) return 0;
     var n = 0, miss = 0, noPar = 0, mismatch = 0;
@@ -256,18 +259,15 @@ function backfillChav() {
     return n;
 }
 
+
 function bareTxt(t) {
     return String(t || "").replace(/\s+/g, "");
 }
 
 function afterSheet(n) {
-    if (!n) return;
-    PKEY = "";
-    loadPageState();
-    paintChav();
-    markDraw();
-    backfillChav();
-    say("נטענו סימונים קודמים מ-" + n + " עמודים");
+  if (!n) return;
+  PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); backfillChav();
+  say('נטענו סימונים קודמים מ-' + n + ' עמודים');
 }
 
 function libImg(daf, pg) {
@@ -415,6 +415,7 @@ function jsonp(url) {
 }
 
 var STUDIO_VER = "9.0.0";
+
 
 window.addEventListener("DOMContentLoaded", function() {
     document.getElementById("ver").textContent = "v" + STUDIO_VER;

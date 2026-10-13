@@ -5,6 +5,8 @@ import {
   parseDraft,
   restoreSteps,
   stepValid,
+  normalizePhone,
+  validPhone,
   stepsFor,
 } from "../src/lib/signup-flow.ts";
 
@@ -48,4 +50,15 @@ test("a saved draft resumes at its step and ignores junk", () => {
   );
   assert.equal(parseDraft("nope"), null);
   assert.equal(parseDraft({ step: 2 }), null);
+});
+
+test("mobile phone validation accepts Israeli international prefixes and student opt out only", () => {
+  const answers = { ...emptyAnswers };
+  assert.equal(normalizePhone("+972 50-111-1111"), "0501111111");
+  assert.equal(validPhone("+972 50-111-1111"), true);
+  assert.equal(validPhone("050111111"), false);
+  assert.equal(validPhone("05011111111"), false);
+  assert.equal(stepValid("phone", answers), true);
+  assert.equal(stepValid("phone", answers, true), false);
+  assert.equal(stepValid("phone", { ...answers, role: "dad" }), false);
 });

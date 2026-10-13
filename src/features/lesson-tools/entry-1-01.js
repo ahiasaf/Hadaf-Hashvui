@@ -31,6 +31,10 @@ var IDX = 0, DIM = true, R = 1.4, SHOWN = -1, HEAD = '', GROUPS = 0;
    אליו - מי שסגר אותו כדי להסתכל שוב לא רוצה לפגוש אותו בכל
    הקשה על "הבא". */
 var DONE_SEEN = false;
+/* BUILT - הדף כולו לפני החיתוך לעמוד (ב. / ב:).
+   LEAVING - כבר יצאנו לדף אחר: לחיצות נוספות אינן נספרות.
+   לחיצה כפולה על כפתור המעבר אינה נספרת שוב. */
+var BUILT = null, LEAVING = false;
 
 function $(id) { return document.getElementById(id); }
 function esc(t) {
@@ -209,37 +213,45 @@ function lineH(d) {
    ולא נצבע - מה שחשוב במיוחד בגמרא, שכל האותיות בה שחורות.
    ============================================================ */
 function paint() {
-  var st = FLAT[IDX], ov = $('ov');
-  if (!st) { ov.innerHTML = ''; return; }
-  var d = PAGES[st.p].d;
-  var VW = 1000, VH = Math.round(1000 * R);
-  var b = bands(d, st.g).map(function (r) {
-    return { x0: +(r.x0 * VW).toFixed(1), x1: +(r.x1 * VW).toFixed(1),
-             y0: +(r.y0 * VH).toFixed(1), y1: +(r.y1 * VH).toFixed(1) };
-  });
-  ov.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH);
-  if (!b.length) { ov.innerHTML = ''; if (typeof glowPaint === 'function') glowPaint(); return; }
-  var path = outline(b);
+    var st = FLAT[IDX], ov = $("ov");
+    peekBadge(st);
+    if (!st) {
+        ov.innerHTML = "";
+        return;
+    }
+    var d = PAGES[st.p].d;
+    var VW = 1e3, VH = Math.round(1e3 * R);
+    var b = bands(d, st.g).map(function(r) {
+        return {
+            x0: +(r.x0 * VW).toFixed(1),
+            x1: +(r.x1 * VW).toFixed(1),
+            y0: +(r.y0 * VH).toFixed(1),
+            y1: +(r.y1 * VH).toFixed(1)
+        };
+    });
+    ov.setAttribute("viewBox", "0 0 " + VW + " " + VH);
+    if (!b.length) {
+        ov.innerHTML = "";
+        if (typeof glowPaint === "function") glowPaint();
+        return;
+    }
+    var path = outline(b);
+    ov.innerHTML = DIM ? '<defs><mask id="hole">' + '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' + '<path d="' + path + '" fill="#000"/>' + "</mask></defs>" + '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" ' + 'opacity=".80" mask="url(#hole)"/>' + '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' + 'stroke-linejoin="round" opacity=".5"/>' : '<path d="' + path + '" fill="#E3B44A" opacity=".42" ' + 'style="mix-blend-mode:multiply"/>';
+    if (typeof glowPaint === "function") glowPaint();
+}
 
-  /* שני מצבים, שתי שפות.
 
-     במיקוד - מסכה בצבע הנייר על כל השאר, ומסגרת דקה סביב הקטע.
-     בדף המלא - אין את מי להסתיר, והמסגרת מיותרת: היא אומרת "עד
-     כאן ולא הלאה", וזה בדיוק ההפך ממה שהמצב הזה נועד לו. במקומה
-     הדגשה על השורות עצמן, כמו מרקר על נייר - `multiply` משאיר
-     את האותיות שחורות מתחת לצבע במקום לצבוע אותן. */
-  ov.innerHTML = DIM
-    ? '<defs><mask id="hole">' +
-        '<rect width="' + VW + '" height="' + VH + '" fill="#fff"/>' +
-        '<path d="' + path + '" fill="#000"/>' +
-      '</mask></defs>' +
-      '<rect width="' + VW + '" height="' + VH + '" fill="#F6F1E6" ' +
-        'opacity=".80" mask="url(#hole)"/>' +
-      '<path d="' + path + '" fill="none" stroke="#C08F2B" stroke-width="1.5" ' +
-        'stroke-linejoin="round" opacity=".5"/>'
-    : '<path d="' + path + '" fill="#E3B44A" opacity=".42" ' +
-        'style="mix-blend-mode:multiply"/>';
-  if (typeof glowPaint === 'function') glowPaint();
+/* קטע מחוץ לשבוע - רק במצב עריכה (ראו flatOpt). תווית קבועה
+   מעל הבמה, כדי שלא יתבלבל עם מה שהתלמיד רואה. */
+function peekBadge(st) {
+  var el = $('peekbadge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'peekbadge';
+    document.body.appendChild(el);
+  }
+  el.textContent = UI.wePeek || '';
+  el.className = st && st.peek ? 'on' : '';
 }
 
 /* ההתמקדות: חלון נע על הדף.

@@ -148,7 +148,8 @@ var TX = (function () {
      היה נשאר על המסך עד רענון. */
   function retired(k, v) {
     var dead = (window.TEXT_RETIRED || {})[k];
-    return !!(dead && dead.indexOf(v) >= 0);
+    var normalize = function (text) { return String(text).replace(/[\u2013\u2014]/g, '-'); };
+    return !!(dead && dead.some(function (text) { return normalize(text) === normalize(v); }));
   }
   function over(map) {
     if (!map) return;

@@ -91,6 +91,10 @@
     },
     {
       "type": "",
+      "src": "/lock.js"
+    },
+    {
+      "type": "",
       "src": "/trip.js"
     },
     {

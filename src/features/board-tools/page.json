@@ -1,0 +1,55 @@
+{
+  "title": "לוח הישיבה וכלי הכיתה",
+  "original": "board",
+  "links": [
+    "<link rel=\"icon\" href=\"/icon-192.png\">"
+  ],
+  "scripts": [
+    {
+      "type": "",
+      "src": "/_vercel/insights/script.js"
+    },
+    {
+      "type": "",
+      "src": "/a11y.js"
+    },
+    {
+      "type": "",
+      "src": "/data.js"
+    },
+    {
+      "type": "",
+      "src": "/learned.js"
+    },
+    {
+      "type": "",
+      "src": "/ways.js"
+    },
+    {
+      "type": "",
+      "src": "/logo.js"
+    },
+    {
+      "type": "",
+      "src": "/lock.js"
+    },
+    {
+      "type": "",
+      "src": "/trip.js"
+    },
+    {
+      "type": "",
+      "files": [
+        "entry-09-01-$.js",
+        "entry-09-02-instOfP.js",
+        "entry-09-03-jsonp.js",
+        "entry-09-04-wayOpenHtml.js",
+        "entry-09-05-wayDot.js",
+        "entry-09-06-listRedraw.js",
+        "entry-09-07-tmTitle.js",
+        "entry-09-08-sndPv.js",
+        "entry-09-09-homeHref.js"
+      ]
+    }
+  ]
+}

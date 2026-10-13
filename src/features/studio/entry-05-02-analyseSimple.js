@@ -265,11 +265,17 @@ function scrollToZone() {
     st.scrollTop = Math.max(0, z.y0 / S.h * r.height - st.clientHeight * .3);
 }
 
-document.getElementById("reset").onclick = function() {
-    if (!D) return;
-    if (BOOK[PKEY] && BOOK[PKEY].cal && !confirm("לזרוק את הכיול הידני של העמוד הזה ולזהות מחדש?")) return;
-    FRESH = true;
-    run();
+document.getElementById('reset').onclick = function () {
+  if (!D) return;
+  if (BOOK[PKEY] && BOOK[PKEY].cal &&
+      !confirm('לזרוק את הכיול הידני של העמוד הזה ולזהות מחדש?')) return;
+  /* הזריקה עצמה קורית בתוך run, אחרי ש-keepPageState כבר רץ -
+     אחרת הוא כותב את הכיול הנוכחי בחזרה ואין מה לזרוק. */
+  FRESH = true;
+  run();
+  /* הזיהוי החדש הוא עכשיו הכיול של העמוד. בלי זה הגיליון -
+     שעדיין מחזיק את הכיול הקודם - היה מחזיר אותו בקריאה הבאה. */
+  if (S) touched();
 };
 
 document.getElementById("save").onclick = function() {

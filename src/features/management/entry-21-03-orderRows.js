@@ -313,13 +313,15 @@ function outUrl() {
 }
 
 function tzevetUrl(code) {
-    var u = joinUrl(code).replace("join.html", "tzevet.html");
-    var k = code ? instCode(code) : "";
-    return k ? u + "&k=" + encodeURIComponent(k) : u;
+  /* בלי קוד בקישור: הלוח נפתח לפי האישור של הרכז, לא לפי הקוד. */
+  return joinUrl(code).replace('join.html', 'tzevet.html');
 }
 
 function demoUrl(mode) {
-    return joinUrl("").replace("join.html", "learn.html") + "?mas=taanit&daf=" + encodeURIComponent("ב") + "&" + (mode || "demo") + "=1";
+  var U = window.DEMO_UNIT || { mas: 'taanit', daf: 'ב', am: 1 };
+  return location.origin + '/lesson-tools' +
+         '?mas=' + encodeURIComponent(U.mas) + '&daf=' + encodeURIComponent(U.daf) +
+         '&amud=' + U.am + '&' + (mode || 'demo') + '=1';
 }
 
 function joinCode() {
@@ -329,22 +331,29 @@ function joinCode() {
 var codeBad = false;
 
 function codeCheck(code) {
-    var k = instCode(code), url = (CFG.api || API || "").trim();
-    if (!code || !k || !url) return;
-    fetch(url + (url.indexOf("?") < 0 ? "?" : "&") + "board=" + encodeURIComponent(code) + "&k=" + encodeURIComponent(k)).then(function(r) {
-        return r.json();
-    }).then(function(d) {
-        if (!d || d.status !== "denied") return;
-        var m = Store.get("instCodes", {}) || {};
-        delete m[code];
-        Store.set("instCodes", m);
-        codeBad = true;
-        renderBoard();
-    }).catch(function() {});
+  var k = instCode(code), url = (CFG.api || API || '').trim();
+  if (!code || !k || !url) return;
+  /* הקוד לבד אינו פותח - השרת שואל על האישור של המכשיר. מי שעוד
+     לא אושר מאבד את הקוד, ונכנס לתהליך ההמתנה (accCheck). */
+  var me = (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {};
+  fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
+        'board=' + encodeURIComponent(code) + '&k=' + encodeURIComponent(k) +
+        '&dev=' + encodeURIComponent(me.id || ''))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !/^(denied|wait|locked|unknown)$/.test(d.status)) return;   /* תקין, או שלא נענה */
+      var m = Store.get('instCodes', {}) || {};
+      delete m[code];
+      Store.set('instCodes', m);
+      codeBad = d.status === 'denied';
+      renderBoard();
+      accCheck(true);
+    })
+    .catch(function () {});           /* אין רשת - לא מסיקים דבר */
 }
 
 function boardUrl(code) {
-    var u = joinUrl(code).replace("join.html?", "board.html?");
+    var u = joinUrl(code).replace("join.html?", "board-tools.html?");
     var k = instCode(code);
     return k ? u + "&k=" + encodeURIComponent(k) : u;
 }

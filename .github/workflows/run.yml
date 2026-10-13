@@ -32,6 +32,9 @@ on:
           - chavruta # בניית מאגר הביאור מקובצי הוורד
           - database-export # Encrypted read-only database migration snapshot
           - fix-bold # התאמה + כתיבה, בריצה אחת
+          - stepid # Stable ID migration, check or next
+          - anchors # Slide anchor migration, check or nums
+          - repair # Stable ID repair, check or fix
       args:
         description: "פרמטרים (למשל: taanit_a_b ב ג ד)"
         required: false
@@ -49,12 +52,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
+        if: ${{ !contains(fromJSON('["stepid","anchors","repair"]'), inputs.job) }}
         with:
           python-version: "3.11"
 
       # poppler דרוש רק ל-library, אבל הוא זול ומותקן תמיד כדי
       # ששינוי משימה לא ידרוש עריכה של הקובץ הזה.
       - name: התקנה
+        if: ${{ !contains(fromJSON('["stepid","anchors","repair"]'), inputs.job) }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
@@ -79,6 +84,32 @@ jobs:
             # שניהם בריצה אחת: הקובץ שהראשון כותב מוחרג מהריפו
             # (הוא מחזיק טלפונים ושמות), ולכן הוא אינו שורד בין ריצות.
             fix-bold)    python3 tools/chav-align.py && python3 tools/chav-apply.py write ;;
+            stepid|anchors|repair) echo 'Maintenance runs in the next step.' ;;
+          esac 2>&1 | tee run.log
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: ${{ contains(fromJSON('["stepid","anchors","repair"]'), inputs.job) }}
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Maintenance dependencies
+        if: ${{ contains(fromJSON('["stepid","anchors","repair"]'), inputs.job) }}
+        run: npm ci --ignore-scripts --omit=dev
+      - name: Content maintenance
+        if: ${{ contains(fromJSON('["stepid","anchors","repair"]'), inputs.job) }}
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          HADAF_DATABASE_BACKEND: ${{ vars.HADAF_DATABASE_BACKEND }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INPUT_JOB: ${{ inputs.job }}
+          INPUT_ARGS: ${{ inputs.args }}
+        run: |
+          set -o pipefail
+          read -r -a tool_args <<< "$INPUT_ARGS"
+          case "$INPUT_JOB" in
+            stepid) node tools/sid-run.mjs "${tool_args[@]}" ;;
+            anchors) node tools/deck-fix.mjs "${tool_args[@]}" ;;
+            repair) node tools/sid-repair.mjs "${tool_args[@]}" ;;
           esac 2>&1 | tee run.log
 
       # התוצאות נשמרות גם כקובץ להורדה, למקרה שהדחיפה נכשלה

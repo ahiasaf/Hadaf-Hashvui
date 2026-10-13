@@ -188,6 +188,12 @@
 
 <!-- הגדלת תמונת ספר. שכבה נפרדת מנגן המצגות: אין כאן ניווט,
      רק תמונה אחת, וסגירה בלחיצה בכל מקום. -->
+<div id="promo" onclick="if(event.target===this)promoClose()">
+  <button id="promo-x" onclick="promoClose()">✕</button>
+  <video id="promo-v" controls playsinline preload="auto"></video>
+</div>
+
+
 <div id="zoom" onclick="zoomClose()">
   <button aria-label="סגירה" onclick="zoomClose()">✕</button>
   <div class="zin"><img alt=""></div>

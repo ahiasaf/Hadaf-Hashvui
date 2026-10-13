@@ -41,7 +41,7 @@ function vCard(icon, title, body, id) {
 
 function admStudents(el) {
     if (!(CFG.readKey || "").trim()) return admPeople(el);
-    el.innerHTML = '<div id="stu">' + '<div class="my-sec"><h3>' + esc(PANEL.brdH) + "</h3><p>" + esc(PANEL.brdSub) + "</p>" + '<div id="stu-brd"></div></div>' + '<div class="my-sec" id="stu-det"><div id="stu-head"></div><div id="ppl-conf"></div>' + '<iframe id="people-f" src="board.html?inst=all&embed=1' + (ADM_INST ? "&filt=" + encodeURIComponent(ADM_INST) : "") + (ADM_WAY ? "&way=" + encodeURIComponent(ADM_WAY) : "") + '" title="' + esc(UI.admTStu) + '" ' + 'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div></div>';
+    el.innerHTML = '<div id="stu">' + '<div class="my-sec"><h3>' + esc(PANEL.brdH) + "</h3><p>" + esc(PANEL.brdSub) + "</p>" + '<div id="stu-brd"></div></div>' + '<div class="my-sec" id="stu-det"><div id="stu-head"></div><div id="ppl-conf"></div>' + '<iframe id="people-f" src="board-tools.html?inst=all&embed=1' + (ADM_INST ? "&filt=" + encodeURIComponent(ADM_INST) : "") + (ADM_WAY ? "&way=" + encodeURIComponent(ADM_WAY) : "") + '" title="' + esc(UI.admTStu) + '" ' + 'scrolling="no" style="width:100%;border:0;display:block;height:' + peopleH + 'px"></iframe></div></div>';
     pplLast = {};
     admLive();
 }

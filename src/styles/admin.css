@@ -584,3 +584,19 @@
     display: block;
   }
 }
+
+.access-record {
+  padding: 20px;
+}
+.access-record h3,
+.access-record p {
+  margin: 0 0 8px;
+}
+.access-record-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.access-record-actions .button + .button {
+  margin-top: 0;
+}

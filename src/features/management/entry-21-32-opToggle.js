@@ -375,9 +375,12 @@ function amdaC4(a) {
     return [ a[0] || 0, a[1] || 0, a[2] || 0, a[3] || 0 ];
 }
 
-function amdaRoster() {
-    return Store.get("amdaRoster", null);
-}
+/* { at, inst, g:{ 'ז':{ '3':['כהן משה', ...] } } } */
+/* נוכחות בשיעור אצל איש צוות: הרשימה של הישיבה שלו מהשרת (שם, שכבה
+   וכיתה בלבד), והרישום עובר בזהות המכשיר - בלי סיסמת הרכז. ראו attOpen. */
+var AMDA_STAFF = null;
+
+function amdaRoster() { return AMDA_STAFF ? AMDA_STAFF.r : Store.get('amdaRoster', null); }
 
 function amdaCount(r) {
     var n = 0, c = 0, g, k;

@@ -159,7 +159,11 @@ async function sendAction(
   });
   if (!response.ok) throw new Error("Action failed");
   const result = await response.json();
-  if (!["ok", "success"].includes(result.status))
+  const accessState =
+    operation === "read" &&
+    payload.board &&
+    ["wait", "locked", "unknown"].includes(result.status);
+  if (!accessState && !["ok", "success"].includes(result.status))
     throw new Error("Action was not acknowledged");
   if (operation === "write") clearPublicCache();
   return JSON.stringify(result);

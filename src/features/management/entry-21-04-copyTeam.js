@@ -38,7 +38,7 @@ function regDone(txt, viaWa) {
         sb.className = "btn gr sent";
         sb.disabled = true;
     }
-    document.getElementById("r-done").innerHTML = (viaWa ? '<p>ההרשמה נשמרה במכשיר. אפשר לשלוח אותה לרכז בוואטסאפ.</p>' : '<p>ההרשמה נשלחה ואושרה.</p>') + (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' + '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' + 'href="https://wa.me/' + COORD_WA + "?text=" + encodeURIComponent(txt) + '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : "") + "";
+    document.getElementById("r-done").innerHTML = (viaWa ? "<p>ההרשמה נשמרה במכשיר. אפשר לשלוח אותה לרכז בוואטסאפ.</p>" : "<p>ההרשמה נשלחה ואושרה.</p>") + (viaWa && COORD_WA ? '<div style="text-align:center;margin-top:11px">' + '<a style="font-size:.79rem;color:var(--ink-3);font-weight:700" ' + 'href="https://wa.me/' + COORD_WA + "?text=" + encodeURIComponent(txt) + '" target="_blank" rel="noopener">לא קיבלתם אישור? שלחו לנו הודעה</a></div>' : "") + "";
     renderHome();
     var code = myBoard();
     var inst = code && INSTITUTIONS.filter(function(i) {
@@ -53,6 +53,7 @@ function regDone(txt, viaWa) {
         block: "start"
     });
 }
+
 
 var ACC_ABC = "abcdefghjkmnpqrstuvwxyz23456789";
 
@@ -216,66 +217,146 @@ function brdTracks(go) {
         return t.id;
     });
 }
+/* משבצת באזור הניהול → הלוח, על הפירוט של הדרך הזו. */
+function brdWay(k) {
+  location.href = boardUrl(myBoard()) + '&way=' + encodeURIComponent(k);
+}
 
 function boardHtml(code, name, hail, go) {
-    var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
-    var wk = weekIndex(), trs = brdTracks(go), tr = trs[0];
-    var row = wk >= 0 ? trackById(tr).cal[wk] : null;
-    var row0 = trackById(tr).cal[0];
-    var cnt = function(t) {
-        return wk >= 0 && typeof LCount === "function" ? LCount(t, wk, code) : 0;
-    };
-    var dafs = [], did = 0;
-    trs.forEach(function(t) {
-        var r = wk >= 0 ? trackById(t).cal[wk] : null;
-        var d = r && r[2] && r[2] !== "סיום" ? rowDaf(r) : null;
-        if (d && dafs.indexOf(d) < 0) dafs.push(d);
-        did += cnt(t);
-    });
-    var daf = dafs.length ? dafs.join(" / ") : null;
-    var masBar = !go || TRACKS.length < 2 ? "" : '<div class="chips brd-mas">' + [ [ "all", UI.admMasAll, TRACKS.reduce(function(a, t) {
-        return a + cnt(t.id);
-    }, 0) ] ].concat(TRACKS.map(function(t) {
-        return [ t.id, t.masechet, cnt(t.id) ];
-    })).map(function(o) {
-        var on = ADM_MAS === o[0] || o[0] === "all" && !trackById(ADM_MAS);
-        return '<button class="chip' + (on ? " on" : "") + '" onclick="admMas(\'' + o[0] + "')\">" + esc(o[1]) + (wk >= 0 ? "<b>" + o[2] + "</b>" : "") + "</button>";
-    }).join("") + "</div>";
-    var wa = fill(UI.linkWa, {
-        inst: name,
-        url: joinUrl(code)
-    });
-    var hero = n ? "<b>" + n + "<small>" + esc(fill(UI.cbHero, {
-        n: ""
-    }).replace(/^\s*/, "")) + "</small></b><span>" + esc(code ? UI.cbHeroSub : UI.admHeroAll) + "</span>" : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + "</b>" + "<p>" + esc(UI.cbEmptySub) + "</p>";
-    var bar = "";
-    if (n && daf) {
-        bar = '<div class="brd-bar"><div class="t"><i style="width:' + Math.max(3, Math.round(did / n * 100)) + '%"></i></div>' + "<span>" + esc(fill(UI.cbBar, {
-            n: did,
-            all: n,
-            daf: daf
-        })) + "</span></div>" + masBar;
-    } else if (n && row0) {
-        bar = '<div class="brd-bar"><div class="brd-first">' + '<span class="dot">' + esc(row0[2]) + "</span>" + "<div><b>" + esc(UI.cbSoon) + " · " + esc(row0[1]) + "</b>" + "<span>" + esc(row0[0]) + "</span></div></div></div>";
-    }
-    var chips = "";
-    if (j && typeof WaysTiles === "function") {
-        var wmap = {};
-        (j.ways || []).forEach(function(p2) {
-            wmap[p2[0]] = p2[1];
-        });
-        chips = WaysTiles(function(kk) {
-            return wmap[kk] || 0;
-        }, go ? {
-            go: "admWay",
-            sel: ADM_WAY
-        } : {});
-    }
-    var hi = hail ? '<div class="hail"><b>' + esc(fill(UI.hailTitle, {
-        inst: name
-    })) + "</b>" + "<span>" + esc(UI.hailSub) + "</span></div>" : "";
-    var full = go ? '<button class="btn p" style="margin-top:10px" onclick="' + go + '">' + esc(UI.cbBoard) + " ←</button>" : '<a class="btn p" style="text-decoration:none;margin-top:10px" ' + 'href="' + esc(boardUrl(code)) + '">' + esc(UI.cbBoard) + " ←</a>";
-    return '<div class="brd' + (hail ? " hail" : "") + '">' + hi + '<div class="brd-hero">' + hero + "</div>" + chips + bar + full + '<div class="brd-note">' + esc(UI.cbNote) + "</div></div>";
+  var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
+  var wk = weekIndex(), trs = brdTracks(go), tr = trs[0];
+  var row = wk >= 0 ? trackById(tr).cal[wk] : null;
+  var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
+  var cnt = function (t) { return wk >= 0 && typeof LCount === 'function' ? LCount(t, wk, code) : 0; };
+  var dafs = [], did = 0;
+  trs.forEach(function (t) {
+    var r = wk >= 0 ? trackById(t).cal[wk] : null;
+    var d = r && r[2] && r[2] !== 'סיום' ? rowDaf(r) : null;
+    if (d && dafs.indexOf(d) < 0) dafs.push(d);
+    did += cnt(t);
+  });
+  var daf = dafs.length ? dafs.join(' / ') : null;
+  /* הבורר - רק בניהול, ורק כשיש יותר ממסכת אחת. */
+  var masBar = !go || TRACKS.length < 2 ? '' :
+    '<div class="chips brd-mas">' +
+    [['all', UI.admMasAll, TRACKS.reduce(function (a, t) { return a + cnt(t.id); }, 0)]]
+      .concat(TRACKS.map(function (t) { return [t.id, t.masechet, cnt(t.id)]; }))
+      .map(function (o) {
+        var on = (ADM_MAS === o[0]) || (o[0] === 'all' && !trackById(ADM_MAS));
+        return '<button class="chip' + (on ? ' on' : '') + '" onclick="admMas(\'' + o[0] + '\')">' +
+          esc(o[1]) + (wk >= 0 ? '<b>' + o[2] + '</b>' : '') + '</button>';
+      }).join('') + '</div>';
+
+  var wa = fill(UI.linkWa, { inst:name, url:joinUrl(code) });
+  /* **הבקשה אינה כאן.** היא יצאה מהלוח לכרטיס משלה, שיושב
+     מעליו - ראו `thanksHtml()`. הלוח אומר מה קורה, והבקשה היא
+     מה שעושים; שני דברים שהתערבבו נקראים כמו ספר. */
+
+  /* אין מצטרפים - אין מספר להתגאות בו, ואפס אינו כותרת. */
+  var hero = n
+    ? '<b>' + n + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
+      '</small></b><span>' + esc(code ? UI.cbHeroSub : UI.admHeroAll) + '</span>'
+    : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
+      '<p>' + esc(UI.cbEmptySub) + '</p>';
+
+  /* הפס - רק כשיש מה למדוד. לפני תחילת הלימוד במקומו שורה
+     שאומרת מתי הוא יתחיל להתמלא. */
+  var bar = '';
+  if (n && daf) {
+    bar = '<div class="brd-bar"><div class="t"><i style="width:' +
+      Math.max(3, Math.round(did / n * 100)) + '%"></i></div>' +
+      '<span>' + esc(fill(UI.cbBar, { n:did, all:n, daf:daf })) + '</span></div>' + masBar;
+  } else if (n && row0) {
+    /* השבוע הראשון בשפת הסימנייה: עיגול הדף, הפרשה, התאריך
+       העברי. המסלול השנתי כבר מעוצב - אין סיבה לכתוב במילים
+       מה שהוא מראה. */
+    bar = '<div class="brd-bar"><div class="brd-first">' +
+      '<span class="dot">' + esc(row0[2]) + '</span>' +
+      '<div><b>' + esc(UI.cbSoon) + ' · ' + esc(row0[1]) + '</b>' +
+      '<span>' + esc(row0[0]) + '</span></div></div></div>';
+  }
+
+  /* ============================================================
+     שלוש דרכי הלימוד - ולא שתי שורות של מספרים.
+     ============================================================
+     "המסך הייצוגי אמור להיות שלושת הבאנרים הצבעוניים האלה."
+
+     כאן ישבו קודם כריות אפורות של שכבות ושורת "אבות ובנים",
+     והן אמרו את אותו הדבר שהלוח המפורט אומר בצבע ובאיור -
+     רק שהן נראו כמו נתון אחר. אותן משבצות בדיוק, מ-ways.js.
+
+     הפילוח לפי כיתה יורד מכאן: הוא מה שמחכה בפירוט, ובשמות.
+     ============================================================ */
+  var chips = '';
+  if (j && typeof WaysTiles === 'function') {
+    var wmap = {};
+    (j.ways || []).forEach(function (p2) { wmap[p2[0]] = p2[1]; });
+    /* בניהול (`go`) המשבצות מסננות את הרשימה שמתחת - ראו admWay. */
+    /* ============================================================
+       **באזור הניהול האישי - לחיצה על משבצת פותחת את הפירוט שלה.**
+       ============================================================
+       מעבר ללוח, ישר על מסך הדרך שנלחצה (`?way=`), ולא רשימה
+       שנפתחת כאן: הרשימה, החיפוש וה"ישר כוח" כבר חיים שם, ושני
+       עותקים של אותה רשימה הם בדיוק מה שנפרד בשקט עם הזמן.
+       רק כשיש קוד גישה - בלעדיו הלוח אומר "אנא המתן", ומשבצת
+       שמובילה לשם מבטיחה שמות שאינם. */
+    chips = WaysTiles(function (kk) { return wmap[kk] || 0; },
+                      go ? { go:'admWay', sel:ADM_WAY }
+                         : (instCode(code) ? { go:'brdWay' } : {}));
+  }
+
+  /* הברכה קיימת רק ברגע שאחרי ההרשמה. בכניסה הבאה הלוח כבר
+     סתם נמצא שם, וזה הנכון - חגיגה שחוזרת בכל פתיחה מפסיקה
+     להיות חגיגה. */
+  var hi = hail
+    ? '<div class="hail"><b>' + esc(fill(UI.hailTitle, { inst:name })) + '</b>' +
+      '<span>' + esc(UI.hailSub) + '</span></div>' : '';
+
+  /* המספר לבדו אינו עונה על השאלה הבאה - "ומי הם?" - ועד עכשיו
+     לא הייתה מכאן שום דרך אליה. הכרטיס הזה הוא תקציר, והלוח
+     המלא הוא המקום שבו יש משבצות לפי מסגרת, שמות מאחוריהן,
+     ושני הקישורים.
+
+     כפתור ולא כרטיס לחיץ: כרטיס שנראה כמו תצוגה ומגיב ללחיצה
+     הוא בדיוק מה שלא נלחץ, כי איש אינו מנסה. */
+  /* ============================================================
+     **הכפתור תמיד כאן.**
+     ============================================================
+     "מה זה הסינית הזאתי? למה הוא לא מקבל את הנתונים? הרי מי
+     שקיבל את המדריך הוא בעצמו ראש החטיבה."
+
+     קודם, כשלא היה קוד גישה במכשיר, הכפתור הוחלף בפסקה
+     שהסבירה שהלוח "נפתח בקישור אישי שהרכז ישלח". שתי בעיות:
+     היא הסבירה מנגנון פנימי במקום לומר מה לעשות, והיא נאמרה
+     למי שהלוח שייך לו.
+
+     והנימוק שמאחוריה - "כפתור בלי קוד מוביל למסך שגיאה" -
+     פשוט אינו נכון: עמוד הלוח נפתח יפה בלי קוד. הוא מראה את
+     הישיבה, את המספרים ואת השבוע, ואומר בשורה אחת ובמקום
+     אחד שהשמות דורשים קוד. הפסקה כאן הייתה אזהרה שנייה על
+     אותו דבר, לפני שהאדם בכלל ראה את המסך.
+     ============================================================ */
+  /* ============================================================
+     **בלי `target="_blank"` לעמוד שלנו.**
+     ============================================================
+     "למה מופיע הפס הכחול עם הכתובת של ורסל? אני הפעלתי את זה
+     באפליקציה, לא בדפדפן."
+
+     זה היה זה: בתוך אפליקציה מותקנת, קישור שנפתח בלשונית
+     חדשה יוצא מהאפליקציה אל לשונית דפדפן - ואנדרואיד מוסיף
+     לה פס עם הכתובת. הלוח הוא עמוד שלנו, והוא צריך להיפתח
+     בתוך האפליקציה כמו כל מסך אחר.
+     ============================================================ */
+  var full = go
+    ? '<button class="btn p" style="margin-top:10px" onclick="' + go + '">' + esc(UI.cbBoard) + ' ←</button>'
+    : '<a class="btn p" style="text-decoration:none;margin-top:10px" ' +
+    'href="' + esc(boardUrl(code)) + '">' + esc(UI.cbBoard) + ' ←</a>';
+
+  /* הסדר: כמה → מי הם → מתי → הפירוט המלא. */
+  return '<div class="brd' + (hail ? ' hail' : '') + '">' + hi +
+         '<div class="brd-hero">' + hero + '</div>' +
+         chips + bar + full +
+         '<div class="brd-note">' + esc(UI.cbNote) + '</div></div>';
 }
 
 function myInstRow() {

@@ -300,24 +300,31 @@ function ownPublishVerify(tries, on) {
    "חברותא" - "קטע בלי הקלטה, אין כפתור". אצל אחיאסף היא תמיד
    לחיצה, כי בלעדיה אי אפשר לכתוב פירוש ראשון לקטע. */
 function paintChavArea() {
-  ownCatch_();
-  var st = FLAT[IDX];
-  var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
-  var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
-  if (CHAV_TAB === 'own' && !canOwn) CHAV_TAB = 'chav';
-  if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
-  document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
-  var cht = $('cht');
-  if (cht) cht.innerHTML = QUIZ_OPEN ? quizChdHtml() : chavTabHtml(st);
-  if (QUIZ_OPEN) paintQuiz();
-  else if (CHAV_TAB === 'own' && canOwn) paintOwn();
-  else paintChav();
-  if ($('cht-chav')) $('cht-chav').onclick = function () { CHAV_TAB = 'chav'; paintChavArea(); };
-  if ($('cht-own'))  $('cht-own').onclick  = function () { CHAV_TAB = 'own';  paintChavArea(); };
-  if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
-  quizFabPaint();
-  syncViewControls();
+    ownCatch_();
+    var st = FLAT[IDX];
+    var canOwn = !!(st && (SIDE_ADM || OWN && OWN.__pub && ownPieces_(st.n).length));
+    var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+    if (CHAV_PREF === "own" && canOwn) CHAV_TAB = "own";
+    if (CHAV_TAB === "own" && !canOwn) CHAV_TAB = "chav";
+    if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
+    document.body.classList.toggle("quiz-on", !!QUIZ_OPEN);
+    var cht = $("cht");
+    if (cht) cht.innerHTML = QUIZ_OPEN ? quizChdHtml() : chavTabHtml(st);
+    if (QUIZ_OPEN) paintQuiz(); else if (CHAV_TAB === "own" && canOwn) paintOwn(); else paintChav();
+    if ($("cht-chav")) $("cht-chav").onclick = function() {
+        chavPick_("chav");
+    };
+    if ($("cht-own")) $("cht-own").onclick = function() {
+        chavPick_("own");
+    };
+    if ($("cht-x")) $("cht-x").onclick = function() {
+        QUIZ_OPEN = false;
+        paintChavArea();
+    };
+    quizFabPaint();
+    syncViewControls();
 }
+
 
 /* העיגול הצף של החידה - צף מעל הבמה, לא בזרם התוכן, כדי שיהיה
    נגיש בלי לפתוח כלום: לחיצה עליו פותחת את המגירה (אם סגורה)
@@ -325,22 +332,31 @@ function paintChavArea() {
    נשאר על המסך תמיד כשיש חידה לקטע - גם כשהיא כבר פתוחה, כדי
    שאותה לחיצה תסגור אותה (מתג, לא כפתור-פתיחה-חד-פעמי). */
 function quizFabPaint() {
-  var st = FLAT[IDX], fab = $('qfab');
-  if (!fab) return;
-  var can = !!(st && (SIDE_ADM || qVisible_(st.n).length));
-  fab.classList.toggle('on', can);
-  fab.classList.toggle('lit', !!QUIZ_OPEN && explanationVisible());
-  fab.onclick = function () {
-    qHintDone_();
-    QUIZ_OPEN = !QUIZ_OPEN || !explanationVisible();
-    if (QUIZ_OPEN && !explanationVisible()) drawer(true);
-    else paintChavArea();
-  };
-  var hint = $('qhint');
-  if (hint) hint.onclick = function () { fab.onclick(); };
-  if (can && !QUIZ_OPEN) qHintShow_();
-  else qHintHide_();
+    var st = FLAT[IDX], fab = $("qfab");
+    if (!fab) return;
+    var can = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+    fab.classList.toggle("on", can);
+    fab.classList.toggle("lit", !!QUIZ_OPEN && explanationVisible());
+    fab.onclick = function() {
+        qHintDone_();
+        QUIZ_OPEN = !QUIZ_OPEN || !explanationVisible();
+        if (QUIZ_OPEN && !explanationVisible()) drawer(true); else paintChavArea();
+    };
+    var hint = $("qhint");
+    if (hint) hint.onclick = function() {
+        fab.onclick();
+    };
+    if (can && !QUIZ_OPEN) qHintShow_(); else qHintHide_();
 }
+
+
+/* גובה שורת הכפתורים, בשביל מיקום העיגול בטלפון (ראו `--navh`). */
+function qfabPlace_() {
+  if (matchMedia("(max-width: 900px)").matches) return;
+  var nv = document.querySelector('nav');
+  if (nv && nv.offsetHeight) document.documentElement.style.setProperty('--navh', nv.offsetHeight + 'px');
+}
+window.addEventListener('resize', qfabPlace_);
 
 /* הכיתוב שליד העיגול - "זמן לענות על חידה". מופיע רק בפעמים
    הראשונות: פעם אחת בכל כניסה לדף, עד QHINT_MAX כניסות, ונעלם

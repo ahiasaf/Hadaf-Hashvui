@@ -636,5 +636,16 @@
       ["כ\"ג-כ\"ט אייר", "במדבר", "ל\"א"],
       ["א' סיוון", "חגיגת סיום המסכת", "ל\"ב", "א", "סיום"]
     ]
-  }
+  },
+  "DEMO_UNIT": {
+    "mas": "taanit",
+    "daf": "ב",
+    "am": 1
+  },
+  "RETIRED_SLIDES": [
+    "slides/taanit-2/230333.png",
+    "slides/taanit-3/07.jpg",
+    "slides/taanit-3/235424.png",
+    "slides/taanit-3/236228.jpg"
+  ]
 }

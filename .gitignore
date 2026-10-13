@@ -27,3 +27,5 @@ docs/marks-word.json
 !.env.example
 
 .artifacts/
+
+/static/promo/

@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { action } from "../lib/client";
 import Roster from "./Roster";
+import AdminAccess from "./AdminAccess";
 import AdminOverview from "./AdminOverview";
 import AdminRegistrations from "./AdminRegistrations";
 import { parseCsv } from "../lib/csv";
-const tabs = ["סקירה", "משתתפים", "ישיבות", "הזמנות", "תוכן", "מלל", "הגדרות"];
+const tabs = [
+  "סקירה",
+  "משתתפים",
+  "ישיבות",
+  "הזמנות",
+  "צוות וגישה",
+  "תוכן",
+  "מלל",
+  "הגדרות",
+];
 const contentTabs = [
   "סימוני הדף",
   "פירוש",
@@ -351,6 +361,8 @@ export default function Admin({
                     adminKey={key}
                   />
                 </div>
+              ) : tab === "צוות וגישה" ? (
+                <AdminAccess adminKey={key} />
               ) : tab === "ישיבות" || tab === "הזמנות" ? (
                 <AdminRegistrations adminKey={key} orders={tab === "הזמנות"} />
               ) : (

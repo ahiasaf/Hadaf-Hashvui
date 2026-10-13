@@ -1,42 +1,94 @@
 function openWeek(id, i) {
-    var tr = trackById(id);
-    state.track = tr;
-    state.week = i;
-    var row = tr.cal[i], key = id + "-" + (i + 1);
-    var c = CONTENT[key], q = QUIZ[key];
-    var tone = id === "taanit" ? "t-b" : "t-g";
-    var lk = (DAF_LINKS[id] || {})[dafKey(row[2])] || [];
-    var h = '<div class="' + tone + '"><div class="wtop">' + '<div><div class="k">מסכת ' + esc(tr.masechet) + " · " + esc(row[1]) + "</div>" + "<h2>" + esc(DeckTitle(id, i + 1) || "דף " + rowDaf(row)) + "</h2>" + '<div class="k" style="font-weight:600">' + esc(row[0]) + "</div></div>" + '<span class="dafbig">' + esc(rowDaf(row)) + "</span></div></div>";
-    var sg = SUGYA[id] || {}, sgp = (sg.pages || {})[sugKey(row)] || (sg.pages || {})[dafKey(row[2])];
-    var sgPage = "", sgHref = sg.base || "";
-    if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) {
-        sgPage = sgp[1];
-        sgHref = sg.books[sgp[0]] + sgPage + "/";
-    } else if (sgp && sg.base && sg.fmt) {
-        sgPage = sgp;
-        sgHref = sg.fmt.replace("{p}", sgPage);
-    }
-    var go = '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" ' + 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    var card = function(href, cls, inner) {
-        return href ? '<a class="wcard ' + cls + '" href="' + href + '" target="_blank" rel="noopener">' + inner + go + "</a>" : '<a class="wcard dim ' + cls + '" href="#" onclick="return notYet()">' + inner + "</a>";
-    };
-    h += '<div class="wk-cards">' + '<div id="w-inter"></div>' + (showRow("sugya") ? card(sgHref, "logo sug", '<span class="wc-logo"><img src="weekpics/sugya-logo.png" alt="' + esc(UI.wkSugAlt) + '"></span>') : "") + (id === "megila" && showRow("yomi") ? '<button class="wcard small" onclick="yomiGuide()"><span class="wc-t">' + esc(UI.wkYomi) + "<small>" + esc(UI.wkYomiSub) + "</small></span>" + go + "</button>" : "") + (showRow("daf") ? card(lk[0], "small", '<span class="wc-t">צורת הדף<small>הדף להדפסה</small></span>') : "") + (showRow("chav") ? card(lk[1], "small", '<span class="wc-t">פירוש חברותא<small>ביאור על הדף</small></span>') : "") + "</div>";
-    if (q && q.length) h += '<button class="wk-quiz" onclick="openQuiz()">' + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v3h3v2a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1' + 'A5 5 0 0 1 8.4 12H8a4 4 0 0 1-4-4V6h3V3zm10 5v2a2 2 0 0 0 1-1.7V8h-1zM6 8v.3A2 2 0 0 0 7 10V8H6z"/></svg>' + esc(UI.wkQuiz) + "</button>";
-    var dk = DeckOf(id, i + 1);
-    state.deck = [];
-    if (dk) {
-        for (var n = 1; n <= dk.files.length; n++) state.deck.push({
-            img: DeckSrc(dk, n)
-        });
-    } else if (c) {
-        state.deck = c.slides.filter(function(s) {
-            return s.h || s.t;
-        });
-    }
-    h += '<div class="wk-foot">' + (GATE.gemara ? "<div>" + esc(GATE.gemara) + "</div>" : "") + (GATE.gemUrl && GATE.gemBuy ? '<div><a href="' + esc(GATE.gemUrl) + '" target="_blank" rel="noopener">' + esc(GATE.gemBuy) + "</a></div>" : "") + (GATE.chav ? "<div>" + (GATE.chavK ? esc(GATE.chavK) + ": " : "") + esc(GATE.chav) + (GATE.chavBy ? ", " + esc(GATE.chavBy) : "") + "</div>" : "") + "</div>";
-    document.getElementById("week-body").innerHTML = h;
-    paintInter(id, row[2], LAmOf(row));
-    show("week");
+  var tr = trackById(id); state.track = tr; state.week = i;
+  var row = tr.cal[i], key = id + '-' + (i + 1);
+  var c = CONTENT[key], q = QUIZ[key];
+  var tone = id === 'taanit' ? 't-b' : 't-g';
+  var lk = (DAF_LINKS[id] || {})[dafKey(row[2])] || [];
+
+  var h = '<div class="' + tone + '"><div class="wtop">' +
+          '<div><div class="k">מסכת ' + esc(tr.masechet) + ' · ' + esc(row[1]) + '</div>' +
+          '<h2>' + esc(DeckTitle(id, i + 1) || 'דף ' + rowDaf(row)) + '</h2>' +
+          '<div class="k" style="font-weight:600">' + esc(row[0]) + '</div></div>' +
+          '<span class="dafbig">' + esc(rowDaf(row)) + '</span></div></div>';
+
+
+  /* הסוגיה היומית: הדף מצביע על העמוד שלו בחוברת ולא על תחילתה.
+     `pages[דף]` הוא [חוברת, עמוד] - חוברת, כי כל כמה פרקים יש
+     חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
+     עם {p}) עדיין נתמכת, כדי שעריכה ידנית בניהול לא תישבר. */
+  /* ב: - העמוד של עמוד ב בחוברת, ולא של תחילת הדף (ראו SUGYA). */
+  var sgHref = sugHref(id, row);
+
+  /* ============================================================
+     הדף האינטראקטיבי - העמוד שבין הבאנר לדף.
+     ============================================================
+     כרטיסים גדולים במקום רשימת קישורים: הדף, הסוגיה היומית,
+     ובמסכת מגילה גם יומי. אחריהם החידה, ובתחתית הקרדיט. אזור
+     השקפים ירד מכאן - המצגת נפתחת מהבאנר שבמסך הראשי, ולכן
+     `state.deck` עדיין נבנה כאן (openFromHome נשען עליו). */
+  var go = '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" ' +
+           'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var card = function (href, cls, inner, pick) {
+    return href
+      ? '<a class="wcard ' + cls + '" href="' + href + '" target="_blank" rel="noopener"' +
+        (pick ? ' onclick="wkPick(\'' + pick + '\')"' : '') + '>' + inner + go + '</a>'
+      : '<a class="wcard dim ' + cls + '" href="#" onclick="return notYet()">' + inner + '</a>';
+  };
+  h += '<div class="wk-cards">' +
+       /* הלימוד האינטראקטיבי נכנס מאוחר, אחרי שהגיליון עונה -
+          כפתור שמבטיח לימוד ומגיע למסך ריק גרוע מכפתור שאינו
+          קיים - ולכן הוא תא ריק שממתין. ראו paintInter. */
+       '<div id="w-inter"></div>' +
+       (showRow('sugya')
+         ? card(sgHref, 'logo sug', '<span class="wc-logo"><img src="weekpics/sugya-logo.png" alt="' +
+                esc(UI.wkSugAlt) + '"></span>', 'sugya')
+         : '') +
+       /* יומי - במסכת מגילה בלבד, וכבוי עד שהרכז מדליק בניהול.
+          אין כאן קישור לאפליקציה: הוא טרם נקבע, ולא ממציאים. */
+       (id === 'megila' && showRow('yomi')
+         ? '<button class="wcard small" onclick="yomiGuide()"><span class="wc-t">' +
+           esc(UI.wkYomi) + '<small>' + esc(UI.wkYomiSub) + '</small></span>' + go + '</button>'
+         : '') +
+       /* צורת הדף והחברותא - כבויים כברירת מחדל, ונשארים בידי הרכז. */
+       (showRow('daf')  ? card(lk[0], 'small', '<span class="wc-t">צורת הדף<small>הדף להדפסה</small></span>') : '') +
+       (showRow('chav') ? card(lk[1], 'small', '<span class="wc-t">פירוש חברותא<small>ביאור על הדף</small></span>') : '') +
+       '</div>';
+
+  /* החידה - כפתור אחד, ובלי כותרת מעליו */
+  if (q && q.length) h += '<button class="wk-quiz" onclick="openQuiz()">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v3h3v2a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1' +
+    'A5 5 0 0 1 8.4 12H8a4 4 0 0 1-4-4V6h3V3zm10 5v2a2 2 0 0 0 1-1.7V8h-1zM6 8v.3A2 2 0 0 0 7 10V8H6z"/></svg>' +
+    esc(UI.wkQuiz) + '</button>';
+
+  var dk = DeckOf(id, i + 1);
+  state.deck = [];
+  if (dk) {
+    for (var n = 1; n <= dk.files.length; n++) state.deck.push({ img: DeckSrc(dk, n) });
+  } else if (c) {
+    state.deck = c.slides.filter(function (s) { return s.h || s.t; });
+  }
+
+  /* המתג - רק כשיש בין מה לבחור */
+  if (showRow('inter') || showRow('sugya')) {
+    var kon = wkKeepOn();
+    h += '<div class="wk-keep"><div>' + esc(UI.wkKeep) +
+         (UI.wkKeepSub ? '<small>' + esc(UI.wkKeepSub) + '</small>' : '') + '</div>' +
+         '<button class="sw' + (kon ? ' on' : '') + '" role="switch" aria-checked="' + kon + '" ' +
+         'aria-label="' + esc(UI.wkKeep) + '" onclick="wkKeepToggle(this)"></button></div>';
+  }
+
+  /* הקרדיט - קבוע, מאותם שדות של שער הדף. שדה ריק אינו מוצג. */
+  h += '<div class="wk-foot">' +
+       (GATE.gemara ? '<div>' + esc(GATE.gemara) + '</div>' : '') +
+       (GATE.gemUrl && GATE.gemBuy ? '<div><a href="' + esc(GATE.gemUrl) + '" target="_blank" rel="noopener">' +
+         esc(GATE.gemBuy) + '</a></div>' : '') +
+       (GATE.chav ? '<div>' + (GATE.chavK ? esc(GATE.chavK) + ': ' : '') + esc(GATE.chav) +
+         (GATE.chavBy ? ', ' + esc(GATE.chavBy) : '') + '</div>' : '') +
+       '</div>';
+
+  document.getElementById('week-body').innerHTML = h;
+  paintInter(id, row[2], LAmOf(row));
+  show('week');
 }
 
 function notYet() {
@@ -122,35 +174,49 @@ function loadMarked() {
 }
 
 function paintInter(id, daf, am) {
-    var box = document.getElementById("w-inter");
-    if (!box) return;
-    if (!showRow("inter")) {
-        box.innerHTML = "";
-        return;
-    }
-    var soon = function(el) {
-        el.innerHTML = UI.interSoon ? '<div class="wcard dim" aria-disabled="true"><img class="wc-pic" src="weekpics/phone.webp" alt="">' + '<span class="wc-t sm">' + esc(UI.interSoon) + "</span></div>" : "";
-    };
-    var draw = function(m) {
-        var el = document.getElementById("w-inter");
-        if (!el || !m) return;
-        if (!(m[id] || {})[dafKey(daf)]) {
-            soon(el);
-            return;
-        }
-        el.innerHTML = '<a class="wcard inter" href="learn.html?mas=' + encodeURIComponent(id) + "&daf=" + encodeURIComponent(daf) + (am ? "&amud=" + am : "") + fromQ() + '">' + '<img class="wc-pic" src="weekpics/phone.webp" alt="">' + '<span class="wc-t">' + esc(UI.wkInter) + "</span>" + '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" ' + 'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
-    };
-    var have = MARKED || Store.get("markedCache");
-    if (have) draw(have); else soon(box);
-    loadMarked().then(draw).catch(function() {});
+  var box = document.getElementById('w-inter');
+  if (!box) return;
+  if (!showRow('inter')) { box.innerHTML = ''; return; }
+  /* ============================================================
+     דף שעוד לא סומן - שורה, ולא כפתור שמוביל למסך ריק.
+     ============================================================
+     הדף האינטראקטיבי מוכן דף־דף בסטודיו, ולא לכל המסכת בבת
+     אחת. עד עכשיו לדף שלא סומן פשוט לא הופיע כלום - וזה נראה
+     כאילו משהו נעלם. שורה אחת שאומרת שהוא בדרך עדיפה על
+     חלל, ובוודאי על כפתור שמוביל לדף שאינו קיים.
+     ============================================================ */
+  var soon = function (el) {
+    el.innerHTML = UI.interSoon
+      ? '<div class="wcard dim" aria-disabled="true"><img class="wc-pic" src="weekpics/phone.webp" alt="">' +
+        '<span class="wc-t sm">' + esc(UI.interSoon) + '</span></div>'
+      : '';
+  };
+  var draw = function (m) {
+    var el = document.getElementById('w-inter');
+    if (!el || !m) return;
+    if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
+    el.innerHTML =
+      '<a class="wcard inter" href="/lesson-tools?mas=' + encodeURIComponent(id) +
+      '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + '" onclick="wkPick(\'inter\')">' +
+      '<img class="wc-pic" src="weekpics/phone.webp" alt="">' +
+      '<span class="wc-t">' + esc(UI.wkInter) + '</span>' +
+      '<svg class="wc-go" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>';
+  };
+  /* קריאה שנכשלה אינה "אין דפים מסומנים": בלי מפה כלל מציגים
+     את השורה, ולא כפתור מומצא. */
+  var have = MARKED || Store.get('markedCache');
+  if (have) draw(have); else soon(box);
+  loadMarked().then(draw).catch(function () {});
 }
 
 function deckOpen(i) {
-    if (!state.deck.length) return;
-    state.di = i || 0;
-    document.getElementById("d-where").textContent = "מסכת " + state.track.masechet + " · דף " + rowDaf(state.track.cal[state.week]);
-    document.getElementById("deck").className = "on";
-    deckPaint();
+  if (!state.deck.length) return;
+  state.di = i || 0; state.dd = 1;
+  document.getElementById('d-where').textContent =
+    'מסכת ' + state.track.masechet + ' · דף ' + rowDaf(state.track.cal[state.week]);
+  document.getElementById('deck').className = 'on';
+  deckPaint();
 }
 
 function deckClose() {
@@ -158,51 +224,52 @@ function deckClose() {
 }
 
 function deckGo(d) {
-    var n = state.di + d;
-    if (n < 0 || n >= state.deck.length) return;
-    state.di = n;
-    deckPaint();
+  var n = state.di + d;
+  /* מדלגים על שקף שהקובץ שלו חסר - ראו DeckGone ב-deck.js */
+  while (n >= 0 && n < state.deck.length && DeckGone(state.deck[n].img)) n += d;
+  if (n < 0 || n >= state.deck.length) return false;
+  state.dd = d; state.di = n; deckPaint();
+  return true;
 }
 
 function deckPaint() {
-    var s = state.deck[state.di];
-    var img = document.getElementById("d-img"), txt = document.getElementById("d-text");
-    if (s.img) {
-        img.src = s.img;
-        img.style.display = "block";
-        txt.style.display = "none";
-        var nx = state.deck[state.di + 1];
-        if (nx && nx.img) {
-            var pre = new Image;
-            pre.src = nx.img;
-        }
-    } else {
-        img.style.display = "none";
-        txt.style.display = "flex";
-        document.getElementById("d-k").textContent = s.k || "";
-        document.getElementById("d-h").textContent = s.h || "";
-        document.getElementById("d-t").textContent = s.t || "";
-    }
-    document.getElementById("d-prev").disabled = state.di === 0;
-    document.getElementById("d-next").disabled = state.di === state.deck.length - 1;
-    var d = "";
-    for (var i = 0; i < state.deck.length; i++) d += '<i class="' + (i === state.di ? "on" : "") + '"></i>';
-    document.getElementById("d-dots").innerHTML = d;
+  var s = state.deck[state.di];
+  var img = document.getElementById('d-img'), txt = document.getElementById('d-text');
+  if (s.img) {
+    img.onerror = function () {
+      if (state.deck[state.di] !== s) return;
+      DECK_GONE[s.img] = 1;
+      if (!deckGo(state.dd || 1) && !deckGo(-(state.dd || 1))) img.style.display = 'none';
+    };
+    img.src = s.img; img.style.display = 'block'; txt.style.display = 'none';
+    var nx = state.deck[state.di + 1];          // טעינה מוקדמת - מעבר מיידי בכיתה
+    if (nx && nx.img) { var pre = new Image(); pre.src = nx.img; }
+  } else {
+    img.style.display = 'none'; txt.style.display = 'flex';
+    document.getElementById('d-k').textContent = s.k || '';
+    document.getElementById('d-h').textContent = s.h || '';
+    document.getElementById('d-t').textContent = s.t || '';
+  }
+  document.getElementById('d-prev').disabled = state.di === 0;
+  document.getElementById('d-next').disabled = state.di === state.deck.length - 1;
+  var d = '';
+  for (var i = 0; i < state.deck.length; i++)
+    d += '<i class="' + (i === state.di ? 'on' : '') + '"></i>';
+  document.getElementById('d-dots').innerHTML = d;
 }
 
-document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape" && document.getElementById("zoom").classList.contains("on")) {
-        zoomClose();
-        return;
-    }
-    if (document.getElementById("deck").className !== "on") return;
-    if (e.key === "ArrowLeft") deckGo(1);
-    if (e.key === "ArrowRight") deckGo(-1);
-    if (e.key === " ") {
-        deckGo(1);
-        e.preventDefault();
-    }
-    if (e.key === "Escape") deckClose();
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.getElementById('zoom').classList.contains('on')) {
+    zoomClose(); return;
+  }
+  if (e.key === 'Escape' && document.getElementById('promo').className === 'on') {
+    promoClose(); return;
+  }
+  if (document.getElementById('deck').className !== 'on') return;
+  if (e.key === 'ArrowLeft')  deckGo(1);
+  if (e.key === 'ArrowRight') deckGo(-1);
+  if (e.key === ' ') { deckGo(1); e.preventDefault(); }
+  if (e.key === 'Escape') deckClose();
 });
 
 function openQuiz(idx) {

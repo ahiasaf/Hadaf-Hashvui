@@ -330,21 +330,39 @@ function sidePaint() {
 
 /* השקף שעל המסך נשאר עד שהבא **מוכן**, ואז הם מתחלפים - אף פעם
    לא רואים תיבה ריקה באמצע. ראו `.sd-b.wait`. */
-function sideImg(n) {
+/* שקף שהקובץ שלו חסר (נמחק בעוד שהמצגת מפנה אליו): אחרי שכל
+   הניסיונות נכשלו הוא נרשם ב-DECK_GONE (deck.js), ומכאן מוצג
+   במקומו הקרוב אליו - הקודם, ואם אין, הבא. 0 = אין אף שקף. */
+function slideNear(n) {
+  var i;
+  for (i = n - 1; i >= 1; i--) if (!DeckGone(slideSrc(i))) return i;
+  for (i = n + 1; i <= deckN(); i++) if (!DeckGone(slideSrc(i))) return i;
+  return 0;
+}
+
+/* השקף שעל המסך נשאר עד שהבא **מוכן**, ואז הם מתחלפים - אף פעם
+   לא רואים תיבה ריקה באמצע. ראו `.sd-b.wait`. */
+function sideImg(n, want) {
   var img = $('sd-img');
   if (!img) return;
-  var src = slideSrc(n);
   var cls = function (c) {
     var e = $('sd-img');
     if (e && e.parentNode) e.parentNode.className = c;
   };
+  /* `want` - השקף שביקשו; `n` - מה שמוצג בפועל, כשהמבוקש חסר. */
+  if (!want) want = n;
+  if (DeckGone(slideSrc(n))) {
+    n = slideNear(n);
+    if (!n) { cls('sd-b'); return; }
+  }
+  var src = slideSrc(n);
   if (img.getAttribute('src') === src) { cls('sd-b'); return; }
   var im = slidePre(n);
   slidePre(n + 1);                 /* הבא בתור, בשקט */
   var show = function () {
     /* בינתיים הוחלף השקף - מה שהגיע כבר אינו מה שמבקשים */
     var e = $('sd-img');
-    if (SLIDE !== n || !e) return;
+    if (SLIDE !== want || !e) return;
     e.src = (PRE[src] && PRE[src].src) || src;
     e.alt = 'שקף ' + n;
     cls('sd-b');
@@ -357,8 +375,12 @@ function sideImg(n) {
        (הפריסה של שקף חדש לוקחת דקה-שתיים). */
     delete PRE[src];
     PRE_BAD[src] = (PRE_BAD[src] || 0) + 1;
-    if (PRE_BAD[src] > 5) { cls('sd-b'); return; }
-    setTimeout(function () { if (SLIDE === n) sideImg(n); }, 4000);
+    if (PRE_BAD[src] > 5) {
+      DECK_GONE[src] = 1;
+      if (SLIDE === want) sideImg(want);
+      return;
+    }
+    setTimeout(function () { if (SLIDE === want) sideImg(n, want); }, 4000);
   };
   if (!im || (im.complete && !im.naturalWidth)) { cls('sd-b wait'); retry(); return; }
   cls('sd-b wait');
@@ -367,6 +389,7 @@ function sideImg(n) {
 }
 function sideStep(d) {
   var n = SLIDE + d;
+  while (n >= 1 && n <= deckN() && DeckGone(slideSrc(n))) n += d;
   if (n < 1 || n > deckN()) return;
   SLIDE = n;
   sidePaint();
@@ -453,7 +476,6 @@ function sideAdmPaint() {
     '<button id="sa-set" class="' + (here ? 'hot' : '') + '">' +
     'שקף ' + SLIDE + ' מתחיל כאן</button>' +
     (here ? '<button id="sa-del">ביטול העוגן</button>' : '') +
-    '<button id="sa-save">שמירה לכולם</button>' +
     '<button id="sa-dk">' + esc(UI.sdDecks || '') + ' ↗</button>' +
     '</div><div class="msg" id="sa-msg"></div>';
 
@@ -462,16 +484,18 @@ function sideAdmPaint() {
     /* שם קובץ ולא מיקום - כדי ששיוך שנעשה היום לא יישבר אם מחר
        נדחף שקף באמצע הרשימה. ראו `anchPos_`. */
     sidPut_(ANCH, n, deckFileAt(SLIDE), false);
-    sideMsg('', '');
     sidePaint();
+    sideAutoSave();
   };
   if ($('sa-del')) $('sa-del').onclick = function () {
     sidPut_(ANCH, n, undefined, false);
-    sideMsg('', '');
     sideSync(true);
     sidePaint();
+    sideAutoSave();
   };
-  $('sa-save').onclick = sideSave;
+  /* ציור מחדש (דפדוף שקף) בונה את התיבה מחדש - ההודעה האחרונה
+     חוזרת אליה, כדי ש"שומר…" לא ייעלם באמצע. */
+  sideMsg(SIDE_MSG[0], SIDE_MSG[1]);
   /* אל עורך המצגות בניהול, על אותו שבוע. הניהול קורא את הבקשה
      פעם אחת (`admTakeGo` ב-index.html) ומוחק אותה. */
   $('sa-dk').onclick = function () {

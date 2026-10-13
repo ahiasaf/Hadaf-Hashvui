@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=hadarom",
+  "start_url": "/management?m=hadarom&staff=hadarom#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

@@ -118,20 +118,22 @@
 
 <!-- מסך הסיום. שתי הפעולות שתלמיד באמת רוצה כאן הן החידה
      והדף הבא, ולכן הן למעלה ובולטות. -->
-<div class="sheet" id="done"><div class="card done-card">
-  <div class="seal" aria-hidden="true">
-    <svg viewBox="0 0 32 32" width="36" height="36"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </div>
+<div class="sheet" id="done"><div class="card done-card dn-card">
+  <button class="dn-x" id="done-x">✕</button>
+  <div class="seal" aria-hidden="true"><svg viewBox="0 0 32 32" width="36" height="36"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   <h2>ישר כוח!</h2>
   <p id="done-sub"></p>
+  <!-- הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד
+       סופו, ולבקש ממנו לאשר את מה שהרגע עשה זו שאלה מיותרת.
+       השורה רק מדווחת. -->
   <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
      font-size:.88rem;margin-top:-4px"></p>
-  <a class="btn p" id="to-quiz" href="join.html">לשאלה השבועית</a>
-  <a class="btn nx" id="to-next" href="./">לדף הבא</a>
-  <button class="btn" id="stay">חזרה לדף</button>
-  <div class="minor">
-    <button id="again">מהתחלה</button>
-    <a href="/app" id="to-home">חזרה לתוכנית</a>
+  <!-- לימוד עם ההורה - שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
+  <div id="done-pair" style="display:none"></div>
+  <a class="btn p" id="to-quiz" href="join.html"></a>
+  <!-- החידון של השבוע עוד לא עלה - "רוצה התראה?" -->
+  <div id="done-soon" class="dn-soon" style="display:none">
+    <b id="dn-soon-t"></b><div id="dn-soon-n"></div>
   </div>
 </div></div>
 

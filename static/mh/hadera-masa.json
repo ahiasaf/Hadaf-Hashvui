@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=hadera&masa=go",
+  "start_url": "/management?m=hadera&staff=hadera&masa=go#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

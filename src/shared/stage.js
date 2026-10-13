@@ -54,6 +54,10 @@ function StDeck(tr, i) {
 function StSlide(dk, n) {
   return (typeof DeckSrc === 'function') ? DeckSrc(dk, n) : '';
 }
+/* השער שבחר הרכז, ואם לא בחר - השקף הראשון. */
+function StCover(dk) {
+  return (typeof DeckCover === 'function') ? DeckCover(dk) : StSlide(dk, 1);
+}
 
 /* o.track  - מזהה המסכת המוצגת
    o.pick   - שם פונקציה שמקבלת מזהה מסכת, או ריק = בלי בורר
@@ -96,7 +100,7 @@ function StageHtml(o) {
        חייב להוביל לעיקר. המצגת לא איבדה מקום - השקף שמעליהם
        הוא בעצמו לחיצה שפותחת אותה, וזה יעד גדול מכל כפתור. */
     if (o.preview !== false) s += '<div class="showcase"><div class="frame" onclick="' + call(o.deck) + '">' +
-         '<img src="' + StSlide(dk, 1) + '" alt="השקף הראשון" loading="lazy" decoding="async"></div></div>';
+         '<img src="' + StCover(dk) + '" alt="השקף הראשון" loading="lazy" decoding="async"></div></div>';
     s += '<div class="acts">' +
          '<button class="go" onclick="' + call(o.week) + '">' + StEsc(UI.deckGo) + '</button>' +
          '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>' +

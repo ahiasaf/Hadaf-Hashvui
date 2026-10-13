@@ -33,6 +33,8 @@ function qVerify_(tries, n, want) {
 function markThisDaf() {
   var m = $('done-mark');
   m.style.display = 'none';
+  var pb = $('done-pair');
+  if (pb) { pb.innerHTML = ''; pb.style.display = 'none'; }
   if (typeof LWeek !== 'function') return;
 
   var wk = LWeek();
@@ -52,7 +54,8 @@ function markThisDaf() {
      נשאל לעולם, למרות שהוא ממש עכשיו סיים ללמוד עם ההורה. ask()
      כבר שומר בעצמו על "לא לשאול פעמיים על אותו שבוע" (ראו
      done()/df:pairs ב-pair.js) - אין צורך בעוד שער כאן. */
-  if (window.PAIR_UI) PAIR_UI.ask(S.mas, wk);
+  /* ולא בחלון נוסף מעל מסך הסיום - שורה בתוכו. ראו line ב-pair.js. */
+  if (window.PAIR_UI) PAIR_UI.line(S.mas, wk, pb);
 }
 
 /* תפריט ההקשה הארוכה. `contextmenu` הוא מה שנפתח בלחיצה ארוכה
@@ -135,9 +138,9 @@ function stuHomeUrl() {
   return FROM === 'home' ? '/' : '/app';
 }
 function stuQuizUrl(key) {
-  if (FROM === 'home' || staffDev()) return './#quiz=' + key;
+  if (FROM === 'home' || staffDev()) return '/management#quiz=' + key;
   var i = stuInst();
-  return 'index.html?st=1' + (i ? '&inst=' + i : '') + '#quiz=' + key;
+  return '/management?st=1' + (i ? '&inst=' + i : '') + '#quiz=' + key;
 }
 /* מה שעובר מדף לדף - הישיבה ומי פתח - כדי שהיציאה מהדף הבא
    תדע לאן לחזור גם בדפדפן שאין בו הרשמה. */

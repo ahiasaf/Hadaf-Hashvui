@@ -116,56 +116,85 @@ function ownAudioDel(i) {
   OWN_EDIT[i].audio = '';
   paintOwn();
 }
+var SIDE_MSG = ['', ''];
 function sideMsg(cls, txt) {
+  SIDE_MSG = [cls, txt];
   var m = $('sa-msg');
   if (m) { m.className = 'msg ' + cls; m.innerHTML = txt; }
 }
 
+/* שמירה אוטומטית: כל שינוי עוגן נשמר לבד, בלי כפתור. כמה לחיצות
+   ברצף (עוגן פה, ביטול שם) מתקבצות לשליחה אחת, שניה וקצת אחרי
+   הלחיצה האחרונה - כך הסקריפט מקבל בקשה אחת ולא עשר. מי שיוצא
+   מהדף לפני שעברה השנייה - השליחה יוצאת מיד ביציאה. */
+var SIDE_T = null, SIDE_GEN = 0;
+function sideAutoSave() {
+  if (SIDE_T) clearTimeout(SIDE_T);
+  SIDE_T = setTimeout(function () { sideSave(false); }, 1200);
+  sideMsg('', UI.sdSaving || '');
+}
+
 /* הכתיבה היא no-cors ולכן תמיד "מצליחה". ההודעה שנשמר נאמרת
    רק אחרי קריאה חוזרת שמצאה בגיליון בדיוק את מה שנשלח. */
-function sideSave() {
+function sideSave(leaving) {
+  if (SIDE_T) { clearTimeout(SIDE_T); SIDE_T = null; }
   if (!API) { sideMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_()) { sideMsg('bad', NOKEY_MSG); return; }
   DMAP[dmKey(S.mas, S.daf)] = ANCH || {};
-  var rows = [], k;
-  for (k in DMAP) {
-    if (!DMAP.hasOwnProperty(k)) continue;
-    var v = DMAP[k], parts = k.split('|');
-    if (v && v.__bad) { rows.push([parts[0], parts[1], v.__bad]); continue; }
-    var has = false, q;
-    for (q in v) if (v.hasOwnProperty(q)) { has = true; break; }
-    if (has) rows.push([parts[0], parts[1], JSON.stringify(v)]);
-  }
-  sideMsg('', 'נשלח · מאמת מול הגיליון…');
-  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-    action:'table', tab:DECK_TAB, key:cfgReadKey_(),
-    cols:JSON.stringify(['מסכת', 'דף', 'עוגנים']),
-    rows:JSON.stringify(rows)
-  }) }).catch(function () {});
-  sideVerify(0);
+  /* רק השורה של הדף הזה - לא הלשונית כולה. דף שנשאר פתוח מהבוקר
+     דרס כך עוגנים שנשמרו בינתיים ממכשיר אחר, גם בדפים אחרים.
+     ראו deckRow_ ב-apps-script.gs. */
+  var has = false, q;
+  for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q)) { has = true; break; }
+  var gen = ++SIDE_GEN;
+  var body = JSON.stringify({
+    action:'deckRow', key:cfgReadKey_(), mas:S.mas, daf:S.daf,
+    val: has ? JSON.stringify(ANCH) : ''
+  });
+  sideMsg('', UI.sdSaving || '');
+  /* ביציאה מהדף - `keepalive`, כדי שהבקשה תשרוד את סגירת הלשונית.
+     לדפדפן יש תקרה לגוף כזה (64KB); מעליה שולחים רגיל. */
+  var opt = { method:'POST', mode:'no-cors', body:body };
+  if (leaving && body.length < 60000) opt.keepalive = true;
+  fetch(API, opt).catch(function () {});
+  if (!leaving) sideVerify(0, gen);
 }
-function sideVerify(tries) {
-  setTimeout(function () {
-    sheetCsv(DECK_TAB).then(function (rows) {
-      var m = dmapFromRows(rows);
-      var mine = m && m[dmKey(S.mas, S.daf)];
-      var want = JSON.stringify(ANCH || {});
-      if (mine && JSON.stringify(mine) === want) {
-        DMAP = m;
-        sideMsg('ok', 'נשמר ואומת. מעכשיו המצגת זורמת כך אצל כל מי שפותח את הדף.');
-        return;
-      }
-      if (tries < 4) { sideVerify(tries + 1); return; }
-      sideMsg('bad', '<b>לא אומת.</b> ' + (!m
-        ? 'הגיליון לא נענה, או שלשונית "מצגת" לא נוצרה.'
-        : 'מה שחזר מהגיליון אינו מה שנשלח.') +
-        ' השיוך קיים במסך הזה בלבד - אפשר לנסות שוב.');
-    }).catch(function () {
-      if (tries < 4) sideVerify(tries + 1);
-      else sideMsg('bad', 'לא הצלחתי לקרוא מהגיליון.');
-    });
-  }, tries ? 5000 : 2500);
+/* שמירה שלא אומתה אינה נזנחת: עוד ניסיון בעוד דקה, עד שתצליח.
+   ממתינה ב-SIDE_T - ולכן גם יוצאת מיד אם עוזבים את הדף. */
+function sideRetry_() {
+  if (!SIDE_T) SIDE_T = setTimeout(function () { sideSave(false); }, 60000);
 }
+function sideVerify(tries, gen) {
+    setTimeout(function() {
+        if (gen !== SIDE_GEN) return;
+        sheetCsv(DECK_TAB).then(function(rows) {
+            if (gen !== SIDE_GEN) return;
+            var m = dmapFromRows(rows);
+            var mine = m && m[dmKey(S.mas, S.daf)];
+            var want = JSON.stringify(ANCH || {});
+            if (mine && JSON.stringify(mine) === want) {
+                DMAP = m;
+                sideMsg("ok", UI.sdSaved || "");
+                return;
+            }
+            if (tries < 4) {
+                sideVerify(tries + 1, gen);
+                return;
+            }
+            sideMsg("bad", "<b>לא אומת.</b> " + (!m ? 'הגיליון לא נענה, או שלשונית "מצגת" לא נוצרה.' : "מה שחזר מהגיליון אינו מה שנשלח.") + " השיוך קיים במסך הזה בלבד - ננסה שוב לבד בעוד דקה.");
+            sideRetry_();
+        }).catch(function() {
+            if (gen !== SIDE_GEN) return;
+            if (tries < 4) {
+                sideVerify(tries + 1, gen);
+                return;
+            }
+            sideMsg("bad", "לא הצלחתי לקרוא מהגיליון. ננסה שוב לבד בעוד דקה.");
+            sideRetry_();
+        });
+    }, tries ? 5e3 : 2500);
+}
+
 
 /* ============================================================
    ההדלקה.
@@ -282,6 +311,10 @@ document.addEventListener('visibilitychange', function () {
   if (document.visibilityState === 'hidden') { try { if (FLAT.length) { savePos(); spotSave(); } } catch (e) {} sendPos(); }
 });
 window.addEventListener('pagehide', sendPos);
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden' && SIDE_T) sideSave(true);
+});
+window.addEventListener('pagehide', function () { if (SIDE_T) sideSave(true); });
 
 /* חזרה למקום. לא בשקט: מסך שנפתח באמצע בלי לומר למה נראה
    כמו תקלה, ולכן יש שורה - ובה גם הדרך לפתוח מההתחלה. */
@@ -382,14 +415,19 @@ function spotResume() {
 /* דף אחר באותה מסכת, בשבוע האחרון - לא קופצים אליו בלי לשאול
    (אולי הוא בא בכוונה לדף של השבוע), אלא מציעים בשורה אחת. */
 function spotOffer() {
-  var p = spotGet();
-  if (!p || p.mas !== S.mas ||
-      (dafKey(p.daf) === dafKey(S.daf) && (p.am == null || p.am === S.am))) return;
-  if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
-  var u = '/lesson-tools?mas=' + encodeURIComponent(S.mas) + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
-  resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.pg || 1) })) +
-    ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
+    var p = spotGet();
+    if (!p || p.mas !== S.mas || dafKey(p.daf) === dafKey(S.daf) && (p.am == null || p.am === S.am)) return;
+    if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
+    var u = "/lesson-tools?mas=" + encodeURIComponent(S.mas) + "&" + unitQ({
+        daf: p.daf,
+        am: p.am || 0
+    }) + keepQ();
+    resumeBar(esc(fillT(UI.spotOther, {
+        daf: p.daf,
+        amud: amud(p.am || p.pg || 1)
+    })) + " <button onclick=\"location.href='" + u.replace(/'/g, "%27") + "'\">" + esc(UI.spotGo) + "</button>");
 }
+
 /* **קופצים, לא שואלים - כשהתקדם מעבר לדף של השבוע.** מי שנכנס
    מהבית נוחת על הדף של השבוע, וכשכבר המשיך קדימה (ב. ← ג.)
    השורה "עצרת בדף ג" הייתה עוד לחיצה בדרך למקום שממילא רצה בו.

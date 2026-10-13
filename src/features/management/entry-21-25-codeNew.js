@@ -1,31 +1,4 @@
-function codeNew(code, name) {
-    var key = (CFG.readKey || "").trim();
-    if (!key) {
-        linkState.msg = "חסרה סיסמת הקריאה. הגדרות ← שרת ההרשמות.";
-        admPane();
-        return;
-    }
-    var had = instCode(code);
-    if (had && !confirm("קוד חדש ל" + name + " יבטל את הקישור שכבר בידי הצוות, " + "ותצטרכו לשלוח להם את החדש.\n\nלהמשיך?")) return;
-    linkState.msg = "מייצר…";
-    admPane();
-    scriptGet({
-        newcode: code,
-        key: key
-    }).then(function(d) {
-        if (!d || d.status !== "ok" || !d.code) {
-            linkState.msg = esc(d && d.message || "לא קיבלתי תשובה מהסקריפט.");
-            admPane();
-            return;
-        }
-        setInstCode(code, d.code);
-        linkState.msg = "קוד חדש ל" + esc(name) + ' · <b dir="ltr">' + esc(d.code) + "</b> · שלחו להם את הקישור הכחול מחדש.";
-        admPane();
-    }).catch(function() {
-        linkState.msg = "לא קיבלתי תשובה מהסקריפט.";
-        admPane();
-    });
-}
+
 
 var ROW_KEYS = [ [ "inter", "דף אינטראקטיבי", "ללמוד את הדף שלב אחר שלב · מוצג רק לדף שסומן" ], [ "daf", "צורת הדף", "קובץ הדף להדפסה" ], [ "chav", "פירוש חברותא", "קובץ הביאור על הדף" ], [ "sugya", "הסוגיה היומית", "החוברת הדיגיטלית" ] ];
 
@@ -75,16 +48,13 @@ function rowToggle(k) {
 }
 
 function admToggle(code) {
-    var j = CV("joined") || {};
-    var cur = INSTITUTIONS.filter(function(i) {
-        return i.code === code;
-    })[0];
-    var want = !(cur && cur.joined);
-    j[code] = want;
-    cfgSet("joined", j);
-    stageFromJoined(code, want);
-    admPane();
-    renderHome();
+  var j = CV('joined') || {};
+  var cur = INSTITUTIONS.filter(function (i) { return i.code === code; })[0];
+  var want = !(cur && cur.joined);
+  j[code] = want;
+  cfgSet('joined', j);
+  stageFromJoined(code, want);       /* ולכיוון השני */
+  instPaint(); renderHome();
 }
 
 function stageFromJoined(code, want) {

@@ -214,43 +214,37 @@ function admStuck() {
 }
 
 function pushParse(rows) {
-    if (!rows || rows.length < 2) return [];
-    var head = rows[0].map(function(x) {
-        return String(x || "").trim();
-    });
-    var ix = {};
-    head.forEach(function(h, i) {
-        ix[h] = i;
-    });
-    var out = [];
-    for (var i = 1; i < rows.length; i++) {
-        var r = rows[i], g = function(k) {
-            return ix[k] === undefined ? "" : String(r[ix[k]] == null ? "" : r[ix[k]]).trim();
-        };
-        if (!g("שם") && !g("מנוי")) continue;
-        out.push({
-            id: g("מזהה"),
-            name: g("שם"),
-            inst: g("ישיבה"),
-            code: g("קוד ישיבה"),
-            role: g("תפקיד"),
-            grade: g("שכבה"),
-            klass: g("כיתה"),
-            dev: g("מכשיר"),
-            sub: !!g("מנוי"),
-            res: g("תוצאה"),
-            at: g("מתי") || g("תאריך")
-        });
-    }
-    var byId = {}, ord = [];
-    out.forEach(function(p) {
-        var k = p.id || p.name + "|" + p.dev;
-        if (!(k in byId)) ord.push(k);
-        byId[k] = p;
-    });
-    return ord.map(function(k) {
-        return byId[k];
-    });
+  if (!rows || rows.length < 2) return [];
+  var head = rows[0].map(function (x) { return String(x || '').trim(); });
+  var ix = {};
+  head.forEach(function (h, i) { ix[h] = i; });
+  var out = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i], g = function (k) {
+      return ix[k] === undefined ? '' : String(r[ix[k]] == null ? '' : r[ix[k]]).trim();
+    };
+    if (!g('שם') && !g('מנוי')) continue;
+    out.push({ id:g('מזהה'), name:g('שם'), inst:g('ישיבה'),
+               /* **וגם הקוד.** שם ישיבה נכתב בכמה כתיבים, והקוד
+                  הוא המזהה היחיד שאפשר להצליב לפיו. */
+               code:g('קוד ישיבה'), role:g('תפקיד'),
+               grade:g('שכבה'), klass:g('כיתה'), dev:g('מכשיר'),
+               sub:!!g('מנוי'), res:g('תוצאה'), at:g('מתי') || g('תאריך'),
+               ph:g('טלפון') });
+  }
+  /* מכשיר שנרשם פעמיים - האחרון קובע. הטלפון ו"אישר אי פעם"
+     נשמרים מהשורות הקודמות: איש צוות שעדכן את פרטיו כותב שורה
+     בלי מנוי, והשליחה עדיין מוצאת את המנוי שלו (push-send.js
+     עובר על כל השורות). בלי זה ה-✉ שלו היה נעלם. */
+  var byId = {}, ord = [];
+  out.forEach(function (p) {
+    var k = p.id || (p.name + '|' + p.dev), old = byId[k];
+    if (!old) ord.push(k);
+    p.ever = p.sub || !!(old && old.ever);
+    if (!p.ph && old) p.ph = old.ph;
+    byId[k] = p;
+  });
+  return ord.map(function (k) { return byId[k]; });
 }
 
 function pushLoad() {

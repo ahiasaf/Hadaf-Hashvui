@@ -1,7 +1,7 @@
 {
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/?m=neve",
+  "start_url": "/management?m=neve&staff=neve#phone",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

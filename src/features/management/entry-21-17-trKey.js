@@ -174,90 +174,121 @@ function sayNums(res) {
 }
 
 function admPushViz() {
-    var src = (Store.get("rosterCache:all", null) || []).filter(function(p) {
-        return !p.test && p.role !== "הורה" && (!ADM_INST || pplCode(p.inst) === ADM_INST);
-    });
-    var st = {
-        on: 0,
-        gone: 0,
-        blocked: 0,
-        none: 0,
-        unk: 0
-    }, br = {};
-    src.forEach(function(p) {
-        var s = p.pstate === "gone" ? "gone" : p.push ? "on" : p.pstate || "none";
-        if (s === "on") st.on++; else if (s === "gone") st.gone++; else if (s === "blocked") st.blocked++; else if (s === "?") st.unk++; else st.none++;
-        if (p.push || s === "gone") {
-            var k = s === "gone" ? "⌛ " + UI.pGone : p.br || UI.unknown;
-            br[k] = (br[k] || 0) + 1;
-        }
-    });
-    var h = vCard("📶", UI.pStateT, src.length ? vStack([ {
-        n: st.on,
-        t: UI.pOn,
-        c: "g"
-    }, {
-        n: st.gone,
-        t: UI.pGone,
-        c: "o"
-    }, {
-        n: st.blocked,
-        t: UI.pBlocked,
-        c: "r"
-    }, {
-        n: st.none,
-        t: UI.pNone,
-        c: "n"
-    }, {
-        n: st.unk,
-        t: UI.unknown,
-        c: "u"
-    } ]) + '<h5 style="margin-top:12px">' + esc(UI.pBrT) + "</h5>" + vBars(br) : '<p class="h">' + esc(UI.whyNone) + "</p>");
-    var log = (sayLog || []).slice(0, 8);
-    var tot = {
-        ok: 0,
-        bad: 0,
-        gone: 0,
-        sent: 0,
-        open: 0
-    };
-    var rows = log.map(function(m) {
-        var n = sayNums(m.res), all = n.sent;
-        tot.ok += n.ok;
-        tot.bad += n.bad;
-        tot.gone += n.gone;
-        tot.sent += n.sent;
-        tot.open += n.open;
-        var w = function(v) {
-            return all ? (v * 100 / all).toFixed(1) : 0;
-        };
-        return '<div class="pl"><div class="pl-h"><b>' + esc(m.title || m.body.slice(0, 40)) + "</b><span>" + esc(sheetAgo(m.at)) + "</span></div>" + '<div class="pl-s">' + esc(m.who || "") + (m.aud ? " · " + esc(m.aud) : "") + "</div>" + (all ? '<div class="vs sm"><i class="g" style="width:' + w(n.ok) + '%"></i><i class="r" style="width:' + w(n.bad) + '%"></i>' + '<i class="o" style="width:' + w(n.gone) + '%"></i></div>' + '<div class="pl-n">' + esc(UI.pRowSent.replace("{n}", n.sent)) + " · " + esc(UI.pRowRecv.replace("{n}", n.ok)) + (n.open ? " · " + esc(UI.pRowOpen.replace("{n}", n.open)) : "") + (n.bad ? " · ✗ " + n.bad : "") + (n.gone ? " · ⌛ " + n.gone : "") + "</div>" : '<div class="pl-n">' + esc(m.res || "") + "</div>") + "</div>";
-    }).join("");
-    var tl = [ {
-        n: tot.sent,
-        t: UI.pSent,
-        c: ""
-    }, {
-        n: tot.ok,
-        t: UI.pRecv,
-        c: "g"
-    } ];
-    if (tot.open) tl.push({
-        n: tot.open,
-        t: UI.pOpen,
-        c: "g"
-    });
-    tl.push({
-        n: tot.bad,
-        t: UI.pBad,
-        c: tot.bad ? "r" : ""
-    }, {
-        n: tot.gone,
-        t: UI.pGone,
-        c: "o"
-    });
-    h += vCard("📤", UI.pLastT, (log.length ? vTiles(tl) + '<p class="h">' + esc(UI.pRecvH) + "</p>" + rows : '<p class="h">' + esc(UI.whyNone) + "</p>") + '<p class="h live">● ' + esc(UI.pLive) + "</p>");
-    return h;
+  var src = (Store.get('rosterCache:all', null) || []).filter(function (p) {
+    return !p.test && p.role !== 'הורה' && (!ADM_INST || pplCode(p.inst) === ADM_INST);
+  });
+  var st = { on: 0, gone: 0, blocked: 0, none: 0, unk: 0 }, br = {};
+  src.forEach(function (p) {
+    var s = p.pstate === 'gone' ? 'gone' : p.push ? 'on' : (p.pstate || 'none');
+    if (s === 'on') st.on++; else if (s === 'gone') st.gone++; else if (s === 'blocked') st.blocked++;
+    else if (s === '?') st.unk++; else st.none++;
+    if (p.push || s === 'gone') {
+      var k = s === 'gone' ? '⌛ ' + UI.pGone : (p.br || UI.unknown);
+      br[k] = (br[k] || 0) + 1;
+    }
+  });
+  var h = admUseViz() + vCard('📶', UI.pStateT, src.length ? vStack([
+    { n: st.on, t: UI.pOn, c: 'g' }, { n: st.gone, t: UI.pGone, c: 'o' },
+    { n: st.blocked, t: UI.pBlocked, c: 'r' }, { n: st.none, t: UI.pNone, c: 'n' }, { n: st.unk, t: UI.unknown, c: 'u' }
+  ]) + '<h5 style="margin-top:12px">' + esc(UI.pBrT) + '</h5>' + vBars(br) : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  /* מה יצא לאחרונה - כל הודעה: נשלחה / התקבלה בשירות ההתראות /
+     תקלה / פג, ו"נפתחה" רק כשיש נתון. לא "הגיעו": השרת אינו יודע. */
+  var log = (sayLog || []).slice(0, 8);
+  var tot = { ok: 0, bad: 0, gone: 0, sent: 0, open: 0 };
+  var rows = log.map(function (m) {
+    var n = sayNums(m.res), all = n.sent;
+    tot.ok += n.ok; tot.bad += n.bad; tot.gone += n.gone; tot.sent += n.sent; tot.open += n.open;
+    var w = function (v) { return all ? (v * 100 / all).toFixed(1) : 0; };
+    return '<div class="pl"><div class="pl-h"><b>' + esc(m.title || m.body.slice(0, 40)) + '</b><span>' + esc(sheetAgo(m.at)) + '</span></div>' +
+      '<div class="pl-s">' + esc(m.who || '') + (m.aud ? ' · ' + esc(m.aud) : '') + '</div>' +
+      (all ? '<div class="vs sm"><i class="g" style="width:' + w(n.ok) + '%"></i><i class="r" style="width:' + w(n.bad) + '%"></i>' +
+             '<i class="o" style="width:' + w(n.gone) + '%"></i></div>' +
+             '<div class="pl-n">' + esc(UI.pRowSent.replace('{n}', n.sent)) + ' · ' +
+               esc(UI.pRowRecv.replace('{n}', n.ok)) + (n.open ? ' · ' + esc(UI.pRowOpen.replace('{n}', n.open)) : '') +
+               (n.bad ? ' · ✗ ' + n.bad : '') + (n.gone ? ' · ⌛ ' + n.gone : '') + '</div>'
+           : '<div class="pl-n">' + esc(m.res || '') + '</div>') + '</div>';
+  }).join('');
+  var tl = [{ n: tot.sent, t: UI.pSent, c: '' }, { n: tot.ok, t: UI.pRecv, c: 'g' }];
+  if (tot.open) tl.push({ n: tot.open, t: UI.pOpen, c: 'g' });
+  tl.push({ n: tot.bad, t: UI.pBad, c: tot.bad ? 'r' : '' }, { n: tot.gone, t: UI.pGone, c: 'o' });
+  h += vCard('📤', UI.pLastT, (log.length ? vTiles(tl) + '<p class="h">' + esc(UI.pRecvH) + '</p>' + rows
+    : '<p class="h">' + esc(UI.whyNone) + '</p>') +
+    '<p class="h live">● ' + esc(UI.pLive) + '</p>');
+  return h;
+}
+
+/* ============================================================
+   שימוש בשירות ההתראות - במבט אחד.
+   ============================================================
+   כמה הודעות יצאו השבוע ובחודש, כמה שולחים פעילים, לכמה מכשירים
+   הגיעו; עמודה לכל אחד משמונת השבועות האחרונים; ישיבות לפי מספר
+   ההודעות; ו"מי שלח מה" עם הסטטוס. התראות המערכת לרכז אינן נספרות.
+   הכול מהיומן הפרטי ("הודעות"), שנקרא רק עם הסיסמה - לא נשמר בריפו. */
+/* הסטטוס של שורה ביומן: מהעמודה "סטטוס שליחה", ובשורות ישנות - מ"תוצאה". */
+function useSt(st, res) {
+  if (st === 'נשלח') return 'ok';
+  if (st === 'חלקי') return 'part';
+  if (st === 'נכשל') return 'bad';
+  if (st === 'אין נמענים') return 'none';
+  res = res || '';
+  if (res.indexOf('נכשלה') === 0) return 'bad';
+  if (res.indexOf('חלקית') === 0) return 'part';
+  if (res.indexOf('התקבלה') === 0) return 'ok';
+  if (res.indexOf('אין נמענים') === 0) return 'none';
+  return 'wait';
+}
+function useWhen(t) {
+  if (!t) return '';
+  var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getDate() + '.' + (d.getMonth() + 1) + ' · ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function admUseViz() {
+  if (!sayAll) return '';
+  var now = Date.now(), DAY = 864e5;
+  var L = sayAll.filter(function (m) {
+    return !m.sys && m.t && (!ADM_INST || m.code === ADM_INST);
+  });
+  var wk = 0, mo = 0, reach = 0, who = {}, cols = [0, 0, 0, 0, 0, 0, 0, 0], byI = {}, order = [];
+  L.forEach(function (m) {
+    var age = now - m.t, w = Math.floor(age / (7 * DAY));
+    if (w >= 0 && w < 8) cols[w]++;
+    if (age >= 30 * DAY) return;
+    var k = m.code ? m.inst : UI.uAll;
+    if (!byI[k]) { byI[k] = { wk: 0, mo: 0, who: {} }; order.push(k); }
+    byI[k].mo++; mo++; reach += m.got || 0;
+    if (age < 7 * DAY) { byI[k].wk++; wk++; }
+    if (m.who) { who[m.who] = 1; byI[k].who[m.who] = 1; }
+  });
+  var h = '<div class="u4">' + vTiles([{ n: wk, t: UI.uWeek, c: '' }, { n: mo, t: UI.uMonth, c: '' },
+                  { n: Object.keys(who).length, t: UI.uSenders, c: 'g' }, { n: reach, t: UI.uReach, c: 'g' }]) + '</div>';
+  /* שמונה שבועות - הישן מימין, כמו ציר זמן בעברית. תחת כל עמודה
+     התאריך שבו השבוע הזה התחיל. */
+  var max = Math.max.apply(null, cols) || 1;
+  h += '<h5>' + esc(UI.uWeeksT) + '</h5><div class="uw">' + cols.slice().reverse().map(function (n, i) {
+    var w = 7 - i, d0 = new Date(now - (w + 1) * 7 * DAY + DAY);
+    return '<div><b>' + n + '</b><i class="' + (n ? '' : 'z') + '" style="height:' +
+      Math.max(4, Math.round(n * 70 / max)) + 'px"></i><span>' +
+      esc(w ? d0.getDate() + '.' + (d0.getMonth() + 1) : UI.uWkNow) + '</span></div>';
+  }).join('') + '</div>';
+  /* לפי ישיבה: שולחים · השבוע · 30 יום, מהפעילה ביותר. */
+  order.sort(function (a, b) { return byI[b].mo - byI[a].mo; });
+  var top = order.length ? byI[order[0]].mo : 1;
+  h += '<h5>' + esc(UI.uInstT) + '</h5>' + (order.length ? '<table class="ut"><tr><th></th><th>' +
+    esc(UI.uColWho) + '</th><th>' + esc(UI.uColWk) + '</th><th>' + esc(UI.uColMo) + '</th></tr>' +
+    order.map(function (k) {
+      var x = byI[k];
+      return '<tr><td>' + esc(k) + '<s style="width:' + Math.max(4, Math.round(x.mo * 100 / top)) + '%"></s></td><td>' +
+        Object.keys(x.who).length + '</td><td>' + x.wk + '</td><td>' + x.mo + '</td></tr>';
+    }).join('') + '</table>' : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  var lbl = { ok: UI.uStOk, part: UI.uStPart, bad: UI.uStBad, none: UI.uStNone, wait: UI.uStWait };
+  h += '<h5>' + esc(UI.uRecentT) + '</h5>' + (L.length ? L.slice(0, 12).map(function (m) {
+    return '<div class="ur"><div class="ur-h"><span class="uc ' + m.st + '">' + esc(lbl[m.st]) + '</span>' +
+      '<b>' + esc(m.who || '-') + (m.code ? ' · ' + esc(m.inst) : '') + '</b><time>' + esc(useWhen(m.t)) + '</time></div>' +
+      '<div class="ur-t">' + esc((m.title ? m.title + ' - ' : '') + m.body) + '</div>' +
+      (m.got ? '<div class="ur-m">' + esc(fill(UI.uTo, { n: m.got })) + '</div>' : '') + '</div>';
+  }).join('') : '<p class="h">' + esc(UI.whyNone) + '</p>');
+  h += '<p class="h">' + esc(UI.uPriv) + '</p>';
+  return vCard('📊', UI.uT, h);
 }
 
 function admInstList() {
@@ -270,12 +301,14 @@ function admInstList() {
     }).join("") + "</div>" + (ADM_INST ? '<div class="ppl-oi" id="ppl-oi"></div><div id="ppl-acc"></div>' : "") + "</div>";
 }
 
-document.addEventListener("click", function(e) {
-    var b = e.target.closest && e.target.closest("[data-c2]");
-    if (!b) return;
-    admInstPick(b.getAttribute("data-c2"));
-    admGo("stu");
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-c2]');
+  if (!b) return;
+  admInstPick(b.getAttribute('data-c2'));
+  admGo('stu');
 });
+
+
 
 function admLive() {
     admRefreshBtn();

@@ -99,8 +99,8 @@ function amdaLesCard() {
 }
 
 function amdaPickSlot(id) {
-    amdaSt.slot = id;
-    admPane();
+  if (id === '*') { amdaClassAsk(function (x) { amdaSt.slot = x; admPane(); }); return; }
+  amdaSt.slot = id; admPane();
 }
 
 var AMDA_ICON = {
@@ -109,18 +109,30 @@ var AMDA_ICON = {
     L: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="16" rx="2"/>' + '<rect x="8" y="23" width="2.4" height="6" rx="1.2"/><rect x="21.6" y="23" width="2.4" height="6" rx="1.2"/></svg>'
 };
 
-function amdaTiles(slot) {
-    var d = new Date, dow = d.getDay(), t = d.getHours() * 60 + d.getMinutes();
-    return '<div class="am-tiles">' + AMDA_SLOTS.concat(amdaLessons().map(function(l) {
-        return "L" + l.id;
-    })).map(function(id) {
-        var les = amdaLesson(id), big = les ? "" : amdaT("slot" + id + "Big");
-        var face = les ? '<span class="am-ic">' + AMDA_ICON.L + "<b>" + esc(amdaG(les.g) + les.c) + "</b></span>" : big ? '<span class="am-dig">' + esc(big) + "</span>" : '<span class="am-ic">' + (AMDA_ICON[id] || "") + "</span>";
-        var sub = les ? (amdaT("days").split(",")[les.day] || "").trim() : amdaT("slot" + id + "T");
-        var w = les ? null : amdaSlotWin(id);
-        var isNow = les ? les.day === dow : !!(w && t >= w[0] && t < w[1]);
-        return '<button class="am-tile' + (id === slot ? " on" : "") + '" onclick="amdaPickSlot(\'' + esc(id) + "')\">" + (isNow ? "<em>" + esc(amdaT("slotNow")) + "</em>" : "") + face + "<b>" + esc(les ? amdaT("lessonTag") : amdaSlotName(id)) + "</b><small>" + esc(sub) + "</small></button>";
-    }).join("") + "</div>";
+function amdaTiles(slot, kiosk) {
+  var d = new Date(), dow = d.getDay(), t = d.getHours() * 60 + d.getMinutes();
+  return '<div class="am-tiles">' +
+    AMDA_SLOTS.concat(amdaLessons().map(function (l) { return 'L' + l.id; })).map(function (id) {
+      var les = amdaLesson(id), big = les ? '' : amdaT('slot' + id + 'Big');
+      var face = les ? '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(amdaG(les.g) + les.c) + '</b></span>'
+               : big ? '<span class="am-dig">' + esc(big) + '</span>'
+               : '<span class="am-ic">' + (AMDA_ICON[id] || '') + '</span>';
+      var sub = les ? (amdaT('days').split(',')[les.day] || '').trim() : amdaT('slot' + id + 'T');
+      var w = les ? null : amdaSlotWin(id);
+      var isNow = les ? les.day === dow : !!(w && t >= w[0] && t < w[1]);
+      return '<button class="am-tile' + (id === slot ? ' on' : '') + '" ' +
+        (kiosk ? 'data-ws="' + esc(id) + '">' : 'onclick="amdaPickSlot(\'' + esc(id) + '\')">') +
+        (isNow ? '<em>' + esc(amdaT('slotNow')) + '</em>' : '') + face +
+        '<b>' + esc(les ? amdaT('lessonTag') : amdaSlotName(id)) + '</b><small>' + esc(sub) + '</small></button>';
+    }).join('') + amdaAnyTile(slot, kiosk) + '</div>';
+}
+/* האריח "כיתה אחרת" - כשכיתה כזו פתוחה, הוא מראה אותה ומסומן. */
+function amdaAnyTile(slot, kiosk) {
+  var les = amdaLesson(slot), on = !!(les && les.any);
+  return '<button class="am-tile' + (on ? ' on' : '') + '" ' +
+    (kiosk ? 'data-ws="*">' : 'onclick="amdaPickSlot(\'*\')">') +
+    '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(on ? amdaG(les.g) + les.c : '?') + '</b></span>' +
+    '<b>' + esc(amdaT('anyTag')) + '</b><small>' + esc(amdaT('anyTile')) + '</small></button>';
 }
 
 function amdaPickTrack(id) {

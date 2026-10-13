@@ -3,8 +3,8 @@ import path from "node:path";
 
 // Apps Script and GitHub Contents use these source paths on main.
 // Mirror them into Astro's ignored public input, keeping browser URLs unchanged.
-export async function stagePublisherAssets(root = ".") {
-  for (const name of ["slides", "audio"]) {
+export async function stagePublisherAssets(root = ".", retired = []) {
+  for (const name of ["slides", "audio", "promo"]) {
     const source = path.join(root, name);
     const target = path.join(root, "static", name);
     await fs.rm(target, { recursive: true, force: true });
@@ -12,6 +12,13 @@ export async function stagePublisherAssets(root = ".") {
       if (error.code !== "ENOENT") throw error;
       return null;
     });
-    if (exists) await fs.cp(source, target, { recursive: true });
+    if (exists)
+      await fs.cp(source, target, {
+        recursive: true,
+        filter: (file) =>
+          !retired.includes(
+            path.relative(root, file).split(path.sep).join("/"),
+          ),
+      });
   }
 }

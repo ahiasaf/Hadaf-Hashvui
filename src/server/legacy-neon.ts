@@ -30,13 +30,22 @@ import {
   value,
   type Sheet,
 } from "./legacy-policy.ts";
+import {
+  schoolGrant,
+  networkRoster,
+  attendanceCells,
+  pageKey,
+  removeAnchorPaths,
+  stableIdColumns,
+  stableIdPlan,
+} from "./upstream-policy.ts";
 type Params = Record<string, string>;
 type Body = Record<string, unknown>;
 type Reply = Record<string, unknown>;
 type Columns = [string, string][];
 export class UnsupportedLegacyAction extends Error {}
 // Matches SCRIPT_VERSION, so existing clients treat the typed backend as current.
-export const legacyApiVersion = 55;
+export const legacyApiVersion = 60;
 const now = () => new Date().toISOString();
 const isAdmin = (params: { key?: unknown }) =>
   authorized(
@@ -520,6 +529,7 @@ async function notify(params: Params): Promise<Reply> {
     await import("./notification-request.ts");
   const fields = [
     "inst",
+    "dev",
     "k",
     "key",
     "title",
@@ -648,14 +658,18 @@ async function access(params: Params): Promise<Reply> {
     const cols: Columns = [
       ["מזהה", device],
       ["שם", get("שם")],
-      ["טלפון", get("טלפון")],
+      ["טלפון", get("טלפון") || (grant ? value(grants, grant, "טלפון") : "")],
       ["ישיבה", get("ישיבה")],
       ["קוד ישיבה", school],
       ["תפקיד", get("תפקיד")],
       ["קוד במכשיר", params.has === "1" ? "כן" : ""],
       ["נראה", now()],
     ];
-    if (!grant) {
+    const moved =
+      !!grant &&
+      state === "אושר" &&
+      value(grants, grant, "קוד ישיבה") !== school;
+    if (!grant || moved) {
       state = "ממתין";
       cols.push(["מצב", state], ["ביקש", now()]);
     }
@@ -666,7 +680,7 @@ async function access(params: Params): Promise<Reply> {
         : state !== "אושר"
           ? { status: "wait", phone: !!get("טלפון") }
           : { status: "ok", k: await ensureCode(query, school, newCode()) };
-    return { reply, ping: !grant, get };
+    return { reply, ping: !grant || moved, get };
   });
   if (!outcome) return { status: "none" };
   if (
@@ -681,6 +695,241 @@ async function access(params: Params): Promise<Reply> {
   )
     return { ...outcome.reply, notified: 1 };
   return outcome.reply;
+}
+export async function checkStaffAccess(
+  school: string,
+  device: string,
+): Promise<Reply> {
+  if (!school || !device || device.length < 6)
+    return {
+      status: "unknown",
+      message: "הירשמו כאיש צוות והמתינו לאישור הרכז.",
+    };
+  const state = schoolGrant(
+    table(await load(readQuery, "גישה")),
+    school,
+    device,
+  );
+  if (state === "ok") return { status: "ok" };
+  if (!device)
+    return {
+      status: "unknown",
+      message: "הירשמו כאיש צוות והמתינו לאישור הרכז.",
+    };
+  const result = await access({ acc: school, dev: device });
+  return result.status === "none"
+    ? { status: "unknown", message: "הירשמו כאיש צוות והמתינו לאישור הרכז." }
+    : result;
+}
+async function pickAccess(params: Params): Promise<Reply> {
+  if (!["staff", "kid"].includes(params.pick || ""))
+    return failure("בחירה לא מוכרת");
+  const current = await access(params);
+  if (current.status !== "locked") return current;
+  let notifyAgain = false;
+  const result = await withTransaction(async (query) => {
+    const sheet = await load(query, "גישה");
+    const row = sheet.rows.find(
+      (row) =>
+        value(sheet, row, "מזהה") === params.dev &&
+        value(sheet, row, "קוד ישיבה") === params.acc,
+    );
+    if (!row || value(sheet, row, "מצב") !== "נעול") return { status: "wait" };
+    if (params.pick === "staff") {
+      const phone =
+        value(sheet, row, "טלפון") ||
+        String(params.ph || "")
+          .replace(/[^0-9+]/g, "")
+          .slice(0, 16);
+      await upsert(
+        query,
+        "גישה",
+        [
+          ["מזהה", params.dev],
+          ["מצב", "ממתין"],
+          ["ביקש", now()],
+          ...(phone ? [["טלפון", phone] as [string, string]] : []),
+        ],
+        "מזהה",
+      );
+      notifyAgain = true;
+      return { status: "wait", phone: !!phone };
+    }
+    await upsert(
+      query,
+      "גישה",
+      [
+        ["מזהה", params.dev],
+        ["תפקיד", "תלמיד"],
+      ],
+      "מזהה",
+    );
+    const subscriptions = await load(query, "התראות");
+    for (let i = 0; i < subscriptions.rows.length; i++) {
+      const row = subscriptions.rows[i];
+      if (
+        value(subscriptions, row, "מזהה") === params.dev &&
+        value(subscriptions, row, "קוד ישיבה") === params.acc
+      )
+        await update(query, "התראות", subscriptions.ordinals[i], [
+          ["תפקיד", "תלמיד"],
+        ]);
+    }
+    const help = await load(query, "תקועים");
+    const ownPhone = value(sheet, row, "טלפון")
+      .replace(/[^0-9]/g, "")
+      .slice(-9);
+    for (let i = 0; i < help.rows.length; i++) {
+      const entry = help.rows[i];
+      if (value(help, entry, "טופל")) continue;
+      const same = ownPhone
+        ? value(help, entry, "טלפון")
+            .replace(/[^0-9]/g, "")
+            .slice(-9) === ownPhone
+        : value(sheet, row, "שם") &&
+          value(help, entry, "שם") === value(sheet, row, "שם") &&
+          value(help, entry, "קוד ישיבה") === params.acc;
+      if (same)
+        await update(query, "תקועים", help.ordinals[i], [["טופל", now()]]);
+    }
+    return { status: "kid" };
+  });
+  if (notifyAgain)
+    await coordinatorPing(
+      "ביקש שוב אימות",
+      "איש צוות ביקש אימות חוזר לישיבה.",
+      "./#admin-acc",
+    );
+  return result;
+}
+const rosterCache = new Map<
+  string,
+  { revision: string; expires: number; rows: string[][] }
+>();
+async function networkRead(params: Params, marks = false): Promise<Reply> {
+  const school = (marks ? params.netmarks : params.netroster).trim();
+  if (!isAdmin(params)) {
+    const access = await checkStaffAccess(school, params.dev || "");
+    if (access.status !== "ok") return access;
+  }
+  if (marks) {
+    await withTransaction(stationSync);
+    return {
+      status: "ok",
+      rows: await rowsWhere(stationTab, "קוד ישיבה", school),
+    };
+  }
+  const meta = await readQuery(
+    "SELECT headers,revision FROM sheet_tables WHERE name=$1",
+    ["תלמידי הרשת"],
+  );
+  let rows: string[][] = [];
+  if (meta.length) {
+    const headers = meta[0].headers as string[],
+      revision = String(meta[0].revision);
+    const cached = rosterCache.get(school);
+    if (cached && cached.revision === revision && cached.expires > Date.now())
+      rows = cached.rows;
+    else {
+      const indices = ["קוד ישיבה", "שכבה", "כיתה", "משפחה", "פרטי"].map(
+        (name) => headers.indexOf(name),
+      );
+      if (indices.every((i) => i >= 0)) {
+        const selected = await readQuery(
+          "SELECT jsonb_build_array($2::text,cells->>$3::int,cells->>$4::int,cells->>$5::int,cells->>$6::int) AS cells FROM sheet_rows WHERE table_name=$1 AND cells->>$7::int=$2 ORDER BY ordinal",
+          [
+            "תלמידי הרשת",
+            school,
+            indices[1],
+            indices[2],
+            indices[3],
+            indices[4],
+            indices[0],
+          ],
+        );
+        rows = networkRoster(
+          [
+            ["קוד ישיבה", "שכבה", "כיתה", "משפחה", "פרטי"],
+            ...selected.map((r) => r.cells as string[]),
+          ],
+          school,
+        );
+      }
+      if (rosterCache.size >= 32)
+        rosterCache.delete(rosterCache.keys().next().value!);
+      rosterCache.set(school, {
+        revision,
+        expires: Date.now() + 21600000,
+        rows,
+      });
+    }
+  }
+  await withTransaction((query) =>
+    append(query, "יומן מאגר", [
+      ["מתי", now()],
+      ["מזהה", params.dev || "רכז"],
+      ["קוד ישיבה", school],
+      ["תלמידים", String(rows.length)],
+    ]),
+  );
+  return { status: "ok", inst: school, rows };
+}
+async function writeDeck(body: Body): Promise<Reply> {
+  if (!isAdmin(body)) return denied();
+  return withTransaction(async (query) => {
+    await ensure(query, "מצגת", ["מסכת", "דף", "עוגנים"]);
+    const sheet = await load(query, "מצגת");
+    if (body.action === "deckDrop") {
+      const raw =
+        typeof body.paths === "string" ? JSON.parse(body.paths) : body.paths;
+      if (!Array.isArray(raw) || raw.some((path) => typeof path !== "string"))
+        return failure("Invalid slide paths");
+      const paths = new Set<string>(raw),
+        removed: Record<string, string>[] = [];
+      for (let i = 0; i < sheet.rows.length; i++) {
+        const row = sheet.rows[i],
+          changes = removeAnchorPaths(value(sheet, row, "עוגנים"), paths);
+        if (!changes?.removed.length) continue;
+        await update(query, "מצגת", sheet.ordinals[i], [
+          ["עוגנים", changes.next],
+        ]);
+        removed.push(
+          ...changes.removed.map((item) => ({
+            mas: value(sheet, row, "מסכת"),
+            daf: value(sheet, row, "דף"),
+            ...item,
+          })),
+        );
+      }
+      return { status: "ok", removed };
+    }
+    const mas = String(body.mas || ""),
+      daf = String(body.daf || ""),
+      val = String(body.val ?? "");
+    if (!["taanit", "megila"].includes(mas) || !pageKey(daf))
+      return failure("חסרים מסכת או דף");
+    const index = sheet.rows.findIndex(
+      (row) =>
+        value(sheet, row, "מסכת") === mas &&
+        pageKey(value(sheet, row, "דף")) === pageKey(daf),
+    );
+    const current = index < 0 ? "" : value(sheet, sheet.rows[index], "עוגנים");
+    if (body.base !== undefined && current !== String(body.base))
+      return { status: "changed" };
+    if (index < 0) {
+      if (val)
+        await append(query, "מצגת", [
+          ["מסכת", mas],
+          ["דף", daf],
+          ["עוגנים", val],
+        ]);
+    } else if (val !== current)
+      await update(query, "מצגת", sheet.ordinals[index], [["עוגנים", val]]);
+    return {
+      status: "ok",
+      ...(index < 0 ? { added: !!val } : { row: sheet.ordinals[index] + 1 }),
+    };
+  });
 }
 async function help(params: Params): Promise<Reply> {
   const name = String(params.name || "").trim(),
@@ -926,6 +1175,36 @@ async function writeRow(body: Body): Promise<Reply> {
   const tab = String(body.tab || "");
   let cols = columns(body.cols);
   if (!isAdmin(body)) {
+    if (tab === stationTab && body.dev && body.inst && !body.ss) {
+      const access = await checkStaffAccess(
+        String(body.inst),
+        String(body.dev),
+      );
+      if (access.status !== "ok") return access;
+      cols = attendanceCells(cols, String(body.inst));
+      return withTransaction(async (query) => {
+        if (
+          schoolGrant(
+            table(await load(query, "גישה")),
+            String(body.inst),
+            String(body.dev),
+          ) !== "ok"
+        )
+          return denied("הגישה לישיבה לא אושרה");
+        const sheet = await load(query, tab),
+          id = cols.find(([name]) => name === "מזהה")?.[1];
+        const index = id
+          ? sheet.rows.findIndex(
+              (row) =>
+                value(sheet, row, "מזהה") === id &&
+                value(sheet, row, "קוד ישיבה") === String(body.inst),
+            )
+          : -1;
+        if (index < 0) return append(query, tab, cols);
+        await update(query, tab, sheet.ordinals[index], cols);
+        return { status: "ok" };
+      });
+    }
     if (body.ss || !publicRowTabs[tab])
       return denied("כתיבה ללשונית " + tab + " דורשת את סיסמת הסקריפט");
     cols = cols.filter(([name]) => publicRowTabs[tab].includes(name));
@@ -980,6 +1259,140 @@ async function replace(tab: string, headers: string[], rows: unknown[][]) {
     ]),
   );
   return { ...(result[0].result as Reply), count: cells.length };
+}
+async function stableIdStep(body: Body): Promise<Reply> {
+  if (!isAdmin(body)) return denied();
+  const tab = String(body.tab || ""),
+    backup = "גיבוי מזהים · " + tab;
+  if (stableIdColumns[tab] === undefined) return failure("לשונית לא מוכרת");
+  const parsed = (name: string): string[][] => {
+    const raw =
+      typeof body[name] === "string"
+        ? JSON.parse(String(body[name]))
+        : body[name];
+    if (
+      !Array.isArray(raw) ||
+      raw.some(
+        (row) =>
+          !Array.isArray(row) || row.some((cell) => typeof cell !== "string"),
+      )
+    )
+      throw new Error("Invalid stable ID rows");
+    return raw;
+  };
+  const put = async (
+    query: Query,
+    name: string,
+    headers: string[],
+    rows: string[][],
+  ) => {
+    await query("SELECT replace_sheet_table($1,$2::jsonb,$3::jsonb)", [
+      name,
+      JSON.stringify(headers),
+      JSON.stringify(rows),
+    ]);
+  };
+  let result: Reply;
+  try {
+    result = await withTransaction(async (query) => {
+      const current = await load(query, tab),
+        saved = await load(query, backup);
+      const aside = tab + " · קודם " + now() + " " + randomUUID().slice(0, 8);
+      if (body.mode === "restore") {
+        const meta = await query(
+          "SELECT metadata->>'sidVerified' AS verified FROM sheet_tables WHERE name=$1",
+          [backup],
+        );
+        if (!saved.exists || meta[0]?.verified !== "true")
+          return { status: "nobak", message: "אין גיבוי מאומת" };
+        if (current.exists)
+          await put(query, aside, current.headers, current.rows);
+        await put(query, tab, saved.headers, saved.rows);
+        if (
+          JSON.stringify(table(await load(query, tab))) !==
+          JSON.stringify(table(saved))
+        )
+          throw new Error("Restore verification failed");
+        return {
+          status: "ok",
+          restored: true,
+          aside: current.exists ? aside : "",
+        };
+      }
+      const head =
+        typeof body.head === "string" ? JSON.parse(body.head) : body.head;
+      if (!Array.isArray(head) || head.some((cell) => typeof cell !== "string"))
+        throw new Error("Invalid stable ID headers");
+      const plan = parsed("plan"),
+        base = parsed("base");
+      const prepared = stableIdPlan(tab, table(current), base, plan, head);
+      if (prepared.status === "changed") {
+        if (
+          saved.exists &&
+          JSON.stringify(current.rows) === JSON.stringify(plan)
+        )
+          return { status: "ok", already: true, cells: 0, added: 0, backup };
+        return prepared;
+      }
+      if (
+        saved.exists &&
+        JSON.stringify(table(saved)) !== JSON.stringify(table(current))
+      )
+        await put(
+          query,
+          backup + " · קודם " + now() + " " + randomUUID().slice(0, 8),
+          saved.headers,
+          saved.rows,
+        );
+      await put(query, backup, prepared.headers, current.rows);
+      if (
+        JSON.stringify(table(await load(query, backup))) !==
+        JSON.stringify([prepared.headers, ...current.rows])
+      )
+        throw new Error("Backup verification failed");
+      await query(
+        "UPDATE sheet_tables SET metadata=jsonb_set(metadata,'{sidVerified}','true'::jsonb) WHERE name=$1",
+        [backup],
+      );
+      await put(query, tab, prepared.headers, prepared.rows);
+      if (
+        JSON.stringify((await load(query, tab)).rows) !==
+        JSON.stringify(prepared.rows)
+      )
+        throw new Error("Stable ID verification failed");
+      return {
+        status: "ok",
+        cells: prepared.cells,
+        added: prepared.added,
+        backup,
+      };
+    });
+  } catch {
+    result = {
+      status: "error",
+      message: "הפעולה לא אומתה. השינוי בוטל והמקור נשמר.",
+    };
+  }
+  result = {
+    ...result,
+    rid: String(body.rid || ""),
+    tab,
+    mode: String(body.mode || "write"),
+    t: now(),
+  };
+  await withTransaction(async (query) => {
+    await ensure(query, "__sid_step", ["מזהה", "תוצאה"]);
+    await upsert(
+      query,
+      "__sid_step",
+      [
+        ["מזהה", "last"],
+        ["תוצאה", JSON.stringify(result)],
+      ],
+      "מזהה",
+    );
+  });
+  return result;
 }
 async function register(body: Body): Promise<Reply> {
   const books = Array.isArray(body.mas)
@@ -1051,6 +1464,47 @@ const strings = (input: Body): Params =>
       typeof item === "string" ? [[key, item]] : [],
     ),
   );
+async function clockState(params: Params): Promise<Reply> {
+  if (!isAdmin(params)) return denied();
+  const sheet = await load(readQuery, "פעילות השעון"),
+    row = sheet.rows.at(-1);
+  const configured = !!(process.env.GH_TOKEN && process.env.GH_REPO);
+  return {
+    status: "ok",
+    backend: "neon",
+    clock: configured || !!row,
+    last: row
+      ? {
+          at: value(sheet, row, "מתי"),
+          code: Number(value(sheet, row, "קוד")),
+          err: value(sheet, row, "שגיאה"),
+        }
+      : null,
+    message: "התזמון מנוהל ב-GitHub Actions.",
+  };
+}
+async function clockFire(params: Params): Promise<Reply> {
+  if (!isAdmin(params)) return denied();
+  const repository = process.env.GH_REPO,
+    token = process.env.GH_TOKEN;
+  if (!token || !repository || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+    return failure("GitHub אינו מוגדר");
+  const response = await fetch(
+    "https://api.github.com/repos/" + repository + "/dispatches",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        Accept: "application/vnd.github+json",
+      },
+      body: JSON.stringify({ event_type: "push-clock" }),
+      signal: AbortSignal.timeout(15000),
+    },
+  );
+  return response.status === 204
+    ? { ...(await clockState(params)), message: "הבקשה להרצה התקבלה ב-GitHub." }
+    : failure("GitHub לא אישר את הבקשה להרצה");
+}
 export async function neonLegacyGet(
   name: string,
   params: Params,
@@ -1061,18 +1515,9 @@ export async function neonLegacyGet(
     case "help":
       return help(params);
     case "setup":
-      if (!isAdmin(params)) return denied();
-      return params.setup === "clockoff"
-        ? {
-            status: "error",
-            clock: true,
-            message: "שעון השליחות מנוהל ב-GitHub Actions",
-          }
-        : {
-            status: "ok",
-            clock: true,
-            message: "שעון השליחות פעיל · GitHub Actions כל חצי שעה",
-          };
+      return params.setup === "clockfire"
+        ? clockFire(params)
+        : clockState(params);
     case "digest":
       return dispatchDigest(params);
     case "helpdone":
@@ -1163,13 +1608,38 @@ export async function neonLegacyGet(
         ),
       };
     case "acc":
-      return access(params);
+      return params.pick ? pickAccess(params) : access(params);
+    case "netroster":
+      return networkRead(params);
+    case "netmarks":
+      return networkRead(params, true);
+    case "sidStep": {
+      if (!isAdmin(params)) return denied();
+      const sheet = await load(readQuery, "__sid_step");
+      const row = sheet.rows.find(
+        (row) => value(sheet, row, "מזהה") === "last",
+      );
+      return {
+        status: "ok",
+        version: legacyApiVersion,
+        sid: row ? JSON.parse(value(sheet, row, "תוצאה")) : null,
+      };
+    }
     case "accset": {
       if (!isAdmin(params)) return denied();
       if (!["אושר", "נעול", "ממתין"].includes(params.st || ""))
         return failure("מצב לא מוכר");
-      await withTransaction((query) =>
-        upsert(
+      const previous = await withTransaction(async (query) => {
+        const sheet = await load(query, "גישה");
+        const row = sheet.rows.find(
+          (row) => value(sheet, row, "מזהה") === params.accset,
+        );
+        if (!row) throw new Error("Unknown staff request");
+        const previous = {
+          state: value(sheet, row, "מצב"),
+          school: value(sheet, row, "קוד ישיבה"),
+        };
+        await upsert(
           query,
           "גישה",
           [
@@ -1178,9 +1648,32 @@ export async function neonLegacyGet(
             ["הוחלט", now()],
           ],
           "מזהה",
-        ),
-      );
-      return { status: "ok" };
+        );
+        return previous;
+      });
+      let pushed = false;
+      if (
+        params.st === "אושר" &&
+        previous.state !== "אושר" &&
+        params.t &&
+        params.b
+      ) {
+        try {
+          const reply = await notify({
+            key: params.key,
+            only: previous.school,
+            title: params.t.slice(0, 120),
+            body: params.b.slice(0, 400),
+            who: "מערכת",
+            url: "/management#phone",
+            flt: JSON.stringify({ ids: [params.accset] }),
+          });
+          pushed = reply.status === "ok";
+        } catch {
+          /* Approval remains valid even when notification delivery is unavailable. */
+        }
+      }
+      return { status: "ok", pushed, ...(pushed ? { notified: 1 } : {}) };
     }
     case "recount":
       // Public counters are live views over people and progress, so there is nothing to rebuild.
@@ -1225,6 +1718,11 @@ export async function neonLegacyPost(body: Body): Promise<Reply> {
       return isAdmin(body)
         ? stationKind(body)
         : denied("דורש את סיסמת הסקריפט");
+    case "sidStep":
+      return stableIdStep(body);
+    case "deckRow":
+    case "deckDrop":
+      return writeDeck(body);
     case "texts": {
       if (!isAdmin(body)) return denied("פרסום המלל דורש את סיסמת הסקריפט");
       const raw =
