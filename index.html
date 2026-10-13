@@ -2087,6 +2087,15 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-nm span{flex:1}
 .am-nm i{font-style:normal;font-size:.76rem;font-weight:700;color:var(--green-d)}
 .am-nm.had{background:var(--sunk);color:var(--ink-3)}
+/* "אני מסמן את כל הכיתה" — המורה מסמן את כולם ושומר פעם אחת. */
+.am-all{display:block;width:100%;margin:16px 0 4px;padding:10px;border:0;background:none;
+        font:inherit;font-size:.92rem;font-weight:800;color:var(--blue);text-decoration:underline}
+.am-nm.sel{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-nm.sel i{color:#fff}
+.am-save{position:sticky;bottom:10px;display:block;width:100%;margin-top:14px;padding:16px;border:0;
+         border-radius:var(--r);font:inherit;font-size:1.1rem;font-weight:800;
+         background:var(--green-d);color:#fff;box-shadow:var(--sh-2)}
+.am-save:disabled{opacity:.45}
 .am-ok{position:fixed;inset:0;z-index:9001;display:none;flex-direction:column;
        align-items:center;justify-content:center;gap:14px;background:var(--green-d);
        color:#fff;text-align:center;padding:24px}
@@ -2793,7 +2802,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="ask.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.212';
+var APP_VERSION = '8.99.213';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16470,14 +16479,21 @@ function amdaPaint() {
     }
   }
   if (amdaSt.g && amdaSt.c) {
-    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c);
-    h += '<div class="am-q" id="am-nq">' + esc(amdaT('pickN')) + '</div><div class="am-names">';
+    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c), nSel = 0;
+    var all = !!amdaSt.all, sel = amdaSt.sel || {};
+    h += '<div class="am-q" id="am-nq">' + esc(amdaT(all ? 'allQ' : 'pickN')) + '</div><div class="am-names">';
     list.forEach(function (n, i) {
-      var was = had[amdaKey(amdaSt.g, amdaSt.c, n)];
-      h += '<button class="am-nm' + (was ? ' had' : '') + '" data-n="' + i + '"><span>' + esc(n) +
-           '</span>' + (was ? '<i>✓ ' + esc(amdaT('had')) + '</i>' : '') + '</button>';
+      var was = had[amdaKey(amdaSt.g, amdaSt.c, n)], on = all && !was && sel[i];
+      if (on) nSel++;
+      h += '<button class="am-nm' + (was ? ' had' : '') + (on ? ' sel' : '') + '" data-n="' + i + '"><span>' +
+           esc(n) + '</span>' + (was ? '<i>✓ ' + esc(amdaT(all ? 'hadT' : 'had')) + '</i>' : on ? '<i>✓</i>' : '') + '</button>';
     });
     h += '</div>';
+    /* המסלול הרגיל נשאר אחד; סימון כל הכיתה — קישור קטן בתחתית. */
+    h += all ? '<button class="am-save" data-as="1"' + (nSel ? '' : ' disabled') + '>' +
+               esc(fill(amdaT('allSave'), { n: nSel })) + '</button>' +
+               '<button class="am-all" data-ab="0">' + esc(amdaT('allBack')) + '</button>'
+             : (les ? '' : '<button class="am-all" data-ab="1">' + esc(amdaT('allGo')) + '</button>');
   }
   box.innerHTML = h;
 }
@@ -16497,7 +16513,8 @@ function amdaTap(e) {
   while (el && el.id !== 'amda' && !(el.getAttribute &&
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
-          el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la')))) el = el.parentNode;
+          el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
+          el.getAttribute('data-ab') || el.getAttribute('data-as')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x')) { amdaClose(); return; }
@@ -16533,12 +16550,36 @@ function amdaTap(e) {
     amdaOk(who, amdaT('seatDone'), amdaReset);
     return;
   }
-  var n = amdaList(amdaSt.g, amdaSt.c)[+el.getAttribute('data-n')];
+  /* כל הכיתה: מעבר הלוך וחזור, ושמירה אחת לכל המסומנים. */
+  if (el.getAttribute('data-ab')) {
+    amdaSt.all = el.getAttribute('data-ab') === '1'; amdaSt.sel = {};
+    clearTimeout(amdaSt.idle);
+    if (!amdaSt.all) amdaIdle();
+    amdaPaint(); return;
+  }
+  if (el.getAttribute('data-as')) {
+    var pick = amdaList(amdaSt.g, amdaSt.c).filter(function (x, i) { return amdaSt.sel && amdaSt.sel[i]; });
+    if (!pick.length) return;
+    pick.forEach(function (x) { amdaMarkRec(amdaSt.g, amdaSt.c, x); });
+    amdaFlush();
+    amdaOk(fill(amdaT('allDone'), { n: pick.length }), '', amdaReset);
+    return;
+  }
+  var ni = +el.getAttribute('data-n'), n = amdaList(amdaSt.g, amdaSt.c)[ni];
   if (!n) return;
+  if (amdaSt.all) {
+    if (el.className.indexOf('had') >= 0) return;              /* כבר נרשם — אין מה לסמן */
+    amdaSt.sel = amdaSt.sel || {};
+    amdaSt.sel[ni] = !amdaSt.sel[ni];
+    var top = document.getElementById('amda').scrollTop;
+    amdaPaint();
+    document.getElementById('amda').scrollTop = top;
+    return;
+  }
   amdaMark(amdaSt.g, amdaSt.c, n);
 }
 function amdaReset() {
-  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
+  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = ''; amdaSt.all = false; amdaSt.sel = {};
   amdaPaint();
   document.getElementById('amda').scrollTop = 0;
 }
@@ -16556,17 +16597,21 @@ function amdaOk(n, txt, after) {
 /* היום והשבוע — של רגע הלחיצה, ולא של פתיחת העמדה: מכשיר שנשאר
    פתוח עד מחר רושם את מחר. מי שכבר נרשם במועד הזה ובחר מקום —
    רק המקום נשלח. */
+/* רישום אחד לתור, בלי מסך. מחזיר true אם נוסף (ולא נרשם כבר). */
+function amdaMarkRec(g, c, n) {
+  var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n);
+  if (amdaHadNow(day + '|' + s.slot)[key]) return false;
+  var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
+  q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+           w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
+           track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
+           g: g, c: c, n: n, at: new Date().toISOString() });
+  Store.set('amdaQ', q);
+  return true;
+}
 function amdaMark(g, c, n) {
-  var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n), les = amdaLesson(s.slot);
-  if (!amdaHadNow(day + '|' + s.slot)[key]) {
-    var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
-    q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-             w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
-             track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
-             g: g, c: c, n: n, at: new Date().toISOString() });
-    Store.set('amdaQ', q);
-    amdaFlush();
-  }
+  var s = amdaSess(), les = amdaLesson(s.slot);
+  if (amdaMarkRec(g, c, n)) amdaFlush();
   /* שיעור כיתה שבו ביקשת מקומות: אחרי ה-✓ — מפת הכיתה. */
   amdaOk(n, amdaT(s.kind === 'o' ? 'doneO' : 'done'), function () {
     if (les && amdaSeatAsk(les.id)) {
