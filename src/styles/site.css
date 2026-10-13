@@ -39,6 +39,9 @@
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
 }
+html {
+  scroll-behavior: smooth;
+}
 * {
   box-sizing: border-box;
 }

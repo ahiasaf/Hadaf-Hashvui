@@ -1128,11 +1128,13 @@ input[aria-invalid="true"] {
   }
 }
 .flow-step h1 {
+  text-align: center;
   font-size: clamp(1.6rem, 5vw, 2.1rem);
   margin: 0 0 6px;
   outline: none;
 }
 .flow-lead {
+  text-align: center;
   color: var(--ink-2);
   margin: 0 0 20px;
 }
@@ -1154,6 +1156,12 @@ input[aria-invalid="true"] {
   padding: 2px;
   margin-bottom: 14px;
   scrollbar-gutter: stable;
+}
+.choice-list[aria-label="ישיבה"] {
+  scrollbar-width: none;
+}
+.choice-list[aria-label="ישיבה"]::-webkit-scrollbar {
+  display: none;
 }
 .choice-big {
   display: grid;
