@@ -95,21 +95,25 @@ export default function Staff({
           </a>
         </section>
         <section className="surface school-invitation">
-          <span className="invitation-icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              width="28"
-              height="28"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-            >
-              <path d="M4 5h16v14H4zM4 6l8 7 8-7" />
-              <path d="M8 19v2m8-2v2" />
-            </svg>
-          </span>
-          <h2>מצרפים את התלמידים</h2>
-          <p>{name ? "הזמנה ללימוד של " + name : "הזמנה ללימוד השבועי"}</p>
+          <div className="invitation-heading">
+            <div className="invitation-heading-text">
+              <h2>מצרפים את התלמידים</h2>
+              <p>{name ? "הזמנה ללימוד של " + name : "הזמנה ללימוד השבועי"}</p>
+            </div>
+            <span className="invitation-icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              >
+                <path d="M4 5h16v14H4zM4 6l8 7 8-7" />
+                <path d="M8 19v2m8-2v2" />
+              </svg>
+            </span>
+          </div>
           <div className="invitation-actions">
             <button
               className="button button-blue"

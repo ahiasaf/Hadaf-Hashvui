@@ -1506,6 +1506,21 @@ details summary {
 }
 
 /* Clear invitation actions without exposing routing details. */
+.invitation-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.invitation-heading-text {
+  flex: 1;
+  min-width: 0;
+}
+.invitation-heading h2 {
+  margin: 0;
+}
+.invitation-heading p {
+  margin: 6px 0 0;
+}
 .invitation-icon {
   display: grid;
   place-items: center;
@@ -1514,7 +1529,7 @@ details summary {
   color: var(--gold-t);
   background: var(--paper);
   border-radius: 50%;
-  margin-bottom: 16px;
+  flex: none;
 }
 .invitation-actions {
   display: grid;
