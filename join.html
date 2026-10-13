@@ -2399,6 +2399,7 @@ $('go').onclick = function () {
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
+  if (phLen(val('phone'))) return say(phLen(val('phone')));
   if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return say(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
@@ -2411,6 +2412,8 @@ $('go').onclick = function () {
   if (role !== 'dad' && way === 'dad' && invRel === 'dad' &&
       (val('dad-phone').match(/\d/g) || []).length < 9)
     return say(String(JOIN.errDadPh).split(PAIR.dad).join(parentWord()));
+  if ((way === 'dad' || way === 'chav' || way === 'friend') && phLen(val('dad-phone')))
+    return say(phLen(val('dad-phone')));
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
      עכשיו — יצטרף לבד, וההזמנה תמתין לו במסך הבית. שדה ריק
      שעוצר טופס הוא הדרך הבטוחה לאבד מצטרף. */
@@ -3951,6 +3954,14 @@ function wzWire() {
    לשני מקומות מתפצל גם בהתנהגות ביום שמישהו מתקן אחד מהם. */
 /* תלמיד שהשאיר את הטלפון ריק — עובר. מספר שהתחיל להיכתב
    ונקטע עדיין נבדק, כמו קודם. */
+/* מספר שהתחיל להיכתב — עשר ספרות בדיוק (נייד). מחזיר את
+   ההודעה, או '' כשהשדה ריק או תקין. +972 נספר כ-0. */
+function phLen(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (d.indexOf('972') === 0 && d.length > 10) d = '0' + d.slice(3);
+  if (!d.length || d.length === 10) return '';
+  return d.length > 10 ? JOIN.phLong : JOIN.phShort;
+}
 function phoneSkip() {
   return role !== 'dad' && !(val('phone').match(/\d/g) || []).length;
 }
@@ -3962,6 +3973,7 @@ function wzDetOk() {
   if (!val('first') || !val('last')) return no('צריך שם פרטי ושם משפחה.');
   if (!code) return no('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                        'יש "אחר" בסוף הרשימה.');
+  if (phLen(val('phone'))) return no(phLen(val('phone')));
   if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return no(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
