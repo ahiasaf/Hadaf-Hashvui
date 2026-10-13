@@ -6,7 +6,8 @@
    והתמונות מצוירים בחדות מלאה ולא מוגדלים מפריים קטן.
    כל פריים: seekAsync(t), המתנה לפענוח התמונות, צילום, ל-ffmpeg.
 
-   מוזיקה: music.m4a בתיקייה הזו (לא בריפו). MUSIC_SS — שנייה בקובץ
+   TOP=322 — המספר הגדול במסך המספרים (ברירת מחדל: מה שכתוב ב-STATS).
+   מוזיקה: music.m4a בתיקייה הזו (לא בריפו). MUSIC_GAIN — הגברה (6dB). MUSIC_SS — שנייה בקובץ
    שממנה מתחילים (ברירת מחדל 0). כניסה 0.25 ש', דעיכה בשתי השניות האחרונות,
    והאורך נחתך בדיוק לאורך הווידאו.
    הפלט: tools/promo/hadaf-promo.mp4                                   */
@@ -31,7 +32,9 @@ function run(args) {
 (async function () {
   var browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
   var page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: DPR });
-  await page.goto('file://' + path.join(DIR, 'promo.html') + '?render');
+  // TOP — המספר הגדול במסך המספרים (ההפקה מהניהול שולחת את המספר החי)
+  await page.goto('file://' + path.join(DIR, 'promo.html') + '?render' +
+                  (/^\d+$/.test(process.env.TOP || '') ? '&top=' + process.env.TOP : ''));
   await page.evaluate(function () { return document.fonts.ready; });
   var total = await page.evaluate(function () { return window.TOTAL; });
   var frames = Math.round(total * FPS);
@@ -65,7 +68,7 @@ function run(args) {
       'format=duration', '-of', 'csv=p=0', MUSIC]).toString() - ss;
     var end = Math.min(dur, len);
     await run(['-loglevel', 'error', '-y', '-i', SILENT, '-ss', String(ss), '-i', MUSIC,
-      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',afade=t=in:d=0.25,afade=t=out:st=' + (end - 2) + ':d=2,' +
+      '-filter_complex', '[1:a]apad,atrim=0:' + dur + ',volume=' + (process.env.MUSIC_GAIN || '6dB') + ',afade=t=in:d=0.25,afade=t=out:st=' + (end - 2) + ':d=2,' +
       'aformat=sample_rates=48000:channel_layouts=stereo[a]',
       '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', String(dur),
       '-movflags', '+faststart', OUT]);
