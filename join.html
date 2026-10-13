@@ -361,32 +361,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .note{font-size:.76rem;font-weight:600;color:var(--ink-3);text-align:center;
   margin-top:11px;line-height:1.65}
 .err{color:#A5382D;font-weight:800;font-size:.82rem;margin-top:10px;min-height:1.2em}
-/* ---------- הטלפון בריבועים ----------
-   "ריבועים שבתוכם מקלידים את המספר." עשרה ריבועים, וכל ספרה
-   יושבת באחד — ילד שהחסיר ספרה רואה ריבוע ריק בסוף, ומי
-   שהוסיף רואה ריבוע אחד־עשר בכתום. שלושה ואז שבעה, כמו
-   שהמספר נכתב (05X-XXXXXXX).
-
-   השדה האמיתי נשאר מתחת, שקוף: המקלדת, ההדבקה וההשלמה
-   האוטומטית של הטלפון עובדים כרגיל, והריבועים רק מציגים. */
-.phw{position:relative}
-.phw input{color:transparent;-webkit-text-fill-color:transparent;
-  caret-color:transparent;background:transparent;border-color:transparent}
-.phw input::selection{background:transparent}
-.phb{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;
-  direction:ltr;gap:4px;pointer-events:none}
-.phb b{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
-  background:#fff;border:1px solid var(--rule);border-radius:9px;
-  font-size:1.15rem;font-weight:800;color:var(--ink);
-  transition:border-color .15s}
-.phb b:nth-child(3){margin-right:8px}
-.phb b.on{border-color:var(--green)}
-.phw.foc .phb b.cur{border:2px solid var(--blue-l)}
-.phb b.ex{border-color:var(--gold);background:#FBF1DC}
-.phw.bad .phb b{border-color:#A5382D}
-/* ההודעה — שורה בתוך הטופס, מתחת לשדה. לא חלון של הדפדפן. */
-.phe{color:#A5382D;font-weight:800;font-size:.78rem;margin-top:6px}
-.phe:empty{display:none}
 
 /* ---------- מה זה, בראש העמוד ----------
    הטופס פתח ב"מי אתה?" ובשני שדות שם, כלומר ביקש התחייבות לפני
@@ -1948,131 +1922,6 @@ document.addEventListener('blur', function (e) {
   if (e.target && e.target.id === 'phone') { phoneLeft = true; stage(1); }
 }, true);
 
-/* ============================================================
-   הטלפון בריבועים, והודעה רק כשממשיכים.
-   ============================================================
-   ילד מחסיר ספרה או מוסיף אחת, ומספר כזה אינו מגיע לאף אחד.
-   הריבועים מראים את האורך תוך כדי הקלדה — בלי לומר שום דבר.
-   ההודעה נאמרת רק כשיצא מהשדה או לחץ "המשך": שגיאה שקופצת
-   אחרי חמש ספרות מבלבלת את מי שעוד באמצע. שדה ריק אינו
-   שגיאה — מי שחייב טלפון מקבל על כך את ההודעה הרגילה. */
-var PH_IDS = ['phone', 'dad-phone', 'inv-ph', 'inv2-ph', 'kid-phone', 'back-phone', 'hlp-phone'];
-function phDigits(v) {
-  var d = String(v || '').replace(/[^0-9]/g, '');
-  if (d.indexOf('972') === 0 && d.length > 10) d = '0' + d.slice(3);
-  return d;
-}
-/* '' — ריק או תקין · 'short' · 'long'. נייד הוא עשר ספרות,
-   ואין כאן טלפונים של הבית. */
-function phBad(v) {
-  var n = phDigits(v).length;
-  if (!n || n === 10) return '';
-  return n > 10 ? 'long' : 'short';
-}
-function phOk(v) { return !!phDigits(v).length && !phBad(v); }
-function phIs(el) {
-  if (!el || !el.id) return false;
-  for (var i = 0; i < PH_IDS.length; i++) if (PH_IDS[i] === el.id) return true;
-  return false;
-}
-/* הריבועים וההודעה נולדים סביב השדה. השדה עובר לתוך עטיפה —
-   ולכן רק כשאינו בפוקוס (העברה הייתה מורידה את המקלדת). */
-function phWrap(el) {
-  var w = el.parentNode;
-  if (w && w.className && /(^|\s)phw(\s|$)/.test(w.className)) return w;
-  if (document.activeElement === el) return null;
-  w = document.createElement('div');
-  w.className = 'phw';
-  el.parentNode.insertBefore(w, el);
-  w.appendChild(el);
-  el.setAttribute('dir', 'ltr');
-  var b = document.createElement('div');
-  b.className = 'phb'; b.setAttribute('aria-hidden', 'true');
-  w.appendChild(b);
-  var er = document.createElement('div');
-  er.className = 'phe'; er.id = el.id + '-phe';
-  er.setAttribute('role', 'alert');
-  w.parentNode.insertBefore(er, w.nextSibling);
-  phMeter(el);
-  return w;
-}
-/* רק מה שהשתנה — המעקב אחרי הדף (למטה) רואה כל שינוי */
-function phMeter(el) {
-  var w = phWrap(el); if (!w) return null;
-  var b = w.lastChild, d = phDigits(el.value), n = Math.max(10, d.length);
-  while (b.childNodes.length < n) b.appendChild(document.createElement('b'));
-  while (b.childNodes.length > n) b.removeChild(b.lastChild);
-  for (var i = 0; i < n; i++) {
-    var c = b.childNodes[i], t = d.charAt(i);
-    var k = i >= 10 ? 'ex' : (t ? 'on' : (i === d.length ? 'cur' : ''));
-    if (c.textContent !== t) c.textContent = t;
-    if (c.className !== k) c.className = k;
-  }
-  return w;
-}
-function phScan() {
-  for (var i = 0; i < PH_IDS.length; i++) {
-    var el = $(PH_IDS[i]);
-    if (el && !/(^|\s)phw(\s|$)/.test(el.parentNode.className || '')) phMeter(el);
-  }
-}
-/* שדות שנבנים אחר כך (ההזמנה, הוספת בן, "כבר נרשמתי") מקבלים
-   ריבועים ברגע שהם נולדים. */
-if (window.MutationObserver) {
-  new MutationObserver(phScan).observe(document.documentElement, { childList:true, subtree:true });
-}
-function phCls(w, c, on) {
-  var has = new RegExp('(^|\\s)' + c + '(\\s|$)').test(w.className);
-  if (on && !has) w.className += ' ' + c;
-  if (!on && has) w.className = w.className.replace(new RegExp('\\s*\\b' + c + '\\b', 'g'), '');
-}
-/* `show` — לומר עכשיו (יצא מהשדה / לחץ המשך). בלעדיו רק
-   מנקים: מי שתיקן רואה את ההודעה נעלמת, ואין הודעה חדשה. */
-function phSay(el, show) {
-  if (!el) return '';
-  var w = phMeter(el);
-  var bad = phBad(el.value), er = $(el.id + '-phe');
-  if (!bad) {
-    if (er) er.textContent = '';
-    if (w) phCls(w, 'bad', false);
-  } else if (show) {
-    if (er) er.textContent = bad === 'long' ? JOIN.phLong : JOIN.phShort;
-    if (w) phCls(w, 'bad', true);
-  }
-  return bad;
-}
-/* בלחיצה על "המשך" — השדה הראשון שמספרו שגוי מקבל את ההודעה,
-   והמסך עובר אליו. */
-function phStop(id) {
-  var el = $(id);
-  if (!el || !phSay(el, true)) return false;
-  try { el.scrollIntoView({ block: 'center' }); el.focus(); } catch (e) {}
-  return true;
-}
-document.addEventListener('input', function (e) {
-  if (phIs(e.target)) phSay(e.target, false);
-}, true);
-/* הסמן תמיד בסוף. הוא שקוף, ולכן מי שנגע בצד שמאל של השדה
-   היה מקליד בתחילת המספר בלי לדעת. */
-function phEnd(el) {
-  setTimeout(function () {
-    try { var n = el.value.length; el.setSelectionRange(n, n); } catch (e) {}
-  }, 0);
-}
-document.addEventListener('focus', function (e) {
-  if (!phIs(e.target)) return;
-  var w = phMeter(e.target); if (w) phCls(w, 'foc', true);
-  phEnd(e.target);
-}, true);
-document.addEventListener('click', function (e) {
-  if (phIs(e.target)) phEnd(e.target);
-}, true);
-document.addEventListener('blur', function (e) {
-  if (!phIs(e.target)) return;
-  var w = phMeter(e.target); if (w) phCls(w, 'foc', false);
-  phSay(e.target, true);
-}, true);
-
 /* `scroll` — האם לגלול אל מה שנחשף. בעלייה הראשונה **לא**:
    הטופס נבנה ומגלה את החלק הראשון, וגלילה אליו הייתה זורקת
    את המבקר ישר מעבר למסך הפתיחה — כלומר מבטלת אותו. גוללים
@@ -2081,9 +1930,6 @@ function stage(scroll) {
   var grew = null;
   var step = function (id, cond) { if (cond && open_(id)) grew = id; };
 
-  /* הקווים של שני השדות הקבועים — גם כשהמספר מולא מראש */
-  if ($('phone')) phMeter($('phone'));
-  if ($('dad-phone')) phMeter($('dad-phone'));
   step('c-who', true);
   step('f-last',  ready('first'));
   if (!OUT) step('instFld', ready('last'));
@@ -2553,7 +2399,7 @@ $('go').onclick = function () {
   if (!first || !last) return say('צריך שם פרטי ושם משפחה.');
   if (!code)           return say('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                                   'יש "אחר" בסוף הרשימה.');
-  if (phStop('phone')) return say('');
+  if (phLen(val('phone'))) return say(phLen(val('phone')));
   if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return say(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
@@ -2566,8 +2412,8 @@ $('go').onclick = function () {
   if (role !== 'dad' && way === 'dad' && invRel === 'dad' &&
       (val('dad-phone').match(/\d/g) || []).length < 9)
     return say(String(JOIN.errDadPh).split(PAIR.dad).join(parentWord()));
-  if ((way === 'dad' || way === 'chav' || way === 'friend') && phStop('dad-phone'))
-    return say('');
+  if ((way === 'dad' || way === 'chav' || way === 'friend') && phLen(val('dad-phone')))
+    return say(phLen(val('dad-phone')));
   /* ההזמנה אינה חובה. מי שבחר "עם אבא" ולא רצה להזמין אותו
      עכשיו — יצטרף לבד, וההזמנה תמתין לו במסך הבית. שדה ריק
      שעוצר טופס הוא הדרך הבטוחה לאבד מצטרף. */
@@ -2792,7 +2638,7 @@ function drawInv() {
 
   var ph = $('inv-ph'), go = $('inv-go'), nmI = $('inv-nm');
   var check = function () {
-    var ok = phOk(ph ? ph.value : phone) && (!nmI || (nmI.value || '').trim());
+    var ok = (String(ph ? ph.value : phone).match(/\d/g) || []).length >= 9 && (!nmI || (nmI.value || '').trim());
     go.className = 'btn' + (ok ? '' : ' off');
     /* ההסבר למה הכפתור כבוי מיותר ברגע שהוא נדלק. */
     var nd = $('inv-need'); if (nd) nd.style.display = ok ? 'none' : '';
@@ -2802,7 +2648,7 @@ function drawInv() {
   check();
   go.onclick = function () {
     var num = ph ? ph.value : phone;
-    if (!phOk(num)) { if (ph) phSay(ph, true); return; }
+    if ((String(num).match(/\d/g) || []).length < 9) return;
     if (nmI && !(nmI.value || '').trim()) return;
     if (nmI) me.dadFirst = (nmI.value || '').trim();
     /* נשמר ברשומה, כדי שהמספר לא יאבד אם הוא ייסגר וייפתח. */
@@ -2862,14 +2708,13 @@ function drawInv2(where) {
   var nm = $('inv2-name'), ph = $('inv2-ph'), go = $('inv2-go');
   if (!go) return;
   var check = function () {
-    var ok = (nm.value || '').trim() && phOk(ph.value);
+    var ok = (nm.value || '').trim() && (ph.value.match(/\d/g) || []).length >= 9;
     go.className = 'btn' + (ok ? '' : ' off');
   };
   nm.oninput = check; ph.oninput = check;
   go.onclick = function () {
     var name2 = (nm.value || '').trim(), num = ph.value;
-    if (!phOk(num)) phSay(ph, true);
-    if (!name2 || !phOk(num)) return;
+    if (!name2 || (String(num).match(/\d/g) || []).length < 9) return;
     /* לא נכתב על me — זה הורה שני, לא עדכון של הראשון. השם
        מוצב במקום "אבא" בפנייה, כדי לא לנחש מגדר. */
     var me2 = { inst: me.inst, rel: 'dad', first: me.first, last: me.last,
@@ -2917,15 +2762,14 @@ function drawKids(where) {
   link.onclick = function () { link.style.display = 'none'; form.style.display = ''; };
   var check = function () {
     var ok = ($('kid-first').value || '').trim() &&
-             phOk($('kid-phone').value);
+             (($('kid-phone').value || '').match(/\d/g) || []).length >= 9;
     go.className = 'btn' + (ok ? '' : ' off');
   };
   $('kid-first').oninput = check;
   $('kid-phone').oninput = check;
   go.onclick = function () {
     var first = ($('kid-first').value || '').trim(), phone = $('kid-phone').value || '';
-    if (!phOk(phone)) phSay($('kid-phone'), true);
-    if (!first || !phOk(phone)) return;
+    if (!first || (phone.match(/\d/g) || []).length < 9) return;
     var kid = { id: me.id + ':k' + (list.length + 1), first: first, phone: phone };
     queue({ action:'row', tab:'לומדים', cols: JSON.stringify([
       ['מזהה', kid.id], ['ישיבה', me.instName], ['קוד ישיבה', me.inst],
@@ -4110,6 +3954,14 @@ function wzWire() {
    לשני מקומות מתפצל גם בהתנהגות ביום שמישהו מתקן אחד מהם. */
 /* תלמיד שהשאיר את הטלפון ריק — עובר. מספר שהתחיל להיכתב
    ונקטע עדיין נבדק, כמו קודם. */
+/* מספר שהתחיל להיכתב — עשר ספרות בדיוק (נייד). מחזיר את
+   ההודעה, או '' כשהשדה ריק או תקין. +972 נספר כ-0. */
+function phLen(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (d.indexOf('972') === 0 && d.length > 10) d = '0' + d.slice(3);
+  if (!d.length || d.length === 10) return '';
+  return d.length > 10 ? JOIN.phLong : JOIN.phShort;
+}
 function phoneSkip() {
   return role !== 'dad' && !(val('phone').match(/\d/g) || []).length;
 }
@@ -4121,7 +3973,7 @@ function wzDetOk() {
   if (!val('first') || !val('last')) return no('צריך שם פרטי ושם משפחה.');
   if (!code) return no('צריך לבחור ישיבה. מי שאינו באחת מהן — ' +
                        'יש "אחר" בסוף הרשימה.');
-  if (phStop('phone')) return false;
+  if (phLen(val('phone'))) return no(phLen(val('phone')));
   if (code !== OTHER.code && !phoneSkip() && (val('phone').match(/\d/g) || []).length < 9)
     return no(role === 'dad'
       ? 'צריך מספר טלפון — הוא מה שמקשר ביניכם לבין הבן במערכת.'
