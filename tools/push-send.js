@@ -26,7 +26,6 @@ var fs = require('fs');
 var report = require('./push-report.js').report;
 var D = require('./push-deliver.js');
 var S = require('./sched.js'), GONE_ST = {};
-var GONE = 0;
 function endWith(f, code) {
   return report(f).then(function () { process.exit(code); });
 }
@@ -70,29 +69,65 @@ function scriptUrl() {
   return m ? m[1] : '';
 }
 
-/* **קריאה מהגיליון — עד שלושה ניסיונות.** גוגל מחזיר לפעמים דף
-   שגיאה (HTML) במקום JSON — עומס רגעי אצלם. עד עכשיו זה הפיל את
-   ההרצה כולה, וההודעה פשוט לא יצאה. עכשיו ממתינים וחוזרים. */
-function getJson(q, n) {
-  n = n || 1;
+/* ============================================================
+   קריאה מהגיליון — ניסיונות חוזרים עם המתנה הולכת וגדלה.
+   ============================================================
+   גוגל מחזיר לפעמים דף שגיאה (HTML, ולרוב 404 "unable to open the
+   file at this time") במקום JSON. ב-6.10 וב-10.10 זה נמשך יותר
+   משלושה ניסיונות של 20 שניות, וההודעה לא יצאה כלל.
+
+   עכשיו: עד TRIES ניסיונות, ההמתנה מוכפלת בכל פעם (15ש', 30ש',
+   דקה, 2, 4, ואז 5 דקות) עם רעש אקראי — כ-23 דקות בסך הכול. זמן
+   קצוב של 45 שניות לכל ניסיון, כדי שבקשה תקועה לא תתקע הכול.
+   כשנכשל סופית, ההודעה אומרת כמה ניסיונות, כמה זמן, ומה גוגל
+   החזיר — זה מה שמגיע להתרעה לרכז. */
+var TRIES = 9, ASK_MS = 45000;
+function backoff(n) {
+  return Math.min(300000, 15000 * Math.pow(2, n - 1)) + Math.floor(Math.random() * 3000);
+}
+function sleep(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+/* מה שכתוב בדף השגיאה של גוגל — הכותרת ושורת השגיאה, לא הקוד שבו. */
+function googleWhy(t) {
+  var tt = /<title>([^<]*)<\/title>/i.exec(t);
+  var vis = String(t).replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ');
+  var er = /(unable to open[^<]{0,80}|Exceeded[^<]{0,80}|Service invoked[^<]{0,80}|Authorization[^<]{0,60}|Too many[^<]{0,60})/i.exec(vis);
+  return [(tt ? tt[1].trim() : ''), (er ? er[0].replace(/\s+/g, ' ').trim() : '')]
+    .filter(Boolean).join(' · ');
+}
+function getJson(q, n, t0) {
+  n = n || 1; t0 = t0 || Date.now();
   /* הסטטוס ותחילת התשובה נכנסים להודעה — כדי שביומן ייראה מה
      בדיוק חזר (התחברות, פריסה שנמחקה, עומס), ולא רק "לא JSON". */
   var st = '';
-  return fetch(q).then(function (r) { st = r.status; return r.text(); }).then(function (t) {
+  var ac = typeof AbortController === 'function' ? new AbortController() : null;
+  var tm = ac ? setTimeout(function () { ac.abort(); }, ASK_MS) : null;
+  return fetch(q, ac ? { signal: ac.signal } : {})
+    .then(function (r) { st = r.status; return r.text(); }).then(function (t) {
+    if (tm) clearTimeout(tm);
     try { return JSON.parse(t); }
     catch (e) {
       /* דף ההתחברות של גוגל עלול להחזיר את הכתובת המלאה, והמפתח
          בתוכה. היומן ציבורי — מוחקים אותו בשתי הצורות. */
       var snip = String(t).split(key).join('***')
                  .split(encodeURIComponent(key)).join('***');
-      throw new Error('גוגל החזיר דף שגיאה במקום נתונים (סטטוס ' + st + '): ' +
-                      snip.replace(/\s+/g, ' ').slice(0, 200));
+      var gw = /<html/i.test(snip) ? googleWhy(snip) : '';
+      throw new Error('גוגל החזיר שגיאה ' + st + ' במקום נתונים' +
+                      (gw ? ' (' + gw + ')' : ' (' + snip.replace(/\s+/g, ' ').slice(0, 120) + ')'));
     }
+  }, function (e) {
+    if (tm) clearTimeout(tm);
+    throw new Error(e && e.name === 'AbortError'
+      ? 'גוגל לא ענה תוך ' + (ASK_MS / 1000) + ' שניות'
+      : 'תקלת רשת מול גוגל: ' + (e && e.message || e));
   })['catch'](function (e) {
-    if (n >= 3) throw e;
-    console.log('ניסיון ' + n + ' נכשל (' + e.message + ') — מנסה שוב בעוד 20 שניות.');
-    return new Promise(function (ok) { setTimeout(ok, 20000); })
-      .then(function () { return getJson(q, n + 1); });
+    if (n >= TRIES) {
+      var min = Math.round((Date.now() - t0) / 60000);
+      throw new Error(e.message + ' — ' + TRIES + ' ניסיונות במשך ' + min + ' דקות');
+    }
+    var ms = backoff(n);
+    console.log('ניסיון ' + n + '/' + TRIES + ' נכשל (' + e.message + ') — מנסה שוב בעוד ' +
+                Math.round(ms / 1000) + ' שניות.');
+    return sleep(ms).then(function () { return getJson(q, n + 1, t0); });
   });
 }
 
@@ -103,7 +138,9 @@ function readTab(name) {
   if (!url) return Promise.reject(new Error('לא נמצאה כתובת הסקריפט ב-data.js'));
   var q = url + '?read=' + encodeURIComponent(name) +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
-  return getJson(q).then(function (j) {
+  return getJson(q)['catch'](function (e) {
+    throw new Error('הלשונית "' + name + '" לא נקראה מהגיליון — ' + e.message);
+  }).then(function (j) {
     if (!j || j.status !== 'ok' || !j.rows) {
       throw new Error('לא הצלחתי לקרוא את "' + name + '": ' + ((j && j.message) || 'לא ידוע'));
     }
@@ -189,7 +226,9 @@ function loadSubs() {
      "הלשונית ריקה". שלוש שליחות אבדו על זה. */
   var q = url + '?read=' + encodeURIComponent(WAIT ? 'ממתינים לדף' : 'התראות') +
           '&key=' + encodeURIComponent(key) + '&t=' + Date.now();
-  return getJson(q).then(function (j) {
+  return getJson(q)['catch'](function (e) {
+    throw new Error('רשימת המנויים לא נקראה מהגיליון — ' + e.message);
+  }).then(function (j) {
     if (!j || j.status !== 'ok') {
       throw new Error('הגיליון לא נענה: ' + ((j && j.message) || 'לא ידוע'));
     }
@@ -286,10 +325,91 @@ function loadSubs() {
   });
 }
 
+/* ============================================================
+   מניעת כפילות — כל הודעה מגיעה לכל מכשיר פעם אחת בלבד.
+   ============================================================
+   לכל הודעה מזהה (`FLT.mid` — נקבע בסקריפט בשליחה הראשונה, ונשמר
+   גם בשליחה חוזרת). הלשונית הפרטית "מסירות" מחזיקה, לכל הודעה,
+   אילו מכשירים (טביעה של המנוי, לא המנוי עצמו) כבר קיבלו אותה.
+
+   1. **לפני** כל קבוצה של מכשירים נרשם "ממתין". לא נרשם — לא
+      שולחים: עדיף שהודעה תחכה לשליחה חוזרת מאשר שתגיע פעמיים.
+   2. **אחרי** — "נשלח" / "נכשל" / "פג" לכל מכשיר.
+   3. שליחה חוזרת (מהניהול, או הרצה חוזרת ב-GitHub) מדלגת על כל
+      מכשיר שרשום "נשלח" או "ממתין" (אולי יצא ולא נרשם — לא
+      מסתכנים), ושולחת רק למי שנכשל או שלא הגיעו אליו.
+   קריאה שנכשלה של "מסירות" אינה "עוד לא נשלח לאיש" — היא סיבה
+   לא לשלוח כלל. */
+var MID = String(FLT.mid || '').trim();
+var SID = String(process.env.SID || '').trim();
+var DLV_TAB = 'מסירות', BATCH = 40;
+/* המונים של ההרצה — גם כשהיא נופלת באמצע, הדיווח אומר כמה כבר יצאו. */
+var CNT = { ok: 0, bad: 0, gone: 0, prev: 0, codes: {} };
+
+function loadDone() {
+  if (!MID) return Promise.resolve({});
+  return readTab(DLV_TAB).then(function (rows) {
+    var st = {};
+    /* הלשונית עוד לא נוצרה — `rows` ריק ותקין. זה המקרה היחיד שבו
+       ריק הוא אמת. */
+    if (rows.length < 2) return st;
+    var a = colIx(rows);
+    if (a['מזהה הודעה'] === undefined || a['מכשירים'] === undefined) {
+      throw new Error('בלשונית "' + DLV_TAB + '" חסרות העמודות "מזהה הודעה"/"מכשירים"');
+    }
+    rows.slice(1).forEach(function (r) {
+      if (String(r[a['מזהה הודעה']] || '').trim() !== MID) return;
+      var s = String(r[a['מצב']] || '').trim();
+      String(r[a['מכשירים']] || '').split(',').forEach(function (p) {
+        p = p.trim(); if (p) st[p] = s;
+      });
+    });
+    return st;
+  });
+}
+
+/* שורה אחת ב"מסירות". true = נרשמה בוודאות (הסקריפט ענה ok). */
+function markRows(state, prints) {
+  if (!MID || !prints.length) return Promise.resolve(true);
+  var url = scriptUrl();
+  var body = JSON.stringify({ action: 'row', tab: DLV_TAB, key: key,
+    cols: JSON.stringify([['מזהה הודעה', MID], ['מזהה שליחה', SID], ['מצב', state],
+                          ['מכשירים', prints.join(',')], ['כמה', prints.length]]) });
+  var once = function () {
+    var ac = typeof AbortController === 'function' ? new AbortController() : null;
+    var tm = ac ? setTimeout(function () { ac.abort(); }, ASK_MS) : null;
+    var o = { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body };
+    if (ac) o.signal = ac.signal;
+    return fetch(url, o).then(function (r) { return r.text(); }).then(function (t) {
+      if (tm) clearTimeout(tm);
+      if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) throw new Error('הסקריפט לא אישר');
+      return true;
+    }, function (e) { if (tm) clearTimeout(tm); throw e; });
+  };
+  var go = function (n) {
+    return once()['catch'](function (e) {
+      if (n >= 6) {
+        console.log('  ! לא נרשם ב"' + DLV_TAB + '" (' + state + ', ' + prints.length + ' מכשירים)');
+        return false;
+      }
+      return sleep(Math.min(80000, 5000 * Math.pow(2, n - 1))).then(function () { return go(n + 1); });
+    });
+  };
+  return go(1);
+}
+
+/* "שגיאה 500 ×2 · תקלת רשת ×1" — הסיבה המדויקת לכישלון מכשירים. */
+function codesTxt() {
+  return Object.keys(CNT.codes).map(function (c) {
+    return (c === 'רשת' ? 'תקלת רשת' : 'שגיאה ' + c) + (CNT.codes[c] > 1 ? ' ×' + CNT.codes[c] : '');
+  }).join(' · ');
+}
+
 webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
 
 /* "בשליחה" — שהיומן לא יישאר על "ממתין" כשההרצה כבר רצה. */
 report({ run: 1 });
+var STOP = '', LEFT = 0;
 loadSubs().then(applyFlt).then(function (list) {
   /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
   if (WAIT && !list.length) {
@@ -319,45 +439,89 @@ loadSubs().then(applyFlt).then(function (list) {
     console.log(list.blocked + ' מכשירים דיווחו שההתראות בהם חסומות — ' +
                 'מדלגים עליהם.');
   }
-  console.log('שולח ל-' + list.length + ' מכשירים.\n');
-  /* **בלי שמות בלוג.** הריפו ציבורי, ולכן גם יומני ההרצה —
-     ושמות של תלמידים אינם שייכים לשם. מספר סידורי ומארח. */
-  /* זמן קצוב, ניסיון חוזר ומקביליות מוגבלת — ראו push-deliver.js. */
-  return D.mapLimit(list, 8, function (it, n) {
-    var host = '—';
-    try { host = new URL(it.sub.endpoint).host; } catch (e) {}
-    var first = FLT.per ? (it.first || '') : '';
-    var payload = JSON.stringify({ title: personal(title, first),
-                                   body: personal(body, first), url: link || './' });
-    return D.deliver(webpush, it.sub, payload).then(function (r) {
-      if (r.ok) {
-        console.log('  ✓ #' + (n + 1) + ' · ' + host + ' → ' + r.code + (r.tries > 1 ? ' (ניסיון ' + r.tries + ')' : ''));
-        return 1;
-      }
-      console.log('  ✗ #' + (n + 1) + ' · ' + host + ' → ' + (r.code || '') + ' ' +
-                  (r.gone ? 'המנוי פג' : (r.err || '')));
-      /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
-      if (r.gone) {
-        GONE++;
-        /* נרשם "פג" למנוי הזה — הניהול מציג אותו כך, והעדכון לר"מים
-           והתזכורות לא ינסו אותו שוב. ראו markGone ב-sched.js. */
-        return S.markGone(GONE_ST, it.sub).then(function () { return 0; }, function () { return 0; });
-      }
-      return 0;
+  return loadDone().then(function (done) {
+    var todo = [];
+    list.forEach(function (it) {
+      it.p = S.subPrint(it.sub);
+      var was = done[it.p];
+      if (was === 'נשלח' || was === 'ממתין') { CNT.prev++; return; }
+      if (was === 'פג') { CNT.gone++; return; }
+      todo.push(it);
     });
+    if (CNT.prev) console.log(CNT.prev + ' מכשירים כבר קיבלו את ההודעה הזו — מדלגים עליהם.');
+    console.log('שולח ל-' + todo.length + ' מכשירים.\n');
+    var parts = [];
+    for (var b = 0; b < todo.length; b += BATCH) parts.push(todo.slice(b, b + BATCH));
+    LEFT = todo.length;
+    /* **בלי שמות בלוג.** הריפו ציבורי, ולכן גם יומני ההרצה —
+       ושמות של תלמידים אינם שייכים לשם. מספר סידורי ומארח. */
+    var sendOne = function (it, n) {
+      var host = '—';
+      try { host = new URL(it.sub.endpoint).host; } catch (e) {}
+      var first = FLT.per ? (it.first || '') : '';
+      var payload = JSON.stringify({ title: personal(title, first),
+                                     body: personal(body, first), url: link || './' });
+      /* זמן קצוב, ניסיון חוזר ומקביליות מוגבלת — ראו push-deliver.js. */
+      return D.deliver(webpush, it.sub, payload).then(function (r) {
+        if (r.ok) {
+          CNT.ok++;
+          console.log('  ✓ ' + host + ' → ' + r.code + (r.tries > 1 ? ' (ניסיון ' + r.tries + ')' : ''));
+          return 'נשלח';
+        }
+        console.log('  ✗ ' + host + ' → ' + (r.code || '') + ' ' +
+                    (r.gone ? 'המנוי פג' : (r.err || '')));
+        /* 404/410 = המנוי פג (המכשיר הסיר את ההרשאה) — לא תקלה. */
+        if (r.gone) {
+          CNT.gone++;
+          /* נרשם "פג" למנוי הזה — הניהול מציג אותו כך, והעדכון לר"מים
+             והתזכורות לא ינסו אותו שוב. ראו markGone ב-sched.js. */
+          return S.markGone(GONE_ST, it.sub).then(function () { return 'פג'; }, function () { return 'פג'; });
+        }
+        CNT.bad++;
+        var c = r.code ? String(r.code) : 'רשת';
+        CNT.codes[c] = (CNT.codes[c] || 0) + 1;
+        return 'נכשל';
+      });
+    };
+    return parts.reduce(function (chain, part) {
+      return chain.then(function () {
+        if (STOP) return;
+        return markRows('ממתין', part.map(function (it) { return it.p; })).then(function (ok) {
+          if (!ok) {
+            STOP = 'הגיליון לא אישר רישום לפני השליחה — כדי לא לשלוח פעמיים, ' +
+                   LEFT + ' מכשירים לא קיבלו (אפשר לשלוח שוב מהניהול)';
+            return;
+          }
+          return D.mapLimit(part, 8, sendOne).then(function (res) {
+            LEFT -= part.length;
+            var g = { 'נשלח': [], 'נכשל': [], 'פג': [] };
+            res.forEach(function (s, k) { g[s].push(part[k].p); });
+            return markRows('נשלח', g['נשלח'])
+              .then(function () { return markRows('נכשל', g['נכשל']); })
+              .then(function () { return markRows('פג', g['פג']); });
+          });
+        });
+      });
+    }, Promise.resolve()).then(function () { return true; });
   });
 }).then(function (res) {
-  if (!res) return;                      /* יצאנו כבר למעלה */
-  var done = res.reduce(function (a, b) { return a + b; }, 0);
-  console.log('\nהגיעו: ' + done + ' · נכשלו: ' + (res.length - done));
+  if (res !== true) return;              /* יצאנו כבר למעלה */
+  var bad = CNT.bad + (STOP ? LEFT : 0);
+  console.log('\nהגיעו: ' + CNT.ok + ' · נכשלו: ' + bad + ' · פג: ' + CNT.gone +
+              (CNT.prev ? ' · קיבלו כבר קודם: ' + CNT.prev : ''));
+  var f = { n: CNT.ok, bad: bad, gone: CNT.gone, prev: CNT.prev, det: codesTxt() };
+  if (STOP) { f.why = STOP; return endWith(f, 1); }
   /* מנוי שפג (410/404) אינו תקלה של הקוד — המכשיר הסיר את
      ההרשאה. נכשלו כולם = כן תקלה. */
-  var bad = res.length - done - GONE;
-  if (!done && !bad) return endWith({ n: 0, bad: 0, gone: GONE, none: 1 }, 0);
-  if (!done) return endWith({ n: 0, bad: bad, gone: GONE, why: 'כל ' + bad + ' המכשירים דחו' }, 1);
+  if (!CNT.ok && !CNT.prev && !bad) { f.none = 1; return endWith(f, 0); }
+  if (!CNT.ok && !CNT.prev) {
+    f.why = 'כל ' + bad + ' המכשירים דחו את ההודעה' + (f.det ? ' (' + f.det + ')' : '');
+    return endWith(f, 1);
+  }
   /* הצלחה חלקית נאמרת כמו שהיא — ואינה נשלחת שוב בגורף. */
-  return endWith({ n: done, bad: bad, gone: GONE }, 0);
+  return endWith(f, 0);
 })['catch'](function (e) {
   console.error('נכשל: ' + (e && e.message || e));
-  return endWith({ why: String(e && e.message || e) }, 1);
+  return endWith({ why: String(e && e.message || e), n: CNT.ok, bad: CNT.bad + LEFT,
+                   gone: CNT.gone, prev: CNT.prev, det: codesTxt() }, 1);
 });

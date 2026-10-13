@@ -140,7 +140,7 @@ def check_orphan_classes():
     ident = re.compile(r'^[a-z][a-z0-9-]*$')
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
               'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html',
-              'shlach.html', 'team.html'):
+              'shlach.html', 'team.html', 'kishurim.html'):
         if not os.path.exists(os.path.join(ROOT, f)):
             continue
         t = read(f)
@@ -183,9 +183,15 @@ def check_decks():
         n = int(n)
         miss = [i for i in range(1, n + 1)
                 if not os.path.exists(os.path.join(ROOT, d, '%02d.jpg' % i))]
+        # **אזהרה, לא כישלון.** המחיקה לצמיתות בעורך המצגות (🗑, ghdel)
+        # מותרת רק לשקף שכבר הוצא מהמצגת — כלומר כשיש לשבוע שורה
+        # בלשונית "מצגות", והיא גוברת על הרשימה שבקוד. הבדיקה כאן
+        # אינה רואה את הגיליון, ולכן שקף שנמחק כך נראה לה "חסר" —
+        # והפילה את הפריסה חמש פעמים ב-8.10 על מחיקה תקינה.
         if miss:
-            BAD.append('%s — חסרים שקפים: %s'
-                       % (d, ', '.join('%02d.jpg' % i for i in miss)))
+            WARN.append('%s — הרשימה שבקוד מונה שקפים שנמחקו (%s). תקין אם '
+                        'לשבוע יש שורה בלשונית "מצגות"'
+                        % (d, ', '.join('%02d.jpg' % i for i in miss)))
         else:
             OK.append('%s — %d שקפים' % (d, n))
 
@@ -429,7 +435,7 @@ def check_share_card():
     היום שבו התמונה תזוז ממקומה ואיש לא ישים לב — כי בהודעה
     שנשלחה כבר אי אפשר לתקן.
     """
-    shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html',
+    shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html', 'kishurim.html',
               'board.html', 'learn.html', 'masa.html', 'team.html', 'hitraot.html']
     card = 'share-card.jpg'
     if not os.path.exists(os.path.join(ROOT, card)):

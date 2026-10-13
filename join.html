@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- מחשב עם "מצב כהה אוטומטי" צבע את העמוד בדהוי. הצבעים כאן קבועים. -->
+<meta name="color-scheme" content="only light">
 <title>הצטרפות — הדף השבועי של בני עקיבא</title>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
@@ -215,6 +217,16 @@ body.land .top-say{display:block}
   font-weight:700;line-height:1.7;color:var(--ink-2);text-wrap:balance}
 .meet[hidden]{display:none}
 .meet[hidden] + .demo{margin-top:26px}
+/* "אני מצטרף" שבא במקום השורה האפורה — ראו meetSwap. */
+.meet{transition:opacity .6s ease}
+.meet.fade{opacity:0}
+#meet-go{display:block;width:100%;text-align:center;margin:22px 0 16px;
+  padding:0 16px;border:0;border-radius:14px;font-family:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));
+  box-shadow:0 6px 18px rgba(74,130,28,.28);opacity:0;transition:opacity .6s ease}
+#meet-go[hidden]{display:none}
+#meet-go.on{opacity:1}
 .demo{position:relative;border-radius:var(--r);overflow:hidden;
   box-shadow:0 16px 38px rgba(11,37,80,.3)}
 .demo[hidden]{display:none}
@@ -588,6 +600,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
 .inv .btn{margin-top:11px;font-size:.95rem;padding:14px}
 .inv .btn.off{background:var(--sunk);color:var(--ink-3);box-shadow:none;
   pointer-events:none}
+.inv-tip{margin-top:9px !important;padding:10px 12px;border-radius:12px;background:var(--sunk);
+  font-size:.82rem !important;color:var(--ink-2) !important}
 .inv .ok{margin-top:11px;font-size:.86rem;font-weight:800;color:var(--green-d);
   text-align:center}
 
@@ -944,6 +958,9 @@ footer a{color:var(--ink-2);font-weight:800}
   <!-- ההדגמה — אותו חלון של עמוד הצוות. הדף האינטראקטיבי האמיתי
        מנגן את עצמו, וכשהוא נגמר העמוד יורד לבד אל "אני מצטרף"
        ואל הבאנר. ראו landDemo. -->
+  <!-- לפני השורה ולא אחריה: `.meet[hidden] + .demo` צריך שהשורה
+       תהיה צמודה לחלון. -->
+  <button id="meet-go" hidden></button>
   <p class="meet" id="meet"></p>
   <div class="demo" id="demo" hidden>
     <iframe class="df" id="demo-frame" title="הדגמה" scrolling="no"></iframe>
@@ -1122,6 +1139,11 @@ footer a{color:var(--ink-2);font-weight:800}
        ירד. "הישיבה רואה כמה לומדים אצלה" אינו תמיד גורם חיובי,
        "מתחילים בבראשית" כבר כתוב בבאנר, ו"נעדכן אותך" מבטיח
        ערוץ שאיננו יודעים שיהיה. -->
+  <!-- **ההזמנה ראשונה.** היא ישבה מתחת לכרטיס הדף, למסלול
+       ולעדכונים — שלושה מסכים של גלילה, וילד שראה וי ירוק לא
+       הגיע אליה. מי שבחר "עם אבא" רואה אותה מיד. ריקה אצל כל
+       השאר, ולכן אינה תופסת מקום. -->
+  <div class="wrap"><div id="inv"></div></div>
   <div class="zone">
     <span class="tag" id="d-name"></span>
     <div id="wk"></div>
@@ -1136,7 +1158,6 @@ footer a{color:var(--ink-2);font-weight:800}
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
     <div id="phnag"></div>
     <div id="getapp"></div>
-    <div id="inv"></div>
     <div id="inv2"></div>
     <div id="kids"></div>
     <div id="wagrp"></div>
@@ -2549,6 +2570,24 @@ function pairAsk_() {
   document.body.appendChild(sc);
 }
 
+/* ============================================================
+   הזמנה מתוך התראה של הרכז (#invite).
+   ============================================================
+   "הורים שלא חוברו לבן" מקבלים מהרכז הודעה עם כפתור שנוחת כאן —
+   ישר על ההזמנה, גם אם כבר נשלחה פעם, וגם כשהשם של הבן לא ידוע.
+
+   **בלי תיבת עריכה.** "ילדים צריכים כמה שפחות משימות, וזה נכון
+   גם להורים." הנוסח מגיע מוכן, ומי שרוצה לשנות — משנה בוואטסאפ
+   עצמו, לפני שהוא לוחץ שלח. */
+var INV_FORCE = location.hash === '#invite';
+/* הנוסח המוכן. בן נקרא בשמו; אבא — "אבא" (ראו greetName). */
+function invMsg_(me, them) {
+  var g = me.rel === 'kid' ? (them || greetName(me)) : (them ? greetName(me) : '');
+  return tpl(JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
+}
+function invWa_(me, num, txt) {
+  window.open('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(txt), '_blank');
+}
 function drawInv() {
   var box = $('inv'); if (!box) return;
   var me = get('me', null) || {};
@@ -2557,40 +2596,58 @@ function drawInv() {
   /* מחוברים — זה כבר כתוב בתווית השם (paintName_). אין הזמנה. */
   if (pw && (me.way === 'dad' || me.role === 'dad')) return;
   pairAsk_();
+  var force = INV_FORCE && me.role === 'dad';
+  /* מההתראה של הרכז ההורה מזמין את הבן — הפנייה בשמו, והקישור
+     נפתח לו כבן. רשומה ישנה בלי rel הייתה כותבת "היי אבא". */
+  if (force && me.rel !== 'kid') me.rel = 'kid';
   /* רק למי שבחר ללמוד עם מישהו, ורק אם ידוע מי הוא. */
-  if (me.way !== 'dad' || !me.dadFirst) return;
+  if (!force && (me.way !== 'dad' || !me.dadFirst)) return;
   /* מי שהגיע דרך הזמנה — הצד השני כבר בפנים. הזמנה חוזרת אליו
      נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
-  if (me.from) return;
-  if (get('inv-sent', 0)) {
-    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div></div>';
+  if (!force && me.from) return;
+  if (!force && get('inv-sent', 0)) {
+    /* "נשלחה" אינו ודאות: מי שחזר מוואטסאפ בלי ללחוץ שלח נשאר
+       בלי דרך לשלוח. המספר כבר שמור — לחיצה אחת פותחת שוב. */
+    var okPh = (String(me.dadPhone || '').match(/\d/g) || []).length >= 9;
+    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div>' +
+      (okPh ? '<button class="more-link" id="inv-again">' + esc(JOIN.invAgain) + '</button>' : '') +
+      '</div>';
+    if (okPh) $('inv-again').onclick = function () { invWa_(me, me.dadPhone, invMsg_(me, me.dadFirst || '')); };
     return;
   }
 
-  var them = me.dadFirst, phone = me.dadPhone || '';
+  var them = me.dadFirst || '', phone = me.dadPhone || '';
   var okPhone = (phone.match(/\d/g) || []).length >= 9;
-  box.innerHTML = '<div class="inv">' +
-    '<h3>' + esc(tpl(JOIN.invTitle, { them:them })) + '</h3>' +
+  box.innerHTML = '<div class="inv" id="inv-card">' +
+    '<h3>' + esc(them ? tpl(JOIN.invTitle, { them:them }) : JOIN.invTitleAny) + '</h3>' +
     '<p>' + esc(JOIN.invBody) + '</p>' +
+    (them ? '' : '<div class="fld"><label class="label" for="inv-nm">' + esc(JOIN.invNameKid) + '</label>' +
+      '<input id="inv-nm" type="text" value=""></div>') +
     (okPhone ? ''
       : '<div class="fld"><label class="label" for="inv-ph">' +
-        esc(tpl(JOIN.invPhone, { them:them })) + '</label>' +
+        esc(them ? tpl(JOIN.invPhone, { them:them }) : JOIN.invPhoneAny) + '</label>' +
         '<input id="inv-ph" type="tel" inputmode="tel" value="' + esc(phone) + '"></div>' +
         '<p id="inv-need" style="font-size:.79rem;color:var(--ink-3);' +
         'font-weight:700;margin-top:7px">' + esc(JOIN.invNeed) + '</p>') +
+    '<p class="inv-tip">' + esc(JOIN.invTip) + '</p>' +
     '<button class="btn' + (okPhone ? '' : ' off') + '" id="inv-go">' +
       esc(JOIN.invBtn) + '</button></div>';
 
-  var ph = $('inv-ph'), go = $('inv-go');
-  if (ph) ph.oninput = function () {
-    var ok = (ph.value.match(/\d/g) || []).length >= 9;
+  var ph = $('inv-ph'), go = $('inv-go'), nmI = $('inv-nm');
+  var check = function () {
+    var ok = (String(ph ? ph.value : phone).match(/\d/g) || []).length >= 9 && (!nmI || (nmI.value || '').trim());
     go.className = 'btn' + (ok ? '' : ' off');
     /* ההסבר למה הכפתור כבוי מיותר ברגע שהוא נדלק. */
     var nd = $('inv-need'); if (nd) nd.style.display = ok ? 'none' : '';
   };
+  if (ph) ph.oninput = check;
+  if (nmI) nmI.oninput = check;
+  check();
   go.onclick = function () {
     var num = ph ? ph.value : phone;
     if ((String(num).match(/\d/g) || []).length < 9) return;
+    if (nmI && !(nmI.value || '').trim()) return;
+    if (nmI) me.dadFirst = (nmI.value || '').trim();
     /* נשמר ברשומה, כדי שהמספר לא יאבד אם הוא ייסגר וייפתח. */
     me.dadPhone = num; set('me', me);
     /* וגם לגיליון. עד עכשיו המספר נשמר רק כאן — ולכן אבא שהשלים
@@ -2598,14 +2655,17 @@ function drawInv() {
        והבן לא ראה "עם אבא". */
     queue(joinRow_(me));
     set('inv-sent', 1);
-    window.open('https://wa.me/' + waNum(num) + '?text=' +
-      encodeURIComponent(tpl(JOIN.invMsg, {
-        /* בפנייה — "אבא", לא השם. הבן הזין אותו כדי שנדע מי
-           זה, לא כדי לקרוא לאבא שלו בשמו. */
-        me: me.first, them: greetName(me), url: invUrl(me)
-      })), '_blank');
+    INV_FORCE = false;
+    invWa_(me, num, invMsg_(me, me.dadFirst || ''));
     drawInv();
   };
+  if (force) {
+    setTimeout(function () {
+      var c = $('inv-card');
+      if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start' });
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }, 300);
+  }
 }
 
 /* ============================================================
@@ -4024,6 +4084,7 @@ $('hero-go').onclick = function () {
   if (WZ_ON) { wzStart(); return; }
   toForm(true);
 };
+$('meet-go').onclick = function () { $('hero-go').onclick(); };
 
 /* `?go=1` — מי שבא מההדגמה. הוא כבר ראה את הדף עובד ולחץ
    "להצטרפות", ולכן מסך הפתיחה כבר עשה את שלו: נוחתים ישר
@@ -4033,6 +4094,17 @@ $('hero-go').onclick = function () {
    וגוללת למטה נראית כמו תקלה ולא כמו רצף. */
 if (/[?&]go=1\b/.test(location.search)) {
   window.addEventListener('load', function () { setTimeout(toForm, 60); });
+}
+/* `?notes=1` — "לחיבור ההתראות" מהדף האינטראקטיבי (דף נעול, או
+   חידון שעוד לא עלה). נוחתים ישר במסע, בשלב שבו הוא עומד — אותו
+   מסע שהשורה "nb-go" פותחת. מי שכבר מחובר — אין מה לפתוח. */
+if (WZ_ON && /[?&]notes=1\b/.test(location.search)) {
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (appStep() === 3) return;
+      if (document.body.className.indexOf(' wz ') < 0) wzStart();
+    }, 80);
+  });
 }
 /* `?nointro=1` — מי שעבר מוואטסאפ לכרום באמצע ההתקנה (ראו chromeUrl
    ב-getapp.js). הוא כבר לחץ "אני מצטרף" בצד השני, ולכן ממשיכים
@@ -4196,18 +4268,18 @@ function landDemo() {
   var box = $('demo'), f = $('demo-frame');
   if (!box || !f || f.getAttribute('src')) return;
   if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
-  var tr = myTrack(), wk = (typeof LWeek === 'function') ? LWeek() : -1;
-  var d = (typeof LDaf === 'function') ? LDaf(tr, wk < 0 ? 0 : wk) : '';
-  var am = (typeof LAm === 'function') ? LAm(tr, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
-  if (!d) return;
+  /* תמיד אותו דף — ראו DEMO_UNIT ב-data.js. */
+  var U = window.DEMO_UNIT;
+  if (!U) return;
   box.hidden = false;
   var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
-  f.src = base + 'learn.html?mas=' + encodeURIComponent(tr) +
-          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=join' +
+  f.src = base + 'learn.html?mas=' + encodeURIComponent(U.mas) +
+          '&daf=' + encodeURIComponent(U.daf) + '&amud=' + U.am + '&demo=1&embed=1&from=join' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   window.addEventListener('message', function (e) {
     if (e.data === 'daf-demo-done') toGo();
+    if (e.data === 'daf-demo-start') setTimeout(meetSwap, 4000);
   });
 
   /* גרירה אינה נגיעה — אצבע שגוללת את העמוד עוברת מעל החלון. */
@@ -4226,6 +4298,26 @@ function landDemo() {
   tap.addEventListener('pointercancel', function () { dr = null; });
 
   landScroll();
+}
+
+/* ---------- השורה האפורה מפנה מקום ל"אני מצטרף" ----------
+   ההדגמה ארוכה. ארבע שניות אחרי שהיא התחילה — כשהשורה כבר
+   נקראה — היא דוהה, ובמקומה עולה הכפתור, כך שמי שהשתכנע באמצע
+   לא צריך לחכות לסוף. הכפתור תופס בדיוק את גובה השורה, ולכן
+   החלון שמתחת אינו זז. הכפתור הקיים שמתחת לחלון נשאר במקומו. */
+function meetSwap() {
+  var m = $('meet'), b = $('meet-go');
+  if (!m || !b || m.hidden || !b.hidden || !landNow()) return;
+  if (/[?&]tedit=1/.test(location.search)) return;
+  var h = m.offsetHeight;
+  m.className = 'meet fade';
+  setTimeout(function () {
+    b.textContent = JOIN.goBtn + ' ←';
+    b.style.height = Math.max(h, 52) + 'px';
+    m.style.display = 'none';
+    b.hidden = false;
+    setTimeout(function () { b.className = 'on'; }, 30);
+  }, 600);
 }
 
 /* ---------- התזוזה העדינה ----------

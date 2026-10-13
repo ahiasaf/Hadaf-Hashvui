@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- מחשב עם "מצב כהה אוטומטי" צבע את העמוד בדהוי. הצבעים כאן קבועים. -->
+<meta name="color-scheme" content="only light">
 <title>לצוות · הדף השבועי של בני עקיבא</title>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
@@ -1035,14 +1037,13 @@ function demoBox() {
   /* במצב עריכת מלל אין הדגמה: היא אינה נושאת מלל שנערך,
      והחלון רק היה גונב את המקום ממה שכן. */
   if (/[?&]tedit=1/.test(location.search)) { box.hidden = true; return; }
-  var wk = (typeof LWeek === 'function') ? LWeek() : -1;
-  var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
-  var am = (typeof LAm === 'function') ? LAm(track, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
-  /* אין דף לשבוע הזה — אין מה להדגים, והחלון פשוט אינו מוצג. */
-  if (!d) { box.hidden = true; return; }
+  /* תמיד אותו דף — ראו DEMO_UNIT ב-data.js. לא הדף של השבוע:
+     עליו לא הוקלט התסריט ולא סודרה המצגת. */
+  var U = window.DEMO_UNIT;
+  if (!U) { box.hidden = true; return; }
 
-  f.src = base() + 'learn.html?mas=' + encodeURIComponent(track) +
-          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') + '&demo=1&embed=1&from=tzevet' +
+  f.src = base() + 'learn.html?mas=' + encodeURIComponent(U.mas) +
+          '&daf=' + encodeURIComponent(U.daf) + '&amud=' + U.am + '&demo=1&embed=1&from=tzevet' +
           (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 
   /* אין כאן יותר "מתי היא עולה": היא שם מההתחלה, ומתחילה
@@ -1244,12 +1245,14 @@ function mineCount(me) {
 }
 function loadMyRoster() {
   var me = ramMine();
-  if (!me || !accCode || !instCode || typeof APPS_SCRIPT_URL === 'undefined') return;
+  /* בלי תנאי של קוד: הלוח נפתח לפי האישור של המכשיר (dev). */
+  if (!me || !me.id || !instCode || typeof APPS_SCRIPT_URL === 'undefined') return;
   var url = String(APPS_SCRIPT_URL || '').trim();
   if (!url) return;
   fetch(url + (url.indexOf('?') < 0 ? '?' : '&') +
         'board=' + encodeURIComponent(instCode) +
-        '&k=' + encodeURIComponent(accCode))
+        '&k=' + encodeURIComponent(accCode || '') +
+        '&dev=' + encodeURIComponent(me.id))
     .then(function (r) { return r.json(); })
     .then(function (d) {
       /* **קריאה שנכשלה אינה רשימה ריקה.** בלי התנאי הזה כל
@@ -1816,6 +1819,7 @@ function myDraw() {
     '<button class="mygo" id="my-go"' +
     (myBusy || n === 0 || myDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (myBusy ? 'שולח…' : esc(tz('mySayGo'))) + '</button>' +
+    '<p class="myto">' + esc(UI.sayLate) + '</p>' +
     (myErr ? '<div class="myerr">' + esc(myErr) + '</div>' : '') +
     '</div>';
   myWire();
@@ -1907,7 +1911,7 @@ function mySend() {
   if (!url) { myErr = tz('mySayErr'); myDraw(); return; }
 
   myBusy = true; myDraw();
-  var q = { fire:'say', inst: instCode, k: accCode,
+  var q = { fire:'say', inst: instCode, k: accCode || '', dev: me.id || '',
             title: ramName(me) || PROGRAM.short, body: txt,
             grade: me.grade || '', klass: me.klass || '',
             who: ramName(me) };

@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.99.135';
+var CACHE_NAME = 'hadaf-v8.99.207';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -167,6 +167,9 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // גוגל שיטס וכד' — ישר לרשת
+  // סרטון התדמית: כבד, ונגן הווידאו מבקש טווחים. מטמון הדפדפן מחזיק
+  // אותו, ו-index.html טוען אותו ברקע — לא כאן.
+  if (/\/promo\//.test(url.pathname)) return;
 
   var save = function (res) {
     if (res && res.status === 200) {

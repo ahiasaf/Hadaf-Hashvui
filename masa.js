@@ -300,8 +300,8 @@ function renderMine() {
     '<div class="meta">' + esc(w.row[1]) + ' · ' + esc(w.row[0]) + '</div>';
   var dk = DeckOf(w.tr.id, w.i + 1);
   if (dk) {
-    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + DeckSrc(dk, 1) +
-      '" alt="השקף הראשון"></div>' +
+    h += '<div class="frame" onclick="deckOpen(0)"><img src="' + DeckCover(dk) +
+      '" alt="השקף הראשון" onerror="this.style.visibility=\'hidden\'"></div>' +
       '<button class="go" onclick="deckOpen(0)">▶ הצגה על המסך</button>';
   } else {
     h += '<div class="frame"><div class="empty">המצגת לשבוע זה בהכנה</div></div>';
@@ -365,7 +365,7 @@ function deckOpen(i) {
   if (!dk) return;
   deck.imgs = [];
   for (var n = 1; n <= dk.files.length; n++) deck.imgs.push(DeckSrc(dk, n));
-  deck.i = i || 0;
+  deck.i = i || 0; deck.d = 1;
   document.getElementById('d-where').textContent =
     'מסכת ' + trackById(t).masechet + ' · דף ' + CalDaf(contentFor(t).row);
   document.getElementById('deck').className = 'on';
@@ -374,11 +374,21 @@ function deckOpen(i) {
 function deckClose() { document.getElementById('deck').className = ''; }
 function deckGo(d) {
   var n = deck.i + d;
-  if (n < 0 || n >= deck.imgs.length) return;
-  deck.i = n; deckPaint();
+  /* מדלגים על שקף שהקובץ שלו חסר — ראו DeckGone ב-deck.js */
+  while (n >= 0 && n < deck.imgs.length && DeckGone(deck.imgs[n])) n += d;
+  if (n < 0 || n >= deck.imgs.length) return false;
+  deck.d = d; deck.i = n; deckPaint();
+  return true;
 }
 function deckPaint() {
-  document.getElementById('d-img').src = deck.imgs[deck.i];
+  var img = document.getElementById('d-img'), src = deck.imgs[deck.i];
+  img.style.display = '';
+  img.onerror = function () {
+    if (deck.imgs[deck.i] !== src) return;
+    DECK_GONE[src] = 1;
+    if (!deckGo(deck.d || 1) && !deckGo(-(deck.d || 1))) img.style.display = 'none';
+  };
+  img.src = src;
   var nx = deck.imgs[deck.i + 1];
   if (nx) { var pre = new Image(); pre.src = nx; }
   document.getElementById('d-prev').disabled = deck.i === 0;

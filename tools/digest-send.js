@@ -499,7 +499,7 @@ Promise.all([loadWants(), S.sentRaw(key)]).then(function (both) {
       /* בלי שמות בלוג: יומני ההרצה של ריפו ציבורי גלויים לכל. */
       if (!students) {
         console.log('  · ' + w.inst + ' — הלוח לא נקרא, מדלג');
-        return 0;
+        return 5;
       }
       var msg = forOne(P, w, students, wk);
       if (!msg) {
@@ -548,12 +548,13 @@ Promise.all([loadWants(), S.sentRaw(key)]).then(function (both) {
 }).then(function (res) {
   S.finish();
   /* 1 = יצא · 2 = נכשל · 0 = דילוג (לוח שלא נקרא, אין תלמידים)
-     4 = המנוי פג, נמצא עכשיו · 3 = המנוי פג קודם, דולג */
+     4 = המנוי פג, נמצא עכשיו · 3 = המנוי פג קודם, דולג
+     5 = הלוח לא נקרא (דילוג, אבל כן תקלה) */
   var cnt = function (v) { return res.filter(function (x) { return x === v; }).length; };
   var ok = cnt(1), bad = cnt(2), goneNew = cnt(4), gone = goneNew + cnt(3);
   if (res.length) console.log('\nיצאו: ' + ok + ' · נכשלו: ' + bad + ' · מנוי פג: ' + gone +
                               (goneNew ? ' (חדשים: ' + goneNew + ')' : '') +
-                              ' · דולגו: ' + cnt(0));
+                              ' · דולגו: ' + (cnt(0) + cnt(5)));
   /* שורה ביומן רק כשמשהו השתנה — מנוי שפג קודם ודולג, או אותם
      נכשלים של ההרצה הקודמת, אינם חדשות. */
   var sig = STILL.length
@@ -570,10 +571,13 @@ Promise.all([loadWants(), S.sentRaw(key)]).then(function (both) {
   return log.then(function () {
     if (!DRY && !process.env.SID && sig !== prev) return S.markOne(LOG_KEY, sig);
   }).then(function () {
-    /* מנוי שפג אינו תקלה של הקוד. כולם נכשלו — כן. */
-    if (!ok && (bad || cnt(0))) process.exit(1);
+    /* מנוי שפג אינו תקלה של הקוד, וגם לא "כבר נשלח" או "אין עדיין
+       תלמידים" (0) — אלה נספרו פעם כדילוג וצבעו ריצה תקינה באדום.
+       אדום רק כשמשהו נכשל באמת: שליחה, או לוח שלא נקרא. */
+    if (!ok && (bad || cnt(5))) process.exit(1);
   });
 })['catch'](function (e) {
+  if (!process.env.SID) S.quitIfGoogle(e);
   console.error('נכשל: ' + (e && e.message || e));
   var why = 'ההרצה נפלה: ' + String(e && e.message || e).slice(0, 120);
   (process.env.SID ? report({ why: why }) : Promise.resolve())

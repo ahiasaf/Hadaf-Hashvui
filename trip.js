@@ -66,12 +66,32 @@ var TRIP_UI = (function () {
 
   /* ---------- המצב ---------- */
   function load() {
-    try { return JSON.parse(ls(KEY) || 'null'); } catch (e) { return null; }
+    var v = null;
+    try { v = JSON.parse(ls(KEY) || 'null'); } catch (e) { return null; }
+    /* מסע שנשמר לפני ש"שליחה לר"מים" (שלב 3 הישן) ירדה: מי שעמד
+       אחריה עומד עכשיו שלב אחד מוקדם יותר. פעם אחת (`v:2`). */
+    if (v && !v.v) { if (v.i >= 3) v.i--; v.v = 2; v.hail = 0; }
+    return v;
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {}
   }
   function on() { return !!st; }
+
+  /* ============================================================
+     **הישיבה כבר רשומה במכשיר הזה — בכל דרך שהיא.**
+     ============================================================
+     "המסע פתוח למרות שהוא כבר עבר את השלבים." הבדיקה הייתה
+     `dfReg` בלבד — טופס ההרשמה. מי שהגיע לאזור הניהול בדרך אחרת
+     (בחירת ישיבה, קישור אישי) ישב בו, עם ממתין לאישור, והרצועה
+     מעליו אמרה "לחצו כאן כדי להצטרף". אותו מבחן של `myBoard()`
+     בעמוד הראשי: ההרשמה, או הישיבה שנבחרה.
+     ============================================================ */
+  function regd() {
+    if (ls('dfReg')) return true;
+    var b = ls('df:dfBoard');
+    return !!b && b !== '""' && b !== 'null';
+  }
 
   /* ============================================================
      השלבים.
@@ -102,7 +122,7 @@ var TRIP_UI = (function () {
          והכפתור שהיא מדברת עליו כבר היה מאחוריו.
          ============================================================ */
       done:function () {
-        return !!ls('dfReg') || !!document.querySelector('#v-reg.on');
+        return regd() || !!document.querySelector('#v-reg.on');
       } },
     /* ---- והטופס עצמו, עם הכפתור שמסיים אותו ---- */
     { k:'s1f', sel:'#r-send',
@@ -111,12 +131,15 @@ var TRIP_UI = (function () {
           show('reg');
         }
       },
-      done:function () { return !!ls('dfReg'); } },
-    /* `loud` — "ואחריו בכתב בולט וגדול". ההוראה כאן אינה מה
-       לעשות אלא **לחזור**, ובלעדיה אנשים יצאו לוואטסאפ ולא
-       חזרו. */
-    { k:'s2', sel:'.thx-go', loud:1,
-      done:function () { return ls('df:ramsWa') === '1'; } },
+      done:function () { return regd(); } },
+    /* ============================================================
+       **השליחה לר"מים ירדה מכאן — לסוף.**
+       ============================================================
+       היא שלחה אותו לוואטסאפ באמצע ההתקנה, ולכן הייתה צריכה
+       "חזרו לכאן!" בגדול — ומי שלא חזר, נעצר. עכשיו היא חלק
+       מהשלב האחרון (s5), כשכבר יש לו אפליקציה ולוח שבו יראה
+       את מי שהצטרף.
+       ============================================================ */
     /* ============================================================
        ולא "לחצו על אזור הניהול" — ישר אל הכפתור עצמו.
        ============================================================
@@ -139,7 +162,25 @@ var TRIP_UI = (function () {
          מד השלבים של האשף הוא הסימן שהוא בפנים: הוא מצויר רק
          משלב 1 והלאה, ולא במסך שמציע להתחיל.
          ============================================================ */
-      busy:function () { return !!document.querySelector('#as-body .as-bar'); },
+      /* ============================================================
+         **האשף פתוח — לא "קיים במסמך".**
+         ============================================================
+         "תקוע על השלב הזה." האשף נשאר במסמך גם אחרי שנסגר (הוא
+         רק מוסתר), ולכן הבדיקה הישנה — יש מד שלבים — הייתה אמת
+         לנצח: מי שעבר את האשף בלי להפעיל עדכונים נשאר מול "עקבו
+         אחרי ההוראות שלמטה", ולמטה לא היה שום אשף.
+         ============================================================ */
+      busy:function () {
+        var sh = document.getElementById('asksheet');
+        return !!(sh && !sh.hidden && sh.querySelector('#as-body .as-bar'));
+      },
+      /* האשף נסגר והעדכונים עדיין כבויים — נשאר רק הכפתור
+         "הפעלת עדכונים" באזור הניהול. מצביעים עליו. */
+      off:function () {
+        var b = document.getElementById('my-note-go');
+        return !!(b && b.offsetParent);
+      },
+      offSel:'#my-note-go',
       enter:function () {
         /* המסך הזה חי בעמוד הראשי בלבד. מי שעומד בעמוד אחר
            כשהשלב מתחיל מקבל הוראה שמצביעה על כפתור שאינו
@@ -167,7 +208,23 @@ var TRIP_UI = (function () {
        יישלח כהתראה כשיהיה לו מה להראות — וזה בדיוק הערוץ
        שהשלב האחרון כאן בא לוודא שעובד.
        ============================================================ */
-    { k:'s4', fin:1, test:1 }
+    { k:'s4', test:1 },
+    /* ============================================================
+       **הסוף: חוויית הצלחה, ואז מה שאפשר לעשות עכשיו.**
+       ============================================================
+       "אל תיתן לו ציווי 'עכשיו שלח'. קודם כל חוויית הצלחה —
+       ואז: כעת ניתן לשלוח לר"מים, לתלמידים ולהורים, ולראות את
+       כל מי שהצטרף." היכרות ולא משימה: הכפתורים שלמטה הם
+       הזמנה, והמסע נגמר ב"לסיום".
+       ============================================================ */
+    { k:'s5', sel:'#my-share', fin:1,
+      enter:function () {
+        if (typeof show === 'function' && typeof myInstRow === 'function') {
+          if (myInstRow()) { show('my'); if (typeof renderMy === 'function') renderMy(); }
+          return;
+        }
+        location.href = home() + '?masa=1';
+      } }
   ];
 
   function step() { return STEPS[Math.max(0, Math.min(st.i, STEPS.length - 1))]; }
@@ -176,7 +233,8 @@ var TRIP_UI = (function () {
   function mode() {
     var s = step();
     return st.i + ':' + (st.hail ? 'h' : '') +
-           ':' + (!st.hail && s.busy && s.busy() ? 'b' : '');
+           ':' + (!st.hail && s.busy && s.busy() ? 'b' : '') +
+           (!st.hail && s.off && s.off() ? 'o' : '');
   }
 
   /* ---------- העיצוב ----------
@@ -379,6 +437,9 @@ var TRIP_UI = (function () {
        להסתכל למטה.
        ============================================================ */
     var busy = !st.hail && s.busy && s.busy();
+    var off = !st.hail && !busy && s.off && s.off();
+    var sel = off ? s.offSel : s.sel;
+    var tk = busy ? s.k + 'busy' : off ? s.k + 'off' : s.k;
 
     /* ============================================================
        הבדיקה האחרונה מנהלת מסך משלה.
@@ -389,8 +450,8 @@ var TRIP_UI = (function () {
     if (s.test && !st.hail) { paintTest(el, bars); return; }
 
     el.className = st.hail ? 'hail' : '';
-    var ttl = st.hail ? t(s.hail) : t(busy ? s.k + 'busy' : s.k);
-    var sub = st.hail ? t(s.hail + 'B') : t(busy ? s.k + 'busyB' : s.k + 'b');
+    var ttl = st.hail ? t(s.hail) : t(tk);
+    var sub = st.hail ? t(s.hail + 'B') : t(busy || off ? tk + 'B' : s.k + 'b');
     /* כפתור רק כשיש מה ללחוץ עליו: היכרות, ברכה, וסיום.
        במשימה אין כפתור — מה שמקדם אותה הוא לעשות אותה.
 
@@ -412,7 +473,7 @@ var TRIP_UI = (function () {
        ומי שעינו נפלה על האפליקציה מזהה את מה שראה למעלה.
        הוא נקרא מהאלמנט האמיתי, ולכן אינו יכול להתיישן.
        ============================================================ */
-    var mini = (!st.hail && !busy && s.sel) ? miniOf(s.sel) : '';
+    var mini = (!st.hail && !busy && sel) ? miniOf(sel) : '';
 
     el.innerHTML = '<div class="in">' +
       '<div class="bars">' + bars + '</div>' +
@@ -446,13 +507,13 @@ var TRIP_UI = (function () {
       aimed = mode();
       if (first && s.enter && !st.hail) { try { s.enter(); } catch (e) {} }
       setTimeout(function () {
-        aim((st.hail || busy) ? '' : s.sel);
+        aim((st.hail || busy) ? '' : sel);
         /* המזערה נקראת מהאלמנט, ולכן היא מצוירת אחרי שהוא
            הגיע למסך — ולא לפניו. */
         var m = $('trip');
-        if (m && !st.hail && !busy && s.sel) {
+        if (m && !st.hail && !busy && sel) {
           var box = m.querySelector('.mini');
-          var now = miniOf(s.sel);
+          var now = miniOf(sel);
           /* לפני ההוראה ולא אחריה — אותו סדר של הציור הראשון. */
           if (now && !box) {
             var line = m.querySelector('.txt .s');
@@ -536,9 +597,10 @@ var TRIP_UI = (function () {
         st.chk = 1; save(); paint();
       })['catch'](function () { st.chk = 4; save(); paint(); });
     });
-    hit('trip-yes',  function () { stop(); });
+    /* אחרי הבדיקה — השלב האחרון (s5), ולא סוף המסע. */
+    hit('trip-yes',  function () { bump(); });
     hit('trip-no',   function () { report(); });
-    hit('trip-done', function () { stop(); });
+    hit('trip-done', function () { bump(); });
     offset();
   }
 
@@ -650,7 +712,7 @@ var TRIP_UI = (function () {
      מה שמאפשר מסע חלקי למי שעדיין באייפון בדפדפן — ראו
      `iosBefore`. */
   function start(cap) {
-    st = { i:0, hail:0 };
+    st = { i:0, hail:0, v:2 };
     if (cap) st.cap = cap;
     save();
     run();
@@ -670,7 +732,7 @@ var TRIP_UI = (function () {
       if (!x.done) continue;
       try { if (x.done()) re[x.k] = 1; } catch (e) {}
     }
-    st = { i:0, hail:0, re:re };
+    st = { i:0, hail:0, re:re, v:2 };
     aimed = '';
     save();
     run();
@@ -685,7 +747,7 @@ var TRIP_UI = (function () {
      והכפתורים האמיתיים עדיין מסומנים ועובדים.
      ============================================================ */
   function tour() {
-    st = { i:0, hail:0, see:1 };
+    st = { i:0, hail:0, see:1, v:2 };
     aimed = '';
     save();
     run();

@@ -286,6 +286,7 @@ Promise.all([S.rows('זוגות', key), S.rows('לומדים', key),
     });
   })
   ['catch'](function (e) {
+    S.quitIfGoogle(e);
     console.error('נכשל: ' + (e && e.message || e));
     process.exit(1);
   });
