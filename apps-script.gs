@@ -449,6 +449,10 @@ function doPost(e) {
       return json_({ status: 'denied',
         message: 'הלשונית ' + d.tab + ' נכתבת רק בגיליון — לא נדרסת מהאפליקציה' });
     }
+    /* מאגר חדש — המטמון של הרשימות לפי ישיבה מתחלף (netRoster_). */
+    if (d.action === 'table' && d.tab === NET_TAB_) {
+      try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
+    }
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
     /* ---- פעולת צוות: מי התקשר/שלח, ומתי ----
@@ -3456,7 +3460,29 @@ function amdaUnlink_(keys) {
    **רק** שכבה, כיתה ושם — רק של ז׳ וח׳, ורק של הישיבה שהמכשיר אושר אליה. כל
    שליפה נרשמת ב"יומן מאגר": מי, איזו ישיבה, כמה, ומתי. */
 var NET_TAB_ = 'תלמידי הרשת';
+/* **זיכרון לכל ישיבה.** הלשונית גדולה (עשרות אלפי שורות), וקריאה
+   מלאה בכל פתיחה היא שניות של המתנה — ובבוקר כולם פותחים יחד. הרשימה
+   של ישיבה נשמרת במטמון של הסקריפט לשש שעות, תחת "גרסת מאגר" שמתחלפת
+   בכל העלאה (ראו `table` ב-doPost) — מאגר חדש אינו מחכה למטמון ישן. */
 function netRoster_(inst, dev) {
+  var out = null, ck = '';
+  try {
+    var ver = PropertiesService.getScriptProperties().getProperty('netVer') || '0';
+    ck = 'nr' + ver + '_' + inst;
+    var hit = CacheService.getScriptCache().get(ck);
+    if (hit) out = JSON.parse(hit);
+  } catch (eC) { out = null; }
+  if (!out) {
+    out = netRosterRead_(inst);
+    try { if (ck) CacheService.getScriptCache().put(ck, JSON.stringify(out), 21600); } catch (eP) {}
+  }
+  try {
+    appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
+                              ['תלמידים', out.length]]);
+  } catch (eL) {}
+  return { status: 'ok', inst: inst, rows: out };
+}
+function netRosterRead_(inst) {
   var t = amdaTable_(NET_TAB_), out = [];
   for (var r = 1; r < t.rows.length; r++) {
     if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
@@ -3465,11 +3491,7 @@ function netRoster_(inst, dev) {
     /* השכבות שבתוכנית בלבד — ז׳ וח׳. מה שאין בו צורך אינו יוצא. */
     if (g && c && n && (g === 'ז' || g === 'ח')) out.push([g, c, n]);
   }
-  try {
-    appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
-                              ['תלמידים', out.length]]);
-  } catch (eL) {}
-  return { status: 'ok', inst: inst, rows: out };
+  return out;
 }
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
 function netMarks_(inst) {

@@ -2813,7 +2813,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.214';
+var APP_VERSION = '8.99.215';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17490,6 +17490,7 @@ function netFromSheets(sheets) {
       if (has['שכבה'] && (has['שם פרטי'] || has['שם פרטי כינוי'])) { hi = i; col = has; }
     }
     if (hi < 0 || !col['סמל מוסד']) return;
+    out.hdr = true;
     var g = function (r, name) { return col[name] ? String(r[col[name]] || '').trim() : ''; };
     for (i = hi + 1; i < rows.length; i++) {
       var x = rows[i];
@@ -17498,6 +17499,9 @@ function netFromSheets(sheets) {
       var first = g(x, 'שם פרטי כינוי') || g(x, 'שם פרטי');
       var last = g(x, 'שם משפחה כינוי') || g(x, 'שם משפחה');
       if (!sym || !gr || !first) continue;
+      /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
+         ואין סיבה שיישבו בגיליון. */
+      if (ATT_GRADES.indexOf(gr) < 0) continue;
       var cls = (g(x, 'מקבילה').match(/\d+/) || [''])[0];
       var kid = netTel(g(x, 'מספר נייד 1')) || netTel(g(x, 'מספר נייד 2'));
       var par = netTel(g(x, 'נייד 1')) || netTel(g(x, 'נייד 2'));
@@ -17534,7 +17538,8 @@ function netPicked(inp) {
     amdaNeedXlsx().then(function () {
       var r = null;
       try { r = netFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
-      if (!r || !r.rows.length) { alert(UI.netBad); return; }
+      if (!r || !r.hdr) { alert(UI.netBad); return; }
+      if (!r.rows.length) { alert(UI.netNoRows); return; }
       var map = Store.get('netMap', {}) || {}, k;
       r.map = {};
       for (k in r.insts) if (r.insts.hasOwnProperty(k)) {
