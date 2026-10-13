@@ -1526,6 +1526,7 @@ details summary {
 }
 .invitation-secondary {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 12px 24px;
   margin-top: 12px;
@@ -1538,6 +1539,7 @@ details summary {
   font-weight: 700;
 }
 .invitation-feedback {
+  text-align: center;
   min-height: 2.8em;
   margin-bottom: 0;
   font-size: 0.8rem;
