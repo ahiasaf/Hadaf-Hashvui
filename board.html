@@ -2112,6 +2112,9 @@ if (EMBED) window.addEventListener('message', function (e) {
     if (d.dfFilt === FILT) { embedSize(); return; }
     /* ישיבה אחרת — חיפוש, בחירה ושורה פתוחה של הקודמת אינם שלה. */
     FILT = d.dfFilt; view = ''; OPEN = ''; SRCH = ''; SEL = {}; SELMODE = false;
+    /* וגם תיבת שליחה פתוחה — אחרת היא נשארת פתוחה מול קהל אחר
+       (חזרה מישיבה אחת ל"כל הישיבות"). */
+    SND.open = false; SND.txt = ''; SND.msg = '';
     applyFilt(); draw();
   }
   /* דרך לימוד — מהמשבצות שבניהול. '' = כולן. */
@@ -2119,6 +2122,15 @@ if (EMBED) window.addEventListener('message', function (e) {
     LWAY = d.dfWay; OPEN = ''; draw();
   }
   if (d.dfReload) boardReload();
+  /* "הודעה לתלמידי הישיבה" מהפס שבניהול — פותחים את תיבת השליחה
+     ומחזירים את מקומה, כדי שהניהול יגלול אליה. */
+  if (d.dfSend) {
+    SND.open = true; SND.msg = ''; draw();
+    setTimeout(function () {
+      var b = document.querySelector('.snd');
+      if (b) try { window.parent.postMessage({ dfSndY: b.getBoundingClientRect().top + (window.pageYOffset || 0) }, '*'); } catch (e) {}
+    }, 60);
+  }
 });
 /* בתוך הניהול: הגובה עובר לעמוד שמכיל, כדי שלא תהיה גלילה בתוך גלילה. */
 function embedSize() {

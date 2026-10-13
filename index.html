@@ -194,6 +194,10 @@ html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
    מגיע שום דבר לא קופץ. */
 img:not([src]){visibility:hidden}
 html,body{overflow-x:hidden}
+/* hidden הופך את body למכל גלילה משלו, ואז שום position:sticky
+   אינו נצמד (הפס של ישיבה בניהול, ppl-bar). clip חותך באותו אופן
+   בלי ליצור מכל גלילה. דפדפן ישן מתעלם ונשאר עם hidden. */
+@supports (overflow-x:clip){html,body{overflow-x:clip}}
 img{max-width:100%}
 /* ============================================================
    **בלי `background-attachment:fixed`.** במחשב הזוהר הבהיר שבראש
@@ -1617,6 +1621,27 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .stf-msg.bad{color:var(--stop)}
 .stf-msg small{display:block;font-weight:700;color:var(--ink-3)}
 .stf-list{display:grid;gap:10px}
+/* ניהול ← התלמידים: הפס של ישיבה אחת נשאר גלוי בגלילה. */
+.stu-ls{margin-bottom:11px}
+.stu-ls h4{margin:0 0 9px}
+.stu-ls input{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--rule);
+  border-radius:10px;font:inherit;font-size:.9rem;margin-bottom:4px}
+#stu-bar{position:sticky;top:0;z-index:6}
+.stu-bar{background:var(--surface);border:1px solid var(--rule);
+  border-radius:14px;padding:10px 12px;margin-bottom:11px;box-shadow:0 4px 14px rgba(11,37,80,.10)}
+.stu-bt{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.stu-bt b{font-size:1rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stu-bt .ppl-back{flex:none;order:-1}
+.stu-ba{display:flex;gap:8px;margin-top:9px}
+.stu-ba .btn{margin:0;flex:1 1 0;min-width:0;padding-inline:8px;font-size:.84rem;
+  text-decoration:none;text-align:center}
+.stu-stf{margin-bottom:11px}
+.stu-p{padding:9px 0;border-bottom:1px solid var(--rule-2)}
+.stu-p:last-child{border-bottom:0}
+.stu-pn span{font-size:.78rem;font-weight:700;color:var(--ink-3)}
+.stu-pa{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap}
+.stu-pa .btn{margin:0;flex:1 1 120px;text-decoration:none;text-align:center}
+.stu-pa .btn.on,.stu-ba .btn.on{background:var(--blue);color:#fff}
 .ct.stf-r{border-inline-start-color:var(--blue)}
 .stf-no{margin-top:8px;font-size:.76rem;font-weight:700;color:var(--ink-3)}
 .teamshow{display:flex;align-items:center;gap:7px;margin-top:11px;
@@ -2813,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.219';
+var APP_VERSION = '8.99.220';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9577,7 +9602,8 @@ function admStudents(el) {
   el.innerHTML = '<div id="stu">' +
     '<div class="my-sec"><h3>' + esc(PANEL.brdH) + '</h3><p>' + esc(PANEL.brdSub) + '</p>' +
     '<div id="stu-brd"></div></div>' +
-    '<div class="my-sec" id="stu-det"><div id="stu-head"></div><div id="ppl-conf"></div>' +
+    '<div class="my-sec" id="stu-det"><div id="stu-ls"></div><div id="stu-bar"></div><div id="stu-stf"></div>' +
+    '<div id="stu-head"></div><div id="ppl-conf"></div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
       (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') +
       (ADM_WAY ? '&way=' + encodeURIComponent(ADM_WAY) : '') + '" title="' + esc(UI.admTStu) + '" ' +
@@ -9585,10 +9611,176 @@ function admStudents(el) {
   pplLast = {};
   admLive();
 }
-/* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס. */
+/* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס: רשימת הישיבות,
+   או — כשנבחרה ישיבה — הפס שלה והתלמידים שלה. */
 function admDet() {
   var d = document.getElementById('stu-det');
   if (d && d.scrollIntoView) d.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ============================================================
+   רשימת הישיבות, וישיבה אחת בלחיצה.
+   ============================================================
+   "לראות פירוט מוריד אותי למטה לבאנר שקשה לעקוב איתו ולנווט בין
+   המוסדות." קודם הוא הוביל לרשימה הארוכה של כל התלמידים מכל
+   הישיבות, והבורר היה למעלה. עכשיו: שורה לכל ישיבה, ולחיצה
+   פותחת אותה. בראש הישיבה פס שנשאר גלוי בגלילה — חזרה לרשימה,
+   הודעה לתלמידים שלה, וכתיבה לאיש הצוות שלה.
+   ============================================================ */
+var STU = { q:'', y:0, pan:false, open:'', txt:'', busy:false, msg:'', msgAt:'', ok:false, list:[] };
+function stuLsHtml() {
+  return '<div class="adm-card stu-ls"><h4>' + esc(UI.stuLsH) + '</h4>' +
+    '<input id="stu-q" type="search" placeholder="⌕ ' + esc(UI.stuLsQ) + '" aria-label="' + esc(UI.stuLsQ) +
+    '" oninput="stuLsQ(this.value)"><div id="stu-ll"></div>' +
+    '<p class="h" id="stu-none" style="display:none;margin:12px 0 4px">' + esc(UI.stuLsNone) + '</p></div>';
+}
+function stuRows() {
+  var q = nameKey(STU.q);
+  var rows = pplData().rows.filter(function (x) {
+    return x.c && (!q || nameKey(x.name).indexOf(q) >= 0);
+  });
+  var n = document.getElementById('stu-none');
+  if (n) n.style.display = rows.length ? 'none' : '';
+  return rows.map(function (x) {
+    return '<button class="pr" data-c3="' + esc(x.c) + '">' + pplRowHtml(x) + '</button>';
+  }).join('');
+}
+function stuLsQ(v) { STU.q = v; pplSet('stu-ll', stuRows()); }
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-c3]');
+  if (!b) return;
+  STU.y = window.pageYOffset || document.documentElement.scrollTop || 0;
+  STU.pan = false; STU.open = ''; STU.msg = '';
+  admInstPick(b.getAttribute('data-c3'));
+  setTimeout(admDet, 30);
+});
+/* חזרה לרשימה — לאותו מקום שבו היא נעזבה. */
+function stuAll() {
+  STU.pan = false; STU.open = ''; STU.msg = '';
+  admInstPick('');
+  /* השבב שלמעלה (🏫 ✕) — רק אם הוא מוצג, כדי לא לטעון את הלוח מחדש. */
+  if (document.querySelector('.adm-chip')) renderAdmin();
+  setTimeout(function () { window.scrollTo(0, STU.y || 0); }, 30);
+}
+/* "הודעה לתלמידי הישיבה" — תיבת השליחה של הלוח, שכבר מכוונת
+   לישיבה שנבחרה. הלוח פותח אותה ומחזיר את מקומה (dfSndY). */
+function stuSend() { pplFrame({ dfSend: 1 }); }
+function stuSndAt(y) {
+  var f = document.getElementById('people-f'), bar = document.getElementById('stu-bar');
+  if (!f) return;
+  var top = f.getBoundingClientRect().top + (window.pageYOffset || 0) + y;
+  window.scrollTo(0, Math.max(0, top - (bar ? bar.offsetHeight : 0) - 12));
+}
+
+/* איש הצוות של הישיבה — מהמוקד. מי שסומן "ראשי" — רק הוא; לא
+   סומן אף אחד — כולם, וגם מי שנרשם בעצמו כאיש צוות. לכל אחד:
+   וואטסאפ אם יש טלפון, ו"באפליקציה" אם אישר התראות. */
+function stuStaff(code) {
+  var out = [], seen = {}, stf = stfOf(code), marked = false;
+  var add = function (name, role, ph, s) {
+    var k = nameKey(name) || digits(ph);
+    if (!k || seen[k]) return;
+    var app = !!(s && s.sub && s.ids.length);
+    if (!ph && !app) return;
+    seen[k] = 1;
+    out.push({ name:name, role:role || '', ph:ph || '', s:app ? s : null });
+  };
+  contacts().forEach(function (c) {
+    var ii = instByName(c.key || c.name);
+    if (!ii || ii.code !== code) return;
+    if (c.primary != null) marked = true;
+    (c.primary != null ? [mainOf(c)] : peopleOf(c)).forEach(function (q) {
+      if (!q) return;
+      var s = null;
+      stf.forEach(function (x) { if (!s && stfSame(q, x)) { s = x; x.hit = true; } });
+      add(q.name, q.role, q.phone || q.phone2 || (s && s.ph), s);
+    });
+  });
+  if (!marked) stf.forEach(function (x) { if (!x.hit) add(x.name, x.role, x.ph, x); });
+  return out;
+}
+function stuWa(p) {
+  return 'https://wa.me/' + waNum(p.ph) + '?text=' +
+    encodeURIComponent(fill(UI.stuWaHi, { name: String(p.name || '').split(' ')[0] }));
+}
+function stuBarHtml() {
+  var L = STU.list, stf = '';
+  if (L.length === 1 && !L[0].s) {
+    stf = '<a class="btn g" href="' + esc(stuWa(L[0])) + '" target="_blank" rel="noopener">' +
+          esc(fill(UI.stuStf1, { name:L[0].name })) + '</a>';
+  } else if (L.length) {
+    stf = '<button class="btn g' + (STU.pan ? ' on' : '') + '" onclick="stuPan()" aria-expanded="' + STU.pan + '">' +
+          esc(L.length === 1 ? fill(UI.stuStf1, { name:L[0].name }) : fill(UI.stuStfN, { n:L.length })) + '</button>';
+  }
+  return '<div class="stu-bar"><div class="stu-bt"><button class="ppl-back" onclick="stuAll()">' + esc(UI.yshBack) +
+    '</button><b>' + esc(admInstName(ADM_INST)) + '</b></div>' +
+    '<div class="stu-ba"><button class="btn p" onclick="stuSend()">' + esc(UI.stuSendI) + '</button>' + stf + '</div></div>';
+}
+function stuPan() { STU.pan = !STU.pan; STU.open = ''; admLive(); }
+/* תיבת הטקסט נכתבת ריקה, והתוכן נשמר ב-STU.txt — כך ציור מחדש
+   ברקע אינו משנה את ה-HTML באמצע הקלדה, ואינו מעיף את המקלדת. */
+function stuStfHtml() {
+  if (!STU.pan || !STU.list.length) return '';
+  return '<div class="adm-card stu-stf">' + STU.list.map(function (p, i) {
+    var k = nameKey(p.name), h = '<div class="stu-p"><div class="stu-pn"><b>' + esc(p.name) + '</b>' +
+      (p.role ? ' <span>' + esc(p.role) + '</span>' : '') + '</div><div class="stu-pa">' +
+      (p.ph ? '<a class="btn g" href="' + esc(stuWa(p)) + '" target="_blank" rel="noopener">' + esc(UI.stfWa) + '</a>' : '') +
+      (p.s ? '<button class="btn g' + (STU.open === k ? ' on' : '') + '" onclick="stuOpen(' + i + ')">' + esc(UI.stuApp) + '</button>' : '') +
+      '</div>';
+    if (STU.open === k) {
+      h += '<div class="stf-box"><textarea id="stu-txt" rows="3" maxlength="400" placeholder="' +
+        esc(fill(UI.stfPh, { name:p.name })) + '" oninput="STU.txt=this.value"></textarea>' +
+        '<div class="stf-go"><button class="btn p"' + (STU.busy ? ' disabled' : '') + ' onclick="stuGo(' + i + ')">' +
+        esc(STU.busy ? UI.stfBusy : UI.stfGo) + '</button><button class="btn g" onclick="stuOpen(' + i + ')">' +
+        esc(UI.stfCancel) + '</button></div></div>';
+    }
+    if (STU.msg && STU.msgAt === k) {
+      h += '<div class="stf-msg ' + (STU.ok ? 'ok' : 'bad') + '">' + esc(STU.msg) +
+        (STU.ok ? '<small>' + esc(UI.sayLate) + '</small>' : '') + '</div>';
+    }
+    return h + '</div>';
+  }).join('') + '</div>';
+}
+function stuOpen(i) {
+  var p = STU.list[i]; if (!p) return;
+  var k = nameKey(p.name);
+  STU.open = STU.open === k ? '' : k; STU.txt = ''; STU.msg = '';
+  admLive();
+  var t = document.getElementById('stu-txt');
+  if (t) try { t.focus(); } catch (e) {}
+}
+/* כמו stfSend במוקד: לפי מזהים בלבד — לכל המכשירים שלו, ולא לאיש אחר. */
+function stuGo(i) {
+  var p = STU.list[i], txt = (STU.txt || '').trim();
+  if (!p || !p.s || STU.busy || txt.length < 2) return;
+  var k = nameKey(p.name), key = (CFG.readKey || '').trim(), code = ADM_INST;
+  var done = function (ok, m) {
+    STU.busy = false; STU.ok = ok; STU.msg = m; STU.msgAt = k;
+    if (ok) { STU.open = ''; STU.txt = ''; }
+    admLive();
+  };
+  if (!key) { done(false, UI.stfNoKey); return; }
+  if (!confirm(fill(UI.stfAsk, { name:p.name }) + '\n\n' + txt)) return;
+  STU.busy = true; admLive();
+  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt,
+              url: /^[A-Za-z0-9_\-]{1,40}$/.test(code) ? 'tzevet?inst=' + code + '#my' : '',
+              flt: JSON.stringify({ ids: p.s.ids.slice(0, 60) }) })
+    .then(function (d) {
+      if (d && d.status === 'ok') done(true, fill(UI.stfOk, { name:p.name }));
+      else done(false, fill(UI.stfBad, { m: (d && d.message) || UI.parNoAns }));
+    })['catch'](function () { done(false, fill(UI.stfBad, { m: UI.parNoAns })); });
+}
+function stuLive() {
+  var ls = !ADM_INST && ADM_INST !== '-';
+  var was = pplLast['stu-ls'];
+  pplSet('stu-ls', ls ? stuLsHtml() : '');
+  if (ls && pplLast['stu-ls'] !== was) STU.q = '';
+  if (ls) pplSet('stu-ll', stuRows()); else delete pplLast['stu-ll'];
+  STU.list = ADM_INST && ADM_INST !== '-' ? stuStaff(ADM_INST) : [];
+  pplSet('stu-bar', ADM_INST ? stuBarHtml() : '');
+  pplSet('stu-stf', ADM_INST ? stuStfHtml() : '');
+  var t = document.getElementById('stu-txt');
+  if (t && t.value !== STU.txt && document.activeElement !== t) t.value = STU.txt;
 }
 /* ראש קטן מעל הלוח: כמה נרשמו, כמה דיווח ראש החטיבה, והפער. */
 function admStuHead() {
@@ -10210,6 +10402,7 @@ function admLive() {
   if (admTab === 'stu') {
     pplSet('stu-brd', boardHtml(ADM_INST, admInstName(ADM_INST), false, 'admDet()'));
     pplSet('stu-head', admStuHead());
+    stuLive();
     var conf = (conflictRows || []).filter(function (p) { return !p.done; }).length;
     pplSet('ppl-conf', conf ? '<div style="margin-bottom:11px">' + admConflicts() + '</div>' : '');
   }
@@ -11033,6 +11226,7 @@ window.addEventListener('message', function (e) {
   if (!d || !f || e.source !== f.contentWindow) return;
   /* הלוח מדווח שהרשימה נקראה — מעדכנים את המספרים בלבד. */
   if (d.dfBoardN) { ppl.boardMsg = d.ok ? '' : (d.msg || ''); if (d.ok) ppl.boardAt = Date.now(); pplPaint(); }
+  if (typeof d.dfSndY === 'number') { setTimeout(function () { stuSndAt(d.dfSndY); }, 120); return; }
   if (typeof d.dfBoardH !== 'number') return;
   /* לוח מוסתר מודד אפס — לא לכווץ את המסגרת בגללו. */
   if (f.style.display === 'none') return;
