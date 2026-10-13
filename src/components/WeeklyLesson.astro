@@ -8,8 +8,17 @@ interface Props {
   titles: Record<string, string>;
   covers: Record<string, string>;
   ui: Record<string, string>;
+  personal?: boolean;
 }
-const { tracks, initialWeek, startDate, titles, covers, ui } = Astro.props;
+const {
+  tracks,
+  initialWeek,
+  startDate,
+  titles,
+  covers,
+  ui,
+  personal = false,
+} = Astro.props;
 const track = tracks[0];
 const { row } = lessonRow(track, initialWeek);
 const hasLesson = !!row[2] && row[2] !== "סיום";
@@ -19,7 +28,7 @@ const hasLesson = !!row[2] && row[2] !== "סיום";
   <div class="lesson-top">
     <p class="stage-eyebrow">
       <span class="stage-dot" aria-hidden="true"></span>
-      {ui.siteLesson}
+      <span data-stage-label>{ui.siteLesson}</span>
     </p>
     <div class="track-switch" role="group" aria-label={ui.siteChoose}>
       <span class="track-thumb" aria-hidden="true"></span>
@@ -136,6 +145,7 @@ const hasLesson = !!row[2] && row[2] !== "סיום";
     <a
       class="button button-light"
       data-open
+      data-continue={personal || undefined}
       href={hasLesson ? lessonHref(track, row) : "/calendar"}
     >
       {hasLesson ? ui.deckGo : ui.siteCalendar}
@@ -151,6 +161,7 @@ const hasLesson = !!row[2] && row[2] !== "סיום";
     titles,
     covers,
     ui,
+    personal,
   }).replaceAll("<", "\\u003c")}
 />
 <script>

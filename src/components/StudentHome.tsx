@@ -20,13 +20,11 @@ export default function StudentHome({
   const [person, setPerson] = useState<Person | null>(null);
   const [completed, setCompleted] = useState<Record<string, string>>({});
   const [trackId, setTrackId] = useState(tracks[0].id);
-  const [spot, setSpot] = useState<ReadingSpot | null>(null);
   const [syncFailed, setSyncFailed] = useState(false);
   useEffect(() => {
     const savedSpot = stored<ReadingSpot | null>("spot", null);
     const selected = stored("track", savedSpot?.mas || tracks[0].id);
     if (tracks.some((track) => track.id === selected)) setTrackId(selected);
-    setSpot(savedSpot);
     const existing = stored<Person | null>("me", null);
     setPerson(existing);
     setCompleted(stored("learned", {}));
@@ -35,14 +33,16 @@ export default function StudentHome({
     // One account reconciliation, followed by the station's lightweight completion read.
     action<{ id?: string; learned?: string[] }>("read", { idFor: existing.id })
       .then(async (result) => {
-        if (!active) return;
+        if (!active || stored<Person | null>("me", null)?.id !== existing.id)
+          return;
         const person = result.id ? { ...existing, id: result.id } : existing;
         store("me", person);
         setPerson(person);
         const station = await action<{ learned?: string[] }>("read", {
           amdaFor: person.id,
         });
-        if (!active) return;
+        if (!active || stored<Person | null>("me", null)?.id !== person.id)
+          return;
         const progress = stored<Record<string, string>>("learned", {});
         for (const tag of [
           ...(result.learned || []),
@@ -69,69 +69,33 @@ export default function StudentHome({
   ).length;
   const total = studyUnits(track);
   const percent = Math.round((count / total) * 100);
-  const resumeRow =
-    spot?.mas === trackId && spot.i > 0 && spot.i < spot.n - 1
-      ? track.cal.find(
-          (row) =>
-            row[2] === spot.daf &&
-            (row[3] === "א" ? 1 : row[3] === "ב" ? 2 : 0) === spot.am,
-        )
-      : undefined;
-  const currentRow = track.cal[current];
-  const studyRow =
-    resumeRow ||
-    (currentRow[2] && currentRow[2] !== "סיום" ? currentRow : null);
+  useEffect(() => {
+    const refresh = () => {
+      const selected = stored("track", tracks[0].id);
+      if (tracks.some((track) => track.id === selected)) setTrackId(selected);
+      setPerson(stored<Person | null>("me", null));
+      setCompleted(stored("learned", {}));
+    };
+    addEventListener("df-track-change", refresh);
+    addEventListener("df-account-change", refresh);
+    addEventListener("pageshow", refresh);
+    const sync = (event: StorageEvent) => {
+      if (
+        ["df:track", "df:me", "df:learned"].includes(event.key || "") ||
+        event.key === null
+      )
+        refresh();
+    };
+    addEventListener("storage", sync);
+    return () => {
+      removeEventListener("df-track-change", refresh);
+      removeEventListener("df-account-change", refresh);
+      removeEventListener("pageshow", refresh);
+      removeEventListener("storage", sync);
+    };
+  }, [tracks]);
   return (
-    <section className="workspace">
-      <div className="page-intro">
-        {person && <p className="eyebrow">{person.instName}</p>}
-        <h1>{person ? "שלום, " + person.first : "הלימוד שלי"}</h1>
-        <p>דף אחד בכל שבוע. ממשיכים מהמקום שבו עצרתם.</p>
-      </div>
-      <div className="track-tabs" role="group" aria-label="מסלול לימוד">
-        {tracks.map((item) => (
-          <button
-            key={item.id}
-            aria-pressed={item.id === trackId}
-            onClick={() => {
-              setTrackId(item.id);
-              store("track", item.id);
-            }}
-          >
-            {item.name}
-          </button>
-        ))}
-      </div>
-      <div className="study-next surface">
-        <p className="eyebrow">
-          {resumeRow ? "ממשיכים מהמקום שעצרתם" : "הלימוד השבועי"}
-        </p>
-        <h2>
-          {studyRow
-            ? "מסכת " +
-              track.name +
-              ", דף " +
-              studyRow[2] +
-              (studyRow[3] ? " ע״" + studyRow[3] : "")
-            : "השבוע אין דף חדש"}
-        </h2>
-        {resumeRow && (
-          <p>
-            קטע {spot!.i + 1} מתוך {spot!.n}
-          </p>
-        )}
-        <a
-          className="button button-gold"
-          data-continue
-          href={studyRow ? lessonHref(track, studyRow) : "/calendar#" + trackId}
-        >
-          {studyRow
-            ? resumeRow
-              ? "להמשך הלימוד"
-              : "פתיחת הדף"
-            : "לתוכנית הלימוד"}
-        </a>
-      </div>
+    <section className="workspace dashboard-details">
       <div className="progress-overview swap" key={"progress-" + trackId}>
         <div className="progress-summary">
           <div className="progress-count">

@@ -2,10 +2,33 @@
 import "../styles/workspace.css";
 import Site from "../layouts/Site.astro";
 import StudentHome from "../components/StudentHome";
+import WeeklyLesson from "../components/WeeklyLesson.astro";
+import { weekIndex } from "../lib/calendar";
+import { titles, covers, lessonUi } from "../lib/weekly-config";
 import program from "../generated/program.json";
 ---
 
 <Site manifest="/join-manifest.json">
+  <div class="workspace dashboard-intro">
+    <div class="page-intro">
+      <p class="eyebrow" data-dashboard-school hidden></p>
+      <h1 data-dashboard-greeting>הלימוד שלי</h1>
+      <p>דף אחד בכל שבוע. ממשיכים מהמקום שבו עצרתם.</p>
+    </div>
+  </div>
+  <div class="stage-band dashboard-band" data-reveal>
+    <div class="container">
+      <WeeklyLesson
+        tracks={program.tracks}
+        initialWeek={weekIndex(program.startDate)}
+        startDate={program.startDate}
+        titles={titles}
+        covers={covers}
+        ui={lessonUi}
+        personal
+      />
+    </div>
+  </div>
   <StudentHome
     tracks={program.tracks}
     startDate={program.startDate}

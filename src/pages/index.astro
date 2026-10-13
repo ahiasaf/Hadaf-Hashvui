@@ -8,31 +8,7 @@ import program from "../generated/program.json";
 import config from "../config/program.json";
 import { weekIndex } from "../lib/calendar";
 import { currentPhase } from "../lib/timeline";
-const titles = Object.fromEntries(
-  Object.entries(program.content).map(([key, value]) => [key, value.title]),
-);
-const lessonUi = Object.fromEntries(
-  Object.entries(program.ui).filter(([key]) =>
-    [
-      "siteLesson",
-      "siteCurrentWeek",
-      "siteChoose",
-      "siteFinish",
-      "sitePause",
-      "siteCalendar",
-      "deckGo",
-      "deckAlt",
-      "deckSoon",
-    ].includes(key),
-  ),
-);
-// First slide of every week folder, already fingerprinted by the build.
-const media: Record<string, string> = program.media;
-const covers: Record<string, string> = {};
-for (const key of Object.keys(media).sort()) {
-  const match = key.match(/^slides\/([a-z]+-\d+)\//);
-  if (match && !covers[match[1]]) covers[match[1]] = media[key];
-}
+import { titles, covers, lessonUi } from "../lib/weekly-config";
 const phases = config.PHASES;
 const phaseNow = currentPhase(phases);
 const lastYear = config.PROGRAM.lastYear;
@@ -86,7 +62,7 @@ const hero = [
         </a>
       </div>
       <p class="hero-note rise" style="--n:4" data-guest-only>
-        לבד, עם חברים או עם ההורים. אפשר להתחיל ללמוד גם בלי הרשמה.
+        נרשמים, מוסיפים למסך הבית, ומתחילים ללמוד לבד, עם חברים או עם ההורים.
       </p>
     </div>
   </section>

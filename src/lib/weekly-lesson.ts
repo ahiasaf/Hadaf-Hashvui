@@ -1,4 +1,4 @@
-import { sheet } from "./client";
+import { sheet, stored, store, type Person } from "./client";
 import { deckCovers } from "./deck-covers";
 import {
   lessonHref,
@@ -13,6 +13,7 @@ type Settings = {
   titles: Record<string, string>;
   covers: Record<string, string>;
   ui: Record<string, string>;
+  personal?: boolean;
 };
 // Dapim learned so far, counting the current week as started.
 export function unitsDone(track: Track, week: number) {
@@ -24,62 +25,94 @@ export function initializeWeeklyLesson() {
   const section = document.getElementById("lesson");
   const settings = document.getElementById("weekly-config")?.textContent;
   if (!section || !settings) return;
-  const { tracks, startDate, titles, covers, ui }: Settings =
-    JSON.parse(settings);
-  const week = weekIndex(startDate);
+  const {
+    tracks,
+    startDate,
+    titles,
+    covers,
+    ui,
+    personal = false,
+  }: Settings = JSON.parse(settings);
   function current(track: Track) {
-    const result = lessonRow(track, week);
-    return { ...result, active: !!result.row[2] && result.row[2] !== "סיום" };
+    const spot = personal
+      ? stored<{
+          mas: string;
+          daf: string;
+          am: number;
+          i: number;
+          n: number;
+        } | null>("spot", null)
+      : null;
+    const resume =
+      spot?.mas === track.id && spot.i > 0 && spot.i < spot.n - 1
+        ? track.cal.findIndex(
+            (row) =>
+              row[2] === spot.daf &&
+              (row[3] === "א" ? 1 : row[3] === "ב" ? 2 : 0) === spot.am,
+          )
+        : -1;
+    const result = lessonRow(
+      track,
+      resume >= 0 ? resume : weekIndex(startDate),
+    );
+    return {
+      ...result,
+      resume: resume >= 0,
+      active: !!result.row[2] && result.row[2] !== "סיום",
+    };
   }
   // Populate every stacked variant before switching; the action keeps its position.
-  for (const track of tracks) {
-    const { index, row, active } = current(track);
-    const variant = section.querySelector<HTMLElement>(
-      `[data-variant="${track.id}"]`,
-    )!;
-    const text = (selector: string, value: string) => {
-      const element = variant.querySelector<HTMLElement>(selector);
-      if (element && element.textContent !== value) element.textContent = value;
-    };
-    text(
-      "[data-week]",
-      ui.siteCurrentWeek +
-        " " +
-        (index + 1) +
-        " מתוך " +
-        track.cal.length +
-        (active ? " · דף " + row[2] + (row[3] ? " ע״" + row[3] : "") : ""),
-    );
-    text(
-      "[data-lesson-title]",
-      active
-        ? titles[track.id + "-" + (index + 1)] || "מסכת " + track.name
-        : ui.sitePause,
-    );
-    text("[data-date]", row[1] + " · " + row[0]);
-    text(
-      "[data-progress]",
-      unitsDone(track, index) + " מתוך " + studyUnits(track),
-    );
-    const cover = covers[track.id + "-" + (index + 1)] || "";
-    const frame = variant.querySelector<HTMLElement>("[data-frame]");
-    if (frame) {
-      frame.classList.toggle("is-empty", !cover);
-      const image = frame.querySelector<HTMLImageElement>("img");
-      if (cover && !image) {
-        const added = new Image();
-        added.src = cover;
-        added.alt = "";
-        added.decoding = "async";
-        frame.prepend(added);
-      } else if (cover && image && !image.src.endsWith(cover))
-        image.src = cover;
-    }
-    variant
-      .querySelectorAll<HTMLElement>("[data-dot]")
-      .forEach((dot, i) =>
-        dot.classList.toggle("is-done", i < unitsDone(track, index)),
+  function paint() {
+    for (const track of tracks) {
+      const { index, row, active } = current(track);
+      const variant = section!.querySelector<HTMLElement>(
+        `[data-variant="${track.id}"]`,
+      )!;
+      const text = (selector: string, value: string) => {
+        const element = variant.querySelector<HTMLElement>(selector);
+        if (element && element.textContent !== value)
+          element.textContent = value;
+      };
+      text(
+        "[data-week]",
+        ui.siteCurrentWeek +
+          " " +
+          (index + 1) +
+          " מתוך " +
+          track.cal.length +
+          (active ? " · דף " + row[2] + (row[3] ? " ע״" + row[3] : "") : ""),
       );
+      text(
+        "[data-lesson-title]",
+        active
+          ? titles[track.id + "-" + (index + 1)] || "מסכת " + track.name
+          : ui.sitePause,
+      );
+      text("[data-date]", row[1] + " · " + row[0]);
+      text(
+        "[data-progress]",
+        unitsDone(track, index) + " מתוך " + studyUnits(track),
+      );
+      const cover = covers[track.id + "-" + (index + 1)] || "";
+      const frame = variant.querySelector<HTMLElement>("[data-frame]");
+      if (frame) {
+        frame.classList.toggle("is-empty", !cover);
+        const image = frame.querySelector<HTMLImageElement>("img");
+        if (cover && !image) {
+          const added = new Image();
+          added.src = cover;
+          added.alt = "";
+          added.decoding = "async";
+          frame.prepend(added);
+        } else if (cover && image && !image.src.endsWith(cover))
+          image.src = cover;
+      }
+      variant
+        .querySelectorAll<HTMLElement>("[data-dot]")
+        .forEach((dot, i) =>
+          dot.classList.toggle("is-done", i < unitsDone(track, index)),
+        );
+    }
   }
   // Published covers override the fallback without blocking the first render.
   void sheet("מצגות")
@@ -89,7 +122,9 @@ export function initializeWeeklyLesson() {
         const { index } = current(track),
           deck = published[track.id + "-" + (index + 1)];
         if (!deck) continue;
-        const variant = section.querySelector<HTMLElement>(
+        if (deck.src) covers[track.id + "-" + (index + 1)] = deck.src;
+        if (deck.title) titles[track.id + "-" + (index + 1)] = deck.title;
+        const variant = section!.querySelector<HTMLElement>(
           `[data-variant="${track.id}"]`,
         )!;
         const frame = variant.querySelector<HTMLElement>("[data-frame]")!,
@@ -115,7 +150,7 @@ export function initializeWeeklyLesson() {
   function show(id: string) {
     const track = tracks.find((track) => track.id === id);
     if (!track) return;
-    const { row, active } = current(track);
+    const { row, active, resume } = current(track);
     section!
       .querySelectorAll<HTMLElement>("[data-variant]")
       .forEach((variant) =>
@@ -126,7 +161,14 @@ export function initializeWeeklyLesson() {
       );
     const open = section!.querySelector<HTMLAnchorElement>("[data-open]")!;
     open.href = active ? lessonHref(track, row) : "/calendar";
-    open.textContent = active ? ui.deckGo : ui.siteCalendar;
+    const label = section!.querySelector<HTMLElement>("[data-stage-label]");
+    if (label)
+      label.textContent = resume ? "ממשיכים מהמקום שעצרתם" : ui.siteLesson;
+    open.textContent = active
+      ? resume
+        ? "להמשך הלימוד"
+        : ui.deckGo
+      : ui.siteCalendar;
     const tabs = [...section!.querySelectorAll<HTMLElement>("[data-track]")];
     tabs.forEach((tab) =>
       tab.setAttribute("aria-pressed", String(tab.dataset.track === id)),
@@ -137,8 +179,47 @@ export function initializeWeeklyLesson() {
   section.querySelectorAll<HTMLElement>("[data-track]").forEach((tab) =>
     tab.addEventListener("click", (event) => {
       event.preventDefault();
-      show(tab.dataset.track || "");
+      const id = tab.dataset.track || "";
+      show(id);
+      if (personal) {
+        store("track", id);
+        window.dispatchEvent(new Event("df-track-change"));
+      }
     }),
   );
-  if (tracks[0]) show(tracks[0].id);
+  function refresh() {
+    paint();
+    const spot = stored<{ mas?: string } | null>("spot", null);
+    const id = personal
+      ? stored("track", spot?.mas || tracks[0]?.id || "")
+      : tracks[0]?.id;
+    show(tracks.some((track) => track.id === id) ? id! : tracks[0]?.id || "");
+    if (personal) {
+      const me = stored<Person | null>("me", null);
+      const greeting = document.querySelector<HTMLElement>(
+        "[data-dashboard-greeting]",
+      );
+      const school = document.querySelector<HTMLElement>(
+        "[data-dashboard-school]",
+      );
+      if (greeting)
+        greeting.textContent = me?.first ? "שלום, " + me.first : "הלימוד שלי";
+      if (school) {
+        school.textContent = me?.instName || "";
+        school.hidden = !me?.instName;
+      }
+    }
+  }
+  refresh();
+  if (personal) {
+    addEventListener("pageshow", refresh);
+    addEventListener("df-account-change", refresh);
+    addEventListener("storage", (event) => {
+      if (
+        event.key === null ||
+        ["df:me", "df:track", "df:spot"].includes(event.key)
+      )
+        refresh();
+    });
+  }
 }

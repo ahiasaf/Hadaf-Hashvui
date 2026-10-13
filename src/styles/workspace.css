@@ -1508,18 +1508,6 @@ textarea {
   }
 }
 
-.study-next {
-  padding: 24px;
-  margin-block: 24px;
-  text-align: center;
-}
-.study-next .button {
-  margin-inline: auto;
-}
-.study-next > p:not(.eyebrow) {
-  color: var(--muted);
-}
-
 /* Each completed form step gets a check; the next fields arrive in sequence. */
 .flow-dots i {
   width: 18px;
@@ -1660,4 +1648,17 @@ textarea {
 }
 .learning-setup {
   text-align: center;
+}
+
+.dashboard-intro {
+  padding-bottom: 0;
+}
+.dashboard-intro .page-intro {
+  margin-bottom: 28px;
+}
+.dashboard-band {
+  margin-bottom: 0;
+}
+.dashboard-details {
+  padding-top: 28px;
 }

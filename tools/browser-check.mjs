@@ -285,6 +285,9 @@ try {
         );
       }
       if (route === "/app") {
+        assert.equal(await page.locator(".stage-band #lesson").count(), 1);
+        assert.equal(await page.locator(".track-switch button").count(), 2);
+        assert.equal(await page.locator(".track-tabs, .study-next").count(), 0);
         assert.equal(await page.locator('a[href="/join"]').count(), 1);
         assert.equal(
           await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
@@ -464,10 +467,10 @@ try {
   await page.goto(base + "/join");
   // The dashboard remembers the selected track and offers the unfinished interactive lesson.
   await page.goto(base + "/app");
-  await page.getByRole("button", { name: "מגילה", exact: true }).click();
+  await page.getByRole("button", { name: "מסכת מגילה", exact: true }).click();
   await page.reload();
   await page
-    .locator('.track-tabs button[aria-pressed="true"]')
+    .locator('.track-switch button[aria-pressed="true"]')
     .filter({ hasText: "מגילה" })
     .waitFor();
   await page.evaluate(() => {
