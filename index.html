@@ -2813,7 +2813,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.217';
+var APP_VERSION = '8.99.218';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17463,7 +17463,8 @@ function netTel(v) {
 /* השם בלי "ישיבת", "בני עקיבא", יב"ע, ובלי ו"י וגרשיים — כך "תקות"
    ו"תקוות" הם אותו שם. */
 function netNorm(s) {
-  return String(s || '').replace(/ישיבת|ישיבה|אולפנת|אולפנה|בני עקיבא|יב"ע|יבע|תיכונית|תורנית/g, '')
+  return String(s || '').replace(/ראשל"צ|ראשלצ/g, 'ראשון לציון')
+    .replace(/ישיבת|ישיבה|אולפנת|אולפנה|בני עקיבא|בנ"ע|בנע|יב"ע|יבע|תיכונית|תורנית/g, '')
     .replace(/["'׳״\-\s]/g, '').replace(/[וי]/g, '');
 }
 function netGuess(name) {
@@ -17471,11 +17472,24 @@ function netGuess(name) {
   if (n.length < 2) return '';
   for (i = 0; i < INSTITUTIONS.length; i++) {
     var m = netNorm(INSTITUTIONS[i].name);
-    if (m.length < 2) continue;
+    /* שם קצר מדי ("עלי" → "על") נמצא בתוך כל שם אחר — אינו ניחוש. */
+    if (m.length < 3) continue;
     if (m === n) return INSTITUTIONS[i].code;
     if (!best && (n.indexOf(m) >= 0 || m.indexOf(n) >= 0)) best = INSTITUTIONS[i].code;
   }
-  return best;
+  if (best) return best;
+  /* מילה משותפת אחת ("לפיד מודיעין" ↔ "לפיד תורת נחום") — רק כשהיא
+     מובילה לישיבה אחת בלבד. "יעקב" של אביר יעקב ושל תקוות יעקב — לא. */
+  var words = function (x) {
+    return String(x || '').replace(/ישיבת|בני עקיבא|בנ"ע|יב"ע/g, ' ').replace(/["'׳״\-]/g, '')
+      .split(/\s+/).map(function (w) { return w.replace(/[וי]/g, ''); }).filter(function (w) { return w.length >= 3; });
+  };
+  var mine = words(name), hits = [];
+  INSTITUTIONS.forEach(function (x) {
+    var ws = words(x.name);
+    for (var k = 0; k < mine.length; k++) if (ws.indexOf(mine[k]) >= 0) { hits.push(x.code); return; }
+  });
+  return hits.length === 1 ? hits[0] : '';
 }
 
 /* הגיליון של משרד החינוך: שורת כותרת, ואחריה שורה לכל תלמיד — ולפעמים
@@ -17537,11 +17551,15 @@ function netFile() {
 function netPicked(inp) {
   var f = inp.files && inp.files[0];
   if (!f) return;
+  /* קובץ גדול נקרא עשרות שניות, והמסך קופא בזמן הזה — אומרים את זה
+     לפני, ונותנים למסך להתעדכן לפני שהקריאה מתחילה. */
+  netMsg = UI.netReading; admPane();
   var rd = new FileReader();
   rd.onload = function () {
-    amdaNeedXlsx().then(function () {
+    amdaNeedXlsx().then(function () { return new Promise(function (ok) { setTimeout(ok, 60); }); }).then(function () {
       var r = null;
       try { r = netFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
+      netMsg = '';
       if (!r || !r.hdr) { alert(UI.netBad); return; }
       if (!r.rows.length) { alert(UI.netNoRows); return; }
       var map = Store.get('netMap', {}) || {}, k;
