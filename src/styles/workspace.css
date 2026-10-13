@@ -562,7 +562,7 @@ legend {
   aspect-ratio: 1600 / 2200;
 }
 /* Keep explanations readable without moving the scan or actions between segments. */
-.lesson-text {
+.reader .lesson-text {
   white-space: pre-wrap;
   font-size: 1.12rem;
   line-height: 1.9;

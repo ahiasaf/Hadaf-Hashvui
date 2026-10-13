@@ -49,8 +49,7 @@ function regGo(n, focusEl) {
         var s = document.getElementById("r-step-" + i);
         if (s) s.className = "rstep" + (i === n ? " on" : "");
     }
-    var f = document.getElementById("rp-fill"), l = document.getElementById("rp-lbl");
-    if (f) f.style.width = Math.round(n * 100 / 3) + "%";
+    var l = document.getElementById("rp-lbl");
     if (l) l.textContent = "שלב " + n + " מתוך 3 · " + REG_STEP_NAMES[n - 1];
     document.querySelectorAll("[data-reg-stage]").forEach(function(item) {
         var step = Number(item.getAttribute("data-reg-stage"));
@@ -67,7 +66,7 @@ function regGo(n, focusEl) {
 }
 
 function regProg() {
-    return '<div class="qprog rprog"><span id="rp-lbl" aria-live="polite">שלב ' + regStage + " מתוך 3 · " + REG_STEP_NAMES[regStage - 1] + '</span><i><b id="rp-fill" style="width:' + Math.round(regStage * 100 / 3) + '%"></b></i></div>';
+    return '<span class="registration-status" id="rp-lbl" role="status">שלב ' + regStage + ' מתוך 3 · ' + REG_STEP_NAMES[regStage - 1] + '</span>';
 }
 
 function regStep(n, inner) {
@@ -264,11 +263,11 @@ function renderReg() {
         return trackById(id) ? "מסכת " + trackById(id).masechet : id;
     }).join(" · ") || "המסכת תיבחר בהמשך") + "</p></div>";
     var step3 = review + (UI.orderNote ? '<p class="nooblig">' + esc(UI.orderNote) + "</p>" : "") + '<div class="wantbar" id="r-wantbar" onclick="wantToggle(event)">' + "<div><b>" + esc(UI.s2) + "</b><span>" + esc(UI.wantSub) + "</span></div>" + '<button class="sw" id="r-wantsw" onclick="wantToggle(event)" ' + 'role="switch" aria-checked="false" aria-label="' + esc(UI.s2) + '"></button>' + "</div>" + '<div class="fold" id="r-fold"><div class="order-content">' + orderRows() + '<div id="r-total" aria-live="polite">' + regTotal() + '</div><details class="registration-catalog"><summary>סוגי הגמרות ודוגמאות</summary>' + recBlocks() + '<div class="order-help"><div class="foldh">' + esc(UI.s3) + "</div>" + '<p style="font-size:.85rem;color:var(--ink-2);font-weight:600;' + 'line-height:1.6">' + esc(UI.hint) + "</p>" + '<p class="two-m">' + esc(UI.twoM) + "</p>" + byLine() + "</div></details></div></div>" + (regDupWarn() ? '<div class="cond" id="r-dup" style="margin-top:16px">' + esc(UI.regDup) + "</div>" : "") + '<div class="r-err" id="r-err3" role="alert" hidden></div>' + '<div class="rnav rsubmit"><button class="btn g" onclick="regGo(2)">חזרה</button><button class="btn gr" id="r-send" ' + 'onclick="sendReg()">' + esc(saved ? UI.update : UI.send) + "</button></div>" + '<div id="r-done" role="status" aria-live="polite"></div>' + '<div id="head-next"></div>';
-    var intro = '<header class="registration-intro"><p>לצוותי הישיבות</p><h1>מצטרפים לשנה של לימוד.</h1><span>הרשמת ישיבה והזמנת גמרות</span></header>';
+    var intro = '<header class="registration-intro"><p>לצוותי הישיבות</p><h1>הרשמת ישיבה</h1><span>הלימוד השבועי והזמנת גמרות</span></header>';
     var rail = '<aside class="registration-rail"><ol>' + REG_STEP_NAMES.map(function(name, i) {
         return '<li data-reg-stage="' + (i + 1) + '" class="' + (i + 1 < regStage ? "is-done" : i + 1 === regStage ? "is-current" : "") + '"' + (i + 1 === regStage ? ' aria-current="step"' : "") + "><span>" + (i + 1) + "</span><b>" + name + "</b></li>";
-    }).join("") + '</ol><details class="registration-help"><summary>למי התוכנית מתאימה?</summary>' + fitBlock() + "</details></aside>";
-    var h = intro + '<div class="registration-layout">' + rail + '<div class="registration-form">' + regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3) + "</div></div>";
+    }).join("") + '</ol></aside>';
+    var h = intro + '<div class="registration-layout">' + rail + '<div class="registration-form">' + regProg() + regStep(1, step1) + regStep(2, step2) + regStep(3, step3) + '</div></div><details class="registration-help"><summary>למי התוכנית מתאימה?</summary>' + fitBlock() + '</details>';
     var focused = document.activeElement, focusId = focused && focused.id;
     document.getElementById("reg-body").innerHTML = h;
     if (focusId) {
@@ -288,14 +287,11 @@ var FIT_ICONS = {
     solo: '<circle cx="12" cy="5.6" r="2.5"/>' + '<path d="M8.4 12.4c.5-1.7 1.9-2.7 3.6-2.7s3.1 1 3.6 2.7"/>' + '<path d="M3.6 15.2h6.2c1.2 0 2.2.7 2.2 1.6 0-.9 1-1.6 2.2-1.6h6.2v4.4h-6.2' + 'c-1.2 0-2.2.7-2.2 1.6 0-.9-1-1.6-2.2-1.6H3.6z"/>'
 };
 
-var fitRan = false;
 
 function fitBlock() {
-    var rise = fitRan ? "" : " rise";
-    fitRan = true;
-    return '<div class="fit' + rise + '"><b>' + esc(FIT.title) + "</b>" + "<ul>" + FIT.items.map(function(f) {
-        return '<li><i><svg viewBox="0 0 24 24" aria-hidden="true">' + (FIT_ICONS[f.icon] || "") + "</svg></i><span>" + esc(f.t) + "</span></li>";
-    }).join("") + "</ul>" + (FIT.sub ? "<p>" + esc(FIT.sub) + "</p>" : "") + "</div>";
+    return '<div class="registration-audience"><ul>' + FIT.items.map(function(f) {
+        return '<li><svg viewBox="0 0 24 24" aria-hidden="true">' + (FIT_ICONS[f.icon] || '') + '</svg><span>' + esc(f.t) + '</span></li>';
+    }).join('') + '</ul>' + (FIT.sub ? '<p>' + esc(FIT.sub) + '</p>' : '') + '</div>';
 }
 
 function recBlocks() {

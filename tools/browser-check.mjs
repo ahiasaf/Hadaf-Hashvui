@@ -288,6 +288,18 @@ try {
         assert.equal(await page.locator(".stage-band #lesson").count(), 1);
         assert.equal(await page.locator(".track-switch button").count(), 2);
         assert.equal(await page.locator(".track-tabs, .study-next").count(), 0);
+        assert.ok(
+          await page
+            .locator("#lesson .lesson-text")
+            .evaluateAll((nodes) =>
+              nodes.every(
+                (node) =>
+                  window.getComputedStyle(node).overflowY === "visible" &&
+                  node.scrollHeight <= node.clientHeight + 1,
+              ),
+            ),
+          "The dashboard inherited a reader scrollbar",
+        );
         assert.equal(await page.locator('a[href="/join"]').count(), 1);
         assert.equal(
           await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
