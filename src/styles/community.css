@@ -128,6 +128,16 @@
   background: #386615;
   border-color: #386615;
 }
+#community-reminders {
+  --community-offset: -10px;
+}
+.community-tabs button svg {
+  transition: transform 0.2s var(--ease);
+  transform: scale(0.92);
+}
+.community-tabs button[aria-selected="true"] svg {
+  transform: scale(1);
+}
 .community-tabs svg {
   width: 22px;
   height: 22px;
@@ -141,11 +151,11 @@
   gap: 28px;
   padding: 36px;
 }
-.community.is-in .community-panel > div {
-  animation: community-enter 0.5s var(--ease) both;
+.community.is-in .community-panel:not([hidden]) > div {
+  animation: community-enter 0.3s var(--ease) both;
 }
-.community.is-in .community-panel > .community-action {
-  animation-delay: 0.08s;
+.community.is-in .community-panel:not([hidden]) > .community-action {
+  animation-delay: 0.04s;
 }
 .community-kicker {
   color: var(--gold-t);
@@ -194,7 +204,7 @@
 @keyframes community-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateX(var(--community-offset, 10px));
   }
   to {
     opacity: 1;
@@ -233,10 +243,11 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .community.is-in .community-panel > div {
+  .community.is-in .community-panel:not([hidden]) > div {
     animation: none;
   }
   .community-tabs button,
+  .community-tabs button svg,
   .community-confirm,
   .community-help,
   .community-confirm:active,
