@@ -10632,7 +10632,7 @@ var SUB = { daf: [['daf', 'moreDaf']] };
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['lottery','moreLottery']] },
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
      עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
   { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
@@ -10753,6 +10753,7 @@ function admPane() {
   if (sub === 'setup')   return admSetup(body);
   if (sub === 'amda')    return admAmda(body);
   if (sub === 'amdawa')  return admAmdaWa(body);
+  if (sub === 'net')     return admNet(body);
   if (sub === 'lottery') { body.innerHTML = admPairs(); return; }
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
@@ -17257,6 +17258,200 @@ function amdaWaPull(quiet) {
     else if (!quiet) amdaWa.msg = amdaT(p ? 'waNoPull' : 'waNoRead');
     if (p || !quiet) admPane();
   });
+}
+
+/* ============================================================
+   מאגר תלמידי הרשת — הקובץ המלא של משרד החינוך.
+   ============================================================
+   הקובץ נקרא כאן, במכשיר של הרכז, ו**רק** העמודות שבנוסח
+   netLead יוצאות ממנו: בית ספר, שכבה, כיתה, שם, טלפון התלמיד
+   וטלפון ההורה. תעודות זהות, כתובות, תאריכי לידה ופרטי ההורים
+   האחרים לא נשלחים לשום מקום.
+
+   הנתונים נכתבים ללשונית הפרטית "תלמידי הרשת" — שהשרת כבר קורא
+   ממנה (amdaDir_) — ו**אינם נשמרים במכשיר**: לא ב-Store ולא בשום
+   מטמון. מה שנשאר במכשיר: ההתאמה סמל מוסד ← ישיבה (אינה סוד),
+   והמספרים של ההעלאה האחרונה.
+
+   כל ישיבה במשרד מזוהה ב"סמל מוסד". בהעלאה הראשונה הרכז מתאים
+   כל סמל לישיבה שבאפליקציה (עם ניחוש לפי השם); מההעלאה הבאה
+   ההתאמה כבר זכורה.
+
+   השורה נכנסת רק כשבית הספר מותאם — תלמידי בית ספר שאינו בתוכנית
+   אינם נשלחים כלל.
+   ============================================================ */
+var NET_TAB  = 'תלמידי הרשת';
+var NET_COLS = ['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי', 'טלפון', 'טלפון הורה', 'קרבה', 'סמל מוסד'];
+var NET = null;                                   /* הקובץ שנקרא — בזיכרון בלבד */
+var netMsg = '';
+
+/* 0501234567 · ‎+972-50… → 0501234567. מה שאינו נייד ישראלי — ריק. */
+function netTel(v) {
+  var d = String(v || '').replace(/\D/g, '');
+  if (d.indexOf('972') === 0) d = '0' + d.slice(3);
+  if (d.length === 9 && d.charAt(0) === '5') d = '0' + d;
+  return /^05\d{8}$/.test(d) ? d : '';
+}
+/* השם בלי "ישיבת", "בני עקיבא", יב"ע, ובלי ו"י וגרשיים — כך "תקות"
+   ו"תקוות" הם אותו שם. */
+function netNorm(s) {
+  return String(s || '').replace(/ישיבת|ישיבה|אולפנת|אולפנה|בני עקיבא|יב"ע|יבע|תיכונית|תורנית/g, '')
+    .replace(/["'׳״\-\s]/g, '').replace(/[וי]/g, '');
+}
+function netGuess(name) {
+  var n = netNorm(name), best = '', i;
+  if (n.length < 2) return '';
+  for (i = 0; i < INSTITUTIONS.length; i++) {
+    var m = netNorm(INSTITUTIONS[i].name);
+    if (m.length < 2) continue;
+    if (m === n) return INSTITUTIONS[i].code;
+    if (!best && (n.indexOf(m) >= 0 || m.indexOf(n) >= 0)) best = INSTITUTIONS[i].code;
+  }
+  return best;
+}
+
+/* הגיליון של משרד החינוך: שורת כותרת, ואחריה שורה לכל תלמיד — ולפעמים
+   שורה לכל הורה של אותו תלמיד. העמודות מזוהות לפי הכותרת. */
+function netFromSheets(sheets) {
+  var out = { rows: [], insts: {} }, seen = {};
+  sheets.forEach(function (sh) {
+    var rows = sh.rows, hi = -1, col = {}, i, j;
+    for (i = 0; i < Math.min(rows.length, 15) && hi < 0; i++) {
+      var r = rows[i], has = {};
+      for (j in r) if (r.hasOwnProperty(j)) has[String(r[j]).trim()] = j;
+      if (has['שכבה'] && (has['שם פרטי'] || has['שם פרטי כינוי'])) { hi = i; col = has; }
+    }
+    if (hi < 0 || !col['סמל מוסד']) return;
+    var g = function (r, name) { return col[name] ? String(r[col[name]] || '').trim() : ''; };
+    for (i = hi + 1; i < rows.length; i++) {
+      var x = rows[i];
+      if (g(x, 'סיבת עזיבה') || g(x, 'תאריך סיום שיבוץ')) continue;   /* עזב */
+      var sym = g(x, 'סמל מוסד'), gr = g(x, 'שכבה').replace(/["'׳״\s]/g, '');
+      var first = g(x, 'שם פרטי כינוי') || g(x, 'שם פרטי');
+      var last = g(x, 'שם משפחה כינוי') || g(x, 'שם משפחה');
+      if (!sym || !gr || !first) continue;
+      var cls = (g(x, 'מקבילה').match(/\d+/) || [''])[0];
+      var kid = netTel(g(x, 'מספר נייד 1')) || netTel(g(x, 'מספר נייד 2'));
+      var par = netTel(g(x, 'נייד 1')) || netTel(g(x, 'נייד 2'));
+      var rel = g(x, 'סוג קירבה תאור');
+      var key = [sym, gr, cls, last, first].join('|');
+      if (seen[key] !== undefined) {
+        /* שורה שנייה של אותו תלמיד — הורה נוסף. האב קודם, כמו בשאר
+           המערכת; ומה שחסר משלימים. */
+        var o = out.rows[seen[key]];
+        if (!o[5] && kid) o[5] = kid;
+        if (par && (!o[6] || (rel === 'אב' && o[7] !== 'אב'))) { o[6] = par; o[7] = rel; }
+        continue;
+      }
+      seen[key] = out.rows.length;
+      out.rows.push([sym, gr, cls, last, first, kid, par, par ? rel : '']);
+      if (!out.insts[sym]) out.insts[sym] = { name: g(x, 'שם מוסד'), city: g(x, 'ישוב מוסד'), n: 0 };
+      out.insts[sym].n++;
+    }
+  });
+  return out;
+}
+
+function netFile() {
+  var inp = document.getElementById('nt-file');
+  if (!inp) return;
+  inp.value = '';
+  inp.click();
+}
+function netPicked(inp) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function () {
+    amdaNeedXlsx().then(function () {
+      var r = null;
+      try { r = netFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
+      if (!r || !r.rows.length) { alert(UI.netBad); return; }
+      var map = Store.get('netMap', {}) || {}, k;
+      r.map = {};
+      for (k in r.insts) if (r.insts.hasOwnProperty(k)) {
+        r.map[k] = map[k] !== undefined ? map[k] : netGuess(r.insts[k].name);
+      }
+      NET = r; netMsg = '';
+      admPane();
+    }).catch(function () { alert(UI.netBad); });
+  };
+  rd.readAsArrayBuffer(f);
+}
+function netMapSet(sym, code) { if (NET) NET.map[sym] = code; admPane(); }
+function netCancel() { NET = null; netMsg = ''; admPane(); }
+function netTotals() {
+  var m = 0, n = 0, k;
+  for (k in NET.insts) if (NET.insts.hasOwnProperty(k) && NET.map[k]) { m++; n += NET.insts[k].n; }
+  return { m: m, n: n };
+}
+function netSave() {
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  if (!NET) return;
+  if (!key || !url) { netMsg = UI.netNoKey; admPane(); return; }
+  var map = NET.map, rows = [], k, schools = {};
+  NET.rows.forEach(function (r) {
+    if (!map[r[0]]) return;
+    schools[map[r[0]]] = 1;
+    rows.push([map[r[0]], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[0]]);
+  });
+  var keep = Store.get('netMap', {}) || {};
+  for (k in map) if (map.hasOwnProperty(k)) keep[k] = map[k];
+  Store.set('netMap', keep);
+  var n = rows.length, s = Object.keys(schools).length;
+  netMsg = fill(UI.netSaving, { n: n });
+  admPane();
+  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'table', tab: NET_TAB, key: key,
+    cols: JSON.stringify(NET_COLS), rows: JSON.stringify(rows) }) })
+    .catch(function () {})
+    .then(function () { return new Promise(function (ok) { setTimeout(ok, 4000); }); })
+    /* no-cors תמיד "מצליח" — נשמר רק מה שנקרא חזרה מהגיליון. */
+    .then(function () { return scriptGet({ read: NET_TAB, key: key }); })
+    .then(function (d) {
+      var got = d && d.status === 'ok' && d.rows ? d.rows.length - 1 : -1;
+      if (got === n) {
+        Store.set('netInfo', { n: n, s: s, at: Date.now() });
+        NET = null;
+        netMsg = fill(UI.netSaved, { n: n });
+      } else netMsg = UI.netNoSave;
+      admPane();
+    })['catch'](function () { netMsg = UI.netNoSave; admPane(); });
+}
+function admNet(body) {
+  var key = (CFG.readKey || '').trim(), info = Store.get('netInfo', null);
+  var h = '<div class="adm-card"><h4>' + esc(UI.moreNet) + '</h4>' +
+    '<p class="h">' + esc(UI.netLead) + '</p>' +
+    '<p class="h"><b>' + esc(info ? fill(UI.netHave, { n: info.n, s: info.s,
+      t: new Date(info.at).toLocaleDateString('he-IL') }) : UI.netNone) + '</b>' +
+    (netMsg ? '<br>' + esc(netMsg) : '') + '</p>' +
+    (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(UI.netNoKey) + '</p>');
+  if (NET) {
+    var syms = Object.keys(NET.insts).sort(function (a, b) { return NET.insts[b].n - NET.insts[a].n; });
+    var opts = function (cur) {
+      return '<option value="">' + esc(UI.netSkip) + '</option>' + INSTITUTIONS.map(function (x) {
+        return '<option value="' + esc(x.code) + '"' + (x.code === cur ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+      }).join('');
+    };
+    var sm = netTotals();
+    h += '<p class="h">' + esc(fill(UI.netRead, { n: NET.rows.length, s: syms.length })) + '</p>';
+    syms.forEach(function (k) {
+      var it = NET.insts[k];
+      h += '<div style="margin:8px 0"><div class="h"><b>' + esc(it.name || k) + '</b> · ' +
+        esc(it.city) + ' · ' + it.n + '</div>' +
+        '<select style="width:100%;padding:8px;font:inherit" onchange="netMapSet(\'' + esc(k) + '\', this.value)">' +
+        opts(NET.map[k]) + '</select></div>';
+    });
+    h += '<p class="h"><b>' + esc(fill(UI.netSum, sm)) + '</b></p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (sm.n && key ? '<button class="btn" onclick="netSave()">' + esc(UI.netSave) + '</button>' : '') +
+      '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div>';
+  } else {
+    h += '<button class="btn g" onclick="netFile()">' + esc(UI.netPick) + '</button>';
+  }
+  h += '<input type="file" id="nt-file" style="display:none" onchange="netPicked(this)"' +
+    ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';
+  body.innerHTML = h;
 }
 
 /* ---------- ההצלבה ----------
