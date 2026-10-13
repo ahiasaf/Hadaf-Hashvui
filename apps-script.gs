@@ -794,6 +794,66 @@ function doGet(e) {
      הפעם השנייה שהוא ננטש, והפעם בלי שידע. התשובה כאן
      אמיתית — ומה שהמסך אומר נשען עליה.
      ============================================================ */
+  /* ============================================================
+     `help=2` — תלמיד אנדרואיד שנתקע וממשיך בדפדפן.
+     ============================================================
+     אותה כתיבה בדיוק ללשונית הפרטית, ועוד שלושה דברים:
+       · **בלי `coordPing_`.** ההתראה יוצאת לכל מכשיר שנרשם
+         בתפקיד "רכז", ואין שם מזהה של אדם מסוים. עד שיוכח
+         שהיא מגיעה רק לרכז התוכנית — פרטי תלמיד אינם יוצאים
+         מהגיליון. הפנייה נמצאת ברשימת התקועים בניהול.
+       · **מזהה פנייה** (`rid`) — לחיצה חוזרת, רענון, או ניסיון
+         חוזר אחרי תשובה שאבדה אינם כותבים שורה שנייה.
+       · **מזהה התלמיד** (`sid`) — מזהה המכשיר, שהוא גם מזהה
+         ההרשמה, ולכן השורה מתחברת לתלמיד גם אם יירשם רק אחריה.
+     התשובה נושאת `help:2`. שרת ישן אינו מכיר את הערך, אינו
+     עונה כך — והמסך אינו מציג אישור על כתיבה שלא נעשתה. */
+  if (e && e.parameter && e.parameter.help === '2') {
+    var H2 = e.parameter;
+    var h2Name  = String(H2.name || '').trim();
+    var h2Phone = String(H2.phone || '').trim();
+    var h2Rid   = String(H2.rid || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 40);
+    if (!h2Name || h2Phone.replace(/[^0-9]/g, '').length < 9) {
+      return reply_(e, { status: 'error', help: 2, message: 'חסר שם או טלפון' });
+    }
+    var h2Lock = LockService.getScriptLock();
+    if (!h2Lock.tryLock(15000)) {
+      return reply_(e, { status: 'error', help: 2, message: 'עומס — נסו שוב' });
+    }
+    try {
+      var h2Sh = sheet_('תקועים');
+      if (h2Rid && h2Sh.getLastRow() > 1) {
+        var h2Hd = headers_(h2Sh), h2Ri = h2Hd.indexOf('מזהה פנייה');
+        if (h2Ri >= 0) {
+          var h2V = h2Sh.getRange(2, h2Ri + 1, h2Sh.getLastRow() - 1, 1).getDisplayValues();
+          for (var h2i = 0; h2i < h2V.length; h2i++) {
+            if (String(h2V[h2i][0] || '').trim() === h2Rid) {
+              return reply_(e, { status: 'ok', help: 2, dup: 1 });
+            }
+          }
+        }
+      }
+      appendCols_('תקועים', [
+        ['שם', h2Name], ['טלפון', h2Phone],
+        ['ישיבה', String(H2.instName || '')],
+        ['קוד ישיבה', String(H2.inst || '')],
+        ['שכבה', String(H2.grade || '')], ['כיתה', String(H2.klass || '')],
+        ['מכשיר', String(H2.dev || '')],
+        ['מה קרה', String(H2.what || '')],
+        ['אבחון', String(H2.diag || '')],
+        ['מסלול', 'אנדרואיד — המשך בדפדפן'],
+        ['מזהה', String(H2.sid || '').slice(0, 40)],
+        ['מזהה פנייה', h2Rid],
+        ['טופל', '']
+      ]);
+    } catch (err2) {
+      return reply_(e, { status: 'error', help: 2, message: String(err2) });
+    } finally {
+      h2Lock.releaseLock();
+    }
+    return reply_(e, { status: 'ok', help: 2 });
+  }
+
   if (e && e.parameter && e.parameter.help === '1') {
     var H = e.parameter;
     var hName  = String(H.name || '').trim();

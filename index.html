@@ -2838,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.221';
+var APP_VERSION = '8.99.222';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -13634,6 +13634,8 @@ function stuckParse(rows) {
                inst:g('ישיבה'), code:g('קוד ישיבה'),
                grade:g('שכבה'), klass:g('כיתה'),
                dev:g('מכשיר'), what:g('מה קרה'), diag:g('אבחון'),
+               /* "אנדרואיד — המשך בדפדפן": ממשיך ללמוד בינתיים (join, help=2). */
+               path:g('מסלול'),
                done:!!g('טופל'), at:g('תאריך') });
   }
   /* מי שממתין קודם, והחדש שבהם ראשון. */
@@ -14030,6 +14032,7 @@ function admStuck() {
     if (p.inst) bits.push(p.inst);
     if (p.grade) bits.push(p.grade + (p.klass ? '\u200e' + p.klass : ''));
     if (p.dev) bits.push(p.dev);
+    if (p.path) bits.push(p.path);
     if (p.at) bits.push(String(p.at).slice(0, 10));
     var num = waNum(p.phone);
     return '<div class="prow2 ' + (p.done ? 'ok' : 'warn') + '">' +

@@ -786,6 +786,8 @@ body.wz #go{background:var(--green-d)}
   font-family:inherit;font-size:.9rem;font-weight:700;
   text-decoration:underline;cursor:pointer;line-height:1.6}
 .wzcard .thin u{text-decoration:underline}
+/* המשפט שלפני השליחה במסלול אנדרואיד-בדפדפן. */
+.wzcard .hlp-and{margin:14px 0 0;font-size:.9rem;color:var(--ink-2,#3d4757)}
 .wzcard .thin .why{display:block;margin-top:5px;font-size:.82rem;
   font-weight:600;color:var(--ink-3);text-decoration:none;line-height:1.6}
 
@@ -3153,11 +3155,14 @@ function noteBar(box) {
   box.innerHTML = '';
   if (!jt('noteBarT') || !get('me', null)) return;
   if (/(^|\s)wz(\s|$)/.test(document.body.className)) return;
-  if (appStep() === 3) return;
+  /* ממשיך בדפדפן: התזכורת לאייקון — קטנה, ולא חוסמת. */
+  var ic = brwOn() ? '<div class="getapp notebar">' + wzIconBtn('nb-icon') + '</div>' : '';
+  if (noteFull()) { box.innerHTML = ic; brwIconWire(box); return; }
   box.innerHTML = '<div class="getapp notebar"><div><b>' + esc(jt('noteBarT')) + '</b>' +
     (jt('noteBarB') ? '<span>' + esc(jt('noteBarB')) + '</span>' : '') + '</div>' +
-    '<button class="btn" id="nb-go">' + esc(jt('noteBarBtn')) + '</button></div>';
+    '<button class="btn" id="nb-go">' + esc(jt('noteBarBtn')) + '</button></div>' + ic;
   $('nb-go').onclick = function () { box.innerHTML = ''; wzStart(); };
+  brwIconWire(box);
 }
 
 /* ============================================================
@@ -3453,7 +3458,10 @@ function jt(k) { return (JOIN && JOIN[k]) || ''; }
 function wzWhere() {
   /* אין עוד "בלי התקנה". מי שלא מצליח מגיע לשלב 9 — הדלת
      שמובילה לרכז — ולא לעקיפה שנשברת אצלו בשקט. */
-  if (!appInstalled()) return 1;
+  /* **"המשך בדפדפן" אינו התקנה מדומה.** מצב נפרד (`df:brw`), שנקבע
+     רק אחרי פנייה לרכז מתלמיד אנדרואיד — ראו brwOn. האייקון עדיין
+     חסר, ולכן `appInstalled()` נשאר שקר וכל מה שתלוי בו לא זז. */
+  if (!appInstalled() && !brwOn()) return 1;
   if (!get('me', null)) return 2;
   return 4;
 }
@@ -3508,7 +3516,9 @@ function wzDraw() {
   /* מה שנגמר נשאר על המסך. זו ההוכחה שהתקדמת, וזה מה שגורם
      לרצות לסיים. */
   if (!edit) {
-    if (wzStep > 1) h += wzRow(jt('wzInstS'));
+    /* ✓ "על מסך הבית" — רק למי שבאמת התקין. תלמיד אנדרואיד
+       שממשיך בדפדפן לא התקין, והשורה הייתה משקרת לו. */
+    if (wzStep > 1 && !(isAnd() && !appInstalled())) h += wzRow(jt('wzInstS'));
     if (wzStep > 2) h += wzRow(jt('wzDetS'));
     if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
   }
@@ -3545,7 +3555,8 @@ function wzDraw() {
   } else {
     var fin = noteDone() && notePerm() === 'granted' && !NOTE_T;
     if (fin) h += wzRow(jt('wzNoteS'));
-    h += '<div class="wzcard' + (fin ? ' fin' : '') + '">' + wzNote() + '</div>';
+    h += '<div class="wzcard' + (fin ? ' fin' : '') + '">' + wzNote() +
+         (brwOn() ? wzIconBtn('wz-icon') : '') + '</div>';
   }
 
   e.innerHTML = h;
@@ -3767,6 +3778,13 @@ function hlpKnown() {
 var hlpEd = false;
 
 function wzHelpForm() {
+  var and = hlpAnd();
+  if (hlpSent && and) {
+    /* "נרשמה" — לא "הרכז קיבל". אישור כתיבה אינו אישור מסירה. */
+    return '<div class="v-ok">✓</div><h2>' + esc(jt('wzHlpAndOk')) + '</h2>' +
+      (lsOk() ? '' : '<p class="note">' + esc(jt('wzBrwNoStore')) + '</p>') +
+      '<button class="wznext" id="wz-hlp-cont">' + esc(hlpContT()) + '</button>';
+  }
   if (hlpSent) {
     return '<div class="v-ok">✓</div><h2>' + esc(jt('wzHlpOkT')) + '</h2>' +
       '<p>' + esc(jt('wzHlpOkB')) + '</p>' +
@@ -3805,14 +3823,21 @@ function wzHelpForm() {
     '<textarea id="hlp-what" rows="2" placeholder="' + esc(jt('wzHlpPh')) +
     '" oninput="hlpSet(\'what\',this.value)">' + esc(hlpV.what) +
     '</textarea></div>' +
-    (hlpErr ? '<div class="err">' + esc(hlpErr) + '</div>' : '') +
+    (and && hlpFail
+      ? '<div class="err">' + esc(jt('wzHlpAndFail')) + '</div>' +
+        '<p class="note">' + esc(hlpPendOk ? jt('wzHlpAndPend') : jt('wzHlpAndNoPend')) + '</p>'
+      : (hlpErr ? '<div class="err">' + esc(hlpErr) + '</div>' : '') +
+        (and ? '<p class="hlp-and">' + esc(jt('wzHlpAndB')) + '</p>' : '')) +
     '<button class="wznext" id="wz-hlp-go"' + (hlpBusy ? ' disabled' : '') +
-    '>' + (hlpBusy ? 'שולח…' : esc(jt('wzHlpGo'))) + '</button>' +
+    '>' + (hlpBusy ? 'שולח…' : esc(and ? hlpGoT() : jt('wzHlpGo'))) + '</button>' +
+    /* כשל — אפשר גם להמשיך בינתיים, בלי לחכות לרשת. */
+    (and && hlpFail ? '<button class="thin" id="wz-hlp-cont"><u>' + esc(hlpContT()) + '</u></button>' : '') +
     '<button class="thin" id="wz-hlp-back">' +
     esc(jt('wzHlpBack')) + '</button>';
 }
 
 function hlpSend() {
+  if (hlpBusy) return;               /* לחיצה כפולה */
   /* שדה מוסתר = מה שכבר ידוע. שדה גלוי = מה שבו. */
   var kn = hlpKnown();
   var nm = ($('hlp-name') ? $('hlp-name').value : (hlpV.name || kn.name)).trim();
@@ -3834,6 +3859,7 @@ function hlpSend() {
     dev: isIOS() ? 'אייפון' : 'אנדרואיד',
     what: hlpV.what || '', diag: hlpDiag()
   };
+  if (hlpAnd()) { hlpAndFire(q); return; }
   var qs2 = [];
   for (var k in q) if (q.hasOwnProperty(k)) {
     qs2.push(encodeURIComponent(k) + '=' + encodeURIComponent(q[k]));
@@ -3856,6 +3882,154 @@ function hlpSend() {
       hlpBusy = false; hlpErr = jt('wzHlpErr'); wzDraw();
     });
 }
+
+/* ============================================================
+   תלמיד אנדרואיד שנתקע — פנייה לרכז, והמשך בדפדפן.
+   ============================================================
+   ההתקנה נשארת הדרך. מי שלחץ "לא מצליח להתקין" ממלא אותו טופס,
+   ואחרי שהפנייה **נכתבה** בגיליון הוא ממשיך להירשם וללמוד כאן.
+
+   · רק תלמיד, ורק אנדרואיד. באייפון ההרשמה שבדפדפן אינה עוברת
+     לאייקון (אחסון נפרד), ולכן שם אין המשך כזה. הורה וצוות —
+     בלי שינוי.
+   · `df:brw` — מצב נפרד. לא `df:appAdded`, לא אישור התראות, ו-
+     `APPX.installed()` אינו משתנה. מי שיתקין אחר כך — אותו
+     מקור, אותו אחסון, ולכן אותה זהות ואותה התקדמות.
+   · `help=2` בשרת: אותה לשונית "תקועים", עם מזהה פנייה שמונע
+     כפילות ומזהה תלמיד שמקשר אותה להרשמה. בלי התראה לרכז — ראו
+     שם. ולכן גם הנוסח אומר "נרשמה", לא "הרכז קיבל".
+   · כשל: אפשר לנסות שוב, ואפשר להמשיך. הפנייה נשמרת בטלפון
+     ונשלחת שוב כשהחיבור חוזר — ואם אי אפשר לשמור, נאמר.
+   ============================================================ */
+var BRW_MEM = false;       /* האחסון נכשל — המצב חי רק עד סגירת העמוד */
+var hlpFail = false, hlpRid = '', hlpPendOk = false, hlpFlushing = false;
+
+function isAnd() { return !isIOS() && /Android/i.test(navigator.userAgent || ''); }
+/* מי שהמסלול שלו: תלמיד אנדרואיד שעוד לא התקין. */
+function hlpAnd() { return role === 'kid' && isAnd() && !appInstalled(); }
+function brwOn() {
+  if (!hlpAnd()) return false;
+  return BRW_MEM || !!get('brw', null);
+}
+/* כתיבה וקריאה חוזרת — `set` שותק כשהאחסון חסום. */
+function lsOk() {
+  try {
+    localStorage.setItem('df:lsTest', '1');
+    var v = localStorage.getItem('df:lsTest');
+    localStorage.removeItem('df:lsTest');
+    return v === '1';
+  } catch (e) { return false; }
+}
+function brwSet() {
+  set('brw', { at: Date.now() });
+  if (!get('brw', null)) BRW_MEM = true;
+  return !BRW_MEM;
+}
+/* ההתראות גמורות — לפי מה שבאמת אפשר במצב הזה. בדפדפן אין אייקון,
+   ולכן `appStep` לעולם אינו 3 שם. */
+function noteFull() {
+  if (brwOn()) return noteDone() && notePerm() === 'granted';
+  return appStep() === 3;
+}
+function wzIconBtn(id) {
+  return '<button class="thin" id="' + id + '"><u>' + esc(jt('wzIconGo')) + '</u></button>';
+}
+function brwIconWire(box) {
+  var b = $('nb-icon'); if (!b) return;
+  b.onclick = function () {
+    box.innerHTML = '';
+    if (document.body.className.indexOf(' wz ') < 0) document.body.className += ' wz ';
+    wzGo(1);
+  };
+}
+function hlpReg() { var me = get('me', null); return !!(me && me.first); }
+
+function hlpNewRid() {
+  return 'H' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+function hlpUrl(q) {
+  var a = [];
+  for (var k in q) if (q.hasOwnProperty(k)) {
+    a.push(encodeURIComponent(k) + '=' + encodeURIComponent(q[k]));
+  }
+  return String(API).trim() + (String(API).indexOf('?') < 0 ? '?' : '&') + a.join('&');
+}
+function hlpPendGet() { return get('hlpPend', null); }
+function hlpPendSave(q) {
+  set('hlpPend', q);
+  var g = hlpPendGet();
+  return !!(g && g.rid === q.rid);
+}
+function hlpPendDrop() {
+  try { localStorage.removeItem('df:hlpPend'); } catch (e) {}
+}
+/* רק שרת שמכיר את המסלול עונה `help:2`. שרת ישן עונה משהו אחר —
+   וזה כישלון, לא אישור. */
+function hlpOk(d) { return !!(d && d.status === 'ok' && +d.help === 2); }
+
+function hlpGoT()   { return hlpFail ? jt('wzHlpAndRetry') : (hlpReg() ? jt('wzHlpAndGoMe') : jt('wzHlpAndGo')); }
+function hlpContT() { return hlpReg() ? jt('wzHlpAndContMe') : jt('wzHlpAndCont'); }
+
+/* אותה פנייה של הטופס הקיים (אותם שדות, אותה בדיקה), ל-`help=2`. */
+function hlpAndFire(q) {
+  /* פנייה ממתינה מניסיון קודם — אותו מזהה, ולכן לא שורה שנייה. */
+  var pend = hlpPendGet();
+  if (!hlpRid) hlpRid = (pend && pend.rid) || hlpNewRid();
+  /* המזהה של ההרשמה כשיש, ואחרת של המכשיר — שהוא גם מה שההרשמה
+     תקבל, ולכן השורה מתחברת לתלמיד גם אם יירשם רק אחריה. */
+  q.help = '2'; q.rid = hlpRid; q.sid = (get('me', null) || {}).id || deviceId();
+  /* נשמרת **לפני** השליחה: רענון באמצע, או תשובה שאבדה, משאירים
+     אותה כאן — והיא יוצאת שוב עם אותו מזהה. */
+  hlpPendOk = hlpPendSave(q);
+  hlpFail = false;
+  if (!API) { hlpFail = true; wzDraw(); return; }
+  hlpBusy = true; wzDraw();
+  fetch(hlpUrl(q))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      hlpBusy = false;
+      if (hlpOk(d)) { hlpSent = true; hlpRid = ''; hlpPendDrop(); }
+      else hlpFail = true;
+      wzDraw();
+    })['catch'](function () {
+      hlpBusy = false; hlpFail = true; wzDraw();
+    });
+}
+
+/* "המשך הרשמה" / "המשך לימוד" — אחרי אישור, או למרות כשל. */
+function brwGo() {
+  brwSet();
+  hlpSent = false; hlpFail = false; hlpErr = '';
+  if (hlpReg()) {
+    /* כבר רשום — למסך התלמיד, כמו "ללמוד" בסוף המסע. */
+    $('wz').innerHTML = '';
+    document.body.className = document.body.className.replace(/ ?wz\b/g, '');
+    try { drawApp(); } catch (e) {}
+    window.scrollTo(0, 0);
+    return;
+  }
+  wzGo(wzWhere());
+}
+
+/* פנייה שלא יצאה — עוד ניסיון כשהחיבור חוזר, ובכל פתיחה. השרת
+   מכיר את המזהה, ולכן גם ניסיון כפול נכתב פעם אחת. */
+function hlpFlush() {
+  var q = hlpPendGet();
+  if (!q || !q.rid || q.help !== '2' || hlpFlushing || hlpBusy || !API) return;
+  if (navigator.onLine === false) return;
+  hlpFlushing = true;
+  fetch(hlpUrl(q))
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      hlpFlushing = false;
+      if (!hlpOk(d)) return;
+      hlpPendDrop();
+      if (hlpRid === q.rid) hlpRid = '';
+      if (wzStep === 9 && hlpFail) { hlpFail = false; hlpSent = true; wzDraw(); }
+    })['catch'](function () { hlpFlushing = false; });
+}
+window.addEventListener('online', function () { try { hlpFlush(); } catch (e) {} });
+setTimeout(function () { try { hlpFlush(); } catch (e) {} }, 2500);
 
 /* ---------- שלב 4 ---------- */
 function wzNote() {
@@ -3881,7 +4055,16 @@ function wzNote() {
   if (!canNote()) {
     return '<div class="wzkick">שלב 4 מתוך 4</div>' +
       '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
-      '<p>' + esc(jt('wzNoNote')) + '</p>' +
+      /* בדפדפן בלי אייקון אין "לפתוח מהאייקון". */
+      '<p>' + esc(brwOn() ? jt('wzNoNoteBrw') : jt('wzNoNote')) + '</p>' +
+      '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
+  }
+  /* בדפדפן אין "הגדרות ← אפליקציות ← הדף השבועי" — אין אפליקציה.
+     ההרשאה יושבת בהגדרות האתר שבדפדפן עצמו. */
+  if (notePerm() === 'denied' && brwOn()) {
+    return '<div class="wzkick">שלב 4 מתוך 4</div>' +
+      '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
+      '<p>' + esc(jt('wzNoteDenBrw')) + '</p>' +
       '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
   }
   if (notePerm() === 'denied') {
@@ -3907,14 +4090,20 @@ function wzWire() {
   if ((b = $('wz-inst'))) b.onclick = function () {
     APPX.prompt(function () { wzGo(wzWhere()); });
   };
-  if ((b = $('wz-skip'))) b.onclick = function () { hlpErr = ''; hlpEd = false; wzGo(9); };
+  if ((b = $('wz-skip'))) b.onclick = function () {
+    hlpErr = ''; hlpEd = false; hlpFail = false; hlpSent = false; wzGo(9);
+  };
+  if ((b = $('wz-hlp-cont'))) b.onclick = brwGo;
+  if ((b = $('wz-icon'))) b.onclick = function () { wzGo(1); };
   if ((b = $('hlp-edit'))) b.onclick = function () {
     var k = hlpKnown();
     hlpV.name = hlpV.name || k.name; hlpV.phone = hlpV.phone || k.phone;
     hlpEd = true; wzDraw();
   };
   if ((b = $('wz-hlp-go'))) b.onclick = hlpSend;
-  if ((b = $('wz-hlp-back'))) b.onclick = function () { wzGo(wzWhere()); };
+  /* מי שכבר ממשיך בדפדפן ופתח שוב את העזרה מתוך מסך ההתקנה —
+     חוזר להוראות, לא לשלב שאחריהן. */
+  if ((b = $('wz-hlp-back'))) b.onclick = function () { wzGo(brwOn() ? 1 : wzWhere()); };
   if ((b = $('wz-hlp-close'))) b.onclick = function () {
     /* אחרי שהפרטים יצאו הוא חוזר להוראות, לא לדלת. אולי
        דווקא עכשיו זה יסתדר לו — ואם לא, הרכז בדרך. */
@@ -4122,7 +4311,7 @@ if (/[?&]go=1\b/.test(location.search)) {
 if (WZ_ON && /[?&]notes=1\b/.test(location.search)) {
   window.addEventListener('load', function () {
     setTimeout(function () {
-      if (appStep() === 3) return;
+      if (noteFull()) return;
       if (document.body.className.indexOf(' wz ') < 0) wzStart();
     }, 80);
   });
@@ -4162,7 +4351,8 @@ window.addEventListener('load', function () {
   else if (WZ_ON) {
     /* מי שכבר התקין ממשיך מהמקום הנכון בלי ללחוץ שוב על
        "אני מצטרף" — הוא כבר לחץ, בביקור הקודם. */
-    if (appInstalled()) wzStart();
+    /* וכך גם מי שממשיך בדפדפן — חוזר לפרטים, לא להתקנה. */
+    if (appInstalled() || brwOn()) wzStart();
   }
   else if (preNeeded()) showPre();
   flush();
