@@ -186,18 +186,11 @@ var OWN_TAB = 'פירוש';
 var OMAP = {};        /* כל הלשונית: 'מסכת|דף' -> {קטע: [חלקים] | טקסט ישן} */
 var OWN = null;        /* הפירוש של הדף שעל המסך, או null אם אין */
 var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי */
-/* **הבחירה האחרונה נזכרת במכשיר.** מי שבחר "פירוש לנוער" פותח
-   את הדף הבא - ואת הקטע הבא - ישר עליו. נפרד מ-CHAV_TAB בכוונה:
-   קטע בלי פירוש מחזיר את המגירה לחברותא, וזה אינו אמור למחוק
-   את מה שהתלמיד בחר. רק לחיצה על לשונית משנה את הזיכרון. */
-var CHAV_PREF_KEY = 'df:chavTab';
-var CHAV_PREF = (function () {
-  try { return localStorage.getItem(CHAV_PREF_KEY) === 'own' ? 'own' : 'chav'; }
-  catch (e) { return 'chav'; }
-})();
+/* בכניסה לדף הביאור פתוח. בחירת לשונית נשמרת במהלך הלימוד הזה. */
+var CHAV_DEFAULT_OPEN = false;
+var CHAV_PREF = 'chav';
 function chavPick_(t) {
   CHAV_TAB = CHAV_PREF = t;
-  try { localStorage.setItem(CHAV_PREF_KEY, t); } catch (e) {}
   paintChavArea();
 } /* 'chav' = חברותא · 'own' = הפירוש שלי */
 /* האם החידה פתוחה כרגע במקום תוכן המגירה. עצמאי מ-CHAV_TAB בכוונה:

@@ -38,6 +38,28 @@ try {
     writeFailure = false,
     waitFailure = false;
   async function prepare(context) {
+    await context.addInitScript(() => {
+      if (location.protocol !== "http:") return;
+      if (!/^\/(app|learn|lesson-tools)(\.html)?$/.test(location.pathname)) {
+        if (
+          JSON.parse(localStorage.getItem("df:me") || "null")?.id ===
+          "browser-student"
+        )
+          localStorage.removeItem("df:me");
+        return;
+      }
+      localStorage.setItem("df:installed", "true");
+      if (!localStorage.getItem("df:me"))
+        localStorage.setItem(
+          "df:me",
+          JSON.stringify({
+            id: "browser-student",
+            first: "תלמיד",
+            inst: "avir",
+            role: "kid",
+          }),
+        );
+    });
     context.on("page", (page) =>
       page.on("pageerror", (error) => errors.push(error.message)),
     );
@@ -75,6 +97,10 @@ try {
       if (writeFailure && request.operation === "write")
         return route.fulfill({ status: 502, json: { status: "error" } });
       const payload = request.payload;
+      if (payload.idFor)
+        return route.fulfill({
+          json: { status: "ok", id: payload.idFor, learned: [] },
+        });
       if (payload.whoIs)
         return route.fulfill({
           json: {
@@ -262,7 +288,7 @@ try {
         assert.equal(await page.locator('a[href="/join"]').count(), 1);
         assert.equal(
           await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
-          0,
+          1,
         );
       }
 
@@ -456,6 +482,10 @@ try {
     await page.locator("[data-continue]").getAttribute("href"),
     /^\/lesson-tools\?.*mas=megila.*amud=2/,
   );
+  await page.evaluate(() => {
+    localStorage.removeItem("df:installed");
+    localStorage.removeItem("df:me");
+  });
   await page.goto(base + "/join");
   // Signup is a step flow: big choices advance on tap, Enter continues, a reload resumes.
   await page.getByRole("button", { name: /^תלמיד/ }).click();
@@ -483,7 +513,7 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem("df:me")), null);
   writeFailure = false;
   await page.getByRole("button", { name: "שמירת ההרשמה", exact: true }).click();
-  await page.getByRole("heading", { name: "שלום, תלמיד" }).waitFor();
+  await page.getByRole("heading", { name: "מכינים את הדף ללימוד" }).waitFor();
   assert.equal(
     JSON.parse(await page.evaluate(() => localStorage.getItem("df:me"))).id,
     "demo-student",
@@ -786,7 +816,9 @@ try {
   await restored
     .getByRole("button", { name: "שחזור ההרשמה", exact: true })
     .click();
-  await restored.getByRole("heading", { name: "שלום, תלמיד" }).waitFor();
+  await restored
+    .getByRole("heading", { name: "מכינים את הדף ללימוד" })
+    .waitFor();
   assert.ok(
     JSON.parse(
       await restored.evaluate(() => localStorage.getItem("df:learned")),
@@ -934,7 +966,10 @@ try {
   await prepare(updatesContext);
   await updatesContext.addInitScript(() => {
     if (location.protocol !== "http:") return;
-    if (!localStorage.getItem("df:me"))
+    if (
+      !localStorage.getItem("df:me") ||
+      JSON.parse(localStorage.getItem("df:me")).id === "browser-student"
+    )
       localStorage.setItem(
         "df:me",
         JSON.stringify({
@@ -1575,6 +1610,88 @@ try {
   await legacyContext.close();
   console.log(
     "Admin bookmark opens the new workspace; additional PIN tools remain available.",
+  );
+  closed = false;
+  readFailure = false;
+  writeFailure = false;
+  const setupContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await prepare(setupContext);
+  await setupContext.addInitScript(() => {
+    if (location.protocol !== "http:") return;
+    localStorage.setItem(
+      "df:me",
+      JSON.stringify({
+        id: "setup-student",
+        first: "תלמיד",
+        role: "kid",
+        inst: "avir",
+      }),
+    );
+    localStorage.setItem("df:chav", "0");
+    localStorage.setItem("df:chavTab", "own");
+    localStorage.setItem("df:gate", "1");
+  });
+  const setupPage = await setupContext.newPage();
+  const setupTarget = "/learn?mas=taanit&daf=ב&amud=1";
+  await setupPage.goto(base + "/start?next=" + encodeURIComponent(setupTarget));
+  await setupPage
+    .getByRole("heading", { name: "מכינים את הדף ללימוד" })
+    .waitFor();
+  await setupPage.evaluate(() => {
+    window.__installPrompt = {
+      prompt: async () => {},
+      userChoice: Promise.resolve({ outcome: "dismissed" }),
+    };
+    window.dispatchEvent(new window.Event("df-install-ready"));
+  });
+  await setupPage
+    .getByRole("button", { name: "התקנה במסך הבית", exact: true })
+    .click();
+  await setupPage.getByText("בתפריט הדפדפן בוחרים", { exact: false }).waitFor();
+  assert.equal(
+    await setupPage.evaluate(() => localStorage.getItem("df:installed")),
+    null,
+  );
+  await setupPage.evaluate(() => {
+    window.__installPrompt = {
+      prompt: async () => {},
+      userChoice: Promise.resolve({ outcome: "accepted" }),
+    };
+    window.dispatchEvent(new window.Event("df-install-ready"));
+  });
+  await setupPage
+    .getByRole("button", { name: "התקנה במסך הבית", exact: true })
+    .click();
+  await setupPage
+    .getByRole("status")
+    .filter({ hasText: "מסיימים את ההתקנה" })
+    .waitFor();
+  assert.ok(new URL(setupPage.url()).pathname === "/start");
+  assert.equal(
+    await setupPage.evaluate(() => localStorage.getItem("df:installed")),
+    null,
+  );
+  await setupPage.evaluate(() =>
+    window.dispatchEvent(new window.Event("appinstalled")),
+  );
+  await setupPage.waitForURL("**/learn?**");
+  await setupPage.locator("body.chav-on").waitFor();
+  assert.equal(await setupPage.evaluate(() => window.CHAV_TAB), "chav");
+  await setupPage.locator("#chclose").click();
+  assert.equal(
+    await setupPage
+      .locator("body")
+      .evaluate((body) => body.classList.contains("chav-on")),
+    false,
+  );
+  await setupPage.reload();
+  await setupPage.locator("body.chav-on").waitFor();
+  assert.equal(await setupPage.evaluate(() => window.CHAV_TAB), "chav");
+  await setupContext.close();
+  console.log(
+    "Installation dismissal/retry, confirmed continuation and default explanation passed.",
   );
   assert.deepEqual(errors, []);
   console.log(

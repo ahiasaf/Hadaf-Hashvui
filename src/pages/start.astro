@@ -1,0 +1,14 @@
+---
+import "../styles/workspace.css";
+import Site from "../layouts/Site.astro";
+import LearningSetup from "../components/LearningSetup";
+---
+
+<Site manifest="/join-manifest.json">
+  <section class="workspace narrow">
+    <LearningSetup client:load />
+    <noscript>
+      <p class="notice">יש להפעיל JavaScript כדי להכין את האפליקציה ללימוד.</p>
+    </noscript>
+  </section>
+</Site>

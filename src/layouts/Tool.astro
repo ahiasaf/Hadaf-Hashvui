@@ -1,4 +1,5 @@
 ---
+import learningSetup from "../shared/learning-setup.js?raw";
 import "../styles/specialist.css";
 import registrationStyles from "../styles/registration.css?url";
 import ToolBrand from "../components/ToolBrand.astro";
@@ -49,6 +50,9 @@ const view = views[`../features/${name}/view.html`] as string;
     <meta name="theme-color" content="#112c50" />
     <meta name="robots" content="noindex,nofollow" />
     <title>{page.title}</title>
+    {name === "lesson-tools" && (
+      <script is:inline set:html={learningSetup}></script>
+    )}
     {name === "management" && <script is:inline>
       if (
         location.hash === "#admin" &&

@@ -7,7 +7,7 @@ import {
   writeRow,
   type Person,
 } from "../lib/client";
-import Install from "./Install";
+import LearningSetup from "./LearningSetup";
 import Stepper from "./Stepper";
 import { inviteDraft, type InviteCopy } from "../lib/invite";
 import {
@@ -49,11 +49,13 @@ export default function Signup({
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [setup, setSetup] = useState(true);
   useEffect(() => {
     const locked = stored<Partial<Answers> | null>("lockPre", null);
     const existing = locked ? null : stored<Person | null>("me", null);
     const params = new URLSearchParams(location.search);
     setPerson(existing);
+    setSetup(!existing || params.has("next"));
     setInviting(
       (location.hash === "#invite" || !stored("inv-sent", false)) &&
         !!existing &&
@@ -229,29 +231,18 @@ export default function Signup({
   if (person)
     return (
       <section className="workspace narrow celebrate" key="done">
-        <span className="done-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" width="36" height="36">
-            <path
-              d="M7 16.5l6 6L25 10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        <p className="eyebrow">{person.instName}</p>
-        <h1>שלום, {person.first}</h1>
-        <p>
-          {restore
-            ? "ההרשמה שוחזרה. ההתקדמות שלכם חזרה למכשיר הזה."
-            : "ההרשמה נשמרה. הדף של השבוע כבר מחכה לכם."}
-        </p>
-        <a className="button button-gold" href="/app">
-          לדף של השבוע
-        </a>
-        <Install />
+        {setup ? (
+          <LearningSetup person={person} />
+        ) : (
+          <>
+            <p className="eyebrow">{person.instName}</p>
+            <h1>שלום, {person.first}</h1>
+            <p>פרטי הלימוד שלכם נשמרו במכשיר הזה.</p>
+            <a className="button button-gold" href="/app">
+              לדף של השבוע
+            </a>
+          </>
+        )}
         <button
           className="text-button"
           onClick={() => {

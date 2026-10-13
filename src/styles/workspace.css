@@ -1618,3 +1618,46 @@ textarea {
     padding: 14px 16px;
   }
 }
+
+/* Setup uses the existing form motion and spacing. */
+.setup-progress {
+  display: flex;
+  justify-content: center;
+  gap: clamp(18px, 5vw, 40px);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+}
+.setup-progress li {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+.setup-progress li span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--surface);
+}
+.setup-progress li[aria-current] {
+  color: var(--blue-d);
+  font-weight: 800;
+}
+.setup-progress li[aria-current] span {
+  background: var(--blue-d);
+  color: white;
+  border-color: var(--blue-d);
+}
+.setup-progress .is-done span {
+  background: var(--gold);
+  color: var(--blue-d);
+  border-color: var(--gold);
+}
+.learning-setup {
+  text-align: center;
+}

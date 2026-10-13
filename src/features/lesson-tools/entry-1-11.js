@@ -80,8 +80,11 @@ function boot() {
             SHOWN = 0;
             unveil();
             buttons(true);
-            if (quiet()) drawer(true); else try {
-                if (localStorage.getItem("df:chav") !== "0") drawer(true);
+            if (!CHAV_DEFAULT_OPEN || quiet()) {
+                drawer(true);
+                CHAV_DEFAULT_OPEN = true;
+            }
+            if (!quiet()) try {
                 if (localStorage.getItem("df:dim") === "0") {
                     setWhole(true);
                 }
