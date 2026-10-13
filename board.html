@@ -437,6 +437,7 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
 <script src="learned.js"></script>
 <script src="ways.js"></script>
 <script src="logo.js"></script>
+<script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
 function $(id) { return document.getElementById(id); }
@@ -561,6 +562,8 @@ function chipsHtml() {
       בלי לחזור לרכז.
    ============================================================ */
 function accKey() { return 'boardKey:' + code; }
+/* מכשיר שננעל ובחר "תלמיד" — לא כאן (lock.js). */
+if (!ALL && !EMBED) LOCK.kidGo();
 var acc = '';
 try { acc = localStorage.getItem(accKey()) || ''; } catch (e) {}
 if (ALL) acc = String((LGet('cfg', {}) || {}).readKey || '').trim();
@@ -723,6 +726,7 @@ function loadRoster() {
       if (/^(denied|wait|locked|unknown)$/.test(d.status) && !ALL) {
         acc = ''; try { localStorage.removeItem(accKey()); } catch (e) {}
       }
+      if (d.status === 'locked' && !ALL) { lockNow(); return null; }
       rosterMsg = d.message || 'לא הצלחתי לפתוח את הרשימה.';
       return null;
     }
@@ -765,6 +769,8 @@ function waitTry() {
     var me = waitMe();
     if (!me) return Promise.resolve('');
     return askScript({ acc: code, dev: me.id, has: '0' }).then(function (d) {
+      if (d && d.status === 'locked') { lockNow(); return ''; }
+      if (d && d.status === 'wait' && boardLocked) { boardLocked = false; draw(); }
       if (!d || d.status !== 'ok' || !d.k) return '';
       /* גם לאפליקציה — כדי שאזור הניהול ייפתח בלי לשאול שוב. */
       var m = LGet('instCodes', {}) || {};
@@ -779,6 +785,34 @@ function waitTry() {
     return loadRoster().then(function () { draw(); return true; });
   });
 }
+/* ============================================================
+   נעול — "אתה איש צוות או תלמיד?" במקום "אנא המתן" (lock.js).
+   ============================================================
+   וכל רשימת שמות יורדת מהמכשיר ומהזיכרון, ומצויר מחדש. */
+var boardLocked = false;
+function lockNow() {
+  if (!boardLocked) LOCK.reset();
+  boardLocked = true;
+  LOCK.wipe();
+  acc = ''; roster = null;
+  draw();
+}
+LOCK.init({
+  get: function (q) { return askScript(q); },
+  me: function () { return waitMe() || {}; },
+  savePhone: function (v) {
+    var keys = ['df:head', 'df:ram'];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var m = JSON.parse(localStorage.getItem(keys[i]) || 'null');
+        if (m && m.id && m.inst === code) { m.phone = v; localStorage.setItem(keys[i], JSON.stringify(m)); }
+      } catch (e) {}
+    }
+  },
+  paint: function () { draw(); },
+  /* "איש צוות" — חזרה ל"אנא המתן" הרגיל, שבודק את עצמו. */
+  onWait: function () { boardLocked = false; draw(); }
+});
 if (!ALL) {
   setInterval(function () {
     if (!acc && document.visibilityState !== 'hidden') waitTry();
@@ -786,6 +820,8 @@ if (!ALL) {
   document.addEventListener('visibilitychange', function () {
     if (!acc && document.visibilityState !== 'hidden') waitTry();
   });
+  /* וגם מיד בפתיחה — מי שננעל רואה את השאלה בלי לחכות חצי דקה. */
+  setTimeout(function () { if (!acc) waitTry(); }, 0);
 }
 
 
@@ -1933,6 +1969,13 @@ function draw() {
       'את הקישור של הישיבה שלכם.</p></div>';
     return;
   }
+  /* נעול — רק השאלה, בלי מספרים ובלי שמות (lock.js). */
+  if (boardLocked && !acc && !ALL) {
+    $('sub').textContent = inst.name;
+    $('body').innerHTML = LOCK.html();
+    embedSize();
+    return;
+  }
   $('sub').textContent = inst.name;
 
   var wk = LWeek(), tr = TRACKS[0].id;
@@ -2285,10 +2328,26 @@ function homeHref() {
   return head ? baseUrl() + '#phone'
               : baseUrl() + 'tzevet.html?inst=' + encodeURIComponent(code);
 }
+function homeBack() {
+  try {
+    var r = String(document.referrer || ''), o = location.protocol + '//' + location.host + '/';
+    if (history.length < 2 || r.indexOf(o) !== 0) return false;
+    /* הלוח עצמו (רענון) אינו "המסך הקודם". */
+    return !/^[^?#]*\/board(\.html)?([?#]|$)/.test(r);
+  } catch (e) { return false; }
+}
 function homeFab() {
   if (EMBED || ALL || !inst || $('homefab')) return;
   var a = document.createElement('a');
   a.id = 'homefab'; a.className = 'homefab'; a.href = homeHref();
+  /* **חזרה, לא טעינה.** מי שהגיע לכאן מתוך האפליקציה (אזור הניהול
+     האישי, עמוד הצוות) — חוזר למסך שממנו בא, במצבו. אין לאן לחזור
+     (נפתח מהתראה או מקישור) — הקישור, כמו קודם. */
+  a.onclick = function (ev) {
+    if (!homeBack()) return;
+    if (ev && ev.preventDefault) ev.preventDefault();
+    history.back();
+  };
   a.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5L10 3.5l7 6V17h-4.6v-4.4H7.6V17H3z" ' +
     'fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>' +
     '<span>' + esc(UI.bdHome || '') + '</span>';

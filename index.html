@@ -136,6 +136,16 @@ function stuHomeGo(me) {
         (adm ? 'ניהול' : 'הדף השבועי') + '">' +
       '<meta name="theme-color" content="' + (adm ? '#7A5610' : '#0E2E63') + '">');
   })();
+  /* מכשיר שננעל ובחר "תלמיד" (lock.js) — מסך התלמיד בלבד, ולא
+     האפליקציה של הצוות. הניהול ומצב התלמיד (`st=1`) נשארים. */
+  (function () {
+    var adm = /\/admin\/?$/.test(location.pathname) || /^#admin/.test(location.hash);
+    if (adm || /[?&]st=1/.test(location.search)) return;
+    try {
+      var c = JSON.parse(localStorage.getItem('df:stuLock') || '""');
+      if (c) location.replace('join.html?inst=' + encodeURIComponent(c));
+    } catch (e) {}
+  })();
 </script>
 <noscript><link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -2800,9 +2810,10 @@ button.yr-c.auto{cursor:pointer}
 <script src="getapp.js"></script>
 <script src="guide.js"></script>
 <script src="ask.js"></script>
+<script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.213';
+var APP_VERSION = '8.99.214';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4598,7 +4609,10 @@ function accCheck(force, after) {
        להמתנה. ההתראה לרכז יוצאת מהשרת ברגע השאלה. */
     if (has) { var m = Store.get('instCodes', {}) || {}; delete m[code]; Store.set('instCodes', m); renderBoard(); has = false; }
     if (d.status === 'locked') {
+      /* נעול — שום שם לא נשאר במכשיר, גם לא אחרי רענון. */
+      if (was !== 'locked') LOCK.reset();
       accSt = 'locked';
+      LOCK.wipe(); renderBoard();
     } else {
       accSt = 'wait';
       /* השורה ב"התראות" עוד לא נכתבה (או נכתבה בלי טלפון) —
@@ -4606,7 +4620,7 @@ function accCheck(force, after) {
       if (d.status === 'none' && !accPosted && ASK.post) { accPosted = true; ASK.post('רשום', null); }
     }
     accPh = d.phone !== false;
-    if (!has && (was !== accSt || !accPh)) accRe();
+    if (!has && (was !== accSt || !accPh || accSt === 'locked')) accRe();
     fin();
   }).catch(function () { accBusy = false; fin(); });
 }
@@ -4649,6 +4663,23 @@ function accPhone() {
   accPhSent = true; accRe();
   setTimeout(function () { accCheck(true); }, 4000);
 }
+/* מי שננעל — המסך המשותף (lock.js). "איש צוות" מחזיר אותו למסך
+   ההמתנה הרגיל, שבודק את עצמו כל חצי דקה. */
+LOCK.init({
+  get: function (q) { return scriptGet(q); },
+  me: function () { return (typeof ASK !== 'undefined' && ASK.get && ASK.get()) || {}; },
+  savePhone: function (v) {
+    var me = ASK.get() || {};
+    me.phone = v; ASK.set(me);
+    ASK.post('רשום', null);
+  },
+  paint: function () { accRe(); },
+  onWait: function (d) {
+    accSt = 'wait'; accPh = d.phone !== false; accPhSent = false;
+    Store.set('attR', null);
+    accRe();
+  }
+});
 
 /* ============================================================
    נוכחות בשיעור — אצל איש הצוות.
@@ -4752,6 +4783,16 @@ function renderMy() {
     var bar = document.getElementById('askrow');
     if (bar) bar.hidden = true;
     if (ASK.open) ASK.open();
+    return;
+  }
+
+  /* נעול — רק "אתה איש צוות או תלמיד?". בלי לוח, בלי שליחה. */
+  if (accSt === 'locked' && !instCode(code)) {
+    el.innerHTML =
+      '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
+      '<span>' + esc(inst.name) + '</span></div>' +
+      '<div class="my-sec bare">' + LOCK.html() + '</div>';
+    accCheck();
     return;
   }
 
@@ -11567,7 +11608,8 @@ function accLoad() {
 }
 function accList() {
   if (accRows === null) accRows = Store.get('accCache', null);
-  return accRows || [];
+  /* מי שננעל ובחר "תלמיד" (accPick_) — אינו איש צוות, ואינו כאן. */
+  return (accRows || []).filter(function (a) { return a.role !== 'תלמיד'; });
 }
 function accWait(inst) {
   return accList().filter(function (a) {

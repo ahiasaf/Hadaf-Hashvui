@@ -721,6 +721,7 @@ body.panel-on #panel{display:block}
   <div id="panel" hidden>
     <button class="pnl-back" onclick="panelOn(0)" id="pnl-back">→ חזרה</button>
     <div class="my-top"><b id="pnl-t"></b><span id="pnl-i"></span></div>
+    <div id="lock-here" hidden></div>
 
   <section id="my-sec" hidden>
     <h2 class="sec" id="t-myH"></h2>
@@ -773,6 +774,7 @@ body.panel-on #panel{display:block}
 <script src="getapp.js"></script>
 <script src="guide.js"></script>
 <script src="ask.js"></script>
+<script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
 /* ============================================================
@@ -812,6 +814,8 @@ $('hdr-mark').src = window.LOGO_MARK || '';
    קוד ריק אינו נשמר — אחרת הוא היה דורס קוד תקין שכבר יושב
    על המכשיר. */
 var instCode = qs('inst');
+/* מכשיר שננעל ובחר "תלמיד" — לא כאן (lock.js). */
+LOCK.kidGo();
 var accCode  = qs('k');
 function accKey() { return 'boardKey:' + instCode; }
 try {
@@ -1257,6 +1261,7 @@ function loadMyRoster() {
     .then(function (d) {
       /* **קריאה שנכשלה אינה רשימה ריקה.** בלי התנאי הזה כל
          תקלת רשת הייתה מאפסת את המספר שעל המסך. */
+      if (d && d.status === 'locked') { lockNow(); return; }
       if (!d || d.status !== 'ok' || !d.students) return;
       myRoster = d.students;
       if (typeof LSet === 'function') LSet('rosterCache:' + instCode, myRoster);
@@ -1738,9 +1743,50 @@ function myReach() {
   return n;
 }
 
+/* ============================================================
+   נעול — "אתה איש צוות או תלמיד?" בראש האזור (lock.js), ושום
+   רשימה לא נשארת: לא במכשיר, לא בזיכרון.
+   ============================================================ */
+var ramLocked = false;
+function lockNow() {
+  var first = !ramLocked;
+  if (first) LOCK.reset();
+  ramLocked = true;
+  LOCK.wipe();
+  myRoster = null; accCode = '';
+  lockPaint();
+  drawBoard(); myShow();
+  if (first) panelOn(1);
+}
+function lockPaint() {
+  var el = $('lock-here'); if (!el) return;
+  el.hidden = !ramLocked;
+  el.innerHTML = ramLocked ? LOCK.html() : '';
+  var b = $('brd-sec');
+  if (b && ramLocked) b.hidden = true;
+}
+LOCK.init({
+  get: function (q) {
+    var url = String((typeof APPS_SCRIPT_URL !== 'undefined' && APPS_SCRIPT_URL) || '').trim();
+    if (!url) return Promise.resolve(null);
+    var qs2 = Object.keys(q).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(q[k]);
+    }).join('&');
+    return fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + qs2)
+      .then(function (r) { return r.json(); });
+  },
+  me: function () { return ramGet() || {}; },
+  savePhone: function (v) {
+    var me = ramGet() || {};
+    me.phone = v; ASK.set(me);
+    ASK.post('רשום', null);
+  },
+  paint: function () { lockPaint(); }
+});
+
 function myShow() {
   var sec = $('my-sec'); if (!sec) return;
-  sec.hidden = !(ramSeen() && ramNoted() && ramGet());
+  sec.hidden = ramLocked || !(ramSeen() && ramNoted() && ramGet());
   if (!sec.hidden) myDraw();
   panelGate();
 }
