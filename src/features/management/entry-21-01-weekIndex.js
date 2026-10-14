@@ -12,8 +12,6 @@ var teamCode = "";
 (function() {
     var h = document.getElementById("hdr-mark");
     if (h) h.src = LOGO_MARK;
-    var l = document.getElementById("splash-logo");
-    if (l) l.src = LOGO_FULL;
 })();
 
 var state = {

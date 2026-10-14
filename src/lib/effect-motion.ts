@@ -47,10 +47,68 @@ export async function finishWithEffect(
   }
 }
 
+function initializeRegistrationHelp() {
+  const transitions = new WeakMap<HTMLDetailsElement, AbortController>();
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const summary = event.target.closest(".registration-help > summary");
+    const details = summary?.parentElement;
+    if (!(details instanceof HTMLDetailsElement)) return;
+    const content = details.querySelector<HTMLElement>(
+      ".registration-audience",
+    );
+    if (!content) return;
+    event.preventDefault();
+    const opening = !details.open || details.hasAttribute("data-closing");
+    const height = details.open ? content.getBoundingClientRect().height : 0;
+    const style = getComputedStyle(content);
+    const opacity = details.open ? style.opacity : "0";
+    const paddingTop = details.open ? style.paddingTop : "0px";
+    const paddingBottom = details.open ? style.paddingBottom : "0px";
+    const previous = transitions.get(details);
+    transitions.delete(details);
+    previous?.abort();
+    details.toggleAttribute("data-closing", !opening);
+    if (reduced() || !visible(summary as HTMLElement) || !content.animate) {
+      details.open = opening;
+      details.removeAttribute("data-closing");
+      content.style.overflow = "";
+      return;
+    }
+    details.open = true;
+    const controller = new AbortController();
+    transitions.set(details, controller);
+    content.style.overflow = "hidden";
+    const animation = content.animate(
+      [
+        { height: `${height}px`, opacity, paddingTop, paddingBottom },
+        {
+          height: `${opening ? content.scrollHeight : 0}px`,
+          opacity: opening ? 1 : 0,
+          paddingTop: opening ? "4px" : "0px",
+          paddingBottom: opening ? "16px" : "0px",
+        },
+      ],
+      { duration: 280, easing: "cubic-bezier(.22,1,.36,1)", fill: "both" },
+    );
+    void finishWithEffect(animation, controller.signal)
+      .catch(() => undefined)
+      .finally(() => {
+        if (transitions.get(details) !== controller) return;
+        details.open = opening;
+        details.removeAttribute("data-closing");
+        content.style.overflow = "";
+        animation.cancel();
+        transitions.delete(details);
+      });
+  });
+}
+
 export function initializeEffectMotion() {
+  initializeRegistrationHelp();
   if (!("IntersectionObserver" in window)) return;
   const active = new Map<HTMLElement, AbortController>();
-  const veil = document.querySelector<HTMLElement>("#veil");
+  const veil = document.querySelector<HTMLElement>("#veil, #splash");
   const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const element = entry.target as HTMLElement;
@@ -83,7 +141,7 @@ export function initializeEffectMotion() {
     if (!veil) return;
     if (
       veil.classList.contains("off") ||
-      veil.getAttribute("aria-busy") !== "true" ||
+      (veil.id === "veil" && veil.getAttribute("aria-busy") !== "true") ||
       !visible(veil)
     ) {
       active.get(veil)?.abort();
@@ -93,7 +151,11 @@ export function initializeEffectMotion() {
     if (runtime)
       run(veil, (engine, signal) =>
         engine.reading(
-          Array.from(veil.querySelectorAll<HTMLElement>(".load-reading i")),
+          Array.from(
+            veil.querySelectorAll<HTMLElement>(
+              ".load-reading i, .splash-reading i",
+            ),
+          ),
           signal,
         ),
       );

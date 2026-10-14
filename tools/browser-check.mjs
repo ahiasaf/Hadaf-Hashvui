@@ -1260,6 +1260,103 @@ try {
   );
 
   for (const width of [320, 1440]) {
+    const disclosureContext = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: "no-preference",
+    });
+    await prepare(disclosureContext);
+    let releaseScripts, releaseMotion;
+    const scriptsGate = new Promise((resolve) => {
+      releaseScripts = resolve;
+    });
+    const motionGate = new Promise((resolve) => {
+      releaseMotion = resolve;
+    });
+    await disclosureContext.route(
+      "**/scripts/management/*.js",
+      async (route) => {
+        await scriptsGate;
+        await route.continue();
+      },
+    );
+    await disclosureContext.route("**/effect-animation.*.js", async (route) => {
+      await motionGate;
+      await route.continue();
+    });
+    const disclosurePage = await disclosureContext.newPage();
+    await disclosurePage.goto(base + "/management#reg", {
+      waitUntil: "commit",
+    });
+    const splash = disclosurePage.locator("#splash");
+    await splash.waitFor();
+    assert.equal(await splash.locator("img, svg").count(), 0);
+    assert.equal(await splash.locator(".splash-reading i").count(), 4);
+    await disclosurePage.waitForFunction(() =>
+      document
+        .querySelector(".splash-reading i")
+        ?.getAnimations()
+        .some((animation) => animation.playState === "running"),
+    );
+    await disclosurePage.screenshot({
+      path: `/tmp/hadaf-management-loader-${width}.png`,
+    });
+    releaseScripts();
+    await disclosurePage.locator("#r-contact").waitFor();
+    const help = disclosurePage.locator(".registration-help");
+    const summary = help.locator("summary");
+    const audience = help.locator(".registration-audience");
+    await summary.click();
+    await disclosurePage.waitForFunction(
+      () =>
+        document.querySelector(".registration-audience").getAnimations()
+          .length === 0,
+    );
+    const fullHeight = (await audience.boundingBox()).height;
+    await summary.click();
+    assert.equal(await help.getAttribute("data-closing"), "");
+    assert.equal(await help.evaluate((node) => node.open), true);
+    await disclosurePage.waitForTimeout(80);
+    assert.ok((await audience.boundingBox()).height < fullHeight);
+    await summary.click();
+    await disclosurePage.waitForFunction(
+      () =>
+        document.querySelector(".registration-audience").getAnimations()
+          .length === 0,
+    );
+    assert.equal(await help.evaluate((node) => node.open), true);
+    assert.ok(Math.abs((await audience.boundingBox()).height - fullHeight) < 1);
+    await summary.focus();
+    await summary.press("Enter");
+    await disclosurePage.waitForFunction(
+      () => !document.querySelector(".registration-help").open,
+    );
+    releaseMotion();
+    await summary.press("Space");
+    await disclosurePage.waitForFunction(
+      () =>
+        document.querySelector(".registration-help").open &&
+        document.querySelector(".registration-audience").getAnimations()
+          .length === 0,
+    );
+    await disclosurePage.emulateMedia({ reducedMotion: "reduce" });
+    await summary.click();
+    assert.equal(await help.evaluate((node) => node.open), false);
+    assert.equal(
+      await audience.evaluate((node) => node.getAnimations().length),
+      0,
+    );
+    assert.ok(
+      await disclosurePage.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    await disclosureContext.close();
+  }
+  console.log(
+    "Management loader paints without icons; suitability closes, reverses, supports keyboard and reduced motion without waiting for Effect.",
+  );
+
+  for (const width of [320, 1440]) {
     const effectContext = await browser.newContext({
       viewport: { width, height: 800 },
       reducedMotion: "no-preference",

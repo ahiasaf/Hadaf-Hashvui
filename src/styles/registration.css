@@ -127,12 +127,11 @@
   color: var(--gold-t);
   transition: transform 200ms ease;
 }
-.registration-help[open] summary::after {
+.registration-help[open]:not([data-closing]) summary::after {
   transform: rotate(45deg);
 }
 .registration-audience {
   padding: 4px 0 16px;
-  animation: registration-enter 240ms ease both;
 }
 .registration-audience ul {
   display: grid;
