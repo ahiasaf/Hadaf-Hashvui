@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { enter, reading, finish } from "../src/lib/effect-animation.ts";
+import {
+  enter,
+  reading,
+  finish,
+  feedback,
+} from "../src/lib/effect-animation.ts";
 
 function fixture(complete = false) {
   const animations = [];
@@ -11,9 +16,12 @@ function fixture(complete = false) {
   const element = {
     classList: { contains: () => false },
     parentElement: null,
-    animate: (_frames, options) => {
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    animate: (frames, options) => {
       let resolve, reject;
       const animation = {
+        frames,
         options,
         cancelled: false,
         finished: new Promise((yes, no) => {
@@ -63,5 +71,12 @@ test("Effect cancels an existing dismissal animation when its request is replace
   const rejected = assert.rejects(pending);
   controller.abort();
   await rejected;
+  assert.equal(animations[0].cancelled, true);
+});
+
+test("Button feedback releases its native spring without changing the resting transform", async () => {
+  const { element, animations } = fixture(true);
+  await feedback(element, "press", new AbortController().signal);
+  assert.equal(animations[0].frames.at(-1).transform, "none");
   assert.equal(animations[0].cancelled, true);
 });

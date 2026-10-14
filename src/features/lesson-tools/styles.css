@@ -926,11 +926,11 @@ header{background:radial-gradient(120% 140% at 85% -20%,#2C63B6 0%,var(--blue) 4
 .veil small{font-size:.85rem;font-weight:600;color:var(--ink-2);margin-top:8px;line-height:1.7}
 .load-reading{display:grid;gap:10px;width:180px;direction:rtl}
 .load-reading i{display:block;height:4px;border-radius:4px;background:var(--gold);opacity:.25;
-  transform-origin:right;animation:load-reading 1.5s cubic-bezier(.4,0,.2,1) infinite}
-.load-reading i:nth-child(2){width:88%;animation-delay:100ms}
-.load-reading i:nth-child(3){width:96%;animation-delay:200ms}
-.load-reading i:nth-child(4){width:62%;animation-delay:300ms}
-@keyframes load-reading{0%,100%{opacity:.25;transform:scaleX(.72)}45%{opacity:1;transform:scaleX(1)}}
+  transform-origin:right;animation:load-reading 1.75s cubic-bezier(.4,0,.2,1) infinite}
+.load-reading i:nth-child(2){width:88%;animation-delay:140ms}
+.load-reading i:nth-child(3){width:96%;animation-delay:280ms}
+.load-reading i:nth-child(4){width:62%;animation-delay:420ms}
+@keyframes load-reading{0%,100%{opacity:.2;transform:scaleX(.08)}48%,72%{opacity:1;transform:scaleX(1)}}
 .veil .spin{position:relative;overflow:hidden;width:120px;height:2px;border:0;border-radius:2px;
   background:var(--rule);margin:0;animation:none}
 .veil .spin i{position:absolute;inset:0;background:var(--gold);transform-origin:right;

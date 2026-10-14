@@ -184,6 +184,18 @@ export function initializeEffectMotion() {
     },
     true,
   );
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLElement>(
+      "button:not(:disabled), a.button, a.btn",
+    );
+    if (!button || !visible(button)) return;
+    const kind = button.matches("[role=tab][aria-selected=true]")
+      ? "tab"
+      : "press";
+    if (runtime)
+      run(button, (engine, signal) => engine.feedback(button, kind, signal));
+  });
   document.addEventListener("df-motion-enter", (event) => {
     if (event.target instanceof HTMLElement) {
       if (runtime)

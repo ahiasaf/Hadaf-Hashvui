@@ -1259,6 +1259,142 @@ try {
     "Account-aware join prompts and published WhatsApp group link passed.",
   );
 
+  for (const width of [390, 1440]) {
+    const characterContext = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: "no-preference",
+    });
+    await prepare(characterContext);
+    const characterPage = await characterContext.newPage();
+    await characterPage.goto(base + "/");
+    await characterPage
+      .locator("[data-community-tabs]")
+      .evaluate((node) =>
+        node.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+    const remindersTab = characterPage.locator("#community-reminders-tab");
+    await remindersTab.click();
+    await characterPage.waitForFunction(() =>
+      window.performance
+        .getEntriesByType("resource")
+        .some(
+          (entry) =>
+            entry.name.includes("effect-animation.") && entry.responseEnd > 0,
+        ),
+    );
+    await characterPage
+      .locator("[data-community-tabs]")
+      .evaluate((node) =>
+        node.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+    await characterPage
+      .locator("#community-whatsapp-tab")
+      .evaluate((node) => node.click());
+    await remindersTab.evaluate((node) => node.click());
+    await characterPage.waitForFunction(() =>
+      document
+        .querySelector("#community-reminders-tab svg path")
+        .getAnimations()
+        .some((animation) =>
+          animation.effect
+            .getKeyframes()
+            .some((frame) => "strokeDashoffset" in frame),
+        ),
+    );
+    assert.ok(
+      await remindersTab
+        .locator("svg")
+        .evaluate((node) =>
+          node
+            .getAnimations()
+            .some((animation) =>
+              animation.effect
+                .getKeyframes()
+                .some((frame) => frame.transform.includes("rotate")),
+            ),
+        ),
+    );
+    const copy = characterPage.locator(
+      "#community-reminders .community-copy h2",
+    );
+    assert.ok(
+      await copy.evaluate((node) =>
+        node
+          .getAnimations()
+          .some((animation) =>
+            animation.effect
+              .getKeyframes()
+              .some((frame) => "clipPath" in frame),
+          ),
+      ),
+    );
+    await characterPage.screenshot({
+      path: `/tmp/hadaf-character-tabs-${width}.png`,
+    });
+    await characterPage.locator("#community-whatsapp-tab").click();
+    await remindersTab.click();
+    await characterPage.locator("#community-whatsapp-tab").click();
+    await characterPage.waitForFunction(
+      () =>
+        document
+          .querySelector("#community-reminders")
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.constructor.name === "Animation")
+          .length === 0,
+    );
+    await characterPage.waitForTimeout(700);
+    assert.ok(
+      await characterPage.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    await characterPage.goto(base + "/management#reg");
+    await characterPage.locator("#r-contact").waitFor();
+    await characterPage.locator(".registration-help summary").click();
+    await characterPage.waitForFunction(() =>
+      window.performance
+        .getEntriesByType("resource")
+        .some(
+          (entry) =>
+            entry.name.includes("effect-animation.") && entry.responseEnd > 0,
+        ),
+    );
+    await characterPage.evaluate(() => {
+      window.reg.inst = window.INSTITUTIONS[0].code;
+      window.regGo(2);
+    });
+    await characterPage.waitForFunction(() =>
+      document
+        .querySelector("#r-step-2 header")
+        .getAnimations()
+        .some((animation) =>
+          animation.effect.getKeyframes().some((frame) => "clipPath" in frame),
+        ),
+    );
+    await characterPage.waitForTimeout(700);
+    await characterPage.screenshot({
+      path: `/tmp/hadaf-character-form-${width}.png`,
+    });
+    await characterPage.emulateMedia({ reducedMotion: "reduce" });
+    await characterPage.evaluate(() => window.regGo(1));
+    assert.equal(
+      await characterPage
+        .locator("#r-step-1")
+        .evaluate(
+          (node) =>
+            node
+              .getAnimations({ subtree: true })
+              .filter((animation) => animation.constructor.name === "Animation")
+              .length,
+        ),
+      0,
+    );
+    await characterContext.close();
+  }
+  console.log(
+    "Drawn SVG strokes, notification bell motion and staggered form reveals preserve layout, clean up rapid tab switches and respect reduced motion.",
+  );
+
   for (const width of [320, 1440]) {
     const disclosureContext = await browser.newContext({
       viewport: { width, height: 900 },
