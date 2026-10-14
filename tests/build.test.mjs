@@ -112,7 +112,10 @@ test("both learning URLs share the interactive screen without React or eager PDF
     assert.ok(!html.includes("astro-island"));
     assert.match(html, /import\(["']\.\/vendor\/pdfjs\/pdf.min.mjs["']\)/);
     for (const tag of html.matchAll(/<script\b[^>]*src=[^>]*>/g)) {
-      assert.ok(tag[0].includes("defer"), tag[0]);
+      assert.ok(
+        tag[0].includes("defer") || tag[0].includes('type="module"'),
+        tag[0],
+      );
     }
   }
   const sources = (html) =>

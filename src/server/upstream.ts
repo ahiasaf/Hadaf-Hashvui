@@ -1,3 +1,4 @@
+import { Data, Effect, Schedule } from "effect";
 import { parseCsv } from "../lib/csv.ts";
 import settings from "../generated/settings.json" with { type: "json" };
 import { publicTabs, validatePublicRows } from "./public-schema.ts";
@@ -18,21 +19,56 @@ export function sheetUrl(tab: string, query = "", headers = "") {
   url.searchParams.set("headers", headers || "1");
   return url;
 }
+class PublicReadFailure extends Data.TaggedError("PublicReadFailure")<{
+  readonly retryable: boolean;
+}> {}
 export async function readPublicSheet(
   tab: string,
   query = "",
   headers = "",
   request = fetch,
+  signal?: AbortSignal,
 ) {
-  const response = await request(sheetUrl(tab, query, headers), {
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error("Upstream read failed");
-  const text = await response.text();
-  if (/^\s*</.test(text)) throw new Error("Unexpected sheet response");
-  const rows = parseCsv(text);
-  validatePublicRows(tab, rows);
-  return text;
+  const url = sheetUrl(tab, query, headers);
+  // One deadline covers both attempts, including decoding and the retry delay.
+  const deadline = AbortSignal.timeout(8000);
+  return Effect.runPromise(
+    Effect.tryPromise({
+      try: async (interrupted) => {
+        const response = await request(url, {
+          signal: AbortSignal.any([
+            interrupted,
+            deadline,
+            ...(signal ? [signal] : []),
+          ]),
+        });
+        if (!response.ok)
+          throw new PublicReadFailure({
+            retryable: [429, 500, 502, 503, 504].includes(response.status),
+          });
+        const text = await response.text();
+        if (/^\s*</.test(text))
+          throw new PublicReadFailure({ retryable: false });
+        const rows = parseCsv(text);
+        validatePublicRows(tab, rows);
+        return text;
+      },
+      catch: (error) =>
+        error instanceof PublicReadFailure
+          ? error
+          : new PublicReadFailure({ retryable: error instanceof TypeError }),
+    }).pipe(
+      Effect.retry({
+        times: 1,
+        schedule: Schedule.spaced("150 millis"),
+        while: (error) =>
+          error.retryable && !deadline.aborted && !signal?.aborted,
+      }),
+      Effect.timeout("8 seconds"),
+      Effect.withSpan("public-sheet.read"),
+    ),
+    signal ? { signal } : undefined,
+  );
 }
 export async function requestNotification(payload: unknown, request = fetch) {
   if (!payload || typeof payload !== "object")

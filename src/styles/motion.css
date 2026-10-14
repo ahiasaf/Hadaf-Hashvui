@@ -1,0 +1,62 @@
+/* Shared feedback without layout changes, per-keystroke handlers or persistent layers. */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select
+) {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+:is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select
+):focus-visible,
+.tool
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select
+  ):focus-visible {
+  border-color: var(--blue, #214e89);
+  /* Retained tools inject a 6px important shadow; fields keep a smaller focus ring. */
+  box-shadow: 0 0 0 3px rgb(33 78 137 / 12%) !important;
+  outline: 2px solid var(--blue, #214e89);
+  outline-offset: 2px;
+}
+:where(input, textarea, select)[aria-invalid="true"] {
+  animation: field-invalid 220ms ease-out;
+}
+@keyframes field-invalid {
+  from {
+    transform: translateX(3px);
+  }
+  40% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(1px);
+  }
+  to {
+    transform: none;
+  }
+}
+[data-motion-paused],
+[data-motion-paused]::before,
+[data-motion-paused]::after,
+:root[data-motion-hidden] *,
+:root[data-motion-hidden] *::before,
+:root[data-motion-hidden] *::after {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

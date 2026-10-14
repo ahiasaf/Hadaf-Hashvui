@@ -5,7 +5,7 @@ import {
   immediateNotificationsEnabled,
 } from "../src/server/notification-outbox.ts";
 import { forwardAction } from "../src/server/actions.ts";
-import { WritesPaused } from "../src/server/database.ts";
+import { runServerTask } from "../src/server/effects.ts";
 export default async function handler(
   req: IncomingMessage & { body?: unknown },
   res: ServerResponse,
@@ -22,7 +22,7 @@ export default async function handler(
     res.end();
     return;
   }
-  try {
+  const outcome = await runServerTask("api.action", async () => {
     const envelope =
       typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const result = await forwardAction(envelope);
@@ -44,10 +44,13 @@ export default async function handler(
           ),
         ),
       );
+    return result;
+  });
+  if (outcome.ok) {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(result));
-  } catch (error) {
-    const paused = error instanceof WritesPaused;
+    res.end(JSON.stringify(outcome.value));
+  } else {
+    const paused = outcome.paused;
     res.writeHead(paused ? 503 : 502, {
       "Content-Type": "application/json",
       ...(paused ? { "Retry-After": "120" } : {}),

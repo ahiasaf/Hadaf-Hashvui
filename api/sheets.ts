@@ -1,3 +1,4 @@
+import { runServerTask } from "../src/server/effects.ts";
 import { parseCsv } from "../src/lib/csv.ts";
 import { isSampleInstitution } from "../src/lib/institution-visibility.ts";
 import { csvText } from "../src/server/public-query.ts";
@@ -20,7 +21,10 @@ export default async function handler(
     res.end("Unknown public sheet");
     return;
   }
-  try {
+  const controller = new AbortController();
+  const disconnect = () => controller.abort();
+  res.once("close", disconnect);
+  const outcome = await runServerTask("api.sheets", async () => {
     const text = (await databaseEnabled())
       ? await readDatabaseSheet(
           tab,
@@ -31,7 +35,29 @@ export default async function handler(
           tab,
           url.searchParams.get("tq") || "",
           url.searchParams.get("headers") || "",
+          fetch,
+          controller.signal,
         );
+    if (tab === "מוסדות") {
+      const rows = parseCsv(text);
+      const name =
+        rows[0]?.findIndex((header) =>
+          /^(name|שם|ישיבה)$/i.test(header.trim()),
+        ) ?? -1;
+      return name >= 0
+        ? csvText([
+            rows[0],
+            ...rows
+              .slice(1)
+              .filter((row) => !isSampleInstitution(row[name] || "")),
+          ])
+        : text;
+    }
+    return text;
+  });
+  res.off("close", disconnect);
+  if (res.destroyed) return;
+  if (outcome.ok) {
     res.writeHead(200, {
       "Content-Type": "text/csv;charset=utf-8",
       "Cache-Control": url.searchParams.has("fresh")
@@ -41,24 +67,8 @@ export default async function handler(
           : "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
       "X-Content-Type-Options": "nosniff",
     });
-    if (tab === "מוסדות") {
-      const rows = parseCsv(text);
-      const name =
-        rows[0]?.findIndex((header) =>
-          /^(name|שם|ישיבה)$/i.test(header.trim()),
-        ) ?? -1;
-      res.end(
-        name >= 0
-          ? csvText([
-              rows[0],
-              ...rows
-                .slice(1)
-                .filter((row) => !isSampleInstitution(row[name] || "")),
-            ])
-          : text,
-      );
-    } else res.end(text);
-  } catch {
+    res.end(outcome.value);
+  } else {
     res.writeHead(502, { "Cache-Control": "no-store" });
     res.end("Public sheet unavailable");
   }

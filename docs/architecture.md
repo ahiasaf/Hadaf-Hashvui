@@ -23,6 +23,8 @@ The centered canvas uses Hebrew RTL and logical spacing. Text, forms and lists a
 
 Old institution links route to `/tzevet`. The old admin hash and other operational hashes route to `/management`, preserving their query, hash and local PIN entry. `/admin` is the focused server-authenticated participant and content screen; its private read key is separate from the local management PIN. Clean URLs and `.html` routes remain available.
 
+CSS motion shares one viewport observer across public pages and specialist tools. Offscreen animations and background-tab animations pause; counters schedule frames only while visible. Reduced motion disables decorative animation and transitions. Text controls use short focus and validation feedback without per-keystroke animation handlers. Content stays prerendered and accessible, with no permanent compositor layers.
+
 ## Caching and data
 
 Fingerprint-named Astro assets and generated media have a one-year immutable cache. Editable original content uses a shorter cache with background revalidation. The service worker precaches only the homepage and its actual module dependencies, and caches visited public assets. API requests bypass it entirely.
@@ -32,6 +34,12 @@ Typed public reads share in-flight requests and keep successful results in a dev
 The public proxy accepts only approved table names, never arbitrary spreadsheet IDs or keys. It rejects login HTML, unexpected schemas and private contact columns. Missing data and network failures remain distinct. Lesson marks are filtered to the chosen daf and its continuation before parsing, with stable segment identities.
 
 Private actions use POST and `no-store`; Apps Script retains its existing authorization checks. Legacy tool pages still address the Apps Script URL, and `src/shared/net.js` routes those calls (including JSONP fallbacks) through `/api/action`, so the cutover marker decides whether Apps Script or Neon serves them. See [database migration](database-migration.md). Supported management reads use the same-origin private endpoint and deduplicate only while in flight, without retaining private responses. Custom legacy endpoints and other operational calls preserve their existing routing. Signup, progress, admin edits and notification requests require an explicit success acknowledgement. Failed edits retain the draft. Restored accounts recover server progress; the student screen reconciles merged IDs and station completions while keeping local progress available offline.
+
+## Server effects
+
+Effect 4 runs only in server modules. All three same-origin API routes fold typed failures into their existing safe responses, preserving paused-write status and authentication checks. Public upstream reads retry one temporary HTTP or network failure within a shared eight-second deadline; invalid schemas and authorization failures never retry. Interruptible reads pass cancellation into fetch. Writes have no automatic retries.
+
+Notification delivery uses Effect for bounded retries and concurrent workers, retaining Retry-After, ordering, expired-subscription handling and the existing uncertain-acknowledgement protection. Workers stop scheduling queued work after a failure; callbacks can observe their AbortSignal for cancellable work. Existing promises remain at integration boundaries. Effect is excluded from browser bundles; visual feedback uses native CSS and browser APIs.
 
 ## Deployment and content boundaries
 

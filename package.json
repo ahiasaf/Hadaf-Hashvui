@@ -24,6 +24,7 @@
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/functions": "^3.9.11",
     "astro": "^7.3.8",
+    "effect": "4.0.4",
     "oxc-transform-react": "^0.145.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

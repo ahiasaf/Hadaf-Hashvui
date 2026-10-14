@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import handler from "../api/sheets.ts";
 import { parseCsv } from "../src/lib/csv.ts";
 test("public school responses omit the sample while preserving real schools and CSV values", async () => {
@@ -14,14 +15,14 @@ test("public school responses omit the sample while preserving real schools and 
   try {
     await handler(
       { method: "GET", url: "/api/sheets?tab=" + encodeURIComponent("מוסדות") },
-      {
+      Object.assign(new EventEmitter(), {
         writeHead(code) {
           status = code;
         },
         end(value) {
           body = value;
         },
-      },
+      }),
     );
     assert.equal(status, 200);
     assert.deepEqual(parseCsv(body), [

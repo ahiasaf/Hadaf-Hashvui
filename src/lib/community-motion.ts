@@ -26,7 +26,11 @@ export function updateCommunity(
   }
   const key = String(joined) + String(notified);
   const previous = pending.get(root);
+  const bounds = root.getBoundingClientRect();
   const immediate =
+    document.hidden ||
+    bounds.bottom <= 0 ||
+    bounds.top >= innerHeight ||
     !root.isConnected ||
     root.hidden ||
     (root.hasAttribute("data-reveal") && !root.classList.contains("is-in")) ||

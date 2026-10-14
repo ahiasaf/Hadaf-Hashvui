@@ -395,7 +395,7 @@ h1 {
   transform: none;
 }
 /* If the motion module never runs, every section still appears after a moment. */
-.js [data-reveal]:not(.is-in) {
+.js:not(.motion-observed) [data-reveal]:not(.is-in) {
   animation: reveal-fallback 0.01s linear 2.5s forwards;
 }
 @keyframes reveal-fallback {

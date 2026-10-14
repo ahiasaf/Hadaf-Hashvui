@@ -194,6 +194,122 @@ try {
       }),
     );
   }
+  const viewportMotionContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "no-preference",
+  });
+  await prepare(viewportMotionContext);
+  const viewportMotionPage = await viewportMotionContext.newPage();
+  await viewportMotionPage.goto(base);
+  await viewportMotionPage.waitForFunction(() =>
+    document.documentElement.classList.contains("motion-observed"),
+  );
+  const beacon = viewportMotionPage.locator(".stage-dot");
+  await beacon.scrollIntoViewIfNeeded();
+  await viewportMotionPage.waitForFunction(() =>
+    document
+      .querySelector(".stage-dot")
+      ?.getAnimations()
+      .some((animation) => animation.playState === "running"),
+  );
+  await viewportMotionPage.evaluate(() =>
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }),
+  );
+  await beacon.waitFor({ state: "attached" });
+  await viewportMotionPage.waitForFunction(() =>
+    document.querySelector(".stage-dot")?.hasAttribute("data-motion-paused"),
+  );
+  const pausedTime = await beacon.evaluate(
+    (node) => node.getAnimations()[0].currentTime,
+  );
+  await viewportMotionPage.waitForTimeout(100);
+  assert.ok(
+    Math.abs(
+      (await beacon.evaluate((node) => node.getAnimations()[0].currentTime)) -
+        pausedTime,
+    ) < 20,
+  );
+  await beacon.scrollIntoViewIfNeeded();
+  await viewportMotionPage.waitForFunction(
+    () =>
+      !document.querySelector(".stage-dot")?.hasAttribute("data-motion-paused"),
+  );
+  await viewportMotionPage.waitForTimeout(100);
+  assert.ok(
+    (await beacon.evaluate((node) => node.getAnimations()[0].currentTime)) >
+      pausedTime + 30,
+  );
+  const activeFrame = viewportMotionPage.locator(
+    '.lesson-variant[aria-hidden="false"] .frame',
+  );
+  await activeFrame.evaluate((node) =>
+    node.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
+  await viewportMotionPage.waitForFunction(
+    () =>
+      !document
+        .querySelector('.lesson-variant[aria-hidden="false"] .frame')
+        ?.hasAttribute("data-motion-paused"),
+  );
+  assert.equal(
+    await viewportMotionPage
+      .locator('.lesson-variant[aria-hidden="true"] .frame')
+      .getAttribute("data-motion-paused"),
+    "",
+  );
+  await viewportMotionPage.locator('[data-track="megila"]').click();
+  await viewportMotionPage
+    .locator('.lesson-variant[aria-hidden="false"] .frame')
+    .evaluate((node) =>
+      node.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
+  await viewportMotionPage.waitForFunction(
+    () =>
+      !document
+        .querySelector('.lesson-variant[aria-hidden="false"] .frame')
+        ?.hasAttribute("data-motion-paused"),
+  );
+  assert.equal(
+    await viewportMotionPage
+      .locator('.lesson-variant[aria-hidden="true"] .frame')
+      .getAttribute("data-motion-paused"),
+    "",
+  );
+  const counter = viewportMotionPage.locator("[data-count-to]").first();
+  await counter.evaluate((node) =>
+    node.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
+  await viewportMotionPage.waitForTimeout(100);
+  await viewportMotionPage.evaluate(() =>
+    window.scrollTo({ top: 0, behavior: "instant" }),
+  );
+  await viewportMotionPage.waitForTimeout(50);
+  const pausedCount = await counter.textContent();
+  await viewportMotionPage.waitForTimeout(150);
+  assert.equal(await counter.textContent(), pausedCount);
+  await counter.evaluate((node) =>
+    node.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
+  await viewportMotionPage.waitForFunction(() => {
+    const node = document.querySelector("[data-count-to]");
+    return node.textContent === node.dataset.countTo;
+  });
+  await viewportMotionPage.emulateMedia({ reducedMotion: "reduce" });
+  await viewportMotionPage.waitForFunction(
+    () => document.querySelector(".stage-dot")?.getAnimations().length === 0,
+  );
+  await viewportMotionPage.goto(base + "/management#reg");
+  await viewportMotionPage.locator("#r-contact").waitFor();
+  assert.equal(
+    await viewportMotionPage
+      .locator("#r-contact")
+      .evaluate((node) => window.getComputedStyle(node).transitionDuration),
+    "0s",
+  );
+  await viewportMotionContext.close();
+  console.log(
+    "Offscreen motion and counters pause and resume; hidden track panels and reduced-motion fields stay still.",
+  );
   const delayedAdminContext = await browser.newContext();
   await prepare(delayedAdminContext);
   let releaseAdminScripts;

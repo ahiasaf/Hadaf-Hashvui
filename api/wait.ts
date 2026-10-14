@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { runServerTask } from "../src/server/effects.ts";
 import { requestNotification } from "../src/server/upstream.ts";
 export default async function handler(
   req: IncomingMessage & { body?: unknown },
@@ -15,13 +16,15 @@ export default async function handler(
     res.end();
     return;
   }
-  try {
-    const result = await requestNotification(
+  const outcome = await runServerTask("api.wait", () =>
+    requestNotification(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body,
-    );
+    ),
+  );
+  if (outcome.ok) {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(result));
-  } catch {
+    res.end(JSON.stringify(outcome.value));
+  } else {
     res.writeHead(502, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "error" }));
   }
