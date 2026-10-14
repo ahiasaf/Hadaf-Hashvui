@@ -2838,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.223';
+var APP_VERSION = '8.99.224';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4481,8 +4481,7 @@ function boardHtml(code, name, hail, go) {
   /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
   var hero = n || ext
     ? '<b>' + (n + ext) + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
-      '</small></b><span>' + esc(code ? UI.cbHeroSub : UI.admHeroAll) + '</span>' +
-      (ext ? '<p>' + esc(fill(UI.repGrpNote, { n:ext, a:n })) + '</p>' : '')
+      '</small></b><span>' + esc(code ? UI.cbHeroSub : UI.admHeroAll) + '</span>'
     : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
       '<p>' + esc(UI.cbEmptySub) + '</p>';
 
