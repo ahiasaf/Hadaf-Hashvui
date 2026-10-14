@@ -36,24 +36,7 @@ export default function LearningSetup({ person }: { person?: Person }) {
   if (!ready) return <p role="status">פותחים את הלימוד…</p>;
   return (
     <div className="learning-setup swap" data-update-draft>
-      <ol className="setup-progress" aria-label="שלבי תחילת הלימוד">
-        <li className="is-done">
-          <span aria-hidden="true">✓</span>פרטים
-        </li>
-        <li aria-current="step">
-          <span aria-hidden="true">2</span>התקנה
-        </li>
-        <li>
-          <span aria-hidden="true">3</span>לימוד
-        </li>
-      </ol>
-      <h1>מכינים את הדף ללימוד</h1>
-      <p>הפרטים נשמרו. עכשיו מוסיפים את הדף למסך הבית, ומשם מתחילים.</p>
-      {ready ? (
-        <Install guided onComplete={complete} />
-      ) : (
-        <p role="status">מכינים את ההמשך…</p>
-      )}
+      <Install guided onComplete={complete} />
     </div>
   );
 }

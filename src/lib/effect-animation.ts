@@ -81,7 +81,7 @@ export function enter(element: HTMLElement, signal: AbortSignal) {
     back || element.parentElement?.id === "community-reminders" ? 1 : -1;
   const children = Array.from(
     element.querySelectorAll<HTMLElement>(
-      ":scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *",
+      ":scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *, :scope > .lesson-tile, :scope > .install-title, :scope > .install-launch-icon, :scope > .install-reopen > .install-text, :scope > .install-reopen > .install-handoff > li",
     ),
   )
     .filter(inView)

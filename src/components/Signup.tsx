@@ -49,13 +49,12 @@ export default function Signup({
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const [setup, setSetup] = useState(true);
   useEffect(() => {
     const locked = stored<Partial<Answers> | null>("lockPre", null);
     const existing = locked ? null : stored<Person | null>("me", null);
     const params = new URLSearchParams(location.search);
-    setPerson(existing);
-    setSetup(!existing || params.has("next"));
+    const editing = params.get("edit") === "1";
+    setPerson(editing ? null : existing);
     setInviting(
       (location.hash === "#invite" || !stored("inv-sent", false)) &&
         !!existing &&
@@ -231,18 +230,7 @@ export default function Signup({
   if (person)
     return (
       <section className="workspace narrow celebrate" key="done">
-        {setup ? (
-          <LearningSetup person={person} />
-        ) : (
-          <>
-            <p className="eyebrow">{person.instName}</p>
-            <h1>שלום, {person.first}</h1>
-            <p>פרטי הלימוד שלכם נשמרו במכשיר הזה.</p>
-            <a className="button button-gold" href="/app">
-              לדף של השבוע
-            </a>
-          </>
-        )}
+        <LearningSetup person={person} />
         <button
           className="text-button"
           onClick={() => {

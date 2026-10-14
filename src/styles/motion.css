@@ -61,6 +61,8 @@
   }
 }
 
+.install-guided[data-effect-driven],
+.lesson-grid[data-effect-driven],
 .flow-step[data-effect-driven],
 .rstep[data-effect-driven],
 .chb p[data-effect-driven],

@@ -172,7 +172,7 @@ export function initializeEffectMotion() {
         !(element instanceof HTMLElement) ||
         !visible(element) ||
         !element.matches(
-          ".flow-step, .rstep.on, .chb p, .community-panel > div",
+          ".flow-step, .rstep.on, .chb p, .community-panel > div, .lesson-grid, .install-guided",
         )
       )
         return;

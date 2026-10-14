@@ -374,11 +374,6 @@ legend {
   color: var(--gold-t);
   font-weight: 800;
 }
-/* Rows enter one after another when a track opens. */
-.lesson-list .lesson-row {
-  animation: row-in 0.5s var(--ease) both;
-  animation-delay: calc(min(var(--i, 0), 14) * 40ms);
-}
 @keyframes row-in {
   from {
     opacity: 0;
@@ -1594,58 +1589,8 @@ textarea {
   .invitation-actions .button + .button {
     margin-top: 0;
   }
-  .lesson-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 24px;
-  }
-  .lesson-list .lesson-row {
-    display: grid;
-    grid-template-columns: 68px minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 14px 16px;
-  }
 }
 
-/* Setup uses the existing form motion and spacing. */
-.setup-progress {
-  display: flex;
-  justify-content: center;
-  gap: clamp(18px, 5vw, 40px);
-  list-style: none;
-  padding: 0;
-  margin: 0 0 28px;
-}
-.setup-progress li {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  color: var(--ink-2);
-  font-size: 0.9rem;
-}
-.setup-progress li span {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--rule);
-  border-radius: 50%;
-  background: var(--surface);
-}
-.setup-progress li[aria-current] {
-  color: var(--blue-d);
-  font-weight: 800;
-}
-.setup-progress li[aria-current] span {
-  background: var(--blue-d);
-  color: white;
-  border-color: var(--blue-d);
-}
-.setup-progress .is-done span {
-  background: var(--gold);
-  color: var(--blue-d);
-  border-color: var(--gold);
-}
 .learning-setup {
   text-align: center;
 }
@@ -1661,4 +1606,252 @@ textarea {
 }
 .dashboard-details {
   padding-top: 28px;
+}
+
+/* Compact learning choices preserve the weekly panel as the main entry. */
+.lesson-picker {
+  margin-top: 24px;
+}
+.lesson-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.lesson-picker-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.lesson-picker-heading > span {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+}
+.lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 202px;
+  grid-template-rows: repeat(2, minmax(96px, auto));
+  animation: compact-enter 340ms var(--ease) both;
+}
+.lesson-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 12px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--blue-d);
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+.lesson-tile > span {
+  font-size: 0.7rem;
+  color: var(--ink-3);
+}
+.lesson-tile strong {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.lesson-tile small {
+  font-size: 0.68rem;
+  color: var(--ink-3);
+}
+.lesson-tile.is-current {
+  background: var(--blue-d);
+  border-color: var(--blue-d);
+  color: var(--surface);
+}
+.lesson-tile.is-current :is(span, small) {
+  color: var(--gold-l);
+}
+.lesson-tile.is-done:not(.is-current) small {
+  color: var(--green-d);
+}
+.lesson-tile:active {
+  transform: scale(0.97);
+}
+.lesson-picker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.lesson-picker-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--blue-d);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lesson-picker-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.lesson-picker-nav > span {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+.lesson-picker :is(a, button):focus-visible {
+  outline: 3px solid var(--blue-l);
+  outline-offset: 3px;
+}
+@media (min-width: 900px) {
+  .lesson-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    min-height: 96px;
+    grid-template-rows: minmax(96px, auto);
+  }
+}
+
+/* One setup panel, with concrete actions instead of a second introduction. */
+.learning-setup .install-guided {
+  margin: 0;
+  padding: 24px;
+  animation: compact-enter 360ms var(--ease) both;
+  box-shadow: none;
+  text-align: start;
+  border-radius: 20px;
+}
+.install-stage {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.72rem;
+  color: var(--ink-3);
+}
+.install-stage > span:first-child {
+  color: var(--green-d);
+  font-weight: 700;
+}
+.learning-setup .install-title {
+  font-size: clamp(1.4rem, 5vw, 1.8rem);
+  line-height: 1.3;
+  margin: 0 0 12px;
+  color: var(--blue-d);
+}
+.install-launch-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  color: var(--gold-t);
+  margin-bottom: 18px;
+}
+.learning-setup .install-text {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+.install-handoff {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 16px;
+}
+.install-handoff li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+}
+.install-handoff li:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+.install-handoff-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sunk);
+  color: var(--gold-t);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.install-handoff li b {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--blue-d);
+}
+.install-handoff li small {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.install-handoff li > svg {
+  color: var(--ink-3);
+}
+.install-handoff-note {
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.install-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--blue);
+  text-align: start;
+  cursor: pointer;
+}
+.install-retry svg {
+  flex: none;
+}
+.install-retry:focus-visible {
+  outline: 3px solid var(--blue-l);
+  outline-offset: 3px;
+}
+@media (max-width: 380px) {
+  .learning-setup .install-guided {
+    padding: 20px;
+  }
+  .lesson-tile strong {
+    font-size: 0.9rem;
+  }
+}
+
+@keyframes compact-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

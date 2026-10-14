@@ -136,35 +136,111 @@ export default function Install({
   if (!step) return null;
   if (step === "notify" || step === "done")
     return guided ? null : <CommunityUpdates />;
+  const Title = guided ? "h1" : "p";
   return (
-    <div className="install swap" key={step + (awaiting ? "-finishing" : "")}>
-      <p className="install-title">
-        {step === "install-prompt" ||
-        step === "install-ios" ||
-        step === "install-browser"
-          ? "האפליקציה על מסך הבית"
-          : step === "open-app"
-            ? "ממשיכים מהאפליקציה"
-            : "פותחים בדפדפן"}
-      </p>
+    <div
+      className={
+        "install swap" +
+        (guided ? " install-guided" : "") +
+        (step === "open-app" ? " install-launch" : "")
+      }
+      key={step + (awaiting ? "-finishing" : "")}
+    >
+      {guided && (
+        <div className="install-stage">
+          <span>✓ הפרטים נשמרו</span>
+          <span>2 מתוך 3</span>
+        </div>
+      )}
+      {step === "open-app" && (
+        <div className="install-launch-icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 32 32"
+            width="36"
+            height="36"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="8" y="3" width="16" height="26" rx="4" />
+            <path d="m12 14 3 3 6-6M14 25h4" />
+          </svg>
+        </div>
+      )}
+      <Title className="install-title">
+        {step === "open-app"
+          ? "פותחים ומתחילים"
+          : step === "open-browser"
+            ? "פותחים בדפדפן"
+            : "הדף על מסך הבית"}
+      </Title>
       {step === "open-app" && (
         <div className="install-reopen" role="status">
-          <PlusIcon />
-          <h2>הדף מחכה לכם במסך הבית</h2>
           <p className="install-text">
-            כרגע אתם עדיין בדפדפן. סגרו את הכרטיסייה הזו, חזרו למסך הבית ופתחו
-            את הדף השבועי מהסמל החדש.
+            הסמל נוסף למסך הבית. עכשיו פותחים ממנו את הדף השבועי.
           </p>
-          <p className="install-text">הלימוד שבחרתם ייפתח באפליקציה.</p>
+          <ol className="install-handoff">
+            <li>
+              <span className="install-handoff-number">1</span>
+              <div>
+                <b>סוגרים את הכרטיסייה</b>
+                <small>כרגע אתם עדיין בדפדפן</small>
+              </div>
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                aria-hidden="true"
+              >
+                <path d="m7 7 10 10M17 7 7 17" />
+              </svg>
+            </li>
+            <li>
+              <span className="install-handoff-number">2</span>
+              <div>
+                <b>פותחים ממסך הבית</b>
+                <small>לוחצים על הסמל של הדף השבועי</small>
+              </div>
+              <svg
+                viewBox="0 0 24 24"
+                width="22"
+                height="22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-7h6v7" />
+              </svg>
+            </li>
+          </ol>
+          <p className="install-handoff-note">הדף שבחרתם ייפתח אוטומטית.</p>
           <button
-            className="text-button"
+            className="install-retry"
             type="button"
             onClick={() => {
               store("installed", false);
               setStep(currentStep());
             }}
           >
-            לא מוצאים את הסמל? חזרה להוראות ההתקנה
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <path d="M4 10a8 8 0 1 1 1 8M4 4v6h6" />
+            </svg>
+            לא מוצאים את הסמל? הוראות התקנה
           </button>
         </div>
       )}

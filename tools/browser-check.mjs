@@ -416,7 +416,7 @@ try {
             ),
           "The dashboard inherited a reader scrollbar",
         );
-        assert.equal(await page.locator('a[href="/join"]').count(), 1);
+        assert.equal(await page.locator('a[href="/join?edit=1"]').count(), 1);
         assert.equal(
           await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
           1,
@@ -592,7 +592,6 @@ try {
     );
   }
   await page.evaluate(() => localStorage.removeItem("df:learned"));
-  await page.goto(base + "/join");
   // The dashboard remembers the selected track and offers the unfinished interactive lesson.
   await page.goto(base + "/app");
   await page.getByRole("button", { name: "מסכת מגילה", exact: true }).click();
@@ -1255,6 +1254,102 @@ try {
   );
   console.log(
     "Account-aware join prompts and published WhatsApp group link passed.",
+  );
+
+  for (const width of [320, 390, 768, 1440]) {
+    const compactContext = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: "reduce",
+    });
+    await prepare(compactContext);
+    await compactContext.addInitScript(() => {
+      if (location.protocol !== "http:") return;
+      localStorage.setItem(
+        "df:me",
+        JSON.stringify({
+          id: "return-student",
+          first: "Noam",
+          last: "בדיקה",
+          role: "kid",
+          inst: "avir",
+        }),
+      );
+      localStorage.setItem(
+        "df:learned",
+        JSON.stringify({ "taanit|1": "2026-10-04" }),
+      );
+    });
+    const compact = await compactContext.newPage();
+    await compact.goto(base + "/join", { waitUntil: "commit" });
+    await compact.waitForURL("**/app");
+    await compact.locator(".lesson-grid .lesson-tile").first().waitFor();
+    assert.equal(
+      await compact
+        .getByText("פרטי הלימוד שלכם נשמרו במכשיר הזה.", { exact: true })
+        .count(),
+      0,
+    );
+    assert.equal(await compact.locator(".lesson-list").count(), 0);
+    assert.ok((await compact.locator(".lesson-tile").count()) <= 6);
+    assert.equal(await compact.locator(".lesson-tile.is-current").count(), 1);
+    const links = new Set();
+    const previous = compact.getByRole("button", {
+      name: "דפים קודמים",
+      exact: true,
+    });
+    const next = compact.getByRole("button", {
+      name: "דפים הבאים",
+      exact: true,
+    });
+    while (await previous.isEnabled()) await previous.click();
+    assert.ok(await previous.isDisabled());
+    await compact.locator(".lesson-picker").scrollIntoViewIfNeeded();
+    await compact.screenshot({
+      path: `/tmp/hadaf-compact-picker-${width}.png`,
+    });
+    for (;;) {
+      for (const href of await compact
+        .locator(".lesson-tile")
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href"))))
+        links.add(href);
+      if (await next.isDisabled()) break;
+      const first = await compact
+        .locator(".lesson-tile")
+        .first()
+        .getAttribute("href");
+      await next.click();
+      await compact.waitForFunction(
+        (href) =>
+          document.querySelector(".lesson-tile")?.getAttribute("href") !== href,
+        first,
+      );
+      assert.ok((await compact.locator(".lesson-tile").count()) <= 6);
+    }
+    assert.equal(
+      links.size,
+      program.tracks[0].cal.filter((row) => row[2] && row[2] !== "סיום").length,
+    );
+    assert.ok(
+      await compact.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    await compact
+      .getByRole("link", { name: "פרטי ההרשמה שלי", exact: true })
+      .click();
+    await compact
+      .getByRole("heading", { name: "מי מצטרף?", exact: true })
+      .waitFor();
+    assert.equal(new URL(compact.url()).searchParams.get("edit"), "1");
+    await compact.getByRole("button", { name: /^תלמיד/ }).click();
+    assert.equal(
+      await compact.getByLabel("שם פרטי", { exact: true }).inputValue(),
+      "Noam",
+    );
+    await compactContext.close();
+  }
+  console.log(
+    "Returning users open the weekly dashboard without confirmation; six-tile pagination retains every lesson and explicit profile editing.",
   );
 
   for (const width of [390, 1440]) {
@@ -2155,9 +2250,7 @@ try {
   const setupPage = await setupContext.newPage();
   const setupTarget = "/learn?mas=taanit&daf=ב&amud=1";
   await setupPage.goto(base + "/start?next=" + encodeURIComponent(setupTarget));
-  await setupPage
-    .getByRole("heading", { name: "מכינים את הדף ללימוד" })
-    .waitFor();
+  await setupPage.getByRole("heading", { name: "הדף על מסך הבית" }).waitFor();
   await setupPage.evaluate(() => {
     window.__installPrompt = {
       prompt: async () => {},
@@ -2195,16 +2288,15 @@ try {
   await setupPage.evaluate(() =>
     window.dispatchEvent(new window.Event("appinstalled")),
   );
-  await setupPage
-    .getByRole("heading", { name: "הדף מחכה לכם במסך הבית" })
-    .waitFor();
+  await setupPage.getByRole("heading", { name: "פותחים ומתחילים" }).waitFor();
   assert.equal(new URL(setupPage.url()).pathname, "/start");
   await setupPage.reload();
-  await setupPage
-    .getByRole("heading", { name: "הדף מחכה לכם במסך הבית" })
-    .waitFor();
+  await setupPage.getByRole("heading", { name: "פותחים ומתחילים" }).waitFor();
   await setupPage.goto(base + setupTarget, { waitUntil: "commit" });
   await setupPage.waitForURL("**/start?**");
+  await setupPage
+    .getByRole("heading", { name: "פותחים ומתחילים", exact: true })
+    .waitFor();
   await setupPage.evaluate(() =>
     sessionStorage.setItem("test-standalone", "1"),
   );
