@@ -207,6 +207,8 @@ main.wrap{padding-bottom:46px}
 .stage .acts .alt{background:rgba(255,255,255,.14);color:#fff;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .stage .acts button:active{transform:scale(.98)}
+/* בעמוד הצוות אין כפתור מצגת — "פתיחת הדף" לבדו, ברוחב מלא. */
+.stage .acts.solo{grid-template-columns:1fr}
 
 /* השורה שמעל הבמה — לבנה על הכהה, ולכן היא יושבת בתוך main
    אבל עדיין על רקע הראש. */
@@ -277,7 +279,9 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
 .steps li:last-child::after{display:none}
 /* ...אלא כשהרשימה נמשכת מעבר לכלי שאחריה. הקו חייב לעבור
    דרך הבאנר, אחרת הוא נראה כקטע חדש ולא כשלב במשימה. */
-#steps-a li:last-child::after{display:block}
+#steps-a li:last-child::after,
+#steps-b li:last-child::after,
+#steps-c li:last-child::after{display:block}
 
 /* ---------- הכלי של השלב ----------
    בהזחה של טקסט השלבים, והקו ממשיך דרכו. כך "לפתוח את הדף
@@ -345,32 +349,26 @@ h2.sec{font-size:1.12rem;font-weight:800;letter-spacing:-.03em;
 /* ---------- הכתובת והקוד ----------
    הקוד בריבוע לבן משלו, בגודל שנסרק מהמסך ומהמקרן כאחד. הוא
    נוצר כאן ולא בשירות חיצוני — ראו qr.js — ולכן הכתובת אינה
-   יוצאת לשום מקום בדרך. */
-/* ---------- שלוש הדרכים לקישור ----------
-   באותו מעמד ובאותה צורה: אריח לבן, סימן, ומילה. כך אף אחת
-   מהן אינה נראית כמו "הדרך האמיתית" והשתיים האחרות כהערות.
+   יוצאת לשום מקום בדרך.
 
-   הכתובת עצמה ירדה: היא ארוכה, איש אינו מקליד אותה, ושלוש
-   הדרכים עושות בדיוק את מה שהיא נועדה לו. */
-.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
-  margin-top:13px;align-items:stretch}
-.opt{display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:7px;text-align:center;
-  background:#fff;border:1px solid #CFE0B6;border-radius:12px;
-  padding:10px 6px;box-shadow:var(--sh-1);min-height:112px}
-.opt span{font-size:.74rem;font-weight:800;color:var(--ink-2);line-height:1.3}
-.opt .qb{width:100%}
-.opt.go{text-decoration:none;cursor:pointer}
-.opt.go svg{width:30px;height:30px;display:block}
-.opt.wa svg{fill:#25D366}
-.opt.ml svg{fill:var(--blue)}
-.opt.go:active{transform:scale(.97)}
-/* בצר מאוד — שתי שורות, והקוד תופס את הרוחב */
-@media (max-width:339px){
-  .opts{grid-template-columns:1fr 1fr}
-  .opt.qr{grid-column:1 / -1}
-  .opt.qr .qb{max-width:150px;margin:0 auto}
-}
+   הוא נסרק מהמקרן מקצה הכיתה, ולכן הוא גדול — עד 300px —
+   ויושב לבדו, בלי כפתורי שיתוף לצידו. */
+.qrbig{max-width:300px;margin:14px auto 0;background:#fff;
+  border:1px solid #CFE0B6;border-radius:14px;padding:14px;
+  box-shadow:var(--sh-1);text-align:center}
+.qrbig span{display:block;margin-top:8px;font-size:.88rem;font-weight:800;
+  color:var(--ink-2)}
+/* כפתור ההודעה להורים — הסימן של וואטסאפ בתוך הכפתור הירוק. */
+.wabtn{display:flex;align-items:center;justify-content:center;gap:9px}
+.wabtn svg{width:20px;height:20px;fill:#fff;flex:none}
+
+/* העזרה הטכנית של שלב 1. שקטה ומשנית: שורה כחולה קטנה,
+   והפירוט נפתח רק למי שלחץ. */
+.tip{margin:0 0 12px;font-size:.88rem}
+.tip summary{cursor:pointer;font-weight:800;color:var(--blue);width:max-content;
+  max-width:100%}
+.tip ul{margin:8px 0 0;padding-inline-start:20px;font-weight:600;
+  color:var(--ink-2);line-height:1.7}
 .btn{flex:1;border:none;border-radius:12px;padding:14px;font-weight:800;
   font-size:.92rem;font-family:inherit;cursor:pointer;text-align:center;
   text-decoration:none;display:block;transition:transform .12s}
@@ -538,9 +536,6 @@ footer a{color:var(--ink-2);font-weight:800}
 .mygo[disabled]{opacity:.55}
 .myerr{margin-top:11px;font-size:.85rem;font-weight:700;color:#8A3226;
   line-height:1.6}
-/* ההכנה לשלב שאחרי הלחיצה על "וואטסאפ". */
-.wahow{margin:11px 0 0;font-size:.78rem;font-weight:600;color:var(--ink-3);
-  line-height:1.6;text-align:start}
 /* הפינה נדלקת לרגע כשמגיעים אליה מהתראה — כדי שיֵדע על מה
    לחץ, ולא ינחת באמצע עמוד ארוך בלי סימן. */
 /* ============================================================
@@ -619,39 +614,41 @@ body.panel-on #panel{display:block}
     <ol class="steps" id="steps-a"></ol>
 
     <div class="tool">
+      <!-- עזרה טכנית קטנה לשלב 1: סגורה, ונפתחת בלחיצה. אינה
+           כפתור ואינה שיתוף — רק מה שהמורה צריך לדעת כדי
+           שהדף ייפתח על המחשב שבכיתה. -->
+      <details class="tip" id="tip-pc">
+        <summary id="t-pcH"></summary>
+        <ul id="tip-pc-list"></ul>
+      </details>
       <p class="demo-cap" id="demo-cap"><b id="t-demoH"></b><span id="t-demoSub"></span></p>
       <div id="stage"></div>
     </div>
 
     <ol class="steps" id="steps-b"></ol>
 
-    <div class="tool end">
+    <!-- הכלי של שלב 3: קוד הסריקה, גדול, מיד מתחת לשלב. התלמידים
+         סורקים מהמקרן — זה המסר המרכזי, ואין לידו כפתורי שיתוף. -->
+    <div class="tool" id="kids-tool">
       <div class="link kids">
         <h3 id="t-kidsH"></h3>
         <p id="t-kidsTxt"></p>
-        <!-- שלוש דרכים לאותו מקום, ובאותו מעמד: סורקים מהמסך,
-             שולחים בוואטסאפ, או שולחים במייל. הכתובת עצמה אינה
-             מוצגת — היא ארוכה, איש אינו מקליד אותה, ושלוש
-             הדרכים כבר עושות את מה שהיא נועדה לו. -->
-        <div class="opts">
-          <div class="opt qr" id="kids-qr" hidden>
-            <div class="qb" id="kids-qr-box"></div>
-            <span id="t-qrCap"></span>
-          </div>
-          <a class="opt go wa" id="kids-wa" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23s-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.8-.79.97-.14.16-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.22.25-.85.83-.85 2.03s.88 2.35 1 2.51c.12.17 1.72 2.63 4.17 3.69.58.25 1.04.4 1.39.51.59.19 1.12.16 1.54.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
-            <span id="t-waBtn"></span>
-          </a>
-          <a class="opt go ml" id="kids-mail">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.4l8 4.85 8-4.85V7H4zm16 10V9.7l-7.48 4.53a1 1 0 0 1-1.04 0L4 9.7V17h16z"/></svg>
-            <span id="t-mailBtn"></span>
-          </a>
+        <div class="qrbig" id="kids-qr" hidden>
+          <div id="kids-qr-box"></div>
+          <span id="t-qrCap"></span>
         </div>
-        <!-- מה שקורה אחרי הלחיצה, ונאמר לפניה: וואטסאפ נפתח
-             עם ההודעה מוכנה ועוצר על בורר אנשי הקשר. מי שלא
-             מכיר את זה רואה שוואטסאפ נפתח ו"לא קרה כלום". -->
-        <p class="wahow" id="t-waHow"></p>
       </div>
+    </div>
+
+    <ol class="steps" id="steps-c"></ol>
+
+    <!-- הכלי של שלב 4: וואטסאפ נפתח עם ההודעה להורים מוכנה, והר"ם
+         בוחר למי לשלוח. אין שליחה אוטומטית. -->
+    <div class="tool end" id="par-tool">
+      <a class="btn g wabtn" id="par-wa" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23s-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.8-.79.97-.14.16-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.43.06-.65.31-.22.25-.85.83-.85 2.03s.88 2.35 1 2.51c.12.17 1.72 2.63 4.17 3.69.58.25 1.04.4 1.39.51.59.19 1.12.16 1.54.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
+        <span id="t-parBtn"></span>
+      </a>
     </div>
 
     <p class="steps-foot" id="t-stepsFoot"></p>
@@ -876,8 +873,18 @@ function setTrack(t) { track = t; drawStage(); }
    ולקבל שם עוד הדגמה זה לקחת ממנו את מה שהוא ביקש.
 
    `from=tzevet` נשאר: הוא מה שמחזיר את כפתור "יציאה" שבדף
-   לכאן, ולא למסך של תלמיד. */
+   לכאן, ולא למסך של תלמיד.
+
+   והדף הוא תמיד תחילת המסכת — תענית ב. — ולא הדף של השבוע:
+   ר"ם שפותח בכיתה מתחיל מההתחלה, כמו ההדגמה. ראו DEMO_UNIT. */
 function goDaf() {
+  var U = window.DEMO_UNIT;
+  if (U) {
+    location.href = base() + 'learn.html?mas=' + encodeURIComponent(U.mas) +
+                    '&daf=' + encodeURIComponent(U.daf) + (U.am ? '&amud=' + U.am : '') +
+                    '&from=tzevet' + (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+    return;
+  }
   var wk = (typeof LWeek === 'function') ? LWeek() : -1;
   var d  = (typeof LDaf === 'function') ? LDaf(track, wk < 0 ? 0 : wk) : '';
   var am = (typeof LAm === 'function') ? LAm(track, wk < 0 ? 0 : wk) : 0;   /* ב: — ראו LDafQ */
@@ -902,7 +909,7 @@ function goApp() {
     '#week=' + track + '-' + ((wk < 0 ? 0 : wk) + 1);
 }
 function drawStage() {
-  $('stage').innerHTML = StageHtml({ track:track, pick:'setTrack',
+  $('stage').innerHTML = StageHtml({ track:track, pick:'setTrack', noDeckAlt:true,
                                      deck:'goApp', week:'goDaf', trail:'goApp' });
 }
 
@@ -942,7 +949,7 @@ function drawWho() {
 function draw() {
   var T = window.TZEVET || {};
   ['h1','lead','demoNote','demoH','demoSub','goalH','stepsH','stepsFoot','storyH',
-   'whoH','kidsH','kidsTxt','qrCap','foot','myH'].forEach(function (k) {
+   'whoH','kidsH','kidsTxt','qrCap','foot','myH','pcH','parBtn'].forEach(function (k) {
     var el = $('t-' + k);
     if (el) el.textContent = T[k] || '';
   });
@@ -965,16 +972,28 @@ function draw() {
      יורד ואינו משאיר מספר מיותם, והמספור רץ על פני שתיהן:
      `data-n` נקבע כאן ולא על ידי הדפדפן, ולכן פיצול הרשימה
      אינו מאפס אותו. */
-  var st = [];
-  for (var n = 1; n <= 4; n++) if (T['step' + n]) st.push(T['step' + n]);
-  var li = function (s, i) {
-    return '<li data-n="' + (i + 1) + '">' + esc(s) + '</li>';
-  };
-  /* הראשון לפני הבאנר, השאר אחריו. הבאנר הוא הכלי של השלב
-     הראשון — לפתוח את הדף בכיתה — והוא בא מיד אחריו. */
-  $('steps-a').innerHTML = st.slice(0, 1).map(li).join('');
-  $('steps-b').innerHTML = st.slice(1).map(function (s, i) {
-    return li(s, i + 1);
+  /* שלוש רשימות, וכל אחת והכלי שאחריה: 1 — הבאנר; 2–3 — קוד
+     הסריקה; 4 — ההודעה להורים. */
+  var lists = { a:'', b:'', c:'' }, cnt = 0;
+  for (var n = 1; n <= 4; n++) {
+    if (!T['step' + n]) continue;
+    cnt++;
+    lists[n === 1 ? 'a' : n === 4 ? 'c' : 'b'] +=
+      '<li data-n="' + cnt + '">' + esc(T['step' + n]) + '</li>';
+  }
+  $('steps-a').innerHTML = lists.a;
+  $('steps-b').innerHTML = lists.b;
+  $('steps-c').innerHTML = lists.c;
+
+  /* שלב 4 שרוקן — הכפתור יורד איתו, וקוד הסריקה סוגר את הרצף. */
+  var par = !!(lists.c && (T.parBtn || '').trim());
+  $('par-tool').hidden = !par;
+  $('kids-tool').className = par ? 'tool' : 'tool end';
+
+  /* העזרה של שלב 1: כותרת ריקה — אינה מוצגת; שורה ריקה — יורדת. */
+  $('tip-pc').hidden = !(T.pcH || '').trim();
+  $('tip-pc-list').innerHTML = ['pcMail', 'pcType', 'pcWeb'].map(function (k) {
+    return (T[k] || '').trim() ? '<li>' + esc(T[k]) + '</li>' : '';
   }).join('');
 
   /* שורה שרוקנה אינה משאירה שוליים ריקים מעל ההדגמה */
@@ -996,20 +1015,10 @@ function draw() {
     if (num) fw.href = 'https://wa.me/' + num;
   }
 
-  /* שלוש הדרכים לקישור */
+  /* קוד הסריקה לתלמידים, וההודעה להורים — אותו קישור הצטרפות. */
   drawQr();
-  var msg = tpl(UI.linkWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא',
-                             url: kidsUrl() });
-  $('kids-wa').href = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  $('t-waBtn').textContent = 'וואטסאפ';
-  $('kids-mail').href = 'mailto:?subject=' + encodeURIComponent(T.mailSub || '') +
-                        '&body=' + encodeURIComponent(msg);
-  $('t-mailBtn').textContent = 'מייל';
-  var wh = $('t-waHow');
-  if (wh) {
-    wh.textContent = UI.waHowKids || '';
-    wh.hidden = !(UI.waHowKids || '').trim();
-  }
+  $('par-wa').href = 'https://wa.me/?text=' + encodeURIComponent(
+    tpl(UI.dadWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא', url: kidsUrl() }));
   
   drawPeers();
   drawBoard();

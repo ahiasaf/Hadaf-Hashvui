@@ -63,7 +63,9 @@ function StCover(dk) {
    o.pick   — שם פונקציה שמקבלת מזהה מסכת, או ריק = בלי בורר
    o.deck   — שם פונקציה שפותחת את המצגת
    o.week   — שם פונקציה שפותחת את מסך השבוע
-   o.trail  — שם פונקציה שפותחת את המסלול */
+   o.trail  — שם פונקציה שפותחת את המסלול
+   o.noDeckAlt — בלי הכפתור הקטן (מצגת / מסלול); "פתיחת הדף" לבדו,
+                  ברוחב מלא */
 function StageHtml(o) {
   var tr = StTrack(o.track), i = StWeek(), row = tr.cal[i];
   var c  = (typeof CONTENT !== 'undefined') ? CONTENT[tr.id + '-' + (i + 1)] : null;
@@ -101,17 +103,18 @@ function StageHtml(o) {
        הוא בעצמו לחיצה שפותחת אותה, וזה יעד גדול מכל כפתור. */
     s += '<div class="showcase"><div class="frame" onclick="' + call(o.deck) + '">' +
          '<img src="' + StCover(dk) + '" alt="השקף הראשון" onerror="this.style.visibility=\'hidden\'"></div></div>' +
-         '<div class="acts">' +
+         '<div class="acts' + (o.noDeckAlt ? ' solo' : '') + '">' +
          '<button class="go" onclick="' + call(o.week) + '">' + StEsc(UI.deckGo) + '</button>' +
-         '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>' +
+         (o.noDeckAlt ? '' :
+         '<button class="alt" onclick="' + call(o.deck) + '">' + StEsc(UI.deckAlt) + '</button>') +
          '</div>';
   } else {
     s += '<div class="showcase"><div class="frame"><div class="empty">' +
          '<span>' + StEsc(UI.deckSoon) + '</span></div></div></div>' +
-         '<div class="acts"><button class="go" onclick="' + call(o.week) + '">' +
+         '<div class="acts' + (o.noDeckAlt ? ' solo' : '') + '"><button class="go" onclick="' + call(o.week) + '">' +
          StEsc(UI.weekGo) + '</button>' +
-         '<button class="alt" onclick="' + call(o.trail) + '">' +
-         StEsc(UI.trackBtn) + '</button></div>';
+         (o.noDeckAlt ? '' : '<button class="alt" onclick="' + call(o.trail) + '">' +
+         StEsc(UI.trackBtn) + '</button>') + '</div>';
   }
   return s + '</div>';
 }
