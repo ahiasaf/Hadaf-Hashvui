@@ -151,6 +151,7 @@ const hasLesson = !!row[2] && row[2] !== "סיום";
     >
       {hasLesson ? ui.deckGo : ui.siteCalendar}
     </a>
+    {personal && <p class="lesson-resume-note" data-resume-note hidden></p>}
   </div>
 </section>
 <script

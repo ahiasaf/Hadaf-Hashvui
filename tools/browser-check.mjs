@@ -406,6 +406,48 @@ try {
         assert.equal(await page.locator(".stage-band #lesson").count(), 1);
         assert.equal(await page.locator(".track-switch button").count(), 2);
         assert.equal(await page.locator(".track-tabs, .study-next").count(), 0);
+        const readingContrast = await page
+          .locator(".dashboard-band")
+          .evaluate((panel) => {
+            const luminance = (color) => {
+              const channels = color
+                .match(/\d+/g)
+                .slice(0, 3)
+                .map((value) => {
+                  const channel = Number(value) / 255;
+                  return channel <= 0.04045
+                    ? channel / 12.92
+                    : ((channel + 0.055) / 1.055) ** 2.4;
+                });
+              return (
+                channels[0] * 0.2126 +
+                channels[1] * 0.7152 +
+                channels[2] * 0.0722
+              );
+            };
+            const background = luminance(
+              window.getComputedStyle(panel).backgroundColor,
+            );
+            return Math.min(
+              ...Array.from(
+                panel.querySelectorAll(
+                  '.lesson-variant[aria-hidden="false"] :is(h2, .lesson-date)',
+                ),
+              ).map((node) => {
+                const foreground = luminance(
+                  window.getComputedStyle(node).color,
+                );
+                return (
+                  (Math.max(foreground, background) + 0.05) /
+                  (Math.min(foreground, background) + 0.05)
+                );
+              }),
+            );
+          });
+        assert.ok(
+          readingContrast >= 4.5,
+          `Dashboard reading contrast at ${width}px`,
+        );
         assert.ok(
           await page
             .locator("#lesson .lesson-text")
@@ -420,7 +462,9 @@ try {
         );
         assert.equal(await page.locator('a[href="/join?edit=1"]').count(), 1);
         assert.equal(
-          await page.getByText("פרטי ההרשמה שלי", { exact: true }).count(),
+          await page
+            .getByRole("link", { name: "פרטי ההרשמה שלי", exact: true })
+            .count(),
           1,
         );
       }
@@ -590,7 +634,7 @@ try {
     );
     assert.ok(
       (await page.locator(".progress-overview progress").boundingBox())
-        .height >= 12,
+        .height >= 4,
     );
   }
   await page.evaluate(() => localStorage.removeItem("df:learned"));
@@ -1320,22 +1364,19 @@ try {
       );
       window.dispatchEvent(new window.Event("df-account-change"));
     });
-    await compact.locator("[data-dashboard-place]").waitFor();
+    await compact.locator("[data-resume-note]").waitFor();
     assert.equal(
-      await compact.locator("[data-place-number]").textContent(),
-      "03",
-    );
-    assert.equal(
-      await compact.locator("[data-place-label]").textContent(),
-      "שקף 3 מתוך 10",
+      await compact.locator("[data-resume-note]").textContent(),
+      "ממשיכים משקף 3 מתוך 10",
     );
     assert.match(
-      await compact.locator("[data-dashboard-place]").getAttribute("href"),
+      await compact.locator("[data-open]").getAttribute("href"),
       /mas=taanit/,
     );
+    assert.equal(await compact.locator(".dashboard-place").count(), 0);
     await compact.locator('[data-track="megila"]').click();
     assert.equal(
-      await compact.locator("[data-dashboard-place]").isVisible(),
+      await compact.locator("[data-resume-note]").isVisible(),
       false,
     );
     await compact.locator('[data-track="taanit"]').click();
@@ -1401,6 +1442,133 @@ try {
   console.log(
     "Returning users open the weekly dashboard without confirmation; six-tile pagination retains every lesson and explicit profile editing.",
   );
+
+  for (const width of [390, 1440]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: "no-preference",
+    });
+    await prepare(context);
+    const page = await context.newPage();
+    await page.goto(base + "/app");
+    await page.locator(".lesson-tile").first().waitFor();
+    await page
+      .locator(".lesson-picker")
+      .evaluate((n) =>
+        n.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".lesson-grid")
+        ?.hasAttribute("data-effect-driven"),
+    );
+    await page.waitForTimeout(750);
+    const before = await page.locator(".lesson-picker-nav").boundingBox();
+    await page.getByRole("button", { name: "דפים הבאים", exact: true }).click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".lesson-tile")
+        ?.getAnimations()
+        .some((a) =>
+          a.effect
+            ?.getKeyframes()
+            .some((f) => String(f.transform).includes("-14px")),
+        ),
+    );
+    await page.waitForTimeout(700);
+    const after = await page.locator(".lesson-picker-nav").boundingBox();
+    assert.ok(Math.abs(before.y - after.y) < 2);
+    await page
+      .getByRole("button", { name: "דפים קודמים", exact: true })
+      .click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".lesson-tile")
+        ?.getAnimations()
+        .some((a) =>
+          a.effect
+            ?.getKeyframes()
+            .some((f) => String(f.transform).includes("(14px)")),
+        ),
+    );
+    for (let i = 0; i < 3; i++) {
+      await page
+        .getByRole("button", { name: "דפים הבאים", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "דפים קודמים", exact: true })
+        .click();
+    }
+    await page.waitForTimeout(800);
+    assert.equal(
+      await page
+        .locator(".lesson-grid")
+        .evaluate(
+          (n) =>
+            n
+              .getAnimations({ subtree: true })
+              .filter((a) => a.constructor.name === "Animation").length,
+        ),
+      0,
+    );
+    await page
+      .locator(".lesson-grid")
+      .evaluate((n) =>
+        n.dispatchEvent(new CustomEvent("df-motion-enter", { bubbles: true })),
+      );
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector(".lesson-grid")
+          ?.getAnimations({ subtree: true })
+          .filter((a) => a.constructor.name === "Animation").length === 0,
+    );
+    await page
+      .locator("[data-community-tabs]")
+      .evaluate((n) =>
+        n.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+    await page.waitForTimeout(750);
+    const old = await page.locator("[data-community-tabs]").boundingBox();
+    for (let i = 0; i < 3; i++) {
+      await page.locator("#community-reminders-tab").evaluate((n) => n.click());
+      await page.waitForFunction(() =>
+        document
+          .querySelector("#community-reminders .community-copy > p:last-child")
+          ?.getAnimations()
+          .some((a) => a.constructor.name === "Animation"),
+      );
+      await page.locator("#community-whatsapp-tab").evaluate((n) => n.click());
+      await page.waitForFunction(() =>
+        document
+          .querySelector("#community-whatsapp .community-copy > p:last-child")
+          ?.getAnimations()
+          .some((a) => a.constructor.name === "Animation"),
+      );
+    }
+    await page.waitForTimeout(750);
+    const next = await page.locator("[data-community-tabs]").boundingBox();
+    assert.ok(Math.abs(old.height - next.height) < 2);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.locator("#community-reminders-tab").click();
+    assert.equal(
+      await page
+        .locator("#community-reminders")
+        .evaluate(
+          (n) =>
+            n
+              .getAnimations({ subtree: true })
+              .filter((a) => a.constructor.name === "Animation").length,
+        ),
+      0,
+    );
+    await page.screenshot({ path: `/tmp/hadaf-dashboard-motion-${width}.png` });
+    await context.close();
+    console.log(
+      `Unified directional paging, rapid cleanup, offscreen cancellation, repeatable tabs and reduced motion: ${width}px`,
+    );
+  }
 
   for (const width of [390, 1440]) {
     const characterContext = await browser.newContext({

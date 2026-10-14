@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { action, stored, store, type Person } from "../lib/client";
 import { lessonHref, studyUnits, weekIndex, type Track } from "../lib/calendar";
 import Install from "./Install";
+import { requestEffectEntrance } from "../lib/effect-motion";
 type ReadingSpot = {
   mas: string;
   daf: string;
@@ -22,6 +23,12 @@ export default function StudentHome({
   const [trackId, setTrackId] = useState(tracks[0].id);
   const [syncFailed, setSyncFailed] = useState(false);
   const [lessonPage, setLessonPage] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const grid = useRef<HTMLDivElement>(null);
+  const progress = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (grid.current) requestEffectEntrance(grid.current);
+  }, [lessonPage, trackId]);
   useEffect(() => {
     const savedSpot = stored<ReadingSpot | null>("spot", null);
     const selected = stored("track", savedSpot?.mas || tracks[0].id);
@@ -87,6 +94,9 @@ export default function StudentHome({
   const total = studyUnits(track);
   const percent = Math.round((count / total) * 100);
   useEffect(() => {
+    if (progress.current) requestEffectEntrance(progress.current);
+  }, [count, trackId]);
+  useEffect(() => {
     const refresh = () => {
       const selected = stored("track", tracks[0].id);
       if (tracks.some((track) => track.id === selected)) setTrackId(selected);
@@ -113,14 +123,14 @@ export default function StudentHome({
   }, [tracks]);
   return (
     <section className="workspace dashboard-details">
-      <div className="progress-overview swap" key={"progress-" + trackId}>
+      <div className="progress-overview" ref={progress}>
         <div className="progress-summary">
           <div className="progress-count">
             <strong>
               <bdi>{count}</bdi>
             </strong>
             <span>
-              מתוך <bdi>{total}</bdi> יחידות הושלמו
+              מתוך <bdi>{total}</bdi> דפים הושלמו
             </span>
           </div>
           <span className="progress-percent">
@@ -140,10 +150,9 @@ export default function StudentHome({
           ההתקדמות במכשיר זמינה. העדכון מהישיבה לא הגיע, ננסה שוב בכניסה הבאה.
         </p>
       )}
-      {person && <Install />}
       <section className="lesson-picker" aria-label="בחירת דף">
         <div className="lesson-picker-heading">
-          <h2>בחירת דף</h2>
+          <h2>הדפים במסכת {track.name}</h2>
           <span aria-live="polite">
             <bdi>
               {lessonPage * pageSize + 1}-
@@ -152,10 +161,7 @@ export default function StudentHome({
             מתוך <bdi>{units.length}</bdi>
           </span>
         </div>
-        <div
-          className="lesson-grid swap"
-          key={"list-" + trackId + "-" + lessonPage}
-        >
+        <div className="lesson-grid" ref={grid} data-direction={direction}>
           {shown.map(({ row, index }) => {
             const done = !!completed[track.id + "|" + (index + 1)];
             return (
@@ -168,22 +174,36 @@ export default function StudentHome({
                 key={index}
                 href={lessonHref(track, row)}
                 aria-current={index === current ? "true" : undefined}
+                aria-label={`שבוע ${index + 1}, מסכת ${track.name}, דף ${row[2]}${row[3] ? " עמוד " + row[3] : ""}${done ? ", הושלם" : ""}${index === current ? ", השבוע" : ""}`}
               >
-                <span>
-                  שבוע <bdi>{index + 1}</bdi>
+                <span className="tile-main">
+                  <strong>דף {row[2]}</strong>
+                  <span>{row[3] ? "עמוד " + row[3] : row[1]}</span>
                 </span>
-                <strong>
-                  דף {row[2]} {row[3] ? "ע״" + row[3] : ""}
-                </strong>
-                <small>
-                  {done
-                    ? "✓ הושלם"
-                    : index === current
-                      ? "השבוע"
-                      : index > current
-                        ? "בהמשך"
-                        : "ללימוד"}
-                </small>
+                <span className="tile-state">
+                  {done ? (
+                    <svg
+                      viewBox="0 0 20 20"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m4 10 4 4 8-8"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : index === current ? (
+                    <i aria-hidden="true" />
+                  ) : null}
+                  <small>
+                    {index === current ? "השבוע" : done ? "הושלם" : ""}
+                  </small>
+                </span>
               </a>
             );
           })}
@@ -192,10 +212,27 @@ export default function StudentHome({
           <button
             type="button"
             disabled={lessonPage === 0}
-            onClick={() => setLessonPage((page) => page - 1)}
+            onClick={() => {
+              setDirection(-1);
+              setLessonPage((page) => page - 1);
+            }}
             aria-label="דפים קודמים"
           >
-            <span aria-hidden="true">→</span> הקודמים
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="m14 7 5 5-5 5M19 12H5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
           <span>
             <bdi>
@@ -205,18 +242,31 @@ export default function StudentHome({
           <button
             type="button"
             disabled={lessonPage + 1 >= pages}
-            onClick={() => setLessonPage((page) => page + 1)}
+            onClick={() => {
+              setDirection(1);
+              setLessonPage((page) => page + 1);
+            }}
             aria-label="דפים הבאים"
           >
-            הבאים <span aria-hidden="true">←</span>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="m10 7-5 5 5 5M5 12h14"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
       </section>
-      {person && (
-        <a className="secondary-link" href="/join?edit=1">
-          פרטי ההרשמה שלי
-        </a>
-      )}
+      {person && <Install />}
     </section>
   );
 }

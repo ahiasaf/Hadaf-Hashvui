@@ -172,39 +172,12 @@ export function initializeWeeklyLesson() {
     const label = section!.querySelector<HTMLElement>("[data-stage-label]");
     if (label) label.textContent = personal ? "הלימוד שלכם" : ui.siteLesson;
     if (personal) {
-      const note = document.querySelector<HTMLElement>("[data-dashboard-note]");
-      if (note)
-        note.textContent = resume
-          ? "ממשיכים מהשקף שבו עצרתם."
-          : "הדף השבועי שלכם מחכה כאן.";
-    }
-    if (personal) {
-      const place = document.querySelector<HTMLAnchorElement>(
-        "[data-dashboard-place]",
-      );
+      const note = section!.querySelector<HTMLElement>("[data-resume-note]");
       const spot = stored<{ i: number; n: number } | null>("spot", null);
-      if (place) {
-        const changed = place.hidden !== !resume;
-        place.hidden = !resume;
-        place.parentElement?.classList.toggle("has-place", resume);
-        if (resume && spot) {
-          place.href = open.href;
-          const number = place.querySelector<HTMLElement>(
-            "[data-place-number]",
-          )!;
-          number.textContent = String(spot.i + 1).padStart(2, "0");
-          place.querySelector<HTMLElement>("[data-place-label]")!.textContent =
-            `שקף ${spot.i + 1} מתוך ${spot.n}`;
-          place.setAttribute(
-            "aria-label",
-            `להמשך הלימוד, מסכת ${track.name}, דף ${row[2]}, שקף ${spot.i + 1} מתוך ${spot.n}`,
-          );
-          place.style.setProperty(
-            "--place-progress",
-            String((spot.i + 1) / spot.n),
-          );
-        }
-        if (changed) requestEffectEntrance(place.parentElement!);
+      if (note) {
+        note.hidden = !resume;
+        note.textContent =
+          resume && spot ? `ממשיכים משקף ${spot.i + 1} מתוך ${spot.n}` : "";
       }
     }
     open.textContent = active

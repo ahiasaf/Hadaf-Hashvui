@@ -241,64 +241,61 @@ legend {
   color: var(--ink);
   border-bottom-color: var(--gold);
 }
+/* Completion is a quiet part of the reading layout, rather than a second hero. */
 .progress-overview {
   display: grid;
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
+  gap: 12px;
+  padding-block: 0 24px;
+  border-bottom: 1px solid var(--rule);
 }
 .progress-summary,
 .progress-count {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 7px;
 }
 .progress-summary {
   justify-content: space-between;
 }
 .progress-count {
   flex-wrap: wrap;
-  gap: 4px 10px;
 }
 .progress-count strong {
-  font-size: 2rem;
+  font-size: 1.3rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--blue-d);
 }
 .progress-count > span {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--ink-2);
 }
 .progress-percent {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--gold-t);
-  font-weight: 800;
+  font-weight: 700;
 }
 .progress-overview progress {
   display: block;
   appearance: none;
   border: 0;
   width: 100%;
-  height: 12px;
-  border-radius: 99px;
+  height: 4px;
+  border-radius: 4px;
   overflow: hidden;
-  background: var(--sunk);
-  color: var(--blue);
+  background: var(--rule);
+  color: var(--green-d);
 }
 .progress-overview progress::-webkit-progress-bar {
-  background: var(--sunk);
-  border-radius: 99px;
+  background: var(--rule);
 }
 .progress-overview progress::-webkit-progress-value {
-  background: linear-gradient(90deg, var(--blue), var(--blue-d));
-  border-radius: 99px;
+  background: var(--green-d);
+  border-radius: 4px;
 }
 .progress-overview progress::-moz-progress-bar {
-  background: linear-gradient(90deg, var(--blue), var(--blue-d));
-  border-radius: 99px;
+  background: var(--green-d);
+  border-radius: 4px;
 }
 /* Parent invitation panel. */
 .invite h2 {
@@ -1598,124 +1595,161 @@ textarea {
 .dashboard-intro {
   padding-bottom: 0;
 }
-.dashboard-band {
+.stage-band.dashboard-band {
   margin-bottom: 0;
 }
 .dashboard-details {
   padding-top: 28px;
 }
 
-/* Compact learning choices preserve the weekly panel as the main entry. */
+/* A compact contents spread, with state carried by ink and a small marker. */
 .lesson-picker {
-  margin-top: 24px;
+  margin-top: 26px;
 }
 .lesson-picker-heading {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .lesson-picker-heading h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 .lesson-picker-heading > span {
-  color: var(--ink-3);
-  font-size: 0.78rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 .lesson-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  min-height: 202px;
-  grid-template-rows: repeat(2, minmax(96px, auto));
-  animation: compact-enter 340ms var(--ease) both;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(72px, auto));
+  gap: 0 24px;
+  min-height: 216px;
 }
 .lesson-tile {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+  gap: 8px;
   min-width: 0;
-  min-height: 96px;
-  padding: 12px 6px;
-  border: 1px solid var(--rule);
-  border-radius: 14px;
-  background: var(--surface);
+  min-height: 72px;
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
   text-decoration: none;
   color: var(--blue-d);
   transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.2s;
+    background-color 180ms,
+    color 180ms;
 }
-.lesson-tile > span {
-  font-size: 0.7rem;
-  color: var(--ink-3);
+.tile-main {
+  display: grid;
+  gap: 2px;
 }
-.lesson-tile strong {
-  font-size: 1rem;
+.tile-main strong {
+  font-size: 1.04rem;
+  font-weight: 750;
   line-height: 1.3;
 }
-.lesson-tile small {
-  font-size: 0.68rem;
-  color: var(--ink-3);
+.tile-main > span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.tile-state {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  color: var(--green-d);
+}
+.tile-state small {
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+.tile-state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold-t);
 }
 .lesson-tile.is-current {
-  background: var(--blue-d);
-  border-color: var(--blue-d);
-  color: var(--surface);
+  border-bottom-color: var(--gold);
 }
-.lesson-tile.is-current :is(span, small) {
-  color: var(--gold-l);
+.lesson-tile.is-current .tile-state:not(:has(svg)) {
+  color: var(--gold-t);
 }
-.lesson-tile.is-done:not(.is-current) small {
+.lesson-tile.is-done .tile-main strong {
   color: var(--green-d);
 }
 .lesson-tile:active {
-  transform: scale(0.97);
+  background: var(--sunk);
 }
 .lesson-picker-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 20px;
 }
 .lesson-picker-nav button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
   min-height: 44px;
-  padding: 8px 14px;
+  padding: 0;
   border: 1px solid var(--rule);
-  border-radius: 12px;
-  background: var(--surface);
+  border-radius: 50%;
+  background: transparent;
   color: var(--blue-d);
-  font: inherit;
-  font-size: 0.8rem;
   cursor: pointer;
 }
 .lesson-picker-nav button:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: default;
 }
 .lesson-picker-nav > span {
+  min-width: 46px;
+  text-align: center;
   font-size: 0.75rem;
-  color: var(--ink-3);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .lesson-picker :is(a, button):focus-visible {
-  outline: 3px solid var(--blue-l);
+  outline: 3px solid var(--gold);
   outline-offset: 3px;
+}
+@media (hover: hover) {
+  .lesson-tile:hover {
+    background: rgba(189, 144, 54, 0.06);
+  }
+  .lesson-picker-nav button:not(:disabled):hover {
+    background: var(--surface);
+    border-color: var(--gold);
+  }
 }
 @media (min-width: 900px) {
   .lesson-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    min-height: 96px;
-    grid-template-rows: minmax(96px, auto);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(76px, auto));
+    min-height: 152px;
+    gap: 0 32px;
+  }
+}
+@media (max-width: 380px) {
+  .lesson-grid {
+    gap: 0 16px;
+  }
+  .lesson-tile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .tile-main strong {
+    font-size: 0.95rem;
   }
 }
 
@@ -1837,9 +1871,6 @@ textarea {
   .learning-setup .install-guided {
     padding: 20px;
   }
-  .lesson-tile strong {
-    font-size: 0.9rem;
-  }
 }
 
 @keyframes compact-enter {
@@ -1853,131 +1884,278 @@ textarea {
   }
 }
 
-/* The saved slide is the bookmark, with no illustration or invented status. */
+/* Personal pages use one quiet paper composition. */
 .dashboard-intro {
-  margin-block: 34px 36px;
+  margin-block: 32px 24px;
 }
 .dashboard-welcome {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 24px 48px;
-  padding-bottom: 24px;
+  justify-content: space-between;
+  gap: 20px;
 }
 .dashboard-copy {
   min-width: 0;
 }
 .dashboard-school {
-  margin: 0 0 16px;
+  margin: 0 0 7px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .dashboard-welcome h1 {
-  margin: 0 0 12px;
-  font-size: clamp(2.5rem, 5.5vw, 4.6rem);
-  letter-spacing: -0.055em;
-  line-height: 1.12;
+  margin: 0;
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  letter-spacing: -0.035em;
+  line-height: 1.2;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .dashboard-welcome h1 bdi {
-  color: var(--blue-d);
   font-weight: 800;
 }
-.dashboard-note {
+.dashboard-profile {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 0;
   color: var(--muted);
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-.welcome-rule {
-  position: absolute;
-  bottom: 0;
-  inset-inline: 0;
-  height: 1px;
-  background: var(--gold);
-  transform-origin: right;
-  opacity: 0.5;
-}
-.dashboard-place {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  min-width: 112px;
-  padding: 14px 18px 24px;
-  color: var(--blue-d);
-  background: #eee5d1;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);
+  font-size: 0.72rem;
   text-decoration: none;
-  transform-origin: 50% 0;
-  transition:
-    background-color 180ms,
-    transform 260ms var(--ease);
 }
-.dashboard-place[hidden] {
+.dashboard-profile:hover {
+  color: var(--blue-d);
+}
+.stage-band.dashboard-band {
+  width: min(1120px, calc(100% - 64px));
+  margin-inline: auto;
+  padding: 24px;
+  background: var(--surface);
+  color: var(--blue-d);
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+}
+.stage-band.dashboard-band::before,
+.stage-band.dashboard-band::after {
   display: none;
 }
-.place-caption {
+.stage-band.dashboard-band > .container {
+  width: 100%;
+}
+.stage-band.dashboard-band .lesson-top {
+  margin-bottom: 24px;
+}
+.stage-band.dashboard-band .stage-eyebrow {
+  color: var(--muted);
+  letter-spacing: 0;
+  font-size: 0.72rem;
+}
+.stage-band.dashboard-band .stage-dot {
+  display: none;
+}
+.stage-band.dashboard-band .track-switch {
+  min-width: 240px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--rule);
+}
+.stage-band.dashboard-band .track-thumb {
+  top: auto;
+  bottom: -1px;
+  inset-inline-start: 0;
+  height: 2px;
+  width: 50%;
+  border-radius: 0;
+  background: var(--gold);
+  box-shadow: none;
+}
+.stage-band.dashboard-band .track-switch button {
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 44px;
+}
+.stage-band.dashboard-band .track-switch button[aria-pressed="true"] {
+  color: var(--blue-d);
+}
+.stage-band.dashboard-band .week-label {
   color: var(--gold-t);
   font-size: 0.72rem;
-  font-weight: 700;
+  letter-spacing: 0;
 }
-.place-window {
-  display: block;
-  overflow: hidden;
-  line-height: 1;
+.stage-band.dashboard-band .lesson h2 {
+  color: var(--blue-d);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.35;
 }
-.place-window bdi {
-  display: block;
-  font-size: clamp(2.5rem, 5vw, 4.2rem);
+.stage-band.dashboard-band .lesson-date {
+  color: var(--muted);
+  opacity: 1;
+  font-size: 0.78rem;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.055em;
 }
-.place-label {
-  font-size: 0.7rem;
+.stage-band.dashboard-band .year-progress {
+  display: none;
+}
+.stage-band.dashboard-band .lesson .showcase {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+}
+.stage-band.dashboard-band .frame {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: none;
+  transform: none;
+}
+.stage-band.dashboard-band .frame-sheen {
+  display: none;
+}
+.stage-band.dashboard-band .frame-empty {
+  background: var(--sunk);
   color: var(--muted);
 }
-.place-track {
-  width: 100%;
-  height: 2px;
-  background: rgba(138, 100, 32, 0.16);
-  margin-top: 4px;
+.stage-band.dashboard-band .lesson-actions {
+  margin-top: 24px;
 }
-.place-track i {
-  display: block;
-  height: 100%;
-  background: var(--gold-t);
-  transform: scaleX(var(--place-progress, 0));
-  transform-origin: right;
+.stage-band.dashboard-band .lesson-actions .button {
+  color: var(--surface);
+  background: var(--blue-d);
+  min-height: 50px;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.95rem;
 }
-.dashboard-place:focus-visible {
-  outline-offset: -5px;
+.lesson-resume-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
-@media (hover: hover) {
-  .dashboard-place:hover {
-    background: #e7d9b8;
-    transform: translateY(-3px) rotate(-2deg);
+.dashboard-details {
+  margin-top: 24px;
+  margin-bottom: 32px;
+  padding-top: 0;
+}
+@media (max-width: 900px) {
+  .stage-band.dashboard-band {
+    width: calc(100% - 40px);
+    padding: 20px;
+  }
+  .stage-band.dashboard-band .lesson-top {
+    justify-content: center;
+    gap: 12px;
+  }
+  .stage-band.dashboard-band .stage-eyebrow {
+    display: none;
+  }
+  .stage-band.dashboard-band .track-switch {
+    width: 100%;
+  }
+  .stage-band.dashboard-band .lesson .showcase {
+    order: 0;
+  }
+  .stage-band.dashboard-band .lesson-variant {
+    gap: 20px;
   }
 }
-@media (max-width: 480px) {
-  .dashboard-welcome {
-    gap: 14px;
+@media (max-width: 600px) {
+  .stage-band.dashboard-band {
+    width: calc(100% - 32px);
   }
-  .dashboard-welcome h1 {
-    font-size: clamp(2rem, 9vw, 2.7rem);
+  .dashboard-profile span {
+    display: none;
   }
-  .dashboard-place {
-    min-width: 86px;
-    padding: 12px 10px 23px;
+  .dashboard-profile {
+    justify-content: center;
+    width: 44px;
   }
-  .dashboard-note {
-    font-size: 0.8rem;
+  .dashboard-profile svg {
+    width: 22px;
+    height: 22px;
   }
-  .dashboard-school {
-    font-size: 0.7rem;
+}
+
+/* Secondary updates follow the same contents layout on the dashboard. */
+.dashboard-details .community {
+  margin-block: 30px 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.dashboard-details .community-tabs {
+  padding: 0;
+  gap: 20px;
+  background: transparent;
+}
+.dashboard-details .community-tabs button {
+  min-height: 48px;
+  padding: 8px 0;
+  border-radius: 0;
+  font-size: 0.76rem;
+  font-weight: 650;
+  box-shadow: none;
+}
+.dashboard-details .community-tabs button[aria-selected="true"] {
+  background: transparent;
+  color: var(--blue-d);
+  border-bottom: 2px solid var(--blue-d);
+  box-shadow: none;
+}
+.dashboard-details #community-whatsapp-tab[aria-selected="true"] {
+  background: transparent;
+  color: var(--green-d);
+  border-bottom-color: var(--green-d);
+}
+.dashboard-details .community-panel {
+  padding: 18px 0 0;
+  gap: 16px;
+}
+.dashboard-details .community-copy :is(h2, .community-kicker) {
+  display: none;
+}
+.dashboard-details .community-panel p:not(.community-kicker) {
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.dashboard-details .community-confirm,
+.dashboard-details .community-help {
+  border: 0;
+  background: transparent;
+}
+.dashboard-details .community-action .button {
+  min-height: 44px;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 0.8rem;
+}
+@media (max-width: 700px) {
+  .dashboard-details .community-tabs {
+    gap: 12px;
   }
+  .dashboard-details .community-panel {
+    gap: 10px;
+  }
+  .dashboard-details .community-action .button {
+    max-width: none;
+  }
+}
+
+/* Effect owns the dashboard entrances, so whole-page fades do not stack with them. */
+.js .dashboard-intro,
+.js .dashboard-details,
+.js .dashboard-intro > *,
+.js .dashboard-details > * {
+  animation: none !important;
+}
+.js .stage-band.dashboard-band {
+  opacity: 1;
+  transform: none;
+  transition: none;
 }

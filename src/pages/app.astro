@@ -14,21 +14,28 @@ import program from "../generated/program.json";
       <div class="dashboard-copy">
         <p class="dashboard-school" data-dashboard-school hidden></p>
         <h1 data-dashboard-greeting>הלימוד שלי</h1>
-        <p class="dashboard-note" data-dashboard-note>
-          הדף השבועי שלכם מחכה כאן.
-        </p>
       </div>
-      <a class="dashboard-place" data-dashboard-place href="/calendar" hidden>
-        <span class="place-caption">עצרתם כאן</span>
-        <span class="place-window" aria-hidden="true">
-          <bdi data-place-number>1</bdi>
-        </span>
-        <span class="place-label" data-place-label></span>
-        <span class="place-track" aria-hidden="true">
-          <i data-place-fill></i>
-        </span>
+      <a
+        class="dashboard-profile"
+        href="/join?edit=1"
+        aria-label="פרטי ההרשמה שלי"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M15.5 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM5 20v-2a7 7 0 0 1 14 0v2"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>הפרטים שלי</span>
       </a>
-      <span class="welcome-rule" aria-hidden="true"></span>
     </header>
   </div>
   <div class="stage-band dashboard-band" data-reveal>

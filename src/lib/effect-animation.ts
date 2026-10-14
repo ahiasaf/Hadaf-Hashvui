@@ -156,92 +156,45 @@ function weekly(element: HTMLElement, signal: AbortSignal) {
     { signal },
   );
 }
-function welcome(element: HTMLElement, signal: AbortSignal) {
-  const copy = element.querySelector<HTMLElement>(".dashboard-copy");
-  const marker = element.querySelector<HTMLElement>(
-    ".dashboard-place:not([hidden])",
-  );
-  const number = marker?.querySelector<HTMLElement>("[data-place-number]");
-  const rule = element.querySelector<HTMLElement>(".welcome-rule");
-  const fill = marker?.querySelector<HTMLElement>("[data-place-fill]");
-  const timing = {
-    duration: 700,
-    easing: "cubic-bezier(.16,1,.3,1)",
-    fill: "both" as const,
-  };
+// A single reading rhythm: short horizontal reveals, with no nested card flips.
+function readingLayout(element: HTMLElement, signal: AbortSignal) {
+  const grid = element.classList.contains("lesson-grid");
+  const direction = grid ? Number(element.dataset.direction || 1) : 1;
+  const nodes = Array.from(
+    element.querySelectorAll<HTMLElement>(
+      grid
+        ? ":scope > .lesson-tile"
+        : ".dashboard-copy > *, .dashboard-profile, .lesson-text > *, .showcase, .community-copy > *, :scope > .button, :scope > .reminders > *, .progress-summary > *, :scope > progress",
+    ),
+  )
+    .filter(inView)
+    .slice(0, 8);
   return Effect.runPromise(
     Effect.all(
       [
-        copy && inView(copy)
-          ? play(
-              copy,
+        Effect.forEach(
+          nodes,
+          (node, index) =>
+            play(
+              node,
               [
                 {
-                  opacity: 0.2,
-                  transform: "translateX(-18px)",
-                  clipPath: "inset(0 0 0 100%)",
+                  opacity: 0,
+                  transform: `translateX(${direction * -14}px)`,
+                  clipPath: "inset(0 0 0 8%)",
                 },
                 { opacity: 1, transform: "none", clipPath: "inset(0)" },
               ],
-              timing,
-            )
-          : Effect.void,
-        marker && inView(marker)
-          ? play(
-              marker,
-              [
-                {
-                  transform: "perspective(700px) rotateX(-60deg) rotate(-5deg)",
-                  clipPath: "polygon(0 0, 100% 0, 100% 0, 50% 0, 0 0)",
-                  opacity: 0.3,
-                },
-                {
-                  transform: "perspective(700px) rotateX(6deg) rotate(1deg)",
-                  clipPath:
-                    "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%)",
-                  opacity: 1,
-                  offset: 0.72,
-                },
-                {
-                  transform: "none",
-                  clipPath:
-                    "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%)",
-                  opacity: 1,
-                },
-              ],
-              { ...timing, duration: 850 },
-            )
-          : Effect.void,
-        number && inView(number)
-          ? play(
-              number,
-              [
-                { transform: "translateY(105%)" },
-                { transform: "translateY(-5%)", offset: 0.8 },
-                { transform: "none" },
-              ],
-              { ...timing, delay: 140, duration: 620 },
-            )
-          : Effect.void,
-        rule && inView(rule)
-          ? play(
-              rule,
-              [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
-              { ...timing, delay: 140, duration: 800 },
-            )
-          : Effect.void,
-        fill && inView(fill)
-          ? play(
-              fill,
-              [
-                { transform: "scaleX(0)" },
-                {
-                  transform: `scaleX(${getComputedStyle(marker!).getPropertyValue("--place-progress").trim() || 0})`,
-                },
-              ],
-              { ...timing, delay: 250 },
-            )
-          : Effect.void,
+              {
+                duration: 380,
+                delay: index * 38,
+                easing: "cubic-bezier(.2,.8,.2,1)",
+                fill: "both",
+              },
+            ),
+          { concurrency: "unbounded" },
+        ),
+        ink(element),
       ],
       { concurrency: "unbounded" },
     ),
@@ -249,8 +202,12 @@ function welcome(element: HTMLElement, signal: AbortSignal) {
   );
 }
 export function enter(element: HTMLElement, signal: AbortSignal) {
-  if (element.classList.contains("dashboard-welcome"))
-    return welcome(element, signal);
+  if (
+    element.classList.contains("dashboard-welcome") ||
+    element.classList.contains("lesson-grid") ||
+    element.closest?.(".dashboard-band, .dashboard-details")
+  )
+    return readingLayout(element, signal);
   if (element.classList.contains("lesson-variant"))
     return weekly(element, signal);
   const back = element.classList.contains("is-back");
@@ -261,7 +218,7 @@ export function enter(element: HTMLElement, signal: AbortSignal) {
     back || element.parentElement?.id === "community-reminders" ? 1 : -1;
   const children = Array.from(
     element.querySelectorAll<HTMLElement>(
-      ":scope > .dashboard-copy > *, :scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *, :scope > .lesson-tile, :scope > .install-title, :scope > .install-launch-icon, :scope > .install-reopen > .install-text, :scope > .install-reopen > .install-handoff > li",
+      ":scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *, :scope > .lesson-tile, :scope > .install-title, :scope > .install-launch-icon, :scope > .install-reopen > .install-text, :scope > .install-reopen > .install-handoff > li",
     ),
   )
     .filter(inView)
@@ -291,9 +248,7 @@ export function enter(element: HTMLElement, signal: AbortSignal) {
               [
                 {
                   opacity: 0,
-                  transform: child.matches(".lesson-tile")
-                    ? "perspective(600px) rotateX(10deg) translateY(18px) scale(.96)"
-                    : "translateY(12px)",
+                  transform: "translateY(12px)",
                   clipPath: "inset(0 0 12% 0)",
                 },
                 { opacity: 1, transform: "none", clipPath: "inset(0 0 0 0)" },

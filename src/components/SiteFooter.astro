@@ -5,10 +5,10 @@ const path =
 const { registration = false } = Astro.props;
 ---
 
-<footer class="site-footer">
+<footer class:list={["site-footer", { "compact-footer": path === "/app" }]}>
   <div class="footer-inner">
     <div class="footer-identity">
-      <strong>הדף השבועי</strong>
+      {path !== "/app" && <strong>הדף השבועי</strong>}
       <span>רשת ישיבות בני עקיבא · {program.year}</span>
     </div>
     <div class="footer-links">
@@ -82,6 +82,22 @@ const { registration = false } = Astro.props;
   .site-footer nav a:hover {
     color: var(--blue-d);
     text-decoration: underline;
+  }
+  .compact-footer {
+    margin-top: 16px;
+    background: transparent;
+    font-size: 0.72rem;
+  }
+  .compact-footer .footer-inner {
+    padding-block: 18px;
+    gap: 8px;
+  }
+  .compact-footer .footer-links {
+    border: 0;
+    padding: 0;
+  }
+  .compact-footer nav a {
+    font-weight: 500;
   }
   @media (max-width: 700px) {
     .footer-inner {

@@ -220,6 +220,10 @@ export function initializeEffectMotion() {
   });
   document.addEventListener("df-motion-enter", (event) => {
     if (event.target instanceof HTMLElement) {
+      if (!visible(event.target)) {
+        weeklyObserver.observe(event.target);
+        return;
+      }
       if (runtime)
         run(event.target, (engine, signal) =>
           engine.enter(event.target as HTMLElement, signal),
@@ -240,6 +244,24 @@ export function initializeEffectMotion() {
       const element = record.target;
       if (
         element instanceof HTMLElement &&
+        element.matches(".community-panel") &&
+        record.attributeName === "hidden"
+      ) {
+        for (const child of Array.from(element.children)) {
+          if (!(child instanceof HTMLElement)) continue;
+          if (element.hidden) active.get(child)?.abort();
+          else if (runtime)
+            run(child, (engine, signal) => engine.enter(child, signal));
+          else if (visible(child))
+            void warm()
+              .then(() =>
+                run(child, (engine, signal) => engine.enter(child, signal)),
+              )
+              .catch(() => undefined);
+        }
+      }
+      if (
+        element instanceof HTMLElement &&
         element.getAttribute("aria-hidden") === "true"
       )
         active.get(element)?.abort();
@@ -253,7 +275,7 @@ export function initializeEffectMotion() {
   }).observe(document.body, {
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "aria-busy", "aria-hidden"],
+    attributeFilter: ["class", "aria-busy", "aria-hidden", "hidden"],
     attributeOldValue: true,
   });
   const stop = () => {
