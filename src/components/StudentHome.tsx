@@ -14,15 +14,18 @@ type ReadingSpot = {
 export default function StudentHome({
   tracks,
   startDate,
+  initialWeek,
 }: {
   tracks: Track[];
   startDate: string;
+  initialWeek: number;
 }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [completed, setCompleted] = useState<Record<string, string>>({});
   const [trackId, setTrackId] = useState(tracks[0].id);
   const [syncFailed, setSyncFailed] = useState(false);
   const [lessonPage, setLessonPage] = useState(0);
+  const [week, setWeek] = useState(initialWeek);
   const [direction, setDirection] = useState(1);
   const grid = useRef<HTMLDivElement>(null);
   const progress = useRef<HTMLDivElement>(null);
@@ -30,6 +33,7 @@ export default function StudentHome({
     if (grid.current) requestEffectEntrance(grid.current);
   }, [lessonPage, trackId]);
   useEffect(() => {
+    setWeek(weekIndex(startDate));
     const savedSpot = stored<ReadingSpot | null>("spot", null);
     const selected = stored("track", savedSpot?.mas || tracks[0].id);
     if (tracks.some((track) => track.id === selected)) setTrackId(selected);
@@ -68,9 +72,9 @@ export default function StudentHome({
     return () => {
       active = false;
     };
-  }, [tracks]);
+  }, [tracks, startDate]);
   const track = tracks.find((item) => item.id === trackId)!;
-  const current = Math.min(weekIndex(startDate), track.cal.length - 1);
+  const current = Math.min(week, track.cal.length - 1);
   const units = useMemo(
     () =>
       track.cal
@@ -98,6 +102,7 @@ export default function StudentHome({
   }, [count, trackId]);
   useEffect(() => {
     const refresh = () => {
+      setWeek(weekIndex(startDate));
       const selected = stored("track", tracks[0].id);
       if (tracks.some((track) => track.id === selected)) setTrackId(selected);
       setPerson(stored<Person | null>("me", null));
@@ -120,7 +125,7 @@ export default function StudentHome({
       removeEventListener("pageshow", refresh);
       removeEventListener("storage", sync);
     };
-  }, [tracks]);
+  }, [tracks, startDate]);
   return (
     <section className="workspace dashboard-details">
       <div className="progress-overview" ref={progress}>

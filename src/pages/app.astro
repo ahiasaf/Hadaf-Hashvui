@@ -6,6 +6,7 @@ import WeeklyLesson from "../components/WeeklyLesson.astro";
 import { weekIndex } from "../lib/calendar";
 import { titles, covers, lessonUi } from "../lib/weekly-config";
 import program from "../generated/program.json";
+const initialWeek = weekIndex(program.startDate);
 ---
 
 <Site manifest="/join-manifest.json">
@@ -42,7 +43,7 @@ import program from "../generated/program.json";
     <div class="container">
       <WeeklyLesson
         tracks={program.tracks}
-        initialWeek={weekIndex(program.startDate)}
+        initialWeek={initialWeek}
         startDate={program.startDate}
         titles={titles}
         covers={covers}
@@ -54,6 +55,7 @@ import program from "../generated/program.json";
   <StudentHome
     tracks={program.tracks}
     startDate={program.startDate}
+    initialWeek={initialWeek}
     client:load
   />
   <noscript>

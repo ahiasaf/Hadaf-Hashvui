@@ -1572,6 +1572,41 @@ try {
     );
   }
 
+  const calendarContext = await browser.newContext({
+    viewport: { width: 390, height: 900 },
+    reducedMotion: "reduce",
+  });
+  await prepare(calendarContext);
+  const calendarPage = await calendarContext.newPage();
+  const browserWeek = weekIndex(program.startDate) === 0 ? 1 : 0;
+  const browserDate = new Date(
+    new Date(program.startDate + "T12:00:00+03:00").getTime() +
+      browserWeek * 7 * 86400000,
+  );
+  await calendarPage.clock.setFixedTime(browserDate);
+  await calendarPage.goto(base + "/app");
+  await calendarPage.waitForFunction(
+    (week) =>
+      document
+        .querySelector('.lesson-tile[aria-current="true"]')
+        ?.getAttribute("aria-label")
+        .startsWith("שבוע " + (week + 1) + ","),
+    browserWeek,
+  );
+  await calendarPage.reload();
+  await calendarPage.waitForFunction(
+    (week) =>
+      document
+        .querySelector('.lesson-tile[aria-current="true"]')
+        ?.getAttribute("aria-label")
+        .startsWith("שבוע " + (week + 1) + ","),
+    browserWeek,
+  );
+  await calendarContext.close();
+  console.log(
+    "A browser week different from the static build hydrates cleanly and selects the actual current week after startup.",
+  );
+
   for (const width of [390, 1440]) {
     const characterContext = await browser.newContext({
       viewport: { width, height: 900 },
