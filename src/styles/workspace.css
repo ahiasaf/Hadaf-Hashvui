@@ -2159,3 +2159,7 @@ textarea {
   transform: none;
   transition: none;
 }
+
+.signed-in .dashboard-guest {
+  display: none;
+}

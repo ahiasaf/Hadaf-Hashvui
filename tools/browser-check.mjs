@@ -61,7 +61,9 @@ try {
         );
     });
     context.on("page", (page) =>
-      page.on("pageerror", (error) => errors.push(error.message)),
+      page.on("pageerror", (error) =>
+        errors.push(page.url() + ": " + error.message),
+      ),
     );
     await context.route("https://**", (route) => route.abort());
     await context.route("**/api/sheets?**", (route) => {

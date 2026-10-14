@@ -140,7 +140,7 @@ export default function StudentHome({
         <progress max={total} value={count} aria-label="התקדמות במסכת" />
       </div>
       {!person && (
-        <p className="notice" data-guest-only>
+        <p className="notice dashboard-guest">
           ההתקדמות נשמרת במכשיר. <a href="/join">הצטרפות לתוכנית</a> מאפשרת
           לעדכן גם את הישיבה.
         </p>
