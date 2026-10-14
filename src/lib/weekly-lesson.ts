@@ -170,8 +170,14 @@ export function initializeWeeklyLesson() {
     const open = section!.querySelector<HTMLAnchorElement>("[data-open]")!;
     open.href = active ? lessonHref(track, row) : "/calendar";
     const label = section!.querySelector<HTMLElement>("[data-stage-label]");
-    if (label)
-      label.textContent = resume ? "ממשיכים מהמקום שעצרתם" : ui.siteLesson;
+    if (label) label.textContent = personal ? "הלימוד שלכם" : ui.siteLesson;
+    if (personal) {
+      const note = document.querySelector<HTMLElement>("[data-dashboard-note]");
+      if (note)
+        note.textContent = resume
+          ? "ממשיכים מהשקף שבו עצרתם."
+          : "הדף השבועי שלכם מחכה כאן.";
+    }
     open.textContent = active
       ? resume
         ? "להמשך הלימוד"
@@ -210,8 +216,13 @@ export function initializeWeeklyLesson() {
       const school = document.querySelector<HTMLElement>(
         "[data-dashboard-school]",
       );
-      if (greeting)
-        greeting.textContent = me?.first ? "שלום, " + me.first : "הלימוד שלי";
+      if (greeting) {
+        if (me?.first) {
+          const name = document.createElement("bdi");
+          name.textContent = me.first;
+          greeting.replaceChildren(document.createTextNode("שלום, "), name);
+        } else greeting.textContent = "הלימוד שלי";
+      }
       if (school) {
         school.textContent = me?.instName || "";
         school.hidden = !me?.instName;

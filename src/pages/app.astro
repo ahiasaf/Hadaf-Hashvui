@@ -10,11 +10,31 @@ import program from "../generated/program.json";
 
 <Site manifest="/join-manifest.json">
   <div class="workspace dashboard-intro">
-    <div class="page-intro">
-      <p class="eyebrow" data-dashboard-school hidden></p>
-      <h1 data-dashboard-greeting>הלימוד שלי</h1>
-      <p>דף אחד בכל שבוע. ממשיכים מהמקום שבו עצרתם.</p>
-    </div>
+    <header class="dashboard-welcome">
+      <div class="dashboard-copy">
+        <p class="dashboard-school" data-dashboard-school hidden></p>
+        <h1 data-dashboard-greeting>הלימוד שלי</h1>
+        <p class="dashboard-note" data-dashboard-note>
+          הדף השבועי שלכם מחכה כאן.
+        </p>
+      </div>
+      <svg
+        class="dashboard-book"
+        viewBox="0 0 112 96"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          class="book-leaf"
+          d="M56 29C44 19 26 17 10 22v56c16-5 34-3 46 7 12-10 30-12 46-7V22c-16-5-34-3-46 7Z"
+        />
+        <path
+          class="book-spine"
+          d="M56 29v56M21 38c8-1 16 0 24 4M21 50c8-1 16 0 24 4M21 62c8-1 16 0 24 4"
+        />
+        <path class="book-mark" d="M74 9h13v39l-6.5-6-6.5 6V9Z" />
+      </svg>
+    </header>
   </div>
   <div class="stage-band dashboard-band" data-reveal>
     <div class="container">

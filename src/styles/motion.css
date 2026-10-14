@@ -69,3 +69,7 @@
 .community-panel > div[data-effect-driven] {
   animation: none !important;
 }
+
+.dashboard-welcome[data-effect-driven] {
+  animation: none !important;
+}

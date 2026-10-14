@@ -1218,6 +1218,14 @@ try {
     .waitFor({ state: "hidden" });
   await updatesPage.reload();
   await updatesPage.getByRole("heading", { name: "שלום, בדיקה" }).waitFor();
+  assert.equal(
+    await updatesPage.locator("[data-dashboard-greeting] bdi").textContent(),
+    "בדיקה",
+  );
+  assert.equal(
+    await updatesPage.locator("[data-stage-label]").textContent(),
+    "הלימוד שלכם",
+  );
   assert.equal(await updatesPage.locator("[data-community-tabs]").count(), 0);
   await updatesPage.goto(base);
   await updatesPage
