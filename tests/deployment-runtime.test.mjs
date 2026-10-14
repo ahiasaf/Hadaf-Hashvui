@@ -6,6 +6,31 @@ import os from "node:os";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
+test("API types narrow correctly in the provider's non-strict compiler mode", () => {
+  const config = ts.readConfigFile("tsconfig.json", ts.sys.readFile).config;
+  const { options } = ts.parseJsonConfigFileContent(config, ts.sys, ".");
+  const program = ts.createProgram(
+    ["api/action.ts", "api/sheets.ts", "api/wait.ts"],
+    {
+      ...options,
+      strict: false,
+      strictNullChecks: false,
+      checkJs: false,
+      noEmit: true,
+    },
+  );
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  assert.equal(
+    diagnostics.length,
+    0,
+    ts.formatDiagnostics(diagnostics, {
+      getCanonicalFileName: (file) => file,
+      getCurrentDirectory: ts.sys.getCurrentDirectory,
+      getNewLine: () => "\n",
+    }),
+  );
+});
+
 test("emitted API modules load without TypeScript source files", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "hadaf-runtime-"));
   const config = ts.readConfigFile("tsconfig.json", ts.sys.readFile).config;

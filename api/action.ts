@@ -46,7 +46,7 @@ export default async function handler(
       );
     return result;
   });
-  if (outcome.ok) {
+  if (outcome.ok === true) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(outcome.value));
   } else {

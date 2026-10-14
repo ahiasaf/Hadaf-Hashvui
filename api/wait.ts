@@ -21,7 +21,7 @@ export default async function handler(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body,
     ),
   );
-  if (outcome.ok) {
+  if (outcome.ok === true) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(outcome.value));
   } else {

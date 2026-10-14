@@ -57,7 +57,7 @@ export default async function handler(
   });
   res.off("close", disconnect);
   if (res.destroyed) return;
-  if (outcome.ok) {
+  if (outcome.ok === true) {
     res.writeHead(200, {
       "Content-Type": "text/csv;charset=utf-8",
       "Cache-Control": url.searchParams.has("fresh")
