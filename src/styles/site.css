@@ -647,6 +647,13 @@ html:not(.js) .phases::after {
     transform 0.3s var(--ease),
     visibility 0s linear 0.3s;
 }
+.lesson .lesson-text {
+  text-align: center;
+  min-width: 0;
+}
+.lesson .dots {
+  justify-content: center;
+}
 .week-label {
   font-size: 0.86rem;
   font-weight: 800;
@@ -716,16 +723,38 @@ html:not(.js) .dots i.is-done {
   transform: rotateX(6deg) rotateY(-5deg);
   transform-origin: 50% 20%;
   transition: transform 0.6s var(--ease);
-  animation: drift 7s ease-in-out infinite;
+  isolation: isolate;
 }
 .lesson:hover .frame,
 .frame:focus-within {
   transform: none;
 }
-@keyframes drift {
-  50% {
-    translate: 0 -8px;
-  }
+.frame-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.28) 48%,
+    transparent 70%
+  );
+}
+.lesson .showcase {
+  padding: 8px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lesson .frame img {
+  display: block;
+}
+.lesson .lesson-actions {
+  justify-self: center;
+  margin-inline: auto;
+  width: 100%;
 }
 .frame img {
   width: 100%;

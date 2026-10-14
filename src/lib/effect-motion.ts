@@ -8,6 +8,7 @@ const visible = (element: HTMLElement) => {
     element.isConnected &&
     !document.hidden &&
     !reduced() &&
+    !element.closest('[aria-hidden="true"], [hidden]') &&
     bounds.width > 0 &&
     bounds.height > 0 &&
     bounds.bottom > 0 &&
@@ -164,6 +165,25 @@ export function initializeEffectMotion() {
         .then(syncLoader)
         .catch(() => undefined);
   }
+  const weeklyObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const element = entry.target as HTMLElement;
+        if (!entry.isIntersecting || !visible(element)) continue;
+        weeklyObserver.unobserve(element);
+        void warm()
+          .then(() => {
+            if (element.getAttribute("aria-hidden") === "false")
+              run(element, (engine, signal) => engine.enter(element, signal));
+          })
+          .catch(() => undefined);
+      }
+    },
+    { threshold: 0.15 },
+  );
+  document
+    .querySelectorAll<HTMLElement>('.lesson-variant[aria-hidden="false"]')
+    .forEach((element) => weeklyObserver.observe(element));
   document.addEventListener(
     "animationstart",
     (event) => {
@@ -202,13 +222,25 @@ export function initializeEffectMotion() {
         run(event.target, (engine, signal) =>
           engine.enter(event.target as HTMLElement, signal),
         );
-      else if (visible(event.target)) void warm().catch(() => undefined);
+      else if (visible(event.target)) {
+        const element = event.target;
+        void warm()
+          .then(() =>
+            run(element, (engine, signal) => engine.enter(element, signal)),
+          )
+          .catch(() => undefined);
+      }
     }
   });
   new MutationObserver((records) => {
     for (const record of records) {
       if (record.target === veil) syncLoader();
       const element = record.target;
+      if (
+        element instanceof HTMLElement &&
+        element.getAttribute("aria-hidden") === "true"
+      )
+        active.get(element)?.abort();
       if (
         element instanceof HTMLElement &&
         element.matches(".rstep.on[data-effect-driven]") &&
@@ -219,7 +251,7 @@ export function initializeEffectMotion() {
   }).observe(document.body, {
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "aria-busy"],
+    attributeFilter: ["class", "aria-busy", "aria-hidden"],
     attributeOldValue: true,
   });
   const stop = () => {

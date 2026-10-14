@@ -245,35 +245,37 @@ try {
   await activeFrame.evaluate((node) =>
     node.scrollIntoView({ block: "center", behavior: "instant" }),
   );
-  await viewportMotionPage.waitForFunction(
-    () =>
-      !document
-        .querySelector('.lesson-variant[aria-hidden="false"] .frame')
-        ?.hasAttribute("data-motion-paused"),
-  );
-  assert.equal(
-    await viewportMotionPage
-      .locator('.lesson-variant[aria-hidden="true"] .frame')
-      .getAttribute("data-motion-paused"),
-    "",
+  await viewportMotionPage.waitForFunction(() =>
+    document
+      .querySelector('.lesson-variant[aria-hidden="false"]')
+      ?.hasAttribute("data-effect-driven"),
   );
   await viewportMotionPage.locator('[data-track="megila"]').click();
-  await viewportMotionPage
-    .locator('.lesson-variant[aria-hidden="false"] .frame')
-    .evaluate((node) =>
-      node.scrollIntoView({ block: "center", behavior: "instant" }),
-    );
-  await viewportMotionPage.waitForFunction(
-    () =>
-      !document
-        .querySelector('.lesson-variant[aria-hidden="false"] .frame')
-        ?.hasAttribute("data-motion-paused"),
+  await viewportMotionPage.waitForFunction(() =>
+    document
+      .querySelector('[data-variant="megila"] .showcase')
+      ?.getAnimations()
+      .some(
+        (animation) =>
+          animation instanceof window.Animation &&
+          !(animation instanceof window.CSSAnimation) &&
+          !(animation instanceof window.CSSTransition),
+      ),
+  );
+  await viewportMotionPage.locator('[data-track="taanit"]').click();
+  await viewportMotionPage.waitForFunction(() =>
+    document
+      .querySelector('[data-variant="megila"]')
+      ?.getAnimations({ subtree: true })
+      .every((animation) => animation instanceof window.CSSTransition),
   );
   assert.equal(
-    await viewportMotionPage
-      .locator('.lesson-variant[aria-hidden="true"] .frame')
-      .getAttribute("data-motion-paused"),
-    "",
+    await activeFrame.evaluate((node) =>
+      node
+        .getAnimations()
+        .some((animation) => animation instanceof window.CSSAnimation),
+    ),
+    false,
   );
   const counter = viewportMotionPage.locator("[data-count-to]").first();
   await counter.evaluate((node) =>
@@ -1288,6 +1290,19 @@ try {
         .getByText("פרטי הלימוד שלכם נשמרו במכשיר הזה.", { exact: true })
         .count(),
       0,
+    );
+    const centered = await compact
+      .locator('.lesson-variant[aria-hidden="false"] .lesson-text')
+      .evaluate((node) => {
+        const dots = node.querySelector(".dots");
+        return (
+          window.getComputedStyle(node).textAlign === "center" &&
+          window.getComputedStyle(dots).justifyContent === "center"
+        );
+      });
+    assert.ok(
+      centered,
+      `Weekly lesson text and progress are centered at ${width}px`,
     );
     assert.equal(await compact.locator(".lesson-list").count(), 0);
     assert.ok((await compact.locator(".lesson-tile").count()) <= 6);

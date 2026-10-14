@@ -1,3 +1,4 @@
+import { requestEffectEntrance } from "./effect-motion";
 import { sheet, stored, store, type Person } from "./client";
 import { deckCovers } from "./deck-covers";
 import {
@@ -150,6 +151,9 @@ export function initializeWeeklyLesson() {
   function show(id: string) {
     const track = tracks.find((track) => track.id === id);
     if (!track) return;
+    const previous = section!.querySelector<HTMLElement>(
+      '[data-variant][aria-hidden="false"]',
+    );
     const { row, active, resume } = current(track);
     section!
       .querySelectorAll<HTMLElement>("[data-variant]")
@@ -159,6 +163,10 @@ export function initializeWeeklyLesson() {
           String(variant.dataset.variant !== id),
         ),
       );
+    const selected = section!.querySelector<HTMLElement>(
+      `[data-variant="${id}"]`,
+    )!;
+    if (selected !== previous) requestEffectEntrance(selected);
     const open = section!.querySelector<HTMLAnchorElement>("[data-open]")!;
     open.href = active ? lessonHref(track, row) : "/calendar";
     const label = section!.querySelector<HTMLElement>("[data-stage-label]");

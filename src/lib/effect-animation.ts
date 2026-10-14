@@ -72,7 +72,93 @@ function ink(element: Element) {
     { concurrency: "unbounded" },
   );
 }
+function weekly(element: HTMLElement, signal: AbortSignal) {
+  const text = Array.from(
+    element.querySelectorAll<HTMLElement>(".lesson-text > *"),
+  ).filter(inView);
+  const showcase = element.querySelector<HTMLElement>(".showcase");
+  const sheen = element.querySelector<HTMLElement>(".frame-sheen");
+  const dots = Array.from(
+    element.querySelectorAll<HTMLElement>(".dots .is-done"),
+  ).filter(inView);
+  const timing = {
+    duration: 620,
+    easing: "cubic-bezier(.16,1,.3,1)",
+    fill: "both" as const,
+  };
+  return Effect.runPromise(
+    Effect.all(
+      [
+        Effect.forEach(
+          text,
+          (child, index) =>
+            play(
+              child,
+              [
+                {
+                  opacity: 0,
+                  transform: "translateY(16px)",
+                  clipPath: "inset(0 0 100% 0)",
+                },
+                { opacity: 1, transform: "none", clipPath: "inset(0)" },
+              ],
+              { ...timing, delay: index * 65 },
+            ),
+          { concurrency: "unbounded" },
+        ),
+        showcase && inView(showcase)
+          ? play(
+              showcase,
+              [
+                {
+                  opacity: 0,
+                  transform:
+                    "perspective(1000px) rotateY(-9deg) translateY(18px) scale(.96)",
+                },
+                {
+                  opacity: 1,
+                  transform: "perspective(1000px) rotateY(2deg) scale(1.01)",
+                  offset: 0.72,
+                },
+                { opacity: 1, transform: "none" },
+              ],
+              timing,
+            )
+          : Effect.void,
+        sheen && inView(sheen)
+          ? play(
+              sheen,
+              [
+                { opacity: 0, transform: "translateX(80%)" },
+                { opacity: 0.8, transform: "translateX(0)", offset: 0.45 },
+                { opacity: 0, transform: "translateX(-80%)" },
+              ],
+              { ...timing, duration: 800, delay: 120 },
+            )
+          : Effect.void,
+        Effect.forEach(
+          dots,
+          (dot, index) =>
+            play(
+              dot,
+              [
+                { transform: "scale(.55)", opacity: 0.3 },
+                { transform: "scale(1.2)", opacity: 1, offset: 0.65 },
+                { transform: "scale(1)", opacity: 1 },
+              ],
+              { ...timing, duration: 380, delay: 180 + index * 18 },
+            ),
+          { concurrency: "unbounded" },
+        ),
+      ],
+      { concurrency: "unbounded" },
+    ),
+    { signal },
+  );
+}
 export function enter(element: HTMLElement, signal: AbortSignal) {
+  if (element.classList.contains("lesson-variant"))
+    return weekly(element, signal);
   const back = element.classList.contains("is-back");
   const community =
     element.parentElement?.classList.contains("community-panel");
@@ -111,7 +197,9 @@ export function enter(element: HTMLElement, signal: AbortSignal) {
               [
                 {
                   opacity: 0,
-                  transform: "translateY(12px)",
+                  transform: child.matches(".lesson-tile")
+                    ? "perspective(600px) rotateX(10deg) translateY(18px) scale(.96)"
+                    : "translateY(12px)",
                   clipPath: "inset(0 0 12% 0)",
                 },
                 { opacity: 1, transform: "none", clipPath: "inset(0 0 0 0)" },
