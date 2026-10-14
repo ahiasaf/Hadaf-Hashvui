@@ -28,11 +28,11 @@ function currentStep() {
   return nextStep(
     readDevice(
       navigator as Navigator & { standalone?: boolean },
-      matchMedia("(display-mode: standalone)").matches ||
-        stored("installed", false),
+      matchMedia("(display-mode: standalone)").matches,
       !!window.__installPrompt,
       permission,
       remindersOn,
+      stored("installed", false),
     ),
   );
 }
@@ -97,6 +97,8 @@ export default function Install({
     addEventListener("df-install-ready", refresh);
     const installed = () => {
       store("installed", true);
+      setAwaiting(false);
+      setMessage("");
       refresh();
     };
     const mode = matchMedia("(display-mode: standalone)");
@@ -119,9 +121,9 @@ export default function Install({
     try {
       await prompt.prompt();
       const choice = await prompt.userChoice;
-      if (choice.outcome === "accepted") {
+      if (choice.outcome === "accepted" && !stored("installed", false)) {
         setAwaiting(true);
-        setMessage("מסיימים את ההתקנה. הדף ייפתח כשהדפדפן יאשר.");
+        setMessage("מסיימים את ההתקנה. לאחר מכן פותחים מהסמל במסך הבית.");
       }
     } catch {
       setMessage("ההתקנה לא הסתיימה. אפשר להתקין גם מתפריט הדפדפן.");
@@ -141,8 +143,31 @@ export default function Install({
         step === "install-ios" ||
         step === "install-browser"
           ? "האפליקציה על מסך הבית"
-          : "פותחים בדפדפן"}
+          : step === "open-app"
+            ? "ממשיכים מהאפליקציה"
+            : "פותחים בדפדפן"}
       </p>
+      {step === "open-app" && (
+        <div className="install-reopen" role="status">
+          <PlusIcon />
+          <h2>הדף מחכה לכם במסך הבית</h2>
+          <p className="install-text">
+            כרגע אתם עדיין בדפדפן. סגרו את הכרטיסייה הזו, חזרו למסך הבית ופתחו
+            את הדף השבועי מהסמל החדש.
+          </p>
+          <p className="install-text">הלימוד שבחרתם ייפתח באפליקציה.</p>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              store("installed", false);
+              setStep(currentStep());
+            }}
+          >
+            לא מוצאים את הסמל? חזרה להוראות ההתקנה
+          </button>
+        </div>
+      )}
       {step === "install-prompt" && (
         <>
           <p className="install-text">לחיצה אחת, והדף תמיד במרחק הקשה.</p>
@@ -161,26 +186,6 @@ export default function Install({
           בתפריט הדפדפן בוחרים <b>התקנת האפליקציה</b> או <b>הוספה למסך הבית</b>,
           ואז פותחים את הדף מהסמל החדש.
         </p>
-      )}
-      {step === "browser-only" && (
-        <>
-          <p className="install-text">
-            התקנה אוטומטית אינה זמינה כאן. אפשר לפתוח בכרום או באדג׳, או להמשיך
-            כאן.
-          </p>
-          {guided && (
-            <button
-              className="button button-blue"
-              type="button"
-              onClick={() => {
-                store("browserSetup", true);
-                onComplete?.();
-              }}
-            >
-              המשך בדפדפן הזה
-            </button>
-          )}
-        </>
       )}
       {message && (
         <p className="install-text" role="status">
@@ -217,10 +222,22 @@ export default function Install({
           </li>
         </ol>
       )}
+      {(step === "install-ios" || step === "install-browser") && !awaiting && (
+        <button
+          className="button button-blue"
+          type="button"
+          onClick={() => {
+            store("installed", true);
+            setStep(currentStep());
+          }}
+        >
+          הוספתי למסך הבית
+        </button>
+      )}
       {step === "open-browser" && (
         <p className="install-text">
-          הקישור נפתח בתוך אפליקציה אחרת. לחצו על התפריט ובחרו "פתיחה בדפדפן",
-          ומשם ההתקנה קצרה.
+          לצורך ההתקנה פותחים את הקישור ב־Chrome או ב־Safari. מתוך אפליקציה
+          אחרת, בוחרים בתפריט "פתיחה בדפדפן".
         </p>
       )}
     </div>

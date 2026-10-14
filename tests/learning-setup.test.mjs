@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import vm from "node:vm";
 import test from "node:test";
 const source = await fs.readFile("src/shared/learning-setup.js", "utf8");
-function visit(path, values = {}, standalone = false) {
+function visit(path, values = {}, standalone = false, mobile = true) {
   const url = new URL(path, "https://hadaf.invalid"),
     storage = new Map(
       Object.entries(values).map(([key, value]) => [
@@ -14,7 +14,10 @@ function visit(path, values = {}, standalone = false) {
   let target;
   vm.runInNewContext(source, {
     URLSearchParams,
-    navigator: { standalone },
+    navigator: {
+      standalone,
+      userAgent: mobile ? "Android Chrome Mobile" : "Linux Chrome",
+    },
     matchMedia: () => ({ matches: standalone }),
     location: {
       pathname: url.pathname,
@@ -43,20 +46,24 @@ test("first learning visit starts signup and retains the exact requested unit", 
     "/learn?mas=taanit&daf=%D7%91&amud=2",
   );
 });
-test("registered users still complete installation; installed users continue directly", () => {
+test("phone browsers require app mode even with saved installation flags", () => {
   const me = { id: "STUDENT" };
   assert.ok(
     visit("/lesson-tools?mas=taanit", { me }).target.startsWith("/start?next="),
   );
-  assert.equal(
-    visit("/lesson-tools?mas=taanit", { me, installed: true }).target,
-    undefined,
+  assert.ok(
+    visit("/lesson-tools?mas=taanit", {
+      me,
+      installed: true,
+    }).target.startsWith("/start?next="),
   );
   assert.equal(
     visit("/lesson-tools?mas=taanit", { me }, true).target,
     undefined,
   );
-  assert.equal(visit("/app", { me, browserSetup: true }).target, undefined);
+  assert.ok(
+    visit("/app", { me, browserSetup: true }).target.startsWith("/start?next="),
+  );
   assert.ok(
     visit("/app", { installed: true }).target.startsWith("/join?next="),
   );
@@ -81,4 +88,16 @@ test("public pages and embedded or staff lesson tools do not enter student setup
   assert.equal(visit("/lesson-tools?embed=1").target, undefined);
   assert.equal(visit("/lesson-tools?rec=1").target, undefined);
   assert.equal(visit("/lesson-tools", { admOk: 1 }).target, undefined);
+});
+
+test("desktop users continue normally after signup without installation flags", () => {
+  assert.equal(
+    visit("/learn?mas=taanit", { me: { id: "STUDENT" } }, false, false).target,
+    undefined,
+  );
+  assert.ok(
+    visit("/learn?mas=taanit", {}, false, false).target.startsWith(
+      "/join?next=",
+    ),
+  );
 });

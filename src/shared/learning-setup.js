@@ -7,9 +7,8 @@
   try {
     var person = JSON.parse(localStorage.getItem('df:me') || 'null');
     var standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-    var installed = localStorage.getItem('df:installed') === 'true';
-    var browserReady = localStorage.getItem('df:browserSetup') === 'true';
-    if (person && person.id && (standalone || installed || browserReady)) {
+    var mobile = /Android|Mobile|iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (person && person.id && (standalone || !mobile)) {
       if (path === '/app') {
         var pending = JSON.parse(localStorage.getItem('df:setupNext') || 'null');
         if (typeof pending === 'string' && /^\/(learn|lesson-tools)(\?|$)/.test(pending)) {

@@ -644,7 +644,7 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem("df:me")), null);
   writeFailure = false;
   await page.getByRole("button", { name: "שמירת ההרשמה", exact: true }).click();
-  await page.getByRole("heading", { name: "מכינים את הדף ללימוד" }).waitFor();
+  await page.waitForURL("**/app");
   assert.equal(
     JSON.parse(await page.evaluate(() => localStorage.getItem("df:me"))).id,
     "demo-student",
@@ -947,9 +947,7 @@ try {
   await restored
     .getByRole("button", { name: "שחזור ההרשמה", exact: true })
     .click();
-  await restored
-    .getByRole("heading", { name: "מכינים את הדף ללימוד" })
-    .waitFor();
+  await restored.waitForURL("**/app");
   assert.ok(
     JSON.parse(
       await restored.evaluate(() => localStorage.getItem("df:learned")),
@@ -2131,11 +2129,16 @@ try {
   readFailure = false;
   writeFailure = false;
   const setupContext = await browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36",
     viewport: { width: 390, height: 844 },
   });
   await prepare(setupContext);
   await setupContext.addInitScript(() => {
     if (location.protocol !== "http:") return;
+    Object.defineProperty(navigator, "standalone", {
+      get: () => sessionStorage.getItem("test-standalone") === "1",
+    });
     localStorage.setItem(
       "df:me",
       JSON.stringify({
@@ -2192,6 +2195,20 @@ try {
   await setupPage.evaluate(() =>
     window.dispatchEvent(new window.Event("appinstalled")),
   );
+  await setupPage
+    .getByRole("heading", { name: "הדף מחכה לכם במסך הבית" })
+    .waitFor();
+  assert.equal(new URL(setupPage.url()).pathname, "/start");
+  await setupPage.reload();
+  await setupPage
+    .getByRole("heading", { name: "הדף מחכה לכם במסך הבית" })
+    .waitFor();
+  await setupPage.goto(base + setupTarget);
+  await setupPage.waitForURL("**/start?**");
+  await setupPage.evaluate(() =>
+    sessionStorage.setItem("test-standalone", "1"),
+  );
+  await setupPage.goto(base + "/app");
   await setupPage.waitForURL("**/learn?**");
   await setupPage.locator("body.chav-on").waitFor();
   assert.equal(await setupPage.evaluate(() => window.CHAV_TAB), "chav");
@@ -2207,7 +2224,7 @@ try {
   assert.equal(await setupPage.evaluate(() => window.CHAV_TAB), "chav");
   await setupContext.close();
   console.log(
-    "Installation dismissal/retry, confirmed continuation and default explanation passed.",
+    "Phone installation asks for reopening and requires app mode; desktop signup continues normally; lesson return and default explanation passed.",
   );
   assert.deepEqual(errors, []);
   console.log(

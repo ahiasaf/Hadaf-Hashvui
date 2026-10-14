@@ -57,7 +57,7 @@ test("iPhone browsers get visual installation steps; embedded browsers need an e
   assert.equal(nextStep(whatsapp), "open-browser");
 });
 
-test("desktop installation stays a setup step even before its prompt is available", () => {
+test("desktop browsers continue without installation", () => {
   const desktop = readDevice(
     { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/128" },
     false,
@@ -65,7 +65,7 @@ test("desktop installation stays a setup step even before its prompt is availabl
     "default",
     false,
   );
-  assert.equal(nextStep(desktop), "install-browser");
+  assert.equal(nextStep(desktop), "notify");
   assert.equal(
     nextStep({ ...desktop, standalone: true, notifications: "denied" }),
     "done",
@@ -92,7 +92,7 @@ test("setup return paths preserve lessons and reject external or looping targets
   ])
     assert.equal(setupNext(path), "/app");
 });
-test("unsupported desktop browsers have an explicit browser-only path", () => {
+test("unsupported desktop browsers continue normally", () => {
   assert.equal(
     nextStep(
       readDevice(
@@ -103,6 +103,35 @@ test("unsupported desktop browsers have an explicit browser-only path", () => {
         false,
       ),
     ),
-    "browser-only",
+    "done",
   );
+});
+
+test("an installed phone browser still asks for reopening while standalone continues", () => {
+  const device = readDevice(
+    { userAgent: android },
+    false,
+    false,
+    "default",
+    false,
+    true,
+  );
+  assert.equal(nextStep(device), "open-app");
+  assert.equal(nextStep({ ...device, standalone: true }), "notify");
+});
+test("an iPad using a desktop user agent remains a mobile installation flow", () => {
+  const device = readDevice(
+    {
+      userAgent: "Mozilla/5.0 Macintosh Safari/605",
+      platform: "MacIntel",
+      maxTouchPoints: 5,
+      standalone: false,
+    },
+    false,
+    false,
+    "unsupported",
+    false,
+  );
+  assert.equal(device.mobile, true);
+  assert.equal(nextStep(device), "install-ios");
 });

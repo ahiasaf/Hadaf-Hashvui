@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { stored, type Person } from "../lib/client";
-import { setupNext } from "../lib/install";
+import { stored, store, type Person } from "../lib/client";
+import { setupNext, readDevice } from "../lib/install";
 import Install from "./Install";
 
 export default function LearningSetup({ person }: { person?: Person }) {
@@ -17,10 +17,12 @@ export default function LearningSetup({ person }: { person?: Person }) {
       location.replace("/join?next=" + encodeURIComponent(target));
       return;
     }
-    if (stored("browserSetup", false)) {
+    const device = readDevice(navigator, false, false, "unsupported", false);
+    if (!device.mobile) {
       location.replace(target);
       return;
     }
+    store("setupNext", target);
     setReady(true);
   }, [person]);
   const complete = useCallback(() => {
@@ -31,6 +33,7 @@ export default function LearningSetup({ person }: { person?: Person }) {
     }
     location.replace(next);
   }, [next]);
+  if (!ready) return <p role="status">פותחים את הלימוד…</p>;
   return (
     <div className="learning-setup swap" data-update-draft>
       <ol className="setup-progress" aria-label="שלבי תחילת הלימוד">

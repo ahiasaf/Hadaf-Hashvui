@@ -1,6 +1,8 @@
 // Install flow decisions: which single step the device still needs.
 export type Device = {
   standalone: boolean;
+  mobile: boolean;
+  installed: boolean;
   ios: boolean;
   iosSafari: boolean;
   inApp: boolean;
@@ -10,10 +12,10 @@ export type Device = {
   remindersOn: boolean;
 };
 export type InstallStep =
+  | "open-app"
   | "install-prompt"
   | "install-ios"
   | "install-browser"
-  | "browser-only"
   | "open-browser"
   | "notify"
   | "done";
@@ -29,6 +31,7 @@ export function readDevice(
   promptReady: boolean,
   permission: Device["notifications"],
   remindersOn: boolean,
+  installed = false,
 ): Device {
   const ua = nav.userAgent || "";
   const ios =
@@ -40,6 +43,8 @@ export function readDevice(
     (ios && !iosOther && typeof nav.standalone === "undefined");
   return {
     standalone: nav.standalone === true || standaloneMedia,
+    mobile: ios || /Android|Mobile/.test(ua),
+    installed,
     ios,
     iosSafari: ios && !iosOther && !inApp,
     inApp,
@@ -53,14 +58,14 @@ export function readDevice(
 
 // One step at a time: install first where it matters, then notifications, then nothing.
 export function nextStep(device: Device): InstallStep {
-  if (!device.standalone) {
+  if (device.mobile && !device.standalone) {
+    if (device.installed) return "open-app";
     if (device.inApp) return "open-browser";
     if (device.ios) return "install-ios";
     if (device.promptReady) return "install-prompt";
-    return device.canInstall ? "install-browser" : "browser-only";
+    return device.canInstall ? "install-browser" : "open-browser";
   }
   if (device.notifications === "unsupported") return "done";
-  if (device.ios && !device.standalone) return "done";
   if (device.remindersOn && device.notifications === "granted") return "done";
   if (device.notifications === "denied") return "done";
   return "notify";
