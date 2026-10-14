@@ -156,7 +156,101 @@ function weekly(element: HTMLElement, signal: AbortSignal) {
     { signal },
   );
 }
+function welcome(element: HTMLElement, signal: AbortSignal) {
+  const copy = element.querySelector<HTMLElement>(".dashboard-copy");
+  const marker = element.querySelector<HTMLElement>(
+    ".dashboard-place:not([hidden])",
+  );
+  const number = marker?.querySelector<HTMLElement>("[data-place-number]");
+  const rule = element.querySelector<HTMLElement>(".welcome-rule");
+  const fill = marker?.querySelector<HTMLElement>("[data-place-fill]");
+  const timing = {
+    duration: 700,
+    easing: "cubic-bezier(.16,1,.3,1)",
+    fill: "both" as const,
+  };
+  return Effect.runPromise(
+    Effect.all(
+      [
+        copy && inView(copy)
+          ? play(
+              copy,
+              [
+                {
+                  opacity: 0.2,
+                  transform: "translateX(-18px)",
+                  clipPath: "inset(0 0 0 100%)",
+                },
+                { opacity: 1, transform: "none", clipPath: "inset(0)" },
+              ],
+              timing,
+            )
+          : Effect.void,
+        marker && inView(marker)
+          ? play(
+              marker,
+              [
+                {
+                  transform: "perspective(700px) rotateX(-60deg) rotate(-5deg)",
+                  clipPath: "polygon(0 0, 100% 0, 100% 0, 50% 0, 0 0)",
+                  opacity: 0.3,
+                },
+                {
+                  transform: "perspective(700px) rotateX(6deg) rotate(1deg)",
+                  clipPath:
+                    "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%)",
+                  opacity: 1,
+                  offset: 0.72,
+                },
+                {
+                  transform: "none",
+                  clipPath:
+                    "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%)",
+                  opacity: 1,
+                },
+              ],
+              { ...timing, duration: 850 },
+            )
+          : Effect.void,
+        number && inView(number)
+          ? play(
+              number,
+              [
+                { transform: "translateY(105%)" },
+                { transform: "translateY(-5%)", offset: 0.8 },
+                { transform: "none" },
+              ],
+              { ...timing, delay: 140, duration: 620 },
+            )
+          : Effect.void,
+        rule && inView(rule)
+          ? play(
+              rule,
+              [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+              { ...timing, delay: 140, duration: 800 },
+            )
+          : Effect.void,
+        fill && inView(fill)
+          ? play(
+              fill,
+              [
+                { transform: "scaleX(0)" },
+                {
+                  transform: `scaleX(${getComputedStyle(marker!).getPropertyValue("--place-progress").trim() || 0})`,
+                },
+              ],
+              { ...timing, delay: 250 },
+            )
+          : Effect.void,
+      ],
+      { concurrency: "unbounded" },
+    ),
+    { signal },
+  );
+}
 export function enter(element: HTMLElement, signal: AbortSignal) {
+  if (element.classList.contains("dashboard-welcome"))
+    return welcome(element, signal);
   if (element.classList.contains("lesson-variant"))
     return weekly(element, signal);
   const back = element.classList.contains("is-back");
@@ -167,7 +261,7 @@ export function enter(element: HTMLElement, signal: AbortSignal) {
     back || element.parentElement?.id === "community-reminders" ? 1 : -1;
   const children = Array.from(
     element.querySelectorAll<HTMLElement>(
-      ":scope > .dashboard-copy > *, :scope > .dashboard-book, :scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *, :scope > .lesson-tile, :scope > .install-title, :scope > .install-launch-icon, :scope > .install-reopen > .install-text, :scope > .install-reopen > .install-handoff > li",
+      ":scope > .dashboard-copy > *, :scope > h1, :scope > .flow-lead, :scope > .flow-form > *, :scope > header, :scope > .fld, :scope > .mascards > *, :scope > .rnav, :scope > .community-copy > *, :scope > .lesson-tile, :scope > .install-title, :scope > .install-launch-icon, :scope > .install-reopen > .install-text, :scope > .install-reopen > .install-handoff > li",
     ),
   )
     .filter(inView)

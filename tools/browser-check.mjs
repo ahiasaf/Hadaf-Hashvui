@@ -1312,6 +1312,33 @@ try {
       centered,
       `Weekly lesson text and progress are centered at ${width}px`,
     );
+    await compact.evaluate(() => {
+      localStorage.setItem("df:track", JSON.stringify("taanit"));
+      localStorage.setItem(
+        "df:spot",
+        JSON.stringify({ mas: "taanit", daf: "ב", am: 1, i: 2, n: 10 }),
+      );
+      window.dispatchEvent(new window.Event("df-account-change"));
+    });
+    await compact.locator("[data-dashboard-place]").waitFor();
+    assert.equal(
+      await compact.locator("[data-place-number]").textContent(),
+      "03",
+    );
+    assert.equal(
+      await compact.locator("[data-place-label]").textContent(),
+      "שקף 3 מתוך 10",
+    );
+    assert.match(
+      await compact.locator("[data-dashboard-place]").getAttribute("href"),
+      /mas=taanit/,
+    );
+    await compact.locator('[data-track="megila"]').click();
+    assert.equal(
+      await compact.locator("[data-dashboard-place]").isVisible(),
+      false,
+    );
+    await compact.locator('[data-track="taanit"]').click();
     assert.equal(await compact.locator(".lesson-list").count(), 0);
     assert.ok((await compact.locator(".lesson-tile").count()) <= 6);
     assert.equal(await compact.locator(".lesson-tile.is-current").count(), 1);

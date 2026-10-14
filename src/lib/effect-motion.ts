@@ -173,7 +173,7 @@ export function initializeEffectMotion() {
         weeklyObserver.unobserve(element);
         void warm()
           .then(() => {
-            if (element.getAttribute("aria-hidden") === "false")
+            if (element.getAttribute("aria-hidden") !== "true")
               run(element, (engine, signal) => engine.enter(element, signal));
           })
           .catch(() => undefined);
@@ -182,7 +182,9 @@ export function initializeEffectMotion() {
     { threshold: 0.15 },
   );
   document
-    .querySelectorAll<HTMLElement>('.lesson-variant[aria-hidden="false"]')
+    .querySelectorAll<HTMLElement>(
+      '.lesson-variant[aria-hidden="false"], .dashboard-welcome',
+    )
     .forEach((element) => weeklyObserver.observe(element));
   document.addEventListener(
     "animationstart",
