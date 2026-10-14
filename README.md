@@ -25,6 +25,8 @@ npm run test:browser
 python3 tools/preflight.py
 ```
 
+`npm run check` uses the pinned Rust TypeScript checker (`tsc-rs`) with Effect diagnostics, then checks Astro templates. `npm run check:types` runs just the Rust checker.
+
 Build before running tests. Browser checks use bundled public-content fixtures and mocked writes, so they do not modify production data.
 
 ## Content and deployment

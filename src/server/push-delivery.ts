@@ -103,6 +103,10 @@ export async function deliver(
   );
   return Effect.runPromise(send);
 }
+class WorkerFailure extends Data.TaggedError("WorkerFailure")<{
+  readonly cause: unknown;
+  readonly message: string;
+}> {}
 export async function mapLimit<T, R>(
   items: T[],
   limit: number,
@@ -117,7 +121,11 @@ export async function mapLimit<T, R>(
       (item, index) =>
         Effect.tryPromise({
           try: (signal) => fn(item, index, signal),
-          catch: (error) => error,
+          catch: (cause) =>
+            new WorkerFailure({
+              cause,
+              message: cause instanceof Error ? cause.message : "Worker failed",
+            }),
         }),
       { concurrency: limit },
     ),

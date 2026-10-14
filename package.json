@@ -13,11 +13,12 @@
     "lint": "eslint src tools/*.{mjs,mts} api tests && node tools/check-legacy.mjs",
     "format": "prettier --write src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/*.yml docs/architecture.md README.md",
     "format:check": "prettier --check src api tests tools/*.{mjs,mts} astro.config.mjs eslint.config.mjs vercel.json package.json .github/workflows/*.yml docs/architecture.md README.md",
-    "check": "astro check",
+    "check": "npm run check:types && astro check",
     "prebuild": "node tools/prepare.mjs",
     "predev": "node tools/prepare.mjs",
     "precheck": "node tools/prepare.mjs",
-    "test:browser": "node tools/browser-check.mjs"
+    "test:browser": "node tools/browser-check.mjs",
+    "check:types": "tsc-rs --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@astrojs/react": "^7.0.1",
@@ -45,6 +46,7 @@
     "prettier": "^3.9.9",
     "prettier-plugin-astro": "^1.1.0",
     "terser": "^5.51.2",
+    "tsc-rs": "0.7.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1"
   },
