@@ -1353,5 +1353,8 @@ nav button.busy:disabled{opacity:1;filter:brightness(.92);transform:translateY(1
 .nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 .nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
 a.lockbtn{display:inline-block;text-decoration:none}
-.dn-x{position:absolute;top:6px;inset-inline-end:6px;border:0;background:none;
+.dn-card .lockbtn{display:flex;align-items:center;justify-content:center;
+  width:fit-content;max-width:100%;margin-inline:auto;line-height:1.35;text-align:center;overflow-wrap:anywhere}
+.dn-x{position:absolute;top:6px;inset-inline-end:6px;display:grid;place-items:center;
+  padding:0;line-height:1;border:0;background:none;
   font-size:1.2rem;color:var(--ink-2);width:44px;height:44px;cursor:pointer}
