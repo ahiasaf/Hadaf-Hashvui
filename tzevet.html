@@ -851,6 +851,12 @@ function base() {
 function kidsUrl() {
   return base() + 'join.html' + (instCode ? '?inst=' + encodeURIComponent(instCode) : '');
 }
+/* הקישור להורים — לשלב 4, ההודעה בוואטסאפ. עד עכשיו נשלח בה קישור
+   התלמידים, והורה שלחץ נחת במסך של בן. בלי קוד הגישה של הצוות:
+   הקישור הזה מופץ. */
+function dadsUrl() {
+  return base() + 'join.html?for=dad' + (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+}
 /* הלוח נושא את קוד הגישה כשהוא קיים בכתובת של העמוד הזה.
    בלעדיו הלוח עצמו יבקש אותו — ולכן הכפתור עדיין שווה משהו. */
 function boardUrl() {
@@ -1015,10 +1021,10 @@ function draw() {
     if (num) fw.href = 'https://wa.me/' + num;
   }
 
-  /* קוד הסריקה לתלמידים, וההודעה להורים — אותו קישור הצטרפות. */
+  /* קוד הסריקה לתלמידים; ההודעה להורים — עם קישור ההורים. */
   drawQr();
   $('par-wa').href = 'https://wa.me/?text=' + encodeURIComponent(
-    tpl(UI.dadWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא', url: kidsUrl() }));
+    tpl(UI.dadWa, { inst: instRow ? instRow.name : 'רשת בני עקיבא', url: dadsUrl() }));
   
   drawPeers();
   drawBoard();

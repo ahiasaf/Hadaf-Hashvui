@@ -2838,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.227';
+var APP_VERSION = '8.99.228';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2977,8 +2977,11 @@ var stuMode = /[?&]st=1/.test(location.search);
 function stuQ() {
   if (!stuMode) return '';
   var m = /[?&]inst=([^&#]*)/.exec(location.search);
-  return m && m[1] ? '&inst=' + m[1] : '';
+  return (m && m[1] ? '&inst=' + m[1] : '') + stuDadQ();
 }
+/* הורה שהגיע מקישור ההורים (עמוד הביניים) — חוזר לעמוד ההורים,
+   ולא למסך של בן. */
+function stuDadQ() { return /[?&]for=dad\b/.test(location.search) ? '&for=dad' : ''; }
 /* מה שנוסע לדף האינטראקטיבי: תלמיד — הישיבה שלו; כל השאר —
    `from=home`, כדי ש"יציאה" תחזיר לכאן. בלעדיו הדף ניחש לפי
    סימנים במכשיר, ומכשיר של רכז שפתח פעם את קישור ההורים
@@ -3017,7 +3020,8 @@ function trackBack() {
     location.href = 'tzevet.html' + (m ? '?inst=' + m[1] : '');
     return;
   }
-  location.href = 'join.html' + (m ? '?inst=' + m[1] : '');
+  var q = (m ? '&inst=' + m[1] : '') + stuDadQ();
+  location.href = 'join.html' + (q ? '?' + q.slice(1) : '');
 }
 
 /* ============================================================
