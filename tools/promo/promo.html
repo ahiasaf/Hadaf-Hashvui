@@ -242,7 +242,9 @@ S.push({ in: [2.5, 2.9], cap: 'כדי ש<g>אבות ובנים</g> ישבו<br>�
    STATS: [לפני, אחרי]. top — המספר הגדול (מעודכן, לא מהצילום);
    all/done — השורה התחתונה, כמו בצילום (בתחילת שבוע מעטים סיימו,
    ולכן היא לא מתעדכנת למספרים של היום). */
-var STATS = { top: [321, 322], all: [237, 238], done: [87, 99], at: 10.3, run: .6 };
+var STATS = { top: [433, 434], all: [237, 238], done: [87, 99], at: 10.3, run: .6,
+  /* שלושת הכרטיסים [לפני, אחרי] — מצוירים מעל המספרים שבצילום */
+  dads: [117, 118], group: [165, 165], alone: [137, 137] };
 /* ?top=N — מההפקה בניהול: הסרטון נפתח על המספר החי וקופץ ל-N+1 */
 (function () {
   var m = /[?&]top=(\d+)/.exec(location.search);
@@ -250,7 +252,12 @@ var STATS = { top: [321, 322], all: [237, 238], done: [87, 99], at: 10.3, run: .
 })();
 S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>הלומדים</g> בישיבה',
   build: function (L, s) {
-    var D = [{ ink: [902, 410, 935, 458], box: [900, 398, 40, 68], strip: [384, 12], color: '#C18E2C', to: '3' }];
+    /* הכרטיסים: ink — הדיו של המספר שבצילום (נמדד), box — מה שנמחק,
+       strip — שורת רקע נקייה באותו כרטיס, מעל המספר */
+    var CARDS = [
+      { k: 'dads',  ink: [832, 409, 935, 457], box: [746, 398, 276, 68], strip: [372, 20], color: '#C18E2C' },
+      { k: 'group', ink: [506, 410, 575, 457], box: [404, 398, 274, 68], strip: [372, 20], color: '#457E1A' },
+      { k: 'alone', ink: [149, 410, 252, 457], box: [62, 398, 276, 68], strip: [372, 20], color: '#16468E' }];
     var TOP = { ink: [556, 46, 723, 124], box: [550, 30, 180, 104], strip: [4, 26], color: '#C18E2C' };
     // הכרטיס כולו זז (גדל ומסתובב קלות) ולא רק התוכן בתוכו — זום פנימי
     // חזק היה חותך את המספר הגדול או את השורה התחתונה. מצויר על canvas
@@ -259,7 +266,7 @@ S.push({ in: [8.5, 8.9], cap: 'וכדי להרחיב את <g>מעגל</g><br><g>
     s.off = document.createElement('canvas'); s.off.width = 1080; s.off.height = 781;
     s.post = function (x, img) {
         var on = s.t >= STATS.at, p = easeOut((s.t - STATS.at) / STATS.run);
-        if (on) D.forEach(function (d) { roll(x, img, d, 1); });
+        CARDS.forEach(function (d) { statNum(x, img, d, String(STATS[d.k][on ? 1 : 0])); });
         statNum(x, img, TOP, String(STATS.top[on ? 1 : 0]));
         var all = STATS.all[on ? 1 : 0], dv = lerp(STATS.done[0], STATS.done[1], p);
         statBar(x, dv / all, img);
