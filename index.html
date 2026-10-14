@@ -2838,7 +2838,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.228';
+var APP_VERSION = '8.99.229';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -2981,7 +2981,11 @@ function stuQ() {
 }
 /* הורה שהגיע מקישור ההורים (עמוד הביניים) — חוזר לעמוד ההורים,
    ולא למסך של בן. */
-function stuDadQ() { return /[?&]for=dad\b/.test(location.search) ? '&for=dad' : ''; }
+function stuDadQ() {
+  if (!/[?&]for=dad\b/.test(location.search)) return '';
+  /* ומי שבא מעמוד ההקרנה להורים — חוזר אליו. */
+  return '&for=dad' + (/[?&]show=1\b/.test(location.search) ? '&show=1' : '');
+}
 /* מה שנוסע לדף האינטראקטיבי: תלמיד — הישיבה שלו; כל השאר —
    `from=home`, כדי ש"יציאה" תחזיר לכאן. בלעדיו הדף ניחש לפי
    סימנים במכשיר, ומכשיר של רכז שפתח פעם את קישור ההורים

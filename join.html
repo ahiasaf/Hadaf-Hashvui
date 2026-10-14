@@ -423,75 +423,72 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
 #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(74,130,28,.28)}
 
-/* ---------- קישור ההורים: אזור ההצטרפות ----------
-   ראו dadLayout. כחול וזהב — לא הירוק של התלמידים. */
-/* אזור אחד: הכותרת, הברקוד, הכפתור ו"כבר הצטרפת". נייר בהיר עם
-   קו זהב בראשו — כמו כרטיס ההגרלה — ולא כחול: הכחול הוא של הבאנר,
-   וכפתור לבן על כחול כבר יש שם ("פתיחת דף לדוגמה"). */
-.djoin{margin-top:22px;background:var(--surface);border:1px solid var(--rule);
+/* ---------- עמוד ההקרנה להורים, והכניסה מהברקוד ----------
+   ראו prjLayout. רק `body.prj` / `body.scanp` — עמוד ההורים הרגיל
+   אינו נוגע באף כלל כאן. הכפתור כחול: הירוק הוא של התלמידים. */
+body.prj #hero-go,body.scanp #hero-go{
+  background:linear-gradient(140deg,var(--blue-d),var(--blue));
+  box-shadow:0 6px 18px rgba(11,37,80,.28)}
+body.prj #hero-go.lit,body.scanp #hero-go.lit{
+  box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(11,37,80,.28)}
+/* הכניסה מהברקוד: הפנייה, הכפתור, ו"כבר הצטרפת". בלי הבאנר ובלי
+   הכרטיסים — פעולה אחת. */
+body.scanp #wk0,body.scanp .hero .cards,body.scanp .raffle{display:none}
+/* אזור ההצטרפות: נייר בהיר עם קו זהב בראשו, כמו כרטיס ההגרלה —
+   לא כחול, כי הכחול הוא של הבאנר. */
+.pjoin{margin-top:22px;background:var(--surface);border:1px solid var(--rule);
   border-top:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--sh-2);
-  padding:18px 18px 16px;text-align:center}
-.djoin[hidden]{display:none}
-.dqr[hidden]{display:none}
-.dqr h3{font-size:1.08rem;font-weight:800;color:var(--blue);letter-spacing:-.02em;
+  padding:18px 18px 18px;text-align:center}
+.pjoin[hidden],.pqr[hidden],.phow[hidden]{display:none}
+.pqr h3{font-size:1.1rem;font-weight:800;color:var(--blue);letter-spacing:-.02em;
   line-height:1.35;margin-bottom:12px}
-.dqrbox{max-width:260px;margin:0 auto;background:#fff;border:1px solid var(--rule);
+.pqrbox{max-width:260px;margin:0 auto;background:#fff;border:1px solid var(--rule);
   border-radius:14px;padding:10px}
-.djoin #hero-go{margin-top:16px}
-body.dadp #cards{display:grid;gap:10px;margin-top:14px}
-/* במסך רחב: ההדגמה והבאנר מימין, אזור ההצטרפות משמאל ונשאר
-   לצידם בגלילה. רוחב העמודה הימנית = רוחב ההדגמה המוגדלת (dadFit).
-   מתחת ל-1060px — עמודה אחת, כמו בטלפון. */
+.pjoin #hero-go{margin-top:16px}
+body.prj #back{display:none !important}
+body.prj #cards{display:grid;gap:10px;margin-top:14px}
+.phow{margin-top:14px;border:1px dashed var(--rule);border-radius:var(--r-s);
+  background:var(--surface);font-size:.86rem;color:var(--ink-2)}
+.phow summary{list-style:none;cursor:pointer;padding:11px 14px;text-align:center;
+  font-weight:800;color:var(--ink-2)}
+.phow summary::-webkit-details-marker{display:none}
+.phow summary:after{content:' \25BE';color:var(--gold)}
+.phow[open] summary:after{content:' \25B4'}
+.phow ol{margin:0;padding:0 34px 13px 14px;font-weight:600;line-height:1.7}
+.phow li{margin-top:4px}
 @media (min-width:1060px){
-  body.dadp.land #form{max-width:1240px}
-  body.dadp .dgrid{display:grid;grid-template-columns:var(--dw,520px) 360px;
+  body.prj.land #form{max-width:1240px}
+  body.prj .pgrid{display:grid;grid-template-columns:var(--dw,520px) 360px;
     column-gap:56px;justify-content:center;align-items:start}
-  body.dadp .dgrid > #meet-go,body.dadp .dgrid > .meet{grid-column:1;grid-row:1}
-  body.dadp .dgrid > .demo{grid-column:1;grid-row:2}
-  body.dadp .dgrid > .hero{grid-column:1;grid-row:3;padding-top:28px}
-  body.dadp .dgrid > .djoin{grid-column:2;grid-row:2 / span 2;margin-top:0;
-    position:sticky;top:24px;padding:24px 26px 20px}
-  body.dadp .demo .df{position:absolute;top:0;left:0;transform-origin:0 0}
-  body.dadp .dqr h3{font-size:1.3rem;margin-bottom:16px}
-  body.dadp .dqrbox{max-width:290px;padding:12px}
-  body.dadp .dhow,body.dadp #cards,body.dadp .raffle{max-width:760px;
+  body.prj .pgrid > #meet-go,body.prj .pgrid > .meet{grid-column:1;grid-row:1}
+  body.prj .pgrid > .demo{grid-column:1;grid-row:2}
+  body.prj .pgrid > .hero{grid-column:1;grid-row:3;padding-top:28px}
+  body.prj .pgrid > .pjoin{grid-column:2;grid-row:2 / span 2;margin-top:0;
+    position:sticky;top:24px;padding:24px 26px 22px}
+  body.prj .demo .df{position:absolute;top:0;left:0;transform-origin:0 0}
+  body.prj .pqr h3{font-size:1.4rem;margin-bottom:16px}
+  body.prj .pqrbox{max-width:290px;padding:12px}
+  body.prj .phow,body.prj #cards,body.prj .raffle{max-width:760px;
     margin-left:auto;margin-right:auto}
-  body.dadp .dhow{margin-top:36px}
+  body.prj .phow{margin-top:36px}
 }
-/* מסך גדול (מקרן במלוא הרזולוציה) — הכל גדל יחד עם ההדגמה,
-   כדי שאזור ההצטרפות והראש לא ייראו קטנים לצידה. ראו dadFit. */
 @media (min-width:1600px) and (min-height:900px){
-  body.dadp.land #form{max-width:1320px}
-  body.dadp .dgrid{grid-template-columns:var(--dw,720px) 440px;column-gap:64px}
-  body.dadp .dgrid > .djoin{padding:30px 32px 24px}
-  body.dadp .dqr h3{font-size:1.6rem;margin-bottom:20px}
-  body.dadp .dqrbox{max-width:360px;padding:14px}
-  body.dadp .djoin #hero-go{font-size:1.25rem;padding:20px;margin-top:22px}
-  body.dadp #back{font-size:1.05rem}
-  body.dadp.land .top-say h2{font-size:2.1rem;max-width:32rem}
-  body.dadp.land .top-say p{font-size:1.15rem;max-width:36rem}
-  body.dadp .meet{font-size:1.15rem}
-  body.dadp .dhow,body.dadp #cards,body.dadp .raffle{max-width:860px}
-  body.dadp .dhow{font-size:1rem}
+  body.prj.land #form{max-width:1320px}
+  body.prj .pgrid{grid-template-columns:var(--dw,720px) 440px;column-gap:64px}
+  body.prj .pgrid > .pjoin{padding:30px 32px 26px}
+  body.prj .pqr h3{font-size:1.7rem;margin-bottom:20px}
+  body.prj .pqrbox{max-width:360px;padding:14px}
+  body.prj .pjoin #hero-go{font-size:1.25rem;padding:20px;margin-top:22px}
+  body.prj.land .top-say h2{font-size:2.1rem;max-width:32rem}
+  body.prj.land .top-say p{font-size:1.15rem;max-width:36rem}
+  body.prj .meet{font-size:1.15rem}
+  body.prj .phow,body.prj #cards,body.prj .raffle{max-width:860px}
+  body.prj .phow{font-size:1rem}
 }
 /* מסך נמוך — האזור אינו נצמד, כדי שלא ייחתך. */
 @media (min-width:1060px) and (max-height:640px){
-  body.dadp .dgrid > .djoin{position:static}
+  body.prj .pgrid > .pjoin{position:static}
 }
-body.dadp #hero-go,body.dadp #meet-go{
-  background:linear-gradient(140deg,var(--blue-d),var(--blue));
-  box-shadow:0 6px 18px rgba(11,37,80,.28)}
-body.dadp #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(11,37,80,.28)}
-.dhow{margin-top:14px;border:1px dashed var(--rule);border-radius:var(--r-s);
-  background:var(--surface);font-size:.86rem;color:var(--ink-2)}
-.dhow[hidden]{display:none}
-.dhow summary{list-style:none;cursor:pointer;padding:11px 14px;text-align:center;
-  font-weight:800;color:var(--ink-2)}
-.dhow summary::-webkit-details-marker{display:none}
-.dhow summary:after{content:' \25BE';color:var(--gold)}
-.dhow[open] summary:after{content:' \25B4'}
-.dhow ol{margin:0;padding:0 34px 13px 14px;font-weight:600;line-height:1.7}
-.dhow li{margin-top:4px}
 
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
@@ -1060,18 +1057,18 @@ footer a{color:var(--ink-2);font-weight:800}
          להם עוד לפני שמסרו שם. -->
     <div id="wk0"></div>
 
-    <!-- קישור ההורים בלבד (`?for=dad`) — אזור ההצטרפות, נפרד
-         מההדגמה: הברקוד, ומתחתיו הכפתור ו"כבר נרשמתי", שעוברים
-         לכאן מלמעלה (ראו dadLayout). ואחריו ההנחיות למציג, סגורות. -->
-    <div class="djoin" id="dad-join" hidden>
-      <div class="dqr" id="dad-qr" hidden>
-        <h3 id="dad-qr-h"></h3>
-        <div class="dqrbox" id="dad-qr-box"></div>
+    <!-- עמוד ההקרנה בלבד (`show=1`) — אזור ההצטרפות: הכותרת,
+         הברקוד, והכפתור שעובר לכאן מלמעלה; וההנחיות למציג,
+         סגורות. ראו prjLayout. -->
+    <div class="pjoin" id="prj-join" hidden>
+      <div class="pqr" id="prj-qr" hidden>
+        <h3 id="prj-qr-h"></h3>
+        <div class="pqrbox" id="prj-qr-box"></div>
       </div>
     </div>
-    <details class="dhow" id="dad-how" hidden>
-      <summary id="dad-how-h"></summary>
-      <ol><li id="dad-how-1"></li><li id="dad-how-2"></li><li id="dad-how-3"></li></ol>
+    <details class="phow" id="prj-how" hidden>
+      <summary id="prj-how-h"></summary>
+      <ol><li id="prj-how-1"></li><li id="prj-how-2"></li><li id="prj-how-3"></li></ol>
     </details>
 
     <div class="cards" id="cards"></div>
@@ -1657,8 +1654,8 @@ function drawTop() {
     cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
   }
   $('cards').innerHTML = cards;
-  $('hero-go').textContent = forDad ? (JOIN.goBtnDad || JOIN.goBtn) : JOIN.goBtn + ' ←';
-  dadLayout();
+  $('hero-go').textContent = (PRJ || SCAN) ? (JOIN.prjBtn || JOIN.goBtn) : JOIN.goBtn + ' ←';
+  prjLayout();
 
   /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
      שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
@@ -1790,6 +1787,16 @@ function memo(key, on) {
   } catch (e) { return on; }
 }
 forDad = memo('df:forDad', forDad);
+/* **עמוד ההקרנה להורים** (`?for=dad&show=1`) — מה שאיש הצוות פותח
+   על המסך באסיפת הורים: ההדגמה והבאנר, ולצידם ברקוד גדול. וה**כניסה
+   מהברקוד** (`?for=dad&scan=1`) — מי שסרק כבר ראה את ההדגמה על המסך,
+   ולכן אצלו רק הפנייה והכפתור הכחול, ומשם המסלול הרגיל.
+
+   שניהם וריאנט של העמוד הזה ולא עותק שלו: אותו מסלול, אותו טופס,
+   אותה הדגמה. עמוד ההורים הרגיל (`?for=dad` לבד) אינו משתנה בכלום.
+   לא נזכרים במכשיר — האייקון המותקן פותח את עמוד ההורים הרגיל. */
+var PRJ  = forDad && qs('show') === '1';
+var SCAN = forDad && !PRJ && qs('scan') === '1';
 /* `?out=1` — **הקישור למי שאינו במוסדות בני עקיבא.** אין בו
    בורר ישיבה כלל: מה שנרשם הוא "אחר", בדיוק כמו מי שבחר "אחר"
    ברשימה — אבל בלי לעבור על רשימה של מוסדות שאינם שלו ולסמן
@@ -2923,92 +2930,93 @@ DeckLoad().then(function (ok) {
 
 function drawHero() {
   var box = $('wk0'); if (!box) return;
-  /* בקישור ההורים הכפתור הלבן הוא "פתיחת דף לדוגמה" — שיהיה
-     ברור שזו הדגמה ולא הרשמה. שאר האפליקציה לא משתנה. */
+  /* בעמוד ההקרנה הכפתור הלבן הוא "פתיחת דף לדוגמה" — שיהיה ברור
+     שזו הדגמה ולא הרשמה. הבאנר עצמו — אותו באנר בדיוק. */
   box.innerHTML = StageHtml({ track:myTrack(), pick:'setTrack',
                               deck:'stDeck', week:'stWeek', trail:'stTrail',
-                              goLbl: forDad ? JOIN.goSampleDad : '' });
+                              goLbl: PRJ ? JOIN.prjSample : '' });
 }
 
-/* ---------- קישור ההורים: אזור ההצטרפות ----------
-   העמוד הזה מוצג על מקרן באסיפת הורים, ואותו קישור נשלח אחר כך
-   הביתה. ולכן הסדר: ההדגמה ו"פתיחת דף לדוגמה" — אזור אחד; מתחתם
-   אזור ההצטרפות — ברקוד גדול וכפתור; ואז ההנחיות למציג, סגורות.
+/* ============================================================
+   עמוד ההקרנה להורים, והכניסה מהברקוד שלו. ראו PRJ.
+   ============================================================
+   בטלפון ובכל רוחב צר — עמודה אחת: השורה, ההדגמה, הבאנר, אזור
+   ההצטרפות, ההנחיות וההגרלה. מ-1060px ההדגמה והבאנר מימין ואזור
+   ההצטרפות משמאל, וראשיהם באותו גובה. ההדגמה מקבלת את רוב הרוחב;
+   האזור אינו נמתח לגובהה, הוא נשאר לצידה בגלילה.
 
-   הברקוד מוביל לעמוד הזה עצמו (`?for=dad` ועם הישיבה), ולכן מי
-   שסורק מהמקרן ומי שלוחץ בבית מגיעים לאותו מסלול. כחול וזהב ולא
-   ירוק — שלא יתבלבל עם ברקוד התלמידים שבעמוד הצוות.
-
-   **בלי שום מידע מהלוח.** העמוד נשלח הלאה. */
-/* מסך רחב — מקרן באסיפת הורים, או מחשב בבית. */
-function dadWide() {
-  return !!(forDad && window.matchMedia && window.matchMedia('(min-width:1060px)').matches);
+   **בלי שום מידע מהלוח.** הברקוד מוביל לכניסת ההורים של אותה
+   ישיבה — `for=dad`, `scan=1` והישיבה, בלי קוד הגישה של הצוות. */
+function prjScanUrl() {
+  var b = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+  return b + 'join.html?for=dad&scan=1' + (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
 }
-/* **ההדגמה גדלה כולה, לא רק המסגרת.** החלון נשאר בגודל של טלפון
-   (400×540) — כך הדף האינטראקטיבי מסודר בדיוק כמו בטלפון — ומוגדל
-   כתמונה, עד גובה המסך. מסגרת רחבה בלי הגדלה הייתה מציגה את אותו
-   דף קטן עם שוליים ריקים. הבאנר שמתחתיו מקבל את אותו רוחב. */
-var DAD_BW = 400, DAD_BH = 540;
-function dadFit() {
-  var g = $('dad-grid'), box = $('demo'), f = $('demo-frame');
+function prjWide() {
+  return !!(PRJ && window.matchMedia && window.matchMedia('(min-width:1060px)').matches);
+}
+function prjLayout() {
+  if (SCAN) {
+    if (!/(^|\s)scanp(\s|$)/.test(document.body.className)) document.body.className += ' scanp';
+    return;
+  }
+  var box = $('prj-join');
+  if (!box || !PRJ) return;
+  if (box.hidden) {
+    document.body.className += ' prj';
+    box.appendChild($('hero-go'));
+    var land = $('s-land'), g = document.createElement('div');
+    g.className = 'pgrid'; g.id = 'prj-grid';
+    land.insertBefore(g, $('meet-go'));
+    ['meet-go', 'meet', 'demo', 'hero', 'prj-join'].forEach(function (id) {
+      g.appendChild($(id));
+    });
+    land.insertBefore($('prj-how'), $('raffle'));
+    land.insertBefore($('cards'), $('raffle'));
+    box.hidden = false;
+    $('prj-how').hidden = false;
+    window.addEventListener('resize', prjFit);
+  }
+  $('prj-qr-h').textContent = JOIN.prjQrH || '';
+  var svg = '';
+  try {
+    if (window.QR) svg = QR.svg(prjScanUrl(), { color:'#17468F', label:esc(JOIN.prjQrH || '') });
+  } catch (e) { svg = ''; }
+  $('prj-qr-box').innerHTML = svg;
+  $('prj-qr').hidden = !svg;
+  $('prj-how-h').textContent = JOIN.prjHowH || '';
+  for (var i = 1; i <= 3; i++) {
+    var li = $('prj-how-' + i), t = JOIN['prjHow' + i] || '';
+    li.textContent = t;
+    li.style.display = t ? '' : 'none';
+  }
+  prjFit();
+}
+/* **ההדגמה והבאנר גדלים כמו שהם — לא נמתחים.** שניהם נבנו לרוחב
+   של טלפון, ובמסך רחב הם מוגדלים כתמונה: ההדגמה בחלון של 400×540,
+   והבאנר ברוחב 400 — באותו יחס, עד גובה המסך. כך הבאנר נשאר בדיוק
+   הבאנר המוכר, רק גדול יותר. */
+var PRJ_BW = 400, PRJ_BH = 540;
+function prjFit() {
+  var g = $('prj-grid'), box = $('demo'), f = $('demo-frame'), wk = $('wk0');
   if (!g || !box || !f) return;
-  if (!dadWide()) {
+  var zoomOk = 'zoom' in document.body.style;
+  if (!prjWide()) {
     g.style.removeProperty('--dw');
     box.style.height = f.style.width = f.style.height = f.style.transform = '';
+    wk.style.width = ''; if (zoomOk) wk.style.zoom = '';
     return;
   }
   /* אותם מספרים כמו ב-CSS: רוחב העמוד, אזור ההצטרפות והרווח. */
   var big = window.matchMedia('(min-width:1600px) and (min-height:900px)').matches;
   var avW = Math.min(g.parentNode.clientWidth, big ? 1320 : 1240) - (big ? 440 + 64 : 360 + 56);
   var avH = window.innerHeight - 48;
-  var k = Math.max(1, Math.min(avW / DAD_BW, avH / DAD_BH, 2));
-  g.style.setProperty('--dw', Math.round(DAD_BW * k) + 'px');
-  box.style.height = Math.round(DAD_BH * k) + 'px';
-  f.style.width = DAD_BW + 'px';
-  f.style.height = DAD_BH + 'px';
+  var k = Math.max(1, Math.min(avW / PRJ_BW, avH / PRJ_BH, 2));
+  g.style.setProperty('--dw', Math.round(PRJ_BW * k) + 'px');
+  box.style.height = Math.round(PRJ_BH * k) + 'px';
+  f.style.width = PRJ_BW + 'px';
+  f.style.height = PRJ_BH + 'px';
   f.style.transform = 'scale(' + k + ')';
-}
-function dadUrl() {
-  var b = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
-  return b + 'join.html?for=dad' + (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
-}
-function dadLayout() {
-  var box = $('dad-join');
-  if (!box || !forDad) return;
-  if (box.hidden) {
-    document.body.className += ' dadp';
-    box.appendChild($('hero-go'));
-    box.appendChild($('back'));
-    /* רשת אחת: בטלפון היא עמודה אחת בסדר הזה בדיוק — שורה, הדגמה,
-       באנר, אזור ההצטרפות. במסך רחב (CSS, 1060px) ההדגמה והבאנר
-       מימין ואזור ההצטרפות משמאל. ההנחיות וההגרלה — אחריה, ברוחב
-       מלא, בשני המצבים. */
-    var land = $('s-land'), g = document.createElement('div');
-    g.className = 'dgrid'; g.id = 'dad-grid';
-    land.insertBefore(g, $('meet-go'));
-    ['meet-go', 'meet', 'demo', 'hero', 'dad-join'].forEach(function (id) {
-      g.appendChild($(id));
-    });
-    land.insertBefore($('dad-how'), $('raffle'));
-    land.insertBefore($('cards'), $('raffle'));
-    box.hidden = false;
-    $('dad-how').hidden = false;
-    window.addEventListener('resize', dadFit);
-  }
-  dadFit();
-  $('dad-qr-h').textContent = JOIN.qrDadH || '';
-  var svg = '';
-  try {
-    if (window.QR) svg = QR.svg(dadUrl(), { color:'#17468F', label:esc(JOIN.qrDadH || '') });
-  } catch (e) { svg = ''; }
-  $('dad-qr-box').innerHTML = svg;
-  $('dad-qr').hidden = !svg;
-  $('dad-how-h').textContent = JOIN.howDadH || '';
-  for (var i = 1; i <= 3; i++) {
-    var li = $('dad-how-' + i), t = JOIN['howDad' + i] || '';
-    li.textContent = t;
-    li.style.display = t ? '' : 'none';
-  }
+  if (zoomOk) { wk.style.width = PRJ_BW + 'px'; wk.style.zoom = k; }
 }
 function masName(t) {
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return TRACKS[i].masechet;
@@ -3082,7 +3090,7 @@ function appUrl(hash) {
   return 'index.html?st=1' +
          (code ? '&inst=' + encodeURIComponent(code) : '') +
          /* הורה חוזר להורה — גם דרך עמוד הביניים (ראו stuDadQ ב-index.html). */
-         (role === 'dad' ? '&for=dad' : '') + (hash || '');
+         (role === 'dad' ? '&for=dad' : '') + (PRJ ? '&show=1' : '') + (hash || '');
 }
 /* **הכפתור הגדול בבאנר מוביל ישר לדף האינטראקטיבי.** הוא
    הוביל עד עכשיו למסך השבוע — שהוא תחנה, ומי שלחץ "פתיחת
@@ -3101,7 +3109,9 @@ function stWeek() {
                   '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
                   /* שהיציאה מהדף תחזיר הורה למסך ההורה — ראו stuDad ב-learn.html. */
-                  (role === 'dad' ? '&for=dad' : '');
+                  (role === 'dad' ? '&for=dad' : '') +
+                  /* ומעמוד ההקרנה — חזרה לעמוד ההקרנה. */
+                  (PRJ ? '&show=1' : '');
 }
 function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {
@@ -4653,6 +4663,8 @@ function landDemo() {
   var box = $('demo'), f = $('demo-frame');
   if (!box || !f || f.getAttribute('src')) return;
   if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
+  /* מי שסרק את הברקוד בהקרנה כבר ראה את ההדגמה על המסך. */
+  if (SCAN) return;
   /* תמיד אותו דף — ראו DEMO_UNIT ב-data.js. */
   var U = window.DEMO_UNIT;
   if (!U) return;
@@ -4694,11 +4706,11 @@ function meetSwap() {
   var m = $('meet'), b = $('meet-go');
   if (!m || !b || m.hidden || !b.hidden || !landNow()) return;
   if (/[?&]tedit=1/.test(location.search)) return;
-  if (dadWide()) return;   /* הכפתור כבר גלוי לצד ההדגמה */
+  if (PRJ || SCAN) return;   /* הכפתור כבר באזור ההצטרפות — לא כפתור שני */
   var h = m.offsetHeight;
   m.className = 'meet fade';
   setTimeout(function () {
-    b.textContent = forDad ? (JOIN.goBtnDad || JOIN.goBtn) : JOIN.goBtn + ' ←';
+    b.textContent = JOIN.goBtn + ' ←';
     b.style.height = Math.max(h, 52) + 'px';
     m.style.display = 'none';
     b.hidden = false;
@@ -4766,9 +4778,8 @@ function toGo() {
   var go = $('hero-go'), pe = $('peers'), box = $('demo');
   if (!go || !landNow()) return;
   setTimeout(function () {
-    /* בעמוד ההורים הכפתור יושב מתחת לבאנר (ובמסך רחב — לצידו),
-       ולכן היעד הוא הבאנר. */
-    var top = (pe && pe.getClientRects().length) ? pe : (forDad ? $('wk0') : go);
+    /* בעמוד ההקרנה הכפתור באזור ההצטרפות, והיעד הוא הבאנר. */
+    var top = (pe && pe.getClientRects().length) ? pe : (PRJ ? $('wk0') : go);
     var y = top.getBoundingClientRect().top + window.pageYOffset - 14;
     if (box && !box.hidden) {
       var under = box.getBoundingClientRect().bottom + window.pageYOffset + 50;

@@ -5038,6 +5038,8 @@ function stuHomeUrl() {
   var i = stuInst(), q = [];
   if (i) q.push('inst=' + i);
   if (stuDad()) q.push('for=dad');
+  /* נפתח מעמוד ההקרנה להורים — חוזרים אליו, ולא לעמוד ההורים הרגיל. */
+  if (stuDad() && /[?&]show=1\b/.test(location.search)) q.push('show=1');
   return 'join.html' + (q.length ? '?' + q.join('&') : '');
 }
 function stuQuizUrl(key) {
@@ -5050,7 +5052,8 @@ function stuQuizUrl(key) {
 function keepQ() {
   var i = (/[?&]inst=([^&#]*)/.exec(location.search) || [])[1] || '';
   return (i ? '&inst=' + i : '') + (FROM ? '&from=' + FROM : '') +
-         (/[?&]for=dad\b/.test(location.search) ? '&for=dad' : '') + '&hop=1';
+         (/[?&]for=dad\b/.test(location.search) ? '&for=dad' : '') +
+         (/[?&]show=1\b/.test(location.search) ? '&show=1' : '') + '&hop=1';
 }
 var DEMO_T = null;
 
