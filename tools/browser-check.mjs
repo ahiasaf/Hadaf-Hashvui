@@ -1259,6 +1259,158 @@ try {
     "Account-aware join prompts and published WhatsApp group link passed.",
   );
 
+  for (const width of [320, 1440]) {
+    const effectContext = await browser.newContext({
+      viewport: { width, height: 800 },
+      reducedMotion: "no-preference",
+    });
+    await prepare(effectContext);
+    await effectContext.addInitScript(() => {
+      if (location.protocol === "http:") localStorage.setItem("df:gate", "1");
+    });
+    let releaseEngine, releaseMarks;
+    const engineGate = new Promise((resolve) => {
+      releaseEngine = resolve;
+    });
+    const marksGate = new Promise((resolve) => {
+      releaseMarks = resolve;
+    });
+    await effectContext.route(
+      "**/_astro/effect-animation.*.js",
+      async (route) => {
+        await engineGate;
+        await route.continue();
+      },
+    );
+    await effectContext.route("**/api/sheets?**", async (route) => {
+      if (
+        new URL(route.request().url()).searchParams.get("tab") === "סימוני הדף"
+      )
+        await marksGate;
+      await route.fallback();
+    });
+    const effectPage = await effectContext.newPage();
+    try {
+      await effectPage.goto(base + "/lesson-tools?mas=taanit&daf=ב&amud=1", {
+        waitUntil: "domcontentloaded",
+      });
+      await effectPage.locator("#veil .load-reading").waitFor();
+      assert.equal(await effectPage.locator("#veil img, #veil svg").count(), 0);
+      assert.equal(
+        await effectPage.locator("#veil .load-reading i").count(),
+        4,
+      );
+      assert.ok(
+        await effectPage
+          .locator("#veil .load-reading i")
+          .evaluateAll((nodes) =>
+            nodes.some((node) => node.getAnimations().length > 0),
+          ),
+      );
+      await effectPage.screenshot({
+        path: `/tmp/hadaf-effect-loader-${width}.png`,
+      });
+      releaseMarks();
+      await effectPage
+        .locator("#count")
+        .filter({ hasText: /^קטע 1 מתוך/ })
+        .waitFor({ state: "attached" });
+      assert.equal(await effectPage.locator("#veil").isVisible(), false);
+      await effectPage.evaluate(() =>
+        window.veil("פותחים את הדף", "מכינים את קטעי הלימוד והביאור"),
+      );
+      releaseEngine();
+      await effectPage.locator("#veil[data-effect-driven]").waitFor();
+      const nativeRunning = () =>
+        Array.from(document.querySelectorAll("#veil .load-reading i")).some(
+          (node) =>
+            node
+              .getAnimations()
+              .some(
+                (animation) =>
+                  animation.constructor.name === "Animation" &&
+                  animation.playState === "running",
+              ),
+        );
+      await effectPage.waitForFunction(nativeRunning);
+      await effectPage.evaluate(() => {
+        document.querySelector("#veil").style.transform = "translateY(2000px)";
+      });
+      await effectPage.waitForFunction(() =>
+        Array.from(document.querySelectorAll("#veil .load-reading i")).every(
+          (node) => node.getAnimations().length === 0,
+        ),
+      );
+      await effectPage.evaluate(() => {
+        document.querySelector("#veil").style.transform = "none";
+      });
+      await effectPage.waitForFunction(nativeRunning);
+      await effectPage.emulateMedia({ reducedMotion: "reduce" });
+      await effectPage.waitForFunction(() =>
+        Array.from(document.querySelectorAll("#veil .load-reading i")).every(
+          (node) => node.getAnimations().length === 0,
+        ),
+      );
+      await effectPage.evaluate(() =>
+        window.veil("אין חיבור כרגע", "אפשר לנסות שוב", false),
+      );
+      assert.equal(
+        await effectPage.locator("#veil .load-reading").isVisible(),
+        false,
+      );
+      assert.equal(
+        await effectPage.locator("#veil").getAttribute("aria-busy"),
+        "false",
+      );
+    } finally {
+      releaseMarks();
+      releaseEngine();
+      await effectContext.close();
+    }
+  }
+  console.log(
+    "Asset-free loader paints before Effect, lesson readiness is independent, native motion cancels offscreen and on reduced motion.",
+  );
+  const slowEffectsContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "no-preference",
+  });
+  await prepare(slowEffectsContext);
+  let releaseSlowEffects;
+  const slowEffects = new Promise((resolve) => {
+    releaseSlowEffects = resolve;
+  });
+  await slowEffectsContext.route(
+    "**/_astro/effect-animation.*.js",
+    async (route) => {
+      await slowEffects;
+      await route.continue();
+    },
+  );
+  const slowEffectsPage = await slowEffectsContext.newPage();
+  try {
+    await slowEffectsPage.goto(base, { waitUntil: "domcontentloaded" });
+    await slowEffectsPage
+      .locator("[data-community-tabs]")
+      .scrollIntoViewIfNeeded();
+    await slowEffectsPage.locator("[data-community-tabs].is-in").waitFor();
+    await slowEffectsPage
+      .getByRole("button", { name: "כבר בקבוצה", exact: true })
+      .click();
+    await slowEffectsPage.waitForFunction(
+      () =>
+        document.querySelector("#community-whatsapp-tab").hidden &&
+        !document.querySelector("[data-community-tabs]").inert,
+      {},
+      { timeout: 2000 },
+    );
+  } finally {
+    releaseSlowEffects();
+    await slowEffectsContext.close();
+  }
+  console.log(
+    "Community dismissal remains responsive while the Effect runtime download is blocked.",
+  );
   const installedContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
@@ -1280,7 +1432,7 @@ try {
   });
   const installed = await installedContext.newPage();
   await installed.goto(base + "/learn?mas=taanit&daf=ב&amud=1");
-  await installed.locator('#veil[aria-busy="true"] .load-page').waitFor();
+  await installed.locator('#veil[aria-busy="true"] .load-reading').waitFor();
   assert.equal(
     await installed.locator("#veil-t").textContent(),
     "פותחים את הדף",

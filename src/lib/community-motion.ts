@@ -1,6 +1,12 @@
+import { finishWithEffect } from "./effect-motion";
 const pending = new WeakMap<
   HTMLElement,
-  { key: string; animations: Animation[]; task: Promise<void> }
+  {
+    key: string;
+    animations: Animation[];
+    controller: AbortController;
+    task: Promise<void>;
+  }
 >();
 
 function focusRemaining(root: HTMLElement) {
@@ -44,6 +50,7 @@ export function updateCommunity(
         }
       : null;
   if (previous) {
+    previous.controller.abort();
     previous.animations.forEach((animation) => animation.cancel());
     pending.delete(root);
     root.style.opacity = "";
@@ -65,7 +72,12 @@ export function updateCommunity(
     apply();
     return Promise.resolve();
   }
-  const entry = { key, animations: [] as Animation[], task: Promise.resolve() };
+  const entry = {
+    key,
+    animations: [] as Animation[],
+    controller: new AbortController(),
+    task: Promise.resolve(),
+  };
   pending.set(root, entry);
   const focused = root.contains(document.activeElement);
   const height = interrupted?.height ?? root.getBoundingClientRect().height;
@@ -79,7 +91,7 @@ export function updateCommunity(
       fill: "forwards",
     });
     entry.animations.push(animation);
-    await animation.finished;
+    await finishWithEffect(animation, entry.controller.signal);
   };
   const painted = () =>
     new Promise<void>((resolve) =>

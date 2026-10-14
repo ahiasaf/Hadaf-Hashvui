@@ -40,7 +40,7 @@ function boot() {
     if (quiet()) SIDE_ADM = false;
     document.body.classList.toggle("side-adm", SIDE_ADM);
     if (!OPEN_OK && S.daf) {
-        veil("פותחים את הדף", "טוענים את הדף והביאור");
+        veil("פותחים את הדף", "בודקים שהדף פתוח ללימוד");
         buttons(false);
         OpenLoad().then(function() {
             OPEN_OK = true;
@@ -63,7 +63,7 @@ function boot() {
     loadQuizMap().then(function() {
         if (FLAT.length) paintChavArea();
     });
-    veil("פותחים את הדף", "טוענים את הדף והביאור");
+    veil("פותחים את הדף", "מכינים את קטעי הלימוד והביאור");
     buttons(false);
     var lib = loadLib();
     tick("lib", lib);
@@ -76,6 +76,7 @@ function boot() {
             veil("הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע", "אפשר ללמוד אותו כרגיל מצורת הדף ומהחברותא שבעמוד השבוע.", false);
             return;
         }
+        veil("פותחים את הדף", "מציגים את צורת הדף");
         return showPage(PAGES[0].daf, PAGES[0].pg).then(function() {
             SHOWN = 0;
             unveil();

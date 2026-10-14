@@ -164,6 +164,7 @@ import "../styles/community.css";
   import { enableReminders } from "../lib/notifications";
   import { stored, type Person } from "../lib/client";
   import { updateCommunity } from "../lib/community-motion";
+  import { requestEffectEntrance } from "../lib/effect-motion";
   const root = document.querySelector<HTMLElement>("[data-community-tabs]");
   if (root) {
     const tabs = Array.from(
@@ -222,12 +223,17 @@ import "../styles/community.css";
       help.title = canEnable ? "עזרה בהפעלת ההתראות" : "הגדרת התראות";
     }
     function select(index: number, focus = false) {
+      const changed = tabs[index]?.getAttribute("aria-selected") !== "true";
       tabs.forEach((tab, i) => {
         tab.setAttribute("aria-selected", String(i === index));
         tab.tabIndex = i === index ? 0 : -1;
         panels[i].hidden = i !== index;
       });
       if (focus) tabs[index].focus();
+      if (changed && panels[index])
+        panels[index]
+          .querySelectorAll<HTMLElement>(":scope > div")
+          .forEach(requestEffectEntrance);
     }
     root.querySelector<HTMLElement>('[role="tablist"]')!.hidden = false;
     refresh();

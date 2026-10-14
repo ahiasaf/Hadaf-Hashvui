@@ -1,3 +1,4 @@
+import { initializeEffectMotion } from "./effect-motion";
 import { initializeViewportMotion } from "./viewport-motion";
 // Shared page motion: scroll reveals, counters and the header shadow.
 // Content is visible by default; the "js" class only enables the entrance states.
@@ -74,6 +75,7 @@ function watchImages() {
 
 export function initializeMotion() {
   initializeViewportMotion();
+  initializeEffectMotion();
   const root = document.documentElement;
   if (!reduced()) watchImages();
   const header = document.querySelector<HTMLElement>(".site-header");

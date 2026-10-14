@@ -1,0 +1,180 @@
+type Runtime = typeof import("./effect-animation");
+let runtime: Runtime | undefined;
+let loading: Promise<Runtime> | undefined;
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const visible = (element: HTMLElement) => {
+  const bounds = element.getBoundingClientRect();
+  return (
+    element.isConnected &&
+    !document.hidden &&
+    !reduced() &&
+    bounds.width > 0 &&
+    bounds.height > 0 &&
+    bounds.bottom > 0 &&
+    bounds.top < innerHeight &&
+    getComputedStyle(element).visibility !== "hidden"
+  );
+};
+function warm() {
+  return (loading ??= import("./effect-animation")
+    .then((module) => (runtime = module))
+    .catch((error) => {
+      loading = undefined;
+      throw error;
+    }));
+}
+export function requestEffectEntrance(element: HTMLElement) {
+  element.dispatchEvent(new CustomEvent("df-motion-enter", { bubbles: true }));
+}
+// Existing dismissal animations start immediately, even on the first uncached interaction.
+export async function finishWithEffect(
+  animation: Animation,
+  signal?: AbortSignal,
+) {
+  const settled = animation.finished;
+  settled.catch(() => undefined);
+  const cancel = () => animation.cancel();
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    if (signal?.aborted) return;
+    if (runtime) await runtime.finish(animation, signal);
+    else {
+      void warm().catch(() => undefined);
+      await settled;
+    }
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
+}
+
+export function initializeEffectMotion() {
+  if (!("IntersectionObserver" in window)) return;
+  const active = new Map<HTMLElement, AbortController>();
+  const veil = document.querySelector<HTMLElement>("#veil");
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const element = entry.target as HTMLElement;
+      if (!entry.isIntersecting) active.get(element)?.abort();
+      else if (element === veil) syncLoader();
+    }
+  });
+  const run = (
+    element: HTMLElement,
+    task: (engine: Runtime, signal: AbortSignal) => Promise<unknown>,
+  ) => {
+    if (!runtime || !visible(element) || typeof element.animate !== "function")
+      return;
+    active.get(element)?.abort();
+    const controller = new AbortController();
+    active.set(element, controller);
+    observer.observe(element);
+    element.setAttribute("data-effect-driven", "");
+    void task(runtime, controller.signal)
+      .catch(() => undefined)
+      .finally(() => {
+        if (active.get(element) !== controller) return;
+        active.delete(element);
+        if (element !== veil) observer.unobserve(element);
+        else if (controller.signal.aborted && visible(element))
+          queueMicrotask(syncLoader);
+      });
+  };
+  function syncLoader() {
+    if (!veil) return;
+    if (
+      veil.classList.contains("off") ||
+      veil.getAttribute("aria-busy") !== "true" ||
+      !visible(veil)
+    ) {
+      active.get(veil)?.abort();
+      return;
+    }
+    if (active.has(veil)) return;
+    if (runtime)
+      run(veil, (engine, signal) =>
+        engine.reading(
+          Array.from(veil.querySelectorAll<HTMLElement>(".load-reading i")),
+          signal,
+        ),
+      );
+    else
+      void warm()
+        .then(syncLoader)
+        .catch(() => undefined);
+  }
+  document.addEventListener(
+    "animationstart",
+    (event) => {
+      const element = event.target;
+      if (
+        !(element instanceof HTMLElement) ||
+        !visible(element) ||
+        !element.matches(
+          ".flow-step, .rstep.on, .chb p, .community-panel > div",
+        )
+      )
+        return;
+      if (!runtime) {
+        void warm().catch(() => undefined);
+        return;
+      }
+      run(element, (engine, signal) => engine.enter(element, signal));
+    },
+    true,
+  );
+  document.addEventListener("df-motion-enter", (event) => {
+    if (event.target instanceof HTMLElement) {
+      if (runtime)
+        run(event.target, (engine, signal) =>
+          engine.enter(event.target as HTMLElement, signal),
+        );
+      else if (visible(event.target)) void warm().catch(() => undefined);
+    }
+  });
+  new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.target === veil) syncLoader();
+      const element = record.target;
+      if (
+        element instanceof HTMLElement &&
+        element.matches(".rstep.on[data-effect-driven]") &&
+        !/\bon\b/.test(record.oldValue || "")
+      )
+        run(element, (engine, signal) => engine.enter(element, signal));
+    }
+  }).observe(document.body, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class", "aria-busy"],
+    attributeOldValue: true,
+  });
+  const stop = () => {
+    if (document.hidden || reduced())
+      active.forEach((controller) => controller.abort());
+    else syncLoader();
+  };
+  document.addEventListener("visibilitychange", stop);
+  matchMedia("(prefers-reduced-motion: reduce)").addEventListener(
+    "change",
+    stop,
+  );
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      if (!reduced()) void warm().catch(() => undefined);
+    },
+    { once: true, passive: true },
+  );
+  document.addEventListener(
+    "focusin",
+    () => {
+      if (!reduced()) void warm().catch(() => undefined);
+    },
+    { once: true },
+  );
+  if (veil) {
+    observer.observe(veil);
+    // The HTML/CSS loader paints first; the orchestration chunk never gates lesson readiness.
+    requestAnimationFrame(() => requestAnimationFrame(syncLoader));
+  }
+}
