@@ -2607,7 +2607,9 @@ function pairAsk_() {
     try { delete window[cb]; } catch (e) { window[cb] = undefined; }
     if (sc.parentNode) sc.parentNode.removeChild(sc);
   };
-  var t0 = setTimeout(clean, 9000);
+  /* 20 שניות: הבדיקה קוראת את כל לשונית ההרשמות, ובטעינה קרה של
+     השרת 9 שניות לא הספיקו — והתשובה הלכה לאיבוד עד הפתיחה הבאה. */
+  var t0 = setTimeout(clean, 20000);
   window[cb] = function (r) {
     clearTimeout(t0); clean();
     if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); paintName_(); }

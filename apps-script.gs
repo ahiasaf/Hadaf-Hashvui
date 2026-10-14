@@ -1521,15 +1521,21 @@ function doGet(e) {
           }
           if (!viaLink && pmIds.indexOf(pt.c(row, 'מזהה המזמין')) >= 0) viaLink = true;
           if (!viaLink) {
-            /* טלפון לבדו היה מאפשר לכל אחד לגלות שם של נער לפי
-               מספר — ולכן בהצלבה לפי טלפון שם המשפחה חייב להתאים. */
-            if (!pmLast) continue;
-            if (nk_(pt.c(row, 'משפחה')) !== pmLast &&
-                nk_(pt.c(row, 'משפחת ההורה')) !== pmLast) continue;
             var theirs = phKey_(pt.c(row, 'טלפון'));
-            var ok = (pmPh && phKey_(pt.c(row, 'טלפון ההורה')) === pmPh) ||
-                     (theirs && pmOther.indexOf(theirs) >= 0);
-            if (!ok) continue;
+            var toMe = pmPh && phKey_(pt.c(row, 'טלפון ההורה')) === pmPh;
+            var toThem = theirs && pmOther.indexOf(theirs) >= 0;
+            /* **הדדי** — הוא מסר את הטלפון שלי ואני את שלו. את זה
+               אי אפשר לזייף מבחוץ (צריך שהצד השני ימסור את המספר
+               שלך), ולכן בלי תנאי שם משפחה: אמא בשם משפחה אחר,
+               "בן-דוד" מול "בן דוד" ושגיאת הקלדה ראו כאן "לא מחובר"
+               בזמן שהלוח של הצוות הראה אותם מחוברים. */
+            if (!(toMe && toThem)) {
+              /* חד-צדדי: טלפון לבדו היה מאפשר לכל אחד לגלות שם של
+                 נער לפי מספר — ולכן שם המשפחה חייב להתאים. */
+              if (!pmLast || !(toMe || toThem)) continue;
+              if (lastKey_(pt.c(row, 'משפחה')) !== lastKey_(pmLast) &&
+                  lastKey_(pt.c(row, 'משפחת ההורה')) !== lastKey_(pmLast)) continue;
+            }
           }
           found = pt.c(row, 'שם');
           break;
@@ -3108,6 +3114,9 @@ function phKey_(v) {
 var ALIAS_COL = 'מזהים נוספים';
 
 function nk_(v) { return String(v || '').replace(/["'׳״\s]/g, ''); }
+/* שם משפחה להשוואה בלבד (`pairFor`): גם בלי מקפים. לא בתוך
+   `nk_` — הוא בונה את מפתח האדם, ושינוי בו היה מאחד שורות. */
+function lastKey_(v) { return nk_(v).replace(/[-־–—]/g, ''); }
 
 function personKey_(phone, first, last, dad) {
   var p = phKey_(phone), f = nk_(first), l = nk_(last);
