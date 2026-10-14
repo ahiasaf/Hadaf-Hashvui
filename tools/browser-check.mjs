@@ -2203,12 +2203,12 @@ try {
   await setupPage
     .getByRole("heading", { name: "הדף מחכה לכם במסך הבית" })
     .waitFor();
-  await setupPage.goto(base + setupTarget);
+  await setupPage.goto(base + setupTarget, { waitUntil: "commit" });
   await setupPage.waitForURL("**/start?**");
   await setupPage.evaluate(() =>
     sessionStorage.setItem("test-standalone", "1"),
   );
-  await setupPage.goto(base + "/app");
+  await setupPage.goto(base + "/app", { waitUntil: "commit" });
   await setupPage.waitForURL("**/learn?**");
   await setupPage.locator("body.chav-on").waitFor();
   assert.equal(await setupPage.evaluate(() => window.CHAV_TAB), "chav");
