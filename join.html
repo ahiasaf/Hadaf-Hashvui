@@ -2930,11 +2930,11 @@ DeckLoad().then(function (ok) {
 
 function drawHero() {
   var box = $('wk0'); if (!box) return;
-  /* בעמוד ההקרנה הכפתור הלבן הוא "פתיחת דף לדוגמה" — שיהיה ברור
-     שזו הדגמה ולא הרשמה. הבאנר עצמו — אותו באנר בדיוק. */
+  /* בעמוד ההקרנה — "פתיחת הדף" לבדו, ברוחב מלא, כמו בעמוד הצוות
+     (`noDeckAlt`). הבאנר עצמו — אותו באנר בדיוק. */
   box.innerHTML = StageHtml({ track:myTrack(), pick:'setTrack',
                               deck:'stDeck', week:'stWeek', trail:'stTrail',
-                              goLbl: PRJ ? JOIN.prjSample : '' });
+                              noDeckAlt: PRJ });
 }
 
 /* ============================================================
