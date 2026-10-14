@@ -423,6 +423,30 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-l);
   box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
 #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(74,130,28,.28)}
 
+/* ---------- קישור ההורים: אזור ההצטרפות ----------
+   ראו dadLayout. כחול וזהב — לא הירוק של התלמידים. */
+.djoin{margin-top:22px}
+.djoin[hidden]{display:none}
+.dqr{max-width:300px;margin:0 auto;background:#fff;border:2px solid var(--gold);
+  border-radius:16px;padding:14px 14px 8px;box-shadow:var(--sh-2);text-align:center}
+.dqr[hidden]{display:none}
+.dqr h3{font-size:1.06rem;font-weight:800;color:var(--blue);letter-spacing:-.02em;
+  margin-bottom:8px}
+body.dadp #hero-go,body.dadp #meet-go{
+  background:linear-gradient(140deg,var(--blue-d),var(--blue));
+  box-shadow:0 6px 18px rgba(11,37,80,.28)}
+body.dadp #hero-go.lit{box-shadow:0 0 0 4px rgba(229,184,84,.55),0 6px 18px rgba(11,37,80,.28)}
+.dhow{margin-top:14px;border:1px dashed var(--rule);border-radius:var(--r-s);
+  background:var(--surface);font-size:.86rem;color:var(--ink-2)}
+.dhow[hidden]{display:none}
+.dhow summary{list-style:none;cursor:pointer;padding:11px 14px;text-align:center;
+  font-weight:800;color:var(--ink-2)}
+.dhow summary::-webkit-details-marker{display:none}
+.dhow summary:after{content:' \25BE';color:var(--gold)}
+.dhow[open] summary:after{content:' \25B4'}
+.dhow ol{margin:0;padding:0 34px 13px 14px;font-weight:600;line-height:1.7}
+.dhow li{margin-top:4px}
+
 /* ---------- ההגרלה ----------
    נדלקת מהניהול, ומופיעה רק כשהיא דלוקה. משפט הפרס ותמונתו
    נכתבים בטקסטים; כל עוד הם ריקים מוצג רק ההסבר, ולכן אפשר
@@ -990,6 +1014,20 @@ footer a{color:var(--ink-2);font-weight:800}
          להם עוד לפני שמסרו שם. -->
     <div id="wk0"></div>
 
+    <!-- קישור ההורים בלבד (`?for=dad`) — אזור ההצטרפות, נפרד
+         מההדגמה: הברקוד, ומתחתיו הכפתור ו"כבר נרשמתי", שעוברים
+         לכאן מלמעלה (ראו dadLayout). ואחריו ההנחיות למציג, סגורות. -->
+    <div class="djoin" id="dad-join" hidden>
+      <div class="dqr" id="dad-qr" hidden>
+        <h3 id="dad-qr-h"></h3>
+        <div id="dad-qr-box"></div>
+      </div>
+    </div>
+    <details class="dhow" id="dad-how" hidden>
+      <summary id="dad-how-h"></summary>
+      <ol><li id="dad-how-1"></li><li id="dad-how-2"></li><li id="dad-how-3"></li></ol>
+    </details>
+
     <div class="cards" id="cards"></div>
   </div>
 
@@ -1185,6 +1223,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="deck.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
+<script src="qr.js"></script>
 <script src="learned.js"></script>
 <script src="pair.js"></script>
 <script src="logo.js"></script>
@@ -1572,7 +1611,8 @@ function drawTop() {
     cards += card('blue', '📖', JOIN.dfTag, JOIN.dfBody);
   }
   $('cards').innerHTML = cards;
-  $('hero-go').textContent = JOIN.goBtn + ' ←';
+  $('hero-go').textContent = forDad ? (JOIN.goBtnDad || JOIN.goBtn) : JOIN.goBtn + ' ←';
+  dadLayout();
 
   /* המשפט והבאנר. הבאנר נבנה מ-stage.js — אותו קוד בדיוק
      שמצייר אותו במסך הראשי ובבית התלמיד, ולכן שלושתם אינם
@@ -2835,8 +2875,50 @@ DeckLoad().then(function (ok) {
 
 function drawHero() {
   var box = $('wk0'); if (!box) return;
+  /* בקישור ההורים הכפתור הלבן הוא "פתיחת דף לדוגמה" — שיהיה
+     ברור שזו הדגמה ולא הרשמה. שאר האפליקציה לא משתנה. */
   box.innerHTML = StageHtml({ track:myTrack(), pick:'setTrack',
-                              deck:'stDeck', week:'stWeek', trail:'stTrail' });
+                              deck:'stDeck', week:'stWeek', trail:'stTrail',
+                              goLbl: forDad ? JOIN.goSampleDad : '' });
+}
+
+/* ---------- קישור ההורים: אזור ההצטרפות ----------
+   העמוד הזה מוצג על מקרן באסיפת הורים, ואותו קישור נשלח אחר כך
+   הביתה. ולכן הסדר: ההדגמה ו"פתיחת דף לדוגמה" — אזור אחד; מתחתם
+   אזור ההצטרפות — ברקוד גדול וכפתור; ואז ההנחיות למציג, סגורות.
+
+   הברקוד מוביל לעמוד הזה עצמו (`?for=dad` ועם הישיבה), ולכן מי
+   שסורק מהמקרן ומי שלוחץ בבית מגיעים לאותו מסלול. כחול וזהב ולא
+   ירוק — שלא יתבלבל עם ברקוד התלמידים שבעמוד הצוות.
+
+   **בלי שום מידע מהלוח.** העמוד נשלח הלאה. */
+function dadUrl() {
+  var b = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+  return b + 'join.html?for=dad' + (instCode ? '&inst=' + encodeURIComponent(instCode) : '');
+}
+function dadLayout() {
+  var box = $('dad-join');
+  if (!box || !forDad) return;
+  if (box.hidden) {
+    document.body.className += ' dadp';
+    box.appendChild($('hero-go'));
+    box.appendChild($('back'));
+    box.hidden = false;
+    $('dad-how').hidden = false;
+  }
+  $('dad-qr-h').textContent = JOIN.qrDadH || '';
+  var svg = '';
+  try {
+    if (window.QR) svg = QR.svg(dadUrl(), { color:'#17468F', label:esc(JOIN.qrDadH || '') });
+  } catch (e) { svg = ''; }
+  $('dad-qr-box').innerHTML = svg;
+  $('dad-qr').hidden = !svg;
+  $('dad-how-h').textContent = JOIN.howDadH || '';
+  for (var i = 1; i <= 3; i++) {
+    var li = $('dad-how-' + i), t = JOIN['howDad' + i] || '';
+    li.textContent = t;
+    li.style.display = t ? '' : 'none';
+  }
 }
 function masName(t) {
   for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return TRACKS[i].masechet;
@@ -4523,7 +4605,7 @@ function meetSwap() {
   var h = m.offsetHeight;
   m.className = 'meet fade';
   setTimeout(function () {
-    b.textContent = JOIN.goBtn + ' ←';
+    b.textContent = forDad ? (JOIN.goBtnDad || JOIN.goBtn) : JOIN.goBtn + ' ←';
     b.style.height = Math.max(h, 52) + 'px';
     m.style.display = 'none';
     b.hidden = false;
