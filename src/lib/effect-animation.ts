@@ -177,23 +177,14 @@ function readingLayout(element: HTMLElement, signal: AbortSignal) {
           (node, index) =>
             play(
               node,
-              node.classList.contains("showcase")
-                ? [
-                    {
-                      opacity: 0,
-                      transform:
-                        "perspective(1000px) translateY(12px) rotateX(5deg) scale(.98)",
-                    },
-                    { opacity: 1, transform: "none" },
-                  ]
-                : [
-                    {
-                      opacity: 0,
-                      transform: `translateX(${direction * -14}px)`,
-                      clipPath: "inset(0 0 0 8%)",
-                    },
-                    { opacity: 1, transform: "none", clipPath: "inset(0)" },
-                  ],
+              [
+                {
+                  opacity: 0,
+                  transform: `translateX(${direction * -14}px)`,
+                  clipPath: "inset(0 0 0 8%)",
+                },
+                { opacity: 1, transform: "none", clipPath: "inset(0)" },
+              ],
               {
                 duration: 380,
                 delay: index * 38,

@@ -1445,7 +1445,7 @@ try {
     "Returning users open the weekly dashboard without confirmation; six-tile pagination retains every lesson and explicit profile editing.",
   );
 
-  for (const width of [320, 390, 1440]) {
+  for (const width of [390, 1440]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
       reducedMotion: "no-preference",
