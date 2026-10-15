@@ -2443,6 +2443,20 @@ button.yr-c.auto{cursor:pointer}
 .qb-seg button.on.s0{background:var(--ink-3);border-color:var(--ink-3);color:#fff}
 .qb-seg button.on.s1{background:var(--blue);border-color:var(--blue);color:#fff}
 .qb-bad{background:rgba(179,38,30,.1)}
+/* בחירת המסכת בראש המאגר — תענית ומגילה אינן באותה רשימה */
+.qb-mas{display:flex;gap:6px;margin-bottom:11px}
+.qb-mas button{flex:1;font:inherit;font-size:.95rem;font-weight:900;border:1px solid var(--rule);
+  background:var(--surface);color:var(--ink-2);border-radius:var(--r-m);padding:10px 8px;cursor:pointer}
+.qb-mas button small{font-size:.76rem;font-weight:700;opacity:.8;margin-inline-start:6px}
+.qb-mas button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+/* המתג "הפניה לפירוש לנוער" בכרטיס העריכה, והתג בכרטיס */
+.qb-yr{display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px;
+  border:1px solid var(--rule);border-radius:var(--r-s);cursor:pointer}
+.qb-yr input{width:22px;height:22px;flex:none;margin:0;accent-color:var(--blue)}
+.qb-yr b{display:block;font-weight:800;font-size:.9rem}
+.qb-yr small{display:block;font-size:.76rem;font-weight:600;color:var(--ink-3);margin-top:2px}
+.qb-yrt{font-size:.72rem;font-weight:800;color:var(--blue);background:rgba(23,70,143,.1);
+  border-radius:20px;padding:2px 9px}
 .adm-ver{margin-top:22px;text-align:center;font-size:.72rem;font-weight:700;color:var(--ink-3)}
 .stu-m{font-size:.74rem;color:var(--ink-3);font-weight:700}
 .vc{margin-bottom:11px}
@@ -2881,7 +2895,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.235';
+var APP_VERSION = '8.99.236';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -6040,14 +6054,15 @@ function openQuiz(idx) {
   var q = list[idx];
   if (!q) return;
   state.quizIdx = idx;
+  var pos = quizOrd(key, list.length).indexOf(idx);
   var qInstName = (INSTITUTIONS.filter(function (i) { return i.code === myInst; })[0] || {}).name || '';
 
   var h = (list.length > 1
       ? '<button class="btn g" style="margin-bottom:12px" onclick="openQuiz()">→ כל החידות</button>'
       : '') +
-      '<div class="sec"><b>' + (list.length > 1 ? 'חידה ' + (idx + 1) + ' · ' : 'החידה השבועית · ') +
+      '<div class="sec"><b>' + (list.length > 1 ? 'חידה ' + (pos + 1) + ' · ' : 'החידה השבועית · ') +
       'דף ' + esc(rowDaf(state.track.cal[state.week])) + '</b><i></i></div>' +
-      '<div class="qq">' + esc(q.q) + '</div><div class="opts">';
+      '<div class="qq">' + esc(q.q) + '</div>' + quizYrHtml(q) + '<div class="opts">';
   q.a.forEach(function (t, i) {
     h += '<button class="opt" id="opt' + i + '" onclick="pickAns(' + i + ')">' +
          '<span class="n">' + (i + 1) + '</span><span>' + esc(t) + '</span></button>';
@@ -6082,6 +6097,30 @@ function openQuiz(idx) {
 }
 /* תשובה נכונה נועלת את החידה במכשיר — לפי השבוע, מספר החידה
    והשאלה עצמה, כך ששאלה שהוחלפה נפתחת מחדש. */
+/* סדר החידות — תמיד מעורבב, בלי הגדרה. רק סדר התצוגה: `idx` נשאר
+   מקומה של החידה ב-QUIZ, וממנו גם מפתח הנעילה (quizOkKey). התשובות
+   אינן מעורבבות. הסדר נקבע פעם אחת לשבוע, עד שהעמוד נטען מחדש. */
+var QZ_ORD = {};
+function quizOrd(key, len) {
+  if (QZ_ORD[key] && QZ_ORD[key].length === len) return QZ_ORD[key];
+  var ord = [];
+  for (var i = 0; i < len; i++) ord.push(i);
+  for (var j = len - 1; j > 0; j--) {
+    var r = Math.floor(Math.random() * (j + 1)), t = ord[j];
+    ord[j] = ord[r]; ord[r] = t;
+  }
+  return (QZ_ORD[key] = ord);
+}
+/* "הפירוש לנוער" בחידון השבועי — רק לחידה שיש לה שיוך מפורש לקטע
+   (`seg` ב-QUIZ) ושהמתג שלה דלוק (`yr`). בלי שיוך — אין כפתור:
+   לא מנחשים קטע מנוסח השאלה. מוביל לדף, לקטע, עם הפירוש פתוח. */
+function quizYrHtml(q) {
+  if (!q || !q.yr || !q.seg || !state.track) return '';
+  var u = 'learn.html?mas=' + encodeURIComponent(state.track.id) + '&' + LDafQ(state.track.id, state.week) +
+          '&seg=' + encodeURIComponent(q.seg) + '&yr=1' + fromQ();
+  return '<a class="btn g" style="margin:-4px 0 12px;width:auto;display:inline-block;padding:7px 14px" href="' +
+         u + '">' + esc(UI.qYrBtn) + '</a>';
+}
 function quizOkKey(key, idx, q) { return 'df:qok:' + key + ':' + idx + ':' + q.q; }
 function quizOk(key, idx, q) {
   try { return localStorage.getItem(quizOkKey(key, idx, q)) === '1'; } catch (e) { return false; }
@@ -6091,9 +6130,9 @@ function quizOk(key, idx, q) {
 function openQuizList(key, list) {
   var h = '<div class="sec"><b>החידות · דף ' +
           esc(rowDaf(state.track.cal[state.week])) + '</b><i></i></div>';
-  h += list.map(function (q, i) {
+  h += quizOrd(key, list.length).map(function (i, p) {
     return '<button class="btn gr" style="margin-top:8px" onclick="openQuiz(' + i + ')">' +
-           'חידה ' + (i + 1) + ' — ' + esc(q.q) + '</button>';
+           'חידה ' + (p + 1) + ' — ' + esc(list[i].q) + '</button>';
   }).join('');
   document.getElementById('quiz-body').innerHTML = h;
   show('quiz');
@@ -11066,7 +11105,23 @@ function admMoreMenu() {
    הכתיבה — שורה לפי מזהה (qbank.js), ואחריה קריאה חוזרת שמאמתת.
    ============================================================ */
 var QB = null, QB_BUSY = false, QB_FAIL = false, QB_AT = 0, QB_IDS_AT = 0;
-var QB_F = { st:'', md:'' };
+var QB_F = { st:'', md:'', mas:'' };
+/* המסכת שבמאגר. תמיד אחת — אין "הכול": תענית ומגילה לא באותה רשימה.
+   הבחירה נזכרת במכשיר (נוחות בלבד; בלי זיכרון — המסכת הראשונה). */
+function qbMas() {
+  if (!QB_F.mas) try { QB_F.mas = localStorage.getItem('df:qbMas') || ''; } catch (e) {}
+  if (!trackById(QB_F.mas)) QB_F.mas = (TRACKS[0] || {}).id || '';
+  return QB_F.mas;
+}
+function qbMasSet(mas) {
+  if (!trackById(mas) || mas === qbMas()) return;
+  QB_F.mas = mas;
+  try { localStorage.setItem('df:qbMas', mas); } catch (e) {}
+  /* מסנן דף של המסכת האחרת אינו נשאר */
+  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = '';
+  /* שאלה חדשה שבכתיבה עוברת עם הבחירה — לדף הראשון של המסכת */
+  if (QB_ED && !QB_ED.id && QB_ED.mas !== mas) { QB_ED.mas = mas; QB_ED.daf = qbDafs(mas)[0] || ''; }
+}
 var QB_ED = null;            /* העותק שבעריכה. id ריק = שאלה חדשה */
 function qbApi() { return (CFG.api || API || '').trim(); }
 function qbStLbl(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
@@ -11106,6 +11161,7 @@ function qbCardHtml(x) {
   var si = QB_ST.indexOf(x.st);
   return '<div class="adm-card qb-c">' +
     '<div class="qb-h"><b>' + esc(QbMasName(x.mas) + ' ' + x.daf) + '</b>' +
+    (x.yr ? '<span class="qb-yrt">' + esc(UI.qbYrTag) + '</span>' : '') +
     /* "קטע" נכתב "3 · <מזהה>" — על המסך רק המספר. */
     (si === 2 && x.seg ? '<em>' + esc(fill(UI.qbSeg, { n: x.seg.split(' · ')[0] })) + '</em>' : '') +
     '<span class="' + ('qb-st s' + si) + '">' + esc(qbStLbl(x.st)) + '</span></div>' +
@@ -11120,11 +11176,11 @@ function qbCardHtml(x) {
     esc(UI.qbPlace) + '</button></div></div>';
 }
 function qbEdHtml(e) {
+  /* שאלה חדשה נכתבת במסכת שנבחרה למעלה — כאן רק הדף. */
   var where = e.id
     ? '<div class="qb-h"><b>' + esc(QbMasName(e.mas) + ' ' + e.daf) + '</b></div>'
-    : '<div class="qb-where"><select data-qbk="mas">' + TRACKS.map(function (t) {
-        return '<option value="' + esc(t.id) + '"' + (t.id === e.mas ? ' selected' : '') + '>' + esc(t.masechet) + '</option>';
-      }).join('') + '</select><select data-qbk="daf">' + qbDafs(e.mas).map(function (d) {
+    : '<div class="qb-where"><div class="qb-h" style="margin:0"><b>' + esc(QbMasName(e.mas)) + '</b></div>' +
+      '<select data-qbk="daf">' + qbDafs(e.mas).map(function (d) {
         return '<option' + (d === e.daf ? ' selected' : '') + '>' + esc(d) + '</option>';
       }).join('') + '</select></div>';
   return '<div class="adm-card qb-c qb-ed">' + where +
@@ -11141,6 +11197,8 @@ function qbEdHtml(e) {
         esc(qbStLbl(QB_ST[i])) + '</button>';
     }).join('') + '</div>' +
     '<input type="text" data-qbk="note" value="' + esc(e.note || '') + '" placeholder="' + esc(UI.qbNote) + '">' +
+    '<label class="qb-yr"><input type="checkbox" data-qbk="yr"' + (e.yr ? ' checked' : '') + '>' +
+      '<span><b>' + esc(UI.qbYr) + '</b><small>' + esc(UI.qbYrSub) + '</small></span></label>' +
     '<div class="qb-act"><button class="btn gr" data-qbsave="1">' + esc(UI.qbSave) + '</button>' +
     '<button class="btn g" data-qbx="1">' + esc(UI.qbCancel) + '</button>' +
     (e.id && e.orig !== QB_ST[2] ? '<button class="btn warn" data-qbdel="1">' + esc(UI.qbDel) + '</button>' : '') +
@@ -11149,7 +11207,11 @@ function qbEdHtml(e) {
 function qbPaint() {
   var el = document.getElementById('qb');
   if (!el) return;
-  var list = QB || [], n = {}, pages = [], seen = {};
+  var all = QB || [], mas = qbMas(), n = {}, pages = [], seen = {}, per = {};
+  /* כל מה שלמטה — רק המסכת שנבחרה: הכרטיסים, הדפים והספירות. */
+  all.forEach(function (x) { per[x.mas] = (per[x.mas] || 0) + 1; });
+  var list = all.filter(function (x) { return x.mas === mas; });
+  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = '';
   QB_ST.forEach(function (st) { n[st] = 0; });
   list.forEach(function (x) {
     var k = qbMd(x);
@@ -11159,7 +11221,12 @@ function qbPaint() {
   inMd.forEach(function (x) { n[x.st]++; });
   var shown = inMd.filter(function (x) { return !QB_F.st || x.st === QB_F.st; });
   var fresh = QB_ED && !QB_ED.id;
-  var h = '<div class="qb-n">' + QB_ST.map(function (st, i) {
+  var h = '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
+      return '<button data-qbm="' + esc(t.id) + '" class="' + (t.id === mas ? 'on' : '') + '"' +
+        ' aria-pressed="' + (t.id === mas) + '">' + esc(t.masechet) +
+        (QB ? '<small>' + (per[t.id] || 0) + '</small>' : '') + '</button>';
+    }).join('') + '</div>' +
+    '<div class="qb-n">' + QB_ST.map(function (st, i) {
       return '<button class="' + ('qb-k s' + i + (QB_F.st === st ? ' on' : '')) + '" data-qbf="' + st + '"' +
         ' aria-pressed="' + (QB_F.st === st) + '"><b>' + n[st] + '</b><span>' + esc(qbStLbl(st)) + '</span></button>';
     }).join('') + '</div>' +
@@ -11189,12 +11256,13 @@ function qbClick(ev) {
   if (!b || b.disabled) return;
   var g = function (a) { return b.getAttribute(a); };
   if (g('data-qbf') != null) { QB_F.st = QB_F.st === g('data-qbf') ? '' : g('data-qbf'); return qbPaint(); }
+  if (g('data-qbm')) { qbMasSet(g('data-qbm')); return qbPaint(); }
   if (g('data-qbnew')) {
-    var md = QB_F.md ? QB_F.md.split('|') : [], mas = md[0] || (TRACKS[0] || {}).id;
+    var md = QB_F.md ? QB_F.md.split('|') : [], mas = qbMas();
     var tr = trackById(mas), daf = '';
     if (md[1]) qbDafs(mas).forEach(function (d) { if (QbDafKey(d) === md[1]) daf = d; });
     if (!daf && tr) daf = (tr.cal[Math.max(0, weekIndex())] || [])[2] || qbDafs(mas)[0] || '';
-    QB_ED = { id:'', mas:mas, daf:daf, q:'', a:['', '', '', ''], correct:-1, st:QB_ST[0], note:'' };
+    QB_ED = { id:'', mas:mas, daf:daf, q:'', a:['', '', '', ''], correct:-1, st:QB_ST[0], note:'', yr:false };
     qbPaint();
     var ta = document.querySelector('#qb .qb-ed textarea');
     if (ta) ta.focus();
@@ -11203,7 +11271,8 @@ function qbClick(ev) {
   if (g('data-qbe')) {
     var x = QbFind(QB, g('data-qbe'));
     if (!x) return;
-    QB_ED = { id:x.id, mas:x.mas, daf:x.daf, q:x.q, a:x.a.slice(), correct:x.correct, st:x.st, note:x.note, orig:x.st };
+    QB_ED = { id:x.id, mas:x.mas, daf:x.daf, q:x.q, a:x.a.slice(), correct:x.correct, st:x.st, note:x.note,
+              yr:!!x.yr, orig:x.st };
     return qbPaint();
   }
   if (g('data-qbx')) { QB_ED = null; return qbPaint(); }
@@ -11224,7 +11293,7 @@ function qbChange(ev) {
   if (!QB_ED) return;
   if (t.getAttribute('data-qbc') != null) { QB_ED.correct = +t.getAttribute('data-qbc'); return qbPaint(); }
   var k = t.getAttribute('data-qbk');
-  if (k === 'mas') { QB_ED.mas = t.value; QB_ED.daf = qbDafs(t.value)[0] || ''; return qbPaint(); }
+  if (k === 'yr') { QB_ED.yr = !!t.checked; return; }
   if (k === 'daf') QB_ED.daf = t.value;
 }
 function qbSave() {
@@ -11232,7 +11301,7 @@ function qbSave() {
   if (!e) return;
   var want = { mas:e.mas, daf:e.daf, q:(e.q || '').trim(),
                a:e.a.map(function (t) { return (t || '').trim(); }),
-               correct:e.correct, st:e.st, note:(e.note || '').trim() };
+               correct:e.correct, st:e.st, note:(e.note || '').trim(), yr:!!e.yr };
   if (!want.q) return qbSay(1, UI.qbNeedQ);
   if (want.st === QB_ST[1] && !QbFull(want)) return qbSay(1, UI.qbNeedAll);
   var key = (CFG.readKey || '').trim();
@@ -18070,76 +18139,579 @@ function netFromSheets(sheets) {
 }
 function netPlace(name, loc) { return name + (loc && name.indexOf(loc) < 0 ? ' (' + loc + ')' : ''); }
 
+/* ============================================================
+   ייבוא חכם וקבוע — מיזוג עם המאגר, לא דריסה (8.99.234).
+   ============================================================
+   עד עכשיו כל שמירה כתבה מחדש את כל הלשונית מהקובץ שנבחר, ולכן
+   קובץ של ישיבה אחת היה מוחק את כל השאר. עכשיו:
+
+   1. הקובץ נקרא במכשיר. קובץ משרד החינוך מזוהה כמו קודם; קובץ אחר
+      (מזכירות, ישיבה) — הרכז מתאים עמודה לכל שדה. חסרה שכבה, שם
+      או ישיבה — עוצרים כאן, בלי לנחש כותרות.
+   2. לכל העלאה יש **מקור** (שם), ואפשר לסמן אותו **עדיף** לישיבות
+      מסוימות בלבד. ערך ממקור עדיף אינו נדרס אחר כך ממקור כללי.
+      המקור והקדימות נשמרים בשורה עצמה ("מקור", "מקור עדיף").
+   3. "תצוגה לפני שמירה" קוראת את המאגר עכשיו מהשרת (כישלון אינו
+      מאגר ריק — עוצרים), ומשווה: חדשים, עדכונים, כפילויות שאוחדו,
+      ללא שינוי, ומה שמחכה להכרעה. זהות ודאית = ישיבה + שכבה + שם
+      משפחה + שם פרטי זהים, אצל תלמיד אחד בכל צד, בלי כיתה סותרת.
+      כל השאר — איות דומה, כיתה אחרת, שם כפול — להכרעה. טלפון אינו
+      ראיה לזהות (אחים חולקים טלפון הורה).
+   4. שדה ריק בקובץ אינו מוחק. ערכים סותרים בלי קדימות ברורה —
+      להכרעה (ברירת המחדל: הקיים נשאר). מי שלא בקובץ — נשאר.
+   5. רק "שמירה" כותבת. השרת (netMerge_) מוודא שהמאגר לא השתנה מאז
+      הקריאה, מגבה, ומחיל רק את השינויים. ואז קוראים שוב ומאמתים
+      כל שורה — גם את אלה שלא היו אמורות להשתנות.
+   שום דבר מכאן אינו נשמר במכשיר, מלבד ההתאמה סמל ← ישיבה והמקורות
+   שסומנו עדיפים (נוחות בלבד — הכלל עצמו יושב בגיליון).
+   ============================================================ */
+var NET_META = ['מקור', 'מקור עדיף'];
+var NET_ALL = NET_COLS.concat(NET_META);
+var NETP = null;                 /* התצוגה לפני שמירה — בזיכרון בלבד */
+var NET_BUSY = false, NET_BAKS = null, NET_STALE = false;
+
+/* אותה פונקציה בדיוק ב-apps-script.gs (netSig_) — חתימת הלשונית. */
+function netSig(rows) {
+  var s = JSON.stringify(rows), h = 5381;
+  for (var i = 0; i < s.length; i++) h = (((h * 33) >>> 0) ^ s.charCodeAt(i)) >>> 0;
+  return rows.length + ':' + h.toString(36);
+}
+function netGr(v) {
+  v = String(v || '').replace(/["'׳״\s]/g, '');
+  return v === '7' ? 'ז' : v === '8' ? 'ח' : v;
+}
+function netCl(v) { var d = (String(v || '').match(/\d+/) || [''])[0]; return d ? String(+d) : ''; }
+function netNm(v) { return String(v || '').replace(/["'׳״\-־]/g, '').replace(/\s+/g, ' ').trim(); }
+function netFz(v) { return netNm(v).replace(/[\sוי]/g, ''); }
+function netTelN(v) { return netTel(v) || String(v || '').replace(/\D/g, ''); }
+function netSame(a, b) {
+  a = String(a == null ? '' : a).trim(); b = String(b == null ? '' : b).trim();
+  return a === b || (/^\d+$/.test(a) && /^\d+$/.test(b) && +a === +b);
+}
+/* שם פרטי קרוב: אחד מתחיל בשני, או אות אחת שונה. */
+function netNear(a, b) {
+  if (!a || !b) return false;
+  if (a.length >= 2 && b.length >= 2 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  var i = 0, j = 0, d = 0;
+  while (i < a.length && j < b.length) {
+    if (a.charAt(i) === b.charAt(j)) { i++; j++; continue; }
+    if (++d > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return d + (a.length - i) + (b.length - j) <= 1;
+}
+function netSrcAdd(had, src) {
+  var l = String(had || '').split(/\s*,\s*/).filter(function (x) { return !!x; });
+  if (l.indexOf(src) < 0) l.push(src);
+  return l.join(', ');
+}
+
+/* ---------- קריאת הקובץ ---------- */
 function netFile() {
   var inp = document.getElementById('nt-file');
   if (!inp) return;
   inp.value = '';
   inp.click();
 }
+/* קובץ שאינו של משרד החינוך: שורת הכותרת היא הראשונה (מתוך 15)
+   שיש בה לפחות שלושה תאים של טקסט. הכותרות מוצגות לרכז כפי שהן. */
+function netGenHead(sheets) {
+  for (var s = 0; s < sheets.length; s++) {
+    var rows = sheets[s].rows || [];
+    for (var i = 0; i < Math.min(rows.length, 15); i++) {
+      var hs = [], j;
+      for (j in rows[i]) if (rows[i].hasOwnProperty(j)) {
+        var t = String(rows[i][j] || '').trim();
+        if (t && !/^\d+$/.test(t)) hs.push({ col: j, t: t });
+      }
+      if (hs.length >= 3) return { si: s, hi: i, heads: hs };
+    }
+  }
+  return null;
+}
+/* השדות של קובץ כללי. `want` — כותרות שמזוהות רק בהתאמה מדויקת. */
+var NET_GEN_F = [
+  { f: 'g',     l: 'netFG', need: 1, want: ['שכבה'] },
+  { f: 'c',     l: 'netFC', want: ['כיתה', 'מקבילה'] },
+  { f: 'last',  l: 'netFL', need: 1, want: ['שם משפחה', 'משפחה'] },
+  { f: 'first', l: 'netFF', need: 1, want: ['שם פרטי', 'פרטי'] },
+  { f: 'kid',   l: 'netFK', want: ['טלפון', 'נייד', 'טלפון תלמיד', 'נייד תלמיד'] },
+  { f: 'par',   l: 'netFP', want: ['טלפון הורה', 'נייד הורה', 'טלפון אב', 'טלפון אם'] },
+  { f: 'inst',  l: 'netFI', need: 1, want: ['ישיבה', 'שם מוסד', 'סמל מוסד', 'קוד ישיבה', 'בית ספר'] }
+];
 function netPicked(inp) {
   var f = inp.files && inp.files[0];
   if (!f) return;
   /* קובץ גדול נקרא עשרות שניות, והמסך קופא בזמן הזה — אומרים את זה
      לפני, ונותנים למסך להתעדכן לפני שהקריאה מתחילה. */
-  netMsg = UI.netReading; admPane();
+  netMsg = UI.netReading; NETP = null; admPane();
   var rd = new FileReader();
   rd.onload = function () {
     amdaNeedXlsx().then(function () { return new Promise(function (ok) { setTimeout(ok, 60); }); }).then(function () {
-      var r = null;
-      try { r = netFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
+      var sheets = null, r = null;
+      try { sheets = XLSX_READ(rd.result); r = netFromSheets(sheets); } catch (e) { r = null; }
       netMsg = '';
-      if (!r || !r.hdr) { alert(UI.netBad); return; }
-      if (!r.rows.length) { alert(UI.netNoRows); return; }
-      var map = Store.get('netMap', {}) || {}, k;
-      r.map = {};
-      for (k in r.insts) if (r.insts.hasOwnProperty(k)) {
-        r.map[k] = map[k] !== undefined ? map[k] : netGuess(r.insts[k].name, r.insts[k].loc + ' ' + r.insts[k].city);
+      if (r && r.hdr) {
+        if (!r.rows.length) { alert(UI.netNoRows); admPane(); return; }
+        r.kind = 'moe';
+        r.src = UI.netSrcMoe || '';
+        r.list = r.rows.map(function (x) {
+          return { k: x[0], sym: x[0], g: x[1], c: netCl(x[2]), last: x[3], first: x[4],
+                   kid: x[5], par: x[6], rel: x[7] };
+        });
+        netMapInit(r);
+        NET = r; admPane();
+        return;
       }
-      NET = r; netMsg = '';
+      /* לא משרד החינוך — התאמת עמודות. אין כותרות — עוצרים. */
+      var gh = sheets && netGenHead(sheets);
+      if (!gh) { alert(UI.netBad2); admPane(); return; }
+      var map = {};
+      NET_GEN_F.forEach(function (d) {
+        gh.heads.forEach(function (h) { if (!map[d.f] && d.want.indexOf(h.t) >= 0) map[d.f] = h.col; });
+      });
+      NET = { kind: 'gen', sheets: sheets, gen: { si: gh.si, hi: gh.hi, heads: gh.heads, map: map, one: '' },
+              src: String(f.name || '').replace(/\.[^.]*$/, ''), step: 'map' };
       admPane();
-    }).catch(function () { alert(UI.netBad); });
+    }).catch(function () { alert(UI.netBad); admPane(); });
   };
   rd.readAsArrayBuffer(f);
 }
-function netMapSet(sym, code) { if (NET) NET.map[sym] = code; admPane(); }
-function netCancel() { NET = null; netMsg = ''; admPane(); }
+function netGenSet(fld, v) { if (NET && NET.gen) NET.gen.map[fld] = v; admPane(); }
+function netGenOne(v) { if (NET && NET.gen) NET.gen.one = v; admPane(); }
+/* מה שחסר כדי להמשיך — רשימת שמות שדות, או ריק. */
+function netGenMiss() {
+  var g = NET.gen, miss = [];
+  NET_GEN_F.forEach(function (d) {
+    if (!d.need) return;
+    if (d.f === 'inst' ? !(g.one || g.map.inst) : !g.map[d.f]) miss.push(UI[d.l]);
+  });
+  return miss;
+}
+/* השורות, לפי ההתאמה שהרכז בחר. רק ז׳–ח׳ (ATT_GRADES). */
+function netGenGo() {
+  if (!NET || !NET.gen || netGenMiss().length) return;
+  var g = NET.gen, rows = NET.sheets[g.si].rows, list = [], insts = {}, out = 0;
+  var at = function (r, f) { return g.map[f] ? String(r[g.map[f]] || '').trim() : ''; };
+  for (var i = g.hi + 1; i < rows.length; i++) {
+    var x = rows[i], first = at(x, 'first'), last = at(x, 'last');
+    if (!first && !last) continue;
+    var gr = netGr(at(x, 'g')), k = g.one ? '*' : at(x, 'inst');
+    if (!first || !last || !k || ATT_GRADES.indexOf(gr) < 0) { out++; continue; }
+    list.push({ k: k, sym: '', g: gr, c: netCl(at(x, 'c')), last: last, first: first,
+                kid: netTel(at(x, 'kid')), par: netTel(at(x, 'par')), rel: '' });
+    if (!insts[k]) insts[k] = { name: k === '*' ? '' : k, loc: '', city: '', n: 0 };
+    insts[k].n++;
+  }
+  if (!list.length) { alert(UI.netNoRows2); return; }
+  NET.list = list; NET.insts = insts; NET.other = {}; NET.out = out; NET.step = '';
+  netMapInit(NET);
+  if (g.one) NET.map['*'] = g.one;
+  admPane();
+}
+function netMapInit(r) {
+  var map = Store.get('netMap', {}) || {}, k;
+  r.map = {};
+  for (k in r.insts) if (r.insts.hasOwnProperty(k)) {
+    r.map[k] = map[k] !== undefined ? map[k] : (k === '*' ? '' : netGuess(r.insts[k].name, (r.insts[k].loc || '') + ' ' + (r.insts[k].city || '')));
+  }
+  r.pref = {};
+  var pf = (Store.get('netPrefs', {}) || {})[r.src] || [];
+  pf.forEach(function (c) { r.pref[c] = true; });
+}
+function netMapSet(sym, code) { if (NET) { NET.map[sym] = code; NETP = null; } admPane(); }
+function netSrcSet(v) {
+  if (!NET) return;
+  NET.src = String(v || '').trim(); NETP = null;
+}
+function netPrefSet(code, on) { if (NET) { NET.pref[code] = !!on; NETP = null; } admPane(); }
+function netCancel() { NET = null; NETP = null; netMsg = ''; admPane(); }
 function netTotals() {
   var m = 0, n = 0, k;
   for (k in NET.insts) if (NET.insts.hasOwnProperty(k) && NET.map[k]) { m++; n += NET.insts[k].n; }
   return { m: m, n: n };
 }
+/* השורות של הקובץ שנכנסות — רק מישיבה מותאמת. */
+function netRowsIn() {
+  var out = [];
+  NET.list.forEach(function (x) {
+    var code = NET.map[x.k];
+    if (!code) return;
+    var y = {}; for (var k in x) if (x.hasOwnProperty(k)) y[k] = x[k];
+    y.inst = code;
+    out.push(y);
+  });
+  return out;
+}
+
+/* ---------- התצוגה לפני שמירה ---------- */
+function netPrevGo() {
+  var key = (CFG.readKey || '').trim();
+  if (!NET || NET_BUSY) return;
+  if (!key || !(CFG.api || API || '').trim()) { netMsg = UI.netNoKey; admPane(); return; }
+  if (!NET.src) { netMsg = UI.netNoSrc; admPane(); return; }
+  NET_BUSY = true; NETP = null; netMsg = UI.netReadCur; admPane();
+  /* השרת מכיר את הייבוא החדש? שרת ישן — לא שולחים לו כלום. */
+  scriptGet({ netbaks: 1, key: key }).then(function (b) {
+    if (!b || b.status !== 'ok' || !b.baks) throw new Error('old');
+    NET_BAKS = b.baks;
+    return scriptGet({ read: NET_TAB, key: key });
+  }).then(function (d) {
+    NET_BUSY = false;
+    /* כישלון בקריאה אינו מאגר ריק. לשונית אחרת (gviz) — גם לא. */
+    if (!d || d.status !== 'ok' || !d.rows || typeof d.rows.length !== 'number') { netMsg = UI.netNoRead; admPane(); return; }
+    if (d.rows.length && d.rows[0].map(function (h) { return String(h).trim(); }).indexOf('קוד ישיבה') < 0) {
+      netMsg = UI.netNoRead; admPane(); return;
+    }
+    NETP = netPlan(d.rows, netRowsIn(), NET.src, NET.pref);
+    NETP.out = (NET.out || 0) + NET.list.length - netRowsIn().length;
+    netMsg = NET_STALE ? UI.netStale : ''; NET_STALE = false;
+    admPane();
+  })['catch'](function (e) {
+    NET_BUSY = false;
+    netMsg = e && e.message === 'old' ? UI.netOldSrv : UI.netNoRead;
+    admPane();
+  });
+}
+/* מה ייעשה מול מה שכבר במאגר. פונקציה טהורה — נבדקת בנתוני דמה. */
+function netPlan(cur, rows, src, pref) {
+  var head = (cur[0] || []).map(function (h) { return String(h).trim(); });
+  var P = { base: netSig(cur), cur: cur, ex: [], adds: [], sets: {}, asks: [], dup: 0, src: src, pref: pref };
+  var col = function (row, n) { var i = head.indexOf(n); return i < 0 ? '' : String(row[i] == null ? '' : row[i]).trim(); };
+  var exK = {}, fzK = {}, lnK = {}, add = function (m, k, e) { (m[k] = m[k] || []).push(e); };
+  for (var r = 1; r < cur.length; r++) {
+    var e = { r: r + 1, v: {} };
+    NET_ALL.forEach(function (c) { e.v[c] = col(cur[r], c); });
+    P.ex.push(e);
+    var base = e.v['קוד ישיבה'] + '|' + netGr(e.v['שכבה']) + '|';
+    add(exK, base + netNm(e.v['משפחה']) + '|' + netNm(e.v['פרטי']), e);
+    add(fzK, base + netFz(e.v['משפחה']) + netFz(e.v['פרטי']), e);
+    if (netFz(e.v['משפחה']) !== netFz(e.v['פרטי'])) add(fzK, base + netFz(e.v['פרטי']) + netFz(e.v['משפחה']), e);
+    add(lnK, base + netFz(e.v['משפחה']), e);
+  }
+  /* כפילויות בתוך הקובץ: אותו תלמיד, אותה כיתה. פרטים משלימים —
+     אוחדו בוודאות. טלפונים סותרים — שתי השורות להכרעה. */
+  var byK = {}, list = [];
+  rows.forEach(function (x) {
+    var k = [x.inst, x.g, x.c, netNm(x.last), netNm(x.first)].join('|'), o = byK[k];
+    if (!o) { byK[k] = x; list.push(x); return; }
+    var clash = (o.kid && x.kid && o.kid !== x.kid) || (o.par && x.par && o.par !== x.par);
+    if (clash) { o.dupc = x.dupc = 1; list.push(x); return; }
+    if (!o.kid && x.kid) o.kid = x.kid;
+    if (!o.par && x.par) { o.par = x.par; o.rel = x.rel; }
+    P.dup++;
+  });
+  var nk = {}, keyOf = function (x) { return x.inst + '|' + x.g + '|' + netNm(x.last) + '|' + netNm(x.first); };
+  list.forEach(function (x) { nk[keyOf(x)] = (nk[keyOf(x)] || 0) + 1; });
+  var uniq = function (a, not) {
+    var seen = {}, out = [];
+    (a || []).forEach(function (e) { if (!seen[e.r] && !(not && not[e.r])) { seen[e.r] = 1; out.push(e); } });
+    return out;
+  };
+  var ask = function (x, cands, why) { P.asks.push({ t: 'match', x: x, cands: cands, why: why, pick: '' }); };
+  list.forEach(function (x) {
+    var ex = uniq(exK[keyOf(x)]), not = {};
+    ex.forEach(function (e) { not[e.r] = 1; });
+    var fz = uniq(fzK[x.inst + '|' + x.g + '|' + netFz(x.last) + netFz(x.first)], not);
+    if (x.dupc) return ask(x, ex.concat(fz), 'dup');
+    if (ex.length === 1 && nk[keyOf(x)] === 1 && !P.sets[ex[0].r]) {
+      var e = ex[0];
+      if (x.c && e.v['כיתה'] && netCl(x.c) !== netCl(e.v['כיתה'])) return ask(x, [e], 'cls');
+      var S = netFoldS(e, x, src, pref);
+      P.sets[e.r] = S;
+      if (S.disp.length) P.asks.push({ t: 'fld', s: S });
+      return;
+    }
+    if (ex.length) return ask(x, ex, 'many');
+    if (fz.length) return ask(x, fz, 'spell');
+    /* אותה משפחה, ושם פרטי קרוב ("אבי"/"אביה") או טלפון משותף — אולי
+       אותו תלמיד, ואולי אח. לא ממזגים ולא מוסיפים בשקט: להכרעה. */
+    var near = (lnK[x.inst + '|' + x.g + '|' + netFz(x.last)] || []).filter(function (e) {
+      var a = netFz(x.first), b = netFz(e.v['פרטי']);
+      var tel = [x.kid, x.par].filter(function (t) { return !!t; });
+      return netNear(a, b) || tel.some(function (t) {
+        return t === netTelN(e.v['טלפון']) || t === netTelN(e.v['טלפון הורה']);
+      });
+    });
+    if (near.length) return ask(x, uniq(near), 'near');
+    P.adds.push(x);
+  });
+  return P;
+}
+/* מה משתנה בשורה קיימת כשהיא מתמזגת עם שורה מהקובץ. */
+function netFoldS(e, x, src, pref) {
+  var np = !!pref[x.inst], op = !!e.v['מקור עדיף'];
+  var S = { e: e, x: x, ch: {}, disp: [], np: np, prio: 0 };
+  [['כיתה', 'c', netCl], ['טלפון', 'kid', netTelN], ['טלפון הורה', 'par', netTelN],
+   ['משפחה', 'last', netNm], ['פרטי', 'first', netNm], ['סמל מוסד', 'sym', String]].forEach(function (f) {
+    var o = e.v[f[0]], v = x[f[1]] || '';
+    if (!v) return;                          /* ריק בקובץ אינו מוחק */
+    if (!o) { S.ch[f[0]] = v; return; }      /* חסר במאגר — משלימים */
+    if (f[2](o) === f[2](v)) return;
+    if (np && !op) { S.ch[f[0]] = v; return; }  /* מקור עדיף מול כללי */
+    if (!np && op) { S.prio++; return; }        /* כללי אינו דורס עדיף */
+    /* שם וסמל אינם מוחלפים בלי מקור עדיף — רק טלפונים וכיתה להכרעה. */
+    if (f[0] === 'משפחה' || f[0] === 'פרטי' || f[0] === 'סמל מוסד') return;
+    S.disp.push({ c: f[0], o: o, v: v, pick: 'o' });
+  });
+  /* הקרבה הולכת עם טלפון ההורה. */
+  if (S.ch.hasOwnProperty('טלפון הורה')) S.ch['קרבה'] = x.rel || '';
+  else if (!e.v['קרבה'] && x.rel && netTelN(e.v['טלפון הורה']) === netTelN(x.par)) S.ch['קרבה'] = x.rel;
+  S.meta = np && e.v['מקור עדיף'] !== src;
+  return S;
+}
+function netSetRow(S, src) {
+  var row = {}, k;
+  for (k in S.ch) if (S.ch.hasOwnProperty(k)) row[k] = S.ch[k];
+  S.disp.forEach(function (d) {
+    if (d.pick !== 'v') return;
+    row[d.c] = d.v;
+    if (d.c === 'טלפון הורה') row['קרבה'] = S.x.rel || '';
+  });
+  var touched = Object.keys(row).length;
+  if (!touched && !S.meta) return null;
+  if (touched) row['מקור'] = netSrcAdd(S.e.v['מקור'], src);
+  if (S.np) row['מקור עדיף'] = src;
+  return row;
+}
+function netAddRow(x, src, pref) {
+  return { 'קוד ישיבה': x.inst, 'שכבה': x.g, 'כיתה': x.c, 'משפחה': x.last, 'פרטי': x.first,
+           'טלפון': x.kid || '', 'טלפון הורה': x.par || '', 'קרבה': x.par ? (x.rel || '') : '',
+           'סמל מוסד': x.sym || '', 'מקור': src, 'מקור עדיף': pref[x.inst] ? src : '' };
+}
+/* הפעולות לשרת, לפי התצוגה וההכרעות. null — הכרעות סותרות. */
+function netOps(P) {
+  var ops = [], used = {}, bad = false, n = { add: 0, upd: 0, same: 0, aside: 0 };
+  var setOp = function (S) {
+    if (used[S.e.r]) { bad = true; return; }
+    used[S.e.r] = 1;
+    var row = netSetRow(S, P.src);
+    if (!row) { n.same++; return; }
+    ops.push({ k: 'set', r: S.e.r, was: S.e.v, row: row });
+    n.upd++;
+  };
+  for (var r in P.sets) if (P.sets.hasOwnProperty(r)) setOp(P.sets[r]);
+  P.adds.forEach(function (x) { ops.push({ k: 'add', row: netAddRow(x, P.src, P.pref) }); n.add++; });
+  P.asks.forEach(function (a) {
+    if (a.t !== 'match') return;
+    if (a.pick === 'new') { ops.push({ k: 'add', row: netAddRow(a.x, P.src, P.pref) }); n.add++; }
+    else if (a.pick && a.S) setOp(a.S);
+    else n.aside++;
+  });
+  return bad ? null : { ops: ops, n: n };
+}
+function netAskPick(i, v) {
+  var a = NETP && NETP.asks[i];
+  if (!a) return;
+  a.pick = v; a.S = null;
+  if (v.indexOf('r:') === 0) {
+    var r = +v.slice(2), e = null;
+    a.cands.forEach(function (c) { if (c.r === r) e = c; });
+    if (e) a.S = netFoldS(e, a.x, NETP.src, NETP.pref);
+  }
+  admPane();
+}
+function netDispPick(i, j, v) {
+  var a = NETP && NETP.asks[i];
+  var S = a && (a.t === 'fld' ? a.s : a.S);
+  if (S && S.disp[j]) S.disp[j].pick = v;
+  admPane();
+}
+
+/* ---------- שמירה, ואימות ---------- */
+function netRunId() { return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+/* התשובה של השרת נשמרת לפי מזהה הריצה — ממתינים לה. */
+function netRunWait(id, tries) {
+  var key = (CFG.readKey || '').trim();
+  return new Promise(function (ok) { setTimeout(ok, tries ? 3000 : 2500); }).then(function () {
+    return scriptGet({ netrun: id, key: key });
+  }).then(function (d) {
+    if (d && typeof d.at === 'number' && d.status !== 'none') return d;
+    if (tries < 25) return netRunWait(id, tries + 1);
+    return null;
+  }, function () { return tries < 25 ? netRunWait(id, tries + 1) : null; });
+}
+/* כל שורה במקומה: מה שלא היה אמור להשתנות — זהה; מה שעודכן —
+   בערכים החדשים; והחדשות — בסוף. שוויון במספר השורות אינו הוכחה. */
+function netCheck(P, ops, rows) {
+  if (!rows || !rows.length) return false;
+  var head = rows[0].map(function (h) { return String(h).trim(); });
+  var col = function (row, n) { var i = head.indexOf(n); return i < 0 ? '' : String(row[i] == null ? '' : row[i]); };
+  var setBy = {}, adds = [];
+  ops.forEach(function (o) { if (o.k === 'set') setBy[o.r] = o.row; else adds.push(o.row); });
+  if (rows.length !== Math.max(P.cur.length, 1) + adds.length) return false;
+  var i, c, ok = true;
+  P.ex.forEach(function (e) {
+    var want = setBy[e.r] || {}, row = rows[e.r - 1];
+    if (!row) { ok = false; return; }
+    NET_ALL.forEach(function (c2) {
+      if (!netSame(col(row, c2), want.hasOwnProperty(c2) ? want[c2] : e.v[c2])) ok = false;
+    });
+  });
+  for (i = 0; i < adds.length && ok; i++) {
+    var rr = rows[Math.max(P.cur.length, 1) + i];
+    for (c = 0; c < NET_ALL.length; c++) if (!netSame(col(rr, NET_ALL[c]), adds[i][NET_ALL[c]])) { ok = false; break; }
+  }
+  return ok;
+}
 function netSave() {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
-  if (!NET) return;
+  if (!NET || !NETP || NET_BUSY) return;
   if (!key || !url) { netMsg = UI.netNoKey; admPane(); return; }
-  var map = NET.map, rows = [], k, schools = {};
-  NET.rows.forEach(function (r) {
-    if (!map[r[0]]) return;
-    schools[map[r[0]]] = 1;
-    rows.push([map[r[0]], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[0]]);
-  });
-  var keep = Store.get('netMap', {}) || {};
-  for (k in map) if (map.hasOwnProperty(k)) keep[k] = map[k];
-  Store.set('netMap', keep);
-  var n = rows.length, s = Object.keys(schools).length;
-  netMsg = fill(UI.netSaving, { n: n });
+  var built = netOps(NETP);
+  if (!built) { netMsg = UI.netTwice; admPane(); return; }
+  if (!built.ops.length) { netMsg = UI.netNothing; admPane(); return; }
+  var P = NETP, run = netRunId();
+  NET_BUSY = true;
+  netMsg = fill(UI.netSaving2, { a: built.n.add, u: built.n.upd });
   admPane();
+  /* ההתאמה סמל ← ישיבה, והמקורות העדיפים — נוחות במכשיר בלבד. */
+  var keep = Store.get('netMap', {}) || {}, k;
+  for (k in NET.map) if (NET.map.hasOwnProperty(k) && k !== '*') keep[k] = NET.map[k];
+  Store.set('netMap', keep);
+  var pf = Store.get('netPrefs', {}) || {};
+  pf[NET.src] = Object.keys(NET.pref).filter(function (c) { return NET.pref[c]; });
+  Store.set('netPrefs', pf);
+  var bak = '';
   fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'table', tab: NET_TAB, key: key,
-    cols: JSON.stringify(NET_COLS), rows: JSON.stringify(rows) }) })
+    action: 'netMerge', key: key, run: run, base: P.base,
+    cols: JSON.stringify(NET_ALL), ops: JSON.stringify(built.ops) }) })
     .catch(function () {})
-    .then(function () { return new Promise(function (ok) { setTimeout(ok, 4000); }); })
-    /* no-cors תמיד "מצליח" — נשמר רק מה שנקרא חזרה מהגיליון. */
-    .then(function () { return scriptGet({ read: NET_TAB, key: key }); })
+    .then(function () { return netRunWait(run, 0); })
+    .then(function (r) {
+      if (r && r.status === 'stale') throw new Error('stale');
+      if (r && r.status !== 'ok') throw new Error('err');
+      bak = (r && r.backup) || '';
+      return scriptGet({ read: NET_TAB, key: key });
+    })
     .then(function (d) {
-      var got = d && d.status === 'ok' && d.rows ? d.rows.length - 1 : -1;
-      if (got === n) {
-        Store.set('netInfo', { n: n, s: s, at: Date.now() });
-        NET = null;
-        netMsg = fill(UI.netSaved, { n: n });
-      } else netMsg = UI.netNoSave;
+      NET_BUSY = false;
+      if (!d || d.status !== 'ok' || !netCheck(P, built.ops, d.rows)) { netMsg = UI.netNoSave; admPane(); return; }
+      var insts = {};
+      var hc = d.rows[0].map(function (h) { return String(h).trim(); }).indexOf('קוד ישיבה');
+      d.rows.slice(1).forEach(function (x) { if (x[hc]) insts[x[hc]] = 1; });
+      Store.set('netInfo', { n: d.rows.length - 1, s: Object.keys(insts).length, at: Date.now() });
+      NET = null; NETP = null; NET_BAKS = null;
+      netMsg = fill(UI.netSaved2, { a: built.n.add, u: built.n.upd, b: bak.replace(/^[^·]*·\s*/, '') });
       admPane();
-    })['catch'](function () { netMsg = UI.netNoSave; admPane(); });
+    })['catch'](function (e) {
+      NET_BUSY = false;
+      /* המאגר השתנה מאז הקריאה — לא נכתב דבר. קוראים שוב ומציגים מחדש. */
+      if (e && e.message === 'stale') { NET_STALE = true; netPrevGo(); return; }
+      netMsg = UI.netNoSave; admPane();
+    });
+}
+
+/* ---------- גיבויים ושחזור ---------- */
+function netBaksOpen() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { netMsg = UI.netNoKey; admPane(); return; }
+  netMsg = UI.netReadCur; admPane();
+  scriptGet({ netbaks: 1, key: key }).then(function (b) {
+    if (!b || b.status !== 'ok' || !b.baks) { netMsg = UI.netOldSrv; admPane(); return; }
+    NET_BAKS = b.baks; netMsg = ''; admPane();
+  })['catch'](function () { netMsg = UI.netNoRead; admPane(); });
+}
+function netRestore(i) {
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim(), b = NET_BAKS && NET_BAKS[i];
+  if (!b || !key || !url || NET_BUSY) return;
+  var t = b.name.replace(/^[^·]*·\s*/, '');
+  if (!confirm(fill(UI.netRestSure, { t: t }))) return;
+  var run = netRunId();
+  NET_BUSY = true; netMsg = UI.netRestIng; admPane();
+  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'netRestore', key: key, run: run, backup: b.name }) })
+    .catch(function () {})
+    .then(function () { return netRunWait(run, 0); })
+    .then(function (r) {
+      if (!r || r.status !== 'ok') throw new Error('err');
+      return scriptGet({ read: NET_TAB, key: key });
+    })
+    .then(function (d) {
+      NET_BUSY = false;
+      /* השחזור נכון רק אם הלשונית זהה לגיבוי — חתימה מול חתימה. */
+      if (!d || d.status !== 'ok' || netSig(d.rows || []) !== b.sig) { netMsg = UI.netRestBad; admPane(); return; }
+      NET_BAKS = null; NETP = null;
+      netMsg = fill(UI.netRestOk, { n: b.n });
+      admPane();
+    })['catch'](function () { NET_BUSY = false; netMsg = UI.netRestBad; admPane(); });
+}
+
+/* ---------- המסך ---------- */
+function netOpt(cur, list) {
+  return list.map(function (o) {
+    return '<option value="' + esc(o[0]) + '"' + (o[0] === cur ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+  }).join('');
+}
+function netInstOpts(cur, none) {
+  return netOpt(cur, [['', none]].concat(INSTITUTIONS.map(function (x) { return [x.code, x.name]; })));
+}
+function netInstName(code) {
+  for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === code) return INSTITUTIONS[i].name;
+  return code;
+}
+function netWho(v) {
+  return (v['משפחה'] || '') + ' ' + (v['פרטי'] || '') + ' · ' + (v['שכבה'] || '') +
+         (v['כיתה'] ? v['כיתה'] : '');
+}
+function netXv(x) {
+  return { 'משפחה': x.last, 'פרטי': x.first, 'שכבה': x.g, 'כיתה': x.c, 'טלפון': x.kid, 'טלפון הורה': x.par };
+}
+function netDispHtml(i, S) {
+  return S.disp.map(function (d, j) {
+    var nm = 'nd' + i + '_' + j;
+    return '<div class="h" style="margin:6px 0"><b>' + esc(d.c) + '</b>' +
+      '<label style="display:block"><input type="radio" name="' + nm + '"' + (d.pick === 'o' ? ' checked' : '') +
+      ' onchange="netDispPick(' + i + ',' + j + ',\'o\')"> ' + esc(fill(UI.netNow, { s: S.e.v['מקור'] || '—' })) +
+      ': ' + esc(d.o) + '</label>' +
+      '<label style="display:block"><input type="radio" name="' + nm + '"' + (d.pick === 'v' ? ' checked' : '') +
+      ' onchange="netDispPick(' + i + ',' + j + ',\'v\')"> ' + esc(fill(UI.netNew, { s: NETP.src })) +
+      ': ' + esc(d.v) + '</label></div>';
+  }).join('');
+}
+function netPlanHtml() {
+  var P = NETP, built = netOps(P), n = built ? built.n : { add: 0, upd: 0, same: 0, aside: 0 };
+  var open = P.asks.filter(function (a) { return a.t === 'match' ? !a.pick : true; }).length;
+  var prio = 0, r;
+  for (r in P.sets) if (P.sets.hasOwnProperty(r)) prio += P.sets[r].prio ? 1 : 0;
+  var line = function (l, v) { return '<div class="h">' + esc(UI[l]) + ': <b>' + v + '</b></div>'; };
+  var h = '<div class="adm-card" style="margin-top:10px"><h4>' + esc(UI.netPlanT) + '</h4>' +
+    line('netPAdd', n.add) + line('netPUpd', n.upd) + line('netPDup', P.dup) + line('netPSame', n.same) +
+    line('netPAsk', P.asks.length) + (prio ? line('netPPrio', prio) : '') +
+    (P.out ? line('netPOut', P.out) : '');
+  if (P.asks.length) h += '<p class="h">' + esc(UI.netAskB) + '</p>';
+  P.asks.forEach(function (a, i) {
+    h += '<div class="adm-card" style="margin:8px 0;padding:10px">';
+    if (a.t === 'fld') {
+      h += '<div class="h"><b>' + esc(netWho(a.s.e.v)) + '</b> · ' + esc(netInstName(a.s.e.v['קוד ישיבה'])) +
+        ' — ' + esc(UI.netFld) + '</div>' + netDispHtml(i, a.s);
+    } else {
+      var nm = 'na' + i, xv = netXv(a.x);
+      h += '<div class="h"><b>' + esc(netWho(xv)) + '</b> · ' + esc(netInstName(a.x.inst)) +
+        ' — ' + esc(UI[{ cls: 'netWhyCls', spell: 'netWhySpell', many: 'netWhyMany', dup: 'netWhyDup', near: 'netWhyNear' }[a.why]]) +
+        (a.x.kid || a.x.par ? '<br>' + esc(fill(UI.netNew, { s: P.src })) + ': ' + esc([a.x.kid, a.x.par].filter(function (t) { return !!t; }).join(' · ')) : '') +
+        '</div>';
+      var opt = function (v, t) {
+        return '<label style="display:block;margin-top:4px"><input type="radio" name="' + nm + '"' +
+          (a.pick === v ? ' checked' : '') + ' onchange="netAskPick(' + i + ',\'' + v + '\')"> ' + t + '</label>';
+      };
+      a.cands.forEach(function (e) {
+        h += opt('r:' + e.r, esc(fill(UI.netSameAs, { s: netWho(e.v) })) +
+          (e.v['טלפון'] || e.v['טלפון הורה'] ? ' · ' + esc([e.v['טלפון'], e.v['טלפון הורה']].filter(function (t) { return !!t; }).join(' · ')) : '') +
+          ' (' + esc(e.v['מקור'] || '—') + ')');
+      });
+      h += opt('new', esc(UI.netAsNew)) + opt('', esc(UI.netAside));
+      if (a.S && a.S.disp.length) h += netDispHtml(i, a.S);
+    }
+    h += '</div>';
+  });
+  if (!built) h += '<p class="h" style="color:var(--stop)">' + esc(UI.netTwice) + '</p>';
+  if (open) h += '<p class="h">' + esc(fill(UI.netAskN, { n: open })) + '</p>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+    (built && built.ops.length && !NET_BUSY ? '<button class="btn p" onclick="netSave()">' + esc(UI.netSaveGo) + '</button>' : '') +
+    '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div></div>';
+  return h;
 }
 function admNet(body) {
   var key = (CFG.readKey || '').trim(), info = Store.get('netInfo', null);
@@ -18149,30 +18721,68 @@ function admNet(body) {
       t: new Date(info.at).toLocaleDateString('he-IL') }) : UI.netNone) + '</b>' +
     (netMsg ? '<br>' + esc(netMsg) : '') + '</p>' +
     (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(UI.netNoKey) + '</p>');
-  if (NET) {
+  if (NET && NET.step === 'map') {
+    /* קובץ שאינו של משרד החינוך — עמודה לכל שדה. */
+    var g = NET.gen, hs = [['', UI.netNoCol]].concat(g.heads.map(function (x) { return [x.col, x.t]; }));
+    h += '<p class="h"><b>' + esc(UI.netMapT) + '</b><br>' + esc(UI.netMapB) + '</p>';
+    NET_GEN_F.forEach(function (d) {
+      h += '<div style="margin:6px 0"><div class="h">' + esc(UI[d.l]) + (d.need ? ' *' : '') + '</div>' +
+        '<select style="width:100%;padding:8px;font:inherit" onchange="netGenSet(\'' + d.f + '\', this.value)"' +
+        (d.f === 'inst' && g.one ? ' disabled' : '') + '>' + netOpt(g.map[d.f] || '', hs) + '</select></div>';
+    });
+    h += '<div style="margin:6px 0"><div class="h">' + esc(UI.netAllOne) + '</div>' +
+      '<select style="width:100%;padding:8px;font:inherit" onchange="netGenOne(this.value)">' +
+      netInstOpts(g.one, UI.netNoOne) + '</select></div>';
+    var miss = netGenMiss();
+    if (miss.length) h += '<p class="h" style="color:var(--stop)">' + esc(fill(UI.netNeed, { l: miss.join(', ') })) + '</p>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (miss.length ? '' : '<button class="btn p" onclick="netGenGo()">' + esc(UI.netMapGo) + '</button>') +
+      '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div>';
+  } else if (NET) {
     var syms = Object.keys(NET.insts).sort(function (a, b) { return NET.insts[b].n - NET.insts[a].n; });
-    var opts = function (cur) {
-      return '<option value="">' + esc(UI.netSkip) + '</option>' + INSTITUTIONS.map(function (x) {
-        return '<option value="' + esc(x.code) + '"' + (x.code === cur ? ' selected' : '') + '>' + esc(x.name) + '</option>';
-      }).join('');
-    };
     var sm = netTotals();
-    h += '<p class="h">' + esc(fill(UI.netRead, { n: NET.rows.length, s: syms.length })) + '</p>';
+    h += '<p class="h">' + esc(fill(UI.netRead, { n: NET.list.length, s: syms.length })) + '</p>';
     syms.forEach(function (k) {
       var it = NET.insts[k];
-      h += '<div style="margin:8px 0"><div class="h"><b>' + esc(it.name || k) + '</b> · ' +
-        esc(fill(UI.netLoc, { l: netPlace(it.loc || it.city, it.city) })) + ' · ' + it.n + '</div>' +
+      if (k === '*') {
+        h += '<div class="h" style="margin:8px 0"><b>' + esc(netInstName(NET.map[k])) + '</b> · ' + it.n + '</div>';
+        return;
+      }
+      h += '<div style="margin:8px 0"><div class="h"><b>' + esc(it.name || k) + '</b>' +
+        (it.loc || it.city ? ' · ' + esc(fill(UI.netLoc, { l: netPlace(it.loc || it.city, it.city) })) : '') + ' · ' + it.n + '</div>' +
         '<select style="width:100%;padding:8px;font:inherit" onchange="netMapSet(\'' + esc(k) + '\', this.value)">' +
-        opts(NET.map[k]) + '</select></div>';
+        netInstOpts(NET.map[k], UI.netSkip) + '</select></div>';
     });
     var oth = Object.keys(NET.other || {}).map(function (k) { return NET.other[k]; });
     if (oth.length) h += '<p class="h">' + esc(fill(UI.netNoGr, { l: oth.join(' · ') })) + '</p>';
-    h += '<p class="h"><b>' + esc(fill(UI.netSum, sm)) + '</b></p>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-      (sm.n && key ? '<button class="btn" onclick="netSave()">' + esc(UI.netSave) + '</button>' : '') +
+    h += '<p class="h"><b>' + esc(fill(UI.netSum, sm)) + '</b></p>';
+    /* המקור, והישיבות שבהן הוא עדיף — רק ישיבות שבקובץ הזה. */
+    h += '<div style="margin:8px 0"><div class="h">' + esc(UI.netSrc) + '</div>' +
+      '<input type="text" style="width:100%;padding:8px;font:inherit;box-sizing:border-box" value="' + esc(NET.src || '') +
+      '" placeholder="' + esc(UI.netSrcPh) + '" oninput="netSrcSet(this.value)" onchange="admPane()"></div>';
+    var mine = {};
+    syms.forEach(function (k) { if (NET.map[k]) mine[NET.map[k]] = 1; });
+    Object.keys(mine).forEach(function (c) {
+      h += '<label class="h" style="display:block;margin:4px 0"><input type="checkbox"' + (NET.pref[c] ? ' checked' : '') +
+        ' onchange="netPrefSet(\'' + esc(c) + '\', this.checked)"> ' + esc(fill(UI.netPref, { i: netInstName(c) })) + '</label>';
+    });
+    if (Object.keys(mine).length) h += '<p class="h">' + esc(UI.netPrefB) + '</p>';
+    if (!NETP) h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (sm.n && key && !NET_BUSY ? '<button class="btn p" onclick="netPrevGo()">' + esc(UI.netPrev) + '</button>' : '') +
       '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div>';
+    else h += netPlanHtml();
   } else {
-    h += '<button class="btn g" onclick="netFile()">' + esc(UI.netPick) + '</button>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn g" onclick="netFile()">' + esc(UI.netPick) + '</button>' +
+      (key ? '<button class="btn g" onclick="netBaksOpen()">' + esc(UI.netBaks) + '</button>' : '') + '</div>';
+    if (NET_BAKS) {
+      h += '<div style="margin-top:10px">' + (NET_BAKS.length ? NET_BAKS.map(function (b, i) {
+        return '<div class="h" style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="flex:1">' +
+          esc(fill(UI.netBakRow, { t: b.name.replace(/^[^·]*·\s*/, ''), n: b.n })) + '</span>' +
+          '<button class="btn g" style="width:auto;margin:0;padding:6px 12px" onclick="netRestore(' + i + ')">' +
+          esc(UI.netRestore) + '</button></div>';
+      }).join('') : '<p class="h">' + esc(UI.netBaksNone) + '</p>') + '</div>';
+    }
   }
   h += '<input type="file" id="nt-file" style="display:none" onchange="netPicked(this)"' +
     ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';

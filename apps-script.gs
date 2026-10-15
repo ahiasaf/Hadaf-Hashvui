@@ -417,6 +417,11 @@ function doPost(e) {
       try { backupDaily_(); } catch (dbe) {}
       return json_(d.action === 'deckRow' ? deckRow_(d) : deckDrop_(d));
     }
+    /* "תלמידי הרשת" — ייבוא שמתמזג, ושחזור מגיבוי. ראו netMerge_. */
+    if (d.action === 'netMerge' || d.action === 'netRestore') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      return json_(netRunDo_(d));
+    }
     /* מאגר "שאלות לשיבוץ": שורה אחת לפי מזהה — ראו qbank_. */
     if (d.action === 'qbank') {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
@@ -1705,6 +1710,24 @@ function doGet(e) {
      לאיש צוות שהרכז אישר לאותה ישיבה (accGate_), או בסיסמת הרכז.
      `netroster` — שכבה, כיתה ושם בלבד: בלי טלפונים, לעולם.
      `netmarks`  — מה שנרשם בעמדה, רק של הישיבה הזו. */
+  /* ---- ייבוא "תלמידי הרשת": תוצאת ריצה, ורשימת הגיבויים ----
+     no-cors אטום, ולכן התשובה של netMerge נשמרת לפי מזהה הריצה
+     ונשאלת כאן. רק בסיסמת הרכז. */
+  if (e && e.parameter && (e.parameter.netrun || e.parameter.netbaks)) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied' });
+    }
+    try {
+      if (e.parameter.netrun) {
+        var nr = prop_('NETRUN_' + String(e.parameter.netrun).replace(/[^\w-]/g, ''), '');
+        return reply_(e, nr ? JSON.parse(nr) : { status: 'none' });
+      }
+      return reply_(e, { status: 'ok', baks: netBaks_() });
+    } catch (eR) {
+      return reply_(e, { status: 'error', message: String(eR) });
+    }
+  }
+
   if (e && e.parameter && (e.parameter.netroster || e.parameter.netmarks)) {
     var nInst = String(e.parameter.netroster || e.parameter.netmarks);
     var nAdm = !!READ_KEY && String(e.parameter.key || '') === READ_KEY;
@@ -3576,6 +3599,164 @@ function netRosterRead_(inst) {
   }
   return out;
 }
+/* ============================================================
+   ייבוא חכם ל"תלמידי הרשת" — מיזוג, לא דריסה.
+   ============================================================
+   עד עכשיו כל העלאה כתבה את הלשונית מחדש (`table`): מה שלא היה
+   בקובץ נמחק. קובץ של ישיבה אחת היה מוחק את כל השאר. כאן:
+
+   · המכשיר קורא את הלשונית, בונה תצוגה, והרכז מכריע. מה שנשלח הוא
+     רשימת פעולות — `add` (שורה חדשה) ו-`set` (שדות בשורה קיימת) —
+     ולא הלשונית כולה. שורה שלא נגעו בה אינה נכתבת.
+   · `base` — חתימת הלשונית כפי שהמכשיר קרא אותה. השתנתה מאז
+     (כתיבה מקבילה) — לא נוגעים בכלום, והתשובה `stale`.
+   · כל `set` נושא את ערכי השורה כפי שנקראו (`was`); שורה שזזה או
+     השתנתה — הכול נעצר. כל הבדיקות לפני הכתיבה הראשונה.
+   · לפני הכתיבה — עותק של הלשונית בגיליון הפרטי עצמו (netBackup_),
+     והשחזור ממנו (`netRestore`) מגבה קודם את המצב הנוכחי.
+   · הכול בתוך הנעילה של doPost. התשובה נשמרת לפי מזהה הריצה
+     (`netrun` ב-doGet), כי no-cors אטום. האימות האמיתי — במכשיר,
+     בקריאה חוזרת של השורות.
+   writeTable_ לא השתנה — זה מסלול נפרד ללשונית הזו בלבד.
+   ============================================================ */
+var NET_BAK_ = 'גיבוי תלמידי הרשת · ';
+var NET_BAK_KEEP_ = 6;
+/* אותה פונקציה בדיוק ב-index.html (netSig) — על ערכי התצוגה. */
+function netSig_(rows) {
+  var s = JSON.stringify(rows), h = 5381;
+  for (var i = 0; i < s.length; i++) h = (((h * 33) >>> 0) ^ s.charCodeAt(i)) >>> 0;
+  return rows.length + ':' + h.toString(36);
+}
+function netRows_(sh) {
+  return sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+}
+function netRunDo_(d) {
+  var run = String(d.run || '').replace(/[^\w-]/g, '');
+  var P = PropertiesService.getScriptProperties();
+  var out;
+  try { out = d.action === 'netRestore' ? netRestore_(d) : netMerge_(d); }
+  catch (err) { out = { status: 'error', message: String(err) }; }
+  out.at = Date.now();
+  if (run) try { P.setProperty('NETRUN_' + run, JSON.stringify(out)); } catch (eP) {}
+  /* תוצאות ישנות — לא נצברות. */
+  try {
+    var all = P.getProperties(), old = Date.now() - 2 * 864e5;
+    for (var k in all) if (k.indexOf('NETRUN_') === 0) {
+      var o = null; try { o = JSON.parse(all[k]); } catch (eJ) {}
+      if (!o || (o.at || 0) < old) P.deleteProperty(k);
+    }
+  } catch (eC) {}
+  return out;
+}
+/* ערך לתא: טלפון נשאר טקסט (cell_), ונוסח שנראה כמו נוסחה — טקסט. */
+function netCell_(v) {
+  v = cell_(v == null ? '' : String(v));
+  if (typeof v === 'string' && /^[=+\-@]/.test(v)) v = "'" + v;
+  return v;
+}
+function netMerge_(d) {
+  var sh = sheet_(NET_TAB_);
+  var cur = netRows_(sh);
+  if (netSig_(cur) !== String(d.base || '')) return { status: 'stale' };
+  var cols = parse_(d.cols) || [], ops = parse_(d.ops) || [];
+  if (!cols.length) return { status: 'error', message: 'חסרות עמודות' };
+  var head = cur.length ? cur[0].map(function (h) { return String(h).trim(); }) : [];
+  var at = function (row, name) {
+    var i = head.indexOf(name);
+    return i < 0 ? '' : String(row[i] == null ? '' : row[i]).trim();
+  };
+  /* כל הבדיקות קודם. שורה שאינה כפי שנקראה — שום דבר לא נכתב. */
+  var sets = [], adds = [];
+  for (var i = 0; i < ops.length; i++) {
+    var o = ops[i];
+    if (o.k === 'add') { adds.push(o.row || {}); continue; }
+    if (o.k !== 'set') return { status: 'error', message: 'פעולה לא מוכרת' };
+    var r = +o.r;
+    if (!(r >= 2 && r <= cur.length)) return { status: 'stale', why: 'row ' + o.r };
+    for (var w in (o.was || {})) {
+      if (o.was.hasOwnProperty(w) && at(cur[r - 1], w) !== String(o.was[w] == null ? '' : o.was[w]).trim()) {
+        return { status: 'stale', why: 'row ' + r + ' · ' + w };
+      }
+    }
+    sets.push({ r: r, row: o.row || {} });
+  }
+  if (!sets.length && !adds.length) return { status: 'ok', set: 0, add: 0, backup: '' };
+  /* הגיבוי — לפני השינוי הראשון. נכשל — לא משנים. */
+  var bak = cur.length ? netBackup_(sh, cur) : '';
+  /* כותרות: לשונית ריקה מקבלת את כולן; עמודה חסרה — נוספת בסוף. */
+  if (!head.join('')) { headRow_(sh, cols); head = cols.slice(); }
+  cols.forEach(function (c) { idx_(sh, head, c); });
+  sets.forEach(function (x) {
+    for (var c in x.row) if (x.row.hasOwnProperty(c)) {
+      sh.getRange(x.r, idx_(sh, head, c) + 1).setValue(netCell_(x.row[c]));
+    }
+  });
+  if (adds.length) {
+    var w2 = head.length, first = Math.max(sh.getLastRow(), 1) + 1;
+    sh.getRange(first, 1, adds.length, w2).setValues(adds.map(function (a) {
+      var row = [];
+      for (var j = 0; j < w2; j++) row.push(a.hasOwnProperty(head[j]) ? netCell_(a[head[j]]) : '');
+      return row;
+    }));
+  }
+  SpreadsheetApp.flush();
+  try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
+  return { status: 'ok', set: sets.length, add: adds.length, backup: bak, sig: netSig_(netRows_(sh)) };
+}
+/* עותק של הלשונית, באותו גיליון פרטי, מוסתר. נשמרים NET_BAK_KEEP_
+   האחרונים. החתימה והגודל נרשמים — לאימות השחזור במכשיר. */
+function netBackup_(sh, rows) {
+  var ss = sh.getParent();
+  var name = NET_BAK_ + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
+  var old = ss.getSheetByName(name);
+  if (old) ss.deleteSheet(old);
+  var c = sh.copyTo(ss).setName(name);
+  try { c.hideSheet(); } catch (eH) {}
+  SpreadsheetApp.flush();
+  var got = netRows_(c);
+  if (netSig_(got) !== netSig_(rows)) {
+    try { ss.deleteSheet(c); } catch (eD) {}
+    throw new Error('הגיבוי לא הושלם — לא נעשה שינוי');
+  }
+  var P = PropertiesService.getScriptProperties(), meta = {};
+  try { meta = JSON.parse(P.getProperty('NETBAK') || '{}') || {}; } catch (eM) { meta = {}; }
+  meta[name] = { n: Math.max(0, rows.length - 1), sig: netSig_(rows) };
+  var names = ss.getSheets().map(function (x) { return x.getName(); })
+    .filter(function (x) { return x.indexOf(NET_BAK_) === 0; }).sort().reverse();
+  names.slice(NET_BAK_KEEP_).forEach(function (x) {
+    try { ss.deleteSheet(ss.getSheetByName(x)); } catch (eX) {}
+    delete meta[x];
+  });
+  for (var k in meta) if (meta.hasOwnProperty(k) && names.indexOf(k) < 0) delete meta[k];
+  P.setProperty('NETBAK', JSON.stringify(meta));
+  return name;
+}
+function netBaks_() {
+  var meta = {};
+  try { meta = JSON.parse(prop_('NETBAK', '{}')) || {}; } catch (eM) { meta = {}; }
+  var ss = sheet_(NET_TAB_).getParent();
+  return ss.getSheets().map(function (x) { return x.getName(); })
+    .filter(function (x) { return x.indexOf(NET_BAK_) === 0 && meta[x]; }).sort().reverse()
+    .map(function (x) { return { name: x, n: meta[x].n, sig: meta[x].sig }; });
+}
+/* שחזור: המצב הנוכחי מגובה קודם, ואז הגיבוי נעתק כמו שהוא (ערכים
+   ועיצוב) — בלי לעבור דרך טקסט, כדי שטלפון לא יאבד את האפס. */
+function netRestore_(d) {
+  var name = String(d.backup || '');
+  if (name.indexOf(NET_BAK_) !== 0) return { status: 'error', message: 'גיבוי לא מוכר' };
+  var sh = sheet_(NET_TAB_), ss = sh.getParent(), b = ss.getSheetByName(name);
+  if (!b) return { status: 'error', message: 'הגיבוי לא נמצא' };
+  var cur = netRows_(sh);
+  if (d.base && netSig_(cur) !== String(d.base)) return { status: 'stale' };
+  var src = netRows_(b);
+  var bak = cur.length ? netBackup_(sh, cur) : '';
+  sh.clearContents();
+  if (src.length) b.getRange(1, 1, src.length, src[0].length).copyTo(sh.getRange(1, 1));
+  SpreadsheetApp.flush();
+  try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
+  return { status: 'ok', backup: bak, restored: name, sig: netSig_(netRows_(sh)) };
+}
+
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
 function netMarks_(inst) {
   var t = amdaTable_(AMDA_TAB_);
@@ -5361,7 +5542,7 @@ var GUARD_TABS = ['סימוני הדף', 'פירוש', 'שאלות בדף', 'מ�
    ============================================================ */
 var QB_TAB_  = 'שאלות לשיבוץ';
 var QB_COLS_ = ['מזהה', 'מסכת', 'דף', 'שאלה', 'תשובה 1', 'תשובה 2', 'תשובה 3', 'תשובה 4',
-                'נכונה', 'סטטוס', 'הערה', 'קטע'];
+                'נכונה', 'סטטוס', 'הערה', 'קטע', 'הפניה לפירוש'];
 function qbank_(d) {
   var sh = sheet_(QB_TAB_);
   var head = headers_(sh);

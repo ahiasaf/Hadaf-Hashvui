@@ -769,6 +769,16 @@ textarea.qz-in{min-height:60px;resize:vertical}
 .qz-tag.pend{background:rgba(192,143,43,.18);color:#7A5A12}
 .qz-res{margin-top:12px;padding:11px;border-radius:10px;
   background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
+/* "הפירוש לנוער" — כפתור קטן ליד שאלה שהרכז הפעיל בה הפניה (qYrGo_) */
+.qz-yr{display:inline-block;margin:-6px 0 6px;padding:6px 12px;border-radius:20px;
+  border:1.5px solid var(--blue,#17468F);background:#fff;color:var(--blue,#17468F);
+  font-family:inherit;font-size:.8rem;font-weight:800;cursor:pointer}
+/* המתג בעורך השאלה (רכז) */
+.qz-yrsw{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px;
+  border:1.5px solid var(--rule,#E4DCC8);border-radius:10px;cursor:pointer}
+.qz-yrsw input{width:22px;height:22px;flex:none;margin:0;accent-color:var(--blue,#17468F)}
+.qz-yrsw b{display:block;font-size:.88rem;font-weight:800}
+.qz-yrsw small{display:block;font-size:.76rem;font-weight:600;color:var(--ink-3,#7A8499);margin-top:2px}
 
 /* והיציאה — ירוקה, וזו היחידה שלוחצים עליה. בשתי האחרות נגיעה
    שייכת לדף שמתחת. */
@@ -1798,6 +1808,7 @@ var CHAV_PREF = (function () {
   catch (e) { return 'chav'; }
 })();
 function chavPick_(t) {
+  YR_N = -1;
   CHAV_TAB = CHAV_PREF = t;
   try { localStorage.setItem(CHAV_PREF_KEY, t); } catch (e) {}
   paintChavArea();
@@ -1806,6 +1817,9 @@ function chavPick_(t) {
    סגירת החידה (X, או תשובה) חוזרת לאיזו לשונית שהייתה פתוחה קודם,
    ולא תמיד ל'chav' — ראו quizFabPaint/qAnswer. */
 var QUIZ_OPEN = false;
+/* הקטע שבו ביקשו את הפירוש לנוער מכפתור של שאלה (או מהכתובת:
+   `seg=<קטע>&yr=1`). -1 = אין בקשה. ראו paintChavArea, qYrGo_. */
+var YR_N = -1;
 
 function loadOwnMap() {
   return sheetCsv(OWN_TAB).then(function (rows) {
@@ -3280,6 +3294,10 @@ function paintChavArea() {
   var st = FLAT[IDX];
   var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
   var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
+  /* הגיעו מכפתור "הפירוש לנוער" של שאלה — הפירוש פתוח בקטע הזה,
+     גם אם הוא נטען רק עכשיו. קטע אחר — הבקשה נגמרה. */
+  if (YR_N >= 0 && st && st.n === YR_N) { if (canOwn) CHAV_TAB = 'own'; }
+  else YR_N = -1;
   if (CHAV_PREF === 'own' && canOwn) CHAV_TAB = 'own';
   if (CHAV_TAB === 'own' && !canOwn) CHAV_TAB = 'chav';
   if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
@@ -4299,7 +4317,7 @@ function spotOffer() {
    מי שחזר לעיין בדף של שבוע שעבר לא נשלח לשם ביום ראשון.
    true = יוצאים. */
 function spotJump() {
-  if (quiet() || EMB || AT_END || /[?&]hop=1\b/.test(location.search)) return false;
+  if (quiet() || EMB || AT_END || SEG_Q || /[?&]hop=1\b/.test(location.search)) return false;
   if (posWeek() < 0) return false;
   var p = spotGet();
   if (!p || p.mas !== S.mas || !(Date.now() - (p.at || 0) < 7 * 864e5)) return false;
@@ -4540,6 +4558,23 @@ function nextDafUrl() {
 /* מי שהגיע ב"הבא" מהדף הקודם מתחיל מהקטע הראשון — לא מקום ישן
    שנשמר בו פעם. אחרת הלימוד "קופץ כמה שורות", ונראה שדילגנו. */
 var AT_START = /[?&]at=start\b/.test(location.search);
+/* `seg=<מזהה קטע או מספרו>` — פתיחה בקטע מסוים, ו-`yr=1` — עם הפירוש
+   לנוער פתוח. מכפתור "הפירוש לנוער" של שאלה בחידון שבסוף הלימוד.
+   קטע שאינו בדף — נפתח כרגיל. */
+var SEG_Q = (function () {
+  try { return decodeURIComponent((/[?&]seg=([^&#]*)/.exec(location.search) || [])[1] || ''); }
+  catch (e) { return ''; }
+})();
+var YR_Q = /[?&]yr=1\b/.test(location.search);
+function segIdx_(v) {
+  if (!v) return -1;
+  var i;
+  for (i = 0; i < FLAT.length; i++) {
+    if (FLAT[i].id === v || (FLAT[i].also || []).indexOf(v) >= 0) return i;
+  }
+  for (i = 0; i < FLAT.length; i++) if (String(FLAT[i].n) === v) return i;
+  return -1;
+}
 
 /* הכיתוב של "הלאה" — המשך אותו דף, או הדף הבא בשמו. */
 function nextLabel(u, same, other) {
@@ -4751,6 +4786,30 @@ function qPiecesIn_(rec, n) {
 /* איזו שאלה מבין שאלות הקטע מוצגת. כמעט תמיד יש אחת; אחרי איחוד
    שני קטעים שלכל אחד שאלה — שתיים, והשנייה באה אחרי התשובה. */
 var Q_AT = { n: 0, i: 0 };
+/* ============================================================
+   ערבוב סדר השאלות — תמיד, בלי הגדרה.
+   ============================================================
+   התלמיד מקבל את שאלות הקטע בסדר אקראי. מערבבים **סדר תצוגה**
+   בלבד: `Q_AT.i` נשאר האינדקס במקור, ולכן הניסיונות השגויים
+   (`Q_AT.bad`), העורך והנעילה (לפי נוסח השאלה) לא זזים. התשובות
+   עצמן אינן מעורבבות. הסדר נקבע פעם אחת לקטע ולמספר השאלות
+   בו, ונשאר עד שהעמוד נטען מחדש — ציור מחדש, טעינת רקע, פתיחת
+   הפירוש וחזרה ממנו אינם מגרילים שוב. אצל הרכז — סדר המקור. */
+var Q_ORDS = {};
+function qOrd_(n, len) {
+  var ord = [];
+  for (var i = 0; i < len; i++) ord.push(i);
+  if (SIDE_ADM || len < 2) return ord;
+  var k = dmKey(S.mas, S.daf) + '|' + n + '|' + len;
+  if (!Q_ORDS[k]) {
+    for (var j = len - 1; j > 0; j--) {
+      var r = Math.floor(Math.random() * (j + 1)), t = ord[j];
+      ord[j] = ord[r]; ord[r] = t;
+    }
+    Q_ORDS[k] = ord;
+  }
+  return Q_ORDS[k];
+}
 function qIdx_(n, len) {
   if (Q_AT.n !== n) Q_AT = { n: n, i: 0 };
   if (Q_AT.i >= len) Q_AT.i = 0;
@@ -4786,17 +4845,24 @@ function paintQuiz() {
     qEditOpen_(n);
     return;
   }
-  var qi = qIdx_(n, list.length), q = list[qi];
-  /* שאלה שכבר נענתה נכון — מדלגים לבאה שעוד לא נענתה, אם יש */
-  if (!SIDE_ADM && qOk_(n, q)) for (var j = qi + 1; j < list.length; j++) {
-    if (!qOk_(n, list[j])) { Q_AT.i = qi = j; q = list[j]; break; }
+  var ord = qOrd_(n, list.length);
+  if (Q_AT.n !== n) Q_AT = { n: n, i: ord[0] };
+  if (Q_AT.i >= list.length) Q_AT.i = ord[0];
+  var qi = Q_AT.i, q = list[qi], pos = ord.indexOf(qi);
+  /* שאלה שכבר נענתה נכון — מדלגים לבאה (בסדר התצוגה) שעוד לא נענתה */
+  if (!SIDE_ADM && qOk_(n, q)) for (var j = pos + 1; j < ord.length; j++) {
+    if (!qOk_(n, list[ord[j]])) { Q_AT.i = qi = ord[j]; q = list[qi]; pos = j; break; }
   }
   var done = qOk_(n, q), tried = (Q_AT.bad && Q_AT.bad[qi]) || {};
+  /* "הפירוש לנוער" — רק כשהרכז הפעיל את המתג בשאלה, ורק כשיש לקטע
+     פירוש שהתלמיד יכול לראות. בלי פירוש — אין כפתור שמוביל לשום מקום. */
+  var yr = !!q.yr && (SIDE_ADM || !!(OWN && OWN.__pub && ownPieces_(n).length));
   box.innerHTML =
     (SIDE_ADM ? qTagHtml_(qPieces_(n)[qi]) : '') +
     (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
-      .replace('{i}', qi + 1).replace('{n}', list.length)) + '</div>' : '') +
+      .replace('{i}', pos + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
+    (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     q.a.map(function (t, k) {
       var c = done ? (k === q.correct ? ' right' : '') : (tried[k] ? ' wrong' : '');
       return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' +
@@ -4810,6 +4876,17 @@ function paintQuiz() {
   });
   var ed = $('qz-edit');
   if (ed) ed.onclick = function () { qEditOpen_(n); };
+  if ($('qz-yr')) $('qz-yr').onclick = function () { qYrGo_(n); };
+}
+/* מהשאלה אל הפירוש לנוער של אותו קטע. החידה נסגרת בלי לגעת במצבה
+   (Q_AT) — חזרה בעיגול מחזירה לאותה שאלה, באותו סדר, עם אותם
+   סימוני ניסיון. הבחירה "חברותא/פירוש" שנזכרת במכשיר אינה משתנה. */
+function qYrGo_(n) {
+  YR_N = n;
+  CHAV_TAB = 'own';
+  QUIZ_OPEN = false;
+  if (!document.body.classList.contains('chav-on')) drawer(true);
+  else paintChavArea();
 }
 /* התשובה נשלחת, וחוזרים ללשונית הרגילה — אין יותר "לסגור",
    כי אין חלון: יש רק מעבר בין לשוניות, וזה בדיוק מה שקורה כאן
@@ -4836,9 +4913,11 @@ function qAnswer(n, q, k) {
   try { localStorage.setItem(qOkKey_(n, q), '1'); } catch (e) {}
   toast(UI.qRight || '');
   /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
-  var len = qList_(n).length;
-  if (Q_AT.n === n && Q_AT.i + 1 < len) { Q_AT.i++; Q_AT.bad = null; paintChavArea(); return; }
-  Q_AT = { n: n, i: 0 };
+  var ord = qOrd_(n, qList_(n).length), pos = ord.indexOf(Q_AT.i);
+  if (Q_AT.n === n && pos >= 0 && pos + 1 < ord.length) {
+    Q_AT.i = ord[pos + 1]; Q_AT.bad = null; paintChavArea(); return;
+  }
+  Q_AT = { n: n, i: ord[0] || 0 };
   QUIZ_OPEN = false;
   paintChavArea();
 }
@@ -4865,8 +4944,8 @@ var Q_EDIT = null;
 function qEditOpen_(n) {
   Q_FROM = null; QB_OPEN = false;
   var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
-  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct }
-               : { q:'', a:['', '', '', ''], correct:0 };
+  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr }
+               : { q:'', a:['', '', '', ''], correct:0, yr:false };
   qPaintEdit_(n);
 }
 function qPaintEdit_(n) {
@@ -4885,6 +4964,8 @@ function qPaintEdit_(n) {
         '<input type="text" class="qz-in" id="qe-a' + k + '" value="' + esc(t) +
         '" placeholder="תשובה ' + (k + 1) + '"></div>';
     }).join('') +
+    '<label class="qz-yrsw"><input type="checkbox" id="qe-yr"' + (Q_EDIT.yr ? ' checked' : '') + '>' +
+      '<span><b>' + esc(UI.qbYr || '') + '</b><small>' + esc(UI.qbYrSub || '') + '</small></span></label>' +
     /* שלושה כפתורים, לפי המצב: שמירה היא תמיד טיוטה; "פרסם" — כשיש
        מה לפרסם; "ביטול פרסום" — כשיש גרסה חיה. */
     '<div class="qz-btns">' +
@@ -4901,6 +4982,7 @@ function qPaintEdit_(n) {
     $('qe-c' + k).onclick = function () { Q_EDIT.correct = k; };
   });
   $('qe-q').oninput = function (e) { Q_EDIT.q = e.target.value; };
+  $('qe-yr').onchange = function (e) { Q_EDIT.yr = !!e.target.checked; };
   $('qe-save').onclick = function () { qEditSave_(n); };
   if ($('qe-pubq')) $('qe-pubq').onclick = function () { qEditPublish_(n); };
   if ($('qe-unpub')) $('qe-unpub').onclick = function () { qEditUnpub_(n); };
@@ -4928,6 +5010,14 @@ function qPost_() {
     rows: JSON.stringify(qRows_())
   }) }).catch(function () {});
 }
+/* השאלה כפי שהיא נשמרת. `yr` — רק כשהמתג דלוק, כדי ששאלה ישנה
+   שלא נגעו בה נשארת זהה לגמרי (גם בהשוואה בין טיוטה לגרסה החיה).
+   שינוי המתג לבדו הוא טיוטה כמו כל שינוי — לא פרסום. */
+function qVal_(text, answers) {
+  var v = { q:text, a:answers, correct:Q_EDIT.correct };
+  if (Q_EDIT.yr) v.yr = 1;
+  return v;
+}
 function qEditSave_(n) {
   var text = (Q_EDIT.q || '').trim();
   var answers = Q_EDIT.a.map(function (t) { return (t || '').trim(); });
@@ -4948,7 +5038,7 @@ function qEditSave_(n) {
      **שמירה היא תמיד טיוטה**: הגרסה החיה (`pub`) נשארת כמו שהיא, והתלמידים
      ממשיכים לראות אותה עד "פרסם". טיוטה זהה לגרסה החיה — אינה טיוטה. */
   var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
-  var v = { q:text, a:answers, correct:Q_EDIT.correct }, old = list[qi];
+  var v = qVal_(text, answers), old = list[qi];
   var live = (old && old.pub) || null;
   list[qi] = { pub: live, draft: (live && JSON.stringify(live) === JSON.stringify(v)) ? null : v };
   qNormRec_(QOWN);
@@ -4973,7 +5063,7 @@ function qEditPublish_(n) {
   }
   if (!QOWN) QOWN = {};
   var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
-  list[qi] = { pub: { q:text, a:answers, correct:Q_EDIT.correct }, draft: null };
+  list[qi] = { pub: qVal_(text, answers), draft: null };
   qNormRec_(QOWN);
   sidPut_(QOWN, n, list, true);
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
@@ -5085,7 +5175,7 @@ function qbFillHtml_() {
 /* המילוי רק ממלא את השדות. "שמירה" אחריו היא טיוטה — לא פרסום. */
 function qbFill_(n, x) {
   if (!x || !QbFull(x)) return;
-  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct };
+  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct, yr:!!x.yr };
   Q_FROM = x.id; QB_OPEN = false;
   qPaintEdit_(n);
 }
@@ -6095,7 +6185,13 @@ function boot() {
             $('whole').textContent = 'עם עמעום';
           }
         } catch (e) {}
-        if (AT_END && !quiet()) go(FLAT.length - 1);
+        var segAt = quiet() ? -1 : segIdx_(SEG_Q);
+        if (segAt >= 0) {
+          if (YR_Q) { YR_N = FLAT[segAt].n; CHAV_TAB = 'own'; QUIZ_OPEN = false; }
+          go(segAt);
+          if (YR_Q) drawer(true);
+        }
+        else if (AT_END && !quiet()) go(FLAT.length - 1);
         /* `amud` שהוא חלק מהיחידה (ב:) אינו קפיצה — הוא כבר מה שעל
            המסך, והחזרה למקום השמור חלה עליו כמו על כל דף. */
         else if (AMUD_Q && !S.am && !quiet() && amudIdx(AMUD_Q) >= 0) go(amudIdx(AMUD_Q));

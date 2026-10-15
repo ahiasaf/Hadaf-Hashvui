@@ -53,10 +53,15 @@ function QbFromRows(rows) {
     if (QB_ST.indexOf(st) < 0) st = QB_ST[0];
     out.push({ id: at(r, 'מזהה'), mas: QbMas(at(r, 'מסכת')), daf: at(r, 'דף'), q: q,
                a: [at(r, 'תשובה 1'), at(r, 'תשובה 2'), at(r, 'תשובה 3'), at(r, 'תשובה 4')],
-               correct: correct, st: st, note: at(r, 'הערה'), seg: at(r, 'קטע'), row: k + 2 });
+               correct: correct, st: st, note: at(r, 'הערה'), seg: at(r, 'קטע'),
+               yr: QbYrOn(at(r, QB_YR)), row: k + 2 });
   });
   return out;
 }
+/* "הפניה לפירוש לנוער" — עמודה משלה. ריק (וכל שאלה ישנה) = כבוי.
+   גוגל עלול להחזיר TRUE אם מישהו סימן תיבה בגיליון ביד — גם זה דלוק. */
+var QB_YR = 'הפניה לפירוש';
+function QbYrOn(v) { return /^(כן|true|1)$/i.test(String(v || '').trim()); }
 /* שאלה שלמה — נוסח, ארבע תשובות ותשובה נכונה. רק כזו אפשר לשבץ. */
 function QbFull(x) {
   return !!(x && x.q && x.a.every(function (t) { return !!t; }) && x.correct >= 0);
@@ -68,7 +73,8 @@ function QbNewId(mas) {
 function QbCols(x) {
   return [['מסכת', x.mas], ['דף', x.daf], ['שאלה', x.q],
           ['תשובה 1', x.a[0]], ['תשובה 2', x.a[1]], ['תשובה 3', x.a[2]], ['תשובה 4', x.a[3]],
-          ['נכונה', x.correct >= 0 ? String(x.correct + 1) : ''], ['סטטוס', x.st], ['הערה', x.note || '']];
+          ['נכונה', x.correct >= 0 ? String(x.correct + 1) : ''], ['סטטוס', x.st], ['הערה', x.note || ''],
+          [QB_YR, x.yr ? 'כן' : '']];
 }
 function QbPost(api, key, op, id, cols) {
   if (!api) return Promise.resolve();

@@ -2559,7 +2559,7 @@ $('go').onclick = function () {
   queue(joinRow_(me));
   if (fresh) hit('join');
 
-  showDone(me);
+  showDone(me, 'go');
 };
 /* שגיאה בטופס נספרת לפי הנוסח — כך רואים בניהול מה עוצר אנשים. */
 function say(t) { $('err').textContent = t; if (t) hit('err', String(t).slice(0, 60)); }
@@ -3650,6 +3650,21 @@ function wzWhere() {
   return 4;
 }
 function wzGo(n) { wzStep = n; wzDraw(); }
+/* ============================================================
+   מסך הפרטים מחכה ללחיצה.
+   ============================================================
+   מי שנמצא במסך הפרטים (2) או בעריכת הפרטים (8) נשאר בו עד
+   "ממשיכים" / "שמירת השינויים". שום דבר שקורה ברקע — טעינת
+   ההגדרות, תשובת רשת מאוחרת, רשומה קודמת שנמצאה, מילוי אוטומטי
+   או חזרה ללשונית — אינו מקדם את המסך. ראו showDone. */
+function wzIn() { return /(^|\s)wz(\s|$)/.test(document.body.className); }
+function wzHeld() { return WZ_ON && (wzStep === 2 || wzStep === 8) && wzIn(); }
+/* הקלדה אחרונה בטופס — כדי שתשובה מאוחרת לא תדרוס את מה שהוקלד. */
+var DET_AT = 0;
+(function () {
+  var f = $('form');
+  if (f) f.addEventListener('input', function () { DET_AT = Date.now(); }, true);
+})();
 
 function wzStart() {
   if (document.body.className.indexOf(' wz ') < 0) document.body.className += ' wz ';
@@ -4363,17 +4378,23 @@ function wzDetOk() {
   return true;
 }
 
-function showDone(me) {
+/* `how`: 'go' — לחיצה מפורשת (שליחת הטופס, שחזור שהתבקש): מתקדמים
+   לשלב 4. 'quiet' — ציור מחדש אחרי טעינה ברקע: מסך הסיום מתעדכן,
+   בלי לפתוח את המסע, בלי לעבור שלב ובלי לגלול. בלי `how` — הפתיחה
+   של מי שכבר רשום. **כל מה שאינו 'go' אינו גובר על מסך הפרטים.** */
+function showDone(me, how) {
+  if (how !== 'go' && wzHeld()) return;
   var pe = $('pre');
   if (pe) { pe.className = 'wrap'; pe.innerHTML = ''; }
   /* במסע ההתראות הן שלב 4 ויושבות במד למעלה. הכרטיס הישן
      שבתוך מסך הסיום היה אומר את אותו דבר פעם שנייה. */
   if (WZ_ON) {
     var g = $('getapp'); if (g) g.innerHTML = '';
-    setTimeout(function () {
-      if (document.body.className.indexOf('wz') < 0) {
-        document.body.className += ' wz';
-      }
+    if (how === 'quiet') { if (wzIn() && wzStep === 4) wzDraw(); }
+    else setTimeout(function () {
+      /* בין הקריאה לביצוע נפתח מסך הפרטים — הוא גובר. */
+      if (how !== 'go' && wzHeld()) return;
+      if (!wzIn()) document.body.className += ' wz ';
       wzGo(4);
     }, 0);
   }
@@ -4389,7 +4410,7 @@ function showDone(me) {
   drawWeek();
   drawApp();
   drawPhNag();
-  window.scrollTo(0, 0);
+  if (how !== 'quiet') window.scrollTo(0, 0);
 }
 
 /* ============================================================
@@ -4496,7 +4517,7 @@ if (WZ_ON && /[?&]notes=1\b/.test(location.search)) {
   window.addEventListener('load', function () {
     setTimeout(function () {
       if (noteFull()) return;
-      if (document.body.className.indexOf(' wz ') < 0) wzStart();
+      if (!wzIn()) wzStart();
     }, 80);
   });
 }
@@ -4506,7 +4527,7 @@ if (WZ_ON && /[?&]notes=1\b/.test(location.search)) {
    הזמנה) נשארו בכתובת, ולכן גם הם נשמרים. */
 if (WZ_ON && /[?&]nointro=1\b/.test(location.search) && !/[?&]go=1\b/.test(location.search)) {
   window.addEventListener('load', function () {
-    setTimeout(function () { if (document.body.className.indexOf(' wz ') < 0) wzStart(); }, 60);
+    setTimeout(function () { if (!wzIn()) wzStart(); }, 60);
   });
 }
 
@@ -4553,7 +4574,7 @@ window.addEventListener('load', function () {
        הבאה, והרכז היה רואה מסך שלא השתנה ומניח שזה נשבר. */
     drawWho();
     var cur = get('me', null);
-    if (cur && cur.first && $('done').className === 'on') showDone(cur);
+    if (cur && cur.first && $('done').className === 'on') showDone(cur, 'quiet');
   });
   var fb = $('dad-flip');
   if (fb) fb.onclick = flipParent;
@@ -4810,6 +4831,7 @@ function restoreAs_(who, msg, btn) {
   if (!API || typeof LJsonp !== 'function') { msg.textContent = JOIN.backFail; return; }
   btn.className = 'btn off';
   msg.textContent = JOIN.backWait;
+  var t0 = Date.now();
   LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') +
          'whoIs=' + encodeURIComponent(who.phone) +
          '&first=' + encodeURIComponent(who.first) +
@@ -4819,6 +4841,9 @@ function restoreAs_(who, msg, btn) {
       btn.className = 'btn';
       if (!r || r.status !== 'ok') { msg.textContent = JOIN.backFail; return; }
       if (!r.me || !r.me.id) { msg.textContent = JOIN.backNone; return; }
+      /* בזמן ההמתנה התחיל למלא את הפרטים בעצמו — מה שהוקלד גובר,
+         והרשומה שנמצאה אינה מקפיצה אותו מהמסך. */
+      if (DET_AT > t0 && wzHeld()) { msg.textContent = ''; return; }
       var m = r.me;
       m.phone = who.phone;
       m.dadPhone = '';
@@ -4832,7 +4857,7 @@ function restoreAs_(who, msg, btn) {
       if (typeof LMergeLearned === 'function') LMergeLearned(r.learned);
       PAIR_ASKED = false;
       msg.textContent = '';
-      showDone(m);
+      showDone(m, 'go');
     })
     .catch(function () { btn.className = 'btn'; msg.textContent = JOIN.backFail; });
 }
