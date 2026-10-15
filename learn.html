@@ -6323,8 +6323,19 @@ window.addEventListener('DOMContentLoaded', function () {
     delete PTS[e.pointerId];
     if (PINCH && Object.keys(PTS).length < 2) PINCH = null;
   };
+  /* עיגול החידה והכיתוב שלידו יושבים בתוך הבמה, ולכן הלחיצה עליהם
+     עלתה גם אליה — והייתה גם "הבא": החידה נפתחה בקטע אחד ומיד
+     עברו לקטע הבא, ונראה כאילו העיגול לא מגיב. לחיצה עליהם אינה
+     הקשה על הדף. */
+  var onFab = function (el) {
+    for (; el && el.id !== 'stage'; el = el.parentNode) {
+      if (el.id === 'qfab' || el.id === 'qhint') return true;
+    }
+    return false;
+  };
   $('stage').addEventListener('pointerdown', function (e) {
     if (!FLAT.length) return;
+    if (onFab(e.target)) { DRAG = null; return; }
     PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (Object.keys(PTS).length >= 2) {
       /* במיקוד: לא זום, וגם לא הקשה — שתי אצבעות אינן "הבא". */
