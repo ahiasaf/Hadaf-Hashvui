@@ -2895,7 +2895,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.240';
+var APP_VERSION = '8.99.241';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11221,12 +11221,13 @@ function qbPaint() {
   inMd.forEach(function (x) { n[x.st]++; });
   var shown = inMd.filter(function (x) { return !QB_F.st || x.st === QB_F.st; });
   var fresh = QB_ED && !QB_ED.id;
-  var h = '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
+  /* "פרסם הכול" — כפתור לכל מסכת, ולכן מעל בחירת המסכת של המאגר ובלי תלות בה. */
+  var h = '<div id="qzr">' + qzrHtml() + '</div>' +
+    '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
       return '<button data-qbm="' + esc(t.id) + '" class="' + (t.id === mas ? 'on' : '') + '"' +
         ' aria-pressed="' + (t.id === mas) + '">' + esc(t.masechet) +
         (QB ? '<small>' + (per[t.id] || 0) + '</small>' : '') + '</button>';
     }).join('') + '</div>' +
-    '<div id="qzr">' + qzrHtml() + '</div>' +
     '<div class="qb-n">' + QB_ST.map(function (st, i) {
       return '<button class="' + ('qb-k s' + i + (QB_F.st === st ? ' on' : '')) + '" data-qbf="' + st + '"' +
         ' aria-pressed="' + (QB_F.st === st) + '"><b>' + n[st] + '</b><span>' + esc(qbStLbl(st)) + '</span></button>';
@@ -11258,7 +11259,7 @@ function qbClick(ev) {
   var b = ev.target.closest && (ev.target.closest('button') || ev.target.closest('[data-qzr]'));
   if (!b || b.disabled) return;
   var g = function (a) { return b.getAttribute(a); };
-  if (g('data-qzr')) return qzrClick(g('data-qzr'));
+  if (g('data-qzr')) return qzrClick(g('data-qzr'), g('data-qzm'));
   if (g('data-qbf') != null) { QB_F.st = QB_F.st === g('data-qbf') ? '' : g('data-qbf'); return qbPaint(); }
   if (g('data-qbm')) { qbMasSet(g('data-qbm')); return qbPaint(); }
   if (g('data-qbnew')) {
@@ -11294,7 +11295,8 @@ function qbInput(ev) {
 function qbChange(ev) {
   var t = ev.target;
   if (t.id === 'qb-md') { QB_F.md = t.value; return qbPaint(); }
-  if (t.id === 'qzr-wk') { QZR.wk[qbMas()] = +t.value; qzrReset(); return qzrEnsure(); }
+  var qm = t.getAttribute('data-qzm');
+  if (qm && trackById(qm)) { qzrZ(qm).wk = +t.value; qzrReset(qm); return qzrEnsure(); }
   if (!QB_ED) return;
   if (t.getAttribute('data-qbc') != null) { QB_ED.correct = +t.getAttribute('data-qbc'); return qbPaint(); }
   var k = t.getAttribute('data-qbk');
@@ -16433,8 +16435,8 @@ function opNotify(t, daf, am, ntf, aud) {
 /* ============================================================
    "פרסם הכול" — החידון של מסכת ושבוע, ואחריו (רק אם נבחר) התראה.
    ============================================================
-   בניהול ← הדף ← שאלות, מתחת לבחירת המסכת. (8.99.240 — במקום הכפתור
-   הנפרד "החידון מוכן".)
+   בניהול ← הדף ← שאלות, מעל בחירת המסכת של המאגר — חלק לכל מסכת.
+   (8.99.240 — במקום הכפתור הנפרד "החידון מוכן".)
 
    · "פרסם" לשאלה בודדת (learn.html) נשאר, ותמיד שקט.
    · "פרסם הכול" מציג מה יפורסם — רק השבוע שנבחר, ובדף מחולק רק העמוד
@@ -16449,9 +16451,18 @@ function opNotify(t, daf, am, ntf, aud) {
    · התוצאה כפי שההרצה מדווחת ביומן: "התקבלה אצל שירות ההתראות" —
      לא "התלמיד קיבל".
    ============================================================ */
-var QZR = { wk:{}, tag:'', busy:false, st:null, items:null, keys:null, err:'', step:'', ntf:false,
-            msg:'', cls:'', sending:false, seq:0, poll:null, polls:0 };
+/* **לכל מסכת כפתור משלה** (8.99.241): תענית ומגילה — שני חלקים בכרטיס,
+   לכל אחד בורר שבוע, מספרים, הודעה וכפתור "פרסם הכול — מסכת …". הם אינם
+   תלויים בבחירת המסכת של המאגר שלמעלה. תהליך פרסום אחד פתוח בכל פעם
+   (`QZR.act`); פתיחה במסכת אחרת סוגרת את הקודם, והמתג חוזר לכבוי. */
+var QZR = { by:{}, act:'', step:'', ntf:false, sending:false };
 var QZ_TAB = 'שאלות בדף';
+/* המצב של מסכת אחת. */
+function qzrZ(mas) {
+  if (!QZR.by[mas]) QZR.by[mas] = { wk: undefined, tag:'', busy:false, st:null, items:null, keys:null,
+                                    err:'', msg:'', cls:'', seq:0, poll:null, polls:0 };
+  return QZR.by[mas];
+}
 /* השבועות של המסכת שיש בהם דף — אותו מפתח כמו בסוף הלימוד (learn.html,
    finish): `<מסכת>-<שבוע>`, השבוע מ-1. */
 function qzrWeeks(mas) {
@@ -16461,16 +16472,16 @@ function qzrWeeks(mas) {
   });
   return out;
 }
-function qzrUnit() {
-  var mas = qbMas(), list = qzrWeeks(mas);
+function qzrUnit(mas) {
+  var list = qzrWeeks(mas), z = qzrZ(mas);
   if (!list.length) return null;
-  if (QZR.wk[mas] === undefined) {
+  if (z.wk === undefined) {
     var now = Math.max(0, weekIndex()), best = list[0].wk;
     list.forEach(function (u) { if (u.wk <= now) best = u.wk; });
-    QZR.wk[mas] = best;
+    z.wk = best;
   }
   for (var i = 0; i < list.length; i++) {
-    if (list[i].wk === QZR.wk[mas]) {
+    if (list[i].wk === z.wk) {
       var u = list[i];
       return { mas: mas, wk: u.wk, daf: u.daf, am: u.am, par: u.par, tag: mas + '-' + (u.wk + 1),
                name: (trackById(mas) || {}).masechet || mas, dafName: u.daf + LAmMark(u.am) };
@@ -16478,75 +16489,85 @@ function qzrUnit() {
   }
   return null;
 }
-/* כל מעבר — המתג חוזר לכבוי. בחירה קודמת אינה נזכרת. */
-function qzrReset() {
-  QZR.tag = ''; QZR.st = null; QZR.items = null; QZR.keys = null; QZR.err = '';
-  QZR.step = ''; QZR.ntf = false; QZR.msg = ''; QZR.cls = '';
-  if (QZR.poll) { clearTimeout(QZR.poll); QZR.poll = null; }
+/* תהליך הפרסום נסגר — המתג חוזר לכבוי. בחירה קודמת אינה נזכרת. */
+function qzrClose() { QZR.act = ''; QZR.step = ''; QZR.ntf = false; }
+function qzrReset(mas) {
+  var z = qzrZ(mas);
+  z.tag = ''; z.st = null; z.items = null; z.keys = null; z.err = ''; z.msg = ''; z.cls = '';
+  if (z.poll) { clearTimeout(z.poll); z.poll = null; }
+  if (QZR.act === mas) qzrClose();
 }
 function qzrVars(u) { return { mas: u.name, daf: u.dafName, n: u.wk + 1, par: String(u.par).trim() }; }
-function qzrTodo() { return (QZR.items || []).filter(function (x) { return x.st !== 'pub'; }); }
-function qzrPubN() { return (QZR.items || []).filter(function (x) { return x.st === 'pub'; }).length; }
+function qzrTodo(z) { return (z.items || []).filter(function (x) { return x.st !== 'pub'; }); }
+function qzrPubN(z) { return (z.items || []).filter(function (x) { return x.st === 'pub'; }).length; }
 function qzrHtml() {
-  var u = qzrUnit();
-  if (!u) return '';
-  var v = qzrVars(u), dis = QZR.sending ? ' disabled' : '';
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.qzrT) + '</h4>' +
-    '<p class="h">' + esc(UI.qzrSub) + '</p>' +
-    '<div class="fld"><label class="label" for="qzr-wk">' + esc(UI.qzrWeekLbl) + '</label>' +
-    '<select id="qzr-wk"' + (QZR.sending || QZR.step ? ' disabled' : '') + '>' + qzrWeeks(u.mas).map(function (w) {
+    '<p class="h">' + esc(UI.qzrSub) + '</p>';
+  TRACKS.forEach(function (t, i) { h += qzrMasHtml(t.id, i); });
+  return h + '</div>';
+}
+function qzrMasHtml(mas, i) {
+  var u = qzrUnit(mas);
+  if (!u) return '';
+  var z = qzrZ(mas), v = qzrVars(u), dis = QZR.sending ? ' disabled' : '', open = QZR.act === mas;
+  var h = '<div style="' + (i ? 'margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#ddd)' : '') + '">' +
+    '<div style="font-weight:800;margin-bottom:6px">' + esc(fill(UI.qzrMasH, { mas: u.name })) + '</div>' +
+    '<div class="fld"><label class="label" for="qzr-wk-' + mas + '">' + esc(UI.qzrWeekLbl) + '</label>' +
+    '<select id="qzr-wk-' + mas + '" data-qzm="' + mas + '"' + (QZR.sending || open ? ' disabled' : '') + '>' +
+    qzrWeeks(mas).map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === u.wk ? ' selected' : '') + '>' +
         esc(fill(UI.qzrWeek, { n: w.wk + 1, par: String(w.par).trim(), daf: w.daf + LAmMark(w.am) })) + '</option>';
     }).join('') + '</select></div>';
-  var st = QZR.st, ready = !!(st && QZR.items);
-  if (QZR.busy && !ready) h += '<p class="h">' + esc(UI.qzrLoading) + '</p>';
-  else if (QZR.err) h += '<div class="cond" style="margin-bottom:9px">' + esc(QZR.err) + '</div>';
+  var st = z.st, ready = !!(st && z.items);
+  if (z.busy && !ready) h += '<p class="h">' + esc(UI.qzrLoading) + '</p>';
+  else if (z.err) h += '<div class="cond" style="margin-bottom:9px">' + esc(z.err) + '</div>';
   if (ready) {
-    h += '<p class="h" style="margin:0 0 4px">' + esc(fill(UI.qzrPub, { n: qzrPubN() })) + '<br>' +
-      esc(fill(UI.qzrTodoN, { n: qzrTodo().length })) + '<br>' +
+    h += '<p class="h" style="margin:0 0 4px">' + esc(fill(UI.qzrPub, { n: qzrPubN(z) })) + '<br>' +
+      esc(fill(UI.qzrTodoN, { n: qzrTodo(z).length })) + '<br>' +
       esc(fill(UI.qzrWait, { n: st.n })) +
       (st.prev ? '<br>' + esc(fill(UI.qzrPrev, { n: st.prev })) : '') +
       (st.bad ? '<br>' + esc(fill(UI.qzrBadSub, { n: st.bad })) : '') + '</p>';
     if (st.last) h += '<p class="h" style="margin:0 0 9px">' +
       esc(fill(UI.qzrLast, { when: qzrWhen(st.last.at), res: st.last.res || '—' })) + '</p>';
   }
-  if (ready && QZR.step === 'list') {
-    var todo = qzrTodo();
+  var M = ' data-qzm="' + mas + '"';
+  if (ready && open && QZR.step === 'list') {
+    var todo = qzrTodo(z);
     h += '<div class="cond" style="margin:6px 0 9px"><b>' + esc(fill(UI.qzrListT, v)) + '</b>' +
       (todo.length
         ? '<div style="margin-top:6px">' + todo.map(function (x) {
             return '<div style="margin:4px 0">' + esc(fill(UI.qzrItem, { n: x.n })) + ' · ' +
               esc(x.q) + ' <small>(' + esc(x.st === 'pend' ? UI.qzrStPend : UI.qzrStDraft) + ')</small></div>';
           }).join('') + '</div>'
-        : '<div style="margin-top:6px">' + esc(fill(UI.qzrNothing, { n: qzrPubN() })) + '</div>') +
+        : '<div style="margin-top:6px">' + esc(fill(UI.qzrNothing, { n: qzrPubN(z) })) + '</div>') +
       '</div>' +
-      '<div class="wantbar" id="qzr-ntf" data-qzr="ntf" role="button" style="margin-bottom:9px"><div><b>' +
+      '<div class="wantbar" data-qzr="ntf"' + M + ' role="button" style="margin-bottom:9px"><div><b>' +
       esc(UI.qzrNtfQ) + '</b><span>' + esc(UI.qzrNtfSub) + '</span></div>' +
-      '<button class="sw' + (QZR.ntf ? ' on' : '') + '" data-qzr="ntf" aria-pressed="' + QZR.ntf + '" aria-label="' +
+      '<button class="sw' + (QZR.ntf ? ' on' : '') + '" data-qzr="ntf"' + M + ' aria-pressed="' + QZR.ntf + '" aria-label="' +
       esc(UI.qzrNtfQ) + '"' + dis + '></button></div>' +
       (QZR.ntf
-        ? '<button class="btn gd" data-qzr="next"' + dis + '>' + esc(UI.qzrNext) + '</button>'
-        : '<button class="btn gd" data-qzr="quiet"' + (todo.length ? dis : ' disabled') + '>' +
+        ? '<button class="btn gd" data-qzr="next"' + M + dis + '>' + esc(UI.qzrNext) + '</button>'
+        : '<button class="btn gd" data-qzr="quiet"' + M + (todo.length ? dis : ' disabled') + '>' +
           esc(QZR.sending ? UI.qzrBusy : UI.qzrPubGo) + '</button>') +
-      '<button class="btn g" style="margin-top:8px" data-qzr="no"' + dis + '>' + esc(UI.qzrCancel) + '</button>';
-  } else if (ready && QZR.step === 'ntf') {
-    var why = qzrWhy(st), todo2 = qzrTodo().length;
+      '<button class="btn g" style="margin-top:8px" data-qzr="no"' + M + dis + '>' + esc(UI.qzrCancel) + '</button>';
+  } else if (ready && open && QZR.step === 'ntf') {
+    var why = qzrWhy(st), todo2 = qzrTodo(z).length;
     h += '<div class="cond" style="margin:6px 0 9px"><b>' + esc(UI.qzrPvT) + '</b>' +
       '<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--card,#fff);' +
       'border:1px solid var(--line,#ddd)"><b>' + esc(fill(UI.quizReadyT, v)) + '</b><br>' +
       esc(fill(UI.quizReadyB, v)) + '</div>' +
       esc(fill(UI.qzrLink, { where: fill(UI.qzrWhere, v) })) + '<br><b>' +
       esc(why || fill(UI.qzrTo, { n: st.fresh })) + '</b></div>' +
-      (why ? '' : '<button class="btn gd" data-qzr="send"' + dis + '>' +
+      (why ? '' : '<button class="btn gd" data-qzr="send"' + M + dis + '>' +
         esc(QZR.sending ? UI.qzrBusy : UI.qzrPubSend) + '</button>') +
-      '<button class="btn g" style="margin-top:8px" data-qzr="' + (todo2 ? 'quiet' : 'no') + '"' + dis + '>' +
+      '<button class="btn g" style="margin-top:8px" data-qzr="' + (todo2 ? 'quiet' : 'no') + '"' + M + dis + '>' +
       esc(todo2 ? UI.qzrPubOnly : UI.qzrCancel) + '</button>';
   } else {
-    h += '<button class="btn gd" data-qzr="all"' + (QZR.busy || QZR.sending ? ' disabled' : '') + '>' +
-      esc(UI.qzrAll) + '</button>';
+    h += '<button class="btn gd" data-qzr="all"' + M + (z.busy || QZR.sending ? ' disabled' : '') + '>' +
+      esc(fill(UI.qzrAllOf, { mas: u.name })) + '</button>';
   }
-  if (QZR.msg) h += '<p class="h" style="margin-top:9px;color:var(--' +
-    (QZR.cls === 'ok' ? 'ok' : QZR.cls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(QZR.msg) + '</p>';
+  if (z.msg) h += '<p class="h" style="margin-top:9px;color:var(--' +
+    (z.cls === 'ok' ? 'ok' : z.cls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(z.msg) + '</p>';
   if (st && st.last) h += '<p class="h" style="margin-top:6px">' + esc(UI.qzrNote) + '</p>';
   return h + '</div>';
 }
@@ -16560,12 +16581,15 @@ function qzrPaint() {
   var el = document.getElementById('qzr');
   if (el) el.innerHTML = qzrHtml();
 }
-/* טוען פעם אחת לכל מסכת+שבוע שעל המסך. */
+/* טוען פעם אחת לכל מסכת+שבוע — לשתי המסכתות. */
 function qzrEnsure() {
-  var u = qzrUnit();
-  if (!u || !document.getElementById('qzr')) return;
-  if (QZR.tag !== u.tag) { qzrReset(); QZR.tag = u.tag; qzrLoad(); }
-  else qzrPaint();
+  if (!document.getElementById('qzr')) return;
+  var any = false;
+  TRACKS.forEach(function (t) {
+    var u = qzrUnit(t.id), z = qzrZ(t.id);
+    if (u && z.tag !== u.tag) { qzrReset(t.id); z.tag = u.tag; qzrLoad(t.id); any = true; }
+  });
+  if (!any) qzrPaint();
 }
 /* השאלות של השבוע, כמו שהתלמיד רואה אותן: { items, keys }. קריאה
    שנכשלה — נזרקת, ואינה "אין שאלות". */
@@ -16602,43 +16626,44 @@ function qzrState(u, extra) {
     return d;
   });
 }
-function qzrLoad() {
-  var u = qzrUnit();
+function qzrLoad(mas) {
+  var u = qzrUnit(mas), z = qzrZ(mas);
   if (!u) return Promise.resolve();
-  if (!(CFG.readKey || '').trim()) { QZR.err = UI.qzrNoKey; qzrPaint(); return Promise.resolve(); }
-  var my = ++QZR.seq;
-  QZR.busy = true; QZR.err = ''; qzrPaint();
+  if (!(CFG.readKey || '').trim()) { z.err = UI.qzrNoKey; qzrPaint(); return Promise.resolve(); }
+  var my = ++z.seq;
+  z.busy = true; z.err = ''; qzrPaint();
   return Promise.all([qzrState(u), qzrItems(u)]).then(function (r) {
-    if (my !== QZR.seq) return;
-    QZR.busy = false;
+    if (my !== z.seq) return;
+    z.busy = false;
     if (r[0].status !== 'ok') throw new Error(r[0].message || '');
-    QZR.st = r[0]; QZR.items = r[1].items; QZR.keys = r[1].keys;
+    z.st = r[0]; z.items = r[1].items; z.keys = r[1].keys;
     qzrPaint();
-    qzrWatch();
+    qzrWatch(mas);
   })['catch'](function (e) {
-    if (my !== QZR.seq) return;
+    if (my !== z.seq) return;
     /* קריאה שנכשלה אינה אפס — אין פרסום ואין שליחה. */
-    QZR.busy = false; QZR.st = null; QZR.items = null; QZR.step = ''; QZR.ntf = false;
-    QZR.err = e && e.old ? UI.qzrOld : UI.qzrFail;
+    z.busy = false; z.st = null; z.items = null;
+    if (QZR.act === mas) qzrClose();
+    z.err = e && e.old ? UI.qzrOld : UI.qzrFail;
     qzrPaint();
   });
 }
 /* שליחה שעדיין רצה — בודקים שוב כל עשר שניות, עד הדיווח (עד כרבע שעה). */
-function qzrWatch() {
-  if (QZR.poll) { clearTimeout(QZR.poll); QZR.poll = null; }
-  var st = QZR.st;
-  if (!st || !st.busy || QZR.polls > 90) return;
-  var tag = QZR.tag;
-  QZR.poll = setTimeout(function () {
-    QZR.poll = null;
-    var u = qzrUnit();
+function qzrWatch(mas) {
+  var z = qzrZ(mas);
+  if (z.poll) { clearTimeout(z.poll); z.poll = null; }
+  if (!z.st || !z.st.busy || z.polls > 90) return;
+  var tag = z.tag;
+  z.poll = setTimeout(function () {
+    z.poll = null;
+    var u = qzrUnit(mas);
     if (!u || u.tag !== tag || !document.getElementById('qzr')) return;
-    QZR.polls++;
+    z.polls++;
     qzrState(u).then(function (d) {
-      if (QZR.tag !== tag || d.status !== 'ok') return;
-      QZR.st = d;
-      qzrPaint(); qzrWatch();
-    })['catch'](function () { qzrWatch(); });
+      if (z.tag !== tag || d.status !== 'ok') return;
+      z.st = d;
+      qzrPaint(); qzrWatch(mas);
+    })['catch'](function () { qzrWatch(mas); });
   }, 10000);
 }
 /* למה אין למי לשלוח. ריק = יש. */
@@ -16648,52 +16673,54 @@ function qzrWhy(st) {
   if (!st.fresh) return UI.qzrAllGot;
   return '';
 }
-function qzrClick(what) {
-  if (QZR.sending) return;
+function qzrClick(what, mas) {
+  if (QZR.sending || !trackById(mas)) return;
+  var z = qzrZ(mas);
+  /* כפתור של תהליך שאינו הפתוח — אין כזה על המסך; מגינים בכל זאת. */
+  if (what !== 'all' && QZR.act !== mas) return;
   if (what === 'no') {
-    QZR.step = ''; QZR.ntf = false; QZR.msg = UI.qzrCanceled; QZR.cls = ''; return qzrPaint();
+    qzrClose(); z.msg = UI.qzrCanceled; z.cls = ''; return qzrPaint();
   }
   if (what === 'ntf') { QZR.ntf = !QZR.ntf; return qzrPaint(); }
   if (what === 'all') {
-    /* כל פתיחה — מספרים טריים, והמתג כבוי. */
-    QZR.step = ''; QZR.ntf = false; QZR.msg = ''; QZR.cls = '';
-    return qzrLoad().then(function () {
-      if (!QZR.st || !QZR.items) return;
-      if (!QZR.items.length) { QZR.msg = UI.qzrNoQ; QZR.cls = 'bad'; return qzrPaint(); }
-      QZR.step = 'list'; qzrPaint();
+    /* כל פתיחה — מספרים טריים, והמתג כבוי. תהליך פתוח במסכת האחרת נסגר. */
+    qzrClose(); z.msg = ''; z.cls = '';
+    return qzrLoad(mas).then(function () {
+      if (!z.st || !z.items) return;
+      if (!z.items.length) { z.msg = UI.qzrNoQ; z.cls = 'bad'; return qzrPaint(); }
+      QZR.act = mas; QZR.step = 'list'; QZR.ntf = false; qzrPaint();
     });
   }
   if (what === 'next') {
     /* ההתראה — מספרים טריים לפני התצוגה: מה שמוצג הוא מה שיאושר. */
-    var u = qzrUnit();
+    var u = qzrUnit(mas);
     if (!u) return;
     QZR.sending = true; qzrPaint();
     return qzrState(u).then(function (d) {
       QZR.sending = false;
-      if (d.status === 'ok') QZR.st = d;
+      if (d.status === 'ok') z.st = d;
       QZR.step = 'ntf'; qzrPaint();
     })['catch'](function () {
-      QZR.sending = false; QZR.msg = UI.qzrFail; QZR.cls = 'bad'; qzrPaint();
+      QZR.sending = false; z.msg = UI.qzrFail; z.cls = 'bad'; qzrPaint();
     });
   }
-  if (what === 'quiet') return qzrRun(false);
-  if (what === 'send') return qzrRun(true);
+  if (what === 'quiet') return qzrRun(mas, false);
+  if (what === 'send') return qzrRun(mas, true);
 }
-function qzrRun(notify) {
-  var u = qzrUnit(), st = QZR.st;
-  if (!u || !st || !QZR.items || QZR.sending) return;
-  var v = qzrVars(u), todo = qzrTodo().length;
+function qzrRun(mas, notify) {
+  var u = qzrUnit(mas), z = qzrZ(mas), st = z.st;
+  if (!u || !st || !z.items || QZR.sending || QZR.act !== mas) return;
+  var v = qzrVars(u), todo = qzrTodo(z).length;
   var p = { quizPubAll: u.tag, key: (CFG.readKey || '').trim(), daf: u.daf, amud: u.am,
-            keys: (QZR.keys || []).join(','), pexp: todo,
+            keys: (z.keys || []).join(','), pexp: todo,
             op: 'o' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) };
   if (notify) { p.notify = 1; p.exp = st.fresh; p.title = fill(UI.quizReadyT, v); p.body = fill(UI.quizReadyB, v); }
-  QZR.sending = true; QZR.msg = ''; qzrPaint();
+  QZR.sending = true; z.msg = ''; qzrPaint();
   var end = function (msg, cls) {
     /* הפעולה נגמרה — המתג חוזר לכבוי, והבחירה הבאה תהיה חדשה. */
-    QZR.sending = false; QZR.step = ''; QZR.ntf = false; QZR.msg = msg; QZR.cls = cls;
+    QZR.sending = false; qzrClose(); z.msg = msg; z.cls = cls;
     qzrPaint();
-    var keep = QZR.msg, kc = QZR.cls;
-    qzrLoad().then(function () { QZR.msg = keep; QZR.cls = kc; QZR.polls = 0; qzrPaint(); });
+    qzrLoad(mas).then(function () { z.msg = msg; z.cls = cls; z.polls = 0; qzrPaint(); });
   };
   qzrState(u, p).then(function (d) {
     if (d.status === 'refused' && d.why === 'pchanged') return end(UI.qzrPChanged, 'bad');
