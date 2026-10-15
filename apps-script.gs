@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 60;
+var SCRIPT_VERSION = 61;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -408,6 +408,12 @@ function doPost(e) {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
       try { backupDaily_(); } catch (dbe) {}
       return json_(d.action === 'deckRow' ? deckRow_(d) : deckDrop_(d));
+    }
+    /* מאגר "שאלות לשיבוץ": שורה אחת לפי מזהה — ראו qbank_. */
+    if (d.action === 'qbank') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      try { backupDaily_(); } catch (qbe) {}
+      return json_(qbank_(d));
     }
     /* ההסבה למזהים קבועים — לשונית אחת בכל קריאה. ראו sidStep_. */
     if (d.action === 'sidStep') {
@@ -5269,7 +5275,72 @@ function json_(o) {
    נשמר ב-BACKUP_ID. לשחזור: פותחים אותו, מעתיקים את הלשונית של
    היום הרצוי, ומדביקים על הלשונית שבגיליון הציבורי.
    ============================================================ */
-var GUARD_TABS = ['סימוני הדף', 'פירוש', 'שאלות בדף', 'מצגת', 'מצגות'];
+var GUARD_TABS = ['סימוני הדף', 'פירוש', 'שאלות בדף', 'מצגת', 'מצגות', 'שאלות לשיבוץ'];
+
+/* ============================================================
+   "שאלות לשיבוץ" — מאגר ההכנה של השאלות לדף האינטראקטיבי.
+   ============================================================
+   שני כותבים במקביל: אינסטינקט כותב ישירות בגיליון, והאפליקציה
+   כותבת מהכרטיסים בניהול. כתיבת טבלה מלאה (`table`) הייתה מוחקת
+   שורה שאינסטינקט הוסיף בין הקריאה לשמירה. לכן כאן נוגעים רק
+   בשורה של המזהה, בתוך הנעילה של doPost:
+   · put — מעדכן רק את העמודות שנשלחו; מזהה שאינו קיים — שורה חדשה.
+   · del — מוחק את השורה. שאלה ב"שובצה" אינה נמחקת: היא ההיסטוריה.
+   · ids — רק נותן מזהה לשורות שנכתבו בגיליון בלי מזהה.
+   בכל קריאה, לפני הכל, שורה עם שאלה ובלי מזהה מקבלת מזהה — אחרת
+   אין דרך לערוך אותה בלי ליצור כפילות.
+   ============================================================ */
+var QB_TAB_  = 'שאלות לשיבוץ';
+var QB_COLS_ = ['מזהה', 'מסכת', 'דף', 'שאלה', 'תשובה 1', 'תשובה 2', 'תשובה 3', 'תשובה 4',
+                'נכונה', 'סטטוס', 'הערה', 'קטע'];
+function qbank_(d) {
+  var sh = sheet_(QB_TAB_);
+  var head = headers_(sh);
+  if (!head.join('')) { headRow_(sh, QB_COLS_); head = QB_COLS_.slice(); }
+  var ixId = idx_(sh, head, 'מזהה'), ixQ = idx_(sh, head, 'שאלה'), ixSt = idx_(sh, head, 'סטטוס');
+  var last = sh.getLastRow();
+  var data = last > 1 ? sh.getRange(2, 1, last - 1, head.length).getDisplayValues() : [];
+  var seq = Date.now(), filled = 0;
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][ixId] || '').trim() || !String(data[i][ixQ] || '').trim()) continue;
+    data[i][ixId] = 'r-' + (seq++).toString(36);
+    sh.getRange(i + 2, ixId + 1).setValue(data[i][ixId]);
+    filled++;
+  }
+  if (d.op === 'ids') return { status: 'success', filled: filled };
+  var id = String(d.id || '').trim();
+  if (!id) return { status: 'error', message: 'חסר מזהה' };
+  var at = -1;
+  for (var r = 0; r < data.length; r++) {
+    if (String(data[r][ixId] || '').trim() === id) { at = r; break; }
+  }
+  if (d.op === 'del') {
+    if (at < 0) return { status: 'success', removed: 0 };
+    if (String(data[at][ixSt] || '').trim() === 'שובצה') {
+      return { status: 'denied', message: 'שאלה ששובצה נשארת בלשונית' };
+    }
+    sh.deleteRow(at + 2);
+    return { status: 'success', removed: 1 };
+  }
+  if (d.op !== 'put') return { status: 'error', message: 'פעולה לא מוכרת' };
+  var row = at >= 0 ? data[at].slice() : [];
+  put_(row, ixId, id);
+  (parse_(d.cols) || []).forEach(function (c) {
+    var name = c && String(c[0] || '');
+    if (QB_COLS_.indexOf(name) < 0 || name === 'מזהה') return;
+    var v = c[1] == null ? '' : String(c[1]);
+    put_(row, idx_(sh, head, name), name === 'נכונה' && /^[1-4]$/.test(v) ? +v : v);
+  });
+  /* השורה נכתבת מחדש כולה, מערכי התצוגה. נוסח שנראה כמו נוסחה
+     נשמר כטקסט — "=" בראש תשובה אינו פקודה. */
+  for (var k = 0; k < head.length; k++) {
+    if (row[k] === undefined) row[k] = '';
+    if (typeof row[k] === 'string' && /^[=+\-@]/.test(row[k])) row[k] = "'" + row[k];
+  }
+  var rn = at >= 0 ? at + 2 : Math.max(sh.getLastRow(), 1) + 1;
+  sh.getRange(rn, 1, 1, row.length).setValues([row]);
+  return { status: 'success', id: id, updated: at >= 0 };
+}
 
 /* ============================================================
    הכתיבות הציבוריות — בלי סיסמה. לשונית → העמודות שמותרות בה.

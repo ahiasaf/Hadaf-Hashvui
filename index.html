@@ -2401,6 +2401,48 @@ button.yr-c.auto{cursor:pointer}
 #stu-det{scroll-margin-top:10px}
 #stu .brd{margin-bottom:4px}
 #v-admin .adm-card{border:1px solid var(--rule)}
+/* ניהול ← הדף ← שאלות (qbPaint) */
+.qb-n{display:flex;gap:8px;margin-bottom:11px}
+.qb-k{flex:1;border:1px solid var(--rule);background:var(--surface);border-radius:var(--r-m);padding:10px 6px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink-2);font:inherit;cursor:pointer}
+.qb-k b{font-size:1.7rem;font-weight:900;line-height:1.05}
+.qb-k span{font-size:.78rem;font-weight:800}
+.qb-k.s0 b{color:var(--ink-3)}
+.qb-k.s1 b{color:var(--blue)}
+.qb-k.s2 b{color:var(--green-2)}
+.qb-k.on{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset}
+.qb-bar{display:flex;gap:8px;align-items:center;margin-bottom:11px}
+.qb-bar select{flex:1;min-width:0}
+.qb-bar .btn{width:auto;flex:none;margin:0;padding:10px 14px}
+.qb-bar select,.qb-where select,.qb-ed textarea,.qb-ed input[type=text]{font:inherit;font-size:.92rem;
+  border:1px solid var(--rule);border-radius:var(--r-s);padding:9px 10px;background:var(--surface);color:var(--ink)}
+.qb-c{margin-bottom:11px}
+.qb-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.qb-h b{font-weight:800}
+.qb-h em{font-style:normal;font-size:.76rem;font-weight:700;color:var(--ink-3)}
+.qb-st{margin-inline-start:auto;font-size:.74rem;font-weight:800;border-radius:20px;padding:2px 10px;
+  background:var(--sunk);color:var(--ink-3)}
+.qb-st.s1{background:rgba(23,70,143,.12);color:var(--blue)}
+.qb-st.s2{background:rgba(74,130,28,.14);color:var(--green-2)}
+.qb-q{font-weight:800;line-height:1.5;margin-bottom:8px}
+.qb-a div{padding:6px 10px;border-radius:var(--r-s);font-size:.9rem;color:var(--ink-2);margin-bottom:3px;background:var(--sunk)}
+.qb-a div.ok{background:rgba(74,130,28,.16);color:var(--green-2);font-weight:800}
+.qb-note{font-size:.78rem;color:var(--ink-3);font-weight:600;margin-top:6px}
+.qb-act{display:flex;gap:8px;margin-top:10px}
+.qb-act .btn{margin:0;flex:1;padding:10px 8px}
+.qb-where{display:flex;gap:8px;margin-bottom:8px}
+.qb-where select{flex:1}
+.qb-ed textarea{width:100%;min-height:84px;margin-bottom:8px;resize:vertical;box-sizing:border-box}
+.qb-ed input[type=text]{width:100%;box-sizing:border-box;min-width:0}
+.qb-ar{display:flex;align-items:center;gap:8px;margin-bottom:6px;border-radius:var(--r-s)}
+.qb-ar input[type=radio]{width:22px;height:22px;flex:none;accent-color:var(--green-2)}
+.qb-ar.ok input[type=text]{border-color:var(--green-2);background:rgba(74,130,28,.1);font-weight:800}
+.qb-seg{display:flex;gap:6px;margin:8px 0}
+.qb-seg button{flex:1;font:inherit;font-size:.85rem;font-weight:800;border:1px solid var(--rule);
+  background:var(--surface);color:var(--ink-3);border-radius:var(--r-s);padding:8px;cursor:pointer}
+.qb-seg button.on.s0{background:var(--ink-3);border-color:var(--ink-3);color:#fff}
+.qb-seg button.on.s1{background:var(--blue);border-color:var(--blue);color:#fff}
+.qb-bad{background:rgba(179,38,30,.1)}
 .adm-ver{margin-top:22px;text-align:center;font-size:.72rem;font-weight:700;color:var(--ink-3)}
 .stu-m{font-size:.74rem;color:var(--ink-3);font-weight:700}
 .vc{margin-bottom:11px}
@@ -2823,6 +2865,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="logo.js"></script>
 <script src="data.js"></script>
 <script src="deck.js"></script>
+<script src="qbank.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
@@ -2838,7 +2881,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.230';
+var APP_VERSION = '8.99.231';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10947,7 +10990,7 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = { daf: [['daf', 'moreDaf']] };
+var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
@@ -10965,7 +11008,7 @@ function admHome(leaf) {
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
   if (leaf === 'setup') return 'setup';
   if (leaf === 'calls' || leaf === 'inst') return 'inst';
-  if (leaf === 'daf') return 'daf';
+  if (leaf === 'daf' || leaf === 'qbank') return 'daf';
   if (leaf === 'hot') return 'hot';
   for (var i = 0; i < MORE.length; i++) {
     for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
@@ -11011,6 +11054,226 @@ function admMoreMenu() {
       ? '<details class="adm-card mo-g"><summary>' + esc(UI[g.g]) + '</summary>' + items + '</details>'
       : '<div class="adm-card mo-g"><h4>' + esc(UI[g.g]) + '</h4>' + items + '</div>';
   }).join('');
+}
+/* ============================================================
+   ניהול ← הדף ← שאלות: מאגר "שאלות לשיבוץ", כרטיס לכל שאלה.
+   ============================================================
+   אינסטינקט כותב בגיליון, אחיאסף עובר על הכרטיסים בטלפון: מספרים
+   גדולים למעלה (וגם מסנן לפי סטטוס), מסנן לפי דף, התשובה הנכונה
+   בירוק. עריכה נפתחת בתוך הכרטיס עצמו. "שיבוץ בדף" פותח את הדף
+   האינטראקטיבי, ושם העורך הקיים ממלא את השאלה בלחיצה.
+
+   הכתיבה — שורה לפי מזהה (qbank.js), ואחריה קריאה חוזרת שמאמתת.
+   ============================================================ */
+var QB = null, QB_BUSY = false, QB_FAIL = false, QB_AT = 0, QB_IDS_AT = 0;
+var QB_F = { st:'', md:'' };
+var QB_ED = null;            /* העותק שבעריכה. id ריק = שאלה חדשה */
+function qbApi() { return (CFG.api || API || '').trim(); }
+function qbStLbl(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
+function qbMd(x) { return x.mas + '|' + QbDafKey(x.daf); }
+function qbDafs(mas) {
+  var tr = trackById(mas), out = [];
+  ((tr && tr.cal) || []).forEach(function (w) {
+    if (w && w[2] && out.indexOf(w[2]) < 0) out.push(w[2]);
+  });
+  return out;
+}
+/* טעינה ברקע אינה מציירת מחדש בזמן עריכה — זה היה גונב את המקלדת
+   באמצע הקלדה. הנתונים מתעדכנים, והציור הבא יראה אותם. */
+function qbLoad() {
+  QB_BUSY = true; QB_AT = Date.now();
+  if (!QB_ED) qbPaint();
+  return fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
+    var l = QbFromRows(rows);
+    QB_BUSY = false;
+    /* קריאה שנכשלה אינה מאגר ריק — מה שכבר על המסך נשאר. */
+    QB_FAIL = l === null;
+    if (l) QB = l;
+    /* שורה שנכתבה בגיליון בלי מזהה — השרת נותן לה מזהה, וקוראים שוב. */
+    var key = (CFG.readKey || '').trim();
+    if (l && key && Date.now() - QB_IDS_AT > 60000 && l.some(function (x) { return !x.id; })) {
+      QB_IDS_AT = Date.now();
+      QbPost(qbApi(), key, 'ids', '', []).then(function () { setTimeout(qbLoad, 2500); });
+    }
+    if (!QB_ED) qbPaint();
+  });
+}
+function admQBank(body) {
+  body.innerHTML = '<div id="qb"></div>';
+  if (!QB_BUSY && (QB === null || Date.now() - QB_AT > 60000)) qbLoad(); else qbPaint();
+}
+function qbCardHtml(x) {
+  var si = QB_ST.indexOf(x.st);
+  return '<div class="adm-card qb-c">' +
+    '<div class="qb-h"><b>' + esc(QbMasName(x.mas) + ' ' + x.daf) + '</b>' +
+    /* "קטע" נכתב "3 · <מזהה>" — על המסך רק המספר. */
+    (si === 2 && x.seg ? '<em>' + esc(fill(UI.qbSeg, { n: x.seg.split(' · ')[0] })) + '</em>' : '') +
+    '<span class="' + ('qb-st s' + si) + '">' + esc(qbStLbl(x.st)) + '</span></div>' +
+    '<div class="qb-q">' + esc(x.q) + '</div>' +
+    '<div class="qb-a">' + x.a.map(function (t, k) {
+      return '<div' + (k === x.correct ? ' class="ok">✓ ' : '>') + esc(t || '—') + '</div>';
+    }).join('') + '</div>' +
+    (x.note ? '<div class="qb-note">' + esc(x.note) + '</div>' : '') +
+    '<div class="qb-act">' +
+    '<button class="btn g" data-qbe="' + esc(x.id) + '"' + (x.id ? '' : ' disabled') + '>' + esc(UI.qbEdit) + '</button>' +
+    '<button class="btn p" data-qbp="' + esc(x.id) + '"' + (x.id && QbFull(x) ? '' : ' disabled') + '>' +
+    esc(UI.qbPlace) + '</button></div></div>';
+}
+function qbEdHtml(e) {
+  var where = e.id
+    ? '<div class="qb-h"><b>' + esc(QbMasName(e.mas) + ' ' + e.daf) + '</b></div>'
+    : '<div class="qb-where"><select data-qbk="mas">' + TRACKS.map(function (t) {
+        return '<option value="' + esc(t.id) + '"' + (t.id === e.mas ? ' selected' : '') + '>' + esc(t.masechet) + '</option>';
+      }).join('') + '</select><select data-qbk="daf">' + qbDafs(e.mas).map(function (d) {
+        return '<option' + (d === e.daf ? ' selected' : '') + '>' + esc(d) + '</option>';
+      }).join('') + '</select></div>';
+  return '<div class="adm-card qb-c qb-ed">' + where +
+    (e.orig === QB_ST[2] ? '<p class="h">' + esc(UI.qbPlacedNote) + '</p>' : '') +
+    '<textarea data-qbk="q" placeholder="' + esc(UI.qbQ) + '">' + esc(e.q) + '</textarea>' +
+    e.a.map(function (t, k) {
+      return '<div class="qb-ar' + (e.correct === k ? ' ok' : '') + '">' +
+        '<input type="radio" name="qb-c" data-qbc="' + k + '"' + (e.correct === k ? ' checked' : '') + '>' +
+        '<input type="text" data-qba="' + k + '" value="' + esc(t) + '" placeholder="' +
+        esc(fill(UI.qbA, { n: k + 1 })) + '"></div>';
+    }).join('') +
+    '<div class="qb-seg">' + [0, 1].map(function (i) {
+      return '<button data-qbs="' + QB_ST[i] + '" class="' + ('s' + i + (e.st === QB_ST[i] ? ' on' : '')) + '">' +
+        esc(qbStLbl(QB_ST[i])) + '</button>';
+    }).join('') + '</div>' +
+    '<input type="text" data-qbk="note" value="' + esc(e.note || '') + '" placeholder="' + esc(UI.qbNote) + '">' +
+    '<div class="qb-act"><button class="btn gr" data-qbsave="1">' + esc(UI.qbSave) + '</button>' +
+    '<button class="btn g" data-qbx="1">' + esc(UI.qbCancel) + '</button>' +
+    (e.id && e.orig !== QB_ST[2] ? '<button class="btn warn" data-qbdel="1">' + esc(UI.qbDel) + '</button>' : '') +
+    '</div><div id="qb-msg"></div></div>';
+}
+function qbPaint() {
+  var el = document.getElementById('qb');
+  if (!el) return;
+  var list = QB || [], n = {}, pages = [], seen = {};
+  QB_ST.forEach(function (st) { n[st] = 0; });
+  list.forEach(function (x) {
+    var k = qbMd(x);
+    if (!seen[k]) { seen[k] = 1; pages.push({ k: k, t: QbMasName(x.mas) + ' ' + x.daf }); }
+  });
+  var inMd = list.filter(function (x) { return !QB_F.md || qbMd(x) === QB_F.md; });
+  inMd.forEach(function (x) { n[x.st]++; });
+  var shown = inMd.filter(function (x) { return !QB_F.st || x.st === QB_F.st; });
+  var fresh = QB_ED && !QB_ED.id;
+  var h = '<div class="qb-n">' + QB_ST.map(function (st, i) {
+      return '<button class="' + ('qb-k s' + i + (QB_F.st === st ? ' on' : '')) + '" data-qbf="' + st + '"' +
+        ' aria-pressed="' + (QB_F.st === st) + '"><b>' + n[st] + '</b><span>' + esc(qbStLbl(st)) + '</span></button>';
+    }).join('') + '</div>' +
+    '<div class="qb-bar"><select id="qb-md" aria-label="' + esc(UI.qbAll) + '"><option value="">' + esc(UI.qbAll) + '</option>' +
+    pages.map(function (p) {
+      return '<option value="' + esc(p.k) + '"' + (QB_F.md === p.k ? ' selected' : '') + '>' + esc(p.t) + '</option>';
+    }).join('') + '</select>' +
+    (fresh ? '' : '<button class="btn p" data-qbnew="1">' + esc(UI.qbNew) + '</button>') + '</div>';
+  if (fresh) h += qbEdHtml(QB_ED);
+  if (QB_BUSY && !QB) h += '<p class="h">' + esc(UI.qbLoading) + '</p>';
+  else if (QB_FAIL) h += '<div class="cond" style="margin-bottom:11px">' + esc(UI.qbFail) + '</div>';
+  if (!QB_BUSY && QB && !shown.length && !fresh) h += '<p class="h">' + esc(UI.qbNone) + '</p>';
+  h += shown.map(function (x) {
+    return QB_ED && QB_ED.id === x.id ? qbEdHtml(QB_ED) : qbCardHtml(x);
+  }).join('');
+  el.innerHTML = h;
+  el.onclick = qbClick;
+  el.oninput = qbInput;
+  el.onchange = qbChange;
+}
+function qbSay(bad, t) {
+  var m = document.getElementById('qb-msg');
+  if (m) m.innerHTML = '<div class="cond' + (bad ? ' qb-bad' : '') + '" style="margin-top:10px">' + esc(t) + '</div>';
+}
+function qbClick(ev) {
+  var b = ev.target.closest && ev.target.closest('button');
+  if (!b || b.disabled) return;
+  var g = function (a) { return b.getAttribute(a); };
+  if (g('data-qbf') != null) { QB_F.st = QB_F.st === g('data-qbf') ? '' : g('data-qbf'); return qbPaint(); }
+  if (g('data-qbnew')) {
+    var md = QB_F.md ? QB_F.md.split('|') : [], mas = md[0] || (TRACKS[0] || {}).id;
+    var tr = trackById(mas), daf = '';
+    if (md[1]) qbDafs(mas).forEach(function (d) { if (QbDafKey(d) === md[1]) daf = d; });
+    if (!daf && tr) daf = (tr.cal[Math.max(0, weekIndex())] || [])[2] || qbDafs(mas)[0] || '';
+    QB_ED = { id:'', mas:mas, daf:daf, q:'', a:['', '', '', ''], correct:-1, st:QB_ST[0], note:'' };
+    qbPaint();
+    var ta = document.querySelector('#qb .qb-ed textarea');
+    if (ta) ta.focus();
+    return;
+  }
+  if (g('data-qbe')) {
+    var x = QbFind(QB, g('data-qbe'));
+    if (!x) return;
+    QB_ED = { id:x.id, mas:x.mas, daf:x.daf, q:x.q, a:x.a.slice(), correct:x.correct, st:x.st, note:x.note, orig:x.st };
+    return qbPaint();
+  }
+  if (g('data-qbx')) { QB_ED = null; return qbPaint(); }
+  if (g('data-qbs')) { QB_ED.st = g('data-qbs'); return qbPaint(); }
+  if (g('data-qbsave')) return qbSave();
+  if (g('data-qbdel')) return qbDel();
+  if (g('data-qbp')) return qbPlace(g('data-qbp'));
+}
+function qbInput(ev) {
+  var t = ev.target, k = t.getAttribute('data-qbk'), a = t.getAttribute('data-qba');
+  if (!QB_ED) return;
+  if (k === 'q' || k === 'note') QB_ED[k] = t.value;
+  if (a != null) QB_ED.a[+a] = t.value;
+}
+function qbChange(ev) {
+  var t = ev.target;
+  if (t.id === 'qb-md') { QB_F.md = t.value; return qbPaint(); }
+  if (!QB_ED) return;
+  if (t.getAttribute('data-qbc') != null) { QB_ED.correct = +t.getAttribute('data-qbc'); return qbPaint(); }
+  var k = t.getAttribute('data-qbk');
+  if (k === 'mas') { QB_ED.mas = t.value; QB_ED.daf = qbDafs(t.value)[0] || ''; return qbPaint(); }
+  if (k === 'daf') QB_ED.daf = t.value;
+}
+function qbSave() {
+  var e = QB_ED;
+  if (!e) return;
+  var want = { mas:e.mas, daf:e.daf, q:(e.q || '').trim(),
+               a:e.a.map(function (t) { return (t || '').trim(); }),
+               correct:e.correct, st:e.st, note:(e.note || '').trim() };
+  if (!want.q) return qbSay(1, UI.qbNeedQ);
+  if (want.st === QB_ST[1] && !QbFull(want)) return qbSay(1, UI.qbNeedAll);
+  var key = (CFG.readKey || '').trim();
+  if (!key) return qbSay(1, UI.qbNoKey);
+  /* מזהה לשאלה חדשה — פעם אחת. שמירה חוזרת אחרי אימות שנכשל דורסת
+     את אותה שורה, ולא מוסיפה עוד אחת. */
+  var id = e.id || e.nid || (e.nid = QbNewId(e.mas));
+  qbSay(0, UI.qbSent);
+  QbPost(qbApi(), key, 'put', id, QbCols(want)).then(function () { qbVerify(0, id, want); });
+}
+function qbDel() {
+  var e = QB_ED, key = (CFG.readKey || '').trim();
+  if (!e || !e.id || !confirm(UI.qbSure)) return;
+  if (!key) return qbSay(1, UI.qbNoKey);
+  qbSay(0, UI.qbSent);
+  QbPost(qbApi(), key, 'del', e.id).then(function () { qbVerify(0, e.id, null); });
+}
+/* want = null — מחיקה: מאמתים שהשורה איננה. */
+function qbVerify(tries, id, want) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
+      var l = QbFromRows(rows), x = l && QbFind(l, id);
+      if (l && (want ? QbSame(x, want) : !x)) {
+        QB = l; QB_FAIL = false; QB_ED = null; QB_AT = Date.now();
+        qbPaint();
+        toast(want ? UI.qbOk : UI.qbDelOk);
+        return;
+      }
+      if (tries < 4) return qbVerify(tries + 1, id, want);
+      qbSay(1, UI.qbBad);
+    });
+  }, tries ? 2500 : 1400);
+}
+/* אל הדף האינטראקטיבי, עם מזהה השאלה. החזרה משם נוחתת כאן שוב
+   (admTakeGo), והמאגר נטען מחדש — עם הסימון "שובצה". */
+function qbPlace(id) {
+  var x = QbFind(QB, id);
+  if (!x) return;
+  try { localStorage.setItem('df:admGo', JSON.stringify({ sub:'qbank' })); } catch (e) {}
+  location.href = 'learn.html?mas=' + encodeURIComponent(x.mas) + '&daf=' + encodeURIComponent(x.daf) +
+                  '&qb=' + encodeURIComponent(id) + '&from=qbank';
 }
 function admMoreTitle(leaf) {
   for (var i = 0; i < MORE.length; i++) {
@@ -11103,6 +11366,7 @@ function admPane() {
   if (sub === 'sys')     { admSet(body); return admInstallBox(); }
   if (sub === 'guide')   { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
   if (sub === 'daf')     return admDecks(body);
+  if (sub === 'qbank')   return admQBank(body);
   if (sub === 'open')    return admOpen(body);
   if (sub === 'price')   return admPrice(body);
   if (sub === 'text')    return admText(body);
@@ -19125,6 +19389,8 @@ function admTakeGo() {
   var g = null;
   try { g = JSON.parse(localStorage.getItem('df:admGo') || 'null');
         localStorage.removeItem('df:admGo'); } catch (e) {}
+  /* חזרה מ"שיבוץ בדף" — אל הכרטיסים, שנטענים מחדש עם הסימון "שובצה". */
+  if (g && g.sub === 'qbank') { admTab = 'daf'; admSub.daf = 'qbank'; QB = null; return; }
   if (!g || g.sub !== 'daf') return;
   admTab = 'daf'; admSub.daf = 'daf';
   if (g.mas && trackById(g.mas) && g.wk > 0) {

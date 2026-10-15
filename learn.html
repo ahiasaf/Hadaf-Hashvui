@@ -750,6 +750,11 @@ body.emb .qfab,body.emb .qhint{position:absolute}
 .qz-opt:disabled{cursor:default}
 .qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
   color:#fff;border:0}
+/* "מילוי מהרשימה" — מאגר "שאלות לשיבוץ" (qbFillHtml_) */
+.qz-qb{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--rule,#E4DCC8)}
+.qz-qb .qz-opt small{display:block;font-size:.8rem;font-weight:600;margin-top:3px;opacity:.92}
+.qz-qb .qz-opt em{font-style:normal;font-size:.74rem;color:var(--ink-3,#7A8499);margin-inline-start:6px}
+.qz-qbl .qz-opt{font-weight:600}
 .qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
   border-radius:10px;border:1.5px solid var(--rule,#E4DCC8);box-sizing:border-box;margin-top:8px}
 textarea.qz-in{min-height:60px;resize:vertical}
@@ -1126,6 +1131,7 @@ a.lockbtn{display:inline-block;text-decoration:none}
 <script src="a11y.js"></script>
 <script src="data.js"></script>
 <script src="deck.js"></script>
+<script src="qbank.js"></script>
 <script src="learned.js"></script>
 <script src="trail.js"></script>
 <script src="stepid.js"></script>
@@ -4795,6 +4801,7 @@ function qSend(n, k, right) {
    אינה הוכחה לכלום. מצוירת גם היא לתוך `#chb`, לא בחלון. */
 var Q_EDIT = null;
 function qEditOpen_(n) {
+  Q_FROM = null; QB_OPEN = false;
   var all = qPieces_(n), cur = all[qIdx_(n, all.length)];
   Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct }
                : { q:'', a:['', '', '', ''], correct:0 };
@@ -4805,6 +4812,7 @@ function qPaintEdit_(n) {
   var box = $('chb');
   box.innerHTML =
     '<div style="font-weight:800;margin-bottom:10px">עריכת שאלה לקטע ' + n + '</div>' +
+    qbFillHtml_() +
     '<textarea class="qz-in" id="qe-q" placeholder="נוסח השאלה">' + esc(Q_EDIT.q) + '</textarea>' +
     Q_EDIT.a.map(function (t, k) {
       return '<div class="qz-arow">' +
@@ -4828,6 +4836,7 @@ function qPaintEdit_(n) {
   $('qe-save').onclick = function () { qEditSave_(n); };
   var del = $('qe-del');
   if (del) del.onclick = function () { qEditDelete_(n); };
+  qbFillBind_(n);
 }
 /* הרשימה המלאה, לכתיבה — כמו ownRows_ בדיוק. */
 function qRows_() {
@@ -4897,6 +4906,9 @@ function qVerify_(tries, n, want) {
       if (JSON.stringify(got) === JSON.stringify(want)) {
         QMAP = m; QOWN = mine;
         toast('נשמר ואומת.');
+        /* השאלה שנשמרה מולאה מהמאגר — עכשיו, אחרי האימות, מסמנים שם "שובצה". */
+        var said = (Q_EDIT && (Q_EDIT.q || '').trim()) || '';
+        if (Q_FROM && want.some(function (w) { return w && w.q === said; })) qbMarkPlaced_(n);
         /* חוזרים לתצוגת השאלה השמורה — זו ההוכחה שהיא נכתבה,
            ברורה יותר מהודעת טקסט שנעלמת עם הציור הבא. */
         paintChavArea();
@@ -4912,6 +4924,89 @@ function qVerify_(tries, n, want) {
       var r3 = $('qz-res');
       if (r3) r3.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
         'לא הצלחתי לקרוא מהגיליון.</div>';
+    });
+  }, tries ? 2500 : 1400);
+}
+
+/* ---------- מילוי מהמאגר "שאלות לשיבוץ" (qbank.js) ----------
+   "שיבוץ בדף" בכרטיסים שבניהול פותח את הדף הזה עם `qb=<מזהה>`.
+   כאן רק ממלאים את השדות של העורך (Q_EDIT). השמירה היא "שמירה"
+   הקיימת (qEditSave_) עם האימות שלה, בלי שינוי — ורק אחרי שהיא
+   אומתה מסמנים במאגר "שובצה" ואת הקטע (qbMarkPlaced_). */
+var QB_ID = (function () {
+  try { return decodeURIComponent((/[?&]qb=([^&#]*)/.exec(location.search) || [])[1] || ''); }
+  catch (e) { return ''; }
+})();
+var QBL = null, QB_OPEN = false, Q_FROM = null;
+function qbStLbl_(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
+/* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף. */
+function qbSetList_(l) {
+  var rank = function (x) { return [1, 0, 2][QB_ST.indexOf(x.st)]; };
+  QBL = l.filter(function (x) {
+    return x.id && x.mas === S.mas && QbDafKey(x.daf) === QbDafKey(S.daf);
+  }).map(function (x, i) { x.i = i; return x; }).sort(function (a, b) {
+    return (rank(a) - rank(b)) || (a.i - b.i);
+  });
+}
+function loadQBank_() {
+  return sheetCsv(QB_TAB).then(function (rows) {
+    var l = QbFromRows(rows);
+    if (l) qbSetList_(l);          /* קריאה שנכשלה — מה שהיה נשאר */
+  }).catch(function () {});
+}
+function qbFillHtml_() {
+  if (!QBL || !QBL.length) return '';
+  var sel = QB_ID ? QbFind(QBL, QB_ID) : null;
+  return '<div class="qz-qb">' +
+    (sel && QbFull(sel) ? '<button class="qz-opt gold" id="qb-sel">' + esc(UI.qbFillSel || '') +
+      '<small>' + esc(sel.q) + '</small></button>' : '') +
+    '<button class="qz-opt" id="qb-list" aria-expanded="' + QB_OPEN + '">' +
+      esc(UI.qbFillList || '') + ' (' + QBL.length + ')</button>' +
+    (QB_OPEN ? '<div class="qz-qbl">' + QBL.map(function (x, i) {
+      return '<button class="qz-opt" data-qbi="' + i + '"' + (QbFull(x) ? '' : ' disabled') + '>' +
+        esc(x.q) + '<em>' + esc(qbStLbl_(x.st)) + '</em></button>';
+    }).join('') + '</div>' : '') +
+    (Q_FROM ? '<div class="qz-res">' + esc(UI.qbFilled || '') + '</div>' : '') +
+    '</div>';
+}
+function qbFill_(n, x) {
+  if (!x || !QbFull(x)) return;
+  var pub = $('qe-pub'), was = pub ? pub.checked : null;
+  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct };
+  Q_FROM = x.id; QB_OPEN = false;
+  qPaintEdit_(n);
+  /* הסימון "לפרסם" שעל המסך נשמר כפי שהיה לפני המילוי */
+  if (was !== null && $('qe-pub')) $('qe-pub').checked = was;
+}
+function qbFillBind_(n) {
+  var sel = $('qb-sel'), lst = $('qb-list');
+  if (sel) sel.onclick = function () { qbFill_(n, QbFind(QBL, QB_ID)); };
+  if (lst) lst.onclick = function () {
+    var pub = $('qe-pub'), was = pub ? pub.checked : null;
+    QB_OPEN = !QB_OPEN; qPaintEdit_(n);
+    if (was !== null && $('qe-pub')) $('qe-pub').checked = was;
+  };
+  var bs = $('chb').querySelectorAll('[data-qbi]');
+  for (var i = 0; i < bs.length; i++) bs[i].onclick = function () {
+    qbFill_(n, QBL[+this.getAttribute('data-qbi')]);
+  };
+}
+function qbMarkPlaced_(n) {
+  var id = Q_FROM, key = cfgReadKey_();
+  Q_FROM = null;
+  if (!id || !key) return;
+  var seg = String(n), k = sidKeys_(QOWN || {}, n)[0];
+  if (k !== seg) seg += ' · ' + k;
+  QbPost(API, key, 'put', id, [['סטטוס', QB_ST[2]], ['קטע', seg]])
+    .then(function () { qbMarkVerify_(0, id, seg); });
+}
+function qbMarkVerify_(tries, id, seg) {
+  setTimeout(function () {
+    sheetCsv(QB_TAB).then(function (rows) {
+      var l = QbFromRows(rows), x = l && QbFind(l, id);
+      if (x && x.st === QB_ST[2] && x.seg === seg) { qbSetList_(l); toast(UI.qbMarkOk || ''); return; }
+      if (tries < 4) { qbMarkVerify_(tries + 1, id, seg); return; }
+      toast(UI.qbMarkBad || '');
     });
   }, tries ? 2500 : 1400);
 }
@@ -5033,6 +5128,8 @@ function stuDad() {
   } catch (e) { return false; }
 }
 function stuHomeUrl() {
+  /* מי שהגיע מ"שיבוץ בדף" — חזרה לכרטיסים בניהול (ראו admTakeGo). */
+  if (FROM === 'qbank') return '/#admin';
   /* מי שנכנס מהמסך הראשי חוזר אליו — הכתובת יודעת, המכשיר מנחש. */
   if (FROM === 'home' || staffDev()) return './';
   var i = stuInst(), q = [];
@@ -5845,6 +5942,11 @@ function boot() {
   /* אותו דבר לחידות — אחרי ש-SIDE_ADM כבר ידוע, כי paintChavArea
      מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
   loadQuizMap().then(function () { if (FLAT.length) paintChavArea(); });
+  /* ומאגר "שאלות לשיבוץ" — רק לרכז, לעורך השאלה. */
+  if (SIDE_ADM) {
+    loadQBank_().then(function () { if (FLAT.length && QUIZ_OPEN) paintChavArea(); });
+    if (QB_ID) setTimeout(function () { toast(UI.qbPickSeg || ''); }, 1200);
+  }
 
   veil('מביא את הדף…', 'צורת הדף והסימונים');
   buttons(false);
