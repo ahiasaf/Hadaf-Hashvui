@@ -4167,7 +4167,7 @@ function posWeek() {
 function savePos() {
   if (quiet()) return;            /* הדגמה אינה "מקום שעצרתי בו" */
   var wk = posWeek();
-  if (wk < 0 || !FLAT.length) return;
+  if (wk < 0 || !FLAT.length || (FLAT[IDX] || {}).peek) return;
   try { LPosSet(S.mas, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
   quietMark(wk);
 }
@@ -4219,7 +4219,7 @@ function resumePos() {
     if (!(p.i > 0) || p.n !== FLAT.length) return;
     at = p.i;
   }
-  if (!(at > 0) || at >= FLAT.length - 1) return;
+  if (!(at > 0) || at >= FLAT.length - 1 || FLAT[at].peek) return;
   go(at);
   var el = $('resume');
   if (!el) return;
@@ -4246,7 +4246,9 @@ function spotGet() {
   try { return JSON.parse(localStorage.getItem(SPOT_KEY) || 'null'); } catch (e) { return null; }
 }
 function spotSave() {
-  if (quiet() || EMB || !FLAT.length || !FLAT[IDX]) return;
+  /* קטע מחוץ לשבוע (עריכה בלבד) אינו "מקום שעצרתי בו" — החזרה
+     אליו נחתה על הדף הבא, והמצגת של השבוע לא הגיבה שם. */
+  if (quiet() || EMB || !FLAT.length || !FLAT[IDX] || FLAT[IDX].peek) return;
   var pp = PAGES[FLAT[IDX].p] || {};
   try {
     /* `am` — היחידה (ב. או ב:), `pg` — העמוד שעל המסך בתוכה. */
@@ -4273,7 +4275,7 @@ function spotResume() {
   if (!p || p.mas !== S.mas || dafKey(p.daf) !== dafKey(S.daf) ||
       (p.am != null && p.am !== S.am)) return false;
   var at = spotIdx(p);
-  if (!(at > 0)) return false;
+  if (!(at > 0) || FLAT[at].peek) return false;
   go(at);
   resumeBar('המשכנו מהמקום שעצרת · <button onclick="resumeTop()">מתחילת הדף</button>');
   return true;
@@ -4390,14 +4392,15 @@ function pickGo(k) {
   if (!u) return;
   var rowAm = LAmOf(u.row);
   if (dafKey(u.daf) === dafKey(S.daf) && rowAm === S.am && FLAT.length) {
-    if (S.am) return;
+    /* עמוד שנלמד לבד — בחירה בו היא "לראש העמוד", גם כשכבר בו. */
+    if (S.am) { go(0); return; }
     var j = amudIdx(u.am);
     if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
     return;
   }
   if (rowAm && unitSwap({ daf: u.daf, am: rowAm, wk: LWeekOf(S.mas, u.daf, rowAm) })) return;
   location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
-    (rowAm || u.am === 2 ? '&amud=' + u.am : '') + keepQ();
+    (rowAm || u.am === 2 ? '&amud=' + u.am : '') + '&at=start' + keepQ();
 }
 var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
 
