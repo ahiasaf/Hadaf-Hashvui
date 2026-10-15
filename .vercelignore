@@ -1,0 +1,6 @@
+# Vercel builds remotely: upload sources only, never local agent or build state
+.claude/
+.worktrees/
+.impeccable/
+.astro/
+dist/
