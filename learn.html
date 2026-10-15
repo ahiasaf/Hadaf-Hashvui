@@ -2561,6 +2561,10 @@ function paintOwnRead_(n) {
   box.scrollTop = 0;
 }
 function paintOwnEdit_(n) {
+  /* המגירה עברה בינתיים לחידה או לחברותא — לא מציירים עליה. ציור מאוחר
+     (אחרי טעינת ההקלטות, אחרי שמירה) כיסה את עורך השאלה בעורך הפירוש,
+     בזמן שהכותרת כבר אמרה "חידה". כשחוזרים ללשונית, paintOwn מצייר שוב. */
+  if (QUIZ_OPEN || CHAV_TAB !== 'own') return;
   var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
   var html = '<div class="own-bar" id="own-bar"></div>';
 
