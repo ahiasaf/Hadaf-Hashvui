@@ -2895,7 +2895,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.237';
+var APP_VERSION = '8.99.238';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18336,7 +18336,8 @@ function netGuess(name, place) {
 /* הגיליון של משרד החינוך: שורת כותרת, ואחריה שורה לכל תלמיד — ולפעמים
    שורה לכל הורה של אותו תלמיד. העמודות מזוהות לפי הכותרת. */
 function netFromSheets(sheets) {
-  var out = { rows: [], insts: {}, other: {} }, seen = {};
+  var out = { rows: [], insts: {}, other: {}, skip: { gr: {} } }, seen = {}, sk = out.skip;
+  var cnt = function (k) { sk[k] = (sk[k] || 0) + 1; };
   sheets.forEach(function (sh) {
     var rows = sh.rows, hi = -1, col = {}, i, j;
     for (i = 0; i < Math.min(rows.length, 15) && hi < 0; i++) {
@@ -18349,25 +18350,31 @@ function netFromSheets(sheets) {
     var g = function (r, name) { return col[name] ? String(r[col[name]] || '').trim() : ''; };
     for (i = hi + 1; i < rows.length; i++) {
       var x = rows[i];
-      if (g(x, 'סיבת עזיבה') || g(x, 'תאריך סיום שיבוץ')) continue;   /* עזב */
       var sym = g(x, 'סמל מוסד'), gr = g(x, 'שכבה').replace(/["'׳״\s]/g, '');
       var first = g(x, 'שם פרטי כינוי') || g(x, 'שם פרטי');
       var last = g(x, 'שם משפחה כינוי') || g(x, 'שם משפחה');
-      if (!sym || !gr || !first) continue;
+      /* שורה ריקה לגמרי — אינה "לא נקלטה". */
+      if (!sym && !gr && !first && !last) continue;
+      if (g(x, 'סיבת עזיבה') || g(x, 'תאריך סיום שיבוץ')) { cnt('left'); continue; }   /* עזב */
+      if (!first) { cnt('name'); continue; }
+      if (!sym) { cnt('inst'); continue; }
+      if (!gr) { sk.gr[''] = (sk.gr[''] || 0) + 1; continue; }
       /* רק בנים — כשבקובץ יש עמודת "מין". */
-      if (col['מין'] && g(x, 'מין') !== 'זכר') continue;
+      if (col['מין'] && g(x, 'מין') !== 'זכר') { cnt('sex'); continue; }
       /* רק ישיבות. במשרד השם כתוב בכמה צורות: "ישיבת…", "ישיבה תיכונית
          בנ"ע עלי", "ק.חינוך בנ"ע חולון", "מוסדות בני עקיבא מירון". */
-      if (!NET_KIND.test(g(x, 'שם מוסד'))) continue;
+      if (!NET_KIND.test(g(x, 'שם מוסד'))) { cnt('kind'); continue; }
       /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
          ואין סיבה שיישבו בגיליון. ישיבה שאין בה ז׳–ח׳ נרשמת בצד,
          כדי שיהיה ברור למה היא לא ברשימה. */
       if (ATT_GRADES.indexOf(gr) < 0) {
         if (!out.other[sym]) out.other[sym] = netPlace(g(x, 'שם מוסד'), g(x, 'שם רשות חינוך') || g(x, 'ישוב מוסד'));
+        sk.gr[gr] = (sk.gr[gr] || 0) + 1;
         continue;
       }
       var cls = (g(x, 'מקבילה').match(/\d+/) || [''])[0];
       var kid = netTel(g(x, 'מספר נייד 1')) || netTel(g(x, 'מספר נייד 2'));
+      if (!kid && (g(x, 'מספר נייד 1') || g(x, 'מספר נייד 2'))) cnt('tel');
       var par = netTel(g(x, 'נייד 1')) || netTel(g(x, 'נייד 2'));
       var rel = g(x, 'סוג קירבה תאור');
       var key = [sym, gr, cls, last, first].join('|');
@@ -18422,6 +18429,9 @@ var NET_META = ['מקור', 'מקור עדיף'];
 var NET_ALL = NET_COLS.concat(NET_META);
 var NETP = null;                 /* התצוגה לפני שמירה — בזיכרון בלבד */
 var NET_BUSY = false, NET_BAKS = null, NET_STALE = false;
+/* NET_CUR — חתימת המאגר כשנפתחה רשימת הגיבויים (בסיס לשחזור).
+   NET_BROKEN — שם הגיבוי, כשהשרת דיווח שהמאגר במצב לא ידוע. */
+var NET_CUR = '', NET_BROKEN = '', NET_PEND_AUTO = 0;
 
 /* אותה פונקציה בדיוק ב-apps-script.gs (netSig_) — חתימת הלשונית. */
 function netSig(rows) {
@@ -18473,15 +18483,41 @@ function netGenHead(sheets) {
   for (var s = 0; s < sheets.length; s++) {
     var rows = sheets[s].rows || [];
     for (var i = 0; i < Math.min(rows.length, 15); i++) {
-      var hs = [], j;
-      for (j in rows[i]) if (rows[i].hasOwnProperty(j)) {
-        var t = String(rows[i][j] || '').trim();
-        if (t && !/^\d+$/.test(t)) hs.push({ col: j, t: t });
-      }
+      var hs = netGenHeads(rows[i]);
       if (hs.length >= 3) return { si: s, hi: i, heads: hs };
     }
   }
   return null;
+}
+function netGenHeads(row) {
+  var hs = [], j;
+  for (j in (row || {})) if (row.hasOwnProperty(j)) {
+    var t = String(row[j] || '').trim();
+    if (t && !/^\d+$/.test(t)) hs.push({ col: j, t: t });
+  }
+  return hs;
+}
+function netGenAuto(heads) {
+  var map = {};
+  NET_GEN_F.forEach(function (d) {
+    heads.forEach(function (h) { if (!map[d.f] && d.want.indexOf(h.t) >= 0) map[d.f] = h.col; });
+  });
+  return map;
+}
+/* הרכז בוחר לשונית אחרת או שורת כותרת אחרת. -1 — בלי שינוי. */
+function netGenAt(si, hi) {
+  if (!NET || !NET.gen) return;
+  var g = NET.gen;
+  if (si >= 0 && si !== g.si) {
+    g.si = si;
+    var rows = NET.sheets[si].rows || [], f = 0;
+    for (var i = 0; i < Math.min(rows.length, 15); i++) if (netGenHeads(rows[i]).length >= 3) { f = i; break; }
+    g.hi = f;
+  }
+  if (hi >= 0) g.hi = hi;
+  g.heads = netGenHeads((NET.sheets[g.si].rows || [])[g.hi]);
+  g.map = netGenAuto(g.heads);
+  admPane();
 }
 /* השדות של קובץ כללי. `want` — כותרות שמזוהות רק בהתאמה מדויקת. */
 var NET_GEN_F = [
@@ -18520,10 +18556,7 @@ function netPicked(inp) {
       /* לא משרד החינוך — התאמת עמודות. אין כותרות — עוצרים. */
       var gh = sheets && netGenHead(sheets);
       if (!gh) { alert(UI.netBad2); admPane(); return; }
-      var map = {};
-      NET_GEN_F.forEach(function (d) {
-        gh.heads.forEach(function (h) { if (!map[d.f] && d.want.indexOf(h.t) >= 0) map[d.f] = h.col; });
-      });
+      var map = netGenAuto(gh.heads);
       NET = { kind: 'gen', sheets: sheets, gen: { si: gh.si, hi: gh.hi, heads: gh.heads, map: map, one: '' },
               src: String(f.name || '').replace(/\.[^.]*$/, ''), step: 'map' };
       admPane();
@@ -18545,20 +18578,25 @@ function netGenMiss() {
 /* השורות, לפי ההתאמה שהרכז בחר. רק ז׳–ח׳ (ATT_GRADES). */
 function netGenGo() {
   if (!NET || !NET.gen || netGenMiss().length) return;
-  var g = NET.gen, rows = NET.sheets[g.si].rows, list = [], insts = {}, out = 0;
+  var g = NET.gen, rows = NET.sheets[g.si].rows, list = [], insts = {}, out = 0, sk = { gr: {} };
   var at = function (r, f) { return g.map[f] ? String(r[g.map[f]] || '').trim() : ''; };
   for (var i = g.hi + 1; i < rows.length; i++) {
     var x = rows[i], first = at(x, 'first'), last = at(x, 'last');
     if (!first && !last) continue;
     var gr = netGr(at(x, 'g')), k = g.one ? '*' : at(x, 'inst');
-    if (!first || !last || !k || ATT_GRADES.indexOf(gr) < 0) { out++; continue; }
+    /* מה שלא נקלט — נספר לפי הסיבה, ומוצג לרכז. */
+    if (!first || !last) { sk.name = (sk.name || 0) + 1; out++; continue; }
+    if (!k) { sk.inst = (sk.inst || 0) + 1; out++; continue; }
+    if (ATT_GRADES.indexOf(gr) < 0) { sk.gr[gr] = (sk.gr[gr] || 0) + 1; out++; continue; }
+    var kid = netTel(at(x, 'kid')), par = netTel(at(x, 'par'));
+    if ((!kid && at(x, 'kid')) || (!par && at(x, 'par'))) sk.tel = (sk.tel || 0) + 1;
     list.push({ k: k, sym: '', g: gr, c: netCl(at(x, 'c')), last: last, first: first,
-                kid: netTel(at(x, 'kid')), par: netTel(at(x, 'par')), rel: '' });
+                kid: kid, par: par, rel: '' });
     if (!insts[k]) insts[k] = { name: k === '*' ? '' : k, loc: '', city: '', n: 0 };
     insts[k].n++;
   }
   if (!list.length) { alert(UI.netNoRows2); return; }
-  NET.list = list; NET.insts = insts; NET.other = {}; NET.out = out; NET.step = '';
+  NET.list = list; NET.insts = insts; NET.other = {}; NET.out = out; NET.skip = sk; NET.step = '';
   netMapInit(NET);
   if (g.one) NET.map['*'] = g.one;
   admPane();
@@ -18599,16 +18637,19 @@ function netRowsIn() {
 }
 
 /* ---------- התצוגה לפני שמירה ---------- */
+/* השרת מכיר את הכתיבה הבטוחה (יומן, מזהה פעולה)? `safe: 2` — כן.
+   שרת ישן — לא שולחים לו כלום. */
+function netSrvOk(b) { return !!(b && b.status === 'ok' && b.baks && b.safe === 2); }
 function netPrevGo() {
   var key = (CFG.readKey || '').trim();
-  if (!NET || NET_BUSY) return;
+  if (!NET || NET_BUSY || netPend()) return;
   if (!key || !(CFG.api || API || '').trim()) { netMsg = UI.netNoKey; admPane(); return; }
   if (!NET.src) { netMsg = UI.netNoSrc; admPane(); return; }
   NET_BUSY = true; NETP = null; netMsg = UI.netReadCur; admPane();
-  /* השרת מכיר את הייבוא החדש? שרת ישן — לא שולחים לו כלום. */
   scriptGet({ netbaks: 1, key: key }).then(function (b) {
-    if (!b || b.status !== 'ok' || !b.baks) throw new Error('old');
-    NET_BAKS = b.baks;
+    if (b && b.status === 'broken') { NET_BROKEN = b.backup || '-'; throw new Error('broken'); }
+    if (!netSrvOk(b)) throw new Error('old');
+    NET_BAKS = b.baks; NET_CUR = b.cur || ''; NET_BROKEN = '';
     return scriptGet({ read: NET_TAB, key: key });
   }).then(function (d) {
     NET_BUSY = false;
@@ -18619,13 +18660,20 @@ function netPrevGo() {
     }
     NETP = netPlan(d.rows, netRowsIn(), NET.src, NET.pref);
     NETP.out = (NET.out || 0) + NET.list.length - netRowsIn().length;
+    NETP.insts = netInstsIn();
     netMsg = NET_STALE ? UI.netStale : ''; NET_STALE = false;
     admPane();
   })['catch'](function (e) {
     NET_BUSY = false;
-    netMsg = e && e.message === 'old' ? UI.netOldSrv : UI.netNoRead;
+    netMsg = e && e.message === 'broken' ? '' : e && e.message === 'old' ? UI.netOldSrv : UI.netNoRead;
     admPane();
   });
+}
+/* הישיבות של הייבוא הזה — השרת אינו נוגע בשורה של ישיבה אחרת. */
+function netInstsIn() {
+  var m = {};
+  for (var k in NET.map) if (NET.map.hasOwnProperty(k) && NET.map[k] && NET.insts[k]) m[NET.map[k]] = 1;
+  return Object.keys(m).sort();
 }
 /* מה ייעשה מול מה שכבר במאגר. פונקציה טהורה — נבדקת בנתוני דמה. */
 function netPlan(cur, rows, src, pref) {
@@ -18662,6 +18710,7 @@ function netPlan(cur, rows, src, pref) {
     (a || []).forEach(function (e) { if (!seen[e.r] && !(not && not[e.r])) { seen[e.r] = 1; out.push(e); } });
     return out;
   };
+  /* `pick` ריק = עוד לא הוכרע. אין שמירה עד שכולם הוכרעו. */
   var ask = function (x, cands, why) { P.asks.push({ t: 'match', x: x, cands: cands, why: why, pick: '' }); };
   list.forEach(function (x) {
     var ex = uniq(exK[keyOf(x)]), not = {};
@@ -18695,7 +18744,7 @@ function netPlan(cur, rows, src, pref) {
 /* מה משתנה בשורה קיימת כשהיא מתמזגת עם שורה מהקובץ. */
 function netFoldS(e, x, src, pref) {
   var np = !!pref[x.inst], op = !!e.v['מקור עדיף'];
-  var S = { e: e, x: x, ch: {}, disp: [], np: np, prio: 0 };
+  var S = { e: e, x: x, ch: {}, disp: [], np: np, prio: 0, keep: {} };
   [['כיתה', 'c', netCl], ['טלפון', 'kid', netTelN], ['טלפון הורה', 'par', netTelN],
    ['משפחה', 'last', netNm], ['פרטי', 'first', netNm], ['סמל מוסד', 'sym', String]].forEach(function (f) {
     var o = e.v[f[0]], v = x[f[1]] || '';
@@ -18714,16 +18763,20 @@ function netFoldS(e, x, src, pref) {
   S.meta = np && e.v['מקור עדיף'] !== src;
   return S;
 }
+/* השדות שמשתנים בפועל — אחרי "להשאיר את הקיים" של הרכז. */
 function netSetRow(S, src) {
   var row = {}, k;
-  for (k in S.ch) if (S.ch.hasOwnProperty(k)) row[k] = S.ch[k];
+  for (k in S.ch) if (S.ch.hasOwnProperty(k) && !S.keep[k]) {
+    if (k === 'קרבה' && S.keep['טלפון הורה']) continue;
+    row[k] = S.ch[k];
+  }
   S.disp.forEach(function (d) {
     if (d.pick !== 'v') return;
     row[d.c] = d.v;
     if (d.c === 'טלפון הורה') row['קרבה'] = S.x.rel || '';
   });
   var touched = Object.keys(row).length;
-  if (!touched && !S.meta) return null;
+  if (S.off || (!touched && !S.meta)) return null;
   if (touched) row['מקור'] = netSrcAdd(S.e.v['מקור'], src);
   if (S.np) row['מקור עדיף'] = src;
   return row;
@@ -18733,24 +18786,31 @@ function netAddRow(x, src, pref) {
            'טלפון': x.kid || '', 'טלפון הורה': x.par || '', 'קרבה': x.par ? (x.rel || '') : '',
            'סמל מוסד': x.sym || '', 'מקור': src, 'מקור עדיף': pref[x.inst] ? src : '' };
 }
-/* הפעולות לשרת, לפי התצוגה וההכרעות. null — הכרעות סותרות. */
+/* הפעולות לשרת, לפי התצוגה וההכרעות. null — הכרעות סותרות.
+   `open` — התאמות שעוד לא הוכרעו; כל עוד יש — אין שמירה. */
 function netOps(P) {
-  var ops = [], used = {}, bad = false, n = { add: 0, upd: 0, same: 0, aside: 0 };
+  var ops = [], used = {}, bad = false, n = { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0 };
   var setOp = function (S) {
     if (used[S.e.r]) { bad = true; return; }
     used[S.e.r] = 1;
+    if (S.off) { n.off++; return; }
     var row = netSetRow(S, P.src);
     if (!row) { n.same++; return; }
     ops.push({ k: 'set', r: S.e.r, was: S.e.v, row: row });
     n.upd++;
   };
+  var addOp = function (x) {
+    if (x.off) { n.off++; return; }
+    ops.push({ k: 'add', row: netAddRow(x, P.src, P.pref) }); n.add++;
+  };
   for (var r in P.sets) if (P.sets.hasOwnProperty(r)) setOp(P.sets[r]);
-  P.adds.forEach(function (x) { ops.push({ k: 'add', row: netAddRow(x, P.src, P.pref) }); n.add++; });
+  P.adds.forEach(addOp);
   P.asks.forEach(function (a) {
     if (a.t !== 'match') return;
-    if (a.pick === 'new') { ops.push({ k: 'add', row: netAddRow(a.x, P.src, P.pref) }); n.add++; }
+    if (a.pick === 'new') addOp(a.x);
+    else if (a.pick === 'skip') n.aside++;
     else if (a.pick && a.S) setOp(a.S);
-    else n.aside++;
+    else n.open++;
   });
   return bad ? null : { ops: ops, n: n };
 }
@@ -18771,19 +18831,59 @@ function netDispPick(i, j, v) {
   if (S && S.disp[j]) S.disp[j].pick = v;
   admPane();
 }
+/* כל השינויים, אחד אחד — כדי לכלול, להוציא, או להשאיר את הקיים. */
+function netChanges(P) {
+  var L = [];
+  P.adds.forEach(function (x) { L.push({ k: 'add', x: x, why: UI.netWhyNew }); });
+  var r;
+  for (r in P.sets) if (P.sets.hasOwnProperty(r)) L.push({ k: 'set', S: P.sets[r], why: UI.netWhyExact });
+  P.asks.forEach(function (a) {
+    if (a.t !== 'match') return;
+    var w = fill(UI.netWhyPick, { w: UI[{ cls: 'netWhyCls', spell: 'netWhySpell', many: 'netWhyMany', dup: 'netWhyDup', near: 'netWhyNear' }[a.why]] || '' });
+    if (a.pick === 'new') L.push({ k: 'add', x: a.x, why: w });
+    else if (a.pick && a.S) L.push({ k: 'set', S: a.S, why: w });
+  });
+  return L;
+}
+function netOff(i, on) {
+  var c = NETP && netChanges(NETP)[i];
+  if (!c) return;
+  (c.k === 'add' ? c.x : c.S).off = !on;
+  admPane();
+}
+function netKeep(i, col, on) {
+  var c = NETP && netChanges(NETP)[i];
+  if (!c || c.k !== 'set') return;
+  c.S.keep[col] = !on;
+  admPane();
+}
 
-/* ---------- שמירה, ואימות ---------- */
+/* ---------- שמירה, ואימות ----------
+   כל פעולה (שמירה או שחזור) מקבלת מזהה, ונרשמת במכשיר **לפני**
+   השליחה (`netPend`). כל עוד לא ברור מה עלה בגורלה — אין ייבוא, אין
+   שחזור, ואין הודעת הצלחה. הבירור: השרת עונה לפי המזהה, ואם הפעולה
+   עוד לא הגיעה אליו — הוא "חותם" אותה (`seal`), והיא לא תתבצע לעולם.
+   כך התשובה תמיד ודאית: נשמר במלואו, או לא נשמר דבר. */
 function netRunId() { return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-/* התשובה של השרת נשמרת לפי מזהה הריצה — ממתינים לה. */
+function netPend() { return Store.get('netPend', null); }
+/* אותה חתימה שהשרת מחשב על הבקשה (netRunDo_) — כך המכשיר יודע
+   שהתוצאה שקיבל היא של הפעולה שלו. */
+function netReqSig(b) {
+  return netSig([String(b.action || ''), String(b.base || ''), String(b.cols || ''),
+                 String(b.ops || ''), String(b.backup || ''), String(b.insts || '')]);
+}
+/* מחכים לתוצאה. בסוף — חותמים: פעולה שלא הגיעה לא תתבצע. */
 function netRunWait(id, tries) {
   var key = (CFG.readKey || '').trim();
+  var last = tries >= 25;
   return new Promise(function (ok) { setTimeout(ok, tries ? 3000 : 2500); }).then(function () {
-    return scriptGet({ netrun: id, key: key });
+    return scriptGet(last ? { netrun: id, key: key, seal: 1 } : { netrun: id, key: key });
   }).then(function (d) {
-    if (d && typeof d.at === 'number' && d.status !== 'none') return d;
-    if (tries < 25) return netRunWait(id, tries + 1);
+    if (d && typeof d.at === 'number' && d.status !== 'pending') return d;
+    if (d && d.status === 'broken') return d;
+    if (!last) return netRunWait(id, tries + 1);
     return null;
-  }, function () { return tries < 25 ? netRunWait(id, tries + 1) : null; });
+  }, function () { return last ? null : netRunWait(id, tries + 1); });
 }
 /* כל שורה במקומה: מה שלא היה אמור להשתנות — זהה; מה שעודכן —
    בערכים החדשים; והחדשות — בסוף. שוויון במספר השורות אינו הוכחה. */
@@ -18808,12 +18908,79 @@ function netCheck(P, ops, rows) {
   }
   return ok;
 }
+function netInfoSet(rows) {
+  var insts = {};
+  var hc = rows[0].map(function (h) { return String(h).trim(); }).indexOf('קוד ישיבה');
+  rows.slice(1).forEach(function (x) { if (x[hc]) insts[x[hc]] = 1; });
+  Store.set('netInfo', { n: rows.length - 1, s: Object.keys(insts).length, at: Date.now() });
+}
+/* התוצאה של פעולה, מכל מקום שהיא הגיעה (המתנה או בדיקה). `live` —
+   התצוגה שממנה נשלחה השמירה, לאימות שורה-שורה; אחרי רענון אין. */
+function netDone(pd, r, live) {
+  var key = (CFG.readKey || '').trim();
+  if (!r || r.status === 'busy' || r.status === 'none' || r.status === 'pending' ||
+      (r.status === 'ok' && r.h !== pd.h)) {
+    NET_BUSY = false; netMsg = UI.netUnknown; admPane(); return;
+  }
+  if (r.status === 'broken') {
+    NET_BUSY = false; NET_BROKEN = r.backup || '-'; netMsg = ''; admPane(); return;
+  }
+  if (r.status !== 'ok') {
+    Store.set('netPend', null);
+    NET_BUSY = false; NET_BAKS = null;
+    if (r.status === 'stale' && pd.kind === 'merge' && live) { NET_STALE = true; netPrevGo(); return; }
+    if (r.status === 'stale') { netMsg = UI.netStale2; admPane(); return; }
+    netMsg = (r.status === 'rolledback' ? UI.netRolled : UI.netNotSaved) + (r.message ? ' (' + r.message + ')' : '');
+    if (pd.kind === 'merge') { NETP = null; }
+    admPane();
+    return;
+  }
+  /* נשמר בשרת. עכשיו קוראים ומאמתים כאן. */
+  scriptGet({ read: NET_TAB, key: key }).then(function (d) {
+    NET_BUSY = false;
+    if (!d || d.status !== 'ok' || !d.rows) { netMsg = UI.netUnknown; admPane(); return; }
+    var good = pd.kind === 'restore' ? netSig(d.rows) === pd.sig
+             : live ? netCheck(live.P, live.ops, d.rows) : netSig(d.rows) === r.sig;
+    Store.set('netPend', null);
+    netInfoSet(d.rows);
+    NET_BAKS = null;
+    if (pd.kind === 'restore') {
+      netMsg = good ? fill(UI.netRestOk, { n: pd.n }) : UI.netSavedLater;
+    } else if (!live) {
+      netMsg = good ? UI.netSavedSrv : UI.netSavedLater;
+    } else {
+      NET = null; NETP = null;
+      netMsg = good ? fill(UI.netSaved2, { a: pd.a, u: pd.u, b: String(r.backup || '').replace(/^[^·]*·\s*/, '') })
+                    : UI.netSavedLater;
+    }
+    admPane();
+  })['catch'](function () { NET_BUSY = false; netMsg = UI.netUnknown; admPane(); });
+}
+/* "בדיקה מה נשמר" — ושוב בכל פתיחה של המסך, כל עוד לא ברור. */
+function netPendCheck() {
+  var pd = netPend(), key = (CFG.readKey || '').trim();
+  if (!pd || NET_BUSY || !key) return;
+  NET_BUSY = true; netMsg = UI.netChecking; admPane();
+  scriptGet({ netrun: pd.run, key: key, seal: 1 }).then(function (r) { netDone(pd, r, null); },
+    function () { NET_BUSY = false; netMsg = UI.netUnknown; admPane(); });
+}
+function netSend(body, pd, live) {
+  var url = (CFG.api || API || '').trim();
+  pd.h = netReqSig(body);
+  pd.at = Date.now();
+  Store.set('netPend', pd);
+  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) })
+    .catch(function () {})
+    .then(function () { return netRunWait(pd.run, 0); })
+    .then(function (r) { netDone(pd, r, live); }, function () { netDone(pd, null, live); });
+}
 function netSave() {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
-  if (!NET || !NETP || NET_BUSY) return;
+  if (!NET || !NETP || NET_BUSY || netPend()) return;
   if (!key || !url) { netMsg = UI.netNoKey; admPane(); return; }
   var built = netOps(NETP);
   if (!built) { netMsg = UI.netTwice; admPane(); return; }
+  if (built.n.open) { netMsg = fill(UI.netAskN, { n: built.n.open }); admPane(); return; }
   if (!built.ops.length) { netMsg = UI.netNothing; admPane(); return; }
   var P = NETP, run = netRunId();
   NET_BUSY = true;
@@ -18826,69 +18993,35 @@ function netSave() {
   var pf = Store.get('netPrefs', {}) || {};
   pf[NET.src] = Object.keys(NET.pref).filter(function (c) { return NET.pref[c]; });
   Store.set('netPrefs', pf);
-  var bak = '';
-  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'netMerge', key: key, run: run, base: P.base,
-    cols: JSON.stringify(NET_ALL), ops: JSON.stringify(built.ops) }) })
-    .catch(function () {})
-    .then(function () { return netRunWait(run, 0); })
-    .then(function (r) {
-      if (r && r.status === 'stale') throw new Error('stale');
-      if (r && r.status !== 'ok') throw new Error('err');
-      bak = (r && r.backup) || '';
-      return scriptGet({ read: NET_TAB, key: key });
-    })
-    .then(function (d) {
-      NET_BUSY = false;
-      if (!d || d.status !== 'ok' || !netCheck(P, built.ops, d.rows)) { netMsg = UI.netNoSave; admPane(); return; }
-      var insts = {};
-      var hc = d.rows[0].map(function (h) { return String(h).trim(); }).indexOf('קוד ישיבה');
-      d.rows.slice(1).forEach(function (x) { if (x[hc]) insts[x[hc]] = 1; });
-      Store.set('netInfo', { n: d.rows.length - 1, s: Object.keys(insts).length, at: Date.now() });
-      NET = null; NETP = null; NET_BAKS = null;
-      netMsg = fill(UI.netSaved2, { a: built.n.add, u: built.n.upd, b: bak.replace(/^[^·]*·\s*/, '') });
-      admPane();
-    })['catch'](function (e) {
-      NET_BUSY = false;
-      /* המאגר השתנה מאז הקריאה — לא נכתב דבר. קוראים שוב ומציגים מחדש. */
-      if (e && e.message === 'stale') { NET_STALE = true; netPrevGo(); return; }
-      netMsg = UI.netNoSave; admPane();
-    });
+  netSend({ action: 'netMerge', key: key, run: run, base: P.base, cols: JSON.stringify(NET_ALL),
+            ops: JSON.stringify(built.ops), insts: JSON.stringify(P.insts || []) },
+          { run: run, kind: 'merge', a: built.n.add, u: built.n.upd },
+          { P: P, ops: built.ops });
 }
 
 /* ---------- גיבויים ושחזור ---------- */
 function netBaksOpen() {
   var key = (CFG.readKey || '').trim();
   if (!key) { netMsg = UI.netNoKey; admPane(); return; }
+  if (NET_BUSY || netPend()) return;
   netMsg = UI.netReadCur; admPane();
   scriptGet({ netbaks: 1, key: key }).then(function (b) {
-    if (!b || b.status !== 'ok' || !b.baks) { netMsg = UI.netOldSrv; admPane(); return; }
-    NET_BAKS = b.baks; netMsg = ''; admPane();
+    if (b && b.status === 'broken') { NET_BROKEN = b.backup || '-'; netMsg = ''; admPane(); return; }
+    if (!netSrvOk(b)) { netMsg = UI.netOldSrv; admPane(); return; }
+    NET_BAKS = b.baks; NET_CUR = b.cur || ''; NET_BROKEN = ''; netMsg = ''; admPane();
   })['catch'](function () { netMsg = UI.netNoRead; admPane(); });
 }
 function netRestore(i) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim(), b = NET_BAKS && NET_BAKS[i];
-  if (!b || !key || !url || NET_BUSY) return;
+  if (!b || !key || !url || NET_BUSY || netPend() || !NET_CUR) return;
   var t = b.name.replace(/^[^·]*·\s*/, '');
   if (!confirm(fill(UI.netRestSure, { t: t }))) return;
   var run = netRunId();
   NET_BUSY = true; netMsg = UI.netRestIng; admPane();
-  fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'netRestore', key: key, run: run, backup: b.name }) })
-    .catch(function () {})
-    .then(function () { return netRunWait(run, 0); })
-    .then(function (r) {
-      if (!r || r.status !== 'ok') throw new Error('err');
-      return scriptGet({ read: NET_TAB, key: key });
-    })
-    .then(function (d) {
-      NET_BUSY = false;
-      /* השחזור נכון רק אם הלשונית זהה לגיבוי — חתימה מול חתימה. */
-      if (!d || d.status !== 'ok' || netSig(d.rows || []) !== b.sig) { netMsg = UI.netRestBad; admPane(); return; }
-      NET_BAKS = null; NETP = null;
-      netMsg = fill(UI.netRestOk, { n: b.n });
-      admPane();
-    })['catch'](function () { NET_BUSY = false; netMsg = UI.netRestBad; admPane(); });
+  /* `base` — המאגר כפי שנקרא כשנפתחה הרשימה. השתנה מאז — השרת לא
+     משחזר (stale), והרשימה נפתחת מחדש. */
+  netSend({ action: 'netRestore', key: key, run: run, backup: b.name, base: NET_CUR },
+          { run: run, kind: 'restore', sig: b.sig, n: b.n }, null);
 }
 
 /* ---------- המסך ---------- */
@@ -18923,16 +19056,54 @@ function netDispHtml(i, S) {
       ': ' + esc(d.v) + '</label></div>';
   }).join('');
 }
+function netFromTo(c, o, v) {
+  return esc(fill(UI.netFromTo, { c: c, o: o || UI.netEmpty, v: v || UI.netEmpty }));
+}
+/* רשימת השינויים המלאה — אחרי לחיצה. */
+function netAllHtml(P) {
+  var L = netChanges(P);
+  if (!L.length) return '';
+  var h = '<details style="margin:8px 0"><summary class="h" style="cursor:pointer"><b>' +
+    esc(fill(UI.netAllT, { n: L.length })) + '</b></summary>';
+  L.forEach(function (c, i) {
+    var off = c.k === 'add' ? !!c.x.off : !!c.S.off;
+    h += '<div class="adm-card" style="margin:6px 0;padding:8px' + (off ? ';opacity:.55' : '') + '">';
+    if (c.k === 'add') {
+      var x = c.x;
+      h += '<div class="h"><b>' + esc(UI.netChAdd) + ':</b> ' + esc(netWho(netXv(x))) + ' · ' + esc(netInstName(x.inst)) + '</div>' +
+        '<div class="h">' + esc([x.kid, x.par].filter(function (t) { return !!t; }).join(' · ')) + '</div>';
+    } else {
+      var S = c.S, row = netSetRow(S, P.src) || {}, cols = [], k;
+      h += '<div class="h"><b>' + esc(UI.netChUpd) + ':</b> ' + esc(netWho(S.e.v)) + ' · ' + esc(netInstName(S.e.v['קוד ישיבה'])) + '</div>';
+      for (k in S.ch) if (S.ch.hasOwnProperty(k) && k !== 'קרבה') cols.push(k);
+      cols.forEach(function (col) {
+        h += '<label class="h" style="display:block"><input type="checkbox"' + (S.keep[col] ? '' : ' checked') +
+          ' onchange="netKeep(' + i + ',\'' + esc(col) + '\',this.checked)"> ' + netFromTo(col, S.e.v[col], S.ch[col]) + '</label>';
+      });
+      S.disp.forEach(function (d) {
+        if (d.pick === 'v') h += '<div class="h">' + netFromTo(d.c, d.o, d.v) + '</div>';
+      });
+      if (!cols.length && !S.disp.some(function (d) { return d.pick === 'v'; })) {
+        h += '<div class="h">' + esc(S.meta ? fill(UI.netPrefMark, { s: P.src }) : UI.netPSame) + '</div>';
+      }
+      if (row['מקור']) h += '<div class="h">' + netFromTo(UI.netSrcCol, S.e.v['מקור'], row['מקור']) + '</div>';
+    }
+    h += '<div class="h">' + esc(fill(UI.netSrcLine, { s: P.src })) + ' · ' + esc(c.why) + '</div>' +
+      '<label class="h" style="display:block"><input type="checkbox"' + (off ? '' : ' checked') +
+      ' onchange="netOff(' + i + ',this.checked)"> ' + esc(UI.netInclude) + '</label></div>';
+  });
+  return h + '</details>';
+}
 function netPlanHtml() {
-  var P = NETP, built = netOps(P), n = built ? built.n : { add: 0, upd: 0, same: 0, aside: 0 };
-  var open = P.asks.filter(function (a) { return a.t === 'match' ? !a.pick : true; }).length;
+  var P = NETP, built = netOps(P), n = built ? built.n : { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0 };
   var prio = 0, r;
   for (r in P.sets) if (P.sets.hasOwnProperty(r)) prio += P.sets[r].prio ? 1 : 0;
   var line = function (l, v) { return '<div class="h">' + esc(UI[l]) + ': <b>' + v + '</b></div>'; };
   var h = '<div class="adm-card" style="margin-top:10px"><h4>' + esc(UI.netPlanT) + '</h4>' +
     line('netPAdd', n.add) + line('netPUpd', n.upd) + line('netPDup', P.dup) + line('netPSame', n.same) +
     line('netPAsk', P.asks.length) + (prio ? line('netPPrio', prio) : '') +
-    (P.out ? line('netPOut', P.out) : '');
+    (n.off ? line('netPOff', n.off) : '') + (P.out ? line('netPOut', P.out) : '');
+  h += netAllHtml(P);
   if (P.asks.length) h += '<p class="h">' + esc(UI.netAskB) + '</p>';
   P.asks.forEach(function (a, i) {
     h += '<div class="adm-card" style="margin:8px 0;padding:10px">';
@@ -18954,17 +19125,39 @@ function netPlanHtml() {
           (e.v['טלפון'] || e.v['טלפון הורה'] ? ' · ' + esc([e.v['טלפון'], e.v['טלפון הורה']].filter(function (t) { return !!t; }).join(' · ')) : '') +
           ' (' + esc(e.v['מקור'] || '—') + ')');
       });
-      h += opt('new', esc(UI.netAsNew)) + opt('', esc(UI.netAside));
+      h += opt('new', esc(UI.netAsNew)) + opt('skip', esc(UI.netAside));
       if (a.S && a.S.disp.length) h += netDispHtml(i, a.S);
     }
     h += '</div>';
   });
   if (!built) h += '<p class="h" style="color:var(--stop)">' + esc(UI.netTwice) + '</p>';
-  if (open) h += '<p class="h">' + esc(fill(UI.netAskN, { n: open })) + '</p>';
+  if (n.open) h += '<p class="h" style="color:var(--stop)">' + esc(fill(UI.netAskN, { n: n.open })) + '</p>';
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
-    (built && built.ops.length && !NET_BUSY ? '<button class="btn p" onclick="netSave()">' + esc(UI.netSaveGo) + '</button>' : '') +
+    (built && !n.open && built.ops.length && !NET_BUSY ? '<button class="btn p" onclick="netSave()">' + esc(UI.netSaveGo) + '</button>' : '') +
     '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div></div>';
   return h;
+}
+/* מה לא נקלט מהקובץ, ולמה. */
+function netSkipHtml(sk) {
+  if (!sk) return '';
+  var L = [], n = 0, k;
+  [['left', 'netSkLeft'], ['sex', 'netSkSex'], ['kind', 'netSkKind'], ['name', 'netSkName'], ['inst', 'netSkInst']].forEach(function (d) {
+    if (sk[d[0]]) { L.push(esc(UI[d[1]]) + ': ' + sk[d[0]]); n += sk[d[0]]; }
+  });
+  var gs = [];
+  for (k in (sk.gr || {})) if (sk.gr.hasOwnProperty(k)) { gs.push((k || UI.netSkGrNone) + ': ' + sk.gr[k]); n += sk.gr[k]; }
+  if (gs.length) L.push(esc(fill(UI.netSkGr, { l: gs.join(' · ') })));
+  var tel = sk.tel ? '<div class="h">' + esc(UI.netSkTel) + ': ' + sk.tel + '</div>' : '';
+  if (!n) return tel;
+  return '<details style="margin:6px 0"><summary class="h" style="cursor:pointer">' + esc(fill(UI.netSkipT, { n: n })) +
+    '</summary><div class="h">' + L.join('<br>') + '</div></details>' + tel;
+}
+/* פעולה שלא ברור מה עלה בגורלה — רק זה על המסך. */
+function netPendHtml() {
+  var pd = netPend();
+  return '<div class="adm-card" style="margin-top:10px"><p class="h" style="color:var(--stop)"><b>' + esc(UI.netUnknown) + '</b></p>' +
+    '<p class="h">' + esc(new Date(pd.at || Date.now()).toLocaleString('he-IL')) + '</p>' +
+    (NET_BUSY ? '' : '<button class="btn p" onclick="netPendCheck()">' + esc(UI.netCheckGo) + '</button>') + '</div>';
 }
 function admNet(body) {
   var key = (CFG.readKey || '').trim(), info = Store.get('netInfo', null);
@@ -18974,10 +19167,32 @@ function admNet(body) {
       t: new Date(info.at).toLocaleDateString('he-IL') }) : UI.netNone) + '</b>' +
     (netMsg ? '<br>' + esc(netMsg) : '') + '</p>' +
     (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(UI.netNoKey) + '</p>');
-  if (NET && NET.step === 'map') {
-    /* קובץ שאינו של משרד החינוך — עמודה לכל שדה. */
+  if (netPend()) {
+    h += netPendHtml();
+    /* פתיחה של המסך עם פעולה לא ברורה — בודקים פעם אחת, בעצמנו. */
+    if (!NET_BUSY && !NET_PEND_AUTO && key) { NET_PEND_AUTO = 1; setTimeout(netPendCheck, 0); }
+  } else if (NET_BROKEN) {
+    h += '<div class="adm-card" style="margin-top:10px"><p class="h" style="color:var(--stop)"><b>' +
+      esc(fill(UI.netBroken, { b: NET_BROKEN.replace(/^[^·]*·\s*/, '') })) + '</b></p>' +
+      '<button class="btn g" onclick="netBaksOpen()">' + esc(UI.netCheckGo) + '</button></div>';
+  } else if (NET && NET.step === 'map') {
+    /* קובץ שאינו של משרד החינוך — לשונית, שורת כותרת, ועמודה לכל שדה. */
     var g = NET.gen, hs = [['', UI.netNoCol]].concat(g.heads.map(function (x) { return [x.col, x.t]; }));
     h += '<p class="h"><b>' + esc(UI.netMapT) + '</b><br>' + esc(UI.netMapB) + '</p>';
+    if (NET.sheets.length > 1) {
+      h += '<div style="margin:6px 0"><div class="h">' + esc(UI.netSheet) + '</div>' +
+        '<select style="width:100%;padding:8px;font:inherit" onchange="netGenAt(+this.value, -1)">' +
+        netOpt(String(g.si), NET.sheets.map(function (s, i) { return [String(i), s.name || String(i + 1)]; })) + '</select></div>';
+    }
+    var rs = NET.sheets[g.si].rows || [], ro = [];
+    for (var ri = 0; ri < Math.min(rs.length, 30); ri++) {
+      var cells = [], cj;
+      for (cj in rs[ri]) if (rs[ri].hasOwnProperty(cj) && String(rs[ri][cj] || '').trim()) cells.push(String(rs[ri][cj]).trim());
+      if (cells.length) ro.push([String(ri), fill(UI.netRowN, { n: ri + 1 }) + ': ' + cells.slice(0, 4).join(' | ').slice(0, 60)]);
+    }
+    h += '<div style="margin:6px 0"><div class="h">' + esc(UI.netHdrRow) + '</div>' +
+      '<select style="width:100%;padding:8px;font:inherit" onchange="netGenAt(-1, +this.value)">' +
+      netOpt(String(g.hi), ro) + '</select></div>';
     NET_GEN_F.forEach(function (d) {
       h += '<div style="margin:6px 0"><div class="h">' + esc(UI[d.l]) + (d.need ? ' *' : '') + '</div>' +
         '<select style="width:100%;padding:8px;font:inherit" onchange="netGenSet(\'' + d.f + '\', this.value)"' +
@@ -18995,6 +19210,7 @@ function admNet(body) {
     var syms = Object.keys(NET.insts).sort(function (a, b) { return NET.insts[b].n - NET.insts[a].n; });
     var sm = netTotals();
     h += '<p class="h">' + esc(fill(UI.netRead, { n: NET.list.length, s: syms.length })) + '</p>';
+    h += netSkipHtml(NET.skip);
     syms.forEach(function (k) {
       var it = NET.insts[k];
       if (k === '*') {
@@ -19032,8 +19248,8 @@ function admNet(body) {
       h += '<div style="margin-top:10px">' + (NET_BAKS.length ? NET_BAKS.map(function (b, i) {
         return '<div class="h" style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="flex:1">' +
           esc(fill(UI.netBakRow, { t: b.name.replace(/^[^·]*·\s*/, ''), n: b.n })) + '</span>' +
-          '<button class="btn g" style="width:auto;margin:0;padding:6px 12px" onclick="netRestore(' + i + ')">' +
-          esc(UI.netRestore) + '</button></div>';
+          (NET_BUSY ? '' : '<button class="btn g" style="width:auto;margin:0;padding:6px 12px" onclick="netRestore(' + i + ')">' +
+          esc(UI.netRestore) + '</button>') + '</div>';
       }).join('') : '<p class="h">' + esc(UI.netBaksNone) + '</p>') + '</div>';
     }
   }

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 63;
+var SCRIPT_VERSION = 64;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -373,6 +373,14 @@ function doPost(e) {
        · **עם הסיסמה** — הכול, כמו קודם.
        · **סיסמה לא הוגדרה בסקריפט** — המסלול הניהולי סגור, לא פתוח. */
     var wAdm = !!READ_KEY && String(d.key || '') === READ_KEY;
+    /* "תלמידי הרשת" והגיבויים שלה נכתבים רק דרך netMerge_/netRestore_
+       (גיבוי, יומן, כתיבה אחת ואימות). `table` ישן היה מחליף את כל
+       הלשונית, ו-`clear`/`delrow` מרוקנים אותה — חסומים, גם עם סיסמה. */
+    if ((d.tab === NET_TAB_ || String(d.tab || '').indexOf(NET_BAK_) === 0) &&
+        ['row', 'table', 'clear', 'delrow'].indexOf(d.action) >= 0) {
+      return json_({ status: 'denied',
+        message: 'הלשונית ' + d.tab + ' נכתבת רק דרך הייבוא שבניהול — עם גיבוי ואימות' });
+    }
     /* ---- נוכחות בשיעור — מאיש צוות שהרכז אישר ----
        בלי סיסמת הרכז: שורה אחת ללשונית העמדה, רק כשהמכשיר מאושר
        לאותה ישיבה (accGate_), ורק בעמודות של העמדה. קוד הישיבה
@@ -467,10 +475,6 @@ function doPost(e) {
     if (d.action === 'table' && YSH_TABS_.hasOwnProperty(d.tab)) {
       return json_({ status: 'denied',
         message: 'הלשונית ' + d.tab + ' נכתבת רק בגיליון — לא נדרסת מהאפליקציה' });
-    }
-    /* מאגר חדש — המטמון של הרשימות לפי ישיבה מתחלף (netRoster_). */
-    if (d.action === 'table' && d.tab === NET_TAB_) {
-      try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
     }
     if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
 
@@ -1727,11 +1731,11 @@ function doGet(e) {
       return reply_(e, { status: 'denied' });
     }
     try {
+      /* בתוך הנעילה: היומן מכריע קודם מה קרה לריצה שנקטעה. */
       if (e.parameter.netrun) {
-        var nr = prop_('NETRUN_' + String(e.parameter.netrun).replace(/[^\w-]/g, ''), '');
-        return reply_(e, nr ? JSON.parse(nr) : { status: 'none' });
+        return reply_(e, netRunGet_(String(e.parameter.netrun).replace(/[^\w-]/g, ''), !!e.parameter.seal));
       }
-      return reply_(e, { status: 'ok', baks: netBaks_() });
+      return reply_(e, netBaksGet_());
     } catch (eR) {
       return reply_(e, { status: 'error', message: String(eR) });
     }
@@ -3611,22 +3615,41 @@ function netRosterRead_(inst) {
 /* ============================================================
    ייבוא חכם ל"תלמידי הרשת" — מיזוג, לא דריסה.
    ============================================================
-   עד עכשיו כל העלאה כתבה את הלשונית מחדש (`table`): מה שלא היה
+   עד 8.99.236 כל העלאה כתבה את הלשונית מחדש (`table`): מה שלא היה
    בקובץ נמחק. קובץ של ישיבה אחת היה מוחק את כל השאר. כאן:
 
    · המכשיר קורא את הלשונית, בונה תצוגה, והרכז מכריע. מה שנשלח הוא
      רשימת פעולות — `add` (שורה חדשה) ו-`set` (שדות בשורה קיימת) —
-     ולא הלשונית כולה. שורה שלא נגעו בה אינה נכתבת.
+     ולא הלשונית כולה.
    · `base` — חתימת הלשונית כפי שהמכשיר קרא אותה. השתנתה מאז
-     (כתיבה מקבילה) — לא נוגעים בכלום, והתשובה `stale`.
+     (כתיבה מקבילה) — לא נוגעים בכלום, והתשובה `stale`. גם בשחזור.
    · כל `set` נושא את ערכי השורה כפי שנקראו (`was`); שורה שזזה או
      השתנתה — הכול נעצר. כל הבדיקות לפני הכתיבה הראשונה.
-   · לפני הכתיבה — עותק של הלשונית בגיליון הפרטי עצמו (netBackup_),
-     והשחזור ממנו (`netRestore`) מגבה קודם את המצב הנוכחי.
-   · הכול בתוך הנעילה של doPost. התשובה נשמרת לפי מזהה הריצה
-     (`netrun` ב-doGet), כי no-cors אטום. האימות האמיתי — במכשיר,
-     בקריאה חוזרת של השורות.
-   writeTable_ לא השתנה — זה מסלול נפרד ללשונית הזו בלבד.
+   · `insts` — הישיבות של הייבוא הזה. שורה של ישיבה אחרת — לא נוגעים.
+
+   **כתיבה אחת, יומן, והחזרה מאומתת (8.99.238).** עד עכשיו המיזוג
+   כתב תא אחרי תא, וכשל באמצע השאיר חצי שינוי. השחזור ניקה את הלשונית
+   ואז העתיק — כשל בהעתקה השאיר אותה ריקה. עכשיו:
+   1. הלשונית החדשה נבנית בזיכרון, במלואה.
+   2. גיבוי מאומת (netBackup_), בשם שאינו מתנגש באף גיבוי קיים.
+   3. יומן (`NETJ`): חתימת הלפני, חתימת האחרי, ושם הגיבוי.
+   4. **קריאה אחת** של setValues על כל המלבן — כל ערך עם גרש מוביל,
+      כך שאפס של טלפון נשמר ושום טקסט אינו רץ כנוסחה.
+   5. קריאה חוזרת: זהה לאחרי — הצלחה. אחרת — חזרה לגיבוי, ואימות
+      שהלשונית זהה ללפני.
+   ריצה שנקטעה (זמן קצוב, הפסקה) משאירה את היומן; כל פנייה הבאה
+   לייבוא (netHeal_) מכריעה לפיו: אחרי — הושלם; לפני — לא נכתב; אחר —
+   חוזרים לגיבוי ומאמתים. אי אפשר לאמת — `broken`, וכל ייבוא ושחזור
+   חסומים עד שמישהו יבדוק בגיליון.
+
+   **אותה פעולה לא רצה פעמיים.** כל פעולה נושאת מזהה (`run`), והשרת
+   רושם אותו עם חתימת התוכן לפני שהוא מתחיל. אותו מזהה ואותו תוכן —
+   מקבלים את התוצאה שנרשמה, בלי לבצע שוב. אותו מזהה ותוכן אחר — נדחה.
+   מכשיר שלא קיבל תשובה "חותם" את המזהה (`seal` ב-doGet): פעולה שעוד
+   לא הגיעה לא תתבצע לעולם, וכך יש תשובה ודאית מה נשמר.
+
+   הכתיבה הכללית (`table`, `row`, `clear`, `delrow`) ללשונית הזו
+   ולגיבויים שלה חסומה ב-doPost — רק המסלול הזה כותב בה.
    ============================================================ */
 var NET_BAK_ = 'גיבוי תלמידי הרשת · ';
 var NET_BAK_KEEP_ = 6;
@@ -3639,86 +3662,277 @@ function netSig_(rows) {
 function netRows_(sh) {
   return sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
 }
+/* הטבלה כפי שהיא נראית: טקסט, בלי רווחי קצה, בלי שורות ועמודות
+   ריקות בסוף. היומן משווה בזה — לא בצורת הכתיבה. */
+function netTrim_(rows) {
+  var t = (rows || []).map(function (r) {
+    return (r || []).map(function (v) { return String(v == null ? '' : v).trim(); });
+  });
+  var w = 0, h = 0;
+  t.forEach(function (r, i) {
+    for (var j = r.length - 1; j >= 0; j--) if (r[j] !== '') { if (j + 1 > w) w = j + 1; h = i + 1; break; }
+  });
+  return t.slice(0, h).map(function (r) {
+    var o = r.slice(0, w);
+    while (o.length < w) o.push('');
+    return o;
+  });
+}
+function netSigN_(rows) { return netSig_(netTrim_(rows)); }
+function netW_(rows) {
+  var w = 0;
+  (rows || []).forEach(function (r) { if (r && r.length > w) w = r.length; });
+  return w;
+}
+/* כל הטבלה בקריאה אחת. מה שמעבר לחדשה (שורות או עמודות שהיו) —
+   מתרוקן באותה קריאה. גרש מוביל: הטקסט נשמר כמו שהוא. */
+function netWrite_(sh, tgt, h0, w0) {
+  var h = Math.max(tgt.length, h0, 1), w = Math.max(netW_(tgt), w0, 1), out = [];
+  for (var i = 0; i < h; i++) {
+    var row = [], src = tgt[i] || [];
+    for (var j = 0; j < w; j++) {
+      var v = src[j] == null ? '' : String(src[j]);
+      row.push(v === '' ? '' : "'" + v);
+    }
+    out.push(row);
+  }
+  if (sh.getMaxRows() < h) sh.insertRowsAfter(sh.getMaxRows(), h - sh.getMaxRows());
+  if (sh.getMaxColumns() < w) sh.insertColumnsAfter(sh.getMaxColumns(), w - sh.getMaxColumns());
+  sh.getRange(1, 1, h, w).setValues(out);
+  SpreadsheetApp.flush();
+}
+function netJ_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('NETJ') || 'null'); }
+  catch (e) { return null; }
+}
+function netRec_(run) {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('NETRUN_' + run) || 'null'); }
+  catch (e) { return null; }
+}
+function netRecSet_(run, o) {
+  if (run) PropertiesService.getScriptProperties().setProperty('NETRUN_' + run, JSON.stringify(o));
+}
+function netBumpVer_() {
+  try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
+}
+/* היומן מכריע מה קרה לריצה שלא הסתיימה. רץ בתוך הנעילה, לפני כל
+   פעולת ייבוא, שחזור או שאלה על תוצאה. מחזיר null כשאין יומן. */
+function netHeal_() {
+  var j = netJ_();
+  if (!j) return null;
+  var P = PropertiesService.getScriptProperties();
+  var sh = sheet_(NET_TAB_), cur = netRows_(sh), now = netSigN_(cur), res;
+  if (now === j.want) {
+    res = j.done || { status: 'ok' };
+    netBumpVer_();
+  } else if (now === j.base) {
+    res = { status: 'error', none: 1, message: 'הריצה נקטעה לפני שנכתב דבר — המאגר כפי שהיה' };
+  } else {
+    var b = j.bak ? sh.getParent().getSheetByName(j.bak) : null, src = b ? netRows_(b) : null;
+    var ok = false;
+    if (src && netSigN_(src) === j.base) {
+      try { netWrite_(sh, src, cur.length, netW_(cur)); ok = netSigN_(netRows_(sh)) === j.base; } catch (eW) { ok = false; }
+    }
+    if (!ok) {
+      j.broken = 1;
+      P.setProperty('NETJ', JSON.stringify(j));
+      return { status: 'broken', backup: j.bak || '' };
+    }
+    netBumpVer_();
+    res = { status: 'rolledback', none: 1, backup: j.bak,
+            message: 'הכתיבה לא הושלמה, והמאגר הוחזר לגיבוי ונבדק — לא נשמר דבר' };
+  }
+  var rec = netRec_(j.run) || {};
+  res.h = rec.h || j.h || '';
+  res.at = Date.now();
+  netRecSet_(j.run, res);
+  P.deleteProperty('NETJ');
+  return res;
+}
+/* כתיבה של טבלה שלמה ליומן — המשותף למיזוג ולשחזור. `base` ו-`want`
+   כבר מחושבים; `bak` — גיבוי מאומת של המצב הנוכחי. */
+function netCommit_(sh, cur, tgt, j) {
+  var P = PropertiesService.getScriptProperties();
+  j.base = netSigN_(cur);
+  j.want = netSigN_(tgt);
+  j.at = Date.now();
+  P.setProperty('NETJ', JSON.stringify(j));
+  try {
+    netWrite_(sh, tgt, cur.length, netW_(cur));
+    if (netSigN_(netRows_(sh)) !== j.want) throw new Error('verify');
+  } catch (err) {
+    /* כשל — היומן מחזיר לגיבוי, מאמת, ורושם את התוצאה. */
+    return netHeal_() || { status: 'error', message: String(err) };
+  }
+  netRecSet_(j.run, j.done);
+  P.deleteProperty('NETJ');
+  netBumpVer_();
+  return null;
+}
 function netRunDo_(d) {
   var run = String(d.run || '').replace(/[^\w-]/g, '');
-  var P = PropertiesService.getScriptProperties();
+  if (!run) return { status: 'error', message: 'חסר מזהה פעולה — לא נעשה שינוי' };
+  /* קודם — מה שנשאר מריצה קודמת שנקטעה. */
+  var healed = netHeal_();
+  var h = netSig_([String(d.action || ''), String(d.base || ''), String(d.cols || ''),
+                   String(d.ops || ''), String(d.backup || ''), String(d.insts || '')]);
+  var rec = netRunPend_(run);
+  if (rec) {
+    if (rec.status === 'cancelled') return rec;
+    /* אותו מזהה, תוכן אחר — נדחה, ואינו נרשם על התוצאה המקורית. */
+    if (rec.h !== h) return { status: 'conflict', message: 'אותו מזהה פעולה עם תוכן אחר — נדחה' };
+    /* אותה פעולה בדיוק — התוצאה שכבר נרשמה, בלי לבצע שוב. */
+    return rec;
+  }
   var out;
-  try { out = d.action === 'netRestore' ? netRestore_(d) : netMerge_(d); }
-  catch (err) { out = { status: 'error', message: String(err) }; }
+  if ((healed && healed.status === 'broken') || netJ_()) {
+    out = { status: 'broken', backup: (netJ_() || {}).bak || '' };
+  } else {
+    netRecSet_(run, { status: 'pending', h: h, at: Date.now() });
+    try { out = d.action === 'netRestore' ? netRestore_(d, run, h) : netMerge_(d, run, h); }
+    catch (err) { out = netHeal_() || { status: 'error', message: String(err) }; }
+  }
+  out.h = h;
   out.at = Date.now();
-  if (run) try { P.setProperty('NETRUN_' + run, JSON.stringify(out)); } catch (eP) {}
-  /* תוצאות ישנות — לא נצברות. */
-  try {
-    var all = P.getProperties(), old = Date.now() - 2 * 864e5;
-    for (var k in all) if (k.indexOf('NETRUN_') === 0) {
-      var o = null; try { o = JSON.parse(all[k]); } catch (eJ) {}
-      if (!o || (o.at || 0) < old) P.deleteProperty(k);
-    }
-  } catch (eC) {}
+  netRecSet_(run, out);
+  netRunGc_();
   return out;
 }
-/* ערך לתא: טלפון נשאר טקסט (cell_), ונוסח שנראה כמו נוסחה — טקסט. */
-function netCell_(v) {
-  v = cell_(v == null ? '' : String(v));
-  if (typeof v === 'string' && /^[=+\-@]/.test(v)) v = "'" + v;
-  return v;
+/* תוצאות ישנות — לא נצברות. "ממתין" אינו נמחק כאן: netHeal_
+   ו-netRunPend_ מכריעים בו. */
+function netRunGc_() {
+  try {
+    var P = PropertiesService.getScriptProperties(), all = P.getProperties(), old = Date.now() - 14 * 864e5;
+    for (var k in all) if (k.indexOf('NETRUN_') === 0) {
+      var o = null; try { o = JSON.parse(all[k]); } catch (eJ) {}
+      if (!o || ((o.at || 0) < old && o.status !== 'pending')) P.deleteProperty(k);
+    }
+  } catch (eC) {}
 }
-function netMerge_(d) {
+/* "ממתין" בלי יומן, בזמן שאיש אינו רץ (אנחנו בתוך הנעילה) — ריצה
+   שנקטעה לפני שנגעה בלשונית. היומן נכתב לפני הכתיבה הראשונה. */
+function netRunPend_(run) {
+  var rec = netRec_(run);
+  if (rec && rec.status === 'pending' && !netJ_()) {
+    rec = { status: 'error', none: 1, h: rec.h, at: Date.now(),
+            message: 'הריצה נקטעה לפני שנכתב דבר — המאגר כפי שהיה' };
+    netRecSet_(run, rec);
+  }
+  return rec;
+}
+/* doGet: מה קרה לפעולה. `seal` — פעולה שעוד לא הגיעה לא תתבצע
+   לעולם (נרשמת כמבוטלת), כך שלמכשיר יש תשובה ודאית. */
+function netRunGet_(run, seal) {
+  var lk = LockService.getScriptLock();
+  if (!lk.tryLock(15000)) return { status: 'busy' };
+  try {
+    var healed = netHeal_();
+    if (healed && healed.status === 'broken') return healed;
+    var rec = netRunPend_(run);
+    if (!rec && seal) {
+      rec = { status: 'cancelled', none: 1, at: Date.now() };
+      netRecSet_(run, rec);
+    }
+    return rec || { status: 'none' };
+  } finally { lk.releaseLock(); }
+}
+/* doGet: הגיבויים, החתימה הנוכחית (בסיס לשחזור), ומצב היומן. */
+function netBaksGet_() {
+  var lk = LockService.getScriptLock();
+  if (!lk.tryLock(15000)) return { status: 'busy' };
+  try {
+    var healed = netHeal_();
+    if (healed && healed.status === 'broken') return { status: 'broken', backup: healed.backup, safe: 2 };
+    return { status: 'ok', safe: 2, baks: netBaks_(), cur: netSig_(netRows_(sheet_(NET_TAB_))) };
+  } finally { lk.releaseLock(); }
+}
+function netMerge_(d, run, h) {
   var sh = sheet_(NET_TAB_);
   var cur = netRows_(sh);
-  if (netSig_(cur) !== String(d.base || '')) return { status: 'stale' };
-  var cols = parse_(d.cols) || [], ops = parse_(d.ops) || [];
+  if (!d.base || netSig_(cur) !== String(d.base)) return { status: 'stale' };
+  var cols = parse_(d.cols) || [], ops = parse_(d.ops) || [], insts = parse_(d.insts) || [];
   if (!cols.length) return { status: 'error', message: 'חסרות עמודות' };
-  var head = cur.length ? cur[0].map(function (h) { return String(h).trim(); }) : [];
+  if (!insts.length) return { status: 'error', message: 'חסרות הישיבות של הייבוא — לא נעשה שינוי' };
+  var head = cur.length ? cur[0].map(function (x) { return String(x).trim(); }) : [];
   var at = function (row, name) {
     var i = head.indexOf(name);
     return i < 0 ? '' : String(row[i] == null ? '' : row[i]).trim();
   };
   /* כל הבדיקות קודם. שורה שאינה כפי שנקראה — שום דבר לא נכתב. */
-  var sets = [], adds = [];
+  var sets = [], adds = [], seen = {};
   for (var i = 0; i < ops.length; i++) {
-    var o = ops[i];
-    if (o.k === 'add') { adds.push(o.row || {}); continue; }
+    var o = ops[i], row = o.row || {}, c;
+    for (c in row) if (row.hasOwnProperty(c) && cols.indexOf(c) < 0) {
+      return { status: 'error', message: 'עמודה לא מוכרת — לא נעשה שינוי' };
+    }
+    if (o.k === 'add') {
+      if (insts.indexOf(String(row['קוד ישיבה'] || '')) < 0) {
+        return { status: 'error', message: 'שורה חדשה מחוץ לישיבות של הייבוא — לא נעשה שינוי' };
+      }
+      adds.push(row);
+      continue;
+    }
     if (o.k !== 'set') return { status: 'error', message: 'פעולה לא מוכרת' };
     var r = +o.r;
-    if (!(r >= 2 && r <= cur.length)) return { status: 'stale', why: 'row ' + o.r };
-    for (var w in (o.was || {})) {
+    if (!(r >= 2 && r <= cur.length) || seen[r]) return { status: 'stale', why: 'row ' + o.r };
+    seen[r] = 1;
+    if (!o.was) return { status: 'error', message: 'עדכון בלי הערכים הקודמים — לא נעשה שינוי' };
+    for (var w in o.was) {
       if (o.was.hasOwnProperty(w) && at(cur[r - 1], w) !== String(o.was[w] == null ? '' : o.was[w]).trim()) {
         return { status: 'stale', why: 'row ' + r + ' · ' + w };
       }
     }
-    sets.push({ r: r, row: o.row || {} });
+    if (insts.indexOf(at(cur[r - 1], 'קוד ישיבה')) < 0 || row.hasOwnProperty('קוד ישיבה')) {
+      return { status: 'error', message: 'עדכון של תלמיד מישיבה אחרת — לא נעשה שינוי' };
+    }
+    sets.push({ r: r, row: row });
   }
   if (!sets.length && !adds.length) return { status: 'ok', set: 0, add: 0, backup: '' };
-  /* הגיבוי — לפני השינוי הראשון. נכשל — לא משנים. */
-  var bak = cur.length ? netBackup_(sh, cur) : '';
-  /* כותרות: לשונית ריקה מקבלת את כולן; עמודה חסרה — נוספת בסוף. */
-  if (!head.join('')) { headRow_(sh, cols); head = cols.slice(); }
-  cols.forEach(function (c) { idx_(sh, head, c); });
+  /* הטבלה החדשה — בזיכרון. כותרות: לשונית ריקה מקבלת את כולן;
+     עמודה חסרה — נוספת בסוף. */
+  var tgt = cur.map(function (x) { return x.slice(); });
+  var hd = head.join('') ? head.slice() : [];
+  if (!tgt.length) tgt.push([]);
+  cols.forEach(function (x) { if (hd.indexOf(x) < 0) hd.push(x); });
+  var W = hd.length;
+  tgt[0] = hd.slice();
+  tgt.forEach(function (x) { while (x.length < W) x.push(''); });
   sets.forEach(function (x) {
-    for (var c in x.row) if (x.row.hasOwnProperty(c)) {
-      sh.getRange(x.r, idx_(sh, head, c) + 1).setValue(netCell_(x.row[c]));
-    }
+    for (var c2 in x.row) if (x.row.hasOwnProperty(c2)) tgt[x.r - 1][hd.indexOf(c2)] = String(x.row[c2] == null ? '' : x.row[c2]).trim();
   });
-  if (adds.length) {
-    var w2 = head.length, first = Math.max(sh.getLastRow(), 1) + 1;
-    sh.getRange(first, 1, adds.length, w2).setValues(adds.map(function (a) {
-      var row = [];
-      for (var j = 0; j < w2; j++) row.push(a.hasOwnProperty(head[j]) ? netCell_(a[head[j]]) : '');
-      return row;
-    }));
+  adds.forEach(function (a) {
+    var nr = [];
+    for (var j2 = 0; j2 < W; j2++) nr.push(a.hasOwnProperty(hd[j2]) ? String(a[hd[j2]] == null ? '' : a[hd[j2]]).trim() : '');
+    tgt.push(nr);
+  });
+  /* הגיבוי — לפני השינוי הראשון, ומאומת. נכשל — לא משנים. */
+  var bak = netBackup_(sh, cur);
+  var done = { status: 'ok', set: sets.length, add: adds.length, backup: bak, h: h };
+  var bad = netCommit_(sh, cur, tgt, { run: run, h: h, kind: 'merge', bak: bak, done: done });
+  if (bad) return bad;
+  if (W > netW_(cur) && cur.length) {
+    try {
+      sh.getRange(1, 1, 1, W).setFontWeight('bold').setBackground('#17468F').setFontColor('#FFFFFF');
+      sh.setFrozenRows(1);
+    } catch (eF) {}
   }
-  SpreadsheetApp.flush();
-  try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
-  return { status: 'ok', set: sets.length, add: adds.length, backup: bak, sig: netSig_(netRows_(sh)) };
+  netBakGc_([bak]);
+  done.sig = netSig_(netRows_(sh));
+  return done;
 }
-/* עותק של הלשונית, באותו גיליון פרטי, מוסתר. נשמרים NET_BAK_KEEP_
-   האחרונים. החתימה והגודל נרשמים — לאימות השחזור במכשיר. */
+/* שם פנוי לגיבוי — לעולם לא מוחקים גיבוי קיים באותו שם. */
+function netBakName_(ss) {
+  var base = NET_BAK_ + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
+  var name = base, k = 2;
+  while (ss.getSheetByName(name)) name = base + ' #' + (k++);
+  return name;
+}
+/* עותק של הלשונית, באותו גיליון פרטי, מוסתר. החתימה והגודל נרשמים —
+   לאימות הגיבוי לפני שחזור. הניקוי נעשה רק אחרי שהפעולה הצליחה
+   (netBakGc_), ולעולם לא נוגע בגיבוי שנבחר או שנוצר עכשיו. */
 function netBackup_(sh, rows) {
   var ss = sh.getParent();
-  var name = NET_BAK_ + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
-  var old = ss.getSheetByName(name);
-  if (old) ss.deleteSheet(old);
+  var name = netBakName_(ss);
   var c = sh.copyTo(ss).setName(name);
   try { c.hideSheet(); } catch (eH) {}
   SpreadsheetApp.flush();
@@ -3730,15 +3944,26 @@ function netBackup_(sh, rows) {
   var P = PropertiesService.getScriptProperties(), meta = {};
   try { meta = JSON.parse(P.getProperty('NETBAK') || '{}') || {}; } catch (eM) { meta = {}; }
   meta[name] = { n: Math.max(0, rows.length - 1), sig: netSig_(rows) };
-  var names = ss.getSheets().map(function (x) { return x.getName(); })
-    .filter(function (x) { return x.indexOf(NET_BAK_) === 0; }).sort().reverse();
-  names.slice(NET_BAK_KEEP_).forEach(function (x) {
-    try { ss.deleteSheet(ss.getSheetByName(x)); } catch (eX) {}
-    delete meta[x];
-  });
-  for (var k in meta) if (meta.hasOwnProperty(k) && names.indexOf(k) < 0) delete meta[k];
   P.setProperty('NETBAK', JSON.stringify(meta));
   return name;
+}
+/* נשמרים NET_BAK_KEEP_ האחרונים, ותמיד גם `keep`. */
+function netBakGc_(keep) {
+  try {
+    var ss = sheet_(NET_TAB_).getParent(), P = PropertiesService.getScriptProperties(), meta = {};
+    try { meta = JSON.parse(P.getProperty('NETBAK') || '{}') || {}; } catch (eM) { meta = {}; }
+    var j = netJ_();
+    if (j && j.bak) keep = (keep || []).concat([j.bak]);
+    var names = ss.getSheets().map(function (x) { return x.getName(); })
+      .filter(function (x) { return x.indexOf(NET_BAK_) === 0; }).sort().reverse();
+    names.slice(NET_BAK_KEEP_).forEach(function (x) {
+      if ((keep || []).indexOf(x) >= 0) return;
+      try { ss.deleteSheet(ss.getSheetByName(x)); delete meta[x]; } catch (eX) {}
+    });
+    var left = ss.getSheets().map(function (x) { return x.getName(); });
+    for (var k in meta) if (meta.hasOwnProperty(k) && left.indexOf(k) < 0) delete meta[k];
+    P.setProperty('NETBAK', JSON.stringify(meta));
+  } catch (eG) {}
 }
 function netBaks_() {
   var meta = {};
@@ -3748,22 +3973,30 @@ function netBaks_() {
     .filter(function (x) { return x.indexOf(NET_BAK_) === 0 && meta[x]; }).sort().reverse()
     .map(function (x) { return { name: x, n: meta[x].n, sig: meta[x].sig }; });
 }
-/* שחזור: המצב הנוכחי מגובה קודם, ואז הגיבוי נעתק כמו שהוא (ערכים
-   ועיצוב) — בלי לעבור דרך טקסט, כדי שטלפון לא יאבד את האפס. */
-function netRestore_(d) {
+/* שחזור. הגיבוי שנבחר נבדק קודם (קיים, רשום, וזהה לחתימה שנרשמה
+   כשנוצר); המצב הנוכחי חייב להיות זה שהמכשיר ראה; המצב הנוכחי
+   מגובה; והגיבוי נכתב בקריאה אחת דרך היומן — כשל מחזיר את מה שהיה. */
+function netRestore_(d, run, h) {
   var name = String(d.backup || '');
   if (name.indexOf(NET_BAK_) !== 0) return { status: 'error', message: 'גיבוי לא מוכר' };
   var sh = sheet_(NET_TAB_), ss = sh.getParent(), b = ss.getSheetByName(name);
-  if (!b) return { status: 'error', message: 'הגיבוי לא נמצא' };
-  var cur = netRows_(sh);
-  if (d.base && netSig_(cur) !== String(d.base)) return { status: 'stale' };
+  var meta = {};
+  try { meta = JSON.parse(prop_('NETBAK', '{}')) || {}; } catch (eM) { meta = {}; }
+  if (!b || !meta[name]) return { status: 'error', message: 'הגיבוי לא נמצא — לא נעשה שינוי' };
   var src = netRows_(b);
-  var bak = cur.length ? netBackup_(sh, cur) : '';
-  sh.clearContents();
-  if (src.length) b.getRange(1, 1, src.length, src[0].length).copyTo(sh.getRange(1, 1));
-  SpreadsheetApp.flush();
-  try { PropertiesService.getScriptProperties().setProperty('netVer', String(Date.now())); } catch (eV) {}
-  return { status: 'ok', backup: bak, restored: name, sig: netSig_(netRows_(sh)) };
+  var hok = src.length && src[0].map(function (x) { return String(x).trim(); }).indexOf('קוד ישיבה') >= 0;
+  if (!hok || netSig_(src) !== meta[name].sig) {
+    return { status: 'error', message: 'הגיבוי שנבחר אינו זהה למה שנשמר בו — לא נעשה שינוי' };
+  }
+  var cur = netRows_(sh);
+  if (!d.base) return { status: 'error', message: 'חסר המצב הנוכחי כפי שנקרא — לא נעשה שינוי' };
+  if (netSig_(cur) !== String(d.base)) return { status: 'stale' };
+  var bak = netBackup_(sh, cur);
+  var done = { status: 'ok', backup: bak, restored: name, sig: meta[name].sig, h: h };
+  var bad = netCommit_(sh, cur, src, { run: run, h: h, kind: 'restore', bak: bak, done: done });
+  if (bad) return bad;
+  netBakGc_([name, bak]);
+  return done;
 }
 
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
