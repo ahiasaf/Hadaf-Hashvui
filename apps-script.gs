@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 61;
+var SCRIPT_VERSION = 62;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -324,6 +324,14 @@ function doPost(e) {
     try {
       if (!PropertiesService.getScriptProperties().getProperty(MEGILA_SHIFT_KEY)) megilaShift_();
     } catch (se2) {}
+    /* פעם אחת, כדי שהפס יתעדכן מיד ולא בהרצה השעתית — ראו wholeB_. */
+    try {
+      var WP = PropertiesService.getScriptProperties();
+      if (!WP.getProperty(WHOLE_B_KEY)) {
+        WP.setProperty(WHOLE_B_KEY, new Date().toISOString());
+        if (wholeB_()) recountLearn_(true);
+      }
+    } catch (se4) {}
     try { moveOutOfPublic_(); } catch (se3) {}
     var d = JSON.parse(e.postData.contents);
 
@@ -4564,6 +4572,7 @@ function setupTriggers() {
 function autoRecount() {
   try { taanitShift_(); } catch (e) {}
   try { megilaShift_(); } catch (e) {}
+  try { wholeB_(); } catch (e) {}
   /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
   try { amdaSyncLocked_(); } catch (ae) {}
   recount_(); recountLearn_(true); backupDaily_();
@@ -4662,6 +4671,66 @@ function taanitShift_() {
     recountLearn_(true);
   }
   return n;
+}
+
+/* ============================================================
+   מי שלמד את דף ב כולו בהרצה — סיים גם את ב:.
+   ============================================================
+   בשבועות ההרצה דף ב היה יחידה אחת, ומי שסיים אותו נרשם
+   בשבוע 1 עם הדף 'ב' (בלי עמוד). אחרי הפיצול השורה הזו נשארה
+   בשבוע 1 (ראו `taanitWk_`), ולכן הפס "סיימו את דף ב:" לא ספר
+   אותו — למרות שלמד את עמוד ב.
+
+   לכל מזהה כזה שאין לו עדיין סיום בשבוע 2 — נוספת שורת סיום
+   של ב: בשבוע 2, עם המקור. שורה אמיתית ולא חישוב בצד: כך היא
+   נספרת גם בספירה התוספתית, בלוח הצוות ובפילוח ההתראות.
+   רץ כל שעה (שורה ישנה ממכשיר שהתעדכן באיחור), ואינו מוסיף
+   פעמיים: אחרי ההוספה כבר יש למזהה שורה בשבוע 2. */
+var WHOLE_B_KEY = 'wholeBDone';
+function wholeB_() {
+  var sh = sheet_(LEARN_TAB);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var rows = doneRows_(sh.getDataRange().getDisplayValues());
+  if (!rows || rows.length < 2) return 0;
+  var ix = {};
+  for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
+  if (ix['מזהה'] === undefined || ix['מסלול'] === undefined || ix['שבוע'] === undefined) return 0;
+  var c = function (r, k) { return ix[k] === undefined ? '' : String(r[ix[k]] || '').trim(); };
+  var canon = function (tr) {
+    if (SHIFT_TAANIT.names.indexOf(tr) >= 0) return 'taanit';
+    if (SHIFT_MEGILA.names.indexOf(tr) >= 0) return 'megila';
+    return '';
+  };
+  var has = {}, want = [], seen = {};
+  for (var r = 1; r < rows.length; r++) {
+    var id = c(rows[r], 'מזהה'), tr = canon(c(rows[r], 'מסלול'));
+    if (!id || !tr) continue;
+    var wk = parseInt(c(rows[r], 'שבוע'), 10);
+    if (wk === 2) { has[id + '|' + tr] = 1; continue; }
+    if (wk !== 1) continue;
+    if (c(rows[r], 'דף').replace(/["'׳״\s]/g, '') !== 'ב') continue;   /* ב. — עמוד א בלבד */
+    var k = id + '|' + tr;
+    if (seen[k]) continue;
+    seen[k] = 1;
+    want.push({ k: k, id: id, tr: c(rows[r], 'מסלול'), inst: c(rows[r], 'קוד ישיבה') });
+  }
+  want = want.filter(function (w) { return !has[w.k]; });
+  if (!want.length) return 0;
+
+  var head = headers_(sh), now = new Date(), out = [];
+  var cols = ['תאריך', 'מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה', 'מקור'];
+  var at = cols.map(function (n) { return idx_(sh, head, n); });
+  want.forEach(function (w) {
+    var row = [];
+    var v = [now, w.id, w.inst, w.tr, 2, 'ב:', '', '', '', 'דף ב שלם בהרצה'];
+    for (var i = 0; i < cols.length; i++) put_(row, at[i], cell_(v[i]));
+    while (row.length < head.length) row.push('');
+    out.push(row);
+  });
+  var first = sh.getLastRow() + 1;
+  sh.getRange(first, 1, out.length, head.length).setValues(out);
+  markBump_(2, first);
+  return out.length;
 }
 
 function megilaShift_() {
