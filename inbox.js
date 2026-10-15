@@ -95,9 +95,11 @@ var INBOX = (function () {
       'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1B2A45}' +
     '.ibx-h{display:flex;align-items:center;gap:12px;padding:18px 20px 16px;color:#fff;' +
       'background:linear-gradient(135deg,#0B2550 0%,#17468F 70%,#3574CE 100%)}' +
-    '.ibx-m{flex:0 0 auto;width:46px;height:46px;border-radius:50%;background:#fff;' +
+    /* הסמל הוא תמונה מלבנית על רקע לבן. העיגול גדול מהאלכסון שלה,
+       וגם חותך — אחרת הפינות הלבנות בולטות מעבר לעיגול על הפס הכחול. */
+    '.ibx-m{flex:0 0 auto;width:54px;height:54px;border-radius:50%;background:#fff;overflow:hidden;' +
       'display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.18)}' +
-    '.ibx-m img{width:36px;height:36px;object-fit:contain}' +
+    '.ibx-m img{width:38px;height:38px;object-fit:contain}' +
     '.ibx-ht{min-width:0}' +
     '.ibx-t{font-size:18px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}' +
     '.ibx-d{font-size:13px;opacity:.82;margin-top:2px;direction:ltr;text-align:right}' +
