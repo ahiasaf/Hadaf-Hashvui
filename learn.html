@@ -4428,6 +4428,15 @@ var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
    ============================================================ */
 function go(i) {
   if (i < 0 || LEAVING) return;
+  /* אחרי שמסך הסיום כבר הוצג — כל התקדמות (הקשה, החלקה, מקלדת,
+     הכפתור) ממשיכה לדף הבא, ולא פותחת אותו שוב. אין דף הבא —
+     נשארים במקום. */
+  if (i >= FLAT.length && DONE_SEEN) {
+    if (unitSwap(nextDaf())) return;
+    var nu = nextDafUrl();
+    if (nu) leave($('next'), nu);
+    return;
+  }
   if (i >= FLAT.length) { finish(); return; }
   IDX = i;
   var st = FLAT[IDX];
@@ -6258,12 +6267,7 @@ window.addEventListener('DOMContentLoaded', function () {
        אל הדף הבא ממש — כמו שדפדוף בגמרא ממשיך. דף שטרם סומן יענה
        שם בעצמו שהוא עוד לא מוכן, וזו תשובה ולא מבוי סתום. */
     if (LEAVING || Date.now() - READY_AT < 450) return;
-    if (IDX === FLAT.length - 1 && DONE_SEEN) {
-      if (unitSwap(nextDaf())) return;
-      var u = nextDafUrl();
-      if (u) { leave($('next'), u); return; }
-    }
-    go(IDX + 1);
+    go(IDX + 1);                               /* ההמשך לדף הבא — ב-go() */
   };
   $('prev').onclick  = goBack;
   /* הקשה על הדף מקדמת — זו התנועה הטבעית, והכפתור נשאר למי
