@@ -2890,12 +2890,13 @@ button.yr-c.auto{cursor:pointer}
 <!-- הבקשה האישית. אותו קוד בדיוק של עמוד הצוות, ולכן גם
      ראש החטיבה מקבל בדיוק את מה שהר"מים כבר מכירים. -->
 <script src="getapp.js"></script>
+<script src="inbox.js"></script>
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.244';
+var APP_VERSION = '8.99.245';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5552,7 +5553,7 @@ function saySend() {
   var q = { fire:'say', inst:code, k:k, dev: me.id || '',
             title: saySig(), body: (sayOpt.per ? '{name}, ' : '') + txt,
             grade: sayOpt.grade, klass:'', who: who,
-            aud: sayOpt.aud, flt: JSON.stringify(flt) };
+            aud: sayOpt.aud, flt: JSON.stringify(flt), to: to, rq: sayRq() };
   var qs = Object.keys(q).map(function (x) {
     return encodeURIComponent(x) + '=' + encodeURIComponent(q[x]);
   }).join('&');
@@ -6415,7 +6416,13 @@ var YSH_TAB     = 'מצב ישיבות';   // ישיבה | בקבוצה | בדף
 var YADD_TAB    = 'הוספות יומן';  // ישיבה | מתי | איש קשר | הערה | מזהה
 var callSync    = { state:'', at:0 };
 
+/* מזהה ללחיצה אחת על "שלח". הוא נוסע גם בניסיון החוזר (JSONP),
+   והשרת לא ישלח פעמיים את אותה לחיצה — ראו sayOnce_ ב-apps-script.gs. */
+function sayRq() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
 function scriptGet(params) {
+  if (params && params.fire === 'say' && !params.rq) params.rq = sayRq();
   /* שליחה דרך שרת ישן יוצאת בלי הסינונים — לכולם. עוצרים כאן. */
   if (params && (params.fire === 'say' || params.fire === 'digest') && apiOld()) {
     return Promise.resolve({ status:'denied', message: UI.apiOld || '' });
@@ -6591,7 +6598,7 @@ function stfSend(ix) {
   /* לפי מזהים בלבד, בלי תפקיד: השרת מסנן את לשונית ההתראות
      למזהים האלה, ולכן זה מגיע לו — לכל המכשירים שלו — ולא לאיש
      אחר. לחיצה על ההתראה פותחת לו את הפינה שלו. */
-  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt,
+  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt, to:s.name,
               url: /^[A-Za-z0-9_\-]{1,40}$/.test(inst) ? 'tzevet?inst=' + inst + '#my' : '',
               flt: JSON.stringify({ ids: s.ids.slice(0, 60) }) })
     .then(function (d) {
@@ -9857,7 +9864,7 @@ function stuGo(i) {
   if (!key) { done(false, UI.stfNoKey); return; }
   if (!confirm(fill(UI.stfAsk, { name:p.name }) + '\n\n' + txt)) return;
   STU.busy = true; admLive();
-  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt,
+  scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt, to:p.name,
               url: /^[A-Za-z0-9_\-]{1,40}$/.test(code) ? 'tzevet?inst=' + code + '#my' : '',
               flt: JSON.stringify({ ids: p.s.ids.slice(0, 60) }) })
     .then(function (d) {
@@ -12333,7 +12340,9 @@ function needsLoad() {
       var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
       return { who: c(r, 'מי'), inst: io ? io.name : ic, title: c(r, 'כותרת'),
                body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'), res: c(r, 'תוצאה'), at: c(r, 'תאריך'),
-               aud: sayAud({ inst: io ? io.name : ic, grade: c(r, 'שכבה'), klass: c(r, 'כיתה'),
+               /* "למי" — המילים שנבחרו במסך השליחה. בלעדיו (שליחה
+                  ממכשיר ישן) — התיאור שנבנה מהעמודות, כמו קודם. */
+               aud: c(r, 'למי') || sayAud({ inst: io ? io.name : ic, grade: c(r, 'שכבה'), klass: c(r, 'כיתה'),
                              role: c(r, 'תפקיד'), flt: c(r, 'פילוח'), wait: c(r, 'ממתינים'),
                              aud: c(r, 'קהל') }) };
     }).reverse().slice(0, 40);
@@ -12345,7 +12354,7 @@ function needsLoad() {
              c(r, 'מזהה שליחה') && c(r, 'מי') !== 'מערכת';
     }).map(function (r) {
       var ic = c(r, 'ישיבה'), io = (INSTITUTIONS || []).filter(function (x) { return x.code === ic; })[0];
-      return { sid: c(r, 'מזהה שליחה'), who: c(r, 'מי'), inst: io ? io.name : ic,
+      return { sid: c(r, 'מזהה שליחה'), who: c(r, 'מי'), inst: c(r, 'למי') || (io ? io.name : ic),
                title: c(r, 'כותרת'), body: c(r, 'הטקסט').replace(/\{name\}/g, '[שם]'),
                why: c(r, 'תוצאה').replace(/^(נכשלה|חלקית):\s*/, ''),
                at: c(r, 'תאריך') };
@@ -14520,7 +14529,7 @@ function pushSend() {
   pushBusy = true; pushMsg = 'שולח…'; admPane();
   scriptGet({ fire:'say', key:(CFG.readKey || '').trim(),
               title:(pushView.title || '').trim() || PROGRAM.short,
-              body:body, only:pushView.only,
+              body:body, only:pushView.only, to: who.join(' '),
               role:pushView.role, url:pushView.link })
     .then(function (d) {
       pushBusy = false;

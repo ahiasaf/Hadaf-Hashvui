@@ -167,6 +167,7 @@ function applyFlt(list) {
   var needPeople = FLT.per || FLT.way;
   var needLearn  = !!FLT.seg;
   if (!needPeople && !needLearn && !FLT.ids) return Promise.resolve(list);
+  var mute = list.mute || [];
   return Promise.all([
     needPeople ? readTab('לומדים') : Promise.resolve(null),
     needLearn  ? readTab('לימוד')  : Promise.resolve(null)
@@ -192,18 +193,21 @@ function applyFlt(list) {
         else if (st[id] !== 'done') st[id] = 'mid';
       });
     }
-    var out = list.filter(function (it) {
+    var keep = function (it) {
       if (FLT.ids && FLT.ids.indexOf(it.id) < 0) return false;
       if (FLT.way && (!ppl[it.id] || ppl[it.id].way !== FLT.way)) return false;
       var my = st[it.id] || 'none';
       if (FLT.seg === 'todo' ? my === 'done' : (FLT.seg && my !== FLT.seg)) return false;
       return true;
-    });
+    };
+    var out = list.filter(keep);
     out.forEach(function (it) {
       var p = ppl[it.id];
       it.first = (p && p.first) || String(it.who || '').split(' ')[0] || '';
     });
     out.blocked = list.blocked;
+    /* מי שההתראות אצלו חסומות — אותו פילוח בדיוק, בשביל התיבה. */
+    out.mute = mute.filter(keep);
     return out;
   });
 }
@@ -304,7 +308,7 @@ function loadSubs() {
       return true;
     };
     if (iSub < 0) throw new Error('אין עמודת "מנוי" בלשונית התראות');
-    var seen = {}, out = [], blocked = 0;
+    var seen = {}, out = [], blocked = 0, mute = [];
     /* מהסוף להתחלה: מי שנרשם שוב מאותו מכשיר — הרישום האחרון
        הוא הנכון, והישן עלול כבר להיות פג. */
     for (var i = rows.length - 1; i >= 1; i--) {
@@ -312,7 +316,12 @@ function loadSubs() {
       var raw = rows[i][iSub];
       /* שורה בלי מנוי היא דיווח שההתראות חסומות במכשיר — נתון
          על ציבור המשתמשים, לא נמען. סופרים ולא שולחים. */
-      if (!raw) { blocked++; continue; }
+      if (!raw) {
+        blocked++;
+        /* אינו נמען של ההתראה — אבל ההודעה תחכה לו באפליקציה. */
+        if (iId >= 0 && rows[i][iId]) mute.push({ id: String(rows[i][iId]).trim() });
+        continue;
+      }
       var s;
       try { s = JSON.parse(raw); } catch (e) { continue; }
       if (!s || !s.endpoint || seen[s.endpoint]) continue;
@@ -321,6 +330,7 @@ function loadSubs() {
                  id: iId >= 0 ? String(rows[i][iId] || '').trim() : '' });
     }
     out.blocked = blocked;
+    out.mute = mute;
     return out;
   });
 }
@@ -398,6 +408,49 @@ function markRows(state, prints) {
   return go(1);
 }
 
+/* ============================================================
+   התיבה — ההודעה המלאה, בתוך האפליקציה.
+   ============================================================
+   התראה מראה שורה או שתיים, ורבים לא רואים אותה בכלל (חסמו, לא
+   אישרו). לכן ההודעה נשמרת גם בלשונית הפרטית "תיבה", עם המזהים
+   של כל מי שהיא נועדה לו — **אחרי הפילוח**, כך שמי שרואה אותה
+   באפליקציה הוא בדיוק מי שההתראה כוונה אליו, כולל מי שההתראות
+   אצלו חסומות. האפליקציה שואלת `?inbox=` ומציגה. ראו inbox_
+   ב-apps-script.gs.
+
+   הנוסח נשמר כמו שהוא, עם {name}: המכשיר מכיר את השם שלו
+   ומשלים לבד. בלי מזהה הודעה (התראות מערכת לרכז) ובלי
+   "ממתינים לדף" — לא נשמר. כישלון כאן אינו עוצר את השליחה. */
+function inboxRow(list) {
+  if (!MID || WAIT) return Promise.resolve();
+  var ids = [], seen = {};
+  list.concat(list.mute || []).forEach(function (it) {
+    var id = String(it.id || '').trim();
+    if (id && !seen[id]) { seen[id] = 1; ids.push(id); }
+  });
+  if (!ids.length) return Promise.resolve();
+  var cell = '';
+  for (var i = 0; i < ids.length && cell.length + ids[i].length < 45000; i++) {
+    cell += (cell ? ',' : '') + ids[i];
+  }
+  var url = scriptUrl();
+  var body0 = JSON.stringify({ action: 'row', tab: 'תיבה', key: key,
+    cols: JSON.stringify([['מזהה הודעה', MID], ['כותרת', title], ['הטקסט', body],
+                          ['קישור', link || ''], ['מזהים', cell], ['כמה', ids.length]]) });
+  var go = function (n) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: body0 })
+      .then(function (r) { return r.text(); }).then(function (t) {
+        if (!/"status"\s*:\s*"(success|ok)"/.test(String(t))) throw new Error('הסקריפט לא אישר');
+        console.log('נשמרה בתיבה ל-' + ids.length + ' אנשים (גם למי שההתראות אצלו חסומות).');
+      })['catch'](function () {
+        if (n >= 3) { console.log('  ! לא נשמרה בתיבה — ההתראה יוצאת בכל זאת.'); return; }
+        return sleep(5000 * n).then(function () { return go(n + 1); });
+      });
+  };
+  return go(1);
+}
+
 /* "שגיאה 500 ×2 · תקלת רשת ×1" — הסיבה המדויקת לכישלון מכשירים. */
 function codesTxt() {
   return Object.keys(CNT.codes).map(function (c) {
@@ -411,6 +464,8 @@ webpush.setVapidDetails(SUBJECT, PUBLIC, priv);
 report({ run: 1 });
 var STOP = '', LEFT = 0;
 loadSubs().then(applyFlt).then(function (list) {
+  return inboxRow(list).then(function () { return list; });
+}).then(function (list) {
   /* אף אחד לא ביקש התראה על הדף הזה — מצב רגיל, לא תקלה. */
   if (WAIT && !list.length) {
     console.log('איש לא ביקש התראה על ' + WAIT + ' — לא נשלח דבר.');

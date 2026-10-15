@@ -25,13 +25,13 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.99.244';
+var CACHE_NAME = 'hadaf-v8.99.245';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
 var CORE = ['./', './index.html', './join.html', './data.js', './learned.js', './links.js',
             './stage.js', './logo.js', './textedit.js', './a11y.js', './deck.js', './qbank.js', './stepid.js', './trail.js',
-            './getapp.js', './ask.js', './guide.js', './lock.js', './qr.js',
+            './getapp.js', './inbox.js', './ask.js', './guide.js', './lock.js', './qr.js',
             './manifest.json', './admin-manifest.json', './join-manifest.json',
             './icon-192.png', './icon-512.png',
             './icon-admin-192.png', './icon-admin-512.png',
@@ -99,8 +99,16 @@ self.addEventListener('push', function (e) {
     dir:  'rtl',
     lang: 'he',
     data: { url: d.url || './' }
-  }));
+  }).then(inboxPing));
 });
+
+/* האפליקציה פתוחה — שתבדוק עכשיו אם יש לה הודעה מלאה להציג
+   (ראו inbox.js), ולא רק בפתיחה הבאה. */
+function inboxPing() {
+  return self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(function (ws) {
+    ws.forEach(function (w) { try { w.postMessage({ type:'INBOX' }); } catch (x) {} });
+  })['catch'](function () {});
+}
 
 /* ============================================================
    לחיצה על התראה — פותחת את מה שההתראה הבטיחה.
@@ -138,8 +146,11 @@ self.addEventListener('notificationclick', function (e) {
     self.clients.matchAll({ type:'window', includeUncontrolled:true })
       .then(function (ws) {
         var i;
+        /* החלון כבר פתוח — אחרי המיקוד, שיציג את ההודעה המלאה. */
         for (i = 0; i < ws.length; i++) {
-          if (ws[i].url === target && 'focus' in ws[i]) return ws[i].focus();
+          if (ws[i].url === target && 'focus' in ws[i]) {
+            return ws[i].focus().then(inboxPing, inboxPing);
+          }
         }
         for (i = 0; i < ws.length; i++) {
           if ('navigate' in ws[i]) {
@@ -151,7 +162,9 @@ self.addEventListener('notificationclick', function (e) {
           }
         }
         for (i = 0; i < ws.length; i++) {
-          if (same(ws[i].url) && 'focus' in ws[i]) return ws[i].focus();
+          if (same(ws[i].url) && 'focus' in ws[i]) {
+            return ws[i].focus().then(inboxPing, inboxPing);
+          }
         }
         return self.clients.openWindow(target);
       })

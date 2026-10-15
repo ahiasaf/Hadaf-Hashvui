@@ -769,6 +769,7 @@ body.panel-on #panel{display:block}
 <script src="logo.js"></script>
 <script src="qr.js"></script>
 <script src="getapp.js"></script>
+<script src="inbox.js"></script>
 <script src="guide.js"></script>
 <script src="ask.js"></script>
 <script src="lock.js"></script>
@@ -1975,7 +1976,10 @@ function mySend() {
   var q = { fire:'say', inst: instCode, k: accCode || '', dev: me.id || '',
             title: ramName(me) || PROGRAM.short, body: txt,
             grade: me.grade || '', klass: me.klass || '',
-            who: ramName(me) };
+            who: ramName(me),
+            /* לחיצה אחת — שליחה אחת, גם כשהתשובה הראשונה אבדה.
+               ראו sayOnce_ ב-apps-script.gs. */
+            rq: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) };
   var qs2 = Object.keys(q).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(q[k]);
   }).join('&');

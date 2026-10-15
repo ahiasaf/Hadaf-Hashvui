@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 65;
+var SCRIPT_VERSION = 66;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -185,7 +185,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'פעולות צוות',
                     /* לכל הודעה — אילו מכשירים כבר קיבלו אותה (טביעת מנוי).
                        מה שמונע שליחה כפולה בשליחה חוזרת. ראו push-send.js. */
-                    'מסירות'];
+                    'מסירות',
+                    /* ההודעות שמוצגות באפליקציה — לכל הודעה, מזהי האנשים
+                       שהיא נועדה להם. ראו `inbox` ו-inboxRow ב-push-send.js. */
+                    'תיבה'];
 
 /* ============================================================
    הלשוניות של מוקד השיחות — תמיד לגיליון אנשי הקשר.
@@ -1127,7 +1130,9 @@ function doGet(e) {
         if (full) {
           try { sr.sh.getRange(sr.r, idx_(sr.sh, sHead, 'נמענים') + 1).setValue(full.slice(0, 45000)); } catch (eW) {}
         }
-        sayReport_(stt, g0('מי'), nm.inst[g0('ישיבה')] || g0('ישיבה'), g0('הטקסט'),
+        /* "למי" — במילים שנבחרו בשליחה. בלעדיו (שליחה ממכשיר ישן) —
+           הישיבה, כמו קודם. */
+        sayReport_(stt, g0('מי'), g0('למי') || nm.inst[g0('ישיבה')] || g0('ישיבה'), g0('הטקסט'),
                    stt === 'נשלח' || stt === 'אין נמענים' ? '' : (why || det),
                    { ok: nOk, prev: nPrev, bad: nBad, gone: nGone, late: late }, nm);
       }
@@ -1159,7 +1164,7 @@ function doGet(e) {
          ושולח רק למי שלא. */
       var r2 = ghFire_(g('כותרת'), g('הטקסט'), g('יעד'), g('שכבה'), g('כיתה'),
                        g('מי'), g('קישור'), g('תפקיד'), g('ממתינים'), g('פילוח'), false,
-                       g('מזהה הודעה') || g('מזהה שליחה'));
+                       g('מזהה הודעה') || g('מזהה שליחה'), g('למי'));
       if (r2.status === 'ok') {
         rr.sh.getRange(rr.r, rr.ix['תוצאה'] + 1).setValue(g('תוצאה') + ' · נשלחה שוב');
       }
@@ -1180,90 +1185,7 @@ function doGet(e) {
     } catch (errQ) { return reply_(e, { status:'error', quiz: 1, message: String(errQ) }); }
   }
 
-  if (e && e.parameter && e.parameter.fire === 'say') {
-    var P = e.parameter;
-    var inst = String(P.inst || '').trim();
-    var isAdm = READ_KEY && String(P.key || '') === READ_KEY;
-
-    /* ============================================================
-       **ההיקף נקבע כאן, ולא במה שהלקוח ביקש.**
-       ============================================================
-       ר"ם אינו מחזיק את סיסמת הרכז ואסור שיחזיק. מה שיש לו הוא
-       קוד הגישה של הישיבה שלו — אותו קוד שפותח לו את הלוח —
-       והוא מאשר אותו **ותוחם אותו בבת אחת**: מי שהקוד שלו שייך
-       ללפיד יכול לשלוח ללפיד בלבד, גם אם יבקש אחרת.
-
-       זה ההבדל בין הרשאה לבין בקשה. לקוח שמבקש היקף הוא לקוח
-       שאפשר לערוך לו את הכתובת. */
-    if (!isAdm) {
-      if (!inst) return reply_(e, { status:'denied', message:'חסר קוד ישיבה' });
-      if (ACC_ONLY) {
-        var gS = accGate_(inst, P.dev, !!P.k);
-        if (gS) return reply_(e, gS);
-      } else {
-        var want = getCode_(inst);
-        if (!want || String(P.k || '') !== want) {
-          return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
-        }
-      }
-    }
-    /* **הכתובת נבדקת כאן, ולא נסמכת על השולח.** קישור חופשי
-       בהתראה הוא ערוץ שמפנה תלמידים לאן שמישהו יבקש. מה
-       שמותר הוא נתיב יחסי בתוך האתר בלבד. */
-    var link = String(P.url || '').trim();
-    if (link && !/^[A-Za-z0-9_\-\/]{0,60}(\?[A-Za-z0-9_\-=&%\u0590-\u05FF]{0,120})?(#[A-Za-z0-9_\-]{0,30})?$/.test(link)) {
-      return reply_(e, { status:'denied', message:'כתובת לא מותרת' });
-    }
-    /* **צמצום לפי תפקיד הוא של הרכז בלבד** — "שלח לכל הצוות"
-       הוא ערוץ אחר לגמרי, ואינו נתון בידי ר"ם.
-
-       ומה שר"ם שולח מגיע **לתלמידים**, תמיד. המסך שלו מבטיח
-       לו "ההודעה תגיע ל-N מתלמידיך", והמספר הזה נספר מהלוח —
-       שבו יש תלמידים בלבד. בלי השורה הזו ההודעה הייתה מגיעה
-       גם לר"ם עצמו ולכל איש צוות אחר באותה כיתה, כלומר ליותר
-       אנשים ממה שנאמר לו. הבטחה ומסירה חייבות להיות אותו דבר. */
-    /* ---- להורים, או לתלמיד ולהורה שלו יחד ----
-       השרת מתרגם את הקבוצה למזהים — ראו sayPeople_. ר"ם מקבל רק
-       את הישיבה שלו: הרשימה נבנית מהלוח שלה בלבד. */
-    var flS = sayFlt_(P.flt), flO = flS ? JSON.parse(flS) : {};
-    if (!isAdm) {
-      if (P.aud === 'parents') flO.par = 'p';
-      else if (P.aud === 'both') flO.par = 'pk';
-    }
-    if (flO.par) {
-      var who0 = sayPeople_(isAdm ? String(P.only || '') : inst, isAdm,
-                            isAdm || P.test === '1', flO,
-                            String(P.grade || ''), String(P.klass || ''));
-      if (!who0.ids.length) {
-        return reply_(e, { status:'empty', message:'אין בקבוצה הזו הורים שמחוברים לתלמיד.' });
-      }
-      var fl2 = { ids: who0.ids };
-      if (flO.per) fl2.per = 1;
-      var r0 = ghFire_(String(P.title || ''), String(P.body || ''), '', '', '',
-                       String(P.who || ''), link, '', '', JSON.stringify(fl2));
-      if (!isAdm && r0.status !== 'ok') r0 = { status:'ok', held: 1 };
-      if (r0 && r0.status === 'ok') { r0.kids = who0.kids; r0.dads = who0.dads; }
-      return reply_(e, r0);
-    }
-    var rS = ghFire_(String(P.title || ''), String(P.body || ''),
-                             isAdm ? String(P.only || '') : inst,
-                             String(P.grade || ''), String(P.klass || ''),
-                             String(P.who || ''), link,
-                             /* ר"ם וראש חטיבה בוחרים בין תלמידים להורים —
-                                ושניהם עדיין בתוך הישיבה שלהם בלבד. */
-                             isAdm ? String(P.role || '')
-                                   : (P.aud === 'parents' ? 'אב' : 'תלמיד'),
-                             /* "הדף נפתח" — רק לרכז, ורק לממתינים של
-                                אותו דף. הצורה נבדקת: 'taanit|ג', ועמוד שנפתח
-                                לבד — 'taanit|ב.' או 'taanit|ב:'. */
-                             isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}[.:]?$/.test(String(P.wait || ''))
-                               ? String(P.wait) : '',
-                             sayFlt_(P.flt));
-    /* **איש הצוות אינו רואה כישלון** — הוא עובר לרכז (נרשם ביומן
-       ו-sayAlert_), והרכז שולח שוב מהניהול. לרכז — האמת. */
-    if (!isAdm && rS.status !== 'ok') rS = { status:'ok', held: 1 };
-    return reply_(e, rS);
-  }
+  if (e && e.parameter && e.parameter.fire === 'say') return sayOnce_(e);
 
   /* ---- הלוח של מוסד ----
      הקוד שבקישור הוא ההרשאה, ולכן אין כאן READ_KEY: ראש חטיבה
@@ -1280,6 +1202,24 @@ function doGet(e) {
      מה לדלוף, ולכן אין צורך בסיסמה: מי שיודע מזהה מכשיר יכול
      לדעת אם אותו מכשיר סימן, וזה כל מה שהוא יכול לדעת.
      ============================================================ */
+  /* ============================================================
+     "יש לי הודעה?" — ההודעה המלאה, בתוך האפליקציה.
+     ============================================================
+     התראה בחלונית מראה שורה או שתיים, ולחיצה עליה מעלימה אותה.
+     ורבים בכלל לא רואים התראות: חסמו, לא אישרו, או שהטלפון
+     השתיק. לכן כל הודעה נשמרת גם ב"תיבה", עם מזהי האנשים
+     שהיא נועדה להם — **אותו פילוח בדיוק של ההתראה**, כי
+     push-send.js הוא שכותב את השורה, אחרי שסינן (ראו inboxRow).
+
+     המכשיר שולח את המזהים שלו, ומקבל את ההודעות שנועדו לו
+     מ-INBOX_DAYS הימים האחרונים. בלי סיסמה, כמו `mark`: מי שיודע
+     מזהה יכול לראות את ההודעות שנשלחו לבעליו, ותו לא — לא
+     רשימה, לא שמות, ולא מי עוד קיבל. */
+  if (e && e.parameter && e.parameter.inbox) {
+    try { return reply_(e, { status:'ok', items: inbox_(String(e.parameter.inbox)) }); }
+    catch (errI) { return reply_(e, { status:'error', message: String(errI) }); }
+  }
+
   if (e && e.parameter && e.parameter.mark) {
     var mid = String(e.parameter.mark), mtag = String(e.parameter.wk || '');
     var mAt = 0, mDone = false;
@@ -2043,6 +1983,8 @@ function appendCols_(tab, cols, ssId) {
   for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
   sh.appendRow(row);
   if (tab === JOIN_TAB)  recount_();
+  /* הודעה חדשה בתיבה — שהאפליקציה תראה אותה מיד, ולא אחרי דקה. */
+  if (tab === 'תיבה') { try { CacheService.getScriptCache().remove('inbox:rows'); } catch (eI) {} }
   if (tab === LEARN_TAB) {
     /* השורה שהרגע נכתבה מספרת באיזה שבוע אנחנו. זה כל מה שצריך
        כדי לדעת היכן השבוע התחיל — בלי שעון ובלי הגדרה. */
@@ -5398,10 +5340,186 @@ function sayFlt_(raw) {
   return '';
 }
 
+/* ההודעות שמוצגות באפליקציה — ראו `inbox` ב-doGet. */
+var INBOX_DAYS = 3;
+function inbox_(raw) {
+  var mine = String(raw).split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!mine.length) return [];
+  var rows = inboxRows_();
+  var out = [], seen = {};
+  for (var i = rows.length - 1; i >= 0 && out.length < 5; i--) {
+    var r = rows[i];
+    if (seen[r.mid]) continue;
+    var ids = ',' + r.ids + ',';
+    var hit = mine.some(function (m) { return ids.indexOf(',' + m + ',') >= 0; });
+    if (!hit) continue;
+    seen[r.mid] = 1;
+    out.push({ mid: r.mid, at: r.at, title: r.title, body: r.body, url: r.url });
+  }
+  return out;
+}
+/* השורות של INBOX_DAYS הימים האחרונים. כל פתיחה של האפליקציה
+   שואלת — ולכן דקה במטמון, ולא קריאה של הגיליון בכל פעם. */
+function inboxRows_() {
+  var rc = CacheService.getScriptCache(), hit = rc.get('inbox:rows');
+  if (hit) { try { return JSON.parse(hit); } catch (x) {} }
+  var sh = sheet_('תיבה'), out = [];
+  var n = sh.getLastRow();
+  if (n >= 2) {
+    var from = Math.max(2, n - 199);
+    var v = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0], h = {};
+    for (var j = 0; j < v.length; j++) h[String(v[j]).trim()] = j;
+    var d = sh.getRange(from, 1, n - from + 1, sh.getLastColumn()).getValues();
+    var edge = Date.now() - INBOX_DAYS * 864e5;
+    var g = function (row, k) { return h[k] === undefined ? '' : String(row[h[k]] == null ? '' : row[h[k]]); };
+    d.forEach(function (row) {
+      var at = h['תאריך'] === undefined ? null : row[h['תאריך']];
+      if (!(at instanceof Date) || at.getTime() < edge) return;
+      var mid = g(row, 'מזהה הודעה');
+      if (!mid) return;
+      out.push({ mid: mid, at: at.getTime(), title: g(row, 'כותרת'), body: g(row, 'הטקסט'),
+                 url: g(row, 'קישור'), ids: g(row, 'מזהים') });
+    });
+  }
+  try { rc.put('inbox:rows', JSON.stringify(out), 60); } catch (x2) {}
+  return out;
+}
+
+/* ============================================================
+   לחיצה אחת על "שלח" — שליחה אחת.
+   ============================================================
+   ב-15.10 יצאה הודעה לתלמידים פעמיים, בהפרש של 11 שניות. גוגל
+   ביצע את הבקשה הראשונה, אבל התשובה לא חזרה למכשיר ("unable to
+   open the file"), והמכשיר ניסה שוב בדרך השנייה (JSONP) — עם
+   אותה בקשה בדיוק. השרת ראה שתי בקשות ושלח שתיים, כל אחת עם
+   מזהה הודעה משלה, ולכן גם מניעת הכפילות של push-send.js לא
+   תפסה אותן.
+
+   מעכשיו המכשיר מצרף `rq` — מזהה אחד ללחיצה, שנוסע גם בניסיון
+   החוזר. בקשה שה-`rq` שלה כבר נראה אינה נשלחת שוב: היא מקבלת
+   את התשובה של הראשונה (או "התקבל" אם הראשונה עדיין רצה).
+   בלי `rq` (מכשיר בגרסה ישנה) — כמו קודם. */
+function sayOnce_(e) {
+  var rq = String(e.parameter.rq || '');
+  if (!/^[A-Za-z0-9_\-]{6,40}$/.test(rq)) return saySay_(e);
+  var rc = CacheService.getScriptCache(), rk = 'sayrq:' + rq, had = rc.get(rk);
+  if (had) {
+    var o = { status:'ok' };
+    try { o = JSON.parse(had); } catch (x) {}
+    o.dup = 1;
+    return reply_(e, o);
+  }
+  rc.put(rk, '{"status":"ok"}', 1800);
+  var out = saySay_(e);
+  /* התשובה האמיתית — כדי שהניסיון החוזר יקבל אותה ולא "התקבל". */
+  try {
+    var c = String(out.getContent());
+    var m = /^[A-Za-z_$][\w$]*\(([\s\S]*)\)\s*$/.exec(c);
+    rc.put(rk, m ? m[1] : c, 1800);
+  } catch (x2) {}
+  return out;
+}
+
+/* למי ההודעה — **במילים של המסך שממנו נשלחה** ("תלמידים · לא
+   סיימו את שבוע 2", "הורים"). השרת אינו מנסח את זה מחדש: אחיאסף
+   בחר קהל במילים מסוימות, ובדיווח וברשימה הוא צריך לקרוא בדיוק
+   אותן. מכשיר ישן שלא שולח `to` — ריק, ונשאר הנוסח הקודם. */
+function sayTo_(P) {
+  return String(P.to || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
+}
+
+/* השליחה עצמה — `fire=say`. ראו sayOnce_ למעלה. */
+function saySay_(e) {
+  var P = e.parameter;
+  var inst = String(P.inst || '').trim();
+  var isAdm = READ_KEY && String(P.key || '') === READ_KEY;
+
+  /* ============================================================
+     **ההיקף נקבע כאן, ולא במה שהלקוח ביקש.**
+     ============================================================
+     ר"ם אינו מחזיק את סיסמת הרכז ואסור שיחזיק. מה שיש לו הוא
+     קוד הגישה של הישיבה שלו — אותו קוד שפותח לו את הלוח —
+     והוא מאשר אותו **ותוחם אותו בבת אחת**: מי שהקוד שלו שייך
+     ללפיד יכול לשלוח ללפיד בלבד, גם אם יבקש אחרת.
+
+     זה ההבדל בין הרשאה לבין בקשה. לקוח שמבקש היקף הוא לקוח
+     שאפשר לערוך לו את הכתובת. */
+  if (!isAdm) {
+    if (!inst) return reply_(e, { status:'denied', message:'חסר קוד ישיבה' });
+    if (ACC_ONLY) {
+      var gS = accGate_(inst, P.dev, !!P.k);
+      if (gS) return reply_(e, gS);
+    } else {
+      var want = getCode_(inst);
+      if (!want || String(P.k || '') !== want) {
+        return reply_(e, { status:'denied', message:'קוד גישה שגוי' });
+      }
+    }
+  }
+  /* **הכתובת נבדקת כאן, ולא נסמכת על השולח.** קישור חופשי
+     בהתראה הוא ערוץ שמפנה תלמידים לאן שמישהו יבקש. מה
+     שמותר הוא נתיב יחסי בתוך האתר בלבד. */
+  var link = String(P.url || '').trim();
+  if (link && !/^[A-Za-z0-9_\-\/]{0,60}(\?[A-Za-z0-9_\-=&%\u0590-\u05FF]{0,120})?(#[A-Za-z0-9_\-]{0,30})?$/.test(link)) {
+    return reply_(e, { status:'denied', message:'כתובת לא מותרת' });
+  }
+  /* **צמצום לפי תפקיד הוא של הרכז בלבד** — "שלח לכל הצוות"
+     הוא ערוץ אחר לגמרי, ואינו נתון בידי ר"ם.
+
+     ומה שר"ם שולח מגיע **לתלמידים**, תמיד. המסך שלו מבטיח
+     לו "ההודעה תגיע ל-N מתלמידיך", והמספר הזה נספר מהלוח —
+     שבו יש תלמידים בלבד. בלי השורה הזו ההודעה הייתה מגיעה
+     גם לר"ם עצמו ולכל איש צוות אחר באותה כיתה, כלומר ליותר
+     אנשים ממה שנאמר לו. הבטחה ומסירה חייבות להיות אותו דבר. */
+  /* ---- להורים, או לתלמיד ולהורה שלו יחד ----
+     השרת מתרגם את הקבוצה למזהים — ראו sayPeople_. ר"ם מקבל רק
+     את הישיבה שלו: הרשימה נבנית מהלוח שלה בלבד. */
+  var flS = sayFlt_(P.flt), flO = flS ? JSON.parse(flS) : {};
+  if (!isAdm) {
+    if (P.aud === 'parents') flO.par = 'p';
+    else if (P.aud === 'both') flO.par = 'pk';
+  }
+  if (flO.par) {
+    var who0 = sayPeople_(isAdm ? String(P.only || '') : inst, isAdm,
+                          isAdm || P.test === '1', flO,
+                          String(P.grade || ''), String(P.klass || ''));
+    if (!who0.ids.length) {
+      return reply_(e, { status:'empty', message:'אין בקבוצה הזו הורים שמחוברים לתלמיד.' });
+    }
+    var fl2 = { ids: who0.ids };
+    if (flO.per) fl2.per = 1;
+    var r0 = ghFire_(String(P.title || ''), String(P.body || ''), '', '', '',
+                     String(P.who || ''), link, '', '', JSON.stringify(fl2),
+                     false, '', sayTo_(P));
+    if (!isAdm && r0.status !== 'ok') r0 = { status:'ok', held: 1 };
+    if (r0 && r0.status === 'ok') { r0.kids = who0.kids; r0.dads = who0.dads; }
+    return reply_(e, r0);
+  }
+  var rS = ghFire_(String(P.title || ''), String(P.body || ''),
+                           isAdm ? String(P.only || '') : inst,
+                           String(P.grade || ''), String(P.klass || ''),
+                           String(P.who || ''), link,
+                           /* ר"ם וראש חטיבה בוחרים בין תלמידים להורים —
+                              ושניהם עדיין בתוך הישיבה שלהם בלבד. */
+                           isAdm ? String(P.role || '')
+                                 : (P.aud === 'parents' ? 'אב' : 'תלמיד'),
+                           /* "הדף נפתח" — רק לרכז, ורק לממתינים של
+                              אותו דף. הצורה נבדקת: 'taanit|ג', ועמוד שנפתח
+                              לבד — 'taanit|ב.' או 'taanit|ב:'. */
+                           isAdm && /^[a-z]+\|[\u05D0-\u05EA]{1,4}[.:]?$/.test(String(P.wait || ''))
+                             ? String(P.wait) : '',
+                           sayFlt_(P.flt), false, '', sayTo_(P));
+  /* **איש הצוות אינו רואה כישלון** — הוא עובר לרכז (נרשם ביומן
+     ו-sayAlert_), והרכז שולח שוב מהניהול. לרכז — האמת. */
+  if (!isAdm && rS.status !== 'ok') rS = { status:'ok', held: 1 };
+  return reply_(e, rS);
+}
+
 /* מצית את ה-workflow ששולח. `repository_dispatch` הוא הדלת
    הרשמית להפעלה מבחוץ, והמטען נוסע איתו — כלומר אין צורך
    בלשונית ביניים ואין השהיה של סקר. */
-function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, quiet, mid) {
+function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, quiet, mid, to) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!body) return { status:'error',  message:'אין מה לשלוח' };
@@ -5467,7 +5585,7 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
      שלהן אינו מתריע (אחרת התרעה על התרעה, בלי סוף). */
   try {
     appendCols_('הודעות', [
-        ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'],
+        ['מי', who || 'רכז'], ['ישיבה', only || 'כולם'], ['למי', to || ''],
         ['קהל', quiet ? 'מכשירי רכז' : ''],
         ['שכבה', grade || ''], ['כיתה', klass || ''],
         ['כותרת', title], ['הטקסט', body],
@@ -5478,7 +5596,7 @@ function ghFire_(title, body, only, grade, klass, who, link, role, wait, flt, qu
         ['סטטוס שליחה', res0.status === 'ok' ? '' : 'נכשל']
     ]);
   } catch (e3) {}
-  if (!quiet && res0.status !== 'ok') sayAlert_(who, only, body, res0.message);
+  if (!quiet && res0.status !== 'ok') sayAlert_(who, to || only, body, res0.message);
   return res0;
 }
 
@@ -5575,24 +5693,30 @@ function sayNames_(mid, wait) {
    פעם ביום: שורות בנות יותר מ-30 יום נמחקות. אחרי חודש איש אינו שולח
    שוב את אותה הודעה. השורות נכתבות לפי סדר הזמן, ולכן הישנות בראש. */
 function dlvPrune_() {
+  pruneTab_('מסירות', 30, 'DLV_PRUNE');
+  /* "תיבה" — הודעה מוצגת באפליקציה עד INBOX_DAYS ימים. שבועיים
+     נשמרות, למקרה שצריך לבדוק מה הוצג למי. */
+  pruneTab_('תיבה', 14, 'INBOX_PRUNE');
+}
+function pruneTab_(tab, days, prop) {
   var P = PropertiesService.getScriptProperties();
   var today = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
-  if (P.getProperty('DLV_PRUNE') === today) return;
+  if (P.getProperty(prop) === today) return;
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return;
   try {
-    var sh = sheet_('מסירות');
+    var sh = sheet_(tab);
     if (sh.getLastRow() >= 2) {
       var h = headers_(sh), it = h.indexOf('תאריך');
       if (it < 0) return;
       var v = sh.getRange(2, it + 1, sh.getLastRow() - 1, 1).getValues();
-      var edge = Date.now() - 30 * 864e5, k = 0;
+      var edge = Date.now() - days * 864e5, k = 0;
       while (k < v.length && v[k][0] instanceof Date && v[k][0].getTime() < edge) k++;
       /* גוגל אינו מוחק את כל השורות שמתחת לכותרת הקפואה — שורה אחת נשארת. */
       if (k >= v.length) k = v.length - 1;
       if (k > 0) sh.deleteRows(2, k);
     }
-    P.setProperty('DLV_PRUNE', today);
+    P.setProperty(prop, today);
   } finally { lock.releaseLock(); }
 }
 function subPrint_(ep) {

@@ -695,8 +695,14 @@ function jsonp(url) {
     document.body.appendChild(sc);
   });
 }
+/* מזהה ללחיצה אחת על "שלח". הוא נוסע גם בניסיון החוזר (JSONP),
+   והשרת לא ישלח פעמיים את אותה לחיצה — ראו sayOnce_ ב-apps-script.gs. */
+function sayRq() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
 function askScript(params) {
   if (!API_URL) return Promise.resolve(null);
+  if (params && params.fire === 'say' && !params.rq) params.rq = sayRq();
   /* כתובת שרת ישנה במכשיר — שליחה דרכה יוצאת בלי הסינונים. */
   if (params && params.fire && APPS_SCRIPT_URL &&
       String(API_URL).trim() !== String(APPS_SCRIPT_URL).trim()) {
@@ -1643,10 +1649,10 @@ function kudoSend() {
   var ids = (p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60);
   askScript(ALL
     ? { fire:'say', key:acc, title:kudoSig(), body:'{name}, ' + txt, who:'רכז',
-        role: par ? '' : 'תלמיד',
+        to: kudoName(p), role: par ? '' : 'תלמיד',
         flt: JSON.stringify(par ? { ids:ids, per:1, par:par } : { ids:ids, per:1 }) }
     : { fire:'say', inst:code, k:acc, dev:devId(), title:kudoSig(), body:'{name}, ' + txt,
-        grade:'', klass:'', who:kudoSig(),
+        grade:'', klass:'', who:kudoSig(), to: kudoName(p),
         aud: par === 'p' ? 'parents' : par === 'pk' ? 'both' : 'kids',
         flt: JSON.stringify({ ids:[p.id], per:1 }) })
     .then(function (d) {
@@ -1900,7 +1906,9 @@ function sndSend() {
     if (SND.way) flt.way = SND.way;
   }
   q.flt = JSON.stringify(flt);
-  if (!confirm('לשלוח?\n' + sndToLabel() + '\n\n' + txt)) return;
+  /* אותן מילים בדיוק לדיווח ולרשימה — ראו sayTo_ ב-apps-script.gs. */
+  q.to = sndToLabel();
+  if (!confirm('לשלוח?\n' + q.to + '\n\n' + txt)) return;
   SND.busy = true; SND.msg = ''; draw();
   askScript(q).then(function (d) {
     SND.busy = false;
