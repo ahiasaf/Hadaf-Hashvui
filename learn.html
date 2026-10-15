@@ -821,9 +821,11 @@ body.leaving{opacity:0;transition:opacity .32s ease}
 .rec-a button.pri{background:linear-gradient(140deg,var(--gold-l),var(--gold));
   color:var(--ink);border-color:transparent}
 nav button.on{background:var(--blue);color:#fff;border-color:transparent}
-/* "איור" — יש איור שעוד לא נצפה (ראו `dkFresh`). מסגרת צהובה בולטת,
-   שנעלמת כשפותחים. */
-nav button.fresh{border:2px solid #F2C230;box-shadow:0 0 0 3px rgba(242,194,48,.35)}
+/* "איור" — הגיע קטע עם איור שעוד לא נצפה (ראו `dkFresh`). המסגרת
+   נדלקת לרגע ונעלמת — אותה מסגרת בדיוק של המעבר להנחיות בעמוד
+   הצוות. מסגרת שנשארת דולקת הפסיקה להיראות אחרי שני קטעים. */
+#dktog{transition:box-shadow .5s ease}
+nav button.lit{box-shadow:0 0 0 4px rgba(229,184,84,.5)}
 nav button:disabled{opacity:.38;cursor:default}
 /* נלחץ ויוצאים לדף הבא — נראה לחוץ, לא כבוי */
 nav button.busy:disabled{opacity:1;filter:brightness(.92);transform:translateY(1px);
@@ -3612,12 +3614,14 @@ function slideAtIds_(st) {
    אינה נשמרת כהעדפה: אחרת חלון צר באותו מחשב היה נפתח אחר כך
    עם מצגת שאיש לא ביקש. */
 /* ============================================================
-   איור חדש — מסגרת צהובה על "איור".
+   איור חדש — "איור" מהבהב פעם אחת.
    ============================================================
-   כשהקטע שעל המסך מביא שקף שהלומד עוד לא ראה, והמצגת סגורה —
-   הכפתור מקבל מסגרת. פתיחה (או מצגת שכבר פתוחה) מסמנת את השקף
-   כנצפה, והמסגרת יורדת. מה שנצפה נשמר במכשיר לפי דף, כדי שחזרה
-   לדף לא תדליק שוב את מה שכבר ראו. */
+   כשמגיעים לקטע שמביא שקף אחר משל הקטע הקודם, שהלומד עוד לא
+   ראה, והמצגת סגורה — מסגרת נדלקת על הכפתור לרגע ונעלמת.
+   פעם אחת למעבר, לא בכל ציור: `DK_LAST` זוכר על איזה שקף כבר
+   הודיעו. מצגת פתוחה מסמנת את השקף כנצפה. מה שנצפה נשמר במכשיר
+   לפי דף, כדי שחזרה לדף לא תדליק שוב את מה שכבר ראו. */
+var DK_LAST = 0, DK_T = 0;
 function dkSeenKey() { return 'df:dkSeen:' + S.mas + '|' + S.daf; }
 function dkSeen() {
   try { return JSON.parse(localStorage.getItem(dkSeenKey()) || '{}') || {}; } catch (e) { return {}; }
@@ -3634,8 +3638,13 @@ function dkFresh() {
   if (!b || !DECK || b.style.display === 'none') return;
   var n = 0;
   try { n = slideAt(IDX); } catch (e) { return; }
-  if (document.body.classList.contains('side-on')) dkSeenAdd(n);
-  b.classList.toggle('fresh', !document.body.classList.contains('side-on') && !dkSeen()[n]);
+  var was = DK_LAST;
+  DK_LAST = n;
+  if (document.body.classList.contains('side-on')) { dkSeenAdd(n); return; }
+  if (n === was || dkSeen()[n]) return;
+  b.classList.add('lit');
+  clearTimeout(DK_T);
+  DK_T = setTimeout(function () { b.classList.remove('lit'); }, 1800);
 }
 function sideOpen(on, auto) {
   document.body.classList.toggle('side-on', !!on);
@@ -4135,6 +4144,7 @@ function sideInit() {
     var b = $('dktog');
     if (!b || !show) return;
     b.style.display = '';
+    DK_LAST = 0;
     b.onclick = function () {
       sideOpen(!document.body.classList.contains('side-on'));
     };
@@ -6365,7 +6375,18 @@ window.addEventListener('DOMContentLoaded', function () {
     if (e.touches && e.touches.length > 1) e.preventDefault();
   }, { passive: false });
 
-  $('chtog').onclick = function () { drawer(!document.body.classList.contains('chav-on')); };
+  /* במסך צר האיור והפירוש יושבים באותה משבצת, והאיור מעל. לחיצה
+     על "פירוש" כשהאיור פתוח הייתה סוגרת את הפירוש שמתחתיו — ולא
+     השתנה דבר על המסך. עכשיו כל כפתור מראה את מה שעליו כתוב. */
+  $('chtog').onclick = function () {
+    var body = document.body;
+    if (sidePhone() && body.classList.contains('side-on')) {
+      sideOpen(false);
+      if (!body.classList.contains('chav-on')) drawer(true);
+      return;
+    }
+    drawer(!body.classList.contains('chav-on'));
+  };
   $('chclose').onclick = function () { drawer(false); };
   $('czm').onclick = function () { chavZoom(-1); };
   $('czp').onclick = function () { chavZoom(1); };
