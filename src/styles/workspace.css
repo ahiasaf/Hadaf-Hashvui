@@ -1933,9 +1933,15 @@ textarea {
   width: min(1120px, calc(100% - 64px));
   margin-inline: auto;
   padding: 24px;
-  background: var(--surface);
-  color: var(--blue-d);
-  border: 1px solid var(--rule);
+  background-color: var(--blue-d);
+  background-image: radial-gradient(
+    ellipse at 85% 0%,
+    #234e86 0%,
+    #143867 45%,
+    var(--blue-d) 100%
+  );
+  color: var(--surface);
+  border: 1px solid #24446e;
   border-radius: 18px;
 }
 .stage-band.dashboard-band::before,
@@ -1949,7 +1955,7 @@ textarea {
   margin-bottom: 24px;
 }
 .stage-band.dashboard-band .stage-eyebrow {
-  color: var(--muted);
+  color: #c8d8ed;
   letter-spacing: 0;
   font-size: 0.72rem;
 }
@@ -1961,7 +1967,7 @@ textarea {
   padding: 0;
   border-radius: 0;
   background: transparent;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid #527298;
 }
 .stage-band.dashboard-band .track-thumb {
   top: auto;
@@ -1970,29 +1976,29 @@ textarea {
   height: 2px;
   width: 50%;
   border-radius: 0;
-  background: var(--gold);
+  background: var(--gold-l);
   box-shadow: none;
 }
 .stage-band.dashboard-band .track-switch button {
-  color: var(--muted);
+  color: #c8d8ed;
   font-size: 0.82rem;
   min-height: 44px;
 }
 .stage-band.dashboard-band .track-switch button[aria-pressed="true"] {
-  color: var(--blue-d);
+  color: var(--surface);
 }
 .stage-band.dashboard-band .week-label {
-  color: var(--gold-t);
+  color: #f1cb76;
   font-size: 0.72rem;
   letter-spacing: 0;
 }
 .stage-band.dashboard-band .lesson h2 {
-  color: var(--blue-d);
+  color: var(--surface);
   font-size: clamp(1.5rem, 3vw, 2rem);
   line-height: 1.35;
 }
 .stage-band.dashboard-band .lesson-date {
-  color: var(--muted);
+  color: #c8d8ed;
   opacity: 1;
   font-size: 0.78rem;
   font-weight: 500;
@@ -2007,34 +2013,34 @@ textarea {
   border-radius: 10px;
 }
 .stage-band.dashboard-band .frame {
-  border: 1px solid var(--rule);
+  border: 1px solid #6480a5;
   border-radius: 10px;
-  box-shadow: none;
+  box-shadow: 0 8px 24px rgb(0 10 30 / 18%);
   transform: none;
 }
 .stage-band.dashboard-band .frame-sheen {
   display: none;
 }
 .stage-band.dashboard-band .frame-empty {
-  background: var(--sunk);
-  color: var(--muted);
+  background: #16365e;
+  color: #c8d8ed;
 }
 .stage-band.dashboard-band .lesson-actions {
   margin-top: 24px;
 }
 .stage-band.dashboard-band .lesson-actions .button {
-  color: var(--surface);
-  background: var(--blue-d);
+  color: var(--blue-d);
+  background: var(--surface);
   min-height: 50px;
   border-radius: 10px;
   box-shadow: none;
   font-size: 0.95rem;
 }
-.lesson-resume-note {
+.stage-band.dashboard-band .lesson-resume-note {
   margin: 0;
   text-align: center;
   font-size: 0.72rem;
-  color: var(--muted);
+  color: #c8d8ed;
 }
 .dashboard-details {
   margin-top: 24px;
