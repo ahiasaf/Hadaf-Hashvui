@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { action, stored, store, type Person } from "../lib/client";
 import { lessonHref, studyUnits, weekIndex, type Track } from "../lib/calendar";
 import Install from "./Install";
@@ -128,22 +134,6 @@ export default function StudentHome({
   }, [tracks, startDate]);
   return (
     <section className="workspace dashboard-details">
-      <div className="progress-overview" ref={progress}>
-        <div className="progress-summary">
-          <div className="progress-count">
-            <strong>
-              <bdi>{count}</bdi>
-            </strong>
-            <span>
-              מתוך <bdi>{total}</bdi> דפים הושלמו
-            </span>
-          </div>
-          <span className="progress-percent">
-            <bdi>{percent}%</bdi>
-          </span>
-        </div>
-        <progress max={total} value={count} aria-label="התקדמות במסכת" />
-      </div>
       {!person && (
         <p className="notice dashboard-guest">
           ההתקדמות נשמרת במכשיר. <a href="/join">הצטרפות לתוכנית</a> מאפשרת
@@ -158,13 +148,28 @@ export default function StudentHome({
       <section className="lesson-picker" aria-label="בחירת דף">
         <div className="lesson-picker-heading">
           <h2>הדפים במסכת {track.name}</h2>
-          <span aria-live="polite">
-            <bdi>
-              {lessonPage * pageSize + 1}-
-              {Math.min((lessonPage + 1) * pageSize, units.length)}
-            </bdi>{" "}
-            מתוך <bdi>{units.length}</bdi>
-          </span>
+          {/* The masechet's completion ledger heads its own index: one tick per daf. */}
+          <div className="progress-overview" ref={progress}>
+            <div className="progress-summary">
+              <div className="progress-count">
+                <strong>
+                  <bdi>{count}</bdi>
+                </strong>
+                <span>
+                  מתוך <bdi>{total}</bdi> דפים הושלמו
+                </span>
+              </div>
+              <span className="progress-percent">
+                <bdi>{percent}%</bdi>
+              </span>
+            </div>
+            <progress
+              max={total}
+              value={count}
+              aria-label="התקדמות במסכת"
+              style={{ "--units": total } as CSSProperties}
+            />
+          </div>
         </div>
         <div className="lesson-grid" ref={grid} data-direction={direction}>
           {shown.map(({ row, index }) => {
@@ -181,6 +186,9 @@ export default function StudentHome({
                 aria-current={index === current ? "true" : undefined}
                 aria-label={`שבוע ${index + 1}, מסכת ${track.name}, דף ${row[2]}${row[3] ? " עמוד " + row[3] : ""}${done ? ", הושלם" : ""}${index === current ? ", השבוע" : ""}`}
               >
+                <span className="tile-week" aria-hidden="true">
+                  <bdi>{index + 1}</bdi>
+                </span>
                 <span className="tile-main">
                   <strong>דף {row[2]}</strong>
                   <span>{row[3] ? "עמוד " + row[3] : row[1]}</span>
@@ -202,8 +210,6 @@ export default function StudentHome({
                         strokeLinejoin="round"
                       />
                     </svg>
-                  ) : index === current ? (
-                    <i aria-hidden="true" />
                   ) : null}
                   <small>
                     {index === current ? "השבוע" : done ? "הושלם" : ""}
@@ -239,10 +245,12 @@ export default function StudentHome({
               />
             </svg>
           </button>
-          <span>
+          <span aria-live="polite">
             <bdi>
-              {lessonPage + 1} / {pages}
-            </bdi>
+              {lessonPage * pageSize + 1}-
+              {Math.min((lessonPage + 1) * pageSize, units.length)}
+            </bdi>{" "}
+            מתוך <bdi>{units.length}</bdi>
           </span>
           <button
             type="button"

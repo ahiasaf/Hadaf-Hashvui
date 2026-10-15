@@ -244,9 +244,7 @@ legend {
 /* Completion is a quiet part of the reading layout, rather than a second hero. */
 .progress-overview {
   display: grid;
-  gap: 12px;
-  padding-block: 0 24px;
-  border-bottom: 1px solid var(--rule);
+  gap: 10px;
 }
 .progress-summary,
 .progress-count {
@@ -261,7 +259,7 @@ legend {
   flex-wrap: wrap;
 }
 .progress-count strong {
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--blue-d);
@@ -274,28 +272,37 @@ legend {
   font-size: 0.75rem;
   color: var(--gold-t);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
+/* One tick per daf in the masechet, so the bar reads as a ledger rather than a gauge. */
 .progress-overview progress {
   display: block;
   appearance: none;
   border: 0;
   width: 100%;
-  height: 4px;
-  border-radius: 4px;
+  height: 7px;
   overflow: hidden;
   background: var(--rule);
   color: var(--green-d);
+  -webkit-mask: repeating-linear-gradient(
+    to right,
+    #000 0 calc(100% / var(--units, 1) - 2px),
+    transparent 0 calc(100% / var(--units, 1))
+  );
+  mask: repeating-linear-gradient(
+    to right,
+    #000 0 calc(100% / var(--units, 1) - 2px),
+    transparent 0 calc(100% / var(--units, 1))
+  );
 }
 .progress-overview progress::-webkit-progress-bar {
   background: var(--rule);
 }
 .progress-overview progress::-webkit-progress-value {
   background: var(--green-d);
-  border-radius: 4px;
 }
 .progress-overview progress::-moz-progress-bar {
   background: var(--green-d);
-  border-radius: 4px;
 }
 /* Parent invitation panel. */
 .invite h2 {
@@ -1607,21 +1614,14 @@ textarea {
   margin-top: 26px;
 }
 .lesson-picker-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  display: grid;
+  gap: 14px;
+  margin-bottom: 10px;
 }
 .lesson-picker-heading h2 {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 700;
-}
-.lesson-picker-heading > span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  white-space: nowrap;
 }
 .lesson-grid {
   display: grid;
@@ -1632,9 +1632,9 @@ textarea {
 }
 .lesson-tile {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
   min-height: 72px;
   padding: 12px 2px;
@@ -1671,14 +1671,27 @@ textarea {
   font-size: 0.7rem;
   line-height: 1.3;
 }
-.tile-state i {
-  width: 6px;
-  height: 6px;
+/* The program week leads each row like a calendar date; this week gets the calendar's gold disc. */
+.tile-week {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--gold-t);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  transition:
+    background-color 180ms,
+    color 180ms;
 }
 .lesson-tile.is-current {
   border-bottom-color: var(--gold);
+}
+.lesson-tile.is-current .tile-week {
+  background: var(--gold-l);
+  color: var(--blue-d);
 }
 .lesson-tile.is-current .tile-state:not(:has(svg)) {
   color: var(--gold-t);
@@ -1713,7 +1726,7 @@ textarea {
   cursor: default;
 }
 .lesson-picker-nav > span {
-  min-width: 46px;
+  min-width: 96px;
   text-align: center;
   font-size: 0.75rem;
   color: var(--muted);
@@ -1742,11 +1755,14 @@ textarea {
 }
 @media (max-width: 380px) {
   .lesson-grid {
-    gap: 0 16px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(6, minmax(56px, auto));
+    min-height: 336px;
   }
   .lesson-tile {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px;
+    min-height: 56px;
+    padding-block: 8px;
+    gap: 10px;
   }
   .tile-main strong {
     font-size: 0.95rem;
@@ -1886,7 +1902,7 @@ textarea {
 
 /* Personal pages use one quiet paper composition. */
 .dashboard-intro {
-  margin-block: 32px 24px;
+  margin-block: 32px 14px;
 }
 .dashboard-welcome {
   display: flex;
@@ -1929,17 +1945,24 @@ textarea {
 .dashboard-profile:hover {
   color: var(--blue-d);
 }
+/* The weekly panel is a navy sheet; the tractate tabs sit on its top edge like notebook dividers. */
 .stage-band.dashboard-band {
+  --band-pad: 24px;
+  --tab-height: 44px;
   width: min(1120px, calc(100% - 64px));
   margin-inline: auto;
-  padding: 24px;
+  margin-top: var(--tab-height);
+  padding: var(--band-pad);
+  overflow: visible;
   background-color: var(--blue-d);
-  background-image: radial-gradient(
-    ellipse at 85% 0%,
-    #234e86 0%,
-    #143867 45%,
-    var(--blue-d) 100%
-  );
+  background-image:
+    linear-gradient(to bottom, var(--blue-d) 0, rgb(11 37 80 / 0) 42%),
+    radial-gradient(
+      ellipse at 18% 100%,
+      #234e86 0%,
+      #143867 45%,
+      var(--blue-d) 100%
+    );
   color: var(--surface);
   border: 1px solid #24446e;
   border-radius: 18px;
@@ -1952,45 +1975,76 @@ textarea {
   width: 100%;
 }
 .stage-band.dashboard-band .lesson-top {
-  margin-bottom: 24px;
+  margin: 0;
 }
 .stage-band.dashboard-band .stage-eyebrow {
-  color: #c8d8ed;
-  letter-spacing: 0;
-  font-size: 0.72rem;
-}
-.stage-band.dashboard-band .stage-dot {
   display: none;
 }
 .stage-band.dashboard-band .track-switch {
-  min-width: 240px;
+  position: absolute;
+  top: calc(-1 * (var(--band-pad) + 1px + var(--tab-height)));
+  inset-inline-start: 18px;
+  width: min(calc(100% - 36px), 340px);
+  min-width: 0;
+  height: var(--tab-height);
+  gap: 6px;
   padding: 0;
   border-radius: 0;
   background: transparent;
-  border-bottom: 1px solid #527298;
 }
 .stage-band.dashboard-band .track-thumb {
-  top: auto;
-  bottom: -1px;
+  top: 0;
+  bottom: -2px;
   inset-inline-start: 0;
-  height: 2px;
-  width: 50%;
-  border-radius: 0;
-  background: var(--gold-l);
+  width: calc(50% - 3px);
+  border-radius: 12px 12px 0 0;
+  background: var(--blue-d);
+  border: 1px solid #24446e;
+  border-bottom: 0;
   box-shadow: none;
+  transform: translateX(calc(var(--tab) * (-100% - 6px)));
 }
 .stage-band.dashboard-band .track-switch button {
-  color: #c8d8ed;
+  min-height: var(--tab-height);
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--sunk);
+  color: var(--ink-2);
   font-size: 0.82rem;
-  min-height: 44px;
+  font-weight: 700;
+  transition:
+    color 0.25s,
+    background-color 0.25s,
+    border-color 0.25s;
 }
 .stage-band.dashboard-band .track-switch button[aria-pressed="true"] {
+  background: transparent;
+  border-color: transparent;
   color: var(--surface);
 }
+.stage-band.dashboard-band .track-switch button:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+/* The week line is set between two gold hairlines, the printed sheet's own ornament. */
 .stage-band.dashboard-band .week-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   color: #f1cb76;
   font-size: 0.72rem;
   letter-spacing: 0;
+  white-space: nowrap;
+}
+.stage-band.dashboard-band .week-label::before,
+.stage-band.dashboard-band .week-label::after {
+  content: "";
+  flex: 0 999 56px;
+  height: 1px;
+  background: rgb(241 203 118 / 45%);
 }
 .stage-band.dashboard-band .lesson h2 {
   color: var(--surface);
@@ -2000,7 +2054,7 @@ textarea {
 .stage-band.dashboard-band .lesson-date {
   color: #c8d8ed;
   opacity: 1;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 500;
 }
 .stage-band.dashboard-band .year-progress {
@@ -2012,11 +2066,18 @@ textarea {
   background: none;
   border-radius: 10px;
 }
+/* The published slide is mounted on a thin paper mat, the brand's paper set into the navy. */
 .stage-band.dashboard-band .frame {
-  border: 1px solid #6480a5;
+  padding: 4px;
+  border: 0;
   border-radius: 10px;
+  background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 10 30 / 18%);
   transform: none;
+}
+.stage-band.dashboard-band .frame img,
+.stage-band.dashboard-band .frame-empty {
+  border-radius: 6px;
 }
 .stage-band.dashboard-band .frame-sheen {
   display: none;
@@ -2027,14 +2088,24 @@ textarea {
 }
 .stage-band.dashboard-band .lesson-actions {
   margin-top: 24px;
+  max-width: 420px;
 }
+/* Gold is reserved for the one action that matters on this sheet. */
 .stage-band.dashboard-band .lesson-actions .button {
   color: var(--blue-d);
-  background: var(--surface);
+  background: var(--gold-l);
+  border-color: transparent;
   min-height: 50px;
   border-radius: 10px;
   box-shadow: none;
   font-size: 0.95rem;
+  font-weight: 800;
+}
+.stage-band.dashboard-band .lesson-actions .button:hover {
+  background: #f0c862;
+}
+.stage-band.dashboard-band .lesson-actions .button:focus-visible {
+  outline-color: var(--surface);
 }
 .stage-band.dashboard-band .lesson-resume-note {
   margin: 0;
@@ -2049,21 +2120,13 @@ textarea {
 }
 @media (max-width: 900px) {
   .stage-band.dashboard-band {
+    --band-pad: 20px;
     width: calc(100% - 40px);
-    padding: 20px;
-  }
-  .stage-band.dashboard-band .lesson-top {
-    justify-content: center;
-    gap: 12px;
-  }
-  .stage-band.dashboard-band .stage-eyebrow {
-    display: none;
-  }
-  .stage-band.dashboard-band .track-switch {
-    width: 100%;
   }
   .stage-band.dashboard-band .lesson .showcase {
     order: 0;
+    width: min(100%, 520px);
+    margin-inline: auto;
   }
   .stage-band.dashboard-band .lesson-variant {
     gap: 20px;
