@@ -760,8 +760,13 @@ body.emb .qfab,body.emb .qhint{position:absolute}
 textarea.qz-in{min-height:60px;resize:vertical}
 .qz-arow{display:flex;gap:8px;align-items:center;margin-top:8px}
 .qz-arow .qz-in{margin-top:0}
-.qz-pub{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.84rem;
-  font-weight:700;color:var(--ink-2,#5A6780)}
+.qz-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.qz-btns .qz-opt{flex:1 1 30%;margin-top:0;text-align:center;padding:12px 8px}
+/* מצב השאלה — פרסום לכל שאלה בנפרד (qTagHtml_) */
+.qz-tag{display:inline-block;margin-bottom:10px;padding:4px 11px;border-radius:20px;
+  font-size:.78rem;font-weight:800;background:rgba(27,42,69,.08);color:var(--ink-2,#5A6780)}
+.qz-tag.pub{background:rgba(59,125,87,.14);color:#2F6B47}
+.qz-tag.pend{background:rgba(192,143,43,.18);color:#7A5A12}
 .qz-res{margin-top:12px;padding:11px;border-radius:10px;
   background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
 
@@ -4690,12 +4695,51 @@ function loadQuizMap() {
 }
 function qPiecesFrom_(v) { return (v && v.length !== undefined) ? v : []; }
 function qPieces_(n) { return qPiecesIn_(QOWN, n); }
+/* ============================================================
+   פרסום לכל שאלה בנפרד (8.99.232).
+   ============================================================
+   "שאלה לא מתפרסמת בלי אישור מפורש." כל שאלה היא { pub, draft }:
+   `pub` — הגרסה שהתלמידים רואים (או null), `draft` — טיוטה שנשמרה
+   ועוד לא פורסמה (או null). שמירה, שיבוץ ומילוי מהרשימה כותבים
+   רק `draft`; רק "פרסם" כותב `pub`. אין יותר דגל לכל הדף.
+
+   הצורה הישנה ({q,a,correct} + `__pub` על הדף) עדיין נקראת, בלי
+   לשנות משמעות: בדף שסומן `__pub` היא גרסה שפורסמה, ובלעדיו —
+   טיוטה. בכתיבה הבאה של הדף היא מומרת לצורה החדשה (qNormRec_),
+   ו-`__pub` יורד. שום טיוטה אינה מתפרסמת בדרך. */
+function qItem_(x, recPub) {
+  if (!x || typeof x !== 'object') return { pub:null, draft:null };
+  if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) {
+    return { pub: x.pub || null, draft: x.draft || null };
+  }
+  var v = { q:x.q, a:x.a, correct:x.correct };
+  return recPub ? { pub:v, draft:null } : { pub:null, draft:v };
+}
+function qNormRec_(rec) {
+  if (!rec) return rec;
+  var was = !!rec.__pub;
+  for (var k in rec) {
+    if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0) continue;
+    if (rec[k] && rec[k].length !== undefined) {
+      rec[k] = rec[k].map(function (x) { return qItem_(x, was); });
+    }
+  }
+  delete rec.__pub;
+  return rec;
+}
+/* "טיוטה" (מעולם לא פורסמה) · "פורסם" · "ממתינה" (עריכה מעל גרסה חיה). */
+function qState_(it) {
+  if (!it || !it.pub) return 'draft';
+  return it.draft ? 'pend' : 'pub';
+}
 /* קטע שאוחד נושא את השאלות של שני הקטעים, ברצף — ראו sidKeys_. */
 function qPiecesIn_(rec, n) {
   if (!rec) return [];
-  var out = [];
+  var out = [], was = !!rec.__pub;
   sidKeys_(rec, n).forEach(function (k) { out = out.concat(qPiecesFrom_(rec[k])); });
-  return out;
+  return out.map(function (x) { return qItem_(x, was); }).filter(function (it) {
+    return it.pub || it.draft;
+  });
 }
 /* איזו שאלה מבין שאלות הקטע מוצגת. כמעט תמיד יש אחת; אחרי איחוד
    שני קטעים שלכל אחד שאלה — שתיים, והשנייה באה אחרי התשובה. */
@@ -4705,12 +4749,22 @@ function qIdx_(n, len) {
   if (Q_AT.i >= len) Q_AT.i = 0;
   return Q_AT.i;
 }
-/* מה שבאמת מוצג: לתלמיד רק קטע עם שאלה ורק אחרי שהדף פורסם;
-   לאחיאסף תמיד, כדי שיוכל להוסיף שאלה גם לקטע שעדיין ריק. */
+/* מה שהתלמיד רואה: רק שאלות שפורסמו, ובגרסה שפורסמה. כל הספירות
+   (הכפתור הצף, לשונית החידה) נשענות על זה — גם אצל הרכז. */
 function qVisible_(n) {
-  var list = qPieces_(n);
-  if (SIDE_ADM) return list;
-  return (list.length && QOWN && QOWN.__pub) ? list : [];
+  return qPieces_(n).filter(function (it) { return !!it.pub; })
+    .map(function (it) { return it.pub; });
+}
+/* מה שמצויר בחידה: לתלמיד — qVisible_; לרכז — כל שאלה, בגרסה
+   האחרונה שלו (הטיוטה אם יש), כדי שיראה את מה שהוא עובד עליו. */
+function qList_(n) {
+  if (!SIDE_ADM) return qVisible_(n);
+  return qPieces_(n).map(function (it) { return it.draft || it.pub; });
+}
+function qTagHtml_(it) {
+  var st = qState_(it);
+  return '<div class="qz-tag ' + st + '">' +
+    esc(st === 'pub' ? UI.qsPub || '' : st === 'pend' ? UI.qsPend || '' : UI.qsDraft || '') + '</div>';
 }
 
 /* הלשונית עצמה מצוירת בתוך chavTabHtml (ליד חברותא/פירוש
@@ -4719,7 +4773,7 @@ function paintQuiz() {
   var st = FLAT[IDX], box = $('chb');
   $('chnum').textContent = '';
   if (!st) { box.innerHTML = ''; return; }
-  var n = st.n, list = qPieces_(n);
+  var n = st.n, list = qList_(n);
   if (!list.length) {
     if (!SIDE_ADM) { box.innerHTML = ''; return; }
     qEditOpen_(n);
@@ -4732,6 +4786,7 @@ function paintQuiz() {
   }
   var done = qOk_(n, q), tried = (Q_AT.bad && Q_AT.bad[qi]) || {};
   box.innerHTML =
+    (SIDE_ADM ? qTagHtml_(qPieces_(n)[qi]) : '') +
     (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
       .replace('{i}', qi + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
@@ -4774,7 +4829,7 @@ function qAnswer(n, q, k) {
   try { localStorage.setItem(qOkKey_(n, q), '1'); } catch (e) {}
   toast(UI.qRight || '');
   /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
-  var len = qVisible_(n).length;
+  var len = qList_(n).length;
   if (Q_AT.n === n && Q_AT.i + 1 < len) { Q_AT.i++; Q_AT.bad = null; paintChavArea(); return; }
   Q_AT = { n: n, i: 0 };
   QUIZ_OPEN = false;
@@ -4802,16 +4857,18 @@ function qSend(n, k, right) {
 var Q_EDIT = null;
 function qEditOpen_(n) {
   Q_FROM = null; QB_OPEN = false;
-  var all = qPieces_(n), cur = all[qIdx_(n, all.length)];
+  var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
   Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct }
                : { q:'', a:['', '', '', ''], correct:0 };
   qPaintEdit_(n);
 }
 function qPaintEdit_(n) {
-  var pub = !!(QOWN && QOWN.__pub);
+  var all = qPieces_(n), it = all.length ? all[qIdx_(n, all.length)] : null;
+  var st = qState_(it);
   var box = $('chb');
   box.innerHTML =
     '<div style="font-weight:800;margin-bottom:10px">עריכת שאלה לקטע ' + n + '</div>' +
+    (it ? qTagHtml_(it) : '') +
     qbFillHtml_() +
     '<textarea class="qz-in" id="qe-q" placeholder="נוסח השאלה">' + esc(Q_EDIT.q) + '</textarea>' +
     Q_EDIT.a.map(function (t, k) {
@@ -4821,9 +4878,13 @@ function qPaintEdit_(n) {
         '<input type="text" class="qz-in" id="qe-a' + k + '" value="' + esc(t) +
         '" placeholder="תשובה ' + (k + 1) + '"></div>';
     }).join('') +
-    '<label class="qz-pub"><input type="checkbox" id="qe-pub"' + (pub ? ' checked' : '') + '> ' +
-    'לפרסם את כל החידות של הדף הזה לתלמידים</label>' +
-    '<button class="qz-opt gold" id="qe-save" style="margin-top:14px">שמירה</button>' +
+    /* שלושה כפתורים, לפי המצב: שמירה היא תמיד טיוטה; "פרסם" — כשיש
+       מה לפרסם; "ביטול פרסום" — כשיש גרסה חיה. */
+    '<div class="qz-btns">' +
+    '<button class="qz-opt" id="qe-save">' + esc(UI.qSaveDraft || '') + '</button>' +
+    (st !== 'pub' ? '<button class="qz-opt gold" id="qe-pubq">' + esc(UI.qPublish || '') + '</button>' : '') +
+    (it && it.pub ? '<button class="qz-opt" id="qe-unpub">' + esc(UI.qUnpub || '') + '</button>' : '') +
+    '</div>' +
     (qPieces_(n).length
       ? '<button class="qz-opt" id="qe-del" style="color:#B3261E">מחיקת השאלה מהקטע הזה</button>'
       : '') +
@@ -4834,6 +4895,8 @@ function qPaintEdit_(n) {
   });
   $('qe-q').oninput = function (e) { Q_EDIT.q = e.target.value; };
   $('qe-save').onclick = function () { qEditSave_(n); };
+  if ($('qe-pubq')) $('qe-pubq').onclick = function () { qEditPublish_(n); };
+  if ($('qe-unpub')) $('qe-unpub').onclick = function () { qEditUnpub_(n); };
   var del = $('qe-del');
   if (del) del.onclick = function () { qEditDelete_(n); };
   qbFillBind_(n);
@@ -4874,27 +4937,70 @@ function qEditSave_(n) {
   }
   if (!QOWN) QOWN = {};
   /* רק השאלה שעל המסך מתחלפת. אחרי איחוד יש לקטע יותר משאלה אחת,
-     וכתיבה של שאלה בודדת הייתה מוחקת את האחרת. */
+     וכתיבה של שאלה בודדת הייתה מוחקת את האחרת.
+     **שמירה היא תמיד טיוטה**: הגרסה החיה (`pub`) נשארת כמו שהיא, והתלמידים
+     ממשיכים לראות אותה עד "פרסם". טיוטה זהה לגרסה החיה — אינה טיוטה. */
   var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
-  list[qi] = { q:text, a:answers, correct:Q_EDIT.correct };
+  var v = { q:text, a:answers, correct:Q_EDIT.correct }, old = list[qi];
+  var live = (old && old.pub) || null;
+  list[qi] = { pub: live, draft: (live && JSON.stringify(live) === JSON.stringify(v)) ? null : v };
+  qNormRec_(QOWN);
   sidPut_(QOWN, n, list, true);
-  if ($('qe-pub').checked) QOWN.__pub = '1'; else delete QOWN.__pub;
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();
   qVerify_(0, n, list);
 }
+/* "פרסם": מה שעל המסך נעשה הגרסה החיה, והטיוטה יורדת. רק כאן. */
+function qEditPublish_(n) {
+  var text = (Q_EDIT.q || '').trim();
+  var answers = Q_EDIT.a.map(function (t) { return (t || '').trim(); });
+  var res = $('qz-res');
+  if (!text || answers.some(function (t) { return !t; })) {
+    if (res) res.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
+      'צריך למלא את השאלה וגם את ארבע התשובות.</div>';
+    return;
+  }
+  if (!writeKey_()) {
+    if (res) res.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' + NOKEY_MSG + '</div>';
+    return;
+  }
+  if (!QOWN) QOWN = {};
+  var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
+  list[qi] = { pub: { q:text, a:answers, correct:Q_EDIT.correct }, draft: null };
+  qNormRec_(QOWN);
+  sidPut_(QOWN, n, list, true);
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qVerify_(0, n, list, UI.qPubOk);
+}
+/* "ביטול פרסום": השאלה יורדת מהתלמידים וחוזרת לטיוטה — הטיוטה הממתינה
+   אם יש, ואחרת הגרסה שהייתה חיה. שאר השאלות לא זזות. */
+function qEditUnpub_(n) {
+  if (!QOWN || !writeKey_()) return;
+  var list = qPieces_(n).slice(), qi = qIdx_(n, list.length), it = list[qi];
+  if (!it || !it.pub) return;
+  list[qi] = { pub: null, draft: it.draft || it.pub };
+  qNormRec_(QOWN);
+  sidPut_(QOWN, n, list, true);
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qVerify_(0, n, list, UI.qUnpubOk);
+}
 function qEditDelete_(n) {
   if (!QOWN) return;
   if (!writeKey_()) return;
+  /* מחיקה מוחקת את השאלה כולה — הטיוטה והגרסה החיה. */
+  if (!confirm(UI.qDelSure || '')) return;
   var list = qPieces_(n).slice();
   list.splice(qIdx_(n, list.length), 1);
+  qNormRec_(QOWN);
   sidPut_(QOWN, n, list.length ? list : undefined, true);
   Q_AT = { n: n, i: 0 };
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();
   qVerify_(0, n, list);
 }
-function qVerify_(tries, n, want) {
+function qVerify_(tries, n, want, okMsg) {
   var res = $('qz-res');
   if (res) res.innerHTML = '<div class="qz-res">נשלח · מאמת מול הגיליון…</div>';
   setTimeout(function () {
@@ -4905,22 +5011,22 @@ function qVerify_(tries, n, want) {
       var r2 = $('qz-res');
       if (JSON.stringify(got) === JSON.stringify(want)) {
         QMAP = m; QOWN = mine;
-        toast('נשמר ואומת.');
+        toast(okMsg || 'נשמר ואומת.');
         /* השאלה שנשמרה מולאה מהמאגר — עכשיו, אחרי האימות, מסמנים שם "שובצה". */
         var said = (Q_EDIT && (Q_EDIT.q || '').trim()) || '';
-        if (Q_FROM && want.some(function (w) { return w && w.q === said; })) qbMarkPlaced_(n);
+        if (Q_FROM && want.some(function (w) { return w && ((w.draft || w.pub || {}).q === said); })) qbMarkPlaced_(n);
         /* חוזרים לתצוגת השאלה השמורה — זו ההוכחה שהיא נכתבה,
            ברורה יותר מהודעת טקסט שנעלמת עם הציור הבא. */
         paintChavArea();
         return;
       }
-      if (tries < 4) { qVerify_(tries + 1, n, want); return; }
+      if (tries < 4) { qVerify_(tries + 1, n, want, okMsg); return; }
       if (r2) r2.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
         '<b>לא אומת.</b> ' + (!m ? 'הגיליון לא נענה, או שלשונית "' + Q_TAB + '" לא נוצרה.'
                                    : 'מה שחזר מהגיליון אינו מה שנשלח.') +
         ' אפשר לנסות שוב.</div>';
     }).catch(function () {
-      if (tries < 4) { qVerify_(tries + 1, n, want); return; }
+      if (tries < 4) { qVerify_(tries + 1, n, want, okMsg); return; }
       var r3 = $('qz-res');
       if (r3) r3.innerHTML = '<div class="qz-res" style="background:rgba(179,38,30,.1)">' +
         'לא הצלחתי לקרוא מהגיליון.</div>';
@@ -4969,23 +5075,17 @@ function qbFillHtml_() {
     (Q_FROM ? '<div class="qz-res">' + esc(UI.qbFilled || '') + '</div>' : '') +
     '</div>';
 }
+/* המילוי רק ממלא את השדות. "שמירה" אחריו היא טיוטה — לא פרסום. */
 function qbFill_(n, x) {
   if (!x || !QbFull(x)) return;
-  var pub = $('qe-pub'), was = pub ? pub.checked : null;
   Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct };
   Q_FROM = x.id; QB_OPEN = false;
   qPaintEdit_(n);
-  /* הסימון "לפרסם" שעל המסך נשמר כפי שהיה לפני המילוי */
-  if (was !== null && $('qe-pub')) $('qe-pub').checked = was;
 }
 function qbFillBind_(n) {
   var sel = $('qb-sel'), lst = $('qb-list');
   if (sel) sel.onclick = function () { qbFill_(n, QbFind(QBL, QB_ID)); };
-  if (lst) lst.onclick = function () {
-    var pub = $('qe-pub'), was = pub ? pub.checked : null;
-    QB_OPEN = !QB_OPEN; qPaintEdit_(n);
-    if (was !== null && $('qe-pub')) $('qe-pub').checked = was;
-  };
+  if (lst) lst.onclick = function () { QB_OPEN = !QB_OPEN; qPaintEdit_(n); };
   var bs = $('chb').querySelectorAll('[data-qbi]');
   for (var i = 0; i < bs.length; i++) bs[i].onclick = function () {
     qbFill_(n, QBL[+this.getAttribute('data-qbi')]);
