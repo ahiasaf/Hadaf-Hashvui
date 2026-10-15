@@ -153,7 +153,7 @@ function SidFlat(recs, mas, daf, opt) {
    קטע שייך לעמוד שבו הוא **מתחיל**: קטע שחוצה את מעבר העמוד נשאר
    שלם בשבוע של ע״א. הראש מהדף הקודם פותח את ע״א; הזנב שגולש אל
    הדף הבא שייך ל-ע״ב. `am` 0 — הדף כולו. משותף לדף האינטראקטיבי
-   (amudCut) ולניהול ("החידון מוכן" סופר את שאלות השבוע). */
+   (amudCut) ולניהול ("פרסם הכול" — השאלות של השבוע). */
 function SidAmud(built, daf, am) {
   if (!am) return built;
   var keep = {};
@@ -167,35 +167,42 @@ function SidAmud(built, daf, am) {
            flat: built.flat.filter(function (v) { return keep[v.n]; }) };
 }
 
-/* כמה שאלות פורסמו לקטעים שב-`flat` — מה שהתלמיד רואה בחידון של
-   השבוע. אותם כללים של qItem_/sidKeys_ בדף האינטראקטיבי: { pub, draft }
-   — רק `pub` נספר; צורה ישנה — לפי `__pub` של הדף; רשומה שעברה הסבה
-   (`__ids`) — לפי מזהה הקטע ומה שאוחד לתוכו, אחרת — לפי מספרו. */
-function SidQPub(rec, flat) {
-  if (!rec || typeof rec !== 'object') return 0;
-  var ids = !!rec.__ids, k, n = 0, seen = {};
+/* השאלות של הקטעים שב-`flat` — החידון של השבוע, כמו שהתלמיד רואה אותו.
+   אותם כללים של qItem_/sidKeys_ בדף האינטראקטיבי: { pub, draft };
+   צורה ישנה — לפי `__pub` של הדף; רשומה שעברה הסבה (`__ids`) — לפי
+   מזהה הקטע ומה שאוחד לתוכו, אחרת — לפי מספרו.
+   מחזיר { items: [{ n, key, st: 'pub'|'pend'|'draft', q }], keys } —
+   `keys` הם כל המפתחות של קטעי השבוע ("פרסם הכול" נוגע רק בהם). */
+function SidQItems(rec, flat) {
+  var out = { items: [], keys: [] };
+  rec = (rec && typeof rec === 'object') ? rec : {};
+  var ids = !!rec.__ids, k, seen = {};
   if (!ids) {
     ids = true;
     for (k in rec) if (rec.hasOwnProperty(k) && /^\d+$/.test(k)) { ids = false; break; }
     if (ids) ids = flat.length > 0 && flat.every(function (v) { return !!v.id; });
   }
-  flat.forEach(function (v) {
+  (flat || []).forEach(function (v) {
     if (v.part !== 1) return;
     var ks = ids && v.id ? [v.id].concat(v.also || []) : [String(v.n)];
     ks.forEach(function (key) {
       if (seen[key]) return;
       seen[key] = 1;
+      out.keys.push(key);
       var arr = rec[key];
       if (!arr || arr.length === undefined) return;
       for (var i = 0; i < arr.length; i++) {
-        var x = arr[i];
+        var x = arr[i], it;
         if (!x || typeof x !== 'object') continue;
-        if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) { if (x.pub) n++; }
-        else if (rec.__pub) n++;
+        if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) it = { pub: x.pub || null, draft: x.draft || null };
+        else it = rec.__pub ? { pub: x, draft: null } : { pub: null, draft: x };
+        if (!it.pub && !it.draft) continue;
+        out.items.push({ n: v.n, key: key, st: !it.pub ? 'draft' : it.draft ? 'pend' : 'pub',
+                         q: String((it.draft || it.pub).q || '') });
       }
     });
   });
-  return n;
+  return out;
 }
 
 /* כל המזהים שכבר בשימוש במסכת — כדי שמזהה חדש לא יתנגש. */

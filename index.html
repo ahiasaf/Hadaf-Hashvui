@@ -2895,7 +2895,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.239';
+var APP_VERSION = '8.99.240';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11254,7 +11254,8 @@ function qbSay(bad, t) {
   if (m) m.innerHTML = '<div class="cond' + (bad ? ' qb-bad' : '') + '" style="margin-top:10px">' + esc(t) + '</div>';
 }
 function qbClick(ev) {
-  var b = ev.target.closest && ev.target.closest('button');
+  /* שורת המתג כולה לחיצה — לא רק העיגול. */
+  var b = ev.target.closest && (ev.target.closest('button') || ev.target.closest('[data-qzr]'));
   if (!b || b.disabled) return;
   var g = function (a) { return b.getAttribute(a); };
   if (g('data-qzr')) return qzrClick(g('data-qzr'));
@@ -15900,7 +15901,8 @@ function admDecks(el) {
       '<button class="sw' + (isOpen ? ' on' : '') + '" aria-pressed="' + !!isOpen + '" aria-label="' +
       esc(UI.dkOpenH) + '"' + (opBusy ? ' disabled' : '') + '></button></div>';
     if (!isOpen) {
-      h += '<div class="wantbar" style="margin-top:8px" onclick="opAud=opAud===\'all\'?\'wait\':\'all\';admPane()"><div><b>' +
+      h += opNtfHtml();
+      if (opNtf) h += '<div class="wantbar" style="margin-top:8px" onclick="opAud=opAud===\'all\'?\'wait\':\'all\';admPane()"><div><b>' +
         esc(UI.dkNotifyA) + '</b><span>' + esc(UI.dkNotifyW2) + '</span></div>' +
         '<button class="sw' + (opAud === 'all' ? ' on' : '') + '" aria-pressed="' + (opAud === 'all') + '" aria-label="' +
         esc(UI.dkNotifyA) + '"></button></div>';
@@ -16298,8 +16300,8 @@ function admOpen(el) {
   var map = OpenMap(), h = '';
   h += '<div class="adm-card" style="margin-bottom:11px"><h4>פתיחת דפים</h4>' +
     '<p class="h">דף שנפתח זמין מיד לכל התלמידים — גם לפני השבוע שלו. ' +
-    'דף נעול מציג לתלמיד "' + esc(UI.lockT) + '", ומי שביקש שם התראה ' +
-    'יקבל אותה ברגע שתפתחו את הדף.</p>' +
+    'דף נעול מציג לתלמיד "' + esc(UI.lockT) + '", ושם אפשר לבקש התראה.</p>' +
+    opNtfHtml() +
     (OPENS ? '' : '<p class="h">עדיין לא נפתח דבר מכאן — לכן רק הדף ' +
       'הראשון בכל מסכת פתוח.</p>') +
     (opMsg ? '<p class="h" style="margin-top:9px;color:var(--' +
@@ -16334,10 +16336,13 @@ function opToggle(ti, wi) {
   var t = TRACKS[ti], am = OpenAm(t.cal[wi]), daf = t.cal[wi][2], key = OpenKey(t.id, daf, am);
   var was = OpenIs(t.id, daf, am), nm = daf + LAmMark(am);
   if (!API) { opMsg = 'אין כתובת שרת במכשיר הזה.'; opCls = 'bad'; admPane(); return; }
+  /* הבחירה בהתראה נלקחת עכשיו, וחוזרת מיד לכבוי — הפתיחה הבאה תצטרך
+     בחירה חדשה. ראו opNtf. */
+  var ntf = !was && opNtf, aud = opAud;
   if (!confirm(was
       ? 'לסגור את דף ' + nm + ' במסכת ' + t.masechet + '? תלמידים לא יוכלו להיכנס אליו.'
-      : 'לפתוח את דף ' + nm + ' במסכת ' + t.masechet + '? הוא ייפתח מיד לכל ' +
-        'התלמידים, ומי שביקש התראה יקבל אותה עכשיו.')) return;
+      : fill(ntf ? UI.opAskNtf : UI.opAskQuiet, { daf: nm, mas: t.masechet }))) return;
+  opNtf = false; opAud = 'wait';
 
   var next = {}, k;
   var cur = OpenMap();
@@ -16363,10 +16368,10 @@ function opToggle(ti, wi) {
     cols:JSON.stringify(['מסכת', 'דף', 'נפתח']),
     rows:JSON.stringify(rows)
   }) }).catch(function () {});
-  opVerify(t, daf, am, !was, 0);
+  opVerify(t, daf, am, !was, 0, ntf, aud);
 }
 
-function opVerify(t, daf, am, want, tries) {
+function opVerify(t, daf, am, want, tries, ntf, aud) {
   setTimeout(function () {
     OpenLoad().then(function (got) {
       if (got && OpenIs(t.id, daf, am) === want) {
@@ -16374,9 +16379,9 @@ function opVerify(t, daf, am, want, tries) {
           opBusy = false; opCls = 'ok';
           opMsg = 'דף ' + daf + LAmMark(am) + ' נסגר.'; admPane(); return;
         }
-        opNotify(t, daf, am); return;
+        opNotify(t, daf, am, ntf, aud); return;
       }
-      if (tries < 4) { opVerify(t, daf, am, want, tries + 1); return; }
+      if (tries < 4) { opVerify(t, daf, am, want, tries + 1, ntf, aud); return; }
       opBusy = false; opCls = 'bad';
       opMsg = 'לא הצלחתי לאמת שהשינוי הגיע לגיליון. נסו שוב.';
       admPane();
@@ -16387,7 +16392,21 @@ function opVerify(t, daf, am, want, tries) {
 /* ההתראה — רק למי שביקש אותה על הדף הזה. */
 /* למי ההתראה כשנפתח דף: 'wait' רק מי שביקש · 'all' כל התלמידים. */
 var opAud = 'wait';
-function opNotify(t, daf, am) {
+/* ============================================================
+   "לשלוח התראה כשהדף ייפתח?" — מתג, כבוי בכל פתיחה (8.99.240).
+   ============================================================
+   התראה שיוצאת בעקבות פעולה אחרת דורשת בחירה חדשה בכל פעם: המתג
+   כבוי כברירת מחדל, אינו נזכר (אחרי כל פתיחה — חוזר לכבוי, גם הקהל
+   'all'), וגם כשהוא דלוק — אישור מפורש אחרי שהפתיחה אומתה. כבוי —
+   הדף נפתח, ולא יוצאת שום התראה. */
+var opNtf = false;
+function opNtfHtml() {
+  return '<div class="wantbar" style="margin-top:8px" onclick="opNtf=!opNtf;if(!opNtf)opAud=\'wait\';admPane()"><div><b>' +
+    esc(UI.opNtfQ) + '</b><span>' + esc(UI.opNtfSub) + '</span></div>' +
+    '<button class="sw' + (opNtf ? ' on' : '') + '" aria-pressed="' + opNtf + '" aria-label="' +
+    esc(UI.opNtfQ) + '"' + (opBusy ? ' disabled' : '') + '></button></div>';
+}
+function opNotify(t, daf, am, ntf, aud) {
   var key = (CFG.readKey || '').trim();
   var v = { mas: t.masechet, daf: daf + LAmMark(am) };
   var done = function (txt, cls) {
@@ -16395,9 +16414,10 @@ function opNotify(t, daf, am) {
     opMsg = 'דף ' + v.daf + ' נפתח לכל התלמידים. ' + txt;
     admPane();
   };
+  if (!ntf) { done(UI.openPushOff, 'ok'); return; }
   if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
   /* אישור לפני כל שליחה לתלמידים — הדף כבר נפתח, רק ההתראה מחכה. */
-  var all = opAud === 'all';
+  var all = aud === 'all';
   if (!confirm(all ? UI.openPushAskAll : UI.openPushAsk)) { done(UI.openPushNo, 'ok'); return; }
   scriptGet({ fire:'say', key:key,
               title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
@@ -16411,22 +16431,26 @@ function opNotify(t, daf, am) {
 }
 
 /* ============================================================
-   "החידון מוכן" — הודעה למי שביקש, לכל מסכת ושבוע בנפרד.
+   "פרסם הכול" — החידון של מסכת ושבוע, ואחריו (רק אם נבחר) התראה.
    ============================================================
-   בניהול ← הדף ← שאלות, מתחת לבחירת המסכת. התלמיד ביקש בסוף הלימוד
-   ("רוצה לקבל התראה כשהוא יעלה?" — 'חידון|taanit-3' ב"ממתינים לדף").
-   **שום פרסום או עריכה של שאלה אינם שולחים** — רק הכפתור הזה, ורק
-   אחרי שהרכז ראה נוסח, קישור ומספר, ואישר.
+   בניהול ← הדף ← שאלות, מתחת לבחירת המסכת. (8.99.240 — במקום הכפתור
+   הנפרד "החידון מוכן".)
 
-   · "פורסם" נספר כאן, לפי הקטעים של השבוע — בדף מחולק (ב./ב:) רק
-     העמוד שלו (SidAmud + SidQPub, stepid.js). טיוטה אינה נספרת.
-   · הממתינים, מי כבר קיבל, וההצתה עצמה — בשרת (quizReady_ ב-
-     apps-script.gs), עם READ_KEY, נעילה ומזהה הודעה קבוע לחידון.
-   · התוצאה נקראת מהיומן ("הודעות"), כפי שההרצה ב-GitHub מדווחת:
-     "התקבלה אצל שירות ההתראות" — לא "התלמיד קיבל".
+   · "פרסם" לשאלה בודדת (learn.html) נשאר, ותמיד שקט.
+   · "פרסם הכול" מציג מה יפורסם — רק השבוע שנבחר, ובדף מחולק רק העמוד
+     שלו (SidAmud + SidQItems, stepid.js). מסכתות ושבועות אחרים, ותשובות
+     התלמידים, אינם נוגעים.
+   · מתג "לשלוח התראה על החידון?" — **כבוי בכל פתיחה**, ואינו נזכר.
+     כבוי — פרסום בלי התראה. דלוק — נוסח, קישור, מסכת ושבוע ומספר
+     המכשירים, ואישור מפורש. "ביטול ההתראה" — פרסום בלי התראה.
+   · הפרסום וההתראה — פעולה אחת בשרת (quizPubAll_): ההתראה רק אחרי
+     פרסום שאומת. מזהה פעולה (`op`) — בקשה שחזרה (ניסיון חוזר של
+     pingScript אחרי ניתוק) מקבלת את אותה תשובה, ואינה רצה שוב.
+   · התוצאה כפי שההרצה מדווחת ביומן: "התקבלה אצל שירות ההתראות" —
+     לא "התלמיד קיבל".
    ============================================================ */
-var QZR = { wk:{}, tag:'', busy:false, st:null, pub:null, err:'', pv:false, msg:'', cls:'',
-            sending:false, seq:0, poll:null, polls:0 };
+var QZR = { wk:{}, tag:'', busy:false, st:null, items:null, keys:null, err:'', step:'', ntf:false,
+            msg:'', cls:'', sending:false, seq:0, poll:null, polls:0 };
 var QZ_TAB = 'שאלות בדף';
 /* השבועות של המסכת שיש בהם דף — אותו מפתח כמו בסוף הלימוד (learn.html,
    finish): `<מסכת>-<שבוע>`, השבוע מ-1. */
@@ -16454,48 +16478,72 @@ function qzrUnit() {
   }
   return null;
 }
+/* כל מעבר — המתג חוזר לכבוי. בחירה קודמת אינה נזכרת. */
 function qzrReset() {
-  QZR.tag = ''; QZR.st = null; QZR.pub = null; QZR.err = ''; QZR.pv = false; QZR.msg = ''; QZR.cls = '';
+  QZR.tag = ''; QZR.st = null; QZR.items = null; QZR.keys = null; QZR.err = '';
+  QZR.step = ''; QZR.ntf = false; QZR.msg = ''; QZR.cls = '';
   if (QZR.poll) { clearTimeout(QZR.poll); QZR.poll = null; }
 }
-/* הנוסח וההתראה — מהנוסחים שבניהול (data.js ← "טקסטים"). */
 function qzrVars(u) { return { mas: u.name, daf: u.dafName, n: u.wk + 1, par: String(u.par).trim() }; }
+function qzrTodo() { return (QZR.items || []).filter(function (x) { return x.st !== 'pub'; }); }
+function qzrPubN() { return (QZR.items || []).filter(function (x) { return x.st === 'pub'; }).length; }
 function qzrHtml() {
   var u = qzrUnit();
   if (!u) return '';
+  var v = qzrVars(u), dis = QZR.sending ? ' disabled' : '';
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.qzrT) + '</h4>' +
     '<p class="h">' + esc(UI.qzrSub) + '</p>' +
     '<div class="fld"><label class="label" for="qzr-wk">' + esc(UI.qzrWeekLbl) + '</label>' +
-    '<select id="qzr-wk"' + (QZR.sending ? ' disabled' : '') + '>' + qzrWeeks(u.mas).map(function (w) {
+    '<select id="qzr-wk"' + (QZR.sending || QZR.step ? ' disabled' : '') + '>' + qzrWeeks(u.mas).map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === u.wk ? ' selected' : '') + '>' +
         esc(fill(UI.qzrWeek, { n: w.wk + 1, par: String(w.par).trim(), daf: w.daf + LAmMark(w.am) })) + '</option>';
     }).join('') + '</select></div>';
-  var st = QZR.st;
-  if (QZR.busy && !st) h += '<p class="h">' + esc(UI.qzrLoading) + '</p>';
+  var st = QZR.st, ready = !!(st && QZR.items);
+  if (QZR.busy && !ready) h += '<p class="h">' + esc(UI.qzrLoading) + '</p>';
   else if (QZR.err) h += '<div class="cond" style="margin-bottom:9px">' + esc(QZR.err) + '</div>';
-  if (st && QZR.pub != null) {
-    h += '<p class="h" style="margin:0 0 4px">' + esc(fill(UI.qzrPub, { n: QZR.pub })) + '<br>' +
+  if (ready) {
+    h += '<p class="h" style="margin:0 0 4px">' + esc(fill(UI.qzrPub, { n: qzrPubN() })) + '<br>' +
+      esc(fill(UI.qzrTodoN, { n: qzrTodo().length })) + '<br>' +
       esc(fill(UI.qzrWait, { n: st.n })) +
       (st.prev ? '<br>' + esc(fill(UI.qzrPrev, { n: st.prev })) : '') +
       (st.bad ? '<br>' + esc(fill(UI.qzrBadSub, { n: st.bad })) : '') + '</p>';
     if (st.last) h += '<p class="h" style="margin:0 0 9px">' +
       esc(fill(UI.qzrLast, { when: qzrWhen(st.last.at), res: st.last.res || '—' })) + '</p>';
   }
-  if (QZR.pv && st) {
-    var v = qzrVars(u);
+  if (ready && QZR.step === 'list') {
+    var todo = qzrTodo();
+    h += '<div class="cond" style="margin:6px 0 9px"><b>' + esc(fill(UI.qzrListT, v)) + '</b>' +
+      (todo.length
+        ? '<div style="margin-top:6px">' + todo.map(function (x) {
+            return '<div style="margin:4px 0">' + esc(fill(UI.qzrItem, { n: x.n })) + ' · ' +
+              esc(x.q) + ' <small>(' + esc(x.st === 'pend' ? UI.qzrStPend : UI.qzrStDraft) + ')</small></div>';
+          }).join('') + '</div>'
+        : '<div style="margin-top:6px">' + esc(fill(UI.qzrNothing, { n: qzrPubN() })) + '</div>') +
+      '</div>' +
+      '<div class="wantbar" id="qzr-ntf" data-qzr="ntf" role="button" style="margin-bottom:9px"><div><b>' +
+      esc(UI.qzrNtfQ) + '</b><span>' + esc(UI.qzrNtfSub) + '</span></div>' +
+      '<button class="sw' + (QZR.ntf ? ' on' : '') + '" data-qzr="ntf" aria-pressed="' + QZR.ntf + '" aria-label="' +
+      esc(UI.qzrNtfQ) + '"' + dis + '></button></div>' +
+      (QZR.ntf
+        ? '<button class="btn gd" data-qzr="next"' + dis + '>' + esc(UI.qzrNext) + '</button>'
+        : '<button class="btn gd" data-qzr="quiet"' + (todo.length ? dis : ' disabled') + '>' +
+          esc(QZR.sending ? UI.qzrBusy : UI.qzrPubGo) + '</button>') +
+      '<button class="btn g" style="margin-top:8px" data-qzr="no"' + dis + '>' + esc(UI.qzrCancel) + '</button>';
+  } else if (ready && QZR.step === 'ntf') {
+    var why = qzrWhy(st), todo2 = qzrTodo().length;
     h += '<div class="cond" style="margin:6px 0 9px"><b>' + esc(UI.qzrPvT) + '</b>' +
       '<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--card,#fff);' +
       'border:1px solid var(--line,#ddd)"><b>' + esc(fill(UI.quizReadyT, v)) + '</b><br>' +
       esc(fill(UI.quizReadyB, v)) + '</div>' +
       esc(fill(UI.qzrLink, { where: fill(UI.qzrWhere, v) })) + '<br><b>' +
-      esc(fill(UI.qzrTo, { n: st.fresh })) + '</b></div>' +
-      '<button class="btn gd" data-qzr="go"' + (QZR.sending ? ' disabled' : '') + '>' +
-      esc(QZR.sending ? UI.qzrBusy : UI.qzrGo) + '</button>' +
-      '<button class="btn g" style="margin-top:8px" data-qzr="no"' + (QZR.sending ? ' disabled' : '') + '>' +
-      esc(UI.qzrCancel) + '</button>';
+      esc(why || fill(UI.qzrTo, { n: st.fresh })) + '</b></div>' +
+      (why ? '' : '<button class="btn gd" data-qzr="send"' + dis + '>' +
+        esc(QZR.sending ? UI.qzrBusy : UI.qzrPubSend) + '</button>') +
+      '<button class="btn g" style="margin-top:8px" data-qzr="' + (todo2 ? 'quiet' : 'no') + '"' + dis + '>' +
+      esc(todo2 ? UI.qzrPubOnly : UI.qzrCancel) + '</button>';
   } else {
-    h += '<button class="btn gd" data-qzr="ask"' + (QZR.busy || QZR.sending ? ' disabled' : '') + '>' +
-      esc(UI.qzrT) + '</button>';
+    h += '<button class="btn gd" data-qzr="all"' + (QZR.busy || QZR.sending ? ' disabled' : '') + '>' +
+      esc(UI.qzrAll) + '</button>';
   }
   if (QZR.msg) h += '<p class="h" style="margin-top:9px;color:var(--' +
     (QZR.cls === 'ok' ? 'ok' : QZR.cls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(QZR.msg) + '</p>';
@@ -16519,8 +16567,9 @@ function qzrEnsure() {
   if (QZR.tag !== u.tag) { qzrReset(); QZR.tag = u.tag; qzrLoad(); }
   else qzrPaint();
 }
-/* שאלות שפורסמו לשבוע. null = לא נבדק (קריאה שנכשלה) — וזה אינו אפס. */
-function qzrPubCount(u) {
+/* השאלות של השבוע, כמו שהתלמיד רואה אותן: { items, keys }. קריאה
+   שנכשלה — נזרקת, ואינה "אין שאלות". */
+function qzrItems(u) {
   var key = (CFG.readKey || '').trim();
   var rd = function (tab) {
     return scriptGet({ read: tab, key: key }).then(function (d) {
@@ -16528,32 +16577,24 @@ function qzrPubCount(u) {
       return d.rows;
     });
   };
-  return rd(QZ_TAB).then(function (rows) {
+  return Promise.all([rd(QZ_TAB), rd(MARK_TAB_PUB)]).then(function (r) {
     var rec = null;
-    rows.slice(1).forEach(function (r) {
-      if (String(r[0] || '').trim() !== u.mas || SidDaf(r[1]) !== SidDaf(u.daf)) return;
-      try { rec = JSON.parse(String(r[2] || '')); } catch (e) { rec = null; }
+    r[0].slice(1).forEach(function (row) {
+      if (String(row[0] || '').trim() !== u.mas || SidDaf(row[1]) !== SidDaf(u.daf)) return;
+      try { rec = JSON.parse(String(row[2] || '')); } catch (e) { rec = null; }
     });
-    if (!rec || typeof rec !== 'object') return 0;
-    /* הדף כולו — כל הקטעים שברשומה. */
-    if (!u.am) {
-      var flat = [];
-      Object.keys(rec).forEach(function (k) {
-        if (k.indexOf('__') !== 0) flat.push({ n: k, id: k, part: 1 });
-      });
-      return SidQPub(rec, flat);
-    }
-    /* עמוד אחד — הקטעים שלו, בדיוק כמו שהתלמיד רואה אותם. */
-    return rd(MARK_TAB_PUB).then(function (mr) {
-      var built = SidFlat(SidParse(mr.slice(1)), u.mas, u.daf);
-      if (!built.flat.length) return 0;
-      return SidQPub(rec, SidAmud(built, u.daf, u.am).flat);
+    var built = SidFlat(SidParse(r[1].slice(1)), u.mas, u.daf);
+    var flat = u.am ? SidAmud(built, u.daf, u.am).flat : built.flat;
+    /* דף שלם שאין לו סימונים — כל הקטעים שברשומה. */
+    if (!u.am && !flat.length && rec) Object.keys(rec).forEach(function (k) {
+      if (k.indexOf('__') !== 0) flat.push({ n: k, id: k, part: 1 });
     });
+    return SidQItems(rec, flat);
   });
 }
 function qzrState(u, extra) {
   var p = { quizReady: u.tag, key: (CFG.readKey || '').trim(), daf: u.daf, amud: u.am };
-  for (var k in extra || {}) p[k] = extra[k];
+  if (extra) { delete p.quizReady; for (var k in extra) p[k] = extra[k]; }
   return scriptGet(p).then(function (d) {
     if (d && d.status === 'denied') throw new Error(d.message || 'denied');
     /* שרת ישן עונה בתשובה הכללית, בלי `quiz` — אינו "אין ממתינים". */
@@ -16567,17 +16608,17 @@ function qzrLoad() {
   if (!(CFG.readKey || '').trim()) { QZR.err = UI.qzrNoKey; qzrPaint(); return Promise.resolve(); }
   var my = ++QZR.seq;
   QZR.busy = true; QZR.err = ''; qzrPaint();
-  return Promise.all([qzrState(u), qzrPubCount(u)]).then(function (r) {
+  return Promise.all([qzrState(u), qzrItems(u)]).then(function (r) {
     if (my !== QZR.seq) return;
     QZR.busy = false;
     if (r[0].status !== 'ok') throw new Error(r[0].message || '');
-    QZR.st = r[0]; QZR.pub = r[1];
+    QZR.st = r[0]; QZR.items = r[1].items; QZR.keys = r[1].keys;
     qzrPaint();
     qzrWatch();
   })['catch'](function (e) {
     if (my !== QZR.seq) return;
-    /* קריאה שנכשלה אינה אפס — מה שהיה נשאר, ואין שליחה. */
-    QZR.busy = false; QZR.st = null; QZR.pub = null; QZR.pv = false;
+    /* קריאה שנכשלה אינה אפס — אין פרסום ואין שליחה. */
+    QZR.busy = false; QZR.st = null; QZR.items = null; QZR.step = ''; QZR.ntf = false;
     QZR.err = e && e.old ? UI.qzrOld : UI.qzrFail;
     qzrPaint();
   });
@@ -16596,13 +16637,12 @@ function qzrWatch() {
     qzrState(u).then(function (d) {
       if (QZR.tag !== tag || d.status !== 'ok') return;
       QZR.st = d;
-      if (!d.busy && d.last && (QZR.cls === '' || QZR.msg === UI.qzrQueued)) { QZR.msg = ''; QZR.cls = ''; }
       qzrPaint(); qzrWatch();
     })['catch'](function () { qzrWatch(); });
   }, 10000);
 }
+/* למה אין למי לשלוח. ריק = יש. */
 function qzrWhy(st) {
-  if (QZR.pub === 0) return UI.qzrNoPub;
   if (!st.n) return UI.qzrNoWait;
   if (st.busy) return UI.qzrInflight;
   if (!st.fresh) return UI.qzrAllGot;
@@ -16610,53 +16650,65 @@ function qzrWhy(st) {
 }
 function qzrClick(what) {
   if (QZR.sending) return;
-  if (what === 'no') { QZR.pv = false; QZR.msg = UI.qzrCanceled; QZR.cls = ''; return qzrPaint(); }
-  if (what === 'ask') {
-    QZR.pv = false; QZR.msg = ''; QZR.cls = '';
-    /* תמיד מספרים טריים לפני התצוגה — מה שמוצג הוא מה שיאושר. */
+  if (what === 'no') {
+    QZR.step = ''; QZR.ntf = false; QZR.msg = UI.qzrCanceled; QZR.cls = ''; return qzrPaint();
+  }
+  if (what === 'ntf') { QZR.ntf = !QZR.ntf; return qzrPaint(); }
+  if (what === 'all') {
+    /* כל פתיחה — מספרים טריים, והמתג כבוי. */
+    QZR.step = ''; QZR.ntf = false; QZR.msg = ''; QZR.cls = '';
     return qzrLoad().then(function () {
-      if (!QZR.st || QZR.pub == null) return;
-      var why = qzrWhy(QZR.st);
-      if (why) { QZR.msg = why; QZR.cls = QZR.st.busy ? '' : 'bad'; }
-      else QZR.pv = true;
-      qzrPaint();
+      if (!QZR.st || !QZR.items) return;
+      if (!QZR.items.length) { QZR.msg = UI.qzrNoQ; QZR.cls = 'bad'; return qzrPaint(); }
+      QZR.step = 'list'; qzrPaint();
     });
   }
-  if (what === 'go') return qzrGo();
-}
-function qzrGo() {
-  var u = qzrUnit(), st = QZR.st;
-  if (!u || !st || !QZR.pv || QZR.sending) return;
-  var v = qzrVars(u);
-  QZR.sending = true; QZR.msg = ''; qzrPaint();
-  var end = function (msg, cls, d) {
-    QZR.sending = false; QZR.pv = false; QZR.msg = msg; QZR.cls = cls;
-    if (d && d.quiz) QZR.st = d;
-    qzrPaint(); qzrWatch();
-  };
-  qzrState(u, { go: 1, exp: st.fresh, title: fill(UI.quizReadyT, v), body: fill(UI.quizReadyB, v) })
-    .then(function (d) {
-      if (d.status === 'ok' && d.sent) { QZR.polls = 0; return end(UI.qzrQueued, 'ok', d); }
-      if (d.status === 'refused') {
-        if (d.why === 'changed') {
-          /* הקהל השתנה — מציגים את המספר החדש לאישור, ולא שולחים. */
-          QZR.sending = false; QZR.st = d; QZR.pv = true; QZR.msg = UI.qzrChanged; QZR.cls = 'bad';
-          return qzrPaint();
-        }
-        var w = { nopub: UI.qzrNoPub, nowait: UI.qzrNoWait, allgot: UI.qzrAllGot, busy: UI.qzrInflight }[d.why];
-        return end(w || fill(UI.qzrErr, { why: d.why || '' }), d.why === 'busy' ? '' : 'bad', d);
-      }
-      end(fill(UI.qzrErr, { why: d.message || '' }), 'bad', null);
+  if (what === 'next') {
+    /* ההתראה — מספרים טריים לפני התצוגה: מה שמוצג הוא מה שיאושר. */
+    var u = qzrUnit();
+    if (!u) return;
+    QZR.sending = true; qzrPaint();
+    return qzrState(u).then(function (d) {
+      QZR.sending = false;
+      if (d.status === 'ok') QZR.st = d;
+      QZR.step = 'ntf'; qzrPaint();
     })['catch'](function () {
-      /* אין תשובה — אולי יצאה, אולי לא. בודקים מול הגיליון, ולא מנחשים. */
-      QZR.sending = false; QZR.pv = false;
-      QZR.msg = UI.qzrUnknown; QZR.cls = 'bad';
-      qzrPaint();
-      setTimeout(function () {
-        qzrState(u).then(function (d) { if (d.status === 'ok') { QZR.st = d; QZR.polls = 0; qzrPaint(); qzrWatch(); } })
-          ['catch'](function () {});
-      }, 4000);
+      QZR.sending = false; QZR.msg = UI.qzrFail; QZR.cls = 'bad'; qzrPaint();
     });
+  }
+  if (what === 'quiet') return qzrRun(false);
+  if (what === 'send') return qzrRun(true);
+}
+function qzrRun(notify) {
+  var u = qzrUnit(), st = QZR.st;
+  if (!u || !st || !QZR.items || QZR.sending) return;
+  var v = qzrVars(u), todo = qzrTodo().length;
+  var p = { quizPubAll: u.tag, key: (CFG.readKey || '').trim(), daf: u.daf, amud: u.am,
+            keys: (QZR.keys || []).join(','), pexp: todo,
+            op: 'o' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) };
+  if (notify) { p.notify = 1; p.exp = st.fresh; p.title = fill(UI.quizReadyT, v); p.body = fill(UI.quizReadyB, v); }
+  QZR.sending = true; QZR.msg = ''; qzrPaint();
+  var end = function (msg, cls) {
+    /* הפעולה נגמרה — המתג חוזר לכבוי, והבחירה הבאה תהיה חדשה. */
+    QZR.sending = false; QZR.step = ''; QZR.ntf = false; QZR.msg = msg; QZR.cls = cls;
+    qzrPaint();
+    var keep = QZR.msg, kc = QZR.cls;
+    qzrLoad().then(function () { QZR.msg = keep; QZR.cls = kc; QZR.polls = 0; qzrPaint(); });
+  };
+  qzrState(u, p).then(function (d) {
+    if (d.status === 'refused' && d.why === 'pchanged') return end(UI.qzrPChanged, 'bad');
+    if (d.status !== 'ok') return end(fill(UI.qzrPubErr, { why: d.message || '' }), 'bad');
+    var a = d.published ? fill(UI.qzrPubOk, { n: d.published }) : UI.qzrPubNone;
+    if (!notify) return end(a + ' ' + UI.qzrQuiet, 'ok');
+    var n = d.notify || {};
+    if (n.status === 'ok' && n.sent) return end(a + ' ' + UI.qzrQueued, 'ok');
+    var w = { nowait: UI.qzrNoWait, allgot: UI.qzrAllGot, busy: UI.qzrInflight, changed: UI.qzrChanged,
+              nopub: UI.qzrNoPub }[n.why] || n.message || '';
+    end(a + ' ' + fill(UI.qzrNtfNo, { why: w }), 'bad');
+  })['catch'](function () {
+    /* אין תשובה — אולי נעשה, אולי לא. בודקים מול הגיליון, ולא מנחשים. */
+    end(UI.qzrUnknown, 'bad');
+  });
 }
 
 /* ============================================================

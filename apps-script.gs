@@ -1169,13 +1169,15 @@ function doGet(e) {
     }
   }
 
-  /* "החידון מוכן" — הודעה למי שביקש, לחידון אחד. לרכז בלבד. ראו quizReady_. */
-  if (e && e.parameter && e.parameter.quizReady) {
+  /* החידון של מסכת ושבוע: מצב (quizReady), ו"פרסם הכול" — ואחריו, רק אם
+     אושרה, התראה למי שביקש (quizPubAll). לרכז בלבד. ראו quizPubAll_. */
+  if (e && e.parameter && (e.parameter.quizReady || e.parameter.quizPubAll)) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status:'denied', message:'אין הרשאה' });
     }
-    try { return reply_(e, quizReady_(e.parameter)); }
-    catch (errQ) { return reply_(e, { status:'error', message: String(errQ) }); }
+    try {
+      return reply_(e, e.parameter.quizPubAll ? quizPubAll_(e.parameter) : quizReady_(e.parameter));
+    } catch (errQ) { return reply_(e, { status:'error', quiz: 1, message: String(errQ) }); }
   }
 
   if (e && e.parameter && e.parameter.fire === 'say') {
@@ -5634,65 +5636,136 @@ function sayRow_(sid) {
 }
 
 /* ============================================================
-   "החידון מוכן" — הודעה למי שביקש, לחידון של מסכת ושבוע אחד.
+   "פרסם הכול" לחידון של מסכת ושבוע — ואחריו, רק אם נבחר ואושר,
+   התראה למי שביקש. (8.99.240 — במקום הכפתור הנפרד "החידון מוכן".)
    ============================================================
    התלמיד מבקש בסוף הלימוד (learn.html, ntBox) — שורה ב"ממתינים
-   לדף" עם `דף` = 'חידון|taanit-3'. הרכז לוחץ בניהול, רואה נוסח,
-   קישור ומספר, ומאשר. שום פרסום או עריכה של שאלה אינם שולחים.
+   לדף" עם `דף` = 'חידון|taanit-3'.
 
-   ?quizReady=taanit-3&daf=ב&amud=1        — מצב בלבד (מספרים)
-   ...&go=1&title=&body=&exp=<כמה הוצגו>   — שליחה
+   ?quizReady=taanit-3&daf=ב&amud=1           — מצב בלבד (מספרים). אינו שולח.
+   ?quizPubAll=taanit-3&daf=&amud=&keys=&pexp=  — פרסום הקטעים של השבוע
+     ...&notify=1&exp=&title=&body=           — ואחריו התראה, רק אם אושרה
 
-   · **ההרשאה כאן**: READ_KEY, בשער שב-doGet. ההרחבה של `wait`
-     ב-fire=say לא נגעה — שם עדיין רק מפתח של דף.
-   · **מזהה הודעה קבוע לחידון** (`qz-taanit-3`). push-send.js מדלג
-     לפיו על כל מכשיר שכבר קיבל ("מסירות"), ולכן לחיצה כפולה,
-     ניסיון חוזר אחרי ניתוק או שליחה נוספת בשבוע הבא — אינם
-     מגיעים פעמיים לאותו מכשיר.
-   · **נעילה + "כבר בשליחה"**: שתי בקשות במקביל אינן מציתות שתי
-     הרצות. הרצה שלא דיווחה תוך חצי שעה — מתה, ומותר שוב.
-   · **הקהל שאושר הוא הקהל שנשלח**: `exp` הוא המספר שהרכז ראה. השתנה
-     בינתיים — לא שולחים, והמסך מציג את המספר החדש לאישור.
-   · **אין שאלה שפורסמה בדף — לא שולחים.** הבדיקה המדויקת (לפי עמוד,
-     בדף מחולק) נעשית בניהול; כאן — רשת ביטחון לפי הדף כולו.
+   · **זו הדרך היחידה להתראת חידון.** פרסום של שאלה בודדת (learn.html)
+     אינו מגיע לכאן כלל, ו-`wait` ב-fire=say עדיין מקבל רק מפתח של דף.
+   · **הפרסום**: רק הקטעים שנשלחו (`keys` — של השבוע, ובדף מחולק — של
+     העמוד), ורק בשורה של המסכת והדף. טיוטה (`draft`) נעשית הגרסה
+     החיה. `pexp` — כמה שאלות הרכז ראה; השתנה — לא מפרסמים. אחרי
+     הכתיבה קוראים שוב ומאמתים.
+   · **ההתראה — רק אחרי פרסום שאומת**, בתוך אותה נעילה. מזהה הודעה
+     קבוע לחידון (`qz-taanit-3`): push-send.js מדלג על מי שכבר קיבל
+     ("מסירות"), ולכן לחיצה כפולה וניסיון חוזר אחרי ניתוק אינם מגיעים
+     פעמיים. "כבר בשליחה" (יומן "הודעות", עד 30 דק') — לא מציתים שוב.
+     `exp` — המספר שאושר; השתנה — לא שולחים (הפרסום כבר נעשה).
    ============================================================ */
 var QZ_WAIT_ = 'חידון|';
-function quizReady_(P) {
-  var q = String(P.quizReady || ''), m = /^([a-z]+)-(\d{1,2})$/.exec(q);
+/* שדות הבקשה. null = לא תקינה. */
+function quizArgs_(q, P) {
+  var m = /^([a-z]+)-(\d{1,2})$/.exec(String(q || ''));
   var dafRaw = String(P.daf || '').trim(), am = String(P.amud || '0');
   var dk = dafRaw.replace(/["'׳״\s]/g, '');
   if (!m || !/^[\u05D0-\u05EA]{1,4}$/.test(dk) || !/^["'׳״\u05D0-\u05EA]{1,7}$/.test(dafRaw) ||
-      !/^[012]$/.test(am)) {
-    return { status:'error', quiz: 1, message:'בקשה לא תקינה' };
-  }
-  var wait = QZ_WAIT_ + q, mid = 'qz-' + q;
-  var st = quizState_(wait, mid, m[1], dk);
-  if (!P.go) return st;
-  var no = function (why) { st.status = 'refused'; st.why = why; return st; };
+      !/^[012]$/.test(am)) return null;
+  return { q: String(q), mas: m[1], dafRaw: dafRaw, dk: dk, am: am,
+           wait: QZ_WAIT_ + q, mid: 'qz-' + q };
+}
+function quizReady_(P) {
+  var a = quizArgs_(P.quizReady, P);
+  if (!a) return { status:'error', quiz: 1, message:'בקשה לא תקינה' };
+  return quizState_(a.wait, a.mid, a.mas, a.dk);
+}
+function quizPubAll_(P) {
+  var a = quizArgs_(P.quizPubAll, P);
+  if (!a) return { status:'error', quiz: 1, message:'בקשה לא תקינה' };
+  var keys = [], seen = {};
+  String(P.keys || '').split(',').forEach(function (k) {
+    k = k.trim();
+    if (/^[A-Za-z0-9]{1,16}$/.test(k) && !seen[k]) { seen[k] = 1; keys.push(k); }
+  });
+  var pexp = parseInt(P.pexp, 10);
+  if (!keys.length || !(pexp >= 0)) return { status:'error', quiz: 1, message:'בקשה לא תקינה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status:'error', quiz: 1, message:'השרת עסוק — נסו שוב בעוד רגע' };
+  /* אותה פעולה שחזרה (ניסיון חוזר אחרי ניתוק) — אותה תשובה, בלי לרוץ שוב.
+     בתוך הנעילה: שתי הבקשות אינן יכולות לעבור את הבדיקה יחד. */
+  var op = /^[A-Za-z0-9]{6,40}$/.test(String(P.op || '')) ? 'qzop:' + P.op : '';
+  var cache = null;
+  try { cache = op ? CacheService.getScriptCache() : null; } catch (eC) { cache = null; }
+  var keep = function (o) {
+    try { if (cache) cache.put(op, JSON.stringify(o), 6 * 3600); } catch (eP) {}
+    return o;
+  };
+  try {
+    if (cache) {
+      var hit = cache.get(op);
+      if (hit) { var o0 = JSON.parse(hit); o0.again = 1; return o0; }
+    }
+    var sh = sheet_('שאלות בדף'), at = -1, rec = null;
+    var v = sh.getLastRow() >= 2 ? sh.getDataRange().getValues() : [];
+    for (var r = 1; r < v.length; r++) {
+      if (String(v[r][0]).trim() === a.mas && String(v[r][1]).replace(/["'׳״\s]/g, '') === a.dk) { at = r; break; }
+    }
+    if (at >= 0) {
+      try { rec = JSON.parse(String(v[at][2] || '')); } catch (eJ) { rec = null; }
+      if (!rec || typeof rec !== 'object') return { status:'error', quiz: 1, message:'רשומת השאלות של הדף פגומה' };
+    }
+    /* מה יפורסם — אותו כלל של qItem_ בדף האינטראקטיבי. */
+    var todo = 0;
+    if (rec) keys.forEach(function (k) {
+      var arr = rec[k];
+      if (!arr || arr.length === undefined) return;
+      for (var i = 0; i < arr.length; i++) {
+        var x = arr[i];
+        if (!x || typeof x !== 'object') continue;
+        if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) { if (x.draft) todo++; }
+        else if (!rec.__pub) todo++;
+      }
+    });
+    if (todo !== pexp) return keep({ status:'refused', quiz: 1, why:'pchanged', todo: todo });
+    if (todo) {
+      keys.forEach(function (k) {
+        var arr = rec[k];
+        if (!arr || arr.length === undefined) return;
+        rec[k] = arr.map(function (x) {
+          if (!x || typeof x !== 'object') return x;
+          if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) {
+            return x.draft ? { pub: x.draft, draft: null } : x;
+          }
+          return rec.__pub ? x : { pub: { q: x.q, a: x.a, correct: x.correct }, draft: null };
+        });
+      });
+      var txt = JSON.stringify(rec);
+      sh.getRange(at + 1, 3).setValue(txt);
+      SpreadsheetApp.flush();
+      /* אימות: מה שבגיליון הוא מה שנכתב. לא — לא ממשיכים להתראה. */
+      if (String(sh.getRange(at + 1, 3).getValues()[0][0]) !== txt) {
+        return { status:'error', quiz: 1, message:'הפרסום לא אומת מול הגיליון' };
+      }
+    }
+    var out = { status:'ok', quiz: 1, published: todo };
+    if (String(P.notify || '') === '1') out.notify = quizSend_(P, a);
+    out.st = quizState_(a.wait, a.mid, a.mas, a.dk);
+    return keep(out);
+  } finally { lock.releaseLock(); }
+}
+/* ההתראה עצמה. נקרא רק מתוך quizPubAll_, אחרי פרסום שאומת, בתוך הנעילה. */
+function quizSend_(P, a) {
+  var st = quizState_(a.wait, a.mid, a.mas, a.dk);
+  var no = function (why) { return { status:'refused', why: why, fresh: st.fresh, n: st.n }; };
   if (!st.pub) return no('nopub');
   if (!st.n) return no('nowait');
   if (st.busy) return no('busy');
   if (!st.fresh) return no('allgot');
+  if (String(P.exp || '') !== String(st.fresh)) return no('changed');
   var title = String(P.title || '').trim().slice(0, 120);
   var body = String(P.body || '').trim().slice(0, 400);
-  if (!title || !body) return { status:'error', quiz: 1, message:'חסר נוסח' };
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) return { status:'error', quiz: 1, message:'השרת עסוק — נסו שוב בעוד רגע' };
-  try {
-    /* שוב, בתוך הנעילה: אולי בקשה מקבילה כבר הציתה. */
-    st = quizState_(wait, mid, m[1], dk);
-    if (st.busy) return no('busy');
-    if (!st.fresh) return no('allgot');
-    if (String(P.exp || '') !== String(st.fresh)) return no('changed');
-    /* הקישור נבנה כאן, מהשדות שנבדקו — לא מכתובת שהלקוח שלח. */
-    var link = 'learn?mas=' + m[1] + '&daf=' + encodeURIComponent(dafRaw) +
-               (am !== '0' ? '&amud=' + am : '') + '&quiz=1';
-    var r = ghFire_(title, body, '', '', '', 'רכז · החידון מוכן', link, '', wait, '', false, mid);
-    if (r.status !== 'ok') return { status:'error', quiz: 1, message: r.message || 'השליחה לא הוצתה' };
-    st = quizState_(wait, mid, m[1], dk);
-    st.status = 'ok'; st.sent = 1; st.sid = r.sid;
-    return st;
-  } finally { lock.releaseLock(); }
+  if (!title || !body) return { status:'error', message:'חסר נוסח' };
+  /* הקישור נבנה כאן, מהשדות שנבדקו — לא מכתובת שהלקוח שלח. */
+  var link = 'learn?mas=' + a.mas + '&daf=' + encodeURIComponent(a.dafRaw) +
+             (a.am !== '0' ? '&amud=' + a.am : '') + '&quiz=1';
+  var r = ghFire_(title, body, '', '', '', 'רכז · החידון מוכן', link, '', a.wait, '', false, a.mid);
+  if (r.status !== 'ok') return { status:'error', message: r.message || 'השליחה לא הוצתה' };
+  return { status:'ok', sent: 1, sid: r.sid, fresh: st.fresh };
 }
 /* המספרים: פורסם? כמה ביקשו (מכשירים ייחודיים), כמה כבר קיבלו,
    ומה קרה בשליחה האחרונה. אותם כללים של loadSubs/loadDone ב-push-send.js. */
