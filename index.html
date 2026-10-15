@@ -2895,7 +2895,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.236';
+var APP_VERSION = '8.99.237';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11226,6 +11226,7 @@ function qbPaint() {
         ' aria-pressed="' + (t.id === mas) + '">' + esc(t.masechet) +
         (QB ? '<small>' + (per[t.id] || 0) + '</small>' : '') + '</button>';
     }).join('') + '</div>' +
+    '<div id="qzr">' + qzrHtml() + '</div>' +
     '<div class="qb-n">' + QB_ST.map(function (st, i) {
       return '<button class="' + ('qb-k s' + i + (QB_F.st === st ? ' on' : '')) + '" data-qbf="' + st + '"' +
         ' aria-pressed="' + (QB_F.st === st) + '"><b>' + n[st] + '</b><span>' + esc(qbStLbl(st)) + '</span></button>';
@@ -11246,6 +11247,7 @@ function qbPaint() {
   el.onclick = qbClick;
   el.oninput = qbInput;
   el.onchange = qbChange;
+  qzrEnsure();
 }
 function qbSay(bad, t) {
   var m = document.getElementById('qb-msg');
@@ -11255,6 +11257,7 @@ function qbClick(ev) {
   var b = ev.target.closest && ev.target.closest('button');
   if (!b || b.disabled) return;
   var g = function (a) { return b.getAttribute(a); };
+  if (g('data-qzr')) return qzrClick(g('data-qzr'));
   if (g('data-qbf') != null) { QB_F.st = QB_F.st === g('data-qbf') ? '' : g('data-qbf'); return qbPaint(); }
   if (g('data-qbm')) { qbMasSet(g('data-qbm')); return qbPaint(); }
   if (g('data-qbnew')) {
@@ -11290,6 +11293,7 @@ function qbInput(ev) {
 function qbChange(ev) {
   var t = ev.target;
   if (t.id === 'qb-md') { QB_F.md = t.value; return qbPaint(); }
+  if (t.id === 'qzr-wk') { QZR.wk[qbMas()] = +t.value; qzrReset(); return qzrEnsure(); }
   if (!QB_ED) return;
   if (t.getAttribute('data-qbc') != null) { QB_ED.correct = +t.getAttribute('data-qbc'); return qbPaint(); }
   var k = t.getAttribute('data-qbk');
@@ -16404,6 +16408,255 @@ function opNotify(t, daf, am) {
       if (d && d.status === 'ok') done('התקבל לשליחה. התוצאה — ב"מה קורה ← שליחה".', 'ok');
       else done('ההתראה לא יצאה: ' + ((d && d.message) || 'אין תשובה מהסקריפט.'), 'bad');
     })['catch'](function () { done('ההתראה לא יצאה: אין תשובה מהסקריפט.', 'bad'); });
+}
+
+/* ============================================================
+   "החידון מוכן" — הודעה למי שביקש, לכל מסכת ושבוע בנפרד.
+   ============================================================
+   בניהול ← הדף ← שאלות, מתחת לבחירת המסכת. התלמיד ביקש בסוף הלימוד
+   ("רוצה לקבל התראה כשהוא יעלה?" — 'חידון|taanit-3' ב"ממתינים לדף").
+   **שום פרסום או עריכה של שאלה אינם שולחים** — רק הכפתור הזה, ורק
+   אחרי שהרכז ראה נוסח, קישור ומספר, ואישר.
+
+   · "פורסם" נספר כאן, לפי הקטעים של השבוע — בדף מחולק (ב./ב:) רק
+     העמוד שלו (SidAmud + SidQPub, stepid.js). טיוטה אינה נספרת.
+   · הממתינים, מי כבר קיבל, וההצתה עצמה — בשרת (quizReady_ ב-
+     apps-script.gs), עם READ_KEY, נעילה ומזהה הודעה קבוע לחידון.
+   · התוצאה נקראת מהיומן ("הודעות"), כפי שההרצה ב-GitHub מדווחת:
+     "התקבלה אצל שירות ההתראות" — לא "התלמיד קיבל".
+   ============================================================ */
+var QZR = { wk:{}, tag:'', busy:false, st:null, pub:null, err:'', pv:false, msg:'', cls:'',
+            sending:false, seq:0, poll:null, polls:0 };
+var QZ_TAB = 'שאלות בדף';
+/* השבועות של המסכת שיש בהם דף — אותו מפתח כמו בסוף הלימוד (learn.html,
+   finish): `<מסכת>-<שבוע>`, השבוע מ-1. */
+function qzrWeeks(mas) {
+  var tr = trackById(mas), out = [];
+  ((tr && tr.cal) || []).forEach(function (w, i) {
+    if (w && w[2] && w[2] !== 'סיום') out.push({ wk: i, daf: w[2], am: LAmOf(w), par: w[1] || '' });
+  });
+  return out;
+}
+function qzrUnit() {
+  var mas = qbMas(), list = qzrWeeks(mas);
+  if (!list.length) return null;
+  if (QZR.wk[mas] === undefined) {
+    var now = Math.max(0, weekIndex()), best = list[0].wk;
+    list.forEach(function (u) { if (u.wk <= now) best = u.wk; });
+    QZR.wk[mas] = best;
+  }
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].wk === QZR.wk[mas]) {
+      var u = list[i];
+      return { mas: mas, wk: u.wk, daf: u.daf, am: u.am, par: u.par, tag: mas + '-' + (u.wk + 1),
+               name: (trackById(mas) || {}).masechet || mas, dafName: u.daf + LAmMark(u.am) };
+    }
+  }
+  return null;
+}
+function qzrReset() {
+  QZR.tag = ''; QZR.st = null; QZR.pub = null; QZR.err = ''; QZR.pv = false; QZR.msg = ''; QZR.cls = '';
+  if (QZR.poll) { clearTimeout(QZR.poll); QZR.poll = null; }
+}
+/* הנוסח וההתראה — מהנוסחים שבניהול (data.js ← "טקסטים"). */
+function qzrVars(u) { return { mas: u.name, daf: u.dafName, n: u.wk + 1, par: String(u.par).trim() }; }
+function qzrHtml() {
+  var u = qzrUnit();
+  if (!u) return '';
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.qzrT) + '</h4>' +
+    '<p class="h">' + esc(UI.qzrSub) + '</p>' +
+    '<div class="fld"><label class="label" for="qzr-wk">' + esc(UI.qzrWeekLbl) + '</label>' +
+    '<select id="qzr-wk"' + (QZR.sending ? ' disabled' : '') + '>' + qzrWeeks(u.mas).map(function (w) {
+      return '<option value="' + w.wk + '"' + (w.wk === u.wk ? ' selected' : '') + '>' +
+        esc(fill(UI.qzrWeek, { n: w.wk + 1, par: String(w.par).trim(), daf: w.daf + LAmMark(w.am) })) + '</option>';
+    }).join('') + '</select></div>';
+  var st = QZR.st;
+  if (QZR.busy && !st) h += '<p class="h">' + esc(UI.qzrLoading) + '</p>';
+  else if (QZR.err) h += '<div class="cond" style="margin-bottom:9px">' + esc(QZR.err) + '</div>';
+  if (st && QZR.pub != null) {
+    h += '<p class="h" style="margin:0 0 4px">' + esc(fill(UI.qzrPub, { n: QZR.pub })) + '<br>' +
+      esc(fill(UI.qzrWait, { n: st.n })) +
+      (st.prev ? '<br>' + esc(fill(UI.qzrPrev, { n: st.prev })) : '') +
+      (st.bad ? '<br>' + esc(fill(UI.qzrBadSub, { n: st.bad })) : '') + '</p>';
+    if (st.last) h += '<p class="h" style="margin:0 0 9px">' +
+      esc(fill(UI.qzrLast, { when: qzrWhen(st.last.at), res: st.last.res || '—' })) + '</p>';
+  }
+  if (QZR.pv && st) {
+    var v = qzrVars(u);
+    h += '<div class="cond" style="margin:6px 0 9px"><b>' + esc(UI.qzrPvT) + '</b>' +
+      '<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--card,#fff);' +
+      'border:1px solid var(--line,#ddd)"><b>' + esc(fill(UI.quizReadyT, v)) + '</b><br>' +
+      esc(fill(UI.quizReadyB, v)) + '</div>' +
+      esc(fill(UI.qzrLink, { where: fill(UI.qzrWhere, v) })) + '<br><b>' +
+      esc(fill(UI.qzrTo, { n: st.fresh })) + '</b></div>' +
+      '<button class="btn gd" data-qzr="go"' + (QZR.sending ? ' disabled' : '') + '>' +
+      esc(QZR.sending ? UI.qzrBusy : UI.qzrGo) + '</button>' +
+      '<button class="btn g" style="margin-top:8px" data-qzr="no"' + (QZR.sending ? ' disabled' : '') + '>' +
+      esc(UI.qzrCancel) + '</button>';
+  } else {
+    h += '<button class="btn gd" data-qzr="ask"' + (QZR.busy || QZR.sending ? ' disabled' : '') + '>' +
+      esc(UI.qzrT) + '</button>';
+  }
+  if (QZR.msg) h += '<p class="h" style="margin-top:9px;color:var(--' +
+    (QZR.cls === 'ok' ? 'ok' : QZR.cls === 'bad' ? 'stop' : 'ink-2') + ')">' + esc(QZR.msg) + '</p>';
+  if (st && st.last) h += '<p class="h" style="margin-top:6px">' + esc(UI.qzrNote) + '</p>';
+  return h + '</div>';
+}
+function qzrWhen(iso) {
+  var d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d.getTime())) return '—';
+  return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + ('0' + d.getHours()).slice(-2) + ':' +
+         ('0' + d.getMinutes()).slice(-2);
+}
+function qzrPaint() {
+  var el = document.getElementById('qzr');
+  if (el) el.innerHTML = qzrHtml();
+}
+/* טוען פעם אחת לכל מסכת+שבוע שעל המסך. */
+function qzrEnsure() {
+  var u = qzrUnit();
+  if (!u || !document.getElementById('qzr')) return;
+  if (QZR.tag !== u.tag) { qzrReset(); QZR.tag = u.tag; qzrLoad(); }
+  else qzrPaint();
+}
+/* שאלות שפורסמו לשבוע. null = לא נבדק (קריאה שנכשלה) — וזה אינו אפס. */
+function qzrPubCount(u) {
+  var key = (CFG.readKey || '').trim();
+  var rd = function (tab) {
+    return scriptGet({ read: tab, key: key }).then(function (d) {
+      if (!d || d.status !== 'ok' || !d.rows) throw new Error(tab);
+      return d.rows;
+    });
+  };
+  return rd(QZ_TAB).then(function (rows) {
+    var rec = null;
+    rows.slice(1).forEach(function (r) {
+      if (String(r[0] || '').trim() !== u.mas || SidDaf(r[1]) !== SidDaf(u.daf)) return;
+      try { rec = JSON.parse(String(r[2] || '')); } catch (e) { rec = null; }
+    });
+    if (!rec || typeof rec !== 'object') return 0;
+    /* הדף כולו — כל הקטעים שברשומה. */
+    if (!u.am) {
+      var flat = [];
+      Object.keys(rec).forEach(function (k) {
+        if (k.indexOf('__') !== 0) flat.push({ n: k, id: k, part: 1 });
+      });
+      return SidQPub(rec, flat);
+    }
+    /* עמוד אחד — הקטעים שלו, בדיוק כמו שהתלמיד רואה אותם. */
+    return rd(MARK_TAB_PUB).then(function (mr) {
+      var built = SidFlat(SidParse(mr.slice(1)), u.mas, u.daf);
+      if (!built.flat.length) return 0;
+      return SidQPub(rec, SidAmud(built, u.daf, u.am).flat);
+    });
+  });
+}
+function qzrState(u, extra) {
+  var p = { quizReady: u.tag, key: (CFG.readKey || '').trim(), daf: u.daf, amud: u.am };
+  for (var k in extra || {}) p[k] = extra[k];
+  return scriptGet(p).then(function (d) {
+    if (d && d.status === 'denied') throw new Error(d.message || 'denied');
+    /* שרת ישן עונה בתשובה הכללית, בלי `quiz` — אינו "אין ממתינים". */
+    if (!d || !d.quiz) { var e0 = new Error('old'); e0.old = 1; throw e0; }
+    return d;
+  });
+}
+function qzrLoad() {
+  var u = qzrUnit();
+  if (!u) return Promise.resolve();
+  if (!(CFG.readKey || '').trim()) { QZR.err = UI.qzrNoKey; qzrPaint(); return Promise.resolve(); }
+  var my = ++QZR.seq;
+  QZR.busy = true; QZR.err = ''; qzrPaint();
+  return Promise.all([qzrState(u), qzrPubCount(u)]).then(function (r) {
+    if (my !== QZR.seq) return;
+    QZR.busy = false;
+    if (r[0].status !== 'ok') throw new Error(r[0].message || '');
+    QZR.st = r[0]; QZR.pub = r[1];
+    qzrPaint();
+    qzrWatch();
+  })['catch'](function (e) {
+    if (my !== QZR.seq) return;
+    /* קריאה שנכשלה אינה אפס — מה שהיה נשאר, ואין שליחה. */
+    QZR.busy = false; QZR.st = null; QZR.pub = null; QZR.pv = false;
+    QZR.err = e && e.old ? UI.qzrOld : UI.qzrFail;
+    qzrPaint();
+  });
+}
+/* שליחה שעדיין רצה — בודקים שוב כל עשר שניות, עד הדיווח (עד כרבע שעה). */
+function qzrWatch() {
+  if (QZR.poll) { clearTimeout(QZR.poll); QZR.poll = null; }
+  var st = QZR.st;
+  if (!st || !st.busy || QZR.polls > 90) return;
+  var tag = QZR.tag;
+  QZR.poll = setTimeout(function () {
+    QZR.poll = null;
+    var u = qzrUnit();
+    if (!u || u.tag !== tag || !document.getElementById('qzr')) return;
+    QZR.polls++;
+    qzrState(u).then(function (d) {
+      if (QZR.tag !== tag || d.status !== 'ok') return;
+      QZR.st = d;
+      if (!d.busy && d.last && (QZR.cls === '' || QZR.msg === UI.qzrQueued)) { QZR.msg = ''; QZR.cls = ''; }
+      qzrPaint(); qzrWatch();
+    })['catch'](function () { qzrWatch(); });
+  }, 10000);
+}
+function qzrWhy(st) {
+  if (QZR.pub === 0) return UI.qzrNoPub;
+  if (!st.n) return UI.qzrNoWait;
+  if (st.busy) return UI.qzrInflight;
+  if (!st.fresh) return UI.qzrAllGot;
+  return '';
+}
+function qzrClick(what) {
+  if (QZR.sending) return;
+  if (what === 'no') { QZR.pv = false; QZR.msg = UI.qzrCanceled; QZR.cls = ''; return qzrPaint(); }
+  if (what === 'ask') {
+    QZR.pv = false; QZR.msg = ''; QZR.cls = '';
+    /* תמיד מספרים טריים לפני התצוגה — מה שמוצג הוא מה שיאושר. */
+    return qzrLoad().then(function () {
+      if (!QZR.st || QZR.pub == null) return;
+      var why = qzrWhy(QZR.st);
+      if (why) { QZR.msg = why; QZR.cls = QZR.st.busy ? '' : 'bad'; }
+      else QZR.pv = true;
+      qzrPaint();
+    });
+  }
+  if (what === 'go') return qzrGo();
+}
+function qzrGo() {
+  var u = qzrUnit(), st = QZR.st;
+  if (!u || !st || !QZR.pv || QZR.sending) return;
+  var v = qzrVars(u);
+  QZR.sending = true; QZR.msg = ''; qzrPaint();
+  var end = function (msg, cls, d) {
+    QZR.sending = false; QZR.pv = false; QZR.msg = msg; QZR.cls = cls;
+    if (d && d.quiz) QZR.st = d;
+    qzrPaint(); qzrWatch();
+  };
+  qzrState(u, { go: 1, exp: st.fresh, title: fill(UI.quizReadyT, v), body: fill(UI.quizReadyB, v) })
+    .then(function (d) {
+      if (d.status === 'ok' && d.sent) { QZR.polls = 0; return end(UI.qzrQueued, 'ok', d); }
+      if (d.status === 'refused') {
+        if (d.why === 'changed') {
+          /* הקהל השתנה — מציגים את המספר החדש לאישור, ולא שולחים. */
+          QZR.sending = false; QZR.st = d; QZR.pv = true; QZR.msg = UI.qzrChanged; QZR.cls = 'bad';
+          return qzrPaint();
+        }
+        var w = { nopub: UI.qzrNoPub, nowait: UI.qzrNoWait, allgot: UI.qzrAllGot, busy: UI.qzrInflight }[d.why];
+        return end(w || fill(UI.qzrErr, { why: d.why || '' }), d.why === 'busy' ? '' : 'bad', d);
+      }
+      end(fill(UI.qzrErr, { why: d.message || '' }), 'bad', null);
+    })['catch'](function () {
+      /* אין תשובה — אולי יצאה, אולי לא. בודקים מול הגיליון, ולא מנחשים. */
+      QZR.sending = false; QZR.pv = false;
+      QZR.msg = UI.qzrUnknown; QZR.cls = 'bad';
+      qzrPaint();
+      setTimeout(function () {
+        qzrState(u).then(function (d) { if (d.status === 'ok') { QZR.st = d; QZR.polls = 0; qzrPaint(); qzrWatch(); } })
+          ['catch'](function () {});
+      }, 4000);
+    });
 }
 
 /* ============================================================

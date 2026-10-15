@@ -4317,7 +4317,8 @@ function spotOffer() {
    מי שחזר לעיין בדף של שבוע שעבר לא נשלח לשם ביום ראשון.
    true = יוצאים. */
 function spotJump() {
-  if (quiet() || EMB || AT_END || SEG_Q || /[?&]hop=1\b/.test(location.search)) return false;
+  /* `quiz=1` — מההתראה "החידון מוכן": החידון של הדף הזה, גם למי שכבר התקדם. */
+  if (quiet() || EMB || AT_END || SEG_Q || QUIZ_Q || /[?&]hop=1\b/.test(location.search)) return false;
   if (posWeek() < 0) return false;
   var p = spotGet();
   if (!p || p.mas !== S.mas || !(Date.now() - (p.at || 0) < 7 * 864e5)) return false;
@@ -4566,6 +4567,30 @@ var SEG_Q = (function () {
   catch (e) { return ''; }
 })();
 var YR_Q = /[?&]yr=1\b/.test(location.search);
+/* `quiz=1` — מההתראה "החידון מוכן": פותח בקטע הראשון שיש בו שאלה
+   שפורסמה (ועוד לא נענתה נכון במכשיר), עם החידה פתוחה. רץ כשגם הדף
+   וגם השאלות כבר נטענו — מי שמגיע שני מפעיל. אין שאלה — הדף נפתח
+   כרגיל. פעם אחת בלבד. */
+var QUIZ_Q = /[?&]quiz=1\b/.test(location.search), Q_READY = false, PAGE_READY = false;
+function quizJump_() {
+  if (!QUIZ_Q || !Q_READY || !PAGE_READY || quiet() || !FLAT.length) return;
+  QUIZ_Q = false;
+  var first = -1, open = -1;
+  for (var i = 0; i < FLAT.length; i++) {
+    if (FLAT[i].part > 1) continue;
+    var l = qVisible_(FLAT[i].n);
+    if (!l.length) continue;
+    if (first < 0) first = i;
+    for (var j = 0; j < l.length; j++) if (!qOk_(FLAT[i].n, l[j])) { open = i; break; }
+    if (open >= 0) break;
+  }
+  var at = open >= 0 ? open : first;
+  if (at < 0) return;
+  go(at);
+  QUIZ_OPEN = true;
+  if (!document.body.classList.contains('chav-on')) drawer(true);
+  else paintChavArea();
+}
 function segIdx_(v) {
   if (!v) return -1;
   var i;
@@ -5892,18 +5917,9 @@ function marksQuery(daf) {
    אל הדף הבא שייך ל-ע״ב — כמו בסוף כל דף. מספרי הקטעים והמזהים
    נשארים כמו שהם, ולכן החברותא, החידות והמקום השמור אינם זזים. */
 function amudCut(built, am) {
-  if (am === undefined) am = S.am;
-  if (!am) return built;
-  var keep = {};
-  built.flat.forEach(function (v) {
-    if (v.part !== 1) return;
-    var pp = built.pages[v.p] || {};
-    /* הראש מהדף הקודם (שבוע שנגמר שם מוקדם) פותח את ע״א. */
-    var am2 = pp.head ? 1 : dafKey(pp.daf) === dafKey(S.daf) ? (pp.pg === 2 ? 2 : 1) : 2;
-    if (am2 === am) keep[v.n] = 1;
-  });
-  return { pages: built.pages, groups: built.groups,
-           flat: built.flat.filter(function (v) { return keep[v.n]; }) };
+  /* החישוב עצמו עבר ל-`SidAmud` (stepid.js) — הניהול סופר לפיו את
+     שאלות השבוע ב"החידון מוכן", ושניהם חייבים לחתוך אותו דבר. */
+  return SidAmud(built, S.daf, am === undefined ? S.am : am);
 }
 /* ---------- הדף הבא מובא מראש ----------
    בקטע האחרון של הדף, ברקע: הסימונים של הדף הבא (השליפה האיטית
@@ -6138,7 +6154,11 @@ function boot() {
   loadOwnMap().then(function () { if (FLAT.length) paintChavArea(); });
   /* אותו דבר לחידות — אחרי ש-SIDE_ADM כבר ידוע, כי paintChavArea
      מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
-  loadQuizMap().then(function () { if (FLAT.length) paintChavArea(); });
+  loadQuizMap().then(function () {
+    Q_READY = true;
+    if (FLAT.length) paintChavArea();
+    quizJump_();
+  });
   /* ומאגר "שאלות לשיבוץ" — רק לרכז, לעורך השאלה. */
   if (SIDE_ADM) {
     loadQBank_().then(function () { if (FLAT.length && QUIZ_OPEN) paintChavArea(); });
@@ -6199,8 +6219,10 @@ function boot() {
           go(0);
           /* קודם המקום המדויק שבמכשיר; אחריו ההתקדמות של השבוע;
              ואם לא חזרנו לשום מקום — הצעה לדף שבו עצר. */
-          if (!quiet() && !AT_START) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
+          if (!quiet() && !AT_START && !QUIZ_Q) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
         }
+        PAGE_READY = true;
+        quizJump_();
         /* אחרי `go(0)`: השיוך נשען על מספרי הקטעים, והם קיימים
            רק אחרי ש-FLAT נבנה. נכשל — הדף ממשיך בדיוק כרגיל.
 

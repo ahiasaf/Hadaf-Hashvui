@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 62;
+var SCRIPT_VERSION = 63;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1163,6 +1163,15 @@ function doGet(e) {
     } catch (errR) {
       return reply_(e, { status:'error', message: String(errR) });
     }
+  }
+
+  /* "החידון מוכן" — הודעה למי שביקש, לחידון אחד. לרכז בלבד. ראו quizReady_. */
+  if (e && e.parameter && e.parameter.quizReady) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'אין הרשאה' });
+    }
+    try { return reply_(e, quizReady_(e.parameter)); }
+    catch (errQ) { return reply_(e, { status:'error', message: String(errQ) }); }
   }
 
   if (e && e.parameter && e.parameter.fire === 'say') {
@@ -5389,6 +5398,150 @@ function sayRow_(sid) {
     if (String(vals[r][ix['מזהה שליחה']]) === sid) return { sh: sh, r: r + 1, v: vals[r], ix: ix };
   }
   return null;
+}
+
+/* ============================================================
+   "החידון מוכן" — הודעה למי שביקש, לחידון של מסכת ושבוע אחד.
+   ============================================================
+   התלמיד מבקש בסוף הלימוד (learn.html, ntBox) — שורה ב"ממתינים
+   לדף" עם `דף` = 'חידון|taanit-3'. הרכז לוחץ בניהול, רואה נוסח,
+   קישור ומספר, ומאשר. שום פרסום או עריכה של שאלה אינם שולחים.
+
+   ?quizReady=taanit-3&daf=ב&amud=1        — מצב בלבד (מספרים)
+   ...&go=1&title=&body=&exp=<כמה הוצגו>   — שליחה
+
+   · **ההרשאה כאן**: READ_KEY, בשער שב-doGet. ההרחבה של `wait`
+     ב-fire=say לא נגעה — שם עדיין רק מפתח של דף.
+   · **מזהה הודעה קבוע לחידון** (`qz-taanit-3`). push-send.js מדלג
+     לפיו על כל מכשיר שכבר קיבל ("מסירות"), ולכן לחיצה כפולה,
+     ניסיון חוזר אחרי ניתוק או שליחה נוספת בשבוע הבא — אינם
+     מגיעים פעמיים לאותו מכשיר.
+   · **נעילה + "כבר בשליחה"**: שתי בקשות במקביל אינן מציתות שתי
+     הרצות. הרצה שלא דיווחה תוך חצי שעה — מתה, ומותר שוב.
+   · **הקהל שאושר הוא הקהל שנשלח**: `exp` הוא המספר שהרכז ראה. השתנה
+     בינתיים — לא שולחים, והמסך מציג את המספר החדש לאישור.
+   · **אין שאלה שפורסמה בדף — לא שולחים.** הבדיקה המדויקת (לפי עמוד,
+     בדף מחולק) נעשית בניהול; כאן — רשת ביטחון לפי הדף כולו.
+   ============================================================ */
+var QZ_WAIT_ = 'חידון|';
+function quizReady_(P) {
+  var q = String(P.quizReady || ''), m = /^([a-z]+)-(\d{1,2})$/.exec(q);
+  var dafRaw = String(P.daf || '').trim(), am = String(P.amud || '0');
+  var dk = dafRaw.replace(/["'׳״\s]/g, '');
+  if (!m || !/^[\u05D0-\u05EA]{1,4}$/.test(dk) || !/^["'׳״\u05D0-\u05EA]{1,7}$/.test(dafRaw) ||
+      !/^[012]$/.test(am)) {
+    return { status:'error', quiz: 1, message:'בקשה לא תקינה' };
+  }
+  var wait = QZ_WAIT_ + q, mid = 'qz-' + q;
+  var st = quizState_(wait, mid, m[1], dk);
+  if (!P.go) return st;
+  var no = function (why) { st.status = 'refused'; st.why = why; return st; };
+  if (!st.pub) return no('nopub');
+  if (!st.n) return no('nowait');
+  if (st.busy) return no('busy');
+  if (!st.fresh) return no('allgot');
+  var title = String(P.title || '').trim().slice(0, 120);
+  var body = String(P.body || '').trim().slice(0, 400);
+  if (!title || !body) return { status:'error', quiz: 1, message:'חסר נוסח' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status:'error', quiz: 1, message:'השרת עסוק — נסו שוב בעוד רגע' };
+  try {
+    /* שוב, בתוך הנעילה: אולי בקשה מקבילה כבר הציתה. */
+    st = quizState_(wait, mid, m[1], dk);
+    if (st.busy) return no('busy');
+    if (!st.fresh) return no('allgot');
+    if (String(P.exp || '') !== String(st.fresh)) return no('changed');
+    /* הקישור נבנה כאן, מהשדות שנבדקו — לא מכתובת שהלקוח שלח. */
+    var link = 'learn?mas=' + m[1] + '&daf=' + encodeURIComponent(dafRaw) +
+               (am !== '0' ? '&amud=' + am : '') + '&quiz=1';
+    var r = ghFire_(title, body, '', '', '', 'רכז · החידון מוכן', link, '', wait, '', false, mid);
+    if (r.status !== 'ok') return { status:'error', quiz: 1, message: r.message || 'השליחה לא הוצתה' };
+    st = quizState_(wait, mid, m[1], dk);
+    st.status = 'ok'; st.sent = 1; st.sid = r.sid;
+    return st;
+  } finally { lock.releaseLock(); }
+}
+/* המספרים: פורסם? כמה ביקשו (מכשירים ייחודיים), כמה כבר קיבלו,
+   ומה קרה בשליחה האחרונה. אותם כללים של loadSubs/loadDone ב-push-send.js. */
+function quizState_(wait, mid, mas, dk) {
+  var out = { status:'ok', quiz: 1, pub: quizPub_(mas, dk), rows: 0, n: 0, bad: 0, dup: 0,
+              prev: 0, gone: 0, fresh: 0, busy: 0, last: null };
+  var seen = {}, prints = [];
+  var sh = sheet_('ממתינים לדף');
+  if (sh.getLastRow() >= 2) {
+    var v = sh.getDataRange().getValues(), h = {};
+    for (var i = 0; i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+    if (h['דף'] === undefined || h['מנוי'] === undefined) throw new Error('חסרות עמודות בלשונית ממתינים לדף');
+    for (var r = v.length - 1; r >= 1; r--) {
+      if (String(v[r][h['דף']] || '').trim() !== wait) continue;
+      out.rows++;
+      var ep = '';
+      try { ep = (JSON.parse(String(v[r][h['מנוי']] || '')) || {}).endpoint || ''; } catch (eJ) { ep = ''; }
+      if (!ep) { out.bad++; continue; }
+      if (seen[ep]) { out.dup++; continue; }
+      seen[ep] = 1; out.n++; prints.push(subPrint_(ep));
+    }
+  }
+  var done = {}, dsh = sheet_('מסירות');
+  if (dsh.getLastRow() >= 2) {
+    var dv = dsh.getDataRange().getValues(), dh = {};
+    for (var j = 0; j < dv[0].length; j++) dh[String(dv[0][j]).trim()] = j;
+    if (dh['מזהה הודעה'] !== undefined && dh['מכשירים'] !== undefined) {
+      for (var k = 1; k < dv.length; k++) {
+        if (String(dv[k][dh['מזהה הודעה']] || '').trim() !== mid) continue;
+        var s0 = String(dv[k][dh['מצב']] || '').trim();
+        String(dv[k][dh['מכשירים']] || '').split(',').forEach(function (p) { p = p.trim(); if (p) done[p] = s0; });
+      }
+    }
+  }
+  prints.forEach(function (p) {
+    if (done[p] === 'נשלח' || done[p] === 'ממתין') out.prev++;
+    else if (done[p] === 'פג') out.gone++;
+    else out.fresh++;
+  });
+  var ls = sheet_('הודעות');
+  if (ls.getLastRow() >= 2) {
+    var lv = ls.getDataRange().getValues(), lh = {};
+    for (var a = 0; a < lv[0].length; a++) lh[String(lv[0][a]).trim()] = a;
+    if (lh['מזהה הודעה'] !== undefined) {
+      for (var b = lv.length - 1; b >= 1; b--) {
+        if (String(lv[b][lh['מזהה הודעה']] || '') !== mid) continue;
+        var g = function (c) { return lh[c] === undefined ? '' : lv[b][lh[c]]; };
+        var at = g('תאריך'), res = String(g('תוצאה') || '');
+        var age = at instanceof Date ? Date.now() - at.getTime() : 1e9;
+        out.last = { res: res, st: String(g('סטטוס שליחה') || ''), got: String(g('קיבלו') || ''),
+                     at: at instanceof Date ? at.toISOString() : '', sid: String(g('מזהה שליחה') || '') };
+        if ((res === 'ממתין' || res === 'בשליחה') && age < 30 * 60000) out.busy = 1;
+        break;
+      }
+    }
+  }
+  return out;
+}
+/* כמה שאלות פורסמו בדף (בכל העמודים). אותם כללים של qItem_ בדף
+   האינטראקטיבי: { pub, draft } — רק `pub`; צורה ישנה — לפי `__pub`. */
+function quizPub_(mas, dk) {
+  var sh = sheet_('שאלות בדף'), n = 0;
+  if (sh.getLastRow() < 2) return 0;
+  var v = sh.getDataRange().getDisplayValues();
+  for (var r = 1; r < v.length; r++) {
+    if (String(v[r][0]).trim() !== mas || String(v[r][1]).replace(/["'׳״\s]/g, '') !== dk) continue;
+    var rec = null;
+    try { rec = JSON.parse(String(v[r][2] || '')); } catch (eP) { rec = null; }
+    if (!rec || typeof rec !== 'object') continue;
+    for (var k in rec) {
+      if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0) continue;
+      var arr = rec[k];
+      if (!arr || arr.length === undefined) continue;
+      for (var i = 0; i < arr.length; i++) {
+        var x = arr[i];
+        if (!x || typeof x !== 'object') continue;
+        if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) { if (x.pub) n++; }
+        else if (rec.__pub) n++;
+      }
+    }
+  }
+  return n;
 }
 
 /* בדיקת GH_TOKEN/GH_REPO בלי לכתוב שום קובץ — לשימוש "בדיקת חיבור"

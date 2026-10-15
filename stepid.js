@@ -147,6 +147,57 @@ function SidFlat(recs, mas, daf, opt) {
            over: !!(tail && tail.take > 0 && !cut) };
 }
 
+/* ============================================================
+   עמוד שנלמד לבד (ב. או ב:) — רק הקטעים שלו.
+   ============================================================
+   קטע שייך לעמוד שבו הוא **מתחיל**: קטע שחוצה את מעבר העמוד נשאר
+   שלם בשבוע של ע״א. הראש מהדף הקודם פותח את ע״א; הזנב שגולש אל
+   הדף הבא שייך ל-ע״ב. `am` 0 — הדף כולו. משותף לדף האינטראקטיבי
+   (amudCut) ולניהול ("החידון מוכן" סופר את שאלות השבוע). */
+function SidAmud(built, daf, am) {
+  if (!am) return built;
+  var keep = {};
+  built.flat.forEach(function (v) {
+    if (v.part !== 1) return;
+    var pp = built.pages[v.p] || {};
+    var am2 = pp.head ? 1 : SidDaf(pp.daf) === SidDaf(daf) ? (pp.pg === 2 ? 2 : 1) : 2;
+    if (am2 === am) keep[v.n] = 1;
+  });
+  return { pages: built.pages, groups: built.groups,
+           flat: built.flat.filter(function (v) { return keep[v.n]; }) };
+}
+
+/* כמה שאלות פורסמו לקטעים שב-`flat` — מה שהתלמיד רואה בחידון של
+   השבוע. אותם כללים של qItem_/sidKeys_ בדף האינטראקטיבי: { pub, draft }
+   — רק `pub` נספר; צורה ישנה — לפי `__pub` של הדף; רשומה שעברה הסבה
+   (`__ids`) — לפי מזהה הקטע ומה שאוחד לתוכו, אחרת — לפי מספרו. */
+function SidQPub(rec, flat) {
+  if (!rec || typeof rec !== 'object') return 0;
+  var ids = !!rec.__ids, k, n = 0, seen = {};
+  if (!ids) {
+    ids = true;
+    for (k in rec) if (rec.hasOwnProperty(k) && /^\d+$/.test(k)) { ids = false; break; }
+    if (ids) ids = flat.length > 0 && flat.every(function (v) { return !!v.id; });
+  }
+  flat.forEach(function (v) {
+    if (v.part !== 1) return;
+    var ks = ids && v.id ? [v.id].concat(v.also || []) : [String(v.n)];
+    ks.forEach(function (key) {
+      if (seen[key]) return;
+      seen[key] = 1;
+      var arr = rec[key];
+      if (!arr || arr.length === undefined) return;
+      for (var i = 0; i < arr.length; i++) {
+        var x = arr[i];
+        if (!x || typeof x !== 'object') continue;
+        if (x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) { if (x.pub) n++; }
+        else if (rec.__pub) n++;
+      }
+    });
+  });
+  return n;
+}
+
 /* כל המזהים שכבר בשימוש במסכת — כדי שמזהה חדש לא יתנגש. */
 function SidTaken(recs, mas) {
   var t = {};
