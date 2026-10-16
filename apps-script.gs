@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 69;
+var SCRIPT_VERSION = 70;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -434,6 +434,11 @@ function doPost(e) {
     if (d.action === 'alonRow') {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
       return json_(alonRow_(d));
+    }
+    /* ארכיון העלון: גרסה מאושרת חדשה, וה-PDF שלה. ראו alonArch_. */
+    if (d.action === 'alonArch' || d.action === 'alonPdf') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      return json_(d.action === 'alonArch' ? alonArch_(d) : alonPdf_(d));
     }
     /* שמירה אוטומטית מהסטודיו: עמוד אחד, עם גרסת בסיס. ראו markPut_. */
     if (d.action === 'markPut') {
@@ -4624,6 +4629,113 @@ function alonRow_(d) {
   }
   if (val) sh.getRange(Math.max(last, 1) + 1, 1, 1, 3).setValues([[mas, String(d.daf), val]]);
   return { status: 'ok', added: !!val };
+}
+
+/* ============================================================
+   ארכיון העלון — גרסאות מאושרות, שורה לכל אישור.
+   ============================================================
+   "עבודת העלון המאושרת תהיה מגובה בצד השרת, ותשרוד איבוד מכשיר."
+
+   "עלון" למעלה הוא הטיוטה של הדף — מתעדכנת בכל הקשה. כאן נשמר רק
+   מה שאושר: הבחירה, ההערות, החלטות העריכה, גרסת התבנית ותאריך
+   האישור — וקישור ל-PDF שהועלה ל-Drive.
+
+   **הוספה בלבד.** אישור חדש הוא שורה חדשה עם מספר הגרסה הבא, ושורה
+   קיימת אינה נדרסת לעולם. אותו מזהה (`id`) שנשלח שוב — שליחה חוזרת
+   של no-cors — אינו פותח גרסה שנייה. ה-PDF נכתב פעם אחת לשורה;
+   PDF אחר = אישור חדש.
+
+   הנעילה של doPost כבר מוחזקת כאן, ולכן מספר הגרסה אינו מתנגש. */
+var ALON_ARCH_TAB_ = 'ארכיון עלון';
+var ALON_ARCH_HEAD_ = ['מסכת', 'דף', 'גרסה', 'אושר', 'עלון', 'PDF', 'מזהה', 'מצב PDF'];
+var ALON_DIR_KEY_ = 'ALON_DIR';
+function alonArchSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(ALON_ARCH_TAB_);
+  if (!sh) {
+    sh = ss.insertSheet(ALON_ARCH_TAB_);
+    headRow_(sh, ALON_ARCH_HEAD_);
+    /* הכול טקסט — gviz מנחש טיפוס לעמודה, ותאריך שהפך לתאריך
+       היה חוזר ריק או בצורה אחרת. */
+    sh.getRange(1, 1, sh.getMaxRows(), ALON_ARCH_HEAD_.length).setNumberFormat('@');
+  }
+  return sh;
+}
+function alonArchId_(v) { return String(v || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 40); }
+function alonArchFind_(sh, mas, dk, id) {
+  var last = sh.getLastRow();
+  var rows = last > 1 ? sh.getRange(1, 1, last, ALON_ARCH_HEAD_.length).getDisplayValues() : [];
+  var out = { row: 0, ver: 0, vals: null };
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() !== mas || deckDafKey_(rows[i][1]) !== dk) continue;
+    out.ver = Math.max(out.ver, +rows[i][2] || 0);
+    if (id && rows[i][6] === id) { out.row = i + 1; out.vals = rows[i]; }
+  }
+  return out;
+}
+function alonArch_(d) {
+  var mas = String(d.mas || '').trim(), dk = deckDafKey_(d.daf);
+  var val = String(d.val == null ? '' : d.val), o = null;
+  if (!mas || !dk || !val) return { status: 'error', message: 'חסרים מסכת, דף או תוכן' };
+  try { o = JSON.parse(val); } catch (e) { return { status: 'error', message: 'נתונים פגומים' }; }
+  var id = alonArchId_(o && o.id);
+  if (!id) return { status: 'error', message: 'חסר מזהה גרסה' };
+  /* תא בגיליון מחזיק עד 50,000 תווים */
+  if (val.length > 49000) return { status: 'error', message: 'הארכיון גדול מתא אחד בגיליון' };
+  var sh = alonArchSheet_();
+  var f = alonArchFind_(sh, mas, dk, id);
+  if (f.row) return { status: 'ok', ver: +f.vals[2], dup: true };
+  var ver = f.ver + 1;
+  var at = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm');
+  var r = Math.max(sh.getLastRow(), 1) + 1;
+  var rg = sh.getRange(r, 1, 1, ALON_ARCH_HEAD_.length);
+  rg.setNumberFormat('@');
+  rg.setValues([[mas, String(d.daf), String(ver), at, val, '', id, '']]);
+  return { status: 'ok', ver: ver, row: r };
+}
+/* התיקייה ב-Drive. נוצרת בפעם הראשונה, והמזהה שלה נשמר. */
+function alonDir_() {
+  var P = PropertiesService.getScriptProperties(), fid = P.getProperty(ALON_DIR_KEY_);
+  if (fid) { try { return DriveApp.getFolderById(fid); } catch (e) {} }
+  var dir = DriveApp.createFolder('הדף השבועי — ארכיון עלון');
+  P.setProperty(ALON_DIR_KEY_, dir.getId());
+  return dir;
+}
+/* **הרשאה.** הפריסה מבקשת היום `drive.readonly` בלבד
+   (.github/workflows/apps-script.yml), ולכן יצירת קובץ נכשלת —
+   והסיבה נכתבת ל"מצב PDF" ומוצגת באפליקציה. להפעלה: להחליף שם
+   ל-`auth/drive`, ומיד אחרי הפריסה להריץ את הפונקציה הזו בעורך
+   ולאשר את מסך ההרשאה של גוגל. הרשאה חדשה שלא אושרה עוצרת את כל
+   הסקריפט — לכן שני הצעדים ברצף אחד. */
+function alonDriveAuth() {
+  var dir = alonDir_();
+  Logger.log('תיקיית ארכיון העלון: ' + dir.getUrl());
+  return dir.getUrl();
+}
+/* ה-PDF של גרסה מאושרת → Drive, והקישור לשורה שלה. התשובה של
+   no-cors אטומה, ולכן גם הכישלון נכתב לשורה ("מצב PDF") — שם
+   האפליקציה קוראת אותו ומציגה את הסיבה. */
+function alonPdf_(d) {
+  var mas = String(d.mas || '').trim(), dk = deckDafKey_(d.daf), id = alonArchId_(d.id);
+  if (!mas || !dk || !id) return { status: 'error', message: 'חסרים מסכת, דף או מזהה גרסה' };
+  var sh = alonArchSheet_();
+  var f = alonArchFind_(sh, mas, dk, id);
+  if (!f.row) return { status: 'error', message: 'הגרסה לא נמצאה בארכיון' };
+  if (f.vals[5]) return { status: 'ok', url: f.vals[5], exists: true };
+  var mark = function (t) { sh.getRange(f.row, 8).setNumberFormat('@').setValue(t); };
+  var data = String(d.data || '');
+  if (!/^JVBER/.test(data)) { mark('שגיאה: הקובץ אינו PDF'); return { status: 'error', message: 'הקובץ אינו PDF' }; }
+  try {
+    var name = 'עלון ' + mas + ' דף ' + String(d.daf) + ' — גרסה ' + f.vals[2] + '.pdf';
+    var blob = Utilities.newBlob(Utilities.base64Decode(data), 'application/pdf', name);
+    var file = alonDir_().createFile(blob);
+    sh.getRange(f.row, 6).setNumberFormat('@').setValue(file.getUrl());
+    mark('נשמר ' + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm'));
+    return { status: 'ok', url: file.getUrl() };
+  } catch (err) {
+    mark('שגיאה: ' + String(err && err.message || err).slice(0, 300));
+    return { status: 'error', message: String(err) };
+  }
 }
 
 /* ============================================================

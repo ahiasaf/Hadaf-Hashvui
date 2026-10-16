@@ -23,6 +23,19 @@
      אינו מסומן כנלמד, והמצגת אינה נפתחת לבד.
    · התצוגה המקדימה מחולקת לעמודים אמיתיים בגודל הנייר שנבחר, וההדפסה
      ("שמירה כ-PDF") מדפיסה בדיוק אותם עמודים.
+
+   **ארכיון והפקה חוזרת (בריף 16.10).** "עבודת העלון המאושרת תהיה
+   מגובה בצד השרת, ואפשר להפיק ממנה את העלון שוב — בלי הידבקה ידנית."
+   · מה שבטיוטה (`AL`, לשונית "עלון") הוא עכשיו כל העבודה: הבחירה,
+     הערה כללית והערה לפריט (`notes`, לפי מפתח הפריט — לא מודפסות),
+     והחלטות העריכה (`ed`): כותרת לכל יחידה, ציטוט גמרא שהחידה
+     ממוסגרת לצידו, סדר יחידות, כותרת עליונה, ותיקוני טקסט לעלון
+     בלבד. התיקונים חלים רק בייצוא — המקור אינו משתנה.
+   · "אישור" שומר תמונת מצב בלשונית "ארכיון עלון" כגרסה חדשה (alonArch_
+     בסקריפט). גרסה מאושרת לא נדרסת. אליה מצורף ה-PDF ב-Drive.
+   · בכניסה: טיוטה → ואם אין — הגרסה המאושרת האחרונה. מכל מכשיר רכז.
+   · בתצוגה המקדימה: מה ששונה מהגרסה המאושרת האחרונה מוצג ברשימה
+     לפני ההדפסה, לא בשקט.
    ============================================================ */
 var ALON_ON = (function () {
   if (!/[?&]alon=1\b/.test(location.search)) return false;
@@ -30,6 +43,10 @@ var ALON_ON = (function () {
   try { return localStorage.getItem('df:admOk') === '1'; } catch (e) { return false; }
 })();
 var ALON_TAB = 'עלון';
+var ALON_ARCH = 'ארכיון עלון';
+/* גרסת התבנית — עולה בכל שינוי בפריסה של העלון, ונשמרת בכל אישור.
+   גרסה מאושרת מתבנית אחרת מסומנת בתצוגה המקדימה. */
+var AL_TPL = 2;
 var AL = { items: [] };   /* הבחירה של הדף שעל המסך */
 var AL_SENT = '';         /* מה שאומת בגיליון */
 var AL_T = null, AL_GEN = 0, AL_ST = '';
@@ -38,8 +55,53 @@ try {
   var alp = JSON.parse(localStorage.getItem('df:alonPref') || 'null');
   if (alp) { AL_PREF.paper = alp.paper === 'A5' ? 'A5' : 'A4'; AL_PREF.ink = !!alp.ink; }
 } catch (e) {}
+/* הגרסאות המאושרות של הדף. null = עוד לא נקרא, או שהקריאה נכשלה —
+   ואז לא מציגים "אין גרסאות". */
+var AL_ARCH = null;
+var AL_FROM = 0;          /* הטיוטה נטענה מגרסה מאושרת */
+var AL_OPEN = {};         /* אילו חלוניות עריכה פתוחות בחלונית הקטע */
+var AL_LAST = null;       /* מה שנבנה בתצוגה המקדימה: טביעה ומספר עמודים */
+var AL_BGEN = 0, AL_BT = null;
 
 function alU_(k, o) { return fillT((window.UI && UI[k]) || '', o || {}); }
+/* השדות שנוספו — גם בטיוטה ישנה שאין בה אותם */
+function alNorm_() {
+  if (!AL || typeof AL !== 'object') AL = {};
+  if (!AL.items) AL.items = [];
+  if (!AL.notes || typeof AL.notes !== 'object') AL.notes = {};
+  if (typeof AL.note !== 'string') AL.note = '';
+  var ed = AL.ed || (AL.ed = {});
+  if (!ed.order) ed.order = [];
+  if (!ed.titles) ed.titles = {};
+  if (!ed.quotes) ed.quotes = {};
+  if (!ed.fix) ed.fix = [];
+  if (typeof ed.head !== 'string') ed.head = '';
+  if (AL.pf) { AL_PREF.paper = AL.pf.paper === 'A5' ? 'A5' : 'A4'; AL_PREF.ink = !!AL.pf.ink; }
+}
+/* הטיוטה כפי שהיא נשמרת: בלי שדות ריקים. אין בה כלום = '' (אין שורה). */
+function alVal_() {
+  var o = {}, has = false, k;
+  o.items = AL.items || [];
+  if (o.items.length) has = true;
+  if (AL.note && AL.note.trim()) { o.note = AL.note; has = true; }
+  var nn = {};
+  for (k in (AL.notes || {})) if (AL.notes[k] && String(AL.notes[k]).trim()) { nn[k] = AL.notes[k]; has = true; }
+  o.notes = nn;
+  var ed = AL.ed || {}, e2 = { order: ed.order || [], titles: {}, quotes: {}, fix: [], head: ed.head || '' };
+  for (k in (ed.titles || {})) if (String(ed.titles[k] || '').trim()) e2.titles[k] = ed.titles[k];
+  for (k in (ed.quotes || {})) if (String(ed.quotes[k] || '').trim()) e2.quotes[k] = ed.quotes[k];
+  (ed.fix || []).forEach(function (f) { if (f && String(f.a || '')) e2.fix.push({ a: f.a, b: f.b || '' }); });
+  if (e2.order.length || e2.head.trim() || e2.fix.length ||
+      Object.keys(e2.titles).length || Object.keys(e2.quotes).length) has = true;
+  o.ed = e2;
+  o.pf = { paper: AL_PREF.paper, ink: !!AL_PREF.ink };
+  o.t = AL.t || 0;
+  return has ? JSON.stringify(o) : '';
+}
+/* מפתח קבוע לפריט — להערה עליו */
+function alIK_(it) {
+  return it.k + '|' + it.s + '|' + (it.k === 'q' ? it.i : it.k === 'own' ? it.pid : it.f);
+}
 function alHash_(s) {
   var h = 0x811c9dc5;
   s = String(s || '');
@@ -127,8 +189,9 @@ function alToggle_(it) {
 
 /* ---------- שמירה: במכשיר מיד, בגיליון אחרי רגע, עם אימות ---------- */
 function alKeep_() {
-  var val = JSON.stringify(AL);
-  try { localStorage.setItem(alLocalKey_(), JSON.stringify({ val: val, sent: false })); } catch (e) {}
+  AL.t = Date.now();
+  AL_FROM = 0;
+  try { localStorage.setItem(alLocalKey_(), JSON.stringify({ val: alVal_(), sent: false })); } catch (e) {}
   if (AL_T) clearTimeout(AL_T);
   AL_T = setTimeout(alSend_, 1200);
   AL_ST = 'saving';
@@ -137,13 +200,13 @@ function alKeep_() {
 function alSend_() {
   AL_T = null;
   var key = cfgReadKey_();
-  var val = JSON.stringify(AL);
+  var val = alVal_();
   if (!API || !key) { AL_ST = 'nokey'; alBarPaint_(); return; }
   var gen = ++AL_GEN;
   fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'alonRow', key: key, mas: S.mas, daf: S.daf, val: AL.items.length ? val : '' }) })
+    action: 'alonRow', key: key, mas: S.mas, daf: S.daf, val: val }) })
     .catch(function () {})
-    .then(function () { alVerify_(0, gen, AL.items.length ? val : ''); });
+    .then(function () { alVerify_(0, gen, val); });
 }
 function alVerify_(tries, gen, val) {
   setTimeout(function () {
@@ -155,10 +218,9 @@ function alVerify_(tries, gen, val) {
       if (m && (have === val || (!val && !got))) {
         AL_SENT = val;
         /* בינתיים נבחר עוד משהו — זה עוד לא נשמר, והשליחה שלו בדרך */
-        var now = AL.items.length ? JSON.stringify(AL) : '';
-        if (now !== val || AL_T) return;
+        if (alVal_() !== val || AL_T) return;
         AL_ST = 'saved';
-        try { localStorage.setItem(alLocalKey_(), JSON.stringify({ val: JSON.stringify(AL), sent: true })); } catch (e) {}
+        try { localStorage.setItem(alLocalKey_(), JSON.stringify({ val: val, sent: true })); } catch (e) {}
         alBarPaint_();
         return;
       }
@@ -173,23 +235,56 @@ function alVerify_(tries, gen, val) {
   }, 1200 + tries * 1200);
 }
 /* בחירה שלא אומתה במכשיר הזה גוברת — היא העבודה האחרונה כאן,
-   והיא נשלחת שוב. אחרת — מה שבגיליון. */
+   והיא נשלחת שוב. אחרת — מה שבגיליון. אין טיוטה בגיליון (והקריאה
+   הצליחה) — הגרסה המאושרת האחרונה, מכל מכשיר רכז. */
 function alLoad_() {
   var loc = null;
   try { loc = JSON.parse(localStorage.getItem(alLocalKey_()) || 'null'); } catch (e) {}
-  return sheetCsv(ALON_TAB).then(function (rows) {
-    var m = dmapFromRows(rows), got = m && m[dmKey(S.mas, S.daf)];
+  return Promise.all([sheetCsv(ALON_TAB), alArchLoad_()]).then(function (res) {
+    var m = dmapFromRows(res[0]), got = m && m[dmKey(S.mas, S.daf)];
+    var lastV = alArchLast_();
     if (loc && !loc.sent && loc.val) {
       try { AL = JSON.parse(loc.val); } catch (e) {}
+      alNorm_();
       alKeep_();
     } else if (got && !got.__bad && got.items) {
-      AL = got; AL_SENT = JSON.stringify(got); AL_ST = 'saved';
+      AL = got; alNorm_(); AL_SENT = JSON.stringify(got); AL_ST = 'saved';
+    } else if (m && lastV && lastV.snap && lastV.snap.al) {
+      AL = JSON.parse(JSON.stringify(lastV.snap.al)); alNorm_();
+      AL_FROM = lastV.ver; AL_ST = 'arch';
     } else if (!m && loc && loc.val) {
       try { AL = JSON.parse(loc.val); } catch (e2) {}
     }
-    if (!AL.items) AL.items = [];
+    alNorm_();
     alPaint_(); alBarPaint_();
   });
+}
+
+/* ---------- הארכיון: הגרסאות המאושרות של הדף ----------
+   לשונית חסרה — gviz מגיש את הראשונה, בלי הכותרות שלנו: אין
+   ארכיון ([]). קריאה שנכשלה — null, והרשימה הקודמת נשארת. */
+function alArchLoad_() {
+  return sheetCsv(ALON_ARCH).then(function (rows) {
+    if (!rows) return AL_ARCH;
+    var h = (rows[0] || []).join('|');
+    if (h.indexOf('גרסה') < 0 || h.indexOf('מזהה') < 0) { AL_ARCH = []; return AL_ARCH; }
+    var me = dmKey(S.mas, S.daf), out = [];
+    rows.slice(1).forEach(function (r) {
+      if (dmKey((r[0] || '').trim(), (r[1] || '').trim()) !== me) return;
+      var snap = null;
+      try { snap = JSON.parse(r[4] || ''); } catch (e) { snap = null; }
+      out.push({ ver: +r[2] || 0, at: r[3] || '', snap: snap, pdf: (r[5] || '').trim(),
+                 id: (r[6] || '').trim(), pst: (r[7] || '').trim() });
+    });
+    out.sort(function (a, b) { return a.ver - b.ver; });
+    AL_ARCH = out;
+    return out;
+  }).catch(function () { return AL_ARCH; });
+}
+function alArchLast_() {
+  if (!AL_ARCH || !AL_ARCH.length) return null;
+  for (var i = AL_ARCH.length - 1; i >= 0; i--) if (AL_ARCH[i].snap) return AL_ARCH[i];
+  return null;
 }
 
 /* ---------- הפס העליון ---------- */
@@ -197,7 +292,7 @@ function alBarPaint_() {
   var b = $('al-bar');
   if (!b) return;
   var st = { saving: alU_('alSaving'), saved: alU_('alSaved'), fail: alU_('alSaveFail'),
-             nokey: alU_('alNoKey') }[AL_ST] || '';
+             nokey: alU_('alNoKey'), arch: alU_('alFromArch', { v: AL_FROM }) }[AL_ST] || '';
   b.innerHTML = '<b>' + esc(alU_('alBar')) + '</b>' +
     '<span class="al-n">' + esc(alU_('alCount', { n: AL.items.length })) + '</span>' +
     '<span class="al-st' + (AL_ST === 'fail' || AL_ST === 'nokey' ? ' bad' : '') + '">' + esc(st) + '</span>' +
@@ -216,12 +311,29 @@ function alPaint_() {
   if (!v) return;
   var st = alStepOf_(alStepKey_(v)) || { v: v, idx: IDX, key: alStepKey_(v) };
   var off = alOffer_(st), s = st.key;
+  var notes = AL.notes || {}, ed = AL.ed || {};
+  /* הערה לפריט — נפתחת בהקשה, ופתוחה תמיד כשיש בה משהו */
+  var noteH = function (it) {
+    var k = alIK_(it), v = notes[k] || '';
+    if (!v && !AL_OPEN['n:' + k]) {
+      return '<button class="al-nb" data-nk="' + esc(k) + '">' + esc(alU_('alNoteB')) + '</button>';
+    }
+    return '<textarea class="al-ni" rows="2" data-nk="' + esc(k) + '" placeholder="' +
+      esc(alU_('alNoteL')) + '">' + esc(v) + '</textarea>';
+  };
   var btn = function (it, data) {
     var on = alFind_(it) >= 0;
-    return '<button class="al-tg' + (on ? ' on' : '') + '" ' + data + '>' +
-      esc(on ? alU_('alIn') : alU_('alAdd')) + '</button>';
+    return '<div class="al-row"><button class="al-tg' + (on ? ' on' : '') + '" ' + data + '>' +
+      esc(on ? alU_('alIn') : alU_('alAdd')) + '</button>' + noteH(it) + '</div>';
   };
-  var h = '<div class="al-h"><b>' + esc(alSrc_(st)) + '</b></div>';
+  var ttl = (ed.titles || {})[s] || '', quo = (ed.quotes || {})[s] || '';
+  var h = '<div class="al-h"><b>' + esc(alSrc_(st)) + '</b>' +
+    '<button class="al-eb' + (ttl || quo ? ' on' : '') + '" id="al-eb">' + esc(alU_('alEdit')) + '</button></div>';
+  if (AL_OPEN['e:' + s] || ttl || quo) {
+    h += '<div class="al-ed"><label>' + esc(alU_('alTitleL')) +
+      '<input type="text" id="al-ttl" placeholder="' + esc(alSrc_(st)) + '" value="' + esc(ttl) + '"></label>' +
+      '<label>' + esc(alU_('alQuoteL')) + '<textarea id="al-quo" rows="3">' + esc(quo) + '</textarea></label></div>';
+  }
   if (off.q.length || off.drafts) {
     h += '<div class="al-sec">' + esc(alU_('alQ')) + '</div>';
     off.q.forEach(function (x) {
@@ -257,6 +369,26 @@ function alPaint_() {
     h += '<p class="al-none">' + esc(alU_('alNone')) + '</p>';
   }
   box.innerHTML = h;
+  $('al-eb').onclick = function () { AL_OPEN['e:' + s] = !AL_OPEN['e:' + s]; alPaint_(); };
+  var edSet = function (id, field) {
+    var el = $(id);
+    if (!el) return;
+    el.oninput = function () { AL.ed[field][s] = el.value; alKeep_(); };
+  };
+  edSet('al-ttl', 'titles');
+  edSet('al-quo', 'quotes');
+  [].forEach.call(box.querySelectorAll('button[data-nk]'), function (b) {
+    b.onclick = function () {
+      AL_OPEN['n:' + b.getAttribute('data-nk')] = 1;
+      alPaint_();
+      [].forEach.call(box.querySelectorAll('textarea[data-nk]'), function (t) {
+        if (t.getAttribute('data-nk') === b.getAttribute('data-nk')) t.focus();
+      });
+    };
+  });
+  [].forEach.call(box.querySelectorAll('textarea[data-nk]'), function (t) {
+    t.oninput = function () { AL.notes[t.getAttribute('data-nk')] = t.value; alKeep_(); };
+  });
   [].forEach.call(box.querySelectorAll('[data-q]'), function (b) {
     b.onclick = function () {
       var x = off.q.filter(function (y) { return String(y.i) === b.getAttribute('data-q'); })[0];
@@ -310,7 +442,10 @@ function alResolve_() {
       g.sl.push({ f: it.f });
     }
   });
-  order.sort(function (a, b) { return byStep[a].st.idx - byStep[b].st.idx; });
+  /* סדר מותאם (ed.order) גובר; יחידה שאינה בו — אחריו, בסדר הלימוד */
+  var cust = (AL.ed && AL.ed.order) || [];
+  var pos = function (k) { var i = cust.indexOf(k); return i < 0 ? 100000 + byStep[k].st.idx : i; };
+  order.sort(function (a, b) { return pos(a) - pos(b); });
   order.forEach(function (k) {
     var g = byStep[k];
     g.q.sort(function (a, b) { return a.i - b.i; });
@@ -340,32 +475,97 @@ function alLogo_() {
     document.head.appendChild(s);
   });
 }
+/* תיקוני טקסט לעלון בלבד (ed.fix) — בייצוא, לא במקור. `AL_FIXHIT`
+   סופר כמה פעמים כל תיקון חל; תיקון שלא נמצא נאמר בתצוגה המקדימה. */
+var AL_FIXHIT = [], AL_HEADTXT = '';
+function alFixList_() {
+  return ((AL.ed && AL.ed.fix) || []).filter(function (f) { return f && String(f.a || ''); });
+}
+function alFix_(s) {
+  s = String(s == null ? '' : s);
+  alFixList_().forEach(function (f, i) {
+    var n = s.split(f.a).length - 1;
+    if (n) { AL_FIXHIT[i] = (AL_FIXHIT[i] || 0) + n; s = s.split(f.a).join(f.b || ''); }
+  });
+  return s;
+}
+/* ב-HTML — רק בטקסט, לא בתגיות */
+function alFixHtml_(html) {
+  return String(html || '').split(/(<[^>]*>)/).map(function (p) {
+    if (p.charAt(0) === '<') return p;
+    var out = p;
+    alFixList_().forEach(function (f, i) {
+      [f.a, esc(f.a)].forEach(function (a, j) {
+        if (j && a === f.a) return;
+        var n = out.split(a).length - 1;
+        if (n) { AL_FIXHIT[i] = (AL_FIXHIT[i] || 0) + n; out = out.split(a).join(j ? esc(f.b || '') : (f.b || '')); }
+      });
+    });
+    return out;
+  }).join('');
+}
+/* תווית קצרה לגוש — לרשימת ההבדלים מהגרסה המאושרת */
+function alShort_(t) {
+  t = String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return t.length > 48 ? t.slice(0, 48) + '…' : t;
+}
+function alQHtml_(x) {
+  return '<div class="alp-q"><span class="alp-ql">' + esc(alU_('alQone')) + '</span>' +
+    '<div class="alp-qq">' + esc(alFix_(x.q.q || '')) + '</div><ol>' + (x.q.a || []).map(function (a) {
+      return '<li>' + esc(alFix_(a)) + '</li>';
+    }).join('') + '</ol></div>';
+}
 function alBlocksHtml_(res) {
   var out = [];
+  AL_FIXHIT = [];
+  AL_HEADTXT = alHeadTxt_();
+  var ed = AL.ed || {};
   var yr = (window.PROGRAM && PROGRAM.year) || '';
   out.push({ t: 'mast', h: '<div class="alp-mast"><span class="m"><img alt="" src="' +
     esc(window.LOGO_MARK || '') + '"></span><div class="w"><b>' + esc(alU_('alBrand1')) +
     '</b><span>' + esc(alU_('alBrand2')) + '</span>' + (yr ? '<i>' + esc(yr) + '</i>' : '') +
     '</div></div><h1 class="alp-t">' + esc(alU_('alTitle')) + '</h1><div class="alp-sub">' +
-    esc(alU_('alSub', { mas: MAS_NAME[S.mas] || S.mas, daf: S.daf })) + '</div>' });
+    esc(alU_('alSub', { mas: MAS_NAME[S.mas] || S.mas, daf: S.daf })) + '</div>', l: alU_('alLbMast') });
   res.blocks.forEach(function (g) {
-    out.push({ t: 'h', h: '<div class="alp-src">' + esc(alSrc_(g.st)) + '</div>' });
-    g.q.forEach(function (x) {
-      out.push({ t: 'q', h: '<div class="alp-q"><span class="alp-ql">' + esc(alU_('alQone')) + '</span>' +
-        '<div class="alp-qq">' + esc(x.q.q || '') + '</div><ol>' + (x.q.a || []).map(function (a) {
-          return '<li>' + esc(a) + '</li>';
-        }).join('') + '</ol></div>' });
+    var k = g.st.key, ttl = String((ed.titles || {})[k] || '').trim() || alSrc_(g.st);
+    out.push({ t: 'h', h: '<div class="alp-src">' + esc(alFix_(ttl)) + '</div>', l: alU_('alLbH', { x: alShort_(ttl) }) });
+    var qs = g.q.slice();
+    /* ציטוט מהגמרא — במסגרת, והחידה הראשונה של היחידה לצידו */
+    var quo = String((ed.quotes || {})[k] || '').trim();
+    if (quo) {
+      var q0 = qs.shift();
+      out.push({ t: 'gq', h: '<div class="alp-gq"><blockquote class="alp-gm"><span class="alp-gml">' +
+        esc(alU_('alGemara')) + '</span>' + esc(alFix_(quo)).replace(/\n/g, '<br>') + '</blockquote>' +
+        (q0 ? alQHtml_(q0) : '') + '</div>',
+        l: alU_('alLbGq', { x: alShort_(quo) }) });
+    }
+    qs.forEach(function (x) {
+      out.push({ t: 'q', h: alQHtml_(x), l: alU_('alLbQ', { x: alShort_(x.q.q) }) });
     });
     g.own.forEach(function (x) {
       out.push({ t: 'own', h: '<div class="alp-own">' +
-        (x.p.tag ? '<span class="alp-tag">' + esc(x.p.tag) + '</span>' : '') +
-        '<div class="alp-txt">' + ownSan(x.p.text) + '</div></div>' });
+        (x.p.tag ? '<span class="alp-tag">' + esc(alFix_(x.p.tag)) + '</span>' : '') +
+        '<div class="alp-txt">' + alFixHtml_(ownSan(x.p.text)) + '</div></div>',
+        l: alU_('alLbOwn', { x: alShort_(ownStripHtml_(x.p.text)) }) });
     });
     g.sl.forEach(function (x) {
-      out.push({ t: 'sl', f: x.f, h: '<figure class="alp-sl"><img alt="" src="' + esc(x.f) + '"></figure>' });
+      out.push({ t: 'sl', f: x.f, h: '<figure class="alp-sl"><img alt="" src="' + esc(x.f) + '"></figure>',
+                 l: alU_('alLbSl', { x: String(x.f).split('/').pop() }) });
     });
   });
+  alFixList_().forEach(function (f, i) {
+    if (!AL_FIXHIT[i]) res.warn.push(alU_('alFixNone', { a: f.a }));
+  });
   return out;
+}
+/* טביעה של העלון: גוש-גוש, עם תווית קריאה. נשמרת בכל אישור,
+   ומולה נבדק מה שעל המסך. */
+function alFp_(blocks) {
+  return blocks.map(function (b) { return { l: b.l || b.t, h: alHash_(b.h) }; });
+}
+function alHeadTxt_() {
+  var hd = String((AL.ed && AL.ed.head) || '').trim();
+  return hd ? alU_('alHead', { head: alFix_(hd), mas: MAS_NAME[S.mas] || S.mas, daf: S.daf }) : '';
 }
 /* שקף כהה — ממוצע הבהירות מתחת לשליש. התמונות מאותו מקור, ולכן
    הקנבס קריא. נמדד על התמונות שכבר נטענו (במדידה שלפני החלוקה) —
@@ -399,17 +599,55 @@ function alPreview_() {
   document.body.classList.add('al-viewing');
   el.className = 'al-prev on';
   el.innerHTML = '<div class="al-tools"><button id="alp-back">' + esc(alU_('alBack')) + '</button>' +
-    '<span class="sp"></span><span class="al-wait">' + esc(alU_('alBuilding')) + '</span></div>';
+    '<label>' + esc(alU_('alPaper')) + ' <select id="alp-paper"><option value="A4">A4</option>' +
+    '<option value="A5">A5</option></select></label>' +
+    '<label class="alp-ink"><input type="checkbox" id="alp-ink"> ' + esc(alU_('alInk')) + '</label>' +
+    '<button id="alp-setb">' + esc(alU_('alSetB')) + '</button>' +
+    '<button id="alp-archb"></button>' +
+    '<span class="sp"></span><span class="al-pages" id="alp-n">' + esc(alU_('alBuilding')) + '</span>' +
+    '<button class="al-go" id="alp-pdf">' + esc(alU_('alPdf')) + '</button></div>' +
+    '<div class="al-set" id="alp-set"></div><div class="al-arch" id="alp-arch"></div>' +
+    '<div id="alp-body"></div>';
   $('alp-back').onclick = alPreviewClose_;
+  $('alp-paper').value = AL_PREF.paper;
+  $('alp-ink').checked = !!AL_PREF.ink;
+  $('alp-paper').onchange = function () { AL_PREF.paper = this.value; alPrefKeep_(); alBuild_(); };
+  $('alp-ink').onchange = function () { AL_PREF.ink = this.checked; alPrefKeep_(); alBuild_(); };
+  $('alp-pdf').onclick = function () { window.print(); };
+  $('alp-setb').onclick = function () {
+    var s = $('alp-set');
+    s.className = s.className.indexOf(' on') < 0 ? 'al-set on' : 'al-set';
+    alSetPaint_();
+  };
+  $('alp-archb').onclick = function () {
+    var a = $('alp-arch');
+    a.className = a.className.indexOf(' on') < 0 ? 'al-arch on' : 'al-arch';
+    alArchPaint_();
+    if (a.className.indexOf(' on') >= 0) alArchLoad_().then(function () { alArchPaint_(); alDiffPaint_(); });
+  };
+  alArchBtn_();
   alLogo_().then(function () { alBuild_(); });
+}
+function alArchBtn_() {
+  var b = $('alp-archb');
+  if (b) b.textContent = alU_('alArchB', { n: AL_ARCH ? AL_ARCH.length : '…' });
 }
 function alPreviewClose_() {
   var el = $('al-prev');
   if (el) { el.className = 'al-prev'; el.innerHTML = ''; }
   document.body.classList.remove('al-viewing');
+  alPaint_();
+}
+/* בנייה מחדש אחרי הקלדה — אחרי רגע של שקט, לא בכל אות */
+function alBuildSoon_() {
+  if (AL_BT) clearTimeout(AL_BT);
+  AL_BT = setTimeout(function () { AL_BT = null; alBuild_(); }, 700);
 }
 function alBuild_() {
-  var el = $('al-prev');
+  var el = $('al-prev'), body = $('alp-body');
+  if (!el || !body) return;
+  var gen = ++AL_BGEN;
+  AL_LAST = null;
   var res = alResolve_();
   var P = AL_PAPER[AL_PREF.paper] || AL_PAPER.A4;
   var css = $('al-page');
@@ -418,35 +656,29 @@ function alBuild_() {
     '.alp-pg{width:' + P[0] + 'mm;height:' + (P[1] - 0.6) + 'mm}' +
     /* שקף אחד לעולם אינו גבוה מעמוד — עם כותרת הקטע מעליו */
     '.alp-sl img{max-height:' + (P[1] - 50) + 'mm}';
-  var tools = '<div class="al-tools"><button id="alp-back">' + esc(alU_('alBack')) + '</button>' +
-    '<label>' + esc(alU_('alPaper')) + ' <select id="alp-paper"><option value="A4"' +
-    (AL_PREF.paper === 'A4' ? ' selected' : '') + '>A4</option><option value="A5"' +
-    (AL_PREF.paper === 'A5' ? ' selected' : '') + '>A5</option></select></label>' +
-    '<label class="alp-ink"><input type="checkbox" id="alp-ink"' + (AL_PREF.ink ? ' checked' : '') + '> ' +
-    esc(alU_('alInk')) + '</label><span class="sp"></span><span class="al-pages" id="alp-n"></span>' +
-    '<button class="al-go" id="alp-pdf">' + esc(alU_('alPdf')) + '</button></div>';
+  var blocks = res.blocks.length ? alBlocksHtml_(res) : [];
   var warn = res.warn.length ? '<div class="al-warn"><b>' + esc(alU_('alMiss')) + '</b><ul>' +
     res.warn.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' : '';
   var how = '<p class="al-how">' + esc(alU_('alPrintHow')) + ' ' + esc(alU_('alInkH')) + '</p>';
-  el.innerHTML = tools + warn + how + '<div class="al-doc' + (AL_PREF.ink ? ' ink' : '') +
+  body.innerHTML = warn + '<div id="alp-diff"></div>' + how + '<div class="al-doc' + (AL_PREF.ink ? ' ink' : '') +
     '" id="alp-doc"></div>';
-  $('alp-back').onclick = alPreviewClose_;
-  $('alp-paper').onchange = function () { AL_PREF.paper = this.value; alPrefKeep_(); alBuild_(); };
-  $('alp-ink').onchange = function () { AL_PREF.ink = this.checked; alPrefKeep_(); alBuild_(); };
-  $('alp-pdf').onclick = function () { window.print(); };
+  $('alp-n').textContent = alU_('alBuilding');
   var doc = $('alp-doc');
   if (!res.blocks.length) {
     doc.innerHTML = '<p class="al-none">' + esc(alU_('alEmpty')) + '</p>';
     $('alp-pdf').disabled = true;
+    $('alp-n').textContent = '';
+    alArchPaint_();
     return;
   }
-  var blocks = alBlocksHtml_(res);
+  $('alp-pdf').disabled = false;
   /* קודם כל התמונות — בלי המידות שלהן אי אפשר לחלק לעמודים */
   var pre = document.createElement('div');
   pre.className = 'alp-pg alp-measure';
   pre.innerHTML = '<div class="alp-in">' + blocks.map(function (b) { return b.h; }).join('') + '</div>';
   doc.appendChild(pre);
   alWaitImgs_(pre).then(function () {
+    if (gen !== AL_BGEN) return;
     var bad = {}, dim = {};
     [].forEach.call(pre.querySelectorAll('.alp-sl img'), function (im) {
       if (!im.naturalWidth) bad[im.getAttribute('src')] = 1;
@@ -455,19 +687,247 @@ function alBuild_() {
     doc.removeChild(pre);
     var gone = Object.keys(bad);
     if (gone.length) {
-      var w = el.querySelector('.al-warn ul');
+      var w = body.querySelector('.al-warn ul');
       if (!w) {
-        el.querySelector('.al-how').insertAdjacentHTML('beforebegin',
-          '<div class="al-warn"><b>' + esc(alU_('alMiss')) + '</b><ul></ul></div>');
-        w = el.querySelector('.al-warn ul');
+        body.insertAdjacentHTML('afterbegin', '<div class="al-warn"><b>' + esc(alU_('alMiss')) + '</b><ul></ul></div>');
+        w = body.querySelector('.al-warn ul');
       }
       gone.forEach(function (f) { w.insertAdjacentHTML('beforeend', '<li>' + esc(alU_('alMissSl', { f: f })) + '</li>'); });
     }
-    alPaginate_(doc, blocks.filter(function (b) { return !(b.t === 'sl' && bad[b.f]); }), dim);
+    var use = blocks.filter(function (b) { return !(b.t === 'sl' && bad[b.f]); });
+    var n = alPaginate_(doc, use, dim);
+    AL_LAST = { fp: alFp_(use), pages: n, head: AL_HEADTXT };
+    alDiffPaint_();
+    alArchPaint_();
   });
 }
 function alPrefKeep_() {
   try { localStorage.setItem('df:alonPref', JSON.stringify(AL_PREF)); } catch (e) {}
+  /* גודל הדף וחיסכון הדיו הם חלק מהעלון — נשמרים גם בטיוטה */
+  alKeep_();
+}
+
+/* ============================================================
+   הגדרות העלון — מה שהיה ידני: כותרת עליונה, סדר יחידות, תיקונים
+   לעלון בלבד, הערה כללית. הכול נשמר בטיוטה (ed / note).
+   ============================================================ */
+function alSetPaint_() {
+  var box = $('alp-set');
+  if (!box || box.className.indexOf(' on') < 0) { if (box) box.innerHTML = ''; return; }
+  var ed = AL.ed, res = alResolve_();
+  var h = '<label class="al-fl">' + esc(alU_('alHeadL')) +
+    '<input type="text" id="als-head" value="' + esc(ed.head || '') + '"></label>';
+  if (res.blocks.length > 1) {
+    h += '<div class="al-fl">' + esc(alU_('alOrderL')) + '<ol class="al-ord">' +
+      res.blocks.map(function (g, i) {
+        var t = String((ed.titles || {})[g.st.key] || '').trim() || alSrc_(g.st);
+        return '<li><span>' + esc(t) + '</span>' +
+          '<button data-mv="' + i + '" data-d="-1"' + (i ? '' : ' disabled') + '>▲</button>' +
+          '<button data-mv="' + i + '" data-d="1"' + (i < res.blocks.length - 1 ? '' : ' disabled') + '>▼</button></li>';
+      }).join('') + '</ol></div>';
+  }
+  h += '<div class="al-fl">' + esc(alU_('alFixL')) + '<div id="als-fix">' +
+    (ed.fix || []).map(function (f, i) {
+      return '<div class="al-fix"><input type="text" data-fa="' + i + '" placeholder="' + esc(alU_('alFixA')) +
+        '" value="' + esc(f.a || '') + '"><span>←</span><input type="text" data-fb="' + i + '" placeholder="' +
+        esc(alU_('alFixB')) + '" value="' + esc(f.b || '') + '"><button data-fd="' + i + '">' +
+        esc(alU_('alFixDel')) + '</button></div>';
+    }).join('') + '</div><button id="als-fadd">' + esc(alU_('alFixAdd')) + '</button></div>';
+  h += '<label class="al-fl">' + esc(alU_('alNoteG')) + '<textarea id="als-note" rows="3">' +
+    esc(AL.note || '') + '</textarea></label>';
+  box.innerHTML = h;
+  $('als-head').oninput = function () { ed.head = this.value; alKeep_(); alBuildSoon_(); };
+  $('als-note').oninput = function () { AL.note = this.value; alKeep_(); };
+  $('als-fadd').onclick = function () { ed.fix.push({ a: '', b: '' }); alSetPaint_(); };
+  [].forEach.call(box.querySelectorAll('[data-mv]'), function (b) {
+    b.onclick = function () {
+      var keys = res.blocks.map(function (g) { return g.st.key; });
+      var i = +b.getAttribute('data-mv'), j = i + (+b.getAttribute('data-d'));
+      if (j < 0 || j >= keys.length) return;
+      var t = keys[i]; keys[i] = keys[j]; keys[j] = t;
+      ed.order = keys;
+      alKeep_(); alSetPaint_(); alBuild_();
+    };
+  });
+  [].forEach.call(box.querySelectorAll('[data-fa],[data-fb]'), function (inp) {
+    inp.oninput = function () {
+      var a = inp.getAttribute('data-fa'), i = +(a !== null ? a : inp.getAttribute('data-fb'));
+      if (!ed.fix[i]) return;
+      ed.fix[i][a !== null ? 'a' : 'b'] = inp.value;
+      alKeep_(); alBuildSoon_();
+    };
+  });
+  [].forEach.call(box.querySelectorAll('[data-fd]'), function (b) {
+    b.onclick = function () {
+      ed.fix.splice(+b.getAttribute('data-fd'), 1);
+      alKeep_(); alSetPaint_(); alBuild_();
+    };
+  });
+}
+
+/* ============================================================
+   מול הגרסה המאושרת — מה שונה. מוצג לפני ההדפסה, ואינו מודפס.
+   ============================================================ */
+function alDiff_(cur, snap) {
+  var out = [];
+  if (!cur || !snap) return out;
+  if ((snap.tpl || 0) !== AL_TPL) out.push(alU_('alDiffTpl'));
+  var pf = (snap.al && snap.al.pf) || {};
+  if ((pf.paper || 'A4') !== AL_PREF.paper || !!pf.ink !== !!AL_PREF.ink) out.push(alU_('alDiffPaper'));
+  if ((snap.head || '') !== (cur.head || '')) out.push(alU_('alDiffHead'));
+  var a = snap.fp || [], b = cur.fp || [];
+  var cnt = function (list) { var m = {}; list.forEach(function (x) { m[x.h] = (m[x.h] || 0) + 1; }); return m; };
+  var ma = cnt(a), mb = cnt(b);
+  b.forEach(function (x) { if (ma[x.h]) ma[x.h]--; else out.push(alU_('alDiffAdd', { x: x.l })); });
+  a.forEach(function (x) { if (mb[x.h]) mb[x.h]--; else out.push(alU_('alDiffDel', { x: x.l })); });
+  if (out.length === 0 && a.map(function (x) { return x.h; }).join() !== b.map(function (x) { return x.h; }).join()) {
+    out.push(alU_('alDiffOrd'));
+  }
+  if (snap.pages && cur.pages && snap.pages !== cur.pages) out.push(alU_('alDiffPages', { n: cur.pages, m: snap.pages }));
+  return out;
+}
+function alDiffPaint_() {
+  var box = $('alp-diff'), last = alArchLast_();
+  if (!box) return;
+  if (!last || !AL_LAST) { box.innerHTML = ''; return; }
+  var d = alDiff_(AL_LAST, last.snap);
+  box.innerHTML = d.length
+    ? '<div class="al-warn"><b>' + esc(alU_('alDiffH', { v: last.ver })) + '</b><ul>' +
+      d.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>'
+    : '<p class="al-same">' + esc(alU_('alSame', { v: last.ver })) + '</p>';
+}
+
+/* ============================================================
+   הארכיון — אישור גרסה, ה-PDF שלה, וטעינה לעריכה.
+   ============================================================ */
+var AL_AMSG = '', AL_ABUSY = false;
+function alArchPaint_() {
+  alArchBtn_();
+  var box = $('alp-arch');
+  if (!box || box.className.indexOf(' on') < 0) { if (box) box.innerHTML = ''; return; }
+  var last = alArchLast_();
+  var same = last && AL_LAST && !alDiff_(AL_LAST, last.snap).length && alVal_() === alSnapVal_(last.snap);
+  var h = '<div class="al-ah"><b>' + esc(alU_('alArchH')) + '</b></div>' +
+    '<p class="al-note">' + esc(alU_('alApproveH')) + '</p>' +
+    '<button class="al-go" id="ala-ok"' + (!AL_LAST || same || AL_ABUSY ? ' disabled' : '') + '>' +
+    esc(alU_('alApprove')) + '</button>' +
+    (AL_AMSG ? '<p class="al-amsg">' + esc(AL_AMSG) + '</p>' : '');
+  if (AL_ARCH === null) h += '<p class="al-note">' + esc(alU_('alArchBad')) + '</p>';
+  else if (!AL_ARCH.length) h += '<p class="al-note">' + esc(alU_('alArchNone')) + '</p>';
+  else {
+    h += '<ul class="al-vers">' + AL_ARCH.slice().reverse().map(function (v) {
+      var s = v.snap || {}, pf = (s.al && s.al.pf) || {};
+      var pdf = v.pdf
+        ? '<a href="' + esc(v.pdf) + '" target="_blank" rel="noopener">' + esc(alU_('alPdfLink')) + '</a>'
+        : '<label class="al-up"><input type="file" accept="application/pdf" data-up="' + esc(v.id) + '"' +
+          (AL_ABUSY ? ' disabled' : '') + '>' + esc(alU_('alPdfUp')) + '</label>' +
+          (v.pst ? '<span class="al-pst">' + esc(v.pst) + '</span>' : '');
+      return '<li><span>' + esc(alU_('alVer', { v: v.ver, at: v.at, n: s.pages || '?', paper: pf.paper || 'A4' })) +
+        '</span>' + pdf + (s.al ? '<button data-ld="' + v.ver + '"' + (AL_ABUSY ? ' disabled' : '') + '>' +
+        esc(alU_('alLoadV')) + '</button>' : '') + '</li>';
+    }).join('') + '</ul>';
+  }
+  box.innerHTML = h;
+  $('ala-ok').onclick = alApprove_;
+  [].forEach.call(box.querySelectorAll('[data-up]'), function (inp) {
+    inp.onchange = function () { if (inp.files && inp.files[0]) alPdfUp_(inp.getAttribute('data-up'), inp.files[0]); };
+  });
+  [].forEach.call(box.querySelectorAll('[data-ld]'), function (b) {
+    b.onclick = function () {
+      var v = +b.getAttribute('data-ld');
+      var row = AL_ARCH.filter(function (x) { return x.ver === v; })[0];
+      if (!row || !row.snap || !row.snap.al) return;
+      if (!confirm(alU_('alLoadQ', { v: v }))) return;
+      AL = JSON.parse(JSON.stringify(row.snap.al));
+      alNorm_();
+      alKeep_();
+      $('alp-paper').value = AL_PREF.paper;
+      $('alp-ink').checked = !!AL_PREF.ink;
+      AL_AMSG = '';
+      alSetPaint_();
+      alBuild_();
+    };
+  });
+}
+/* הטיוטה כפי שנשמרה בתוך גרסה — להשוואה עם מה שעל המסך */
+function alSnapVal_(snap) {
+  if (!snap || !snap.al) return '';
+  var keep = AL, kp = { paper: AL_PREF.paper, ink: AL_PREF.ink }, v;
+  AL = JSON.parse(JSON.stringify(snap.al));
+  alNorm_();
+  AL.t = keep.t;
+  v = alVal_();
+  AL = keep; AL_PREF.paper = kp.paper; AL_PREF.ink = kp.ink;
+  return v;
+}
+function alRid_() {
+  var s = 'v', c = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  for (var i = 0; i < 14; i++) s += c.charAt(Math.floor(Math.random() * c.length));
+  return s;
+}
+function alApprove_() {
+  var key = cfgReadKey_();
+  if (!AL_LAST || AL_ABUSY) return;
+  if (!API || !key) { AL_AMSG = alU_('alNoKey'); alArchPaint_(); return; }
+  var nextV = (AL_ARCH && AL_ARCH.length ? AL_ARCH[AL_ARCH.length - 1].ver : 0) + 1;
+  if (!confirm(alU_('alApproveQ', { v: nextV }))) return;
+  var cur = alVal_();
+  var snap = { id: alRid_(), tpl: AL_TPL, at: new Date().toISOString(), pages: AL_LAST.pages,
+               head: AL_LAST.head || '', fp: AL_LAST.fp, al: cur ? JSON.parse(cur) : { items: [] } };
+  AL_ABUSY = true; AL_AMSG = alU_('alApproving'); alArchPaint_();
+  /* הטיוטה נשמרת גם היא — שלא יישאר אישור על משהו שאינו בטיוטה */
+  if (AL_T) { clearTimeout(AL_T); alSend_(); }
+  fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    action: 'alonArch', key: key, mas: S.mas, daf: S.daf, val: JSON.stringify(snap) }) })
+    .catch(function () {})
+    .then(function () { alArchWait_(0, function (rows) {
+      return rows.filter(function (r) { return r.id === snap.id; })[0];
+    }, function (row) {
+      AL_ABUSY = false;
+      AL_AMSG = row ? alU_('alApproved', { v: row.ver }) : alU_('alApproveFail');
+      alArchPaint_(); alDiffPaint_();
+    }); });
+}
+/* קריאה חוזרת של הארכיון עד שהתנאי מתקיים — no-cors אינו מספר דבר */
+function alArchWait_(tries, test, done, max) {
+  max = max || 5;
+  setTimeout(function () {
+    alArchLoad_().then(function (rows) {
+      var hit = rows && test(rows);
+      if (hit) return done(hit);
+      if (tries + 1 < max) return alArchWait_(tries + 1, test, done, max);
+      done(null);
+    });
+  }, 1500 + tries * 1500);
+}
+var AL_PDF_MAX = 30;   /* MB */
+function alPdfUp_(id, file) {
+  var key = cfgReadKey_();
+  if (AL_ABUSY) return;
+  if (!API || !key) { AL_AMSG = alU_('alNoKey'); alArchPaint_(); return; }
+  var mb = file.size / 1048576;
+  if (mb > AL_PDF_MAX) { AL_AMSG = alU_('alPdfBig', { mb: mb.toFixed(1), max: AL_PDF_MAX }); alArchPaint_(); return; }
+  var row0 = (AL_ARCH || []).filter(function (r) { return r.id === id; })[0];
+  var pst0 = row0 ? row0.pst : '';
+  AL_ABUSY = true; AL_AMSG = alU_('alPdfUping'); alArchPaint_();
+  var fr = new FileReader();
+  fr.onerror = function () { AL_ABUSY = false; AL_AMSG = alU_('alPdfNot'); alArchPaint_(); };
+  fr.onload = function () {
+    var data = String(fr.result || '').replace(/^data:[^,]*,/, '');
+    if (!/^JVBER/.test(data)) { AL_ABUSY = false; AL_AMSG = alU_('alPdfNot'); alArchPaint_(); return; }
+    fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+      action: 'alonPdf', key: key, mas: S.mas, daf: S.daf, id: id, name: file.name, data: data }) })
+      .catch(function () {})
+      .then(function () { alArchWait_(0, function (rows) {
+        var r = rows.filter(function (x) { return x.id === id; })[0];
+        return r && (r.pdf || (r.pst && r.pst !== pst0)) ? r : null;
+      }, function (r) {
+        AL_ABUSY = false;
+        AL_AMSG = !r ? alU_('alPdfNoAns') : r.pdf ? alU_('alPdfOk') : alU_('alPdfFail', { why: r.pst });
+        alArchPaint_();
+      }, 8); });
+  };
+  fr.readAsDataURL(file);
 }
 /* `dim` — המידות של כל שקף. תמונה חדשה בעמוד מקבלת גובה רק אחרי
    שהיא מפוענחת, גם כשהיא במטמון; בלי המידות מראש החלוקה מודדת
@@ -477,13 +937,15 @@ function alPaginate_(doc, blocks, dim) {
   var newPage = function () {
     var pg = document.createElement('div');
     pg.className = 'alp-pg';
-    pg.innerHTML = '<div class="alp-in"></div><div class="alp-foot"></div>';
+    /* כותרת עליונה (פרשה · דף) — רק אם נקבעה, בכל עמוד */
+    pg.innerHTML = (AL_HEADTXT ? '<div class="alp-head">' + esc(AL_HEADTXT) + '</div>' : '') +
+      '<div class="alp-in"></div><div class="alp-foot"></div>';
     /* שורת התחתית תופסת מקום כבר עכשיו. נכתבה רק בסוף, והעמוד שנמדד
        היה גבוה מזה שהודפס — וסוף הטקסט נחתך. */
     pg.lastChild.textContent = alU_('alFoot', { i: 99, n: 99, daf: S.daf });
     doc.appendChild(pg);
     pages.push(pg);
-    return pg.firstChild;
+    return pg.querySelector('.alp-in');
   };
   var inn = newPage();
   var full = function () { return inn.scrollHeight > inn.clientHeight + 1; };
@@ -547,7 +1009,7 @@ function alPaginate_(doc, blocks, dim) {
   });
   /* עמוד שנשאר ריק — יורד */
   pages = pages.filter(function (pg) {
-    if (pg.firstChild.childNodes.length) return true;
+    if (pg.querySelector('.alp-in').childNodes.length) return true;
     doc.removeChild(pg);
     return false;
   });
@@ -558,6 +1020,7 @@ function alPaginate_(doc, blocks, dim) {
   var pn = $('alp-n');
   if (pn) pn.textContent = alU_('alPages', { n: N });
   alFit_();
+  return N;
 }
 /* החלק שעבר לעמוד הבא: תווית "המשך", ומספור התשובות ממשיך (ד׳ ולא א׳) */
 function alContMark_(node, rest) {
