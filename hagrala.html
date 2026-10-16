@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E6">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="join-manifest.json">
+<title>הדף השבועי</title>
+<!-- ============================================================
+     עמוד הקידום של ההגרלה — לפני שיש זוכים.
+     ============================================================
+     נפתח מהודעת הקידום. תמונה אחת שאושרה (חמשת הפרסים), ברוחב
+     המסך ובגובה אוטומטי — בלי חיתוך, בלי בחירה ובלי אנימציה.
+     מתחתיה שתי ההסתייגויות כמלל חי.
+
+     **אין כאן זוכים, שעה או הבטחה שההגרלה כבר בוצעה.** מצב
+     התוצאות יהיה מסך נפרד, ורק אחרי אישור פרסום.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="הגרלה! · הדף השבועי">
+<meta property="og:description" content="אפשרות בחירה בין חמישה פרסים.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/hagrala">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+:root{
+  --blue-d:#0B2550; --gold-t:#8C681F;
+  --paper:#F6F1E6; --ink:#1B2A45; --ink-2:#5A6780;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 14px 10px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.art{display:block;width:100%;height:auto;border-radius:14px}
+.note{margin-top:12px;font-size:.92rem;font-weight:600;color:var(--ink-2)}
+.note + .note{margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <img class="art" id="art" src="promo/hagrala.jpg" width="1024" height="1536" alt="">
+  <p class="note" id="note"></p>
+  <p class="note" id="illus"></p>
+</main>
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function tp(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+/* המלל שנערך בניהול — אותן שתי שכבות של שאר העמודים. */
+(function () {
+  var take = function (map) {
+    for (var k in (map || {})) {
+      var p = k.split('.');
+      if (p.length === 2 && p[0] === 'ui' && typeof map[k] === 'string' && map[k]) UI[p[1]] = map[k];
+    }
+  };
+  try {
+    take(JSON.parse(ls('df:textCache') || 'null'));
+    take((JSON.parse(ls('df:cfg') || '{}')).texts);
+  } catch (e) {}
+})();
+(function () { var l = $('hdr-mark'); if (l) l.src = LOGO_MARK; })();
+$('brand').innerHTML = esc(PROGRAM.short) + '<br>' +
+  esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('art').alt = UI.hagAlt;
+$('note').textContent = UI.hagNote;
+$('illus').textContent = UI.hagIllus;
+</script>
+</body>
+</html>
