@@ -166,7 +166,7 @@ function colIx(rows) {
 function applyFlt(list) {
   var needPeople = FLT.per || FLT.way;
   var needLearn  = !!FLT.seg;
-  if (!needPeople && !needLearn && !FLT.ids) return Promise.resolve(list);
+  if (!needPeople && !needLearn && !FLT.ids && !FLT.insts && !FLT.xids) return Promise.resolve(list);
   var mute = list.mute || [];
   return Promise.all([
     needPeople ? readTab('לומדים') : Promise.resolve(null),
@@ -195,6 +195,11 @@ function applyFlt(list) {
     }
     var keep = function (it) {
       if (FLT.ids && FLT.ids.indexOf(it.id) < 0) return false;
+      /* כמה מוסדות (לפי קוד), והחרגה של מזהים — ההגרלה והעורך.
+         **אותו סינון בדיוק של audCount_ ב-apps-script.gs**, שלפיו
+         הרכז ראה כמה מכשירים יקבלו. שינוי כאן — שינוי גם שם. */
+      if (FLT.xids && FLT.xids.indexOf(it.id) >= 0) return false;
+      if (FLT.insts && FLT.insts.indexOf(it.code) < 0) return false;
       if (FLT.way && (!ppl[it.id] || ppl[it.id].way !== FLT.way)) return false;
       var my = st[it.id] || 'none';
       if (FLT.seg === 'todo' ? my === 'done' : (FLT.seg && my !== FLT.seg)) return false;
@@ -279,6 +284,10 @@ function loadSubs() {
       throw new Error('התבקש צמצום לישיבה, ואין עמודת "ישיבה" או ' +
                       '"קוד ישיבה" בלשונית התראות. לא נשלח דבר.');
     }
+    if (FLT.insts && iCode < 0) {
+      throw new Error('התבקש צמצום למוסדות, ואין עמודת "קוד ישיבה" ' +
+                      'בלשונית התראות. לא נשלח דבר.');
+    }
     if (role && iRole < 0) {
       throw new Error('התבקש צמצום לפי תפקיד, ואין עמודת "תפקיד" ' +
                       'בלשונית התראות. לא נשלח דבר.');
@@ -319,7 +328,8 @@ function loadSubs() {
       if (!raw) {
         blocked++;
         /* אינו נמען של ההתראה — אבל ההודעה תחכה לו באפליקציה. */
-        if (iId >= 0 && rows[i][iId]) mute.push({ id: String(rows[i][iId]).trim() });
+        if (iId >= 0 && rows[i][iId]) mute.push({ id: String(rows[i][iId]).trim(),
+                                                  code: iCode >= 0 ? String(rows[i][iCode] || '').trim() : '' });
         continue;
       }
       var s;
@@ -327,7 +337,8 @@ function loadSubs() {
       if (!s || !s.endpoint || seen[s.endpoint]) continue;
       seen[s.endpoint] = 1;
       out.push({ sub: s, who: (iWho >= 0 ? rows[i][iWho] : '') || '',
-                 id: iId >= 0 ? String(rows[i][iId] || '').trim() : '' });
+                 id: iId >= 0 ? String(rows[i][iId] || '').trim() : '',
+                 code: iCode >= 0 ? String(rows[i][iCode] || '').trim() : '' });
     }
     out.blocked = blocked;
     out.mute = mute;

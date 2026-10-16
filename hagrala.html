@@ -14,8 +14,14 @@
      המסך ובגובה אוטומטי — בלי חיתוך, בלי בחירה ובלי אנימציה.
      מתחתיה שתי ההסתייגויות כמלל חי.
 
-     **אין כאן זוכים, שעה או הבטחה שההגרלה כבר בוצעה.** מצב
-     התוצאות יהיה מסך נפרד, ורק אחרי אישור פרסום.
+     שלושה מצבים, נפרדים:
+       · קידום — מה שלמעלה. לכל מי שאינו מזוהה כתלמיד של מוסד
+         שבהגרלה, ולכל אחד לפני הפרסום. בלי זוכים ובלי שעה.
+       · תוצאות — "יש זוכים בהגרלה!", הזוכה מהמוסד של הקורא ראשון,
+         שאר הזוכים, ואחריהם הפרסים. **רק מה שהשרת החזיר** (raffleRes_
+         ב-apps-script.gs): פורסם, והמזהה שבמכשיר שייך לתלמיד של
+         המוסד. הסתרה כאן אינה ההגנה — השרת הוא.
+       · סגור — מכשיר של לפיד או "אחר": אין הגרלה ואין פרסים.
      ============================================================ -->
 <meta property="og:site_name" content="הדף השבועי של בני עקיבא">
 <meta property="og:locale" content="he_IL">
@@ -55,6 +61,16 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .art{display:block;width:100%;height:auto;border-radius:14px}
 .note{margin-top:12px;font-size:.92rem;font-weight:600;color:var(--ink-2)}
 .note + .note{margin-top:4px}
+#res h2{font-size:1.5rem;font-weight:800;color:var(--blue-d);text-align:center;margin:4px 0 12px}
+.win{background:#fff;border:2px solid var(--gold-t);border-radius:16px;padding:14px;text-align:center}
+.win small{display:block;font-size:.86rem;font-weight:700;color:var(--ink-2)}
+.win b{display:block;font-size:1.4rem;color:var(--blue-d);margin-top:2px}
+.win p{margin-top:6px;font-weight:800;color:var(--gold-t)}
+.oth{margin-top:14px}
+.oth h3,.prz{font-size:1rem;font-weight:800;color:var(--blue-d);margin:16px 0 6px}
+.oth li{list-style:none;padding:6px 0;border-bottom:1px solid #E5DAC3;font-weight:600}
+.oth li span{color:var(--ink-2);font-weight:500}
+main.wait{visibility:hidden}
 </style>
 </head>
 <body>
@@ -64,7 +80,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
     <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
   </div>
 </header>
-<main class="wrap">
+<main class="wrap" id="main">
+  <div id="res"></div>
   <img class="art" id="art" src="promo/hagrala.jpg" width="1024" height="1536" alt="">
   <p class="note" id="note"></p>
   <p class="note" id="illus"></p>
@@ -102,6 +119,55 @@ $('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
 $('art').alt = UI.hagAlt;
 $('note').textContent = UI.hagNote;
 $('illus').textContent = UI.hagIllus;
+
+/* ---- מי פותח את העמוד ---- */
+var ME = null;
+try { ME = JSON.parse(ls('df:me') || 'null'); } catch (e) { ME = null; }
+var INST = ME && ME.inst ? String(ME.inst) : '';
+function api() {
+  var u = ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '');
+  return String(u || '').trim();
+}
+function hide() {
+  $('res').innerHTML = '<p class="note">' + esc(UI.hagHidden) + '</p>';
+  $('art').style.display = 'none';
+  $('note').style.display = 'none';
+  $('illus').style.display = 'none';
+}
+function results(d) {
+  var h = '<h2>' + esc(UI.hagWinH) + '</h2>';
+  if (d.mine) {
+    h += '<div class="win"><small>' + esc(tp(UI.hagMine, { inst: d.mine.inst })) + '</small>' +
+         '<b>' + esc(d.mine.name) + '</b>' + (d.me ? '<p>' + esc(UI.hagMe) + '</p>' : '') + '</div>';
+  } else {
+    h += '<p class="note">' + esc(UI.hagNoMine) + '</p>';
+  }
+  if (d.others && d.others.length) {
+    h += '<div class="oth"><h3>' + esc(UI.hagOthers) + '</h3><ul>' +
+      d.others.map(function (o) {
+        return '<li>' + esc(o.name) + ' <span>· ' + esc(o.inst) + '</span></li>';
+      }).join('') + '</ul></div>';
+  }
+  h += '<div class="prz">' + esc(UI.hagPrizes) + '</div>';
+  $('res').innerHTML = h;
+}
+(function () {
+  if (INST === 'lapid' || INST === 'other') { hide(); return; }
+  var u = api();
+  if (!ME || !ME.id || !INST || !u || !window.fetch) return;
+  /* עד שהשרת עונה — לא מראים את הקידום ואז מחליפים. עד חמש שניות. */
+  var main = $('main'), done = false;
+  main.className = 'wrap wait';
+  var show = function () { if (!done) { done = true; main.className = 'wrap'; } };
+  setTimeout(show, 5000);
+  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=res&id=' + encodeURIComponent(ME.id) +
+        '&inst=' + encodeURIComponent(INST) + '&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!done && d && d.status === 'ok' && d.state === 'pub') results(d);
+      show();
+    })['catch'](show);
+})();
 </script>
 </body>
 </html>
