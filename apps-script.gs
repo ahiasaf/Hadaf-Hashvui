@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 66;
+var SCRIPT_VERSION = 67;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -427,6 +427,17 @@ function doPost(e) {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
       try { backupDaily_(); } catch (dbe) {}
       return json_(d.action === 'deckRow' ? deckRow_(d) : deckDrop_(d));
+    }
+    /* העלון השבועי: הבחירה של דף אחד. ראו alonRow_. */
+    if (d.action === 'alonRow') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      return json_(alonRow_(d));
+    }
+    /* שמירה אוטומטית מהסטודיו: עמוד אחד, עם גרסת בסיס. ראו markPut_. */
+    if (d.action === 'markPut') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      try { backupDaily_(); } catch (mbe) {}
+      return json_(markPut_(d));
     }
     /* "תלמידי הרשת" — ייבוא שמתמזג, ושחזור מגיבוי. ראו netMerge_. */
     if (d.action === 'netMerge' || d.action === 'netRestore') {
@@ -4575,6 +4586,98 @@ function deckDrop_(d) {
     if (ch) sh.getRange(i + 1, 3).setValue(JSON.stringify(o));
   }
   return { status: 'ok', removed: out };
+}
+
+/* ============================================================
+   העלון השבועי — מה שהרכז בחר לעלון, שורה לדף.
+   ============================================================
+   לשונית נפרדת מהתוכן: מסכת · דף · עלון (JSON). הבחירה מפנה לחידה,
+   לחלק פירוש ולשקף לפי מזהה — ואינה משנה אף אחד מהם. אותה כתיבה
+   של תא אחד כמו deckRow_, בלי לגעת בשאר הדפים. ריק = אין בחירה. */
+var ALON_TAB_ = 'עלון';
+function alonRow_(d) {
+  var mas = String(d.mas || '').trim(), dk = deckDafKey_(d.daf);
+  var val = String(d.val == null ? '' : d.val);
+  if (!mas || !dk) return { status: 'error', message: 'חסרים מסכת או דף' };
+  if (val) { try { JSON.parse(val); } catch (e) { return { status: 'error', message: 'נתונים פגומים' }; } }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(ALON_TAB_);
+  if (!sh) { sh = ss.insertSheet(ALON_TAB_); headRow_(sh, ['מסכת', 'דף', 'עלון']); }
+  var last = sh.getLastRow();
+  var rows = last ? sh.getRange(1, 1, last, 3).getDisplayValues() : [];
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() !== mas || deckDafKey_(rows[i][1]) !== dk) continue;
+    if (rows[i][2] !== val) sh.getRange(i + 1, 3).setValue(val);
+    return { status: 'ok', row: i + 1 };
+  }
+  if (val) sh.getRange(Math.max(last, 1) + 1, 1, 1, 3).setValues([[mas, String(d.daf), val]]);
+  return { status: 'ok', added: !!val };
+}
+
+/* ============================================================
+   הסטודיו — כתיבה של עמוד אחד, עם בדיקת בסיס.
+   ============================================================
+   "כל שינוי יישמר בלי שאצטרך לחשוב על שלושה עותקים."
+
+   עד עכשיו השמירה מהסטודיו קראה את כל "סימוני הדף" וכתבה אותה
+   מחדש מהזיכרון. כאן משתנה רק התא של העמוד, ורק אם מה שבגיליון
+   הוא בדיוק הגרסה שהעריכה במכשיר יצאה ממנה (`base`). זמן במכשיר
+   אינו ראיה מי חדש יותר — מזהה הגרסה הוא.
+
+   מזהה גרסה = `rv` שבתוך הרשומה + `t`. שורה ישנה בלי `rv` — לפי
+   `t` בלבד. הדף האינטראקטיבי משנה את `t` כשהוא מאחד קטעים, ולכן
+   גם שינוי משם נחשב גרסה אחרת.
+
+   גרסה אחרת בגיליון → לא כותבים. מה שנשלח נשמר בצד, ב"טיוטות
+   סטודיו" עם סיבה "התנגשות" — שתי העבודות קיימות, ואיש אינו
+   דורס. אותה גרסה בדיוק כבר בגיליון (ניסיון חוזר) → "ok" בלי
+   כתיבה נוספת. התשובה אטומה ללקוח (no-cors); הוא קורא את התא
+   חזרה ומשווה את מזהה הגרסה.
+   ============================================================ */
+var MARK_TAB_ = 'סימוני הדף';
+var DRAFT_TAB_ = 'טיוטות סטודיו';
+function markRv_(s) {
+  if (!s) return '';
+  var o = null;
+  try { o = JSON.parse(s); } catch (e) {}
+  if (!o || typeof o !== 'object') return 'x:' + String(s).length;
+  return String(o.rv || '') + ':' + (o.t || 0);
+}
+function markPut_(d) {
+  var mas = String(d.mas || '').trim(), daf = String(d.daf || '').trim(),
+      pg = String(d.pg || '').trim(), val = String(d.val || ''),
+      base = String(d.base == null ? '' : d.base);
+  if (!mas || !daf || !pg) return { status: 'error', message: 'חסר מפתח עמוד' };
+  if (!d.del) {
+    try { if (!JSON.parse(val)) throw 0; }
+    catch (e) { return { status: 'error', message: 'נתונים פגומים' }; }
+  }
+  var mine = d.del ? '' : markRv_(val);
+  var sh = sheet_(MARK_TAB_);
+  if (!sh.getLastRow()) headRow_(sh, ['מסכת', 'דף', 'עמוד', 'נתונים']);
+  var last = sh.getLastRow();
+  var rows = last > 1 ? sh.getRange(2, 1, last - 1, 4).getDisplayValues() : [];
+  var at = -1, cur = '';
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === mas && String(rows[i][1]).trim() === daf &&
+        String(rows[i][2]).trim() === pg) { at = i; cur = markRv_(rows[i][3]); break; }
+  }
+  if (cur === mine) return { status: 'ok', same: 1 };
+  if (cur !== base) {
+    if (!d.del) {
+      appendCols_(DRAFT_TAB_, [['מפתח', [mas, daf, pg].join('|')],
+        ['עמוד', String(d.label || '')], ['מכשיר', String(d.dev || '')],
+        ['נתונים', val], ['סיבה', 'התנגשות · בגיליון ' + cur + ' · בסיס ' + base]]);
+    }
+    return { status: 'conflict', cur: cur };
+  }
+  if (d.del) {
+    if (at >= 0) sh.deleteRow(at + 2);
+    return { status: 'ok', deleted: at >= 0 };
+  }
+  if (at >= 0) sh.getRange(at + 2, 4).setValue(val);
+  else sh.getRange(last + 1, 1, 1, 4).setValues([[mas, daf, pg, val]]);
+  return { status: 'ok' };
 }
 
 function writeTable_(tab, cols, rows, ssId) {

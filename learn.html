@@ -1013,6 +1013,99 @@ a.lockbtn{display:inline-block;text-decoration:none}
 .pk-tr{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px;min-height:0;
   overscroll-behavior:contain}
 @media (min-width:821px){.pick{align-items:center}.pk-box{border-radius:20px}}
+
+/* ============================================================
+   העלון השבועי (alon.js) — רק ב-body.alon, כלומר רק אצל הרכז
+   שנכנס מ"ניהול ← הדף ← העלון השבועי". במצב רגיל אין כאן דבר.
+   ============================================================ */
+.al-bar{display:none}
+body.alon .al-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:0 0 auto;
+  padding:7px 14px;background:#FFF6E0;border-bottom:1px solid var(--rule);font-size:.84rem}
+.al-bar b{color:var(--gold-t);font-weight:900}
+.al-bar .al-n{font-weight:800;color:var(--ink)}
+.al-bar .al-st{color:var(--ok);font-weight:700;font-size:.78rem}
+.al-bar .al-st.bad{color:#A5382D}
+.al-bar .sp{flex:1}
+.al-go{font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;border:0;border-radius:10px;
+  padding:8px 14px;color:#fff;background:linear-gradient(140deg,var(--gold-l),var(--gold))}
+.al-go:disabled{opacity:.45;cursor:default}
+.al-x{font-weight:800;font-size:.8rem;color:var(--blue);text-decoration:none;padding:6px 4px}
+/* החלונית יושבת במקום הביאור — אותו מקום בטלפון ובמחשב */
+body.alon .chav{display:block;position:relative}
+.al-pane{display:none}
+body.alon .al-pane{display:block;position:absolute;inset:0;z-index:5;overflow:auto;
+  background:var(--surface);padding:12px 14px 30px}
+body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #side{display:none !important}
+.al-h b{font-size:.95rem;color:var(--blue-d)}
+.al-sec{margin:14px 0 6px;font-size:.78rem;font-weight:900;color:var(--gold-t);letter-spacing:.02em}
+.al-card{border:1.5px solid var(--rule);border-radius:12px;background:#fff;padding:10px 12px;margin-bottom:8px}
+.al-card.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(229,184,84,.25);background:#FFFCF3}
+.al-qq{font-weight:800;line-height:1.6}
+.al-qa{margin:6px 0 8px;padding-inline-start:22px;font-size:.88rem;line-height:1.6;color:var(--ink-2)}
+.al-tag{display:inline-block;font-size:.72rem;font-weight:800;color:var(--blue);margin-bottom:4px}
+.al-txt{font-size:.9rem;line-height:1.75;max-height:9.5em;overflow:hidden}
+.al-slc img{display:block;width:100%;border-radius:8px;border:1px solid var(--rule);background:#eee}
+.al-tg{font-family:inherit;font-weight:800;font-size:.82rem;cursor:pointer;margin-top:8px;
+  border:1.5px solid var(--gold);border-radius:9px;padding:7px 12px;background:#fff;color:var(--gold-t)}
+.al-tg.on{background:var(--gold);color:#fff}
+.al-note,.al-none{font-size:.8rem;color:var(--ink-3);margin:6px 0}
+.al-prev{display:none}
+.al-prev.on{display:block;position:fixed;inset:0;z-index:90;overflow:auto;background:#E9E4D8;
+  padding:0 0 40px}
+.al-tools{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:9px 14px;background:var(--surface);border-bottom:1px solid var(--rule);font-size:.84rem;font-weight:700}
+.al-tools button:not(.al-go){font-family:inherit;font-weight:800;font-size:.84rem;cursor:pointer;
+  border:1px solid var(--rule);border-radius:10px;padding:7px 12px;background:#fff;color:var(--blue)}
+.al-tools select{font-family:inherit;font-size:.84rem}
+.al-tools .sp{flex:1}
+.al-pages,.al-wait{color:var(--ink-3)}
+.al-warn{margin:12px auto 0;max-width:46rem;background:#FBEFED;border:1px solid #E7C3BD;border-radius:12px;
+  padding:10px 14px;font-size:.85rem;color:#7A2A22}
+.al-warn ul{margin:6px 0 0;padding-inline-start:20px}
+.al-how{margin:10px auto 0;max-width:46rem;padding:0 14px;font-size:.8rem;color:var(--ink-3)}
+.al-doc{display:flex;flex-direction:column;align-items:center;gap:14px;padding:14px 8px;overflow-x:auto}
+.al-doc>.al-none{padding:30px;text-align:center}
+/* העמוד עצמו — המידות נקבעות ב-@page וב-.alp-pg מתוך alon.js */
+.alp-pg{flex:0 0 auto;background:#fff;color:#111;box-shadow:0 4px 18px rgba(0,0,0,.18);
+  display:flex;flex-direction:column;padding:13mm 14mm 9mm;overflow:hidden;position:relative;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:11.5pt;line-height:1.55}
+.alp-measure{position:absolute;visibility:hidden;left:-9999px;top:0}
+.alp-in{flex:1;min-height:0;overflow:hidden}
+.alp-foot{flex:0 0 auto;padding-top:3mm;border-top:.3mm solid #bbb;font-size:8.5pt;color:#555;text-align:center}
+.alp-mast{display:flex;align-items:center;gap:4mm;margin-bottom:4mm}
+.alp-mast .m{flex:0 0 auto;width:15mm;height:15mm;border-radius:50%;background:#fff;
+  box-shadow:0 0 0 .4mm #17468F;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.alp-mast .m img{width:80%;height:80%;object-fit:contain}
+.alp-mast .w b{display:block;font-size:13pt;color:#0B2550}
+.alp-mast .w span{display:block;font-size:10pt;color:#17468F;font-weight:700}
+.alp-mast .w i{display:block;font-style:normal;font-size:9pt;color:#8C681F;font-weight:700}
+.alp-t{margin:0;font-size:20pt;color:#0B2550;line-height:1.25}
+.alp-sub{font-size:11pt;color:#444;margin:1mm 0 5mm;font-weight:700}
+.alp-src{margin:4mm 0 2mm;font-size:9.5pt;font-weight:800;color:#8C681F;border-bottom:.3mm solid #E5DAC3;
+  padding-bottom:1mm}
+.alp-q{border:.5mm solid #17468F;border-radius:3mm;padding:3mm 4mm;margin:0 0 3mm;break-inside:avoid}
+.alp-ql{display:inline-block;font-size:8.5pt;font-weight:900;color:#fff;background:#17468F;
+  border-radius:2mm;padding:.4mm 2mm;margin-bottom:1.5mm}
+.alp-qq{font-weight:800;font-size:12.5pt}
+.alp-q ol{margin:2mm 0 0;padding-inline-start:7mm;list-style:hebrew}
+.alp-q li{margin:1mm 0}
+.alp-own{margin:0 0 3mm}
+.alp-tag{display:block;font-size:8.5pt;font-weight:900;color:#17468F;margin-bottom:.5mm}
+.alp-txt div{margin:0 0 1.5mm}
+.alp-sl{margin:0 0 3mm;text-align:center}
+/* שקף אינו מוקטן מתחת לרוחב הטור; גבוה מדי — עד גובה העמוד */
+.alp-sl img{display:block;width:100%;height:auto;max-height:200mm;object-fit:contain;border:.3mm solid #ccc}
+.ink .alp-sl img.dark{filter:invert(1) hue-rotate(180deg)}
+@media print{
+  body.al-viewing{height:auto;overflow:visible;display:block;background:#fff}
+  body.al-viewing>*:not(#al-prev){display:none !important}
+  body.al-viewing #al-prev{position:static;display:block;overflow:visible;background:#fff;padding:0}
+  body.al-viewing .al-tools,body.al-viewing .al-warn,body.al-viewing .al-how{display:none !important}
+  body.al-viewing .al-doc{display:block;padding:0;gap:0;overflow:visible}
+  body.al-viewing .alp-pg{box-shadow:none;margin:0;break-after:page;page-break-after:always;zoom:1 !important}
+  body.al-viewing .alp-pg:last-child{break-after:auto;page-break-after:auto}
+  .alp-pg{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1185,6 +1278,8 @@ a.lockbtn{display:inline-block;text-decoration:none}
 <script src="inbox.js"></script>
 <script src="links.js"></script>
 <script src="trip.js"></script>
+<!-- העלון השבועי — פועל רק ב-alon=1 ובמכשיר של הרכז. ראו alon.js. -->
+<script src="alon.js"></script>
 <script type="module">
   import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
   pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
@@ -3342,6 +3437,7 @@ function paintChavArea() {
   if ($('cht-own'))  $('cht-own').onclick  = function () { chavPick_('own'); };
   if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
   quizFabPaint();
+  if (ALON_ON) alPaint_();
 }
 
 /* העיגול הצף של החידה — צף מעל הבמה, לא בזרם התוכן, כדי שיהיה
@@ -4166,6 +4262,7 @@ function sideInit() {
        כדי שהשמירה לא תמחק אותה, אבל היא אינה מפעילה מצגת. */
     var got = DMAP[dmKey(S.mas, S.daf)];
     ANCH = (got && !got.__bad) ? got : null;
+    if (ALON_ON) alPaint_();          /* השקף של הקטע — עכשיו ידוע */
 
     var has = false, q;
     for (q in (ANCH || {})) if (ANCH.hasOwnProperty(q) && q.indexOf('__') !== 0) { has = true; break; }
@@ -4197,7 +4294,7 @@ function sideInit() {
 
        בהדגמה כלום לא נפתח מאליו: התסריט פותח בזמן שלו, וכך היא
        נראית נפתחת ולא נמצאת. */
-    if (!quiet()) try {
+    if (!quiet() && !ALON_ON) try {
       var pref = localStorage.getItem('df:side');
       var want = sidePhone() ? (pref === '1') : (pref !== '0');
       if (want) sideOpen(true, true);
@@ -4222,7 +4319,7 @@ function posWeek() {
   return wk === S.week ? wk : -1;
 }
 function savePos() {
-  if (quiet()) return;            /* הדגמה אינה "מקום שעצרתי בו" */
+  if (quiet() || ALON_ON) return; /* הדגמה ועלון אינם "מקום שעצרתי בו" */
   var wk = posWeek();
   if (wk < 0 || !FLAT.length || (FLAT[IDX] || {}).peek) return;
   try { LPosSet(S.mas, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
@@ -4249,6 +4346,7 @@ function quietMark(wk) {
 /* נשלח ביציאה. `visibilitychange` הוא האירוע היחיד שנורה באמת
    כשסוגרים לשונית בטלפון — `beforeunload` אינו אמין שם. */
 function sendPos() {
+  if (ALON_ON) return;
   var wk = posWeek();
   if (wk < 0) return;
   try { LPosSend(S.mas, wk); } catch (e) {}
@@ -4305,7 +4403,7 @@ function spotGet() {
 function spotSave() {
   /* קטע מחוץ לשבוע (עריכה בלבד) אינו "מקום שעצרתי בו" — החזרה
      אליו נחתה על הדף הבא, והמצגת של השבוע לא הגיבה שם. */
-  if (quiet() || EMB || !FLAT.length || !FLAT[IDX] || FLAT[IDX].peek) return;
+  if (quiet() || EMB || ALON_ON || !FLAT.length || !FLAT[IDX] || FLAT[IDX].peek) return;
   var pp = PAGES[FLAT[IDX].p] || {};
   try {
     /* `am` — היחידה (ב. או ב:), `pg` — העמוד שעל המסך בתוכה. */
@@ -4357,7 +4455,7 @@ function spotOffer() {
    true = יוצאים. */
 function spotJump() {
   /* `quiz=1` — מההתראה "החידון מוכן": החידון של הדף הזה, גם למי שכבר התקדם. */
-  if (quiet() || EMB || AT_END || SEG_Q || QUIZ_Q || /[?&]hop=1\b/.test(location.search)) return false;
+  if (quiet() || EMB || ALON_ON || AT_END || SEG_Q || QUIZ_Q || /[?&]hop=1\b/.test(location.search)) return false;
   if (posWeek() < 0) return false;
   var p = spotGet();
   if (!p || p.mas !== S.mas || !(Date.now() - (p.at || 0) < 7 * 864e5)) return false;
@@ -4476,6 +4574,9 @@ function go(i) {
     if (nu) leave($('next'), nu);
     return;
   }
+  /* העלון השבועי: הדף הוא מקום עבודה, לא לימוד — אין מסך סיום,
+     אין מעבר לדף הבא, ואין שמירת מקום. ראו alon.js. */
+  if (ALON_ON && i >= FLAT.length) return;
   if (i >= FLAT.length) { finish(); return; }
   IDX = i;
   var st = FLAT[IDX];
@@ -6279,6 +6380,7 @@ function boot() {
   try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
   if (quiet()) SIDE_ADM = false;
   document.body.classList.toggle('side-adm', SIDE_ADM);
+  alonInit_();
 
   /* דף שהרכז עוד לא פתח — ראו "פתיחת דפים" ב-deck.js. הרכז עצמו
      (ומי שמריץ הדגמה) נכנס תמיד: הוא זה שמכין את הדף. */
@@ -6342,6 +6444,7 @@ function boot() {
            ומיקוד דלוק — ולא כפי שהמכשיר הזה מכוון. הדגמה שנראית
            אחרת בכל טלפון אינה הדגמה. */
         if (quiet()) drawer(true);
+        else if (ALON_ON) alLoad_();
         else try {
           /* פתוחה כברירת מחדל. מי שנכנס בפעם הראשונה לא ידע
              שיש כאן ביאור — הוא ראה כפתור בשם "חברותא" ולא
@@ -6368,7 +6471,7 @@ function boot() {
           go(0);
           /* קודם המקום המדויק שבמכשיר; אחריו ההתקדמות של השבוע;
              ואם לא חזרנו לשום מקום — הצעה לדף שבו עצר. */
-          if (!quiet() && !AT_START && !QUIZ_Q) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
+          if (!quiet() && !ALON_ON && !AT_START && !QUIZ_Q) try { if (!spotResume()) { resumePos(); spotOffer(); } } catch (e) {}
         }
         PAGE_READY = true;
         quizJump_();

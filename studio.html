@@ -295,6 +295,26 @@ body.mark.gsel #clearsel{display:inline-block}
   border:1px solid var(--rule);border-radius:10px;background:#fff}
 .splitbox .sp:hover{border-color:var(--gold);background:#FFFBF2}
 .splitbox .cl{margin-top:8px;width:100%;padding:11px;font-weight:800}
+/* חלון השמירה: גרסה בכל שורה, והשמורה מסומנת */
+.splitbox .ver{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:9px 11px;
+  border:1px solid var(--rule);border-radius:10px;background:#fff}
+.splitbox .ver>div{flex:1;min-width:0}
+.splitbox .ver b{font-size:.88rem}
+.splitbox .ver i{display:block;font-style:normal;color:var(--ink-3);font-size:.78rem;margin-top:2px}
+.splitbox .ver.cur{border-color:#2F7D4F;background:#F1F8F3}
+.splitbox .ver button{flex:0 0 auto;padding:8px 10px;font-size:.8rem;font-weight:800}
+.splitbox .ssb{width:100%;margin-top:6px;padding:12px;font-weight:800}
+.splitbox .sh.ssv{max-width:36rem}
+.splitbox .oth,.splitbox .hl{font-size:.78rem;color:var(--ink-3);margin:10px 0 0}
+/* מצב השמירה בפס — מילה אחת, בצבע המצב */
+#unsaved.ss-saved{border-color:rgba(255,255,255,.35);color:#CFE8D6 !important}
+#unsaved.ss-fail,#unsaved.ss-conflict{background:#A5382D !important;border-color:#A5382D;color:#fff !important}
+#unsaved.ss-left,#unsaved.ss-wait{border-style:dashed}
+#ssh{background:transparent;border:1.5px solid currentColor;font-size:.78rem;font-weight:800;
+  padding:4px 10px;border-radius:9px;color:inherit}
+#ssh.ss-fail,#ssh.ss-conflict{background:#A5382D;border-color:#A5382D;color:#fff}
+#ssh.ss-left,#ssh.ss-wait{border-style:dashed}
+body.mark #ssh{display:none !important}
 /* רשימת הקטעים בתוך היריעה. אותה רשימה שיושבת בפאנל הצדדי
    במחשב — הפאנל מוסתר בטלפון, ושם דווקא נעשית רוב העבודה. */
 .splitbox .row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;
@@ -519,6 +539,8 @@ body.mark #toast{top:auto !important}
   <select id="src" hidden></select>
   <span id="stat"></span>
   <span class="sp"></span>
+  <!-- מצב השמירה בכיול. בסימון הוא יושב בפס התחתון (#unsaved) -->
+  <button id="ssh" style="display:none"></button>
   <button id="mode">סימון קטעים ←</button>
   <button id="reset">זיהוי מחדש</button>
 </header>
@@ -573,8 +595,7 @@ body.mark #toast{top:auto !important}
 
 <div class="bar">
   <button id="more" title="עוד פעולות">⋯</button>
-  <button id="unsaved" title="יש שינויים שטרם נשמרו בגיליון — לחצו לשמירה"
-          style="display:none">שמירה</button>
+  <button id="unsaved" style="display:none"></button>
   <button id="undo" title="ביטול הקטע האחרון">↶</button>
   <span class="fg">סוף
     <!-- הכיוונים היו הפוכים, וזה שיתק את הכפתור שבו באמת משתמשים.
@@ -636,7 +657,7 @@ body.mark #toast{top:auto !important}
     accept="application/pdf,image/*" hidden></label>
   <button id="save">⬇ שמירת JSON</button>
   <hr>
-  <button class="p" id="save2">שמירה בגיליון</button>
+  <button class="p" id="save2"></button>
 </div>
 
 <!-- יריעת הבחירה של הפעולות הנדירות: פיצול פסקה בחברותא,
@@ -1782,8 +1803,12 @@ function bareTxt(t) { return String(t || '').replace(/\s+/g, ''); }
 
 function afterSheet(n) {
   if (!n) return;
-  PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); backfillChav();
+  PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw();
+  /* השלמות שהסטודיו עושה לבד בטעינה אינן שינוי של המשתמש — הן
+     נשארות "לא נשמר" ונשמרות עם השינוי הבא, או בבחירה מפורשת. */
+  QUIET++; try { backfillChav(); } finally { QUIET--; }
   say('נטענו סימונים קודמים מ-' + n + ' עמודים');
+  if (leftKeys_().indexOf(PKEY) >= 0) say(T_('ssLeftMsg') + ' ' + T_('ssLeftHow'), 1);
 }
 /* ---------- מאיזו תמונה מכיילים ----------
    **זה היה שורש הסטייה, והוא היה כאן מהיום הראשון.**
@@ -1945,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.248';
+var STUDIO_VER = '8.99.249';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2141,8 +2166,8 @@ function lastChav() {
 function loadPageState() {
   var k = pageKey();
   if (k === PKEY) return;
-  /* יוצאים מעמוד שנערך ולא נשמר — מדווחים לגיליון (ראו reportDraft_) */
-  if (PKEY) reportDraft_(PKEY);
+  /* יוצאים מעמוד שנערך — לא מחכים להשהיה, שומרים עכשיו (autoRun_) */
+  if (PKEY && sessionEdit_(PKEY)) autoKick_(true);
   PKEY = k;
   var rec = BOOK[k];
   STEPS = rec ? rec.steps : [];
@@ -2150,13 +2175,17 @@ function loadPageState() {
   seal();                       /* גם מה שנשמר שבור — נאטם בכניסה */
   /* קטע המשך שנשמר עם ביאור שגוי תוקן כאן — ותיקון שאינו נשמר
      חוזר בכל כניסה ואינו מגיע לתלמיד. התג האדום יזכיר לשמור. */
-  if (CONT_FIXED && rec) { touched(); say('קטע ההמשך בראש העמוד תוקן — צריך לשמור בגיליון.'); }
+  if (CONT_FIXED && rec) {
+    QUIET++; try { touched(); } finally { QUIET--; }
+    say('קטע ההמשך בראש העמוד תוקן — צריך לשמור בגיליון.');
+  }
   GSEL = null; CSEL_P = null;
   /* קטע שנבחן או פוצל שייך לעמוד שעזבנו — המספר שלו אינו אומר
      כאן דבר, ופס הבחינה היה נשאר פתוח על קטע אחר. */
   INSP = -1; INSP_LINE = -1; SPL = null;
   document.body.classList.remove('insp');
   document.body.classList.remove('splt');
+  saveChip_();                  /* מצב השמירה הוא של העמוד שעל המסך */
 }
 /* התווית נגזרת מהמפתח שנכתב, ולא מהבוררים שעל המסך.
    `keepPageState` שומר תמיד את העמוד **הקודם** — זה כל תפקידו —
@@ -2862,15 +2891,7 @@ function markPanel() {
 
   /* "לא נשמר" — גלוי בפס עצמו. אבדן שעת עבודה בגלל כפתור שלא
      נלחץ הוא כישלון של המסך, לא של המשתמש. */
-  var d = dirtyCount();
-  var db = document.getElementById('unsaved');
-  if (db) {
-    db.style.display = d ? '' : 'none';
-    db.innerHTML = 'שמירה' + (d > 1 ? '<span class="n"> (' + d + ')</span>' : '');
-    db.title = d + ' עמודים טרם נשמרו בגיליון — לחצו לשמירה';
-  }
-  var sv = document.getElementById('save2');
-  if (sv) sv.textContent = d ? 'שמירה בגיליון (' + d + ')' : 'שמירה בגיליון';
+  saveChip_();
   var mh = document.getElementById('mhelp');
   if (mh) mh.innerHTML = 'הקשה על שורה בגמרא ועל פסקה בחברותא — הקטע ממשיך ' +
     'מהמקום שהקודם נגמר. <b>הקשה על שורה אחרת מזיזה את הסוף</b>, ולכן ' +
@@ -3131,6 +3152,7 @@ function dropOrphans() {
   if (!ks.length) return;
   DIRTY[PKEY] = 1;                    /* שתהיה שמירה לשלוח */
   keepLocal();
+  autoKick_(true);                    /* המחיקה בשרת — רשומה אחרי רשומה */
   markPanel();                        /* שסימן "לא נשמר" יידלק */
   say('הוסרו ' + ks.length + ' רשומות עודפות (' + n + ' קטעים). ' +
       'צריך לשמור בגיליון.');
@@ -3552,10 +3574,9 @@ var MARK_TAB = 'סימוני הדף';
 
    התשובה בשתי שכבות. **מקומית** — כל שינוי נכתב מיד ל-
    localStorage. זה מיידי, בחינם, בלי שרת ובלי מכסה, ומחזיר את
-   העבודה גם אחרי סגירת הכרטיסייה. **בגיליון** — נשאר מפורש,
-   כי כתיבה לשם כותבת את הלשונית כולה מחדש, ואינני רוצה שהיא
-   תרוץ בשקט תוך כדי קריאה ותתנגש בעצמה. במקום זה יש סימן
-   שאי אפשר לפספס.
+   העבודה גם אחרי סגירת הכרטיסייה. **בשרת** — אוטומטית, עמוד
+   אחד בכל פעם ועם גרסת בסיס (ראו "שמירה אוטומטית" למטה). קודם
+   השמירה לשם הייתה מפורשת, כי כתבה את הלשונית כולה מחדש.
    ============================================================ */
 var DIRTY = {};                 /* מפתחות עם שינוי שטרם נשמר בגיליון */
 /* ============================================================
@@ -3576,14 +3597,19 @@ var DIRTY = {};                 /* מפתחות עם שינוי שטרם נשמ�
    בגיליון יש גרסה — החדשה מנצחת לפי `t`, ואם אין לפי מה לדעת,
    שואלים. */
 var SEEN = {};
-var LOCAL_AT = 0;               /* מתי נכתב העותק המקומי בפעם האחרונה */
 var LKEY = 'df:studio';
 
 function keepLocal() {
   try {
     localStorage.setItem(LKEY, JSON.stringify(
-      { at: Date.now(), book: BOOK, dirty: DIRTY }));
-  } catch (e) {}                /* אין מקום — הגיליון עדיין קיים */
+      { at: Date.now(), book: BOOK, dirty: DIRTY, base: BASE }));
+    LOCAL_FULL = false;
+    return true;
+  } catch (e) {
+    /* אין מקום. השרת עדיין שומר — אבל זה צריך להיאמר, לא להיבלע */
+    if (!LOCAL_FULL) { LOCAL_FULL = true; say(T_('ssFull'), 1); }
+    return false;
+  }
 }
 /* האחסון המקומי הוא עותק של **כל** מה שנעשה במכשיר הזה, ולא רק
    של מה שטרם נשמר.
@@ -3598,31 +3624,29 @@ function loadLocal() {
   try {
     var v = JSON.parse(localStorage.getItem(LKEY) || 'null');
     if (!v || !v.book) return 0;
-    LOCAL_AT = v.at || 0;
     for (var k in v.book) if (!BOOK[k]) BOOK[k] = v.book[k];
     var n = 0;
-    for (var d in (v.dirty || {})) if (BOOK[d]) { DIRTY[d] = 1; n++; }
+    for (var b in (v.base || {})) BASE[b] = v.base[b];
+    /* עבודה ששמורה מגרסה שלא רשמה בסיס — הבסיס אינו ידוע. כתיבה
+       שלה לשרת תיחשב התנגשות ותישמר בצד, ולא תדרוס. */
+    for (var d in (v.dirty || {})) if (BOOK[d]) {
+      DIRTY[d] = 1; n++;
+      if (!BASE.hasOwnProperty(d)) BASE[d] = '?';
+    }
     return n;
   } catch (e) { return 0; }
-}
-/* כמה עמודים ממתינים לשמירה — ולא כמה קטעים. עמוד שכוילו בו
-   גבולות ועדיין אין בו קטעים הוא עבודה לכל דבר, וספירה לפי
-   קטעים החזירה עליו אפס: בלי סימון אדום, ובלי אזהרה ביציאה. */
-function dirtyCount() {
-  var n = 0;
-  for (var k in DIRTY) {
-    var r = BOOK[k] || {};
-    if ((r.steps && r.steps.length) || r.cal) n++;
-  }
-  return n;
 }
 /* נקרא אחרי כל שינוי אמיתי, ורק אחריו */
 function touched() {
   DIRTY[PKEY] = 1;
   keepPageState();
-  /* מתי שונה העמוד — כדי שמכשיר אחר ידע מי מהשניים חדש יותר. */
-  if (BOOK[PKEY]) BOOK[PKEY].t = Date.now();
+  /* מתי שונה העמוד — כדי שמכשיר אחר ידע מי מהשניים חדש יותר.
+     תיקון שהסטודיו עשה לבד בטעינה (QUIET) אינו שינוי של המשתמש:
+     הוא נשאר "לא נשמר" ולא נשלח לבד. ראו autoRun_. */
+  if (BOOK[PKEY] && !QUIET) BOOK[PKEY].t = Date.now();
   keepLocal();
+  if (!QUIET) autoKick_();
+  saveChip_();
 }
 
 function sheetCsv(tab) {
@@ -3674,101 +3698,494 @@ function writeKey_() {
   }
   return k;
 }
-function saveToSheet() {
-  if (!API) { say('אין כתובת שרת.', 1); return Promise.resolve(false); }
-  var wkey = writeKey_();
-  if (!wkey) { say('לא נשמר — חסרה סיסמת הסקריפט. העבודה שמורה במכשיר.', 1);
-               return Promise.resolve(false); }
-  keepPageState();
-  say('שומר בגיליון…');
-  return sheetCsv(MARK_TAB).then(function (rows) {
-    /* כתיבה מוחקת את הלשונית וכותבת מחדש. אם הקריאה נכשלה, כל
-       מה שאינו בזיכרון נמחק — וכל דף אחר. עדיף לא לשמור. */
-    if (!rows || rows.length < 1) {
-      say('לא הצלחתי לקרוא את הגיליון. לא שמרתי, כדי לא למחוק ' +
-          'דפים אחרים. נסו שוב.', 1);
-      return false;
-    }
-    var keep = [], inSheet = {}, mine = {}, there = {};
-    (rows || []).slice(1).forEach(function (r) {
-      var rk0 = r[0] + '|' + r[1] + '|' + r[2];
-      inSheet[rk0] = 1;
-      try { there[rk0] = JSON.parse(r[3]); } catch (e) {}
+/* ============================================================
+   שמירה אוטומטית — עמוד אחד בכל פעם, עם גרסת בסיס.
+   ============================================================
+   "כל שינוי יישמר בלי שאצטרך לחשוב על שלושה עותקים, ללחוץ שמירה
+   או לבחור כל פעם איזו גרסה נכונה."
+
+   קודם: כל שינוי נכתב למכשיר, והגיליון התעדכן רק בלחיצת "שמירה" —
+   שקראה את כל "סימוני הדף" וכתבה אותה מחדש מהזיכרון. עכשיו:
+
+   · **שתי שכבות, תמיד.** המכשיר מיד (`keepLocal`), והשרת כשתיים
+     וחצי שניות עברו בלי שינוי נוסף בעמוד.
+   · **עמוד אחד, ולא הלשונית.** `markPut` בסקריפט משנה רק את התא
+     של העמוד, ורק אם מה שבגיליון הוא הגרסה שהעריכה יצאה ממנה
+     (`BASE`). אחרת — לא כותב, ושומר את מה שנשלח בצד.
+   · **בקשה אחת לעמוד.** שינוי שמגיע בזמן שמירה ממתין לה, ונשלח
+     אחריה עם הבסיס החדש. תשובה מאוחרת לא מסמנת "נשמר" על שינוי
+     שנעשה אחריה — נשמר רק מה שה-`t` שלו הוא שנשלח.
+   · **"נשמר" רק אחרי קריאה חוזרת** שמצאה בתא את מזהה הגרסה שנשלח.
+     no-cors אינו תשובה.
+   · **ניסיון חוזר באותו מזהה.** אם הבקשה הגיעה ורק התשובה אבדה,
+     השרת רואה שהגרסה כבר שם ואינו כותב שוב.
+   · **רק מה שנערך בכניסה הזו** (`t` אחרי `BOOT_AT`). עמוד שנשאר
+     "לא שמור" מפעם קודמת, או שתוקן לבד בטעינה (`QUIET`), אינו
+     נשמר בשקט — הוא מחכה לפעולה מפורשת בחלון השמירה.
+   ============================================================ */
+var BOOT_AT = Date.now();
+var BASE = {};      /* מפתח → מזהה הגרסה בגיליון שממנה יצאה העבודה במכשיר */
+var SRV = {};       /* מפתח → { v, rec, raw } — מה שבגיליון בקריאה האחרונה */
+var SRV_OK = false; /* נקראה הלשונית בהצלחה לפחות פעם אחת */
+var SAVE = {};      /* מפתח → מצב השמירה של העמוד */
+var DONE_GONE = {}; /* רשומות עודפות שכבר נמחקו בשרת */
+var AUTO_T = null;
+var QUIET = 0;      /* תיקון אוטומטי בטעינה — לא שינוי של המשתמש */
+var LOCAL_FULL = false;
+
+function T_(k) { return (window.UI && UI[k]) || ''; }
+function fill_(s, o) {
+  return String(s || '').replace(/\{(\w+)\}/g, function (m, k) {
+    return o && o[k] != null ? o[k] : m;
+  });
+}
+/* מזהה הגרסה — בדיוק כמו markRv_ בסקריפט */
+function verOf_(o) { return o ? String(o.rv || '') + ':' + (o.t || 0) : ''; }
+function verRaw_(s) {
+  if (!s) return '';
+  var o = null;
+  try { o = JSON.parse(s); } catch (e) {}
+  return (o && typeof o === 'object') ? verOf_(o) : 'x:' + String(s).length;
+}
+/* אותו תוכן? בלי חותמות הזמן והגרסה */
+function bare_(o) {
+  if (!o) return '';
+  var c = {};
+  for (var k in o) if (o.hasOwnProperty(k) && k !== 't' && k !== 'rv' && k !== 'label') c[k] = o[k];
+  return JSON.stringify(c);
+}
+function sameRec_(a, b) { return bare_(a) === bare_(b); }
+function stepsN_(o) { return ((o && o.steps) || []).length; }
+
+/* כל השורות שנקראו מ"סימוני הדף" — לכל עמוד, מה יש בשרת עכשיו */
+function noteSrv_(rows) {
+  if (!rows || !rows.length) return false;
+  var seen = {};
+  rows.slice(1).forEach(function (r) {
+    var k = r[0] + '|' + r[1] + '|' + r[2], rec = null;
+    try { rec = JSON.parse(r[3]); } catch (e) {}
+    SRV[k] = { v: verRaw_(r[3]), rec: rec, raw: r[3] };
+    seen[k] = 1;
+  });
+  for (var k in SRV) if (!seen[k]) delete SRV[k];
+  SRV_OK = true;
+  return true;
+}
+
+function sessionEdit_(k) {
+  var r = BOOK[k];
+  return !!(DIRTY[k] && r && (r.t || 0) > BOOT_AT);
+}
+function autoKick_(now) {
+  if (AUTO_T) clearTimeout(AUTO_T);
+  AUTO_T = setTimeout(autoRun_, now ? 50 : 2500);
+}
+function autoRun_() {
+  AUTO_T = null;
+  try { keepPageState(); } catch (e) {}
+  var later = false, t = Date.now();
+  for (var k in DIRTY) {
+    if (!sessionEdit_(k)) continue;
+    var s = SAVE[k] || (SAVE[k] = {});
+    if (s.busy || s.st === 'conflict') continue;
+    if (s.st === 'saved' && s.sentT === BOOK[k].t) continue;
+    if (t - (BOOK[k].t || 0) < 2000 || (s.next && t < s.next)) { later = true; continue; }
+    putPage_(k);
+  }
+  for (var g in GONE) {
+    if (DONE_GONE[g] || !SRV_OK) continue;
+    var sg = SAVE[g] || (SAVE[g] = {});
+    if (sg.busy || (sg.next && t < sg.next)) { later = true; continue; }
+    putPage_(g, true);
+  }
+  if (later) autoKick_();
+  saveChip_();
+}
+
+function putPage_(k, del) {
+  var s = SAVE[k] || (SAVE[k] = {});
+  var a = String(k).split('|');
+  if (a.length < 4) { s.st = 'fail'; s.msg = T_('ssNoLib'); saveChip_(); return; }
+  var wkey = keyQuiet_();
+  if (!API || !wkey) { s.st = 'fail'; s.msg = T_('ssNoKey'); saveChip_(); return; }
+  /* בלי קריאה אחת של הגיליון אין לפי מה לקבוע בסיס לעמוד שלא נטען */
+  if (!SRV_OK) {
+    s.busy = true;
+    sheetCsv(MARK_TAB).then(function (rows) {
+      s.busy = false;
+      if (!noteSrv_(rows)) { failPut_(k, s); return; }
+      putPage_(k, del);
     });
-    /* מה שנכתב מכאן: מה שנגעו בו בכניסה הזו, מה שלא נשמר, ומה
-       שאין לו שורה בכלל. עותק מקומי ישן של דף אחר — לא. ראו SEEN. */
-    for (var k0 in BOOK) {
-      /* עמוד שלא שונה כאן, ובגיליון יש גרסה חדשה ממנו — למשל איחוד
-         שנעשה בדף האינטראקטיבי אחרי שהסטודיו נפתח. העותק שבזיכרון
-         ישן, וכתיבה שלו הייתה מבטלת את האיחוד בשקט. */
-      var sr = there[k0];
-      /* גם עמוד "שלא נשמר": עריכה כאן מחתימה אותו בזמן העריכה,
-         ולכן גיליון חדש ממנו = מישהו שמר אחריו (או תיקון). עותק
-         ישן שנשאר במכשיר מלפני ההסבה החזיר כך עמודים בלי המזהים. */
-      if (sr && (sr.t || 0) > ((BOOK[k0] || {}).t || 0)) {
-        BOOK[k0] = sr; delete DIRTY[k0];
-        if (k0 === PKEY) { STEPS = sr.steps || []; seal(); }
-        continue;
+    return;
+  }
+  if (k === PKEY) keepPageState();
+  var base = BASE.hasOwnProperty(k) ? BASE[k] : (SRV[k] ? '?' : '');
+  var val = '', mine = '';
+  if (!del) {
+    var rec = BOOK[k];
+    if (!rec) return;
+    /* ניסיון חוזר לאותו שינוי — אותו מזהה, כדי שהשרת יזהה אותו */
+    if (!s.pend || s.pend.t !== rec.t || s.pend.base !== base) {
+      /* מה שבגיליון כבר נושא מזהה — נשאר עם אותו מזהה. ראו SidAdopt. */
+      if (SRV[k] && SRV[k].rec && SidAdopt(rec.steps, SRV[k].rec.steps, NEW_IDS) &&
+          k === PKEY) STEPS = rec.steps;
+      var out = JSON.parse(JSON.stringify(rec));
+      out.rv = Math.random().toString(36).slice(2, 9);
+      s.pend = { t: rec.t, base: base, val: JSON.stringify(out) };
+    }
+    val = s.pend.val; mine = verRaw_(val);
+  }
+  s.busy = true; s.st = 'saving'; s.sentT = del ? 0 : BOOK[k].t; s.msg = '';
+  saveChip_();
+  var body = JSON.stringify({ action: 'markPut', key: wkey, mas: a[0], daf: a[1],
+    pg: a.slice(2).join('|'), base: base, val: val, del: del ? 1 : 0,
+    label: keyLabel(k), dev: devId_() });
+  fetch(API, { method: 'POST', mode: 'no-cors', body: body })
+    .catch(function () {})
+    .then(function () { verifyPut_(k, mine, base, 0, !!del); });
+}
+function verifyPut_(k, mine, base, tries, del) {
+  setTimeout(function () {
+    sheetCsv(MARK_TAB).then(function (rows) {
+      var s = SAVE[k] || (SAVE[k] = {});
+      if (!noteSrv_(rows)) {
+        if (tries < 3) { verifyPut_(k, mine, base, tries + 1, del); return; }
+        failPut_(k, s); return;
       }
-      if (SEEN[k0] || DIRTY[k0] || !inSheet[k0]) mine[k0] = 1;
-    }
-    /* מה שבגיליון כבר נושא מזהה — נשאר עם אותו מזהה. ראו SidAdopt. */
-    for (var k1 in mine) {
-      if (there[k1] && BOOK[k1] && SidAdopt(BOOK[k1].steps, there[k1].steps, NEW_IDS) &&
-          k1 === PKEY) STEPS = BOOK[k1].steps;
-    }
-    (rows || []).slice(1).forEach(function (r) {
-      /* שומרים כל מה ששייך לדפים אחרים, ומחליפים רק את שלנו */
-      var rk = r[0] + '|' + r[1] + '|' + r[2];
-      if (!mine[rk] && !GONE[rk]) keep.push(r.slice(0, 4));
+      var cur = SRV[k] ? SRV[k].v : '';
+      if (cur === mine) {
+        s.busy = false; s.fails = 0; s.next = 0; s.pend = null;
+        if (del) { DONE_GONE[k] = 1; delete BASE[k]; s.st = 'saved'; }
+        else {
+          BASE[k] = mine;
+          if (BOOK[k] && BOOK[k].t === s.sentT) { delete DIRTY[k]; s.st = 'saved'; }
+          else { s.st = 'saving'; autoKick_(); }
+        }
+        keepLocal(); saveChip_(); markPanel();
+        return;
+      }
+      if (cur === base || (base === '?' && !SRV[k])) {
+        if (tries < 4) { verifyPut_(k, mine, base, tries + 1, del); return; }
+        failPut_(k, s); return;
+      }
+      /* גרסה שלישית בגיליון — של מישהו אחר. לא דורסים: מה שנשלח
+         נשמר בצד (גם השרת שמר אותו ב"טיוטות סטודיו"), ובוחרים. */
+      s.busy = false; s.st = 'conflict'; s.pend = null;
+      if (!del && BOOK[k]) asideLocal_([{ k: k, src: T_('ssHere'), rec: BOOK[k] }]);
+      keepLocal(); saveChip_(); markPanel();
+      say(T_('ssConflictMsg'), 1);
     });
-    for (var k in mine) {
-      var a = k.split('|');
-      keep.push([a[0] || '', a[1] || '', a.slice(2).join('|'),
-                 JSON.stringify(BOOK[k])]);
-    }
-    return fetch(API, { method:'POST', mode:'no-cors',
-      body: JSON.stringify({ action:'table', tab: MARK_TAB, key: wkey,
-        cols: JSON.stringify(COLS), rows: JSON.stringify(keep) }) })
-      /* no-cors מחזיר תשובה אטומה: גם כשהסקריפט דחה את הכתיבה
-         ה-fetch "מצליח". עד עכשיו סימון ה"לא נשמר" נוקה על סמך
-         ההצלחה המדומה הזו, וזה בדיוק המצב שבו העבודה נעלמת —
-         לא בגיליון, וכבר לא מוגנת מקומית. לכן קוראים חזרה
-         ומוודאים שהעמודים באמת שם. */
-      .then(function () { return new Promise(function (ok) { setTimeout(ok, 1200); }); })
-      .then(function () { return sheetCsv(MARK_TAB); })
-      .then(function (back) {
-        /* **התוכן, לא רק קיום השורה.** כתיבה שנדחתה (סיסמה שגויה)
-           משאירה בגיליון את הגרסה הקודמת של אותו עמוד — השורה קיימת,
-           ובדיקה של קיום בלבד הכריזה "נשמר" על עבודה שלא הגיעה. */
-        var have = {};
-        (back || []).slice(1).forEach(function (r2) {
-          have[r2[0] + '|' + r2[1] + '|' + r2[2]] = r2[3] || '';
-        });
-        var same = function (a, b) {
-          if (a === b) return true;
-          try { return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b)); }
-          catch (e) { return false; }
-        };
-        var missing = [];
-        for (var q2 in mine) {
-          if (!have.hasOwnProperty(q2) || !same(have[q2], JSON.stringify(BOOK[q2]))) missing.push(q2);
-        }
-        if (missing.length) {
-          keepLocal();                       /* נשאר מוגן מקומית */
-          say('הגיליון לא אישר ' + missing.length + ' עמודים — ' +
-              'העבודה שמורה במכשיר. נסו שוב. אם זה חוזר, ייתכן שסיסמת ' +
-              'הסקריפט במכשיר שגויה (ניהול ← מערכת).', 1);
-          markPanel();
-          return false;
-        }
-        var n = 0; for (var q in BOOK) n += (BOOK[q].steps || []).length;
-        DIRTY = {}; keepLocal(); markPanel();
-        dropDrafts_(Object.keys(mine));
-        say('נשמר בגיליון · ' + n + ' קטעים · לשונית "' + MARK_TAB + '"');
-        return true;
+  }, 1500 + tries * 1500);
+}
+function failPut_(k, s) {
+  s.busy = false;
+  s.fails = (s.fails || 0) + 1;
+  var off = typeof navigator !== 'undefined' && navigator.onLine === false;
+  s.st = off ? 'wait' : 'fail';
+  s.msg = off ? '' : T_('ssFailMsg');
+  s.next = Date.now() + Math.min(60000, 4000 * Math.pow(2, s.fails));
+  keepLocal(); saveChip_();
+  autoKick_();
+}
+/* חזרה לרשת — לא מחכים לניסיון הבא */
+window.addEventListener('online', function () {
+  for (var k in SAVE) SAVE[k].next = 0;
+  autoKick_(true);
+});
+
+/* כמה עמודים ממתינים לשמירה שיצאה מכאן ועוד לא אושרה */
+function pendingCount_() {
+  var n = 0;
+  for (var k in DIRTY) if (sessionEdit_(k)) n++;
+  return n;
+}
+/* מה שנשאר "לא שמור" ואינו נשמר לבד: מפעם קודמת, או תיקון בטעינה */
+function leftKeys_() {
+  var out = [];
+  for (var k in DIRTY) {
+    var r = BOOK[k];
+    if (!r || sessionEdit_(k)) continue;
+    if (!((r.steps && r.steps.length) || r.cal)) continue;
+    if (SRV[k] && SRV[k].rec && sameRec_(r, SRV[k].rec)) continue;
+    out.push(k);
+  }
+  return out;
+}
+
+/* ---------- המצב הקטן בפס ---------- */
+function saveState_() {
+  var order = { conflict: 5, fail: 4, wait: 3, saving: 2 }, best = '', bk = '';
+  for (var k in SAVE) {
+    var st = SAVE[k].st;
+    if (st === 'saving' && !SAVE[k].busy && !sessionEdit_(k)) continue;
+    if ((order[st] || 0) > (order[best] || 0)) { best = st; bk = k; }
+  }
+  if (!best && pendingCount_()) best = 'saving';
+  /* עבודה מפעם קודמת — רק של העמוד שעל המסך. עמודים אחרים כאלה
+     רשומים בחלון השמירה, ואינם צובעים את הכפתור של עמוד שכבר שמור. */
+  if (!best && leftKeys_().indexOf(PKEY) >= 0) best = 'left';
+  if (!best) for (var k2 in SAVE) if (SAVE[k2].st === 'saved') { best = 'saved'; break; }
+  return { st: best, k: bk };
+}
+function saveChip_() {
+  var s = saveState_();
+  var txt = { saving: T_('ssSaving'), saved: T_('ssSaved'), wait: T_('ssWait'),
+              fail: T_('ssFail'), conflict: T_('ssConflict'), left: T_('ssLeft') }[s.st] || '';
+  ['unsaved', 'ssh'].forEach(function (id) {
+    var db = document.getElementById(id);
+    if (!db) return;
+    db.style.display = txt ? '' : 'none';
+    db.textContent = txt;
+    db.className = 'ss-' + (s.st || 'none');
+    db.title = T_('ssChipTip');
+  });
+  var sv = document.getElementById('save2');
+  if (sv) sv.textContent = T_('ssMenu');
+}
+
+/* ============================================================
+   שמירה בצד — לפני כל החלפה.
+   ============================================================
+   "שימור נפרד של העותק המקומי ושל טיוטות הענן הרלוונטיות. שמור
+   מקור, עמוד, מועד ומזהה גרסה; ודא בקריאה חוזרת שהעותקים קיימים
+   וניתנים לשחזור. אל תחליף עותק בעותק רק כי הוא חדש יותר."
+
+   לשונית "גרסאות בצד": הוספה בלבד, שורה לגרסה. מזהה = גיבוב של
+   התוכן, ולכן אותה גרסה אינה נשמרת פעמיים. כל גרסה נשמרת גם
+   במכשיר (`df:studioAside`), אבל ההחלפה ממתינה **לגיליון**: שמירה
+   בצד שלא אומתה שם עוצרת אותה, ושום דבר אינו מוחלף.
+   ============================================================ */
+var ASIDE_TAB = 'גרסאות בצד';
+var ASIDE_KEY = 'df:studioAside';
+function hash_(s) {
+  var h = 0x811c9dc5;
+  for (var i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return ('0000000' + h.toString(16)).slice(-8);
+}
+function draftWhen_(t) {
+  if (!t) return '';
+  var d = new Date(t), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function whenIso_(t) {
+  try { return t ? new Date(t).toISOString() : ''; } catch (e) { return ''; }
+}
+function asideOf_(rows) {
+  if (!rows || !rows.length) return null;
+  var h = rows[0].map(function (x) { return String(x).trim(); });
+  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iI = h.indexOf('מזהה'),
+      iS = h.indexOf('מקור'), iT = h.indexOf('מועד');
+  if (iK < 0 || iD < 0 || iI < 0) return null;
+  return rows.slice(1).map(function (r) {
+    var d = null;
+    try { d = JSON.parse(r[iD]); } catch (e) {}
+    return { k: String(r[iK] || '').trim(), id: String(r[iI] || '').trim(), d: d,
+             src: iS >= 0 ? String(r[iS] || '') : '', at: iT >= 0 ? String(r[iT] || '') : '' };
+  }).filter(function (x) { return x.k && x.d; });
+}
+function asideLocal_(items) {
+  try {
+    var all = JSON.parse(localStorage.getItem(ASIDE_KEY) || '[]') || [];
+    items.forEach(function (it) {
+      var raw = JSON.stringify(it.rec), id = hash_(raw);
+      if (all.some(function (x) { return x.k === it.k && x.id === id; })) return;
+      all.push({ k: it.k, id: id, src: it.src, at: Date.now(), d: it.rec });
+    });
+    localStorage.setItem(ASIDE_KEY, JSON.stringify(all.slice(-40)));
+    return true;
+  } catch (e) { return false; }
+}
+/* → Promise<true> רק כשכל הגרסאות נקראו חזרה מהגיליון, זהות */
+function asideSave_(items) {
+  items = items.filter(function (it) { return it && it.rec; });
+  asideLocal_(items);
+  var wkey = keyQuiet_();
+  if (!items.length) return Promise.resolve(true);
+  if (!API || !wkey) return Promise.resolve(false);
+  var want = items.map(function (it) {
+    var raw = JSON.stringify(it.rec);
+    return { it: it, raw: raw, id: hash_(raw) };
+  });
+  var has = function (list, w) {
+    return (list || []).some(function (x) {
+      return x.k === w.it.k && x.id === w.id && JSON.stringify(x.d) === w.raw;
+    });
+  };
+  return sheetCsv(ASIDE_TAB).then(function (rows) {
+    /* לשונית שעוד לא נוצרה חוזרת כלשונית אחרת (gviz) — ואז אין מה לסנן */
+    var now = asideOf_(rows) || [];
+    var send = want.filter(function (w) { return !has(now, w); });
+    var p = Promise.resolve();
+    send.forEach(function (w) {
+      p = p.then(function () {
+        return fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+          action: 'row', tab: ASIDE_TAB, key: wkey,
+          cols: JSON.stringify([['מפתח', w.it.k], ['עמוד', keyLabel(w.it.k)],
+            ['מקור', w.it.src], ['מועד', whenIso_(w.it.rec.t)], ['מזהה', w.id],
+            ['מכשיר', devId_()], ['נתונים', w.raw]]) }) }).catch(function () {});
       });
-  }).catch(function () { say('השמירה נכשלה.', 1); return false; });
+    });
+    var check = function (tries) {
+      return new Promise(function (ok) { setTimeout(ok, 1200 + tries * 1200); })
+        .then(function () { return sheetCsv(ASIDE_TAB); })
+        .then(function (back) {
+          var got = asideOf_(back);
+          if (got && want.every(function (w) { return has(got, w); })) return true;
+          return tries < 4 ? check(tries + 1) : false;
+        });
+    };
+    return p.then(function () { return send.length ? check(0) : true; });
+  }).catch(function () { return false; });
+}
+
+/* כל הטיוטות של עמוד ב"טיוטות סטודיו" — לא רק האחרונה */
+function draftsFor_(rows, k) {
+  if (!rows || !rows.length) return null;
+  var h = rows[0].map(function (x) { return String(x).trim(); });
+  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iM = h.indexOf('מכשיר'),
+      iR = h.indexOf('סיבה');
+  if (iK < 0 || iD < 0) return null;
+  var out = [];
+  rows.slice(1).forEach(function (r) {
+    if (String(r[iK] || '').trim() !== k) return;
+    var d = null;
+    try { d = JSON.parse(r[iD]); } catch (e) {}
+    if (!d) return;
+    out.push({ d: d, dev: iM >= 0 ? String(r[iM] || '') : '',
+               why: iR >= 0 ? String(r[iR] || '') : '' });
+  });
+  return out;
+}
+
+/* ============================================================
+   חלון השמירה — הגרסאות של העמוד, ומאיזו ממשיכים.
+   ============================================================
+   נפתח מהכפתור הקטן בפס. בעבודה רגילה אין בו צורך: הכפתור אומר
+   "נשמר" וזהו. הוא נדרש רק במקרה החריג — עבודה מפעם קודמת שלא
+   נשמרה, טיוטה ממכשיר אחר, או התנגשות — ושם הבחירה מפורשת:
+   1. **שמירה בצד** של כל הגרסאות (מקומית, ענן, ושל השרת כשממשיכים
+      ממשהו אחר), ואימות שהן שם.
+   2. רק אז — **ממשיכים** מהגרסה שנבחרה. אין מחיקה של אחסון, אין
+      שחזור לבד, ואין שאלה אחת שמערבבת "לא עכשיו" עם "מחק".
+   3. **העמוד הזה בלבד.** עמודים אחרים אינם נשמרים ואינם מוחלפים.
+   ============================================================ */
+var PANEL_V = [];
+function openSave_() {
+  var k = PKEY, box = document.getElementById('splitbox');
+  if (!k || !box) return;
+  try { keepPageState(); } catch (e) {}
+  box.innerHTML = '<div class="sh"><b>' + esc(keyLabel(k)) + '</b><p>' +
+    esc(T_('ssLoading')) + '</p></div>';
+  box.className = 'splitbox on';
+  Promise.all([sheetCsv(MARK_TAB), sheetCsv(DRAFT_TAB), sheetCsv(ASIDE_TAB)]).then(function (res) {
+    var ok = noteSrv_(res[0]);
+    var srv = SRV[k] && SRV[k].rec, mine = BOOK[k], s = SAVE[k] || {};
+    var V = [], seen = {};
+    var add = function (kind, src, rec, note) {
+      if (!rec) return;
+      var b = bare_(rec);
+      if (seen[b]) return;
+      seen[b] = 1;
+      V.push({ kind: kind, src: src, rec: rec, note: note || '' });
+    };
+    add('srv', T_('ssServer'), srv);
+    add('here', T_('ssHere'), mine);
+    (draftsFor_(res[1], k) || []).slice().reverse().forEach(function (x) {
+      add('draft', (x.dev && x.dev === devId_() ? T_('ssDraftHere') : T_('ssDraftOther')) +
+        (x.why ? ' · ' + T_('ssDraftConf') : ''), x.d);
+    });
+    (asideOf_(res[2]) || []).filter(function (x) { return x.k === k; }).reverse()
+      .forEach(function (x) { add('aside', T_('ssAside') + (x.src ? ' · ' + x.src : ''), x.d); });
+    PANEL_V = V;
+    var st = s.st, left = leftKeys_().indexOf(k) >= 0;
+    var head = st === 'conflict' ? T_('ssConflictMsg') : left ? T_('ssLeftMsg')
+             : st === 'fail' ? (s.msg || T_('ssFailMsg')) : st === 'wait' ? T_('ssWaitMsg')
+             : DIRTY[k] ? T_('ssPendMsg') : T_('ssOkMsg');
+    if (!ok) head = T_('ssNoRead');
+    if (LOCAL_FULL) head += ' ' + T_('ssFull');
+    var html = '<div class="sh ssv"><b>' + esc(keyLabel(k)) + '</b><p>' + esc(head) + '</p>';
+    V.forEach(function (v, i) {
+      var same = srv && v.kind !== 'srv' && sameRec_(v.rec, srv);
+      html += '<div class="ver' + (v.kind === 'srv' ? ' cur' : '') + '"><div><b>' + esc(v.src) +
+        '</b><i>' + esc(draftWhen_(v.rec.t)) + ' · ' + fill_(T_('ssStepsN'), { n: stepsN_(v.rec) }) +
+        (same ? ' · ' + esc(T_('ssSameSrv')) : '') + '</i></div>' +
+        (v.kind === 'srv' ? '' : '<button data-vi="' + i + '">' +
+          esc(v.kind === 'here' ? T_('ssBtnHere') : T_('ssBtnThis')) + '</button>') + '</div>';
+    });
+    var diff = mine && srv && !sameRec_(mine, srv);
+    if (ok && srv && (diff || st === 'conflict')) {
+      html += '<button class="p ssb" id="ss-srv">' + esc(T_('ssBtnSaved')) + '</button>';
+    }
+    if (ok && !srv && mine && DIRTY[k] && !sessionEdit_(k)) {
+      html += '<button class="p ssb" id="ss-now">' + esc(T_('ssBtnSaveNow')) + '</button>';
+    }
+    var others = leftKeys_().filter(function (x) { return x !== k; });
+    if (others.length) {
+      html += '<p class="oth">' + esc(T_('ssOther')) + ' ' +
+        others.map(function (x) { return esc(keyLabel(x)); }).join(' · ') + '</p>';
+    }
+    html += '<p class="hl">' + esc(T_('ssHelp')) + '</p>' +
+      '<button class="cl" id="ss-x">' + esc(T_('ssClose')) + '</button></div>';
+    box.innerHTML = html;
+    document.getElementById('ss-x').onclick = function () { box.className = 'splitbox'; };
+    var bs = document.getElementById('ss-srv');
+    if (bs) bs.onclick = function () { continueFrom_(k, null); };
+    var bn = document.getElementById('ss-now');
+    if (bn) bn.onclick = function () { continueFrom_(k, mine, true); };
+    [].forEach.call(box.querySelectorAll('[data-vi]'), function (b) {
+      b.onclick = function () {
+        var v = PANEL_V[+b.dataset.vi];
+        if (v) continueFrom_(k, v.rec, v.kind === 'here');
+      };
+    });
+  });
+}
+/* `rec` = null — הגרסה השמורה בשרת. אחרת: הגרסה שנבחרה הופכת
+   לעבודה על העמוד, ונשמרת מעל מה שבשרת (שגם הוא בצד). */
+function continueFrom_(k, rec, isHere) {
+  var box = document.getElementById('splitbox');
+  var srv = SRV[k] && SRV[k].rec, mine = BOOK[k];
+  if (rec && !confirm(T_('ssAsk'))) return;
+  var items = [];
+  if (mine && (!srv || !sameRec_(mine, srv))) items.push({ k: k, src: T_('ssHere'), rec: mine });
+  /* הטיוטות של העמוד — כולן, לא רק האחרונה */
+  PANEL_V.forEach(function (v) {
+    if (v.kind === 'draft') items.push({ k: k, src: v.src, rec: v.rec });
+  });
+  if (rec && srv) items.push({ k: k, src: T_('ssServer'), rec: srv });
+  box.innerHTML = '<div class="sh"><b>' + esc(keyLabel(k)) + '</b><p>' +
+    esc(T_('ssAsiding')) + '</p></div>';
+  asideSave_(items).then(function (ok) {
+    if (!ok) {
+      box.className = 'splitbox';
+      say(T_('ssAsideFail'), 1);
+      return;
+    }
+    var s = SAVE[k] || (SAVE[k] = {});
+    s.st = ''; s.pend = null; s.fails = 0; s.next = 0; s.busy = false;
+    if (!rec) {
+      BOOK[k] = JSON.parse(JSON.stringify(srv));
+      delete DIRTY[k];
+      BASE[k] = SRV[k].v;
+    } else {
+      var cp = JSON.parse(JSON.stringify(rec));
+      delete cp.rv;
+      cp.t = Date.now();
+      BOOK[k] = cp;
+      DIRTY[k] = 1;
+      BASE[k] = SRV[k] ? SRV[k].v : '';
+    }
+    SEEN[k] = 1;
+    keepLocal();
+    if (k === PKEY) { PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); }
+    markPanel(); saveChip_();
+    box.className = 'splitbox';
+    say(T_('ssAsideOk'));
+    if (rec) autoKick_(true);
+  });
 }
 
 /* ============================================================
@@ -3778,11 +4195,15 @@ function saveToSheet() {
    אפתח את האפליקציה במכשיר הזה או באחר, היא תעדכן אותי מיד
    ותשאל אם לשמור. פעולה אחת לכל עמוד."
 
-   ביציאה מעמוד שנערך ולא נשמר (ובמעבר הסטודיו לרקע) נכתבת שורה
-   ללשונית "טיוטות סטודיו": המפתח, שם העמוד, המכשיר, והעמוד עצמו.
-   זו הוספת שורה, לא כתיבה מחדש של "סימוני הדף" — ולכן קלה.
-   בפתיחה (`checkDrafts_`) מה שחדש מהגיליון נאמר בשמו, ו"אישור"
-   שומר אותו. שמירה מוחקת את השורות של מה שנשמר.
+   מאז השמירה האוטומטית: כשהסטודיו יורד לרקע ויש עמוד שעוד לא
+   אושר בשרת, נכתבת שורה ללשונית "טיוטות סטודיו" (מפתח, עמוד,
+   מכשיר, העמוד עצמו) — לצד ניסיון שמירה אחרון. גם השרת כותב לשם
+   כשהוא מסרב לשמירה בגלל התנגשות.
+
+   **הטיוטות אינן נמחקות מכאן, ואינן משוחזרות לבד.** פעם שמירה
+   מחקה את כל הטיוטות של המפתח, ושאלה אחת בפתיחה ("לשמור?")
+   שחזרה טיוטה על גבי הגיליון — וכך עמוד שבור חזר מעותק ישן.
+   עכשיו הן רשומות בחלון השמירה של העמוד, וממשיכים מהן רק בבחירה.
    ============================================================ */
 var DRAFT_TAB = 'טיוטות סטודיו';
 var DRAFT_SENT = {};   /* מפתח → ה-`t` שכבר דווח, שלא יישלח פעמיים */
@@ -3811,119 +4232,72 @@ function draftRow_(k) {
     cols: JSON.stringify([['מפתח', k], ['עמוד', keyLabel(k)], ['מכשיר', devId_()],
                           ['נתונים', JSON.stringify(rec)]]) });
 }
-function reportDraft_(k) {
-  var body = draftRow_(k);
-  if (!body) return;
-  var t = BOOK[k].t || 0;
-  DRAFT_SENT[k] = t;
-  /* no-cors אינו הוכחה: קוראים חזרה, ואם השורה לא שם — הדיווח
-     יישלח שוב ביציאה הבאה מהעמוד. */
-  fetch(API, { method: 'POST', mode: 'no-cors', body: body })
-    .then(function () { return new Promise(function (ok) { setTimeout(ok, 1500); }); })
-    .then(function () { return sheetCsv(DRAFT_TAB); })
-    .then(function (rows) {
-      var got = draftsOf_(rows);
-      if (!got || !got[k] || (got[k].d.t || 0) < t) delete DRAFT_SENT[k];
-    })
-    .catch(function () { delete DRAFT_SENT[k]; });
-}
-/* הסטודיו יורד לרקע או נסגר — כל מה שנערך ולא דווח, בלי לחכות */
-document.addEventListener('visibilitychange', function () {
-  if (document.visibilityState !== 'hidden') return;
+/* הסטודיו יורד לרקע או נסגר — מה שנערך כאן ועוד לא אושר: ניסיון
+   שמירה אחרון (`keepalive`, אותו מזהה גרסה), ודיווח לטיוטות. מה
+   שנשאר מפעם קודמת — לא נשלח. */
+var HID_AT = 0;
+function flushHidden_() {
+  /* רענון יורה גם visibilitychange וגם pagehide — שליחה אחת מספיקה */
+  if (Date.now() - HID_AT < 1000) return;
+  HID_AT = Date.now();
   try { keepPageState(); } catch (e) {}
+  var wkey = keyQuiet_();
   for (var k in DIRTY) {
+    if (!sessionEdit_(k)) continue;
+    var s = SAVE[k] || {}, a = k.split('|');
+    if (wkey && a.length >= 4 && !s.busy && s.st !== 'conflict' && SRV_OK) {
+      var base = BASE.hasOwnProperty(k) ? BASE[k] : (SRV[k] ? '?' : '');
+      if (!s.pend || s.pend.t !== BOOK[k].t || s.pend.base !== base) {
+        var out = JSON.parse(JSON.stringify(BOOK[k]));
+        out.rv = Math.random().toString(36).slice(2, 9);
+        s.pend = { t: BOOK[k].t, base: base, val: JSON.stringify(out) };
+        SAVE[k] = s;
+      }
+      var pb = JSON.stringify({ action: 'markPut', key: wkey, mas: a[0], daf: a[1],
+        pg: a.slice(2).join('|'), base: base, val: s.pend.val, label: keyLabel(k), dev: devId_() });
+      if (pb.length < 60000) {
+        try { fetch(API, { method: 'POST', mode: 'no-cors', keepalive: true, body: pb })
+                .catch(function () {}); } catch (e) {}
+      }
+    }
     var body = draftRow_(k);
     if (!body) continue;
     DRAFT_SENT[k] = BOOK[k].t || 0;
     try { fetch(API, { method: 'POST', mode: 'no-cors', keepalive: true, body: body })
             .catch(function () {}); } catch (e) {}
   }
+}
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden') flushHidden_();
 });
-/* הלשונית → { מפתח: { d: העמוד, dev, label } }, האחרון לכל מפתח.
-   null = לא נקראה (או שהגיעה לשונית אחרת) — לא "אין טיוטות". */
-function draftsOf_(rows) {
-  if (!rows || !rows.length) return null;
-  var h = rows[0].map(function (x) { return String(x).trim(); });
-  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iM = h.indexOf('מכשיר'), iL = h.indexOf('עמוד');
-  if (iK < 0 || iD < 0) return null;
-  var out = {};
-  rows.slice(1).forEach(function (r) {
-    var k = String(r[iK] || '').trim(), d = null;
-    try { d = JSON.parse(r[iD]); } catch (e) {}
-    if (!k || !d) return;
-    if (out[k] && (out[k].d.t || 0) >= (d.t || 0)) return;
-    out[k] = { d: d, dev: iM >= 0 ? String(r[iM] || '') : '', label: iL >= 0 ? String(r[iL] || '') : '' };
-  });
-  return out;
-}
-function dropDrafts_(keys) {
-  var key = keyQuiet_();
-  if (!API || !key || !keys.length) return;
-  keys.forEach(function (k) { delete DRAFT_SENT[k]; });
-  fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'delrow', tab: DRAFT_TAB, key: key, col: 'מפתח', vals: JSON.stringify(keys) }) })
-    .catch(function () {});
-}
-function draftWhen_(t) {
-  if (!t) return '';
-  var d = new Date(t), z = function (n) { return (n < 10 ? '0' : '') + n; };
-  return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
-}
+window.addEventListener('pagehide', flushHidden_);
+/* חזרה מהרקע — אולי השמירה האחרונה הגיעה; הקריאה הבאה תגיד */
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && pendingCount_()) autoKick_(true);
+});
+/* בפתיחה: יש טיוטה שאינה הגרסה השמורה? אומרים, בשורה אחת, ולא
+   שואלים. ממשיכים ממנה רק מחלון השמירה של העמוד. */
 function checkDrafts_() {
   if (!API) return;
   Promise.all([sheetCsv(DRAFT_TAB), sheetCsv(MARK_TAB)]).then(function (res) {
-    var dr = draftsOf_(res[0]) || {}, marks = res[1];
-    /* בלי "סימוני הדף" אי אפשר לדעת מה כבר נשמר — לא שואלים */
-    if (!marks || !marks.length) return;
-    var saved = {};
-    marks.slice(1).forEach(function (r) {
-      var rk = r[0] + '|' + r[1] + '|' + r[2], d = null;
-      try { d = JSON.parse(r[3]); } catch (e) {}
-      saved[rk] = (d && d.t) || 0;
+    if (!noteSrv_(res[1])) return;
+    var rows = res[0];
+    if (!rows || !rows.length) return;
+    var h = rows[0].map(function (x) { return String(x).trim(); });
+    var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iM = h.indexOf('מכשיר');
+    if (iK < 0 || iD < 0) return;
+    var me = devId_(), pages = {};
+    rows.slice(1).forEach(function (r) {
+      var k = String(r[iK] || '').trim(), d = null;
+      try { d = JSON.parse(r[iD]); } catch (e) {}
+      if (!k || !d || (iM >= 0 && String(r[iM] || '') === me)) return;
+      var sv = SRV[k];
+      /* רק מה שחדש מהשמור ושונה ממנו — שלא נציק על טיוטות ישנות */
+      if (sv && sv.rec && ((d.t || 0) <= (sv.rec.t || 0) || sameRec_(d, sv.rec))) return;
+      pages[k] = 1;
     });
-    var me = devId_(), list = [], stale = [];
-    for (var k in dr) {
-      var t = dr[k].d.t || 0;
-      if (t <= (saved[k] || 0)) { stale.push(k); continue; }
-      /* מה שבמכשיר הזה חדש יותר מהדיווח — הוא שנשאל עליו, למטה */
-      if (DIRTY[k] && BOOK[k] && (BOOK[k].t || 0) >= t) continue;
-      list.push({ k: k, d: dr[k].d, t: t, label: dr[k].label || keyLabel(k),
-                  here: dr[k].dev && dr[k].dev === me });
-    }
-    /* וגם מה שנשאר לא שמור במכשיר הזה עצמו */
-    for (var lk in DIRTY) {
-      var r0 = BOOK[lk];
-      if (!r0 || !((r0.steps && r0.steps.length) || r0.cal)) continue;
-      if (list.some(function (x) { return x.k === lk; })) continue;
-      if ((r0.t || 0) <= (saved[lk] || 0)) continue;
-      list.push({ k: lk, d: null, t: r0.t || 0, label: keyLabel(lk), here: true });
-    }
-    if (stale.length) dropDrafts_(stale);
-    if (!list.length) return;
-    var msg = 'יש עריכה שלא נשמרה בגיליון:\n\n' + list.map(function (x) {
-      return '· ' + x.label + ' — ' + (x.here ? 'במכשיר הזה' : 'במכשיר אחר') +
-             (x.t ? ', ' + draftWhen_(x.t) : '');
-    }).join('\n') + '\n\nלשמור אותה עכשיו בגיליון?';
-    if (!confirm(msg)) {
-      var other = list.filter(function (x) { return x.d; });
-      if (other.length && confirm('למחוק את הדיווח על העריכה?\n\n' +
-          'העריכה לא תישמר בגיליון, וההודעה לא תופיע שוב.\n' +
-          '"ביטול" — ההודעה תופיע שוב בפתיחה הבאה.')) {
-        dropDrafts_(other.map(function (x) { return x.k; }));
-      }
-      return;
-    }
-    var cur = false;
-    list.forEach(function (x) {
-      if (x.d) BOOK[x.k] = x.d;
-      DIRTY[x.k] = 1;
-      if (x.k === PKEY) cur = true;
-    });
-    /* העמוד שעל המסך הוחלף — טוענים אותו מחדש, אחרת השמירה הייתה
-       כותבת את מה שעל המסך במקום את העריכה */
-    if (cur) { PKEY = ''; loadPageState(); paintChav(); markDraw(); }
-    keepLocal(); markPanel();
-    saveToSheet();
+    var ks = Object.keys(pages);
+    if (ks.length) say(fill_(T_('ssDraftNote'), { pages: ks.map(keyLabel).join(' · ') }));
   });
 }
 window.addEventListener('load', function () {
@@ -3932,8 +4306,10 @@ window.addEventListener('load', function () {
 
 function loadFromSheet() {
   return sheetCsv(MARK_TAB).then(function (rows) {
+    /* לשונית עם כותרת בלבד היא קריאה שהצליחה — "אין עמודים", לא כישלון */
+    noteSrv_(rows);
     if (!rows || rows.length < 2) return 0;
-    var mas = selVal('mas'), daf = selVal('daf'), n = 0, ask = [], took = 0;
+    var mas = selVal('mas'), daf = selVal('daf'), n = 0;
     var take = function (k, rec) {
       var was = BOOK[k];
       /* שורה בגיליון שנכתבה לפני שהכיול נשמר בכלל אינה מכילה
@@ -3949,6 +4325,7 @@ function loadFromSheet() {
            עצירה שבוטלה שם, ושמירה הבאה הייתה כותבת אותה בחזרה. */
       }
       BOOK[k] = rec; SEEN[k] = 1; n++;
+      BASE[k] = SRV[k] ? SRV[k].v : verOf_(rec);
     };
     rows.slice(1).forEach(function (r) {
       if (r[0] !== mas || r[1] !== daf) return;
@@ -3956,36 +4333,27 @@ function loadFromSheet() {
       if (GONE[k]) return;              /* נמחקה כאן — לא להחזיר */
       var rec;
       try { rec = JSON.parse(r[3]); } catch (e) { return; }
-      /* עמוד שיש בו עבודה שטרם נשמרה במכשיר הזה. פעם פשוט דילגנו
-         עליו — וזה מה שהחזיר במחשב עותק ישן על פני עבודה חדשה
-         מהטלפון. עכשיו: החדש מנצח, ואם אי אפשר לדעת — שואלים. */
+      /* עמוד שיש בו עבודה שטרם נשמרה במכשיר הזה.
+         · אותו תוכן — אין כאן שתי גרסאות.
+         · נערך בכניסה הזו — השמירה האוטומטית בדרך, עם הבסיס שלה.
+         · נשאר מפעם קודמת — **לא מחליפים ולא שואלים.** מה שעל המסך
+           נשאר, אינו נשמר לבד, והכפתור בפס אומר "לא נשמר". מחלון
+           השמירה ממשיכים מהגרסה השמורה או מזו שבמכשיר — אחרי ששתיהן
+           נשמרו בצד. (קודם: "החדש מנצח, ואם אי אפשר לדעת — שואלים";
+           זמן במכשיר אינו ראיה, ושאלת "אישור/ביטול" ערבבה בחירות.) */
       if (DIRTY[k]) {
         var mine = BOOK[k];
         if (!mine) { delete DIRTY[k]; take(k, rec); return; }
-        if (JSON.stringify(mine.steps || []) === JSON.stringify(rec.steps || []) &&
-            JSON.stringify(mine.cal || null) === JSON.stringify(rec.cal || null)) return;
-        var lt = mine.t || 0, rt = rec.t || 0;
-        if (lt && rt) {
-          if (rt > lt) { delete DIRTY[k]; take(k, rec); took++; }
+        if (sameRec_(mine, rec)) {
+          delete DIRTY[k]; BASE[k] = SRV[k].v; SEEN[k] = 1; n++;
           return;
         }
-        ask.push([k, rec]);
+        SEEN[k] = 1;
         return;
       }
       take(k, rec);
     });
-    if (ask.length) {
-      var when = LOCAL_AT ? new Date(LOCAL_AT).toLocaleDateString('he-IL') : '';
-      if (confirm('במכשיר הזה יש שינויים שלא נשמרו ב-' + ask.length + ' עמודים' +
-          (when ? ' (מ-' + when + ')' : '') + ', ובגיליון יש להם גרסה אחרת.\n\n' +
-          'לטעון את הגרסה שבגיליון?\n' +
-          'אישור — הגיליון (מה שנעשה במכשירים אחרים)\n' +
-          'ביטול — להשאיר את מה שבמכשיר הזה')) {
-        ask.forEach(function (p) { delete DIRTY[p[0]]; take(p[0], p[1]); });
-        took += ask.length;
-      }
-    }
-    if (took) { keepLocal(); markPanel(); }
+    keepLocal(); markPanel(); saveChip_();
     return n;
   }).catch(function () { return 0; });
 }
@@ -4885,7 +5253,8 @@ document.getElementById('contjoin').onclick = function () { addStep(true, true);
    ומזיז אותם כשקטעים מתפצלים, מתאחדים או נמחקים. */
 
 /* תפריט הפעולות הנדירות */
-document.getElementById('unsaved').onclick = function () { saveToSheet(); };
+document.getElementById('unsaved').onclick = function () { openSave_(); };
+document.getElementById('ssh').onclick = function () { openSave_(); };
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
@@ -4916,7 +5285,7 @@ document.getElementById('hidepara').onclick = function () {
 
 /* אזהרה לפני סגירה, כשיש עבודה שלא נשמרה בגיליון */
 window.addEventListener('beforeunload', function (e) {
-  if (dirtyCount()) { e.preventDefault(); e.returnValue = ''; }
+  if (pendingCount_()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 (function () {
@@ -4998,7 +5367,13 @@ function stepPage(d) {
 }
 document.getElementById('pgprev').onclick = function () { stepPage(-1); };
 document.getElementById('pgnext').onclick = function () { stepPage(1); };
-document.getElementById('save2').onclick = function () { saveToSheet(); };
+/* "שמירה" בתפריט: מה שנערך כאן — עכשיו, בלי השהיה; והחלון של העמוד */
+/* במכשיר בלי סיסמה — נשאלת כאן, פעם אחת, כמו קודם (writeKey_) */
+document.getElementById('save2').onclick = function () {
+  writeKey_();
+  for (var k in SAVE) SAVE[k].next = 0;
+  autoKick_(true); openSave_();
+};
 document.getElementById('swap').onclick = function () {
   if (document.body.classList.contains('solo'))
     document.body.classList.toggle('on-chav');

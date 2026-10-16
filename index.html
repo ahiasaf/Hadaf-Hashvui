@@ -2898,7 +2898,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.248';
+var APP_VERSION = '8.99.249';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15770,7 +15770,11 @@ function admDecks(el) {
     /* אותו חלון, ולכן אותו מכשיר שנכנס לניהול — הדף נפתח כרכז, עם
        השקפים והחצים לשיוך. */
     '<a class="btn g" href="learn.html?mas=' + dkSel.mas + '&' +
-    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home&at=start&hop=1">↗ ' + esc(UI.dkmLearn) + '</a></div>' +
+    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home&at=start&hop=1">↗ ' + esc(UI.dkmLearn) + '</a>' +
+    /* העלון השבועי — אותו דף, במצב הבחירה לעלון. רק מכאן; לתלמיד
+       ולדף במצב רגיל אין כניסה. ראו alon.js. */
+    '<a class="btn g" href="learn.html?mas=' + dkSel.mas + '&' +
+    LDafQ(dkSel.mas, dkSel.wk - 1) + '&from=home&at=start&hop=1&alon=1">📰 ' + esc(UI.dkmAlon) + '</a></div>' +
     '<input type="file" id="dk-img" accept="image/*" multiple hidden onchange="dkImgPick(this)">' +
     '<input type="file" id="dk-pdf" accept="application/pdf,.pdf" hidden onchange="dkPdfPick(this)">' +
     '<div class="dk-msg"></div>' +
