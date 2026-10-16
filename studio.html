@@ -305,6 +305,7 @@ body.mark.gsel #clearsel{display:inline-block}
 .splitbox .ver button{flex:0 0 auto;padding:8px 10px;font-size:.8rem;font-weight:800}
 .splitbox .ssb{width:100%;margin-top:6px;padding:12px;font-weight:800}
 .splitbox .sh.ssv{max-width:36rem}
+.splitbox p.bad{color:#A5382D}
 .splitbox .oth,.splitbox .hl{font-size:.78rem;color:var(--ink-3);margin:10px 0 0}
 /* מצב השמירה בפס — מילה אחת, בצבע המצב */
 #unsaved.ss-saved{border-color:rgba(255,255,255,.35);color:#CFE8D6 !important}
@@ -1970,7 +1971,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.249';
+var STUDIO_VER = '8.99.250';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3871,7 +3872,7 @@ function verifyPut_(k, mine, base, tries, del) {
       /* גרסה שלישית בגיליון — של מישהו אחר. לא דורסים: מה שנשלח
          נשמר בצד (גם השרת שמר אותו ב"טיוטות סטודיו"), ובוחרים. */
       s.busy = false; s.st = 'conflict'; s.pend = null;
-      if (!del && BOOK[k]) asideLocal_([{ k: k, src: T_('ssHere'), rec: BOOK[k] }]);
+      if (!del && BOOK[k]) asideLocal_([{ k: k, src: T_('ssHere'), raw: JSON.stringify(BOOK[k]) }]);
       keepLocal(); saveChip_(); markPanel();
       say(T_('ssConflictMsg'), 1);
     });
@@ -3913,31 +3914,54 @@ function leftKeys_() {
 }
 
 /* ---------- המצב הקטן בפס ---------- */
+/* המצב של עמוד אחד */
+function pageState_(k) {
+  var s = SAVE[k] || {};
+  if (s.st === 'conflict' || s.st === 'fail' || s.st === 'wait') return s.st;
+  if (s.busy || (DIRTY[k] && sessionEdit_(k))) return 'saving';
+  if (leftKeys_().indexOf(k) >= 0) return 'left';
+  if (s.st === 'saved') return 'saved';
+  return '';
+}
+/* ============================================================
+   הכפתור מדבר על **העמוד שעל המסך**.
+   ============================================================
+   קודם הוא אסף מצב מכל העמודים, ולכן התנגשות בעמוד אחר הציגה
+   "שתי גרסאות" כאן — והחלון שנפתח היה של העמוד הזה, שבו הכל תקין.
+   עכשיו: המצב של העמוד הזה. רק כשהוא תקין, ועמוד אחר צריך תשומת
+   לב (התנגשות, כישלון, ממתין לחיבור) — הכפתור אומר זאת **עם שם
+   העמוד**, וההקשה פותחת את החלון **של אותו עמוד**. */
 function saveState_() {
-  var order = { conflict: 5, fail: 4, wait: 3, saving: 2 }, best = '', bk = '';
+  var here = PKEY ? pageState_(PKEY) : '';
+  if (here && here !== 'saved') return { st: here, k: PKEY };
+  var order = { conflict: 3, fail: 2, wait: 1 }, best = '', bk = '';
   for (var k in SAVE) {
-    var st = SAVE[k].st;
-    if (st === 'saving' && !SAVE[k].busy && !sessionEdit_(k)) continue;
+    if (k === PKEY) continue;
+    var st = pageState_(k);
     if ((order[st] || 0) > (order[best] || 0)) { best = st; bk = k; }
   }
-  if (!best && pendingCount_()) best = 'saving';
-  /* עבודה מפעם קודמת — רק של העמוד שעל המסך. עמודים אחרים כאלה
-     רשומים בחלון השמירה, ואינם צובעים את הכפתור של עמוד שכבר שמור. */
-  if (!best && leftKeys_().indexOf(PKEY) >= 0) best = 'left';
-  if (!best) for (var k2 in SAVE) if (SAVE[k2].st === 'saved') { best = 'saved'; break; }
-  return { st: best, k: bk };
+  if (best) return { st: best, k: bk };
+  return { st: here, k: PKEY };
 }
+/* "ב ע״ב" — מספיק כדי לדעת על איזה עמוד מדובר */
+function keyShort_(k) {
+  var a = String(k).split('|'), pg = +a[3] || 1;
+  return a.length < 4 ? k : a[1] + ' ' + (pg === 1 ? 'ע״א' : pg === 2 ? 'ע״ב' : pg);
+}
+var CHIP_K = '';
 function saveChip_() {
   var s = saveState_();
   var txt = { saving: T_('ssSaving'), saved: T_('ssSaved'), wait: T_('ssWait'),
               fail: T_('ssFail'), conflict: T_('ssConflict'), left: T_('ssLeft') }[s.st] || '';
+  if (txt && s.k && s.k !== PKEY) txt = fill_(T_('ssElse'), { st: txt, page: keyShort_(s.k) });
+  CHIP_K = s.k || PKEY;
   ['unsaved', 'ssh'].forEach(function (id) {
     var db = document.getElementById(id);
     if (!db) return;
     db.style.display = txt ? '' : 'none';
     db.textContent = txt;
     db.className = 'ss-' + (s.st || 'none');
-    db.title = T_('ssChipTip');
+    db.title = s.k && s.k !== PKEY ? keyLabel(s.k) : T_('ssChipTip');
   });
   var sv = document.getElementById('save2');
   if (sv) sv.textContent = T_('ssMenu');
@@ -3973,91 +3997,112 @@ function draftWhen_(t) {
 function whenIso_(t) {
   try { return t ? new Date(t).toISOString() : ''; } catch (e) { return ''; }
 }
-function asideOf_(rows) {
-  if (!rows || !rows.length) return null;
-  var h = rows[0].map(function (x) { return String(x).trim(); });
-  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iI = h.indexOf('מזהה'),
-      iS = h.indexOf('מקור'), iT = h.indexOf('מועד');
-  if (iK < 0 || iD < 0 || iI < 0) return null;
-  return rows.slice(1).map(function (r) {
-    var d = null;
-    try { d = JSON.parse(r[iD]); } catch (e) {}
-    return { k: String(r[iK] || '').trim(), id: String(r[iI] || '').trim(), d: d,
-             src: iS >= 0 ? String(r[iS] || '') : '', at: iT >= 0 ? String(r[iT] || '') : '' };
-  }).filter(function (x) { return x.k && x.d; });
+/* ============================================================
+   מלאי הגרסאות של עמוד — קריאה ישירה מהסקריפט (studioInv_).
+   ============================================================
+   "התאוששות חייבת לעצור כשלא נקראו כל הגרסאות."
+
+   קודם החלון קרא את "טיוטות סטודיו" ו"גרסאות בצד" דרך gviz, וקריאה
+   שנכשלה (או לשונית אחרת שחזרה במקומה) נראתה בדיוק כמו "אין
+   טיוטות" — ו"להמשיך מהגרסה השמורה" שמר בצד רק את העותק המקומי.
+   עכשיו: הסקריפט אומר לכל לשונית אם היא קיימת, ומחזיר את השורות
+   של העמוד כפי שהן בתא. כל דבר אחר — `ok:false`, והחלון אינו מציע
+   החלפה. לשונית שלא נוצרה עדיין = ריקה, ובמפורש. שורה שאינה JSON
+   תקין אינה "אין טיוטה": היא נשמרת בצד כמות שהיא.
+   ============================================================ */
+function jsonp_(url) {
+  return new Promise(function (ok) {
+    var n = '__inv' + Date.now() + Math.floor(Math.random() * 1000), sc = document.createElement('script');
+    var t = setTimeout(function () { done(null); }, 45000);
+    function done(v) {
+      clearTimeout(t);
+      try { delete window[n]; } catch (e) { window[n] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+      ok(v);
+    }
+    window[n] = done;
+    sc.onerror = function () { done(null); };
+    sc.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + n;
+    document.body.appendChild(sc);
+  });
 }
+function parse_(raw) {
+  try { var o = JSON.parse(raw); return (o && typeof o === 'object') ? o : null; } catch (e) { return null; }
+}
+/* → { ok:true, srv:{found,raw,rec,v}, drafts:[…], aside:[…] } או { ok:false, why } */
+function inv_(k) {
+  var key = keyQuiet_();
+  if (!API || !key) return Promise.resolve({ ok: false, why: T_('ssNoKey') });
+  return jsonp_(API + '?studioInv=1&key=' + encodeURIComponent(key) + '&k=' + encodeURIComponent(k) +
+                '&t=' + Date.now()).then(function (r) {
+    var bad = function (w) { return { ok: false, why: w || T_('ssInvBad') }; };
+    if (!r) return bad(T_('ssInvNet'));
+    if (r.status === 'denied') return bad(T_('ssNoKey'));
+    if (r.status !== 'ok' || r.k !== k || !r.mark || !r.drafts || !r.aside) return bad();
+    var tabOk = function (t) {
+      return typeof t.exists === 'boolean' && !t.bad && Object.prototype.toString.call(t.rows) === '[object Array]';
+    };
+    if (!tabOk(r.drafts) || !tabOk(r.aside) || typeof r.mark.found !== 'boolean') return bad();
+    var out = { ok: true, drafts: [], aside: [],
+      srv: { found: r.mark.found, raw: r.mark.found ? String(r.mark.raw) : '', rec: null, v: '' } };
+    if (out.srv.found) { out.srv.rec = parse_(out.srv.raw); out.srv.v = verRaw_(out.srv.raw); }
+    r.drafts.rows.forEach(function (x) {
+      var raw = String(x.raw == null ? '' : x.raw);
+      out.drafts.push({ raw: raw, d: parse_(raw), dev: x['מכשיר'] || '', why: x['סיבה'] || '' });
+    });
+    r.aside.rows.forEach(function (x) {
+      var raw = String(x.raw == null ? '' : x.raw);
+      out.aside.push({ raw: raw, d: parse_(raw), id: x['מזהה'] || '', src: x['מקור'] || '' });
+    });
+    /* מה שבשרת עכשיו — גם לשמירה האוטומטית */
+    if (out.srv.found) SRV[k] = { v: out.srv.v, rec: out.srv.rec, raw: out.srv.raw };
+    else delete SRV[k];
+    return out;
+  });
+}
+
 function asideLocal_(items) {
   try {
     var all = JSON.parse(localStorage.getItem(ASIDE_KEY) || '[]') || [];
     items.forEach(function (it) {
-      var raw = JSON.stringify(it.rec), id = hash_(raw);
+      var id = hash_(it.raw);
       if (all.some(function (x) { return x.k === it.k && x.id === id; })) return;
-      all.push({ k: it.k, id: id, src: it.src, at: Date.now(), d: it.rec });
+      all.push({ k: it.k, id: id, src: it.src, at: Date.now(), raw: it.raw });
     });
     localStorage.setItem(ASIDE_KEY, JSON.stringify(all.slice(-40)));
     return true;
   } catch (e) { return false; }
 }
-/* → Promise<true> רק כשכל הגרסאות נקראו חזרה מהגיליון, זהות */
-function asideSave_(items) {
-  items = items.filter(function (it) { return it && it.rec; });
-  asideLocal_(items);
+/* `items` = [{k, src, raw, t}] — הטקסט המדויק שנשמר. → Promise<true> רק
+   כשהמלאי שנקרא אחרי הכתיבה מכיל כל אחד מהם, תו בתו. */
+function asideSave_(k, items, have) {
   var wkey = keyQuiet_();
+  asideLocal_(items);
   if (!items.length) return Promise.resolve(true);
   if (!API || !wkey) return Promise.resolve(false);
-  var want = items.map(function (it) {
-    var raw = JSON.stringify(it.rec);
-    return { it: it, raw: raw, id: hash_(raw) };
-  });
-  var has = function (list, w) {
-    return (list || []).some(function (x) {
-      return x.k === w.it.k && x.id === w.id && JSON.stringify(x.d) === w.raw;
-    });
+  var inList = function (list, it) {
+    return list.some(function (x) { return x.raw === it.raw; });
   };
-  return sheetCsv(ASIDE_TAB).then(function (rows) {
-    /* לשונית שעוד לא נוצרה חוזרת כלשונית אחרת (gviz) — ואז אין מה לסנן */
-    var now = asideOf_(rows) || [];
-    var send = want.filter(function (w) { return !has(now, w); });
-    var p = Promise.resolve();
-    send.forEach(function (w) {
-      p = p.then(function () {
-        return fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-          action: 'row', tab: ASIDE_TAB, key: wkey,
-          cols: JSON.stringify([['מפתח', w.it.k], ['עמוד', keyLabel(w.it.k)],
-            ['מקור', w.it.src], ['מועד', whenIso_(w.it.rec.t)], ['מזהה', w.id],
-            ['מכשיר', devId_()], ['נתונים', w.raw]]) }) }).catch(function () {});
-      });
+  var send = items.filter(function (it) { return !inList(have, it); });
+  var p = Promise.resolve();
+  send.forEach(function (it) {
+    p = p.then(function () {
+      return fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+        action: 'row', tab: ASIDE_TAB, key: wkey,
+        cols: JSON.stringify([['מפתח', k], ['עמוד', keyLabel(k)], ['מקור', it.src],
+          ['מועד', whenIso_(it.t)], ['מזהה', hash_(it.raw)], ['מכשיר', devId_()],
+          ['נתונים', it.raw]]) }) }).catch(function () {});
     });
-    var check = function (tries) {
-      return new Promise(function (ok) { setTimeout(ok, 1200 + tries * 1200); })
-        .then(function () { return sheetCsv(ASIDE_TAB); })
-        .then(function (back) {
-          var got = asideOf_(back);
-          if (got && want.every(function (w) { return has(got, w); })) return true;
-          return tries < 4 ? check(tries + 1) : false;
-        });
-    };
-    return p.then(function () { return send.length ? check(0) : true; });
-  }).catch(function () { return false; });
-}
-
-/* כל הטיוטות של עמוד ב"טיוטות סטודיו" — לא רק האחרונה */
-function draftsFor_(rows, k) {
-  if (!rows || !rows.length) return null;
-  var h = rows[0].map(function (x) { return String(x).trim(); });
-  var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים'), iM = h.indexOf('מכשיר'),
-      iR = h.indexOf('סיבה');
-  if (iK < 0 || iD < 0) return null;
-  var out = [];
-  rows.slice(1).forEach(function (r) {
-    if (String(r[iK] || '').trim() !== k) return;
-    var d = null;
-    try { d = JSON.parse(r[iD]); } catch (e) {}
-    if (!d) return;
-    out.push({ d: d, dev: iM >= 0 ? String(r[iM] || '') : '',
-               why: iR >= 0 ? String(r[iR] || '') : '' });
   });
-  return out;
+  var check = function (tries) {
+    return new Promise(function (ok) { setTimeout(ok, 1200 + tries * 1500); })
+      .then(function () { return inv_(k); })
+      .then(function (iv) {
+        if (iv.ok && items.every(function (it) { return inList(iv.aside, it); })) return true;
+        return tries < 4 ? check(tries + 1) : false;
+      });
+  };
+  return p.then(function () { return send.length ? check(0) : true; });
 }
 
 /* ============================================================
@@ -4066,47 +4111,59 @@ function draftsFor_(rows, k) {
    נפתח מהכפתור הקטן בפס. בעבודה רגילה אין בו צורך: הכפתור אומר
    "נשמר" וזהו. הוא נדרש רק במקרה החריג — עבודה מפעם קודמת שלא
    נשמרה, טיוטה ממכשיר אחר, או התנגשות — ושם הבחירה מפורשת:
-   1. **שמירה בצד** של כל הגרסאות (מקומית, ענן, ושל השרת כשממשיכים
-      ממשהו אחר), ואימות שהן שם.
-   2. רק אז — **ממשיכים** מהגרסה שנבחרה. אין מחיקה של אחסון, אין
-      שחזור לבד, ואין שאלה אחת שמערבבת "לא עכשיו" עם "מחק".
-   3. **העמוד הזה בלבד.** עמודים אחרים אינם נשמרים ואינם מוחלפים.
+   1. **מלאי מלא ומאומת** (inv_). לא נקרא — אין הצעה להחליף.
+   2. **שמירה בצד** של כל הגרסאות (מקומית, כל הטיוטות, ושל השרת
+      כשממשיכים ממשהו אחר) — לפי מלאי שנקרא **שוב** ברגע הלחיצה,
+      ואימות שהטקסט המדויק של כל אחת שם.
+   3. רק אז — **ממשיכים**. בכל כשל העבודה שעל המסך נשארת, והחלון
+      אומר מה קרה ומציע לנסות שוב.
+   4. **העמוד הזה בלבד.** עמודים אחרים אינם נשמרים ואינם מוחלפים.
    ============================================================ */
-var PANEL_V = [];
-function openSave_() {
-  var k = PKEY, box = document.getElementById('splitbox');
+var PANEL_V = [], PANEL_K = '', PANEL_SV = '';
+function panelMsg_(k, txt, retry) {
+  var box = document.getElementById('splitbox');
+  box.innerHTML = '<div class="sh ssv"><b>' + esc(keyLabel(k)) + '</b><p class="bad">' + esc(txt) +
+    '</p><button class="p ssb" id="ss-re">' + esc(T_('ssRetry')) + '</button>' +
+    '<button class="cl" id="ss-x">' + esc(T_('ssClose')) + '</button></div>';
+  box.className = 'splitbox on';
+  document.getElementById('ss-re').onclick = retry;
+  document.getElementById('ss-x').onclick = function () { box.className = 'splitbox'; };
+}
+function openSave_(k0) {
+  var k = k0 || PKEY, box = document.getElementById('splitbox');
   if (!k || !box) return;
   try { keepPageState(); } catch (e) {}
   box.innerHTML = '<div class="sh"><b>' + esc(keyLabel(k)) + '</b><p>' +
     esc(T_('ssLoading')) + '</p></div>';
   box.className = 'splitbox on';
-  Promise.all([sheetCsv(MARK_TAB), sheetCsv(DRAFT_TAB), sheetCsv(ASIDE_TAB)]).then(function (res) {
-    var ok = noteSrv_(res[0]);
-    var srv = SRV[k] && SRV[k].rec, mine = BOOK[k], s = SAVE[k] || {};
-    var V = [], seen = {};
-    var add = function (kind, src, rec, note) {
-      if (!rec) return;
+  inv_(k).then(function (iv) {
+    if (!iv.ok) { panelMsg_(k, iv.why + ' ' + T_('ssInvStop'), function () { openSave_(k); }); return; }
+    var srv = iv.srv.rec, mine = BOOK[k], s = SAVE[k] || {};
+    var V = [], seen = {}, broken = 0;
+    var add = function (kind, src, rec, raw) {
+      if (!rec) { broken++; return; }
       var b = bare_(rec);
       if (seen[b]) return;
       seen[b] = 1;
-      V.push({ kind: kind, src: src, rec: rec, note: note || '' });
+      V.push({ kind: kind, src: src, rec: rec, raw: raw });
     };
-    add('srv', T_('ssServer'), srv);
-    add('here', T_('ssHere'), mine);
-    (draftsFor_(res[1], k) || []).slice().reverse().forEach(function (x) {
+    if (iv.srv.found) add('srv', T_('ssServer'), srv, iv.srv.raw);
+    if (mine) add('here', T_('ssHere'), mine, JSON.stringify(mine));
+    iv.drafts.slice().reverse().forEach(function (x) {
       add('draft', (x.dev && x.dev === devId_() ? T_('ssDraftHere') : T_('ssDraftOther')) +
-        (x.why ? ' · ' + T_('ssDraftConf') : ''), x.d);
+        (x.why ? ' · ' + T_('ssDraftConf') : ''), x.d, x.raw);
     });
-    (asideOf_(res[2]) || []).filter(function (x) { return x.k === k; }).reverse()
-      .forEach(function (x) { add('aside', T_('ssAside') + (x.src ? ' · ' + x.src : ''), x.d); });
-    PANEL_V = V;
+    iv.aside.slice().reverse().forEach(function (x) {
+      add('aside', T_('ssAside') + (x.src ? ' · ' + x.src : ''), x.d, x.raw);
+    });
+    PANEL_V = V; PANEL_K = k; PANEL_SV = iv.srv.v;
     var st = s.st, left = leftKeys_().indexOf(k) >= 0;
     var head = st === 'conflict' ? T_('ssConflictMsg') : left ? T_('ssLeftMsg')
              : st === 'fail' ? (s.msg || T_('ssFailMsg')) : st === 'wait' ? T_('ssWaitMsg')
              : DIRTY[k] ? T_('ssPendMsg') : T_('ssOkMsg');
-    if (!ok) head = T_('ssNoRead');
     if (LOCAL_FULL) head += ' ' + T_('ssFull');
     var html = '<div class="sh ssv"><b>' + esc(keyLabel(k)) + '</b><p>' + esc(head) + '</p>';
+    if (broken) html += '<p class="oth">' + esc(fill_(T_('ssBroken'), { n: broken })) + '</p>';
     V.forEach(function (v, i) {
       var same = srv && v.kind !== 'srv' && sameRec_(v.rec, srv);
       html += '<div class="ver' + (v.kind === 'srv' ? ' cur' : '') + '"><div><b>' + esc(v.src) +
@@ -4116,10 +4173,10 @@ function openSave_() {
           esc(v.kind === 'here' ? T_('ssBtnHere') : T_('ssBtnThis')) + '</button>') + '</div>';
     });
     var diff = mine && srv && !sameRec_(mine, srv);
-    if (ok && srv && (diff || st === 'conflict')) {
+    if (srv && (diff || st === 'conflict')) {
       html += '<button class="p ssb" id="ss-srv">' + esc(T_('ssBtnSaved')) + '</button>';
     }
-    if (ok && !srv && mine && DIRTY[k] && !sessionEdit_(k)) {
+    if (!iv.srv.found && mine && DIRTY[k] && !sessionEdit_(k)) {
       html += '<button class="p ssb" id="ss-now">' + esc(T_('ssBtnSaveNow')) + '</button>';
     }
     var others = leftKeys_().filter(function (x) { return x !== k; });
@@ -4147,44 +4204,57 @@ function openSave_() {
    לעבודה על העמוד, ונשמרת מעל מה שבשרת (שגם הוא בצד). */
 function continueFrom_(k, rec, isHere) {
   var box = document.getElementById('splitbox');
-  var srv = SRV[k] && SRV[k].rec, mine = BOOK[k];
   if (rec && !confirm(T_('ssAsk'))) return;
-  var items = [];
-  if (mine && (!srv || !sameRec_(mine, srv))) items.push({ k: k, src: T_('ssHere'), rec: mine });
-  /* הטיוטות של העמוד — כולן, לא רק האחרונה */
-  PANEL_V.forEach(function (v) {
-    if (v.kind === 'draft') items.push({ k: k, src: v.src, rec: v.rec });
-  });
-  if (rec && srv) items.push({ k: k, src: T_('ssServer'), rec: srv });
+  var retry = function () { continueFrom_(k, rec, isHere); };
   box.innerHTML = '<div class="sh"><b>' + esc(keyLabel(k)) + '</b><p>' +
     esc(T_('ssAsiding')) + '</p></div>';
-  asideSave_(items).then(function (ok) {
-    if (!ok) {
+  box.className = 'splitbox on';
+  /* המלאי נקרא שוב עכשיו — לא הרשימה מהרגע שהחלון נפתח */
+  inv_(k).then(function (iv) {
+    if (!iv.ok) { panelMsg_(k, iv.why + ' ' + T_('ssInvStop'), retry); return null; }
+    /* הגרסה השמורה התחלפה מאז שהחלון הוצג — מציגים שוב, לא מחליפים */
+    if (k === PANEL_K && iv.srv.v !== PANEL_SV) {
+      say(T_('ssInvChanged'), 1);
+      openSave_(k);
+      return null;
+    }
+    if (!rec && !iv.srv.found) { panelMsg_(k, T_('ssInvBad') + ' ' + T_('ssInvStop'), retry); return null; }
+    var mine = BOOK[k], items = [], seen = {};
+    var put = function (src, raw, t) {
+      if (!raw || seen[raw]) return;
+      seen[raw] = 1;
+      items.push({ src: src, raw: raw, t: t || 0 });
+    };
+    if (mine && (!iv.srv.rec || !sameRec_(mine, iv.srv.rec))) put(T_('ssHere'), JSON.stringify(mine), mine.t);
+    /* כל הטיוטות של העמוד — כולן, גם שורה פגומה (כמות שהיא) */
+    iv.drafts.forEach(function (x) {
+      put(x.dev && x.dev === devId_() ? T_('ssDraftHere') : T_('ssDraftOther'), x.raw, x.d && x.d.t);
+    });
+    if (rec && iv.srv.found) put(T_('ssServer'), iv.srv.raw, iv.srv.rec && iv.srv.rec.t);
+    return asideSave_(k, items, iv.aside).then(function (ok) {
+      if (!ok) { panelMsg_(k, T_('ssAsideFail'), retry); return; }
+      var s = SAVE[k] || (SAVE[k] = {});
+      s.st = ''; s.pend = null; s.fails = 0; s.next = 0; s.busy = false;
+      if (!rec) {
+        BOOK[k] = JSON.parse(iv.srv.raw);
+        delete DIRTY[k];
+        BASE[k] = iv.srv.v;
+      } else {
+        var cp = JSON.parse(JSON.stringify(rec));
+        delete cp.rv;
+        cp.t = Date.now();
+        BOOK[k] = cp;
+        DIRTY[k] = 1;
+        BASE[k] = iv.srv.found ? iv.srv.v : '';
+      }
+      SEEN[k] = 1;
+      keepLocal();
+      if (k === PKEY) { PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); }
+      markPanel(); saveChip_();
       box.className = 'splitbox';
-      say(T_('ssAsideFail'), 1);
-      return;
-    }
-    var s = SAVE[k] || (SAVE[k] = {});
-    s.st = ''; s.pend = null; s.fails = 0; s.next = 0; s.busy = false;
-    if (!rec) {
-      BOOK[k] = JSON.parse(JSON.stringify(srv));
-      delete DIRTY[k];
-      BASE[k] = SRV[k].v;
-    } else {
-      var cp = JSON.parse(JSON.stringify(rec));
-      delete cp.rv;
-      cp.t = Date.now();
-      BOOK[k] = cp;
-      DIRTY[k] = 1;
-      BASE[k] = SRV[k] ? SRV[k].v : '';
-    }
-    SEEN[k] = 1;
-    keepLocal();
-    if (k === PKEY) { PKEY = ''; loadPageState(); calFromBook_(); paintChav(); markDraw(); }
-    markPanel(); saveChip_();
-    box.className = 'splitbox';
-    say(T_('ssAsideOk'));
-    if (rec) autoKick_(true);
+      say(fill_(T_('ssAsideOk'), { n: items.length }));
+      if (rec) autoKick_(true);
+    });
   });
 }
 
@@ -5253,8 +5323,9 @@ document.getElementById('contjoin').onclick = function () { addStep(true, true);
    ומזיז אותם כשקטעים מתפצלים, מתאחדים או נמחקים. */
 
 /* תפריט הפעולות הנדירות */
-document.getElementById('unsaved').onclick = function () { openSave_(); };
-document.getElementById('ssh').onclick = function () { openSave_(); };
+/* החלון של העמוד שהכפתור מדבר עליו — ראו saveChip_ */
+document.getElementById('unsaved').onclick = function () { openSave_(CHIP_K); };
+document.getElementById('ssh').onclick = function () { openSave_(CHIP_K); };
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }

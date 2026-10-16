@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 67;
+var SCRIPT_VERSION = 68;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1862,6 +1862,14 @@ function doGet(e) {
      מספר בעיני הגיליון, ו-getValues היה מחזיר 527997944. */
   /* התוצאה של הצעד האחרון בהסבה למזהים — POST ב-no-cors אטום,
      ולכן הצד השני שואל כאן. ראו sidStep_. */
+  /* הסטודיו: כל מה שקיים לעמוד אחד, לפני החלפת גרסה. ראו studioInv_. */
+  if (e && e.parameter && e.parameter.studioInv) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', version: SCRIPT_VERSION });
+    }
+    try { return reply_(e, studioInv_(String(e.parameter.k || ''))); }
+    catch (sie) { return reply_(e, { status: 'error', version: SCRIPT_VERSION, message: String(sie) }); }
+  }
   if (e && e.parameter && e.parameter.sidStep) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied', version: SCRIPT_VERSION });
@@ -4636,6 +4644,55 @@ function alonRow_(d) {
    ============================================================ */
 var MARK_TAB_ = 'סימוני הדף';
 var DRAFT_TAB_ = 'טיוטות סטודיו';
+var ASIDE_TAB_ = 'גרסאות בצד';
+
+/* ============================================================
+   מלאי הגרסאות של עמוד — לפני שמחליפים.
+   ============================================================
+   "התאוששות חייבת לעצור כשלא נקראו כל הגרסאות."
+
+   gviz אינה יודעת לומר "אין לשונית כזו" — היא מגישה את הראשונה —
+   וקריאה שנכשלה נראתה בסטודיו כמו "אין טיוטות". כאן הקריאה ישירה:
+   לכל לשונית `exists` (נוצרה או לא), והשורות של העמוד **כפי שהן
+   בתא** — גם שורה שאינה JSON תקין. כותרת שאין בה "מפתח"/"נתונים" —
+   `bad`, ואז הסטודיו עוצר. רק קריאה. */
+function studioInv_(k) {
+  var a = String(k).split('|');
+  if (a.length < 4 || !a[0] || !a[1]) return { status: 'error', version: SCRIPT_VERSION, message: 'מפתח עמוד לא תקין' };
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = { status: 'ok', version: SCRIPT_VERSION, k: k };
+  var mk = ss.getSheetByName(MARK_TAB_), pg = a.slice(2).join('|');
+  out.mark = { exists: !!mk, found: false, raw: '' };
+  if (mk && mk.getLastRow() > 1) {
+    var mv = mk.getRange(2, 1, mk.getLastRow() - 1, 4).getDisplayValues();
+    for (var i = 0; i < mv.length; i++) {
+      if (String(mv[i][0]).trim() === a[0] && String(mv[i][1]).trim() === a[1] &&
+          String(mv[i][2]).trim() === pg) { out.mark.found = true; out.mark.raw = mv[i][3]; break; }
+    }
+  }
+  var rowsOf = function (name, extra) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) return { exists: false, rows: [] };
+    var v = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+    if (!v.length) return { exists: true, rows: [] };
+    var h = v[0].map(function (x) { return String(x).trim(); });
+    var iK = h.indexOf('מפתח'), iD = h.indexOf('נתונים');
+    if (iK < 0 || iD < 0) return { exists: true, bad: 'header', rows: [] };
+    var idx = {};
+    extra.forEach(function (c) { idx[c] = h.indexOf(c); });
+    var rows = [];
+    for (var r = 1; r < v.length; r++) {
+      if (String(v[r][iK]).trim() !== k) continue;
+      var o = { raw: v[r][iD], row: r + 1 };
+      extra.forEach(function (c) { o[c] = idx[c] >= 0 ? String(v[r][idx[c]]) : ''; });
+      rows.push(o);
+    }
+    return { exists: true, rows: rows };
+  };
+  out.drafts = rowsOf(DRAFT_TAB_, ['מכשיר', 'סיבה', 'תאריך']);
+  out.aside = rowsOf(ASIDE_TAB_, ['מקור', 'מזהה', 'מועד']);
+  return out;
+}
 function markRv_(s) {
   if (!s) return '';
   var o = null;

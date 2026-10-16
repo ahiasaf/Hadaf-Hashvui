@@ -415,7 +415,9 @@ function alBuild_() {
   var css = $('al-page');
   if (!css) { css = document.createElement('style'); css.id = 'al-page'; document.head.appendChild(css); }
   css.textContent = '@page{size:' + P[0] + 'mm ' + P[1] + 'mm;margin:0}' +
-    '.alp-pg{width:' + P[0] + 'mm;height:' + (P[1] - 0.6) + 'mm}';
+    '.alp-pg{width:' + P[0] + 'mm;height:' + (P[1] - 0.6) + 'mm}' +
+    /* שקף אחד לעולם אינו גבוה מעמוד — עם כותרת הקטע מעליו */
+    '.alp-sl img{max-height:' + (P[1] - 50) + 'mm}';
   var tools = '<div class="al-tools"><button id="alp-back">' + esc(alU_('alBack')) + '</button>' +
     '<label>' + esc(alU_('alPaper')) + ' <select id="alp-paper"><option value="A4"' +
     (AL_PREF.paper === 'A4' ? ' selected' : '') + '>A4</option><option value="A5"' +
@@ -476,12 +478,23 @@ function alPaginate_(doc, blocks, dim) {
     var pg = document.createElement('div');
     pg.className = 'alp-pg';
     pg.innerHTML = '<div class="alp-in"></div><div class="alp-foot"></div>';
+    /* שורת התחתית תופסת מקום כבר עכשיו. נכתבה רק בסוף, והעמוד שנמדד
+       היה גבוה מזה שהודפס — וסוף הטקסט נחתך. */
+    pg.lastChild.textContent = alU_('alFoot', { i: 99, n: 99, daf: S.daf });
     doc.appendChild(pg);
     pages.push(pg);
     return pg.firstChild;
   };
   var inn = newPage();
   var full = function () { return inn.scrollHeight > inn.clientHeight + 1; };
+  var fits = function () { return !full(); };
+  /* יש בעמוד משהו מלבד כותרת קטע שהועברה אליו? */
+  var hasBody = function (except) {
+    for (var c = inn.firstChild; c; c = c.nextSibling) {
+      if (except.indexOf(c) < 0 && c.className !== 'alp-src') return true;
+    }
+    return false;
+  };
   blocks.forEach(function (b) {
     var tmp = document.createElement('div');
     tmp.innerHTML = b.h;
@@ -492,15 +505,51 @@ function alPaginate_(doc, blocks, dim) {
     var nodes = [].slice.call(tmp.childNodes);
     nodes.forEach(function (n) { inn.appendChild(n); });
     if (!full()) return;
-    /* לא נכנס. אם הוא לבד בעמוד — נשאר (שקף כבר מוגבל לגובה העמוד) */
-    if (inn.childNodes.length === nodes.length) return;
-    nodes.forEach(function (n) { inn.removeChild(n); });
-    /* כותרת קטע לא נשארת יתומה בתחתית — עוברת עם מה שאחריה */
-    var carry = [];
-    var last = inn.lastChild;
-    if (last && last.className === 'alp-src') { inn.removeChild(last); carry.push(last); }
-    inn = newPage();
-    carry.concat(nodes).forEach(function (n) { inn.appendChild(n); });
+    /* לא נכנס, ויש לפניו תוכן — עובר לעמוד חדש. כותרת קטע לא נשארת
+       יתומה בתחתית: עוברת איתו. עמוד שיש בו רק כותרת — לא נפתח
+       עמוד חדש בשבילו (זה מה שיצר עמוד ריק). */
+    /* גוש שגבוה מעמוד שלם ימשיך ממילא לעמוד הבא — אם נשאר כאן מקום
+       של כמה שורות, הוא מתחיל כאן ולא משאיר עמוד חצי ריק. */
+    var blockH = 0, usedH = 0;
+    nodes.forEach(function (n) { if (n.nodeType === 1) blockH += n.offsetHeight; });
+    for (var c0 = inn.firstChild; c0; c0 = c0.nextSibling) {
+      if (nodes.indexOf(c0) < 0 && c0.nodeType === 1) usedH += c0.offsetHeight;
+    }
+    var stay = blockH > inn.clientHeight && inn.clientHeight - usedH > 110;
+    if (hasBody(nodes) && !stay) {
+      nodes.forEach(function (n) { inn.removeChild(n); });
+      var carry = [];
+      var last = inn.lastChild;
+      if (last && last.className === 'alp-src') { inn.removeChild(last); carry.push(last); }
+      inn = newPage();
+      carry.concat(nodes).forEach(function (n) { inn.appendChild(n); });
+      if (!full()) return;
+    }
+    /* גבוה מעמוד שלם — פירוש ארוך, שאלה עם תשובות ארוכות. ממשיכים
+       לעמוד הבא: מה שלא נכנס עובר, פסקה אחר פסקה ואם צריך מילה אחר
+       מילה. לא חותכים בשקט ולא מקטינים. */
+    var node = nodes[nodes.length - 1], guard = 0;
+    while (node && node.nodeType === 1 && full() && guard++ < 60) {
+      var rest = node.cloneNode(false);
+      alSplit_(node, rest, fits);
+      if (!alHasText_(rest)) break;              /* אין מה לפצל (שקף) */
+      if (!alHasText_(node)) {                   /* לא נכנס כלום — הכל עובר */
+        inn.removeChild(node);
+        rest = node;
+        if (!hasBody([])) { inn.appendChild(node); break; }
+      } else {
+        alContMark_(node, rest);
+      }
+      inn = newPage();
+      inn.appendChild(rest);
+      node = rest;
+    }
+  });
+  /* עמוד שנשאר ריק — יורד */
+  pages = pages.filter(function (pg) {
+    if (pg.firstChild.childNodes.length) return true;
+    doc.removeChild(pg);
+    return false;
   });
   var N = pages.length;
   pages.forEach(function (pg, i) {
@@ -509,6 +558,56 @@ function alPaginate_(doc, blocks, dim) {
   var pn = $('alp-n');
   if (pn) pn.textContent = alU_('alPages', { n: N });
   alFit_();
+}
+/* החלק שעבר לעמוד הבא: תווית "המשך", ומספור התשובות ממשיך (ד׳ ולא א׳) */
+function alContMark_(node, rest) {
+  rest.className += ' alp-cont';
+  var a = node.querySelectorAll('ol'), b = rest.querySelectorAll('ol');
+  if (a.length && b.length) {
+    var o = a[a.length - 1], r = b[0], n = 0;
+    for (var c = o.firstChild; c; c = c.nextSibling) if (c.nodeName === 'LI') n++;
+    var first = r.firstChild;
+    var split = first && first.nodeName === 'LI' && first.getAttribute('data-cont') === '1';
+    r.setAttribute('start', String((+o.getAttribute('start') || 1) + n - (split ? 1 : 0)));
+  }
+  var l = document.createElement('span');
+  l.className = 'alp-contl';
+  l.textContent = alU_('alCont');
+  rest.insertBefore(l, rest.firstChild);
+}
+function alHasText_(el) { return !!(el && String(el.textContent || '').replace(/\s+/g, '')); }
+/* מעביר את סוף התוכן של `el` אל `rest` (שעוד אינו בעמוד) עד שהעמוד
+   מכיל את `el`. יורד לתוך האלמנט האחרון, ובטקסט — מילה אחר מילה.
+   תוויות (חידה, פירוש) נשארות בחלק הראשון. */
+function alSplit_(el, rest, fits) {
+  while (!fits() && el.lastChild) {
+    var c = el.lastChild;
+    el.removeChild(c);
+    if (!fits()) { rest.insertBefore(c, rest.firstChild); continue; }
+    /* בלעדיו נכנס — מחזירים ומפצלים אותו עצמו */
+    el.appendChild(c);
+    if (c.nodeType === 3) {
+      var words = c.nodeValue.split(' '), lo = 0, hi = words.length;
+      while (lo < hi) {
+        var mid = Math.ceil((lo + hi) / 2);
+        c.nodeValue = words.slice(0, mid).join(' ');
+        if (fits()) lo = mid; else hi = mid - 1;
+      }
+      c.nodeValue = words.slice(0, lo).join(' ');
+      var tail = words.slice(lo).join(' ');
+      if (tail) rest.insertBefore(document.createTextNode(tail), rest.firstChild);
+      if (!lo) el.removeChild(c);
+    } else if (c.nodeType === 1 && c.childNodes.length && !/^(IMG|svg)$/i.test(c.nodeName)) {
+      var cr = c.cloneNode(false);
+      alSplit_(c, cr, fits);
+      if (cr.childNodes.length) { cr.setAttribute('data-cont', '1'); rest.insertBefore(cr, rest.firstChild); }
+      if (!alHasText_(c)) { el.removeChild(c); if (!cr.childNodes.length) rest.insertBefore(c, rest.firstChild); }
+    } else {
+      el.removeChild(c);
+      rest.insertBefore(c, rest.firstChild);
+    }
+    return;
+  }
 }
 /* בטלפון העמוד רחב מהמסך — התצוגה מוקטנת לרוחב, אחרי החלוקה
    ובלי לשנות אותה. בהדפסה — תמיד בגודל אמיתי (ב-CSS). */
