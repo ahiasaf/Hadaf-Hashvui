@@ -771,10 +771,13 @@ textarea.qz-in{min-height:60px;resize:vertical}
 .qz-tag.pend{background:rgba(192,143,43,.18);color:#7A5A12}
 .qz-res{margin-top:12px;padding:11px;border-radius:10px;
   background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
-/* "הפירוש לנוער" — כפתור קטן ליד שאלה שהרכז הפעיל בה הפניה (qYrGo_) */
-.qz-yr{display:inline-block;margin:-6px 0 6px;padding:6px 12px;border-radius:20px;
-  border:1.5px solid var(--blue,#17468F);background:#fff;color:var(--blue,#17468F);
-  font-family:inherit;font-size:.8rem;font-weight:800;cursor:pointer}
+/* "כדאי לעיין בפירוש לנוער" — אחרי האפשרויות, בשאלה שהרכז הפעיל בה
+   הפניה (qYrGo_). אותה צורה של כפתורי האפליקציה (רוחב מלא, פינות 12),
+   ובשפת הזהב של לשונית "פירוש לנוער" — כדי שיהיה ברור שזה כפתור,
+   ושאינו עוד תשובה. */
+.qz-yr{display:block;width:100%;margin-top:14px;padding:12px 14px;border-radius:12px;
+  border:1.5px solid var(--gold,#C08F2B);background:#FFFBF2;color:var(--blue,#17468F);
+  font-family:inherit;font-size:.9rem;font-weight:800;text-align:center;cursor:pointer}
 /* המתג בעורך השאלה (רכז) */
 .qz-yrsw{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px;
   border:1.5px solid var(--rule,#E4DCC8);border-radius:10px;cursor:pointer}
@@ -1052,7 +1055,7 @@ a.lockbtn{display:inline-block;text-decoration:none}
     <!-- עיגול החידה. צף, קבוע במקום, בפינה השמאלית התחתונה, ולידו
          כיתוב שמופיע רק בפעמים הראשונות. לחיצה עליו מחליפה את תוכן המגירה — ראו
          quizFabPaint/paintChavArea — ולא פותחת חלון או לשונית. -->
-    <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה"></button>
+    <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה" draggable="false"></button>
     <div class="qhint" id="qhint" role="button" tabindex="0"></div>
     <div class="veil" id="veil"><div>
       <div class="spin"></div>
@@ -4770,7 +4773,7 @@ function finish() {
    בזמן הלימוד כל תשובה רק "התקבלה" (qAnswer). בסוף הדף מסך
    הסיום מזמין לעבור על הכול, לשנות ולשלוח. השליחה כותבת ללשונית
    "חידות" שורה אחת לכל הדף: "קטע" = "החידון כולו", "ציון" = כמה
-   נכונות מתוך כמה, ו"נכון" = "נכון" רק כשרוב התשובות נכונות —
+   נכונות מתוך כמה, ו"נכון" = "נכון" מ-80% תשובות נכונות ומעלה —
    זו השורה שמכניסה להגרלה. שליחה חוזרת כותבת שורה חדשה; האחרונה
    היא הקובעת. */
 function pageQs_() {
@@ -4844,7 +4847,7 @@ function qsSend_(all) {
         ['טלפון', (me && me.phone) || ''],
         ['תשובה', (all.length - miss) + '/' + all.length],
         ['ציון', right + '/' + all.length],
-        ['נכון', right * 2 > all.length ? 'נכון' : 'לא נכון'],
+        ['נכון', right * 5 >= all.length * 4 ? 'נכון' : 'לא נכון'],   /* 80% */
         ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
     }) }).catch(function () {});
@@ -5028,11 +5031,11 @@ function paintQuiz() {
     (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
       .replace('{i}', pos + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
-    (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     q.a.map(function (t, k) {
       var c = k === pick ? ' chosen' : (SIDE_ADM && k === q.correct ? ' right' : '');
       return '<button class="qz-opt' + c + '" id="qz-opt' + k + '">' + esc(t) + '</button>';
     }).join('') +
+    (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     (pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
     (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
       'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
@@ -6491,6 +6494,7 @@ window.addEventListener('DOMContentLoaded', function () {
   });
   var endDrag = function (e) {
     if (!DRAG) return;
+    if (onFab(e.target)) { DRAG = null; return; }
     var d = DRAG; DRAG = null;
     if (d.moved >= 6) return;               /* זו הייתה גרירה */
     var r = $('stage').getBoundingClientRect();
