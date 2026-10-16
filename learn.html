@@ -747,6 +747,8 @@ body.emb .qfab,body.emb .qhint{position:absolute}
   color:var(--ink,#1B2A45);font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
 .qz-opt.right{border-color:#3B7D57;background:rgba(59,125,87,.1)}
 .qz-opt.wrong{border-color:#A5382D;background:rgba(165,56,45,.07)}
+/* התשובה שנבחרה — בצבע ניטרלי: לא אומרים אם היא נכונה */
+.qz-opt.chosen{border-color:var(--blue,#17468F);background:rgba(23,70,143,.08)}
 .qz-opt:disabled{cursor:default}
 .qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
   color:#fff;border:0}
@@ -888,6 +890,14 @@ nav .sp{flex:1}
 .dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
   border:1.5px dashed var(--gold);background:#FFFBF2}
 .dn-soon>b{display:block;font-size:1rem;font-weight:800;color:var(--blue-d)}
+/* מסך השליחה של החידון — כרטיס גבוה שנגלל, השאלות זו אחר זו */
+.qs-card{max-height:calc(100vh - 44px);max-height:calc(100dvh - 44px);overflow-y:auto;
+  text-align:right;-webkit-overflow-scrolling:touch}
+.qs-card h2{text-align:center}
+.qs-card>p{text-align:center}
+.qs-it{padding:12px 0;border-top:1px solid var(--rule,#E4DCC8)}
+.qs-it .qz-of{margin-top:0}
+.qs-it .qz-q{margin:4px 0 6px}
 /* "רוצה התראה?" — בדף הנעול ובמסך הסיום */
 .nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 .nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
@@ -1141,6 +1151,21 @@ a.lockbtn{display:inline-block;text-decoration:none}
   <div id="done-soon" class="dn-soon" style="display:none">
     <b id="dn-soon-t"></b><div id="dn-soon-n"></div>
   </div>
+  <!-- החידון של הדף — השאלות שנענו בזמן הלימוד. עוברים, משנים, שולחים. -->
+  <div id="done-q" class="dn-soon" style="display:none">
+    <b id="dn-q-t"></b><p class="nt-q" id="dn-q-b" style="margin:6px 0 0"></p>
+    <span class="nt-ok" id="dn-q-ok" style="display:none"></span>
+    <button class="btn p" id="dn-q-go"></button>
+  </div>
+</div></div>
+
+<!-- שליחת החידון. נפתח ממסך הסיום, מעליו. -->
+<div class="sheet" id="qsend"><div class="card dn-card qs-card">
+  <button class="dn-x" id="qs-x">✕</button>
+  <h2 id="qs-t"></h2>
+  <p id="qs-b"></p>
+  <div id="qs-list"></div>
+  <button class="btn p" id="qs-send"></button>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -4588,7 +4613,7 @@ var SEG_Q = (function () {
 })();
 var YR_Q = /[?&]yr=1\b/.test(location.search);
 /* `quiz=1` — מההתראה "החידון מוכן": פותח בקטע הראשון שיש בו שאלה
-   שפורסמה (ועוד לא נענתה נכון במכשיר), עם החידה פתוחה. רץ כשגם הדף
+   שפורסמה (ועוד לא נענתה במכשיר), עם החידה פתוחה. רץ כשגם הדף
    וגם השאלות כבר נטענו — מי שמגיע שני מפעיל. אין שאלה — הדף נפתח
    כרגיל. פעם אחת בלבד. */
 var QUIZ_Q = /[?&]quiz=1\b/.test(location.search), Q_READY = false, PAGE_READY = false;
@@ -4601,7 +4626,7 @@ function quizJump_() {
     var l = qVisible_(FLAT[i].n);
     if (!l.length) continue;
     if (first < 0) first = i;
-    for (var j = 0; j < l.length; j++) if (!qOk_(FLAT[i].n, l[j])) { open = i; break; }
+    for (var j = 0; j < l.length; j++) if (qAns_(FLAT[i].n, l[j]) < 0) { open = i; break; }
     if (open >= 0) break;
   }
   var at = open >= 0 ? open : first;
@@ -4712,10 +4737,13 @@ function finish() {
      של השבוע עוד לא עלה ("יפורסם בקרוב" — ואפשר לבקש התראה), או
      כשיש שורת לימוד משותף לענות עליה. אחרת — לא נפתח דבר, ומי
      שסימן את השבוע מקבל רק הודעה קצרה. */
+  /* החידון של הדף (השאלות שבקטעים) קודם לחידון השבועי הישן ול"בקרוב". */
+  var pq = pageQs_();
   var hasQ = !!(window.QUIZ && QUIZ[key] && QUIZ[key].length);
-  var qOpen = quizOpen(key), soon = !hasQ && isWeekDaf();
+  var qOpen = !pq.length && quizOpen(key), soon = !pq.length && !hasQ && isWeekDaf();
   var pairOn = $('done-pair').style.display !== 'none';
-  if (!qOpen && !soon && !pairOn) {
+  doneQPaint_();
+  if (!pq.length && !qOpen && !soon && !pairOn) {
     if ($('done-mark').style.display !== 'none') toast(JOIN.markedOk);
     bar();
     return;
@@ -4736,6 +4764,97 @@ function finish() {
   $('done').className = 'sheet on';
   bar();
 }
+/* ============================================================
+   החידון של הדף — שליחה בסוף.
+   ============================================================
+   בזמן הלימוד כל תשובה רק "התקבלה" (qAnswer). בסוף הדף מסך
+   הסיום מזמין לעבור על הכול, לשנות ולשלוח. השליחה כותבת ללשונית
+   "חידות" שורה אחת לכל הדף: "קטע" = "החידון כולו", "ציון" = כמה
+   נכונות מתוך כמה, ו"נכון" = "נכון" רק כשרוב התשובות נכונות —
+   זו השורה שמכניסה להגרלה. שליחה חוזרת כותבת שורה חדשה; האחרונה
+   היא הקובעת. */
+function pageQs_() {
+  var out = [], seen = {};
+  for (var i = 0; i < FLAT.length; i++) {
+    var n = FLAT[i].n;
+    if (seen[n]) continue;
+    seen[n] = 1;
+    qVisible_(n).forEach(function (q) { out.push({ n: n, q: q }); });
+  }
+  return out;
+}
+function qSentKey_() { return 'df:qsent:' + dmKey(S.mas, S.daf); }
+function doneQPaint_() {
+  var box = $('done-q'), on = !!pageQs_().length, sent = false;
+  box.style.display = on ? '' : 'none';
+  if (!on) return;
+  try { sent = localStorage.getItem(qSentKey_()) === '1'; } catch (e) {}
+  $('dn-q-t').textContent = UI.dnQT || '';
+  $('dn-q-b').textContent = UI.dnQB || '';
+  $('dn-q-b').style.display = sent ? 'none' : '';
+  $('dn-q-ok').textContent = UI.dnQSent || '';
+  $('dn-q-ok').style.display = sent ? '' : 'none';
+  $('dn-q-go').textContent = UI.dnQGo || '';
+  $('dn-q-go').onclick = qsOpen_;
+}
+function qsOpen_() {
+  var all = pageQs_();
+  $('qs-t').textContent = UI.qsT || '';
+  $('qs-b').textContent = UI.qsB || '';
+  $('qs-send').textContent = UI.qsSend || '';
+  $('qs-list').innerHTML = all.map(function (it, i) {
+    var pick = qAns_(it.n, it.q);
+    return '<div class="qs-it"><div class="qz-of">' +
+      esc(String(UI.qsNum || '').replace('{i}', i + 1)) + '</div>' +
+      '<div class="qz-q">' + esc(it.q.q) + '</div>' +
+      it.q.a.map(function (t, k) {
+        return '<button class="qz-opt' + (k === pick ? ' chosen' : '') +
+          '" data-i="' + i + '" data-k="' + k + '">' + esc(t) + '</button>';
+      }).join('') + '</div>';
+  }).join('');
+  Array.prototype.forEach.call($('qs-list').querySelectorAll('.qz-opt'), function (b) {
+    b.onclick = function () {
+      var i = +b.getAttribute('data-i'), k = +b.getAttribute('data-k');
+      qAnsSet_(all[i].n, all[i].q, k);
+      Array.prototype.forEach.call(b.parentNode.querySelectorAll('.qz-opt'), function (o) {
+        o.className = 'qz-opt' + (o === b ? ' chosen' : '');
+      });
+    };
+  });
+  $('qs-send').onclick = function () { qsSend_(all); };
+  $('qsend').className = 'sheet on';
+  $('qsend').firstChild.scrollTop = 0;
+}
+function qsSend_(all) {
+  var miss = 0, right = 0;
+  all.forEach(function (it) {
+    var k = qAns_(it.n, it.q);
+    if (k < 0) miss++;
+    else if (k === it.q.correct) right++;
+  });
+  if (miss && !confirm(String(UI.qsMiss || '').replace('{n}', miss))) return;
+  if (API && !quiet()) {
+    var me = (typeof LMe === 'function') ? LMe() : null;
+    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+      action:'quiz', cols: JSON.stringify([
+        ['דף', dmKey(S.mas, S.daf)], ['קטע', 'החידון כולו'],
+        ['שבוע', S.mas + '-' + (S.week + 1)],
+        ['ישיבה', (me && me.instName) || ''],
+        ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
+        ['טלפון', (me && me.phone) || ''],
+        ['תשובה', (all.length - miss) + '/' + all.length],
+        ['ציון', right + '/' + all.length],
+        ['נכון', right * 2 > all.length ? 'נכון' : 'לא נכון'],
+        ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
+      ])
+    }) }).catch(function () {});
+  }
+  try { localStorage.setItem(qSentKey_(), '1'); } catch (e) {}
+  $('qsend').className = 'sheet';
+  doneQPaint_();
+  toast(UI.qsOk || '');
+}
+
 /* יש לשבוע חידה שעוד לא נענתה נכון במכשיר? אותו מפתח שהאפליקציה
    שומרת כשהחידה ננעלת (quizOkKey ב־index.html). */
 function quizOpen(key) {
@@ -4836,7 +4955,7 @@ var Q_AT = { n: 0, i: 0 };
    ============================================================
    התלמיד מקבל את שאלות הקטע בסדר אקראי. מערבבים **סדר תצוגה**
    בלבד: `Q_AT.i` נשאר האינדקס במקור, ולכן הניסיונות השגויים
-   (`Q_AT.bad`), העורך והנעילה (לפי נוסח השאלה) לא זזים. התשובות
+   התשובה שנבחרה והעורך (לפי נוסח השאלה) לא זזים. התשובות
    עצמן אינן מעורבבות. הסדר נקבע פעם אחת לקטע ולמספר השאלות
    בו, ונשאר עד שהעמוד נטען מחדש — ציור מחדש, טעינת רקע, פתיחת
    הפירוש וחזרה ממנו אינם מגרילים שוב. אצל הרכז — סדר המקור. */
@@ -4894,11 +5013,13 @@ function paintQuiz() {
   if (Q_AT.n !== n) Q_AT = { n: n, i: ord[0] };
   if (Q_AT.i >= list.length) Q_AT.i = ord[0];
   var qi = Q_AT.i, q = list[qi], pos = ord.indexOf(qi);
-  /* שאלה שכבר נענתה נכון — מדלגים לבאה (בסדר התצוגה) שעוד לא נענתה */
-  if (!SIDE_ADM && qOk_(n, q)) for (var j = pos + 1; j < ord.length; j++) {
-    if (!qOk_(n, list[ord[j]])) { Q_AT.i = qi = ord[j]; q = list[qi]; pos = j; break; }
+  /* שאלה שכבר נענתה — מדלגים לבאה (בסדר התצוגה) שעוד לא נענתה */
+  if (!SIDE_ADM && qAns_(n, q) >= 0) for (var j = pos + 1; j < ord.length; j++) {
+    if (qAns_(n, list[ord[j]]) < 0) { Q_AT.i = qi = ord[j]; q = list[qi]; pos = j; break; }
   }
-  var done = qOk_(n, q), tried = (Q_AT.bad && Q_AT.bad[qi]) || {};
+  /* אין כאן "נכון/לא נכון": התשובה שנבחרה מסומנת, ואפשר לשנות.
+     הרכז רואה גם את הנכונה — הוא זה שכותב אותן. */
+  var pick = SIDE_ADM ? -1 : qAns_(n, q);
   /* "הפירוש לנוער" — רק כשהרכז הפעיל את המתג בשאלה, ורק כשיש לקטע
      פירוש שהתלמיד יכול לראות. בלי פירוש — אין כפתור שמוביל לשום מקום. */
   var yr = !!q.yr && (SIDE_ADM || !!(OWN && OWN.__pub && ownPieces_(n).length));
@@ -4909,15 +5030,14 @@ function paintQuiz() {
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     q.a.map(function (t, k) {
-      var c = done ? (k === q.correct ? ' right' : '') : (tried[k] ? ' wrong' : '');
-      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' +
-        (done || tried[k] ? ' disabled' : '') + '>' + esc(t) + '</button>';
+      var c = k === pick ? ' chosen' : (SIDE_ADM && k === q.correct ? ' right' : '');
+      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '">' + esc(t) + '</button>';
     }).join('') +
-    (done ? '<div class="qz-res">' + esc(UI.qLocked || '') + '</div>' : '') +
+    (pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
     (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
       'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
-  if (!done) q.a.forEach(function (t, k) {
-    if (!tried[k]) $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
+  q.a.forEach(function (t, k) {
+    $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
   });
   var ed = $('qz-edit');
   if (ed) ed.onclick = function () { qEditOpen_(n); };
@@ -4942,25 +5062,31 @@ function qOkKey_(n, q) { return 'df:qok:' + dmKey(S.mas, S.daf) + ':' + n + ':' 
 function qOk_(n, q) {
   try { return localStorage.getItem(qOkKey_(n, q)) === '1'; } catch (e) { return false; }
 }
+/* התשובה שנבחרה — לפי הדף, הקטע ונוסח השאלה (כמו הנעילה הישנה),
+   כך ששאלה שנערכה נפתחת מחדש. -1 = עוד לא נענתה. מי שענה נכון
+   לפני השינוי (רק "ננעל", בלי האינדקס) — נחשב כמי שבחר בנכונה. */
+function qAnsKey_(n, q) { return 'df:qans:' + dmKey(S.mas, S.daf) + ':' + n + ':' + q.q; }
+function qAns_(n, q) {
+  try {
+    var v = localStorage.getItem(qAnsKey_(n, q));
+    if (v !== null && v !== '') return parseInt(v, 10);
+    if (qOk_(n, q)) return q.correct;
+  } catch (e) {}
+  return -1;
+}
+function qAnsSet_(n, q, k) {
+  try { localStorage.setItem(qAnsKey_(n, q), String(k)); } catch (e) {}
+}
+/* התלמיד עונה — ורק "תשובתך התקבלה". האם צדק אינו נאמר: הבדיקה
+   באחריותו, והגמרא שלפניו. אפשר לשנות כאן, ובמסך השליחה בסוף הדף. */
 function qAnswer(n, q, k) {
-  if (qOk_(n, q)) return;
-  var right = k === q.correct;
-  qSend(n, k, right);
-  /* טעות — נשארים על אותה שאלה, התשובה שנבחרה מסומנת, ומנסים שוב. */
-  if (!right) {
-    toast(UI.qWrong || '');
-    if (Q_AT.n !== n) Q_AT = { n: n, i: 0 };
-    Q_AT.bad = Q_AT.bad || {};
-    (Q_AT.bad[Q_AT.i] = Q_AT.bad[Q_AT.i] || {})[k] = 1;
-    paintChavArea();
-    return;
-  }
-  try { localStorage.setItem(qOkKey_(n, q), '1'); } catch (e) {}
-  toast(UI.qRight || '');
+  qAnsSet_(n, q, k);
+  qSend(n, k, k === q.correct);
+  toast(UI.qGot || '');
   /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
   var ord = qOrd_(n, qList_(n).length), pos = ord.indexOf(Q_AT.i);
   if (Q_AT.n === n && pos >= 0 && pos + 1 < ord.length) {
-    Q_AT.i = ord[pos + 1]; Q_AT.bad = null; paintChavArea(); return;
+    Q_AT.i = ord[pos + 1]; paintChavArea(); return;
   }
   Q_AT = { n: n, i: ord[0] || 0 };
   QUIZ_OPEN = false;
@@ -6415,6 +6541,7 @@ window.addEventListener('DOMContentLoaded', function () {
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
   $('done-x').setAttribute('aria-label', UI.pickClose || '');
   $('done-x').onclick = function () { $('done').className = 'sheet'; bar(); };
+  $('qs-x').onclick = function () { $('qsend').className = 'sheet'; };
   document.addEventListener('keydown', function (e) {
     /* מי שכותב — המקלדת שלו. רווח וחיצים בתוך שדה עריכה
        (הפירוש לנוער, תגיות, כל קלט) אינם מזיזים את הדף. */
