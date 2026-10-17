@@ -2898,7 +2898,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.253';
+var APP_VERSION = '8.99.254';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3160,6 +3160,36 @@ document.addEventListener('visibilitychange', function () {
   if (document.visibilityState === 'visible') homeAmda();
 });
 
+/* "המסלול שלך": מה התלמיד עצמו למד בדף של השבוע (LPosFrac / LDone),
+   ותג "בתוך ההגרלה" — רק מהשרת (?raffle=me, אותו חישוב כמו הזכאים
+   בניהול). מי שעוד לא התחיל את הדף — null, והפס כמו שהיה. */
+function homeMine(track, wi) {
+  if (wi < 0 || typeof LPosFrac !== 'function') return null;
+  var row = (StTrack(track).cal || [])[wi];
+  if (!row || !row[2] || row[2] === 'סיום') return null;
+  var f = LPosFrac(track, wi), dn = LDone(track, wi);
+  if (!dn && !(f > 0)) return null;
+  return { d: CalDaf(row), f: f, done: dn, raf: homeRaf() };
+}
+var HOME_RAF_BUSY = false;
+function homeRaf() {
+  var me = typeof LMe === 'function' ? LMe() : null;
+  if (!CV('weekRaffle') || !me || !me.id || !me.inst || me.role === 'dad') return false;
+  var c = Store.get('rafMe', null), fresh = c && c.id === me.id && c.inst === me.inst && Date.now() - c.at < 10 * 60000;
+  if (!fresh && !HOME_RAF_BUSY && (CFG.api || API || '').trim()) {
+    HOME_RAF_BUSY = true;
+    scriptGet({ raffle: 'me', id: me.id, inst: me.inst }).then(function (d) {
+      HOME_RAF_BUSY = false;
+      /* תשובה שאינה ok — המטמון נשאר כמו שהוא; לא "לא בהגרלה". */
+      if (!d || d.status !== 'ok') return;
+      var was = c && c.id === me.id && c.inst === me.inst ? !!c.inn : null;
+      Store.set('rafMe', { id: me.id, inst: me.inst, at: Date.now(), inn: !!d.inn });
+      if (was !== !!d.inn) { try { renderHome(); } catch (e) {} }
+    }, function () { HOME_RAF_BUSY = false; });
+  }
+  return !!(c && c.id === me.id && c.inst === me.inst && c.inn);
+}
+
 function renderHome() {
   tourLauncher();
   var w = contentFor(homeTrack), tr = w.tr, row = w.row, c = w.c;
@@ -3176,7 +3206,7 @@ function renderHome() {
 
 
   /* ---- המסלול בזעיר אנפין ---- */
-  document.getElementById('mini').innerHTML = RailHtml({ track:homeTrack, go:'openTrack' });
+  document.getElementById('mini').innerHTML = RailHtml({ track:homeTrack, go:'openTrack', mine:homeMine(homeTrack, wi) });
 
   /* ---- לוח שלבי השנה ---- */
   var today = new Date(); today.setHours(0, 0, 0, 0);
@@ -4785,33 +4815,57 @@ LOCK.init({
    אותה עמדה שהרכז פותח בניהול, עם שני הבדלים: הרשימה מגיעה
    מהשרת — רק תלמידי הישיבה שהמכשיר אושר אליה, ורק שם, שכבה
    וכיתה (netroster) — והרישום עובר בזהות המכשיר ולא בסיסמה.
-   בפעם הראשונה: הסבר קצר, עם ההמלצה לתת לתלמידים לסמן את עצמם.
+   כל לחיצה על "נוכחות בשיעור" פותחת בחירה (8.99.254): "אני מסמן בעצמי"
+   — ישר לסימון כל הכיתה ושמירה אחת; או "התלמידים מסמנים את עצמם" —
+   העמדה הרגילה, ובשלוש הפתיחות הראשונות במכשיר הסבר קצר לפניה
+   (`attStuN`). "איך זה עובד?" — תמיד זמין ממסך הבחירה.
    הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
-var attIntroOn = false, attMsg = '';
+var attView = '', attMsg = '';
 /* איש צוות אחראי על כל הישיבה — כל הכיתות של השכבות שבתוכנית. */
 var ATT_GRADES = ['ז', 'ח'];
-function attHtml() {
-  if (attIntroOn) {
-    return '<div class="my-sec"><h3>' + esc(PANEL.attIntroH) + '</h3>' +
-      String(PANEL.attIntro).split('\n').map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-      '<button class="btn p" onclick="attOpen(true)">' + esc(PANEL.attGo) + '</button>' +
-      '<button class="btn g" onclick="attIntroOn=false;renderMy()">' + esc(PANEL.attLater) + '</button></div></div>';
-  }
-  return '<div class="my-sec"><button class="btn p" style="width:100%;font-size:1.08rem" onclick="attOpen()">' +
-    esc(PANEL.attBtn) + '</button><p>' + esc(attMsg || PANEL.attSub) + '</p>' +
-    '<button class="btn g" onclick="attIntroOn=true;renderMy()">' + esc(PANEL.attHow) + '</button></div>';
+function attTxt(t) { return String(t).split('\n').map(function (l) { return '<p>' + esc(l) + '</p>'; }).join(''); }
+function attBig(cls, go, t, sub) {
+  return '<button class="btn ' + cls + '" style="display:block;width:100%;text-align:right;padding:14px 16px;margin:8px 0" onclick="' + go + '">' +
+    '<b style="display:block;font-size:1.08rem">' + esc(t) + '</b><span style="display:block;font-weight:400;margin-top:4px">' + esc(sub) + '</span></button>';
 }
-function attOpen(fromIntro) {
+function attSet(v) { attView = v; attMsg = ''; renderMy(); }
+function attHtml() {
+  if (attView === 'pick') {
+    return '<div class="my-sec"><h3>' + esc(PANEL.attPickH) + '</h3>' +
+      attBig('p', "attOpen('self')", PANEL.attSelf, PANEL.attSelfSub) +
+      attBig('g', "attOpen('stu')", PANEL.attStu, PANEL.attStuSub) +
+      (attMsg ? '<p>' + esc(attMsg) + '</p>' : '') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+      '<button class="btn g" onclick="attSet(\'how\')">' + esc(PANEL.attHow) + '</button>' +
+      '<button class="btn g" onclick="attSet(\'\')">' + esc(PANEL.attLater) + '</button></div></div>';
+  }
+  if (attView === 'how') {
+    return '<div class="my-sec"><h3>' + esc(PANEL.attIntroH) + '</h3>' + attTxt(PANEL.attIntro) +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<button class="btn p" onclick="attSet(\'pick\')">' + esc(PANEL.attBackPick) + '</button></div></div>';
+  }
+  if (attView === 'stu') {
+    return '<div class="my-sec"><h3>' + esc(PANEL.attStuH) + '</h3>' + attTxt(PANEL.attStuB) +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<button class="btn p" onclick="attOpen(\'stu\', true)">' + esc(PANEL.attGo) + '</button>' +
+      '<button class="btn g" onclick="attSet(\'pick\')">' + esc(PANEL.attBackPick) + '</button></div></div>';
+  }
+  return '<div class="my-sec"><button class="btn p" style="width:100%;font-size:1.08rem" onclick="attSet(\'pick\')">' +
+    esc(PANEL.attBtn) + '</button><p>' + esc(attMsg || PANEL.attSub) + '</p></div>';
+}
+/* mode: 'self' — המורה מסמן; 'stu' — התלמידים. `seen` — אחרי ההסבר. */
+function attOpen(mode, seen) {
   var code = myBoard(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
   if (!code || !me || !me.id || !instCode(code)) return;
-  if (!fromIntro && !Store.get('attIntro', 0)) { attIntroOn = true; renderMy(); return; }
-  Store.set('attIntro', 1);
-  attIntroOn = false; attMsg = PANEL.attLoad; renderMy();
+  var self = mode === 'self';
+  if (!self && !seen && (+Store.get('attStuN', 0) || 0) < 3) { attSet('stu'); return; }
+  if (!self) Store.set('attStuN', (+Store.get('attStuN', 0) || 0) + 1);
+  attView = 'pick'; attMsg = PANEL.attLoad; renderMy();
   var go = function (r) {
-    attMsg = '';
+    attMsg = ''; attView = '';
     AMDA_STAFF = { inst: code, dev: me.id, r: r };
     amdaSt.slot = ''; amdaSt.kind = '';
+    amdaSt.self = self; amdaSt.all = self; amdaSt.sel = {};
     amdaOpen('d');
   };
   scriptGet({ netroster: code, dev: me.id }).then(function (d) {
@@ -11231,7 +11285,7 @@ function qbPaint() {
   var shown = inMd.filter(function (x) { return !QB_F.st || x.st === QB_F.st; });
   var fresh = QB_ED && !QB_ED.id;
   /* "פרסם הכול" — כפתור לכל מסכת, ולכן מעל בחירת המסכת של המאגר ובלי תלות בה. */
-  var h = '<div id="qzr">' + qzrHtml() + '</div>' +
+  var h = '<div id="qzr">' + qzrHtml() + '</div>' + '<div id="qzs">' + qzsHtml() + '</div>' +
     '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
       return '<button data-qbm="' + esc(t.id) + '" class="' + (t.id === mas ? 'on' : '') + '"' +
         ' aria-pressed="' + (t.id === mas) + '">' + esc(t.masechet) +
@@ -11258,6 +11312,7 @@ function qbPaint() {
   el.oninput = qbInput;
   el.onchange = qbChange;
   qzrEnsure();
+  qzsEnsure();
 }
 function qbSay(bad, t) {
   var m = document.getElementById('qb-msg');
@@ -16883,6 +16938,52 @@ function qzrWhen(iso) {
   return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + ('0' + d.getHours()).slice(-2) + ':' +
          ('0' + d.getMinutes()).slice(-2);
 }
+/* ---- סיכום מענה על החידונים (8.99.254) ----
+   לכל מסכת, לשבוע הנוכחי: תלמידים ייחודיים והגשות מלאות, ופירוט לפי
+   ישיבה — מספרים בלבד. החישוב בשרת (quizSum_), עם הסיסמה. קריאה
+   שנכשלה — הודעה, ולא אפסים. */
+var QZS = { d: null, at: 0, busy: false, err: '' };
+function qzsEnsure() {
+  if (!document.getElementById('qzs') || QZS.busy || (QZS.d && Date.now() - QZS.at < 120000)) return;
+  qzsLoad();
+}
+function qzsLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { QZS.err = UI.qzsNoKey; return qzsPaint(); }
+  QZS.busy = true; QZS.err = ''; qzsPaint();
+  scriptGet({ quizSum: 1, key: key }).then(function (d) {
+    QZS.busy = false;
+    if (!d || d.status !== 'ok' || !d.mas) { QZS.err = (d && d.message) || UI.qzsFail; return qzsPaint(); }
+    QZS.d = d; QZS.at = Date.now(); qzsPaint();
+  }, function () { QZS.busy = false; QZS.err = UI.qzsFail; qzsPaint(); });
+}
+function qzsPaint() { var el = document.getElementById('qzs'); if (el) el.innerHTML = qzsHtml(); }
+function qzsHtml() {
+  var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.qzsT) + '</h4>' +
+    '<p class="h">' + esc(UI.qzsDef) + '</p>';
+  if (QZS.err) h += '<p class="h" style="color:var(--stop)">' + esc(QZS.err) + '</p>';
+  else if (!QZS.d) h += '<p class="h">' + esc(UI.qzsLoad) + '</p>';
+  else QZS.d.mas.forEach(function (m, i) {
+    var t = trackById(m.mas), o = m.out || {};
+    h += '<div style="' + (i ? 'margin-top:12px;padding-top:10px;border-top:1px solid var(--rule)' : '') + '">' +
+      '<div style="font-weight:800;margin-bottom:6px">' + esc(fill(UI.qzsMasH, { mas: t ? t.masechet : m.mas, w: m.wk })) + '</div>' +
+      '<div class="h">' + esc(UI.qzsN) + ': <b>' + m.n + '</b></div>' +
+      '<div class="h">' + esc(UI.qzsFull) + ': <b>' + m.full + '</b></div>' +
+      (o.par || o.test || o.lapid || o.unk ? '<div class="h">' + esc(fill(UI.qzsOut, { p: o.par || 0, t: o.test || 0, l: o.lapid || 0, u: o.unk || 0 })) + '</div>' : '');
+    if (m.by && m.by.length) {
+      h += '<details style="margin-top:6px"><summary class="h" style="cursor:pointer">' + esc(fill(UI.qzsBy, { n: m.by.length })) + '</summary>' +
+        m.by.map(function (b) {
+          return '<div class="h" style="display:flex;justify-content:space-between;gap:8px"><span>' +
+            esc(b.code ? netInstName(b.code) : (b.inst || UI.qzsNoInst)) + '</span><span>' +
+            esc(fill(UI.qzsByRow, { n: b.n, f: b.full })) + '</span></div>';
+        }).join('') + '</details>';
+    }
+    h += '</div>';
+  });
+  h += '<button class="btn g" style="margin-top:10px"' + (QZS.busy ? ' disabled' : '') + ' onclick="qzsLoad()">' +
+    esc(QZS.busy ? UI.qzsLoad : UI.qzsAgain) + '</button>';
+  return h + '</div>';
+}
 function qzrPaint() {
   var el = document.getElementById('qzr');
   if (el) el.innerHTML = qzrHtml();
@@ -17677,6 +17778,7 @@ function amdaClose(sure) {
   clearInterval(amdaSt.flushT);
   clearTimeout(amdaSt.idle);
   try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); } catch (e) {}
+  amdaSt.self = false; amdaSt.all = false; amdaSt.sel = {};
   if (AMDA_STAFF) {
     /* מה שעוד בתור — יוצא עכשיו, בזמן שזהות המכשיר עוד כאן. */
     amdaFlush();
@@ -17698,7 +17800,7 @@ function amdaPaint() {
           (les ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
             esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
-          '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
+          '<div class="am-h">' + esc(amdaT(amdaSt.self ? 'selfT' : daf ? 'title' : 'titleO')) + '</div>' +
           /* מה לומדים עכשיו — גלוי למעלה: הדף (ואיזה) או נושא אחר, ובאיזה מועד. */
           '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
           (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
@@ -17721,7 +17823,7 @@ function amdaPaint() {
     return;
   }
   if (!les) {
-    h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
+    h += '<div class="am-q">' + esc(amdaT(amdaSt.self ? 'selfG' : 'pickG')) + '</div><div class="am-grid">';
     /* רק שכבות שיש בהן תלמידים ברשימה — אצל איש צוות ז׳ וח׳ בלבד. */
     AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
       h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
@@ -17729,7 +17831,7 @@ function amdaPaint() {
     });
     h += '</div>';
     if (amdaSt.g) {
-      h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
+      h += '<div class="am-q">' + esc(amdaT(amdaSt.self ? 'selfC' : 'pickC')) + '</div><div class="am-grid">';
       amdaClasses(amdaSt.g).forEach(function (c) {
         h += '<button class="am-b' + (amdaSt.c === c ? ' on' : '') + '" data-c="' + esc(c) + '">' +
              esc(c) + '</button>';
@@ -17751,7 +17853,7 @@ function amdaPaint() {
     /* המסלול הרגיל נשאר אחד; סימון כל הכיתה — קישור קטן בתחתית. */
     h += all ? '<button class="am-save" data-as="1"' + (nSel ? '' : ' disabled') + '>' +
                esc(fill(amdaT('allSave'), { n: nSel })) + '</button>' +
-               '<button class="am-all" data-ab="0">' + esc(amdaT('allBack')) + '</button>'
+               '<button class="am-all" data-ab="0">' + esc(amdaT(amdaSt.self ? 'selfNext' : 'allBack')) + '</button>'
              : (les ? '' : '<button class="am-all" data-ab="1">' + esc(amdaT('allGo')) + '</button>');
   }
   box.innerHTML = h;
@@ -17761,7 +17863,7 @@ function amdaList(g, c) { return ((amdaRoster() || {}).g || {})[g] ? (amdaRoster
 function amdaIdle() {
   clearTimeout(amdaSt.idle);
   amdaSt.idle = setTimeout(function () {
-    if (!amdaSt.g && !amdaSt.pick) return;
+    if (amdaSt.self || (!amdaSt.g && !amdaSt.pick)) return;
     amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
     amdaPaint();
     document.getElementById('amda').scrollTop = 0;
@@ -17811,6 +17913,8 @@ function amdaTap(e) {
   }
   /* כל הכיתה: מעבר הלוך וחזור, ושמירה אחת לכל המסומנים. */
   if (el.getAttribute('data-ab')) {
+    /* "אני מסמן בעצמי": הכפתור עובר לכיתה אחרת, ולא לסימון עצמי. */
+    if (amdaSt.self) { amdaReset(); return; }
     amdaSt.all = el.getAttribute('data-ab') === '1'; amdaSt.sel = {};
     clearTimeout(amdaSt.idle);
     if (!amdaSt.all) amdaIdle();
@@ -17838,7 +17942,9 @@ function amdaTap(e) {
   amdaMark(amdaSt.g, amdaSt.c, n);
 }
 function amdaReset() {
-  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = ''; amdaSt.all = false; amdaSt.sel = {};
+  /* המורה מסמן: אחרי שמירה — בחירת הכיתה הבאה באותה שכבה. */
+  if (!amdaSt.self) amdaSt.g = '';
+  amdaSt.c = ''; amdaSt.pick = ''; amdaSt.all = !!amdaSt.self; amdaSt.sel = {};
   amdaPaint();
   document.getElementById('amda').scrollTop = 0;
 }
@@ -18816,7 +18922,7 @@ var NETP = null;                 /* התצוגה לפני שמירה — בזי�
 var NET_BUSY = false, NET_BAKS = null, NET_STALE = false;
 /* NET_CUR — חתימת המאגר כשנפתחה רשימת הגיבויים (בסיס לשחזור).
    NET_BROKEN — שם הגיבוי, כשהשרת דיווח שהמאגר במצב לא ידוע. */
-var NET_CUR = '', NET_BROKEN = '', NET_PEND_AUTO = 0;
+var NET_CUR = '', NET_BROKEN = '', NET_PEND_AUTO = 0, NET_DEL_OK = false;
 
 /* אותה פונקציה בדיוק ב-apps-script.gs (netSig_) — חתימת הלשונית. */
 function netSig(rows) {
@@ -18866,14 +18972,62 @@ function netFile() {
    שיש בה לפחות שלושה תאים של טקסט. הכותרות מוצגות לרכז כפי שהן. */
 function netGenHead(sheets) {
   for (var s = 0; s < sheets.length; s++) {
-    var rows = sheets[s].rows || [];
-    for (var i = 0; i < Math.min(rows.length, 15); i++) {
-      var hs = netGenHeads(rows[i]);
-      if (hs.length >= 3) return { si: s, hi: i, heads: hs };
-    }
+    var f = netGenHi(sheets[s]);
+    if (f >= 0) return { si: s, hi: f, heads: netGenHeads(sheets[s].rows[f]) };
   }
   return null;
 }
+/* שורת הכותרות של לשונית — הראשונה (מתוך 15) עם שלושה תאי טקסט. */
+function netGenHi(sh) {
+  var rows = (sh && sh.rows) || [];
+  for (var i = 0; i < Math.min(rows.length, 15); i++) if (netGenHeads(rows[i]).length >= 3) return i;
+  return -1;
+}
+/* השכבה משם הלשונית: "כיתות ז" ← ז, "שכבה ח׳" ← ח, "7" ← ז.
+   רק כשיש בשם בדיוק שכבה אחת. */
+function netGrName(name) {
+  var t = String(name || '').replace(/["'׳״]/g, '').split(/[\s\-_.,()\/]+/), got = '';
+  for (var i = 0; i < t.length; i++) {
+    var v = /^(יא|יב|[ז-י]|7|8|9|10|11|12)$/.test(t[i]) ? netGr(t[i]) : '';
+    if (!v) continue;
+    if (got && got !== v) return '';
+    got = v;
+  }
+  return got;
+}
+/* תא "כיתה" שבו מחוברות שכבה ומספר: "ז-3", "ז'3", "ז 3", "7/3".
+   מחזיר את הכיתה, ואת השכבה שבתא — רק לאימות מול הלשונית. */
+function netClCell(v) {
+  var s = String(v == null ? '' : v).replace(/["'׳״]/g, '').trim(), m;
+  m = s.match(/^(יא|יב|[ז-י])\s*[-\/.\s]?\s*(\d+)$/) || s.match(/^(\d+)\s*[-\/.\s]?\s*(יא|יב|[ז-י])$/);
+  if (m) return /^\d/.test(m[1]) ? { c: netCl(m[1]), g: m[2] } : { c: netCl(m[2]), g: m[1] };
+  m = s.match(/^(7|8|9|10|11|12)\s*[-\/.]\s*(\d+)$/);
+  if (m) return { c: netCl(m[2]), g: netGr(m[1]) };
+  return { c: netCl(s), g: '' };
+}
+/* הלשוניות שנקראות יחד: כל לשונית שיש בה כל הכותרות שהותאמו. העמודה
+   נמצאת לפי נוסח הכותרת, ולכן לשונית שבה הסדר שונה — עדיין נקראת. */
+function netGenSheets() {
+  var g = NET.gen, want = {}, out = [], f;
+  for (f in g.map) if (g.map.hasOwnProperty(f) && g.map[f]) {
+    g.heads.forEach(function (h) { if (h.col === g.map[f]) want[f] = h.t; });
+  }
+  NET.sheets.forEach(function (sh, si) {
+    var hi = si === g.si ? g.hi : netGenHi(sh);
+    if (hi < 0) return;
+    var hs = netGenHeads(sh.rows[hi]), map = {}, ok = true, k;
+    for (k in want) if (want.hasOwnProperty(k)) {
+      var c = '';
+      hs.forEach(function (h) { if (!c && h.t === want[k]) c = h.col; });
+      if (!c) ok = false; else map[k] = c;
+    }
+    if (!ok && si !== g.si) return;
+    out.push({ si: si, hi: hi, map: si === g.si ? g.map : map, name: sh.name || String(si + 1),
+               gr: netGrName(sh.name), off: !!(g.off && g.off[si]) });
+  });
+  return out;
+}
+function netGenOff(si, on) { if (NET && NET.gen) { (NET.gen.off = NET.gen.off || {})[si] = !on; } admPane(); }
 function netGenHeads(row) {
   var hs = [], j;
   for (j in (row || {})) if (row.hasOwnProperty(j)) {
@@ -18895,9 +19049,7 @@ function netGenAt(si, hi) {
   var g = NET.gen;
   if (si >= 0 && si !== g.si) {
     g.si = si;
-    var rows = NET.sheets[si].rows || [], f = 0;
-    for (var i = 0; i < Math.min(rows.length, 15); i++) if (netGenHeads(rows[i]).length >= 3) { f = i; break; }
-    g.hi = f;
+    g.hi = Math.max(0, netGenHi(NET.sheets[si]));
   }
   if (hi >= 0) g.hi = hi;
   g.heads = netGenHeads((NET.sheets[g.si].rows || [])[g.hi]);
@@ -18954,38 +19106,54 @@ function netGenOne(v) { if (NET && NET.gen) NET.gen.one = v; admPane(); }
 /* מה שחסר כדי להמשיך — רשימת שמות שדות, או ריק. */
 function netGenMiss() {
   var g = NET.gen, miss = [];
+  /* שכבה — חובה רק כשיש לשונית שנקראת ושמה אינו אומר שכבה. */
+  var grOk = netGenSheets().every(function (x) { return x.off || !!x.gr; });
   NET_GEN_F.forEach(function (d) {
     if (!d.need) return;
+    if (d.f === 'g' && grOk) return;
     if (d.f === 'inst' ? !(g.one || g.map.inst) : !g.map[d.f]) miss.push(UI[d.l]);
   });
   return miss;
 }
-/* השורות, לפי ההתאמה שהרכז בחר. רק ז׳–ח׳ (ATT_GRADES). */
+/* השורות, לפי ההתאמה שהרכז בחר — מכל הלשוניות שנקראות. רק ז׳–ח׳
+   (ATT_GRADES). השכבה: משם הלשונית, ובלעדיו — מהעמודה. אות שכבה
+   בתא הכיתה היא אימות בלבד; סתירה — להכרעה (NET.gc), לא ניחוש. */
 function netGenGo() {
   if (!NET || !NET.gen || netGenMiss().length) return;
-  var g = NET.gen, rows = NET.sheets[g.si].rows, list = [], insts = {}, out = 0, sk = { gr: {} };
-  var at = function (r, f) { return g.map[f] ? String(r[g.map[f]] || '').trim() : ''; };
-  for (var i = g.hi + 1; i < rows.length; i++) {
-    var x = rows[i], first = at(x, 'first'), last = at(x, 'last');
-    if (!first && !last) continue;
-    var gr = netGr(at(x, 'g')), k = g.one ? '*' : at(x, 'inst');
-    /* מה שלא נקלט — נספר לפי הסיבה, ומוצג לרכז. */
-    if (!first || !last) { sk.name = (sk.name || 0) + 1; out++; continue; }
-    if (!k) { sk.inst = (sk.inst || 0) + 1; out++; continue; }
-    if (ATT_GRADES.indexOf(gr) < 0) { sk.gr[gr] = (sk.gr[gr] || 0) + 1; out++; continue; }
-    var kid = netTel(at(x, 'kid')), par = netTel(at(x, 'par'));
-    if ((!kid && at(x, 'kid')) || (!par && at(x, 'par'))) sk.tel = (sk.tel || 0) + 1;
-    list.push({ k: k, sym: '', g: gr, c: netCl(at(x, 'c')), last: last, first: first,
-                kid: kid, par: par, rel: '' });
-    if (!insts[k]) insts[k] = { name: k === '*' ? '' : k, loc: '', city: '', n: 0 };
-    insts[k].n++;
-  }
-  if (!list.length) { alert(UI.netNoRows2); return; }
-  NET.list = list; NET.insts = insts; NET.other = {}; NET.out = out; NET.skip = sk; NET.step = '';
+  var g = NET.gen, list = [], insts = {}, out = 0, sk = { gr: {} }, gc = [];
+  netGenSheets().forEach(function (shx) {
+    if (shx.off) return;
+    var rows = NET.sheets[shx.si].rows;
+    var at = function (r, f) { return shx.map[f] ? String(r[shx.map[f]] == null ? '' : r[shx.map[f]]).trim() : ''; };
+    for (var i = shx.hi + 1; i < rows.length; i++) {
+      var x = rows[i], first = at(x, 'first'), last = at(x, 'last');
+      if (!first && !last) continue;
+      var cc = netClCell(at(x, 'c'));
+      var gr = shx.gr || netGr(at(x, 'g')) || cc.g, k = g.one ? '*' : at(x, 'inst');
+      /* מה שלא נקלט — נספר לפי הסיבה, ומוצג לרכז. */
+      if (!first || !last) { sk.name = (sk.name || 0) + 1; out++; continue; }
+      if (!k) { sk.inst = (sk.inst || 0) + 1; out++; continue; }
+      var kid = netTel(at(x, 'kid')), par = netTel(at(x, 'par'));
+      var y = { k: k, sym: '', g: gr, c: cc.c, last: last, first: first, kid: kid, par: par, rel: '' };
+      if (cc.g && cc.g !== gr) {
+        y.gs = gr; y.gc = cc.g; y.sh = shx.name; y.pick = '';
+        gc.push(y);
+      } else if (ATT_GRADES.indexOf(gr) < 0) { sk.gr[gr] = (sk.gr[gr] || 0) + 1; out++; continue; }
+      else list.push(y);
+      if ((!kid && at(x, 'kid')) || (!par && at(x, 'par'))) sk.tel = (sk.tel || 0) + 1;
+      if (!insts[k]) insts[k] = { name: k === '*' ? '' : k, loc: '', city: '', n: 0 };
+      insts[k].n++;
+    }
+  });
+  if (!list.length && !gc.length) { alert(UI.netNoRows2); return; }
+  NET.list = list; NET.gc = gc; NET.insts = insts; NET.other = {}; NET.out = out; NET.skip = sk; NET.step = '';
   netMapInit(NET);
   if (g.one) NET.map['*'] = g.one;
   admPane();
 }
+/* הכרעה בשורה שבה שכבת הלשונית ושכבת התא סותרות. */
+function netGcPick(i, v) { var y = NET && NET.gc && NET.gc[i]; if (y) { y.pick = v; NETP = null; } admPane(); }
+function netGcOpen() { return (NET && NET.gc || []).filter(function (y) { return !y.pick; }).length; }
 function netMapInit(r) {
   var map = Store.get('netMap', {}) || {}, k;
   r.map = {};
@@ -19011,7 +19179,13 @@ function netTotals() {
 /* השורות של הקובץ שנכנסות — רק מישיבה מותאמת. */
 function netRowsIn() {
   var out = [];
-  NET.list.forEach(function (x) {
+  /* שורות שהוכרעו (סתירת שכבה) — בשכבה שנבחרה, ורק ז׳–ח׳. */
+  var gc = (NET.gc || []).filter(function (y) { return y.pick && y.pick !== 'skip'; }).map(function (y) {
+    var z = {}; for (var k in y) if (y.hasOwnProperty(k)) z[k] = y[k];
+    z.g = y.pick === 'c' ? y.gc : y.gs;
+    return z;
+  }).filter(function (z) { return ATT_GRADES.indexOf(z.g) >= 0; });
+  NET.list.concat(gc).forEach(function (x) {
     var code = NET.map[x.k];
     if (!code) return;
     var y = {}; for (var k in x) if (x.hasOwnProperty(k)) y[k] = x[k];
@@ -19027,14 +19201,14 @@ function netRowsIn() {
 function netSrvOk(b) { return !!(b && b.status === 'ok' && b.baks && b.safe === 2); }
 function netPrevGo() {
   var key = (CFG.readKey || '').trim();
-  if (!NET || NET_BUSY || netPend()) return;
+  if (!NET || NET_BUSY || netPend() || netGcOpen()) return;
   if (!key || !(CFG.api || API || '').trim()) { netMsg = UI.netNoKey; admPane(); return; }
   if (!NET.src) { netMsg = UI.netNoSrc; admPane(); return; }
   NET_BUSY = true; NETP = null; netMsg = UI.netReadCur; admPane();
   scriptGet({ netbaks: 1, key: key }).then(function (b) {
     if (b && b.status === 'broken') { NET_BROKEN = b.backup || '-'; throw new Error('broken'); }
     if (!netSrvOk(b)) throw new Error('old');
-    NET_BAKS = b.baks; NET_CUR = b.cur || ''; NET_BROKEN = '';
+    NET_BAKS = b.baks; NET_CUR = b.cur || ''; NET_BROKEN = ''; NET_DEL_OK = !!b.del;
     return scriptGet({ read: NET_TAB, key: key });
   }).then(function (d) {
     NET_BUSY = false;
@@ -19043,9 +19217,7 @@ function netPrevGo() {
     if (d.rows.length && d.rows[0].map(function (h) { return String(h).trim(); }).indexOf('קוד ישיבה') < 0) {
       netMsg = UI.netNoRead; admPane(); return;
     }
-    NETP = netPlan(d.rows, netRowsIn(), NET.src, NET.pref);
-    NETP.out = (NET.out || 0) + NET.list.length - netRowsIn().length;
-    NETP.insts = netInstsIn();
+    netReplan(d.rows);
     netMsg = NET_STALE ? UI.netStale : ''; NET_STALE = false;
     admPane();
   })['catch'](function (e) {
@@ -19053,6 +19225,26 @@ function netPrevGo() {
     netMsg = e && e.message === 'broken' ? '' : e && e.message === 'old' ? UI.netOldSrv : UI.netNoRead;
     admPane();
   });
+}
+function netReplan(cur) {
+  NETP = netPlan(cur, netRowsIn(), NET.src, NET.pref);
+  NETP.out = (NET.out || 0) + NET.list.length + (NET.gc || []).length - netRowsIn().length;
+  NETP.insts = netInstsIn();
+  /* "הקובץ מחליף את הרשימה" — רק לישיבה שבייבוא הזה. */
+  var rp = {};
+  NETP.insts.forEach(function (c) { if (NET.repl && NET.repl[c]) rp[c] = 1; });
+  NET.repl = rp; NETP.repl = rp;
+}
+/* מצב החלפה: מי מהישיבה שבמאגר ולא בקובץ — יוסר מ"תלמידי הרשת" בלבד.
+   הקובץ נעשה גם המקור העדיף שלה, כדי שמאגר כללי לא ידרוס אותו אחר כך. */
+function netReplSet(code, on) {
+  if (!NET || !NETP || NET_BUSY) return;
+  if (on && !NET_DEL_OK) { netMsg = UI.netOldSrv; admPane(); return; }
+  NET.repl = NET.repl || {};
+  if (on) NET.repl[code] = 1; else delete NET.repl[code];
+  if (on && !NET.pref[code]) { NET.pref[code] = true; netReplan(NETP.cur); }
+  else NETP.repl = NET.repl;
+  admPane();
 }
 /* הישיבות של הייבוא הזה — השרת אינו נוגע בשורה של ישיבה אחרת. */
 function netInstsIn() {
@@ -19174,7 +19366,7 @@ function netAddRow(x, src, pref) {
 /* הפעולות לשרת, לפי התצוגה וההכרעות. null — הכרעות סותרות.
    `open` — התאמות שעוד לא הוכרעו; כל עוד יש — אין שמירה. */
 function netOps(P) {
-  var ops = [], used = {}, bad = false, n = { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0 };
+  var ops = [], used = {}, bad = false, n = { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0, del: 0 }, dels = [];
   var setOp = function (S) {
     if (used[S.e.r]) { bad = true; return; }
     used[S.e.r] = 1;
@@ -19197,7 +19389,12 @@ function netOps(P) {
     else if (a.pick && a.S) setOp(a.S);
     else n.open++;
   });
-  return bad ? null : { ops: ops, n: n };
+  /* מצב החלפה: שורה של הישיבה שלא נמצאה מול אף שורה בקובץ — יוצאת. */
+  if (P.repl) P.ex.forEach(function (e) {
+    if (!P.repl[e.v['קוד ישיבה']] || used[e.r]) return;
+    ops.push({ k: 'del', r: e.r, was: e.v }); dels.push(e); n.del++;
+  });
+  return bad ? null : { ops: ops, n: n, dels: dels };
 }
 function netAskPick(i, v) {
   var a = NETP && NETP.asks[i];
@@ -19276,22 +19473,21 @@ function netCheck(P, ops, rows) {
   if (!rows || !rows.length) return false;
   var head = rows[0].map(function (h) { return String(h).trim(); });
   var col = function (row, n) { var i = head.indexOf(n); return i < 0 ? '' : String(row[i] == null ? '' : row[i]); };
-  var setBy = {}, adds = [];
-  ops.forEach(function (o) { if (o.k === 'set') setBy[o.r] = o.row; else adds.push(o.row); });
-  if (rows.length !== Math.max(P.cur.length, 1) + adds.length) return false;
-  var i, c, ok = true;
+  var setBy = {}, del = {}, want = [];
+  ops.forEach(function (o) { if (o.k === 'set') setBy[o.r] = o.row; else if (o.k === 'del') del[o.r] = 1; });
+  /* מה שאמור להיות, לפי הסדר: הקיימות (בלי מה שהוסר), ואחריהן החדשות. */
   P.ex.forEach(function (e) {
-    var want = setBy[e.r] || {}, row = rows[e.r - 1];
-    if (!row) { ok = false; return; }
-    NET_ALL.forEach(function (c2) {
-      if (!netSame(col(row, c2), want.hasOwnProperty(c2) ? want[c2] : e.v[c2])) ok = false;
-    });
+    if (del[e.r]) return;
+    var w = setBy[e.r] || {}, v = {};
+    NET_ALL.forEach(function (c) { v[c] = w.hasOwnProperty(c) ? w[c] : e.v[c]; });
+    want.push(v);
   });
-  for (i = 0; i < adds.length && ok; i++) {
-    var rr = rows[Math.max(P.cur.length, 1) + i];
-    for (c = 0; c < NET_ALL.length; c++) if (!netSame(col(rr, NET_ALL[c]), adds[i][NET_ALL[c]])) { ok = false; break; }
+  ops.forEach(function (o) { if (o.k === 'add') want.push(o.row); });
+  if (rows.length !== 1 + want.length) return false;
+  for (var i = 0; i < want.length; i++) {
+    for (var c = 0; c < NET_ALL.length; c++) if (!netSame(col(rows[i + 1], NET_ALL[c]), want[i][NET_ALL[c]])) return false;
   }
-  return ok;
+  return true;
 }
 function netInfoSet(rows) {
   var insts = {};
@@ -19335,7 +19531,8 @@ function netDone(pd, r, live) {
       netMsg = good ? UI.netSavedSrv : UI.netSavedLater;
     } else {
       NET = null; NETP = null;
-      netMsg = good ? fill(UI.netSaved2, { a: pd.a, u: pd.u, b: String(r.backup || '').replace(/^[^·]*·\s*/, '') })
+      netMsg = good ? fill(UI.netSaved2, { a: pd.a, u: pd.u, b: String(r.backup || '').replace(/^[^·]*·\s*/, '') }) +
+                      (pd.d ? ' ' + fill(UI.netSavedDel, { n: pd.d }) : '')
                     : UI.netSavedLater;
     }
     admPane();
@@ -19367,9 +19564,10 @@ function netSave() {
   if (!built) { netMsg = UI.netTwice; admPane(); return; }
   if (built.n.open) { netMsg = fill(UI.netAskN, { n: built.n.open }); admPane(); return; }
   if (!built.ops.length) { netMsg = UI.netNothing; admPane(); return; }
+  if (built.n.del && !confirm(fill(UI.netDelSure, { n: built.n.del }))) return;
   var P = NETP, run = netRunId();
   NET_BUSY = true;
-  netMsg = fill(UI.netSaving2, { a: built.n.add, u: built.n.upd });
+  netMsg = fill(UI.netSaving2, { a: built.n.add, u: built.n.upd }) + (built.n.del ? ' ' + fill(UI.netDelN, { n: built.n.del }) : '');
   admPane();
   /* ההתאמה סמל ← ישיבה, והמקורות העדיפים — נוחות במכשיר בלבד. */
   var keep = Store.get('netMap', {}) || {}, k;
@@ -19380,7 +19578,7 @@ function netSave() {
   Store.set('netPrefs', pf);
   netSend({ action: 'netMerge', key: key, run: run, base: P.base, cols: JSON.stringify(NET_ALL),
             ops: JSON.stringify(built.ops), insts: JSON.stringify(P.insts || []) },
-          { run: run, kind: 'merge', a: built.n.add, u: built.n.upd },
+          { run: run, kind: 'merge', a: built.n.add, u: built.n.upd, d: built.n.del },
           { P: P, ops: built.ops });
 }
 
@@ -19480,14 +19678,15 @@ function netAllHtml(P) {
   return h + '</details>';
 }
 function netPlanHtml() {
-  var P = NETP, built = netOps(P), n = built ? built.n : { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0 };
+  var P = NETP, built = netOps(P), n = built ? built.n : { add: 0, upd: 0, same: 0, aside: 0, off: 0, open: 0, del: 0 };
   var prio = 0, r;
   for (r in P.sets) if (P.sets.hasOwnProperty(r)) prio += P.sets[r].prio ? 1 : 0;
   var line = function (l, v) { return '<div class="h">' + esc(UI[l]) + ': <b>' + v + '</b></div>'; };
   var h = '<div class="adm-card" style="margin-top:10px"><h4>' + esc(UI.netPlanT) + '</h4>' +
     line('netPAdd', n.add) + line('netPUpd', n.upd) + line('netPDup', P.dup) + line('netPSame', n.same) +
-    line('netPAsk', P.asks.length) + (prio ? line('netPPrio', prio) : '') +
+    line('netPAsk', P.asks.length) + (prio ? line('netPPrio', prio) : '') + (n.del ? line('netPDel', n.del) : '') +
     (n.off ? line('netPOff', n.off) : '') + (P.out ? line('netPOut', P.out) : '');
+  h += netReplHtml(P, built);
   h += netAllHtml(P);
   if (P.asks.length) h += '<p class="h">' + esc(UI.netAskB) + '</p>';
   P.asks.forEach(function (a, i) {
@@ -19520,6 +19719,27 @@ function netPlanHtml() {
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
     (built && !n.open && built.ops.length && !NET_BUSY ? '<button class="btn p" onclick="netSave()">' + esc(UI.netSaveGo) + '</button>' : '') +
     '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div></div>';
+  return h;
+}
+/* לכל ישיבה בייבוא: "הקובץ מחליף את רשימת התלמידים של הישיבה". דלוק —
+   כמה יוסרו, ומי — לפני השמירה. */
+function netReplHtml(P, built) {
+  var h = '', dels = built ? built.dels : [];
+  (P.insts || []).forEach(function (c) {
+    var on = !!(P.repl && P.repl[c]), mine = dels.filter(function (e) { return e.v['קוד ישיבה'] === c; });
+    h += '<div class="adm-card" style="margin:8px 0;padding:10px">' +
+      '<label class="h" style="display:block"><input type="checkbox"' + (on ? ' checked' : '') + (NET_BUSY ? ' disabled' : '') +
+      ' onchange="netReplSet(\'' + esc(c) + '\',this.checked)"> <b>' + esc(fill(UI.netRepl, { i: netInstName(c) })) + '</b></label>' +
+      '<div class="h">' + esc(UI.netReplB) + '</div>';
+    if (on) {
+      h += '<div class="h" style="margin-top:6px;color:var(--stop)"><b>' + esc(fill(UI.netReplN, { n: mine.length })) + '</b></div>';
+      if (mine.length) h += '<details style="margin:4px 0"><summary class="h" style="cursor:pointer">' +
+        esc(fill(UI.netReplL, { n: mine.length })) + '</summary><div class="h">' +
+        mine.map(function (e) { return esc(netWho(e.v)); }).join('<br>') + '</div></details>';
+      h += '<div class="h">' + esc(fill(UI.netPrefMark, { s: P.src })) + '</div>';
+    }
+    h += '</div>';
+  });
   return h;
 }
 /* מה לא נקלט מהקובץ, ולמה. */
@@ -19569,6 +19789,17 @@ function admNet(body) {
         '<select style="width:100%;padding:8px;font:inherit" onchange="netGenAt(+this.value, -1)">' +
         netOpt(String(g.si), NET.sheets.map(function (s, i) { return [String(i), s.name || String(i + 1)]; })) + '</select></div>';
     }
+    /* הלשוניות שנקראות יחד, והשכבה של כל אחת. */
+    var gsh = netGenSheets();
+    if (gsh.length > 1 || gsh.some(function (x) { return x.gr; })) {
+      h += '<div style="margin:6px 0"><div class="h">' + esc(UI.netSheets) + '</div>';
+      gsh.forEach(function (x) {
+        h += '<label class="h" style="display:block;margin:4px 0"><input type="checkbox"' + (x.off ? '' : ' checked') +
+          ' onchange="netGenOff(' + x.si + ',this.checked)"> ' + esc(x.name) + ' · ' +
+          esc(x.gr ? fill(UI.netShGr, { g: x.gr }) : UI.netShNoGr) + '</label>';
+      });
+      h += '</div>';
+    }
     var rs = NET.sheets[g.si].rows || [], ro = [];
     for (var ri = 0; ri < Math.min(rs.length, 30); ri++) {
       var cells = [], cj;
@@ -19578,7 +19809,12 @@ function admNet(body) {
     h += '<div style="margin:6px 0"><div class="h">' + esc(UI.netHdrRow) + '</div>' +
       '<select style="width:100%;padding:8px;font:inherit" onchange="netGenAt(-1, +this.value)">' +
       netOpt(String(g.hi), ro) + '</select></div>';
+    var grTab = gsh.every(function (x) { return x.off || !!x.gr; });
     NET_GEN_F.forEach(function (d) {
+      if (d.f === 'g' && grTab) {
+        h += '<div style="margin:6px 0"><div class="h">' + esc(UI[d.l]) + '</div><div class="h"><b>' + esc(UI.netGrTab) + '</b></div></div>';
+        return;
+      }
       h += '<div style="margin:6px 0"><div class="h">' + esc(UI[d.l]) + (d.need ? ' *' : '') + '</div>' +
         '<select style="width:100%;padding:8px;font:inherit" onchange="netGenSet(\'' + d.f + '\', this.value)"' +
         (d.f === 'inst' && g.one ? ' disabled' : '') + '>' + netOpt(g.map[d.f] || '', hs) + '</select></div>';
@@ -19607,6 +19843,20 @@ function admNet(body) {
         '<select style="width:100%;padding:8px;font:inherit" onchange="netMapSet(\'' + esc(k) + '\', this.value)">' +
         netInstOpts(NET.map[k], UI.netSkip) + '</select></div>';
     });
+    /* שכבת הלשונית מול אות השכבה שבתא הכיתה — הרכז מכריע. */
+    if ((NET.gc || []).length) {
+      h += '<div class="adm-card" style="margin:8px 0;padding:10px"><div class="h"><b>' +
+        esc(fill(UI.netGcT, { n: NET.gc.length })) + '</b><br>' + esc(UI.netGcB) + '</div>';
+      NET.gc.forEach(function (y, i) {
+        var nm = 'ngc' + i, opt = function (v, t) {
+          return '<label style="display:inline-block;margin:2px 8px 2px 0"><input type="radio" name="' + nm + '"' +
+            (y.pick === v ? ' checked' : '') + ' onchange="netGcPick(' + i + ',\'' + v + '\')"> ' + esc(t) + '</label>';
+        };
+        h += '<div class="h" style="margin-top:6px"><b>' + esc(y.last + ' ' + y.first) + '</b> · ' + esc(y.sh) + '<br>' +
+          opt('s', fill(UI.netGcS, { g: y.gs })) + opt('c', fill(UI.netGcC, { g: y.gc })) + opt('skip', UI.netAside) + '</div>';
+      });
+      h += '</div>';
+    }
     var oth = Object.keys(NET.other || {}).map(function (k) { return NET.other[k]; });
     if (oth.length) h += '<p class="h">' + esc(fill(UI.netNoGr, { l: oth.join(' · ') })) + '</p>';
     h += '<p class="h"><b>' + esc(fill(UI.netSum, sm)) + '</b></p>';
@@ -19621,8 +19871,9 @@ function admNet(body) {
         ' onchange="netPrefSet(\'' + esc(c) + '\', this.checked)"> ' + esc(fill(UI.netPref, { i: netInstName(c) })) + '</label>';
     });
     if (Object.keys(mine).length) h += '<p class="h">' + esc(UI.netPrefB) + '</p>';
+    if (!NETP && netGcOpen()) h += '<p class="h" style="color:var(--stop)">' + esc(fill(UI.netAskN, { n: netGcOpen() })) + '</p>';
     if (!NETP) h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-      (sm.n && key && !NET_BUSY ? '<button class="btn p" onclick="netPrevGo()">' + esc(UI.netPrev) + '</button>' : '') +
+      (sm.n && key && !NET_BUSY && !netGcOpen() ? '<button class="btn p" onclick="netPrevGo()">' + esc(UI.netPrev) + '</button>' : '') +
       '<button class="btn g" onclick="netCancel()">' + esc(UI.netCancel) + '</button></div>';
     else h += netPlanHtml();
   } else {

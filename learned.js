@@ -88,6 +88,16 @@ function LDaf(track, wk) {
   var row = LRow(track, wk);
   return row && row[2] && row[2] !== 'סיום' ? row[2] : null;
 }
+/* ‼ חריגה חד-פעמית — הגרלת דף ב (18.10). להסיר אחרי שהגרלת דף ב
+   בוצעה ופורסמה, יחד עם RAF_NOQUIZ_DAF ב-apps-script.gs.
+   הוראת הבעלים: הפעם, כל מי שסיים את דף ב נכנס להגרלה — גם בלי
+   חידון. הכלל קשור **לדף** ולא לשבוע שעל השעון: גם אחרי שנפתח דף ג,
+   מי שלומד את דף ב רואה "סיום הדף מכניס אותך להגרלה". בדף אחר —
+   הנוסח הרגיל (החידון). */
+var RAF_NOQUIZ_DAF = 'ב';
+function LRafNoQuiz(daf) {
+  return !!RAF_NOQUIZ_DAF && String(daf || '').replace(/["'׳״\s.:]/g, '') === RAF_NOQUIZ_DAF;
+}
 /* העמוד שנלמד בשבוע: 0 = הדף כולו, 1 = ע״א, 2 = ע״ב.
    האיבר הרביעי בשורת הלוח (ראו CAL_TAANIT). */
 function LAmOf(row) {

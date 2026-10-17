@@ -121,7 +121,9 @@ function StageHtml(o) {
 }
 
 /* פס המסלול השנתי — אותו אחד שמתחת לבמה במסך הראשי.
-   o.go — שם פונקציה, או כתובת כשמדובר בקישור בין עמודים. */
+   o.go — שם פונקציה, או כתובת כשמדובר בקישור בין עמודים.
+   o.mine — "המסלול שלך" (8.99.254): { d: הדף, f: 0–1 כמה למד, done,
+   raf: בתוך ההגרלה לפי השרת }. בלעדיו — הפס כמו שהיה. */
 function RailHtml(o) {
   var tr = StTrack(o.track), wi = StWeekRaw();
   var mark = wi < 0 ? 0 : wi, rail = '', done = 0;
@@ -136,12 +138,23 @@ function RailHtml(o) {
   var pct = Math.round(done / tr.dapim * 100);
   var open = o.href ? ' onclick="location.href=\'' + o.href + '\'"'
                     : (o.go ? ' onclick="' + o.go + '(\'' + tr.id + '\')"' : '');
+  var me = o.mine, mine = '', raf = '';
+  if (me) {
+    var w = me.done ? 100 : Math.max(4, Math.round(me.f * 100));
+    mine = '<div style="font-size:.86rem;font-weight:800;margin:-4px 0 8px;color:' +
+      (me.done ? 'var(--green-d)' : 'var(--ink)') + '">' + (me.done ? '✓ ' : '') +
+      StEsc(String(UI.myWeek || '').replace('{d}', me.d)) + '</div>' +
+      '<div style="height:8px;border-radius:5px;background:var(--sunk);overflow:hidden;margin-bottom:13px">' +
+      '<div style="height:100%;width:' + w + '%;border-radius:5px;background:' + (me.done ? 'var(--green)' : 'var(--blue)') + '"></div></div>';
+    if (me.raf) raf = '<div style="margin-top:11px;padding:7px 11px;border-radius:var(--r-s);background:rgba(111,168,59,.15);' +
+      'color:var(--green-d);font-weight:800;font-size:.84rem">✓ ' + StEsc(UI.myRaf) + '</div>';
+  }
   return '<div class="mini"' + open +
     (open ? ' role="button" tabindex="0" style="cursor:pointer"' : '') + '>' +
     '<div class="cap"><b>' +
-    String(UI.trackCap).replace('{mas}', StEsc(tr.masechet)) + '</b>' +
-    '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' +
-    '<div class="rail">' + rail + '</div>' +
+    String(me ? UI.myCap : UI.trackCap).replace('{mas}', StEsc(tr.masechet)) + '</b>' +
+    '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' + mine +
+    '<div class="rail">' + rail + '</div>' + raf +
     '<div style="font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:10px">' +
     StEsc(UI.trackNote) + '</div></div>';
 }

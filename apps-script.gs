@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 70;
+var SCRIPT_VERSION = 71;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1201,6 +1201,15 @@ function doGet(e) {
     try {
       return reply_(e, e.parameter.quizPubAll ? quizPubAll_(e.parameter) : quizReady_(e.parameter));
     } catch (errQ) { return reply_(e, { status:'error', quiz: 1, message: String(errQ) }); }
+  }
+
+  /* סיכום מענה על החידונים — לרכז בלבד, מספרים בלבד. ראו quizSum_. */
+  if (e && e.parameter && e.parameter.quizSum) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'אין הרשאה' });
+    }
+    try { return reply_(e, quizSum_()); }
+    catch (errS) { return reply_(e, { status:'error', message: String(errS) }); }
   }
 
   if (e && e.parameter && e.parameter.fire === 'say') return sayOnce_(e);
@@ -3815,7 +3824,8 @@ function netBaksGet_() {
   try {
     var healed = netHeal_();
     if (healed && healed.status === 'broken') return { status: 'broken', backup: healed.backup, safe: 2 };
-    return { status: 'ok', safe: 2, baks: netBaks_(), cur: netSig_(netRows_(sheet_(NET_TAB_))) };
+    /* `del` — השרת מכיר את מצב ההחלפה (הסרת מי שלא בקובץ, בישיבה אחת). */
+    return { status: 'ok', safe: 2, del: 1, baks: netBaks_(), cur: netSig_(netRows_(sheet_(NET_TAB_))) };
   } finally { lk.releaseLock(); }
 }
 function netMerge_(d, run, h) {
@@ -3831,7 +3841,7 @@ function netMerge_(d, run, h) {
     return i < 0 ? '' : String(row[i] == null ? '' : row[i]).trim();
   };
   /* כל הבדיקות קודם. שורה שאינה כפי שנקראה — שום דבר לא נכתב. */
-  var sets = [], adds = [], seen = {};
+  var sets = [], adds = [], dels = [], seen = {};
   for (var i = 0; i < ops.length; i++) {
     var o = ops[i], row = o.row || {}, c;
     for (c in row) if (row.hasOwnProperty(c) && cols.indexOf(c) < 0) {
@@ -3844,7 +3854,7 @@ function netMerge_(d, run, h) {
       adds.push(row);
       continue;
     }
-    if (o.k !== 'set') return { status: 'error', message: 'פעולה לא מוכרת' };
+    if (o.k !== 'set' && o.k !== 'del') return { status: 'error', message: 'פעולה לא מוכרת' };
     var r = +o.r;
     if (!(r >= 2 && r <= cur.length) || seen[r]) return { status: 'stale', why: 'row ' + o.r };
     seen[r] = 1;
@@ -3857,9 +3867,12 @@ function netMerge_(d, run, h) {
     if (insts.indexOf(at(cur[r - 1], 'קוד ישיבה')) < 0 || row.hasOwnProperty('קוד ישיבה')) {
       return { status: 'error', message: 'עדכון של תלמיד מישיבה אחרת — לא נעשה שינוי' };
     }
+    /* הסרה (מצב החלפה) — רק מהלשונית הזו. לימוד, נוכחות, עמדה וחידות
+       אינם נוגעים כאן, ולכן תלמיד שיחזור באותו שם — ההיסטוריה מתחברת. */
+    if (o.k === 'del') { dels.push(r); continue; }
     sets.push({ r: r, row: row });
   }
-  if (!sets.length && !adds.length) return { status: 'ok', set: 0, add: 0, backup: '' };
+  if (!sets.length && !adds.length && !dels.length) return { status: 'ok', set: 0, add: 0, del: 0, backup: '' };
   /* הטבלה החדשה — בזיכרון. כותרות: לשונית ריקה מקבלת את כולן;
      עמודה חסרה — נוספת בסוף. */
   var tgt = cur.map(function (x) { return x.slice(); });
@@ -3872,6 +3885,12 @@ function netMerge_(d, run, h) {
   sets.forEach(function (x) {
     for (var c2 in x.row) if (x.row.hasOwnProperty(c2)) tgt[x.r - 1][hd.indexOf(c2)] = String(x.row[c2] == null ? '' : x.row[c2]).trim();
   });
+  var gone = [];
+  if (dels.length) {
+    var dm = {};
+    dels.forEach(function (r2) { dm[r2] = 1; gone.push(cur[r2 - 1]); });
+    tgt = tgt.filter(function (x, i2) { return !dm[i2 + 1]; });
+  }
   adds.forEach(function (a) {
     var nr = [];
     for (var j2 = 0; j2 < W; j2++) nr.push(a.hasOwnProperty(hd[j2]) ? String(a[hd[j2]] == null ? '' : a[hd[j2]]).trim() : '');
@@ -3879,9 +3898,10 @@ function netMerge_(d, run, h) {
   });
   /* הגיבוי — לפני השינוי הראשון, ומאומת. נכשל — לא משנים. */
   var bak = netBackup_(sh, cur);
-  var done = { status: 'ok', set: sets.length, add: adds.length, backup: bak, h: h };
+  var done = { status: 'ok', set: sets.length, add: adds.length, del: dels.length, backup: bak, h: h };
   var bad = netCommit_(sh, cur, tgt, { run: run, h: h, kind: 'merge', bak: bak, done: done });
   if (bad) return bad;
+  if (gone.length) done.arch = netArchive_(head, gone);
   if (W > netW_(cur) && cur.length) {
     try {
       sh.getRange(1, 1, 1, W).setFontWeight('bold').setBackground('#17468F').setFontColor('#FFFFFF');
@@ -3891,6 +3911,23 @@ function netMerge_(d, run, h) {
   netBakGc_([bak]);
   done.sig = netSig_(netRows_(sh));
   return done;
+}
+/* שורות שהוסרו במצב החלפה — לארכיון (פרטי), כפי שהיו. בלי מזהה,
+   ולכן אינן ברשימת הארכיון של הלוח (archiveList_) ואינן "משוחזרות"
+   ל"לומדים". הגיבוי של הלשונית כבר נעשה; זה רק תיעוד נוסף. */
+function netArchive_(head, gone) {
+  try {
+    var ash = sheet_(ARCH_TAB);
+    if (!ash.getLastRow()) headRow_(ash, ARCH_HEAD);
+    var at = new Date(), out = gone.map(function (row) {
+      var o = {}, c = function (n) { var i = head.indexOf(n); return i < 0 ? '' : String(row[i] == null ? '' : row[i]); };
+      head.forEach(function (hh, i) { if (hh) o[hh] = row[i]; });
+      return [at, '', c('פרטי'), c('משפחה'), c('קוד ישיבה'), 'תלמיד', NET_TAB_, JSON.stringify(o)];
+    });
+    var before = ash.getLastRow();
+    ash.getRange(before + 1, 1, out.length, out[0].length).setValues(out);
+    return ash.getLastRow() - before;
+  } catch (eA) { return 0; }
 }
 /* שם פנוי לגיבוי — לעולם לא מוחקים גיבוי קיים באותו שם. */
 function netBakName_(ss) {
@@ -6792,6 +6829,15 @@ function backupNow() { return backupDaily_(true); }
 var RAF_TAB = 'הגרלות';
 var RAF_NEVER = ['lapid', 'other', ''];
 var RAF_DAF = 'ב';
+/* ‼ חריגה חד-פעמית — הגרלת דף ב (18.10). להסיר אחרי שהגרלת דף ב בוצעה
+   ופורסמה, יחד עם RAF_NOQUIZ_DAF ב-learned.js (הנוסח לתלמיד).
+   הוראת הבעלים: כל מי שסיים את דף ב בתוך ההגרלה, גם בלי חידון. הכלל
+   קשור למחזור של דף ב (RAF_DAF) ולא לשבוע שעל השעון — מי שסיים את
+   דף ב אינו מאבד זכאות כשנפתח דף ג לפני ההגרלה. שאר התנאים (הורים,
+   בדיקה, לפיד, "אחר", מוסדות שלא נבחרו) — בלי שינוי.
+   שימו לב: תנאי החידון של המדיניות הרגילה עוד לא נבנה בשרת — כשהמחזור
+   יעבור לדף ג צריך לבנות אותו כאן, או שהבעלים יורה אחרת. */
+var RAF_NOQUIZ_DAF = 'ב';
 
 function rafCodes_(raw) {
   var out = [];
@@ -6815,8 +6861,9 @@ function rafTrack_(tr) {
   return '';
 }
 
-/* הזכאים, מחושבים עכשיו מהגיליון. */
-function raffleElig_(codes) {
+/* החישוב המשותף לזכאים בניהול (raffleElig_) ולתלמיד עצמו (rafMe_) —
+   אותה לוגיקה בדיוק: אנשים, איחוד חשבונות, ומי סיים איזה עמוד. */
+function rafCalc_() {
   var t = joinTable_();
   var ppl = {}, alias = aliasMap_(t.rows);
   for (var r = 1; r < t.rows.length; r++) {
@@ -6835,7 +6882,7 @@ function raffleElig_(codes) {
   /* שני חשבונות לאותו אדם (אותו טלפון ושם מלא) — היעד הוא האחרון
      שנרשם, והלימוד של כולם נספר לו. **לפני** שבודקים מי סיים: עמוד
      א בחשבון הישן ועמוד ב בחדש הם סיום אחד. */
-  var byKey = {}, target = {}, ex = [];
+  var byKey = {}, target = {};
   Object.keys(ppl).forEach(function (id) {
     var p = ppl[id];
     if (p.key) (byKey[p.key] = byKey[p.key] || []).push(p);
@@ -6876,6 +6923,19 @@ function raffleElig_(codes) {
   Object.keys(side).forEach(function (k) {
     if (side[k].a && side[k].b) done[k.split('|')[0]] = 1;
   });
+  return { ppl: ppl, target: target, side: side, done: done, noId: noId };
+}
+/* למה אדם שסיים אינו בהגרלה — '' = בפנים (לפני בחירת המוסדות). */
+function rafWhy_(p) {
+  if (p.test) return 'test';
+  if (p.role === 'הורה') return 'par';
+  if (p.code === 'lapid') return 'lapid';
+  if (!p.code || p.code === 'other') return 'other';
+  return '';
+}
+/* הזכאים, מחושבים עכשיו מהגיליון. */
+function raffleElig_(codes) {
+  var C = rafCalc_(), ppl = C.ppl, done = C.done, noId = C.noId, ex = [];
   Object.keys(done).forEach(function (id) {
     var p = ppl[id];
     if (p.dup) ex.push({ kind: 'dup', text: (p.name + ' ' + p.last).trim() + ' · ' + p.dup +
@@ -6884,11 +6944,8 @@ function raffleElig_(codes) {
   var by = {}, skip = { other: 0, lapid: 0, out: 0, par: 0, test: 0 };
   codes.forEach(function (cd) { by[cd] = []; });
   Object.keys(done).forEach(function (id) {
-    var p = ppl[id];
-    if (p.test) { skip.test++; return; }
-    if (p.role === 'הורה') { skip.par++; return; }
-    if (p.code === 'lapid') { skip.lapid++; return; }
-    if (!p.code || p.code === 'other') { skip.other++; return; }
+    var p = ppl[id], why = rafWhy_(p);
+    if (why) { skip[why]++; return; }
     if (!by[p.code]) { skip.out++; return; }
     by[p.code].push({ id: p.id, ids: p.ids, name: p.name, last: p.last,
                       inst: p.inst, grade: p.grade, klass: p.klass });
@@ -7140,10 +7197,105 @@ function raffleRes_(P) {
   return out;
 }
 
+/* ============================================================
+   ?quizSum=1&key= — כמה ענו על החידון של השבוע, לכל מסכת (8.99.254).
+   ============================================================
+   מהלשונית "חידות". שורה שייכת לשבוע לפי "שבוע" (taanit-2); שורה
+   בלי שבוע (תשובה לשאלה בדף) — לפי "דף", כשהוא הדף של השבוע.
+   · תלמידים ייחודיים — מזהים שונים שהגיבו (לא שורות).
+   · הגשות מלאות — שלחו את החידון בסוף הדף ("החידון כולו") עם תשובה
+     לכל השאלות (תשובה = n/n).
+   הספירה: תלמידים בלבד. הורים, חשבונות בדיקה ולפיד — בחוץ, ונספרים
+   בנפרד; מזהה שאינו ב"לומדים" — בחוץ. בלי שמות: מספרים לפי מוסד. */
+function quizSum_() {
+  var wk = progWeek_(), t = joinTable_(), alias = aliasMap_(t.rows), who = {};
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r], id = t.c(row, 'מזהה');
+    if (!id) continue;
+    who[id] = { code: t.c(row, 'קוד ישיבה'), inst: t.c(row, 'ישיבה'), role: t.c(row, 'תפקיד'),
+                test: t.c(row, 'בדיקה') === 'כן' };
+  }
+  var M = [['taanit', SHIFT_TAANIT], ['megila', SHIFT_MEGILA]].map(function (x) {
+    var base = '';
+    for (var k in x[1].wk) if (x[1].wk.hasOwnProperty(k) && x[1].wk[k] === wk) { base = k.replace(/[.:]$/, ''); break; }
+    return { mas: x[0], sp: x[1], wk: wk, base: base, ids: {}, full: {}, by: {}, par: {}, test: {}, lapid: {}, unk: {} };
+  });
+  var sh = sheet_('חידות'), v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [], ix = {};
+  if (v.length) for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+  for (var i = 1; i < v.length; i++) {
+    var w = c(v[i], 'שבוע'), d = c(v[i], 'דף'), tr = '', inWk = false, m;
+    if (w && (m = w.match(/^(.+)-(\d+)$/))) { tr = rafTrack_(m[1]); inWk = +m[2] === wk; }
+    else if (d) {
+      var pr = d.split('|'), dk = String(pr[1] || '').replace(/["'׳״\s]/g, '');
+      tr = rafTrack_(pr[0]);
+      var U0 = tr ? M[tr === 'taanit' ? 0 : 1] : null;
+      inWk = !!(U0 && U0.base && dk.replace(/[.:]$/, '') === U0.base && (!/[.:]$/.test(dk) || U0.sp.wk[dk] === wk));
+    }
+    if (!tr || !inWk) continue;
+    var U = M[tr === 'taanit' ? 0 : 1], mid = c(v[i], 'מזהה'), cid = alias[mid] || mid, p = who[cid];
+    if (!cid) continue;
+    if (!p) { U.unk[cid] = 1; continue; }
+    if (p.test) { U.test[cid] = 1; continue; }
+    if (p.role === 'הורה') { U.par[cid] = 1; continue; }
+    if (p.code === 'lapid') { U.lapid[cid] = 1; continue; }
+    var b = U.by[p.code || '-'] = U.by[p.code || '-'] || { code: p.code, inst: p.inst, ids: {}, full: {} };
+    U.ids[cid] = 1; b.ids[cid] = 1;
+    var an = c(v[i], 'תשובה').match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (c(v[i], 'קטע') === 'החידון כולו' && an && +an[2] > 0 && +an[1] === +an[2]) { U.full[cid] = 1; b.full[cid] = 1; }
+  }
+  var n = function (o) { return Object.keys(o).length; };
+  return { status: 'ok', wk: wk, mas: M.map(function (U) {
+    return { mas: U.mas, wk: U.wk, n: n(U.ids), full: n(U.full),
+             out: { par: n(U.par), test: n(U.test), lapid: n(U.lapid), unk: n(U.unk) },
+             by: Object.keys(U.by).map(function (k) { var b = U.by[k]; return { code: b.code, inst: b.inst, n: n(b.ids), full: n(b.full) }; })
+                   .sort(function (a, b2) { return b2.n - a.n; }) };
+  }) };
+}
+
+/* ?raffle=me&id=&inst= — לתלמיד עצמו, לכרטיס "המסלול שלך": כמה מדף
+   ההגרלה (RAF_DAF) סיים, והאם הוא בתוך ההגרלה — מ-rafCalc_ ו-rafWhy_,
+   כמו בניהול. "בפנים" = סיים את שני העמודים, תלמיד של מוסד שבתוכנית
+   (בחירת המוסדות לפני ההגרלה היא של הרכז, ולכן אינה ידועה כאן).
+   החישוב לכולם נשמר במטמון 5 דקות; מזהה ממוסד אחר — כמו שאינו קיים. */
+function rafMe_(P) {
+  var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: RAF_DAF, a: false, b: false, inn: false };
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!inst || !mine.length) return none;
+  var rc = CacheService.getScriptCache(), M = null, hit = rc.get('raf:me');
+  if (hit) { try { M = JSON.parse(hit); } catch (x) { M = null; } }
+  if (!M) {
+    var C = rafCalc_();
+    M = {};
+    Object.keys(C.ppl).forEach(function (id) {
+      var p = C.ppl[id], to = C.target[id] || id, q = C.ppl[to] || p, a = false, b = false;
+      ['taanit', 'megila'].forEach(function (tr) {
+        var sd = C.side[to + '|' + tr];
+        /* המסכת שבה התקדם יותר — זו שמוצגת. */
+        if (sd && ((sd.a ? 1 : 0) + (sd.b ? 1 : 0)) > ((a ? 1 : 0) + (b ? 1 : 0))) { a = !!sd.a; b = !!sd.b; }
+      });
+      if (!a && !b) return;
+      var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') + (C.done[to] && !rafWhy_(q) ? '+' : '');
+      p.ids.concat([id]).forEach(function (x) { M[x] = v; });
+    });
+    try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me', js, 300); } catch (x2) {}
+  }
+  for (var i = 0; i < mine.length; i++) {
+    var v2 = M[mine[i]];
+    if (!v2) continue;
+    var pr = v2.split('|');
+    if (pr[0] !== inst) continue;
+    return { status: 'ok', daf: RAF_DAF, a: pr[1].indexOf('a') >= 0, b: pr[1].indexOf('b') >= 0, inn: pr[1].indexOf('+') >= 0 };
+  }
+  return none;
+}
+
 function raffleRoute_(e) {
   var P = e.parameter, op = String(P.raffle);
   try {
     if (op === 'res') return reply_(e, raffleRes_(P));
+    if (op === 'me') return reply_(e, rafMe_(P));
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     if (op === 'elig') return reply_(e, raffleElig_(rafCodes_(P.codes)));
     if (op === 'state') {

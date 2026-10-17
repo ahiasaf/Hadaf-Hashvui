@@ -4909,7 +4909,7 @@ function finish() {
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
-  a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz;
+  a.href = stuQuizUrl(key); a.textContent = (LRafNoQuiz(S.daf) ? UI.dnQuizNoQ : UI.dnQuiz) || '';
   sn.style.display = soon ? '' : 'none';
   if (soon) {
     $('dn-soon-t').textContent = UI.soonT;
@@ -4944,7 +4944,7 @@ function doneQPaint_() {
   if (!on) return;
   try { sent = localStorage.getItem(qSentKey_()) === '1'; } catch (e) {}
   $('dn-q-t').textContent = UI.dnQT || '';
-  $('dn-q-b').textContent = UI.dnQB || '';
+  $('dn-q-b').textContent = (LRafNoQuiz(S.daf) ? UI.dnQBNoQ : UI.dnQB) || '';
   $('dn-q-b').style.display = sent ? 'none' : '';
   $('dn-q-ok').textContent = UI.dnQSent || '';
   $('dn-q-ok').style.display = sent ? '' : 'none';
@@ -4954,7 +4954,7 @@ function doneQPaint_() {
 function qsOpen_() {
   var all = pageQs_();
   $('qs-t').textContent = UI.qsT || '';
-  $('qs-b').textContent = UI.qsB || '';
+  $('qs-b').textContent = (LRafNoQuiz(S.daf) ? UI.qsBNoQ : UI.qsB) || '';
   $('qs-send').textContent = UI.qsSend || '';
   $('qs-list').innerHTML = all.map(function (it, i) {
     var pick = qAns_(it.n, it.q);

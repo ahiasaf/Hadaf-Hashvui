@@ -1565,6 +1565,22 @@ function tpl(t, v) {
   });
 }
 
+/* תלמיד מזוהה (נרשם במכשיר הזה) של מוסד שבהגרלה — כמו raffleElig_:
+   לא הורה, לא לפיד, לא "אחר" וריק, ורק מוסד מהרשימה. */
+function wkRafMe() {
+  var me = get('me', null), c = me && String(me.inst || '');
+  if (!me || !me.id || !me.first || me.role === 'dad') return false;
+  if (!c || c === 'lapid' || c === 'other') return false;
+  for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return true;
+  return false;
+}
+/* הנוסח לפי הדף של השבוע — בדף ב (החריגה) סיום הדף, ולא החידון. */
+function wkRafBody() {
+  var t = typeof myTrack === 'function' ? myTrack() : '';
+  var d = typeof LDaf === 'function' && typeof LWeek === 'function' ? LDaf(t, Math.max(0, LWeek())) : '';
+  return (LRafNoQuiz(d) ? JOIN.wkBodyNoQ : JOIN.wkBody) || JOIN.wkBody;
+}
+
 /* ---------- ציור הראש ----------
    נקרא פעמיים: מיד מהמטמון, ושוב אחרי שהגיליון ענה. */
 function drawTop() {
@@ -1643,8 +1659,9 @@ function drawTop() {
       '<span><b>' + esc(t) + '</b><span>' + esc(body) + '</span></span></div>' : '';
   };
   var cards = '';
-  if (pub.weekRaffle) cards += card('gold', '🎲', JOIN.wkTag,
-                            (forDad && JOIN.wkBodyDad) || JOIN.wkBody);
+  /* כרטיס ההגרלה השבועית — רק למי שכבר זוהה כתלמיד של מוסד שבהגרלה.
+     לפני שהזהות ידועה, להורה, ולתלמיד לפיד או "אחר" — אינו מוצג. */
+  if (pub.weekRaffle && wkRafMe()) cards += card('gold', '🎲', JOIN.wkTag, wkRafBody());
   if (pub.raffle)     cards += card('gold', '🎁', JOIN.jnTag,
                             JOIN.rfPrize || JOIN.jnBody);
   /* **"הדף כמו שלא ראית" — לאב בלבד.** התלמיד רואה את הדף
