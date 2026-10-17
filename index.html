@@ -802,6 +802,9 @@ body.tk-sheeting #tk-bar{display:none}
 .ym-step p{margin:5px 0 8px;font-size:.9rem;color:var(--ink-2);font-weight:600}
 .ym-step img{display:block;width:100%;max-width:378px;border-radius:12px;box-shadow:var(--sh-1)}
 .ym-step p.ym-pic{font-size:.78rem;color:var(--ink-3);margin-top:6px}
+.ym-go{margin-bottom:10px}
+/* הלוגו של יומי בכרטיס — באותו תא של האיור בכרטיס הדף האינטראקטיבי */
+.wc-pic.wc-ym{width:72px;height:104px}
 
 .wtop{display:flex;justify-content:space-between;align-items:center;gap:12px;
   background:var(--surface);border-radius:var(--r);padding:15px;box-shadow:var(--sh-2)}
@@ -2924,7 +2927,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.259';
+var APP_VERSION = '8.99.260';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5878,10 +5881,13 @@ function openWeek(id, i) {
                 esc(UI.wkSugAlt) + '"></span>', 'sugya')
          : '') +
        /* יומי — במסכת מגילה בלבד, וכבוי עד שהרכז מדליק בניהול.
-          אין כאן קישור לאפליקציה: הוא טרם נקבע, ולא ממציאים. */
+          הכרטיס פותח את המדריך, והיציאה ליומי עצמה נמצאת בסופו.
+          הלוגו הוא הנכס המקורי של יומי, בעותק מקומי — כדי שלא
+          לטעון תמונה מאתר אחר בכל פתיחה. */
        (id === 'megila' && showRow('yomi')
-         ? '<button class="wcard small" onclick="yomiGuide()"><span class="wc-t">' +
-           esc(UI.wkYomi) + '<small>' + esc(UI.wkYomiSub) + '</small></span>' + go + '</button>'
+         ? '<button class="wcard" onclick="yomiGuide()">' +
+           '<img class="wc-pic wc-ym" src="weekpics/yomi-logo.svg" alt="">' +
+           '<span class="wc-t">' + esc(UI.wkYomi) + '<small>' + esc(UI.wkYomiSub) + '</small></span>' + go + '</button>'
          : '') +
        /* צורת הדף והחברותא — כבויים כברירת מחדל, ונשארים בידי הרכז. */
        (showRow('daf')  ? card(lk[0], 'small', '<span class="wc-t">צורת הדף<small>הדף להדפסה</small></span>') : '') +
@@ -21631,7 +21637,12 @@ function yomiGuide() {
          '<img src="weekpics/yomi' + k + '.webp" alt="" loading="lazy">' +
          (k === 4 && UI.yomi4Pic ? '<p class="ym-pic">' + esc(UI.yomi4Pic) + '</p>' : '') + '</div>';
   }
-  h += '<button class="btn gr" onclick="sheetClose()">' + esc(UI.yomiOk) + '</button></div>';
+  /* היציאה ליומי — בלשונית חדשה, כדי שהאתר שלנו יישאר פתוח
+     ואפשר יהיה לחזור אליו. זה קישור הכניסה ליומי ולא לדף
+     מסוים: מי שאינו מחובר יגיע שם להצטרפות, וזה צפוי. */
+  if (UI.yomiUrl) h += '<a class="btn gr ym-go" href="' + esc(UI.yomiUrl) + '" target="_blank" rel="noopener" ' +
+                       'onclick="sheetClose()">' + esc(UI.yomiGo) + '</a>';
+  h += '<button class="btn ' + (UI.yomiUrl ? 'g' : 'gr') + '" onclick="sheetClose()">' + esc(UI.yomiOk) + '</button></div>';
   document.getElementById('sheet-t').textContent = UI.yomiT;
   document.getElementById('sheet-l').innerHTML = h;
   document.getElementById('sheet').className = 'on';
