@@ -994,11 +994,18 @@ body.tk-sheeting #tk-bar{display:none}
   border-radius:999px;padding:6px 13px}
 .sn-share svg{width:14px;height:14px;fill:currentColor}
 
-/* הטיפ של החוברת */
-.sg-tip{padding:4px 8px 10px;line-height:1.85}
-.sg-tip p{margin:0 0 10px;font-size:.93rem;font-weight:600}
-.sg-tip p b{font-weight:800}
-.sg-bar{display:flex;justify-content:center;gap:4px;margin:18px auto 34px;padding:8px 10px;
+/* הטיפ של החוברת.
+   משפחת כתב אחת ושתי רמות בלבד: גוף רגיל ופעולה מודגשת. התוכן
+   ברוחב קריאה ולא על כל רוחב המחשב, וההסבר על מסך מלא והסרגל
+   המצויר הם יחידה אחת — כדי שהחץ לא יישאר בלי ההסבר שלו. */
+#sheet .panel.sg .hd b{font-size:1.22rem}
+.sg-tip{max-width:34rem;margin:0 auto;padding:2px 6px 10px;line-height:1.7;
+  font-size:1.04rem;font-weight:500}
+.sg-tip p{margin:0 0 14px}
+.sg-zoom{background:var(--sunk);border-radius:var(--r-s);padding:16px 14px 14px;margin:0 0 14px}
+.sg-zoom p{margin:0;font-weight:800}
+.sg-zoom .sg-rot{margin-top:2px;font-weight:500;font-size:.95rem;color:var(--ink-2)}
+.sg-bar{display:flex;justify-content:center;gap:4px;margin:16px auto 40px;padding:8px 10px;
   width:max-content;max-width:100%;background:#2E2E33;border-radius:13px;direction:ltr}
 .sg-i{position:relative;display:flex;align-items:center;justify-content:center;
   width:36px;height:36px;border-radius:9px;color:rgba(255,255,255,.5)}
@@ -1007,10 +1014,17 @@ body.tk-sheeting #tk-bar{display:none}
   box-shadow:0 0 0 3px rgba(227,180,74,.35)}
 /* החץ יושב מתחת לכפתור עצמו ולא במרכז הסרגל. במרכז הוא הצביע
    על הכפתור השכן — וזו הודעה שכל תפקידה להצביע נכון. */
-.sg-i.hot::after{content:'▲ זה הכפתור';position:absolute;top:calc(100% + 5px);
-  left:50%;transform:translateX(-50%);white-space:nowrap;direction:rtl;
-  font-size:.76rem;font-weight:800;color:var(--gold)}
-.sg-tip .btn{margin-top:6px}
+.sg-here{position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);
+  white-space:nowrap;direction:rtl;font-size:.86rem;font-weight:800;line-height:1.2;
+  color:#7A5410;background:#FBEFD2;border-radius:999px;padding:3px 10px 4px}
+.sg-here::before{content:'';position:absolute;bottom:100%;left:50%;margin-left:-6px;
+  border:6px solid transparent;border-bottom-color:#FBEFD2}
+.sg-back{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:12px 14px;
+  border-radius:var(--r-s);background:var(--accent-soft);color:var(--blue);
+  border:1.5px solid rgba(30,79,160,.2);
+  font-size:1.06rem;font-weight:800;line-height:1.55}
+.sg-back img{width:46px;height:68px;object-fit:contain;flex:none;mix-blend-mode:multiply}
+.sg-tip .btn{margin-top:4px}
 #sheet .it.on{background:var(--accent-soft);color:var(--blue)}
 #sheet .it .tick{width:18px;flex:none;font-size:.85rem;color:var(--blue);opacity:0}
 #sheet .it.on .tick{opacity:1}
@@ -2910,7 +2924,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.258';
+var APP_VERSION = '8.99.259';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -21571,24 +21585,29 @@ function sugyaTip(href) {
     '<circle cx="15" cy="15.5" r="2.4"/><path d="M7 8.8l6-3.3M7 11.2l6 3.3" stroke="currentColor" ' +
     'stroke-width="1.5" fill="none"/></svg>';
 
-  document.getElementById('sheet-t').textContent = 'רגע לפני החוברת';
+  document.getElementById('sheet-t').textContent = UI.sugT;
+  document.querySelector('#sheet .panel').className = 'panel sg';
   document.getElementById('sheet-l').innerHTML =
     '<div class="sg-tip">' +
-      '<p>החוברת נפתחת ישר בעמוד של הדף שלכם — אבל היא נפתחת קטנה, ' +
-      'וכך קשה לקרוא בטלפון.</p>' +
-      '<p><b>בסרגל שבתחתית החוברת יש כפתור מסך מלא. הקישו עליו, ' +
-      'והדף ימלא את המסך.</b></p>' +
-      /* החוברת בנויה לעמוד רחב, והטלפון מציג אותה לגובה. סיבוב
-         המכשיר לרוחב מכפיל את גודל הכתב בלי לגעת בכלום. */
-      '<p>ואם המכשיר מסובב לרוחב — הכתב גדול עוד יותר.</p>' +
-      (UI.sugBack ? '<p><b>' + esc(UI.sugBack) + '</b></p>' : '') +
-      /* אותו סדר שבסרגל האמיתי, ומשמאל לימין כמוהו — ההודעה
-         מראה מה שיראו, לא תרגום שלו. */
-      '<div class="sg-bar">' +
-        sugIcon(0, sq) + sugIcon(0, pl) + sugIcon(0, mn) +
-        sugIcon(1, ex) + sugIcon(0, sh) + sugIcon(0, dt) +
+      '<p>' + esc(UI.sug1) + '</p>' +
+      '<div class="sg-zoom">' +
+        '<p>' + esc(UI.sug2) + '</p>' +
+        /* אותו סדר שבסרגל האמיתי, ומשמאל לימין כמוהו — ההודעה
+           מראה מה שיראו, לא תרגום שלו. */
+        '<div class="sg-bar">' +
+          sugIcon(0, sq) + sugIcon(0, pl) + sugIcon(0, mn) +
+          sugIcon(1, ex + '<span class="sg-here">' + esc(UI.sugHere) + '</span>') +
+          sugIcon(0, sh) + sugIcon(0, dt) +
+        '</div>' +
+        /* החוברת בנויה לעמוד רחב, והטלפון מציג אותה לגובה. סיבוב
+           המכשיר לרוחב מכפיל את גודל הכתב בלי לגעת בכלום. */
+        '<p class="sg-rot">' + esc(UI.sug3) + '</p>' +
       '</div>' +
-      '<button class="btn gr" id="sg-go">הבנתי — לפתוח את החוברת</button>' +
+      /* אותו איור של כרטיס הדף האינטראקטיבי במסך השבוע, כדי
+         שיזהו לאן חוזרים. */
+      (UI.sugBack ? '<div class="sg-back"><img src="weekpics/phone.webp" alt="">' +
+        '<span>' + esc(UI.sugBack) + '</span></div>' : '') +
+      '<button class="btn gr" id="sg-go">' + esc(UI.sugGo) + '</button>' +
     '</div>';
   document.getElementById('sheet').className = 'on';
   document.getElementById('sg-go').onclick = function () {
@@ -21627,7 +21646,11 @@ document.addEventListener('click', function (e) {
   e.preventDefault();
   sugyaTip(a.getAttribute('href'));
 }, true);
-function sheetClose() { document.getElementById('sheet').className = ''; }
+function sheetClose() {
+  document.getElementById('sheet').className = '';
+  /* עיצוב החוברת שייך רק לחלון שלה, לא לבוחר הבא שייפתח */
+  document.querySelector('#sheet .panel').className = 'panel';
+}
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && document.getElementById('sheet').className === 'on') sheetClose();
 });
