@@ -803,8 +803,10 @@ body.tk-sheeting #tk-bar{display:none}
 .ym-step img{display:block;width:100%;max-width:378px;border-radius:12px;box-shadow:var(--sh-1)}
 .ym-step p.ym-pic{font-size:.78rem;color:var(--ink-3);margin-top:6px}
 .ym-go{margin-bottom:10px}
-/* הלוגו של יומי בכרטיס — באותו תא של האיור בכרטיס הדף האינטראקטיבי */
-.wc-pic.wc-ym{width:72px;height:104px}
+/* הלוגו של יומי בכרטיס — גבוה מרוחב הלוגו של הסוגיה, ולכן לפי גובה */
+.wc-logo img.wc-ym{width:auto;max-width:100%;height:88px}
+.ym-skip{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin-top:18px;font-size:.92rem;font-weight:800;color:var(--ink-2)}
 
 .wtop{display:flex;justify-content:space-between;align-items:center;gap:12px;
   background:var(--surface);border-radius:var(--r);padding:15px;box-shadow:var(--sh-2)}
@@ -2927,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.260';
+var APP_VERSION = '8.99.261';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5881,13 +5883,14 @@ function openWeek(id, i) {
                 esc(UI.wkSugAlt) + '"></span>', 'sugya')
          : '') +
        /* יומי — במסכת מגילה בלבד, וכבוי עד שהרכז מדליק בניהול.
-          הכרטיס פותח את המדריך, והיציאה ליומי עצמה נמצאת בסופו.
+          הכרטיס הוא הלוגו לבדו, כמו הסוגיה היומית. הוא פותח את
+          המדריך, והיציאה ליומי עצמה נמצאת בסופו — או ישר ליומי,
+          למי שסימן במדריך שאינו צריך אותו (yomiCard).
           הלוגו הוא הנכס המקורי של יומי, בעותק מקומי — כדי שלא
           לטעון תמונה מאתר אחר בכל פתיחה. */
        (id === 'megila' && showRow('yomi')
-         ? '<button class="wcard" onclick="yomiGuide()">' +
-           '<img class="wc-pic wc-ym" src="weekpics/yomi-logo.svg" alt="">' +
-           '<span class="wc-t">' + esc(UI.wkYomi) + '<small>' + esc(UI.wkYomiSub) + '</small></span>' + go + '</button>'
+         ? '<button class="wcard" onclick="yomiCard()"><span class="wc-logo">' +
+           '<img class="wc-ym" src="weekpics/yomi-logo.svg" alt="' + esc(UI.wkYomi) + '"></span>' + go + '</button>'
          : '') +
        /* צורת הדף והחברותא — כבויים כברירת מחדל, ונשארים בידי הרכז. */
        (showRow('daf')  ? card(lk[0], 'small', '<span class="wc-t">צורת הדף<small>הדף להדפסה</small></span>') : '') +
@@ -21628,6 +21631,19 @@ function sugyaTip(href) {
    ארבעה שלבים, כל אחד עם הצילום שלו. הצילומים חתוכים כך שאין
    בהם שם או תמונת פרופיל. הצילום של שלב 4 מראה מסלול אחר —
    הוא דוגמה לחצים, ולא מוצג כאילו מגילה כבר פתוחה שם. */
+/* "אני כבר לא צריך הדרכה" — במכשיר הזה בלבד. דלוק: הכרטיס
+   פותח ישר את יומי. בלי כתובת — תמיד המדריך. */
+function yomiSkipOn() { return Store.get('yomiSkip') === 1; }
+function yomiCard() {
+  if (yomiSkipOn() && UI.yomiUrl) window.open(UI.yomiUrl, '_blank', 'noopener');
+  else yomiGuide();
+}
+function yomiSkipToggle(b) {
+  var on = !yomiSkipOn();
+  if (on) Store.set('yomiSkip', 1); else Store.del('yomiSkip');
+  b.className = 'sw' + (on ? ' on' : '');
+  b.setAttribute('aria-checked', on ? 'true' : 'false');
+}
 function yomiGuide() {
   var h = '<div>' +
     (UI.yomiNote ? '<p class="ym-note">' + esc(UI.yomiNote) + '</p>' : '');
@@ -21642,7 +21658,14 @@ function yomiGuide() {
      מסוים: מי שאינו מחובר יגיע שם להצטרפות, וזה צפוי. */
   if (UI.yomiUrl) h += '<a class="btn gr ym-go" href="' + esc(UI.yomiUrl) + '" target="_blank" rel="noopener" ' +
                        'onclick="sheetClose()">' + esc(UI.yomiGo) + '</a>';
-  h += '<button class="btn ' + (UI.yomiUrl ? 'g' : 'gr') + '" onclick="sheetClose()">' + esc(UI.yomiOk) + '</button></div>';
+  h += '<button class="btn ' + (UI.yomiUrl ? 'g' : 'gr') + '" onclick="sheetClose()">' + esc(UI.yomiOk) + '</button>';
+  if (UI.yomiUrl) {
+    var sk = yomiSkipOn();
+    h += '<div class="ym-skip"><span>' + esc(UI.yomiSkip) + '</span>' +
+         '<button class="sw' + (sk ? ' on' : '') + '" role="switch" aria-checked="' + sk + '" ' +
+         'aria-label="' + esc(UI.yomiSkip) + '" onclick="yomiSkipToggle(this)"></button></div>';
+  }
+  h += '</div>';
   document.getElementById('sheet-t').textContent = UI.yomiT;
   document.getElementById('sheet-l').innerHTML = h;
   document.getElementById('sheet').className = 'on';
