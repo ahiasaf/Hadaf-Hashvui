@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 73;
+var SCRIPT_VERSION = 74;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7743,6 +7743,114 @@ function testEnd_(S) {
   return { status: 'ok', del: out, realSame: sig(real0) === sig(real1), real: sig(real1) };
 }
 
+/* ============================================================
+   פרסום הגרלת הבדיקה — מצב לכל אחת משתי השליחות (8.99.257).
+   ============================================================
+   לכל שליחה (w — הזוכה, g — הלא־זוכה) מצב משלה:
+     none — לא התחילה · pend — בדרך (נשמר לפני הקריאה) · sent — GitHub
+     קיבל את בקשת השיגור · fail — נדחתה · unk — לא ידוע.
+   "sent" **אינו מסירה**: המסירה בפועל — ב"מסירות" וביומן (testDlv_).
+   "פורסם" רק כששתיהן sent; אחרת "חלקי"/"נכשל"/"לא ידוע" — והלקוח
+   מקבל את שני המצבים.
+
+   **ניסיון חוזר** — רק למה שלא יצא, באותו סשן, לאותם מזהי דמה ולמכשירים
+   שאושרו (הקהל נבדק שוב — מכשיר שלא אושר עוצר הכול), ובאותו מזהה
+   הודעה קבוע (`trf-<rid>-w/g`), כך שמניעת הכפל של push-send.js חלה.
+   שליחה במצב pend/unk מיושבת קודם מול היומן ("הודעות") והמסירות:
+   נמצאה — sent/fail לפיהן; לא נמצאה — נשארת "לא ידוע", ונשלחת שוב רק
+   בבקשה מפורשת (`force`), עדיין באותו מזהה. */
+function testMid_(S, k) { return 'trf-' + S.raf.rid + '-' + k; }
+function testTouched_(R) {
+  return ['w', 'g'].some(function (k) { return R[k] && R[k].st && R[k].st !== 'none' && R[k].st !== 'fail'; });
+}
+/* השורה האחרונה ביומן לאותו מזהה הודעה. */
+function testLog_(mid) {
+  var sh = sheet_('הודעות');
+  if (sh.getLastRow() < 2) return null;
+  var v = sh.getDataRange().getDisplayValues(), h = {};
+  for (var i = 0; i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+  var g = function (r, k) { return h[k] === undefined ? '' : String(v[r][h[k]] || '').trim(); };
+  for (var r = v.length - 1; r >= 1; r--) {
+    if (g(r, 'מזהה הודעה') !== mid) continue;
+    var res = g(r, 'תוצאה'), st = g(r, 'סטטוס שליחה'), got = g(r, 'קיבלו');
+    /* נכשלה כבר בכתיבה, ואין דיווח ריצה (קיבלו ריק): דחייה מפורשת של
+       GitHub או הגדרה חסרה — לא יצאה (false); חריגה/פסק זמן — אולי
+       יצאה, לא ידוע (null). */
+    var acc = true;
+    if (st === 'נכשל' && got === '' && /^נכשלה/.test(res)) {
+      acc = /^נכשלה: (GitHub החזיר|לא הוגדר)/.test(res) ? false : null;
+    }
+    return { acc: acc, res: res, st: st, got: got };
+  }
+  return null;
+}
+/* המסירה בפועל — המצב האחרון של כל מכשיר ב"מסירות". */
+function testDlv_(mid) {
+  var out = { log: testLog_(mid), dev: {} };
+  try {
+    var sh = sheet_('מסירות');
+    if (sh.getLastRow() > 1) {
+      var v = sh.getDataRange().getDisplayValues(), h = {}, last = {};
+      for (var i = 0; i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+      for (var r = 1; r < v.length; r++) {
+        if (String(v[r][h['מזהה הודעה']] || '').trim() !== mid) continue;
+        var stt = String(v[r][h['מצב']] || '').trim();
+        String(v[r][h['מכשירים']] || '').split(',').forEach(function (p) { if (p) last[p.trim()] = stt; });
+      }
+      Object.keys(last).forEach(function (p) { out.dev[last[p]] = (out.dev[last[p]] || 0) + 1; });
+    }
+  } catch (e) {}
+  return out;
+}
+function testPub_(S, P) {
+  if (!S.raf) return { status: 'error', message: 'אין הגרלת בדיקה' };
+  var R = S.raf;
+  R.w = R.w || { st: 'none' }; R.g = R.g || { st: 'none' };
+  if (R.st === 'פורסם') return { status: 'ok', again: 1, done: true, w: R.w, g: R.g, raf: R };
+  /* כשל סגור — לפני כל שליחה, גם בניסיון חוזר. */
+  var A2 = testAud_(S);
+  if (A2.bad) return { status: 'denied', message: 'יש מכשיר של זהות בדיקה שלא אושר — אשרו את המכשירים שוב' };
+  if (!A2.w.length || !A2.g.length) return { status: 'denied', message: 'לאחד מתלמידי הבדיקה אין מכשיר מאושר עם התראות' };
+  var tW = String(P.wt || '').trim(), bW = String(P.wb || '').trim();
+  var tA = String(P.at || '').trim(), bA = String(P.ab || '').trim();
+  if (!bW || !bA) return { status: 'error', message: 'חסר נוסח לאחת ההודעות' };
+  var force = String(P.force || '') === '1';
+  var parts = [
+    { k: 'w', go: function () { return ghFire_(tW, bW, '', '', '', 'הגרלת בדיקה', 'hagrala', '', '',
+        JSON.stringify({ ids: [R.win], subs: A2.w }), false, testMid_(S, 'w'), 'בדיקה — זוכה'); } },
+    { k: 'g', go: function () { return ghFire_(tA, bA, '', '', '', 'הגרלת בדיקה', 'hagrala', 'תלמיד', '',
+        JSON.stringify({ ids: [R.lose], subs: A2.g }), false, testMid_(S, 'g'), 'בדיקה — לא זוכה'); } }
+  ];
+  parts.forEach(function (x) {
+    var o = R[x.k];
+    /* מיישבים מה שלא ידוע — מול היומן והמסירות. */
+    if (o.st === 'pend' || o.st === 'unk') {
+      var L = testLog_(testMid_(S, x.k)), D = testDlv_(testMid_(S, x.k));
+      if (L && L.acc !== null) o.st = L.acc ? 'sent' : 'fail';
+      else if (Object.keys(D.dev).length) o.st = 'sent';
+      else o.st = 'unk';
+    }
+    if (o.st === 'sent') return;
+    if (o.st === 'unk' && !force) return;
+    o.st = 'pend'; o.at = new Date().toISOString(); o.msg = '';
+    testSave_(S);
+    try {
+      var r = x.go();
+      /* ghFire_: 'ok' — התקבלה; דחייה עם קוד HTTP או הגדרה חסרה — לא
+         יצאה; שגיאה בלי קוד (חריגה, פסק זמן) — אולי יצאה: לא ידוע. */
+      o.st = r && r.status === 'ok' ? 'sent' : r && (r.code || r.status === 'denied') ? 'fail' : 'unk';
+      o.msg = r && r.status !== 'ok' ? String(r.message || '') : '';
+    } catch (err) { o.st = 'unk'; o.msg = String(err); }
+    testSave_(S);
+  });
+  var n = function (st) { return (R.w.st === st ? 1 : 0) + (R.g.st === st ? 1 : 0); };
+  R.st = n('sent') === 2 ? 'פורסם' : n('unk') || n('pend') ? 'לא ידוע' : n('sent') ? 'חלקי' : 'נכשל';
+  if (R.st === 'פורסם') R.pubAt = new Date().toISOString();
+  testSave_(S);
+  try { CacheService.getScriptCache().remove('raf:me'); } catch (xc) {}
+  return { status: 'ok', done: R.st === 'פורסם', w: R.w, g: R.g, raf: R };
+}
+
 function testRoute_(e) {
   var P = e.parameter, op = String(P.test);
   try {
@@ -7820,7 +7928,11 @@ function testRoute_(e) {
       if (op === 'raf') {
         var a = testSlot_(S, 'a'), b = testSlot_(S, 'b');
         if (!a.id || !b.id) return reply_(e, { status: 'error', message: 'שני תלמידי הבדיקה צריכים להירשם קודם' });
-        if (S.raf && S.raf.st === 'פורסם') return reply_(e, { status: 'error', message: 'הגרלת הבדיקה כבר פורסמה' });
+        /* הגרלה חדשה רק כשאף שליחה לא יצאה ולא ממתינה — אחרת מזהה הודעה
+           חדש היה עוקף את מניעת הכפל. */
+        if (S.raf && (S.raf.st === 'פורסם' || testTouched_(S.raf))) {
+          return reply_(e, { status: 'error', message: 'כבר יצאה שליחה בהגרלת הבדיקה הזו' });
+        }
         S.raf = { rid: 'TR' + Date.now().toString(36), win: a.id, lose: b.id, st: 'הוגרל',
                   at: new Date().toISOString() };
         testSave_(S);
@@ -7831,26 +7943,10 @@ function testRoute_(e) {
         var A = testAud_(S);
         return reply_(e, { status: 'ok', w: A.w.length, g: A.g.length, bad: A.bad });
       }
-      if (op === 'pub') {
+      if (op === 'pub') return reply_(e, testPub_(S, P));
+      if (op === 'dlv') {
         if (!S.raf) return reply_(e, { status: 'error', message: 'אין הגרלת בדיקה' });
-        if (S.raf.st === 'פורסם') return reply_(e, { status: 'ok', again: 1 });
-        var A2 = testAud_(S);
-        if (A2.bad) return reply_(e, { status: 'denied', message: 'יש מכשיר של זהות בדיקה שלא אושר — אשרו את המכשירים שוב' });
-        if (!A2.w.length || !A2.g.length) return reply_(e, { status: 'denied', message: 'לאחד מתלמידי הבדיקה אין מכשיר מאושר עם התראות' });
-        var tW = String(P.wt || '').trim(), bW = String(P.wb || '').trim();
-        var tA = String(P.at || '').trim(), bA = String(P.ab || '').trim();
-        if (!bW || !bA) return reply_(e, { status: 'error', message: 'חסר נוסח לאחת ההודעות' });
-        S.raf.st = 'פורסם'; S.raf.pubAt = new Date().toISOString();
-        testSave_(S);
-        try { CacheService.getScriptCache().remove('raf:me'); } catch (xc) {}
-        var out = { status: 'ok' };
-        out.w = ghFire_(tW, bW, '', '', '', 'הגרלת בדיקה', 'hagrala', '', '',
-                        JSON.stringify({ ids: [S.raf.win], subs: A2.w }), false,
-                        'trf-' + S.raf.rid + '-w', 'בדיקה — זוכה');
-        out.g = ghFire_(tA, bA, '', '', '', 'הגרלת בדיקה', 'hagrala', 'תלמיד', '',
-                        JSON.stringify({ ids: [S.raf.lose], subs: A2.g }), false,
-                        'trf-' + S.raf.rid + '-g', 'בדיקה — לא זוכה');
-        return reply_(e, out);
+        return reply_(e, { status: 'ok', w: testDlv_(testMid_(S, 'w')), g: testDlv_(testMid_(S, 'g')), raf: S.raf });
       }
       if (op === 'end') return reply_(e, testEnd_(S));
       return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });

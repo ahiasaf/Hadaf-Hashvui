@@ -2910,7 +2910,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.257';
+var APP_VERSION = '8.99.258';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14478,12 +14478,30 @@ function tmCopy(k) {
 function tmDevs() { tmCall({ test: 'devs' }, function (d) { tmSet(d); tmAud = null; }); }
 function tmRaf() { tmCall({ test: 'raf' }, function (d) { tmSet(d); tmAud = null; }); }
 function tmPrep() { tmCall({ test: 'aud' }, function (d) { tmAud = d; }); }
-function tmPub() {
+/* השליחה — מצב לכל אחת משתי ההודעות (testPub_ בשרת). "הצלחה" רק
+   כששתיהן התקבלו לשיגור, וגם אז זו עדיין לא מסירה (tmDlv).
+   `force` — רק למה שבמצב "לא ידוע", באותו מזהה הודעה (בלי כפל). */
+var tmDl = null;
+function tmPub(force) {
   if (!tmAud || tmAud.bad || !tmAud.w || !tmAud.g) return;
-  if (!confirm(fill(UI.tmPubQ, { w: tmAud.w, g: tmAud.g }))) return;
-  tmCall({ test: 'pub', wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB }, function () {
-    tmMsg = UI.tmPubd; tmAud = null; tmLoad();
+  if (!confirm(fill(force ? UI.tmForceQ : UI.tmPubQ, { w: tmAud.w, g: tmAud.g }))) return;
+  var p = { test: 'pub', wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB };
+  if (force) p.force = '1';
+  tmCall(p, function (d) {
+    if (tmS && d.raf) tmS.raf = d.raf;
+    tmMsg = d.done ? UI.tmPubd : UI.tmPubPart;
+    tmDl = null;
   });
+}
+function tmDlv() { tmCall({ test: 'dlv' }, function (d) { tmDl = d; if (tmS && d.raf) tmS.raf = d.raf; }); }
+function tmPartHtml(k, o) {
+  o = o || { st: 'none' };
+  var dl = tmDl && tmDl[k], L = dl && dl.log, dv = dl ? Object.keys(dl.dev).map(function (x) { return x + ' ' + dl.dev[x]; }).join(' · ') : '';
+  return '<div class="prow2 ' + (o.st === 'sent' ? 'ok' : 'warn') + '"><span class="pm">' + (o.st === 'sent' ? '✓' : '–') + '</span>' +
+    '<div style="flex:1"><b>' + esc(UI[k === 'w' ? 'tmPartW' : 'tmPartG']) + '</b><span>' +
+    esc(UI['tmSt_' + o.st] || o.st) + (o.msg ? ' · ' + esc(o.msg) : '') + '</span>' +
+    (dl ? '<span>' + esc(L ? fill(UI.tmDlvRun, { r: L.res || '—' }) : UI.tmDlvNone) + (dv ? ' · ' + esc(dv) : '') + '</span>' : '') +
+    '</div></div>';
 }
 function tmFin() {
   if (!confirm(UI.tmEndQ)) return;
@@ -14539,19 +14557,25 @@ function admTest() {
   if (!R0) {
     h += '<p class="h">' + esc(UI.tmRafLead) + '</p>' +
       '<button class="btn p"' + dis + ' onclick="tmRaf()">' + esc(UI.tmRafGo) + '</button>';
-  } else if (R0.st !== 'פורסם') {
-    h += '<p class="h">' + esc(fill(UI.tmRafSt, { rid: R0.rid })) + '<br>' + esc(UI.tmNotRun) + '</p>';
-    if (!tmAud) h += '<button class="btn p"' + dis + ' onclick="tmPrep()">' + esc(UI.rafPrep) + '</button>';
-    else {
+  } else {
+    var R1 = R0, any = R1.w || R1.g, unk = [R1.w, R1.g].some(function (o) { return o && (o.st === 'unk' || o.st === 'pend'); });
+    var todo = R1.st !== 'פורסם';
+    h += '<p class="h">' + esc(fill(UI.tmRafSt, { rid: R1.rid })) + ' · <b>' + esc(R1.st) + '</b><br>' +
+      esc(R1.st === 'פורסם' ? UI.tmAccNote : UI.tmNotRun) + '</p>';
+    if (any) h += '<div class="plist">' + tmPartHtml('w', R1.w) + tmPartHtml('g', R1.g) + '</div>';
+    if (todo && !tmAud) h += '<button class="btn p"' + dis + ' onclick="tmPrep()">' + esc(UI.rafPrep) + '</button>';
+    else if (todo) {
+      var blk = tmBusy || tmAud.bad || !tmAud.w || !tmAud.g;
       h += '<p class="h"><b>' + esc(fill(UI.tmAud, { w: tmAud.w, g: tmAud.g })) + '</b>' +
         (tmAud.bad ? '<br><span style="color:var(--stop)">' + esc(fill(UI.tmAudBad, { n: tmAud.bad })) + '</span>' : '') +
         (!tmAud.w || !tmAud.g ? '<br><span style="color:var(--stop)">' + esc(UI.tmAudNone) + '</span>' : '') + '</p>' +
         '<p class="h">' + esc(UI.rafWinT) + ' — ' + esc(UI.rafWinB) + '<br>' + esc(UI.rafAllT) + ' — ' + esc(UI.rafAllB) + '</p>' +
-        '<button class="btn p"' + (tmBusy || tmAud.bad || !tmAud.w || !tmAud.g ? ' disabled' : '') +
-        ' onclick="tmPub()">' + esc(UI.tmPubBtn) + '</button>';
+        '<button class="btn p"' + (blk ? ' disabled' : '') + ' onclick="tmPub()">' + esc(any ? UI.tmRetry : UI.tmPubBtn) + '</button>' +
+        (unk ? '<p class="h" style="color:var(--stop);margin-top:8px">' + esc(UI.tmUnkHow) + '</p>' +
+          '<button class="btn g"' + (blk ? ' disabled' : '') + ' onclick="tmPub(true)">' + esc(UI.tmForce) + '</button>' : '');
     }
-  } else {
-    h += '<p class="h"><b>' + esc(UI.tmRafPubd) + '</b><br>' + esc(UI.tmRafNext) + '</p>';
+    if (any) h += '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="tmDlv()">' + esc(UI.tmDlvBtn) + '</button>';
+    if (R1.st === 'פורסם') h += '<p class="h">' + esc(UI.tmRafNext) + '</p>';
   }
 
   h += '<div class="pp-h">' + esc(UI.tmEndBtnH) + '</div>' +
@@ -17873,6 +17897,9 @@ function amdaQzAsk() {
     t.qz = b.getAttribute('data-qz') === '1';
     Store.set('amdaSess', t);
     d.parentNode.removeChild(d);
+    /* נשאל אחרי מעבר לדף השבועי — התיקון שממתין נבנה מחדש עם התשובה. */
+    var fx = Store.get('amdaFix', null);
+    if (fx && fx.day === amdaDay() && fx.slot === t.slot) amdaKindSet(t.kind);
     amdaPaint();
   };
 }
@@ -17903,6 +17930,7 @@ function amdaFinAsk() {
       line(n ? fill(amdaT('finN'), { n: n }) : amdaT('finN0')) +
       line(amdaT(daf ? 'chipD' : 'chipO') + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
       (daf && s.lv !== AMDA_LV[2] ? line(amdaT(s.qz && was === 'd' ? 'finQzY' : 'finQzN')) : '') +
+      (Store.get('amdaFix', null) ? line(amdaT('finFix')) : '') +
       (own ? '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
         esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (daf ? ' on' : '') +
         '" data-ek="t" aria-label="' + esc(amdaT('exitD')) + '"></button></div>' : '') +
@@ -17921,21 +17949,25 @@ function amdaFinAsk() {
     if (k === 'x') {
       pick.forEach(function (x) { amdaMarkRec(amdaSt.g, amdaSt.c, x); });
       amdaSt.sel = {};
-      amdaSave(d, now !== was ? now : '');
+      /* תיקון הסוג נשמר במכשיר לפני השמירה — ועובר בכל ניסיון. */
+      if (now !== was) amdaKindPrep(now);
+      amdaSave(d);
     }
-    if (k === 'r') amdaSave(d, '');
+    if (k === 'r') amdaSave(d);
     if (k === 'q') { d.parentNode.removeChild(d); amdaClose(true); }
   };
 }
-function amdaSave(d, kind) {
-  var tries = 0, kOk = !kind, kDone = !kind;
+function amdaSave(d) {
+  /* התיקון שאושר ועוד לא אומת — מהמכשיר, בכל ניסיון (גם אחרי רענון). */
+  var fix = Store.get('amdaFix', null), tries = 0, kOk = !fix, kDone = !fix;
   var msg = function (h) { d.innerHTML = '<div class="am-ex-in">' + h + '</div>'; };
   msg('<b>' + esc(amdaT('saving')) + '</b><p class="am-fl">' + esc(amdaT('savingSub')) + '</p>');
-  if (kind) amdaKindSet(kind, function (ok) { kOk = ok; kDone = true; });
+  if (fix) amdaFixRun(fix, function (ok) { kOk = ok; kDone = true; });
   var fail = function () {
-    var left = amdaQ().length;
-    msg('<b>' + esc(amdaT('saveBad')) + '</b><p class="am-fl">' +
-      esc(left ? fill(amdaT('saveBadN'), { n: left }) : amdaT('saveBadK')) + '</p>' +
+    var left = amdaQ().length, pend = !!Store.get('amdaFix', null);
+    msg('<b>' + esc(amdaT('saveBad')) + '</b>' +
+      (left ? '<p class="am-fl">' + esc(fill(amdaT('saveBadN'), { n: left })) + '</p>' : '') +
+      (pend ? '<p class="am-fl">' + esc(amdaT('saveBadK')) + '</p>' : '') +
       '<button class="on" data-ek="r">' + esc(amdaT('saveRetry')) + '</button>' +
       '<button data-ek="-">' + esc(amdaT('exitStay')) + '</button>' +
       '<button class="bk" data-ek="q">' + esc(amdaT('saveLater')) + '</button>');
@@ -17945,13 +17977,14 @@ function amdaSave(d, kind) {
     setTimeout(function () {
       amdaPull().then(function (ok) {
         var left = amdaQ().length;
+        /* הצלחה = התור ריק **וגם** כל תיקון שאושר תואם לגיליון. */
         if (ok && !left && kDone) {
-          if (!kOk) return fail();
+          if (!kOk || Store.get('amdaFix', null)) return fail();
           if (d.parentNode) d.parentNode.removeChild(d);
           amdaOk(amdaT('saveOk'), '', function () { amdaClose(true); });
           return;
         }
-        if (++tries < 6) step(); else fail();
+        if (++tries < 6) step(); else if (kDone) fail(); else setTimeout(step, 5000);
       });
     }, tries ? 5000 : 3000);
   };
@@ -17987,38 +18020,66 @@ function amdaSlotGo(id) {
   amdaPaint();
   box.scrollTop = 0;
 }
-/* החלפת הסוג של הפתיחה הזו — גם למי שכבר נרשם (amdakind בסקריפט). */
-function amdaKindSet(k, cb) {
-  var s = amdaSess(), day = amdaDay(), key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+/* ============================================================
+   החלפת הסוג של הפתיחה — גם למי שכבר נרשם (amdakind בסקריפט).
+   ============================================================
+   **התיקון שהרכז אישר נשמר במכשיר (`amdaFix`) עד שהגיליון תואם לו
+   במלואו** — סוג, מסלול, דף, רמה ואישור החידון, בכל שורות היום
+   והמועד. לא מסיקים שנשמר כי המצב המקומי כבר השתנה. "נסה שוב",
+   סגירה או רענון — התיקון נשאר, וכל ניסיון שמירה שולח ומאמת אותו
+   שוב (amdaSave). רק אימות מלא מוריד אותו. לרכז בלבד: איש צוות אינו
+   משנה סוג. */
+function amdaKindPrep(k) {
+  var s = amdaSess(), day = amdaDay();
   s.kind = k; Store.set('amdaSess', s);
-  cb = cb || function () {};
   var qz = k === 'd' && !!s.qz;
   /* מה שעוד בתור — יוצא כבר בסוג החדש. */
   var q = amdaQ();
   q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = s.lv || amdaLv(); m.qz = qz; } });
   Store.set('amdaQ', q);
-  amdaFlush();
-  if (!key || !url) { cb(false); return; }
   var track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
-  var body = { action: 'amdakind', key: key, day: day, slot: s.slot, kind: k, qz: qz ? '1' : '',
-               track: track, daf: LDafName(track, wk) || '',
-               lvl: k === 'd' ? (qz ? AMDA_LV[0] : (s.lv || amdaLv())) : '' };
+  var fix = { day: day, slot: s.slot, kind: k, qz: qz,
+              track: k === 'd' ? track : '', daf: k === 'd' ? (LDafName(track, wk) || '') : '',
+              lvl: k === 'd' ? (qz ? AMDA_LV[0] : (s.lv || amdaLv())) : '' };
+  Store.set('amdaFix', fix);
+  amdaFlush();
+  return fix;
+}
+function amdaKindSet(k, cb) { amdaFixRun(amdaKindPrep(k), cb); }
+/* האם כל השורות של היום והמועד תואמות לתיקון. כישלון בקריאה = לא. */
+function amdaFixCheck(fix) {
+  var key = (CFG.readKey || '').trim();
+  return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    var h = d.rows[0] || [], c = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] == null ? '' : x[i]).trim(); };
+    var want = [['סוג', fix.kind === 'o' ? 'שיעור' : 'דף'], ['מסלול', fix.track], ['דף', fix.daf],
+                ['רמה', fix.lvl], ['אישור חידון', fix.qz ? 'כן' : '']];
+    return !d.rows.slice(1).some(function (x) {
+      if (c(x, 'יום') !== fix.day || c(x, 'קוד עמדה') !== fix.slot) return false;
+      return want.some(function (w) { return c(x, w[0]) !== w[1]; });
+    });
+  })['catch'](function () { return false; });
+}
+function amdaFixRun(fix, cb) {
+  var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
+  cb = cb || function () {};
+  if (!fix || !key || !url) { cb(false); return; }
+  var body = { action: 'amdakind', key: key, day: fix.day, slot: fix.slot, kind: fix.kind, qz: fix.qz ? '1' : '',
+               track: fix.track, daf: fix.daf, lvl: fix.lvl };
   var tries = 0;
   var send = function () {
     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).catch(function () {});
-    /* no-cors אטום — קוראים חזרה ומוודאים שכל השורות של הפתיחה בסוג החדש. */
+    /* no-cors אטום — קוראים חזרה ומשווים את כל השדות. */
     setTimeout(function () {
-      scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
-        if (!d || d.status !== 'ok' || !d.rows) throw 0;
-        var h = d.rows[0] || [], iD = h.indexOf('יום'), iS = h.indexOf('קוד עמדה'), iK = h.indexOf('סוג');
-        var bad = d.rows.slice(1).some(function (x) {
-          return x[iD] === day && x[iS] === s.slot && x[iK] !== (k === 'o' ? 'שיעור' : 'דף');
-        });
-        if (bad) throw 0;
-        amdaMsg = amdaT('kindOk', { k: amdaT(k === 'o' ? 'exitO' : 'exitD') });
-        amdaPull();
-        cb(true);
-      })['catch'](function () {
+      amdaFixCheck(fix).then(function (ok) {
+        if (ok) {
+          /* רק התיקון הזה יורד — תיקון חדש יותר שנשמר בינתיים נשאר. */
+          if (JSON.stringify(Store.get('amdaFix', null)) === JSON.stringify(fix)) Store.del('amdaFix');
+          amdaMsg = amdaT('kindOk', { k: amdaT(fix.kind === 'o' ? 'exitO' : 'exitD') });
+          amdaPull();
+          cb(true);
+          return;
+        }
         if (++tries < 2) return send();
         amdaMsg = amdaT('kindFail');
         if (document.getElementById('amda-adm')) admPane();
@@ -18811,7 +18872,8 @@ function admAmda(body) {
     '<p class="h"><b>' + esc(cnt.n ? amdaT('admHave', cnt) : amdaT('admNone')) + '</b>' +
     (amdaMsg ? '<br>' + esc(amdaMsg) : '') + '</p>' +
     (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>') +
-    amdaAmbHtml();
+    amdaAmbHtml() +
+    (Store.get('amdaFix', null) ? '<p class="h" style="color:var(--stop)">' + esc(amdaT('fixPend')) + '</p>' : '');
   if (cnt.n) {
     h += '<div class="am-q">' + esc(amdaT('admWhen')) + '</div>' + amdaTiles(slot);
     if (tracks.length > 1) {
