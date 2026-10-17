@@ -74,7 +74,34 @@ var TRIP_UI = (function () {
     return v;
   }
   function save() {
+    if (stale(st)) return;
     try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {}
+  }
+
+  /* ============================================================
+     **מי שסיים — סיים, בכל דרך כניסה.**
+     ============================================================
+     "סיימתי את המסך, הוא נסגר, ובכניסה הבאה נפתח שוב." הסימון
+     `df:tripDone` נבדק רק בכניסה מהאייקון (`?masa=go`), ולכן
+     קישור `?masa=1` ישן, רענון על כתובת שעדיין נושאת אותו, או
+     מצב מסע שנשאר במכשיר (עמוד פתוח אחר שכתב אותו מחדש אחרי
+     הסיום) — החזירו את הרצועה.
+
+     עכשיו הסימון נושא את שעת הסיום, וכל מסע נושא את שעת
+     תחילתו (`t`). מסע שהתחיל **לפני** הסיום הוא שארית ואינו
+     גובר עליו. מסע שהתחיל אחריו — סיור, "מההתחלה", או מסך
+     העריכה בניהול — הוא בקשה מפורשת, והוא ממשיך כרגיל.
+     סימון ישן ('1') הוא שעה 1: כל מסע שנשא `t` התחיל אחריו.
+     ============================================================ */
+  function doneAt() {
+    var v = ls('df:tripDone');
+    if (!v) return 0;
+    return parseInt(v, 10) || 1;
+  }
+  function stale(v) {
+    if (!v || v.see || v.re) return false;
+    var d = doneAt();
+    return !!d && !(v.t && v.t > d);
   }
   function on() { return !!st; }
 
@@ -677,6 +704,9 @@ var TRIP_UI = (function () {
      ממשיך — זה הרגע שבו המסע מתהפך ממשימות למתנות. */
   function check() {
     if (!on()) return;
+    /* הסיום נרשם בעמוד אחר בזמן שזה היה פתוח — יורדים בשקט,
+       ולא כותבים את המצב הישן בחזרה. */
+    if (stale(st)) { st = null; aimed = ''; aim(''); drop(); return; }
     /* פתיחת האשף וסגירתו אינן משנות שלב, ולכן אין מי שיצייר
        מחדש חוץ מהפעימה הזו. */
     if (mode() !== aimed) { paint(); return; }
@@ -712,7 +742,7 @@ var TRIP_UI = (function () {
      מה שמאפשר מסע חלקי למי שעדיין באייפון בדפדפן — ראו
      `iosBefore`. */
   function start(cap) {
-    st = { i:0, hail:0, v:2 };
+    st = { i:0, hail:0, v:2, t:+new Date() };
     if (cap) st.cap = cap;
     save();
     run();
@@ -732,7 +762,7 @@ var TRIP_UI = (function () {
       if (!x.done) continue;
       try { if (x.done()) re[x.k] = 1; } catch (e) {}
     }
-    st = { i:0, hail:0, re:re, v:2 };
+    st = { i:0, hail:0, re:re, v:2, t:+new Date() };
     aimed = '';
     save();
     run();
@@ -747,7 +777,7 @@ var TRIP_UI = (function () {
      והכפתורים האמיתיים עדיין מסומנים ועובדים.
      ============================================================ */
   function tour() {
-    st = { i:0, hail:0, see:1, v:2 };
+    st = { i:0, hail:0, see:1, v:2, t:+new Date() };
     aimed = '';
     save();
     run();
@@ -764,7 +794,7 @@ var TRIP_UI = (function () {
        ============================================================ */
     try {
       localStorage.removeItem(KEY);
-      localStorage.setItem('df:tripDone', '1');
+      localStorage.setItem('df:tripDone', String(+new Date()));
     } catch (e) {}
     drop();
   }
@@ -811,9 +841,15 @@ var TRIP_UI = (function () {
        כדי לראות, ולא כדי להמשיך ממקום כלשהו. */
     if (how === 'see') { tour(); return; }
     /* `?masa=go` הוא ה-start_url של האייקון: מתחיל את המסע
-       בפתיחה הראשונה בתוך האפליקציה, ולא בכל פתיחה. */
-    var done = ls('df:tripDone') === '1';
-    if (how === 'go' && done) return;
+       בפתיחה הראשונה בתוך האפליקציה, ולא בכל פתיחה. וכך גם
+       `?masa=1` — קישור ישן או קבוע אינו מבטל סיום שנשמר.
+       רק מסך העריכה בניהול (`tedit=1`) פותח בכל זאת. */
+    var done = !!doneAt();
+    if (done && !/[?&]tedit=1/.test(location.search)) wants = false;
+    /* מצב ישן שהתחיל לפני הסיום — נמחק, ורק הוא. */
+    if (stale(load())) {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+    }
     /* אין כאן פתיחה של מסע מלא — מי שהגיע לכאן מקישור מסע
        מוצא במקומו את ההתקנה. אבל מסע מצומצם שכבר רץ (ראו
        למעלה) ממשיך כרגיל: מי שסימן "להירשם בלי להתקין" וסגר
