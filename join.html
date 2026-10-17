@@ -1265,6 +1265,7 @@ footer a{color:var(--ink-2);font-weight:800}
 
 <script src="a11y.js"></script>
 <script src="data.js"></script>
+<script src="testmode.js"></script>
 <script src="deck.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
@@ -2578,6 +2579,8 @@ $('go').onclick = function () {
      עמודה חדשה וריקה, ומשאיר את כל מה שנכתב עד היום ביתומה. */
   queue(joinRow_(me));
   if (fresh) hit('join');
+  /* מצב בדיקה — השרת משייך את המזהה לסשן, אחרי שווידא שזו זהות הדמה. */
+  if (window.TM && TM.on()) TM.add(me.id);
 
   showDone(me, 'go');
 };
@@ -3548,19 +3551,26 @@ function drawWa() {
   var url = waGroupUrl();
   if (!url) return;
 
-  /* מי שכבר נכנס — אין טעם להציע לו שוב בכל פתיחה. אותה התנהגות
-     של ההזמנה שלמעלה. */
+  /* **לחיצה על הקישור אינה הצטרפות.** במחשב אולי אין וואטסאפ ווב,
+     ובטלפון אפשר לסגור בלי להצטרף. שני מצבים נפרדים:
+       `wa-went`   — הקישור נפתח. הכרטיס נשאר, עם השאלה "הצטרפת?".
+       `wa-joined` — המשתמש אמר "כן". רק אז הכרטיס כולו נעלם, ונשאר
+                     מוסתר בכניסות הבאות במכשיר הזה.
+     אין כאן אימות של חברות בקבוצה — זה אישור עצמי, ותו לא. גם
+     `wa-went` ישן (מגרסה קודמת) מקבל את השאלה, ולא נחשב "כן". */
+  if (get('wa-joined', 0)) return;
+  var ic = '<svg class="wa-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.1s-.7 1-.9 1.2c-.2.2-.3.2-.6.1-1.6-.8-2.7-1.5-3.7-3.3-.3-.5.3-.5.8-1.5.1-.2 0-.4 0-.5s-.7-1.6-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.8.6-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.2-.3-.2-.6-.4z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.4 1.3 4.9L2 22l5.3-1.3c1.4.8 3 1.2 4.7 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3c-.9-1.4-1.3-3-1.3-4.6C3.5 7.3 7.3 3.5 12 3.5S20.5 7.3 20.5 12 16.7 20.2 12 20.2z"/></svg>';
   if (get('wa-went', 0)) {
-    box.innerHTML = '<div class="getapp wagrp quiet ok"><h3>' +
-      esc(JOIN.waTitle) + '</h3><p>' + esc(JOIN.waSent) + '</p></div>';
-    return;
+    box.innerHTML = '<div class="getapp wagrp quiet"><h3>' + esc(JOIN.waTitle) +
+      '</h3><p class="ok">' + esc(JOIN.waAsk) + '</p>' +
+      '<button class="btn" id="wa-yes">' + esc(JOIN.waYes) + '</button> ' +
+      '<button class="thin" id="wa-go">' + esc(JOIN.waAgain) + '</button></div>';
+    $('wa-yes').onclick = function () { set('wa-joined', 1); drawWa(); };
+  } else {
+    box.innerHTML = '<div class="getapp wagrp quiet"><h3>' + esc(JOIN.waTitle) +
+      '</h3><p>' + esc(JOIN.waBody) + '</p>' +
+      '<button class="btn" id="wa-go">' + ic + esc(JOIN.waBtn) + '</button></div>';
   }
-  box.innerHTML = '<div class="getapp wagrp quiet"><h3>' + esc(JOIN.waTitle) +
-    '</h3><p>' + esc(JOIN.waBody) + '</p>' +
-    '<button class="btn" id="wa-go">' +
-    '<svg class="wa-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.1s-.7 1-.9 1.2c-.2.2-.3.2-.6.1-1.6-.8-2.7-1.5-3.7-3.3-.3-.5.3-.5.8-1.5.1-.2 0-.4 0-.5s-.7-1.6-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.8.6-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.2-.3-.2-.6-.4z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.4 1.3 4.9L2 22l5.3-1.3c1.4.8 3 1.2 4.7 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3c-.9-1.4-1.3-3-1.3-4.6C3.5 7.3 7.3 3.5 12 3.5S20.5 7.3 20.5 12 16.7 20.2 12 20.2z"/></svg>' +
-    esc(JOIN.waBtn) + '</button></div>';
-
   $('wa-go').onclick = function () {
     set('wa-went', 1);
     window.open(url, '_blank');
@@ -4355,11 +4365,13 @@ function wzWire() {
   if ((b = $('wz-t-again'))) b.onclick = noteTest;
   if ((b = $('wz-t-go')))   b.onclick = noteTest;
   if ((b = $('wz-learn')))  b.onclick = function () {
+    wzFinSet();
     $('wz').innerHTML = '';
     document.body.className = document.body.className.replace(/ ?wz\b/g, '');
     var w = $('wk'); if (w && w.scrollIntoView) w.scrollIntoView({ block: 'start' });
   };
   if ((b = $('wz-nonote'))) b.onclick = function () {
+    wzFinSet();
     $('wz').innerHTML = '';
     document.body.className = document.body.className.replace(/ ?wz\b/g, '');
   };
@@ -4400,6 +4412,26 @@ function wzDetOk() {
    לשלב 4. 'quiet' — ציור מחדש אחרי טעינה ברקע: מסך הסיום מתעדכן,
    בלי לפתוח את המסע, בלי לעבור שלב ובלי לגלול. בלי `how` — הפתיחה
    של מי שכבר רשום. **כל מה שאינו 'go' אינו גובר על מסך הפרטים.** */
+/* ============================================================
+   המסע הושלם — מצב עמיד, למכשיר.
+   ============================================================
+   "הכול מוכן" נפתח שוב בכל כניסה, כי showDone פתח את שלב 4 לכל
+   מי שרשום, וכפתור "ללמוד" רק הסיר את המסע לאותה כניסה. מעכשיו:
+   מי שסיים נכנס ישר לבית. עצם קיומו של `me` אינו הוכחה שסיים —
+   הסיום הוא לחיצה על "ללמוד"/"ממשיכים בלי", או המצב המוכח של מי
+   שהשלים בגרסה הקודמת: התראות דלוקות לזהות הזו והרשאה ניתנה
+   (בדיוק התנאי שבו שלב 4 מציג "הכול מוכן"). פתיחה מפורשת (`go`)
+   — שליחת הטופס, שחזור — עדיין פותחת את שלב 4. */
+function wzFin() {
+  var me = get('me', null), f = get('wz-fin', '');
+  if (!me || !me.id) return false;
+  if (f && f === me.id) return true;
+  return noteDone() && notePerm() === 'granted';
+}
+function wzFinSet() {
+  var me = get('me', null);
+  if (me && me.id) set('wz-fin', me.id);
+}
 function showDone(me, how) {
   if (how !== 'go' && wzHeld()) return;
   var pe = $('pre');
@@ -4409,6 +4441,9 @@ function showDone(me, how) {
   if (WZ_ON) {
     var g = $('getapp'); if (g) g.innerHTML = '';
     if (how === 'quiet') { if (wzIn() && wzStep === 4) wzDraw(); }
+    /* סיים בעבר — לא פותחים את המסע מעצמו. אם הוא כבר פתוח
+       (באותה כניסה) — לא סוגרים אותו מתחת לידיים. */
+    else if (how !== 'go' && wzFin() && !wzIn()) {}
     else setTimeout(function () {
       /* בין הקריאה לביצוע נפתח מסך הפרטים — הוא גובר. */
       if (how !== 'go' && wzHeld()) return;
@@ -4917,6 +4952,22 @@ function drawBack_() {
   };
 }
 drawBack_();
+
+/* ---------- מצב בדיקה: זהות הדמה ----------
+   השם והטלפון הפיקטיביים שהשרת יצר לזהות (testmode.js) — ממולאים
+   ונעולים. פרטים אמיתיים היו ממזגים את הדמה אל אדם אמיתי (איחוד
+   לפי טלפון ושם), והשרת גם לא יקבל שורה אחרת לסשן. */
+/* אחרי מילוי ההזמנה (למטה) — הזהות של הסשן גוברת. */
+setTimeout(function () {
+  var s = window.TM && TM.on() && TM.sess(), x = s && s.slot;
+  if (!x || get('me', null)) return;
+  [['first', x.first], ['last', x.last], ['phone', x.phone]].forEach(function (p) {
+    var f = $(p[0]);
+    if (f) { f.value = p[1]; f.readOnly = true; }
+  });
+  if (x.inst && $('inst') && $('inst').querySelector('option[value="' + String(x.inst).replace(/[^a-z0-9_-]/gi, '') + '"]'))
+    $('inst').value = x.inst;
+}, 0);
 
 /* ---------- הזמנה שהתקבלה ----------
    מי שהזמין כבר מסר את הפרטים. להקליד אותם שוב זה לבקש

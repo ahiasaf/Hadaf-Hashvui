@@ -166,7 +166,7 @@ function colIx(rows) {
 function applyFlt(list) {
   var needPeople = FLT.per || FLT.way;
   var needLearn  = !!FLT.seg;
-  if (!needPeople && !needLearn && !FLT.ids && !FLT.insts && !FLT.xids) return Promise.resolve(list);
+  if (!needPeople && !needLearn && !FLT.ids && !FLT.insts && !FLT.xids && !FLT.subs) return Promise.resolve(list);
   var mute = list.mute || [];
   return Promise.all([
     needPeople ? readTab('לומדים') : Promise.resolve(null),
@@ -195,6 +195,10 @@ function applyFlt(list) {
     }
     var keep = function (it) {
       if (FLT.ids && FLT.ids.indexOf(it.id) < 0) return false;
+      /* הגרלת בדיקה (testRoute_ ב-apps-script.gs): רק המכשירים שהבעלים
+         אישר בסשן — לפי טביעת המנוי. מכשיר אחר אינו מקבל, גם אם הוא
+         רשום באותו מזהה. */
+      if (FLT.subs && (!it.sub || FLT.subs.indexOf(S.subPrint(it.sub)) < 0)) return false;
       /* כמה מוסדות (לפי קוד), והחרגה של מזהים — ההגרלה והעורך.
          **אותו סינון בדיוק של audCount_ ב-apps-script.gs**, שלפיו
          הרכז ראה כמה מכשירים יקבלו. שינוי כאן — שינוי גם שם. */

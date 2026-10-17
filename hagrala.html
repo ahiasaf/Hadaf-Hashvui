@@ -87,6 +87,7 @@ main.wait{visibility:hidden}
   <p class="note" id="illus"></p>
 </main>
 <script src="data.js"></script>
+<script src="testmode.js"></script>
 <script src="logo.js"></script>
 <script>
 function $(id) { return document.getElementById(id); }
@@ -160,8 +161,12 @@ function results(d) {
   main.className = 'wrap wait';
   var show = function () { if (!done) { done = true; main.className = 'wrap'; } };
   setTimeout(show, 5000);
+  /* מצב בדיקה: הסשן המאומת (מזהה + אסימון) — ואז תוצאת הגרלת הבדיקה. */
+  var tq = window.TM && TM.q();
   fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=res&id=' + encodeURIComponent(ME.id) +
-        '&inst=' + encodeURIComponent(INST) + '&t=' + Date.now())
+        '&inst=' + encodeURIComponent(INST) +
+        (tq ? '&tsid=' + encodeURIComponent(tq.tsid) + '&ttok=' + encodeURIComponent(tq.ttok) : '') +
+        '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!done && d && d.status === 'ok' && d.state === 'pub') results(d);

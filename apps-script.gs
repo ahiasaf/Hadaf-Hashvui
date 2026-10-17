@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 72;
+var SCRIPT_VERSION = 73;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -397,7 +397,7 @@ function doPost(e) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
       }
       var aOk = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
-                 'רמה', 'שכבה', 'כיתה', 'שם', 'מתי'];
+                 'רמה', 'אישור חידון', 'שכבה', 'כיתה', 'שם', 'מתי'];
       var aCols = (parse_(d.cols) || []).filter(function (p) {
         return p && aOk.indexOf(String(p[0] || '')) >= 0;
       });
@@ -1203,6 +1203,18 @@ function doGet(e) {
     } catch (errQ) { return reply_(e, { status:'error', quiz: 1, message: String(errQ) }); }
   }
 
+  /* רישומי נוכחות שלא שויכו — שם שמתאים ליותר מנרשם אחד. לרכז בלבד.
+     ראו amdaSync_. */
+  if (e && e.parameter && e.parameter.amdaAmb) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status:'denied', message:'אין הרשאה' });
+    }
+    try { amdaSyncLocked_(); } catch (eA) {}
+    var amb = [];
+    try { amb = JSON.parse(PropertiesService.getScriptProperties().getProperty('amdaAmb') || '[]'); } catch (eA2) {}
+    return reply_(e, { status: 'ok', rows: amb });
+  }
+
   /* סיכום מענה על החידונים — לרכז בלבד, מספרים בלבד. ראו quizSum_. */
   if (e && e.parameter && e.parameter.quizSum) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
@@ -1214,6 +1226,7 @@ function doGet(e) {
 
   if (e && e.parameter && e.parameter.fire === 'say') return sayOnce_(e);
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
+  if (e && e.parameter && e.parameter.test) return testRoute_(e);
   if (e && e.parameter && e.parameter.sayCount) return sayCount_(e);
 
   /* ---- הלוח של מוסד ----
@@ -2020,6 +2033,8 @@ function appendCols_(tab, cols, ssId) {
   for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
   sh.appendRow(row);
   if (tab === JOIN_TAB)  recount_();
+  /* נוכחות חדשה — אישור חידון אפשרי, והנקודות והזכאות במטמון. */
+  if (tab === AMDA_TAB_) amdaQzBust_();
   /* הודעה חדשה בתיבה — שהאפליקציה תראה אותה מיד, ולא אחרי דקה. */
   if (tab === 'תיבה') { try { CacheService.getScriptCache().remove('inbox:rows'); } catch (eI) {} }
   if (tab === LEARN_TAB) {
@@ -3396,9 +3411,10 @@ function amdaSync_() {
     seen[key] = 1;
     want.push({ key: key, inst: cx('קוד ישיבה'), g: amdaNorm_(cx('שכבה')), c: cx('כיתה'),
                 n: amdaNorm_(cx('שם')), track: cx('מסלול'), wk: cx('שבוע'), daf: cx('דף'),
-                quiz: cx('רמה').indexOf('חידון') >= 0 });
+                /* רק אישור מפורש (8.99.256) — "למד וחידון" ישן היה ברירת מחדל. */
+                quiz: cx('אישור חידון') === 'כן' });
   }
-  if (!want.length) return 0;
+  if (!want.length) { amdaAmbSave_([]); return 0; }
 
   /* "לומדים" לפי מוסד ושם — בשני הסדרים, כי הקובץ של בית הספר
      הוא "משפחה פרטי" והטופס שואל כל אחד בנפרד. */
@@ -3413,7 +3429,7 @@ function amdaSync_() {
       (byName[k2] = byName[k2] || []).push(j);
     });
   }
-  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0, linked = 0;
+  var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0, linked = 0, amb = [];
   var lsh = lt.sh, lhead = headers_(lsh), dir = null, jhead = null, instNm = {};
   want.forEach(function (w) {
     var cand = (byName[w.inst + '|' + w.n] || []).filter(function (j, i, a) {
@@ -3428,6 +3444,10 @@ function amdaSync_() {
     }
     var id = '';
     if (cand.length === 1) id = jt.c(jt.rows[cand[0]], 'מזהה');
+    /* **שם שמתאים ליותר מנרשם אחד — לא מנחשים, וגם לא שותקים.**
+       הרישום נשאר בנוכחות, לא שויך, ומוצג לרכז במסך הנוכחות
+       (`?amdaAmb=`) עם מספר ההתאמות — להכרעה ביד. */
+    else if (cand.length > 1) amb.push([w.inst, w.g, w.c, w.n, w.track, w.wk, cand.length]);
     else if (!cand.length) {
       /* **למד בעמדה ועוד לא התקין.** בלי שורה ב"לומדים" הוא לא
          נספר בשום מקום — לא בלוח, לא במונה השבועי ולא בניהול.
@@ -3460,8 +3480,9 @@ function amdaSync_() {
       wrote++;
       had[tag] = 1;
     }
-    /* "ענה על החידון" — נרשם כמו תשובה נכונה מהדף האינטראקטיבי,
-       עם המקור. מערכת ההגרלות תקרא את זה כשתיבנה. */
+    /* "ענה על החידון" — שורה ב"חידות" עם המקור, לסיכום החידונים
+       בניהול. אינה ציון ואינה נספרת בנקודות או בהגרלה: שם קובע
+       האישור המפורש בשורת הנוכחות (amdaQz_). */
     if (w.quiz) {
       try {
         var qsh = sheet_('חידות'), qh = headers_(qsh), qr = [];
@@ -3484,7 +3505,13 @@ function amdaSync_() {
   /* שיוך חדש יכול להעביר תלמיד ל"לומד בחבורה" — המשבצות נספרות מחדש. */
   if (made || linked) recount_();
   if (wrote) recountLearn_();
+  /* שיוך חדש — אישור חידון שחיכה לו נכנס לנקודות ולזכאות. */
+  if (linked) amdaQzBust_();
+  amdaAmbSave_(amb);
   return wrote;
+}
+function amdaAmbSave_(amb) {
+  try { PropertiesService.getScriptProperties().setProperty('amdaAmb', JSON.stringify(amb.slice(0, 200))); } catch (e) {}
 }
 
 var AMDA_LV_P_ = 'השתתף';
@@ -3503,6 +3530,9 @@ function amdaKind_(d) {
   if (!day || !slot) return { status: 'error', message: 'חסר יום או מועד' };
   var at = amdaTable_(AMDA_TAB_), sh = at.sh, head = headers_(sh), n = 0, drop = {};
   var iK = idx_(sh, head, 'סוג'), iT = idx_(sh, head, 'מסלול'), iD = idx_(sh, head, 'דף'), iL = idx_(sh, head, 'רמה');
+  /* אישור החידון הולך עם הרמה: רק "למד וחידון" שנבחר במפורש בפתיחה
+     (`qz`) — תיקון לסוג אחר או לרמה אחרת מוריד אותו. */
+  var iQ = idx_(sh, head, 'אישור חידון'), qz = dafK && lvl === 'למד וחידון' && String(d.qz || '') === '1';
   var key = function (x) {
     return [at.c(x, 'קוד ישיבה'), at.c(x, 'שכבה'), at.c(x, 'כיתה'), amdaNorm_(at.c(x, 'שם')),
             at.c(x, 'מסלול'), at.c(x, 'שבוע')].join('|');
@@ -3518,6 +3548,7 @@ function amdaKind_(d) {
     sh.getRange(r + 1, iT + 1).setValue(trk);
     sh.getRange(r + 1, iD + 1).setValue(daf);
     sh.getRange(r + 1, iL + 1).setValue(lvl);
+    sh.getRange(r + 1, iQ + 1).setValue(qz ? 'כן' : '');
     if (was && !(dafK && lvl !== AMDA_LV_P_)) drop[oldKey] = 1;
     n++;
   }
@@ -3535,6 +3566,7 @@ function amdaKind_(d) {
   }
   amdaSync_();
   recountLearn_(true);
+  amdaQzBust_();
   return { status: 'ok', rows: n };
 }
 /* מוריד את השיוך ואת שורת הסיום שהעמדה כתבה, לכל מפתח ב-`keys`. */
@@ -6894,12 +6926,13 @@ function rafCalc_() {
     }
   }
   var Q = RAF_DAF !== RAF_NOQUIZ_DAF ? quizBest_(alias, target) : null;
+  var A = Q ? amdaQz_(alias, target) : null;
   /* מי סיים את שני העמודים, באחת המסכתות (ומחוץ לחריגה — גם עבר חידון). */
   var done = {};
   Object.keys(side).forEach(function (k) {
     if (!side[k].a || !side[k].b) return;
     var pr = k.split('|');
-    if (Q && !quizPass_(quizDaf_(Q, pr[0], pr[1], RAF_DAF))) return;
+    if (Q && !quizOk_(Q, A, pr[0], pr[1], RAF_DAF)) return;
     done[pr[0]] = 1;
   });
   return { ppl: ppl, target: target, side: side, done: done, noId: noId };
@@ -6988,6 +7021,74 @@ function quizDaf_(Q, who, tr, base) {
 function quizPass_(x) { return !!(x && x[0] * 5 >= x[1] * 4); }   /* 80% */
 
 /* ============================================================
+   אישור חידון בנוכחות — נתיב נוסף, לא ציון (8.99.256).
+   ============================================================
+   איש צוות שבחר בפתיחת הנוכחות "לסמן גם שענו על החידון" מאשר
+   שהתלמיד ביצע את החידון במלואו. האישור נשמר כעמודה מפורשת
+   ("אישור חידון" = כן) בשורת הנוכחות עצמה — לא ציון, ולא שורה
+   ב"חידות". שורת נוכחות נכתבת רק בסיסמת הרכז או ממכשיר צוות שאושר
+   לאותה ישיבה (קוד הישיבה נכפה בשרת), ולכן זה המקור המאומת.
+   **רישומים ישנים** — "למד וחידון" היה ברירת מחדל, ואין בהם את
+   העמודה; הם נשארים לימוד, ולא אישור חידון.
+   השיוך לתלמיד — דרך "עמדה — שיוך" (המפתח מוסד·שכבה·כיתה·שם·מסלול·
+   שבוע ← מזהה), אותו שיוך שכותב את הלימוד. "השתתף" ושיעור שאינו
+   הדף — לא. מחזיר { 'מזהה|מסלול|דף': 1 } אחרי איחוד, `seen` כמו
+   quizBest_. במטמון 5 דקות; נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
+function amdaQzBust_() {
+  try { CacheService.getScriptCache().removeAll(['amda:qz', 'oez:pts', 'raf:me']); } catch (e) {}
+}
+function amdaQzRaw_() {
+  var rc = CacheService.getScriptCache(), hit = rc.get('amda:qz');
+  if (hit) { try { return JSON.parse(hit); } catch (x0) {} }
+  var out = [];
+  var at = amdaTable_(AMDA_TAB_), want = {};
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r];
+    if (at.c(x, 'אישור חידון') !== 'כן' || at.c(x, 'סוג') !== 'דף' || at.c(x, 'רמה') === AMDA_LV_P_) continue;
+    var key = [at.c(x, 'קוד ישיבה'), at.c(x, 'שכבה'), at.c(x, 'כיתה'), amdaNorm_(at.c(x, 'שם')),
+               at.c(x, 'מסלול'), at.c(x, 'שבוע')].join('|');
+    want[key] = [at.c(x, 'מסלול'), at.c(x, 'דף')];
+  }
+  if (Object.keys(want).length) {
+    var lt = amdaTable_(AMDA_LINK_);
+    for (var l = 1; l < lt.rows.length; l++) {
+      var w = want[lt.c(lt.rows[l], 'מפתח')], id = lt.c(lt.rows[l], 'מזהה');
+      if (w && id) out.push([id, w[0], w[1]]);
+    }
+  }
+  try { rc.put('amda:qz', JSON.stringify(out), 300); } catch (x2) {}
+  return out;
+}
+function amdaQz_(alias, target) {
+  var ok = {}, seen = {};
+  amdaQzRaw_().forEach(function (q) {
+    var canon = alias[q[0]] || q[0], tr = rafTrack_(q[1]), d = String(q[2] || '').replace(/["'׳״\s]/g, '');
+    if (!canon || !tr || !d) return;
+    canon = target[canon] || canon;
+    ok[canon + '|' + tr + '|' + d] = 1;
+    seen[canon] = 1;
+  });
+  return { ok: ok, seen: seen };
+}
+/* תנאי החידון לדף שלם: ציון 80%+ (quizDaf_, כמו קודם), או אישור
+   בנוכחות. עמוד בדף מחולק — מאושר, או שהציון שלו לבדו עובר; אישור
+   של עמוד אחד אינו מאשר את השני. { x: ציון או null, conf: bool } או
+   null כשהתנאי לא מתקיים. */
+function quizOk_(Q, A, who, tr, base) {
+  var x = quizDaf_(Q, who, tr, base);
+  if (quizPass_(x)) return { x: x, conf: false };
+  if (!A) return null;
+  var sp = tr === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA, pre = who + '|' + tr + '|' + base;
+  if (A.ok[pre]) return { x: null, conf: true };
+  var hasA = !!sp.wk[base + '.'], hasB = !!sp.wk[base + ':'];
+  if (!hasA && !hasB) return null;
+  var pg = function (sfx) { return !!A.ok[pre + sfx] || quizPass_(Q.best[pre + sfx]); };
+  var okA = !hasA || pg('.'), okB = !hasB || pg(':');
+  /* לפחות עמוד אחד באישור — אחרת זה מסלול הציון של quizDaf_. */
+  return okA && okB && (A.ok[pre + '.'] || A.ok[pre + ':']) ? { x: null, conf: true } : null;
+}
+
+/* ============================================================
    נקודות לתלמידי אור עציון בלבד (8.99.255).
    ============================================================
    10 נקודות לכל דף שלם (שני העמודים, כמו rafSide_) שהחידון שלו
@@ -7022,17 +7123,18 @@ function oezPts_() {
       if (!/\.$/.test(d)) s.b = 1;
     }
   }
-  var Q = quizBest_(alias, target), out = {};
+  var Q = quizBest_(alias, target), A = amdaQz_(alias, target), out = {};
   Object.keys(who).forEach(function (to) {
     var l = [];
     Object.keys(who[to]).forEach(function (k) {
       var pr = k.split('|'), s = who[to][k], sp = pr[0] === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
       var whole = (s.a && s.b) || (s.a && !sp.wk[pr[1] + ':']) || (s.b && !sp.wk[pr[1] + '.']);
-      var x = whole ? quizDaf_(Q, to, pr[0], pr[1]) : null;
-      if (quizPass_(x)) l.push([pr[0], pr[1], x[0] + '/' + x[1], sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99]);
+      /* ציון ואישור — אותו דף, פעם אחת. "conf" — אושר בנוכחות, בלי ציון. */
+      var ok = whole ? quizOk_(Q, A, to, pr[0], pr[1]) : null;
+      if (ok) l.push([pr[0], pr[1], ok.x ? ok.x[0] + '/' + ok.x[1] : 'conf', sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99]);
     });
     l.sort(function (x, y) { return x[3] - y[3] || (x[0] < y[0] ? -1 : 1); });
-    var v = { n: Q.seen[to] ? l.length * 10 : null,
+    var v = { n: Q.seen[to] || A.seen[to] ? l.length * 10 : null,
               l: l.map(function (x) { return [x[0], x[1], x[2]]; }) };
     out[to] = v;
   });
@@ -7287,6 +7389,9 @@ function rafflePub_(P) {
    שהשתתף. כל דבר אחר — "none", בלי לומר למה. */
 function raffleRes_(P) {
   var none = { status: 'ok', state: 'none' };
+  /* סשן בדיקה מאומת (מזהה + אסימון שהשרת הנפיק) — התוצאה של הגרלת
+     הבדיקה, רק למזהה מהסשן. מזהה בכתובת לבדו אינו פותח דבר. */
+  if (P.tsid || P.ttok) return testOk_(P) ? testRes_(P) : none;
   var inst = String(P.inst || '').trim();
   if (!inst || RAF_NEVER.indexOf(inst) >= 0) return none;
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
@@ -7410,26 +7515,37 @@ function rafMe_(P) {
         if (sd && ((sd.a ? 1 : 0) + (sd.b ? 1 : 0)) > ((a ? 1 : 0) + (b ? 1 : 0))) { a = !!sd.a; b = !!sd.b; }
       });
       if (!a && !b) return;
-      var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') + (C.done[to] && !rafWhy_(q) ? '+' : '');
+      /* '~' — סיים, אבל חשבון בדיקה. נספר כ"בפנים" רק לבקשה מסשן
+         בדיקה מאומת (testOk_), ולעולם לא בהגרלה האמיתית. */
+      var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') +
+              (C.done[to] && !rafWhy_(q) ? '+' : C.done[to] && rafWhy_(q) === 'test' ? '~' : '');
       p.ids.concat([id]).forEach(function (x) { M[x] = v; });
     });
     try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me', js, 300); } catch (x2) {}
   }
   /* המוסדות שהרכז בחר — אותו סינון כמו raffleElig_ (`by[p.code]`). */
   var sel = rafSelGet_();
+  var tst = testOk_(P) ? testSess_() : null;
   for (var i = 0; i < mine.length; i++) {
     var v2 = M[mine[i]];
     if (!v2) continue;
     var pr = v2.split('|');
     if (pr[0] !== inst) continue;
+    var plus = pr[1].indexOf('+') >= 0 || (pr[1].indexOf('~') >= 0 && tst && testIds_(tst).indexOf(mine[i]) >= 0);
     return { status: 'ok', daf: RAF_DAF, a: pr[1].indexOf('a') >= 0, b: pr[1].indexOf('b') >= 0,
-             inn: pr[1].indexOf('+') >= 0 && (!sel || sel.indexOf(pr[0]) >= 0) };
+             inn: plus && (!sel || sel.indexOf(pr[0]) >= 0) };
   }
   return none;
 }
 
 function raffleRoute_(e) {
   var P = e.parameter, op = String(P.raffle);
+  /* **אין להבריח קהל בדיקה להגרלה האמיתית.** פרמטרי סשן בדיקה,
+     מכשירים או מזהי נמענים — סירוב בכל נתיב שאינו תוצאה/מצב תלמיד.
+     הבדיקה עוברת רק ב-testRoute_. */
+  if (op !== 'res' && op !== 'me' && (P.tsid || P.ttok || P.subs || P.ids || P.devs)) {
+    return reply_(e, { status: 'denied', message: 'פרמטרי בדיקה אינם מתקבלים בהגרלה האמיתית' });
+  }
   try {
     if (op === 'res') return reply_(e, raffleRes_(P));
     if (op === 'me') return reply_(e, rafMe_(P));
@@ -7469,6 +7585,276 @@ function sayCount_(e) {
     if (P.role) o.role = String(P.role);
     var c = audCount_(o);
     return reply_(e, { status: 'ok', dev: c.dev, ppl: c.ppl });
+  } catch (err) {
+    return reply_(e, { status: 'error', message: String(err) });
+  }
+}
+
+/* ============================================================
+   מצב בדיקה לבעלים — סשן מבודד (8.99.256).
+   ============================================================
+   הבעלים עובר בעצמו, מהטלפון שלו, את מסלול התלמיד ואת מסלול
+   ההורה, ובודק את צינור ההגרלה עד ההתראה — בלי לגעת בנתוני אמת.
+
+   **ההרשאה כאן, בשרת.** כל פעולה ניהולית (יצירה, אישור מכשירים,
+   הגרלת בדיקה, פרסום, מחיקה) דורשת READ_KEY — הסיסמה שאצל הבעלים
+   בלבד. `df:tester` במכשיר הוא דגל תצוגה ונתונים בלבד, והשרת אינו
+   מתחשב בו לאישור דבר.
+
+   **הסשן** (Script Properties `testSess`, אחד בכל רגע): מזהה, אסימון
+   סודי שהשרת הנפיק, שלוש זהויות דמה — שני תלמידים (א — הזוכה, ב —
+   הלא־זוכה) והורה — עם שם וטלפון פיקטיביים שהשרת יצר (קידומת 000,
+   שאינה מספר אמיתי, ולכן איחוד החשבונות לפי טלפון+שם לא ימזג אותן
+   עם אדם אמיתי), המזהים שנרשמו בפועל, המכשירים שאושרו, והגרלת
+   הבדיקה. לא כל שורה עם "בדיקה: כן" שייכת לסשן — רק המזהים שבו.
+
+   **הגרלת הבדיקה** אינה נוגעת בלשונית "הגרלות": מזהה וסטטוס משלה
+   בתוך הסשן, בלי rafLast_, בלי חסימת ההגרלה השבועית. הפרסום עובר
+   באותו ghFire_ ובאותו צינור התראות — אבל רק למזהי הסשן, ורק
+   למכשירים שאושרו (`subs` בפילוח; push-send.js מסנן לפיו). אם
+   נמצא מכשיר של מזהה מהסשן שלא אושר — סירוב, לא שליחה חלקית.
+
+   **מחיקה** — רק לפי מזהי הסשן שהשרת מחזיק: שורות שלהם ב"לומדים"
+   (עם "בדיקה: כן"), "לימוד", "חידות", "התראות", "זוגות", "תיבה"
+   (רק כשכל הנמענים בשורה מהסשן), "ממתינים לדף", והיומן והמסירות
+   של הגרלת הבדיקה. לא בודקים אחרים, לא כל שורות הבדיקה, ולא שום
+   רשומת אמת. מחזירה את מצב ההגרלה האמיתית לפני ואחרי. */
+var TEST_SLOTS_ = [
+  { k: 'a', role: 'תלמיד', first: 'בדיקה', last: 'תלמיד' },
+  { k: 'b', role: 'תלמיד', first: 'דוגמה', last: 'תלמיד' },
+  { k: 'p', role: 'הורה',  first: 'בדיקה', last: 'הורה' }
+];
+function testSess_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('testSess') || 'null'); }
+  catch (e) { return null; }
+}
+function testSave_(S) {
+  var pp = PropertiesService.getScriptProperties();
+  if (S) pp.setProperty('testSess', JSON.stringify(S)); else pp.deleteProperty('testSess');
+}
+/* מזהה + אסימון תואמים לסשן הפעיל. */
+function testOk_(P) {
+  var S = testSess_();
+  return !!(S && P && String(P.tsid || '') === S.sid && String(P.ttok || '') === S.tok);
+}
+function testIds_(S) {
+  var out = [];
+  (S && S.slots || []).forEach(function (x) { if (x.id) out.push(x.id); });
+  return out;
+}
+function testSlot_(S, k) {
+  var o = null;
+  (S && S.slots || []).forEach(function (x) { if (x.k === k) o = x; });
+  return o;
+}
+function testDigits_(v) { return String(v || '').replace(/\D/g, ''); }
+/* מה שהמסך צריך — בלי האסימון. */
+function testView_(S) {
+  if (!S) return { status: 'ok', on: false };
+  return { status: 'ok', on: true, sid: S.sid, inst: S.inst, at: S.at,
+           slots: S.slots.map(function (x) {
+             return { k: x.k, role: x.role, first: x.first, last: x.last, phone: x.phone,
+                      id: x.id || '', dev: (S.devBy && S.devBy[x.k]) || 0 };
+           }),
+           devs: (S.devs || []).length, raf: S.raf || null };
+}
+/* המכשירים של מזהים — בדיוק כמו push-send.js: מהשורה האחרונה
+   לראשונה, מנוי אחד לכל endpoint, ורק אז הסינון. */
+function testSubs_(ids, role) {
+  var sh = sheet_('התראות');
+  if (sh.getLastRow() < 2) return [];
+  var v = sh.getDataRange().getValues(), h = {};
+  for (var i = 0; i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+  if (h['מנוי'] === undefined) throw new Error('אין עמודת "מנוי" בלשונית התראות');
+  var g = function (r, k) { return h[k] === undefined ? '' : String(v[r][h[k]] == null ? '' : v[r][h[k]]).trim(); };
+  var seen = {}, out = [];
+  for (var r = v.length - 1; r >= 1; r--) {
+    var raw = g(r, 'מנוי');
+    if (!raw) continue;
+    var s;
+    try { s = JSON.parse(raw); } catch (e) { continue; }
+    if (!s || !s.endpoint || seen[s.endpoint]) continue;
+    seen[s.endpoint] = 1;
+    if (ids.indexOf(g(r, 'מזהה')) < 0) continue;
+    if (role && g(r, 'תפקיד') !== role) continue;
+    out.push(subPrint_(s.endpoint));
+  }
+  return out;
+}
+/* קהל הבדיקה, ובדיקת "כשל סגור": כל מכשיר — מאושר בסשן. */
+function testAud_(S) {
+  var R = S.raf;
+  var w = testSubs_([R.win], ''), g = testSubs_([R.lose], 'תלמיד');
+  var bad = w.concat(g).filter(function (p) { return (S.devs || []).indexOf(p) < 0; });
+  return { w: w, g: g, bad: bad.length };
+}
+function testRes_(P) {
+  var S = testSess_(), none = { status: 'ok', state: 'none' };
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); });
+  var ids = testIds_(S);
+  if (!S || !S.raf || S.raf.st !== 'פורסם' || !mine.some(function (x) { return ids.indexOf(x) >= 0; })) return none;
+  var win = testSlot_(S, 'a');
+  return { status: 'ok', state: 'pub', test: 1,
+           mine: { name: win.first + ' ' + win.last.charAt(0) + "'", inst: S.instName || S.inst },
+           me: mine.indexOf(S.raf.win) >= 0, others: [] };
+}
+/* מחיקת שורות לפי תנאי — מהסוף להתחלה, כדי שמספרי השורות לא יזוזו. */
+function testDel_(tab, keep) {
+  var sh;
+  try { sh = sheet_(tab); } catch (e) { return 0; }
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var v = sh.getDataRange().getDisplayValues(), h = {}, n = 0;
+  for (var i = 0; i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+  var g = function (r, k) { return h[k] === undefined ? '' : String(v[r][h[k]] || '').trim(); };
+  for (var r = v.length - 1; r >= 1; r--) {
+    if (keep(function (k) { return g(r, k); })) continue;
+    sh.deleteRow(r + 1); n++;
+  }
+  return n;
+}
+function testEnd_(S) {
+  var ids = testIds_(S), out = {}, mids = S.raf ? ['trf-' + S.raf.rid + '-w', 'trf-' + S.raf.rid + '-g'] : [];
+  var real0 = rafLast_(rafRead_(), progWeek_());
+  var mineId = function (g) { return ids.indexOf(g('מזהה')) >= 0; };
+  if (ids.length) {
+    /* "לומדים" — רק שורה של מזהה מהסשן, ורק אם היא מסומנת כבדיקה. */
+    out['לומדים'] = testDel_(JOIN_TAB, function (g) { return !(mineId(g) && g('בדיקה') === 'כן'); });
+    ['לימוד', 'חידות', 'התראות', 'זוגות', 'ממתינים לדף'].forEach(function (t) {
+      out[t] = testDel_(t, function (g) { return !mineId(g); });
+    });
+    out['תיבה'] = testDel_('תיבה', function (g) {
+      var to = g('מזהים').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      return !(to.length && to.every(function (x) { return ids.indexOf(x) >= 0; }));
+    });
+  }
+  if (mids.length) {
+    ['הודעות', 'מסירות'].forEach(function (t) {
+      out[t] = testDel_(t, function (g) { return mids.indexOf(g('מזהה הודעה')) < 0; });
+    });
+  }
+  testSave_(null);
+  try {
+    CacheService.getScriptCache().removeAll(['raf:me', 'oez:pts', 'amda:qz', 'inbox:rows', 'raf:pub']);
+  } catch (e) {}
+  try { recount_(); } catch (e2) {}
+  try { recountLearn_(true); } catch (e3) {}
+  var real1 = rafLast_(rafRead_(), progWeek_());
+  var sig = function (d) { return d ? d.rid + '|' + d.st + '|' + d.lines.length : ''; };
+  return { status: 'ok', del: out, realSame: sig(real0) === sig(real1), real: sig(real1) };
+}
+
+function testRoute_(e) {
+  var P = e.parameter, op = String(P.test);
+  try {
+    /* ---- בלי סיסמה: רק עם האסימון של הסשן ---- */
+    if (op === 'who') {
+      if (!testOk_(P)) return reply_(e, { status: 'denied', message: 'הסשן אינו פעיל' });
+      var S0 = testSess_(), x0 = testSlot_(S0, String(P.slot || ''));
+      if (!x0) return reply_(e, { status: 'error', message: 'אין זהות כזו בסשן' });
+      return reply_(e, { status: 'ok', slot: { k: x0.k, role: x0.role, first: x0.first, last: x0.last,
+                                               phone: x0.phone, inst: S0.inst, id: x0.id || '' } });
+    }
+    if (op === 'add') {
+      if (!testOk_(P)) return reply_(e, { status: 'denied', message: 'הסשן אינו פעיל' });
+      var lk = LockService.getScriptLock();
+      if (!lk.tryLock(15000)) return reply_(e, { status: 'error', message: 'נסו שוב בעוד רגע' });
+      try {
+        var S1 = testSess_(), x1 = testSlot_(S1, String(P.slot || '')), id1 = String(P.id || '').trim();
+        if (!x1 || !/^[\w:.\-]{1,60}$/.test(id1)) return reply_(e, { status: 'error', message: 'חסר מזהה' });
+        /* השורה ב"לומדים" — בדיקה, ובדיוק הטלפון והשם הפיקטיביים של
+           הזהות. כך אף זהות אמיתית לא נכנסת לסשן. */
+        var t1 = joinTable_(), r1 = rowOfId_(t1, id1);
+        if (r1 < 1) return reply_(e, { status: 'wait' });
+        var row1 = t1.rows[r1];
+        if (t1.c(row1, 'בדיקה') !== 'כן' || testDigits_(t1.c(row1, 'טלפון')) !== testDigits_(x1.phone) ||
+            t1.c(row1, 'שם') !== x1.first || t1.c(row1, 'משפחה') !== x1.last) {
+          return reply_(e, { status: 'denied', message: 'השורה אינה של זהות הבדיקה' });
+        }
+        x1.id = id1;
+        if (!S1.instName) S1.instName = t1.c(row1, 'ישיבה');
+        testSave_(S1);
+        return reply_(e, { status: 'ok' });
+      } finally { lk.releaseLock(); }
+    }
+
+    /* ---- כל השאר: הבעלים בלבד ---- */
+    if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(20000)) return reply_(e, { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' });
+    try {
+      var S = testSess_();
+      if (op === 'state') return reply_(e, testView_(S));
+      if (op === 'new') {
+        if (S) { var v0 = testView_(S); v0.tok = S.tok; return reply_(e, v0); }
+        var inst = String(P.inst || '').trim();
+        if (!/^[a-z]{2,20}$/.test(inst) || RAF_NEVER.indexOf(inst) >= 0) {
+          return reply_(e, { status: 'error', message: 'צריך לבחור מוסד' });
+        }
+        S = { sid: 'T' + Date.now().toString(36), tok: Utilities.getUuid().replace(/-/g, ''),
+              at: new Date().toISOString(), inst: inst, devs: [], devBy: {}, raf: null,
+              slots: TEST_SLOTS_.map(function (x) {
+                /* טלפון פיקטיבי: 000 ועוד שבע ספרות אקראיות — אינו מספר אמיתי. */
+                var ph = '000';
+                for (var d = 0; d < 7; d++) ph += Math.floor(Math.random() * 10);
+                return { k: x.k, role: x.role, first: x.first, last: x.last, phone: ph, id: '' };
+              }) };
+        testSave_(S);
+        var v1 = testView_(S); v1.tok = S.tok;
+        return reply_(e, v1);
+      }
+      if (!S) return reply_(e, { status: 'error', message: 'אין סשן בדיקה פעיל' });
+      if (op === 'tok') { var v2 = testView_(S); v2.tok = S.tok; return reply_(e, v2); }
+      if (op === 'devs') {
+        /* המכשירים שנרשמו להתראות בזהויות הסשן — עכשיו, כפי שהבעלים
+           רואה אותם. רק אלה יקבלו את הגרלת הבדיקה. */
+        S.devs = []; S.devBy = {};
+        S.slots.forEach(function (x) {
+          if (!x.id) return;
+          var p = testSubs_([x.id], '');
+          S.devBy[x.k] = p.length;
+          p.forEach(function (q) { if (S.devs.indexOf(q) < 0) S.devs.push(q); });
+        });
+        testSave_(S);
+        return reply_(e, testView_(S));
+      }
+      if (op === 'raf') {
+        var a = testSlot_(S, 'a'), b = testSlot_(S, 'b');
+        if (!a.id || !b.id) return reply_(e, { status: 'error', message: 'שני תלמידי הבדיקה צריכים להירשם קודם' });
+        if (S.raf && S.raf.st === 'פורסם') return reply_(e, { status: 'error', message: 'הגרלת הבדיקה כבר פורסמה' });
+        S.raf = { rid: 'TR' + Date.now().toString(36), win: a.id, lose: b.id, st: 'הוגרל',
+                  at: new Date().toISOString() };
+        testSave_(S);
+        return reply_(e, testView_(S));
+      }
+      if (op === 'aud') {
+        if (!S.raf) return reply_(e, { status: 'error', message: 'אין הגרלת בדיקה' });
+        var A = testAud_(S);
+        return reply_(e, { status: 'ok', w: A.w.length, g: A.g.length, bad: A.bad });
+      }
+      if (op === 'pub') {
+        if (!S.raf) return reply_(e, { status: 'error', message: 'אין הגרלת בדיקה' });
+        if (S.raf.st === 'פורסם') return reply_(e, { status: 'ok', again: 1 });
+        var A2 = testAud_(S);
+        if (A2.bad) return reply_(e, { status: 'denied', message: 'יש מכשיר של זהות בדיקה שלא אושר — אשרו את המכשירים שוב' });
+        if (!A2.w.length || !A2.g.length) return reply_(e, { status: 'denied', message: 'לאחד מתלמידי הבדיקה אין מכשיר מאושר עם התראות' });
+        var tW = String(P.wt || '').trim(), bW = String(P.wb || '').trim();
+        var tA = String(P.at || '').trim(), bA = String(P.ab || '').trim();
+        if (!bW || !bA) return reply_(e, { status: 'error', message: 'חסר נוסח לאחת ההודעות' });
+        S.raf.st = 'פורסם'; S.raf.pubAt = new Date().toISOString();
+        testSave_(S);
+        try { CacheService.getScriptCache().remove('raf:me'); } catch (xc) {}
+        var out = { status: 'ok' };
+        out.w = ghFire_(tW, bW, '', '', '', 'הגרלת בדיקה', 'hagrala', '', '',
+                        JSON.stringify({ ids: [S.raf.win], subs: A2.w }), false,
+                        'trf-' + S.raf.rid + '-w', 'בדיקה — זוכה');
+        out.g = ghFire_(tA, bA, '', '', '', 'הגרלת בדיקה', 'hagrala', 'תלמיד', '',
+                        JSON.stringify({ ids: [S.raf.lose], subs: A2.g }), false,
+                        'trf-' + S.raf.rid + '-g', 'בדיקה — לא זוכה');
+        return reply_(e, out);
+      }
+      if (op === 'end') return reply_(e, testEnd_(S));
+      return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
+    } finally { lock.releaseLock(); }
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
   }

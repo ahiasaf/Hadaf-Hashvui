@@ -672,15 +672,16 @@ nav button.p{background:linear-gradient(140deg,var(--gold-l),var(--gold));
 body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
   padding:4px;font-size:.66rem;box-shadow:0 3px 12px rgba(11,37,80,.3)}
 
-/* עיגול החידה הצף — בפינה השמאלית התחתונה של הדף, רחוק מ-dbadge
-   (שלמעלה) ומהאצבע שמדפדפת. האייקון עצמו כבר עגול ומעוצב
-   (icon-quiz.png, שקוף מסביב), ולכן בלי רקע משלו — רק הרמה קלה
-   מהדף, ומתג "lit" כשהחידה פתוחה.
+/* עיגול החידה הצף — בפינה השמאלית העליונה של הדף, מתחת לפס הכחול
+   (שלא זז). בדמו, כשיש dbadge באותה פינה, העיגול יורד מתחתיו.
+   האייקון עצמו כבר עגול ומעוצב (icon-quiz.png, שקוף מסביב), ולכן
+   בלי רקע משלו — רק הרמה קלה מהדף, ומתג "lit" כשהחידה פתוחה.
+   לחיצה פותחת את לשונית "חידה" במגירה (ראו chavTabHtml).
 
    **תנועה עדינה**: ריחוף קטן ונטייה קלה, פעם בכמה שניות — מספיק
    כדי שהעין תמצא אותו, לא מספיק כדי להסיח מהגמרא. נעצרת כשהחידה
    פתוחה, ובהגדרת "הפחתת תנועה" במכשיר. */
-.qfab{display:none;position:absolute;bottom:14px;left:14px;z-index:8;
+.qfab{display:none;position:absolute;top:14px;left:14px;z-index:8;
   width:62px;height:62px;border-radius:50%;padding:0;border:0;
   background:transparent;cursor:pointer;box-shadow:0 4px 16px rgba(11,37,80,.3);
   transition:transform .2s ease,box-shadow .2s ease;
@@ -688,7 +689,12 @@ body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
 .qfab.on{display:flex}
 .qfab img{width:100%;height:100%;border-radius:50%;display:block}
 .qfab.lit{animation:none;transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
-body.emb .qfab{width:50px;height:50px;bottom:8px;left:8px}
+body.emb .qfab{width:50px;height:50px;top:8px;left:8px}
+/* בדמו התג (dbadge) יושב באותה פינה — העיגול יורד מתחתיו, ובלעדיו
+   חוזר למקומו. התג קודם לעיגול ב-DOM, ולכן `~`. */
+.dbadge.on ~ .qfab{top:98px}
+.dbadge.on.ask ~ .qfab,.dbadge.on.fin ~ .qfab{top:128px}
+body.emb .dbadge.on ~ .qfab{top:68px}
 @keyframes qfloat{
   0%,55%,100% {transform:translateY(0) rotate(0)}
   65%         {transform:translateY(-6px) rotate(-6deg)}
@@ -697,7 +703,7 @@ body.emb .qfab{width:50px;height:50px;bottom:8px;left:8px}
 }
 /* הכיתוב שליד העיגול — רק בפעמים הראשונות (ראו qHintShow).
    החץ פונה אל העיגול, שמשמאלו. */
-.qhint{display:none;position:absolute;bottom:30px;left:90px;z-index:8;
+.qhint{display:none;position:absolute;top:30px;left:90px;z-index:8;
   background:var(--blue,#0B2550);color:#fff;font-weight:800;font-size:.86rem;
   padding:8px 13px;border-radius:12px;white-space:nowrap;cursor:pointer;
   box-shadow:0 4px 14px rgba(11,37,80,.28);opacity:0;transition:opacity .35s ease;
@@ -707,20 +713,19 @@ body.emb .qfab{width:50px;height:50px;bottom:8px;left:8px}
   border-color:transparent var(--blue,#0B2550) transparent transparent}
 .qhint.on{display:block}
 .qhint.in{opacity:1}
-body.emb .qhint{bottom:20px;left:70px;font-size:.78rem}
+body.emb .qhint{top:20px;left:70px;font-size:.78rem}
+.dbadge.on ~ .qhint{top:114px}
+.dbadge.on.ask ~ .qhint,.dbadge.on.fin ~ .qhint{top:144px}
+body.emb .dbadge.on ~ .qhint{top:80px}
 @keyframes qnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
 @media (prefers-reduced-motion:reduce){
   .qfab,.qhint{animation:none}
 }
-/* בטלפון — צמוד לפינה השמאלית התחתונה של **המסך**, מעל שורת
-   הכפתורים, ולא לתחתית הבמה. כשהמגירה פתוחה הבמה היא רק החצי
-   העליון, והעיגול ריחף באמצע הגמרא. `--navh` הוא גובה שורת
-   הכפתורים, נמדד ב-qfabPlace_ (היא יכולה לרדת לשתי שורות).
-   הריפוד בתחתית המגירה — כדי שהשורה האחרונה לא תיבלע מתחת לעיגול. */
+/* בטלפון — אותה פינה שמאלית עליונה של הבמה, מתחת לפס הכחול,
+   קצת קטן יותר. במקלדת פתוחה — מוסתר, כמו קודם. */
 @media (max-width:820px){
-  .qfab{position:fixed;bottom:calc(var(--navh,62px) + 12px);left:12px}
-  .qhint{position:fixed;bottom:calc(var(--navh,62px) + 28px);left:86px}
-  body.qfab-on .chb{padding-bottom:86px}
+  .qfab{width:54px;height:54px;top:10px;left:10px}
+  .qhint{top:24px;left:76px}
   body.kb-open .qfab,body.kb-open .qhint{display:none}
 }
 body.emb .qfab,body.emb .qhint{position:absolute}
@@ -1195,7 +1200,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
          מרחפת מעל הדף ואינה תופסת מקום בפריסה — פס תחתון דחק
          את החברותא כלפי מעלה ושיבש את הדף. -->
     <div class="dbadge" id="dbadge"></div>
-    <!-- עיגול החידה. צף, קבוע במקום, בפינה השמאלית התחתונה, ולידו
+    <!-- עיגול החידה. צף, קבוע במקום, בפינה השמאלית העליונה, ולידו
          כיתוב שמופיע רק בפעמים הראשונות. לחיצה עליו מחליפה את תוכן המגירה — ראו
          quizFabPaint/paintChavArea — ולא פותחת חלון או לשונית. -->
     <button class="qfab" id="qfab" title="חידה"><img src="icon-quiz.png" alt="חידה" draggable="false"></button>
@@ -1318,6 +1323,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
      עצמה נשענת עליהם. אין כאן מאגר נפרד. -->
 <script src="a11y.js"></script>
 <script src="data.js"></script>
+<script src="testmode.js"></script>
 <script src="deck.js"></script>
 <script src="qbank.js"></script>
 <script src="learned.js"></script>
@@ -2099,23 +2105,20 @@ function sidTime_(rec, n) {
    הקוד לא נמחק, רק לא בשימוש — לחפש `git show 9db4d2e:learn.html`
    ולחפש בו `function boldOnly` אם ירצה לחזור לזה, כאן או בפרויקט
    אחר. */
-function chavTabHtml(st) {
+function chavTabHtml(st, canQuiz) {
   if (!st) return '<span class="cht-lbl">חברותא</span>';
   /* לתלמיד: לא מספיק שיש טקסט לקטע — הדף כולו צריך להיות
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
   var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
-  /* החידה כבר לא לשונית כאן — היא עיגול צף משלה (qfab), שמחליף
-     את התוכן של האזור הזה כשלוחצים עליו. ראו quizFabPaint(). */
-  if (!SIDE_ADM && !hasOwn) return '<span class="cht-lbl">חברותא</span>';
-  return '<button class="' + (CHAV_TAB === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
-    '<button class="' + (CHAV_TAB === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>';
-}
-/* כותרת המגירה כשהחידה פתוחה — תופסת את מקום כפתורי חברותא/פירוש
-   לנוער (הם עדיין קיימים מתחת, וחוזרים כשסוגרים). רק תווית וסגירה —
-   אין כאן מעבר בין כמה חידות, יש תמיד אחת לקטע. */
-function quizChdHtml() {
-  return '<span class="cht-lbl">חידה</span><button id="cht-x" title="סגירה">✕</button>';
+  /* החידה — לשונית שלישית, רק בקטע שיש בו שאלה. הלשוניות נשארות
+     גלויות גם כשהיא פתוחה, כדי לעבור לפירוש ולחזור. העיגול הצף
+     (qfab) פותח אותה. */
+  var tab = QUIZ_OPEN ? 'quiz' : CHAV_TAB;
+  if (!SIDE_ADM && !hasOwn && !canQuiz) return '<span class="cht-lbl">חברותא</span>';
+  return '<button class="' + (tab === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
+    (SIDE_ADM || hasOwn ? '<button class="' + (tab === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>' : '') +
+    (canQuiz ? '<button class="' + (tab === 'quiz' ? 'on' : '') + '" id="cht-quiz">' + esc(UI.quizTab || 'חידה') + '</button>' : '');
 }
 
 /* ============================================================
@@ -3479,13 +3482,13 @@ function paintChavArea() {
   if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
   document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
   var cht = $('cht');
-  if (cht) cht.innerHTML = QUIZ_OPEN ? quizChdHtml() : chavTabHtml(st);
+  if (cht) cht.innerHTML = chavTabHtml(st, canQuiz);
   if (QUIZ_OPEN) paintQuiz();
   else if (CHAV_TAB === 'own' && canOwn) paintOwn();
   else paintChav();
-  if ($('cht-chav')) $('cht-chav').onclick = function () { chavPick_('chav'); };
-  if ($('cht-own'))  $('cht-own').onclick  = function () { chavPick_('own'); };
-  if ($('cht-x'))    $('cht-x').onclick    = function () { QUIZ_OPEN = false; paintChavArea(); };
+  if ($('cht-chav')) $('cht-chav').onclick = function () { QUIZ_OPEN = false; chavPick_('chav'); };
+  if ($('cht-own'))  $('cht-own').onclick  = function () { QUIZ_OPEN = false; chavPick_('own'); };
+  if ($('cht-quiz')) $('cht-quiz').onclick = function () { qHintDone_(); QUIZ_OPEN = true; paintChavArea(); };
   quizFabPaint();
   if (ALON_ON) alPaint_();
 }
@@ -3503,10 +3506,13 @@ function quizFabPaint() {
   document.body.classList.toggle('qfab-on', can);
   qfabPlace_();
   fab.classList.toggle('lit', !!QUIZ_OPEN);
+  /* פותח את לשונית החידה. כשהיא כבר פתוחה והמגירה גלויה — סוגר,
+     כמו קודם; המעבר לפירוש ובחזרה הוא דרך הלשוניות. */
   fab.onclick = function () {
     qHintDone_();
-    QUIZ_OPEN = !QUIZ_OPEN;
-    if (QUIZ_OPEN && !document.body.classList.contains('chav-on')) drawer(true);
+    var shown = document.body.classList.contains('chav-on');
+    QUIZ_OPEN = !(QUIZ_OPEN && shown);
+    if (QUIZ_OPEN && !shown) drawer(true);
     else paintChavArea();
   };
   var hint = $('qhint');

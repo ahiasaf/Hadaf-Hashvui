@@ -2133,6 +2133,17 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
          border-radius:var(--r);font:inherit;font-size:1.1rem;font-weight:800;
          background:var(--green-d);color:#fff;box-shadow:var(--sh-2)}
 .am-save:disabled{opacity:.45}
+/* "שמור" — בולט, קבוע בתחתית העמדה. כשיש גם "שמירה — N תלמידים"
+   של כל הכיתה, היא עולה מעליו. */
+.am-in{padding-bottom:96px}
+.am-fin{position:fixed;left:0;right:0;bottom:0;z-index:2;display:block;width:100%;border:0;
+        padding:15px 16px calc(15px + env(safe-area-inset-bottom,0px));font:inherit;font-size:1.12rem;font-weight:800;
+        background:var(--blue);color:#fff;box-shadow:0 -4px 16px rgba(11,37,80,.18)}
+.am-fin span{display:block;font-size:.8rem;font-weight:700;opacity:.85;margin-top:2px}
+.am-save{bottom:86px}
+.am-ex-in .am-fl{margin:0 0 9px;font-size:.95rem;font-weight:700;color:var(--ink-2)}
+.am-ex-in>button .am-qa{display:block}
+.am-ex-in>button .am-qs{display:block;margin-top:4px;font-size:.84rem;font-weight:600;line-height:1.45}
 .am-ok{position:fixed;inset:0;z-index:9001;display:none;flex-direction:column;
        align-items:center;justify-content:center;gap:14px;background:var(--green-d);
        color:#fff;text-align:center;padding:24px}
@@ -2880,6 +2891,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="a11y.js"></script>
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script src="testmode.js"></script>
 <script src="deck.js"></script>
 <script src="qbank.js"></script>
 <script src="textedit.js"></script>
@@ -2898,7 +2910,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.255';
+var APP_VERSION = '8.99.256';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3178,7 +3190,10 @@ function homeRaf() {
   var c = Store.get('rafMe', null), fresh = c && c.id === me.id && c.inst === me.inst && Date.now() - c.at < 10 * 60000;
   if (!fresh && !HOME_RAF_BUSY && (CFG.api || API || '').trim()) {
     HOME_RAF_BUSY = true;
-    scriptGet({ raffle: 'me', id: me.id, inst: me.inst }).then(function (d) {
+    var rq = { raffle: 'me', id: me.id, inst: me.inst }, tq = window.TM && TM.q();
+    /* מצב בדיקה — הסשן המאומת רואה את מצבו (חשבון בדיקה אינו בהגרלה האמיתית). */
+    if (tq) { rq.tsid = tq.tsid; rq.ttok = tq.ttok; }
+    scriptGet(rq).then(function (d) {
       HOME_RAF_BUSY = false;
       /* תשובה שאינה ok — המטמון נשאר כמו שהוא; לא "לא בהגרלה". */
       if (!d || d.status !== 'ok') return;
@@ -11097,7 +11112,8 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery']] },
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'],
+                         ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
      עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
   { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
@@ -11478,6 +11494,7 @@ function admPane() {
   if (sub === 'amdawa')  return admAmdaWa(body);
   if (sub === 'net')     return admNet(body);
   if (sub === 'lottery') { body.innerHTML = admRaffle() + admPairs(); return; }
+  if (sub === 'test')    { body.innerHTML = admTest(); return; }
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -14401,6 +14418,146 @@ function rafGo() {
     rafD.st = 'פורסם'; rafA = null; rafMsg = UI.rafSent;
     setTimeout(function () { needsLoad(); }, 45000);
   });
+}
+
+/* ============================================================
+   מצב בדיקה לבעלים — בניהול (8.99.256).
+   ============================================================
+   הכול בשרת (testRoute_), בסיסמת הבעלים: הסשן, שלוש זהויות הדמה
+   (תלמיד א — זוכה, תלמיד ב — לא זוכה, הורה) עם שם וטלפון פיקטיביים,
+   אישור המכשירים, הגרלת הבדיקה ופרסומה לקהל הבדיקה בלבד, והמחיקה.
+   המכשיר — testmode.js: עותק של האחסון, באנר, וחזרה לחשבון.
+   **שום שליחה אינה יוצאת מכאן בלי לחיצה של הבעלים.** */
+var tmS = null, tmTok = '', tmMsg = '', tmBusy = false, tmAud = null, tmEnd = null, tmInst = '';
+function tmCall(p, then) {
+  var key = (CFG.readKey || '').trim();
+  if (!key) { tmMsg = UI.rafNoKey; admPane(); return; }
+  p.key = key;
+  tmBusy = true; tmMsg = ''; admPane();
+  scriptGet(p).then(function (d) {
+    tmBusy = false;
+    if (!d || d.status !== 'ok') { tmMsg = (d && d.message) || UI.rafNoAns; admPane(); return; }
+    then(d); admPane();
+  })['catch'](function () { tmBusy = false; tmMsg = UI.rafNoAns; admPane(); });
+}
+function tmSet(d) { tmS = d; if (d.tok) tmTok = d.tok; }
+function tmLoad() { tmCall({ test: 'tok' }, tmSet); }
+function tmNew() {
+  var inst = tmInst || (INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; })[0] || {}).code;
+  if (!confirm(UI.tmNewQ)) return;
+  tmCall({ test: 'new', inst: inst }, function (d) {
+    tmSet(d);
+    /* הדפדפן הזה נכנס למצב בדיקה עכשיו: העותק נשמר, הזהות מתנקה. */
+    if (!TM.enter({ sid: d.sid, tok: d.tok, slot: null })) tmMsg = UI.tmSnapFail;
+    TM.banner();
+  });
+}
+function tmSlot(k) {
+  var x = null;
+  (tmS && tmS.slots || []).forEach(function (o) { if (o.k === k) x = o; });
+  return x;
+}
+function tmLink(k) {
+  var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+  return base + 'join?tm=' + tmS.sid + '.' + tmTok + '.' + k;
+}
+function tmBe(k) {
+  var x = tmSlot(k);
+  if (!x || !tmTok) return;
+  if (!TM.enter({ sid: tmS.sid, tok: tmTok, slot: { k: x.k, role: x.role, first: x.first, last: x.last,
+                                                    phone: x.phone, inst: tmS.inst, id: x.id } })) {
+    tmMsg = UI.tmSnapFail; admPane(); return;
+  }
+  location.href = 'join.html';
+}
+function tmCopy(k) {
+  var u = tmLink(k), ok = function () { tmMsg = UI.tmCopied; admPane(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(ok, function () { prompt('', u); });
+  else prompt('', u);
+}
+function tmDevs() { tmCall({ test: 'devs' }, function (d) { tmSet(d); tmAud = null; }); }
+function tmRaf() { tmCall({ test: 'raf' }, function (d) { tmSet(d); tmAud = null; }); }
+function tmPrep() { tmCall({ test: 'aud' }, function (d) { tmAud = d; }); }
+function tmPub() {
+  if (!tmAud || tmAud.bad || !tmAud.w || !tmAud.g) return;
+  if (!confirm(fill(UI.tmPubQ, { w: tmAud.w, g: tmAud.g }))) return;
+  tmCall({ test: 'pub', wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB }, function () {
+    tmMsg = UI.tmPubd; tmAud = null; tmLoad();
+  });
+}
+function tmFin() {
+  if (!confirm(UI.tmEndQ)) return;
+  tmCall({ test: 'end' }, function (d) {
+    tmEnd = d; tmS = { on: false }; tmTok = ''; tmAud = null;
+    if (TM.on()) TM.restore();
+  });
+}
+function tmBack() { if (confirm(UI.tmBackQ)) { TM.restore(); location.reload(); } }
+function admTest() {
+  var h = '<div class="adm-card"><h4>' + esc(UI.tmH) + '</h4><p class="h">' + esc(UI.tmLead) + '</p>';
+  var dis = tmBusy ? ' disabled' : '';
+  var msg = tmMsg ? '<div class="cond" style="margin-top:10px">' + esc(tmMsg) + '</div>' : '';
+  /* אחרי המחיקה — מה נמחק, והוכחה שההגרלה האמיתית לא השתנתה. */
+  if (tmEnd) {
+    var dl = Object.keys(tmEnd.del || {}).filter(function (k) { return tmEnd.del[k]; })
+      .map(function (k) { return k + ' ' + tmEnd.del[k]; }).join(' · ');
+    h += '<div class="pp-h">' + esc(UI.tmEndH) + '</div><p class="h">' + esc(dl || UI.tmEndNone) + '<br><b>' +
+      esc(tmEnd.realSame ? UI.tmRealOk : UI.tmRealBad) + '</b><br>' +
+      esc(TM.on() ? UI.tmStillOn : UI.tmMeBack) + '</p>';
+  }
+  if (!tmS) {
+    return h + '<button class="btn g"' + dis + ' onclick="tmLoad()">' + esc(tmBusy ? UI.rafBusy : UI.rafLoad) + '</button>' + msg + '</div>';
+  }
+  if (!tmS.on) {
+    var opts = INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; }).map(function (o) {
+      return '<option value="' + esc(o.code) + '"' + (o.code === tmInst ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+    }).join('');
+    h += '<div class="am-q">' + esc(UI.tmInst) + '</div>' +
+      '<select style="width:100%" aria-label="' + esc(UI.tmInst) + '" onchange="tmInst=this.value">' + opts + '</select>' +
+      '<button class="btn p" style="margin-top:10px"' + dis + ' onclick="tmNew()">' + esc(UI.tmOn) + '</button>' +
+      (TM.on() ? '<button class="btn g" style="margin-top:8px" onclick="tmBack()">' + esc(UI.tmBack) + '</button>' : '');
+    return h + msg + '</div>';
+  }
+  h += '<p class="h"><b>' + esc(UI.tmIsOn) + '</b> ' + esc(fill(UI.tmSess, { at: String(tmS.at || '').replace('T', ' ').slice(0, 16) })) + '</p>';
+  h += '<div class="plist">' + tmS.slots.map(function (x) {
+    return '<div class="prow2 ' + (x.id ? 'ok' : 'warn') + '"><span class="pm">' + (x.id ? '✓' : '–') + '</span>' +
+      '<div style="flex:1"><b>' + esc(UI['tmSlot' + x.k.toUpperCase()]) + '</b><span>' +
+      esc(x.first + ' ' + x.last + ' · ' + x.phone) + ' · ' +
+      esc(x.id ? fill(UI.tmDev, { n: x.dev }) : UI.tmNotYet) + '</span>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+      '<button class="btn g" onclick="tmBe(\'' + x.k + '\')">' + esc(UI.tmHere) + '</button>' +
+      (tmTok ? '<button class="btn g" onclick="tmCopy(\'' + x.k + '\')">' + esc(UI.tmCopy) + '</button>' : '') +
+      '</div></div></div>';
+  }).join('') + '</div>';
+  h += '<details class="hx"><summary>' + esc(UI.tmStepsH) + '</summary><p class="h">' +
+    esc(UI.tmSteps).replace(/\n/g, '<br>') + '</p></details>';
+  h += '<button class="btn g" style="margin-top:10px"' + dis + ' onclick="tmDevs()">' + esc(fill(UI.tmDevsBtn, { n: tmS.devs || 0 })) + '</button>';
+
+  /* ---- הגרלת הבדיקה ---- */
+  h += '<div class="pp-h">' + esc(UI.tmRafH) + '</div>';
+  var R0 = tmS.raf;
+  if (!R0) {
+    h += '<p class="h">' + esc(UI.tmRafLead) + '</p>' +
+      '<button class="btn p"' + dis + ' onclick="tmRaf()">' + esc(UI.tmRafGo) + '</button>';
+  } else if (R0.st !== 'פורסם') {
+    h += '<p class="h">' + esc(fill(UI.tmRafSt, { rid: R0.rid })) + '<br>' + esc(UI.tmNotRun) + '</p>';
+    if (!tmAud) h += '<button class="btn p"' + dis + ' onclick="tmPrep()">' + esc(UI.rafPrep) + '</button>';
+    else {
+      h += '<p class="h"><b>' + esc(fill(UI.tmAud, { w: tmAud.w, g: tmAud.g })) + '</b>' +
+        (tmAud.bad ? '<br><span style="color:var(--stop)">' + esc(fill(UI.tmAudBad, { n: tmAud.bad })) + '</span>' : '') +
+        (!tmAud.w || !tmAud.g ? '<br><span style="color:var(--stop)">' + esc(UI.tmAudNone) + '</span>' : '') + '</p>' +
+        '<p class="h">' + esc(UI.rafWinT) + ' — ' + esc(UI.rafWinB) + '<br>' + esc(UI.rafAllT) + ' — ' + esc(UI.rafAllB) + '</p>' +
+        '<button class="btn p"' + (tmBusy || tmAud.bad || !tmAud.w || !tmAud.g ? ' disabled' : '') +
+        ' onclick="tmPub()">' + esc(UI.tmPubBtn) + '</button>';
+    }
+  } else {
+    h += '<p class="h"><b>' + esc(UI.tmRafPubd) + '</b><br>' + esc(UI.tmRafNext) + '</p>';
+  }
+
+  h += '<div class="pp-h">' + esc(UI.tmEndBtnH) + '</div>' +
+    '<button class="btn g"' + dis + ' onclick="tmFin()">' + esc(UI.tmEndBtn) + '</button>' +
+    (TM.on() ? '<button class="btn g" style="margin-top:8px" onclick="tmBack()">' + esc(UI.tmBack) + '</button>' : '');
+  return h + msg + '</div>';
 }
 
 function admRaffle() {
@@ -17359,9 +17516,12 @@ function amdaKindAuto() {
   return amdaDafWins().some(function (w) { return w[0] === dow && t >= w[1] && t < w[2]; }) ? 'd' : 'o';
 }
 function amdaKindEff() { return amdaSt.kind || amdaKindAuto(); }
-/* מי שנרשם בדף השבועי: 'למד וחידון' (ברירת המחדל), 'למד', או 'השתתף'. */
+/* מי שנרשם בדף השבועי: 'למד' או 'השתתף'. 'למד וחידון' אינו עוד
+   ברירת מחדל ואינו בבורר (8.99.256): החידון נבחר במפורש בכל פתיחה —
+   "לסמן גם שענו על החידון?" (amdaQzAsk) — ונשמר כ"אישור חידון".
+   'למד וחידון' שנשמר במכשיר מגרסה קודמת נקרא כ'למד'. */
 var AMDA_LV = ['למד וחידון', 'למד', 'השתתף'];
-function amdaLv() { var v = Store.get('amdaLv', ''); return AMDA_LV.indexOf(v) >= 0 ? v : AMDA_LV[0]; }
+function amdaLv() { return Store.get('amdaLv', '') === AMDA_LV[2] ? AMDA_LV[2] : AMDA_LV[1]; }
 function amdaLvSet(v) { Store.set('amdaLv', v); admPane(); }
 function amdaKindPick(k) { amdaSt.kind = amdaSt.kind === k ? '' : k; admPane(); }
 /* לחיצה אחת מכל מקום בניהול: המועד של עכשיו, והדף השבועי לפי השעה. */
@@ -17571,18 +17731,23 @@ function amdaPullRoster() {
 }
 
 /* ---------- הרישומים: שליחה ואימות ---------- */
-function amdaFlush() {
+/* `fast` — מתוך "שמור": רישום שלא נראה בגיליון אחרי 15 שניות נשלח
+   שוב (בלי זה — 45). כפילות אינה מזיקה: נספר פעם אחת למועד. */
+function amdaFlush(fast) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
   var q = amdaQ(), now = Date.now(), sent = 0, stf = AMDA_STAFF;
-  if ((!key && !stf) || !url) return;
-  if (!stf) sent += amdaFlushMarks(key, url);
+  if ((!key && !stf && !q.some(function (m) { return m.dev; })) || !url) return;
+  if (!stf && key) sent += amdaFlushMarks(key, url);
   q.forEach(function (m) {
-    if (m.sent && now - m.sent < 45000) return;       /* עוד מחכה לאימות */
+    if (m.sent && now - m.sent < (fast === true ? 15000 : 45000)) return;   /* עוד מחכה לאימות */
+    /* איש צוות — בזהות המכשיר שנשמרה ברישום עצמו (`m.dev`), כדי
+       שרישום שלא יצא לא ייתקע כשהמסך נסגר; השרת בודק שהמכשיר מאושר
+       לישיבה הזו. */
+    var auth = m.dev ? { dev: m.dev, inst: m.inst } : stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    if (!auth.key && !auth.dev) return;
     m.sent = now;
     sent++;
     var daf = m.kind !== 'o' && m.track;
-    /* איש צוות — בזהות המכשיר; השרת בודק שהוא מאושר לישיבה הזו. */
-    var auth = stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
       action: 'row', tab: AMDA_TAB, key: auth.key, dev: auth.dev, inst: auth.inst,
       cols: JSON.stringify([['מזהה', m.id], ['שבוע', m.w], ['יום', m.day || ''],
@@ -17590,7 +17755,8 @@ function amdaFlush() {
                             ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
                             ['מסלול', daf ? m.track : ''], ['דף', daf ? (m.daf || '') : ''],
                             ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
-                            ['רמה', daf ? (m.lv || '') : ''],
+                            ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
+                            ['אישור חידון', daf && m.qz ? 'כן' : ''],
                             ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
       .catch(function () {});
   });
@@ -17641,7 +17807,8 @@ function amdaPull() {
 function amdaOpen(kind) {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
-  if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack(), lv: amdaLv() });
+  if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack(), lv: amdaLv(),
+                                    oid: Date.now().toString(36), n: 0 });
   var el = document.getElementById('amda');
   if (!el) {
     el = document.createElement('div');
@@ -17661,6 +17828,8 @@ function amdaOpen(kind) {
     if (de.requestFullscreen) de.requestFullscreen().catch(function () {});
   } catch (e) {}
   amdaPaint();
+  /* "לסמן גם שענו על החידון?" — בתחילת כל פתיחה בדף השבועי. */
+  if (amdaQzNeed()) amdaQzAsk();
   amdaFlush();
   amdaPull().then(function () { amdaPaint(); });
   clearInterval(amdaSt.flushT);
@@ -17669,37 +17838,124 @@ function amdaOpen(kind) {
     if (!amdaSt.g) amdaPull().then(function () { if (!amdaSt.g) amdaPaint(); });
   }, 60000);
 }
-/* היציאה שואלת מה למדו — אם שכחת להדליק את "הדף השבועי" בהתחלה
-   (או הדלקת בטעות), זה המקום לתקן. שינוי חל על כל מי שנרשם. */
-function amdaExitAsk() {
+/* ============================================================
+   "לסמן גם שענו על החידון?" — בחירה מפורשת בכל פתיחה (8.99.256).
+   ============================================================
+   עד עכשיו "למד וחידון" היה ברירת מחדל, וכל רישום בדף השבועי
+   נחשב גם כחידון בלי שמישהו בחר בזה. מעכשיו — שאלה אחת בתחילת
+   הפתיחה, לפני השם הראשון. "כן" = איש הצוות מאשר שהתלמידים ביצעו
+   את החידון במלואו; נשמר כ"אישור חידון" בשורת הנוכחות (לא ציון).
+   השאלה אינה נשאלת לתלמיד — רק כאן, אצל מי שפותח את הנוכחות. */
+function amdaQzNeed() {
+  var s = amdaSess();
+  return s.kind !== 'o' && s.lv !== AMDA_LV[2] && s.qz === undefined;
+}
+function amdaQzAsk() {
+  var box = document.getElementById('amda');
+  if (!box || document.getElementById('am-ex')) return;
+  var s = amdaSess(), d = document.createElement('div');
+  /* בהגרלה של דף ב (החריגה) ההשלמה מספיקה בלי חידון — ואז אין
+     להזכיר את ההגרלה בתשובת "לא". */
+  var dn = typeof LDaf === 'function' ? LDaf(s.track || amdaTrack(), Math.max(0, LWeek())) : '';
+  var noQ = typeof LRafNoQuiz === 'function' && LRafNoQuiz(dn);
+  d.className = 'am-ex'; d.id = 'am-ex';
+  d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('qzQ')) + '</b>' +
+    '<button class="on" data-qz="1"><span class="am-qa">' + esc(amdaT('qzYes')) + '</span>' +
+      '<span class="am-qs">' + esc(amdaT('qzYesSub')) + '</span></button>' +
+    '<button data-qz="0"><span class="am-qa">' + esc(amdaT('qzNo')) + '</span>' +
+      '<span class="am-qs">' + esc(amdaT('qzNoSub')) +
+      (noQ ? '' : ' ' + esc(amdaT('qzNoRaf'))) + '</span></button></div>';
+  box.appendChild(d);
+  d.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-qz]');
+    if (!b) return;
+    var t = amdaSess();
+    t.qz = b.getAttribute('data-qz') === '1';
+    Store.set('amdaSess', t);
+    d.parentNode.removeChild(d);
+    amdaPaint();
+  };
+}
+
+/* ============================================================
+   "שמור" — סיום הנוכחות בשמירה מאומתת (8.99.256).
+   ============================================================
+   במקום "יציאה" עמומה: כפתור בולט בתחתית. לפני השמירה — סיכום
+   קצר (כמה נרשמו בפתיחה הזו, דף או נושא אחר, עם חידון או בלי;
+   אצל הרכז — גם המתג "את הדף השבועי", לתיקון אחרי מעשה). אחרי
+   האישור: "שומר…", שליחה, וקריאה חוזרת מהגיליון. "נשמר בהצלחה"
+   רק כשכל מה שבתור נראה בגיליון (ושינוי הסוג אומת) — בקשת no-cors
+   שהסתיימה אינה הוכחה. בכשל — הסבר קצר ו"נסה שוב"; התור נשאר
+   במכשיר, ושום סימון אינו אובד. שמירה חוזרת אינה מכפילה: כל רישום
+   נספר פעם אחת למועד, גם אם נשלח פעמיים. */
+function amdaFinAsk() {
   var s = amdaSess(), box = document.getElementById('amda');
   if (!box || document.getElementById('am-ex')) return;
   var les = amdaLesson(s.slot), d = document.createElement('div');
+  /* מי שסומן ב"כל הכיתה" ועוד לא נשמר — נכנס לשמירה הזו. */
+  var pick = amdaSt.all ? amdaList(amdaSt.g, amdaSt.c).filter(function (x, i) { return amdaSt.sel && amdaSt.sel[i]; }) : [];
+  var was = s.kind === 'o' ? 'o' : 'd', now = was, own = !AMDA_STAFF && !les;
+  var line = function (t) { return '<p class="am-fl">' + esc(t) + '</p>'; };
+  var paint = function () {
+    var n = (+s.n || 0) + pick.length;
+    var daf = now === 'd', dn = LDafName(s.track || amdaTrack(), Math.max(0, LWeek()));
+    d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('finQ')) + '</b>' +
+      line(n ? fill(amdaT('finN'), { n: n }) : amdaT('finN0')) +
+      line(amdaT(daf ? 'chipD' : 'chipO') + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
+      (daf && s.lv !== AMDA_LV[2] ? line(amdaT(s.qz && was === 'd' ? 'finQzY' : 'finQzN')) : '') +
+      (own ? '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
+        esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (daf ? ' on' : '') +
+        '" data-ek="t" aria-label="' + esc(amdaT('exitD')) + '"></button></div>' : '') +
+      '<button class="on" data-ek="x">' + esc(amdaT('finGo')) + '</button>' +
+      '<button class="bk" data-ek="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  };
   d.className = 'am-ex'; d.id = 'am-ex';
-  /* מתג אחד ולא שני כפתורים — כמו "להזמין גמרות?" בטופס ההרשמה. */
-  var was = s.kind === 'o' ? 'o' : 'd', now = was;
-  d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('exitQ')) + '</b>' +
-    '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
-      esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (now === 'd' ? ' on' : '') +
-      '" data-ek="t" aria-label="' + esc(amdaT('exitD')) + '"></button></div>' +
-    '<button class="on" data-ek="x">' + esc(amdaT('exitGo')) + '</button>' +
-    '<button class="bk" data-ek="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  paint();
   box.appendChild(d);
   d.onclick = function (e) {
     var b = e.target.closest && e.target.closest('[data-ek]');
     if (!b) return;
     var k = b.getAttribute('data-ek');
-    if (k === 't') {
-      now = now === 'd' ? 'o' : 'd';
-      var sw = d.querySelector('.sw');
-      if (sw) sw.className = 'sw' + (now === 'd' ? ' on' : '');
-      return;
+    if (k === 't') { now = now === 'd' ? 'o' : 'd'; paint(); return; }
+    if (k === '-') { d.parentNode.removeChild(d); return; }
+    if (k === 'x') {
+      pick.forEach(function (x) { amdaMarkRec(amdaSt.g, amdaSt.c, x); });
+      amdaSt.sel = {};
+      amdaSave(d, now !== was ? now : '');
     }
-    d.parentNode.removeChild(d);
-    if (k === '-') return;
-    if (now !== was) amdaKindSet(now);
-    amdaClose(true);
+    if (k === 'r') amdaSave(d, '');
+    if (k === 'q') { d.parentNode.removeChild(d); amdaClose(true); }
   };
+}
+function amdaSave(d, kind) {
+  var tries = 0, kOk = !kind, kDone = !kind;
+  var msg = function (h) { d.innerHTML = '<div class="am-ex-in">' + h + '</div>'; };
+  msg('<b>' + esc(amdaT('saving')) + '</b><p class="am-fl">' + esc(amdaT('savingSub')) + '</p>');
+  if (kind) amdaKindSet(kind, function (ok) { kOk = ok; kDone = true; });
+  var fail = function () {
+    var left = amdaQ().length;
+    msg('<b>' + esc(amdaT('saveBad')) + '</b><p class="am-fl">' +
+      esc(left ? fill(amdaT('saveBadN'), { n: left }) : amdaT('saveBadK')) + '</p>' +
+      '<button class="on" data-ek="r">' + esc(amdaT('saveRetry')) + '</button>' +
+      '<button data-ek="-">' + esc(amdaT('exitStay')) + '</button>' +
+      '<button class="bk" data-ek="q">' + esc(amdaT('saveLater')) + '</button>');
+  };
+  var step = function () {
+    amdaFlush(true);
+    setTimeout(function () {
+      amdaPull().then(function (ok) {
+        var left = amdaQ().length;
+        if (ok && !left && kDone) {
+          if (!kOk) return fail();
+          if (d.parentNode) d.parentNode.removeChild(d);
+          amdaOk(amdaT('saveOk'), '', function () { amdaClose(true); });
+          return;
+        }
+        if (++tries < 6) step(); else fail();
+      });
+    }, tries ? 5000 : 3000);
+  };
+  step();
 }
 /* החלפת המועד מתוך העמדה — כשהשעה בחרה לא נכון. אותם אריחים
    כמו בניהול, כולל שיעורי הכיתה (מסך הכיתה עם המפה). מכאן והלאה נרשמים
@@ -17732,18 +17988,21 @@ function amdaSlotGo(id) {
   box.scrollTop = 0;
 }
 /* החלפת הסוג של הפתיחה הזו — גם למי שכבר נרשם (amdakind בסקריפט). */
-function amdaKindSet(k) {
+function amdaKindSet(k, cb) {
   var s = amdaSess(), day = amdaDay(), key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
   s.kind = k; Store.set('amdaSess', s);
+  cb = cb || function () {};
+  var qz = k === 'd' && !!s.qz;
   /* מה שעוד בתור — יוצא כבר בסוג החדש. */
   var q = amdaQ();
-  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = s.lv || amdaLv(); } });
+  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = s.lv || amdaLv(); m.qz = qz; } });
   Store.set('amdaQ', q);
   amdaFlush();
-  if (!key || !url) return;
+  if (!key || !url) { cb(false); return; }
   var track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
-  var body = { action: 'amdakind', key: key, day: day, slot: s.slot, kind: k,
-               track: track, daf: LDafName(track, wk) || '', lvl: k === 'd' ? (s.lv || amdaLv()) : '' };
+  var body = { action: 'amdakind', key: key, day: day, slot: s.slot, kind: k, qz: qz ? '1' : '',
+               track: track, daf: LDafName(track, wk) || '',
+               lvl: k === 'd' ? (qz ? AMDA_LV[0] : (s.lv || amdaLv())) : '' };
   var tries = 0;
   var send = function () {
     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).catch(function () {});
@@ -17758,20 +18017,20 @@ function amdaKindSet(k) {
         if (bad) throw 0;
         amdaMsg = amdaT('kindOk', { k: amdaT(k === 'o' ? 'exitO' : 'exitD') });
         amdaPull();
+        cb(true);
       })['catch'](function () {
         if (++tries < 2) return send();
         amdaMsg = amdaT('kindFail');
         if (document.getElementById('amda-adm')) admPane();
+        cb(false);
       });
     }, 7000);
   };
   setTimeout(send, 2500);
 }
 function amdaClose(sure) {
-  /* איש צוות: יציאה פשוטה. שאלת "מה למדו" משנה רישומים בגיליון,
-     וזו פעולה של הרכז. */
-  if (sure !== true && AMDA_STAFF) { if (confirm(amdaT('exitAsk'))) amdaClose(true); return; }
-  if (sure !== true) { amdaExitAsk(); return; }
+  /* היציאה עוברת דרך "שמור" — סיכום קצר, שמירה ואימות בגיליון. */
+  if (sure !== true) { amdaFinAsk(); return; }
   var el = document.getElementById('amda');
   if (el) el.className = 'amda';
   Store.set('amdaOn', 0);
@@ -17797,7 +18056,8 @@ function amdaPaint() {
   var h = '<div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
           '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' +
           esc(amdaT('brand2')) + ' · ' + esc(PROGRAM.year) + '</span></div>' +
-          (les ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
+          /* איש צוות — תמיד הדף השבועי; המתג ללימוד אחר רק אצל הרכז. */
+          (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
             esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
           '<div class="am-h">' + esc(amdaT(amdaSt.self ? 'selfT' : daf ? 'title' : 'titleO')) + '</div>' +
@@ -17856,6 +18116,10 @@ function amdaPaint() {
                '<button class="am-all" data-ab="0">' + esc(amdaT(amdaSt.self ? 'selfNext' : 'allBack')) + '</button>'
              : (les ? '' : '<button class="am-all" data-ab="1">' + esc(amdaT('allGo')) + '</button>');
   }
+  /* "שמור" — תמיד בתחתית. סיכום, שמירה ואימות (amdaFinAsk). */
+  var pend = amdaQ().length;
+  h += '<button class="am-fin" data-fin="1">' + esc(amdaT('save')) +
+       (pend ? '<span>' + esc(fill(amdaT('savePend'), { n: pend })) + '</span>' : '') + '</button>';
   box.innerHTML = h;
 }
 function amdaList(g, c) { return ((amdaRoster() || {}).g || {})[g] ? (amdaRoster().g[g][c] || []) : []; }
@@ -17875,10 +18139,10 @@ function amdaTap(e) {
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
           el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
-          el.getAttribute('data-ab') || el.getAttribute('data-as')))) el = el.parentNode;
+          el.getAttribute('data-ab') || el.getAttribute('data-as') || el.getAttribute('data-fin')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
-  if (el.getAttribute('data-x')) { amdaClose(); return; }
+  if (el.getAttribute('data-x') || el.getAttribute('data-fin')) { amdaClose(); return; }
   if (el.getAttribute('data-w')) { amdaSlotAsk(); return; }
   if (el.getAttribute('data-lb')) { amdaBoard(amdaSess().slot); return; }
   if (el.getAttribute('data-la')) {
@@ -17888,7 +18152,9 @@ function amdaTap(e) {
   }
   if (el.getAttribute('data-k')) {
     amdaKindSet(amdaSess().kind === 'o' ? 'd' : 'o');
-    amdaPaint(); return;
+    amdaPaint();
+    if (amdaQzNeed()) amdaQzAsk();
+    return;
   }
   var box = document.getElementById('amda');
   if (el.getAttribute('data-g')) {
@@ -17970,8 +18236,10 @@ function amdaMarkRec(g, c, n) {
   q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
            w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
+           qz: s.kind !== 'o' && !!s.qz, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
            g: g, c: c, n: n, at: new Date().toISOString() });
   Store.set('amdaQ', q);
+  s.n = (+s.n || 0) + 1; Store.set('amdaSess', s);
   return true;
 }
 function amdaMark(g, c, n) {
@@ -18507,6 +18775,34 @@ function amdaByClass(keys) {
   });
 }
 function amdaNm(k) { return k.split('|').slice(2).join('|'); }
+/* ============================================================
+   רישום נוכחות שלא שויך — שם שמתאים לכמה נרשמים (8.99.256).
+   ============================================================
+   השרת אינו מנחש (amdaSync_), ולכן הרישום נשאר בנוכחות בלי לימוד
+   משויך. כאן הוא לא נבלע בשקט: מספר, והשמות אחרי לחיצה. קריאה
+   שנכשלה משאירה את מה שהיה (`null` = עוד לא נקרא). */
+var AMDA_AMB = null;
+function amdaAmbRead() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  scriptGet({ amdaAmb: 1, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) return;
+    var was = JSON.stringify(AMDA_AMB);
+    AMDA_AMB = d.rows;
+    if (JSON.stringify(AMDA_AMB) !== was && document.getElementById('amda-adm')) admPane();
+  })['catch'](function () {});
+}
+function amdaAmbHtml() {
+  if (!AMDA_AMB || !AMDA_AMB.length) return '';
+  return '<details class="h" style="color:var(--stop);margin:4px 0 8px"><summary><b>' +
+    esc(fill(amdaT('ambN'), { n: AMDA_AMB.length })) + '</b></summary>' +
+    '<p style="margin:6px 0">' + esc(amdaT('ambHow')) + '</p>' +
+    AMDA_AMB.map(function (x) {
+      var row = amdaInstRow(x[0]);
+      return '<div>' + esc(x[3]) + ' · ' + esc(amdaG(x[1])) + esc(x[2]) + ' · ' +
+             esc(row ? row.name : x[0]) + ' · ' + esc(fill(amdaT('ambM'), { m: x[6] })) + '</div>';
+    }).join('') + '</details>';
+}
 function admAmda(body) {
   var r = amdaRoster(), cnt = amdaCount(r), key = (CFG.readKey || '').trim();
   var q = amdaQ(), slot = amdaSlotSel(), inst = amdaInst(), tracks = amdaTracks();
@@ -18514,7 +18810,8 @@ function admAmda(body) {
     '<p class="h">' + esc(amdaT('admLead')) + '</p>' +
     '<p class="h"><b>' + esc(cnt.n ? amdaT('admHave', cnt) : amdaT('admNone')) + '</b>' +
     (amdaMsg ? '<br>' + esc(amdaMsg) : '') + '</p>' +
-    (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>');
+    (key ? '' : '<p class="h" style="color:var(--stop)">' + esc(amdaT('admNoKey')) + '</p>') +
+    amdaAmbHtml();
   if (cnt.n) {
     h += '<div class="am-q">' + esc(amdaT('admWhen')) + '</div>' + amdaTiles(slot);
     if (tracks.length > 1) {
@@ -18551,9 +18848,10 @@ function admAmda(body) {
       if (kd === 'd') {
         h += '<div class="am-q">' + esc(amdaT('admLv')) + '</div><div class="am-sl">' +
           AMDA_LV.map(function (v, i) {
-            return '<button class="' + (lv === v ? 'on' : '') + '" onclick="amdaLvSet(\'' + v + '\')">' +
-              esc(amdaT('lv' + i)) + '</button>';
-          }).join('') + '</div>';
+            return i ? '<button class="' + (lv === v ? 'on' : '') + '" onclick="amdaLvSet(\'' + v + '\')">' +
+              esc(amdaT('lv' + i)) + '</button>' : '';
+          }).join('') + '</div>' +
+          '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT('admLvQz')) + '</p>';
       }
       h += '<button class="btn p" style="width:100%;margin:6px 0 12px" onclick="amdaOpen(amdaKindEff())">' +
              esc(amdaT('admOne')) + '</button>';
@@ -18608,7 +18906,7 @@ function admAmda(body) {
   body.innerHTML = h;
   /* בכל כניסה, לכל היותר פעם בדקה — גם כשהקריאה נכשלה. */
   if (key && Date.now() - (amdaSt.admAt || 0) > 60000) {
-    amdaSt.admAt = Date.now(); amdaFlush(); amdaPull();
+    amdaSt.admAt = Date.now(); amdaFlush(); amdaPull(); amdaAmbRead();
     amdaLesRead().then(function (l) {
       if (!l || JSON.stringify(l) === JSON.stringify(amdaLessons())) return;
       Store.set('amdaLessons', l);
@@ -21189,6 +21487,9 @@ function sheetPick(v) { sheetClose(); if (sheetCb) sheetCb(v); }
    מה שצריך ולא יותר.
    ============================================================ */
 var SUG_TIP = 'df:sugya-tip';
+/* גרסת התוכן של ההנחיה. מי שאישר גרסה קודמת ('1') רואה פעם אחת
+   את הנוסח המעודכן — לא בכל כניסה, ובלי לגעת בהעדפות אחרות. */
+var SUG_TIP_V = '2';
 function sugIcon(on, inner) {
   return '<span class="sg-i' + (on ? ' hot' : '') + '">' + inner + '</span>';
 }
@@ -21218,6 +21519,7 @@ function sugyaTip(href) {
       /* החוברת בנויה לעמוד רחב, והטלפון מציג אותה לגובה. סיבוב
          המכשיר לרוחב מכפיל את גודל הכתב בלי לגעת בכלום. */
       '<p>ואם המכשיר מסובב לרוחב — הכתב גדול עוד יותר.</p>' +
+      (UI.sugBack ? '<p><b>' + esc(UI.sugBack) + '</b></p>' : '') +
       /* אותו סדר שבסרגל האמיתי, ומשמאל לימין כמוהו — ההודעה
          מראה מה שיראו, לא תרגום שלו. */
       '<div class="sg-bar">' +
@@ -21228,7 +21530,7 @@ function sugyaTip(href) {
     '</div>';
   document.getElementById('sheet').className = 'on';
   document.getElementById('sg-go').onclick = function () {
-    try { localStorage.setItem(SUG_TIP, '1'); } catch (e) {}
+    try { localStorage.setItem(SUG_TIP, SUG_TIP_V); } catch (e) {}
     sheetClose();
     window.open(href, '_blank', 'noopener');
   };
@@ -21258,7 +21560,7 @@ document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest && e.target.closest('a.lnk.sug, a.wcard.sug');
   if (!a || !a.getAttribute('href') || a.getAttribute('href') === '#') return;
   var seen = false;
-  try { seen = localStorage.getItem(SUG_TIP) === '1'; } catch (x) {}
+  try { seen = localStorage.getItem(SUG_TIP) === SUG_TIP_V; } catch (x) {}
   if (seen) return;
   e.preventDefault();
   sugyaTip(a.getAttribute('href'));
