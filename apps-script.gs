@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 71;
+var SCRIPT_VERSION = 72;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -2960,12 +2960,17 @@ function boardData_(inst, k, withTest, inner) {
           pos:   {}                            /* 'מסלול|שבוע' → 0–1 */
         };
       }
+      /* נקודות — לתלמידי אור עציון בלבד (oezPts_). כישלון — בלי `pts`
+         בכלל, והלוח אינו מציג 0. */
+      var oez = null;
+      if (all || inst === OEZ_CODE) { try { oez = oezPts_(); } catch (eP) { oez = null; } }
       order.forEach(function (pid) {
         var p = byId[pid];
         /* הלוח הוא רשימת הנוכחות של תלמידי הישיבה. אבא אינו
            תלמיד שלה, ושמו אינו צריך להגיע לצוות — מה שהצוות
            צריך לדעת יושב על שורת הבן. */
         if (p.role === 'הורה') return;
+        if (oez && p.inst === OEZ_CODE && oez[pid]) p.pts = oez[pid];
         /* זיווג מאומת: שני הצדדים נרשמו בפועל. בלעדיו נשאר
            מה שהתלמיד **הצהיר** — וזה הבדל שהצוות צריך לראות,
            כי "מילא את השם של אבא" אינו "אבא לומד איתו". */
@@ -6835,8 +6840,9 @@ var RAF_DAF = 'ב';
    קשור למחזור של דף ב (RAF_DAF) ולא לשבוע שעל השעון — מי שסיים את
    דף ב אינו מאבד זכאות כשנפתח דף ג לפני ההגרלה. שאר התנאים (הורים,
    בדיקה, לפיד, "אחר", מוסדות שלא נבחרו) — בלי שינוי.
-   שימו לב: תנאי החידון של המדיניות הרגילה עוד לא נבנה בשרת — כשהמחזור
-   יעבור לדף ג צריך לבנות אותו כאן, או שהבעלים יורה אחרת. */
+   תנאי החידון של המדיניות הרגילה (80% ומעלה) בנוי ב-rafCalc_ (8.99.255)
+   וחל מעצמו על כל RAF_DAF שאינו RAF_NOQUIZ_DAF — כשהמחזור עובר לדף ג
+   מספיק להחליף את RAF_DAF. */
 var RAF_NOQUIZ_DAF = 'ב';
 
 function rafCodes_(raw) {
@@ -6862,8 +6868,44 @@ function rafTrack_(tr) {
 }
 
 /* החישוב המשותף לזכאים בניהול (raffleElig_) ולתלמיד עצמו (rafMe_) —
-   אותה לוגיקה בדיוק: אנשים, איחוד חשבונות, ומי סיים איזה עמוד. */
+   אותה לוגיקה בדיוק: אנשים, איחוד חשבונות, ומי סיים איזה עמוד.
+   **תנאי החידון:** מחוץ לחריגת RAF_NOQUIZ_DAF, סיום נספר רק עם חידון
+   בציון 80% ומעלה על דף ההגרלה באותה מסכת (quizBest_/quizDaf_). */
 function rafCalc_() {
+  var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target;
+  var noId = {}, side = {};
+  var lr = sheet_(LEARN_TAB);
+  var rows = lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
+  if (rows && rows.length > 1) {
+    var ix = {};
+    for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
+    var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+    for (var i = 1; i < rows.length; i++) {
+      var s = rafSide_(c(rows[i], 'דף')), tr = rafTrack_(c(rows[i], 'מסלול'));
+      if (!s || !tr) continue;
+      var lid = c(rows[i], 'מזהה'), canon = alias[lid] || lid;
+      if (!canon) continue;
+      if (!ppl[canon]) { noId[canon] = c(rows[i], 'קוד ישיבה') || '?'; continue; }
+      canon = target[canon] || canon;
+      var k = canon + '|' + tr;
+      side[k] = side[k] || {};
+      if (s !== 'b') side[k].a = 1;
+      if (s !== 'a') side[k].b = 1;
+    }
+  }
+  var Q = RAF_DAF !== RAF_NOQUIZ_DAF ? quizBest_(alias, target) : null;
+  /* מי סיים את שני העמודים, באחת המסכתות (ומחוץ לחריגה — גם עבר חידון). */
+  var done = {};
+  Object.keys(side).forEach(function (k) {
+    if (!side[k].a || !side[k].b) return;
+    var pr = k.split('|');
+    if (Q && !quizPass_(quizDaf_(Q, pr[0], pr[1], RAF_DAF))) return;
+    done[pr[0]] = 1;
+  });
+  return { ppl: ppl, target: target, side: side, done: done, noId: noId };
+}
+/* האנשים מ"לומדים", ואיחוד החשבונות — המשותף להגרלה ולנקודות. */
+function rafPpl_() {
   var t = joinTable_();
   var ppl = {}, alias = aliasMap_(t.rows);
   for (var r = 1; r < t.rows.length; r++) {
@@ -6898,7 +6940,71 @@ function rafCalc_() {
       if (p !== to) p.ids.forEach(function (x) { if (to.ids.indexOf(x) < 0) to.ids.push(x); });
     });
   });
-  var noId = {}, side = {};
+  return { ppl: ppl, alias: alias, target: target };
+}
+
+/* ============================================================
+   ציוני החידון — מהלשונית "חידות" (8.99.255).
+   ============================================================
+   הציון נשמר כבר היום: learn.html (qsSend_) כותב בסוף הדף שורה
+   "החידון כולו" עם "ציון" = נכונות/שאלות ועם המזהה. רק השורות האלה
+   נספרות — לא תשובה לשאלה בודדת, ולא "עמדת לימוד" (אין בה ציון).
+   לכל אדם (אחרי איחוד), מסכת ודף — הציון הטוב ביותר. `seen` — למי
+   יש ציון כלשהו; מי שאין לו, ההיסטוריה שלו "לא ידוע" ולא 0. */
+function quizBest_(alias, target) {
+  var sh = sheet_('חידות'), v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
+  var ix = {}, best = {}, seen = {};
+  if (v.length) for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+  for (var i = 1; i < v.length; i++) {
+    if (c(v[i], 'קטע') !== 'החידון כולו') continue;
+    var sc = c(v[i], 'ציון').match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (!sc || !(+sc[2] > 0)) continue;
+    var pr = c(v[i], 'דף').split('|'), tr = rafTrack_(pr[0]);
+    var d = String(pr[1] || '').replace(/["'׳״\s]/g, '');
+    var mid = c(v[i], 'מזהה'), canon = alias[mid] || mid;
+    if (!tr || !d || !canon) continue;
+    canon = target[canon] || canon;
+    seen[canon] = 1;
+    var k = canon + '|' + tr + '|' + d, x = [+sc[1], +sc[2]], o = best[k];
+    if (!o || x[0] * o[1] > o[0] * x[1] || (x[0] * o[1] === o[0] * x[1] && x[1] > o[1])) best[k] = x;
+  }
+  return { best: best, seen: seen };
+}
+/* הציון של דף שלם: חידון על הדף כולו, או — בדף שמחולק לעמודים
+   (ב. / ב:) — שני העמודים יחד. עמוד שאין לו בן זוג בלוח (מגילה לב.)
+   הוא הדף כולו. [נכונות, שאלות] או null. */
+function quizDaf_(Q, who, tr, base) {
+  var sp = tr === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA, pre = who + '|' + tr + '|' + base;
+  var w = Q.best[pre], a = Q.best[pre + '.'], b = Q.best[pre + ':'], cand = [];
+  if (w) cand.push(w);
+  if (a && b) cand.push([a[0] + b[0], a[1] + b[1]]);
+  else if (a && !sp.wk[base + ':']) cand.push(a);
+  else if (b && !sp.wk[base + '.']) cand.push(b);
+  var out = null;
+  cand.forEach(function (x) { if (!out || x[0] * out[1] > out[0] * x[1]) out = x; });
+  return out;
+}
+function quizPass_(x) { return !!(x && x[0] * 5 >= x[1] * 4); }   /* 80% */
+
+/* ============================================================
+   נקודות לתלמידי אור עציון בלבד (8.99.255).
+   ============================================================
+   10 נקודות לכל דף שלם (שני העמודים, כמו rafSide_) שהחידון שלו
+   בציון 80% ומעלה — פעם אחת לכל דף, לפי הציון הטוב ביותר. הזהות —
+   האנשים והאיחוד של ההגרלה (rafPpl_). אין נקודות למוסד אחר, ולא
+   נשמר כאן דבר: הכול מחושב מחדש מהלימוד ומהחידונים.
+   מזהה → { n: נקודות או null ("לא ידוע"), l: [[מסכת, דף, ציון]] }.
+   במטמון 5 דקות. ללוח בלבד (boardData_), לא למסך התלמיד. */
+var OEZ_CODE = 'oretzion';
+function oezPts_() {
+  var rc = CacheService.getScriptCache(), hit = rc.get('oez:pts');
+  if (hit) { try { return JSON.parse(hit); } catch (x0) {} }
+  var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target, who = {};
+  Object.keys(ppl).forEach(function (id) {
+    var to = target[id] || id, q = ppl[to];
+    if (q && q.code === OEZ_CODE && q.role !== 'הורה' && !q.test) who[to] = {};
+  });
   var lr = sheet_(LEARN_TAB);
   var rows = lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
   if (rows && rows.length > 1) {
@@ -6906,24 +7012,37 @@ function rafCalc_() {
     for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
     var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
     for (var i = 1; i < rows.length; i++) {
-      var s = rafSide_(c(rows[i], 'דף')), tr = rafTrack_(c(rows[i], 'מסלול'));
-      if (!s || !tr) continue;
       var lid = c(rows[i], 'מזהה'), canon = alias[lid] || lid;
-      if (!canon) continue;
-      if (!ppl[canon]) { noId[canon] = c(rows[i], 'קוד ישיבה') || '?'; continue; }
       canon = target[canon] || canon;
-      var k = canon + '|' + tr;
-      side[k] = side[k] || {};
-      if (s !== 'b') side[k].a = 1;
-      if (s !== 'a') side[k].b = 1;
+      if (!canon || !who[canon]) continue;
+      var tr = rafTrack_(c(rows[i], 'מסלול')), d = c(rows[i], 'דף').replace(/["'׳״\s]/g, '');
+      if (!tr || !d) continue;
+      var base = d.replace(/[.:]$/, ''), k = tr + '|' + base, s = who[canon][k] = who[canon][k] || {};
+      if (!/:$/.test(d)) s.a = 1;
+      if (!/\.$/.test(d)) s.b = 1;
     }
   }
-  /* מי סיים את שני העמודים, באחת המסכתות. */
-  var done = {};
-  Object.keys(side).forEach(function (k) {
-    if (side[k].a && side[k].b) done[k.split('|')[0]] = 1;
+  var Q = quizBest_(alias, target), out = {};
+  Object.keys(who).forEach(function (to) {
+    var l = [];
+    Object.keys(who[to]).forEach(function (k) {
+      var pr = k.split('|'), s = who[to][k], sp = pr[0] === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
+      var whole = (s.a && s.b) || (s.a && !sp.wk[pr[1] + ':']) || (s.b && !sp.wk[pr[1] + '.']);
+      var x = whole ? quizDaf_(Q, to, pr[0], pr[1]) : null;
+      if (quizPass_(x)) l.push([pr[0], pr[1], x[0] + '/' + x[1], sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99]);
+    });
+    l.sort(function (x, y) { return x[3] - y[3] || (x[0] < y[0] ? -1 : 1); });
+    var v = { n: Q.seen[to] ? l.length * 10 : null,
+              l: l.map(function (x) { return [x[0], x[1], x[2]]; }) };
+    out[to] = v;
   });
-  return { ppl: ppl, target: target, side: side, done: done, noId: noId };
+  /* כל מזהה של אותו אדם — גם חשבון שאוחד. */
+  Object.keys(ppl).forEach(function (id) {
+    var to = target[id] || id;
+    if (out[to]) out[id] = out[to];
+  });
+  try { var js = JSON.stringify(out); if (js.length < 95000) rc.put('oez:pts', js, 300); } catch (x2) {}
+  return out;
 }
 /* למה אדם שסיים אינו בהגרלה — '' = בפנים (לפני בחירת המוסדות). */
 function rafWhy_(p) {
@@ -7014,9 +7133,24 @@ function rafPick_(n) {
   return parseInt(h, 16) % n;
 }
 
+/* בחירת המוסדות האחרונה של הרכז (זכאים או הגרלה) — כדי ש"אתה בתוך
+   ההגרלה" (rafMe_) יסנן כמו ההגרלה עצמה. לא נבחרה מעולם — null, ואז
+   כל מוסד שאינו לפיד/"אחר" נחשב בפנים, כמו קודם. */
+var RAF_SEL_KEY = 'rafSel';
+function rafSelSave_(codes) {
+  if (!codes.length) return;
+  try { PropertiesService.getScriptProperties().setProperty(RAF_SEL_KEY, codes.join(',')); } catch (x) {}
+}
+function rafSelGet_() {
+  var v = '';
+  try { v = PropertiesService.getScriptProperties().getProperty(RAF_SEL_KEY) || ''; } catch (x) { return null; }
+  return v ? rafCodes_(v) : null;
+}
+
 function raffleDraw_(P) {
   var codes = rafCodes_(P.codes);
   if (!codes.length) return { status: 'error', message: 'לא נבחרו מוסדות' };
+  rafSelSave_(codes);
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { status: 'error', message: 'הגרלה אחרת רצה כרגע — נסו שוב בעוד דקה' };
   try {
@@ -7255,8 +7389,8 @@ function quizSum_() {
 
 /* ?raffle=me&id=&inst= — לתלמיד עצמו, לכרטיס "המסלול שלך": כמה מדף
    ההגרלה (RAF_DAF) סיים, והאם הוא בתוך ההגרלה — מ-rafCalc_ ו-rafWhy_,
-   כמו בניהול. "בפנים" = סיים את שני העמודים, תלמיד של מוסד שבתוכנית
-   (בחירת המוסדות לפני ההגרלה היא של הרכז, ולכן אינה ידועה כאן).
+   כמו בניהול. "בפנים" = סיים את שני העמודים, תלמיד של מוסד שבתוכנית,
+   ומוסד שבבחירה האחרונה של הרכז (rafSelGet_), אם הייתה.
    החישוב לכולם נשמר במטמון 5 דקות; מזהה ממוסד אחר — כמו שאינו קיים. */
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: RAF_DAF, a: false, b: false, inn: false };
@@ -7281,12 +7415,15 @@ function rafMe_(P) {
     });
     try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me', js, 300); } catch (x2) {}
   }
+  /* המוסדות שהרכז בחר — אותו סינון כמו raffleElig_ (`by[p.code]`). */
+  var sel = rafSelGet_();
   for (var i = 0; i < mine.length; i++) {
     var v2 = M[mine[i]];
     if (!v2) continue;
     var pr = v2.split('|');
     if (pr[0] !== inst) continue;
-    return { status: 'ok', daf: RAF_DAF, a: pr[1].indexOf('a') >= 0, b: pr[1].indexOf('b') >= 0, inn: pr[1].indexOf('+') >= 0 };
+    return { status: 'ok', daf: RAF_DAF, a: pr[1].indexOf('a') >= 0, b: pr[1].indexOf('b') >= 0,
+             inn: pr[1].indexOf('+') >= 0 && (!sel || sel.indexOf(pr[0]) >= 0) };
   }
   return none;
 }
@@ -7297,7 +7434,7 @@ function raffleRoute_(e) {
     if (op === 'res') return reply_(e, raffleRes_(P));
     if (op === 'me') return reply_(e, rafMe_(P));
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
-    if (op === 'elig') return reply_(e, raffleElig_(rafCodes_(P.codes)));
+    if (op === 'elig') { rafSelSave_(rafCodes_(P.codes)); return reply_(e, raffleElig_(rafCodes_(P.codes))); }
     if (op === 'state') {
       var T = rafRead_(), d = rafLast_(T, progWeek_());
       if (d) d.ex = T.c(d.lines[0], 'חריגים');

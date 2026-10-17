@@ -853,6 +853,8 @@ body.wz #go{background:var(--green-d)}
   font-family:inherit;font-size:.9rem;font-weight:700;
   text-decoration:underline;cursor:pointer;line-height:1.6}
 .wzcard .thin u{text-decoration:underline}
+/* `display:block` שלמעלה דורס את `hidden` — "אני אמא" הופיע גם בלשונית "חבר". */
+#dad-flip[hidden]{display:none}
 /* המשפט שלפני השליחה במסלול אנדרואיד-בדפדפן. */
 .wzcard .hlp-and{margin:14px 0 0;font-size:.9rem;color:var(--ink-2,#3d4757)}
 .wzcard .thin .why{display:block;margin-top:5px;font-size:.82rem;
@@ -3060,9 +3062,7 @@ function drawWeek() {
   if (!extra) return;
   if (wk < 0 || !LDaf(tr, wk)) { extra.innerHTML = ''; return; }
 
-  var done = LDone(tr, wk), all = LCount(tr, wk);
-  var me = get('me', null) || {};
-  var mine = me.inst ? LCount(tr, wk, me.inst) : 0;
+  var done = LDone(tr, wk);
   var st = LStreak(tr);
   /* איפה הוא עצר. פס ולא אחוז: "29%" הוא מספר שמזמין השוואה,
      והוא גם מדויק יותר ממה שהוא באמת — קטע 12 מתוך 41 אינו
@@ -3084,8 +3084,8 @@ function drawWeek() {
        היה קיצור דרך שמדלג על הלימוד עצמו. מי שכבר סיים רואה
        זאת כאן, בלי אפשרות לבטל. */
     (done ? '<div class="mark on">' + esc(JOIN.markedOk) + '</div>' : '') +
-    (all ? '<div class="net">' + esc(tpl(JOIN.netAll, { n:all })) +
-      (mine ? '<br>' + esc(tpl(JOIN.netInst, { n:mine })) : '') + '</div>' : '') +
+    /* המונים "סיימו ברשת" / "בישיבה שלך" ירדו (8.99.255) — הכרטיס
+       "המסלול שלך" הוא מה שהתלמיד צריך. המספרים נשארים בניהול. */
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
 

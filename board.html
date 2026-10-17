@@ -348,6 +348,13 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
   color:var(--ink);border-radius:20px;padding:6px 11px;font:inherit;font-size:.76rem;
   font-weight:800;cursor:pointer}
 .kudo.sent{border-color:transparent;background:none;color:var(--green);cursor:default}
+/* נקודות — תלמידי אור עציון בלבד (8.99.255). הפירוט בלחיצה. */
+.pts{flex:none;border:1px solid var(--rule);background:var(--surface);color:var(--ink);
+  border-radius:20px;padding:6px 10px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}
+.pts.unk{color:var(--ink-3);font-weight:700}
+.pts-box{margin:2px 0 10px;padding:10px 12px;background:var(--sunk);border-radius:12px;
+  font-size:.8rem;font-weight:700;line-height:1.8}
+.pts-box .h{color:var(--ink-3);font-weight:600}
 .kudo-box{margin:2px 0 10px;padding:11px 12px;background:var(--sunk);border-radius:12px}
 .tms{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .tms .tm.on{border-style:solid;border-color:var(--blue,#17468F);color:var(--blue,#17468F)}
@@ -1415,7 +1422,43 @@ function pRow(p, noGrade) {
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div>' + kudoBtn(p, did) + '</div>' + detHtml(p, false) + waBoxHtml(p) + kudoBox(p);
+    '</div>' + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + ptsBox(p) + waBoxHtml(p) + kudoBox(p);
+}
+/* ---- נקודות: תלמידי אור עציון בלבד ----
+   השרת (oezPts_) מצרף `pts` רק לתלמיד של אור עציון: { n: נקודות או
+   null, l: [[מסכת, דף, ציון]] }. בלי `pts` — אין כפתור (וכישלון בשרת
+   אינו 0). null — "לא ידוע": אין לו ציון חידון שמור. */
+var PTS_OPEN = '';
+function ptsBtn(p) {
+  if (!p.pts || SELMODE) return '';
+  var unk = p.pts.n === null || p.pts.n === undefined;
+  return '<button class="pts' + (unk ? ' unk' : '') + '" data-pts="' + esc(p.id) + '">' +
+    esc(unk ? UI.ptsUnk : tp(UI.ptsN, { n: p.pts.n })) + '</button>';
+}
+function ptsMas(id) {
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i].masechet;
+  return id;
+}
+function ptsBox(p) {
+  if (!p.pts || PTS_OPEN !== p.id) return '';
+  var l = p.pts.l || [];
+  var h = p.pts.n === null || p.pts.n === undefined ? UI.ptsUnkB : (l.length ? '' : UI.ptsNone);
+  return '<div class="pts-box">' + l.map(function (x) {
+    return esc(tp(UI.ptsRow, { mas: ptsMas(x[0]), daf: x[1], s: x[2] }));
+  }).join('<br>') + (h ? '<div class="h">' + esc(h) + '</div>' : '') +
+    '<div class="h">' + esc(UI.ptsHow) + '</div></div>';
+}
+function ptsWire() {
+  var body = $('body');
+  if (!body || body.getAttribute('data-pw')) return;
+  body.setAttribute('data-pw', '1');
+  body.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-pts]');
+    if (!b) return;
+    var id = b.getAttribute('data-pts');
+    PTS_OPEN = PTS_OPEN === id ? '' : id;
+    listRedraw();
+  });
 }
 /* ============================================================
    וואטסאפ למי שאין לו התראות — לרכז בלבד.
@@ -2299,6 +2342,7 @@ function wire() {
   }
   sendWire();
   kudoWire();
+  ptsWire();
   if (KUDO_OPEN) kudoPv(kudoName(kudoWho()));
 }
 function legacy(txt, done) {
