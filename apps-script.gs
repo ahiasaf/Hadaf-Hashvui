@@ -6935,7 +6935,7 @@ function rafCalc_() {
     if (Q && !quizOk_(Q, A, pr[0], pr[1], RAF_DAF)) return;
     done[pr[0]] = 1;
   });
-  return { ppl: ppl, target: target, side: side, done: done, noId: noId };
+  return { ppl: ppl, alias: alias, target: target, side: side, done: done, noId: noId };
 }
 /* האנשים מ"לומדים", ואיחוד החשבונות — המשותף להגרלה ולנקודות. */
 function rafPpl_() {
@@ -7154,9 +7154,9 @@ function rafWhy_(p) {
   if (!p.code || p.code === 'other') return 'other';
   return '';
 }
-/* הזכאים, מחושבים עכשיו מהגיליון. */
-function raffleElig_(codes) {
-  var C = rafCalc_(), ppl = C.ppl, done = C.done, noId = C.noId, ex = [];
+/* הזכאים, מחושבים עכשיו מהגיליון (או מחישוב שכבר נעשה — rafPic_). */
+function raffleElig_(codes, C0) {
+  var C = C0 || rafCalc_(), ppl = C.ppl, done = C.done, noId = C.noId, ex = [];
   Object.keys(done).forEach(function (id) {
     var p = ppl[id];
     if (p.dup) ex.push({ kind: 'dup', text: (p.name + ' ' + p.last).trim() + ' · ' + p.dup +
@@ -7178,6 +7178,96 @@ function raffleElig_(codes) {
   if (skip.out) ex.push({ kind: 'out', text: skip.out + ' ממוסד שלא נבחר להגרלה' });
   if (skip.par) ex.push({ kind: 'par', text: skip.par + ' הורים שסיימו — ההגרלה לתלמידים' });
   return { status: 'ok', wk: progWeek_(), cut: new Date().toISOString(), by: by, ex: ex };
+}
+
+/* ============================================================
+   התמונה לפני ההגרלה — לכל מוסד: מי משתתף, מי למד, מי זכאי.
+   ============================================================
+   "משתתף" — תלמיד שנרשם בעצמו, או שאיש צוות דיווח עליו בנוכחות
+   (גם בלי הרשמה). ייבוא רשימת תלמידים לבדו אינו השתתפות. אותו
+   אדם בכמה חשבונות, או שדווח ואחר כך נרשם — אחד (rafCalc_).
+   "למד" — סיים את שני העמודים של RAF_DAF באחת המסכתות. עמוד אחד
+   הוא "חצי", ואינו נספר. "זכאי" — by של raffleElig_ על אותו
+   חישוב, כלומר בדיוק מי שההגרלה הייתה מגרילה עכשיו.
+   **קריאה בלבד:** לא שומר את בחירת המוסדות (rafSelSave_) — הבחירה
+   נעשית אחרי שרואים, ונשמרת רק בהגרלה עצמה. */
+function rafPic_() {
+  var C = rafCalc_(), ppl = C.ppl, target = C.target, P = {};
+  var lt = amdaTable_(AMDA_LINK_), rep = {}, keyId = {};
+  for (var l = 1; l < lt.rows.length; l++) {
+    var lid = lt.c(lt.rows[l], 'מזהה');
+    if (!lid) continue;
+    rep[lid] = 1;
+    keyId[lt.c(lt.rows[l], 'מפתח').split('|').slice(0, 4).join('|')] = lid;
+  }
+  /* מזהה שנבלע בשורה אחרת ("מזהים נוספים") — אותו אדם, גם כשנשארה לו שורה משלו. */
+  var add = function (id) {
+    var a = C.alias[id] && ppl[C.alias[id]] ? C.alias[id] : id, to = target[a] || a, q = ppl[to];
+    if (!q || q.role === 'הורה' || q.test || RAF_NEVER.indexOf(q.code) >= 0) return null;
+    return P[to] = P[to] || { q: q, reg: 0, rep: 0 };
+  };
+  Object.keys(ppl).forEach(function (id) {
+    var o = add(id);
+    if (o) ppl[id].ids.forEach(function (x) {
+      if (/^Am/.test(x)) o.rep = 1; else { o.reg = 1; if (rep[x]) o.rep = 1; }
+    });
+  });
+  /* דווח בנוכחות בלי לימוד של דף (שיעור, "השתתף") — אין לו שורה
+     ב"לומדים". אם השם מתאים לנרשם אחד בדיוק — זה הוא; אחרת משתתף
+     שדווח בלבד. אותו מפתח כמו העמדה: מוסד|שכבה|כיתה|שם. */
+  var byName = {};
+  Object.keys(P).forEach(function (to) {
+    var q = P[to].q, f = amdaNorm_(q.name), ln = amdaNorm_(q.last);
+    if (!f || !ln) return;
+    [ln + ' ' + f, f + ' ' + ln].forEach(function (nm) {
+      var k = q.code + '|' + nm;
+      if ((byName[k] = byName[k] || []).indexOf(to) < 0) byName[k].push(to);
+    });
+  });
+  var at = amdaTable_(AMDA_TAB_), only = {};
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r], inst = at.c(x, 'קוד ישיבה'), n = amdaNorm_(at.c(x, 'שם'));
+    if (!inst || !n || RAF_NEVER.indexOf(inst) >= 0) continue;
+    var g = amdaNorm_(at.c(x, 'שכבה')), k = [inst, g, at.c(x, 'כיתה'), n].join('|');
+    if (keyId[k]) { var o0 = add(keyId[k]); if (o0) o0.rep = 1; continue; }
+    var cand = (byName[inst + '|' + n] || []).filter(function (to) {
+      var g2 = amdaNorm_(P[to].q.grade);
+      return !g2 || g2 === g;
+    });
+    if (cand.length === 1) { P[cand[0]].rep = 1; continue; }
+    if (!only[k]) only[k] = { q: { code: inst, inst: '', name: n, last: '', grade: at.c(x, 'שכבה'), klass: at.c(x, 'כיתה') },
+                              reg: 0, rep: 1, id: '' };
+  }
+  var codes = [];
+  Object.keys(P).concat(Object.keys(only)).forEach(function (k) {
+    var c = (P[k] || only[k]).q.code;
+    if (codes.indexOf(c) < 0) codes.push(c);
+  });
+  var E = raffleElig_(codes, C), inn = {}, by = {};
+  codes.forEach(function (c) { (E.by[c] || []).forEach(function (p) { inn[p.id] = 1; }); });
+  var put = function (to, o) {
+    var q = o.q, c = q.code, ln = '', full = 0, half = 0;
+    ['taanit', 'megila'].forEach(function (tr) {
+      var s = to && C.side[to + '|' + tr];
+      if (!s || (!s.a && !s.b)) return;
+      ln += (ln ? ',' : '') + tr + ':' + (s.a ? 'a' : '') + (s.b ? 'b' : '');
+      if (s.a && s.b) full = 1; else half = 1;
+    });
+    var b = by[c] = by[c] || { inst: '', n: 0, full: 0, half: 0, e: 0, L: [] };
+    if (!b.inst && q.inst) b.inst = q.inst;
+    var e = to && inn[to] ? 1 : 0;
+    b.n++; b.full += full; b.half += full ? 0 : half; b.e += e;
+    b.L.push([(q.name + ' ' + q.last).trim(), (q.grade || '') + (q.klass || ''),
+              (o.reg ? 'r' : '') + (o.rep ? 'd' : ''), ln, e]);
+  };
+  Object.keys(P).forEach(function (to) { put(to, P[to]); });
+  Object.keys(only).forEach(function (k) { put('', only[k]); });
+  var rank = function (z) { return z[4] ? 0 : /ab/.test(z[3]) ? 1 : z[3] ? 2 : 3; };
+  Object.keys(by).forEach(function (c) {
+    by[c].L.sort(function (a, b2) { return rank(a) - rank(b2) || (a[0] < b2[0] ? -1 : a[0] > b2[0] ? 1 : 0); });
+  });
+  return { status: 'ok', wk: progWeek_(), cut: E.cut, daf: RAF_DAF,
+           quiz: RAF_DAF !== RAF_NOQUIZ_DAF, by: by, ex: E.ex };
 }
 
 /* הלשונית כטבלה: כל השורות של הגרלה אחת יחד. */
@@ -7550,6 +7640,7 @@ function raffleRoute_(e) {
     if (op === 'res') return reply_(e, raffleRes_(P));
     if (op === 'me') return reply_(e, rafMe_(P));
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    if (op === 'pic') return reply_(e, rafPic_());
     if (op === 'elig') { rafSelSave_(rafCodes_(P.codes)); return reply_(e, raffleElig_(rafCodes_(P.codes))); }
     if (op === 'state') {
       var T = rafRead_(), d = rafLast_(T, progWeek_());

@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.261';
+var APP_VERSION = '8.99.262';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14376,8 +14376,8 @@ function pairPick(n) { pairWk = n | 0; admPane(); }
    יוצאים יחד רק מהאישור הסופי. הכללים, ההגנות והרשומה — בצד
    השרת (raffleRoute_ ב-apps-script.gs). כאן רק מציגים ושואלים.
    ============================================================ */
-var rafE = null, rafD = null, rafA = null, rafMsg = '', rafBusy = false, rafLoaded = false;
-var rafSel = null, rafTx = null;
+var rafP = null, rafD = null, rafA = null, rafMsg = '', rafBusy = false, rafLoaded = false;
+var rafSel = [], rafTx = null, rafOpen = {};
 
 function rafCodesAll() {
   return INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; })
@@ -14403,26 +14403,39 @@ function rafCall(p, then) {
 function rafLoad() {
   rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; });
 }
+/* **הבחירה אחרי התמונה, ולא לפניה.** אף מוסד אינו מסומן מראש;
+   הבחירה נשמרת בשרת רק בהגרלה עצמה ('pic' קורא בלבד). */
 function rafToggle(c, on) {
-  if (!rafSel) rafSel = rafCodesAll();
   var i = rafSel.indexOf(c);
   if (on && i < 0) rafSel.push(c);
   if (!on && i >= 0) rafSel.splice(i, 1);
-  rafE = null; admPane();
+  admPane();
 }
-function rafElig() {
-  rafCall({ raffle: 'elig', codes: (rafSel || rafCodesAll()).join(',') }, function (d) { rafE = d; });
+function rafPicLoad() {
+  rafCall({ raffle: 'pic' }, function (d) { rafP = d; });
+}
+/* הבחירה שיש לה נתונים: [מוסדות, זכאים]. */
+function rafPicked() {
+  var k = 0, n = 0;
+  rafSel.forEach(function (c) { var b = rafP && rafP.by[c]; if (b && b.n) { k++; n += b.e; } });
+  return [k, n];
+}
+function rafAt(iso) {
+  var d = new Date(iso), z = function (x) { return (x < 10 ? '0' : '') + x; };
+  return isNaN(d) ? '' : z(d.getHours()) + ':' + z(d.getMinutes());
 }
 function rafDraw() {
-  if (!confirm(UI.rafDrawQ)) return;
-  rafCall({ raffle: 'draw', codes: (rafSel || rafCodesAll()).join(','), who: 'רכז' },
-          function (d) { rafD = d; rafE = null; });
+  var k = rafPicked();
+  if (!k[0]) return;
+  if (!confirm(fill(UI.rafSumQ, { k: k[0], n: k[1], at: rafAt(rafP.cut) }) + '\n\n' + UI.rafDrawQ)) return;
+  rafCall({ raffle: 'draw', codes: rafSel.filter(function (c) { return rafP.by[c] && rafP.by[c].n; }).join(','), who: 'רכז' },
+          function (d) { rafD = d; rafP = null; });
 }
 function rafVoid() {
   var why = prompt(UI.rafVoidQ);
   if (!why || !why.trim() || !rafD) return;
   rafCall({ raffle: 'void', rid: rafD.rid, why: why.trim(), who: 'רכז' },
-          function () { rafD = null; rafA = null; rafE = null; });
+          function () { rafD = null; rafA = null; rafP = null; });
 }
 function rafPrep() {
   if (!rafD) return;
@@ -14655,38 +14668,58 @@ function admRaffle() {
     return h + msg + '</div>';
   }
 
-  /* ---- עוד אין הגרלה: המוסדות, הזכאים, ואז הגרלה ---- */
-  var sel = rafSel || rafCodesAll();
-  h += '<details class="hx"><summary>' + esc(fill(UI.rafInsts, { n: sel.length })) + '</summary>' +
-    INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; }).map(function (o) {
-      return '<label style="display:flex;gap:8px;align-items:center;padding:4px 0">' +
-        '<input type="checkbox"' + (sel.indexOf(o.code) >= 0 ? ' checked' : '') +
-        ' onchange="rafToggle(\'' + o.code + '\',this.checked)"> ' + esc(o.name) + '</label>';
-    }).join('') + '</details>';
-  h += '<button class="btn g" style="margin-top:10px"' + dis + ' onclick="rafElig()">' +
-       esc(rafBusy && !rafE ? UI.rafBusy : UI.rafElig) + '</button>';
-  if (rafE) {
-    var tot = 0;
-    h += '<p class="h" style="margin-top:10px">' + esc(UI.rafEligNote) + '</p><div class="plist">' +
-      sel.map(function (c) {
-        var L = (rafE.by && rafE.by[c]) || [];
-        tot += L.length;
-        return '<div class="prow2 ' + (L.length ? 'ok' : 'warn') + '"><span class="pm">' + L.length + '</span>' +
-          '<div style="flex:1"><b>' + esc(rafInstName(c)) + '</b>' +
-          (L.length ? '<details><summary>' + esc(UI.rafNames) + '</summary><span>' +
-            L.map(function (p) {
-              return esc((p.name + ' ' + p.last).trim() + (p.grade ? ' · ' + p.grade + (p.klass || '') : ''));
-            }).join('<br>') + '</span></details>'
-            : '<span>' + esc(UI.rafNone) + '</span>') + '</div></div>';
-      }).join('') + '</div>' +
-      '<p class="h"><b>' + esc(fill(UI.rafTot, { n: tot })) + '</b></p>';
-    if (rafE.ex && rafE.ex.length) {
-      h += '<div class="pp-h">' + esc(UI.rafEx) + '</div><p class="h">' +
-        rafE.ex.map(function (x) { return esc(x.text); }).join('<br>') + '</p>';
-    }
-    h += '<button class="btn p" style="margin-top:10px"' + dis + ' onclick="rafDraw()">' + esc(UI.rafDraw) + '</button>';
-  }
+  /* ---- עוד אין הגרלה: התמונה לכל מוסד, הבחירה, ואז הגרלה ---- */
+  h += '<button class="btn g" style="margin-top:10px"' + dis + ' onclick="rafPicLoad()">' +
+       esc(rafBusy ? UI.rafBusy : rafP ? UI.rafPicAgain : UI.rafElig) + '</button>';
+  if (rafP) h += rafPicHtml(dis);
   return h + msg + '</div>';
+}
+
+/* לכל מוסד: משתתפים · למדו · זכאים, הסימון, ורשימת התלמידים בלחיצה.
+   מוסד בלי משתתפים — בשורה אחת למטה, בלי סימון. */
+function rafPicHtml(dis) {
+  var P = rafP, all = rafCodesAll(), zero = [];
+  Object.keys(P.by).forEach(function (c) { if (all.indexOf(c) < 0) all.push(c); });
+  var ln = function (z) {
+    if (!z[3]) return fill(UI.rafLnNone, { daf: P.daf });
+    return z[3].split(',').map(function (t) {
+      var pr = t.split(':'), tr = trackById(pr[0]);
+      return (tr ? tr.masechet : pr[0]) + ' ' + P.daf + (pr[1] === 'a' ? '.' : pr[1] === 'b' ? ':' : '') +
+             ' — ' + (pr[1] === 'ab' ? UI.rafLnFull : UI.rafLnHalf);
+    }).join(' · ');
+  };
+  var src = { r: UI.rafSrcR, d: UI.rafSrcD, rd: UI.rafSrcRD };
+  var h = '<p class="h" style="margin-top:10px">' + esc(fill(UI.rafPicLead, { daf: P.daf, at: rafAt(P.cut) })) +
+    '<br>' + esc(UI.rafPickNote) + '</p><div class="plist">';
+  all.forEach(function (c) {
+    var b = P.by[c];
+    if (!b || !b.n) { zero.push(rafInstName(c)); return; }
+    h += '<div class="prow2 ' + (b.e ? 'ok' : 'warn') + '">' +
+      '<input type="checkbox" style="flex:0 0 auto;width:22px;height:22px;margin:1px 0 0"' +
+      (rafSel.indexOf(c) >= 0 ? ' checked' : '') + dis + ' aria-label="' + esc(rafInstName(c)) + '"' +
+      ' onchange="rafToggle(\'' + c + '\',this.checked)">' +
+      '<div style="flex:1"><b>' + esc(rafInstName(c)) + '</b><span>' + esc(fill(UI.rafCols, { n: b.n, f: b.full, e: b.e })) +
+      (b.half ? ' · ' + esc(fill(UI.rafHalf, { h: b.half })) : '') + '</span>' +
+      '<details' + (rafOpen[c] ? ' open' : '') + ' ontoggle="rafOpen[\'' + c + '\']=this.open"><summary>' +
+      esc(UI.rafNames) + '</summary>' +
+      b.L.map(function (z) {
+        return '<div style="padding:6px 0;border-top:1px solid var(--rule)">' +
+          '<b style="font-size:.85rem">' + esc((z[4] ? '✓ ' : '') + z[0]) + '</b>' +
+          '<span style="font-size:.76rem;color:var(--ink-3)">' +
+          esc([z[1], src[z[2]] || '', ln(z), z[4] ? UI.rafIn : ''].filter(Boolean).join(' · ')) + '</span></div>';
+      }).join('') + '</details></div></div>';
+  });
+  h += '</div>';
+  if (zero.length) h += '<p class="h">' + esc(fill(UI.rafZero, { n: zero.length, list: zero.join(' · ') })) + '</p>';
+  if (P.ex && P.ex.length) {
+    h += '<details class="hx"><summary>' + esc(UI.rafEx) + '</summary><p class="h">' +
+      P.ex.map(function (x) { return esc(x.text); }).join('<br>') + '</p></details>';
+  }
+  var k = rafPicked();
+  h += '<p class="h" style="margin-top:10px"><b>' +
+    esc(k[0] ? fill(UI.rafSum, { k: k[0], n: k[1] }) : UI.rafPickNone) + '</b><br>' + esc(UI.rafEligNote) + '</p>' +
+    '<button class="btn p"' + (k[0] ? dis : ' disabled') + ' onclick="rafDraw()">' + esc(UI.rafDraw) + '</button>';
+  return h;
 }
 
 function admPairs() {
