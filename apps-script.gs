@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 80;
+var SCRIPT_VERSION = 81;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7044,6 +7044,8 @@ function backupNow() { return backupDaily_(true); }
    ?raffle=res&id=&inst=          — התוצאה המפורסמת, לתלמיד מאומת.
    ?raffle=self&rid=&k=&code=&t=&b=&ep= — בדיקה אליך בלבד (המכשיר שלוחץ), בלי פרסום.
    ?raffle=selfv&stk=             — מה שהלחיצה על הבדיקה פותחת (אסימון).
+   ?raffle=demo&k=&c=&w=&t=&b=&ep= — לפני הגרלה: אליך בלבד, תוצאה לדוגמה.
+   ?raffle=demov&stk=             — מה שהלחיצה על הדוגמה פותחת (אסימון).
 
    **הכלל השבוע:** סיום עמוד א וגם עמוד ב של דף ב, באותה מסכת.
    מגילה ותענית יחד — אדם נכנס פעם אחת. בלי תנאי חידון. הסיום
@@ -7898,6 +7900,49 @@ function rafSelfView_(P) {
   return rafSelfOut_(d, s.k, s.code);
 }
 
+/* ============================================================
+   בדיקה אליך בלבד — לפני הגרלה אמיתית, עם תוצאה לדוגמה (8.99.270).
+   ============================================================
+   ממסך בחירת המוסדות, לפני "הגרלה": אותה שליחה של rafSelf_ — רק
+   למכשיר שלוחץ (`ep` רשום ב"התראות", `subs` לטביעה שלו), `quiet` בלי
+   מזהה הודעה. לא זוהה — לא שולחים.
+   **אין כאן הגרלה ואין נתוני אמת:** לא נקראת ולא נכתבת לשונית
+   ההגרלות, ולא נשמרת בחירת המוסדות (rafSelSave_). האסימון (`stk`, שעה
+   במטמון, מרחב `raf:demo:` — נפרד מ-`raf:self:`) מחזיק רק סוג הודעה,
+   המוסד שבמבט, ומוסדות שנבחרו ויש בהם זכאים (`w`). אין בו תלמיד.
+   העמוד (hagrala?stk=&dm=1) בונה ממנו "תלמיד לדוגמה" לכל מוסד, תחת
+   התווית "דוגמה". אסימון של בדיקה אמיתית אינו נפתח כאן, ולהפך. */
+function rafDemo_(P) {
+  var k = String(P.k || '');
+  if (k !== 'w' && k !== 'g') return { status: 'error', message: 'סוג הודעה לא מוכר' };
+  var w = rafCodes_(P.w), all = rafCodes_(P.codes);
+  w.forEach(function (x) { if (all.indexOf(x) < 0) all.push(x); });
+  if (!all.length) return { status: 'error', message: 'לא נבחרו מוסדות' };
+  var L = k === 'w' ? w : all, c = String(P.c || '');
+  if (L.indexOf(c) < 0) c = L[0] || '';
+  if (!c) return { status: 'error', message: 'אין מוסד עם זכאים להציג' };
+  var t = String(P.t || '').trim().slice(0, 80), b = String(P.b || '').trim().slice(0, 300);
+  if (!b) return { status: 'error', message: 'חסר נוסח להודעה' };
+  if (!rafEpOk_(P.ep)) return { status: 'ok', dev: 0 };
+  var tok = Utilities.getUuid().replace(/-/g, '');
+  CacheService.getScriptCache().put('raf:demo:' + tok, JSON.stringify({ k: k, c: c, w: w }), 3600);
+  var r = ghFire_(t, b, '', '', '', 'בדיקת הגרלה', 'hagrala?stk=' + tok + '&dm=1', '', '',
+                  JSON.stringify({ subs: [subPrint_(P.ep)] }), true, '', 'דוגמה לפני הגרלה — המכשיר שלחץ בלבד');
+  if (!r || r.status !== 'ok') return { status: 'error', message: (r && r.message) || 'השליחה לא יצאה' };
+  return { status: 'ok', dev: 1 };
+}
+/* ?raffle=demov&stk= — מה שהלחיצה על הדוגמה פותחת. בלי אסימון תקף — כלום. */
+function rafDemoView_(P) {
+  var none = { status: 'ok', state: 'none' };
+  var tok = String(P.stk || '');
+  if (!/^[0-9a-f]{32}$/.test(tok)) return none;
+  var raw = CacheService.getScriptCache().get('raf:demo:' + tok), s = null;
+  try { s = raw ? JSON.parse(raw) : null; } catch (x) { s = null; }
+  if (!s || (s.k !== 'w' && s.k !== 'g')) return none;
+  var w = rafCodes_((s.w || []).join(','));
+  return { status: 'ok', state: 'demo', k: s.k, c: rafCodes_(s.c)[0] || '', w: w };
+}
+
 /* התוצאה לתלמיד. רק מה שפורסם, ורק למי שזוהה כתלמיד של מוסד
    שהשתתף. כל דבר אחר — "none", בלי לומר למה. */
 function raffleRes_(P) {
@@ -8063,8 +8108,15 @@ function raffleRoute_(e) {
     if (op === 'res') return reply_(e, raffleRes_(P));
     if (op === 'me') return reply_(e, rafMe_(P));
     if (op === 'selfv') return reply_(e, rafSelfView_(P));
+    if (op === 'demov') return reply_(e, rafDemoView_(P));
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
-    if (op === 'pic') return reply_(e, rafPic_());
+    if (op === 'pic') {
+      var pc = rafPic_();
+      /* "בדיקה אליך בלבד" לפני ההגרלה — 1 רק כשהמנוי של הדפדפן שלוחץ רשום. */
+      pc.me = 0;
+      try { pc.me = rafEpOk_(P.ep) ? 1 : 0; } catch (eP) {}
+      return reply_(e, pc);
+    }
     if (op === 'elig') { rafSelSave_(rafCodes_(P.codes)); return reply_(e, raffleElig_(rafCodes_(P.codes))); }
     if (op === 'state') {
       var T = rafRead_(), d = rafLast_(T, progWeek_());
@@ -8086,6 +8138,7 @@ function raffleRoute_(e) {
     if (op === 'pub') return reply_(e, rafflePub_(P));
     if (op === 'pst') return reply_(e, rafPst_(P));
     if (op === 'self') return reply_(e, rafSelf_(P));
+    if (op === 'demo') return reply_(e, rafDemo_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });

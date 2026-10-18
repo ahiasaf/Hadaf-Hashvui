@@ -25,6 +25,12 @@
        · בדיקה אליך בלבד (`?stk=<אסימון>`; לא `rt` — שם שמור ב-Apps Script) — מההתראה שהרכז שלח לעצמו לפני
          הפרסום (rafSelf_): השרת מחזיר את המבט לפי האסימון, בלי זהות
          המכשיר. אסימון שפג — הקידום הרגיל.
+       · דוגמה לפני הגרלה (`?stk=<אסימון>&dm=1`) — מההתראה שהרכז שלח לעצמו
+         ממסך בחירת המוסדות, לפני כל הגרלה (rafDemo_): השרת מחזיר רק סוג
+         הודעה ומוסדות, והעמוד בונה "תלמיד לדוגמה" לכל מוסד — אין כאן שום
+         תלמיד אמיתי. התווית "דוגמה" נשארת בראש המסך לאורך כל הגלילה,
+         ומופיעה רק בנתיב הזה. אסימון של "בדיקה אליך" אינו נפתח כדוגמה,
+         ולהפך (מרחבים נפרדים במטמון). פג — הקידום הרגיל, בלי תוצאה.
        · תצוגה מקדימה (`?pv=w|g`) — רק בתוך מסך האישור בניהול: הנתונים
          נלקחים מהעמוד שמסביב (rafPvGet ב-index.html), לא מהשרת ולא
          מהכתובת. נפתח לבד — אין נתונים, והעמוד מתנהג כרגיל.
@@ -76,6 +82,10 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .oth h3,.prz{font-size:1rem;font-weight:800;color:var(--blue-d);margin:16px 0 6px}
 .oth li{list-style:none;padding:6px 0;border-bottom:1px solid #E5DAC3;font-weight:600}
 .oth li span{color:var(--ink-2);font-weight:500}
+.dm{position:sticky;top:0;z-index:5;background:#8C1F1F;color:#fff;font-size:.95rem;font-weight:800;
+  text-align:center;padding:9px 12px;padding-top:calc(env(safe-area-inset-top) + 9px)}
+.win .dmt{display:inline-block;margin-top:6px;font-size:.78rem;font-weight:800;color:#8C1F1F;
+  border:1px solid #8C1F1F;border-radius:999px;padding:1px 10px}
 .pv{background:#0B2550;color:#fff;font-size:.86rem;font-weight:800;text-align:center;
   border-radius:10px;padding:7px 10px;margin-bottom:12px}
 main.wait{visibility:hidden}
@@ -167,7 +177,39 @@ if (PV && window.parent !== window) {
   try { PVD = window.parent.rafPvGet ? window.parent.rafPvGet(PV) : null; } catch (e) { PVD = null; }
 }
 var RT = (location.search.match(/[?&]stk=([0-9a-f]{32})(&|$)/) || [])[1] || '';
+var DM = /[?&]dm=1(&|$)/.test(location.search);
+function instName(c) {
+  for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return INSTITUTIONS[i].name;
+  return c;
+}
+/* הדוגמה: "תלמיד לדוגמה" לכל מוסד שנבחר ויש בו זכאים — אותו מבנה של
+   raffleRes_, ואותו מסך. מוסד בלי זכאים — בלי זוכה, כמו בהגרלה. */
+function demo(d) {
+  var nm = UI.rafDmName, out = { mine: null, me: false, others: [] };
+  (d.w || []).forEach(function (c) {
+    var o = { name: nm, inst: instName(c) };
+    if (c === d.c) { out.mine = o; out.me = d.k === 'w'; } else out.others.push(o);
+  });
+  results(out);
+  var w = document.querySelector('#res .win');
+  if (w) w.insertAdjacentHTML('beforeend', '<span class="dmt">' + esc(UI.rafDmLbl) + '</span>');
+  document.body.insertAdjacentHTML('afterbegin', '<div class="dm" role="status">' + esc(UI.rafDmLbl) + '</div>');
+}
 (function () {
+  if (RT && DM && !PVD) {
+    var u1 = api(), main1 = $('main'), done1 = false;
+    if (!u1 || !window.fetch) return;
+    main1.className = 'wrap wait';
+    var show1 = function () { if (!done1) { done1 = true; main1.className = 'wrap'; } };
+    setTimeout(show1, 5000);
+    fetch(u1 + (u1.indexOf('?') < 0 ? '?' : '&') + 'raffle=demov&stk=' + RT + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!done1 && d && d.status === 'ok' && d.state === 'demo') demo(d);
+        show1();
+      })['catch'](show1);
+    return;
+  }
   if (RT && !PVD) {
     var u0 = api(), main0 = $('main'), done0 = false;
     if (!u0 || !window.fetch) return;

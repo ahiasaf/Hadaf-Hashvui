@@ -220,7 +220,7 @@ jobs:
             sleep 20
           done
           [ "$V" = "$WANT" ] || { echo "::error::הגרסה הפרוסה ${V:-?} אינה $WANT"; FAIL=1; }
-          for q in "raffle=selfv&stk=$Z" "raffle=selfv&stk=zz" "raffle=me&stk=x" "raffle=selfv&rt=$Z" "raffle=me&rt=x"; do
+          for q in "raffle=selfv&stk=$Z" "raffle=selfv&stk=zz" "raffle=demov&stk=$Z" "raffle=demov&stk=zz" "raffle=demo&k=w&c=x&ep=x" "raffle=me&stk=x" "raffle=selfv&rt=$Z" "raffle=me&rt=x"; do
             C=$(ask "$q"); echo "$q → HTTP $C · $(head -c 120 out.txt | tr '\n' ' ')"
           done
           C=$(ask "raffle=selfv&stk=$Z")
@@ -228,5 +228,18 @@ jobs:
             echo "::notice::stk תקין בפריסה החיה: אסימון לא תקף → state:none · SCRIPT_VERSION ${V:-?}"
           else
             echo "::error::stk לא החזיר state:none (HTTP $C)"; FAIL=1
+          fi
+          # הדוגמה לפני הגרלה (8.99.270): אסימון לא תקף → state:none, ובלי סיסמה → נדחה.
+          C=$(ask "raffle=demov&stk=$Z")
+          if [ "$C" = "200" ] && grep -q '"state":"none"' out.txt; then
+            echo "::notice::demov תקין: אסימון לא תקף → state:none"
+          else
+            echo "::error::demov לא החזיר state:none (HTTP $C)"; FAIL=1
+          fi
+          C=$(ask "raffle=demo&k=w&c=x&w=x&b=x&ep=https://x.invalid/abcdefghijk")
+          if [ "$C" = "200" ] && grep -q '"status":"denied"' out.txt; then
+            echo "::notice::demo בלי סיסמה → נדחה"
+          else
+            echo "::error::demo בלי סיסמה לא נדחה (HTTP $C)"; FAIL=1
           fi
           exit $FAIL

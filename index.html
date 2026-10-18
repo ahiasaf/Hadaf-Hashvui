@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.269';
+var APP_VERSION = '8.99.270';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14477,7 +14477,21 @@ function rafToggle(c, on) {
   admPane();
 }
 function rafPicLoad() {
-  rafCall({ raffle: 'pic' }, function (d) { rafP = d; });
+  /* המנוי של הדפדפן הזה (קריאה בלבד) — כדי ש"בדיקה אליי" לפני ההגרלה
+     תדע אם המכשיר רשום. הבחירה שנשמרה לפני לחיצה על התראת הדוגמה
+     (שהחליפה את המסך) חוזרת — ורק כשאין בחירה על המסך. */
+  rafMyEp().then(function (ep) {
+    rafEp = ep;
+    var p = { raffle: 'pic' };
+    if (ep) p.ep = ep;
+    rafCall(p, function (d) {
+      rafP = d;
+      var sv = Store.get('rafSelDm', null);
+      if (!rafSel.length && sv && sv.codes && Date.now() - (sv.at || 0) < 3600000) {
+        sv.codes.forEach(function (c) { if (d.by[c] && d.by[c].n && rafSel.indexOf(c) < 0) rafSel.push(c); });
+      }
+    });
+  });
 }
 /* הבחירה שיש לה נתונים: [מוסדות, זכאים]. */
 function rafPicked() {
@@ -14494,7 +14508,27 @@ function rafDraw() {
   if (!k[0]) return;
   if (!confirm(fill(UI.rafSumQ, { k: k[0], n: k[1], at: rafAt(rafP.cut) }) + '\n\n' + UI.rafDrawQ)) return;
   rafCall({ raffle: 'draw', codes: rafSel.filter(function (c) { return rafP.by[c] && rafP.by[c].n; }).join(','), who: 'רכז' },
-          function (d) { rafD = d; rafP = null; });
+          function (d) { rafD = d; rafP = null; Store.del('rafSelDm'); });
+}
+/* ---- בדיקה אליך בלבד, לפני הגרלה אמיתית: תוצאה לדוגמה ----
+   אין הגרלה ואין תלמיד אמיתי: נשלחים רק סוג ההודעה והמוסדות שנבחרו
+   (`w` — אלה שיש בהם זכאים, כי רק בהם יהיה זוכה). השרת (rafDemo_) בודק
+   שוב שהמכשיר רשום. הנוסח — של ההודעות האמיתיות כפי שהוא היום. */
+function rafDmCodes(k) {
+  var all = rafSel.filter(function (c) { return rafP && rafP.by[c] && rafP.by[c].n; });
+  return k === 'w' ? all.filter(function (c) { return rafP.by[c].e; }) : all;
+}
+function rafDemo(k) {
+  if (!rafP || rafP.me !== 1 || !rafEp) return;
+  var L = rafDmCodes(k), c = L[0] || '';
+  if (!c) return;
+  if (!confirm(fill(UI.rafDmAsk, { what: UI[k === 'w' ? 'rafSelfWhatW' : 'rafSelfWhatG'], inst: rafInstName(c) }))) return;
+  Store.set('rafSelDm', { codes: rafSel.slice(), at: Date.now() });
+  rafCall({ raffle: 'demo', k: k, c: c, codes: rafDmCodes('g').join(','), w: rafDmCodes('w').join(','),
+            t: k === 'w' ? UI.rafWinT : UI.rafAllT, b: k === 'w' ? UI.rafWinB : UI.rafAllB, ep: rafEp }, function (d) {
+    if (rafP) rafP.me = d.dev ? 1 : 0;
+    rafMsg = d.dev ? UI.rafDmDone : UI.rafDmNoDev;
+  });
 }
 function rafVoid() {
   var why = prompt(UI.rafVoidQ);
@@ -14935,8 +14969,17 @@ function rafPicHtml(dis) {
   }
   var k = rafPicked();
   h += '<p class="h" style="margin-top:10px"><b>' +
-    esc(k[0] ? fill(UI.rafSum, { k: k[0], n: k[1] }) : UI.rafPickNone) + '</b><br>' + esc(UI.rafEligNote) + '</p>' +
-    '<button class="btn p"' + (k[0] ? dis : ' disabled') + ' onclick="rafDraw()">' + esc(UI.rafDraw) + '</button>';
+    esc(k[0] ? fill(UI.rafSum, { k: k[0], n: k[1] }) : UI.rafPickNone) + '</b><br>' + esc(UI.rafEligNote) + '</p>';
+  /* בדיקה אליך בלבד — מעל "הגרלה" ובנפרד ממנו; אינה דורשת ללחוץ עליו. */
+  if (k[0]) {
+    var no = rafBusy || P.me !== 1;
+    h += '<div class="pp-h">' + esc(UI.rafSelfH) + '</div>' +
+      (P.me === 1 ? '<p class="h">' + esc(UI.rafDmDev) + '</p>'
+        : '<p class="h" style="color:var(--stop)">' + esc(UI.rafDmNoDev) + '</p>') +
+      '<button class="btn g"' + (no || !rafDmCodes('w').length ? ' disabled' : '') + ' onclick="rafDemo(\'w\')">' + esc(UI.rafSelfW) + '</button>' +
+      '<button class="btn g" style="margin:8px 0 14px"' + (no ? ' disabled' : '') + ' onclick="rafDemo(\'g\')">' + esc(UI.rafSelfG) + '</button>';
+  }
+  h += '<button class="btn p"' + (k[0] ? dis : ' disabled') + ' onclick="rafDraw()">' + esc(UI.rafDraw) + '</button>';
   return h;
 }
 
