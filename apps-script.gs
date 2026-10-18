@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 78;
+var SCRIPT_VERSION = 79;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7042,6 +7042,8 @@ function backupNow() { return backupDaily_(true); }
    ?raffle=aud&rid=               — הקהל המדויק של שתי ההודעות.
    ?raffle=pub&rid=&exp=          — אישור סופי: פרסום + שתי השליחות.
    ?raffle=res&id=&inst=          — התוצאה המפורסמת, לתלמיד מאומת.
+   ?raffle=self&rid=&k=&code=&t=&b= — בדיקה אליך בלבד (מכשירי הרכז), בלי פרסום.
+   ?raffle=selfv&rt=              — מה שהלחיצה על הבדיקה פותחת (אסימון).
 
    **הכלל השבוע:** סיום עמוד א וגם עמוד ב של דף ב, באותה מסכת.
    מגילה ותענית יחד — אדם נכנס פעם אחת. בלי תנאי חידון. הסיום
@@ -7821,6 +7823,61 @@ function rafPst_(P) {
   } finally { lock.releaseLock(); }
 }
 
+/* ============================================================
+   בדיקה אליך בלבד — לפני האישור הסופי (8.99.268).
+   ============================================================
+   ההודעה האמיתית (כותרת ונוסח כפי שנערכו במסך), **רק למכשירי הרכז** —
+   אותו קהל של התראות המערכת (coordPing_: תפקיד "רכז" ב"התראות", שנרשם
+   מ"תזכורות לעצמי"). בלי פרסום, בלי לגעת במצב ההגרלה, ובלי מזהה הודעה
+   (`quiet`): מניעת הכפל של `rf-<rid>-w/g` לא מושפעת, ושום דבר לא נכנס
+   ל"תיבה" או ל"מסירות". אין מכשיר — לא שולחים.
+   הלחיצה פותחת את hagrala עם אסימון חד־פעמי (`rt`, 6 שעות במטמון) —
+   אותו עמוד ואותו מבט (זוכה / תלמיד אחר, במוסד שנבחר בתצוגה המקדימה).
+   האסימון מחזיק רק מזהה הגרלה, סוג ומוסד; הנתונים נבנים מהגיליון. */
+function rafSelfOut_(d, k, c) {
+  var out = { status: 'ok', state: 'pub', self: 1, mine: null, me: false, others: [] };
+  d.rows.forEach(function (x) {
+    if (!x.win) return;
+    var p = String(x.name || '').split(/\s+/);
+    var o = { name: p[0] + (p.length > 1 ? ' ' + p[p.length - 1].charAt(0) + "'" : ''), inst: x.inst };
+    if (x.code === c) { out.mine = o; out.me = k === 'w'; } else out.others.push(o);
+  });
+  return out;
+}
+function rafSelf_(P) {
+  var d = rafById_(rafRead_(), String(P.rid || ''));
+  if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
+  if (d.st !== 'הוגרל') return { status: 'error', message: 'הבדיקה אליך היא רק לפני הפרסום' };
+  var k = String(P.k || '');
+  if (k !== 'w' && k !== 'g') return { status: 'error', message: 'סוג הודעה לא מוכר' };
+  var L = d.rows.filter(function (x) { return k === 'g' || x.win; }).map(function (x) { return x.code; });
+  var c = String(P.code || '');
+  if (L.indexOf(c) < 0) c = L[0] || '';
+  if (!c) return { status: 'error', message: 'אין זוכה להציג' };
+  var t = String(P.t || '').trim().slice(0, 80), b = String(P.b || '').trim().slice(0, 300);
+  if (!b) return { status: 'error', message: 'חסר נוסח להודעה' };
+  var n = audCount_({ role: 'רכז' });
+  if (!n.dev) return { status: 'ok', dev: 0 };
+  var tok = Utilities.getUuid().replace(/-/g, '');
+  CacheService.getScriptCache().put('raf:self:' + tok, JSON.stringify({ rid: d.rid, k: k, code: c }), 21600);
+  var r = ghFire_(t, b, '', '', '', 'בדיקת הגרלה', 'hagrala?rt=' + tok, 'רכז', '', '', true, '',
+                  'בדיקה — מכשירי הרכז בלבד');
+  if (!r || r.status !== 'ok') return { status: 'error', message: (r && r.message) || 'השליחה לא יצאה' };
+  return { status: 'ok', dev: n.dev };
+}
+/* ?raffle=selfv&rt= — מה שהלחיצה על הבדיקה פותחת. בלי אסימון תקף — כלום. */
+function rafSelfView_(P) {
+  var none = { status: 'ok', state: 'none' };
+  var tok = String(P.rt || '');
+  if (!/^[0-9a-f]{32}$/.test(tok)) return none;
+  var raw = CacheService.getScriptCache().get('raf:self:' + tok), s = null;
+  try { s = raw ? JSON.parse(raw) : null; } catch (x) { s = null; }
+  if (!s) return none;
+  var d = rafById_(rafRead_(), String(s.rid || ''));
+  if (!d || d.st === 'בוטל') return none;
+  return rafSelfOut_(d, s.k, s.code);
+}
+
 /* התוצאה לתלמיד. רק מה שפורסם, ורק למי שזוהה כתלמיד של מוסד
    שהשתתף. כל דבר אחר — "none", בלי לומר למה. */
 function raffleRes_(P) {
@@ -7985,6 +8042,7 @@ function raffleRoute_(e) {
   try {
     if (op === 'res') return reply_(e, raffleRes_(P));
     if (op === 'me') return reply_(e, rafMe_(P));
+    if (op === 'selfv') return reply_(e, rafSelfView_(P));
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     if (op === 'pic') return reply_(e, rafPic_());
     if (op === 'elig') { rafSelSave_(rafCodes_(P.codes)); return reply_(e, raffleElig_(rafCodes_(P.codes))); }
@@ -8000,10 +8058,13 @@ function raffleRoute_(e) {
       if (!d2) return reply_(e, { status: 'error', message: 'ההגרלה לא נמצאה' });
       var a = rafAud_(d2);
       a.exp = rafExp_(a); a.status = 'ok';
+      /* "בדיקה אליך בלבד" — כמה ממכשירי הרכז יקבלו. כישלון — לא ידוע. */
+      try { a.me = audCount_({ role: 'רכז' }).dev; } catch (eM) {}
       return reply_(e, a);
     }
     if (op === 'pub') return reply_(e, rafflePub_(P));
     if (op === 'pst') return reply_(e, rafPst_(P));
+    if (op === 'self') return reply_(e, rafSelf_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });

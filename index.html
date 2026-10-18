@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.267';
+var APP_VERSION = '8.99.268';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14504,13 +14504,16 @@ function rafVoid() {
 }
 function rafPrep() {
   if (!rafD) return;
-  if (!rafTx) rafTx = { wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB };
+  /* נוסח שנערך ולא אושר — חוזר אחרי שהלחיצה על "בדיקה אליי" החליפה את המסך. */
+  var sv = Store.get('rafTx', null);
+  if (!rafTx) rafTx = sv && sv.rid === rafD.rid && sv.tx ? sv.tx : { wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB };
   rafCall({ raffle: 'aud', rid: rafD.rid }, function (d) { rafA = d; });
 }
 /* הקלדה בנוסח — המונה והחלונית המדומה מתעדכנים במקום (כמו sndLive). */
 function rafLive(k, v) {
   if (!rafTx) return;
   rafTx[k] = v;
+  if (rafD) Store.set('rafTx', { rid: rafD.rid, tx: rafTx });
   var t = k.charAt(1) === 't', max = t ? 40 : 120;
   ntSet('raf-m' + k, fill(UI.sndLen, { n: v.length, max: max }), v.length > max);
   ntSet('raf-p' + k, t ? (v.trim() || PROGRAM.short) : v);
@@ -14520,6 +14523,7 @@ function rafExpOf(a) { return [a.win.dev, a.all.dev, a.all.ppl].join('.'); }
    בעמוד; ההודעות — כל אחת לחוד. */
 function rafPubDone(d) {
   rafD.st = 'פורסם'; rafD.w = d.w; rafD.g = d.g; rafA = null; rafPs = null;
+  Store.del('rafTx');
   rafMsg = d.done ? UI.rafSent : UI.rafPartMsg;
   setTimeout(function () { needsLoad(); }, 45000);
 }
@@ -14529,8 +14533,22 @@ function rafGo() {
   if (!confirm(UI.rafGoQ)) return;
   rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafA.exp, who: 'רכז',
             wt: rafTx.wt, wb: rafTx.wb, at: rafTx.at, ab: rafTx.ab }, function (d) {
-    if (d.status === 'changed') { rafA = d.aud; rafA.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
+    if (d.status === 'changed') { d.aud.me = rafA.me; rafA = d.aud; rafA.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
     rafPubDone(d);
+  });
+}
+/* ---- בדיקה אליך בלבד: ההודעה כפי שנערכה, למכשירי הרכז בלבד, בלי פרסום ----
+   השרת (rafSelf_) בודק שוב שיש מכשיר, ושההגרלה עוד לא פורסמה. הלחיצה
+   על ההתראה פותחת את אותו עמוד, במבט ובמוסד שבתצוגה המקדימה. */
+function rafSelf(k) {
+  if (!rafD || !rafA || !rafTx || rafA.me === 0) return;
+  var t = rafTx[k === 'w' ? 'wt' : 'at'] || '', b = rafTx[k === 'w' ? 'wb' : 'ab'] || '', c = rafPvCode(k);
+  if (!b.trim() || !c) return;
+  if (!confirm(fill(UI.rafSelfQ, { what: UI[k === 'w' ? 'rafSelfWhatW' : 'rafSelfWhatG'],
+                                    n: rafA.me == null ? '?' : rafA.me, inst: rafInstName(c) }))) return;
+  rafCall({ raffle: 'self', rid: rafD.rid, k: k, code: c, t: t, b: b }, function (d) {
+    if (rafA) rafA.me = d.dev;
+    rafMsg = d.dev ? fill(UI.rafSelfSent, { n: d.dev }) : UI.rafSelfNone;
   });
 }
 /* ---- אחרי הפרסום: בדיקת מצב, ושליחה חוזרת רק של מה שלא יצא ---- */
@@ -14826,7 +14844,12 @@ function admRaffle() {
         rafMsgHtml('g') +
         '<p class="h">' + esc(UI.rafAudNote) +
         (rafA.test ? '<br>' + esc(fill(UI.rafTestX, { n: rafA.test })) : '') + '</p>' +
-        '<button class="btn p"' + dis + ' onclick="rafGo()">' + esc(rafBusy ? UI.rafBusy : UI.rafGo) + '</button>' +
+        '<div class="pp-h">' + esc(UI.rafSelfH) + '</div>' +
+        (rafA.me === 0 ? '<p class="h" style="color:var(--stop)">' + esc(UI.rafSelfNone) + '</p>'
+          : '<p class="h">' + esc(fill(UI.rafSelfAud, { n: rafA.me == null ? '?' : rafA.me })) + '</p>' +
+            '<button class="btn g"' + (rafBusy || !rafPvCodes('w').length ? ' disabled' : '') + ' onclick="rafSelf(\'w\')">' + esc(UI.rafSelfW) + '</button>' +
+            '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafSelf(\'g\')">' + esc(UI.rafSelfG) + '</button>') +
+        '<button class="btn p" style="margin-top:14px"' + dis + ' onclick="rafGo()">' + esc(rafBusy ? UI.rafBusy : UI.rafGo) + '</button>' +
         '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafA=null;admPane()">' + esc(UI.rafBack) + '</button>';
     }
     /* ---- פורסם: מצב כל הודעה, בדיקת מצב, ושליחה חוזרת רק של מה שלא יצא ---- */

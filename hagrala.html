@@ -22,6 +22,9 @@
          ב-apps-script.gs): פורסם, והמזהה שבמכשיר שייך לתלמיד של
          המוסד. הסתרה כאן אינה ההגנה — השרת הוא.
        · סגור — מכשיר של לפיד או "אחר": אין הגרלה ואין פרסים.
+       · בדיקה אליך בלבד (`?rt=<אסימון>`) — מההתראה שהרכז שלח לעצמו לפני
+         הפרסום (rafSelf_): השרת מחזיר את המבט לפי האסימון, בלי זהות
+         המכשיר. אסימון שפג — הקידום הרגיל.
        · תצוגה מקדימה (`?pv=w|g`) — רק בתוך מסך האישור בניהול: הנתונים
          נלקחים מהעמוד שמסביב (rafPvGet ב-index.html), לא מהשרת ולא
          מהכתובת. נפתח לבד — אין נתונים, והעמוד מתנהג כרגיל.
@@ -163,7 +166,25 @@ var PV = (location.search.match(/[?&]pv=(w|g)(&|$)/) || [])[1] || '', PVD = null
 if (PV && window.parent !== window) {
   try { PVD = window.parent.rafPvGet ? window.parent.rafPvGet(PV) : null; } catch (e) { PVD = null; }
 }
+var RT = (location.search.match(/[?&]rt=([0-9a-f]{32})(&|$)/) || [])[1] || '';
 (function () {
+  if (RT && !PVD) {
+    var u0 = api(), main0 = $('main'), done0 = false;
+    if (!u0 || !window.fetch) return;
+    main0.className = 'wrap wait';
+    var show0 = function () { if (!done0) { done0 = true; main0.className = 'wrap'; } };
+    setTimeout(show0, 5000);
+    fetch(u0 + (u0.indexOf('?') < 0 ? '?' : '&') + 'raffle=selfv&rt=' + RT + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!done0 && d && d.status === 'ok' && d.state === 'pub') {
+          results(d);
+          $('res').insertAdjacentHTML('afterbegin', '<div class="pv">' + esc(UI.rafSelfLbl) + '</div>');
+        }
+        show0();
+      })['catch'](show0);
+    return;
+  }
   if (PVD) {
     results(PVD);
     $('res').insertAdjacentHTML('afterbegin', '<div class="pv">' + esc(UI.rafPvLbl) + '</div>');
