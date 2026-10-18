@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 77;
+var SCRIPT_VERSION = 78;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8348,6 +8348,9 @@ function testRoute_(e) {
         var v1 = testView_(S); v1.tok = S.tok;
         return reply_(e, v1);
       }
+      /* טעינת המצב בלי סשן — מצב כבוי תקין, לא שגיאה: המסך מציג את
+         בחירת המוסד וההפעלה. שום סשן לא נוצר כאן. */
+      if (op === 'tok' && !S) return reply_(e, testView_(null));
       if (!S) return reply_(e, { status: 'error', message: 'אין סשן בדיקה פעיל' });
       if (op === 'tok') { var v2 = testView_(S); v2.tok = S.tok; return reply_(e, v2); }
       if (op === 'devs') {
