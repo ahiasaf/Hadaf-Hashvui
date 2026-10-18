@@ -942,6 +942,31 @@ a.lockbtn{display:inline-block;text-decoration:none}
   .stage{max-width:var(--col);width:100%;margin-inline:auto}
 }
 
+/* ---------- טלפון לרוחב ----------
+   טלפון שסובב לרוחב עובר את 620, ולכן נתפס בתקרה של המחשב: הבמה
+   נעצרה ב-580 ושאר הרוחב נשאר ריק. והפירוש — מתחת ל-820 הוא
+   ירד לשורה תחתונה (44vh מתוך מסך של 390) והגמרא נמחצה, ומעל
+   820 הוא לקח עמודה של 380. נמדד (18.10, 844×390, שורה רחבה):
+   הגמרא יצאה גדולה ב-19% בלבד מאשר לאורך — "נשאר אותו גודל".
+
+   התקרה נועדה לחדות במסך של פיקסל לנקודה. בטלפון הצפיפות היא
+   פי 2–3, ולכן היא מיותרת כאן. הבמה מקבלת את כל הרוחב, והפירוש
+   והמצגת יושבים בעמודה צרה לצידה — לרוחב אין גובה לשורה תחתונה.
+
+   `max-height` הוא מה שמזהה טלפון: טאבלט ומחשב לרוחב גבוהים יותר
+   ונשארים בדיוק כשהיו. */
+@media (orientation:landscape) and (max-height:500px) and (max-width:960px){
+  .stage{max-width:none}
+  body.chav-on main,body.side-on main,
+  body.side-adm.side-on main,body.side-adm.kb-open.chav-on main{
+    grid-template-columns:minmax(0,1fr) minmax(0,40%);
+    grid-template-rows:minmax(0,1fr)}
+  .stage{grid-row:1;grid-column:1}
+  .chav,#side{grid-row:1;grid-column:2;border-top:0;box-shadow:none;
+    border-inline-start:1px solid var(--rule)}
+  body.side-on .chav{contain:none}
+}
+
 /* ---------- הדף במסך מחשב נראה חיוור יותר מאשר בטלפון ----------
    וזה נכון, ולא אשליה. מדדנו: אותו קטע דף מצויר בטלפון על 1170
    פיקסלים אמיתיים ובמסך מחשב על 580 — מסך טלפון צפוף פי שלושה.
@@ -1617,7 +1642,12 @@ function focus() {
   var st = FLAT[IDX];
   var stage = $('stage'), sw = stage.clientWidth, sh = stage.clientHeight;
   if (!sw || !sh) return;
-  var fx, fy, fw, fh;
+  var fx, fy, fw, fh, segH = 1, segC = -1;
+
+  /* מעבר לקטע אחר — הצביטה של המיקוד מתאפסת (ראו ZM). סיבוב,
+     שורת כתובת ופירוש שנפתח אינם מעבר: הם שומרים עליה. */
+  if (DIM && IDX !== FOCUS_AT) ZM = 1;
+  FOCUS_AT = IDX;
 
   if (!st) {
     fx = 0; fy = 0; fw = 1; fh = 1;
@@ -1628,6 +1658,7 @@ function focus() {
     var top = 1, bot = 0;
     rs.forEach(function (r) { top = Math.min(top, r[1]); bot = Math.max(bot, r[1] + r[3]); });
     if (!rs.length) { top = 0; bot = 1; }
+    segH = Math.min(1, (bot - top) + lh); segC = (top + bot) / 2;
     var padY = lh * 2.2;
     fy = Math.max(0, top - padY);
     fh = Math.min(1 - fy, (bot - top) + padY * 2);
@@ -1654,10 +1685,17 @@ function focus() {
 
   /* הדף ממלא לפחות את רוחב המסך — חלון שקטן ממנו רק מבזבז מקום. */
   var disp = Math.min(sw / fw, sh / (fh * R));
-  disp = Math.max(sw, Math.min(disp, sw * 4.5));
+  /* לרוחב הרצפה הזו גבוהה, והמסך נמוך: דף ברוחב המסך כולו יכול
+     להיות גבוה מקטע ארוך ולחתוך אותו. שם מוותרים קודם על שורות
+     ההקשר שמעל ומתחת (הן נחתכות), ורק אם גם הקטע עצמו אינו נכנס
+     — הדף קטן עד שהוא נכנס. לאורך — בדיוק כמו קודם. */
+  var floor = sw > sh ? Math.min(sw, Math.max(disp, sh / (segH * R))) : sw;
+  disp = Math.max(floor, Math.min(disp, sw * 4.5));
   var dh = disp * R;
   var tx = sw / 2 - (fx + fw / 2) * disp;
-  var ty = sh / 2 - (fy + fh / 2) * dh;
+  /* לרוחב — הקטע עצמו במרכז, כדי שההקשר הוא מה שנחתך ולא הוא.
+     בקצה הדף applyView ממילא עוצר את הדף בגבולו. */
+  var ty = sh / 2 - (sw > sh && segC >= 0 ? segC : fy + fh / 2) * dh;
   VIEW = { tx: tx, ty: ty, disp: disp, dh: dh, sw: sw, sh: sh };
   PAN.x = 0; PAN.y = 0;          /* כל מיקוד מחזיר את הדף למקומו */
   applyView();
@@ -1677,10 +1715,15 @@ function focus() {
    הגבולות הם גבולות הדף עצמו: אפשר להגיע לכל פינה בו, ואי אפשר
    לאבד אותו מחוץ למסך. */
 var VIEW = null, PAN = { x: 0, y: 0 };
-/* הגדלת הגמרא בצביטה: 1 = הגודל הרגיל, עד פי 2 — **רק במצב "כל
-   הדף"**. במיקוד אין זום בכלל, והיציאה מ"כל הדף" מחזירה ל-1.
-   מוחלת סביב מרכז הבמה. */
-var ZM = 1, ZM_MIN = 1, ZM_MAX = 2;
+/* הגדלת הגמרא בצביטה: 1 = הגודל הרגיל, עד פי 2. מוחלת סביב
+   האצבעות, והדף נשאר בתוך גבולותיו.
+
+   **גם במיקוד** (18.10). שם היא נשארת בתוך הקטע: מעבר לקטע אחר
+   מחזיר ל-1 (ראו focus, FOCUS_AT), וכך גם היציאה מ"כל הדף". סיבוב
+   ופירוש שנפתח שומרים עליה — הקטע חוזר למרכז, באותה הגדלה.
+   כשהגמרא מוגדלת במיקוד אפשר גם לגרור אותה, אחרת חצי שורה רחבה
+   נשאר מחוץ למסך. החזרה לגודל הרגיל — צביטה החוצה עד הסוף. */
+var ZM = 1, ZM_MIN = 1, ZM_MAX = 2, FOCUS_AT = -1;
 function applyView(instant) {
   if (!VIEW) return;
   var v = VIEW, z = ZM, disp = v.disp * z, dh = v.dh * z;
@@ -1688,6 +1731,9 @@ function applyView(instant) {
   var tx = cx - (cx - v.tx) * z + PAN.x, ty = cy - (cy - v.ty) * z + PAN.y;
   tx = disp > v.sw ? Math.max(v.sw - disp, Math.min(0, tx)) : (v.sw - disp) / 2;
   ty = dh > v.sh ? Math.max(v.sh - dh, Math.min(0, ty)) : (v.sh - dh) / 2;
+  /* ההזזה נשמרת כפי שהיא על המסך, אחרי העצירה בגבול. אחרת גרירה
+     מעבר לקצה נצברת בלי שרואים, והצביטה הבאה קופצת אליה. */
+  PAN.x = tx - (cx - (cx - v.tx) * z); PAN.y = ty - (cy - (cy - v.ty) * z);
   var h = $('holder');
   h.style.transition = instant ? 'none' : '';
   h.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' +
@@ -4653,11 +4699,14 @@ function setWhole(on) {
   recStep('whole');
   var el = $('whole');
   el.classList.toggle('on', on);
-  if (!on) ZM = 1;                /* במיקוד אין זום */
+  if (!on) ZM = 1;                /* החזרה למיקוד — בגודל הרגיל */
   el.textContent = on ? 'מיקוד' : 'כל הדף';
   el.title = on ? 'חזרה למיקוד בקטע' : 'הצגת הדף כולו, עם אפשרות לגרור';
   document.body.classList.toggle('whole', on);
   if (FLAT.length) paint();
+  /* החזרה למיקוד מחזירה את הקטע למרכז. בלי זה הדף נשאר במקום
+     ובגודל שאליהם נגרר ב"כל הדף". */
+  if (!on && FLAT.length && VIEW) focus();
 }
 
 function buttons(on) {
@@ -6597,10 +6646,10 @@ window.addEventListener('DOMContentLoaded', function () {
   var DRAG = null;
 
   /* ---------- צביטה ----------
-     במצב "כל הדף" שתי אצבעות על הבמה מגדילות את הגמרא בלבד
-     (ZM, 100%–200%). במיקוד — אין זום: הצביטה פשוט לא עושה כלום.
+     שתי אצבעות על הבמה מגדילות את הגמרא בלבד (ZM, 100%–200%) —
+     ב"כל הדף" ובמיקוד כאחד. הנקודה שבין האצבעות נשארת תחתן.
      צביטה אינה הקשה ואינה גרירה: היא מבטלת את שתיהן, עד שכל
-     האצבעות עוזבות. */
+     האצבעות עוזבות — גם כשהן עוזבות בזו אחר זו. */
   var PTS = {}, PINCH = null;
   var ptsDist = function () {
     var k = Object.keys(PTS);
@@ -6608,10 +6657,25 @@ window.addEventListener('DOMContentLoaded', function () {
     var a = PTS[k[0]], b = PTS[k[1]];
     return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
   };
+  var ptsMid = function () {
+    var k = Object.keys(PTS), a = PTS[k[0]], b = PTS[k[1]];
+    var r = $('stage').getBoundingClientRect();
+    return { x: (a.x + b.x) / 2 - r.left, y: (a.y + b.y) / 2 - r.top };
+  };
   var ptUp = function (e) {
     delete PTS[e.pointerId];
-    if (PINCH && Object.keys(PTS).length < 2) PINCH = null;
+    if (PINCH && Object.keys(PTS).length < 2) {
+      PINCH = null;
+      /* במיקוד, צביטה שחזרה לגודל הרגיל (או כמעט — אצבע אינה
+         מדויקת) מחזירה גם את הקטע למקומו. אחרת גרירה שקדמה לה
+         משאירה אותו זז הצידה. */
+      if (DIM && ZM < 1.05) { ZM = 1; focus(); }
+    }
   };
+  /* אצבע שעזבה מחוץ לבמה — שלא תישאר רשומה ותהפוך את הנגיעה
+     הבאה ל"צביטה". */
+  window.addEventListener('pointerup', ptUp);
+  window.addEventListener('pointercancel', ptUp);
   /* עיגול החידה והכיתוב שלידו יושבים בתוך הבמה, ולכן הלחיצה עליהם
      עלתה גם אליה — והייתה גם "הבא": החידה נפתחה בקטע אחד ומיד
      עברו לקטע הבא, ונראה כאילו העיגול לא מגיב. לחיצה עליהם אינה
@@ -6627,8 +6691,10 @@ window.addEventListener('DOMContentLoaded', function () {
     if (onFab(e.target)) { DRAG = null; return; }
     PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (Object.keys(PTS).length >= 2) {
-      /* במיקוד: לא זום, וגם לא הקשה — שתי אצבעות אינן "הבא". */
-      PINCH = DIM ? { off: 1 } : { d0: ptsDist() || 1, z0: ZM };
+      /* שתי אצבעות אינן "הבא" — לא במיקוד ולא בדף המלא. */
+      var m0 = ptsMid();
+      PINCH = { d0: ptsDist() || 1, z0: ZM, mx: m0.x, my: m0.y,
+                px: PAN.x, py: PAN.y };
       DRAG = null;
       return;
     }
@@ -6638,15 +6704,24 @@ window.addEventListener('DOMContentLoaded', function () {
     if (PTS[e.pointerId]) PTS[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (PINCH) {
       e.preventDefault();
-      if (PINCH.off) return;
-      ZM = Math.max(ZM_MIN, Math.min(ZM_MAX, PINCH.z0 * ptsDist() / PINCH.d0));
+      if (!VIEW || Object.keys(PTS).length < 2) return;
+      var z = Math.max(ZM_MIN, Math.min(ZM_MAX, PINCH.z0 * ptsDist() / PINCH.d0));
+      /* הנקודה שבין האצבעות בתחילת הצביטה נשארת תחתן: ההזזה
+         מפצה על מה שההגדלה סביב מרכז הבמה (applyView) הייתה מזיזה. */
+      var cx = VIEW.sw / 2, cy = VIEW.sh / 2, k = z / PINCH.z0;
+      var x0 = cx - (cx - VIEW.tx) * PINCH.z0 + PINCH.px;
+      var y0 = cy - (cy - VIEW.ty) * PINCH.z0 + PINCH.py;
+      ZM = z;
+      PAN.x = PINCH.mx - (PINCH.mx - x0) * k - (cx - (cx - VIEW.tx) * z);
+      PAN.y = PINCH.my - (PINCH.my - y0) * k - (cy - (cy - VIEW.ty) * z);
       applyView(true);
       return;
     }
     if (!DRAG) return;
     var dx = e.clientX - DRAG.x, dy = e.clientY - DRAG.y;
     DRAG.moved = Math.max(DRAG.moved, Math.abs(dx) + Math.abs(dy));
-    if (DIM || DRAG.moved < 6) return;      /* במיקוד הדף נעול */
+    /* במיקוד הדף נעול — אלא אם הוגדל בצביטה. */
+    if ((DIM && ZM <= 1) || DRAG.moved < 6) return;
     e.preventDefault();
     PAN.x = DRAG.px + dx; PAN.y = DRAG.py + dy;
     applyView(true);
