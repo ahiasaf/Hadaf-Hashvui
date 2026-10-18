@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.264';
+var APP_VERSION = '8.99.265';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5758,8 +5758,15 @@ function loadCounts() {
         m[c] = { n: parseInt(rows[r][ix['מצטרפים']], 10) || 0,
                  grades: bPairs(rows[r][ix['שכבות']]),
                  ways:   bPairs(rows[r][ix['מסגרות']]) };
+        /* הפירוק לניהול (8.99.264) — רק כשהעמודות כבר בלשונית. */
+        if (ix['נרשמו'] !== undefined) {
+          m[c].reg = parseInt(rows[r][ix['נרשמו']], 10) || 0;
+          m[c].rep = parseInt(rows[r][ix['דווחו בלבד']], 10) || 0;
+          m[c].amb = parseInt(rows[r][ix['לא הוכרעו']], 10) || 0;
+        }
       }
       Store.set('joinCount', m);
+      Store.set('joinCountAt', Date.now());
       return true;
     }).catch(function () {}),
     fetchSheet(id, 'מוני-לימוד').then(function (rows) {
@@ -9738,12 +9745,19 @@ function admRosterLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key) return;
   scriptGet({ board:'*', key:key, test:'1' }).then(function (d) {
-    if (!d || d.status !== 'ok' || !d.students || d.students.length == null) return;
+    if (!d || d.status !== 'ok' || !d.students || d.students.length == null) { admPartFail = Date.now(); admLive(); return; }
     Store.set('rosterCache:all', d.students);
     if (d.parents && d.parents.length != null) Store.set('parentsCache:all', d.parents);
+    /* המשתתפים — חושבו עכשיו בשרת (partCalc_). בלי — הנתון ישן. */
+    if (d.part && d.part.by) {
+      Store.set('partAll', { at: Date.parse(d.part.at) || Date.now(), by: d.part.by });
+      admPartFail = 0;
+    } else admPartFail = Date.now();
     admLive();
-  })['catch'](function () {});
+  })['catch'](function () { admPartFail = Date.now(); admLive(); });
 }
+/* הרענון האחרון של המשתתפים בניהול נכשל — מתי (0 = לא נכשל). */
+var admPartFail = 0;
 /* רענון אוטומטי פעם אחת בכל פתיחה של האפליקציה, בכניסה לניהול. */
 var admEntered = false;
 function admEnterOnce() {
@@ -9981,12 +9995,12 @@ function stuLive() {
 /* ראש קטן מעל הלוח: כמה נרשמו, כמה דיווח ראש החטיבה, והפער. */
 function admStuHead() {
   var d = pplData(), x = null;
-  if (!ADM_INST) x = { c:'', got:d.tot, rep:d.repTot || null, gap:0 };
+  if (!ADM_INST) x = { c:'', got:d.tot, rep:d.repTot || null, gap:0, pr:d.all.pr, pd:d.all.pd, pu:d.all.pu };
   d.rows.forEach(function (y) { if (y.c === ADM_INST) x = y; });
-  if (!x) x = { c:ADM_INST, got:0, rep:null, gap:0 };
-  var m = [];
+  if (!x) x = { c:ADM_INST, got:0, rep:null, gap:0, pr:d.all.pr == null ? null : 0, pd:0, pu:0 };
+  var m = pplPartBits(x, d).map(esc);
   if (ppl.boardMsg) m.push(esc(ppl.boardMsg));
-  else if (ppl.boardAt) m.push(esc(UI.admUpd) + ' ' + esc(whenTxt(ppl.boardAt)));
+  else if (!m.length && ppl.boardAt) m.push(esc(UI.admUpd) + ' ' + esc(whenTxt(ppl.boardAt)));
   return '<div class="stu-h"><span class="pr-t">' + pplTags(x) + '</span>' +
     (m.length ? '<span class="stu-m">' + m.join(' · ') + '</span>' : '') + '</div>';
 }
@@ -10017,7 +10031,12 @@ function stFold(k, icon, title, body) {
 function admSetupTiles() {
   var F = Store.get('funnel', null), has = F && F.people;
   var fAll = has ? funCount(funPeople(F, '')) : null;
-  var j = ADM_INST ? bJoin(ADM_INST) : bJoinAll();
+  /* "משתתפים" — אותו מספר של רשימת הישיבות (pplData). */
+  var pd0 = pplPart() ? pplData() : null, j = null;
+  if (pd0) {
+    j = { n: ADM_INST ? 0 : pd0.tot };
+    if (ADM_INST) pd0.rows.forEach(function (y) { if (y.c === ADM_INST) j.n = y.got; });
+  }
   var src = Store.get('rosterCache:all', null);
   var ros = src ? src.filter(function (p) {
     return !p.test && p.role !== 'הורה' && (!ADM_INST || pplCode(p.inst) === ADM_INST);
@@ -11728,15 +11747,39 @@ function pplName(c, r) {
 /* המספרים. "נרשמו" — מאותה רשימה שהלוח מציג (המטמון שלו), ועד
    שהוא נקרא — מרשימת המשתתפים הישנה. "דווחו" — ההערכה שבהרשמה,
    ואם אין בה מספר — כמות הגמרות שהוזמנה. */
+/* ============================================================
+   "משתתפים" — מהחישוב של השרת (partCalc_), לא מאורך הרשימה.
+   ============================================================
+   אור עציון הוצגה כאן עם 0, כשבמונים הציבוריים היא 7: המסך ספר
+   את הרשימה ששמורה במכשיר, והמונה הציבורי ספר משהו אחר. עכשיו
+   שניהם אותו חישוב: התשובה האחרונה של הניהול (`partAll`), או
+   "מונים" אם נקראה אחריה. רק כשאין אף אחד מהם — הרשימה, כמו קודם
+   (`at` ריק, כלומר בלי חותמת זמן). */
+function pplPart() {
+  var pa = Store.get('partAll', null), jc = Store.get('joinCount', null), ja = Store.get('joinCountAt', 0) || 0;
+  if (pa && pa.by && (!jc || pa.at >= ja)) return { by: pa.by, at: pa.at };
+  if (jc) return { by: jc, at: ja || 0 };
+  return null;
+}
 function pplData() {
-  var src = Store.get('rosterCache:all', null);
-  if (!src) src = (Store.get('partCache', []) || []).filter(function (p) { return p.role !== 'הורה'; });
-  var n = {}, tot = 0;
-  /* משתמשי בדיקה אינם נספרים — הם עדיין ברשימה שבלוח, עם התגית. */
-  src.forEach(function (p) {
-    if (p.test) return;
-    var c = pplCode(p.inst); n[c] = (n[c] || 0) + 1; tot++;
-  });
+  var P = pplPart(), n = {}, tot = 0, br = {};
+  if (P) {
+    Object.keys(P.by).forEach(function (c0) {
+      var x = P.by[c0] || {}, c = pplCode(c0);
+      n[c] = (n[c] || 0) + (x.n || 0); tot += x.n || 0;
+      if (x.reg == null) return;
+      var b = br[c] = br[c] || { pr:0, pd:0, pu:0 };
+      b.pr += x.reg || 0; b.pd += x.rep || 0; b.pu += x.amb || 0;
+    });
+  } else {
+    var src = Store.get('rosterCache:all', null);
+    if (!src) src = (Store.get('partCache', []) || []).filter(function (p) { return p.role !== 'הורה'; });
+    /* משתמשי בדיקה אינם נספרים — הם עדיין ברשימה שבלוח, עם התגית. */
+    src.forEach(function (p) {
+      if (p.test) return;
+      var c = pplCode(p.inst); n[c] = (n[c] || 0) + 1; tot++;
+    });
+  }
   var regs = (Store.get('registrations', []) || []).slice(), own = regSaved(), reg = {};
   if (own && own.code && !regs.some(function (r) { return r.code === own.code; })) regs.unshift(own);
   regs.forEach(function (r) { if (r.code) reg[r.code] = r; });
@@ -11747,14 +11790,34 @@ function pplData() {
     var r = reg[c] || null, got = n[c] || 0;
     var rep = r ? (r.size || r.total || 0) : null;
     if (rep) repTot += rep;
+    var b = br[c];
     rows.push({ c:c, name:pplName(c, r), got:got, rep:rep, reg:r,
+                pr: b ? b.pr : null, pd: b ? b.pd : null, pu: b ? b.pu : 0,
                 gap: rep ? Math.abs(rep - got) : 0 });
   });
   rows.sort(function (a, b) {
     return (b.got - a.got) || String(a.name).localeCompare(String(b.name), 'he');
   });
-  return { rows:rows, tot:tot, repTot:repTot,
+  var all = { pr:null, pd:null, pu:0 };
+  Object.keys(br).forEach(function (c) {
+    all.pr = (all.pr || 0) + br[c].pr; all.pd = (all.pd || 0) + br[c].pd; all.pu += br[c].pu;
+  });
+  return { rows:rows, tot:tot, repTot:repTot, all:all, at: P ? P.at : 0,
            gaps:rows.filter(function (x) { return x.gap; }).length };
+}
+/* שורת הפירוק מתחת למספר: נרשמו בעצמם · דווחו בנוכחות בלבד · לא
+   הוכרעו — ומתי חושב. רענון שנכשל אומר זאת, ולא מציג ישן כעדכני. */
+function pplPartBits(x, d) {
+  var bits = [];
+  if (x.pr != null) {
+    bits.push(UI.pplSelf.replace('{n}', x.pr));
+    bits.push(UI.pplAtt.replace('{n}', x.pd || 0));
+  }
+  if (x.pu) bits.push(UI.pplAmb.replace('{n}', x.pu));
+  var at = d.at ? whenTxt(d.at) : '';
+  if (admPartFail && (!d.at || admPartFail > d.at)) bits.push(UI.pplStale.replace('{t}', at || '—'));
+  else if (at) bits.push(UI.admUpd + ' ' + at);
+  return bits;
 }
 /* ============================================================
    "דווחו" — נספרים כלומדים בחבורה.
@@ -11777,8 +11840,8 @@ function repExtra(c) {
 }
 function pplTags(x) {
   var w = accWait(x.c === '' ? null : x.c).length;
-  return '<i class="pt g">' + x.got + ' נרשמו</i>' +
-    (x.rep ? '<i class="pt a">' + x.rep + ' דווחו</i>' : '') +
+  return '<i class="pt g">' + esc(UI.pplGot.replace('{n}', x.got)) + '</i>' +
+    (x.rep ? '<i class="pt a">' + esc(UI.pplEst.replace('{n}', x.rep)) + '</i>' : '') +
     (x.gap ? '<i class="pt r">פער ' + x.gap + '</i>' : '') +
     (w ? '<i class="pt w">' + w + ' לאימות</i>' : '');
 }
@@ -12197,11 +12260,13 @@ function pplOrder() {
    שלה ב"הרשמות". */
 function pplOneHead(d) {
   var c = ppl.open, x = null;
-  if (c === '') x = { c:'', got:d.tot, rep:d.repTot || null, gap:0 };
+  if (c === '') x = { c:'', got:d.tot, rep:d.repTot || null, gap:0, pr:d.all.pr, pd:d.all.pd, pu:d.all.pu };
   d.rows.forEach(function (y) { if (y.c === c) x = y; });
-  if (!x) x = { c:c, got:0, rep:null, gap:0 };
+  if (!x) x = { c:c, got:0, rep:null, gap:0, pr:d.all.pr == null ? null : 0, pd:0, pu:0 };
   pplSet('ppl-on', esc(pplName(c, x.reg)));
-  var r = x.reg, h = '<div class="pr-t">' + pplTags(x) + '</div>';
+  var pb = pplPartBits(x, d);
+  var r = x.reg, h = '<div class="pr-t">' + pplTags(x) + '</div>' +
+    (pb.length ? '<div style="margin-top:4px">' + esc(pb.join(' · ')) + '</div>' : '');
   if (r) {
     var q = regMigrate(r), bits = [];
     TRACKS.forEach(function (t) {

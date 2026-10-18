@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 75;
+var SCRIPT_VERSION = 76;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1769,6 +1769,23 @@ function doGet(e) {
     }
     try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
+    /* **המשתתפים — מחושבים עכשיו**, באותה פונקציה של "מונים", והלשונית
+       נכתבת מחדש באותה הזדמנות. כך המספר בניהול, באפליקציה ובמפה
+       אחד, מאותו רגע. נכשל — אין `part`, והמסך אומר שהנתון ישן. */
+    if (isAdm && String(e.parameter.board) === '*' && bd && bd.status === 'ok') {
+      try {
+        var pjs = sheet_(JOIN_TAB);
+        var pp = recountRows_(pjs.getLastRow() ? pjs.getDataRange().getDisplayValues() : [[]]);
+        if (pp) {
+          var pb = {};
+          pp.order.forEach(function (pc) {
+            var x = pp.by[pc];
+            pb[pc] = { n: x.n, reg: x.reg, rep: x.rep, amb: x.amb };
+          });
+          bd.part = { at: new Date().toISOString(), by: pb };
+        }
+      } catch (eP) {}
+    }
     return reply_(e, bd);
   }
 
@@ -2042,6 +2059,8 @@ function appendCols_(tab, cols, ssId) {
   if (tab === JOIN_TAB)  recount_();
   /* נוכחות חדשה — אישור חידון אפשרי, והנקודות והזכאות במטמון. */
   if (tab === AMDA_TAB_) amdaQzBust_();
+  /* דיווח נוכחות הוא ראיה להשתתפות (partCalc_) — גם "השתתף" ושיעור. */
+  if (tab === AMDA_TAB_) partSoon_();
   /* סיום עמוד, או חידון שלם — הנקודות מתעדכנות מיד, לא אחרי 5 דקות.
      סימון של קטע באמצע (קטע < מתוך) אינו משנה נקודות. */
   if (tab === LEARN_TAB || tab === 'חידות') {
@@ -2249,6 +2268,11 @@ function tally_(rows, keyNames, idName) {
 function writeCount_(tab, cols, rows) {
   var out = sheet_(tab);
   if (!out.getLastRow()) headRow_(out, cols);
+  /* עמודה שנוספה (8.99.264: "נרשמו", "דווחו בלבד", "לא הוכרעו") —
+     הכותרת נכתבת גם בלשונית שכבר קיימת, אחרת הקורא לא ימצא אותה. */
+  else if (out.getRange(1, 1, 1, cols.length).getDisplayValues()[0].join('\u0001') !== cols.join('\u0001')) {
+    headRow_(out, cols);
+  }
   if (rows.length) out.getRange(2, 1, rows.length, cols.length).setValues(rows);
   var end = out.getLastRow(), from = rows.length + 2;
   if (end >= from) {
@@ -3397,6 +3421,11 @@ function amdaTable_(tab) {
 function amdaSyncSoon_() {
   try {
     var cache = CacheService.getScriptCache();
+    /* דיווח שנדחה ב-partSoon_ — נספר עכשיו. */
+    if (cache.get('partDue') && !cache.get('partRc')) {
+      cache.remove('partDue'); cache.put('partRc', '1', 30);
+      recount_();
+    }
     if (cache.get('amdaSync')) return;
     cache.put('amdaSync', '1', 60);
     amdaSyncLocked_();
@@ -3456,9 +3485,12 @@ function amdaSync_() {
       return !g || g === w.g;
     });
     if (cand.length > 1) {
-      cand = cand.filter(function (j) {
+      var byCl = cand.filter(function (j) {
         return String(jt.c(jt.rows[j], 'כיתה')).replace(/\D/g, '') === String(w.c).replace(/\D/g, '');
       });
+      /* הכיתה לא הכריעה (אף אחד מהם, או אין כיתה) — עדיין לא הוכרע.
+         עד 8.99.264 זה נפל ל"אין מועמד" ונוצרה שורת Am… — אדם נוסף. */
+      cand = byCl.length ? byCl : cand;
     }
     var id = '';
     if (cand.length === 1) id = jt.c(jt.rows[cand[0]], 'מזהה');
@@ -3583,6 +3615,7 @@ function amdaKind_(d) {
     amdaUnlink_(drop);
   }
   amdaSync_();
+  recount_();
   recountLearn_(true);
   amdaQzBust_();
   return { status: 'ok', rows: n };
@@ -4416,57 +4449,202 @@ function lastPerId_(rows) {
   return out;
 }
 
+/* ============================================================
+   משתתפים — הגדרה אחת לכל המונים (8.99.264).
+   ============================================================
+   "כל תלמיד חדש שהצטרף בפועל, בהרשמה או בדיווח נוכחות תקף,
+   מגדיל את מניין המשתתפים באחד. אותו אדם נספר פעם אחת, גם אם
+   דווח שוב, נרשם אחר כך או עבר חשבון. ייבוא רשימת בית ספר לבדו
+   אינו הצטרפות."
+
+   **מחושב מחדש מהראיות בכל פעם** — לא מונה שגדל:
+   * **נרשם** — שורה ב"לומדים" עם מזהה של מכשיר (לא Am…). נשאר
+     משתתף גם בלי דף, בלי חידון ובלי נקודות.
+   * **דווח בנוכחות** — כל שורה תקפה ב"עמדת לימוד": דף, שיעור,
+     "השתתף". שורת Am… ב"לומדים" נספרת רק כל עוד יש לה דיווח —
+     דיווח שתוקן לשם אחר או נמחק מוריד אותה, בלי לגעת בשורה.
+   * **אותו אדם** — המזהה הקבוע, "מזהים נוספים" (aliasMap_), ושני
+     חשבונות באותו טלפון ושם מלא (rafPpl_ — אותו איחוד של ההגרלה
+     והנקודות). דיווח בלי שורה ב"לומדים" — למי ששמו תואם נרשם אחד
+     בדיוק במוסד (שכבה שאינה סותרת, ובשניים — הכיתה מכריעה).
+   * **שני מועמדים ומעלה — לא ממזגים ולא מוסיפים.** הדיווח נספר
+     בנפרד כ"לא הוכרע" (`amb`), ומוצג בניהול לבדיקה.
+   * **בחוץ:** הורים, משתמשי בדיקה, ומי שרק יובא מרשימת בית ספר.
+     החרגות ההגרלה, מסכת ודף — אינן נוגעות כאן.
+   מחזיר לכל קוד ישיבה { n, reg, rep, amb, g:{שכבה:n}, w:{מסגרת:n} }:
+   n — המשתתפים; reg — מתוכם נרשמו בעצמם; rep — n פחות reg (דווחו
+   בנוכחות בלבד). `order` — סדר ההופעה.
+   ============================================================ */
+function partCalc_(all) {
+  var head = (all && all[0]) || [], ix = {};
+  for (var i = 0; i < head.length; i++) ix[String(head[i]).trim()] = i;
+  var c = function (r, n) { return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim(); };
+  var t = { rows: all && all.length ? all : [head], c: c };
+  var alias = aliasMap_(t.rows);
+
+  /* האנשים: שורה לכל מזהה, והאחרונה קובעת את הפרטים. שורה שהמזהה
+     שלה כבר נבלע בשורה אחרת — מצטרפת לאותו אדם ולא נספרת שוב. */
+  var ppl = {}, order = [];
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r], id = c(row, 'מזהה');
+    if (!id) continue;
+    var own = alias[id] && alias[id] !== id ? alias[id] : id;
+    var p = ppl[own];
+    if (!p) { p = ppl[own] = { id: own, reg: r, ids: [own] }; order.push(own); }
+    rowIds_(t, row).forEach(function (x) { if (p.ids.indexOf(x) < 0) p.ids.push(x); });
+    if (own !== id && p.code !== undefined) continue;   /* הפרטים — מהשורה של המזהה הקבוע */
+    p.code = c(row, 'קוד ישיבה'); p.role = c(row, 'תפקיד'); p.test = c(row, 'בדיקה') === 'כן';
+    p.name = c(row, 'שם'); p.last = c(row, 'משפחה'); p.grade = c(row, 'שכבה');
+    p.klass = c(row, 'כיתה'); p.way = c(row, 'מסגרת'); p.key = rowKey_(t, row);
+  }
+  /* שני חשבונות באותו טלפון ושם מלא — היעד הוא האחרון שנרשם. */
+  var byKey = {}, target = {};
+  order.forEach(function (id) { var q = ppl[id]; if (q.key) (byKey[q.key] = byKey[q.key] || []).push(q); });
+  Object.keys(byKey).forEach(function (k) {
+    var g = byKey[k];
+    if (g.length < 2) return;
+    g.sort(function (x, y) { return x.reg - y.reg; });
+    var to = g[g.length - 1];
+    g.forEach(function (q) {
+      if (q === to) return;
+      target[q.id] = to.id;
+      q.ids.forEach(function (x) { if (to.ids.indexOf(x) < 0) to.ids.push(x); });
+    });
+  });
+  var whoOf = {};
+  order.forEach(function (id) {
+    if (target[id]) return;
+    ppl[id].ids.forEach(function (x) { whoOf[x] = id; });
+  });
+  var P = {}, porder = [];
+  order.forEach(function (id) {
+    var q = ppl[id];
+    if (target[id] || q.role === 'הורה' || q.test || !q.code) return;
+    P[id] = { q: q, reg: q.ids.some(function (x) { return !/^Am/.test(x); }) ? 1 : 0, rep: 0 };
+    porder.push(id);
+  });
+
+  /* השיוך שהעמדה כבר עשתה: מפתח (מוסד|שכבה|כיתה|שם) → מזהה. */
+  var lt = amdaTable_(AMDA_LINK_), keyId = {}, grp = {};
+  for (var l = 1; l < lt.rows.length; l++) {
+    var lid = lt.c(lt.rows[l], 'מזהה');
+    if (!lid) continue;
+    grp[lid] = 1;
+    keyId[lt.c(lt.rows[l], 'מפתח').split('|').slice(0, 4).join('|')] = lid;
+  }
+  var byName = {};
+  porder.forEach(function (id) {
+    var q = P[id].q, f = amdaNorm_(q.name), ln = amdaNorm_(q.last);
+    if (!f) return;
+    (ln ? [ln + ' ' + f, f + ' ' + ln] : [f]).forEach(function (nm) {
+      var k = q.code + '|' + nm;
+      if ((byName[k] = byName[k] || []).indexOf(id) < 0) byName[k].push(id);
+    });
+  });
+  var at = amdaTable_(AMDA_TAB_), only = {}, oorder = [], amb = {}, done = {};
+  for (var a = 1; a < at.rows.length; a++) {
+    var x = at.rows[a], inst = at.c(x, 'קוד ישיבה'), n = amdaNorm_(at.c(x, 'שם'));
+    if (!inst || !n) continue;
+    var g0 = at.c(x, 'שכבה'), g = amdaNorm_(g0), cl = at.c(x, 'כיתה');
+    var k = [inst, g, cl, n].join('|');
+    if (done[k]) continue;
+    done[k] = 1;
+    var hit = whoOf[amdaId_({ inst: inst, g: g, c: cl, n: n })] ||
+              whoOf[keyId[k] || ''] || whoOf[keyId[[inst, g0, cl, n].join('|')] || ''] || '';
+    if (!hit || !P[hit]) {
+      var cand = (byName[inst + '|' + n] || []).filter(function (id) {
+        var g2 = amdaNorm_(P[id].q.grade);
+        return !g2 || g2 === g;
+      });
+      /* שניים ומעלה — הכיתה מכריעה. לא הכריעה (גם: אין כיתה) — לא הוכרע. */
+      if (cand.length > 1) {
+        var byCl = cand.filter(function (id) {
+          return String(P[id].q.klass).replace(/\D/g, '') === String(cl).replace(/\D/g, '');
+        });
+        if (byCl.length !== 1) { amb[k] = inst; continue; }
+        cand = byCl;
+      }
+      if (cand.length === 1) hit = cand[0];
+    }
+    if (hit && P[hit]) { P[hit].rep = 1; continue; }
+    if (hit) continue;                       /* הורה, בדיקה או חשבון שהתאחד — לא תלמיד נוסף */
+    only[k] = { code: inst, grade: g0, way: AMDA_WAY_ };
+    oorder.push(k);
+  }
+
+  var out = { by: {}, order: [] };
+  var bump = function (code, grade, way, reg) {
+    var b = out.by[code];
+    if (!b) { b = out.by[code] = { n: 0, reg: 0, rep: 0, amb: 0, g: {}, w: {}, go: [], wo: [] }; out.order.push(code); }
+    b.n++;
+    if (reg) b.reg++; else b.rep++;
+    if (grade) { if (!(grade in b.g)) { b.g[grade] = 0; b.go.push(grade); } b.g[grade]++; }
+    if (way) { if (!(way in b.w)) { b.w[way] = 0; b.wo.push(way); } b.w[way]++; }
+  };
+  porder.forEach(function (id) {
+    var o = P[id], q = o.q;
+    /* שורת Am… בלי הרשמה ובלי דיווח שעדיין קיים — הדיווח תוקן או נמחק. */
+    if (!o.reg && !o.rep) return;
+    bump(q.code, q.grade, amdaWay_(grp, id, q.way), o.reg);
+  });
+  oorder.forEach(function (k) { bump(only[k].code, only[k].grade, only[k].way, 0); });
+  Object.keys(amb).forEach(function (k) {
+    var code = amb[k];
+    if (!out.by[code]) { out.by[code] = { n: 0, reg: 0, rep: 0, amb: 0, g: {}, w: {}, go: [], wo: [] }; out.order.push(code); }
+    out.by[code].amb++;
+  });
+  return out;
+}
+
+/* העמודות של "מונים". הארבע הראשונות — כמו תמיד; השלוש שאחריהן
+   מפרקות את "מצטרפים" לניהול (מספרים בלבד). */
+var COUNT_COLS_ = ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות', 'נרשמו', 'דווחו בלבד', 'לא הוכרעו'];
+
 function recount_() {
   try {
     var src = sheet_(JOIN_TAB);
     /* לשונית ריקה אינה "אין מה לעשות" אלא **אפס**. יציאה מוקדמת
        כאן השאירה את המונים הישנים בגיליון לנצח: שבעה תלמידים
-       נמחקו, מסך המשתתפים התרוקן, והלוח המשיך להראות שבעה. */
+       נמחקו, מסך המשתתפים התרוקן, והלוח המשיך להראות שבעה.
+       (ומאז 8.99.264 גם "לומדים" ריקה אינה אפס בהכרח — מי שדווח
+       בנוכחות נספר גם בלי שורה שם.) */
     if (!src) return;
-    if (src.getLastRow() < 2) {
-      writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'], []);
-      return;
-    }
-    recountRows_(src.getDataRange().getDisplayValues());
+    recountRows_(src.getLastRow() ? src.getDataRange().getDisplayValues() : [[]]);
   } catch (err) {}          /* מונה שנכשל לא יפיל הרשמה של תלמיד */
 }
 
 /* הספירה עצמה, על שורות שכבר נקראו — כדי שההרשמה (joinWrite_)
-   לא תקרא את כל הלשונית פעם נוספת רק בשביל המונה. */
+   לא תקרא את כל הלשונית פעם נוספת רק בשביל המונה. מחזירה את
+   החישוב (partCalc_), או null בכישלון — ואז **לא נכתב כלום**:
+   קריאה שנכשלה אינה אפס. */
 function recountRows_(all) {
   try {
-    var rows = studentRows_(all);
-
-    /* סך המצטרפים לכל ישיבה */
-    var t = tally_(rows, ['קוד ישיבה'], 'מזהה');
-    if (!t) return;
-
-    /* ופילוח — לפי שכבה ולפי מסגרת. הלוח של ראש החטיבה מציג
-       אותו, וזה עדיין מספרים בלבד: מי שרואה "ח׳ — 11" אינו
-       יודע מי אחד עשר. */
-    /* **כל תלמיד פעם אחת — לפי השורה האחרונה שלו.** תלמיד
-       שנרשם "לבד" ותיקן ל"חבורה" נספר בשתיהן, והמשבצות בניהול
-       הראו 113+17+97 ליד 222 תלמידים. */
-    var last = amdaWayRows_(lastPerId_(rows));
-    var byG = tally_(last, ['קוד ישיבה', 'שכבה'],  'מזהה');
-    var byW = tally_(last, ['קוד ישיבה', 'מסגרת'], 'מזהה');
-    var pack = function (t2) {
-      var out = {};
-      if (!t2) return out;
-      t2.order.forEach(function (k) {
-        var p = k.split('\u0001');
-        if (!out[p[0]]) out[p[0]] = [];
-        out[p[0]].push(p[1] + ':' + t2.n[k]);
-      });
-      return out;
+    var P = partCalc_(all);
+    /* הפילוח — שכבה ומסגרת, כל משתתף פעם אחת (השורה האחרונה שלו).
+       מספרים בלבד: מי שרואה "ח׳ — 11" אינו יודע מי אחד עשר. */
+    var pairs = function (m, o) {
+      return o.map(function (k) { return k + ':' + m[k]; }).join(' · ');
     };
-    var g = pack(byG), w = pack(byW);
+    writeCount_(COUNT_TAB, COUNT_COLS_, P.order.map(function (code) {
+      var b = P.by[code];
+      return [code, b.n, pairs(b.g, b.go), pairs(b.w, b.wo), b.reg, b.rep, b.amb];
+    }));
+    return P;
+  } catch (err) { return null; }   /* מונה שנכשל לא יפיל הרשמה של תלמיד */
+}
 
-    writeCount_(COUNT_TAB, ['קוד ישיבה', 'מצטרפים', 'שכבות', 'מסגרות'],
-      t.order.map(function (c) {
-        return [c, t.n[c], (g[c] || []).join(' · '), (w[c] || []).join(' · ')];
-      }));
-  } catch (err) {}          /* מונה שנכשל לא יפיל הרשמה של תלמיד */
+/* דיווח נוכחות — המונים מתעדכנים מיד, אבל לא יותר מפעם ב-30 שניות:
+   איש צוות מסמן כיתה שלמה ברצף, וכל סימון הוא בקשה נפרדת. מה
+   שנדחה כאן נספר בקריאה הבאה של העמדה (amdaSyncSoon_), ובכל מקרה
+   בספירה של כל שעה. */
+function partSoon_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache.get('partRc')) { cache.put('partDue', '1', 21600); return; }
+    cache.put('partRc', '1', 30);
+    cache.remove('partDue');
+  } catch (e) {}
+  recount_();
 }
 
 /* טבלת הגדרות (כרגע: המלל) — נכתבת מחדש בשלמותה בכל פרסום,
@@ -5598,7 +5776,7 @@ function hasTrigger_() {
 
 function reTally_(tab) {
   try {
-    if (tab === JOIN_TAB)  recount_();
+    if (tab === JOIN_TAB || tab === AMDA_TAB_) recount_();
     if (tab === LEARN_TAB) recountLearn_();
   } catch (e) {}
 }
