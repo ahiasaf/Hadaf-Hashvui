@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 81;
+var SCRIPT_VERSION = 82;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7044,7 +7044,8 @@ function backupNow() { return backupDaily_(true); }
    ?raffle=res&id=&inst=          — התוצאה המפורסמת, לתלמיד מאומת.
    ?raffle=self&rid=&k=&code=&t=&b=&ep= — בדיקה אליך בלבד (המכשיר שלוחץ), בלי פרסום.
    ?raffle=selfv&stk=             — מה שהלחיצה על הבדיקה פותחת (אסימון).
-   ?raffle=demo&k=&c=&w=&t=&b=&ep= — לפני הגרלה: אליך בלבד, תוצאה לדוגמה.
+   ?raffle=demo&k=&dc=&dw=&codes=&t=&b=&ep= — לפני הגרלה: אליך בלבד, תוצאה לדוגמה.
+     (**לא `c`** — שם שמור ב-Apps Script כמו `rt` ו-`sid`: 400 מגוגל.)
    ?raffle=demov&stk=             — מה שהלחיצה על הדוגמה פותחת (אסימון).
 
    **הכלל השבוע:** סיום עמוד א וגם עמוד ב של דף ב, באותה מסכת.
@@ -7909,16 +7910,17 @@ function rafSelfView_(P) {
    **אין כאן הגרלה ואין נתוני אמת:** לא נקראת ולא נכתבת לשונית
    ההגרלות, ולא נשמרת בחירת המוסדות (rafSelSave_). האסימון (`stk`, שעה
    במטמון, מרחב `raf:demo:` — נפרד מ-`raf:self:`) מחזיק רק סוג הודעה,
-   המוסד שבמבט, ומוסדות שנבחרו ויש בהם זכאים (`w`). אין בו תלמיד.
+   המוסד שבמבט (`dc`), ומוסדות שנבחרו ויש בהם זכאים (`dw`). אין בו תלמיד.
+   **אין להשתמש ב-`c`, `sid` או `rt` כשם פרמטר** — שמורים, 400 מגוגל.
    העמוד (hagrala?stk=&dm=1) בונה ממנו "תלמיד לדוגמה" לכל מוסד, תחת
    התווית "דוגמה". אסימון של בדיקה אמיתית אינו נפתח כאן, ולהפך. */
 function rafDemo_(P) {
   var k = String(P.k || '');
   if (k !== 'w' && k !== 'g') return { status: 'error', message: 'סוג הודעה לא מוכר' };
-  var w = rafCodes_(P.w), all = rafCodes_(P.codes);
+  var w = rafCodes_(P.dw), all = rafCodes_(P.codes);
   w.forEach(function (x) { if (all.indexOf(x) < 0) all.push(x); });
   if (!all.length) return { status: 'error', message: 'לא נבחרו מוסדות' };
-  var L = k === 'w' ? w : all, c = String(P.c || '');
+  var L = k === 'w' ? w : all, c = String(P.dc || '');
   if (L.indexOf(c) < 0) c = L[0] || '';
   if (!c) return { status: 'error', message: 'אין מוסד עם זכאים להציג' };
   var t = String(P.t || '').trim().slice(0, 80), b = String(P.b || '').trim().slice(0, 300);

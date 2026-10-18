@@ -220,7 +220,7 @@ jobs:
             sleep 20
           done
           [ "$V" = "$WANT" ] || { echo "::error::הגרסה הפרוסה ${V:-?} אינה $WANT"; FAIL=1; }
-          for q in "raffle=selfv&stk=$Z" "raffle=selfv&stk=zz" "raffle=demov&stk=$Z" "raffle=demov&stk=zz" "raffle=demo&k=w&c=x&ep=x" "raffle=me&stk=x" "raffle=selfv&rt=$Z" "raffle=me&rt=x"; do
+          for q in "raffle=selfv&stk=$Z" "raffle=selfv&stk=zz" "raffle=demov&stk=$Z" "raffle=demov&stk=zz" "raffle=demo&k=w&dc=x&dw=x&codes=x&t=x&b=x&ep=x" "raffle=me&stk=x" "raffle=selfv&rt=$Z" "raffle=me&rt=x"; do
             C=$(ask "$q"); echo "$q → HTTP $C · $(head -c 120 out.txt | tr '\n' ' ')"
           done
           C=$(ask "raffle=selfv&stk=$Z")
@@ -236,10 +236,18 @@ jobs:
           else
             echo "::error::demov לא החזיר state:none (HTTP $C)"; FAIL=1
           fi
-          C=$(ask "raffle=demo&k=w&c=x&w=x&b=x&ep=https://x.invalid/abcdefghijk")
+          # אותם שמות פרמטרים בדיוק שהניהול שולח (rafDemo) — שם שמור היה מחזיר 400.
+          C=$(ask "raffle=demo&k=w&dc=x&dw=x&codes=x&t=x&b=x&ep=https://x.invalid/abcdefghijk")
           if [ "$C" = "200" ] && grep -q '"status":"denied"' out.txt; then
             echo "::notice::demo בלי סיסמה → נדחה"
           else
             echo "::error::demo בלי סיסמה לא נדחה (HTTP $C)"; FAIL=1
+          fi
+          # גם "בדיקה אליך" שאחרי ההגרלה (rafSelf) — אותם שמות שהניהול שולח.
+          C=$(ask "raffle=self&rid=x&k=w&code=x&t=x&b=x&ep=https://x.invalid/abcdefghijk")
+          if [ "$C" = "200" ] && grep -q '"status":"denied"' out.txt; then
+            echo "::notice::self בלי סיסמה → נדחה"
+          else
+            echo "::error::self בלי סיסמה לא נדחה (HTTP $C)"; FAIL=1
           fi
           exit $FAIL

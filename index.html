@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.270';
+var APP_VERSION = '8.99.271';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14512,7 +14512,7 @@ function rafDraw() {
 }
 /* ---- בדיקה אליך בלבד, לפני הגרלה אמיתית: תוצאה לדוגמה ----
    אין הגרלה ואין תלמיד אמיתי: נשלחים רק סוג ההודעה והמוסדות שנבחרו
-   (`w` — אלה שיש בהם זכאים, כי רק בהם יהיה זוכה). השרת (rafDemo_) בודק
+   (`dw` — אלה שיש בהם זכאים, כי רק בהם יהיה זוכה). השרת (rafDemo_) בודק
    שוב שהמכשיר רשום. הנוסח — של ההודעות האמיתיות כפי שהוא היום. */
 function rafDmCodes(k) {
   var all = rafSel.filter(function (c) { return rafP && rafP.by[c] && rafP.by[c].n; });
@@ -14524,7 +14524,8 @@ function rafDemo(k) {
   if (!c) return;
   if (!confirm(fill(UI.rafDmAsk, { what: UI[k === 'w' ? 'rafSelfWhatW' : 'rafSelfWhatG'], inst: rafInstName(c) }))) return;
   Store.set('rafSelDm', { codes: rafSel.slice(), at: Date.now() });
-  rafCall({ raffle: 'demo', k: k, c: c, codes: rafDmCodes('g').join(','), w: rafDmCodes('w').join(','),
+  /* `dc`/`dw` ולא `c`/`w`: `c` שמור ב-Apps Script (400 מגוגל), כמו `rt`. */
+  rafCall({ raffle: 'demo', k: k, dc: c, codes: rafDmCodes('g').join(','), dw: rafDmCodes('w').join(','),
             t: k === 'w' ? UI.rafWinT : UI.rafAllT, b: k === 'w' ? UI.rafWinB : UI.rafAllB, ep: rafEp }, function (d) {
     if (rafP) rafP.me = d.dev ? 1 : 0;
     rafMsg = d.dev ? UI.rafDmDone : UI.rafDmNoDev;
