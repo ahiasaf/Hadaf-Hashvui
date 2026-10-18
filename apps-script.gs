@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 74;
+var SCRIPT_VERSION = 75;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -475,6 +475,8 @@ function doPost(e) {
          כל הרשמה קראה את כל הלשונית שלוש פעמים — לזיהוי כפילות,
          לחיפוש השורה, ולספירה מחדש — וכל זה בתוך הנעילה, כלומר
          כל קריאה האריכה את התור של כל מי שאחריו. ראו joinWrite_. */
+      /* הרשמה יכולה לאחד זהויות — הנקודות של האדם המאוחד מתעדכנות. */
+      if (!d.ss) ptsBust_();
       if (!d.ss) {
         try { return joinWrite_(jcols); } catch (jwe) {}
       }
@@ -1225,6 +1227,11 @@ function doGet(e) {
   }
 
   if (e && e.parameter && e.parameter.fire === 'say') return sayOnce_(e);
+  /* ?pts=me&id= — הנקודות של התלמיד עצמו (ptsMe_). */
+  if (e && e.parameter && e.parameter.pts === 'me') {
+    try { return reply_(e, ptsMe_(e.parameter)); }
+    catch (errP) { return reply_(e, { status:'error', message: String(errP) }); }
+  }
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
   if (e && e.parameter && e.parameter.test) return testRoute_(e);
   if (e && e.parameter && e.parameter.sayCount) return sayCount_(e);
@@ -2035,6 +2042,16 @@ function appendCols_(tab, cols, ssId) {
   if (tab === JOIN_TAB)  recount_();
   /* נוכחות חדשה — אישור חידון אפשרי, והנקודות והזכאות במטמון. */
   if (tab === AMDA_TAB_) amdaQzBust_();
+  /* סיום עמוד, או חידון שלם — הנקודות מתעדכנות מיד, לא אחרי 5 דקות.
+     סימון של קטע באמצע (קטע < מתוך) אינו משנה נקודות. */
+  if (tab === LEARN_TAB || tab === 'חידות') {
+    var gv = function (n) {
+      for (var g = 0; g < cols.length; g++) if (cols[g] && cols[g][0] === n) return String(cols[g][1] == null ? '' : cols[g][1]).trim();
+      return '';
+    };
+    var at0 = parseInt(gv('קטע'), 10), of0 = parseInt(gv('מתוך'), 10);
+    if (tab === 'חידות' ? gv('קטע') === 'החידון כולו' : !gv('קטע') || !(of0 > 0) || at0 >= of0) ptsBust_();
+  }
   /* הודעה חדשה בתיבה — שהאפליקציה תראה אותה מיד, ולא אחרי דקה. */
   if (tab === 'תיבה') { try { CacheService.getScriptCache().remove('inbox:rows'); } catch (eI) {} }
   if (tab === LEARN_TAB) {
@@ -2975,17 +2992,18 @@ function boardData_(inst, k, withTest, inner) {
           pos:   {}                            /* 'מסלול|שבוע' → 0–1 */
         };
       }
-      /* נקודות — לתלמידי אור עציון בלבד (oezPts_). כישלון — בלי `pts`
-         בכלל, והלוח אינו מציג 0. */
-      var oez = null;
-      if (all || inst === OEZ_CODE) { try { oez = oezPts_(); } catch (eP) { oez = null; } }
+      /* נקודות — לכל תלמיד, בכל מוסד (ptsAll_). הלוח כבר מוגבל לתלמידי
+         המוסד שלו. כישלון — בלי `pts` בכלל, והלוח אינו מציג 0. */
+      var ptsT = null;
+      try { ptsT = ptsAll_(); } catch (eP) { ptsT = null; }
       order.forEach(function (pid) {
         var p = byId[pid];
         /* הלוח הוא רשימת הנוכחות של תלמידי הישיבה. אבא אינו
            תלמיד שלה, ושמו אינו צריך להגיע לצוות — מה שהצוות
            צריך לדעת יושב על שורת הבן. */
         if (p.role === 'הורה') return;
-        if (oez && p.inst === OEZ_CODE && oez[pid]) p.pts = oez[pid];
+        var pv = ptsOf_(ptsT, pid);
+        if (pv) p.pts = pv;
         /* זיווג מאומת: שני הצדדים נרשמו בפועל. בלעדיו נשאר
            מה שהתלמיד **הצהיר** — וזה הבדל שהצוות צריך לראות,
            כי "מילא את השם של אבא" אינו "אבא לומד איתו". */
@@ -7035,7 +7053,7 @@ function quizPass_(x) { return !!(x && x[0] * 5 >= x[1] * 4); }   /* 80% */
    הדף — לא. מחזיר { 'מזהה|מסלול|דף': 1 } אחרי איחוד, `seen` כמו
    quizBest_. במטמון 5 דקות; נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
 function amdaQzBust_() {
-  try { CacheService.getScriptCache().removeAll(['amda:qz', 'oez:pts', 'raf:me']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['amda:qz', 'pts:all', 'raf:me']); } catch (e) {}
 }
 function amdaQzRaw_() {
   var rc = CacheService.getScriptCache(), hit = rc.get('amda:qz');
@@ -7089,22 +7107,45 @@ function quizOk_(Q, A, who, tr, base) {
 }
 
 /* ============================================================
-   נקודות לתלמידי אור עציון בלבד (8.99.255).
+   נקודות — לכל התלמידים, בכל המוסדות (8.99.263; עד אז אור עציון בלבד).
    ============================================================
-   10 נקודות לכל דף שלם (שני העמודים, כמו rafSide_) שהחידון שלו
-   בציון 80% ומעלה — פעם אחת לכל דף, לפי הציון הטוב ביותר. הזהות —
-   האנשים והאיחוד של ההגרלה (rafPpl_). אין נקודות למוסד אחר, ולא
-   נשמר כאן דבר: הכול מחושב מחדש מהלימוד ומהחידונים.
-   מזהה → { n: נקודות או null ("לא ידוע"), l: [[מסכת, דף, ציון]] }.
-   במטמון 5 דקות. ללוח בלבד (boardData_), לא למסך התלמיד. */
-var OEZ_CODE = 'oretzion';
-function oezPts_() {
-  var rc = CacheService.getScriptCache(), hit = rc.get('oez:pts');
-  if (hit) { try { return JSON.parse(hit); } catch (x0) {} }
+   10 נקודות לכל דף שלם (שני העמודים, כמו rafSide_; עמוד שאין לו בן
+   זוג בלוח — כמו סוף מסכת — הוא הדף כולו), עם חידון: ציון 80% ומעלה
+   או אישור מפורש בנוכחות (quizOk_). **פעם אחת לאדם, מסכת ודף** — שני
+   המסלולים יחד, השלמה חוזרת, מכשיר אחר או חידון חוזר אינם מוסיפים.
+   הזהות — האנשים והאיחוד של ההגרלה (rafPpl_), ולכן חשבון שאוחד או
+   תלמיד שדווח בנוכחות ונרשם אחר כך — יתרה אחת. הורים ובדיקה — בלי
+   נקודות. לפיד — כן: ההחרגה שלו היא מההגרלה בלבד. כל העבר נכלל, ולא
+   נשמר כאן דבר: הכול מחושב מחדש מהלימוד, מהחידונים ומהנוכחות.
+   { v: { מזהה יעד → { n: נקודות או null ("לא ידוע"), l: [[מסכת, דף,
+   ציון או 'conf']] } }, m: { מזהה שאוחד → מזהה יעד } }. ptsOf_ לקריאה.
+   במטמון 5 דקות, בחלקים (כל המוסדות חורגים מגודל ערך אחד); נמחק
+   בכל כתיבה שיכולה לשנות נקודות — ptsBust_. */
+function ptsBust_() {
+  try { CacheService.getScriptCache().removeAll(['pts:all', 'raf:me']); } catch (e) {}
+}
+function ptsOf_(T, id) {
+  if (!T || !id) return null;
+  return T.v[T.m[id] || id] || null;
+}
+function ptsAll_() {
+  var rc = CacheService.getScriptCache(), hd = rc.get('pts:all');
+  if (hd) {
+    try {
+      var hp = hd.split('|'), keys = [];
+      for (var q = 0; q < +hp[0]; q++) keys.push('pts:all:' + hp[1] + ':' + q);
+      var got = rc.getAll(keys), js0 = '';
+      for (var q2 = 0; q2 < keys.length; q2++) {
+        if (got[keys[q2]] == null) { js0 = null; break; }
+        js0 += got[keys[q2]];
+      }
+      if (js0) return JSON.parse(js0);
+    } catch (x0) {}
+  }
   var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target, who = {};
   Object.keys(ppl).forEach(function (id) {
     var to = target[id] || id, q = ppl[to];
-    if (q && q.code === OEZ_CODE && q.role !== 'הורה' && !q.test) who[to] = {};
+    if (q && q.role !== 'הורה' && !q.test) who[to] = {};
   });
   var lr = sheet_(LEARN_TAB);
   var rows = lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
@@ -7123,7 +7164,7 @@ function oezPts_() {
       if (!/\.$/.test(d)) s.b = 1;
     }
   }
-  var Q = quizBest_(alias, target), A = amdaQz_(alias, target), out = {};
+  var Q = quizBest_(alias, target), A = amdaQz_(alias, target), out = { v: {}, m: {} };
   Object.keys(who).forEach(function (to) {
     var l = [];
     Object.keys(who[to]).forEach(function (k) {
@@ -7134,17 +7175,35 @@ function oezPts_() {
       if (ok) l.push([pr[0], pr[1], ok.x ? ok.x[0] + '/' + ok.x[1] : 'conf', sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99]);
     });
     l.sort(function (x, y) { return x[3] - y[3] || (x[0] < y[0] ? -1 : 1); });
-    var v = { n: Q.seen[to] || A.seen[to] ? l.length * 10 : null,
-              l: l.map(function (x) { return [x[0], x[1], x[2]]; }) };
-    out[to] = v;
+    out.v[to] = { n: Q.seen[to] || A.seen[to] ? l.length * 10 : null,
+                  l: l.map(function (x) { return [x[0], x[1], x[2]]; }) };
   });
-  /* כל מזהה של אותו אדם — גם חשבון שאוחד. */
+  /* כל מזהה של אותו אדם — גם חשבון שאוחד ומזהה שנבלע. */
   Object.keys(ppl).forEach(function (id) {
     var to = target[id] || id;
-    if (out[to]) out[id] = out[to];
+    if (!out.v[to]) return;
+    ppl[id].ids.concat([id]).forEach(function (x) { if (x !== to) out.m[x] = to; });
   });
-  try { var js = JSON.stringify(out); if (js.length < 95000) rc.put('oez:pts', js, 300); } catch (x2) {}
+  try {
+    var js = JSON.stringify(out), st = String(Date.now() % 1e8), put = {}, n = 0;
+    for (var o = 0; o < js.length; o += 90000) put['pts:all:' + st + ':' + (n++)] = js.substr(o, 90000);
+    if (n <= 40) { rc.putAll(put, 300); rc.put('pts:all', n + '|' + st, 300); }
+  } catch (x2) {}
   return out;
+}
+/* לתלמיד עצמו, במסך הבית: עד ארבעה מזהים של המכשיר (כמו rafMe_).
+   אין לו נקודות כאן (הורה, בדיקה, לא מוכר) — `none`, והמסך אינו מציג
+   דבר. n: null — אין עדיין חידון או אישור שמור; לא 0 ולא כישלון. */
+function ptsMe_(P) {
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!mine.length) return { status: 'ok', none: 1 };
+  var T = ptsAll_();
+  for (var i = 0; i < mine.length; i++) {
+    var v = ptsOf_(T, mine[i]);
+    if (v) return { status: 'ok', n: v.n, l: v.l };
+  }
+  return { status: 'ok', none: 1 };
 }
 /* למה אדם שסיים אינו בהגרלה — '' = בפנים (לפני בחירת המוסדות). */
 function rafWhy_(p) {
@@ -7825,7 +7884,7 @@ function testEnd_(S) {
   }
   testSave_(null);
   try {
-    CacheService.getScriptCache().removeAll(['raf:me', 'oez:pts', 'amda:qz', 'inbox:rows', 'raf:pub']);
+    CacheService.getScriptCache().removeAll(['raf:me', 'pts:all', 'amda:qz', 'inbox:rows', 'raf:pub']);
   } catch (e) {}
   try { recount_(); } catch (e2) {}
   try { recountLearn_(true); } catch (e3) {}

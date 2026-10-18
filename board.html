@@ -348,7 +348,7 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
   color:var(--ink);border-radius:20px;padding:6px 11px;font:inherit;font-size:.76rem;
   font-weight:800;cursor:pointer}
 .kudo.sent{border-color:transparent;background:none;color:var(--green);cursor:default}
-/* נקודות — תלמידי אור עציון בלבד (8.99.255). הפירוט בלחיצה. */
+/* נקודות — לכל תלמיד, בכל מוסד (8.99.263). הפירוט בלחיצה. */
 .pts{flex:none;border:1px solid var(--rule);background:var(--surface);color:var(--ink);
   border-radius:20px;padding:6px 10px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}
 .pts.unk{color:var(--ink-3);font-weight:700}
@@ -1424,8 +1424,8 @@ function pRow(p, noGrade) {
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
     '</div>' + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + ptsBox(p) + waBoxHtml(p) + kudoBox(p);
 }
-/* ---- נקודות: תלמידי אור עציון בלבד ----
-   השרת (oezPts_) מצרף `pts` רק לתלמיד של אור עציון: { n: נקודות או
+/* ---- נקודות: לכל תלמיד, בכל מוסד ----
+   השרת (ptsAll_) מצרף `pts` לכל תלמיד (לא הורה, לא בדיקה): { n: נקודות או
    null, l: [[מסכת, דף, ציון]] }. בלי `pts` — אין כפתור (וכישלון בשרת
    אינו 0). null — "לא ידוע": אין לו ציון חידון שמור. */
 var PTS_OPEN = '';

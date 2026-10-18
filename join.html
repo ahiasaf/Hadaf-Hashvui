@@ -713,6 +713,14 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 /* ---------- האפליקציה על מסך הבית ----------
    הקישור מגיע בוואטסאפ פעם אחת. מי שלא הוסיף אותו למסך הבית
    מחפש אותו מחדש בכל שבוע, ובדרך כלל לא מוצא. */
+/* ---------- הנקודות של התלמיד (8.99.263) ----------
+   שורה אחת מתחת למסלול; הפירוט — על אילו דפים ולמה — בלחיצה. */
+.mypts{display:block;width:100%;margin-top:12px;padding:12px 15px;border:0;border-radius:var(--r);
+  background:var(--surface);color:var(--ink);box-shadow:var(--sh-1);font:inherit;
+  font-size:.93rem;font-weight:800;text-align:right;cursor:pointer}
+.mypts[hidden]{display:none}
+.mypts .l{margin-top:8px;font-size:.82rem;font-weight:700;line-height:1.8}
+.mypts .h{color:var(--ink-3);font-weight:600;margin-top:4px}
 /* ---------- "ממשיכים מהמקום שעצרת" ----------
    הכרטיס הזה הוא ההזמנה החזקה ביותר במסך: הוא אינו מבקש להתחיל
    אלא להמשיך, ומי שכבר התחיל צריך הרבה פחות שכנוע. לכן הוא
@@ -1233,6 +1241,7 @@ footer a{color:var(--ink-2);font-weight:800}
     <span class="tag" id="d-name"></span>
     <div id="wk"></div>
     <div id="rail"></div>
+    <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
     <div id="wk-more"></div>
   </div>
 
@@ -3058,6 +3067,7 @@ function drawWeek() {
 
   var rail = $('rail');
   if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr) });
+  drawPts();
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
@@ -3091,6 +3101,55 @@ function drawWeek() {
        "המסלול שלך" הוא מה שהתלמיד צריך. המספרים נשארים בניהול. */
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
+
+/* הנקודות של התלמיד — רק מהשרת (?pts=me, אותו חישוב כמו בלוח הצוות:
+   10 לכל דף שלם עם חידון או אישור בנוכחות, פעם אחת לדף). תשובה שאינה
+   ok — מה שהיה נשאר; אין לשרת נקודות לאדם הזה (הורה, בדיקה, לא מוכר)
+   — אין שורה. נשאל בכל פתיחה (חזרה מהדף ומהחידון) ואחר כך כל שתי
+   דקות; מה שמוצג תמיד אחרי שהשרת חישב — לא ניחוש מקומי. */
+var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false;
+function drawPts() {
+  var el = $('mypts');
+  if (!el) return;
+  var me = get('me', null);
+  if (!me || !me.id || me.role === 'dad') { el.hidden = true; return; }
+  var c = get('ptsMe', null);
+  if (c && c.id !== me.id) c = null;
+  if ((!c || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
+    PTS_BUSY = true;
+    var cb = 'pm' + Date.now(), sc = document.createElement('script');
+    var clean = function () {
+      PTS_BUSY = false;
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+    };
+    var t0 = setTimeout(clean, 20000);
+    window[cb] = function (r) {
+      clearTimeout(t0); clean();
+      if (!r || r.status !== 'ok') return;
+      PTS_GOT = true;
+      set('ptsMe', { id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [] });
+      drawPts();
+    };
+    sc.onerror = function () { clearTimeout(t0); clean(); };
+    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + '&callback=' + cb;
+    document.body.appendChild(sc);
+  }
+  if (!c || c.none) { el.hidden = true; return; }
+  var mas = function (id) {
+    for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i].masechet;
+    return id;
+  };
+  var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
+  if (PTS_OPEN) {
+    h += '<div class="l">' + (c.l || []).map(function (x) {
+      return esc(tpl(UI.ptsRow, { mas: mas(x[0]), daf: x[1], s: x[2] === 'conf' ? UI.ptsConf : x[2] }));
+    }).join('<br>') + '<div class="h">' + esc(UI.myPtsHow) + '</div></div>';
+  }
+  el.innerHTML = h;
+  el.hidden = false;
+}
+function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
 
 /* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js.
 
