@@ -22,6 +22,9 @@
          ב-apps-script.gs): פורסם, והמזהה שבמכשיר שייך לתלמיד של
          המוסד. הסתרה כאן אינה ההגנה — השרת הוא.
        · סגור — מכשיר של לפיד או "אחר": אין הגרלה ואין פרסים.
+       · תצוגה מקדימה (`?pv=w|g`) — רק בתוך מסך האישור בניהול: הנתונים
+         נלקחים מהעמוד שמסביב (rafPvGet ב-index.html), לא מהשרת ולא
+         מהכתובת. נפתח לבד — אין נתונים, והעמוד מתנהג כרגיל.
      ============================================================ -->
 <meta property="og:site_name" content="הדף השבועי של בני עקיבא">
 <meta property="og:locale" content="he_IL">
@@ -70,6 +73,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .oth h3,.prz{font-size:1rem;font-weight:800;color:var(--blue-d);margin:16px 0 6px}
 .oth li{list-style:none;padding:6px 0;border-bottom:1px solid #E5DAC3;font-weight:600}
 .oth li span{color:var(--ink-2);font-weight:500}
+.pv{background:#0B2550;color:#fff;font-size:.86rem;font-weight:800;text-align:center;
+  border-radius:10px;padding:7px 10px;margin-bottom:12px}
 main.wait{visibility:hidden}
 </style>
 </head>
@@ -152,7 +157,18 @@ function results(d) {
   h += '<div class="prz">' + esc(UI.hagPrizes) + '</div>';
   $('res').innerHTML = h;
 }
+/* תצוגה מקדימה מתוך האישור הסופי — רק כשהעמוד שמסביב מאותו מקור
+   ומחזיק נתונים. גישה למקור אחר זורקת, ואז אין תצוגה. */
+var PV = (location.search.match(/[?&]pv=(w|g)(&|$)/) || [])[1] || '', PVD = null;
+if (PV && window.parent !== window) {
+  try { PVD = window.parent.rafPvGet ? window.parent.rafPvGet(PV) : null; } catch (e) { PVD = null; }
+}
 (function () {
+  if (PVD) {
+    results(PVD);
+    $('res').insertAdjacentHTML('afterbegin', '<div class="pv">' + esc(UI.rafPvLbl) + '</div>');
+    return;
+  }
   if (INST === 'lapid' || INST === 'other') { hide(); return; }
   var u = api();
   if (!ME || !ME.id || !INST || !u || !window.fetch) return;

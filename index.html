@@ -2929,7 +2929,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.265';
+var APP_VERSION = '8.99.266';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14466,7 +14466,7 @@ function rafCall(p, then) {
   })['catch'](function () { rafBusy = false; rafMsg = UI.rafNoAns; admPane(); });
 }
 function rafLoad() {
-  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; });
+  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; rafPs = null; });
 }
 /* **הבחירה אחרי התמונה, ולא לפניה.** אף מוסד אינו מסומן מראש;
    הבחירה נשמרת בשרת רק בהגרלה עצמה ('pic' קורא בלבד). */
@@ -14507,18 +14507,118 @@ function rafPrep() {
   if (!rafTx) rafTx = { wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB };
   rafCall({ raffle: 'aud', rid: rafD.rid }, function (d) { rafA = d; });
 }
-function rafTxSet(k, v) { if (rafTx) rafTx[k] = v; }
+/* הקלדה בנוסח — המונה והחלונית המדומה מתעדכנים במקום (כמו sndLive). */
+function rafLive(k, v) {
+  if (!rafTx) return;
+  rafTx[k] = v;
+  var t = k.charAt(1) === 't', max = t ? 40 : 120;
+  ntSet('raf-m' + k, fill(UI.sndLen, { n: v.length, max: max }), v.length > max);
+  ntSet('raf-p' + k, t ? (v.trim() || PROGRAM.short) : v);
+}
+function rafExpOf(a) { return [a.win.dev, a.all.dev, a.all.ppl].join('.'); }
+/* תוצאת הפרסום — מצב לכל הודעה (rafflePub_). "פורסם" הוא התוצאות
+   בעמוד; ההודעות — כל אחת לחוד. */
+function rafPubDone(d) {
+  rafD.st = 'פורסם'; rafD.w = d.w; rafD.g = d.g; rafA = null; rafPs = null;
+  rafMsg = d.done ? UI.rafSent : UI.rafPartMsg;
+  setTimeout(function () { needsLoad(); }, 45000);
+}
 function rafGo() {
   if (!rafD || !rafA || !rafTx) return;
   if (!rafTx.wb.trim() || !rafTx.ab.trim()) return;
   if (!confirm(UI.rafGoQ)) return;
   rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafA.exp, who: 'רכז',
             wt: rafTx.wt, wb: rafTx.wb, at: rafTx.at, ab: rafTx.ab }, function (d) {
-    if (d.status === 'changed') { rafA = d.aud; rafA.exp = [d.aud.win.dev, d.aud.all.dev, d.aud.all.ppl].join('.');
-                                  rafMsg = UI.rafChanged; return; }
-    rafD.st = 'פורסם'; rafA = null; rafMsg = UI.rafSent;
-    setTimeout(function () { needsLoad(); }, 45000);
+    if (d.status === 'changed') { rafA = d.aud; rafA.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
+    rafPubDone(d);
   });
+}
+/* ---- אחרי הפרסום: בדיקת מצב, ושליחה חוזרת רק של מה שלא יצא ---- */
+var rafPs = null;
+function rafPst() {
+  if (!rafD) return;
+  rafCall({ raffle: 'pst', rid: rafD.rid }, function (d) {
+    rafPs = d; rafD.w = d.w; rafD.g = d.g;
+    if (d.aud) rafPs.aud.exp = d.aud.exp || rafExpOf(d.aud);
+  });
+}
+/* הודעות שאפשר לשלוח שוב: לא יצאו / לא נשלחו — ו"לא ידוע" רק בכוח. */
+function rafTodo(force) {
+  return ['w', 'g'].filter(function (k) {
+    var o = rafD[k] || { st: 'unk' };
+    return o.st === 'none' || o.st === 'fail' || (force && o.st === 'unk');
+  });
+}
+function rafRetry(force) {
+  if (!rafD || !rafPs || !rafPs.aud) return;
+  var L = rafTodo(force);
+  if (!L.length) return;
+  if (!confirm(fill(UI.rafRetryQ, { list: L.map(function (k) { return UI[k === 'w' ? 'rafPartW' : 'rafPartG']; }).join(' + ') }))) return;
+  var p = { raffle: 'pub', rid: rafD.rid, exp: rafPs.aud.exp, who: 'רכז' };
+  if (force) p.force = '1';
+  rafCall(p, function (d) {
+    if (d.status === 'changed') { rafPs.aud = d.aud; rafPs.aud.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
+    rafPubDone(d);
+  });
+}
+
+/* ---- התצוגה המקדימה: עמוד התוצאות האמיתי (hagrala.html), בתוך הניהול ----
+   הנתונים עוברים מהזיכרון של המסך הזה לעמוד שבמסגרת (rafPvGet), ולא
+   בכתובת — עמוד שנפתח מבחוץ אינו מקבל אותם. אותו קיצור שם כמו
+   raffleRes_: שם פרטי ואות ראשונה של המשפחה. */
+var rafPv = { w: '', g: '' }, rafPvOn = { w: false, g: false };
+function rafPvCodes(k) {
+  return (rafD ? rafD.rows : []).filter(function (x) { return k === 'g' || x.win; }).map(function (x) { return x.code; });
+}
+function rafPvCode(k) {
+  var L = rafPvCodes(k);
+  return L.indexOf(rafPv[k]) >= 0 ? rafPv[k] : (L[0] || '');
+}
+function rafPvGet(k) {
+  if (!rafD || (k !== 'w' && k !== 'g')) return null;
+  var c = rafPvCode(k), out = { mine: null, me: false, others: [] };
+  rafD.rows.forEach(function (x) {
+    if (!x.win) return;
+    var p = String(x.name || '').split(/\s+/);
+    var o = { name: p[0] + (p.length > 1 ? ' ' + p[p.length - 1].charAt(0) + "'" : ''), inst: x.inst || rafInstName(x.code) };
+    if (x.code === c) { out.mine = o; out.me = k === 'w'; } else out.others.push(o);
+  });
+  return out;
+}
+function rafPvT(k, on) { if (rafPvOn[k] === on) return; rafPvOn[k] = on; admPane(); }
+function rafPvHtml(k) {
+  var L = rafPvCodes(k), c = rafPvCode(k);
+  if (!L.length) return '';
+  return '<details class="hx"' + (rafPvOn[k] ? ' open' : '') + ' ontoggle="rafPvT(\'' + k + '\',this.open)"><summary>' +
+    esc(UI[k === 'w' ? 'rafPvWin' : 'rafPvAll']) + '</summary><p class="h">' + esc(UI.rafPvNote) + '</p>' +
+    (L.length > 1 ? '<div class="fld"><div class="label">' + esc(UI.rafPvInst) + '</div><select aria-label="' + esc(UI.rafPvInst) + '"' +
+      ' onchange="rafPv[\'' + k + '\']=this.value;admPane()">' + L.map(function (x) {
+        return '<option value="' + esc(x) + '"' + (x === c ? ' selected' : '') + '>' + esc(rafInstName(x)) + '</option>';
+      }).join('') + '</select></div>' : '') +
+    (rafPvOn[k] ? '<iframe src="hagrala?pv=' + k + '" title="' + esc(UI.rafPvLbl) + '" loading="lazy"' +
+      ' style="display:block;width:100%;height:540px;border:1px solid var(--rule);border-radius:12px;background:#F6F1E6"></iframe>' : '') +
+    '</details>';
+}
+/* הודעה אחת: כותרת ונוסח עם מונים, החלונית המדומה, ומה נפתח בלחיצה. */
+function rafMsgHtml(k) {
+  var tk = k === 'w' ? 'wt' : 'at', bk = k === 'w' ? 'wb' : 'ab', t = rafTx[tk] || '', b = rafTx[bk] || '';
+  return '<div class="fld"><div class="label">' + esc(UI.rafTitle) + ' ' + ntMeter('raf-m' + tk, t.length, 40) + '</div>' +
+    '<input type="text" value="' + esc(t) + '" oninput="rafLive(\'' + tk + '\',this.value)"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.rafBody) + ' ' + ntMeter('raf-m' + bk, b.length, 120) + '</div>' +
+    '<textarea rows="2" oninput="rafLive(\'' + bk + '\',this.value)">' + esc(b) + '</textarea></div>' +
+    '<div class="myto" style="font-weight:800">' + esc(UI.rafPvLbl) + '</div>' +
+    ntPop('raf-p' + tk, 'raf-p' + bk, t, b) +
+    '<p class="myto">' + esc(UI.sndPopNote) + '</p>' + rafPvHtml(k);
+}
+/* מצב הודעה אחת אחרי האישור, ומה נמסר בפועל (אחרי בדיקת מצב). */
+function rafPartHtml(k) {
+  var o = rafD[k] || { st: 'unk' }, ok = o.st === 'sent' || o.st === 'skip';
+  var dl = rafPs && rafPs.dlv && rafPs.dlv[k], dv = dl ? Object.keys(dl.dev).map(function (x) { return x + ' ' + dl.dev[x]; }).join(' · ') : '';
+  return '<div class="prow2 ' + (ok ? 'ok' : 'warn') + '"><span class="pm">' + (ok ? '✓' : '–') + '</span>' +
+    '<div style="flex:1"><b>' + esc(UI[k === 'w' ? 'rafPartW' : 'rafPartG']) + '</b><span>' +
+    esc(UI['rafS_' + o.st] || o.st) + (o.msg ? ' · ' + esc(o.msg) : '') + '</span>' +
+    (dl && o.st !== 'skip' ? '<span>' + esc(dv ? fill(UI.rafDlv, { list: dv }) : UI.rafDlvNone) + '</span>' : '') +
+    '</div></div>';
 }
 
 /* ============================================================
@@ -14711,24 +14811,37 @@ function admRaffle() {
       h += '<button class="btn p" style="margin-top:10px"' + dis + ' onclick="rafPrep()">' + esc(UI.rafPrep) + '</button>' +
            '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafVoid()">' + esc(UI.rafVoid) + '</button>';
     }
+    /* ---- אישור סופי: סיכום אחד — הקהל, שתי ההודעות, ומה נפתח בלחיצה ---- */
     if (rafD.st === 'הוגרל' && rafA && rafTx) {
-      var fld = function (k, lbl, rows) {
-        return '<div class="fld"><div class="label">' + esc(lbl) + '</div>' +
-          (rows ? '<textarea rows="2" onchange="rafTxSet(\'' + k + '\',this.value)">' + esc(rafTx[k]) + '</textarea>'
-                : '<input type="text" value="' + esc(rafTx[k]) + '" onchange="rafTxSet(\'' + k + '\',this.value)">') + '</div>';
-      };
+      var noW = (rafA.none || []).map(rafInstName);
       h += '<div class="pp-h">' + esc(UI.rafApH) + '</div><p class="h">' + esc(UI.rafApNote) + '</p>' +
-        '<p class="h">' + esc(UI.rafDesign) + ' <a href="hagrala" target="_blank" rel="noopener">' + esc(UI.rafOpen) + '</a></p>' +
+        '<p class="h">' + esc(UI.rafDesign) + '</p>' +
         '<div class="pp-h">' + esc(UI.rafWinMsg) + '</div>' +
         '<p class="h">' + esc(fill(UI.rafWinAud, { n: rafA.win.n, ppl: rafA.win.ppl, dev: rafA.win.dev })) + '</p>' +
-        fld('wt', UI.rafTitle, 0) + fld('wb', UI.rafBody, 1) +
+        rafMsgHtml('w') +
         '<div class="pp-h">' + esc(UI.rafAllMsg) + '</div>' +
         '<p class="h">' + esc(fill(UI.rafAllAud, { k: rafA.codes.length, n: rafA.all.n, ppl: rafA.all.ppl, dev: rafA.all.dev })) +
-        '<br>' + esc(rafA.codes.map(rafInstName).join(' · ')) + '</p>' +
-        fld('at', UI.rafTitle, 0) + fld('ab', UI.rafBody, 1) +
-        '<p class="h">' + esc(UI.rafAudNote) + '</p>' +
+        '<br>' + esc(rafA.codes.map(rafInstName).join(' · ')) +
+        (noW.length ? '<br>' + esc(fill(UI.rafNoWin, { list: noW.join(' · ') })) : '') + '</p>' +
+        rafMsgHtml('g') +
+        '<p class="h">' + esc(UI.rafAudNote) +
+        (rafA.test ? '<br>' + esc(fill(UI.rafTestX, { n: rafA.test })) : '') + '</p>' +
         '<button class="btn p"' + dis + ' onclick="rafGo()">' + esc(rafBusy ? UI.rafBusy : UI.rafGo) + '</button>' +
         '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafA=null;admPane()">' + esc(UI.rafBack) + '</button>';
+    }
+    /* ---- פורסם: מצב כל הודעה, בדיקת מצב, ושליחה חוזרת רק של מה שלא יצא ---- */
+    if (rafD.st === 'פורסם') {
+      var allOk = ['w', 'g'].every(function (k) { var o = rafD[k]; return o && (o.st === 'sent' || (k === 'w' && o.st === 'skip')); });
+      h += '<div class="plist">' + rafPartHtml('w') + rafPartHtml('g') + '</div>' +
+        (allOk ? '<p class="h">' + esc(UI.rafAllOk) + '</p>' : '') +
+        '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafPst()">' + esc(rafBusy ? UI.rafBusy : UI.rafPstBtn) + '</button>';
+      if (rafPs && !rafPs.done && rafPs.aud) {
+        var unk = ['w', 'g'].some(function (k) { return rafD[k] && rafD[k].st === 'unk'; });
+        h += '<p class="h">' + esc(fill(UI.rafRetryAud, { wd: rafPs.aud.win.dev, gd: rafPs.aud.all.dev })) + '</p>' +
+          (rafTodo(false).length ? '<button class="btn p" style="margin-top:8px"' + dis + ' onclick="rafRetry()">' + esc(UI.rafRetry) + '</button>' : '') +
+          (unk ? '<p class="h" style="color:var(--stop);margin-top:8px">' + esc(UI.rafUnkHow) + '</p>' +
+            '<button class="btn g"' + dis + ' onclick="rafRetry(true)">' + esc(UI.rafForce) + '</button>' : '');
+      }
     }
     return h + msg + '</div>';
   }
@@ -15058,21 +15171,33 @@ function sndTog(c, on) {
   pushView.ins = a;
   admPane();
 }
+/* ---- החלונית המדומה והמונים — משותפים לעורך הכללי ולהגרלה ---- */
+function ntMeter(id, n, max) {
+  return '<span class="myto" id="' + id + '" style="' + (n > max ? 'color:var(--warn);font-weight:800' : '') + '">' +
+         esc(fill(UI.sndLen, { n: n, max: max })) + '</span>';
+}
+function ntPop(idT, idB, t, b) {
+  return '<div style="background:#2c3244;color:#e8ecf5;border-radius:14px;padding:10px 12px;margin-top:6px">' +
+    '<b id="' + idT + '" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+    esc((t || '').trim() || PROGRAM.short) + '</b>' +
+    '<span id="' + idB + '" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.86rem">' +
+    esc(b || '') + '</span></div>';
+}
+function ntSet(id, t, over) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = t;
+  if (over != null) { el.style.color = over ? 'var(--warn)' : ''; el.style.fontWeight = over ? '800' : ''; }
+}
 /* הקלדה — התצוגה והמונה מתעדכנים במקום, בלי לצייר מחדש (ציור מחדש
    ביציאה מהשדה היה בולע את הלחיצה על הכפתור שאחריו). */
 function sndLive(k, v) {
   pushView[k] = v;
-  var set = function (id, t, over) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = t;
-    if (over != null) { el.style.color = over ? 'var(--warn)' : ''; el.style.fontWeight = over ? '800' : ''; }
-  };
   var tl = (pushView.title || '').length, bl = (pushView.body || '').length;
-  set('snd-mt', fill(UI.sndLen, { n: tl, max: 40 }), tl > 40);
-  set('snd-mb', fill(UI.sndLen, { n: bl, max: 120 }), bl > 120);
-  set('snd-pt', (pushView.title || '').trim() || PROGRAM.short);
-  set('snd-pb', pushView.body || '');
+  ntSet('snd-mt', fill(UI.sndLen, { n: tl, max: 40 }), tl > 40);
+  ntSet('snd-mb', fill(UI.sndLen, { n: bl, max: 120 }), bl > 120);
+  ntSet('snd-pt', (pushView.title || '').trim() || PROGRAM.short);
+  ntSet('snd-pb', pushView.body || '');
 }
 function sndOpen(v) {
   pushView.open = v;
@@ -15253,11 +15378,7 @@ function admPush(el) {
      (pushSend) לא השתנה. */
   var ROLES = [['','כולם'],['צוות','הצוות בלבד'],['תלמיד','התלמידים בלבד']];
   var mode = pushView.mode || '', ins = sndIns(), op = pushView.open || (pushView.link ? 'other' : 'app');
-  var tLen = (pushView.title || '').length, bLen = (pushView.body || '').length;
-  var meter = function (id, n, max) {
-    return '<span class="myto" id="' + id + '" style="' + (n > max ? 'color:var(--warn);font-weight:800' : '') + '">' +
-           esc(fill(UI.sndLen, { n: n, max: max })) + '</span>';
-  };
+  var tLen = (pushView.title || '').length, bLen = (pushView.body || '').length, meter = ntMeter;
   var outL = (mode === 'nolapid' || mode === 'pick') ? sndCodes().filter(function (c) {
     return ins.indexOf(c) < 0; }).map(sndName) : [];
   var h = '<div class="adm-card"><h4>שליחת התראה</h4>' +
@@ -15293,11 +15414,7 @@ function admPush(el) {
     '<div class="fld"><div class="label">הטקסט ' + meter('snd-mb', bLen, 120) + '</div>' +
     '<textarea rows="3" oninput="sndLive(\'body\',this.value)">' +
     esc(pushView.body) + '</textarea></div>' +
-    '<div style="background:#2c3244;color:#e8ecf5;border-radius:14px;padding:10px 12px;margin-top:6px">' +
-    '<b id="snd-pt" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
-    esc((pushView.title || '').trim() || PROGRAM.short) + '</b>' +
-    '<span id="snd-pb" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.86rem">' +
-    esc(pushView.body || '') + '</span></div>' +
+    ntPop('snd-pt', 'snd-pb', pushView.title, pushView.body) +
     '<p class="myto">' + esc(UI.sndPopNote) + '</p>' +
     '<div class="pp-h">' + esc(UI.sndOpenH) + '</div>' +
     '<div class="fld"><select onchange="sndOpen(this.value)">' +

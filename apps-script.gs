@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 76;
+var SCRIPT_VERSION = 77;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7534,7 +7534,8 @@ function rafById_(T, rid) {
     if (T.c(r, 'מזהה הגרלה') !== rid) continue;
     if (!out) out = { rid: rid, wk: T.c(r, 'שבוע'), cut: T.c(r, 'מועד חיתוך'),
                       by: T.c(r, 'מבצע'), st: T.c(r, 'סטטוס'), codes: T.c(r, 'מוסדות'),
-                      pubAt: T.c(r, 'פורסם'), rows: [], lines: [] };
+                      pubAt: T.c(r, 'פורסם'), rows: [], lines: [],
+                      w: rafPartGet_(T.c(r, RAF_PART_W)), g: rafPartGet_(T.c(r, RAF_PART_G)) };
     out.lines.push(r);
     out.rows.push({ code: T.c(r, 'קוד ישיבה'), inst: T.c(r, 'ישיבה'),
                     n: parseInt(T.c(r, 'זכאים'), 10) || 0,
@@ -7660,27 +7661,83 @@ function audCount_(o) {
   return { dev: dev, ppl: Object.keys(ppl).length };
 }
 
-/* שתי הקבוצות של הפרסום: הזוכים, ושאר תלמידי המוסדות שאושרו. */
+/* שתי הקבוצות של הפרסום: הזוכים, ושאר תלמידי המוסדות שאושרו.
+   **זהויות בדיקה אינן בקהל האמיתי** — שורה ב"לומדים" עם "בדיקה: כן"
+   (כל המזהים שלה) ומזהי סשן הבדיקה הפעיל מוחרגים משתי השליחות
+   (`tx`). זהות בדיקה נרשמת להתראות כתלמיד של מוסד אמיתי, ובלי זה
+   ההודעה הכללית הייתה מגיעה גם אליה. */
 function rafAud_(d) {
   var codes = rafCodes_(d.codes), wids = [];
   d.rows.forEach(function (x) {
     String(x.wins || x.win).split(/\s+/).forEach(function (id) { if (id && wids.indexOf(id) < 0) wids.push(id); });
   });
-  var t = joinTable_(), stu = {};
+  var t = joinTable_(), stu = {}, tx = testIds_(testSess_());
   for (var r = 1; r < t.rows.length; r++) {
     var row = t.rows[r], id = t.c(row, 'מזהה');
     if (!id) continue;
+    if (t.c(row, 'בדיקה') === 'כן') {
+      rowIds_(t, row).forEach(function (x) { if (tx.indexOf(x) < 0) tx.push(x); });
+    }
     stu[id] = t.c(row, 'תפקיד') !== 'הורה' && t.c(row, 'בדיקה') !== 'כן' &&
               codes.indexOf(t.c(row, 'קוד ישיבה')) >= 0 && wids.indexOf(id) < 0;
   }
-  var w = audCount_({ ids: wids });
-  var g = audCount_({ insts: codes, role: 'תלמיד', xids: wids });
-  return { codes: codes, wids: wids,
+  var xg = wids.concat(tx.filter(function (x) { return wids.indexOf(x) < 0; }));
+  var w = audCount_({ ids: wids, xids: tx });
+  var g = audCount_({ insts: codes, role: 'תלמיד', xids: xg });
+  var t0 = tx.length ? audCount_({ ids: tx }) : { dev: 0 };
+  return { codes: codes, wids: wids, tx: tx, xg: xg,
+           /* מוסדות שנבחרו ולא היה בהם זכאי — אין להם זוכה, ותלמידיהם
+              מקבלים את ההודעה הכללית כמו כולם. */
+           none: d.rows.filter(function (x) { return !x.win; }).map(function (x) { return x.code; }),
+           test: t0.dev,
            win: { n: d.rows.filter(function (x) { return x.win; }).length, dev: w.dev, ppl: w.ppl },
            all: { n: Object.keys(stu).filter(function (k) { return stu[k]; }).length,
                   dev: g.dev, ppl: g.ppl } };
 }
 function rafExp_(a) { return [a.win.dev, a.all.dev, a.all.ppl].join('.'); }
+
+/* ============================================================
+   פרסום ושליחה — מצב לכל אחת משתי השליחות (8.99.266).
+   ============================================================
+   שלושה דברים נפרדים, ונשמרים בנפרד בשורות ההגרלה:
+     · "סטטוס" = פורסם — התוצאות גלויות בעמוד ההגרלה (raffleRes_).
+     · "שליחה לזוכים" / "שליחה כללית" — מצב כל הודעה, כמו בהגרלת
+       הבדיקה (testPub_): none · pend (נשמר לפני הקריאה) · sent (GitHub
+       קיבל לשיגור — **לא מסירה**) · fail (לא יצאה) · unk (לא ידוע) ·
+       skip (אין למי — בלי זוכים).
+   הנוסח שאושר נשמר עם ההגרלה, וכל ניסיון חוזר שולח **אותו נוסח, באותו
+   מזהה הודעה** (`rf-<rid>-w/g`), כך שמניעת הכפל של push-send.js חלה:
+   מכשיר שכבר קיבל — לא מקבל שוב.
+   **ניסיון חוזר** — רק למה שלא יצא, ורק אחרי בדיקת מצב והקהל מחדש
+   (`exp` — קהל שגדל מאז האישור דורש אישור חוזר). pend/unk מיושבים קודם
+   מול היומן ("הודעות") והמסירות; עדיין לא ידוע — רק עם `force`. */
+var RAF_PART_W = 'שליחה לזוכים', RAF_PART_G = 'שליחה כללית', RAF_TXT = 'נוסח שאושר';
+function rafPartGet_(v) {
+  if (!v) return null;
+  try { return JSON.parse(v); } catch (e) { return null; }
+}
+function rafMid_(d, k) { return 'rf-' + d.rid + '-' + k; }
+/* pend/unk — מה היומן והמסירות אומרים. הגרלה שפורסמה לפני שהיו מצבים
+   (אין עמודה) — כמו "לא ידוע", ומיושבת באותה דרך. */
+function rafPartFix_(d, k) {
+  var o = d[k] || (d.st === 'פורסם' ? { st: 'unk' } : { st: 'none' });
+  if (o.st === 'pend' || o.st === 'unk') {
+    var L = testLog_(rafMid_(d, k)), D = testDlv_(rafMid_(d, k));
+    if (L && L.acc !== null) o.st = L.acc ? 'sent' : 'fail';
+    else if (Object.keys(D.dev).length) o.st = 'sent';
+    else o.st = 'unk';
+  }
+  d[k] = o;
+  return o;
+}
+function rafPartSave_(T, d) {
+  rafSet_(T, d, [[RAF_PART_W, JSON.stringify(d.w || { st: 'none' })],
+                 [RAF_PART_G, JSON.stringify(d.g || { st: 'none' })]]);
+}
+function rafPartsOut_(d) {
+  return { st: d.st, pubAt: d.pubAt, w: d.w, g: d.g,
+           done: !!(d.w && d.g && /^(sent|skip)$/.test(d.w.st) && d.g.st === 'sent') };
+}
 
 function rafflePub_(P) {
   var lock = LockService.getScriptLock();
@@ -7689,25 +7746,77 @@ function rafflePub_(P) {
     var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
     if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
     if (d.st === 'בוטל') return { status: 'error', message: 'ההגרלה בוטלה' };
-    /* כבר פורסם — לא מציתים שוב. שליחה חוזרת עוברת דרך היומן (?resend=). */
-    if (d.st === 'פורסם') return { status: 'ok', again: 1 };
-    var a = rafAud_(d);
-    /* **הקהל השתנה מאז שהרכז ראה אותו — אישור מחדש.** */
-    if (String(P.exp || '') !== rafExp_(a)) return { status: 'changed', aud: a };
-    var tW = String(P.wt || '').trim(), bW = String(P.wb || '').trim();
-    var tA = String(P.at || '').trim(), bA = String(P.ab || '').trim();
-    if (!bW || !bA) return { status: 'error', message: 'חסר נוסח לאחת ההודעות' };
-    rafSet_(T, d, [['סטטוס', 'פורסם'], ['פורסם', new Date().toISOString()],
-                   ['אישר', String(P.who || 'רכז').slice(0, 40)]]);
-    try { CacheService.getScriptCache().remove('raf:pub'); } catch (xc) {}
-    var out = { status: 'ok' };
-    if (a.wids.length) {
-      out.w = ghFire_(tW, bW, '', '', '', 'הגרלה', 'hagrala', '', '',
-                      JSON.stringify({ ids: a.wids }), false, 'rf-' + d.rid + '-w', 'הזוכים בהגרלה');
+    var first = d.st !== 'פורסם';
+    if (!first) {
+      ['w', 'g'].forEach(function (k) { rafPartFix_(d, k); });
+      rafPartSave_(T, d);
+      var o0 = rafPartsOut_(d);
+      /* הכול כבר יצא — לא מציתים שוב (לחיצה כפולה, רענון). */
+      if (o0.done) { o0.status = 'ok'; o0.again = 1; return o0; }
     }
-    out.g = ghFire_(tA, bA, '', '', '', 'הגרלה', 'hagrala', 'תלמיד', '',
-                    JSON.stringify({ insts: a.codes, xids: a.wids }), false,
-                    'rf-' + d.rid + '-g', 'תלמידי המוסדות שבהגרלה');
+    var a = rafAud_(d);
+    /* **הקהל השתנה מאז שהרכז ראה אותו — אישור מחדש.** גם בניסיון חוזר. */
+    if (String(P.exp || '') !== rafExp_(a)) return { status: 'changed', aud: a };
+    var tx = first ? { wt: String(P.wt || '').trim(), wb: String(P.wb || '').trim(),
+                       at: String(P.at || '').trim(), ab: String(P.ab || '').trim() }
+                   : rafPartGet_(T.c(d.lines[0], RAF_TXT));
+    if (!tx || !tx.wb || !tx.ab) return { status: 'error', message: 'חסר נוסח לאחת ההודעות' };
+    if (first) {
+      d.w = { st: a.wids.length ? 'none' : 'skip' }; d.g = { st: 'none' };
+      d.st = 'פורסם'; d.pubAt = new Date().toISOString();
+      rafSet_(T, d, [['סטטוס', 'פורסם'], ['פורסם', d.pubAt],
+                     ['אישר', String(P.who || 'רכז').slice(0, 40)], [RAF_TXT, JSON.stringify(tx)]]);
+      rafPartSave_(T, d);
+      try { CacheService.getScriptCache().remove('raf:pub'); } catch (xc) {}
+    }
+    var force = String(P.force || '') === '1';
+    var parts = [
+      { k: 'w', go: function () {
+          return ghFire_(tx.wt, tx.wb, '', '', '', 'הגרלה', 'hagrala', '', '',
+                         JSON.stringify({ ids: a.wids, xids: a.tx }), false, rafMid_(d, 'w'), 'הזוכים בהגרלה'); } },
+      { k: 'g', go: function () {
+          return ghFire_(tx.at, tx.ab, '', '', '', 'הגרלה', 'hagrala', 'תלמיד', '',
+                         JSON.stringify({ insts: a.codes, xids: a.xg }), false,
+                         rafMid_(d, 'g'), 'תלמידי המוסדות שבהגרלה'); } }
+    ];
+    parts.forEach(function (x) {
+      var o = d[x.k];
+      /* בלי זוכים אין שליחה לזוכים — לעולם לא פילוח ריק (= כולם). */
+      if (x.k === 'w' && !a.wids.length) { o.st = 'skip'; return; }
+      if (o.st === 'sent' || o.st === 'skip') return;
+      if (o.st === 'unk' && !force) return;
+      o.st = 'pend'; o.at = new Date().toISOString(); o.msg = '';
+      rafPartSave_(T, d);
+      try {
+        var r = x.go();
+        /* ghFire_: 'ok' — התקבלה; דחייה עם קוד HTTP או הגדרה חסרה — לא
+           יצאה; שגיאה בלי קוד (חריגה, פסק זמן) — אולי יצאה: לא ידוע. */
+        o.st = r && r.status === 'ok' ? 'sent' : r && (r.code || r.status === 'denied') ? 'fail' : 'unk';
+        o.msg = r && r.status !== 'ok' ? String(r.message || '') : '';
+      } catch (err) { o.st = 'unk'; o.msg = String(err); }
+      rafPartSave_(T, d);
+    });
+    var out = rafPartsOut_(d);
+    out.status = 'ok';
+    return out;
+  } finally { lock.releaseLock(); }
+}
+
+/* בדיקת מצב — בלי שליחה: מיישב pend/unk מול היומן, מחזיר את המסירה
+   בפועל לכל הודעה, ואת הקהל כפי שהוא עכשיו (לאישור ניסיון חוזר). */
+function rafPst_(P) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
+    if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
+    if (d.st !== 'פורסם') return { status: 'error', message: 'ההגרלה עוד לא פורסמה' };
+    ['w', 'g'].forEach(function (k) { rafPartFix_(d, k); });
+    rafPartSave_(T, d);
+    var out = rafPartsOut_(d);
+    out.dlv = { w: testDlv_(rafMid_(d, 'w')), g: testDlv_(rafMid_(d, 'g')) };
+    if (!out.done) { out.aud = rafAud_(d); out.aud.exp = rafExp_(out.aud); }
+    out.status = 'ok';
     return out;
   } finally { lock.releaseLock(); }
 }
@@ -7894,6 +8003,7 @@ function raffleRoute_(e) {
       return reply_(e, a);
     }
     if (op === 'pub') return reply_(e, rafflePub_(P));
+    if (op === 'pst') return reply_(e, rafPst_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
