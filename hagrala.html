@@ -22,7 +22,7 @@
          ב-apps-script.gs): פורסם, והמזהה שבמכשיר שייך לתלמיד של
          המוסד. הסתרה כאן אינה ההגנה — השרת הוא.
        · סגור — מכשיר של לפיד או "אחר": אין הגרלה ואין פרסים.
-       · בדיקה אליך בלבד (`?rt=<אסימון>`) — מההתראה שהרכז שלח לעצמו לפני
+       · בדיקה אליך בלבד (`?stk=<אסימון>`; לא `rt` — שם שמור ב-Apps Script) — מההתראה שהרכז שלח לעצמו לפני
          הפרסום (rafSelf_): השרת מחזיר את המבט לפי האסימון, בלי זהות
          המכשיר. אסימון שפג — הקידום הרגיל.
        · תצוגה מקדימה (`?pv=w|g`) — רק בתוך מסך האישור בניהול: הנתונים
@@ -166,7 +166,7 @@ var PV = (location.search.match(/[?&]pv=(w|g)(&|$)/) || [])[1] || '', PVD = null
 if (PV && window.parent !== window) {
   try { PVD = window.parent.rafPvGet ? window.parent.rafPvGet(PV) : null; } catch (e) { PVD = null; }
 }
-var RT = (location.search.match(/[?&]rt=([0-9a-f]{32})(&|$)/) || [])[1] || '';
+var RT = (location.search.match(/[?&]stk=([0-9a-f]{32})(&|$)/) || [])[1] || '';
 (function () {
   if (RT && !PVD) {
     var u0 = api(), main0 = $('main'), done0 = false;
@@ -174,7 +174,7 @@ var RT = (location.search.match(/[?&]rt=([0-9a-f]{32})(&|$)/) || [])[1] || '';
     main0.className = 'wrap wait';
     var show0 = function () { if (!done0) { done0 = true; main0.className = 'wrap'; } };
     setTimeout(show0, 5000);
-    fetch(u0 + (u0.indexOf('?') < 0 ? '?' : '&') + 'raffle=selfv&rt=' + RT + '&t=' + Date.now())
+    fetch(u0 + (u0.indexOf('?') < 0 ? '?' : '&') + 'raffle=selfv&stk=' + RT + '&t=' + Date.now())
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!done0 && d && d.status === 'ok' && d.state === 'pub') {

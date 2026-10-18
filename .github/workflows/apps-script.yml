@@ -195,3 +195,38 @@ jobs:
           else
             echo "::warning::הקוד נדחף, אבל DEPLOYMENT_ID חסר — הפריסה לא עודכנה."
           fi
+
+      # ------------------------------------------------------
+      # בדיקה חיה אחרי הפריסה — קריאה בלבד, בלי סיסמה ובלי שליחה.
+      #
+      # `rt` הוא שם שמור ב-Apps Script: כל בקשה איתו מקבלת 400 מגוגל,
+      # לפני שהקוד שלנו רץ. האסימון של "בדיקה אליי" בהגרלה נקרא לכן
+      # `stk`. כאן מוודאים מול הכתובת החיה שאסימון לא תקף מחזיר
+      # {"state":"none"} ולא 400, ושהגרסה הפרוסה היא זו שבקוד.
+      # (מסביבת הפיתוח script.google.com חסום — לכן זה רץ כאן.)
+      # ------------------------------------------------------
+      - name: בדיקה חיה אחרי הפריסה
+        run: |
+          set -uo pipefail
+          U=$(node -e "var vm=require('vm'),c={};vm.createContext(c);vm.runInContext(require('fs').readFileSync('data.js','utf8')+';this.U=APPS_SCRIPT_URL',c);process.stdout.write(c.U)")
+          WANT=$(grep -oE 'SCRIPT_VERSION[[:space:]]*=[[:space:]]*[0-9]+' apps-script.gs | grep -oE '[0-9]+' | head -1)
+          Z=00000000000000000000000000000000
+          ask() { curl -sL -m 60 -o out.txt -w '%{http_code}' "$U?$1&t=$(date +%s)"; }
+          FAIL=0
+          for i in 1 2 3 4 5 6; do
+            C=$(ask "studioInv=1"); V=$(grep -oE '"version":[0-9]+' out.txt | grep -oE '[0-9]+' || true)
+            echo "גרסה פרוסה: ${V:-?} (בקוד: $WANT) · HTTP $C"
+            [ "$V" = "$WANT" ] && break
+            sleep 20
+          done
+          [ "$V" = "$WANT" ] || { echo "::error::הגרסה הפרוסה ${V:-?} אינה $WANT"; FAIL=1; }
+          for q in "raffle=selfv&stk=$Z" "raffle=selfv&stk=zz" "raffle=me&stk=x" "raffle=selfv&rt=$Z" "raffle=me&rt=x"; do
+            C=$(ask "$q"); echo "$q → HTTP $C · $(head -c 120 out.txt | tr '\n' ' ')"
+          done
+          C=$(ask "raffle=selfv&stk=$Z")
+          if [ "$C" = "200" ] && grep -q '"state":"none"' out.txt; then
+            echo "::notice::stk תקין בפריסה החיה: אסימון לא תקף → state:none · SCRIPT_VERSION ${V:-?}"
+          else
+            echo "::error::stk לא החזיר state:none (HTTP $C)"; FAIL=1
+          fi
+          exit $FAIL
