@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.285';
+var APP_VERSION = '8.99.286';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8335,7 +8335,7 @@ function ovLoad(force) {
     else {
       ovState.msg = '';
       Store.set('ovData', { rows:d.rows || [], other:d.other || [], sheet:d.sheet || '',
-                            hasKey:!!d.hasKey, at:d.at || '' });
+                            hasKey:!!d.hasKey, actLeft:!!d.actLeft, at:d.at || '' });
       Store.set('ovAt', Date.now());
       ovCodes(d.rows || []);
     }
@@ -8457,6 +8457,9 @@ function ovAdmTop() {
         '" oninput="ovState.sheetIn=this.value"></div>' +
       '<button class="btn p" id="ov-sheet-b" onclick="ovSheetSet()">' + esc(UI.ovAdmSheetBtn) + '</button></div>';
   }
+  /* עמודת "לומדים בפועל" נשארה בטבלה כי יש בה ערך — הסקריפט אינו
+     מוחק נתון בשקט. ראו ovDropAct_. */
+  if (D && D.actLeft) h += '<div class="msg" style="margin:0 0 10px">' + esc(UI.ovActLeft) + '</div>';
   h += '<div id="ov-adm"></div>';
   if (rows) {
     var miss = INSTITUTIONS.filter(function (i) {

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 91;
+var SCRIPT_VERSION = 92;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8896,6 +8896,28 @@ function ovCountsRead_() {
 }
 /* האפליקציה ← הטבלה: שני המספרים שהמערכת יודעת. רק תא שהשתנה
    נכתב, כדי לא לדרוס עריכה שקורית באותו רגע בעמודה אחרת. */
+/* ============================================================
+   עמודת "לומדים בפועל" יוצאת מהטבלה (19.10.2026).
+   ============================================================
+   "היא בכלל לא אמורה להיות בטבלה." לומדים בפועל מחושב באפליקציה
+   (ovLearners_) ושייך לממשק של הבעלים — לא לטבלה שעוברת בין
+   המנהלים. העמודה נמחקת פעם אחת, **ורק אם היא ריקה כולה** (מהכותרת
+   ועד סוף הגיליון): ערך שהוקלד בה אינו נמחק בשקט — אז היא נשארת,
+   והבעלים רואה אזהרה (actLeft). העמודות מזוהות לפי הכותרת, ולכן
+   המחיקה אינה מזיזה דבר בקריאה. מחזירה טבלה חדשה, או את אותה טבלה. */
+function ovDropAct_(T) {
+  var i = T.cols.act;
+  if (i === undefined) return T;
+  var last = T.sh.getLastRow();
+  if (last > T.hr) {
+    var vals = T.sh.getRange(T.hr + 1, i + 1, last - T.hr, 1).getDisplayValues();
+    for (var r = 0; r < vals.length; r++) {
+      if (String(vals[r][0] || '').trim() !== '') { T.actLeft = true; return T; }
+    }
+  }
+  T.sh.deleteColumn(i + 1);
+  return ovTable_(T.sh) || T;
+}
 function ovSync_(force) {
   var cache = CacheService.getScriptCache();
   if (!force && cache.get('ovSyncAt')) return null;
@@ -8903,6 +8925,7 @@ function ovSync_(force) {
   if (!sh) return null;
   var T = ovTable_(sh);
   if (!T) return T;
+  T = ovDropAct_(T);
   ovAutoCodes_(T);
   var C = ovCounts_();
   if (!C) return T;                      /* קריאה שנכשלה — לא נוגעים בכלום */
@@ -8975,12 +8998,10 @@ function ovLearners_() {
   } catch (err) { return null; }
 }
 function ovRow_(T, row, owner, L) {
-  var act = ovCell_(T, row, 'act');
   var o = { name: ovCell_(T, row, 'name'), code: ovCell_(T, row, 'code'),
             coord: ovCell_(T, row, 'coord'), reg: ovCell_(T, row, 'reg'),
             att: ovCell_(T, row, 'att'), note: ovCell_(T, row, 'note') };
   if (owner) {
-    o.act = act;
     o.learn = L && o.code ? String(L[o.code] || 0) : '';
     o.joined = ovCell_(T, row, 'joined'); o.head = ovCell_(T, row, 'head');
     o.rosh = ovCell_(T, row, 'rosh'); o.src = ovCell_(T, row, 'src');
@@ -9033,7 +9054,7 @@ function ov_(p) {
     var T = op === 'get' ? ovSync_(false) : null;
     if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
     if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה', why: owner ? ovWhy_ : '' };
-    if (op === 'get') ovAutoCodes_(T);
+    if (op === 'get') { T = ovDropAct_(T); ovAutoCodes_(T); }
 
     /* --- הבעלים: קוד לכל שורה ששמה זהה לשם ברשימת המוסדות,
            והוספת מוסד שאינו בטבלה. **רק שם זהה** — שם דומה
@@ -9075,9 +9096,9 @@ function ov_(p) {
            רכז בשטח (בעלים בלבד — רק אחיאסף מסמן רכז פעיל). --- */
     if (op === 'set') {
       var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
-      if (['act', 'note', 'coord'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      /* "לומדים בפועל" אינו נכתב לטבלה — הוא מחושב (ovLearners_). */
+      if (['note', 'coord'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
       if (f === 'coord' && !owner) return { status: 'denied', message: 'רכז בשטח — רק לבעלים' };
-      if (f === 'act' && v && !/^\d{1,5}$/.test(v)) return { status: 'error', message: 'מספר בלבד, או ריק' };
       if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
       var hit = null;
       T.rows.forEach(function (row) {
@@ -9089,7 +9110,7 @@ function ov_(p) {
       var col = T.cols[f];
       if (col === undefined) return { status: 'error', message: 'העמודה לא נמצאה בטבלה' };
       var cell = T.sh.getRange(hit.r, col + 1);
-      if (f === 'act') cell.setValue(v === '' ? '' : +v); else cell.setValue(ovSafe_(v));
+      cell.setValue(ovSafe_(v));
       SpreadsheetApp.flush();
       /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
       hit.v[col] = cell.getValue();
@@ -9104,7 +9125,7 @@ function ov_(p) {
     var L = owner ? ovLearners_() : null;
     var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L); }),
                 other: other, owner: owner, at: new Date().toISOString() };
-    if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; }
+    if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.actLeft = !!T.actLeft; }
     return out;
   } finally {
     if (lock) lock.releaseLock();
