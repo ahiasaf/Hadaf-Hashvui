@@ -719,6 +719,14 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
   background:var(--surface);color:var(--ink);box-shadow:var(--sh-1);font:inherit;
   font-size:.93rem;font-weight:800;text-align:right;cursor:pointer}
 .mypts[hidden]{display:none}
+/* ---------- הזוכה בהגרלה (8.99.297) ----------
+   באנר בולט מעל הדף, עד שהפרס נמסר: לבחירת פרס / יגיע בקרוב / לקבלת הפרס. */
+.myprz{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:15px 16px;
+  border-radius:var(--r);background:linear-gradient(135deg,#E5B854,#C9962E);color:#1B2A45;text-decoration:none;
+  font-size:1.05rem;font-weight:800;box-shadow:0 6px 16px rgba(140,104,31,.3)}
+.myprz.soon{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
+.myprz[hidden]{display:none}
+.myprz .ar{font-size:1.25em;line-height:1}
 .mypts .l{margin-top:8px;font-size:.82rem;font-weight:700;line-height:1.8}
 .mypts .h{color:var(--ink-3);font-weight:600;margin-top:4px}
 /* ---------- "ממשיכים מהמקום שעצרת" ----------
@@ -1239,6 +1247,7 @@ footer a{color:var(--ink-2);font-weight:800}
   <div class="wrap"><div id="inv"></div></div>
   <div class="zone">
     <span class="tag" id="d-name"></span>
+    <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
     <div id="rail"></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
@@ -3068,6 +3077,7 @@ function drawWeek() {
   var rail = $('rail');
   if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr) });
   drawPts();
+  drawPrz();
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
@@ -3151,6 +3161,44 @@ function drawPts() {
   el.hidden = false;
 }
 function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
+
+/* הזוכה בהגרלה — באנר עד שהפרס נמסר (?raffle=prize, rafPrize_ ב-apps-script.gs).
+   ההורה רואה את זכיית הבן. המצב נשמר במכשיר (przMe) ומתרענן כל שתי דקות;
+   קריאה שנכשלה משאירה את מה שהיה. */
+var PRZ_BUSY = false;
+function drawPrz() {
+  var el = $('myprz');
+  if (!el) return;
+  var me = get('me', null);
+  if (!me || !me.id) { el.hidden = true; return; }
+  var c = get('przMe', null);
+  if (c && c.id !== me.id) c = null;
+  if ((!c || Date.now() - c.at > 2 * 60000) && !PRZ_BUSY && API && window.fetch) {
+    PRZ_BUSY = true;
+    fetch(API + (API.indexOf('?') < 0 ? '?' : '&') + 'raffle=prize&id=' + encodeURIComponent(me.id) +
+          (me.role === 'dad' ? '&role=dad' : '') + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        PRZ_BUSY = false;
+        if (!d || d.status !== 'ok' || !d.list) return;
+        set('przMe', { id: me.id, at: Date.now(), list: d.list });
+        drawPrz();
+      })['catch'](function () { PRZ_BUSY = false; });
+  }
+  var L = (c && c.list) || [], z = null;
+  /* קודם מי שעוד צריך לבחור, אחר כך "הגיע", ואז "יגיע בקרוב" */
+  ['pick', 'arr', 'soon'].forEach(function (st) {
+    L.forEach(function (x) { if (!z && x.st === st) z = x; });
+  });
+  if (!z) { el.hidden = true; return; }
+  var kid = z.kid;
+  var t = z.st === 'pick' ? (kid ? tpl(UI.przBanDad, { name: kid }) : UI.przBanWin)
+        : z.st === 'arr' ? UI.przBanArr
+        : (kid ? tpl(UI.przBanSoonDad, { name: kid }) : UI.przBanSoon);
+  el.className = 'myprz' + (z.st === 'soon' ? ' soon' : '');
+  el.innerHTML = '<span>' + esc(t) + '</span><span class="ar" aria-hidden="true">\u2190</span>';
+  el.hidden = false;
+}
 
 /* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js.
 

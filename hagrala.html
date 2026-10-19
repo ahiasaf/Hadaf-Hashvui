@@ -102,6 +102,19 @@ main.wait{visibility:hidden}
 .lose + .go{margin-top:8px}
 .note.fine{font-size:.78rem;font-weight:500}
 .note.fine + .note.fine{margin-top:2px}
+/* בחירת הפרס — הכרטיסים של חמשת הפרסים */
+#prz h3{font-size:1.3rem;font-weight:800;color:var(--blue-d);text-align:center;margin:14px 0 4px}
+#prz .due{font-size:.92rem;font-weight:700;color:var(--gold-t);text-align:center;margin-bottom:12px}
+.pzs{display:grid;gap:12px}
+.pz{display:block;width:100%;padding:0;border:1px solid #E5DAC3;border-radius:16px;overflow:hidden;background:#fff;
+  text-align:right;cursor:pointer;font:inherit;color:inherit;box-shadow:0 2px 6px rgba(37,29,12,.06)}
+.pz[disabled]{cursor:default}
+.pz img{display:block;width:100%;height:auto;aspect-ratio:612/240;object-fit:cover}
+.pz span{display:block;padding:10px 14px;font-size:1.02rem}
+.pz b{font-weight:800;color:var(--ink)}
+.pz small{color:var(--ink-2);font-size:.86rem;font-weight:500}
+.pz.sel{border:2px solid var(--gold-t)}
+#prz .soon{margin-top:12px;font-size:1.1rem;font-weight:800;color:var(--gold-t);text-align:center}
 </style>
 </head>
 <body>
@@ -213,8 +226,10 @@ function results(d, dm) {
   var lose = '<p class="lose">' + esc(UI.rafGoLose) + '</p>' + go(UI.hagGoWeek);
   var h;
   if (d.me) {
-    /* זוכה: התמונה, "ניצור איתך קשר" ו"ייתכנו שינויים", הכפתור, שאר הזוכים */
-    h = slot + '<p class="call">' + esc(UI.hagMeCall) + '</p><p class="call">' + esc(UI.hagNote) + '</p>' +
+    /* זוכה: התמונה, בחירת הפרס (8.99.297), הכפתור, שאר הזוכים.
+       הורה — "{שם} זכה בהגרלה!" ותמונת "יש זוכים": הזכייה של הבן. */
+    h = (d.kid ? '<h2>' + esc(tp(UI.przKidH, { name: d.kid })) + '</h2>' : '') +
+        slot + '<div id="prz"></div><p class="note fine">' + esc(UI.hagNote) + '</p>' +
         go(UI.rafGoWin) + list(UI.hagOthers) + illus;
   } else if (d.mine) {
     /* חבר מהמוסד זכה: הכותרת, הכרטיס, התמונה, "לא זכית?" והכפתור, שאר הזוכים */
@@ -227,10 +242,103 @@ function results(d, dm) {
   }
   $('res').innerHTML = h;
   $('art-slot').appendChild($('art'));
-  art(d.me ? ART_WIN : ART_RES);
+  art(d.me && !d.kid ? ART_WIN : ART_RES);
+  if (d.me) przInit(d);
   document.body.className += ' dm2';
   $('note').style.display = 'none';
   $('illus').style.display = 'none';
+}
+/* ============================================================
+   בחירת הפרס (8.99.297) — לזוכה, ולהורה בשם הבן.
+   ============================================================
+   המצב מהשרת (?raffle=prize, rafPrize_): עוד לא בחר — חמשת הכרטיסים
+   ועד מתי; בחר — הכרטיס שלו ו"יגיע בקרוב"; הגיע — "הפרס הגיע".
+   **אין החלפה**: השרת מקבל רק את הבחירה הראשונה. הבחירה נכתבת כשורה
+   ב"בחירת פרס" (no-cors), ואז קריאה חוזרת מאמתת שנקלטה.
+   בתצוגה המקדימה, בבדיקה ובדוגמה — הכרטיסים לתצוגה בלבד. */
+/* ?prz=1 — מהבאנר בבית: גם כשההגרלה שבעמוד אינה זו שבה זכה. */
+var PRZQ = /[?&]prz=1(&|$)/.test(location.search);
+var PRZ = ['burger', 'maafe', 'pretzel', 'pizza', 'book'], PRZ_LIVE = false, PRZ_Z = null, PRZ_KID = '';
+function przName(k) { return UI['przN_' + k] || k; }
+function przCard(k, on, sel) {
+  return '<button class="pz' + (sel ? ' sel' : '') + '"' + (on ? ' onclick="przPick(\'' + k + '\')"' : ' disabled') + '>' +
+    '<img src="promo/prz-' + k + '.jpg" width="612" height="240" alt="">' +
+    '<span><b>' + esc(przName(k)) + '</b> <small>· ' + esc(UI['przS_' + k] || '') + '</small></span></button>';
+}
+function przWhen(iso) {
+  var t = new Date(iso);
+  if (isNaN(t.getTime())) return '';
+  var two = function (n) { return (n < 10 ? '0' : '') + n; };
+  return t.getDate() + '.' + (t.getMonth() + 1) + ' · ' + two(t.getHours()) + ':' + two(t.getMinutes());
+}
+function przDraw(z, live) {
+  var el = $('prz'), kid = PRZ_KID;
+  if (!el) return;
+  var h;
+  if (!z || !z.p) {
+    var w = z && z.due ? przWhen(z.due) : '';
+    h = '<h3>' + esc(kid ? tp(UI.przHDad, { name: kid }) : UI.przH) + '</h3>' +
+        (w ? '<p class="due">' + esc(tp(kid ? UI.przDueDad : UI.przDue, { due: w })) + '</p>' : '') +
+        '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live, false); }).join('') + '</div>';
+  } else {
+    h = '<h3>' + esc(kid ? tp(UI.przMineDad, { name: kid }) : UI.przMine) + '</h3>' +
+        '<div class="pzs">' + przCard(z.p, false, true) + '</div>' +
+        (z.how === 'הוגרל' ? '<p class="note">' + esc(UI.przAuto) + '</p>' : '') +
+        '<p class="soon">' + esc(z.st === 'arr' ? UI.przArr : kid ? tp(UI.przSoonDad, { name: kid }) : UI.przSoon) + '</p>';
+  }
+  el.innerHTML = h + '<p class="note fine">' + esc(UI.przNote) + '</p>';
+}
+function przGet(fresh) {
+  var u = api();
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=prize&id=' + encodeURIComponent(ME.id) +
+               (ME.role === 'dad' ? '&role=dad' : '') + (fresh ? '&fresh=1' : '') + '&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) { return d && d.status === 'ok' && d.list ? d.list : null; });
+}
+function przInit(d) {
+  PRZ_KID = d.kid || '';
+  if (!PRZ_LIVE || !ME || !ME.id) { przDraw(null, false); return; }
+  przDraw(null, false);
+  przGet(false).then(function (L) {
+    PRZ_Z = L && L.length ? L[0] : null;
+    if (PRZ_Z && PRZ_Z.kid) PRZ_KID = PRZ_Z.kid;
+    przDraw(PRZ_Z, !!PRZ_Z);
+  })['catch'](function () {});
+}
+/* מהבאנר, כשהזכייה בהגרלה קודמת: רק בחירת הפרס, בראש העמוד. */
+function przAlone() {
+  if (!ME || !ME.id) return;
+  przGet(false).then(function (L) {
+    var z = null;
+    (L || []).forEach(function (x) { if (!z && x.st === 'pick') z = x; });
+    z = z || (L && L[0]) || null;
+    if (!z) return;
+    PRZ_Z = z; PRZ_KID = z.kid || '';
+    $('res').insertAdjacentHTML('afterbegin', '<div id="prz"></div>');
+    $('art').style.display = 'none'; $('note').style.display = 'none'; $('illus').style.display = 'none';
+    przDraw(z, !z.p);
+  })['catch'](function () {});
+}
+function przPick(k) {
+  var z = PRZ_Z, u = api();
+  if (!z || z.p || !u || !confirm(tp(UI.przAsk, { p: przName(k) }))) return;
+  var item = { action: 'row', tab: 'בחירת פרס', cols: JSON.stringify([
+    ['מזהה', z.wid], ['הגרלה', z.rid], ['פרס', k], ['מאת', ME.id]]) };
+  z.p = k; z.st = 'soon'; z.how = 'בחר';
+  przDraw(z, false);
+  var fail = function () { z.p = ''; z.st = 'pick'; przDraw(z, true); alert(UI.przFail); };
+  var check = function (n) {
+    return przGet(true).then(function (L) {
+      var y = null;
+      (L || []).forEach(function (x) { if (x.rid === z.rid) y = x; });
+      if (y && y.p) { PRZ_Z = y; przDraw(y, false); return; }
+      if (n > 0) return new Promise(function (ok) { setTimeout(ok, 2500); }).then(function () { return check(n - 1); });
+      fail();
+    });
+  };
+  fetch(u, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(item) })
+    .then(function () { return new Promise(function (ok) { setTimeout(ok, 1500); }); })
+    .then(function () { return check(2); })['catch'](fail);
 }
 /* תמונת הפרסים לפי המצב: "זכית!" למי שזכה, "יש זוכים בהגרלה!" לשאר.
    התמונה הכללית ("הגרלה!") — רק בקידום. נכשלה הטעינה — מסתירים את
@@ -320,7 +428,9 @@ function demo(d) {
         '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
+      PRZ_LIVE = !tq;
       if (!done && d && d.status === 'ok' && d.state === 'pub') results(d);
+      if (!done && PRZQ && !tq && !(d && d.me)) przAlone();
       show();
     })['catch'](show);
 })();
