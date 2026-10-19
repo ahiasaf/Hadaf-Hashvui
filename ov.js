@@ -294,11 +294,12 @@
     step(0);
   }
 
-  /* st: { el, rows, other, owner, save, go, extra, solo, changed, sug } */
+  /* st: { el, rows, other, owner, save, go, extra, solo, changed, sug, mem }
+     `mem` — מצב (פתוח/בעריכה) ששורד ציור מחדש של העמוד, שמחליף את `el`. */
   function mount(el, o) {
     css();
-    var st = el._ov || { open:{}, edit:{}, msg:{} };
-    for (var k in o) if (o.hasOwnProperty(k)) st[k] = o[k];
+    var st = el._ov || o.mem || { open:{}, edit:{}, msg:{} };
+    for (var k in o) if (o.hasOwnProperty(k) && k !== 'mem') st[k] = o[k];
     st.el = el;
     if (st.solo && st.rows[0] && !st.edit[st.rows[0].k] && st.startEdit) st.edit[st.rows[0].k] = 1;
     if (!el._ov) {

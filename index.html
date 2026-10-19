@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.290';
+var APP_VERSION = '8.99.291';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8536,7 +8536,9 @@ function ovAdmMount() {
   var el = document.getElementById('ov-adm'), rows = ovRows();
   if (el && rows) {
     var D = Store.get('ovData', null) || {};
-    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug });
+    /* הסקירה נצבעת מחדש כשמגיעים נתונים — בלי `mem` שורה שנפתחה נסגרת מיד. */
+    if (!ovState.mem) ovState.mem = { open:{}, edit:{}, msg:{} };
+    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
