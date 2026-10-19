@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.281';
+var APP_VERSION = '8.99.282';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8330,7 +8330,7 @@ function ovLoad(force) {
   return scriptGet({ ov:'get', key:key }).then(function (d) {
     ovState.busy = 0;
     if (!d || !d.ov) ovState.msg = UI.ovOld;
-    else if (d.status === 'nosheet') ovState.msg = 'nosheet';
+    else if (d.status === 'nosheet') { ovState.msg = 'nosheet'; ovState.why = d.why || ''; }
     else if (d.status !== 'ok') ovState.msg = d.message || d.status;
     else {
       ovState.msg = '';
@@ -8424,13 +8424,23 @@ function ovKeyGet(rot) {
     ovRepaint();
   }, function () { alert(UI.ovNet); });
 }
+/* בלי סימן שמשהו קורה, חיבור של כמה שניות נראה כמו כפתור שאינו
+   עובד. הכפתור אומר "מחבר…" עד שיש תשובה, וכישלון נאמר בקול. */
 function ovSheetSet() {
-  var v = (document.getElementById('ov-sheet') || {}).value || '';
-  if (!v.trim()) return;
-  scriptGet({ ov:'sheet', key:(CFG.readKey || '').trim(), id:v.trim() }).then(function (d) {
-    if (!d || d.status !== 'ok') { alert(fill(UI.ovSaveFail, { t:(d && d.message) || '' })); return; }
+  var inp = document.getElementById('ov-sheet'), v = ((inp || {}).value || '').trim();
+  if (!v) { if (inp) inp.focus(); return; }
+  ovState.sheetIn = v;
+  var b = document.getElementById('ov-sheet-b');
+  if (b) { b.disabled = true; b.textContent = UI.ovAdmSheetBusy; }
+  var fail = function (t) {
+    if (b) { b.disabled = false; b.textContent = UI.ovAdmSheetBtn; }
+    alert(fill(UI.ovSaveFail, { t:t }));
+  };
+  scriptGet({ ov:'sheet', key:(CFG.readKey || '').trim(), id:v }).then(function (d) {
+    if (!d || d.status !== 'ok') { fail((d && d.message) || ''); return; }
+    ovState.sheetIn = '';
     ovLoad(true);
-  }, function () { alert(UI.ovNet); });
+  }, function () { fail(UI.ovNet); });
 }
 /* המקום בראש המסך — הסקירה נצבעת לתוכו אחרי הציור (ovAdmMount). */
 function ovAdmTop() {
@@ -8442,8 +8452,10 @@ function ovAdmTop() {
   if (ovState.msg && ovState.msg !== 'nosheet') h += '<div class="msg" style="margin:0 0 10px">' + esc(ovState.msg) + '</div>';
   if (ovState.msg === 'nosheet') {
     h += '<div class="adm-card" style="margin:0 0 10px"><p class="h">' + esc(UI.ovNoSheet) + ' ' + esc(UI.ovAdmSheetAsk) + '</p>' +
-      '<div class="fld"><input id="ov-sheet" type="url" dir="ltr"></div>' +
-      '<button class="btn p" onclick="ovSheetSet()">' + esc(UI.ovAdmSheetBtn) + '</button></div>';
+      (ovState.why ? '<p class="h" dir="ltr" style="text-align:left">' + esc(ovState.why) + '</p>' : '') +
+      '<div class="fld"><input id="ov-sheet" type="url" dir="ltr" value="' + esc(ovState.sheetIn || '') +
+        '" oninput="ovState.sheetIn=this.value"></div>' +
+      '<button class="btn p" id="ov-sheet-b" onclick="ovSheetSet()">' + esc(UI.ovAdmSheetBtn) + '</button></div>';
   }
   h += '<div id="ov-adm"></div>';
   if (rows) {

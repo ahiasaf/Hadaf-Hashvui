@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 88;
+var SCRIPT_VERSION = 89;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8758,9 +8758,13 @@ function ovNameKey_(s) {
   return String(s || '').replace(/["'״׳]/g, '').replace(/[—–-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function ovKey_() { return prop_('OV_KEY', ''); }
+/* למה הטבלה לא נמצאה — נשלח לבעלים עם "nosheet", כדי שהמסך
+   יאמר מה קרה ולא רק "לא נמצאה". */
+var ovWhy_ = '';
 function ovSheet_() {
   var P = PropertiesService.getScriptProperties(), id = P.getProperty('OV_ID') || '', ss = null;
-  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  ovWhy_ = '';
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; ovWhy_ = String(e); } }
   /* החיפוש לפי שם נשען על Drive API, ובפרויקט הזה גוגל אינה
      מצליחה להפעיל אותו ("Permission denied while enabling APIs:
      drive"). כישלון = לא נמצא — והממשק מבקש להדביק את הקישור
@@ -8929,8 +8933,13 @@ function ov_(p) {
     if (op === 'sheet') {
       var m = /[-\w]{25,}/.exec(String(p.id || ''));
       if (!m) return { status: 'error', message: 'לא זוהה מזהה גיליון' };
-      SpreadsheetApp.openById(m[0]);
+      /* נשמר רק אחרי שהטבלה נפתחה ונמצאה בה שורת הכותרת — אחרת
+         "חיבור" שהצליח היה משאיר את המסך בדיוק כמו שהיה. */
+      var ss1 = SpreadsheetApp.openById(m[0]);
+      var sh1 = ss1.getSheetByName(OV_TAB_) || ss1.getSheets()[0];
+      if (!ovTable_(sh1)) return { status: 'error', message: 'הטבלה נפתחה, אבל לא נמצאה בה עמודת "' + OV_HEAD_.name + '"' };
       P.setProperty('OV_ID', m[0]);
+      CacheService.getScriptCache().remove('ovSyncAt');
       return { status: 'ok' };
     }
     if (!ovk || p.rot === '1') {
@@ -8948,7 +8957,7 @@ function ov_(p) {
   try {
     var T = op === 'get' ? ovSync_(false) : null;
     if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
-    if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה' };
+    if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה', why: owner ? ovWhy_ : '' };
     if (op === 'get') ovAutoCodes_(T);
 
     /* --- הבעלים: קוד לכל שורה ששמה זהה לשם ברשימת המוסדות,
