@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 86;
+var SCRIPT_VERSION = 87;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8731,15 +8731,21 @@ function ovKey_() { return prop_('OV_KEY', ''); }
 function ovSheet_() {
   var P = PropertiesService.getScriptProperties(), id = P.getProperty('OV_ID') || '', ss = null;
   if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  /* החיפוש לפי שם נשען על Drive API, ובפרויקט הזה גוגל אינה
+     מצליחה להפעיל אותו ("Permission denied while enabling APIs:
+     drive"). כישלון = לא נמצא — והממשק מבקש להדביק את הקישור
+     לטבלה (ov=sheet), שנפתחת בלי Drive API. */
   if (!ss) {
-    var it = DriveApp.getFilesByName(OV_NAME_);
-    while (it.hasNext()) {
-      var f = it.next();
-      if (f.getMimeType() !== MimeType.GOOGLE_SHEETS || f.isTrashed()) continue;
-      ss = SpreadsheetApp.openById(f.getId());
-      P.setProperty('OV_ID', f.getId());
-      break;
-    }
+    try {
+      var it = DriveApp.getFilesByName(OV_NAME_);
+      while (it.hasNext()) {
+        var f = it.next();
+        if (f.getMimeType() !== MimeType.GOOGLE_SHEETS || f.isTrashed()) continue;
+        ss = SpreadsheetApp.openById(f.getId());
+        P.setProperty('OV_ID', f.getId());
+        break;
+      }
+    } catch (e) { ss = null; }
   }
   if (!ss) return null;
   return ss.getSheetByName(OV_TAB_) || ss.getSheets()[0];
