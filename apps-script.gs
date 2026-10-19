@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 97;
+var SCRIPT_VERSION = 98;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7854,6 +7854,21 @@ function rafAud_(d) {
   d.rows.forEach(function (x) {
     String(x.wins || x.win).split(/\s+/).forEach(function (id) { if (id && wids.indexOf(id) < 0) wids.push(id); });
   });
+  /* **ההודעה הכללית — לכל התלמידים, בכל המוסדות** (החלטת אחיאסף, 19.10):
+     בחירת המוסדות קובעת רק מי יכול לזכות. מוסד שלא נכנס להגרלה מקבל
+     את ההודעה כמו כולם, ואינו צריך לדעת שלא היה בפנים. בחוץ רק לפיד
+     ו"אחר" (RAF_NEVER) — אצלם אין הגרלה בכלל. `gcodes` — כל קוד מוסד
+     שמופיע אצל תלמיד ב"לומדים" או ב"התראות". */
+  var gcodes = codes.slice();
+  var addC = function (c) { rafCodes_(c).forEach(function (x) { if (gcodes.indexOf(x) < 0) gcodes.push(x); }); };
+  try {
+    var ns = sheet_('התראות');
+    if (ns.getLastRow() > 1) {
+      var nv = ns.getDataRange().getValues(), nc = -1;
+      for (var ni = 0; ni < nv[0].length; ni++) if (String(nv[0][ni]).trim() === 'קוד ישיבה') nc = ni;
+      if (nc >= 0) for (var nr = 1; nr < nv.length; nr++) addC(String(nv[nr][nc] == null ? '' : nv[nr][nc]));
+    }
+  } catch (eN) {}
   var t = joinTable_(), stu = {}, tx = testIds_(testSess_());
   for (var r = 1; r < t.rows.length; r++) {
     var row = t.rows[r], id = t.c(row, 'מזהה');
@@ -7861,16 +7876,17 @@ function rafAud_(d) {
     if (t.c(row, 'בדיקה') === 'כן') {
       rowIds_(t, row).forEach(function (x) { if (tx.indexOf(x) < 0) tx.push(x); });
     }
+    if (t.c(row, 'תפקיד') !== 'הורה') addC(t.c(row, 'קוד ישיבה'));
     stu[id] = t.c(row, 'תפקיד') !== 'הורה' && t.c(row, 'בדיקה') !== 'כן' &&
-              codes.indexOf(t.c(row, 'קוד ישיבה')) >= 0 && wids.indexOf(id) < 0;
+              RAF_NEVER.indexOf(t.c(row, 'קוד ישיבה')) < 0 && wids.indexOf(id) < 0;
   }
   var xg = wids.concat(tx.filter(function (x) { return wids.indexOf(x) < 0; }));
   /* ההורה המחובר לזוכה מקבל גם הוא את ההודעה לזוכים (החלטת אחיאסף, 19.10). */
   var dads = rafDads_(t, wids, tx);
   var w = audCount_({ ids: wids.concat(dads.ids), xids: tx });
-  var g = audCount_({ insts: codes, role: 'תלמיד', xids: xg });
+  var g = audCount_({ insts: gcodes, role: 'תלמיד', xids: xg });
   var t0 = tx.length ? audCount_({ ids: tx }) : { dev: 0 };
-  return { codes: codes, wids: wids, tx: tx, xg: xg, dads: dads.ids,
+  return { codes: codes, gcodes: gcodes, wids: wids, tx: tx, xg: xg, dads: dads.ids,
            /* מוסדות שנבחרו ולא היה בהם זכאי — אין להם זוכה, ותלמידיהם
               מקבלים את ההודעה הכללית כמו כולם. */
            none: d.rows.filter(function (x) { return !x.win; }).map(function (x) { return x.code; }),
@@ -7947,13 +7963,15 @@ function rafflePub_(P) {
     var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
     if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
     if (d.st === 'בוטל') return { status: 'error', message: 'ההגרלה בוטלה' };
-    var first = d.st !== 'פורסם';
+    var first = d.st !== 'פורסם', more = String(P.more || '') === '1' && !first;
     if (!first) {
       ['w', 'g'].forEach(function (k) { rafPartFix_(d, k); });
       rafPartSave_(T, d);
       var o0 = rafPartsOut_(d);
-      /* הכול כבר יצא — לא מציתים שוב (לחיצה כפולה, רענון). */
-      if (o0.done) { o0.status = 'ok'; o0.again = 1; return o0; }
+      /* הכול כבר יצא — לא מציתים שוב (לחיצה כפולה, רענון). `more` — השלמת
+         ההודעה הכללית למי שעוד לא קיבל: אותו מזהה הודעה, ו-push-send.js
+         מדלג על כל מכשיר שכבר קיבל. */
+      if (o0.done && !more) { o0.status = 'ok'; o0.again = 1; return o0; }
     }
     var a = rafAud_(d);
     /* **הקהל השתנה מאז שהרכז ראה אותו — אישור מחדש.** גם בניסיון חוזר. */
@@ -7977,14 +7995,15 @@ function rafflePub_(P) {
                          JSON.stringify({ ids: a.wids.concat(a.dads), xids: a.tx }), false, rafMid_(d, 'w'), 'הזוכים בהגרלה'); } },
       { k: 'g', go: function () {
           return ghFire_(tx.at, tx.ab, '', '', '', 'הגרלה', 'hagrala', 'תלמיד', '',
-                         JSON.stringify({ insts: a.codes, xids: a.xg }), false,
-                         rafMid_(d, 'g'), 'תלמידי המוסדות שבהגרלה'); } }
+                         JSON.stringify({ insts: a.gcodes, xids: a.xg }), false,
+                         rafMid_(d, 'g'), 'כל התלמידים'); } }
     ];
     parts.forEach(function (x) {
       var o = d[x.k];
       /* בלי זוכים אין שליחה לזוכים — לעולם לא פילוח ריק (= כולם). */
       if (x.k === 'w' && !a.wids.length) { o.st = 'skip'; return; }
-      if (o.st === 'sent' || o.st === 'skip') return;
+      if (more && x.k !== 'g') return;
+      if ((o.st === 'sent' && !more) || o.st === 'skip') return;
       if (o.st === 'unk' && !force) return;
       o.st = 'pend'; o.at = new Date().toISOString(); o.msg = '';
       rafPartSave_(T, d);
@@ -8016,7 +8035,8 @@ function rafPst_(P) {
     rafPartSave_(T, d);
     var out = rafPartsOut_(d);
     out.dlv = { w: testDlv_(rafMid_(d, 'w')), g: testDlv_(rafMid_(d, 'g')) };
-    if (!out.done) { out.aud = rafAud_(d); out.aud.exp = rafExp_(out.aud); }
+    /* תמיד — גם כשהכול יצא, בשביל השלמת ההודעה הכללית (`more`). */
+    out.aud = rafAud_(d); out.aud.exp = rafExp_(out.aud);
     out.status = 'ok';
     return out;
   } finally { lock.releaseLock(); }
@@ -8195,7 +8215,8 @@ function raffleRes_(P) {
     d = p ? { codes: p.codes, rows: p.rows } : { codes: '', rows: [] };
     try { rc.put('raf:pub', JSON.stringify(d), 60); } catch (x2) {}
   }
-  if (!d.rows.length || rafCodes_(d.codes).indexOf(inst) < 0) return none;
+  /* גם תלמיד ממוסד שלא נכנס להגרלה רואה את הזוכים — כמו ההודעה הכללית. */
+  if (!d.rows.length) return none;
   var ck = 'raf:r:' + inst + ':' + mine.join(','), c0 = rc.get(ck);
   if (c0) { try { return JSON.parse(c0); } catch (x3) {} }
   /* הזהות: אחד המזהים שייך לתלמיד של המוסד הזה. */

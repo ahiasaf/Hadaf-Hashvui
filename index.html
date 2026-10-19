@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.293';
+var APP_VERSION = '8.99.294';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15078,6 +15078,20 @@ function rafTodo(force) {
     return o.st === 'none' || o.st === 'fail' || (force && o.st === 'unk');
   });
 }
+function rafMiss() {
+  if (!rafD || !rafD.g || rafD.g.st !== 'sent' || !rafPs || !rafPs.aud || !rafPs.dlv || !rafPs.dlv.g) return 0;
+  var got = 0, dv = rafPs.dlv.g.dev || {};
+  for (var k in dv) got += dv[k] || 0;
+  return Math.max(0, rafPs.aud.all.dev - got);
+}
+function rafMore() {
+  var n = rafMiss();
+  if (!n || !confirm(fill(UI.rafMoreQ, { n: n }))) return;
+  rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafPs.aud.exp, who: 'רכז', more: '1' }, function (d) {
+    if (d.status === 'changed') { rafPs.aud = d.aud; rafPs.aud.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
+    rafPubDone(d);
+  });
+}
 function rafRetry(force) {
   if (!rafD || !rafPs || !rafPs.aud) return;
   var L = rafTodo(force);
@@ -15093,8 +15107,7 @@ function rafRetry(force) {
 
 /* ---- התצוגה המקדימה: עמוד התוצאות האמיתי (hagrala.html), בתוך הניהול ----
    הנתונים עוברים מהזיכרון של המסך הזה לעמוד שבמסגרת (rafPvGet), ולא
-   בכתובת — עמוד שנפתח מבחוץ אינו מקבל אותם. אותו קיצור שם כמו
-   raffleRes_: שם פרטי ואות ראשונה של המשפחה. */
+   בכתובת — עמוד שנפתח מבחוץ אינו מקבל אותם. שם מלא, כמו raffleRes_. */
 var rafPv = { w: '', g: '' }, rafPvOn = { w: false, g: false };
 function rafPvCodes(k) {
   return (rafD ? rafD.rows : []).filter(function (x) { return k === 'g' || x.win; }).map(function (x) { return x.code; });
@@ -15108,8 +15121,7 @@ function rafPvGet(k) {
   var c = rafPvCode(k), out = { mine: null, me: false, others: [] };
   rafD.rows.forEach(function (x) {
     if (!x.win) return;
-    var p = String(x.name || '').split(/\s+/);
-    var o = { name: p[0] + (p.length > 1 ? ' ' + p[p.length - 1].charAt(0) + "'" : ''), inst: x.inst || rafInstName(x.code) };
+    var o = { name: String(x.name || '').trim(), inst: x.inst || rafInstName(x.code) };
     if (x.code === c) { out.mine = o; out.me = k === 'w'; } else out.others.push(o);
   });
   return out;
@@ -15355,8 +15367,7 @@ function admRaffle() {
         (rafA.win.dad ? '<br>' + esc(fill(UI.rafWinDad, { n: rafA.win.dad })) : '') + '</p>' +
         rafMsgHtml('w') +
         '<div class="pp-h">' + esc(UI.rafAllMsg) + '</div>' +
-        '<p class="h">' + esc(fill(UI.rafAllAud, { k: rafA.codes.length, n: rafA.all.n, ppl: rafA.all.ppl, dev: rafA.all.dev })) +
-        '<br>' + esc(rafA.codes.map(rafInstName).join(' · ')) +
+        '<p class="h">' + esc(fill(UI.rafAllAud, { k: (rafA.gcodes || rafA.codes).length, n: rafA.all.n, ppl: rafA.all.ppl, dev: rafA.all.dev })) +
         (noW.length ? '<br>' + esc(fill(UI.rafNoWin, { list: noW.join(' · ') })) : '') + '</p>' +
         rafMsgHtml('g') +
         '<p class="h">' + esc(UI.rafAudNote) +
@@ -15375,6 +15386,13 @@ function admRaffle() {
       h += '<div class="plist">' + rafPartHtml('w') + rafPartHtml('g') + '</div>' +
         (allOk ? '<p class="h">' + esc(UI.rafAllOk) + '</p>' : '') +
         '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafPst()">' + esc(rafBusy ? UI.rafBusy : UI.rafPstBtn) + '</button>';
+      /* השלמת ההודעה הכללית — מכשירי תלמידים שבקהל ועוד לא קיבלו (למשל
+         ממוסד שלא היה בהגרלה, לפני 8.99.294). מי שקיבל — לא מקבל שוב. */
+      var miss = rafMiss();
+      if (miss > 0) {
+        h += '<p class="h" style="margin-top:8px">' + esc(fill(UI.rafMoreN, { n: miss })) + '</p>' +
+          '<button class="btn p"' + dis + ' onclick="rafMore()">' + esc(UI.rafMore) + '</button>';
+      }
       if (rafPs && !rafPs.done && rafPs.aud) {
         var unk = ['w', 'g'].some(function (k) { return rafD[k] && rafD[k].st === 'unk'; });
         h += '<p class="h">' + esc(fill(UI.rafRetryAud, { wd: rafPs.aud.win.dev, gd: rafPs.aud.all.dev })) + '</p>' +
