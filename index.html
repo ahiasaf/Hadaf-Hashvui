@@ -2204,6 +2204,11 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
              border:1px solid var(--rule);border-radius:12px;background:var(--surface);color:var(--ink)}
 .aw-ta{resize:vertical}
 .am-b.aw-nc{font-size:.95rem}
+/* רשימת שליחה: לחיצה על שם אוספת אותו; ברשימה — "נשלח" אחרי הלחיצה. */
+.aw-nm{flex:1;text-align:right;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}
+.am-cr.aw-on{background:var(--sunk);border-radius:10px;padding-right:8px;padding-left:8px}
+.am-cr.aw-on .aw-nm{font-weight:800;color:var(--blue)}
+.aw-wa.aw-done{background:var(--sunk);color:var(--ink-3)}
 /* מפת הכיתה — מנקודת המבט של המורה: שולחן המורה למטה, שולחן
    ראשון בכל טור הוא הקרוב אליו, כיסא מעל כל חצי שולחן. */
 .am-room{margin:6px 0 14px;padding:12px 8px 0;background:var(--sunk);border-radius:var(--r)}
@@ -18600,6 +18605,13 @@ function amdaPull() {
 /* ---------- העמדה ----------
    `kind` מגיע מהכפתור שבניהול: 'd' הדף השבועי, 'o' נושא אחר.
    בלעדיו — חזרה אחרי רענון, לאותה פתיחה בדיוק. */
+/* "אני מסמן בעצמי" — אצל הרכז, כמו אצל איש הצוות (attOpen). */
+function amdaOpenSelf(kind) {
+  var r = amdaRoster();
+  if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
+  amdaSt.self = true; amdaSt.all = true; amdaSt.sel = {};
+  amdaOpen(kind);
+}
 function amdaOpen(kind) {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
@@ -19694,8 +19706,11 @@ function admAmda(body) {
           }).join('') + '</div>' +
           '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT('admLvQz')) + '</p>';
       }
-      h += '<button class="btn p" style="width:100%;margin:6px 0 12px" onclick="amdaOpen(amdaKindEff())">' +
-             esc(amdaT('admOne')) + '</button>';
+      h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpen(amdaKindEff())">' +
+             esc(amdaT('admOne')) + '</button>' +
+           /* כמו אצל איש הצוות: בוחרים כיתה, מסמנים, ושומרים פעם אחת. */
+           '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpenSelf(amdaKindEff())">' +
+             esc(amdaT('admSelf')) + '</button>';
     }
   }
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
@@ -19771,7 +19786,7 @@ function admAmda(body) {
    לבד. מי שלא נמצא ברשימה לא נעלם: הוא בחיפוש ותחת "בלי כיתה".
    ============================================================ */
 var AMDA_PHONES = 'טלפוני תלמידים';
-var amdaWa = { g: '', c: '', q: '', msg: '', admAt: 0 };
+var amdaWa = { g: '', c: '', q: '', msg: '', admAt: 0, view: '' };
 
 /* { at, rows:[[שכבה, משפחה, פרטי, טלפון], ...] } */
 function amdaPh() { return Store.get('amdaPh', null); }
@@ -21103,11 +21118,80 @@ function amdaWaIdx() {
 
 /* ---------- המסך ---------- */
 function amdaWaRow(s, i, where) {
-  return '<div class="am-cr"><span>' + esc(s.n) +
-    (where ? ' <i>' + esc(amdaG(s.g) + (s.c ? ' ' + s.c : ' · ' + amdaT('waNoCls'))) + '</i>' : '') + '</span>' +
+  var nm = esc(s.n) +
+    (where ? ' <i>' + esc(amdaG(s.g) + (s.c ? ' ' + s.c : ' · ' + amdaT('waNoCls'))) + '</i>' : '');
+  /* שם עם מספר — לחיצה עליו מוסיפה לרשימת השליחה (או מוציאה ממנה). */
+  var on = s.p && amdaWaL().sel[amdaWaK(s)];
+  return '<div class="am-cr' + (on ? ' aw-on' : '') + '">' +
+    (s.p ? '<button class="aw-nm" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="amdaWaSel(' + i + ')">' +
+           (on ? '✓ ' : '') + nm + '</button>' : '<span>' + nm + '</span>') +
     (s.p ? '<a class="aw-wa" href="#" target="_blank" rel="noopener" data-i="' + i +
            '" onclick="return amdaWaGo(this)">' + esc(amdaT('waBtn')) + '</a>'
          : '<i>' + esc(amdaT('waNoTel')) + '</i>') + '</div>';
+}
+/* ---------- רשימת שליחה ----------
+   "לסמן כל מיני תלמידים, ואז רשימה ארוכה שעוברים עליה: לוחץ
+   וואטסאפ, שולח, והוא מסמן שנשלח." הבחירה והסימון "נשלח" נשמרים
+   במכשיר (כמו הטלפונים עצמם), לפי שכבה + שם — כך רענון באמצע
+   הרשימה אינו מאבד את המקום. */
+function amdaWaK(s) { return s.g + '|' + s.n; }
+function amdaWaL() {
+  var l = Store.get('amdaWaL', null);
+  return l && l.sel && l.sent ? l : { sel: {}, sent: {} };
+}
+function amdaWaRe() {
+  var y = window.pageYOffset || 0;
+  admPane();
+  try { window.scrollTo(0, y); } catch (e) {}
+}
+function amdaWaSel(i) {
+  var s = amdaWaIdx().all[i], l = amdaWaL();
+  if (!s || !s.p) return;
+  var k = amdaWaK(s);
+  if (l.sel[k]) { delete l.sel[k]; delete l.sent[k]; } else l.sel[k] = 1;
+  Store.set('amdaWaL', l);
+  amdaWaRe();
+}
+function amdaWaView(v) {
+  amdaWa.view = v;
+  admPane();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
+function amdaWaClear() {
+  if (!confirm(amdaT('waListClrQ'))) return;
+  Store.set('amdaWaL', { sel: {}, sent: {} });
+  amdaWaView('');
+}
+/* מי שברשימה, בסדר קבוע (שכבה, כיתה, שם) — שורה שנשלחה אינה זזה. */
+function amdaWaPicks() {
+  var all = amdaWaIdx().all, l = amdaWaL(), out = [], i;
+  for (i = 0; i < all.length; i++) if (all[i].p && l.sel[amdaWaK(all[i])]) out.push(i);
+  out.sort(function (a, b) {
+    var x = all[a], y = all[b];
+    if (x.g !== y.g) return AMDA_GRADES.indexOf(x.g) - AMDA_GRADES.indexOf(y.g);
+    if (x.c !== y.c) return x.c === '' ? 1 : y.c === '' ? -1 : x.c - y.c;
+    return x.n < y.n ? -1 : 1;
+  });
+  return out;
+}
+function amdaWaListHtml() {
+  var all = amdaWaIdx().all, l = amdaWaL(), pk = amdaWaPicks(), sent = 0;
+  pk.forEach(function (i) { if (l.sent[amdaWaK(all[i])]) sent++; });
+  var h = '<div class="adm-card"><h4>' + esc(amdaT('waListH', { s: sent, n: pk.length })) + '</h4>' +
+    '<p class="h">' + esc(amdaT(pk.length && sent === pk.length ? 'waListDone' : 'waListLead')) + '</p>' +
+    '<div class="am-q">' + esc(amdaT('waMsg')) + '</div>' +
+    '<textarea class="aw-ta" rows="3" aria-label="' + esc(amdaT('waMsg')) + '" oninput="amdaWaMsgSet(this.value)">' +
+    esc(Store.get('amdaWaMsg', '') || '') + '</textarea>';
+  h += pk.map(function (i) {
+    var s = all[i], done = l.sent[amdaWaK(s)];
+    return '<div class="am-cr"><span>' + esc(s.n) + ' <i>' +
+      esc(amdaG(s.g) + (s.c ? ' ' + s.c : ' · ' + amdaT('waNoCls'))) + '</i></span>' +
+      '<a class="aw-wa' + (done ? ' aw-done' : '') + '" href="#" target="_blank" rel="noopener" data-i="' + i +
+      '" data-l="1" onclick="return amdaWaGo(this)">' + esc(amdaT(done ? 'waSent' : 'waBtn')) + '</a></div>';
+  }).join('');
+  return h + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+    '<button class="btn p" onclick="amdaWaView(\'\')">' + esc(amdaT('waListAdd')) + '</button>' +
+    '<button class="btn g" onclick="amdaWaClear()">' + esc(amdaT('waListClr')) + '</button></div></div>';
 }
 /* הכתובת נבנית ברגע הלחיצה — כך ההודעה תמיד העדכנית. */
 function amdaWaGo(a) {
@@ -21115,6 +21199,14 @@ function amdaWaGo(a) {
   if (!s || !s.p) return false;
   var msg = String(Store.get('amdaWaMsg', '') || '').split('{שם}').join(s.f || '');
   a.href = 'https://wa.me/972' + s.p.slice(1) + (msg.trim() ? '?text=' + encodeURIComponent(msg) : '');
+  /* ברשימת השליחה: הלחיצה היא ה"נשלח" — והשורה מסומנת. */
+  if (a.getAttribute('data-l')) {
+    var l = amdaWaL();
+    l.sent[amdaWaK(s)] = 1;
+    Store.set('amdaWaL', l);
+    setTimeout(amdaWaRe, 400);
+    return true;
+  }
   /* אחרי שליחה — החיפוש מתרוקן, מוכן לשם הבא. */
   setTimeout(function () {
     var q = document.getElementById('aw-q');
@@ -21171,8 +21263,15 @@ function admAmdaWa(body) {
     ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';
 
   var h = '';
+  var nPk = ix.all.length ? amdaWaPicks().length : 0;
+  if (amdaWa.view === 'list' && nPk) { body.innerHTML = amdaWaListHtml(); return; }
+  amdaWa.view = '';
   if (ix.all.length) {
-    h += '<div class="adm-card"><div class="am-q" style="margin-top:0">' + esc(amdaT('waFind')) + '</div>' +
+    h += '<div class="adm-card">' +
+      (nPk ? '<button class="btn p" style="width:100%;margin:0 0 10px" onclick="amdaWaView(\'list\')">' +
+             esc(amdaT('waListGo', { n: nPk })) + '</button>' : '') +
+      '<p class="h" style="margin-top:0">' + esc(amdaT('waSelHint')) + '</p>' +
+      '<div class="am-q" style="margin-top:0">' + esc(amdaT('waFind')) + '</div>' +
       '<input type="search" class="aw-q" id="aw-q" aria-label="' + esc(amdaT('waFind')) + '" value="' + esc(amdaWa.q) +
       '" oninput="amdaWaFind(this.value)">' +
       '<div id="aw-res">' + amdaWaResHtml() + '</div>' +
