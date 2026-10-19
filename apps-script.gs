@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 85;
+var SCRIPT_VERSION = 86;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1799,6 +1799,19 @@ function doGet(e) {
       } catch (eP) {}
     }
     return reply_(e, bd);
+  }
+
+  /* ---- סקירת הישיבות (ממשק ניהול התוכנית) ----
+     שתי סיסמאות: READ_KEY (הבעלים) ו-OV_KEY (קישור המנהלים).
+     מה שיוצא כאן הוא רק מה שבטבלת הסקירה: שם, מספרים, רכז
+     בשטח ומשפט סיכום. אנשי קשר, טלפונים והיסטוריה אינם נקראים
+     כאן בכלל — הם בגיליון אחר, ונשארים מאחורי READ_KEY. ראו ov_. */
+  if (e && e.parameter && e.parameter.ov) {
+    var ovRes;
+    try { ovRes = ov_(e.parameter); }
+    catch (ovErr) { ovRes = { status: 'error', message: String(ovErr) }; }
+    ovRes.ov = 1;
+    return reply_(e, ovRes);
   }
 
   /* ---- עמוד הצוות ----
@@ -5501,6 +5514,7 @@ function autoRecount() {
   /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
   try { amdaSyncLocked_(); } catch (ae) {}
   recount_(); recountLearn_(true); backupDaily_();
+  try { ovSync_(true); } catch (oe) {}
 }
 
 /* ============================================================
@@ -8683,5 +8697,260 @@ function testRoute_(e) {
     } finally { lock.releaseLock(); }
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
+  }
+}
+
+/* ============================================================
+   ממשק ניהול התוכנית — טבלת הסקירה (19.10.2026).
+   ============================================================
+   טבלת גוגל נפרדת ("ממשק ניהול תוכנית הדף השבועי", לשונית
+   "סקירה"), שאחיאסף מעביר בין המנהלים. **היא המקור** לשלושה
+   שדות שאדם ממלא: לומדים בפועל, רכז בשטח, משפט סיכום. הממשק
+   באפליקציה קורא וכותב אותם דרך כאן, ומי שעורך ישירות בטבלה
+   — רואה את זה בממשק בקריאה הבאה. מקור אחד, ולכן אין "מי גובר".
+
+   הכיוון השני: "נרשמו באפליקציה" ו"דווחו בנוכחות בלבד" נכתבים
+   לטבלה מהמונים (ovSync_), בכל שעה ובכל פתיחה של הסקירה.
+   **"לומדים בפועל" אינו נגזר משום מספר** — תא ריק נשאר ריק.
+
+   המזהה של הטבלה אינו בקוד (הריפו ציבורי, והטבלה פתוחה לעריכה
+   למי שיש לו הקישור): הוא נמצא פעם אחת לפי השם בדרייב ונשמר
+   ב-OV_ID, או מודבק בניהול (ov=sheet).
+   ============================================================ */
+var OV_NAME_ = 'ממשק ניהול תוכנית הדף השבועי';
+var OV_TAB_  = 'סקירה';
+var OV_HEAD_ = { name: 'מוסד', coord: 'רכז בשטח', reg: 'נרשמו באפליקציה', act: 'לומדים בפועל',
+                 note: 'הערות', joined: 'הצטרף לתוכנית', att: 'דווחו בנוכחות בלבד',
+                 sys: 'סה"כ לפי המערכת', head: 'ראש חטיבה', rosh: 'ראש ישיבה',
+                 src: 'הערת מקור', code: 'קוד' };
+
+function ovNameKey_(s) {
+  return String(s || '').replace(/["'״׳]/g, '').replace(/[—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function ovKey_() { return prop_('OV_KEY', ''); }
+function ovSheet_() {
+  var P = PropertiesService.getScriptProperties(), id = P.getProperty('OV_ID') || '', ss = null;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    var it = DriveApp.getFilesByName(OV_NAME_);
+    while (it.hasNext()) {
+      var f = it.next();
+      if (f.getMimeType() !== MimeType.GOOGLE_SHEETS || f.isTrashed()) continue;
+      ss = SpreadsheetApp.openById(f.getId());
+      P.setProperty('OV_ID', f.getId());
+      break;
+    }
+  }
+  if (!ss) return null;
+  return ss.getSheetByName(OV_TAB_) || ss.getSheets()[0];
+}
+/* הטבלה נערכת ביד: הכותרת נמצאת לפי "מוסד" ולא לפי מספר שורה,
+   והעמודות לפי הכותרת. השורות נגמרות בשורה ריקה או בשורת סה"כ. */
+function ovTable_(sh) {
+  var all = sh.getLastRow() ? sh.getDataRange().getValues() : [];
+  var hr = -1, cols = {};
+  for (var r = 0; r < Math.min(all.length, 12) && hr < 0; r++) {
+    for (var c = 0; c < all[r].length; c++) {
+      if (String(all[r][c]).trim() === OV_HEAD_.name) { hr = r; break; }
+    }
+  }
+  if (hr < 0) return null;
+  var head = all[hr].map(function (h) { return String(h).trim(); });
+  Object.keys(OV_HEAD_).forEach(function (k) {
+    var want = OV_HEAD_[k];
+    for (var i = 0; i < head.length; i++) {
+      if (head[i] === want || (k === 'note' && head[i].indexOf(want) === 0)) { cols[k] = i; return; }
+    }
+  });
+  var rows = [];
+  for (var j = hr + 1; j < all.length; j++) {
+    var nm = String(all[j][cols.name] || '').trim();
+    if (!nm || /^סה["״]כ/.test(nm)) break;
+    rows.push({ r: j + 1, v: all[j] });
+  }
+  return { sh: sh, hr: hr + 1, cols: cols, rows: rows, w: head.length };
+}
+function ovCell_(T, row, k) {
+  var i = T.cols[k];
+  if (i === undefined) return '';
+  var v = row.v[i];
+  if (v === true) return 'TRUE';
+  if (v === false) return 'FALSE';
+  return v == null ? '' : String(v).trim();
+}
+/* עמודת "קוד" — נוספת פעם אחת, מוסתרת, ליד העמודות המקופלות. */
+function ovCodeCol_(T) {
+  if (T.cols.code !== undefined) return T.cols.code;
+  var col = T.w + 1;
+  T.sh.getRange(T.hr, col).setValue(OV_HEAD_.code);
+  try { T.sh.hideColumns(col); } catch (e) {}
+  T.cols.code = col - 1; T.w = col;
+  return T.cols.code;
+}
+/* המונים (לשונית "מונים") לפי קוד: נרשמו, דווחו בנוכחות בלבד.
+   null = לא נקרא — ואז לא נכתב כלום (קריאה שנכשלה אינה אפס). */
+function ovCounts_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(COUNT_TAB);
+  if (!sh) return null;
+  var a = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+  if (!a.length) return null;
+  var h = a[0].map(function (x) { return String(x).trim(); });
+  var ic = h.indexOf('קוד ישיבה'), iN = h.indexOf('מצטרפים'), iR = h.indexOf('נרשמו'), iA = h.indexOf('דווחו בלבד');
+  if (ic < 0 || iN < 0) return null;
+  var m = {};
+  for (var i = 1; i < a.length; i++) {
+    var code = String(a[i][ic] || '').trim();
+    if (!code) continue;
+    var n = +a[i][iN] || 0;
+    m[code] = { n: n, reg: iR >= 0 ? (+a[i][iR] || 0) : n, att: iA >= 0 ? (+a[i][iA] || 0) : 0 };
+  }
+  return m;
+}
+/* האפליקציה ← הטבלה: שני המספרים שהמערכת יודעת. רק תא שהשתנה
+   נכתב, כדי לא לדרוס עריכה שקורית באותו רגע בעמודה אחרת. */
+function ovSync_(force) {
+  var cache = CacheService.getScriptCache();
+  if (!force && cache.get('ovSyncAt')) return null;
+  var sh = ovSheet_();
+  if (!sh) return null;
+  var T = ovTable_(sh), C = ovCounts_();
+  if (!T || !C) return T;
+  T.rows.forEach(function (row) {
+    var code = ovCell_(T, row, 'code');
+    if (!code) return;
+    var x = C[code] || { reg: 0, att: 0 };
+    [['reg', x.reg], ['att', x.att]].forEach(function (p) {
+      var i = T.cols[p[0]];
+      if (i === undefined) return;
+      if (String(row.v[i]) === String(p[1])) return;
+      sh.getRange(row.r, i + 1).setValue(p[1]);
+      row.v[i] = p[1];
+    });
+  });
+  cache.put('ovSyncAt', '1', 120);
+  return T;
+}
+function ovRow_(T, row, owner) {
+  var act = ovCell_(T, row, 'act');
+  var o = { name: ovCell_(T, row, 'name'), code: ovCell_(T, row, 'code'),
+            coord: ovCell_(T, row, 'coord'), reg: ovCell_(T, row, 'reg'),
+            att: ovCell_(T, row, 'att'), act: act, note: ovCell_(T, row, 'note') };
+  if (owner) {
+    o.joined = ovCell_(T, row, 'joined'); o.head = ovCell_(T, row, 'head');
+    o.rosh = ovCell_(T, row, 'rosh'); o.src = ovCell_(T, row, 'src');
+  }
+  return o;
+}
+/* תא שמתחיל ב-= + - @ היה הופך לנוסחה בגיליון. */
+function ovSafe_(v) {
+  v = String(v == null ? '' : v).replace(/\s+$/, '');
+  return /^[=+\-@]/.test(v) ? "'" + v : v;
+}
+function ov_(p) {
+  var key = String(p.key || ''), op = String(p.ov || '');
+  var owner = !!READ_KEY && key === READ_KEY;
+  var ovk = ovKey_(), mgr = !!ovk && key === ovk;
+  if (!owner && !mgr) {
+    return { status: 'denied', message: ovk || READ_KEY ? 'הקישור אינו תקף' : 'הסקירה עדיין לא הופעלה' };
+  }
+
+  /* --- הבעלים בלבד: קישור המנהלים ומיקום הטבלה --- */
+  if (op === 'key' || op === 'sheet') {
+    if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+    var P = PropertiesService.getScriptProperties();
+    if (op === 'sheet') {
+      var m = /[-\w]{25,}/.exec(String(p.id || ''));
+      if (!m) return { status: 'error', message: 'לא זוהה מזהה גיליון' };
+      SpreadsheetApp.openById(m[0]);
+      P.setProperty('OV_ID', m[0]);
+      return { status: 'ok' };
+    }
+    if (!ovk || p.rot === '1') {
+      ovk = Utilities.getUuid().replace(/-/g, '').slice(0, 14);
+      P.setProperty('OV_KEY', ovk);
+    }
+    return { status: 'ok', k: ovk };
+  }
+
+  var lock = null;
+  if (op !== 'get') {
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(15000)) return { status: 'error', message: 'עומס — נסו שוב' };
+  }
+  try {
+    var T = op === 'get' ? ovSync_(false) : null;
+    if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
+    if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה' };
+
+    /* --- הבעלים: קוד לכל שורה ששמה זהה לשם ברשימת המוסדות,
+           והוספת מוסד שאינו בטבלה. **רק שם זהה** — שם דומה
+           אינו משויך כאן; הוא מוצג לבעלים כהצעה. --- */
+    if (op === 'codes' || op === 'add') {
+      if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+      var list = parse_(p.m) || [], ci = ovCodeCol_(T), done = 0;
+      if (op === 'codes') {
+        list.forEach(function (it) {
+          T.rows.forEach(function (row) {
+            if (ovCell_(T, row, 'code') || ovNameKey_(ovCell_(T, row, 'name')) !== ovNameKey_(it.name)) return;
+            T.sh.getRange(row.r, ci + 1).setValue(String(it.code));
+            row.v[ci] = String(it.code); done++;
+          });
+        });
+        if (done) { CacheService.getScriptCache().remove('ovSyncAt'); T = ovSync_(true) || T; }
+      } else {
+        var it0 = list[0] || {};
+        if (!it0.name || !it0.code) return { status: 'error', message: 'חסר שם או קוד' };
+        if (T.rows.some(function (row) { return ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(it0.name); })) {
+          return { status: 'error', message: 'המוסד כבר בטבלה' };
+        }
+        /* שורה חדשה **בתוך** טווח השורות, כדי שנוסחת הסה"כ תתרחב
+           אליה; הנוסחה של השורה (סה"כ לפי המערכת) מועתקת מהשכנה. */
+        var at = T.rows.length ? T.rows[T.rows.length - 1].r : T.hr + 1;
+        T.sh.insertRowBefore(at);
+        var nr = at;
+        T.sh.getRange(nr, T.cols.name + 1).setValue(ovSafe_(it0.name));
+        T.sh.getRange(nr, ci + 1).setValue(String(it0.code));
+        if (T.cols.sys !== undefined) {
+          T.sh.getRange(nr + 1, T.cols.sys + 1).copyTo(T.sh.getRange(nr, T.cols.sys + 1));
+        }
+        T = ovTable_(T.sh); ovSync_(true);
+        T = ovTable_(T.sh);
+      }
+    }
+
+    /* --- עדכון שדה: לומדים בפועל / משפט סיכום (בעלים ומנהלים),
+           רכז בשטח (בעלים בלבד — רק אחיאסף מסמן רכז פעיל). --- */
+    if (op === 'set') {
+      var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
+      if (['act', 'note', 'coord'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      if (f === 'coord' && !owner) return { status: 'denied', message: 'רכז בשטח — רק לבעלים' };
+      if (f === 'act' && v && !/^\d{1,5}$/.test(v)) return { status: 'error', message: 'מספר בלבד, או ריק' };
+      if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
+      var hit = null;
+      T.rows.forEach(function (row) {
+        if (hit) return;
+        if ((p.code && ovCell_(T, row, 'code') === String(p.code)) ||
+            ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) hit = row;
+      });
+      if (!hit) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      var col = T.cols[f];
+      if (col === undefined) return { status: 'error', message: 'העמודה לא נמצאה בטבלה' };
+      var cell = T.sh.getRange(hit.r, col + 1);
+      if (f === 'act') cell.setValue(v === '' ? '' : +v); else cell.setValue(ovSafe_(v));
+      SpreadsheetApp.flush();
+      /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
+      hit.v[col] = cell.getValue();
+      return { status: 'ok', row: ovRow_(T, hit, owner) };
+    }
+
+    var C = ovCounts_() || {}, inT = {}, other = [];
+    T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) inT[c] = 1; });
+    Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
+    var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner); }),
+                other: other, owner: owner, at: new Date().toISOString() };
+    if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; }
+    return out;
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
