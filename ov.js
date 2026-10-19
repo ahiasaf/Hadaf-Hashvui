@@ -48,6 +48,7 @@
     '.ov-v.big{min-width:74px;background:#E8EEF8}.ov-v.big b{font-size:1.55rem;color:#0B2550}' +
     '.ov-v.big.u b{font-size:.78rem;color:#8C681F}' +
     '.ov-split{font-size:.82rem;font-weight:700;color:#5A6780;margin:0 0 8px}' +
+    '.ov-e.ov-go{margin:0 0 8px;background:#17468F;border-color:#17468F;color:#fff}' +
     '.ov-v.u b{font-size:.78rem;color:#8C681F;padding:3px 0}.ov-v.u{background:#FBF1DB}' +
     '.ov-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid #E5DAC3;background:#fff;' +
       'color:#17468F;font-size:1rem;font-weight:800;cursor:pointer;transition:transform .15s}' +
@@ -111,10 +112,14 @@
   /* המספר של הישיבה — כל הלומדים: נרשמו באפליקציה ודווחו בנוכחות.
      "המנהלים אוהבים לראות את המספרים הגדולים" — מספר אחד שלם, והפירוק
      (באפליקציה / בנוכחות) רק אחרי החץ. null = אין שום נתון. */
+  /* מהשרת (ovTotal_): נרשמו באפליקציה + לומדים בישיבה − חופפים.
+     שרת ישן שעוד לא שולח `tot` — נרשמו + נוכחות, כמו קודם. */
   function total(r) {
+    if (r.tot !== undefined) return has(r.tot) ? num(r.tot) : null;
     if (!has(r.reg) && !has(r.att)) return null;
     return num(r.reg) + num(r.att);
   }
+  function inYesh(r) { return r.yn !== undefined ? num(r.yn) : num(r.att); }
   /* מצב השורה — לפי מה שיש בה, לא לפי סף: יש לומדים / אין עדיין. */
   function status(r) { return total(r) ? 'ok' : 'none'; }
   function sorted(rows) {
@@ -145,7 +150,15 @@
   }
 
   function formHtml(r, i, owner) {
+    var num0 = function (id, lbl, v, ph) {
+      return '<label for="' + id + '">' + esc(lbl) + '</label>' +
+        '<input id="' + id + '" inputmode="numeric" pattern="[0-9]*" value="' + esc(v) + '" placeholder="' + esc(ph) + '">';
+    };
     return '<div class="ov-f">' +
+      /* שני המספרים של הבעלים — לומדים בישיבה וחופפים. ריק = ברירת המחדל. */
+      (owner && r.yesh !== undefined
+        ? num0('ov-y-' + i, U('ovYesh'), r.yset, fill(U('ovYeshPh'), { n:num(r.yesh) })) +
+          num0('ov-o-' + i, U('ovOver'), r.over, U('ovOverPh')) : '') +
       (owner ? '<label for="ov-c-' + i + '">' + esc(U('ovCoord')) + '</label>' +
         '<input id="ov-c-' + i + '" value="' + esc(r.coord) + '" placeholder="' + esc(U('ovCoordPh')) + '">' : '') +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
@@ -176,7 +189,11 @@
     if (open) {
       h += '<div class="ov-b">';
       /* הפירוק — רק כאן, אחרי החץ. */
-      if (t != null) h += '<div class="ov-split">' + esc(fill(U('ovSplit'), { a:num(r.reg), b:num(r.att) })) + '</div>';
+      if (t != null) h += '<div class="ov-split">' + esc(fill(U('ovSplit'), { a:num(r.reg), b:inYesh(r) })) +
+        (st.owner && num(r.over) ? ' · ' + esc(fill(U('ovOverShow'), { n:num(r.over) })) : '') + '</div>';
+      /* הכניסה למסך הישיבה (אנשי קשר, היסטוריה, עדכון) — כפתור ברור,
+         ולא רק השם עם קו. */
+      if (st.go && !st.solo) h += '<button class="ov-e ov-go" data-ov="go" data-i="' + i + '">' + esc(U('ovGoIn')) + '</button> ';
       if (ed) h += formHtml(r, i, st.owner);
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
@@ -206,7 +223,10 @@
         c = document.getElementById('ov-c-' + i);
     var av = a ? a.value.replace(/[^\d]/g, '') : r.act, nv = n ? n.value.trim() : r.note,
         cv = c ? c.value.trim() : r.coord;
+    var y = document.getElementById('ov-y-' + i), o = document.getElementById('ov-o-' + i);
     var todo = [];
+    if (y && y.value.replace(/[^\d]/g, '') !== String(r.yset || '')) todo.push(['yesh', y.value.replace(/[^\d]/g, '')]);
+    if (o && o.value.replace(/[^\d]/g, '') !== String(r.over || '')) todo.push(['over', o.value.replace(/[^\d]/g, '')]);
     if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
     if (nv !== String(r.note || '')) todo.push(['note', nv]);
     if (c && cv !== String(r.coord || '')) todo.push(['coord', cv]);
@@ -220,10 +240,7 @@
       }
       st.save(r, todo[j][0], todo[j][1]).then(function (back) {
         /* מה שחזר מהטבלה — ולא מה שהוקלד. */
-        if (back) {
-          r.note = back.note; r.coord = back.coord; r.reg = back.reg; r.att = back.att;
-          if (back.learn != null) r.learn = back.learn;
-        }
+        if (back) for (var bk in back) if (back.hasOwnProperty(bk) && bk !== 'k') r[bk] = back[bk];
         step(j + 1);
       }, function (err) {
         st.msg[r.k] = { t:fill(U('ovSaveFail'), { t:(err && err.message) || err || '' }), bad:1 };

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 92;
+var SCRIPT_VERSION = 93;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -190,7 +190,10 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'מסירות',
                     /* ההודעות שמוצגות באפליקציה — לכל הודעה, מזהי האנשים
                        שהיא נועדה להם. ראו `inbox` ו-inboxRow ב-push-send.js. */
-                    'תיבה'];
+                    'תיבה',
+                    /* המספרים שרק הבעלים ממלא בסקירה — לומדים בישיבה
+                       וחופפים. ראו ovOwn_. */
+                    'סקירה — בעלים'];
 
 /* ============================================================
    הלשוניות של מוקד השיחות — תמיד לגיליון אנשי הקשר.
@@ -8997,11 +9000,103 @@ function ovLearners_() {
     return out;
   } catch (err) { return null; }
 }
-function ovRow_(T, row, owner, L) {
+/* ============================================================
+   כמה לומדים בישיבה — המספר הכחול (19.10.2026).
+   ============================================================
+   "יש עדכון אחד יציב: מי שהתקין ונרשם דרך האפליקציה. כל מספר אחר
+   שמוסיפים מעל זה הוא פשוט לומדים בישיבה." ולכן:
+
+     סה"כ = נרשמו באפליקציה + לומדים בישיבה − חופפים
+
+   · **לומדים בישיבה** — מה שהבעלים הקליד; ובלי — הדיווח של ראש
+     החטיבה בהרשמה (תלמידים (הערכה), ובלעדיו סה"כ הגמרות — כמו
+     pplData), או מי שדווח בנוכחות בלבד, הגדול מביניהם.
+   · **חופפים** — כמה מאלה כבר נספרו באפליקציה. ברירת המחדל: אין
+     חפיפה. רק הבעלים רואה וממלא, ולא יותר מאף אחד מהשניים.
+
+   שני המספרים הידניים בלשונית פרטית ('סקירה — בעלים': קוד | לומדים
+   בישיבה | חופפים | עודכן) — לא בטבלה שעוברת בין המנהלים.
+   null = הקריאה נכשלה; אז נשארת ברירת המחדל, ולא נכתב דבר. */
+var OV_OWN_TAB_ = 'סקירה — בעלים';
+var OV_OWN_COLS_ = ['קוד', 'לומדים בישיבה', 'חופפים', 'עודכן'];
+function ovOwn_() {
+  try {
+    var sh = sheet_(OV_OWN_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, OV_OWN_COLS_);
+    var a = sh.getDataRange().getDisplayValues(), h = a[0].map(function (x) { return String(x).trim(); });
+    var ic = h.indexOf('קוד'), iy = h.indexOf('לומדים בישיבה'), io = h.indexOf('חופפים');
+    if (ic < 0) return null;
+    var m = {};
+    for (var i = 1; i < a.length; i++) {
+      var c = String(a[i][ic] || '').trim();
+      if (c) m[c] = { r: i + 1, yesh: iy >= 0 ? String(a[i][iy] || '').trim() : '',
+                      over: io >= 0 ? String(a[i][io] || '').trim() : '' };
+    }
+    return { sh: sh, h: h, m: m };
+  } catch (e) { return null; }
+}
+function ovOwnSet_(code, f, v) {
+  var O = ovOwn_();
+  if (!O) throw new Error('הלשונית הפרטית לא נקראה');
+  var col = O.h.indexOf(f === 'yesh' ? 'לומדים בישיבה' : 'חופפים');
+  var at = O.h.indexOf('עודכן');
+  var hit = O.m[code];
+  if (!hit) {
+    if (v === '') return;
+    var row = [];
+    for (var i = 0; i < O.h.length; i++) row.push('');
+    row[O.h.indexOf('קוד')] = code;
+    O.sh.appendRow(row);
+    hit = { r: O.sh.getLastRow() };
+  }
+  O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : +v);
+  if (at >= 0) O.sh.getRange(hit.r, at + 1).setValue(new Date());
+}
+/* דיווח ראש החטיבה לפי קוד — מלשונית ההרשמות (פרטית). השורה האחרונה גוברת. */
+function ovReps_() {
+  var cache = CacheService.getScriptCache(), hit = cache.get('ovReps');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  try {
+    var sh = sheet_('הרשמות');
+    var a = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+    if (!a.length) return {};
+    var h = a[0].map(function (x) { return String(x).trim(); });
+    var ic = h.indexOf('קוד'), is = h.indexOf('תלמידים (הערכה)'), it = h.indexOf('סה"כ גמרות');
+    if (ic < 0) return null;
+    var m = {};
+    for (var i = 1; i < a.length; i++) {
+      var c = String(a[i][ic] || '').trim();
+      if (!c) continue;
+      var n = (is >= 0 ? parseInt(a[i][is], 10) : 0) || (it >= 0 ? parseInt(a[i][it], 10) : 0) || 0;
+      m[c] = n;
+    }
+    cache.put('ovReps', JSON.stringify(m), 600);
+    return m;
+  } catch (e) { return null; }
+}
+/* החשבון עצמו — מקום אחד, לבעלים ולמנהלים. */
+function ovTotal_(o, own, reps) {
+  var has = function (v) { return String(v == null ? '' : v).trim() !== ''; };
+  var app = parseInt(o.reg, 10) || 0, att = parseInt(o.att, 10) || 0;
+  var mine = own && own.m && o.code && own.m[o.code] ? own.m[o.code] : null;
+  var rep = reps && o.code ? (reps[o.code] || 0) : 0;
+  var set = mine && has(mine.yesh) ? (parseInt(mine.yesh, 10) || 0) : null;
+  var yesh = set != null ? set : Math.max(rep, att);
+  var over = mine && has(mine.over) ? (parseInt(mine.over, 10) || 0) : 0;
+  over = Math.max(0, Math.min(over, app, yesh));
+  var known = has(o.reg) || has(o.att) || set != null || rep > 0;
+  return { tot: known ? String(app + yesh - over) : '', yn: known ? String(yesh - over) : '',
+           yesh: String(yesh), yset: set != null ? String(set) : '', over: mine ? mine.over : '',
+           rep: rep ? String(rep) : '' };
+}
+function ovRow_(T, row, owner, L, own, reps) {
   var o = { name: ovCell_(T, row, 'name'), code: ovCell_(T, row, 'code'),
             coord: ovCell_(T, row, 'coord'), reg: ovCell_(T, row, 'reg'),
             att: ovCell_(T, row, 'att'), note: ovCell_(T, row, 'note') };
+  var X = ovTotal_(o, own, reps);
+  o.tot = X.tot; o.yn = X.yn;
   if (owner) {
+    o.yesh = X.yesh; o.yset = X.yset; o.over = X.over; o.rep = X.rep;
     o.learn = L && o.code ? String(L[o.code] || 0) : '';
     o.joined = ovCell_(T, row, 'joined'); o.head = ovCell_(T, row, 'head');
     o.rosh = ovCell_(T, row, 'rosh'); o.src = ovCell_(T, row, 'src');
@@ -9097,8 +9192,8 @@ function ov_(p) {
     if (op === 'set') {
       var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
       /* "לומדים בפועל" אינו נכתב לטבלה — הוא מחושב (ovLearners_). */
-      if (['note', 'coord'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
-      if (f === 'coord' && !owner) return { status: 'denied', message: 'רכז בשטח — רק לבעלים' };
+      if (['note', 'coord', 'yesh', 'over'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      if (f !== 'note' && !owner) return { status: 'denied', message: 'רק לבעלים' };
       if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
       var hit = null;
       T.rows.forEach(function (row) {
@@ -9107,6 +9202,15 @@ function ov_(p) {
             ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) hit = row;
       });
       if (!hit) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      /* לומדים בישיבה / חופפים — ללשונית הפרטית, לא לטבלה. */
+      if (f === 'yesh' || f === 'over') {
+        if (v && !/^\d{1,5}$/.test(v)) return { status: 'error', message: 'מספר בלבד, או ריק' };
+        var hc = ovCell_(T, hit, 'code');
+        if (!hc) return { status: 'error', message: 'לישיבה אין קוד בטבלה' };
+        ovOwnSet_(hc, f, v);
+        SpreadsheetApp.flush();
+        return { status: 'ok', row: ovRow_(T, hit, owner, ovLearners_(), ovOwn_(), ovReps_()) };
+      }
       var col = T.cols[f];
       if (col === undefined) return { status: 'error', message: 'העמודה לא נמצאה בטבלה' };
       var cell = T.sh.getRange(hit.r, col + 1);
@@ -9114,7 +9218,7 @@ function ov_(p) {
       SpreadsheetApp.flush();
       /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
       hit.v[col] = cell.getValue();
-      return { status: 'ok', row: ovRow_(T, hit, owner, owner ? ovLearners_() : null) };
+      return { status: 'ok', row: ovRow_(T, hit, owner, owner ? ovLearners_() : null, ovOwn_(), ovReps_()) };
     }
 
     /* "בלי ישיבה מהרשימה" — רק קודים שאינם בשום שורה, ורק כשיש שורות
@@ -9122,8 +9226,8 @@ function ov_(p) {
     var C = ovCounts_() || {}, inT = {}, other = [], anyCode = false;
     T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) { inT[c] = 1; anyCode = true; } });
     if (anyCode) Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
-    var L = owner ? ovLearners_() : null;
-    var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L); }),
+    var L = owner ? ovLearners_() : null, own = ovOwn_(), reps = ovReps_();
+    var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L, own, reps); }),
                 other: other, owner: owner, at: new Date().toISOString() };
     if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.actLeft = !!T.actLeft; }
     return out;
