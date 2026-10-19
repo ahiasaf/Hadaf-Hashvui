@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.282';
+var APP_VERSION = '8.99.283';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8432,12 +8432,12 @@ function ovSheetSet() {
   ovState.sheetIn = v;
   var b = document.getElementById('ov-sheet-b');
   if (b) { b.disabled = true; b.textContent = UI.ovAdmSheetBusy; }
-  var fail = function (t) {
+  var fail = function (t, dg) {
     if (b) { b.disabled = false; b.textContent = UI.ovAdmSheetBtn; }
-    alert(fill(UI.ovSaveFail, { t:t }));
+    alert(fill(UI.ovSaveFail, { t:t }) + (dg ? '\n\n' + fill(UI.ovDiag, { t:dg }) : ''));
   };
   scriptGet({ ov:'sheet', key:(CFG.readKey || '').trim(), id:v }).then(function (d) {
-    if (!d || d.status !== 'ok') { fail((d && d.message) || ''); return; }
+    if (!d || d.status !== 'ok') { fail((d && d.message) || '', d && d.diag); return; }
     ovState.sheetIn = '';
     ovLoad(true);
   }, function () { fail(UI.ovNet); });

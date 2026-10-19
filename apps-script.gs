@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 89;
+var SCRIPT_VERSION = 90;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8784,6 +8784,28 @@ function ovSheet_() {
   if (!ss) return null;
   return ss.getSheetByName(OV_TAB_) || ss.getSheets()[0];
 }
+/* אבחון לבעלים בלבד (ov=sheet שנכשל): מה הסקריפט פתח בפועל.
+   קריאה בלבד — לא נכתב דבר. קודי התווים של A4 חושפים תו נסתר
+   (כיווניות, רווח קשיח) ש-trim אינו מסיר. */
+function ovDiag_(ss, sh) {
+  var o = ['v' + SCRIPT_VERSION];
+  try { o.push('id=' + ss.getId()); o.push('file=' + ss.getName()); } catch (e) { o.push('file? ' + e); }
+  try { o.push('tabs=' + ss.getSheets().map(function (x) { return x.getName(); }).join('|')); } catch (e) {}
+  try {
+    o.push('tab=' + sh.getName());
+    o.push('rows=' + sh.getLastRow() + ' cols=' + sh.getLastColumn());
+    var dr = sh.getDataRange();
+    o.push('range=' + dr.getA1Notation());
+    var a4 = sh.getRange('A4').getValue(), s = String(a4);
+    var codes = [];
+    for (var i = 0; i < s.length && i < 12; i++) codes.push(s.charCodeAt(i));
+    o.push('A4=' + JSON.stringify(s) + ' type=' + typeof a4 + ' len=' + s.length + ' codes=' + codes.join(','));
+    var all = dr.getValues();
+    o.push('values=' + all.length + 'x' + (all[0] ? all[0].length : 0) +
+           ' v[3][0]=' + JSON.stringify(all[3] ? String(all[3][0]) : null));
+  } catch (e) { o.push('err ' + e); }
+  return o.join(' · ');
+}
 /* הטבלה נערכת ביד: הכותרת נמצאת לפי "מוסד" ולא לפי מספר שורה,
    והעמודות לפי הכותרת. השורות נגמרות בשורה ריקה או בשורת סה"כ. */
 function ovTable_(sh) {
@@ -8937,7 +8959,8 @@ function ov_(p) {
          "חיבור" שהצליח היה משאיר את המסך בדיוק כמו שהיה. */
       var ss1 = SpreadsheetApp.openById(m[0]);
       var sh1 = ss1.getSheetByName(OV_TAB_) || ss1.getSheets()[0];
-      if (!ovTable_(sh1)) return { status: 'error', message: 'הטבלה נפתחה, אבל לא נמצאה בה עמודת "' + OV_HEAD_.name + '"' };
+      if (!ovTable_(sh1)) return { status: 'error', message: 'הטבלה נפתחה, אבל לא נמצאה בה עמודת "' + OV_HEAD_.name + '"',
+                                   diag: ovDiag_(ss1, sh1) };
       P.setProperty('OV_ID', m[0]);
       CacheService.getScriptCache().remove('ovSyncAt');
       return { status: 'ok' };
