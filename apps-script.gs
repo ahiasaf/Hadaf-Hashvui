@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 93;
+var SCRIPT_VERSION = 94;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8911,12 +8911,29 @@ function ovCountsRead_() {
 function ovDropAct_(T) {
   var i = T.cols.act;
   if (i === undefined) return T;
-  var last = T.sh.getLastRow();
-  if (last > T.hr) {
-    var vals = T.sh.getRange(T.hr + 1, i + 1, last - T.hr, 1).getDisplayValues();
-    for (var r = 0; r < vals.length; r++) {
-      if (String(vals[r][0] || '').trim() !== '') { T.actLeft = true; return T; }
+  /* רק שורות הישיבות. שורת הסה"כ (נוסחה, שמציגה 0 גם כשהכול ריק)
+     אינה נתון — היא הלכה ומנעה את המחיקה לעד. */
+  var keep = [];
+  T.rows.forEach(function (row) {
+    var v = String(row.v[i] == null ? '' : row.v[i]).trim();
+    if (v === '') return;
+    keep.push({ row: row, v: v });
+  });
+  if (keep.length) {
+    /* מספר שהבעלים הקליד כאן הוא "לומדים בישיבה" — הוא עובר ללשונית
+       הפרטית (רק אם שם עוד ריק), ורק אז העמודה נמחקת. שורה בלי קוד,
+       מספר שאינו מספר, או לשונית שלא נקראה — העמודה נשארת. */
+    var O = ovOwn_();
+    if (!O) { T.actLeft = true; return T; }
+    for (var k = 0; k < keep.length; k++) {
+      var code = ovCell_(T, keep[k].row, 'code');
+      if (!code || !/^\d{1,5}$/.test(keep[k].v)) { T.actLeft = true; return T; }
     }
+    keep.forEach(function (x) {
+      var code = ovCell_(T, x.row, 'code'), m = O.m[code];
+      if (!m || String(m.yesh || '').trim() === '') ovOwnSet_(code, 'yesh', x.v);
+    });
+    SpreadsheetApp.flush();
   }
   T.sh.deleteColumn(i + 1);
   return ovTable_(T.sh) || T;
@@ -8928,8 +8945,8 @@ function ovSync_(force) {
   if (!sh) return null;
   var T = ovTable_(sh);
   if (!T) return T;
-  T = ovDropAct_(T);
   ovAutoCodes_(T);
+  T = ovDropAct_(T);
   var C = ovCounts_();
   if (!C) return T;                      /* קריאה שנכשלה — לא נוגעים בכלום */
   T.rows.forEach(function (row) {
@@ -9149,7 +9166,7 @@ function ov_(p) {
     var T = op === 'get' ? ovSync_(false) : null;
     if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
     if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה', why: owner ? ovWhy_ : '' };
-    if (op === 'get') { T = ovDropAct_(T); ovAutoCodes_(T); }
+    if (op === 'get') { ovAutoCodes_(T); T = ovDropAct_(T); }
 
     /* --- הבעלים: קוד לכל שורה ששמה זהה לשם ברשימת המוסדות,
            והוספת מוסד שאינו בטבלה. **רק שם זהה** — שם דומה
