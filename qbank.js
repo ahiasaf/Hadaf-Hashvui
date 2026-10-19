@@ -109,15 +109,25 @@ function QbSame(got, want) {
    ישנה — מזוהה לפי הנוסח. כך גם סימון שלא נכתב, או שנדרס, אינו
    מעלים שיבוץ. */
 function QbNorm(t) { return String(t || '').replace(/["'״׳“”„\s.,:;?!—–-]/g, ''); }
-/* אותה שאלה, גם כשאחד הצדדים שונה: אותו נוסח, או לפחות שלוש
-   מארבע התשובות זהות. כך מזוהות גם שאלות ששובצו לפני שהיה מזהה
-   (`qb`). השרת מחזיק עותק של הכלל הזה — qbLike_ ב-apps-script.gs. */
+/* אותה שאלה, גם כשאחד הצדדים נערך: השאלה דומה (זהה, אחת מכילה את
+   השנייה, או רוב המילים משותפות) — או שאחת התשובות זהה. רק בתוך אותו
+   דף, ולכן הדמיון מספיק. השרת מחזיק עותק של הכלל — qbLike_ ב-apps-script.gs. */
+function QbWords(t) {
+  return String(t || '').replace(/["'״׳“”„.,:;?!—–()-]/g, ' ').split(/\s+/).filter(function (w) { return w.length > 1; });
+}
 function QbLike(v, x) {
   if (!v || !x) return false;
-  if (QbNorm(v.q) && QbNorm(v.q) === QbNorm(x.q)) return true;
-  var n = 0, a = v.a || [], b = (x.a || []).map(QbNorm);
-  for (var i = 0; i < a.length; i++) if (QbNorm(a[i]) && b.indexOf(QbNorm(a[i])) >= 0) n++;
-  return n >= 3;
+  var p = QbNorm(v.q), q = QbNorm(x.q), i;
+  if (p && q && (p === q || (Math.min(p.length, q.length) >= 8 && (p.indexOf(q) >= 0 || q.indexOf(p) >= 0)))) return true;
+  var A = QbWords(v.q), B = QbWords(x.q), n = 0;
+  for (i = 0; i < A.length; i++) if (B.indexOf(A[i]) >= 0 && A.indexOf(A[i]) === i) n++;
+  if (Math.min(A.length, B.length) >= 3 && n / Math.min(A.length, B.length) >= 0.6) return true;
+  var b = (x.a || []).map(QbNorm);
+  for (i = 0; i < (v.a || []).length; i++) {
+    var t = QbNorm(v.a[i]);
+    if (t.length >= 3 && b.indexOf(t) >= 0) return true;
+  }
+  return false;
 }
 /* רשומת דף אחת -> { ids:{מזהה:1}, all:[השאלות שבלי מזהה] } */
 function QbRecMarks(rec) {

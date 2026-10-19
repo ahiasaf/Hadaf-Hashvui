@@ -5359,10 +5359,10 @@ function qPaintEdit_(n) {
     }).join('') +
     '<label class="qz-yrsw"><input type="checkbox" id="qe-yr"' + (Q_EDIT.yr ? ' checked' : '') + '>' +
       '<span><b>' + esc(UI.qbYr || '') + '</b><small>' + esc(UI.qbYrSub || '') + '</small></span></label>' +
-    /* שלושה כפתורים, לפי המצב: שמירה היא תמיד טיוטה; "פרסם" — כשיש
-       מה לפרסם; "ביטול פרסום" — כשיש גרסה חיה. */
+    /* שלושה כפתורים, לפי המצב: שמירה — טיוטה, ובשאלה שפורסמה ישר
+       לתלמידים; "פרסם" — כשיש מה לפרסם; "ביטול פרסום" — כשיש גרסה חיה. */
     '<div class="qz-btns">' +
-    '<button class="qz-opt" id="qe-save">' + esc(UI.qSaveDraft || '') + '</button>' +
+    '<button class="qz-opt" id="qe-save">' + esc((it && it.pub ? UI.qSaveLive : UI.qSaveDraft) || '') + '</button>' +
     (st !== 'pub' ? '<button class="qz-opt gold" id="qe-pubq">' + esc(UI.qPublish || '') + '</button>' : '') +
     (it && it.pub ? '<button class="qz-opt" id="qe-unpub">' + esc(UI.qUnpub || '') + '</button>' : '') +
     '</div>' +
@@ -5430,17 +5430,17 @@ function qEditSave_(n) {
   if (!QOWN) QOWN = {};
   /* רק השאלה שעל המסך מתחלפת. אחרי איחוד יש לקטע יותר משאלה אחת,
      וכתיבה של שאלה בודדת הייתה מוחקת את האחרת.
-     **שמירה היא תמיד טיוטה**: הגרסה החיה (`pub`) נשארת כמו שהיא, והתלמידים
-     ממשיכים לראות אותה עד "פרסם". טיוטה זהה לגרסה החיה — אינה טיוטה. */
+     שאלה שפורסמה — השמירה מגיעה לתלמידים מיד (מי שלא רוצה — "ביטול
+     פרסום"). שאלה שלא פורסמה — טיוטה, עד "פרסם". */
   var list = qPieces_(n).slice(), qi = qIdx_(n, list.length + 1);
   var v = qVal_(text, answers), old = list[qi];
-  var live = (old && old.pub) || null;
-  list[qi] = { pub: live, draft: (live && JSON.stringify(live) === JSON.stringify(v)) ? null : v };
+  var live = !!(old && old.pub);
+  list[qi] = live ? { pub: v, draft: null } : { pub: null, draft: v };
   qNormRec_(QOWN);
   sidPut_(QOWN, n, list, true);
   QMAP[dmKey(S.mas, S.daf)] = QOWN;
   qPost_();
-  qVerify_(0, n, list);
+  qVerify_(0, n, list, live ? UI.qSavedLive : '');
 }
 /* "פרסם": מה שעל המסך נעשה הגרסה החיה, והטיוטה יורדת. רק כאן. */
 function qEditPublish_(n) {

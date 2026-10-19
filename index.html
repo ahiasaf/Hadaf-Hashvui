@@ -2939,7 +2939,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.276';
+var APP_VERSION = '8.99.277';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11328,7 +11328,7 @@ function qbMasSet(mas) {
 }
 var QB_ED = null;            /* העותק שבעריכה. id ריק = שאלה חדשה */
 /* מה ששובץ בפועל, לפי "שאלות בדף": "mas|דף" -> QbRecMarks. null = עוד לא נקרא. */
-var QB_MK = null;
+var QB_MK = null, QB_LINKED = false;
 function qbMarksFrom(rows) {
   if (!rows || !rows.length || rows[0].join('|').indexOf('מסכת') < 0) return null;
   var out = {};
@@ -11378,8 +11378,15 @@ function qbLoad() {
     QB_FAIL = l === null;
     if (mk) QB_MK = mk;
     if (l) QB = qbEff(l);
-    /* שורה שנכתבה בגיליון בלי מזהה — השרת נותן לה מזהה, וקוראים שוב. */
     var key = (CFG.readKey || '').trim();
+    /* איחוד חד-פעמי (qbLink_ בסקריפט): כל שאלה שבדף נקשרת לשאלה הדומה
+       לה במאגר, והמאגר מתעדכן ממה שבדף. פעם אחת בכל פתיחה, ואז קוראים שוב. */
+    if (l && mk && key && !QB_LINKED) {
+      QB_LINKED = true;
+      fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({ action:'qbLink', key:key }) })
+        .catch(function () {}).then(function () { setTimeout(qbLoad, 3000); });
+    }
+    /* שורה שנכתבה בגיליון בלי מזהה — השרת נותן לה מזהה, וקוראים שוב. */
     if (l && key && Date.now() - QB_IDS_AT > 60000 && l.some(function (x) { return !x.id; })) {
       QB_IDS_AT = Date.now();
       QbPost(qbApi(), key, 'ids', '', []).then(function () { setTimeout(qbLoad, 2500); });
@@ -11561,8 +11568,8 @@ function qbSave() {
   qbSay(0, UI.qbSent);
   QbPost(qbApi(), key, 'put', id, QbCols(want)).then(function () { qbVerify(0, id, want, sync); });
 }
-/* המאגר -> הדף. שאלה אחת בתוך רשומת הדף (qbDaf_ בסקריפט), כטיוטה:
-   התלמידים רואים את השינוי רק אחרי "פרסם" בדף. ואז קריאה חוזרת. */
+/* המאגר -> הדף. שאלה אחת בתוך רשומת הדף (qbDaf_ בסקריפט): שאלה
+   שפורסמה מתעדכנת אצל התלמידים מיד, ושלא פורסמה — טיוטה. ואז קריאה חוזרת. */
 function qbDafSync(id, want, s) {
   var key = (CFG.readKey || '').trim();
   var val = { q:want.q, a:want.a, correct:want.correct };

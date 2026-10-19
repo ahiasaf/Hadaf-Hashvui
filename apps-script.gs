@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 84;
+var SCRIPT_VERSION = 85;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -457,11 +457,17 @@ function doPost(e) {
       try { backupDaily_(); } catch (qbe) {}
       return json_(qbank_(d));
     }
-    /* שאלה משובצת שנערכה בניהול — מתעדכנת גם בדף, כטיוטה. ראו qbDaf_. */
+    /* שאלה משובצת שנערכה בניהול — מתעדכנת גם בדף. ראו qbDaf_. */
     if (d.action === 'qbDaf') {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
       try { backupDaily_(); } catch (qde) {}
       return json_(qbDaf_(d));
+    }
+    /* איחוד חד-פעמי של המאגר והדף — ראו qbLink_. */
+    if (d.action === 'qbLink') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      try { backupDaily_(); } catch (qle) {}
+      return json_(qbLink_());
     }
     /* ההסבה למזהים קבועים — לשונית אחת בכל קריאה. ראו sidStep_. */
     if (d.action === 'sidStep') {
@@ -6688,62 +6694,142 @@ var GUARD_TABS = ['סימוני הדף', 'פירוש', 'שאלות בדף', 'מ�
 var QB_TAB_  = 'שאלות לשיבוץ';
 var QB_COLS_ = ['מזהה', 'מסכת', 'דף', 'שאלה', 'תשובה 1', 'תשובה 2', 'תשובה 3', 'תשובה 4',
                 'נכונה', 'סטטוס', 'הערה', 'קטע', 'הפניה לפירוש'];
-/* ---------- עריכה בניהול של שאלה ששובצה -> הדף ----------
-   שאלה אחת בתוך רשומת הדף ב"שאלות בדף", ולא כתיבת הלשונית כולה —
-   כך עריכה שנעשית במקביל בדף האינטראקטיבי אינה נדרסת. השאלה נמצאת
-   לפי `qb` (מזהה המאגר), ואם אין — לפי `like` (הנוסח הקודם במאגר),
-   באותו כלל כמו QbLike ב-qbank.js; ואז היא מקבלת את המזהה.
-   הערך נכתב כטיוטה: מה שהתלמידים רואים משתנה רק ב"פרסם". */
+/* ---------- המאגר והדף — שאלה אחת, שני מקומות ----------
+   שאלה שבדף נושאת `qb` — מזהה השורה שלה במאגר. qbDaf_ כותב עריכה
+   מהניהול לתוך רשומת הדף (שאלה אחת, לא הלשונית כולה — כך עריכה
+   במקביל בדף אינה נדרסת). שאלה שפורסמה מתעדכנת אצל התלמידים מיד;
+   שלא פורסמה — נשארת טיוטה. qbLink_ מאחד פעם אחת את מה שכבר קיים:
+   שאלה בדף בלי `qb` מקבלת את השאלה הדומה לה במאגר, ושורת המאגר
+   מתעדכנת מהדף (מה שהתלמידים רואים הוא הקובע).
+   הדמיון — אותו כלל כמו QbLike ב-qbank.js. */
 function qbNorm_(t) { return String(t || '').replace(/["'״׳“”„\s.,:;?!—–-]/g, ''); }
+function qbWords_(t) {
+  return String(t || '').replace(/["'״׳“”„.,:;?!—–()-]/g, ' ').split(/\s+/).filter(function (w) { return w.length > 1; });
+}
 function qbLike_(v, x) {
   if (!v || !x) return false;
-  if (qbNorm_(v.q) && qbNorm_(v.q) === qbNorm_(x.q)) return true;
-  var n = 0, a = v.a || [], b = (x.a || []).map(qbNorm_);
-  for (var i = 0; i < a.length; i++) if (qbNorm_(a[i]) && b.indexOf(qbNorm_(a[i])) >= 0) n++;
-  return n >= 3;
+  var p = qbNorm_(v.q), q = qbNorm_(x.q), i;
+  if (p && q && (p === q || (Math.min(p.length, q.length) >= 8 && (p.indexOf(q) >= 0 || q.indexOf(p) >= 0)))) return true;
+  var A = qbWords_(v.q), B = qbWords_(x.q), n = 0;
+  for (i = 0; i < A.length; i++) if (B.indexOf(A[i]) >= 0 && A.indexOf(A[i]) === i) n++;
+  if (Math.min(A.length, B.length) >= 3 && n / Math.min(A.length, B.length) >= 0.6) return true;
+  var b = (x.a || []).map(qbNorm_);
+  for (i = 0; i < (v.a || []).length; i++) {
+    var t = qbNorm_(v.a[i]);
+    if (t.length >= 3 && b.indexOf(t) >= 0) return true;
+  }
+  return false;
 }
+function qbDk_(v) { return String(v || '').replace(/["'׳״\s.:]/g, ''); }
+function qbMasId_(v) {
+  v = String(v || '').trim();
+  return v === 'תענית' ? 'taanit' : v === 'מגילה' ? 'megila' : v;
+}
+/* הצורה הישנה ({q,a} + __pub) -> { pub, draft }, כמו qNormRec_ בדף. */
+function qbRecNorm_(rec) {
+  var was = !!rec.__pub;
+  qbEach_(rec, function (list, k) {
+    rec[k] = list.map(function (x) {
+      if (!x || typeof x !== 'object' || x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) return x;
+      return was ? { pub: x, draft: null } : { pub: null, draft: x };
+    });
+  });
+  delete rec.__pub;
+  return rec;
+}
+function qbEach_(rec, fn) {
+  for (var k in rec) {
+    if (rec.hasOwnProperty(k) && k.indexOf('__') !== 0 && rec[k] && rec[k].length !== undefined) fn(rec[k], k);
+  }
+}
+function qbCur_(x) { return x && (x.draft || x.pub); }
 function qbDaf_(d) {
   var id = String(d.id || '').trim(), val = parse_(d.val), like = parse_(d.like);
   if (!id || !val || !val.q) return { status: 'error', message: 'חסרה שאלה' };
-  var dk = function (v) { return String(v || '').replace(/["'׳״\s.:]/g, ''); };
   var sh = sheet_('שאלות בדף'), last = sh.getLastRow();
   if (last < 2) return { status: 'success', found: 0 };
   var data = sh.getRange(2, 1, last - 1, 3).getDisplayValues();
   for (var r = 0; r < data.length; r++) {
-    if (String(data[r][0] || '').trim() !== String(d.mas || '').trim() || dk(data[r][1]) !== dk(d.daf)) continue;
-    var rec;
+    if (String(data[r][0] || '').trim() !== String(d.mas || '').trim() || qbDk_(data[r][1]) !== qbDk_(d.daf)) continue;
+    var rec, hit = null;
     try { rec = JSON.parse(String(data[r][2] || '')); } catch (e) { return { status: 'error', message: 'רשומת הדף פגומה' }; }
-    /* הצורה הישנה ({q,a} + __pub) -> { pub, draft }, כמו qNormRec_ בדף. */
-    var was = !!rec.__pub, k, i, hit = null;
-    for (k in rec) {
-      if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
-      rec[k] = rec[k].map(function (x) {
-        if (!x || typeof x !== 'object' || x.hasOwnProperty('pub') || x.hasOwnProperty('draft')) return x;
-        return was ? { pub: x, draft: null } : { pub: null, draft: x };
-      });
-    }
-    delete rec.__pub;
-    var cur = function (x) { return x && (x.draft || x.pub); };
-    for (k in rec) {
-      if (hit || !rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
-      for (i = 0; i < rec[k].length; i++) if ((cur(rec[k][i]) || {}).qb === id) { hit = rec[k][i]; break; }
-    }
-    for (k in rec) {
-      if (hit || !like || !rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
-      for (i = 0; i < rec[k].length; i++) {
-        var c = cur(rec[k][i]);
-        if (c && !c.qb && qbLike_(c, like)) { hit = rec[k][i]; break; }
+    qbRecNorm_(rec);
+    qbEach_(rec, function (list) {
+      for (var i = 0; i < list.length && !hit; i++) if ((qbCur_(list[i]) || {}).qb === id) hit = list[i];
+    });
+    if (like) qbEach_(rec, function (list) {
+      for (var i = 0; i < list.length && !hit; i++) {
+        var c = qbCur_(list[i]);
+        if (c && !c.qb && qbLike_(c, like)) hit = list[i];
       }
-    }
+    });
     if (!hit) return { status: 'success', found: 0 };
     val.qb = id;
-    /* המזהה נוסף גם לגרסה החיה — אינו משנה דבר אצל התלמידים. */
-    if (hit.pub && !hit.pub.qb) hit.pub.qb = id;
-    hit.draft = (hit.pub && JSON.stringify(hit.pub) === JSON.stringify(val)) ? null : val;
+    /* פורסמה — התלמידים רואים את השינוי מיד. לא פורסמה — טיוטה. */
+    if (hit.pub) { hit.pub = val; hit.draft = null; } else hit.draft = val;
     sh.getRange(r + 2, 3).setValue(JSON.stringify(rec));
     return { status: 'success', found: 1 };
   }
   return { status: 'success', found: 0 };
+}
+function qbLink_() {
+  var bs = sheet_(QB_TAB_), head = headers_(bs), bl = bs.getLastRow();
+  var qs = sheet_('שאלות בדף'), ql = qs.getLastRow();
+  if (!head.join('') || bl < 2 || ql < 2) return { status: 'success', linked: 0, synced: 0 };
+  var c = {};
+  QB_COLS_.forEach(function (n) { c[n] = idx_(bs, head, n); });
+  var bank = bs.getRange(2, 1, bl - 1, head.length).getDisplayValues();
+  var B = bank.map(function (b) {
+    return { id: String(b[c['מזהה']] || '').trim(), mas: qbMasId_(b[c['מסכת']]), daf: qbDk_(b[c['דף']]),
+             q: b[c['שאלה']], a: [b[c['תשובה 1']], b[c['תשובה 2']], b[c['תשובה 3']], b[c['תשובה 4']]] };
+  });
+  var data = qs.getRange(2, 1, ql - 1, 3).getDisplayValues(), recs = [], used = {}, linked = 0, synced = 0;
+  data.forEach(function (row, r) {
+    var rec = null;
+    try { rec = JSON.parse(String(row[2] || '')); } catch (e) {}
+    if (!rec || typeof rec !== 'object') return;
+    recs.push({ r: r, mas: String(row[0] || '').trim(), daf: qbDk_(row[1]), rec: qbRecNorm_(rec), raw: String(row[2] || '') });
+    qbEach_(rec, function (list) { list.forEach(function (x) { var v = qbCur_(x); if (v && v.qb) used[v.qb] = 1; }); });
+  });
+  recs.forEach(function (R) {
+    qbEach_(R.rec, function (list, k) {
+      list.forEach(function (x) {
+        var v = qbCur_(x), j, best = -1;
+        if (!v || !v.q) return;
+        if (!v.qb) {
+          for (j = 0; j < B.length; j++) {
+            if (!B[j].id || used[B[j].id] || B[j].mas !== R.mas || B[j].daf !== R.daf || !qbLike_(v, B[j])) continue;
+            if (best < 0 || qbNorm_(B[j].q) === qbNorm_(v.q)) best = j;
+          }
+          if (best < 0) return;
+          used[B[best].id] = 1; linked++;
+          if (x.pub) x.pub.qb = B[best].id;
+          if (x.draft) x.draft.qb = B[best].id;
+        }
+        /* שורת המאגר — לפי הדף: הנוסח, "שובצה" והקטע. */
+        for (j = 0; j < B.length; j++) if (B[j].id === v.qb) break;
+        if (j >= B.length) return;
+        var row = bank[j].slice(), was = JSON.stringify(row);
+        var set = function (n, val) { put_(row, c[n], val); };
+        set('שאלה', v.q);
+        for (var t = 0; t < 4; t++) set('תשובה ' + (t + 1), (v.a || [])[t] || '');
+        set('נכונה', String((+v.correct || 0) + 1));
+        set('הפניה לפירוש', v.yr ? 'כן' : '');
+        set('סטטוס', 'שובצה');
+        if (!String(row[c['קטע']] || '').trim() && /^\d+$/.test(k)) set('קטע', k);
+        if (JSON.stringify(row) === was) return;
+        for (var z = 0; z < row.length; z++) {
+          if (typeof row[z] === 'string' && /^[=+\-@]/.test(row[z])) row[z] = "'" + row[z];
+        }
+        bank[j] = row;
+        bs.getRange(j + 2, 1, 1, row.length).setValues([row]);
+        synced++;
+      });
+    });
+    var out = JSON.stringify(R.rec);
+    if (out !== R.raw) qs.getRange(R.r + 2, 3).setValue(out);
+  });
+  return { status: 'success', linked: linked, synced: synced };
 }
 function qbank_(d) {
   var sh = sheet_(QB_TAB_);
