@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.299';
+var APP_VERSION = '8.99.300';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -19794,7 +19794,7 @@ function admAmda(body) {
    לבד. מי שלא נמצא ברשימה לא נעלם: הוא בחיפוש ותחת "בלי כיתה".
    ============================================================ */
 var AMDA_PHONES = 'טלפוני תלמידים';
-var amdaWa = { g: '', c: '', q: '', msg: '', admAt: 0, view: '' };
+var amdaWa = { g: '', c: '', q: '', msg: '', admAt: 0, view: '', auto: 0 };
 
 /* { at, rows:[[שכבה, משפחה, פרטי, טלפון], ...] } */
 function amdaPh() { return Store.get('amdaPh', null); }
@@ -21241,15 +21241,15 @@ function amdaWaResHtml() {
 function amdaWaPick(k, v) {
   if (k === 'g') { amdaWa.g = amdaWa.g === v ? '' : v; amdaWa.c = ''; }
   else amdaWa.c = amdaWa.c === v ? '' : v;
-  admPane();
+  amdaWaRe();
 }
 function amdaWaMsgSet(v) { Store.set('amdaWaMsg', v); }
 
 function admAmdaWa(body) {
   var p = amdaPh(), key = (CFG.readKey || '').trim(), ix = amdaWaIdx(), i;
   /* החיפוש ראשון — "כל פעם שאתה נכנס אתה רוצה ישר לשלוח וואטסאפ
-     לתלמיד". טעינת הקובץ — בתחתית, כי עושים אותה פעם בכמה זמן. */
-  var up = '<div class="adm-card" id="aw-adm" style="margin-top:11px"><h4>' + esc(amdaT('waH')) + '</h4>' +
+     לתלמיד". טעינת הקובץ — בלשונית משלה, כי עושים אותה פעם בכמה זמן. */
+  var up = '<div class="adm-card" id="aw-adm"><h4>' + esc(amdaT('waH')) + '</h4>' +
     '<p class="h">' + esc(amdaT('waLead')) + '</p>' +
     '<p class="h"><b>' + esc(p && p.rows.length ? amdaT('waHave', { p: ix.have, n: ix.n }) : amdaT('waNone')) + '</b>' +
     (amdaWa.msg ? '<br>' + esc(amdaWa.msg) : '') + '</p>' +
@@ -21270,14 +21270,27 @@ function admAmdaWa(body) {
     '<input type="file" id="aw-file" style="display:none" onchange="amdaWaPicked(this)"' +
     ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';
 
-  var h = '';
+  /* שלוש לשוניות במקום כרטיסים זה מתחת לזה: בחירה · רשימת השליחה ·
+     קובץ הטלפונים. בלי טלפונים — רק הקובץ, ואין מה לבחור. */
+  var h = '', fresh = !document.getElementById('aw-tabs');
   var nPk = ix.all.length ? amdaWaPicks().length : 0;
-  if (amdaWa.view === 'list' && nPk) { body.innerHTML = amdaWaListHtml(); return; }
-  amdaWa.view = '';
+  if (!ix.all.length) { amdaWa.view = 'file'; amdaWa.auto = 1; }
+  else if (amdaWa.auto || (amdaWa.view === 'list' && !nPk)) { amdaWa.view = ''; amdaWa.auto = 0; }
+  var tabs = ix.all.length ? '<div class="tabs" id="aw-tabs" style="margin:0 0 12px">' +
+    [['', 'waTabPick'], ['list', 'waListGo'], ['file', 'waTabFile']].map(function (t) {
+      if (t[0] === 'list' && !nPk) return '';
+      return '<button' + (amdaWa.view === t[0] ? ' class="on"' : '') + ' onclick="amdaWaView(\'' + t[0] + '\')">' +
+             esc(amdaT(t[1], { n: nPk })) + '</button>';
+    }).join('') + '</div>' : '';
+  /* במכשיר בלי טלפונים — טעינה מהגיליון בכניסה, לכל היותר פעם בדקה. */
+  if (key && !(p && p.rows.length) && Date.now() - amdaWa.admAt > 60000) {
+    amdaWa.admAt = Date.now();
+    amdaWaPull(1);
+  }
+  if (amdaWa.view === 'list') { body.innerHTML = tabs + amdaWaListHtml(); return; }
+  if (amdaWa.view === 'file') { body.innerHTML = tabs + up; return; }
   if (ix.all.length) {
     h += '<div class="adm-card">' +
-      (nPk ? '<button class="btn p" style="width:100%;margin:0 0 10px" onclick="amdaWaView(\'list\')">' +
-             esc(amdaT('waListGo', { n: nPk })) + '</button>' : '') +
       '<p class="h" style="margin-top:0">' + esc(amdaT('waSelHint')) + '</p>' +
       '<div class="am-q" style="margin-top:0">' + esc(amdaT('waFind')) + '</div>' +
       '<input type="search" class="aw-q" id="aw-q" aria-label="' + esc(amdaT('waFind')) + '" value="' + esc(amdaWa.q) +
@@ -21317,13 +21330,10 @@ function admAmdaWa(body) {
     }
     h += '</div>';
   }
-  body.innerHTML = h + up;
-  if (!amdaWa.q) { var qi = document.getElementById('aw-q'); if (qi) try { qi.focus(); } catch (e) {} }
-  /* במכשיר בלי טלפונים — טעינה מהגיליון בכניסה, לכל היותר פעם בדקה. */
-  if (key && !(p && p.rows.length) && Date.now() - amdaWa.admAt > 60000) {
-    amdaWa.admAt = Date.now();
-    amdaWaPull(1);
-  }
+  body.innerHTML = tabs + h;
+  /* המיקוד בחיפוש — רק בכניסה למסך. בכל לחיצה על שכבה, כיתה או שם
+     הוא הקפיץ את המסך למעלה ופתח את המקלדת. */
+  if (fresh && !amdaWa.q) { var qi = document.getElementById('aw-q'); if (qi) try { qi.focus(); } catch (e) {} }
 }
 
 /* ---- הסוגיה היומית ---- */
