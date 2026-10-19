@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 100;
+var SCRIPT_VERSION = 101;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1248,7 +1248,10 @@ function doGet(e) {
     catch (errP) { return reply_(e, { status:'error', message: String(errP) }); }
   }
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
-  if (e && e.parameter && e.parameter.test) return testRoute_(e);
+  /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
+     הבדיקות — עד 8.99.299 הוא נבלע כאן, והלוח של כל הישיבות ענה
+     "פעולה לא מוכרת" ונשאר ריק. */
+  if (e && e.parameter && e.parameter.test && String(e.parameter.test) !== '1') return testRoute_(e);
   if (e && e.parameter && e.parameter.sayCount) return sayCount_(e);
 
   /* ---- הלוח של מוסד ----
