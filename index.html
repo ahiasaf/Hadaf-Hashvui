@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.284';
+var APP_VERSION = '8.99.285';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8380,12 +8380,12 @@ function ovSave(r, f, v) {
     });
 }
 /* תוספות שרק הבעלים רואה, מתחת למשפט הסיכום: מה שראש החטיבה
-   דיווח (הצעה לאישור — לא נכתב לבד), והערת המקור מהגיליון הישן. */
+   דיווח (לעיון), והערת המקור מהגיליון הישן. */
 function ovExtra(r) {
   var h = '', nums = r.code ? instNums(r.code) : null;
-  if (nums && nums.rep && String(nums.rep) !== String(r.act)) {
-    h += OV.sugHtml(r.k, nums.rep, fill(UI.ovRepSug, { n:nums.rep }), UI.ovRepOk);
-  }
+  /* לומדים בפועל מחושב (מי שסיים דף), ולכן דיווח ראש החטיבה הוא
+     נתון לעיון בלבד — לא הצעה לאישור. */
+  if (nums && nums.rep) h += OV.smallHtml(fill(UI.ovRepSug, { n:nums.rep }));
   if (r.src) h += OV.smallHtml(fill(UI.ovSrc, { t:r.src }));
   return h;
 }

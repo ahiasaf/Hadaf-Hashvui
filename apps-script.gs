@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 90;
+var SCRIPT_VERSION = 91;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8924,12 +8924,64 @@ function ovSync_(force) {
   cache.put('ovSyncAt', '1', 120);
   return T;
 }
-function ovRow_(T, row, owner) {
+/* ============================================================
+   לומדים בפועל — מי שסיים לפחות דף אחד (19.10.2026).
+   ============================================================
+   "כל מי שלמד אפילו דף אחד באפליקציה נחשב לומד בפועל, גם אם
+   השבוע הוא עוד לא התחיל." לא שדה שממלאים: אנשים שונים עם שורת
+   סיום אחת לפחות בלשונית "לימוד" (doneRows_ — סיום, לא התקדמות
+   באמצע; בלי משתמשי בדיקה), לפי קוד הישיבה שבשורה. גם מי שסומן
+   בנוכחות בשיעור נכתב שם, ולכן נספר. מזהה שנבלע באחר (עמודת
+   הכינויים ב"לומדים") — אדם אחד; הורה אינו נספר.
+
+   **לבעלים בלבד** — המנהלים רואים את מספר הלומדים הכולל.
+   null = הקריאה נכשלה (ואז "לא ידוע"); חשבון שהצליח — 0 הוא 0. */
+function ovLearners_() {
+  var cache = CacheService.getScriptCache(), hit = cache.get('ovLearn');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  try {
+    var ls = sheet_(LEARN_TAB);
+    if (!ls) return null;
+    var rows = doneRows_(ls.getLastRow() ? ls.getDataRange().getDisplayValues() : [[]]);
+    var head = (rows && rows[0]) || [], iId = -1, iC = -1;
+    for (var i = 0; i < head.length; i++) {
+      var h = String(head[i]).trim();
+      if (h === 'מזהה') iId = i;
+      if (h === 'קוד ישיבה') iC = i;
+    }
+    if (iId < 0 || iC < 0) return null;
+    var js = sheet_(JOIN_TAB), jr = js && js.getLastRow() ? js.getDataRange().getDisplayValues() : [[]];
+    var alias = aliasMap_(jr), parent = {}, jh = jr[0] || [], jId = -1, jRole = -1;
+    for (var j = 0; j < jh.length; j++) {
+      if (String(jh[j]).trim() === 'מזהה') jId = j;
+      if (String(jh[j]).trim() === 'תפקיד') jRole = j;
+    }
+    if (jId >= 0 && jRole >= 0) {
+      for (var q = 1; q < jr.length; q++) {
+        if (String(jr[q][jRole] || '').trim() === 'הורה') parent[String(jr[q][jId] || '').trim()] = 1;
+      }
+    }
+    var seen = {}, out = {};
+    for (var r = 1; r < rows.length; r++) {
+      var id = String(rows[r][iId] || '').trim(), code = String(rows[r][iC] || '').trim();
+      if (!id || !code) continue;
+      id = alias[id] || id;
+      if (parent[id] || seen[code + '|' + id]) continue;
+      seen[code + '|' + id] = 1;
+      out[code] = (out[code] || 0) + 1;
+    }
+    cache.put('ovLearn', JSON.stringify(out), 600);
+    return out;
+  } catch (err) { return null; }
+}
+function ovRow_(T, row, owner, L) {
   var act = ovCell_(T, row, 'act');
   var o = { name: ovCell_(T, row, 'name'), code: ovCell_(T, row, 'code'),
             coord: ovCell_(T, row, 'coord'), reg: ovCell_(T, row, 'reg'),
-            att: ovCell_(T, row, 'att'), act: act, note: ovCell_(T, row, 'note') };
+            att: ovCell_(T, row, 'att'), note: ovCell_(T, row, 'note') };
   if (owner) {
+    o.act = act;
+    o.learn = L && o.code ? String(L[o.code] || 0) : '';
     o.joined = ovCell_(T, row, 'joined'); o.head = ovCell_(T, row, 'head');
     o.rosh = ovCell_(T, row, 'rosh'); o.src = ovCell_(T, row, 'src');
   }
@@ -9041,7 +9093,7 @@ function ov_(p) {
       SpreadsheetApp.flush();
       /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
       hit.v[col] = cell.getValue();
-      return { status: 'ok', row: ovRow_(T, hit, owner) };
+      return { status: 'ok', row: ovRow_(T, hit, owner, owner ? ovLearners_() : null) };
     }
 
     /* "בלי ישיבה מהרשימה" — רק קודים שאינם בשום שורה, ורק כשיש שורות
@@ -9049,7 +9101,8 @@ function ov_(p) {
     var C = ovCounts_() || {}, inT = {}, other = [], anyCode = false;
     T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) { inT[c] = 1; anyCode = true; } });
     if (anyCode) Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
-    var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner); }),
+    var L = owner ? ovLearners_() : null;
+    var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L); }),
                 other: other, owner: owner, at: new Date().toISOString() };
     if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; }
     return out;

@@ -45,6 +45,9 @@
     '.ov-v small{display:block;font-size:.64rem;font-weight:800;color:#5C687E;line-height:1.3}' +
     '.ov-v em{display:block;font-style:normal;font-size:.6rem;font-weight:700;color:#5C687E}' +
     '.ov-v.a{background:#E7F2DD}.ov-v.a b{color:#2E6B12}' +
+    '.ov-v.big{min-width:74px;background:#E8EEF8}.ov-v.big b{font-size:1.55rem;color:#0B2550}' +
+    '.ov-v.big.u b{font-size:.78rem;color:#8C681F}' +
+    '.ov-split{font-size:.82rem;font-weight:700;color:#5A6780;margin:0 0 8px}' +
     '.ov-v.u b{font-size:.78rem;color:#8C681F;padding:3px 0}.ov-v.u{background:#FBF1DB}' +
     '.ov-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid #E5DAC3;background:#fff;' +
       'color:#17468F;font-size:1rem;font-weight:800;cursor:pointer;transition:transform .15s}' +
@@ -105,37 +108,44 @@
 
   /* מצב השורה — לפי מה שיש בה, לא לפי סף: דווח / יש נרשמים
      ועוד לא דווח / אין עדיין כלום. */
-  function status(r) {
-    if (has(r.act)) return 'ok';
-    if (num(r.reg) || num(r.att)) return 'wait';
-    return 'none';
+  /* המספר של הישיבה — כל הלומדים: נרשמו באפליקציה ודווחו בנוכחות.
+     "המנהלים אוהבים לראות את המספרים הגדולים" — מספר אחד שלם, והפירוק
+     (באפליקציה / בנוכחות) רק אחרי החץ. null = אין שום נתון. */
+  function total(r) {
+    if (!has(r.reg) && !has(r.att)) return null;
+    return num(r.reg) + num(r.att);
   }
+  /* מצב השורה — לפי מה שיש בה, לא לפי סף: יש לומדים / אין עדיין. */
+  function status(r) { return total(r) ? 'ok' : 'none'; }
   function sorted(rows) {
     return rows.slice().sort(function (a, b) {
-      var sa = has(a.act) ? 1 : 0, sb = has(b.act) ? 1 : 0;
-      return (sb - sa) || (num(b.act) - num(a.act)) || ((num(b.reg) + num(b.att)) - (num(a.reg) + num(a.att))) ||
+      return ((total(b) || 0) - (total(a) || 0)) || (num(b.learn) - num(a.learn)) ||
              String(a.name).localeCompare(String(b.name), 'he');
     });
   }
 
-  function totals(rows, other) {
-    var reg = 0, att = 0, act = 0, k = 0;
+  /* אריח ראשון — סך הלומדים (כולל מי שבחר "מוסד אחר"). אריח שני —
+     לבעלים: לומדים בפועל (סיימו לפחות דף); למנהלים: כמה ישיבות
+     כבר עם לומדים. */
+  function totals(rows, other, owner) {
+    var all = 0, ysh = 0, learn = 0, lk = 0;
     rows.forEach(function (r) {
-      reg += num(r.reg); att += num(r.att);
-      if (has(r.act)) { act += num(r.act); k++; }
+      var t = total(r);
+      if (t) { all += t; ysh++; }
+      if (has(r.learn)) { learn += num(r.learn); lk++; }
     });
-    (other || []).forEach(function (o) { reg += num(o.n); });
-    return '<div class="ov-tot"><div class="ov-tb"><b>' + reg + '</b><span>' + esc(U('ovTotReg')) + '</span>' +
-      (att ? '<i>' + esc(fill(U('ovTotRegSub'), { n:att })) + '</i>' : '') + '</div>' +
-      '<div class="ov-tb act"><b>' + (k ? act : '—') + '</b><span>' + esc(U('ovTotAct')) + '</span>' +
-      '<i>' + esc(fill(U('ovTotActSub'), { k:k, n:rows.length })) + '</i></div></div>';
+    (other || []).forEach(function (o) { all += num(o.n); });
+    var second = owner
+      ? '<div class="ov-tb act"><b>' + (lk ? learn : '—') + '</b><span>' + esc(U('ovLearn')) + '</span>' +
+        '<i>' + esc(U('ovLearnSub')) + '</i></div>'
+      : '<div class="ov-tb"><b>' + ysh + '</b><span>' + esc(U('ovTotYsh')) + '</span>' +
+        '<i>' + esc(fill(U('ovTotYshSub'), { n:rows.length })) + '</i></div>';
+    return '<div class="ov-tot"><div class="ov-tb"><b>' + all + '</b><span>' + esc(U('ovTotAll')) + '</span>' +
+      '<i>' + esc(U('ovTotAllSub')) + '</i></div>' + second + '</div>';
   }
 
   function formHtml(r, i, owner) {
     return '<div class="ov-f">' +
-      '<label for="ov-a-' + i + '">' + esc(U('ovAct')) + '</label>' +
-      '<input id="ov-a-' + i + '" inputmode="numeric" pattern="[0-9]*" value="' + esc(r.act) +
-        '" placeholder="' + esc(U('ovActPh')) + '">' +
       (owner ? '<label for="ov-c-' + i + '">' + esc(U('ovCoord')) + '</label>' +
         '<input id="ov-c-' + i + '" value="' + esc(r.coord) + '" placeholder="' + esc(U('ovCoordPh')) + '">' : '') +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
@@ -146,27 +156,27 @@
 
   function rowHtml(st, r, i) {
     var s = status(r), open = st.solo || st.open[r.k], ed = st.edit[r.k];
-    var actV = has(r.act)
-      ? '<div class="ov-v a"><b>' + esc(r.act) + '</b><small>' + esc(U('ovAct')) + '</small></div>'
-      : '<div class="ov-v u"><b>' + esc(U('ovActNone')) + '</b><small>' + esc(U('ovAct')) + '</small></div>';
-    /* תא ריק = אין נתון (אין שורת מונה, או שעוד לא סונכרן) — "לא
-       ידוע", ולא 0. */
-    var regV = (has(r.reg) ? '<div class="ov-v"><b>' + num(r.reg) + '</b>'
-                           : '<div class="ov-v u"><b>' + esc(U('ovActNone')) + '</b>') +
-      '<small>' + esc(U('ovReg')) + '</small>' +
-      (num(r.att) ? '<em>' + esc(fill(U('ovAttSmall'), { n:num(r.att) })) + '</em>' : '') + '</div>';
+    var t = total(r);
+    var bigV = t == null
+      ? '<div class="ov-v u big"><b>' + esc(U('ovActNone')) + '</b><small>' + esc(U('ovRowN')) + '</small></div>'
+      : '<div class="ov-v big"><b>' + t + '</b><small>' + esc(U('ovRowN')) + '</small></div>';
+    var learnV = !st.owner ? '' : has(r.learn)
+      ? '<div class="ov-v a"><b>' + num(r.learn) + '</b><small>' + esc(U('ovLearn')) + '</small></div>'
+      : '<div class="ov-v u"><b>' + esc(U('ovActNone')) + '</b><small>' + esc(U('ovLearn')) + '</small></div>';
     var nm = st.go
       ? '<button class="ov-n go" data-ov="go" data-i="' + i + '">' + esc(r.name) + '</button>'
       : '<span class="ov-n">' + esc(r.name) + '</span>';
     var h = '<div class="ov-r s-' + s + '" title="' + esc(U('ovSt_' + s)) + '"><div class="ov-h"><div class="ov-m">' + nm +
       (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': ' + esc(r.coord) + '</span>'
                     : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') + '</div>' +
-      '<div class="ov-k">' + regV + actV + '</div>' +
+      '<div class="ov-k">' + bigV + learnV + '</div>' +
       (st.solo ? '' : '<button class="ov-x' + (open ? ' on' : '') + '" data-ov="tog" data-i="' + i +
         '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + esc(U('ovOpen')) + ' · ' +
         esc(r.name) + '">▾</button>') + '</div>';
     if (open) {
       h += '<div class="ov-b">';
+      /* הפירוק — רק כאן, אחרי החץ. */
+      if (t != null) h += '<div class="ov-split">' + esc(fill(U('ovSplit'), { a:num(r.reg), b:num(r.att) })) + '</div>';
       if (ed) h += formHtml(r, i, st.owner);
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
@@ -183,7 +193,7 @@
   function paint(st) {
     var rows = st.solo ? st.rows : sorted(st.rows);
     st.shown = rows;
-    var h = st.solo ? '' : totals(st.rows, st.other);
+    var h = st.solo ? '' : totals(st.rows, st.other, st.owner);
     h += '<div class="ov-list">' + rows.map(function (r, i) { return rowHtml(st, r, i); }).join('') + '</div>';
     var oth = 0;
     (st.other || []).forEach(function (o) { oth += num(o.n); });
@@ -197,7 +207,7 @@
     var av = a ? a.value.replace(/[^\d]/g, '') : r.act, nv = n ? n.value.trim() : r.note,
         cv = c ? c.value.trim() : r.coord;
     var todo = [];
-    if (String(av) !== String(r.act || '')) todo.push(['act', av]);
+    if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
     if (nv !== String(r.note || '')) todo.push(['note', nv]);
     if (c && cv !== String(r.coord || '')) todo.push(['coord', cv]);
     if (!todo.length) { st.edit[r.k] = 0; paint(st); return; }
@@ -210,7 +220,10 @@
       }
       st.save(r, todo[j][0], todo[j][1]).then(function (back) {
         /* מה שחזר מהטבלה — ולא מה שהוקלד. */
-        if (back) { r.act = back.act; r.note = back.note; r.coord = back.coord; r.reg = back.reg; r.att = back.att; }
+        if (back) {
+          r.note = back.note; r.coord = back.coord; r.reg = back.reg; r.att = back.att;
+          if (back.learn != null) r.learn = back.learn;
+        }
         step(j + 1);
       }, function (err) {
         st.msg[r.k] = { t:fill(U('ovSaveFail'), { t:(err && err.message) || err || '' }), bad:1 };
@@ -259,7 +272,8 @@
       sorted(rows).map(function (r) {
         return '<button class="ov-tab' + (r.k === cur ? ' on' : '') + '" onclick="' + fn + '(\'' +
           esc(String(r.k).replace(/[\\']/g, '')) + '\')">' + esc(r.name) +
-          (has(r.act) ? '<b>' + esc(r.act) + '</b>' : '<b class="u">?</b>') + '</button>';
+          (has(r.learn) ? '<b>' + num(r.learn) + '</b>' : total(r) != null ? '<b>' + total(r) + '</b>' : '<b class="u">?</b>') +
+          '</button>';
       }).join('') + '</div></details>';
   }
 
