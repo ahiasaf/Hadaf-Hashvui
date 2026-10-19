@@ -149,7 +149,11 @@
     var actV = has(r.act)
       ? '<div class="ov-v a"><b>' + esc(r.act) + '</b><small>' + esc(U('ovAct')) + '</small></div>'
       : '<div class="ov-v u"><b>' + esc(U('ovActNone')) + '</b><small>' + esc(U('ovAct')) + '</small></div>';
-    var regV = '<div class="ov-v"><b>' + num(r.reg) + '</b><small>' + esc(U('ovReg')) + '</small>' +
+    /* תא ריק = אין נתון (אין שורת מונה, או שעוד לא סונכרן) — "לא
+       ידוע", ולא 0. */
+    var regV = (has(r.reg) ? '<div class="ov-v"><b>' + num(r.reg) + '</b>'
+                           : '<div class="ov-v u"><b>' + esc(U('ovActNone')) + '</b>') +
+      '<small>' + esc(U('ovReg')) + '</small>' +
       (num(r.att) ? '<em>' + esc(fill(U('ovAttSmall'), { n:num(r.att) })) + '</em>' : '') + '</div>';
     var nm = st.go
       ? '<button class="ov-n go" data-ov="go" data-i="' + i + '">' + esc(r.name) + '</button>'

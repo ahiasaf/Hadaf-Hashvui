@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 87;
+var SCRIPT_VERSION = 88;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8724,6 +8724,36 @@ var OV_HEAD_ = { name: 'מוסד', coord: 'רכז בשטח', reg: 'נרשמו ב
                  sys: 'סה"כ לפי המערכת', head: 'ראש חטיבה', rosh: 'ראש ישיבה',
                  src: 'הערת מקור', code: 'קוד' };
 
+/* רשימת המוסדות — עותק של INSTITUTIONS שב-data.js (קוד ושם בלבד,
+   שניהם ציבוריים). הסקריפט צריך אותה כדי לשייך קוד לשורה בטבלה
+   בלי לחכות לביקור בניהול. tools/preflight.py נופל אם השתיים
+   נפרדות — לעדכן כאן בכל שינוי ברשימה. */
+var OV_INST_ = [
+  ["avir", "יב\"ע אביר יעקב"],
+  ["ohel", "יב\"ע אהל שלמה"],
+  ["oretzion", "יב\"ע אור עציון"],
+  ["baryohai", "יב\"ע בר יוחאי"],
+  ["givat", "יב\"ע גבעת שמואל"],
+  ["hadarom", "יב\"ע הדרום"],
+  ["halihot", "יב\"ע השומרון"],
+  ["harel", "יב\"ע הראל חולון"],
+  ["hadera", "יב\"ע חדרה"],
+  ["harish", "יב\"ע חריש"],
+  ["yavne", "יב\"ע יבנה"],
+  ["lapid", "יב\"ע לפיד תורת נחום"],
+  ["binyamin", "יב\"ע מטה בנימין"],
+  ["neve", "יב\"ע נווה הרצוג"],
+  ["nahal", "יב\"ע נחל יצחק — נחלים"],
+  ["nertamid", "יב\"ע נר תמיד"],
+  ["netivmeir", "יב\"ע נתיב מאיר"],
+  ["netivot", "יב\"ע נתיבות חיים"],
+  ["eli", "יב\"ע עלי"],
+  ["kiryat", "יב\"ע קרית הרצוג"],
+  ["rishon", "יב\"ע ראשל\"צ"],
+  ["raanana", "יב\"ע רעננה"],
+  ["tapuah", "יב\"ע תפוח / מערב השומרון"],
+  ["tikvot", "יב\"ע תקוות יעקב"]
+];
 function ovNameKey_(s) {
   return String(s || '').replace(/["'״׳]/g, '').replace(/[—–-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -8793,9 +8823,34 @@ function ovCodeCol_(T) {
   T.cols.code = col - 1; T.w = col;
   return T.cols.code;
 }
+/* קוד לכל שורה ששמה **זהה** (אחרי ovNameKey_) לשם ברשימת
+   המוסדות. רק לתא קוד ריק, רק להתאמה אחת בדיוק, ורק לקוד שאינו
+   כבר בשורה אחרת. בלי דמיון, בלי דריסה, בלי הוספת שורות. */
+function ovAutoCodes_(T) {
+  var used = {}, todo = [];
+  T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) used[c] = 1; });
+  T.rows.forEach(function (row) {
+    if (ovCell_(T, row, 'code')) return;
+    var k = ovNameKey_(ovCell_(T, row, 'name'));
+    var hit = OV_INST_.filter(function (i) { return ovNameKey_(i[1]) === k; });
+    if (hit.length !== 1 || used[hit[0][0]]) return;
+    used[hit[0][0]] = 1;
+    todo.push([row, hit[0][0]]);
+  });
+  if (!todo.length) return 0;
+  var ci = ovCodeCol_(T);
+  todo.forEach(function (t) {
+    T.sh.getRange(t[0].r, ci + 1).setValue(t[1]);
+    t[0].v[ci] = t[1];
+  });
+  return todo.length;
+}
 /* המונים (לשונית "מונים") לפי קוד: נרשמו, דווחו בנוכחות בלבד.
    null = לא נקרא — ואז לא נכתב כלום (קריאה שנכשלה אינה אפס). */
 function ovCounts_() {
+  try { return ovCountsRead_(); } catch (e) { return null; }
+}
+function ovCountsRead_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(COUNT_TAB);
   if (!sh) return null;
   var a = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
@@ -8810,7 +8865,8 @@ function ovCounts_() {
     var n = +a[i][iN] || 0;
     m[code] = { n: n, reg: iR >= 0 ? (+a[i][iR] || 0) : n, att: iA >= 0 ? (+a[i][iA] || 0) : 0 };
   }
-  return m;
+  /* לשונית עם כותרת בלבד אינה "כולם אפס" — אין כאן מידע. */
+  return Object.keys(m).length ? m : null;
 }
 /* האפליקציה ← הטבלה: שני המספרים שהמערכת יודעת. רק תא שהשתנה
    נכתב, כדי לא לדרוס עריכה שקורית באותו רגע בעמודה אחרת. */
@@ -8819,12 +8875,18 @@ function ovSync_(force) {
   if (!force && cache.get('ovSyncAt')) return null;
   var sh = ovSheet_();
   if (!sh) return null;
-  var T = ovTable_(sh), C = ovCounts_();
-  if (!T || !C) return T;
+  var T = ovTable_(sh);
+  if (!T) return T;
+  ovAutoCodes_(T);
+  var C = ovCounts_();
+  if (!C) return T;                      /* קריאה שנכשלה — לא נוגעים בכלום */
   T.rows.forEach(function (row) {
     var code = ovCell_(T, row, 'code');
     if (!code) return;
-    var x = C[code] || { reg: 0, att: 0 };
+    /* אין שורת מונה לקוד — אין כאן הוכחה לאפס. התא נשאר כמו שהוא
+       (ריק = "לא ידוע" בממשק). */
+    var x = C[code];
+    if (!x) return;
     [['reg', x.reg], ['att', x.att]].forEach(function (p) {
       var i = T.cols[p[0]];
       if (i === undefined) return;
@@ -8887,6 +8949,7 @@ function ov_(p) {
     var T = op === 'get' ? ovSync_(false) : null;
     if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
     if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה' };
+    if (op === 'get') ovAutoCodes_(T);
 
     /* --- הבעלים: קוד לכל שורה ששמה זהה לשם ברשימת המוסדות,
            והוספת מוסד שאינו בטבלה. **רק שם זהה** — שם דומה
@@ -8949,9 +9012,11 @@ function ov_(p) {
       return { status: 'ok', row: ovRow_(T, hit, owner) };
     }
 
-    var C = ovCounts_() || {}, inT = {}, other = [];
-    T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) inT[c] = 1; });
-    Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
+    /* "בלי ישיבה מהרשימה" — רק קודים שאינם בשום שורה, ורק כשיש שורות
+       עם קוד בכלל. בלי קודים בטבלה הכול היה נספר כאן, ופעמיים בסכום. */
+    var C = ovCounts_() || {}, inT = {}, other = [], anyCode = false;
+    T.rows.forEach(function (row) { var c = ovCell_(T, row, 'code'); if (c) { inT[c] = 1; anyCode = true; } });
+    if (anyCode) Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
     var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner); }),
                 other: other, owner: owner, at: new Date().toISOString() };
     if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; }

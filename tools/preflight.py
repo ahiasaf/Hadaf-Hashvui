@@ -627,13 +627,40 @@ def check_pub_files():
         OK.append('קבצי הלמידה הציבוריים בסקריפט תואמים ל-links.js')
 
 
+def check_ov_inst():
+    """רשימת המוסדות שבסקריפט (OV_INST_) זהה ל-INSTITUTIONS שב-data.js.
+
+    הסקריפט משייך קוד לשורה בטבלת הסקירה לפי שם זהה ברשימה הזו.
+    רשימה שהתיישנה = ישיבה חדשה בלי קוד, ומספרים שלא מסונכרנים לה.
+    """
+    import subprocess, json
+    js = ("const fs=require('fs'),vm=require('vm');"
+          "const c={window:{}};vm.createContext(c);"
+          "vm.runInContext(fs.readFileSync('data.js','utf8')+';window.I=INSTITUTIONS',c);"
+          "const g=fs.readFileSync('apps-script.gs','utf8');"
+          "const m=/var OV_INST_ = (\\[[\\s\\S]*?\\]);/.exec(g);"
+          "console.log(JSON.stringify({a:c.window.I.map(i=>[i.code,i.name]),b:m?JSON.parse(m[1]):null}))")
+    try:
+        d = json.loads(subprocess.check_output(['node', '-e', js], cwd=ROOT).decode('utf-8'))
+    except Exception as e:                    # noqa: BLE001
+        WARN.append('רשימת המוסדות בסקריפט לא נבדקה (%s)' % e)
+        return
+    if d['b'] is None:
+        BAD.append('apps-script.gs — חסרה OV_INST_ (רשימת המוסדות לסקירה)')
+    elif d['a'] != d['b']:
+        BAD.append('apps-script.gs — OV_INST_ אינה זהה ל-INSTITUTIONS שב-data.js')
+    else:
+        OK.append('רשימת המוסדות בסקריפט זהה ל-data.js (%d)' % len(d['a']))
+
+
 def main():
     for fn in (check_version, check_font, check_texts,
                check_dupe_vars, check_orphan_classes,
                check_shared_globals, check_inst_manifests,
                check_share_card,
                check_decks, check_daf_index,
-               check_calendar, check_prog_start, check_pii, check_pub_files):
+               check_calendar, check_prog_start, check_pii, check_pub_files,
+               check_ov_inst):
         try:
             fn()
         except Exception as e:                # noqa: BLE001
