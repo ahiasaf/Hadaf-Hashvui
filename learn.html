@@ -5704,7 +5704,34 @@ function stuDad() {
     return localStorage.getItem('df:forDad') === '1';
   } catch (e) { return false; }
 }
+/* ============================================================
+   "יציאה" חוזרת בדיוק למסך שפתח את הדף (18.10.2026).
+   ============================================================
+   "אני מגיע מעמוד המצגות לדף האינטראקטיבי, ובא לחזור עם היציאה,
+   וזה לא מחזיר אותי לשם." המסך שפתח מוסיף `ret`:
+   · `week-<מסכת>-<שבוע>` / `quiz-…` — כרטיס השבוע או החידה במסך
+     הראשי. חוזרים ל-`#week=` / `#quiz=`, שהמסך הראשי פותח בטעינה.
+   · `dk-<מסכת>-<שבוע>` — עורך המצגות בניהול, על אותו שבוע.
+   בלי `ret` — כמו קודם (stuBaseUrl). הכתובת נושאת אותו, ולכן
+   זה עובד גם אחרי רענון ובלשונית חדשה. */
+var RET = /[?&]ret=(week|quiz|dk)-([a-z]+)-(\d+)(?:&|#|$)/.exec(location.search);
 function stuHomeUrl() {
+  if (RET && RET[1] === 'dk') return '/#admin';
+  if (RET && FROM !== 'qbank' && FROM !== 'tzevet') {
+    var tail = '#' + RET[1] + '=' + RET[2] + '-' + RET[3];
+    if (FROM === 'home' || staffDev()) return './' + tail;
+    /* תלמיד — למסך התלמיד שממנו בא (`st=1`), עם הישיבה וההורה. */
+    var i0 = stuInst(), q0 = ['st=1'];
+    if (i0) q0.push('inst=' + i0);
+    if (stuDad()) {
+      q0.push('for=dad');
+      if (/[?&]show=1\b/.test(location.search)) q0.push('show=1');
+    }
+    return 'index.html?' + q0.join('&') + tail;
+  }
+  return stuBaseUrl();
+}
+function stuBaseUrl() {
   /* מי שהגיע מ"שיבוץ בדף" — חזרה לכרטיסים בניהול (ראו admTakeGo). */
   if (FROM === 'qbank') return '/#admin';
   /* מי שנכנס מהמסך הראשי חוזר אליו — הכתובת יודעת, המכשיר מנחש. */
@@ -5726,6 +5753,7 @@ function stuQuizUrl(key) {
 function keepQ() {
   var i = (/[?&]inst=([^&#]*)/.exec(location.search) || [])[1] || '';
   return (i ? '&inst=' + i : '') + (FROM ? '&from=' + FROM : '') +
+         (RET ? '&ret=' + RET[1] + '-' + RET[2] + '-' + RET[3] : '') +
          (/[?&]for=dad\b/.test(location.search) ? '&for=dad' : '') +
          (/[?&]show=1\b/.test(location.search) ? '&show=1' : '') + '&hop=1';
 }
@@ -6390,7 +6418,7 @@ function ntAsked(key) {
   try { return localStorage.getItem('df:wait:' + key) === '1'; } catch (e) { return false; }
 }
 function ntSetupUrl() {
-  var u = stuHomeUrl();
+  var u = stuBaseUrl();
   if (!/join/.test(u)) u = 'join.html';
   return u + (u.indexOf('?') < 0 ? '?' : '&') + 'notes=1';
 }
@@ -6449,6 +6477,12 @@ function boot() {
   (function () {
     var u = stuHomeUrl(), b0 = $('back');
     if (b0) b0.href = u;
+    /* חזרה לעורך המצגות — אותה בקשה שהכפתור "ניהול המצגות" משאיר. */
+    if (b0 && RET && RET[1] === 'dk') b0.onclick = function () {
+      try {
+        localStorage.setItem('df:admGo', JSON.stringify({ sub:'daf', mas:RET[2], wk:+RET[3] }));
+      } catch (e) {}
+    };
   })();
   if (EMB) {
     document.body.className += ' emb';

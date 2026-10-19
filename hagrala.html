@@ -90,6 +90,11 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .pv{background:#0B2550;color:#fff;font-size:.86rem;font-weight:800;text-align:center;
   border-radius:10px;padding:7px 10px;margin-bottom:12px}
 main.wait{visibility:hidden}
+/* הסדר החדש (דוגמה בלבד): הכפתור ללימוד — בולט, וקרוב לראש המסך */
+.dm2 .art{max-height:52vh;width:auto;max-width:100%;margin:0 auto}
+.go{display:block;margin:12px 0 4px;padding:15px 14px;border-radius:14px;background:var(--blue-d);color:#fff;
+  font-size:1.12rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.25)}
+.dm2 .oth li{padding:4px 0;font-size:.9rem}
 </style>
 </head>
 <body>
@@ -107,6 +112,7 @@ main.wait{visibility:hidden}
 </main>
 <script src="data.js"></script>
 <script src="testmode.js"></script>
+<script src="learned.js"></script>
 <script src="logo.js"></script>
 <script>
 function $(id) { return document.getElementById(id); }
@@ -151,6 +157,61 @@ function api() {
 function hide() {
   $('res').innerHTML = '<p class="note">' + esc(UI.hagHidden) + '</p>';
   $('art').style.display = 'none';
+  $('note').style.display = 'none';
+  $('illus').style.display = 'none';
+}
+/* הלימוד של השבוע — אותה כתובת שהבאנר במסך התלמיד פותח (stWeek
+   ב-join.html): המסכת שנבחרה במכשיר, אחרת זו של הישיבה, אחרת הראשונה. */
+function weekUrl() {
+  var t = ls('dfHomeTrack'), tr = '', i, code = INST;
+  for (i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t;
+  if (!tr && code) {
+    var m = {};
+    try { m = JSON.parse(ls('df:instMas') || '{}') || {}; } catch (e) { m = {}; }
+    String(m[code] || '').split(',').forEach(function (x) {
+      x = x.trim();
+      for (var j = 0; j < TRACKS.length; j++) if (!tr && TRACKS[j].id === x) tr = x;
+    });
+  }
+  if (!tr) tr = TRACKS[0].id;
+  var wi = LWeek(); if (wi < 0) wi = 0;
+  var d = LDaf(tr, wi);
+  if (!d) return 'index.html?st=1' + (code ? '&inst=' + encodeURIComponent(code) : '') + '#week=' + tr + '-' + (wi + 1);
+  var am = LAm(tr, wi);
+  return 'learn.html?mas=' + encodeURIComponent(tr) + '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
+         (code ? '&inst=' + encodeURIComponent(code) : '');
+}
+/* ============================================================
+   הסדר החדש — מוצג רק בדוגמה (`stk` + `dm=1`) עד שהבעלים יאשר.
+   ============================================================
+   "תלמיד רוצה לדעת שזכה ובאילו פרסים, ואחר כך כדרך אגב מי עוד
+   זכה. ותלמיד שלא זכה: מעניין אותו שחבר מהמוסד שלו זכה, ובמה,
+   ורק אחר כך שאר הרשימה. והכי חשוב: כפתור הפנייה ללימוד."
+   "במה" עוד לא הוכרע (פרס מוקצה או בחירה) — אין כאן "הפרס שלך
+   הוא". רק הלשון הקיימת: התמונה עם אפשרויות הפרס, "ניצור איתך
+   קשר", ושורת ההסתייגות. */
+function results2(d) {
+  var go = '<a class="go" href="' + esc(weekUrl()) + '">' + esc(d.me ? UI.rafGoWin : UI.rafGoLose) + '</a>';
+  var slot = '<div id="art-slot"></div>';
+  var notes = '<p class="note">' + esc(UI.hagNote) + '</p><p class="note">' + esc(UI.hagIllus) + '</p>';
+  var oth = (d.others && d.others.length) ? '<div class="oth"><h3>' + esc(UI.hagOthers) + '</h3><ul>' +
+    d.others.map(function (o) {
+      return '<li>' + esc(o.name) + ' <span>· ' + esc(o.inst) + '</span></li>';
+    }).join('') + '</ul></div>' : '';
+  var h;
+  if (d.me) {
+    h = slot + go + '<p class="note" style="font-weight:800;color:var(--gold-t)">' + esc(UI.hagMe) + '</p>' + notes + oth;
+  } else if (d.mine) {
+    h = '<h2>' + esc(UI.hagWinH) + '</h2><div class="win"><small>' + esc(tp(UI.hagMine, { inst: d.mine.inst })) + '</small>' +
+        '<b>' + esc(d.mine.name) + '</b><span class="dmt">' + esc(UI.rafDmLbl) + '</span></div>' +
+        slot + go + notes + oth;
+  } else {
+    h = slot + go + '<p class="note">' + esc(UI.hagNoMine) + '</p>' + notes + oth;
+  }
+  $('res').innerHTML = h;
+  $('art-slot').appendChild($('art'));
+  art(d.me ? ART_WIN : ART_RES);
+  document.body.className += ' dm2';
   $('note').style.display = 'none';
   $('illus').style.display = 'none';
 }
@@ -204,9 +265,7 @@ function demo(d) {
     var o = { name: nm, inst: instName(c) };
     if (c === d.c) { out.mine = o; out.me = d.k === 'w'; } else out.others.push(o);
   });
-  results(out);
-  var w = document.querySelector('#res .win');
-  if (w) w.insertAdjacentHTML('beforeend', '<span class="dmt">' + esc(UI.rafDmLbl) + '</span>');
+  results2(out);
   document.body.insertAdjacentHTML('afterbegin', '<div class="dm" role="status">' + esc(UI.rafDmLbl) + '</div>');
 }
 (function () {
