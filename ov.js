@@ -48,6 +48,19 @@
     '.ov-v.big{min-width:74px;background:#E8EEF8}.ov-v.big b{font-size:1.55rem;color:#0B2550}' +
     '.ov-v.big.u b{font-size:.78rem;color:#8C681F}' +
     '.ov-split{font-size:.82rem;font-weight:700;color:#5A6780;margin:0 0 8px}' +
+    '.ov-ppl{display:grid;gap:6px;margin:0 0 10px}' +
+    '.ov-p{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EFE7D7;border-radius:12px;' +
+      'padding:7px 8px 7px 12px}' +
+    '.ov-p .w{flex:1;min-width:0;line-height:1.3}' +
+    '.ov-p .w small{display:block;font-size:.68rem;font-weight:800;color:#8C681F;letter-spacing:.02em}' +
+    '.ov-p .w b{display:block;font-size:.88rem;font-weight:800;color:#1B2A45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.ov-ic{flex:none;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+      'text-decoration:none;box-shadow:0 1px 3px rgba(37,29,12,.12)}' +
+    '.ov-ic svg{width:18px;height:18px;fill:#fff}' +
+    '.ov-ic.tel{background:linear-gradient(140deg,#3574CE,#17468F)}' +
+    '.ov-ic.wa{background:linear-gradient(140deg,#3FC152,#1FA637)}' +
+    '.ov-ic:active{transform:scale(.94)}' +
+    '.ov-f .sug{font-size:.7rem;font-weight:700;color:#4E9A2A;margin-inline-start:6px}' +
     '.ov-e.ov-go{margin:0 0 8px;background:#17468F;border-color:#17468F;color:#fff}' +
     '.ov-v.u b{font-size:.78rem;color:#8C681F;padding:3px 0}.ov-v.u{background:#FBF1DB}' +
     '.ov-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid #E5DAC3;background:#fff;' +
@@ -99,6 +112,22 @@
   }
   function num(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
   function has(v) { return String(v == null ? '' : v).trim() !== ''; }
+  function digits(p) { return String(p || '').replace(/[^0-9]/g, ''); }
+  function waNum(p) { var d = digits(p); return d.indexOf('972') === 0 ? d : '972' + d.replace(/^0/, ''); }
+  var IC_TEL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>';
+  var IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>';
+  /* אנשי הקשר של הישיבה — רכז, ראש ישיבה, ראש חטיבה — עם שני כפתורים
+     קטנים: שיחה ווואטסאפ. רק מי שיש לו טלפון שהבעלים שמר. */
+  function pplHtml(r) {
+    var L = (r.ppl || []).filter(function (p) { return has(p.phone) && has(p.name); });
+    if (!L.length) return '';
+    return '<div class="ov-ppl">' + L.map(function (p) {
+      return '<div class="ov-p"><div class="w"><small>' + esc(U('ovRole_' + p.k)) + '</small><b>' + esc(p.name) + '</b></div>' +
+        '<a class="ov-ic tel" href="tel:' + digits(p.phone) + '" aria-label="' + esc(fill(U('ovCall'), { name:p.name })) + '">' + IC_TEL + '</a>' +
+        '<a class="ov-ic wa" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.phone) + '" aria-label="' +
+          esc(fill(U('ovWa'), { name:p.name })) + '">' + IC_WA + '</a></div>';
+    }).join('') + '</div>';
+  }
 
   function css() {
     if (document.getElementById('ov-css')) return;
@@ -149,6 +178,7 @@
       '<i>' + esc(U('ovTotAllSub')) + '</i></div>' + second + '</div>';
   }
 
+  var SUG = null;
   function formHtml(r, i, owner) {
     var num0 = function (id, lbl, v, ph) {
       return '<label for="' + id + '">' + esc(lbl) + '</label>' +
@@ -159,6 +189,13 @@
       (owner && r.yesh !== undefined
         ? num0('ov-y-' + i, U('ovYesh'), r.yset, fill(U('ovYeshPh'), { n:num(r.yesh) })) +
           num0('ov-o-' + i, U('ovOver'), r.over, U('ovOverPh')) : '') +
+      /* הטלפונים שיוצאים בקישור למנהלים. ריק — מוצע מאנשי הקשר (st.sug), ונשמר רק בלחיצה. */
+      (owner && r.ppl ? r.ppl.map(function (p) {
+        var cur = p.phone || '', sug = !cur && SUG ? (SUG[p.k] || '') : '';
+        return '<label for="ov-p' + p.k + '-' + i + '">' + esc(fill(U('ovPhoneL'), { role:U('ovRole_' + p.k), name:p.name || '—' })) +
+          (sug ? '<span class="sug">' + esc(U('ovPhoneSug')) + '</span>' : '') + '</label>' +
+          '<input id="ov-p' + p.k + '-' + i + '" type="tel" dir="ltr" value="' + esc(cur || sug) + '">';
+      }).join('') : '') +
       (owner ? '<label for="ov-c-' + i + '">' + esc(U('ovCoord')) + '</label>' +
         '<input id="ov-c-' + i + '" value="' + esc(r.coord) + '" placeholder="' + esc(U('ovCoordPh')) + '">' : '') +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
@@ -194,7 +231,8 @@
       /* הכניסה למסך הישיבה (אנשי קשר, היסטוריה, עדכון) — כפתור ברור,
          ולא רק השם עם קו. */
       if (st.go && !st.solo) h += '<button class="ov-e ov-go" data-ov="go" data-i="' + i + '">' + esc(U('ovGoIn')) + '</button> ';
-      if (ed) h += formHtml(r, i, st.owner);
+      if (!ed) h += pplHtml(r);
+      if (ed) { SUG = st.sug ? st.sug(r) : null; h += formHtml(r, i, st.owner); SUG = null; }
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
           esc(has(r.note) ? r.note : U('ovNoteNone')) + '</div>' +
@@ -225,6 +263,12 @@
         cv = c ? c.value.trim() : r.coord;
     var y = document.getElementById('ov-y-' + i), o = document.getElementById('ov-o-' + i);
     var todo = [];
+    (r.ppl || []).forEach(function (p) {
+      var el = document.getElementById('ov-p' + p.k + '-' + i);
+      if (el && el.value.replace(/[^\d+]/g, '') !== String(p.phone || '').replace(/[^\d+]/g, '')) {
+        todo.push([p.k, el.value.replace(/[^\d+]/g, '')]);
+      }
+    });
     if (y && y.value.replace(/[^\d]/g, '') !== String(r.yset || '')) todo.push(['yesh', y.value.replace(/[^\d]/g, '')]);
     if (o && o.value.replace(/[^\d]/g, '') !== String(r.over || '')) todo.push(['over', o.value.replace(/[^\d]/g, '')]);
     if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
@@ -250,7 +294,7 @@
     step(0);
   }
 
-  /* st: { el, rows, other, owner, save, go, extra, solo, changed } */
+  /* st: { el, rows, other, owner, save, go, extra, solo, changed, sug } */
   function mount(el, o) {
     css();
     var st = el._ov || { open:{}, edit:{}, msg:{} };

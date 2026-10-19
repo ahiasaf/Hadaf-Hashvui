@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.288';
+var APP_VERSION = '8.99.289';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4598,7 +4598,10 @@ function boardHtml(code, name, hail, go) {
   var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
   /* בניהול — גם מי שדווח ועוד לא נרשם (repExtra). הפס "סיימו"
      נשאר על מי שבאפליקציה: רק הם יכולים לסמן. */
-  var ext = go ? repExtra(code) : 0;
+  /* מאז 19.10 — אותו חשבון בדיוק כמו בסקירת הישיבות (ovBoard): באפליקציה
+     + לומדים בישיבה − חופפים. בלי נתוני הסקירה במכשיר — כמו קודם. */
+  var OB = go ? ovBoard(code) : null;
+  var ext = go ? (OB ? Math.max(0, OB.tot - n) : repExtra(code)) : 0;
   var wk = weekIndex(), trs = brdTracks(go), tr = trs[0];
   var row = wk >= 0 ? trackById(tr).cal[wk] : null;
   var row0 = trackById(tr).cal[0];          /* השבוע הראשון בלוח */
@@ -4628,9 +4631,10 @@ function boardHtml(code, name, hail, go) {
      מה שעושים; שני דברים שהתערבבו נקראים כמו ספר. */
 
   /* אין מצטרפים — אין מספר להתגאות בו, ואפס אינו כותרת. */
-  var hero = n || ext
-    ? '<b>' + (n + ext) + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
-      '</small></b><span>' + esc(go && ext ? fill(UI.admHeroSplit, { sys:n, ext:ext })
+  var hero = n || ext || (OB && OB.tot)
+    ? '<b>' + (OB ? OB.tot : n + ext) + '<small>' + esc(fill(UI.cbHero, { n:'' }).replace(/^\s*/, '')) +
+      '</small></b><span>' + esc(OB ? fill(UI.admHeroOv, { a:OB.app, b:OB.yesh })
+                                  : go && ext ? fill(UI.admHeroSplit, { sys:n, ext:ext })
                                   : code ? UI.cbHeroSub : UI.admHeroAll) + '</span>'
     : '<b style="font-size:1.15rem;color:var(--ink)">' + esc(UI.cbEmpty) + '</b>' +
       '<p>' + esc(UI.cbEmptySub) + '</p>';
@@ -8343,6 +8347,42 @@ function ovLoad(force) {
     return true;
   }, function () { ovState.busy = 0; ovState.msg = UI.ovNet; ovRepaint(); return false; });
 }
+/* הלוח בניהול — הסכום מהסקירה, כדי ששני המסכים יראו תמיד אותו מספר.
+   `code` ריק = כל הישיבות, כולל מי שבחר "מוסד אחר". null = אין נתונים. */
+function ovBoard(code) {
+  var rows = ovRows(), D = Store.get('ovData', null);
+  if (!rows || !rows.length || rows[0].tot === undefined) return null;
+  var o = { tot:0, app:0, yesh:0 };
+  rows.forEach(function (r) {
+    if (code && r.code !== code) return;
+    o.tot += parseInt(r.tot, 10) || 0;
+    o.app += parseInt(r.reg, 10) || 0;
+    o.yesh += parseInt(r.yn, 10) || 0;
+  });
+  if (!code) (D && D.other || []).forEach(function (x) { o.tot += x.n || 0; o.app += x.n || 0; });
+  return o;
+}
+/* הצעת טלפון לשלושת התפקידים — מאנשי הקשר שבמכשיר, **לפי שם בלבד**
+   (בלי "הרב"). רק הצעה בשדה: נשמר בקישור למנהלים רק כשהבעלים לוחץ שמירה. */
+function ovSug(r) {
+  var out = {}, ppl = [];
+  if (!r.code) return out;
+  contacts().forEach(function (c) {
+    var i = instByName(c.key || c.name);
+    if (i && i.code === r.code) ppl = ppl.concat(peopleOf(c));
+  });
+  var clean = function (x) { return nameKey(String(x || '').replace(/^\s*(הרב|הרבנית|ר['׳])\s+/, '')); };
+  (r.ppl || []).forEach(function (p) {
+    var k = clean(p.name), hit = '';
+    if (k.length > 2) ppl.some(function (q) {
+      var qk = clean(q.name);
+      if (q.phone && qk && (qk.indexOf(k) >= 0 || k.indexOf(qk) >= 0)) { hit = q.phone; return true; }
+      return false;
+    });
+    out[p.k] = hit;
+  });
+  return out;
+}
 function ovRepaint() { if (document.getElementById('calls-body')) renderCalls(); }
 /* קוד לכל שורה בטבלה ששמה **זהה** לשם ברשימת המוסדות — כדי
    שהשרת ידע לכתוב לה את המונים. שם דומה אינו משויך כאן. */
@@ -8491,12 +8531,12 @@ function ovAdmMount() {
   var el = document.getElementById('ov-adm'), rows = ovRows();
   if (el && rows) {
     var D = Store.get('ovData', null) || {};
-    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, go:ovGoRow, extra:ovExtra, solo:false });
+    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
     var r = rows.filter(function (x) { return '@' + x.code === state.yshOpen; })[0];
-    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, extra:ovOneExtra, solo:true });
+    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, extra:ovOneExtra, solo:true, sug:ovSug });
   }
 }
 /* במסך הישיבה — גם מספר התלמידים שראש החטיבה דיווח, כנתון קטן. */

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 94;
+var SCRIPT_VERSION = 95;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9035,19 +9035,27 @@ function ovLearners_() {
    בישיבה | חופפים | עודכן) — לא בטבלה שעוברת בין המנהלים.
    null = הקריאה נכשלה; אז נשארת ברירת המחדל, ולא נכתב דבר. */
 var OV_OWN_TAB_ = 'סקירה — בעלים';
+/* השדות שהבעלים ממלא, לפי שם העמודה. עמודה חסרה נוספת בכתיבה הראשונה. */
+var OV_OWN_F_ = { yesh: 'לומדים בישיבה', over: 'חופפים',
+                  pc: 'טלפון רכז', pr: 'טלפון ראש ישיבה', ph: 'טלפון ראש חטיבה' };
 var OV_OWN_COLS_ = ['קוד', 'לומדים בישיבה', 'חופפים', 'עודכן'];
 function ovOwn_() {
   try {
     var sh = sheet_(OV_OWN_TAB_);
     if (!sh.getLastRow()) headRow_(sh, OV_OWN_COLS_);
     var a = sh.getDataRange().getDisplayValues(), h = a[0].map(function (x) { return String(x).trim(); });
-    var ic = h.indexOf('קוד'), iy = h.indexOf('לומדים בישיבה'), io = h.indexOf('חופפים');
+    var ic = h.indexOf('קוד');
     if (ic < 0) return null;
     var m = {};
     for (var i = 1; i < a.length; i++) {
       var c = String(a[i][ic] || '').trim();
-      if (c) m[c] = { r: i + 1, yesh: iy >= 0 ? String(a[i][iy] || '').trim() : '',
-                      over: io >= 0 ? String(a[i][io] || '').trim() : '' };
+      if (!c) continue;
+      var o = { r: i + 1 };
+      Object.keys(OV_OWN_F_).forEach(function (f) {
+        var at = h.indexOf(OV_OWN_F_[f]);
+        o[f] = at >= 0 ? String(a[i][at] || '').trim() : '';
+      });
+      m[c] = o;
     }
     return { sh: sh, h: h, m: m };
   } catch (e) { return null; }
@@ -9055,7 +9063,12 @@ function ovOwn_() {
 function ovOwnSet_(code, f, v) {
   var O = ovOwn_();
   if (!O) throw new Error('הלשונית הפרטית לא נקראה');
-  var col = O.h.indexOf(f === 'yesh' ? 'לומדים בישיבה' : 'חופפים');
+  var col = O.h.indexOf(OV_OWN_F_[f]);
+  if (col < 0) {
+    col = O.h.length;
+    O.sh.getRange(1, col + 1).setValue(OV_OWN_F_[f]).setFontWeight('bold');
+    O.h.push(OV_OWN_F_[f]);
+  }
   var at = O.h.indexOf('עודכן');
   var hit = O.m[code];
   if (!hit) {
@@ -9066,8 +9079,28 @@ function ovOwnSet_(code, f, v) {
     O.sh.appendRow(row);
     hit = { r: O.sh.getLastRow() };
   }
-  O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : +v);
+  /* טלפון נכתב כמלל (גרש מוביל) — אחרת גוגל מוחקת את האפס שבראשו. */
+  var isPh = f === 'pc' || f === 'pr' || f === 'ph';
+  O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : isPh ? "'" + v : +v);
   if (at >= 0) O.sh.getRange(hit.r, at + 1).setValue(new Date());
+}
+/* ============================================================
+   כפתורי שיחה בקישור למנהלים (19.10.2026).
+   ============================================================
+   "בלחיצת כפתור הם יכולים להתקשר לרכז או לשלוח לו וואטסאפ" — וגם
+   לראש הישיבה ולראש החטיבה. **רק טלפון שהבעלים שמר בעצמו** בלשונית
+   הפרטית: הטלפונים של אנשי הקשר אינם עוברים לקישור לבד. למנהלים יוצא
+   רק מי שיש לו גם שם וגם טלפון; לבעלים — כל השלושה, לעריכה. */
+function ovPpl_(T, row, own, owner) {
+  var code = ovCell_(T, row, 'code');
+  var mine = own && own.m && code ? own.m[code] : null;
+  var out = [];
+  [['pc', 'coord'], ['pr', 'rosh'], ['ph', 'head']].forEach(function (p) {
+    var name = ovCell_(T, row, p[1]), phone = mine ? mine[p[0]] || '' : '';
+    if (!owner && !(name && phone)) return;
+    out.push({ k: p[0], name: name, phone: phone });
+  });
+  return out;
 }
 /* דיווח ראש החטיבה לפי קוד — מלשונית ההרשמות (פרטית). השורה האחרונה גוברת. */
 function ovReps_() {
@@ -9112,6 +9145,7 @@ function ovRow_(T, row, owner, L, own, reps) {
             att: ovCell_(T, row, 'att'), note: ovCell_(T, row, 'note') };
   var X = ovTotal_(o, own, reps);
   o.tot = X.tot; o.yn = X.yn;
+  o.ppl = ovPpl_(T, row, own, owner);
   if (owner) {
     o.yesh = X.yesh; o.yset = X.yset; o.over = X.over; o.rep = X.rep;
     o.learn = L && o.code ? String(L[o.code] || 0) : '';
@@ -9209,7 +9243,7 @@ function ov_(p) {
     if (op === 'set') {
       var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
       /* "לומדים בפועל" אינו נכתב לטבלה — הוא מחושב (ovLearners_). */
-      if (['note', 'coord', 'yesh', 'over'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      if (['note', 'coord', 'yesh', 'over', 'pc', 'pr', 'ph'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
       if (f !== 'note' && !owner) return { status: 'denied', message: 'רק לבעלים' };
       if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
       var hit = null;
@@ -9220,8 +9254,11 @@ function ov_(p) {
       });
       if (!hit) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
       /* לומדים בישיבה / חופפים — ללשונית הפרטית, לא לטבלה. */
-      if (f === 'yesh' || f === 'over') {
-        if (v && !/^\d{1,5}$/.test(v)) return { status: 'error', message: 'מספר בלבד, או ריק' };
+      if (OV_OWN_F_[f]) {
+        if (f === 'pc' || f === 'pr' || f === 'ph') {
+          v = v.replace(/[^\d+]/g, '');
+          if (v && v.replace(/\D/g, '').length < 9) return { status: 'error', message: 'מספר טלפון לא תקין' };
+        } else if (v && !/^\d{1,5}$/.test(v)) return { status: 'error', message: 'מספר בלבד, או ריק' };
         var hc = ovCell_(T, hit, 'code');
         if (!hc) return { status: 'error', message: 'לישיבה אין קוד בטבלה' };
         ovOwnSet_(hc, f, v);
