@@ -759,9 +759,21 @@ body.emb .qfab,body.emb .qhint{position:absolute}
   color:#fff;border:0}
 /* "מילוי מהרשימה" — מאגר "שאלות לשיבוץ" (qbFillHtml_) */
 .qz-qb{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--rule,#E4DCC8)}
-.qz-qb .qz-opt small{display:block;font-size:.8rem;font-weight:600;margin-top:3px;opacity:.92}
-.qz-qb .qz-opt em{font-style:normal;font-size:.74rem;color:var(--ink-3,#7A8499);margin-inline-start:6px}
-.qz-qbl .qz-opt{font-weight:600}
+/* כרטיס אחד בכל פעם — השאלה המלאה עם התשובות, וחיצים לצדדים
+   (ימין = הקודמת, שמאל = הבאה, כמו "הקודם"/"הבא" שבתחתית). */
+.qz-qbh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font-size:.82rem;font-weight:800;color:var(--ink-2,#5A6780);margin-bottom:6px}
+.qz-qbh em{font-style:normal;font-weight:700;color:var(--ink-3,#7A8499)}
+.qz-qbc{display:flex;align-items:stretch;gap:6px}
+.qz-qbn{flex:none;width:38px;border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);
+  background:#fff;color:var(--blue,#17468F);font-family:inherit;font-size:1.1rem;cursor:pointer}
+.qz-qbn:disabled{opacity:.3;cursor:default}
+.qz-qbx{flex:1;min-width:0;padding:12px;border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff}
+.qz-qbq{font-weight:800;font-size:.95rem;line-height:1.45;margin-bottom:8px}
+.qz-qba{margin-top:6px;padding:8px 10px;border-radius:9px;background:rgba(27,42,69,.05);
+  font-size:.86rem;font-weight:600;line-height:1.4}
+.qz-qba.ok{background:rgba(59,125,87,.14);color:#2F6B47;font-weight:800}
+.qz-qbw{margin-top:8px;font-size:.78rem;font-weight:700;color:#A5382D;text-align:center}
 .qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
   border-radius:10px;border:1.5px solid var(--rule,#E4DCC8);box-sizing:border-box;margin-top:8px}
 textarea.qz-in{min-height:60px;resize:vertical}
@@ -5322,7 +5334,7 @@ function qSend(n, k, right) {
    אינה הוכחה לכלום. מצוירת גם היא לתוך `#chb`, לא בחלון. */
 var Q_EDIT = null;
 function qEditOpen_(n) {
-  Q_FROM = null; QB_OPEN = false;
+  Q_FROM = null;
   var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
   Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr }
                : { q:'', a:['', '', '', ''], correct:0, yr:false };
@@ -5520,7 +5532,7 @@ var QB_ID = (function () {
   try { return decodeURIComponent((/[?&]qb=([^&#]*)/.exec(location.search) || [])[1] || ''); }
   catch (e) { return ''; }
 })();
-var QBL = null, QB_OPEN = false, Q_FROM = null;
+var QBL = null, QB_CUR = '', Q_FROM = null;
 function qbStLbl_(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
 /* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף. */
 function qbSetList_(l) {
@@ -5537,18 +5549,34 @@ function loadQBank_() {
     if (l) qbSetList_(l);          /* קריאה שנכשלה — מה שהיה נשאר */
   }).catch(function () {});
 }
+/* השאלה שעל הכרטיס: מה שדפדפו אליו; אחרת זו שנבחרה ב"שיבוץ בדף"
+   (אם עוד לא שובצה); אחרת הראשונה — המוכנות קודם (qbSetList_). */
+function qbAt_() {
+  var i, sel;
+  for (i = 0; i < QBL.length; i++) if (QBL[i].id === QB_CUR) return i;
+  sel = QB_ID ? QbFind(QBL, QB_ID) : null;
+  if (sel && sel.st !== QB_ST[2]) return QBL.indexOf(sel);
+  return 0;
+}
 function qbFillHtml_() {
   if (!QBL || !QBL.length) return '';
-  var sel = QB_ID ? QbFind(QBL, QB_ID) : null;
+  var i = qbAt_(), x = QBL[i], ok = QbFull(x), one = QBL.length < 2;
+  var st = qbStLbl_(x.st) + (x.st === QB_ST[2] && x.seg ? ' · ' + x.seg.split(' · ')[0] : '');
   return '<div class="qz-qb">' +
-    (sel && QbFull(sel) ? '<button class="qz-opt gold" id="qb-sel">' + esc(UI.qbFillSel || '') +
-      '<small>' + esc(sel.q) + '</small></button>' : '') +
-    '<button class="qz-opt" id="qb-list" aria-expanded="' + QB_OPEN + '">' +
-      esc(UI.qbFillList || '') + ' (' + QBL.length + ')</button>' +
-    (QB_OPEN ? '<div class="qz-qbl">' + QBL.map(function (x, i) {
-      return '<button class="qz-opt" data-qbi="' + i + '"' + (QbFull(x) ? '' : ' disabled') + '>' +
-        esc(x.q) + '<em>' + esc(qbStLbl_(x.st)) + '</em></button>';
-    }).join('') + '</div>' : '') +
+    '<div class="qz-qbh"><span>' + esc(fillT(UI.qbCarT, { i: i + 1, n: QBL.length })) + '</span>' +
+      '<em>' + esc(st) + '</em></div>' +
+    '<div class="qz-qbc">' +
+    (one ? '' : '<button class="qz-qbn" id="qb-prev" aria-label="' + esc(UI.qbPrev || '') + '"' +
+      (i ? '' : ' disabled') + '>▸</button>') +
+    '<div class="qz-qbx"><div class="qz-qbq">' + esc(x.q) + '</div>' +
+      x.a.map(function (t, k) {
+        return '<div class="' + (k === x.correct ? 'qz-qba ok">✓ ' : 'qz-qba">') + esc(t || '—') + '</div>';
+      }).join('') + '</div>' +
+    (one ? '' : '<button class="qz-qbn" id="qb-next" aria-label="' + esc(UI.qbNext || '') + '"' +
+      (i < QBL.length - 1 ? '' : ' disabled') + '>◂</button>') +
+    '</div>' +
+    '<button class="qz-opt gold" id="qb-fill"' + (ok ? '' : ' disabled') + '>' + esc(UI.qbFillThis || '') + '</button>' +
+    (ok ? '' : '<div class="qz-qbw">' + esc(UI.qbNotFull || '') + '</div>') +
     (Q_FROM ? '<div class="qz-res">' + esc(UI.qbFilled || '') + '</div>' : '') +
     '</div>';
 }
@@ -5556,17 +5584,20 @@ function qbFillHtml_() {
 function qbFill_(n, x) {
   if (!x || !QbFull(x)) return;
   Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct, yr:!!x.yr };
-  Q_FROM = x.id; QB_OPEN = false;
+  Q_FROM = x.id; QB_CUR = x.id;
   qPaintEdit_(n);
 }
 function qbFillBind_(n) {
-  var sel = $('qb-sel'), lst = $('qb-list');
-  if (sel) sel.onclick = function () { qbFill_(n, QbFind(QBL, QB_ID)); };
-  if (lst) lst.onclick = function () { QB_OPEN = !QB_OPEN; qPaintEdit_(n); };
-  var bs = $('chb').querySelectorAll('[data-qbi]');
-  for (var i = 0; i < bs.length; i++) bs[i].onclick = function () {
-    qbFill_(n, QBL[+this.getAttribute('data-qbi')]);
+  var pv = $('qb-prev'), nx = $('qb-next'), fl = $('qb-fill');
+  var go = function (d) {
+    var j = qbAt_() + d;
+    if (j < 0 || j >= QBL.length) return;
+    QB_CUR = QBL[j].id;
+    qPaintEdit_(n);
   };
+  if (pv) pv.onclick = function () { go(-1); };
+  if (nx) nx.onclick = function () { go(1); };
+  if (fl) fl.onclick = function () { qbFill_(n, QBL[qbAt_()]); };
 }
 function qbMarkPlaced_(n) {
   var id = Q_FROM, key = cfgReadKey_();
@@ -5581,7 +5612,10 @@ function qbMarkVerify_(tries, id, seg) {
   setTimeout(function () {
     sheetCsv(QB_TAB).then(function (rows) {
       var l = QbFromRows(rows), x = l && QbFind(l, id);
-      if (x && x.st === QB_ST[2] && x.seg === seg) { qbSetList_(l); toast(UI.qbMarkOk || ''); return; }
+      if (x && x.st === QB_ST[2] && x.seg === seg) {
+        /* השאלה ששובצה עוברת לסוף, והכרטיס — לבאה בתור. */
+        qbSetList_(l); QB_CUR = ''; toast(UI.qbMarkOk || ''); return;
+      }
       if (tries < 4) { qbMarkVerify_(tries + 1, id, seg); return; }
       toast(UI.qbMarkBad || '');
     });

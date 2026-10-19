@@ -2939,7 +2939,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.273';
+var APP_VERSION = '8.99.274';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11308,7 +11308,8 @@ function admMoreMenu() {
    הכתיבה — שורה לפי מזהה (qbank.js), ואחריה קריאה חוזרת שמאמתת.
    ============================================================ */
 var QB = null, QB_BUSY = false, QB_FAIL = false, QB_AT = 0, QB_IDS_AT = 0;
-var QB_F = { st:'', md:'', mas:'' };
+/* md: null = עוד לא נבחר — הדף של השבוע (qbMdNow). '' = כל הדפים. */
+var QB_F = { st:'', md:null, mas:'' };
 /* המסכת שבמאגר. תמיד אחת — אין "הכול": תענית ומגילה לא באותה רשימה.
    הבחירה נזכרת במכשיר (נוחות בלבד; בלי זיכרון — המסכת הראשונה). */
 function qbMas() {
@@ -11321,7 +11322,7 @@ function qbMasSet(mas) {
   QB_F.mas = mas;
   try { localStorage.setItem('df:qbMas', mas); } catch (e) {}
   /* מסנן דף של המסכת האחרת אינו נשאר */
-  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = '';
+  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = null;
   /* שאלה חדשה שבכתיבה עוברת עם הבחירה — לדף הראשון של המסכת */
   if (QB_ED && !QB_ED.id && QB_ED.mas !== mas) { QB_ED.mas = mas; QB_ED.daf = qbDafs(mas)[0] || ''; }
 }
@@ -11329,6 +11330,11 @@ var QB_ED = null;            /* העותק שבעריכה. id ריק = שאלה 
 function qbApi() { return (CFG.api || API || '').trim(); }
 function qbStLbl(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
 function qbMd(x) { return x.mas + '|' + QbDafKey(x.daf); }
+/* הדף של השבוע במסכת — ממנו מתחילים, כדי ששאלות של דף קודם לא יעמיסו. */
+function qbDafNow(mas) {
+  var tr = trackById(mas);
+  return (tr && (tr.cal[Math.max(0, weekIndex())] || [])[2]) || '';
+}
 function qbDafs(mas) {
   var tr = trackById(mas), out = [];
   ((tr && tr.cal) || []).forEach(function (w) {
@@ -11414,7 +11420,11 @@ function qbPaint() {
   /* כל מה שלמטה — רק המסכת שנבחרה: הכרטיסים, הדפים והספירות. */
   all.forEach(function (x) { per[x.mas] = (per[x.mas] || 0) + 1; });
   var list = all.filter(function (x) { return x.mas === mas; });
-  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = '';
+  if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = null;
+  var now = qbDafNow(mas);
+  if (QB_F.md === null) QB_F.md = now ? qbMd({ mas: mas, daf: now }) : '';
+  /* הדף של השבוע תמיד ברשימה — גם כשעוד אין בו שאלות. */
+  if (now) { seen[qbMd({ mas: mas, daf: now })] = 1; pages.push({ k: qbMd({ mas: mas, daf: now }), t: QbMasName(mas) + ' ' + now }); }
   QB_ST.forEach(function (st) { n[st] = 0; });
   list.forEach(function (x) {
     var k = qbMd(x);
@@ -11470,7 +11480,7 @@ function qbClick(ev) {
     var md = QB_F.md ? QB_F.md.split('|') : [], mas = qbMas();
     var tr = trackById(mas), daf = '';
     if (md[1]) qbDafs(mas).forEach(function (d) { if (QbDafKey(d) === md[1]) daf = d; });
-    if (!daf && tr) daf = (tr.cal[Math.max(0, weekIndex())] || [])[2] || qbDafs(mas)[0] || '';
+    if (!daf && tr) daf = qbDafNow(mas) || qbDafs(mas)[0] || '';
     QB_ED = { id:'', mas:mas, daf:daf, q:'', a:['', '', '', ''], correct:-1, st:QB_ST[0], note:'', yr:false };
     qbPaint();
     var ta = document.querySelector('#qb .qb-ed textarea');
