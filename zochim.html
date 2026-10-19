@@ -61,6 +61,15 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .art{max-height:60vh;width:auto;max-width:100%;margin:0 auto}
 main.wait{visibility:hidden}
 .day{font-size:1.05rem;font-weight:800;color:var(--blue-d);margin:16px 0 6px;text-align:center}
+/* כותרת ההגרלה — כמו שורת שבוע במסלול: עיגול הדף, הפרשה, התאריך העברי */
+.wkh{display:flex;align-items:center;gap:13px;margin:18px 0 8px}
+.wkh .dc{flex:none;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:#5B8C2A;border:2px solid #4A7522;color:#fff;font-size:1.15rem;font-weight:800}
+.wkh b{display:block;font-size:1.3rem;font-weight:800;color:var(--blue-d);line-height:1.25}
+.wkh small{display:block;font-size:.92rem;font-weight:600;color:var(--ink-2)}
+.past .wkh{margin-top:22px}
+.past .wkh .dc{width:42px;height:42px;font-size:1rem}
+.past .wkh b{font-size:1.08rem}
 .wl li{list-style:none;padding:7px 0;border-bottom:1px solid #E5DAC3;font-weight:700;font-size:1.02rem}
 .wl li span{color:var(--ink-2);font-weight:500}
 .go{display:block;margin:16px 0 4px;padding:15px 14px;border-radius:14px;background:var(--blue-d);color:#fff;
@@ -125,7 +134,18 @@ function wl(r) {
     return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span></li>';
   }).join('') + '</ul>';
 }
-function day(r) { return r.day ? '<h2 class="day">' + esc(tp(UI.zchDay, { d: r.day })) + '</h2>' : ''; }
+/* הכותרת לפי המסלול: ההגרלה נערכת בגמר השבוע הקודם, ולכן השורה בלוח
+   היא של השבוע שלפני שבוע ההגרלה (`wk` מהשרת — 1 = השבוע הראשון).
+   הלוח של המסכת הראשונה. אין שורה — יום הפרסום, כמו קודם. */
+function day(r) {
+  var i = parseInt(r.wk, 10) - 2, row = i >= 0 ? (TRACKS[0].cal[i] || null) : null;
+  if (row) {
+    var d = row[2] && row[2] !== 'סיום' ? row[2] + (row[3] === 'א' ? '.' : row[3] === 'ב' ? ':' : '') : '';
+    return '<div class="wkh">' + (d ? '<span class="dc">' + esc(d) + '</span>' : '') +
+           '<div><b>' + esc(row[1]) + '</b><small>' + esc(row[0]) + '</small></div></div>';
+  }
+  return r.day ? '<h2 class="day">' + esc(tp(UI.zchDay, { d: r.day })) + '</h2>' : '';
+}
 function draw() {
   $('art').alt = UI.zchAlt;
   if (LIST === null) return;
