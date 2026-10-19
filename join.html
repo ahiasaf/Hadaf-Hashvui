@@ -3143,7 +3143,8 @@ function drawPts() {
   var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
   if (PTS_OPEN) {
     h += '<div class="l">' + (c.l || []).map(function (x) {
-      return esc(tpl(UI.ptsRow, { mas: mas(x[0]), daf: x[1], s: x[2] === 'conf' ? UI.ptsConf : x[2] }));
+      return esc(tpl(UI.ptsRow, { mas: mas(x[0]), daf: x[1], s: x[3] ? tpl(UI.ptsConfN, { k: x[3] }) : x[2] === 'conf' ? UI.ptsConf : x[2],
+                                p: 10 * (x[3] || 1) }));
     }).join('<br>') + '<div class="h">' + esc(UI.myPtsHow) + '</div></div>';
   }
   el.innerHTML = h;

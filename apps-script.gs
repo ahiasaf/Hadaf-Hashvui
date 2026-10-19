@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 95;
+var SCRIPT_VERSION = 96;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3478,8 +3478,7 @@ function amdaSync_() {
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r], cx = function (n) { return at.c(x, n); };
     if (cx('סוג') !== 'דף' || !cx('קוד ישיבה') || !cx('מסלול') || !cx('שבוע')) continue;
-    /* "השתתף" בלבד — נספר בעמדה, אבל לא כמי שלמד את הדף. */
-    if (cx('רמה') === AMDA_LV_P_) continue;
+    /* כל סימון בדף השבועי — לימוד מלא (8.99.292), גם "השתתף" ישן. */
     var key = [cx('קוד ישיבה'), cx('שכבה'), cx('כיתה'), amdaNorm_(cx('שם')),
                cx('מסלול'), cx('שבוע')].join('|');
     if (seen[key] || had['k:' + key]) continue;
@@ -3583,7 +3582,7 @@ function amdaSync_() {
   /* שיוך חדש יכול להעביר תלמיד ל"לומד בחבורה" — המשבצות נספרות מחדש. */
   if (made || linked) recount_();
   if (wrote) recountLearn_();
-  /* שיוך חדש — אישור חידון שחיכה לו נכנס לנקודות ולזכאות. */
+  /* שיוך חדש — נוכחות שחיכתה לו נכנסת לנקודות ולזכאות. */
   if (linked) amdaQzBust_();
   amdaAmbSave_(amb);
   return wrote;
@@ -3592,14 +3591,12 @@ function amdaAmbSave_(amb) {
   try { PropertiesService.getScriptProperties().setProperty('amdaAmb', JSON.stringify(amb.slice(0, 200))); } catch (e) {}
 }
 
-var AMDA_LV_P_ = 'השתתף';
 
 /* ============================================================
    "מה למדתם עכשיו?" — שינוי של פתיחה שלמה, אחרי מעשה.
    ============================================================
    כל השורות של אותו יום ומועד מקבלות את הסוג (דף/שיעור), את
-   הדף ואת הרמה. מי שהפסיק להיחשב כמי שלמד (נושא אחר, או
-   "השתתף" בלבד) — שורת הסיום שהעמדה כתבה לו יורדת, אלא אם
+   הדף ואת הרמה. מי שהפסיק להיחשב כמי שלמד (נושא אחר) — שורת הסיום שהעמדה כתבה לו יורדת, אלא אם
    למד את אותו דף בעמדה בפתיחה אחרת. מי שהתחיל להיחשב — השיוך
    הרגיל (amdaSync_) כותב לו. */
 function amdaKind_(d) {
@@ -3615,7 +3612,7 @@ function amdaKind_(d) {
     return [at.c(x, 'קוד ישיבה'), at.c(x, 'שכבה'), at.c(x, 'כיתה'), amdaNorm_(at.c(x, 'שם')),
             at.c(x, 'מסלול'), at.c(x, 'שבוע')].join('|');
   };
-  var learned = function (x) { return at.c(x, 'סוג') === 'דף' && at.c(x, 'רמה') !== AMDA_LV_P_; };
+  var learned = function (x) { return at.c(x, 'סוג') === 'דף'; };
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r];
     if (at.c(x, 'יום') !== day || at.c(x, 'קוד עמדה') !== slot) continue;
@@ -3627,7 +3624,7 @@ function amdaKind_(d) {
     sh.getRange(r + 1, iD + 1).setValue(daf);
     sh.getRange(r + 1, iL + 1).setValue(lvl);
     sh.getRange(r + 1, iQ + 1).setValue(qz ? 'כן' : '');
-    if (was && !(dafK && lvl !== AMDA_LV_P_)) drop[oldKey] = 1;
+    if (was && !dafK) drop[oldKey] = 1;
     n++;
   }
   /* מי שעדיין לומד את אותו דף בפתיחה אחרת — נשאר. */
@@ -3635,7 +3632,7 @@ function amdaKind_(d) {
     var at2 = amdaTable_(AMDA_TAB_);
     for (var r2 = 1; r2 < at2.rows.length; r2++) {
       var y = at2.rows[r2];
-      if (at2.c(y, 'סוג') === 'דף' && at2.c(y, 'רמה') !== AMDA_LV_P_) {
+      if (at2.c(y, 'סוג') === 'דף') {
         delete drop[[at2.c(y, 'קוד ישיבה'), at2.c(y, 'שכבה'), at2.c(y, 'כיתה'), amdaNorm_(at2.c(y, 'שם')),
                      at2.c(y, 'מסלול'), at2.c(y, 'שבוע')].join('|')];
       }
@@ -7391,86 +7388,88 @@ function quizDaf_(Q, who, tr, base) {
 function quizPass_(x) { return !!(x && x[0] * 5 >= x[1] * 4); }   /* 80% */
 
 /* ============================================================
-   אישור חידון בנוכחות — נתיב נוסף, לא ציון (8.99.256).
+   נוכחות בדף השבועי = לימוד מלא, כולל חידון (8.99.292).
    ============================================================
-   איש צוות שבחר בפתיחת הנוכחות "לסמן גם שענו על החידון" מאשר
-   שהתלמיד ביצע את החידון במלואו. האישור נשמר כעמודה מפורשת
-   ("אישור חידון" = כן) בשורת הנוכחות עצמה — לא ציון, ולא שורה
-   ב"חידות". שורת נוכחות נכתבת רק בסיסמת הרכז או ממכשיר צוות שאושר
-   לאותה ישיבה (קוד הישיבה נכפה בשרת), ולכן זה המקור המאומת.
-   **רישומים ישנים** — "למד וחידון" היה ברירת מחדל, ואין בהם את
-   העמודה; הם נשארים לימוד, ולא אישור חידון.
+   **כל סימון נוכחות בדף השבועי** — הדף כולו נלמד והחידון נענה.
+   עד 8.99.289 נדרש אישור מפורש ("אישור חידון" = כן), ו"השתתף" לא
+   נחשב כלל; שניהם ירדו, גם אחורה — כל שורת "דף" בנוכחות נספרת.
+   שיעור בנושא אחר — לא (אין לו דף).
    השיוך לתלמיד — דרך "עמדה — שיוך" (המפתח מוסד·שכבה·כיתה·שם·מסלול·
-   שבוע ← מזהה), אותו שיוך שכותב את הלימוד. "השתתף" ושיעור שאינו
-   הדף — לא. מחזיר { 'מזהה|מסלול|דף': 1 } אחרי איחוד, `seen` כמו
-   quizBest_. במטמון 5 דקות; נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
+   שבוע ← מזהה), אותו שיוך שכותב את הלימוד.
+   **אור עציון** (AMDA_EACH_): כל מועד שבו סומן (יום · קוד עמדה) — 10
+   נקודות, גם כמה באותו שבוע. אותו מועד פעמיים — פעם אחת. שורה ישנה
+   בלי יום ומועד — מועד אחד לשבוע שלה.
+   מחזיר { ok: { 'מזהה|מסלול|דף': 1 }, k: { אותו מפתח → מספר מועדים
+   באור עציון (0 — מוסד אחר) }, seen } — הדף בלי עמוד (ב. וב: — דף ב). במטמון 5 דקות;
+   נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
+var AMDA_EACH_ = 'oretzion';
 function amdaQzBust_() {
-  try { CacheService.getScriptCache().removeAll(['amda:qz', 'pts:all', 'raf:me']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['amda:att', 'pts:all', 'raf:me']); } catch (e) {}
 }
 function amdaQzRaw_() {
-  var rc = CacheService.getScriptCache(), hit = rc.get('amda:qz');
+  var rc = CacheService.getScriptCache(), hit = rc.get('amda:att');
   if (hit) { try { return JSON.parse(hit); } catch (x0) {} }
   var out = [];
   var at = amdaTable_(AMDA_TAB_), want = {};
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r];
-    if (at.c(x, 'אישור חידון') !== 'כן' || at.c(x, 'סוג') !== 'דף' || at.c(x, 'רמה') === AMDA_LV_P_) continue;
+    if (at.c(x, 'סוג') !== 'דף') continue;
     var key = [at.c(x, 'קוד ישיבה'), at.c(x, 'שכבה'), at.c(x, 'כיתה'), amdaNorm_(at.c(x, 'שם')),
                at.c(x, 'מסלול'), at.c(x, 'שבוע')].join('|');
-    want[key] = [at.c(x, 'מסלול'), at.c(x, 'דף')];
+    var w = want[key] = want[key] || [at.c(x, 'מסלול'), at.c(x, 'דף'), {}, at.c(x, 'קוד ישיבה') === AMDA_EACH_];
+    w[2][at.c(x, 'יום') + '|' + at.c(x, 'קוד עמדה')] = 1;
   }
   if (Object.keys(want).length) {
     var lt = amdaTable_(AMDA_LINK_);
     for (var l = 1; l < lt.rows.length; l++) {
-      var w = want[lt.c(lt.rows[l], 'מפתח')], id = lt.c(lt.rows[l], 'מזהה');
-      if (w && id) out.push([id, w[0], w[1]]);
+      var w2 = want[lt.c(lt.rows[l], 'מפתח')], id = lt.c(lt.rows[l], 'מזהה');
+      if (w2 && id) out.push([id, w2[0], w2[1], w2[3] ? Object.keys(w2[2]).length : 0]);
     }
   }
-  try { rc.put('amda:qz', JSON.stringify(out), 300); } catch (x2) {}
+  try { rc.put('amda:att', JSON.stringify(out), 300); } catch (x2) {}
   return out;
 }
 function amdaQz_(alias, target) {
-  var ok = {}, seen = {};
+  var ok = {}, k = {}, seen = {};
   amdaQzRaw_().forEach(function (q) {
-    var canon = alias[q[0]] || q[0], tr = rafTrack_(q[1]), d = String(q[2] || '').replace(/["'׳״\s]/g, '');
+    var canon = alias[q[0]] || q[0], tr = rafTrack_(q[1]);
+    var d = String(q[2] || '').replace(/["'׳״\s]/g, '').replace(/[.:]$/, '');
     if (!canon || !tr || !d) return;
     canon = target[canon] || canon;
-    ok[canon + '|' + tr + '|' + d] = 1;
+    var ky = canon + '|' + tr + '|' + d;
+    ok[ky] = 1;
     seen[canon] = 1;
+    /* מועדי אור עציון בלבד; ב. וב: (שבועות שונים), או שני מזהים
+       שאוחדו — המועדים מצטרפים. */
+    k[ky] = (k[ky] || 0) + (+q[3] || 0);
   });
-  return { ok: ok, seen: seen };
+  return { ok: ok, k: k, seen: seen };
 }
-/* תנאי החידון לדף שלם: ציון 80%+ (quizDaf_, כמו קודם), או אישור
-   בנוכחות. עמוד בדף מחולק — מאושר, או שהציון שלו לבדו עובר; אישור
-   של עמוד אחד אינו מאשר את השני. { x: ציון או null, conf: bool } או
-   null כשהתנאי לא מתקיים. */
+/* תנאי החידון לדף שלם: ציון 80%+ (quizDaf_, כמו קודם), או נוכחות
+   בדף — בכל אחד מעמודיו (8.99.292: נוכחות היא הדף כולו עם החידון).
+   { x: ציון או null, conf: bool } או null כשהתנאי לא מתקיים. */
 function quizOk_(Q, A, who, tr, base) {
   var x = quizDaf_(Q, who, tr, base);
   if (quizPass_(x)) return { x: x, conf: false };
-  if (!A) return null;
-  var sp = tr === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA, pre = who + '|' + tr + '|' + base;
-  if (A.ok[pre]) return { x: null, conf: true };
-  var hasA = !!sp.wk[base + '.'], hasB = !!sp.wk[base + ':'];
-  if (!hasA && !hasB) return null;
-  var pg = function (sfx) { return !!A.ok[pre + sfx] || quizPass_(Q.best[pre + sfx]); };
-  var okA = !hasA || pg('.'), okB = !hasB || pg(':');
-  /* לפחות עמוד אחד באישור — אחרת זה מסלול הציון של quizDaf_. */
-  return okA && okB && (A.ok[pre + '.'] || A.ok[pre + ':']) ? { x: null, conf: true } : null;
+  return A && A.ok[who + '|' + tr + '|' + base] ? { x: null, conf: true } : null;
 }
 
 /* ============================================================
    נקודות — לכל התלמידים, בכל המוסדות (8.99.263; עד אז אור עציון בלבד).
    ============================================================
    10 נקודות לכל דף שלם (שני העמודים, כמו rafSide_; עמוד שאין לו בן
-   זוג בלוח — כמו סוף מסכת — הוא הדף כולו), עם חידון: ציון 80% ומעלה
-   או אישור מפורש בנוכחות (quizOk_). **פעם אחת לאדם, מסכת ודף** — שני
+   זוג בלוח — כמו סוף מסכת — הוא הדף כולו), עם חידון בציון 80% ומעלה
+   (quizOk_) — או נוכחות בדף, שהיא הדף כולו עם החידון (8.99.292).
+   באור עציון — 10 לכל מועד נוכחות (amdaQz_), גם כמה באותו שבוע.
+   מחוץ לזה **פעם אחת לאדם, מסכת ודף** — שני
    המסלולים יחד, השלמה חוזרת, מכשיר אחר או חידון חוזר אינם מוסיפים.
    הזהות — האנשים והאיחוד של ההגרלה (rafPpl_), ולכן חשבון שאוחד או
    תלמיד שדווח בנוכחות ונרשם אחר כך — יתרה אחת. הורים ובדיקה — בלי
    נקודות. לפיד — כן: ההחרגה שלו היא מההגרלה בלבד. כל העבר נכלל, ולא
    נשמר כאן דבר: הכול מחושב מחדש מהלימוד, מהחידונים ומהנוכחות.
    { v: { מזהה יעד → { n: נקודות או null ("לא ידוע"), l: [[מסכת, דף,
-   ציון או 'conf']] } }, m: { מזהה שאוחד → מזהה יעד } }. ptsOf_ לקריאה.
+   ציון או 'conf', ובאור עציון גם מספר מועדים כשיותר מאחד]] } },
+   m: { מזהה שאוחד → מזהה יעד } }. ptsOf_ לקריאה.
    במטמון 5 דקות, בחלקים (כל המוסדות חורגים מגודל ערך אחד); נמחק
    בכל כתיבה שיכולה לשנות נקודות — ptsBust_. */
 function ptsBust_() {
@@ -7517,18 +7516,27 @@ function ptsAll_() {
     }
   }
   var Q = quizBest_(alias, target), A = amdaQz_(alias, target), out = { v: {}, m: {} };
+  /* נוכחות בדף — הדף כולו נלמד (8.99.292), גם בלי שורת לימוד. */
+  Object.keys(A.ok).forEach(function (ky) {
+    var pr = ky.split('|');
+    if (who[pr[0]]) who[pr[0]][pr[1] + '|' + pr[2]] = { a: 1, b: 1 };
+  });
   Object.keys(who).forEach(function (to) {
-    var l = [];
+    var l = [], n = 0;
     Object.keys(who[to]).forEach(function (k) {
       var pr = k.split('|'), s = who[to][k], sp = pr[0] === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
       var whole = (s.a && s.b) || (s.a && !sp.wk[pr[1] + ':']) || (s.b && !sp.wk[pr[1] + '.']);
-      /* ציון ואישור — אותו דף, פעם אחת. "conf" — אושר בנוכחות, בלי ציון. */
+      var wk = sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99;
+      var ak = A.ok[to + '|' + k] ? Math.max(1, A.k[to + '|' + k] || 0) : 0;
+      /* נוכחות — "conf", ובאור עציון 10 לכל מועד (הרביעי: כמה מועדים).
+         אחרת ציון ונוכחות — אותו דף, פעם אחת. */
+      if (ak) { l.push([pr[0], pr[1], 'conf', wk, ak]); n += ak; return; }
       var ok = whole ? quizOk_(Q, A, to, pr[0], pr[1]) : null;
-      if (ok) l.push([pr[0], pr[1], ok.x ? ok.x[0] + '/' + ok.x[1] : 'conf', sp.wk[pr[1]] || sp.wk[pr[1] + '.'] || 99]);
+      if (ok) { l.push([pr[0], pr[1], ok.x ? ok.x[0] + '/' + ok.x[1] : 'conf', wk, 1]); n++; }
     });
     l.sort(function (x, y) { return x[3] - y[3] || (x[0] < y[0] ? -1 : 1); });
-    out.v[to] = { n: Q.seen[to] || A.seen[to] ? l.length * 10 : null,
-                  l: l.map(function (x) { return [x[0], x[1], x[2]]; }) };
+    out.v[to] = { n: Q.seen[to] || A.seen[to] ? n * 10 : null,
+                  l: l.map(function (x) { return x[4] > 1 ? [x[0], x[1], x[2], x[4]] : [x[0], x[1], x[2]]; }) };
   });
   /* כל מזהה של אותו אדם — גם חשבון שאוחד ומזהה שנבלע. */
   Object.keys(ppl).forEach(function (id) {
@@ -8478,7 +8486,7 @@ function testEnd_(S) {
   }
   testSave_(null);
   try {
-    CacheService.getScriptCache().removeAll(['raf:me', 'pts:all', 'amda:qz', 'inbox:rows', 'raf:pub']);
+    CacheService.getScriptCache().removeAll(['raf:me', 'pts:all', 'amda:att', 'inbox:rows', 'raf:pub']);
   } catch (e) {}
   try { recount_(); } catch (e2) {}
   try { recountLearn_(true); } catch (e3) {}

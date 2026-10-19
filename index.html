@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.291';
+var APP_VERSION = '8.99.292';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18319,13 +18319,11 @@ function amdaKindAuto() {
   return amdaDafWins().some(function (w) { return w[0] === dow && t >= w[1] && t < w[2]; }) ? 'd' : 'o';
 }
 function amdaKindEff() { return amdaSt.kind || amdaKindAuto(); }
-/* מי שנרשם בדף השבועי: 'למד' או 'השתתף'. 'למד וחידון' אינו עוד
-   ברירת מחדל ואינו בבורר (8.99.256): החידון נבחר במפורש בכל פתיחה —
-   "לסמן גם שענו על החידון?" (amdaQzAsk) — ונשמר כ"אישור חידון".
-   'למד וחידון' שנשמר במכשיר מגרסה קודמת נקרא כ'למד'. */
+/* מי שנרשם בדף השבועי — תמיד 'למד' (8.99.292): כל סימון נוכחות הוא
+   הדף כולו עם החידון, ובשרת כך נספר. הבורר 'למד'/'השתתף' ושאלת
+   החידון בפתיחה ירדו; 'השתתף' שנשמר במכשיר — אינו נקרא עוד. */
 var AMDA_LV = ['למד וחידון', 'למד', 'השתתף'];
-function amdaLv() { return Store.get('amdaLv', '') === AMDA_LV[2] ? AMDA_LV[2] : AMDA_LV[1]; }
-function amdaLvSet(v) { Store.set('amdaLv', v); admPane(); }
+function amdaLv() { return AMDA_LV[1]; }
 function amdaKindPick(k) { amdaSt.kind = amdaSt.kind === k ? '' : k; admPane(); }
 /* לחיצה אחת מכל מקום בניהול: המועד של עכשיו, והדף השבועי לפי השעה. */
 function amdaQuick() {
@@ -18638,8 +18636,6 @@ function amdaOpen(kind) {
     if (de.requestFullscreen) de.requestFullscreen().catch(function () {});
   } catch (e) {}
   amdaPaint();
-  /* "לסמן גם שענו על החידון?" — בתחילת כל פתיחה בדף השבועי. */
-  if (amdaQzNeed()) amdaQzAsk();
   amdaFlush();
   amdaPull().then(function () { amdaPaint(); });
   clearInterval(amdaSt.flushT);
@@ -18648,48 +18644,6 @@ function amdaOpen(kind) {
     if (!amdaSt.g) amdaPull().then(function () { if (!amdaSt.g) amdaPaint(); });
   }, 60000);
 }
-/* ============================================================
-   "לסמן גם שענו על החידון?" — בחירה מפורשת בכל פתיחה (8.99.256).
-   ============================================================
-   עד עכשיו "למד וחידון" היה ברירת מחדל, וכל רישום בדף השבועי
-   נחשב גם כחידון בלי שמישהו בחר בזה. מעכשיו — שאלה אחת בתחילת
-   הפתיחה, לפני השם הראשון. "כן" = איש הצוות מאשר שהתלמידים ביצעו
-   את החידון במלואו; נשמר כ"אישור חידון" בשורת הנוכחות (לא ציון).
-   השאלה אינה נשאלת לתלמיד — רק כאן, אצל מי שפותח את הנוכחות. */
-function amdaQzNeed() {
-  var s = amdaSess();
-  return s.kind !== 'o' && s.lv !== AMDA_LV[2] && s.qz === undefined;
-}
-function amdaQzAsk() {
-  var box = document.getElementById('amda');
-  if (!box || document.getElementById('am-ex')) return;
-  var s = amdaSess(), d = document.createElement('div');
-  /* בהגרלה של דף ב (החריגה) ההשלמה מספיקה בלי חידון — ואז אין
-     להזכיר את ההגרלה בתשובת "לא". */
-  var dn = typeof LDaf === 'function' ? LDaf(s.track || amdaTrack(), Math.max(0, LWeek())) : '';
-  var noQ = typeof LRafNoQuiz === 'function' && LRafNoQuiz(dn);
-  d.className = 'am-ex'; d.id = 'am-ex';
-  d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('qzQ')) + '</b>' +
-    '<button class="on" data-qz="1"><span class="am-qa">' + esc(amdaT('qzYes')) + '</span>' +
-      '<span class="am-qs">' + esc(amdaT('qzYesSub')) + '</span></button>' +
-    '<button data-qz="0"><span class="am-qa">' + esc(amdaT('qzNo')) + '</span>' +
-      '<span class="am-qs">' + esc(amdaT('qzNoSub')) +
-      (noQ ? '' : ' ' + esc(amdaT('qzNoRaf'))) + '</span></button></div>';
-  box.appendChild(d);
-  d.onclick = function (e) {
-    var b = e.target.closest && e.target.closest('[data-qz]');
-    if (!b) return;
-    var t = amdaSess();
-    t.qz = b.getAttribute('data-qz') === '1';
-    Store.set('amdaSess', t);
-    d.parentNode.removeChild(d);
-    /* נשאל אחרי מעבר לדף השבועי — התיקון שממתין נבנה מחדש עם התשובה. */
-    var fx = Store.get('amdaFix', null);
-    if (fx && fx.day === amdaDay() && fx.slot === t.slot) amdaKindSet(t.kind);
-    amdaPaint();
-  };
-}
-
 /* ============================================================
    "שמור" — סיום הנוכחות בשמירה מאומתת (8.99.256).
    ============================================================
@@ -18715,7 +18669,6 @@ function amdaFinAsk() {
     d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('finQ')) + '</b>' +
       line(n ? fill(amdaT('finN'), { n: n }) : amdaT('finN0')) +
       line(amdaT(daf ? 'chipD' : 'chipO') + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
-      (daf && s.lv !== AMDA_LV[2] ? line(amdaT(s.qz && was === 'd' ? 'finQzY' : 'finQzN')) : '') +
       (Store.get('amdaFix', null) ? line(amdaT('finFix')) : '') +
       (own ? '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
         esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (daf ? ' on' : '') +
@@ -18819,15 +18772,15 @@ function amdaSlotGo(id) {
 function amdaKindPrep(k) {
   var s = amdaSess(), day = amdaDay();
   s.kind = k; Store.set('amdaSess', s);
-  var qz = k === 'd' && !!s.qz;
+  var qz = false;
   /* מה שעוד בתור — יוצא כבר בסוג החדש. */
   var q = amdaQ();
-  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = s.lv || amdaLv(); m.qz = qz; } });
+  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = amdaLv(); m.qz = qz; } });
   Store.set('amdaQ', q);
   var track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
   var fix = { day: day, slot: s.slot, kind: k, qz: qz,
               track: k === 'd' ? track : '', daf: k === 'd' ? (LDafName(track, wk) || '') : '',
-              lvl: k === 'd' ? (qz ? AMDA_LV[0] : (s.lv || amdaLv())) : '' };
+              lvl: k === 'd' ? amdaLv() : '' };
   Store.set('amdaFix', fix);
   amdaFlush();
   return fix;
@@ -19007,7 +18960,6 @@ function amdaTap(e) {
   if (el.getAttribute('data-k')) {
     amdaKindSet(amdaSess().kind === 'o' ? 'd' : 'o');
     amdaPaint();
-    if (amdaQzNeed()) amdaQzAsk();
     return;
   }
   var box = document.getElementById('amda');
@@ -19089,8 +19041,8 @@ function amdaMarkRec(g, c, n) {
   var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
   q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
            w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
-           track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: s.lv || amdaLv(),
-           qz: s.kind !== 'o' && !!s.qz, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
+           track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: amdaLv(),
+           qz: false, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
            g: g, c: c, n: n, at: new Date().toISOString() });
   Store.set('amdaQ', q);
   s.n = (+s.n || 0) + 1; Store.set('amdaSess', s);
@@ -19694,20 +19646,12 @@ function admAmda(body) {
           esc(amdaT('admOpenLD')) + '</button>';
     } else {
       /* מתג אחד לדף השבועי — דלוק לבד בשעות שהוגדרו — וכפתור פתיחה אחד. */
-      var kd = amdaKindEff(), lv = amdaLv();
+      var kd = amdaKindEff();
       h += '<div class="am-q">' + esc(amdaT('admDaf')) + '</div><div class="am-sl">' +
         '<button class="' + (kd === 'd' ? 'on' : '') + '" onclick="amdaKindPick(\'d\')">' + esc(amdaT('admDafOn')) + '</button>' +
         '<button class="' + (kd === 'o' ? 'on' : '') + '" onclick="amdaKindPick(\'o\')">' + esc(amdaT('admDafOff')) + '</button></div>' +
         '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT(amdaSt.kind ? 'admDafHand' : 'admDafAuto',
           { t: amdaT('dafTimes') || '—' })) + '</p>';
-      if (kd === 'd') {
-        h += '<div class="am-q">' + esc(amdaT('admLv')) + '</div><div class="am-sl">' +
-          AMDA_LV.map(function (v, i) {
-            return i ? '<button class="' + (lv === v ? 'on' : '') + '" onclick="amdaLvSet(\'' + v + '\')">' +
-              esc(amdaT('lv' + i)) + '</button>' : '';
-          }).join('') + '</div>' +
-          '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT('admLvQz')) + '</p>';
-      }
       h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpen(amdaKindEff())">' +
              esc(amdaT('admOne')) + '</button>' +
            /* כמו אצל איש הצוות: בוחרים כיתה, מסמנים, ושומרים פעם אחת. */

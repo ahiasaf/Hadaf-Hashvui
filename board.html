@@ -1444,8 +1444,9 @@ function ptsBox(p) {
   var l = p.pts.l || [];
   var h = p.pts.n === null || p.pts.n === undefined ? UI.ptsUnkB : (l.length ? '' : UI.ptsNone);
   return '<div class="pts-box">' + l.map(function (x) {
-    /* "conf" — אושר בנוכחות על ידי איש צוות, בלי ציון (ולא ציון מומצא). */
-    return esc(tp(UI.ptsRow, { mas: ptsMas(x[0]), daf: x[1], s: x[2] === 'conf' ? UI.ptsConf : x[2] }));
+    /* "conf" — נוכחות בשיעור, בלי ציון; x[3] — כמה פעמים (אור עציון). */
+    return esc(tp(UI.ptsRow, { mas: ptsMas(x[0]), daf: x[1], s: x[3] ? tp(UI.ptsConfN, { k: x[3] }) : x[2] === 'conf' ? UI.ptsConf : x[2],
+          p: 10 * (x[3] || 1) }));
   }).join('<br>') + (h ? '<div class="h">' + esc(h) + '</div>' : '') +
     '<div class="h">' + esc(UI.ptsHow) + '</div></div>';
 }
