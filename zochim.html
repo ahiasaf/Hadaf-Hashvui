@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F6F1E6">
+<link rel="icon" href="icon-192.png">
+<title>הדף השבועי</title>
+<!-- ============================================================
+     /zochim — הקישור הציבורי לזוכים בהגרלה (8.99.293).
+     ============================================================
+     הרכז מעתיק אותו ממסך ההגרלה ושולח לקבוצות. הקישור קבוע,
+     והתוכן מתעדכן מעצמו בכל פרסום (?raffle=all, rafAll_ ב-apps-script.gs).
+
+     הסדר (החלטת אחיאסף, 19.10):
+       · תמונת "יש זוכים" (promo/hagrala-zochim.jpg)
+       · הזוכים של ההגרלה האחרונה שפורסמה — שם מלא ומוסד
+       · מיד אחריהם: הכפתור להצטרפות
+       · הפרדה, "ובשבועות הקודמים...", וכל ההגרלות הקודמות מהחדשה לישנה.
+     בלי זיהוי מכשיר ובלי מזהים — רק מה שפורסם. הגרלות הבדיקה,
+     "הוגרל" שטרם אושר ו"בוטל" — אינם כאן (השרת מסנן).
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="יש זוכים בהגרלה! · הדף השבועי">
+<meta property="og:description" content="רשימת הזוכים בהגרלה השבועית של הדף השבועי.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/zochim">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+:root{
+  --blue-d:#0B2550; --gold-t:#8C681F;
+  --paper:#F6F1E6; --ink:#1B2A45; --ink-2:#5A6780;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 14px 10px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.art{display:block;width:100%;height:auto;border-radius:14px}
+.note{margin-top:12px;font-size:.92rem;font-weight:600;color:var(--ink-2)}
+.note + .note{margin-top:4px}
+.art{max-height:60vh;width:auto;max-width:100%;margin:0 auto}
+main.wait{visibility:hidden}
+.day{font-size:1.05rem;font-weight:800;color:var(--blue-d);margin:16px 0 6px;text-align:center}
+.wl li{list-style:none;padding:7px 0;border-bottom:1px solid #E5DAC3;font-weight:700;font-size:1.02rem}
+.wl li span{color:var(--ink-2);font-weight:500}
+.go{display:block;margin:16px 0 4px;padding:15px 14px;border-radius:14px;background:var(--blue-d);color:#fff;
+  font-size:1.12rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.25)}
+.go .ar{display:inline-block;margin-right:10px;font-size:1.2em;line-height:1;vertical-align:-.08em}
+.sep{border:0;border-top:2px dashed #D9CBAE;margin:30px 0 4px}
+.prev{font-size:1.3rem;font-weight:800;color:var(--gold-t);text-align:center;margin:14px 0 2px}
+.past .day{font-size:.98rem;margin-top:20px}
+.past .wl li{font-size:.94rem;font-weight:600;padding:5px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap wait" id="main">
+  <img class="art" id="art" src="promo/hagrala-zochim.jpg" width="1024" height="1536" alt="">
+  <div id="res"></div>
+</main>
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function tp(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+/* המלל שנערך בניהול — אותן שתי שכבות של שאר העמודים. */
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.');
+    if (p.length === 2 && p[0] === 'ui' && typeof map[k] === 'string' && map[k]) UI[p[1]] = map[k];
+  }
+}
+try {
+  take(JSON.parse(ls('df:textCache') || 'null'));
+  take((JSON.parse(ls('df:cfg') || '{}')).texts);
+} catch (e) {}
+(function () { var l = $('hdr-mark'); if (l) l.src = LOGO_MARK; })();
+$('brand').innerHTML = esc(PROGRAM.short) + '<br>' +
+  esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('art').onerror = function () { $('art').style.display = 'none'; };
+
+function api() {
+  var u = ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '');
+  return String(u || '').trim();
+}
+/* null — עוד לא נטען; false — הטעינה נכשלה. */
+var LIST = null;
+function wl(r) {
+  if (!r.w.length) return '<p class="note">' + esc(UI.zchNoWin) + '</p>';
+  return '<ul class="wl">' + r.w.map(function (x) {
+    return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span></li>';
+  }).join('') + '</ul>';
+}
+function day(r) { return r.day ? '<h2 class="day">' + esc(tp(UI.zchDay, { d: r.day })) + '</h2>' : ''; }
+function draw() {
+  $('art').alt = UI.zchAlt;
+  if (LIST === null) return;
+  var join = '<a class="go" href="join.html">' + esc(UI.zchJoin) +
+             '<span class="ar" aria-hidden="true">\u2190</span></a>';
+  if (LIST === false) { $('res').innerHTML = '<p class="note">' + esc(UI.zchErr) + '</p>' + join; return; }
+  if (!LIST.length) { $('res').innerHTML = '<p class="note">' + esc(UI.zchNone) + '</p>' + join; return; }
+  var h = day(LIST[0]) + wl(LIST[0]) + join;
+  if (LIST.length > 1) {
+    h += '<hr class="sep"><h2 class="prev">' + esc(UI.zchPrev) + '</h2><div class="past">' +
+         LIST.slice(1).map(function (r) { return day(r) + wl(r); }).join('') + '</div>';
+  }
+  $('res').innerHTML = h;
+}
+draw();
+(function () {
+  var u = api(), main = $('main'), done = false;
+  var show = function () { if (!done) { done = true; main.className = 'wrap'; } };
+  setTimeout(show, 5000);
+  if (!u || !window.fetch) { LIST = false; draw(); show(); return; }
+  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=all&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      LIST = d && d.status === 'ok' && d.list ? d.list : false;
+      draw(); show();
+    })['catch'](function () { LIST = false; draw(); show(); });
+})();
+/* הנוסח שפורסם בגיליון — למי שמגיע מהקבוצה ואין לו מטמון. */
+(function () {
+  var id = window.SHEET_ID;
+  try {
+    var c = JSON.parse(ls('df:cfg') || '{}');
+    if (c.sheetId) id = c.sheetId;
+  } catch (e) {}
+  if (!id || !window.fetch) return;
+  fetch('https://docs.google.com/spreadsheets/d/' + id +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('טקסטים') + '&t=' + Date.now())
+    .then(function (r) { return r.ok ? r.text() : null; })
+    .then(function (t) {
+      if (!t) return;
+      var map = {}, rows = [], row = [], f = '', q = false;
+      for (var i = 0; i < t.length; i++) {
+        var ch = t[i];
+        if (q) {
+          if (ch === '"' && t[i+1] === '"') { f += '"'; i++; }
+          else if (ch === '"') q = false; else f += ch;
+        } else if (ch === '"') q = true;
+        else if (ch === ',') { row.push(f); f = ''; }
+        else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+        else if (ch !== '\r') f += ch;
+      }
+      if (f || row.length) { row.push(f); rows.push(row); }
+      if (!rows.length || rows[0].join('|').indexOf('מפתח') < 0) return;
+      rows.slice(1).forEach(function (r2) {
+        var k = (r2[0] || '').trim(), v = (r2[1] || '').trim();
+        if (k && v) map[k] = v;
+      });
+      try { localStorage.setItem('df:textCache', JSON.stringify(map)); } catch (e) {}
+      take(map);
+      try { take((JSON.parse(ls('df:cfg') || '{}')).texts); } catch (e) {}
+      draw();
+    })['catch'](function () {});
+})();
+</script>
+</body>
+</html>

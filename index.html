@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.292';
+var APP_VERSION = '8.99.293';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4153,6 +4153,8 @@ function joinUrl(code) {
 /* הקישור להורים. אותו קובץ, עם `for=dad` — ראו את ההסבר ליד
    הכרטיס שמציג אותו. בלי קוד ישיבה: הוא נשלח לקבוצות הורים
    של יותר ממוסד אחד, וההורה בוחר את הישיבה של בנו מהרשימה. */
+/* /zochim — הקישור הציבורי לרשימת הזוכים. נקי מסיומת, כמו בייצור. */
+function zochimUrl() { return joinUrl('').replace(/join\.html$/, 'zochim'); }
 function dadUrl() { return joinUrl('') + '?for=dad'; }
 /* הקישור למי שאינו במוסדות בני עקיבא — בלי בורר ישיבה כלל.
    ראו `OUT` ב-join.html. */
@@ -15317,6 +15319,11 @@ function admRaffle() {
   var msg = rafMsg && rafMsg !== 'nokey' ? '<div class="cond" style="margin-top:10px">' + esc(rafMsg) + '</div>' : '';
   if (rafMsg === 'nokey') msg = '<div class="cond" style="margin-top:10px">' + esc(UI.rafNoKey) + '</div>';
   var dis = rafBusy ? ' disabled' : '';
+  /* הקישור הציבורי לזוכים — קבוע, ולכן גלוי תמיד, גם לפני הטעינה. */
+  var zu = zochimUrl();
+  h += '<button class="btn g" style="margin-top:10px" onclick="copyAny(this, zochimUrl())">' + esc(UI.rafZchBtn) + '</button>' +
+       '<p class="h" style="direction:ltr;text-align:right;word-break:break-all">' + esc(zu) + '</p>' +
+       '<p class="h">' + esc(UI.rafZchNote) + '</p>';
   if (!rafLoaded) {
     return h + '<button class="btn g"' + dis + ' onclick="rafLoad()">' +
       esc(rafBusy ? UI.rafBusy : UI.rafLoad) + '</button>' + msg + '</div>';
@@ -15344,7 +15351,8 @@ function admRaffle() {
       h += '<div class="pp-h">' + esc(UI.rafApH) + '</div><p class="h">' + esc(UI.rafApNote) + '</p>' +
         '<p class="h">' + esc(UI.rafDesign) + '</p>' +
         '<div class="pp-h">' + esc(UI.rafWinMsg) + '</div>' +
-        '<p class="h">' + esc(fill(UI.rafWinAud, { n: rafA.win.n, ppl: rafA.win.ppl, dev: rafA.win.dev })) + '</p>' +
+        '<p class="h">' + esc(fill(UI.rafWinAud, { n: rafA.win.n, ppl: rafA.win.ppl, dev: rafA.win.dev })) +
+        (rafA.win.dad ? '<br>' + esc(fill(UI.rafWinDad, { n: rafA.win.dad })) : '') + '</p>' +
         rafMsgHtml('w') +
         '<div class="pp-h">' + esc(UI.rafAllMsg) + '</div>' +
         '<p class="h">' + esc(fill(UI.rafAllAud, { k: rafA.codes.length, n: rafA.all.n, ppl: rafA.all.ppl, dev: rafA.all.dev })) +
