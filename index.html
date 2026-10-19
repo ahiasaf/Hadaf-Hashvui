@@ -2940,7 +2940,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.283';
+var APP_VERSION = '8.99.284';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18664,6 +18664,7 @@ function amdaFinAsk() {
         esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (daf ? ' on' : '') +
         '" data-ek="t" aria-label="' + esc(amdaT('exitD')) + '"></button></div>' : '') +
       '<button class="on" data-ek="x">' + esc(amdaT('finGo')) + '</button>' +
+      '<button data-ek="q">' + esc(amdaT('finQuit')) + '</button>' +
       '<button class="bk" data-ek="-">' + esc(amdaT('exitStay')) + '</button></div>';
   };
   d.className = 'am-ex'; d.id = 'am-ex';
@@ -18818,8 +18819,14 @@ function amdaFixRun(fix, cb) {
   };
   setTimeout(send, 2500);
 }
+function amdaDirty() {
+  var sel = amdaSt.all && amdaSt.sel ? Object.keys(amdaSt.sel).filter(function (i) { return amdaSt.sel[i]; }).length : 0;
+  return !!(+amdaSess().n || sel || amdaQ().length || Store.get('amdaFix', null));
+}
 function amdaClose(sure) {
   /* היציאה עוברת דרך "שמור" — סיכום קצר, שמירה ואימות בגיליון. */
+  /* לא נרשם אף אחד, אין תור ואין תיקון ממתין — יוצאים מיד, בלי סיכום. */
+  if (sure !== true && !amdaDirty()) sure = true;
   if (sure !== true) { amdaFinAsk(); return; }
   var el = document.getElementById('amda');
   if (el) el.className = 'amda';
