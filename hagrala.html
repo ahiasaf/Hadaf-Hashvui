@@ -95,6 +95,11 @@ main.wait{visibility:hidden}
 .go{display:block;margin:12px 0 4px;padding:15px 14px;border-radius:14px;background:var(--blue-d);color:#fff;
   font-size:1.12rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.25)}
 .dm2 .oth li{padding:4px 0;font-size:.9rem}
+.go .ar{display:inline-block;margin-right:10px;font-size:1.2em;line-height:1;vertical-align:-.08em}
+.lose{margin:16px 0 0;font-size:1.08rem;font-weight:800;color:var(--blue-d);text-align:center}
+.lose + .go{margin-top:8px}
+.note.fine{font-size:.78rem;font-weight:500}
+.note.fine + .note.fine{margin-top:2px}
 </style>
 </head>
 <body>
@@ -191,22 +196,34 @@ function weekUrl() {
    הוא". רק הלשון הקיימת: התמונה עם אפשרויות הפרס, "ניצור איתך
    קשר", ושורת ההסתייגות. */
 function results2(d) {
-  var go = '<a class="go" href="' + esc(weekUrl()) + '">' + esc(d.me ? UI.rafGoWin : UI.rafGoLose) + '</a>';
+  /* החץ — רק בכפתור "ללימוד של השבוע"; כפתור הזוכה נשאר כמו שהוא */
+  var go = function (t, ar) {
+    return '<a class="go" href="' + esc(weekUrl()) + '">' + esc(t) +
+      (ar ? '<span class="ar" aria-hidden="true">\u2190</span>' : '') + '</a>';
+  };
   var slot = '<div id="art-slot"></div>';
-  var notes = '<p class="note">' + esc(UI.hagNote) + '</p><p class="note">' + esc(UI.hagIllus) + '</p>';
+  var notes = function (c) {
+    return '<p class="note' + c + '">' + esc(UI.hagNote) + '</p><p class="note' + c + '">' + esc(UI.hagIllus) + '</p>';
+  };
   var oth = (d.others && d.others.length) ? '<div class="oth"><h3>' + esc(UI.hagOthers) + '</h3><ul>' +
     d.others.map(function (o) {
       return '<li>' + esc(o.name) + ' <span>· ' + esc(o.inst) + '</span></li>';
     }).join('') + '</ul></div>' : '';
+  /* לא זכה: השורה "לא זכית?..." ומתחתיה הכפתור ללימוד */
+  var lose = '<p class="lose">' + esc(UI.rafGoLose) + '</p>' + go(UI.hagGoWeek, 1);
   var h;
   if (d.me) {
-    h = slot + go + '<p class="note" style="font-weight:800;color:var(--gold-t)">' + esc(UI.hagMe) + '</p>' + notes + oth;
+    /* זוכה: התמונה, הכפתור, "ניצור איתך קשר", ההסתייגויות בגודל רגיל, שאר הזוכים */
+    h = slot + go(UI.rafGoWin) + '<p class="note" style="font-weight:800;color:var(--gold-t)">' + esc(UI.hagMeCall) + '</p>' +
+        notes('') + oth;
   } else if (d.mine) {
+    /* חבר מהמוסד זכה: הכותרת, הכרטיס, התמונה, "לא זכית?" והכפתור, שאר הזוכים */
     h = '<h2>' + esc(UI.hagWinH) + '</h2><div class="win"><small>' + esc(tp(UI.hagMine, { inst: d.mine.inst })) + '</small>' +
         '<b>' + esc(d.mine.name) + '</b><span class="dmt">' + esc(UI.rafDmLbl) + '</span></div>' +
-        slot + go + notes + oth;
+        slot + lose + oth + notes(' fine');
   } else {
-    h = slot + go + '<p class="note">' + esc(UI.hagNoMine) + '</p>' + notes + oth;
+    /* אין חבר מהמוסד: התמונה ("יש זוכים" כבר בה), הזוכים, "לא זכית?" והכפתור */
+    h = slot + oth + lose + notes(' fine');
   }
   $('res').innerHTML = h;
   $('art-slot').appendChild($('art'));
