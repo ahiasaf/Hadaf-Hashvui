@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 99;
+var SCRIPT_VERSION = 100;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7042,10 +7042,16 @@ function funnel_() {
       var t = v[r][0] instanceof Date ? v[r][0] : new Date();
       p = by[hid] = { t: Utilities.formatDate(t, 'Asia/Jerusalem', 'yyyy-MM-dd'),
                       i: '', r: '', d: '', w: '', s: {},
-                      b: '', bv: '', o: '', wa: '', bp: '', pm: '', ins: '', last: '', sec: '', bye: '', je: '', sa: '' };
+                      b: '', bv: '', o: '', wa: '', bp: '', pm: '', ins: '', last: '', sec: '', bye: '', je: '', sa: '', jt: '' };
       order.push(hid);
     }
     p.s[st] = 1;
+    /* יום ההרשמה בפועל — מהשורה "נרשם" עצמה, ולא מהכניסה הראשונה
+       של המכשיר (p.t). מי שפתח את הקישור לפני שבוע ונרשם היום —
+       נרשם היום. שורה בלי תאריך תקין — נשאר ריק, לא ממציאים. */
+    if (st === 'join' && !p.jt && v[r][0] instanceof Date) {
+      p.jt = Utilities.formatDate(v[r][0], 'Asia/Jerusalem', 'yyyy-MM-dd');
+    }
     if (v[r][3]) p.i = String(v[r][3]);
     if (v[r][4]) p.r = String(v[r][4]);
     if (v[r][5]) p.d = String(v[r][5]);
@@ -7073,7 +7079,7 @@ function funnel_() {
     people: order.map(function (h) {
       var p = by[h];
       return [p.t, p.i, p.r, p.d, p.w, Object.keys(p.s).join(' '),
-              p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je, p.sa];
+              p.b, p.bv, p.o, p.wa, p.bp, p.pm, p.ins, p.last, p.sec, p.bye, p.je, p.sa, p.jt];
     }) };
 }
 

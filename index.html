@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.297';
+var APP_VERSION = '8.99.298';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10382,7 +10382,7 @@ function stFold(k, icon, title, body) {
     '<summary><span aria-hidden="true">' + icon + '</span> ' + esc(title) + '</summary><div class="st-fb">' + body + '</div></details>';
 }
 /* ארבעת המספרים. "נרשמו" — כמו בלוח הישיבות; "אישרו התראות" —
-   כמו בלשונית ההתראות; "הצטרפו היום" — "נרשמו" של המשפך, היום. */
+   כמו בלשונית ההתראות; "הצטרפו היום" — מי שנרשם היום (funJoinOn). */
 function admSetupTiles() {
   var F = Store.get('funnel', null), has = F && F.people;
   var fAll = has ? funCount(funPeople(F, '')) : null;
@@ -10398,7 +10398,7 @@ function admSetupTiles() {
   }) : null;
   var reg = j ? j.n : ros ? ros.length : fAll ? fAll.join : null;
   var push = ros ? ros.filter(function (p) { return p.push && p.pstate !== 'gone'; }).length : fAll ? fAll.push : null;
-  var today = has ? funCount(funPeople(F, 'today')).join : null;
+  var today = has ? funJoinOn(F, funPeople(F, ''), funDay(0)) : null;
   var stuck = stuckRows ? stuckOpen().length : null;
   var t = function (v, s) { return '<b>' + (v == null ? '—' : v) + '</b><span>' + esc(s) + '</span>'; };
   return '<div class="st-n"><div>' + t(reg, UI.stReg) + '</div><div>' + t(push, UI.stPush) + '</div>' +
@@ -12558,8 +12558,19 @@ function funLoad() {
 }
 function funSet(k, v) { fun[k] = v; pplPaint(); }
 function funDay(n) {
-  var t = new Date(Date.now() - n * 864e5 + 3 * 36e5);   /* שעון ישראל, בקירוב */
-  return t.toISOString().slice(0, 10);
+  var ms = Date.now() - n * 864e5;
+  /* שעון ישראל — כמו בשרת (Asia/Jerusalem), גם אחרי מעבר לשעון חורף. */
+  try {
+    var s = new Date(ms).toLocaleDateString('en-CA', { timeZone:'Asia/Jerusalem' });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  } catch (e) {}
+  return new Date(ms + 3 * 36e5).toISOString().slice(0, 10);   /* דפדפן ישן — בקירוב */
+}
+/* "נרשם" לפי יום ההרשמה בפועל (p[18], מהשרת). נתון ישן בלי השדה —
+   null, ולא ניחוש לפי יום הכניסה הראשונה. */
+function funJoinOn(F, P, day) {
+  if (!F.people.some(function (p) { return p.length > 18; })) return null;
+  return P.filter(function (p) { return funHas(p, 'join') && p[18] === day; }).length;
 }
 /* המכשירים שבהיקף — המוסד שנבחר למעלה, והיום או כל הזמן. */
 function funPeople(F, t) {
@@ -12603,6 +12614,12 @@ function pplFun() {
   var all = funPeople(F, fun.t);
   var brw = all.filter(function (p) { return p[17] !== '1'; });
   var n = funCount(brw), top = n.open;
+  /* "היום": הפתיחה — מי שנכנס לראשונה היום; "נרשמו" — מי שנרשם היום,
+     גם אם פתח את הקישור לפני כן. */
+  if (fun.t === 'today') {
+    var jd = funJoinOn(F, funPeople(F, '').filter(function (p) { return p[17] !== '1'; }), funDay(0));
+    if (jd != null) n.join = jd;
+  }
   var st = [[UI.funOpen, n.open], [UI.funGo, n.s1], [UI.funForm, n.s2], [UI.funJoin, n.join], [UI.funPush, n.push]];
   h += '<div class="trf">' +
     '<button class="' + (fun.t === 'today' ? 'on' : '') + '" onclick="funSet(\'t\',\'today\')">' + esc(UI.trToday) + '</button>' +
