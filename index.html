@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.296';
+var APP_VERSION = '8.99.297';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18740,6 +18740,10 @@ function amdaFinAsk() {
 function amdaSave(d) {
   /* התיקון שאושר ועוד לא אומת — מהמכשיר, בכל ניסיון (גם אחרי רענון). */
   var fix = Store.get('amdaFix', null), tries = 0, kOk = !fix, kDone = !fix;
+  /* כמה נרשמו בדף השבועי בפתיחה הזו — לשורת הנקודות שאחרי השמירה.
+     נקרא עכשיו, לפני שהסגירה מאפסת את הפתיחה. */
+  var ss = amdaSess(), sN = +ss.n || 0, sD = (fix ? fix.kind : ss.kind) !== 'o';
+  var pts = sN && sD ? fill(amdaT(amdaInst() === 'oretzion' ? 'savePts' : 'savePtsD'), { n: sN }) : '';
   var msg = function (h) { d.innerHTML = '<div class="am-ex-in">' + h + '</div>'; };
   msg('<b>' + esc(amdaT('saving')) + '</b><p class="am-fl">' + esc(amdaT('savingSub')) + '</p>');
   if (fix) amdaFixRun(fix, function (ok) { kOk = ok; kDone = true; });
@@ -18761,7 +18765,7 @@ function amdaSave(d) {
         if (ok && !left && kDone) {
           if (!kOk || Store.get('amdaFix', null)) return fail();
           if (d.parentNode) d.parentNode.removeChild(d);
-          amdaOk(amdaT('saveOk'), '', function () { amdaClose(true); });
+          amdaOk(amdaT('saveOk'), pts, function () { amdaClose(true); }, pts ? 3000 : 0);
           return;
         }
         if (++tries < 6) step(); else if (kDone) fail(); else setTimeout(step, 5000);
@@ -19060,8 +19064,9 @@ function amdaReset() {
   amdaPaint();
   document.getElementById('amda').scrollTop = 0;
 }
-/* ✓ לרגע, ואז `after`. */
-function amdaOk(n, txt, after) {
+/* ✓ לרגע, ואז `after`. `ms` — כמה זמן; ברירת המחדל קצרה, כדי שהתלמיד
+   הבא לא יחכה. */
+function amdaOk(n, txt, after, ms) {
   clearTimeout(amdaSt.idle);
   document.getElementById('am-okn').textContent = n;
   document.getElementById('am-okt').textContent = txt;
@@ -19069,7 +19074,7 @@ function amdaOk(n, txt, after) {
   setTimeout(function () {
     document.getElementById('am-ok').className = 'am-ok';
     after();
-  }, 1300);
+  }, ms || 1300);
 }
 /* היום והשבוע — של רגע הלחיצה, ולא של פתיחת העמדה: מכשיר שנשאר
    פתוח עד מחר רושם את מחר. מי שכבר נרשם במועד הזה ובחר מקום —
