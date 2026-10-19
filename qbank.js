@@ -76,11 +76,17 @@ function QbCols(x) {
           ['נכונה', x.correct >= 0 ? String(x.correct + 1) : ''], ['סטטוס', x.st], ['הערה', x.note || ''],
           [QB_YR, x.yr ? 'כן' : '']];
 }
-function QbPost(api, key, op, id, cols) {
+/* unplace — רק כשהשאלה ירדה מהדף: אז מותר להוריד "שובצה". */
+function QbPost(api, key, op, id, cols, unplace) {
   if (!api) return Promise.resolve();
   return fetch(api, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-    action: 'qbank', key: key, op: op, id: id, cols: JSON.stringify(cols || [])
+    action: 'qbank', key: key, op: op, id: id, cols: JSON.stringify(cols || []), unplace: unplace ? 1 : 0
   }) }).catch(function () {});
+}
+/* העמודות של תוכן השאלה — מה שמסתנכרן בין המאגר לדף. */
+function QbBody(v) {
+  return [['שאלה', v.q], ['תשובה 1', v.a[0]], ['תשובה 2', v.a[1]], ['תשובה 3', v.a[2]], ['תשובה 4', v.a[3]],
+          ['נכונה', String(v.correct + 1)], [QB_YR, v.yr ? 'כן' : '']];
 }
 function QbFind(list, id) {
   for (var i = 0; i < (list || []).length; i++) if (list[i].id === id) return list[i];
@@ -103,14 +109,23 @@ function QbSame(got, want) {
    ישנה — מזוהה לפי הנוסח. כך גם סימון שלא נכתב, או שנדרס, אינו
    מעלים שיבוץ. */
 function QbNorm(t) { return String(t || '').replace(/["'״׳“”„\s.,:;?!—–-]/g, ''); }
-/* רשומת דף אחת -> { ids:{מזהה:1}, qs:{נוסח:1} } */
+/* אותה שאלה, גם כשאחד הצדדים שונה: אותו נוסח, או לפחות שלוש
+   מארבע התשובות זהות. כך מזוהות גם שאלות ששובצו לפני שהיה מזהה
+   (`qb`). השרת מחזיק עותק של הכלל הזה — qbLike_ ב-apps-script.gs. */
+function QbLike(v, x) {
+  if (!v || !x) return false;
+  if (QbNorm(v.q) && QbNorm(v.q) === QbNorm(x.q)) return true;
+  var n = 0, a = v.a || [], b = (x.a || []).map(QbNorm);
+  for (var i = 0; i < a.length; i++) if (QbNorm(a[i]) && b.indexOf(QbNorm(a[i])) >= 0) n++;
+  return n >= 3;
+}
+/* רשומת דף אחת -> { ids:{מזהה:1}, all:[השאלות שבלי מזהה] } */
 function QbRecMarks(rec) {
-  var m = { ids: {}, qs: {} };
+  var m = { ids: {}, all: [] };
   if (!rec || typeof rec !== 'object') return m;
   var add = function (v) {
     if (!v || typeof v !== 'object' || !v.q) return;
-    if (v.qb) m.ids[v.qb] = 1;
-    m.qs[QbNorm(v.q)] = 1;
+    if (v.qb) m.ids[v.qb] = 1; else m.all.push(v);
   };
   for (var k in rec) {
     if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
@@ -125,6 +140,8 @@ function QbRecMarks(rec) {
 /* הסטטוס להצגה. marks = QbRecMarks של הדף של השאלה (או null). */
 function QbSt(x, marks) {
   if (x.st === QB_ST[2]) return x.st;
-  if (marks && (marks.ids[x.id] || marks.qs[QbNorm(x.q)])) return QB_ST[2];
+  if (!marks) return x.st;
+  if (marks.ids[x.id]) return QB_ST[2];
+  for (var i = 0; i < marks.all.length; i++) if (QbLike(marks.all[i], x)) return QB_ST[2];
   return x.st;
 }

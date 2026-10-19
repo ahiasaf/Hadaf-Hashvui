@@ -2939,7 +2939,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.275';
+var APP_VERSION = '8.99.276';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11517,7 +11517,7 @@ function qbClick(ev) {
     var x = QbFind(QB, g('data-qbe'));
     if (!x) return;
     QB_ED = { id:x.id, mas:x.mas, daf:x.daf, q:x.q, a:x.a.slice(), correct:x.correct, st:x.st, note:x.note,
-              yr:!!x.yr, orig:x.st };
+              yr:!!x.yr, orig:x.st, was:{ q:x.q, a:x.a.slice() } };
     return qbPaint();
   }
   if (g('data-qbx')) { QB_ED = null; return qbPaint(); }
@@ -11556,8 +11556,50 @@ function qbSave() {
   /* מזהה לשאלה חדשה — פעם אחת. שמירה חוזרת אחרי אימות שנכשל דורסת
      את אותה שורה, ולא מוסיפה עוד אחת. */
   var id = e.id || e.nid || (e.nid = QbNewId(e.mas));
+  /* שאלה ששובצה — אחרי המאגר, מתעדכנת גם בדף (qbDafSync). */
+  var sync = e.orig === QB_ST[2] ? { mas:e.mas, daf:e.daf, like:e.was } : null;
   qbSay(0, UI.qbSent);
-  QbPost(qbApi(), key, 'put', id, QbCols(want)).then(function () { qbVerify(0, id, want); });
+  QbPost(qbApi(), key, 'put', id, QbCols(want)).then(function () { qbVerify(0, id, want, sync); });
+}
+/* המאגר -> הדף. שאלה אחת בתוך רשומת הדף (qbDaf_ בסקריפט), כטיוטה:
+   התלמידים רואים את השינוי רק אחרי "פרסם" בדף. ואז קריאה חוזרת. */
+function qbDafSync(id, want, s) {
+  var key = (CFG.readKey || '').trim();
+  var val = { q:want.q, a:want.a, correct:want.correct };
+  if (want.yr) val.yr = 1;
+  fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'qbDaf', key:key, mas:s.mas, daf:s.daf, id:id, val:JSON.stringify(val), like:JSON.stringify(s.like)
+  }) }).catch(function () {}).then(function () { qbDafVerify(0, id, val, s); });
+}
+function qbDafVerify(tries, id, val, s) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, QZ_TAB).then(function (rows) {
+      var ok = false;
+      ((rows && rows.slice(1)) || []).forEach(function (r) {
+        if (QbMas(r[0]) !== s.mas || QbDafKey(r[1]) !== QbDafKey(s.daf)) return;
+        var rec = null;
+        try { rec = JSON.parse(String(r[2] || '')); } catch (e) {}
+        var k, i, v;
+        for (k in rec || {}) {
+          if (!rec.hasOwnProperty(k) || !rec[k] || rec[k].length === undefined) continue;
+          for (i = 0; i < rec[k].length; i++) {
+            v = rec[k][i] && (rec[k][i].draft || rec[k][i].pub);
+            if (v && v.qb === id && v.q === val.q && JSON.stringify(v.a) === JSON.stringify(val.a) &&
+                v.correct === val.correct && !!v.yr === !!val.yr) ok = true;
+          }
+        }
+      });
+      if (ok) {
+        var mk = qbMarksFrom(rows);
+        if (mk) { QB_MK = mk; if (QB) QB = qbEff(QB); }
+        if (!QB_ED) qbPaint();
+        toast(UI.qbDafOk);
+        return;
+      }
+      if (tries < 4) return qbDafVerify(tries + 1, id, val, s);
+      toast(UI.qbDafBad);
+    });
+  }, tries ? 2500 : 1400);
 }
 function qbDel() {
   var e = QB_ED, key = (CFG.readKey || '').trim();
@@ -11567,7 +11609,7 @@ function qbDel() {
   QbPost(qbApi(), key, 'del', e.id).then(function () { qbVerify(0, e.id, null); });
 }
 /* want = null — מחיקה: מאמתים שהשורה איננה. */
-function qbVerify(tries, id, want) {
+function qbVerify(tries, id, want, sync) {
   setTimeout(function () {
     fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
       var l = QbFromRows(rows), x = l && QbFind(l, id);
@@ -11575,9 +11617,10 @@ function qbVerify(tries, id, want) {
         QB = qbEff(l); QB_FAIL = false; QB_ED = null; QB_AT = Date.now();
         qbPaint();
         toast(want ? UI.qbOk : UI.qbDelOk);
+        if (sync) qbDafSync(id, want, sync);
         return;
       }
-      if (tries < 4) return qbVerify(tries + 1, id, want);
+      if (tries < 4) return qbVerify(tries + 1, id, want, sync);
       qbSay(1, UI.qbBad);
     });
   }, tries ? 2500 : 1400);

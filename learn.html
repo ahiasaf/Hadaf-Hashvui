@@ -5336,7 +5336,8 @@ var Q_EDIT = null;
 function qEditOpen_(n) {
   Q_FROM = null;
   var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
-  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr, qb:cur.qb || '' }
+  /* שאלה ששובצה לפני שהיה מזהה — מזוהה במאגר לפי הדמיון (QbLike), ומעכשיו נושאת אותו. */
+  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr, qb:cur.qb || qbLikeId_(cur) }
                : { q:'', a:['', '', '', ''], correct:0, yr:false, qb:'' };
   qPaintEdit_(n);
 }
@@ -5482,7 +5483,9 @@ function qEditDelete_(n) {
   if (!writeKey_()) return;
   /* מחיקה מוחקת את השאלה כולה — הטיוטה והגרסה החיה. */
   if (!confirm(UI.qDelSure || '')) return;
-  var list = qPieces_(n).slice();
+  var list = qPieces_(n).slice(), gone = list[qIdx_(n, list.length)];
+  /* השאלה יורדת מהדף — ובמאגר היא חוזרת ל"מוכנה" (qbSync_). */
+  Q_DROP = ((gone && (gone.draft || gone.pub)) || {}).qb || '';
   list.splice(qIdx_(n, list.length), 1);
   qNormRec_(QOWN);
   sidPut_(QOWN, n, list.length ? list : undefined, true);
@@ -5504,7 +5507,8 @@ function qVerify_(tries, n, want, okMsg) {
         QMAP = m; QOWN = mine;
         toast(okMsg || 'נשמר ואומת.');
         /* השאלה שנשמרה מולאה מהמאגר — עכשיו, אחרי האימות, מסמנים שם "שובצה". */
-        if (Q_FROM && want.some(function (w) { return w && (w.draft || w.pub || {}).qb === Q_FROM; })) qbMarkPlaced_(n);
+        /* ומה שנשמר מסתנכרן אל המאגר — "שובצה", הקטע והנוסח. */
+        qbSync_(n, want);
         /* חוזרים לתצוגת השאלה השמורה — זו ההוכחה שהיא נכתבה,
            ברורה יותר מהודעת טקסט שנעלמת עם הציור הבא. */
         paintChavArea();
@@ -5528,12 +5532,16 @@ function qVerify_(tries, n, want, okMsg) {
    "שיבוץ בדף" בכרטיסים שבניהול פותח את הדף הזה עם `qb=<מזהה>`.
    כאן רק ממלאים את השדות של העורך (Q_EDIT). השמירה היא "שמירה"
    הקיימת (qEditSave_) עם האימות שלה, בלי שינוי — ורק אחרי שהיא
-   אומתה מסמנים במאגר "שובצה" ואת הקטע (qbMarkPlaced_). */
+   אומתה מעדכנים את המאגר: "שובצה", הקטע והנוסח (qbSync_). */
 var QB_ID = (function () {
   try { return decodeURIComponent((/[?&]qb=([^&#]*)/.exec(location.search) || [])[1] || ''); }
   catch (e) { return ''; }
 })();
-var QBL = null, QBR = null, QB_CUR = '', Q_FROM = null;
+var QBL = null, QBR = null, QB_CUR = '', Q_FROM = null, Q_DROP = '';
+function qbLikeId_(v) {
+  for (var i = 0; i < (QBL || []).length; i++) if (QbLike(v, QBL[i])) return QBL[i].id;
+  return '';
+}
 function qbStLbl_(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
 /* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף.
    "שובצה" לפי הדף עצמו גוברת על מה שכתוב בעמודת הסטטוס (QbSt). */
@@ -5607,24 +5615,37 @@ function qbFillBind_(n) {
   if (nx) nx.onclick = function () { go(1); };
   if (fl) fl.onclick = function () { qbFill_(n, QBL[qbAt_()]); };
 }
-function qbMarkPlaced_(n) {
-  var id = Q_FROM, key = cfgReadKey_();
-  Q_FROM = null;
-  if (!id || !key) return;
+/* הדף -> המאגר. אחרי שמירה שאומתה: כל שאלה בקטע שבאה מהמאגר
+   מעדכנת את השורה שלה שם — הנוסח, "שובצה" והקטע — אם משהו שונה.
+   ושאלה שנמחקה מהדף חוזרת שם ל"מוכנה". כל שליחה — וקריאה חוזרת. */
+function qbSync_(n, want) {
+  var key = cfgReadKey_(), from = Q_FROM, drop = Q_DROP;
+  Q_FROM = null; Q_DROP = '';
+  if (!key || !QBR) return;
   var seg = String(n), k = sidKeys_(QOWN || {}, n)[0];
   if (k !== seg) seg += ' · ' + k;
-  QbPost(API, key, 'put', id, [['סטטוס', QB_ST[2]], ['קטע', seg]])
-    .then(function () { qbMarkVerify_(0, id, seg); });
+  if (drop && QbFind(QBR, drop)) {
+    QbPost(API, key, 'put', drop, [['סטטוס', QB_ST[1]], ['קטע', '']], true)
+      .then(function () { qbSyncVerify_(0, drop, { st: QB_ST[1], seg: '' }, UI.qbSyncOk); });
+  }
+  want.forEach(function (w) {
+    var v = w && (w.draft || w.pub), x = v && v.qb && QbFind(QBR, v.qb);
+    if (!x) return;
+    var to = { q: v.q, a: v.a, correct: v.correct, yr: !!v.yr, st: QB_ST[2], seg: seg };
+    if (QbSame(x, to)) return;
+    QbPost(API, key, 'put', v.qb, QbBody(v).concat([['סטטוס', QB_ST[2]], ['קטע', seg]]))
+      .then(function () { qbSyncVerify_(0, v.qb, to, v.qb === from ? UI.qbMarkOk : UI.qbSyncOk); });
+  });
 }
-function qbMarkVerify_(tries, id, seg) {
+function qbSyncVerify_(tries, id, want, okMsg) {
   setTimeout(function () {
     sheetCsv(QB_TAB).then(function (rows) {
-      var l = QbFromRows(rows), x = l && QbFind(l, id);
-      if (x && x.st === QB_ST[2] && x.seg === seg) {
-        /* השאלה ששובצה עוברת לסוף, והכרטיס — לבאה בתור. */
-        qbSetList_(l); QB_CUR = ''; toast(UI.qbMarkOk || ''); return;
+      var l = QbFromRows(rows);
+      if (l && QbSame(QbFind(l, id), want)) {
+        /* מה ששובץ עובר לסוף, והכרטיס — לבאה בתור. */
+        qbSetList_(l); QB_CUR = ''; toast(okMsg || ''); return;
       }
-      if (tries < 4) { qbMarkVerify_(tries + 1, id, seg); return; }
+      if (tries < 4) { qbSyncVerify_(tries + 1, id, want, okMsg); return; }
       toast(UI.qbMarkBad || '');
     });
   }, tries ? 2500 : 1400);
