@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 82;
+var SCRIPT_VERSION = 83;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -6713,11 +6713,14 @@ function qbank_(d) {
   }
   if (d.op !== 'put') return { status: 'error', message: 'פעולה לא מוכרת' };
   var row = at >= 0 ? data[at].slice() : [];
+  /* "שובצה" גוברת: שאלה ששובצה נשארת כזו, גם כשנשלח אליה "טיוטה" או "מוכנה". */
+  var wasPlaced = at >= 0 && String(data[at][ixSt] || '').trim() === 'שובצה';
   put_(row, ixId, id);
   (parse_(d.cols) || []).forEach(function (c) {
     var name = c && String(c[0] || '');
     if (QB_COLS_.indexOf(name) < 0 || name === 'מזהה') return;
     var v = c[1] == null ? '' : String(c[1]);
+    if (name === 'סטטוס' && wasPlaced) v = 'שובצה';
     put_(row, idx_(sh, head, name), name === 'נכונה' && /^[1-4]$/.test(v) ? +v : v);
   });
   /* השורה נכתבת מחדש כולה, מערכי התצוגה. נוסח שנראה כמו נוסחה

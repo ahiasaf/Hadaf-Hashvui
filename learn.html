@@ -5336,8 +5336,8 @@ var Q_EDIT = null;
 function qEditOpen_(n) {
   Q_FROM = null;
   var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
-  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr }
-               : { q:'', a:['', '', '', ''], correct:0, yr:false };
+  Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr, qb:cur.qb || '' }
+               : { q:'', a:['', '', '', ''], correct:0, yr:false, qb:'' };
   qPaintEdit_(n);
 }
 function qPaintEdit_(n) {
@@ -5408,6 +5408,8 @@ function qPost_() {
 function qVal_(text, answers) {
   var v = { q:text, a:answers, correct:Q_EDIT.correct };
   if (Q_EDIT.yr) v.yr = 1;
+  /* מזהה השאלה במאגר — כך המאגר יודע שהיא שובצה, גם אם הנוסח שונה (QbRecMarks). */
+  if (Q_EDIT.qb) v.qb = Q_EDIT.qb;
   return v;
 }
 function qEditSave_(n) {
@@ -5502,8 +5504,7 @@ function qVerify_(tries, n, want, okMsg) {
         QMAP = m; QOWN = mine;
         toast(okMsg || 'נשמר ואומת.');
         /* השאלה שנשמרה מולאה מהמאגר — עכשיו, אחרי האימות, מסמנים שם "שובצה". */
-        var said = (Q_EDIT && (Q_EDIT.q || '').trim()) || '';
-        if (Q_FROM && want.some(function (w) { return w && ((w.draft || w.pub || {}).q === said); })) qbMarkPlaced_(n);
+        if (Q_FROM && want.some(function (w) { return w && (w.draft || w.pub || {}).qb === Q_FROM; })) qbMarkPlaced_(n);
         /* חוזרים לתצוגת השאלה השמורה — זו ההוכחה שהיא נכתבה,
            ברורה יותר מהודעת טקסט שנעלמת עם הציור הבא. */
         paintChavArea();
@@ -5532,14 +5533,20 @@ var QB_ID = (function () {
   try { return decodeURIComponent((/[?&]qb=([^&#]*)/.exec(location.search) || [])[1] || ''); }
   catch (e) { return ''; }
 })();
-var QBL = null, QB_CUR = '', Q_FROM = null;
+var QBL = null, QBR = null, QB_CUR = '', Q_FROM = null;
 function qbStLbl_(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
-/* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף. */
+/* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף.
+   "שובצה" לפי הדף עצמו גוברת על מה שכתוב בעמודת הסטטוס (QbSt). */
 function qbSetList_(l) {
   var rank = function (x) { return [1, 0, 2][QB_ST.indexOf(x.st)]; };
+  var marks = QbRecMarks(QOWN);
+  QBR = l;
   QBL = l.filter(function (x) {
     return x.id && x.mas === S.mas && QbDafKey(x.daf) === QbDafKey(S.daf);
-  }).map(function (x, i) { x.i = i; return x; }).sort(function (a, b) {
+  }).map(function (x, i) {
+    return { id:x.id, mas:x.mas, daf:x.daf, q:x.q, a:x.a, correct:x.correct, yr:x.yr,
+             seg:x.seg, st:QbSt(x, marks), i:i };
+  }).sort(function (a, b) {
     return (rank(a) - rank(b)) || (a.i - b.i);
   });
 }
@@ -5559,6 +5566,7 @@ function qbAt_() {
   return 0;
 }
 function qbFillHtml_() {
+  if (QBR) qbSetList_(QBR);      /* הדף נשמר מאז — "שובצה" מתעדכנת */
   if (!QBL || !QBL.length) return '';
   var i = qbAt_(), x = QBL[i], ok = QbFull(x), one = QBL.length < 2;
   var st = qbStLbl_(x.st) + (x.st === QB_ST[2] && x.seg ? ' · ' + x.seg.split(' · ')[0] : '');
@@ -5583,7 +5591,7 @@ function qbFillHtml_() {
 /* המילוי רק ממלא את השדות. "שמירה" אחריו היא טיוטה — לא פרסום. */
 function qbFill_(n, x) {
   if (!x || !QbFull(x)) return;
-  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct, yr:!!x.yr };
+  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct, yr:!!x.yr, qb:x.id };
   Q_FROM = x.id; QB_CUR = x.id;
   qPaintEdit_(n);
 }

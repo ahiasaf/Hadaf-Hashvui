@@ -2939,7 +2939,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.274';
+var APP_VERSION = '8.99.275';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11327,6 +11327,29 @@ function qbMasSet(mas) {
   if (QB_ED && !QB_ED.id && QB_ED.mas !== mas) { QB_ED.mas = mas; QB_ED.daf = qbDafs(mas)[0] || ''; }
 }
 var QB_ED = null;            /* העותק שבעריכה. id ריק = שאלה חדשה */
+/* מה ששובץ בפועל, לפי "שאלות בדף": "mas|דף" -> QbRecMarks. null = עוד לא נקרא. */
+var QB_MK = null;
+function qbMarksFrom(rows) {
+  if (!rows || !rows.length || rows[0].join('|').indexOf('מסכת') < 0) return null;
+  var out = {};
+  rows.slice(1).forEach(function (r) {
+    var rec = null;
+    try { rec = JSON.parse(String(r[2] || '')); } catch (e) {}
+    if (rec) out[QbMas(r[0]) + '|' + QbDafKey(r[1])] = QbRecMarks(rec);
+  });
+  return out;
+}
+/* "שובצה" גוברת — גם כשעמודת הסטטוס אומרת אחרת (QbSt). */
+function qbEff(l) {
+  return l.map(function (x) {
+    var st = QbSt(x, QB_MK && QB_MK[qbMd(x)]);
+    if (st === x.st) return x;
+    var y = {}, k;
+    for (k in x) if (x.hasOwnProperty(k)) y[k] = x[k];
+    y.st = st;
+    return y;
+  });
+}
 function qbApi() { return (CFG.api || API || '').trim(); }
 function qbStLbl(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
 function qbMd(x) { return x.mas + '|' + QbDafKey(x.daf); }
@@ -11347,12 +11370,14 @@ function qbDafs(mas) {
 function qbLoad() {
   QB_BUSY = true; QB_AT = Date.now();
   if (!QB_ED) qbPaint();
-  return fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
-    var l = QbFromRows(rows);
+  var sid = CFG.sheetId || SHEET_ID;
+  return Promise.all([fetchSheet(sid, QB_TAB), fetchSheet(sid, QZ_TAB)]).then(function (r) {
+    var l = QbFromRows(r[0]), mk = qbMarksFrom(r[1]);
     QB_BUSY = false;
     /* קריאה שנכשלה אינה מאגר ריק — מה שכבר על המסך נשאר. */
     QB_FAIL = l === null;
-    if (l) QB = l;
+    if (mk) QB_MK = mk;
+    if (l) QB = qbEff(l);
     /* שורה שנכתבה בגיליון בלי מזהה — השרת נותן לה מזהה, וקוראים שוב. */
     var key = (CFG.readKey || '').trim();
     if (l && key && Date.now() - QB_IDS_AT > 60000 && l.some(function (x) { return !x.id; })) {
@@ -11401,10 +11426,11 @@ function qbEdHtml(e) {
         '<input type="text" data-qba="' + k + '" value="' + esc(t) + '" placeholder="' +
         esc(fill(UI.qbA, { n: k + 1 })) + '"></div>';
     }).join('') +
-    '<div class="qb-seg">' + [0, 1].map(function (i) {
+    /* שאלה ששובצה נשארת "שובצה" — אין כאן בחירה בין טיוטה למוכנה. */
+    (e.orig === QB_ST[2] ? '' : '<div class="qb-seg">' + [0, 1].map(function (i) {
       return '<button data-qbs="' + QB_ST[i] + '" class="' + ('s' + i + (e.st === QB_ST[i] ? ' on' : '')) + '">' +
         esc(qbStLbl(QB_ST[i])) + '</button>';
-    }).join('') + '</div>' +
+    }).join('') + '</div>') +
     '<input type="text" data-qbk="note" value="' + esc(e.note || '') + '" placeholder="' + esc(UI.qbNote) + '">' +
     '<label class="qb-yr"><input type="checkbox" data-qbk="yr"' + (e.yr ? ' checked' : '') + '>' +
       '<span><b>' + esc(UI.qbYr) + '</b><small>' + esc(UI.qbYrSub) + '</small></span></label>' +
@@ -11546,7 +11572,7 @@ function qbVerify(tries, id, want) {
     fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
       var l = QbFromRows(rows), x = l && QbFind(l, id);
       if (l && (want ? QbSame(x, want) : !x)) {
-        QB = l; QB_FAIL = false; QB_ED = null; QB_AT = Date.now();
+        QB = qbEff(l); QB_FAIL = false; QB_ED = null; QB_AT = Date.now();
         qbPaint();
         toast(want ? UI.qbOk : UI.qbDelOk);
         return;

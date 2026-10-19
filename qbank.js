@@ -95,3 +95,36 @@ function QbSame(got, want) {
   }
   return true;
 }
+
+/* ---------- "שובצה" גוברת ----------
+   שאלה ששובצה היא גם מוכנה, ושום סימון מאוחר יותר של "טיוטה" או
+   "מוכנה" אינו מוריד אותה. האמת היא הדף עצמו: רשומת הדף בלשונית
+   "שאלות בדף". שאלה שמולאה מהמאגר נושאת שם `qb` (המזהה), ושאלה
+   ישנה — מזוהה לפי הנוסח. כך גם סימון שלא נכתב, או שנדרס, אינו
+   מעלים שיבוץ. */
+function QbNorm(t) { return String(t || '').replace(/["'״׳“”„\s.,:;?!—–-]/g, ''); }
+/* רשומת דף אחת -> { ids:{מזהה:1}, qs:{נוסח:1} } */
+function QbRecMarks(rec) {
+  var m = { ids: {}, qs: {} };
+  if (!rec || typeof rec !== 'object') return m;
+  var add = function (v) {
+    if (!v || typeof v !== 'object' || !v.q) return;
+    if (v.qb) m.ids[v.qb] = 1;
+    m.qs[QbNorm(v.q)] = 1;
+  };
+  for (var k in rec) {
+    if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
+    for (var i = 0; i < rec[k].length; i++) {
+      var x = rec[k][i];
+      if (x && (x.hasOwnProperty('pub') || x.hasOwnProperty('draft'))) { add(x.pub); add(x.draft); }
+      else add(x);
+    }
+  }
+  return m;
+}
+/* הסטטוס להצגה. marks = QbRecMarks של הדף של השאלה (או null). */
+function QbSt(x, marks) {
+  if (x.st === QB_ST[2]) return x.st;
+  if (marks && (marks.ids[x.id] || marks.qs[QbNorm(x.q)])) return QB_ST[2];
+  return x.st;
+}
