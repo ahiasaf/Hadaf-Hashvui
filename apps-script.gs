@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 98;
+var SCRIPT_VERSION = 99;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7214,6 +7214,7 @@ function backupNow() { return backupDaily_(true); }
      (**לא `c`** — שם שמור ב-Apps Script כמו `rt` ו-`sid`: 400 מגוגל.)
    ?raffle=demov&stk=             — מה שהלחיצה על הדוגמה פותחת (אסימון).
    ?raffle=all                    — כל ההגרלות שפורסמו והזוכים בהן (/zochim). ציבורי.
+   ?raffle=redo&rid=&code=        — הגרלה מחדש במוסד אחד (זוכה שאינו קיים). לרכז.
 
    **הכלל השבוע:** סיום עמוד א וגם עמוד ב של דף ב, באותה מסכת.
    מגילה ותענית יחד — אדם נכנס פעם אחת. בלי תנאי חידון. הסיום
@@ -7791,6 +7792,50 @@ function raffleDraw_(P) {
     var d = rafById_(rafRead_(), rid);
     d.status = 'ok';
     return d;
+  } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   הגרלה מחדש במוסד אחד (8.99.296) — כשהזוכה אינו תלמיד אמיתי.
+   ============================================================
+   מתוך **אותה תמונת זכאות** של ההגרלה ("תמונת זכאות" — מי שהיה זכאי
+   במועד החיתוך), בלי הזוכה הנוכחי ובלי כל זוכה קודם שהוצא במוסד הזה,
+   ובלי שורות "בדיקה: כן". גם אחרי פרסום: השורה מתעדכנת, ועמוד ההגרלה
+   ו-/zochim מראים את הזוכה החדש (המטמון נמחק). **לא נשלחת הודעה** —
+   הרכז פונה לזוכה בעצמו. הזוכה שהוצא נשמר ב"הוצאו מהזכייה". */
+function rafRedo_(P) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
+    if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
+    if (d.st === 'בוטל') return { status: 'error', message: 'ההגרלה בוטלה' };
+    var code = String(P.code || ''), r = -1;
+    d.lines.forEach(function (ln) { if (T.c(ln, 'קוד ישיבה') === code) r = ln; });
+    if (r < 0) return { status: 'error', message: 'המוסד אינו בהגרלה הזו' };
+    var L = [];
+    try { L = JSON.parse(T.c(r, 'תמונת זכאות') || '[]') || []; } catch (x) { L = []; }
+    var out = T.c(r, 'הוצאו מהזכייה'), gone = (T.c(r, 'מזהי הזוכה') + ' ' + out.replace(/[^\w:.\- ]/g, ' ')).split(/\s+/);
+    var t = joinTable_(), cand = [];
+    L.forEach(function (id) {
+      if (!id || gone.indexOf(id) >= 0) return;
+      var rr = rowOfId_(t, id);
+      if (rr < 1) return;
+      var row = t.rows[rr];
+      if (t.c(row, 'בדיקה') === 'כן' || t.c(row, 'תפקיד') === 'הורה') return;
+      var ids = rowIds_(t, row);
+      if (ids.some(function (z) { return gone.indexOf(z) >= 0; })) return;
+      cand.push({ id: id, ids: ids, name: (t.c(row, 'שם') + ' ' + t.c(row, 'משפחה')).trim() });
+    });
+    if (!cand.length) return { status: 'error', message: 'אין במוסד הזה זכאי אחר' };
+    var w = cand[rafPick_(cand.length)];
+    var was = T.c(r, 'שם הזוכה') + ' (' + T.c(r, 'מזהי הזוכה') + ')';
+    var D = { lines: [r] };
+    rafSet_(T, D, [['זוכה', w.id], ['מזהי הזוכה', w.ids.join(' ')], ['שם הזוכה', w.name],
+                   ['הוצאו מהזכייה', (out ? out + ' | ' : '') + was + ' · ' + new Date().toISOString() +
+                                     ' · ' + String(P.who || 'רכז').slice(0, 40)]]);
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all', 'raf:me']); } catch (xc) {}
+    return { status: 'ok', name: w.name, n: cand.length };
   } finally { lock.releaseLock(); }
 }
 
@@ -8388,6 +8433,7 @@ function raffleRoute_(e) {
     }
     if (op === 'draw') return reply_(e, raffleDraw_(P));
     if (op === 'void') return reply_(e, raffleVoid_(P));
+    if (op === 'redo') return reply_(e, rafRedo_(P));
     if (op === 'aud') {
       var d2 = rafById_(rafRead_(), String(P.rid || ''));
       if (!d2) return reply_(e, { status: 'error', message: 'ההגרלה לא נמצאה' });

@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.295';
+var APP_VERSION = '8.99.296';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14990,6 +14990,17 @@ function rafDemo(k) {
     rafMsg = d.dev ? UI.rafDmDone : UI.rafDmNoDev;
   });
 }
+function rafRedo(code) {
+  if (!rafD) return;
+  var x = null;
+  rafD.rows.forEach(function (r) { if (r.code === code) x = r; });
+  if (!x || !confirm(fill(UI.rafRedoQ, { inst: rafInstName(code), name: x.name }))) return;
+  rafCall({ raffle: 'redo', rid: rafD.rid, code: code, who: 'רכז' }, function (d) {
+    var m = fill(UI.rafRedoDone, { name: d.name });
+    x.name = d.name;
+    rafCall({ raffle: 'state' }, function (s) { rafD = s.d || rafD; rafMsg = m; });
+  });
+}
 function rafVoid() {
   var why = prompt(UI.rafVoidQ);
   if (!why || !why.trim() || !rafD) return;
@@ -15349,7 +15360,10 @@ function admRaffle() {
       rafD.rows.map(function (x) {
         return '<div class="prow2 ' + (x.win ? 'ok' : 'warn') + '"><span class="pm">' + (x.win ? '★' : '–') + '</span>' +
           '<div style="flex:1"><b>' + esc(rafInstName(x.code)) + '</b><span>' +
-          esc(x.win ? x.name : UI.rafNone) + ' · ' + esc(fill(UI.rafN, { n: x.n })) + '</span></div></div>';
+          esc(x.win ? x.name : UI.rafNone) + ' · ' + esc(fill(UI.rafN, { n: x.n })) + '</span>' +
+          /* זוכה שאינו תלמיד אמיתי — הגרלה מחדש במוסד הזה בלבד (rafRedo_) */
+          (x.win && x.n > 1 ? '<button class="lnk" style="display:block;margin-top:4px;color:var(--stop);font-size:.8rem;font-weight:700;background:none;border:0;padding:0"' + dis +
+            ' onclick="rafRedo(\'' + esc(x.code) + '\')">' + esc(UI.rafRedo) + '</button>' : '') + '</div></div>';
       }).join('') + '</div>';
     if (rafD.ex) h += '<details class="hx"><summary>' + esc(UI.rafEx) + '</summary><p class="h">' +
       esc(String(rafD.ex).split(' | ').join('\n')).replace(/\n/g, '<br>') + '</p></details>';
