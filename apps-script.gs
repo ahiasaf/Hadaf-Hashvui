@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 105;
+var SCRIPT_VERSION = 106;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9070,6 +9070,7 @@ var OV_NAME_ = 'ממשק ניהול תוכנית הדף השבועי';
 var OV_TAB_  = 'סקירה';
 var OV_HEAD_ = { name: 'מוסד', coord: 'רכז בשטח', reg: 'נרשמו באפליקציה', act: 'לומדים בפועל',
                  tot: 'לומדים', yn: 'לומדים בישיבה',
+                 tpc: 'טלפון רכז', tpr: 'טלפון ראש ישיבה', tph: 'טלפון ראש חטיבה',
                  note: 'הערות', joined: 'הצטרף לתוכנית', att: 'דווחו בנוכחות בלבד',
                  sys: 'סה"כ לפי המערכת', head: 'ראש חטיבה', rosh: 'ראש ישיבה',
                  src: 'הערת מקור', code: 'קוד' };
@@ -9294,10 +9295,12 @@ function ovSync_(force) {
   if (!T) return T;
   ovAutoCodes_(T);
   T = ovDropAct_(T);
+  T = ovShape_(T);
   var C = ovCounts_(), own = ovOwn_(), reps = ovReps_();
   /* קריאה שנכשלה — לא נוגעים בכלום */
   if (!C || !own || !reps) return T;
   T.rows.forEach(function (row) { ovPut_(T, row, C, own, reps); });
+  ovSum_(T, C);
   cache.put('ovSyncAt', '1', 120);
   return T;
 }
@@ -9309,12 +9312,81 @@ function ovPut_(T, row, C, own, reps) {
   if (!code) return;
   var x = C[code], X = ovTotal_(ovNums_(T, row, C), own, reps), put = [['tot', X.tot], ['yn', X.yn]];
   if (x) put.push(['reg', x.reg]);
+  /* טלפון — רק של מי שהמנהלים רואים (שם וטלפון שניהם; ovPpl_). */
+  var tel = { pc: '', pr: '', ph: '' };
+  ovPpl_(T, row, own, false).forEach(function (p) { tel[p.k] = p.phone; });
+  put.push(['tpc', tel.pc], ['tpr', tel.pr], ['tph', tel.ph]);
   put.forEach(function (p) {
     var i = T.cols[p[0]];
     if (i === undefined) return;
     if (String(row.v[i] == null ? '' : row.v[i]) === String(p[1])) return;
-    T.sh.getRange(row.r, i + 1).setValue(p[1]);
+    /* טלפון כמלל — אחרת גוגל מוחקת את האפס שבראשו. */
+    T.sh.getRange(row.r, i + 1).setValue(/^tp/.test(p[0]) && p[1] ? "'" + p[1] : p[1]);
     row.v[i] = p[1];
+  });
+}
+/* ============================================================
+   הטבלה מציגה בדיוק את מה שהמנהלים רואים בקישור (20.10.2026).
+   ============================================================
+   "הטבלה צריכה להציג בדיוק את מה שהממשק של המנהלים מציג." פעם
+   אחת (OV_SHAPE), לפי הכותרות:
+     · "סה"כ לפי המערכת" נמחקת — אין לה מקבילה בקישור;
+     · שלושת הטלפונים (כמו כפתורי השיחה בקישור) — עמודות אחרי
+       "ראש ישיבה";
+     · "הצטרף לתוכנית", "הערת מקור" ו"קוד" מוסתרות, לא נמחקות —
+       המערכת קוראת מהן.
+   המספרים והטלפונים עצמם נכתבים בכל סנכרון (ovPut_, ovSum_). */
+function ovShape_(T) {
+  var P = PropertiesService.getScriptProperties();
+  if (P.getProperty('OV_SHAPE') === '1') return T;
+  var sh = T.sh, left = T.actLeft;
+  var again = function () { SpreadsheetApp.flush(); T = ovTable_(sh) || T; T.actLeft = left; };
+  if (T.cols.sys !== undefined) { sh.deleteColumn(T.cols.sys + 1); again(); }
+  var at = T.cols.rosh !== undefined ? T.cols.rosh + 1 : T.w, fmt = at;
+  ['tpc', 'tpr', 'tph'].forEach(function (k) {
+    if (T.cols[k] !== undefined) return;
+    sh.insertColumnAfter(at);
+    at++;
+    sh.getRange(T.hr, fmt).copyTo(sh.getRange(T.hr, at), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    sh.getRange(T.hr, at).setValue(OV_HEAD_[k]);
+  });
+  again();
+  ['joined', 'src', 'code'].forEach(function (k) {
+    if (T.cols[k] !== undefined) { try { sh.hideColumns(T.cols[k] + 1); } catch (e) {} }
+  });
+  P.setProperty('OV_SHAPE', '1');
+  return T;
+}
+/* שורת הסה"כ — מה שהמנהלים רואים בראש הקישור: כל הלומדים (כולל מי
+   שבחר "מוסד אחר"), וכמה ישיבות כבר עם לומדים מתוך כמה. אין שורה —
+   נכתבת בשורה שאחרי הישיבות, רק אם היא ריקה כולה. */
+function ovSum_(T, C) {
+  if (!T.rows.length || T.cols.tot === undefined) return;
+  var sh = T.sh, r = T.rows[T.rows.length - 1].r + 1, w = sh.getLastColumn();
+  var nm = sh.getRange(r, T.cols.name + 1);
+  if (!/^סה["״]כ/.test(String(nm.getValue()).trim())) {
+    var v = sh.getRange(r, 1, 1, w).getValues()[0];
+    if (v.some(function (x) { return String(x).trim() !== ''; })) return;
+    nm.setValue('סה"כ');
+  }
+  var all = 0, ysh = 0, inT = {}, anyCode = false, oth = 0;
+  T.rows.forEach(function (row) {
+    var t = parseInt(ovCell_(T, row, 'tot'), 10) || 0;
+    if (t) { all += t; ysh++; }
+    var c = ovCell_(T, row, 'code');
+    if (c) { inT[c] = 1; anyCode = true; }
+  });
+  if (anyCode) Object.keys(C).forEach(function (c) { if (!inT[c]) oth += C[c].n || 0; });
+  all += oth;
+  var put = [['tot', all], ['reg', ''], ['yn', ''],
+             ['note', 'ישיבות עם לומדים: ' + ysh + ' מתוך ' + T.rows.length +
+               (oth ? ' · כולל ' + oth + ' שנרשמו בלי ישיבה מהרשימה ("מוסד אחר")' : '')]];
+  put.forEach(function (p) {
+    var i = T.cols[p[0]];
+    if (i === undefined) return;
+    var cell = sh.getRange(r, i + 1);
+    if (!cell.getFormula() && String(cell.getValue()) === String(p[1])) return;
+    cell.setValue(p[1]);
   });
 }
 /* נרשמו / דווחו בנוכחות בלבד — מהמונים, ולא מהתא (התא הוא תצוגה).
