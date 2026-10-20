@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 106;
+var SCRIPT_VERSION = 107;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9296,6 +9296,7 @@ function ovSync_(force) {
   ovAutoCodes_(T);
   T = ovDropAct_(T);
   T = ovShape_(T);
+  T = ovTidy_(T);
   var C = ovCounts_(), own = ovOwn_(), reps = ovReps_();
   /* קריאה שנכשלה — לא נוגעים בכלום */
   if (!C || !own || !reps) return T;
@@ -9355,6 +9356,28 @@ function ovShape_(T) {
     if (T.cols[k] !== undefined) { try { sh.hideColumns(T.cols[k] + 1); } catch (e) {} }
   });
   P.setProperty('OV_SHAPE', '1');
+  return T;
+}
+/* שתי שורות ההסבר הטכני (20.10.2026): "צילום מצב מהמונים" מעל
+   הכותרת ו"התאמת ספירה" מתחת לסה"כ — "רוצה לראות טבלה נקייה".
+   נמחקות לפי התוכן בלבד, פעם אחת (OV_TIDY). */
+function ovTidy_(T) {
+  var P = PropertiesService.getScriptProperties();
+  if (P.getProperty('OV_TIDY') === '1') return T;
+  var sh = T.sh, n = sh.getLastRow(), left = T.actLeft;
+  var a = n ? sh.getRange(1, 1, n, 1).getValues() : [];
+  var del = [];
+  for (var r = 0; r < a.length; r++) {
+    var t = String(a[r][0]);
+    if ((r + 1 < T.hr && t.indexOf('צילום מצב מהמונים') >= 0) ||
+        (r + 1 > T.hr && t.indexOf('התאמת ספירה') === 0)) del.push(r + 1);
+  }
+  /* מלמטה למעלה — מחיקה אינה מזיזה את מה שעוד לא נמחק. */
+  del.reverse().forEach(function (r) { sh.deleteRow(r); });
+  P.setProperty('OV_TIDY', '1');
+  if (!del.length) return T;
+  SpreadsheetApp.flush();
+  T = ovTable_(sh) || T; T.actLeft = left;
   return T;
 }
 /* שורת הסה"כ — מה שהמנהלים רואים בראש הקישור: כל הלומדים (כולל מי
