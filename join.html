@@ -1356,11 +1356,19 @@ var GRADES = ['ז׳', 'ח׳', 'ט׳', 'י׳', 'י״א', 'י״ב'];
 var CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 var way = '';
+/* כרגע מוצגת רק "עם אבא". המתג "שלוש דרכי הלימוד" בניהול
+   (`waysAll`) מחזיר את שלושתן — מהגיליון, בלי גרסה חדשה.
+   מי שכבר רשום בדרך אחרת ונכנס לעריכה רואה גם את שלו, כדי
+   שהבחירה שלו לא תיעלם מתחת לידיו. */
+function waysShown() {
+  if (pub.waysAll === true) return WAYS;
+  return WAYS.filter(function (w) { return w.id === 'dad' || w.id === way; });
+}
 function drawWays() {
   /* עיגול צבעוני לאייקון, ולא אייקון אפור על לבן. שלוש
      האפשרויות נראו קודם כמו שלוש שורות של אותו דבר, וצבע הוא
      מה שמבדיל ביניהן בסריקה של חצי שנייה — בלי לרדת לאמוג'י. */
-  $('ways').innerHTML = WAYS.map(function (w) {
+  $('ways').innerHTML = waysShown().map(function (w) {
     return '<button class="way' + (way === w.id ? ' on' : '') + '" data-w="' + w.id +
       '" style="--c:' + w.c + '"><i class="wic"><svg viewBox="0 0 20 20">' +
       w.ic + '</svg></i>' +
@@ -4734,6 +4742,7 @@ window.addEventListener('load', function () {
        שהגיליון ענה — אחרת כיבוי מהניהול היה מגיע רק בפתיחה
        הבאה, והרכז היה רואה מסך שלא השתנה ומניח שזה נשבר. */
     drawWho();
+    drawWays();                 /* וכך גם דרכי הלימוד (waysAll) */
     var cur = get('me', null);
     if (cur && cur.first && $('done').className === 'on') showDone(cur, 'quiet');
   });

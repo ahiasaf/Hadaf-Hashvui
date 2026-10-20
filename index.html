@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.301';
+var APP_VERSION = '8.99.302';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9386,7 +9386,7 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
                 'tourOn', 'tourAt', 'sizeOn', 'netTicker',
-                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup', 'repGroup'];
+                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup', 'repGroup', 'waysAll'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* מה שכתוב בקוד, לפני שהשכבות נוגעות בו. `applyCfg` כותב על
@@ -11285,7 +11285,7 @@ function cfgCodeVal(k, sub) {
   if (k === 'prices') return CODE_CFG.prices[sub];
   var D = { roster:ROSTER_DEF, orderBy:ORDER_BY, raffle:false, tourOn:false,
             tourAt:'foot', sizeOn:false, netTicker:'off', joinLink:true,
-            weekRaffle:false, roleAsk:true, repGroup:true };
+            weekRaffle:false, roleAsk:true, repGroup:true, waysAll:false };
   return D[k];
 }
 /* false וחסר הם אותו דבר למתג שברירת המחדל שלו כבויה. */
@@ -13690,6 +13690,15 @@ function admShow(el) {
     '<button class="sw' + (repGroupOn() ? ' on' : '') +
     '" onclick="cfgSet(\'repGroup\',!repGroupOn());admPane()" ' +
     'aria-label="' + esc(UI.repGrpRow) + '"></button></div></div>' +
+
+    /* דרכי הלימוד בהרשמה: כבוי — רק "עם אבא"; דלוק — שלושתן. */
+    '<div class="adm-card" data-g="kid" style="margin-bottom:11px"><h4>' + esc(UI.waysAllH) + '</h4>' +
+    '<p class="h">' + esc(UI.waysAllP) + '</p>' +
+    '<div class="row"><div>' + esc(UI.waysAllRow) +
+    '<div class="sub">' + esc(CV('waysAll') === true ? UI.waysAllOn : UI.waysAllOff) + '</div></div>' +
+    '<button class="sw' + (CV('waysAll') === true ? ' on' : '') +
+    '" onclick="cfgSet(\'waysAll\',CV(\'waysAll\')!==true);admPane()" ' +
+    'aria-label="' + esc(UI.waysAllRow) + '"></button></div></div>' +
 
     /* "בן · אבא" בראש קישור ההצטרפות. ניתן לכיבוי כי הוא עשוי
        לרדת בהמשך — והכיבוי הוא מהגיליון ולא מהקוד, כלומר הוא
