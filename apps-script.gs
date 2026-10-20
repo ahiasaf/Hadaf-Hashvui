@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 102;
+var SCRIPT_VERSION = 103;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -4609,6 +4609,7 @@ function partCalc_(all) {
     if (!b) { b = out.by[code] = { n: 0, reg: 0, rep: 0, amb: 0, g: {}, w: {}, go: [], wo: [] }; out.order.push(code); }
     b.n++;
     if (reg) b.reg++; else b.rep++;
+    grade = gradeCanon_(grade);
     if (grade) { if (!(grade in b.g)) { b.g[grade] = 0; b.go.push(grade); } b.g[grade]++; }
     if (way) { if (!(way in b.w)) { b.w[way] = 0; b.wo.push(way); } b.w[way]++; }
   };
@@ -4625,6 +4626,16 @@ function partCalc_(all) {
     out.by[code].amb++;
   });
   return out;
+}
+
+/* שכבה בצורה אחת לספירה. הנוכחות כותבת "ז" והטופס "ז׳", ולכן
+   ב"מונים" יצאה אותה שכבה פעמיים ("ז׳:43 · ז:42"). אות אחת —
+   עם גרש, שתיים — עם גרשיים; כל דבר אחר נשאר כמו שהוא. */
+function gradeCanon_(g) {
+  var n = amdaNorm_(g);
+  if (/^[א-ת]$/.test(n)) return n + '׳';
+  if (/^[א-ת]{2}$/.test(n)) return n.charAt(0) + '״' + n.charAt(1);
+  return String(g || '').trim();
 }
 
 /* העמודות של "מונים". הארבע הראשונות — כמו תמיד; השלוש שאחריהן
