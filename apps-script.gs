@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 107;
+var SCRIPT_VERSION = 108;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9300,6 +9300,7 @@ function ovSync_(force) {
   var C = ovCounts_(), own = ovOwn_(), reps = ovReps_();
   /* קריאה שנכשלה — לא נוגעים בכלום */
   if (!C || !own || !reps) return T;
+  if (ovFill_(T, own)) own = ovOwn_() || own;
   T.rows.forEach(function (row) { ovPut_(T, row, C, own, reps); });
   ovSum_(T, C);
   cache.put('ovSyncAt', '1', 120);
@@ -9379,6 +9380,134 @@ function ovTidy_(T) {
   SpreadsheetApp.flush();
   T = ovTable_(sh) || T; T.actLeft = left;
   return T;
+}
+/* ============================================================
+   מילוי אנשים וטלפונים מהידע שכבר במערכת (20.10.2026).
+   ============================================================
+   "תמלא את הטלפונים איפה שיש לך את הידע" — ו"כל מי שנרשם דרך
+   הקישור (רכז / ראש חטיבה / ראש ישיבה) ועבר אישור שלי צריך
+   להופיע. אם יש כמה באותו מוסד — תשאל אותי."
+
+   לכל ישיבה ולכל אחד משלושת התפקידים:
+     · **אושר בלשונית "גישה"** (תפקיד שמכיל רכז / ישיבה / חטיבה):
+       - אחד, והתא בטבלה ריק — השם נכתב לטבלה;
+       - השם בטבלה הוא אחד מהמאושרים — הוא, עם הטלפון שלו;
+       - כמה ואין שם בטבלה, או שבטבלה שם אחר — **לא נכתב כלום**,
+         והבעלים נשאל (OV_ASK, מוצג בממשק שלו).
+     · אין מאושר — הטלפון של השם שבטבלה מ"אנשי קשר" (המוקד),
+       רק מאותה ישיבה, ורק כשיש מספר אחד בדיוק.
+   טלפון נכתב רק לתא ריק בלשונית הפרטית — מה שהבעלים שמר אינו
+   נדרס. מחזיר כמה טלפונים נכתבו. */
+var OV_ROLE_ = { pc: { col: 'coord', has: 'רכז', t: 'רכז בשטח' },
+                 pr: { col: 'rosh', has: 'ישיבה', t: 'ראש ישיבה' },
+                 ph: { col: 'head', has: 'חטיבה', t: 'ראש חטיבה' } };
+function ovPk_(s) {
+  return ckey_(String(s || '').replace(/\([^)]*\)/g, ' ')
+    .replace(/^\s*(הרב|הרבנית|ר['׳]|מר)\s+/, ''));
+}
+function ovSame_(a, b) {
+  a = ovPk_(a); b = ovPk_(b);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  var A = a.split(' '), B = b.split(' '), s = A.length <= B.length ? A : B, l = s === A ? B : A;
+  return s.length >= 2 && s.every(function (w) { return l.indexOf(w) >= 0; });
+}
+function ovCodeOf_(name) {
+  var k = ovNameKey_(name), hit = OV_INST_.filter(function (i) { return ovNameKey_(i[1]) === k; });
+  return hit.length === 1 ? hit[0][0] : '';
+}
+/* המאושרים מ"גישה", לפי קוד ותפקיד: [{name, phone}]. */
+function ovApproved_() {
+  var sh = sheet_(ACC_TAB);
+  if (sh.getLastRow() < 2) return {};
+  var a = sh.getDataRange().getDisplayValues(), ix = {};
+  a[0].forEach(function (h, i) { ix[String(h).trim()] = i; });
+  var g = function (r, k) { return ix[k] === undefined ? '' : String(r[ix[k]] || '').trim(); };
+  var out = {};
+  for (var i = 1; i < a.length; i++) {
+    if (g(a[i], 'מצב') !== 'אושר') continue;
+    var code = g(a[i], 'קוד ישיבה'), role = g(a[i], 'תפקיד'), name = g(a[i], 'שם');
+    if (!code || !name) continue;
+    Object.keys(OV_ROLE_).forEach(function (k) {
+      if (role.indexOf(OV_ROLE_[k].has) < 0) return;
+      var key = code + '|' + k, L = out[key] || (out[key] = []);
+      var ph = g(a[i], 'טלפון');
+      var dup = L.filter(function (x) { return ovSame_(x.name, name); })[0];
+      if (dup) { if (!dup.phone) dup.phone = ph; return; }
+      L.push({ name: name, phone: ph });
+    });
+  }
+  return out;
+}
+/* "אנשי קשר" (המוקד) לפי קוד: [{name, phone}] — שם, ואחריו הטלפון שלו. */
+function ovContacts_() {
+  var sh = sheet_(CONTACT_TAB_, CONTACTS_ID);
+  var a = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
+  var out = {};
+  a.forEach(function (row) {
+    var code = '';
+    for (var c = 0; c < Math.min(3, row.length) && !code; c++) code = ovCodeOf_(row[c]);
+    if (!code) return;
+    var L = out[code] || (out[code] = []), last = null;
+    row.forEach(function (v) {
+      v = String(v || '').trim();
+      if (!v) return;
+      var d = v.replace(/\D/g, '');
+      if (d.length >= 9 && d.length <= 13 && /^[\d\s\-+()]+$/.test(v)) {
+        if (last && !last.phone) last.phone = v;
+        return;
+      }
+      /* שם הישיבה עומד בין השם לטלפון שלו ("מנהל חט"ב | ישיבה | טלפון"). */
+      if (ovCodeOf_(v)) return;
+      if (/^(TRUE|FALSE)$/i.test(v)) { last = null; return; }
+      last = { name: v, phone: '' };
+      L.push(last);
+    });
+  });
+  return out;
+}
+function ovFill_(T, own) {
+  var acc, con;
+  try { acc = ovApproved_(); con = ovContacts_(); } catch (e) { return 0; }
+  var ask = [], wrote = 0;
+  T.rows.forEach(function (row) {
+    var code = ovCell_(T, row, 'code');
+    if (!code) return;
+    var mine = own.m[code] || {};
+    Object.keys(OV_ROLE_).forEach(function (k) {
+      var R = OV_ROLE_[k], ci = T.cols[R.col];
+      if (ci === undefined) return;
+      var now = ovCell_(T, row, R.col), L = acc[code + '|' + k] || [], who = null;
+      if (L.length) {
+        var same = L.filter(function (x) { return now && ovSame_(x.name, now); });
+        if (same.length === 1) who = same[0];
+        else if (!now && L.length === 1) {
+          who = L[0];
+          T.sh.getRange(row.r, ci + 1).setValue(ovSafe_(who.name));
+          row.v[ci] = who.name; now = who.name;
+        } else {
+          ask.push({ t: ovCell_(T, row, 'name'), r: R.t, n: L.map(function (x) { return x.name; }), c: now });
+          return;
+        }
+      }
+      if (String(mine[k] || '').trim() || !now) return;
+      var ph = who && who.phone ? who.phone : '';
+      if (!ph) {
+        var hits = {};
+        (con[code] || []).forEach(function (x) {
+          if (x.phone && ovSame_(x.name, now)) hits[x.phone.replace(/\D/g, '')] = x.phone;
+        });
+        var ks = Object.keys(hits);
+        if (ks.length === 1) ph = hits[ks[0]];
+      }
+      ph = String(ph || '').replace(/[^\d+]/g, '');
+      if (ph.replace(/\D/g, '').length < 9) return;
+      ovOwnSet_(code, k, ph);
+      wrote++;
+    });
+  });
+  PropertiesService.getScriptProperties().setProperty('OV_ASK', JSON.stringify(ask));
+  return wrote;
 }
 /* שורת הסה"כ — מה שהמנהלים רואים בראש הקישור: כל הלומדים (כולל מי
    שבחר "מוסד אחר"), וכמה ישיבות כבר עם לומדים מתוך כמה. אין שורה —
@@ -9740,7 +9869,10 @@ function ov_(p) {
     var L = owner ? ovLearners_() : null, own = ovOwn_(), reps = ovReps_();
     var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L, own, reps, C); }),
                 other: other, owner: owner, at: new Date().toISOString() };
-    if (owner) { out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.actLeft = !!T.actLeft; }
+    if (owner) {
+      out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.actLeft = !!T.actLeft;
+      try { out.ask = JSON.parse(PropertiesService.getScriptProperties().getProperty('OV_ASK') || '[]'); } catch (eA) { out.ask = []; }
+    }
     return out;
   } finally {
     if (lock) lock.releaseLock();

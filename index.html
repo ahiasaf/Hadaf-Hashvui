@@ -2945,7 +2945,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.303';
+var APP_VERSION = '8.99.304';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8523,6 +8523,11 @@ function ovAdmTop() {
       }).join('') + '</div>';
     if (odd.length) h += '<div class="msg" style="margin:8px 0 0">' +
       esc(fill(UI.ovUnmatched, { t:odd.map(function (r) { return r.name; }).join(' · ') })) + '</div>';
+    if (D && D.ask && D.ask.length) h += '<div class="msg" style="margin:8px 0 0">' + esc(UI.ovAsk) +
+      D.ask.map(function (a) {
+        return '<br>' + esc(fill(UI.ovAskRow, { t:a.t, r:a.r, n:(a.n || []).join(' / ') }) +
+          (a.c ? fill(UI.ovAskNow, { c:a.c }) : ''));
+      }).join('') + '</div>';
   }
   h += '<details class="adm-card" style="margin:10px 0 0"><summary>' + esc(UI.ovAdmLinkH) + '</summary>' +
     '<p class="h" style="margin-top:6px">' + esc(UI.ovAdmLinkSub) + '</p>' +
