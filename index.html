@@ -10396,9 +10396,16 @@ function admSetupTiles() {
   var ros = src ? src.filter(function (p) {
     return !p.test && p.role !== 'הורה' && (!ADM_INST || pplCode(p.inst) === ADM_INST);
   }) : null;
-  var reg = j ? j.n : ros ? ros.length : fAll ? fAll.join : null;
+  /* "משתתפים" — אותו מספר שבראש הלוח (ovBoard, מסקירת הישיבות):
+     באפליקציה + לומדים בישיבה − חופפים. בלי נתוני הסקירה — כמו קודם. */
+  var OB = ADM_INST !== '-' ? ovBoard(ADM_INST) : null;
+  var reg = OB ? OB.tot : j ? j.n : ros ? ros.length : fAll ? fAll.join : null;
   var push = ros ? ros.filter(function (p) { return p.push && p.pstate !== 'gone'; }).length : fAll ? fAll.push : null;
-  var today = has ? funJoinOn(F, funPeople(F, ''), funDay(0)) : null;
+  /* "הצטרפו היום" — מרשימת הנרשמים עצמה, לפי רגע יצירת החשבון שבמזהה.
+     המשפך נשען על דיווח אנונימי מהדפדפן, וכשכיתה שלמה נרשמת יחד חלק
+     מהדיווחים לא מגיעים (35 מול 54 ב-20.10). בלי הרשימה — המשפך. */
+  var today = ros ? ros.filter(function (p) { return idDay(p.id) === funDay(0); }).length
+            : has ? funJoinOn(F, funPeople(F, ''), funDay(0)) : null;
   var stuck = stuckRows ? stuckOpen().length : null;
   var t = function (v, s) { return '<b>' + (v == null ? '—' : v) + '</b><span>' + esc(s) + '</span>'; };
   return '<div class="st-n"><div>' + t(reg, UI.stReg) + '</div><div>' + t(push, UI.stPush) + '</div>' +
@@ -12557,8 +12564,14 @@ function funLoad() {
   }).catch(function () { funMsg = 'לא קיבלתי תשובה מהסקריפט.'; pplPaint(); });
 }
 function funSet(k, v) { fun[k] = v; pplPaint(); }
-function funDay(n) {
-  var ms = Date.now() - n * 864e5;
+function funDay(n) { return dayOf(Date.now() - n * 864e5); }
+/* יום ההרשמה של תלמיד — מהמזהה שנוצר בשליחת הטופס ('S' + הזמן
+   בבסיס 36, ראו deviceId ב-join.html). מזהה מסוג אחר — ''. */
+function idDay(id) {
+  var m = /^S([0-9a-z]{8})/.exec(String(id || ''));
+  return m ? dayOf(parseInt(m[1], 36)) : '';
+}
+function dayOf(ms) {
   /* שעון ישראל — כמו בשרת (Asia/Jerusalem), גם אחרי מעבר לשעון חורף. */
   try {
     var s = new Date(ms).toLocaleDateString('en-CA', { timeZone:'Asia/Jerusalem' });
