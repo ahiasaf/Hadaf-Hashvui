@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 104;
+var SCRIPT_VERSION = 105;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9294,7 +9294,6 @@ function ovSync_(force) {
   if (!T) return T;
   ovAutoCodes_(T);
   T = ovDropAct_(T);
-  T = ovShape_(T);
   var C = ovCounts_(), own = ovOwn_(), reps = ovReps_();
   /* קריאה שנכשלה — לא נוגעים בכלום */
   if (!C || !own || !reps) return T;
@@ -9323,64 +9322,6 @@ function ovPut_(T, row, C, own, reps) {
 function ovNums_(T, row, C) {
   var code = ovCell_(T, row, 'code'), x = C && code ? C[code] : null;
   return { code: code, reg: x ? String(x.reg) : ovCell_(T, row, 'reg'), att: x ? String(x.att) : '' };
-}
-/* ============================================================
-   הטבלה מראה את מה שהמנהלים רואים (20.10.2026).
-   ============================================================
-   "בממשק של המנהלים אנחנו רואים את מספר הלומדים הכולל ... ואילו
-   בטבלה ... נרשמו באפליקציה." ולכן, פעם אחת, לפי הכותרות:
-     · עמודה חדשה "לומדים" (הסה"כ) לפני "נרשמו באפליקציה";
-     · "דווחו בנוכחות בלבד" הופכת ל"לומדים בישיבה" ועוברת לידה;
-     · "סה"כ לפי המערכת" נמחקת — **רק אם כולה נוסחאות או ריקה**
-       (ערך שהוקלד בה אינו נמחק בשקט);
-     · ההסבר שמעל הטבלה, שעוד אמר "הסנכרון לא מחובר", מתחלף.
-   שורת הסה"כ שבתחתית: הנוסחה של "נרשמו באפליקציה" מועתקת לעמודה
-   החדשה. מחזירה טבלה חדשה, או את אותה טבלה. */
-function ovShape_(T) {
-  var sh = T.sh, sumR = T.rows.length ? T.rows[T.rows.length - 1].r + 1 : 0;
-  var isSum = function (r) {
-    return r && T.cols.name !== undefined && r <= sh.getLastRow() &&
-      /^סה["״]כ/.test(String(sh.getRange(r, T.cols.name + 1).getValue()).trim());
-  };
-  if (!isSum(sumR)) sumR = 0;
-  var left = T.actLeft;
-  var again = function () { SpreadsheetApp.flush(); T = ovTable_(sh) || T; T.actLeft = left; };
-  if (T.cols.tot === undefined && T.cols.reg !== undefined) {
-    var rc = T.cols.reg + 1;
-    sh.insertColumnBefore(rc);
-    sh.getRange(T.hr, rc + 1).copyTo(sh.getRange(T.hr, rc), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-    sh.getRange(T.hr, rc).setValue(OV_HEAD_.tot);
-    if (sumR && sh.getRange(sumR, rc + 1).getFormula()) sh.getRange(sumR, rc + 1).copyTo(sh.getRange(sumR, rc));
-    again();
-  }
-  var ai = -1;
-  for (var i = 0; i < T.w; i++) {
-    if (String(sh.getRange(T.hr, i + 1).getValue()).trim() === 'דווחו בנוכחות בלבד') { ai = i; break; }
-  }
-  if (T.cols.yn === undefined && ai >= 0 && T.cols.reg !== undefined) {
-    sh.getRange(T.hr, ai + 1).setValue(OV_HEAD_.yn);
-    if (ai !== T.cols.reg + 1) sh.moveColumns(sh.getRange(1, ai + 1, 1, 1), T.cols.reg + 2);
-    again();
-  }
-  [T.cols.tot, T.cols.reg, T.cols.yn].forEach(function (c) {
-    if (c !== undefined) { try { sh.showColumns(c + 1); } catch (e) {} }
-  });
-  if (T.cols.sys !== undefined && T.rows.length) {
-    var top = T.rows[0].r, n = T.rows[T.rows.length - 1].r - top + 1;
-    var f = sh.getRange(top, T.cols.sys + 1, n, 1).getFormulas();
-    var v = sh.getRange(top, T.cols.sys + 1, n, 1).getValues();
-    var typed = false;
-    for (var k = 0; k < n; k++) if (!f[k][0] && String(v[k][0]).trim() !== '') typed = true;
-    if (!typed) { sh.deleteColumn(T.cols.sys + 1); again(); }
-  }
-  for (var r = 1; r < T.hr; r++) {
-    var c0 = sh.getRange(r, 1), t = String(c0.getValue());
-    if (t.indexOf('הסנכרון האוטומטי עדיין לא מחובר') < 0) continue;
-    c0.setValue('לומדים — אותו מספר שהמנהלים רואים בקישור: נרשמו באפליקציה + לומדים בישיבה. ' +
-      'שלוש העמודות מתעדכנות מעצמן בכל שעה, ואין לערוך אותן כאן. רכז בשטח: ריק עד שמסמנים ' +
-      'במפורש רכז פעיל. מועמדים מהגיליון הישן, שלא אומתו — בעמודת הערת המקור.');
-  }
-  return T;
 }
 /* ============================================================
    לומדים בפועל — מי שסיים לפחות דף אחד (19.10.2026).
@@ -9682,8 +9623,6 @@ function ov_(p) {
         /* הסה"כ השתנה — גם בטבלה, מיד, ולא רק בסנכרון הבא. */
         var C1 = ovCounts_(), own1 = ovOwn_(), reps1 = ovReps_();
         if (C1 && own1 && reps1) {
-          T = ovShape_(T);
-          hit = T.rows.filter(function (row) { return ovCell_(T, row, 'code') === hc; })[0] || hit;
           ovPut_(T, hit, C1, own1, reps1);
         }
         return { status: 'ok', row: ovRow_(T, hit, owner, ovLearners_(), own1 || ovOwn_(), reps1 || ovReps_(), C1) };
