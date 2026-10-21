@@ -699,6 +699,13 @@ body.emb .dbadge{width:52px;height:52px;top:8px;left:8px;
 .qfab.on{display:flex}
 .qfab img{width:100%;height:100%;border-radius:50%;display:block}
 .qfab.lit{animation:none;transform:scale(1.08);box-shadow:0 5px 20px rgba(192,143,43,.55)}
+/* ענה על כל החידות שבקטע — וי ירוק בפינה, והעיגול מפסיק לרחף:
+   אין כאן עוד מה לעשות. אינו אומר אם צדק. */
+.qfab.done{animation:none}
+.qfab.done::after{content:'\2713';position:absolute;top:-3px;right:-3px;
+  width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-sizing:border-box;
+  background:var(--ok, #4A821C);color:#fff;font-size:13px;font-weight:900;line-height:20px;
+  text-align:center}
 body.emb .qfab{width:50px;height:50px;top:8px;left:8px}
 /* בדמו התג (dbadge) יושב באותה פינה — העיגול יורד מתחתיו, ובלעדיו
    חוזר למקומו. התג קודם לעיגול ב-DOM, ולכן `~`. */
@@ -920,14 +927,18 @@ nav .sp{flex:1}
 .dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
   border:1.5px dashed var(--gold);background:#FFFBF2}
 .dn-soon>b{display:block;font-size:1rem;font-weight:800;color:var(--blue-d)}
-/* מסך השליחה של החידון — כרטיס גבוה שנגלל, השאלות זו אחר זו */
-.qs-card{max-height:calc(100vh - 44px);max-height:calc(100dvh - 44px);overflow-y:auto;
-  text-align:right;-webkit-overflow-scrolling:touch}
-.qs-card h2{text-align:center}
-.qs-card>p{text-align:center}
-.qs-it{padding:12px 0;border-top:1px solid var(--rule,#E4DCC8)}
-.qs-it .qz-of{margin-top:0}
-.qs-it .qz-q{margin:4px 0 6px}
+/* החידון של הדף במסך הסיום (doneQPaint_). אין בו שאלות — רק כמה
+   נענו בדרך (נקודה לכל שאלה, בלי לומר איזו), ואחרי השליחה הסופית
+   כמה נכונות והאם נכנס להגרלה. */
+.dq-n{margin-top:8px;font-size:1.05rem;font-weight:800;color:var(--blue-d)}
+.dq-dots{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:10px 0 2px}
+.dq-dots i{width:13px;height:13px;border-radius:50%;background:var(--rule,#E4DCC8)}
+.dq-dots i.on{background:var(--blue,#17468F)}
+.dq-res{margin-top:10px;padding:14px 12px;border-radius:12px;text-align:center;
+  background:rgba(27,42,69,.06);font-weight:700;font-size:.92rem;color:var(--ink)}
+.dq-res b{display:block;margin-top:4px;font-size:1.12rem;font-weight:800}
+.dq-res.ok{background:rgba(74,130,28,.13)}
+.dq-res.ok b{color:var(--ok, #4A821C)}
 /* "רוצה התראה?" — בדף הנעול ובמסך הסיום */
 .nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 .nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
@@ -1335,7 +1346,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
 <div class="sheet" id="done"><div class="card dn-card">
   <button class="dn-x" id="done-x">✕</button>
   <div class="seal">📖</div>
-  <h2>ישר כוח!</h2>
+  <h2 id="done-h"></h2>
   <p id="done-sub"></p>
   <!-- הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד
        סופו, ולבקש ממנו לאשר את מה שהרגע עשה זו שאלה מיותרת.
@@ -1349,21 +1360,9 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div id="done-soon" class="dn-soon" style="display:none">
     <b id="dn-soon-t"></b><div id="dn-soon-n"></div>
   </div>
-  <!-- החידון של הדף — השאלות שנענו בזמן הלימוד. עוברים, משנים, שולחים. -->
-  <div id="done-q" class="dn-soon" style="display:none">
-    <b id="dn-q-t"></b><p class="nt-q" id="dn-q-b" style="margin:6px 0 0"></p>
-    <span class="nt-ok" id="dn-q-ok" style="display:none"></span>
-    <button class="btn p" id="dn-q-go"></button>
-  </div>
-</div></div>
-
-<!-- שליחת החידון. נפתח ממסך הסיום, מעליו. -->
-<div class="sheet" id="qsend"><div class="card dn-card qs-card">
-  <button class="dn-x" id="qs-x">✕</button>
-  <h2 id="qs-t"></h2>
-  <p id="qs-b"></p>
-  <div id="qs-list"></div>
-  <button class="btn p" id="qs-send"></button>
+  <!-- החידון של הדף — כמה נענו בדרך, ושליחה סופית. השאלות עצמן
+       אינן כאן: עונים עליהן רק בתוך הדף, ליד הקטע (doneQPaint_). -->
+  <div id="done-q" class="dn-soon" style="display:none"></div>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -2204,7 +2203,8 @@ function chavTabHtml(st, canQuiz) {
   if (!SIDE_ADM && !hasOwn && !canQuiz) return '<span class="cht-lbl">חברותא</span>';
   return '<button class="' + (tab === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
     (SIDE_ADM || hasOwn ? '<button class="' + (tab === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>' : '') +
-    (canQuiz ? '<button class="' + (tab === 'quiz' ? 'on' : '') + '" id="cht-quiz">' + esc(UI.quizTab || 'חידה') + '</button>' : '');
+    (canQuiz ? '<button class="' + (tab === 'quiz' ? 'on' : '') + '" id="cht-quiz">' + esc(UI.quizTab || 'חידה') +
+      (qSegDone_(st.n) ? ' \u2713' : '') + '</button>' : '');
 }
 
 /* ============================================================
@@ -3639,6 +3639,7 @@ function quizFabPaint() {
   document.body.classList.toggle('qfab-on', can);
   qfabPlace_();
   fab.classList.toggle('lit', !!QUIZ_OPEN);
+  fab.classList.toggle('done', can && qSegDone_(st.n));
   /* פותח את לשונית החידה. כשהיא כבר פתוחה והמגירה גלויה — סוגר,
      כמו קודם; המעבר לפירוש ובחזרה הוא דרך הלשוניות. */
   fab.onclick = function () {
@@ -3651,8 +3652,14 @@ function quizFabPaint() {
   };
   var hint = $('qhint');
   if (hint) hint.onclick = function () { fab.onclick(); };
-  if (can && !QUIZ_OPEN) qHintShow_();
+  if (can && !QUIZ_OPEN && !qSegDone_(st.n)) qHintShow_();
   else qHintHide_();
+}
+/* כל החידות שבקטע נענו (לתלמיד; לרכז — אף פעם, הוא עורך) */
+function qSegDone_(n) {
+  var l = SIDE_ADM ? [] : qVisible_(n);
+  for (var i = 0; i < l.length; i++) if (qAns_(n, l[i]) < 0) return false;
+  return !!l.length;
 }
 
 /* גובה שורת הכפתורים, בשביל מיקום העיגול בטלפון (ראו `--navh`). */
@@ -4771,6 +4778,14 @@ function go(i) {
   /* אחרי שמסך הסיום כבר הוצג — כל התקדמות (הקשה, החלקה, מקלדת,
      הכפתור) ממשיכה לדף הבא, ולא פותחת אותו שוב. אין דף הבא —
      נשארים במקום. */
+  tmTick_();
+  /* חידון שעוד לא נשלח — "סיום" פותח שוב את מסך הסיום, ושם שולחים */
+  if (i >= FLAT.length && DONE_SEEN && qPend_()) {
+    doneQPaint_();
+    $('done').className = 'sheet on';
+    bar();
+    return;
+  }
   if (i >= FLAT.length && DONE_SEEN) {
     if (unitSwap(nextDaf())) return;
     var nu = nextDafUrl();
@@ -4846,7 +4861,7 @@ function bar() {
   /* בקטע האחרון — תמיד "סיום", גם בדף של שבוע שעבר: הלימוד של
      השבוע נגמר כאן, גם כשהוא גולש לעמוד הבא. "דף ב:" על מסך שכבר
      מראה את ב: נראה כמו טעות. אחרי מסך הסיום — הדף הבא. */
-  var nd = last && DONE_SEEN ? nextDaf() : null;
+  var nd = last && DONE_SEEN && !qPend_() ? nextDaf() : null;
   $('next').textContent = last
     ? (nd ? nextLabel(nd, UI.lrnNextSame, UI.lrnNext) : UI.lrnFin)
     : (st && st.part < st.parts ? 'המשך ◂' : 'הבא ◂');
@@ -4930,12 +4945,18 @@ var QUIZ_Q = /[?&]quiz=1\b/.test(location.search), Q_READY = false, PAGE_READY =
 function quizJump_() {
   if (!QUIZ_Q || !Q_READY || !PAGE_READY || quiet() || !FLAT.length) return;
   QUIZ_Q = false;
+  qGoFirst_(true);
+}
+/* לקטע הראשון שיש בו חידה, והחידה פתוחה. `open` — הראשון שיש בו
+   שאלה שעוד לא נענתה (אם יש). גם מ"חזרה לדף" שבמסך הסיום. */
+function qGoFirst_(wantOpen) {
   var first = -1, open = -1;
   for (var i = 0; i < FLAT.length; i++) {
     if (FLAT[i].part > 1) continue;
     var l = qVisible_(FLAT[i].n);
     if (!l.length) continue;
     if (first < 0) first = i;
+    if (!wantOpen) break;
     for (var j = 0; j < l.length; j++) if (qAns_(FLAT[i].n, l[j]) < 0) { open = i; break; }
     if (open >= 0) break;
   }
@@ -5075,14 +5096,18 @@ function finish() {
   bar();
 }
 /* ============================================================
-   החידון של הדף — שליחה בסוף.
+   החידון של הדף — שליחה סופית בסוף.
    ============================================================
-   בזמן הלימוד כל תשובה רק "התקבלה" (qAnswer). בסוף הדף מסך
-   הסיום מזמין לעבור על הכול, לשנות ולשלוח. השליחה כותבת ללשונית
-   "חידות" שורה אחת לכל הדף: "קטע" = "החידון כולו", "ציון" = כמה
-   נכונות מתוך כמה, ו"נכון" = "נכון" מ-80% תשובות נכונות ומעלה —
-   זו השורה שמכניסה להגרלה. שליחה חוזרת כותבת שורה חדשה; האחרונה
-   היא הקובעת. */
+   עונים רק בתוך הדף, ליד הקטע (qAnswer) — שאלה אחת, ליד הגמרא
+   שלה. מסך הסיום אינו מציג את השאלות (8.99.310: רשימה אחת של כל
+   השאלות בסוף הזמינה צילום מסך ותשובות מבחוץ). הוא אומר כמה
+   נענו, מזמין לחזור לדף, ושולח — פעם אחת, סופית. אחרי השליחה
+   התשובות ננעלות, ונאמר כמה נכונות והאם נכנס להגרלה — בלי לומר
+   איזו שאלה. בלי הנעילה, שליחה חוזרת עם הציון הייתה מגלה את
+   התשובות אחת אחת.
+   השורה ללשונית "חידות": "קטע" = "החידון כולו", "ציון" = כמה
+   נכונות מתוך כמה (שאלה בלי תשובה = טעות), ו"נכון" = "נכון"
+   מ-80% ומעלה — זו השורה שמכניסה להגרלה. */
 function pageQs_() {
   var out = [], seen = {};
   for (var i = 0; i < FLAT.length; i++) {
@@ -5094,57 +5119,69 @@ function pageQs_() {
   return out;
 }
 function qSentKey_() { return 'df:qsent:' + dmKey(S.mas, S.daf); }
-function doneQPaint_() {
-  var box = $('done-q'), on = !!pageQs_().length, sent = false;
-  box.style.display = on ? '' : 'none';
-  if (!on) return;
-  try { sent = localStorage.getItem(qSentKey_()) === '1'; } catch (e) {}
-  $('dn-q-t').textContent = UI.dnQT || '';
-  $('dn-q-b').textContent = (LRafNoQuiz(S.daf) ? UI.dnQBNoQ : UI.dnQB) || '';
-  $('dn-q-b').style.display = sent ? 'none' : '';
-  $('dn-q-ok').textContent = UI.dnQSent || '';
-  $('dn-q-ok').style.display = sent ? '' : 'none';
-  $('dn-q-go').textContent = UI.dnQGo || '';
-  $('dn-q-go').onclick = qsOpen_;
+function qResKey_() { return 'df:qres:' + dmKey(S.mas, S.daf); }
+function qSent_() {
+  try { return localStorage.getItem(qSentKey_()) === '1'; } catch (e) { return false; }
 }
-function qsOpen_() {
-  var all = pageQs_();
-  $('qs-t').textContent = UI.qsT || '';
-  $('qs-b').textContent = (LRafNoQuiz(S.daf) ? UI.qsBNoQ : UI.qsB) || '';
-  $('qs-send').textContent = UI.qsSend || '';
-  $('qs-list').innerHTML = all.map(function (it, i) {
-    var pick = qAns_(it.n, it.q);
-    return '<div class="qs-it"><div class="qz-of">' +
-      esc(String(UI.qsNum || '').replace('{i}', i + 1)) + '</div>' +
-      '<div class="qz-q">' + esc(it.q.q) + '</div>' +
-      it.q.a.map(function (t, k) {
-        return '<button class="qz-opt' + (k === pick ? ' chosen' : '') +
-          '" data-i="' + i + '" data-k="' + k + '">' + esc(t) + '</button>';
-      }).join('') + '</div>';
-  }).join('');
-  Array.prototype.forEach.call($('qs-list').querySelectorAll('.qz-opt'), function (b) {
-    b.onclick = function () {
-      var i = +b.getAttribute('data-i'), k = +b.getAttribute('data-k');
-      qAnsSet_(all[i].n, all[i].q, k);
-      Array.prototype.forEach.call(b.parentNode.querySelectorAll('.qz-opt'), function (o) {
-        o.className = 'qz-opt' + (o === b ? ' chosen' : '');
-      });
-    };
-  });
-  $('qs-send').onclick = function () { qsSend_(all); };
-  $('qsend').className = 'sheet on';
-  $('qsend').firstChild.scrollTop = 0;
-}
-function qsSend_(all) {
-  var miss = 0, right = 0;
+/* יש בדף חידון שעוד לא נשלח — "סיום" פותח שוב את מסך הסיום, ולא
+   ממשיך לדף הבא (ראו go). מי שחזר לענות צריך דרך לשלוח. */
+function qPend_() { return !!pageQs_().length && !qSent_(); }
+function qTally_(all) {
+  var t = { n: all.length, a: 0, r: 0 };
   all.forEach(function (it) {
     var k = qAns_(it.n, it.q);
-    if (k < 0) miss++;
-    else if (k === it.q.correct) right++;
+    if (k >= 0) t.a++;
+    if (k === it.q.correct) t.r++;
   });
-  if (miss && !confirm(String(UI.qsMiss || '').replace('{n}', miss))) return;
+  return t;
+}
+function qPass_(r, n) { return r * 5 >= n * 4; }   /* 80% */
+function doneQPaint_() {
+  var box = $('done-q'), all = pageQs_();
+  box.style.display = all.length ? '' : 'none';
+  if (!all.length) return;
+  var noq = LRafNoQuiz(S.daf), t = qTally_(all), h;
+  if (qSent_()) {
+    /* הציון שנשלח — כפי שנשמר ברגע השליחה, גם אם שאלה נערכה מאז */
+    var r = t.r, n = t.n, sv = null;
+    try { sv = (localStorage.getItem(qResKey_()) || '').split('/'); } catch (e) {}
+    if (sv && sv.length === 2 && sv[1]) { r = +sv[0] || 0; n = +sv[1] || n; }
+    var pass = noq || qPass_(r, n);
+    h = '<b>' + esc(UI.dnQT || '') + '</b>' +
+      '<div class="dq-res' + (pass ? ' ok' : '') + '">' +
+        esc(String(UI.dqScore || '').replace('{r}', r).replace('{n}', n)) +
+        '<b>' + esc((noq ? UI.dqInNoQ : pass ? UI.dqIn : UI.dqOut) || '') + '</b></div>';
+    box.innerHTML = h;
+    return;
+  }
+  var dots = '';
+  for (var i = 0; i < t.n; i++) dots += '<i' + (i < t.a ? ' class="on"' : '') + '></i>';
+  var body = !t.a ? UI.dqNoneB : t.a < t.n ? UI.dqSomeB : UI.dqAllB;
+  var back = '<button class="btn' + (t.a < t.n ? ' p' : '') + '" id="dq-back">' +
+    esc((t.a < t.n ? UI.dqBackOpen : UI.dqBack) || '') + '</button>';
+  var send = t.a ? '<button class="btn' + (t.a < t.n ? '' : ' p') + '" id="dq-send">' +
+    esc(UI.dqSend || '') + '</button>' : '';
+  h = '<b>' + esc(UI.dnQT || '') + '</b>' +
+    '<div class="dq-n">' + esc(String(UI.dqCount || '').replace('{a}', t.a).replace('{n}', t.n)) + '</div>' +
+    '<div class="dq-dots">' + dots + '</div>' +
+    '<p class="nt-q">' + esc(body || '') + '</p>' +
+    '<p class="nt-q">' + esc((noq ? UI.dqRuleNoQ : UI.dqRule) || '') + '</p>' +
+    (t.a < t.n ? back + send : send + back);
+  box.innerHTML = h;
+  $('dq-back').onclick = function () {
+    $('done').className = 'sheet';
+    qGoFirst_(t.a < t.n);
+    bar();
+  };
+  if ($('dq-send')) $('dq-send').onclick = function () { qsSend_(all); };
+}
+function qsSend_(all) {
+  var t = qTally_(all), miss = t.n - t.a;
+  var ask = miss ? String(UI.dqSureMiss || '').replace('{m}', miss) : UI.dqSure;
+  if (!confirm(ask || '')) return;
   if (API && !quiet()) {
     var me = (typeof LMe === 'function') ? LMe() : null;
+    tmTick_();
     fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
       action:'quiz', cols: JSON.stringify([
         ['דף', dmKey(S.mas, S.daf)], ['קטע', 'החידון כולו'],
@@ -5152,18 +5189,48 @@ function qsSend_(all) {
         ['ישיבה', (me && me.instName) || ''],
         ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
         ['טלפון', (me && me.phone) || ''],
-        ['תשובה', (all.length - miss) + '/' + all.length],
-        ['ציון', right + '/' + all.length],
-        ['נכון', right * 5 >= all.length * 4 ? 'נכון' : 'לא נכון'],   /* 80% */
+        ['תשובה', t.a + '/' + t.n],
+        ['ציון', t.r + '/' + t.n],
+        ['נכון', qPass_(t.r, t.n) ? 'נכון' : 'לא נכון'],
+        ['זמן בדף (דקות)', tmMin_()],
         ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
     }) }).catch(function () {});
   }
-  try { localStorage.setItem(qSentKey_(), '1'); } catch (e) {}
-  $('qsend').className = 'sheet';
+  try {
+    localStorage.setItem(qSentKey_(), '1');
+    localStorage.setItem(qResKey_(), t.r + '/' + t.n);
+  } catch (e) {}
   doneQPaint_();
-  toast(UI.qsOk || '');
+  paintChavArea();
+  bar();
+  toast(UI.dqOk || '');
 }
+
+/* ---------- זמן בדף ----------
+   כמה זמן הדף היה פתוח לפני עיני התלמיד — לשורת החידון בלבד, כדי
+   שהרכז יזהה דף ש"נלמד" בדקה. אינו חוסם ואינו מוצג לתלמיד. נצבר
+   במכשיר לכל דף, גם על פני כמה כניסות. הפסקה ארוכה מחמש דקות בין
+   מעבר למעבר נספרת כחמש — טלפון שנשאר דולק על השולחן אינו לימוד.
+   כשהדף מוסתר (אפליקציה אחרת, מסך נעול) — השעון עומד. */
+var TM_AT = 0, TM_CAP = 5 * 60000;
+function tmKey_() { return 'df:qtime:' + dmKey(S.mas, S.daf); }
+function tmTick_() {
+  var now = Date.now();
+  if (TM_AT && S.daf) {
+    try {
+      var v = (parseInt(localStorage.getItem(tmKey_()), 10) || 0) + Math.min(now - TM_AT, TM_CAP);
+      localStorage.setItem(tmKey_(), String(v));
+    } catch (e) {}
+  }
+  TM_AT = document.hidden ? 0 : now;
+}
+function tmMin_() {
+  var v = 0;
+  try { v = parseInt(localStorage.getItem(tmKey_()), 10) || 0; } catch (e) {}
+  return Math.round(v / 6000) / 10;
+}
+document.addEventListener('visibilitychange', tmTick_);
 
 /* יש לשבוע חידה שעוד לא נענתה נכון במכשיר? אותו מפתח שהאפליקציה
    שומרת כשהחידה ננעלת (quizOkKey ב־index.html). */
@@ -5329,7 +5396,7 @@ function paintQuiz() {
   }
   /* אין כאן "נכון/לא נכון": התשובה שנבחרה מסומנת, ואפשר לשנות.
      הרכז רואה גם את הנכונה — הוא זה שכותב אותן. */
-  var pick = SIDE_ADM ? -1 : qAns_(n, q);
+  var pick = SIDE_ADM ? -1 : qAns_(n, q), lock = !SIDE_ADM && qSent_();
   /* "הפירוש לנוער" — רק כשהרכז הפעיל את המתג בשאלה, ורק כשיש לקטע
      פירוש שהתלמיד יכול לראות. בלי פירוש — אין כפתור שמוביל לשום מקום. */
   var yr = !!q.yr && (SIDE_ADM || !!(OWN && OWN.__pub && ownPieces_(n).length));
@@ -5340,10 +5407,11 @@ function paintQuiz() {
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     q.a.map(function (t, k) {
       var c = k === pick ? ' chosen' : (SIDE_ADM && k === q.correct ? ' right' : '');
-      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '">' + esc(t) + '</button>';
+      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' + (lock ? ' disabled' : '') + '>' + esc(t) + '</button>';
     }).join('') +
     (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
-    (pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
+    (lock ? '<div class="qz-res">' + esc(UI.dqLocked || '') + '</div>'
+      : pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
     (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
       'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
   q.a.forEach(function (t, k) {
@@ -5390,6 +5458,7 @@ function qAnsSet_(n, q, k) {
 /* התלמיד עונה — ורק "תשובתך התקבלה". האם צדק אינו נאמר: הבדיקה
    באחריותו, והגמרא שלפניו. אפשר לשנות כאן, ובמסך השליחה בסוף הדף. */
 function qAnswer(n, q, k) {
+  if (!SIDE_ADM && qSent_()) return;
   qAnsSet_(n, q, k);
   qHintAnswered_();
   qSend(n, k, k === q.correct);
@@ -6966,7 +7035,7 @@ window.addEventListener('DOMContentLoaded', function () {
   /* סוגר בלבד. נשארים על הקטע האחרון, והפס כבר מציע את הדף הבא. */
   $('done-x').setAttribute('aria-label', UI.pickClose || '');
   $('done-x').onclick = function () { $('done').className = 'sheet'; bar(); };
-  $('qs-x').onclick = function () { $('qsend').className = 'sheet'; };
+  $('done-h').textContent = UI.dnHead || '';
   document.addEventListener('keydown', function (e) {
     /* מי שכותב — המקלדת שלו. רווח וחיצים בתוך שדה עריכה
        (הפירוש לנוער, תגיות, כל קלט) אינם מזיזים את הדף. */
