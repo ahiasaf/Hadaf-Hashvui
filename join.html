@@ -239,6 +239,8 @@ body.land .top-say{display:block}
 /* הרווח מעל גדול מהצל של החלון: כשהעמוד יורד לכאן (toGo), שולי
    החלון וצלו נשארים כולם מעל קצה המסך ולא נחתכים בו. */
 body.land .hero{min-height:0;padding-top:48px}
+/* בלי חלון ההדגמה (LAND_DEMO_ON) — הכפתור עולה אל מתחת לראש. */
+body.land .demo[hidden] + .hero{padding-top:22px}
 .hero{scroll-margin-top:18px}
 /* המרווח שהשורה שמעל הבאנר נתנה לו, לפני שהיא עלתה לראש הכחול */
 #wk0{margin-top:12px}
@@ -4850,8 +4852,13 @@ function landSync() {
 /* החלון. הדף האינטראקטיבי האמיתי, `embed=1` — אותו מנגנון של
    עמוד הצוות. נגיעה בחלון פותחת את הדף האמיתי, כמו "פתיחת הדף"
    שבבאנר. אין דף לשבוע הזה — אין חלון, וגם לא השורה שמעליו. */
+/* ההדגמה ירדה מהנחיתה (8.99.305): נכנסים — ומיד "אני מצטרף".
+   להחזיר אותה: `LAND_DEMO_ON = true`. בלי חלון גם השורה האפורה
+   שמעליו יורדת (drawTop), והגלילה העדינה אינה מתחילה. */
+var LAND_DEMO_ON = false;
 function landDemo() {
   var box = $('demo'), f = $('demo-frame');
+  if (!LAND_DEMO_ON) return;
   if (!box || !f || f.getAttribute('src')) return;
   if (!landNow() || /[?&]tedit=1/.test(location.search)) return;
   /* מי שסרק את הברקוד בהקרנה כבר ראה את ההדגמה על המסך. */
