@@ -127,7 +127,7 @@ header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
 .ttl h1{margin:0;display:block;font-size:.98rem;font-weight:800;letter-spacing:-.02em}
 .ttl span{display:block;font-size:.74rem;font-weight:700;opacity:.72}
 #count{font-size:.74rem;font-weight:800;opacity:.8;white-space:nowrap}
-.prog{height:3px;background:rgba(255,255,255,.2)}
+.prog{height:6px;background:rgba(255,255,255,.22)}
 .prog i{display:block;height:100%;width:0;background:var(--gold-l);
   transition:width .35s ease}
 
@@ -279,6 +279,11 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   width:22px;height:22px;font-size:.62rem;color:var(--ink-2);cursor:pointer;padding:0}
 .own-mv:disabled{opacity:.3;cursor:default}
 .own-plbl{font-weight:800;font-size:.72rem;color:var(--blue);margin-bottom:2px}
+/* חלק שאינו הפירוש עצמו ("העשרה") — מסגרת משלו, מופרדת מהפירוש שמעליו */
+.own-box{margin:16px 0 8px;padding:10px 13px 6px;border-radius:12px;
+  border:1.5px solid var(--gold);background:#FFFBF2}
+.own-box .own-plbl{font-size:.92rem;color:var(--blue-d);margin-bottom:6px;
+  padding-bottom:5px;border-bottom:1px solid rgba(192,143,43,.35)}
 /* בולד/ביטול/חזרה + מצב השקף — שורה אחת, מיד מתחת לתיבת הטקסט
    של החלק. תוויות קצרות בכוונה כדי שלא יעברו שורה בטלפון צר. */
 .own-tools{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin-top:8px;
@@ -339,6 +344,11 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   border-radius:999px;background:#7A4E0E;color:#fff;font-size:.8rem;font-weight:800;
   box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 #peekbadge.on{display:block}
+#wkbadge{display:none;position:fixed;z-index:15;top:calc(var(--top, 64px) + 8px);
+  inset-inline:0;margin:0 auto;width:max-content;max-width:86vw;padding:7px 16px;
+  border-radius:999px;background:var(--blue);color:#fff;font-size:.86rem;font-weight:800;
+  box-shadow:0 4px 14px rgba(11,37,80,.25);pointer-events:none}
+#wkbadge.on{display:block}
 /* "כאן נגמר השבוע" — במצב עריכה, בכל קטע עד שנבחר אחד */
 .we-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 12px;
   border-radius:12px;border:1.5px dashed var(--gold);background:#FFFBF2;
@@ -1596,6 +1606,7 @@ function lineH(d) {
 function paint() {
   var st = FLAT[IDX], ov = $('ov');
   peekBadge(st);
+  wkBadge(st);
   if (!st) { ov.innerHTML = ''; return; }
   var d = PAGES[st.p].d;
   var VW = 1000, VH = Math.round(1000 * R);
@@ -1638,6 +1649,23 @@ function peekBadge(st) {
   }
   el.textContent = UI.wePeek || '';
   el.className = st && st.peek ? 'on' : '';
+}
+/* שבוע שאינו בדיוק הדף — תווית לתלמיד, כדי שלא יחשוב שהוא במקום
+   הלא נכון: בקטע הראשון, כשהשבוע מתחיל בזנב של הדף הקודם — "מתחיל
+   כאן"; ובקטעים שגולשים לדף הבא — "מסתיים בדף ד". */
+function wkBadge(st) {
+  var el = $('wkbadge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'wkbadge';
+    document.body.appendChild(el);
+  }
+  var pp = st && !st.peek ? PAGES[st.p] : null, t = '';
+  if (pp && pp.head && IDX === 0) t = UI.wkStart || '';
+  else if (pp && !pp.head && dafKey(pp.daf) !== dafKey(S.daf))
+    t = (UI.wkEnd || '').replace('{daf}', pp.daf);
+  el.textContent = t;
+  el.className = t ? 'on' : '';
 }
 
 /* ההתמקדות: חלון נע על הדף.
@@ -2801,14 +2829,22 @@ function paintOwn() {
 function paintOwnRead_(n) {
   var box = $('chb'), pieces = ownPieces_(n);
   if (!pieces.length) { box.innerHTML = '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
-  /* אחרי איחוד באים שני חלקים באותו תיוג ("פירוש") ברצף — הם נקראים
-     כהמשך אחד, עם רווח פסקה, בלי כותרת: בדיוק כמו קטע עם חלק אחד. */
-  var mixed = pieces.some(function (p) { return p.tag !== pieces[0].tag; });
-  box.innerHTML = pieces.map(function (p, i) {
-    var same = i > 0 && pieces[i - 1].tag === p.tag;
-    var lbl = (mixed && p.tag && !same) ? '<div class="own-plbl">' + esc(p.tag) + '</div>' : '';
-    return lbl + '<div class="own-read">' + ownSan(p.text) + '</div>';
-  }).join('');
+  /* הפירוש עצמו — בלי כותרת. כל חלק אחר ("העשרה", "הקדמה"…) — במסגרת
+     משלו עם התיוג ככותרת, כהמשך מתחת לפירוש. חלקים באותו תיוג ברצף
+     (אחרי איחוד) — כהמשך אחד, באותה מסגרת. */
+  var html = '', open = null;
+  pieces.forEach(function (p) {
+    var tag = String(p.tag || '').trim(), main = !tag || tag === 'פירוש';
+    var key = main ? '' : tag;
+    if (open !== null && open !== key) { if (open) html += '</div>'; open = null; }
+    if (open === null) {
+      if (key) html += '<div class="own-box"><div class="own-plbl">' + esc(tag) + '</div>';
+      open = key;
+    }
+    html += '<div class="own-read">' + ownSan(p.text) + '</div>';
+  });
+  if (open) html += '</div>';
+  box.innerHTML = html;
   box.scrollTop = 0;
 }
 function paintOwnEdit_(n) {
