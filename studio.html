@@ -1971,7 +1971,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.308';
+var STUDIO_VER = '8.99.309';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2241,6 +2241,7 @@ function keepPageState() {
   if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
   if (typeof was.upto === 'number') { BOOK[PKEY].upto = was.upto; BOOK[PKEY].uptoDaf = was.uptoDaf; }
+  if (was.amEnd) BOOK[PKEY].amEnd = was.amEnd;
   if (was.t) BOOK[PKEY].t = was.t;
   SEEN[PKEY] = 1;
 }

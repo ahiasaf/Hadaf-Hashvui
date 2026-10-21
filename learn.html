@@ -3102,7 +3102,22 @@ function mergeNext_() {
    הכתיבה — כל הלשונית, כמו באיחוד, עם בדיקה שלא השתנתה מאז שנפתח
    הדף וקריאה חוזרת שמאמתת. ============================================ */
 function weOk_() {
-  return SIDE_ADM && S.week >= 0 && S.am !== 1 && !!otherAfter(S.daf);
+  return SIDE_ADM && S.week >= 0 && (S.am === 1 || !!otherAfter(S.daf));
+}
+/* שבוע ע״א (ב.) נגמר בקטע שב-`amEnd` — ראו SidAmud */
+function weAmEnd_() {
+  var id = '';
+  PAGES.forEach(function (p) {
+    if (!p.head && p.pg === 1 && dafKey(p.daf) === dafKey(S.daf) && p.d && p.d.amEnd) id = p.d.amEnd;
+  });
+  return id;
+}
+/* הנוסח — עם שם השבוע: "כאן נגמר שבוע נח", כדי שיהיה ברור
+   איזה שבוע זז. {prev} — השבוע שלפניו. */
+function weT_(k) {
+  var cal = calOf(S.mas), pu = prevDaf();
+  return (UI[k] || '').replace('{wk}', (cal[S.week] || [])[1] || '')
+    .replace('{prev}', pu ? (cal[pu.wk] || [])[1] || '' : '');
 }
 function weEndN_() {
   for (var i = FLAT.length - 1; i >= 0; i--) if (!FLAT[i].peek) return FLAT[i].n;
@@ -3116,21 +3131,33 @@ function weLast_(n) {
 }
 function weHtml(st) {
   if (!weOk_() || !st) return '';
-  var pg = PAGES[st.p] || {};
-  if (pg.head) return '';           /* שייך לגבול של הדף הקודם */
-  var endN = weEndN_(), custom = !!(BUILT && (BUILT.cut || BUILT.over));
+  var pg = PAGES[st.p] || {}, out = '';
+  /* הקטע הראשון: ההתחלה היא סוף השבוע הקודם — קישור לשם */
+  if (FLAT[0] && st.n === FLAT[0].n && !st.peek && prevDaf())
+    out = '<div class="we-row"><span>' + esc(weT_('weStart')) + '</span><span class="sp"></span>' +
+      '<button id="we-prev">' + esc(UI.weStartGo) + '</button></div>';
+  if (pg.head) return out;          /* שייך לגבול של הדף הקודם */
+  var endN = weEndN_(), am1 = S.am === 1;
+  var custom = am1 ? !!weAmEnd_() : !!(BUILT && (BUILT.cut || BUILT.over));
   if (custom) {
-    if (st.n !== endN) return '';
-    return '<div class="we-row on"><span>' + esc(UI.weIs) + '</span><span class="sp"></span>' +
+    if (st.n !== endN) return out;
+    return out + '<div class="we-row on"><span>' + esc(weT_('weIs')) + '</span><span class="sp"></span>' +
       '<button id="we-undo">' + esc(UI.weUndo) + '</button></div>';
   }
-  if (st.n === endN) return '<div class="we-row on"><span>' + esc(UI.weDflt) + '</span></div>';
-  return '<div class="we-row"><span>' + esc(UI.weQ) + '</span><span class="sp"></span>' +
-    '<button class="we-go" id="we-go">' + esc(UI.weHere) + '</button></div>';
+  if (st.n === endN) return out + '<div class="we-row on"><span>' + esc(weT_('weDflt')) + '</span></div>';
+  if (am1 && !st.id) return out;    /* ע״א נשמר לפי מזהה הקטע */
+  return out + '<div class="we-row"><span>' + esc(weT_('weQ')) + '</span><span class="sp"></span>' +
+    '<button class="we-go" id="we-go">' + esc(weT_('weHere')) + '</button></div>';
 }
 function weBind(st) {
   if (!st) return;
-  var g = $('we-go'), u = $('we-undo');
+  var g = $('we-go'), u = $('we-undo'), b = $('we-prev');
+  if (b) b.onclick = function () {
+    ownEditSync_();
+    if (unitSwap(prevDaf(), true)) return;
+    var url = prevDafUrl();
+    if (url) leave(null, url);
+  };
   if (g) g.onclick = function () { ownEditSync_(); weSet(weLast_(st.n)); };
   if (u) u.onclick = function () { ownEditSync_(); weSet(null); };
 }
@@ -3145,6 +3172,17 @@ function weSet(v) {
     var stale = recs.some(function (R) { return want[R.key] !== undefined && R.raw[3] !== want[R.key]; });
     if (stale) { toast(UI.weStale || ''); return; }
     var me = SidDaf(S.daf), changed = {}, own = [], myName = S.daf;
+    /* שבוע ע״א — רק `amEnd` על הרשומה של ע״א; סוף ע״ב לא נוגעים */
+    if (S.am === 1) {
+      var P1 = null;
+      recs.forEach(function (R) {
+        if (R.mas === S.mas && R.src === '0' && R.d && R.pg === 1 && SidDaf(R.daf) === me) P1 = R;
+      });
+      if (!P1) throw new Error('shape');
+      if (v && v.id) P1.d.amEnd = v.id;
+      else delete P1.d.amEnd;
+      changed[P1.key] = P1;
+    } else {
     recs.forEach(function (R) {
       if (R.mas !== S.mas || R.src !== '0' || !R.d) return;
       if (SidDaf(R.daf) === me) {
@@ -3174,6 +3212,7 @@ function weSet(v) {
       } else {
         T.d.prev = v.si + 1; T.d.prevDaf = myName; changed[T.key] = T;
       }
+    }
     }
     var keys = Object.keys(changed);
     if (!keys.length) { weRebuild_(recs, v); toast(UI.weSaved || ''); return; }
@@ -6416,7 +6455,7 @@ function marksQuery(daf) {
 function amudCut(built, am) {
   /* החישוב עצמו עבר ל-`SidAmud` (stepid.js) — הניהול סופר לפיו את
      שאלות השבוע ב"החידון מוכן", ושניהם חייבים לחתוך אותו דבר. */
-  return SidAmud(built, S.daf, am === undefined ? S.am : am);
+  return SidAmud(built, S.daf, am === undefined ? S.am : am, !!flatOpt());
 }
 /* ---------- הדף הבא מובא מראש ----------
    בקטע האחרון של הדף, ברקע: הסימונים של הדף הבא (השליפה האיטית

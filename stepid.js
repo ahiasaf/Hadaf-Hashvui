@@ -153,18 +153,43 @@ function SidFlat(recs, mas, daf, opt) {
    קטע שייך לעמוד שבו הוא **מתחיל**: קטע שחוצה את מעבר העמוד נשאר
    שלם בשבוע של ע״א. הראש מהדף הקודם פותח את ע״א; הזנב שגולש אל
    הדף הבא שייך ל-ע״ב. `am` 0 — הדף כולו. משותף לדף האינטראקטיבי
-   (amudCut) ולניהול ("פרסם הכול" — השאלות של השבוע). */
-function SidAmud(built, daf, am) {
+   (amudCut) ולניהול ("פרסם הכול" — השאלות של השבוע).
+
+   `amEnd` (על הרשומה של ע״א) — מזהה הקטע שבו נגמר השבוע של ע״א,
+   כשהוא אינו בדיוק מעבר העמוד. לפי מזהה ולא לפי מספר, כדי שפיצול
+   ואיחוד בסטודיו לא יזיזו אותו. קטע שאוחד — נמצא ב-`also`.
+   `peek` (במצב עריכה, ע״א בלבד) — גם שאר הדף, מסומן `peek`, כדי
+   שאפשר יהיה להאריך את השבוע אל ע״ב. */
+function SidAmud(built, daf, am, peek) {
   if (!am) return built;
-  var keep = {};
-  built.flat.forEach(function (v) {
-    if (v.part !== 1) return;
-    var pp = built.pages[v.p] || {};
-    var am2 = pp.head ? 1 : SidDaf(pp.daf) === SidDaf(daf) ? (pp.pg === 2 ? 2 : 1) : 2;
-    if (am2 === am) keep[v.n] = 1;
+  var me = SidDaf(daf), endId = '', cutAt = -1;
+  built.pages.forEach(function (pp) {
+    if (!pp.head && pp.pg === 1 && SidDaf(pp.daf) === me && pp.d && pp.d.amEnd) endId = String(pp.d.amEnd);
   });
-  return { pages: built.pages, groups: built.groups,
-           flat: built.flat.filter(function (v) { return keep[v.n]; }) };
+  if (endId) built.flat.forEach(function (v, i) {
+    if (cutAt >= 0 || v.part !== 1) return;
+    var pp = built.pages[v.p] || {};
+    if (pp.head || SidDaf(pp.daf) !== me) return;
+    if (v.id === endId || (v.also || []).indexOf(endId) >= 0) cutAt = i;
+  });
+  var keep = {}, rest = {};
+  built.flat.forEach(function (v, i) {
+    if (v.part !== 1) return;
+    var pp = built.pages[v.p] || {}, own = !pp.head && SidDaf(pp.daf) === me;
+    var am2 = pp.head ? 1 : !own ? 2 : cutAt >= 0 ? (i <= cutAt ? 1 : 2) : (pp.pg === 2 ? 2 : 1);
+    if (am2 === am) keep[v.n] = 1;
+    else if (peek && am === 1 && own) rest[v.n] = 1;
+  });
+  var flat = [];
+  built.flat.forEach(function (v) {
+    if (keep[v.n]) { flat.push(v); return; }
+    if (!rest[v.n]) return;
+    var c = {}, k;
+    for (k in v) if (v.hasOwnProperty(k)) c[k] = v[k];
+    c.peek = 1;
+    flat.push(c);
+  });
+  return { pages: built.pages, groups: built.groups, flat: flat };
 }
 
 /* השאלות של הקטעים שב-`flat` — החידון של השבוע, כמו שהתלמיד רואה אותו.
