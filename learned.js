@@ -452,11 +452,30 @@ function LAmdaSync(after) {
   LSet('amda-ask', Date.now());
   LJsonp(url + '?amdaFor=' + encodeURIComponent(me.id)).then(function (r) {
     if (!r || r.status !== 'ok' || !r.learned || !r.learned.length) return;
-    var all = LGet('learned', {}) || {}, fresh = r.learned.filter(function (t) { return t && !all[t]; });
+    var all = LGet('learned', {}) || {}, fresh = LAmdaWhole(r.learned).filter(function (t) { return t && !all[t]; });
     if (!fresh.length) return;
     LMergeLearned(fresh);
     if (after) after();
   }).catch(function () {});
+}
+
+/* נוכחות בשיעור על דף — הדף כולו נלמד (8.99.292), ולכן גם העמוד
+   השני שלו בלוח: נרשם ב-ב: ← גם ב. מסומן. 'מסלול|שבוע' → כל השבועות
+   של אותו דף באותו מסלול. */
+function LAmdaWhole(tags) {
+  var out = [];
+  (tags || []).forEach(function (t) {
+    if (!t) return;
+    if (out.indexOf(t) < 0) out.push(t);
+    var p = String(t).split('|'), tr = p[0], wk = parseInt(p[1], 10) - 1;
+    var d = wk >= 0 ? LDaf(tr, wk) : null, row, w;
+    if (!d) return;
+    for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === tr) row = TRACKS[i].cal;
+    for (w = 0; row && w < row.length; w++) {
+      if (row[w][2] === d && out.indexOf(LKey(tr, w)) < 0) out.push(LKey(tr, w));
+    }
+  });
+  return out;
 }
 
 /* ============================================================
