@@ -3546,7 +3546,7 @@ function paintChavArea() {
   else paintChav();
   if ($('cht-chav')) $('cht-chav').onclick = function () { QUIZ_OPEN = false; chavPick_('chav'); };
   if ($('cht-own'))  $('cht-own').onclick  = function () { QUIZ_OPEN = false; chavPick_('own'); };
-  if ($('cht-quiz')) $('cht-quiz').onclick = function () { qHintDone_(); QUIZ_OPEN = true; paintChavArea(); };
+  if ($('cht-quiz')) $('cht-quiz').onclick = function () { qHintHide_(); QHINT_VIA = false; QUIZ_OPEN = true; paintChavArea(); };
   quizFabPaint();
   if (ALON_ON) alPaint_();
 }
@@ -3567,9 +3567,10 @@ function quizFabPaint() {
   /* פותח את לשונית החידה. כשהיא כבר פתוחה והמגירה גלויה — סוגר,
      כמו קודם; המעבר לפירוש ובחזרה הוא דרך הלשוניות. */
   fab.onclick = function () {
-    qHintDone_();
     var shown = document.body.classList.contains('chav-on');
     QUIZ_OPEN = !(QUIZ_OPEN && shown);
+    if (QUIZ_OPEN) qHintUsed_();
+    else qHintHide_();
     if (QUIZ_OPEN && !shown) drawer(true);
     else paintChavArea();
   };
@@ -3586,25 +3587,31 @@ function qfabPlace_() {
 }
 window.addEventListener('resize', qfabPlace_);
 
-/* הכיתוב שליד העיגול — "זמן לענות על חידה". מופיע רק בפעמים
-   הראשונות: פעם אחת בכל כניסה לדף, עד QHINT_MAX כניסות, ונעלם
-   לבד אחרי כמה שניות. מי שכבר לחץ על העיגול — מכיר אותו, ולא
-   יראה את הכיתוב שוב. בהדגמה — לא נספר, כדי שלא יבזבז את
-   הפעמים של מי שמריץ אותה. */
-var QHINT_KEY = 'df:qHintN', QHINT_MAX = 3, QHINT_MS = 7000;
-var QHINT_SEEN = false, QHINT_T = null;
+/* הכיתוב שליד העיגול — "זמן לענות על חידה". מופיע עד שהתלמיד
+   מכיר את העיגול: פתח דרכו את החידה לפחות QHINT_MAX פעמים, **וגם**
+   ענה על חידה שנפתחה דרכו. עד אז — פעם אחת בכל קטע שיש בו חידה,
+   ונעלם לבד אחרי כמה שניות. הלשונית "חידה" במגירה אינה נספרת:
+   ההוראה היא על העיגול. בהדגמה — לא נספר, כדי שלא יבזבז את
+   הפעמים של מי שמריץ אותה.
+   (עד 8.99.306: שלוש כניסות, ולחיצה אחת העלימה לתמיד — לכן
+   המפתחות חדשים, וכל תלמיד מתחיל את הספירה מההתחלה.) */
+var QHINT_KEY = 'df:qFabN', QHINT_ANS = 'df:qFabAns', QHINT_MAX = 5, QHINT_MS = 7000;
+var QHINT_SEEN = -1, QHINT_T = null, QHINT_VIA = false;
 function qHintN_() {
   try { return parseInt(localStorage.getItem(QHINT_KEY), 10) || 0; } catch (e) { return QHINT_MAX; }
 }
+function qHintKnows_() {
+  try { return qHintN_() >= QHINT_MAX && localStorage.getItem(QHINT_ANS) === '1'; } catch (e) { return true; }
+}
 function qHintShow_() {
-  var el = $('qhint');
-  if (!el || QHINT_SEEN) return;
-  if (!quiet() && qHintN_() >= QHINT_MAX) return;
-  QHINT_SEEN = true;
-  if (!quiet()) try { localStorage.setItem(QHINT_KEY, String(qHintN_() + 1)); } catch (e) {}
+  var el = $('qhint'), st = FLAT[IDX];
+  if (!el || !st || QHINT_SEEN === st.n) return;
+  if (!quiet() && qHintKnows_()) return;
+  QHINT_SEEN = st.n;
   el.textContent = UI.quizHint;
   el.classList.add('on');
   setTimeout(function () { el.classList.add('in'); }, 30);
+  clearTimeout(QHINT_T);
   QHINT_T = setTimeout(qHintHide_, QHINT_MS);
 }
 function qHintHide_() {
@@ -3614,9 +3621,16 @@ function qHintHide_() {
   el.classList.remove('in');
   setTimeout(function () { el.classList.remove('on'); }, 360);
 }
-function qHintDone_() {
-  try { localStorage.setItem(QHINT_KEY, String(QHINT_MAX)); } catch (e) {}
+/* החידה נפתחה דרך העיגול */
+function qHintUsed_() {
+  QHINT_VIA = true;
+  if (!quiet()) try { localStorage.setItem(QHINT_KEY, String(qHintN_() + 1)); } catch (e) {}
   qHintHide_();
+}
+/* ענה על חידה שנפתחה דרך העיגול */
+function qHintAnswered_() {
+  if (!QHINT_VIA || quiet()) return;
+  try { localStorage.setItem(QHINT_ANS, '1'); } catch (e) {}
 }
 
 /* מקלדת שנפתחת בטלפון גוזלת רוב הגובה, ואחיאסף כותב בעיקר
@@ -4853,7 +4867,7 @@ function quizJump_() {
   var at = open >= 0 ? open : first;
   if (at < 0) return;
   go(at);
-  QUIZ_OPEN = true;
+  QUIZ_OPEN = true; QHINT_VIA = false;
   if (!document.body.classList.contains('chav-on')) drawer(true);
   else paintChavArea();
 }
@@ -5302,6 +5316,7 @@ function qAnsSet_(n, q, k) {
    באחריותו, והגמרא שלפניו. אפשר לשנות כאן, ובמסך השליחה בסוף הדף. */
 function qAnswer(n, q, k) {
   qAnsSet_(n, q, k);
+  qHintAnswered_();
   qSend(n, k, k === q.correct);
   toast(UI.qGot || '');
   /* יש עוד שאלה בקטע (אחרי איחוד) — היא הבאה, והחידה נשארת פתוחה */
