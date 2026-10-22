@@ -943,15 +943,13 @@ nav .sp{flex:1}
 .dn-soon>b{display:block;font-size:1rem;font-weight:800;color:var(--blue-d)}
 /* החידון של הדף במסך הסיום (doneQPaint_). אין בו שאלות — רק כמה
    נענו בדרך (נקודה לכל שאלה, בלי לומר איזו), ואחרי השליחה הסופית
-   כמה נכונות והאם נכנס להגרלה. */
+   רק תודה — בלי ציון (8.99.322). */
 .dq-dots{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:10px 0 2px}
 .dq-dots i{width:13px;height:13px;border-radius:50%;background:var(--rule,#E4DCC8)}
 .dq-dots i.on{background:var(--blue,#17468F)}
 .dq-res{margin-top:10px;padding:14px 12px;border-radius:12px;text-align:center;
   background:rgba(27,42,69,.06);font-weight:700;font-size:.92rem;color:var(--ink)}
 .dq-res b{display:block;margin-top:4px;font-size:1.12rem;font-weight:800}
-.dq-res.ok{background:rgba(74,130,28,.13)}
-.dq-res.ok b{color:var(--ok, #4A821C)}
 /* "רוצה התראה?" — בדף הנעול ובמסך הסיום */
 .nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 .nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
@@ -5226,20 +5224,12 @@ function doneQPaint_() {
   if (!all.length) return;
   var t = qTally_(all), h;
   if (qSent_()) {
-    /* הציון שנשלח — כפי שנשמר ברגע השליחה, גם אם שאלה נערכה מאז */
-    var r = t.r, n = t.n, sv = null;
-    try { sv = (localStorage.getItem(qResKey_()) || '').split('/'); } catch (e) {}
-    if (sv && sv.length === 2 && sv[1]) { r = +sv[0] || 0; n = +sv[1] || n; }
-    var pass = qPass_(r, n);
-    h = '<b>' + esc(UI.dnQT || '') + '</b>' +
-      '<div class="dq-res' + (pass ? ' ok' : '') + '">' +
-        esc(String(UI.dqScore || '').replace('{r}', r).replace('{n}', n)) +
-        '<b>' + esc((pass ? UI.dqIn : UI.dqOut) || '') + '</b></div>';
-    /* הזדמנות שנייה — פעם אחת, רק למי שלא נכנס (8.99.317) */
-    var try2 = !pass && !qTry2_();
-    if (try2) h += '<button class="btn p" id="dq-try">' + esc(UI.dqTry || '') + '</button>';
-    box.innerHTML = h;
-    if (try2) $('dq-try').onclick = function () { qTry2Ask_(all); };
+    /* תלמיד לא רואה לעולם שלא עבר: לא ציון, לא "נכנסת / לא נכנסת",
+       ולכן גם אין "הזדמנות שנייה" — היא עצמה הייתה מגלה (8.99.322).
+       מי נכנס להגרלה — בשרת (quizPass_) ובניהול בלבד. */
+    box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b>' +
+      '<div class="dq-res"><b>' + esc(UI.dqThanks || '') + '</b>' +
+        esc(UI.dqThanksB || '') + '</div>';
     return;
   }
   var dots = '';
@@ -5265,35 +5255,6 @@ function doneQPaint_() {
   };
   if ($('dq-send')) $('dq-send').onclick = function () { qsSend_(all); };
 }
-/* ---------- הזדמנות שנייה (8.99.317) ----------
-   מי שלא נכנס להגרלה יכול לענות שוב על הכול — פעם אחת. התשובות
-   הקודמות נמחקות, ולכן אין כאן רמז איפה טעה: עוברים על הדף מחדש.
-   השרת סופר את הציון הטוב מבין השניים (quizBest_). */
-function qTry2Key_() { return 'df:qtry2:' + dmKey(S.mas, S.daf); }
-function qTry2_() {
-  try { return localStorage.getItem(qTry2Key_()) === '1'; } catch (e) { return false; }
-}
-function qTry2Ask_(all) {
-  var box = $('done-q');
-  box.innerHTML = '<b>' + esc(UI.dqTry || '') + '</b>' +
-    '<p class="nt-q">' + esc(UI.dqTryB || '') + '</p>' +
-    '<button class="btn p" id="dq-again">' + esc(UI.dqTryGo || '') + '</button>';
-  $('dq-again').onclick = function () {
-    try {
-      all.forEach(function (it) {
-        localStorage.removeItem(qAnsKey_(it.n, it.q));
-        localStorage.removeItem(qOkKey_(it.n, it.q));
-      });
-      localStorage.removeItem(qSentKey_());
-      localStorage.removeItem(qResKey_());
-      localStorage.setItem(qTry2Key_(), '1');
-    } catch (e) {}
-    $('done').className = 'sheet';
-    go(0);
-    paintChavArea();
-    bar();
-  };
-}
 function qsSend_(all) {
   var t = qTally_(all), miss = t.n - t.a;
   var ask = miss ? String(UI.dqSureMiss || '').replace('{m}', miss) : UI.dqSure;
@@ -5312,7 +5273,7 @@ function qsSend_(all) {
         ['ציון', t.r + '/' + t.n],
         ['נכון', qPass_(t.r, t.n) ? 'נכון' : 'לא נכון'],
         ['זמן בדף (דקות)', tmMin_()],
-        ['מזהה', (me && me.id) || ''], ['מקור', qTry2_() ? 'הזדמנות שנייה' : 'שליחת החידון']
+        ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
     }) }).catch(function () {});
   }
