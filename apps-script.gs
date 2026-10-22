@@ -7415,7 +7415,16 @@ function quizDaf_(Q, who, tr, base) {
   cand.forEach(function (x) { if (!out || x[0] * out[1] > out[0] * x[1]) out = x; });
   return out;
 }
-function quizPass_(x) { return !!(x && x[0] * 5 >= x[1] * 4); }   /* 80% */
+/* 80% — או טעות אחת, כשיש לפחות שלוש שאלות (8.99.316). אותו כלל
+   כמו qPass_ ב-learn.html, שאומר לתלמיד אם נכנס. */
+function quizPass_(x) { return !!(x && (x[0] * 5 >= x[1] * 4 || (x[1] >= 3 && x[0] >= x[1] - 1))); }
+/* טעות אחת בכל עמוד היא שתי טעויות בדף — הכלל על הדף כולו היה דוחה
+   את מי ששני העמודים שלו אמרו לו "נכנסת". לכן: כל עמוד עבר לבדו —
+   הדף עבר. */
+function quizHalves_(Q, who, tr, base) {
+  var pre = who + '|' + tr + '|' + base;
+  return quizPass_(Q.best[pre + '.']) && quizPass_(Q.best[pre + ':']);
+}
 
 /* ============================================================
    נוכחות בדף השבועי = לימוד מלא, כולל חידון (8.99.292).
@@ -7475,12 +7484,12 @@ function amdaQz_(alias, target) {
   });
   return { ok: ok, k: k, seen: seen };
 }
-/* תנאי החידון לדף שלם: ציון 80%+ (quizDaf_, כמו קודם), או נוכחות
+/* תנאי החידון לדף שלם: ציון 80%+ או טעות אחת (quizDaf_; או כל עמוד עבר לבדו), או נוכחות
    בדף — בכל אחד מעמודיו (8.99.292: נוכחות היא הדף כולו עם החידון).
    { x: ציון או null, conf: bool } או null כשהתנאי לא מתקיים. */
 function quizOk_(Q, A, who, tr, base) {
   var x = quizDaf_(Q, who, tr, base);
-  if (quizPass_(x)) return { x: x, conf: false };
+  if (quizPass_(x) || quizHalves_(Q, who, tr, base)) return { x: x, conf: false };
   return A && A.ok[who + '|' + tr + '|' + base] ? { x: null, conf: true } : null;
 }
 
