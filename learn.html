@@ -937,8 +937,6 @@ nav .sp{flex:1}
 #toast.on{opacity:1}
 /* ✕ של מסך הסיום — בפינה, מחוץ לזרימת התוכן. */
 .dn-card{position:relative}
-/* "הקדשת X מזמנך הפנוי" — מתחת ל"סיימת", צמוד אליו */
-.card p.dn-tm{margin-top:-8px;color:var(--blue-d)}
 /* החידון עוד לא עלה — במקום הכפתור הראשי, באותו מקום */
 .dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
   border:1.5px dashed var(--gold);background:#FFFBF2}
@@ -946,7 +944,6 @@ nav .sp{flex:1}
 /* החידון של הדף במסך הסיום (doneQPaint_). אין בו שאלות — רק כמה
    נענו בדרך (נקודה לכל שאלה, בלי לומר איזו), ואחרי השליחה הסופית
    כמה נכונות והאם נכנס להגרלה. */
-.dq-n{margin-top:8px;font-size:1.05rem;font-weight:800;color:var(--blue-d)}
 .dq-dots{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:10px 0 2px}
 .dq-dots i{width:13px;height:13px;border-radius:50%;background:var(--rule,#E4DCC8)}
 .dq-dots i.on{background:var(--blue,#17468F)}
@@ -1364,13 +1361,6 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div class="seal">📖</div>
   <h2 id="done-h"></h2>
   <p id="done-sub"></p>
-  <!-- כמה זמן הדף היה פתוח — מפרגן, בלי שיפוט (tmMin_) -->
-  <p id="done-tm" class="dn-tm" style="display:none"></p>
-  <!-- הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד
-       סופו, ולבקש ממנו לאשר את מה שהרגע עשה זו שאלה מיותרת.
-       השורה רק מדווחת. -->
-  <p id="done-mark" style="display:none;font-weight:800;color:var(--ok, #4A821C);
-     font-size:.88rem;margin-top:-4px"></p>
   <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
   <div id="done-pair" style="display:none"></div>
   <a class="btn p" id="to-quiz" href="join.html"></a>
@@ -5163,16 +5153,18 @@ function finish() {
   var pairOn = $('done-pair').style.display !== 'none';
   doneQPaint_();
   if (!pq.length && !qOpen && !soon && !pairOn) {
-    if ($('done-mark').style.display !== 'none') toast(JOIN.markedOk);
+    if (doneMarked_) toast(JOIN.markedOk);
     bar();
     return;
   }
   /* "השבועי" — רק בדף של השבוע הזה. מי שמשלים שבוע שעבר מקבל
      את שם השבוע כפי שהוא כתוב במסלול. */
   var par = (calOf(S.mas)[S.week] || [])[1] || '';
-  $('done-sub').textContent = isWeekDaf() || !par ? JOIN.weekDone
+  /* וכמה זמן הדף היה פתוח — באותה שורה, אחרי נקודה (dnTimeTxt_) */
+  var sub = isWeekDaf() || !par ? JOIN.weekDone
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
-  dnTimePaint_();
+  var tm = dnTimeTxt_();
+  $('done-sub').textContent = sub + (tm ? ' · ' + tm : '');
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
   a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz || '';
@@ -5252,16 +5244,18 @@ function doneQPaint_() {
   }
   var dots = '';
   for (var i = 0; i < t.n; i++) dots += '<i' + (i < t.a ? ' class="on"' : '') + '></i>';
-  var body = !t.a ? UI.dqNoneB : t.a < t.n ? UI.dqSomeB : UI.dqAllB;
+  /* "ענית על X מתוך Y" ו"מי שעונה נכון נכנס להגרלה" ירדו (8.99.321):
+     העיגולים כבר מראים כמה נענו, וההגרלה נאמרת בשורת ההסבר. */
+  var body = !t.a ? UI.dqNoneB : t.a === t.n ? UI.dqAllB
+    : t.n - t.a === 1 && UI.dqSomeB1 ? UI.dqSomeB1
+    : String(UI.dqSomeB || '').replace('{m}', t.n - t.a);
   var back = '<button class="btn' + (t.a < t.n ? ' p' : '') + '" id="dq-back">' +
     esc((t.a < t.n ? UI.dqBackOpen : UI.dqBack) || '') + '</button>';
   var send = t.a ? '<button class="btn' + (t.a < t.n ? '' : ' p') + '" id="dq-send">' +
     esc(UI.dqSend || '') + '</button>' : '';
   h = '<b>' + esc(UI.dnQT || '') + '</b>' +
-    '<div class="dq-n">' + esc(String(UI.dqCount || '').replace('{a}', t.a).replace('{n}', t.n)) + '</div>' +
     '<div class="dq-dots">' + dots + '</div>' +
     '<p class="nt-q">' + esc(body || '') + '</p>' +
-    '<p class="nt-q">' + esc(UI.dqRule || '') + '</p>' +
     (t.a < t.n ? back + send : send + back);
   box.innerHTML = h;
   $('dq-back').onclick = function () {
@@ -5350,16 +5344,14 @@ function tmTick_() {
   }
   TM_AT = document.hidden ? 0 : now;
 }
-/* מסך הסיום: "הקדשת X מזמנך הפנוי ללימוד תורה". הזמן הוא זה שנשלח
-   עם החידון (tmMin_), עד הרגע הזה. בלי זמן שמור — השורה נעלמת. */
-function dnTimePaint_() {
+/* מסך הסיום: "סיימת את הלימוד · 25 דקות". הזמן הוא זה שנשלח עם
+   החידון (tmMin_), עד הרגע הזה. בלי זמן שמור — רק "סיימת". */
+function dnTimeTxt_() {
   tmTick_();
-  var m = tmMin_(), el = $('done-tm'), r = Math.round(m);
-  el.style.display = m > 0 ? '' : 'none';
-  if (!(m > 0)) return;
-  var t = m < 1 ? UI.dnTime0 : r === 1 ? UI.dnTime1 : r === 2 ? UI.dnTime2
-    : String(UI.dnTimeN || '').replace('{n}', r);
-  el.textContent = String(UI.dnTime || '').replace('{t}', t || '');
+  var m = tmMin_(), r = Math.round(m);
+  if (!(m > 0)) return '';
+  return (m < 1 ? UI.dnTime0 : r === 1 ? UI.dnTime1 : r === 2 ? UI.dnTime2
+    : String(UI.dnTimeN || '').replace('{n}', r)) || '';
 }
 function tmMin_() {
   var v = 0;
@@ -5946,9 +5938,12 @@ function qbSyncVerify_(tries, id, want, okMsg) {
   }, tries ? 2500 : 1400);
 }
 
+/* הסימון נעשה מאליו: מי שהגיע לכאן עבר את הדף מתחילתו ועד סופו.
+   במסך הסיום אין על כך שורה (הכותרת כבר אומרת "כל הכבוד!") —
+   רק הודעה קצרה כשהמסך לא נפתח. */
+var doneMarked_ = false;
 function markThisDaf() {
-  var m = $('done-mark');
-  m.style.display = 'none';
+  doneMarked_ = false;
   var pb = $('done-pair');
   if (pb) { pb.innerHTML = ''; pb.style.display = 'none'; }
   if (typeof LWeek !== 'function') return;
@@ -5959,8 +5954,7 @@ function markThisDaf() {
 
   var fresh = !LDone(S.mas, wk);
   if (fresh) LMark(S.mas, wk);
-  m.textContent = JOIN.markedOk;
-  m.style.display = '';
+  doneMarked_ = true;
   /* הגיע לסוף הדף — וזה הרגע לשאול עם מי למד.
 
      **לא רק בפעם ה"טרייה".** `fresh` מסמן רק אם המכשיר הזה
