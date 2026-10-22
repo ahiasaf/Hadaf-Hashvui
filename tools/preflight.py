@@ -392,6 +392,19 @@ def check_inst_manifests():
                 if not str(ic.get('src', '')).startswith('/'):
                     wrong.append('mh/' + c + suf + ' — אייקון בכתובת יחסית')
 
+    # ---- ולר"ם, מעמוד הצוות ----
+    for c in codes:
+        path = os.path.join(ROOT, 'mt', c + '.json')
+        if not os.path.exists(path):
+            miss.append('mt/' + c)
+            continue
+        m = json.loads(read('mt', c + '.json'))
+        if m.get('start_url') != '/tzevet?inst=' + c:
+            wrong.append('mt/' + c + ' → ' + str(m.get('start_url')))
+        for ic in m.get('icons', []):
+            if not str(ic.get('src', '')).startswith('/'):
+                wrong.append('mt/' + c + ' — אייקון בכתובת יחסית')
+
     # ומי שמתקין מתוך המסע לפני שהישיבה ידועה
     if not os.path.exists(os.path.join(ROOT, 'manifest-masa.json')):
         miss.append('manifest-masa.json')
@@ -402,6 +415,7 @@ def check_inst_manifests():
     # האלה בריפו ציבורי, ומאחורי הקוד יושבים שמות של תלמידים.
     leaked = []
     for path in sorted(glob.glob(os.path.join(ROOT, 'mh', '*.json')) +
+                       glob.glob(os.path.join(ROOT, 'mt', '*.json')) +
                        glob.glob(os.path.join(ROOT, 'm', '*.json'))):
         if 'k=' in json.loads(io.open(path, encoding='utf-8').read())\
                 .get('start_url', ''):

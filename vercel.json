@@ -9,7 +9,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {
-      "source": "/m/(.*)",
+      "source": "/(m|mh|mt)/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {

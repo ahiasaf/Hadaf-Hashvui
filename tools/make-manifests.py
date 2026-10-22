@@ -87,7 +87,30 @@ def main():
         json.dumps(head_manifest('/?masa=go'), ensure_ascii=False,
                    indent=2) + '\n')
 
-    print('%d מניפסטים נכתבו ל-m/, %d ל-mh/' % (len(codes), len(codes) * 2))
+    # ---- ולר"ם, מעמוד הצוות (mt/) ----
+    # עד עכשיו לא היה לעמוד הזה מניפסט, ולכן באנדרואיד כרום לא הציע
+    # להתקין אותו. ר"ם שרצה אפליקציה התקין את זו של התלמידים, ומצא
+    # את עצמו במסך "בן / אבא". הישיבה בלבד — קוד הגישה נשמר במכשיר
+    # (boardKey:<ישיבה>), ובאנדרואיד האפליקציה חולקת אותו עם כרום.
+    outt = os.path.join(ROOT, 'mt')
+    if not os.path.isdir(outt):
+        os.makedirs(outt)
+    for old in glob.glob(os.path.join(outt, '*.json')):
+        os.remove(old)
+    for c in codes:
+        man = dict(home)
+        man['id'] = '/tzevet'
+        man['name'] = 'הדף השבועי · לצוות'
+        man['short_name'] = 'הדף · לצוות'
+        man['start_url'] = '/tzevet?inst=' + c
+        man['scope'] = '/'
+        man['theme_color'] = '#0B2550'
+        man['icons'] = [dict(i, src='/' + i['src']) for i in home['icons']]
+        io.open(os.path.join(outt, c + '.json'), 'w', encoding='utf-8').write(
+            json.dumps(man, ensure_ascii=False, indent=2) + '\n')
+
+    print('%d מניפסטים נכתבו ל-m/, %d ל-mh/, %d ל-mt/' %
+          (len(codes), len(codes) * 2, len(codes)))
 
 
 if __name__ == '__main__':
