@@ -582,6 +582,9 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mini .rail i.off{opacity:.35}
 .mini .rail i.fin{background:var(--blue-l)}
 
+/* השבוע של היום מתוך המסלול (trail.js) — לחיצה פותחת את המסלול כולו. */
+.trow{margin-top:12px;cursor:pointer}
+.trow .tnote{font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:8px;text-align:center}
 /* התווית של האזור — כאן היא השם של התלמיד. */
 .zone{position:relative;margin:0 -14px;padding:26px 14px 20px;
   background:linear-gradient(180deg,#E9EEF6 0%,#E3E9F3 55%,#E7ECF4 100%);
@@ -1289,6 +1292,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="deck.js"></script>
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
+<script src="trail.js"></script>
 <script src="qr.js"></script>
 <script src="learned.js"></script>
 <script src="pair.js"></script>
@@ -3082,12 +3086,13 @@ function drawWeek() {
                               deck:'stDeck', week:'stWeek', trail:'stTrail' });
 
   var rail = $('rail');
-  /* "המסלול שלך" — אותו פס של הדף של השבוע שבמסך הראשי (homeMine ב-index.html):
-     כמה מילא, ו-✓ בסיום. לתלמיד רשום, גם לפני שהתחיל. */
-  var meR = get('me', null), wkR = LWeek(), rowR = (StTrack(tr).cal || [])[wkR];
-  var mineR = meR && meR.id && rowR && rowR[2] && rowR[2] !== 'סיום'
-    ? { d: CalDaf(rowR), f: LPosFrac(tr, wkR), done: LDone(tr, wkR) } : null;
-  if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr), mine:mineR });
+  /* השבוע של היום — השורה שלו מתוך המסלול (trail.js), כמו שהיא במסלול
+     המלא: פס מתחת לשם כשהוא באמצע, ✓ כשסיים. לחיצה — המסלול כולו. */
+  var trR = StTrack(tr), wkR = Math.max(0, LWeek());
+  if (rail) rail.innerHTML = '<div class="trow" role="button" tabindex="0" onclick="location.href=\'' +
+    appUrl('#track=' + tr) + '\'">' + TrailHtml({ tr: trR, wi: LWeek(), here: -1, noHead: true,
+      units: TrailWeeks(trR).filter(function (u) { return u.wk === wkR; }) }) +
+    '<div class="tnote">' + esc(UI.trackNote) + '</div></div>';
   drawPts();
   drawPrz();
 
@@ -3106,14 +3111,7 @@ function drawWeek() {
 
      מוצג רק למי שבאמצע. מי שטרם פתח אינו צריך פס ריק שאומר
      לו אפס, ומי שסיים כבר רואה את הסימון. */
-  var frac = (typeof LPosFrac === 'function') ? LPosFrac(tr, wk) : 0;
-  var mid  = !done && frac > 0;
   extra.innerHTML =
-    (mid ? '<a class="cont" href="' + esc(dafUrl(tr, wk)) + '">' +
-           '<div class="ct"><b>ממשיכים מהמקום שעצרת</b>' +
-           '<span>הדף נשמר לך</span></div>' +
-           '<div class="cbar"><i style="width:' +
-           Math.max(4, Math.round(frac * 100)) + '%"></i></div></a>' : '') +
     /* **אין כאן כפתור "למדתי".** הדרך לסמן היא לעבור את הדף
        האינטראקטיבי עד הסוף — שם הסימון נעשה מעצמו. כפתור כאן
        היה קיצור דרך שמדלג על הלימוד עצמו. מי שכבר סיים רואה
