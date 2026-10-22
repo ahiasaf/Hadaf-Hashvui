@@ -242,6 +242,9 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
 .own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
 .own-read{margin:0 0 6px;line-height:1.85}
+/* איור בתוך הפירוש — רוחב מלא, גובה טבעי, בלי חיתוך */
+.own-img{display:block;width:100%;height:auto;object-fit:contain;margin:4px 0 12px;
+  border-radius:12px;box-shadow:0 2px 10px rgba(11,37,80,.12);background:#fff}
 /* גופן פסוקים — פרנק-רוהל, הצורה המוכרת מהתנ"ך. יושב בריפו
    (fonts/), בלי CDN. רחב ומעט גדול יותר, כדי שהפסוק ייקרא כציטוט. */
 @font-face{font-family:'FrankRuhlDaf';font-style:normal;font-weight:400 900;font-display:swap;
@@ -337,6 +340,17 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-audio button.stop{background:#B23B3B;border-color:#B23B3B;color:#fff}
 .own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
   padding:2px 4px}
+.own-adds{display:flex;gap:6px;margin-bottom:10px}
+.own-adds .own-add{flex:1;min-width:0;margin-bottom:0;white-space:nowrap}
+.own-add.rich{border-color:var(--gold,#C08F2B);color:#8A6412;background:#FFFBF2}
+.own-slide-pv{display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+.own-slide-pv img{width:45%;max-width:180px;height:auto;border-radius:8px;
+  border:1px solid rgba(192,143,43,.35);background:#fff}
+.own-slide-act{display:flex;flex-direction:column;gap:5px;align-items:stretch;font-size:.72rem}
+.own-slide-ok{font-weight:800;color:var(--ok,#3B7D57)}
+.own-slide-act button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:8px;
+  padding:3px 9px;font-weight:700;font-size:.7rem;color:var(--ink-2);cursor:pointer}
+.own-slide-act .own-slide-up{text-align:center}
 .own-add{display:block;width:100%;box-sizing:border-box;margin-bottom:10px;border:1px dashed rgba(192,143,43,.5);
   background:none;border-radius:9px;padding:7px;font-weight:700;font-size:.76rem;color:var(--ink-2);cursor:pointer}
 #peekbadge{display:none;position:fixed;z-index:15;top:calc(var(--top, 64px) + 8px);
@@ -2530,10 +2544,18 @@ function ownEditSync_() {
     var e = $('own-txt-' + i); if (e) p.text = e.textContent.trim() ? ownSan(e.innerHTML).trim() : '';
   });
 }
-function ownPieceAdd() {
+/* שלוש אפשרויות הוספה, כל אחת בלחיצה אחת:
+     'cont' — המשך פירוש: חלק רגיל באותו זרם (תיוג "פירוש").
+     'pic'  — איור: גם הוא "פירוש" (כדי שהזרם ימשיך אחריו בלי
+              מסגרת), ובחירת השקף נפתחת מיד. נסגרה בלי בחירה —
+              החלק הריק יורד.
+     'rich' — העשרה: חלק במסגרת הזהב, כמו ההוספה של פעם. */
+function ownPieceAdd(kind) {
   ownEditSync_();
-  OWN_EDIT.push({ tag:'העשרה', text:'', slide:'', audio:'', _id:ownPid_() });
+  var tag = kind === 'rich' ? 'העשרה' : 'פירוש';
+  OWN_EDIT.push({ tag:tag, text:'', slide:'', audio:'', _id:ownPid_() });
   paintOwn();
+  if (kind === 'pic' && DECK) { OWN_PICK_NEW = true; ownPieceSlidePickOpen(OWN_EDIT.length - 1); }
 }
 function ownPieceDel(i) {
   ownEditSync_();
@@ -2566,12 +2588,22 @@ function ownPieceSlideClear(i) {
    נפתחת מעל הכל (`#own-pick`, אותה מחלקת `.sheet` ששער הדף
    כבר משתמש בה) ולא תופסת מקום כשהיא סגורה. */
 var OWN_PICK = null;    /* אינדקס החלק שעבורו בוחרים, או null */
+var OWN_PICK_NEW = false; /* הבחירה נפתחה מ"+ איור" — ביטול מוריד את החלק הריק */
 function ownPieceSlidePickOpen(i) {
   ownEditSync_();
   OWN_PICK = i;
   paintOwnPick_();
 }
 function ownPieceSlidePickClose() {
+  var i = OWN_PICK, p = OWN_EDIT && i != null ? OWN_EDIT[i] : null;
+  if (OWN_PICK_NEW && p && !p.slide && !(p.text || '').trim() && !p.audio && OWN_EDIT.length > 1) {
+    OWN_EDIT.splice(i, 1);
+    OWN_PICK_NEW = false; OWN_PICK = null;
+    ownPieceSlidePickClose();
+    paintOwn();
+    return;
+  }
+  OWN_PICK_NEW = false;
   OWN_PICK = null;
   var el = $('own-pick');
   if (el) el.className = 'sheet own-pick';
@@ -2579,6 +2611,7 @@ function ownPieceSlidePickClose() {
 function ownPieceSlidePickChoose(fi) {
   if (OWN_PICK == null || !DECK || !DECK.files[fi]) { ownPieceSlidePickClose(); return; }
   OWN_EDIT[OWN_PICK].slide = DECK.files[fi];
+  OWN_PICK_NEW = false;
   ownPieceSlidePickClose();
   paintOwn();
 }
@@ -2832,13 +2865,38 @@ function paintOwn() {
       if (FLAT[IDX] && FLAT[IDX].n === n && OWN_EDIT_N === n) { ownEditSync_(); paintOwnEdit_(n); }
     });
 }
+/* נתיב התמונה של שקף ששמור בחלק — שם קובץ בתיקיית המצגת, או
+   נתיב מלא. אותו כלל כמו DeckSrc. */
+function ownSlideSrc_(file) {
+  file = String(file || '');
+  if (file.indexOf('/') >= 0) return file;
+  return (String((DECK && DECK.dir) || '').split(/\s+/)[0] || '') + '/' + file;
+}
+/* האיור של חלק בתוך הזרם: רוחב מלא, גובה טבעי, בלי חיתוך. קובץ
+   שחסר — התמונה פשוט נעלמת, והטקסט נשאר. */
+function ownImgHtml_(src) {
+  return '<img class="own-img" src="' + esc(src) + '" alt="" loading="lazy" ' +
+    'onerror="this.style.display=\'none\'">';
+}
+/* טלפון וטאבלט: השקף של הקטע (אותו שיוך שהפאנל משתמש בו) בראש
+   הפירוש, כדי שלא יצטרכו ללחוץ "איור". במחשב הוא כבר בעמודת
+   המצגת — לא מכפילים. דף בלי מצגת לתלמיד — כלום. */
+var OWN_RD_PHONE = null;
+function ownLeadImg_() {
+  var b = $('dktog');
+  if (!DECK || !deckN() || !sidePhone() || !b || b.style.display === 'none') return '';
+  var src = '';
+  try { src = slideSrc(slideAt(IDX)); } catch (e) { return ''; }
+  return src ? ownImgHtml_(src) : '';
+}
 function paintOwnRead_(n) {
-  var box = $('chb'), pieces = ownPieces_(n);
-  if (!pieces.length) { box.innerHTML = '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
+  var box = $('chb'), pieces = ownPieces_(n), lead = ownLeadImg_();
+  OWN_RD_PHONE = sidePhone();
+  if (!pieces.length) { box.innerHTML = lead + '<div class="none">טרם נכתב כאן פירוש.</div>'; box.scrollTop = 0; return; }
   /* הפירוש עצמו — בלי כותרת. כל חלק אחר ("העשרה", "הקדמה"…) — במסגרת
      משלו עם התיוג ככותרת, כהמשך מתחת לפירוש. חלקים באותו תיוג ברצף
      (אחרי איחוד) — כהמשך אחד, באותה מסגרת. */
-  var html = '', open = null;
+  var html = lead, open = null;
   pieces.forEach(function (p) {
     var tag = String(p.tag || '').trim(), main = !tag || tag === 'פירוש';
     var key = main ? '' : tag;
@@ -2847,7 +2905,8 @@ function paintOwnRead_(n) {
       if (key) html += '<div class="own-box"><div class="own-plbl">' + esc(tag) + '</div>';
       open = key;
     }
-    html += '<div class="own-read">' + ownSan(p.text) + '</div>';
+    if (p.slide) html += ownImgHtml_(ownSlideSrc_(p.slide));
+    if ((p.text || '').trim()) html += '<div class="own-read">' + ownSan(p.text) + '</div>';
   });
   if (open) html += '</div>';
   box.innerHTML = html;
@@ -2882,9 +2941,7 @@ function paintOwnEdit_(n) {
     /* בלי שקף ייעודי — שתי דרכים לקבוע אחד: לבחור שקף שכבר קיים
        בתיקייה (רשת ממוזערים, לא תופסת מקום כשהיא סגורה), או
        להעלות שקף חדש. עם שקף ייעודי — רק תווית קצרה והסרה. */
-    var slideStatus = !DECK ? '<span class="sp"></span>' :
-      p.slide ? '<span class="sp"></span><span class="own-slide-txt">שקף ייעודי</span>' +
-        '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button>' :
+    var slideStatus = !DECK || p.slide ? '<span class="sp"></span>' :
       '<span class="sp"></span>' +
       '<button onclick="ownPieceSlidePickOpen(' + i + ')">קיים</button>' +
       '<label class="own-slide-up">חדש' +
@@ -2896,6 +2953,15 @@ function paintOwnEdit_(n) {
        יושב בחלק אחר של המסך. ביטול/חזרה נשענים על ההיסטוריה
        המובנית של הדפדפן (execCommand) — לכן הם "לסשן הנוכחי
        בלבד" מאליהם, בלי שום שמירה נוספת. */
+    /* חלק עם שקף — תצוגה מקדימה קטנה בתוך הכרטיס, ולצידה אותן
+       פעולות של היום: בחירת קיים, העלאת חדש, הסרה. */
+    var slidePv = !DECK || !p.slide ? '' :
+      '<div class="own-slide-pv"><img src="' + esc(ownSlideSrc_(p.slide)) + '" alt="" loading="lazy">' +
+      '<div class="own-slide-act"><span class="own-slide-ok">' + esc(UI.ownPicOn || '') + '</span>' +
+      '<button onclick="ownPieceSlidePickOpen(' + i + ')">קיים</button>' +
+      '<label class="own-slide-up">חדש' +
+      '<input type="file" accept="image/*" onchange="ownPieceSlideUpload(' + i + ',this.files[0])"></label>' +
+      '<button onclick="ownPieceSlideClear(' + i + ')">הסרה</button></div></div>';
     var toolsRow = '<div class="own-tools">' +
       '<button type="button" class="icon" onmousedown="event.preventDefault();' +
       'document.execCommand(\'styleWithCSS\',false,false);document.execCommand(\'bold\')" ' +
@@ -2927,11 +2993,16 @@ function paintOwnEdit_(n) {
       (OWN_EDIT.length > 1 ? '<button class="back" onclick="ownPieceDel(' + i + ')" aria-label="מחיקת החלק">✕</button>' : '') +
       '</div>' +
       '<div class="vox-txt own-edit" id="own-txt-' + i + '" contenteditable="true" ' +
-      'data-ph="כתוב כאן את הפירוש שלך לקטע הזה…">' + ownSan(p.text) + '</div>' +
-      toolsRow + '<div class="own-audio">' + audioRow + saveBtn + '</div></div>';
+      'data-ph="' + (p.slide ? esc(UI.ownPicPh || '') : 'כתוב כאן את הפירוש שלך לקטע הזה…') + '">' +
+      ownSan(p.text) + '</div>' +
+      slidePv + toolsRow + '<div class="own-audio">' + audioRow + saveBtn + '</div></div>';
   }).join('');
 
-  html += '<button class="own-add" id="own-add">+ הוספת חלק (למשל: העשרה)</button>' +
+  html += '<div class="own-adds">' +
+    '<button class="own-add" onclick="ownPieceAdd(\'cont\')">' + esc(UI.ownAddCont || '') + '</button>' +
+    (DECK ? '<button class="own-add" onclick="ownPieceAdd(\'pic\')">' + esc(UI.ownAddPic || '') + '</button>' : '') +
+    '<button class="own-add rich" onclick="ownPieceAdd(\'rich\')">' + esc(UI.ownAddRich || '') + '</button>' +
+    '</div>' +
     /* פעולות על כל הדף — למטה, אחרי העריכה עצמה: לא צריכות
        לתפוס את המקום הראשון שרואים בכל פתיחה של המסך. */
     weHtml(FLAT[IDX]) +
@@ -2955,7 +3026,6 @@ function paintOwnEdit_(n) {
     ownEditSync_();
     ownPublishSet(goingOn);
   };
-  $('own-add').onclick = ownPieceAdd;
   $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
   $('own-export-open').onclick = ownExportOpen;
   if ($('own-merge')) $('own-merge').onclick = function () { ownEditSync_(); mergeNext_(); };
@@ -3332,12 +3402,13 @@ function ownPost_() {
     rows:JSON.stringify(ownRows_())
   }) }).catch(function () {});
 }
-/* חלק ריק לגמרי (בלי טקסט ובלי הקלטה) לא נשמר — כך מחיקת כל
-   הטקסט מחלק שווה למחיקתו, בלי כפתור נפרד. */
+/* חלק ריק לגמרי (בלי טקסט, בלי הקלטה ובלי איור) לא נשמר — כך
+   מחיקת כל הטקסט מחלק שווה למחיקתו, בלי כפתור נפרד. חלק שיש בו
+   רק איור הוא חלק שלם ("איור בלבד"), ונשמר. */
 function ownCleanPieces_(list) {
   var out = [];
   list.forEach(function (p) {
-    if (!(p.text || '').trim() && !p.audio) return;
+    if (!(p.text || '').trim() && !p.audio && !p.slide) return;
     out.push({ tag:(p.tag || 'פירוש').trim() || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '' });
   });
   return out;
@@ -4004,6 +4075,12 @@ function sideOpen(on, auto) {
      המקום הישן. */
   if (FLAT.length) { paint(); focus(); }
 }
+/* ציור מחדש של הפירוש לנוער לתלמיד, רק אם הוא זה שעל המסך —
+   השיוך נטען, או שהמסך עבר בין טלפון למחשב. */
+function ownReadRefresh_() {
+  if (SIDE_ADM || QUIZ_OPEN || CHAV_TAB !== 'own' || !FLAT[IDX]) return;
+  paintOwnRead_(FLAT[IDX].n);
+}
 function sidePhone() {
   return !window.matchMedia || window.matchMedia('(max-width:1199px)').matches;
 }
@@ -4491,6 +4568,7 @@ function sideInit() {
       sideOpen(!document.body.classList.contains('side-on'));
     };
     dkFresh();
+    ownReadRefresh_();
     /* השקף הראשון מובא כבר עכשיו, לפני שאיש לחץ. */
     slidePre(slideAt(IDX));
     slidePre(slideAt(IDX) + 1);
@@ -7079,7 +7157,10 @@ window.addEventListener('DOMContentLoaded', function () {
   };
 
   var t = null;
-  var refocus = function () { clearTimeout(t); t = setTimeout(focus, 120); };
+  var refocus = function () {
+    clearTimeout(t);
+    t = setTimeout(function () { focus(); if (OWN_RD_PHONE !== null && OWN_RD_PHONE !== sidePhone()) ownReadRefresh_(); }, 120);
+  };
   window.addEventListener('resize', refocus);
   window.addEventListener('orientationchange', refocus);
   if (window.visualViewport) {
