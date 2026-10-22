@@ -2068,12 +2068,18 @@ var CHAV_TAB = 'chav'; /* 'chav' = חברותא · 'own' = הפירוש שלי *
 /* **הבחירה האחרונה נזכרת במכשיר.** מי שבחר "פירוש לנוער" פותח
    את הדף הבא — ואת הקטע הבא — ישר עליו. נפרד מ-CHAV_TAB בכוונה:
    קטע בלי פירוש מחזיר את המגירה לחברותא, וזה אינו אמור למחוק
-   את מה שהתלמיד בחר. רק לחיצה על לשונית משנה את הזיכרון. */
+   את מה שהתלמיד בחר. רק לחיצה על לשונית משנה את הזיכרון.
+   **מי שעוד לא בחר** (ריק) — בתענית נפתח על הפירוש לנוער, ובמגילה
+   על החברותא. ראו chavPref_. */
 var CHAV_PREF_KEY = 'df:chavTab';
+var OWN_FIRST = { taanit: 1 };
 var CHAV_PREF = (function () {
-  try { return localStorage.getItem(CHAV_PREF_KEY) === 'own' ? 'own' : 'chav'; }
-  catch (e) { return 'chav'; }
+  try { var v = localStorage.getItem(CHAV_PREF_KEY); return v === 'own' || v === 'chav' ? v : ''; }
+  catch (e) { return ''; }
 })();
+function chavPref_() {
+  return CHAV_PREF || (OWN_FIRST[S.mas] ? 'own' : 'chav');
+}
 function chavPick_(t) {
   YR_N = -1;
   CHAV_TAB = CHAV_PREF = t;
@@ -3610,7 +3616,7 @@ function paintChavArea() {
      גם אם הוא נטען רק עכשיו. קטע אחר — הבקשה נגמרה. */
   if (YR_N >= 0 && st && st.n === YR_N) { if (canOwn) CHAV_TAB = 'own'; }
   else YR_N = -1;
-  if (CHAV_PREF === 'own' && canOwn) CHAV_TAB = 'own';
+  if (chavPref_() === 'own' && canOwn) CHAV_TAB = 'own';
   if (CHAV_TAB === 'own' && !canOwn) CHAV_TAB = 'chav';
   if (QUIZ_OPEN && !canQuiz) QUIZ_OPEN = false;
   document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
