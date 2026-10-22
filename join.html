@@ -1614,12 +1614,9 @@ function wkRafMe() {
   for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return true;
   return false;
 }
-/* הנוסח לפי הדף של השבוע — בדף ב (החריגה) סיום הדף, ולא החידון. */
-function wkRafBody() {
-  var t = typeof myTrack === 'function' ? myTrack() : '';
-  var d = typeof LDaf === 'function' && typeof LWeek === 'function' ? LDaf(t, Math.max(0, LWeek())) : '';
-  return (LRafNoQuiz(d) ? JOIN.wkBodyNoQ : JOIN.wkBody) || JOIN.wkBody;
-}
+/* חריגת דף ב (סיום בלי חידון) ירדה מהנוסח לתלמיד ב-8.99.311 —
+   בכל דף עונים על החידון. */
+function wkRafBody() { return JOIN.wkBody; }
 
 /* ---------- ציור הראש ----------
    נקרא פעמיים: מיד מהמטמון, ושוב אחרי שהגיליון ענה. */

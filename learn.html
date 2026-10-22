@@ -5086,7 +5086,7 @@ function finish() {
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
-  a.href = stuQuizUrl(key); a.textContent = (LRafNoQuiz(S.daf) ? UI.dnQuizNoQ : UI.dnQuiz) || '';
+  a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz || '';
   sn.style.display = soon ? '' : 'none';
   if (soon) {
     $('dn-soon-t').textContent = UI.soonT;
@@ -5140,17 +5140,17 @@ function doneQPaint_() {
   var box = $('done-q'), all = pageQs_();
   box.style.display = all.length ? '' : 'none';
   if (!all.length) return;
-  var noq = LRafNoQuiz(S.daf), t = qTally_(all), h;
+  var t = qTally_(all), h;
   if (qSent_()) {
     /* הציון שנשלח — כפי שנשמר ברגע השליחה, גם אם שאלה נערכה מאז */
     var r = t.r, n = t.n, sv = null;
     try { sv = (localStorage.getItem(qResKey_()) || '').split('/'); } catch (e) {}
     if (sv && sv.length === 2 && sv[1]) { r = +sv[0] || 0; n = +sv[1] || n; }
-    var pass = noq || qPass_(r, n);
+    var pass = qPass_(r, n);
     h = '<b>' + esc(UI.dnQT || '') + '</b>' +
       '<div class="dq-res' + (pass ? ' ok' : '') + '">' +
         esc(String(UI.dqScore || '').replace('{r}', r).replace('{n}', n)) +
-        '<b>' + esc((noq ? UI.dqInNoQ : pass ? UI.dqIn : UI.dqOut) || '') + '</b></div>';
+        '<b>' + esc((pass ? UI.dqIn : UI.dqOut) || '') + '</b></div>';
     box.innerHTML = h;
     return;
   }
@@ -5165,7 +5165,7 @@ function doneQPaint_() {
     '<div class="dq-n">' + esc(String(UI.dqCount || '').replace('{a}', t.a).replace('{n}', t.n)) + '</div>' +
     '<div class="dq-dots">' + dots + '</div>' +
     '<p class="nt-q">' + esc(body || '') + '</p>' +
-    '<p class="nt-q">' + esc((noq ? UI.dqRuleNoQ : UI.dqRule) || '') + '</p>' +
+    '<p class="nt-q">' + esc(UI.dqRule || '') + '</p>' +
     (t.a < t.n ? back + send : send + back);
   box.innerHTML = h;
   $('dq-back').onclick = function () {
