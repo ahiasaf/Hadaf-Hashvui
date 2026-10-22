@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 109;
+var SCRIPT_VERSION = 110;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -6798,8 +6798,8 @@ function qbEach_(rec, fn) {
 }
 function qbCur_(x) { return x && (x.draft || x.pub); }
 function qbDaf_(d) {
-  var id = String(d.id || '').trim(), val = parse_(d.val), like = parse_(d.like);
-  if (!id || !val || !val.q) return { status: 'error', message: 'חסרה שאלה' };
+  var id = String(d.id || '').trim(), val = parse_(d.val), like = parse_(d.like), drop = !!d.drop;
+  if (!id || (!drop && (!val || !val.q))) return { status: 'error', message: 'חסרה שאלה' };
   var sh = sheet_('שאלות בדף'), last = sh.getLastRow();
   if (last < 2) return { status: 'success', found: 0 };
   var data = sh.getRange(2, 1, last - 1, 3).getDisplayValues();
@@ -6808,16 +6808,25 @@ function qbDaf_(d) {
     var rec, hit = null;
     try { rec = JSON.parse(String(data[r][2] || '')); } catch (e) { return { status: 'error', message: 'רשומת הדף פגומה' }; }
     qbRecNorm_(rec);
-    qbEach_(rec, function (list) {
-      for (var i = 0; i < list.length && !hit; i++) if ((qbCur_(list[i]) || {}).qb === id) hit = list[i];
+    var hk = '';
+    qbEach_(rec, function (list, k) {
+      for (var i = 0; i < list.length && !hit; i++) if ((qbCur_(list[i]) || {}).qb === id) { hit = list[i]; hk = k; }
     });
-    if (like) qbEach_(rec, function (list) {
+    if (like) qbEach_(rec, function (list, k) {
       for (var i = 0; i < list.length && !hit; i++) {
         var c = qbCur_(list[i]);
-        if (c && !c.qb && qbLike_(c, like)) hit = list[i];
+        if (c && !c.qb && qbLike_(c, like)) { hit = list[i]; hk = k; }
       }
     });
     if (!hit) return { status: 'success', found: 0 };
+    /* "הסרה מהדף" מהמאגר: השאלה יורדת מהקטע — הטיוטה והגרסה החיה, כמו
+       מחיקה בדף (qEditDelete_). קטע שהתרוקן — נמחק. */
+    if (drop) {
+      rec[hk].splice(rec[hk].indexOf(hit), 1);
+      if (!rec[hk].length) { delete rec[hk]; if (rec.__t) delete rec.__t[hk]; }
+      sh.getRange(r + 2, 3).setValue(JSON.stringify(rec));
+      return { status: 'success', found: 1 };
+    }
     val.qb = id;
     /* פורסמה — התלמידים רואים את השינוי מיד. לא פורסמה — טיוטה. */
     if (hit.pub) { hit.pub = val; hit.draft = null; } else hit.draft = val;

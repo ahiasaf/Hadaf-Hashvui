@@ -2958,7 +2958,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.319';
+var APP_VERSION = '8.99.320';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11621,6 +11621,8 @@ function qbMasSet(mas) {
   if (!trackById(mas) || mas === qbMas()) return;
   QB_F.mas = mas;
   try { localStorage.setItem('df:qbMas', mas); } catch (e) {}
+  /* "פרסם הכול" מוצג רק למסכת שנבחרה — תהליך שנפתח באחרת נסגר. */
+  if (QZR.act && QZR.act !== mas && !QZR.sending) qzrClose();
   /* מסנן דף של המסכת האחרת אינו נשאר */
   if (QB_F.md && QB_F.md.split('|')[0] !== mas) QB_F.md = null;
   /* שאלה חדשה שבכתיבה עוברת עם הבחירה — לדף הראשון של המסכת */
@@ -11714,7 +11716,11 @@ function qbCardHtml(x) {
     '<div class="qb-act">' +
     '<button class="btn g" data-qbe="' + esc(x.id) + '"' + (x.id ? '' : ' disabled') + '>' + esc(UI.qbEdit) + '</button>' +
     '<button class="btn p" data-qbp="' + esc(x.id) + '"' + (x.id && QbFull(x) ? '' : ' disabled') + '>' +
-    esc(UI.qbPlace) + '</button></div></div>';
+    esc(UI.qbPlace) + '</button>' +
+    (!x.id ? '' : si === 2
+      ? '<button class="btn warn" data-qbun="' + esc(x.id) + '">' + esc(UI.qbUnplace) + '</button>'
+      : '<button class="btn warn" data-qbdc="' + esc(x.id) + '">' + esc(UI.qbDel) + '</button>') +
+    '</div><div id="qb-cm-' + esc(x.id) + '"></div></div>';
 }
 function qbEdHtml(e) {
   /* שאלה חדשה נכתבת במסכת שנבחרה למעלה — כאן רק הדף. */
@@ -11767,9 +11773,9 @@ function qbPaint() {
   inMd.forEach(function (x) { n[x.st]++; });
   var shown = inMd.filter(function (x) { return !QB_F.st || x.st === QB_F.st; });
   var fresh = QB_ED && !QB_ED.id;
-  /* "פרסם הכול" — כפתור לכל מסכת, ולכן מעל בחירת המסכת של המאגר ובלי תלות בה. */
-  var h = '<div id="qzr">' + qzrHtml() + '</div>' + '<div id="qzs">' + qzsHtml() + '</div>' +
-    '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
+  /* הסדר כסדר העבודה: בוחרים מסכת, עוברים על השאלות, ובסוף — "פרסם הכול"
+     והסיכום, של המסכת שנבחרה בלבד (8.99.320). */
+  var h = '<div class="qb-mas" role="group" aria-label="' + esc(UI.qbMas) + '">' + TRACKS.map(function (t) {
       return '<button data-qbm="' + esc(t.id) + '" class="' + (t.id === mas ? 'on' : '') + '"' +
         ' aria-pressed="' + (t.id === mas) + '">' + esc(t.masechet) +
         (QB ? '<small>' + (per[t.id] || 0) + '</small>' : '') + '</button>';
@@ -11790,6 +11796,7 @@ function qbPaint() {
   h += shown.map(function (x) {
     return QB_ED && QB_ED.id === x.id ? qbEdHtml(QB_ED) : qbCardHtml(x);
   }).join('');
+  h += '<div id="qzr" style="margin-top:14px">' + qzrHtml() + '</div>' + '<div id="qzs">' + qzsHtml() + '</div>';
   el.innerHTML = h;
   el.onclick = qbClick;
   el.oninput = qbInput;
@@ -11798,7 +11805,7 @@ function qbPaint() {
   qzsEnsure();
 }
 function qbSay(bad, t) {
-  var m = document.getElementById('qb-msg');
+  var m = (QB_CM && document.getElementById('qb-cm-' + QB_CM)) || document.getElementById('qb-msg');
   if (m) m.innerHTML = '<div class="cond' + (bad ? ' qb-bad' : '') + '" style="margin-top:10px">' + esc(t) + '</div>';
 }
 function qbClick(ev) {
@@ -11831,6 +11838,8 @@ function qbClick(ev) {
   if (g('data-qbs')) { QB_ED.st = g('data-qbs'); return qbPaint(); }
   if (g('data-qbsave')) return qbSave();
   if (g('data-qbdel')) return qbDel();
+  if (g('data-qbdc')) return qbDel(g('data-qbdc'));
+  if (g('data-qbun')) return qbUnplace(g('data-qbun'));
   if (g('data-qbp')) return qbPlace(g('data-qbp'));
 }
 function qbInput(ev) {
@@ -11852,6 +11861,7 @@ function qbChange(ev) {
 }
 function qbSave() {
   var e = QB_ED;
+  QB_CM = '';
   if (!e) return;
   var want = { mas:e.mas, daf:e.daf, q:(e.q || '').trim(),
                a:e.a.map(function (t) { return (t || '').trim(); }),
@@ -11908,12 +11918,64 @@ function qbDafVerify(tries, id, val, s) {
     });
   }, tries ? 2500 : 1400);
 }
-function qbDel() {
-  var e = QB_ED, key = (CFG.readKey || '').trim();
+/* id — מחיקה ישר מהכרטיס, בלי לפתוח עריכה. ההודעה — מתחת לכרטיס. */
+var QB_CM = '';
+function qbDel(id) {
+  var e = id ? QbFind(QB, id) : QB_ED, key = (CFG.readKey || '').trim();
+  QB_CM = id || '';
   if (!e || !e.id || !confirm(UI.qbSure)) return;
   if (!key) return qbSay(1, UI.qbNoKey);
   qbSay(0, UI.qbSent);
   QbPost(qbApi(), key, 'del', e.id).then(function () { qbVerify(0, e.id, null); });
+}
+/* "הסרה מהדף": השאלה יורדת מרשומת הדף (qbDaf_ עם drop בסקריפט) — ואם
+   פורסמה, גם מהתלמידים — ובמאגר חוזרת ל"מוכנה", כמו מחיקה בדף עצמו
+   (qEditDelete_ ב-learn.html). אימות: אינה בדף, ואז השורה במאגר. */
+function qbUnplace(id) {
+  var x = QbFind(QB, id), key = (CFG.readKey || '').trim();
+  QB_CM = id;
+  if (!x || !confirm(UI.qbUnSure)) return;
+  if (!key) return qbSay(1, UI.qbNoKey);
+  qbSay(0, UI.qbSent);
+  fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'qbDaf', drop:1, key:key, mas:x.mas, daf:x.daf, id:id, like:JSON.stringify({ q:x.q, a:x.a })
+  }) }).catch(function () {}).then(function () { qbUnVerify(0, id, x); });
+}
+function qbUnVerify(tries, id, x) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, QZ_TAB).then(function (rows) {
+      var mk = qbMarksFrom(rows), there = false;
+      ((rows && rows.slice(1)) || []).forEach(function (r) {
+        if (QbMas(r[0]) !== x.mas || QbDafKey(r[1]) !== QbDafKey(x.daf)) return;
+        if (String(r[2] || '').indexOf('"qb":"' + id + '"') >= 0) there = true;
+      });
+      if (mk && !there) {
+        QB_MK = mk;
+        var key = (CFG.readKey || '').trim(), want = { st: QB_ST[1], seg: '' };
+        return QbPost(qbApi(), key, 'put', id, [['סטטוס', QB_ST[1]], ['קטע', '']], true).then(function () {
+          qbUnBank(0, id, want);
+        });
+      }
+      if (tries < 4) return qbUnVerify(tries + 1, id, x);
+      qbSay(1, UI.qbUnBad);
+    });
+  }, tries ? 2500 : 1400);
+}
+function qbUnBank(tries, id, want) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, QB_TAB).then(function (rows) {
+      var l = QbFromRows(rows), y = l && QbFind(l, id);
+      if (y && QbSame(y, want)) {
+        QB = qbEff(l); QB_FAIL = false; QB_AT = Date.now();
+        if (!QB_ED) qbPaint();
+        toast(UI.qbUnOk);
+        return;
+      }
+      if (tries < 4) return qbUnBank(tries + 1, id, want);
+      /* מהדף ירדה; רק הסימון במאגר לא אומת — הוא יתוקן בפתיחה הבאה. */
+      QB_AT = 0; qbLoad(); toast(UI.qbUnOk);
+    });
+  }, tries ? 2500 : 1400);
 }
 /* want = null — מחיקה: מאמתים שהשורה איננה. */
 function qbVerify(tries, id, want, sync) {
@@ -18260,8 +18322,8 @@ function opNotify(t, daf, am, ntf, aud) {
      לא "התלמיד קיבל".
    ============================================================ */
 /* **לכל מסכת כפתור משלה** (8.99.241): תענית ומגילה — שני חלקים בכרטיס,
-   לכל אחד בורר שבוע, מספרים, הודעה וכפתור "פרסם הכול — מסכת …". הם אינם
-   תלויים בבחירת המסכת של המאגר שלמעלה. תהליך פרסום אחד פתוח בכל פעם
+   לכל אחד בורר שבוע, מספרים, הודעה וכפתור "פרסם הכול — מסכת …". מ-8.99.320
+   מוצג רק החלק של המסכת שנבחרה במאגר, מתחת לשאלות. תהליך פרסום אחד פתוח בכל פעם
    (`QZR.act`); פתיחה במסכת אחרת סוגרת את הקודם, והמתג חוזר לכבוי. */
 var QZR = { by:{}, act:'', step:'', ntf:false, sending:false };
 var QZ_TAB = 'שאלות בדף';
@@ -18311,7 +18373,7 @@ function qzrPubN(z) { return (z.items || []).filter(function (x) { return x.st =
 function qzrHtml() {
   var h = '<div class="adm-card" style="margin-bottom:11px"><h4>' + esc(UI.qzrT) + '</h4>' +
     '<p class="h">' + esc(UI.qzrSub) + '</p>';
-  TRACKS.forEach(function (t, i) { h += qzrMasHtml(t.id, i); });
+  h += qzrMasHtml(qbMas(), 0);
   return h + '</div>';
 }
 function qzrMasHtml(mas, i) {
@@ -18410,7 +18472,7 @@ function qzsHtml() {
     '<p class="h">' + esc(UI.qzsDef) + '</p>';
   if (QZS.err) h += '<p class="h" style="color:var(--stop)">' + esc(QZS.err) + '</p>';
   else if (!QZS.d) h += '<p class="h">' + esc(UI.qzsLoad) + '</p>';
-  else QZS.d.mas.forEach(function (m, i) {
+  else QZS.d.mas.filter(function (m) { return m.mas === qbMas(); }).forEach(function (m, i) {
     var t = trackById(m.mas), o = m.out || {};
     h += '<div style="' + (i ? 'margin-top:12px;padding-top:10px;border-top:1px solid var(--rule)' : '') + '">' +
       '<div style="font-weight:800;margin-bottom:6px">' + esc(fill(UI.qzsMasH, { mas: t ? t.masechet : m.mas, w: m.wk })) + '</div>' +
