@@ -581,15 +581,6 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mini .rail i.now{background:var(--gold);height:11px;box-shadow:0 0 0 3px rgba(192,143,43,.18)}
 .mini .rail i.off{opacity:.35}
 .mini .rail i.fin{background:var(--blue-l)}
-/* מסך התלמיד: עיגול לכל עמוד, ירוק עם ✓ על מה שלמד — אותו עיגול של לוח הצוות. */
-.mini .rail.tk{flex-wrap:wrap;gap:6px}
-.mini .rail.tk i{flex:none;width:24px;height:24px;border-radius:50%;background:var(--sunk);
-  color:#fff;font-style:normal;font-size:.78rem;font-weight:800;line-height:1;
-  display:flex;align-items:center;justify-content:center}
-.mini .rail.tk i.now{background:var(--surface);box-shadow:inset 0 0 0 2px var(--gold),0 0 0 3px rgba(192,143,43,.18)}
-.mini .rail.tk i.fin{background:rgba(192,143,43,.25)}
-.mini .rail.tk i.l{background:var(--green);box-shadow:none}
-.mini .rail.tk i.l.now{box-shadow:0 0 0 3px rgba(111,168,59,.25)}
 
 /* התווית של האזור — כאן היא השם של התלמיד. */
 .zone{position:relative;margin:0 -14px;padding:26px 14px 20px;
@@ -3091,9 +3082,12 @@ function drawWeek() {
                               deck:'stDeck', week:'stWeek', trail:'stTrail' });
 
   var rail = $('rail');
-  /* תלמיד רשום — עיגול לכל עמוד, ✓ על מה שלמד (stage.js). */
-  var meR = get('me', null);
-  if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr), ticks:!!(meR && meR.id) });
+  /* "המסלול שלך" — אותו פס של הדף של השבוע שבמסך הראשי (homeMine ב-index.html):
+     כמה מילא, ו-✓ בסיום. לתלמיד רשום, גם לפני שהתחיל. */
+  var meR = get('me', null), wkR = LWeek(), rowR = (StTrack(tr).cal || [])[wkR];
+  var mineR = meR && meR.id && rowR && rowR[2] && rowR[2] !== 'סיום'
+    ? { d: CalDaf(rowR), f: LPosFrac(tr, wkR), done: LDone(tr, wkR) } : null;
+  if (rail) rail.innerHTML = RailHtml({ track:tr, href:appUrl('#track=' + tr), mine:mineR });
   drawPts();
   drawPrz();
 

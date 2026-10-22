@@ -33,6 +33,7 @@ function TrailEsc(s) {
     return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
   });
 }
+function TrailKey(d) { return String(d || '').replace(/["'׳״\s]/g, ''); }
 function TrailUi(k) { return (typeof UI !== 'undefined' && UI[k]) || ''; }
 /* העמוד של שורת לוח: 0 = הדף כולו, 1 = ע״א, 2 = ע״ב (ראו CAL_TAANIT). */
 function TrailAm(row) { var a = row && row[3]; return a === 'א' ? 1 : a === 'ב' ? 2 : 0; }
@@ -74,10 +75,27 @@ function TrailAmudim(tr) {
    o.here   — מספר היחידה שבה הלומד נמצא עכשיו, או -1
    o.attr   — function (u, k) → מחרוזת מאפיינים לשורה (onclick וכו')
    o.big    — שורה שבה העיגול הגדול (ברירת מחדל: השבוע של כולם) */
+/* הנקודות של הלומד לכל דף — מהמטמון שמסך התלמיד שומר (`ptsMe`, join.html,
+   מחושב בשרת). רק של המזהה שבמכשיר; אין — אין נקודות בשורות. */
+function TrailPts(trId) {
+  var out = {};
+  try {
+    var me = JSON.parse(localStorage.getItem('df:me') || 'null');
+    var c = JSON.parse(localStorage.getItem('df:ptsMe') || 'null');
+    if (!me || !c || c.id !== me.id) return out;
+    (c.l || []).forEach(function (x) {
+      if (x[0] === trId) out[String(x[1]).replace(/["'׳״\s]/g, '')] = 10 * (x[3] || 1);
+    });
+  } catch (e) {}
+  return out;
+}
 function TrailHtml(o) {
   TrailStyle();
   var tr = o.tr, chaps = (typeof CHAPTERS !== 'undefined' && CHAPTERS[tr.id]) || [];
   var shown = {}, firstOfWeek = {}, wi = o.wi;
+  /* הנקודות — בשורה האחרונה של כל דף (ב: ולא ב.), כי הדף נספר פעם אחת. */
+  var pts = TrailPts(tr.id), lastOf = {};
+  o.units.forEach(function (u, k) { if (u.kind === 'daf') lastOf[TrailKey(u.daf)] = k; });
   var h = '<div class="trl ' + (tr.id === 'taanit' ? 't-b' : 't-g') + '">' +
     '<div class="trl-head"><b>' +
     TrailEsc(String(TrailUi('trMas')).replace('{mas}', tr.masechet)) + '</b><i></i><span>' +
@@ -105,9 +123,14 @@ function TrailHtml(o) {
     if (u.wk === wi) cls += first ? ' cur' : ' now';
     if (wi >= 0 && u.wk < wi) cls += ' done';
     /* מה שסומן כנלמד — מהמכשיר, ולכן זמין גם בלי רשת. */
-    if (u.kind === 'daf' && typeof LDone === 'function' && LDone(tr.id, u.wk)) cls += ' learned';
+    var dn = u.kind === 'daf' && typeof LDone === 'function' && LDone(tr.id, u.wk);
+    if (dn) cls += ' learned';
+    /* כמה מילא בשבוע — אותו פס של "המסלול שלך" (RailHtml). פעם אחת לשבוע. */
+    var f = u.kind === 'daf' && first && typeof LPosFrac === 'function' ? LPosFrac(tr.id, u.wk) : 0;
+    var p = u.kind === 'daf' && lastOf[TrailKey(u.daf)] === k ? pts[TrailKey(u.daf)] : 0;
     if (k === o.here) cls += ' here';
     if (k === o.units.length - 1) cls += ' last';
+    if (p) cls += ' pt';
 
     var dot = u.kind === 'off' ? TrailUi('trOff')
             : u.kind === 'siyum' ? TrailUi('trSiyum')
@@ -119,7 +142,9 @@ function TrailHtml(o) {
       (k === o.here ? '<span class="trl-here">' + TrailEsc(TrailUi('pickHere')) + '</span>' : '') +
       '</div>' +
       (u.half ? '' : '<div class="trl-d">' + TrailEsc(u.row[0]) + '</div>') +
-      '</div></div>';
+      (f > 0 ? '<div class="trl-bar' + (dn ? ' ok' : '') + '"><i style="width:' +
+        (dn ? 100 : Math.max(4, Math.round(f * 100))) + '%"></i></div>' : '') +
+      '</div>' + (p ? '<span class="trl-pts">⭐ ' + p + '</span>' : '') + '</div>';
   });
   return h + '</div></div>';
 }
@@ -190,6 +215,13 @@ var TRAIL_CSS =
   'border:1.5px solid var(--t-gold);border-radius:20px;padding:2px 8px;margin-inline-start:7px;' +
   'vertical-align:middle}' +
 '.trl-txt{min-width:0}' +
+/* כמה מילא בשבוע — כמו הפס של "המסלול שלך"; ירוק בסיום. */
+'.trl-bar{height:6px;border-radius:5px;background:var(--t-sunk);overflow:hidden;margin-top:5px;max-width:200px}' +
+'.trl-bar i{display:block;height:100%;border-radius:5px;background:var(--t-blue)}' +
+'.trl-bar.ok i{background:var(--t-green)}' +
+'.trl-step.pt{grid-template-columns:44px 1fr auto}' +
+'.trl-step.cur.pt{grid-template-columns:52px 1fr auto}' +
+'.trl-pts{font-size:.74rem;font-weight:800;color:var(--t-gold-t);white-space:nowrap}' +
 '.trl-p{font-weight:800;font-size:1rem;letter-spacing:-.01em}' +
 '.trl-step.done .trl-p,.trl-step.off .trl-p{font-weight:700;color:var(--t-ink-2)}' +
 '.trl-d{font-size:.75rem;color:var(--t-ink-3);font-weight:600;margin-top:1px}' +

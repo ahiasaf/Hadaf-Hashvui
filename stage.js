@@ -124,30 +124,17 @@ function StageHtml(o) {
    o.go — שם פונקציה, או כתובת כשמדובר בקישור בין עמודים.
    o.mine — "המסלול שלך" (8.99.254): { d: הדף, f: 0–1 כמה למד, done,
    raf: בתוך ההגרלה לפי השרת }. בלעדיו — הפס כמו שהיה. */
-/* o.ticks — מסך התלמיד: עיגול לכל עמוד בלוח, ירוק עם ✓ על מה שהוא
-   למד (LDone — מהמכשיר, כולל מה שנרשם לו בעמדה), כמו ה-✓ בלוח הצוות.
-   המונה אז אישי: דפים שכל העמודים שלהם נלמדו. חופשות — בלי עיגול. */
 function RailHtml(o) {
   var tr = StTrack(o.track), wi = StWeekRaw();
-  var mark = wi < 0 ? 0 : wi, rail = '', done = 0, tk = !!o.ticks && typeof LDone === 'function';
-  var whole = {};
+  var mark = wi < 0 ? 0 : wi, rail = '', done = 0;
   for (var i = 0; i < tr.cal.length; i++) {
     var r = tr.cal[i];
-    var cls = !r[2] ? 'off' : (r[2] === 'סיום' || r[4] === 'סיום') ? 'fin'
-            : i === mark ? 'now' : (wi >= 0 && i < wi) ? 'done' : '';
-    if (tk) {
-      if (!r[2]) continue;
-      var dn = r[2] !== 'סיום' && LDone(tr.id, i);
-      if (r[2] !== 'סיום') whole[r[2]] = (whole[r[2]] !== false) && dn;
-      if (r[4] === 'סיום' && i === mark) cls += ' now';
-      rail += '<i class="' + cls + (dn ? ' l' : '') + '">' + (dn ? '✓' : '') + '</i>';
-      continue;
-    }
     /* עמוד ב שנלמד בשבוע משלו (ב:) אינו דף נוסף במונה. */
     if (r[2] && r[2] !== 'סיום' && r[3] !== 'ב' && wi >= 0 && i <= wi) done++;
+    var cls = !r[2] ? 'off' : (r[2] === 'סיום' || r[4] === 'סיום') ? 'fin'
+            : i === mark ? 'now' : (wi >= 0 && i < wi) ? 'done' : '';
     rail += '<i class="' + cls + '"></i>';
   }
-  if (tk) for (var d in whole) if (whole.hasOwnProperty(d) && whole[d]) done++;
   var pct = Math.round(done / tr.dapim * 100);
   var open = o.href ? ' onclick="location.href=\'' + o.href + '\'"'
                     : (o.go ? ' onclick="' + o.go + '(\'' + tr.id + '\')"' : '');
@@ -167,7 +154,7 @@ function RailHtml(o) {
     '<div class="cap"><b>' +
     String(me ? UI.myCap : UI.trackCap).replace('{mas}', StEsc(tr.masechet)) + '</b>' +
     '<span>' + done + '/' + tr.dapim + ' · ' + pct + '%</span></div>' + mine +
-    '<div class="rail' + (tk ? ' tk' : '') + '">' + rail + '</div>' + raf +
+    '<div class="rail">' + rail + '</div>' + raf +
     '<div style="font-size:.79rem;color:var(--ink-3);font-weight:700;margin-top:10px">' +
     StEsc(UI.trackNote) + '</div></div>';
 }
