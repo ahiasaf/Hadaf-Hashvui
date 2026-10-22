@@ -70,6 +70,15 @@
        את הישיבה כשמתקינים מהאייקון שכבר קיים. */
     if (!c) { try { c = localStorage.getItem('df:inst') || ''; } catch (e) {} }
     if (!/^[a-z]{2,20}$/.test(c)) c = '';
+    /* **אתגר "חבר מביא חבר" — באייפון, הקישור עצמו הוא שעובר להתקנה.**
+       באייפון לאפליקציה שבמסך הבית יש אחסון נפרד מספארי, ולכן קוד
+       ההזמנה שנשמר כאן בדפדפן אינו שם — והחבר נרשם בתוך האפליקציה
+       (התקנה קודם, ראו preNeeded). עמוד בלי manifest מותקן על
+       הכתובת שממנה הוסיפו אותו, על כל מה שיש בה — כולל `ref`.
+       באנדרואיד הדפדפן והאפליקציה חולקים אחסון, והמניפסט נשאר. */
+    var ios = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (ios && /[?&]ref=[A-Za-z0-9]{4,10}(&|$)/.test(location.search)) return;
     document.write('<link rel="manifest" href="' +
       (c ? 'm/' + c + '.json' : 'join-manifest.json') + '">');
   })();
@@ -999,6 +1008,51 @@ footer a{color:var(--ink-2);font-weight:800}
 @keyframes introPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 @media (prefers-reduced-motion:reduce){.intro-logo span{animation:none}}
 .intro-frame .intro-tap{position:absolute;inset:0;z-index:2}
+/* ---- אתגר "חבר מביא חבר" — הכרטיס בבית (chal.js). אותם כללים
+   כמו ב-chaver.html; משתמשים בצבעים הקבועים ולא במשתנים של העמוד. ---- */
+.ch-card,.ch-grp,.ch-inv{background:#FFFDF8;border:1px solid #E5DAC3;border-radius:16px;
+  padding:15px 16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(37,29,12,.05),0 2px 8px rgba(37,29,12,.05)}
+.ch-card.soft{background:#F3F7EE;border-color:#D6E6C6}
+.ch-card h2,.ch-inv h3,.ch-grp h3{font-size:1.12rem;font-weight:800;color:#0B2550;margin:0 0 6px}
+.ch-card.land h2{font-size:1.4rem}
+.ch-lead{font-size:1rem;font-weight:600;margin:0 0 10px}
+.ch-st{font-size:.98rem;font-weight:700;margin:8px 0 2px}
+.ch-sm{font-size:.82rem;font-weight:600;color:#5A6780;margin-top:4px}
+.ch-big{font-size:1.02rem;font-weight:800;color:#8C681F;margin:0 0 4px}
+.ch-cnt{font-size:.88rem;font-weight:700;color:#1B2A45}
+.ch-pub{border-top:1px dashed #E5DAC3;margin-top:12px;padding-top:10px}
+.ch-yay{background:#E7F2DD;color:#2E6B12;font-weight:800;border-radius:12px;padding:9px 12px;margin:0 0 10px}
+.ch-ppl{list-style:none;display:grid;gap:6px;margin:6px 0 0}
+.ch-ppl li{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #EFE7D7;border-radius:12px;
+  padding:7px 10px;min-height:42px}
+.ch-ppl li b{font-weight:800}
+.ch-ppl li i{font-style:normal;font-size:.72rem;font-weight:800;color:#8C681F}
+.ch-ok,.ch-no{margin-inline-start:auto;font-size:.82rem;font-weight:800;border-radius:999px;padding:2px 10px}
+.ch-ok{background:#E7F2DD;color:#2E6B12}
+.ch-no{background:#F3EEE2;color:#5A6780}
+.ch-rm{font-size:.8rem;font-weight:800;color:#fff;background:#1FA637;border-radius:999px;padding:4px 10px;
+  text-decoration:none;flex:none}
+.ch-grp.in{border-color:#D9A43A}
+.ch-grp.won{border:2px solid #C08F2B;background:#FFF8E6}
+.ch-grp.out{opacity:.85}
+.ch-btn{display:block;width:100%;margin:10px 0 0;padding:13px 14px;border-radius:14px;border:0;
+  background:#0B2550;color:#fff;font:inherit;font-size:1.02rem;font-weight:800;text-align:center;
+  text-decoration:none;cursor:pointer}
+.ch-btn.big{font-size:1.12rem;padding:15px 14px;box-shadow:0 6px 16px rgba(11,37,80,.25)}
+.ch-btn.wa{background:#1FA637}
+.ch-btn.wa[aria-disabled]{opacity:.5;pointer-events:none}
+.ch-btn.ghost{background:#fff;color:#17468F;border:1.5px solid #E5DAC3}
+.ch-btn.wk{background:#2E6B12}
+.ch-btn[disabled]{opacity:.5}
+.ch-link{font-size:.86rem;background:#fff;border:1px dashed #E5DAC3;border-radius:10px;padding:8px 10px;
+  overflow-wrap:anywhere;text-align:left;color:#5A6780}
+.ch-inv p{font-size:.92rem;font-weight:600;margin:0 0 8px}
+.ch-all,.ch-terms{background:#FFFDF8;border:1px solid #E5DAC3;border-radius:14px;padding:10px 14px;margin:0 0 12px}
+.ch-all summary,.ch-terms summary{font-weight:800;color:#0B2550;cursor:pointer}
+.ch-terms p{font-size:.88rem;font-weight:600;color:#5A6780;margin-top:8px}
+.ch-stay{font-size:.98rem;font-weight:800;color:#2E6B12;background:#F3F7EE;border-radius:12px;
+  padding:10px 12px;margin:0 0 12px}
+.ch-mine p{font-size:.95rem;font-weight:600;margin:0 0 6px}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1264,6 +1318,9 @@ footer a{color:var(--ink-2);font-weight:800}
          להזמנה ולקבוצה — כלומר אחרי שני דברים שאפשר לדלג
          עליהם, ובמקום שרוב התלמידים לא גללו אליו. היא השלב
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
+    <!-- אתגר "חבר מביא חבר" — ההתקדמות שלי קודם, המונה אחריה.
+         ריק כשהאתגר כבוי. ראו chal.js. -->
+    <div id="chal"></div>
     <div id="phnag"></div>
     <div id="getapp"></div>
     <div id="inv2"></div>
@@ -1295,6 +1352,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="trail.js"></script>
 <script src="qr.js"></script>
 <script src="learned.js"></script>
+<script src="chal.js"></script>
 <script src="pair.js"></script>
 <script src="logo.js"></script>
 <script src="getapp.js"></script>
@@ -1742,6 +1800,9 @@ function drawTop() {
 
    `rel` בקישור אומר מי המזמין ביחס למוזמן — אבא או חבר — וזה
    כל מה שצריך כדי לנסח נכון. */
+/* אתגר "חבר מביא חבר": הקוד מהקישור נשמר מיד, לפני כל מסך —
+   ההרשמה עשויה לקרות אחרי מעבר לכרום או אחרי התקנה. ראו chal.js. */
+if (window.CHAL) CHAL.grabRef();
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
 /* מה שכבר נמסר עליי, ומה שידוע על מי שהזמין. */
@@ -2630,10 +2691,14 @@ function joinRow_(me) {
     ['שם ההורה', me.dadFirst], ['משפחת ההורה', me.dadLast],
     ['טלפון ההורה', me.dadPhone],
     ['הוזמן על ידי', me.from], ['מזהה המזמין', me.withId],
-    ['בדיקה', LTester() ? 'כן' : '']
+    ['בדיקה', LTester() ? 'כן' : ''],
+    /* אתגר "חבר מביא חבר": הקוד מהקישור. השרת מייחס רק שורה חדשה
+       (joinWrite_), ולכן שליחה חוזרת או עדכון פרטים אינם מזיזים דבר. */
+    ['קוד הזמנה באתגר', (window.CHAL && CHAL.ref()) || '']
   ].filter(function (c) {
     /* מכשיר ששוחזר ("כבר נרשמתי") אינו מקבל את הטלפון של השותף
        — ושורה ששולחת אותו ריק הייתה מוחקת אותו בגיליון. */
+    if (c[0] === 'קוד הזמנה באתגר') return !!c[1];
     return c[0] !== 'טלפון ההורה' || c[1];
   })) };
 }
@@ -4581,6 +4646,7 @@ function showDone(me, how) {
   drawWeek();
   drawApp();
   drawPhNag();
+  if (window.CHAL) CHAL.card($('chal'));
   if (how !== 'quiet') window.scrollTo(0, 0);
 }
 

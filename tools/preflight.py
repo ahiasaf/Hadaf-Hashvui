@@ -140,7 +140,7 @@ def check_orphan_classes():
     ident = re.compile(r'^[a-z][a-z0-9-]*$')
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
               'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html',
-              'shlach.html', 'team.html', 'kishurim.html', 'skira.html'):
+              'shlach.html', 'team.html', 'kishurim.html', 'skira.html', 'chaver.html'):
         if not os.path.exists(os.path.join(ROOT, f)):
             continue
         t = read(f)
@@ -437,7 +437,7 @@ def check_share_card():
     """
     shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html', 'kishurim.html',
               'board.html', 'learn.html', 'masa.html', 'team.html', 'hitraot.html', 'hagrala.html', 'zochim.html',
-              'skira.html']
+              'skira.html', 'chaver.html']
     card = 'share-card.jpg'
     if not os.path.exists(os.path.join(ROOT, card)):
         BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)

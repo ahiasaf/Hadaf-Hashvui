@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#F6F1E6">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="join-manifest.json">
+<title>הדף השבועי</title>
+<!-- ============================================================
+     אתגר "חבר מביא חבר" — עמוד התלמיד (8.99.318).
+     ============================================================
+     שני מצבים, לפי המכשיר:
+       · **נחיתה** (`?ref=<קוד>`, מכשיר שלא נרשם) — "יוסי מזמין
+         אותך", שורה אחת על האתגר, וכפתור להרשמה. הקוד נשמר במכשיר
+         ועובר עם ההרשמה (join.html), עד שהשרת מכריע.
+       · **האתגר שלי** (מכשיר רשום) — הקבוצה שלי קודם: מי השלים,
+         מה חסר, ומצב ההגרלה; אחר כך ההזמנה; ובסוף, בקטן, המונה
+         והתנאים. מי שכבר רשום והגיע מקישור — "אתה כבר איתנו",
+         וכפתור בולט לפתוח קבוצה משלו.
+
+     הכול מצויר ב-chal.js, מהשרת (challengeRoute_). אין כאן שום
+     חישוב זכאות, ושום שליחה.
+     ============================================================ -->
+<meta property="og:site_name" content="הדף השבועי של בני עקיבא">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="בוא ללמוד איתי · הדף השבועי">
+<meta property="og:description" content="דף גמרא אחד בשבוע. מצטרפים בדקה — ולומדים יחד.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/chaver">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/share-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="הדף השבועי של בני עקיבא">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="noindex">
+<style>
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --green:#4E9A2A; --green-d:#2E6B12;
+  --gold:#C08F2B; --gold-t:#8C681F;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780; --rule:#E5DAC3;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:var(--paper);color:var(--ink);line-height:1.6;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;
+  max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;
+  line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);
+  letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.back{display:inline-block;margin:2px 0 12px;font-size:.9rem;font-weight:700;color:var(--blue);
+  text-decoration:none}
+footer{margin-top:22px;font-size:.78rem;color:var(--ink-2);text-align:center}
+footer a{color:var(--ink-2)}
+/* ---- האתגר (גם בבית התלמיד — אותם שמות, ראו join.html) ---- */
+.ch-card,.ch-grp,.ch-inv{background:var(--surface);border:1px solid var(--rule);border-radius:16px;
+  padding:15px 16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(37,29,12,.05),0 2px 8px rgba(37,29,12,.05)}
+.ch-card.soft{background:#F3F7EE;border-color:#D6E6C6}
+.ch-card h2,.ch-inv h3,.ch-grp h3{font-size:1.12rem;font-weight:800;color:var(--blue-d);margin:0 0 6px}
+.ch-card.land h2{font-size:1.4rem}
+.ch-lead{font-size:1rem;font-weight:600;margin:0 0 10px}
+.ch-st{font-size:.98rem;font-weight:700;margin:8px 0 2px}
+.ch-sm{font-size:.82rem;font-weight:600;color:var(--ink-2);margin-top:4px}
+.ch-big{font-size:1.02rem;font-weight:800;color:var(--gold-t);margin:0 0 4px}
+.ch-cnt{font-size:.88rem;font-weight:700;color:var(--ink)}
+.ch-pub{border-top:1px dashed var(--rule);margin-top:12px;padding-top:10px}
+.ch-yay{background:#E7F2DD;color:var(--green-d);font-weight:800;border-radius:12px;padding:9px 12px;margin:0 0 10px}
+.ch-ppl{list-style:none;display:grid;gap:6px;margin:6px 0 0}
+.ch-ppl li{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #EFE7D7;border-radius:12px;
+  padding:7px 10px;min-height:42px}
+.ch-ppl li b{font-weight:800}
+.ch-ppl li i{font-style:normal;font-size:.72rem;font-weight:800;color:var(--gold-t)}
+.ch-ok,.ch-no{margin-inline-start:auto;font-size:.82rem;font-weight:800;border-radius:999px;padding:2px 10px}
+.ch-ok{background:#E7F2DD;color:var(--green-d)}
+.ch-no{background:#F3EEE2;color:var(--ink-2)}
+.ch-rm{font-size:.8rem;font-weight:800;color:#fff;background:#1FA637;border-radius:999px;padding:4px 10px;
+  text-decoration:none;flex:none}
+.ch-grp.in{border-color:#D9A43A}
+.ch-grp.won{border:2px solid var(--gold);background:#FFF8E6}
+.ch-grp.out{opacity:.85}
+.ch-btn{display:block;width:100%;margin:10px 0 0;padding:13px 14px;border-radius:14px;border:0;
+  background:var(--blue-d);color:#fff;font:inherit;font-size:1.02rem;font-weight:800;text-align:center;
+  text-decoration:none;cursor:pointer}
+.ch-btn.big{font-size:1.12rem;padding:15px 14px;box-shadow:0 6px 16px rgba(11,37,80,.25)}
+.ch-btn.wa{background:#1FA637}
+.ch-btn.wa[aria-disabled]{opacity:.5;pointer-events:none}
+.ch-btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--rule)}
+.ch-btn.wk{background:var(--green-d)}
+.ch-btn[disabled]{opacity:.5}
+.ch-link{font-size:.86rem;background:#fff;border:1px dashed var(--rule);border-radius:10px;padding:8px 10px;
+  overflow-wrap:anywhere;text-align:left;color:var(--ink-2)}
+.ch-inv p{font-size:.92rem;font-weight:600;margin:0 0 8px}
+.ch-all,.ch-terms{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:10px 14px;margin:0 0 12px}
+.ch-all summary,.ch-terms summary{font-weight:800;color:var(--blue-d);cursor:pointer}
+.ch-terms p{font-size:.88rem;font-weight:600;color:var(--ink-2);margin-top:8px}
+.ch-stay{font-size:.98rem;font-weight:800;color:var(--green-d);background:#F3F7EE;border-radius:12px;
+  padding:10px 12px;margin:0 0 12px}
+.ch-mine p{font-size:.95rem;font-weight:600;margin:0 0 6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <a class="back" id="back" href="join.html"></a>
+  <div id="ch"></div>
+  <footer><a href="info.html" id="info"></a></footer>
+</main>
+<script src="data.js"></script>
+<script src="testmode.js"></script>
+<script src="learned.js"></script>
+<script src="logo.js"></script>
+<script src="chal.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+/* המלל שנערך בניהול — אותן שתי שכבות של שאר העמודים. */
+(function () {
+  var take = function (map) {
+    for (var k in (map || {})) {
+      var p = k.split('.');
+      if (p.length === 2 && p[0] === 'ui' && typeof map[k] === 'string' && map[k]) UI[p[1]] = map[k];
+    }
+  };
+  try {
+    take(JSON.parse(ls('df:textCache') || 'null'));
+    take((JSON.parse(ls('df:cfg') || '{}')).texts);
+  } catch (e) {}
+})();
+(function () { var l = $('hdr-mark'); if (l) l.src = LOGO_MARK; })();
+$('brand').innerHTML = String(PROGRAM.short).replace(/[&<>]/g, '') + '<br>' +
+  String(PROGRAM.name.slice(PROGRAM.short.length).trim()).replace(/[&<>]/g, '');
+$('yr').textContent = String(UI.rstYear || '').replace('{y}', PROGRAM.year);
+document.title = UI.chTitle + ' · ' + PROGRAM.short;
+$('back').textContent = UI.chBack;
+$('info').textContent = UI.chInfo;
+/* מי שלא נרשם במכשיר הזה — אין לו "בית" לחזור אליו. */
+if (!LMe()) $('back').style.display = 'none';
+CHAL.page($('ch'));
+</script>
+</body>
+</html>
