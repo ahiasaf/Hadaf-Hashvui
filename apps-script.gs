@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 111;
+var SCRIPT_VERSION = 112;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9123,8 +9123,12 @@ function chSync_(U) {
   var canon = function (x) { x = alias[x] || x; return target[x] || x; };
 
   /* הלימוד: השלמה (לא קטע באמצע) אחרי הפתיחה — המועד הראשון; וכמה
-     השלמות היו לו בכלל (להודעת "הדף הראשון שלך"). */
-  var C = {}, L = {};
+     השלמות היו לו בכלל (להודעת "הדף הראשון שלך").
+     `E` — השלמה כלשהי, גם לפני הפתיחה: **למזמין** זה מספיק (החלטת
+     הבעלים, 8.99.325). החבר החדש — רק `C`, כמו קודם.
+     `Q` — הקטע הרחוק ביותר בדף שלא הושלם (0–1), לצלחת שמתמלאת.
+     אינו משנה זכאות: רק השלמה נספרת. */
+  var C = {}, L = {}, E = {}, Q = {};
   var lsh = sheet_(LEARN_TAB);
   if (lsh.getLastRow() > 1) {
     var lv = lsh.getDataRange().getValues(), lx = {};
@@ -9135,11 +9139,19 @@ function chSync_(U) {
       if (!lid || !P[lid] || P[lid].par) continue;
       if ((lc(lv[i], 'בדיקה') === 'כן') !== !!U.test) continue;
       var at = lc(lv[i], 'קטע'), of = lc(lv[i], 'מתוך');
-      if (at && parseInt(of, 10) > 0 && parseInt(at, 10) < parseInt(of, 10)) continue;
+      if (at && parseInt(of, 10) > 0 && parseInt(at, 10) < parseInt(of, 10)) {
+        /* קטע מתוך — כמו LPosFrac במכשיר: (קטע-1)/(מתוך-1). */
+        var qn = parseInt(of, 10), qa = parseInt(at, 10);
+        var qf = qn > 1 ? Math.max(0, Math.min(1, (qa - 1) / (qn - 1))) : 0;
+        if (qf > (Q[lid] || 0)) Q[lid] = qf;
+        continue;
+      }
       var tag = lc(lv[i], 'מסלול') + '|' + lc(lv[i], 'שבוע') + '|' + lc(lv[i], 'דף');
       (L[lid] = L[lid] || {})[tag] = 1;
       var ms = lx['תאריך'] === undefined ? 0 : chMs_(lv[i][lx['תאריך']]);
       if (ms && ms >= K.t0 && (!C[lid] || ms < C[lid])) C[lid] = ms;
+      /* בלי תאריך — עדיין השלמה. 1 ולא 0, כדי שייחשב. */
+      if (!E[lid] || (ms || 1) < E[lid]) E[lid] = ms || 1;
     }
   }
 
@@ -9184,10 +9196,11 @@ function chSync_(U) {
   });
   grp.forEach(function (g) {
     if (g['מצב'] !== CH_G_.wait) return;
-    var by = canon(g['מזמין']);
-    if (!C[by]) return;
+    var by = canon(g['מזמין']), cb = C[by] || E[by];
+    if (!cb) return;
     g['מצב'] = CH_G_.done;
-    g['הושלמה'] = chIso_(Math.max(chMs_(g['ננעלה']), C[by]));
+    /* מזמין שלמד לפני הפתיחה — הקבוצה מושלמת ברגע הנעילה. */
+    g['הושלמה'] = chIso_(Math.max(chMs_(g['ננעלה']), cb));
     chPut_(G, g);
   });
 
@@ -9239,7 +9252,8 @@ function chSync_(U) {
   Object.keys(keep).forEach(function (id) {
     var p = P[id];
     out.ppl[id] = { f: p.first, l: p.last, i: p.inst, n: p.instName, by: p.inv || '', at: p.at || 0,
-                    c: C[id] || 0, k: Object.keys(L[id] || {}).length, fr: F[id] || [] };
+                    c: C[id] || 0, e: E[id] || 0, q: Math.round((Q[id] || 0) * 100) / 100,
+                    k: Object.keys(L[id] || {}).length, fr: F[id] || [] };
     p.ids.forEach(function (x) { if (x !== id) out.al[x] = id; });
     Object.keys(target).forEach(function (x) { if (target[x] === id && x !== id) out.al[x] = id; });
   });
@@ -9350,7 +9364,7 @@ function chMy_(M, P, U) {
   var nm = function (id) { return (ppl[id] && ppl[id].f) || ''; };
   var lrn = function (id) { return !!(ppl[id] && ppl[id].c); };
   var gview = function (g) {
-    return { id: g.id, st: g.st, by: { n: nm(g.by), me: g.by === me, l: lrn(g.by) },
+    return { id: g.id, st: g.st, by: chByView_(M, g.by, me),
              f: g.f.map(function (f) { return { n: nm(f), me: f === me, l: lrn(f) }; }),
              d: chGrpDraw_(M, g) };
   };
@@ -9366,7 +9380,7 @@ function chMy_(M, P, U) {
   M.grp.forEach(function (g) { if (g.by === me) out.mine.push(gview(g)); });
   if ((p.fr || []).length) {
     out.open = chOpen_(M, me, me);
-    out.all = p.fr.map(function (f) { return { n: nm(f), l: lrn(f) }; });
+    out.all = p.fr.map(function (f) { return { n: nm(f), l: lrn(f), q: lrn(f) ? 0 : ppl[f].q || 0 }; });
   }
   pub.me = out;
   return pub;
@@ -9380,13 +9394,22 @@ function chOpen_(M, by, me) {
   var ok = [], no = [];
   (ppl[by].fr || []).forEach(function (f) {
     if (used[f]) return;
-    var x = { n: ppl[f].f, me: f === me, c: ppl[f].c };
+    var x = { n: ppl[f].f, me: f === me, c: ppl[f].c, q: ppl[f].q || 0 };
     if (ppl[f].c) ok.push(x); else no.push(x);
   });
   ok.sort(function (a, b) { return a.c - b.c; });
-  var show = function (x) { return { n: full || x.me ? x.n : '', me: x.me }; };
-  return { by: { n: ppl[by].f, me: by === me, l: !!ppl[by].c },
-           ok: ok.map(show), no: no.map(show), need: Math.max(0, 3 - ok.length) };
+  /* כמה התקדם בדף — רק למי שרואה את השם (המזמין, או החבר עצמו). */
+  var show = function (x) {
+    var see = full || x.me;
+    return { n: see ? x.n : '', me: x.me, q: see && !x.c ? x.q : 0 };
+  };
+  return { by: chByView_(M, by, me), ok: ok.map(show), no: no.map(show), need: Math.max(0, 3 - ok.length) };
+}
+/* המזמין, כפי שמשתתף רואה אותו. `l` — השלמה כלשהי, גם לפני הפתיחה
+   (`e`); `q` — כמה התקדם בדף, כשעוד לא השלים. */
+function chByView_(M, by, me) {
+  var p = M.ppl[by] || {}, l = !!(p.c || p.e);
+  return { n: p.f || '', me: by === me, l: l, q: l ? 0 : p.q || 0 };
 }
 /* מצב ההגרלה של קבוצה, כפי שמשתתף רואה אותו:
      me   — שלושת החברים השלימו, והמזמין עוד לא למד
@@ -9513,9 +9536,11 @@ function chAdm_(M, U) {
      להאריך או לסיים — לפני שמשהו משתנה אצל התלמידים. */
   var rx = M.ms.filter(function (m) { return m.st === CH_M_.none; }).length;
   o.alert = !!(M.on && M.F && M.n >= M.step * (M.F + rx) - M.step && M.last !== M.F && !chEnded_(M));
-  var ppl = M.ppl, who = function (id) {
+  /* `by` — המזמין: גם לימוד מלפני הפתיחה נחשב לו (`e`). */
+  var ppl = M.ppl, who = function (id, by) {
     var p = ppl[id] || {};
-    return { id: id, f: p.f || '', l: p.l || '', i: p.i || '', n: p.n || '', at: p.at || 0, c: p.c || 0 };
+    return { id: id, f: p.f || '', l: p.l || '', i: p.i || '', n: p.n || '', at: p.at || 0,
+             c: p.c || (by ? p.e || 0 : 0) };
   };
   var cnt = { done: 0, wait: 0, won: 0, sel: 0, out: 0, prog: 0 };
   M.grp.forEach(function (g) {
@@ -9538,8 +9563,8 @@ function chAdm_(M, U) {
   var gfull = function (id) {
     var g = gOf[id];
     if (!g) return null;
-    return { id: g.id, st: g.st, lock: g.lock, done: g.done, note: g.note, by: who(g.by),
-             f: g.f.map(who) };
+    return { id: g.id, st: g.st, lock: g.lock, done: g.done, note: g.note, by: who(g.by, 1),
+             f: g.f.map(function (f) { return who(f); }) };
   };
   o.ms = M.ms.map(function (m) {
     return { k: m.k, th: m.th, st: m.st, open: m.open, close: m.close, frz: m.frz, n: m.el.length,

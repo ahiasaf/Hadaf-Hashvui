@@ -2958,7 +2958,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.324';
+var APP_VERSION = '8.99.325';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15760,7 +15760,7 @@ function chaTile(n, lbl) {
 function chaWho(p, role) {
   return '<div class="prow2"><div style="flex:1"><b>' + esc((p.f + ' ' + p.l).trim()) + '</b>' +
     '<span>' + esc(role + ' · ' + (p.n || admInstName(p.i))) + '</span><span>' +
-    esc([p.at ? fill(UI.chaRowAt, { t: chaT(p.at) }) : '', p.c ? fill(UI.chaRowC, { t: chaT(p.c) }) : UI.chNotYet]
+    esc([p.at ? fill(UI.chaRowAt, { t: chaT(p.at) }) : '', p.c > 1 ? fill(UI.chaRowC, { t: chaT(p.c) }) : p.c ? UI.chLearned : UI.chNotYet]
         .filter(Boolean).join(' · ')) + '</span></div></div>';
 }
 function chaGrp(g) {
