@@ -1054,6 +1054,17 @@ footer a{color:var(--ink-2);font-weight:800}
    כמו ב-chaver.html; משתמשים בצבעים הקבועים ולא במשתנים של העמוד. ---- */
 .ch-card,.ch-grp,.ch-inv{background:#FFFDF8;border:1px solid #E5DAC3;border-radius:16px;
   padding:15px 16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(37,29,12,.05),0 2px 8px rgba(37,29,12,.05)}
+.qd{margin:12px 0}
+.qd-how{margin-top:12px;border-top:1px dashed #E5DAC3;padding-top:10px}
+.qd-how summary{font-weight:800;color:#17468F;cursor:pointer}
+.qd-how p{font-size:.9rem;font-weight:600;color:#5A6780;margin-top:8px}
+.qd-code{display:flex;gap:8px;align-items:center;margin-top:6px}
+.qd-code input{flex:1;min-width:0;font:inherit;font-size:1.05rem;letter-spacing:.12em;text-transform:uppercase;
+  border:1.5px solid #E5DAC3;border-radius:12px;padding:11px 12px;background:#fff;color:#0B2550}
+.qd-code .ch-btn{width:auto;margin:0;flex:none}
+.qd-leave{display:block;margin:14px auto 0;background:none;border:0;color:#5A6780;font:inherit;font-size:.84rem;
+  font-weight:700;text-decoration:underline;cursor:pointer}
+.qd-err{color:#A5382D}
 .ch-card.soft{background:#F3F7EE;border-color:#D6E6C6}
 .ch-card h2,.ch-inv h3,.ch-grp h3{font-size:1.12rem;font-weight:800;color:#0B2550;margin:0 0 6px}
 .ch-card.land h2{font-size:1.4rem}
@@ -1436,6 +1447,8 @@ footer a{color:var(--ink-2);font-weight:800}
     <div id="rail"></div>
     <div id="mytk" class="mytk" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
+    <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
+    <div id="quad"></div>
     <div id="wk-more"></div>
   </div>
 
@@ -1481,6 +1494,7 @@ footer a{color:var(--ink-2);font-weight:800}
 <script src="qr.js"></script>
 <script src="learned.js"></script>
 <script src="chal.js"></script>
+<script src="quad.js"></script>
 <script src="pair.js"></script>
 <script src="logo.js"></script>
 <script src="getapp.js"></script>
@@ -1934,6 +1948,7 @@ function drawTop() {
 /* אתגר "חבר מביא חבר": הקוד מהקישור נשמר מיד, לפני כל מסך —
    ההרשמה עשויה לקרות אחרי מעבר לכרום או אחרי התקנה. ראו chal.js. */
 if (window.CHAL) CHAL.grabRef();
+if (window.QUAD) QUAD.grabRef();
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
 /* מה שכבר נמסר עליי, ומה שידוע על מי שהזמין. */
@@ -4851,6 +4866,7 @@ function showDone(me, how) {
   drawApp();
   drawPhNag();
   if (window.CHAL) CHAL.card($('chal'));
+  if (window.QUAD) QUAD.card($('quad'));
   if (how !== 'quiet') window.scrollTo(0, 0);
 }
 

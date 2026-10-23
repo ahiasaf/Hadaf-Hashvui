@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.327';
+var APP_VERSION = '8.99.328';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11560,7 +11560,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
   { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'],
-                         ['prz','morePrz'], ['chal','moreChal'], ['test','moreTest']] },
+                         ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
      עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
   { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
@@ -12092,6 +12092,7 @@ function admPane() {
   if (sub === 'test')    { body.innerHTML = admTest(); return; }
   if (sub === 'chal')    return admChal(body);
   if (sub === 'prz')     return admPrz(body);
+  if (sub === 'quad')    return admQuad(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -15826,7 +15827,7 @@ function przRow(x, i, dis) {
   };
   return '<details class="prz-d"' + (PRZ.open[x.k] ? ' open' : '') +
     ' ontoggle="PRZ.open[\'' + esc(x.k) + '\']=this.open?1:0"><summary><b>' + esc(x.name || UI.przNoName) + '</b>' +
-    '<span>' + esc(fill(UI.przSrc, { wk: x.wk }) + ' · ' + (x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
+    '<span>' + esc((x.q ? UI.przSrcQ : fill(UI.przSrc, { wk: x.wk })) + ' · ' + (x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
     '<span>' + esc(st.join(' · ')) + '</span></summary>' +
     fld(UI.przPayL, '<div class="chips">' + przBtn(x, 'pay', '', UI.przPayN, !x.pay, '', dis) +
         przBtn(x, 'pay', 'y', UI.przPayYb, x.pay, ' j', dis) + '</div>', UI.przPayNote) +
@@ -15860,6 +15861,95 @@ function przPaint() {
   }
   h += '<button class="btn g" type="button" style="margin-top:12px"' + dis + ' onclick="przLoad()">' +
        esc(PRZ.busy ? UI.przLoading : UI.przReload) + '</button>';
+  el.innerHTML = h;
+}
+/* ============================================================
+   ניהול ← עוד ← הגרלת רביעיות (8.99.328) — כבויה עד שמפעילים.
+   ============================================================
+   המתג, הקבוצות, הכרטיסים וההגרלה — בשרת (quadRoute_). הגרלה ←
+   אישור ופרסום, כמו ההגרלה האישית: שום דבר לא יוצא לתלמידים בלי
+   האישור. הזוכות נכנסות ל"פרסים ותקציב" לבד (przSync_).
+   ============================================================ */
+var QDA = { d: null, at: 0, busy: false, msg: '' };
+function qdaCall(op, p) {
+  var q = { quad: op, key: (CFG.readKey || '').trim() };
+  for (var k in (p || {})) if (p.hasOwnProperty(k)) q[k] = p[k];
+  return scriptGet(q);
+}
+function qdaGot(d) {
+  QDA.busy = false;
+  /* כישלון משאיר את מה שעל המסך. */
+  if (d && d.status === 'ok' && d.groups) { QDA.d = d; QDA.at = Date.now(); QDA.msg = ''; }
+  else QDA.msg = (d && d.message) || UI.qdaFail;
+  qdaPaint();
+}
+function qdaGo(op, p, q) {
+  if (QDA.busy || (q && !confirm(q))) return;
+  if (!(CFG.readKey || '').trim()) { QDA.msg = UI.przNoKey; qdaPaint(); return; }
+  QDA.busy = true; qdaPaint();
+  qdaCall(op, p).then(qdaGot, function () { QDA.busy = false; QDA.msg = UI.qdaFail; qdaPaint(); });
+}
+function qdaDraw() {
+  var pz = String((document.getElementById('qda-pz') || {}).value || '').trim();
+  var n = parseInt((document.getElementById('qda-n') || {}).value, 10) || 1;
+  if (!pz) { QDA.msg = UI.qdaNoPz; qdaPaint(); return; }
+  qdaGo('draw', { n: n, prize: pz, rq: 'q' + Date.now().toString(36) }, fill(UI.qdaDrawQ, { n: n, p: pz }));
+}
+function admQuad(body) {
+  body.innerHTML = '<div id="qda"></div>';
+  if (!QDA.d || Date.now() - QDA.at > 60000) qdaGo('adm'); else qdaPaint();
+}
+function qdaGrp(o) {
+  return '<div class="prow2' + (o.test ? '' : o.n === 4 ? ' ok' : ' warn') + '"><span class="pm">' + o.n + '</span><div style="flex:1"><b>' +
+    esc(o.names.join(' · ')) + '</b><span>' + esc([o.inst, fill(UI.qdaGrpN, { n: o.n, nn: o.nn }),
+    fill(UI.qdaGrpTk, { n: o.tk }), o.test ? UI.qdaTest : ''].filter(Boolean).join(' · ')) + '</span></div></div>';
+}
+function qdaPaint() {
+  var el = document.getElementById('qda');
+  if (!el) return;
+  var d = QDA.d, dis = QDA.busy ? ' disabled' : '';
+  var h = QDA.msg ? '<div class="cond" style="margin-bottom:12px">' + esc(QDA.msg) + '</div>' : '';
+  if (d) {
+    h += '<div class="adm-card"><h4>' + esc(UI[d.on ? 'qdaOnH' : 'qdaOffH']) + '</h4><p class="h">' +
+      esc(d.on ? fill(UI.qdaOnP, { from: d.from, wk: d.wk }) : UI.qdaOffP) + '</p>' +
+      '<button class="btn ' + (d.on ? 'g' : 'p') + '" type="button"' + dis + ' onclick="qdaGo(\'on\',{v:\'' + (d.on ? '0' : '1') + '\'},UI.' +
+      (d.on ? 'qdaOffQ' : 'qdaOnQ') + ')">' + esc(UI[d.on ? 'qdaOff' : 'qdaOn']) + '</button></div>';
+    var full = d.groups.filter(function (o) { return o.n === 4 && !o.test; }).length;
+    h += '<div class="adm-card"><h4>' + esc(fill(UI.qdaQH, { from: d.from, wk: d.wk })) + '</h4><div class="cha-tiles">' +
+      chaTile(d.groups.length, UI.qdaTGrp) + chaTile(full, UI.qdaTFull) + chaTile(d.el, UI.qdaTEl) + chaTile(d.tk, UI.qdaTTk) + '</div>';
+    if (d.pend) {
+      h += '<div class="pp-h">' + esc(fill(UI.qdaPendH, { p: d.pend.prize })) + '</div><div class="plist">' +
+        d.pend.w.map(function (x) {
+          return '<div class="prow2 ok"><span class="pm">★</span><div style="flex:1"><b>' + esc(x.names) + '</b><span>' +
+            esc(x.inst + ' · ' + fill(UI.qdaGrpTk, { n: x.tk })) + '</span></div></div>';
+        }).join('') + '</div><p class="h">' + esc(UI.qdaPendP) + '</p>' +
+        '<button class="btn p" type="button"' + dis + ' onclick="qdaGo(\'pub\',{rid:QDA.d.pend.rid},UI.qdaPubQ)">' + esc(UI.qdaPub) + '</button>' +
+        '<button class="btn g" type="button" style="margin-top:8px"' + dis + ' onclick="qdaGo(\'void\',{rid:QDA.d.pend.rid},UI.qdaVoidQ)">' + esc(UI.qdaVoid) + '</button>';
+    } else if (d.el) {
+      h += '<div class="fld"><div class="label">' + esc(UI.qdaPz) + '</div><input id="qda-pz" type="text" value="' + esc(UI.qdaPzDef) + '"></div>' +
+        '<div class="fld"><div class="label">' + esc(UI.qdaN) + '</div><input id="qda-n" type="number" min="1" max="20" value="1" dir="ltr"></div>' +
+        '<p class="h">' + esc(UI.qdaDrawP) + '</p><button class="btn p" type="button"' + dis + ' onclick="qdaDraw()">' + esc(UI.qdaDraw) + '</button>';
+    } else h += '<p class="h">' + esc(UI.qdaNoEl) + '</p>';
+    h += '</div>';
+    if (d.wins.length) {
+      h += '<div class="adm-card"><h4>' + esc(UI.qdaWinsH) + '</h4>' +
+        d.wins.map(function (w) { return '<p class="h">' + esc(w.f) + '</p>'; }).join('') + '</div>';
+    }
+    if (d.miss.length) {
+      h += '<div class="adm-card"><h4>' + esc(fill(UI.qdaMissH, { n: d.miss.length })) + '</h4><p class="h">' + esc(UI.qdaMissP) + '</p>' +
+        '<div class="plist">' + d.miss.map(qdaGrp).join('') + '</div></div>';
+    }
+    if (d.alone.length) {
+      h += '<div class="adm-card"><h4>' + esc(fill(UI.qdaAloneH, { n: d.alone.length })) + '</h4><p class="h">' + esc(UI.qdaAloneP) + '</p>' +
+        d.alone.map(function (a) { return '<p class="h">' + esc(a) + '</p>'; }).join('') + '</div>';
+    }
+    if (d.groups.length) {
+      h += '<details class="adm-card mo-g"><summary>' + esc(fill(UI.qdaAllH, { n: d.groups.length })) + '</summary><div class="plist">' +
+        d.groups.map(qdaGrp).join('') + '</div></details>';
+    }
+  }
+  h += '<button class="btn g" type="button" style="margin-top:12px"' + dis + ' onclick="qdaGo(\'adm\')">' +
+       esc(QDA.busy ? UI.przLoading : UI.przReload) + '</button>';
   el.innerHTML = h;
 }
 function admChal(body) {

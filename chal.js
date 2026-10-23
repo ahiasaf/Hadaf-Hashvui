@@ -213,7 +213,7 @@
       var q = ' ch-q' + (x + 1) + ' ch-' + s.k;
       lb += '<div class="ch-lb' + q + '"><b>' + esc(s.k === 'free' ? U('chSeatFree') : s.n) +
         (s.inv ? '<span class="ch-crown">' + esc(U('chInviterTag')) + '</span>' : '') + '</b>' +
-        (STATE[s.k] ? '<i>' + esc(U(STATE[s.k])) + '</i>' : '') + '</div>';
+        (s.lbl || STATE[s.k] ? '<i>' + esc(s.lbl || U(STATE[s.k])) + '</i>' : '') + '</div>';
       pl += '<div class="ch-pl' + q + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
     });
     return '<div class="ch-tbl' + (sm ? ' sm' : '') + '">' + lb + '<div class="ch-board">' +
@@ -507,5 +507,6 @@
     load().then(function (d) { pageDraw(box, d); });
   }
 
-  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref };
+  /* `table`/`ic` — לשולחן של הרביעייה (quad.js, 8.99.328): אותו ציור. */
+  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, table: tableHtml, ic: IC };
 })();

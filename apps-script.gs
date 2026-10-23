@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 114;
+var SCRIPT_VERSION = 115;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -156,6 +156,8 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'בחירת פרס',
                     /* רישום הפרסים והתקציב — שם הזוכה, תשלום, הודעה. ראו przRoute_. */
                     'פרסים',
+                    /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
+                    'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
                     'התנגשויות הרשמה',
                     /* מי ביקש התראה כשדף נעול ייפתח — מנוי למכשיר, ולכן
@@ -1267,6 +1269,8 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
   /* פרסים ותקציב — לרכז. ראו przRoute_. */
   if (e && e.parameter && e.parameter.prz) return przRoute_(e);
+  /* הגרלת הרביעיות — ראו quadRoute_. */
+  if (e && e.parameter && e.parameter.quad) return quadRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
   /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
@@ -9014,20 +9018,33 @@ function przSync_(L) {
     var z = rafPrzRow_(T, r, picks), k = rid + '|' + code;
     var der = { 'מזהה הגרלה': rid, 'שבוע': T.c(r, 'שבוע'), 'קוד ישיבה': code, 'ישיבה': T.c(r, 'ישיבה'),
                 'מזהה הזוכה': T.c(r, 'זוכה'), 'זוכה': T.c(r, 'שם הזוכה'), 'פרס': z.p, 'פרס — איך': z.how };
-    var at = key[k];
-    if (at === undefined) {
-      var full = [];
-      Object.keys(L.ix).forEach(function (h) { full[L.ix[h]] = ''; });
-      full[L.ix['מפתח']] = k;
-      PRZ_DER_.forEach(function (h) { full[L.ix[h]] = der[h] === '' ? '' : "'" + der[h]; });
-      for (var f = 0; f < full.length; f++) if (full[f] === undefined) full[f] = '';
-      L.sh.appendRow(full);
-      L.rows.push(full.map(function (x) { return String(x).replace(/^'/, ''); }));
-      key[k] = L.rows.length - 1;
-      continue;
-    }
-    PRZ_DER_.forEach(function (h) { if (L.c(at, h) !== String(der[h] || '')) przPut_(L, at, h, der[h] || ''); });
+    przRow_(L, key, k, der);
   }
+  /* הגרלת הרביעיות (8.99.328) — אותם כללים בדיוק: שורה לכל קבוצה שזכתה ופורסמה. */
+  var Q = qdTbl_(QD_RAF, QD_RCOLS_);
+  for (var j = 1; j < Q.rows.length; j++) {
+    if (Q.c(j, 'סטטוס') !== 'פורסם') continue;
+    var qk = Q.c(j, 'הגרלה') + '|' + Q.c(j, 'קבוצה');
+    var qd = { 'מזהה הגרלה': Q.c(j, 'הגרלה'), 'שבוע': (/^Q(\d+)-/.exec(Q.c(j, 'הגרלה')) || [0, ''])[1],
+               'קוד ישיבה': Q.c(j, 'קוד ישיבה'), 'ישיבה': Q.c(j, 'ישיבה'), 'מזהה הזוכה': Q.c(j, 'קבוצה'),
+               'זוכה': Q.c(j, 'שמות'), 'פרס': Q.c(j, 'פרס'), 'פרס — איך': 'רביעיות' };
+    przRow_(L, key, qk, qd);
+  }
+}
+function przRow_(L, key, k, der) {
+  var at = key[k];
+  if (at === undefined) {
+    var full = [];
+    Object.keys(L.ix).forEach(function (h) { full[L.ix[h]] = ''; });
+    full[L.ix['מפתח']] = k;
+    PRZ_DER_.forEach(function (h) { full[L.ix[h]] = der[h] === '' ? '' : "'" + der[h]; });
+    for (var f = 0; f < full.length; f++) if (full[f] === undefined) full[f] = '';
+    L.sh.appendRow(full);
+    L.rows.push(full.map(function (x) { return String(x).replace(/^'/, ''); }));
+    key[k] = L.rows.length - 1;
+    return;
+  }
+  PRZ_DER_.forEach(function (h) { if (L.c(at, h) !== String(der[h] || '')) przPut_(L, at, h, der[h] || ''); });
 }
 function przNum_(s) {
   var n = parseFloat(String(s || '').replace(/[^\d.]/g, ''));
@@ -9042,7 +9059,7 @@ function przState_() {
   for (var r = 1; r < L.rows.length; r++) {
     if (!L.c(r, 'מפתח')) continue;
     var o = { k: L.c(r, 'מפתח'), rid: L.c(r, 'מזהה הגרלה'), wk: L.c(r, 'שבוע'), code: L.c(r, 'קוד ישיבה'),
-              inst: L.c(r, 'ישיבה'), name: L.c(r, 'זוכה'), p: L.c(r, 'פרס'), how: L.c(r, 'פרס — איך'),
+              inst: L.c(r, 'ישיבה'), name: L.c(r, 'זוכה'), p: L.c(r, 'פרס'), how: L.c(r, 'פרס — איך'), q: L.c(r, 'פרס — איך') === 'רביעיות' ? 1 : 0,
               pay: L.c(r, 'תשלום') === 'שולם' ? 1 : 0, payAt: L.c(r, 'תשלום — מתי'),
               dist: L.c(r, 'חלוקה') === 'חולק' ? 1 : 0, distAt: L.c(r, 'חלוקה — מתי'),
               cost: przNum_(L.c(r, 'עלות')),
@@ -9095,6 +9112,377 @@ function przRoute_(e) {
     /* מחוץ לנעילה — chModel_ לוקח אותה בעצמו כשהמטמון קר. */
     if (out.sum) { try { var M = chModel_({ test: false }, false); out.sum.chOn = !!(M && M.on); } catch (xc) {} }
     return reply_(e, out);
+  } catch (err) {
+    return reply_(e, { status: 'error', message: String(err) });
+  }
+}
+
+/* ============================================================
+   הגרלת רביעיות — רבעונית, מאחורי מתג כבוי (8.99.328 · SCRIPT_VERSION 115).
+   ============================================================
+   ?quad=my&id=                 — הרביעייה שלי, ההתקדמות השבוע, הזוכות. ציבורי.
+   ?quad=open&id=               — פתיחת רביעייה (המכשיר הוא הפותח).
+   ?quad=join&id=&code=         — הצטרפות בקוד מהקישור.
+   ?quad=leave&id=              — יציאה, מהשבוע הבא.
+   ?quad=kick&id=&who=          — הוצאת חבר לא פעיל (שבועיים בלי לימוד), מהשבוע הבא.
+   ?quad=adm&key=               — הכול לרכז: מתג, קבוצות, כרטיסים, הגרלה.
+   ?quad=on&key=&v=1|0          — המתג. כבוי = אין כרטיס אצל התלמיד (מלבד בודקים).
+   ?quad=draw&key=&n=&prize=&rq= — הגרלה (לפי כרטיסים, קבוצות שונות). לא מפורסמת.
+   ?quad=pub&key=&rid=          — אישור ופרסום. הרבעון הבא מתחיל בשבוע הבא.
+   ?quad=void&key=&rid=         — ביטול הגרלה שלא פורסמה.
+
+   **למה לא הרחבה של "חבר מביא חבר" (בריף 23.10, ג.8).** שם הקבוצות
+   נוצרות בשרת משרשרת הזמנה של מצטרפים חדשים בלבד, ננעלות לתמיד, ותלמיד
+   יכול להיות בכמה שולחנות. כאן התלמיד בוחר קבוצה, כל תלמיד בה (גם ותיק),
+   קבוצה אחת בשבוע, והחלפה בין שבועות. מבנה שונה — ולכן לשוניות ונתיב
+   נפרדים. המשותף הוא הגדרת "למד" (rafCalc_), ובלקוח — צורת השולחן.
+
+   **הלשוניות** (פרטיות):
+     רביעיות           שורה לכל חברות: קבוצה · קוד · מזהה · תפקיד · משבוע · עד שבוע.
+                       פעיל בשבוע w ⇔ משבוע ≤ w < עד שבוע (ריק = עדיין).
+     רביעיות-הגרלות    שורה לכל זוכה: הגרלה · שבועות · קבוצה · כרטיסים · פרס · סטטוס.
+   מטמון "למד" לשבוע: הנוכחי — 2 דקות, הקודם — 10, ישנים יותר — 6 שעות.
+   **הנעילה השבועית בלי טריגר:** כל כניסה, הצטרפות ויציאה נכנסות לתוקף
+   בשבוע הבא (progWeek_ מתחלף ביום ראשון). ההרכב של השבוע הנוכחי קבוע.
+
+   **כרטיס קבוצתי** לשבוע w: בדיוק ארבעה פעילים ב-w, וכל הארבעה עם כרטיס
+   לימוד על הדף של שבוע w (אותה הגדרה כמו הכרטיס האישי — rafCalc_). שלושה
+   מתוך ארבעה — כלום. כרטיס אחד לשבוע, בלי תלות במסלול ובלי כפל. לפיד בחוץ.
+   ============================================================ */
+var QD_TAB = 'רביעיות';
+var QD_RAF = 'רביעיות-הגרלות';
+var QD_COLS_ = ['קבוצה', 'קוד', 'מזהה', 'תפקיד', 'משבוע', 'עד שבוע'];
+var QD_RCOLS_ = ['הגרלה', 'שבועות', 'קבוצה', 'מזהי הקבוצה', 'שמות', 'קוד ישיבה', 'ישיבה', 'פותח',
+                 'כרטיסים', 'פרס', 'סטטוס', 'מבצע'];
+var QD_ABC_ = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function qdTbl_(tab, cols) {
+  var sh = sheet_(tab);
+  if (sh.getLastRow() < 1 || sh.getLastColumn() < 1) sh.getRange(1, 1, 1, cols.length).setValues([cols]);
+  var v = sh.getDataRange().getDisplayValues(), ix = {};
+  for (var i = 0; i < v[0].length; i++) ix[String(v[0][i]).trim()] = i;
+  cols.forEach(function (k) {
+    if (ix[k] !== undefined) return;
+    var at = sh.getLastColumn();
+    sh.getRange(1, at + 1).setValue(k);
+    ix[k] = at;
+    for (var r = 0; r < v.length; r++) v[r][at] = r ? '' : k;
+  });
+  return { sh: sh, ix: ix, rows: v, c: function (r, k) {
+    return ix[k] === undefined ? '' : String(v[r][ix[k]] == null ? '' : v[r][ix[k]]).trim();
+  } };
+}
+function qdAdd_(L, obj) {
+  var row = [];
+  Object.keys(L.ix).forEach(function (h) { row[L.ix[h]] = obj[h] === undefined || obj[h] === '' ? '' : "'" + obj[h]; });
+  for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+  L.sh.appendRow(row);
+  L.rows.push(row.map(function (x) { return String(x).replace(/^'/, ''); }));
+}
+function qdPut_(L, r, k, val) {
+  L.sh.getRange(r + 1, L.ix[k] + 1).setValue(val === '' ? '' : "'" + String(val));
+  L.rows[r][L.ix[k]] = String(val);
+}
+/* ---- המתג והרבעון ---- */
+function qdProp_(k) { try { return PropertiesService.getScriptProperties().getProperty(k) || ''; } catch (x) { return ''; } }
+function qdOn_() { return qdProp_('quadOn') === '1'; }
+function qdFrom_() { return parseInt(qdProp_('quadFrom'), 10) || 1; }
+/* ---- הדף של שבוע w, ומי למד אותו (כרטיס הלימוד האישי) ---- */
+function qdDaf_(w) {
+  var out = '';
+  [TAANIT_WK, MEGILA_WK].forEach(function (m) {
+    Object.keys(m).forEach(function (d) { if (!out && m[d] === w) out = d.replace(/[.:]$/, ''); });
+  });
+  return out;
+}
+/* rafCalc_ מחשב לדף ההגרלה (rafDaf_). כאן — לדף של שבוע w: אותו חישוב
+   בדיוק, עם RAF_D_ מוחלף לרגע ומוחזר. מטמון: שבוע שעבר — 10 דקות. */
+function qdLearned_(w) {
+  var ck = 'quad:l:' + w, rc = CacheService.getScriptCache();
+  try { var c0 = rc.get(ck); if (c0) return JSON.parse(c0); } catch (x0) {}
+  var D = qdDaf_(w), out = { ok: {} };
+  if (D) {
+    var keep = RAF_D_, R;
+    RAF_D_ = D;
+    try { R = rafCalc_(); } finally { RAF_D_ = keep; }
+    /* כל מזהה של מי שלמד — גם הישנים שאוחדו לחשבון אחד. */
+    var canon = function (id) { var c = R.alias[id] || id; return R.target[c] || c; };
+    Object.keys(R.ppl).forEach(function (id) {
+      var d = R.done[canon(id)];
+      if (d && d.l) { out.ok[id] = 1; (R.ppl[id].ids || []).forEach(function (x) { out.ok[x] = 1; }); }
+    });
+    Object.keys(R.alias).forEach(function (a) { var d = R.done[canon(a)]; if (d && d.l) out.ok[a] = 1; });
+  }
+  try { rc.put(ck, JSON.stringify(out), w < progWeek_() - 1 ? 21600 : w < progWeek_() ? 600 : 120); } catch (x1) {}
+  return out;
+}
+function qdDid_(Lw, ids) {
+  for (var i = 0; i < ids.length; i++) if (Lw.ok[ids[i]]) return true;
+  return false;
+}
+/* ---- המודל: קבוצות, חברים לפי שבוע, כרטיסים ---- */
+function qdModel_() {
+  var L = qdTbl_(QD_TAB, QD_COLS_), t = joinTable_(), G = {}, order = [];
+  var pp = {};
+  var person = function (id) {
+    if (pp[id]) return pp[id];
+    var r = rowOfId_(t, id), row = r >= 1 ? t.rows[r] : null;
+    return pp[id] = { id: id, ids: row ? rowIds_(t, row) : [id], first: row ? t.c(row, 'שם') : '',
+                      last: row ? t.c(row, 'משפחה') : '', code: row ? t.c(row, 'קוד ישיבה') : '',
+                      inst: row ? t.c(row, 'ישיבה') : '', test: row ? t.c(row, 'בדיקה') === 'כן' : false };
+  };
+  for (var r = 1; r < L.rows.length; r++) {
+    var g = L.c(r, 'קבוצה'), id = L.c(r, 'מזהה');
+    if (!g || !id) continue;
+    if (!G[g]) { G[g] = { id: g, code: '', m: [] }; order.push(g); }
+    if (L.c(r, 'קוד')) G[g].code = L.c(r, 'קוד');
+    G[g].m.push({ r: r, id: id, own: L.c(r, 'תפקיד') === 'פותח', from: parseInt(L.c(r, 'משבוע'), 10) || 0,
+                  to: parseInt(L.c(r, 'עד שבוע'), 10) || 0, p: person(id) });
+  }
+  return { L: L, t: t, G: G, order: order, person: person, wk: progWeek_() };
+}
+function qdAct_(m, w) { return m.from <= w && (!m.to || w < m.to); }
+function qdIn_(g, w) { return g.m.filter(function (m) { return qdAct_(m, w); }); }
+/* המזהה שלי — שורת תלמיד (לא הורה) מהמזהים של המכשיר. */
+function qdMe_(M, raw) {
+  var mine = String(raw || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  for (var i = 0; i < mine.length; i++) {
+    var r = rowOfId_(M.t, mine[i]);
+    if (r < 1) continue;
+    var row = M.t.rows[r];
+    if (M.t.c(row, 'תפקיד') === 'הורה') return null;
+    if (RAF_NEVER.indexOf(M.t.c(row, 'קוד ישיבה')) >= 0) return null;
+    return { id: M.t.c(row, 'מזהה') || mine[i], ids: rowIds_(M.t, row), test: M.t.c(row, 'בדיקה') === 'כן' };
+  }
+  return null;
+}
+function qdMine_(M, me, w) {
+  /* החברות שלי שפעילה בשבוע w (או שעוד תתחיל ממנו). */
+  var out = null;
+  M.order.forEach(function (gid) {
+    M.G[gid].m.forEach(function (m) {
+      if (!out && me.ids.indexOf(m.id) >= 0 && qdAct_(m, w)) out = { g: M.G[gid], m: m };
+    });
+  });
+  return out;
+}
+/* כרטיסי קבוצה בשבועות [from..to]: לכל שבוע — ארבעה פעילים וכולם למדו. */
+function qdTickets_(M, g, from, to, LW) {
+  var n = 0, wks = [];
+  for (var w = from; w <= to; w++) {
+    var act = qdIn_(g, w);
+    if (act.length !== 4) continue;
+    var Lw = LW[w] || (LW[w] = qdLearned_(w));
+    if (act.every(function (m) { return qdDid_(Lw, m.p.ids); })) { n++; wks.push(w); }
+  }
+  return { n: n, wks: wks };
+}
+/* ---- התלמיד ---- */
+function qdMy_(P) {
+  var M = qdModel_(), me = qdMe_(M, P.id), on = qdOn_();
+  var tst = String(P.tst || '') === '1' && me && me.test;
+  if (!on && !tst) return { status: 'ok', on: false };
+  var res = { status: 'ok', on: true, wk: M.wk, wins: qdWinsPub_() };
+  if (!me) { res.who = 0; return res; }
+  res.who = 1;
+  var w = M.wk, cur = qdMine_(M, me, w), nxt = qdMine_(M, me, w + 1), LW = {};
+  var x = cur || nxt;
+  if (x) {
+    var g = x.g, Lw = LW[w] = qdLearned_(w), Lp = null;
+    var seats = [], seen = {};
+    g.m.forEach(function (m) {
+      if (seen[m.id] || !(qdAct_(m, w) || qdAct_(m, w + 1))) return;
+      seen[m.id] = 1;
+      /* לא פעיל — שבועיים שלמים אחרונים בלי לימוד, כשהיה בקבוצה */
+      var idle = false;
+      if (qdAct_(m, w - 1) && qdAct_(m, w - 2)) {
+        LW[w - 1] = LW[w - 1] || qdLearned_(w - 1);
+        LW[w - 2] = LW[w - 2] || qdLearned_(w - 2);
+        idle = !qdDid_(LW[w - 1], m.p.ids) && !qdDid_(LW[w - 2], m.p.ids);
+      }
+      seats.push({ k: me.ids.indexOf(m.id) >= 0 ? 1 : 0, f: m.p.first || '?',
+                   now: qdAct_(m, w) ? 1 : 0, next: qdAct_(m, w + 1) ? 1 : 0,
+                   did: qdAct_(m, w) && qdDid_(Lw, m.p.ids) ? 1 : 0, idle: idle ? 1 : 0, r: me.ids.indexOf(m.id) >= 0 ? 0 : m.r });
+    });
+    var T = qdTickets_(M, g, Math.max(qdFrom_(), 1), w, LW);
+    /* רצף: שבועות רצופים אחרונים עם כרטיס (בלי השבוע הנוכחי אם עוד לא הושלם) */
+    var run = 0;
+    for (var z = T.wks.indexOf(w) >= 0 ? w : w - 1; z >= 1 && qdTickets_(M, g, z, z, LW).n; z--) run++;
+    res.wins.forEach(function (o) { if (o.g === g.id) o.mine = 1; });
+    res.g = { code: g.code, own: x.m.own ? 1 : 0, seats: seats, n: qdIn_(g, w).length, nn: qdIn_(g, w + 1).length,
+              tk: T.n, run: run, mine: cur ? 1 : 0, leaving: cur && !nxt ? 1 : 0 };
+  }
+  res.wins.forEach(function (o) { delete o.g; });
+  return res;
+}
+function qdCode_(M) {
+  var used = {};
+  M.order.forEach(function (g) { used[M.G[g].code] = 1; });
+  for (var k = 0; k < 20; k++) {
+    var s = '', h = Utilities.getUuid().replace(/-/g, '');
+    for (var i = 0; i < 6; i++) s += QD_ABC_.charAt(parseInt(h.substr(i * 2, 2), 16) % QD_ABC_.length);
+    if (!used[s]) return s;
+  }
+  return '';
+}
+function qdWrite_(P, op) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'error', message: 'busy' };
+  try {
+    var M = qdModel_(), me = qdMe_(M, P.id), w = M.wk;
+    var tst = String(P.tst || '') === '1' && me && me.test;
+    if (!qdOn_() && !tst) return { status: 'error', message: 'off' };
+    if (!me) return { status: 'error', message: 'who' };
+    var nxt = qdMine_(M, me, w + 1);
+    if (op === 'open' || op === 'join') {
+      if (nxt) return { status: 'error', message: 'has' };
+      var gid, code;
+      if (op === 'open') {
+        code = qdCode_(M);
+        if (!code) return { status: 'error', message: 'code' };
+        gid = 'Q' + Utilities.getUuid().slice(0, 8);
+      } else {
+        code = String(P.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        var g = null;
+        M.order.forEach(function (k) { if (M.G[k].code === code) g = M.G[k]; });
+        if (!g) return { status: 'error', message: 'nocode' };
+        if (qdIn_(g, w + 1).length >= 4) return { status: 'error', message: 'full' };
+        if (!qdIn_(g, w + 1).length) return { status: 'error', message: 'nocode' };
+        gid = g.id;
+      }
+      qdAdd_(M.L, { 'קבוצה': gid, 'קוד': op === 'open' ? code : '', 'מזהה': me.id,
+                    'תפקיד': op === 'open' ? 'פותח' : 'חבר', 'משבוע': String(w + 1), 'עד שבוע': '' });
+    } else if (op === 'leave' || op === 'kick') {
+      if (!nxt) return { status: 'error', message: 'none' };
+      var tgt = nxt.m;
+      if (op === 'kick') {
+        tgt = null;
+        nxt.g.m.forEach(function (m) { if (String(m.r) === String(P.who || '') && qdAct_(m, w + 1) && me.ids.indexOf(m.id) < 0) tgt = m; });
+        if (!tgt) return { status: 'error', message: 'none' };
+        var L1 = qdLearned_(w - 1), L2 = qdLearned_(w - 2);
+        if (!(qdAct_(tgt, w - 1) && qdAct_(tgt, w - 2)) || qdDid_(L1, tgt.p.ids) || qdDid_(L2, tgt.p.ids)) {
+          return { status: 'error', message: 'active' };
+        }
+      }
+      /* מי שעוד לא התחיל (הצטרף השבוע) — יוצא מיד, בלי שבוע ריק. */
+      qdPut_(M.L, tgt.r, 'עד שבוע', String(tgt.from > w ? tgt.from : w + 1));
+    }
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return qdMy_(P);
+}
+/* ---- הזוכות שפורסמו — שמות פרטיים בלבד ---- */
+function qdWinsPub_() {
+  var L = qdTbl_(QD_RAF, QD_RCOLS_), last = '', out = [];
+  for (var r = L.rows.length - 1; r >= 1; r--) {
+    if (L.c(r, 'סטטוס') !== 'פורסם') continue;
+    if (!last) last = L.c(r, 'הגרלה');
+    if (L.c(r, 'הגרלה') !== last) break;
+    out.push({ g: L.c(r, 'קבוצה'), f: L.c(r, 'שמות').split(/\s*·\s*/).map(function (s) { return s.split(' ')[0]; }).join(' · ') });
+  }
+  return out;
+}
+/* ---- הרכז ---- */
+function qdAdm_() {
+  var M = qdModel_(), w = M.wk, from = qdFrom_(), LW = {}, groups = [], el = [], miss = [];
+  M.order.forEach(function (gid) {
+    var g = M.G[gid], act = qdIn_(g, w), nx = qdIn_(g, w + 1);
+    if (!act.length && !nx.length) return;
+    var T = qdTickets_(M, g, from, w, LW);
+    var show = (act.length ? act : nx).map(function (m) { return (m.p.first + ' ' + m.p.last).trim(); });
+    var o = { id: gid, n: act.length, nn: nx.length, names: show, inst: (act[0] || nx[0]).p.inst, tk: T.n, wks: T.wks,
+              test: (act.length ? act : nx).some(function (m) { return m.p.test; }) ? 1 : 0 };
+    groups.push(o);
+    if (T.n && !o.test) el.push(o);
+    if (nx.length < 4) miss.push(o);
+  });
+  /* מי שיצא מקבוצה ולא נכנס לאחרת — לרכז, כדי לצרף אותו. */
+  var alone = [], inNext = {};
+  M.order.forEach(function (gid) { M.G[gid].m.forEach(function (m) { if (qdAct_(m, w + 1)) inNext[m.id] = 1; }); });
+  M.order.forEach(function (gid) {
+    M.G[gid].m.forEach(function (m) {
+      if (m.to && !inNext[m.id] && alone.indexOf(m.id) < 0) alone.push(m.id);
+    });
+  });
+  var R = qdTbl_(QD_RAF, QD_RCOLS_), pend = null;
+  for (var r = R.rows.length - 1; r >= 1; r--) {
+    if (R.c(r, 'סטטוס') !== 'הוגרל') continue;
+    var rid = R.c(r, 'הגרלה');
+    if (pend && pend.rid !== rid) continue;
+    pend = pend || { rid: rid, prize: R.c(r, 'פרס'), wks: R.c(r, 'שבועות'), w: [] };
+    pend.w.push({ g: R.c(r, 'קבוצה'), names: R.c(r, 'שמות'), inst: R.c(r, 'ישיבה'), tk: R.c(r, 'כרטיסים') });
+  }
+  return { status: 'ok', on: qdOn_(), wk: w, from: from, groups: groups, el: el.length,
+           tk: el.reduce(function (s, o) { return s + o.tk; }, 0), miss: miss,
+           alone: alone.map(function (id) { var p = M.person(id); return (p.first + ' ' + p.last).trim() + (p.inst ? ' · ' + p.inst : ''); }),
+           pend: pend, wins: qdWinsPub_() };
+}
+function qdDraw_(P) {
+  var n = Math.max(1, Math.min(20, parseInt(P.n, 10) || 1)), prize = String(P.prize || '').trim().slice(0, 80);
+  if (!prize) return { status: 'error', message: 'חסר הפרס' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var R = qdTbl_(QD_RAF, QD_RCOLS_), rq = String(P.rq || '').slice(0, 40);
+    for (var r = 1; r < R.rows.length; r++) if (R.c(r, 'סטטוס') === 'הוגרל') return { status: 'error', message: 'יש הגרלה שממתינה לאישור — אשרו או בטלו אותה קודם' };
+    var M = qdModel_(), w = M.wk, from = qdFrom_(), LW = {}, L = [];
+    M.order.forEach(function (gid) {
+      var g = M.G[gid], T = qdTickets_(M, g, from, w, LW);
+      var act = qdIn_(g, w).length ? qdIn_(g, w) : g.m.filter(function (m) { return qdAct_(m, w - 1); });
+      if (!T.n || act.some(function (m) { return m.p.test; })) return;
+      var own = null;
+      g.m.forEach(function (m) { if (m.own) own = m; });
+      L.push({ g: g, tk: T.n, act: act, own: own });
+    });
+    if (!L.length) return { status: 'error', message: 'אין קבוצה עם כרטיס' };
+    var rid = 'Q' + w + '-' + (rq || Utilities.getUuid().slice(0, 8)).slice(-8);
+    for (var i = 0; i < n && L.length; i++) {
+      var x = rafPickW_(L, function (o) { return o.tk; });
+      L.splice(L.indexOf(x), 1);
+      var p0 = (x.own || x.act[0]).p;
+      qdAdd_(R, { 'הגרלה': rid, 'שבועות': from + '-' + w, 'קבוצה': x.g.id,
+                  'מזהי הקבוצה': x.act.map(function (m) { return m.id; }).join(' '),
+                  'שמות': x.act.map(function (m) { return (m.p.first + ' ' + m.p.last).trim(); }).join(' · '),
+                  'קוד ישיבה': p0.code, 'ישיבה': p0.inst, 'פותח': (p0.first + ' ' + p0.last).trim(),
+                  'כרטיסים': String(x.tk), 'פרס': prize, 'סטטוס': 'הוגרל', 'מבצע': 'רכז' });
+    }
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return qdAdm_();
+}
+function qdSt_(P, st) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var R = qdTbl_(QD_RAF, QD_RCOLS_), rid = String(P.rid || ''), k = 0;
+    for (var r = 1; r < R.rows.length; r++) {
+      if (R.c(r, 'הגרלה') !== rid || R.c(r, 'סטטוס') !== 'הוגרל') continue;
+      qdPut_(R, r, 'סטטוס', st); k++;
+    }
+    if (!k) return { status: 'error', message: 'ההגרלה לא נמצאה או כבר הוכרעה' };
+    /* הרבעון הבא — מהשבוע הבא. הכרטיסים שנספרו כאן אינם עוברים. */
+    if (st === 'פורסם') PropertiesService.getScriptProperties().setProperty('quadFrom', String(progWeek_() + 1));
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return qdAdm_();
+}
+function quadRoute_(e) {
+  var P = e.parameter, op = String(P.quad);
+  try {
+    if (op === 'my') return reply_(e, qdMy_(P));
+    if (['open', 'join', 'leave', 'kick'].indexOf(op) >= 0) return reply_(e, qdWrite_(P, op));
+    if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    if (op === 'adm') return reply_(e, qdAdm_());
+    if (op === 'on') {
+      var sp = PropertiesService.getScriptProperties();
+      if (String(P.v) === '1' && !qdOn_() && !sp.getProperty('quadFrom')) sp.setProperty('quadFrom', String(progWeek_() + 1));
+      sp.setProperty('quadOn', String(P.v) === '1' ? '1' : '0');
+      return reply_(e, qdAdm_());
+    }
+    if (op === 'draw') return reply_(e, qdDraw_(P));
+    if (op === 'pub') return reply_(e, qdSt_(P, 'פורסם'));
+    if (op === 'void') return reply_(e, qdSt_(P, 'בוטל'));
+    return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
   }

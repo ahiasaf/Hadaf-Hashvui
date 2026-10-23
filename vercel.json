@@ -5,7 +5,7 @@
   ],
   "headers": [
     {
-      "source": "/(join-manifest.json|index.html|admin.html|learn.html|rights.html|accessibility.html|info.html|slidetest.html|lab.html|voicetest.html|pushtest.html|tzevet.html|shlach.html|kishurim.html|skira.html|ov.js|masa.html|masa.js|tiul.html|data.js|links.js|stage.js|learned.js|textedit.js|a11y.js|deck.js|qbank.js|trail.js|qr.js|xlsx.js|join.html|join2.html|chaver.html|chal.js|board.html|hitraot.html|hagrala.html|zochim.html|sw.js)",
+      "source": "/(join-manifest.json|index.html|admin.html|learn.html|rights.html|accessibility.html|info.html|slidetest.html|lab.html|voicetest.html|pushtest.html|tzevet.html|shlach.html|kishurim.html|skira.html|ov.js|masa.html|masa.js|tiul.html|data.js|links.js|stage.js|learned.js|textedit.js|a11y.js|deck.js|qbank.js|trail.js|qr.js|xlsx.js|join.html|join2.html|chaver.html|chal.js|quad.js|board.html|hitraot.html|hagrala.html|zochim.html|sw.js)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {
