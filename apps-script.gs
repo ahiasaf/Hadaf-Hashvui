@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 112;
+var SCRIPT_VERSION = 113;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7318,8 +7318,8 @@ function backupNow() { return backupDaily_(true); }
    **הכלל (8.99.324): כרטיסים במקום כניסה אחת.** כל תלמיד מקבל כרטיס
    על לימוד הדף, כרטיס על חידון שעבר, וכרטיס לכל הענקה מאבא — ראו
    rafCalc_. ההגרלה היא לפי משקל הכרטיסים (rafPickW_). הדף — של השבוע
-   שלפני ההגרלה (rafDaf_). מגילה ותענית יחד — כרטיס לימוד אחד וכרטיס
-   חידון אחד לאדם. הסיום הוא הסיום המוכר (doneRows_).
+   שלפני ההגרלה (rafDaf_). **כל מסלול לעצמו (8.99.326):** מגילה ותענית
+   יחד — עד שישה, לא שלושה. הסיום הוא הסיום המוכר (doneRows_).
 
    **מי בפנים:** תלמידים (לא הורה, לא בדיקה) שהמוסד שלהם נבחר
    מהתפריט — לפי הקוד, ולא לפי שם. "אחר", ריק ולפיד בחוץ תמיד,
@@ -7436,30 +7436,38 @@ function rafCalc_() {
   var Q = D ? quizBest_(alias, target, tm) : { best: {}, seen: {} };
   var A = D ? amdaQz_(alias, target) : { ok: {}, qz: {}, k: {}, seen: {} };
   var G = D ? rafGrants_(P) : {};
-  var done = {}, tk = function (id) { return done[id] = done[id] || { l: 0, q: 0, f: 0, t: 0 }; };
+  /* **כל מסלול לעצמו (8.99.326).** לימוד, חידון והענקה מאבא — לכל תלמיד
+     ומסלול בנפרד (`tr`), והסכומים (l, q, f, t) נגזרים מהם בלבד: במסלול
+     אחד עד 3 (ועוד הענקות), בשניהם עד 6. אותו הישג באותו מסלול — פעם אחת. */
+  var done = {}, tk = function (id, tr) {
+    var o = done[id] = done[id] || { l: 0, q: 0, f: 0, t: 0, tr: {} };
+    return o.tr[tr] = o.tr[tr] || { l: 0, q: 0, f: 0 };
+  };
   Object.keys(side).forEach(function (k) {
-    if (side[k].a && side[k].b && rafTmOk_(tm[k])) tk(k.split('|')[0]).l = 1;
+    var pr = k.split('|');
+    if (side[k].a && side[k].b && rafTmOk_(tm[k])) tk(pr[0], pr[1]).l = 1;
   });
-  /* נוכחות בדף בשיעור — כרטיס לימוד; "אישור חידון" בה — כרטיס חידון. */
+  /* נוכחות בדף בשיעור — כרטיס לימוד במסלול שלה; "אישור חידון" בה — כרטיס חידון. */
   Object.keys(A.ok).forEach(function (ky) {
     var pr = ky.split('|');
     if (pr[2] !== D || !ppl[pr[0]]) return;
-    tk(pr[0]).l = 1;
-    if (A.qz[ky]) tk(pr[0]).q = 1;
+    tk(pr[0], pr[1]).l = 1;
+    if (A.qz[ky]) tk(pr[0], pr[1]).q = 1;
   });
   /* חידון — לכל מי שיש לו ציון על הדף, גם בלי סיום שנרשם. */
   Object.keys(Q.best).forEach(function (ky) {
     var pr = ky.split('|'), who = pr[0];
-    if (!ppl[who] || (done[who] && done[who].q)) return;
-    if (String(pr[2]).replace(/[.:]$/, '') !== D) return;
+    if (!ppl[who] || String(pr[2]).replace(/[.:]$/, '') !== D) return;
     var x = quizDaf_(Q, who, pr[1], D);
-    if (quizPass_(x) || quizHalves_(Q, who, pr[1], D)) tk(who).q = 1;
+    if (quizPass_(x) || quizHalves_(Q, who, pr[1], D)) tk(who, pr[1]).q = 1;
   });
   Object.keys(G).forEach(function (id) {
-    if (ppl[id]) tk(id).f = Object.keys(G[id]).length;
+    if (!ppl[id]) return;
+    Object.keys(G[id]).forEach(function (g) { tk(id, g.split('|')[1]).f++; });
   });
   Object.keys(done).forEach(function (id) {
     var o = done[id];
+    Object.keys(o.tr).forEach(function (tr) { o.l += o.tr[tr].l; o.q += o.tr[tr].q; o.f += o.tr[tr].f; });
     o.t = o.l + o.q + o.f;
     if (!o.t) delete done[id];
   });
@@ -7643,7 +7651,7 @@ function quizHalves_(Q, who, tr, base) {
    נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
 var AMDA_EACH_ = 'oretzion';
 function amdaQzBust_() {
-  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all', 'raf:me2']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all', 'raf:me3']); } catch (e) {}
 }
 function amdaQzRaw_() {
   var rc = CacheService.getScriptCache(), hit = rc.get('amda:att2');
@@ -7715,7 +7723,7 @@ function quizOk_(Q, A, who, tr, base) {
    במטמון 5 דקות, בחלקים (כל המוסדות חורגים מגודל ערך אחד); נמחק
    בכל כתיבה שיכולה לשנות נקודות — ptsBust_. */
 function ptsBust_() {
-  try { CacheService.getScriptCache().removeAll(['pts:all', 'raf:me2']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['pts:all', 'raf:me3']); } catch (e) {}
 }
 function ptsOf_(T, id) {
   if (!T || !id) return null;
@@ -8116,7 +8124,7 @@ function rafRedo_(P) {
                    ['פרס — עד', new Date(Date.now() + RAF_PRZ_MS).toISOString()],
                    ['הוצאו מהזכייה', (out ? out + ' | ' : '') + was + ' · ' + new Date().toISOString() +
                                      ' · ' + String(P.who || 'רכז').slice(0, 40)]]);
-    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all', 'raf:me2']); } catch (xc) {}
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all', 'raf:me3']); } catch (xc) {}
     rafPrzBump_();
     return { status: 'ok', name: w.name, n: cand.length };
   } finally { lock.releaseLock(); }
@@ -8818,9 +8826,11 @@ function quizSum_() {
    כרטיס, תלמיד של מוסד שבתוכנית, ומוסד שבבחירה האחרונה של הרכז
    (rafSelGet_), אם הייתה.
    החישוב לכולם נשמר במטמון 5 דקות; מזהה ממוסד אחר — כמו שאינו קיים. */
-/* מזהה → 'קוד|עמודים+|לימוד,חידון,אבא'. גם ללוח הצוות ולבית התלמיד. */
+/* מזהה → 'קוד|עמודים+|לימוד,חידון,אבא|taanit:ל,ח,א;megila:ל,ח,א'. גם ללוח
+   הצוות ולבית התלמיד. המטמון 'raf:me3' — פורמט 'raf:me2' (בלי המסלולים)
+   אינו נקרא. */
 function rafMeMap_() {
-  var rc = CacheService.getScriptCache(), M = null, hit = rc.get('raf:me2');
+  var rc = CacheService.getScriptCache(), M = null, hit = rc.get('raf:me3');
   if (hit) { try { M = JSON.parse(hit); } catch (x) { M = null; } }
   if (M) return M;
   var C = rafCalc_();
@@ -8838,16 +8848,27 @@ function rafMeMap_() {
        בדיקה מאומת (testOk_), ולעולם לא בהגרלה האמיתית. */
     var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') +
             (tk && !rafWhy_(q) ? '+' : tk && rafWhy_(q) === 'test' ? '~' : '') +
-            '|' + (tk ? [tk.l, tk.q, tk.f].join(',') : '0,0,0');
+            '|' + (tk ? [tk.l, tk.q, tk.f].join(',') : '0,0,0') +
+            '|' + (tk ? Object.keys(tk.tr).map(function (tr) {
+              var x = tk.tr[tr];
+              return tr + ':' + [x.l, x.q, x.f].join(',');
+            }).join(';') : '');
     p.ids.concat([id]).forEach(function (x) { M[x] = v; });
   });
-  try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me2', js, 300); } catch (x2) {}
+  try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me3', js, 300); } catch (x2) {}
   return M;
 }
-/* הכרטיסים מתוך ערך של rafMeMap_. */
+/* הכרטיסים מתוך ערך של rafMeMap_. `tr` — לכל מסלול [לימוד, חידון, אבא];
+   הסכומים הם סכום המסלולים, וכך גם המשקל בהגרלה (rafCalc_). */
 function rafTk_(v) {
-  var f = String(String(v || '').split('|')[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
-  return { l: f[0] || 0, q: f[1] || 0, f: f[2] || 0, t: (f[0] || 0) + (f[1] || 0) + (f[2] || 0), daf: rafDaf_() };
+  var pr = String(v || '').split('|'), tr = {};
+  var f = String(pr[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
+  String(pr[3] || '').split(';').forEach(function (s) {
+    var m = s.match(/^(taanit|megila):(\d+),(\d+),(\d+)$/);
+    if (m) tr[m[1]] = [+m[2], +m[3], +m[4]];
+  });
+  return { l: f[0] || 0, q: f[1] || 0, f: f[2] || 0, t: (f[0] || 0) + (f[1] || 0) + (f[2] || 0),
+           tr: tr, daf: rafDaf_() };
 }
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: rafDaf_(), a: false, b: false, inn: false };
@@ -9949,7 +9970,7 @@ function testEnd_(S) {
   }
   testSave_(null);
   try {
-    CacheService.getScriptCache().removeAll(['raf:me2', 'pts:all', 'amda:att2', 'inbox:rows', 'raf:pub']);
+    CacheService.getScriptCache().removeAll(['raf:me3', 'pts:all', 'amda:att2', 'inbox:rows', 'raf:pub']);
   } catch (e) {}
   try { recount_(); } catch (e2) {}
   try { recountLearn_(true); } catch (e3) {}
@@ -10062,7 +10083,7 @@ function testPub_(S, P) {
   R.st = n('sent') === 2 ? 'פורסם' : n('unk') || n('pend') ? 'לא ידוע' : n('sent') ? 'חלקי' : 'נכשל';
   if (R.st === 'פורסם') R.pubAt = new Date().toISOString();
   testSave_(S);
-  try { CacheService.getScriptCache().remove('raf:me2'); } catch (xc) {}
+  try { CacheService.getScriptCache().remove('raf:me3'); } catch (xc) {}
   return { status: 'ok', done: R.st === 'פורסם', w: R.w, g: R.g, raf: R };
 }
 

@@ -1427,7 +1427,8 @@ function pRow(p, noGrade) {
     waBoxHtml(p) + kudoBox(p);
 }
 /* ---- הכרטיסים להגרלה של השבוע: לכל תלמיד, בכל מוסד (8.99.324) ----
-   השרת (rafMeMap_) מצרף `tk`: { l, q, f, t } — לימוד, חידון, אבא. בלי
+   השרת (rafMeMap_) מצרף `tk`: { l, q, f, t } — לימוד, חידון, אבא, כל אחד
+   סכום המסלולים (8.99.326: עד 2 ללימוד ולחידון), ו-t — המשקל בהגרלה. בלי
    `tk` — אין כפתור (וכישלון בשרת אינו 0). הנקודות — לאור עציון בלבד. */
 function tkBtn(p) {
   if (!p.tk || SELMODE) return '';
@@ -1436,7 +1437,8 @@ function tkBtn(p) {
 }
 function tkBox(p) {
   if (!p.tk || PTS_OPEN !== 'tk:' + p.id) return '';
-  var k = p.tk, L = [k.l ? UI.tkL : '', k.q ? UI.tkQ : '', k.f ? tp(UI.tkF, { n: k.f }) : ''].filter(Boolean);
+  var k = p.tk, x = function (n) { return n > 1 ? ' ×' + n : ''; };
+  var L = [k.l ? UI.tkL + x(k.l) : '', k.q ? UI.tkQ + x(k.q) : '', k.f ? tp(UI.tkF, { n: k.f }) : ''].filter(Boolean);
   return '<div class="pts-box">' + (L.length ? L.map(esc).join('<br>') : esc(UI.tkNone)) +
     '<div class="h">' + esc(UI.tkHow) + '</div></div>';
 }

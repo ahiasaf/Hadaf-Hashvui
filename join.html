@@ -743,6 +743,48 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .myprz .ar{font-size:1.25em;line-height:1}
 .mypts .l{margin-top:8px;font-size:.82rem;font-weight:700;line-height:1.8}
 .mypts .h{color:var(--ink-3);font-weight:600;margin-top:4px}
+/* ---------- הכרטיסים שלי (8.99.326) ----------
+   כרטיס ולא שורה: מספר גדול, להגרלה על איזה דף, ופירוט לפי סוג. ההסבר —
+   מסך נפרד (#tkhow) מהקישור שבתחתית, שגלוי תמיד, גם ב-0. */
+.mytk{margin-top:12px;padding:15px 15px 6px;border-radius:var(--r);background:var(--surface);
+  box-shadow:var(--sh-1);color:var(--ink);text-align:right}
+.mytk[hidden]{display:none}
+.mytk .tk-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mytk .tk-hd{min-width:0}
+.mytk .tk-hd b{display:block;font-size:1.02rem;font-weight:800}
+.mytk .tk-hd span{display:block;margin-top:3px;font-size:.8rem;font-weight:700;color:var(--ink-2)}
+.mytk .tk-n{flex:none;min-width:84px;max-width:40%;padding:8px 6px;border-radius:var(--r-s);background:var(--sunk);text-align:center}
+.mytk .tk-n b{display:block;font-size:2.3rem;font-weight:900;line-height:1;color:var(--blue)}
+.mytk .tk-n span{display:block;margin-top:4px;font-size:.68rem;font-weight:700;line-height:1.3;color:var(--ink-2)}
+.mytk .tk-rows{margin-top:12px;border-top:1px solid var(--rule)}
+.mytk .tk-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--rule);font-size:.9rem;font-weight:700}
+.mytk .tk-row .ok{flex:none;color:var(--green-d);font-weight:800}
+.mytk .tk-row .no{flex:none;color:var(--ink-3);font-size:.8rem;font-weight:600}
+.mytk .tk-err{margin-top:10px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
+.mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
+  font-size:.93rem;font-weight:800;color:var(--blue);text-align:right;cursor:pointer}
+/* ההסבר — מסך מלא מעל הבית, בלי לעזוב אותו: החזרה בראש (נשארת בגלילה)
+   ובתחתית, ובחזרת הדפדפן ו-Escape. */
+.tkhow{position:fixed;inset:0;z-index:140;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  text-align:right}
+.tkhow[hidden]{display:none}
+html.tkh-on,html.tkh-on body{overflow:hidden}
+.tkh-bar{position:sticky;top:0;z-index:1;padding:6px 12px;background:var(--blue-d);box-shadow:var(--sh-1)}
+.tkh-bar button{min-height:44px;padding:8px 6px;border:0;background:none;color:#fff;font:inherit;
+  font-size:.95rem;font-weight:800;cursor:pointer}
+.tkh-in{max-width:520px;margin:0 auto;padding:18px 16px 30px}
+.tkh-in h2{margin:2px 0 14px;font-size:1.35rem;font-weight:900;color:var(--ink)}
+.tkh-c{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:14px 15px;border-radius:var(--r);
+  background:var(--surface);box-shadow:var(--sh-1)}
+.tkh-c div{flex:1;min-width:0}
+.tkh-c b{display:block;font-size:1.02rem;font-weight:800;color:var(--ink)}
+.tkh-c p{margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--ink-2)}
+.tkh-c i{flex:none;padding:6px 11px;border-radius:999px;background:var(--sunk);color:var(--green-d);
+  font-style:normal;font-size:1.05rem;font-weight:900}
+.tkh-note{margin:16px 2px 20px;font-size:.86rem;line-height:1.7;color:var(--ink-2);white-space:pre-line}
+.tkh-back{display:block;width:100%;min-height:50px;border:0;border-radius:var(--r-s);background:var(--blue);
+  color:#fff;font:inherit;font-size:1rem;font-weight:800;cursor:pointer}
 /* ---------- "ממשיכים מהמקום שעצרת" ----------
    הכרטיס הזה הוא ההזמנה החזקה ביותר במסך: הוא אינו מבקש להתחיל
    אלא להמשיך, ומי שכבר התחיל צריך הרבה פחות שכנוע. לכן הוא
@@ -1392,10 +1434,13 @@ footer a{color:var(--ink-2);font-weight:800}
     <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
     <div id="rail"></div>
+    <div id="mytk" class="mytk" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
     <div id="wk-more"></div>
   </div>
 
+  <!-- "איך זוכים בכרטיסים?" — מסך ההסבר (tkHowOpen). -->
+  <div id="tkhow" class="tkhow" role="dialog" aria-modal="true" aria-labelledby="tkh-t" hidden></div>
   <div class="wrap">
     <!-- **ההתקנה ראשונה, ולא בתחתית.** קודם היא ישבה מתחת
          להזמנה ולקבוצה — כלומר אחרי שני דברים שאפשר לדלג
@@ -3276,23 +3321,24 @@ function drawWeek() {
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
 
-/* הכרטיסים שלי להגרלה של השבוע — ובאור עציון גם הנקודות (8.99.324).
-   רק מהשרת (?pts=me: `tk` מ-rafTk_, אותו חישוב כמו ההגרלה; הנקודות —
-   אותו חישוב כמו בלוח הצוות). בשאר המוסדות הנקודות אינן מוצגות: מה
-   שהתלמיד צריך לדעת הוא כמה כרטיסים יש לו. תשובה שאינה ok — מה שהיה
-   נשאר; אין לשרת נתונים לאדם הזה (הורה, בדיקה, לא מוכר) — אין שורה.
-   נשאל בכל פתיחה (חזרה מהדף ומהחידון) ואחר כך כל שתי דקות; מה שמוצג
-   תמיד אחרי שהשרת חישב — לא ניחוש מקומי. */
+/* הכרטיסים שלי להגרלה — ובאור עציון גם הנקודות, בנפרד (8.99.326).
+   רק מהשרת (?pts=me: `tk` מ-rafTk_, אותו חישוב כמו משקל ההגרלה; הנקודות —
+   אותו חישוב כמו בלוח הצוות). הכרטיס מוצג לכל תלמיד, גם לפני שהשרת ענה
+   ("…") וגם כשלא ענה ("—" והודעה) — לעולם לא 0 שלא חושב, והקישור להסבר
+   נשאר. תשובה שאינה ok — מה שהיה נשאר; אין לשרת נתונים לאדם הזה (הורה,
+   בדיקה, לא מוכר) — אין כרטיס. נשאל בכל פתיחה ואחר כך כל שתי דקות.
+   המטמון `ptsMe` נושא `v: 2` — `tk` מפורמט ישן (בלי מסלולים, עד 3) אינו
+   מוצג כאילו הוא החדש. */
 var PTS_OE = 'oretzion';
-var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false;
+var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false, PTS_ERR = false;
 function drawPts() {
-  var el = $('mypts');
-  if (!el) return;
+  var el = $('mypts'), tb = $('mytk');
+  if (!el || !tb) return;
   var me = get('me', null);
-  if (!me || !me.id || me.role === 'dad') { el.hidden = true; return; }
+  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; return; }
   var c = get('ptsMe', null);
   if (c && c.id !== me.id) c = null;
-  if ((!c || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
+  if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
     PTS_BUSY = true;
     var cb = 'pm' + Date.now(), sc = document.createElement('script');
     var clean = function () {
@@ -3300,43 +3346,100 @@ function drawPts() {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
-    var t0 = setTimeout(clean, 20000);
+    var fail = function () { clean(); PTS_ERR = true; drawPts(); };
+    var t0 = setTimeout(fail, 20000);
     window[cb] = function (r) {
       clearTimeout(t0); clean();
-      if (!r || r.status !== 'ok') return;
-      PTS_GOT = true;
-      set('ptsMe', { id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
+      if (!r || r.status !== 'ok') { PTS_ERR = true; drawPts(); return; }
+      PTS_GOT = true; PTS_ERR = false;
+      set('ptsMe', { v: 2, id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
                      tk: r.tk || null });
       drawPts();
     };
-    sc.onerror = function () { clearTimeout(t0); clean(); };
+    sc.onerror = function () { clearTimeout(t0); fail(); };
     sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + '&callback=' + cb;
     document.body.appendChild(sc);
   }
-  if (!c || c.none) { el.hidden = true; return; }
-  var oe = me.inst === PTS_OE, tk = c.tk;
-  if (!tk && !oe) { el.hidden = true; return; }
-  var mas = function (id) {
-    for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i].masechet;
-    return id;
-  };
-  var h = tk ? esc(tk.t ? tpl(tk.t === 1 ? UI.myTk1 : UI.myTkN, { n: tk.t, daf: tk.daf || '' }) : UI.myTk0) : '';
-  if (oe) h += (h ? '<br>' : '') + esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
-  if (PTS_OPEN) {
-    /* הפירוט: שלושת סוגי הכרטיסים, וכל אחד לעצמו. */
-    if (tk) h += '<div class="l">' + [
-      tk.l ? UI.myTkL : '', tk.q ? UI.myTkQ : '',
-      tk.f ? tpl(tk.f === 1 ? UI.myTkF1 : UI.myTkFN, { n: tk.f }) : ''
-    ].filter(Boolean).map(esc).join('<br>') + '<div class="h">' + esc(UI.myTkHow) + '</div></div>';
-    if (oe) h += '<div class="l">' + (c.l || []).map(function (x) {
-      return esc(tpl(UI.ptsRow, { mas: mas(x[0]), daf: x[1], s: x[3] ? tpl(UI.ptsConfN, { k: x[3] }) : x[2] === 'conf' ? UI.ptsConf : x[2],
-                                p: 10 * (x[3] || 1) }));
-    }).join('<br>') + '<div class="h">' + esc(UI.myPtsHow) + '</div></div>';
-  }
+  if (c && c.none) { el.hidden = tb.hidden = true; return; }
+  tb.innerHTML = tkCardHtml(c && c.v === 2 ? c : null);
+  tb.hidden = false;
+  /* הנקודות — אור עציון בלבד, ובנפרד מהכרטיסים. */
+  if (me.inst !== PTS_OE || !c) { el.hidden = true; return; }
+  var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
+  if (PTS_OPEN) h += '<div class="l">' + (c.l || []).map(function (x) {
+    return esc(tpl(UI.ptsRow, { mas: masName(x[0]) || x[0], daf: x[1], s: x[3] ? tpl(UI.ptsConfN, { k: x[3] }) : x[2] === 'conf' ? UI.ptsConf : x[2],
+                              p: 10 * (x[3] || 1) }));
+  }).join('<br>') + '<div class="h">' + esc(UI.myPtsHow) + '</div></div>';
   el.innerHTML = h;
   el.hidden = false;
 }
 function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
+/* הכרטיס: מספר גדול (הסכום — בדיוק המשקל בהגרלה), הדף של ההגרלה מהשרת
+   (`tk.daf`, rafDaf_ — לא הדף שעל הבמה), והמסכת שבה הכרטיסים; אין עדיין —
+   המסכת שנבחרה. הפירוט — לכל סוג, סכום המסלולים. */
+function tkCardHtml(c) {
+  var tk = c ? c.tk : null, wait = !c && !PTS_ERR, n = tk ? tk.t : wait ? '…' : '—';
+  var mas = [];
+  if (tk && tk.tr) TRACKS.forEach(function (t) {
+    var x = tk.tr[t.id];
+    if (x && x[0] + x[1] + x[2] > 0) mas.push(t.masechet);
+  });
+  if (!mas.length) mas.push(masName(myTrack()));
+  var sub = tk ? (tk.daf ? tpl(UI.myTkFor, { daf: tk.daf, mas: mas.join(', ') }) : UI.myTkNoDaf) : '';
+  var row = function (lbl, k) {
+    return '<div class="tk-row"><span>' + esc(lbl) + '</span>' +
+      (k > 0 ? '<span class="ok" dir="ltr">✓ ' + k + '</span>' : '<span class="no">' + esc(UI.myTkMore) + '</span>') + '</div>';
+  };
+  return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
+      (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
+    '<div class="tk-n"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
+      (tk ? '<span>' + esc(n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
+    (tk ? '<div class="tk-rows">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
+        : !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
+    '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
+}
+/* "איך זוכים בכרטיסים?" — מסך מעל הבית, באותו עמוד: לא יוצאים מאזור
+   התלמיד ולא מרעננים. חזרה — הכפתור בראש (נשאר בגלילה) ובתחתית, חזרת
+   הדפדפן (pushState) ו-Escape. בחזרה — אותו מקום גלילה, ומיקוד על הקישור. */
+var TKH_Y = 0, TKH_HIST = false;
+function tkHowOpen() {
+  var box = $('tkhow');
+  if (!box || !box.hidden) return;
+  TKH_Y = window.pageYOffset || document.documentElement.scrollTop || 0;
+  var card = function (t, b) { return '<div class="tkh-c"><div><b>' + esc(t) + '</b><p>' + esc(b) + '</p></div><i dir="ltr">+1</i></div>'; };
+  box.innerHTML = '<div class="tkh-bar"><button type="button" id="tkh-x" onclick="tkHowClose()">→ ' + esc(UI.tkhBack) + '</button></div>' +
+    '<div class="tkh-in"><h2 id="tkh-t">' + esc(UI.tkhT) + '</h2>' +
+    card(UI.tkhLT, UI.tkhLB) + card(UI.tkhQT, UI.tkhQB) + card(UI.tkhFT, UI.tkhFB) +
+    '<div class="tkh-note">' + esc(UI.tkhNote) + '</div>' +
+    '<button type="button" class="tkh-back" onclick="tkHowClose()">' + esc(UI.tkhBack) + '</button></div>';
+  box.hidden = false;
+  box.scrollTop = 0;
+  document.documentElement.className += ' tkh-on';
+  try { history.pushState({ tkh: 1 }, ''); TKH_HIST = true; } catch (e) { TKH_HIST = false; }
+  try { $('tkh-x').focus(); } catch (e2) {}
+}
+function tkHowClose(pop) {
+  var box = $('tkhow');
+  if (!box || box.hidden) return;
+  /* נפתח עם רשומה בהיסטוריה — חוזרים דרכה, וה-popstate סוגר. */
+  if (!pop && TKH_HIST) {
+    TKH_HIST = false;
+    history.back();
+    setTimeout(function () { tkHowClose(true); }, 400);
+    return;
+  }
+  TKH_HIST = false;
+  box.hidden = true;
+  box.innerHTML = '';
+  document.documentElement.className = document.documentElement.className.replace(/\s*\btkh-on\b/g, '');
+  window.scrollTo(0, TKH_Y);
+  var a = $('tk-ask');
+  if (a) { try { a.focus({ preventScroll: true }); } catch (e) { a.focus(); } window.scrollTo(0, TKH_Y); }
+}
+window.addEventListener('popstate', function () { tkHowClose(true); });
+document.addEventListener('keydown', function (e) {
+  if ((e.key === 'Escape' || e.key === 'Esc') && $('tkhow') && !$('tkhow').hidden) tkHowClose();
+});
 
 /* הזוכה בהגרלה — באנר עד שהפרס נמסר (?raffle=prize, rafPrize_ ב-apps-script.gs).
    ההורה רואה את זכיית הבן. המצב נשמר במכשיר (przMe) ומתרענן כל שתי דקות;

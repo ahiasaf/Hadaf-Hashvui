@@ -2958,7 +2958,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.325';
+var APP_VERSION = '8.99.326';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15603,8 +15603,9 @@ function admRaffle() {
 /* כמה כרטיסים, ומאיפה: z[5] — סה"כ, z[6] — "לימוד,חידון,אבא" (rafPic_). */
 function rafTkTxt(z) {
   var f = String(z[6] || '').split(','), out = [];
-  if (+f[0]) out.push(UI.rafTkL);
-  if (+f[1]) out.push(UI.rafTkQ);
+  /* 8.99.326: כל מסלול לעצמו — לימוד וחידון עד 2. */
+  if (+f[0]) out.push(UI.rafTkL + (+f[0] > 1 ? ' ×' + f[0] : ''));
+  if (+f[1]) out.push(UI.rafTkQ + (+f[1] > 1 ? ' ×' + f[1] : ''));
   if (+f[2]) out.push(fill(UI.rafTkF, { n: +f[2] }));
   return rafTkN(z[5]) + (out.length ? ' (' + out.join(', ') + ')' : '');
 }
