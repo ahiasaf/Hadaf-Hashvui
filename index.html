@@ -2668,6 +2668,29 @@ button.yr-c.auto{cursor:pointer}
 .sc-x.z{color:var(--ink-3);font-weight:700}
 .sc-s{margin:14px 0 0;font-size:.8rem;color:var(--ink-2)}
 .sc-f{margin-top:10px}
+/* ---- ניהול ← פרסים ותקציב (8.99.327) ---- */
+.prz-wait{border:2px solid var(--stop)}
+.prz-wait.ok{border-color:var(--green-d)}
+.prz-big{font-size:1rem;font-weight:800;color:var(--stop);margin:2px 0 4px}
+.prz-n{color:var(--ink-3)}
+.prow2 > div > span.prz-n.x{color:var(--stop);font-weight:800}
+.prz-r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--rule);font-size:.86rem;font-weight:700;color:var(--ink-2)}
+.prz-r b{font-weight:800;color:var(--blue-d);text-align:left}
+.prz-r.t b{color:var(--ink)}
+.prz-note{margin:10px 0 0}
+.prz-d{border-top:1px solid var(--rule);padding:10px 2px}
+.prz-d summary{cursor:pointer}
+.prz-d summary b{font-size:.93rem;font-weight:800}
+.prz-d summary span{display:block;font-size:.78rem;font-weight:600;color:var(--ink-3);margin-top:2px}
+.prz-f{margin-top:12px}
+.prz-f > span{font-size:.8rem;font-weight:800;color:var(--ink-2)}
+.prz-f .chips{margin-top:6px}
+.prz-f p.h{margin:5px 0 0}
+.prz-c{display:flex;gap:6px;margin-top:6px}
+.prz-c input{flex:1;min-width:0;font:inherit;border:1.5px solid var(--rule);border-radius:10px;padding:8px 10px;background:#fff;color:var(--ink)}
+.prz-c .btn{width:auto;margin:0;padding:8px 16px}
+.prz-o{margin-top:14px}
 /* ---- ניהול ← אתגר החברים, ועדכון לראש החטיבה (8.99.318) ---- */
 .cha-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:0 0 11px}
 .cha-t{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px 11px}
@@ -2958,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.326';
+var APP_VERSION = '8.99.327';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11537,7 +11560,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
   { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'],
-                         ['chal','moreChal'], ['test','moreTest']] },
+                         ['prz','morePrz'], ['chal','moreChal'], ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
      עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
   { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
@@ -12068,6 +12091,7 @@ function admPane() {
   if (sub === 'lottery') { body.innerHTML = admRaffle() + admPairs(); return; }
   if (sub === 'test')    { body.innerHTML = admTest(); return; }
   if (sub === 'chal')    return admChal(body);
+  if (sub === 'prz')     return admPrz(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -15698,6 +15722,145 @@ function chaLoad() {
     else CHA.msg = (d && d.message) || UI.chaFail;
     chaPaint();
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
+/* ============================================================
+   ניהול ← עוד ← פרסים ותקציב (8.99.327).
+   ============================================================
+   רישום כל פרס שזכו בו, ומה שמסמנים ביד: תשלום, חלוקה, עלות, והאם
+   נשלחה הודעה לזוכה. הרישום, הסנכרון מההגרלות והתקציב — בשרת
+   (przRoute_); כאן רק מציגים ושולחים. כל שינוי חוזר עם הרישום שנקרא
+   מחדש מהגיליון — מה שעל המסך הוא מה שנשמר. **שום סימון כאן אינו
+   אוטומטי**, ו"לא ידוע" לעולם אינו מוצג כ-0 או כ"לא נשלח".
+   ============================================================ */
+var PRZ = { d: null, at: 0, busy: false, msg: '', open: {}, f: '' };
+function przCall(p) {
+  p.key = (CFG.readKey || '').trim();
+  return scriptGet(p);
+}
+function przGot(d) {
+  PRZ.busy = false;
+  /* כישלון משאיר את מה שעל המסך — ולא מאפס אותו. */
+  if (d && d.status === 'ok' && d.list) { PRZ.d = d; PRZ.at = Date.now(); PRZ.msg = ''; }
+  else PRZ.msg = (d && d.message) || UI.przFail;
+  przPaint();
+}
+function przNo() { PRZ.busy = false; PRZ.msg = UI.przFail; przPaint(); }
+function przLoad() {
+  if (!(CFG.readKey || '').trim()) { PRZ.msg = UI.przNoKey; przPaint(); return; }
+  PRZ.busy = true; przPaint();
+  przCall({ prz: 'state' }).then(przGot, przNo);
+}
+function przSet(k, f, v) {
+  if (PRZ.busy) return;
+  if (f === 'out' && !confirm(UI[v ? 'przOutQ' : 'przInQ'])) return;
+  PRZ.busy = true; PRZ.open[k] = 1; przPaint();
+  przCall({ prz: 'set', k: k, f: f, v: v }).then(przGot, przNo);
+}
+function przCost(k, i) {
+  var el = document.getElementById('przc-' + i);
+  if (el) przSet(k, 'cost', String(el.value || '').trim());
+}
+function przFlt(f) { PRZ.f = f; przPaint(); }
+function admPrz(body) {
+  body.innerHTML = '<div id="prz"></div>';
+  if (!PRZ.d || Date.now() - PRZ.at > 60000) przLoad(); else przPaint();
+}
+function przMoney(n) { return '₪' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function przP(x) { return x.p ? UI['przN_' + x.p] || x.p : UI.przNoPick; }
+function przBtn(x, f, v, lbl, on, cls, dis) {
+  return '<button type="button" class="chip' + (on ? ' on' + cls : '') + '"' + dis +
+    (on ? '' : ' onclick="przSet(\'' + esc(x.k) + '\',\'' + f + '\',\'' + v + '\')"') + '>' + esc(lbl) + '</button>';
+}
+/* ---- למעלה: מי עוד לא קיבל הודעה מתועדת ("לא ידוע" + "לא שלחתי") ---- */
+function przWait(L, dis) {
+  var W = L.filter(function (x) { return x.note !== 'y'; });
+  var nU = W.filter(function (x) { return !x.note; }).length, nN = W.length - nU;
+  var h = '<div class="adm-card prz-wait' + (W.length ? '' : ' ok') + '"><h4>' + esc(UI.przWaitH) + '</h4>';
+  if (!W.length) return h + '<p class="h">' + esc(L.length ? UI.przWaitNone : UI.przEmpty) + '</p></div>';
+  h += '<p class="prz-big">' + esc(W.length === 1 ? UI.przWaitN1 : fill(UI.przWaitN, { n: W.length })) +
+       (W.length === L.length && !nN ? ' · ' + esc(UI.przWaitNoDoc) : '') + '</p>';
+  var f = PRZ.f;
+  if ((f === 'u' && !nU) || (f === 'n' && !nN)) f = '';
+  if (nU && nN) {
+    h += '<div class="chips">' + [['', W.length, UI.przFAll], ['u', nU, UI.przNoteU], ['n', nN, UI.przNoteN]].map(function (t) {
+      return '<button type="button" class="chip' + (f === t[0] ? ' on' : '') + '" onclick="przFlt(\'' + t[0] + '\')">' +
+        esc(t[2]) + '<b>' + t[1] + '</b></button>';
+    }).join('') + '</div>';
+  }
+  return h + '<div class="plist">' + W.filter(function (x) { return !f || (f === 'n') === (x.note === 'n'); }).map(function (x) {
+    var no = x.note === 'n';
+    return '<div class="prow2 ' + (no ? 'no' : 'warn') + '"><span class="pm">' + (no ? '✕' : '?') + '</span>' +
+      '<div style="flex:1"><b>' + esc(x.name || UI.przNoName) + '</b>' +
+      '<span>' + esc((x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
+      '<span class="prz-n' + (no ? ' x' : '') + '">' + esc(UI[no ? 'przNoteN' : 'przNoteU']) + '</span>' +
+      '<div class="chips">' + przBtn(x, 'note', 'y', UI.przSent, false, '', dis) +
+      (no ? '' : przBtn(x, 'note', 'n', UI.przNotSent, false, '', dis)) + '</div></div></div>';
+  }).join('') + '</div></div>';
+}
+/* ---- התקציב ---- */
+function przAmt(n, sum, u, none) {
+  if (!n) return none;
+  return (n === 1 ? UI.przNPrz1 : fill(UI.przNPrz, { n: n })) + ' · ' +
+    (u === n ? UI.przSumUnk : przMoney(sum) + (u ? ' ' + fill(UI.przPlusUnk, { n: u }) : ''));
+}
+function przSum(S) {
+  var r = function (lbl, val, cls) {
+    return '<div class="prz-r' + (cls || '') + '"><span>' + esc(lbl) + '</span><b>' + esc(val) + '</b></div>';
+  };
+  return '<div class="adm-card"><h4>' + esc(UI.przSumH) + '</h4>' +
+    r(UI.przBudget, przMoney(S.budget)) +
+    r(UI.przPaid, przAmt(S.paidN, S.paid, S.paidU, UI.przNotYet)) +
+    r(UI.przCom, przAmt(S.comN, S.com, S.comU, UI.przNone)) +
+    r(UI.przAlloc, przMoney(S.alloc) + ' (' + UI[S.chOn ? 'przChOn' : 'przChOff'] + ')') +
+    r(UI.przRest, S.rest === null || S.rest === undefined ? fill(UI.przRestPart, { n: S.paidU + S.comU }) : przMoney(S.rest), ' t') +
+    '<p class="h prz-note">' + esc(UI.przSumNote) + (S.out ? ' ' + esc(fill(UI.przOutN, { n: S.out })) : '') + '</p></div>';
+}
+/* ---- הרישום: שורה לכל פרס; הפעולות נפתחות בלחיצה ---- */
+function przRow(x, i, dis) {
+  var st = [x.pay ? fill(UI.przPayY, { t: x.payAt }) : UI.przPayN,
+            x.dist ? fill(UI.przDistY, { t: x.distAt }) : UI.przDistN,
+            x.cost === null ? UI.przCostU : przMoney(x.cost),
+            UI[x.note === 'y' ? 'przNoteY' : x.note === 'n' ? 'przNoteN' : 'przNoteU']];
+  var fld = function (lbl, inner, note) {
+    return '<div class="prz-f"><span>' + esc(lbl) + '</span>' + inner + (note ? '<p class="h">' + esc(note) + '</p>' : '') + '</div>';
+  };
+  return '<details class="prz-d"' + (PRZ.open[x.k] ? ' open' : '') +
+    ' ontoggle="PRZ.open[\'' + esc(x.k) + '\']=this.open?1:0"><summary><b>' + esc(x.name || UI.przNoName) + '</b>' +
+    '<span>' + esc(fill(UI.przSrc, { wk: x.wk }) + ' · ' + (x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
+    '<span>' + esc(st.join(' · ')) + '</span></summary>' +
+    fld(UI.przPayL, '<div class="chips">' + przBtn(x, 'pay', '', UI.przPayN, !x.pay, '', dis) +
+        przBtn(x, 'pay', 'y', UI.przPayYb, x.pay, ' j', dis) + '</div>', UI.przPayNote) +
+    fld(UI.przDistL, '<div class="chips">' + przBtn(x, 'dist', '', UI.przDistN, !x.dist, '', dis) +
+        przBtn(x, 'dist', 'y', UI.przDistYb, x.dist, ' j', dis) + '</div>', UI.przDistNote) +
+    fld(UI.przNoteL, '<div class="chips">' + przBtn(x, 'note', '', UI.przNoteUb, !x.note, '', dis) +
+        przBtn(x, 'note', 'y', UI.przSent, x.note === 'y', ' j', dis) +
+        przBtn(x, 'note', 'n', UI.przNotSent, x.note === 'n', ' x', dis) + '</div>', UI.przNoteNote) +
+    fld(UI.przCostL, '<div class="prz-c"><input id="przc-' + i + '" type="text" inputmode="decimal" dir="ltr" value="' +
+        (x.cost === null ? '' : esc(String(x.cost))) + '" placeholder="' + esc(UI.przCostU) + '">' +
+        '<button type="button" class="btn g"' + dis + ' onclick="przCost(\'' + esc(x.k) + '\',' + i + ')">' + esc(UI.przSave) + '</button></div>',
+        UI.przCostNote) +
+    '<button type="button" class="btn g prz-o"' + dis + ' onclick="przSet(\'' + esc(x.k) + '\',\'out\',\'' + (x.out ? '' : 'y') + '\')">' +
+    esc(UI[x.out ? 'przIn' : 'przOut']) + '</button></details>';
+}
+function przList(L, O, dis) {
+  var i = 0, row = function (x) { return przRow(x, i++, dis); };
+  var h = '<div class="adm-card"><h4>' + esc(fill(UI.przAllH, { n: L.length })) + '</h4><p class="h">' + esc(UI.przAllLead) + '</p>' +
+    (L.length ? L.map(row).join('') : '<p class="h">' + esc(UI.przEmpty) + '</p>');
+  if (O.length) h += '<details class="prz-d"><summary><b>' + esc(fill(UI.przOutH, { n: O.length })) + '</b></summary>' + O.map(row).join('') + '</details>';
+  return h + '</div>';
+}
+function przPaint() {
+  var el = document.getElementById('prz');
+  if (!el) return;
+  var d = PRZ.d, dis = PRZ.busy ? ' disabled' : '';
+  var h = PRZ.msg ? '<div class="cond" style="margin-bottom:12px">' + esc(PRZ.msg) + '</div>' : '';
+  if (d) {
+    var L = d.list.filter(function (x) { return !x.out; }), O = d.list.filter(function (x) { return x.out; });
+    h += przWait(L, dis) + przSum(d.sum) + przList(L, O, dis);
+  }
+  h += '<button class="btn g" type="button" style="margin-top:12px"' + dis + ' onclick="przLoad()">' +
+       esc(PRZ.busy ? UI.przLoading : UI.przReload) + '</button>';
+  el.innerHTML = h;
 }
 function admChal(body) {
   body.innerHTML = '<div id="cha"></div>';

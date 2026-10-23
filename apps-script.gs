@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 113;
+var SCRIPT_VERSION = 114;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -154,6 +154,8 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'הגרלות',
                     /* בחירת הפרס של הזוכה (מזהה + הגרלה + פרס). ראו rafPrz_. */
                     'בחירת פרס',
+                    /* רישום הפרסים והתקציב — שם הזוכה, תשלום, הודעה. ראו przRoute_. */
+                    'פרסים',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
                     'התנגשויות הרשמה',
                     /* מי ביקש התראה כשדף נעול ייפתח — מנוי למכשיר, ולכן
@@ -1263,6 +1265,8 @@ function doGet(e) {
     catch (errP) { return reply_(e, { status:'error', message: String(errP) }); }
   }
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
+  /* פרסים ותקציב — לרכז. ראו przRoute_. */
+  if (e && e.parameter && e.parameter.prz) return przRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
   /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
@@ -8939,6 +8943,158 @@ function raffleRoute_(e) {
     if (op === 'self') return reply_(e, rafSelf_(P));
     if (op === 'demo') return reply_(e, rafDemo_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
+  } catch (err) {
+    return reply_(e, { status: 'error', message: String(err) });
+  }
+}
+
+/* ============================================================
+   פרסים ותקציב — רישום, ומעקב הודעות לזוכים (8.99.327 · SCRIPT_VERSION 114).
+   ============================================================
+   ?prz=state&key=                 — הרישום כולו וסיכום התקציב. לרכז.
+   ?prz=set&key=&k=&f=&v=          — שינוי שדה ידני בשורה אחת; מחזיר את
+                                     הרישום שנקרא מחדש מהגיליון (אימות).
+
+   לשונית פרטית משלה — "פרסים" — שורה לכל פרס שזכו בו. "הגרלות" ו"בחירת
+   פרס" נקראות בלבד (rafPrzRow_), ולא משתנות.
+
+   **שני סוגי עמודות.** הנגזרות (המקור, הזוכה, הפרס) מתעדכנות בכל קריאה
+   מההגרלות שפורסמו — זוכה שהוחלף בהגרלה מחדש, פרס שנבחר או הוגרל. הידניות
+   (תשלום, חלוקה, עלות, הודעה, מחוץ לתוכנית) — רק מכאן, ולעולם לא אוטומטית:
+     תשלום   '' לא שולם · 'שולם'  (+ מתי). "שולם" = תשלום מאומת בפועל.
+     חלוקה   '' לא חולק · 'חולק'  (+ מתי). נפרד מהתשלום — אף אחד אינו מוכיח את השני.
+     עלות    '' = טרם נרשם. **לא 0** — לא ידוע אינו ערך.
+     הודעה   '' לא ידוע · 'שלחתי' · 'לא שלחתי' (+ מתי). פתיחת וואטסאפ אינה ראיה.
+     מחוץ    'כן' — טופל מחוץ לתוכנית; נשאר ברישום ואינו נספר.
+
+   **התקציב.** יתרה = PRZ_BUDGET − ששולם − ההתחייבויות (זכו ולא שולם). פרס
+   נספר פעם אחת: בתשלום הוא עובר מההתחייבויות לששולם. פרס בלי עלות — אין
+   מספר יתרה מלא אלא "חלקית". הקצאת "חבר מביא חבר" — שורה לתצוגה בלבד, לא
+   בחישוב. לפיד בחוץ (RAF_NEVER) — אין לה הגרלה כאן ממילא.
+   ============================================================ */
+var PRZ_TAB = 'פרסים';
+var PRZ_BUDGET = 20000;
+var PRZ_CHAL = 1900;
+var PRZ_COLS_ = ['מפתח', 'מזהה הגרלה', 'שבוע', 'קוד ישיבה', 'ישיבה', 'מזהה הזוכה', 'זוכה',
+                 'פרס', 'פרס — איך', 'תשלום', 'תשלום — מתי', 'חלוקה', 'חלוקה — מתי',
+                 'עלות', 'הודעה', 'הודעה — מתי', 'מחוץ לתוכנית'];
+var PRZ_DER_ = ['מזהה הגרלה', 'שבוע', 'קוד ישיבה', 'ישיבה', 'מזהה הזוכה', 'זוכה', 'פרס', 'פרס — איך'];
+function przRead_() {
+  var sh = sheet_(PRZ_TAB);
+  if (sh.getLastRow() < 1 || sh.getLastColumn() < 1) {
+    sh.getRange(1, 1, 1, PRZ_COLS_.length).setValues([PRZ_COLS_]);
+  }
+  var v = sh.getDataRange().getDisplayValues(), ix = {};
+  for (var i = 0; i < v[0].length; i++) ix[String(v[0][i]).trim()] = i;
+  /* עמודה שחסרה (לשונית ישנה, או שנמחקה ביד) — נוספת בסוף, בלי לגעת בשאר. */
+  PRZ_COLS_.forEach(function (k) {
+    if (ix[k] !== undefined) return;
+    var at = sh.getLastColumn();
+    sh.getRange(1, at + 1).setValue(k);
+    ix[k] = at;
+    for (var r = 0; r < v.length; r++) v[r][at] = r ? '' : k;
+  });
+  return { sh: sh, ix: ix, rows: v, c: function (r, k) {
+    return ix[k] === undefined ? '' : String(v[r][ix[k]] == null ? '' : v[r][ix[k]]).trim();
+  } };
+}
+function przPut_(L, r, k, val) {
+  L.sh.getRange(r + 1, L.ix[k] + 1).setValue(val === '' ? '' : "'" + String(val));
+  L.rows[r][L.ix[k]] = String(val);
+}
+/* כל זוכה בהגרלה שפורסמה — שורה ברישום. קיימת — רק הנגזרות מתעדכנות. */
+function przSync_(L) {
+  var T = rafRead_(), picks = null, key = {};
+  for (var q = 1; q < L.rows.length; q++) key[L.c(q, 'מפתח')] = q;
+  for (var r = 1; r < T.rows.length; r++) {
+    if (T.c(r, 'סטטוס') !== 'פורסם' || !T.c(r, 'זוכה')) continue;
+    var rid = T.c(r, 'מזהה הגרלה'), code = T.c(r, 'קוד ישיבה');
+    if (!rid || !code || RAF_NEVER.indexOf(code) >= 0) continue;
+    picks = picks || rafPrzPicks_();
+    var z = rafPrzRow_(T, r, picks), k = rid + '|' + code;
+    var der = { 'מזהה הגרלה': rid, 'שבוע': T.c(r, 'שבוע'), 'קוד ישיבה': code, 'ישיבה': T.c(r, 'ישיבה'),
+                'מזהה הזוכה': T.c(r, 'זוכה'), 'זוכה': T.c(r, 'שם הזוכה'), 'פרס': z.p, 'פרס — איך': z.how };
+    var at = key[k];
+    if (at === undefined) {
+      var full = [];
+      Object.keys(L.ix).forEach(function (h) { full[L.ix[h]] = ''; });
+      full[L.ix['מפתח']] = k;
+      PRZ_DER_.forEach(function (h) { full[L.ix[h]] = der[h] === '' ? '' : "'" + der[h]; });
+      for (var f = 0; f < full.length; f++) if (full[f] === undefined) full[f] = '';
+      L.sh.appendRow(full);
+      L.rows.push(full.map(function (x) { return String(x).replace(/^'/, ''); }));
+      key[k] = L.rows.length - 1;
+      continue;
+    }
+    PRZ_DER_.forEach(function (h) { if (L.c(at, h) !== String(der[h] || '')) przPut_(L, at, h, der[h] || ''); });
+  }
+}
+function przNum_(s) {
+  var n = parseFloat(String(s || '').replace(/[^\d.]/g, ''));
+  return String(s || '').trim() !== '' && n >= 0 ? n : null;
+}
+/* נקרא תחת נעילת הסקריפט (przRoute_). */
+function przState_() {
+  var L = przRead_();
+  przSync_(L);
+  var list = [], S = { budget: PRZ_BUDGET, alloc: PRZ_CHAL, paidN: 0, paid: 0, paidU: 0,
+                       comN: 0, com: 0, comU: 0, out: 0, chOn: false };
+  for (var r = 1; r < L.rows.length; r++) {
+    if (!L.c(r, 'מפתח')) continue;
+    var o = { k: L.c(r, 'מפתח'), rid: L.c(r, 'מזהה הגרלה'), wk: L.c(r, 'שבוע'), code: L.c(r, 'קוד ישיבה'),
+              inst: L.c(r, 'ישיבה'), name: L.c(r, 'זוכה'), p: L.c(r, 'פרס'), how: L.c(r, 'פרס — איך'),
+              pay: L.c(r, 'תשלום') === 'שולם' ? 1 : 0, payAt: L.c(r, 'תשלום — מתי'),
+              dist: L.c(r, 'חלוקה') === 'חולק' ? 1 : 0, distAt: L.c(r, 'חלוקה — מתי'),
+              cost: przNum_(L.c(r, 'עלות')),
+              note: L.c(r, 'הודעה') === 'שלחתי' ? 'y' : L.c(r, 'הודעה') === 'לא שלחתי' ? 'n' : '',
+              noteAt: L.c(r, 'הודעה — מתי'), out: L.c(r, 'מחוץ לתוכנית') === 'כן' ? 1 : 0 };
+    list.push(o);
+    if (o.out) { S.out++; continue; }
+    if (o.pay) { S.paidN++; if (o.cost === null) S.paidU++; else S.paid += o.cost; }
+    else { S.comN++; if (o.cost === null) S.comU++; else S.com += o.cost; }
+  }
+  S.rest = S.paidU + S.comU ? null : S.budget - S.paid - S.com;
+  /* החדש ראשון */
+  list.reverse();
+  return { status: 'ok', list: list, sum: S };
+}
+var PRZ_SET_ = {
+  pay:  ['תשלום', { '': '', y: 'שולם' }, 'תשלום — מתי'],
+  dist: ['חלוקה', { '': '', y: 'חולק' }, 'חלוקה — מתי'],
+  note: ['הודעה', { '': '', y: 'שלחתי', n: 'לא שלחתי' }, 'הודעה — מתי'],
+  out:  ['מחוץ לתוכנית', { '': '', y: 'כן' }, '']
+};
+/* נקרא תחת נעילת הסקריפט (przRoute_). */
+function przSet_(P) {
+  var k = String(P.k || ''), f = String(P.f || ''), v = String(P.v == null ? '' : P.v).trim();
+  if (f !== 'cost' && !PRZ_SET_[f]) return { status: 'error', message: 'שדה לא מוכר' };
+  var L = przRead_(), r = -1;
+    for (var q = 1; q < L.rows.length; q++) if (L.c(q, 'מפתח') === k) r = q;
+    if (r < 1) return { status: 'error', message: 'הפרס לא נמצא ברישום' };
+    if (f === 'cost') {
+      if (v !== '' && przNum_(v) === null) return { status: 'error', message: 'העלות צריכה להיות מספר' };
+      przPut_(L, r, 'עלות', v === '' ? '' : String(przNum_(v)));
+    } else {
+      var d = PRZ_SET_[f];
+      if (!d[1].hasOwnProperty(v)) return { status: 'error', message: 'ערך לא מוכר' };
+      przPut_(L, r, d[0], d[1][v]);
+    if (d[2]) przPut_(L, r, d[2], v ? Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'd.M.yyyy') : '');
+  }
+  SpreadsheetApp.flush();
+  /* התשובה נקראת מחדש מהגיליון — מה שעל המסך הוא מה שנשמר. */
+  return przState_();
+}
+function przRoute_(e) {
+  var P = e.parameter, op = String(P.prz);
+  if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+  if (op !== 'state' && op !== 'set') return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
+  try {
+    var lock = LockService.getScriptLock(), out;
+    if (!lock.tryLock(15000)) return reply_(e, { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' });
+    try { out = op === 'set' ? przSet_(P) : przState_(); } finally { lock.releaseLock(); }
+    /* מחוץ לנעילה — chModel_ לוקח אותה בעצמו כשהמטמון קר. */
+    if (out.sum) { try { var M = chModel_({ test: false }, false); out.sum.chOn = !!(M && M.on); } catch (xc) {} }
+    return reply_(e, out);
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
   }
