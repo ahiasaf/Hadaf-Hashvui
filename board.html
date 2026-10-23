@@ -1423,9 +1423,24 @@ function pRow(p, noGrade) {
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div>' + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + ptsBox(p) + waBoxHtml(p) + kudoBox(p);
+    '</div>' + tkBtn(p) + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + tkBox(p) + ptsBox(p) +
+    waBoxHtml(p) + kudoBox(p);
 }
-/* ---- נקודות: לכל תלמיד, בכל מוסד ----
+/* ---- הכרטיסים להגרלה של השבוע: לכל תלמיד, בכל מוסד (8.99.324) ----
+   השרת (rafMeMap_) מצרף `tk`: { l, q, f, t } — לימוד, חידון, אבא. בלי
+   `tk` — אין כפתור (וכישלון בשרת אינו 0). הנקודות — לאור עציון בלבד. */
+function tkBtn(p) {
+  if (!p.tk || SELMODE) return '';
+  return '<button class="pts' + (p.tk.t ? '' : ' unk') + '" data-pts="tk:' + esc(p.id) + '">' +
+    esc(tp(UI.tkN, { n: p.tk.t })) + '</button>';
+}
+function tkBox(p) {
+  if (!p.tk || PTS_OPEN !== 'tk:' + p.id) return '';
+  var k = p.tk, L = [k.l ? UI.tkL : '', k.q ? UI.tkQ : '', k.f ? tp(UI.tkF, { n: k.f }) : ''].filter(Boolean);
+  return '<div class="pts-box">' + (L.length ? L.map(esc).join('<br>') : esc(UI.tkNone)) +
+    '<div class="h">' + esc(UI.tkHow) + '</div></div>';
+}
+/* ---- נקודות: אור עציון בלבד (8.99.324; עד אז — לכל מוסד) ----
    השרת (ptsAll_) מצרף `pts` לכל תלמיד (לא הורה, לא בדיקה): { n: נקודות או
    null, l: [[מסכת, דף, ציון]] }. בלי `pts` — אין כפתור (וכישלון בשרת
    אינו 0). null — "לא ידוע": אין לו ציון חידון שמור. */

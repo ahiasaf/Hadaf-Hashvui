@@ -116,7 +116,9 @@ var PAIR_UI = (function () {
     return (cfg.api ||
       (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim();
   }
-  function send(track, wk, mute) {
+  /* `kid` — במכשיר של אבא: לאיזה בן ההענקה ({ first, phone }). בלי —
+     הבן של ההרשמה (dadFirst/dadPhone). */
+  function send(track, wk, mute, kid) {
     var m = me(); if (!m || !m.id) return;
     var url = api(); if (!url) return;
     /* עם העמוד (ב. ב:) — השרת משייך לפיו את השורה לשבוע. */
@@ -147,8 +149,8 @@ var PAIR_UI = (function () {
       ['אושר', side() === 'parent' ? 'כן' : ''],
       ['קרבה', side() === 'parent' ? 'בן'
                                    : (m.parent === 'mom' ? 'אמא' : 'אבא')],
-      ['שם השותף', m.dadFirst || ''],
-      ['טלפון השותף', m.dadPhone || ''],
+      ['שם השותף', kid ? kid.first || '' : m.dadFirst || ''],
+      ['טלפון השותף', kid ? kid.phone || '' : m.dadPhone || ''],
       /* בחר לא לשלוח לצד השני התראה — השורה נרשמת (ההגרלה), ו-
          tools/pair-send.js מדלג עליה. */
       ['בלי התראה', mute ? 'כן' : '']
@@ -172,6 +174,7 @@ var PAIR_UI = (function () {
     (JSON.parse(item.cols || '[]') || []).forEach(function (p) { c[p[0]] = p[1]; });
     var m = me(); if (!m || !m.id) return;
     var tag = c['מסלול'] + '|' + c['שבוע'];
+    var ph = c['דיווח'] === 'ההורה' ? c['טלפון השותף'] || '' : '';
 
     fetch(url, { method:'POST', mode:'no-cors',
                  headers:{ 'Content-Type':'text/plain;charset=utf-8' },
@@ -180,9 +183,9 @@ var PAIR_UI = (function () {
       .then(function () {
         return new Promise(function (ok) { setTimeout(ok, 1500); });
       })
-      .then(function () { return arrived(m.id, tag); })
-      .then(function (ok) {
-        if (!ok) { TRIES++; return; }
+      .then(function () { return arrived(m.id, tag, ph); })
+      .then(function (r) {
+        if (!r || !r.has) { TRIES++; return; }
         var rest = [];
         try { rest = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
         catch (e) { return; }
@@ -193,21 +196,26 @@ var PAIR_UI = (function () {
       .catch(function () {});
   }
   /* JSONP, כמו ב-learned.js: הסקריפט של גוגל אינו מחזיר
-     כותרות CORS לקריאה רגילה מהדפדפן. */
-  function arrived(id, tag) {
+     כותרות CORS לקריאה רגילה מהדפדפן. `ph` — הטלפון של הבן, כשאבא
+     נותן לכמה בנים על אותו שבוע. מחזיר { has, late } או null. */
+  function arrived(id, tag, ph) {
     return new Promise(function (ok) {
       var cb = 'pr' + Date.now() + Math.floor(Math.random() * 1000);
       var sc = document.createElement('script');
-      var t0 = setTimeout(function () { clean(); ok(false); }, 8000);
+      var t0 = setTimeout(function () { clean(); ok(null); }, 8000);
       function clean() {
         clearTimeout(t0);
         try { delete window[cb]; } catch (e) { window[cb] = undefined; }
         if (sc.parentNode) sc.parentNode.removeChild(sc);
       }
-      window[cb] = function (r) { clean(); ok(!!(r && r.status === 'ok' && r.has)); };
-      sc.onerror = function () { clean(); ok(false); };
+      window[cb] = function (r) {
+        clean();
+        ok(r && r.status === 'ok' ? { has: !!r.has, late: !!r.late } : null);
+      };
+      sc.onerror = function () { clean(); ok(null); };
       sc.src = api() + '?pair=' + encodeURIComponent(id) +
-               '&wk=' + encodeURIComponent(tag) + '&cb=' + cb;
+               '&wk=' + encodeURIComponent(tag) + (ph ? '&ph=' + encodeURIComponent(ph) : '') +
+               '&cb=' + cb;
       document.body.appendChild(sc);
     });
   }
@@ -435,16 +443,18 @@ var PAIR_UI = (function () {
       history.replaceState(null, '', u);
     } catch (e) {}
   }
-  function mark(p, yes) {
+  /* `then(r)` — התשובה: { set, late } (late = ההגרלה של השבוע כבר נערכה). */
+  function mark(p, yes, then) {
     var url = api(); if (!url) return;
     /* JSONP, כמו כל קריאה אחרת לסקריפט של גוגל. */
     var cb = 'pk' + Date.now();
     var sc = document.createElement('script');
-    window[cb] = function () {
+    window[cb] = function (r) {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
+      if (then) then(r && r.status === 'ok' ? r : null);
     };
-    sc.onerror = window[cb];
+    sc.onerror = function () { window[cb](null); };
     sc.src = url + '?pairok=' + encodeURIComponent(p.id) +
              '&wk=' + encodeURIComponent(p.track + '|' + p.wk) +
              '&yes=' + (yes ? '1' : '0') + '&cb=' + cb;
@@ -455,25 +465,31 @@ var PAIR_UI = (function () {
      תגיע. ראו `pending()` למטה. */
   function confirmShow(p, urgent) {
     var m = me() || {};
-    var who = (m.dadFirst || '').trim() || t('kid');
+    var who = (p.name || '').trim() || (m.dadFirst || '').trim() || t('kid');
     var daf = (typeof LDafName === 'function')
       ? (LDafName(p.track, (parseInt(p.wk, 10) || 1) - 1) || '') : '';
     var wrap = show('<h3>' + esc(fill(t('okAskH'), { daf: daf ? 'דף ' + daf : '' })) +
       '</h3><p>' + esc(fill(t('okAskB'), { name: who })) + '</p>' +
-      '<button class="pr-go" id="pr-ok">' + esc(t('okYes')) + '</button>' +
+      '<button class="pr-go" id="pr-ok">' + esc(fill(t('okYes'), { name: who })) + '</button>' +
       '<button class="pr-thin" id="pr-nope">' + esc(t('okNo')) + '</button>');
     if (urgent) {
       var card = wrap.querySelector('.pr-card');
       if (card) card.className += ' red';
     }
     var end = function (yes) {
-      mark(p, yes);
-      show((yes ? SEAL : '') +
-        '<h3>' + esc(t(yes ? 'thanksH' : 'nopeH')) + '</h3>' +
-        '<p>' + esc(t(yes ? 'thanksB' : 'nopeB')) + '</p>' +
-        '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
-      var x = document.getElementById('pr-x');
-      if (x) x.onclick = shut;
+      var paint = function (late) {
+        show((yes ? SEAL : '') +
+          '<h3>' + esc(t(yes ? 'thanksH' : 'nopeH')) + '</h3>' +
+          '<p>' + esc(fill(t(!yes ? 'nopeB' : late ? 'lateB' : 'thanksB'), { name: who })) + '</p>' +
+          '<button class="pr-go" id="pr-x">' + esc(t('okGo')) + '</button>');
+        var x = document.getElementById('pr-x');
+        if (x) x.onclick = shut;
+      };
+      paint(false);
+      /* ההגרלה של השבוע כבר נערכה — אומרים בנחת שהכרטיס לא ייכנס. */
+      mark(p, yes, function (r) {
+        if (yes && r && r.late && document.getElementById('pr-wrap')) paint(true);
+      });
     };
     var b = document.getElementById('pr-ok');
     if (b) b.onclick = function () { end(true); };
@@ -498,7 +514,7 @@ var PAIR_UI = (function () {
      המסך נפתח מעצמו — באדום, כדי שזה יבלוט בלי קשר להתראה. */
   function pending() {
     var m = me();
-    if (!m || m.role !== 'dad' || !m.phone) return;
+    if (!m || m.role !== 'dad' || (!m.phone && !m.withId)) return;
     var url = api(); if (!url) return;
     var cb = 'pp' + Date.now() + Math.floor(Math.random() * 1000);
     var sc = document.createElement('script');
@@ -513,24 +529,26 @@ var PAIR_UI = (function () {
       if (r && r.status === 'ok' && r.pending && r.pending.id) confirmShow(r.pending, true);
     };
     sc.onerror = clean;
-    sc.src = url + '?pendingFor=' + encodeURIComponent(m.phone) + '&cb=' + cb;
+    /* `wid` — הבן שהזמין אותי בקישור: בקשה שלו מגיעה גם כשלא מסר את
+       הטלפון שלי. */
+    sc.src = url + '?pendingFor=' + encodeURIComponent(m.phone || '') +
+             (m.withId ? '&wid=' + encodeURIComponent(m.withId) : '') + '&cb=' + cb;
     document.body.appendChild(sc);
   }
 
   /* ============================================================
-     בתוך מסך הסיום — שורה, לא חלון.
+     בתוך מסך הסיום — שורה, לא חלון (8.99.324: כרטיס מאבא).
      ============================================================
-     "היו פה בעצם שתי הודעות — צריך לייעל את התהליך."
+     **לא "אישור" ולא "אימות שלמד איתך" — מתן כרטיס.** פעולה טכנית,
+     בלי אווירת חוסר אמון. הכרטיס של אבא הוא סוג כרטיס בפני עצמו,
+     ליד כרטיס הלימוד וכרטיס החידון (rafGrants_ ב-apps-script.gs).
 
-     מסך הסיום של הדף האינטראקטיבי כבר אומר "ישר כוח", וחלון
-     הזיווג נפתח מעליו ואמר את זה שוב — והסתיר את הכפתור לחידון.
-     כאן הלימוד המשותף הוא שורה אחת בתוך אותו מסך.
-
-     **בונוס, לא תנאי.** מה שמכניס להגרלה הוא החידון; הלימוד עם
-     ההורה רק מוסיף. לכן השורה קטנה, והכפתור הראשי במסך הוא החידון.
-
-     ההתראה לצד השני יוצאת תמיד — בלי חלון "לשלוח?". היא מה
-     שמחבר את ההורה, ואין סיבה לשאול עליה.
+     · במכשיר של הבן: "למדת עם אבא? בקש ממנו לתת לך כרטיס דרך
+       האפליקציה שלו." הבקשה נרשמת ב"זוגות", ואבא רואה אותה בפתיחה
+       הבאה של האפליקציה (pending) ובהתראה, אם הפעיל. לאבא בלי
+       אפליקציה — קישור בוואטסאפ, שמוביל להרשמה ומשם ישר להענקה.
+     · במכשיר של אבא: "ישר כוח על הלימוד" ופעולת הענקה לכל בן
+       מקושר, כל בן לעצמו. אין הענקה קבוצתית.
      ============================================================ */
   function lineCss() {
     if (document.getElementById('prl-css')) return;
@@ -549,9 +567,39 @@ var PAIR_UI = (function () {
       '  font-size:.86rem;cursor:pointer}',
       '.prl-a{display:block;margin:7px auto 0;border:0;background:none;padding:4px;',
       '  color:var(--ink-3,#5C687E);font-family:inherit;font-size:.8rem;',
-      '  font-weight:700;text-decoration:underline;cursor:pointer}'
+      '  font-weight:700;text-decoration:underline;cursor:pointer}',
+      '.prl-k{margin-top:6px}'
     ].join('\n');
     document.head.appendChild(st);
+  }
+  /* הבנים של אבא: הבן של ההרשמה, ו"בן נוסף" (df:kids2, join.html). */
+  function kids(m) {
+    var out = [], seen = {};
+    var add = function (first, phone) {
+      var k = String(phone || '').replace(/[^0-9]/g, '').slice(-9) || ('#' + (first || ''));
+      if (seen[k] || (!first && !phone)) return;
+      seen[k] = 1;
+      out.push({ first: String(first || '').trim(), phone: phone || '', k: k });
+    };
+    add(m.dadFirst, m.dadPhone);
+    var more = [];
+    try { more = JSON.parse(localStorage.getItem('df:kids2') || '[]') || []; } catch (e) {}
+    more.forEach(function (x) { if (x) add(x.first, x.phone); });
+    if (!out.length) out.push({ first: '', phone: '', k: '#' });
+    return out;
+  }
+  /* הקישור לאבא בלי אפליקציה: ההרשמה, עם הבן כמזמין (`wid`), ו-`gift`
+     שאומר לו כבר בפתיחה שכאן נותנים כרטיס. */
+  function giftUrl(m) {
+    var base = location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/, '');
+    return base + 'join.html?inst=' + encodeURIComponent(m.inst || '') +
+      '&rel=dad&gift=1&me=' + encodeURIComponent(m.first || '') +
+      '&wid=' + encodeURIComponent(m.id || '') +
+      (m.dadFirst ? '&f=' + encodeURIComponent(m.dadFirst) : '') +
+      (m.dadLast ? '&l=' + encodeURIComponent(m.dadLast) : '') +
+      (m.dadPhone ? '&p=' + encodeURIComponent(m.dadPhone) : '') +
+      '&sf=' + encodeURIComponent(m.first || '') + '&sl=' + encodeURIComponent(m.last || '') +
+      (m.phone ? '&sp=' + encodeURIComponent(m.phone) : '');
   }
   function line(track, wk, box) {
     if (!box) return false;
@@ -563,72 +611,64 @@ var PAIR_UI = (function () {
     var put = function (html) {
       lineCss(); box.innerHTML = html; box.style.display = '';
     };
-    var okRow = function (txt) {
-      put('<div class="prl ok"><b>✓</b><span>' + esc(fill(txt, v)) + '</span></div>');
+    var okRow = function (txt, vv) {
+      return '<div class="prl ok"><b>✓</b><span>' + esc(fill(txt, vv || v)) + '</span></div>';
     };
-    /* כבר נרשם (או שההורה אמר "לבד") — לא שואלים שוב. */
-    var had = got()[k];
-    if (had === 'alone') return false;
-    if (had) { okRow(t(sd === 'parent' ? 'lnHadKid' : 'lnHad')); return true; }
 
     if (sd === 'kid') {
+      /* הבקשה יצאה — ולאבא בלי אפליקציה, קישור בוואטסאפ. */
+      var asked = function (txt) {
+        var wa = 'https://wa.me/?text=' + encodeURIComponent(fill(t('linkWa'), { url: giftUrl(m) }));
+        put(okRow(txt) + (t('lnLink') ? '<a class="prl-a" href="' + esc(wa) + '" target="_blank" rel="noopener">' +
+            esc(fill(t('lnLink'), v)) + '</a>' : ''));
+      };
+      if (got()[k]) { asked(t('lnHad')); return true; }
       put('<div class="prl">' + esc(fill(t('lnAsk'), v)) + '<br>' +
-          '<button class="prl-b" id="prl-y">' + esc(t('lnYes')) + '</button></div>');
+          '<button class="prl-b" id="prl-y">' + esc(fill(t('lnYes'), v)) + '</button></div>');
       var y = document.getElementById('prl-y');
       if (y) y.onclick = function () {
-        keep(k); send(track, wk, false); okRow(t('lnOk'));
+        keep(k); send(track, wk, false); asked(t('lnOk'));
       };
-      /* ההורה כבר סימן? אז אין מה לשאול — רק לומר. */
+      /* אבא כבר נתן כרטיס על השבוע הזה? אז אין מה לבקש — רק לומר. */
       seen(track, wk, sd, function (hit) {
         if (!hit || !hit.id || got()[k]) return;
-        keep(k); okRow(t('lnBoth'));
+        keep(k); put(okRow(t('lnBoth')));
       });
       return true;
     }
 
-    /* ---- ההורה: ברירת מחדל "למדתם יחד" ----
-       הרישום יוצא כשעוזבים את המסך — כל לחיצה בו, יציאה מהדף או
-       ירידה לרקע — ו"למדתי לבד" מבטל אותו לפני שיצא. */
-    var gone = false, card = box.parentNode;
-    var bg = function () { if (document.visibilityState === 'hidden') go(); };
-    var tap = function (e) {
-      var a = e.target;
-      while (a && a !== card) { if (a.id === 'prl-n') return; a = a.parentNode; }
-      go();
+    /* ---- אבא: "ישר כוח", ופעולת הענקה לכל בן ---- */
+    var L = kids(m), hit0 = null;
+    var paint = function () {
+      var h = '<div class="prl">' + esc(t('lnPar'));
+      L.forEach(function (kd, i) {
+        var vk = { 'בן': kd.first || who };
+        var st = got()[k + '|' + kd.k];
+        h += '<div class="prl-k">' + (st ? okRow(t(st === 'late' ? 'lnGiveLate' : 'lnGiveOk'), vk)
+          : '<button class="prl-b" id="prl-g' + i + '">' + esc(fill(t('lnGive'), vk)) + '</button>') + '</div>';
+      });
+      put(h + '</div>');
+      L.forEach(function (kd, i) {
+        var b = document.getElementById('prl-g' + i);
+        if (b) b.onclick = function () { give(kd); };
+      });
     };
-    var off = function () {
-      window.removeEventListener('pagehide', go);
-      document.removeEventListener('visibilitychange', bg);
-      if (card) card.removeEventListener('click', tap, true);
+    var give = function (kd) {
+      keep(k + '|' + kd.k);
+      send(track, wk, false, kd.phone || kd.first ? { first: kd.first, phone: kd.phone } : null);
+      /* הבן כבר ביקש — גם הבקשה שלו מקבלת את ההענקה, כדי שלא תחזור
+         אליי כ"ממתינה". כרטיס אחד בכל מקרה (rafGrants_). */
+      if (hit0 && L.length === 1) mark({ id: hit0.id, track: track, wk: String(wk + 1) }, true);
+      paint();
+      /* ההגרלה של השבוע כבר נערכה? — אחרי שההענקה הגיעה לשרת. */
+      setTimeout(function () {
+        arrived(m.id, track + '|' + (wk + 1), kd.phone).then(function (r) {
+          if (r && r.has && r.late) { keep(k + '|' + kd.k, 'late'); paint(); }
+        });
+      }, 4000);
     };
-    var go = function () {
-      if (gone) return;
-      gone = true; off();
-      keep(k); send(track, wk, false);
-    };
-    window.addEventListener('pagehide', go);
-    document.addEventListener('visibilitychange', bg);
-    if (card) card.addEventListener('click', tap, true);
-    put('<div class="prl">' + esc(fill(t('lnPar'), v)) +
-        '<button class="prl-a" id="prl-n">' + esc(t('alone')) + '</button></div>');
-    var n = document.getElementById('prl-n');
-    if (n) n.onclick = function () {
-      gone = true; off(); keep(k, 'alone');
-      put('<div class="prl">' + esc(fill(t('lnAloneOk'), v)) + '</div>');
-    };
-    /* הבן כבר דיווח — לא רושמים פעם שנייה; רק מאשרים את מה שהוא סימן. */
-    seen(track, wk, sd, function (hit) {
-      if (!hit || !hit.id || gone) return;
-      gone = true; off(); keep(k);
-      if (hit.ok === 'כן') { okRow(t('lnHadKid')); return; }
-      put('<div class="prl">' + esc(fill(t('lnHit'), v)) + '<br>' +
-          '<button class="prl-b" id="prl-ok">' + esc(t('lnHitYes')) + '</button></div>');
-      var b = document.getElementById('prl-ok');
-      if (b) b.onclick = function () {
-        mark({ id: hit.id, track: track, wk: String(wk + 1) }, true);
-        okRow(t('lnHitOk'));
-      };
-    });
+    paint();
+    seen(track, wk, sd, function (hit) { if (hit && hit.id) hit0 = hit; });
     return true;
   }
 
@@ -643,5 +683,5 @@ var PAIR_UI = (function () {
 
   return { ask: ask, line: line, word: word, other: other, side: side,
            wanted: wanted, done: done, confirm: confirm_,
-           flush: boot, close: shut };
+           flush: boot, close: shut, pending: pending };
 })();

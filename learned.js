@@ -143,29 +143,57 @@ function LStreak(track) {
 /* נשמר קודם, נשלח אחר כך. `no-cors` מחזיר תשובה אטומה ולכן אי
    אפשר לדעת מהשרת אם הצליח; מה שמגן על התלמיד הוא שהסימון כבר
    אצלו במכשיר, והתור מנסה שוב בפתיחה הבאה. */
-function LMark(track, wk) {
+/* `mins` — דקות הלימוד המצטברות במכשיר הזה לדף (tmMin_ ב-learn.html),
+   לכרטיס הלימוד בהגרלה (rafTmAdd_ ב-apps-script.gs). בלי — לא נשלח. */
+function LMark(track, wk, mins) {
   var all = LGet('learned', {});
   var k = LKey(track, wk);
   if (all[k]) return false;                 /* כבר סומן — לא שולחים שוב */
   all[k] = new Date().toISOString();
   LSet('learned', all);
 
+  LDoneRow(track, wk, mins);
+  return true;
+}
+/* שורת הסיום ללשונית "לימוד". שורת סיום נושאת קטע = מתוך — כך השרת
+   מבדיל בינה לבין שורת התקדמות באמצע, בלי לנחש לפי מה שחסר. */
+function LDoneRow(track, wk, mins) {
   var me = LMe();
   if (me && me.id) {
     var q = LGet('learn-q', []) || [];
-    /* שורת סיום נושאת קטע = מתוך. כך השרת מבדיל בינה לבין שורת
-       התקדמות באמצע, בלי לנחש לפי מה שחסר. */
     var pz = LPos(track, wk);
     q.push({ action:'row', tab:'לימוד', cols: JSON.stringify([
       ['מזהה', me.id], ['קוד ישיבה', me.inst || ''],
       ['מסלול', track], ['שבוע', wk + 1], ['דף', LDafName(track, wk) || ''],
       ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : ''],
-      ['בדיקה', LTester() ? 'כן' : '']
+      ['בדיקה', LTester() ? 'כן' : ''],
+      ['זמן בדף (דקות)', mins >= 0 ? mins : ''], ['מכשיר', mins >= 0 ? LDev() : '']
     ]) });
     LSet('learn-q', q);
+    if (mins >= 0) { var ts = LGet('tm-sent', {}) || {}; ts[LKey(track, wk)] = mins; LSet('tm-sent', ts); }
     LFlush();
   }
-  return true;
+}
+/* מי שסומן כבר (למשל ב-80% של הדף, quietMark) והמשיך ללמוד — בסיום
+   נשלחת שוב שורת הסיום עם הזמן המעודכן, כשגדל לפחות בדקה מאז הפעם
+   הקודמת. השרת לוקח לכל מכשיר את הערך הגבוה, ולכן שורה נוספת אינה
+   מזיקה; בלעדיה הזמן נעצר במקום שבו הסימון קרה. */
+function LMarkTime(track, wk, mins) {
+  if (!(mins >= 0) || !LDone(track, wk)) return;
+  var ts = LGet('tm-sent', {}) || {}, was = ts[LKey(track, wk)];
+  if (was >= 0 && mins < was + 1) return;
+  LDoneRow(track, wk, mins);
+}
+/* מזהה המכשיר עצמו — לא מזהה האדם (`me.id` מתחלף במזהה הקבוע כשאותו
+   אדם נרשם בכמה מכשירים, LAdopt). הזמן נצבר בכל מכשיר לחוד, ולכן השרת
+   צריך לדעת מאיזה מכשיר הגיע כל ערך: הגבוה לכל מכשיר, וסכום ביניהם. */
+function LDev() {
+  var d = LGet('dev-id', '');
+  if (!d) {
+    d = 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7).toUpperCase();
+    LSet('dev-id', d);
+  }
+  return d;
 }
 /* ============================================================
    איפה הוא עצר בדף.

@@ -937,6 +937,10 @@ nav .sp{flex:1}
 #toast.on{opacity:1}
 /* ✕ של מסך הסיום — בפינה, מחוץ לזרימת התוכן. */
 .dn-card{position:relative}
+/* כמה דקות למד — מספר גדול ובולט (dnTimePaint_) */
+.dn-tm{margin:4px auto 10px;line-height:1.1;color:var(--blue-d)}
+.dn-tm b{display:block;font-size:2.9rem;font-weight:800;letter-spacing:-.02em;color:var(--gold-d,#8A6416)}
+.dn-tm span{display:block;font-size:.95rem;font-weight:800}
 /* החידון עוד לא עלה — במקום הכפתור הראשי, באותו מקום */
 .dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
   border:1.5px dashed var(--gold);background:#FFFBF2}
@@ -1359,6 +1363,9 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div class="seal">📖</div>
   <h2 id="done-h"></h2>
   <p id="done-sub"></p>
+  <!-- כמה דקות למד — מספר גדול ובולט (dnTimePaint_). אותו מראה גם
+       מתחת לעשר דקות: אין הודעת פסילה, התלמיד רואה בעצמו. -->
+  <div id="done-tm" class="dn-tm" style="display:none"></div>
   <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
   <div id="done-pair" style="display:none"></div>
   <a class="btn p" id="to-quiz" href="join.html"></a>
@@ -4626,7 +4633,7 @@ function quietMark(wk) {
     if (LDone(S.mas, wk)) return;
     var p = LPos(S.mas, wk);
     var far = Math.max(IDX, (p && p.n === FLAT.length) ? p.i : 0);
-    if (far >= FLAT.length - 1 || far / (FLAT.length - 1) >= LEARN_MOST) LMark(S.mas, wk);
+    if (far >= FLAT.length - 1 || far / (FLAT.length - 1) >= LEARN_MOST) LMark(S.mas, wk, tmMin_());
   } catch (e) {}
 }
 /* נשלח ביציאה. `visibilitychange` הוא האירוע היחיד שנורה באמת
@@ -5158,11 +5165,11 @@ function finish() {
   /* "השבועי" — רק בדף של השבוע הזה. מי שמשלים שבוע שעבר מקבל
      את שם השבוע כפי שהוא כתוב במסלול. */
   var par = (calOf(S.mas)[S.week] || [])[1] || '';
-  /* וכמה זמן הדף היה פתוח — באותה שורה, אחרי נקודה (dnTimeTxt_) */
+  /* וכמה זמן הדף היה פתוח — מספר גדול מתחת לשורה (dnTimePaint_) */
   var sub = isWeekDaf() || !par ? JOIN.weekDone
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
-  var tm = dnTimeTxt_();
-  $('done-sub').textContent = sub + (tm ? ' · ' + tm : '');
+  $('done-sub').textContent = sub;
+  dnTimePaint_();
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
   a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz || '';
@@ -5197,10 +5204,28 @@ function pageQs_() {
   }
   return out;
 }
+/* `df:qsent:` — הניסיון הנוכחי נשלח והתשובות נעולות. "מתחילים מחדש"
+   (qAgain_) מסיר אותו. `df:qtry:` — כמה פעמים נשלח (עד QZ_TRIES).
+   `df:qres:` — הציון האחרון, "נכונות/שאלות". */
+var QZ_TRIES = 2;
 function qSentKey_() { return 'df:qsent:' + dmKey(S.mas, S.daf); }
 function qResKey_() { return 'df:qres:' + dmKey(S.mas, S.daf); }
+function qTryKey_() { return 'df:qtry:' + dmKey(S.mas, S.daf); }
 function qSent_() {
   try { return localStorage.getItem(qSentKey_()) === '1'; } catch (e) { return false; }
+}
+/* כמה פעמים נשלח החידון. מכשיר שנעל לפני 8.99.324 (בלי מונה) —
+   ניסיון אחד. */
+function qTries_() {
+  var n = 0;
+  try { n = parseInt(localStorage.getItem(qTryKey_()), 10) || 0; } catch (e) {}
+  return n || (qSent_() ? 1 : 0);
+}
+/* האם הניסיון האחרון עבר: true / false, או null כשאין ציון שמור. */
+function qPassed_() {
+  var m = null;
+  try { m = String(localStorage.getItem(qResKey_()) || '').match(/^(\d+)\/(\d+)$/); } catch (e) {}
+  return m && +m[2] > 0 ? qPass_(+m[1], +m[2]) : null;
 }
 /* יש בדף חידון שעוד לא נשלח — "סיום" פותח שוב את מסך הסיום, ולא
    ממשיך לדף הבא (ראו go). מי שחזר לענות צריך דרך לשלוח. */
@@ -5224,12 +5249,18 @@ function doneQPaint_() {
   if (!all.length) return;
   var t = qTally_(all), h;
   if (qSent_()) {
-    /* תלמיד לא רואה לעולם שלא עבר: לא ציון, לא "נכנסת / לא נכנסת",
-       ולכן גם אין "הזדמנות שנייה" — היא עצמה הייתה מגלה (8.99.322).
-       מי נכנס להגרלה — בשרת (quizPass_) ובניהול בלבד. */
+    /* **התלמיד יודע מה מצבו** (8.99.324 — הבעלים הפכו את 8.99.322).
+       עבר — כרטיס נוסף. לא עבר בפעם הראשונה — אומרים לו, ומתחילים
+       מחדש (הזדמנות שנייה, לא יותר: גם השרת סופר רק שתיים, quizBest_).
+       לא עבר גם בשנייה — "לא נורא", ותזכורת שאפשר ללמוד עם אבא. לא
+       אומרים איזו שאלה. בלי ציון שמור (מכשיר ישן) — רק תודה. */
+    var ok = qPassed_(), again = ok === false && qTries_() < QZ_TRIES;
+    var hd = ok ? UI.dqPassH : ok === false ? (again ? UI.dqFail1H : UI.dqFail2H) : UI.dqThanks;
+    var bd = ok ? UI.dqPassB : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
     box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b>' +
-      '<div class="dq-res"><b>' + esc(UI.dqThanks || '') + '</b>' +
-        esc(UI.dqThanksB || '') + '</div>';
+      '<div class="dq-res"><b>' + esc(hd || '') + '</b>' + esc(bd || '') + '</div>' +
+      (again ? '<button class="btn p" id="dq-again">' + esc(UI.dqAgain || '') + '</button>' : '');
+    if (again) $('dq-again').onclick = qAgain_;
     return;
   }
   var dots = '';
@@ -5259,6 +5290,7 @@ function qsSend_(all) {
   var t = qTally_(all), miss = t.n - t.a;
   var ask = miss ? String(UI.dqSureMiss || '').replace('{m}', miss) : UI.dqSure;
   if (!confirm(ask || '')) return;
+  var tries = qTries_() + 1;
   if (API && !quiet()) {
     var me = (typeof LMe === 'function') ? LMe() : null;
     tmTick_();
@@ -5273,6 +5305,9 @@ function qsSend_(all) {
         ['ציון', t.r + '/' + t.n],
         ['נכון', qPass_(t.r, t.n) ? 'נכון' : 'לא נכון'],
         ['זמן בדף (דקות)', tmMin_()],
+        /* מכשיר — הזמן נצבר לכל מכשיר לחוד (rafTmAdd_). ניסיון — לרכז;
+           השרת סופר לבד רק את שתי השליחות הראשונות (quizBest_). */
+        ['מכשיר', typeof LDev === 'function' ? LDev() : ''], ['ניסיון', tries],
         ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
     }) }).catch(function () {});
@@ -5280,11 +5315,31 @@ function qsSend_(all) {
   try {
     localStorage.setItem(qSentKey_(), '1');
     localStorage.setItem(qResKey_(), t.r + '/' + t.n);
+    localStorage.setItem(qTryKey_(), String(tries));
   } catch (e) {}
   doneQPaint_();
   paintChavArea();
   bar();
   toast(UI.dqOk || '');
+}
+/* הזדמנות שנייה: התשובות שבמכשיר נמחקות (גם הנעילה הישנה, df:qok),
+   והחידון מתחיל מחדש בקטע הראשון שיש בו שאלה. */
+function qAgain_() {
+  var n = qTries_();
+  if (n >= QZ_TRIES) return;
+  /* המונה נשמר לפני שהנעילה יורדת — במכשיר ישן הוא נגזר ממנה. */
+  try { localStorage.setItem(qTryKey_(), String(n)); } catch (e) {}
+  pageQs_().forEach(function (it) {
+    try {
+      localStorage.removeItem(qAnsKey_(it.n, it.q));
+      localStorage.removeItem(qOkKey_(it.n, it.q));
+    } catch (e) {}
+  });
+  try { localStorage.removeItem(qSentKey_()); } catch (e) {}
+  $('done').className = 'sheet';
+  qGoFirst_(true);
+  paintChavArea();
+  bar();
 }
 
 /* ---------- זמן בדף ----------
@@ -5305,14 +5360,19 @@ function tmTick_() {
   }
   TM_AT = document.hidden ? 0 : now;
 }
-/* מסך הסיום: "סיימת את הלימוד · 25 דקות". הזמן הוא זה שנשלח עם
-   החידון (tmMin_), עד הרגע הזה. בלי זמן שמור — רק "סיימת". */
-function dnTimeTxt_() {
+/* מסך הסיום: "סיימת את הלימוד", ומתחתיו המספר הגדול — 27 / דקות
+   (8.99.324). הזמן הוא זה שנשלח עם הסיום ועם החידון (tmMin_), עד הרגע
+   הזה. מתחת לעשר דקות — אותו מראה בדיוק, בלי שיפוט ובלי הודעת פסילה:
+   הלימוד הקצר נפסל בשקט בחישוב ההגרלה בלבד (rafTmOk_ בשרת), והתלמיד
+   רואה בעצמו את המספר הקטן. בלי זמן שמור — אין מספר. */
+function dnTimePaint_() {
+  var box = $('done-tm');
   tmTick_();
   var m = tmMin_(), r = Math.round(m);
-  if (!(m > 0)) return '';
-  return (m < 1 ? UI.dnTime0 : r === 1 ? UI.dnTime1 : r === 2 ? UI.dnTime2
-    : String(UI.dnTimeN || '').replace('{n}', r)) || '';
+  if (!(m > 0)) { box.style.display = 'none'; return; }
+  box.innerHTML = m < 1 ? '<span>' + esc(UI.dnTime0 || '') + '</span>'
+    : '<b>' + r + '</b><span>' + esc((r === 1 ? UI.dnTmU1 : UI.dnTmUN) || '') + '</span>';
+  box.style.display = '';
 }
 function tmMin_() {
   var v = 0;
@@ -5914,7 +5974,11 @@ function markThisDaf() {
   if (wk < 0 || wk !== S.week) return;
 
   var fresh = !LDone(S.mas, wk);
-  if (fresh) LMark(S.mas, wk);
+  /* עם הזמן שהמכשיר צבר לדף — לכרטיס הלימוד בהגרלה. מי שכבר סומן
+     (ב-80% של הדף) — הזמן המעודכן נשלח שוב (LMarkTime). */
+  tmTick_();
+  if (fresh) LMark(S.mas, wk, tmMin_());
+  else if (typeof LMarkTime === 'function') LMarkTime(S.mas, wk, tmMin_());
   doneMarked_ = true;
   /* הגיע לסוף הדף — וזה הרגע לשאול עם מי למד.
 

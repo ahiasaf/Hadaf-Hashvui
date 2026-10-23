@@ -1731,6 +1731,9 @@ function drawTop() {
     var rel0 = qs('rel');
     line = tpl(rel0 === 'friend' ? (JOIN.invFromFriend || JOIN.invFrom)
              : rel0 === 'kid'    ? (JOIN.invFromDad    || JOIN.invFrom)
+             /* הקישור מבקשת הכרטיס של הבן (pair.js giftUrl): כבר כאן,
+                לפני ההרשמה, אבא מבין לאן זה מוביל. */
+             : qs('gift')        ? (JOIN.invGift       || JOIN.invFromKid || JOIN.invFrom)
              :                     (JOIN.invFromKid    || JOIN.invFrom),
                { me:invFrom });
   }
@@ -2673,6 +2676,9 @@ $('go').onclick = function () {
   if (window.TM && TM.on()) TM.add(me.id);
 
   showDone(me, 'go');
+  /* אבא שהגיע מקישור בקשת הכרטיס — ישר להענקה לבן שהזמין, בלי חיפוש
+     (pendingFor לפי `wid`). רגע אחרי, שהשורה שלו תספיק לצאת. */
+  if (role === 'dad' && qs('gift') && window.PAIR_UI && PAIR_UI.pending) setTimeout(PAIR_UI.pending, 2500);
 };
 /* שגיאה בטופס נספרת לפי הנוסח — כך רואים בניהול מה עוצר אנשים. */
 function say(t) { $('err').textContent = t; if (t) hit('err', String(t).slice(0, 60)); }
@@ -3187,11 +3193,14 @@ function drawWeek() {
     (st > 1 ? '<div class="st">' + esc(tpl(JOIN.streak, { n:st })) + '</div>' : '');
 }
 
-/* הנקודות של התלמיד — רק מהשרת (?pts=me, אותו חישוב כמו בלוח הצוות:
-   10 לכל דף שלם עם חידון או אישור בנוכחות, פעם אחת לדף). תשובה שאינה
-   ok — מה שהיה נשאר; אין לשרת נקודות לאדם הזה (הורה, בדיקה, לא מוכר)
-   — אין שורה. נשאל בכל פתיחה (חזרה מהדף ומהחידון) ואחר כך כל שתי
-   דקות; מה שמוצג תמיד אחרי שהשרת חישב — לא ניחוש מקומי. */
+/* הכרטיסים שלי להגרלה של השבוע — ובאור עציון גם הנקודות (8.99.324).
+   רק מהשרת (?pts=me: `tk` מ-rafTk_, אותו חישוב כמו ההגרלה; הנקודות —
+   אותו חישוב כמו בלוח הצוות). בשאר המוסדות הנקודות אינן מוצגות: מה
+   שהתלמיד צריך לדעת הוא כמה כרטיסים יש לו. תשובה שאינה ok — מה שהיה
+   נשאר; אין לשרת נתונים לאדם הזה (הורה, בדיקה, לא מוכר) — אין שורה.
+   נשאל בכל פתיחה (חזרה מהדף ומהחידון) ואחר כך כל שתי דקות; מה שמוצג
+   תמיד אחרי שהשרת חישב — לא ניחוש מקומי. */
+var PTS_OE = 'oretzion';
 var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false;
 function drawPts() {
   var el = $('mypts');
@@ -3213,7 +3222,8 @@ function drawPts() {
       clearTimeout(t0); clean();
       if (!r || r.status !== 'ok') return;
       PTS_GOT = true;
-      set('ptsMe', { id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [] });
+      set('ptsMe', { id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
+                     tk: r.tk || null });
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); clean(); };
@@ -3221,13 +3231,21 @@ function drawPts() {
     document.body.appendChild(sc);
   }
   if (!c || c.none) { el.hidden = true; return; }
+  var oe = me.inst === PTS_OE, tk = c.tk;
+  if (!tk && !oe) { el.hidden = true; return; }
   var mas = function (id) {
     for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i].masechet;
     return id;
   };
-  var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
+  var h = tk ? esc(tk.t ? tpl(tk.t === 1 ? UI.myTk1 : UI.myTkN, { n: tk.t, daf: tk.daf || '' }) : UI.myTk0) : '';
+  if (oe) h += (h ? '<br>' : '') + esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
   if (PTS_OPEN) {
-    h += '<div class="l">' + (c.l || []).map(function (x) {
+    /* הפירוט: שלושת סוגי הכרטיסים, וכל אחד לעצמו. */
+    if (tk) h += '<div class="l">' + [
+      tk.l ? UI.myTkL : '', tk.q ? UI.myTkQ : '',
+      tk.f ? tpl(tk.f === 1 ? UI.myTkF1 : UI.myTkFN, { n: tk.f }) : ''
+    ].filter(Boolean).map(esc).join('<br>') + '<div class="h">' + esc(UI.myTkHow) + '</div></div>';
+    if (oe) h += '<div class="l">' + (c.l || []).map(function (x) {
       return esc(tpl(UI.ptsRow, { mas: mas(x[0]), daf: x[1], s: x[3] ? tpl(UI.ptsConfN, { k: x[3] }) : x[2] === 'conf' ? UI.ptsConf : x[2],
                                 p: 10 * (x[3] || 1) }));
     }).join('<br>') + '<div class="h">' + esc(UI.myPtsHow) + '</div></div>';
