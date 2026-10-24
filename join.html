@@ -756,11 +756,32 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mytk .tk-n{flex:none;min-width:84px;max-width:40%;padding:8px 6px;border-radius:var(--r-s);background:var(--sunk);text-align:center}
 .mytk .tk-n b{display:block;font-size:2.3rem;font-weight:900;line-height:1;color:var(--blue)}
 .mytk .tk-n span{display:block;margin-top:4px;font-size:.68rem;font-weight:700;line-height:1.3;color:var(--ink-2)}
-.mytk .tk-rows{margin-top:12px;border-top:1px solid var(--rule)}
-.mytk .tk-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;
-  border-bottom:1px solid var(--rule);font-size:.9rem;font-weight:700}
-.mytk .tk-row .ok{flex:none;color:var(--green-d);font-weight:800}
-.mytk .tk-row .no{flex:none;color:var(--ink-3);font-size:.8rem;font-weight:600}
+/* כרטיס הגרלה מוחשי (8.99.329): הסכום — כרטיס כחול עם חריצים בצדדים;
+   ומתחתיו שלושה כרטיסים קטנים, אחד לכל סוג. שהתקבל — זהב עם ✓;
+   שעוד לא — כרטיס ריק, דהוי, עם "+1". החריצים הם עיגולים בצבע הרקע. */
+.mytk .tk-n.tix{position:relative;padding:10px 14px 9px;border-radius:10px;
+  background:linear-gradient(135deg,#1F56A8,#0B2550);box-shadow:0 5px 12px rgba(11,37,80,.28)}
+.mytk .tk-n.tix b{color:#E5B854}
+.mytk .tk-n.tix span{color:#fff;opacity:.9}
+.mytk .tix:before,.mytk .tix:after{content:'';position:absolute;top:50%;width:14px;height:14px;
+  margin-top:-7px;border-radius:50%;background:var(--surface)}
+.mytk .tix:before{right:-7px}
+.mytk .tix:after{left:-7px}
+.mytk .tk-ss{display:flex;gap:9px;margin-top:14px}
+.mytk .tk-s{position:relative;flex:1 1 0;min-width:0;padding:10px 8px 9px;border-radius:10px;
+  background:var(--sunk);text-align:center;color:var(--ink-3)}
+.mytk .tk-s i{display:block;font-style:normal;font-size:1.25rem;font-weight:900;line-height:1.2}
+.mytk .tk-s span{display:block;margin-top:7px;padding-top:7px;border-top:2px dashed rgba(27,42,69,.18);
+  font-size:.76rem;font-weight:800;line-height:1.3}
+/* בכרטיס הקטן החריצים על קו הניקוב: 10 ריפוד + 24 הסימן + 7 רווח. */
+.mytk .tk-s.tix:before,.mytk .tk-s.tix:after{top:41px}
+.mytk .tk-s i{opacity:.75}
+.mytk .tk-s.on i{opacity:1}
+.mytk .tk-s.on{background:linear-gradient(135deg,#E5B854,#C9962E);color:#1B2A45;
+  box-shadow:0 4px 10px rgba(140,104,31,.28)}
+.mytk .tk-s.on span{border-top-color:rgba(27,42,69,.3)}
+.mytk .tk-s .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
+  margin:0;padding:0;border:0}
 .mytk .tk-err{margin-top:10px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
 .mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
   font-size:.93rem;font-weight:800;color:var(--blue);text-align:right;cursor:pointer}
@@ -1464,6 +1485,8 @@ footer a{color:var(--ink-2);font-weight:800}
     <div id="chal"></div>
     <div id="phnag"></div>
     <div id="getapp"></div>
+    <!-- "לשלוח שוב" את ההזמנה הראשית, אחרי שנשלחה (drawInv). -->
+    <div id="inv-re"></div>
     <div id="inv2"></div>
     <div id="kids"></div>
     <div id="wagrp"></div>
@@ -2980,14 +3003,16 @@ function drawInv() {
   /* מי שהגיע דרך הזמנה — הצד השני כבר בפנים. הזמנה חוזרת אליו
      נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
   if (!force && me.from) return;
+  var re = $('inv-re'); if (re) re.innerHTML = '';
   if (!force && get('inv-sent', 0)) {
-    /* "נשלחה" אינו ודאות: מי שחזר מוואטסאפ בלי ללחוץ שלח נשאר
-       בלי דרך לשלוח. המספר כבר שמור — לחיצה אחת פותחת שוב. */
+    /* אחרי השליחה — כלום בראש המסך. הוא שלח בעצמו בוואטסאפ, ואישור
+       "נשלחה" רק דחק את הדף למטה. "נשלחה" אינו ודאות: מי שחזר
+       מוואטסאפ בלי ללחוץ שלח מוצא בתחתית קישור עדין לשלוח שוב. */
     var okPh = (String(me.dadPhone || '').match(/\d/g) || []).length >= 9;
-    box.innerHTML = '<div class="inv"><div class="ok">' + esc(JOIN.invSent) + '</div>' +
-      (okPh ? '<button class="more-link" id="inv-again">' + esc(JOIN.invAgain) + '</button>' : '') +
-      '</div>';
-    if (okPh) $('inv-again').onclick = function () { invWa_(me, me.dadPhone, invMsg_(me, me.dadFirst || '')); };
+    if (okPh && re) {
+      re.innerHTML = '<button class="more-link" id="inv-again">' + esc(JOIN.invAgain) + '</button>';
+      $('inv-again').onclick = function () { invWa_(me, me.dadPhone, invMsg_(me, me.dadFirst || '')); };
+    }
     return;
   }
 
@@ -3401,15 +3426,18 @@ function tkCardHtml(c) {
   });
   if (!mas.length) mas.push(masName(myTrack()));
   var sub = tk ? (tk.daf ? tpl(UI.myTkFor, { daf: tk.daf, mas: mas.join(', ') }) : UI.myTkNoDaf) : '';
+  /* כרטיס קטן לכל סוג: התקבל — ✓ (ובשני מסלולים "✓ 2"); לא — "+1",
+     ו"עוד אפשר לקבל" לקורא המסך. */
   var row = function (lbl, k) {
-    return '<div class="tk-row"><span>' + esc(lbl) + '</span>' +
-      (k > 0 ? '<span class="ok" dir="ltr">✓ ' + k + '</span>' : '<span class="no">' + esc(UI.myTkMore) + '</span>') + '</div>';
+    return '<div class="tk-s tix' + (k > 0 ? ' on' : '') + '"><i dir="ltr" aria-hidden="true">' +
+      (k > 0 ? '✓' + (k > 1 ? ' ' + k : '') : '+1') + '</i><span>' + esc(lbl) + '</span>' +
+      (k > 0 ? '' : '<b class="sr">' + esc(UI.myTkMore) + '</b>') + '</div>';
   };
   return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
       (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
-    '<div class="tk-n"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
+    '<div class="tk-n' + (tk ? ' tix' : '') + '"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
       (tk ? '<span>' + esc(n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
-    (tk ? '<div class="tk-rows">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
+    (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
         : !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
     '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
 }
