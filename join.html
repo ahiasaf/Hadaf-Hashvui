@@ -803,6 +803,16 @@ html.tkh-on,html.tkh-on body{overflow:hidden}
 .tkh-c p{margin:4px 0 0;font-size:.88rem;line-height:1.55;color:var(--ink-2)}
 .tkh-c i{flex:none;padding:6px 11px;border-radius:999px;background:var(--sunk);color:var(--green-d);
   font-style:normal;font-size:1.05rem;font-weight:900}
+/* נוכחות בשיעור — כרטיס זהב עם חריצים, כמו הכרטיסים שהתקבלו בבית. */
+.tkh-at{position:relative;margin-top:16px;background:linear-gradient(135deg,#E5B854,#C9962E);
+  box-shadow:0 6px 16px rgba(140,104,31,.3)}
+.tkh-at:before,.tkh-at:after{content:'';position:absolute;top:50%;width:16px;height:16px;
+  margin-top:-8px;border-radius:50%;background:var(--paper)}
+.tkh-at:before{right:-8px}
+.tkh-at:after{left:-8px}
+.tkh-at b{color:#1B2A45;font-size:1.1rem}
+.tkh-at p{color:#1B2A45;font-weight:700}
+.tkh-at i{background:#0B2550;color:#E5B854;font-size:1.25rem;padding:8px 13px}
 .tkh-note{margin:16px 2px 20px;font-size:.86rem;line-height:1.7;color:var(--ink-2);white-space:pre-line}
 .tkh-back{display:block;width:100%;min-height:50px;border:0;border-radius:var(--r-s);background:var(--blue);
   color:#fff;font:inherit;font-size:1rem;font-weight:800;cursor:pointer}
@@ -3453,6 +3463,7 @@ function tkHowOpen() {
   box.innerHTML = '<div class="tkh-bar"><button type="button" id="tkh-x" onclick="tkHowClose()">→ ' + esc(UI.tkhBack) + '</button></div>' +
     '<div class="tkh-in"><h2 id="tkh-t">' + esc(UI.tkhT) + '</h2>' +
     card(UI.tkhLT, UI.tkhLB) + card(UI.tkhQT, UI.tkhQB) + card(UI.tkhFT, UI.tkhFB) +
+    '<div class="tkh-c tkh-at"><div><b>' + esc(UI.tkhAT) + '</b><p>' + esc(UI.tkhAB) + '</p></div><i dir="ltr">+2</i></div>' +
     '<div class="tkh-note">' + esc(UI.tkhNote) + '</div>' +
     '<button type="button" class="tkh-back" onclick="tkHowClose()">' + esc(UI.tkhBack) + '</button></div>';
   box.hidden = false;
