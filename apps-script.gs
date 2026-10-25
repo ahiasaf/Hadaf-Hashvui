@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 118;
+var SCRIPT_VERSION = 119;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8262,17 +8262,22 @@ function raffleDraw_(P) {
     /* **רענון ולחיצה כפולה אינם הגרלה נוספת.** יש הגרלה לשבוע — מחזירים אותה. */
     var had = rafLast_(T, wk);
     if (had) { had.status = 'ok'; had.again = 1; return had; }
-    var E = raffleElig_(codes);
+    var E = raffleElig_(codes), nm = rafInstNm_();
     var rid = 'R' + wk + '-' + Utilities.getUuid().slice(0, 8);
     var who = String(P.who || 'רכז').slice(0, 40);
     codes.forEach(function (cd) {
       var L = E.by[cd] || [], tix = {}, nt = 0;
       L.forEach(function (p) { tix[p.id] = p.t || 1; nt += p.t || 1; });
       var w = L.length ? rafPickW_(L, function (p) { return p.t; }) : null;
+      /* שם המוסד — מהזכאי הראשון שיש לו שם, ואם לאף אחד אין (שורות מעמדת
+         הלימוד נושאות לפעמים רק קוד) — מהרשימה הרשמית לפי הקוד. */
+      var inm = '';
+      L.forEach(function (p) { if (!inm && p.inst) inm = p.inst; });
+      if (!inm && L.length) inm = nm[cd] || '';
       appendCols_(RAF_TAB, [
         ['מזהה הגרלה', rid], ['שבוע', wk], ['מועד חיתוך', E.cut], ['מבצע', who],
         ['מוסדות', codes.join(',')], ['קוד ישיבה', cd],
-        ['ישיבה', L.length ? L[0].inst : ''], ['זכאים', L.length],
+        ['ישיבה', inm], ['זכאים', L.length],
         ['תמונת זכאות', JSON.stringify(L.map(function (p) { return p.id; })).slice(0, 40000)],
         /* כמה כרטיסים לכל זכאי — להגרלה מחדש באותו משקל (rafRedo_). */
         ['כרטיסים', nt], ['דף', E.daf || ''],
@@ -8887,10 +8892,17 @@ function rafDay_(v) {
   try { tz = Session.getScriptTimeZone() || tz; } catch (e) {}
   return Utilities.formatDate(t, tz, 'd.M');
 }
+/* שם המוסד לפי הקוד — מהרשימה הרשמית (OV_INST_). */
+function rafInstNm_() {
+  var m = {};
+  OV_INST_.forEach(function (x) { m[x[0]] = x[1]; });
+  return m;
+}
 function rafAll_() {
   var rc = CacheService.getScriptCache(), hit = rc.get('raf:all');
   if (hit) { try { return JSON.parse(hit); } catch (x) {} }
-  var T = rafRead_(), seen = {}, out = [];
+  /* הגרלה שנשמרה בלי שם מוסד — השם לפי הקוד. */
+  var T = rafRead_(), seen = {}, out = [], nm = rafInstNm_();
   for (var r = T.rows.length - 1; r >= 1; r--) {
     var rid = T.c(r, 'מזהה הגרלה');
     if (!rid || seen[rid]) continue;
@@ -8899,7 +8911,7 @@ function rafAll_() {
     var d = rafById_(T, rid);
     out.push({ day: rafDay_(T.ix['פורסם'] === undefined ? '' : T.rows[r][T.ix['פורסם']]), wk: d.wk,
                w: d.rows.filter(function (x) { return x.win; })
-                        .map(function (x) { return { name: String(x.name || '').trim(), inst: x.inst }; }) });
+                        .map(function (x) { return { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '' }; }) });
   }
   var res = { status: 'ok', list: out };
   try { rc.put('raf:all', JSON.stringify(res), 60); } catch (x2) {}
