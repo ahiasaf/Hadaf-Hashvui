@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.335';
+var APP_VERSION = '8.99.336';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9812,6 +9812,8 @@ function instFromRows(rows) {
   return { ok:true, list:out };
 }
 
+/* הקידומת של שם מוסד: "ישיבת", ולא "יב״ע" — המילה שהתלמידים מכירים. */
+function instNm(n) { return String(n || '').replace(/^יב["״]ע /, UI.instPre + ' '); }
 function loadInstitutions() {
   return fetchSheet(CFG.sheetId || SHEET_ID, CFG.sheetTab || SHEET_TAB)
     .then(function (rows) {
@@ -9825,6 +9827,8 @@ function loadInstitutions() {
       INSTITUTIONS.length = 0;
       r.list.forEach(function (i) {
         if (!i.head && was[i.code]) i.head = was[i.code];
+        /* "יב״ע" → "ישיבת" (8.99.336) — גם כשהגיליון עוד נושא את השם הישן. */
+        i.name = instNm(i.name);
         INSTITUTIONS.push(i);
       });
       INST_SRC = 'sheet';
@@ -14923,7 +14927,7 @@ function stuckLoad() {
 function stuckInst(p) {
   if (p.code) return p.code;
   var by = (INSTITUTIONS || []).filter(function (i) {
-    return i.name === p.inst;
+    return i.name === instNm(p.inst);
   })[0];
   return by ? by.code : '';
 }
@@ -24005,7 +24009,7 @@ function registerSW() {
     }));
     if (instFromRows(head).ok) {
       INSTITUTIONS.length = 0;
-      cached.forEach(function (i) { INSTITUTIONS.push(i); });
+      cached.forEach(function (i) { i.name = instNm(i.name); INSTITUTIONS.push(i); });
       applyCfg();
     } else {
       Store.set('instCache', null);   // רשימה פגומה — נזרקת, והקוד חוזר

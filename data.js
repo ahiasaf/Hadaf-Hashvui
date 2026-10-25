@@ -38,7 +38,7 @@ var COORD_WA = '';
    ובה ארבע עמודות בשורה הראשונה:
 
        code | name | last | joined
-       avir | יב"ע אביר יעקב | TRUE | TRUE
+       avir | ישיבת אביר יעקב | TRUE | TRUE
 
    רשימת אנשי הקשר (עם טלפונים) היא גיליון נפרד, ומזהה שלו
    מוזן במסך הניהול ונשמר על המכשיר בלבד — כדי שלא יישב בקוד.
@@ -65,7 +65,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.335';
+var DAF_REV = '8.99.336';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -384,50 +384,50 @@ function TrackHashInst(code) {
    על מה שכאן — ראו `instFromRows()`.
    ------------------------------------------------------------ */
 var INSTITUTIONS = [
-  { code:'avir',    name:'יב"ע אביר יעקב',            last:true,  joined:false  },
-  { code:'ohel',    name:'יב"ע אהל שלמה',             last:false, joined:false,
+  { code:'avir',    name:'ישיבת אביר יעקב',            last:true,  joined:false  },
+  { code:'ohel',    name:'ישיבת אהל שלמה',             last:false, joined:false,
     head:'הרב יגאל בוטוש' },
-  { code:'oretzion',name:'יב"ע אור עציון',            last:false, joined:false,
+  { code:'oretzion',name:'ישיבת אור עציון',            last:false, joined:false,
     head:'הרב נחמיה ארנטל' },
-  { code:'baryohai',name:'יב"ע בר יוחאי',             last:false, joined:true },
-  { code:'givat',   name:'יב"ע גבעת שמואל',           last:true,  joined:true,
+  { code:'baryohai',name:'ישיבת בר יוחאי',             last:false, joined:true },
+  { code:'givat',   name:'ישיבת גבעת שמואל',           last:true,  joined:true,
     head:'הרב אלעזר אוליאל' },
-  { code:'hadarom', name:'יב"ע הדרום',                last:true,  joined:true,
+  { code:'hadarom', name:'ישיבת הדרום',                last:true,  joined:true,
     head:'הרב אלעד לסרי' },
-  { code:'halihot', name:'יב"ע השומרון', last:false, joined:false,
+  { code:'halihot', name:'ישיבת השומרון', last:false, joined:false,
     head:'הרב מנור עמרמי' },
-  { code:'harel',   name:'יב"ע הראל חולון',           last:true,  joined:true,
+  { code:'harel',   name:'ישיבת הראל חולון',           last:true,  joined:true,
     head:'הרב חיים גורן' },
-  { code:'hadera',  name:'יב"ע חדרה',                 last:true,  joined:true,
+  { code:'hadera',  name:'ישיבת חדרה',                 last:true,  joined:true,
     head:'הרב שלמה זוננשטיין' },
-  { code:'harish',  name:'יב"ע חריש',                 last:false, joined:false,
+  { code:'harish',  name:'ישיבת חריש',                 last:false, joined:false,
     head:'הרב רז לגזיאל' },
-  { code:'yavne',   name:'יב"ע יבנה',                 last:true,  joined:true,
+  { code:'yavne',   name:'ישיבת יבנה',                 last:true,  joined:true,
     head:'הרב אלחנן אפטרבוט' },
-  { code:'lapid',   name:'יב"ע לפיד תורת נחום',       last:false, joined:true,
+  { code:'lapid',   name:'ישיבת לפיד תורת נחום',       last:false, joined:true,
     head:'הרב שלום צבי קרל' },
-  { code:'binyamin',name:'יב"ע מטה בנימין',           last:false, joined:false,
+  { code:'binyamin',name:'ישיבת מטה בנימין',           last:false, joined:false,
     head:'הרב יונתן מרמור' },
-  { code:'neve',    name:'יב"ע נווה הרצוג',           last:true,  joined:true,
+  { code:'neve',    name:'ישיבת נווה הרצוג',           last:true,  joined:true,
     head:'הרב מני כהן' },
-  { code:'nahal',   name:'יב"ע נחל יצחק — נחלים',     last:false, joined:false,
+  { code:'nahal',   name:'ישיבת נחל יצחק — נחלים',     last:false, joined:false,
     head:'הרב ברגר אסף' },
-  { code:'nertamid',name:'יב"ע נר תמיד',              last:false, joined:true,
+  { code:'nertamid',name:'ישיבת נר תמיד',              last:false, joined:true,
     head:'רויטל פישר', fem:true },
-  { code:'netivmeir',name:'יב"ע נתיב מאיר',           last:false, joined:false,
+  { code:'netivmeir',name:'ישיבת נתיב מאיר',           last:false, joined:false,
     head:'הרב נועם ברנדל' },
-  { code:'netivot', name:'יב"ע נתיבות חיים',          last:false, joined:false,
+  { code:'netivot', name:'ישיבת נתיבות חיים',          last:false, joined:false,
     head:'הרב אליאור אוחנה' },
-  { code:'eli',     name:'יב"ע עלי',                  last:false, joined:false,
+  { code:'eli',     name:'ישיבת עלי',                  last:false, joined:false,
     head:'הרב נריה מימון' },
-  { code:'kiryat',  name:'יב"ע קרית הרצוג',           last:false, joined:true,
+  { code:'kiryat',  name:'ישיבת קרית הרצוג',           last:false, joined:true,
     head:'הרב יואב קרוטהמר' },
-  { code:'rishon',  name:'יב"ע ראשל"צ',               last:false, joined:true,
+  { code:'rishon',  name:'ישיבת ראשל"צ',               last:false, joined:true,
     head:'ליטל צימניס', fem:true },
-  { code:'raanana', name:'יב"ע רעננה',                last:true,  joined:true,
+  { code:'raanana', name:'ישיבת רעננה',                last:true,  joined:true,
     head:'הרב אהרן ישורון' },
-  { code:'tapuah',  name:'יב"ע תפוח / מערב השומרון',  last:false, joined:true },
-  { code:'tikvot',  name:'יב"ע תקוות יעקב',           last:false, joined:false,
+  { code:'tapuah',  name:'ישיבת תפוח / מערב השומרון',  last:false, joined:true },
+  { code:'tikvot',  name:'ישיבת תקוות יעקב',           last:false, joined:false,
     head:'הרב בועז מנצורה' }
 ];
 
@@ -2837,6 +2837,8 @@ var UI = {
   qdaGrpTk: '{n} כרטיסים',
   qdaTest: 'בדיקה',
   /* מסלול השלמה (8.99.331) — ניהול ← עוד ← "מסלול השלמה", ושם המסלול. */
+  /* קידומת שם המוסד (8.99.336) — במקום "יב״ע", גם בשם שבא מהגיליון. */
+  instPre: 'ישיבת',
   hashName: '{mas} · השלמה',
   moreHash: 'מסלול השלמה',
   hsaOffH: 'מסלול ההשלמה — עוד לא פתוח לנרשמים',
@@ -8215,6 +8217,7 @@ var TEXT_FIELDS = [
   { k:'ui.qdaTest', lbl:'שורת קבוצה — בדיקה' },
 
   { g:'מסלול השלמה — לנרשמים חדשים מראשון לציון וגבעת שמואל (ניהול ← עוד)' },
+  { k:'ui.instPre', lbl:'קידומת שם הישיבה — במקום יב"ע (ניהול, ממה שבגיליון)' },
   { k:'ui.hashName', lbl:'שם המסלול בניהול ובהגרלה · {mas} המסכת' },
   { k:'ui.moreHash', lbl:'ניהול ← עוד — שם המסך' },
   { k:'ui.hsaOffH', lbl:'סגור — כותרת' },
