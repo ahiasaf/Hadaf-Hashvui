@@ -250,8 +250,44 @@ var APPX = (function () {
      כבר ראה את הדגמת הפתיחה, והוא באמצע התקנה — לא מראים לו שוב
      (ראו intro ב-join.html). לכרום יש אחסון משלו, ולכן הזיכרון
      במכשיר לא היה עוזר כאן. */
+  /* ============================================================
+     סימון האייקון של סמסונג (בריף 25.10, חלק 1).
+     ============================================================
+     "הוסף דף ל- ← מסך הבית" בסמסונג יוצר קיצור רגיל לכתובת
+     שפתוחה באותו רגע — לא את `start_url` של המניפסט — ולכן
+     `app=1` לא היה בו, והאייקון החזיר להדרכה בלולאה. כאן, בזמן
+     שהמדריך של סמסונג על המסך, הכתובת מקבלת `sic=` ואסימון
+     שנשמר במכשיר (`df:sic`). כשהאייקון נפתח, הראש של join.html
+     רואה את האסימון שלו עצמו — ומסמן שהותקן.
+
+     **האסימון של המכשיר הזה בלבד.** כתובת שהועתקה ונפתחה במכשיר
+     אחר (או בכרום, שאחסונו נפרד) אינה מתאימה ואינה מסמנת דבר.
+     וההעתקה והמעבר לכרום מורידים אותו בכל מקרה (`cleanHref`). */
+  function iconTag() {
+    if (!samsung() || standalone() || !history.replaceState) return;
+    var t = '';
+    try { t = localStorage.getItem('df:sic') || ''; } catch (e) {}
+    if (!/^[a-z0-9]{6,16}$/.test(t)) {
+      t = Math.random().toString(36).slice(2, 10) || 'x0000000';
+      try { localStorage.setItem('df:sic', t); } catch (e) { return; }
+    }
+    if (new RegExp('[?&]sic=' + t + '(&|$)').test(location.search)) return;
+    var q = location.search.replace(/([?&])sic=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+    try {
+      history.replaceState(history.state, '', location.pathname +
+        (q ? q + '&' : '?') + 'sic=' + t + location.hash);
+    } catch (e) {}
+  }
+  function iconUntag() {
+    if (!/[?&]sic=/.test(location.search) || !history.replaceState) return;
+    var q = location.search.replace(/([?&])sic=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+    try { history.replaceState(history.state, '', location.pathname + q + location.hash); } catch (e) {}
+  }
+  function cleanHref() {
+    return location.href.split('#')[0].replace(/([?&])sic=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+  }
   function noIntroHref() {
-    var h = location.href.split('#')[0];
+    var h = cleanHref();
     if (/[?&]nointro=1/.test(h)) return h;
     return h + (h.indexOf('?') < 0 ? '?' : '&') + 'nointro=1';
   }
@@ -358,14 +394,15 @@ var APPX = (function () {
     var b = e.target && e.target.closest ? e.target.closest('[data-wa-copy]') : null;
     if (!b) return;
     var U = window.ASK_UI || {};
+    var u = cleanHref();
     var ok = function () { b.textContent = U.waBoxOk || '✓'; };
-    var bad = function () { b.textContent = location.href; };
+    var bad = function () { b.textContent = u; };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(location.href).then(ok, function () {
-          legacyCopy(location.href) ? ok() : bad();
+        navigator.clipboard.writeText(u).then(ok, function () {
+          legacyCopy(u) ? ok() : bad();
         });
-      } else if (legacyCopy(location.href)) ok(); else bad();
+      } else if (legacyCopy(u)) ok(); else bad();
     } catch (x) { bad(); }
   });
   function legacyCopy(txt) {
@@ -789,7 +826,8 @@ var APPX = (function () {
   }
 
   return {
-    update: update, toBrowser: toBrowser,
+    update: update, toBrowser: toBrowser, chromeUrl: chromeUrl,
+    iconTag: iconTag, iconUntag: iconUntag,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
     iosOther: iosOther, samsung: samsung, firefox: firefox, otherBrowser: otherBrowser, edge: edge,
     installed: installed, wasAdded: wasAdded, mark: mark,

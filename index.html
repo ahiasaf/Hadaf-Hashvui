@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.336';
+var APP_VERSION = '8.99.337';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14748,7 +14748,9 @@ function admText(el) {
 var guKind = 'ios';
 var GU_TXT = {
   ios:   ['guide.n1','guide.n2'],
-  droid: ['guide.a1','guide.a2','guide.a3']
+  droid: ['guide.a1','guide.a2','guide.a3'],
+  fx:    ['guide.f1','guide.f2','guide.f3','guide.f4'],
+  sam:   ['guide.sm1','guide.sm2','guide.sm3','guide.sm4','guide.sm5']
 };
 /* השלבים המשותפים לשני מסלולי האייפון — נערכים פעם אחת. */
 /* שלבי האייפון המשותפים, לפי הסדר שבמסלול. `s2e` — פריסת
@@ -14763,7 +14765,9 @@ function guPick(k) {
 }
 function guCard() {
   if (typeof GUIDE_UI === 'undefined') return '';
-  var keys = (GU_TXT[guKind] || []).concat(guKind === 'droid' ? [] : GU_IOS);
+  /* שלבי האייפון המשותפים — רק למסלול האייפון. פיירפוקס קיבל אותם
+     בטעות, ואת שלו לא. */
+  var keys = (GU_TXT[guKind] || []).concat(guKind === 'ios' ? GU_IOS : []);
   return '<div class="adm-card" style="margin-bottom:11px">' +
     '<h4>מדריך ההתקנה</h4>' +
     '<p class="h">מה שרואים כשמתקינים את האפליקציה. לכל מכשיר ' +
@@ -16098,6 +16102,58 @@ function hsaSet(id, v) {
     hsaPaint();
   }, function () { HSA.busy = false; HSA.msg = UI.hsaFail; hsaPaint(); });
 }
+/* ============================================================
+   העברה מרוכזת (בריף 25.10, חלק 2) — ספירה ← אישור ← ביצוע.
+   ============================================================
+   השרת סופר (?hash=bulkpre), ומי שכרטיסי ההגרלה שלו היו משתנים — אינו
+   נספר ואינו מועבר; הוא מוצג כשאלה. הביצוע (?hash=bulk&n=) רק כשהספירה
+   לא השתנתה, עם גיבוי וקריאה חוזרת בשרת. */
+var HSB = { pre: null, res: null, msg: '' };
+function hsbPre() {
+  if (HSA.busy) return;
+  HSA.busy = true; HSB.res = null; HSB.msg = ''; hsaPaint();
+  scriptGet({ hash: 'bulkpre', key: (CFG.readKey || '').trim() }).then(function (d) {
+    HSA.busy = false;
+    if (d && d.status === 'ok') HSB.pre = d; else HSB.msg = (d && d.message) || UI.hsaFail;
+    hsaPaint();
+  }, function () { HSA.busy = false; HSB.msg = UI.hsaFail; hsaPaint(); });
+}
+function hsbGo() {
+  var n = HSB.pre ? HSB.pre.n : 0;
+  if (HSA.busy || !n || !confirm(fill(UI.hsbQ, { n: n }))) return;
+  HSA.busy = true; hsaPaint();
+  scriptGet({ hash: 'bulk', n: String(n), key: (CFG.readKey || '').trim() }).then(function (d) {
+    HSA.busy = false;
+    if (d && d.status === 'changed') { HSB.pre = d; HSB.msg = UI.hsbChanged; hsaPaint(); return; }
+    if (d && (d.status === 'ok' || d.moved)) { HSB.res = d; HSB.pre = null; HSA.at = 0; hsaPaint(); hsaLoad(); return; }
+    HSB.msg = (d && d.message) || UI.hsaFail; hsaPaint();
+  }, function () { HSA.busy = false; HSB.msg = UI.hsaFail; hsaPaint(); });
+}
+function hsbCard(name, dis) {
+  var h = '<div class="adm-card"><h4>' + esc(UI.hsbH) + '</h4><p class="h">' + esc(UI.hsbP) + '</p>';
+  if (HSB.msg) h += '<div class="cond" style="margin-bottom:10px">' + esc(HSB.msg) + '</div>';
+  var r = HSB.res, d = HSB.pre;
+  if (r) {
+    h += '<p class="h"><b>' + esc(fill(UI.hsbDone, { n: r.moved || 0, b: r.backup || '—' })) + '</b></p>';
+    if (r.bad && r.bad.length) h += '<div class="cond">' + esc(fill(UI.hsbBad, { names: r.bad.join(', ') })) + '</div>';
+  }
+  if (d) {
+    h += '<p class="h"><b>' + esc(d.n ? fill(UI.hsbCount, { n: d.n }) : UI.hsbNone) + '</b></p>' +
+      Object.keys(d.by || {}).map(function (c) {
+        return '<p class="h">' + esc(fill(UI.hsbBy, { inst: name(c), n: d.by[c] })) + '</p>';
+      }).join('') +
+      (d.already ? '<p class="h">' + esc(fill(UI.hsbAlready, { n: d.already })) + '</p>' : '');
+    if (d.skip && d.skip.length) {
+      h += '<div class="cond" style="margin:10px 0"><b>' + esc(fill(UI.hsbSkipH, { n: d.skip.length })) + '</b><br>' +
+        esc(UI.hsbSkipP) + '<br>' + d.skip.map(function (x) { return esc(x.name + ' · ' + name(x.code)); }).join('<br>') + '</div>';
+    }
+    if (d.n) h += '<button class="btn p" type="button"' + dis + ' onclick="hsbGo()">' + esc(fill(UI.hsbGo, { n: d.n })) + '</button>';
+    h += '<button class="btn g" type="button" style="margin-top:8px"' + dis + ' onclick="HSB.pre=null;HSB.msg=\'\';hsaPaint()">' + esc(UI.hsbCancel) + '</button>';
+  } else {
+    h += '<button class="btn p" type="button"' + dis + ' onclick="hsbPre()">' + esc(UI.hsbBtn) + '</button>';
+  }
+  return h + '</div>';
+}
 /* פתיחת השבוע — יום ראשון, לפי PROGRAM.startDate. */
 function hsaDate(i) {
   var d = new Date(PROGRAM.startDate + 'T00:00:00');
@@ -16146,6 +16202,7 @@ function hsaPaint() {
     return '<p class="h" dir="rtl"><b dir="ltr">' + esc(c) + '</b> = ' + esc(name(c)) + '</p>';
   }).join('') + '</div>';
   h += '<div class="adm-card"><h4>' + esc(UI.hsaTblH) + '</h4><p class="h">' + esc(UI.hsaTblP) + '</p>' + hsaTable() + '</div>';
+  if ((CFG.readKey || '').trim()) h += hsbCard(name, dis);
   h += '<div class="adm-card"><h4>' + esc(UI.hsaStuH) + '</h4><p class="h">' + esc(UI.hsaStuP) + '</p>';
   var L = (HSA.d && HSA.d.list) || [];
   if (HSA.d && !L.length) h += '<p class="h">' + esc(UI.hsaNone) + '</p>';
@@ -16311,6 +16368,89 @@ function chaMs(m, d, dis) {
   if (m.st === 'נסגרה ללא זוכה') h += '<p class="h">' + esc(fill(UI.chaNoneH, { t: chaT(m.noneAt) })) + '</p>';
   return h + '</div>';
 }
+/* ============================================================
+   הדגמה משפחתית (בריף 25.10, חלק 3) — הכרטיס בניהול.
+   ============================================================
+   התחלה (שם וישיבה — בלי טלפון, בלי תנאים ובלי פרס), הקישור של המזמין,
+   ההתקדמות, "מוכן להגרלה", הגרלת דמה, אישור, וסיום. השרת — chDemo*_;
+   המכשיר — testmode.js (עותק של האחסון, באנר, חזרה לחשבון). */
+function dmUrl(code) { return location.origin + '/chaver?ref=' + encodeURIComponent(code); }
+function dmMe(x) {
+  return { id: x.id || x.own, role: 'kid', rel: '', inst: x.inst, instName: x.instName || '',
+           first: x.first, last: '', grade: '', klass: '', phone: '', way: 'solo', parent: '',
+           at: new Date().toISOString() };
+}
+function dmEnter(x) {
+  if (!window.TM || !TM.enterDemo(x.run, dmMe(x))) { CHA.msg = UI.tmSnapFail; return false; }
+  TM.banner();
+  return true;
+}
+function dmStart() {
+  var nm = chaVal('dm-name'), ins = chaVal('dm-inst');
+  if (!nm || CHA.busy || !confirm(UI.dmStartQ)) return;
+  CHA.busy = true; chaPaint();
+  chaCall('dmstart', { name: nm, inst: ins }).then(function (r) {
+    CHA.busy = false;
+    if (!r || r.status !== 'ok') { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
+    dmEnter(r);
+    return chaLoad();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
+function dmHere() { var x = CHA.d && CHA.d.demo; if (x && dmEnter(x)) chaPaint(); }
+function dmEnd() {
+  if (CHA.busy || !confirm(UI.dmEndQ)) return;
+  CHA.busy = true; chaPaint();
+  chaCall('dmend').then(function (r) {
+    CHA.busy = false;
+    if (!r || r.status !== 'ok') { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
+    if (window.TM && TM.demo()) TM.restore();
+    try { alert(UI.dmEndOk); } catch (e) {}
+    location.reload();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
+function dmCopy() {
+  var x = CHA.d && CHA.d.demo, u = x ? dmUrl(x.code) : '';
+  if (!u) return;
+  try { navigator.clipboard.writeText(u).then(function () { CHA.msg = UI.chCopied; chaPaint(); }, function () { prompt('', u); }); }
+  catch (e) { prompt('', u); }
+}
+function dmCard(d, dis) {
+  var x = d.demo, h = '<div class="adm-card"><h4>' + esc(UI.dmH) + '</h4>';
+  if (!x) {
+    return h + '<p class="h">' + esc(UI.dmP) + '</p>' +
+      '<div class="fld"><label class="label">' + esc(UI.dmName) + '</label><input type="text" id="dm-name" maxlength="30"></div>' +
+      '<div class="fld"><label class="label">' + esc(UI.dmInst) + '</label><select id="dm-inst">' +
+      INSTITUTIONS.map(function (i) { return '<option value="' + esc(i.code) + '">' + esc(i.name) + '</option>'; }).join('') +
+      '</select></div>' +
+      '<button class="btn p" type="button"' + dis + ' onclick="dmStart()">' + esc(UI.dmStart) + '</button></div>';
+  }
+  var url = dmUrl(x.code), mine = window.TM && TM.demo() === x.run;
+  h += '<div class="pp-h">' + esc(UI.dmLinkH) + '</div>' +
+    '<p class="h" dir="ltr" style="word-break:break-all">' + esc(url) + '</p>' +
+    '<button class="btn g" type="button" onclick="dmCopy()">' + esc(UI.dmCopy) + '</button>' +
+    '<a class="btn g" style="margin-top:8px" target="_blank" rel="noopener" href="' +
+      esc(chaWa(fill(UI.dmShareMsg, { url: url }), '')) + '">' + esc(UI.dmWa) + '</a>' +
+    '<p class="h" style="margin-top:12px"><b>' +
+      esc(fill(UI.dmProg, { j: Math.min(3, x.joined), l: Math.min(3, x.learned) })) + '</b></p>' +
+    '<p class="h">' + esc(x.ownL ? UI.dmOwnL : UI.dmOwnNo) + '</p>' +
+    (mine ? '<a class="btn g" href="chaver">' + esc(UI.dmMine) + '</a>'
+          : '<button class="btn g" type="button" onclick="dmHere()">' + esc(UI.dmHere) + '</button>');
+  if (x.ms === 'ready') {
+    h += '<button class="btn p" type="button" style="margin-top:12px"' + dis + ' onclick="chaDraw(1)">' + esc(UI.dmDraw) + '</button>';
+  } else if (x.ms === 'pend') {
+    h += '<p class="h" style="margin-top:12px">' + esc(UI.dmPendP) + '</p>' +
+      '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'approve\',{ms:1})">' + esc(UI.dmApprove) + '</button>';
+  } else if (x.ms === 'ok') {
+    h += '<p class="h" style="margin-top:12px"><b>' + esc(UI.dmWonP) + '</b></p>';
+  } else if (x.grp === 'done') {
+    h += '<p class="h" style="margin-top:12px">' + esc(UI.dmReadyP) + '</p>' +
+      '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'dmready\')">' + esc(UI.dmReady) + '</button>';
+  } else {
+    h += '<p class="h" style="margin-top:12px">' + esc(UI.dmWaitP) + '</p>';
+  }
+  return h + '<button class="btn g" type="button" style="margin-top:16px"' + dis + ' onclick="dmEnd()">' +
+    esc(UI.dmEnd) + '</button></div>';
+}
 function chaPaint() {
   var el = document.getElementById('cha');
   if (!el) return;
@@ -16322,6 +16462,11 @@ function chaPaint() {
     '<button class="btn g" type="button"' + dis + ' onclick="chaLoad()">' + esc(CHA.busy ? UI.chaLoading : UI.chaReload) + '</button>' +
     (CHA.msg ? '<div class="cond" style="margin-top:10px">' + esc(CHA.msg) + '</div>' : '') + '</div>';
   if (!d) { el.innerHTML = h; return; }
+  /* הדגמה משפחתית — בעולם הבדיקה. כשהיא רצה, היא כל המסך. */
+  if (CHA.test && (d.demo || !d.on)) {
+    h += dmCard(d, dis);
+    if (d.demo) { el.innerHTML = h; return; }
+  }
   if (!d.on) {
     h += '<div class="adm-card"><h4>' + esc(UI.chaOffH) + '</h4><p class="h">' + esc(UI.chaOffP) + '</p>' +
       '<div class="fld"><label class="label">' + esc(UI.chaMeals) + '</label><input type="number" min="1" max="100" id="cha-meals" value="10" dir="ltr"></div>' +

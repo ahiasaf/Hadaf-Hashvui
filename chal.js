@@ -35,7 +35,13 @@
    ES5 בלבד. המלל — UI.ch* ב-data.js.
    ============================================================ */
 (function () {
-  function U(k) { return (window.UI && UI[k]) || ''; }
+  /* בהדגמה משפחתית (testmode.js) — נוסח בלי פרס, בלי שובר ובלי מלאי:
+     `<מפתח>Dm` כשקיים. */
+  function U(k) {
+    var u = window.UI || {};
+    if (window.TM && TM.demo && TM.demo() && u[k + 'Dm'] != null) return u[k + 'Dm'];
+    return u[k] || '';
+  }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];

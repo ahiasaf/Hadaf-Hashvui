@@ -45,10 +45,28 @@ var TM = (function () {
     return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now())
       .then(function (r) { return r.json(); });
   }
-  /* הפרמטרים שמזהים את הסשן מול השרת — לתוצאת ההגרלה ול"המסלול שלך". */
+  /* הפרמטרים שמזהים את הסשן מול השרת — לתוצאת ההגרלה ול"המסלול שלך".
+     בהדגמה אין סשן בדיקה — ואין מה לשלוח. */
   function q() {
     var s = sess();
-    return on() && s ? { tsid: s.sid, ttok: s.tok } : null;
+    return on() && s && !s.demo ? { tsid: s.sid, ttok: s.tok } : null;
+  }
+  /* ============================================================
+     הדגמה משפחתית (בריף 25.10, חלק 3) — אותו מנגנון של מצב הבדיקה.
+     ============================================================
+     הסשן כאן הוא ההרצה (`demo: 1`, `sid` = מזהה ההרצה), בלי אסימון:
+     השרת אינו מאשר לפיו דבר. הכניסה — עותק של האחסון ומזהה חדש (enter),
+     ולכן ההרשמה בהדגמה אינה נוגעת בחשבון האמיתי שבמכשיר; היציאה —
+     הכול חוזר כפי שהיה (restore). נכנסים מקישור של המזמין (chLand_
+     מחזיר `dm`), או מהניהול — הבעלים, כמזמין (`me` מהשרת). */
+  function demo() { var s = sess(); return on() && s && s.demo ? s.sid : ''; }
+  function enterDemo(run, me) {
+    if (!enter({ sid: run, tok: '', demo: 1, slot: null })) return false;
+    var L = ls();
+    if (me && L) {
+      try { L.setItem('df:me', JSON.stringify(me)); L.setItem('df:who-id', JSON.stringify(me.id)); } catch (e) {}
+    }
+    return true;
   }
 
   /* כל המפתחות של האחסון, כעותק. */
@@ -61,7 +79,7 @@ var TM = (function () {
   /* s: { sid, tok, slot:{k,role,first,last,phone,inst} } */
   function enter(s) {
     var L = ls();
-    if (!L || !s || !s.sid || !s.tok) return false;
+    if (!L || !s || !s.sid || (!s.tok && !s.demo)) return false;
     /* כבר במצב בדיקה — רק מחליפים זהות דמה, והעותק המקורי נשאר. */
     if (!get(SNAP)) {
       var d = dump();
@@ -130,6 +148,27 @@ var TM = (function () {
     })['catch'](function () { return false; });
   }
 
+  function demoBoot() {
+    var s = sess();
+    if (on() && s && s.demo) {
+      /* ההרצה הסתיימה — חוזרים לחשבון, בלי לשאול. */
+      return call({ challenge: 'dmst', run: s.sid }).then(function (d) {
+        if (!d || d.status !== 'ok' || d.on) return false;
+        restore();
+        try { alert(T('dmEnded')); } catch (e) {}
+        location.href = location.pathname.replace(/[^\/]*$/, '') + './';
+        return true;
+      })['catch'](function () { return false; });
+    }
+    var m = /[?&]ref=([A-Za-z0-9]{4,10})(?:&|$)/.exec(location.search);
+    if (on() || !m) return Promise.resolve(false);
+    return call({ challenge: 'land', ref: m[1].toUpperCase() }).then(function (d) {
+      if (!d || !d.dm || !enterDemo(d.dm, null)) return false;
+      location.reload();
+      return true;
+    })['catch'](function () { return false; });
+  }
+
   function label() {
     var s = sess(), k = s && s.slot && s.slot.k;
     return k ? T('tmSlot' + k.toUpperCase()) : T('tmNoSlot');
@@ -142,14 +181,16 @@ var TM = (function () {
     b.style.cssText = 'position:sticky;top:0;z-index:99999;display:flex;align-items:center;gap:10px;' +
       'justify-content:space-between;padding:8px 12px;background:#B4231B;color:#fff;' +
       'font:700 .86rem/1.35 system-ui,sans-serif;direction:rtl;box-shadow:0 2px 8px rgba(0,0,0,.25)';
-    var t = document.createElement('span');
-    t.textContent = T('tmBar') + (label() ? ' · ' + label() : '');
+    var t = document.createElement('span'), dm = !!demo();
+    t.textContent = dm ? T('dmBar') : T('tmBar') + (label() ? ' · ' + label() : '');
+    if (dm) b.style.background = '#6B3FA0';
     var btn = document.createElement('button');
-    btn.textContent = T('tmBack');
+    btn.textContent = dm ? T('dmBack') : T('tmBack');
+    if (dm) btn.style.color = '#6B3FA0';
     btn.style.cssText = 'flex:none;border:1px solid #fff;background:#fff;color:#B4231B;border-radius:9px;' +
       'padding:6px 10px;font:800 .82rem system-ui,sans-serif;cursor:pointer';
     btn.onclick = function () {
-      if (!confirm(T('tmBackQ'))) return;
+      if (!confirm(dm ? T('dmBackQ') : T('tmBackQ'))) return;
       restore();
       location.href = location.pathname.replace(/[^\/]*$/, '') + './';
     };
@@ -165,10 +206,12 @@ var TM = (function () {
         return;
       }
       banner();
+      demoBoot();
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  return { on: on, sess: sess, q: q, enter: enter, restore: restore, add: add, call: call, banner: banner };
+  return { on: on, sess: sess, q: q, enter: enter, restore: restore, add: add, call: call, banner: banner,
+           demo: demo, enterDemo: enterDemo };
 })();

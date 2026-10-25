@@ -556,6 +556,57 @@ var GUIDE_UI = (function () {
       ring(66, 200, 22);
   }
 
+  /* ============================================================
+     סמסונג — "הוסף דף ל-" ← "מסך הבית" (בריף 25.10, חלק 1).
+     ============================================================
+     בדפדפן של סמסונג אין "התקנת אפליקציה" שעובדת: ההתקנה שלו
+     נחסמת במכשירים רבים (Play Protect), והתפריט שלו אחר. עד עכשיו
+     הוא קיבל את המדריך של כרום — שורה שלא קיימת אצלו — ולופ.
+     "הוסף דף ל-" יוצר קיצור רגיל לכתובת הפתוחה, ולכן join.html
+     מסמן אותה לפני (APPX.iconTag) — כך האייקון מזוהה כשנפתח.
+     הציור: הסרגל התחתון של סמסונג, והתפריט שלו. */
+  function samBar(lit) {
+    var h = '<rect x="16" y="296" width="168" height="30" fill="#fff"/>' +
+      '<rect x="16" y="296" width="168" height="1" fill="#EFEADF"/>', i;
+    for (i = 0; i < 4; i++) {
+      h += '<rect x="' + (128 - i * 28) + '" y="307" width="10" height="8" rx="2" fill="#CFC7B6"/>';
+    }
+    /* כפתור התפריט — שלושה קווים, בקצה השמאלי (העמוד מימין לשמאל). */
+    h += '<g stroke="' + INK + '" stroke-width="2" stroke-linecap="round">' +
+      '<path d="M30 305h14M30 311h14M30 317h14"/></g>';
+    return h + (lit ? ring(37, 311, 15) : '');
+  }
+  function samDots() { return page(40) + samBar(1); }
+  /* התפריט — רשימה, והשורה שלנו עם סמל הפלוס בעיגול. */
+  function samMenu(on, icon) {
+    var h = page(40) + samBar(0) +
+      '<rect x="24" y="120" width="152" height="170" rx="14" fill="#fff" stroke="var(--rule)"/>';
+    var i, rows = [52, 64, 80, 70, 58];
+    for (i = 0; i < 5; i++) {
+      var y = 142 + i * 31, lit = (i === on);
+      if (lit) h += rowLit(30, y, 140);
+      h += '<rect x="' + (140 - rows[i]) + '" y="' + (y - 3) + '" width="' + rows[i] +
+           '" height="7" rx="3.5" fill="' + (lit ? INK : '#CFC7B6') + '"/>';
+      h += '<g transform="translate(156,' + y + ')" fill="none" stroke="' + (lit ? INK : '#CFC7B6') +
+           '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+           (lit ? icon : '<circle r="5"/>') + '</g>';
+    }
+    return h + ring(156, 142 + on * 31, 14);
+  }
+  function samAdd()  { return samMenu(3, '<circle r="6"/><path d="M0 -3v6M-3 0h6"/>'); }
+  function samHome() { return samMenu(2, '<path d="M-6 0l6-6 6 6M-4 -1v6h8v-6"/>'); }
+  function samOk() {
+    return page(40) + samBar(0) +
+      '<rect x="22" y="112" width="156" height="118" rx="16" fill="#fff" stroke="var(--rule)"/>' +
+      appIcon(134, 130, 34) +
+      '<rect x="56" y="138" width="66" height="8" rx="4" fill="#CFC7B6"/>' +
+      '<rect x="44" y="156" width="78" height="6" rx="3" fill="#E3DDD0"/>' +
+      '<rect x="40" y="188" width="52" height="24" rx="12" fill="var(--blue)"/>' +
+      '<rect x="54" y="197" width="24" height="6" rx="3" fill="#fff"/>' +
+      '<rect x="104" y="197" width="38" height="6" rx="3" fill="#CFC7B6"/>' +
+      ring(66, 200, 22);
+  }
+
   /* ---------- שלושת המסלולים ----------
      כל שלב: הכיתוב, ההסבר, והציור. */
   var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
@@ -581,6 +632,7 @@ var GUIDE_UI = (function () {
      דפדפן פתח. מסלול אחד שמתחיל בשלוש הנקודות נכון בשניהם.
      ============================================================ */
   var IOS   = [['n1', barNew], ['n2', menuNew]].concat(TAIL);
+  var SAM   = [['sm1', samDots], ['sm2', samAdd], ['sm3', samHome], ['sm4', samOk], ['sm5', home]];
 
   /* כפייה של מסלול — למסך הניהול בלבד.
      ============================================================
@@ -591,14 +643,20 @@ var GUIDE_UI = (function () {
   function force(kind) { FORCE = kind || null; LIST = null; at = 0; }
 
   function kinds() {
-    return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס']];
+    return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס'], ['sam', 'סמסונג']];
   }
 
+  /* מסלול סמסונג — רק למי שמבקש (`{ sam: true }`, עמוד ההצטרפות).
+     שאר המסכים (הבקשה האישית, הרשמת ראש החטיבה) מטפלים בסמסונג
+     בדרכם, ואינם זזים בלי בדיקה משלהם. */
+  var SAM_ON = false;
   function steps() {
     if (FORCE === 'droid') return DROID;
     if (FORCE === 'ios')   return IOS;
     if (FORCE === 'fx')    return FX;
+    if (FORCE === 'sam')   return SAM;
     if (APPX.isIOS()) return IOS;
+    if (SAM_ON && APPX.samsung && APPX.samsung()) return SAM;
     return (APPX.firefox && APPX.firefox()) ? FX : DROID;
   }
 
@@ -789,6 +847,7 @@ var GUIDE_UI = (function () {
     PLAY = !!(opt && opt.play);
     GO = !!(opt && opt.go);
     END = !!(opt && opt.end);
+    SAM_ON = !!(opt && opt.sam);
     LIST = steps(); at = 0;
     css();
     draw();

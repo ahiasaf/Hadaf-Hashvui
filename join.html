@@ -69,6 +69,30 @@
      `appinstalled` לא הגיע — והתלמיד חזר ל"אני מצטרף" ולהתקנה,
      בלולאה. כאן נרשם שהותקן (`df:appAdded`, ראו APPX.installed),
      והסימן יורד מהכתובת — כדי שלא ייסע בקישור שמשתפים לחבר. */
+  /* **`sic=` — האייקון של סמסונג** (ראו iconTag ב-getapp.js). קיצור
+     של "הוסף דף ל-" שומר את הכתובת שהייתה פתוחה, ובה האסימון של
+     המכשיר הזה. נפתח מחדש עם האסימון שלנו — זה האייקון: נרשם
+     שהותקן. **לא ברענון ולא בחזרה אחורה** — אז זו אותה לשונית שבה
+     המדריך עוד פתוח, וההוספה אולי לא קרתה. אסימון זר (כתובת שהגיעה
+     ממכשיר אחר) — לא מסמן. בכל מקרה הוא יורד מהכתובת. */
+  (function () {
+    var m = /[?&]sic=([a-z0-9]{6,16})(?:&|$)/.exec(location.search);
+    if (!m && !/[?&]sic=/.test(location.search)) return;
+    var nav = '';
+    try {
+      var pe = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+      nav = pe ? pe.type : ({ 1: 'reload', 2: 'back_forward' })[performance.navigation.type] || 'navigate';
+    } catch (e) {}
+    var mine = '';
+    try { mine = localStorage.getItem('df:sic') || ''; } catch (e) {}
+    if (m && mine === m[1] && nav !== 'reload' && nav !== 'back_forward') {
+      try { localStorage.setItem('df:appAdded', '1'); localStorage.setItem('df:sicHit', '1'); } catch (e) {}
+    }
+    try {
+      var s = location.search.replace(/([?&])sic=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+      history.replaceState(history.state, '', location.pathname + s + location.hash);
+    } catch (e) {}
+  })();
   (function () {
     if (!/[?&]app=1(&|$)/.test(location.search)) return;
     try { localStorage.setItem('df:appAdded', '1'); } catch (e) {}
@@ -1576,6 +1600,8 @@ $('hdr-mark').src = window.LOGO_MARK || '';
    בגיליון הציבורי לצד כל סימון לימוד, כך שאפשר לספור תלמידים
    בלי לפרסם מי הם. החיבור בין המזהה לשם קיים רק בגיליון הפרטי,
    ולכן רק הרכז יכול לעשות אותו. */
+/* הדגמה משפחתית — מזהה ההרצה, או '' (testmode.js). */
+function demoOn() { return (window.TM && TM.demo && TM.demo()) || ''; }
 function deviceId() {
   var id = get('who-id', '');
   if (!id) {
@@ -2692,7 +2718,8 @@ function hit(s, x) {
       if (s === 'join') TRL.j = 1;
       trlMark(s === 'inst' || s === 'perm' ? s + '.' + (x || '') : s);
     }
-    if (!API) return;
+    /* הדגמה — המשפך של ההרשמה האמיתית אינו סופר אותה. */
+    if (!API || demoOn()) return;
     var k = s + (x ? ':' + x : ''), done = get('hits', {}) || {};
     if (done[k]) return;
     done[k] = 1; set('hits', done);
@@ -2897,9 +2924,11 @@ function joinRow_(me) {
        (joinWrite_), ולכן שליחה חוזרת או עדכון פרטים אינם מזיזים דבר. */
     ['קוד הזמנה באתגר', (window.CHAL && CHAL.ref()) || ''],
     /* מסלול השלמה — רק בשורה של אדם חדש (joinWrite_); אחר כך — רק מהניהול. */
-    ['מסלול השלמה', LHash() ? 'כן' : '']
+    ['מסלול השלמה', LHash() ? 'כן' : ''],
+    /* הדגמה משפחתית — מזהה ההרצה. השרת שומר אותו רק כשהיא פעילה. */
+    ['הדגמה', demoOn()]
   ].filter(function (c) {
-    if (c[0] === 'מסלול השלמה') return !!c[1];
+    if (c[0] === 'מסלול השלמה' || c[0] === 'הדגמה') return !!c[1];
     /* מכשיר ששוחזר ("כבר נרשמתי") אינו מקבל את הטלפון של השותף
        — ושורה ששולחת אותו ריק הייתה מוחקת אותו בגיליון. */
     if (c[0] === 'קוד הזמנה באתגר') return !!c[1];
@@ -4277,9 +4306,22 @@ function wzDraw() {
     if (GUIDE_UI.force) GUIDE_UI.force(null);
     /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו, אלא ההנחיה
        הבאה באמת: לפתוח את האייקון החדש. ראו WZ_GUIDE_DONE. */
-    GUIDE_UI.mount(gbox, function () { WZ_GUIDE_DONE = true; wzDraw(); },
-                   { play: true, go: WZ_WENT });
+    /* **"סיימתי" רושם את ההתקנה** (בריף 25.10). עד עכשיו `appMark` לא
+       נקרא משום מקום: מי שסיים בדפדפן ונכנס אחר כך מאייקון בלי סימון
+       (כמו כל אייקון של סמסונג מלפני התיקון) — נשלח להדרכה שוב.
+       באייפון זה אינו משנה דבר: שם רק האייקון הפתוח הוא התקנה.
+       **בסמסונג — ישר לפרטים.** הקיצור שלו נפתח באותו דפדפן ובאותו
+       אחסון, ו"פתחו את האייקון" לא היה מוסיף כלום — ומי שכבר בתוך
+       אייקון ישן היה נתקע מול הוראה לפתוח אותו. */
+    GUIDE_UI.mount(gbox, function () {
+      appMark();
+      if (APPX.samsung && APPX.samsung()) { wzGo(wzWhere()); return; }
+      WZ_GUIDE_DONE = true; wzDraw();
+    }, { play: true, go: WZ_WENT, sam: true });
   }
+  /* הסימון של אייקון סמסונג — רק בזמן שהמדריך שלו על המסך. */
+  if (wzStep === 1 && gbox && APPX.samsung && APPX.samsung()) APPX.iconTag();
+  else if (APPX.iconUntag) APPX.iconUntag();
   wzWire();
   window.scrollTo(0, 0);
   if (wzStep === 1) setTimeout(wzToInst, 250);
@@ -4371,6 +4413,20 @@ function wzInstall() {
      מכשיר שבו הוא ברירת המחדל. מסגרת הוואטסאפ שמעל מעבירה לכרום. */
   /* וכך גם כל דפדפן אחר שזוהה בוודאות (אדג', אופרה...): מדריך של
      כרום מתחת ל"ההתקנה עובדת רק בכרום" סותר את עצמו. */
+  /* ============================================================
+     **סמסונג — המדריך של סמסונג, לא של כרום** (בריף 25.10, חלק 1).
+     ============================================================
+     עד כאן סמסונג קיבל "פתיחה בכרום", ואחרי הלחיצה — המדריך של כרום
+     ("התקנת אפליקציה"), גם כשבפועל נשאר בסמסונג. אצלו בתפריט יש
+     "הוסף דף ל- ← מסך הבית", וזה מה שמוצג עכשיו, לפי הדפדפן שבו הוא
+     נמצא באמת. הכתובת מסומנת (APPX.iconTag) כך שהאייקון יזוהה.
+     המעבר לכרום נשאר, בשקט מתחת — למי שנחסם (Play Protect). */
+  if (APPX.samsung && APPX.samsung() && window.GUIDE_UI) {
+    var cu = APPX.chromeUrl ? APPX.chromeUrl() : '';
+    return wzGuideBox() +
+      (cu ? '<a class="thin" href="' + esc(cu) + '"><u>' + esc(jt('samChrome')) + '</u></a>' : '') +
+      wzSkipBtn();
+  }
   var samsungNow = (APPX.samsung && APPX.samsung()) ||
                    (APPX.otherBrowser && APPX.otherBrowser());
   /* וגם בלי המדריך: הוא מוביל לאותה התקנה עצמה. */
@@ -4441,6 +4497,7 @@ function hlpDiag() {
   if (inApp()) b.push('נפתח בתוך אפליקציה');
   if (standalone()) b.push('כבר באפליקציה');
   if (appWasAdded()) b.push('סומן כמותקן');
+  try { if (localStorage.getItem('df:sicHit') === '1') b.push('נפתח מאייקון סמסונג'); } catch (e) {}
   b.push(APPX.bip() ? 'היה כפתור התקנה' : 'בלי כפתור התקנה');
   b.push('התראות: ' + notePerm());
   b.push(String(screen.width) + '×' + String(screen.height));
@@ -4561,6 +4618,8 @@ function hlpSend() {
     dev: isIOS() ? 'אייפון' : 'אנדרואיד',
     what: hlpV.what || '', diag: hlpDiag()
   };
+  /* בהדגמה — שום פנייה לא יוצאת לרכז. ממשיכים בדפדפן. */
+  if (demoOn()) { brwGo(); return; }
   if (hlpAnd()) { hlpAndFire(q); return; }
   var qs2 = [];
   for (var k in q) if (q.hasOwnProperty(k)) {
@@ -4727,7 +4786,7 @@ function hlpQuick() {
   set('hlpWait', { at: Date.now() });
 }
 function hlpAfterReg(me) {
-  if (!get('hlpWait', null)) return;
+  if (!get('hlpWait', null) || demoOn()) return;
   try { localStorage.removeItem('df:hlpWait'); } catch (e) {}
   hlpBgSend(me);
 }
@@ -4769,6 +4828,13 @@ setTimeout(function () { try { hlpFlush(); } catch (e) {} }, 2500);
 
 /* ---------- שלב 4 ---------- */
 function wzNote() {
+  /* בהדגמה אין בקשת התראות: מכשיר שנרשם להתראות היה מקבל גם את
+     ההודעות האמיתיות של הישיבה. סוף המסע — ישר ללימוד. */
+  if (demoOn()) {
+    return '<div class="v-ok">✓</div><h2>' + esc(jt('wzFinT')) + '</h2>' +
+      '<p>' + esc(jt('dmFinB')) + '</p>' +
+      '<button class="wznext" id="wz-learn">' + esc(jt('wzLearn')) + '</button>';
+  }
   if (noteDone() && notePerm() === 'granted' && NOTE_T === 'ask') {
     return wzHead(4, jt('wzTestT'), jt('wzTestB')) +
       '<button class="wznext" id="wz-t-yes">' + esc(jt('wzTestYes')) + '</button>' +
@@ -5409,7 +5475,9 @@ function restoreAs_(who, msg, btn) {
          'whoIs=' + encodeURIComponent(who.phone) +
          '&first=' + encodeURIComponent(who.first) +
          '&last=' + encodeURIComponent(who.last) +
-         (who.role ? '&role=' + who.role : ''))
+         (who.role ? '&role=' + who.role : '') +
+         /* בהדגמה — רק זהויות של ההרצה, לא החשבון האמיתי (שרת). */
+         (demoOn() ? '&dm=' + encodeURIComponent(demoOn()) : ''))
     .then(function (r) {
       btn.className = 'btn';
       if (!r || r.status !== 'ok') { msg.textContent = JOIN.backFail; return; }

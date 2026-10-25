@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 120;
+var SCRIPT_VERSION = 121;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1670,9 +1670,13 @@ function doGet(e) {
       var wt = joinTable_(), wr = -1;
       var wdad = e.parameter.role;
       var tryRole = wdad === 'dad' ? [true] : wdad === 'kid' ? [false] : [false, true];
+      /* מכשיר בהדגמה (`dm`) — רק זהויות של אותה הרצה. "כבר נרשמתי" לא
+         יחזיר אליו את החשבון האמיתי. הדגמה שאינה פעילה — אף אחת. */
+      var wdm = String(e.parameter.dm || '').trim(), wwld = null;
+      if (wdm) wwld = chDemo_() && chDemo_().run === wdm ? 'D:' + wdm : 'none';
       for (var tq = 0; tq < tryRole.length && wr < 1; tq++) {
         wr = rowOfKey_(wt, personKey_(e.parameter.whoIs, e.parameter.first,
-                                      e.parameter.last, tryRole[tq]));
+                                      e.parameter.last, tryRole[tq]), wwld);
       }
       if (wr >= 1) {
         var w = wt.rows[wr], wc = function (n) { return wt.c(w, n); };
@@ -2251,6 +2255,7 @@ function upsertCols_(tab, cols, keyName, ssId) {
    לשונית ריקה — המסלול הרגיל, כמו קודם.
    ============================================================ */
 function joinWrite_(cols, chCode, hsReq) {
+  cols = chDemoCols_(cols);
   var t = joinTable_();
   if (t.rows.length < 2) {
     try { cols = canonJoinCols_(cols, t); } catch (ce) {}
@@ -3396,10 +3401,34 @@ function rowOfId_(t, id) {
   }
   return -1;
 }
-function rowOfKey_(t, key) {
+function rowOfKey_(t, key, world) {
   if (!key) return -1;
-  for (var r = t.rows.length - 1; r >= 1; r--) if (rowKey_(t, t.rows[r]) === key) return r;
+  for (var r = t.rows.length - 1; r >= 1; r--) {
+    if (world != null && rowWorld_(t, t.rows[r]) !== world) continue;
+    if (rowKey_(t, t.rows[r]) === key) return r;
+  }
   return -1;
+}
+/* ============================================================
+   העולם של שורה (בריף 25.10, חלק 3) — אמת · בדיקה · הרצת הדגמה.
+   ============================================================
+   איחוד חשבונות לפי טלפון+שם (canonJoinCols_) ו"כבר רשום" לפי שם
+   (chKnown_) — רק בתוך אותו עולם. עד עכשיו בן משפחה שנכנס להדגמה
+   (שורת "בדיקה: כן") עם הטלפון והשם האמיתיים שלו היה נבלע בשורה
+   האמיתית שלו — ודורס בה את "בדיקה" ל"כן". והפוך: הרשמה אמיתית לא
+   נבלעת בשורת בדיקה שעוד לא נמחקה. מזהה זהה — תמיד אותו אדם. */
+function rowWorld_(t, r) {
+  var dm = t.c(r, CH_DEMO_COL);
+  return dm ? 'D:' + dm : t.c(r, 'בדיקה') === 'כן' ? 'T' : 'R';
+}
+function colsWorld_(cols) {
+  var dm = '', tst = '';
+  cols.forEach(function (c) {
+    if (!c) return;
+    if (c[0] === CH_DEMO_COL) dm = String(c[1] || '').trim();
+    if (c[0] === 'בדיקה') tst = String(c[1] || '').trim();
+  });
+  return dm ? 'D:' + dm : tst === 'כן' ? 'T' : 'R';
 }
 /* מזהה שנבלע → המזהה הקבוע. לשימוש מי שמצליב "לימוד" מול "לומדים". */
 function aliasMap_(rows) {
@@ -3442,10 +3471,12 @@ function canonJoinCols_(cols, t0) {
     if (canon && canon !== id) setv('מזהה', canon);
     return cols;
   }
-  r = rowOfKey_(t, personKey_(get('טלפון'), get('שם'), get('משפחה'), get('תפקיד') === 'הורה'));
+  var wld = colsWorld_(cols);
+  r = rowOfKey_(t, personKey_(get('טלפון'), get('שם'), get('משפחה'), get('תפקיד') === 'הורה'), wld);
   /* תלמיד שלמד בעמדה לפני שהתקין — יש לו כבר שורה (מזהה Am…).
-     ההרשמה האמיתית נבלעת בה, וכל מה שנספר לו בעמדה נשאר שלו. */
-  if (r < 1 && get('תפקיד') !== 'הורה') {
+     ההרשמה האמיתית נבלעת בה, וכל מה שנספר לו בעמדה נשאר שלו.
+     שורות העמדה הן של העולם האמיתי בלבד. */
+  if (r < 1 && get('תפקיד') !== 'הורה' && wld === 'R') {
     r = rowOfAmda_(t, get('קוד ישיבה'), get('שם'), get('משפחה'), get('שכבה'));
   }
   if (r < 1) return cols;
@@ -7045,7 +7076,10 @@ var PUB_ROW = {
              'קוד הזמנה באתגר',
              /* מסלול השלמה — "כן" מנרשם חדש. נשמר רק בשורה של אדם חדש
                 (joinWrite_); אחר כך משתנה רק מהניהול (hashSet_). */
-             'מסלול השלמה'],
+             'מסלול השלמה',
+             /* הדגמה משפחתית (בריף 25.10) — מזהה ההרצה. נשמר רק כשהוא
+                ההרצה הפעילה והשורה "בדיקה: כן" (joinWrite_). */
+             'הדגמה'],
   'התראות': ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
              'מנוי', 'תוצאה', 'מועד', 'מתי', 'דפדפן'],
   /* זמן בדף ומכשיר — לכרטיס הלימוד בהגרלה (rafTmAdd_, 8.99.324). */
@@ -7503,6 +7537,8 @@ function hashRoute_(e) {
   try {
     if (op === 'list') return reply_(e, hashList_());
     if (op === 'set') return reply_(e, hashSet_(P));
+    if (op === 'bulkpre') return reply_(e, hashBulk_(null));
+    if (op === 'bulk') return reply_(e, hashBulk_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
@@ -7549,6 +7585,102 @@ function hashSet_(P) {
 }
 
 /* ============================================================
+   העברה מרוכזת למסלול השלמה (בריף 25.10, חלק 2).
+   ============================================================
+   ?hash=bulkpre — ספירה בלבד, בלי שינוי. ?hash=bulk&n= — ההעברה, רק
+   כשהספירה עדיין n (אחרת `changed` והמסך מבקש אישור מחדש).
+   **אותו מנגנון של hashSet_:** אותה עמודה, אותו ערך "כן", לכל השורות
+   של המזהה — רק על כל הזכאים בבת אחת. זכאי = תלמיד (לא הורה, לא בדיקה)
+   שהשורה האחרונה שלו מאחת הישיבות שבמסלול, ועוד לא "כן". הרצה חוזרת
+   אינה מוצאת אותו שוב.
+   **שימור בלבד.** ההכרעה במסלול משנה דבר אחד בחישוב: לאיזה מסלול נספר
+   חידון של שבוע ההגרלה הפתוח (trOf ב-rafCalc_). לכן לפני הכתיבה —
+   החישוב פעמיים, כמו שהוא ובהנחה שהועברו (`hsAdd`). תלמיד שהכרטיסים
+   שלו היו משתנים (נגרעים או נוספים) — **אינו מועבר**, וחוזר לבעלים
+   כשאלה. השאר עוברים. לפני הכתיבה — גיבוי של "לומדים". */
+function hashBulkPlan_() {
+  var t = joinTable_(), seen = {}, cand = [], by = {}, already = 0;
+  for (var r = t.rows.length - 1; r >= 1; r--) {
+    var row = t.rows[r], id = t.c(row, 'מזהה');
+    if (!id || seen[id]) continue;
+    seen[id] = 1;
+    if (t.c(row, 'תפקיד') === 'הורה' || t.c(row, 'בדיקה') === 'כן') continue;
+    var code = t.c(row, 'קוד ישיבה');
+    if (HASH_INSTS_.indexOf(code) < 0) continue;
+    if (t.c(row, HS_COL) === 'כן') { already++; continue; }
+    cand.push({ id: id, code: code, name: (t.c(row, 'שם') + ' ' + t.c(row, 'משפחה')).trim() });
+  }
+  var skip = [], go = [];
+  if (cand.length) {
+    var add = {};
+    cand.forEach(function (x) { add[x.id] = 1; });
+    var A = rafCalc_(), B = rafCalc_(add);
+    var key = function (C, id) { var a = C.alias[id] || id; return C.target[a] || a; };
+    var sig = function (C, id) {
+      var o = C.done[key(C, id)];
+      if (!o) return '';
+      return Object.keys(o.tr).sort().map(function (k) {
+        return k + ':' + o.tr[k].l + o.tr[k].q + o.tr[k].f;
+      }).join(',');
+    };
+    cand.forEach(function (x) {
+      if (sig(A, x.id) !== sig(B, x.id)) skip.push({ id: x.id, name: x.name, code: x.code, was: sig(A, x.id), would: sig(B, x.id) });
+      else { go.push(x); by[x.code] = (by[x.code] || 0) + 1; }
+    });
+  }
+  return { t: t, go: go, by: by, skip: skip, already: already };
+}
+function hashBulk_(P) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return { status: 'busy', message: 'השרת עסוק, נסו שוב' };
+  var plan, moved = 0, bak = '';
+  try {
+    plan = hashBulkPlan_();
+    var out = { status: 'ok', n: plan.go.length, by: plan.by, already: plan.already,
+                skip: plan.skip.map(function (x) { return { name: x.name, code: x.code, was: x.was, would: x.would }; }) };
+    if (!P) return out;
+    if (String(P.n) !== String(plan.go.length)) { out.status = 'changed'; return out; }
+    if (!plan.go.length) { out.moved = 0; out.verified = 1; return out; }
+    var t = plan.t, sh = t.sh, ss = sh.getParent();
+    var head = t.rows[0].map(function (h) { return String(h).trim(); });
+    var col = idx_(sh, head, HS_COL);
+    /* --- גיבוי --- */
+    var base = 'גיבוי לומדים · השלמה ' + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm');
+    bak = base;
+    for (var k = 2; ss.getSheetByName(bak); k++) bak = base + ' #' + k;
+    var copy = sh.copyTo(ss).setName(bak);
+    try { copy.hideSheet(); } catch (eH) {}
+    SpreadsheetApp.flush();
+    if (copy.getLastRow() !== sh.getLastRow()) {
+      try { ss.deleteSheet(copy); } catch (eD) {}
+      return { status: 'error', message: 'הגיבוי לא הושלם — לא נעשה שינוי' };
+    }
+    /* --- כתיבה: רק התאים של הזכאים, כמו hashSet_ --- */
+    var ids = {}, a1 = [];
+    plan.go.forEach(function (x) { ids[x.id] = 1; });
+    for (var r = 1; r < t.rows.length; r++) {
+      var hit = rowIds_(t, t.rows[r]).some(function (i) { return ids[i]; });
+      if (hit) a1.push(sh.getRange(r + 1, col + 1).getA1Notation());
+    }
+    for (var j = 0; j < a1.length; j += 400) sh.getRangeList(a1.slice(j, j + 400)).setValue('כן');
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  ptsBust_();
+  /* --- קריאה חוזרת: כל מזהה שהועבר — "כן" בשורה האחרונה שלו --- */
+  var t2 = joinTable_(), last = {};
+  for (var r2 = 1; r2 < t2.rows.length; r2++) {
+    var id2 = t2.c(t2.rows[r2], 'מזהה');
+    if (id2) last[id2] = t2.c(t2.rows[r2], HS_COL);
+  }
+  var bad = [];
+  plan.go.forEach(function (x) { if (last[x.id] === 'כן') moved++; else bad.push(x.name); });
+  return { status: bad.length ? 'error' : 'ok', moved: moved, n: plan.go.length, by: plan.by,
+           backup: bak, verified: bad.length ? 0 : 1, bad: bad,
+           skip: plan.skip.map(function (x) { return { name: x.name, code: x.code, was: x.was, would: x.would }; }),
+           message: bad.length ? 'חלק מההעברות לא נקראו חזרה מהגיליון' : '' };
+}
+
+/* ============================================================
    הכרטיסים — לכל תלמיד, לשבוע של ההגרלה (8.99.324).
    ============================================================
    שלושה סוגים, כל אחד לעצמו; אף אחד אינו תנאי לאחר:
@@ -7579,14 +7711,16 @@ function rafTmOk_(o) { return !o || o.old || rafTmSum_(o) < 0 || rafTmSum_(o) >=
 /* החישוב המשותף לזכאים בניהול (raffleElig_) ולתלמיד עצמו (rafMe_) —
    אותה לוגיקה בדיוק: אנשים, איחוד חשבונות, מי סיים איזה עמוד,
    וכמה כרטיסים. `done` — מי שיש לו לפחות כרטיס: { l, q, f, t }. */
-function rafCalc_() {
+/* `hsAdd` — לבדיקה בלבד (hashBulkPlan_): מזהים שמחושבים כאילו הועברו
+   למסלול השלמה. שום דבר אינו נכתב. */
+function rafCalc_(hsAdd) {
   var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target;
   var D = rafDaf_(), noId = {}, side = {}, tm = {};
   /* מסלול השלמה: הדף שלו (שתי המסכתות באותו לוח עד הסיום), ומי בו —
      "מסלול השלמה" ב"לומדים", ובלי הכרעה — שורת לימוד במסלול (למטה). */
   var DH = rafDafOf_('taanit-hashlama') || rafDafOf_('megila-hashlama'), HS = {};
   Object.keys(ppl).forEach(function (id) {
-    if (ppl[id].hs === 1) HS[target[id] || id] = 1;
+    if (ppl[id].hs === 1 || (hsAdd && hsAdd[id])) HS[target[id] || id] = 1;
   });
   var lr = sheet_(LEARN_TAB);
   var rows = (D || DH) && lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
@@ -9764,6 +9898,7 @@ var CH_CODE_COL = 'קוד הזמנה באתגר';   /* מהלקוח — PUB_ROW,
 var CH_BY_COL   = 'מזמין באתגר';       /* בשרת בלבד */
 var CH_AT_COL   = 'הצטרף לאתגר';       /* בשרת בלבד */
 var CH_TP_ = 'בדיקה · ';
+var CH_DEMO_COL = 'הדגמה';            /* "לומדים" — מזהה הרצת ההדגמה */
 var CH_GRP_COLS_ = ['קבוצה', 'מזמין', 'חבר 1', 'חבר 2', 'חבר 3', 'מצב', 'ננעלה', 'הושלמה',
                     'הגרלה', 'הערה', 'בדיקה'];
 var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הוקפא', 'זכאים', 'מועד הגרלה', 'נבחרה',
@@ -10244,17 +10379,21 @@ function chRefGet_(P) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'error', message: 'נסו שוב בעוד רגע' };
   try {
-    var R = chRefMap_(), hit = '';
-    R.T.rows.forEach(function (o) { if (o['מזהה'] === id) hit = o['קוד']; });
-    if (hit) return { status: 'ok', code: hit };
-    var code = '';
-    for (var tries = 0; tries < 20 && (!code || R.m[code]); tries++) {
-      code = '';
-      for (var j = 0; j < 6; j++) code += CH_CODE_ABC_.charAt(Math.floor(Math.random() * CH_CODE_ABC_.length));
-    }
-    chPut_(R.T, { 'קוד': code, 'מזהה': id, 'נוצר': new Date().toISOString(), 'בדיקה': test ? 'כן' : '' });
-    return { status: 'ok', code: code };
+    return { status: 'ok', code: chRefNew_(id, test) };
   } finally { lock.releaseLock(); }
+}
+/* הקוד של מזהה — הקיים, או חדש. תחת הנעילה של מי שקורא. */
+function chRefNew_(id, test) {
+  var R = chRefMap_(), hit = '';
+  R.T.rows.forEach(function (o) { if (o['מזהה'] === id) hit = o['קוד']; });
+  if (hit) return hit;
+  var code = '';
+  for (var tries = 0; tries < 20 && (!code || R.m[code]); tries++) {
+    code = '';
+    for (var j = 0; j < 6; j++) code += CH_CODE_ABC_.charAt(Math.floor(Math.random() * CH_CODE_ABC_.length));
+  }
+  chPut_(R.T, { 'קוד': code, 'מזהה': id, 'נוצר': new Date().toISOString(), 'בדיקה': test ? 'כן' : '' });
+  return code;
 }
 /* מי שקיבל את הקישור רואה רק את השם הפרטי של המזמין. */
 function chLand_(P) {
@@ -10264,7 +10403,11 @@ function chLand_(P) {
   if (!o) return { status: 'ok', name: '' };
   var t = joinTable_(), r = rowOfId_(t, o['מזהה']);
   var U = { test: o['בדיקה'] === 'כן' }, K = chConf_(U, chSetRead_(U));
-  return { status: 'ok', name: r >= 1 ? t.c(t.rows[r], 'שם') : '', on: K.on, tst: U.test ? 1 : 0 };
+  var out = { status: 'ok', name: r >= 1 ? t.c(t.rows[r], 'שם') : '', on: K.on, tst: U.test ? 1 : 0 };
+  /* קישור של המזמין בהדגמה הפעילה — המכשיר נכנס לעולם ההדגמה (testmode.js). */
+  var D = chDemo_();
+  if (D && U.test && o['מזהה'] === D.own) out.dm = D.run;
+  return out;
 }
 /* מי שהגיע מקישור ופותח את המסך: האם נספר כחבר חדש. */
 function chRefState_(M, U, code, mine, me) {
@@ -10287,10 +10430,11 @@ function chKnown_(t, cols) {
     for (var i = 0; i < cols.length; i++) if (cols[i] && cols[i][0] === n) return String(cols[i][1] || '').trim();
     return '';
   };
-  var f = nk_(g('שם')), l = nk_(g('משפחה')), c = g('קוד ישיבה');
+  var f = nk_(g('שם')), l = nk_(g('משפחה')), c = g('קוד ישיבה'), w = colsWorld_(cols);
   if (!f || !l) return false;
   for (var r = 1; r < t.rows.length; r++) {
     var row = t.rows[r];
+    if (rowWorld_(t, row) !== w) continue;
     if (nk_(t.c(row, 'שם')) === f && nk_(t.c(row, 'משפחה')) === l && t.c(row, 'קוד ישיבה') === c) return true;
   }
   return false;
@@ -10314,6 +10458,7 @@ function chAdm_(M, U) {
   var o = chPub_(M);
   if (!M) return { status: 'busy' };
   o.F = M.F; o.t0 = M.t0; o.lastAt = M.last; o.terms = M.terms; o.test = U.test ? 1 : 0;
+  if (U.test) o.demo = chDemoView_(M, chDemo_());
   /* ההתראה ב-450 (בסף שלפני ההגרלה הממומנת האחרונה): להחליט —
      להאריך או לסיים — לפני שמשהו משתנה אצל התלמידים. */
   var rx = M.ms.filter(function (m) { return m.st === CH_M_.none; }).length;
@@ -10526,13 +10671,176 @@ function chTestClear_() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { status: 'error', message: 'נסו שוב בעוד דקה' };
   try {
-    var out = {};
-    out[CH_GRP_] = testDel_(CH_GRP_, function (g) { return g('בדיקה') !== 'כן'; });
-    out[CH_MS_] = testDel_(CH_MS_, function (g) { return g('בדיקה') !== 'כן'; });
-    out[CH_REF_] = testDel_(CH_REF_, function (g) { return g('בדיקה') !== 'כן'; });
-    out[CH_SET_] = testDel_(CH_SET_, function (g) { return g('שדה').indexOf(CH_TP_) !== 0; });
-    return { status: 'ok', deleted: out };
+    if (chDemo_()) return { status: 'error', message: 'יש הדגמה פעילה — מסיימים אותה ב"סיום הדגמה"' };
+    return { status: 'ok', deleted: chTestDel_() };
   } finally { lock.releaseLock(); chBust_(null); }
+}
+function chTestDel_() {
+  var out = {};
+  out[CH_GRP_] = testDel_(CH_GRP_, function (g) { return g('בדיקה') !== 'כן'; });
+  out[CH_MS_] = testDel_(CH_MS_, function (g) { return g('בדיקה') !== 'כן'; });
+  out[CH_REF_] = testDel_(CH_REF_, function (g) { return g('בדיקה') !== 'כן'; });
+  out[CH_SET_] = testDel_(CH_SET_, function (g) { return g('שדה').indexOf(CH_TP_) !== 0; });
+  return out;
+}
+
+/* ============================================================
+   הדגמה משפחתית (בריף 25.10, חלק 3).
+   ============================================================
+   הבעלים רואה את האתגר מקצה לקצה לפני ההשקה: הוא המזמין, שלושה בני
+   משפחה מצטרפים בקישור שלו בטלפונים שלהם, לומדים, והוא מגריל ומאשר.
+   **על המנגנון הקיים** — עולם הבדיקה של האתגר (`tst=1`), אותן קבוצות,
+   אותה הגרלה ואותו אישור. מה שנוסף:
+     · ההרצה (`chDemo` במאפייני הסקריפט): מזהה, המזמין והקוד שלו.
+     · הקישור נושא את ההדגמה: chLand_ מחזיר `dm` לקוד של המזמין, והמכשיר
+       נכנס לעולם ההדגמה (testmode.js) — שורות "בדיקה: כן" ו"הדגמה".
+     · העולם של שורה (rowWorld_): שום איחוד חשבון עם אמת או בדיקה אחרת.
+     · "מוכן להגרלה" — הבעלים סוגר את החלון; לא שעון (24 שעות בהדגמה).
+     · "סיום הדגמה" — מוחק את שורות ההרצה בלבד, ובודק שלא נשאר דבר.
+   המבצע האמיתי אינו נוגע כאן בשום שלב: הכול בעולם הבדיקה. אין פרס, אין
+   שובר, אין התראה — ההגרלה רק מסמנת קבוצה, והאישור — "זכתה". */
+function chDemo_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('chDemo') || 'null'); }
+  catch (e) { return null; }
+}
+/* בהרשמה: "הדגמה" נשמר רק כשהוא ההרצה הפעילה והשורה שורת בדיקה. */
+function chDemoCols_(cols) {
+  var dm = '', tst = '';
+  (cols || []).forEach(function (c) {
+    if (c && c[0] === CH_DEMO_COL) dm = String(c[1] || '').trim();
+    if (c && c[0] === 'בדיקה') tst = String(c[1] || '').trim();
+  });
+  if (!dm) return cols;
+  var D = chDemo_();
+  if (D && D.run === dm && tst === 'כן') return cols;
+  return cols.filter(function (c) { return !(c && c[0] === CH_DEMO_COL); });
+}
+/* מה שמסך הניהול צריך על ההרצה — מתוך המודל של עולם הבדיקה. */
+function chDemoView_(M, D) {
+  if (!D) return null;
+  var p = (M && M.ppl && M.ppl[D.own]) || {}, fr = p.fr || [], g = null, m = null;
+  (M && M.grp || []).forEach(function (x) { if (x.by === D.own) g = g || x; });
+  (M && M.ms || []).forEach(function (x) { if (x.k === 1) m = x; });
+  /* המצבים כקודים (CH_G_/CH_M_), לא כמלל — המסך משווה אליהם. */
+  var code = function (map, v) { var o = ''; Object.keys(map).forEach(function (k) { if (map[k] === v) o = k; }); return o; };
+  return { run: D.run, code: D.code, own: D.own, first: D.first, inst: D.inst, instName: D.instName, at: D.at,
+           joined: fr.length, learned: fr.filter(function (f) { return M.ppl[f] && M.ppl[f].c; }).length,
+           ownL: !!(p.c || p.e), grp: g ? code(CH_G_, g.st) : '', ms: m ? code(CH_M_, m.st) : '' };
+}
+function chDemoStart_(P) {
+  var U = { test: true };
+  var name = String(P.name || '').trim().slice(0, 30), inst = String(P.inst || '').trim();
+  if (!name) return { status: 'error', message: 'השם שיופיע בהדגמה' };
+  if (!/^[a-z]{2,20}$/.test(inst)) return { status: 'error', message: 'צריך לבחור ישיבה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var D = chDemo_();
+    if (D) return { status: 'ok', again: 1, run: D.run, id: D.own, code: D.code, first: D.first,
+                    inst: D.inst, instName: D.instName };
+    var S = chSetRead_(U);
+    if (chConf_(U, S).on) return { status: 'error', message: 'עולם הבדיקה של האתגר כבר פעיל — מנקים אותו קודם ("ניקוי הבדיקה")' };
+    var instName = '';
+    OV_INST_.forEach(function (x) { if (x[0] === inst) instName = x[1]; });
+    var run = 'D' + Date.now().toString(36), own = 'DM' + run;
+    D = { run: run, own: own, first: name, inst: inst, instName: instName, at: new Date().toISOString(), code: '' };
+    PropertiesService.getScriptProperties().setProperty('chDemo', JSON.stringify(D));
+    joinWrite_([['מזהה', own], ['שם', name], ['משפחה', ''], ['קוד ישיבה', inst], ['ישיבה', instName],
+                ['תפקיד', 'תלמיד'], ['בדיקה', 'כן'], [CH_DEMO_COL, run]]);
+    var now = new Date().toISOString();
+    chSetPut_(U, S, 'נפתח', now);
+    chSetPut_(U, S, 'ארוחות ממומנות', 1);
+    chSetPut_(U, S, 'צעד', 3);
+    chSetPut_(U, S, 'חלון בשעות', CH_WIN_H_);
+    chSetPut_(U, S, 'פעיל', 'כן');
+    D.code = chRefNew_(own, true);
+    PropertiesService.getScriptProperties().setProperty('chDemo', JSON.stringify(D));
+    return { status: 'ok', run: run, id: own, code: D.code, first: name, inst: inst, instName: instName };
+  } finally { lock.releaseLock(); chBust_(null); }
+}
+/* "מוכן להגרלה": רק כשהרביעייה של המזמין מושלמת. החלון נסגר עכשיו,
+   והסנכרון מקפיא את הזכאות — אותו קוד של סגירת חלון רגילה. */
+function chDemoReady_() {
+  var U = { test: true }, D = chDemo_();
+  if (!D) return { status: 'error', message: 'אין הדגמה פעילה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var M = chSync_(U);
+    if (!M.grp.some(function (g) { return g.by === D.own && g.st === CH_G_.done; })) {
+      return { status: 'error', message: 'הרביעייה עוד לא מושלמת — כל הארבעה צריכים להשלים לימוד דף' };
+    }
+    var X = chMsRow_(U, 1);
+    if (!X.m) return { status: 'error', message: 'ההגרלה עוד לא נפתחה' };
+    if (X.m['מצב'] === CH_M_.open || X.m['מצב'] === CH_M_.zero) {
+      X.m['נסגר'] = new Date(Date.now() - 1000).toISOString();
+      chPut_(X.T, X.m);
+      SpreadsheetApp.flush();
+      M = chSync_(U);
+    }
+    var m = null;
+    M.ms.forEach(function (x) { if (x.k === 1) m = x; });
+    if (!m || m.st !== CH_M_.ready && m.st !== CH_M_.pend && m.st !== CH_M_.ok) {
+      return { status: 'error', message: 'תמונת הזכאות לא נסגרה (' + (m ? m.st : '—') + ')' };
+    }
+    return { status: 'ok' };
+  } finally { lock.releaseLock(); chBust_(null); }
+}
+/* "סיום הדגמה": השורות של ההרצה הזו, ורק הן. בלומדים — "הדגמה" = ההרצה;
+   בלשוניות הלימוד — המזהים שלהן; בלשוניות האתגר — שורות הבדיקה (ההדגמה
+   מתחילה רק מעולם בדיקה נקי, ולכן כולן שלה). אחר כך — בדיקה שלא נשאר דבר. */
+function chDemoEnd_() {
+  var D = chDemo_();
+  if (!D) return { status: 'ok', none: 1 };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  var out = {}, ids = [D.own], left = 0;
+  try {
+    var t = joinTable_();
+    for (var r = 1; r < t.rows.length; r++) {
+      if (t.c(t.rows[r], CH_DEMO_COL) !== D.run) continue;
+      rowIds_(t, t.rows[r]).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
+    }
+    /* מזהה שמופיע גם בשורה שאינה של ההרצה — אינו נמחק בשום לשונית.
+       (לא אמור לקרות: המכשיר מקבל מזהה חדש בכניסה להדגמה.) */
+    for (var r1 = 1; r1 < t.rows.length; r1++) {
+      if (t.c(t.rows[r1], CH_DEMO_COL) === D.run) continue;
+      rowIds_(t, t.rows[r1]).forEach(function (x) { var i = ids.indexOf(x); if (i >= 0) ids.splice(i, 1); });
+    }
+    var mineId = function (g) { return ids.indexOf(g('מזהה')) >= 0; };
+    out['לומדים'] = testDel_(JOIN_TAB, function (g) { return g(CH_DEMO_COL) !== D.run; });
+    out['לימוד'] = testDel_(LEARN_TAB, function (g) { return !(mineId(g) && g('בדיקה') === 'כן'); });
+    ['חידות', 'התראות', 'זוגות', 'ממתינים לדף'].forEach(function (tb) {
+      out[tb] = testDel_(tb, function (g) { return !mineId(g); });
+    });
+    out['תיבה'] = testDel_('תיבה', function (g) {
+      var to = g('מזהים').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      return !(to.length && to.every(function (x) { return ids.indexOf(x) >= 0; }));
+    });
+    var ch = chTestDel_();
+    Object.keys(ch).forEach(function (k) { out[k] = ch[k]; });
+    PropertiesService.getScriptProperties().deleteProperty('chDemo');
+    SpreadsheetApp.flush();
+    /* מה שנשאר — אמור להיות אפס. */
+    var t2 = joinTable_();
+    for (var r2 = 1; r2 < t2.rows.length; r2++) if (t2.c(t2.rows[r2], CH_DEMO_COL) === D.run) left++;
+    var lsh = sheet_(LEARN_TAB);
+    if (lsh.getLastRow() > 1) {
+      var lv = lsh.getDataRange().getDisplayValues(), li = -1;
+      for (var h = 0; h < lv[0].length; h++) if (String(lv[0][h]).trim() === 'מזהה') li = h;
+      for (var r3 = 1; li >= 0 && r3 < lv.length; r3++) if (ids.indexOf(String(lv[r3][li]).trim()) >= 0) left++;
+    }
+    [CH_GRP_, CH_MS_, CH_REF_].forEach(function (tb) {
+      chTab_(tb, tb === CH_REF_ ? CH_REF_COLS_ : tb === CH_GRP_ ? CH_GRP_COLS_ : CH_MS_COLS_).rows
+        .forEach(function (o) { if (o['בדיקה'] === 'כן') left++; });
+    });
+    chTab_(CH_SET_, ['שדה', 'ערך']).rows.forEach(function (o) { if (o['שדה'].indexOf(CH_TP_) === 0) left++; });
+  } finally { lock.releaseLock(); chBust_(null); }
+  try { CacheService.getScriptCache().removeAll(['raf:me3', 'pts:all', 'amda:att2', 'inbox:rows']); } catch (e) {}
+  try { recount_(); } catch (e2) {}
+  try { recountLearn_(true); } catch (e3) {}
+  return { status: left ? 'error' : 'ok', del: out, left: left,
+           message: left ? 'נשארו ' + left + ' שורות של ההדגמה' : '' };
 }
 
 function challengeRoute_(e) {
@@ -10543,6 +10851,11 @@ function challengeRoute_(e) {
   }
   try {
     if (op === 'land') return reply_(e, chLand_(P));
+    /* הדגמה — האם ההרצה של המכשיר עוד פעילה. לא — הוא חוזר לחשבון שלו. */
+    if (op === 'dmst') {
+      var D0 = chDemo_();
+      return reply_(e, { status: 'ok', on: !!(D0 && D0.run === String(P.run || '')) });
+    }
     if (op === 'ref') return reply_(e, chRefGet_(P));
     if (op === 'state') return reply_(e, chPub_(chModel_(U, false) || { on: false }));
     if (op === 'my') {
@@ -10560,6 +10873,9 @@ function challengeRoute_(e) {
       if (!U.test) return reply_(e, { status: 'denied', message: 'רק בעולם הבדיקה' });
       return reply_(e, chTestClear_());
     }
+    if (op === 'dmstart') return reply_(e, chDemoStart_(P));
+    if (op === 'dmready') return reply_(e, chDemoReady_());
+    if (op === 'dmend') return reply_(e, chDemoEnd_());
     if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
