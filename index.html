@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.331';
+var APP_VERSION = '8.99.332';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17343,6 +17343,7 @@ var dkDir  = '';     /* התיקייה בריפו */
 var dkList = [];     /* הסדר — מה שנשמר */
 var dkPool = null;   /* מה שיש בתיקייה בפועל; null = טרם נשאל */
 var dkBusy = false;
+var dkUpOn = false;   /* שליחת שקפים לריפו בעיצומה */
 var dkTitle = '';    /* הכותרת שבבאנר הכחול */
 var dkCover = '';    /* השקף שבבאנר, נתיב מלא; ריק = הראשון במצגת */
 var dkPdf  = null;   /* השקפים שנחתכו מ-PDF, לפני הורדה */
@@ -17551,6 +17552,13 @@ function dkRmCheck(path, f, tries, after) {
 }
 function dkAdd(f) {
   dkAddSilent_(f);
+  dkStash(); admPane(); dkAutoSave_();
+}
+/* כל מה שבתיקייה ואינו במצגת — בלחיצה אחת, לפי סדר שמות הקבצים. */
+function dkAddRest() {
+  (dkPool || []).forEach(function (f) {
+    if (dkList.indexOf(dkDir + '/' + f) < 0 && dkList.indexOf(f) < 0) dkAddSilent_(f);
+  });
   dkStash(); admPane(); dkAutoSave_();
 }
 /* כמו dkAdd, בלי לצייר/לפרסם — לשימוש בהוספה של כמה קבצים
@@ -17872,23 +17880,29 @@ function dkPutAll(items, done) {
 }
 /* שואלים את GitHub עד שהקבצים באמת שם. גיטהאב מעדכן את ה-API
    תוך שניות, ולכן חמישה ניסיונות בהפרש שתי שניות מספיקים. */
-function dkAskUntil(want, tries, done) {
+/* GitHub מתיר לכל מכשיר 60 שאלות בשעה בלי סיסמה. תשובה 403/429 היא
+   "אי אפשר לבדוק", לא "הקובץ לא שם" — עד 25.10.2026 שתיהן נראו אותו
+   דבר, וקבצים שהגיעו דווחו כחסרים ולא נכנסו למצגת. done(miss, blind):
+   blind = לא הצלחנו לבדוק אף פעם. */
+function dkAskUntil(want, tries, done, seen) {
+  var max = Math.max(5, Math.ceil(want.length / 2));
   dkPdfMsg('', 'מעלה את השקפים…');
   fetch('https://api.github.com/repos/' + REPO + '/contents/' +
         dkDir.split('/').map(encodeURIComponent).join('/') +
         '?ref=main&t=' + Date.now())
-    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (r) { return r.status === 404 ? [] : (r.ok ? r.json() : null); })
     .then(function (j) {
+      if (j) seen = true;
       var have = {};
       (j || []).forEach(function (f) { have[f.name] = 1; });
       var miss = want.filter(function (n) { return !have[n]; });
-      if (!miss.length) { done(null); return; }
-      if (tries < 5) { setTimeout(function () { dkAskUntil(want, tries + 1, done); }, 2200); return; }
-      done(miss);
+      if (j && !miss.length) { done(null); return; }
+      if (tries < max) { setTimeout(function () { dkAskUntil(want, tries + 1, done, seen); }, 3000); return; }
+      done(miss, !seen);
     })
     .catch(function () {
-      if (tries < 5) { setTimeout(function () { dkAskUntil(want, tries + 1, done); }, 2200); return; }
-      done(want);
+      if (tries < max) { setTimeout(function () { dkAskUntil(want, tries + 1, done, seen); }, 3000); return; }
+      done(want, !seen);
     });
 }
 
@@ -17919,7 +17933,28 @@ function dkUpload(items) {
       if (!window.confirm(warn)) { dkPdfMsg('', 'בוטל — שום דבר לא נשלח.'); return; }
     }
   }
-  dkPutAll(items, function (miss) {
+  /* לחיצה נוספת בזמן שליחה שלחה הכול שוב, במקביל — ארבע פעמים כל
+     שקף (25.10.2026), והאימות לא עמד בזמן. */
+  if (dkUpOn) return;
+  dkUpOn = true; admPane();
+  dkPutAll(items, function (miss, blind) {
+    dkUpOn = false;
+    if (blind) { admPane(); dkPdfMsg('bad', UI.dkUpBlind); return; }
+    if (miss && miss.length < items.length) {
+      /* מה שהגיע — נכנס למצגת עכשיו. מה שלא — נשאר מסומן לניסיון חוזר. */
+      var got = items.filter(function (it) { return miss.indexOf(it.name) < 0; })
+                     .map(function (it) { return it.name; });
+      got.forEach(function (n) {
+        if ((dkPool || []).indexOf(n) < 0) (dkPool = dkPool || []).push(n);
+        dkAddSilent_(n);
+      });
+      (dkPool || []).sort();
+      (dkPdf || []).forEach(function (sl) { sl.sel = miss.indexOf(sl.name) >= 0; });
+      dkBust = Date.now();
+      dkStash(); admPane(); dkAutoSave_();
+      dkPdfMsg('bad', UI.dkUpPart.replace('{n}', got.length).replace('{miss}', miss.join(', ')));
+      return;
+    }
     if (!miss) {
       dkPdf = null;
       /* לא מחכים לתשובה טרייה מגיטהאב כדי שהקבצים "יהיו זמינים" —
@@ -17945,6 +17980,7 @@ function dkUpload(items) {
       dkAutoSave_();
       return;
     }
+    admPane();
     dkPdfMsg('bad', 'לא הגיעו: ' + miss.join(', ') + ' — צריך GH_TOKEN ' +
       'ו-GH_REPO במאפייני הסקריפט, וגרסת סקריפט 26 ומעלה ' +
       '(מערכת ← בדיקת חיבור).');
@@ -18083,6 +18119,9 @@ function admDecks(el) {
   if (rest.length) {
     h += '<div class="adm-card" style="margin-bottom:11px"><h4>שקפים שהוסרו מהמצגת</h4>' +
       '<p class="h">הועלו לשבוע הזה ואינם במצגת. "הוספה" מחזירה שקף לסוף הרשימה.</p>' +
+      (rest.length > 1 ? '<button class="btn gd" style="margin:4px 0 10px" ' +
+        'onclick="dkAddRest()">' + esc(UI.dkAddRest.replace('{n}', rest.length)) +
+        '</button>' : '') +
       rest.map(function (f) {
         return '<div class="row" style="align-items:center;gap:9px">' +
           '<img loading="lazy" src="' + esc(dkDir + '/' + f) + '?adm=' + dkBust + '" alt="" ' +
@@ -18108,8 +18147,8 @@ function admDecks(el) {
   if (dkPdf && dkPdf.length) {
     var dkSelN = dkPdfSelected().length;
     h += '<button class="btn gd" style="margin-top:8px" ' +
-      (dkSelN ? 'onclick="dkUpload(dkPdfSelected())"' : 'disabled') + '>' +
-      'הוספת ' + dkSelN + ' השקפים למצגת ←</button>' +
+      (dkSelN && !dkUpOn ? 'onclick="dkUpload(dkPdfSelected())"' : 'disabled') + '>' +
+      (dkUpOn ? esc(UI.dkUpBusy) : 'הוספת ' + dkSelN + ' השקפים למצגת ←') + '</button>' +
       '<p class="h" style="margin:6px 0 10px">או לשמור אותם במכשיר:</p>' +
       '<button class="btn g" ' + (dkSelN ? 'onclick="dkPdfAll()"' : 'disabled') + '>' +
       'הורדת ' + dkSelN + ' השקפים למכשיר</button>' +
