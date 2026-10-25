@@ -2835,6 +2835,8 @@ $('go').onclick = function () {
   };
   var fresh = !get('me', null);
   set('me', me);
+  /* מי שלחץ "לא מצליח להתקין" — הפנייה לרכז יוצאת עכשיו, עם הפרטים. */
+  if (role === 'kid') { try { hlpAfterReg(me); } catch (e) {} }
   /* מסלול השלמה (8.99.331): נרשם חדש שהגיע מהקישור של ישיבה שבמסלול
      (`forInsts`), ונשאר בה בבורר — נפתח מדף ב׳, בלי מסך בחירה. רק אחרי
      שהבעלים אישר בניהול (`hashOn`). מי שכבר רשום — לא זז: השרת שומר את
@@ -4682,6 +4684,40 @@ function hlpAndFire(q) {
     });
 }
 
+/* ============================================================
+   "לא מצליח להתקין" — בלי טופס בדרך.
+   ============================================================
+   תלמיד אנדרואיד שלחץ עובר ישר למסך ההרשמה הרגיל. הפנייה לרכז
+   נבנית מפרטי ההרשמה עצמם, ולכן אין צורך לשאול שם וטלפון פעמיים:
+     · כבר רשום — נשלחת מיד.
+     · עוד לא — `df:hlpWait` נשמר, והפנייה יוצאת ברגע שההרשמה
+       נשמרת (`hlpAfterReg`).
+   השליחה עצמה — `df:hlpPend` ו-`hlpFlush`: שקטה, עם מזהה פנייה
+   שמונע כפילות, וניסיון חוזר כשהחיבור חוזר. */
+function hlpBgQ(me) {
+  return {
+    help: '2', name: [me.first || '', me.last || ''].join(' ').trim(),
+    phone: me.phone || '', inst: me.inst || '', instName: me.instName || '',
+    grade: me.grade || '', klass: me.klass || '', dev: 'אנדרואיד',
+    what: '', diag: hlpDiag(), rid: hlpNewRid(), sid: me.id || deviceId()
+  };
+}
+function hlpBgSend(me) {
+  if (!me || !me.first || !hlpPhOk(me.phone)) return;
+  hlpPendSave(hlpBgQ(me));
+  hlpFlush();
+}
+function hlpQuick() {
+  var me = hlpMe();
+  if (me.first && hlpPhOk(me.phone)) { hlpBgSend(me); return; }
+  set('hlpWait', { at: Date.now() });
+}
+function hlpAfterReg(me) {
+  if (!get('hlpWait', null)) return;
+  try { localStorage.removeItem('df:hlpWait'); } catch (e) {}
+  hlpBgSend(me);
+}
+
 /* "המשך הרשמה" / "המשך לימוד" — אחרי אישור, או למרות כשל. */
 function brwGo() {
   brwSet();
@@ -4777,7 +4813,10 @@ function wzWire() {
     APPX.prompt(function () { wzGo(wzWhere()); });
   };
   if ((b = $('wz-skip'))) b.onclick = function () {
-    hlpErr = ''; hlpEd = false; hlpFail = false; hlpSent = false; wzGo(9);
+    hlpErr = ''; hlpEd = false; hlpFail = false; hlpSent = false;
+    /* תלמיד אנדרואיד — ישר להרשמה, והתקלה יוצאת לרכז ברקע. */
+    if (hlpAnd()) { hlpQuick(); brwGo(); return; }
+    wzGo(9);
   };
   if ((b = $('wz-hlp-cont'))) b.onclick = brwGo;
   if ((b = $('wz-icon'))) b.onclick = function () { wzGo(1); };
