@@ -2,7 +2,7 @@
   "id": "/join",
   "name": "הדף השבועי של בני עקיבא",
   "short_name": "הדף השבועי",
-  "start_url": "/join?inst=ohel",
+  "start_url": "/join?inst=ohel&app=1",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

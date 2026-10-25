@@ -48,7 +48,8 @@ def main():
         # כתובות מוחלטות: הקובץ יושב ב-/m/, וכתובת יחסית הייתה
         # נפתרת מולו — "./join" היה הופך ל-/m/join.
         man['id'] = '/join'
-        man['start_url'] = '/join?inst=' + c
+        # app=1 — "נפתח מהאייקון". ראו הראש של join.html.
+        man['start_url'] = '/join?inst=' + c + '&app=1'
         man['scope'] = '/'
         man['icons'] = [dict(i, src='/' + i['src']) for i in base['icons']]
         io.open(os.path.join(out, c + '.json'), 'w', encoding='utf-8').write(

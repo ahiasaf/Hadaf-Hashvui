@@ -63,6 +63,20 @@
      שאינו קיים, ואז ההתקנה נופלת חזרה על כתובת העמוד הנוכחית,
      כלומר בדיוק המצב שהיה קודם. -->
 <script>
+  /* **`app=1` — נפתח מהאייקון.** הוא יושב ב-`start_url` של המניפסט.
+     בדפדפן של סמסונג (וכשנוצר קיצור ולא אפליקציה) האייקון נפתח
+     כלשונית רגילה: `display-mode: standalone` שקר, והאירוע
+     `appinstalled` לא הגיע — והתלמיד חזר ל"אני מצטרף" ולהתקנה,
+     בלולאה. כאן נרשם שהותקן (`df:appAdded`, ראו APPX.installed),
+     והסימן יורד מהכתובת — כדי שלא ייסע בקישור שמשתפים לחבר. */
+  (function () {
+    if (!/[?&]app=1(&|$)/.test(location.search)) return;
+    try { localStorage.setItem('df:appAdded', '1'); } catch (e) {}
+    try {
+      var s = location.search.replace(/([?&])app=1(&|$)/, '$1').replace(/[?&]$/, '');
+      history.replaceState(history.state, '', location.pathname + s + location.hash);
+    } catch (e) {}
+  })();
   (function () {
     var m = /[?&]inst=([A-Za-z0-9_-]{2,20})(?:&|$)/.exec(location.search);
     var c = m ? m[1] : '';

@@ -371,7 +371,7 @@ def check_inst_manifests():
             miss.append(c)
             continue
         m = json.loads(read('m', c + '.json'))
-        if m.get('start_url') != '/join?inst=' + c:
+        if m.get('start_url') != '/join?inst=' + c + '&app=1':
             wrong.append(c + ' → ' + str(m.get('start_url')))
         # כתובת יחסית במניפסט שיושב ב-/m נפתרת מולו, לא מהשורש.
         for ic in m.get('icons', []):
