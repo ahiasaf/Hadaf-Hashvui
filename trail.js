@@ -92,12 +92,13 @@ function TrailPts(trId) {
 }
 function TrailHtml(o) {
   TrailStyle();
-  var tr = o.tr, chaps = (typeof CHAPTERS !== 'undefined' && CHAPTERS[tr.id]) || [];
+  /* הפרקים, הנקודות והצבע — של המסכת, גם במסלול השלמה (baseTrack). */
+  var tr = o.tr, bid = tr.baseTrack || tr.id, chaps = (typeof CHAPTERS !== 'undefined' && CHAPTERS[bid]) || [];
   var shown = {}, firstOfWeek = {}, wi = o.wi;
   /* הנקודות — בשורה האחרונה של כל דף (ב: ולא ב.), כי הדף נספר פעם אחת. */
-  var pts = TrailPts(tr.id), lastOf = {};
+  var pts = TrailPts(bid), lastOf = {};
   o.units.forEach(function (u, k) { if (u.kind === 'daf') lastOf[TrailKey(u.daf)] = k; });
-  var h = '<div class="trl ' + (tr.id === 'taanit' ? 't-b' : 't-g') + '">' + (o.noHead ? '' :
+  var h = '<div class="trl ' + (bid === 'taanit' ? 't-b' : 't-g') + '">' + (o.noHead ? '' :
     '<div class="trl-head"><b>' +
     TrailEsc(String(TrailUi('trMas')).replace('{mas}', tr.masechet)) + '</b><i></i><span>' +
     TrailEsc(String(TrailUi('trSub')).replace('{n}', tr.dapim)

@@ -1821,10 +1821,8 @@ function startTxt() {
 }
 /* השבוע הראשון בלוח — הדף, הפרשה, והתאריך העברי. */
 function week0() {
-  var t = myTrack ? myTrack() : TRACKS[0].id;
-  for (var i = 0; i < TRACKS.length; i++)
-    if (TRACKS[i].id === t) return TRACKS[i].cal[0];
-  return null;
+  var t = TrackById(myTrack ? myTrack() : TRACKS[0].id);
+  return t ? t.cal[0] : null;
 }
 
 function tpl(t, v) {
@@ -2837,6 +2835,11 @@ $('go').onclick = function () {
   };
   var fresh = !get('me', null);
   set('me', me);
+  /* מסלול השלמה (8.99.331): נרשם חדש שהגיע מהקישור של ישיבה שבמסלול
+     (`forInsts`), ונשאר בה בבורר — נפתח מדף ב׳, בלי מסך בחירה. רק אחרי
+     שהבעלים אישר בניהול (`hashOn`). מי שכבר רשום — לא זז: השרת שומר את
+     "מסלול השלמה" רק בשורה של אדם חדש, ומחזיר למכשיר את ההכרעה (`hs`). */
+  if (fresh && pub.hashOn && qs('inst') === code && TrackHashInst(code)) set('hash', 1);
 
   /* ללשונית "לומדים". הסקריפט מנתב אותה לגיליון הפרטי לפי שמה
      — ראו PRIVATE_TABS ב-apps-script.gs — ולכן אין כאן שום מזהה
@@ -2876,8 +2879,11 @@ function joinRow_(me) {
     ['בדיקה', LTester() ? 'כן' : ''],
     /* אתגר "חבר מביא חבר": הקוד מהקישור. השרת מייחס רק שורה חדשה
        (joinWrite_), ולכן שליחה חוזרת או עדכון פרטים אינם מזיזים דבר. */
-    ['קוד הזמנה באתגר', (window.CHAL && CHAL.ref()) || '']
+    ['קוד הזמנה באתגר', (window.CHAL && CHAL.ref()) || ''],
+    /* מסלול השלמה — רק בשורה של אדם חדש (joinWrite_); אחר כך — רק מהניהול. */
+    ['מסלול השלמה', LHash() ? 'כן' : '']
   ].filter(function (c) {
+    if (c[0] === 'מסלול השלמה') return !!c[1];
     /* מכשיר ששוחזר ("כבר נרשמתי") אינו מקבל את הטלפון של השותף
        — ושורה ששולחת אותו ריק הייתה מוחקת אותו בגיליון. */
     if (c[0] === 'קוד הזמנה באתגר') return !!c[1];
@@ -3195,14 +3201,17 @@ function drawKids(where) {
 
 /* המסכת שהתלמיד מסתכל עליה. ברירת המחדל היא מה שהצוות שלו
    בחר בהרשמה, ומרגע שהוא בחר בעצמו — בחירתו נשמרת. */
+/* **מסלול השלמה (8.99.331):** המסכת נבחרת כאן כמו תמיד, ו-LTrackOf
+   (learned.js) מחליף אותה במסלול ההשלמה שלה כשהמכשיר משויך אליו
+   (`df:hash`). הבורר ו-dfHomeTrack נשארים של המסכת. */
 function myTrack() {
   var t = null;
   try { t = localStorage.getItem('dfHomeTrack'); } catch (e) {}
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return t;
+  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return LTrackOf(t);
   /* לא בחר בעצמו — מקבל את מה שהצוות שלו בחר בהרשמה. הבורר
      נשאר פתוח לו בכל מקרה: מי שרואה שיש עוד מסכת מבין שהוא
      חלק ממשהו גדול. */
-  return instTrack() || TRACKS[0].id;
+  return LTrackOf(instTrack() || TRACKS[0].id);
 }
 /* המסכת של הישיבה שדרך הקישור שלה הוא נכנס. */
 function instTrack() {
@@ -3320,8 +3329,8 @@ function prjFit() {
   if (zoomOk) { wk.style.width = PRJ_BW + 'px'; wk.style.zoom = k; }
 }
 function masName(t) {
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) return TRACKS[i].masechet;
-  return '';
+  var tr = TrackById(t);
+  return tr ? tr.masechet : '';
 }
 
 function drawWeek() {
@@ -3402,6 +3411,12 @@ function drawPts() {
       clearTimeout(t0); clean();
       if (!r || r.status !== 'ok') { PTS_ERR = true; drawPts(); return; }
       PTS_GOT = true; PTS_ERR = false;
+      /* מסלול השלמה לפי השרת ("מסלול השלמה" ב"לומדים"): 1 — משויך,
+         0 — הוחזר למסלול הרגיל בניהול. בלי `hs` — לא נוגעים. */
+      if ((r.hs === 1 || r.hs === 0) && LHash() !== (r.hs === 1)) {
+        set('hash', r.hs);
+        try { drawWeek(); drawHero(); } catch (eH) {}
+      }
       set('ptsMe', { v: 2, id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
                      tk: r.tk || null });
       drawPts();
@@ -3430,12 +3445,14 @@ function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
 function tkCardHtml(c) {
   var tk = c ? c.tk : null, wait = !c && !PTS_ERR, n = tk ? tk.t : wait ? '…' : '—';
   var mas = [];
-  if (tk && tk.tr) TRACKS.forEach(function (t) {
+  if (tk && tk.tr) TRACKS.concat(TRACKS_HASHLAMA).forEach(function (t) {
     var x = tk.tr[t.id];
-    if (x && x[0] + x[1] + x[2] > 0) mas.push(t.masechet);
+    if (x && x[0] + x[1] + x[2] > 0 && mas.indexOf(t.masechet) < 0) mas.push(t.masechet);
   });
   if (!mas.length) mas.push(masName(myTrack()));
-  var sub = tk ? (tk.daf ? tpl(UI.myTkFor, { daf: tk.daf, mas: mas.join(', ') }) : UI.myTkNoDaf) : '';
+  /* מסלול השלמה — הדף של ההגרלה שלו (`dafs`, rafTk_); שרת ישן — `daf`. */
+  var dk = tk ? (tk.dafs && tk.dafs[myTrack()] != null ? tk.dafs[myTrack()] : tk.daf) : '';
+  var sub = tk ? (dk ? tpl(UI.myTkFor, { daf: dk, mas: mas.join(', ') }) : UI.myTkNoDaf) : '';
   /* כרטיס קטן לכל סוג: התקבל — ✓ (ובשני מסלולים "✓ 2"); לא — "+1",
      ו"עוד אפשר לקבל" לקורא המסך. */
   var row = function (lbl, k) {
@@ -3567,7 +3584,7 @@ function stWeek() {
     location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1));
     return;
   }
-  location.href = 'learn.html?mas=' + encodeURIComponent(tr) +
+  location.href = 'learn.html?' + LLearnQ(tr) +
                   '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
                   /* שהיציאה מהדף תחזיר הורה למסך ההורה — ראו stuDad ב-learn.html. */
@@ -3578,7 +3595,8 @@ function stWeek() {
 function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {
   var tr = myTrack(), wi = LWeek();
-  deckOpen(tr + '-' + ((wi < 0 ? 0 : wi) + 1));
+  /* במסלול השלמה — המצגת של אותו דף במסכת (DeckKeys ב-deck.js). */
+  deckOpen(DeckKeys(tr, (wi < 0 ? 0 : wi) + 1)[0] || '');
 }
 
 function deckSrc(c, n) {
@@ -3621,7 +3639,7 @@ document.addEventListener('keydown', function (e) {
 function dafUrl(tr, wk) {
   var d = LDaf(tr, wk) || '';
   var am = (typeof LAm === 'function') ? LAm(tr, wk) : 0;   /* ב: — ראו LDafQ */
-  return 'learn.html?mas=' + encodeURIComponent(tr) +
+  return 'learn.html?' + LLearnQ(tr) +
          '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '');
 }
 

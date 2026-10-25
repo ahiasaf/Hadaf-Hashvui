@@ -290,9 +290,9 @@
     try {
       var t = localStorage.getItem('dfHomeTrack'), tr = null;
       for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === t) tr = t;
-      tr = tr || TRACKS[0].id;
+      tr = LTrackOf(tr || TRACKS[0].id);   /* מסלול השלמה — ראו learned.js */
       var wi = Math.max(0, LWeek()), dd = LDaf(tr, wi), am = LAm(tr, wi);
-      if (dd) return 'learn.html?mas=' + encodeURIComponent(tr) + '&daf=' + encodeURIComponent(dd) + (am ? '&amud=' + am : '');
+      if (dd) return 'learn.html?' + LLearnQ(tr) + '&daf=' + encodeURIComponent(dd) + (am ? '&amud=' + am : '');
     } catch (e) {}
     return 'join.html';
   }

@@ -337,8 +337,9 @@ function forOne(P, w, students, wk) {
              body: fill(D.empty, { cls: cls }) };
   }
   /* הדף של השבוע לכל מסלול. תלמיד נספר כלמד אם סימן את הדף
-     של השבוע באחד המסלולים שהוא לומד בהם. */
-  var keys = P.TRACKS.map(function (t) {
+     של השבוע באחד המסלולים שהוא לומד בהם — גם מסלול השלמה
+     (TRACKS_HASHLAMA, 8.99.331), שבו אותו שבוע הוא דף אחר. */
+  var keys = P.TRACKS.concat(P.TRACKS_HASHLAMA || []).map(function (t) {
     return P.LDaf(t.id, wk) ? t.id + '|' + (wk + 1) : null;
   }).filter(Boolean);
   var done = mine.filter(function (p) {

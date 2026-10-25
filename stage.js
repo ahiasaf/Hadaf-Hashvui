@@ -39,8 +39,14 @@ function StWeek() {
   return wi < 0 ? 0 : wi;
 }
 function StTrack(id) {
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i];
-  return TRACKS[0];
+  /* גם מסלול השלמה — לוח משלו, באותה מסכת (TrackById ב-data.js). */
+  return TrackById(id) || TRACKS[0];
+}
+/* שם המסלול להצגה: מסלול השלמה — "תענית · השלמה" (UI.hashName). */
+function StTrName(t) {
+  if (!t) return '';
+  return t.baseTrack ? String((typeof UI !== 'undefined' && UI.hashName) || '{mas}').replace('{mas}', t.masechet)
+                     : t.masechet;
 }
 function StEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -82,7 +88,9 @@ function StageHtml(o) {
     s += '<div class="picker">';
     for (var k = 0; k < TRACKS.length; k++) {
       var t = TRACKS[k];
-      s += '<button class="pick' + (t.id === tr.id ? ' on' : '') +
+      /* הבורר הוא של המסכת. מי שבמסלול השלמה רואה את המסכת שלו
+         מסומנת, והלחיצה מעבירה מזהה מסכת — הדף מחליט על המסלול. */
+      s += '<button class="pick' + (t.id === (tr.baseTrack || tr.id) ? ' on' : '') +
            '" onclick="' + o.pick + '(\'' + t.id + '\')">מסכת ' +
            StEsc(t.masechet) + '</button>';
     }

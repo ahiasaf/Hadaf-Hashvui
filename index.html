@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.330';
+var APP_VERSION = '8.99.331';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3051,10 +3051,8 @@ var urlInst = '', urlKey = '';
    כאן ישב עותק זהה, ובעוד שני קבצים עותקים נוספים — ארבע
    פונקציות שאומרות את אותו דבר, עד היום שבו אחת מהן משתנה. */
 function weekIndex() { return LWeek(); }
-function trackById(id) {
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === id) return TRACKS[i];
-  return null;
-}
+/* גם מסלול השלמה (TrackById ב-data.js) — התלמיד מגיע אליו מ-join.html. */
+function trackById(id) { return TrackById(id); }
 function dafDone(tr) {
   var wi = weekIndex(), n = 0;
   if (wi < 0) return 0;
@@ -3221,14 +3219,16 @@ function openWeekNow() {
     }
   }
   if (!d) { openWeek(homeTrack, weekOf(trackById(homeTrack))); return; }
-  location.href = 'learn.html?mas=' + encodeURIComponent(homeTrack) +
+  location.href = 'learn.html?' + LLearnQ(homeTrack) +
                   '&' + LDafQ(homeTrack, wk < 0 ? 0 : wk) + fromQ();
 }
 function openTrackNow() { openTrack(homeTrack); }
 
 function pickTrack(id) {
   homeTrack = id;
-  localStorage.setItem('dfHomeTrack', id);
+  /* במכשיר נשמרת המסכת — גם כשהגיע ממסלול השלמה (join.html מחליף אותה
+     במסלול לפי `df:hash`, ראו LTrackOf). */
+  localStorage.setItem('dfHomeTrack', TrackBase(id));
   renderHome();
 }
 
@@ -4627,11 +4627,14 @@ function admMas(k) {
   ADM_MAS = k || 'all'; Store.set('admMas', ADM_MAS);
   admLive();
 }
+/* בניהול — גם מסלולי ההשלמה (8.99.331): "הכל" סופר את כולם, ולכל אחד
+   כפתור משלו. מחוץ לניהול — המסכת של המסך הראשי, כמו תמיד. */
+function brdAll() { return TRACKS.concat(TRACKS_HASHLAMA); }
 function brdTracks(go) {
   if (!go) return [homeTrack];
   if (ADM_MAS === null) ADM_MAS = Store.get('admMas', 'all');
   if (ADM_MAS !== 'all' && trackById(ADM_MAS)) return [ADM_MAS];
-  return TRACKS.map(function (t) { return t.id; });
+  return brdAll().map(function (t) { return t.id; });
 }
 /* משבצת באזור הניהול → הלוח, על הפירוט של הדרך הזו. */
 function brdWay(k) {
@@ -4660,8 +4663,8 @@ function boardHtml(code, name, hail, go) {
   /* הבורר — רק בניהול, ורק כשיש יותר ממסכת אחת. */
   var masBar = !go || TRACKS.length < 2 ? '' :
     '<div class="chips brd-mas">' +
-    [['all', UI.admMasAll, TRACKS.reduce(function (a, t) { return a + cnt(t.id); }, 0)]]
-      .concat(TRACKS.map(function (t) { return [t.id, t.masechet, cnt(t.id)]; }))
+    [['all', UI.admMasAll, brdAll().reduce(function (a, t) { return a + cnt(t.id); }, 0)]]
+      .concat(brdAll().map(function (t) { return [t.id, StTrName(t), cnt(t.id)]; }))
       .map(function (o) {
         var on = (ADM_MAS === o[0]) || (o[0] === 'all' && !trackById(ADM_MAS));
         return '<button class="chip' + (on ? ' on' : '') + '" onclick="admMas(\'' + o[0] + '\')">' +
@@ -5879,7 +5882,11 @@ function openTrack(id) {
   var tr = trackById(id); state.track = tr;
   var wi = weekIndex();
   var bm = document.getElementById('bm');
-  bm.innerHTML = TrailHtml({ tr: tr, units: TrailWeeks(tr), wi: wi, here: -1,
+  /* מסלול השלמה מתחיל באמצע השנה — בלי השבועות שלפני הדף הראשון שלו,
+     שאחרת היו מצוירים כחופשה. */
+  var u0 = 0;
+  while (tr.baseTrack && u0 < tr.cal.length && !tr.cal[u0][2]) u0++;
+  bm.innerHTML = TrailHtml({ tr: tr, units: TrailWeeks(tr).slice(u0), wi: wi, here: -1,
     attr: function (u) {
       return u.kind === 'daf' ? ' onclick="openWeek(\'' + id + '\',' + u.wk + ')"' : '';
     } });
@@ -5919,10 +5926,13 @@ function wkPick(k) { if (wkKeepOn()) Store.set('wkPick', k); }
 /* ---------- שבוע ---------- */
 function openWeek(id, i) {
   var tr = trackById(id); state.track = tr; state.week = i;
-  var row = tr.cal[i], key = id + '-' + (i + 1);
+  /* מסלול השלמה: התוכן של המסכת (`bid`), והחידון/השקפים מהקוד — של
+     השבוע שבו נלמד אותו דף במסכת (DeckKeys ב-deck.js). */
+  var bid = TrackBase(id);
+  var row = tr.cal[i], key = DeckKeys(id, i + 1)[0] || id + '-' + (i + 1);
   var c = CONTENT[key], q = QUIZ[key];
-  var tone = id === 'taanit' ? 't-b' : 't-g';
-  var lk = (DAF_LINKS[id] || {})[dafKey(row[2])] || [];
+  var tone = bid === 'taanit' ? 't-b' : 't-g';
+  var lk = (DAF_LINKS[bid] || {})[dafKey(row[2])] || [];
 
   var h = '<div class="' + tone + '"><div class="wtop">' +
           '<div><div class="k">מסכת ' + esc(tr.masechet) + ' · ' + esc(row[1]) + '</div>' +
@@ -5936,7 +5946,7 @@ function openWeek(id, i) {
      חוברת אחרת עם מזהה Flipbook משלה. הצורה הישנה (base + fmt
      עם {p}) עדיין נתמכת, כדי שעריכה ידנית בניהול לא תישבר. */
   /* ב: — העמוד של עמוד ב בחוברת, ולא של תחילת הדף (ראו SUGYA). */
-  var sgHref = sugHref(id, row);
+  var sgHref = sugHref(bid, row);
 
   /* ============================================================
      הדף האינטראקטיבי — העמוד שבין הבאנר לדף.
@@ -5968,7 +5978,7 @@ function openWeek(id, i) {
           למי שסימן במדריך שאינו צריך אותו (yomiCard).
           הלוגו הוא הנכס המקורי של יומי, בעותק מקומי — כדי שלא
           לטעון תמונה מאתר אחר בכל פתיחה. */
-       (id === 'megila' && showRow('yomi')
+       (bid === 'megila' && showRow('yomi')
          ? '<button class="wcard" onclick="yomiCard()"><span class="wc-logo">' +
            '<img class="wc-ym" src="weekpics/yomi-logo.svg" alt="' + esc(UI.wkYomi) + '"></span>' + go + '</button>'
          : '') +
@@ -6142,9 +6152,9 @@ function paintInter(id, daf, am) {
   var draw = function (m) {
     var el = document.getElementById('w-inter');
     if (!el || !m) return;
-    if (!(m[id] || {})[dafKey(daf)]) { soon(el); return; }
+    if (!(m[TrackBase(id)] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
-      '<a class="wcard inter" href="learn.html?mas=' + encodeURIComponent(id) +
+      '<a class="wcard inter" href="learn.html?' + LLearnQ(id) +
       '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + retQ('week') + '" onclick="wkPick(\'inter\')">' +
       '<img class="wc-pic" src="weekpics/phone.webp" alt="">' +
       '<span class="wc-t">' + esc(UI.wkInter) + '</span>' +
@@ -6291,7 +6301,7 @@ function quizOrd(key, len) {
    לא מנחשים קטע מנוסח השאלה. מוביל לדף, לקטע, עם הפירוש פתוח. */
 function quizYrHtml(q) {
   if (!q || !q.yr || !q.seg || !state.track) return '';
-  var u = 'learn.html?mas=' + encodeURIComponent(state.track.id) + '&' + LDafQ(state.track.id, state.week) +
+  var u = 'learn.html?' + LLearnQ(state.track.id) + '&' + LDafQ(state.track.id, state.week) +
           '&seg=' + encodeURIComponent(q.seg) + '&yr=1' + fromQ() + retQ('quiz');
   return '<a class="btn g" style="margin:-4px 0 12px;width:auto;display:inline-block;padding:7px 14px" href="' +
          u + '">' + esc(UI.qYrBtn) + '</a>';
@@ -9429,7 +9439,9 @@ var PUB_CFG = Store.get('cfgCache', {}) || {};
    שמשותף לצפייה. */
 var PUB_KEYS = ['rows', 'joined', 'roster', 'sugya', 'prices', 'coordWa', 'raffle',
                 'tourOn', 'tourAt', 'sizeOn', 'netTicker',
-                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup', 'repGroup', 'waysAll'];
+                'orderBy', 'joinLink', 'weekRaffle', 'roleAsk', 'waGroup', 'repGroup', 'waysAll',
+                /* מסלול השלמה פתוח לנרשמים — תאריך האישור, או ריק (ניהול ← עוד ← "מסלול השלמה"). */
+                'hashOn'];
 var PUB_DEEP = { rows:1, joined:1, sugya:1, prices:1 };
 
 /* מה שכתוב בקוד, לפני שהשכבות נוגעות בו. `applyCfg` כותב על
@@ -11560,7 +11572,8 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
   { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'],
-                         ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['test','moreTest']] },
+                         ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
+                         ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
      עריכת נוסח, סיסמאות וגיבוי, והמחירים יחזרו בשנה הבאה. */
   { g:'moreGAdv', adv:1, items:[['amda','admTabAmda'], ['open','moreOpen'], ['orders','moreOrders'],
@@ -12093,6 +12106,7 @@ function admPane() {
   if (sub === 'chal')    return admChal(body);
   if (sub === 'prz')     return admPrz(body);
   if (sub === 'quad')    return admQuad(body);
+  if (sub === 'hash')    return admHash(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -15643,8 +15657,9 @@ function rafPicHtml(dis) {
   var ln = function (z) {
     if (!z[3]) return fill(UI.rafLnNone, { daf: P.daf });
     return z[3].split(',').map(function (t) {
-      var pr = t.split(':'), tr = trackById(pr[0]);
-      return (tr ? tr.masechet : pr[0]) + ' ' + P.daf + (pr[1] === 'a' ? '.' : pr[1] === 'b' ? ':' : '') +
+      /* מסלול השלמה — שמו והדף של ההגרלה שלו (`dafs`, 8.99.331). */
+      var pr = t.split(':'), tr = trackById(pr[0]), dd = P.dafs && P.dafs[pr[0]] != null ? P.dafs[pr[0]] : P.daf;
+      return (tr ? StTrName(tr) : pr[0]) + ' ' + dd + (pr[1] === 'a' ? '.' : pr[1] === 'b' ? ':' : '') +
              ' — ' + (pr[1] === 'ab' ? UI.rafLnFull : UI.rafLnHalf);
     }).join(' · ');
   };
@@ -15950,6 +15965,114 @@ function qdaPaint() {
   }
   h += '<button class="btn g" type="button" style="margin-top:12px"' + dis + ' onclick="qdaGo(\'adm\')">' +
        esc(QDA.busy ? UI.przLoading : UI.przReload) + '</button>';
+  el.innerHTML = h;
+}
+/* ============================================================
+   מסלול השלמה — סקירת בעלים והפעלה (8.99.331).
+   ============================================================
+   לפני שהמסלול נפתח לנרשמים: הלוח שבוע-שבוע (רגיל מול השלמה) והישיבות
+   שבמסלול. "אישור" מפרסם את `hashOn` — ומאז נרשם חדש דרך קישור הישיבה
+   שלו משויך אוטומטית (join.html). העברה ידנית של תלמיד בודד — בשרת
+   (?hash=set, hashSet_), עם קריאה חוזרת שמאמתת. */
+var HSA = { d: null, at: 0, busy: false, msg: '' };
+function admHash(body) {
+  body.innerHTML = '<div id="hsa"></div>';
+  hsaPaint();
+  if ((CFG.readKey || '').trim() && (!HSA.d || Date.now() - HSA.at > 60000)) hsaLoad();
+}
+function hsaLoad() {
+  if (!(CFG.readKey || '').trim()) { HSA.msg = UI.przNoKey; hsaPaint(); return; }
+  HSA.busy = true; hsaPaint();
+  scriptGet({ hash: 'list', key: (CFG.readKey || '').trim() }).then(function (d) {
+    HSA.busy = false;
+    /* כישלון משאיר את מה שעל המסך. */
+    if (d && d.status === 'ok' && d.list) { HSA.d = d; HSA.at = Date.now(); HSA.msg = ''; }
+    else HSA.msg = (d && d.message) || UI.hsaFail;
+    hsaPaint();
+  }, function () { HSA.busy = false; HSA.msg = UI.hsaFail; hsaPaint(); });
+}
+function hsaOpen(on) {
+  if (!confirm(on ? UI.hsaOnQ : UI.hsaOffQ)) return;
+  cfgSet('hashOn', on ? new Date().toISOString().slice(0, 10) : '');
+  hsaPaint();
+  publishSettings();
+}
+function hsaSet(id, v) {
+  if (HSA.busy || !confirm(v ? UI.hsaMoveQ : UI.hsaBackQ)) return;
+  HSA.busy = true; hsaPaint();
+  scriptGet({ hash: 'set', id: id, v: v ? '1' : '0', key: (CFG.readKey || '').trim() }).then(function (r) {
+    HSA.busy = false;
+    if (!r || r.status !== 'ok') { HSA.msg = (r && r.message) || UI.hsaFail; hsaPaint(); return; }
+    ((HSA.d && HSA.d.list) || []).forEach(function (x) { if (x.id === id) x.hs = r.hs; });
+    HSA.msg = '';
+    hsaPaint();
+  }, function () { HSA.busy = false; HSA.msg = UI.hsaFail; hsaPaint(); });
+}
+/* פתיחת השבוע — יום ראשון, לפי PROGRAM.startDate. */
+function hsaDate(i) {
+  var d = new Date(PROGRAM.startDate + 'T00:00:00');
+  d.setDate(d.getDate() + 7 * i);
+  return d.getDate() + '.' + (d.getMonth() + 1) + '.' + String(d.getFullYear()).slice(2);
+}
+function hsaTable() {
+  var reg = TRACKS[0], hs = trackById(TrackHash(reg.id)), cell = 'padding:5px 7px;border-bottom:1px solid var(--line)';
+  var dafOf = function (r, wk) {
+    if (!r) return '';
+    if (!r[2]) return wk < 3 && hs && r === hs.cal[wk] ? '—' : UI.hsaVac;
+    return r[2] === 'סיום' ? r[1] : CalDaf(r);
+  };
+  var h = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.86rem">' +
+    '<tr style="font-weight:800">' + [UI.hsaColWk, UI.hsaColPar, UI.hsaColDate, UI.hsaColReg, UI.hsaColHash]
+      .map(function (t) { return '<td style="' + cell + '">' + esc(t) + '</td>'; }).join('') + '</tr>';
+  /* נקודת החיבור — השבוע הראשון עם דף שממנו והלאה הלוחות זהים. */
+  var join = reg.cal.length;
+  while (join > 0 && reg.cal[join - 1][2] === hs.cal[join - 1][2]) join--;
+  while (join < reg.cal.length && !reg.cal[join][2]) join++;
+  for (var i = 0; i < reg.cal.length; i++) {
+    var a = reg.cal[i], b = hs.cal[i];
+    var bg = !a[2] && b[2] ? 'background:rgba(240,190,40,.22)' : i === join ? 'background:rgba(111,168,59,.2)' : '';
+    h += '<tr style="' + bg + '">' + [i + 1, a[1], hsaDate(i), dafOf(a, i), dafOf(b, i)]
+      .map(function (t) { return '<td style="' + cell + '">' + esc(String(t)) + '</td>'; }).join('') + '</tr>';
+  }
+  return h + '</table></div>';
+}
+function hsaPaint() {
+  var el = document.getElementById('hsa');
+  if (!el) return;
+  var on = CV('hashOn'), dis = HSA.busy ? ' disabled' : '', insts = [];
+  TRACKS_HASHLAMA.forEach(function (t) {
+    t.forInsts.forEach(function (c) { if (insts.indexOf(c) < 0) insts.push(c); });
+  });
+  var name = function (c) {
+    for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return INSTITUTIONS[i].name;
+    return c;
+  };
+  var h = HSA.msg ? '<div class="cond" style="margin-bottom:12px">' + esc(HSA.msg) + '</div>' : '';
+  h += '<div class="adm-card"><h4>' + esc(on ? fill(UI.hsaOnH, { d: on }) : UI.hsaOffH) + '</h4><p class="h">' +
+    esc(on ? UI.hsaOnP : UI.hsaOffP) + '</p>' +
+    '<button class="btn ' + (on ? 'g' : 'p') + '" type="button" onclick="hsaOpen(' + (on ? 'false' : 'true') + ')">' +
+    esc(on ? UI.hsaOff : UI.hsaOn) + '</button></div>';
+  h += '<div class="adm-card"><h4>' + esc(UI.hsaInstH) + '</h4>' + insts.map(function (c) {
+    return '<p class="h" dir="rtl"><b dir="ltr">' + esc(c) + '</b> = ' + esc(name(c)) + '</p>';
+  }).join('') + '</div>';
+  h += '<div class="adm-card"><h4>' + esc(UI.hsaTblH) + '</h4><p class="h">' + esc(UI.hsaTblP) + '</p>' + hsaTable() + '</div>';
+  h += '<div class="adm-card"><h4>' + esc(UI.hsaStuH) + '</h4><p class="h">' + esc(UI.hsaStuP) + '</p>';
+  var L = (HSA.d && HSA.d.list) || [];
+  if (HSA.d && !L.length) h += '<p class="h">' + esc(UI.hsaNone) + '</p>';
+  var by = {}, ord = [];
+  L.forEach(function (x) { if (!by[x.code]) { by[x.code] = []; ord.push(x.code); } by[x.code].push(x); });
+  ord.forEach(function (c) {
+    var k = by[c].filter(function (x) { return x.hs; }).length;
+    h += '<details class="mo-g"><summary>' + esc(fill(UI.hsaGrp, { inst: name(c), n: by[c].length, k: k })) +
+      '</summary><div class="plist">' + by[c].map(function (x) {
+        return '<div class="prow2' + (x.hs ? ' ok' : '') + '"><div style="flex:1"><b>' + esc(x.name) + '</b><span>' +
+          esc([x.cls, x.hs ? UI.hsaIn : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+          '<button class="btn g" type="button" style="width:auto;flex:none;padding:6px 12px"' + dis +
+          ' onclick="hsaSet(\'' + esc(x.id) + '\',' + (x.hs ? 0 : 1) + ')">' + esc(x.hs ? UI.hsaBack : UI.hsaMove) + '</button></div>';
+      }).join('') + '</div></details>';
+  });
+  h += '<button class="btn g" type="button" style="margin-top:12px"' + dis + ' onclick="hsaLoad()">' +
+    esc(HSA.busy ? UI.przLoading : UI.przReload) + '</button></div>';
   el.innerHTML = h;
 }
 function admChal(body) {
@@ -23783,9 +23906,10 @@ function registerSW() {
      על מסך ולא על העמוד הראשי. `#track-` נכתב שם מזמן ולא נקלט
      כאן מעולם — הלחיצה פשוט טענה את הבית. */
   var hash = location.hash || '';
-  var qm = /^#quiz=([a-z]+)-(\d+)$/.exec(hash);
-  var wm = /^#week=([a-z]+)-(\d+)$/.exec(hash);
-  var tm = /^#track[=-]([a-z]+)$/.exec(hash);
+  /* גם מסלול השלמה — 'taanit-hashlama-4'. */
+  var qm = /^#quiz=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(hash);
+  var wm = /^#week=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(hash);
+  var tm = /^#track[=-]([a-z]+(?:-[a-z]+)?)$/.exec(hash);
   if (qm && trackById(qm[1])) { openWeek(qm[1], +qm[2] - 1); openQuiz(); }
   else if (wm && trackById(wm[1])) { pickTrack(wm[1]); openWeek(wm[1], +wm[2] - 1); }
   else if (tm && trackById(tm[1])) { pickTrack(tm[1]); openTrack(tm[1]); }

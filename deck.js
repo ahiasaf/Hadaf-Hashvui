@@ -130,11 +130,45 @@ function DeckCsv(t) {
   return rows;
 }
 
+/* ---------- מסלול השלמה: המצגת לפי הדף ----------
+   מצגת נשמרת לפי מסכת+שבוע (taanit-3), ובמסלול ההשלמה אותו שבוע
+   לומד דף אחר. לכן במסלול עם `baseTrack`: הדף של השבוע במסלול ←
+   באיזה שבוע במסכת עצמה נלמד אותו דף ← המפתח של אותו שבוע. כך כל
+   מצגת שהוכנה למסלול הרגיל משרתת גם את ההשלמה, בלי שורות כפולות
+   בלשונית "מצגות". דף שלם בהשלמה שבמסלול הרגיל נלמד בשני שבועות
+   (ב. ואז ב:) — שתי המצגות, ברצף. מחזיר רשימת מפתחות. */
+function DeckKeys(mas, week) {
+  var t = typeof TrackById === 'function' ? TrackById(mas) : null;
+  if (!t || !t.baseTrack) return [mas + '-' + week];
+  var row = t.cal[week - 1], base = TrackById(t.baseTrack), out = [];
+  if (!row || !row[2] || !base) return out;
+  var k = String(row[2]).replace(/["'׳״\s]/g, ''), am = OpenAm(row);
+  for (var w = 0; w < base.cal.length; w++) {
+    var r = base.cal[w];
+    if (!r[2] || String(r[2]).replace(/["'׳״\s]/g, '') !== k) continue;
+    if (am && OpenAm(r) && OpenAm(r) !== am) continue;
+    out.push(t.baseTrack + '-' + (w + 1));
+  }
+  return out;
+}
+
 /* ---------- המצגת של שבוע ----------
    מחזיר {dir, files} או null. `week` הוא מספר השבוע החל מ-1,
    כלומר אותו מפתח שבו משתמש CONTENT. */
 function DeckOf(mas, week) {
-  var key = mas + '-' + week;
+  var ks = DeckKeys(mas, week);
+  if (ks.length === 1) return DeckOne(ks[0]);
+  /* כמה שבועות לאותו דף — מצגת אחת משולבת, בנתיבים מלאים (DeckSrc). */
+  var out = null;
+  ks.forEach(function (k) {
+    var d = DeckOne(k);
+    if (!d) return;
+    if (!out) out = { dir: '', files: [], title: d.title || '', cover: DeckCover(d) };
+    for (var i = 1; i <= d.files.length; i++) out.files.push(DeckSrc(d, i));
+  });
+  return out;
+}
+function DeckOne(key) {
   var d = DECKS && DECKS[key];
   /* שורה קיימת = היא הקובעת, גם כשהיא ריקה (כך מבטלים מצגת).
      `dir` אינו נדרש: מצגת משולבת נושאת נתיבים מלאים. */
@@ -151,11 +185,14 @@ function DeckOf(mas, week) {
 /* הכותרת שבבאנר. שורה בגיליון גוברת על מה שבקוד, וכשאין —
    נופלים ל-CONTENT, ואם גם שם אין, המסך מציג "דף כך וכך". */
 function DeckTitle(mas, week) {
-  var key = mas + '-' + week;
-  var d = DECKS && DECKS[key];
-  if (d && d.title) return d.title;
-  var c = (typeof CONTENT !== 'undefined') ? CONTENT[key] : null;
-  return (c && c.title) || '';
+  var ks = DeckKeys(mas, week);
+  for (var i = 0; i < ks.length; i++) {
+    var d = DECKS && DECKS[ks[i]];
+    if (d && d.title) return d.title;
+    var c = (typeof CONTENT !== 'undefined') ? CONTENT[ks[i]] : null;
+    if (c && c.title) return c.title;
+  }
+  return '';
 }
 
 /* כתובת שקף. `i` מתחיל ב-1, כמו שהמשתמש סופר.

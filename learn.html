@@ -1422,7 +1422,7 @@ var API = '';
 
 /* `am` — עמוד שנלמד לבד בשבוע שלו (ב. = 1, ב: = 2), ואז על המסך
    רק הקטעים שלו. 0 = הדף כולו, כמו בכל שאר השבועות. */
-var S = { mas:'', daf:'', week:-1, am:0 };
+var S = { mas:'', tr:'', daf:'', week:-1, am:0 };
 var PAGES = [];   /* [{pg, d}] — נתוני עמוד, לפי סדר העמודים */
 var FLAT  = [];   /* [{p, g, c}] — כל הקטעים של הדף ברצף */
 /* DIM=false — הדף מוצג בלי הצללה. ההתמקדות, המסגרת, ההתקדמות
@@ -3190,7 +3190,7 @@ function weAmEnd_() {
 /* הנוסח — עם שם השבוע: "כאן נגמר שבוע נח", כדי שיהיה ברור
    איזה שבוע זז. {prev} — השבוע שלפניו. */
 function weT_(k) {
-  var cal = calOf(S.mas), pu = prevDaf();
+  var cal = calOf(S.tr), pu = prevDaf();
   return (UI[k] || '').replace('{wk}', (cal[S.week] || [])[1] || '')
     .replace('{prev}', pu ? (cal[pu.wk] || [])[1] || '' : '');
 }
@@ -3881,7 +3881,7 @@ function dmKey(mas, daf) { return mas + '|' + dafKey(daf); }
    הרשימה עצמה מגיעה מ-deck.js: הקבצים בריפו, הסדר בגיליון. */
 function deckOf() {
   if (S.week < 0) return null;
-  return DeckOf(S.mas, S.week + 1);
+  return DeckOf(S.tr, S.week + 1);
 }
 function slideSrc(n) {
   return DeckSrc(DECK, n);
@@ -4615,7 +4615,7 @@ function savePos() {
   if (quiet() || ALON_ON) return; /* הדגמה ועלון אינם "מקום שעצרתי בו" */
   var wk = posWeek();
   if (wk < 0 || !FLAT.length || (FLAT[IDX] || {}).peek) return;
-  try { LPosSet(S.mas, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
+  try { LPosSet(S.tr, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
   quietMark(wk);
 }
 /* ============================================================
@@ -4630,10 +4630,10 @@ var LEARN_MOST = 0.8;
 function quietMark(wk) {
   if (quiet() || typeof LMark !== 'function' || FLAT.length < 2) return;
   try {
-    if (LDone(S.mas, wk)) return;
-    var p = LPos(S.mas, wk);
+    if (LDone(S.tr, wk)) return;
+    var p = LPos(S.tr, wk);
     var far = Math.max(IDX, (p && p.n === FLAT.length) ? p.i : 0);
-    if (far >= FLAT.length - 1 || far / (FLAT.length - 1) >= LEARN_MOST) LMark(S.mas, wk, tmMin_());
+    if (far >= FLAT.length - 1 || far / (FLAT.length - 1) >= LEARN_MOST) LMark(S.tr, wk, tmMin_());
   } catch (e) {}
 }
 /* נשלח ביציאה. `visibilitychange` הוא האירוע היחיד שנורה באמת
@@ -4642,7 +4642,7 @@ function sendPos() {
   if (ALON_ON) return;
   var wk = posWeek();
   if (wk < 0) return;
-  try { LPosSend(S.mas, wk); } catch (e) {}
+  try { LPosSend(S.tr, wk); } catch (e) {}
 }
 document.addEventListener('visibilitychange', function () {
   /* גם המקום המדויק נשמר כאן — מי שסגר בזמן שהעמוד עוד נטען
@@ -4656,8 +4656,8 @@ window.addEventListener('pagehide', sendPos);
 function resumePos() {
   var wk = posWeek();
   if (wk < 0 || !FLAT.length) return;
-  if (LDone(S.mas, wk)) return;              /* סיים — אין למה לחזור */
-  var p = LPos(S.mas, wk);
+  if (LDone(S.tr, wk)) return;              /* סיים — אין למה לחזור */
+  var p = LPos(S.tr, wk);
   if (!p) return;
   /* לפי המזהה, כשיש: פיצול או איחוד משנים את האורך ואת המיקום,
      ובלי זה התלמיד חזר לראש הדף בשקט. אותו קטע — גם אם זז. */
@@ -4735,7 +4735,7 @@ function spotOffer() {
   if (!p || p.mas !== S.mas ||
       (dafKey(p.daf) === dafKey(S.daf) && (p.am == null || p.am === S.am))) return;
   if (!(Date.now() - (p.at || 0) < 7 * 864e5)) return;
-  var u = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
+  var u = 'learn.html?mas=' + encodeURIComponent(S.mas) + trQ() + '&' + unitQ({ daf: p.daf, am: p.am || 0 }) + keepQ();
   resumeBar(esc(fillT(UI.spotOther, { daf: p.daf, amud: amud(p.am || p.pg || 1) })) +
     ' <button onclick="location.href=\'' + u.replace(/'/g, '%27') + '\'">' + esc(UI.spotGo) + '</button>');
 }
@@ -4756,7 +4756,7 @@ function spotJump() {
   for (var i = 0; i < u.length; i++)
     if (dafKey(u[i].daf) === dafKey(p.daf) && (p.am == null || u[i].am === p.am)) { to = i; break; }
   if (here < 0 || to <= here) return false;
-  location.replace('learn.html?mas=' + encodeURIComponent(S.mas) + '&' +
+  location.replace('learn.html?mas=' + encodeURIComponent(S.mas) + trQ() + '&' +
     unitQ({ daf: u[to].daf, am: p.am || 0 }) + keepQ());
   return true;
 }
@@ -4783,7 +4783,7 @@ var PICK_U = [];
    לדף נעול (ראו boot). */
 function pickDafs() {
   var tr = null;
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === S.mas) tr = TRACKS[i];
+  tr = TrackById(S.tr);
   if (!tr) return [];
   return TrailAmudim(tr).filter(function (u) {
     return SIDE_ADM || OpenIs(S.mas, u.daf, LAmOf(u.row));
@@ -4813,7 +4813,7 @@ function pickOpen() {
 function pickClose() { $('pick').className = 'pick'; }
 function pickDraw() {
   var tr = null;
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === S.mas) tr = TRACKS[i];
+  tr = TrackById(S.tr);
   PICK_U = pickDafs();
   $('pick').innerHTML = '<div class="pk-box" role="dialog" aria-modal="true">' +
     '<div class="pk-h"><b>' + esc(UI.pickT) + '</b>' +
@@ -4847,8 +4847,8 @@ function pickGo(k) {
     if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
     return;
   }
-  if (rowAm && unitSwap({ daf: u.daf, am: rowAm, wk: LWeekOf(S.mas, u.daf, rowAm) })) return;
-  location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + '&daf=' + encodeURIComponent(u.daf) +
+  if (rowAm && unitSwap({ daf: u.daf, am: rowAm, wk: LWeekOf(S.tr, u.daf, rowAm) })) return;
+  location.href = 'learn.html?mas=' + encodeURIComponent(S.mas) + trQ() + '&daf=' + encodeURIComponent(u.daf) +
     (rowAm || u.am === 2 ? '&amud=' + u.am : '') + '&at=start' + keepQ();
 }
 var AMUD_Q = +((/[?&]amud=([12])\b/.exec(location.search) || [])[1] || 0);
@@ -4989,7 +4989,7 @@ var MARKS_FILTERED = null;
    תשובה טובה יותר מכפתור שנעלם בלי הסבר. */
 function prevDafUrl() {
   var u = prevDaf();
-  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) + trQ() +
              '&' + unitQ(u) + '&at=end' + keepQ() : null;
 }
 /* "הקודם" בקטע הראשון ממשיך אל הקטע האחרון של הדף שלפניו — כמו
@@ -5006,7 +5006,7 @@ function goBack() {
 var AT_END = /[?&]at=end\b/.test(location.search);
 function nextDafUrl() {
   var u = nextDaf();
-  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) +
+  return u ? 'learn.html?mas=' + encodeURIComponent(S.mas) + trQ() +
              '&' + unitQ(u) + '&at=start' + keepQ() : null;
 }
 /* מי שהגיע ב"הבא" מהדף הקודם מתחיל מהקטע הראשון — לא מקום ישן
@@ -5106,7 +5106,7 @@ function unitSwap(u, atEnd) {
   var r = $('resume'); if (r) r.className = 'resume';
   headPaint();
   try {
-    history.replaceState(null, '', 'learn.html?mas=' + encodeURIComponent(S.mas) + '&' + unitQ(u) + keepQ());
+    history.replaceState(null, '', 'learn.html?mas=' + encodeURIComponent(S.mas) + trQ() + '&' + unitQ(u) + keepQ());
   } catch (e) {}
   go(atEnd ? FLAT.length - 1 : 0);
   try { sideInit(); } catch (e) {}
@@ -5118,7 +5118,7 @@ function headPaint() {
   HEAD = 'מסכת ' + (MAS_NAME[S.mas] || '') + ' · דף ' + S.daf + LAmMark(S.am);
   $('t-daf').textContent = HEAD;
   $('t-sub').textContent = S.week >= 0 ? 'שבוע ' + (S.week + 1) + ' · ' +
-    ((calOf(S.mas)[S.week] || [])[1] || '') : '';
+    ((calOf(S.tr)[S.week] || [])[1] || '') : '';
 }
 /* האם הדף הפתוח הוא הדף של השבוע הנוכחי. רק בו יש מסך סיום. */
 function isWeekDaf() {
@@ -5139,7 +5139,9 @@ function finish() {
     bar();
     return;
   }
-  var key = S.mas + '-' + (S.week + 1);
+  /* החידון השבועי הישן נשמר לפי מסכת+שבוע — במסלול השלמה, השבוע של
+     אותו דף במסכת (DeckKeys ב-deck.js). */
+  var key = DeckKeys(S.tr, S.week + 1)[0] || (S.mas + '-' + (S.week + 1));
 
   /* ---- סימון הלימוד ----
      אוטומטי, ורק לדף של השבוע הנוכחי. מי שחוזר בפברואר לדף
@@ -5164,7 +5166,7 @@ function finish() {
   }
   /* "השבועי" — רק בדף של השבוע הזה. מי שמשלים שבוע שעבר מקבל
      את שם השבוע כפי שהוא כתוב במסלול. */
-  var par = (calOf(S.mas)[S.week] || [])[1] || '';
+  var par = (calOf(S.tr)[S.week] || [])[1] || '';
   /* וכמה זמן הדף היה פתוח — מספר גדול מתחת לשורה (dnTimePaint_) */
   var sub = isWeekDaf() || !par ? JOIN.weekDone
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
@@ -5297,7 +5299,9 @@ function qsSend_(all) {
     fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
       action:'quiz', cols: JSON.stringify([
         ['דף', dmKey(S.mas, S.daf)], ['קטע', 'החידון כולו'],
-        ['שבוע', S.mas + '-' + (S.week + 1)],
+        /* השבוע במסלול שלו — במסלול השלמה 'taanit-hashlama-4' (quizSum_
+           סופר רק את המסלול הרגיל). */
+        ['שבוע', S.tr + '-' + (S.week + 1)],
         ['ישיבה', (me && me.instName) || ''],
         ['שם', me ? ((me.first || '') + ' ' + (me.last || '')).trim() : ''],
         ['טלפון', (me && me.phone) || ''],
@@ -5973,12 +5977,12 @@ function markThisDaf() {
   /* הדף שנלמד הוא הדף של השבוע? רק אז זה סימון. ב. וב: — לפי העמוד. */
   if (wk < 0 || wk !== S.week) return;
 
-  var fresh = !LDone(S.mas, wk);
+  var fresh = !LDone(S.tr, wk);
   /* עם הזמן שהמכשיר צבר לדף — לכרטיס הלימוד בהגרלה. מי שכבר סומן
      (ב-80% של הדף) — הזמן המעודכן נשלח שוב (LMarkTime). */
   tmTick_();
-  if (fresh) LMark(S.mas, wk, tmMin_());
-  else if (typeof LMarkTime === 'function') LMarkTime(S.mas, wk, tmMin_());
+  if (fresh) LMark(S.tr, wk, tmMin_());
+  else if (typeof LMarkTime === 'function') LMarkTime(S.tr, wk, tmMin_());
   doneMarked_ = true;
   /* הגיע לסוף הדף — וזה הרגע לשאול עם מי למד.
 
@@ -5990,7 +5994,7 @@ function markThisDaf() {
      כבר שומר בעצמו על "לא לשאול פעמיים על אותו שבוע" (ראו
      done()/df:pairs ב-pair.js) — אין צורך בעוד שער כאן. */
   /* ולא בחלון נוסף מעל מסך הסיום — שורה בתוכו. ראו line ב-pair.js. */
-  if (window.PAIR_UI) PAIR_UI.line(S.mas, wk, pb);
+  if (window.PAIR_UI) PAIR_UI.line(S.tr, wk, pb);
 }
 
 /* תפריט ההקשה הארוכה. `contextmenu` הוא מה שנפתח בלחיצה ארוכה
@@ -6548,23 +6552,30 @@ function gateOpen() {
 function weekIndex() {
   return (typeof LWeek === 'function') ? LWeek() : -1;
 }
-function calOf(mas) { return mas === 'megila' ? (window.CAL_MEGILA || []) : (window.CAL_TAANIT || []); }
+/* הלוח של מסלול — גם מסלול השלמה (TrackById ב-data.js). */
+function calOf(tr) { var t = TrackById(tr); return t ? t.cal : (window.CAL_TAANIT || []); }
+/* במסלול השלמה הכתובת נושאת גם את המסלול: `mas` — המסכת (התוכן),
+   `tr` — הלוח (השבוע, הסימון, המקום). במסלול רגיל — אין. */
+function trQ() { return S.tr && S.tr !== S.mas ? '&tr=' + encodeURIComponent(S.tr) : ''; }
 
 function pickDaf() {
   var p = new URLSearchParams(location.search);
-  var mas = p.get('mas') || 'taanit';
+  var mas = p.get('mas') || 'taanit', tr = p.get('tr') || '';
+  /* מזהה מסלול השלמה שהגיע ב-mas — המסכת שלו, והוא המסלול. */
+  if (TrackById(mas) && TrackById(mas).baseTrack) { tr = mas; mas = TrackById(mas).baseTrack; }
   if (!MAS_NAME[mas]) mas = 'taanit';
+  if (!TrackById(tr) || TrackBase(tr) !== mas) tr = mas;
   var daf = p.get('daf') || '';
-  var cal = calOf(mas), wk = -1;
+  var cal = calOf(tr), wk = -1;
   if (daf) {
     /* ב. וב: הם אותו דף בשני שבועות — `amud` בכתובת בוחר ביניהם.
        דף שאינו מתחלק — השבוע שלו, ו-`amud` רק מקפיץ לעמוד. */
-    wk = LWeekOf(mas, daf, AMUD_Q);
+    wk = LWeekOf(tr, daf, AMUD_Q);
   } else {
     wk = Math.max(0, weekIndex());
     daf = (cal[wk] || [])[2] || '';
   }
-  return { mas:mas, daf:daf, week:wk, am: wk >= 0 ? LAmOf(cal[wk]) : 0 };
+  return { mas:mas, tr:tr, daf:daf, week:wk, am: wk >= 0 ? LAmOf(cal[wk]) : 0 };
 }
 
 /* ============================================================
@@ -6576,7 +6587,7 @@ function pickDaf() {
    מדולגים. הלוח הוא סדר הדפים של התוכנית — כולל ההבדל בין תענית
    למגילה — ולכן אין צורך בטבלה נוספת. */
 function units() {
-  var cal = calOf(S.mas), out = [];
+  var cal = calOf(S.tr), out = [];
   for (var i = 0; i < cal.length; i++) {
     var d = cal[i][2];
     if (!d || d === 'סיום') continue;
@@ -6771,9 +6782,9 @@ function lockShow() {
   /* הדף של השבוע, אם הוא פתוח ואינו הדף הזה — כדי שלא יהיה
      מבוי סתום. */
   var wk = Math.max(0, weekIndex());
-  var crow = calOf(S.mas)[wk] || [], cur = crow[2], cam = LAmOf(crow);
+  var crow = calOf(S.tr)[wk] || [], cur = crow[2], cam = LAmOf(crow);
   if (cur && cur !== 'סיום' && wk !== S.week && OpenIs(S.mas, cur, cam)) {
-    h += '<br><a class="lockback" href="learn.html?mas=' + encodeURIComponent(S.mas) +
+    h += '<br><a class="lockback" href="learn.html?mas=' + encodeURIComponent(S.mas) + trQ() +
       '&' + unitQ({ daf: cur, am: cam }) + '">' + esc(UI.lockBack) + '</a>';
   }
   veil(UI.lockT, h, false);

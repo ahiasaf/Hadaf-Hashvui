@@ -194,11 +194,12 @@ function weekUrl() {
     });
   }
   if (!tr) tr = TRACKS[0].id;
+  tr = LTrackOf(tr);   /* מסלול השלמה — ראו learned.js */
   var wi = LWeek(); if (wi < 0) wi = 0;
   var d = LDaf(tr, wi);
   if (!d) return 'index.html?st=1' + (code ? '&inst=' + encodeURIComponent(code) : '') + '#week=' + tr + '-' + (wi + 1);
   var am = LAm(tr, wi);
-  return 'learn.html?mas=' + encodeURIComponent(tr) + '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
+  return 'learn.html?' + LLearnQ(tr) + '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
          (code ? '&inst=' + encodeURIComponent(code) : '');
 }
 /* ============================================================

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 116;
+var SCRIPT_VERSION = 117;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -500,9 +500,12 @@ function doPost(e) {
       var jcols = parse_(d.cols);
       /* קוד הקישור של אתגר "חבר מביא חבר" אינו נכתב כעמודה: הוא
          יוצא מכאן, ו-joinWrite_ ממפה אותו למזמין רק בשורה חדשה. */
-      var chCode = '';
+      var chCode = '', hsReq = false;
       jcols = (jcols || []).filter(function (c) {
         if (c && c[0] === CH_CODE_COL) { chCode = String(c[1] || ''); return false; }
+        /* מסלול השלמה — כמו קוד האתגר: joinWrite_ מחליט, ורק בשורה חדשה.
+           בנפילה ל-upsertCols_ (למטה) הוא אינו נכתב כלל. */
+        if (c && c[0] === HS_COL) { hsReq = String(c[1] || '') === 'כן'; return false; }
         return true;
       });
       /* **קריאה אחת של "לומדים" לכל הרשמה, ולא שלוש.** עד עכשיו
@@ -512,7 +515,7 @@ function doPost(e) {
       /* הרשמה יכולה לאחד זהויות — הנקודות של האדם המאוחד מתעדכנות. */
       if (!d.ss) ptsBust_();
       if (!d.ss) {
-        try { return joinWrite_(jcols, chCode); } catch (jwe) {}
+        try { return joinWrite_(jcols, chCode, hsReq); } catch (jwe) {}
       }
       try { jcols = canonJoinCols_(jcols); } catch (cje) {}
       return upsertCols_(d.tab, jcols, 'מזהה', d.ss);
@@ -1271,6 +1274,8 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.prz) return przRoute_(e);
   /* הגרלת הרביעיות — ראו quadRoute_. */
   if (e && e.parameter && e.parameter.quad) return quadRoute_(e);
+  /* מסלול השלמה — רשימה והעברה ידנית של תלמיד בודד. ראו hashRoute_. */
+  if (e && e.parameter && e.parameter.hash) return hashRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
   /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
@@ -2213,10 +2218,11 @@ function upsertCols_(tab, cols, keyName, ssId) {
    (בערכים האמיתיים, לא בתצוגה — כדי שתאריך יישאר תאריך).
    לשונית ריקה — המסלול הרגיל, כמו קודם.
    ============================================================ */
-function joinWrite_(cols, chCode) {
+function joinWrite_(cols, chCode, hsReq) {
   var t = joinTable_();
   if (t.rows.length < 2) {
     try { cols = canonJoinCols_(cols, t); } catch (ce) {}
+    if (hsReq) cols = cols.concat([[HS_COL, 'כן']]);
     return upsertCols_(JOIN_TAB, cols, 'מזהה');
   }
   try { cols = canonJoinCols_(cols, t); } catch (ce2) {}
@@ -2239,6 +2245,13 @@ function joinWrite_(cols, chCode) {
       var chc = chJoinCols_(chCode, isTest);
       if (chc) cols = cols.concat(chc);
     } catch (che) {}
+  }
+  /* מסלול השלמה (8.99.330): רק אדם חדש — בדיוק התנאי של האתגר. מי שכבר
+     רשום (אותו מזהה, או אותו שם במוסד) אינו זז, גם כשהמכשיר ביקש: אצלו
+     נכתב "לא" (אם עוד לא הוכרע), והמכשיר מקבל את ההכרעה (`hs`, ptsMe_). */
+  if (hsReq) {
+    if (found < 0 && !chKnown_(t, cols)) cols = cols.concat([[HS_COL, 'כן']]);
+    else if (!(found > 0 && String(t.rows[found][head.indexOf(HS_COL)] || '').trim())) cols = cols.concat([[HS_COL, 'לא']]);
   }
   var row = found > 0 ? sh.getRange(found + 1, 1, 1, head.length).getValues()[0] : [];
   put_(row, idx_(sh, head, 'תאריך'), new Date());
@@ -6997,7 +7010,10 @@ var PUB_ROW = {
              'הוזמן על ידי', 'מזהה המזמין', 'בדיקה',
              /* אתגר "חבר מביא חבר": הקוד שבקישור בלבד. השרת ממפה אותו
                 למזמין, ורק בשורה חדשה — ראו chJoinCols_ ב-joinWrite_. */
-             'קוד הזמנה באתגר'],
+             'קוד הזמנה באתגר',
+             /* מסלול השלמה — "כן" מנרשם חדש. נשמר רק בשורה של אדם חדש
+                (joinWrite_); אחר כך משתנה רק מהניהול (hashSet_). */
+             'מסלול השלמה'],
   'התראות': ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
              'מנוי', 'תוצאה', 'מועד', 'מתי', 'דפדפן'],
   /* זמן בדף ומכשיר — לכרטיס הלימוד בהגרלה (rafTmAdd_, 8.99.324). */
@@ -7384,7 +7400,120 @@ function rafSide_(daf) {
 function rafTrack_(tr) {
   if (SHIFT_TAANIT.names.indexOf(tr) >= 0) return 'taanit';
   if (SHIFT_MEGILA.names.indexOf(tr) >= 0) return 'megila';
+  /* מסלול השלמה — המסכת שלו (הנקודות, הנוכחות והחידון הם של מסכת+דף). */
+  if (HASH_TRS_[tr]) return HASH_TRS_[tr];
   return '';
+}
+
+/* ============================================================
+   מסלול השלמה (8.99.331 · SCRIPT_VERSION 117).
+   ============================================================
+   נרשמים חדשים מישיבת ראשון לציון וגבעת שמואל לומדים בלוח משלהם:
+   דף ב׳ שלם בשבוע 4, לומדים גם בחנוכה (10) ובשבת הגדול (28), ומשבוע
+   31 זהה לרגיל. ראו CAL_TAANIT_HASHLAMA ב-data.js — המפה כאן היא אותו
+   לוח (דף ← שבוע), ושתיהן חייבות להיות זהות.
+   שורות "לימוד" ו"זוגות" של המסלול נושאות 'taanit-hashlama' ב"מסלול",
+   ולכן ההזזות של דף ב (taanitShift_) אינן נוגעות בהן.
+   **ההגרלה — כל מסלול לעצמו:** כרטיס על הדף של השבוע שעבר בלוח של
+   המסלול (rafDafOf_). מי שבמסלול השלמה — החידון והנוכחות שלו נספרים
+   לפי הדף של ההשלמה. מי במסלול: "מסלול השלמה" ב"לומדים" (כן/לא), ובלי
+   הכרעה — מי שיש לו שורת לימוד במסלול.
+   ============================================================ */
+var HS_COL = 'מסלול השלמה';
+var HASH_TRS_ = { 'taanit-hashlama': 'taanit', 'megila-hashlama': 'megila' };
+var HASH_INSTS_ = ['givat', 'rishon'];
+var HASH_WK = { 'ב':4, 'ג':5, 'ד':6, 'ה':7, 'ו':8, 'ז':9, 'ח':10, 'ט':11, 'י':12, 'יא':13,
+  'יב':14, 'יג':15, 'יד':16, 'טו':17, 'טז':18, 'יז':19, 'יח':20, 'יט':21, 'כ':22, 'כא':23,
+  'כב':24, 'כג':25, 'כד':26, 'כה':27, 'כו':28, 'כז':31, 'כח':32, 'כט':33, 'ל':34, 'לא':35, 'לב':36 };
+/* כל המסלולים שנספרים בהגרלה — המסכתות, ואחריהן מסלולי ההשלמה. */
+var RAF_KEYS_ = ['taanit', 'megila', 'taanit-hashlama', 'megila-hashlama'];
+/* מזהה המסלול המלא (לא רק המסכת) — להגרלה, שבה כל מסלול לעצמו. */
+function rafKey_(tr) {
+  tr = String(tr || '').trim();
+  return HASH_TRS_[tr] ? tr : rafTrack_(tr);
+}
+/* הדף של ההגרלה במסלול: מסכת — rafDaf_; השלמה — הדף של השבוע שעבר בלוח שלה. */
+var RAF_DH_ = {};
+function rafDafOf_(key) {
+  if (!HASH_TRS_[key]) return rafDaf_();
+  if (RAF_DH_[key] != null) return RAF_DH_[key];
+  var w = progWeek_() - 1, out = '';
+  Object.keys(HASH_WK).forEach(function (d) {
+    if (!out && HASH_WK[d] === w && (d !== 'לב' || key === 'megila-hashlama')) out = d;
+  });
+  RAF_DH_[key] = out;
+  return out;
+}
+function rafDafs_() {
+  var o = {};
+  RAF_KEYS_.forEach(function (k) { o[k] = rafDafOf_(k); });
+  return o;
+}
+/* כמו rafSide_ — מול הדף של ההגרלה במסלול `key`. */
+function rafSideK_(daf, key) {
+  if (!HASH_TRS_[key]) return rafSide_(daf);
+  var D = rafDafOf_(key), d = String(daf || '').replace(/["'׳״\s]/g, '');
+  if (!D) return '';
+  if (d === D + '.') return 'a';
+  if (d === D + ':') return 'b';
+  if (d === D) return 'ab';
+  return '';
+}
+
+/* ?hash=list|set&key= — לניהול ← עוד ← "מסלול השלמה".
+   list — התלמידים של הישיבות שבמסלול (ומי שסומן במסלול ממוסד אחר), עם
+   המצב. set&id=&v=1|0 — העברה ידנית של תלמיד בודד: כל השורות של המזהה
+   ב"לומדים" מקבלות "כן"/"לא"; מחזיר את מה שנקרא מחדש מהגיליון. המכשיר
+   של התלמיד מקבל את ההכרעה עם הכרטיסים (`hs`, ptsMe_). */
+function hashRoute_(e) {
+  var P = e.parameter, op = String(P.hash);
+  if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+  try {
+    if (op === 'list') return reply_(e, hashList_());
+    if (op === 'set') return reply_(e, hashSet_(P));
+    return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
+  } catch (err) {
+    return reply_(e, { status: 'error', message: String(err) });
+  }
+}
+function hashList_() {
+  var t = joinTable_(), seen = {}, out = [];
+  for (var r = t.rows.length - 1; r >= 1; r--) {
+    var row = t.rows[r], id = t.c(row, 'מזהה'), code = t.c(row, 'קוד ישיבה'), hv = t.c(row, HS_COL);
+    if (!id || seen[id]) continue;
+    seen[id] = 1;
+    if (t.c(row, 'תפקיד') === 'הורה' || t.c(row, 'בדיקה') === 'כן') continue;
+    if (HASH_INSTS_.indexOf(code) < 0 && hv !== 'כן') continue;
+    out.push({ id: id, name: (t.c(row, 'שם') + ' ' + t.c(row, 'משפחה')).trim(), code: code,
+               inst: t.c(row, 'ישיבה'), cls: t.c(row, 'שכבה') + t.c(row, 'כיתה'),
+               hs: hv === 'כן' ? 1 : 0 });
+  }
+  out.sort(function (a, b) { return a.code < b.code ? -1 : a.code > b.code ? 1 : (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
+  return { status: 'ok', list: out };
+}
+function hashSet_(P) {
+  var id = String(P.id || '').trim(), v = String(P.v) === '1' ? 'כן' : 'לא';
+  if (!/^[\w:.\-]{1,60}$/.test(id)) return { status: 'error', message: 'מזהה לא תקין' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy', message: 'השרת עסוק, נסו שוב' };
+  try {
+    var t = joinTable_(), sh = t.sh;
+    if (t.rows.length < 2) return { status: 'error', message: 'אין תלמידים' };
+    var head = t.rows[0].map(function (h) { return String(h).trim(); });
+    var col = idx_(sh, head, HS_COL), n = 0;
+    for (var r = 1; r < t.rows.length; r++) {
+      if (rowIds_(t, t.rows[r]).indexOf(id) < 0) continue;
+      sh.getRange(r + 1, col + 1).setValue(v);
+      n++;
+    }
+    if (!n) return { status: 'error', message: 'התלמיד לא נמצא' };
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  ptsBust_();
+  var t2 = joinTable_(), got = '';
+  for (var r2 = 1; r2 < t2.rows.length; r2++) if (rowIds_(t2, t2.rows[r2]).indexOf(id) >= 0) got = t2.c(t2.rows[r2], HS_COL);
+  return { status: got === v ? 'ok' : 'error', id: id, hs: got === 'כן' ? 1 : 0,
+           message: got === v ? '' : 'השינוי לא נקרא חזרה מהגיליון' };
 }
 
 /* ============================================================
@@ -7421,16 +7550,23 @@ function rafTmOk_(o) { return !o || o.old || rafTmSum_(o) < 0 || rafTmSum_(o) >=
 function rafCalc_() {
   var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target;
   var D = rafDaf_(), noId = {}, side = {}, tm = {};
+  /* מסלול השלמה: הדף שלו (שתי המסכתות באותו לוח עד הסיום), ומי בו —
+     "מסלול השלמה" ב"לומדים", ובלי הכרעה — שורת לימוד במסלול (למטה). */
+  var DH = rafDafOf_('taanit-hashlama') || rafDafOf_('megila-hashlama'), HS = {};
+  Object.keys(ppl).forEach(function (id) {
+    if (ppl[id].hs === 1) HS[target[id] || id] = 1;
+  });
   var lr = sheet_(LEARN_TAB);
-  var rows = D && lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
+  var rows = (D || DH) && lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
   if (rows && rows.length > 1) {
     var ix = {};
     for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
     var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
     for (var i = 1; i < rows.length; i++) {
-      var s = rafSide_(c(rows[i], 'דף')), tr = rafTrack_(c(rows[i], 'מסלול'));
-      if (!s || !tr) continue;
+      var tr = rafKey_(c(rows[i], 'מסלול')), s = tr ? rafSideK_(c(rows[i], 'דף'), tr) : '';
       var lid = c(rows[i], 'מזהה'), canon = alias[lid] || lid;
+      if (HASH_TRS_[tr] && canon && ppl[canon] && ppl[canon].hs !== 0) HS[target[canon] || canon] = 1;
+      if (!s || !tr) continue;
       if (!canon) continue;
       if (!ppl[canon]) { noId[canon] = c(rows[i], 'קוד ישיבה') || '?'; continue; }
       canon = target[canon] || canon;
@@ -7441,9 +7577,17 @@ function rafCalc_() {
       rafTmAdd_(tm, k, c(rows[i], 'מכשיר'), c(rows[i], 'זמן בדף (דקות)'), true);
     }
   }
-  var Q = D ? quizBest_(alias, target, tm) : { best: {}, seen: {} };
-  var A = D ? amdaQz_(alias, target) : { ok: {}, qz: {}, k: {}, seen: {} };
-  var G = D ? rafGrants_(P) : {};
+  var Q = D || DH ? quizBest_(alias, target, tm, HS) : { best: {}, seen: {} };
+  var A = D || DH ? amdaQz_(alias, target) : { ok: {}, qz: {}, k: {}, seen: {} };
+  var G = D || DH ? rafGrants_(P) : {};
+  /* חידון ונוכחות נשמרים לפי מסכת+דף. לאיזה מסלול הם נספרים: מי שבמסלול
+     השלמה — לדף של ההשלמה (גם כשהוא זהה לרגיל, משבוע 32); נוכחות בשיעור
+     על הדף הרגיל — למסלול הרגיל. '' — לא לדף של ההגרלה. */
+  var trOf = function (who, mas, d, att) {
+    if (HS[who] && DH && d === DH) return mas + '-hashlama';
+    if (HS[who] && !att) return '';
+    return D && d === D ? mas : '';
+  };
   /* **כל מסלול לעצמו (8.99.326).** לימוד, חידון והענקה מאבא — לכל תלמיד
      ומסלול בנפרד (`tr`), והסכומים (l, q, f, t) נגזרים מהם בלבד: במסלול
      אחד עד 3 (ועוד הענקות), בשניהם עד 6. אותו הישג באותו מסלול — פעם אחת. */
@@ -7459,17 +7603,18 @@ function rafCalc_() {
      (8.99.330, החלטת אחיאסף; כמו quizOk_ בנקודות: נוכחות היא הדף כולו
      עם החידון). עד אז רק "אישור חידון" נתן את החידון — והעמדה אינה מסמנת אותו. */
   Object.keys(A.ok).forEach(function (ky) {
-    var pr = ky.split('|');
-    if (pr[2] !== D || !ppl[pr[0]]) return;
-    tk(pr[0], pr[1]).l = 1;
-    tk(pr[0], pr[1]).q = 1;
+    var pr = ky.split('|'), at = ppl[pr[0]] ? trOf(pr[0], pr[1], pr[2], true) : '';
+    if (!at) return;
+    tk(pr[0], at).l = 1;
+    tk(pr[0], at).q = 1;
   });
   /* חידון — לכל מי שיש לו ציון על הדף, גם בלי סיום שנרשם. */
   Object.keys(Q.best).forEach(function (ky) {
-    var pr = ky.split('|'), who = pr[0];
-    if (!ppl[who] || String(pr[2]).replace(/[.:]$/, '') !== D) return;
-    var x = quizDaf_(Q, who, pr[1], D);
-    if (quizPass_(x) || quizHalves_(Q, who, pr[1], D)) tk(who, pr[1]).q = 1;
+    var pr = ky.split('|'), who = pr[0], d0 = String(pr[2]).replace(/[.:]$/, '');
+    var qt = ppl[who] ? trOf(who, pr[1], d0, false) : '';
+    if (!qt) return;
+    var x = quizDaf_(Q, who, pr[1], d0);
+    if (quizPass_(x) || quizHalves_(Q, who, pr[1], d0)) tk(who, qt).q = 1;
   });
   Object.keys(G).forEach(function (id) {
     if (!ppl[id]) return;
@@ -7481,7 +7626,8 @@ function rafCalc_() {
     o.t = o.l + o.q + o.f;
     if (!o.t) delete done[id];
   });
-  return { ppl: ppl, alias: alias, target: target, side: side, done: done, noId: noId, tm: tm, daf: D };
+  return { ppl: ppl, alias: alias, target: target, side: side, done: done, noId: noId, tm: tm, daf: D,
+           dafs: rafDafs_(), hs: HS };
 }
 /* ============================================================
    הענקת כרטיס מאבא (8.99.324) — מהלשונית "זוגות".
@@ -7513,9 +7659,9 @@ function rafGrants_(P) {
   });
   for (var i = 1; i < v.length; i++) {
     var r = v[i];
-    if (!rafSide_(c(r, 'דף'))) continue;
-    var tr = rafTrack_(c(r, 'מסלול')), wk = c(r, 'שבוע'), rid = c(r, 'מזהה');
-    if (!tr || !rid) continue;
+    /* כל מסלול מול הדף של ההגרלה שלו — גם מסלול השלמה (rafSideK_). */
+    var tr = rafKey_(c(r, 'מסלול')), wk = c(r, 'שבוע'), rid = c(r, 'מזהה');
+    if (!tr || !rid || !rafSideK_(c(r, 'דף'), tr)) continue;
     var kid = '', dad = '';
     if (c(r, 'דיווח') === 'ההורה') {
       var par = ppl[P.alias[rid] || rid];
@@ -7558,6 +7704,9 @@ function rafPpl_() {
        ו"שם ההורה" הם של הבן. */
     p.phone = t.c(row, 'טלפון'); p.parPhone = t.c(row, 'טלפון ההורה');
     p.parFirst = t.c(row, 'שם ההורה');
+    /* מסלול השלמה: 1 — משויך, 0 — הוחזר בניהול, undefined — לא נקבע. */
+    var hsv = t.c(row, HS_COL);
+    p.hs = hsv === 'כן' ? 1 : hsv === 'לא' ? 0 : undefined;
     p.key = rowKey_(t, row);
     rowIds_(t, row).forEach(function (x) { if (p.ids.indexOf(x) < 0) p.ids.push(x); });
   }
@@ -7596,7 +7745,7 @@ function rafPpl_() {
    ישנה מלפני העדכון. `tm` (מ-rafCalc_) — הזמן שבשורת החידון, למכשיר
    שנשלח ממנו (rafTmAdd_). */
 var QUIZ_TRIES = 2;
-function quizBest_(alias, target, tm) {
+function quizBest_(alias, target, tm, HS) {
   var sh = sheet_('חידות'), v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
   var ix = {}, best = {}, seen = {}, tries = {};
   if (v.length) for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
@@ -7613,6 +7762,9 @@ function quizBest_(alias, target, tm) {
     seen[canon] = 1;
     var k = canon + '|' + tr + '|' + d, x = [+sc[1], +sc[2]], o = best[k];
     if (tm && rafSide_(d)) rafTmAdd_(tm, canon + '|' + tr, c(v[i], 'מכשיר'), c(v[i], 'זמן בדף (דקות)'), false);
+    /* מסלול השלמה — הזמן בחידון נספר למסלול שלו (rafCalc_). */
+    if (tm && HS && HS[canon] && rafSideK_(d, tr + '-hashlama'))
+      rafTmAdd_(tm, canon + '|' + tr + '-hashlama', c(v[i], 'מכשיר'), c(v[i], 'זמן בדף (דקות)'), false);
     tries[k] = (tries[k] || 0) + 1;
     if (tries[k] > QUIZ_TRIES) continue;
     if (!o || x[0] * o[1] > o[0] * x[1] || (x[0] * o[1] === o[0] * x[1] && x[1] > o[1])) best[k] = x;
@@ -7821,18 +7973,32 @@ function ptsMe_(P) {
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
   if (!mine.length) return { status: 'ok', none: 1 };
-  var tk = null;
+  var tk = null, hs = -1;
   try {
     var M = rafMeMap_();
-    for (var j = 0; j < mine.length && !tk; j++) if (M[mine[j]]) tk = rafTk_(M[mine[j]]);
+    for (var j = 0; j < mine.length && !tk; j++) if (M[mine[j]]) {
+      tk = rafTk_(M[mine[j]]);
+      /* מסלול השלמה — 'h1' / 'h0' בסוף הערך (rafMeMap_). */
+      var hm = String(M[mine[j]]).match(/\|h([01])$/);
+      if (hm) hs = +hm[1];
+    }
     if (!tk) tk = rafTk_('');
+    /* הדף של ההגרלה בכל מסלול — לבית התלמיד במסלול השלמה (tkCardHtml).
+       רק כאן ולא ב-rafTk_, שנקרא לכל תלמיד בלוח הצוות. */
+    tk.dafs = rafDafs_();
   } catch (eT) { tk = null; }
-  var T = ptsAll_();
+  var T = ptsAll_(), o;
   for (var i = 0; i < mine.length; i++) {
     var v = ptsOf_(T, mine[i]);
-    if (v) return tk ? { status: 'ok', n: v.n, l: v.l, tk: tk } : { status: 'ok', n: v.n, l: v.l };
+    if (v) {
+      o = tk ? { status: 'ok', n: v.n, l: v.l, tk: tk } : { status: 'ok', n: v.n, l: v.l };
+      if (hs >= 0) o.hs = hs;
+      return o;
+    }
   }
-  return { status: 'ok', none: 1 };
+  o = { status: 'ok', none: 1 };
+  if (hs >= 0) o.hs = hs;
+  return o;
 }
 /* למה אדם שסיים אינו בהגרלה — '' = בפנים (לפני בחירת המוסדות). */
 function rafWhy_(p) {
@@ -7867,7 +8033,7 @@ function raffleElig_(codes, C0) {
   if (skip.out) ex.push({ kind: 'out', text: skip.out + ' ממוסד שלא נבחר להגרלה' });
   if (skip.par) ex.push({ kind: 'par', text: skip.par + ' הורים שסיימו — ההגרלה לתלמידים' });
   if (!C.daf) ex.push({ kind: 'nodaf', text: 'אין דף לשבוע שלפני ההגרלה (חופשה) — אין כרטיסים' });
-  return { status: 'ok', wk: progWeek_(), cut: new Date().toISOString(), daf: C.daf, by: by, ex: ex };
+  return { status: 'ok', wk: progWeek_(), cut: new Date().toISOString(), daf: C.daf, dafs: C.dafs, by: by, ex: ex };
 }
 
 /* ============================================================
@@ -7938,7 +8104,7 @@ function rafPic_() {
   codes.forEach(function (c) { (E.by[c] || []).forEach(function (p) { inn[p.id] = 1; }); });
   var put = function (to, o) {
     var q = o.q, c = q.code, ln = '', full = 0, half = 0;
-    ['taanit', 'megila'].forEach(function (tr) {
+    RAF_KEYS_.forEach(function (tr) {
       var s = to && C.side[to + '|' + tr];
       if (!s || (!s.a && !s.b)) return;
       ln += (ln ? ',' : '') + tr + ':' + (s.a ? 'a' : '') + (s.b ? 'b' : '');
@@ -7960,7 +8126,7 @@ function rafPic_() {
     by[c].L.sort(function (a, b2) { return rank(a) - rank(b2) || (b2[5] || 0) - (a[5] || 0) ||
                                            (a[0] < b2[0] ? -1 : a[0] > b2[0] ? 1 : 0); });
   });
-  return { status: 'ok', wk: progWeek_(), cut: E.cut, daf: C.daf, tix: 1, by: by, ex: E.ex };
+  return { status: 'ok', wk: progWeek_(), cut: E.cut, daf: C.daf, dafs: C.dafs, tix: 1, by: by, ex: E.ex };
 }
 
 /* הלשונית כטבלה: כל השורות של הגרלה אחת יחד. */
@@ -8802,7 +8968,8 @@ function quizSum_() {
   var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
   for (var i = 1; i < v.length; i++) {
     var w = c(v[i], 'שבוע'), d = c(v[i], 'דף'), tr = '', inWk = false, m;
-    if (w && (m = w.match(/^(.+)-(\d+)$/))) { tr = rafTrack_(m[1]); inWk = +m[2] === wk; }
+    /* מסלול השלמה — שבוע אחר לאותו מספר; הסיכום הוא של המסלול הרגיל. */
+    if (w && (m = w.match(/^(.+)-(\d+)$/))) { tr = HASH_TRS_[m[1]] ? '' : rafTrack_(m[1]); inWk = +m[2] === wk; }
     else if (d) {
       var pr = d.split('|'), dk = String(pr[1] || '').replace(/["'׳״\s]/g, '');
       tr = rafTrack_(pr[0]);
@@ -8847,13 +9014,15 @@ function rafMeMap_() {
   M = {};
   Object.keys(C.ppl).forEach(function (id) {
     var p = C.ppl[id], to = C.target[id] || id, q = C.ppl[to] || p, a = false, b = false;
-    ['taanit', 'megila'].forEach(function (tr) {
+    RAF_KEYS_.forEach(function (tr) {
       var sd = C.side[to + '|' + tr];
       /* המסכת שבה התקדם יותר — זו שמוצגת. */
       if (sd && ((sd.a ? 1 : 0) + (sd.b ? 1 : 0)) > ((a ? 1 : 0) + (b ? 1 : 0))) { a = !!sd.a; b = !!sd.b; }
     });
     var tk = C.done[to];
-    if (!a && !b && !tk) return;
+    /* מסלול השלמה — גם בלי התקדמות: המכשיר מקבל את ההכרעה (ptsMe_). */
+    var hs = q.hs === 1 ? 1 : q.hs === 0 ? 0 : C.hs[to] ? 1 : -1;
+    if (!a && !b && !tk && hs < 0) return;
     /* '~' — יש כרטיס, אבל חשבון בדיקה. נספר כ"בפנים" רק לבקשה מסשן
        בדיקה מאומת (testOk_), ולעולם לא בהגרלה האמיתית. */
     var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') +
@@ -8862,7 +9031,7 @@ function rafMeMap_() {
             '|' + (tk ? Object.keys(tk.tr).map(function (tr) {
               var x = tk.tr[tr];
               return tr + ':' + [x.l, x.q, x.f].join(',');
-            }).join(';') : '');
+            }).join(';') : '') + (hs >= 0 ? '|h' + hs : '');
     p.ids.concat([id]).forEach(function (x) { M[x] = v; });
   });
   try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me3', js, 300); } catch (x2) {}
@@ -8874,7 +9043,7 @@ function rafTk_(v) {
   var pr = String(v || '').split('|'), tr = {};
   var f = String(pr[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
   String(pr[3] || '').split(';').forEach(function (s) {
-    var m = s.match(/^(taanit|megila):(\d+),(\d+),(\d+)$/);
+    var m = s.match(/^((?:taanit|megila)(?:-hashlama)?):(\d+),(\d+),(\d+)$/);
     if (m) tr[m[1]] = [+m[2], +m[3], +m[4]];
   });
   return { l: f[0] || 0, q: f[1] || 0, f: f[2] || 0, t: (f[0] || 0) + (f[1] || 0) + (f[2] || 0),

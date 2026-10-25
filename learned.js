@@ -79,10 +79,9 @@ function LWeek() {
    הסימונים, תמונות הדף), ולכן ב. וב: מחזירים שניהם 'ב'. העמוד —
    ב-`LAm`, והשם להצגה — ב-`LDafName`. */
 function LRow(track, wk) {
-  for (var i = 0; i < TRACKS.length; i++) {
-    if (TRACKS[i].id === track) return TRACKS[i].cal[wk] || null;
-  }
-  return null;
+  /* גם מסלול השלמה (TrackById ב-data.js) — לו לוח משלו. */
+  var t = TrackById(track);
+  return t ? (t.cal[wk] || null) : null;
 }
 function LDaf(track, wk) {
   var row = LRow(track, wk);
@@ -110,8 +109,7 @@ function LDafQ(track, wk) {
 /* השבוע של דף ועמוד במסלול. עמוד 0, או דף שאינו מתחלק — השבוע
    הראשון של הדף. -1 = הדף אינו בלוח. */
 function LWeekOf(track, daf, am) {
-  var t = null, k = String(daf || '').replace(/["'׳״\s]/g, ''), first = -1;
-  for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === track) t = TRACKS[i];
+  var t = TrackById(track), k = String(daf || '').replace(/["'׳״\s]/g, ''), first = -1;
   if (!t || !k) return -1;
   for (var w = 0; w < t.cal.length; w++) {
     var row = t.cal[w];
@@ -120,6 +118,23 @@ function LWeekOf(track, daf, am) {
     if (!am || LAmOf(row) === am) return w;
   }
   return first;
+}
+
+/* ---------- מסלול השלמה ----------
+   המכשיר במסלול השלמה (TRACKS_HASHLAMA ב-data.js) כש-`df:hash` = 1:
+   נרשם חדש מישיבה שבמסלול דרך הקישור שלה (join.html), או העברה
+   ידנית מהניהול — השרת מחזיר `hs` עם הכרטיסים (?pts=me, ptsMe_).
+   המסכת נשארת כפי שנבחרה; משתנה רק הלוח. */
+function LHash() { return LGet('hash', 0) === 1; }
+/* המסלול שהמכשיר לומד בו במסכת `mas`. */
+function LTrackOf(mas) {
+  var b = TrackBase(mas);
+  return (LHash() && TrackHash(b)) || b;
+}
+/* הכתובת לדף האינטראקטיבי: `mas` — המסכת, ו-`tr` — המסלול כשהוא אחר. */
+function LLearnQ(track) {
+  var b = TrackBase(track);
+  return 'mas=' + encodeURIComponent(b) + (b !== track ? '&tr=' + encodeURIComponent(track) : '');
 }
 
 /* ---------- מה סומן ---------- */
@@ -488,7 +503,7 @@ function LAmdaWhole(tags) {
     var p = String(t).split('|'), tr = p[0], wk = parseInt(p[1], 10) - 1;
     var d = wk >= 0 ? LDaf(tr, wk) : null, row, w;
     if (!d) return;
-    for (var i = 0; i < TRACKS.length; i++) if (TRACKS[i].id === tr) row = TRACKS[i].cal;
+    row = (TrackById(tr) || {}).cal;
     for (w = 0; row && w < row.length; w++) {
       if (row[w][2] === d && out.indexOf(LKey(tr, w)) < 0) out.push(LKey(tr, w));
     }
