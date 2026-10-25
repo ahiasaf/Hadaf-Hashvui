@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.333';
+var APP_VERSION = '8.99.334';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3672,7 +3672,13 @@ function renderReg() {
     pkField('', instName, UI.instLabel, 'pickInst()') +
     '<div class="fld" id="r-other" style="display:' + (reg.inst === 'other' ? 'block' : 'none') + '">' +
     '<input type="text" id="r-otherName" placeholder="שם הישיבה" value="' + esc(reg.instOther) +
-    '" onchange="regSet(\'instOther\',this.value)"></div>';
+    '" onchange="regSet(\'instOther\',this.value)">' +
+    /* ישיבה שאינה ברשימה אינה מגיעה לאזור הניהול ולפרטים שבו —
+       ולכן כאן, ורק כאן, השם והטלפון בטופס עצמו. */
+    '<input type="text" id="r-otherWho" style="margin-top:8px" placeholder="' + esc(UI.otherWho) +
+    '" value="' + esc(reg.who) + '" onchange="regSet(\'who\',this.value)">' +
+    '<input type="tel" id="r-otherPh" dir="ltr" style="margin-top:8px" placeholder="' + esc(UI.otherPh) +
+    '" value="' + esc(reg.phone) + '" onchange="regSet(\'phone\',this.value)"></div>';
     /* ============================================================
        **שם ומספר כבר לא נשאלים כאן.**
        ============================================================
@@ -4031,8 +4037,16 @@ function numRow(id, label, sub) {
     '" onchange="qtySet(\'' + id + '\',this.value)">' +
     '<button onclick="qtyStep(\'' + id + '\',5)">+</button></div></div>';
 }
+/* ============================================================
+   תקרה לכל סוג גמרא (25.10.2026).
+   ============================================================
+   הרשמה אחת הגיעה עם עשרה מיליארד גמרות, ומשם — לסקירה כמספר
+   הלומדים בישיבה. "התקרה 300." גם השרת בודק (REG_QTY_MAX_). */
+var REG_QTY_MAX = 300;
 function qtySet(id, v) {
-  reg.qty[id] = Math.max(0, parseInt(v, 10) || 0);
+  var n = Math.max(0, parseInt(v, 10) || 0);
+  if (n > REG_QTY_MAX) { n = REG_QTY_MAX; alert(fill(UI.qtyMax, { n:REG_QTY_MAX })); }
+  reg.qty[id] = n;
   renderReg();
 }
 function qtyStep(id, d) { qtySet(id, (reg.qty[id] || 0) + d); }
@@ -4050,6 +4064,33 @@ function sendReg() {
   var name = reg.inst === 'other' ? reg.instOther
            : (INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0] || {}).name;
   if (!name)      { alert('נא לבחור ישיבה.'); return; }
+
+  /* ============================================================
+     **מי שולח — לפני שנשלח משהו** (25.10.2026).
+     ============================================================
+     הרשמה אנונימית הגיעה במוצאי שבת עם עשרה מיליארד גמרות. "מהיום
+     המספרים שהוא שלח יירשמו רק אחרי השלב השני של מילוי הפרטים."
+
+     ישיבה מהרשימה: מי שכבר מילא את הפרטים באזור הניהול — נשלח
+     מיד, עם שמו. מי שלא — ההרשמה נשמרת במכשיר (regPend), והוא
+     ממשיך כרגיל לאזור הניהול ולפרטים. היא יוצאת לגיליון ברגע
+     שהפרטים נשמרו (regFlush). "ישיבה אחרת" אינה מגיעה לשם, ולכן
+     שם וטלפון נשאלים בטופס עצמו. השרת דוחה הרשמה בלי שם. */
+  var me = null;
+  if (reg.inst === 'other') {
+    var ow = document.getElementById('r-otherWho'), op = document.getElementById('r-otherPh');
+    if (ow) reg.who = ow.value;
+    if (op) reg.phone = op.value;
+    reg.who = String(reg.who || '').trim();
+    reg.phone = String(reg.phone || '').replace(/[^\d+]/g, '');
+    if (reg.who.length < 2 || reg.phone.replace(/\D/g, '').length < 9) { alert(UI.otherNeed); return; }
+  } else {
+    me = headMe();
+    if (me) { reg.who = headWho(me); reg.phone = me.phone || ''; }
+  }
+  for (var qx in reg.qty) {
+    if (reg.qty.hasOwnProperty(qx) && reg.qty[qx] > REG_QTY_MAX) reg.qty[qx] = REG_QTY_MAX;
+  }
 
   /* הכמות אינה תנאי. ראש חטיבה שרוצה רק להצטרף ולנקוב במספר
      נעצר כאן בפועל — ההרשמה סורבה בגלל הזמנה שהוא כלל לא ביקש
@@ -4134,6 +4175,14 @@ function sendReg() {
     for (var f in payload) sent[f] = payload[f];
     sent.cols = JSON.stringify(regCols(name, total, payload.seferName));
 
+    /* עוד לא מילא פרטים — ממתין במכשיר, ובדיקת הקוד מחכה איתו:
+       השרת עוד אינו מכיר את הקוד, ובדיקה עכשיו הייתה מוחקת אותו. */
+    if (reg.inst !== 'other' && !me) {
+      try { localStorage.setItem('dfRegPend', JSON.stringify(sent)); } catch (e) {}
+      regDone(txt, false);
+      return;
+    }
+    if (me) regIdent(sent, me);
     queue(sent);                          // יש שרת — נשלח, וגם נשמר בתור אם אין רשת
     regDone(txt, false);
     /* הכתיבה אטומה, ולכן היא אינה ראיה. שואלים את השרת האם
@@ -4143,6 +4192,41 @@ function sendReg() {
     regDone(txt, true);                   // אין שרת — הודעת וואטסאפ מוכנה לשליחה
   }
 }
+/* הפרטים שמולאו באזור הניהול (ask.js, המפתח 'head'). נקרא ישירות
+   מהאחסון: ASK מאותחל רק באזור הניהול, וההרשמה קודמת לו. */
+function headMe() {
+  var me = null;
+  try { me = JSON.parse(localStorage.getItem('df:head') || 'null'); } catch (e) {}
+  return me && String(me.first || '').trim().length >= 2 ? me : null;
+}
+function headWho(me) { return ((me.first || '') + ' ' + (me.last || '')).trim(); }
+/* השם, הטלפון והמזהה — לשדות ולעמודות של ההרשמה שיוצאת. המזהה
+   הוא שמקשר את השורה לשורה שלו ב"התראות". */
+function regIdent(sent, me) {
+  sent.who = headWho(me); sent.phone = me.phone || '';
+  var cols = [];
+  try { cols = JSON.parse(sent.cols || '[]'); } catch (e) {}
+  cols.forEach(function (c) {
+    if (c[0] === 'איש קשר') c[1] = sent.who;
+    if (c[0] === 'טלפון') c[1] = sent.phone;
+  });
+  cols.push(['מזהה', me.id || ''], ['תפקיד', me.role || '']);
+  sent.cols = JSON.stringify(cols);
+}
+/* ההרשמה שממתינה לפרטים — יוצאת ברגע שהם נשמרו (onSaved ב-askSetup),
+   ובכל פתיחה של האפליקציה, למי שסגר באמצע וחזר. */
+function regFlush() {
+  var p = null;
+  try { p = JSON.parse(localStorage.getItem('dfRegPend') || 'null'); } catch (e) {}
+  if (!p || !API) return;
+  var me = headMe();
+  if (!me) return;
+  regIdent(p, me);
+  try { localStorage.removeItem('dfRegPend'); } catch (e) {}
+  queue(p);
+  setTimeout(function () { codeCheck(p.code); }, 2500);
+}
+window.addEventListener('load', function () { setTimeout(regFlush, 0); });
 /* העמודות בגיליון ההרשמות, לפי הסדר. מקור האמת היחיד לשמות שלהן. */
 function regCols(name, total, summary) {
   var cols = [['ישיבה', name], ['קוד', reg.inst],
@@ -5360,6 +5444,8 @@ function askSetup(where) {
     /* **וכאן, ורק כאן, מותר לזוז.** התהליך האישי הסתיים,
        ומה שמחכה לו עכשיו הוא הלוח — בעמוד הראשי, מעל הבאנר
        של התלמידים. זו אינה קפיצה באמצע קריאה אלא המשך. */
+    /* הפרטים נשמרו — ההרשמה שחיכתה להם יוצאת עכשיו. */
+    onSaved: regFlush,
     onClose: function () {
       /* נפתח מכרטיס העדכונים — מציירים את האזור מחדש, כדי
          שהכרטיס ייעלם אם העדכונים הופעלו. הבקשה חוזרת למסך

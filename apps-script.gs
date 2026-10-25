@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 117;
+var SCRIPT_VERSION = 118;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -604,6 +604,12 @@ function doPost(e) {
             של האפליקציה במטמון לא יאבד הרשמה. ---- */
     /* מוסד שנרשם מסומן מיד כ"בפנים" ברשימת המוסדות, וכך הוא
        מופיע בעמוד הראשי אצל כולם בלי שאיש יגע במתג. */
+    /* הרשמה בלי שם, או עם כמות מעל התקרה — נדחית לפני הכול: לא
+       מסמנת "בפנים", לא קוד, לא שורה. ראו regBad_. */
+    if (d.action === 'register') {
+      var regErr = regBad_(d);
+      if (regErr) return json_({ status: 'error', message: regErr });
+    }
     if (d.action === 'register') {
       markJoined_(d.code, (d.mas && d.mas.join) ? d.mas.join(',') : d.mas);
     }
@@ -2125,6 +2131,32 @@ function reply_(e, out) {
    כותרת שכבר קיימת בשורה 1 מקבלת את הערך בעמודה שלה, וכותרת
    חדשה נוספת בסוף. כך שדה חדש באפליקציה מייצר עמודה חדשה לבדו,
    בלי לגעת כאן ובלי לשבש שורות שכבר נכתבו. */
+/* ============================================================
+   הרשמה — רק בשם, ועד 300 מכל סוג (25.10.2026).
+   ============================================================
+   הרשמה אנונימית הגיעה עם עשרה מיליארד גמרות, והסקירה הציגה
+   אותן כלומדים. הלקוח שולח הרשמה רק אחרי שלב הפרטים (regFlush
+   ב-index.html), אבל הכתיבה ציבורית — ולכן הבדיקה כאן.
+   השם — מ-`who` או מעמודת "איש קשר". הכמויות — כל שדה שטוח
+   ששמו `<מסכת>-<מהדורה>` וכל עמודה "<מסכת> · <מהדורה>".
+   מחזירה את הסיבה, או '' כשההרשמה תקינה. */
+var REG_QTY_MAX_ = 300;
+function regBad_(d) {
+  var cols = d.cols ? (parse_(d.cols) || []) : [];
+  var who = String(d.who || '').trim(), bad = '';
+  cols.forEach(function (c) {
+    if (!c || c.length < 2) return;
+    var h = String(c[0]);
+    if (h === 'איש קשר' && !who) who = String(c[1] || '').trim();
+    if (h.indexOf(' · ') > 0 && (parseFloat(c[1]) || 0) > REG_QTY_MAX_) bad = h;
+  });
+  Object.keys(d).forEach(function (f) {
+    if (/^[a-z]+-[a-z]+$/.test(f) && (parseFloat(d[f]) || 0) > REG_QTY_MAX_) bad = f;
+  });
+  if (who.length < 2) return 'הרשמה בלי שם — לא נקלטה';
+  if (bad) return 'כמות מעל ' + REG_QTY_MAX_ + ' (' + bad + ') — לא נקלטה';
+  return '';
+}
 function appendCols_(tab, cols, ssId) {
   var sh = sheet_(tab, ssId);
   var head = headers_(sh);

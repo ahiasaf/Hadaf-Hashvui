@@ -27,6 +27,7 @@
      grades   רשימת השכבות, כשהיא נדרשת
      when()   ערך עמודת "מועד" — רשות
      onClose() מה לעשות אחרי סגירה — רשות
+     onSaved() אחרי ששלב הפרטים נשמר — רשות
 
    תלוי ב-`getapp.js` (APPX) ובכתובת `APPS_SCRIPT_URL`.
    ES5 בלבד, כמו כל השאר.
@@ -457,6 +458,7 @@ var ASK = (function () {
           inst: ir ? ir.code : '', instName: ir ? ir.name : '',
           role: roleNow(), phone: phone, at: new Date().toISOString() });
     post('רשום', null);
+    if (C.onSaved) C.onSaved();
     /* הפנייה האישית — עכשיו, בשם, ופעם אחת. */
     if (C.whoFirst && !addrShown) { addrShown = true; go(0); return; }
     go(where());
