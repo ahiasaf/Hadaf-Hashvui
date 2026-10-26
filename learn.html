@@ -788,23 +788,18 @@ body.emb .qfab,body.emb .qhint{position:absolute}
 .qz-opt:disabled{cursor:default}
 .qz-opt.gold{background:linear-gradient(150deg,var(--gold-l,#E5B854),var(--gold,#C08F2B));
   color:#fff;border:0}
-/* "מילוי מהרשימה" — מאגר "שאלות לשיבוץ" (qbFillHtml_) */
-.qz-qb{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--rule,#E4DCC8)}
-/* כרטיס אחד בכל פעם — השאלה המלאה עם התשובות, וחיצים לצדדים
-   (ימין = הקודמת, שמאל = הבאה, כמו "הקודם"/"הבא" שבתחתית). */
-.qz-qbh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
-  font-size:.82rem;font-weight:800;color:var(--ink-2,#5A6780);margin-bottom:6px}
-.qz-qbh em{font-style:normal;font-weight:700;color:var(--ink-3,#7A8499)}
-.qz-qbc{display:flex;align-items:stretch;gap:6px}
-.qz-qbn{flex:none;width:38px;border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);
-  background:#fff;color:var(--blue,#17468F);font-family:inherit;font-size:1.1rem;cursor:pointer}
-.qz-qbn:disabled{opacity:.3;cursor:default}
-.qz-qbx{flex:1;min-width:0;padding:12px;border-radius:12px;border:1.5px solid var(--rule,#E4DCC8);background:#fff}
-.qz-qbq{font-weight:800;font-size:.95rem;line-height:1.45;margin-bottom:8px}
-.qz-qba{margin-top:6px;padding:8px 10px;border-radius:9px;background:rgba(27,42,69,.05);
-  font-size:.86rem;font-weight:600;line-height:1.4}
-.qz-qba.ok{background:rgba(59,125,87,.14);color:#2F6B47;font-weight:800}
-.qz-qbw{margin-top:8px;font-size:.78rem;font-weight:700;color:#A5382D;text-align:center}
+/* סרגל השיבוץ — בתחתית, מעל "הקודם"/"הבא", רק כשהגיעו מ"שיבוץ בדף"
+   בניהול (qbsPaint_). כמו שכבת השיוך של המצגות: אין כאן עריכה. */
+.qbs{margin-bottom:9px;padding:9px 11px;border-radius:12px;
+  background:rgba(192,143,43,.10);border:1px solid rgba(192,143,43,.35)}
+.qbs:empty{display:none}
+.qbs-q{font-weight:800;font-size:.86rem;line-height:1.4;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qbs-st{font-size:.74rem;font-weight:700;color:var(--ink-2);margin:2px 0 8px}
+.qbs-msg{margin-top:7px;font-size:.74rem;font-weight:700;line-height:1.45;color:var(--ink-2)}
+.qbs-msg:empty{display:none}
+.qbs-msg.ok{color:var(--ok, #3B7D57)}
+.qbs-msg.bad{color:#B23B3B}
 .qz-in{display:block;width:100%;font-family:inherit;font-size:.9rem;padding:10px 12px;
   border-radius:10px;border:1.5px solid var(--rule,#E4DCC8);box-sizing:border-box;margin-top:8px}
 textarea.qz-in{min-height:60px;resize:vertical}
@@ -1308,7 +1303,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div class="rec-a" id="rec-a"></div>
 </div>
 
-<nav><div class="nrow">
+<nav><div class="qbs" id="qbs"></div><div class="nrow">
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
   <button id="chtog">פירוש</button>
@@ -3706,6 +3701,7 @@ function paintChavArea() {
   if ($('cht-own'))  $('cht-own').onclick  = function () { QUIZ_OPEN = false; chavPick_('own'); };
   if ($('cht-quiz')) $('cht-quiz').onclick = function () { qHintHide_(); QHINT_VIA = false; QUIZ_OPEN = true; paintChavArea(); };
   quizFabPaint();
+  qbsPaint_();
   if (ALON_ON) alPaint_();
 }
 
@@ -5645,7 +5641,10 @@ function paintQuiz() {
   var n = st.n, list = qList_(n);
   if (!list.length) {
     if (!SIDE_ADM) { box.innerHTML = ''; return; }
-    qEditOpen_(n);
+    /* העריכה רק בניהול (8.99.340). כאן — רק הפניה לשם. */
+    box.innerHTML = '<div class="qz-res">' + esc(UI.qzAdmNone || '') + '</div>' +
+      (QB_ID ? '' : '<button class="qz-opt" id="qz-adm">' + esc(UI.qzAdmGo || '') + ' ↗</button>');
+    if ($('qz-adm')) $('qz-adm').onclick = qAdmGo_;
     return;
   }
   var ord = qOrd_(n, list.length);
@@ -5674,7 +5673,10 @@ function paintQuiz() {
     (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     (lock ? '<div class="qz-res">' + esc(UI.dqLocked || '') + '</div>'
       : pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
-    (SIDE_ADM ? '<button class="qz-opt" id="qz-edit" style="margin-top:14px;' +
+    /* עריכה בדף — רק לשאלה ישנה שעוד אין לה שורה במאגר (מעבר זמני;
+       qbLink_ בסקריפט מעביר אותה למאגר בכניסה הבאה לניהול ← שאלות). */
+    (SIDE_ADM && !q.qb && !qbLikeId_(q) ? '<div class="qz-res">' + esc(UI.qzAdmOld || '') + '</div>' +
+      '<button class="qz-opt" id="qz-edit" style="margin-top:10px;' +
       'color:var(--blue,#17468F)">עריכת השאלה</button>' : '');
   q.a.forEach(function (t, k) {
     $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
@@ -5755,7 +5757,6 @@ function qSend(n, k, right) {
    אינה הוכחה לכלום. מצוירת גם היא לתוך `#chb`, לא בחלון. */
 var Q_EDIT = null;
 function qEditOpen_(n) {
-  Q_FROM = null;
   var all = qPieces_(n), it = all[qIdx_(n, all.length)], cur = it && (it.draft || it.pub);
   /* שאלה ששובצה לפני שהיה מזהה — מזוהה במאגר לפי הדמיון (QbLike), ומעכשיו נושאת אותו. */
   Q_EDIT = cur ? { q:cur.q, a:cur.a.slice(), correct:cur.correct, yr:!!cur.yr, qb:cur.qb || qbLikeId_(cur) }
@@ -5769,7 +5770,6 @@ function qPaintEdit_(n) {
   box.innerHTML =
     '<div style="font-weight:800;margin-bottom:10px">עריכת שאלה לקטע ' + n + '</div>' +
     (it ? qTagHtml_(it) : '') +
-    qbFillHtml_() +
     '<textarea class="qz-in" id="qe-q" placeholder="נוסח השאלה">' + esc(Q_EDIT.q) + '</textarea>' +
     Q_EDIT.a.map(function (t, k) {
       return '<div class="qz-arow">' +
@@ -5802,7 +5802,6 @@ function qPaintEdit_(n) {
   if ($('qe-unpub')) $('qe-unpub').onclick = function () { qEditUnpub_(n); };
   var del = $('qe-del');
   if (del) del.onclick = function () { qEditDelete_(n); };
-  qbFillBind_(n);
 }
 /* הרשימה המלאה, לכתיבה — כמו ownRows_ בדיוק. */
 function qRows_() {
@@ -5958,12 +5957,11 @@ var QB_ID = (function () {
   try { return decodeURIComponent((/[?&]qb=([^&#]*)/.exec(location.search) || [])[1] || ''); }
   catch (e) { return ''; }
 })();
-var QBL = null, QBR = null, QB_CUR = '', Q_FROM = null, Q_DROP = '';
+var QBL = null, QBR = null, Q_FROM = null, Q_DROP = '';
 function qbLikeId_(v) {
   for (var i = 0; i < (QBL || []).length; i++) if (QbLike(v, QBL[i])) return QBL[i].id;
   return '';
 }
-function qbStLbl_(st) { return [UI.qbDraft, UI.qbReady, UI.qbPlaced][QB_ST.indexOf(st)] || st; }
 /* השאלות של הדף הזה: מוכנות, אחריהן טיוטות, ומה ששובץ — בסוף.
    "שובצה" לפי הדף עצמו גוברת על מה שכתוב בעמודת הסטטוס (QbSt). */
 function qbSetList_(l) {
@@ -5983,58 +5981,125 @@ function loadQBank_() {
   return sheetCsv(QB_TAB).then(function (rows) {
     var l = QbFromRows(rows);
     if (l) qbSetList_(l);          /* קריאה שנכשלה — מה שהיה נשאר */
+    qbsPaint_();
   }).catch(function () {});
 }
-/* השאלה שעל הכרטיס: מה שדפדפו אליו; אחרת זו שנבחרה ב"שיבוץ בדף"
-   (אם עוד לא שובצה); אחרת הראשונה — המוכנות קודם (qbSetList_). */
-function qbAt_() {
-  var i, sel;
-  for (i = 0; i < QBL.length; i++) if (QBL[i].id === QB_CUR) return i;
-  sel = QB_ID ? QbFind(QBL, QB_ID) : null;
-  if (sel && sel.st !== QB_ST[2]) return QBL.indexOf(sel);
-  return 0;
+/* אל השאלות בניהול — ואם הגיעו משם, אל אותו כרטיס (admTakeGo). */
+function qAdmGo_() {
+  try { localStorage.setItem('df:admGo', JSON.stringify({ sub:'qbank', id:QB_ID })); } catch (e) {}
+  location.href = '/#admin';
 }
-function qbFillHtml_() {
-  if (QBR) qbSetList_(QBR);      /* הדף נשמר מאז — "שובצה" מתעדכנת */
-  if (!QBL || !QBL.length) return '';
-  var i = qbAt_(), x = QBL[i], ok = QbFull(x), one = QBL.length < 2;
-  var st = qbStLbl_(x.st) + (x.st === QB_ST[2] && x.seg ? ' · ' + x.seg.split(' · ')[0] : '');
-  return '<div class="qz-qb">' +
-    '<div class="qz-qbh"><span>' + esc(fillT(UI.qbCarT, { i: i + 1, n: QBL.length })) + '</span>' +
-      '<em>' + esc(st) + '</em></div>' +
-    '<div class="qz-qbc">' +
-    (one ? '' : '<button class="qz-qbn" id="qb-prev" aria-label="' + esc(UI.qbPrev || '') + '"' +
-      (i ? '' : ' disabled') + '>▸</button>') +
-    '<div class="qz-qbx"><div class="qz-qbq">' + esc(x.q) + '</div>' +
-      x.a.map(function (t, k) {
-        return '<div class="' + (k === x.correct ? 'qz-qba ok">✓ ' : 'qz-qba">') + esc(t || '—') + '</div>';
-      }).join('') + '</div>' +
-    (one ? '' : '<button class="qz-qbn" id="qb-next" aria-label="' + esc(UI.qbNext || '') + '"' +
-      (i < QBL.length - 1 ? '' : ' disabled') + '>◂</button>') +
-    '</div>' +
-    '<button class="qz-opt gold" id="qb-fill"' + (ok ? '' : ' disabled') + '>' + esc(UI.qbFillThis || '') + '</button>' +
-    (ok ? '' : '<div class="qz-qbw">' + esc(UI.qbNotFull || '') + '</div>') +
-    (Q_FROM ? '<div class="qz-res">' + esc(UI.qbFilled || '') + '</div>' : '') +
-    '</div>';
+
+/* ============================================================
+   סרגל השיבוץ (8.99.340) — "העריכה רק בניהול, בדף רק שיבוץ".
+   ============================================================
+   נדלק רק כשהגיעו מ"שיבוץ בדף" בכרטיס שבניהול (`qb=<מזהה>`), ורק
+   לרכז. יושב בתחתית, מעל "הקודם"/"הבא" — מדפדפים לקטע ולוחצים
+   "שבץ". אין טופס, אין פרסום ואין מחיקה: הכול בכרטיס שבניהול.
+   השיבוץ כותב את אותו מבנה כמו העורך שהיה כאן — { pub, draft }
+   לפי מזהה קטע, והשאלה נושאת `qb` — ואחרי קריאה חוזרת שמאמתת,
+   המאגר מסומן "שובצה" והקטע (qbSync_). שאלה שכבר שובצה בקטע אחר
+   עוברת כמו שהיא — הפרסום שלה לא משתנה. */
+var QBS_MSG = ['', ''];
+function qbsOn_() { return SIDE_ADM && !!QB_ID && !quiet(); }
+function qbsAt_(list) {
+  for (var i = 0; i < list.length; i++) if (((list[i].draft || list[i].pub) || {}).qb === QB_ID) return i;
+  return -1;
 }
-/* המילוי רק ממלא את השדות. "שמירה" אחריו היא טיוטה — לא פרסום. */
-function qbFill_(n, x) {
+/* הקטע שבו השאלה יושבת עכשיו (מספר), או -1. */
+function qbsWhere_() {
+  for (var i = 0; i < FLAT.length; i++) {
+    if (qbsAt_(qPieces_(FLAT[i].n)) >= 0) return FLAT[i].n;
+  }
+  return -1;
+}
+function qbsMsg_(t, cls) {
+  QBS_MSG = [t || '', cls || ''];
+  var m = $('qbs-msg');
+  if (m) { m.textContent = QBS_MSG[0]; m.className = 'qbs-msg' + (cls ? ' ' + cls : ''); }
+}
+function qbsPaint_() {
+  var box = $('qbs');
+  if (!box) return;
+  if (!qbsOn_()) { box.innerHTML = ''; return; }
+  var st = FLAT[IDX], n = st ? st.n : 0;
+  var x = QBR ? QbFind(QBR, QB_ID) : null;
+  var h;
+  if (!QBR || !Q_READY || !st) h = '<div class="qbs-st">' + esc(UI.qbLoading || '') + '</div>';
+  else if (!x || !QbFull(x)) h = '<div class="qbs-st">' + esc(UI.qbsMiss || '') + '</div>';
+  else {
+    var at = qbsWhere_();
+    h = '<div class="qbs-q">' + esc(x.q) + '</div>' +
+      '<div class="qbs-st">' + esc(at === n ? UI.qbsHere || '' : at >= 0 ? fillT(UI.qbsAt, { n: at }) : UI.qbsNone || '') + '</div>' +
+      '<div class="nrow">' +
+      (at === n ? '<button id="qbs-drop">' + esc(UI.qbsDrop || '') + '</button>'
+        : '<button class="p" id="qbs-go">' + esc(fillT(at >= 0 ? UI.qbsMove : UI.qbsPlace, { n: n })) + '</button>') +
+      '</div>';
+  }
+  box.innerHTML = h + '<div class="qbs-msg" id="qbs-msg"></div>';
+  qbsMsg_(QBS_MSG[0], QBS_MSG[1]);
+  if ($('qbs-go')) $('qbs-go').onclick = function () { qbsPlace_(n); };
+  if ($('qbs-drop')) $('qbs-drop').onclick = function () { qbsDrop_(n); };
+}
+function qbsPlace_(n) {
+  var x = QbFind(QBR, QB_ID);
   if (!x || !QbFull(x)) return;
-  Q_EDIT = { q:x.q, a:x.a.slice(), correct:x.correct, yr:!!x.yr, qb:x.id };
-  Q_FROM = x.id; QB_CUR = x.id;
-  qPaintEdit_(n);
+  if (!writeKey_()) { qbsMsg_(NOKEY_MSG, 'bad'); return; }
+  if (!QOWN) QOWN = {};
+  qNormRec_(QOWN);
+  var from = qbsWhere_(), moved = null;
+  if (from === n) return;
+  if (from >= 0) {
+    var ol = qPieces_(from).slice(), oi = qbsAt_(ol);
+    moved = ol[oi];
+    if (moved.pub && !confirm(fillT(UI.qbsMoveSure, { n: n }))) return;
+    ol.splice(oi, 1);
+    sidPut_(QOWN, from, ol.length ? ol : undefined, true);
+  }
+  var val = { q: x.q, a: x.a.slice(), correct: x.correct, qb: x.id };
+  if (x.yr) val.yr = 1;
+  /* שאלה חדשה בדף — טיוטה. פרסום — רק בכרטיס שבניהול. */
+  var list = qPieces_(n).slice();
+  list.push(moved || { pub: null, draft: val });
+  sidPut_(QOWN, n, list, true);
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qbsVerify_(0, n, from, list, false);
 }
-function qbFillBind_(n) {
-  var pv = $('qb-prev'), nx = $('qb-next'), fl = $('qb-fill');
-  var go = function (d) {
-    var j = qbAt_() + d;
-    if (j < 0 || j >= QBL.length) return;
-    QB_CUR = QBL[j].id;
-    qPaintEdit_(n);
+function qbsDrop_(n) {
+  if (!QOWN || !writeKey_()) { qbsMsg_(NOKEY_MSG, 'bad'); return; }
+  if (!confirm(UI.qbUnSure || '')) return;
+  qNormRec_(QOWN);
+  var list = qPieces_(n).slice(), i = qbsAt_(list);
+  if (i < 0) return;
+  list.splice(i, 1);
+  sidPut_(QOWN, n, list.length ? list : undefined, true);
+  Q_AT = { n: n, i: 0 };
+  QMAP[dmKey(S.mas, S.daf)] = QOWN;
+  qPost_();
+  qbsVerify_(0, n, -1, list, true);
+}
+/* no-cors אטום — קוראים שוב: הקטע הזה כמו שנשלח, והקטע הקודם בלי השאלה. */
+function qbsVerify_(tries, n, from, want, drop) {
+  qbsMsg_(UI.qbsSent, '');
+  var bad = function () {
+    if (tries < 4) { qbsVerify_(tries + 1, n, from, want, drop); return; }
+    qbsMsg_(UI.qbsBad, 'bad');
+    /* מה שבזיכרון אינו מה שבגיליון — חוזרים לגיליון. */
+    loadQuizMap().then(function () { paintChavArea(); });
   };
-  if (pv) pv.onclick = function () { go(-1); };
-  if (nx) nx.onclick = function () { go(1); };
-  if (fl) fl.onclick = function () { qbFill_(n, QBL[qbAt_()]); };
+  setTimeout(function () {
+    sheetCsv(Q_TAB).then(function (rows) {
+      var m = dmapFromRows(rows), mine = m && m[dmKey(S.mas, S.daf)];
+      if (!m || JSON.stringify(qPiecesIn_(mine || {}, n)) !== JSON.stringify(want) ||
+          (from >= 0 && qbsAt_(qPiecesIn_(mine || {}, from)) >= 0)) { bad(); return; }
+      QMAP = m; QOWN = mine || null;
+      if (drop) Q_DROP = QB_ID; else Q_FROM = QB_ID;
+      qbSync_(n, want);
+      qbsMsg_(drop ? UI.qbsDropOk : fillT(UI.qbsOk, { n: n }), 'ok');
+      paintChavArea();
+    }).catch(bad);
+  }, tries ? 2500 : 1400);
 }
 /* הדף -> המאגר. אחרי שמירה שאומתה: כל שאלה בקטע שבאה מהמאגר
    מעדכנת את השורה שלה שם — הנוסח, "שובצה" והקטע — אם משהו שונה.
@@ -6063,8 +6128,7 @@ function qbSyncVerify_(tries, id, want, okMsg) {
     sheetCsv(QB_TAB).then(function (rows) {
       var l = QbFromRows(rows);
       if (l && QbSame(QbFind(l, id), want)) {
-        /* מה ששובץ עובר לסוף, והכרטיס — לבאה בתור. */
-        qbSetList_(l); QB_CUR = ''; toast(okMsg || ''); return;
+        qbSetList_(l); toast(okMsg || ''); qbsPaint_(); return;
       }
       if (tries < 4) { qbSyncVerify_(tries + 1, id, want, okMsg); return; }
       toast(UI.qbMarkBad || '');
@@ -6975,6 +7039,13 @@ function boot() {
     var u = stuHomeUrl(), b0 = $('back');
     if (b0) b0.href = u;
     /* חזרה לעורך המצגות — אותה בקשה שהכפתור "ניהול המצגות" משאיר. */
+    /* מ"שיבוץ בדף" — חזרה לאותו כרטיס בניהול. */
+    if (b0 && FROM === 'qbank' && QB_ID) {
+      b0.textContent = UI.qbsBack || b0.textContent;
+      b0.onclick = function () {
+        try { localStorage.setItem('df:admGo', JSON.stringify({ sub:'qbank', id:QB_ID })); } catch (e) {}
+      };
+    }
     if (b0 && RET && RET[1] === 'dk') b0.onclick = function () {
       try {
         localStorage.setItem('df:admGo', JSON.stringify({ sub:'daf', mas:RET[2], wk:+RET[3] }));
@@ -7043,6 +7114,7 @@ function boot() {
      מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
   loadQuizMap().then(function () {
     Q_READY = true;
+    qbsPaint_();
     if (FLAT.length) paintChavArea();
     quizJump_();
   });

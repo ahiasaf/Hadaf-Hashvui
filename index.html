@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.339';
+var APP_VERSION = '8.99.340';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11767,6 +11767,43 @@ function qbMarksFrom(rows) {
   });
   return out;
 }
+/* מה פורסם, לפי "שאלות בדף": מזהה -> { pub, draft }. null = לא נקרא.
+   כאן — ורק כאן — מפרסמים ומבטלים פרסום (qbPubGo). הדף — שיבוץ בלבד. */
+var QB_PS = null, QB_GO = '', QB_LOOSE = -1;
+function qbPubFrom(rows) {
+  if (!rows || !rows.length || rows[0].join('|').indexOf('מסכת') < 0) return null;
+  var out = {};
+  rows.slice(1).forEach(function (r) {
+    var rec = null;
+    try { rec = JSON.parse(String(r[2] || '')); } catch (e) {}
+    if (!rec || typeof rec !== 'object') return;
+    var was = !!rec.__pub, k, i, x, v;
+    for (k in rec) {
+      if (!rec.hasOwnProperty(k) || k.indexOf('__') === 0 || !rec[k] || rec[k].length === undefined) continue;
+      for (i = 0; i < rec[k].length; i++) {
+        x = rec[k][i];
+        if (!x || typeof x !== 'object') continue;
+        /* הצורה הישנה — כמו qItem_ בדף */
+        if (!x.hasOwnProperty('pub') && !x.hasOwnProperty('draft')) x = was ? { pub: x } : { draft: x };
+        v = x.draft || x.pub;
+        if (v && v.qb) out[v.qb] = { pub: !!x.pub, draft: !!x.draft };
+      }
+    }
+  });
+  return out;
+}
+function qbMkSet(rows) {
+  var mk = qbMarksFrom(rows), ps = qbPubFrom(rows);
+  if (mk) QB_MK = mk;
+  if (ps) QB_PS = ps;
+  return mk;
+}
+/* כמה שאלות בדף עוד בלי מזהה מאגר (ביקורת הנתונים — qbLink_ בסקריפט). */
+function qbLoose(mk) {
+  var n = 0, k;
+  for (k in mk || {}) if (mk.hasOwnProperty(k)) n += mk[k].all.length;
+  return n;
+}
 /* "שובצה" גוברת — גם כשעמודת הסטטוס אומרת אחרת (QbSt). */
 function qbEff(l) {
   return l.map(function (x) {
@@ -11800,17 +11837,22 @@ function qbLoad() {
   if (!QB_ED) qbPaint();
   var sid = CFG.sheetId || SHEET_ID;
   return Promise.all([fetchSheet(sid, QB_TAB), fetchSheet(sid, QZ_TAB)]).then(function (r) {
-    var l = QbFromRows(r[0]), mk = qbMarksFrom(r[1]);
+    var l = QbFromRows(r[0]), mk = qbMkSet(r[1]);
     QB_BUSY = false;
     /* קריאה שנכשלה אינה מאגר ריק — מה שכבר על המסך נשאר. */
     QB_FAIL = l === null;
-    if (mk) QB_MK = mk;
     if (l) QB = qbEff(l);
+    /* אחרי האיחוד: כמה שאלות מהדף עברו למאגר — פעם אחת. */
+    if (mk && QB_LINKED && QB_LOOSE > 0 && qbLoose(mk) < QB_LOOSE) {
+      toast(fill(UI.qbLinkedN, { n: QB_LOOSE - qbLoose(mk) }));
+      QB_LOOSE = 0;
+    }
     var key = (CFG.readKey || '').trim();
     /* איחוד חד-פעמי (qbLink_ בסקריפט): כל שאלה שבדף נקשרת לשאלה הדומה
        לה במאגר, והמאגר מתעדכן ממה שבדף. פעם אחת בכל פתיחה, ואז קוראים שוב. */
     if (l && mk && key && !QB_LINKED) {
       QB_LINKED = true;
+      QB_LOOSE = qbLoose(mk);
       fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({ action:'qbLink', key:key }) })
         .catch(function () {}).then(function () { setTimeout(qbLoad, 3000); });
     }
@@ -11828,11 +11870,14 @@ function admQBank(body) {
 }
 function qbCardHtml(x) {
   var si = QB_ST.indexOf(x.st);
-  return '<div class="adm-card qb-c">' +
+  /* שובצה — מצב הפרסום שלה בדף. לא נמצאה בדף — אין כפתורי פרסום. */
+  var ps = si === 2 && x.id && QB_PS && QB_PS[x.id];
+  return '<div class="adm-card qb-c" id="qb-card-' + esc(x.id) + '">' +
     '<div class="qb-h"><b>' + esc(QbMasName(x.mas) + ' ' + x.daf) + '</b>' +
     (x.yr ? '<span class="qb-yrt">' + esc(UI.qbYrTag) + '</span>' : '') +
     /* "קטע" נכתב "3 · <מזהה>" — על המסך רק המספר. */
     (si === 2 && x.seg ? '<em>' + esc(fill(UI.qbSeg, { n: x.seg.split(' · ')[0] })) + '</em>' : '') +
+    (ps ? '<em>' + esc(ps.pub ? UI.qbLive : UI.qbNotLive) + '</em>' : '') +
     '<span class="' + ('qb-st s' + si) + '">' + esc(qbStLbl(x.st)) + '</span></div>' +
     '<div class="qb-q">' + esc(x.q) + '</div>' +
     '<div class="qb-a">' + x.a.map(function (t, k) {
@@ -11842,11 +11887,18 @@ function qbCardHtml(x) {
     '<div class="qb-act">' +
     '<button class="btn g" data-qbe="' + esc(x.id) + '"' + (x.id ? '' : ' disabled') + '>' + esc(UI.qbEdit) + '</button>' +
     '<button class="btn p" data-qbp="' + esc(x.id) + '"' + (x.id && QbFull(x) ? '' : ' disabled') + '>' +
-    esc(UI.qbPlace) + '</button>' +
+    esc(si === 2 ? UI.qbReplace : UI.qbPlace) + '</button>' +
     (!x.id ? '' : si === 2
       ? '<button class="btn warn" data-qbun="' + esc(x.id) + '">' + esc(UI.qbUnplace) + '</button>'
       : '<button class="btn warn" data-qbdc="' + esc(x.id) + '">' + esc(UI.qbDel) + '</button>') +
-    '</div><div id="qb-cm-' + esc(x.id) + '"></div></div>';
+    '</div>' +
+    /* פרסום — פעולה מפורשת, באישור. "פרסום" כשיש מה לפרסם (טיוטה),
+       "ביטול פרסום" כשיש גרסה חיה. */
+    (ps ? '<div class="qb-act">' +
+      (ps.draft || !ps.pub ? '<button class="btn gr" data-qbpub="' + esc(x.id) + '">' + esc(UI.qbPub) + '</button>' : '') +
+      (ps.pub ? '<button class="btn g" data-qbunpub="' + esc(x.id) + '">' + esc(UI.qbUnpub) + '</button>' : '') +
+      '</div>' : '') +
+    '<div id="qb-cm-' + esc(x.id) + '"></div></div>';
 }
 function qbEdHtml(e) {
   /* שאלה חדשה נכתבת במסכת שנבחרה למעלה — כאן רק הדף. */
@@ -11881,6 +11933,9 @@ function qbEdHtml(e) {
 function qbPaint() {
   var el = document.getElementById('qb');
   if (!el) return;
+  /* חזרה מ"שיבוץ בדף" — אל אותו כרטיס: המסכת, הדף, וגלילה אליו. */
+  var go = QB_GO && QB ? QbFind(QB, QB_GO) : null;
+  if (go) { qbMasSet(go.mas); QB_F.md = qbMd(go); QB_F.st = ''; }
   var all = QB || [], mas = qbMas(), n = {}, pages = [], seen = {}, per = {};
   /* כל מה שלמטה — רק המסכת שנבחרה: הכרטיסים, הדפים והספירות. */
   all.forEach(function (x) { per[x.mas] = (per[x.mas] || 0) + 1; });
@@ -11929,6 +11984,13 @@ function qbPaint() {
   el.onchange = qbChange;
   qzrEnsure();
   qzsEnsure();
+  if (go) {
+    QB_GO = '';
+    setTimeout(function () {
+      var c = document.getElementById('qb-card-' + go.id);
+      if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center' });
+    }, 60);
+  }
 }
 function qbSay(bad, t) {
   var m = (QB_CM && document.getElementById('qb-cm-' + QB_CM)) || document.getElementById('qb-msg');
@@ -11966,6 +12028,8 @@ function qbClick(ev) {
   if (g('data-qbdel')) return qbDel();
   if (g('data-qbdc')) return qbDel(g('data-qbdc'));
   if (g('data-qbun')) return qbUnplace(g('data-qbun'));
+  if (g('data-qbpub')) return qbPubGo(g('data-qbpub'), true);
+  if (g('data-qbunpub')) return qbPubGo(g('data-qbunpub'), false);
   if (g('data-qbp')) return qbPlace(g('data-qbp'));
 }
 function qbInput(ev) {
@@ -12033,8 +12097,8 @@ function qbDafVerify(tries, id, val, s) {
         }
       });
       if (ok) {
-        var mk = qbMarksFrom(rows);
-        if (mk) { QB_MK = mk; if (QB) QB = qbEff(QB); }
+        var mk = qbMkSet(rows);
+        if (mk && QB) QB = qbEff(QB);
         if (!QB_ED) qbPaint();
         toast(UI.qbDafOk);
         return;
@@ -12076,7 +12140,7 @@ function qbUnVerify(tries, id, x) {
         if (String(r[2] || '').indexOf('"qb":"' + id + '"') >= 0) there = true;
       });
       if (mk && !there) {
-        QB_MK = mk;
+        qbMkSet(rows);
         var key = (CFG.readKey || '').trim(), want = { st: QB_ST[1], seg: '' };
         return QbPost(qbApi(), key, 'put', id, [['סטטוס', QB_ST[1]], ['קטע', '']], true).then(function () {
           qbUnBank(0, id, want);
@@ -12103,6 +12167,36 @@ function qbUnBank(tries, id, want) {
     });
   }, tries ? 2500 : 1400);
 }
+/* פרסום / ביטול פרסום — מהכרטיס בלבד, באישור (qbDaf_ עם op בסקריפט).
+   אימות: בקריאה חוזרת של "שאלות בדף" — מפורסמת בלי טיוטה, או לא מפורסמת. */
+function qbPubGo(id, on) {
+  var x = QbFind(QB, id), key = (CFG.readKey || '').trim();
+  QB_CM = id;
+  if (!x || !confirm(on ? UI.qbPubSure : UI.qbUnpubSure)) return;
+  if (!key) return qbSay(1, UI.qbNoKey);
+  qbSay(0, UI.qbSent);
+  fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({
+    action:'qbDaf', op: on ? 'pub' : 'unpub', key:key, mas:x.mas, daf:x.daf, id:id
+  }) }).catch(function () {}).then(function () { qbPubVerify(0, id, on); });
+}
+function qbPubVerify(tries, id, on) {
+  setTimeout(function () {
+    fetchSheet(CFG.sheetId || SHEET_ID, QZ_TAB).then(function (rows) {
+      var ps = qbPubFrom(rows), y = ps && ps[id];
+      if (y && (on ? y.pub && !y.draft : !y.pub)) {
+        qbMkSet(rows);
+        if (!QB_ED) qbPaint();
+        toast(on ? UI.qbPubOk : UI.qbUnpubOk);
+        return;
+      }
+      if (tries < 4) return qbPubVerify(tries + 1, id, on);
+      QB_CM = id; qbSay(1, UI.qbPubBad);
+    }, function () {
+      if (tries < 4) return qbPubVerify(tries + 1, id, on);
+      QB_CM = id; qbSay(1, UI.qbPubBad);
+    });
+  }, tries ? 2500 : 1400);
+}
 /* want = null — מחיקה: מאמתים שהשורה איננה. */
 function qbVerify(tries, id, want, sync) {
   setTimeout(function () {
@@ -12125,9 +12219,12 @@ function qbVerify(tries, id, want, sync) {
 function qbPlace(id) {
   var x = QbFind(QB, id);
   if (!x) return;
-  try { localStorage.setItem('df:admGo', JSON.stringify({ sub:'qbank' })); } catch (e) {}
+  try { localStorage.setItem('df:admGo', JSON.stringify({ sub:'qbank', id:id })); } catch (e) {}
+  /* שאלה ששובצה — הדף נפתח על הקטע שלה ("קטע" = "3 · <מזהה קטע>"). */
+  var seg = String(x.seg || '').split(' · ');
+  seg = (seg[1] || seg[0] || '').trim();
   location.href = 'learn.html?mas=' + encodeURIComponent(x.mas) + '&daf=' + encodeURIComponent(x.daf) +
-                  '&qb=' + encodeURIComponent(id) + '&from=qbank';
+                  '&qb=' + encodeURIComponent(id) + '&from=qbank' + (seg ? '&seg=' + encodeURIComponent(seg) : '');
 }
 function admMoreTitle(leaf) {
   for (var i = 0; i < MORE.length; i++) {
@@ -23527,7 +23624,7 @@ function admTakeGo() {
   try { g = JSON.parse(localStorage.getItem('df:admGo') || 'null');
         localStorage.removeItem('df:admGo'); } catch (e) {}
   /* חזרה מ"שיבוץ בדף" — אל הכרטיסים, שנטענים מחדש עם הסימון "שובצה". */
-  if (g && g.sub === 'qbank') { admTab = 'daf'; admSub.daf = 'qbank'; QB = null; return; }
+  if (g && g.sub === 'qbank') { admTab = 'daf'; admSub.daf = 'qbank'; QB = null; QB_GO = g.id || ''; return; }
   if (!g || g.sub !== 'daf') return;
   admTab = 'daf'; admSub.daf = 'daf';
   if (g.mas && trackById(g.mas) && g.wk > 0) {

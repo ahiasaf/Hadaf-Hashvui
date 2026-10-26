@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 122;
+var SCRIPT_VERSION = 123;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -6919,7 +6919,10 @@ function qbEach_(rec, fn) {
 function qbCur_(x) { return x && (x.draft || x.pub); }
 function qbDaf_(d) {
   var id = String(d.id || '').trim(), val = parse_(d.val), like = parse_(d.like), drop = !!d.drop;
-  if (!id || (!drop && (!val || !val.q))) return { status: 'error', message: 'חסרה שאלה' };
+  /* op: 'pub' — פרסום מהכרטיס שבניהול (מה שבטיוטה נעשה הגרסה החיה);
+     'unpub' — ביטול פרסום (חוזרת לטיוטה). רק לשאלה שכבר בדף, לפי מזהה. */
+  var op = d.op === 'pub' || d.op === 'unpub' ? d.op : '';
+  if (!id || (!drop && !op && (!val || !val.q))) return { status: 'error', message: 'חסרה שאלה' };
   var sh = sheet_('שאלות בדף'), last = sh.getLastRow();
   if (last < 2) return { status: 'success', found: 0 };
   var data = sh.getRange(2, 1, last - 1, 3).getDisplayValues();
@@ -6947,6 +6950,18 @@ function qbDaf_(d) {
       sh.getRange(r + 2, 3).setValue(JSON.stringify(rec));
       return { status: 'success', found: 1 };
     }
+    if (op === 'pub') {
+      if (!hit.draft && hit.pub) return { status: 'success', found: 1 };
+      hit.pub = hit.draft; hit.draft = null;
+      sh.getRange(r + 2, 3).setValue(JSON.stringify(rec));
+      return { status: 'success', found: 1 };
+    }
+    if (op === 'unpub') {
+      if (!hit.pub) return { status: 'success', found: 1 };
+      hit.draft = hit.draft || hit.pub; hit.pub = null;
+      sh.getRange(r + 2, 3).setValue(JSON.stringify(rec));
+      return { status: 'success', found: 1 };
+    }
     val.qb = id;
     /* פורסמה — התלמידים רואים את השינוי מיד. לא פורסמה — טיוטה. */
     if (hit.pub) { hit.pub = val; hit.draft = null; } else hit.draft = val;
@@ -6958,20 +6973,24 @@ function qbDaf_(d) {
 function qbLink_() {
   var bs = sheet_(QB_TAB_), head = headers_(bs), bl = bs.getLastRow();
   var qs = sheet_('שאלות בדף'), ql = qs.getLastRow();
-  if (!head.join('') || bl < 2 || ql < 2) return { status: 'success', linked: 0, synced: 0 };
+  if (ql < 2) return { status: 'success', linked: 0, synced: 0, created: 0 };
+  if (!head.join('')) { headRow_(bs, QB_COLS_); head = QB_COLS_.slice(); bl = 1; }
   var c = {};
   QB_COLS_.forEach(function (n) { c[n] = idx_(bs, head, n); });
-  var bank = bs.getRange(2, 1, bl - 1, head.length).getDisplayValues();
+  head = headers_(bs);
+  var bank = bl > 1 ? bs.getRange(2, 1, bl - 1, head.length).getDisplayValues() : [];
   var B = bank.map(function (b) {
     return { id: String(b[c['מזהה']] || '').trim(), mas: qbMasId_(b[c['מסכת']]), daf: qbDk_(b[c['דף']]),
              q: b[c['שאלה']], a: [b[c['תשובה 1']], b[c['תשובה 2']], b[c['תשובה 3']], b[c['תשובה 4']]] };
   });
   var data = qs.getRange(2, 1, ql - 1, 3).getDisplayValues(), recs = [], used = {}, linked = 0, synced = 0;
+  var created = 0, seq = Date.now();
   data.forEach(function (row, r) {
     var rec = null;
     try { rec = JSON.parse(String(row[2] || '')); } catch (e) {}
     if (!rec || typeof rec !== 'object') return;
-    recs.push({ r: r, mas: String(row[0] || '').trim(), daf: qbDk_(row[1]), rec: qbRecNorm_(rec), raw: String(row[2] || '') });
+    recs.push({ r: r, mas: String(row[0] || '').trim(), daf: qbDk_(row[1]), dafRaw: String(row[1] || '').trim(),
+                rec: qbRecNorm_(rec), raw: String(row[2] || '') });
     qbEach_(rec, function (list) { list.forEach(function (x) { var v = qbCur_(x); if (v && v.qb) used[v.qb] = 1; }); });
   });
   recs.forEach(function (R) {
@@ -6984,7 +7003,31 @@ function qbLink_() {
             if (!B[j].id || used[B[j].id] || B[j].mas !== R.mas || B[j].daf !== R.daf || !qbLike_(v, B[j])) continue;
             if (best < 0 || qbNorm_(B[j].q) === qbNorm_(v.q)) best = j;
           }
-          if (best < 0) return;
+          /* ביקורת הנתונים: שאלה בדף שאין לה שורה במאגר — מקבלת שורה
+             חדשה ("שובצה"), בנוסח שבדף בדיוק. הפרסום אינו זז. בלי זה
+             שאלה כזו לא הייתה ניתנת לעריכה בשום מקום (העריכה — רק בניהול). */
+          if (best < 0) {
+            var nid = (qbMasId_(R.mas) === 'megila' ? 'm' : 't') + '-' + (seq++).toString(36);
+            var nrow = [];
+            for (var h = 0; h < head.length; h++) nrow.push('');
+            put_(nrow, c['מזהה'], nid);
+            put_(nrow, c['מסכת'], qbMasId_(R.mas));
+            put_(nrow, c['דף'], R.dafRaw);
+            put_(nrow, c['שאלה'], v.q);
+            for (var u = 0; u < 4; u++) put_(nrow, c['תשובה ' + (u + 1)], (v.a || [])[u] || '');
+            put_(nrow, c['נכונה'], (+v.correct || 0) + 1);
+            put_(nrow, c['סטטוס'], 'שובצה');
+            put_(nrow, c['קטע'], /^\d+$/.test(k) ? k : '');
+            put_(nrow, c['הפניה לפירוש'], v.yr ? 'כן' : '');
+            for (var y = 0; y < nrow.length; y++) {
+              if (typeof nrow[y] === 'string' && /^[=+\-@]/.test(nrow[y])) nrow[y] = "'" + nrow[y];
+            }
+            bs.getRange(Math.max(bs.getLastRow(), 1) + 1, 1, 1, nrow.length).setValues([nrow]);
+            used[nid] = 1; created++;
+            if (x.pub) x.pub.qb = nid;
+            if (x.draft) x.draft.qb = nid;
+            return;
+          }
           used[B[best].id] = 1; linked++;
           if (x.pub) x.pub.qb = B[best].id;
           if (x.draft) x.draft.qb = B[best].id;
@@ -7012,7 +7055,7 @@ function qbLink_() {
     var out = JSON.stringify(R.rec);
     if (out !== R.raw) qs.getRange(R.r + 2, 3).setValue(out);
   });
-  return { status: 'success', linked: linked, synced: synced };
+  return { status: 'success', linked: linked, synced: synced, created: created };
 }
 function qbank_(d) {
   var sh = sheet_(QB_TAB_);
