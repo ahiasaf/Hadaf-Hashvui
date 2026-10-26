@@ -821,6 +821,8 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mytk .tk-s .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
   margin:0;padding:0;border:0}
 .mytk .tk-err{margin-top:10px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
+/* עוד חסר זמן לכרטיס הלימוד — כמה דקות (tkCardHtml, `lack`). */
+.mytk .tk-lack{margin-top:10px;font-size:.86rem;font-weight:700;color:var(--ink-2)}
 .mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
   font-size:.93rem;font-weight:800;color:var(--blue);text-align:right;cursor:pointer}
 /* ההסבר — מסך מלא מעל הבית, בלי לעזוב אותו: החזרה בראש (נשארת בגלילה)
@@ -3505,12 +3507,20 @@ function tkCardHtml(c) {
       (k > 0 ? '✓' + (k > 1 ? ' ' + k : '') : '+1') + '</i><span>' + esc(lbl) + '</span>' +
       (k > 0 ? '' : '<b class="sr">' + esc(UI.myTkMore) + '</b>') + '</div>';
   };
+  /* **ההגרלה על הדף הזה כבר בוצעה** (8.99.338) — המספר שהיה בה (`drawn`,
+     "תמונת כרטיסים"), ולא החישוב של היום: כללים שהשתנו אחרי ההגרלה אינם
+     משכתבים את מה שהיה בה. בלי הפירוט — הוא של החישוב החי. */
+  var drawn = tk && tk.drawn != null;
+  if (drawn) { n = tk.drawn; sub = dk ? tpl(UI.myTkDrawn, { daf: dk }) : sub; }
+  /* עוד חסר זמן לכרטיס הלימוד, ואף חריג לא חל (rafCalc_ `lack`). */
+  var lk = !drawn && tk && tk.lack ? (tk.lack[myTrack()] || 0) : 0;
   return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
       (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
     '<div class="tk-n' + (tk ? ' tix' : '') + '"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
-      (tk ? '<span>' + esc(n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
-    (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
-        : !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
+      (tk ? '<span>' + esc(drawn ? (n === 1 ? UI.myTkDrawn1 : UI.myTkDrawnN) : n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
+    (tk && !drawn ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>' +
+          (lk ? '<div class="tk-lack">' + esc(tpl(UI.myTkLack, { m: lk })) + '</div>' : '')
+        : !tk && !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
     '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
 }
 /* "איך זוכים בכרטיסים?" — מסך מעל הבית, באותו עמוד: לא יוצאים מאזור

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 121;
+var SCRIPT_VERSION = 122;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1274,6 +1274,12 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.pts === 'me') {
     try { return reply_(e, ptsMe_(e.parameter)); }
     catch (errP) { return reply_(e, { status:'error', message: String(errP) }); }
+  }
+  /* ?tkd=1&id=&wk=[&daf=&n=] — הכרטיסים על הדף של שבוע wk, למסך הסיום
+     ולחידון (tkDaf_). עם daf+n — גם האם שליחת החידון הזו נשמרה. */
+  if (e && e.parameter && e.parameter.tkd) {
+    try { return reply_(e, tkDaf_(e.parameter)); }
+    catch (errK) { return reply_(e, { status:'error', message: String(errK) }); }
   }
   if (e && e.parameter && e.parameter.raffle) return raffleRoute_(e);
   /* פרסים ותקציב — לרכז. ראו przRoute_. */
@@ -7436,12 +7442,55 @@ var RAF_NEVER = ['lapid', 'other', ''];
 var RAF_D_ = null;
 function rafDaf_() {
   if (RAF_D_ !== null) return RAF_D_;
-  var w = progWeek_() - 1, out = '';
+  RAF_D_ = rafDafW_(progWeek_() - 1);
+  return RAF_D_;
+}
+/* הדף של שבוע `w` במסכתות (בלי המטמון) — rafDaf_ הוא w = השבוע שעבר. */
+function rafDafW_(w) {
+  var out = '';
   [TAANIT_WK, MEGILA_WK].forEach(function (m) {
     Object.keys(m).forEach(function (d) { if (!out && m[d] === w) out = d.replace(/[.:]$/, ''); });
   });
-  RAF_D_ = out;
   return out;
+}
+/* ============================================================
+   חריג מוצ"ש (8.99.338, החלטת אחיאסף).
+   ============================================================
+   מי שסיים את שני העמודים של דף ההגרלה במוצאי שבת — מצאת השבת ועד
+   יום ראשון 06:00, שעון ישראל — ועבר את החידון, מקבל את כרטיס הלימוד
+   גם בפחות מעשר דקות. צאת השבת מחושב לתאריך עצמו: השמש 8.5° מתחת
+   לאופק בירושלים (31.7683, 35.2137) — "צאת הכוכבים" של לוחות השבת
+   בארץ. השעה המקומית — לפי אזור הזמן Asia/Jerusalem (כולל שעון קיץ),
+   מ-Utilities.formatDate, ולא היסט קבוע. */
+var RAF_SAT_LAT = 31.7683, RAF_SAT_LON = 35.2137, RAF_SAT_DEP = -8.5, RAF_SAT_END_H = 6;
+function rafIlOff_(ms) {
+  var z = Utilities.formatDate(new Date(ms), 'Asia/Jerusalem', 'Z'), m = /^([+-])(\d\d):?(\d\d)$/.exec(z);
+  return m ? (m[1] === '-' ? -1 : 1) * (+m[2] * 60 + +m[3]) : 120;
+}
+/* הרגע (ms) שבו השמש בגובה RAF_SAT_DEP בערב של התאריך המקומי y-m-d
+   (משוואת הזריחה, Meeus/NOAA בקירוב — סטייה של דקה לכל היותר). */
+function rafTzeit_(y, mo, d) {
+  var rad = Math.PI / 180, noon = Date.UTC(y, mo - 1, d, 12, 0, 0);
+  noon -= rafIlOff_(noon) * 60000;
+  var n = Math.ceil(noon / 86400000 + 2440587.5 - 2451545.0 + 0.0008);
+  var js = n - RAF_SAT_LON / 360;
+  var M = (357.5291 + 0.98560028 * js) % 360;
+  var C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  var lam = (M + C + 180 + 102.9372) % 360;
+  var jt = 2451545.0 + js + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lam * rad);
+  var dec = Math.asin(Math.sin(lam * rad) * Math.sin(23.4397 * rad));
+  var cw = (Math.sin(RAF_SAT_DEP * rad) - Math.sin(RAF_SAT_LAT * rad) * Math.sin(dec)) /
+           (Math.cos(RAF_SAT_LAT * rad) * Math.cos(dec));
+  var w0 = Math.acos(Math.max(-1, Math.min(1, cw))) / rad;
+  return Math.round((jt + w0 / 360 - 2440587.5) * 86400000);
+}
+/* האם הרגע `ms` בתוך חלון מוצ"ש: שבת אחרי צאת השבת, או ראשון לפני 06:00. */
+function rafSatWin_(ms) {
+  if (!(ms > 0)) return false;
+  var L = new Date(ms + rafIlOff_(ms) * 60000), dow = L.getUTCDay();
+  if (dow === 0) return L.getUTCHours() < RAF_SAT_END_H;
+  if (dow !== 6) return false;
+  return ms >= rafTzeit_(L.getUTCFullYear(), L.getUTCMonth() + 1, L.getUTCDate());
 }
 /* דקות לימוד מינימליות לכרטיס הלימוד — על הדף כולו (שני העמודים). */
 var RAF_MIN = 10;
@@ -7503,12 +7552,26 @@ var RAF_DH_ = {};
 function rafDafOf_(key) {
   if (!HASH_TRS_[key]) return rafDaf_();
   if (RAF_DH_[key] != null) return RAF_DH_[key];
-  var w = progWeek_() - 1, out = '';
+  RAF_DH_[key] = rafDafOfW_(key, progWeek_() - 1);
+  return RAF_DH_[key];
+}
+function rafDafOfW_(key, w) {
+  if (!HASH_TRS_[key]) return rafDafW_(w);
+  var out = '';
   Object.keys(HASH_WK).forEach(function (d) {
     if (!out && HASH_WK[d] === w && (d !== 'לב' || key === 'megila-hashlama')) out = d;
   });
-  RAF_DH_[key] = out;
   return out;
+}
+/* rafCalc_ על שבוע אחר (`w` — הדף של שבוע w הוא "דף ההגרלה"). למסך
+   הסיום ולחידון של הדף שנלמד עכשיו — אותם כללים בדיוק, בלי עותק. */
+function rafCalcW_(w) {
+  var keepD = RAF_D_, keepH = RAF_DH_, R;
+  RAF_D_ = rafDafW_(w);
+  RAF_DH_ = {};
+  RAF_KEYS_.forEach(function (k) { if (HASH_TRS_[k]) RAF_DH_[k] = rafDafOfW_(k, w); });
+  try { R = rafCalc_(); } finally { RAF_D_ = keepD; RAF_DH_ = keepH; }
+  return R;
 }
 function rafDafs_() {
   var o = {};
@@ -7723,7 +7786,9 @@ function rafCalc_(hsAdd) {
     if (ppl[id].hs === 1 || (hsAdd && hsAdd[id])) HS[target[id] || id] = 1;
   });
   var lr = sheet_(LEARN_TAB);
-  var rows = (D || DH) && lr.getLastRow() > 1 ? doneRows_(lr.getDataRange().getDisplayValues()) : [];
+  var rows = (D || DH) && lr.getLastRow() > 1 ? doneRows_(rafWithMs_(lr)) : [];
+  /* מוצ"ש: לכל תלמיד·מסלול — באיזה עמוד יש שורת סיום בתוך החלון. */
+  var sat = {};
   if (rows && rows.length > 1) {
     var ix = {};
     for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
@@ -7741,6 +7806,11 @@ function rafCalc_(hsAdd) {
       if (s !== 'b') side[k].a = 1;
       if (s !== 'a') side[k].b = 1;
       rafTmAdd_(tm, k, c(rows[i], 'מכשיר'), c(rows[i], 'זמן בדף (דקות)'), true);
+      if (rafSatWin_(+c(rows[i], RAF_MS_COL) || 0)) {
+        sat[k] = sat[k] || {};
+        if (s !== 'b') sat[k].a = 1;
+        if (s !== 'a') sat[k].b = 1;
+      }
     }
   }
   var Q = D || DH ? quizBest_(alias, target, tm, HS) : { best: {}, seen: {} };
@@ -7756,15 +7826,13 @@ function rafCalc_(hsAdd) {
   };
   /* **כל מסלול לעצמו (8.99.326).** לימוד, חידון והענקה מאבא — לכל תלמיד
      ומסלול בנפרד (`tr`), והסכומים (l, q, f, t) נגזרים מהם בלבד: במסלול
-     אחד עד 3 (ועוד הענקות), בשניהם עד 6. אותו הישג באותו מסלול — פעם אחת. */
+     אחד עד 3, בשניהם עד 6. אותו הישג באותו מסלול — פעם אחת. */
   var done = {}, tk = function (id, tr) {
     var o = done[id] = done[id] || { l: 0, q: 0, f: 0, t: 0, tr: {} };
     return o.tr[tr] = o.tr[tr] || { l: 0, q: 0, f: 0 };
   };
-  Object.keys(side).forEach(function (k) {
-    var pr = k.split('|');
-    if (side[k].a && side[k].b && rafTmOk_(tm[k])) tk(pr[0], pr[1]).l = 1;
-  });
+  /* חידון שעבר (לא נוכחות) — לחריג מוצ"ש. */
+  var qp = {};
   /* נוכחות בדף בשיעור — כרטיס לימוד וגם כרטיס חידון במסלול שלה
      (8.99.330, החלטת אחיאסף; כמו quizOk_ בנקודות: נוכחות היא הדף כולו
      עם החידון). עד אז רק "אישור חידון" נתן את החידון — והעמדה אינה מסמנת אותו. */
@@ -7780,11 +7848,31 @@ function rafCalc_(hsAdd) {
     var qt = ppl[who] ? trOf(who, pr[1], d0, false) : '';
     if (!qt) return;
     var x = quizDaf_(Q, who, pr[1], d0);
-    if (quizPass_(x) || quizHalves_(Q, who, pr[1], d0)) tk(who, qt).q = 1;
+    if (quizPass_(x) || quizHalves_(Q, who, pr[1], d0)) { tk(who, qt).q = 1; qp[who + '|' + qt] = 1; }
   });
+  /* **הענקה מאושרת מאבא — שלושת הכרטיסים** (8.99.338, החלטת אחיאסף).
+     האישור של אבא הוא העדות ללימוד: לימוד, חידון ואבא — גם בלי עשר דקות
+     וגם כשהחידון לא עבר. בקשה של הבן שעוד לא אושרה אינה כאן (rafGrants_).
+     כרטיס אבא אחד למסלול גם כשיש כמה הענקות — התקרה שלושה למסלול. */
   Object.keys(G).forEach(function (id) {
     if (!ppl[id]) return;
-    Object.keys(G[id]).forEach(function (g) { tk(id, g.split('|')[1]).f++; });
+    Object.keys(G[id]).forEach(function (g) {
+      var o = tk(id, g.split('|')[1]);
+      o.l = 1; o.q = 1; o.f = 1;
+    });
+  });
+  /* כרטיס הלימוד: שני העמודים, ועשר דקות כשהזמן ידוע — או חריג מוצ"ש:
+     שני העמודים הושלמו בתוך החלון, והחידון במסלול עבר. מי שעדיין חסר לו
+     זמן (ואף חריג לא חל) — `lack`: כמה דקות, למסך התלמיד. */
+  var lack = {};
+  Object.keys(side).forEach(function (k) {
+    var pr = k.split('|');
+    if (!(side[k].a && side[k].b)) return;
+    var cur = done[pr[0]] && done[pr[0]].tr[pr[1]];
+    if (cur && cur.l) return;
+    var satOk = !!(sat[k] && sat[k].a && sat[k].b && qp[k]);
+    if (rafTmOk_(tm[k]) || satOk) { tk(pr[0], pr[1]).l = 1; return; }
+    lack[k] = Math.max(1, Math.ceil(RAF_MIN - rafTmSum_(tm[k])));
   });
   Object.keys(done).forEach(function (id) {
     var o = done[id];
@@ -7793,7 +7881,22 @@ function rafCalc_(hsAdd) {
     if (!o.t) delete done[id];
   });
   return { ppl: ppl, alias: alias, target: target, side: side, done: done, noId: noId, tm: tm, daf: D,
-           dafs: rafDafs_(), hs: HS };
+           dafs: rafDafs_(), hs: HS, lack: lack };
+}
+/* "לימוד" כפי שמוצג, ועמודה נוספת בסוף (RAF_MS_COL): מועד השורה במילישניות —
+   מהערך עצמו (getValues), כי התצוגה תלויה בפורמט של הגיליון. */
+var RAF_MS_COL = '__ms';
+function rafWithMs_(sh) {
+  var dv = sh.getDataRange().getDisplayValues();
+  if (!dv.length) return dv;
+  var ti = -1;
+  for (var h = 0; h < dv[0].length; h++) if (String(dv[0][h]).trim() === 'תאריך') ti = h;
+  var tv = ti >= 0 ? sh.getRange(1, ti + 1, dv.length, 1).getValues() : [];
+  return dv.map(function (r, i) {
+    if (!i) return r.concat([RAF_MS_COL]);
+    var v = tv[i] ? tv[i][0] : '', ms = v instanceof Date ? v.getTime() : v ? Date.parse(String(v)) : 0;
+    return r.concat([isNaN(ms) ? '' : String(ms || '')]);
+  });
 }
 /* ============================================================
    הענקת כרטיס מאבא (8.99.324) — מהלשונית "זוגות".
@@ -7981,7 +8084,7 @@ function quizHalves_(Q, who, tr, base) {
    נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
 var AMDA_EACH_ = 'oretzion';
 function amdaQzBust_() {
-  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all', 'raf:me3']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all'].concat(rafMeKeys_())); } catch (e) {}
 }
 function amdaQzRaw_() {
   var rc = CacheService.getScriptCache(), hit = rc.get('amda:att2');
@@ -8053,7 +8156,13 @@ function quizOk_(Q, A, who, tr, base) {
    במטמון 5 דקות, בחלקים (כל המוסדות חורגים מגודל ערך אחד); נמחק
    בכל כתיבה שיכולה לשנות נקודות — ptsBust_. */
 function ptsBust_() {
-  try { CacheService.getScriptCache().removeAll(['pts:all', 'raf:me3']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['pts:all'].concat(rafMeKeys_())); } catch (e) {}
+}
+/* כל מפתחות המטמון של הכרטיסים: דף ההגרלה, והדף של השבוע הנוכחי (מסך הסיום). */
+function rafMeKeys_() {
+  var w = 0;
+  try { w = progWeek_(); } catch (e) {}
+  return [rafMeKey_(), rafMeKey_(w), rafMeKey_(w - 1), rafMeKey_(w + 1)];
 }
 function ptsOf_(T, id) {
   if (!T || !id) return null;
@@ -8473,7 +8582,7 @@ function rafRedo_(P) {
                    ['פרס — עד', new Date(Date.now() + RAF_PRZ_MS).toISOString()],
                    ['הוצאו מהזכייה', (out ? out + ' | ' : '') + was + ' · ' + new Date().toISOString() +
                                      ' · ' + String(P.who || 'רכז').slice(0, 40)]]);
-    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all', 'raf:me3']); } catch (xc) {}
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all'].concat(rafMeKeys_())); } catch (xc) {}
     rafPrzBump_();
     return { status: 'ok', name: w.name, n: cand.length };
   } finally { lock.releaseLock(); }
@@ -9183,14 +9292,21 @@ function quizSum_() {
    כרטיס, תלמיד של מוסד שבתוכנית, ומוסד שבבחירה האחרונה של הרכז
    (rafSelGet_), אם הייתה.
    החישוב לכולם נשמר במטמון 5 דקות; מזהה ממוסד אחר — כמו שאינו קיים. */
-/* מזהה → 'קוד|עמודים+|לימוד,חידון,אבא|taanit:ל,ח,א;megila:ל,ח,א'. גם ללוח
-   הצוות ולבית התלמיד. המטמון 'raf:me3' — פורמט 'raf:me2' (בלי המסלולים)
-   אינו נקרא. */
-function rafMeMap_() {
-  var rc = CacheService.getScriptCache(), M = null, hit = rc.get('raf:me3');
+/* מזהה → 'קוד|עמודים+|לימוד,חידון,אבא|taanit:ל,ח,א;megila:ל,ח,א|m:מסלול=דקות|d:N|h1'.
+   גם ללוח הצוות ולבית התלמיד.
+     m: — כמה דקות חסרות לכרטיס הלימוד (rafCalc_ `lack`), כשאין חריג.
+     d: — ההגרלה על הדף הזה כבר בוצעה: כמה כרטיסים היו לו בה ("תמונת
+          כרטיסים" — מה שנשמר בהגרלה, לא החישוב של היום).
+   `w` — שבוע אחר (rafCalcW_; מסך הסיום והחידון של הדף שנלמד עכשיו).
+   המטמון 'raf:me4' (8.99.338) — הפורמט הקודם אינו נקרא. */
+function rafMeKey_(w) { return w == null ? 'raf:me4' : 'raf:me4:' + w; }
+function rafMeMap_(w) {
+  var key = rafMeKey_(w);
+  var rc = CacheService.getScriptCache(), M = null, hit = rc.get(key);
   if (hit) { try { M = JSON.parse(hit); } catch (x) { M = null; } }
   if (M) return M;
-  var C = rafCalc_();
+  var C = w == null ? rafCalc_() : rafCalcW_(w);
+  var snap = rafSnap_(w == null ? progWeek_() - 1 : w);
   M = {};
   Object.keys(C.ppl).forEach(function (id) {
     var p = C.ppl[id], to = C.target[id] || id, q = C.ppl[to] || p, a = false, b = false;
@@ -9211,23 +9327,96 @@ function rafMeMap_() {
             '|' + (tk ? Object.keys(tk.tr).map(function (tr) {
               var x = tk.tr[tr];
               return tr + ':' + [x.l, x.q, x.f].join(',');
-            }).join(';') : '') + (hs >= 0 ? '|h' + hs : '');
+            }).join(';') : '');
+    var lk = RAF_KEYS_.filter(function (tr) { return C.lack[to + '|' + tr]; })
+      .map(function (tr) { return tr + '=' + C.lack[to + '|' + tr]; });
+    if (lk.length) v += '|m:' + lk.join(';');
+    if (snap) v += '|d:' + (snap[to] || 0);
+    if (hs >= 0) v += '|h' + hs;
     p.ids.concat([id]).forEach(function (x) { M[x] = v; });
   });
-  try { var js = JSON.stringify(M); if (js.length < 95000) rc.put('raf:me3', js, 300); } catch (x2) {}
+  try { var js = JSON.stringify(M); if (js.length < 95000) rc.put(key, js, 300); } catch (x2) {}
   return M;
+}
+/* ההגרלה של הדף של שבוע `dw` כבר בוצעה (הגרלת שבוע dw+1 שלא בוטלה) —
+   מזהה → כמה כרטיסים היו לו בה, מ"תמונת כרטיסים" של כל המוסדות. null —
+   עוד לא הוגרל. קריאה בלבד: לא נוגע בהגרלה. */
+function rafSnap_(dw) {
+  var T = rafRead_(), d = rafLast_(T, dw + 1);
+  if (!d) return null;
+  var out = {};
+  d.lines.forEach(function (r) {
+    var W = {};
+    try { W = JSON.parse(T.c(r, 'תמונת כרטיסים') || '{}') || {}; } catch (x) { W = {}; }
+    var L = [];
+    if (!Object.keys(W).length) { try { L = JSON.parse(T.c(r, 'תמונת זכאות') || '[]') || []; } catch (y) { L = []; } }
+    Object.keys(W).forEach(function (id) { out[id] = +W[id] || 1; });
+    L.forEach(function (id) { if (!out[id]) out[id] = 1; });
+  });
+  return out;
 }
 /* הכרטיסים מתוך ערך של rafMeMap_. `tr` — לכל מסלול [לימוד, חידון, אבא];
    הסכומים הם סכום המסלולים, וכך גם המשקל בהגרלה (rafCalc_). */
-function rafTk_(v) {
-  var pr = String(v || '').split('|'), tr = {};
+function rafTk_(v, w) {
+  var pr = String(v || '').split('|'), tr = {}, lack = {}, drawn = null;
   var f = String(pr[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
   String(pr[3] || '').split(';').forEach(function (s) {
     var m = s.match(/^((?:taanit|megila)(?:-hashlama)?):(\d+),(\d+),(\d+)$/);
     if (m) tr[m[1]] = [+m[2], +m[3], +m[4]];
   });
-  return { l: f[0] || 0, q: f[1] || 0, f: f[2] || 0, t: (f[0] || 0) + (f[1] || 0) + (f[2] || 0),
-           tr: tr, daf: rafDaf_() };
+  pr.slice(4).forEach(function (s) {
+    if (s.indexOf('m:') === 0) s.slice(2).split(';').forEach(function (x) {
+      var m = x.match(/^([\w-]+)=(\d+)$/);
+      if (m) lack[m[1]] = +m[2];
+    });
+    if (s.indexOf('d:') === 0) drawn = +s.slice(2) || 0;
+  });
+  var o = { l: f[0] || 0, q: f[1] || 0, f: f[2] || 0, t: (f[0] || 0) + (f[1] || 0) + (f[2] || 0),
+            tr: tr, daf: w == null ? rafDaf_() : rafDafW_(w), lack: lack };
+  /* ההגרלה על הדף הזה כבר בוצעה — המספר שהיה בה (`drawn`), והחישוב של
+     היום לא מוצג כאילו הוא הספירה שהייתה בהגרלה. */
+  if (drawn != null) o.drawn = drawn;
+  /* בלי ציון שנמצא — `tr` ריק; שרת ישן — בלי `lack`. */
+  return o;
+}
+/* ============================================================
+   הכרטיסים על דף שנלמד עכשיו (8.99.338) — מסך הסיום והחידון.
+   ============================================================
+   אותו חישוב בדיוק (rafCalc_ דרך rafMeMap_): דף ההגרלה (השבוע שעבר) —
+   המטמון של הבית; הדף של השבוע הנוכחי — rafCalcW_, הכרטיסים שלו
+   להגרלה של השבוע הבא. דף ישן יותר — `old`: הוא אינו בשום הגרלה שלפנינו.
+   `daf`+`n`(+`sc`) — שליחת החידון מספר n של הדף הזה נמצאת ב"חידות" (שורה
+   עם אחד המזהים, "החידון כולו", הדף, ניסיון n והציון שנשלח); `score` — הציון.
+   בלי שורה — `saved: false`, והמסך אינו אומר "נשמר". */
+function tkDaf_(P) {
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!mine.length) return { status: 'error', message: 'חסר מזהה' };
+  var out = { status: 'ok' }, daf = String(P.daf || '').trim(), n = parseInt(P.n, 10) || 0;
+  if (daf && n > 0) {
+    out.saved = false;
+    var sh = sheet_('חידות');
+    if (sh.getLastRow() > 1) {
+      var v = sh.getDataRange().getDisplayValues(), ix = {};
+      for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+      var c = function (r, k) { return ix[k] === undefined ? '' : String(v[r][ix[k]] || '').trim(); };
+      for (var r = v.length - 1; r >= 1; r--) {
+        if (c(r, 'קטע') !== 'החידון כולו' || c(r, 'דף') !== daf || mine.indexOf(c(r, 'מזהה')) < 0) continue;
+        if (ix['ניסיון'] !== undefined && (parseInt(c(r, 'ניסיון'), 10) || 0) !== n) continue;
+        if (P.sc && c(r, 'ציון') !== String(P.sc)) continue;
+        out.saved = true;
+        out.score = c(r, 'ציון');
+        break;
+      }
+    }
+  }
+  var w = parseInt(P.wk, 10), pw = progWeek_();
+  if (!(w === pw || w === pw - 1)) { out.old = 1; return out; }
+  var W = w === pw - 1 ? null : w, M = rafMeMap_(W), hit = '';
+  for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
+  out.tk = rafTk_(hit, W);
+  out.wk = w;
+  return out;
 }
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: rafDaf_(), a: false, b: false, inn: false };
@@ -10836,7 +11025,7 @@ function chDemoEnd_() {
     });
     chTab_(CH_SET_, ['שדה', 'ערך']).rows.forEach(function (o) { if (o['שדה'].indexOf(CH_TP_) === 0) left++; });
   } finally { lock.releaseLock(); chBust_(null); }
-  try { CacheService.getScriptCache().removeAll(['raf:me3', 'pts:all', 'amda:att2', 'inbox:rows']); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['pts:all', 'amda:att2', 'inbox:rows'].concat(rafMeKeys_())); } catch (e) {}
   try { recount_(); } catch (e2) {}
   try { recountLearn_(true); } catch (e3) {}
   return { status: left ? 'error' : 'ok', del: out, left: left,
@@ -11047,7 +11236,7 @@ function testEnd_(S) {
   }
   testSave_(null);
   try {
-    CacheService.getScriptCache().removeAll(['raf:me3', 'pts:all', 'amda:att2', 'inbox:rows', 'raf:pub']);
+    CacheService.getScriptCache().removeAll(['pts:all', 'amda:att2', 'inbox:rows', 'raf:pub'].concat(rafMeKeys_()));
   } catch (e) {}
   try { recount_(); } catch (e2) {}
   try { recountLearn_(true); } catch (e3) {}
@@ -11160,7 +11349,7 @@ function testPub_(S, P) {
   R.st = n('sent') === 2 ? 'פורסם' : n('unk') || n('pend') ? 'לא ידוע' : n('sent') ? 'חלקי' : 'נכשל';
   if (R.st === 'פורסם') R.pubAt = new Date().toISOString();
   testSave_(S);
-  try { CacheService.getScriptCache().remove('raf:me3'); } catch (xc) {}
+  try { CacheService.getScriptCache().removeAll(rafMeKeys_()); } catch (xc) {}
   return { status: 'ok', done: R.st === 'פורסם', w: R.w, g: R.g, raf: R };
 }
 

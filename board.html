@@ -1430,13 +1430,17 @@ function pRow(p, noGrade) {
    השרת (rafMeMap_) מצרף `tk`: { l, q, f, t } — לימוד, חידון, אבא, כל אחד
    סכום המסלולים (8.99.326: עד 2 ללימוד ולחידון), ו-t — המשקל בהגרלה. בלי
    `tk` — אין כפתור (וכישלון בשרת אינו 0). הנקודות — לאור עציון בלבד. */
+/* ההגרלה על הדף כבר בוצעה (`drawn`, 8.99.338) — המספר שהיה בה, ולא החישוב
+   של היום אחרי שהכללים השתנו. */
 function tkBtn(p) {
   if (!p.tk || SELMODE) return '';
-  return '<button class="pts' + (p.tk.t ? '' : ' unk') + '" data-pts="tk:' + esc(p.id) + '">' +
-    esc(tp(UI.tkN, { n: p.tk.t })) + '</button>';
+  var n = p.tk.drawn != null ? p.tk.drawn : p.tk.t;
+  return '<button class="pts' + (n ? '' : ' unk') + '" data-pts="tk:' + esc(p.id) + '">' +
+    esc(tp(UI.tkN, { n: n })) + '</button>';
 }
 function tkBox(p) {
   if (!p.tk || PTS_OPEN !== 'tk:' + p.id) return '';
+  if (p.tk.drawn != null) return '<div class="pts-box">' + esc(UI.tkDrawn) + '</div>';
   var k = p.tk, x = function (n) { return n > 1 ? ' ×' + n : ''; };
   var L = [k.l ? UI.tkL + x(k.l) : '', k.q ? UI.tkQ + x(k.q) : '', k.f ? tp(UI.tkF, { n: k.f }) : ''].filter(Boolean);
   return '<div class="pts-box">' + (L.length ? L.map(esc).join('<br>') : esc(UI.tkNone)) +

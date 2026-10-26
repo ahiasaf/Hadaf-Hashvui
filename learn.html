@@ -941,6 +941,11 @@ nav .sp{flex:1}
 .dn-tm{margin:4px auto 10px;line-height:1.1;color:var(--blue-d)}
 .dn-tm b{display:block;font-size:2.9rem;font-weight:800;letter-spacing:-.02em;color:var(--gold-d,#8A6416)}
 .dn-tm span{display:block;font-size:.95rem;font-weight:800}
+/* הכרטיס על הדף שנלמד — נרשם, או כמה דקות חסרות (dnTkPaint_). */
+.dn-tkl{margin:0 auto 10px;font-size:.95rem;font-weight:800;color:var(--blue-d)}
+.dn-tkl.lack{color:var(--gold-d,#8A6416)}
+/* שמירת החידון — מצב, ציון, וכמה כרטיסים יש עכשיו (doneQPaint_). */
+.dq-sv{display:block;margin-top:8px;font-size:.92rem;font-weight:700;line-height:1.5}
 /* החידון עוד לא עלה — במקום הכפתור הראשי, באותו מקום */
 .dn-soon{margin-top:9px;padding:14px 14px 12px;border-radius:12px;
   border:1.5px dashed var(--gold);background:#FFFBF2}
@@ -1366,6 +1371,8 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <!-- כמה דקות למד — מספר גדול ובולט (dnTimePaint_). אותו מראה גם
        מתחת לעשר דקות: אין הודעת פסילה, התלמיד רואה בעצמו. -->
   <div id="done-tm" class="dn-tm" style="display:none"></div>
+  <!-- כרטיס הלימוד על הדף הזה — מהשרת (dnTkPaint_): נרשם, או כמה דקות חסרות. -->
+  <p id="done-tk" class="dn-tkl" style="display:none"></p>
   <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
   <div id="done-pair" style="display:none"></div>
   <a class="btn p" id="to-quiz" href="join.html"></a>
@@ -5172,6 +5179,7 @@ function finish() {
     : String(JOIN.weekDoneOf || JOIN.weekDone).replace('{par}', String(par).trim());
   $('done-sub').textContent = sub;
   dnTimePaint_();
+  dnTkPaint_(0);
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
   a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz || '';
@@ -5256,13 +5264,39 @@ function doneQPaint_() {
        מחדש (הזדמנות שנייה, לא יותר: גם השרת סופר רק שתיים, quizBest_).
        לא עבר גם בשנייה — "לא נורא", ותזכורת שאפשר ללמוד עם אבא. לא
        אומרים איזו שאלה. בלי ציון שמור (מכשיר ישן) — רק תודה. */
+    /* **השמירה קודם לתוצאה** (8.99.338). השליחה `no-cors` ואטומה, ולכן
+       התוצאה מוצגת רק אחרי שהשרת אישר שהשורה ב"חידות" (qVerify_):
+       "התשובות נשמרו", הציון, כמה צריך כדי לעבור, וכמה כרטיסים יש עכשיו —
+       מהשרת. לא אושר — אין "נשמר", ויש "לשלוח שוב". כישלון בחידון אינו
+       כישלון בשליחה. מכשיר ששלח לפני העדכון (`qsv` חסר) — כמו קודם. */
+    var sv = qSv_();
+    if (sv === '0') {
+      box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b><div class="dq-res">' +
+        (QV_BUSY ? '<b>' + esc(UI.dqSaving || '') + '</b>'
+                 : '<b>' + esc(UI.dqSaveErrH || '') + '</b>' + esc(UI.dqSaveErrB || '')) + '</div>' +
+        (QV_BUSY ? '' : '<button class="btn p" id="dq-resend">' + esc(UI.dqResend || '') + '</button>');
+      if ($('dq-resend')) $('dq-resend').onclick = qResend_;
+      return;
+    }
     var ok = qPassed_(), again = ok === false && qTries_() < QZ_TRIES;
     var hd = ok ? UI.dqPassH : ok === false ? (again ? UI.dqFail1H : UI.dqFail2H) : UI.dqThanks;
     var bd = ok ? UI.dqPassB : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
+    var info = '';
+    if (sv === '1') {
+      var sc = qScore_();
+      if (sc) info += fillT(UI.dqSaved, { r: sc[0], n: sc[1], k: qNeed_(sc[1]) });
+      var tk = QV_TK && QV_TK.tk, tl = '';
+      if (tk && tk.drawn != null) tl = UI.dqTkDrawn;
+      else if (tk) tl = fillT(tk.t === 1 ? UI.dqTk1 : UI.dqTkN, { n: tk.t, daf: tk.daf || '' });
+      if (tl) info += (info ? '\n' : '') + tl;
+    }
     box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b>' +
-      '<div class="dq-res"><b>' + esc(hd || '') + '</b>' + esc(bd || '') + '</div>' +
+      '<div class="dq-res"><b>' + esc(hd || '') + '</b>' + esc(bd || '') +
+      (info ? '<span class="dq-sv">' + esc(info).replace(/\n/g, '<br>') + '</span>' : '') + '</div>' +
       (again ? '<button class="btn p" id="dq-again">' + esc(UI.dqAgain || '') + '</button>' : '');
     if (again) $('dq-again').onclick = qAgain_;
+    /* נשמר בביקור קודם — הכרטיסים מהשרת, פעם אחת בטעינה. */
+    if (sv === '1' && !QV_TK && !QV_BUSY && !QV_ONCE) { QV_ONCE = true; qzVerify_(0); }
     return;
   }
   var dots = '';
@@ -5292,11 +5326,11 @@ function qsSend_(all) {
   var t = qTally_(all), miss = t.n - t.a;
   var ask = miss ? String(UI.dqSureMiss || '').replace('{m}', miss) : UI.dqSure;
   if (!confirm(ask || '')) return;
-  var tries = qTries_() + 1;
+  var tries = qTries_() + 1, body = '';
   if (API && !quiet()) {
     var me = (typeof LMe === 'function') ? LMe() : null;
     tmTick_();
-    fetch(API, { method:'POST', mode:'no-cors', body: JSON.stringify({
+    body = JSON.stringify({
       action:'quiz', cols: JSON.stringify([
         ['דף', dmKey(S.mas, S.daf)], ['קטע', 'החידון כולו'],
         /* השבוע במסלול שלו — במסלול השלמה 'taanit-hashlama-4' (quizSum_
@@ -5314,17 +5348,92 @@ function qsSend_(all) {
         ['מכשיר', typeof LDev === 'function' ? LDev() : ''], ['ניסיון', tries],
         ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
-    }) }).catch(function () {});
+    });
   }
   try {
     localStorage.setItem(qSentKey_(), '1');
     localStorage.setItem(qResKey_(), t.r + '/' + t.n);
     localStorage.setItem(qTryKey_(), String(tries));
+    /* '0' — נשלח ועוד לא אושר; '1' — השרת אישר. התוכן נשמר לשליחה חוזרת. */
+    if (body) { localStorage.setItem(qSvKey_(), '0'); localStorage.setItem(qPayKey_(), body); }
   } catch (e) {}
+  QV_TK = null;
+  if (body) qzPost_(body);
   doneQPaint_();
   paintChavArea();
   bar();
-  toast(UI.dqOk || '');
+}
+/* ---- אימות השמירה (8.99.338) ---- */
+function qSvKey_() { return 'df:qsv:' + dmKey(S.mas, S.daf); }
+function qPayKey_() { return 'df:qpay:' + dmKey(S.mas, S.daf); }
+function qSv_() { try { return localStorage.getItem(qSvKey_()); } catch (e) { return null; } }
+function qScore_() {
+  var m = null;
+  try { m = String(localStorage.getItem(qResKey_()) || '').match(/^(\d+)\/(\d+)$/); } catch (e) {}
+  return m ? [+m[1], +m[2]] : null;
+}
+/* כמה נכונות צריך כדי לעבור — אותו כלל של qPass_. */
+function qNeed_(n) { for (var r = 0; r <= n; r++) if (qPass_(r, n)) return r; return n; }
+var QV_BUSY = false, QV_TK = null, QV_ONCE = false;
+function qzPost_(body) {
+  QV_BUSY = true;
+  fetch(API, { method:'POST', mode:'no-cors', body: body })['catch'](function () {})
+    .then(function () { setTimeout(function () { qzVerify_(1); }, 2000); });
+}
+/* שואלים את השרת אם השליחה הזו (הדף + מספר הניסיון) ב"חידות", ומקבלים
+   באותה תשובה את הכרטיסים על הדף (?tkd, tkDaf_). עד שלוש פעמים. */
+function qzVerify_(k) {
+  var me = (typeof LMe === 'function') ? LMe() : null;
+  if (!API || !me || !me.id || typeof LJsonp !== 'function') { QV_BUSY = false; doneQPaint_(); return; }
+  QV_BUSY = true;
+  LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
+         '&wk=' + (S.week + 1) + '&daf=' + encodeURIComponent(dmKey(S.mas, S.daf)) + '&n=' + qTries_() +
+         (qScore_() ? '&sc=' + encodeURIComponent(qScore_().join('/')) : ''))
+    .then(function (r) {
+      if (r && r.status === 'ok' && r.saved) {
+        QV_BUSY = false; QV_TK = r;
+        try { localStorage.setItem(qSvKey_(), '1'); localStorage.removeItem(qPayKey_()); } catch (e) {}
+        doneQPaint_();
+        if (k) toast(UI.dqOk || '');
+        return;
+      }
+      if (k && k < 3) { setTimeout(function () { qzVerify_(k + 1); }, 2500 * k); return; }
+      QV_BUSY = false;
+      doneQPaint_();
+    }, function () {
+      if (k && k < 3) { setTimeout(function () { qzVerify_(k + 1); }, 2500 * k); return; }
+      QV_BUSY = false;
+      doneQPaint_();
+    });
+}
+function qResend_() {
+  var b = '';
+  try { b = localStorage.getItem(qPayKey_()) || ''; } catch (e) {}
+  if (!b || !API) return;
+  qzPost_(b);
+  doneQPaint_();
+}
+/* ---- כרטיס הלימוד במסך הסיום (8.99.338) ----
+   מהשרת (?tkd): הכרטיס נרשם — שורה; עוד חסר זמן ואף חריג לא חל — כמה
+   דקות. השורה של הלימוד עוד לא הגיעה לשרת — שואלים שוב, ובינתיים כלום:
+   לא "חסרות דקות" למי שאולי זכאי. דף שאינו בשום הגרלה שלפנינו — כלום. */
+function dnTkPaint_(k) {
+  var box = $('done-tk'), me = (typeof LMe === 'function') ? LMe() : null;
+  if (!box) return;
+  if (!k) box.style.display = 'none';
+  if (!API || quiet() || !me || !me.id || typeof LJsonp !== 'function' || k > 3) return;
+  setTimeout(function () {
+    if ($('done').className.indexOf('on') < 0) return;
+    LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) + '&wk=' + (S.week + 1))
+      .then(function (r) {
+        var tk = r && r.status === 'ok' && r.tk, x = tk && tk.tr && tk.tr[S.tr], lk = tk && tk.lack && tk.lack[S.tr];
+        if (!tk || tk.drawn != null) return;
+        if (x && x[0]) { box.textContent = UI.dnTkL || ''; box.className = 'dn-tkl'; }
+        else if (lk) { box.textContent = fillT(UI.dnTkLack || '', { m: lk }); box.className = 'dn-tkl lack'; }
+        else { dnTkPaint_(k + 1); return; }
+        box.style.display = box.textContent ? '' : 'none';
+      }, function () { dnTkPaint_(k + 1); });
+  }, k ? 4000 * k : 2500);
 }
 /* הזדמנות שנייה: התשובות שבמכשיר נמחקות (גם הנעילה הישנה, df:qok),
    והחידון מתחיל מחדש בקטע הראשון שיש בו שאלה. */
