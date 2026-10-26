@@ -2981,7 +2981,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.342';
+var APP_VERSION = '8.99.343';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3424,7 +3424,11 @@ function renderHome() {
                                 p:shek(priceOf(disc[0].id).price),
                                 list:shek(priceOf(disc[0].id).list) });
   else offer = esc(UI.offerNone);
-  document.getElementById('cta').innerHTML =
+  /* מי שכבר הצטרף ויש לו אזור אישי — בלי כפתור הצטרפות למטה.
+     הדרך שלו פנימה כבר יושבת למעלה (cta-top). */
+  var ctaEl = document.getElementById('cta');
+  ctaEl.style.display = myInstRow() ? 'none' : '';
+  ctaEl.innerHTML = myInstRow() ? '' :
     '<button class="btn gd" onclick="show(\'reg\')">' + esc(UI.ctaBtn) + '</button>' + stuHint() +
     '<p style="font-size:.8rem;color:var(--ink-3);font-weight:700;text-align:center;' +
     'margin-top:9px;line-height:1.5">' +
