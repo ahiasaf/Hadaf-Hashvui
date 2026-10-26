@@ -341,6 +341,13 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-audio button.back{border:0;background:none;color:var(--ink-2);font-weight:800;cursor:pointer;
   padding:2px 4px}
 .own-adds{display:flex;gap:6px;margin-bottom:10px}
+/* מיקום איור הקטע בפירוש (בטלפון) — לפני הביאור או אחריו */
+.own-imgpos{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:.76rem;
+  font-weight:800;color:var(--blue)}
+.own-imgpos span{margin-inline-end:auto}
+.own-imgpos button{border:1px solid rgba(192,143,43,.45);background:#fff;border-radius:9px;
+  padding:4px 10px;font-weight:800;font-size:.74rem;color:var(--blue);cursor:pointer}
+.own-imgpos button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
 .own-adds .own-add{flex:1;min-width:0;margin-bottom:0;white-space:nowrap}
 .own-add.rich{border-color:var(--gold,#C08F2B);color:#8A6412;background:#FFFBF2}
 .own-slide-pv{display:flex;align-items:flex-start;gap:8px;margin-top:8px}
@@ -2527,7 +2534,9 @@ function ownEditLoad_(n) {
       JSON.stringify(dr.pieces) !== JSON.stringify(src)) { src = dr.pieces; restored = true; }
   OWN_EDIT_BASE = JSON.stringify(ownCleanPieces_(ownPieces_(n)));
   OWN_EDIT = (src.length ? src : [{ tag:'פירוש', text:'', slide:'', audio:'' }]).map(function (p) {
-    return { tag:p.tag || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '', _id:ownPid_() };
+    var o = { tag:p.tag || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '', _id:ownPid_() };
+    if (p.img === 'b') o.img = 'b';
+    return o;
   });
   OWN_EDIT_N = n;
   OWN_RESTORED = restored;
@@ -2560,7 +2569,11 @@ function ownPieceAdd(kind) {
 }
 function ownPieceDel(i) {
   ownEditSync_();
-  if (OWN_EDIT.length <= 1) OWN_EDIT[0] = { tag:'פירוש', text:'', slide:'', audio:'', _id:ownPid_() };
+  if (OWN_EDIT.length <= 1) {
+    var keep = ownImgFirst_(OWN_EDIT);
+    OWN_EDIT[0] = { tag:'פירוש', text:'', slide:'', audio:'', _id:ownPid_() };
+    if (keep) OWN_EDIT[0].img = 'b';
+  }
   else OWN_EDIT.splice(i, 1);
   paintOwn();
 }
@@ -2897,10 +2910,22 @@ function paintOwnRead_(n) {
   /* הפירוש עצמו — בלי כותרת. כל חלק אחר ("העשרה", "הקדמה"…) — במסגרת
      משלו עם התיוג ככותרת, כהמשך מתחת לפירוש. חלקים באותו תיוג ברצף
      (אחרי איחוד) — כהמשך אחד, באותה מסגרת. */
-  var html = lead, open = null;
+  /* איור הקטע: ברירת המחדל — אחרי הביאור (רצף החלקים הראשון בלי
+     מסגרת) ולפני ההעשרה. "לפני הביאור" בעורך — בראש, כמו פעם. קטע
+     שאין בו ביאור בכלל — בראש. */
+  var first = ownImgFirst_(pieces) || !pieces.some(function (p) {
+    var t = String(p.tag || '').trim(); return !t || t === 'פירוש';
+  });
+  var html = first ? lead : '', open = null, seen = false, placed = first;
   pieces.forEach(function (p) {
     var tag = String(p.tag || '').trim(), main = !tag || tag === 'פירוש';
     var key = main ? '' : tag;
+    if (!placed && seen && !main) {
+      if (open) html += '</div>';
+      open = null;
+      html += lead; placed = true;
+    }
+    if (main) seen = true;
     if (open !== null && open !== key) { if (open) html += '</div>'; open = null; }
     if (open === null) {
       if (key) html += '<div class="own-box"><div class="own-plbl">' + esc(tag) + '</div>';
@@ -2910,8 +2935,14 @@ function paintOwnRead_(n) {
     if ((p.text || '').trim()) html += '<div class="own-read">' + ownSan(p.text) + '</div>';
   });
   if (open) html += '</div>';
+  if (!placed) html += lead;
   box.innerHTML = html;
   box.scrollTop = 0;
+}
+/* לקטע יש איור מהמצגת (אותו שיוך שהתלמיד רואה בטלפון)? */
+function ownHasLead_() {
+  if (!DECK || !deckN()) return false;
+  try { return !!slideSrc(slideAt(IDX)); } catch (e) { return false; }
 }
 function paintOwnEdit_(n) {
   /* המגירה עברה בינתיים לחידה או לחברותא — לא מציירים עליה. ציור מאוחר
@@ -2920,6 +2951,12 @@ function paintOwnEdit_(n) {
   if (QUIZ_OPEN || CHAV_TAB !== 'own') return;
   var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
   var html = '<div class="own-bar" id="own-bar"></div>';
+  if (ownHasLead_()) {
+    var imgFirst = ownImgFirst_(OWN_EDIT);
+    html += '<div class="own-imgpos"><span>' + esc(UI.ownImgPos || '') + '</span>' +
+      '<button' + (imgFirst ? ' class="on"' : '') + ' onclick="ownImgSet_(true)">' + esc(UI.ownImgBefore || '') + '</button>' +
+      '<button' + (imgFirst ? '' : ' class="on"') + ' onclick="ownImgSet_(false)">' + esc(UI.ownImgAfter || '') + '</button></div>';
+  }
 
   html += OWN_EDIT.map(function (p, i) {
     var key = n + '::' + p._id, loaded = VOX_CACHE.hasOwnProperty(key), clip = VOX_CACHE[key];
@@ -3412,7 +3449,21 @@ function ownCleanPieces_(list) {
     if (!(p.text || '').trim() && !p.audio && !p.slide) return;
     out.push({ tag:(p.tag || 'פירוש').trim() || 'פירוש', text:p.text || '', slide:p.slide || '', audio:p.audio || '' });
   });
+  /* מיקום האיור של הקטע — הגדרה של הקטע, לא של חלק. נשמרת על החלק
+     הראשון (`img:'b'` = לפני הביאור), ורק כשהיא חריגה מברירת המחדל. */
+  if (out.length && ownImgFirst_(list)) out[0].img = 'b';
   return out;
+}
+/* איור הקטע לפני הביאור? ברירת המחדל — אחריו (ולפני ההעשרה). */
+function ownImgFirst_(list) {
+  return (list || []).some(function (p) { return p && p.img === 'b'; });
+}
+function ownImgSet_(first) {
+  ownEditSync_();
+  OWN_EDIT.forEach(function (p) { delete p.img; });
+  if (first) OWN_EDIT[0].img = 'b';
+  ownDraftPut_();
+  paintOwn();
 }
 /* סיסמת הסקריפט לפעולות מוגנות (ghput) — אותו אחסון בדיוק כמו
    ב"ניהול ← מערכת" שבמסך אחר; לא נערכת כאן, רק נקראת. */
