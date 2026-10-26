@@ -1174,6 +1174,19 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   letter-spacing:-.035em;color:var(--blue-d)}
 .my-top span{display:block;font-size:.85rem;font-weight:700;
   color:var(--gold-t);margin-top:3px}
+/* נוכחות בשיעור — עיגול כחול בפינה השמאלית, עם טבעת לבנה וזהב. */
+.my-top.orb{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.my-top.orb > div{min-width:0}
+.att-orb{flex:none;width:104px;height:104px;border-radius:50%;border:0;padding:0;
+  cursor:pointer;color:#fff;font-family:inherit;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;
+  background:radial-gradient(circle at 32% 26%,var(--blue-l),var(--blue) 72%);
+  box-shadow:0 0 0 4px #fff,0 0 0 6px var(--gold-t),0 10px 22px rgba(20,50,110,.28);
+  transition:transform .15s ease,box-shadow .15s ease;-webkit-tap-highlight-color:transparent}
+.att-orb:active{transform:scale(.94)}
+.att-orb i{font-style:normal;font-size:2.1rem;font-weight:800;line-height:1}
+.att-orb small{font-size:.74rem;font-weight:800;line-height:1.15;
+  text-align:center;max-width:78px}
 .my-sec{margin-top:26px}
 .my-sec:first-of-type{margin-top:0}
 .my-sec.bare > div{margin-top:0}
@@ -2981,7 +2994,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.343';
+var APP_VERSION = '8.99.344';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5048,8 +5061,15 @@ function attHtml() {
       '<button class="btn p" onclick="attOpen(\'stu\', true)">' + esc(PANEL.attGo) + '</button>' +
       '<button class="btn g" onclick="attSet(\'pick\')">' + esc(PANEL.attBackPick) + '</button></div></div>';
   }
-  return '<div class="my-sec"><button class="btn p" style="width:100%;font-size:1.08rem" onclick="attSet(\'pick\')">' +
-    esc(PANEL.attBtn) + '</button><p>' + esc(attMsg || PANEL.attSub) + '</p></div>';
+  /* במצב הרגיל הכפתור הוא העיגול שבכותרת (attOrb) — כאן רק הודעה, אם יש. */
+  return attMsg ? '<div class="my-sec"><p>' + esc(attMsg) + '</p></div>' : '';
+}
+/* נוכחות בשיעור — עיגול בפינה השמאלית של הכותרת (8.99.344), במקום כפתור
+   ברוחב המסך. ה-✓ גדול, והשם מתחת לו בלי ה-✓ שבנוסח. */
+function attOrb() {
+  var t = String(PANEL.attBtn || '').replace(/^\s*✓\s*/, '');
+  return '<button class="att-orb" onclick="attSet(\'pick\')" title="' + esc(PANEL.attSub) + '" aria-label="' + esc(t) + '">' +
+    '<i aria-hidden="true">✓</i><small>' + esc(t) + '</small></button>';
 }
 /* mode: 'self' — המורה מסמן; 'stu' — התלמידים. `seen` — אחרי ההסבר. */
 function attOpen(mode, seen) {
@@ -5147,8 +5167,11 @@ function renderMy() {
   }
 
   el.innerHTML =
-    '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
-    '<span>' + esc(inst.name) + '</span></div>' +
+    (instCode(code) && !attView
+      ? '<div class="my-top orb"><div><b>' + esc(PANEL.title) + '</b>' +
+        '<span>' + esc(inst.name) + '</span></div>' + attOrb() + '</div>'
+      : '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
+        '<span>' + esc(inst.name) + '</span></div>') +
 
     /* נוכחות בשיעור — ראשונה: זה מה שעושים בכל שיעור. רק אחרי האישור. */
     (instCode(code) ? attHtml() : '') +
