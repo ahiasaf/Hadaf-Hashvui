@@ -853,6 +853,9 @@ html.tkh-on,html.tkh-on body{overflow:hidden}
 .tkh-at b{color:#1B2A45;font-size:1.1rem}
 .tkh-at p{color:#1B2A45;font-weight:700}
 .tkh-at i{background:#0B2550;color:#E5B854;font-size:1.25rem;padding:8px 13px}
+.tkh-inv{margin:6px 0 14px;padding:14px 15px;border-radius:var(--r);background:#F3F7EE;border:1px solid #D6E6C6}
+.tkh-in .tkh-inv p{margin:0 0 10px;font-size:1rem;font-weight:800;line-height:1.5;color:var(--ink)}
+.tkh-inv .btn{margin-top:0}
 .tkh-note{margin:16px 2px 20px;font-size:.86rem;line-height:1.7;color:var(--ink-2);white-space:pre-line}
 .tkh-back{display:block;width:100%;min-height:50px;border:0;border-radius:var(--r-s);background:var(--blue);
   color:#fff;font:inherit;font-size:1rem;font-weight:800;cursor:pointer}
@@ -2987,6 +2990,7 @@ function greetName(me) {
      לזר, והוא לא. חבר ובן, לעומת זאת, נקראים בשמם. */
   if (me.rel === 'friend') return me.dadFirst || 'חבר';
   if (me.rel === 'kid')    return me.dadFirst || 'בן';
+  if (me.parent === 'mom') return PAIR.mom;
   return JOIN.callDad || 'אבא';
 }
 
@@ -3067,6 +3071,10 @@ function drawInv() {
      נראית כמו מערכת שלא זוכרת מה קרה לפני דקה. */
   if (!force && me.from) return;
   var re = $('inv-re'); if (re) re.innerHTML = '';
+  /* **הבן מזמין את אבא — לא כאן.** הכרטיס הגדול בראש המסך, עם השם של
+     אבא וההסבר הארוך, נועד לאבא שמזמין את הבן. לבן — שורה קצרה וכפתור
+     במסך "איך זוכים בכרטיסים?", ליד כרטיס אבא (tkInvHtml). */
+  if (!force && me.role !== 'dad') return;
   if (!force && get('inv-sent', 0)) {
     /* אחרי השליחה — כלום בראש המסך. הוא שלח בעצמו בוואטסאפ, ואישור
        "נשלחה" רק דחק את הדף למטה. "נשלחה" אינו ודאות: מי שחזר
@@ -3535,6 +3543,7 @@ function tkHowOpen() {
   box.innerHTML = '<div class="tkh-bar"><button type="button" id="tkh-x" onclick="tkHowClose()">→ ' + esc(UI.tkhBack) + '</button></div>' +
     '<div class="tkh-in"><h2 id="tkh-t">' + esc(UI.tkhT) + '</h2>' +
     card(UI.tkhLT, UI.tkhLB) + card(UI.tkhQT, UI.tkhQB) + card(UI.tkhFT, UI.tkhFB) +
+    tkInvHtml() +
     '<div class="tkh-c tkh-at"><div><b>' + esc(UI.tkhAT) + '</b><p>' + esc(UI.tkhAB) + '</p></div><i dir="ltr">+2</i></div>' +
     '<div class="tkh-note">' + esc(UI.tkhNote) + '</div>' +
     '<button type="button" class="tkh-back" onclick="tkHowClose()">' + esc(UI.tkhBack) + '</button></div>';
@@ -3543,6 +3552,34 @@ function tkHowOpen() {
   document.documentElement.className += ' tkh-on';
   try { history.pushState({ tkh: 1 }, ''); TKH_HIST = true; } catch (e) { TKH_HIST = false; }
   try { $('tkh-x').focus(); } catch (e2) {}
+}
+/* ההזמנה של אבא — לבן שבחר ללמוד עם אבא ועוד לא מחובר אליו. "אבא" (או
+   "אמא") ולא השם. אותה שליחה כמו בכרטיס של drawInv: הטלפון נשמר ברשומה
+   ובגיליון, וּוואטסאפ נפתח עם הנוסח המוכן. */
+function tkInvMe() {
+  var me = get('me', null);
+  if (!me || me.role === 'dad' || me.way !== 'dad' || me.from || get('pair-with', '')) return null;
+  return me;
+}
+function tkPw(t) { var me = get('me', null) || {}; return String(t || '').split(PAIR.dad).join(PAIR[me.parent === 'mom' ? 'mom' : 'dad']); }
+function tkInvHtml() {
+  var me = tkInvMe();
+  if (!me) return '';
+  var ok = (String(me.dadPhone || '').match(/\d/g) || []).length >= 9;
+  return '<div class="tkh-inv"><p>' + esc(tkPw(UI.tkhInv)) + '</p>' +
+    (ok ? '' : '<div class="fld"><label class="label" for="tkh-ph">' + esc(tkPw(UI.tkhInvPh)) + '</label>' +
+      '<input id="tkh-ph" type="tel" inputmode="tel" value=""></div>') +
+    '<button type="button" class="btn" onclick="tkInvGo()">' +
+    esc(tkPw(get('inv-sent', 0) ? UI.tkhInvAgain : UI.tkhInvBtn)) + '</button></div>';
+}
+function tkInvGo() {
+  var me = tkInvMe();
+  if (!me) return;
+  var ph = $('tkh-ph'), num = ph ? ph.value : me.dadPhone;
+  if ((String(num || '').match(/\d/g) || []).length < 9) { if (ph) ph.focus(); return; }
+  if (ph) { me.dadPhone = num; set('me', me); queue(joinRow_(me)); }
+  set('inv-sent', 1);
+  invWa_(me, num, invMsg_(me, me.dadFirst || ''));
 }
 function tkHowClose(pop) {
   var box = $('tkhow');
