@@ -2899,9 +2899,36 @@ var OWN_RD_PHONE = null;
 function ownLeadImg_() {
   var b = $('dktog');
   if (!DECK || !deckN() || !sidePhone() || !b || b.style.display === 'none') return '';
-  var src = '';
-  try { src = slideSrc(slideAt(IDX)); } catch (e) { return ''; }
+  var src = '', n = slideHere_(IDX);
+  if (!n) return '';
+  try { src = slideSrc(n); } catch (e) { return ''; }
   return src ? ownImgHtml_(src) : '';
+}
+/* בפירוש לנוער האיור מופיע רק בקטע שבו שובץ — לא "נגרר" לקטעים
+   שאחריו כמו בעמודת המצגת. שובץ = יש לקטע עוגן משלו, או שהשקף
+   התחלף בו (עוגן של קטע שאוחד לתוכו). אין — 0. */
+function slideHere_(idx) {
+  var st = FLAT[idx];
+  if (!st || !ANCH) return 0;
+  var n = slideAt(idx), own = false;
+  if (sidMode_(ANCH)) {
+    own = sidKeys_(ANCH, st.n).some(function (k) { return !!anchPos_(ANCH[k]); });
+  } else {
+    own = !!anchPos_(ANCH[String(st.n)]);
+  }
+  if (own) return n;
+  for (var i = idx - 1; i >= 0; i--) {
+    if (FLAT[i].n === st.n) continue;
+    return slideAt(i) !== n ? n : 0;
+  }
+  /* הקטע הראשון — עוגן מוקדם יותר (מספר קטן ממנו) נחשב שלו. */
+  if (!sidMode_(ANCH)) {
+    for (var k in ANCH) {
+      if (!ANCH.hasOwnProperty(k) || !/^\d+$/.test(k)) continue;
+      if (parseInt(k, 10) <= st.n && anchPos_(ANCH[k])) return n;
+    }
+  }
+  return 0;
 }
 function paintOwnRead_(n) {
   var box = $('chb'), pieces = ownPieces_(n), lead = ownLeadImg_();
@@ -2942,7 +2969,9 @@ function paintOwnRead_(n) {
 /* לקטע יש איור מהמצגת (אותו שיוך שהתלמיד רואה בטלפון)? */
 function ownHasLead_() {
   if (!DECK || !deckN()) return false;
-  try { return !!slideSrc(slideAt(IDX)); } catch (e) { return false; }
+  var n = slideHere_(IDX);
+  if (!n) return false;
+  try { return !!slideSrc(n); } catch (e) { return false; }
 }
 function paintOwnEdit_(n) {
   /* המגירה עברה בינתיים לחידה או לחברותא — לא מציירים עליה. ציור מאוחר
