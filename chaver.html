@@ -191,6 +191,13 @@ footer a{color:var(--ink-2)}
   border-radius:9px;padding:8px 12px;display:flex;gap:6px;align-items:center;cursor:pointer}
 .ch-lnk button[disabled]{opacity:.5}
 .ch-all .ch-row:first-of-type{margin-top:6px}
+/* ---- 8.99.350: ותיק, הודעה, כלל ---- */
+.ch-crown.o{background:#2E6B12}
+.ch-note{background:#FFF4D6;color:#5C4513;font-size:.92rem;font-weight:700;border-radius:12px;
+  padding:9px 12px;margin:0 0 10px;text-align:start}
+.ch-rule{font-size:.82rem;font-weight:700;color:#5A6780;margin:-4px 0 6px}
+.ch-card.land{text-align:center}
+.ch-card.land .ch-tbl{margin-top:4px}
 </style>
 </head>
 <body>
@@ -218,7 +225,11 @@ function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null
   var take = function (map) {
     for (var k in (map || {})) {
       var p = k.split('.');
-      if (p.length === 2 && p[0] === 'ui' && typeof map[k] === 'string' && map[k]) UI[p[1]] = map[k];
+      if (p.length !== 2 || p[0] !== 'ui' || typeof map[k] !== 'string' || !map[k]) continue;
+      /* נוסח שהוחלף בקוד (TEXT_RETIRED ב-data.js) — אינו גובר. */
+      var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+      if (old.indexOf(map[k]) >= 0) continue;
+      UI[p[1]] = map[k];
     }
   };
   try {

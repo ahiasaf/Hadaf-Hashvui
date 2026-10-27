@@ -1263,6 +1263,32 @@ footer a{color:var(--ink-2);font-weight:800}
   border-radius:9px;padding:8px 12px;display:flex;gap:6px;align-items:center;cursor:pointer}
 .ch-lnk button[disabled]{opacity:.5}
 .ch-all .ch-row:first-of-type{margin-top:6px}
+/* ---- 8.99.350: ותיק, הודעה, כלל, פס ההרשמה, ההשקה, "ההגרלות שלך" ---- */
+.ch-crown.o{background:#2E6B12}
+.ch-note{background:#FFF4D6;color:#5C4513;font-size:.92rem;font-weight:700;border-radius:12px;
+  padding:9px 12px;margin:0 0 10px;text-align:start}
+.ch-rule{font-size:.82rem;font-weight:700;color:#5A6780;margin:-4px 0 6px}
+.ch-strip{display:flex;align-items:center;gap:10px;margin:10px 0 4px;padding:10px 14px;border-radius:14px;
+  background:#FFF4D6;border:1.5px solid #E9C877;font-size:.98rem;font-weight:800;color:#0B2550}
+.ch-strip svg{flex:none}
+.ch-promo{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:rgba(11,37,80,.55);
+  display:flex;align-items:center;justify-content:center;padding:16px}
+.ch-promo-in{width:100%;max-width:26rem;max-height:100%;overflow:auto;border-radius:22px;padding:18px 16px 12px;
+  text-align:center;background:radial-gradient(120% 80% at 50% 0%,#FFF4D6 0%,#FFF9EC 55%,#FFFDF8 100%);
+  box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.ch-promo-in .ch-lead{margin:4px 0 0}
+.ch-promo-x{display:block;width:100%;min-height:44px;margin-top:6px;border:0;background:none;font:inherit;
+  font-size:.95rem;font-weight:800;color:#5A6780;cursor:pointer}
+.rz{margin-top:18px}
+.rz[hidden]{display:none}
+.rz-h{font-size:1.02rem;font-weight:900;color:#0B2550;margin:0 0 8px}
+.rz-tabs{display:flex;gap:6px;background:#D5DEEC;border-radius:14px;padding:4px}
+.rz-tabs button{flex:1 1 0;min-width:0;min-height:42px;border:0;border-radius:11px;background:none;font:inherit;
+  font-size:.92rem;font-weight:800;color:#36507A;cursor:pointer}
+.rz-tabs button.on{background:#FFFDF8;color:#0B2550;box-shadow:0 1px 4px rgba(11,37,80,.18)}
+.rz-ch #mytk,.rz-ch #mypts{display:none!important}
+.rz-tk #chal{display:none}
+.rz + .mytk{margin-top:10px}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1298,6 +1324,8 @@ footer a{color:var(--ink-2);font-weight:800}
 <!-- הדגמת הפתיחה — ראו intro בסוף הקובץ. ריק עד שמוחלט להציג. -->
 <div id="intro"></div>
 <main class="wrap" id="form">
+  <!-- "מצטרף לשולחן של יוסי" — מי שהגיע מקישור של חבר (CHAL.strip). -->
+  <div id="chstrip"></div>
 
   <!-- ============================================================
        המסע.
@@ -1519,8 +1547,12 @@ footer a{color:var(--ink-2);font-weight:800}
     <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
     <div id="rail"></div>
+    <!-- "ההגרלות שלך" — שתי לשוניות כשיש גם כרטיסים וגם אתגר. rzSync. -->
+    <div id="rz" class="rz" hidden></div>
     <div id="mytk" class="mytk" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
+    <!-- אתגר "חבר מביא חבר" — ריק כשהאתגר כבוי. ראו chal.js. -->
+    <div id="chal"></div>
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
     <div id="wk-more"></div>
@@ -1533,9 +1565,7 @@ footer a{color:var(--ink-2);font-weight:800}
          להזמנה ולקבוצה — כלומר אחרי שני דברים שאפשר לדלג
          עליהם, ובמקום שרוב התלמידים לא גללו אליו. היא השלב
          האחרון של ההרשמה, ולכן היא במקום שבו מסתכלים. -->
-    <!-- אתגר "חבר מביא חבר" — ההתקדמות שלי קודם, המונה אחריה.
-         ריק כשהאתגר כבוי. ראו chal.js. -->
-    <div id="chal"></div>
+    <!-- אתגר "חבר מביא חבר" — עבר ל"ההגרלות שלך" למעלה (8.99.350). -->
     <div id="phnag"></div>
     <div id="getapp"></div>
     <!-- "לשלוח שוב" את ההזמנה הראשית, אחרי שנשלחה (drawInv). -->
@@ -2023,7 +2053,7 @@ function drawTop() {
    כל מה שצריך כדי לנסח נכון. */
 /* אתגר "חבר מביא חבר": הקוד מהקישור נשמר מיד, לפני כל מסך —
    ההרשמה עשויה לקרות אחרי מעבר לכרום או אחרי התקנה. ראו chal.js. */
-if (window.CHAL) CHAL.grabRef();
+if (window.CHAL) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
 if (window.QUAD) QUAD.grabRef();
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
@@ -3449,7 +3479,7 @@ function drawPts() {
   var el = $('mypts'), tb = $('mytk');
   if (!el || !tb) return;
   var me = get('me', null);
-  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; return; }
+  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; rzSync(); return; }
   var c = get('ptsMe', null);
   if (c && c.id !== me.id) c = null;
   if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
@@ -3480,9 +3510,10 @@ function drawPts() {
     sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + '&callback=' + cb;
     document.body.appendChild(sc);
   }
-  if (c && c.none) { el.hidden = tb.hidden = true; return; }
+  if (c && c.none) { el.hidden = tb.hidden = true; rzSync(); return; }
   tb.innerHTML = tkCardHtml(c && c.v === 2 ? c : null);
   tb.hidden = false;
+  rzSync();
   /* הנקודות — אור עציון בלבד, ובנפרד מהכרטיסים. */
   if (me.inst !== PTS_OE || !c) { el.hidden = true; return; }
   var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
@@ -3494,6 +3525,29 @@ function drawPts() {
   el.hidden = false;
 }
 function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
+/* ============================================================
+   "ההגרלות שלך" (8.99.350) — מתחת לבאנר ולמסלול, שתי לשוניות:
+   ההגרלה השבועית (#mytk ו-#mypts) וחבר מביא חבר (#chal). הלשוניות
+   רק כששני הכרטיסים קיימים; אחרת — מה שיש, בלי לשוניות. הבחירה
+   נשמרת במכשיר (`df:rzTab`), וההסתרה במחלקה על האזור — לא ב-`hidden`,
+   ש-drawPts ו-chal.js מנהלים בעצמם.
+   ============================================================ */
+function rzSync() {
+  var z = $('rz'), c = $('chal'), t = $('mytk');
+  if (!z) return;
+  var zone = z.parentNode, both = !!(c && c.innerHTML.replace(/\s/g, '') && t && !t.hidden);
+  var k = both ? (get('rzTab', 'tk') === 'ch' ? 'ch' : 'tk') : '';
+  zone.className = zone.className.replace(/\s*rz-(tk|ch)/g, '') + (k ? ' rz-' + k : '');
+  z.hidden = !both;
+  if (!both) { z.innerHTML = ''; return; }
+  var b = function (x, lbl) {
+    return '<button type="button" role="tab" aria-selected="' + (k === x) + '"' + (k === x ? ' class="on"' : '') +
+      ' onclick="rzPick(\'' + x + '\')">' + esc(lbl) + '</button>';
+  };
+  z.innerHTML = '<div class="rz-h">' + esc(UI.rzH) + '</div><div class="rz-tabs" role="tablist">' +
+    b('tk', UI.rzTk) + b('ch', UI.rzCh) + '</div>';
+}
+function rzPick(k) { set('rzTab', k); rzSync(); }
 /* הכרטיס: מספר גדול (הסכום — בדיוק המשקל בהגרלה), הדף של ההגרלה מהשרת
    (`tk.daf`, rafDaf_ — לא הדף שעל הבמה), והמסכת שבה הכרטיסים; אין עדיין —
    המסכת שנבחרה. הפירוט — לכל סוג, סכום המסלולים. */
