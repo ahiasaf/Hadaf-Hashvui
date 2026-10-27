@@ -6,6 +6,17 @@
 <!-- מחשב עם "מצב כהה אוטומטי" צבע את העמוד בדהוי. הצבעים כאן קבועים. -->
 <meta name="color-scheme" content="only light">
 <title>לימוד אינטראקטיבי — הדף השבועי</title>
+<script>
+/* המבנה החדש לרוחב — בניסיון, רק במכשיר שפתח פעם אחת את
+   `learn?land=1` (וכיבה ב-`land=0`). ראו "טלפון לרוחב, מבנה חדש". */
+(function () {
+  try {
+    var m = /[?&]land=([01])/.exec(location.search);
+    if (m) { if (m[1] === '1') localStorage.setItem('df:land2', '1'); else localStorage.removeItem('df:land2'); }
+    if (localStorage.getItem('df:land2') === '1') document.documentElement.className += ' land2';
+  } catch (e) {}
+})();
+</script>
 <!-- ============================================================
      התצוגה המקדימה בוואטסאפ — התמונה, הכותרת והשורה.
      ============================================================
@@ -1022,6 +1033,33 @@ a.lockbtn{display:inline-block;text-decoration:none}
   .chav,#side{grid-row:1;grid-column:2;border-top:0;box-shadow:none;
     border-inline-start:1px solid var(--rule)}
   body.side-on .chav{contain:none}
+}
+
+/* ---------- טלפון לרוחב, מבנה חדש (בניסיון) ----------
+   לרוחב הגובה הוא המשאב החסר: הכותרת (58) והסרגל התחתון (57)
+   השאירו לדף 275 מתוך 390. כאן שניהם דקים — הכותרת בשורה אחת,
+   בלי שורת השבוע, והכפתורים נמוכים — והדף מקבל כ-40 נקודות.
+
+   הכפתורים נשארים למטה ולא עוברים לפס בצד: נוסה, ופס בצד לוקח
+   רוחב — בדיוק מה שהשורות הרחבות שבתחתית העמוד צריכות.
+
+   שום דבר אינו נסגר בסיבוב: הפירוש, החברותא והמצגת שהיו פתוחים
+   רק עוברים לעמודה בצד, צרה מבעבר (36% במקום 40%).
+
+   בינתיים רק במכשיר שהדליק אותו (`land2` — ראו בראש העמוד). */
+@media (orientation:landscape) and (max-height:500px) and (max-width:960px){
+  html.land2 header{padding:calc(env(safe-area-inset-top) + 4px) 14px 0}
+  html.land2 .hrow{padding-bottom:4px;gap:10px}
+  html.land2 .back{padding:3px 9px;font-size:.76rem}
+  html.land2 .ttl h1{font-size:.9rem}
+  html.land2 .ttl span{display:none}
+  html.land2 .prog{height:3px}
+  html.land2 nav{padding:5px 12px calc(env(safe-area-inset-bottom) + 5px)}
+  html.land2 nav button{padding:6px 13px}
+  html.land2 nav button.p{padding:6px 18px}
+  html.land2 body.chav-on main,html.land2 body.side-on main,
+  html.land2 body.side-adm.side-on main,html.land2 body.side-adm.kb-open.chav-on main{
+    grid-template-columns:minmax(0,1fr) minmax(0,36%)}
 }
 
 /* ---------- הדף במסך מחשב נראה חיוור יותר מאשר בטלפון ----------
