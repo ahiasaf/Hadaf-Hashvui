@@ -2124,6 +2124,13 @@ function loadOwnMap() {
     if (!m) return false;
     OMAP = m;
     OWN = OMAP[dmKey(S.mas, S.daf)] || null;
+    /* העורך כבר נפתח על הקטע הראשון לפני שהפירוש הגיע — ריק. אם לא
+       הוקלד בו דבר, נטען מחדש ממה שהגיע; אחרת הקטע הראשון נשאר ריק
+       עד שעוברים ממנו וחוזרים. */
+    if (OWN_EDIT && $('own-txt-0')) ownEditSync_();
+    if (OWN_EDIT && JSON.stringify(ownCleanPieces_(OWN_EDIT)) === OWN_EDIT_BASE) {
+      OWN_EDIT = null; OWN_EDIT_N = -1;
+    }
     return true;
   }).catch(function () { return false; });
 }
