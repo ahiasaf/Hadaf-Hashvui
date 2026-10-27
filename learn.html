@@ -342,6 +342,8 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   padding:2px 4px}
 .own-adds{display:flex;gap:6px;margin-bottom:10px}
 /* מיקום איור הקטע בפירוש (בטלפון) — לפני הביאור או אחריו */
+.own-away{margin-bottom:10px;padding:8px 10px;border-radius:10px;font-size:.8rem;line-height:1.5;
+  background:rgba(30,58,110,.07);color:#1E3A6E}
 .own-imgpos{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:.76rem;
   font-weight:800;color:var(--blue)}
 .own-imgpos span{margin-inline-end:auto}
@@ -2144,12 +2146,51 @@ function ownPiecesFrom_(v) {
   if (v.length === undefined) return [];   /* __bad וכד' — לא רשימת חלקים */
   return v;
 }
-function ownPieces_(n) { return ownPiecesIn_(OWN, n); }
+function ownPieces_(n) { return ownPiecesIn_(ownRec_(n), n); }
+/* ============================================================
+   הדף שהקטע שייך לו.
+   ============================================================
+   שבוע שמתחיל בזנב של הדף הקודם (או גולש לתחילת הדף הבא) מציג
+   קטעים של דף אחר. הפירוש שלהם נשמר ונקרא **ברשומה של הדף שלהם**,
+   לא של הדף שבכותרת — כך אותו קטע מראה אותו פירוש בשני השבועות,
+   ועריכה בכל אחד מהם נשמרת במקום אחד. קודם הקטעים האלה חיפשו את
+   הפירוש בדף של השבוע, ובשבוע השני נראו ריקים. */
+function segDaf_(n) {
+  var v = vOfN_(n), pp = v && PAGES[v.p];
+  return pp && pp.daf ? pp.daf : S.daf;
+}
+function segAway_(n) { return dafKey(segDaf_(n)) !== dafKey(S.daf); }
+function ownRec_(n) {
+  return segAway_(n) ? (OMAP[dmKey(S.mas, segDaf_(n))] || null) : OWN;
+}
+/* קטע מדף אחר נמצא רק לפי מזהה — המספר שלו כאן אינו המספר שלו
+   בדף שלו. רשומה שעוד לא הוסבה למזהים (או קטע בלי מזהה) — אין
+   דרך בטוחה למצוא אותו, ולכן לא קוראים ולא כותבים. */
+function ownAwayBad_(n) {
+  if (!segAway_(n)) return false;
+  var v = vOfN_(n);
+  return !v || !v.id || !sidMode_(ownRec_(n) || {});
+}
+/* התלמיד רואה את הפירוש של הקטע: יש בו טקסט, והדף שלו מפורסם. */
+function ownShown_(n) {
+  var r = ownRec_(n);
+  return !!(r && r.__pub && ownPieces_(n).length);
+}
+/* הדפים שקטעיהם על המסך — לשמירה של "כל הדף". */
+function ownDafs_() {
+  var out = [], seen = {};
+  FLAT.forEach(function (v) {
+    var pp = PAGES[v.p], d = pp && pp.daf ? pp.daf : S.daf;
+    if (!seen[dafKey(d)]) { seen[dafKey(d)] = 1; out.push(d); }
+  });
+  if (!seen[dafKey(S.daf)]) out.push(S.daf);
+  return out;
+}
 /* אותו דבר מתוך רשומה כלשהי (גם זו שנקראה עכשיו מהגיליון). קטע
    שאוחד מציג את החלקים של שני הקטעים ברצף — הקלטה נשארת צמודה
    לחלק שלה, ולכן שתי הקלטות נשמעות זו אחר זו. */
 function ownPiecesIn_(rec, n) {
-  if (!rec) return [];
+  if (!rec || ownAwayBad_(n)) return [];
   var out = [];
   sidKeys_(rec, n).forEach(function (k) { out = out.concat(ownPiecesFrom_(rec[k])); });
   return out;
@@ -2223,7 +2264,7 @@ function chavTabHtml(st, canQuiz) {
   /* לתלמיד: לא מספיק שיש טקסט לקטע — הדף כולו צריך להיות
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
-  var hasOwn = !!(OWN && OWN.__pub && ownPieces_(st.n).length);
+  var hasOwn = ownShown_(st.n);
   /* החידה — לשונית שלישית, רק בקטע שיש בו שאלה. הלשוניות נשארות
      גלויות גם כשהיא פתוחה, כדי לעבור לפירוש ולחזור. העיגול הצף
      (qfab) פותח אותה. */
@@ -2411,8 +2452,8 @@ var OWN_DRAFT_KEY = 'df:ownDraft', OWN_AUTO_T = null, OWN_SAVING = false;
    לפי מספר מתורגמת פעם אחת, דרך המפה הקפואה של ההסבה — ראו
    `ownDraftIds_`. */
 function ownDraftKey_(n) {
-  var ks = sidKeys_(OWN, n);
-  return dmKey(S.mas, S.daf) + '|' + (ks[0] === String(n) ? n : '#' + ks[0]);
+  var ks = sidKeys_(ownRec_(n), n);
+  return dmKey(S.mas, segDaf_(n)) + '|' + (ks[0] === String(n) ? n : '#' + ks[0]);
 }
 function ownDraftN_(suffix) {
   if (suffix.charAt(0) === '#') return nOfId_(suffix.slice(1));
@@ -2458,15 +2499,23 @@ function ownDraftPut_() {
    בגלל גרסה ממכשיר אחר, או האחרון לפני סגירה) חיכה בטיוטה
    במכשיר בלי שום סימן. עכשיו כל שמירה לוקחת איתה את **כל**
    הטיוטות של הדף, ומתחת לעריכה כתוב אילו קטעים עוד לא עלו. */
-function ownOtherDrafts_(n) {
+/* `daf` — רק הטיוטות של הקטעים ששייכים לדף הזה (שמירה כותבת רשומה
+   של דף אחד). בלעדיו — של כל הקטעים שעל המסך. */
+function ownOtherDrafts_(n, daf) {
   ownDraftIds_();
-  var all = ownDraftAll_(), pre = dmKey(S.mas, S.daf) + '|', out = [], k, q;
-  for (k in all) {
-    if (!all.hasOwnProperty(k) || k.indexOf(pre) !== 0) continue;
-    q = ownDraftN_(k.slice(pre.length));
-    if (!(q > 0) || q === n || !all[k] || !all[k].pieces) continue;
-    out.push({ n:q, pieces:ownCleanPieces_(all[k].pieces), at:all[k].at || 0 });
-  }
+  var all = ownDraftAll_(), out = [];
+  (daf ? [daf] : ownDafs_()).forEach(function (d) {
+    var pre = dmKey(S.mas, d) + '|', away = dafKey(d) !== dafKey(S.daf), k, q, suf;
+    for (k in all) {
+      if (!all.hasOwnProperty(k) || k.indexOf(pre) !== 0) continue;
+      suf = k.slice(pre.length);
+      if (away && suf.charAt(0) !== '#') continue;   /* מספר מדף אחר — לא שלנו */
+      q = ownDraftN_(suf);
+      if (!(q > 0) || q === n || !all[k] || !all[k].pieces) continue;
+      if (dafKey(segDaf_(q)) !== dafKey(d)) continue;
+      out.push({ n:q, pieces:ownCleanPieces_(all[k].pieces), at:all[k].at || 0 });
+    }
+  });
   out.sort(function (a, b) { return a.n - b.n; });
   return out;
 }
@@ -2504,8 +2553,8 @@ function ownTyped_() {
   OWN_NOTE = '';
   ownBar_();
   clearTimeout(OWN_AUTO_T);
-  if (OWN && OWN.__pub) return;
-  var n = OWN_EDIT_N;
+  var n = OWN_EDIT_N, rec = ownRec_(n);
+  if (rec && rec.__pub) return;
   OWN_AUTO_T = setTimeout(function () {
     if (OWN_SAVING || OWN_EDIT_N !== n || !ownEditDirty_()) return;
     /* הקלטה שממתינה להעלאה — רק בלחיצה, לא ברקע. */
@@ -2546,7 +2595,7 @@ var OWN_RESTORED = false;
    ממכשיר אחר גרסה חדשה יותר של אותו קטע. */
 var OWN_EDIT_BASE = '';
 /* מתי נשמר כל קטע לאחרונה (`__t` בתוך הרשומה של הדף). */
-function ownTime_(n) { return sidTime_(OWN, n); }
+function ownTime_(n) { return sidTime_(ownRec_(n), n); }
 function ownEditSync_() {
   if (!OWN_EDIT) return;
   OWN_EDIT.forEach(function (p, i) {
@@ -2871,6 +2920,13 @@ function paintOwn() {
      לפני שהוא נעלם. זה בדיוק מה שקרה בפועל: כתיבה בקטע אחד,
      מעבר לקטע הבא בלי ללחוץ "שמירה", והכתיבה אבדה. */
   if (OWN_EDIT && OWN_EDIT_N !== n && ownEditDirty_()) ownSaveAll(OWN_EDIT_N, true);
+  /* קטע מדף אחר שאי אפשר למצוא בבטחה — עורכים אותו בדף שלו. */
+  if (ownAwayBad_(n)) {
+    box.innerHTML = '<div class="own-away">' +
+      esc(fillT(UI.ownAwayOld || '', { daf: segDaf_(n) })) + '</div>';
+    box.scrollTop = 0;
+    return;
+  }
   ownEditLoad_(n);
   paintOwnEdit_(n);
   var need = OWN_EDIT.filter(function (p) { return !VOX_CACHE.hasOwnProperty(n + '::' + p._id); });
@@ -2978,8 +3034,11 @@ function paintOwnEdit_(n) {
      (אחרי טעינת ההקלטות, אחרי שמירה) כיסה את עורך השאלה בעורך הפירוש,
      בזמן שהכותרת כבר אמרה "חידה". כשחוזרים ללשונית, paintOwn מצייר שוב. */
   if (QUIZ_OPEN || CHAV_TAB !== 'own') return;
-  var box = $('chb'), pubOn = !!(OWN && OWN.__pub);
+  var box = $('chb'), pubOn = !!(OWN && OWN.__pub), segRec = ownRec_(n);
+  var segPub = !!(segRec && segRec.__pub);
   var html = '<div class="own-bar" id="own-bar"></div>';
+  if (segAway_(n)) html += '<div class="own-away">' +
+    esc(fillT(segPub ? UI.ownAway || '' : UI.ownAwayDraft || '', { daf: segDaf_(n) })) + '</div>';
   if (ownHasLead_()) {
     var imgFirst = ownImgFirst_(OWN_EDIT);
     html += '<div class="own-imgpos"><span>' + esc(UI.ownImgPos || '') + '</span>' +
@@ -3051,7 +3110,7 @@ function paintOwnEdit_(n) {
        משלה. כפתור ההקלטה במקומו (ימין), השמירה נדחפת לצד השני
        (שמאל) על ידי מרווח אוטומטי, ראו CSS. */
     var saveBtn = i === OWN_EDIT.length - 1 ?
-      '<button class="own-save" id="own-save">' + (pubOn ? 'שמירת כל הדף' : 'שמירת טיוטה — כל הדף') + '</button>' : '';
+      '<button class="own-save" id="own-save">' + (segPub ? 'שמירת כל הדף' : 'שמירת טיוטה — כל הדף') + '</button>' : '';
 
     return '<div class="own-piece">' +
       '<div class="own-piece-h">' +
@@ -3542,12 +3601,12 @@ function ownUploadVerify_(path, tries, cb) {
 function ownUploadNext_(n, list, i, failed, done) {
   if (i >= list.length) { done(failed); return; }
   var item = list[i], mime = item.clip.mime || 'audio/webm';
-  var path = 'audio/' + dmKey(S.mas, S.daf).replace('|', '-') + '/' + n + '-' + item.p._id +
+  var path = 'audio/' + dmKey(S.mas, segDaf_(n)).replace('|', '-') + '/' + n + '-' + item.p._id +
     '.' + ownAudioExt_(mime);
   ownMsg('', 'מעלה הקלטה ' + (i + 1) + ' מתוך ' + list.length + '…');
   fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
     action:'ghput', key:cfgReadKey_(), path:path, b64:ownB64FromBuf_(item.clip.buf),
-    msg:'הקלטה לקטע ' + n + ' · ' + dmKey(S.mas, S.daf)
+    msg:'הקלטה לקטע ' + n + ' · ' + dmKey(S.mas, segDaf_(n))
   }) }).catch(function () {}).then(function () {
     ownUploadVerify_(path, 0, function (ok) {
       if (ok) item.p.audio = path; else failed.push(item.p.tag || 'פירוש');
@@ -3567,20 +3626,21 @@ function ownUploadNext_(n, list, i, failed, done) {
    את הקטע שנשמר. ואם בגיליון יש לקטע הזה עצמו גרסה שנשמרה אחרי
    שהוא נפתח כאן — שואלים לפני שדורסים (ובשמירה אוטומטית פשוט לא
    דורסים). קריאה שנכשלה — לא כותבים בכלל. */
-function ownFresh_(apply) {
+/* `daf` — הרשומה שנכתבת (הדף של הקטע); בלעדיו — הדף שבכותרת. */
+function ownFresh_(apply, daf) {
   return sheetCsv(OWN_TAB).then(function (rows) {
     var m = dmapFromRows(rows);
     if (!m) return false;
-    var k = dmKey(S.mas, S.daf), cur = m[k];
+    var k = dmKey(S.mas, daf || S.daf), me = dmKey(S.mas, S.daf), cur = m[k];
     if (cur && cur.__bad) return false;          /* שורה פגומה — לא נוגעים */
     if (!cur || typeof cur !== 'object') cur = {};
     /* מה שבגיליון עכשיו — גם אם בסוף לא כותבים */
-    OMAP = m; OWN = m[k] || null;
+    OMAP = m; OWN = m[me] || null;
     if (apply(cur) === false) return null;
     var has = false, q;
     for (q in cur) if (cur.hasOwnProperty(q)) { has = true; break; }
     if (has) m[k] = cur; else delete m[k];
-    OMAP = m; OWN = m[k] || null;
+    OMAP = m; OWN = m[me] || null;
     ownPost_();
     return true;
   }).catch(function () { return false; });
@@ -3588,7 +3648,7 @@ function ownFresh_(apply) {
 function ownSaveAll(n, auto) {
   /* לפני כל ניסיון — הטקסט במכשיר. מעבר קטע בלי הקלדה נוספת לא
      כתב טיוטה, ושמירה שנכשלה השאירה אותו רק בזיכרון של הלשונית. */
-  if (!OWN_EDIT || OWN_EDIT_N !== n) return;
+  if (!OWN_EDIT || OWN_EDIT_N !== n || ownAwayBad_(n)) return;
   ownDraftPut_();
   /* הקטע נלקח עכשיו — מיד אחרי הקריאה הזו המסך כבר עובר לקטע הבא. */
   var pieces = OWN_EDIT.slice();
@@ -3619,7 +3679,7 @@ function ownSaveGo_(n, auto, pieces) {
          אחרי שנכתבה כאן הטיוטה שלו — נשאל עליו פעם אחת (ובשמירה
          אוטומטית פשוט לא נוגעים בו). */
       var clash = [];
-      others = ownOtherDrafts_(n).filter(function (d) {
+      others = ownOtherDrafts_(n, segDaf_(n)).filter(function (d) {
         if (JSON.stringify(ownPiecesIn_(cur, d.n)) === JSON.stringify(d.pieces)) {
           ownDraftDrop_(d.n); return false;
         }
@@ -3653,7 +3713,7 @@ function ownSaveGo_(n, auto, pieces) {
       cur.__t = cur.__t || {};
       var nk = sidPut_(cur, n, clean.length ? clean : undefined, true);
       cur.__t[nk] = Date.now();
-    }).then(function (ok) {
+    }, segDaf_(n)).then(function (ok) {
       if (ok === true) {
         /* הבסיס מתעדכן רק כשהגיליון אישר (ראו ownVerify). כששמירה
            נדחתה, בסיס שכבר עודכן גרם לניסיון הבא לחשוב ש"נשמרה
@@ -3681,13 +3741,13 @@ function ownVerify(tries, n, wantPieces, failed, others) {
   setTimeout(function () {
     sheetCsv(OWN_TAB).then(function (rows) {
       var m = dmapFromRows(rows);
-      var mine = m && m[dmKey(S.mas, S.daf)];
-      var got = ownPiecesIn_(mine || {}, n);
+      var mine = m && m[dmKey(S.mas, segDaf_(n))];
+      var got = ownPiecesIn_(mine || {}, n), pubN = !!(mine && mine.__pub);
       var allOk = others.every(function (d) {
         return JSON.stringify(ownPiecesIn_(mine || {}, d.n)) === JSON.stringify(d.pieces);
       });
       if (allOk && JSON.stringify(got) === JSON.stringify(wantPieces)) {
-        OMAP = m; OWN = mine;
+        OMAP = m; OWN = m[dmKey(S.mas, S.daf)] || null;
         OWN_SAVING = false;
         if (OWN_EDIT_N === n) OWN_EDIT_BASE = JSON.stringify(wantPieces);
         others.forEach(function (d) { ownDraftDrop_(d.n); });
@@ -3695,13 +3755,13 @@ function ownVerify(tries, n, wantPieces, failed, others) {
            אלא אם הוקלד משהו נוסף בינתיים. */
         if (OWN_EDIT_N === n) ownDraftPut_(); else ownDraftDrop_(n);
         /* הוקלד עוד בזמן השמירה — עוד סבב, אחרי שקט. */
-        if (OWN_EDIT_N === n && !(OWN && OWN.__pub) && ownEditDirty_()) ownTyped_();
+        if (OWN_EDIT_N === n && !pubN && ownEditDirty_()) ownTyped_();
         var left = ownPendingTxt_();
         if (!failWarn) { ownMsg('ok', ''); return; }
         ownMsg('bad',
           (others.length ? 'נשמרו ' + (others.length + 1) + ' קטעים ואומתו. '
-                         : (OWN && OWN.__pub) ? 'נשמר ואומת. ' : 'נשמר כטיוטה ואומת. ') +
-          ((OWN && OWN.__pub)
+                         : pubN ? 'נשמר ואומת. ' : 'נשמר כטיוטה ואומת. ') +
+          (pubN
           ? 'הדף כבר מפורסם, אז זה כבר גלוי לתלמידים.'
           : 'עדיין רק אתה רואה — עד שתפרסם את כל הדף.') +
           (left ? ' <b>' + left + '</b>' : ' כל הדף בגיליון.') + failWarn);
@@ -3762,7 +3822,7 @@ function ownPublishVerify(tries, on) {
 function paintChavArea() {
   ownCatch_();
   var st = FLAT[IDX];
-  var canOwn  = !!(st && (SIDE_ADM || (OWN && OWN.__pub && ownPieces_(st.n).length)));
+  var canOwn  = !!(st && (SIDE_ADM || ownShown_(st.n)));
   var canQuiz = !!(st && (SIDE_ADM || qVisible_(st.n).length));
   /* הגיעו מכפתור "הפירוש לנוער" של שאלה — הפירוש פתוח בקטע הזה,
      גם אם הוא נטען רק עכשיו. קטע אחר — הבקשה נגמרה. */
@@ -4308,7 +4368,7 @@ function sideVoxPaint() {
   var box = $('sd-vox');
   if (!box) return;
   var st = FLAT[IDX];
-  var pieces = (st && OWN && OWN.__pub) ? ownPieces_(st.n).filter(function (p) { return p.audio; }) : [];
+  var pieces = (st && ownShown_(st.n)) ? ownPieces_(st.n).filter(function (p) { return p.audio; }) : [];
   if (!pieces.length) { box.innerHTML = ''; return; }
   box.innerHTML = pieces.map(function (p, i) {
     var playing = !!(VOICE_PLAY && VOICE_PLAY.n === st.n && VOICE_PLAY.i === i);
@@ -5740,7 +5800,7 @@ function paintQuiz() {
   var pick = SIDE_ADM ? -1 : qAns_(n, q), lock = !SIDE_ADM && qSent_();
   /* "הפירוש לנוער" — רק כשהרכז הפעיל את המתג בשאלה, ורק כשיש לקטע
      פירוש שהתלמיד יכול לראות. בלי פירוש — אין כפתור שמוביל לשום מקום. */
-  var yr = !!q.yr && (SIDE_ADM || !!(OWN && OWN.__pub && ownPieces_(n).length));
+  var yr = !!q.yr && (SIDE_ADM || ownShown_(n));
   box.innerHTML =
     (SIDE_ADM ? qTagHtml_(qPieces_(n)[qi]) : '') +
     (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
