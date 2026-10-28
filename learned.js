@@ -373,6 +373,64 @@ function LFlush() {
 }
 if (typeof window !== 'undefined') window.addEventListener('online', LFlush);
 
+/* ============================================================
+   חידון ששלח ועוד לא אומת — מכל דף ומהבית (8.99.357).
+   ============================================================
+   learn.html שומר כל שליחה בתור `df:qq:<דף>` ומוציא אותה רק כשהשרת מצא
+   את השורה ב"חידות" (qzSync_). עד עכשיו התור חודש רק בדף הלימוד של אותו
+   דף. כאן — כל התורים שבמכשיר, בכל פתיחה של הבית או של דף: **קודם בודקים**
+   (?tkd, `nt` — בלי חישוב כרטיסים), ורק מה שלא נמצא נשלח ונבדק שוב. השרת
+   אינו סופר את אותה שליחה פעמיים (quizBest_), ובכל זאת אין שליחה בלי בדיקה.
+   `skip` — התור של הדף הפתוח, שמסך הסיום שלו מטפל בו בעצמו. תור שהתרוקן —
+   `df:qsv:<דף>` = '1', כמו ב-qzSync_. */
+var L_QZ_BUSY = false;
+function LQzFlush(skip) {
+  var url = LApi(), me = LMe();
+  if (L_QZ_BUSY || !url || !me || !me.id) return;
+  var keys = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('df:qq:') === 0 && k !== skip) keys.push(k);
+    }
+  } catch (e) { return; }
+  if (!keys.length) return;
+  L_QZ_BUSY = true;
+  var read = function (k) { try { return JSON.parse(localStorage.getItem(k) || 'null') || []; } catch (e) { return []; } };
+  var check = function (daf, it) {
+    return LJsonp(url + (url.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&nt=1&id=' + encodeURIComponent(me.id) +
+                  '&daf=' + encodeURIComponent(daf) + '&n=' + it.n + (it.sc ? '&sc=' + encodeURIComponent(it.sc) : ''))
+      .then(function (r) { return !!(r && r.status === 'ok' && r.saved); }, function () { return false; });
+  };
+  var p = Promise.resolve();
+  keys.forEach(function (k) {
+    var daf = k.slice('df:qq:'.length), got = {};
+    p = p.then(function () {
+      var v = Promise.resolve();
+      read(k).forEach(function (it) {
+        v = v.then(function () { return check(daf, it); }).then(function (ok) {
+          if (ok) { got[it.n + '|' + it.sc] = 1; return; }
+          return fetch(url, { method: 'POST', mode: 'no-cors', body: it.b })['catch'](function () {})
+            .then(function () { return check(daf, it); })
+            .then(function (ok2) { if (ok2) got[it.n + '|' + it.sc] = 1; });
+        });
+      });
+      return v;
+    }).then(function () {
+      /* קריאה מחדש: שליחה חדשה שנכנסה בינתיים (לשונית אחרת) לא נמחקת. */
+      var left = read(k).filter(function (it) { return !got[it.n + '|' + it.sc]; });
+      try {
+        if (left.length) localStorage.setItem(k, JSON.stringify(left));
+        else {
+          localStorage.removeItem(k);
+          if (localStorage.getItem('df:qsent:' + daf)) localStorage.setItem('df:qsv:' + daf, '1');
+        }
+      } catch (e) {}
+    });
+  });
+  p.then(function () { L_QZ_BUSY = false; }, function () { L_QZ_BUSY = false; });
+}
+
 /* ---------- המונים הציבוריים ----------
    'מסלול|שבוע|קוד' → מספר. נקרא מהלשונית הציבורית, ולכן אין
    בו שום פרט אישי — רק כמה. */

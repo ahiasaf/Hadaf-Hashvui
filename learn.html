@@ -7494,6 +7494,8 @@ function boot() {
     Q_READY = true;
     /* חידון שנשלח ועוד לא אומת — ממשיכים מהתור שבמכשיר (qzResume_). */
     qzResume_();
+    /* ושל דפים אחרים — בלי התור של הדף הזה, שמסך הסיום מטפל בו. */
+    if (!SIDE_ADM) LQzFlush(qQKey_());
     qbsPaint_();
     if (FLAT.length) paintChavArea();
     quizJump_();

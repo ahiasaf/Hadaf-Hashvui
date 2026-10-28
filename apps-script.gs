@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 130;
+var SCRIPT_VERSION = 131;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10540,7 +10540,9 @@ var CH_REF_COLS_ = ['קוד', 'מזהה', 'נוצר', 'בדיקה'];
    או בהרשמה חוזרת מהקישור שזוהתה כאדם קיים. שורה ריקה במצב — chSync_
    מכריע: "יושב", או "מלא" כשלמזמין כבר יש ותיק שממתין. "מלא" — סופי. */
 var CH_OLD_ = 'אתגר-ותיקים';
-var CH_OLD_COLS_ = ['מזהה', 'מזמין', 'נוסף', 'מצב', 'בדיקה'];
+/* `כלל` (8.99.357) — כמה ותיקים מותרים בשולחן, לפי הכלל של המוסד ברגע שישב.
+   שורה בלי — 1, הכלל שהיה עד אז. */
+var CH_OLD_COLS_ = ['מזהה', 'מזמין', 'נוסף', 'מצב', 'בדיקה', 'כלל'];
 var CH_O_ = { ok: 'יושב', full: 'מלא' };
 var CH_G_ = { wait: 'ממתינה למזמין', done: 'מושלמת', sel: 'נבחרה', won: 'זכתה', out: 'נפסלה' };
 var CH_M_ = { open: 'חלון פתוח', zero: 'ממתין לקבוצה ראשונה', ready: 'ממתין להגרלה',
@@ -10634,9 +10636,34 @@ function chConf_(U, S) {
            /* חשיפה (8.99.352): "מוזמנים" — הכרטיס בבית רק למשתתפים ולמכשיר
               שהפעיל; שדה חסר = "כולם", כמו קודם. נראות בלבד — לא חסימה. */
            exp: S['חשיפה'] === CH_EXP_Q ? CH_EXP_Q : CH_EXP_ALL,
-           act: String(S['מפעיל'] || '').split(',').filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }) };
+           act: String(S['מפעיל'] || '').split(',').filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }),
+           /* **הגרלה כל 50 — רק בעולם הבדיקה** (8.99.357, החלטת הבעלים 28.10).
+              באמת הגרלה נפתחת רק בלחיצה (op=open). */
+           auto: !!U.test,
+           rule: chRuleOf_(S) };
 }
 var CH_EXP_ALL = 'כולם', CH_EXP_Q = 'מוזמנים';
+/* ============================================================
+   כלל ההרכב לפי מוסד (8.99.357, החלטת הבעלים 28.10).
+   ============================================================
+   כמה חברים שכבר רשומים ("ותיקים") מותרים בשולחן: 1 — לפחות 2 חדשים
+   (הכלל עד היום) · 2 — לפחות חדש אחד · 3 — בלי דרישה לחדשים. נשמר
+   ב"אתגר-מונה" (`כלל הרכב`, JSON מוסד → מספר), והבעלים משנה במסך.
+   בלי השדה — גבעת שמואל 3, כל השאר 1. **אין מעבר אוטומטי לפי מספר נרשמים.**
+   הכלל חל על שולחן שכל חבריו ממוסד המזמין. **שולחן מעורב — מוחזק**: לא
+   הוחלט איזה מוסד קובע, ולכן חל עליו הכלל הקיים (1), בלי שינוי.
+   הכלל נקבע לכל ותיק ברגע שישב (`כלל` ב"אתגר-ותיקים"), ולכן שינוי הכלל
+   אינו מזיז אף אחד: הוא חל על מי שיושב מכאן והלאה. */
+var CH_RULE_DEF_ = { givat: 3 };
+function chRuleOf_(S) {
+  var o = null;
+  try { o = S['כלל הרכב'] ? JSON.parse(S['כלל הרכב']) : null; } catch (e) { o = null; }
+  if (!o || typeof o !== 'object') o = CH_RULE_DEF_;
+  var out = {};
+  Object.keys(o).forEach(function (k) { var v = parseInt(o[k], 10); if (/^[a-z]{2,20}$/.test(k) && v >= 1 && v <= 3) out[k] = v; });
+  return out;
+}
+function chLim_(rule, inst) { return (rule && rule[inst]) || 1; }
 
 /* ============================================================
    הסנכרון — האמת אחת, מהגיליון. רץ תחת נעילת הסקריפט.
@@ -10647,6 +10674,7 @@ var CH_EXP_ALL = 'כולם', CH_EXP_Q = 'מוזמנים';
 function chSync_(U) {
   var now = Date.now(), S = chSetRead_(U), K = chConf_(U, S);
   var out = { on: K.on, t0: K.t0, F: K.F, step: K.step, win: K.win, last: K.last, now: now, exp: K.exp, act: K.act,
+              auto: K.auto, rule: K.rule,
               terms: S['תנאים אושרו'] || '', ppl: {}, al: {}, grp: [], ms: [], n: 0, times: [] };
   if (!K.on || !K.t0) return out;
 
@@ -10742,21 +10770,26 @@ function chSync_(U) {
      הלימוד שנספר לו: כל השלמה של דף, גם מלפני שהצטרף (כמו המזמין —
      "כל אחד מכם לומד דף!", בלי חלון זמן); המועד — המאוחר מבין ההשלמה
      וההצטרפות. */
-  var O = chTab_(CH_OLD_, CH_OLD_COLS_), OB = {}, OC = {}, OA = {}, owait = {};
+  /* `owait` — כמה ותיקים ממתינים לכל מזמין; המקום — לפי כלל המוסד
+     (chLim_) כשהותיק והמזמין מאותו מוסד, אחרת 1 (8.99.357). */
+  var O = chTab_(CH_OLD_, CH_OLD_COLS_), OB = {}, OC = {}, OA = {}, OL = {}, owait = {};
   O.rows.filter(mine).forEach(function (o) {
     if (o['מצב'] === CH_O_.full) return;
     var id = canon(o['מזהה']), by = canon(o['מזמין']), at = chMs_(o['נוסף']);
     var p = P[id], b = P[by];
     if (!p || p.par || p.inv || OB[id] || !b || b.par || by === id || b.inv === id || !(at >= K.t0)) return;
     if (!o['מצב']) {
-      o['מצב'] = owait[by] ? CH_O_.full : CH_O_.ok;
+      var lim = p.inst && p.inst === b.inst ? chLim_(K.rule, b.inst) : 1;
+      o['מצב'] = (owait[by] || 0) >= lim ? CH_O_.full : CH_O_.ok;
+      o['כלל'] = String(lim);
       chPut_(O, o);
       if (o['מצב'] === CH_O_.full) return;
     }
     OB[id] = by;
     OA[id] = at;
+    OL[id] = Math.max(1, Math.min(3, parseInt(o['כלל'], 10) || 1));
     p.ob = by;
-    if (!used[id]) owait[by] = id;
+    if (!used[id]) owait[by] = (owait[by] || 0) + 1;
     if (E[id]) OC[id] = Math.max(E[id], at);
     (F[by] = F[by] || []).push(id);
   });
@@ -10773,13 +10806,22 @@ function chSync_(U) {
   out.tbl = {};
   Object.keys(F).forEach(function (by) {
     var arr = F[by].filter(function (f) { return !used[f]; }).map(function (f) {
-      return { id: f, at: OB[f] ? OA[f] : P[f].at || 0, o: !!OB[f] };
+      return { id: f, at: OB[f] ? OA[f] : P[f].at || 0, o: !!OB[f], lim: OL[f] || 1, i: P[f].inst || '' };
     }).sort(function (a, b) { return a.at - b.at || (a.id < b.id ? -1 : 1); });
+    /* כמה ותיקים מותרים: הכלל של הותיקים שבשולחן (שנקבע כשישבו), ורק
+       כשכולם ממוסד המזמין; שולחן מעורב — 1, כמו עד היום. */
+    var bi = P[by].inst || '';
+    var fits = function (t, x) {
+      var all = t.concat([x]), v = all.filter(function (y) { return y.o; });
+      if (!v.length) return true;
+      var same = all.every(function (y) { return y.i && y.i === bi; });
+      return v.length <= (same ? Math.max.apply(null, v.map(function (y) { return y.lim; })) : 1);
+    };
     var tabs = [];
     arr.forEach(function (x) {
       var t = null;
       for (var j = 0; j < tabs.length && !t; j++) {
-        if (tabs[j].length < 3 && !(x.o && tabs[j].some(function (y) { return y.o; }))) t = tabs[j];
+        if (tabs[j].length < 3 && fits(tabs[j], x)) t = tabs[j];
       }
       if (!t) { t = []; tabs.push(t); }
       t.push(x);
@@ -10819,7 +10861,7 @@ function chSync_(U) {
   /* הספים — רק הגרלות של סף. הגרלה ידנית (`אופן`) צורכת ארוחה מהמלאי
      (R), אבל אינה מזיזה את ה-50 הבא (Ra). */
   var Ra = ms0.filter(function (m) { return m['אופן'] !== 'ידני'; }).length;
-  while (R - Rx < K.F && out.n >= K.step * (Ra + 1)) {
+  while (K.auto && R - Rx < K.F && out.n >= K.step * (Ra + 1)) {
     var k = R + 1, cross = times[K.step * (Ra + 1) - 1], open = cross;
     /* סף שנחצה כשהמאגר היה מלא — החלון נפתח רק כשהמאגר גדל. */
     if (K.poolAt && cross < K.poolAt && k > K.poolPrev) open = K.poolAt;
@@ -10946,9 +10988,11 @@ function chPub_(M) {
     if (m.st === CH_M_.open && M.now < m.close) win = { k: m.k, th: m.th, close: m.close };
     if ([CH_M_.open, CH_M_.zero, CH_M_.ready].indexOf(m.st) >= 0 && m.date) dates.push({ k: m.k, date: m.date });
   });
-  if (left > 0) next = M.step * (M.ms.filter(function (m) { return !m.man; }).length + 1) - M.n;
+  if (left > 0 && M.auto) next = M.step * (M.ms.filter(function (m) { return !m.man; }).length + 1) - M.n;
   var o = { status: 'ok', on: true, n: M.n, step: M.step, left: left, next: Math.max(0, next), win: win,
-            last: chLastNext_(M), ended: chEnded_(M), dates: dates, now: M.now };
+            last: chLastNext_(M), ended: chEnded_(M), dates: dates, now: M.now,
+            /* כלל ההרכב לכל מוסד — לנוסח שהתלמיד רואה (chal.js). מספרים בלבד. */
+            rule: M.rule || {} };
   var d = chDelivered_(M);
   if (d > 0) o.dlv = d;
   return o;
@@ -10980,6 +11024,9 @@ function chMy_(M, P, U) {
     pub.ref = chRefState_(M, U, ref, mine, me);
     /* השם הפרטי של בעל הקישור — כמו בנחיתה (chLand_), לכל מי שמחזיק בו. */
     if (pub.ref !== 'bad') pub.refBy = chRefName_(M, ref);
+    /* המוסד של בעל הקישור — לנוסח לפי הכלל שלו (ותיק מאותו מוסד בלבד). */
+    var ro = chRefMap_().m[ref];
+    if (ro && pub.ref !== 'bad') pub.refI = (M.ppl[chCanon_(M, ro['מזהה'])] || {}).i || chInstOf_(ro['מזהה']);
   }
   /* ההתראה על תוצאות הגרלה פותחת ?ms=k (chPush_): ההגרלה הזו — רק אחרי
      אישור הזוכים — ומה קרה לשולחן שלי בה: won · lost (היה בה ולא זכה) ·
@@ -11145,7 +11192,8 @@ function chRefState_(M, U, code, mine, me) {
   var rid = t.c(t.rows[r], 'מזהה');
   if (t.c(t.rows[r], 'תפקיד') === 'הורה') return 'other';
   if (M.ppl[by] && M.ppl[by].by && (M.ppl[by].by === me || M.ppl[by].by === rid)) return 'other';
-  if ((M.ow || {})[by]) return 'full';
+  var ci = t.c(t.rows[r], 'קוד ישיבה'), bInst = (M.ppl[by] || {}).i || '';
+  if (((M.ow || {})[by] || 0) >= (ci && ci === bInst ? chLim_(M.rule, bInst) : 1)) return 'full';
   var full = false;
   chTab_(CH_OLD_, CH_OLD_COLS_).rows.filter(chMine_(U)).forEach(function (x) {
     if (x['מצב'] !== CH_O_.full || chCanon_(M, x['מזמין']) !== by) return;
@@ -11153,6 +11201,11 @@ function chRefState_(M, U, code, mine, me) {
     if (xi === rid || mine.indexOf(xi) >= 0 || chCanon_(M, xi) === me) full = true;
   });
   return full ? 'full' : 'old';
+}
+/* קוד הישיבה של מזהה מ"לומדים" (מי שעוד אין לו מוזמנים — אינו במודל). */
+function chInstOf_(id) {
+  var t = joinTable_(), r = rowOfId_(t, id);
+  return r >= 1 ? t.c(t.rows[r], 'קוד ישיבה') : '';
 }
 /* השם הפרטי של בעל הקוד. */
 function chRefName_(M, code) {
@@ -11243,12 +11296,13 @@ function chAdm_(M, U) {
   var o = chPub_(M);
   if (!M) return { status: 'busy' };
   o.F = M.F; o.t0 = M.t0; o.lastAt = M.last; o.terms = M.terms; o.test = U.test ? 1 : 0;
+  o.rule = M.rule || {}; o.auto = M.auto ? 1 : 0;
   if (U.test) o.demo = chDemoView_(M, chDemo_());
   /* ההתראה ב-450 (בסף שלפני ההגרלה הממומנת האחרונה): להחליט —
      להאריך או לסיים — לפני שמשהו משתנה אצל התלמידים. */
   var rx = M.ms.filter(function (m) { return m.st === CH_M_.none; }).length;
   var man = M.ms.filter(function (m) { return m.man && m.st !== CH_M_.none; }).length;
-  o.alert = !!(M.on && M.F && M.n >= M.step * (M.F - man + rx) - M.step && M.last !== M.F && !chEnded_(M));
+  o.alert = !!(M.auto && M.on && M.F && M.n >= M.step * (M.F - man + rx) - M.step && M.last !== M.F && !chEnded_(M));
   o.exp = M.exp;
   /* `by` — המזמין: גם לימוד מלפני הפתיחה נחשב לו (`e`). */
   var ppl = M.ppl, who = function (id, by) {
@@ -11357,6 +11411,16 @@ function chAct_(U, P, op) {
       }
       chSetPut_(U, S, 'פעיל', 'כן');
       return { status: 'ok' };
+    }
+    /* כלל ההרכב של מוסד אחד (8.99.357) — גם כשהאתגר כבוי. חל על מי שיושב
+       מכאן והלאה; שולחנות שכבר שובצו או ננעלו לא זזים. */
+    if (op === 'rule') {
+      var ri = String(P.inst || ''), rv = parseInt(P.v, 10), R0 = {};
+      if (!/^[a-z]{2,20}$/.test(ri) || !(rv >= 1 && rv <= 3)) return { status: 'error', message: 'מוסד וכלל' };
+      Object.keys(K.rule).forEach(function (k) { R0[k] = K.rule[k]; });
+      R0[ri] = rv;
+      chSetPut_(U, S, 'כלל הרכב', JSON.stringify(R0));
+      return { status: 'ok', rule: chRuleOf_(chSetRead_(U)) };
     }
     if (!K.on) return { status: 'error', message: 'האתגר כבוי' };
     /* חשיפה: "כולם" ↔ "מוזמנים". המכשיר שמשנה נוסף למפעילים. */
@@ -11903,7 +11967,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });

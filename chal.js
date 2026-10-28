@@ -45,6 +45,13 @@
   /* גם בניסוי החי (testmode.js, ההרצה של הבעלים) — אותו נוסח בדיוק,
      עם הפרס: רואים מה שהתלמיד יראה (8.99.350). */
   function U(k) { var u = window.UI || {}; return u[k] || ''; }
+  /* כלל ההרכב של מוסד (8.99.357, `rule` מהשרת): 1 — לפחות 2 חדשים (כמו
+     עד היום) · 2 — לפחות חדש אחד · 3 — בלי דרישה. הנוסח — `<מפתח>2`/`<מפתח>3`
+     כשיש, אחרת הרגיל. ותיק ממוסד אחר מזה של המזמין — 1 (שולחן מעורב). */
+  function ruleOf(d, inst) { var r = (d && d.rule) || {}; return (inst && r[inst]) || 1; }
+  function myRule(d) { var m = me(); return ruleOf(d || cached(), m && m.inst); }
+  function refRule(d) { var m = me(); return d && d.refI && m && m.inst === d.refI ? ruleOf(d, d.refI) : 1; }
+  function UR(k, n) { return n > 1 && U(k + n) ? U(k + n) : U(k); }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -128,18 +135,14 @@
   function countHtml(d) {
     if (!d || !d.on) return '';
     var h = '';
+    /* **בלי ספירה לאחור ובלי רמז להגרלות הבאות** (8.99.357, החלטת הבעלים
+       28.10): אין הגרלה כל 50. הגרלה נפתחת רק בלחיצה שלו, ובלי חלון זמן.
+       השורה "השבוע יש הגרלה…" — נוסח שהוא עורך (chWeekRaf), ריק = אין. */
     if (d.ended) h += '<p class="ch-big">' + esc(U('chEnded')) + '</p>';
-    else if (d.win) {
-      h += '<p class="ch-big">' + esc(tp(d.win.k > 1 ? U('chMsN') : U('chMs1'), { n: d.win.th })) + '</p>';
-      h += '<p class="ch-sm">' + esc(tp(U('chWinTill'), { t: when(new Date(d.win.close).toISOString()) })) + '</p>';
-    }
+    else if (U('chWeekRaf')) h += '<p class="ch-big">' + esc(U('chWeekRaf')) + '</p>';
     if (d.last && !d.ended) h += '<p class="ch-big">' + esc(U('chLastNext')) + '</p>';
-    var line = d.next > 0 && !d.ended ? tp(U(d.n ? 'chCount' : 'chCount0'), { n: d.n, k: d.next }) : tp(U('chCountEnd'), { n: d.n });
-    h += '<p class="ch-cnt">' + esc(line) + '</p>';
-    if (d.next > 0 && !d.ended) h += '<p class="ch-sm">' + esc(U('chCountNote')) + '</p>';
+    h += '<p class="ch-cnt">' + esc(tp(U('chCountEnd'), { n: d.n })) + '</p>';
     var sub = [];
-    if (!d.ended && d.left > 0) sub.push(d.left === 1 ? U('chLeftOne') : tp(U('chLeft'), { n: d.left }));
-    if (!d.ended && !d.left && !d.win) sub.push(U('chNoMore'));
     if (d.dlv) sub.push(d.dlv === 1 ? U('chDlvOne') : tp(U('chDlv'), { n: d.dlv }));
     if (sub.length) h += '<p class="ch-sm">' + esc(sub.join(' · ')) + '</p>';
     return '<div class="ch-pub">' + h + '</div>';
@@ -150,15 +153,15 @@
     var x = g.d || {}, by = g.by.n;
     if (x.s === 'me') return mine ? U('chStMeInv') : tp(U('chStMeFr'), { by: by });
     if (x.s === 'q') {
-      var t = x.win ? U('chStWin') : x.next > 0 ? tp(U('chStQ'), { n: x.next }) : U('chStQ0');
+      var t = x.win ? U('chStWin') : U('chStQ0');
       return x.lost ? U('chStLostMore') + ' ' + t : t;
     }
     if (x.s === 'in') return x.date ? tp(U('chStInDate'), { d: when(x.date) }) : U('chStIn');
     if (x.s === 'wait') return U('chStWait');
     if (x.s === 'won') return U('chStWon');
     if (x.s === 'out') return U('chStOut');
-    if (x.s === 'lost') return U('chStLost') + ' ' + (d.ended ? U('chEnded') : U('chNoMore'));
-    if (x.s === 'end') return d.ended ? U('chEnded') : U('chNoMore');
+    if (x.s === 'lost') return U('chStLost') + (d.ended ? ' ' + U('chEnded') : '');
+    if (x.s === 'end') return d.ended ? U('chEnded') : '';
     return '';
   }
   /* צבע הכרטיס לפי המצב: ערוך (בתור), בהגרלה/ממתין, זכה, כבוי. */
@@ -311,7 +314,7 @@
     return '<div class="ch-how"><div><i>' + IC.plus + '</i>' + para(U('chHow1')) + '</div><span>←</span>' +
       '<div><i>' + IC.book + '</i>' + para(U('chHow2')) + '</div><span>←</span>' +
       '<div><i>' + IC.ticket + '</i>' + para(U('chHow3')) + '</div></div>' +
-      '<p class="ch-rule">' + esc(U('chRule')) + '</p>';
+      '<p class="ch-rule">' + esc(UR('chRule', myRule())) + '</p>';
   }
   function weekUrl() {
     try {
@@ -381,7 +384,7 @@
     var by = { by: d.refBy || U('chFriend') };
     if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chSitOk'), by)) + '</p>';
     var k = { bad: 'chRefBad', self: 'chRefSelf', other: 'chRefOther', full: 'chOldFull' }[d.ref];
-    return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
+    return k ? '<p class="ch-note">' + esc(tp(k === 'chOldFull' ? UR(k, refRule(d)) : U(k), by)) + '</p>' : '';
   }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת. "הצטרפת" — רק מתשובת
      השרת (?challenge=sit), לא מהלחיצה. */
@@ -389,7 +392,7 @@
     var by = { by: d.refBy || U('chFriend') };
     return '<div class="ch-tcard ch-home"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(U('chOldH')) + '</h2>' +
-      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' +
+      '<p class="ch-lead">' + esc(tp(UR('chOldP', refRule(d)), by)) + '</p>' +
       '<button class="ch-btn ch-cta" id="ch-sit" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
       '<p class="ch-sm" id="ch-sit-m" role="status"></p>' +
       '<a class="ch-more" id="ch-own" href="chaver.html">' + esc(U('chOwnBtn')) + '</a>';
@@ -623,11 +626,8 @@
         }).join('') + '</details>';
     }
     h += countHtml(d);
-    /* "נשאר בהגרלות הבאות" — רק למי שכבר יש לו שולחן מלא. */
-    if (vs.some(function (v) { return ['q', 'in', 'wait', 'lost'].indexOf(v.s) >= 0; })) {
-      h += '<p class="ch-stay">' + esc(U('chStay')) + '</p>';
-    }
-    h += '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(U('chTerms')) + '</p></details>';
+    /* "נשאר בהגרלות הבאות" (chStay) ירד — אין הבטחה להגרלות נוספות (8.99.357). */
+    h += '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(UR('chTerms', myRule(d))) + '</p></details>';
     box.innerHTML = h;
     if (!d.ended) wireShare();
   }

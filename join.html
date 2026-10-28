@@ -3660,18 +3660,23 @@ function tkCardHtml(c) {
       (k > 0 ? '✓' + (k > 1 ? ' ' + k : '') : '+1') + '</i><span>' + esc(lbl) + '</span>' +
       (k > 0 ? '' : '<b class="sr">' + esc(UI.myTkMore) + '</b>') + '</div>';
   };
-  /* **ההגרלה על הדף הזה כבר בוצעה** (8.99.338) — המספר שהיה בה (`drawn`,
-     "תמונת כרטיסים"), ולא החישוב של היום: כללים שהשתנו אחרי ההגרלה אינם
-     משכתבים את מה שהיה בה. בלי הפירוט — הוא של החישוב החי. */
+  /* **ההגרלה על הדף הזה כבר בוצעה** — הודעה אחת לכולם (8.99.357): "ההגרלה
+     על דף … כבר בוצעה", בלי מספר כרטיסים ובלי הפירוט. קודם הוצג המספר
+     שהיה בה (`drawn`, "תמונת כרטיסים"), ומי שלא נכלל ראה 0. המספר עדיין
+     מגיע מהשרת ואינו מוצג; החישוב החי אינו מחליף אותו. */
   var drawn = tk && tk.drawn != null;
-  if (drawn) { n = tk.drawn; sub = dk ? tpl(UI.myTkDrawn, { daf: dk }) : sub; }
+  if (drawn) {
+    return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
+        '<span>' + esc(dk ? tpl(UI.myTkDrawn, { daf: dk }) : sub) + '</span></div></div>' +
+      '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
+  }
   /* בדיקת הזמן שקטה (8.99.355): השרת כבר מציג לתלמיד כרטיס לימוד על
      שני העמודים (rafTk_ `stu`), בלי דקות חסרות — ואין כאן מה להוסיף. */
   return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
       (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
     '<div class="tk-n' + (tk ? ' tix' : '') + '"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
-      (tk ? '<span>' + esc(drawn ? (n === 1 ? UI.myTkDrawn1 : UI.myTkDrawnN) : n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
-    (tk && !drawn ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
+      (tk ? '<span>' + esc(n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
+    (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
         : !tk && !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
     '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
 }
@@ -5391,6 +5396,7 @@ window.addEventListener('load', function () {
   landDemo();
   drawTop();
   LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
+  LQzFlush();                   /* חידון שנשלח ולא אומת — מכל דף */
   loadPub().then(function () {
     drawTop();
     /* הבורר תלוי במתג מהגיליון, ולכן הוא חייב להיצבע שוב אחרי
