@@ -433,7 +433,7 @@
   /* ---- ההשקה: פעם אחת בכל מכשיר, למי שעוד אין לו שולחן ולא הגיע
      מקישור. "למבצע" — ללשונית של האתגר בבית (rzPick ב-join.html). ---- */
   function promo(d) {
-    if (!d || !d.on || d.ended || !student() || refAny() || LGet('chPromo', '')) return;
+    if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || LGet('chPromo', '')) return;
     LSet('chPromo', '1');
     if (views(d.me, d).length) return;
     var el = document.createElement('div'), back = document.activeElement;
@@ -481,8 +481,15 @@
      הכרטיס בבית התלמיד.
      ============================================================ */
   function sync() { if (window.rzSync) rzSync(); }
+  /* **חשיפה** (8.99.352): ב"מוזמנים" השרת מחזיר `pub:false` למי שאינו משתתף
+     — אין כרטיס בבית ואין חלון השקה. מכשיר הניהול (df:admOk) רואה תמיד.
+     הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור. */
+  function shown(d) {
+    if (d && d.pub !== false) return true;
+    try { return localStorage.getItem('df:admOk') === '1'; } catch (e) { return false; }
+  }
   function cardDraw(box, d) {
-    if (!d || !d.on || !student()) { box.innerHTML = ''; sync(); return; }
+    if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; sync(); return; }
     var m = d.me, h;
     /* רשום שהגיע מקישור, ויש מקום לותיק — ההצעה לשבת היא הכרטיס. */
     if (d.ref === 'old' && refAny()) {

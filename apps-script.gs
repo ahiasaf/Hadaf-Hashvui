@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 125;
+var SCRIPT_VERSION = 126;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10157,7 +10157,10 @@ var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הו
                    'נבחרה ב', 'מפתחות', 'אושר ב', 'נמסר ב', 'קוד שובר', 'פסילות', 'הערה',
                    'נסגרה ללא זוכה', 'בדיקה',
                    /* התראת התוצאות — מצב השליחה (chPush_, 8.99.351) */
-                   'התראה'];
+                   'התראה',
+                   /* "ידני" — נפתחה בלחיצת הבעלים ולא בסף (chOpenMan_, 8.99.352).
+                      אינה נספרת בספים של 50, אבל צורכת ארוחה מהמלאי. */
+                   'אופן'];
 var CH_REF_COLS_ = ['קוד', 'מזהה', 'נוצר', 'בדיקה'];
 /* חבר ותיק (8.99.350): כבר רשום, וביקש לשבת בשולחן של מזמין — בכפתור,
    או בהרשמה חוזרת מהקישור שזוהתה כאדם קיים. שורה ריקה במצב — chSync_
@@ -10253,8 +10256,13 @@ function chConf_(U, S) {
   }
   return { on: S['פעיל'] === 'כן', t0: chMs_(S['נפתח']), F: parseInt(S['ארוחות ממומנות'], 10) || 0,
            step: step, win: winH * 3600e3, last: parseInt(S['הגרלה אחרונה'], 10) || 0,
-           poolAt: chMs_(S['המאגר השתנה']), poolPrev: parseInt(S['מותר לפני השינוי'], 10) || 0 };
+           poolAt: chMs_(S['המאגר השתנה']), poolPrev: parseInt(S['מותר לפני השינוי'], 10) || 0,
+           /* חשיפה (8.99.352): "מוזמנים" — הכרטיס בבית רק למשתתפים ולמכשיר
+              שהפעיל; שדה חסר = "כולם", כמו קודם. נראות בלבד — לא חסימה. */
+           exp: S['חשיפה'] === CH_EXP_Q ? CH_EXP_Q : CH_EXP_ALL,
+           act: String(S['מפעיל'] || '').split(',').filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }) };
 }
+var CH_EXP_ALL = 'כולם', CH_EXP_Q = 'מוזמנים';
 
 /* ============================================================
    הסנכרון — האמת אחת, מהגיליון. רץ תחת נעילת הסקריפט.
@@ -10264,7 +10272,7 @@ function chConf_(U, S) {
    חלון שנסגר) — אידמפוטנטי: הרצה חוזרת לא משנה דבר. */
 function chSync_(U) {
   var now = Date.now(), S = chSetRead_(U), K = chConf_(U, S);
-  var out = { on: K.on, t0: K.t0, F: K.F, step: K.step, win: K.win, last: K.last, now: now,
+  var out = { on: K.on, t0: K.t0, F: K.F, step: K.step, win: K.win, last: K.last, now: now, exp: K.exp, act: K.act,
               terms: S['תנאים אושרו'] || '', ppl: {}, al: {}, grp: [], ms: [], n: 0, times: [] };
   if (!K.on || !K.t0) return out;
 
@@ -10434,15 +10442,18 @@ function chSync_(U) {
   var M = chTab_(CH_MS_, CH_MS_COLS_), ms0 = M.rows.filter(mine);
   ms0.sort(function (a, b) { return (+a['הגרלה'] || 0) - (+b['הגרלה'] || 0); });
   var R = ms0.length, Rx = ms0.filter(function (m) { return m['מצב'] === CH_M_.none; }).length;
-  while (R - Rx < K.F && out.n >= K.step * (R + 1)) {
-    var k = R + 1, cross = times[K.step * k - 1], open = cross;
+  /* הספים — רק הגרלות של סף. הגרלה ידנית (`אופן`) צורכת ארוחה מהמלאי
+     (R), אבל אינה מזיזה את ה-50 הבא (Ra). */
+  var Ra = ms0.filter(function (m) { return m['אופן'] !== 'ידני'; }).length;
+  while (R - Rx < K.F && out.n >= K.step * (Ra + 1)) {
+    var k = R + 1, cross = times[K.step * (Ra + 1) - 1], open = cross;
     /* סף שנחצה כשהמאגר היה מלא — החלון נפתח רק כשהמאגר גדל. */
     if (K.poolAt && cross < K.poolAt && k > K.poolPrev) open = K.poolAt;
-    var m = { 'הגרלה': String(k), 'סף': String(K.step * k), 'מצב': CH_M_.open, 'נפתח': chIso_(open),
+    var m = { 'הגרלה': String(k), 'סף': String(K.step * (Ra + 1)), 'מצב': CH_M_.open, 'נפתח': chIso_(open),
               'נסגר': chIso_(open + K.win), 'בדיקה': U.test ? 'כן' : '' };
     chPut_(M, m);
     ms0.push(m);
-    R++;
+    R++; Ra++;
   }
   /* סגירת חלון והקפאת הזכאות — לפי מועדי השרת, פעם אחת. */
   var gOf = {};
@@ -10492,7 +10503,7 @@ function chSync_(U) {
     try { dq = JSON.parse(m['פסילות'] || '[]') || []; } catch (e) { dq = []; }
     return { k: +m['הגרלה'], th: +m['סף'], st: m['מצב'], open: chMs_(m['נפתח']), close: chMs_(m['נסגר']),
              frz: chMs_(m['הוקפא']), el: String(m['זכאים'] || '').split(/\s+/).filter(Boolean),
-             date: m['מועד הגרלה'], sel: m['נבחרה'], selAt: chMs_(m['נבחרה ב']), okAt: chMs_(m['אושר ב']),
+             man: m['אופן'] === 'ידני' ? 1 : 0, date: m['מועד הגרלה'], sel: m['נבחרה'], selAt: chMs_(m['נבחרה ב']), okAt: chMs_(m['אושר ב']),
              dlvAt: chMs_(m['נמסר ב']), dq: dq, note: m['הערה'], noneAt: chMs_(m['נסגרה ללא זוכה']) };
   });
   return out;
@@ -10561,7 +10572,7 @@ function chPub_(M) {
     if (m.st === CH_M_.open && M.now < m.close) win = { k: m.k, th: m.th, close: m.close };
     if ([CH_M_.open, CH_M_.zero, CH_M_.ready].indexOf(m.st) >= 0 && m.date) dates.push({ k: m.k, date: m.date });
   });
-  if (left > 0) next = M.step * (M.ms.length + 1) - M.n;
+  if (left > 0) next = M.step * (M.ms.filter(function (m) { return !m.man; }).length + 1) - M.n;
   var o = { status: 'ok', on: true, n: M.n, step: M.step, left: left, next: Math.max(0, next), win: win,
             last: chLastNext_(M), ended: chEnded_(M), dates: dates, now: M.now };
   var d = chDelivered_(M);
@@ -10583,6 +10594,13 @@ function chMy_(M, P, U) {
     if (M.ppl[c]) { me = c; break; }
   }
   pub.me = null;
+  /* **חשיפה** (8.99.352): ב"מוזמנים" הכרטיס בבית וחלון ההשקה — רק למי שכבר
+     משתתף (מזמין שיש לו מוזמנים, חבר ששובץ, ותיק שישב), למי שהגיע מקישור,
+     ולמכשיר שהפעיל. נראות בלבד: הקישור, השיבוץ, הלימוד וההגרלה — לכולם. */
+  var pp0 = me ? M.ppl[me] : null;
+  pub.pub = M.exp !== CH_EXP_Q || !!String(P.ref || '').trim() ||
+    !!(pp0 && ((pp0.fr || []).length || pp0.by || pp0.ob)) ||
+    mine.some(function (x) { return (M.act || []).indexOf(x) >= 0 || (M.act || []).indexOf(chCanon_(M, x)) >= 0; });
   var ref = String(P.ref || '').trim().toUpperCase();
   if (ref && /^[A-Z0-9]{4,10}$/.test(ref)) {
     pub.ref = chRefState_(M, U, ref, mine, me);
@@ -10855,7 +10873,9 @@ function chAdm_(M, U) {
   /* ההתראה ב-450 (בסף שלפני ההגרלה הממומנת האחרונה): להחליט —
      להאריך או לסיים — לפני שמשהו משתנה אצל התלמידים. */
   var rx = M.ms.filter(function (m) { return m.st === CH_M_.none; }).length;
-  o.alert = !!(M.on && M.F && M.n >= M.step * (M.F + rx) - M.step && M.last !== M.F && !chEnded_(M));
+  var man = M.ms.filter(function (m) { return m.man && m.st !== CH_M_.none; }).length;
+  o.alert = !!(M.on && M.F && M.n >= M.step * (M.F - man + rx) - M.step && M.last !== M.F && !chEnded_(M));
+  o.exp = M.exp;
   /* `by` — המזמין: גם לימוד מלפני הפתיחה נחשב לו (`e`). */
   var ppl = M.ppl, who = function (id, by) {
     var p = ppl[id] || {};
@@ -10887,7 +10907,7 @@ function chAdm_(M, U) {
              f: g.f.map(function (f) { return who(f); }) };
   };
   o.ms = M.ms.map(function (m) {
-    return { k: m.k, th: m.th, st: m.st, open: m.open, close: m.close, frz: m.frz, n: m.el.length,
+    return { k: m.k, th: m.th, man: m.man, st: m.st, open: m.open, close: m.close, frz: m.frz, n: m.el.length,
              cands: chCands_(M, m).length, date: m.date, sel: m.sel ? gfull(m.sel) : null, selAt: m.selAt,
              okAt: m.okAt, dlvAt: m.dlvAt, dq: m.dq, note: m.note, noneAt: m.noneAt, code: '' };
   });
@@ -10954,6 +10974,9 @@ function chAct_(U, P, op) {
       if (!S['נפתח']) chSetPut_(U, S, 'נפתח', now);
       chSetPut_(U, S, 'ארוחות ממומנות', F0);
       chSetPut_(U, S, 'תנאים אושרו', now);
+      /* החשיפה — "מוזמנים" אלא אם נבחר "כולם" במפורש; והמכשיר שהפעיל. */
+      chSetPut_(U, S, 'חשיפה', String(P.exp || '') === CH_EXP_ALL ? CH_EXP_ALL : CH_EXP_Q);
+      chSetPut_(U, S, 'מפעיל', chIds_(P.me).join(','));
       if (U.test) {
         chSetPut_(U, S, 'צעד', Math.max(1, Math.min(CH_STEP_, parseInt(P.step, 10) || 2)));
         chSetPut_(U, S, 'חלון בשעות', Math.max(0.01, Math.min(CH_WIN_H_, (parseFloat(P.winMin) || 3) / 60)));
@@ -10962,7 +10985,37 @@ function chAct_(U, P, op) {
       return { status: 'ok' };
     }
     if (!K.on) return { status: 'error', message: 'האתגר כבוי' };
+    /* חשיפה: "כולם" ↔ "מוזמנים". המכשיר שמשנה נוסף למפעילים. */
+    if (op === 'exposure') {
+      var v = String(P.v || '');
+      if (v !== CH_EXP_ALL && v !== CH_EXP_Q) return { status: 'error', message: 'כולם או מוזמנים?' };
+      chSetPut_(U, S, 'חשיפה', v);
+      var act = K.act.slice();
+      chIds_(P.me).forEach(function (x) { if (act.indexOf(x) < 0) act.push(x); });
+      chSetPut_(U, S, 'מפעיל', act.slice(-8).join(','));
+      return { status: 'ok', exp: v };
+    }
     var M = chSync_(U);
+    /* פתיחת הגרלה ידנית (8.99.352) — כשאין עדיין 50. אותו מסלול בדיוק: שורת
+       הגרלה שנפתחת ונסגרת עכשיו, הסנכרון מקפיא את השולחנות שהושלמו, ומשם
+       הגרלה ← אישור ← הודעה ← מסירה כרגיל. צורכת ארוחה; הספים לא זזים. */
+    if (op === 'open') {
+      if (chLeft_(M) <= 0) return { status: 'error', message: 'אין ארוחות פנויות במלאי' };
+      if (M.ms.some(function (m) { return [CH_M_.open, CH_M_.zero, CH_M_.ready, CH_M_.pend].indexOf(m.st) >= 0; })) {
+        return { status: 'error', message: 'יש הגרלה שעוד לא הוכרעה — מסיימים אותה קודם' };
+      }
+      var dn = M.grp.filter(function (g) { return g.st === CH_G_.done; });
+      if (!dn.length) return { status: 'error', message: 'אין עדיין שולחן מושלם — אין על מה להגריל' };
+      var MT = chTab_(CH_MS_, CH_MS_COLS_), n0 = MT.rows.filter(chMine_(U)).length, at0 = new Date(Date.now() - 1000).toISOString();
+      chPut_(MT, { 'הגרלה': String(n0 + 1), 'סף': '', 'מצב': CH_M_.open, 'נפתח': at0, 'נסגר': at0,
+                   'בדיקה': U.test ? 'כן' : '', 'אופן': 'ידני' });
+      SpreadsheetApp.flush();
+      M = chSync_(U);
+      var mo = null;
+      M.ms.forEach(function (x) { if (x.k === n0 + 1) mo = x; });
+      return { status: mo && mo.st === CH_M_.ready ? 'ok' : 'error', ms: n0 + 1, n: mo ? mo.el.length : 0,
+               message: mo && mo.st === CH_M_.ready ? '' : 'ההגרלה נפתחה אבל לא נסגרה — טוענים מחדש' };
+    }
     if (op === 'extend') {
       var add = parseInt(P.add, 10);
       if (!(add > 0 && add <= 100)) return { status: 'error', message: 'כמה ארוחות נוספו' };
@@ -11112,6 +11165,16 @@ function chPush_(U, P) {
       if (!ids.length) return { status: 'error', message: 'לאף משתתף בניסוי אין מכשיר מזוהה' };
       flt = JSON.stringify({ ids: ids });
       role = '';
+    } else if (K.exp === CH_EXP_Q) {
+      /* **חשיפה "מוזמנים"** (8.99.352): התראה לכל התלמידים הייתה חושפת את
+         המבצע. ההשקה — רק אחרי "לחשוף לכולם"; התוצאות — רק למשתתפים
+         (ולמפעיל). */
+      if (kind === 'launch') return { status: 'error', message: 'התראת ההשקה היא לכל התלמידים — שולחים אותה אחרי "לחשוף לכולם"' };
+      var M0 = chSync_(U), pids = Object.keys(M0.ppl);
+      K.act.forEach(function (x) { if (pids.indexOf(x) < 0) pids.push(x); });
+      if (!pids.length) return { status: 'error', message: 'אין עדיין משתתפים' };
+      if (pids.length > 60) return { status: 'error', message: 'יותר מ-60 משתתפים — חושפים לכולם ושולחים לכולם' };
+      flt = JSON.stringify({ ids: pids });
     }
     var mid = chPushMid_(U, K, kind, k), cur, save;
     if (kind === 'launch') {
@@ -11466,7 +11529,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });

@@ -1287,6 +1287,10 @@ footer a{color:var(--ink-2);font-weight:800}
   font-size:.92rem;font-weight:800;color:#36507A;cursor:pointer}
 .rz-tabs button.on{background:#FFFDF8;color:#0B2550;box-shadow:0 1px 4px rgba(11,37,80,.18)}
 .rz-ch #mytk,.rz-ch #mypts{display:none!important}
+/* "המסך שלי כתלמיד" — חזרה לניהול (8.99.352). */
+.adm-back{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);inset-inline-start:14px;z-index:70;
+  border:0;border-radius:99px;padding:10px 16px;background:#0B2550;color:#fff;font:inherit;font-size:.88rem;
+  font-weight:800;box-shadow:0 6px 18px rgba(11,37,80,.3);cursor:pointer}
 .rz-tk #chal{display:none}
 .rz + .mytk{margin-top:10px}
 </style>
@@ -2054,6 +2058,22 @@ function drawTop() {
 /* אתגר "חבר מביא חבר": הקוד מהקישור נשמר מיד, לפני כל מסך —
    ההרשמה עשויה לקרות אחרי מעבר לכרום או אחרי התקנה. ראו chal.js. */
 if (window.CHAL) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
+/* "המסך שלי כתלמיד" (8.99.352): מי שהגיע מהניהול — כפתור חזרה. "אחורה"
+   בהיסטוריה, ולא קישור: הניהול אינו מקושר משום מקום. */
+(function () {
+  var on = false;
+  try { on = sessionStorage.getItem('df:fromAdm') === '1'; } catch (e) {}
+  if (!on || !document.body) return;
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'adm-back';
+  b.textContent = '→ ' + UI.admBackAdm;
+  b.onclick = function () {
+    try { sessionStorage.removeItem('df:fromAdm'); } catch (e) {}
+    history.back();
+  };
+  document.body.appendChild(b);
+})();
 if (window.QUAD) QUAD.grabRef();
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */

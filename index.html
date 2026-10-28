@@ -2994,7 +2994,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.351';
+var APP_VERSION = '8.99.352';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11222,6 +11222,8 @@ function renderAdmin() {
           '<button class="adm-ic adm-bell' + (admTab === 'hot' ? ' on' : '') + '" onclick="admGo(\'hot\')" aria-label="' +
             esc(UI.hotH) + '">🔔<em id="adm-bell-n"></em></button>' +
           '<button id="adm-rf" class="adm-ic adm-rf" onclick="admRefreshAll()" aria-label="' + esc(UI.admRefresh) + '">⟳</button></div>' +
+          /* "המסך שלי כתלמיד" — הבית שלי, בחשבון האמיתי (admAsStu). */
+          '<button class="adm-chip" onclick="admAsStu()">🎒 ' + esc(UI.admAsStu) + '</button>' +
           /* ישיבה שנבחרה — שבב עם ✕. */
           (ADM_INST ? '<button class="adm-chip" onclick="admInstPick(\'\');renderAdmin()" aria-label="' +
             esc(UI.instChipX) + '">🏫 ' + esc(admInstName(ADM_INST)) + ' <span aria-hidden="true">✕</span></button>' : '') +
@@ -11698,6 +11700,17 @@ var MORE = [
                                 ['screens','moreScreens'], ['data','moreData'], ['sys','moreSys']] }
 ];
 /* העלה → הלשונית שלו. "נוסחים" נבלע במסלול השליחה. */
+/* ============================================================
+   "המסך שלי כתלמיד" (8.99.352) — כללי, לכל פיצ'ר.
+   ============================================================
+   הבית של התלמיד (join) באותו מכשיר ובאותו חשבון — בלי זהות נוספת, בלי
+   התקנה, ובלי לגעת בסשן הניהול. אין לי עדיין רשומת תלמיד — טופס ההרשמה
+   הרגיל. החזרה — כפתור בבית (join.html) שעושה "אחורה" בהיסטוריה, ולא
+   קישור לניהול (הניהול אינו מקושר משום מקום). */
+function admAsStu() {
+  try { sessionStorage.setItem('df:fromAdm', '1'); } catch (e) {}
+  location.href = /\.html$/.test(location.pathname) ? 'join.html' : 'join';
+}
 function admHome(leaf) {
   if (leaf === 'people') return 'stu';
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
@@ -15940,6 +15953,26 @@ function rafPicHtml(dis) {
    ============================================================ */
 var CHA = { test: false, d: null, busy: false, msg: '', at: 0 };
 function chaKey() { return (CFG.readKey || '').trim(); }
+/* מזהי התלמיד של המכשיר הזה — "המפעיל" שרואה את הכרטיס גם בחשיפה "מוזמנים". */
+function chaMe() {
+  var out = [];
+  try {
+    var m = JSON.parse(localStorage.getItem('df:me') || 'null'), w = JSON.parse(localStorage.getItem('df:who-id') || 'null');
+    if (m && m.id) out.push(String(m.id));
+    if (w && out.indexOf(String(w)) < 0) out.push(String(w));
+  } catch (e) {}
+  return out.join(',');
+}
+/* חשיפה — "כולם" ↔ "רק אני והמוזמנים". אישור אחד. */
+function chaExp(v) {
+  if (!confirm(v === 'כולם' ? UI.chaExpAllQ : UI.chaExpQQ)) return;
+  chaAct('exposure', { v: v, me: chaMe() }, false);
+}
+/* פתיחת הגרלה ידנית — אישור אחד, ואז אותו מסלול של הגרלה רגילה. */
+function chaOpenMan() {
+  if (!confirm(UI.chaManQ)) return;
+  chaAct('open', {}, false);
+}
 function chaCall(op, p) {
   var q = { challenge: op, key: chaKey() };
   if (CHA.test) q.tst = '1';
@@ -16459,7 +16492,8 @@ function chaPush(kind, k, force) {
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
 }
 function chaMs(m, d, dis) {
-  var h = '<div class="adm-card cha-ms"><h4>' + esc(fill(UI.chaMsH, { th: m.th })) + ' · <span class="cha-st">' + esc(m.st) + '</span></h4>' +
+  var h = '<div class="adm-card cha-ms"><h4>' + esc(m.man ? fill(UI.chaMsHMan, { k: m.k }) : fill(UI.chaMsH, { th: m.th })) +
+      ' · <span class="cha-st">' + esc(m.st) + '</span></h4>' +
     '<p class="h">' + esc(fill(UI.chaOpened, { t: chaT(m.open), c: chaT(m.close) })) + '</p>';
   if (m.frz) h += '<p class="h">' + esc(fill(UI.chaFrz, { t: chaT(m.frz), n: m.n, k: m.cands })) + '</p>';
   var k = m.k;
@@ -16522,7 +16556,7 @@ function chaMs(m, d, dis) {
         }).join('');
     }
     h += chaMsgBox('done' + k, UI.chaMsgDone, d.left > 0 ? fill(UI.chaDoneMsg, { th: m.th, left: d.left }) : fill(UI.chaDoneEnd, { th: m.th }));
-    if (!CHA.test) h += chaPushBox('ms', String(k), m.push, UI.chaPushMTo, dis);
+    if (!CHA.test) h += chaPushBox('ms', String(k), m.push, d.exp === 'מוזמנים' ? UI.chaPushMToQ : UI.chaPushMTo, dis);
   }
   if (m.st === 'נסגרה ללא זוכה') h += '<p class="h">' + esc(fill(UI.chaNoneH, { t: chaT(m.noneAt) })) + '</p>';
   return h + '</div>';
@@ -16678,9 +16712,15 @@ function chaPaint() {
       '<div class="fld"><label class="label">' + esc(UI.chaMeals) + '</label><input type="number" min="1" max="100" id="cha-meals" value="10" dir="ltr"></div>' +
       (CHA.test ? '<div class="fld"><label class="label">' + esc(UI.chaStep) + '</label><input type="number" min="1" max="50" id="cha-step" value="2" dir="ltr"></div>' +
                   '<div class="fld"><label class="label">' + esc(UI.chaWin) + '</label><input type="number" min="1" max="1440" id="cha-win" value="3" dir="ltr"></div>' : '') +
+      '<div class="pp-h">' + esc(UI.chaExpH) + '</div>' +
+      '<label class="cha-chk" style="display:block"><input type="radio" name="cha-exp" value="מוזמנים" checked> <b>' + esc(UI.chaExpQ) + '</b></label>' +
+      '<p class="h" style="margin-inline-start:26px">' + esc(UI.chaExpQP) + '</p>' +
+      '<label class="cha-chk" style="display:block"><input type="radio" name="cha-exp" value="כולם"> <b>' + esc(UI.chaExpAll) + '</b></label>' +
+      '<p class="h" style="margin-inline-start:26px">' + esc(UI.chaExpAllP) + '</p>' +
       '<label class="cha-chk"><input type="checkbox" id="cha-terms"> ' + esc(UI.chaTerms) + '</label>' +
       '<button class="btn p" type="button" style="margin-top:10px"' + dis + ' onclick="chaAct(\'activate\',{meals:chaVal(\'cha-meals\'),' +
-      'step:chaVal(\'cha-step\'),winMin:chaVal(\'cha-win\'),terms:document.getElementById(\'cha-terms\').checked?\'1\':\'\'})">' +
+      'step:chaVal(\'cha-step\'),winMin:chaVal(\'cha-win\'),terms:document.getElementById(\'cha-terms\').checked?\'1\':\'\',' +
+      'exp:(document.querySelector(\'input[name=cha-exp]:checked\')||{}).value||\'מוזמנים\',me:chaMe()})">' +
       esc(UI.chaGo) + '</button></div>';
     if (CHA.test) h += '<div class="adm-card"><button class="btn g" type="button"' + dis + ' onclick="chaAct(\'tclear\')">' + esc(UI.chaClear) + '</button></div>';
     el.innerHTML = h;
@@ -16695,6 +16735,18 @@ function chaPaint() {
   } else if (d.lastAt && d.lastAt === d.F && !d.ended) {
     h += '<div class="adm-card"><p class="h"><b>' + esc(UI.chaLastOn) + '</b></p></div>';
   }
+  /* החשיפה — שורת מצב בולטת, וכפתור אחד לשנות. */
+  var quiet = d.exp === 'מוזמנים';
+  h += '<div class="adm-card' + (quiet ? ' cha-alert' : '') + '"><h4>' + esc(quiet ? UI.chaExpNowQ : UI.chaExpNowAll) + '</h4>' +
+    '<p class="h">' + esc(quiet ? UI.chaExpQP : UI.chaExpAllP) + '</p>' +
+    '<button class="btn ' + (quiet ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaExp(\'' + (quiet ? 'כולם' : 'מוזמנים') + '\')">' +
+      esc(quiet ? UI.chaExpGoAll : UI.chaExpGoQ) + '</button></div>';
+  /* פתיחת הגרלה ידנית — כשאין הגרלה פתוחה ויש ארוחה במלאי. */
+  var busyMs = (d.ms || []).some(function (m) { return ['חלון פתוח', 'ממתין לקבוצה ראשונה', 'ממתין להגרלה', 'ממתין לאישור'].indexOf(m.st) >= 0; });
+  if (!busyMs && d.left > 0 && !d.ended) {
+    h += '<div class="adm-card"><h4>' + esc(UI.chaManH) + '</h4><p class="h">' + esc(fill(UI.chaManP, { n: (d.cnt || {}).done || 0 })) + '</p>' +
+      '<button class="btn g" type="button"' + dis + ' onclick="chaOpenMan()">' + esc(UI.chaManGo) + '</button></div>';
+  }
   var c = d.cnt || {};
   h += '<div class="cha-tiles">' + chaTile(d.n, UI.chaN) + chaTile(d.next > 0 ? d.next : '—', UI.chaNext) +
     chaTile(c.done, UI.chaDone) + chaTile(c.prog, UI.chaProg) + chaTile(c.wait, UI.chaWaitInv) +
@@ -16702,7 +16754,9 @@ function chaPaint() {
   (d.ms || []).slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
   h += '<div class="adm-card"><h4>' + esc(UI.chaMsgsH) + '</h4><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
-    (CHA.test ? '' : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
+    (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
+      ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
+      : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
     chaMsgBox('launch', UI.chaMsgLaunch, fill(UI.chaLaunchMsg, { url: chaStuUrl() }));
   var lastMs = (d.ms || []).filter(function (m) { return m.open; }).slice(-1)[0];
   if (lastMs) h += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
