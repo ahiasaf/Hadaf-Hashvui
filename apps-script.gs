@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 126;
+var SCRIPT_VERSION = 127;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -416,7 +416,7 @@ function doPost(e) {
         return p && aOk.indexOf(String(p[0] || '')) >= 0;
       });
       aCols.push(['קוד ישיבה', aInst]);
-      return appendCols_(AMDA_TAB_, aCols);
+      return amdaAppend_(aCols);
     }
     if (d.action === 'row' || d.action === 'table') {
       if (!wAdm) {
@@ -533,6 +533,7 @@ function doPost(e) {
       /* כבר נבדק למעלה — הלשוניות האלה אינן ב-PUB_ROW. */
       backupDaily_();
     }
+    if (d.action === 'row' && d.tab === AMDA_TAB_ && !d.ss) return amdaAppend_(parse_(d.cols) || []);
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table' && YSH_TABS_.hasOwnProperty(d.tab)) {
       return json_({ status: 'denied',
@@ -3580,6 +3581,25 @@ var AMDA_LINK_ = 'עמדה — שיוך';
    הוא לומד עם אביו, והעמדה אינה סותרת את זה.
    ============================================================ */
 var AMDA_WAY_ = 'חבורת לימוד';
+/* רישום נוכחות — פעם אחת לכל מזהה (8.99.353).
+   הכתיבה `no-cors`, והעמדה שולחת שוב כל רישום שעוד לא ראתה בגיליון —
+   ולכן אותו רישום נכתב פעמיים ושלוש (23 שורות עד 28.10). מזהה שכבר
+   קיים — מדלגים, ולא דורסים: תיקון סוג (amdaKind_) כבר נכתב בשורה,
+   ושליחה ישנה מהתור הייתה מחזירה אותו. */
+function amdaAppend_(cols) {
+  var id = '';
+  cols.forEach(function (c) { if (c && c[0] === 'מזהה') id = String(c[1] || '').trim(); });
+  if (id) {
+    var sh = sheet_(AMDA_TAB_), head = headers_(sh), ix = head.indexOf('מזהה'), n = sh.getLastRow() - 1;
+    if (ix >= 0 && n > 0) {
+      var v = sh.getRange(2, ix + 1, n, 1).getValues();
+      for (var r = 0; r < v.length; r++) {
+        if (String(v[r][0] || '').trim() === id) return json_({ status: 'success', tab: AMDA_TAB_, dup: true });
+      }
+    }
+  }
+  return appendCols_(AMDA_TAB_, cols);
+}
 function amdaGroupIds_() {
   var out = {};
   try {
