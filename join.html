@@ -828,8 +828,6 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mytk.tk-new .tk-s.on.tk-pop{animation:tkPop .9s ease-out 2}
 @keyframes tkPop{0%,100%{transform:scale(1)}40%{transform:scale(1.12)}}
 @media (prefers-reduced-motion:reduce){.mytk.tk-new .tk-s.on.tk-pop{animation:none}}
-/* עוד חסר זמן לכרטיס הלימוד — כמה דקות (tkCardHtml, `lack`). */
-.mytk .tk-lack{margin-top:10px;font-size:.86rem;font-weight:700;color:var(--ink-2)}
 .mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
   font-size:.93rem;font-weight:800;color:var(--blue);text-align:right;cursor:pointer}
 /* ההסבר — מסך מלא מעל הבית, בלי לעזוב אותו: החזרה בראש (נשארת בגלילה)
@@ -3667,14 +3665,13 @@ function tkCardHtml(c) {
      משכתבים את מה שהיה בה. בלי הפירוט — הוא של החישוב החי. */
   var drawn = tk && tk.drawn != null;
   if (drawn) { n = tk.drawn; sub = dk ? tpl(UI.myTkDrawn, { daf: dk }) : sub; }
-  /* עוד חסר זמן לכרטיס הלימוד, ואף חריג לא חל (rafCalc_ `lack`). */
-  var lk = !drawn && tk && tk.lack ? (tk.lack[myTrack()] || 0) : 0;
+  /* בדיקת הזמן שקטה (8.99.355): השרת כבר מציג לתלמיד כרטיס לימוד על
+     שני העמודים (rafTk_ `stu`), בלי דקות חסרות — ואין כאן מה להוסיף. */
   return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
       (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
     '<div class="tk-n' + (tk ? ' tix' : '') + '"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
       (tk ? '<span>' + esc(drawn ? (n === 1 ? UI.myTkDrawn1 : UI.myTkDrawnN) : n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
-    (tk && !drawn ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>' +
-          (lk ? '<div class="tk-lack">' + esc(tpl(UI.myTkLack, { m: lk })) + '</div>' : '')
+    (tk && !drawn ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
         : !tk && !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
     '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
 }

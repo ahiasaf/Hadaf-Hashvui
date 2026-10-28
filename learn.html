@@ -979,7 +979,6 @@ nav .sp{flex:1}
 .dn-tm span{display:block;font-size:.95rem;font-weight:800}
 /* הכרטיס על הדף שנלמד — נרשם, או כמה דקות חסרות (dnTkPaint_). */
 .dn-tkl{margin:0 auto 10px;font-size:.95rem;font-weight:800;color:var(--blue-d)}
-.dn-tkl.lack{color:var(--gold-d,#8A6416)}
 /* שמירת החידון — מצב, ציון, וכמה כרטיסים יש עכשיו (doneQPaint_). */
 .dq-sv{display:block;margin-top:8px;font-size:.92rem;font-weight:700;line-height:1.5}
 /* החידון עוד לא עלה — במקום הכפתור הראשי, באותו מקום */
@@ -5749,9 +5748,9 @@ function qzLand_() {
   }, 1600);
 }
 /* ---- כרטיס הלימוד במסך הסיום (8.99.338) ----
-   מהשרת (?tkd): הכרטיס נרשם — שורה; עוד חסר זמן ואף חריג לא חל — כמה
-   דקות. השורה של הלימוד עוד לא הגיעה לשרת — שואלים שוב, ובינתיים כלום:
-   לא "חסרות דקות" למי שאולי זכאי. דף שאינו בשום הגרלה שלפנינו — כלום. */
+   מהשרת (?tkd): הכרטיס נרשם — שורה. בדיקת הזמן שקטה (8.99.355): השרת
+   מציג לתלמיד כרטיס על שני העמודים, בלי דקות חסרות. השורה של הלימוד עוד
+   לא הגיעה לשרת — שואלים שוב, ובינתיים כלום. דף שאינו בשום הגרלה שלפנינו — כלום. */
 function dnTkPaint_(k) {
   var box = $('done-tk'), me = (typeof LMe === 'function') ? LMe() : null;
   if (!box) return;
@@ -5761,10 +5760,9 @@ function dnTkPaint_(k) {
     if ($('done').className.indexOf('on') < 0) return;
     LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) + '&wk=' + (S.week + 1))
       .then(function (r) {
-        var tk = r && r.status === 'ok' && r.tk, x = tk && tk.tr && tk.tr[S.tr], lk = tk && tk.lack && tk.lack[S.tr];
+        var tk = r && r.status === 'ok' && r.tk, x = tk && tk.tr && tk.tr[S.tr];
         if (!tk || tk.drawn != null) return;
         if (x && x[0]) { box.textContent = UI.dnTkL || ''; box.className = 'dn-tkl'; }
-        else if (lk) { box.textContent = fillT(UI.dnTkLack || '', { m: lk }); box.className = 'dn-tkl lack'; }
         else { dnTkPaint_(k + 1); return; }
         box.style.display = box.textContent ? '' : 'none';
       }, function () { dnTkPaint_(k + 1); });

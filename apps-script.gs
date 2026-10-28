@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 128;
+var SCRIPT_VERSION = 129;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8344,12 +8344,12 @@ function ptsMe_(P) {
   try {
     var M = rafMeMap_();
     for (var j = 0; j < mine.length && !tk; j++) if (M[mine[j]]) {
-      tk = rafTk_(M[mine[j]]);
+      tk = rafTk_(M[mine[j]], null, true);
       /* מסלול השלמה — 'h1' / 'h0' בסוף הערך (rafMeMap_). */
       var hm = String(M[mine[j]]).match(/\|h([01])$/);
       if (hm) hs = +hm[1];
     }
-    if (!tk) tk = rafTk_('');
+    if (!tk) tk = rafTk_('', null, true);
     /* הדף של ההגרלה בכל מסלול — לבית התלמיד במסלול השלמה (tkCardHtml).
        רק כאן ולא ב-rafTk_, שנקרא לכל תלמיד בלוח הצוות. */
     tk.dafs = rafDafs_();
@@ -9388,8 +9388,8 @@ function quizSum_() {
      d: — ההגרלה על הדף הזה כבר בוצעה: כמה כרטיסים היו לו בה ("תמונת
           כרטיסים" — מה שנשמר בהגרלה, לא החישוב של היום).
    `w` — שבוע אחר (rafCalcW_; מסך הסיום והחידון של הדף שנלמד עכשיו).
-   המטמון 'raf:me4' (8.99.338) — הפורמט הקודם אינו נקרא. */
-function rafMeKey_(w) { return w == null ? 'raf:me4' : 'raf:me4:' + w; }
+   המטמון 'raf:me5' (8.99.355; הסימון '+' כולל גם `m:`) — הפורמט הקודם אינו נקרא. */
+function rafMeKey_(w) { return w == null ? 'raf:me5' : 'raf:me5:' + w; }
 function rafMeMap_(w) {
   var key = rafMeKey_(w);
   var rc = CacheService.getScriptCache(), M = null, hit = rc.get(key);
@@ -9406,20 +9406,23 @@ function rafMeMap_(w) {
       if (sd && ((sd.a ? 1 : 0) + (sd.b ? 1 : 0)) > ((a ? 1 : 0) + (b ? 1 : 0))) { a = !!sd.a; b = !!sd.b; }
     });
     var tk = C.done[to];
+    var lk = RAF_KEYS_.filter(function (tr) { return C.lack[to + '|' + tr]; })
+      .map(function (tr) { return tr + '=' + C.lack[to + '|' + tr]; });
     /* מסלול השלמה — גם בלי התקדמות: המכשיר מקבל את ההכרעה (ptsMe_). */
     var hs = q.hs === 1 ? 1 : q.hs === 0 ? 0 : C.hs[to] ? 1 : -1;
     if (!a && !b && !tk && hs < 0) return;
     /* '~' — יש כרטיס, אבל חשבון בדיקה. נספר כ"בפנים" רק לבקשה מסשן
        בדיקה מאומת (testOk_), ולעולם לא בהגרלה האמיתית. */
+    /* '+'/'~' — לתלמיד (rafMe_, "בהגרלה"): גם כרטיס לימוד שחסר לו רק זמן
+       (`m:`), כמו שהוא רואה אותו (rafTk_ עם `stu`, 8.99.355). */
+    var has = tk || lk.length;
     var v = q.code + '|' + (a ? 'a' : '') + (b ? 'b' : '') +
-            (tk && !rafWhy_(q) ? '+' : tk && rafWhy_(q) === 'test' ? '~' : '') +
+            (has && !rafWhy_(q) ? '+' : has && rafWhy_(q) === 'test' ? '~' : '') +
             '|' + (tk ? [tk.l, tk.q, tk.f].join(',') : '0,0,0') +
             '|' + (tk ? Object.keys(tk.tr).map(function (tr) {
               var x = tk.tr[tr];
               return tr + ':' + [x.l, x.q, x.f].join(',');
             }).join(';') : '');
-    var lk = RAF_KEYS_.filter(function (tr) { return C.lack[to + '|' + tr]; })
-      .map(function (tr) { return tr + '=' + C.lack[to + '|' + tr]; });
     if (lk.length) v += '|m:' + lk.join(';');
     if (snap) v += '|d:' + (snap[to] || 0);
     if (hs >= 0) v += '|h' + hs;
@@ -9446,8 +9449,12 @@ function rafSnap_(dw) {
   return out;
 }
 /* הכרטיסים מתוך ערך של rafMeMap_. `tr` — לכל מסלול [לימוד, חידון, אבא];
-   הסכומים הם סכום המסלולים, וכך גם המשקל בהגרלה (rafCalc_). */
-function rafTk_(v, w) {
+   הסכומים הם סכום המסלולים, וכך גם המשקל בהגרלה (rafCalc_).
+   **`stu` — מה שהתלמיד עצמו רואה (8.99.355).** בדיקת עשר הדקות שקטה: מסלול
+   ששני העמודים הושלמו בו וחסר לו רק זמן (`m:`) מוצג עם כרטיס לימוד, בלי
+   דקות ובלי `lack`. הזכאות הפנימית (rafCalc_ `done`, ההגרלה, לוח הצוות) לא
+   זזה — בלי `stu` הכול כמו שהיה. ההגרלה כבר בוצעה — `drawn` נשאר כמו שהוא. */
+function rafTk_(v, w, stu) {
   var pr = String(v || '').split('|'), tr = {}, lack = {}, drawn = null;
   var f = String(pr[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
   String(pr[3] || '').split(';').forEach(function (s) {
@@ -9466,6 +9473,13 @@ function rafTk_(v, w) {
   /* ההגרלה על הדף הזה כבר בוצעה — המספר שהיה בה (`drawn`), והחישוב של
      היום לא מוצג כאילו הוא הספירה שהייתה בהגרלה. */
   if (drawn != null) o.drawn = drawn;
+  if (stu) {
+    Object.keys(lack).forEach(function (t) {
+      var x = tr[t] = tr[t] || [0, 0, 0];
+      if (!x[0]) { x[0] = 1; o.l++; o.t++; }
+    });
+    o.lack = {};
+  }
   /* בלי ציון שנמצא — `tr` ריק; שרת ישן — בלי `lack`. */
   return o;
 }
@@ -9517,7 +9531,7 @@ function tkDaf_(P) {
   if (!(w === pw || w === pw - 1)) { out.old = 1; return out; }
   var W = w === pw - 1 ? null : w, M = rafMeMap_(W), hit = '';
   for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
-  out.tk = rafTk_(hit, W);
+  out.tk = rafTk_(hit, W, true);
   out.wk = w;
   return out;
 }
@@ -9537,7 +9551,7 @@ function rafMe_(P) {
     if (pr[0] !== inst) continue;
     var plus = pr[1].indexOf('+') >= 0 || (pr[1].indexOf('~') >= 0 && tst && testIds_(tst).indexOf(mine[i]) >= 0);
     return { status: 'ok', daf: rafDaf_(), a: pr[1].indexOf('a') >= 0, b: pr[1].indexOf('b') >= 0,
-             inn: plus && (!sel || sel.indexOf(pr[0]) >= 0), tk: rafTk_(v2) };
+             inn: plus && (!sel || sel.indexOf(pr[0]) >= 0), tk: rafTk_(v2, null, true) };
   }
   return none;
 }
