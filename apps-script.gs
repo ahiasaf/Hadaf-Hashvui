@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 131;
+var SCRIPT_VERSION = 132;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -537,6 +537,11 @@ function doPost(e) {
       backupDaily_();
     }
     if (d.action === 'row' && d.tab === AMDA_TAB_ && !d.ss) return amdaAppend_(parse_(d.cols) || []);
+    /* הענקה מבית ההורה — בלי שורה שנייה לאותו בן ושבוע (pairHome_). */
+    if (d.action === 'row' && d.tab === 'זוגות' && !d.ss) {
+      var zh = pairHome_(parse_(d.cols) || []);
+      if (zh) return zh;
+    }
     if (d.action === 'row')   return appendCols_(d.tab, parse_(d.cols), d.ss);
     if (d.action === 'table' && YSH_TABS_.hasOwnProperty(d.tab)) {
       return json_({ status: 'denied',
@@ -1442,6 +1447,11 @@ function doGet(e) {
     return reply_(e, { status: 'ok', has: aHas });
   }
 
+  /* "כרטיסים שהענקת ל…" בבית ההורה — ראו pairHist_. */
+  if (e && e.parameter && e.parameter.pairHist) {
+    try { return reply_(e, pairHist_(e.parameter)); }
+    catch (eh) { return reply_(e, { status: 'error', message: String(eh) }); }
+  }
   if (e && e.parameter && e.parameter.pair) {
     var pid = String(e.parameter.pair), ptag = String(e.parameter.wk || '');
     /* `ph` — הטלפון של הבן, כשאבא נותן לכמה בנים על אותו שבוע: כל
@@ -1467,6 +1477,14 @@ function doGet(e) {
         }
       }
     } catch (pe) {}
+    /* `any=1` — הענקה מהבית (8.99.358): השורה לא נכתבה כי לבן כבר יש
+       הענקה על השבוע (pairHome_) — גם זו "הגיעה". */
+    if (!pHas && e.parameter.any === '1') {
+      try {
+        pHas = pairGot_({ 'מזהה': pid, 'מסלול': ptag.split('|')[0], 'שבוע': ptag.split('|')[1] || '',
+                          'טלפון השותף': e.parameter.ph || '', 'שם השותף': e.parameter.nm || '' });
+      } catch (pa) {}
+    }
     var pLate = false;
     try { pLate = pHas && rafLate_(ptag.split('|')[1]); } catch (ple) {}
     return reply_(e, { status: 'ok', has: pHas, late: pLate ? 1 : 0 });
@@ -7491,7 +7509,9 @@ var PUB_ROW = {
      לו כרטיס (rafGrants_). "אושר" מהלקוח נשמר רק בשורה שאבא כתב — ראו
      doPost; בבקשה של הבן הוא נכתב רק דרך pairok. */
   'זוגות': ['מזהה', 'שם', 'ישיבה', 'קוד ישיבה', 'שכבה', 'כיתה', 'מסלול', 'שבוע', 'דף',
-            'דיווח', 'מתי', 'בלי התראה', 'אושר', 'קרבה', 'שם השותף', 'טלפון השותף'],
+            'דיווח', 'מתי', 'בלי התראה', 'אושר', 'קרבה', 'שם השותף', 'טלפון השותף',
+            /* הענקה מבית ההורה (8.99.358) — "כן". אינו משנה את הספירה (rafGrants_). */
+            'השלמה'],
   'ממתינים לדף': ['מזהה', 'שם', 'ישיבה', 'דף', 'מכשיר', 'מנוי', 'מתי'],
   /* הזוכה בוחר פרס (8.99.297). השורה עצמה אינה קובעת דבר: rafPrz_ מקבל
      רק את הראשונה, ורק כשהמזהה הוא של הזוכה באותה הגרלה ועוד לא נקבע פרס. */
@@ -8253,6 +8273,8 @@ function rafCalc_(hsAdd) {
     if (!ppl[id]) return;
     Object.keys(G[id]).forEach(function (g) {
       var o = tk(id, g.split('|')[1]);
+      /* השלמה על שבוע ישן — כרטיס אבא בלבד (rafLateCtx_). */
+      if (G[id][g] === 'f') { o.f = 1; return; }
       o.l = 1; o.q = 1; o.f = 1;
     });
   });
@@ -8304,51 +8326,241 @@ function rafWithMs_(sh) {
        של אבא ב"לומדים".
      · הבן ביקש ("דיווח" = הבן) ואבא נתן — "אושר" = כן (pairok).
    מפתח ההענקה: (טלפון האבא, בן, מסלול, שבוע) — הענקה כפולה, או
-   בקשת הבן יחד עם הענקה ישירה, נספרות פעם אחת. רק דף ההגרלה.
-   מחזיר { מזהה יעד של הבן → { מפתח: 1 } }. */
+   בקשת הבן יחד עם הענקה ישירה, נספרות פעם אחת. רק דף ההגרלה —
+   **או הענקה של הורה על שבוע שההגרלה שלו כבר נערכה** (8.99.358, ראו
+   rafLateCtx_): היא נכנסת להגרלה הקרובה ככרטיס אבא בלבד ('f').
+   מחזיר { מזהה יעד של הבן → { מפתח: 1 | 'f' } }. */
 function rafGrants_(P) {
   var out = {}, sh = sheet_('זוגות');
   if (!sh || sh.getLastRow() < 2) return out;
   var v = sh.getDataRange().getDisplayValues(), ix = {}, ppl = P.ppl;
   for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
   var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
-  var canon = function (id) {
-    var a = P.alias[id] || id;
-    return a && ppl[a] ? (P.target[a] || a) : '';
-  };
+  var kids = pairKids_(ppl), LC = rafLateCtx_(), ms = LC ? pairMs_(sh, v) : [];
+  for (var i = 1; i < v.length; i++) {
+    var r = v[i];
+    /* כל מסלול מול הדף של ההגרלה שלו — גם מסלול השלמה (rafSideK_). */
+    var tr = rafKey_(c(r, 'מסלול')), wk = c(r, 'שבוע'), rid = c(r, 'מזהה'), late = false;
+    if (!tr || !rid) continue;
+    if (!rafSideK_(c(r, 'דף'), tr)) {
+      if (c(r, 'דיווח') !== 'ההורה' || !rafLateOk_(LC, tr, wk, ms[i])) continue;
+      late = true;
+    }
+    if (c(r, 'דיווח') !== 'ההורה' && c(r, 'אושר') !== 'כן') continue;
+    var W = pairWho_(P, kids, c, r);
+    if (!W) continue;
+    var o = out[W.kid] = out[W.kid] || {}, gk = (W.dad || '?') + '|' + tr + '|' + wk;
+    if (!late) o[gk] = 1;
+    else if (!o[gk]) o[gk] = 'f';
+  }
+  return out;
+}
+/* טלפון → מזהי התלמידים (לא הורים) — לזיהוי הבן בשורת "זוגות". */
+function pairKids_(ppl) {
   var kids = {};
   Object.keys(ppl).forEach(function (id) {
     var p = ppl[id], k = phKey_(p.phone);
     if (p.role !== 'הורה' && k) (kids[k] = kids[k] || []).push(id);
   });
+  return kids;
+}
+/* מי בשורת "זוגות" `r` (c — קורא העמודות): הבן (מזהה יעד, אחרי איחוד), טלפון
+   האבא, וההורה שכתב (מזהה יעד; רק בשורה שההורה כתב). null — הבן אינו מוכר,
+   או שורת "ההורה" ממי שאינו הורה ב"לומדים".
+     · ההורה כתב: הבן לפי "טלפון השותף" (ובכמה בנים עם אותו טלפון — גם לפי
+       "שם השותף"). שורה ישנה שאיבדה את פרטי השותף (באג PUB_ROW עד
+       8.99.323) — הבן של ההורה מ"טלפון ההורה" בשורה שלו ב"לומדים".
+     · בקשת הבן: המזהה שלו. "אושר" נבדק אצל הקורא. */
+function pairWho_(P, kids, c, r) {
+  var ppl = P.ppl, rid = c(r, 'מזהה'), kid = '', dad = '', par = '';
+  if (c(r, 'דיווח') === 'ההורה') {
+    par = P.alias[rid] || rid;
+    var pp = ppl[par];
+    if (!pp || pp.role !== 'הורה') return null;
+    dad = phKey_(pp.phone);
+    var kp = phKey_(c(r, 'טלפון השותף')) || phKey_(pp.parPhone), L = kids[kp] || [];
+    if (L.length > 1) {
+      var nm = nk_(c(r, 'שם השותף') || pp.parFirst);
+      var L2 = L.filter(function (id) { return nk_(ppl[id].name) === nm; });
+      if (L2.length) L = L2;
+    }
+    kid = L.length ? L[L.length - 1] : '';
+  } else {
+    kid = rid;
+    var me = ppl[P.alias[rid] || rid];
+    dad = phKey_(c(r, 'טלפון השותף')) || (me && phKey_(me.parPhone)) || '?';
+  }
+  var a = P.alias[kid] || kid, kc = a && ppl[a] ? (P.target[a] || a) : '';
+  return kc ? { kid: kc, dad: dad, par: par ? (P.target[par] || par) : '' } : null;
+}
+/* מועד כל שורה ב"זוגות" במילישניות — "תאריך" (שעון השרת, מהערך עצמו),
+   ובלעדיו "מתי" מהמכשיר. מקביל לשורות של `v`. */
+function pairMs_(sh, v) {
+  var ti = -1, mi = -1;
+  for (var h = 0; h < v[0].length; h++) {
+    var hd = String(v[0][h]).trim();
+    if (hd === 'תאריך') ti = h;
+    if (hd === 'מתי') mi = h;
+  }
+  var tv = ti >= 0 ? sh.getRange(1, ti + 1, v.length, 1).getValues() : [];
+  return v.map(function (r, i) {
+    var x = tv[i] ? tv[i][0] : '', ms = x instanceof Date ? x.getTime() : x ? Date.parse(String(x)) : NaN;
+    if (!(ms > 0) && mi >= 0) ms = Date.parse(String(r[mi] || ''));
+    return ms > 0 ? ms : 0;
+  });
+}
+/* ============================================================
+   "כרטיסים שהענקת ל…" — בית ההורה (8.99.358).
+   ============================================================
+   `o` — שורת "זוגות" שההורה כותב (או שואל עליה): { מזהה, מסלול, שבוע,
+   טלפון השותף, שם השותף }. האם לאותו בן כבר יש הענקה של הורה כלשהו על
+   אותו מסלול ושבוע — מאותו מכשיר, ממכשיר אחר או מההורה השני. בן שאינו
+   מוכר ב"לומדים" — לפי מזהה ההורה וטלפון הבן בלבד. */
+function pairGot_(o, P, kids) {
+  var sh = sheet_('זוגות');
+  if (!sh || sh.getLastRow() < 2) return false;
+  P = P || rafPpl_();
+  kids = kids || pairKids_(P.ppl);
+  var oc = function (r, k) { return k === 'דיווח' ? 'ההורה' : String(o[k] == null ? '' : o[k]).trim(); };
+  var me = pairWho_(P, kids, oc, null), tag = oc(null, 'מסלול') + '|' + oc(null, 'שבוע');
+  var mid = oc(null, 'מזהה'), mph = phKey_(oc(null, 'טלפון השותף'));
+  var v = sh.getDataRange().getDisplayValues(), ix = {};
+  for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+  for (var i = v.length - 1; i >= 1; i--) {
+    var r = v[i];
+    if (c(r, 'דיווח') !== 'ההורה' || c(r, 'מסלול') + '|' + c(r, 'שבוע') !== tag) continue;
+    if (me) {
+      var W = pairWho_(P, kids, c, r);
+      if (W && W.kid === me.kid) return true;
+    } else if (c(r, 'מזהה') === mid && phKey_(c(r, 'טלפון השותף')) === mph) return true;
+  }
+  return false;
+}
+/* doPost: הענקה מהבית ("השלמה" = כן). null — אינה כזו, והכתיבה הרגילה
+   ממשיכה. כבר קיימת לאותו בן ושבוע — לא נכתבת שורה שנייה (לחיצה כפולה,
+   שליחה חוזרת, שני מכשירים, הורה שני). נכתבה — ובקשה של הבן על אותו
+   שבוע שממתינה להורה מקבלת "אושר" = כן, כמו pairok, כדי שלא תחזור אליו
+   כ"ממתינה". כרטיס אחד בכל מקרה (rafGrants_). */
+function pairHome_(cols) {
+  var o = {};
+  (cols || []).forEach(function (z) { if (z && z[0]) o[String(z[0])] = String(z[1] == null ? '' : z[1]).trim(); });
+  if (o['השלמה'] !== 'כן' || o['דיווח'] !== 'ההורה') return null;
+  var P = null, kids = null;
+  try {
+    P = rafPpl_(); kids = pairKids_(P.ppl);
+    if (pairGot_(o, P, kids)) return json_({ status: 'ok', dup: 1 });
+  } catch (x) {}
+  var res = appendCols_('זוגות', cols);
+  try { if (P && pairAskOk_(o, P, kids)) ptsBust_(); } catch (y) {}
+  return res;
+}
+function pairAskOk_(o, P, kids) {
+  var oc = function (r, k) { return String(o[k] == null ? '' : o[k]).trim(); };
+  var me = pairWho_(P, kids, oc, null), sh = sheet_('זוגות');
+  if (!me || !sh || sh.getLastRow() < 2) return 0;
+  var v = sh.getDataRange().getDisplayValues(), ix = {}, n = 0;
+  for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  if (ix['אושר'] === undefined) return 0;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+  var tag = oc(null, 'מסלול') + '|' + oc(null, 'שבוע');
   for (var i = 1; i < v.length; i++) {
     var r = v[i];
-    /* כל מסלול מול הדף של ההגרלה שלו — גם מסלול השלמה (rafSideK_). */
-    var tr = rafKey_(c(r, 'מסלול')), wk = c(r, 'שבוע'), rid = c(r, 'מזהה');
-    if (!tr || !rid || !rafSideK_(c(r, 'דף'), tr)) continue;
-    var kid = '', dad = '';
-    if (c(r, 'דיווח') === 'ההורה') {
-      var par = ppl[P.alias[rid] || rid];
-      if (!par || par.role !== 'הורה') continue;
-      dad = phKey_(par.phone);
-      var kp = phKey_(c(r, 'טלפון השותף')) || phKey_(par.parPhone), L = kids[kp] || [];
-      if (L.length > 1) {
-        var nm = nk_(c(r, 'שם השותף') || par.parFirst);
-        var L2 = L.filter(function (id) { return nk_(ppl[id].name) === nm; });
-        if (L2.length) L = L2;
-      }
-      kid = L.length ? L[L.length - 1] : '';
-    } else {
-      if (c(r, 'אושר') !== 'כן') continue;
-      kid = rid;
-      var me = ppl[P.alias[rid] || rid];
-      dad = phKey_(c(r, 'טלפון השותף')) || (me && phKey_(me.parPhone)) || '?';
-    }
-    var kc = canon(kid);
-    if (!kc) continue;
-    (out[kc] = out[kc] || {})[(dad || '?') + '|' + tr + '|' + wk] = 1;
+    if (c(r, 'דיווח') !== 'הבן' || c(r, 'אושר') || c(r, 'מסלול') + '|' + c(r, 'שבוע') !== tag) continue;
+    var W = pairWho_(P, kids, c, r);
+    if (!W || W.kid !== me.kid) continue;
+    sh.getRange(i + 1, ix['אושר'] + 1).setValue('כן');
+    n++;
   }
+  return n;
+}
+/* ?pairHist=<מזהה ההורה>&k=[[טלפון הבן, שם הבן], …] — לכל בן: השבועות שיש
+   עליהם הענקה (`g`: [מסלול|שבוע, 1 — ההורה הזה, 2 — הורה אחר או בקשה
+   שאושרה]) ובקשות של הבן שממתינות להורה (`p`). `lw` — שבוע הלימוד האחרון
+   שההגרלה שלו נערכה. רק מה שבגיליון; בלי שמות ובלי טלפונים בתשובה.
+   מי שאינו הורה ב"לומדים" — `none`. */
+function pairHist_(P0) {
+  var id = String(P0.pairHist || '').trim();
+  if (!/^[\w:.\-]{1,60}$/.test(id)) return { status: 'error', message: 'חסר מזהה' };
+  var K = [];
+  try { K = JSON.parse(String(P0.k || '[]')) || []; } catch (x) { K = []; }
+  if (!K || typeof K.slice !== 'function') K = [];
+  K = K.slice(0, 6);
+  var P = rafPpl_(), ppl = P.ppl, kids = pairKids_(ppl), a = P.alias[id] || id, pp = ppl[a];
+  var d = rafLast_(rafRead_());
+  var out = { status: 'ok', lw: d ? (parseInt(d.wk, 10) - 1) || 0 : 0, kids: [] };
+  if (!pp || pp.role !== 'הורה') { out.none = 1; return out; }
+  var meC = P.target[a] || a;
+  /* מפתח הבן: מזהה היעד שלו, ובן שאינו מוכר — ההורה + הטלפון שבשורה. */
+  var keyOf = function (c, r) {
+    var W = pairWho_(P, kids, c, r);
+    if (W) return { k: 'K:' + W.kid, par: W.par };
+    if (c(r, 'דיווח') !== 'ההורה') return null;
+    var pa = P.alias[c(r, 'מזהה')] || c(r, 'מזהה');
+    return { k: 'P:' + (P.target[pa] || pa) + '|' + phKey_(c(r, 'טלפון השותף') || (ppl[pa] && ppl[pa].parPhone)), par: P.target[pa] || pa };
+  };
+  var want = K.map(function (k) {
+    var o = { 'מזהה': id, 'דיווח': 'ההורה', 'טלפון השותף': String(k && k[0] || ''), 'שם השותף': String(k && k[1] || '') };
+    var x = keyOf(function (r, n) { return o[n] || ''; }, null);
+    return x ? x.k : '';
+  });
+  var res = want.map(function (k) { return { ok: /^K:/.test(k) ? 1 : 0, g: {}, p: {} }; });
+  var sh = sheet_('זוגות');
+  var v = sh && sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [], ix = {};
+  if (v.length) for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  var c = function (rw, n) { return ix[n] === undefined ? '' : String(rw[ix[n]] || '').trim(); };
+  for (var i = 1; i < v.length; i++) {
+    var r = v[i], rep = c(r, 'דיווח'), okv = c(r, 'אושר'), tag = c(r, 'מסלול') + '|' + c(r, 'שבוע');
+    if (rep !== 'ההורה' && okv === 'לא') continue;
+    var x = keyOf(c, r);
+    if (!x) continue;
+    want.forEach(function (k, j) {
+      if (!k || x.k !== k) return;
+      var g = res[j].g;
+      if (rep === 'ההורה') g[tag] = g[tag] === 1 || x.par === meC ? 1 : 2;
+      else if (okv === 'כן') g[tag] = g[tag] || 2;
+      else res[j].p[tag] = 1;
+    });
+  }
+  out.kids = res.map(function (x) {
+    return { ok: x.ok, g: Object.keys(x.g).map(function (t) { return [t, x.g[t]]; }),
+             p: Object.keys(x.p).filter(function (t) { return !x.g[t]; }) };
+  });
   return out;
+}
+/* ============================================================
+   הענקת השלמה על שבוע ישן (8.99.358, החלטת אחיאסף).
+   ============================================================
+   "כרטיס על שבוע שההגרלה שלו כבר נערכה, ייכנס להגרלה הקרובה?" — כן.
+   **כרטיס אבא בלבד** ('f' ב-rafGrants_): לא לימוד ולא חידון — אלה של
+   הדף הנוכחי, כמו שהתלמיד צבר אותם, ועם התקרות הקיימות. כרטיס אבא
+   אחד למסלול, בלי תלות בכמה שבועות, הורים או מכשירים.
+   נספרת כשכל אלה מתקיימים:
+     · שורה שההורה כתב, על שבוע W שההגרלה שלו נערכה (rafLate_: W ≤ L);
+     · נכתבה אחרי "מועד חיתוך" של ההגרלה האחרונה שנערכה — כלומר עוד
+       לא מומשה. ההגרלה הבאה שתיערך מממשת אותה, ואחריה היא לא נספרת;
+     · החישוב הוא של ההגרלה הקרובה במסלול: הדף של השבוע הראשון שאחרי L
+       (ולא לפני השבוע שעבר) שיש בו דף. מסך הסיום של הדף הבא (rafCalcW_)
+       אינו מקבל אותה — היא כבר של ההגרלה הקרובה.
+   הגרלות שנערכו, "תמונת כרטיסים" והזוכים — לא נוגעים בהם.
+   null — אין הגרלה שנערכה (אין שבוע ישן), או מועד חיתוך שאינו נקרא. */
+function rafLateCtx_() {
+  var d = rafLast_(rafRead_()), L = d ? parseInt(d.wk, 10) - 1 : 0;
+  if (!(L > 0)) return null;
+  var cut = Date.parse(String(d.cut || ''));
+  if (!(cut > 0)) return null;
+  var U0 = Math.max(progWeek_() - 1, L + 1), on = {};
+  RAF_KEYS_.forEach(function (k) {
+    for (var w = U0; w < U0 + 12; w++) {
+      var df = rafDafOfW_(k, w);
+      if (df) { on[k] = df === rafDafOf_(k); break; }
+    }
+  });
+  return { L: L, cut: cut, on: on };
+}
+function rafLateOk_(LC, tr, wk, ms) {
+  var w = parseInt(wk, 10);
+  return !!(LC && LC.on[tr] && w > 0 && w <= LC.L && ms > LC.cut);
 }
 /* האנשים מ"לומדים", ואיחוד החשבונות — המשותף להגרלה ולנקודות. */
 function rafPpl_() {

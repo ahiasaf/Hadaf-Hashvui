@@ -1298,6 +1298,24 @@ footer a{color:var(--ink-2);font-weight:800}
   font-weight:800;box-shadow:0 6px 18px rgba(11,37,80,.3);cursor:pointer}
 .rz-tk #chal{display:none}
 .rz + .mytk{margin-top:10px}
+/* ---------- בית ההורה: "כרטיסים שהענקת ל…" (8.99.358) ----------
+   אותו כרטיס כמו "הכרטיסים שלך" של הבן (.mytk), ובו שורה לכל דף. */
+.ptk-k + .ptk-k{margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#E4E7EE)}
+.ptk-r{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;
+  padding:6px 0;border-top:1px dashed rgba(27,42,69,.14);font-size:.93rem;font-weight:800}
+.tk-hd + .ptk-r{border-top:0}
+.ptk-r .ptk-d{min-width:0}
+.ptk-r .ptk-d small{display:block;margin-top:2px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
+.ptk-ok{flex:none;color:var(--green-d,#467B1A)}
+.ptk-s{flex:none;color:var(--ink-2);font-weight:700}
+.ptk-w{flex:none;display:flex;align-items:center;gap:8px;color:#B3261E;font-weight:800}
+.ptk-b{flex:none;min-height:40px;padding:7px 16px;border-radius:999px;border:1.5px solid var(--green-d,#467B1A);
+  background:#fff;color:var(--green-d,#467B1A);font:inherit;font-size:.88rem;font-weight:800;cursor:pointer}
+.ptk-p{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;margin-top:4px;
+  font-size:.86rem;font-weight:800;color:var(--ink-2)}
+.ptk-o{min-height:44px;padding:8px 0;border:0;background:none;font:inherit;font-size:.9rem;font-weight:800;
+  color:var(--blue);cursor:pointer}
+.ptk-e{margin:10px 0 8px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1559,6 +1577,8 @@ footer a{color:var(--ink-2);font-weight:800}
     <!-- "ההגרלות שלך" — שתי לשוניות כשיש גם כרטיסים וגם אתגר. rzSync. -->
     <div id="rz" class="rz" hidden></div>
     <div id="mytk" class="mytk" hidden></div>
+    <!-- בית ההורה — "כרטיסים שהענקת ל…" (parTkDraw). -->
+    <div id="partk" class="mytk" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
     <!-- אתגר "חבר מביא חבר" — ריק כשהאתגר כבוי. ראו chal.js. -->
     <div id="chal"></div>
@@ -3506,7 +3526,8 @@ function drawPts() {
   var el = $('mypts'), tb = $('mytk');
   if (!el || !tb) return;
   var me = get('me', null);
-  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; rzSync(); return; }
+  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; parTkDraw(); rzSync(); return; }
+  if ($('partk')) $('partk').hidden = true;
   var c = get('ptsMe', null);
   if (c && c.id !== me.id) c = null;
   if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
@@ -3554,6 +3575,135 @@ function drawPts() {
   el.hidden = false;
 }
 function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
+/* ============================================================
+   בית ההורה — "כרטיסים שהענקת ל…" (8.99.358).
+   ============================================================
+   במקום "הכרטיסים שלך" של הבן, באותו מקום: לכל בן מקושר (PAIR_UI.kids) —
+   הדף של השבוע, ובלחיצה השבועות הקודמים (הורה שהצטרף מאוחר). מה ניתן —
+   רק מהשרת (?pairHist, pairHist_): שבוע שיש עליו הענקה, גם של ההורה השני,
+   נעול ✓. "מתן כרטיס" — אותה שורה ב"זוגות" כמו בסוף הדף, דרך התור של
+   pair.js (df:pair-q, אימות ב-?pair=), עם "השלמה"; השרת אינו כותב שורה
+   שנייה לאותו בן ושבוע. "ניתן ✓" — רק אחרי שהשרת מחזיר אותו. שבוע שההגרלה
+   שלו נערכה (`lw`) — "ייכנס להגרלה הקרובה": כרטיס אבא בלבד (rafLateCtx_).
+   לא נטען — "לנסות שוב", לא אפסים; רשימה שכבר נטענה נשארת. */
+var PTK = null, PTK_AT = 0, PTK_BUSY = false, PTK_ERR = false, PTK_OPEN = {}, PTK_GO = {}, PTK_V = {};
+/* {בן}/{daf} — tpl מכיר רק מפתחות לטיניים. */
+function parTkFill(t, v) {
+  return String(t || '').replace(/\{([^}]+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+function parTkKids() { return window.PAIR_UI && PAIR_UI.kids ? PAIR_UI.kids() : []; }
+function parTkLoad(me) {
+  if (PTK_BUSY || !API) return;
+  PTK_BUSY = true;
+  var L = parTkKids();
+  var cb = 'ph' + Date.now(), sc = document.createElement('script');
+  var clean = function () {
+    PTK_BUSY = false;
+    try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+    if (sc.parentNode) sc.parentNode.removeChild(sc);
+  };
+  var fail = function () { clean(); PTK_ERR = true; parTkDraw(); };
+  var t0 = setTimeout(fail, 20000);
+  window[cb] = function (r) {
+    clearTimeout(t0); clean();
+    if (!r || r.status !== 'ok' || !(r.kids || r.none)) { PTK_ERR = true; parTkDraw(); return; }
+    PTK = r; PTK_AT = Date.now(); PTK_ERR = false;
+    /* אומת ב-?pair= ועדיין לא ברשימה — הכפתור חוזר (השרת אינו כותב פעמיים). */
+    var keep = {};
+    Object.keys(PTK_V).forEach(function (k) { if (PTK_V[k] > 1) keep[k] = PTK_V[k] - 1; });
+    PTK_V = keep;
+    parTkDraw();
+  };
+  sc.onerror = function () { clearTimeout(t0); fail(); };
+  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairHist=' + encodeURIComponent(me.id) +
+           '&k=' + encodeURIComponent(JSON.stringify(L.map(function (k) { return [k.phone || '', k.first || '']; }))) +
+           '&callback=' + cb;
+  document.body.appendChild(sc);
+}
+function parTkDraw() {
+  var box = $('partk');
+  if (!box) return;
+  var me = get('me', null);
+  var on = me && me.id && me.role === 'dad' && API && window.PAIR_UI && PAIR_UI.side() === 'parent' && LWeek() >= 0;
+  if (!on) { box.hidden = true; return; }
+  /* כישלון — רק "לנסות שוב" טוען שוב (לא לולאה). */
+  if (!PTK_BUSY && !PTK_ERR && (!PTK || Date.now() - PTK_AT > 2 * 60000)) parTkLoad(me);
+  if (PTK && PTK.none) { box.hidden = true; return; }
+  var L = parTkKids(), tr = myTrack(), P = window.PAIR || {};
+  var head = function (kd) {
+    return kd.first ? parTkFill(P.tkParH, { 'בן': kd.first }) : P.tkParHKid;
+  };
+  if (!PTK) {
+    box.innerHTML = L.map(function (kd) {
+      return '<div class="ptk-k"><div class="tk-hd"><b>' + esc(head(kd)) + '</b></div>' +
+        (PTK_ERR ? '<div class="ptk-e">' + esc(P.tkParErr) + '</div>' : '<div class="ptk-e" aria-busy="true">…</div>') + '</div>';
+    }).join('') + (PTK_ERR ? '<button type="button" class="tk-ask" onclick="parTkRetry()">' + esc(P.tkParRetry) + '</button>' : '');
+    box.hidden = false;
+    return;
+  }
+  /* השבועות עד השבוע הנוכחי, מהחדש לישן — רק שבוע שיש בו דף. */
+  var W = [];
+  for (var w = LWeek(); w >= 0; w--) if (LDaf(tr, w)) W.push(w);
+  var Q = PAIR_UI.queued(), busy = PAIR_UI.busy(), lw = +PTK.lw || 0;
+  var h = '';
+  L.forEach(function (kd, j) {
+    var K = (PTK.kids || [])[j] || { g: [], p: [] }, g = {}, pd = {}, mine = 0, past = 0;
+    (K.g || []).forEach(function (x) { g[x[0]] = x[1]; if (x[1] === 1) mine++; });
+    (K.p || []).forEach(function (t) { pd[t] = 1; });
+    var row = function (w) {
+      var tag = tr + '|' + (w + 1), qk = tag + '|' + (kd.phone || ''), st;
+      var d = '<span class="ptk-d">' + esc(parTkFill(P.tkParDaf, { daf: LDafName(tr, w) || LDaf(tr, w) })) + '</span>';
+      var give = '<button type="button" class="ptk-b" onclick="parTkGive(' + j + ',' + w + ')">' + esc(P.tkParGive) + '</button>';
+      if (g[tag]) st = '<span class="ptk-ok">' + esc(P.tkParOk) + '</span>';
+      else if (Q[qk] && !busy && !PTK_GO[qk]) st = '<button type="button" class="ptk-b" onclick="parTkRetry()">' + esc(P.tkParRetry) + '</button>';
+      else if (Q[qk] || PTK_V[qk]) st = '<span class="ptk-s">' + esc(P.tkParSend) + '</span>';
+      else if (pd[tag]) st = '<span class="ptk-w">' + esc(P.tkParWait) + give + '</span>';
+      else {
+        st = give;
+        if (w + 1 <= lw && P.tkParLate) d = '<span class="ptk-d">' + esc(parTkFill(P.tkParDaf, { daf: LDafName(tr, w) || LDaf(tr, w) })) +
+          '<small>' + esc(P.tkParLate) + '</small></span>';
+      }
+      return '<div class="ptk-r">' + d + st + '</div>';
+    };
+    W.slice(1).forEach(function (w) { var t = tr + '|' + (w + 1); if (g[t] || pd[t]) past++; });
+    var open = PTK_OPEN[j] || past > 0;
+    h += '<div class="ptk-k"><div class="tk-hd"><b>' + esc(head(kd)) + '</b>' +
+      (!mine && kd.first && P.tkParNone ? '<span>' + esc(parTkFill(P.tkParNone, { 'בן': kd.first })) + '</span>' : '') + '</div>' +
+      (W.length ? row(W[0]) : '') +
+      (W.length > 1 ? (open ? W.slice(1).map(row).join('')
+        : '<div class="ptk-p"><span>' + esc(P.tkParPrev) + '</span><button type="button" class="ptk-o" onclick="parTkOpen(' + j + ')">' +
+          esc(P.tkParOpen) + '</button></div>') : '') + '</div>';
+  });
+  box.innerHTML = h;
+  box.hidden = false;
+}
+function parTkOpen(j) { PTK_OPEN[j] = 1; parTkDraw(); }
+function parTkRetry() {
+  PTK_ERR = false;
+  if (window.PAIR_UI && PAIR_UI.retry) PAIR_UI.retry();
+  PTK_AT = 0; parTkDraw();
+}
+function parTkGive(j, w) {
+  var kd = parTkKids()[j], tr = myTrack();
+  if (!kd || !window.PAIR_UI) return;
+  var qk = tr + '|' + (w + 1) + '|' + (kd.phone || '');
+  if (PTK_GO[qk] || PAIR_UI.queued()[qk]) return;
+  PTK_GO[qk] = 1;
+  /* בלי התראה לבן — שבוע ישן אינו הודעה חדשה. */
+  PAIR_UI.send(tr, w, true, kd.phone || kd.first ? { first: kd.first, phone: kd.phone } : null, true);
+  parTkDraw();
+}
+/* אחרי כל ניסיון אימות בתור: מה שיצא מהתור — אומת, וממתין ל"ניתן ✓" מהשרת. */
+function parTkOk() {
+  var Q = window.PAIR_UI ? PAIR_UI.queued() : {}, moved = false;
+  Object.keys(PTK_GO).forEach(function (k) {
+    if (!Q[k]) { PTK_V[k] = 2; moved = true; }
+    delete PTK_GO[k];
+  });
+  if (moved) PTK_AT = 0;
+  parTkDraw();
+}
+if (window.PAIR_UI && PAIR_UI.onOk) PAIR_UI.onOk(parTkOk);
 /* ============================================================
    מהחידון אל הכרטיסים (8.99.354).
    ============================================================

@@ -117,8 +117,9 @@ var PAIR_UI = (function () {
       (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim();
   }
   /* `kid` — במכשיר של אבא: לאיזה בן ההענקה ({ first, phone }). בלי —
-     הבן של ההרשמה (dadFirst/dadPhone). */
-  function send(track, wk, mute, kid) {
+     הבן של ההרשמה (dadFirst/dadPhone). `home` — מתן מהבית ("כרטיסים
+     שהענקת ל…", join.html): השורה נושאת "השלמה", והשרת אינו כותב שנייה. */
+  function send(track, wk, mute, kid, home) {
     var m = me(); if (!m || !m.id) return;
     var url = api(); if (!url) return;
     /* עם העמוד (ב. ב:) — השרת משייך לפיו את השורה לשבוע. */
@@ -154,7 +155,7 @@ var PAIR_UI = (function () {
       /* בחר לא לשלוח לצד השני התראה — השורה נרשמת (ההגרלה), ו-
          tools/pair-send.js מדלג עליה. */
       ['בלי התראה', mute ? 'כן' : '']
-    ]) };
+    ].concat(home ? [['השלמה', 'כן']] : [])) };
     var q = [];
     try { q = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
     catch (e) {}
@@ -163,7 +164,7 @@ var PAIR_UI = (function () {
     flush();
   }
 
-  var TRIES = 0;
+  var TRIES = 0, BUSY = 0;
   function flush() {
     var q = [];
     try { q = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
@@ -175,7 +176,10 @@ var PAIR_UI = (function () {
     var m = me(); if (!m || !m.id) return;
     var tag = c['מסלול'] + '|' + c['שבוע'];
     var ph = c['דיווח'] === 'ההורה' ? c['טלפון השותף'] || '' : '';
+    /* מהבית — "הגיעה" גם כשהשרת לא כתב כי לבן כבר יש הענקה (pairHome_). */
+    var any = c['השלמה'] === 'כן' ? c['שם השותף'] || '' : null;
 
+    BUSY++;
     fetch(url, { method:'POST', mode:'no-cors',
                  headers:{ 'Content-Type':'text/plain;charset=utf-8' },
                  body: JSON.stringify(item) })
@@ -183,22 +187,44 @@ var PAIR_UI = (function () {
       .then(function () {
         return new Promise(function (ok) { setTimeout(ok, 1500); });
       })
-      .then(function () { return arrived(m.id, tag, ph); })
+      .then(function () { return arrived(m.id, tag, ph, any); })
       .then(function (r) {
-        if (!r || !r.has) { TRIES++; return; }
+        BUSY--;
+        if (!r || !r.has) { TRIES++; okFire(); return; }
         var rest = [];
         try { rest = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; }
         catch (e) { return; }
         rest.shift();
         try { localStorage.setItem('df:pair-q', JSON.stringify(rest)); } catch (e) {}
+        okFire();
         flush();
       })
-      .catch(function () {});
+      .catch(function () { BUSY = Math.max(0, BUSY - 1); okFire(); });
   }
+  /* מי שמחכה לאימות (הבית של ההורה) — נקרא אחרי כל ניסיון, הצליח או לא. */
+  var OKS = [];
+  function okFire() {
+    OKS.forEach(function (f) { try { f(); } catch (e) {} });
+  }
+  function onOk(f) { if (OKS.indexOf(f) < 0) OKS.push(f); }
+  /* מה שעוד בתור במכשיר: 'מסלול|שבוע|טלפון הבן' → 1. */
+  function queued() {
+    var q = [], o = {};
+    try { q = JSON.parse(localStorage.getItem('df:pair-q') || '[]') || []; } catch (e) {}
+    q.forEach(function (it) {
+      var c = {};
+      try { (JSON.parse(it.cols || '[]') || []).forEach(function (p) { c[p[0]] = p[1]; }); } catch (e) {}
+      o[c['מסלול'] + '|' + c['שבוע'] + '|' + (c['טלפון השותף'] || '')] = 1;
+    });
+    return o;
+  }
+  /* "לנסות שוב" — עוד שלושה ניסיונות. `busy` — שליחה שעוד לא חזרה. */
+  function retry() { TRIES = 0; flush(); }
+  function busy() { return BUSY > 0; }
   /* JSONP, כמו ב-learned.js: הסקריפט של גוגל אינו מחזיר
      כותרות CORS לקריאה רגילה מהדפדפן. `ph` — הטלפון של הבן, כשאבא
      נותן לכמה בנים על אותו שבוע. מחזיר { has, late } או null. */
-  function arrived(id, tag, ph) {
+  function arrived(id, tag, ph, any) {
     return new Promise(function (ok) {
       var cb = 'pr' + Date.now() + Math.floor(Math.random() * 1000);
       var sc = document.createElement('script');
@@ -215,7 +241,7 @@ var PAIR_UI = (function () {
       sc.onerror = function () { clean(); ok(null); };
       sc.src = api() + '?pair=' + encodeURIComponent(id) +
                '&wk=' + encodeURIComponent(tag) + (ph ? '&ph=' + encodeURIComponent(ph) : '') +
-               '&cb=' + cb;
+               (any != null ? '&any=1&nm=' + encodeURIComponent(any) : '') + '&cb=' + cb;
       document.body.appendChild(sc);
     });
   }
@@ -683,5 +709,8 @@ var PAIR_UI = (function () {
 
   return { ask: ask, line: line, word: word, other: other, side: side,
            wanted: wanted, done: done, confirm: confirm_,
-           flush: boot, close: shut, pending: pending };
+           flush: boot, close: shut, pending: pending,
+           /* הבית של ההורה (join.html, parTk*) */
+           kids: function () { return kids(me() || {}); }, send: send,
+           onOk: onOk, queued: queued, retry: retry, busy: busy };
 })();
