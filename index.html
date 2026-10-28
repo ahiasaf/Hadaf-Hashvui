@@ -3021,7 +3021,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.359';
+var APP_VERSION = '8.99.360';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15004,7 +15004,8 @@ var GU_TXT = {
   ios:   ['guide.n1','guide.n2'],
   droid: ['guide.a1','guide.a2','guide.a3'],
   fx:    ['guide.f1','guide.f2','guide.f3','guide.f4'],
-  sam:   ['guide.sm1','guide.sm2','guide.sm3','guide.sm4','guide.sm5']
+  sam:   ['guide.sm1','guide.sm2','guide.sm3','guide.sm4','guide.sm5'],
+  edge:  ['join.edge1','join.edge2','join.edge3']
 };
 /* השלבים המשותפים לשני מסלולי האייפון — נערכים פעם אחת. */
 /* שלבי האייפון המשותפים, לפי הסדר שבמסלול. `s2e` — פריסת
@@ -15045,7 +15046,8 @@ function guCard() {
     }).join('') +
     '<p class="h" style="margin-top:10px">מונה השלבים והכפתורים ' +
     'משותפים לכל המסלולים:</p>' +
-    ['guide.step','guide.next','guide.back','guide.fin',
+    ['guide.trailT1','guide.trailT2','guide.trailNum','guide.intro',
+     'guide.step','guide.next','guide.back','guide.fin',
      'guide.help','guide.helpB'].map(function (k) {
       var f = null;
       TEXT_FIELDS.forEach(function (x) { if (x.k === k) f = x; });
@@ -15060,7 +15062,8 @@ function guPaint() {
   var box = document.getElementById('gu-prev');
   if (!box || typeof GUIDE_UI === 'undefined') return;
   GUIDE_UI.force(guKind);
-  GUIDE_UI.mount(box, function () { guAt = 0; guPaint(); });
+  /* `trail` — מסלול הגלילה, לכל סוג מכשיר (בריף 28.10). */
+  GUIDE_UI.mount(box, function () { guAt = 0; guPaint(); }, { trail: true });
   /* `mount` פותח בשלב הראשון. כאן חוזרים לשלב שהוא עמד עליו —
      אחרת כל הקלדה בתיבה מחזירה את הציור להתחלה. */
   if (guAt) GUIDE_UI.seek(guAt);

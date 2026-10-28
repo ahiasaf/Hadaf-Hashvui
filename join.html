@@ -4663,7 +4663,7 @@ function wzDraw() {
       appMark();
       if (APPX.samsung && APPX.samsung()) { wzGo(wzWhere()); return; }
       WZ_GUIDE_DONE = true; wzDraw();
-    }, { play: true, go: WZ_WENT, sam: true });
+    }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
   /* הסימון של אייקון סמסונג — רק בזמן שהמדריך שלו על המסך. */
   if (wzStep === 1 && gbox && APPX.samsung && APPX.samsung()) APPX.iconTag();
@@ -4782,7 +4782,12 @@ function wzInstall() {
   if (edgeNow) {
     samsungNow = true;
   }
-  var h = edgeNow
+  /* במסלול הגלילה (guide.js, `?gpath=1`) גם אדג' מקבל את אותו עיצוב:
+     מספרים וטקסט, בלי צילום. השורה "כבר התקנתם בכרום" נשארת מתחת. */
+  var edgeTrail = edgeNow && window.GUIDE_UI && GUIDE_UI.trailOn && GUIDE_UI.trailOn();
+  var h = edgeTrail
+    ? wzGuideBox() + '<div class="how"><span class="edge-had">' + esc(jt('edgeHad')) + '</span></div>'
+    : edgeNow
     ? '<div class="how"><b>' + esc(jt('edgeT')) + '</b><ol class="edge-ol">' +
       '<li>' + esc(jt('edge1')) + '</li><li>' + esc(jt('edge2')) + '</li><li>' + esc(jt('edge3')) + '</li>' +
       '</ol><span class="edge-had">' + esc(jt('edgeHad')) + '</span></div>'

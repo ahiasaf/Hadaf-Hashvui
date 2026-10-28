@@ -288,6 +288,13 @@ var APPX = (function () {
   }
   function noIntroHref() {
     var h = cleanHref();
+    /* מסלול הגלילה של המדריך (guide.js) דלוק במכשיר הזה — הלשונית
+       בכרום היא אחסון אחר, ולכן הדגל עובר איתה בכתובת. */
+    try {
+      if (localStorage.getItem('df:gpath') === '1' && !/[?&]gpath=/.test(h)) {
+        h += (h.indexOf('?') < 0 ? '?' : '&') + 'gpath=1';
+      }
+    } catch (e) {}
     if (/[?&]nointro=1/.test(h)) return h;
     return h + (h.indexOf('?') < 0 ? '?' : '&') + 'nointro=1';
   }

@@ -633,6 +633,35 @@ var GUIDE_UI = (function () {
      ============================================================ */
   var IOS   = [['n1', barNew], ['n2', menuNew]].concat(TAIL);
   var SAM   = [['sm1', samDots], ['sm2', samAdd], ['sm3', samHome], ['sm4', samOk], ['sm5', home]];
+  /* אדג' — שלושה צעדים במילים בלבד, בלי צילום ובלי ציור. הנוסח
+     שלהם ב-JOIN (edge1–3), כמו ברשימה הקיימת ב-join.html. מוצג רק
+     במסלול הגלילה (ראו drawTrail). */
+  var EDGE  = [['edge1', null], ['edge2', null], ['edge3', null]];
+  function tx(k) {
+    return /^edge/.test(k) ? ((window.JOIN && JOIN[k]) || '') : g(k);
+  }
+
+  /* ============================================================
+     מסלול הגלילה — חשיפה מדורגת (בריף 28.10).
+     ============================================================
+     באותו מנגנון של `learn?land=1`: מכשיר שפתח פעם אחת עמוד
+     עם `?gpath=1` רואה את המסלול החדש בכל מקום שבו יש מדריך;
+     `?gpath=0` מחזיר אותו. כולם — `TRAIL_ALL = true`. */
+  var TRAIL_ALL = false;
+  (function () {
+    try {
+      var m = /[?&]gpath=([01])\b/.exec(location.search);
+      if (m) {
+        if (m[1] === '1') localStorage.setItem('df:gpath', '1');
+        else localStorage.removeItem('df:gpath');
+      }
+    } catch (e) {}
+  })();
+  function trailOn() {
+    if (TRAIL_ALL) return true;
+    try { return localStorage.getItem('df:gpath') === '1'; } catch (e) { return false; }
+  }
+  var TRAIL = false, EDGE_ON = false;
 
   /* כפייה של מסלול — למסך הניהול בלבד.
      ============================================================
@@ -643,7 +672,8 @@ var GUIDE_UI = (function () {
   function force(kind) { FORCE = kind || null; LIST = null; at = 0; }
 
   function kinds() {
-    return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס'], ['sam', 'סמסונג']];
+    return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס'], ['sam', 'סמסונג'],
+            ['edge', 'אדג\'']];
   }
 
   /* מסלול סמסונג — רק למי שמבקש (`{ sam: true }`, עמוד ההצטרפות).
@@ -655,8 +685,12 @@ var GUIDE_UI = (function () {
     if (FORCE === 'ios')   return IOS;
     if (FORCE === 'fx')    return FX;
     if (FORCE === 'sam')   return SAM;
+    if (FORCE === 'edge')  return EDGE;
     if (APPX.isIOS()) return IOS;
     if (SAM_ON && APPX.samsung && APPX.samsung()) return SAM;
+    /* אדג' בלי הצעת התקנה — רק במסלול הגלילה, ורק כשהעמוד ביקש
+       (join.html). בלעדיו join מציג את הרשימה שלו, כמו קודם. */
+    if (EDGE_ON && TRAIL && !APPX.bip() && APPX.edge && APPX.edge()) return EDGE;
     return (APPX.firefox && APPX.firefox()) ? FX : DROID;
   }
 
@@ -678,6 +712,7 @@ var GUIDE_UI = (function () {
   function draw() {
     if (!HOST) return;
     var L = LIST || (LIST = steps());
+    if (TRAIL || L === EDGE) { drawTrail(L); return; }
     if (PLAY) { drawPlay(L); return; }
     HOST.innerHTML =
       '<div class="gu">' +
@@ -699,6 +734,56 @@ var GUIDE_UI = (function () {
         '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
       '</div>';
 
+    var b = document.getElementById('gu-next');
+    if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
+  }
+
+  /* ============================================================
+     **מסלול גלילה** (בריף 28.10).
+     ============================================================
+     "התלמידים לא קוראים, יש יותר מדי מלל, והתמונות שרצות בזו
+     אחר זו עושות בלבול בעיניים."
+
+     רנדר אחד שמחליף גם את ההדגמה (drawPlay) וגם את הרשימה עם
+     החץ (draw), כשהמסלול דלוק: כותרת עם מספר השלבים של המכשיר
+     הזה, ומתחת כל השלבים ברצף — מספר בעיגול כהה, צילום (או הציור
+     הקיים) ב-60% מהרוחב, לסירוגין ימין ושמאל (הראשון בימין),
+     ומשפט אחד. בין שלב לשלב שביל מנוקד זהוב, בתוך רווח משלו —
+     ולכן הוא לעולם אינו עובר על תמונה. בלי מעבר מעצמו ובלי מד:
+     התלמיד גולל בקצב שלו. בסוף "סיימתי", שקורא ל-ONDONE. */
+  function trailCurve(toLeft) {
+    /* מהשלב הקודם אל הצד השני. preserveAspectRatio="none" מותח את
+       העקומה לרוחב, ו-non-scaling-stroke שומר את הנקודות עגולות. */
+    var d = toLeft ? 'M66 0C66 34 34 22 34 56' : 'M34 0C34 34 66 22 66 56';
+    return '<svg class="gut-path" viewBox="0 0 100 56" preserveAspectRatio="none" ' +
+      'aria-hidden="true" focusable="false"><path d="' + d + '" fill="none" ' +
+      'stroke="var(--gold)" stroke-width="4.5" stroke-linecap="round" ' +
+      'stroke-dasharray="0 10" vector-effect="non-scaling-stroke"/></svg>';
+  }
+
+  function drawTrail(L) {
+    var nums = String(g('trailNum')).split(','), n = L.length;
+    var nw = (nums[n - 1] || '').replace(/^\s+|\s+$/g, '') || String(n);
+    HOST.innerHTML =
+      '<div class="gu gu-trail">' +
+        '<div class="gut-hd" role="heading" aria-level="2">' +
+          '<span>' + esc(fill(g('trailT1'), { n: nw })) + '</span> ' +
+          '<span class="gut-gold">' + esc(g('trailT2')) + '</span></div>' +
+        '<p class="gut-sub">' + esc(g('intro')) + '</p>' +
+        '<ol class="gut-ol">' +
+        L.map(function (s, i) {
+          var key = s[0], art = s[1], left = (i % 2 === 1);
+          var vis = PICS[key] ? pic(PICS[key]) : (art ? phone(art()) : '');
+          return '<li class="gut-st ' + (left ? 'gut-l' : 'gut-r') +
+              (vis ? '' : ' gut-tx') + '">' +
+            (i ? trailCurve(left) : '') +
+            '<div class="gut-b"><div class="gut-card"><span class="gut-n" ' +
+              'aria-hidden="true">' + (i + 1) + '</span>' + vis + '</div>' +
+            '<p class="gut-t">' + esc(tx(key)) + '</p></div></li>';
+        }).join('') +
+        '</ol>' +
+        '<button class="gu-go gut-go" id="gu-next">' + esc(g('fin')) + '</button>' +
+      '</div>';
     var b = document.getElementById('gu-next');
     if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
   }
@@ -848,6 +933,9 @@ var GUIDE_UI = (function () {
     GO = !!(opt && opt.go);
     END = !!(opt && opt.end);
     SAM_ON = !!(opt && opt.sam);
+    EDGE_ON = !!(opt && opt.edge);
+    /* `trail` — הניהול, שמראה את המסלול החדש לכל סוג מכשיר. */
+    TRAIL = !!(opt && opt.trail) || trailOn();
     LIST = steps(); at = 0;
     css();
     draw();
@@ -966,6 +1054,42 @@ var GUIDE_UI = (function () {
       '  border:1.5px solid var(--rule);border-radius:12px;background:#fff;',
       '  color:var(--blue,#17468F);font-family:inherit;font-size:.95rem;',
       '  font-weight:800;cursor:pointer}',
+      /* ---- מסלול הגלילה (ראו drawTrail) ---- */
+      '.gu-trail{text-align:right}',
+      '.gut-hd{font-size:2rem;font-weight:900;line-height:1.12;',
+      '  letter-spacing:-.02em;color:var(--blue-d,#0B2550)}',
+      '.gut-hd span{display:block}',
+      '.gut-gold{color:var(--gold)}',
+      '.gut-sub{margin:8px 0 18px;font-size:.92rem;font-weight:700;',
+      '  line-height:1.45;color:var(--ink-2)}',
+      '.gut-ol{list-style:none;margin:0;padding:0}',
+      '.gut-st{margin:0;padding:0}',
+      '.gut-path{display:block;width:100%;height:56px;margin:6px 0}',
+      '.gut-card{position:relative;width:60%;margin:0 0 0 auto}',
+      '.gut-l .gut-card{margin:0 auto 0 0}',
+      '.gut-l .gut-t{margin:10px auto 0 0}',
+      '.gut-t{width:60%;margin:10px 0 0 auto;font-size:1.06rem;font-weight:800;',
+      '  line-height:1.35;color:var(--blue-d,#0B2550)}',
+      '.gu-trail .gu-pic{max-width:none;margin:0;display:block}',
+      '.gu-trail .gu-pic span{display:block}',
+      '.gu-trail .gu-pic img{width:100%;max-height:none}',
+      /* הציור כבר נושא מסגרת טלפון — בלי מסגרת נוספת סביבו. */
+      '.gu-trail .gu-art{width:100%;max-width:none;height:250px;margin:0}',
+      /* המספר בעיגול כהה, על הפינה החיצונית של הכרטיס. */
+      '.gut-n{position:absolute;top:-12px;right:-10px;z-index:1;',
+      '  width:38px;height:38px;border-radius:50%;background:var(--blue-d,#0B2550);',
+      '  color:#fff;font-size:1.15rem;font-weight:900;display:flex;',
+      '  align-items:center;justify-content:center;',
+      '  box-shadow:0 0 0 3px #fff}',
+      '.gut-l .gut-n{right:auto;left:-10px}',
+      /* בלי תמונה (אדג'): המספר והמשפט בלבד, זה לצד זה. */
+      '.gut-tx .gut-b{display:flex;align-items:center;gap:12px;width:60%;',
+      '  margin:0 0 0 auto}',
+      '.gut-tx.gut-l .gut-b{margin:0 auto 0 0}',
+      '.gut-tx .gut-card{width:auto;margin:0;flex:none}',
+      '.gut-tx .gut-n{position:static;box-shadow:none}',
+      '.gut-tx .gut-t{width:auto;margin:0}',
+      '.gut-go{margin-top:22px;font-size:1.05rem}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
       '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
@@ -983,6 +1107,6 @@ var GUIDE_UI = (function () {
   }
 
   return { mount: mount, reset: reset, steps: steps, css: css,
-           force: force, kinds: kinds, seek: seek,
+           force: force, kinds: kinds, seek: seek, trailOn: trailOn,
            at: function () { return at; } };
 })();
