@@ -33,8 +33,11 @@
    ראש join.html.
 
    **8.99.350:** ותיק אחד לשולחן (כבר רשום — "לשבת בשולחן", ?challenge=sit),
-   כל המוזמנים מחולקים לשולחנות (chunk), מצבי הקישור כהודעה (noteHtml),
-   פס בהרשמה (strip), וחלון השקה אחד (promo). בניסוי החי — אותו נוסח.
+   מצבי הקישור כהודעה (noteHtml), פס בהרשמה (strip), וחלון השקה אחד (promo).
+   בניסוי החי — אותו נוסח.
+   **8.99.351:** השיבוץ לשולחנות מהשרת ויציב (`tbl`) — בלי מרוץ ובלי מעבר
+   בשקט; תוצאות הגרלה מההתראה (?ms=k, msrHtml); קישור לחבר רשום בניסוי
+   (`&old=1`, `chRefLater`).
 
    ES5 בלבד. המלל — UI.ch* ב-data.js.
    ============================================================ */
@@ -78,7 +81,12 @@
     return LGet('chRef', '') || '';
   }
   function ref() { return LGet('chRef', '') || ''; }
-  function dropRef() { try { localStorage.removeItem('df:chRef'); } catch (e) {} }
+  /* `chRefLater` — קישור לחבר שכבר רשום בניסוי (`&old=1`): נשמר בצד בזמן
+     ההרשמה (שאינה נושאת אותו), ומשמש רק אחריה — כמו ותיק שקיבל קישור. */
+  function refAny() { return ref() || (me() ? LGet('chRefLater', '') || '' : ''); }
+  function dropRef() {
+    try { localStorage.removeItem('df:chRef'); localStorage.removeItem('df:chRefLater'); } catch (e) {}
+  }
 
   /* ---- המצב שלי ---- */
   function cached() { var c = LGet('chMy', null); return c && c.d ? c.d : null; }
@@ -86,7 +94,10 @@
   function load() {
     if (BUSY) return BUSY;
     var q = { id: ids().join(',') };
-    if (ref()) q.ref = ref();
+    if (refAny()) q.ref = refAny();
+    /* מההתראה על תוצאות הגרלה — ?ms=k (chPush_ בשרת). */
+    var mk = /[?&]ms=(\d{1,3})(?:&|$)/.exec(location.search);
+    if (mk) q.ms = mk[1];
     BUSY = api('my', q).then(function (d) {
       BUSY = null;
       if (!d || d.status !== 'ok') return cached();
@@ -244,30 +255,9 @@
 
   /* ---- כל השולחנות שלי, מהמבט של השרת ----
      { t: כותרת, seats, s: מצב, line, done: מושלמת, mine, open }
-     **כל מי שהזמנתי יושב באיזה שולחן** (8.99.350). מי שעוד לא ננעל
-     מתחלק לשולחנות של שלושה לפי הסדר שבו ייכנסו — מי שהשלים (לפי
-     המועד), ואחריו מי שהתקדם הכי הרבה; ולכל היותר ותיק אחד בשולחן,
-     כמו בשרת (chSync_). מזמין של שמונה רואה שלושה שולחנות. */
-  function chunk(list) {
-    var out = [], rest = list.slice();
-    while (rest.length) {
-      var t = [], old = 0, keep = [];
-      rest.forEach(function (p) {
-        if (t.length < 3 && !(p.o && old)) { t.push(p); if (p.o) old = 1; } else keep.push(p);
-      });
-      out.push(t);
-      rest = keep;
-    }
-    return out;
-  }
-  function openList(o) {
-    var fr = o.ok.map(function (p) { return { n: p.n, me: p.me, l: true, o: p.o }; });
-    /* מי שעוד לא השלים: אני קודם, אחר כך מי שהתקדם הכי הרבה. */
-    var no = o.no.slice().sort(function (a, b) {
-      return (b.me ? 1 : 0) - (a.me ? 1 : 0) || (b.q || 0) - (a.q || 0);
-    });
-    return fr.concat(no.map(function (p) { return { n: p.n, me: p.me, l: false, q: p.q, o: p.o }; }));
-  }
+     **השיבוץ — מהשרת, ויציב** (8.99.351, `tbl` ב-chOpen_): כל מוזמן יושב
+     בשולחן שהצטרף אליו, ומי שבא אחריו אינו מזיז אותו. המזמין רואה את כל
+     השולחנות שלו; חבר — את השולחן שלו. */
   function views(m, d) {
     var out = [];
     if (!m) return out;
@@ -282,20 +272,17 @@
       while (seats.length < 4) seats.push(free());
       return seats;
     };
-    /* השולחן שהוזמנתי אליו — אני בו תמיד, גם כשאני רביעי בתור. */
     if (m.inv) {
       var t0 = tp(U('chInvGrpH'), { by: m.inv.by });
       if (m.inv.g) grp(m.inv.g, false, t0);
       else {
-        var o = m.inv.open, all = openList(o), part = all.slice(0, 3), mi = null;
-        all.forEach(function (p) { if (p.me) mi = p; });
-        if (mi && part.indexOf(mi) < 0) part[2] = mi;
+        var o = m.inv.open, part = (o.tbl && o.tbl[0]) || [], mi = null;
+        part.forEach(function (p) { if (p.me) mi = p; });
         out.push({ t: t0, s: 'open', mine: false, open: o, seats: seatsOf(o, part),
                    line: d.ended ? U('chEnded') : tp(U(mi && mi.l ? 'chInvL' : 'chInvNotL'), { by: m.inv.by }) });
       }
     }
-    var mg = m.mine || [];
-    var parts = m.open && (m.open.ok.length || m.open.no.length) ? chunk(openList(m.open)) : [];
+    var mg = m.mine || [], parts = (m.open && m.open.tbl) || [];
     var tot = mg.length + parts.length;
     var ttl = function (i) { return tot > 1 ? tp(U('chGrpN'), { n: i + 1 }) : U('chMyGrpH'); };
     mg.forEach(function (g, i) { grp(g, true, ttl(i)); });
@@ -416,7 +403,7 @@
       var fail = function () { b.disabled = false; if (msg) msg.textContent = U('chSitErr'); };
       b.disabled = true;
       if (msg) msg.textContent = U('chSitWait');
-      api('sit', { id: ids().join(','), ref: ref() }).then(function (d) {
+      api('sit', { id: ids().join(','), ref: refAny() }).then(function (d) {
         if (!d || d.status !== 'ok' || !d.on || !d.ref || d.ref === 'old' || d.ref === 'wait') { fail(); return; }
         dropRef();
         LSet('chMy', { at: Date.now(), d: d });
@@ -446,7 +433,7 @@
   /* ---- ההשקה: פעם אחת בכל מכשיר, למי שעוד אין לו שולחן ולא הגיע
      מקישור. "למבצע" — ללשונית של האתגר בבית (rzPick ב-join.html). ---- */
   function promo(d) {
-    if (!d || !d.on || d.ended || !student() || ref() || LGet('chPromo', '')) return;
+    if (!d || !d.on || d.ended || !student() || refAny() || LGet('chPromo', '')) return;
     LSet('chPromo', '1');
     if (views(d.me, d).length) return;
     var el = document.createElement('div'), back = document.activeElement;
@@ -480,6 +467,16 @@
     try { go.focus(); } catch (e) {}
   }
 
+  /* ---- מההתראה על תוצאות הגרלה (?ms=k): מה קרה לשולחן שלי — רק כשהשרת
+     אישר שההגרלה הזו הוכרעה (`msr`), ורק כשהקישור עצמו ביקש אותה. ---- */
+  function msrHtml(d) {
+    var r = d && d.msr;
+    if (!r || !new RegExp('[?&]ms=' + r.k + '(?:&|$)').test(location.search)) return '';
+    var k = r.r === 'won' ? 'chMsrWon' : r.r === 'lost' ? 'chMsrLost' : 'chMsrNone';
+    return '<div class="ch-tcard' + (r.r === 'won' ? ' won' : '') + '"><span class="ch-chip">' + esc(U('chMsrChip')) + '</span>' +
+      '<h2 class="ch-hh sm">' + esc(U(k + 'H')) + '</h2><p class="ch-lead">' + esc(U(k)) + '</p></div>';
+  }
+
   /* ============================================================
      הכרטיס בבית התלמיד.
      ============================================================ */
@@ -488,7 +485,7 @@
     if (!d || !d.on || !student()) { box.innerHTML = ''; sync(); return; }
     var m = d.me, h;
     /* רשום שהגיע מקישור, ויש מקום לותיק — ההצעה לשבת היא הכרטיס. */
-    if (d.ref === 'old' && ref()) {
+    if (d.ref === 'old' && refAny()) {
       box.innerHTML = sitHtml(d) + '</div>';
       wireSit(function (x) { cardDraw(box, x); });
       sync();
@@ -591,7 +588,7 @@
     if (!d) { box.innerHTML = '<p class="ch-sm">' + esc(U('chErr')) + '</p>'; return; }
     if (!d.on) { box.innerHTML = '<div class="ch-card"><p class="ch-st">' + esc(U('chOff')) + '</p></div>'; return; }
     var m = d.me, h = '';
-    if (d.ref === 'old' && ref()) {
+    if (d.ref === 'old' && refAny()) {
       box.innerHTML = sitHtml(d) + '</div>';
       wireSit(function (x) { pageDraw(box, x); });
       var own = document.getElementById('ch-own');
@@ -603,7 +600,7 @@
       };
       return;
     }
-    h += (d.sat ? '' : yayHtml(m)) + noteHtml(d);
+    h += msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d);
     var vs = views(m, d);
     if (!vs.length) {
       h += '<div class="ch-tcard"><h2 class="ch-hh sm">' + esc(U('chMyGrpH')) + '</h2>' +
@@ -650,7 +647,19 @@
   }
   function page(box) {
     if (!box) return;
-    var r = grabRef();
+    /* `&old=1` — חבר שכבר רשום (בניסוי): נרשמים קודם בלי הקוד, וההזמנה
+       מחכה בצד (`chRefLater`) עד אחרי ההרשמה. */
+    var old1 = /[?&]old=1(?:&|$)/.test(location.search), m1 = /[?&]ref=([A-Za-z0-9]{4,10})(?:&|$)/.exec(location.search);
+    if (old1 && m1) {
+      try { localStorage.removeItem('df:chRef'); } catch (e) {}
+      LSet('chRefLater', m1[1].toUpperCase());
+      if (!me()) {
+        box.innerHTML = '<div class="ch-card land"><h2>' + esc(U('chOldLandH')) + '</h2><p class="ch-lead">' +
+          esc(U('chOldLandP')) + '</p><a class="ch-btn big" href="join.html">' + esc(U('chOldLandBtn')) + '</a></div>';
+        return;
+      }
+    }
+    var r = old1 ? '' : grabRef();
     if (!me()) {
       if (!r) { location.replace('join.html'); return; }
       landDraw(box, null);

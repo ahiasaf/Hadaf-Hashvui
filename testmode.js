@@ -212,6 +212,14 @@ var TM = (function () {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
+  /* המזהה האמיתי של המכשיר — מהעותק שנשמר בכניסה. בניסוי החי הוא נוסע
+     עם ההרשמה ("מכשיר אמיתי"), כדי שהתראת הניסוי תגיע לטלפון (8.99.351). */
+  function realId() {
+    try {
+      var d = JSON.parse(get(SNAP) || 'null'), me = d && JSON.parse(d['df:me'] || 'null');
+      return (me && me.id) || '';
+    } catch (e) { return ''; }
+  }
   return { on: on, sess: sess, q: q, enter: enter, restore: restore, add: add, call: call, banner: banner,
-           demo: demo, enterDemo: enterDemo };
+           demo: demo, enterDemo: enterDemo, realId: realId };
 })();

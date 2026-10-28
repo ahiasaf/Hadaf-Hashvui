@@ -2994,7 +2994,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.350';
+var APP_VERSION = '8.99.351';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16424,6 +16424,40 @@ function chaMsgBox(key, title, txt) {
     '<button class="btn g" type="button" onclick="window.open(chaWa(CHA_MSG[\'' + key + '\']),\'_blank\')">' +
     esc(UI.chaWaOpen) + '</button>';
 }
+/* ============================================================
+   התראות המבצע (8.99.351) — השקה, ותוצאות לכל הגרלה. השרת — chPush_:
+   רק בלחיצה כאן, מזהה הודעה קבוע (לא מגיעה פעמיים), ומצב לכל הודעה.
+   ============================================================ */
+var CHA_PT = {};
+function chaPushBox(kind, k, st, to, dis) {
+  var id = kind + (k || ''), o = st || { st: 'none' };
+  var lbl = { none: UI.chaPushNone, pend: UI.chaPushPend, sent: o.got ? fill(UI.chaPushGot, { n: o.got }) : UI.chaPushSent,
+              fail: fill(UI.chaPushFail, { why: o.why || '' }), unk: UI.chaPushUnk }[o.st] || '';
+  var h = '<div class="pp-h">' + esc(kind === 'launch' ? UI.chaPushLH : UI.chaPushMH) + '</div>' +
+    '<p class="h">' + esc(to) + '</p><p class="h"><b>' + esc(lbl) + '</b></p>';
+  if (o.st === 'sent') return h + (o.t ? '<p class="h">' + esc(o.t + ' · ' + o.b) + '</p>' : '');
+  var x = CHA_PT[id] || { t: o.t || (kind === 'launch' ? UI.chaPushLT : UI.chaPushMT),
+                          b: o.b || (kind === 'launch' ? UI.chaPushLB : UI.chaPushMB) };
+  CHA_PT[id] = x;
+  return h + '<div class="fld"><label class="label">' + esc(UI.chaPushT) + '</label>' +
+    '<input type="text" maxlength="120" value="' + esc(x.t) + '" oninput="CHA_PT[\'' + id + '\'].t=this.value"></div>' +
+    '<div class="fld"><label class="label">' + esc(UI.chaPushB) + '</label>' +
+    '<textarea class="cha-ta" maxlength="400" oninput="CHA_PT[\'' + id + '\'].b=this.value">' + esc(x.b) + '</textarea></div>' +
+    '<button class="btn p" type="button"' + dis + ' onclick="chaPush(\'' + kind + '\',\'' + (k || '') + '\',' + (o.st === 'unk') + ')">' +
+      esc(o.st === 'unk' ? UI.chaPushForce : o.st === 'fail' ? UI.chaPushRe : UI.chaPushGo) + '</button>';
+}
+function chaPush(kind, k, force) {
+  var x = CHA_PT[kind + (k || '')] || {}, t = String(x.t || '').trim(), b = String(x.b || '').trim();
+  if (!t || !b || CHA.busy) return;
+  if (!confirm((kind === 'launch' ? UI.chaPushLQ : UI.chaPushMQ) + '\n\n' + t + '\n' + b)) return;
+  CHA.busy = true; chaPaint();
+  chaCall('push', { kind: kind, ms: k || '', t: t, b: b, force: force ? '1' : '' }).then(function (r) {
+    CHA.busy = false;
+    CHA.msg = r && r.status === 'ok' ? (r.again ? UI.chaPushAgain : UI.chaPushOk)
+            : r && r.status === 'unk' ? UI.chaPushUnkQ : (r && r.message) || UI.chaFail;
+    return chaLoad();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
 function chaMs(m, d, dis) {
   var h = '<div class="adm-card cha-ms"><h4>' + esc(fill(UI.chaMsH, { th: m.th })) + ' · <span class="cha-st">' + esc(m.st) + '</span></h4>' +
     '<p class="h">' + esc(fill(UI.chaOpened, { t: chaT(m.open), c: chaT(m.close) })) + '</p>';
@@ -16488,6 +16522,7 @@ function chaMs(m, d, dis) {
         }).join('');
     }
     h += chaMsgBox('done' + k, UI.chaMsgDone, d.left > 0 ? fill(UI.chaDoneMsg, { th: m.th, left: d.left }) : fill(UI.chaDoneEnd, { th: m.th }));
+    if (!CHA.test) h += chaPushBox('ms', String(k), m.push, UI.chaPushMTo, dis);
   }
   if (m.st === 'נסגרה ללא זוכה') h += '<p class="h">' + esc(fill(UI.chaNoneH, { t: chaT(m.noneAt) })) + '</p>';
   return h + '</div>';
@@ -16513,7 +16548,10 @@ function dmStart() {
   var nm = chaVal('dm-name'), ins = chaVal('dm-inst');
   if (!nm || CHA.busy || !confirm(UI.dmStartQ)) return;
   CHA.busy = true; chaPaint();
-  chaCall('dmstart', { name: nm, inst: ins }).then(function (r) {
+  /* המזהה האמיתי של המכשיר — כדי שהתראת הניסוי תגיע גם אליו. */
+  var real = '';
+  try { real = (JSON.parse(localStorage.getItem('df:me') || 'null') || {}).id || ''; } catch (e) {}
+  chaCall('dmstart', { name: nm, inst: ins, real: real }).then(function (r) {
     CHA.busy = false;
     if (!r || r.status !== 'ok') { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
     dmEnter(r);
@@ -16521,14 +16559,56 @@ function dmStart() {
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
 }
 function dmHere() { var x = CHA.d && CHA.d.demo; if (x && dmEnter(x)) chaPaint(); }
-function dmEnd() {
-  if (CHA.busy || !confirm(UI.dmEndQ)) return;
-  CHA.busy = true; chaPaint();
-  chaCall('dmend').then(function (r) {
+/* ---- איפוס הניסוי (8.99.351): תצוגה מקדימה → היקף → אישור → אימות.
+   השרת — chDemoPre_/chDemoEnd_. אין היקף ברירת מחדל. ---- */
+var DM_PRE = null, DM_SC = '';
+function dmPre() {
+  if (CHA.busy) return;
+  CHA.busy = true; DM_SC = ''; chaPaint();
+  chaCall('dmpre').then(function (r) {
     CHA.busy = false;
     if (!r || r.status !== 'ok') { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
+    DM_PRE = r.none ? null : r;
+    chaPaint();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
+function dmSum(n) { var t = 0; for (var k in n) if (n.hasOwnProperty(k)) t += n[k]; return t; }
+function dmPick(sc) { DM_SC = sc; chaPaint(); }
+function dmResetHtml(dis) {
+  if (!DM_PRE) {
+    return '<div class="pp-h" style="margin-top:16px">' + esc(UI.dmResetH) + '</div><p class="h">' + esc(UI.dmResetP) + '</p>' +
+      '<button class="btn g" type="button"' + dis + ' onclick="dmPre()">' + esc(UI.dmEnd) + '</button>';
+  }
+  var row = function (sc, lbl) {
+    var n = DM_PRE[sc], list = Object.keys(n).filter(function (k) { return n[k] > 0; })
+      .map(function (k) { return esc(k) + ' · ' + n[k]; }).join('<br>');
+    return '<label class="cha-chk" style="display:block;margin-top:10px"><input type="radio" name="dm-sc"' +
+      (DM_SC === sc ? ' checked' : '') + ' onchange="dmPick(\'' + sc + '\')"> <b>' + esc(lbl) + '</b> — ' +
+      esc(fill(UI.dmResetN, { n: dmSum(n) })) + '</label><p class="h" style="margin-inline-start:26px">' + (list || '—') + '</p>';
+  };
+  var pz = DM_PRE.prize || [];
+  return '<div class="pp-h" style="margin-top:16px">' + esc(UI.dmResetH) + '</div><p class="h">' + esc(UI.dmResetP) + '</p>' +
+    row('all', UI.dmScAll) + row('data', UI.dmScData) +
+    '<div class="pp-h">' + esc(UI.dmPrizeH) + '</div><p class="h">' + (pz.length ? pz.map(function (z) {
+      return esc(fill(UI.dmPrizeRow, { k: z.k, st: z.st, win: z.win || '—', ok: z.ok ? chaT(Date.parse(z.ok)) : '—',
+                                       dlv: z.dlv ? chaT(Date.parse(z.dlv)) : '—' }));
+    }).join('<br>') : esc(UI.dmPrizeNone)) + '</p>' +
+    '<button class="btn p" type="button"' + (DM_SC && !CHA.busy ? '' : ' disabled') + ' onclick="dmEnd()">' + esc(UI.dmResetGo) + '</button>' +
+    (DM_SC ? '' : '<p class="h">' + esc(UI.dmResetPick) + '</p>');
+}
+function dmEnd() {
+  if (CHA.busy || !DM_PRE || !DM_SC) return;
+  var n = dmSum(DM_PRE[DM_SC]);
+  if (!confirm(fill(UI.dmResetQ, { n: n, sc: DM_SC === 'all' ? UI.dmScAll : UI.dmScData }))) return;
+  CHA.busy = true; chaPaint();
+  chaCall('dmend', { scope: DM_SC, exp: DM_PRE.exp[DM_SC] }).then(function (r) {
+    CHA.busy = false;
+    if (r && r.status === 'changed') { CHA.msg = r.message; DM_PRE = null; chaPaint(); return dmPre(); }
+    if (!r || (r.status !== 'ok' && r.status !== 'error') || !r.del) { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
+    var del = dmSum(r.del);
+    try { alert(r.left ? fill(UI.dmResetLeft, { n: del, left: r.left }) : fill(UI.dmResetOk, { n: del, bak: r.bak || '—' })); } catch (e) {}
+    DM_PRE = null; DM_SC = '';
     if (window.TM && TM.demo()) TM.restore();
-    try { alert(UI.dmEndOk); } catch (e) {}
     location.reload();
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
 }
@@ -16554,8 +16634,10 @@ function dmCard(d, dis) {
     '<button class="btn g" type="button" onclick="dmCopy()">' + esc(UI.dmCopy) + '</button>' +
     '<a class="btn g" style="margin-top:8px" target="_blank" rel="noopener" href="' +
       esc(chaWa(fill(UI.dmShareMsg, { url: url }), '')) + '">' + esc(UI.dmWa) + '</a>' +
+    '<div class="pp-h" style="margin-top:12px">' + esc(UI.dmOldLinkH) + '</div><p class="h">' + esc(UI.dmOldLinkP) + '</p>' +
+    '<p class="h" dir="ltr" style="word-break:break-all">' + esc(url + '&old=1') + '</p>' +
     '<p class="h" style="margin-top:12px"><b>' +
-      esc(fill(UI.dmProg, { j: Math.min(3, x.joined), l: Math.min(3, x.learned) })) + '</b></p>' +
+      esc(fill(UI.dmProg, { j: x.joined, o: x.old || 0, l: x.learned })) + '</b></p>' +
     '<p class="h">' + esc(x.ownL ? UI.dmOwnL : UI.dmOwnNo) + '</p>' +
     (mine ? '<a class="btn g" href="chaver">' + esc(UI.dmMine) + '</a>'
           : '<button class="btn g" type="button" onclick="dmHere()">' + esc(UI.dmHere) + '</button>');
@@ -16564,16 +16646,16 @@ function dmCard(d, dis) {
   } else if (x.ms === 'pend') {
     h += '<p class="h" style="margin-top:12px">' + esc(UI.dmPendP) + '</p>' +
       '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'approve\',{ms:1})">' + esc(UI.dmApprove) + '</button>';
-  } else if (x.ms === 'ok') {
-    h += '<p class="h" style="margin-top:12px"><b>' + esc(UI.dmWonP) + '</b></p>';
+  } else if (x.ms === 'ok' || x.ms === 'dlv') {
+    h += '<p class="h" style="margin-top:12px"><b>' + esc(UI.dmWonP) + '</b></p>' +
+      chaPushBox('ms', '1', x.push, fill(UI.chaPushTestTo, { n: x.real || 0 }), dis);
   } else if (x.grp === 'done') {
     h += '<p class="h" style="margin-top:12px">' + esc(UI.dmReadyP) + '</p>' +
       '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'dmready\')">' + esc(UI.dmReady) + '</button>';
   } else {
     h += '<p class="h" style="margin-top:12px">' + esc(UI.dmWaitP) + '</p>';
   }
-  return h + '<button class="btn g" type="button" style="margin-top:16px"' + dis + ' onclick="dmEnd()">' +
-    esc(UI.dmEnd) + '</button></div>';
+  return h + dmResetHtml(dis) + '</div>';
 }
 function chaPaint() {
   var el = document.getElementById('cha');
@@ -16620,6 +16702,7 @@ function chaPaint() {
   (d.ms || []).slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
   h += '<div class="adm-card"><h4>' + esc(UI.chaMsgsH) + '</h4><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
+    (CHA.test ? '' : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
     chaMsgBox('launch', UI.chaMsgLaunch, fill(UI.chaLaunchMsg, { url: chaStuUrl() }));
   var lastMs = (d.ms || []).filter(function (m) { return m.open; }).slice(-1)[0];
   if (lastMs) h += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
