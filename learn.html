@@ -240,6 +240,15 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
   padding:4px 10px;font-weight:800;font-size:.76rem;color:var(--blue);cursor:pointer}
 .cht button.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
 .cht-lbl{font-weight:800;color:var(--blue);font-size:.84rem}
+/* לשונית החידה (qSegSt_, 8.99.354) — בולטת תמיד כשיש חידה בקטע. */
+.cht button.qt{border:2px solid var(--gold,#C08F2B);background:#FFF3D6;color:#7A5A12}
+.cht button.qt.has::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#C0392B;margin-inline-start:5px;vertical-align:middle}
+.cht button.qt.ans{border-color:var(--blue,#17468F);background:rgba(23,70,143,.08);color:var(--blue,#17468F)}
+.cht button.qt.ok{border-color:#3B7D57;background:rgba(59,125,87,.12);color:#2F6B47}
+.cht button.qt.bad{border-color:#A5382D;background:rgba(165,56,45,.08);color:#A5382D}
+.cht button.qt.on{background:var(--gold,#C08F2B);border-color:var(--gold,#C08F2B);color:#fff}
+.cht button.qt.on::after{background:#fff}
 /* פירוש נטו — בלי ציטוט מהגמרא, היא כבר מסומנת למעלה בדף עצמו.
    (גרסה קודמת כן ציטטה את מילות הגמרא המודגשות — ראו את ההערה
    למעלה על boldOnly ב-git log.) */
@@ -834,6 +843,18 @@ textarea.qz-in{min-height:60px;resize:vertical}
 .qz-tag.pend{background:rgba(192,143,43,.18);color:#7A5A12}
 .qz-res{margin-top:12px;padding:11px;border-radius:10px;
   background:rgba(70,123,26,.1);font-weight:700;font-size:.85rem;text-align:center}
+/* השאלה כאזור משלה (8.99.354): כותרת קטנה (מספר השאלה, "לנסות שוב"),
+   השאלה עצמה מופרדת בקו, ורווח ברור לפני האפשרויות. */
+.qz-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.qz-num{font-size:.78rem;font-weight:800;color:var(--ink-2,#5A6A85)}
+.qz-retry{padding:3px 10px;border-radius:20px;font-size:.76rem;font-weight:800;
+  background:rgba(192,143,43,.18);color:#7A5A12}
+.qz-q{margin:8px 0 16px;padding-bottom:12px;border-bottom:1.5px solid var(--rule,#E4DCC8);
+  font-size:1.06rem;line-height:1.6}
+.qz-opt{font-size:.95rem;line-height:1.5;min-height:48px;margin-top:10px}
+.qz-opt.chosen{border-width:2px}
+.qz-opt.chosen::before{content:'\25CF';margin-inline-end:8px;color:var(--blue,#17468F)}
+.qz-opt.right.chosen::before{content:'\2713';color:#3B7D57}
 /* "כדאי לעיין בפירוש לנוער" — אחרי האפשרויות, בשאלה שהרכז הפעיל בה
    הפניה (qYrGo_). אותה צורה של כפתורי האפליקציה (רוחב מלא, פינות 12),
    ובשפת הזהב של לשונית "פירוש לנוער" — כדי שיהיה ברור שזה כפתור,
@@ -974,6 +995,21 @@ nav .sp{flex:1}
 .dq-res{margin-top:10px;padding:14px 12px;border-radius:12px;text-align:center;
   background:rgba(27,42,69,.06);font-weight:700;font-size:.92rem;color:var(--ink)}
 .dq-res b{display:block;margin-top:4px;font-size:1.12rem;font-weight:800}
+/* התוצאה מיד (8.99.354): "ענית נכון על 3 מתוך 5", שורת ✓/✗ לפי סדר
+   השאלות עם המספר שלהן, ומתחת — שורה קטנה ונפרדת של מצב השמירה. */
+.dq-sc{display:block;margin-top:6px;font-size:1rem;font-weight:800;color:var(--blue-d)}
+.dq-bd{display:block;margin-top:8px;line-height:1.5}
+.dq-mk{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0 2px}
+.dq-mk span{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:38px;height:44px;border-radius:10px;border:1.5px solid;font-size:1.05rem;font-weight:800;line-height:1}
+.dq-mk span small{font-size:.66rem;font-weight:700;margin-bottom:3px;color:var(--ink-2)}
+.dq-mk span.ok{border-color:#3B7D57;background:rgba(59,125,87,.1);color:#2F6B47}
+.dq-mk span.bad{border-color:#A5382D;background:rgba(165,56,45,.07);color:#A5382D}
+.dq-st{margin-top:9px;font-size:.84rem;font-weight:800;color:var(--ink-2)}
+.dq-st.ok{color:var(--ok,#3B7D57)}
+.dq-st.bad{color:#A5382D}
+.dq-st button{margin-inline-start:6px;border:1.5px solid currentColor;background:#fff;color:inherit;
+  border-radius:9px;padding:5px 12px;font:inherit;cursor:pointer}
 /* "רוצה התראה?" — בדף הנעול ובמסך הסיום */
 .nt-q{margin-top:6px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
 .nt-ok{display:block;margin-top:10px;font-size:.88rem;font-weight:800;color:var(--ok, #4A821C)}
@@ -1415,16 +1451,17 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div id="done-tm" class="dn-tm" style="display:none"></div>
   <!-- כרטיס הלימוד על הדף הזה — מהשרת (dnTkPaint_): נרשם, או כמה דקות חסרות. -->
   <p id="done-tk" class="dn-tkl" style="display:none"></p>
-  <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
-  <div id="done-pair" style="display:none"></div>
+  <!-- **החידון קודם, ואחריו הבקשה מאבא** (8.99.354). -->
   <a class="btn p" id="to-quiz" href="join.html"></a>
   <!-- החידון של השבוע עוד לא עלה — "רוצה התראה?" -->
   <div id="done-soon" class="dn-soon" style="display:none">
     <b id="dn-soon-t"></b><div id="dn-soon-n"></div>
   </div>
-  <!-- החידון של הדף — כמה נענו בדרך, ושליחה סופית. השאלות עצמן
-       אינן כאן: עונים עליהן רק בתוך הדף, ליד הקטע (doneQPaint_). -->
+  <!-- החידון של הדף — כמה נענו בדרך, ושליחה. השאלות עצמן אינן כאן:
+       עונים עליהן רק בתוך הדף, ליד הקטע (doneQPaint_). -->
   <div id="done-q" class="dn-soon" style="display:none"></div>
+  <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
+  <div id="done-pair" style="display:none"></div>
 </div></div>
 
 <!-- לוח השנה, קישורי הדפים וכתובת המחבר — אותם קבצים שהאפליקציה
@@ -2305,7 +2342,7 @@ function sidTime_(rec, n) {
    ולחפש בו `function boldOnly` אם ירצה לחזור לזה, כאן או בפרויקט
    אחר. */
 function chavTabHtml(st, canQuiz) {
-  if (!st) return '<span class="cht-lbl">חברותא</span>';
+  if (!st) return '<span class="cht-lbl">' + esc(UI.chavTab || '') + '</span>';
   /* לתלמיד: לא מספיק שיש טקסט לקטע — הדף כולו צריך להיות
      מפורסם (`OWN.__pub`). אחרת קטע שנכתב תוך כדי עבודה היה
      דולף לפני שהדף מוכן. */
@@ -2314,11 +2351,29 @@ function chavTabHtml(st, canQuiz) {
      גלויות גם כשהיא פתוחה, כדי לעבור לפירוש ולחזור. העיגול הצף
      (qfab) פותח אותה. */
   var tab = QUIZ_OPEN ? 'quiz' : CHAV_TAB;
-  if (!SIDE_ADM && !hasOwn && !canQuiz) return '<span class="cht-lbl">חברותא</span>';
-  return '<button class="' + (tab === 'chav' ? 'on' : '') + '" id="cht-chav">חברותא</button>' +
-    (SIDE_ADM || hasOwn ? '<button class="' + (tab === 'own' ? 'on' : '') + '" id="cht-own">פירוש לנוער</button>' : '') +
-    (canQuiz ? '<button class="' + (tab === 'quiz' ? 'on' : '') + '" id="cht-quiz">' + esc(UI.quizTab || 'חידה') +
-      (qSegDone_(st.n) ? ' \u2713' : '') + '</button>' : '');
+  if (!SIDE_ADM && !hasOwn && !canQuiz) return '<span class="cht-lbl">' + esc(UI.chavTab || '') + '</span>';
+  /* **הלשונית של החידה בולטת תמיד כשיש חידה בקטע** (8.99.354) — לא רק
+     כשהיא נבחרה, ולא רק ברמז שנעלם. ארבעה מצבים, כל אחד בצבע ובסימן משלו
+     (qSegSt_): יש חידה (נקודה) · נענתה (✓ כחול) · נכון אחרי שליחה (✓ ירוק)
+     · לא נכון אחרי שליחה (✗). פתוחה — מלאה בזהב, כמו כל לשונית פתוחה. */
+  var qs = canQuiz ? qSegSt_(st.n) : '';
+  return '<button class="' + (tab === 'chav' ? 'on' : '') + '" id="cht-chav">' + esc(UI.chavTab || '') + '</button>' +
+    (SIDE_ADM || hasOwn ? '<button class="' + (tab === 'own' ? 'on' : '') + '" id="cht-own">' + esc(UI.ownTab || '') + '</button>' : '') +
+    (canQuiz ? '<button class="qt ' + qs + (tab === 'quiz' ? ' on' : '') + '" id="cht-quiz">' + esc(UI.quizTab || '') +
+      (qs === 'ans' || qs === 'ok' ? ' \u2713' : qs === 'bad' ? ' \u2717' : '') + '</button>' : '');
+}
+function qSegSt_(n) {
+  var l = SIDE_ADM ? [] : qVisible_(n), all = true, right = true, kept = true;
+  if (!l.length) return 'has';
+  l.forEach(function (q) {
+    var a = qAns_(n, q);
+    if (a < 0) all = false;
+    if (a !== q.correct) right = false;
+    if (!qKept_(n, q)) kept = false;
+  });
+  if (!all) return 'has';
+  if (qSent_()) return right ? 'ok' : 'bad';
+  return kept ? 'ok' : 'ans';
 }
 
 /* ============================================================
@@ -3879,6 +3934,7 @@ function paintChavArea() {
   document.body.classList.toggle('quiz-on', !!QUIZ_OPEN);
   var cht = $('cht');
   if (cht) cht.innerHTML = chavTabHtml(st, canQuiz);
+  if (!QUIZ_OPEN) QZ_SHOWN = '';
   if (QUIZ_OPEN) paintQuiz();
   else if (CHAV_TAB === 'own' && canOwn) paintOwn();
   else paintChav();
@@ -5440,44 +5496,44 @@ function doneQPaint_() {
   if (!all.length) return;
   var t = qTally_(all), h;
   if (qSent_()) {
-    /* **התלמיד יודע מה מצבו** (8.99.324 — הבעלים הפכו את 8.99.322).
-       עבר — כרטיס נוסף. לא עבר בפעם הראשונה — אומרים לו, ומתחילים
-       מחדש (הזדמנות שנייה, לא יותר: גם השרת סופר רק שתיים, quizBest_).
-       לא עבר גם בשנייה — "לא נורא", ותזכורת שאפשר ללמוד עם אבא. לא
-       אומרים איזו שאלה. בלי ציון שמור (מכשיר ישן) — רק תודה. */
-    /* **השמירה קודם לתוצאה** (8.99.338). השליחה `no-cors` ואטומה, ולכן
-       התוצאה מוצגת רק אחרי שהשרת אישר שהשורה ב"חידות" (qVerify_):
-       "התשובות נשמרו", הציון, כמה צריך כדי לעבור, וכמה כרטיסים יש עכשיו —
-       מהשרת. לא אושר — אין "נשמר", ויש "לשלוח שוב". כישלון בחידון אינו
-       כישלון בשליחה. מכשיר ששלח לפני העדכון (`qsv` חסר) — כמו קודם. */
-    var sv = qSv_();
-    if (sv === '0') {
-      box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b><div class="dq-res">' +
-        (QV_BUSY ? '<b>' + esc(UI.dqSaving || '') + '</b>'
-                 : '<b>' + esc(UI.dqSaveErrH || '') + '</b>' + esc(UI.dqSaveErrB || '')) + '</div>' +
-        (QV_BUSY ? '' : '<button class="btn p" id="dq-resend">' + esc(UI.dqResend || '') + '</button>');
-      if ($('dq-resend')) $('dq-resend').onclick = qResend_;
-      return;
-    }
-    var ok = qPassed_(), again = ok === false && qTries_() < QZ_TRIES;
+    /* **התוצאה מיד, השמירה בנפרד** (8.99.354 — מחליף את "השמירה קודם
+       לתוצאה" של 8.99.338). הציון ושורת ✓/✗ מחושבים במכשיר ומוצגים
+       ברגע הלחיצה. מתחתם — שורה קטנה של מצב השמירה: "מסתנכרן…", "✓ נשמר"
+       רק אחרי שהשרת מצא את השורה ב"חידות" (qzSync_), ו"עוד לא נשמר" עם
+       "לנסות שוב". "כרטיס החידון נרשם" וכמה כרטיסים — רק מהשרת, אחרי האימות.
+       לא עבר בפעם הראשונה — מתקנים רק את השגויות (qAgain_). לא עבר גם
+       בשנייה — "לא נורא", ואין ניסיון שלישי (גם השרת סופר שתיים, quizBest_).
+       מכשיר ששלח לפני 8.99.338 (`qsv` חסר) — בלי שורת מצב. */
+    var sv = qSv_(), sc = qScore_(), ok = qPassed_(), again = ok === false && qTries_() < QZ_TRIES;
     var hd = ok ? UI.dqPassH : ok === false ? (again ? UI.dqFail1H : UI.dqFail2H) : UI.dqThanks;
-    var bd = ok ? UI.dqPassB : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
+    var bd = ok ? (sv !== '0' ? UI.dqPassB : '') : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
     var info = '';
     if (sv === '1') {
-      var sc = qScore_();
-      if (sc) info += fillT(UI.dqSaved, { r: sc[0], n: sc[1], k: qNeed_(sc[1]) });
-      var tk = QV_TK && QV_TK.tk, tl = '';
-      if (tk && tk.drawn != null) tl = UI.dqTkDrawn;
-      else if (tk) tl = fillT(tk.t === 1 ? UI.dqTk1 : UI.dqTkN, { n: tk.t, daf: tk.daf || '' });
-      if (tl) info += (info ? '\n' : '') + tl;
+      var tk = QV_TK && QV_TK.tk;
+      if (tk && tk.drawn != null) info = UI.dqTkDrawn;
+      else if (tk) info = fillT(tk.t === 1 ? UI.dqTk1 : UI.dqTkN, { n: tk.t, daf: tk.daf || '' });
     }
+    var st = sv === '0'
+      ? (QV_BUSY ? '<div class="dq-st">' + esc(UI.dqSaving || '') + '</div>'
+                 : '<div class="dq-st bad">' + esc(UI.dqSaveErrH || '') +
+                   ' <button type="button" id="dq-resend">' + esc(UI.dqResend || '') + '</button></div>')
+      : sv === '1' ? '<div class="dq-st ok">' + esc(UI.dqSavedS || '') + '</div>' : '';
     box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b>' +
-      '<div class="dq-res"><b>' + esc(hd || '') + '</b>' + esc(bd || '') +
-      (info ? '<span class="dq-sv">' + esc(info).replace(/\n/g, '<br>') + '</span>' : '') + '</div>' +
-      (again ? '<button class="btn p" id="dq-again">' + esc(UI.dqAgain || '') + '</button>' : '');
+      '<div class="dq-res"><b>' + esc(hd || '') + '</b>' +
+      (sc ? '<span class="dq-sc">' + esc(fillT(UI.dqScore, { r: sc[0], n: sc[1] })) + '</span>' + qMarks_(all) : '') +
+      (bd ? '<span class="dq-bd">' + esc(bd) + '</span>' : '') +
+      (info ? '<span class="dq-sv">' + esc(info) + '</span>' : '') +
+      (QV_LAND ? '<span class="dq-sv">' + esc(UI.dqGoTk || '') + '</span>' : '') + '</div>' +
+      (again ? '<button class="btn p" id="dq-again">' + esc(UI.dqAgain || '') + '</button>' : '') + st;
     if (again) $('dq-again').onclick = qAgain_;
+    if ($('dq-resend')) $('dq-resend').onclick = qResend_;
     /* נשמר בביקור קודם — הכרטיסים מהשרת, פעם אחת בטעינה. */
-    if (sv === '1' && !QV_TK && !QV_BUSY && !QV_ONCE) { QV_ONCE = true; qzVerify_(0); }
+    if (sv === '1' && !QV_TK && !QV_BUSY && !QV_ONCE) {
+      QV_ONCE = true;
+      qzCheck_({ n: qTries_(), sc: sc ? sc.join('/') : '' }, false).then(function (r) {
+        if (r) { QV_TK = r; doneQPaint_(); }
+      });
+    }
     return;
   }
   var dots = '';
@@ -5503,11 +5559,24 @@ function doneQPaint_() {
   };
   if ($('dq-send')) $('dq-send').onclick = function () { qsSend_(all); };
 }
+/* שורת ✓/✗ — שאלה אחר שאלה, בסדר של הדף (pageQs_), עם מספר השאלה
+   כדי שהסדר לא יתבלבל בין ימין לשמאל. אותו מספר מופיע מעל השאלה בדף
+   ("שאלה 3 מתוך 5", paintQuiz). התשובה הנכונה אינה נאמרת. */
+function qMarks_(all) {
+  return '<div class="dq-mk">' + all.map(function (it, i) {
+    var r = qAns_(it.n, it.q) === it.q.correct;
+    return '<span class="' + (r ? 'ok' : 'bad') + '" role="img" aria-label="' +
+      esc(fillT(r ? UI.dqMkOk : UI.dqMkBad, { i: i + 1 })) + '"><small>' + (i + 1) + '</small>' +
+      (r ? '✓' : '✗') + '</span>';
+  }).join('') + '</div>';
+}
+/* **שליחה בלחיצה אחת** (8.99.354): בלי "האם אתה בטוח" — יש ניסיון שני,
+   והשאלות שלא נענו נספרות כטעות כמו קודם. לחיצה כפולה אינה שולחת פעמיים
+   (qSent_ כבר נעול). התוכן נכנס לתור במכשיר (`df:qq:`) לפני כל שליחה,
+   ויוצא ממנו רק כשהשרת מצא אותו — גם אחרי רענון או סגירה (qzResume_). */
 function qsSend_(all) {
-  var t = qTally_(all), miss = t.n - t.a;
-  var ask = miss ? String(UI.dqSureMiss || '').replace('{m}', miss) : UI.dqSure;
-  if (!confirm(ask || '')) return;
-  var tries = qTries_() + 1, body = '';
+  if (qSent_()) return;
+  var t = qTally_(all), tries = qTries_() + 1, body = '';
   if (API && !quiet()) {
     var me = (typeof LMe === 'function') ? LMe() : null;
     tmTick_();
@@ -5525,7 +5594,8 @@ function qsSend_(all) {
         ['נכון', qPass_(t.r, t.n) ? 'נכון' : 'לא נכון'],
         ['זמן בדף (דקות)', tmMin_()],
         /* מכשיר — הזמן נצבר לכל מכשיר לחוד (rafTmAdd_). ניסיון — לרכז;
-           השרת סופר לבד רק את שתי השליחות הראשונות (quizBest_). */
+           השרת סופר לבד רק את שתי השליחות הראשונות (quizBest_), ושליחה
+           חוזרת של אותו תוכן אינה נספרת פעמיים. */
         ['מכשיר', typeof LDev === 'function' ? LDev() : ''], ['ניסיון', tries],
         ['מזהה', (me && me.id) || ''], ['מקור', 'שליחת החידון']
       ])
@@ -5535,64 +5605,148 @@ function qsSend_(all) {
     localStorage.setItem(qSentKey_(), '1');
     localStorage.setItem(qResKey_(), t.r + '/' + t.n);
     localStorage.setItem(qTryKey_(), String(tries));
-    /* '0' — נשלח ועוד לא אושר; '1' — השרת אישר. התוכן נשמר לשליחה חוזרת. */
-    if (body) { localStorage.setItem(qSvKey_(), '0'); localStorage.setItem(qPayKey_(), body); }
+    /* '0' — בתור, עוד לא אומת; '1' — השרת מצא הכול. בלי שליחה (בדיקה) — בלי מצב. */
+    if (body) {
+      var Q = qqGet_();
+      Q.push({ n: tries, sc: t.r + '/' + t.n, b: body });
+      qqSet_(Q);
+      localStorage.setItem(qSvKey_(), '0');
+    } else localStorage.removeItem(qSvKey_());
   } catch (e) {}
   QV_TK = null;
-  if (body) qzPost_(body);
+  if (body) QV_BUSY = true;
   doneQPaint_();
   paintChavArea();
   bar();
+  if (body) qzSync_(true, 0, true);
 }
-/* ---- אימות השמירה (8.99.338) ---- */
+/* ---- אימות השמירה (8.99.338; תור — 8.99.354) ---- */
 function qSvKey_() { return 'df:qsv:' + dmKey(S.mas, S.daf); }
 function qPayKey_() { return 'df:qpay:' + dmKey(S.mas, S.daf); }
+function qQKey_() { return 'df:qq:' + dmKey(S.mas, S.daf); }
 function qSv_() { try { return localStorage.getItem(qSvKey_()); } catch (e) { return null; } }
 function qScore_() {
   var m = null;
   try { m = String(localStorage.getItem(qResKey_()) || '').match(/^(\d+)\/(\d+)$/); } catch (e) {}
   return m ? [+m[1], +m[2]] : null;
 }
-/* כמה נכונות צריך כדי לעבור — אותו כלל של qPass_. */
-function qNeed_(n) { for (var r = 0; r <= n; r++) if (qPass_(r, n)) return r; return n; }
-var QV_BUSY = false, QV_TK = null, QV_ONCE = false;
-function qzPost_(body) {
-  QV_BUSY = true;
-  fetch(API, { method:'POST', mode:'no-cors', body: body })['catch'](function () {})
-    .then(function () { setTimeout(function () { qzVerify_(1); }, 2000); });
+/* התור: [{ n: ניסיון, sc: 'נכונות/שאלות', b: התוכן }], בסדר השליחה. ניסיון
+   ראשון שעוד לא אומת נשאר בו גם כשמתחילים את השני, ויוצא לפניו. מכשיר
+   מ-8.99.338 — תוכן אחד ב-`df:qpay:`, והוא הניסיון האחרון. */
+function qqGet_() {
+  var a = null;
+  try { a = JSON.parse(localStorage.getItem(qQKey_()) || 'null'); } catch (e) { a = null; }
+  if (a && a.length) return a;
+  a = [];
+  try {
+    var b = localStorage.getItem(qPayKey_()), sc = qScore_();
+    if (b && qSv_() === '0') a.push({ n: qTries_(), sc: sc ? sc.join('/') : '', b: b });
+  } catch (e2) {}
+  return a;
 }
-/* שואלים את השרת אם השליחה הזו (הדף + מספר הניסיון) ב"חידות", ומקבלים
-   באותה תשובה את הכרטיסים על הדף (?tkd, tkDaf_). עד שלוש פעמים. */
-function qzVerify_(k) {
+function qqSet_(a) {
+  try {
+    if (a.length) localStorage.setItem(qQKey_(), JSON.stringify(a));
+    else localStorage.removeItem(qQKey_());
+    localStorage.removeItem(qPayKey_());
+  } catch (e) {}
+}
+var QV_BUSY = false, QV_TK = null, QV_ONCE = false, QV_RUN = 0, QV_LAND = false;
+/* האם השליחה הזו (הדף + מספר הניסיון + הציון) ב"חידות". `nt` — בלי
+   חישוב הכרטיסים (ניסיון קודם בתור; tkDaf_ עונה מהר יותר). null — לא נמצא. */
+function qzCheck_(it, nt) {
   var me = (typeof LMe === 'function') ? LMe() : null;
-  if (!API || !me || !me.id || typeof LJsonp !== 'function') { QV_BUSY = false; doneQPaint_(); return; }
+  if (!API || !me || !me.id || typeof LJsonp !== 'function') return Promise.resolve(null);
+  return LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
+         '&wk=' + (S.week + 1) + '&daf=' + encodeURIComponent(dmKey(S.mas, S.daf)) + '&n=' + it.n +
+         (it.sc ? '&sc=' + encodeURIComponent(it.sc) : '') + (nt ? '&nt=1' : ''))
+    .then(function (r) { return r && r.status === 'ok' && r.saved ? r : null; }, function () { return null; });
+}
+/* שולחים (`post`) את כל מה שבתור, בזה אחר זה, ומאמתים כל אחד. השליחה
+   `no-cors` מסתיימת רק אחרי שהשרת סיים לכתוב, ולכן האימות יוצא מיד —
+   בלי המתנה קבועה. לא נמצא — שוב אחרי 1.5 ו-3 שניות, ובסיבוב השני גם
+   שליחה חוזרת (השרת אינו סופר את אותו תוכן פעמיים). אחרי שלושה סיבובים —
+   "עוד לא נשמר" ו"לנסות שוב"; התור נשאר במכשיר. `fresh` — לחיצה עכשיו:
+   הצלחה מעבירה לכרטיסים בבית (qzLand_). */
+function qzSync_(post, round, fresh) {
+  var me = (typeof LMe === 'function') ? LMe() : null, Q = qqGet_();
+  if (!Q.length || !API || !me || !me.id || typeof LJsonp !== 'function') {
+    QV_BUSY = false;
+    doneQPaint_();
+    return;
+  }
+  var run = ++QV_RUN, got = {}, last = null, p = Promise.resolve();
   QV_BUSY = true;
-  LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
-         '&wk=' + (S.week + 1) + '&daf=' + encodeURIComponent(dmKey(S.mas, S.daf)) + '&n=' + qTries_() +
-         (qScore_() ? '&sc=' + encodeURIComponent(qScore_().join('/')) : ''))
-    .then(function (r) {
-      if (r && r.status === 'ok' && r.saved) {
-        QV_BUSY = false; QV_TK = r;
-        try { localStorage.setItem(qSvKey_(), '1'); localStorage.removeItem(qPayKey_()); } catch (e) {}
-        doneQPaint_();
-        if (k) toast(UI.dqOk || '');
-        return;
-      }
-      if (k && k < 3) { setTimeout(function () { qzVerify_(k + 1); }, 2500 * k); return; }
-      QV_BUSY = false;
-      doneQPaint_();
-    }, function () {
-      if (k && k < 3) { setTimeout(function () { qzVerify_(k + 1); }, 2500 * k); return; }
-      QV_BUSY = false;
-      doneQPaint_();
+  if (post) Q.forEach(function (it) {
+    p = p.then(function () {
+      return fetch(API, { method:'POST', mode:'no-cors', body: it.b })['catch'](function () {});
     });
+  });
+  p.then(function () {
+    var v = Promise.resolve();
+    Q.forEach(function (it, i) {
+      v = v.then(function () {
+        return qzCheck_(it, i < Q.length - 1).then(function (r) {
+          if (!r) return;
+          got[it.n + '|' + it.sc] = 1;
+          if (i === Q.length - 1) last = r;
+        });
+      });
+    });
+    return v;
+  }).then(function () {
+    if (run !== QV_RUN) return;
+    var left = qqGet_().filter(function (it) { return !got[it.n + '|' + it.sc]; });
+    qqSet_(left);
+    if (last) QV_TK = last;
+    if (!left.length) {
+      try { if (qSent_()) localStorage.setItem(qSvKey_(), '1'); } catch (e) {}
+      QV_BUSY = false;
+      if (fresh) qzLand_();
+      doneQPaint_();
+      if (fresh) toast(UI.dqOk || '');
+      return;
+    }
+    round = (round || 0) + 1;
+    if (round < 3) {
+      setTimeout(function () { if (run === QV_RUN) qzSync_(round === 1, round, fresh); }, 1500 * round);
+      return;
+    }
+    QV_BUSY = false;
+    doneQPaint_();
+  });
 }
 function qResend_() {
-  var b = '';
-  try { b = localStorage.getItem(qPayKey_()) || ''; } catch (e) {}
-  if (!b || !API) return;
-  qzPost_(b);
+  if (QV_BUSY || !API) return;
+  QV_BUSY = true;
   doneQPaint_();
+  qzSync_(true, 0, true);
+}
+/* בפתיחת הדף: שליחה שנשארה בתור (רענון, סגירה, רשת חלשה) — קודם בודקים
+   אם הגיעה, ורק אם לא — שולחים שוב. בלי מסך ובלי הודעה. */
+function qzResume_() {
+  if (SIDE_ADM || QV_BUSY || !qqGet_().length) return;
+  qzSync_(false, 0, false);
+}
+/* **עבר, נשמר, והכרטיס אומת — לבית, אל הכרטיסים** (8.99.354). רק מלחיצה
+   עכשיו (לא ברענון), רק כשמסך הסיום פתוח, ורק כשהשרת מונה כרטיס חידון
+   במסלול הזה על הדף. join.html מציג את הדף של החידון הזה (`df:tkLand`)
+   ומדגיש פעם אחת את הכרטיס החדש. נכשל או לא עבר — נשארים כאן. */
+function qzLand_() {
+  var tk = QV_TK && QV_TK.tk, x = tk && tk.tr && tk.tr[S.tr];
+  if (!qPassed_() || !tk || tk.drawn != null || !x || !(x[1] > 0)) return;
+  if (EMB || SIDE_ADM || quiet() || stuDad() || ['home', 'qbank', 'tzevet'].indexOf(FROM) >= 0) return;
+  if ($('done').className.indexOf('on') < 0) return;
+  var i = stuInst();
+  try {
+    sessionStorage.setItem('df:tkLand', JSON.stringify({ wk: S.week + 1, tr: S.tr, at: Date.now() }));
+    sessionStorage.setItem('df:tkLandFx', '1');
+  } catch (e) { return; }
+  QV_LAND = true;
+  setTimeout(function () {
+    LEAVING = true;
+    location.href = 'join.html' + (i ? '?inst=' + i : '');
+  }, 1600);
 }
 /* ---- כרטיס הלימוד במסך הסיום (8.99.338) ----
    מהשרת (?tkd): הכרטיס נרשם — שורה; עוד חסר זמן ואף חריג לא חל — כמה
@@ -5616,20 +5770,36 @@ function dnTkPaint_(k) {
       }, function () { dnTkPaint_(k + 1); });
   }, k ? 4000 * k : 2500);
 }
-/* הזדמנות שנייה: התשובות שבמכשיר נמחקות (גם הנעילה הישנה, df:qok),
-   והחידון מתחיל מחדש בקטע הראשון שיש בו שאלה. */
+/* **הזדמנות שנייה — רק הטעויות** (8.99.354, במקום איפוס מלא). שאלה
+   שנענתה נכון נשארת עם התשובה שלה, נעולה, ומסומנת "ענית נכון" (`df:qkeep:`).
+   רק השגויות (וגם שלא נענו) מתאפסות ונפתחות לתיקון, עם "לנסות שוב". הסדר
+   והשיוך לקטעים לא זזים (qOrd_). החידון ממשיך מהקטע הראשון שיש בו שאלה פתוחה. */
+function qKeepKey_() { return 'df:qkeep:' + dmKey(S.mas, S.daf); }
+function qKeyOf_(n, q) { return n + ':' + q.q; }
+function qKept_(n, q) {
+  var a = null;
+  try { a = JSON.parse(localStorage.getItem(qKeepKey_()) || 'null'); } catch (e) { a = null; }
+  return !!(a && a.indexOf(qKeyOf_(n, q)) >= 0 && qAns_(n, q) === q.correct);
+}
+/* בניסיון השני, לפני השליחה — שאלה שנפתחה לתיקון. */
+function qRetry_(n, q) { return !SIDE_ADM && !qSent_() && qTries_() > 0 && !qKept_(n, q); }
 function qAgain_() {
   var n = qTries_();
   if (n >= QZ_TRIES) return;
   /* המונה נשמר לפני שהנעילה יורדת — במכשיר ישן הוא נגזר ממנה. */
   try { localStorage.setItem(qTryKey_(), String(n)); } catch (e) {}
+  var keep = [];
   pageQs_().forEach(function (it) {
+    if (qAns_(it.n, it.q) === it.q.correct) { keep.push(qKeyOf_(it.n, it.q)); return; }
     try {
       localStorage.removeItem(qAnsKey_(it.n, it.q));
       localStorage.removeItem(qOkKey_(it.n, it.q));
     } catch (e) {}
   });
-  try { localStorage.removeItem(qSentKey_()); } catch (e) {}
+  try {
+    localStorage.setItem(qKeepKey_(), JSON.stringify(keep));
+    localStorage.removeItem(qSentKey_());
+  } catch (e) {}
   $('done').className = 'sheet';
   qGoFirst_(true);
   paintChavArea();
@@ -5785,12 +5955,22 @@ function qOrd_(n, len) {
   for (var i = 0; i < len; i++) ord.push(i);
   if (SIDE_ADM || len < 2) return ord;
   var k = dmKey(S.mas, S.daf) + '|' + n + '|' + len;
+  /* מ-8.99.354 הסדר נשמר במכשיר (`df:qord:`) — רענון ופתיחה מחדש אינם
+     מגרילים שוב, והשאלות נשארות באותו סדר ובאותו קטע גם בניסיון השני. */
   if (!Q_ORDS[k]) {
+    var was = null;
+    try { was = JSON.parse(localStorage.getItem('df:qord:' + k) || 'null'); } catch (e) { was = null; }
+    if (was && was.length === len &&
+        was.slice().sort(function (a, b) { return a - b; }).join() === ord.join()) {
+      Q_ORDS[k] = was;
+      return was;
+    }
     for (var j = len - 1; j > 0; j--) {
       var r = Math.floor(Math.random() * (j + 1)), t = ord[j];
       ord[j] = ord[r]; ord[r] = t;
     }
     Q_ORDS[k] = ord;
+    try { localStorage.setItem('df:qord:' + k, JSON.stringify(ord)); } catch (e2) {}
   }
   return Q_ORDS[k];
 }
@@ -5819,6 +5999,7 @@ function qTagHtml_(it) {
 
 /* הלשונית עצמה מצוירת בתוך chavTabHtml (ליד חברותא/פירוש
    לנוער); כאן רק התוכן שבפנים, בדיוק כמו paintChav/paintOwn. */
+var QZ_SHOWN = '';
 function paintQuiz() {
   var st = FLAT[IDX], box = $('chb');
   $('chnum').textContent = '';
@@ -5841,22 +6022,32 @@ function paintQuiz() {
     if (qAns_(n, list[ord[j]]) < 0) { Q_AT.i = qi = ord[j]; q = list[qi]; pos = j; break; }
   }
   /* אין כאן "נכון/לא נכון": התשובה שנבחרה מסומנת, ואפשר לשנות.
-     הרכז רואה גם את הנכונה — הוא זה שכותב אותן. */
-  var pick = SIDE_ADM ? -1 : qAns_(n, q), lock = !SIDE_ADM && qSent_();
+     הרכז רואה גם את הנכונה — הוא זה שכותב אותן. בניסיון השני (8.99.354)
+     שאלה שנענתה נכון נעולה עם התשובה שלה ("ענית נכון"), והשגויות פתוחות
+     עם "לנסות שוב". */
+  var pick = SIDE_ADM ? -1 : qAns_(n, q), kept = !SIDE_ADM && !qSent_() && qKept_(n, q);
+  var lock = !SIDE_ADM && (qSent_() || kept), retry = !kept && qRetry_(n, q);
+  /* "שאלה 3 מתוך 5" — המספר של השאלה בדף כולו, אותו מספר כמו בשורת ✓/✗
+     שבמסך הסיום (qMarks_). */
+  var pq = SIDE_ADM ? [] : pageQs_(), pi = -1;
+  pq.forEach(function (it, j) { if (pi < 0 && it.n === n && it.q.q === q.q) pi = j; });
   /* "הפירוש לנוער" — רק כשהרכז הפעיל את המתג בשאלה, ורק כשיש לקטע
      פירוש שהתלמיד יכול לראות. בלי פירוש — אין כפתור שמוביל לשום מקום. */
   var yr = !!q.yr && (SIDE_ADM || ownShown_(n));
   box.innerHTML =
     (SIDE_ADM ? qTagHtml_(qPieces_(n)[qi]) : '') +
-    (list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
+    (pi >= 0 || retry ? '<div class="qz-hd">' +
+      (pi >= 0 ? '<span class="qz-num">' + esc(fillT(UI.qNum || '', { i: pi + 1, n: pq.length })) + '</span>' : '') +
+      (retry ? '<span class="qz-retry">' + esc(UI.qRetry || '') + '</span>' : '') + '</div>'
+      : list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
       .replace('{i}', pos + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
     q.a.map(function (t, k) {
-      var c = k === pick ? ' chosen' : (SIDE_ADM && k === q.correct ? ' right' : '');
+      var c = k === pick ? (kept ? ' right chosen' : ' chosen') : (SIDE_ADM && k === q.correct ? ' right' : '');
       return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' + (lock ? ' disabled' : '') + '>' + esc(t) + '</button>';
     }).join('') +
     (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
-    (lock ? '<div class="qz-res">' + esc(UI.dqLocked || '') + '</div>'
+    (lock ? '<div class="qz-res">' + esc((kept ? UI.qKeptOk : UI.dqLocked) || '') + '</div>'
       : pick >= 0 ? '<div class="qz-res">' + esc(UI.qPicked || '') + '</div>' : '') +
     /* עריכה בדף — רק לשאלה ישנה שעוד אין לה שורה במאגר (מעבר זמני;
        qbLink_ בסקריפט מעביר אותה למאגר בכניסה הבאה לניהול ← שאלות). */
@@ -5866,6 +6057,10 @@ function paintQuiz() {
   q.a.forEach(function (t, k) {
     $('qz-opt' + k).onclick = function () { qAnswer(n, q, k); };
   });
+  /* **השאלה נפתחת מתחילתה** (8.99.354): פתיחת החידה או מעבר לשאלה אחרת
+     מתחילים בראש השאלה — לא במקום הגלילה של הפירוש או של השאלה הקודמת. */
+  var qk = n + '|' + qi;
+  if (QZ_SHOWN !== qk) { QZ_SHOWN = qk; box.scrollTop = 0; }
   var ed = $('qz-edit');
   if (ed) ed.onclick = function () { qEditOpen_(n); };
   if ($('qz-yr')) $('qz-yr').onclick = function () { qYrGo_(n); };
@@ -5907,7 +6102,7 @@ function qAnsSet_(n, q, k) {
 /* התלמיד עונה — ורק "תשובתך התקבלה". האם צדק אינו נאמר: הבדיקה
    באחריותו, והגמרא שלפניו. אפשר לשנות כאן, ובמסך השליחה בסוף הדף. */
 function qAnswer(n, q, k) {
-  if (!SIDE_ADM && qSent_()) return;
+  if (!SIDE_ADM && (qSent_() || qKept_(n, q))) return;
   qAnsSet_(n, q, k);
   qHintAnswered_();
   qSend(n, k, k === q.correct);
@@ -7299,6 +7494,8 @@ function boot() {
      מחליט לפיו מה להראות (ואם בכלל להראות את הלשונית). */
   loadQuizMap().then(function () {
     Q_READY = true;
+    /* חידון שנשלח ועוד לא אומת — ממשיכים מהתור שבמכשיר (qzResume_). */
+    qzResume_();
     qbsPaint_();
     if (FLAT.length) paintChavArea();
     quizJump_();

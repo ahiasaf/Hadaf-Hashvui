@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 127;
+var SCRIPT_VERSION = 128;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8097,7 +8097,7 @@ function rafPpl_() {
 var QUIZ_TRIES = 2;
 function quizBest_(alias, target, tm, HS) {
   var sh = sheet_('חידות'), v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
-  var ix = {}, best = {}, seen = {}, tries = {};
+  var ix = {}, best = {}, seen = {}, tries = {}, dupQ = {};
   if (v.length) for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
   var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
   for (var i = 1; i < v.length; i++) {
@@ -8111,6 +8111,17 @@ function quizBest_(alias, target, tm, HS) {
     canon = target[canon] || canon;
     seen[canon] = 1;
     var k = canon + '|' + tr + '|' + d, x = [+sc[1], +sc[2]], o = best[k];
+    /* **שליחה חוזרת של אותו תוכן אינה ניסיון נוסף** (8.99.354): המכשיר
+       שולח שוב כשהאימות לא מצא את השורה, וייתכן ששתיהן הגיעו. אותו מכשיר,
+       אותו מספר ניסיון ואותו ציון — נספר פעם אחת — גם הזמן
+       שבשורה (rafTmAdd_). שורה בלי מספר ניסיון
+       (לפני 8.99.324) — כמו קודם. */
+    var tn = c(v[i], 'ניסיון');
+    if (tn) {
+      var dk = k + '|' + c(v[i], 'מכשיר') + '|' + tn + '|' + x.join('/');
+      if (dupQ[dk]) continue;
+      dupQ[dk] = 1;
+    }
     if (tm && rafSide_(d)) rafTmAdd_(tm, canon + '|' + tr, c(v[i], 'מכשיר'), c(v[i], 'זמן בדף (דקות)'), false);
     /* מסלול השלמה — הזמן בחידון נספר למסלול שלו (rafCalc_). */
     if (tm && HS && HS[canon] && rafSideK_(d, tr + '-hashlama'))
@@ -9474,20 +9485,33 @@ function tkDaf_(P) {
   var out = { status: 'ok' }, daf = String(P.daf || '').trim(), n = parseInt(P.n, 10) || 0;
   if (daf && n > 0) {
     out.saved = false;
-    var sh = sheet_('חידות');
-    if (sh.getLastRow() > 1) {
-      var v = sh.getDataRange().getDisplayValues(), ix = {};
-      for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
-      var c = function (r, k) { return ix[k] === undefined ? '' : String(v[r][ix[k]] || '').trim(); };
-      for (var r = v.length - 1; r >= 1; r--) {
-        if (c(r, 'קטע') !== 'החידון כולו' || c(r, 'דף') !== daf || mine.indexOf(c(r, 'מזהה')) < 0) continue;
-        if (ix['ניסיון'] !== undefined && (parseInt(c(r, 'ניסיון'), 10) || 0) !== n) continue;
-        if (P.sc && c(r, 'ציון') !== String(P.sc)) continue;
-        out.saved = true;
-        out.score = c(r, 'ציון');
-        break;
-      }
+    /* **קודם הזנב** (8.99.354): השורה נכתבה זה עתה, ולכן מחפשים ב-300
+       השורות האחרונות, ורק אם אינה שם — בכל השאר. קודם נקראה כל הלשונית
+       בכל אימות. */
+    var sh = sheet_('חידות'), last = sh.getLastRow(), wid = sh.getLastColumn();
+    if (last > 1 && wid > 0) {
+      var hd = sh.getRange(1, 1, 1, wid).getDisplayValues()[0], ix = {};
+      for (var h = 0; h < hd.length; h++) ix[String(hd[h]).trim()] = h;
+      var find = function (from, to) {
+        if (to < from) return false;
+        var v = sh.getRange(from, 1, to - from + 1, wid).getDisplayValues();
+        var c = function (r, k) { return ix[k] === undefined ? '' : String(v[r][ix[k]] || '').trim(); };
+        for (var r = v.length - 1; r >= 0; r--) {
+          if (c(r, 'קטע') !== 'החידון כולו' || c(r, 'דף') !== daf || mine.indexOf(c(r, 'מזהה')) < 0) continue;
+          if (ix['ניסיון'] !== undefined && (parseInt(c(r, 'ניסיון'), 10) || 0) !== n) continue;
+          if (P.sc && c(r, 'ציון') !== String(P.sc)) continue;
+          out.saved = true;
+          out.score = c(r, 'ציון');
+          return true;
+        }
+        return false;
+      };
+      var tail = Math.max(2, last - 299);
+      if (!find(tail, last)) find(2, tail - 1);
     }
+    /* לא נמצא — אין טעם לחשב כרטיסים (המכשיר שואל שוב). `nt` — ניסיון
+       קודם בתור: רק "נשמר", בלי הכרטיסים. */
+    if (!out.saved || P.nt) return out;
   }
   var w = parseInt(P.wk, 10), pw = progWeek_();
   if (!(w === pw || w === pw - 1)) { out.old = 1; return out; }

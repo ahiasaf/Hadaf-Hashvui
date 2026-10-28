@@ -2184,6 +2184,19 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-kd{flex:none;font:inherit;font-size:.74rem;font-weight:800;border-radius:9px;padding:6px 9px;
        border:1px solid var(--gold);background:var(--surface);color:var(--gold-t)}
 .am-kd.o{border-color:var(--rule);color:var(--ink-3)}
+/* פס מצב השמירה של העמדה (amdaSvPaint, 8.99.354) — בתחתית, מתחת לעמדה
+   עצמה, ולא חוסם דבר. */
+#amda-sv{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:8999;
+  display:none;align-items:center;gap:10px;max-width:520px;margin:0 auto;padding:11px 14px;border-radius:14px;
+  background:var(--blue-d,#0B2550);color:#fff;font-size:.9rem;font-weight:700;line-height:1.45;
+  box-shadow:0 6px 20px rgba(11,37,80,.3)}
+#amda-sv.on{display:flex}
+#amda-sv.ok{background:#2F6B47}
+#amda-sv.bad{background:#8C2F25}
+#amda-sv span{flex:1;min-width:0}
+#amda-sv b{font-weight:800}
+#amda-sv button{flex:none;border:1.5px solid #fff;background:none;color:#fff;border-radius:10px;
+  padding:7px 12px;font:inherit;font-weight:800;cursor:pointer}
 .am-ex{position:fixed;inset:0;z-index:9002;display:flex;align-items:center;justify-content:center;
        background:rgba(11,37,80,.55);padding:16px}
 .am-ex-in{width:100%;max-width:420px;background:var(--paper);border-radius:18px;padding:20px 16px;
@@ -2994,7 +3007,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.353';
+var APP_VERSION = '8.99.354';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -20015,15 +20028,16 @@ function amdaPullRoster() {
 }
 
 /* ---------- הרישומים: שליחה ואימות ---------- */
-/* `fast` — מתוך "שמור": רישום שלא נראה בגיליון אחרי 15 שניות נשלח
+/* `fast` — מתוך "שמור": רישום שלא נראה בגיליון אחרי 8 שניות נשלח
    שוב (בלי זה — 45). כפילות אינה מזיקה: נספר פעם אחת למועד. */
-function amdaFlush(fast) {
+function amdaFlush(fast, stf0) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
-  var q = amdaQ(), now = Date.now(), sent = 0, stf = AMDA_STAFF;
-  if ((!key && !stf && !q.some(function (m) { return m.dev; })) || !url) return;
+  var q = amdaQ(), now = Date.now(), sent = 0, stf = stf0 || AMDA_STAFF, ps = [];
+  /* מחזירה הבטחה שמסתיימת כשכל השליחות חזרו (amdaBg מאמת מיד אחריהן). */
+  if ((!key && !stf && !q.some(function (m) { return m.dev; })) || !url) return Promise.resolve();
   if (!stf && key) sent += amdaFlushMarks(key, url);
   q.forEach(function (m) {
-    if (m.sent && now - m.sent < (fast === true ? 15000 : 45000)) return;   /* עוד מחכה לאימות */
+    if (m.sent && now - m.sent < (fast === true ? 8000 : 45000)) return;   /* עוד מחכה לאימות */
     /* איש צוות — בזהות המכשיר שנשמרה ברישום עצמו (`m.dev`), כדי
        שרישום שלא יצא לא ייתקע כשהמסך נסגר; השרת בודק שהמכשיר מאושר
        לישיבה הזו. */
@@ -20032,7 +20046,7 @@ function amdaFlush(fast) {
     m.sent = now;
     sent++;
     var daf = m.kind !== 'o' && m.track;
-    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+    ps.push(fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
       action: 'row', tab: AMDA_TAB, key: auth.key, dev: auth.dev, inst: auth.inst,
       cols: JSON.stringify([['מזהה', m.id], ['שבוע', m.w], ['יום', m.day || ''],
                             ['עמדה', m.slot ? amdaSlotName(m.slot) : ''], ['קוד עמדה', m.slot || ''],
@@ -20042,18 +20056,19 @@ function amdaFlush(fast) {
                             ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
                             ['אישור חידון', daf && m.qz ? 'כן' : ''],
                             ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
-      .catch(function () {});
+      .catch(function () {}));
   });
   Store.set('amdaQ', q);
-  if (sent) { clearTimeout(amdaSt.pullT); amdaSt.pullT = setTimeout(amdaPull, 6000); }
+  if (sent) { clearTimeout(amdaSt.pullT); amdaSt.pullT = setTimeout(function () { amdaPull(stf0); }, 6000); }
+  return Promise.all(ps);
 }
 /* קריאה חוזרת: מה שנראה בגיליון יוצא מהתור; מי נרשם היום לכל
    מועד, וכמה פעמים כל תלמיד היה — מחושבים מחדש מהגיליון כולו.
    כל תלמיד נספר פעם אחת לכל מועד, גם אם נרשם פעמיים.
    שורה ישנה, מלפני המועדים, היא רישום לדף השבוע שלה.
    קריאה שנכשלה אינה משנה דבר. */
-function amdaPull() {
-  var key = (CFG.readKey || '').trim(), stf = AMDA_STAFF;
+function amdaPull(stf0) {
+  var key = (CFG.readKey || '').trim(), stf = stf0 || AMDA_STAFF;
   if (!key && !stf) return Promise.resolve(false);
   return scriptGet(stf ? { netmarks: stf.inst, dev: stf.dev } : { read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
@@ -20180,43 +20195,83 @@ function amdaFinAsk() {
     if (k === 'q') { d.parentNode.removeChild(d); amdaClose(true); }
   };
 }
+/* **"שמור" אינו מסך המתנה** (8.99.354). קודם "שומר… בודק שהכול הגיע
+   לגיליון" חסם את המסך עד שש בדיקות (3 שניות, ואחריהן כל 5). עכשיו
+   העמדה נסגרת מיד, והשמירה והאימות ממשיכים ברקע (amdaBg) עם פס מצב קטן
+   בתחתית: "שומר…" → "✓ נשמר בהצלחה" רק כשכל התור נראה בגיליון (וכל
+   תיקון סוג אומת), או "השמירה עוד לא הושלמה" עם "נסה שוב". התור נשאר
+   במכשיר עד האימות — גם בסגירה, ברענון או ברשת חלשה (amdaBgResume). */
 function amdaSave(d) {
-  /* התיקון שאושר ועוד לא אומת — מהמכשיר, בכל ניסיון (גם אחרי רענון). */
-  var fix = Store.get('amdaFix', null), tries = 0, kOk = !fix, kDone = !fix;
   /* כמה נרשמו בדף השבועי בפתיחה הזו — לשורת הנקודות שאחרי השמירה.
-     נקרא עכשיו, לפני שהסגירה מאפסת את הפתיחה. */
-  var ss = amdaSess(), sN = +ss.n || 0, sD = (fix ? fix.kind : ss.kind) !== 'o';
+     נקרא עכשיו, לפני שהסגירה מאפסת את הפתיחה. וזהות איש הצוות — לפני
+     שהסגירה מוחקת אותה, כדי שהאימות ברקע יוכל לקרוא. */
+  var fix = Store.get('amdaFix', null), ss = amdaSess(), sN = +ss.n || 0, sD = (fix ? fix.kind : ss.kind) !== 'o';
   var pts = sN && sD ? fill(amdaT(amdaInst() === 'oretzion' ? 'savePts' : 'savePtsD'), { n: sN }) : '';
-  var msg = function (h) { d.innerHTML = '<div class="am-ex-in">' + h + '</div>'; };
-  msg('<b>' + esc(amdaT('saving')) + '</b><p class="am-fl">' + esc(amdaT('savingSub')) + '</p>');
+  var stf = AMDA_STAFF ? { dev: AMDA_STAFF.dev, inst: AMDA_STAFF.inst } : null;
+  if (d && d.parentNode) d.parentNode.removeChild(d);
+  amdaClose(true);
+  amdaBg(pts, stf);
+}
+var AMDA_BG = { run: 0, stf: null, hideT: null, on: false };
+function amdaBg(pts, stf) {
+  var run = ++AMDA_BG.run, tries = 0, fix = Store.get('amdaFix', null), kOk = !fix, kDone = !fix;
+  if (stf) AMDA_BG.stf = stf;
+  stf = AMDA_BG.stf;
+  AMDA_BG.on = true;
+  amdaSvPaint('busy');
   if (fix) amdaFixRun(fix, function (ok) { kOk = ok; kDone = true; });
-  var fail = function () {
-    var left = amdaQ().length, pend = !!Store.get('amdaFix', null);
-    msg('<b>' + esc(amdaT('saveBad')) + '</b>' +
-      (left ? '<p class="am-fl">' + esc(fill(amdaT('saveBadN'), { n: left })) + '</p>' : '') +
-      (pend ? '<p class="am-fl">' + esc(amdaT('saveBadK')) + '</p>' : '') +
-      '<button class="on" data-ek="r">' + esc(amdaT('saveRetry')) + '</button>' +
-      '<button data-ek="-">' + esc(amdaT('exitStay')) + '</button>' +
-      '<button class="bk" data-ek="q">' + esc(amdaT('saveLater')) + '</button>');
-  };
   var step = function () {
-    amdaFlush(true);
-    setTimeout(function () {
-      amdaPull().then(function (ok) {
-        var left = amdaQ().length;
-        /* הצלחה = התור ריק **וגם** כל תיקון שאושר תואם לגיליון. */
-        if (ok && !left && kDone) {
-          if (!kOk || Store.get('amdaFix', null)) return fail();
-          if (d.parentNode) d.parentNode.removeChild(d);
-          amdaOk(amdaT('saveOk'), pts, function () { amdaClose(true); }, pts ? 3000 : 0);
-          return;
-        }
-        if (++tries < 6) step(); else if (kDone) fail(); else setTimeout(step, 5000);
-      });
-    }, tries ? 5000 : 3000);
+    /* השליחה `no-cors` מסתיימת אחרי שהשרת כתב — הקריאה החוזרת יוצאת מיד. */
+    amdaFlush(true, stf).then(function () { return amdaPull(stf); }).then(function (ok) {
+      if (run !== AMDA_BG.run) return;
+      /* הצלחה = התור ריק **וגם** כל תיקון שאושר תואם לגיליון. */
+      if (ok && !amdaQ().length && kDone) {
+        AMDA_BG.on = false;
+        amdaSvPaint(!kOk || Store.get('amdaFix', null) ? 'bad' : 'ok', pts);
+        return;
+      }
+      if (++tries < 6) setTimeout(step, 1500 * tries);
+      else if (kDone) { AMDA_BG.on = false; amdaSvPaint('bad', pts); }
+      else setTimeout(step, 4000);
+    });
   };
   step();
 }
+/* פס המצב — מחוץ לעמדה, כדי שהעבודה תימשך מתחתיו. */
+function amdaSvPaint(st, pts) {
+  var el = document.getElementById('amda-sv');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'amda-sv';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    document.body.appendChild(el);
+  }
+  clearTimeout(AMDA_BG.hideT);
+  var left = amdaQ().length;
+  if (st === 'busy') el.innerHTML = '<span>' + esc(amdaT('saving')) + '</span>';
+  else if (st === 'ok') {
+    el.innerHTML = '<span>✓ ' + esc(amdaT('saveOk')) + (pts ? ' · ' + esc(pts) : '') + '</span>';
+    AMDA_BG.hideT = setTimeout(function () { el.className = 'amda-sv'; }, pts ? 6000 : 4000);
+  } else {
+    el.innerHTML = '<span><b>' + esc(amdaT('saveBad')) + '</b>' +
+      (left ? ' · ' + esc(fill(amdaT('saveBadN'), { n: left })) : '') +
+      (Store.get('amdaFix', null) ? ' · ' + esc(amdaT('saveBadK')) : '') + '</span>' +
+      '<button type="button" id="amda-sv-r">' + esc(amdaT('saveRetry')) + '</button>';
+    document.getElementById('amda-sv-r').onclick = function () { amdaBg(pts); };
+  }
+  el.className = 'amda-sv on ' + st;
+}
+/* בפתיחת האפליקציה: רישומים שנשארו בתור (נסגר, רוענן, לא היה אינטרנט) —
+   יוצאים ומאומתים ברקע, עם אותו פס. איש צוות — בזהות שנשמרה ברישום. */
+function amdaBgResume() {
+  var q = amdaQ();
+  if (!q.length || AMDA_BG.on || Store.get('amdaOn', 0)) return;
+  var m = q.filter(function (x) { return x.dev; })[0];
+  if (!m && !(CFG.readKey || '').trim()) return;
+  amdaBg('', m ? { dev: m.dev, inst: m.inst } : null);
+}
+window.addEventListener('load', function () { setTimeout(amdaBgResume, 5000); });
 /* החלפת המועד מתוך העמדה — כשהשעה בחרה לא נכון. אותם אריחים
    כמו בניהול, כולל שיעורי הכיתה (מסך הכיתה עם המפה). מכאן והלאה נרשמים
    במועד החדש; מי שכבר נרשם נשאר במועד הקודם. */

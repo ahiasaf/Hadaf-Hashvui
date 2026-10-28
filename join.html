@@ -821,6 +821,13 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .mytk .tk-s .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
   margin:0;padding:0;border:0}
 .mytk .tk-err{margin-top:10px;font-size:.82rem;font-weight:600;color:var(--ink-2)}
+/* מהחידון אל הכרטיסים (8.99.354, tkLandFx): הדגשה חד-פעמית של הכרטיס
+   ושל כרטיס החידון הקטן — ונעלמת לבד. */
+.mytk.tk-new{box-shadow:0 0 0 3px #E5B854,var(--sh-1);transition:box-shadow .4s}
+.mytk[tabindex="-1"]:focus{outline:none}
+.mytk.tk-new .tk-s.on.tk-pop{animation:tkPop .9s ease-out 2}
+@keyframes tkPop{0%,100%{transform:scale(1)}40%{transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.mytk.tk-new .tk-s.on.tk-pop{animation:none}}
 /* עוד חסר זמן לכרטיס הלימוד — כמה דקות (tkCardHtml, `lack`). */
 .mytk .tk-lack{margin-top:10px;font-size:.86rem;font-weight:700;color:var(--ink-2)}
 .mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
@@ -3532,6 +3539,8 @@ function drawPts() {
     sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + '&callback=' + cb;
     document.body.appendChild(sc);
   }
+  /* הגיע עכשיו מחידון שעבר (learn.html, qzLand_) — הכרטיס של הדף ההוא. */
+  if (TKL && !TKL_FAIL) { tkLandDraw(me); return; }
   if (c && c.none) { el.hidden = tb.hidden = true; rzSync(); return; }
   tb.innerHTML = tkCardHtml(c && c.v === 2 ? c : null);
   tb.hidden = false;
@@ -3547,6 +3556,68 @@ function drawPts() {
   el.hidden = false;
 }
 function ptsTog() { PTS_OPEN = !PTS_OPEN; drawPts(); }
+/* ============================================================
+   מהחידון אל הכרטיסים (8.99.354).
+   ============================================================
+   חידון שעבר, נשמר ואומת בשרת — learn.html מעביר לכאן ומשאיר
+   `df:tkLand` (השבוע והמסלול של הדף) ו-`df:tkLandFx` (הדגשה אחת) ב-
+   sessionStorage. כאן: הכרטיסים של הדף ההוא, מהשרת (?tkd, tkDaf_ — אותו
+   חישוב כמו ההגרלה), לא הדף של ההגרלה הקרובה, שיכול להיות דף אחר. עד חצי
+   שעה, באותה לשונית בלבד. ההדגשה — פעם אחת: רענון או חזרה מציגים את
+   הכרטיס בלי לחגוג שוב. שום מספר אינו מחושב כאן. שרת שלא ענה — הכרטיס הרגיל. */
+var TKL = null, TKL_TK = null, TKL_BUSY = false, TKL_FAIL = false;
+(function () {
+  try {
+    var o = JSON.parse(sessionStorage.getItem('df:tkLand') || 'null');
+    if (o && o.wk && Date.now() - (+o.at || 0) < 30 * 60000) TKL = o;
+    else sessionStorage.removeItem('df:tkLand');
+  } catch (e) { TKL = null; }
+})();
+function tkLandDraw(me) {
+  var tb = $('mytk');
+  if (!TKL_TK && !TKL_BUSY && API) {
+    TKL_BUSY = true;
+    var cb = 'tl' + Date.now(), sc = document.createElement('script');
+    var clean = function () {
+      TKL_BUSY = false;
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+    };
+    var fail = function () { clean(); TKL_FAIL = true; drawPts(); };
+    var t0 = setTimeout(fail, 20000);
+    window[cb] = function (r) {
+      clearTimeout(t0); clean();
+      if (!r || r.status !== 'ok' || !r.tk) { TKL_FAIL = true; drawPts(); return; }
+      TKL_TK = r.tk;
+      drawPts();
+    };
+    sc.onerror = function () { clearTimeout(t0); fail(); };
+    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
+             '&wk=' + encodeURIComponent(TKL.wk) + '&callback=' + cb;
+    document.body.appendChild(sc);
+  }
+  if (!API) { TKL_FAIL = true; drawPts(); return; }
+  set('rzTab', 'tk');
+  $('mypts').hidden = true;
+  tb.innerHTML = tkCardHtml(TKL_TK ? { tk: TKL_TK } : null);
+  tb.hidden = false;
+  rzSync();
+  if (TKL_TK) tkLandFx();
+}
+function tkLandFx() {
+  var fx = false, tb = $('mytk');
+  try { fx = sessionStorage.getItem('df:tkLandFx') === '1'; sessionStorage.removeItem('df:tkLandFx'); } catch (e) {}
+  if (!fx || !tb) return;
+  setTimeout(function () {
+    var q = tb.querySelectorAll('.tk-s')[1];
+    if (q) q.className += ' tk-pop';
+    tb.className += ' tk-new';
+    try { tb.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { tb.scrollIntoView(); }
+    tb.setAttribute('tabindex', '-1');
+    try { tb.focus({ preventScroll: true }); } catch (e2) {}
+    setTimeout(function () { tb.className = tb.className.replace(/\s*tk-new/g, ''); }, 4500);
+  }, 350);
+}
 /* ============================================================
    "ההגרלות שלך" (8.99.350) — מתחת לבאנר ולמסלול, שתי לשוניות:
    ההגרלה השבועית (#mytk ו-#mypts) וחבר מביא חבר (#chal). הלשוניות
