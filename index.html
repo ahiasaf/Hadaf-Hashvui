@@ -3007,7 +3007,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.355';
+var APP_VERSION = '8.99.356';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10361,6 +10361,90 @@ function admStudents(el) {
   pplLast = {};
   admLive();
 }
+/* ============================================================
+   "כפילויות" (8.99.356) — אותו תלמיד פעמיים, להכרעה ביד.
+   ============================================================
+   השרת מאחד לבד את מה שוודאי: שם פרטי ושם משפחה, גם חלקית, או אותו
+   טלפון ומילה מהשם הפרטי (twinRoute_ ב-apps-script.gs). כאן מה שנשאר —
+   כינוי, אותו טלפון, או רק שם משפחה — לפי ישיבה. כל הכרעה נבדקת בשרת
+   בקריאה חוזרת. קריאה שנכשלה משאירה את הרשימה הקודמת. */
+var DUP = { d:null, busy:0, err:'', go:'' };
+function admDup(el) {
+  el.innerHTML = '<div id="dup-body"></div>';
+  dupPaint();
+  if (!DUP.busy) dupLoad();
+}
+function dupLoad() {
+  DUP.busy = 1; DUP.err = ''; dupPaint();
+  return scriptGet({ twin:'list', key:(CFG.readKey || '').trim() }).then(function (d) {
+    DUP.busy = 0;
+    if (d && d.status === 'ok' && d.pairs) DUP.d = d;
+    else DUP.err = UI.dupFail;
+    dupPaint();
+  }).catch(function () { DUP.busy = 0; DUP.err = UI.dupFail; dupPaint(); });
+}
+function dupWho(x) {
+  var g = !x.g ? (x.c || '') : x.g.length <= 2 ? amdaGC(x.g, x.c || '') : x.g + (x.c ? ' ' + x.c : '');
+  var bits = [g, x.att ? UI.dupAtt : UI.dupApp];
+  if (x.ph) bits.push(fill(UI.dupPh, { p:x.ph }));
+  return '<div style="flex:1;min-width:130px"><b>' + esc(x.n) + '</b><span>' +
+    esc(bits.filter(function (b) { return !!b; }).join(' · ')) + '</span></div>';
+}
+function dupRow(p, i) {
+  var why = p.why === 'ph' ? UI.dupWhyPh : p.why === 'nm' ? UI.dupWhyNm : UI.dupWhyLn;
+  var dis = DUP.go ? ' disabled' : '';
+  return '<div class="prow2 warn"><span class="pm">!</span><div style="flex:1;min-width:0">' +
+    '<b>' + esc(why) + '</b>' +
+    '<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">' + dupWho(p.a) + dupWho(p.b) + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">' +
+      '<button class="btn p" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + i + ',1)">' + esc(UI.dupGo) + '</button>' +
+      '<button class="btn g" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + i + ',0)">' + esc(UI.dupNo) + '</button>' +
+    '</div></div></div>';
+}
+function dupPaint() {
+  var el = document.getElementById('dup-body');
+  if (!el) return;
+  var d = DUP.d, h = '<div class="adm-card"><h4>' + esc(UI.dupH) + '</h4><p class="h">' + esc(UI.dupP) + '</p>';
+  if (DUP.busy && !d) h += '<p class="h">' + esc(UI.dupLoad) + '</p>';
+  if (DUP.err) {
+    h += '<div class="cond" style="margin-top:10px">' + esc(DUP.err) + '</div>' +
+         '<button class="btn g" style="margin-top:8px" onclick="dupLoad()">' + esc(UI.dupRetry) + '</button>';
+  }
+  if (d) {
+    if (d.auto) h += '<p class="h"><b>' + esc(fill(UI.dupAuto, { n:d.auto })) + '</b></p>';
+    var list = d.pairs.map(function (p, i) { return { p:p, i:i }; })
+      .filter(function (x) { return !ADM_INST || x.p.code === ADM_INST; });
+    if (!list.length) h += '<p class="h">' + esc(UI.dupNone) + '</p>';
+    else {
+      h += '<p class="h">' + esc(fill(UI.dupN, { n:list.length })) + (DUP.busy ? ' · ' + esc(UI.dupLoad) : '') + '</p>';
+      var cur = null;
+      list.forEach(function (x) {
+        if (x.p.code !== cur) {
+          if (cur !== null) h += '</div>';
+          cur = x.p.code;
+          h += '<h4 style="margin-top:16px">' + esc(x.p.a.inst || x.p.b.inst || pplName(cur || '-')) + '</h4><div class="plist">';
+        }
+        h += dupRow(x.p, x.i);
+      });
+      h += '</div>';
+    }
+    if (d.more) h += '<p class="h">' + esc(fill(UI.dupMore, { n:d.more })) + '</p>';
+  }
+  el.innerHTML = h + '</div>';
+}
+/* same: 1 — לאחד (באישור), 0 — "לא אותו". הצלחה — הזוג יורד מהרשימה. */
+function dupGo(i, same) {
+  var p = DUP.d && DUP.d.pairs[i];
+  if (!p || DUP.go) return;
+  if (same && !confirm(fill(UI.dupAsk, { a:p.a.n, b:p.b.n }))) return;
+  DUP.go = p.a.id + '|' + p.b.id; DUP.err = ''; dupPaint();
+  scriptGet({ twin: same ? 'go' : 'no', a:p.a.id, b:p.b.id, key:(CFG.readKey || '').trim() }).then(function (d) {
+    DUP.go = '';
+    if (!d || d.status !== 'ok') DUP.err = UI.dupBad;
+    else if (DUP.d && DUP.d.pairs[i] === p) DUP.d.pairs.splice(i, 1);
+    dupPaint();
+  }).catch(function () { DUP.go = ''; DUP.err = UI.dupBad; dupPaint(); });
+}
 /* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס: רשימת הישיבות,
    או — כשנבחרה ישיבה — הפס שלה והתלמידים שלה. */
 function admDet() {
@@ -11698,7 +11782,7 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']] };
+var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 'admTStu'], ['dup', 'dupTab']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
@@ -12294,7 +12378,7 @@ function admPane() {
   /* "אנשים" מצייר את עצמו מחדש בלי לגעת בלוח (iframe): ציור מלא
      היה יוצר אותו מאפס — הבהוב, טעינה, וחיפוש וישיבה פתוחה
      שנעלמים באמצע עדכון. */
-  if (admTab === 'stu' && document.getElementById('stu')) return admLive();
+  if (admTab === 'stu' && admSubNow() === 'people' && document.getElementById('stu')) return admLive();
   if (admTab === 'hot' && document.getElementById('hot-body')) return admLive();
   if (admTab === 'setup' && document.getElementById('st-why')) return admLive();
   /* "ישיבות וצוות" — כל טעינה ברקע (אימות, הודעות, שיחות…) ציירה את
@@ -12336,7 +12420,13 @@ function admPane() {
     body = document.getElementById('daf-body');
   }
 
+  /* "התלמידים": הלוח · כפילויות (8.99.356). */
+  if (admTab === 'stu') {
+    body.innerHTML = admSubBar() + '<div id="stu-body"></div>';
+    body = document.getElementById('stu-body');
+  }
   if (sub === 'people')  return admStudents(body);
+  if (sub === 'dup')     return admDup(body);
   if (sub === 'setup')   return admSetup(body);
   if (sub === 'amda')    return admAmda(body);
   if (sub === 'amdawa')  return admAmdaWa(body);

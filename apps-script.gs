@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 129;
+var SCRIPT_VERSION = 130;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -179,6 +179,9 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* מי מהעמדה זוהה כתלמיד רשום באפליקציה, ואיזה דף
                        נרשם לו משם. ראו amdaSync_. */
                     'עמדה — שיוך',
+                    /* איחוד כפילויות: מה אוחד (עם השורות שנמחקו, לשחזור),
+                       ומה סומן "לא אותו תלמיד". ראו twinApply_. */
+                    'איחוד תלמידים', 'איחוד תלמידים — לא אותו',
                     /* שיעורי כיתה: השתתפות, ביטול תורה ומקומות — ורשימת השיעורים. */
                     'עמדה — סימונים', 'עמדה — שיעורים',
                     /* מי שהוסר מהרשימה — השורות שלו כפי שהיו, לשחזור.
@@ -1291,6 +1294,8 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.quad) return quadRoute_(e);
   /* מסלול השלמה — רשימה והעברה ידנית של תלמיד בודד. ראו hashRoute_. */
   if (e && e.parameter && e.parameter.hash) return hashRoute_(e);
+  /* כפילויות תלמידים — הרשימה, איחוד ו"לא אותו". ראו twinRoute_. */
+  if (e && e.parameter && e.parameter.twin) return twinRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
   /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
@@ -3513,18 +3518,20 @@ function rowOfAmda_(t, inst, first, last, grade) {
   inst = String(inst || '').trim();
   var f = nk_(first), l = nk_(last), g = amdaNorm_(grade).replace(/["'׳״]/g, '');
   if (!inst || !f || !l) return -1;
-  var hit = -1;
+  /* גם התאמה חלקית — מילה מהפרטי ומילה מהמשפחה (nmFit_, 8.99.356);
+     שם מלא גובר על חלקי. כמה שורות של אותו מזהה — אדם אחד. */
+  var best = { 1: {}, 2: {} };
   for (var r = 1; r < t.rows.length; r++) {
-    var row = t.rows[r];
-    if (!/^Am/.test(t.c(row, 'מזהה')) || t.c(row, 'קוד ישיבה') !== inst) continue;
-    var sf = nk_(t.c(row, 'שם')), sl = nk_(t.c(row, 'משפחה'));
-    if (!(sf + sl === f + l || sl + sf === f + l || sf + sl === l + f)) continue;
+    var row = t.rows[r], rid = t.c(row, 'מזהה');
+    if (!/^Am/.test(rid) || t.c(row, 'קוד ישיבה') !== inst) continue;
+    var fit = nmFit_(t.c(row, 'שם') + ' ' + t.c(row, 'משפחה'), first, last);
+    if (!fit) continue;
     var sg = amdaNorm_(t.c(row, 'שכבה')).replace(/["'׳״]/g, '');
     if (g && sg && g !== sg) continue;
-    if (hit > 0) return -1;
-    hit = r;
+    best[fit][rid] = r;
   }
-  return hit;
+  var lv = Object.keys(best[2]).length ? best[2] : best[1], ks = Object.keys(lv);
+  return ks.length === 1 ? lv[ks[0]] : -1;
 }
 
 /* מה שסומן כסיום, לכל המזהים של אדם אחד — 'מסלול|שבוע'. כל
@@ -3644,7 +3651,12 @@ function amdaSyncSoon_() {
 function amdaSyncLocked_() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(8000)) return 0;
-  try { return amdaSync_(); } finally { lock.releaseLock(); }
+  try {
+    var n = amdaSync_();
+    /* מי שנוצר מהנוכחות ובעליו כבר רשום — מאוחד אליו (8.99.356). */
+    try { amdaMerge_(false); } catch (me) { Logger.log('amdaMerge_: ' + me); }
+    return n;
+  } finally { lock.releaseLock(); }
 }
 function amdaSync_() {
   var at = amdaTable_(AMDA_TAB_);
@@ -3672,37 +3684,15 @@ function amdaSync_() {
   }
   if (!want.length) { amdaAmbSave_([]); return 0; }
 
-  /* "לומדים" לפי מוסד ושם — בשני הסדרים, כי הקובץ של בית הספר
-     הוא "משפחה פרטי" והטופס שואל כל אחד בנפרד. */
-  var jt = joinTable_(), byName = {};
-  for (var j = 1; j < jt.rows.length; j++) {
-    var jr = jt.rows[j];
-    if (jt.c(jr, 'תפקיד') === 'הורה' || !jt.c(jr, 'מזהה')) continue;
-    var f = amdaNorm_(jt.c(jr, 'שם')), ln = amdaNorm_(jt.c(jr, 'משפחה'));
-    if (!f || !ln) continue;
-    [ln + ' ' + f, f + ' ' + ln].forEach(function (nm) {
-      var k2 = jt.c(jr, 'קוד ישיבה') + '|' + nm;
-      (byName[k2] = byName[k2] || []).push(j);
-    });
-  }
+  /* "לומדים" — אדם אחד לכל מזהה (twinPpl_). ההתאמה ב-amdaCand_:
+     שם מלא, שם חלקי, ובלי שם — הטלפון מרשימת התלמידים (8.99.356). */
+  var jt = joinTable_(), TP = twinPpl_(jt);
   var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0, linked = 0, amb = [];
   var lsh = lt.sh, lhead = headers_(lsh), dir = null, jhead = null, instNm = {};
   want.forEach(function (w) {
-    var cand = (byName[w.inst + '|' + w.n] || []).filter(function (j, i, a) {
-      if (a.indexOf(j) !== i) return false;
-      var g = amdaNorm_(jt.c(jt.rows[j], 'שכבה'));
-      return !g || g === w.g;
-    });
-    if (cand.length > 1) {
-      var byCl = cand.filter(function (j) {
-        return String(jt.c(jt.rows[j], 'כיתה')).replace(/\D/g, '') === String(w.c).replace(/\D/g, '');
-      });
-      /* הכיתה לא הכריעה (אף אחד מהם, או אין כיתה) — עדיין לא הוכרע.
-         עד 8.99.264 זה נפל ל"אין מועמד" ונוצרה שורת Am… — אדם נוסף. */
-      cand = byCl.length ? byCl : cand;
-    }
+    var cand = amdaCand_(TP, w, function () { if (dir === null) dir = amdaDir_(); return dir; });
     var id = '';
-    if (cand.length === 1) id = jt.c(jt.rows[cand[0]], 'מזהה');
+    if (cand.length === 1) id = cand[0];
     /* **שם שמתאים ליותר מנרשם אחד — לא מנחשים, וגם לא שותקים.**
        הרישום נשאר בנוכחות, לא שויך, ומוצג לרכז במסך הנוכחות
        (`?amdaAmb=`) עם מספר ההתאמות — להכרעה ביד. */
@@ -3771,6 +3761,299 @@ function amdaSync_() {
 }
 function amdaAmbSave_(amb) {
   try { PropertiesService.getScriptProperties().setProperty('amdaAmb', JSON.stringify(amb.slice(0, 200))); } catch (e) {}
+}
+
+/* ============================================================
+   אותו תלמיד, פעמיים (8.99.356, החלטת אחיאסף 28.10).
+   ============================================================
+   "תלמיד שמסומן בנוכחות — צריך שיהיה מסומן לו באפליקציה." הנוכחות
+   נספרת לאדם שאליו שויכה, ותלמיד שהשם שלו בנוכחות שונה מהשם שבאפליקציה
+   קיבל שורת Am… משלו ("לא התקין"): הכרטיסים, הנקודות וה-✓ הלכו אליה.
+
+   **הכלל:** שם פרטי ושם משפחה שמתאימים — גם חלקית — הם אותו תלמיד:
+   למי שיש שני שמות פרטיים או שני שמות משפחה וכתב רק אחד (nmFit_).
+   באותה ישיבה, שכבה שאינה סותרת, ורק מועמד אחד. בלי התאמה בשם — אותו
+   טלפון (מרשימת התלמידים) ומילה משותפת בשם הפרטי. כינוי ("יוסי"/
+   "יוסף") אינו התאמה: הוא מגיע ל"כפילויות" בניהול, להכרעה ביד.
+
+   **איחוד:** השורה של הנוכחות נמחקת, והמזהה שלה עובר ל"מזהים נוספים"
+   של התלמיד הרשום — כך כל מה שנרשם לה (לימוד, נוכחות, כרטיסים) שלו,
+   גם אחורה. לפני המחיקה — השורות כפי שהיו, ל"איחוד תלמידים" בגיליון
+   הפרטי (לשחזור), ואחריה קריאה חוזרת. הגרלה שכבר בוצעה — לא זזה
+   ("תמונת כרטיסים").
+   ============================================================ */
+var TWIN_LOG_ = 'איחוד תלמידים';
+var TWIN_NO_ = 'איחוד תלמידים — לא אותו';
+/* מילים של שם להשוואה: בלי גרש וגרשיים, מקף כרווח. */
+function nmToks_(s) {
+  return String(s || '').replace(/["'׳״`]/g, '').replace(/[-־–—]/g, ' ')
+    .split(/\s+/).filter(function (w) { return !!w; });
+}
+/* שם מלא (בכל סדר) מול פרטי + משפחה. 2 — אותן מילים בדיוק, 1 — מילה
+   מהפרטי ומילה מהמשפחה (ושתיים שונות), 0 — לא. */
+function nmFit_(full, first, last) {
+  var A = nmToks_(full), F = nmToks_(first), L = nmToks_(last);
+  if (!A.length || !F.length || !L.length) return 0;
+  var inA = function (w) { return A.indexOf(w) >= 0; };
+  var fm = F.filter(inA), lm = L.filter(inA);
+  if (!fm.length || !lm.length) return 0;
+  if (fm.length === 1 && lm.length === 1 && fm[0] === lm[0]) return 0;
+  var all = F.concat(L);
+  return all.length === A.length && A.every(function (w) { return all.indexOf(w) >= 0; }) ? 2 : 1;
+}
+/* שכבה שאינה סותרת: אחת ריקה, או זהות. */
+function gOk_(a, b) {
+  a = amdaNorm_(a); b = amdaNorm_(b);
+  return !a || !b || a === b;
+}
+function twinK_(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+/* כמה מועמדים — הכיתה מכריעה, אם היא מכריעה. רשום גובר על "לא התקין". */
+function twinPrefer_(c, cls) {
+  var reg = c.filter(function (p) { return !p.att; });
+  if (reg.length) c = reg;
+  if (c.length > 1 && cls) {
+    var d = String(cls).replace(/\D/g, '');
+    var by = c.filter(function (p) { return d && String(p.c).replace(/\D/g, '') === d; });
+    if (by.length) c = by;
+  }
+  return c;
+}
+/* "לומדים" — אדם אחד לכל מזהה: השורה האחרונה קובעת, וכל המזהים שלו.
+   תלמידים בעולם האמיתי בלבד (לא הורים, לא בדיקה/ניסוי). `att` — נוצר
+   מהנוכחות ואין לו אף מכשיר (Am… בלי "מזהים נוספים"). */
+function twinPpl_(t) {
+  var by = {}, list = [], al = aliasMap_(t.rows);
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r], id = t.c(row, 'מזהה');
+    if (!id || id.indexOf(':k') >= 0 || al[id]) continue;
+    var p = by[id];
+    if (!p) { p = by[id] = { id: id, rows: [], ids: [id] }; list.push(p); }
+    p.rows.push(r);
+    rowIds_(t, row).forEach(function (x) { if (p.ids.indexOf(x) < 0) p.ids.push(x); });
+    p.F = t.c(row, 'שם'); p.L = t.c(row, 'משפחה');
+    p.inst = t.c(row, 'קוד ישיבה'); p.instNm = t.c(row, 'ישיבה');
+    p.g = amdaNorm_(t.c(row, 'שכבה')); p.c = t.c(row, 'כיתה');
+    p.ph = phKey_(t.c(row, 'טלפון')); p.dad = t.c(row, 'תפקיד') === 'הורה';
+    p.w = rowWorld_(t, row); p.key = rowKey_(t, row);
+  }
+  var out = { by: by, list: [], byInst: {}, byPh: {} };
+  list.forEach(function (p) {
+    if (p.dad || p.w !== 'R') return;
+    p.att = /^Am/.test(p.id) && p.ids.length === 1;
+    p.full = (p.F + ' ' + p.L).trim();
+    out.list.push(p);
+    (out.byInst[p.inst] = out.byInst[p.inst] || []).push(p);
+    if (p.ph) (out.byPh[p.ph] = out.byPh[p.ph] || []).push(p);
+  });
+  return out;
+}
+/* שורת נוכחות (w: inst, g, c, n) → מזהי המועמדים. אחד — משויך; כמה —
+   לא הוכרע; אף אחד — שורת Am… (amdaSync_). */
+function amdaCand_(TP, w, getDir) {
+  var list = (TP.byInst[w.inst] || []).filter(function (p) { return gOk_(p.g, w.g); });
+  var c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 2; });
+  if (!c.length) c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 1; });
+  c = twinPrefer_(c, w.c);
+  if (c.length) return c.map(function (p) { return p.id; });
+  /* בלי שם — הטלפון מרשימת התלמידים, ומילה משותפת בשם הפרטי. */
+  var dir = getDir() || {}, hit = dir[w.inst + '|' + w.g + '|' + w.n] || dir['*|' + w.g + '|' + w.n];
+  var ph = hit ? phKey_(hit.p) : '', At = nmToks_(w.n);
+  if (!ph) return [];
+  c = (TP.byPh[ph] || []).filter(function (p) {
+    return !p.att && gOk_(p.g, w.g) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
+  });
+  c = twinPrefer_(c, w.c);
+  return c.length === 1 ? [c[0].id] : [];
+}
+/* תלמיד מהנוכחות (a.att) → התלמיד הרשום שהוא בוודאות, או null. */
+function twinSure_(TP, a, no) {
+  var ok = function (p) { return !p.att && p.id !== a.id && gOk_(p.g, a.g) && !no[twinK_(a.id, p.id)]; };
+  var list = (TP.byInst[a.inst] || []).filter(ok);
+  var c = list.filter(function (p) { return nmFit_(a.full, p.F, p.L) === 2; });
+  if (!c.length) c = list.filter(function (p) { return nmFit_(a.full, p.F, p.L) === 1; });
+  if (c.length > 1) c = twinPrefer_(c, a.c);
+  if (c.length === 1) return { p: c[0], why: 'nm' };
+  if (c.length || !a.ph) return null;
+  var At = nmToks_(a.full);
+  c = (TP.byPh[a.ph] || []).filter(function (p) {
+    return ok(p) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
+  });
+  if (c.length > 1) c = twinPrefer_(c, a.c);
+  return c.length === 1 ? { p: c[0], why: 'ph' } : null;
+}
+function twinNoSet_() {
+  var out = {};
+  try {
+    var nt = amdaTable_(TWIN_NO_);
+    for (var r = 1; r < nt.rows.length; r++) {
+      var a = nt.c(nt.rows[r], 'מזהה א'), b = nt.c(nt.rows[r], 'מזהה ב');
+      if (a && b) out[twinK_(a, b)] = 1;
+    }
+  } catch (e) {}
+  return out;
+}
+/* האיחוד האוטומטי — כל מי שנוצר מהנוכחות ובעליו כבר רשום. בתוך
+   הנעילה (amdaSyncLocked_, twinRoute_). לכל היותר פעם בעשר דקות,
+   אלא אם `force`. */
+function amdaMerge_(force) {
+  var rc = CacheService.getScriptCache();
+  if (!force && rc.get('amdaMg')) return { n: 0 };
+  try { rc.put('amdaMg', '1', 600); } catch (e) {}
+  var t = joinTable_();
+  if (t.rows.length < 3) return { n: 0 };
+  var TP = twinPpl_(t), no = twinNoSet_(), pairs = [];
+  TP.list.forEach(function (a) {
+    if (!a.att) return;
+    var s = twinSure_(TP, a, no);
+    if (s) pairs.push({ keep: s.p, drop: a, why: s.why });
+  });
+  if (!pairs.length) return { n: 0 };
+  return twinApply_(t, pairs, 'אוטומטי');
+}
+/* האיחוד עצמו: יומן (עם השורות שנמחקות) ← "מזהים נוספים" לתלמיד שנשאר ←
+   מחיקת השורות ← קריאה חוזרת. { n, bad: [שמות שלא נקראו חזרה] }. */
+function twinApply_(t, pairs, how) {
+  var gone = {}, kept = {}, go = [];
+  pairs.forEach(function (x) {
+    if (gone[x.keep.id] || gone[x.drop.id] || kept[x.drop.id] || x.keep.id === x.drop.id) return;
+    gone[x.drop.id] = 1; kept[x.keep.id] = 1; go.push(x);
+  });
+  if (!go.length) return { n: 0, bad: [] };
+  var sh = t.sh, head = headers_(sh), iAl = idx_(sh, head, ALIAS_COL);
+  /* --- יומן: לפני כל שינוי. נכשל — לא משנים דבר. --- */
+  var lg = sheet_(TWIN_LOG_);
+  if (!lg.getLastRow()) lg.appendRow(['תאריך', 'נשאר', 'נבלע', 'שם שנשאר', 'שם שנבלע', 'קוד ישיבה',
+                                      'סיבה', 'אופן', 'השורות שנמחקו']);
+  var now = new Date();
+  lg.getRange(lg.getLastRow() + 1, 1, go.length, 9).setValues(go.map(function (x) {
+    return [now, x.keep.id, x.drop.id, x.keep.full, x.drop.full, x.drop.inst || x.keep.inst,
+            x.why === 'ph' ? 'אותו טלפון' : x.why === 'nm' ? 'התאמת השם' : 'הכרעה ביד', how,
+            JSON.stringify({ head: t.rows[0], rows: x.drop.rows.map(function (r) { return t.rows[r]; }) })];
+  }));
+  SpreadsheetApp.flush();
+  /* --- המזהים של מי שנבלע — בשורה האחרונה של מי שנשאר --- */
+  var add = {};
+  go.forEach(function (x) {
+    var a = add[x.keep.id] = add[x.keep.id] || { p: x.keep, ids: [] };
+    x.drop.ids.forEach(function (i) { if (a.ids.indexOf(i) < 0) a.ids.push(i); });
+  });
+  Object.keys(add).forEach(function (k) {
+    var p = add[k].p, rk = p.rows[p.rows.length - 1];
+    var cur = t.c(t.rows[rk], ALIAS_COL).split(/\s+/).filter(function (x) { return !!x; });
+    add[k].ids.forEach(function (i) { if (i !== p.id && cur.indexOf(i) < 0) cur.push(i); });
+    sh.getRange(rk + 1, iAl + 1).setValue(cur.join(' '));
+  });
+  /* --- מחיקה, מלמטה למעלה --- */
+  var del = [];
+  go.forEach(function (x) { x.drop.rows.forEach(function (r) { del.push(r + 1); }); });
+  del.sort(function (a, b) { return b - a; }).forEach(function (r) { sh.deleteRow(r); });
+  SpreadsheetApp.flush();
+  amdaQzBust_(); ptsBust_();
+  /* --- קריאה חוזרת: המזהה שנבלע מוביל לתלמיד שנשאר --- */
+  var t2 = joinTable_(), bad = [];
+  go.forEach(function (x) {
+    var r = rowOfId_(t2, x.drop.id);
+    if (r < 1 || t2.c(t2.rows[r], 'מזהה') !== x.keep.id) bad.push(x.drop.full);
+  });
+  try { recount_(); } catch (e) {}
+  return { n: go.length - bad.length, bad: bad };
+}
+/* מה שיוצא למסך: בלי הטלפון המלא — ארבע הספרות האחרונות. */
+function twinOut_(p) {
+  return { id: p.id, n: p.full, g: p.g, c: p.c, att: p.att ? 1 : 0,
+           ph: p.ph ? p.ph.slice(-4) : '', inst: p.instNm };
+}
+/* "כפילויות" בניהול: זוגות חשודים, להכרעה ביד. אחרי האיחוד האוטומטי —
+   מה שנשאר כאן אינו ודאי.
+     ph — אותו טלפון ושם משפחה/פרטי משותף (שכבה שאינה סותרת).
+     nm — באותה ישיבה: שם משפחה משותף ושם פרטי דומה (יוסי/יוסף).
+     ln — באותה ישיבה ושכבה: רק שם המשפחה, כשאחד מהם מהנוכחות בלבד. */
+function twinList_() {
+  var auto = amdaMerge_(true);
+  var t = joinTable_(), TP = twinPpl_(t), no = twinNoSet_(), seen = {}, out = [];
+  TP.list.forEach(function (p) {
+    p.Ft = nmToks_(p.F); p.Lt = nmToks_(p.L); p.At = p.Ft.concat(p.Lt);
+  });
+  var has = function (a, b) { return a.some(function (x) { return b.indexOf(x) >= 0; }); };
+  /* שם משפחה משותף. שם שלא פוצל (נוכחות: הכול ב"שם") — כל מילה בו. */
+  var lastOv = function (a, b) {
+    return has(a.Lt.length ? a.Lt : a.At, b.Lt.length ? b.Lt : b.At);
+  };
+  var firstOf = function (a, b) {
+    return a.Lt.length ? a.Ft : a.At.filter(function (x) { return b.Lt.indexOf(x) < 0; });
+  };
+  var near = function (x, y) {
+    return x === y || (x.length > 1 && y.length > 1 && x.slice(0, 2) === y.slice(0, 2)) ||
+           (x.length > 2 && y.indexOf(x) === 0) || (y.length > 2 && x.indexOf(y) === 0);
+  };
+  var firstSim = function (a, b) {
+    var fa = firstOf(a, b), fb = firstOf(b, a);
+    return fa.some(function (x) { return fb.some(function (y) { return near(x, y); }); });
+  };
+  var push = function (a, b, why) {
+    var k = twinK_(a.id, b.id);
+    if (seen[k] || no[k] || (a.att && b.att) || (a.key && a.key === b.key)) return;
+    seen[k] = 1;
+    out.push({ code: a.inst || b.inst, why: why, a: twinOut_(a), b: twinOut_(b) });
+  };
+  Object.keys(TP.byPh).forEach(function (ph) {
+    var g = TP.byPh[ph];
+    for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
+      if (gOk_(g[i].g, g[j].g) && (lastOv(g[i], g[j]) || has(firstOf(g[i], g[j]), firstOf(g[j], g[i])))) push(g[i], g[j], 'ph');
+    }
+  });
+  Object.keys(TP.byInst).forEach(function (code) {
+    var g = TP.byInst[code];
+    for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
+      var a = g[i], b = g[j];
+      if (!lastOv(a, b)) continue;
+      if (firstSim(a, b)) push(a, b, 'nm');
+      else if ((a.att || b.att) && a.g && a.g === b.g) push(a, b, 'ln');
+    }
+  });
+  var rank = { ph: 0, nm: 1, ln: 2 };
+  out.sort(function (x, y) { return x.code < y.code ? -1 : x.code > y.code ? 1 : rank[x.why] - rank[y.why]; });
+  return { status: 'ok', auto: auto.n || 0, autoBad: auto.bad || [], more: out.length > 400 ? out.length : 0,
+           pairs: out.slice(0, 400) };
+}
+/* איחוד ביד: אחד מהם רשום ואחד מהנוכחות — נשאר הרשום; שניהם רשומים —
+   נשאר הוותיק (המזהה שנרשם ראשון), והמכשיר של השני עובר אליו (LSyncId). */
+function twinGo_(P) {
+  var a0 = String(P.a || '').trim(), b0 = String(P.b || '').trim();
+  if (!a0 || !b0 || a0 === b0) return { status: 'error', message: 'חסר מזהה' };
+  var t = joinTable_(), TP = twinPpl_(t), al = aliasMap_(t.rows);
+  var a = TP.by[al[a0] || a0], b = TP.by[al[b0] || b0];
+  if (!a || !b || TP.list.indexOf(a) < 0 || TP.list.indexOf(b) < 0) return { status: 'error', message: 'התלמיד לא נמצא' };
+  if (a === b) return { status: 'ok', n: 0, same: 1 };
+  var keep = a, drop = b;
+  if (a.att && !b.att) { keep = b; drop = a; }
+  else if (a.att === b.att && b.rows[0] < a.rows[0]) { keep = b; drop = a; }
+  var res = twinApply_(t, [{ keep: keep, drop: drop, why: 'hand' }], 'ביד');
+  return { status: res.bad.length || !res.n ? 'error' : 'ok', n: res.n, keep: keep.id,
+           message: res.bad.length || !res.n ? 'האיחוד לא נקרא חזרה מהגיליון' : '' };
+}
+function twinNo_(P) {
+  var a = String(P.a || '').trim(), b = String(P.b || '').trim();
+  if (!a || !b || a === b) return { status: 'error', message: 'חסר מזהה' };
+  var sh = sheet_(TWIN_NO_);
+  if (!sh.getLastRow()) sh.appendRow(['תאריך', 'מזהה א', 'מזהה ב']);
+  if (!twinNoSet_()[twinK_(a, b)]) sh.appendRow([new Date(), a, b]);
+  SpreadsheetApp.flush();
+  return twinNoSet_()[twinK_(a, b)] ? { status: 'ok' } : { status: 'error', message: 'לא נקרא חזרה מהגיליון' };
+}
+function twinRoute_(e) {
+  var P = e.parameter, op = String(P.twin);
+  if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return reply_(e, { status: 'busy', message: 'השרת עסוק, נסו שוב' });
+  try {
+    if (op === 'list') return reply_(e, twinList_());
+    if (op === 'go') return reply_(e, twinGo_(P));
+    if (op === 'no') return reply_(e, twinNo_(P));
+    return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
+  } catch (err) {
+    return reply_(e, { status: 'error', message: String(err) });
+  } finally { lock.releaseLock(); }
 }
 
 
@@ -4368,17 +4651,50 @@ function amdaLearner_(jt, head, w, dir, instNm) {
   jt.rows.push(mem);
   return '+';
 }
-/* 'מסלול|שבוע' שנרשמו למזהה הזה מהעמדה. */
+/* 'מסלול|שבוע' שנרשמו מהעמדה **לאדם** שהמזהה הזה שלו (8.99.356).
+   עד עכשיו — רק למזהה עצמו: תלמיד שסומן בנוכחות ונרשם אחר כך (ההרשמה
+   נבלעה בשורת ה-Am…), או שאוחד מכמה מכשירים, שאל במזהה של הטלפון ולא
+   קיבל כלום — הכרטיסים נספרו לו בשרת, וה-✓ לא הגיע לטלפון.
+   המפה (כל מזהה של אדם → הדפים שלו) במטמון לעשר דקות, כי השאלה נשאלת
+   מכל תלמיד; נמחקת בכל שיוך ואיחוד (amdaQzBust_). */
 function amdaLearnedOf_(id) {
-  var out = [], seen = {};
-  if (!id) return out;
-  var lt = amdaTable_(AMDA_LINK_);
+  if (!id) return [];
+  var rc = CacheService.getScriptCache();
+  if (!rc.get('af:ok')) amdaForBuild_(rc);
+  var v = rc.get('af:' + id);
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  return [];
+}
+function amdaForBuild_(rc) {
+  var lt = amdaTable_(AMDA_LINK_), by = {};
   for (var r = 1; r < lt.rows.length; r++) {
-    if (lt.c(lt.rows[r], 'מזהה') !== id) continue;
+    var lid = lt.c(lt.rows[r], 'מזהה');
+    if (!lid) continue;
     var tag = lt.c(lt.rows[r], 'מסלול') + '|' + lt.c(lt.rows[r], 'שבוע');
-    if (!seen[tag]) { seen[tag] = 1; out.push(tag); }
+    var a = by[lid] = by[lid] || [];
+    if (a.indexOf(tag) < 0) a.push(tag);
   }
-  return out;
+  /* אדם = כל המזהים שבשורות שלו (המזהה ו"מזהים נוספים"). */
+  var t = joinTable_(), grp = {}, own = {};
+  for (var j = 1; j < t.rows.length; j++) {
+    var ids = rowIds_(t, t.rows[j]), c0 = ids[0];
+    if (!c0) continue;
+    var g = grp[c0] = grp[c0] || [];
+    ids.forEach(function (x) { if (g.indexOf(x) < 0) g.push(x); own[x] = c0; });
+  }
+  var out = {};
+  Object.keys(by).forEach(function (lid) {
+    var ids = own[lid] ? grp[own[lid]] : [lid], tags = [];
+    ids.forEach(function (x) { (by[x] || []).forEach(function (tg) { if (tags.indexOf(tg) < 0) tags.push(tg); }); });
+    ids.forEach(function (x) { out['af:' + x] = JSON.stringify(tags); });
+  });
+  var ks = Object.keys(out);
+  for (var i = 0; i < ks.length; i += 200) {
+    var part = {};
+    ks.slice(i, i + 200).forEach(function (k) { part[k] = out[k]; });
+    try { rc.putAll(part, 600); } catch (e) {}
+  }
+  try { rc.put('af:ok', '1', 600); } catch (e2) {}
 }
 
 /* ניקוי חד-פעמי: אותו אדם בכמה שורות → שורה אחת. נשאר המזהה
@@ -8174,7 +8490,7 @@ function quizHalves_(Q, who, tr, base) {
    נמחק בכל כתיבת נוכחות ובתיקון פתיחה. */
 var AMDA_EACH_ = 'oretzion';
 function amdaQzBust_() {
-  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all'].concat(rafMeKeys_())); } catch (e) {}
+  try { CacheService.getScriptCache().removeAll(['amda:att2', 'pts:all', 'af:ok'].concat(rafMeKeys_())); } catch (e) {}
 }
 function amdaQzRaw_() {
   var rc = CacheService.getScriptCache(), hit = rc.get('amda:att2');
