@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 133;
+var SCRIPT_VERSION = 134;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8793,7 +8793,9 @@ function ptsBust_() {
 function rafMeKeys_() {
   var w = 0;
   try { w = progWeek_(); } catch (e) {}
-  return [rafMeKey_(), rafMeKey_(w), rafMeKey_(w - 1), rafMeKey_(w + 1)];
+  /* עד w+4 — "ההגרלה הבאה" (rafNext_) אחרי שבועות בלי דף. */
+  return [rafMeKey_(), rafMeKey_(w), rafMeKey_(w - 1), rafMeKey_(w + 1), rafMeKey_(w + 2),
+          rafMeKey_(w + 3), rafMeKey_(w + 4)];
 }
 function ptsOf_(T, id) {
   if (!T || !id) return null;
@@ -8895,11 +8897,15 @@ function ptsMe_(P) {
        רק כאן ולא ב-rafTk_, שנקרא לכל תלמיד בלוח הצוות. */
     tk.dafs = rafDafs_();
   } catch (eT) { tk = null; }
+  /* הכרטיסים להגרלה הבאה (8.99.362) — בנוסף ל-`tk`, שמכשיר ישן עוד קורא. */
+  var nx = null;
+  try { nx = rafNextTk_(mine); } catch (eN) { nx = null; }
   var T = ptsAll_(), o;
   for (var i = 0; i < mine.length; i++) {
     var v = ptsOf_(T, mine[i]);
     if (v) {
       o = tk ? { status: 'ok', n: v.n, l: v.l, tk: tk } : { status: 'ok', n: v.n, l: v.l };
+      if (nx) o.nx = nx;
       if (hs >= 0) o.hs = hs;
       return o;
     }
@@ -10074,7 +10080,41 @@ function tkDaf_(P) {
   for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
   out.tk = rafTk_(hit, W, true);
   out.wk = w;
+  /* הדף הזה הוא של ההגרלה הבאה — כמה ימים אליה (rafNext_). */
+  try { var nr = rafNext_(); if (w + 1 === nr) out.nr = nr; } catch (eN) {}
   return out;
+}
+/* ============================================================
+   הכרטיסים להגרלה הבאה (8.99.362) — בית התלמיד.
+   ============================================================
+   ההגרלה של שבוע N היא על הדף של שבוע N-1, ותמיד ביום ראשון.
+   `rafNext_` — השבוע של ההגרלה הבאה: השבוע הנוכחי כל עוד ההגרלה שלו
+   לא בוצעה (ויש לה דף); אחרת השבוע הראשון אחריו שיש לו דף באחד
+   המסלולים. המכשיר מחשב ממנו את הימים (ראשון של השבוע הזה).
+   `rafNextTk_` — הכרטיסים של אותה הגרלה, מאותו חישוב בדיוק:
+     · לא בוצעה — rafMeMap_() (דף ההגרלה, כמו `tk`);
+     · בוצעה — rafMeMap_(N-1), הדף שלומדים עכשיו (כמו ?tkd). כרטיס אבא
+       על שבוע ישן (rafLateCtx_) נספר כאן מעצמו: L = N-2 והדף של N-1 הוא
+       הדף של החישוב, ולכן `on` נכון.
+   אותה בדיקת זמן שקטה (rafTk_ `stu`). קריאה בלבד — לא נכתב דבר.
+   null — אין הגרלה בטווח (סוף השנה). */
+function rafNext_() {
+  var pw = progWeek_(), has = function (n) {
+    return RAF_KEYS_.some(function (k) { return !!rafDafOfW_(k, n - 1); });
+  };
+  if (has(pw) && !rafLast_(rafRead_(), pw)) return pw;
+  for (var n = pw + 1; n < pw + 14; n++) if (has(n)) return n;
+  return null;
+}
+function rafNextTk_(mine) {
+  var nr = rafNext_();
+  if (!nr) return null;
+  var W = nr === progWeek_() ? null : nr - 1, M = rafMeMap_(W), hit = '';
+  for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
+  var o = rafTk_(hit, W, true);
+  delete o.drawn;
+  o.nr = nr;
+  return o;
 }
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: rafDaf_(), a: false, b: false, inn: false };

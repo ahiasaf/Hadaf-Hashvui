@@ -830,6 +830,13 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 @media (prefers-reduced-motion:reduce){.mytk.tk-new .tk-s.on.tk-pop{animation:none}}
 .mytk .tk-ask{display:block;width:100%;min-height:46px;padding:10px 0;border:0;background:none;font:inherit;
   font-size:.93rem;font-weight:800;color:var(--blue);text-align:right;cursor:pointer}
+/* ההגרלה הבאה (8.99.362): כמה ימים — תווית קטנה מול הכותרת; ובתחתית שני
+   קישורים בשורה אחת — הזוכים בהגרלה הקודמת (ימין) ואיך זוכים (שמאל). */
+.mytk .tk-dd{flex:none;max-width:48%;padding:4px 10px;border-radius:999px;background:#F6E7BE;color:#6B4E12;
+  font-size:.74rem;font-weight:800;line-height:1.35;text-align:center}
+.mytk .tk-lk{display:flex;flex-wrap:wrap;justify-content:space-between;column-gap:12px;margin-top:4px}
+.mytk .tk-lk .tk-ask{display:flex;align-items:center;width:auto;font-size:.82rem;text-decoration:none}
+.mytk .tk-wt{margin-top:12px;font-size:1.25rem;font-weight:900;color:var(--ink-3)}
 /* ההסבר — מסך מלא מעל הבית, בלי לעזוב אותו: החזרה בראש (נשארת בגלילה)
    ובתחתית, ובחזרת הדפדפן ו-Escape. */
 .tkhow{position:fixed;inset:0;z-index:140;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch;
@@ -3551,7 +3558,7 @@ function drawPts() {
         try { drawWeek(); drawHero(); } catch (eH) {}
       }
       set('ptsMe', { v: 2, id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
-                     tk: r.tk || null });
+                     tk: r.tk || null, nx: r.nx || null });
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); fail(); };
@@ -3713,7 +3720,7 @@ if (window.PAIR_UI && PAIR_UI.onOk) PAIR_UI.onOk(parTkOk);
    חישוב כמו ההגרלה), לא הדף של ההגרלה הקרובה, שיכול להיות דף אחר. עד חצי
    שעה, באותה לשונית בלבד. ההדגשה — פעם אחת: רענון או חזרה מציגים את
    הכרטיס בלי לחגוג שוב. שום מספר אינו מחושב כאן. שרת שלא ענה — הכרטיס הרגיל. */
-var TKL = null, TKL_TK = null, TKL_BUSY = false, TKL_FAIL = false;
+var TKL = null, TKL_TK = null, TKL_NR = 0, TKL_BUSY = false, TKL_FAIL = false;
 (function () {
   try {
     var o = JSON.parse(sessionStorage.getItem('df:tkLand') || 'null');
@@ -3737,6 +3744,7 @@ function tkLandDraw(me) {
       clearTimeout(t0); clean();
       if (!r || r.status !== 'ok' || !r.tk) { TKL_FAIL = true; drawPts(); return; }
       TKL_TK = r.tk;
+      TKL_NR = r.nr || 0;
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); fail(); };
@@ -3747,7 +3755,7 @@ function tkLandDraw(me) {
   if (!API) { TKL_FAIL = true; drawPts(); return; }
   set('rzTab', 'tk');
   $('mypts').hidden = true;
-  tb.innerHTML = tkCardHtml(TKL_TK ? { tk: TKL_TK } : null);
+  tb.innerHTML = tkCardHtml(TKL_TK ? { nx: TKL_TK, nr: TKL_NR } : null);
   tb.hidden = false;
   rzSync();
   if (TKL_TK) tkLandFx();
@@ -3789,20 +3797,12 @@ function rzSync() {
     b('tk', UI.rzTk) + b('ch', UI.rzCh) + '</div>';
 }
 function rzPick(k) { set('rzTab', k); rzSync(); }
-/* הכרטיס: מספר גדול (הסכום — בדיוק המשקל בהגרלה), הדף של ההגרלה מהשרת
-   (`tk.daf`, rafDaf_ — לא הדף שעל הבמה), והמסכת שבה הכרטיסים; אין עדיין —
-   המסכת שנבחרה. הפירוט — לכל סוג, סכום המסלולים. */
+/* הכרטיס (8.99.362): הכרטיסים להגרלה הבאה (`nx` מהשרת, rafNextTk_) — שלושה
+   כרטיסים קטנים, בלי מספר גדול ובלי 0. כותרת לפי אם יש כבר כרטיס, מולה כמה
+   ימים להגרלה, ובתחתית הזוכים בהגרלה הקודמת ואיך זוכים. שרת ישן (בלי `nx`) —
+   `tk`, באותו עיצוב. */
 function tkCardHtml(c) {
-  var tk = c ? c.tk : null, wait = !c && !PTS_ERR, n = tk ? tk.t : wait ? '…' : '—';
-  var mas = [];
-  if (tk && tk.tr) TRACKS.concat(TRACKS_HASHLAMA).forEach(function (t) {
-    var x = tk.tr[t.id];
-    if (x && x[0] + x[1] + x[2] > 0 && mas.indexOf(t.masechet) < 0) mas.push(t.masechet);
-  });
-  if (!mas.length) mas.push(masName(myTrack()));
-  /* מסלול השלמה — הדף של ההגרלה שלו (`dafs`, rafTk_); שרת ישן — `daf`. */
-  var dk = tk ? (tk.dafs && tk.dafs[myTrack()] != null ? tk.dafs[myTrack()] : tk.daf) : '';
-  var sub = tk ? (dk ? tpl(UI.myTkFor, { daf: dk, mas: mas.join(', ') }) : UI.myTkNoDaf) : '';
+  var nx = c ? c.nx || null : null, tk = c ? nx || c.tk || null : null, wait = !c && !PTS_ERR;
   /* כרטיס קטן לכל סוג: התקבל — ✓ (ובשני מסלולים "✓ 2"); לא — "+1",
      ו"עוד אפשר לקבל" לקורא המסך. */
   var row = function (lbl, k) {
@@ -3810,25 +3810,45 @@ function tkCardHtml(c) {
       (k > 0 ? '✓' + (k > 1 ? ' ' + k : '') : '+1') + '</i><span>' + esc(lbl) + '</span>' +
       (k > 0 ? '' : '<b class="sr">' + esc(UI.myTkMore) + '</b>') + '</div>';
   };
-  /* **ההגרלה על הדף הזה כבר בוצעה** — הודעה אחת לכולם (8.99.357): "ההגרלה
-     על דף … כבר בוצעה", בלי מספר כרטיסים ובלי הפירוט. קודם הוצג המספר
-     שהיה בה (`drawn`, "תמונת כרטיסים"), ומי שלא נכלל ראה 0. המספר עדיין
-     מגיע מהשרת ואינו מוצג; החישוב החי אינו מחליף אותו. */
-  var drawn = tk && tk.drawn != null;
-  if (drawn) {
+  var lk = '<div class="tk-lk"><a class="tk-ask" href="zochim">' + esc(UI.myTkWin) + ' ←</a>' +
+    '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button></div>';
+  /* ההגרלה על הדף הזה כבר בוצעה — רק בשרת ישן, או כשמגיעים מחידון על דף
+     ישן (tkLandDraw): הודעה אחת, בלי מספר ובלי פירוט (8.99.357). */
+  if (tk && tk.drawn != null) {
+    var dk = tk.dafs && tk.dafs[myTrack()] != null ? tk.dafs[myTrack()] : tk.daf;
     return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
-        '<span>' + esc(dk ? tpl(UI.myTkDrawn, { daf: dk }) : sub) + '</span></div></div>' +
-      '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
+        (dk ? '<span>' + esc(tpl(UI.myTkDrawn, { daf: dk })) + '</span>' : '') + '</div></div>' + lk;
   }
+  var dd = tkDays((c && c.nr) || (nx && nx.nr) || 0);
   /* בדיקת הזמן שקטה (8.99.355): השרת כבר מציג לתלמיד כרטיס לימוד על
      שני העמודים (rafTk_ `stu`), בלי דקות חסרות — ואין כאן מה להוסיף. */
-  return '<div class="tk-top"><div class="tk-hd"><b>' + esc(UI.myTkHd) + '</b>' +
-      (sub ? '<span>' + esc(sub) + '</span>' : '') + '</div>' +
-    '<div class="tk-n' + (tk ? ' tix' : '') + '"' + (wait ? ' aria-busy="true"' : '') + '><b>' + esc(String(n)) + '</b>' +
-      (tk ? '<span>' + esc(n === 1 ? UI.myTkUnit1 : UI.myTkUnitN) + '</span>' : '') + '</div></div>' +
+  return '<div class="tk-top"><div class="tk-hd"><b>' + esc(tk && !(tk.t > 0) ? UI.myTkNone : UI.myTkHd) + '</b></div>' +
+      (dd ? '<span class="tk-dd">' + esc(dd) + '</span>' : '') + '</div>' +
     (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
-        : !tk && !wait ? '<div class="tk-err">' + esc(UI.myTkErr) + '</div>' : '') +
-    '<button type="button" class="tk-ask" id="tk-ask" onclick="tkHowOpen()">' + esc(UI.myTkAsk) + ' ←</button>';
+        : wait ? '<div class="tk-wt" aria-busy="true">…</div>' : '<div class="tk-err">' + esc(UI.myTkErr) + '</div>') + lk;
+}
+/* כמה ימים להגרלה. `nr` — השבוע של ההגרלה הבאה (מהשרת); היא ביום ראשון
+   שפותח אותו. ימים קלנדריים לפי שעון ישראל, בלי שעות. ראשון שעבר וההגרלה
+   עוד לא בוצעה (השרת עדיין מחזיר את השבוע הזה) — "ממתינים". */
+function tkDays(nr) {
+  if (!(nr > 0)) return '';
+  var t = Date.parse(tkIlDay() + 'T00:00:00Z'), sun = Date.parse(PROGRAM.startDate + 'T00:00:00Z') + (nr - 1) * 7 * 864e5;
+  if (!(t > 0) || !(sun > 0)) return '';
+  var n = Math.round((sun - t) / 864e5);
+  return n < 0 ? UI.myTkWait : n === 0 ? UI.myTkToday : n === 1 ? UI.myTkDay1 : tpl(UI.myTkDays, { n: n });
+}
+/* התאריך היום בישראל (yyyy-mm-dd). דימוי תאריך בניהול (`asof`, LNow_) גובר. */
+function tkIlDay() {
+  try {
+    var a = localStorage.getItem('df:admOk') === '1' ? localStorage.getItem('df:asof') : '';
+    if (a && /^\d{4}-\d{2}-\d{2}$/.test(a)) return a;
+  } catch (e) {}
+  var d = new Date(), p = function (x) { return (x < 10 ? '0' : '') + x; };
+  try {
+    var s = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  } catch (e2) {}
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 /* "איך זוכים בכרטיסים?" — מסך מעל הבית, באותו עמוד: לא יוצאים מאזור
    התלמיד ולא מרעננים. חזרה — הכפתור בראש (נשאר בגלילה) ובתחתית, חזרת
