@@ -66,6 +66,9 @@
     if (w && out.indexOf(w) < 0) out.push(w);
     return out.filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); });
   }
+  /* הקוד האישי במכשיר — לכל עולם לחוד (8.99.370): קוד שנשמר בזמן מצב בדיקה אינו
+     יוצא בעולם האמיתי. `chCode` הישן אינו נקרא — קריאה אחת לשרת (?challenge=ref). */
+  function codeKey() { return LTester() ? 'chCodeT' : 'chCodeR'; }
   function api(op, q) {
     var u = LApi();
     if (!u || !window.Promise) return Promise.reject(new Error('no api'));
@@ -352,23 +355,27 @@
     if (!m || m.way !== 'chav' || m.rel !== 'friend' || !m.dadFirst || LGet('chFrSent', '')) return null;
     return { n: m.dadFirst, p: m.dadPhone || '' };
   }
-  function frHtml(f) {
-    var c = LGet('chCode', ''), t = esc(tp(U('chFrBtn'), { name: f.n }));
-    return c ? '<a class="ch-btn wa ch-cta" id="ch-fr" target="_blank" rel="noopener" href="' + esc(waOf(c, f.p)) + '">' + IC.wa(22) + t + '</a>'
-             : '<button class="ch-btn wa ch-cta" id="ch-fr" type="button">' + IC.wa(22) + t + '</button>';
+  function frHtml(f) { return waBtn(tp(U('chFrBtn'), { name: f.n }), f.p); }
+  /* כפתור הוואטסאפ בבית: הקוד כבר במכשיר — קישור ישיר; אחרת — בלחיצה מבקשים
+     את הקוד מהשרת (?challenge=ref) ופותחים את וואטסאפ, בלי לעבור בעמוד האתגר. */
+  function waBtn(label, ph) {
+    var c = LGet(codeKey(), ''), t = esc(label);
+    return c ? '<a class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" target="_blank" rel="noopener" href="' + esc(waOf(c, ph)) + '">' + IC.wa(22) + t + '</a>'
+             : '<button class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" type="button">' + IC.wa(22) + t + '</button>';
   }
   function frWire(box, d, f) {
     var b = document.getElementById('ch-fr');
     if (!b) return;
+    var ph = b.getAttribute('data-p') || '';
     b.onclick = function () {
-      LSet('chFrSent', '1');
-      if (b.tagName === 'A') { setTimeout(function () { cardDraw(box, d); }, 300); return; }
+      if (f) LSet('chFrSent', '1');
+      if (b.tagName === 'A') { if (f) setTimeout(function () { cardDraw(box, d); }, 300); return; }
       b.disabled = true;
+      var undo = function () { if (f) { try { localStorage.removeItem('df:chFrSent'); } catch (e) {} } b.disabled = false; };
       api('ref', { id: ids().join(',') }).then(function (r) {
-        if (r && r.status === 'ok' && r.code) { LSet('chCode', r.code); location.href = waOf(r.code, f.p); return; }
-        try { localStorage.removeItem('df:chFrSent'); } catch (e) {}
-        b.disabled = false;
-      }, function () { try { localStorage.removeItem('df:chFrSent'); } catch (e) {} b.disabled = false; });
+        if (r && r.status === 'ok' && r.code) { LSet(codeKey(), r.code); location.href = waOf(r.code, ph); return; }
+        undo();
+      }, undo);
     };
   }
   function shareHtml() {
@@ -394,10 +401,10 @@
         };
       }
     };
-    var c0 = LGet('chCode', '');
+    var c0 = LGet(codeKey(), '');
     if (c0) { put(c0); return; }
     api('ref', { id: ids().join(',') }).then(function (d) {
-      if (d && d.status === 'ok' && d.code) { LSet('chCode', d.code); put(d.code); return; }
+      if (d && d.status === 'ok' && d.code) { LSet(codeKey(), d.code); put(d.code); return; }
       var l = document.getElementById('ch-link'); if (l) l.textContent = U('chLinkFail');
     }, function () {
       var l = document.getElementById('ch-link'); if (l) l.textContent = U('chLinkFail');
@@ -534,14 +541,12 @@
       /* עוד אין שולחן. הקוד כבר במכשיר — הכפתור פותח וואטסאפ ישר;
          אחרת לעמוד האתגר, שם הקוד נוצר. בבית לא יוצרים קוד: זו
          כתיבה לגיליון לכל תלמיד שרק פתח את האפליקציה. */
-      var c0 = LGet('chCode', '');
+      var c0 = LGet(codeKey(), '');
       h = '<div class="ch-tcard ch-home">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
         '<h2 class="ch-hh">' + esc(U('chCardH')) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
         tableHtml(startSeats(), midOf('')) + howHtml() +
-        (d.ended ? '' : fr ? frHtml(fr) : c0
-          ? '<a class="ch-btn wa ch-cta" target="_blank" rel="noopener" href="' + esc(waOf(c0)) + '">' + IC.wa(22) + esc(U('chGo')) + '</a>'
-          : '<a class="ch-btn wa ch-cta" href="chaver.html">' + IC.wa(22) + esc(U('chGo')) + '</a>') +
-        '<a class="ch-more" href="chaver.html">' + esc(U('chMoreLink')) + '</a>';
+        (d.ended ? '' : fr ? frHtml(fr) : waBtn(U('chGo'), ''));
+      /* "איך זה עובד?" ירד (8.99.370, החלטת אחיאסף). */
     } else {
       var fill = v.s === 'open' && v.mine && !d.ended;
       if (!fill) fr = null;
@@ -557,7 +562,7 @@
             : '<a class="ch-btn' + (fill ? ' ch-cta' : '') + '" href="chaver.html">' + esc(fill ? U('chFillBtn') : U('chOpenBtn')) + '</a>');
     }
     box.innerHTML = h + countHtml(d) + '</div>';
-    if (fr) frWire(box, d, fr);
+    frWire(box, d, fr);
     sync();
   }
   function card(box) {

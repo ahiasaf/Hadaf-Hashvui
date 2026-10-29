@@ -37,6 +37,9 @@ function LMe() { return LGet('me', null); }
    "בדיקה: כן", ואינם נספרים במונים ואינם בלוח של הצוות. ראו
    `noTestRows_` ב-apps-script.gs. */
 function LTester() {
+  /* "המסך שלי כתלמיד" (asStuOn, data.js) — תלמיד אמיתי בעולם האמיתי, גם במכשיר
+     שמסומן כמכשיר בדיקה: הלימוד, ההרשמה וחבר מביא חבר — בלי "בדיקה: כן" (8.99.370). */
+  if (typeof asStuOn === 'function' && asStuOn()) return false;
   try { return localStorage.getItem('df:tester') === '1'; } catch (e) { return false; }
 }
 
