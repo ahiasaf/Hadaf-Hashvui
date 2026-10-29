@@ -3021,7 +3021,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.363';
+var APP_VERSION = '8.99.364';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11820,6 +11820,9 @@ var MORE = [
    קישור לניהול (הניהול אינו מקושר משום מקום). */
 function admAsStu() {
   try { sessionStorage.setItem('df:fromAdm', '1'); sessionStorage.setItem('df:asStu', '1'); } catch (e) {}
+  /* חלון ההשקה של חבר מביא חבר נפתח שוב בכל כניסה — כמו אצל תלמיד שרואה
+     אותו לראשונה. מי שכבר הזמין — לא יראה אותו, כמו כל תלמיד. */
+  try { localStorage.removeItem('df:chPromo'); } catch (e) {}
   location.href = /\.html$/.test(location.pathname) ? 'join.html' : 'join';
 }
 function admHome(leaf) {

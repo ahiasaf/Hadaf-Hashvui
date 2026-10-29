@@ -486,10 +486,12 @@
   function sync() { if (window.rzSync) rzSync(); }
   /* **חשיפה** (8.99.352): ב"מוזמנים" השרת מחזיר `pub:false` למי שאינו משתתף
      — אין כרטיס בבית ואין חלון השקה. מכשיר הניהול (df:admOk) רואה תמיד.
-     הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור. */
+     הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור.
+     "המסך שלי כתלמיד" (asStuOn) — גם הוא רואה: זה השלב שבו אחיאסף בודק
+     כתלמיד אמיתי, גם כשהופעל ממכשיר אחר. */
   function shown(d) {
     if (d && d.pub !== false) return true;
-    return isAdminView();
+    return isAdminView() || asStuOn();
   }
   function cardDraw(box, d) {
     if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; sync(); return; }
