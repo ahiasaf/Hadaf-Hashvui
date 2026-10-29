@@ -135,7 +135,6 @@
     if (d.ended) h += '<p class="ch-big">' + esc(U('chEnded')) + '</p>';
     else if (U('chWeekRaf')) h += '<p class="ch-big">' + esc(U('chWeekRaf')) + '</p>';
     if (d.last && !d.ended) h += '<p class="ch-big">' + esc(U('chLastNext')) + '</p>';
-    h += '<p class="ch-cnt">' + esc(tp(U('chCountEnd'), { n: d.n })) + '</p>';
     var sub = [];
     if (d.dlv) sub.push(d.dlv === 1 ? U('chDlvOne') : tp(U('chDlv'), { n: d.dlv }));
     if (sub.length) h += '<p class="ch-sm">' + esc(sub.join(' · ')) + '</p>';
