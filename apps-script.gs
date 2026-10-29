@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 139;
+var SCRIPT_VERSION = 140;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11142,7 +11142,8 @@ function chSync_(U) {
      הבעלים, 8.99.325). החבר החדש — רק `C`, כמו קודם.
      `Q` — הקטע הרחוק ביותר בדף שלא הושלם (0–1), לצלחת שמתמלאת.
      אינו משנה זכאות: רק השלמה נספרת. */
-  var C = {}, L = {}, E = {}, Q = {};
+  /* `ST` — התחיל ללמוד (שורת התקדמות כלשהי, גם בקטע הראשון): "התחיל" בשולחן (8.99.371). */
+  var C = {}, L = {}, E = {}, Q = {}, ST = {};
   var lsh = sheet_(LEARN_TAB);
   if (lsh.getLastRow() > 1) {
     var lv = lsh.getDataRange().getValues(), lx = {};
@@ -11158,6 +11159,7 @@ function chSync_(U) {
         var qn = parseInt(of, 10), qa = parseInt(at, 10);
         var qf = qn > 1 ? Math.max(0, Math.min(1, (qa - 1) / (qn - 1))) : 0;
         if (qf > (Q[lid] || 0)) Q[lid] = qf;
+        ST[lid] = 1;
         continue;
       }
       var tag = lc(lv[i], 'מסלול') + '|' + lc(lv[i], 'שבוע') + '|' + lc(lv[i], 'דף');
@@ -11351,7 +11353,7 @@ function chSync_(U) {
        mn — הכי הרבה דקות שנמדדו על דף שלם (-1: לא נמדד). ניהול בלבד. */
     out.ppl[id] = { f: p.first, l: p.last, i: p.inst, n: p.instName, by: p.inv || '', at: p.at || 0,
                     ob: p.ob || '', c: tm(id), e: E[id] || 0, q: Math.round((Q[id] || 0) * 100) / 100,
-                    k: Object.keys(L[id] || {}).length, fr: F[id] || [],
+                    k: Object.keys(L[id] || {}).length, fr: F[id] || [], s: ST[id] ? 1 : 0,
                     vc: rl.c ? 1 : 0, ve: rl.e ? 1 : 0, mn: rl.m >= 0 ? Math.round(rl.m) : -1 };
     p.ids.forEach(function (x) { if (x !== id) out.al[x] = id; });
     Object.keys(target).forEach(function (x) { if (target[x] === id && x !== id) out.al[x] = id; });
@@ -11521,7 +11523,7 @@ function chMy_(M, P, U) {
   M.grp.forEach(function (g) { if (g.by === me) out.mine.push(gview(g)); });
   if ((p.fr || []).length) {
     out.open = chOpen_(M, me, me);
-    out.all = p.fr.map(function (f) { return { n: nm(f), l: lrn(f), q: lrn(f) ? 0 : ppl[f].q || 0, o: ppl[f].ob ? 1 : 0 }; });
+    out.all = p.fr.map(function (f) { return { n: nm(f), l: lrn(f), q: lrn(f) ? 0 : ppl[f].q || 0, s: lrn(f) ? 0 : ppl[f].s || 0, o: ppl[f].ob ? 1 : 0 }; });
   }
   pub.me = out;
   return pub;
@@ -11536,7 +11538,7 @@ function chOpen_(M, by, me) {
   var tabs = ((M.tbl || {})[by] || []).filter(function (t) { return full || t.indexOf(me) >= 0; });
   var seat = function (f) {
     var p = ppl[f] || {};
-    return { n: p.f || '', me: f === me, l: !!p.c, q: p.c ? 0 : p.q || 0, o: p.ob ? 1 : 0, c: p.c || 0 };
+    return { n: p.f || '', me: f === me, l: !!p.c, q: p.c ? 0 : p.q || 0, s: p.c ? 0 : p.s || 0, o: p.ob ? 1 : 0, c: p.c || 0 };
   };
   var tbl = tabs.map(function (t) { return t.map(seat); });
   var ok = [], no = [];
@@ -11548,7 +11550,7 @@ function chOpen_(M, by, me) {
    (`e`); `q` — כמה התקדם בדף, כשעוד לא השלים. */
 function chByView_(M, by, me) {
   var p = M.ppl[by] || {}, l = !!(p.c || p.e);
-  return { n: p.f || '', me: by === me, l: l, q: l ? 0 : p.q || 0 };
+  return { n: p.f || '', me: by === me, l: l, q: l ? 0 : p.q || 0, s: l ? 0 : p.s || 0 };
 }
 /* מצב ההגרלה של קבוצה, כפי שמשתתף רואה אותו:
      me   — שלושת החברים השלימו, והמזמין עוד לא למד

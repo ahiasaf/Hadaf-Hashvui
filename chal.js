@@ -193,7 +193,8 @@
   /* מקום אחד: { k: free|you|reg|part|done, n: שם, i: אות, q: 0–1, inv: מזמין } */
   function seatOf(p, inv) {
     var nm = p.me ? U('chMe') : p.n || U('chFriend');
-    var k = p.l ? 'done' : p.q > 0 ? 'part' : 'reg';
+    /* "התחיל" — מהשורה הראשונה של התקדמות (`s`), והצלחת מתמלאת לפי `q`. */
+    var k = p.l ? 'done' : p.q > 0 || p.s ? 'part' : 'reg';
     /* המזמין לא "הצטרף" — הוא עוד לא למד. */
     return { k: k, n: nm, i: String(p.n || '').charAt(0), q: p.q || 0, inv: !!inv, me: !!p.me, o: !!p.o,
              lbl: inv && k === 'reg' ? U('chSeatInvNo') : '' };

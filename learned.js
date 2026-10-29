@@ -255,10 +255,23 @@ function LPosFrac(track, wk) {
 
 /* שליחה ללשונית "לימוד" — שורה עם קטע ומתוך. נשלחת ביציאה
    מהדף ולא בכל צעד: שורה לכל הקשה הייתה מציפה את הגיליון,
-   ומה שהצוות צריך לראות הוא איפה הוא הפסיק. */
+   ומה שהצוות צריך לראות הוא איפה הוא הפסיק.
+   **ובאמצע — בציוני דרך** (8.99.371, LPosMile): בכניסה לדף, ברבע, בחצי
+   ובשלושה רבעים — לכל היותר ארבע שורות לדף. כך הצלחת בשולחן של חבר
+   מביא חבר מתמלאת בזמן שהחבר לומד, ולא רק אחרי שיצא. */
+function LPosMile(track, wk) {
+  var p = LPos(track, wk);
+  if (!p || !(p.n > 1) || LDone(track, wk)) return;
+  var b = Math.min(3, Math.floor(4 * p.i / (p.n - 1)));
+  var all = LGet('pos-mile', {}) || {}, k = LKey(track, wk);
+  if (all[k] != null && all[k] >= b) return;
+  all[k] = b; LSet('pos-mile', all);
+  LPosSend(track, wk);
+}
 function LPosSend(track, wk) {
   var p = LPos(track, wk);
-  if (!p || !(p.n > 1) || p.i <= 0) return;
+  /* גם בקטע הראשון (8.99.371): "התחיל" בשולחן של חבר מביא חבר מגיע מכאן. */
+  if (!p || !(p.n > 1) || p.i < 0) return;
   if (LDone(track, wk)) return;              /* סיים — נשלח כבר כסיום */
   var sent = LGet('pos-sent', {}) || {}, k = LKey(track, wk);
   if (sent[k] === p.i) return;               /* אותו מקום, כבר דווח */

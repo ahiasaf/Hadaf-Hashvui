@@ -4859,6 +4859,8 @@ function savePos() {
   var wk = posWeek();
   if (wk < 0 || !FLAT.length || (FLAT[IDX] || {}).peek) return;
   try { LPosSet(S.tr, wk, IDX, FLAT.length, FLAT[IDX] && FLAT[IDX].id); } catch (e) {}
+  /* ציון דרך — שורת התקדמות לשרת (LPosMile, learned.js). */
+  try { if (typeof LPosMile === 'function') LPosMile(S.tr, wk); } catch (e) {}
   quietMark(wk);
 }
 /* ============================================================
