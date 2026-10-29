@@ -4784,7 +4784,7 @@ function sideVerify(tries, gen) {
 function sideInit() {
   DECK = deckOf();
   if (!DECK) return;
-  try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+  SIDE_ADM = isAdminView();
   /* בהדגמה — לא. "שקף 3 מתוך 12" הוא הכלי של מי שמשייך, והרכז
      שמריץ את ההדגמה הוא בדיוק מי שהדגל הזה דלוק אצלו. */
   if (quiet()) SIDE_ADM = false;
@@ -6606,7 +6606,9 @@ var EMB = /[?&]embed=1\b/.test(location.search);
    כמו קודם. הישיבה: מהכתובת, ואם אין — מההרשמה שבמכשיר. */
 function staffDev() {
   try {
-    if (localStorage.getItem('df:admOk') === '1') return true;
+    /* מצב תלמיד — היציאה חוזרת למסכי התלמיד (join / ?st=1). */
+    if (asStuOn()) return false;
+    if (isAdminView()) return true;
     if (localStorage.getItem('df:head') || localStorage.getItem('df:headSeen') === '1') return true;
     if (localStorage.getItem('df:ram')) return true;
     /* אותם סימנים כמו `staffSign` ב-index.html — ישיבה רשומה ולוח
@@ -7462,7 +7464,7 @@ function boot() {
      שלי" יושב במגירת החברותא ולא במגירת המצגת, ולכן הדגל נקבע
      כאן ולא רק בתוך sideInit (שיוצא מיד כשאין DECK). sideInit
      קובע אותו שוב, לאותו ערך בדיוק, כשיש מצגת — בלי סתירה. */
-  try { SIDE_ADM = localStorage.getItem('df:admOk') === '1'; } catch (e) {}
+  SIDE_ADM = isAdminView();
   if (quiet()) SIDE_ADM = false;
   document.body.classList.toggle('side-adm', SIDE_ADM);
   alonInit_();

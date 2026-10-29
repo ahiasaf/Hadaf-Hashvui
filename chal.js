@@ -489,7 +489,7 @@
      הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור. */
   function shown(d) {
     if (d && d.pub !== false) return true;
-    try { return localStorage.getItem('df:admOk') === '1'; } catch (e) { return false; }
+    return isAdminView();
   }
   function cardDraw(box, d) {
     if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; sync(); return; }

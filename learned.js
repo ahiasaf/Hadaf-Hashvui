@@ -52,7 +52,7 @@ function LTester() {
    פעם אחת; `?asof=` ריק מבטל את הדימוי וחוזר לתאריך האמיתי. */
 function LNow_() {
   try {
-    if (localStorage.getItem('df:admOk') !== '1') return new Date();
+    if (!isAdminView()) return new Date();
     var q = /[?&]asof=([^&]*)/.exec(location.search);
     if (q) {
       var v = decodeURIComponent(q[1]);

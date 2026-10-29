@@ -40,7 +40,7 @@
 var ALON_ON = (function () {
   if (!/[?&]alon=1\b/.test(location.search)) return false;
   if (/[?&](demo|rec)=1\b/.test(location.search)) return false;
-  try { return localStorage.getItem('df:admOk') === '1'; } catch (e) { return false; }
+  return isAdminView();
 })();
 var ALON_TAB = 'עלון';
 var ALON_ARCH = 'ארכיון עלון';

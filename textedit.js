@@ -456,7 +456,7 @@ var TX = (function () {
 
   /* רק מי שהניהול פתוח אצלו במכשיר. */
   function allowed() {
-    try { return localStorage.getItem('df:admOk') === '1'; } catch (e) { return false; }
+    return isAdminView();
   }
 
   return {

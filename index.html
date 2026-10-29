@@ -3021,7 +3021,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.362';
+var APP_VERSION = '8.99.363';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11819,7 +11819,7 @@ var MORE = [
    הרגיל. החזרה — כפתור בבית (join.html) שעושה "אחורה" בהיסטוריה, ולא
    קישור לניהול (הניהול אינו מקושר משום מקום). */
 function admAsStu() {
-  try { sessionStorage.setItem('df:fromAdm', '1'); } catch (e) {}
+  try { sessionStorage.setItem('df:fromAdm', '1'); sessionStorage.setItem('df:asStu', '1'); } catch (e) {}
   location.href = /\.html$/.test(location.pathname) ? 'join.html' : 'join';
 }
 function admHome(leaf) {
@@ -20263,7 +20263,7 @@ function amdaOpen(kind) {
   Store.set('amdaOn', 1);
   try {
     var de = document.documentElement;
-    if (de.requestFullscreen) de.requestFullscreen().catch(function () {});
+    if (de.requestFullscreen && !isStandalone()) de.requestFullscreen().catch(function () {});
   } catch (e) {}
   amdaPaint();
   amdaFlush();

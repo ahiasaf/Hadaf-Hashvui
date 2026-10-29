@@ -2101,8 +2101,14 @@ if (window.CHAL) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
   b.className = 'adm-back';
   b.textContent = '→ ' + UI.admBackAdm;
   b.onclick = function () {
-    try { sessionStorage.removeItem('df:fromAdm'); } catch (e) {}
-    history.back();
+    try { sessionStorage.removeItem('df:fromAdm'); sessionStorage.removeItem('df:asStu'); } catch (e) {}
+    /* במצב תלמיד היציאה מהדף האינטראקטיבי חוזרת לכאן (כתלמיד), ולכן
+       "אחורה" לא תמיד מגיע לניהול: רק כשהעמוד הקודם הוא הניהול. */
+    var r = document.referrer, a = document.createElement('a');
+    a.href = r || '/';
+    if (r && a.host === location.host && /^\/(admin|index(\.html)?)?$/.test(a.pathname) &&
+        !/[?&]st=1/.test(a.search)) history.back();
+    else location.replace('/#admin');
   };
   document.body.appendChild(b);
 })();
@@ -3840,7 +3846,7 @@ function tkDays(nr) {
 /* התאריך היום בישראל (yyyy-mm-dd). דימוי תאריך בניהול (`asof`, LNow_) גובר. */
 function tkIlDay() {
   try {
-    var a = localStorage.getItem('df:admOk') === '1' ? localStorage.getItem('df:asof') : '';
+    var a = isAdminView() ? localStorage.getItem('df:asof') : '';
     if (a && /^\d{4}-\d{2}-\d{2}$/.test(a)) return a;
   } catch (e) {}
   var d = new Date(), p = function (x) { return (x < 10 ? '0' : '') + x; };
