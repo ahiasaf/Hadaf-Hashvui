@@ -104,16 +104,18 @@
     if (mk) q.ms = mk[1];
     BUSY = api('my', q).then(function (d) {
       BUSY = null;
-      if (!d || d.status !== 'ok') return cached();
+      FRESH = !!(d && d.status === 'ok');
+      if (!FRESH) return cached();
       LSet('chMy', { at: Date.now(), d: d });
       /* השרת הכריע — הקוד כבר לא נחוץ. "old" נשאר עד שהתלמיד בחר
          (לשבת בשולחן או לפתוח משלו); "wait" — ההרשמה עוד בדרך. שאר
          המצבים (bad/self/other/full) — הודעה אחת, מהתשובה הזו. */
       if (d.ref && d.ref !== 'old' && d.ref !== 'wait') dropRef();
       return d;
-    }, function () { BUSY = null; return cached(); });
+    }, function () { BUSY = null; FRESH = false; return cached(); });
     return BUSY;
   }
+  var FRESH = false;
 
   /* ---- זמן ---- */
   function when(iso) {
@@ -574,7 +576,17 @@
     /* הבית מצטייר כמה פעמים בטעינה אחת — פנייה לשרת פעם בחצי דקה. */
     if (Date.now() - LAST < 30000) return;
     LAST = Date.now();
-    load().then(function (d) { cardDraw(box, d); promo(d); });
+    pull(box, 0);
+  }
+  /* **ניסיון חוזר** (8.99.372): רגע אחרי ההרשמה השרת עוד כותב את השורה (עסוק,
+     או "wait"), ותשובה שלא הגיעה השאירה את הבית בלי הכרטיס עד הפתיחה הבאה. עכשיו —
+     עוד שלושה ניסיונות, אחרי 5, 12 ו-30 שניות, רק כשהתשובה לא הגיעה או "wait". */
+  function pull(box, n) {
+    load().then(function (d) {
+      cardDraw(box, d);
+      if (FRESH) promo(d);
+      if ((!FRESH || (d && d.ref === 'wait')) && n < 3) setTimeout(function () { pull(box, n + 1); }, [5000, 12000, 30000][n]);
+    });
   }
   var LAST = 0;
 
