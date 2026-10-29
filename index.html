@@ -2737,6 +2737,8 @@ button.yr-c.auto{cursor:pointer}
 .cha-t b{display:block;font-size:1.4rem;font-weight:800;color:var(--blue-d);line-height:1.15}
 .cha-t span{display:block;font-size:.74rem;font-weight:700;color:var(--ink-2)}
 .cha-ms h4 .cha-st{color:var(--gold-t)}
+.cha-low,.prow2 .cha-low{color:var(--stop);font-weight:700}
+.ltm-big{font-size:26px;font-weight:800;margin:6px 0}
 .cha-alert{border:2px solid var(--gold)}
 .cha-ta{width:100%;box-sizing:border-box;min-height:84px;font:inherit;font-size:.9rem;border:1.5px solid var(--rule);
   border-radius:10px;padding:8px 10px;margin:4px 0 6px;resize:vertical;background:#fff;color:var(--ink)}
@@ -3021,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.364';
+var APP_VERSION = '8.99.365';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11801,7 +11803,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -12454,6 +12456,7 @@ function admPane() {
   if (sub === 'prz')     return admPrz(body);
   if (sub === 'quad')    return admQuad(body);
   if (sub === 'hash')    return admHash(body);
+  if (sub === 'ltime')   return admLtime(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -16349,6 +16352,37 @@ function qdaPaint() {
    שלו משויך אוטומטית (join.html). העברה ידנית של תלמיד בודד — בשרת
    (?hash=set, hashSet_), עם קריאה חוזרת שמאמתת. */
 var HSA = { d: null, at: 0, busy: false, msg: '' };
+/* ============================================================
+   זמן לימוד (8.99.365) — כמה זמן לוקח ללמוד דף, בממוצע.
+   ============================================================
+   מהשרת (?ltime=1, lrnTime_): כל דף שלם שהזמן שלו נמדד, לאדם·מסלול·דף,
+   כמו בהגרלה. כישלון משאיר את מה שעל המסך. */
+var LTM = { d: null, busy: false, msg: '' };
+function admLtime(body) {
+  body.innerHTML = '<div id="ltm"></div>';
+  ltmPaint();
+  if (!LTM.d) ltmLoad();
+}
+function ltmLoad() {
+  if (!(CFG.readKey || '').trim()) { LTM.msg = UI.przNoKey; ltmPaint(); return; }
+  LTM.busy = true; ltmPaint();
+  scriptGet({ ltime: '1', key: (CFG.readKey || '').trim() }).then(function (d) {
+    LTM.busy = false;
+    if (d && d.status === 'ok') { LTM.d = d; LTM.msg = ''; } else LTM.msg = (d && d.message) || UI.hsaFail;
+    ltmPaint();
+  }, function () { LTM.busy = false; LTM.msg = UI.hsaFail; ltmPaint(); });
+}
+function ltmPaint() {
+  var el = document.getElementById('ltm');
+  if (!el) return;
+  var d = LTM.d;
+  el.innerHTML = '<div class="adm-card"><h4>' + esc(UI.moreLtime) + '</h4>' +
+    (LTM.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(LTM.msg) + '</div>' : '') +
+    (d ? (d.n ? '<p class="ltm-big">' + esc(fill(UI.ltAvg, { m: d.avg })) + '</p><p class="h">' + esc(fill(UI.ltN, { n: d.n })) + '</p>'
+              : '<p class="h">' + esc(UI.ltNone) + '</p>') : '') +
+    '<button class="btn g" type="button"' + (LTM.busy ? ' disabled' : '') + ' onclick="ltmLoad()">' +
+    esc(LTM.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+}
 function admHash(body) {
   body.innerHTML = '<div id="hsa"></div>';
   hsaPaint();
@@ -16562,10 +16596,29 @@ function chaTile(n, lbl) {
   return '<div class="cha-t"><b>' + esc(n == null ? UI.wuUnknown : String(n)) + '</b><span>' + esc(lbl) + '</span></div>';
 }
 function chaWho(p, role) {
+  /* ✓ אצל התלמיד, אבל לא עמד בכלל של ההגרלה (8.99.365) — גלוי כאן בלבד. */
+  var low = p.c && p.v === 0 ? (p.mn >= 0 && p.mn < 10 ? fill(UI.chaLow, { m: p.mn }) : UI.chaLowHalf) : '';
   return '<div class="prow2"><div style="flex:1"><b>' + esc((p.f + ' ' + p.l).trim()) + '</b>' +
     '<span>' + esc(role + ' · ' + (p.n || admInstName(p.i))) + '</span><span>' +
     esc([p.at ? fill(UI.chaRowAt, { t: chaT(p.at) }) : '', p.c > 1 ? fill(UI.chaRowC, { t: chaT(p.c) }) : p.c ? UI.chLearned : UI.chNotYet]
-        .filter(Boolean).join(' · ')) + '</span></div></div>';
+        .filter(Boolean).join(' · ')) + '</span>' +
+    (low ? '<span class="cha-low">' + esc(low) + '</span>' : '') + '</div></div>';
+}
+/* השולחנות (8.99.365): כמה תלמידים למדו מתחת לעשר דקות — בשורת הסיכום;
+   הרשימה — בלחיצה. */
+function chaGrps(d) {
+  var G = d.grp || [];
+  var h = '<div class="adm-card"><h4>' + esc(UI.chaGrpH) + '</h4>';
+  if (!G.length) return h + '<p class="h">' + esc(UI.chaGrpNone) + '</p></div>';
+  h += '<details><summary>' + esc(fill(UI.chaGrpSum, { n: G.length, low: d.low || 0 })) + '</summary>';
+  G.forEach(function (g) {
+    var st = g.st === 'open' ? fill(UI.chaGrpOpen, { n: g.f.length }) : g.st;
+    if (g.st !== 'open' && g.real === 0 && ['זכתה', 'נפסלה'].indexOf(g.st) < 0) st += ' · ' + UI.chaGrpNo;
+    h += '<div class="pp-h">' + esc((g.by.f + ' ' + g.by.l).trim() + ' · ' + st) + '</div><div class="plist">' +
+      chaWho(g.by, UI.chaRowInv) +
+      g.f.map(function (f) { return chaWho(f, f.o ? UI.chaRowOld : UI.chaRowFr); }).join('') + '</div>';
+  });
+  return h + '</details></div>';
 }
 function chaGrp(g) {
   return '<div class="plist">' + chaWho(g.by, UI.chaRowInv) +
@@ -16895,6 +16948,7 @@ function chaPaint() {
   h += '<div class="cha-tiles">' + chaTile(d.n, UI.chaN) + chaTile(d.next > 0 ? d.next : '—', UI.chaNext) +
     chaTile(c.done, UI.chaDone) + chaTile(c.prog, UI.chaProg) + chaTile(c.wait, UI.chaWaitInv) +
     chaTile(d.left, UI.chaLeft) + chaTile(d.dlv || 0, UI.chaDlvN) + '</div>';
+  h += chaGrps(d);
   (d.ms || []).slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
   h += '<div class="adm-card"><h4>' + esc(UI.chaMsgsH) + '</h4><p class="h">' + esc(UI.chaMsgsP) + '</p>' +

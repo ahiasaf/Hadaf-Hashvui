@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 134;
+var SCRIPT_VERSION = 135;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1303,6 +1303,11 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.twin) return twinRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
+  /* כמה זמן לוקח ללמוד דף — ניהול בלבד (8.99.365). */
+  if (e && e.parameter && e.parameter.ltime) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    return reply_(e, lrnTime_());
+  }
   /* `test=1` הוא דגל "גם משתמשי בדיקה" (הלוח, השליחה) ולא פעולה של מסך
      הבדיקות — עד 8.99.299 הוא נבלע כאן, והלוח של כל הישיבות ענה
      "פעולה לא מוכרת" ונשאר ריק. */
@@ -10931,6 +10936,136 @@ function chRuleOf_(S) {
 function chLim_(rule, inst) { return (rule && rule[inst]) || 1; }
 
 /* ============================================================
+   "למד באמת" — אותו כלל כמו בהגרלה השבועית (8.99.365).
+   ============================================================
+   לכל אדם·מסלול·דף, מכל דף ולא רק מדף ההגרלה: שני העמודים הושלמו
+   (או העמוד היחיד שיש לדף בלוח), ועשר דקות לפחות כשהזמן ידוע
+   (rafTmOk_ — זמן שלא נמדד אינו פוסל) — או חריג מוצ"ש: שני העמודים
+   בחלון (rafSatWin_) והחידון על הדף עבר. **או** הענקה של אבא (שורת
+   "זוגות" שההורה כתב, או בקשה שאושרה) — על כל שבוע.
+   הזמן — כמו rafCalc_: לכל מכשיר הערך הגבוה שהגיע (בשורות הסיום
+   ובשורות החידון), ובין המכשירים — סכום.
+   `canon` — ממזהה גולמי למזהה היעד של מי שקורא (אתגר: canon של chSync_;
+   ממוצע הזמן: rafPpl_). מזהה ריק — מדלגים. */
+function lrnKeys_(test, canon) {
+  var K = {}, TM = {}, Q = { best: {} };
+  var sh = sheet_(LEARN_TAB);
+  if (sh.getLastRow() > 1) {
+    var rows = rafWithMs_(sh), ix = {};
+    for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
+    var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] == null ? '' : rw[ix[k]]).trim(); };
+    for (var i = 1; i < rows.length; i++) {
+      var rw = rows[i];
+      if ((c(rw, 'בדיקה') === 'כן') !== !!test) continue;
+      var at = c(rw, 'קטע'), of = c(rw, 'מתוך');
+      if (at && parseInt(of, 10) > 0 && parseInt(at, 10) < parseInt(of, 10)) continue;
+      var id = canon(c(rw, 'מזהה')), mas = rafTrack_(c(rw, 'מסלול')), tr = rafKey_(c(rw, 'מסלול'));
+      var d = c(rw, 'דף').replace(/["'׳״\s]/g, ''), base = d.replace(/[.:]$/, '');
+      if (!id || !mas || !tr || !base) continue;
+      var k = id + '|' + tr + '|' + base, o = K[k];
+      if (!o) o = K[k] = { id: id, tr: tr, mas: mas, base: base, a: 0, b: 0, sa: 0, sb: 0 };
+      var ms = +c(rw, RAF_MS_COL) || 0, sat = rafSatWin_(ms);
+      if (!/:$/.test(d)) { o.a = o.a ? Math.min(o.a, ms || 1) : ms || 1; if (sat) o.sa = 1; }
+      if (!/\.$/.test(d)) { o.b = o.b ? Math.min(o.b, ms || 1) : ms || 1; if (sat) o.sb = 1; }
+      rafTmAdd_(TM, k, c(rw, 'מכשיר'), c(rw, 'זמן בדף (דקות)'), true);
+    }
+  }
+  /* החידון: הזמן שבשורה, והציון (לחריג מוצ"ש) — כמו quizBest_: שתי
+     השליחות הראשונות, ושליחה חוזרת של אותו תוכן — פעם אחת. */
+  var qs = sheet_('חידות');
+  if (qs && qs.getLastRow() > 1) {
+    var v = qs.getDataRange().getDisplayValues(), qx = {}, tries = {}, dupQ = {};
+    for (var h2 = 0; h2 < v[0].length; h2++) qx[String(v[0][h2]).trim()] = h2;
+    var qc = function (rw, k) { return qx[k] === undefined ? '' : String(rw[qx[k]] || '').trim(); };
+    for (var j = 1; j < v.length; j++) {
+      if (qc(v[j], 'קטע') !== 'החידון כולו') continue;
+      if ((qc(v[j], 'בדיקה') === 'כן') !== !!test) continue;
+      var pr = qc(v[j], 'דף').split('|'), qm = rafTrack_(pr[0]);
+      var qd = String(pr[1] || '').replace(/["'׳״\s]/g, ''), qb = qd.replace(/[.:]$/, '');
+      var qid = canon(qc(v[j], 'מזהה'));
+      if (!qm || !qb || !qid) continue;
+      [qm, qm + '-hashlama'].forEach(function (t2) {
+        var k2 = qid + '|' + t2 + '|' + qb;
+        if (K[k2]) rafTmAdd_(TM, k2, qc(v[j], 'מכשיר'), qc(v[j], 'זמן בדף (דקות)'), false);
+      });
+      var sc = qc(v[j], 'ציון').match(/^(\d+)\s*\/\s*(\d+)$/);
+      if (!sc || !(+sc[2] > 0)) continue;
+      var bk = qid + '|' + qm + '|' + qd, x = [+sc[1], +sc[2]], tn = qc(v[j], 'ניסיון');
+      if (tn) {
+        var dk = bk + '|' + qc(v[j], 'מכשיר') + '|' + tn + '|' + x.join('/');
+        if (dupQ[dk]) continue;
+        dupQ[dk] = 1;
+      }
+      tries[bk] = (tries[bk] || 0) + 1;
+      if (tries[bk] > QUIZ_TRIES) continue;
+      var ob = Q.best[bk];
+      if (!ob || x[0] * ob[1] > ob[0] * x[1] || (x[0] * ob[1] === ob[0] * x[1] && x[1] > ob[1])) Q.best[bk] = x;
+    }
+  }
+  /* דף שלם: שני העמודים (כמו rafCalc_), או דף שיש לו בלוח עמוד א בלבד
+     (מגילה לב.). */
+  Object.keys(K).forEach(function (k) {
+    var o = K[k], sp = o.mas === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
+    var one = !!(sp.wk[o.base + '.'] && !sp.wk[o.base + ':']);
+    o.whole = !!((o.a && o.b) || (o.a && one));
+    o.at = o.whole ? Math.max(o.a || 0, o.b || 0) || 1 : 0;
+    o.min = rafTmSum_(TM[k]);
+    o.ok = o.whole && (rafTmOk_(TM[k]) || !!(o.sa && o.sb && (quizPass_(quizDaf_(Q, o.id, o.mas, o.base)) ||
+                                                              quizHalves_(Q, o.id, o.mas, o.base))));
+  });
+  return K;
+}
+/* לכל מזהה (של `canon`): e — המועד הראשון של לימוד שעומד בכלל (או הענקה),
+   c — הראשון מאז t0, m — הכי הרבה דקות שנמדדו על דף שהושלם (-1: לא נמדד),
+   g — מועד ההענקה הראשונה של אבא (0: אין). */
+function chReal_(U, canon, t0) {
+  var R = {}, get = function (id) { return R[id] = R[id] || { e: 0, c: 0, m: -1, g: 0, gc: 0 }; };
+  var K = lrnKeys_(U.test, canon);
+  Object.keys(K).forEach(function (k) {
+    var o = K[k];
+    if (!o.whole) return;
+    var r = get(o.id);
+    if (o.min > r.m) r.m = o.min;
+    if (!o.ok) return;
+    if (!r.e || o.at < r.e) r.e = o.at;
+    if (o.at >= t0 && (!r.c || o.at < r.c)) r.c = o.at;
+  });
+  if (U.test) return R;
+  var sh = sheet_('זוגות');
+  if (!sh || sh.getLastRow() < 2) return R;
+  var P = rafPpl_(), kids = pairKids_(P.ppl), v = sh.getDataRange().getDisplayValues(), ix = {};
+  for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+  var ms = pairMs_(sh, v);
+  for (var i = 1; i < v.length; i++) {
+    if (!c(v[i], 'מזהה') || !rafKey_(c(v[i], 'מסלול'))) continue;
+    if (c(v[i], 'דיווח') !== 'ההורה' && c(v[i], 'אושר') !== 'כן') continue;
+    var W = pairWho_(P, kids, c, v[i]), id = W ? canon(W.kid) : '';
+    if (!id) continue;
+    var r = get(id), at = ms[i] > 0 ? ms[i] : 1;
+    if (!r.g || at < r.g) r.g = at;
+    if (at >= t0 && (!r.gc || at < r.gc)) r.gc = at;
+    if (!r.e || at < r.e) r.e = at;
+    if (at >= t0 && (!r.c || at < r.c)) r.c = at;
+  }
+  return R;
+}
+/* כמה זמן לוקח ללמוד דף (?ltime=1, ניהול). כל דף שהושלם (שני העמודים)
+   ושהזמן שלו נמדד — לאדם·מסלול·דף, כמו בהגרלה. ממוצע בדקות, וכמה לימודים. */
+function lrnTime_() {
+  var P = rafPpl_();
+  var canon = function (x) { var a = P.alias[x] || x; return a ? P.target[a] || a : ''; };
+  var K = lrnKeys_(false, canon), n = 0, s = 0;
+  Object.keys(K).forEach(function (k) {
+    var o = K[k];
+    if (!o.whole || !(o.min > 0)) return;
+    n++;
+    s += o.min;
+  });
+  return { status: 'ok', n: n, avg: n ? Math.round(s / n * 10) / 10 : null };
+}
+
+/* ============================================================
    הסנכרון — האמת אחת, מהגיליון. רץ תחת נעילת הסקריפט.
    ============================================================
    מחזיר את המודל: אנשים שבאתגר (מזמינים וחברים), הקבוצות, הספים,
@@ -11006,6 +11141,18 @@ function chSync_(U) {
       if (!E[lid] || (ms || 1) < E[lid]) E[lid] = ms || 1;
     }
   }
+
+  /* **"למד באמת"** (8.99.365, chReal_) — אותו כלל כמו בהגרלה השבועית:
+     עשר דקות על דף שלם, או הענקה של אבא. **המסכים לא משתנים**: התלמיד
+     רואה ✓ על כל השלמה (C/E), והבדיקה השקטה קובעת רק מי במועמדים בהגרלה
+     (chCands_) ומה הבעלים רואה. הענקה של אבא — גם ✓ שנראה. */
+  var RL = chReal_(U, function (x) { var c0 = canon(x); return P[c0] && !P[c0].par ? c0 : ''; }, K.t0);
+  Object.keys(RL).forEach(function (id) {
+    var g = RL[id];
+    if (!g.g) return;
+    if (!E[id] || g.g < E[id]) E[id] = g.g;
+    if (g.gc && (!C[id] || g.gc < C[id])) C[id] = g.gc;
+  });
 
   /* החברים — מי שנרשם עם קישור של מזמין, אחרי הפתיחה. */
   var F = {}, times = [];
@@ -11168,10 +11315,13 @@ function chSync_(U) {
   var keep = {};
   Object.keys(F).forEach(function (by) { keep[by] = 1; F[by].forEach(function (f) { keep[f] = 1; }); });
   Object.keys(keep).forEach(function (id) {
-    var p = P[id];
+    var p = P[id], rl = RL[id] || {};
+    /* vc/ve — "למד באמת" מאז הפתיחה / אי פעם (חבר חדש / מזמין וותיק);
+       mn — הכי הרבה דקות שנמדדו על דף שלם (-1: לא נמדד). ניהול בלבד. */
     out.ppl[id] = { f: p.first, l: p.last, i: p.inst, n: p.instName, by: p.inv || '', at: p.at || 0,
                     ob: p.ob || '', c: tm(id), e: E[id] || 0, q: Math.round((Q[id] || 0) * 100) / 100,
-                    k: Object.keys(L[id] || {}).length, fr: F[id] || [] };
+                    k: Object.keys(L[id] || {}).length, fr: F[id] || [],
+                    vc: rl.c ? 1 : 0, ve: rl.e ? 1 : 0, mn: rl.m >= 0 ? Math.round(rl.m) : -1 };
     p.ids.forEach(function (x) { if (x !== id) out.al[x] = id; });
     Object.keys(target).forEach(function (x) { if (target[x] === id && x !== id) out.al[x] = id; });
   });
@@ -11240,10 +11390,22 @@ function chEnded_(M) {
   });
 }
 /* המועמדים להגרלה על סף: התמונה הקפואה, בלי שזכו, נפסלו או נבחרו. */
+/* **רק שולחן שכל הארבעה בו למדו באמת** (8.99.365, chReal_): עשר דקות על דף
+   שלם או הענקה של אבא. השולחן נשאר "הושלם" ובתמונה הקפואה — התלמיד רואה
+   שהוא בהגרלה — אבל אינו יכול לעלות בה. */
+function chOkRole_(M, id, ob) {
+  var p = M.ppl[id];
+  if (!p) return false;
+  var v = ob ? p.ve : p.vc;
+  return v !== 0;
+}
+function chGrpReal_(M, g) {
+  return chOkRole_(M, g.by, true) && g.f.every(function (f) { return chOkRole_(M, f, !!(M.ppl[f] || {}).ob); });
+}
 function chCands_(M, m) {
-  var st = {};
-  M.grp.forEach(function (g) { st[g.id] = g.st; });
-  return m.el.filter(function (id) { return st[id] === CH_G_.done; });
+  var st = {}, gs = {};
+  M.grp.forEach(function (g) { st[g.id] = g.st; gs[g.id] = g; });
+  return m.el.filter(function (id) { return st[id] === CH_G_.done && chGrpReal_(M, gs[id]); });
 }
 /* מה שהציבור רואה — מספרים בלבד. */
 function chPub_(M) {
@@ -11570,10 +11732,13 @@ function chAdm_(M, U) {
   o.alert = !!(M.auto && M.on && M.F && M.n >= M.step * (M.F - man + rx) - M.step && M.last !== M.F && !chEnded_(M));
   o.exp = M.exp;
   /* `by` — המזמין: גם לימוד מלפני הפתיחה נחשב לו (`e`). */
+  /* `v` — למד באמת (chOkRole_): 1 / 0. `mn` — הכי הרבה דקות על דף שלם.
+     `o` — ותיק. מי שרואה ✓ (c) ו-v=0 — למד מתחת לעשר דקות. */
   var ppl = M.ppl, who = function (id, by) {
-    var p = ppl[id] || {};
+    var p = ppl[id] || {}, old = !!(by || p.ob);
     return { id: id, f: p.f || '', l: p.l || '', i: p.i || '', n: p.n || '', at: p.at || 0,
-             c: p.c || (by ? p.e || 0 : 0) };
+             c: p.c || (by ? p.e || 0 : 0), v: chOkRole_(M, id, old) ? 1 : 0,
+             mn: p.mn == null ? -1 : p.mn, o: p.ob && !by ? 1 : 0 };
   };
   var cnt = { done: 0, wait: 0, won: 0, sel: 0, out: 0, prog: 0 };
   M.grp.forEach(function (g) {
@@ -11599,6 +11764,26 @@ function chAdm_(M, U) {
     return { id: g.id, st: g.st, lock: g.lock, done: g.done, note: g.note, by: who(g.by, 1),
              f: g.f.map(function (f) { return who(f); }) };
   };
+  /* **השולחנות** (8.99.365) — לכל מזמין: השולחנות שננעלו (עם המצב שלהם)
+     והשולחנות הפתוחים (M.tbl). `low` — כמה משתתפים שונים רואים ✓ אבל לא
+     למדו באמת (מתחת לעשר דקות, בלי הענקה). */
+  var low = {};
+  var seat = function (id, by) {
+    var w = who(id, by);
+    if (w.c && !w.v) low[id] = 1;
+    return w;
+  };
+  o.grp = [];
+  M.grp.forEach(function (g) {
+    o.grp.push({ id: g.id, st: g.st, lock: g.lock, done: g.done, note: g.note, real: chGrpReal_(M, g) ? 1 : 0,
+                 by: seat(g.by, 1), f: g.f.map(function (f) { return seat(f); }) });
+  });
+  Object.keys(M.tbl || {}).forEach(function (by) {
+    (M.tbl[by] || []).forEach(function (t) {
+      o.grp.push({ id: '', st: 'open', by: seat(by, 1), f: t.map(function (f) { return seat(f); }) });
+    });
+  });
+  o.low = Object.keys(low).length;
   o.ms = M.ms.map(function (m) {
     return { k: m.k, th: m.th, man: m.man, st: m.st, open: m.open, close: m.close, frz: m.frz, n: m.el.length,
              cands: chCands_(M, m).length, date: m.date, sel: m.sel ? gfull(m.sel) : null, selAt: m.selAt,
