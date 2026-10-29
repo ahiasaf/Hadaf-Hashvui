@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 132;
+var SCRIPT_VERSION = 133;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3520,7 +3520,7 @@ function canonJoinCols_(cols, t0) {
      ההרשמה האמיתית נבלעת בה, וכל מה שנספר לו בעמדה נשאר שלו.
      שורות העמדה הן של העולם האמיתי בלבד. */
   if (r < 1 && get('תפקיד') !== 'הורה' && wld === 'R') {
-    r = rowOfAmda_(t, get('קוד ישיבה'), get('שם'), get('משפחה'), get('שכבה'));
+    r = rowOfAmda_(t, get('קוד ישיבה'), get('שם'), get('משפחה'), get('שכבה'), get('כיתה'));
   }
   if (r < 1) return cols;
   var al = t.c(t.rows[r], ALIAS_COL);
@@ -3532,7 +3532,7 @@ function canonJoinCols_(cols, t0) {
 /* שורה שהעמדה יצרה (מזהה Am…) לאותו תלמיד: אותו מוסד, אותו שם
    (בכל סדר — בשורה שלא פוצלה השם המלא יושב כולו ב"שם"), ושכבה
    שאינה סותרת. רק אחת — שתיים זה לא בטוח, ואז לא נבלעים. */
-function rowOfAmda_(t, inst, first, last, grade) {
+function rowOfAmda_(t, inst, first, last, grade, cls) {
   inst = String(inst || '').trim();
   var f = nk_(first), l = nk_(last), g = amdaNorm_(grade).replace(/["'׳״]/g, '');
   if (!inst || !f || !l) return -1;
@@ -3546,6 +3546,7 @@ function rowOfAmda_(t, inst, first, last, grade) {
     if (!fit) continue;
     var sg = amdaNorm_(t.c(row, 'שכבה')).replace(/["'׳״]/g, '');
     if (g && sg && g !== sg) continue;
+    if (!cOk_(t.c(row, 'כיתה'), cls)) continue;
     best[fit][rid] = r;
   }
   var lv = Object.keys(best[2]).length ? best[2] : best[1], ks = Object.keys(lv);
@@ -3824,6 +3825,18 @@ function gOk_(a, b) {
   a = amdaNorm_(a); b = amdaNorm_(b);
   return !a || !b || a === b;
 }
+/* כיתה שאינה סותרת (8.99.361, החלטת אחיאסף): אחת ריקה, או אותה כיתה.
+   מספר הכיתה בתוך השכבה, כמו ב-twinPrefer_/amdaId_ — "3", "ז׳3", "ז 3"
+   הם אותה כיתה. בלי ספרה — הנוסח בלי גרש, גרשיים ורווחים. כיתות שונות
+   בשני הצדדים — לא מתאימים אוטומטית (שיוך, איחוד, הרשמה). ביד — כן. */
+function clsK_(c) {
+  var s = String(c || '').replace(/["'׳״`\s]/g, '');
+  return s.replace(/\D/g, '') || s;
+}
+function cOk_(a, b) {
+  a = clsK_(a); b = clsK_(b);
+  return !a || !b || a === b;
+}
 function twinK_(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
 /* כמה מועמדים — הכיתה מכריעה, אם היא מכריעה. רשום גובר על "לא התקין". */
 function twinPrefer_(c, cls) {
@@ -3868,7 +3881,7 @@ function twinPpl_(t) {
 /* שורת נוכחות (w: inst, g, c, n) → מזהי המועמדים. אחד — משויך; כמה —
    לא הוכרע; אף אחד — שורת Am… (amdaSync_). */
 function amdaCand_(TP, w, getDir) {
-  var list = (TP.byInst[w.inst] || []).filter(function (p) { return gOk_(p.g, w.g); });
+  var list = (TP.byInst[w.inst] || []).filter(function (p) { return gOk_(p.g, w.g) && cOk_(p.c, w.c); });
   var c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 2; });
   if (!c.length) c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 1; });
   c = twinPrefer_(c, w.c);
@@ -3878,14 +3891,14 @@ function amdaCand_(TP, w, getDir) {
   var ph = hit ? phKey_(hit.p) : '', At = nmToks_(w.n);
   if (!ph) return [];
   c = (TP.byPh[ph] || []).filter(function (p) {
-    return !p.att && gOk_(p.g, w.g) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
+    return !p.att && gOk_(p.g, w.g) && cOk_(p.c, w.c) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
   });
   c = twinPrefer_(c, w.c);
   return c.length === 1 ? [c[0].id] : [];
 }
 /* תלמיד מהנוכחות (a.att) → התלמיד הרשום שהוא בוודאות, או null. */
 function twinSure_(TP, a, no) {
-  var ok = function (p) { return !p.att && p.id !== a.id && gOk_(p.g, a.g) && !no[twinK_(a.id, p.id)]; };
+  var ok = function (p) { return !p.att && p.id !== a.id && gOk_(p.g, a.g) && cOk_(p.c, a.c) && !no[twinK_(a.id, p.id)]; };
   var list = (TP.byInst[a.inst] || []).filter(ok);
   var c = list.filter(function (p) { return nmFit_(a.full, p.F, p.L) === 2; });
   if (!c.length) c = list.filter(function (p) { return nmFit_(a.full, p.F, p.L) === 1; });
