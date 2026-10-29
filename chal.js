@@ -45,13 +45,7 @@
   /* גם בניסוי החי (testmode.js, ההרצה של הבעלים) — אותו נוסח בדיוק,
      עם הפרס: רואים מה שהתלמיד יראה (8.99.350). */
   function U(k) { var u = window.UI || {}; return u[k] || ''; }
-  /* כלל ההרכב של מוסד (8.99.357, `rule` מהשרת): 1 — לפחות 2 חדשים (כמו
-     עד היום) · 2 — לפחות חדש אחד · 3 — בלי דרישה. הנוסח — `<מפתח>2`/`<מפתח>3`
-     כשיש, אחרת הרגיל. ותיק ממוסד אחר מזה של המזמין — 1 (שולחן מעורב). */
-  function ruleOf(d, inst) { var r = (d && d.rule) || {}; return (inst && r[inst]) || 1; }
-  function myRule(d) { var m = me(); return ruleOf(d || cached(), m && m.inst); }
-  function refRule(d) { var m = me(); return d && d.refI && m && m.inst === d.refI ? ruleOf(d, d.refI) : 1; }
-  function UR(k, n) { return n > 1 && U(k + n) ? U(k + n) : U(k); }
+  /* 8.99.367: אין כלל הרכב לפי מוסד — מזמינים את מי שרוצים, נוסח אחד לכולם. */
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -314,7 +308,7 @@
     return '<div class="ch-how"><div><i>' + IC.plus + '</i>' + para(U('chHow1')) + '</div><span>←</span>' +
       '<div><i>' + IC.book + '</i>' + para(U('chHow2')) + '</div><span>←</span>' +
       '<div><i>' + IC.ticket + '</i>' + para(U('chHow3')) + '</div></div>' +
-      '<p class="ch-rule">' + esc(UR('chRule', myRule())) + '</p>';
+      '<p class="ch-rule">' + esc(U('chRule')) + '</p>';
   }
   function weekUrl() {
     try {
@@ -344,7 +338,40 @@
     return location.origin + dir + (/\.html$/.test(path) ? 'chaver.html' : 'chaver');
   }
   function linkOf(c) { return base() + '?ref=' + c; }
-  function waOf(c) { return 'https://wa.me/?text=' + encodeURIComponent(tp(U('chShareMsg'), { url: linkOf(c) })); }
+  function waOf(c, ph) {
+    var n = String(ph || '').replace(/[^0-9]/g, '');
+    if (n.indexOf('0') === 0) n = '972' + n.slice(1);
+    return 'https://wa.me/' + (n.length >= 11 ? n : '') + '?text=' + encodeURIComponent(tp(U('chShareMsg'), { url: linkOf(c) }));
+  }
+  /* **החבר שבחר בהרשמה** (8.99.367, "בחבורה"): הכפתור הראשי בבית הוא להזמין
+     אותו — בשמו, לטלפון שמסר (אם מסר). אותו קישור הזמנה עם הקוד: חבר חדש
+     נרשם דרכו ומשויך למזמין; חבר רשום מקבל הצעה לשבת ומחליט בעצמו
+     (?challenge=sit). אין כאן בדיקה אם הוא רשום — אין התאמת זהויות. אחרי
+     לחיצה אחת — הכרטיס הרגיל (`df:chFrSent`). */
+  function frOf() {
+    var m = me();
+    if (!m || m.way !== 'chav' || m.rel !== 'friend' || !m.dadFirst || LGet('chFrSent', '')) return null;
+    return { n: m.dadFirst, p: m.dadPhone || '' };
+  }
+  function frHtml(f) {
+    var c = LGet('chCode', ''), t = esc(tp(U('chFrBtn'), { name: f.n }));
+    return c ? '<a class="ch-btn wa ch-cta" id="ch-fr" target="_blank" rel="noopener" href="' + esc(waOf(c, f.p)) + '">' + IC.wa(22) + t + '</a>'
+             : '<button class="ch-btn wa ch-cta" id="ch-fr" type="button">' + IC.wa(22) + t + '</button>';
+  }
+  function frWire(box, d, f) {
+    var b = document.getElementById('ch-fr');
+    if (!b) return;
+    b.onclick = function () {
+      LSet('chFrSent', '1');
+      if (b.tagName === 'A') { setTimeout(function () { cardDraw(box, d); }, 300); return; }
+      b.disabled = true;
+      api('ref', { id: ids().join(',') }).then(function (r) {
+        if (r && r.status === 'ok' && r.code) { LSet('chCode', r.code); location.href = waOf(r.code, f.p); return; }
+        try { localStorage.removeItem('df:chFrSent'); } catch (e) {}
+        b.disabled = false;
+      }, function () { try { localStorage.removeItem('df:chFrSent'); } catch (e) {} b.disabled = false; });
+    };
+  }
   function shareHtml() {
     return '<div id="ch-inv"><a class="ch-btn wa ch-cta" id="ch-wa" target="_blank" rel="noopener" aria-disabled="true">' +
       IC.wa(22) + esc(U('chWa')) + '</a>' +
@@ -383,8 +410,8 @@
     if (!d) return '';
     var by = { by: d.refBy || U('chFriend') };
     if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chSitOk'), by)) + '</p>';
-    var k = { bad: 'chRefBad', self: 'chRefSelf', other: 'chRefOther', full: 'chOldFull' }[d.ref];
-    return k ? '<p class="ch-note">' + esc(tp(k === 'chOldFull' ? UR(k, refRule(d)) : U(k), by)) + '</p>' : '';
+    var k = { bad: 'chRefBad', self: 'chRefSelf', other: 'chRefOther' }[d.ref];
+    return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
   }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת. "הצטרפת" — רק מתשובת
      השרת (?challenge=sit), לא מהלחיצה. */
@@ -392,7 +419,7 @@
     var by = { by: d.refBy || U('chFriend') };
     return '<div class="ch-tcard ch-home"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(U('chOldH')) + '</h2>' +
-      '<p class="ch-lead">' + esc(tp(UR('chOldP', refRule(d)), by)) + '</p>' +
+      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' +
       '<button class="ch-btn ch-cta" id="ch-sit" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
       '<p class="ch-sm" id="ch-sit-m" role="status"></p>' +
       '<a class="ch-more" id="ch-own" href="chaver.html">' + esc(U('chOwnBtn')) + '</a>';
@@ -503,7 +530,7 @@
       sync();
       return;
     }
-    var v = homeView(views(m, d)), note = noteHtml(d);
+    var v = homeView(views(m, d)), note = noteHtml(d), fr = d.ended ? null : frOf();
     if (!v) {
       /* עוד אין שולחן. הקוד כבר במכשיר — הכפתור פותח וואטסאפ ישר;
          אחרת לעמוד האתגר, שם הקוד נוצר. בבית לא יוצרים קוד: זו
@@ -512,23 +539,26 @@
       h = '<div class="ch-tcard ch-home">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
         '<h2 class="ch-hh">' + esc(U('chCardH')) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
         tableHtml(startSeats(), midOf('')) + howHtml() +
-        (d.ended ? '' : c0
+        (d.ended ? '' : fr ? frHtml(fr) : c0
           ? '<a class="ch-btn wa ch-cta" target="_blank" rel="noopener" href="' + esc(waOf(c0)) + '">' + IC.wa(22) + esc(U('chGo')) + '</a>'
           : '<a class="ch-btn wa ch-cta" href="chaver.html">' + IC.wa(22) + esc(U('chGo')) + '</a>') +
         '<a class="ch-more" href="chaver.html">' + esc(U('chMoreLink')) + '</a>';
     } else {
       var fill = v.s === 'open' && v.mine && !d.ended;
+      if (!fill) fr = null;
       /* הצעד היחיד שמזיז אותי — ללמוד: חבר שעוד לא למד, או מזמין
          שהשולחן שלו מחכה רק לו. */
       var go = !d.ended && m && !m.l && (v.s === 'open' && !v.mine || v.s === 'me' && v.mine);
       h = '<div class="ch-tcard ch-home ' + cls(v.s) + '">' + yayHtml(m) + note +
         '<span class="ch-chip">' + esc(U('chCardH')) + '</span><h2 class="ch-hh sm">' + esc(v.t) + '</h2>' +
         tableHtml(v.seats, midOf(v.s), true) + '<p class="ch-tline">' + esc(v.line) + '</p>' +
-        (go ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' +
+        (fr ? frHtml(fr) + '<a class="ch-more" href="chaver.html">' + esc(U('chOpenBtn')) + '</a>' :
+         go ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' +
               '<a class="ch-more" href="chaver.html">' + esc(U('chOpenBtn')) + '</a>'
             : '<a class="ch-btn' + (fill ? ' ch-cta' : '') + '" href="chaver.html">' + esc(fill ? U('chFillBtn') : U('chOpenBtn')) + '</a>');
     }
     box.innerHTML = h + countHtml(d) + '</div>';
+    if (fr) frWire(box, d, fr);
     sync();
   }
   function card(box) {
@@ -629,7 +659,7 @@
     }
     h += countHtml(d);
     /* "נשאר בהגרלות הבאות" (chStay) ירד — אין הבטחה להגרלות נוספות (8.99.357). */
-    h += '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(UR('chTerms', myRule(d))) + '</p></details>';
+    h += '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(U('chTerms')) + '</p></details>';
     box.innerHTML = h;
     if (!d.ended) wireShare();
   }

@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.366';
+var APP_VERSION = '8.99.367';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16879,25 +16879,6 @@ function dmCard(d, dis) {
   }
   return h + dmResetHtml(dis) + '</div>';
 }
-/* כלל ההרכב לכל מוסד (8.99.357, chRuleOf_ בשרת): כמה חברים רשומים מותרים
-   בשולחן. השינוי חל על מי שיושב מכאן והלאה; מה שכבר שובץ לא זז. שולחן עם
-   חברים ממוסדות שונים — הכלל הקיים (מוחזק). */
-function chaRuleCard(d, dis) {
-  var R = d.rule || {};
-  return '<div class="adm-card"><h4>' + esc(UI.chaRuleH) + '</h4><p class="h">' + esc(UI.chaRuleP) + '</p>' +
-    INSTITUTIONS.map(function (i) {
-      var v = R[i.code] || 1;
-      return '<div class="fld"><label class="label" for="cha-r-' + esc(i.code) + '">' + esc(i.name) + '</label>' +
-        '<select id="cha-r-' + esc(i.code) + '" style="width:100%"' + dis + ' onchange="chaRule(\'' + esc(i.code) + '\',this)">' +
-        [1, 2, 3].map(function (n) {
-          return '<option value="' + n + '"' + (n === v ? ' selected' : '') + '>' + esc(UI['chaRule' + n]) + '</option>';
-        }).join('') + '</select></div>';
-    }).join('') + '</div>';
-}
-function chaRule(code, sel) {
-  if (!confirm(UI.chaSure)) { chaPaint(); return; }
-  chaAct('rule', { inst: code, v: sel.value }, false);
-}
 function chaPaint() {
   var el = document.getElementById('cha');
   if (!el) return;
@@ -16929,7 +16910,6 @@ function chaPaint() {
       'step:chaVal(\'cha-step\'),winMin:chaVal(\'cha-win\'),terms:document.getElementById(\'cha-terms\').checked?\'1\':\'\',' +
       'exp:(document.querySelector(\'input[name=cha-exp]:checked\')||{}).value||\'מוזמנים\',me:chaMe()})">' +
       esc(UI.chaGo) + '</button></div>';
-    h += chaRuleCard(d, dis);
     if (CHA.test) h += '<div class="adm-card"><button class="btn g" type="button"' + dis + ' onclick="chaAct(\'tclear\')">' + esc(UI.chaClear) + '</button></div>';
     el.innerHTML = h;
     return;
@@ -16949,7 +16929,6 @@ function chaPaint() {
     '<p class="h">' + esc(quiet ? UI.chaExpQP : UI.chaExpAllP) + '</p>' +
     '<button class="btn ' + (quiet ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaExp(\'' + (quiet ? 'כולם' : 'מוזמנים') + '\')">' +
       esc(quiet ? UI.chaExpGoAll : UI.chaExpGoQ) + '</button></div>';
-  h += chaRuleCard(d, dis);
   /* פתיחת הגרלה ידנית — כשאין הגרלה פתוחה ויש ארוחה במלאי. */
   var busyMs = (d.ms || []).some(function (m) { return ['חלון פתוח', 'ממתין לקבוצה ראשונה', 'ממתין להגרלה', 'ממתין לאישור'].indexOf(m.st) >= 0; });
   if (!busyMs && d.left > 0 && !d.ended) {

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 136;
+var SCRIPT_VERSION = 137;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10925,6 +10925,9 @@ var CH_EXP_ALL = 'כולם', CH_EXP_Q = 'מוזמנים';
    הכלל נקבע לכל ותיק ברגע שישב (`כלל` ב"אתגר-ותיקים"), ולכן שינוי הכלל
    אינו מזיז אף אחד: הוא חל על מי שיושב מכאן והלאה. */
 var CH_RULE_DEF_ = { givat: 3 };
+/* 8.99.367: אין עוד כלל הרכב — `כלל` 0 בשורת ותיק = ללא הגבלה. הכלל לפי
+   מוסד נשאר רק לותיקים שכבר ישבו לפניו (שלא יזוזו). */
+var CH_LIM_ANY_ = '0';
 function chRuleOf_(S) {
   var o = null;
   try { o = S['כלל הרכב'] ? JSON.parse(S['כלל הרכב']) : null; } catch (e) { o = null; }
@@ -10933,7 +10936,6 @@ function chRuleOf_(S) {
   Object.keys(o).forEach(function (k) { var v = parseInt(o[k], 10); if (/^[a-z]{2,20}$/.test(k) && v >= 1 && v <= 3) out[k] = v; });
   return out;
 }
-function chLim_(rule, inst) { return (rule && rule[inst]) || 1; }
 
 /* ============================================================
    "למד באמת" — אותו כלל כמו בהגרלה השבועית (8.99.365).
@@ -11203,8 +11205,12 @@ function chSync_(U) {
      הלימוד שנספר לו: כל השלמה של דף, גם מלפני שהצטרף (כמו המזמין —
      "כל אחד מכם לומד דף!", בלי חלון זמן); המועד — המאוחר מבין ההשלמה
      וההצטרפות. */
-  /* `owait` — כמה ותיקים ממתינים לכל מזמין; המקום — לפי כלל המוסד
-     (chLim_) כשהותיק והמזמין מאותו מוסד, אחרת 1 (8.99.357). */
+  /* **מזמינים את מי שרוצים** (8.99.367, החלטת אחיאסף): אין דרישת חדשים
+     ואין תקרת ותיקים — בכל מוסד, גם חדש, וגם בשולחן מעורב. ותיק שמכריעים
+     עכשיו — תמיד "יושב", עם `כלל` = 0 (ללא הגבלה). ותיק שכבר ישב שומר את
+     הכלל שנשמר לו (1–3), ולכן השולחנות הפתוחים מחושבים בדיוק כמו קודם —
+     איש לא זז. שורת "מלא" ישנה נשארת כמו שהיא (לא יושבת), ומי שבה יכול
+     לבקש שוב בקישור (chRefState_ מחזיר old). */
   var O = chTab_(CH_OLD_, CH_OLD_COLS_), OB = {}, OC = {}, OA = {}, OL = {}, owait = {};
   O.rows.filter(mine).forEach(function (o) {
     if (o['מצב'] === CH_O_.full) return;
@@ -11212,15 +11218,13 @@ function chSync_(U) {
     var p = P[id], b = P[by];
     if (!p || p.par || p.inv || OB[id] || !b || b.par || by === id || b.inv === id || !(at >= K.t0)) return;
     if (!o['מצב']) {
-      var lim = p.inst && p.inst === b.inst ? chLim_(K.rule, b.inst) : 1;
-      o['מצב'] = (owait[by] || 0) >= lim ? CH_O_.full : CH_O_.ok;
-      o['כלל'] = String(lim);
+      o['מצב'] = CH_O_.ok;
+      o['כלל'] = CH_LIM_ANY_;
       chPut_(O, o);
-      if (o['מצב'] === CH_O_.full) return;
     }
     OB[id] = by;
     OA[id] = at;
-    OL[id] = Math.max(1, Math.min(3, parseInt(o['כלל'], 10) || 1));
+    OL[id] = String(o['כלל']) === CH_LIM_ANY_ ? 9 : Math.max(1, Math.min(3, parseInt(o['כלל'], 10) || 1));
     p.ob = by;
     if (!used[id]) owait[by] = (owait[by] || 0) + 1;
     if (E[id]) OC[id] = Math.max(E[id], at);
@@ -11247,6 +11251,8 @@ function chSync_(U) {
     var fits = function (t, x) {
       var all = t.concat([x]), v = all.filter(function (y) { return y.o; });
       if (!v.length) return true;
+      /* ותיק שישב מ-8.99.367 (`כלל` 0) — בלי הגבלה, גם בשולחן מעורב. */
+      if (v.some(function (y) { return y.lim >= 9; })) return true;
       var same = all.every(function (y) { return y.i && y.i === bi; });
       return v.length <= (same ? Math.max.apply(null, v.map(function (y) { return y.lim; })) : 1);
     };
@@ -11624,7 +11630,7 @@ function chLand_(P) {
 /* מי שהגיע מקישור ופותח את המסך:
      bad   — אין קישור כזה          self — הקישור שלו עצמו
      ok    — יושב אצל בעל הקישור    other — כבר אצל מזמין אחר
-     old   — רשום, ויש מקום לותיק   full — רשום, והמקום לותיק תפוס
+     old   — רשום, ומוזמן לשבת (מ-8.99.367 אין full — אין תקרה)
      wait  — עוד לא רשום (ההרשמה בדרך) */
 function chRefState_(M, U, code, mine, me) {
   var o = chRefMap_().m[code];
@@ -11640,15 +11646,8 @@ function chRefState_(M, U, code, mine, me) {
   var rid = t.c(t.rows[r], 'מזהה');
   if (t.c(t.rows[r], 'תפקיד') === 'הורה') return 'other';
   if (M.ppl[by] && M.ppl[by].by && (M.ppl[by].by === me || M.ppl[by].by === rid)) return 'other';
-  var ci = t.c(t.rows[r], 'קוד ישיבה'), bInst = (M.ppl[by] || {}).i || '';
-  if (((M.ow || {})[by] || 0) >= (ci && ci === bInst ? chLim_(M.rule, bInst) : 1)) return 'full';
-  var full = false;
-  chTab_(CH_OLD_, CH_OLD_COLS_).rows.filter(chMine_(U)).forEach(function (x) {
-    if (x['מצב'] !== CH_O_.full || chCanon_(M, x['מזמין']) !== by) return;
-    var xi = x['מזהה'];
-    if (xi === rid || mine.indexOf(xi) >= 0 || chCanon_(M, xi) === me) full = true;
-  });
-  return full ? 'full' : 'old';
+  /* 8.99.367: אין תקרה לחברים רשומים — תמיד אפשר לשבת (בשולחן הפנוי הבא). */
+  return 'old';
 }
 /* קוד הישיבה של מזהה מ"לומדים" (מי שעוד אין לו מוזמנים — אינו במודל). */
 function chInstOf_(id) {
