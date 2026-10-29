@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 135;
+var SCRIPT_VERSION = 136;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10963,7 +10963,10 @@ function lrnKeys_(test, canon) {
       var d = c(rw, 'דף').replace(/["'׳״\s]/g, ''), base = d.replace(/[.:]$/, '');
       if (!id || !mas || !tr || !base) continue;
       var k = id + '|' + tr + '|' + base, o = K[k];
-      if (!o) o = K[k] = { id: id, tr: tr, mas: mas, base: base, a: 0, b: 0, sa: 0, sb: 0 };
+      if (!o) o = K[k] = { id: id, tr: tr, mas: mas, base: base, a: 0, b: 0, sa: 0, sb: 0, att: 0 };
+      /* שורה שהעמדה כתבה (`מפתח`) — נוכחות בדף בשיעור: הדף כולו, בלי בדיקת
+         זמן (כמו A.ok ב-rafCalc_; 8.99.366, החלטת אחיאסף). */
+      if (c(rw, 'מפתח')) o.att = 1;
       var ms = +c(rw, RAF_MS_COL) || 0, sat = rafSatWin_(ms);
       if (!/:$/.test(d)) { o.a = o.a ? Math.min(o.a, ms || 1) : ms || 1; if (sat) o.sa = 1; }
       if (!/\.$/.test(d)) { o.b = o.b ? Math.min(o.b, ms || 1) : ms || 1; if (sat) o.sb = 1; }
@@ -11007,10 +11010,10 @@ function lrnKeys_(test, canon) {
   Object.keys(K).forEach(function (k) {
     var o = K[k], sp = o.mas === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
     var one = !!(sp.wk[o.base + '.'] && !sp.wk[o.base + ':']);
-    o.whole = !!((o.a && o.b) || (o.a && one));
+    o.whole = !!((o.a && o.b) || (o.a && one) || o.att);
     o.at = o.whole ? Math.max(o.a || 0, o.b || 0) || 1 : 0;
     o.min = rafTmSum_(TM[k]);
-    o.ok = o.whole && (rafTmOk_(TM[k]) || !!(o.sa && o.sb && (quizPass_(quizDaf_(Q, o.id, o.mas, o.base)) ||
+    o.ok = o.whole && (o.att || rafTmOk_(TM[k]) || !!(o.sa && o.sb && (quizPass_(quizDaf_(Q, o.id, o.mas, o.base)) ||
                                                               quizHalves_(Q, o.id, o.mas, o.base))));
   });
   return K;
@@ -11051,18 +11054,36 @@ function chReal_(U, canon, t0) {
   return R;
 }
 /* כמה זמן לוקח ללמוד דף (?ltime=1, ניהול). כל דף שהושלם (שני העמודים)
-   ושהזמן שלו נמדד — לאדם·מסלול·דף, כמו בהגרלה. ממוצע בדקות, וכמה לימודים. */
+   ושהזמן שלו נמדד — לאדם·מסלול·דף, כמו בהגרלה. ממוצע וחציון בדקות, וכמה
+   לימודים; ו-`by` — אותו דבר לכל מסכת·דף, לפי סדר הלוח (8.99.366). */
+function lrnStat_(L) {
+  if (!L.length) return { n: 0, avg: null, med: null };
+  L.sort(function (a, b) { return a - b; });
+  var s = 0, h = Math.floor(L.length / 2), r = function (x) { return Math.round(x * 10) / 10; };
+  L.forEach(function (x) { s += x; });
+  return { n: L.length, avg: r(s / L.length), med: r(L.length % 2 ? L[h] : (L[h - 1] + L[h]) / 2) };
+}
 function lrnTime_() {
   var P = rafPpl_();
   var canon = function (x) { var a = P.alias[x] || x; return a ? P.target[a] || a : ''; };
-  var K = lrnKeys_(false, canon), n = 0, s = 0;
+  var K = lrnKeys_(false, canon), all = [], per = {};
   Object.keys(K).forEach(function (k) {
     var o = K[k];
     if (!o.whole || !(o.min > 0)) return;
-    n++;
-    s += o.min;
+    all.push(o.min);
+    (per[o.mas + '|' + o.base] = per[o.mas + '|' + o.base] || []).push(o.min);
   });
-  return { status: 'ok', n: n, avg: n ? Math.round(s / n * 10) / 10 : null };
+  var out = lrnStat_(all), wk = function (mas, d) {
+    var sp = mas === 'taanit' ? SHIFT_TAANIT : SHIFT_MEGILA;
+    return sp.wk[d] || sp.wk[d + '.'] || sp.wk[d + ':'] || 99;
+  };
+  out.status = 'ok';
+  out.by = Object.keys(per).map(function (k) {
+    var pr = k.split('|'), x = lrnStat_(per[k]);
+    x.mas = pr[0]; x.daf = pr[1]; x.w = wk(pr[0], pr[1]);
+    return x;
+  }).sort(function (a, b) { return a.mas < b.mas ? 1 : a.mas > b.mas ? -1 : a.w - b.w; });
+  return out;
 }
 
 /* ============================================================

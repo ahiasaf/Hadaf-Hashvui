@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.365';
+var APP_VERSION = '8.99.366';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16372,13 +16372,25 @@ function ltmLoad() {
     ltmPaint();
   }, function () { LTM.busy = false; LTM.msg = UI.hsaFail; ltmPaint(); });
 }
+/* לפי דף — בלחיצה. */
+function ltmBy(L) {
+  if (!L.length) return '';
+  return '<details style="margin:10px 0"><summary>' + esc(UI.ltByH) + '</summary><div class="plist">' +
+    L.map(function (x) {
+      var t = TrackById(x.mas);
+      return '<div class="prow2"><div style="flex:1"><b>' + esc(fill(UI.ltRowH, { mas: t ? t.masechet : x.mas, daf: x.daf })) +
+        '</b><span>' + esc(fill(UI.ltRow, { avg: x.avg, med: x.med, n: x.n })) + '</span></div></div>';
+    }).join('') + '</div></details>';
+}
 function ltmPaint() {
   var el = document.getElementById('ltm');
   if (!el) return;
   var d = LTM.d;
   el.innerHTML = '<div class="adm-card"><h4>' + esc(UI.moreLtime) + '</h4>' +
     (LTM.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(LTM.msg) + '</div>' : '') +
-    (d ? (d.n ? '<p class="ltm-big">' + esc(fill(UI.ltAvg, { m: d.avg })) + '</p><p class="h">' + esc(fill(UI.ltN, { n: d.n })) + '</p>'
+    (d ? (d.n ? '<p class="ltm-big">' + esc(fill(UI.ltAvg, { m: d.avg })) + '</p>' +
+                (d.med != null ? '<p class="h"><b>' + esc(fill(UI.ltMed, { m: d.med })) + '</b></p>' : '') +
+                '<p class="h">' + esc(fill(UI.ltN, { n: d.n })) + '</p>' + ltmBy(d.by || [])
               : '<p class="h">' + esc(UI.ltNone) + '</p>') : '') +
     '<button class="btn g" type="button"' + (LTM.busy ? ' disabled' : '') + ' onclick="ltmLoad()">' +
     esc(LTM.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
