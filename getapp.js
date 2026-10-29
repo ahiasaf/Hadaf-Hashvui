@@ -81,6 +81,14 @@ var APPX = (function () {
   function samsung() {
     return /SamsungBrowser/.test(navigator.userAgent || '');
   }
+  /* אופרה באנדרואיד — כמו סמסונג: אין "התקנת אפליקציה", אלא
+     "הוסף אל… ← מסך הבית", שיוצר קיצור לכתובת הפתוחה (מדריך משלו
+     ב-guide.js). אופרה מיני ("Opera Mini") — לא כאן. */
+  function opera() {
+    return !isIOS() && /OPR\//.test(navigator.userAgent || '');
+  }
+  /* דפדפן שמוסיף קיצור לכתובת הפתוחה, ולא מתקין — סמסונג ואופרה. */
+  function addPage() { return samsung() || opera(); }
   /* פיירפוקס באנדרואיד — מסלול התקנה משלו במדריך (guide.js). */
   /* **גם לפי המנוע, לא רק לפי המחרוזת.** פיירפוקס במצב "אתר
      למחשב שולחני" מזדהה כלינוקס בלי "Android" — ואז קיבל את מסגרת
@@ -264,7 +272,7 @@ var APPX = (function () {
      אחר (או בכרום, שאחסונו נפרד) אינה מתאימה ואינה מסמנת דבר.
      וההעתקה והמעבר לכרום מורידים אותו בכל מקרה (`cleanHref`). */
   function iconTag() {
-    if (!samsung() || standalone() || !history.replaceState) return;
+    if (!addPage() || standalone() || !history.replaceState) return;
     var t = '';
     try { t = localStorage.getItem('df:sic') || ''; } catch (e) {}
     if (!/^[a-z0-9]{6,16}$/.test(t)) {
@@ -836,7 +844,7 @@ var APPX = (function () {
     update: update, toBrowser: toBrowser, chromeUrl: chromeUrl,
     iconTag: iconTag, iconUntag: iconUntag,
     isIOS: isIOS, iosVer: iosVer, standalone: standalone, inApp: inApp,
-    iosOther: iosOther, samsung: samsung, firefox: firefox, otherBrowser: otherBrowser, edge: edge,
+    iosOther: iosOther, samsung: samsung, opera: opera, addPage: addPage, firefox: firefox, otherBrowser: otherBrowser, edge: edge,
     installed: installed, wasAdded: wasAdded, mark: mark,
     bip: function () { return BIP; },
     onBip: function (f) { ON_BIP.push(f); },

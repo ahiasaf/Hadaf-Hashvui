@@ -138,7 +138,15 @@ var GUIDE_UI = (function () {
     f1:  { src:'guidepics/f1.webp',  w:400, h:170, x:68,  y:82,  r:40 },
     f2:  { src:'guidepics/f2.webp',  w:480, h:237, x:45,  y:201, r:28 },
     f3:  { src:'guidepics/f3.webp',  w:480, h:338, x:435, y:234, r:28 },
-    f4:  { src:'guidepics/f4.webp',  w:480, h:466, x:132, y:420, r:38 }
+    f4:  { src:'guidepics/f4.webp',  w:480, h:466, x:132, y:420, r:38 },
+    /* ---- אופרה באנדרואיד — צילומים אמיתיים ----
+       שלוש הנקודות שליד שורת הכתובת (הכתובת עצמה מכוסה), "הוסף אל…",
+       "מסך הבית", "הוסף" בחלון השם, ו"הוסף" בחלון של הטלפון. */
+    op1: { src:'guidepics/op1.webp', w:400, h:151, x:78,  y:71,  r:44 },
+    op2: { src:'guidepics/op2.webp', w:480, h:460, x:418, y:376, r:36 },
+    op3: { src:'guidepics/op3.webp', w:480, h:340, x:418, y:273, r:36 },
+    op4: { src:'guidepics/op4.webp', w:480, h:358, x:88,  y:293, r:38 },
+    op5: { src:'guidepics/op5.webp', w:480, h:468, x:132, y:420, r:49 }
   };
 
   function pic(p) {
@@ -633,6 +641,10 @@ var GUIDE_UI = (function () {
      ============================================================ */
   var IOS   = [['n1', barNew], ['n2', menuNew]].concat(TAIL);
   var SAM   = [['sm1', samDots], ['sm2', samAdd], ['sm3', samHome], ['sm4', samOk], ['sm5', home]];
+  /* אופרה — כמו סמסונג, קיצור ולא התקנה. עד עכשיו קיבלה את המדריך
+     של כרום ("התקנת אפליקציה"), שאין בתפריט שלה. הציור — רשת ביטחון. */
+  var OPERA = [['op1', droidDots], ['op2', droidMenu], ['op3', droidMenu], ['op4', droidOk],
+               ['op5', droidOk], ['op6', home]];
   /* אדג' — שלושה צעדים במילים בלבד, בלי צילום ובלי ציור. הנוסח
      שלהם ב-JOIN (edge1–3), כמו ברשימה הקיימת ב-join.html. מוצג רק
      במסלול הגלילה (ראו drawTrail). */
@@ -675,7 +687,7 @@ var GUIDE_UI = (function () {
 
   function kinds() {
     return [['ios', 'אייפון'], ['droid', 'אנדרואיד'], ['fx', 'פיירפוקס'], ['sam', 'סמסונג'],
-            ['edge', 'אדג\'']];
+            ['opera', 'אופרה'], ['edge', 'אדג\'']];
   }
 
   /* מסלול סמסונג — רק למי שמבקש (`{ sam: true }`, עמוד ההצטרפות).
@@ -687,9 +699,11 @@ var GUIDE_UI = (function () {
     if (FORCE === 'ios')   return IOS;
     if (FORCE === 'fx')    return FX;
     if (FORCE === 'sam')   return SAM;
+    if (FORCE === 'opera') return OPERA;
     if (FORCE === 'edge')  return EDGE;
     if (APPX.isIOS()) return IOS;
     if (SAM_ON && APPX.samsung && APPX.samsung()) return SAM;
+    if (SAM_ON && APPX.opera && APPX.opera()) return OPERA;
     /* אדג' בלי הצעת התקנה — רק במסלול הגלילה, ורק כשהעמוד ביקש
        (join.html). בלעדיו join מציג את הרשימה שלו, כמו קודם. */
     if (EDGE_ON && TRAIL && !APPX.bip() && APPX.edge && APPX.edge()) return EDGE;

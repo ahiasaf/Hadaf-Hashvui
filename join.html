@@ -4694,12 +4694,12 @@ function wzDraw() {
        אייקון ישן היה נתקע מול הוראה לפתוח אותו. */
     GUIDE_UI.mount(gbox, function () {
       appMark();
-      if (APPX.samsung && APPX.samsung()) { wzGo(wzWhere()); return; }
+      if (APPX.addPage && APPX.addPage()) { wzGo(wzWhere()); return; }
       WZ_GUIDE_DONE = true; wzDraw();
     }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
   /* הסימון של אייקון סמסונג — רק בזמן שהמדריך שלו על המסך. */
-  if (wzStep === 1 && gbox && APPX.samsung && APPX.samsung()) APPX.iconTag();
+  if (wzStep === 1 && gbox && APPX.addPage && APPX.addPage()) APPX.iconTag();
   else if (APPX.iconUntag) APPX.iconUntag();
   wzWire();
   window.scrollTo(0, 0);
@@ -4800,7 +4800,8 @@ function wzInstall() {
      "הוסף דף ל- ← מסך הבית", וזה מה שמוצג עכשיו, לפי הדפדפן שבו הוא
      נמצא באמת. הכתובת מסומנת (APPX.iconTag) כך שהאייקון יזוהה.
      המעבר לכרום נשאר, בשקט מתחת — למי שנחסם (Play Protect). */
-  if (APPX.samsung && APPX.samsung() && window.GUIDE_UI) {
+  /* **אופרה — אותו דבר** ("הוסף אל… ← מסך הבית", APPX.addPage). */
+  if (APPX.addPage && APPX.addPage() && window.GUIDE_UI) {
     var cu = APPX.chromeUrl ? APPX.chromeUrl() : '';
     return wzGuideBox() +
       (cu ? '<a class="thin" href="' + esc(cu) + '"><u>' + esc(jt('samChrome')) + '</u></a>' : '') +
