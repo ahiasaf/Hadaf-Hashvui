@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.99.390';
+var CACHE_NAME = 'hadaf-v8.99.391';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -188,7 +188,7 @@ self.addEventListener('fetch', function (e) {
   if (/\/promo\//.test(url.pathname)) return;
 
   var save = function (res) {
-    if (res && res.status === 200) {
+    if (res && res.status === 200 && !res.redirected) {
       var copy = res.clone();
       caches.open(CACHE_NAME).then(function (c) { c.put(req, copy); });
     }
@@ -217,7 +217,14 @@ self.addEventListener('fetch', function (e) {
            קובץ אחר, ותלמיד שפתח את האפליקציה בלי רשת קיבל עד
            עכשיו את המסך של ראשי החטיבה. */
         var home = /join/.test(url.pathname) ? './join.html' : './index.html';
-        return m || (req.mode === 'navigate' ? caches.match(home) : null);
+        if (m || req.mode !== 'navigate') return m;
+        /* עמוד שאינו הבית (chaver, tzevet, learn…) — הבית אינו העמוד
+           שביקשו. נופלים אליו רק כשהרשת נכשלה, לא כשהיא איטית: קודם
+           קישור הזמנה ברשת איטית נחת אחרי 2.5 שניות על המסך הראשי. */
+        if (!/^\/(index(\.html)?|join(\.html)?)?$/.test(url.pathname)) {
+          return live.then(function (r) { return r || caches.match(home); });
+        }
+        return caches.match(home);
       }).then(function (cached) {
         if (!cached) return live;   // אין למה ליפול — ממתינים לרשת עד הסוף
 
@@ -227,7 +234,7 @@ self.addEventListener('fetch', function (e) {
           live.then(function (r) { finish(r || cached); });   // כולל כישלון מיידי
           setTimeout(function () { finish(cached); }, NET_TIMEOUT);
         });
-      })
+      }).then(plain)
     );
     return;
   }
@@ -236,6 +243,23 @@ self.addEventListener('fetch', function (e) {
     caches.match(req).then(function (cached) {
       var net = fetch(req).then(save).catch(function () { return null; });
       return cached || net;
-    })
+    }).then(plain)
   );
 });
+
+/* ============================================================
+   תשובה שעברה הפניה — לא מגישים אותה כמו שהיא.
+   ============================================================
+   ב-Vercel עם cleanUrls הבקשה ל-`./index.html` ול-`./join.html`
+   (ברשימת CORE) מופנית ל-`/` ול-`/join`, והמטמון שומר את התשובה
+   עם הסימון "עברה הפניה". ספארי מסרב להציג עמוד כזה מ-Service
+   Worker: "Response served by service worker has redirections" —
+   מסך לבן. זה מה שקיבל מי שלחץ על קישור הזמנה ברשת איטית: העמוד
+   לא היה במטמון, והנפילה הייתה לעותק של index.html.
+   לכן כל תשובה כזו נבנית מחדש — אותו תוכן, בלי הסימון. */
+function plain(r) {
+  if (!r || !r.redirected) return r;
+  return r.blob().then(function (b) {
+    return new Response(b, { status: r.status, statusText: r.statusText, headers: r.headers });
+  });
+}
