@@ -10965,6 +10965,9 @@ var CH_SEAT_ = 'אתגר-שולחנות';
 var CH_SEAT_COLS_ = ['שולחן', 'מזהה', 'ישב', 'יצא', 'סיבה', 'בדיקה'];
 /* ההגרלה השבועית — יום ראשון בשעה הזו, שעון ישראל. */
 var CH_DRAW_H_ = 8;
+/* ימי ראשון שבהם ההגרלה מתקיימת אבל **אף אחד לא יוצא מהשולחן** (yyyy-MM-dd, שעון ישראל).
+   1.11.2026 — המבצע פורסם ביום שישי, ולכן חד-פעמית אין יציאה בראשון הראשון (החלטת אחיאסף). */
+var CH_NO_EXIT_ = ['2026-11-01'];
 var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הוקפא', 'זכאים', 'מועד הגרלה', 'נבחרה',
                    'נבחרה ב', 'מפתחות', 'אושר ב', 'נמסר ב', 'קוד שובר', 'פסילות', 'הערה',
                    'נסגרה ללא זוכה', 'בדיקה',
@@ -11652,8 +11655,9 @@ function chTables_(U, S, K, X) {
     seatUpTo(Math.min(D, X.now));
     if (D > X.now) break;
     draw(D, 'שבועי');
-    /* מי שלא למד — יוצא, והכיסא מתפנה לשבוע הבא. */
-    Object.keys(mem).forEach(function (t) {
+    /* מי שלא למד — יוצא, והכיסא מתפנה לשבוע הבא. חוץ מהימים ב-CH_NO_EXIT_. */
+    var dday = String(Utilities.formatDate(new Date(D), 'Asia/Jerusalem', 'yyyy-MM-dd')).slice(0, 10);
+    if (CH_NO_EXIT_.indexOf(dday) < 0) Object.keys(mem).forEach(function (t) {
       mem[t] = mem[t].filter(function (r) {
         if (learned(r._id, D)) return true;
         close(r, D, 'לא למד');
