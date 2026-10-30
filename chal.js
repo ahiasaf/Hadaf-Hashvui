@@ -544,10 +544,11 @@
          אחרת לעמוד האתגר, שם הקוד נוצר. בבית לא יוצרים קוד: זו
          כתיבה לגיליון לכל תלמיד שרק פתח את האפליקציה. */
       var c0 = LGet(codeKey(), '');
-      /* עוד אין שולחן — פס קומפקטי (8.99.379): המבצע, הפרס, וכפתור אחד. ההסבר
-         המלא — בחלון ההשקה ובעמוד המבצע. */
-      h = '<div class="ch-tcard ch-home ch-special ch-band">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
+      /* עוד אין שולחן — **השולחן עצמו** (אתה ושלושה מקומות פנויים), לא פס מקוצר:
+         החלטת אחיאסף (8.99.380) — דווקא מי שעוד לא הזמין צריך לראות את השולחן. */
+      h = '<div class="ch-tcard ch-home ch-special">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
         '<h2 class="ch-hh">' + esc(U('chCardH')) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+        tableHtml(startSeats(), midOf('')) + howHtml() +
         (d.ended ? '' : fr ? frHtml(fr) : waBtn(U('chGo'), ''));
       /* "איך זה עובד?" ירד (8.99.370, החלטת אחיאסף). */
     } else {
