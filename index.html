@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.391';
+var APP_VERSION = '8.99.392';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18549,10 +18549,21 @@ function dkPdfAll() {
    "נשלח בהצלחה" אלא **שאלה חוזרת ל-GitHub** — הקובץ באמת שם או
    שלא. ראו את המלכודת בראש CLAUDE.md.
    ============================================================ */
-function dkPutAll(items, done) {
+function dkPutAll(items, done, again) {
   var i = 0, sent = [];
   function one() {
-    if (i >= items.length) { dkAskUntil(sent, 0, done); return; }
+    if (i >= items.length) {
+      dkAskUntil(sent, 0, function (miss, blind) {
+        /* מה שלא הגיע — נשלח שוב פעם אחת לבד, לפני שמדווחים. */
+        if (!again && miss && miss.length && !blind) {
+          dkPutAll(items.filter(function (it) { return miss.indexOf(it.name) >= 0; }),
+            done, true);
+          return;
+        }
+        done(miss, blind);
+      });
+      return;
+    }
     var it = items[i++];
     dkPdfMsg('', 'שולח ' + i + ' מתוך ' + items.length + '…');
     fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({

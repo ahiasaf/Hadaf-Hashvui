@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 146;
+var SCRIPT_VERSION = 147;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -336,6 +336,11 @@ function doPost(e) {
     if (hd && hd.action === 'hit') return json_(hit_(hd));
     if (hd && hd.action === 'trail') return json_(trail_(hd));
   } catch (he) {}
+  /* **העלאת שקף ומחיקתו — גם הן לפני הנעילה.** הן לא נוגעות בגיליון,
+     ו-GitHub מסדר את הקומיטים בעצמו. בתוך הנעילה כל שקף חיכה בתור של
+     שורות הלימוד של התלמידים, ובעומס (30.10.2026) waitLock פקע בשקט —
+     והשקפים האחרונים בסדרה פשוט לא הגיעו. ראו ghRoute_. */
+  if (hd && (hd.action === 'ghput' || hd.action === 'ghdel')) return json_(ghRoute_(hd));
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -572,26 +577,7 @@ function doPost(e) {
 
        נדרשת READ_KEY בדיוק כמו במחיקה: כתובת הסקריפט יושבת בקוד
        הפומבי, וכתיבה פתוחה לריפו היא הרשאת דחיפה שנמסרה לעולם. */
-    if (d.action === 'ghput') {
-      if (!READ_KEY || String(d.key || '') !== READ_KEY) {
-        return json_({ status: 'denied',
-          message: READ_KEY ? 'סיסמה שגויה'
-                            : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
-      }
-      return json_(ghPut_(d.path, d.b64, d.msg));
-    }
-    /* מחיקת קובץ לצמיתות מהריפו (ניהול ← הדף ← "מחיקה לצמיתות"),
-       כדי לפנות מקום. אותה סיסמה, ורק בתיקיות של מה שהועלה —
-       ראו ghDel_. */
-    if (d.action === 'ghdel') {
-      if (!READ_KEY || String(d.key || '') !== READ_KEY) {
-        return json_({ status: 'denied',
-          message: READ_KEY ? 'סיסמה שגויה'
-                            : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' });
-      }
-      return json_(ghDel_(d.path, d.msg));
-    }
-
+    /* ghput/ghdel — לפני הנעילה, ראו ghRoute_. */
     /* ---- מחיקה ----
 
        כתובת הסקריפט יושבת בקוד של האפליקציה, כלומר כל אחד יכול
@@ -7290,7 +7276,29 @@ function ghCheck_() {
   }
 }
 
+function ghRoute_(d) {
+  if (!READ_KEY || String(d.key || '') !== READ_KEY) {
+    return { status: 'denied',
+      message: READ_KEY ? 'סיסמה שגויה' : 'לא נקבעה סיסמה בסקריפט (READ_KEY)' };
+  }
+  return d.action === 'ghput' ? ghPut_(d.path, d.b64, d.msg) : ghDel_(d.path, d.msg);
+}
+
+/* ניסיון חוזר ל-ghPut_: 409 (קומיט אחר נכנס לענף באותו רגע — למשל
+   מחיקה שרצה במקביל, או sha שהתיישן), 5xx ו-403/429 של מגבלת קצב
+   משנית. בכל ניסיון — sha מחדש. */
 function ghPut_(path, b64, msg) {
+  var r;
+  for (var k = 0; k < 3; k++) {
+    r = ghPutOnce_(path, b64, msg);
+    if (r.status !== 'error' || !r.code) return r;
+    if (!(r.code === 409 || r.code === 403 || r.code === 429 || r.code >= 500)) return r;
+    Utilities.sleep(1500 * (k + 1));
+  }
+  return r;
+}
+
+function ghPutOnce_(path, b64, msg) {
   var tok  = prop_('GH_TOKEN', '');
   var repo = prop_('GH_REPO', '');
   if (!tok)  return { status:'denied', message:'לא הוגדר GH_TOKEN במאפייני הסקריפט' };
