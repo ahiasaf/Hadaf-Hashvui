@@ -272,7 +272,7 @@ function kitFor(trackId) {
       s:page ? 'עמוד ' + page + ' בחוברת' : 'החוברת הדיגיטלית', cls:'gr' }
   ];
 }
-function notYet() { alert('הקישור יתווסף בקרוב.'); return false; }
+function notYet() { SayMsg('הקישור יתווסף בקרוב.'); return false; }
 
 /* המצגות נשאלות פעם אחת לכל טעינת עמוד. ראו renderMine. */
 var deckAsked = false;

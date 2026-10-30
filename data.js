@@ -152,6 +152,49 @@ function sureCancel_(x) {
   sureDrop_(x);
   if (x.no) { try { x.no(); } catch (e) {} }
 }
+/* ------------------------------------------------------------
+   הודעה בתוך המסך במקום alert() (8.99.377).
+   ------------------------------------------------------------
+   פס בתחתית שנעלם לבד (ארבע שניות, יותר להודעה ארוכה) או בלחיצה.
+   לא עוצר דבר — הקוד שאחריו ממשיך מיד, כמו שהיה אחרי "אישור".
+   SayMsgNext — להודעה שמיד אחריה רענון/מעבר עמוד: נשמרת בלשונית
+   (sessionStorage) ומוצגת בעמוד הבא. */
+var SAYMSG = null;
+function SayMsg(t) {
+  t = String(t == null ? '' : t);
+  if (!t || typeof document === 'undefined') return;
+  if (!document.body) {
+    document.addEventListener('DOMContentLoaded', function () { SayMsg(t); });
+    return;
+  }
+  if (SAYMSG) { clearTimeout(SAYMSG.t); if (SAYMSG.el.parentNode) SAYMSG.el.parentNode.removeChild(SAYMSG.el); }
+  var el = document.createElement('div');
+  el.setAttribute('role', 'status');
+  el.setAttribute('style', 'position:fixed;left:50%;transform:translateX(-50%);bottom:84px;' +
+    'z-index:2147483001;width:max-content;max-width:min(92vw,520px);padding:12px 18px;' +
+    'border-radius:14px;background:#1F2A44;color:#fff;font:inherit;font-size:.92rem;' +
+    'line-height:1.5;white-space:pre-line;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer');
+  el.textContent = t;
+  var x = { el: el };
+  var gone = function () {
+    clearTimeout(x.t);
+    if (el.parentNode) el.parentNode.removeChild(el);
+    if (SAYMSG === x) SAYMSG = null;
+  };
+  el.onclick = gone;
+  x.t = setTimeout(gone, Math.min(10000, Math.max(4000, t.length * 70)));
+  SAYMSG = x;
+  document.body.appendChild(el);
+}
+function SayMsgNext(t) {
+  try { sessionStorage.setItem('df:sayMsg', String(t || '')); } catch (e) { SayMsg(t); }
+}
+(function () {
+  var t = '';
+  try { t = sessionStorage.getItem('df:sayMsg') || ''; sessionStorage.removeItem('df:sayMsg'); } catch (e) {}
+  if (t) SayMsg(t);
+})();
+
 /* cb רץ אחרי הספירה; onCancel — כשבוטל (לחיצה או יציאה מהמסך).
    msg — כשהפעולה לא באה מלחיצה (העלאה, אחרי קריאה לשרת): הפס בתחתית
    אומר מה עומד לקרות, אחרת "ביטול" לבדו אינו מובן. */
@@ -240,7 +283,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.376';
+var DAF_REV = '8.99.377';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================

@@ -2030,7 +2030,7 @@ function mySend() {
       if (d && d.status === 'ok') {
         myDraft = ''; mySaid = '';
         myErr = '';
-        alert(tz('mySaySent'));
+        SayMsg(tz('mySaySent'));
       } else {
         myErr = tz('mySayErr') + ' ' + ((d && d.message) || '');
       }

@@ -327,7 +327,7 @@ function przPick(k) {
     ['מזהה', z.wid], ['הגרלה', z.rid], ['פרס', k], ['מאת', ME.id]]) };
   z.p = k; z.st = 'soon'; z.how = 'בחר';
   przDraw(z, false);
-  var fail = function () { z.p = ''; z.st = 'pick'; przDraw(z, true); alert(UI.przFail); };
+  var fail = function () { z.p = ''; z.st = 'pick'; przDraw(z, true); SayMsg(UI.przFail); };
   var check = function (n) {
     return przGet(true).then(function (L) {
       var y = null;

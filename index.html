@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.376';
+var APP_VERSION = '8.99.377';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4091,7 +4091,7 @@ function numRow(id, label, sub) {
 var REG_QTY_MAX = 300;
 function qtySet(id, v) {
   var n = Math.max(0, parseInt(v, 10) || 0);
-  if (n > REG_QTY_MAX) { n = REG_QTY_MAX; alert(fill(UI.qtyMax, { n:REG_QTY_MAX })); }
+  if (n > REG_QTY_MAX) { n = REG_QTY_MAX; SayMsg(fill(UI.qtyMax, { n:REG_QTY_MAX })); }
   reg.qty[id] = n;
   renderReg();
 }
@@ -4109,7 +4109,7 @@ function pickInst() {
 function sendReg() {
   var name = reg.inst === 'other' ? reg.instOther
            : (INSTITUTIONS.filter(function (i) { return i.code === reg.inst; })[0] || {}).name;
-  if (!name)      { alert('נא לבחור ישיבה.'); return; }
+  if (!name)      { SayMsg('נא לבחור ישיבה.'); return; }
 
   /* ============================================================
      **מי שולח — לפני שנשלח משהו** (25.10.2026).
@@ -4129,7 +4129,7 @@ function sendReg() {
     if (op) reg.phone = op.value;
     reg.who = String(reg.who || '').trim();
     reg.phone = String(reg.phone || '').replace(/[^\d+]/g, '');
-    if (reg.who.length < 2 || reg.phone.replace(/\D/g, '').length < 9) { alert(UI.otherNeed); return; }
+    if (reg.who.length < 2 || reg.phone.replace(/\D/g, '').length < 9) { SayMsg(UI.otherNeed); return; }
   } else {
     me = headMe();
     if (me) { reg.who = headWho(me); reg.phone = me.phone || ''; }
@@ -4148,7 +4148,7 @@ function sendReg() {
      שוב, ובכל זאת לא נשלחת הזמנה שהוא חזר בו ממנה. */
   if (!reg.want) reg.qty = {};
   var total = regTotalQty();
-  if (reg.want && !total) { alert('נא למלא כמה גמרות להזמין, או לכבות את המתג.'); return; }
+  if (reg.want && !total) { SayMsg('נא למלא כמה גמרות להזמין, או לכבות את המתג.'); return; }
 
   /* עמודה לכל צירוף מסכת-מהדורה בגיליון, ולצידה שורת סיכום
      קריאה לאדם — כדי שההזמנה תהיה ברורה גם בלי לפענח מפתחות. */
@@ -5024,7 +5024,7 @@ function accWaitHtml() {
 function accPhone() {
   var el = document.getElementById('acc-ph');
   var v = el ? (el.value || '').trim() : '';
-  if (v.replace(/[^0-9]/g, '').length < 9) { alert(ASK_UI.errPhone); return; }
+  if (v.replace(/[^0-9]/g, '').length < 9) { SayMsg(ASK_UI.errPhone); return; }
   var me = ASK.get() || {};
   me.phone = v; ASK.set(me);
   ASK.post('רשום', null);
@@ -5738,14 +5738,17 @@ function sayHtml() {
      מתחתיו ההערה החשובה (ההודעה מגיעה בדרך כלל תוך דקה), פס,
      ורק אז "כך זה ייראה בטלפון".
 
-     **"נשלח אל: תלמידים · 231" ו"רק למי שהתקין" ירדו מהעמוד** —
-     הם עולים בשלב האישור, אחרי הלחיצה (ראו saySend). ו"שינוי"
-     ליד החתימה ירד לגמרי.
+     **"נשלח אל: תלמידים · 231" ו"רק למי שהתקין" — מעל הכפתור**
+     (8.99.377). בשלב האישור הם היו בחלון שירד ("ביטול · 4"), ולכן
+     חזרו לעמוד. "שינוי" ליד החתימה ירד לגמרי.
      ============================================================ */
   h += '<div class="say-sig"><span>' + esc(headT('saySigL')) + ':</span> ' +
     '<b>' + esc(saySig()) + '</b></div>';
 
-  h += (n ? '' : '<p class="myto">' + esc(headT('sayNone')) + '</p>') +
+  var cnt = n ? sayCount() : null;
+  h += (n ? '<p class="myto">' + esc(headT('sayToH')) + ' ' + esc(sayToLabel()) +
+            (cnt != null ? ' · ' + cnt : '') + '<br>' + esc(headT('sayToInst')) + '</p>'
+          : '<p class="myto">' + esc(headT('sayNone')) + '</p>') +
     '<button class="mygo" id="say-go"' +
     (sayBusy || !n || sayDraft.trim().length < 2 ? ' disabled' : '') +
     '>' + (sayBusy ? 'שולח…' : esc(headT('sayGo'))) + '</button>' +
@@ -5871,7 +5874,7 @@ function saySend() {
         Store.set('sayLog', log.slice(0, 20));
         sayDraft = ''; sayErr = '';
         sayPaint();
-        alert(headT('saySent'));
+        SayMsg(headT('saySent'));
       } else {
         sayErr = headT('sayErr') + ' ' + ((d && d.message) || '');
         sayPaint();
@@ -6160,7 +6163,7 @@ function openWeek(id, i) {
   paintInter(id, row[2], LAmOf(row));
   show('week');
 }
-function notYet() { alert('הקישור יתווסף בקרוב.'); return false; }
+function notYet() { SayMsg('הקישור יתווסף בקרוב.'); return false; }
 
 /* הודעה קצרה שנעלמת מעצמה. `alert` עוצר את המסך ודורש אישור,
    וזה יותר מדי בשביל משפט אחד שכל תפקידו לומר "עוד לא". */
@@ -6528,7 +6531,7 @@ function sendQuiz() {
     inst  = myInst;
     name  = document.getElementById('q-name').value.trim();
     phone = document.getElementById('q-phone').value.trim();
-    if (!inst || !name) { alert('נא לבחור ישיבה ולמלא שם.'); return; }
+    if (!inst || !name) { SayMsg('נא לבחור ישיבה ולמלא שם.'); return; }
     myInst = inst; myName = name;
     localStorage.setItem('dfInst', inst); localStorage.setItem('dfName', name);
   }
@@ -7299,7 +7302,7 @@ function teamLogCard() {
 
 function teamLinkCopy() {
   if (!CFG.teamKey) {
-    alert('קודם למלא "סיסמת עמוד הצוות" בהגדרות המערכת — ואת אותה מחרוזת ' +
+    SayMsg('קודם למלא "סיסמת עמוד הצוות" בהגדרות המערכת — ואת אותה מחרוזת ' +
           'גם ב-Apps Script, בשורת TEAM_KEY. ניהול ← הגדרות ← מערכת.');
     return;
   }
@@ -8637,9 +8640,9 @@ function ovAddInst(code) {
   if (!i || !SureLater(ovAddInst, this, arguments)) return;
   scriptGet({ ov:'add', key:(CFG.readKey || '').trim(), m:JSON.stringify([{ name:i.name, code:i.code }]) })
     .then(function (d) {
-      if (!d || d.status !== 'ok') alert(fill(UI.ovSaveFail, { t:(d && d.message) || '' }));
+      if (!d || d.status !== 'ok') SayMsg(fill(UI.ovSaveFail, { t:(d && d.message) || '' }));
       ovLoad(true);
-    }, function () { alert(fill(UI.ovSaveFail, { t:UI.ovNet })); });
+    }, function () { SayMsg(fill(UI.ovSaveFail, { t:UI.ovNet })); });
 }
 function ovLink(k) {
   return joinUrl('').replace('join.html', 'skira.html') + '?k=' + encodeURIComponent(k);
@@ -8647,14 +8650,14 @@ function ovLink(k) {
 function ovKeyGet(rot) {
   if (rot && !SureLater(ovKeyGet, this, arguments)) return;
   scriptGet({ ov:'key', key:(CFG.readKey || '').trim(), rot:rot ? '1' : '' }).then(function (d) {
-    if (!d || !d.ov) { alert(UI.ovOld); return; }
-    if (d.status !== 'ok' || !d.k) { alert(fill(UI.ovSaveFail, { t:(d && d.message) || '' })); return; }
+    if (!d || !d.ov) { SayMsg(UI.ovOld); return; }
+    if (d.status !== 'ok' || !d.k) { SayMsg(fill(UI.ovSaveFail, { t:(d && d.message) || '' })); return; }
     Store.set('ovKey', d.k);
     var D = Store.get('ovData', null);
     if (D) { D.hasKey = true; Store.set('ovData', D); }
     copyText(ovLink(d.k), UI.ovAdmCopied);
     ovRepaint();
-  }, function () { alert(UI.ovNet); });
+  }, function () { SayMsg(UI.ovNet); });
 }
 /* בלי סימן שמשהו קורה, חיבור של כמה שניות נראה כמו כפתור שאינו
    עובד. הכפתור אומר "מחבר…" עד שיש תשובה, וכישלון נאמר בקול. */
@@ -8666,7 +8669,7 @@ function ovSheetSet() {
   if (b) { b.disabled = true; b.textContent = UI.ovAdmSheetBusy; }
   var fail = function (t, dg) {
     if (b) { b.disabled = false; b.textContent = UI.ovAdmSheetBtn; }
-    alert(fill(UI.ovSaveFail, { t:t }) + (dg ? '\n\n' + fill(UI.ovDiag, { t:dg }) : ''));
+    SayMsg(fill(UI.ovSaveFail, { t:t }) + (dg ? '\n\n' + fill(UI.ovDiag, { t:dg }) : ''));
   };
   scriptGet({ ov:'sheet', key:(CFG.readKey || '').trim(), id:v }).then(function (d) {
     if (!d || d.status !== 'ok') { fail((d && d.message) || '', d && d.diag); return; }
@@ -9128,7 +9131,7 @@ function noteGrow(el) {
 function importContacts() {
   var t = document.getElementById('paste').value;
   var parsed = parseContacts(t);
-  if (!parsed.length) { alert('לא זוהו שורות. ודאו שהעתקתם מהגיליון.'); return; }
+  if (!parsed.length) { SayMsg('לא זוהו שורות. ודאו שהעתקתם מהגיליון.'); return; }
   saveContacts(parsed);
   renderCalls();
   pushCalls(1);
@@ -9410,7 +9413,7 @@ function bulkImportRun() {
   renderCalls();
   pushCalls(1);
   pushTagDefs();
-  alert('יובאו ' + items.length + ' מוסדות (' + created + ' חדשים, ' + updated +
+  SayMsg('יובאו ' + items.length + ' מוסדות (' + created + ' חדשים, ' + updated +
         ' עודכנו). שולח לגיליון…');
 }
 
@@ -9489,7 +9492,7 @@ function setNote(i, v) {
    בלי לסמוך על שום סנכרון. */
 function jnlShow() {
   var j = Store.get('callJournal', []) || [];
-  if (!j.length) { alert('היומן ריק.'); return; }
+  if (!j.length) { SayMsg('היומן ריק.'); return; }
   var best = {};
   j.forEach(function (e) {
     var b = best[e.k];
@@ -9509,7 +9512,7 @@ function jnlShow() {
 }
 /* העתקה עם נפילה לשדה זמני, כמו בשאר האפליקציה. */
 function copyText(txt, okMsg) {
-  var done = function () { alert(okMsg); };
+  var done = function () { SayMsg(okMsg); };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(txt).then(done).catch(function () { legacyCopy(txt, done); });
   } else legacyCopy(txt, done);
@@ -10155,10 +10158,10 @@ function publishTexts(say, nCfg) {
    אינו בקוד, כדי שטלפונים של מנהלים לא יישבו בריפו ציבורי. */
 function loadContactsFromSheet() {
   var id = CFG.contactsSheet;
-  if (!id) { alert('קודם הזינו את מזהה גיליון אנשי הקשר בהגדרות.'); return; }
+  if (!id) { SayMsg('קודם הזינו את מזהה גיליון אנשי הקשר בהגדרות.'); return; }
   fetchSheet(id, CFG.contactsTab || 'גיליון1').then(function (rows) {
     if (!rows || rows.length < 2) {
-      alert('לא הצלחתי לקרוא מהגיליון. ודאו שהוא משותף כ"כל מי שיש לו הקישור — מציג".');
+      SayMsg('לא הצלחתי לקרוא מהגיליון. ודאו שהוא משותף כ"כל מי שיש לו הקישור — מציג".');
       return;
     }
     var out = [];
@@ -10176,7 +10179,7 @@ function loadContactsFromSheet() {
     });
     saveContacts(out);
     renderCalls();
-    alert(out.length + ' מוסדות נטענו מהגיליון.');
+    SayMsg(out.length + ' מוסדות נטענו מהגיליון.');
   });
 }
 
@@ -16829,7 +16832,7 @@ function dmEnd() {
     if (r && r.status === 'changed') { CHA.msg = r.message; DM_PRE = null; chaPaint(); return dmPre(); }
     if (!r || (r.status !== 'ok' && r.status !== 'error') || !r.del) { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
     var del = dmSum(r.del);
-    try { alert(r.left ? fill(UI.dmResetLeft, { n: del, left: r.left }) : fill(UI.dmResetOk, { n: del, bak: r.bak || '—' })); } catch (e) {}
+    SayMsgNext(r.left ? fill(UI.dmResetLeft, { n: del, left: r.left }) : fill(UI.dmResetOk, { n: del, bak: r.bak || '—' }));
     DM_PRE = null; DM_SC = '';
     if (window.TM && TM.demo()) TM.restore();
     location.reload();
@@ -17834,7 +17837,7 @@ function tkTour() {
 function admImgPick(inp, key) {
   var f = inp.files && inp.files[0];
   if (!f) return;
-  if (!/^image\//.test(f.type)) { alert('צריך קובץ תמונה.'); return; }
+  if (!/^image\//.test(f.type)) { SayMsg('צריך קובץ תמונה.'); return; }
   var r = new FileReader();
   r.onload = function () {
     var im = new Image();
@@ -17850,10 +17853,10 @@ function admImgPick(inp, key) {
       try { out = cv.toDataURL('image/png'); } catch (e) { out = r.result; }
       if (out.length > 260000) out = cv.toDataURL('image/jpeg', 0.85);
       admTextSet(key, out);
-      alert('הלוגו נטען (' + Math.round(out.length / 1024) + 'KB). ' +
+      SayMsg('הלוגו נטען (' + Math.round(out.length / 1024) + 'KB). ' +
             'צריך ללחוץ פרסום כדי שכולם יראו אותו.');
     };
-    im.onerror = function () { alert('לא הצלחתי לקרוא את התמונה.'); };
+    im.onerror = function () { SayMsg('לא הצלחתי לקרוא את התמונה.'); };
     im.src = r.result;
   };
   r.readAsDataURL(f);
@@ -19883,7 +19886,7 @@ function admPrice(el) {
 function admPriceSet(id, k, v) {
   v = parseInt(v, 10);
   if (k === 'min') { if (!(v >= 0)) v = 0; }
-  else if (!(v > 0)) { alert('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
+  else if (!(v > 0)) { SayMsg('המחיר חייב להיות מספר גדול מאפס.'); admPane(); return; }
   var cur = priceOf(id), c = CV('prices') || {};
   c[id] = { price:cur.price, list:cur.list, min:cur.min };   // נשמרים גם השדות שלא נגעו בהם
   c[id][k] = v;
@@ -20107,14 +20110,14 @@ function amdaPicked(inp) {
     amdaNeedXlsx().then(function () {
       var r = null;
       try { r = amdaFromSheets(XLSX_READ(rd.result)); } catch (e) { r = null; }
-      if (!r || !amdaCount(r).n) { alert(amdaT('admBad')); return; }
+      if (!r || !amdaCount(r).n) { SayMsg(amdaT('admBad')); return; }
       /* קובץ חדש של אותו בית ספר — בית הספר נשאר. */
       r.inst = amdaInst() || ADM_INST || '';
       Store.set('amdaRoster', r);
       amdaMsg = amdaT('admSaving', { n: amdaCount(r).n });
       admPane();
       amdaPushRoster(r);
-    }).catch(function () { alert(amdaT('admBad')); });
+    }).catch(function () { SayMsg(amdaT('admBad')); });
   };
   rd.readAsArrayBuffer(f);
 }
@@ -20288,13 +20291,13 @@ function amdaPull(stf0) {
 /* "אני מסמן בעצמי" — אצל הרכז, כמו אצל איש הצוות (attOpen). */
 function amdaOpenSelf(kind) {
   var r = amdaRoster();
-  if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
+  if (!r || !amdaCount(r).n) { SayMsg(amdaT('admNone')); return; }
   amdaSt.self = true; amdaSt.all = true; amdaSt.sel = {};
   amdaOpen(kind);
 }
 function amdaOpen(kind) {
   var r = amdaRoster();
-  if (!r || !amdaCount(r).n) { alert(amdaT('admNone')); return; }
+  if (!r || !amdaCount(r).n) { SayMsg(amdaT('admNone')); return; }
   if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack(), lv: amdaLv(),
                                     oid: Date.now().toString(36), n: 0 });
   var el = document.getElementById('amda');
@@ -21218,7 +21221,7 @@ function amdaLesAdd() {
   var g = document.getElementById('les-g').value, c = String(document.getElementById('les-c').value).replace(/\D/g, '');
   var day = parseInt(document.getElementById('les-d').value, 10) || 0;
   var cols = String(document.getElementById('les-cols').value).replace(/\s/g, '');
-  if (!g || !c || !/^\d+(,\d+)*$/.test(cols)) { alert(amdaT('lesBad')); return; }
+  if (!g || !c || !/^\d+(,\d+)*$/.test(cols)) { SayMsg(amdaT('lesBad')); return; }
   var id = g + c + '-' + day, list = amdaLessons().filter(function (l) { return l.id !== id; });
   list.push({ id: id, g: g, c: c, day: day, cols: cols });
   amdaLesSave(list);
@@ -21746,13 +21749,13 @@ function amdaWaPicked(inp) {
     amdaNeedXlsx().then(function () {
       var rows = null;
       try { rows = amdaWaFromSheets(XLSX_READ(rd.result)); } catch (e) { rows = null; }
-      if (!rows || !rows.length) { alert(amdaT('waBad')); return; }
+      if (!rows || !rows.length) { SayMsg(amdaT('waBad')); return; }
       var p = { at: Date.now(), rows: rows };
       Store.set('amdaPh', p);
       amdaWa.msg = amdaT('waSaving', { n: rows.length });
       admPane();
       amdaWaPush(p);
-    }).catch(function () { alert(amdaT('waBad')); });
+    }).catch(function () { SayMsg(amdaT('waBad')); });
   };
   rd.readAsArrayBuffer(f);
 }
@@ -22128,7 +22131,7 @@ function netPicked(inp) {
       try { sheets = XLSX_READ(rd.result); r = netFromSheets(sheets); } catch (e) { r = null; }
       netMsg = '';
       if (r && r.hdr) {
-        if (!r.rows.length) { alert(UI.netNoRows); admPane(); return; }
+        if (!r.rows.length) { SayMsg(UI.netNoRows); admPane(); return; }
         r.kind = 'moe';
         r.src = UI.netSrcMoe || '';
         r.list = r.rows.map(function (x) {
@@ -22141,12 +22144,12 @@ function netPicked(inp) {
       }
       /* לא משרד החינוך — התאמת עמודות. אין כותרות — עוצרים. */
       var gh = sheets && netGenHead(sheets);
-      if (!gh) { alert(UI.netBad2); admPane(); return; }
+      if (!gh) { SayMsg(UI.netBad2); admPane(); return; }
       var map = netGenAuto(gh.heads);
       NET = { kind: 'gen', sheets: sheets, gen: { si: gh.si, hi: gh.hi, heads: gh.heads, map: map, one: '' },
               src: String(f.name || '').replace(/\.[^.]*$/, ''), step: 'map' };
       admPane();
-    }).catch(function () { alert(UI.netBad); admPane(); });
+    }).catch(function () { SayMsg(UI.netBad); admPane(); });
   };
   rd.readAsArrayBuffer(f);
 }
@@ -22194,7 +22197,7 @@ function netGenGo() {
       insts[k].n++;
     }
   });
-  if (!list.length && !gc.length) { alert(UI.netNoRows2); return; }
+  if (!list.length && !gc.length) { SayMsg(UI.netNoRows2); return; }
   NET.list = list; NET.gc = gc; NET.insts = insts; NET.other = {}; NET.out = out; NET.skip = sk; NET.step = '';
   netMapInit(NET);
   if (g.one) NET.map['*'] = g.one;
@@ -24148,7 +24151,7 @@ function admSet(el) {
     '<input type="text" value="' + esc(CFG.sheetTab || SHEET_TAB) +
     '" onchange="cfgSet(\'sheetTab\',this.value.trim())"></div>' +
     '<button class="btn g" onclick="loadInstitutions().then(function(ok){' +
-    'alert(ok?\'המוסדות עודכנו מהגיליון.\':\'לא הצלחתי לקרוא מהגיליון.\');renderHome();admPane();})">' +
+    'SayMsg(ok?\'המוסדות עודכנו מהגיליון.\':\'לא הצלחתי לקרוא מהגיליון.\');renderHome();admPane();})">' +
     /* לא "בדיקה וטעינה": השם הזה נבלע ב"בדיקת חיבור" שבכרטיס
        שמעל, ואי אפשר היה לדעת איזה כפתור בודק מה. */
     'טעינת רשימת המוסדות</button>' +
@@ -24196,16 +24199,16 @@ function admSet(el) {
 }
 function admPin(v) {
   v = String(v).replace(/[^0-9]/g, '').slice(0, 4);
-  if (v.length !== 4) { alert('הקוד חייב להיות בן ארבע ספרות.'); admPane(); return; }
+  if (v.length !== 4) { SayMsg('הקוד חייב להיות בן ארבע ספרות.'); admPane(); return; }
   cfgSet('pin', v);
-  alert('הקוד עודכן.');
+  SayMsg('הקוד עודכן.');
 }
 function admExport() {
   var dump = { cfg:CFG, contacts:contacts(), reg:regSaved(),
                registrations:Store.get('registrations', []) };
   var t = JSON.stringify(dump);
   if (navigator.clipboard) navigator.clipboard.writeText(t);
-  alert('הגיבוי הועתק. שמור אותו במקום בטוח.');
+  SayMsg('הגיבוי הועתק. שמור אותו במקום בטוח.');
 }
 function admImport() {
   var t = prompt('הדביקו את הגיבוי:');
@@ -24216,8 +24219,8 @@ function admImport() {
     if (d.contacts) saveContacts(d.contacts);
     if (d.reg) localStorage.setItem('dfReg', JSON.stringify(d.reg));
     if (d.registrations) Store.set('registrations', d.registrations);
-    alert('שוחזר.'); renderAdmin();
-  } catch (e) { alert('הגיבוי אינו תקין.'); }
+    SayMsg('שוחזר.'); renderAdmin();
+  } catch (e) { SayMsg('הגיבוי אינו תקין.'); }
 }
 
 /* ---- ניתוב נסתר ל-/admin ---- */

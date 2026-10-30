@@ -155,7 +155,7 @@ var TM = (function () {
       return call({ challenge: 'dmst', run: s.sid }).then(function (d) {
         if (!d || d.status !== 'ok' || d.on) return false;
         restore();
-        try { alert(T('dmEnded')); } catch (e) {}
+        if (typeof SayMsgNext === 'function') SayMsgNext(T('dmEnded'));
         location.href = location.pathname.replace(/[^\/]*$/, '') + './';
         return true;
       })['catch'](function () { return false; });
