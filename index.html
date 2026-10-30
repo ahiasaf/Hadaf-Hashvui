@@ -2740,6 +2740,33 @@ button.yr-c.auto{cursor:pointer}
 .cha-low,.prow2 .cha-low{color:var(--stop);font-weight:700}
 .ltm-big{font-size:26px;font-weight:800;margin:6px 0}
 .cha-alert{border:2px solid var(--gold)}
+/* המבצע במבט אחד (8.99.394). */
+.cha-hero{background:linear-gradient(160deg,#FFF4D6,#FFFDF8 70%);border:2px solid var(--gold)}
+.cha-hero h3{margin:0 0 6px;font-size:1.35rem;font-weight:900;line-height:1.3;color:var(--blue-d)}
+.cha-hero p{margin:4px 0 0;font-size:.95rem;font-weight:700;color:var(--ink-2)}
+.cha-hero p.big,.adm-card p.big{font-size:1.08rem;font-weight:800;color:var(--blue-d);margin:8px 0 4px}
+.cha-tb{border:1px solid var(--rule);border-radius:14px;padding:11px 12px;margin:10px 0 0;background:var(--surface)}
+.cha-tb.ok{border:2px solid #4E9A2A;background:#F3F9EE}
+.cha-tb.no{border:2px solid var(--stop)}
+.cha-tbh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cha-tbh b{font-size:1.02rem;font-weight:900;color:var(--blue-d)}
+.cha-tbh span{font-size:.84rem;font-weight:800;color:var(--gold-t)}
+.cha-tb.ok .cha-tbh span{color:#2E6B12}
+.cha-seats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0 2px}
+.cha-se{text-align:center;min-width:0}
+.cha-se i{display:flex;align-items:center;justify-content:center;width:36px;height:36px;margin:0 auto 4px;border-radius:50%;
+  border:3px solid #3574CE;background:#fff;font-style:normal;font-weight:900;color:#fff}
+.cha-se.part i{border-color:#E5B854;background:linear-gradient(90deg,#fff 50%,#F7E7BE 50%)}
+.cha-se.done i{border-color:#4E9A2A;background:#4E9A2A}
+.cha-se.low i{border-color:var(--stop);background:var(--stop)}
+.cha-se.free i{border:2px dashed #C9B998;background:transparent}
+.cha-se b{display:block;font-size:.84rem;font-weight:800;color:var(--blue-d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cha-se.free b{color:#9A8A68;font-weight:700}
+.cha-se span{display:block;font-size:.7rem;font-weight:700;color:var(--ink-2)}
+.cha-se.low span{color:var(--stop)}
+.cha-more > summary{font-weight:800;color:var(--blue-d);cursor:pointer}
+.cha-win{margin:10px 0 6px;padding:12px;border-radius:14px;background:linear-gradient(160deg,#FFE9A8,#FFF8E6);border:2px solid var(--gold)}
+.cha-win > b{display:block;font-size:1.15rem;font-weight:900;color:var(--blue-d)}
 .cha-ta{width:100%;box-sizing:border-box;min-height:84px;font:inherit;font-size:.9rem;border:1.5px solid var(--rule);
   border-radius:10px;padding:8px 10px;margin:4px 0 6px;resize:vertical;background:#fff;color:var(--ink)}
 .cha-chk{display:flex;gap:8px;align-items:flex-start;font-size:.88rem;font-weight:700;margin-top:10px}
@@ -3023,7 +3050,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.393';
+var APP_VERSION = '8.99.394';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16613,12 +16640,50 @@ function chaWho(p, role) {
   /* ✓ אצל התלמיד, אבל לא עמד בכלל של ההגרלה (8.99.365) — גלוי כאן בלבד. */
   var low = p.c && p.v === 0 ? (p.mn >= 0 && p.mn < 10 ? fill(UI.chaLow, { m: p.mn }) : UI.chaLowHalf) : '';
   return '<div class="prow2"><div style="flex:1"><b>' + esc((p.f + ' ' + p.l).trim()) + '</b>' +
-    '<span>' + esc(role + ' · ' + (p.n || admInstName(p.i))) + '</span><span>' +
+    '<span>' + esc((role ? role + ' · ' : '') + (p.n || admInstName(p.i))) + '</span><span>' +
     esc([p.at ? fill(UI.chaRowAt, { t: chaT(p.at) }) : '', p.c > 1 ? fill(UI.chaRowC, { t: chaT(p.c) }) : p.c ? UI.chLearned : UI.chNotYet]
         .filter(Boolean).join(' · ')) + '</span>' +
     (low ? '<span class="cha-low">' + esc(low) + '</span>' : '') +
     (p.ph && waNum(p.ph).length >= 11 ? '<a class="yr-c" style="display:inline-block;margin-top:6px" target="_blank" rel="noopener" href="https://wa.me/' +
             waNum(p.ph) + '">💬 ' + esc(UI.dupWa) + '</a>' : '') + '</div></div>';
+}
+/* ============================================================
+   המבצע במבט אחד (8.99.394, אחיאסף: "אני לא אוהב נתונים יבשים, אני אוהב
+   להרגיש"). משפט אחד על מה שקורה, השולחנות עצמם עם השמות, ומה שמחכה לך.
+   ============================================================ */
+/* מתי ההגרלה הבאה — היום / מחר / בעוד N ימים (שעון המכשיר). */
+function chaWhen(ms) {
+  if (!ms) return '';
+  var a = new Date(), b = new Date(ms);
+  var k = Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+  return k <= 0 ? UI.chaWhenToday : k === 1 ? UI.chaWhenTom : fill(UI.chaWhenDays, { k: k });
+}
+/* כיסא בשולחן: ✓ למד · ◐ התחיל · ○ הצטרף · מקום פנוי. ✓ שלא עמד בעשר הדקות — באדום. */
+function chaSeat(p) {
+  if (!p) return '<div class="cha-se free"><i></i><b>' + esc(UI.chSeatFree) + '</b></div>';
+  var low = p.c && p.v === 0, k = p.c ? 'done' : p.s || p.q > 0 ? 'part' : 'reg';
+  return '<div class="cha-se ' + k + (low ? ' low' : '') + '"><i>' + (k === 'done' ? '✓' : '') + '</i><b>' + esc(p.f || '') + '</b>' +
+    '<span>' + esc(low ? UI.chaSeatLow : k === 'done' ? UI.chLearned : k === 'part' ? UI.chSeatPart : UI.chSeatReg) + '</span></div>';
+}
+function chaTables(d) {
+  var G = d.grp || [];
+  if (!G.length) return '';
+  var h = '<div class="adm-card"><h4>' + esc(UI.chaGrpH) + '</h4>';
+  G.forEach(function (g) {
+    var ppl = [g.by].concat(g.f), free = 4 - ppl.length, st, cls = '';
+    var wait = ppl.filter(function (p) { return !p.c; }).map(function (p) { return p.f; });
+    if (free > 0) st = free === 1 ? UI.chaTbFree1 : fill(UI.chaTbFree, { k: free });
+    else if (wait.length) st = fill(UI.chaTbWait, { names: wait.join(', ') });
+    else if (g.real === 0) { st = UI.chaGrpNo; cls = ' no'; }
+    else { st = UI.chaTbReady; cls = ' ok'; }
+    var seats = ppl.map(chaSeat);
+    while (seats.length < 4) seats.push(chaSeat(null));
+    h += '<div class="cha-tb' + cls + '"><div class="cha-tbh"><b>' + esc(fill(UI.chInvGrpH, { by: g.by.f })) + '</b><span>' + esc(st) + '</span></div>' +
+      '<div class="cha-seats">' + seats.join('') + '</div>' +
+      '<details class="hx"><summary>' + esc(UI.chaTbMore) + '</summary><div class="plist">' +
+      ppl.map(function (p) { return chaWho(p, ''); }).join('') + '</div></details></div>';
+  });
+  return h + '</div>';
 }
 /* השולחנות (8.99.365): כמה תלמידים למדו מתחת לעשר דקות — בשורת הסיכום;
    הרשימה — בלחיצה. */
@@ -16684,10 +16749,12 @@ function chaPush(kind, k, force) {
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
 }
 function chaMs(m, d, dis) {
-  var h = '<div class="adm-card cha-ms"><h4>' + esc(m.man ? fill(UI.chaMsHMan, { k: m.k }) : fill(UI.chaMsH, { th: m.th })) +
+  /* הגרלת יום ראשון (8.99.385) — בלי סף ובלי חלון. */
+  var wk = !m.man && !m.th;
+  var h = '<div class="adm-card cha-ms"><h4>' + esc(m.man ? fill(UI.chaMsHMan, { k: m.k }) : wk ? fill(UI.chaMsHWeek, { t: chaT(m.frz || m.open) }) : fill(UI.chaMsH, { th: m.th })) +
       ' · <span class="cha-st">' + esc(m.st) + '</span></h4>' +
-    '<p class="h">' + esc(fill(UI.chaOpened, { t: chaT(m.open), c: chaT(m.close) })) + '</p>';
-  if (m.frz) h += '<p class="h">' + esc(fill(UI.chaFrz, { t: chaT(m.frz), n: m.n, k: m.cands })) + '</p>';
+    (wk ? '' : '<p class="h">' + esc(fill(UI.chaOpened, { t: chaT(m.open), c: chaT(m.close) })) + '</p>');
+  if (m.frz) h += '<p class="h">' + esc(wk ? (m.n === 1 ? UI.chaWkIn1 : fill(UI.chaWkIn, { n: m.n })) : fill(UI.chaFrz, { t: chaT(m.frz), n: m.n, k: m.cands })) + '</p>';
   var k = m.k;
   /* מועד — רק להגרלה שעוד לא בוצעה. */
   if (['חלון פתוח', 'ממתין לקבוצה ראשונה', 'ממתין להגרלה'].indexOf(m.st) >= 0) {
@@ -16711,8 +16778,11 @@ function chaMs(m, d, dis) {
       m.dq.map(function (x) { return esc(x.g + ' · ' + x.why); }).join('<br>') + '</p></details>';
   }
   if (m.st === 'ממתין לאישור' && m.sel) {
-    h += '<div class="pp-h">' + esc(fill(UI.chaSelH, { g: m.sel.id })) + '</div><p class="h">' + esc(UI.chaSteps) + '</p>' +
-      '<p class="h">' + esc(UI.chaSelP) + '</p>' + chaGrp(m.sel);
+    /* 8.99.394: הזוכים — השמות על הכיסאות, הפרטים בלחיצה. */
+    h += '<div class="cha-win"><b>' + esc(fill(UI.chaSelH, { g: m.sel.by.f })) + '</b><div class="cha-seats">' +
+      [m.sel.by].concat(m.sel.f).map(chaSeat).join('') + '</div></div>' +
+      '<p class="h">' + esc(UI.chaSelP) + '</p>' +
+      '<details class="hx"><summary>' + esc(UI.chaTbMore) + '</summary>' + chaGrp(m.sel) + '</details>';
     /* לשאול את ראש החטיבה — לכל ישיבה בקבוצה, רק על התלמידים שלה. */
     var insts = [];
     [m.sel.by].concat(m.sel.f).forEach(function (p) { if (p.i && insts.indexOf(p.i) < 0) insts.push(p.i); });
@@ -16721,17 +16791,20 @@ function chaMs(m, d, dis) {
       h += wuBlock('g' + k + c, c, 'ask', fill(UI.wuAskBtn, { inst: admInstName(c) }));
     });
     h += '<button class="btn p" type="button" style="margin-top:12px"' + dis + ' onclick="chaAct(\'approve\',{ms:\'' + k + '\'})">' + esc(UI.chaApprove) + '</button>' +
+      '<details class="hx" style="margin-top:10px"><summary>' + esc(UI.chaDqMore) + '</summary>' +
       '<div class="fld" style="margin-top:12px"><label class="label">' + esc(UI.chaNote) + '</label>' +
       '<input type="text" id="cha-nt-' + k + '" value="' + esc(m.note || '') + '"></div>' +
       '<button class="btn g" type="button"' + dis + ' onclick="chaAct(\'note\',{ms:\'' + k + '\',txt:chaVal(\'cha-nt-' + k + '\')},false)">' + esc(UI.chaNoteSave) + '</button>' +
       '<div class="fld" style="margin-top:12px"><label class="label">' + esc(UI.chaDqWhy) + '</label>' +
       '<textarea class="cha-ta" id="cha-dq-' + k + '"></textarea></div>' +
       '<button class="btn g" type="button"' + dis + ' onclick="chaAct(\'dq\',{ms:\'' + k + '\',why:chaVal(\'cha-dq-' + k + '\')})">' + esc(UI.chaDq) + '</button>' +
-      '<p class="h">' + esc(UI.chaDqNote) + '</p>';
+      '<p class="h">' + esc(UI.chaDqNote) + '</p></details>';
   }
   if ((m.st === 'אושר' || m.st === 'נמסר') && m.sel) {
     var all = [m.sel.by].concat(m.sel.f);
-    h += '<div class="pp-h">' + esc(fill(UI.chaOkH, { g: m.sel.id })) + '</div><p class="h">' + esc(UI.chaSteps) + '</p>' + chaGrp(m.sel);
+    h += '<div class="cha-win"><b>' + esc(fill(UI.chaOkH, { g: m.sel.by.f })) + '</b><div class="cha-seats">' +
+      all.map(chaSeat).join('') + '</div></div>' +
+      '<details class="hx"><summary>' + esc(UI.chaTbMore) + '</summary>' + chaGrp(m.sel) + '</details>';
     if (m.st === 'אושר') {
       h += all.map(function (p) {
         return '<a class="btn g" style="margin-top:6px" target="_blank" rel="noopener" href="' +
@@ -16918,53 +16991,62 @@ function chaPaint() {
     el.innerHTML = h;
     return;
   }
-  /* ההתראה ב-450: להחליט לפני שמשהו משתנה אצל התלמידים. */
-  if (d.alert) {
-    h += '<div class="adm-card cha-alert"><h4>' + esc(UI.chaAlertH) + '</h4><p class="h">' + esc(UI.chaAlertP) + '</p>' +
-      '<div class="fld"><label class="label">' + esc(UI.chaExtAdd) + '</label><input type="number" min="1" max="100" id="cha-add" value="1" dir="ltr"></div>' +
-      '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'extend\',{add:chaVal(\'cha-add\')})">' + esc(UI.chaExt) + '</button>' +
-      '<button class="btn g" type="button" style="margin-top:8px"' + dis + ' onclick="chaAct(\'last\')">' + esc(UI.chaLast) + '</button></div>';
-  } else if (d.lastAt && d.lastAt === d.F && !d.ended) {
-    h += '<div class="adm-card"><p class="h"><b>' + esc(UI.chaLastOn) + '</b></p></div>';
-  }
+  /* 8.99.394 — המבצע במבט אחד: מה קורה, מה מחכה לך, השולחנות, המלאי. */
+  var G = d.grp || [], seated = 0, ready = 0;
+  G.forEach(function (g) { seated += 1 + g.f.length; if (g.st === 'מושלמת' && g.real !== 0) ready++; });
+  h += '<div class="adm-card cha-hero"><h3>' + esc(G.length ? fill(G.length === 1 ? UI.chaHeroP1 : UI.chaHeroP, { p: seated, t: G.length }) : UI.chaHeroNone) + '</h3>' +
+    (d.n ? '<p>' + esc(fill(UI.chaHeroNew, { n: d.n })) + '</p>' : '') +
+    '<p class="big">' + esc(ready ? (ready === 1 ? UI.chaReady1 : fill(UI.chaReadyN, { k: ready })) : UI.chaReady0) + '</p>' +
+    (d.nd && !d.ended ? '<p>' + esc(fill(UI.chaNextDraw, { when: chaWhen(d.nd) })) + '</p>' : '') +
+    (d.low ? '<p class="cha-low">' + esc(fill(UI.chaHeroLow, { n: d.low })) + '</p>' : '') + '</div>';
+  /* מה שמחכה לך — הגרלה שבוצעה וממתינה לאישור, או זוכים שעוד לא קיבלו שובר. */
+  var act = (d.ms || []).filter(function (m) { return ['ממתין לאישור', 'ממתין להגרלה', 'חלון פתוח', 'ממתין לקבוצה ראשונה', 'אושר'].indexOf(m.st) >= 0; });
+  act.slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
+  h += chaTables(d);
+  /* המלאי — משפט, והוספה במקום. */
+  h += '<div class="adm-card' + (d.left <= 1 ? ' cha-alert' : '') + '"><h4>' + esc(UI.chaMealsH) + '</h4>' +
+    '<p class="big">' + esc(d.left <= 0 ? UI.chaMeals0 : d.left === 1 ? UI.chaMeals1 : fill(UI.chaMealsN, { n: d.left })) + '</p>' +
+    (d.dlv ? '<p class="h">' + esc(fill(UI.chaDlvLine, { n: d.dlv })) + '</p>' : '') +
+    '<div class="fld"><label class="label">' + esc(UI.chaExtAdd) + '</label><input type="number" min="1" max="100" id="cha-add" value="1" dir="ltr"></div>' +
+    '<button class="btn ' + (d.left <= 1 ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaAct(\'extend\',{add:chaVal(\'cha-add\')})">' + esc(UI.chaExt) + '</button></div>';
   /* החשיפה — שורת מצב בולטת, וכפתור אחד לשנות. */
   var quiet = d.exp === 'מוזמנים';
   h += '<div class="adm-card' + (quiet ? ' cha-alert' : '') + '"><h4>' + esc(quiet ? UI.chaExpNowQ : UI.chaExpNowAll) + '</h4>' +
     '<p class="h">' + esc(quiet ? UI.chaExpQP : UI.chaExpAllP) + '</p>' +
     '<button class="btn ' + (quiet ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaExp(\'' + (quiet ? 'כולם' : 'מוזמנים') + '\')">' +
       esc(quiet ? UI.chaExpGoAll : UI.chaExpGoQ) + '</button></div>';
-  /* פתיחת הגרלה ידנית — כשאין הגרלה פתוחה ויש ארוחה במלאי. */
-  var busyMs = (d.ms || []).some(function (m) { return ['חלון פתוח', 'ממתין לקבוצה ראשונה', 'ממתין להגרלה', 'ממתין לאישור'].indexOf(m.st) >= 0; });
+  /* כל השאר — בלחיצה: הגרלה עכשיו, הודעות, לפי ישיבה, הגרלות קודמות. */
+  h += '<details class="adm-card cha-more"><summary>' + esc(UI.chaMoreH) + '</summary>';
+  var busyMs = act.some(function (m) { return m.st !== 'אושר'; });
   if (!busyMs && d.left > 0 && !d.ended) {
-    h += '<div class="adm-card"><h4>' + esc(UI.chaManH) + '</h4><p class="h">' + esc(fill(UI.chaManP, { n: (d.cnt || {}).done || 0 })) + '</p>' +
-      '<button class="btn g" type="button"' + dis + ' onclick="chaOpenMan()">' + esc(UI.chaManGo) + '</button></div>';
+    h += '<div class="pp-h">' + esc(UI.chaManH) + '</div><p class="h">' + esc(fill(UI.chaManP, { n: ready })) + '</p>' +
+      '<button class="btn g" type="button"' + dis + ' onclick="chaOpenMan()">' + esc(UI.chaManGo) + '</button>';
   }
-  var c = d.cnt || {};
-  h += '<div class="cha-tiles">' + chaTile(d.n, UI.chaN) + chaTile(d.next > 0 ? d.next : '—', UI.chaNext) +
-    chaTile(c.done, UI.chaDone) + chaTile(c.prog, UI.chaProg) + chaTile(c.wait, UI.chaWaitInv) +
-    chaTile(d.left, UI.chaLeft) + chaTile(d.dlv || 0, UI.chaDlvN) + '</div>';
-  h += chaGrps(d);
-  (d.ms || []).slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
+  var past = (d.ms || []).filter(function (m) { return act.indexOf(m) < 0; });
+  if (past.length) {
+    h += '<div class="pp-h">' + esc(UI.chaHistH) + '</div>';
+    past.slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
+  }
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
-  h += '<div class="adm-card"><h4>' + esc(UI.chaMsgsH) + '</h4><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
+  h += '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
     (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
       ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
       : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
     chaMsgBox('launch', UI.chaMsgLaunch, fill(UI.chaLaunchMsg, { url: chaStuUrl() }));
   var lastMs = (d.ms || []).filter(function (m) { return m.open; }).slice(-1)[0];
-  if (lastMs) h += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
-  h += d.lastAt && d.lastAt === d.F ? chaMsgBox('last', UI.chaMsgLast, fill(UI.chaLastMsg, { url: chaStuUrl() }))
-                                    : '<div class="pp-h">' + esc(UI.chaMsgLast) + '</div><p class="h">' + esc(UI.chaLastWait) + '</p>';
-  h += '</div>';
+  /* "אבן דרך" — רק להגרלת סף ישנה; הגרלת יום ראשון אינה סף (8.99.394). */
+  if (lastMs && lastMs.th) h += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
+  if (d.lastAt && d.lastAt === d.F) h += chaMsgBox('last', UI.chaMsgLast, fill(UI.chaLastMsg, { url: chaStuUrl() }));
   /* לפי ישיבה — ומשם העדכון לראש החטיבה. */
   var by = d.by || {}, codes = Object.keys(by).filter(function (x) { return x && x !== '-'; });
   if (codes.length) {
-    h += '<div class="adm-card"><h4>' + esc(UI.chaByH) + '</h4><div class="plist">' +
+    h += '<div class="pp-h">' + esc(UI.chaByH) + '</div><div class="plist">' +
       codes.map(function (cd) {
         return '<div class="prow2"><div style="flex:1"><b>' + esc(admInstName(cd)) + '</b><span>' +
           esc(fill(UI.chaByRow, { n: by[cd].n, g: by[cd].g })) + '</span>' + wuBlock('b' + cd, cd, 'upd', UI.wuBtn) + '</div></div>';
-      }).join('') + '</div></div>';
+      }).join('') + '</div>';
   }
+  h += '</details>';
   if (CHA.test) h += '<div class="adm-card"><button class="btn g" type="button"' + dis + ' onclick="chaAct(\'tclear\')">' + esc(UI.chaClear) + '</button></div>';
   el.innerHTML = h;
 }

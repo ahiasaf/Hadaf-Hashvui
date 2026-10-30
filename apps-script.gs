@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 147;
+var SCRIPT_VERSION = 148;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12060,7 +12060,9 @@ function chAdm_(M, U) {
     var p = ppl[id] || {}, old = !!(by || p.ob);
     return { id: id, f: p.f || '', l: p.l || '', i: p.i || '', n: p.n || '', at: p.at || 0,
              c: p.c || (by ? p.e || 0 : 0), v: chOkRole_(M, id, old) ? 1 : 0,
-             mn: p.mn == null ? -1 : p.mn, o: p.ob && !by ? 1 : 0, ph: phById(id) };
+             mn: p.mn == null ? -1 : p.mn, o: p.ob && !by ? 1 : 0, ph: phById(id),
+             /* התחיל / כמה התקדם — לכיסא בניהול (8.99.394). */
+             s: p.s || 0, q: p.q || 0 };
   };
   var cnt = { done: 0, wait: 0, won: 0, sel: 0, out: 0, prog: 0 };
   M.grp.forEach(function (g) {
