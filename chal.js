@@ -589,8 +589,8 @@
       tableHtml(seats, midOf(stOf(v)), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
       (!d.ended && !m.l ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' : '') +
       (inv ? (fr ? frHtml(fr) : '') + shareHtml() : '') + howHtml() + '</div>';
-    return h + faqHtml() + countHtml(d) +
-      '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(U('chTerms')) + '</p></details>';
+    /* "התנאים" ירדו ממסך השולחן (8.99.388, אחיאסף). */
+    return h + faqHtml() + countHtml(d);
   }
   function fullWire(box, d, redraw) {
     if (!d.ended) wireShare();
