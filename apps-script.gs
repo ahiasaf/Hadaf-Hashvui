@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 145;
+var SCRIPT_VERSION = 146;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11579,6 +11579,9 @@ function chTables_(U, S, K, X) {
   };
   var startOf = function (id, v) {
     if (v.at < SW) return v.at;
+    /* כבר למד (✓) לפני שהוזמן — יושב מיד, בלי לחכות ללימוד נוסף (8.99.386). */
+    var la = X.at(id);
+    if (la && la <= v.at) return v.at;
     var a = X.act[id] || [];
     for (var i = 0; i < a.length; i++) if (a[i] >= v.at) return a[i];
     return 0;
