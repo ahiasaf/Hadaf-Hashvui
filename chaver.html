@@ -195,6 +195,33 @@ footer a{color:var(--ink-2)}
 .ch-note{background:#FFF4D6;color:#5C4513;font-size:.92rem;font-weight:700;border-radius:12px;
   padding:9px 12px;margin:0 0 10px;text-align:start}
 .ch-rule{font-size:.82rem;font-weight:700;color:#5A6780;margin:-4px 0 6px}
+/* 8.99.385 — הכרטיס הקומפקטי בבית: ארבעה כיסאות בשורה, שם ומצב, וכפתור ירוק
+   למסך השולחן. במסך השולחן — כל שם על כיסא (`ch-chairs`), ושאלות ותשובות. */
+.ch-row4{display:flex;justify-content:space-between;gap:4px;margin:12px 0 4px}
+.ch-s{flex:1;min-width:0;text-align:center;line-height:1.2}
+.ch-s .ch-c{position:relative;display:block;width:56px;height:56px;margin:0 auto 5px}
+.ch-s .ch-c > svg{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}
+.ch-s.ch-free .ch-c > svg{filter:none}
+.ch-s .ch-c circle[stroke-dasharray="6 5"]{stroke:#C9B998;fill:#F6F0E2}
+.ch-s.ch-free .ch-c path{stroke:#C9B998}
+.ch-s .ch-tick{width:19px;height:19px}
+.ch-s b{display:block;font-size:.86rem;font-weight:800;color:#0B2550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-s i{display:block;font-style:normal;font-size:.72rem;font-weight:800;color:#3574CE}
+.ch-s.ch-free b{color:#9A8A68}
+.ch-s.ch-part i{color:#B07A12}
+.ch-s.ch-done i{color:#2E6B12}
+.ch-cmp #ch-open{background:#1FA637;box-shadow:0 6px 16px rgba(31,166,55,.32)}
+.ch-chairs .ch-lb b{display:inline-block;min-width:74px;max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;padding:6px 8px 8px;border-radius:14px 14px 5px 5px;background:#8C5A2B;color:#fff;box-shadow:0 4px 0 #5E3A19}
+.ch-chairs .ch-lb.ch-free b{background:transparent;color:#9A8A68;border:2px dashed #C9B998;box-shadow:none}
+.ch-tbl.ch-chairs{padding:64px 0}
+.ch-chairs .ch-lb{display:flex;flex-direction:column;align-items:center}
+.ch-chairs .ch-lb.ch-q1,.ch-chairs .ch-lb.ch-q2{flex-direction:column-reverse}
+.ch-chairs .ch-lb i{margin:7px 0 0}
+.ch-chairs .ch-lb.ch-q1 i,.ch-chairs .ch-lb.ch-q2 i{margin:0 0 3px}
+.ch-qa{margin-top:12px}
+.ch-qa b{display:block;font-size:.92rem;font-weight:800;color:#0B2550}
+.ch-faq .ch-qa p{margin-top:3px}
 .ch-card.land{text-align:center}
 .ch-card.land .ch-tbl{margin-top:4px}
 </style>

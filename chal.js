@@ -146,22 +146,7 @@
     return '<div class="ch-pub">' + h + '</div>';
   }
 
-  /* ---- מצב הקבוצה — שורה אחת ---- */
-  function stLine(g, d, mine) {
-    var x = g.d || {}, by = g.by.n;
-    if (x.s === 'me') return mine ? U('chStMeInv') : tp(U('chStMeFr'), { by: by });
-    if (x.s === 'q') {
-      var t = x.win ? U('chStWin') : U('chStQ0');
-      return x.lost ? U('chStLostMore') + ' ' + t : t;
-    }
-    if (x.s === 'in') return x.date ? tp(U('chStInDate'), { d: when(x.date) }) : U('chStIn');
-    if (x.s === 'wait') return U('chStWait');
-    if (x.s === 'won') return U('chStWon');
-    if (x.s === 'out') return U('chStOut');
-    if (x.s === 'lost') return U('chStLost') + (d.ended ? ' ' + U('chEnded') : '');
-    if (x.s === 'end') return d.ended ? U('chEnded') : '';
-    return '';
-  }
+
   /* צבע הכרטיס לפי המצב: ערוך (בתור), בהגרלה/ממתין, זכה, כבוי. */
   function cls(s) {
     return s === 'won' ? 'won' : s === 'wait' || s === 'in' ? 'in' : s === 'q' ? 'set'
@@ -193,13 +178,12 @@
   };
 
   /* מקום אחד: { k: free|you|reg|part|done, n: שם, i: אות, q: 0–1, inv: מזמין } */
-  function seatOf(p, inv) {
+  function seatOf(p) {
     var nm = p.me ? U('chMe') : p.n || U('chFriend');
     /* "התחיל" — מהשורה הראשונה של התקדמות (`s`), והצלחת מתמלאת לפי `q`. */
     var k = p.l ? 'done' : p.q > 0 || p.s ? 'part' : 'reg';
-    /* המזמין לא "הצטרף" — הוא עוד לא למד. */
-    return { k: k, n: nm, i: String(p.n || '').charAt(0), q: p.q || 0, inv: !!inv, me: !!p.me, o: !!p.o,
-             lbl: inv && k === 'reg' ? U('chSeatInvNo') : '' };
+    return { k: k, n: nm, i: String(p.n || '').charAt(0), q: p.q || 0, me: !!p.me,
+             lbl: p.me && k === 'reg' ? U('chSeatRegMe') : '' };
   }
   function free() { return { k: 'free' }; }
   /* הצלחת. `you` — "אתה" לפני שהזמין: בלי מצב, רק השם. */
@@ -226,10 +210,11 @@
   }
   var STATE = { reg: 'chSeatReg', part: 'chSeatPart', done: 'chLearned' };
   function seatAria(s) {
-    return s.k === 'free' ? U('chSeatFree') : s.n + (STATE[s.k] ? ' · ' + U(STATE[s.k]) : '');
+    return s.k === 'free' ? U('chSeatFree') : s.n + (s.lbl || STATE[s.k] ? ' · ' + (s.lbl || U(STATE[s.k])) : '');
   }
-  /* השולחן: ארבע צלחות, השמות מחוץ לו, והפרס (או המצב) במרכז. */
-  function tableHtml(seats, mid, sm) {
+  /* השולחן: ארבע צלחות, השמות מחוץ לו, והפרס (או המצב) במרכז. `chairs` —
+     במסך השולחן: כל שם על כיסא (8.99.385). */
+  function tableHtml(seats, mid, sm, chairs) {
     var lb = '', pl = '';
     seats.forEach(function (s, x) {
       var q = ' ch-q' + (x + 1) + ' ch-' + s.k;
@@ -239,7 +224,7 @@
         (s.lbl || STATE[s.k] ? '<i>' + esc(s.lbl || U(STATE[s.k])) + '</i>' : '') + '</div>';
       pl += '<div class="ch-pl' + q + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
     });
-    return '<div class="ch-tbl' + (sm ? ' sm' : '') + '">' + lb + '<div class="ch-board">' +
+    return '<div class="ch-tbl' + (sm ? ' sm' : '') + (chairs ? ' ch-chairs' : '') + '">' + lb + '<div class="ch-board">' +
       '<div class="ch-mid">' + mid[0] + '<span>' + para(mid[1]) + '</span></div>' + pl + '</div></div>';
   }
   function midOf(s) {
@@ -249,65 +234,52 @@
     if (s === 'won') return [IC.star, U('chMidWon')];
     return [IC.burger(26, 20), U('chTblMid')];
   }
-  function leftLine(k, d) {
-    if (d && d.ended) return U('chEnded');
-    var n = 4 - k;
-    return tp(U('chTblK'), { k: k }) + (n > 0 ? ' · ' + (n === 1 ? U('chTblLeft1') : tp(U('chTblLeft'), { n: n })) : '');
-  }
 
-  /* ---- כל השולחנות שלי, מהמבט של השרת ----
-     { t: כותרת, seats, s: מצב, line, done: מושלמת, mine, open }
-     **השיבוץ — מהשרת, ויציב** (8.99.351, `tbl` ב-chOpen_): כל מוזמן יושב
-     בשולחן שהצטרף אליו, ומי שבא אחריו אינו מזיז אותו. המזמין רואה את כל
-     השולחנות שלו; חבר — את השולחן שלו. */
-  function views(m, d) {
-    var out = [];
-    if (!m) return out;
-    var grp = function (g, mine, title) {
-      var s = (g.d || {}).s;
-      out.push({ t: title, s: s, mine: mine, done: s !== 'me',
-                 seats: [seatOf(g.by, true)].concat(g.f.map(function (f) { return seatOf(f); })),
-                 line: stLine(g, d, mine) });
-    };
-    var seatsOf = function (o, part) {
-      var seats = [seatOf(o.by, true)].concat(part.map(function (p) { return seatOf(p); }));
-      while (seats.length < 4) seats.push(free());
-      return seats;
-    };
-    if (m.inv) {
-      var t0 = tp(U('chInvGrpH'), { by: m.inv.by });
-      if (m.inv.g) grp(m.inv.g, false, t0);
-      else {
-        var o = m.inv.open, part = (o.tbl && o.tbl[0]) || [], mi = null;
-        part.forEach(function (p) { if (p.me) mi = p; });
-        out.push({ t: t0, s: 'open', mine: false, open: o, seats: seatsOf(o, part),
-                   line: d.ended ? U('chEnded') : tp(U(mi && mi.l ? 'chInvL' : 'chInvNotL'), { by: m.inv.by }) });
-      }
-    }
-    var mg = m.mine || [], parts = (m.open && m.open.tbl) || [];
-    var tot = mg.length + parts.length;
-    var ttl = function (i) { return tot > 1 ? tp(U('chGrpN'), { n: i + 1 }) : U('chMyGrpH'); };
-    mg.forEach(function (g, i) { grp(g, true, ttl(i)); });
-    parts.forEach(function (part, i) {
-      var k = (m.open.by.l ? 1 : 0) + part.filter(function (p) { return p.l; }).length;
-      out.push({ t: ttl(mg.length + i), s: 'open', mine: true, open: m.open, seats: seatsOf(m.open, part),
-                 line: leftLine(k, d) });
-    });
+
+  /* ---- השולחן שלי — אחד (8.99.385) ----
+     יושב — השולחן (`me.t`); הוזמן ועוד לא התחיל ללמוד — השולחן שהוזמן
+     אליו (`me.pend.t`, המקום עוד לא שמור); אחרת — השולחן הריק שלי. */
+  function tv(d) {
+    var m = d && d.me;
+    if (!m) return null;
+    if (m.t) return { t: m.t, pend: false };
+    if (m.pend && m.pend.t) return { t: m.pend.t, pend: true };
+    return null;
+  }
+  function seatsOf(v) {
+    var out = v ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
+    while (out.length < 4) out.push(free());
     return out;
   }
-  /* השולחן שבבית — החשוב מכולם: זכייה, אישור, פעולה שמחכה לי, ואז השאר. */
-  var RANK = { won: 9, wait: 8, me: 7, open: 6, 'in': 5, q: 4, lost: 2, end: 2, out: 1 };
-  function homeView(vs) {
-    var best = null;
-    vs.forEach(function (v) {
-      var r = (RANK[v.s] || 0) + (v.mine ? 0.5 : 0);
-      if (!best || r > best.r) best = { r: r, v: v };
-    });
-    return best ? best.v : null;
+  function titleOf(v) { return !v || v.t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: v.t.name }); }
+  function lineOf(v, d) {
+    if (d.ended) return U('chEnded');
+    if (!v) return '';
+    if (v.pend) return U('chSeatSave');
+    return { q: U('chStQ0'), wait: U('chStWait'), won: U('chStWon') }[v.t.st] || '';
+  }
+  function stOf(v) { return v && !v.pend ? v.t.st : ''; }
+  /* ארבעה עיגולים בשורה — הכרטיס בבית. */
+  function rowHtml4(seats) {
+    return '<div class="ch-row4">' + seats.map(function (s) {
+      var st = s.k === 'free' ? '' : s.lbl || U(STATE[s.k]) || '';
+      return '<div class="ch-s ch-' + s.k + '" role="img" aria-label="' + esc(seatAria(s)) + '"><span class="ch-c">' +
+        plateSvg(s) + '</span><b>' + esc(s.k === 'free' ? U('chSeatFree') : s.n) + '</b>' +
+        (st ? '<i>' + esc(st) + '</i>' : '') + '</div>';
+    }).join('') + '</div>';
   }
   function startSeats() {
     var m = me();
     return [{ k: 'you', n: U('chMe'), i: String((m && m.first) || '').charAt(0) }, free(), free(), free()];
+  }
+  /* שאלות ותשובות — נוסח אחד שאחיאסף עורך: שורה ראשונה שאלה, אחריה התשובה,
+     שורה ריקה בין שאלה לשאלה. סגור עד שלוחצים. */
+  function faqHtml() {
+    var qs = String(U('chFaq') || '').replace(/\r/g, '').split(/\n\s*\n/).map(function (b) {
+      var l = b.replace(/^\s+|\s+$/g, '').split('\n');
+      return l[0] ? '<div class="ch-qa"><b>' + esc(l[0]) + '</b>' + (l.length > 1 ? '<p>' + para(l.slice(1).join('\n')) + '</p>' : '') + '</div>' : '';
+    }).join('');
+    return qs ? '<details class="ch-terms ch-faq"><summary>' + esc(U('chFaqH')) + '</summary>' + qs + '</details>' : '';
   }
   function howHtml() {
     return '<div class="ch-how"><div><i>' + IC.plus + '</i>' + para(U('chHow1')) + '</div><span>←</span>' +
@@ -366,13 +338,13 @@
     return c ? '<a class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" target="_blank" rel="noopener" href="' + esc(waOf(c, ph)) + '">' + IC.wa(22) + t + '</a>'
              : '<button class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" type="button">' + IC.wa(22) + t + '</button>';
   }
-  function frWire(box, d, f) {
+  function frWire(box, d, f, redraw) {
     var b = document.getElementById('ch-fr');
     if (!b) return;
     var ph = b.getAttribute('data-p') || '';
     b.onclick = function () {
       if (f) LSet('chFrSent', '1');
-      if (b.tagName === 'A') { if (f) setTimeout(function () { cardDraw(box, d); }, 300); return; }
+      if (b.tagName === 'A') { if (f && redraw) setTimeout(redraw, 300); return; }
       b.disabled = true;
       var undo = function () { if (f) { try { localStorage.removeItem('df:chFrSent'); } catch (e) {} } b.disabled = false; };
       api('ref', { id: ids().join(',') }).then(function (r) {
@@ -417,9 +389,13 @@
   /* ---- הקישור, כפי שהשרת הכריע — הודעה אחת, בעדינות ---- */
   function noteHtml(d) {
     if (!d) return '';
-    var by = { by: d.refBy || U('chFriend') };
-    if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chSitOk'), by)) + '</p>';
-    var k = { bad: 'chRefBad', self: 'chRefSelf', other: 'chRefOther' }[d.ref];
+    var by = { by: d.refBy || U('chFriend') }, m = d.me || {};
+    /* 8.99.385: ישיבה מהקישור = הזמנה; המקום נשמר כשמתחילים ללמוד. */
+    if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chRefPend'), { t: by.by })) + '</p>';
+    if (d.ref === 'other' && m.t) return '<p class="ch-note">' + esc(tp(U('chRefSeated'), { t: m.t.name })) + '</p>';
+    if (d.ref === 'pend' && m.pend) return '<p class="ch-note">' + esc(tp(U('chRefPend'), { t: m.pend.by })) + '</p>';
+    if (d.ref === 'full') return '<p class="ch-note">' + esc(tp(U('chLandFull'), { name: by.by })) + '</p>';
+    var k = { bad: 'chRefBad', self: 'chRefSelf' }[d.ref];
     return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
   }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת. "הצטרפת" — רק מתשובת
@@ -474,7 +450,7 @@
   function promo(d) {
     if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || LGet('chPromo', '')) return;
     LSet('chPromo', '1');
-    if (views(d.me, d).length) return;
+    if (tv(d)) return;
     var el = document.createElement('div'), back = document.activeElement;
     el.className = 'ch-promo';
     el.setAttribute('role', 'dialog');
@@ -529,45 +505,23 @@
     return isAdminView() || asStuOn();
   }
   function cardDraw(box, d) {
-    if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; sync(); return; }
-    var m = d.me, h;
-    /* רשום שהגיע מקישור, ויש מקום לותיק — ההצעה לשבת היא הכרטיס. */
+    if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; return; }
+    /* רשום שהגיע מקישור, ויש מקום — ההצעה לשבת היא הכרטיס. */
     if (d.ref === 'old' && refAny()) {
       box.innerHTML = sitHtml(d) + '</div>';
       wireSit(function (x) { cardDraw(box, x); });
-      sync();
       return;
     }
-    var v = homeView(views(m, d)), note = noteHtml(d), fr = d.ended ? null : frOf();
-    if (!v) {
-      /* עוד אין שולחן. הקוד כבר במכשיר — הכפתור פותח וואטסאפ ישר;
-         אחרת לעמוד האתגר, שם הקוד נוצר. בבית לא יוצרים קוד: זו
-         כתיבה לגיליון לכל תלמיד שרק פתח את האפליקציה. */
-      var c0 = LGet(codeKey(), '');
-      /* עוד אין שולחן — **השולחן עצמו** (אתה ושלושה מקומות פנויים), לא פס מקוצר:
-         החלטת אחיאסף (8.99.380) — דווקא מי שעוד לא הזמין צריך לראות את השולחן. */
-      h = '<div class="ch-tcard ch-home ch-special">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
-        '<h2 class="ch-hh">' + esc(U('chCardH')) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-        tableHtml(startSeats(), midOf('')) + howHtml() +
-        (d.ended ? '' : fr ? frHtml(fr) : waBtn(U('chGo'), ''));
-      /* "איך זה עובד?" ירד (8.99.370, החלטת אחיאסף). */
-    } else {
-      var fill = v.s === 'open' && v.mine && !d.ended;
-      if (!fill) fr = null;
-      /* הצעד היחיד שמזיז אותי — ללמוד: חבר שעוד לא למד, או מזמין
-         שהשולחן שלו מחכה רק לו. */
-      var go = !d.ended && m && !m.l && (v.s === 'open' && !v.mine || v.s === 'me' && v.mine);
-      h = '<div class="ch-tcard ch-home ch-special ' + cls(v.s) + '">' + yayHtml(m) + note +
-        '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(v.t) + '</h2>' +
-        tableHtml(v.seats, midOf(v.s), true) + '<p class="ch-tline">' + esc(v.line) + '</p>' +
-        (fr ? frHtml(fr) + '<a class="ch-more" href="chaver.html">' + esc(U('chOpenBtn')) + '</a>' :
-         go ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' +
-              '<a class="ch-more" href="chaver.html">' + esc(U('chOpenBtn')) + '</a>'
-            : '<a class="ch-btn' + (fill ? ' ch-cta' : '') + '" href="chaver.html">' + esc(fill ? U('chFillBtn') : U('chOpenBtn')) + '</a>');
-    }
-    box.innerHTML = h + countHtml(d) + '</div>';
-    frWire(box, d, fr);
-    sync();
+    /* **כרטיס קומפקטי** (8.99.385, לפי הציור של אחיאסף): השולחן, ארבעה
+       כיסאות עם שם ומצב, וכפתור אחד — למסך השולחן, שנפתח מעל הבית. */
+    var v = tv(d), line = lineOf(v, d);
+    box.innerHTML = '<div class="ch-tcard ch-home ch-special ch-cmp ' + cls(stOf(v)) + '">' + yayHtml(d.me) + noteHtml(d) +
+      '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2>' +
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + rowHtml4(seatsOf(v)) +
+      (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      '<button type="button" class="ch-btn ch-cta" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
+    document.getElementById('ch-open').onclick = function () { pgOpen(box); };
+    if (PG) pgPaint();
   }
   function card(box) {
     if (!box) return;
@@ -590,7 +544,7 @@
     WATCH = { fn: fn, n: 0 };
     var live = function () {
       var d = cached(), m = d && d.me;
-      return !!(m && (m.inv || (m.mine && m.mine.length) || m.open));
+      return !!(m && (m.t || m.pend));
     };
     var go = function (gap) {
       if (document.visibilityState === 'hidden' || !live() || Date.now() - LAST < gap) return;
@@ -615,60 +569,31 @@
   /* ============================================================
      עמוד האתגר.
      ============================================================ */
-  function tcardHtml(v, d, first) {
-    var h = '<div class="ch-tcard ' + cls(v.s) + '"><h2 class="ch-hh sm">' + esc(v.t) + '</h2>' +
-      (first ? '<p class="ch-prize">' + esc(U('chFillHint')) + '</p>' : '') +
-      tableHtml(v.seats, midOf(v.s)) + '<p class="ch-tline">' + esc(v.line) + '</p>';
-    /* קבוצה שהושלמה — עידוד להמשיך, לא תנאי. */
-    if (['q', 'in', 'wait', 'won', 'lost'].indexOf(v.s) >= 0) {
-      h += '<a class="ch-btn ghost" href="' + esc(weekUrl()) + '">' + esc(U('chWeekBtn')) + '</a>' +
-           '<p class="ch-sm">' + esc(U('chWeekNote')) + '</p>';
-    }
-    return h + '</div>';
+  /* ============================================================
+     מסך השולחן (8.99.385) — אותו תוכן בשני מקומות: מעל הבית (pgOpen)
+     ובעמוד האתגר (chaver.html, למי שנחת מקישור או מההתראה).
+     ============================================================ */
+  function fullHtml(d) {
+    var v = tv(d), m = d.me || {}, seats = seatsOf(v), line = lineOf(v, d), fr = d.ended ? null : frOf();
+    var room = seats.some(function (s) { return s.k === 'free'; });
+    /* מי שהוזמן ועוד לא התחיל — אינו שולח קישור (הוא עוד לא יושב). */
+    var inv = !d.ended && room && !(v && v.pend);
+    var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d) +
+      '<div class="ch-tcard ch-special ' + cls(stOf(v)) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
+      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+      tableHtml(seats, midOf(stOf(v)), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      (!d.ended && !m.l ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' : '') +
+      (inv ? (fr ? frHtml(fr) : '') + shareHtml() : '') + howHtml() + '</div>';
+    return h + faqHtml() + countHtml(d) +
+      '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(U('chTerms')) + '</p></details>';
   }
-  /* שורה ב"הצעד הבא": צלחת קטנה, שם ומצב, ופעולה. */
-  function rowHtml(s, t, sub, act) {
-    return '<div class="ch-row"><div class="ch-pl ch-mini ch-' + s.k + '">' + plateSvg(s) + '</div>' +
-      '<div class="ch-rt">' + esc(t) + '<small>' + esc(sub) + '</small></div>' + (act || '') + '</div>';
-  }
-  function remindHref() { return 'https://wa.me/?text=' + encodeURIComponent(U('chRemindMsg')); }
-  function nextHtml(m, d, vs) {
-    var rows = '', myOpen = null, mine = false, ownAlso = false, last = null;
-    vs.forEach(function (v) { if (v.s === 'open' && v.mine) { myOpen = v.open; last = v; } if (v.mine) mine = true; });
-    /* אני — אם שולחן כלשהו מחכה ללימוד שלי. */
-    var meWait = null;
-    vs.forEach(function (v) {
-      v.seats.forEach(function (s) {
-        if (!meWait && s.me && (s.k === 'reg' || s.k === 'part')) meWait = { s: s, v: v };
-      });
-    });
-    if (meWait && !d.ended) {
-      rows += rowHtml(meWait.s, U('chMe'), meWait.v.mine ? U('chMeLearn') : tp(U('chInvNotL'), { by: m.inv ? m.inv.by : '' }),
-        '<a class="ch-btn sm" href="' + esc(weekUrl()) + '">' + esc(U('chWeekBtn')) + '</a>');
-    }
-    if (myOpen && !d.ended) {
-      myOpen.no.forEach(function (p) {
-        if (!p.n || p.me) return;
-        var s = seatOf(p);
-        rows += rowHtml(s, p.n, s.k === 'part' ? U('chSeatPart') : U('chRegSub'),
-          '<a class="ch-btn wa sm" target="_blank" rel="noopener" href="' + remindHref() + '">' + IC.wa(16) + esc(U('chRemind')) + '</a>');
-      });
-    }
-    if (!d.ended) {
-      /* המקומות הפנויים — בשולחן האחרון שעל המסך; כולם תפוסים — עוד שולחן. */
-      var need = last ? last.seats.filter(function (x) { return x.k === 'free'; }).length : 3;
-      ownAlso = !mine && !!m.inv;
-      rows += rowHtml(free(), ownAlso ? U('chOwnBtn') : !need ? U('chFreeMore') : need === 1 ? U('chFree1') : tp(U('chFreeN'), { n: need }),
-        ownAlso ? U('chOwnAlso') : U('chFreeSub'));
-    }
-    if (!rows && d.ended) return '';
-    return '<div class="ch-next"><div class="ch-k">' + esc(U('chNextH')) + '</div>' + rows +
-      (d.ended ? '' : shareHtml()) + '</div>';
+  function fullWire(box, d, redraw) {
+    if (!d.ended) wireShare();
+    frWire(box, d, d.ended ? null : frOf(), redraw);
   }
   function pageDraw(box, d) {
     if (!d) { box.innerHTML = '<p class="ch-sm">' + esc(U('chErr')) + '</p>'; return; }
     if (!d.on) { box.innerHTML = '<div class="ch-card"><p class="ch-st">' + esc(U('chOff')) + '</p></div>'; return; }
-    var m = d.me, h = '';
     if (d.ref === 'old' && refAny()) {
       box.innerHTML = sitHtml(d) + '</div>';
       wireSit(function (x) { pageDraw(box, x); });
@@ -681,38 +606,74 @@
       };
       return;
     }
-    h += msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d);
-    var vs = views(m, d);
-    if (!vs.length) {
-      h += '<div class="ch-tcard"><h2 class="ch-hh sm">' + esc(U('chMyGrpH')) + '</h2>' +
-        '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(startSeats(), midOf('')) + howHtml() + '</div>';
-    }
-    vs.forEach(function (v, i) { h += tcardHtml(v, d, i === 0); });
-    h += nextHtml(m || {}, d, vs);
-    if (m && m.all && m.all.length) {
-      h += '<details class="ch-all"><summary>' + esc(tp(U('chAllH'), { n: m.all.length })) + '</summary>' +
-        m.all.map(function (p) {
-          var s = seatOf(p);
-          return rowHtml(s, p.n, U(STATE[s.k]) + (p.o ? ' · ' + U('chOldTag') : ''));
-        }).join('') + '</details>';
-    }
-    h += countHtml(d);
-    /* "נשאר בהגרלות הבאות" (chStay) ירד — אין הבטחה להגרלות נוספות (8.99.357). */
-    h += '<details class="ch-terms"><summary>' + esc(U('chTermsH')) + '</summary><p>' + para(U('chTerms')) + '</p></details>';
-    box.innerHTML = h;
-    if (!d.ended) wireShare();
+    box.innerHTML = fullHtml(d);
+    fullWire(box, d, function () { pageDraw(box, cached() || d); });
   }
+
+  /* ---- מעל הבית: בלי מעבר עמוד, ולכן "חזרה" מחזירה לאותו מקום בדיוק ----
+     כמו "איך זוכים בכרטיסים?" (tkHowOpen ב-join.html): רשומה בהיסטוריה
+     (pushState), וחזרת הדפדפן, הכפתור ו-Escape סוגרים. הגלילה של הבית
+     נשמרת ומוחזרת; המיקוד חוזר לכפתור שפתח. */
+  var PG = null;
+  function pgPaint() {
+    if (!PG) return;
+    var d = cached();
+    if (!d || !d.on) return;
+    var y = PG.el.scrollTop;
+    PG.in.innerHTML = fullHtml(d);
+    fullWire(PG.in, d, pgPaint);
+    PG.el.scrollTop = y;
+  }
+  function pgOpen() {
+    if (PG) return;
+    var el = document.createElement('div');
+    el.className = 'chpg';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', U('chToTable').replace(/[←\s]+$/, ''));
+    el.innerHTML = '<div class="tkh-bar"><button type="button" id="chpg-x">→ ' + esc(U('chPgBack')) + '</button></div><div class="chpg-in"></div>';
+    document.body.appendChild(el);
+    PG = { el: el, in: el.lastChild, y: window.pageYOffset || document.documentElement.scrollTop || 0, hist: false };
+    document.documentElement.className += ' chpg-on';
+    try { history.pushState({ chpg: 1 }, ''); PG.hist = true; } catch (e) {}
+    document.getElementById('chpg-x').onclick = function () { pgClose(); };
+    pgPaint();
+    try { document.getElementById('chpg-x').focus(); } catch (e2) {}
+  }
+  function pgClose(pop) {
+    if (!PG) return;
+    if (!pop && PG.hist) {
+      PG.hist = false;
+      history.back();
+      setTimeout(function () { pgClose(true); }, 400);
+      return;
+    }
+    var y = PG.y;
+    if (PG.el.parentNode) PG.el.parentNode.removeChild(PG.el);
+    PG = null;
+    document.documentElement.className = document.documentElement.className.replace(/\s*\bchpg-on\b/g, '');
+    window.scrollTo(0, y);
+    var b = document.getElementById('ch-open');
+    if (b) { try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } window.scrollTo(0, y); }
+  }
+  window.addEventListener('popstate', function () { pgClose(true); });
+  document.addEventListener('keydown', function (e) {
+    if (PG && (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27)) pgClose();
+  });
+
   /* הנחיתה מקישור — למי שעוד לא נרשם במכשיר הזה. השם נשמר במכשיר,
      ל"מצטרף לשולחן של…" לאורך ההרשמה (strip). קוד שאינו קיים —
      אומרים, ובכל זאת אפשר להירשם. */
   function landDraw(box, L) {
-    var on = L && L.on, nm = L && L.name, bad = L && L.bad;
+    var on = L && L.on, nm = L && L.name, bad = L && L.bad, full = !!(L && L.full);
     if (nm) LSet('chRefBy', nm);
     var v = { name: nm || U('chFriend') };
+    /* השולחן של המזמין מלא (8.99.385) — "הזמין אותך להצטרף למבצע!", והשולחן
+       שלך ריק: כשתתחיל ללמוד, הוא שלך. */
     box.innerHTML = '<div class="ch-card land">' +
       (bad ? '<h2>' + esc(U('chLandBadH')) + '</h2><p class="ch-note">' + esc(U('chRefBad')) + '</p>'
-           : '<h2>' + esc(nm ? tp(U('chLandH'), v) : U('chLandHx')) + '</h2>' +
-             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(landSeats(nm), midOf(''), true) : '') +
+           : '<h2>' + esc(nm ? tp(U(full ? 'chLandFull' : 'chLandH'), v) : U('chLandHx')) + '</h2>' +
+             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm), midOf(''), true) : '') +
              '<p class="ch-lead">' + esc(on ? tp(U('chLandP'), v) : U('chLandOff')) + '</p>') +
       '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
         esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a>' +
