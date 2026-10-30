@@ -1297,10 +1297,16 @@ footer a{color:var(--ink-2);font-weight:800}
 .ch-s.ch-part i{color:#B07A12}
 .ch-s.ch-done i{color:#2E6B12}
 .ch-cmp #ch-open{background:#1FA637;box-shadow:0 6px 16px rgba(31,166,55,.32)}
-.ch-chairs .ch-lb b{display:inline-block;min-width:74px;max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap;padding:6px 8px 8px;border-radius:14px 14px 5px 5px;background:#8C5A2B;color:#fff;box-shadow:0 4px 0 #5E3A19}
-.ch-chairs .ch-lb.ch-free b{background:transparent;color:#9A8A68;border:2px dashed #C9B998;box-shadow:none}
-.ch-tbl.ch-chairs{padding:64px 0}
+/* כיסא לבן (8.99.390, אחיאסף): המשענת המעוגלת רחוק מהשולחן, שפת המושב לכיוון השולחן —
+   למעלה ולמטה תמונת מראה. */
+.ch-chairs .ch-lb b{display:inline-block;min-width:92px;max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;padding:8px 12px 9px;border-radius:24px 24px 7px 7px;background:linear-gradient(#FFFFFF,#F3ECDD);
+  color:#0B2550;border-top:4px solid #E6D8BC;box-shadow:0 6px 0 -1px #D2BE96,0 9px 14px rgba(11,37,80,.16)}
+.ch-chairs .ch-lb.ch-q3 b,.ch-chairs .ch-lb.ch-q4 b{border-radius:7px 7px 24px 24px;background:linear-gradient(#F3ECDD,#FFFFFF);
+  border-top:0;border-bottom:4px solid #E6D8BC;box-shadow:0 -6px 0 -1px #D2BE96,0 9px 14px rgba(11,37,80,.16)}
+.ch-chairs .ch-lb.ch-free b,.ch-chairs .ch-lb.ch-free.ch-q3 b,.ch-chairs .ch-lb.ch-free.ch-q4 b{background:transparent;color:#9A8A68;
+  border:2px dashed #C9B998;box-shadow:none}
+.ch-tbl.ch-chairs{padding:66px 0}
 .ch-chairs .ch-lb{display:flex;flex-direction:column;align-items:center}
 .ch-chairs .ch-lb.ch-q1,.ch-chairs .ch-lb.ch-q2{flex-direction:column-reverse}
 .ch-chairs .ch-lb i{margin:7px 0 0}
