@@ -112,7 +112,7 @@ function sureBar_(x) {
   if (x.bar || !document.body) return;
   var w = document.createElement('div');
   w.setAttribute('style', 'position:fixed;left:50%;transform:translateX(-50%);bottom:' +
-    (84 + 56 * SURE.L.indexOf(x)) + 'px;z-index:2147483000;max-width:min(92vw,520px);' +
+    (84 + 56 * SURE.L.indexOf(x)) + 'px;z-index:2147483000;width:max-content;max-width:min(92vw,520px);box-sizing:border-box;' +
     'display:flex;align-items:center;gap:12px;padding:8px 8px 8px 8px;border-radius:16px;' +
     'background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.2);font:inherit');
   if (x.msg) {
@@ -283,7 +283,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.381';
+var DAF_REV = '8.99.382';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================

@@ -1600,6 +1600,9 @@ function say(t, bad) {
   el.innerHTML = t;
   document.getElementById('msg').innerHTML = '';
   sayFull(bad);
+  /* רשימת הקטעים פתוחה מעל שורת המצב — סירוב חייב להיראות */
+  if (bad && document.getElementById('stl') &&
+      document.getElementById('splitbox').className === 'splitbox on') SayMsg(el.textContent);
 }
 /* ============================================================
    "בפינה השמאלית למעלה יש פינת דיווחים שאני לא יכול לקרוא."
@@ -1970,7 +1973,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.381';
+var STUDIO_VER = '8.99.382';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3159,9 +3162,26 @@ function dropOrphans() {
       'צריך לשמור בגיליון.');
   showSteps();
 }
+/* החלון נשאר פתוח אחרי ✕ ו-🔗 — כדי למחוק כמה קטעים ברצף.
+   לכל קטע מפתח קבוע לכפתורים שלו (`ROWK`), כך שכפתור שסופר
+   "ביטול · 4" נמצא שוב אחרי שהרשימה צוירה מחדש. */
+var ROWK = [];
+function rowKey_(st) {
+  var k = ROWK.indexOf(st);
+  if (k < 0) { ROWK.push(st); k = ROWK.length - 1; }
+  return k;
+}
+function stepsRefresh_() {
+  var box = document.getElementById('splitbox'), sh = document.getElementById('stl');
+  if (!sh || box.className !== 'splitbox on') return;
+  var y = sh.scrollTop;
+  showSteps();
+  var nw = document.getElementById('stl');
+  if (nw) nw.scrollTop = y;
+}
 function showSteps() {
   var box = document.getElementById('splitbox');
-  var html = '<div class="sh"><b>הקטעים בעמוד הזה</b>' +
+  var html = '<div class="sh" id="stl"><b>הקטעים בעמוד הזה</b>' +
     '<p>הקשה על קטע מציגה אותו על הדף. 🔗 מאחד אותו עם הקטע שאחריו — ' +
     'הפירוש, ההקלטות והשאלות של שניהם נשארים. ✕ מוחק אותו: השורות ' +
     'שלו עוברות לקטע שאחריו, ומה ששויך לו לא יוצג יותר.</p>';
@@ -3185,14 +3205,14 @@ function showSteps() {
         r.from + '–' + r.to + '</div>';
       return;
     }
-    var st = r.st;
+    var st = r.st, rk = rowKey_(st);
     html += '<div class="row">' +
       '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> שורות ' +
       (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
       (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
       '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
-      '<button class="mrg" data-mrg="' + r.i + '" title="איחוד עם הקטע הבא">🔗</button>' +
-      '<button class="del" data-del="' + r.i + '" title="מחיקה">✕</button></div>';
+      '<button class="mrg" id="stm' + rk + '" data-mrg="' + r.i + '" title="איחוד עם הקטע הבא">🔗</button>' +
+      '<button class="del" id="std' + rk + '" data-del="' + r.i + '" title="מחיקה">✕</button></div>';
   });
   html += '<button class="cl" onclick="document.getElementById(\'splitbox\').className=\'splitbox\'">סגירה</button></div>';
   box.innerHTML = html;
@@ -3201,16 +3221,10 @@ function showSteps() {
     b.onclick = function () { dropOrphans(); };
   });
   [].forEach.call(box.querySelectorAll('[data-mrg]'), function (b) {
-    b.onclick = function () {
-      box.className = 'splitbox';
-      mergeStep(+b.dataset.mrg);
-    };
+    b.onclick = function () { mergeStep(+b.dataset.mrg); };
   });
   [].forEach.call(box.querySelectorAll('[data-del]'), function (b) {
-    b.onclick = function () {
-      box.className = 'splitbox';
-      deleteStep(+b.dataset.del);
-    };
+    b.onclick = function () { deleteStep(+b.dataset.del); };
   });
   [].forEach.call(box.querySelectorAll('[data-go]'), function (b) {
     b.onclick = function () {
@@ -3353,7 +3367,8 @@ function mergeStep(i) {
   say('בודק את הפירוש והשקפים של הדף…');
   studioContent_().then(function (info) {
     SureThen(function () {
-    if (STEPS[i] !== st || STEPS[i + 1] !== nx) { say('הקטעים השתנו בינתיים — לא אוחד.', 1); return; }
+    i = STEPS.indexOf(st);
+    if (i < 0 || STEPS[i + 1] !== nx) { say('הקטעים השתנו בינתיים — לא אוחד.', 1); return; }
     var from = root.c.from, to = nx.c.to;
     var r = chavRange(from, to);
     var c = r ? { from: from, to: to, text: r.text, h: r.h }
@@ -3385,6 +3400,7 @@ function mergeStep(i) {
     seal();
     touched();
     paintChav(1); markDraw(); markPanel();
+    stepsRefresh_();
     say('✓ אוחד. נשמר במכשיר — "שמירה" מעלה לגיליון.');
     }, function () { say('לא אוחד.'); }, mergeAsk_(info, nx, after));
   });
@@ -3411,7 +3427,9 @@ function deleteStep(i) {
     }
   }
   var go = function () {
-    if (STEPS[i] !== st) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
+    /* מחיקה אחרת שהסתיימה לפניה מזיזה את המיקום — מחפשים את הקטע עצמו */
+    i = STEPS.indexOf(st);
+    if (i < 0) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
     if (rec.prev > i) rec.prev--;
     if (typeof rec.upto === 'number' && rec.upto >= i) {
       rec.upto--;
@@ -3419,6 +3437,7 @@ function deleteStep(i) {
     }
     removeStep(i);
     markPanel();
+    stepsRefresh_();
     say('✓ נמחק. נשמר במכשיר — "שמירה" מעלה לגיליון.');
   };
   /* קטע המשך אינו נושא תוכן משלו, וקטע שסומן עכשיו — עוד אין לו */
