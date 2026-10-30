@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 141;
+var SCRIPT_VERSION = 142;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3721,11 +3721,11 @@ function amdaSync_() {
 
   /* "לומדים" — אדם אחד לכל מזהה (twinPpl_). ההתאמה ב-amdaCand_:
      שם מלא, שם חלקי, ובלי שם — הטלפון מרשימת התלמידים (8.99.356). */
-  var jt = joinTable_(), TP = twinPpl_(jt);
+  var jt = joinTable_(), TP = twinPpl_(jt), noSet = twinNoSet_();
   var sh = sheet_(LEARN_TAB), head = headers_(sh), wrote = 0, lastWk = 0, made = 0, linked = 0, amb = [];
   var lsh = lt.sh, lhead = headers_(lsh), dir = null, jhead = null, instNm = {};
   want.forEach(function (w) {
-    var cand = amdaCand_(TP, w, function () { if (dir === null) dir = amdaDir_(); return dir; });
+    var cand = amdaCand_(TP, w, function () { if (dir === null) dir = amdaDir_(); return dir; }, noSet);
     var id = '';
     if (cand.length === 1) id = cand[0];
     /* **שם שמתאים ליותר מנרשם אחד — לא מנחשים, וגם לא שותקים.**
@@ -3819,6 +3819,7 @@ function amdaAmbSave_(amb) {
    ============================================================ */
 var TWIN_LOG_ = 'איחוד תלמידים';
 var TWIN_NO_ = 'איחוד תלמידים — לא אותו';
+var TWIN_REG_ = 'נרשם פעמיים';
 /* מילים של שם להשוואה: בלי גרש וגרשיים, מקף כרווח. */
 function nmToks_(s) {
   return String(s || '').replace(/["'׳״`]/g, '').replace(/[-־–—]/g, ' ')
@@ -3896,8 +3897,11 @@ function twinPpl_(t) {
 }
 /* שורת נוכחות (w: inst, g, c, n) → מזהי המועמדים. אחד — משויך; כמה —
    לא הוכרע; אף אחד — שורת Am… (amdaSync_). */
-function amdaCand_(TP, w, getDir) {
-  var list = (TP.byInst[w.inst] || []).filter(function (p) { return gOk_(p.g, w.g) && cOk_(p.c, w.c); });
+function amdaCand_(TP, w, getDir, no) {
+  /* "לא אותו" (ביד, או תלמיד שענה "זה לא אני") — גם נוכחות חדשה של אותו
+     שם לא משויכת אליו (8.99.375). */
+  var am = no ? amdaId_(w) : '', ok = function (p) { return !no || !no[twinK_(am, p.id)]; };
+  var list = (TP.byInst[w.inst] || []).filter(function (p) { return gOk_(p.g, w.g) && cOk_(p.c, w.c) && ok(p); });
   var c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 2; });
   if (!c.length) c = list.filter(function (p) { return nmFit_(w.n, p.F, p.L) === 1; });
   c = twinPrefer_(c, w.c);
@@ -3907,7 +3911,7 @@ function amdaCand_(TP, w, getDir) {
   var ph = hit ? phKey_(hit.p) : '', At = nmToks_(w.n);
   if (!ph) return [];
   c = (TP.byPh[ph] || []).filter(function (p) {
-    return !p.att && gOk_(p.g, w.g) && cOk_(p.c, w.c) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
+    return !p.att && gOk_(p.g, w.g) && cOk_(p.c, w.c) && ok(p) && nmToks_(p.F).some(function (x) { return At.indexOf(x) >= 0; });
   });
   c = twinPrefer_(c, w.c);
   return c.length === 1 ? [c[0].id] : [];
@@ -3948,14 +3952,52 @@ function amdaMerge_(force) {
   try { rc.put('amdaMg', '1', 600); } catch (e) {}
   var t = joinTable_();
   if (t.rows.length < 3) return { n: 0 };
-  var TP = twinPpl_(t), no = twinNoSet_(), pairs = [];
+  var no = twinNoSet_(), n = 0, bad = [];
+  /* קודם תלמיד שנרשם פעמיים — אחרי שנשאר חשבון אחד, הנוכחות שחיכתה
+     לו (שני מועמדים) מוצאת מועמד יחיד באותו סבב. */
+  var reg = twinRegPairs_(twinPpl_(t), no);
+  if (reg.length) {
+    var r1 = twinApply_(t, reg, 'אוטומטי');
+    n += r1.n || 0; bad = bad.concat(r1.bad || []);
+    t = joinTable_();
+  }
+  var TP = twinPpl_(t), pairs = [];
   TP.list.forEach(function (a) {
     if (!a.att) return;
     var s = twinSure_(TP, a, no);
     if (s) pairs.push({ keep: s.p, drop: a, why: s.why });
   });
-  if (!pairs.length) return { n: 0 };
-  return twinApply_(t, pairs, 'אוטומטי');
+  if (pairs.length) {
+    var r2 = twinApply_(t, pairs, 'אוטומטי');
+    n += r2.n || 0; bad = bad.concat(r2.bad || []);
+  }
+  return { n: n, bad: bad };
+}
+/* תלמיד שנרשם פעמיים (8.99.375, החלטת אחיאסף): שני חשבונות רשומים עם
+   אותו שם מלא בדיוק (פרטי ומשפחה, בכל סדר), באותה ישיבה, שכבה וכיתה
+   שאינן סותרות, ואותו טלפון או שבאחד מהם אין. נשאר הוותיק, והמכשיר של
+   השני עובר אליו (LSyncId) — כמו באיחוד ביד. בלי שאלה לתלמיד: את השם
+   הוא הקליד בעצמו. טלפונים שונים, או זוג שסומן "לא אותו" — כל הקבוצה
+   נשארת ב"כפילויות". */
+function twinRegPairs_(TP, no) {
+  var grp = {}, out = [];
+  TP.list.forEach(function (p) {
+    if (p.att || !p.inst || !nmToks_(p.F).length || !nmToks_(p.L).length) return;
+    var k = p.inst + '|' + nmToks_(p.full).sort().join(' ');
+    (grp[k] = grp[k] || []).push(p);
+  });
+  Object.keys(grp).forEach(function (k) {
+    var g = grp[k], ph = {};
+    if (g.length < 2) return;
+    g.forEach(function (p) { if (p.ph) ph[p.ph] = 1; });
+    if (Object.keys(ph).length > 1) return;
+    for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
+      if (!gOk_(g[i].g, g[j].g) || !cOk_(g[i].c, g[j].c) || no[twinK_(g[i].id, g[j].id)]) return;
+    }
+    g.sort(function (a, b) { return a.rows[0] - b.rows[0]; });
+    g.slice(1).forEach(function (d) { out.push({ keep: g[0], drop: d, why: 'reg' }); });
+  });
+  return out;
 }
 /* האיחוד עצמו: יומן (עם השורות שנמחקות) ← "מזהים נוספים" לתלמיד שנשאר ←
    מחיקת השורות ← קריאה חוזרת. { n, bad: [שמות שלא נקראו חזרה] }. */
@@ -3974,7 +4016,7 @@ function twinApply_(t, pairs, how) {
   var now = new Date();
   lg.getRange(lg.getLastRow() + 1, 1, go.length, 9).setValues(go.map(function (x) {
     return [now, x.keep.id, x.drop.id, x.keep.full, x.drop.full, x.drop.inst || x.keep.inst,
-            x.why === 'ph' ? 'אותו טלפון' : x.why === 'nm' ? 'התאמת השם' : 'הכרעה ביד', how,
+            x.why === 'ph' ? 'אותו טלפון' : x.why === 'nm' ? 'התאמת השם' : x.why === 'reg' ? TWIN_REG_ : 'הכרעה ביד', how,
             JSON.stringify({ head: t.rows[0], rows: x.drop.rows.map(function (r) { return t.rows[r]; }) })];
   }));
   SpreadsheetApp.flush();
@@ -4008,7 +4050,7 @@ function twinApply_(t, pairs, how) {
 /* מה שיוצא למסך: בלי הטלפון המלא — ארבע הספרות האחרונות. */
 function twinOut_(p) {
   return { id: p.id, n: p.full, g: p.g, c: p.c, att: p.att ? 1 : 0,
-           ph: p.ph ? p.ph.slice(-4) : '', inst: p.instNm };
+           ph: p.ph ? p.ph.slice(-4) : '', pf: p.ph ? '0' + p.ph : '', inst: p.instNm };
 }
 /* "כפילויות" בניהול: זוגות חשודים, להכרעה ביד. אחרי האיחוד האוטומטי —
    מה שנשאר כאן אינו ודאי.
@@ -4088,15 +4130,105 @@ function twinNo_(P) {
   SpreadsheetApp.flush();
   return twinNoSet_()[twinK_(a, b)] ? { status: 'ok' } : { status: 'error', message: 'לא נקרא חזרה מהגיליון' };
 }
+/* ============================================================
+   "זה אתה?" (8.99.375, החלטת אחיאסף) — כרית ביטחון לאיחוד האוטומטי.
+   ============================================================
+   כל איחוד אוטומטי של נוכחות (התאמת השם / אותו טלפון), גם אלה שכבר
+   בוצעו, נשאל פעם אחת אצל התלמיד שנשאר, בפתיחה הבאה. "כן" — נרשם ביומן.
+   "לא" — האיחוד מתבטל מיד: שורת הנוכחות חוזרת מהגיבוי שביומן, המזהה
+   שלה יוצא מ"מזהים נוספים", והזוג נכנס ל"לא אותו" (גם שיוך נוכחות חדשה
+   של אותו שם — amdaCand_). הגרלה שכבר בוצעה לא זזה. איחוד ביד ושני
+   חשבונות רשומים — לא נשאלים. */
+var TWIN_ANS_ = 'תשובת התלמיד';
+function twinQs_(id) {
+  id = String(id || '').trim();
+  if (!/^[A-Za-z0-9_.:\-]{3,80}$/.test(id)) return null;
+  var t = joinTable_(), r = rowOfId_(t, id);
+  if (r < 1 || rowWorld_(t, t.rows[r]) !== 'R' || t.c(t.rows[r], 'תפקיד') === 'הורה') return null;
+  var main = t.c(t.rows[r], 'מזהה'), lg = amdaTable_(TWIN_LOG_), out = [], seen = {};
+  for (var i = lg.rows.length - 1; i >= 1; i--) {
+    var x = lg.rows[i], c = function (n) { return lg.c(x, n); }, d = c('נבלע');
+    if (c('אופן') !== 'אוטומטי' || ['התאמת השם', 'אותו טלפון'].indexOf(c('סיבה')) < 0) continue;
+    if (!/^Am/.test(d) || seen[d] || c(TWIN_ANS_)) continue;
+    seen[d] = 1;
+    var rd = rowOfId_(t, d);
+    if (rd < 1 || t.c(t.rows[rd], 'מזהה') !== main || d === main) continue;
+    var J = null;
+    try { J = JSON.parse(c('השורות שנמחקו')); } catch (e) {}
+    if (!J || !J.head || !J.rows || !J.rows.length) continue;
+    var last = J.rows[J.rows.length - 1], jc = function (n) {
+      var k = J.head.indexOf(n);
+      return k < 0 ? '' : String(last[k] || '').trim();
+    };
+    out.push({ k: d, n: c('שם שנבלע') || (jc('שם') + ' ' + jc('משפחה')).trim(), g: jc('שכבה'), c: jc('כיתה'),
+               r: i, J: J, main: main, t: t, lg: lg });
+  }
+  return out;
+}
+function twinAsk_(id) {
+  var Q = twinQs_(id);
+  if (!Q) return { status: 'ok', q: [] };
+  return { status: 'ok', q: Q.map(function (x) { return { k: x.k, n: x.n, g: x.g, c: x.c }; }) };
+}
+function twinAns_(P) {
+  var Q = twinQs_(P.id), k = String(P.k || '').trim(), yes = String(P.a) === '1';
+  var x = (Q || []).filter(function (q) { return q.k === k; })[0];
+  if (!x) return { status: 'ok', none: 1 };       /* כבר נענה, או בוטל ביד */
+  var lsh = x.lg.sh, lhead = headers_(lsh), iA = idx_(lsh, lhead, TWIN_ANS_), iW = idx_(lsh, lhead, 'מועד התשובה');
+  var mark = function (v) {
+    for (var i = 1; i < x.lg.rows.length; i++) {
+      if (x.lg.c(x.lg.rows[i], 'נבלע') !== k || x.lg.c(x.lg.rows[i], TWIN_ANS_)) continue;
+      lsh.getRange(i + 1, iA + 1).setValue(v);
+      lsh.getRange(i + 1, iW + 1).setValue(new Date());
+    }
+    SpreadsheetApp.flush();
+  };
+  if (yes) { mark('כן'); return { status: 'ok' }; }
+  /* --- "לא": ביטול. השורות חוזרות לפי שם העמודה. --- */
+  var t = x.t, sh = t.sh, head = headers_(sh), iAl = idx_(sh, head, ALIAS_COL);
+  x.J.rows.forEach(function (src) {
+    var row = [];
+    x.J.head.forEach(function (h, j) {
+      h = String(h).trim();
+      if (h && h !== ALIAS_COL) put_(row, idx_(sh, head, h), cell_(String(src[j] == null ? '' : src[j])));
+    });
+    for (var q = 0; q < row.length; q++) if (row[q] === undefined) row[q] = '';
+    sh.appendRow(row);
+  });
+  for (var r = 1; r < t.rows.length; r++) {
+    var al = t.c(t.rows[r], ALIAS_COL).split(/\s+/).filter(function (a) { return !!a; });
+    if (al.indexOf(k) < 0) continue;
+    sh.getRange(r + 1, iAl + 1).setValue(al.filter(function (a) { return a !== k; }).join(' '));
+  }
+  var nsh = sheet_(TWIN_NO_);
+  if (!nsh.getLastRow()) nsh.appendRow(['תאריך', 'מזהה א', 'מזהה ב']);
+  if (!twinNoSet_()[twinK_(k, x.main)]) nsh.appendRow([new Date(), k, x.main]);
+  SpreadsheetApp.flush();
+  amdaQzBust_(); ptsBust_();
+  /* --- קריאה חוזרת: המזהה של הנוכחות הוא שוב אדם לעצמו --- */
+  var t2 = joinTable_(), r2 = rowOfId_(t2, k);
+  if (r2 < 1 || t2.c(t2.rows[r2], 'מזהה') !== k || !twinNoSet_()[twinK_(k, x.main)]) {
+    return { status: 'error', message: 'הביטול לא נקרא חזרה מהגיליון' };
+  }
+  mark('לא');
+  try { recount_(); } catch (e) {}
+  return { status: 'ok', undone: 1 };
+}
 function twinRoute_(e) {
   var P = e.parameter, op = String(P.twin);
-  if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+  /* התלמיד עצמו (8.99.375): "זה אתה?" אחרי איחוד, לפי מזהה המכשיר שלו. */
+  if (op === 'ask') {
+    try { return reply_(e, twinAsk_(P.id)); }
+    catch (err0) { return reply_(e, { status: 'error', message: String(err0) }); }
+  }
+  if (op !== 'ans' && (!READ_KEY || String(P.key || '') !== READ_KEY)) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return reply_(e, { status: 'busy', message: 'השרת עסוק, נסו שוב' });
   try {
     if (op === 'list') return reply_(e, twinList_());
     if (op === 'go') return reply_(e, twinGo_(P));
     if (op === 'no') return reply_(e, twinNo_(P));
+    if (op === 'ans') return reply_(e, twinAns_(P));
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
   } catch (err) {
     return reply_(e, { status: 'error', message: String(err) });
@@ -11787,11 +11919,23 @@ function chAdm_(M, U) {
   /* `by` — המזמין: גם לימוד מלפני הפתיחה נחשב לו (`e`). */
   /* `v` — למד באמת (chOkRole_): 1 / 0. `mn` — הכי הרבה דקות על דף שלם.
      `o` — ותיק. מי שרואה ✓ (c) ו-v=0 — למד מתחת לעשר דקות. */
+  /* `ph` — הטלפון מ"לומדים", לכפתור הוואטסאפ בניהול (8.99.375). */
+  var phOf = null, phById = function (id) {
+    if (!phOf) {
+      phOf = {};
+      var jt = joinTable_();
+      for (var r = 1; r < jt.rows.length; r++) {
+        var v = jt.c(jt.rows[r], 'טלפון');
+        if (v) rowIds_(jt, jt.rows[r]).forEach(function (x) { phOf[x] = v; });
+      }
+    }
+    return phOf[id] || '';
+  };
   var ppl = M.ppl, who = function (id, by) {
     var p = ppl[id] || {}, old = !!(by || p.ob);
     return { id: id, f: p.f || '', l: p.l || '', i: p.i || '', n: p.n || '', at: p.at || 0,
              c: p.c || (by ? p.e || 0 : 0), v: chOkRole_(M, id, old) ? 1 : 0,
-             mn: p.mn == null ? -1 : p.mn, o: p.ob && !by ? 1 : 0 };
+             mn: p.mn == null ? -1 : p.mn, o: p.ob && !by ? 1 : 0, ph: phById(id) };
   };
   var cnt = { done: 0, wait: 0, won: 0, sel: 0, out: 0, prog: 0 };
   M.grp.forEach(function (g) {

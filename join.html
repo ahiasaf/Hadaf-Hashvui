@@ -5432,6 +5432,59 @@ function showDone(me, how) {
 }
 
 /* ============================================================
+   "זה אתה?" (8.99.375) — אחרי איחוד אוטומטי של נוכחות לחשבון הזה.
+   ============================================================
+   השרת (twinAsk_) מחזיר את האיחודים שעוד לא נענו, גם ישנים. "לא, זה
+   לא אני" מבטל את האיחוד מיד בשרת (twinAns_). תשובה שלא אושרה —
+   נשאלת שוב בפתיחה הבאה. לא להורה, לא בהדגמה. */
+var TW_BUSY = 0;
+function twAsk() {
+  var me = get('me', null);
+  if (TW_BUSY || !API || !me || !me.id || !me.first || me.role === 'dad' || demoOn() || (window.TM && TM.on())) return;
+  TW_BUSY = 1;
+  LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'twin=ask&id=' + encodeURIComponent(me.id)).then(function (d) {
+    var q = (d && d.status === 'ok' && d.q) || [];
+    if (q.length) twPop(me.id, q, 0); else TW_BUSY = 0;
+  }, function () { TW_BUSY = 0; });
+}
+/* ח · 5 → ח׳5; יא · 2 → י״א2. כיתה שכבר כוללת שכבה — כמו שהיא. */
+function twCls(g, c) {
+  g = String(g || '').replace(/["'׳״`\s]/g, '');
+  c = String(c || '').trim();
+  var gg = g.length === 1 ? g + '׳' : g.length === 2 ? g.charAt(0) + '״' + g.charAt(1) : g;
+  if (/[א-ת]/.test(c)) return c;
+  return gg + c;
+}
+function twPop(id, q, i) {
+  var x = q[i];
+  if (!x) { TW_BUSY = 0; return; }
+  var cls = twCls(x.g, x.c), who = x.n + (cls ? ', ' + cls : '');
+  var el = document.createElement('div');
+  el.className = 'ch-promo';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'tw-h');
+  el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="tw-h">' + esc(String(JOIN.twQ).split('{who}').join(who)) + '</h2>' +
+    '<button class="ch-btn" id="tw-y" type="button">' + esc(JOIN.twYes) + '</button>' +
+    '<button class="ch-btn ghost" id="tw-n" type="button">' + esc(JOIN.twNo) + '</button>' +
+    '<p class="ch-rule" id="tw-e" style="margin-top:8px" hidden>' + esc(JOIN.twBad) + '</p></div>';
+  document.body.appendChild(el);
+  var send = function (a) {
+    var y = $('tw-y'), n = $('tw-n'), e = $('tw-e');
+    y.disabled = n.disabled = true; e.hidden = true;
+    LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'twin=ans&id=' + encodeURIComponent(id) +
+           '&k=' + encodeURIComponent(x.k) + '&a=' + a).then(function (d) {
+      if (!d || d.status !== 'ok') throw 0;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      twPop(id, q, i + 1);
+    })['catch'](function () { y.disabled = n.disabled = false; e.hidden = false; });
+  };
+  $('tw-y').onclick = function () { send(1); };
+  $('tw-n').onclick = function () { send(0); };
+  try { $('tw-y').focus(); } catch (e) {}
+}
+
+/* ============================================================
    תזכורת להשלים טלפון.
    ============================================================
    הטלפון אינו חובה בהרשמת תלמיד. מי שדילג רואה כאן, בפתיחות
@@ -5586,6 +5639,7 @@ window.addEventListener('load', function () {
   drawTop();
   LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
   LQzFlush();                   /* חידון שנשלח ולא אומת — מכל דף */
+  setTimeout(twAsk, 3500);      /* "זה אתה?" אחרי איחוד — אחרי LSyncId */
   loadPub().then(function () {
     drawTop();
     /* הבורר תלוי במתג מהגיליון, ולכן הוא חייב להיצבע שוב אחרי
