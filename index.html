@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.375';
+var APP_VERSION = '8.99.376';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16217,7 +16217,9 @@ function przRow(x, i, dis) {
   return '<details class="prz-d"' + (PRZ.open[x.k] ? ' open' : '') +
     ' ontoggle="PRZ.open[\'' + esc(x.k) + '\']=this.open?1:0"><summary><b>' + esc(x.name || UI.przNoName) + '</b>' +
     '<span>' + esc((x.q ? UI.przSrcQ : fill(UI.przSrc, { wk: x.wk })) + ' · ' + (x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
-    '<span>' + esc(st.join(' · ')) + '</span></summary>' +
+    '<span>' + esc(st.join(' · ')) + '</span>' +
+    (x.ph && waNum(x.ph).length >= 11 ? '<a class="yr-c" style="display:inline-block;margin-top:6px;width:auto" target="_blank" rel="noopener" href="https://wa.me/' +
+            waNum(x.ph) + '">💬 ' + esc(UI.dupWa) + '</a>' : '') + '</summary>' +
     fld(UI.przPayL, '<div class="chips">' + przBtn(x, 'pay', '', UI.przPayN, !x.pay, '', dis) +
         przBtn(x, 'pay', 'y', UI.przPayYb, x.pay, ' j', dis) + '</div>', UI.przPayNote) +
     fld(UI.przDistL, '<div class="chips">' + przBtn(x, 'dist', '', UI.przDistN, !x.dist, '', dis) +
@@ -21419,9 +21421,21 @@ function amdaRepData() {
   }).map(function (cl) {
     var p = cl.split('|');
     by[cl].sort(function (a, b) { return a.n.localeCompare(b.n, 'he', { numeric: true }); });
-    return { name: cl ? amdaGC(p[0], p[1]) : amdaT('repNoCls'), list: by[cl] };
+    return { name: cl ? amdaGC(p[0], p[1]) : amdaT('repNoCls'), list: by[cl], g: cl ? p[0] : '', c: cl ? p[1] : '' };
   });
   return { slots: slots, cls: cls, n: n, pend: pend };
+}
+/* הטלפון של תלמיד ברשימה — מקובץ הטלפונים של בית הספר שבמכשיר (amdaWaIdx),
+   רק כשהרשימה היא של אותו בית ספר, ורק התאמה יחידה (שכבה·כיתה·שם, ובלי
+   כיתה — שכבה·שם). אין — אין כפתור. (8.99.376) */
+function amdaRepPh(g, c, n) {
+  var r = amdaRoster();
+  if (!r || !r.inst || r.inst !== amdaRep.inst) return '';
+  var all = amdaWaIdx().all, k = amdaWaNorm(n), hit = [];
+  all.forEach(function (s) {
+    if (s.p && amdaGK(s.g) === amdaGK(g) && s.k === k && (!c || !s.c || String(s.c) === String(c))) hit.push(s.p);
+  });
+  return hit.length === 1 ? hit[0] : '';
 }
 function amdaRepCat(c) { return amdaT(['repCatD', 'repCatO', 'repCatN'][c]); }
 function amdaRepTitle() {
@@ -21517,7 +21531,10 @@ function amdaRepPaint(body) {
   D.cls.forEach(function (cl) {
     h += '<div class="adm-card am-rp-k"><b>' + esc(cl.name) + ' <i>(' + cl.list.length + ')</i></b><ol>' +
       cl.list.map(function (x) {
-        return '<li>' + esc(x.n) + (x.p ? ' <em class="am-red">' + esc(amdaT('repPendTag')) + '</em>' : '') + '</li>';
+        var ph = amdaRepPh(cl.g, cl.c, x.n);
+        return '<li>' + esc(x.n) + (x.p ? ' <em class="am-red">' + esc(amdaT('repPendTag')) + '</em>' : '') +
+          (ph ? ' <a class="yr-c" style="display:inline-block;margin-inline-start:6px" target="_blank" rel="noopener" href="https://wa.me/' +
+                waNum(ph) + '">💬 ' + esc(amdaT('repWa')) + '</a>' : '') + '</li>';
       }).join('') + '</ol></div>';
   });
   if (D.n) {

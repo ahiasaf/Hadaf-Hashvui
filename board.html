@@ -1596,7 +1596,10 @@ function kudoBtn(p, did) {
     if (SELMODE) return '';
     if (!p.id) return '';
     if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
-    if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>';
+    /* מקבל התראות — ✉, ולצידו וואטסאפ ישיר בלי נוסח (8.99.376). */
+    if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>' +
+      (waNum(p.phone) ? '<a class="kudo" style="text-decoration:none;margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
+                        waNum(p.phone) + '">' + esc(kt('kudoWa')) + '</a>' : '');
     /* **בלי טלפון — "אין מספר", לא כפתור שבור.** עם טלפון — תיבה עם
        נוסח מוכן וקישור להחזרת ההתראות (waBoxHtml). פתיחת וואטסאפ
        אינה שליחה, ולכן אינה מסומנת "נשלח". */

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 142;
+var SCRIPT_VERSION = 143;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -4140,6 +4140,15 @@ function twinNo_(P) {
    של אותו שם — amdaCand_). הגרלה שכבר בוצעה לא זזה. איחוד ביד ושני
    חשבונות רשומים — לא נשאלים. */
 var TWIN_ANS_ = 'תשובת התלמיד';
+/* מזהה (כולל מזהים שנבלעו) → טלפון מ"לומדים". לכפתורי וואטסאפ בניהול בלבד. */
+function phByIds_() {
+  var out = {}, jt = joinTable_();
+  for (var r = 1; r < jt.rows.length; r++) {
+    var v = jt.c(jt.rows[r], 'טלפון');
+    if (v) rowIds_(jt, jt.rows[r]).forEach(function (x) { out[x] = v; });
+  }
+  return out;
+}
 function twinQs_(id) {
   id = String(id || '').trim();
   if (!/^[A-Za-z0-9_.:\-]{3,80}$/.test(id)) return null;
@@ -10440,6 +10449,7 @@ function przNum_(s) {
 function przState_() {
   var L = przRead_();
   przSync_(L);
+  var PH = null;   /* טלפון הזוכה — לכפתור הוואטסאפ (8.99.376); לא ברביעיות */
   var list = [], S = { budget: PRZ_BUDGET, alloc: PRZ_CHAL, paidN: 0, paid: 0, paidU: 0,
                        comN: 0, com: 0, comU: 0, out: 0, chOn: false };
   for (var r = 1; r < L.rows.length; r++) {
@@ -10451,6 +10461,7 @@ function przState_() {
               cost: przNum_(L.c(r, 'עלות')),
               note: L.c(r, 'הודעה') === 'שלחתי' ? 'y' : L.c(r, 'הודעה') === 'לא שלחתי' ? 'n' : '',
               noteAt: L.c(r, 'הודעה — מתי'), out: L.c(r, 'מחוץ לתוכנית') === 'כן' ? 1 : 0 };
+    if (!o.q && L.c(r, 'מזהה הזוכה')) { PH = PH || phByIds_(); o.ph = PH[L.c(r, 'מזהה הזוכה')] || ''; }
     list.push(o);
     if (o.out) { S.out++; continue; }
     if (o.pay) { S.paidN++; if (o.cost === null) S.paidU++; else S.paid += o.cost; }
@@ -11921,14 +11932,7 @@ function chAdm_(M, U) {
      `o` — ותיק. מי שרואה ✓ (c) ו-v=0 — למד מתחת לעשר דקות. */
   /* `ph` — הטלפון מ"לומדים", לכפתור הוואטסאפ בניהול (8.99.375). */
   var phOf = null, phById = function (id) {
-    if (!phOf) {
-      phOf = {};
-      var jt = joinTable_();
-      for (var r = 1; r < jt.rows.length; r++) {
-        var v = jt.c(jt.rows[r], 'טלפון');
-        if (v) rowIds_(jt, jt.rows[r]).forEach(function (x) { phOf[x] = v; });
-      }
-    }
+    if (!phOf) phOf = phByIds_();
     return phOf[id] || '';
   };
   var ppl = M.ppl, who = function (id, by) {
