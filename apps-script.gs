@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 140;
+var SCRIPT_VERSION = 141;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -2229,6 +2229,17 @@ function appendCols_(tab, cols, ssId) {
     };
     var at0 = parseInt(gv('קטע'), 10), of0 = parseInt(gv('מתוך'), 10);
     if (tab === 'חידות' ? gv('קטע') === 'החידון כולו' : !gv('קטע') || !(of0 > 0) || at0 >= of0) ptsBust_();
+  }
+  /* חבר מביא חבר — לימוד, חידון או הענקה של אבא: השולחן מתעדכן מיד (chBustFor_). */
+  if (tab === LEARN_TAB || tab === 'חידות' || tab === 'זוגות') {
+    try {
+      var cid = '', ctst = false;
+      cols.forEach(function (c) {
+        if (c && c[0] === 'מזהה') cid = String(c[1] == null ? '' : c[1]).trim();
+        if (c && c[0] === 'בדיקה') ctst = String(c[1] || '').trim() === 'כן';
+      });
+      if (tab === 'זוגות') chBust_({ test: ctst }); else chBustFor_(cid, ctst);
+    } catch (eB) {}
   }
   /* הודעה חדשה בתיבה — שהאפליקציה תראה אותה מיד, ולא אחרי דקה. */
   if (tab === 'תיבה') { try { CacheService.getScriptCache().remove('inbox:rows'); } catch (eI) {} }
@@ -10833,6 +10844,17 @@ function chIds_(v) {
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
 }
 function chCache_() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
+/* שורת לימוד/חידון של משתתף באתגר — המודל נבנה מחדש בבקשה הבאה, ולא אחרי
+   דקה (8.99.373): כך השולחן מתעדכן אצל כל היושבים בו כמעט מיד. רק למשתתפים
+   (`chal:r:ids`), כדי שלימוד של כל התלמידים לא יבנה את המודל שוב ושוב. */
+function chBustFor_(id, test) {
+  var rc = chCache_(), key = test ? 'chal:t' : 'chal:r';
+  if (!rc || !id) return;
+  try {
+    var ids = rc.get(key + ':ids');
+    if (ids && ids.indexOf(',' + id + ',') >= 0) rc.remove(key);
+  } catch (e) {}
+}
 function chBust_(U) {
   var rc = chCache_();
   if (!rc) return;
@@ -11400,6 +11422,8 @@ function chModel_(U, force) {
     var js = JSON.stringify(M), st = String(Date.now() % 1e8), put = {}, n = 0;
     for (var o = 0; o < js.length; o += 90000) put[key + ':' + st + ':' + (n++)] = js.substr(o, 90000);
     if (rc && n <= 40) { rc.putAll(put, 60); rc.put(key, n + '|' + st, 60); }
+    /* מי במודל — לניקוי המטמון כשאחד מהם לומד (chBustFor_, 8.99.373). */
+    if (rc) rc.put(key + ':ids', ',' + Object.keys(M.ppl || {}).concat(Object.keys(M.al || {})).join(',') + ',', 60);
   } catch (x2) {}
   return M;
 }

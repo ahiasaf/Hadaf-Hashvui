@@ -577,6 +577,27 @@
     if (Date.now() - LAST < 30000) return;
     LAST = Date.now();
     pull(box, 0);
+    watch(function () { pull(box, 3); });
+  }
+  /* **השולחן מתעדכן לבד** (8.99.373): כשחוזרים למסך (מהדף, מוואטסאפ) — מיד, ועוד
+     כל 30 שניות כל עוד המסך פתוח, עד עשר דקות. רק למי שיש שולחן או שהוזמן —
+     לכל השאר אין מה להתעדכן. השרת מחזיק את המודל במטמון, והלימוד של משתתף
+     מנקה אותו (chBustFor_), ולכן קריאה כזו זולה. */
+  var WATCH = null;
+  function watch(fn) {
+    if (WATCH) { WATCH.fn = fn; return; }
+    WATCH = { fn: fn, n: 0 };
+    var live = function () {
+      var d = cached(), m = d && d.me;
+      return !!(m && (m.inv || (m.mine && m.mine.length) || m.open));
+    };
+    var go = function (gap) {
+      if (document.visibilityState === 'hidden' || !live() || Date.now() - LAST < gap) return;
+      LAST = Date.now();
+      WATCH.fn();
+    };
+    document.addEventListener('visibilitychange', function () { go(5000); });
+    var t = setInterval(function () { if (++WATCH.n > 20) { clearInterval(t); return; } go(25000); }, 30000);
   }
   /* **ניסיון חוזר** (8.99.372): רגע אחרי ההרשמה השרת עוד כותב את השורה (עסוק,
      או "wait"), ותשובה שלא הגיעה השאירה את הבית בלי הכרטיס עד הפתיחה הבאה. עכשיו —
@@ -725,7 +746,9 @@
     /* בלי מטמון — ריק עד שהשרת עונה, ולא הודעת שגיאה מהבהבת. */
     var c0 = cached();
     if (c0) pageDraw(box, c0);
+    LAST = Date.now();
     load().then(function (d) { pageDraw(box, d); });
+    watch(function () { load().then(function (d) { if (FRESH) pageDraw(box, d); }); });
   }
 
   /* `table`/`ic` — לשולחן של הרביעייה (quad.js, 8.99.328): אותו ציור. */
