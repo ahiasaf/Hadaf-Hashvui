@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 143;
+var SCRIPT_VERSION = 144;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10990,12 +10990,24 @@ function chCache_() { try { return CacheService.getScriptCache(); } catch (e) { 
 /* שורת לימוד/חידון של משתתף באתגר — המודל נבנה מחדש בבקשה הבאה, ולא אחרי
    דקה (8.99.373): כך השולחן מתעדכן אצל כל היושבים בו כמעט מיד. רק למשתתפים
    (`chal:r:ids`), כדי שלימוד של כל התלמידים לא יבנה את המודל שוב ושוב. */
+/* **לכל היותר בנייה אחת ב-20 שניות** (8.99.374): כשהרבה משתתפים לומדים יחד, כל
+   שורה הייתה בונה את המודל מחדש (כמה שניות, תחת נעילה) — והבקשות האחרות חיכו
+   בתור. מודל צעיר מ-20 שניות רק מסומן "ישן", ונבנה מחדש בבקשה הראשונה אחרי. */
+var CH_REBUILD_MS_ = 20000;
+function chAge_(hd) {
+  var st = +String(hd || '').split('|')[1];
+  if (!(st >= 0)) return 1e9;
+  return ((Date.now() % 1e8) - st + 1e8) % 1e8;
+}
 function chBustFor_(id, test) {
   var rc = chCache_(), key = test ? 'chal:t' : 'chal:r';
   if (!rc || !id) return;
   try {
     var ids = rc.get(key + ':ids');
-    if (ids && ids.indexOf(',' + id + ',') >= 0) rc.remove(key);
+    if (!ids || ids.indexOf(',' + id + ',') < 0) return;
+    var hd = rc.get(key);
+    if (!hd || chAge_(hd) >= CH_REBUILD_MS_) rc.remove(key);
+    else rc.put(key + ':stale', '1', 60);
   } catch (e) {}
 }
 function chBust_(U) {
@@ -11545,6 +11557,8 @@ function chModel_(U, force) {
   if (!force && rc) {
     try {
       var hd = rc.get(key);
+      /* סומן "ישן" (משתתף למד) ועברו 20 שניות מאז שנבנה — בונים מחדש (chBustFor_). */
+      if (hd && rc.get(key + ':stale') && chAge_(hd) >= CH_REBUILD_MS_) hd = null;
       if (hd) {
         var hp = hd.split('|'), keys = [];
         for (var q = 0; q < +hp[0]; q++) keys.push(key + ':' + hp[1] + ':' + q);
@@ -11564,7 +11578,7 @@ function chModel_(U, force) {
   try {
     var js = JSON.stringify(M), st = String(Date.now() % 1e8), put = {}, n = 0;
     for (var o = 0; o < js.length; o += 90000) put[key + ':' + st + ':' + (n++)] = js.substr(o, 90000);
-    if (rc && n <= 40) { rc.putAll(put, 60); rc.put(key, n + '|' + st, 60); }
+    if (rc && n <= 40) { rc.putAll(put, 60); rc.put(key, n + '|' + st, 60); rc.remove(key + ':stale'); }
     /* מי במודל — לניקוי המטמון כשאחד מהם לומד (chBustFor_, 8.99.373). */
     if (rc) rc.put(key + ':ids', ',' + Object.keys(M.ppl || {}).concat(Object.keys(M.al || {})).join(',') + ',', 60);
   } catch (x2) {}
