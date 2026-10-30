@@ -2393,10 +2393,25 @@ function ownMsg(cls, txt) {
   else OWN_NOTE = txt;
   ownBar_();
 }
+/* שאלה עם שתי תשובות — בפס עצמו, לא בחלון קופץ (8.99.374). */
+var OWN_ASK = null;
+function ownAskSet_(txt, a, fa, b, fb) {
+  OWN_ASK = { txt: txt, a: a, b: b, go: [fa, fb] };
+  ownBar_();
+}
+function ownAsk_(i) {
+  var x = OWN_ASK; OWN_ASK = null;
+  ownBar_();
+  if (x) x.go[i]();
+}
 function ownBar_() {
   var b = $('own-bar'); if (!b) return;
   var pend = ownPendingTxt_(), cls, txt, btn = '';
-  if (OWN_NEWER) {
+  if (OWN_ASK) {
+    cls = 'bad'; txt = esc(OWN_ASK.txt);
+    btn = '<button onclick="ownAsk_(0)">' + esc(OWN_ASK.a) + '</button>' +
+          '<button onclick="ownAsk_(1)">' + esc(OWN_ASK.b) + '</button>';
+  } else if (OWN_NEWER) {
     cls = 'bad'; txt = 'יש גרסה חדשה של האתר. מה שכתבת שמור במחשב — רענן את הדף, ואז שמור.';
     btn = '<button onclick="ownReload_()">רענון</button>';
   } else if (OWN_FAIL) {
@@ -3245,11 +3260,8 @@ function paintOwnEdit_(n) {
   OWN_RESTORED = false;
   $('own-pub-btn').onclick = function () {
     var goingOn = !pubOn;
-    if (goingOn && !window.confirm(
-      'לפרסם את "הפירוש" לכל הדף הזה? כל התלמידים שיפתחו אותו יראו אותו החל מעכשיו.'
-    )) return;
-    ownEditSync_();
-    ownPublishSet(goingOn);
+    var go = function () { ownEditSync_(); ownPublishSet(goingOn); };
+    if (goingOn) SureThen(go); else go();
   };
   $('own-save').onclick = function () { ownEditSync_(); ownSaveAll(n); };
   $('own-export-open').onclick = ownExportOpen;
@@ -3322,7 +3334,7 @@ function mergeNext_() {
       ', ולקטע ' + (n + 2) + ' יש שקף משלו — שקף ' + bs + ' לא יוצג יותר ברצף.';
     else if (bs) msg += '\n\nשקף ' + bs + ' יעבור להתחיל בקטע הבא.';
   }
-  if (!window.confirm(msg)) return;
+  if (!SureLater(mergeNext_, this, arguments, null, msg)) return;
   toast('מאחד…');
   var want = {};
   PAGES.forEach(function (p) { if (p.rec) want[p.rec.key] = p.rec.raw[3]; });
@@ -3756,7 +3768,11 @@ function ownSaveAll(n, auto) {
     ownSaveGo_(n, auto, pieces);
   });
 }
-function ownSaveGo_(n, auto, pieces) {
+/* dec — ההכרעה בהתנגשות, אחרי שנשאלה בפס: oth ('over'/'keep') לקטעים
+   האחרים, cur ('over'/'load') לקטע הזה. בלי הכרעה — עוצרים ושואלים. */
+function ownSaveGo_(n, auto, pieces, dec) {
+  dec = dec || {};
+  OWN_ASK = null;
   if (!API) { ownMsg('bad', 'אין כתובת שרת במכשיר הזה.'); return; }
   if (!writeKey_(auto)) { ownMsg('bad', NOKEY_MSG); return; }
   var toUpload = [];
@@ -3769,7 +3785,7 @@ function ownSaveGo_(n, auto, pieces) {
   }
   OWN_SAVING = true;
   ownMsg('', toUpload.length ? 'מעלה הקלטות…' : 'נשלח · מאמת מול הגיליון…');
-  var others = [];
+  var others = [], ask = '';
   ownUploadNext_(n, toUpload, 0, [], function (failed) {
     var clean = ownCleanPieces_(pieces);
     ownFresh_(function (cur) {
@@ -3786,10 +3802,12 @@ function ownSaveGo_(n, auto, pieces) {
         if (t && d.at && t > d.at) { clash.push(d); return false; }
         return true;
       });
-      if (clash.length && !auto && window.confirm(
-          'בגיליון יש גרסה חדשה יותר, ששמרת ממכשיר אחר, לקטע ' +
-          clash.map(function (d) { return d.n; }).join(', ') + '.\n\n' +
-          'לדרוס אותה במה שכתוב כאן?\nאישור — לדרוס · ביטול — להשאיר את מה שבגיליון')) {
+      if (clash.length && !auto && !dec.oth) {
+        ask = 'oth';
+        others = clash.map(function (d) { return d.n; });
+        return false;
+      }
+      if (clash.length && dec.oth === 'over') {
         others = others.concat(clash);
       } else if (!auto) {
         /* בחר להשאיר את מה שבגיליון — הטיוטה כבר אינה "לא נשמר". */
@@ -3802,8 +3820,8 @@ function ownSaveGo_(n, auto, pieces) {
       var there = JSON.stringify(ownPiecesIn_(cur, n));
       if (there !== OWN_EDIT_BASE && there !== JSON.stringify(clean) && OWN_EDIT_N === n) {
         if (auto) return false;
-        if (!window.confirm('בגיליון יש לקטע ' + n + ' גרסה שנשמרה ממכשיר אחר אחרי שפתחת אותו כאן.\n\n' +
-            'לדרוס אותה במה שכתוב כאן?\nאישור — לדרוס · ביטול — לא לשמור, ולטעון את הגרסה מהגיליון')) {
+        if (!dec.cur) { ask = 'cur'; return false; }
+        if (dec.cur === 'load') {
           OWN_EDIT = null; OWN_EDIT_N = -1;
           ownDraftDrop_(n);
           return false;
@@ -3822,6 +3840,19 @@ function ownSaveGo_(n, auto, pieces) {
         return;
       }
       OWN_SAVING = false;
+      if (ok === null && ask) {
+        var again = function (d) {
+          return function () { ownSaveGo_(n, auto, pieces, { oth: d.oth || dec.oth, cur: d.cur || dec.cur }); };
+        };
+        ownMsg('', '');
+        if (ask === 'oth') ownAskSet_('בגיליון יש גרסה חדשה יותר, ששמרת ממכשיר אחר, לקטע ' + others.join(', ') +
+          '. לדרוס אותה במה שכתוב כאן?', 'לדרוס', again({ oth: 'over' }),
+          'להשאיר את מה שבגיליון', again({ oth: 'keep' }));
+        else ownAskSet_('בגיליון יש לקטע ' + n + ' גרסה שנשמרה ממכשיר אחר אחרי שפתחת אותו כאן. ' +
+          'לדרוס אותה במה שכתוב כאן?', 'לדרוס', again({ cur: 'over' }),
+          'לא לשמור, ולטעון את הגרסה מהגיליון', again({ cur: 'load' }));
+        return;
+      }
       if (ok === null) {
         if (auto) { ownMsg('bad', 'לקטע הזה נשמרה ממכשיר אחר גרסה חדשה יותר — לא נשמר אוטומטית. לחצו "שמירה" כדי להחליט.'); return; }
         ownMsg('', 'לא נשמר. נטענת הגרסה מהגיליון.');
@@ -6282,7 +6313,7 @@ function qEditDelete_(n) {
   if (!QOWN) return;
   if (!writeKey_()) return;
   /* מחיקה מוחקת את השאלה כולה — הטיוטה והגרסה החיה. */
-  if (!confirm(UI.qDelSure || '')) return;
+  if (!SureLater(qEditDelete_, this, arguments)) return;
   var list = qPieces_(n).slice(), gone = list[qIdx_(n, list.length)];
   /* השאלה יורדת מהדף — ובמאגר היא חוזרת ל"מוכנה" (qbSync_). */
   Q_DROP = ((gone && (gone.draft || gone.pub)) || {}).qb || '';
@@ -6432,7 +6463,7 @@ function qbsPlace_(n) {
   if (from >= 0) {
     var ol = qPieces_(from).slice(), oi = qbsAt_(ol);
     moved = ol[oi];
-    if (moved.pub && !confirm(fillT(UI.qbsMoveSure, { n: n }))) return;
+    if (moved.pub && !SureLater(qbsPlace_, this, arguments)) return;
     ol.splice(oi, 1);
     sidPut_(QOWN, from, ol.length ? ol : undefined, true);
   }
@@ -6448,7 +6479,7 @@ function qbsPlace_(n) {
 }
 function qbsDrop_(n) {
   if (!QOWN || !writeKey_()) { qbsMsg_(NOKEY_MSG, 'bad'); return; }
-  if (!confirm(UI.qbUnSure || '')) return;
+  if (!SureLater(qbsDrop_, this, arguments)) return;
   qNormRec_(QOWN);
   var list = qPieces_(n).slice(), i = qbsAt_(list);
   if (i < 0) return;

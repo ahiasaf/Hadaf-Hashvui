@@ -833,11 +833,11 @@ function alArchPaint_() {
     inp.onchange = function () { if (inp.files && inp.files[0]) alPdfUp_(inp.getAttribute('data-up'), inp.files[0]); };
   });
   [].forEach.call(box.querySelectorAll('[data-ld]'), function (b) {
-    b.onclick = function () {
+    b.onclick = function ld() {
       var v = +b.getAttribute('data-ld');
       var row = AL_ARCH.filter(function (x) { return x.ver === v; })[0];
       if (!row || !row.snap || !row.snap.al) return;
-      if (!confirm(alU_('alLoadQ', { v: v }))) return;
+      if (!SureLater(ld, this, arguments)) return;
       AL = JSON.parse(JSON.stringify(row.snap.al));
       alNorm_();
       alKeep_();
@@ -870,7 +870,7 @@ function alApprove_() {
   if (!AL_LAST || AL_ABUSY) return;
   if (!API || !key) { AL_AMSG = alU_('alNoKey'); alArchPaint_(); return; }
   var nextV = (AL_ARCH && AL_ARCH.length ? AL_ARCH[AL_ARCH.length - 1].ver : 0) + 1;
-  if (!confirm(alU_('alApproveQ', { v: nextV }))) return;
+  if (!SureLater(alApprove_, this, arguments)) return;
   var cur = alVal_();
   var snap = { id: alRid_(), tpl: AL_TPL, at: new Date().toISOString(), pages: AL_LAST.pages,
                head: AL_LAST.head || '', fp: AL_LAST.fp, al: cur ? JSON.parse(cur) : { items: [] } };

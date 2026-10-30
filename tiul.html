@@ -226,6 +226,56 @@ button{cursor:pointer;border:none;background:none}
   var openNote = null;      /* מזהה התלמיד שהפתק שלו פתוח */
   var focusNote = false;    /* לתת פוקוס רק בפתיחה, לא בכל ציור */
 
+  /* ---------- "ביטול" במקום חלון אישור (8.99.374) ----------
+     הכפתור שנלחץ הופך ל"ביטול · 4", ואחרי ארבע שניות הפעולה מתבצעת.
+     בלי כפתור — פס בתחתית עם מה שעומד לקרות. יציאה מהמסך בזמן הספירה
+     מבטלת. עותק קטן של SureThen (data.js): העמוד הזה עומד לבד, בלי רשת. */
+  var LATER = [];
+  function later(b, go, msg, no) {
+    var x = { n: 4, b: b, bar: null }, lbl = function () { return 'ביטול · ' + x.n; };
+    x.stop = function (run) {
+      clearInterval(x.t);
+      LATER.splice(LATER.indexOf(x), 1);
+      if (x.b) { x.b.__later = null; x.b.innerHTML = x.html; x.b.setAttribute('style', x.css || ''); }
+      if (x.bar && x.bar.parentNode) x.bar.parentNode.removeChild(x.bar);
+      if (run) go(); else if (no) no();
+    };
+    if (b) {
+      x.html = b.innerHTML; x.css = b.getAttribute('style');
+      b.style.background = '#fff'; b.style.color = '#B42318';
+      b.style.boxShadow = 'inset 0 0 0 1.5px #B42318';
+      b.textContent = lbl(); b.__later = x;
+    } else {
+      x.bar = document.createElement('div');
+      x.bar.setAttribute('style', 'position:fixed;left:12px;right:12px;bottom:130px;z-index:99;' +
+        'display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:#fff;' +
+        'box-shadow:0 4px 18px rgba(0,0,0,.2);font:inherit;color:#222');
+      x.bar.innerHTML = '<div style="flex:1;font-size:.9rem;line-height:1.4;white-space:pre-line"></div>' +
+        '<button type="button" style="flex:none;padding:10px 18px;border-radius:999px;border:1.5px solid #B42318;' +
+        'background:#fff;color:#B42318;font:inherit;font-weight:700"></button>';
+      x.bar.firstChild.textContent = msg || '';
+      x.bar.lastChild.textContent = lbl();
+      x.bar.__later = x;
+      document.body.appendChild(x.bar);
+    }
+    LATER.push(x);
+    x.t = setInterval(function () {
+      x.n--;
+      if (x.n <= 0) { x.stop(true); return; }
+      if (x.b) x.b.textContent = lbl(); else x.bar.lastChild.textContent = lbl();
+    }, 1000);
+  }
+  document.addEventListener('click', function (e) {
+    var el = e.target;
+    while (el && el !== document && !el.__later) el = el.parentNode;
+    if (!el || el === document) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    el.__later.stop(false);
+  }, true);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') LATER.slice().forEach(function (x) { x.stop(false); });
+  });
+
   /* ---------- אחסון ---------- */
 
   function blank() {
@@ -457,7 +507,10 @@ button{cursor:pointer;border:none;background:none}
   /* wa.me פותח את וואטסאפ עם הטקסט מוכן ונותן לבחור למי לשלוח —
      כולל "הודעה לעצמי". אין כאן מספר טלפון, ולא יהיה: הריפו ציבורי. */
   function toWhatsApp(txt) {
-    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+    /* אחרי "ביטול · 4" הלחיצה כבר רחוקה, ודפדפן חוסם חלון חדש — אז באותה לשונית. */
+    var u = 'https://wa.me/?text=' + encodeURIComponent(txt), w = null;
+    try { w = window.open(u, '_blank'); } catch (e) {}
+    if (!w) window.location.href = u;
   }
 
   /* ---------- מעברי שלב ---------- */
@@ -466,6 +519,7 @@ button{cursor:pointer;border:none;background:none}
      היא מציגה בשמות את מי שעומד לצאת מהרשימה. מספר לבדו אינו
      מאפשר לתפוס טעות. */
   function closeBoarding() {
+    if (LATER.length) return;
     var trip = onTrip(), no = [], i;
     for (i = 0; i < trip.length; i++) {
       if (!S.here[trip[i].id]) no.push(trip[i]);
@@ -483,8 +537,15 @@ button{cursor:pointer;border:none;background:none}
       ? (no.length + ' תלמידים לא עלו לאוטובוס:\n' + names +
          '\nהם יצאו מהרשימה לשאר הטיול, ורשימתם תישלח לוואטסאפ.\nלהמשיך לסבבים?')
       : 'כל הכיתה עלתה לאוטובוס.\nלסגור את מפקד העלייה ולעבור לסבבים?';
-    if (!window.confirm(q)) return;
+    /* כאן הפס ולא הכפתור: השמות של מי שלא עלה הם מה שתופס טעות. */
+    later(null, boardDone, q.replace(/\n?להמשיך לסבבים\?$|\n?לסגור את מפקד העלייה ולעבור לסבבים\?$/, ''));
+  }
 
+  function boardDone() {
+    var trip = onTrip(), no = [], i;
+    for (i = 0; i < trip.length; i++) {
+      if (!S.here[trip[i].id]) no.push(trip[i]);
+    }
     var txt = report();          /* הדיווח של שלב א, לפני המעבר */
 
     for (i = 0; i < no.length; i++) S.out[no[i].id] = 1;
@@ -502,7 +563,9 @@ button{cursor:pointer;border:none;background:none}
 
   function newRound() {
     var n = count(S.here);
-    if (n && !window.confirm('למחוק את הסימונים של ' + n + ' תלמידים ולפתוח סבב חדש?')) return;
+    if (n) later($('bMain'), roundGo); else roundGo();
+  }
+  function roundGo() {
     S.here = {};
     S.round++;
     S.roundAt = (new Date()).getTime();
@@ -599,7 +662,9 @@ button{cursor:pointer;border:none;background:none}
   });
 
   $('bRestart').addEventListener('click', function () {
-    if (!window.confirm('להחזיר את כל התלמידים לרשימה ולפתוח מחדש את מפקד העלייה?')) return;
+    later($('bRestart'), restartGo);
+  });
+  function restartGo() {
     S.phase = 1;
     S.out = {};
     S.here = {};
@@ -610,7 +675,7 @@ button{cursor:pointer;border:none;background:none}
     save();
     render();
     show('list');
-  });
+  }
 
   /* ---------- טעינה מקישור ---------- */
 
@@ -636,13 +701,17 @@ button{cursor:pointer;border:none;background:none}
 
     /* רשימה קיימת אינה נדרסת בשקט — באמצע טיול זו מחיקה של
        סימונים שאי אפשר לשחזר. */
-    if (S.kids.length && !window.confirm(
-          'הקישור נושא רשימה של ' + names.length + ' תלמידים.\n' +
-          'להחליף את הרשימה הקיימת (' + S.kids.length + ')?')) {
+    if (S.kids.length) {
       clearHash();
+      later(null, function () { take(title, names); render(); show('list'); },
+        'הקישור מחליף את הרשימה הקיימת (' + S.kids.length + ') ברשימה של ' + names.length + ' תלמידים.');
       return false;
     }
+    take(title, names);
+    return true;
+  }
 
+  function take(title, names) {
     if (title) S.title = title;
     applyNames(names);
     /* רשימה חדשה היא יום חדש. להשאיר אותה בשלב הסבבים של הכיתה
@@ -656,7 +725,6 @@ button{cursor:pointer;border:none;background:none}
     openNote = null;
     save();
     clearHash();
-    return true;
   }
 
   function clearHash() {

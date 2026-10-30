@@ -153,7 +153,7 @@ function paint() {
 /* הניקוי. כל שלב עצמאי — שלב שנכשל (דפדפן בלי מנויים, בלי
    מטמון) אינו עוצר את השאר. */
 function wipe() {
-  if (!confirm(UI.rstAsk)) return;
+  if (!SureLater(wipe, this, arguments)) return;
   var test = $('test') && $('test').checked;
   BUSY = true; paint();
   var soft = function (p) { return Promise.resolve(p)['catch'](function () {}); };

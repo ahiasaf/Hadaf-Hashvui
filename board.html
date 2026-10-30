@@ -1121,7 +1121,7 @@ function parentsHtml() {
 var DEL_UNDO = null;           /* { id, nm } — האחרון שהוסר, לכפתור הביטול */
 var ARC = null, ARC_OPEN = false, ARC_MSG = '';
 function delPerson(id, nm) {
-  if (!id || !confirm(String(UI.bdArcAsk || '').replace('{name}', nm))) return;
+  if (!id || !SureLater(delPerson, this, arguments)) return;
   DEL_MSG = UI.bdArcBusy; DEL_UNDO = null; draw();
   askScript({ archive:id, key:acc }).then(function (d) {
     if (d && d.status === 'success' && d.moved) {
@@ -1710,7 +1710,7 @@ function kudoWho() {
 function kudoSend() {
   var p = kudoWho(), txt = (KUDO_TXT || '').trim();
   if (!p.id || txt.length < 2 || KUDO_BUSY) return;
-  if (!confirm(kt('kudoAsk').replace('{name}', kudoName(p)))) return;
+  if (!SureLater(kudoSend, this, arguments)) return;
   KUDO_BUSY = true; KUDO_ERR = ''; draw();
   var par = p.withOk && KUDO_TO !== 'k' ? KUDO_TO : '';
   var ids = (p.ids && p.ids.length ? p.ids : [p.id]).slice(0, 60);
@@ -1975,7 +1975,7 @@ function sndSend() {
   q.flt = JSON.stringify(flt);
   /* אותן מילים בדיוק לדיווח ולרשימה — ראו sayTo_ ב-apps-script.gs. */
   q.to = sndToLabel();
-  if (!confirm('לשלוח?\n' + q.to + '\n\n' + txt)) return;
+  if (!SureLater(sndSend, this, arguments)) return;
   SND.busy = true; SND.msg = ''; draw();
   askScript(q).then(function (d) {
     SND.busy = false;

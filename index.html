@@ -3023,7 +3023,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.373';
+var APP_VERSION = '8.99.374';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5839,12 +5839,7 @@ function saySend() {
   var code = myBoard(), k = instCode(code);
   if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
   var to = sayToLabel();
-  /* הפרטים שירדו מהעמוד — למי, כמה, ושזה רק למי שהתקין — כאן,
-     ברגע האישור. */
-  var cnt = sayCount();
-  if (!confirm(headT('sayAsk') + '\n' + headT('sayToH') + ' ' + to +
-               (cnt != null ? ' · ' + cnt : '') + '\n' + headT('sayToInst') +
-               '\n\n' + txt)) return;
+  if (!SureLater(saySend, this, arguments)) return;
 
   var url = (CFG.api || API || '').trim();
   if (!url) { sayErr = headT('sayErr'); sayPaint(); return; }
@@ -6914,7 +6909,7 @@ function stfSend(ix) {
     renderCalls();
   };
   if (!key) { done(false, UI.stfNoKey); return; }
-  if (!confirm(fill(UI.stfAsk, { name:s.name }) + '\n\n' + txt)) return;
+  if (!SureLater(stfSend, this, arguments)) return;
   STF.busy = true; renderCalls();
   var inst = '';
   (Store.get('pushCache', []) || []).some(function (p) {
@@ -7534,7 +7529,7 @@ function blastMark(key) {
   setTimeout(renderCalls, 0);   /* אחרי שהקישור כבר נפתח */
 }
 function blastReset() {
-  if (!confirm('לאפס את הסימון של מי שכבר קיבל?')) return;
+  if (!SureLater(blastReset, this, arguments)) return;
   Store.set('blastLog', {});
   renderCalls();
 }
@@ -7825,7 +7820,7 @@ function rmAdd() {
 function rmDrop(i) {
   var list = (rmRows || []).slice();
   if (!list[i]) return;
-  if (!confirm('להסיר את התזכורת?')) return;
+  if (!SureLater(rmDrop, this, arguments)) return;
   list.splice(i, 1);
   /* לשונית ריקה היא מצב חוקי כאן — בניגוד ליומן השיחות, שבו
      אפס שורות פירושו תיעוד שנמחק. */
@@ -8356,7 +8351,7 @@ function tmpEdHtml() {
 }
 function tmpDrop(k) {
   var t = tagDefs().filter(function (x) { return x.k === k; })[0];
-  if (!t || !confirm(fill(UI.tmpDropAsk, { t: t.t }))) return;
+  if (!t || !SureLater(tmpDrop, this, arguments)) return;
   var l = contacts();
   l.forEach(function (c) { if (c.tags) delete c.tags[k]; });
   saveContacts(l);
@@ -8639,7 +8634,7 @@ function ovGoK(k) {
 }
 function ovAddInst(code) {
   var i = INSTITUTIONS.filter(function (x) { return x.code === code; })[0];
-  if (!i || !confirm(fill(UI.ovMissing, { t:i.name }) + '\n\n' + UI.ovMissingAdd + '?')) return;
+  if (!i || !SureLater(ovAddInst, this, arguments)) return;
   scriptGet({ ov:'add', key:(CFG.readKey || '').trim(), m:JSON.stringify([{ name:i.name, code:i.code }]) })
     .then(function (d) {
       if (!d || d.status !== 'ok') alert(fill(UI.ovSaveFail, { t:(d && d.message) || '' }));
@@ -8650,7 +8645,7 @@ function ovLink(k) {
   return joinUrl('').replace('join.html', 'skira.html') + '?k=' + encodeURIComponent(k);
 }
 function ovKeyGet(rot) {
-  if (rot && !confirm(UI.ovAdmNewAsk)) return;
+  if (rot && !SureLater(ovKeyGet, this, arguments)) return;
   scriptGet({ ov:'key', key:(CFG.readKey || '').trim(), rot:rot ? '1' : '' }).then(function (d) {
     if (!d || !d.ov) { alert(UI.ovOld); return; }
     if (d.status !== 'ok' || !d.k) { alert(fill(UI.ovSaveFail, { t:(d && d.message) || '' })); return; }
@@ -9447,8 +9442,7 @@ function roundReset() {
   var l = contacts();
   var n = l.filter(function (c) { return tagOn(c, 'called'); }).length;
   if (!n) return;
-  if (!confirm('להתחיל סבב חדש? ' + n + ' הסימונים יימחקו.\n' +
-               'השלבים, ההערות והתיעוד נשארים.')) return;
+  if (!SureLater(roundReset, this, arguments)) return;
   l.forEach(function (c) { if (c.tags) delete c.tags.called; });
   saveContacts(l);
   renderCalls();
@@ -9525,9 +9519,7 @@ function copyText(txt, okMsg) {
    (`c.note`) לתוך טקסט שיוצא, ועמוד הצוות מחליף אותו: מה שיוצא
    משם הוא רק מה שמסומן במפורש להצגה. ראו teamLinkCopy ומעלה. */
 function wipeContacts() {
-  if (!confirm('למחוק את הרשימה מהמכשיר הזה?\n\nהגיליון אינו נמחק — לשונית "' +
-               CALL_TAB + '" נשארת, ורענון מהגיליון יחזיר הכל.\n\n' +
-               'יומן התיעוד אינו נמחק.')) return;
+  if (!SureLater(wipeContacts, this, arguments)) return;
   localStorage.removeItem('dfContacts');
   callSay('');
   renderCalls();
@@ -10384,7 +10376,7 @@ function admStudents(el) {
    טלפון ומילה מהשם הפרטי (twinRoute_ ב-apps-script.gs). כאן מה שנשאר —
    כינוי, אותו טלפון, או רק שם משפחה — לפי ישיבה. כל הכרעה נבדקת בשרת
    בקריאה חוזרת. קריאה שנכשלה משאירה את הרשימה הקודמת. */
-var DUP = { d:null, busy:0, err:'', go:'' };
+var DUP = { d:null, busy:0, err:'', go:{} };
 function admDup(el) {
   el.innerHTML = '<div id="dup-body"></div>';
   dupPaint();
@@ -10406,15 +10398,20 @@ function dupWho(x) {
   return '<div style="flex:1;min-width:130px"><b>' + esc(x.n) + '</b><span>' +
     esc(bits.filter(function (b) { return !!b; }).join(' · ')) + '</span></div>';
 }
+/* הזוג מזוהה במפתח קבוע ולא במיקום ברשימה: כמה איחודים רצים יחד, וכל
+   אחד שמסתיים מוריד שורה — מיקום היה מצביע על זוג אחר. רק השורה שבתהליך
+   נעולה; השאר פתוחות (8.99.374 — "אחרי לחיצה אחת המסך קופא"). */
+function dupKey(p) { return p.a.id + '|' + p.b.id; }
 function dupRow(p, i) {
   var why = p.why === 'ph' ? UI.dupWhyPh : p.why === 'nm' ? UI.dupWhyNm : UI.dupWhyLn;
-  var dis = DUP.go ? ' disabled' : '';
+  var k = esc(JSON.stringify(dupKey(p)));
+  var dis = DUP.go[dupKey(p)] ? ' disabled' : '';
   return '<div class="prow2 warn"><span class="pm">!</span><div style="flex:1;min-width:0">' +
     '<b>' + esc(why) + '</b>' +
     '<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap">' + dupWho(p.a) + dupWho(p.b) + '</div>' +
     '<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">' +
-      '<button class="btn p" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + i + ',1)">' + esc(UI.dupGo) + '</button>' +
-      '<button class="btn g" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + i + ',0)">' + esc(UI.dupNo) + '</button>' +
+      '<button class="btn p" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + k + ',1)">' + esc(UI.dupGo) + '</button>' +
+      '<button class="btn g" style="width:auto;padding:8px 14px"' + dis + ' onclick="dupGo(' + k + ',0)">' + esc(UI.dupNo) + '</button>' +
     '</div></div></div>';
 }
 function dupPaint() {
@@ -10448,18 +10445,26 @@ function dupPaint() {
   }
   el.innerHTML = h + '</div>';
 }
-/* same: 1 — לאחד (באישור), 0 — "לא אותו". הצלחה — הזוג יורד מהרשימה. */
-function dupGo(i, same) {
-  var p = DUP.d && DUP.d.pairs[i];
-  if (!p || DUP.go) return;
-  if (same && !confirm(fill(UI.dupAsk, { a:p.a.n, b:p.b.n }))) return;
-  DUP.go = p.a.id + '|' + p.b.id; DUP.err = ''; dupPaint();
-  scriptGet({ twin: same ? 'go' : 'no', a:p.a.id, b:p.b.id, key:(CFG.readKey || '').trim() }).then(function (d) {
-    DUP.go = '';
-    if (!d || d.status !== 'ok') DUP.err = UI.dupBad;
-    else if (DUP.d && DUP.d.pairs[i] === p) DUP.d.pairs.splice(i, 1);
+/* same: 1 — לאחד (עם "ביטול" לכמה שניות), 0 — "לא אותו". הצלחה — הזוג יורד מהרשימה. */
+function dupFind(key) {
+  var L = (DUP.d && DUP.d.pairs) || [];
+  for (var i = 0; i < L.length; i++) if (dupKey(L[i]) === key) return L[i];
+  return null;
+}
+function dupGo(key, same) {
+  var p = dupFind(key);
+  if (!p || DUP.go[key]) return;
+  if (same && !SureLater(dupGo, this, arguments)) return;
+  DUP.go[key] = 1; DUP.err = ''; dupPaint();
+  var end = function (ok) {
+    delete DUP.go[key];
+    if (!ok) DUP.err = UI.dupBad;
+    else if (DUP.d) DUP.d.pairs = DUP.d.pairs.filter(function (x) { return dupKey(x) !== key; });
     dupPaint();
-  }).catch(function () { DUP.go = ''; DUP.err = UI.dupBad; dupPaint(); });
+  };
+  scriptGet({ twin: same ? 'go' : 'no', a:p.a.id, b:p.b.id, key:(CFG.readKey || '').trim() }).then(function (d) {
+    end(d && d.status === 'ok');
+  }).catch(function () { end(false); });
 }
 /* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס: רשימת הישיבות,
    או — כשנבחרה ישיבה — הפס שלה והתלמידים שלה. */
@@ -10610,7 +10615,7 @@ function stuGo(i) {
     admLive();
   };
   if (!key) { done(false, UI.stfNoKey); return; }
-  if (!confirm(fill(UI.stfAsk, { name:p.name }) + '\n\n' + txt)) return;
+  if (!SureLater(stuGo, this, arguments)) return;
   STU.busy = true; admLive();
   scriptGet({ fire:'say', key:key, title:PROGRAM.short, who:'רכז', body:txt, to:p.name,
               url: /^[A-Za-z0-9_\-]{1,40}$/.test(code) ? 'tzevet?inst=' + code + '#my' : '',
@@ -10753,7 +10758,7 @@ function admParSend() {
     (q.ids && q.ids.length ? q.ids : [q.id]).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
   });
   if (!ids.length) return;
-  if (!confirm(fill(UI.parAsk, { n: ids.length }) + '\n\n' + txt)) return;
+  if (!SureLater(admParSend, this, arguments)) return;
   var per = txt.indexOf('{name}') >= 0 ? 1 : 0, chunks = [];
   for (var i = 0; i < ids.length; i += 60) chunks.push(ids.slice(i, i + 60));
   parSend.busy = true; parSend.msg = ''; delete pplLast['st-par']; admLive();
@@ -11376,8 +11381,7 @@ function renderAdmin() {
    חוזר להציג בדיוק את מה שפורסם. המלל אינו נוגע כאן: לו יש
    מונה ושחזור משלו בלשונית המלל. */
 function cfgDropDraft() {
-  if (!confirm('לבטל את השינויים שלא פורסמו, במכשיר הזה בלבד? ' +
-               'המכשיר יחזור להציג את מה שפורסם.')) return;
+  if (!SureLater(cfgDropDraft, this, arguments)) return;
   PUB_KEYS.forEach(function (k) { delete CFG[k]; });
   Store.set('cfg', CFG);
   applyCfg();
@@ -11703,9 +11707,7 @@ function pubWipe() {
     return;
   }
   var n = PUB_SEEN.n;
-  if (!confirm((n ? n + ' שינויים עדיין אינם בקוד, והם יחזרו לנוסח שבקוד אצל כולם.\n\n'
-                  : 'כל מה שברשימה כבר בקוד.\n\n') +
-               'למחוק מהגיליון את כל השינויים? פרטי הקשר נשמרים.')) return;
+  if (!SureLater(pubWipe, this, arguments)) return;
 
   var pub = PUB_SEEN.pub, keepSet = {}, setRows = [], k;
   for (k in pub) if (pub.hasOwnProperty(k) && KEEP_CFG[k]) {
@@ -12269,7 +12271,7 @@ var QB_CM = '';
 function qbDel(id) {
   var e = id ? QbFind(QB, id) : QB_ED, key = (CFG.readKey || '').trim();
   QB_CM = id || '';
-  if (!e || !e.id || !confirm(UI.qbSure)) return;
+  if (!e || !e.id || !SureLater(qbDel, this, arguments)) return;
   if (!key) return qbSay(1, UI.qbNoKey);
   qbSay(0, UI.qbSent);
   QbPost(qbApi(), key, 'del', e.id).then(function () { qbVerify(0, e.id, null); });
@@ -12280,7 +12282,7 @@ function qbDel(id) {
 function qbUnplace(id) {
   var x = QbFind(QB, id), key = (CFG.readKey || '').trim();
   QB_CM = id;
-  if (!x || !confirm(UI.qbUnSure)) return;
+  if (!x || !SureLater(qbUnplace, this, arguments)) return;
   if (!key) return qbSay(1, UI.qbNoKey);
   qbSay(0, UI.qbSent);
   fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({
@@ -12328,7 +12330,7 @@ function qbUnBank(tries, id, want) {
 function qbPubGo(id, on) {
   var x = QbFind(QB, id), key = (CFG.readKey || '').trim();
   QB_CM = id;
-  if (!x || !confirm(on ? UI.qbPubSure : UI.qbUnpubSure)) return;
+  if (!x || !SureLater(qbPubGo, this, arguments)) return;
   if (!key) return qbSay(1, UI.qbNoKey);
   qbSay(0, UI.qbSent);
   fetch(qbApi(), { method:'POST', mode:'no-cors', body: JSON.stringify({
@@ -13316,8 +13318,7 @@ function accSet(id, st) {
   var key = (CFG.readKey || '').trim();
   var a = accList().filter(function (x) { return x.id === id; })[0];
   if (!key || !a) return;
-  if (st === 'נעול' && !confirm('לנעול את ' + (a.name || 'איש הצוות') + '?\n' +
-      'הוא יחזור לראות מספרים בלבד, בלי שמות ובלי שליחה לתלמידים.')) return;
+  if (st === 'נעול' && !SureLater(accSet, this, arguments)) return;
   accMsg = 'שומר…'; admPane();
   var q = { accset:id, st:st, key:key };
   /* באישור — גם הנוסח של ההתראה אליו. השרת שולח רק במעבר לאישור. */
@@ -13889,7 +13890,7 @@ function partDel(id, name) {
   if (!id) { partView.msg = 'לשורה הזו אין מזהה בגיליון, ולכן אי אפשר למחוק ' +
                             'אותה מכאן. אפשר לנקות את כל הלשונית בלשונית "נתונים".';
              admPane(); return; }
-  if (!confirm('למחוק את ' + name + ' מהרשימה?')) return;
+  if (!SureLater(partDel, this, arguments)) return;
 
   partView.msg = 'מוחק…'; admPane();
   scriptGet({ delrow:JOIN_TAB, col:'מזהה', vals:JSON.stringify([id]), key:key })
@@ -14381,7 +14382,7 @@ function waPrev(k, v) {
    לוודא — `no-cors` "מצליח" תמיד. טיוטות של נוסחים אחרים במכשיר
    הזה אינן נשלחות בדרך אגב. `orig` = חזרה לנוסח שבקוד. */
 function waSave(k, orig) {
-  if (orig && !confirm('להחזיר את ההודעה לנוסח המקורי? מה שערכת בה יימחק.')) return;
+  if (orig && !SureLater(waSave, this, arguments)) return;
   var ta = document.getElementById('wa-ta');
   var v = orig ? '' : String(ta ? ta.value : '').trim();
   if (v === TX.base(k)) v = '';                 /* כמו המקור = חזרה למקור */
@@ -14853,10 +14854,7 @@ function saveFile(name, text) {
 function dataWipe(tab, ss, rows) {
   /* אישור אחד, ובו המספר. ביטול משאיר הודעה — כפתור שנלחץ ולא
      קרה בו דבר נראה כתקלה. */
-  if (!confirm(rows + ' שורות יימחקו מ"' + tab + '" ולא יהיה מהיכן ' +
-               'להחזיר אותן.\n\nלמחוק?')) {
-    dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
-  }
+  if (!SureLater(dataWipe, this, arguments)) return;
 
   dataState.done = ''; dataState.msg = 'מוחק…'; admPane();
   var p = { clear: tab, key: (CFG.readKey || '').trim() };
@@ -14885,12 +14883,7 @@ function dataWipe(tab, ss, rows) {
 function dataDedupe() {
   var key = (CFG.readKey || '').trim();
   if (!key) { dataState.msg = 'חסרה סיסמת הקריאה.'; admPane(); return; }
-  if (!confirm('שורות כפולות של אותו תלמיד ב"לומדים" יימחקו — ' +
-               'יישאר רק האחרון שלו. וגם מי שנרשם מכמה מכשירים ' +
-               '(אותו טלפון, שם ותפקיד) יאוחד לשורה אחת. אין דרך ' +
-               'חוזרת מלבד היסטוריית הגרסאות של הגיליון עצמו.\n\nלנקות?')) {
-    dataState.msg = 'בוטל. לא נמחק דבר.'; admPane(); return;
-  }
+  if (!SureLater(dataDedupe, this, arguments)) return;
   dataState.done = ''; dataState.msg = 'מנקה…'; admPane();
   scriptGet({ dedupe:1, key:key }).then(function (d) {
     if (!d || d.status !== 'ok') {
@@ -15483,7 +15476,7 @@ function rafAt(iso) {
 function rafDraw() {
   var k = rafPicked();
   if (!k[0]) return;
-  if (!confirm(fill(UI.rafSumQ, { k: k[0], n: k[1], at: rafAt(rafP.cut) }) + '\n\n' + UI.rafDrawQ)) return;
+  if (!SureLater(rafDraw, this, arguments)) return;
   rafCall({ raffle: 'draw', codes: rafSel.filter(function (c) { return rafP.by[c] && rafP.by[c].n; }).join(','), who: 'רכז' },
           function (d) { rafD = d; rafP = null; Store.del('rafSelDm'); });
 }
@@ -15499,7 +15492,7 @@ function rafDemo(k) {
   if (!rafP || rafP.me !== 1 || !rafEp) return;
   var L = rafDmCodes(k), c = L[0] || '';
   if (!c) return;
-  if (!confirm(fill(UI.rafDmAsk, { what: UI[k === 'w' ? 'rafSelfWhatW' : 'rafSelfWhatG'], inst: rafInstName(c) }))) return;
+  if (!SureLater(rafDemo, this, arguments)) return;
   Store.set('rafSelDm', { codes: rafSel.slice(), at: Date.now() });
   /* `dc`/`dw` ולא `c`/`w`: `c` שמור ב-Apps Script (400 מגוגל), כמו `rt`. */
   rafCall({ raffle: 'demo', k: k, dc: c, codes: rafDmCodes('g').join(','), dw: rafDmCodes('w').join(','),
@@ -15512,7 +15505,7 @@ function rafRedo(code) {
   if (!rafD) return;
   var x = null;
   rafD.rows.forEach(function (r) { if (r.code === code) x = r; });
-  if (!x || !confirm(fill(UI.rafRedoQ, { inst: rafInstName(code), name: x.name }))) return;
+  if (!x || !SureLater(rafRedo, this, arguments)) return;
   rafCall({ raffle: 'redo', rid: rafD.rid, code: code, who: 'רכז' }, function (d) {
     var m = fill(UI.rafRedoDone, { name: d.name });
     x.name = d.name;
@@ -15562,7 +15555,8 @@ function rafPrzSet(code, sel) {
   var p = sel.value, x = null;
   if (!p || !rafD) return;
   rafD.rows.forEach(function (r) { if (r.code === code) x = r; });
-  if (!x || !confirm(fill(UI.rafPrzSetQ, { name: x.name, p: UI['przN_' + p] || p }))) { sel.value = ''; return; }
+  if (!x) { sel.value = ''; return; }
+  if (!SureLater(rafPrzSet, this, arguments, function () { sel.value = ''; })) return;
   rafCall({ raffle: 'prizeset', rid: rafD.rid, code: code, p: p }, function () {
     rafCall({ raffle: 'state' }, function (s) { rafD = s.d || rafD; });
   });
@@ -15610,7 +15604,7 @@ function rafPubDone(d) {
 function rafGo() {
   if (!rafD || !rafA || !rafTx) return;
   if (!rafTx.wb.trim() || !rafTx.ab.trim()) return;
-  if (!confirm(UI.rafGoQ)) return;
+  if (!SureLater(rafGo, this, arguments)) return;
   rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafA.exp, who: 'רכז',
             wt: rafTx.wt, wb: rafTx.wb, at: rafTx.at, ab: rafTx.ab,
             /* הורי הזוכים — "הבן שלך זכה" (8.99.297), מהנוסחים בניהול */
@@ -15635,7 +15629,7 @@ function rafSelf(k) {
   if (!rafD || !rafA || !rafTx || rafA.me !== 1 || !rafEp) return;
   var t = rafTx[k === 'w' ? 'wt' : 'at'] || '', b = rafTx[k === 'w' ? 'wb' : 'ab'] || '', c = rafPvCode(k);
   if (!b.trim() || !c) return;
-  if (!confirm(fill(UI.rafSelfAsk, { what: UI[k === 'w' ? 'rafSelfWhatW' : 'rafSelfWhatG'], inst: rafInstName(c) }))) return;
+  if (!SureLater(rafSelf, this, arguments)) return;
   rafCall({ raffle: 'self', rid: rafD.rid, k: k, code: c, t: t, b: b, ep: rafEp }, function (d) {
     if (rafA) rafA.me = d.dev ? 1 : 0;
     rafMsg = d.dev ? UI.rafSelfDone : UI.rafSelfNoDev;
@@ -15666,7 +15660,7 @@ function rafMiss() {
 }
 function rafMore() {
   var n = rafMiss();
-  if (!n || !confirm(fill(UI.rafMoreQ, { n: n }))) return;
+  if (!n || !SureLater(rafMore, this, arguments)) return;
   rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafPs.aud.exp, who: 'רכז', more: '1' }, function (d) {
     if (d.status === 'changed') { rafPs.aud = d.aud; rafPs.aud.exp = rafExpOf(d.aud); rafMsg = UI.rafChanged; return; }
     rafPubDone(d);
@@ -15676,7 +15670,7 @@ function rafRetry(force) {
   if (!rafD || !rafPs || !rafPs.aud) return;
   var L = rafTodo(force);
   if (!L.length) return;
-  if (!confirm(fill(UI.rafRetryQ, { list: L.map(rafPartLbl).join(' + ') }))) return;
+  if (!SureLater(rafRetry, this, arguments)) return;
   var p = { raffle: 'pub', rid: rafD.rid, exp: rafPs.aud.exp, who: 'רכז' };
   if (force) p.force = '1';
   rafCall(p, function (d) {
@@ -15767,7 +15761,7 @@ function tmSet(d) { tmS = d; if (d.tok) tmTok = d.tok; }
 function tmLoad() { tmCall({ test: 'tok' }, tmSet); }
 function tmNew() {
   var inst = tmInst || (INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; })[0] || {}).code;
-  if (!confirm(UI.tmNewQ)) return;
+  if (!SureLater(tmNew, this, arguments)) return;
   tmCall({ test: 'new', inst: inst }, function (d) {
     tmSet(d);
     /* הדפדפן הזה נכנס למצב בדיקה עכשיו: העותק נשמר, הזהות מתנקה. */
@@ -15807,7 +15801,7 @@ function tmPrep() { tmCall({ test: 'aud' }, function (d) { tmAud = d; }); }
 var tmDl = null;
 function tmPub(force) {
   if (!tmAud || tmAud.bad || !tmAud.w || !tmAud.g) return;
-  if (!confirm(fill(force ? UI.tmForceQ : UI.tmPubQ, { w: tmAud.w, g: tmAud.g }))) return;
+  if (!SureLater(tmPub, this, arguments)) return;
   var p = { test: 'pub', wt: UI.rafWinT, wb: UI.rafWinB, at: UI.rafAllT, ab: UI.rafAllB };
   if (force) p.force = '1';
   tmCall(p, function (d) {
@@ -15827,13 +15821,13 @@ function tmPartHtml(k, o) {
     '</div></div>';
 }
 function tmFin() {
-  if (!confirm(UI.tmEndQ)) return;
+  if (!SureLater(tmFin, this, arguments)) return;
   tmCall({ test: 'end' }, function (d) {
     tmEnd = d; tmS = { on: false }; tmTok = ''; tmAud = null;
     if (TM.on()) TM.restore();
   });
 }
-function tmBack() { if (confirm(UI.tmBackQ)) { TM.restore(); location.reload(); } }
+function tmBack() { if (!SureLater(tmBack, this, arguments)) return; TM.restore(); location.reload(); }
 function admTest() {
   var h = '<div class="adm-card"><h4>' + esc(UI.tmH) + '</h4><p class="h">' + esc(UI.tmLead) + '</p>';
   var dis = tmBusy ? ' disabled' : '';
@@ -16091,12 +16085,12 @@ function chaMe() {
 }
 /* חשיפה — "כולם" ↔ "רק אני והמוזמנים". אישור אחד. */
 function chaExp(v) {
-  if (!confirm(v === 'כולם' ? UI.chaExpAllQ : UI.chaExpQQ)) return;
+  if (!SureLater(chaExp, this, arguments)) return;
   chaAct('exposure', { v: v, me: chaMe() }, false);
 }
 /* פתיחת הגרלה ידנית — אישור אחד, ואז אותו מסלול של הגרלה רגילה. */
 function chaOpenMan() {
-  if (!confirm(UI.chaManQ)) return;
+  if (!SureLater(chaOpenMan, this, arguments)) return;
   chaAct('open', {}, false);
 }
 function chaCall(op, p) {
@@ -16145,7 +16139,7 @@ function przLoad() {
 }
 function przSet(k, f, v) {
   if (PRZ.busy) return;
-  if (f === 'out' && !confirm(UI[v ? 'przOutQ' : 'przInQ'])) return;
+  if (f === 'out' && !SureLater(przSet, this, arguments)) return;
   PRZ.busy = true; PRZ.open[k] = 1; przPaint();
   przCall({ prz: 'set', k: k, f: f, v: v }).then(przGot, przNo);
 }
@@ -16276,7 +16270,7 @@ function qdaGot(d) {
   qdaPaint();
 }
 function qdaGo(op, p, q) {
-  if (QDA.busy || (q && !confirm(q))) return;
+  if (QDA.busy || (q && !SureLater(qdaGo, this, arguments))) return;
   if (!(CFG.readKey || '').trim()) { QDA.msg = UI.przNoKey; qdaPaint(); return; }
   QDA.busy = true; qdaPaint();
   qdaCall(op, p).then(qdaGot, function () { QDA.busy = false; QDA.msg = UI.qdaFail; qdaPaint(); });
@@ -16412,13 +16406,13 @@ function hsaLoad() {
   }, function () { HSA.busy = false; HSA.msg = UI.hsaFail; hsaPaint(); });
 }
 function hsaOpen(on) {
-  if (!confirm(on ? UI.hsaOnQ : UI.hsaOffQ)) return;
+  if (!SureLater(hsaOpen, this, arguments)) return;
   cfgSet('hashOn', on ? new Date().toISOString().slice(0, 10) : '');
   hsaPaint();
   publishSettings();
 }
 function hsaSet(id, v) {
-  if (HSA.busy || !confirm(v ? UI.hsaMoveQ : UI.hsaBackQ)) return;
+  if (HSA.busy || !SureLater(hsaSet, this, arguments)) return;
   HSA.busy = true; hsaPaint();
   scriptGet({ hash: 'set', id: id, v: v ? '1' : '0', key: (CFG.readKey || '').trim() }).then(function (r) {
     HSA.busy = false;
@@ -16446,7 +16440,7 @@ function hsbPre() {
 }
 function hsbGo() {
   var n = HSB.pre ? HSB.pre.n : 0;
-  if (HSA.busy || !n || !confirm(fill(UI.hsbQ, { n: n }))) return;
+  if (HSA.busy || !n || !SureLater(hsbGo, this, arguments)) return;
   HSA.busy = true; hsaPaint();
   scriptGet({ hash: 'bulk', n: String(n), key: (CFG.readKey || '').trim() }).then(function (d) {
     HSA.busy = false;
@@ -16558,7 +16552,7 @@ function chaWorld(t) {
   chaLoad();
 }
 function chaAct(op, p, sure) {
-  if (sure !== false && !confirm(UI.chaSure)) return;
+  if (sure !== false && !SureLater(chaAct, this, arguments)) return;
   CHA.busy = true; chaPaint();
   chaCall(op, p).then(function (r) {
     CHA.busy = false;
@@ -16582,7 +16576,7 @@ function chaRq(k) {
 }
 function chaRqDrop(k) { try { sessionStorage.removeItem(chaRqKey(k)); } catch (e) {} }
 function chaDraw(k) {
-  if (!confirm(UI.chaSure)) return;
+  if (!SureLater(chaDraw, this, arguments)) return;
   chaAct('draw', { ms: k, rq: chaRq(k) }, false);
 }
 function chaVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
@@ -16670,7 +16664,7 @@ function chaPushBox(kind, k, st, to, dis) {
 function chaPush(kind, k, force) {
   var x = CHA_PT[kind + (k || '')] || {}, t = String(x.t || '').trim(), b = String(x.b || '').trim();
   if (!t || !b || CHA.busy) return;
-  if (!confirm((kind === 'launch' ? UI.chaPushLQ : UI.chaPushMQ) + '\n\n' + t + '\n' + b)) return;
+  if (!SureLater(chaPush, this, arguments)) return;
   CHA.busy = true; chaPaint();
   chaCall('push', { kind: kind, ms: k || '', t: t, b: b, force: force ? '1' : '' }).then(function (r) {
     CHA.busy = false;
@@ -16768,7 +16762,7 @@ function dmEnter(x) {
 }
 function dmStart() {
   var nm = chaVal('dm-name'), ins = chaVal('dm-inst');
-  if (!nm || CHA.busy || !confirm(UI.dmStartQ)) return;
+  if (!nm || CHA.busy || !SureLater(dmStart, this, arguments)) return;
   CHA.busy = true; chaPaint();
   /* המזהה האמיתי של המכשיר — כדי שהתראת הניסוי תגיע גם אליו. */
   var real = '';
@@ -16821,7 +16815,7 @@ function dmResetHtml(dis) {
 function dmEnd() {
   if (CHA.busy || !DM_PRE || !DM_SC) return;
   var n = dmSum(DM_PRE[DM_SC]);
-  if (!confirm(fill(UI.dmResetQ, { n: n, sc: DM_SC === 'all' ? UI.dmScAll : UI.dmScData }))) return;
+  if (!SureLater(dmEnd, this, arguments)) return;
   CHA.busy = true; chaPaint();
   chaCall('dmend', { scope: DM_SC, exp: DM_PRE.exp[DM_SC] }).then(function (r) {
     CHA.busy = false;
@@ -17427,7 +17421,7 @@ function pushSend() {
   if (!pushView.role && !pushView.only) who = ['לכל מי שנרשם (' + c2.ok + ' מכשירים)'];
   var insts = sndIns();
   if (insts.length) who = [sndAudText()];
-  if (!confirm(fill(UI.sndSure, { aud: sndAudText(), dev: pushView.ck.dev }) + '\n\n' + body)) return;
+  if (!SureLater(pushSend, this, arguments)) return;
   pushBusy = true; pushMsg = 'שולח…'; admPane();
   scriptGet({ fire:'say', key:(CFG.readKey || '').trim(),
               title:(pushView.title || '').trim() || PROGRAM.short,
@@ -17483,8 +17477,7 @@ function pushSet(k, v) { pushView[k] = v; }
 function pushJoined() {
   var key = (CFG.readKey || '').trim();
   if (!key) { pushMsg = 'nokey'; admPane(); return; }
-  if (!confirm('לשלוח לכל ר"ם שנרשם התראה עם מספר התלמידים ' +
-               'שהצטרפו מכיתתו?\n\nלכל אחד יוצא המספר שלו.')) return;
+  if (!SureLater(pushJoined, this, arguments)) return;
   pushBusy = true; pushMsg = 'שולח…'; admPane();
   scriptGet({ fire:'digest', key:key, mode:'joined' })
     .then(function (d) {
@@ -17884,9 +17877,7 @@ function keepOnly(map) {
 }
 
 function admTextReset() {
-  if (!confirm('להחזיר את כל הנוסחים לערך שבקוד? ' +
-               'הפרסום הבא ימחק גם את מה שפורסם.\n\n' +
-               'פרטי איש הקשר לנגישות יישמרו.')) return;
+  if (!SureLater(admTextReset, this, arguments)) return;
   /* גם השכבה המפורסמת. בלעדיה הכפתור משקר: הטיוטה נמחקת,
      הגיליון ממשיך לדרוס את הקוד, והמסך חוזר למה שהיה. */
   PUBLISHED = keepOnly(PUBLISHED);
@@ -18200,18 +18191,21 @@ function dkRm(f) {
     var q = fill(UI.dkRmQ, { f: f }) +
       (where.length ? '\n\n' + fill(UI.dkRmUsed, { where: where.join(', ') }) : '') +
       (anch && anch.length ? '\n\n' + fill(UI.anchRmQ, { list: anchDesc_(anch) }) : '');
-    if (!window.confirm(q)) { dkRmMsg('', ''); return; }
-    dkRmMsg('', UI.dkRmBusy);
-    fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
-      action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
-    }) }).catch(function () {}).then(function () {
-      dkRmCheck(path, f, 0, anch && anch.length ? function () {
-        dkRmMsg('', UI.anchBusy);
-        anchDrop_([path]).then(function (good) {
-          dkRmMsg(good ? 'ok' : 'bad', good ? UI.dkRmOk + ' ' + UI.anchDone : UI.anchBad);
-        });
-      } : null);
-    });
+    dkRmMsg('', '');
+    SureThen(function () { dkRmGo_(path, f, anch); }, null, q);
+  });
+}
+function dkRmGo_(path, f, anch) {
+  dkRmMsg('', UI.dkRmBusy);
+  fetch(API, { method:'POST', mode:'no-cors', body:JSON.stringify({
+    action:'ghdel', key:(CFG.readKey || '').trim(), path:path, msg:'מחיקת ' + path
+  }) }).catch(function () {}).then(function () {
+    dkRmCheck(path, f, 0, anch && anch.length ? function () {
+      dkRmMsg('', UI.anchBusy);
+      anchDrop_([path]).then(function (good) {
+        dkRmMsg(good ? 'ok' : 'bad', good ? UI.dkRmOk + ' ' + UI.anchDone : UI.anchBad);
+      });
+    } : null);
   });
 }
 function dkRmCheck(path, f, tries, after) {
@@ -18615,7 +18609,7 @@ function dkUpload(items) {
           : '') +
         ' אם אתם מחליפים שקף בכוונה — עדיף להעלות בשם קובץ חדש ולהחליף ' +
         'ברשימת הסדר, כדי שזה יגיע לכולם מיד. להמשיך ולדרוס בכל זאת?';
-      if (!window.confirm(warn)) { dkPdfMsg('', 'בוטל — שום דבר לא נשלח.'); return; }
+      if (!SureLater(dkUpload, this, arguments, null, warn.replace(/ להמשיך ולדרוס בכל זאת\?$/, ''))) return;
     }
   }
   /* לחיצה נוספת בזמן שליחה שלחה הכול שוב, במקביל — ארבע פעמים כל
@@ -19324,9 +19318,7 @@ function opToggle(ti, wi) {
   /* הבחירה בהתראה נלקחת עכשיו, וחוזרת מיד לכבוי — הפתיחה הבאה תצטרך
      בחירה חדשה. ראו opNtf. */
   var ntf = !was && opNtf, aud = opAud;
-  if (!confirm(was
-      ? 'לסגור את דף ' + nm + ' במסכת ' + t.masechet + '? תלמידים לא יוכלו להיכנס אליו.'
-      : fill(ntf ? UI.opAskNtf : UI.opAskQuiet, { daf: nm, mas: t.masechet }))) return;
+  if (!SureLater(opToggle, this, arguments)) return;
   opNtf = false; opAud = 'wait';
 
   var next = {}, k;
@@ -19403,7 +19395,10 @@ function opNotify(t, daf, am, ntf, aud) {
   if (!key) { done('ההתראה לא יצאה: חסרה סיסמת הקריאה בהגדרות.', 'bad'); return; }
   /* אישור לפני כל שליחה לתלמידים — הדף כבר נפתח, רק ההתראה מחכה. */
   var all = aud === 'all';
-  if (!confirm(all ? UI.openPushAskAll : UI.openPushAsk)) { done(UI.openPushNo, 'ok'); return; }
+  SureThen(function () { opNotifyGo_(t, daf, am, key, v, all, done); },
+           function () { done(UI.openPushNo, 'ok'); }, all ? UI.openPushAskAll : UI.openPushAsk);
+}
+function opNotifyGo_(t, daf, am, key, v, all, done) {
   scriptGet({ fire:'say', key:key,
               title:fill(UI.openPushT, v), body:fill(UI.openPushB, v),
               wait: all ? '' : OpenKey(t.id, daf, am),
@@ -19825,7 +19820,7 @@ function tmAdd() {
 }
 function tmDel(i) {
   var list = tmplNow().slice();
-  if (!list[i] || !confirm('למחוק את הנוסח?\n\n' + list[i].text)) return;
+  if (!list[i] || !SureLater(tmDel, this, arguments)) return;
   list.splice(i, 1);
   tmSave(list);
 }
@@ -21141,8 +21136,12 @@ function amdaBoardTap(e) {
   if (k) {
     var had = amdaHadNow(sess);
     if (!had[k]) {
-      if (!confirm(amdaT('bAskHere', { n: amdaNm(k) }))) return;
-      amdaHereBy(les, k);
+      SureThen(function () {
+        amdaHereBy(les, k);
+        amdaSt.bSel = k;
+        amdaBoardPaint();
+      }, null, amdaT('bAskHere', { n: amdaNm(k) }));
+      return;
     }
     amdaSt.bSel = amdaSt.bSel === k ? '' : k;
     amdaBoardPaint(); return;
@@ -21218,7 +21217,7 @@ function amdaLesAdd() {
   amdaLesSave(list);
 }
 function amdaLesDel(id) {
-  if (!confirm(amdaT('lesDel'))) return;
+  if (!SureLater(amdaLesDel, this, arguments)) return;
   amdaLesSave(amdaLessons().filter(function (l) { return l.id !== id; }));
 }
 function amdaLesCard() {
@@ -22592,7 +22591,7 @@ function netSave() {
   if (!built) { netMsg = UI.netTwice; admPane(); return; }
   if (built.n.open) { netMsg = fill(UI.netAskN, { n: built.n.open }); admPane(); return; }
   if (!built.ops.length) { netMsg = UI.netNothing; admPane(); return; }
-  if (built.n.del && !confirm(fill(UI.netDelSure, { n: built.n.del }))) return;
+  if (built.n.del && !SureLater(netSave, this, arguments)) return;
   var P = NETP, run = netRunId();
   NET_BUSY = true;
   netMsg = fill(UI.netSaving2, { a: built.n.add, u: built.n.upd }) + (built.n.del ? ' ' + fill(UI.netDelN, { n: built.n.del }) : '');
@@ -22626,7 +22625,7 @@ function netRestore(i) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim(), b = NET_BAKS && NET_BAKS[i];
   if (!b || !key || !url || NET_BUSY || netPend() || !NET_CUR) return;
   var t = b.name.replace(/^[^·]*·\s*/, '');
-  if (!confirm(fill(UI.netRestSure, { t: t }))) return;
+  if (!SureLater(netRestore, this, arguments)) return;
   var run = netRunId();
   NET_BUSY = true; netMsg = UI.netRestIng; admPane();
   /* `base` — המאגר כפי שנקרא כשנפתחה הרשימה. השתנה מאז — השרת לא
@@ -23032,7 +23031,7 @@ function amdaWaView(v) {
   try { window.scrollTo(0, 0); } catch (e) {}
 }
 function amdaWaClear() {
-  if (!confirm(amdaT('waListClrQ'))) return;
+  if (!SureLater(amdaWaClear, this, arguments)) return;
   Store.set('amdaWaL', { sel: {}, sent: {} });
   amdaWaView('');
 }
@@ -23813,12 +23812,14 @@ function sidRun() {
     if (!k) { SID.busy = false; sidSay_('ok', '✓ ארבע הלשוניות כבר מוסבות. לא נכתב דבר.'); return null; }
     name = SID_TABS[k];
     var left = Object.keys(SID_TABS).filter(function (x) { return SID.todo[x]; }).length;
-    if (!confirm('להסב את "' + name + '"?\n\nנותרו ' + left + ' מתוך 4 לשוניות. ' +
+    var ask = 'להסב את "' + name + '" — נותרו ' + left + ' מתוך 4 לשוניות. ' +
         'הסקריפט יעתיק קודם את הלשונית ל"' + SID_BAK + name + '" ויבדוק את ההעתק, ' +
         'ורק אז יכתוב ויאמת. לא מאומת — הוא מחזיר את מה שהיה.\n' +
-        'גם למכשיר יירד קובץ של הלשונית כפי שהיא עכשיו.')) {
-      SID.busy = false; sidSay_('cond', 'בוטל. לא נכתב דבר.'); return null;
-    }
+        'גם למכשיר יירד קובץ של הלשונית כפי שהיא עכשיו.';
+    return new Promise(function (ok) {
+      SureThen(function () { ok(true); }, function () { ok(false); }, ask);
+    }).then(function (go) {
+    if (!go) { SID.busy = false; sidSay_('cond', 'בוטל. לא נכתב דבר.'); return null; }
     saveFile('hadaf-stepid-' + k + '-' + stamp() + '.json', JSON.stringify(t[k]));
     sidSay_('cond', 'מגבה, כותב ומאמת את "' + name + '"…');
     return sidSend_({ tab: name, head: JSON.stringify(sidHead_(k, t[k])),
@@ -23845,6 +23846,7 @@ function sidRun() {
                          : ' ארבע הלשוניות מוסבות.'));
         });
       });
+    });
   }).catch(function (e) {
     SID.busy = false;
     sidSay_('bad', (e && e.message) || 'ההסבה נעצרה.');
@@ -23861,8 +23863,7 @@ function sidRun() {
 function sidRestore() {
   if (SID.busy) return;
   if (!(CFG.readKey || '').trim()) { sidSay_('bad', 'צריך סיסמת סקריפט במכשיר (למעלה במסך הזה).'); return; }
-  if (!confirm('להחזיר למצב שבגיבוי כל לשונית שהוסבה?\n\n' +
-      'מה שנכתב בהן אחרי הגיבוי יוחלף. מה שיש בהן עכשיו יישמר בגיליון בשם צדדי, ויירד גם למכשיר.')) return;
+  if (!SureLater(sidRestore, this, arguments)) return;
   var names = Object.keys(SID_TABS), done = [], skip = [];
   SID.busy = true; sidSay_('cond', 'קורא את המצב הנוכחי…');
   sidServer_().then(function () { return sidRead_(); }).then(function (cur) {
@@ -23989,9 +23990,10 @@ function anchAfterOut_(map) {
   anchRead_().then(function (t) {
     var list = anchFind_(t, function (v) { return out.indexOf(v) >= 0; });
     if (!list.length) return;
-    if (!window.confirm(fill(UI.anchOutQ, { list: anchDesc_(list) }))) return;
-    dkMsg('', UI.anchBusy);
-    anchDrop_(out).then(function (good) { dkMsg(good ? 'ok' : 'bad', good ? UI.anchDone : UI.anchBad); });
+    SureThen(function () {
+      dkMsg('', UI.anchBusy);
+      anchDrop_(out).then(function (good) { dkMsg(good ? 'ok' : 'bad', good ? UI.anchDone : UI.anchBad); });
+    }, null, fill(UI.anchOutQ, { list: anchDesc_(list) }));
   }).catch(function () {});
 }
 function anchCard() {
@@ -24025,7 +24027,7 @@ function anchCheck() {
 function anchClean() {
   var L = ANCHC.list;
   if (!L || !L.length || ANCHC.busy) return;
-  if (!window.confirm(fill(UI.anchDelQ, { n: L.length, list: anchDesc_(L) }))) return;
+  if (!SureLater(anchClean, this, arguments)) return;
   var paths = [];
   L.forEach(function (a) { if (paths.indexOf(a.val) < 0) paths.push(a.val); });
   ANCHC.busy = true; anchSay_('cond', UI.anchBusy);

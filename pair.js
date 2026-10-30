@@ -435,10 +435,16 @@ var PAIR_UI = (function () {
     var b = document.getElementById('pr-y');
     if (b) b.onclick = function () {
       keep(key(track, wk));
-      /* אישור לפני ההודעה לצד השני. ההגרלה נרשמת בכל מקרה. */
+      /* שאלה לפני ההודעה לצד השני — שני כפתורים באותו חלון. ההגרלה
+         נרשמת בכל מקרה; שאלה ריקה — ההתראה יוצאת. */
       var ask = fill(t('notifyAsk'), { 'שותף': who });
-      send(track, wk, !!ask && !confirm(ask));
-      win(m, sd);
+      var go = function (mute) { send(track, wk, mute); win(m, sd); };
+      if (!ask) { go(false); return; }
+      show('<h3>' + esc(ask) + '</h3>' +
+        '<button class="pr-go" id="pr-ny">' + esc(t('notifyY')) + '</button>' +
+        '<button class="pr-thin" id="pr-nn">' + esc(t('notifyN')) + '</button>');
+      document.getElementById('pr-ny').onclick = function () { go(false); };
+      document.getElementById('pr-nn').onclick = function () { go(true); };
     };
     b = document.getElementById('pr-n');
     if (b) b.onclick = shut;

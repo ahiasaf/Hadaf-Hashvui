@@ -523,9 +523,7 @@ var TRIP_UI = (function () {
       '<button class="x" id="trip-x" aria-label="' + esc(t('quit')) + '">✕</button>' +
       '</div></div>';
 
-    $('trip-x').onclick = function () {
-      if (confirm(t('quitAsk'))) stop();
-    };
+    $('trip-x').onclick = function () { SureThen(stop); };
     /* המסך נוסע אל ההוראה — פעם אחת לכל שלב, ולא בכל ציור.
        ציור חוזר קורה גם מפעימת הבדיקה, וגלילה בכל פעימה הייתה
        חוטפת את המסך מתחת לאצבע. */
@@ -615,7 +613,7 @@ var TRIP_UI = (function () {
       '<button class="x" id="trip-x" aria-label="' + esc(t('quit')) + '">✕</button>' +
       '</div></div>';
 
-    $('trip-x').onclick = function () { if (confirm(t('quitAsk'))) stop(); };
+    $('trip-x').onclick = function () { SureThen(stop); };
 
     var hit = function (id, f) { var b = $(id); if (b) b.onclick = f; };
     hit('trip-test', function () {

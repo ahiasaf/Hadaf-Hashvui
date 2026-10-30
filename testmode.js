@@ -190,9 +190,10 @@ var TM = (function () {
     btn.style.cssText = 'flex:none;border:1px solid #fff;background:#fff;color:#B4231B;border-radius:9px;' +
       'padding:6px 10px;font:800 .82rem system-ui,sans-serif;cursor:pointer';
     btn.onclick = function () {
-      if (!confirm(dm ? T('dmBackQ') : T('tmBackQ'))) return;
-      restore();
-      location.href = location.pathname.replace(/[^\/]*$/, '') + './';
+      SureThen(function () {
+        restore();
+        location.href = location.pathname.replace(/[^\/]*$/, '') + './';
+      });
     };
     b.appendChild(t); b.appendChild(btn);
     document.body.insertBefore(b, document.body.firstChild);

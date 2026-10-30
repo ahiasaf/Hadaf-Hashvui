@@ -322,7 +322,7 @@ function przAlone() {
 }
 function przPick(k) {
   var z = PRZ_Z, u = api();
-  if (!z || z.p || !u || !confirm(tp(UI.przAsk, { p: przName(k) }))) return;
+  if (!z || z.p || !u || !SureLater(przPick, this, arguments)) return;
   var item = { action: 'row', tab: 'בחירת פרס', cols: JSON.stringify([
     ['מזהה', z.wid], ['הגרלה', z.rid], ['פרס', k], ['מאת', ME.id]]) };
   z.p = k; z.st = 'soon'; z.how = 'בחר';

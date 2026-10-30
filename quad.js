@@ -166,7 +166,7 @@
       act('join', { code: c });
     },
     skip: function () { dropRef(); paint(); },
-    leave: function () { if (confirm(U('qdLeaveQ'))) act('leave'); },
-    kick: function (r, f) { if (confirm(tp(U('qdKickQ'), { name: f }))) act('kick', { who: String(r) }); }
+    leave: function () { SureThen(function () { act('leave'); }); },
+    kick: function (r, f) { SureThen(function () { act('kick', { who: String(r) }); }); }
   };
 })();

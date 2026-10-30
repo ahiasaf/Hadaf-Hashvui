@@ -1363,10 +1363,9 @@ function scrollToZone() {
 
 /* "זיהוי מחדש" הוא עכשיו באמת מחדש: הכיול השמור נזרק והזיהוי
    האוטומטי רץ. זו הדרך לחזור אחורה מתיקון ידני שהשתבש. */
-document.getElementById('reset').onclick = function () {
+document.getElementById('reset').onclick = function reCal() {
   if (!D) return;
-  if (BOOK[PKEY] && BOOK[PKEY].cal &&
-      !confirm('לזרוק את הכיול הידני של העמוד הזה ולזהות מחדש?')) return;
+  if (BOOK[PKEY] && BOOK[PKEY].cal && !SureLater(reCal, this, arguments)) return;
   /* הזריקה עצמה קורית בתוך run, אחרי ש-keepPageState כבר רץ —
      אחרת הוא כותב את הכיול הנוכחי בחזרה ואין מה לזרוק. */
   FRESH = true;
@@ -1971,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.373';
+var STUDIO_VER = '8.99.374';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3319,7 +3318,7 @@ function mergeAsk_(info, b, after) {
       msg += '\n\nשימו לב: בקטע השני מתחיל שקף, ולקטע שאחריו יש שקף משלו — השקף של הקטע השני לא יוצג יותר ברצף.';
     else msg += '\n\nהשקף שמתחיל בקטע השני יעבור להתחיל בקטע שאחריו.';
   }
-  return confirm(msg);
+  return msg;
 }
 function mergeStep(i) {
   var st = STEPS[i];
@@ -3353,7 +3352,7 @@ function mergeStep(i) {
   }
   say('בודק את הפירוש והשקפים של הדף…');
   studioContent_().then(function (info) {
-    if (!mergeAsk_(info, nx, after)) { say('לא אוחד.'); return; }
+    SureThen(function () {
     if (STEPS[i] !== st || STEPS[i + 1] !== nx) { say('הקטעים השתנו בינתיים — לא אוחד.', 1); return; }
     var from = root.c.from, to = nx.c.to;
     var r = chavRange(from, to);
@@ -3387,6 +3386,7 @@ function mergeStep(i) {
     touched();
     paintChav(1); markDraw(); markPanel();
     say('✓ אוחד. נשמר במכשיר — "שמירה" מעלה לגיליון.');
+    }, function () { say('לא אוחד.'); }, mergeAsk_(info, nx, after));
   });
 }
 
@@ -3440,8 +3440,8 @@ function deleteStep(i) {
     else if (got.length) msg = 'למחוק את הקטע?\n\nיש לו ' + got.join(', ') +
       '. אחרי המחיקה הם לא יוצגו יותר לאף אחד.\n\n' +
       'כדי לשמור עליהם — "ביטול", ואז 🔗 לאיחוד עם הקטע שאחריו.';
-    if (msg && !confirm(msg)) { say('לא נמחק.'); return; }
-    go();
+    if (!msg) { go(); return; }
+    SureThen(go, function () { say('לא נמחק.'); }, msg);
   });
 }
 
@@ -4205,7 +4205,7 @@ function openSave_(k0) {
    לעבודה על העמוד, ונשמרת מעל מה שבשרת (שגם הוא בצד). */
 function continueFrom_(k, rec, isHere) {
   var box = document.getElementById('splitbox');
-  if (rec && !confirm(T_('ssAsk'))) return;
+  if (rec && !SureLater(continueFrom_, this, arguments)) return;
   var retry = function () { continueFrom_(k, rec, isHere); };
   box.innerHTML = '<div class="sh"><b>' + esc(keyLabel(k)) + '</b><p>' +
     esc(T_('ssAsiding')) + '</p></div>';
@@ -5366,15 +5366,15 @@ window.addEventListener('beforeunload', function (e) {
   m.onclick = function () { m.classList.remove('on'); };
   document.addEventListener('click', function () { m.classList.remove('on'); });
 })();
-document.getElementById('undo').onclick = function () {
+document.getElementById('undo').onclick = function unStep() {
   if (!STEPS.length) return;
   var last = STEPS[STEPS.length - 1];
   /* ביטול של מה שסומן עכשיו — כמו תמיד. קטע שכבר נשמר נושא אולי
      פירוש, הקלטות ושאלות, והמחיקה שלו תנתק אותם: שואלים. */
-  if (last.id && !NEW_IDS[last.id] && !confirm(
-      'הקטע האחרון כבר שמור בגיליון, ואולי יש לו פירוש, הקלטות או שאלות.\n' +
-      'מחיקה תשאיר את השטח לא מסומן ותנתק ממנו את מה ששויך.\n\n' +
-      'לאחד אותו עם הקטע שלפניו — "ביטול" כאן, ואז 🔗.\nלמחוק בכל זאת — "אישור".')) return;
+  if (last.id && !NEW_IDS[last.id] && !SureLater(unStep, this, arguments, null,
+      'הקטע האחרון כבר שמור בגיליון, ואולי יש לו פירוש, הקלטות או שאלות. ' +
+      'מחיקה תשאיר את השטח לא מסומן ותנתק ממנו את מה ששויך. ' +
+      'לאחד אותו עם הקטע שלפניו — "ביטול" כאן, ואז 🔗.')) return;
   removeStep(STEPS.length - 1);
 };
 /* פס הקטע הקיים */
@@ -5392,9 +5392,9 @@ document.getElementById('s-ok').onclick = function () {
   /* דף שעוד לא הוסב למזהים: הפיצול יזיז את כל מה ששויך אחריו. */
   studioContent_().then(function (info) {
     if (info.read && !info.legacy) { splitDo(); return; }
-    if (confirm(info.legacy
-        ? '⚠ הדף הזה עוד לא הוסב למזהים קבועים. פיצול יזיז את הפירוש, השאלות והשקפים של כל הקטעים שאחרי הקטע הזה.\n\nלפצל בכל זאת?'
-        : 'לא הצלחתי לקרוא את לשוניות הפירוש והשאלות. אם הדף עוד לא הוסב למזהים, הפיצול עלול להזיז שיוכים של הקטעים שאחריו.\n\nלפצל בכל זאת?')) splitDo();
+    SureThen(splitDo, null, info.legacy
+        ? '⚠ הדף הזה עוד לא הוסב למזהים קבועים. פיצול יזיז את הפירוש, השאלות והשקפים של כל הקטעים שאחרי הקטע הזה.'
+        : 'לא הצלחתי לקרוא את לשוניות הפירוש והשאלות. אם הדף עוד לא הוסב למזהים, הפיצול עלול להזיז שיוכים של הקטעים שאחריו.');
   });
 };
 document.getElementById('i-del').onclick   = function () {

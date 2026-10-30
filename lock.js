@@ -134,7 +134,7 @@ var LOCK = (function () {
 
   /* "תלמיד" — אחרי "האם אתה בטוח". הפרטים כאן, ולא על המסך. */
   function kid() {
-    if (!confirm(P('lockKidOk'))) return;
+    if (!SureLater(kid, this, arguments)) return;
     var o = q('kid');
     if (!o) { fail(); return; }
     var me = C.me() || {};

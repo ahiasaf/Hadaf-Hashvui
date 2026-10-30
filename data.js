@@ -46,6 +46,165 @@ function isAdminView() {
 }
 
 /* ------------------------------------------------------------
+   "ביטול" במקום חלון אישור (8.99.374).
+   ------------------------------------------------------------
+   אחיאסף: "אני לא אוהב את ההודעות הקופצות". אין confirm() באפליקציה.
+   פעולה שביקשה אישור — הכפתור שנלחץ הופך ל"ביטול · 4" לארבע שניות,
+   ואז היא מתבצעת. לחיצה על "ביטול" — שום דבר לא קרה. יציאה מהמסך
+   (מעבר לאפליקציה אחרת, סגירה) בזמן הספירה — שום דבר לא קרה.
+   כמה פעולות ממתינות יחד, כל אחת בכפתור שלה — המסך לא קופא.
+
+   שימוש — בראש פונקציה שמופעלת מלחיצה:
+       if (!SureLater(fn, this, arguments)) return;
+   כשהזמן נגמר הפונקציה רצה שוב מההתחלה, ואז SureLater מחזיר true
+   (התנאים שלפניו נבדקים שוב — המצב אולי השתנה בארבע השניות).
+   ארגומנט רביעי — מה לעשות כשבוטל (למשל להחזיר בורר לריק); חמישי — ראו msg.
+   באמצע זרימה (אחרי קריאה לשרת): SureThen(cb[, onCancel]).
+
+   הכפתור — זה שנלחץ אחרון (לכידה במסמך). מסך שצויר מחדש בזמן
+   הספירה — מחפשים כפתור עם אותו onclick/id ומסמנים אותו. לא נמצא,
+   או שלא היה כפתור — פס קטן בתחתית המסך עם אותו "ביטול". */
+var SURE = { el: null, at: 0, go: 0, L: [], ms: 4000 };
+function sureLbl_(n) {
+  var t = (typeof UI !== 'undefined' && UI.sureUndo) || '× {n}';
+  return t.replace('{n}', n);
+}
+function sureSig_(el) {
+  if (!el || !el.getAttribute) return '';
+  if (el.id) return '#' + el.id;
+  var o = el.getAttribute('onclick');
+  return o ? el.tagName + '|' + o : '';
+}
+function sureFind_(sig) {
+  if (!sig) return null;
+  if (sig.charAt(0) === '#') return document.getElementById(sig.slice(1));
+  var i = sig.indexOf('|'), tag = sig.slice(0, i), oc = sig.slice(i + 1);
+  var L = document.getElementsByTagName(tag);
+  for (var k = 0; k < L.length; k++) if (L[k].getAttribute('onclick') === oc) return L[k];
+  return null;
+}
+function sureOn_(x, el) {
+  x.el = el;
+  x.html = el.innerHTML;
+  x.css = el.getAttribute('style');
+  el.__sure = x;
+  el.style.minWidth = el.offsetWidth ? el.offsetWidth + 'px' : '';
+  el.style.background = '#fff';
+  el.style.color = '#B42318';
+  el.style.borderColor = '#B42318';
+  el.style.boxShadow = 'inset 0 0 0 1.5px #B42318';
+  el.textContent = sureLbl_(x.n);
+}
+function sureOff_(x) {
+  var el = x.el;
+  if (el) {
+    el.__sure = null;
+    if (el.isConnected !== false) {
+      el.innerHTML = x.html;
+      if (x.css === null) el.removeAttribute('style'); else el.setAttribute('style', x.css);
+    }
+  }
+  x.el = null;
+  if (x.bar && x.bar.parentNode) x.bar.parentNode.removeChild(x.bar);
+  x.bar = null; x.barB = null;
+}
+function sureBar_(x) {
+  if (x.bar || !document.body) return;
+  var w = document.createElement('div');
+  w.setAttribute('style', 'position:fixed;left:50%;transform:translateX(-50%);bottom:' +
+    (84 + 56 * SURE.L.indexOf(x)) + 'px;z-index:2147483000;max-width:min(92vw,520px);' +
+    'display:flex;align-items:center;gap:12px;padding:8px 8px 8px 8px;border-radius:16px;' +
+    'background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.2);font:inherit');
+  if (x.msg) {
+    var m = document.createElement('div');
+    m.setAttribute('style', 'flex:1;font-size:.86rem;line-height:1.45;color:#222;padding:0 6px;white-space:pre-line');
+    m.textContent = x.msg;
+    w.appendChild(m);
+  }
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.setAttribute('style', 'flex:none;padding:10px 20px;border-radius:999px;border:1.5px solid #B42318;' +
+    'background:#fff;color:#B42318;font:inherit;font-weight:700');
+  b.textContent = sureLbl_(x.n);
+  w.appendChild(b);
+  w.__sure = x;
+  document.body.appendChild(w);
+  x.bar = w; x.barB = b;
+}
+function sureTick_(x) {
+  if (x.el && !document.documentElement.contains(x.el)) {
+    var nw = sureFind_(x.sig);
+    x.el.__sure = null; x.el = null;
+    if (nw && !nw.__sure) sureOn_(x, nw);
+  }
+  if (!x.el) sureBar_(x);
+  var t = sureLbl_(x.n);
+  if (x.el) x.el.textContent = t;
+  if (x.barB) x.barB.textContent = t;
+}
+function sureDrop_(x) {
+  var i = SURE.L.indexOf(x);
+  if (i >= 0) SURE.L.splice(i, 1);
+  clearInterval(x.iv);
+  sureOff_(x);
+}
+function sureCancel_(x) {
+  sureDrop_(x);
+  if (x.no) { try { x.no(); } catch (e) {} }
+}
+/* cb רץ אחרי הספירה; onCancel — כשבוטל (לחיצה או יציאה מהמסך).
+   msg — כשהפעולה לא באה מלחיצה (העלאה, אחרי קריאה לשרת): הפס בתחתית
+   אומר מה עומד לקרות, אחרת "ביטול" לבדו אינו מובן. */
+function SureThen(cb, onCancel, msg) {
+  var el = SURE.el && Date.now() - SURE.at < 10000 &&
+           document.documentElement.contains(SURE.el) ? SURE.el : null;
+  if (el && el.__sure) el = null;
+  var x = { n: Math.round(SURE.ms / 1000), cb: cb, no: onCancel, msg: msg || '', sig: sureSig_(el) };
+  SURE.L.push(x);
+  if (el) sureOn_(x, el); else sureBar_(x);
+  SURE.el = null;
+  x.iv = setInterval(function () {
+    x.n--;
+    if (x.n > 0) { sureTick_(x); return; }
+    sureDrop_(x);
+    x.cb();
+  }, 1000);
+  return x;
+}
+function SureLater(fn, self, args, onCancel, msg) {
+  if (SURE.go) return true;
+  var a = Array.prototype.slice.call(args || []);
+  SureThen(function () {
+    SURE.go = 1;
+    try { fn.apply(self, a); } finally { SURE.go = 0; }
+  }, onCancel, msg);
+  return false;
+}
+(function () {
+  if (typeof document === 'undefined' || !document.addEventListener) return;
+  document.addEventListener('click', function (e) {
+    var t = e.target, b = t;
+    while (b && b !== document && !b.__sure) b = b.parentNode;
+    if (b && b.__sure) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      sureCancel_(b.__sure);
+      return;
+    }
+    SURE.el = t && t.closest ? t.closest('button,a,[role="button"],input[type="button"],input[type="submit"],.btn') : null;
+    SURE.at = Date.now();
+  }, true);
+  /* יוצאים מהמסך — שום דבר לא יוצא שלא ראו יוצא. */
+  function away() {
+    SURE.L.slice().forEach(sureCancel_);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') away();
+  });
+  window.addEventListener('pagehide', away);
+})();
+
+/* ------------------------------------------------------------
    גוגל־שיטס כמקור נתונים — בלי Apps Script.
    הגיליון צריך להיות משותף כ"כל מי שיש לו הקישור — מציג",
    והאפליקציה קוראת ממנו ישירות דרך נקודת ה-gviz.
@@ -81,7 +240,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.373';
+var DAF_REV = '8.99.374';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -474,6 +633,8 @@ var FIT = {
 var UI = {
   /* ההודעה המלאה בתוך האפליקציה — הכפתור שסוגר אותה. ראו inbox.js. */
   inboxOk:   'מעולה ✓',
+  /* הכפתור שנלחץ, בזמן שהפעולה ממתינה (במקום חלון אישור). ראו SureThen. */
+  sureUndo:  'ביטול · {n}',
   /* מתג, ולא שני כרטיסים. זו שאלת כן/לא, וכרטיסים גדולים עשו
      ממנה החלטה — הכבידו על עמוד שכל מטרתו לא להכביד. */
   s2:        'האם תרצו לרכוש גמרות?',
@@ -4978,6 +5139,9 @@ var PAIR = {
   /* אחרי "למדנו ביחד" — האם לשלוח לצד השני התראה. ההגרלה נרשמת
      בכל מקרה; רק ההודעה תלויה בתשובה. */
   notifyAsk: '',
+  /* שתי התשובות לשאלה — כפתורים בחלון עצמו (8.99.374, במקום חלון קופץ). */
+  notifyY: 'כן, לשלוח',
+  notifyN: 'בלי התראה',
 
   /* ---- ומה שנאמר אחרי "כן" ---- */
   /* הבן מסיים — וההורה כבר סימן שלמדו יחד. {הורה} אבא/אמא */
@@ -6046,6 +6210,7 @@ var TEXT_FIELDS = [
 
   { g:'העמוד הראשי — העיגולים והרשימה' },
   { k:'ui.inboxOk',      lbl:'ההודעה המלאה שנפתחת באפליקציה — הכפתור שסוגר אותה' },
+  { k:'ui.sureUndo',     lbl:'בכל האפליקציה — הכפתור שנלחץ, בארבע השניות שלפני הביצוע · {n} שניות' },
   { k:'ui.stageTag',     lbl:'תווית חלק התלמידים · "מה התלמידים יראו"' },
   { k:'ui.stageSub',     lbl:'המשפט מתחת לתווית חלק התלמידים' },
   { k:'ui.ringStudents', lbl:'עיגול התלמידים · {mas} המסכת, <br> לשבירת שורה' },
@@ -8347,6 +8512,8 @@ var TEXT_FIELDS = [
   { k:'pair.yes',     lbl:'הכפתור "למדנו ביחד"' },
   { k:'pair.no',      lbl:'והכפתור "לבד הפעם"' },
   { k:'pair.notifyAsk', lbl:'שאלה לפני שליחת ההתראה לצד השני (כן/לא) · {שותף} · ריק = בלי שאלה, ההתראה יוצאת תמיד' },
+  { k:'pair.notifyY',  lbl:'השאלה שמעל — הכפתור "לשלוח"' },
+  { k:'pair.notifyN',  lbl:'השאלה שמעל — הכפתור "בלי התראה"' },
   { k:'pair.bothH',   lbl:'לבן, כשההורה כבר סימן שלמדו יחד — הכותרת · {הורה}' },
   { k:'pair.bothB',   lbl:'לבן, כשההורה כבר סימן שלמדו יחד — השורה שמתחת' },
   { k:'pair.okH',     lbl:'מסך ההגרלה — הכותרת' },

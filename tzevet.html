@@ -2004,7 +2004,7 @@ function mySend() {
   myErr = '';
   if (txt.length < 2) { myErr = 'אין מה לשלוח.'; myDraw(); return; }
   var n = myReach();
-  if (!confirm(tz('mySayAsk') + '\n\n' + txt)) return;
+  if (!SureLater(mySend, this, arguments)) return;
 
   var me = ramGet() || {};
   var url = '';
