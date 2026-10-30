@@ -249,7 +249,12 @@
   function seatsOf(v) {
     var out = v ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
     while (out.length < 4) out.push(free());
-    return out;
+    return num(out);
+  }
+  /* בעיגול — מספר הכיסא (1–4), לא האות הראשונה של השם (8.99.387, אחיאסף). */
+  function num(seats) {
+    seats.forEach(function (s, x) { if (s.k !== 'free') s.i = String(x + 1); });
+    return seats;
   }
   function titleOf(v) { return !v || v.t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: v.t.name }); }
   function lineOf(v, d) {
@@ -458,7 +463,7 @@
     el.setAttribute('aria-labelledby', 'ch-promo-h');
     el.innerHTML = '<div class="ch-promo-in"><span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
       '<h2 class="ch-hh" id="ch-promo-h">' + esc(U('chCardH')) + '</h2>' +
-      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(startSeats(), midOf(''), true) +
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(startSeats()), midOf(''), true) +
       '<p class="ch-lead">' + esc(U('chPromoP')) + '</p>' +
       '<button class="ch-btn ch-cta" id="ch-promo-go" type="button">' + esc(U('chPromoGo')) + '</button>' +
       '<button class="ch-promo-x" id="ch-promo-x" type="button">' + esc(U('chPromoLater')) + '</button></div>';
@@ -673,7 +678,7 @@
     box.innerHTML = '<div class="ch-card land">' +
       (bad ? '<h2>' + esc(U('chLandBadH')) + '</h2><p class="ch-note">' + esc(U('chRefBad')) + '</p>'
            : '<h2>' + esc(nm ? tp(U(full ? 'chLandFull' : 'chLandH'), v) : U('chLandHx')) + '</h2>' +
-             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm), midOf(''), true) : '') +
+             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm)), midOf(''), true) : '') +
              '<p class="ch-lead">' + esc(on ? tp(U('chLandP'), v) : U('chLandOff')) + '</p>') +
       '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
         esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a>' +
