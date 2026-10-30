@@ -221,7 +221,9 @@
       lb += '<div class="ch-lb' + q + '"><b>' + esc(s.k === 'free' ? U('chSeatFree') : s.n) +
         (s.inv ? '<span class="ch-crown">' + esc(U('chInviterTag')) + '</span>' : '') +
         (s.o ? '<span class="ch-crown o">' + esc(U('chOldTag')) + '</span>' : '') + '</b>' +
-        (s.lbl || STATE[s.k] ? '<i>' + esc(s.lbl || U(STATE[s.k])) + '</i>' : '') + '</div>';
+        (s.lbl || STATE[s.k] ? '<i>' + esc(s.lbl || U(STATE[s.k])) + '</i>' :
+         /* כיסא בלי מצב ("אתה" לפני שהזמין, מקום פנוי) — שורה ריקה, שלא יבלוט מעל השאר (8.99.392). */
+         chairs ? '<i aria-hidden="true">&nbsp;</i>' : '') + '</div>';
       pl += '<div class="ch-pl' + q + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
     });
     return '<div class="ch-tbl' + (sm ? ' sm' : '') + (chairs ? ' ch-chairs' : '') + '">' + lb + '<div class="ch-board">' +
