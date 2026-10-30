@@ -1196,6 +1196,11 @@ footer a{color:var(--ink-2);font-weight:800}
   background:radial-gradient(120% 80% at 50% 0%,#FFF4D6 0%,#FFF9EC 55%,#FFFDF8 100%);
   border:1.5px solid #E9C877;box-shadow:0 2px 4px rgba(140,104,31,.08),0 10px 26px rgba(140,104,31,.14)}
 .ch-tcard.ch-home{margin:18px 0 14px}
+/* מבצע מיוחד (8.99.379): מסגרת זהב מלאה, ולמי שעוד אין לו שולחן — פס קומפקטי. */
+.ch-tcard.ch-special{border:2px solid #D9A43A}
+.ch-tcard.ch-band{padding:14px 14px 12px}
+.ch-band .ch-hh{font-size:1.32rem;margin:6px 0 2px}
+.ch-band .ch-prize{margin-bottom:10px}
 .ch-tcard.set{border-color:#8CC063}
 .ch-tcard.in{border:2px solid #D9A43A}
 .ch-tcard.won{border:2.5px solid #C08F2B;background:radial-gradient(120% 80% at 50% 0%,#FFE9A8 0%,#FFF4D6 60%,#FFFDF8 100%)}
@@ -1290,20 +1295,10 @@ footer a{color:var(--ink-2);font-weight:800}
 .ch-promo-in .ch-lead{margin:4px 0 0}
 .ch-promo-x{display:block;width:100%;min-height:44px;margin-top:6px;border:0;background:none;font:inherit;
   font-size:.95rem;font-weight:800;color:#5A6780;cursor:pointer}
-.rz{margin-top:18px}
-.rz[hidden]{display:none}
-.rz-h{font-size:1.02rem;font-weight:900;color:#0B2550;margin:0 0 8px}
-.rz-tabs{display:flex;gap:6px;background:#D5DEEC;border-radius:14px;padding:4px}
-.rz-tabs button{flex:1 1 0;min-width:0;min-height:42px;border:0;border-radius:11px;background:none;font:inherit;
-  font-size:.92rem;font-weight:800;color:#36507A;cursor:pointer}
-.rz-tabs button.on{background:#FFFDF8;color:#0B2550;box-shadow:0 1px 4px rgba(11,37,80,.18)}
-.rz-ch #mytk,.rz-ch #mypts{display:none!important}
 /* "המסך שלי כתלמיד" — חזרה לניהול (8.99.352). */
 .adm-back{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);inset-inline-start:14px;z-index:70;
   border:0;border-radius:99px;padding:10px 16px;background:#0B2550;color:#fff;font:inherit;font-size:.88rem;
   font-weight:800;box-shadow:0 6px 18px rgba(11,37,80,.3);cursor:pointer}
-.rz-tk #chal{display:none}
-.rz + .mytk{margin-top:10px}
 /* ---------- בית ההורה: "כרטיסים שהענקת ל…" (8.99.358) ----------
    אותו כרטיס כמו "הכרטיסים שלך" של הבן (.mytk), ובו שורה לכל דף. */
 .ptk-k + .ptk-k{margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#E4E7EE)}
@@ -1580,14 +1575,13 @@ footer a{color:var(--ink-2);font-weight:800}
     <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
     <div id="rail"></div>
-    <!-- "ההגרלות שלך" — שתי לשוניות כשיש גם כרטיסים וגם אתגר. rzSync. -->
-    <div id="rz" class="rz" hidden></div>
+    <!-- אתגר "חבר מביא חבר" — מבצע מיוחד, כרטיס משלו מעל ההגרלה השבועית (8.99.379).
+         ריק כשהאתגר כבוי או לא גלוי לתלמיד. ראו chal.js. -->
+    <div id="chal"></div>
     <div id="mytk" class="mytk" hidden></div>
     <!-- בית ההורה — "כרטיסים שהענקת ל…" (parTkDraw). -->
     <div id="partk" class="mytk" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
-    <!-- אתגר "חבר מביא חבר" — ריק כשהאתגר כבוי. ראו chal.js. -->
-    <div id="chal"></div>
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
     <div id="wk-more"></div>
@@ -3546,7 +3540,7 @@ function drawPts() {
   var el = $('mypts'), tb = $('mytk');
   if (!el || !tb) return;
   var me = get('me', null);
-  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; parTkDraw(); rzSync(); return; }
+  if (!me || !me.id || me.role === 'dad') { el.hidden = tb.hidden = true; parTkDraw(); return; }
   if ($('partk')) $('partk').hidden = true;
   var c = get('ptsMe', null);
   if (c && c.id !== me.id) c = null;
@@ -3580,10 +3574,9 @@ function drawPts() {
   }
   /* הגיע עכשיו מחידון שעבר (learn.html, qzLand_) — הכרטיס של הדף ההוא. */
   if (TKL && !TKL_FAIL) { tkLandDraw(me); return; }
-  if (c && c.none) { el.hidden = tb.hidden = true; rzSync(); return; }
+  if (c && c.none) { el.hidden = tb.hidden = true; return; }
   tb.innerHTML = tkCardHtml(c && c.v === 2 ? c : null);
   tb.hidden = false;
-  rzSync();
   /* הנקודות — אור עציון בלבד, ובנפרד מהכרטיסים. */
   if (me.inst !== PTS_OE || !c) { el.hidden = true; return; }
   var h = esc(c.n ? tpl(UI.myPtsN, { n: c.n }) : UI.myPts0);
@@ -3766,11 +3759,9 @@ function tkLandDraw(me) {
     document.body.appendChild(sc);
   }
   if (!API) { TKL_FAIL = true; drawPts(); return; }
-  set('rzTab', 'tk');
   $('mypts').hidden = true;
   tb.innerHTML = tkCardHtml(TKL_TK ? { nx: TKL_TK, nr: TKL_NR } : null);
   tb.hidden = false;
-  rzSync();
   if (TKL_TK) tkLandFx();
 }
 function tkLandFx() {
@@ -3787,29 +3778,8 @@ function tkLandFx() {
     setTimeout(function () { tb.className = tb.className.replace(/\s*tk-new/g, ''); }, 4500);
   }, 350);
 }
-/* ============================================================
-   "ההגרלות שלך" (8.99.350) — מתחת לבאנר ולמסלול, שתי לשוניות:
-   ההגרלה השבועית (#mytk ו-#mypts) וחבר מביא חבר (#chal). הלשוניות
-   רק כששני הכרטיסים קיימים; אחרת — מה שיש, בלי לשוניות. הבחירה
-   נשמרת במכשיר (`df:rzTab`), וההסתרה במחלקה על האזור — לא ב-`hidden`,
-   ש-drawPts ו-chal.js מנהלים בעצמם.
-   ============================================================ */
-function rzSync() {
-  var z = $('rz'), c = $('chal'), t = $('mytk');
-  if (!z) return;
-  var zone = z.parentNode, both = !!(c && c.innerHTML.replace(/\s/g, '') && t && !t.hidden);
-  var k = both ? (get('rzTab', 'tk') === 'ch' ? 'ch' : 'tk') : '';
-  zone.className = zone.className.replace(/\s*rz-(tk|ch)/g, '') + (k ? ' rz-' + k : '');
-  z.hidden = !both;
-  if (!both) { z.innerHTML = ''; return; }
-  var b = function (x, lbl) {
-    return '<button type="button" role="tab" aria-selected="' + (k === x) + '"' + (k === x ? ' class="on"' : '') +
-      ' onclick="rzPick(\'' + x + '\')">' + esc(lbl) + '</button>';
-  };
-  z.innerHTML = '<div class="rz-h">' + esc(UI.rzH) + '</div><div class="rz-tabs" role="tablist">' +
-    b('tk', UI.rzTk) + b('ch', UI.rzCh) + '</div>';
-}
-function rzPick(k) { set('rzTab', k); rzSync(); }
+/* "ההגרלות שלך" עם שתי הלשוניות (8.99.350) ירד ב-8.99.379: חבר מביא חבר הוא מבצע
+   מיוחד — כרטיס משלו מעל ההגרלה השבועית (#chal), וההגרלה השבועית במקומה הקבוע. */
 /* הכרטיס (8.99.362): הכרטיסים להגרלה הבאה (`nx` מהשרת, rafNextTk_) — שלושה
    כרטיסים קטנים, בלי מספר גדול ובלי 0. כותרת לפי אם יש כבר כרטיס, מולה כמה
    ימים להגרלה, ובתחתית הזוכים בהגרלה הקודמת ואיך זוכים. שרת ישן (בלי `nx`) —

@@ -470,7 +470,7 @@
   }
 
   /* ---- ההשקה: פעם אחת בכל מכשיר, למי שעוד אין לו שולחן ולא הגיע
-     מקישור. "למבצע" — ללשונית של האתגר בבית (rzPick ב-join.html). ---- */
+     מקישור. "למבצע" — גלילה לכרטיס המבצע בבית (#chal). ---- */
   function promo(d) {
     if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || LGet('chPromo', '')) return;
     LSet('chPromo', '1');
@@ -499,7 +499,6 @@
     var go = document.getElementById('ch-promo-go');
     go.onclick = function () {
       close(true);
-      if (window.rzPick) rzPick('ch');
       var c = document.getElementById('chal');
       if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
@@ -519,7 +518,7 @@
   /* ============================================================
      הכרטיס בבית התלמיד.
      ============================================================ */
-  function sync() { if (window.rzSync) rzSync(); }
+  function sync() {}
   /* **חשיפה** (8.99.352): ב"מוזמנים" השרת מחזיר `pub:false` למי שאינו משתתף
      — אין כרטיס בבית ואין חלון השקה. מכשיר הניהול (df:admOk) רואה תמיד.
      הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור.
@@ -545,9 +544,10 @@
          אחרת לעמוד האתגר, שם הקוד נוצר. בבית לא יוצרים קוד: זו
          כתיבה לגיליון לכל תלמיד שרק פתח את האפליקציה. */
       var c0 = LGet(codeKey(), '');
-      h = '<div class="ch-tcard ch-home">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
+      /* עוד אין שולחן — פס קומפקטי (8.99.379): המבצע, הפרס, וכפתור אחד. ההסבר
+         המלא — בחלון ההשקה ובעמוד המבצע. */
+      h = '<div class="ch-tcard ch-home ch-special ch-band">' + yayHtml(m) + note + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
         '<h2 class="ch-hh">' + esc(U('chCardH')) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-        tableHtml(startSeats(), midOf('')) + howHtml() +
         (d.ended ? '' : fr ? frHtml(fr) : waBtn(U('chGo'), ''));
       /* "איך זה עובד?" ירד (8.99.370, החלטת אחיאסף). */
     } else {
@@ -556,8 +556,8 @@
       /* הצעד היחיד שמזיז אותי — ללמוד: חבר שעוד לא למד, או מזמין
          שהשולחן שלו מחכה רק לו. */
       var go = !d.ended && m && !m.l && (v.s === 'open' && !v.mine || v.s === 'me' && v.mine);
-      h = '<div class="ch-tcard ch-home ' + cls(v.s) + '">' + yayHtml(m) + note +
-        '<span class="ch-chip">' + esc(U('chCardH')) + '</span><h2 class="ch-hh sm">' + esc(v.t) + '</h2>' +
+      h = '<div class="ch-tcard ch-home ch-special ' + cls(v.s) + '">' + yayHtml(m) + note +
+        '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(v.t) + '</h2>' +
         tableHtml(v.seats, midOf(v.s), true) + '<p class="ch-tline">' + esc(v.line) + '</p>' +
         (fr ? frHtml(fr) + '<a class="ch-more" href="chaver.html">' + esc(U('chOpenBtn')) + '</a>' :
          go ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' +
