@@ -356,6 +356,10 @@ body.fixing .chb p.cp{outline:2px dashed rgba(23,70,143,.45);outline-offset:2px}
   border-radius:10px;background:#FFFBF2;max-height:45vh;overflow:auto;outline:none;
   white-space:pre-wrap;word-break:break-word}
 .splitbox .fx-ed b{display:inline;font-size:inherit;color:inherit;font-weight:800}
+.splitbox .fx-tb{display:flex;gap:8px;margin-bottom:8px}
+.splitbox .fx-tb button{flex:0 0 auto;width:auto;margin:0;padding:7px 14px;font-size:.9rem;
+  border:1.5px solid var(--gold);border-radius:8px;background:#fff;color:inherit}
+.splitbox .fx-tb .fx-bb{font-weight:900;min-width:44px}
 .splitbox .fx-row{display:flex;gap:8px;margin-top:10px}
 .splitbox .fx-row button{flex:1;padding:11px;font-weight:800}
 .splitbox .fx-ok{background:var(--blue-d,#17468F);color:#fff}
@@ -1575,10 +1579,7 @@ function chavLoad(id) {
 function chavHtml(paras) {
   var n = 0;
   return paras.map(function (p, i) {
-    var html = p.runs.map(function (r) {
-      var t = esc(r.t);
-      return r.b ? '<b>' + t + '</b>' : t;
-    }).join('');
+    var html = runsHtml(p.runs);
     return '<p class="cp' + (p.off ? ' off' : '') + (p.orig ? ' fixed' : '') + '" data-p="' + i + '">' +
            html + '</p>';
   }).join('');
@@ -1771,11 +1772,7 @@ function backfillChav() {
     /* רק כשהקובץ תואם לטקסט השמור — אחרת המספרים מצביעים
        על פסקאות אחרות. */
     if (bareTxt(plain) !== bareTxt(c.text || '')) { mismatch++; return; }
-    c.h = got.map(function (p) {
-      return '<p>' + p.runs.map(function (r) {
-        return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t);
-      }).join('') + '</p>';
-    }).join('');
+    c.h = got.map(paraHtml_).join('');
     n++;
   });
   if (n) touched();
@@ -1973,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.383';
+var STUDIO_VER = '8.99.384';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -4661,33 +4658,57 @@ function applyFixes(list) {
   });
   return list;
 }
-/* מה שנכתב בתיבה — בחזרה לריצות. <b> נשאר הדגשה, כל השאר טקסט. */
+/* מה שנכתב בתיבה — בחזרה לריצות. <b> נשאר הדגשה, ירידת שורה נשמרת
+   כ-"\n" בריצה לא מודגשת, כל השאר טקסט. */
 function edRuns(el) {
   var out = [];
+  var push = function (t, b) {
+    var last = out[out.length - 1];
+    if (last && last.b === b) last.t += t; else out.push({ t: t, b: b });
+  };
   var walk = function (n, b) {
     if (n.nodeType === 3) {
-      var t = n.nodeValue.replace(/[\u00a0\n\r\t]/g, ' ');
-      if (!t) return;
-      var last = out[out.length - 1];
-      if (last && last.b === b) last.t += t; else out.push({ t: t, b: b });
+      /* התיבה ב-pre-wrap, ולכן Enter של הדפדפן מגיע כ-"\n" בטקסט */
+      n.nodeValue.replace(/[\u00a0\r\t]/g, ' ').split('\n').forEach(function (t, k) {
+        if (k) push('\n', false);
+        if (t) push(t, b);
+      });
       return;
     }
     if (n.nodeType !== 1) return;
-    if (n.tagName === 'BR') { walk(document.createTextNode(' '), b); return; }
-    var bb = b || n.tagName === 'B' || n.tagName === 'STRONG';
+    if (n.tagName === 'BR') { push('\n', false); return; }
+    var fw = n.style && n.style.fontWeight;
+    var bb = b || n.tagName === 'B' || n.tagName === 'STRONG' || fw === 'bold' || +fw >= 600;
+    if (fw === 'normal' || (fw && +fw < 600)) bb = false;
+    /* דפדפן שעוטף שורה חדשה ב-div/p */
+    var blk = (n.tagName === 'DIV' || n.tagName === 'P') && n !== el && out.length;
+    if (blk) push('\n', false);
     for (var c = n.firstChild; c; c = c.nextSibling) walk(c, bb);
   };
   walk(el, false);
-  /* רווח כפול לאחד, ובלי רווח בקצוות */
+  /* רווח כפול לאחד, בלי רווח סביב ירידת שורה, בלי שורה ריקה כפולה */
   out.forEach(function (r) { r.t = r.t.replace(/ {2,}/g, ' '); });
+  for (var i = 0; i < out.length; i++) {
+    if (out[i].b) continue;
+    out[i].t = out[i].t.replace(/ *\n[ \n]*/g, '\n');
+    if (out[i].t.charAt(0) === '\n' && i > 0) out[i - 1].t = out[i - 1].t.replace(/ +$/, '');
+    if (out[i].t.slice(-1) === '\n' && out[i + 1]) out[i + 1].t = out[i + 1].t.replace(/^ +/, '');
+  }
+  out = out.filter(function (r) { return r.t; });
   if (out.length) {
-    out[0].t = out[0].t.replace(/^ +/, '');
-    out[out.length - 1].t = out[out.length - 1].t.replace(/ +$/, '');
+    out[0].t = out[0].t.replace(/^[ \n]+/, '');
+    out[out.length - 1].t = out[out.length - 1].t.replace(/[ \n]+$/, '');
   }
   return out.filter(function (r) { return r.t; });
 }
-function runsHtml(runs) {
-  return runs.map(function (r) { var t = esc(r.t); return r.b ? '<b>' + t + '</b>' : t; }).join('');
+/* ירידת שורה שנוספה בתיקון ("\n", ריצה לא מודגשת) — בסטודיו <br>,
+   ובטקסט שנשמר לתלמיד (`cut`) פסקה חדשה ממש. מספר הפסקאות בחברותא
+   אינו משתנה, ולכן שום קטע משובץ לא זז. */
+function runsHtml(runs, cut) {
+  return runs.map(function (r) {
+    var t = esc(r.t).replace(/\n/g, cut ? '</p><p>' : '<br>');
+    return r.b ? '<b>' + t + '</b>' : t;
+  }).join('');
 }
 function fixOff(quiet) {
   FIX_MODE = false;
@@ -4701,13 +4722,30 @@ function fixSheet(i) {
   var box = document.getElementById('splitbox');
   box.innerHTML = '<div class="sh"><b>תיקון הפסקה</b>' +
     '<p>מתקנים ישר בתוך הטקסט. ההדגשה נשמרת. הקובץ בדרייב אינו משתנה.</p>' +
+    '<div class="fx-tb"><button type="button" class="fx-bb" id="fx-b">B</button>' +
+    '<button type="button" id="fx-nl">↵ פסקה חדשה</button></div>' +
     '<div class="fx-ed" contenteditable="true" id="fx-ed">' + runsHtml(p.runs) + '</div>' +
     '<div class="fx-row"><button class="fx-ok" id="fx-ok">שמירת התיקון</button>' +
     (p.orig ? '<button id="fx-org">החזרת המקור</button>' : '') + '</div>' +
     '<button class="cl">ביטול</button></div>';
   box.className = 'splitbox on';
   var ed = document.getElementById('fx-ed');
-  ed.onkeydown = function (e) { if (e.key === 'Enter') e.preventDefault(); };
+  /* Enter — ירידת שורה (<br>), לא div של הדפדפן */
+  var nl = function () {
+    ed.focus();
+    if (!document.execCommand('insertLineBreak')) document.execCommand('insertHTML', false, '<br>');
+  };
+  ed.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); nl(); } };
+  /* הכפתורים לא לוקחים את המיקוד — הבחירה בתיבה נשמרת */
+  [].forEach.call(box.querySelectorAll('.fx-tb button'), function (b) {
+    b.onmousedown = function (e) { e.preventDefault(); };
+  });
+  document.getElementById('fx-b').onclick = function () {
+    ed.focus();
+    try { document.execCommand('styleWithCSS', false, false); } catch (x) {}
+    document.execCommand('bold');
+  };
+  document.getElementById('fx-nl').onclick = nl;
   ed.onpaste = function (e) {
     var t = (e.clipboardData || window.clipboardData);
     t = t ? t.getData('text') : '';
@@ -4800,7 +4838,7 @@ function toggleHide(i) {
   say(CHV[i].off ? 'הפסקה הוסתרה — לא תופיע אצל התלמיד'
                  : 'הפסקה הוחזרה.');
 }
-function paraHtml_(p) { return '<p>' + runsHtml(p.runs || []) + '</p>'; }
+function paraHtml_(p) { return '<p>' + runsHtml(p.runs || [], true) + '</p>'; }
 /* מוציא פסקה אחת מהטקסט השמור של קטע. לפי הנוסח ולא לפי חישוב
    מחדש של הטווח — כך זה נכון גם לקטע שצירף פסקה מעמוד אחר. */
 function stripPara_(c, p) {
@@ -5073,9 +5111,7 @@ function chavRange(a, b) {
        וזה מה שהתלמיד רואה, כי המבנה נשמר בסימון עצמו. */
     if (CHV[i].off) continue;
     txt.push(CHV[i].runs.map(function (r) { return r.t; }).join(''));
-    html.push('<p>' + CHV[i].runs.map(function (r) {
-      var t = esc(r.t); return r.b ? '<b>' + t + '</b>' : t;
-    }).join('') + '</p>');
+    html.push(paraHtml_(CHV[i]));
   }
   if (!txt.length) return null;
   return { text: txt.join(' '), h: html.join('') };
@@ -5242,10 +5278,7 @@ function chavRich() {
   if (!CSEL_P || !CHV) return '';
   var out = [];
   for (var i = CSEL_P.a; i <= CSEL_P.b && i < CHV.length; i++)
-    out.push('<p>' + CHV[i].runs.map(function (r) {
-      var t = esc(r.t);
-      return r.b ? '<b>' + t + '</b>' : t;
-    }).join('') + '</p>');
+    out.push(paraHtml_(CHV[i]));
   return out.join('');
 }
 
