@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 148;
+var SCRIPT_VERSION = 149;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -4040,9 +4040,10 @@ function twinOut_(p) {
 }
 /* "כפילויות" בניהול: זוגות חשודים, להכרעה ביד. אחרי האיחוד האוטומטי —
    מה שנשאר כאן אינו ודאי.
-     ph — אותו טלפון ושם משפחה/פרטי משותף (שכבה שאינה סותרת).
+     ph — אותו טלפון ושם פרטי משותף או דומה (שכבה שאינה סותרת).
      nm — באותה ישיבה: שם משפחה משותף ושם פרטי דומה (יוסי/יוסף).
-     ln — באותה ישיבה ושכבה: רק שם המשפחה, כשאחד מהם מהנוכחות בלבד. */
+   שם משפחה משותף בלי שם פרטי משותף — אנשים שונים, לא מוצגים
+   (8.99.395, החלטת אחיאסף; גם באותו טלפון — אחים). */
 function twinList_() {
   var auto = amdaMerge_(true);
   var t = joinTable_(), TP = twinPpl_(t), no = twinNoSet_(), seen = {}, out = [];
@@ -4074,16 +4075,14 @@ function twinList_() {
   Object.keys(TP.byPh).forEach(function (ph) {
     var g = TP.byPh[ph];
     for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
-      if (gOk_(g[i].g, g[j].g) && (lastOv(g[i], g[j]) || has(firstOf(g[i], g[j]), firstOf(g[j], g[i])))) push(g[i], g[j], 'ph');
+      if (gOk_(g[i].g, g[j].g) && firstSim(g[i], g[j])) push(g[i], g[j], 'ph');
     }
   });
   Object.keys(TP.byInst).forEach(function (code) {
     var g = TP.byInst[code];
     for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
       var a = g[i], b = g[j];
-      if (!lastOv(a, b)) continue;
-      if (firstSim(a, b)) push(a, b, 'nm');
-      else if ((a.att || b.att) && a.g && a.g === b.g) push(a, b, 'ln');
+      if (lastOv(a, b) && firstSim(a, b)) push(a, b, 'nm');
     }
   });
   var rank = { ph: 0, nm: 1, ln: 2 };
