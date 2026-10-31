@@ -7621,8 +7621,7 @@ function boot() {
   Promise.all([marks, gem])
     .then(function (res) {
       if (!res[0]) {
-        veil('הדף הזה עוד לא הוכן ללימוד קטע-אחר-קטע',
-             'אפשר ללמוד אותו כרגיל מצורת הדף ומהחברותא שבעמוד השבוע.', false);
+        veil(UI.notOpen || '', '', false);
         return;
       }
       return showPage(PAGES[0].daf, PAGES[0].pg).then(function () {
