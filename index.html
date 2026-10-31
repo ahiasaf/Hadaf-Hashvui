@@ -11335,6 +11335,7 @@ function admLive() {
 }
 
 function renderAdmin() {
+  admStuOff();
   /* ארבע, ולפי השאלה שנשאלת ולא לפי סוג האובייקט.
 
      תשע לשוניות שוות־מעמד היו רצועה שנגררת בטלפון, ובלי היררכיה:
@@ -11862,6 +11863,15 @@ function admAsStu() {
   try { localStorage.removeItem('df:chPromo'); } catch (e) {}
   location.href = /\.html$/.test(location.pathname) ? 'join.html' : 'join';
 }
+/* חזרה לניהול בלי הכפתור של join (אחורה של המכשיר) השאירה את מצב התלמיד
+   דלוק בלשונית — והדף האינטראקטיבי נפתח מכאן בלי כלי הניהול. מסך הניהול
+   עצמו מכבה אותו: בכל ציור, ובחזרה מהמטמון של הדפדפן (pageshow). */
+function admStuOff() {
+  try { sessionStorage.removeItem('df:asStu'); sessionStorage.removeItem('df:fromAdm'); } catch (e) {}
+}
+window.addEventListener('pageshow', function () {
+  if (document.querySelector('.adm-chip')) admStuOff();
+});
 function admHome(leaf) {
   if (leaf === 'people') return 'stu';
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
