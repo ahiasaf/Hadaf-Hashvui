@@ -1970,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.396';
+var STUDIO_VER = '8.99.397';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2529,7 +2529,8 @@ function inspSplit() {
   SPL = { k: INSP, st: st, cEnd: null };
   /* ההצעה הראשונה בגמרא: סוף השורה שהוקשה. אם זו השורה האחרונה
      של הקטע, החלק השני היה יוצא ריק — אז שורה אחת לפני. */
-  var f = st.g.from, z = st.g.to, line = INSP_LINE;
+  var f = st.g.from, z = splitZ(st), line = INSP_LINE;
+  if (line > z.line && line <= st.g.to.line) line = z.line;
   if (line < f.line || line > z.line) line = f.line;
   var end = { i: line, x: 1 };
   if (pos({ line: end.i, x: end.x }) >= pos(z) - 1e-6 && line - 1 >= f.line)
@@ -2539,6 +2540,25 @@ function inspSplit() {
   document.body.classList.add('splt');
   markDraw(); paintChav(1); markPanel();
   say('✂ בחרו בחברותא את הפסקה האחרונה של החלק הראשון, ובגמרא את השורה שבה הוא נגמר.');
+}
+/* ============================================================
+   "מקבל הודעה שהחצי השני נשאר ריק, ואי אפשר ללחוץ על הפיצול."
+   ============================================================
+   קטע שנגמר בדיוק בסוף שורה נשמר לפעמים כ"תחילת השורה הבאה"
+   (x=0) — אותה נקודה בדיוק. אבל הפיצול ראה בשורה הריקה הזו את
+   השורה האחרונה של הקטע: הקשה על השורה האחרונה האמיתית חתכה
+   בסופה — כלומר בסוף הקטע כולו — ולחלק השני לא נשאר דבר, והכפתור
+   ננעל. כאן הסוף מתורגם לשורה שבה הקטע נגמר באמת. וכך גם ההתחלה:
+   התחלה בסוף שורה היא תחילת השורה הבאה. */
+function splitZ(st) {
+  var f = st.g.from, z = st.g.to;
+  if (z.x < 0.02 && z.line > f.line) return { line: z.line - 1, x: 1 };
+  return { line: z.line, x: z.x };
+}
+function splitF(st) {
+  var f = st.g.from, z = st.g.to;
+  if (f.x > 0.98 && f.line < z.line) return { line: f.line + 1, x: 0 };
+  return { line: f.line, x: f.x };
 }
 /* נקודת הסיום של החלק הראשון, כפי שהיא בבחירה */
 function splitEnd() {
@@ -2566,7 +2586,11 @@ function splitCancel(quiet) {
 }
 /* הקשה על שורה בזמן פיצול — קובעת היכן החלק הראשון נגמר. */
 function splitLine(i, frac) {
-  var st = SPL.st, f = st.g.from, z = st.g.to;
+  var st = SPL.st, f = st.g.from, z = splitZ(st), f1 = splitF(st);
+  /* השורה הריקה שאחרי הסוף, או זו שלפני ההתחלה — שייכות לקטע
+     רק כנקודה. הקשה עליהן היא הקשה על השורה הקרובה בתוכו. */
+  if (i > z.line && i <= st.g.to.line) i = z.line;
+  if (i < f1.line && i >= f.line) i = f1.line;
   if (i < f.line || i > z.line) {
     say('השורה הזו אינה בקטע שמפצלים. בחרו שורה מהמסומנות בכחול.', 1);
     return;
@@ -2574,7 +2598,10 @@ function splitLine(i, frac) {
   var x = 1;
   /* בשורה האחרונה של הקטע "סוף השורה" הוא כבר החלק הבא. שם
      החיתוך במקום שהוקש, ואת המילה מכוונים בחצים. */
-  if (i === z.line) x = Math.max(0.02, Math.min(z.x - 0.02, frac == null ? z.x / 2 : frac));
+  if (i === z.line) {
+    var lo = i === f.line ? f.x + 0.02 : 0.02;
+    x = Math.max(lo, Math.min(z.x - 0.02, frac == null ? (lo + z.x) / 2 : frac));
+  }
   GSEL = { a: { i: f.line, x: f.x }, b: { i: i, x: x } };
   markDraw();
 }
@@ -5330,6 +5357,9 @@ function nudge(which, dir) {
   if (same) {
     if (which === 'end') lo = first.x + MIN; else hi = last.x - MIN;
   }
+  /* בפיצול — סוף החלק הראשון אינו עובר את סוף הקטע */
+  if (SPL && which === 'end' && pt.i === splitZ(SPL.st).line)
+    hi = Math.min(hi, splitZ(SPL.st).x - MIN);
   if (hi <= lo) return;
 
   var cur = pt.x, best = null;
