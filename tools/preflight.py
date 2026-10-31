@@ -452,7 +452,7 @@ def check_share_card():
     shared = ['index.html', 'join.html', 'tzevet.html', 'shlach.html', 'kishurim.html',
               'board.html', 'learn.html', 'masa.html', 'team.html', 'hitraot.html', 'hagrala.html', 'zochim.html',
               'skira.html', 'chaver.html']
-    card = 'share-card.jpg'
+    card = 'share-card-2.jpg'
     if not os.path.exists(os.path.join(ROOT, card)):
         BAD.append('%s — תמונת התצוגה המקדימה חסרה' % card)
         return
