@@ -11435,7 +11435,10 @@ function chSync_(U) {
      להגרלה, בשקט (chReal_). */
   var lrnAt = function (id) { return P[id] && P[id].inv ? C[id] || 0 : E[id] || 0; };
   var real = function (id) { var g = RL[id]; return !!(g && (P[id] && P[id].inv ? g.c : g.e)); };
-  var TB = chTables_(U, S, K, { P: P, inv: INV, act: ACT, at: lrnAt, real: real, now: now,
+  /* מתי למד **באמת** (עשר דקות, חריג מוצ"ש עם חידון שעבר, או הענקה של אבא) — ליציאה
+     השבועית (8.99.395, החלטת אחיאסף): ✓ בלי לימוד אמיתי — יוצא בשקט, בלי הודעה. */
+  var realAt = function (id) { var g = RL[id]; return g ? (P[id] && P[id].inv ? g.c : g.e) || 0 : 0; };
+  var TB = chTables_(U, S, K, { P: P, inv: INV, act: ACT, at: lrnAt, real: real, realAt: realAt, now: now,
                                 canon: canon, G: G, grp: grp, M: M, ms0: ms0 });
   out.v2 = 1;
   out.tb = TB.tb;
@@ -11658,8 +11661,10 @@ function chTables_(U, S, K, X) {
     var dday = String(Utilities.formatDate(new Date(D), 'Asia/Jerusalem', 'yyyy-MM-dd')).slice(0, 10);
     if (CH_NO_EXIT_.indexOf(dday) < 0) Object.keys(mem).forEach(function (t) {
       mem[t] = mem[t].filter(function (r) {
-        if (learned(r._id, D)) return true;
-        close(r, D, 'לא למד');
+        /* "למד" כאן = למד באמת (8.99.395). מי שרואה ✓ בלי עשר דקות — יוצא בשקט. */
+        var ra = X.realAt(r._id);
+        if (ra && ra <= D) return true;
+        close(r, D, learned(r._id, D) ? 'לא עמד בכללים' : 'לא למד');
         return false;
       });
     });
