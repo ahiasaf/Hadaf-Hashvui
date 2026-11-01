@@ -458,6 +458,10 @@
     if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || LGet('chPromo', '')) return;
     LSet('chPromo', '1');
     if (tv(d)) return;
+    promoShow(num(startSeats()), null);
+  }
+  /* החלון עצמו. `done` — נקרא כשנסגר (ההודעה מההתראה, inbox.js). */
+  function promoShow(seats, done) {
     var el = document.createElement('div'), back = document.activeElement;
     el.className = 'ch-promo';
     el.setAttribute('role', 'dialog');
@@ -465,7 +469,7 @@
     el.setAttribute('aria-labelledby', 'ch-promo-h');
     el.innerHTML = '<div class="ch-promo-in"><span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
       '<h2 class="ch-hh" id="ch-promo-h">' + esc(U('chCardH')) + '</h2>' +
-      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(startSeats()), midOf(''), true) +
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(seats, midOf(''), true) +
       '<p class="ch-lead">' + esc(U('chPromoP')) + '</p>' +
       '<button class="ch-btn ch-cta" id="ch-promo-go" type="button">' + esc(U('chPromoGo')) + '</button>' +
       '<button class="ch-promo-x" id="ch-promo-x" type="button">' + esc(U('chPromoLater')) + '</button></div>';
@@ -474,6 +478,7 @@
       document.removeEventListener('keydown', key);
       if (el.parentNode) el.parentNode.removeChild(el);
       try { if (!stay && back && back !== document.body && back.focus) back.focus(); } catch (e) {}
+      if (done) { var f = done; done = null; f(); }
     };
     var key = function (e) { if (e.key === 'Escape' || e.keyCode === 27) close(); };
     document.addEventListener('keydown', key);
@@ -486,6 +491,15 @@
       if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
     try { go.focus(); } catch (e) {}
+  }
+  /* **ההתראה על השקת המבצע, כשהיא נפתחת באפליקציה** (8.99.399, אחיאסף): במקום
+     החלונית הכללית של ההודעות (inbox.js) — חלון המבצע עם השולחן. מי שכבר יושב
+     בשולחן רואה את השולחן שלו. false — לא תלמיד: החלונית הרגילה. */
+  function promoMsg(done) {
+    if (!student()) return false;
+    LSet('chPromo', '1');
+    promoShow(seatsOf(tv(cached())), done);
+    return true;
   }
 
   /* ---- מההתראה על תוצאות הגרלה (?ms=k): מה קרה לשולחן שלי — רק כשהשרת
@@ -721,5 +735,5 @@
   }
 
   /* `table`/`ic` — לשולחן של הרביעייה (quad.js, 8.99.328): אותו ציור. */
-  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableHtml, ic: IC };
+  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableHtml, ic: IC, promoMsg: promoMsg };
 })();
