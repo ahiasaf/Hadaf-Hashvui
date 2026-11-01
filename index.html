@@ -2738,6 +2738,7 @@ button.yr-c.auto{cursor:pointer}
 .cha-t span{display:block;font-size:.74rem;font-weight:700;color:var(--ink-2)}
 .cha-ms h4 .cha-st{color:var(--gold-t)}
 .cha-low,.prow2 .cha-low{color:var(--stop);font-weight:700}
+.cha-mx{width:100%;border-collapse:collapse;margin:6px 0;font-size:.95rem}.cha-mx th,.cha-mx td{padding:6px 4px;text-align:center;border-bottom:1px solid var(--line,#e5e5e5)}.cha-mx td:first-child{text-align:start}.cha-mx td span{color:var(--ink2,#777);font-size:.85em}
 .ltm-big{font-size:26px;font-weight:800;margin:6px 0}
 .cha-alert{border:2px solid var(--gold)}
 /* המבצע במבט אחד (8.99.394). */
@@ -3050,7 +3051,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.402';
+var APP_VERSION = '8.99.403';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16675,6 +16676,22 @@ function chaSeat(p) {
   return '<div class="cha-se ' + k + (low ? ' low' : '') + '"><i>' + (k === 'done' ? '✓' : '') + '</i><b>' + esc(p.f || '') + '</b>' +
     '<span>' + esc(low ? UI.chaSeatLow : k === 'done' ? UI.chLearned : k === 'part' ? UI.chSeatPart : UI.chSeatReg) + '</span></div>';
 }
+/* האם המבצע מניע (8.99.403) — מצטרפים מקישור, והשלמת דף בשבוע: מזמינים
+   מול שאר התלמידים, שלושה שבועות אחרונים. המספרים מהשרת (mx ב-chSync_). */
+function chaMx(m) {
+  if (!m || !m.r) return '';
+  var pc = function (k, n) { return n ? Math.round(k * 100 / n) + '%' : '—'; };
+  var lbl = function (w) { return w === m.w ? UI.chaMxW0 : w === m.w - 1 ? UI.chaMxW1 : UI.chaMxW2; };
+  var h = '<div class="adm-card"><h4>' + esc(UI.chaMxH) + '</h4>' +
+    '<p>' + esc(fill(UI.chaMxNew, { n: m.nn || 0, l: m.nl || 0 })) + '</p>' +
+    '<div class="pp-h">' + esc(UI.chaMxCmpH) + '</div><table class="cha-mx"><tr><th></th><th>' +
+    esc(fill(UI.chaMxInv, { n: m.ni })) + '</th><th>' + esc(fill(UI.chaMxOth, { n: m.no })) + '</th></tr>';
+  m.r.forEach(function (x) {
+    h += '<tr><td>' + esc(lbl(x.w)) + '</td><td><b>' + pc(x.a, m.ni) + '</b> <span>(' + x.a + ')</span></td><td><b>' +
+      pc(x.b, m.no) + '</b> <span>(' + x.b + ')</span></td></tr>';
+  });
+  return h + '</table><p class="h">' + esc(UI.chaMxNote) + '</p></div>';
+}
 function chaTables(d) {
   var G = d.grp || [];
   if (!G.length) return '';
@@ -17009,6 +17026,7 @@ function chaPaint() {
     '<p class="big">' + esc(ready ? (ready === 1 ? UI.chaReady1 : fill(UI.chaReadyN, { k: ready })) : UI.chaReady0) + '</p>' +
     (d.nd && !d.ended ? '<p>' + esc(fill(UI.chaNextDraw, { when: chaWhen(d.nd) })) + '</p>' : '') +
     (d.low ? '<p class="cha-low">' + esc(fill(UI.chaHeroLow, { n: d.low })) + '</p>' : '') + '</div>';
+  h += chaMx(d.mx);
   /* מה שמחכה לך — הגרלה שבוצעה וממתינה לאישור, או זוכים שעוד לא קיבלו שובר. */
   var act = (d.ms || []).filter(function (m) { return ['ממתין לאישור', 'ממתין להגרלה', 'חלון פתוח', 'ממתין לקבוצה ראשונה', 'אושר'].indexOf(m.st) >= 0; });
   act.slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });

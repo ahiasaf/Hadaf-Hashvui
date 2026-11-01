@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 151;
+var SCRIPT_VERSION = 152;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -206,6 +206,9 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     /* אתגר "חבר מביא חבר" — מזהים, שמות הקבוצות וקודי
                        השוברים. ראו challengeRoute_. */
                     'אתגר-מונה', 'אתגר-קבוצות', 'אתגר-הגרלות', 'אתגר-קישורים', 'אתגר-ותיקים',
+                    /* מי יושב באיזה שולחן — מזהי מכשיר. נוצרה בטעות בגיליון הציבורי
+                       (8.99.385) ועוברת לפרטי פעם אחת (chSeatMove_). */
+                    'אתגר-שולחנות',
                     /* תיעוד הניסויים החיים — הזוכים, האישור והמסירה, אחרי האיפוס. */
                     'אתגר-ניסויים'];
 
@@ -5980,6 +5983,8 @@ function moveOutOfPublic_() {
   if (!pub) return;
   var log = [], bad = 0;
   PRIVATE_TABS.forEach(function (tab) {
+    /* השולחנות עוברים בשמם, לתוך הלשונית החיה — chSeatMove_. */
+    if (tab === 'אתגר-שולחנות') return;
     var src = pub.getSheetByName(tab);
     if (!src) return;
     try {
@@ -11039,8 +11044,8 @@ function chBust_(U) {
 }
 
 /* ---- לשונית כטבלה: כותרות, ושורות כאובייקטים עם מספר השורה ---- */
-function chTab_(tab, cols) {
-  var sh = sheet_(tab);
+function chTab_(tab, cols, ssId) {
+  var sh = sheet_(tab, ssId);
   if (!sh.getLastRow()) headRow_(sh, cols);
   var head = headers_(sh);
   cols.forEach(function (c) { idx_(sh, head, c); });
@@ -11342,6 +11347,9 @@ function chSync_(U) {
      אינו משנה זכאות: רק השלמה נספרת. */
   /* `ST` — התחיל ללמוד (שורת התקדמות כלשהי, גם בקטע הראשון): "התחיל" בשולחן (8.99.371). */
   var C = {}, L = {}, E = {}, Q = {}, ST = {}, ACT = {};
+  /* `WK` — באילו שבועות של התוכנית השלים דף (לפי מועד השורה), למדידה בניהול. */
+  var WK = {}, wk0 = Date.parse(PROG_START + 'T00:00:00Z'), wkOff = chOff_(now);
+  var wkOf = function (ms) { return Math.floor((ms + wkOff - wk0) / 6048e5) + 1; };
   var lsh = sheet_(LEARN_TAB);
   if (lsh.getLastRow() > 1) {
     var lv = lsh.getDataRange().getValues(), lx = {};
@@ -11367,6 +11375,7 @@ function chSync_(U) {
       (L[lid] = L[lid] || {})[tag] = 1;
       var ms = lx['תאריך'] === undefined ? 0 : chMs_(lv[i][lx['תאריך']]);
       if (ms && ms >= K.t0 && (!C[lid] || ms < C[lid])) C[lid] = ms;
+      if (ms) (WK[lid] = WK[lid] || {})[wkOf(ms)] = 1;
       /* בלי תאריך — עדיין השלמה. 1 ולא 0, כדי שייחשב. */
       if (!E[lid] || (ms || 1) < E[lid]) E[lid] = ms || 1;
     }
@@ -11498,6 +11507,23 @@ function chSync_(U) {
     p.ids.forEach(function (x) { if (x !== id) out.al[x] = id; });
     Object.keys(target).forEach(function (x) { if (target[x] === id && x !== id) out.al[x] = id; });
   });
+  /* **מדידה** (ניהול בלבד): האם המבצע מניע. `nn`/`nl` — נרשמו מקישור / מהם השלימו
+     דף. לכל אחד משלושת השבועות האחרונים: כמה מהמזמינים (מישהו נרשם או ישב
+     דרך הקישור שלהם) השלימו דף, וכמה משאר התלמידים (לא מזמינים ולא מוזמנים). */
+  var mxI = {}, mxD = {};
+  Object.keys(INV).forEach(function (id) { mxD[id] = 1; INV[id].forEach(function (v) { mxI[v.by] = 1; }); });
+  var mxO = Object.keys(P).filter(function (id) {
+    return !P[id].par && !(target[id] && target[id] !== id) && !mxI[id] && !mxD[id];
+  });
+  var mxA = Object.keys(mxI).filter(function (id) { return P[id] && !P[id].par; });
+  var cw = wkOf(now), mxR = [];
+  for (var w = cw - 2; w <= cw; w++) {
+    if (w < 1) continue;
+    var has = function (id) { return !!(WK[id] && WK[id][w]); };
+    mxR.push({ w: w, a: mxA.filter(has).length, b: mxO.filter(has).length });
+  }
+  out.mx = { w: cw, ni: mxA.length, no: mxO.length, nn: out.n,
+             nl: Object.keys(P).filter(function (id) { return P[id].inv && C[id]; }).length, r: mxR };
   out.grp = grp.map(function (g) {
     return { id: g['קבוצה'], tb: g['שולחן'] || '', by: canon(g['מזמין']), f: [canon(g['חבר 1']), canon(g['חבר 2']), canon(g['חבר 3'])],
              st: g['מצב'], lock: chMs_(g['ננעלה']), done: chMs_(g['הושלמה']), ms: g['הגרלה'], note: g['הערה'] };
@@ -11549,8 +11575,69 @@ function chSunAfter_(t) {
   if (s <= t) s = at(d + 7);
   return s;
 }
+/* "אתגר-שולחנות" נוצרה בגיליון הציבורי (לא הייתה ב-PRIVATE_TABS), ושם כל אחד
+   יכול לקרוא את מזהי המכשיר. כאן היא עוברת לפרטי **בשמה ולתוך הלשונית החיה**,
+   תחת הנעילה של chSync_: מעתיקים לפי שמות העמודות, קוראים חזרה ומשווים תא
+   בתא, ורק אז מוחקים מהציבורי. כישלון — מה שנכתב נמחק, הציבורי נשאר, והסבב
+   הזה עובד מולו (מחזיר את המזהה שלו); הניסיון חוזר בבנייה הבאה. */
+var CH_SEAT_MV_ = 'chSeatMovedV1';
+function chSeatMove_() {
+  var P = PropertiesService.getScriptProperties();
+  if (P.getProperty(CH_SEAT_MV_)) return '';
+  var pub = SpreadsheetApp.getActiveSpreadsheet();
+  var src = pub ? pub.getSheetByName(CH_SEAT_) : null;
+  if (!src) { P.setProperty(CH_SEAT_MV_, new Date().toISOString() + ' · לא נמצאה בציבורי'); return ''; }
+  var pid = '';
+  try { pid = privId_(CH_SEAT_); } catch (e0) { pid = ''; }
+  if (!pid || String(pid) === pub.getId()) return pub.getId();
+  var dst = null, n0 = 0, n = 0;
+  try {
+    var vals = src.getLastRow() ? src.getDataRange().getDisplayValues() : [];
+    dst = sheet_(CH_SEAT_);
+    if (vals.length > 1) {
+      var tr = function (x) { return String(x == null ? '' : x).trim(); };
+      var head = vals[0].map(tr);
+      var have = dst.getLastRow() ? dst.getRange(1, 1, 1, dst.getLastColumn()).getDisplayValues()[0].map(tr) : [];
+      if (!have.join('')) { have = head.slice(); dst.getRange(1, 1, 1, have.length).setValues([have]); }
+      head.forEach(function (c) {
+        if (!c || have.indexOf(c) >= 0) return;
+        have.push(c);
+        dst.getRange(1, have.length).setValue(c);
+      });
+      var rows = [];
+      for (var r = 1; r < vals.length; r++) {
+        if (!vals[r].join('')) continue;
+        var o = [];
+        for (var j = 0; j < have.length; j++) { var k = head.indexOf(have[j]); o.push(k >= 0 ? vals[r][k] : ''); }
+        rows.push(o);
+      }
+      if (rows.length) {
+        n0 = Math.max(1, dst.getLastRow());
+        var rg = dst.getRange(n0 + 1, 1, rows.length, have.length);
+        rg.setNumberFormat('@');
+        rg.setValues(rows);
+        n = rows.length;
+        SpreadsheetApp.flush();
+        var back = rg.getDisplayValues();
+        for (var a = 0; a < rows.length; a++) {
+          for (var b = 0; b < have.length; b++) {
+            if (String(back[a][b]) !== String(rows[a][b])) throw new Error('ההעתק אינו זהה בשורה ' + (a + 2));
+          }
+        }
+      }
+    }
+    pub.deleteSheet(src);
+    P.setProperty(CH_SEAT_MV_, new Date().toISOString() + ' · ' + n + ' שורות');
+    return '';
+  } catch (err) {
+    try { if (dst && n) dst.deleteRows(n0 + 1, n); } catch (e2) {}
+    P.setProperty('CH_SEAT_MV_LOG', new Date().toISOString() + ' · ' + (err && err.message || err));
+    return pub.getId();
+  }
+}
 function chTables_(U, S, K, X) {
-  var T = chTab_(CH_SEAT_, CH_SEAT_COLS_), mine = chMine_(U), iso = chIso_;
+  var mv = chSeatMove_();
+  var T = chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined), mine = chMine_(U), iso = chIso_;
   var seat = {}, lastEnd = {}, mem = {}, tseq = 0;
   var close = function (r, at, why) {
     r['יצא'] = iso(at); r['סיבה'] = why; chPut_(T, r);
@@ -12116,6 +12203,7 @@ function chAdm_(M, U) {
                  by: ws[0], f: ws.slice(1) });
   });
   o.nd = M.nd;
+  o.mx = M.mx || null;
   o.low = Object.keys(low).length;
   o.ms = M.ms.map(function (m) {
     return { k: m.k, th: m.th, man: m.man, st: m.st, open: m.open, close: m.close, frz: m.frz, n: m.el.length,
