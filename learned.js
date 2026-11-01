@@ -321,7 +321,8 @@ function LApi() {
    ============================================================ */
 var L_TRIES = 0;                 /* בטעינה הזו בלבד */
 
-function LJsonp(url) {
+/* `ms` — זמן ההמתנה (ברירת מחדל 12 שניות). */
+function LJsonp(url, ms) {
   return new Promise(function (ok, no) {
     var name = 'lcb' + Date.now() + Math.floor(Math.random() * 1e6);
     var sc = document.createElement('script');
@@ -331,7 +332,7 @@ function LJsonp(url) {
       clearTimeout(t);
       v === undefined ? no(new Error('אין תשובה')) : ok(v);
     };
-    var t = setTimeout(function () { done(undefined); }, 12000);
+    var t = setTimeout(function () { done(undefined); }, ms > 0 ? ms : 12000);
     window[name] = function (v) { done(v); };
     sc.onerror = function () { done(undefined); };
     sc.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'callback=' + name;

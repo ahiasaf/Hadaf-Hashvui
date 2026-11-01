@@ -5971,7 +5971,9 @@ function restoreAs_(who, msg, btn) {
          '&last=' + encodeURIComponent(who.last) +
          (who.role ? '&role=' + who.role : '') +
          /* בהדגמה — רק זהויות של ההרצה, לא החשבון האמיתי (שרת). */
-         (demoOn() ? '&dm=' + encodeURIComponent(demoOn()) : ''))
+         (demoOn() ? '&dm=' + encodeURIComponent(demoOn()) : ''),
+         /* השרת קורא כאן גם את הדפים שסימן — 12 שניות לא הספיקו (8.99.404). */
+         40000)
     .then(function (r) {
       btn.className = 'btn';
       if (!r || r.status !== 'ok') { msg.textContent = JOIN.backFail; return; }

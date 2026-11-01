@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 152;
+var SCRIPT_VERSION = 153;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3566,7 +3566,18 @@ function learnedOf_(ids) {
   if (!ids || !ids.length) return out;
   var sh = sheet_(LEARN_TAB);
   if (!sh || sh.getLastRow() < 2) return out;
-  var rows = doneRows_(sh.getDataRange().getDisplayValues());
+  /* רק העמודות שצריך (8.99.404). קריאת הלשונית כולה ארכה יותר מזמן
+     ההמתנה של הטלפון, ו"כבר נרשמתי במכשיר אחר" נכשל ב"אין חיבור". */
+  var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  var need = ['מזהה', 'מסלול', 'שבוע', 'קטע', 'מתוך', 'בדיקה'], c0 = 0, c1 = 0;
+  for (var h = 0; h < head.length; h++) {
+    if (need.indexOf(String(head[h]).trim()) < 0) continue;
+    if (!c0) c0 = h + 1;
+    c1 = h + 1;
+  }
+  if (!c0) return out;
+  var body = sh.getRange(2, c0, sh.getLastRow() - 1, c1 - c0 + 1).getDisplayValues();
+  var rows = doneRows_([head.slice(c0 - 1, c1)].concat(body));
   if (!rows || rows.length < 2) return out;
   var ix = {};
   for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
