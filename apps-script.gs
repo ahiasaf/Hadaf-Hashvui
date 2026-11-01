@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 153;
+var SCRIPT_VERSION = 154;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11788,30 +11788,42 @@ function chTables_(U, S, K, X) {
 
 /* המודל מהמטמון (דקה), או סנכרון תחת נעילה. נכשלה הנעילה — המטמון
    הישן אם יש, אחרת null. */
+/* המודל מהמטמון, או null. */
+function chModelHit_(rc, key) {
+  if (!rc) return null;
+  try {
+    var hd = rc.get(key);
+    /* סומן "ישן" (משתתף למד) ועברו 20 שניות מאז שנבנה — בונים מחדש (chBustFor_). */
+    if (hd && rc.get(key + ':stale') && chAge_(hd) >= CH_REBUILD_MS_) hd = null;
+    if (hd) {
+      var hp = hd.split('|'), keys = [];
+      for (var q = 0; q < +hp[0]; q++) keys.push(key + ':' + hp[1] + ':' + q);
+      var got = rc.getAll(keys), js0 = '';
+      for (var q2 = 0; q2 < keys.length; q2++) {
+        if (got[keys[q2]] == null) { js0 = null; break; }
+        js0 += got[keys[q2]];
+      }
+      /* עבר מועד ההגרלה השבועית — בונים מחדש (ההגרלה והיציאות קורות בבנייה). */
+      if (js0) { var M0 = JSON.parse(js0); if (!(M0.nd && Date.now() >= M0.nd)) return M0; }
+    }
+  } catch (x0) {}
+  return null;
+}
+
 function chModel_(U, force) {
   var rc = chCache_(), key = U.test ? 'chal:t' : 'chal:r';
-  if (!force && rc) {
-    try {
-      var hd = rc.get(key);
-      /* סומן "ישן" (משתתף למד) ועברו 20 שניות מאז שנבנה — בונים מחדש (chBustFor_). */
-      if (hd && rc.get(key + ':stale') && chAge_(hd) >= CH_REBUILD_MS_) hd = null;
-      if (hd) {
-        var hp = hd.split('|'), keys = [];
-        for (var q = 0; q < +hp[0]; q++) keys.push(key + ':' + hp[1] + ':' + q);
-        var got = rc.getAll(keys), js0 = '';
-        for (var q2 = 0; q2 < keys.length; q2++) {
-          if (got[keys[q2]] == null) { js0 = null; break; }
-          js0 += got[keys[q2]];
-        }
-        /* עבר מועד ההגרלה השבועית — בונים מחדש (ההגרלה והיציאות קורות בבנייה). */
-        if (js0) { var M0 = JSON.parse(js0); if (!(M0.nd && Date.now() >= M0.nd)) return M0; }
-      }
-    } catch (x0) {}
-  }
+  var M = force ? null : chModelHit_(rc, key);
+  if (M) return M;
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return null;
-  var M;
-  try { M = chSync_(U); } finally { lock.releaseLock(); }
+  try {
+    /* **עוד פעם אחרי הנעילה** (8.99.405): מי שחיכה בתור בזמן שבקשה אחרת בנתה —
+       מקבל את מה שהיא בנתה, ולא בונה שוב. אחרת כל בקשה בתור בנתה בתורה, והטלפונים
+       ויתרו לפני שקיבלו תשובה ("לא הצלחנו לטעון את מצב האתגר"). */
+    if (!force) M = chModelHit_(rc, key);
+    if (!M) M = chSync_(U);
+    else return M;
+  } finally { lock.releaseLock(); }
   try {
     var js = JSON.stringify(M), st = String(Date.now() % 1e8), put = {}, n = 0;
     for (var o = 0; o < js.length; o += 90000) put[key + ':' + st + ':' + (n++)] = js.substr(o, 90000);

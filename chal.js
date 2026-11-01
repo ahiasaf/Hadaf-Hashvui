@@ -75,7 +75,8 @@
     var s = u + (u.indexOf('?') < 0 ? '?' : '&') + 'challenge=' + op;
     for (var k in (q || {})) if (q.hasOwnProperty(k) && q[k]) s += '&' + k + '=' + encodeURIComponent(q[k]);
     if (LTester()) s += '&tst=1';
-    return LJsonp(s + '&t=' + Date.now());
+    /* השרת עשוי לחכות לנעילה ולבנות את המצב מחדש — 12 שניות לא הספיקו (8.99.405). */
+    return LJsonp(s + '&t=' + Date.now(), 40000);
   }
 
   /* ---- הקוד מהקישור ---- */
@@ -586,6 +587,14 @@
     });
   }
   var LAST = 0;
+  /* עמוד האתגר — אותו ניסיון חוזר (8.99.405). קודם: תשובה אחת שלא הגיעה השאירה את
+     "לא הצלחנו לטעון" עד שהתלמיד רענן בעצמו. */
+  function pageGet(box, n) {
+    load().then(function (d) {
+      if (FRESH || !d || n === 0) pageDraw(box, d);
+      if ((!FRESH || (d && d.ref === 'wait')) && n < 3) setTimeout(function () { pageGet(box, n + 1); }, [5000, 12000, 30000][n]);
+    });
+  }
 
   /* ============================================================
      עמוד האתגר.
@@ -730,7 +739,7 @@
     var c0 = cached();
     if (c0) pageDraw(box, c0);
     LAST = Date.now();
-    load().then(function (d) { pageDraw(box, d); });
+    pageGet(box, 0);
     watch(function () { load().then(function (d) { if (FRESH) pageDraw(box, d); }); });
   }
 
