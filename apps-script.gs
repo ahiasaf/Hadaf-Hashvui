@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 156;
+var SCRIPT_VERSION = 157;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1292,6 +1292,11 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.twin) return twinRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
+  /* הורים — כמה רשומים, למדו ונתנו כרטיס (8.99.412). ניהול בלבד. */
+  if (e && e.parameter && e.parameter.parstat) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    return reply_(e, parStat_());
+  }
   /* כמה זמן לוקח ללמוד דף — ניהול בלבד (8.99.365). */
   if (e && e.parameter && e.parameter.ltime) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
@@ -8697,6 +8702,74 @@ function pairAskOk_(o, P, kids) {
   }
   return n;
 }
+/* ============================================================
+   ניהול ← התלמידים ← הורים (8.99.412, ?parstat=1 עם READ_KEY).
+   ============================================================
+   כמה הורים רשומים, כמה מחוברים לבן, כמה למדו בטלפון שלהם, וכמה נתנו
+   כרטיס אבא — אותה הגדרה כמו בהגרלה (rafGrants_): שורת "זוגות" שההורה
+   כתב, או בקשה של הבן שאושרה; הבן לפי pairWho_. כל השבועות, בלי בדיקה.
+   בלי שמות, טלפונים ומזהים בתשובה — מספרים רצים בלבד.
+     P: [קוד מוסד, מחובר, למד, נתן] לכל הורה (אחרי איחוד).
+     G: [שבוע, הורה, בן, קוד מוסד של הבן] — הענקה אחת לאבא·בן·מסלול·שבוע. */
+function parStat_() {
+  var P = rafPpl_(), ppl = P.ppl;
+  var canon = function (x) { var a = P.alias[x] || x; return a ? P.target[a] || a : ''; };
+  var par = {}, nm = {}, byPh = {};
+  Object.keys(ppl).forEach(function (id) {
+    var p = ppl[id], c = canon(id);
+    if (p.role !== 'הורה' || p.test || !c || !ppl[c] || ppl[c].role !== 'הורה') return;
+    if (!par[c]) par[c] = { code: ppl[c].code, l: 0, r: 0, g: 0 };
+    if (ppl[c].code) nm[ppl[c].code] = ppl[c].inst;
+    var k = phKey_(p.phone);
+    if (k && !byPh[k]) byPh[k] = c;
+  });
+  /* מחובר לבן — כמו בלוח (pairMap_). */
+  var pm = pairMap_(joinTable_().rows);
+  Object.keys(pm).forEach(function (id) {
+    var c = canon(id);
+    if (par[c] && pm[id].pids && pm[id].pids.some(function (x) { return ppl[x] && !ppl[x].test && ppl[x].role !== 'הורה'; })) par[c].l = 1;
+  });
+  /* למד בטלפון שלו — שורה כלשהי ב"לימוד". */
+  var rows = lrnRows_();
+  if (rows.length > 1) {
+    var ix = {};
+    for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
+    var ii = ix['מזהה'], bi = ix['בדיקה'];
+    if (ii !== undefined) for (var i = 1; i < rows.length; i++) {
+      if (bi !== undefined && String(rows[i][bi] || '').trim() === 'כן') continue;
+      var c0 = canon(String(rows[i][ii] || '').trim());
+      if (par[c0]) par[c0].r = 1;
+    }
+  }
+  /* הענקות. */
+  var G = [], seen = {}, pn = {}, kn = {}, pi = 0, ki = 0, sh = sheet_('זוגות');
+  if (sh && sh.getLastRow() > 1) {
+    var v = sh.getDataRange().getDisplayValues(), gx = {};
+    for (var h2 = 0; h2 < v[0].length; h2++) gx[String(v[0][h2]).trim()] = h2;
+    var cc = function (rw, k) { return gx[k] === undefined ? '' : String(rw[gx[k]] || '').trim(); };
+    var kids = pairKids_(ppl);
+    for (var j = 1; j < v.length; j++) {
+      var r = v[j], tr = rafKey_(cc(r, 'מסלול')), wk = parseInt(cc(r, 'שבוע'), 10) || 0;
+      if (!tr || !wk || !cc(r, 'מזהה') || cc(r, 'בדיקה') === 'כן') continue;
+      if (cc(r, 'דיווח') !== 'ההורה' && cc(r, 'אושר') !== 'כן') continue;
+      var W = pairWho_(P, kids, cc, r);
+      if (!W || !ppl[W.kid] || ppl[W.kid].test) continue;
+      var pk = W.par || byPh[W.dad] || 'ph:' + (W.dad || '?');
+      var sk = pk + '|' + W.kid + '|' + tr + '|' + wk;
+      if (seen[sk]) continue;
+      seen[sk] = 1;
+      if (par[pk]) par[pk].g = 1;
+      var kc = ppl[W.kid].code || '';
+      if (kc) nm[kc] = nm[kc] || ppl[W.kid].inst;
+      if (!(pk in pn)) pn[pk] = pi++;
+      if (!(W.kid in kn)) kn[W.kid] = ki++;
+      G.push([wk, pn[pk], kn[W.kid], kc]);
+    }
+  }
+  return { status: 'ok', nm: nm, G: G,
+    P: Object.keys(par).map(function (c) { var o = par[c]; return [o.code || '', o.l, o.r, o.g]; }) };
+}
+
 /* ?pairHist=<מזהה ההורה>&k=[[טלפון הבן, שם הבן], …] — לכל בן: השבועות שיש
    עליהם הענקה (`g`: [מסלול|שבוע, 1 — ההורה הזה, 2 — הורה אחר או בקשה
    שאושרה]) ובקשות של הבן שממתינות להורה (`p`). `lw` — שבוע הלימוד האחרון

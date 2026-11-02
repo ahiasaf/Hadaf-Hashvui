@@ -3055,7 +3055,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.411';
+var APP_VERSION = '8.99.412';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10504,6 +10504,59 @@ function dupGo(key, same) {
     end(d && d.status === 'ok');
   }).catch(function () { end(false); });
 }
+/* ============================================================
+   "הורים" (8.99.412) — כמה הורים רשומים, למדו ונתנו כרטיס לבן.
+   ============================================================
+   מהשרת (?parstat=1, parStat_): כרטיס אבא כמו בהגרלה — ההורה נתן, או
+   בקשה של הבן שאושרה. מספרים בלבד. מסנן הישיבה שבראש הניהול חל: הורה
+   לפי הישיבה שלו, כרטיס לפי הישיבה של הבן. כישלון — מה שעל המסך נשאר. */
+var PAR = { d:null, busy:false, msg:'' };
+function admPar(el) {
+  el.innerHTML = '<div id="par-body"></div>';
+  parPaint();
+  if (!PAR.busy) parLoad();
+}
+function parLoad() {
+  if (!(CFG.readKey || '').trim()) { PAR.msg = UI.przNoKey; parPaint(); return; }
+  PAR.busy = true; PAR.msg = ''; parPaint();
+  scriptGet({ parstat:'1', key:(CFG.readKey || '').trim() }).then(function (d) {
+    PAR.busy = false;
+    if (d && d.status === 'ok' && d.P && d.G) PAR.d = d; else PAR.msg = UI.parFail;
+    parPaint();
+  }, function () { PAR.busy = false; PAR.msg = UI.parFail; parPaint(); });
+}
+function parPaint() {
+  var el = document.getElementById('par-body');
+  if (!el) return;
+  var d = PAR.d, h = '<div class="adm-card"><h4>' + esc(UI.parStH) + '</h4>';
+  if (PAR.msg) h += '<div class="cond" style="margin-bottom:10px">' + esc(PAR.msg) + '</div>';
+  if (d) {
+    var P = d.P.filter(function (x) { return !ADM_INST || x[0] === ADM_INST; });
+    var G = d.G.filter(function (x) { return !ADM_INST || x[3] === ADM_INST; });
+    var nP = {}, nK = {}, wk = {};
+    G.forEach(function (x) {
+      nP[x[1]] = 1; nK[x[2]] = 1;
+      var w = wk[x[0]] = wk[x[0]] || { p:{}, k:{} };
+      w.p[x[1]] = 1; w.k[x[2]] = 1;
+    });
+    var sum = function (i) { var n = 0; P.forEach(function (x) { if (x[i]) n++; }); return n; };
+    var li = function (b, t) { return '<div class="pp-r"><b>' + esc(String(b)) + '</b><span>' + esc(t) + '</span></div>'; };
+    h += '<div class="pp">' +
+      li(P.length, UI.parReg) + li(sum(1), UI.parLink) + li(sum(2), UI.parLrn) +
+      li(Object.keys(nP).length, UI.parGave) + li(Object.keys(nK).length, UI.parKids) + '</div>';
+    var W = Object.keys(wk).map(Number).sort(function (a, b) { return b - a; });
+    if (!W.length) h += '<p class="h">' + esc(UI.parNone) + '</p>';
+    else {
+      h += '<h4 style="margin-top:14px">' + esc(UI.parWkH) + '</h4><div class="plist">' + W.map(function (w) {
+        var o = wk[w];
+        return '<div class="prow2"><div style="flex:1"><b>' + esc(fill(UI.parWk, { w:w })) + '</b><span>' +
+          esc(fill(UI.parWkRow, { p:Object.keys(o.p).length, k:Object.keys(o.k).length })) + '</span></div></div>';
+      }).join('') + '</div>';
+    }
+  }
+  el.innerHTML = h + '<button class="btn g" type="button" style="margin-top:12px"' + (PAR.busy ? ' disabled' : '') +
+    ' onclick="parLoad()">' + esc(PAR.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+}
 /* "לראות פירוט" — הפירוט כבר כאן, מתחת לכרטיס: רשימת הישיבות,
    או — כשנבחרה ישיבה — הפס שלה והתלמידים שלה. */
 function admDet() {
@@ -11839,7 +11892,7 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 'admTStu'], ['dup', 'dupTab']] };
+var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 'admTStu'], ['dup', 'dupTab'], ['par', 'parTab']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
@@ -12496,6 +12549,7 @@ function admPane() {
   }
   if (sub === 'people')  return admStudents(body);
   if (sub === 'dup')     return admDup(body);
+  if (sub === 'par')     return admPar(body);
   if (sub === 'setup')   return admSetup(body);
   if (sub === 'amda')    return admAmda(body);
   if (sub === 'amdawa')  return admAmdaWa(body);
