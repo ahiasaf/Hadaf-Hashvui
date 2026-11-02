@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 167;
+var SCRIPT_VERSION = 168;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -545,6 +545,13 @@ function doPostMain_(e) {
       aCols.push(['קוד ישיבה', aInst]);
       return amdaAppend_(aCols);
     }
+    /* הסרת סימון מאיש צוות — רק שורות של הישיבה שהמכשיר אושר אליה. */
+    if (!wAdm && d.action === 'amdadel' && d.dev && d.inst) {
+      if (accGate_(String(d.inst), String(d.dev), true)) {
+        return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
+      }
+      return json_(amdaDel_(parse_(d.ids) || [], String(d.inst)));
+    }
     if (d.action === 'row' || d.action === 'table') {
       if (!wAdm) {
         if (d.action !== 'row' || d.ss || !PUB_ROW[d.tab]) {
@@ -769,6 +776,10 @@ function doPostMain_(e) {
     ]);
 
     /* העמדה: "מה למדתם עכשיו?" — אחרי מעשה. ראו amdaKind_. */
+    if (d.action === 'amdadel') {
+      if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      return json_(amdaDel_(parse_(d.ids) || [], String(d.inst || '')));
+    }
     if (d.action === 'amdakind') {
       if (!wAdm) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
       return json_(amdaKind_(d));
@@ -4513,6 +4524,47 @@ function amdaUnlink_(keys) {
     if (gone[v[r][ix['מזהה']] + '|' + v[r][ix['מסלול']] + '|' + v[r][ix['שבוע']]]) dl.push(r + 1);
   }
   dl.forEach(function (r) { sh.deleteRow(r); });
+}
+/* ============================================================
+   הסרת תלמיד שסומן בטעות — "אני מסמן", לחיצה נוספת (8.99.426).
+   ============================================================
+   העמדה שולחת את מזהי השורות של אותו תלמיד במועד הזה (עמודת `מזהה`),
+   כפי שראתה אותן בקריאה החוזרת. השורות נמחקות; מי שבזכותן נחשב
+   כמי שלמד את הדף (שיוך + שורת הסיום של העמדה) — יורד, אלא אם יש לו
+   סימון אחר באותו דף (amdaUnlink_, כמו בתיקון הסוג). `inst` — רק
+   שורות של הישיבה הזו (איש צוות: הישיבה שהמכשיר אושר אליה).
+   מזהה שכבר לא קיים — אין מה למחוק; העמדה מאמתת בקריאה החוזרת.
+   ההגרלה שכבר בוצעה לא זזה (תמונת כרטיסים). */
+function amdaDel_(ids, inst) {
+  var want = {};
+  (ids || []).forEach(function (i) { i = String(i || '').trim(); if (i) want[i] = 1; });
+  if (!Object.keys(want).length) return { status: 'ok', n: 0 };
+  var at = amdaTable_(AMDA_TAB_), del = [], drop = {};
+  var key = function (t, x) {
+    return [t.c(x, 'קוד ישיבה'), t.c(x, 'שכבה'), t.c(x, 'כיתה'), amdaNorm_(t.c(x, 'שם')),
+            t.c(x, 'מסלול'), t.c(x, 'שבוע')].join('|');
+  };
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r];
+    if (!want[at.c(x, 'מזהה')]) continue;
+    if (inst && at.c(x, 'קוד ישיבה') !== inst) continue;
+    del.push(r + 1);
+    if (at.c(x, 'סוג') === 'דף') drop[key(at, x)] = 1;
+  }
+  if (!del.length) return { status: 'ok', n: 0 };
+  del.sort(function (a, b) { return b - a; }).forEach(function (rw) { at.sh.deleteRow(rw); });
+  if (Object.keys(drop).length) {
+    var at2 = amdaTable_(AMDA_TAB_);
+    for (var r2 = 1; r2 < at2.rows.length; r2++) {
+      if (at2.c(at2.rows[r2], 'סוג') === 'דף') delete drop[key(at2, at2.rows[r2])];
+    }
+    if (Object.keys(drop).length) amdaUnlink_(drop);
+  }
+  recount_();
+  recountLearn_(true);
+  amdaQzBust_();
+  try { ptsBust_(); } catch (eB) {}
+  return { status: 'ok', n: del.length };
 }
 
 /* ============================================================

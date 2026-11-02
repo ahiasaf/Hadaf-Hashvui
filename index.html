@@ -2174,10 +2174,32 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         font:inherit;font-size:.92rem;font-weight:800;color:var(--blue);text-decoration:underline}
 .am-nm.sel{background:var(--blue);border-color:var(--blue);color:#fff}
 .am-nm.sel i{color:#fff}
-.am-save{position:sticky;bottom:10px;display:block;width:100%;margin-top:14px;padding:16px;border:0;
-         border-radius:var(--r);font:inherit;font-size:1.1rem;font-weight:800;
-         background:var(--green-d);color:#fff;box-shadow:var(--sh-2)}
-.am-save:disabled{opacity:.45}
+/* "אני מסמן" / "התלמידים מסמנים" — מתג בראש העמדה, בכל רגע (8.99.426). */
+.am-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:12px 0 2px;
+         border-radius:12px;background:var(--sunk)}
+.am-tabs button{font:inherit;font-size:.95rem;font-weight:800;min-height:44px;border:0;border-radius:9px;
+                background:none;color:var(--ink-3)}
+.am-tabs button.on{background:var(--surface);color:var(--blue-d);box-shadow:var(--sh-1)}
+/* "מניחים את הטלפון בכניסה" — בסימון של התלמידים, עד הרישום הראשון. */
+.am-tip{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:12px 14px;border-radius:var(--r);
+        background:#F4ECDA;color:#4A3810;font-size:.95rem;line-height:1.45}
+.am-tip i{flex:none;font-style:normal;font-size:1.6rem}
+.am-tip p{margin:0}
+/* "אני מסמן": רשימה עם תיבות סימון — לחיצה מסמנת, לחיצה נוספת מסירה. */
+.am-cnt{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 2px 9px}
+.am-cnt span{font-size:.98rem;font-weight:700;color:var(--ink-2)}
+.am-cnt b{font-size:1.15rem;color:var(--ink)}
+.am-cnt button{font:inherit;font-size:.92rem;font-weight:800;color:var(--blue);background:none;border:0;
+               min-height:44px;padding:0 4px}
+.am-names.ck{gap:0;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.am-names.ck .am-nm{border:0;border-bottom:1px solid var(--rule);border-radius:0;background:none;
+                    font-size:1.05rem;font-weight:500;padding:13px 14px;min-height:54px}
+.am-names.ck .am-nm:last-child{border-bottom:0}
+.am-names.ck .am-nm.sel{background:none;color:var(--ink);font-weight:800}
+.am-bx{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--rule);background:var(--surface);
+       display:flex;align-items:center;justify-content:center;color:#fff;font-size:.95rem;font-weight:900;
+       font-style:normal}
+.am-nm.sel .am-bx{background:var(--green-d);border-color:var(--green-d)}
 /* "שמור" — בולט, קבוע בתחתית העמדה. כשיש גם "שמירה — N תלמידים"
    של כל הכיתה, היא עולה מעליו. */
 .am-in{padding-bottom:96px}
@@ -2185,7 +2207,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
         padding:15px 16px calc(15px + env(safe-area-inset-bottom,0px));font:inherit;font-size:1.12rem;font-weight:800;
         background:var(--blue);color:#fff;box-shadow:0 -4px 16px rgba(11,37,80,.18)}
 .am-fin span{display:block;font-size:.8rem;font-weight:700;opacity:.85;margin-top:2px}
-.am-save{bottom:86px}
 .am-ex-in .am-fl{margin:0 0 9px;font-size:.95rem;font-weight:700;color:var(--ink-2)}
 .am-ex-in>button .am-qa{display:block}
 .am-ex-in>button .am-qs{display:block;margin-top:4px;font-size:.84rem;font-weight:600;line-height:1.45}
@@ -3065,7 +3086,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.425';
+var APP_VERSION = '8.99.426';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -20676,11 +20697,55 @@ function amdaSetInst(v) {
    כל תלמיד היה, בשלוש הספירות, לפי הגיליון. מה שבתור נוסף לשניהם. */
 function amdaQ() { return Store.get('amdaQ', []) || []; }
 function amdaSessOf(m) { return m.day && m.slot ? m.day + '|' + m.slot : 'w' + m.w; }
+/* הסרה של מי שסומן בטעות ("אני מסמן", לחיצה נוספת — 8.99.426).
+   התור `amdaDq`: לכל הסרה — מזהי השורות שלו בגיליון במועד הזה. היא
+   נשלחת (amdaDel_ בשרת) עד שהקריאה החוזרת כבר לא רואה אף אחד מהם —
+   no-cors אינו הוכחה. סימון שעוד לא יצא מהמכשיר — פשוט יורד מהתור. */
+function amdaDq() { return Store.get('amdaDq', []) || []; }
+function amdaPendN() { return amdaQ().length + amdaDq().length; }
+/* `amdaHad2[sess][key]` — מזהי השורות (מכשיר ישן: 1). */
+function amdaHadIds(sess, k) {
+  var v = ((Store.get('amdaHad2', {}) || {})[sess] || {})[k];
+  return Object.prototype.toString.call(v) === '[object Array]' ? v.slice() : [];
+}
 function amdaHadNow(sess) {
-  var all = Store.get('amdaHad2', {}) || {}, out = {}, k, src = all[sess] || {};
-  for (k in src) { if (src.hasOwnProperty(k)) out[k] = 1; }
+  var all = Store.get('amdaHad2', {}) || {}, out = {}, k, src = all[sess] || {}, gone = {};
+  amdaDq().forEach(function (r) {
+    if (r.sess !== sess) return;
+    var g = gone[r.k] = gone[r.k] || {};
+    (r.ids || []).forEach(function (i) { g[i] = 1; });
+  });
+  for (k in src) {
+    if (!src.hasOwnProperty(k)) continue;
+    /* הוסר — אלא אם יש לו שורה שאינה בהסרה (סומן שוב אחריה). */
+    if (!gone[k] || amdaHadIds(sess, k).some(function (i) { return !gone[k][i]; })) out[k] = 1;
+  }
   amdaQ().forEach(function (m) { if (amdaSessOf(m) === sess) out[amdaKey(m.g, m.c, m.n)] = 1; });
   return out;
+}
+/* מסיר את הסימון של תלמיד במועד הזה — מהתור, ומהגיליון דרך amdaDq. */
+function amdaUnmark(g, c, n) {
+  var s = amdaSess(), sess = amdaDay() + '|' + s.slot, k = amdaKey(g, c, n), ids = [], mine = 0;
+  var q = amdaQ().filter(function (m) {
+    if (amdaSessOf(m) !== sess || amdaKey(m.g, m.c, m.n) !== k) return true;
+    if (m.sent) ids.push(m.id);                 /* כבר יצא — אולי כבר בגיליון */
+    if (m.oid && m.oid === s.oid) mine++;
+    return false;
+  });
+  Store.set('amdaQ', q);
+  ids = ids.concat(amdaHadIds(sess, k));
+  if (ids.length) {
+    var dq = amdaDq();
+    dq.push({ sess: sess, k: k, ids: ids, inst: AMDA_STAFF ? AMDA_STAFF.inst : amdaInst(),
+              dev: AMDA_STAFF ? AMDA_STAFF.dev : '', at: Date.now() });
+    Store.set('amdaDq', dq);
+  }
+  if (mine) { s.n = Math.max(0, (+s.n || 0) - mine); Store.set('amdaSess', s); }
+}
+/* "אני מסמן" — הסימונים יוצאים כמה שניות אחרי הלחיצה האחרונה. */
+function amdaFlushSoon() {
+  clearTimeout(amdaSt.flSoon);
+  amdaSt.flSoon = setTimeout(function () { amdaFlush(); }, 4000);
 }
 function amdaCounts() {
   var base = Store.get('amdaCnt', {}) || {}, out = {}, k;
@@ -20820,9 +20885,22 @@ function amdaPullRoster() {
    שוב (בלי זה — 45). כפילות אינה מזיקה: נספר פעם אחת למועד. */
 function amdaFlush(fast, stf0) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
-  var q = amdaQ(), now = Date.now(), sent = 0, stf = stf0 || AMDA_STAFF, ps = [];
+  var q = amdaQ(), dq = amdaDq(), now = Date.now(), sent = 0, stf = stf0 || AMDA_STAFF, ps = [];
   /* מחזירה הבטחה שמסתיימת כשכל השליחות חזרו (amdaBg מאמת מיד אחריהן). */
-  if ((!key && !stf && !q.some(function (m) { return m.dev; })) || !url) return Promise.resolve();
+  var hasDev = function (m) { return m.dev; };
+  if ((!key && !stf && !q.some(hasDev) && !dq.some(hasDev)) || !url) return Promise.resolve();
+  /* הסרות — לפני הרישומים, באותה הרשאה כמו הרישום. */
+  dq.forEach(function (r) {
+    if (r.sent && now - r.sent < (fast === true ? 8000 : 45000)) return;
+    var auth = r.dev ? { dev: r.dev, inst: r.inst } : stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    if (!auth.key && !auth.dev) return;
+    r.sent = now;
+    sent++;
+    ps.push(fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+      action: 'amdadel', key: auth.key, dev: auth.dev, inst: auth.inst || r.inst || '',
+      ids: JSON.stringify(r.ids || []) }) }).catch(function () {}));
+  });
+  Store.set('amdaDq', dq);
   if (!stf && key) sent += amdaFlushMarks(key, url);
   q.forEach(function (m) {
     if (m.sent && now - m.sent < (fast === true ? 8000 : 45000)) return;   /* עוד מחכה לאימות */
@@ -20873,16 +20951,25 @@ function amdaPull(stf0) {
                 kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd' };
       var sess = amdaSessOf(m), sk = amdaKey(g, c, n);
       if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) });
+      /* מי נרשם היום — עם מזהי השורות, להסרה ("אני מסמן"). */
+      if (m.day === today) {
+        var hs = had[sess] = had[sess] || {};
+        if (Object.prototype.toString.call(hs[sk]) !== '[object Array]') hs[sk] = [];
+        if (id) hs[sk].push(id);
+      }
       if (once[sess + '#' + sk]) return;
       if (m.slot.charAt(0) === 'L') lesAtt[sk] = (lesAtt[sk] || 0) + 1;
       once[sess + '#' + sk] = 1;
       (cnt[sk] = cnt[sk] || amdaC4())[amdaBucket(m.slot, m.kind)]++;
-      if (m.day === today) (had[sess] = had[sess] || {})[sk] = 1;
     });
     Store.set('amdaHad2', had);
     Store.set('amdaCnt', cnt);
     Store.set('amdaLesAtt', lesAtt);
     Store.set('amdaQ', amdaQ().filter(function (m) { return !seen[m.id]; }));
+    /* הסרה הושלמה — כשאף שורה שלה כבר לא בגיליון. */
+    Store.set('amdaDq', amdaDq().filter(function (r) {
+      return (r.ids || []).some(function (i) { return seen[i]; });
+    }));
     if (!stf) Store.set('amdaRepC', { at: Date.now(), rows: rep });
     /* סימוני שיעורי כיתה — של הרכז בלבד. */
     return stf ? true : amdaPullMarks(key, seatEv);
@@ -20918,7 +21005,7 @@ function amdaOpen(kind) {
     document.body.appendChild(el);
     el.addEventListener('click', amdaTap);
   }
-  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = '';
+  amdaSt.g = ''; amdaSt.c = ''; amdaSt.pick = ''; amdaSt.kn = 0;
   el.className = 'amda on';
   Store.set('amdaOn', 1);
   try {
@@ -21017,7 +21104,7 @@ function amdaBg(pts, stf) {
     amdaFlush(true, stf).then(function () { return amdaPull(stf); }).then(function (ok) {
       if (run !== AMDA_BG.run) return;
       /* הצלחה = התור ריק **וגם** כל תיקון שאושר תואם לגיליון. */
-      if (ok && !amdaQ().length && kDone) {
+      if (ok && !amdaPendN() && kDone) {
         AMDA_BG.on = false;
         amdaSvPaint(!kOk || Store.get('amdaFix', null) ? 'bad' : 'ok', pts);
         return;
@@ -21040,7 +21127,7 @@ function amdaSvPaint(st, pts) {
     document.body.appendChild(el);
   }
   clearTimeout(AMDA_BG.hideT);
-  var left = amdaQ().length;
+  var left = amdaPendN();
   if (st === 'busy') el.innerHTML = '<span>' + esc(amdaT('saving')) + '</span>';
   else if (st === 'ok') {
     el.innerHTML = '<span>✓ ' + esc(amdaT('saveOk')) + (pts ? ' · ' + esc(pts) : '') + '</span>';
@@ -21060,7 +21147,7 @@ function amdaSvPaint(st, pts) {
    amdaBg קורא אותו מהמכשיר ברגע הריצה, ולכן נשלח תמיד התיקון האחרון;
    amdaFixRun מוחק רק את מה שאומת, ותיקון חדש יותר נשאר. */
 function amdaBgResume() {
-  var q = amdaQ(), fix = Store.get('amdaFix', null);
+  var q = amdaQ().concat(amdaDq()), fix = Store.get('amdaFix', null);
   if ((!q.length && !fix) || AMDA_BG.on || Store.get('amdaOn', 0)) return;
   var m = q.filter(function (x) { return x.dev; })[0];
   if (!m && !(CFG.readKey || '').trim()) return;
@@ -21168,7 +21255,7 @@ function amdaFixRun(fix, cb) {
 }
 function amdaDirty() {
   var sel = amdaSt.all && amdaSt.sel ? Object.keys(amdaSt.sel).filter(function (i) { return amdaSt.sel[i]; }).length : 0;
-  return !!(+amdaSess().n || sel || amdaQ().length || Store.get('amdaFix', null));
+  return !!(+amdaSess().n || sel || amdaPendN() || Store.get('amdaFix', null));
 }
 function amdaClose(sure) {
   /* היציאה עוברת דרך "שמור" — סיכום קצר, שמירה ואימות בגיליון. */
@@ -21212,6 +21299,16 @@ function amdaPaint() {
           ' · ' + esc(amdaSlotName(s.slot)) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
           '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>' +
+          /* מי מסמן — המורה או התלמידים; מעבר בכל רגע, הסימונים נשארים. */
+          (amdaSt.pick ? '' : '<div class="am-tabs" role="tablist">' +
+            '<button type="button" role="tab" data-tb="1" aria-selected="' + !!amdaSt.all + '"' +
+            (amdaSt.all ? ' class="on"' : '') + '>' + esc(amdaT('tabSelf')) + '</button>' +
+            '<button type="button" role="tab" data-tb="0" aria-selected="' + !amdaSt.all + '"' +
+            (amdaSt.all ? '' : ' class="on"') + '>' + esc(amdaT('tabKiosk')) + '</button></div>') +
+          /* התלמידים מסמנים: ההנחיה למורה — עד הרישום הראשון בפתיחה הזו. */
+          (!amdaSt.all && !amdaSt.pick && !amdaSt.kn && amdaT('tipB') ?
+            '<div class="am-tip" role="note"><i aria-hidden="true">📱</i><p><b>' + esc(amdaT('tipB')) + '</b> ' +
+            esc(amdaT('tip')) + '</p></div>' : '') +
           /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
              ומתג בחירת המקום — גם מתוך העמדה, לא רק מהניהול. */
           (les ? '<div class="am-tools"><button class="am-wd" data-lb="1">' + esc(amdaT('kBoard')) + '</button>' +
@@ -21244,24 +21341,35 @@ function amdaPaint() {
     }
   }
   if (amdaSt.g && amdaSt.c) {
-    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c), nSel = 0;
-    var all = !!amdaSt.all, sel = amdaSt.sel || {};
-    h += '<div class="am-q" id="am-nq">' + esc(amdaT(all ? 'allQ' : 'pickN')) + '</div><div class="am-names">';
-    list.forEach(function (n, i) {
-      var was = had[amdaKey(amdaSt.g, amdaSt.c, n)], on = all && !was && sel[i];
-      if (on) nSel++;
-      h += '<button class="am-nm' + (was ? ' had' : '') + (on ? ' sel' : '') + '" data-n="' + i + '"><span>' +
-           esc(n) + '</span>' + (was ? '<i>✓ ' + esc(amdaT(all ? 'hadT' : 'had')) + '</i>' : on ? '<i>✓</i>' : '') + '</button>';
-    });
-    h += '</div>';
-    /* המסלול הרגיל נשאר אחד; סימון כל הכיתה — קישור קטן בתחתית. */
-    h += all ? '<button class="am-save" data-as="1"' + (nSel ? '' : ' disabled') + '>' +
-               esc(fill(amdaT('allSave'), { n: nSel })) + '</button>' +
-               '<button class="am-all" data-ab="0">' + esc(amdaT(amdaSt.self ? 'selfNext' : 'allBack')) + '</button>'
-             : (les ? '' : '<button class="am-all" data-ab="1">' + esc(amdaT('allGo')) + '</button>');
+    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c);
+    if (amdaSt.all) {
+      /* "אני מסמן": כל מי שנרשם במועד הזה מסומן — גם מי שסימן את עצמו.
+         לחיצה מסמנת, לחיצה נוספת מסירה. */
+      var nOn = list.filter(function (n) { return had[amdaKey(amdaSt.g, amdaSt.c, n)]; }).length;
+      h += '<div class="am-cnt" id="am-nq"><span>' + esc(amdaT('selfCnt')).replace('{n}', '<b>' + nOn + '</b>').replace('{m}', list.length) +
+           '</span>' + (list.length ? '<button type="button" id="am-ta" data-ta="1">' +
+           esc(amdaT(nOn === list.length ? 'selfNone' : 'selfAll')) + '</button>' : '') + '</div>' +
+           '<div class="am-names ck">';
+      list.forEach(function (n, i) {
+        var on = !!had[amdaKey(amdaSt.g, amdaSt.c, n)];
+        h += '<button type="button" role="checkbox" aria-checked="' + on + '" class="am-nm' + (on ? ' sel' : '') +
+             '" data-n="' + i + '"><i class="am-bx" aria-hidden="true">' + (on ? '✓' : '') + '</i><span>' +
+             esc(n) + '</span></button>';
+      });
+      h += '</div>';
+      if (amdaSt.self && !les) h += '<button class="am-all" data-ab="0">' + esc(amdaT('selfNext')) + '</button>';
+    } else {
+      h += '<div class="am-q" id="am-nq">' + esc(amdaT('pickN')) + '</div><div class="am-names">';
+      list.forEach(function (n, i) {
+        var was = had[amdaKey(amdaSt.g, amdaSt.c, n)];
+        h += '<button class="am-nm' + (was ? ' had' : '') + '" data-n="' + i + '"><span>' +
+             esc(n) + '</span>' + (was ? '<i>✓ ' + esc(amdaT('had')) + '</i>' : '') + '</button>';
+      });
+      h += '</div>';
+    }
   }
   /* "שמור" — תמיד בתחתית. סיכום, שמירה ואימות (amdaFinAsk). */
-  var pend = amdaQ().length;
+  var pend = amdaPendN();
   h += '<button class="am-fin" data-fin="1">' + esc(amdaT('save')) +
        (pend ? '<span>' + esc(fill(amdaT('savePend'), { n: pend })) + '</span>' : '') + '</button>';
   box.innerHTML = h;
@@ -21283,7 +21391,8 @@ function amdaTap(e) {
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
           el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
-          el.getAttribute('data-ab') || el.getAttribute('data-as') || el.getAttribute('data-fin')))) el = el.parentNode;
+          el.getAttribute('data-ab') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
+          el.getAttribute('data-fin')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x') || el.getAttribute('data-fin')) { amdaClose(); return; }
@@ -21320,34 +21429,51 @@ function amdaTap(e) {
     amdaOk(who, amdaT('seatDone'), amdaReset);
     return;
   }
-  /* כל הכיתה: מעבר הלוך וחזור, ושמירה אחת לכל המסומנים. */
-  if (el.getAttribute('data-ab')) {
-    /* "אני מסמן בעצמי": הכפתור עובר לכיתה אחרת, ולא לסימון עצמי. */
-    if (amdaSt.self) { amdaReset(); return; }
-    amdaSt.all = el.getAttribute('data-ab') === '1'; amdaSt.sel = {};
+  /* "אני מסמן" ⇄ "התלמידים מסמנים" — בכל רגע. מה שסומן כבר נשמר
+     במכשיר, ולכן המעבר אינו מאבד דבר. השכבה והכיתה נשארות לכיוון
+     "אני מסמן"; לתלמידים — חזרה לבחירת השכבה, כמו בכל רישום. */
+  if (el.getAttribute('data-tb')) {
+    var toSelf = el.getAttribute('data-tb') === '1';
+    if (toSelf === !!amdaSt.all) return;
+    amdaSt.self = toSelf; amdaSt.all = toSelf; amdaSt.sel = {};
     clearTimeout(amdaSt.idle);
-    if (!amdaSt.all) amdaIdle();
-    amdaPaint(); return;
-  }
-  if (el.getAttribute('data-as')) {
-    var pick = amdaList(amdaSt.g, amdaSt.c).filter(function (x, i) { return amdaSt.sel && amdaSt.sel[i]; });
-    if (!pick.length) return;
-    pick.forEach(function (x) { amdaMarkRec(amdaSt.g, amdaSt.c, x); });
-    amdaFlush();
-    amdaOk(fill(amdaT('allDone'), { n: pick.length }), '', amdaReset);
+    if (!toSelf && !amdaLesson(amdaSess().slot)) { amdaSt.g = ''; amdaSt.c = ''; }
+    amdaPaint();
     return;
   }
-  var ni = +el.getAttribute('data-n'), n = amdaList(amdaSt.g, amdaSt.c)[ni];
-  if (!n) return;
-  if (amdaSt.all) {
-    if (el.className.indexOf('had') >= 0) return;              /* כבר נרשם — אין מה לסמן */
-    amdaSt.sel = amdaSt.sel || {};
-    amdaSt.sel[ni] = !amdaSt.sel[ni];
+  /* "כיתה אחרת" (אני מסמן). */
+  if (el.getAttribute('data-ab')) { amdaReset(); return; }
+  var all = amdaList(amdaSt.g, amdaSt.c), had0 = amdaHadNow(amdaDay() + '|' + amdaSess().slot);
+  var keep = function () {
     var top = document.getElementById('amda').scrollTop;
     amdaPaint();
     document.getElementById('amda').scrollTop = top;
+  };
+  /* "סמן את כולם" — מי שעוד לא מסומן. "נקה הכל" — עם "ביטול · 4". */
+  if (el.getAttribute('data-ta')) {
+    var g0 = amdaSt.g, c0 = amdaSt.c;
+    var off = all.filter(function (x) { return !had0[amdaKey(g0, c0, x)]; });
+    if (!off.length) {
+      SureLater(function () {
+        all.forEach(function (x) { amdaUnmark(g0, c0, x); });
+        amdaFlushSoon();
+        if (amdaSt.g === g0 && amdaSt.c === c0) keep();
+      }, null, []);
+      return;
+    }
+    off.forEach(function (x) { amdaMarkRec(g0, c0, x); });
+    amdaFlushSoon(); keep();
     return;
   }
+  var ni = +el.getAttribute('data-n'), n = all[ni];
+  if (!n) return;
+  if (amdaSt.all) {
+    if (had0[amdaKey(amdaSt.g, amdaSt.c, n)]) amdaUnmark(amdaSt.g, amdaSt.c, n);
+    else amdaMarkRec(amdaSt.g, amdaSt.c, n);
+    amdaFlushSoon(); keep();
+    return;
+  }
+  amdaSt.kn = (amdaSt.kn || 0) + 1;
   amdaMark(amdaSt.g, amdaSt.c, n);
 }
 function amdaReset() {
