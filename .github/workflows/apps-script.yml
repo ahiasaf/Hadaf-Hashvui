@@ -190,7 +190,15 @@ jobs:
           # חדשה שהאפליקציה אינה מכירה, וכל כתיבה הייתה ממשיכה
           # ללכת לשום מקום — התקלה שכבר עלתה לנו חודש.
           if [ -n "${DEPLOYMENT_ID:-}" ]; then
-            clasp deploy -i "$DEPLOYMENT_ID" -d "v${VER:-auto} · ${GITHUB_SHA:0:7}"
+            # תקרת 200 הגרסאות של גוגל — אי אפשר למחוק גרסאות מכאן
+            # (אין לזה API), ולכן אומרים בדיוק מה לעשות בעורך.
+            if ! clasp deploy -i "$DEPLOYMENT_ID" -d "v${VER:-auto} · ${GITHUB_SHA:0:7}" 2>&1 | tee deploy.log \
+               || grep -q 'limit of 200 versions' deploy.log; then
+              if grep -q 'limit of 200 versions' deploy.log; then
+                echo "::error::הגענו לתקרת הגרסאות — צריך למחוק גרסאות בהיסטוריה. בעורך הסקריפט: היסטוריית פרויקט (השעון עם החץ) ← פח האשפה למטה ← לסמן ולמחוק (עד 100 בכל פעם). אחר כך להריץ שוב את הפריסה."
+              fi
+              exit 1
+            fi
             echo "::notice::הסקריפט נפרס · SCRIPT_VERSION ${VER:-?}"
           else
             echo "::warning::הקוד נדחף, אבל DEPLOYMENT_ID חסר — הפריסה לא עודכנה."
