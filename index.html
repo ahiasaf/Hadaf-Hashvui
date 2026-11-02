@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.432';
+var APP_VERSION = '8.99.433';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5152,8 +5152,9 @@ LOCK.init({
    הבחירה וההסברים ירדו; המעבר ל"התלמידים מסמנים" במתג שבראש העמדה.
    הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
 var attView = '', attMsg = '';
-/* איש צוות אחראי על כל הישיבה — כל הכיתות של השכבות שבתוכנית. */
-var ATT_GRADES = ['ז', 'ח'];
+/* איש צוות אחראי על כל הישיבה — כל הכיתות של כל השכבות שיש לה ברשימה
+   (8.99.433: ז׳–י״ב, כמו AMDA_GRADES; עד אז ז׳/ח׳ בלבד). */
+var ATT_GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
 /* מסך הבחירה ירד (8.99.426): הכפתור פותח ישר את העמדה, ובראשה המתג
    "אני מסמן" / "התלמידים מסמנים". כאן רק הודעת טעינה/כשל. */
 function attHtml() {
@@ -5187,7 +5188,7 @@ function attOpen(mode) {
     }
     var r = { at: Date.now(), inst: code, g: {} };
     (d.rows || []).forEach(function (x) {
-      var g = String(x[0] || ''), c = String(x[1] || ''), n = String(x[2] || '');
+      var g = amdaGK(x[0]), c = String(x[1] || ''), n = String(x[2] || '');
       if (!n || !c || ATT_GRADES.indexOf(g) < 0) return;
       if (!r.g[g]) r.g[g] = {};
       (r.g[g][c] = r.g[g][c] || []).push(n);
@@ -12966,7 +12967,8 @@ function pplTags(x) {
    האם יש לישיבה רשימת תלמידים לנוכחות בשיעור.
    ============================================================
    נספר כמו שהשרת שולח לאיש הצוות (netRosterRead_): שורות "תלמידי
-   הרשת" של הישיבה, ז׳/ח׳, עם כיתה ושם. נקרא לכל היותר פעם בחמש דקות.
+   הרשת" ו"תלמידי בית הספר" של הישיבה, ז׳–י״ב, עם כיתה ושם — כל שורה
+   תלמיד (8.99.433). נקרא לכל היותר פעם בחמש דקות.
    **קריאה שנכשלה אינה רשימה ריקה** — אז נשאר מה שנקרא קודם, ובלי
    שום קריאה מוצלחת אין תגית בכלל. */
 var NET_ROS = { at: 0, busy: false };
@@ -12983,20 +12985,28 @@ function pplRosLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key || NET_ROS.busy) return;
   NET_ROS.busy = true; NET_ROS.at = Date.now();
-  scriptGet({ read: NET_TAB, key: key }).then(function (d) {
-    NET_ROS.busy = false;
-    if (!d || d.status !== 'ok' || !d.rows || typeof d.rows.length !== 'number') return;
+  /* שתי הקריאות חייבות להצליח — כישלון באחת משאיר את הספירה הקודמת. */
+  var cnt = function (d, nm) {
+    if (!d || d.status !== 'ok' || !d.rows || typeof d.rows.length !== 'number') return null;
     var h = (d.rows[0] || []).map(function (x) { return String(x).trim(); });
-    var ic = h.indexOf('קוד ישיבה'), ig = h.indexOf('שכבה'), ik = h.indexOf('כיתה'),
-        il = h.indexOf('משפחה'), ip = h.indexOf('פרטי');
+    var ic = h.indexOf('קוד ישיבה'), ig = h.indexOf('שכבה'), ik = h.indexOf('כיתה');
     /* לשונית בלי הכותרות — קריאה לא תקינה, לא מאגר ריק. */
-    if (d.rows.length && ic < 0) return;
+    if (d.rows.length && ic < 0) return null;
     var c = {};
     d.rows.slice(1).forEach(function (x) {
       var code = String(x[ic] || '').trim(), g = netGr(x[ig]), k = String(x[ik] || '').trim();
-      var nm = (String(x[il] || '') + String(x[ip] || '')).trim();
-      if (code && k && nm && ATT_GRADES.indexOf(g) >= 0) c[code] = (c[code] || 0) + 1;
+      if (code && k && nm(x, h).trim() && ATT_GRADES.indexOf(g) >= 0) c[code] = (c[code] || 0) + 1;
     });
+    return c;
+  };
+  Promise.all([scriptGet({ read: NET_TAB, key: key }), scriptGet({ read: AMDA_ROSTER, key: key })]).then(function (ds) {
+    NET_ROS.busy = false;
+    var a = cnt(ds[0], function (x, h) { return String(x[h.indexOf('משפחה')] || '') + String(x[h.indexOf('פרטי')] || ''); });
+    var b = cnt(ds[1], function (x, h) { return String(x[h.indexOf('שם')] || ''); });
+    if (!a || !b) return;
+    var c = {}, k;
+    for (k in a) if (a.hasOwnProperty(k)) c[k] = a[k];
+    for (k in b) if (b.hasOwnProperty(k)) c[k] = (c[k] || 0) + b[k];
     Store.set('netRos', { c: c, at: Date.now() });
     admLive();
   })['catch'](function () { NET_ROS.busy = false; });
@@ -21359,7 +21369,7 @@ function amdaPaint() {
   }
   if (!les && !amdaSt.all) {
     h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
-    /* רק שכבות שיש בהן תלמידים ברשימה — אצל איש צוות ז׳ וח׳ בלבד. */
+    /* רק שכבות שיש בהן תלמידים ברשימה (אצל איש צוות — מה שהשרת שלח, ז׳–י״ב). */
     AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
       h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
            esc(amdaG(g)) + '</button>';
@@ -22689,9 +22699,9 @@ function netFromSheets(sheets) {
       /* רק ישיבות. במשרד השם כתוב בכמה צורות: "ישיבת…", "ישיבה תיכונית
          בנ"ע עלי", "ק.חינוך בנ"ע חולון", "מוסדות בני עקיבא מירון". */
       if (!NET_KIND.test(g(x, 'שם מוסד'))) { cnt('kind'); continue; }
-      /* רק השכבות שבתוכנית (ATT_GRADES) — בקובץ המלא יש גם ט׳–י״ב,
-         ואין סיבה שיישבו בגיליון. ישיבה שאין בה ז׳–ח׳ נרשמת בצד,
-         כדי שיהיה ברור למה היא לא ברשימה. */
+      /* רק השכבות שבתוכנית (ATT_GRADES, ז׳–י״ב מ-8.99.433). ישיבה שאין
+         בה אף אחת מהן נרשמת בצד, כדי שיהיה ברור למה היא לא ברשימה. */
+      gr = netGr(gr);
       if (ATT_GRADES.indexOf(gr) < 0) {
         if (!out.other[sym]) out.other[sym] = netPlace(g(x, 'שם מוסד'), g(x, 'שם רשות חינוך') || g(x, 'ישוב מוסד'));
         sk.gr[gr] = (sk.gr[gr] || 0) + 1;
@@ -22766,7 +22776,8 @@ function netSig(rows) {
 }
 function netGr(v) {
   v = String(v || '').replace(/["'׳״\s]/g, '');
-  return v === '7' ? 'ז' : v === '8' ? 'ח' : v;
+  return v === '7' ? 'ז' : v === '8' ? 'ח' : v === '9' ? 'ט' : v === '10' ? 'י' :
+         v === '11' ? 'יא' : v === '12' ? 'יב' : v;
 }
 function netCl(v) { var d = (String(v || '').match(/\d+/) || [''])[0]; return d ? String(+d) : ''; }
 function netNm(v) { return String(v || '').replace(/["'׳״\-־]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -22949,7 +22960,7 @@ function netGenMiss() {
   });
   return miss;
 }
-/* השורות, לפי ההתאמה שהרכז בחר — מכל הלשוניות שנקראות. רק ז׳–ח׳
+/* השורות, לפי ההתאמה שהרכז בחר — מכל הלשוניות שנקראות. רק ז׳–י״ב
    (ATT_GRADES). השכבה: משם הלשונית, ובלעדיו — מהעמודה. אות שכבה
    בתא הכיתה היא אימות בלבד; סתירה — להכרעה (NET.gc), לא ניחוש. */
 function netGenGo() {
@@ -23013,7 +23024,7 @@ function netTotals() {
 /* השורות של הקובץ שנכנסות — רק מישיבה מותאמת. */
 function netRowsIn() {
   var out = [];
-  /* שורות שהוכרעו (סתירת שכבה) — בשכבה שנבחרה, ורק ז׳–ח׳. */
+  /* שורות שהוכרעו (סתירת שכבה) — בשכבה שנבחרה, ורק ז׳–י״ב. */
   var gc = (NET.gc || []).filter(function (y) { return y.pick && y.pick !== 'skip'; }).map(function (y) {
     var z = {}; for (var k in y) if (y.hasOwnProperty(k)) z[k] = y[k];
     z.g = y.pick === 'c' ? y.gc : y.gs;

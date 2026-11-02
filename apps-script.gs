@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 168;
+var SCRIPT_VERSION = 169;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -682,7 +682,12 @@ function doPostMain_(e) {
       return json_({ status: 'denied',
         message: 'הלשונית ' + d.tab + ' נכתבת רק בגיליון — לא נדרסת מהאפליקציה' });
     }
-    if (d.action === 'table') return writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
+    if (d.action === 'table') {
+      var wtr = writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
+      /* רשימת בית הספר היא חלק מהרשימה של איש הצוות (netRoster_). */
+      if (d.tab === NET_SCH_TAB_) netBumpVer_();
+      return wtr;
+    }
 
     /* ---- פעולת צוות: מי התקשר/שלח, ומתי ----
        עמוד הצוות (team.html) נפתח אצל הרב פלתי ואצל אלחנן, ואסור
@@ -723,8 +728,14 @@ function doPostMain_(e) {
           message: READ_KEY ? 'סיסמה שגויה'
                             : 'לא נקבעה סיסמה בסקריפט (READ_KEY) — מחיקה חסומה' });
       }
-      if (d.action === 'clear')  return json_(clearTab_(d.tab, d.ss));
-      return json_(delRows_(d.tab, d.col, parse_(d.vals), d.ss));
+      if (d.action === 'clear') {
+        var clr = clearTab_(d.tab, d.ss);
+        if (d.tab === NET_SCH_TAB_) netBumpVer_();
+        return json_(clr);
+      }
+      var dlr = delRows_(d.tab, d.col, parse_(d.vals), d.ss);
+      if (d.tab === NET_SCH_TAB_) netBumpVer_();
+      return json_(dlr);
     }
 
     /* ---- הצורות הישנות. נשארות כדי שמכשיר שמחזיק גרסה ישנה
@@ -4568,23 +4579,36 @@ function amdaDel_(ids, inst) {
 }
 
 /* ============================================================
-   נוכחות בשיעור — הרשימה של ישיבה אחת, מתוך "תלמידי הרשת".
+   נוכחות בשיעור — הרשימה של ישיבה אחת, משתי הלשוניות.
    ============================================================
-   הלשונית מחזיקה גם טלפונים (של התלמיד ושל ההורה). מכאן יוצאים
-   **רק** שכבה, כיתה ושם — רק של ז׳ וח׳, ורק של הישיבה שהמכשיר אושר אליה. כל
-   שליפה נרשמת ב"יומן מאגר": מי, איזו ישיבה, כמה, ומתי. */
+   הלשוניות מחזיקות גם טלפונים (של התלמיד ושל ההורה). מכאן יוצאים
+   **רק** שכבה, כיתה ושם — ורק של הישיבה שהמכשיר אושר אליה. כל
+   שליפה נרשמת ב"יומן מאגר": מי, איזו ישיבה, כמה, ומתי — וכמה מכל מקור.
+
+   **שני מקורות, איחוד בקריאה בלבד (8.99.433).** "תלמידי הרשת" (פרטי +
+   משפחה בנפרד) ו"תלמידי בית הספר" (העמדה בניהול — "שם" אחד, "משפחה
+   פרטי"), כל אחת לפי "קוד ישיבה". לא מעתיקים ולא משנים דבר בלשוניות.
+   **בלי מיזוג:** כל שורה במקור — תלמיד אחד ברשימה, גם כששני תלמידים
+   שונים באותה כיתה נושאים אותו שם, וגם כשאותו שם מופיע בשני המקורות
+   (אין דרך ודאית לדעת שזה אותו תלמיד).
+   **שכבות — מה שיש בנתונים**, ז׳ עד י״ב (NET_GR_). עד 8.99.432 —
+   ז׳/ח׳ בלבד, וישיבה עם רשימה רק בבית הספר קיבלה מסך ריק. */
 var NET_TAB_ = 'תלמידי הרשת';
+var NET_SCH_TAB_ = 'תלמידי בית הספר';
+var NET_GR_ = { 'ז': 1, 'ח': 1, 'ט': 1, 'י': 1, 'יא': 1, 'יב': 1 };
 /* **זיכרון לכל ישיבה.** הלשונית גדולה (עשרות אלפי שורות), וקריאה
    מלאה בכל פתיחה היא שניות של המתנה — ובבוקר כולם פותחים יחד. הרשימה
    של ישיבה נשמרת במטמון של הסקריפט לשש שעות, תחת "גרסת מאגר" שמתחלפת
-   בכל העלאה (ראו `table` ב-doPost) — מאגר חדש אינו מחכה למטמון ישן. */
+   בכל ייבוא ל"תלמידי הרשת" ובכל כתיבה ל"תלמידי בית הספר" (netBumpVer_
+   ב-doPost) — מאגר חדש אינו מחכה למטמון ישן. */
 function netRoster_(inst, dev) {
   var out = null, ck = '';
   try {
     var ver = PropertiesService.getScriptProperties().getProperty('netVer') || '0';
-    ck = 'nr' + ver + '_' + inst;
+    ck = 'nr2' + ver + '_' + inst;
     var hit = CacheService.getScriptCache().get(ck);
     if (hit) out = JSON.parse(hit);
+    if (out && !out.rows) out = null;
   } catch (eC) { out = null; }
   if (!out) {
     out = netRosterRead_(inst);
@@ -4592,20 +4616,33 @@ function netRoster_(inst, dev) {
   }
   try {
     appendCols_('יומן מאגר', [['מתי', new Date()], ['מזהה', dev || ''], ['קוד ישיבה', inst],
-                              ['תלמידים', out.length]]);
+                              ['תלמידים', out.rows.length],
+                              ['מתלמידי הרשת', out.a], ['מתלמידי בית הספר', out.b]]);
   } catch (eL) {}
-  return { status: 'ok', inst: inst, rows: out };
+  return { status: 'ok', inst: inst, rows: out.rows };
 }
+/* מחזיר { rows: [[שכבה, כיתה, שם]…], a: מתלמידי הרשת, b: מתלמידי בית הספר }. */
 function netRosterRead_(inst) {
-  var t = amdaTable_(NET_TAB_), out = [];
+  var rows = [], a = 0, b = 0;
+  var push = function (g, c, n) {
+    g = String(g || '').replace(/["'׳״`\s]/g, '');
+    n = String(n || '').replace(/\s+/g, ' ').trim();
+    if (!g || !c || !n || !NET_GR_[g]) return false;
+    rows.push([g, c, n]);
+    return true;
+  };
+  var t = amdaTable_(NET_TAB_);
   for (var r = 1; r < t.rows.length; r++) {
     if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
-    var g = t.c(t.rows[r], 'שכבה').replace(/["'׳״\s]/g, ''), c = t.c(t.rows[r], 'כיתה');
-    var n = (t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי')).replace(/\s+/g, ' ').trim();
-    /* השכבות שבתוכנית בלבד — ז׳ וח׳. מה שאין בו צורך אינו יוצא. */
-    if (g && c && n && (g === 'ז' || g === 'ח')) out.push([g, c, n]);
+    if (push(t.c(t.rows[r], 'שכבה'), t.c(t.rows[r], 'כיתה'),
+             t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי'))) a++;
   }
-  return out;
+  var s = amdaTable_(NET_SCH_TAB_);
+  for (var q = 1; q < s.rows.length; q++) {
+    if (s.c(s.rows[q], 'קוד ישיבה') !== inst) continue;
+    if (push(s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'כיתה'), s.c(s.rows[q], 'שם'))) b++;
+  }
+  return { rows: rows, a: a, b: b };
 }
 /* ============================================================
    ייבוא חכם ל"תלמידי הרשת" — מיזוג, לא דריסה.
