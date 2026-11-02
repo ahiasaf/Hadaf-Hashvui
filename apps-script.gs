@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 163;
+var SCRIPT_VERSION = 164;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10483,8 +10483,7 @@ function quizSum_() {
 function rafMeKey_(w) { return w == null ? 'raf:me5' : 'raf:me5:' + w; }
 function rafMeMap_(w) {
   var key = rafMeKey_(w);
-  var rc = CacheService.getScriptCache(), M = null, hit = rc.get(key);
-  if (hit) { try { M = JSON.parse(hit); } catch (x) { M = null; } }
+  var rc = CacheService.getScriptCache(), M = bigGet_(rc, key);
   if (M) return M;
   var C = w == null ? rafCalc_() : rafCalcW_(w);
   var snap = rafSnap_(w == null ? progWeek_() - 1 : w);
@@ -10520,8 +10519,38 @@ function rafMeMap_(w) {
     if (hs >= 0) v += '|h' + hs;
     p.ids.concat([id]).forEach(function (x) { M[x] = v; });
   });
-  try { var js = JSON.stringify(M); if (js.length < 95000) rc.put(key, js, 300); } catch (x2) {}
+  bigPut_(rc, key, M, 300);
   return M;
+}
+/* מטמון בחתיכות (8.99.420). ערך אחד במטמון של גוגל — עד 100KB. המפה של
+   rafMeMap_ עברה את זה בכ-1,500 מכשירים, ומאז **לא נשמרה כלל**: כל פתיחה
+   של הבית חישבה את כל ההגרלה מאפס (פעמיים — גם ההגרלה הבאה), ובעומס
+   התשובה לא הגיעה ב-20 שניות ("לא הצלחנו לטעון את הכרטיסים").
+   המפתח עצמו מחזיק 'n|st'; החתיכות — key:st:i. removeAll על המפתח (rafMeKeys_)
+   מבטל הכול — החתיכות היתומות פגות לבד. ערך ישן (JSON שלם) — עדיין נקרא. */
+function bigGet_(rc, key) {
+  try {
+    var hd = rc.get(key);
+    if (!hd) return null;
+    if (hd.charAt(0) === '{') return JSON.parse(hd);
+    var hp = hd.split('|'), keys = [];
+    for (var q = 0; q < +hp[0]; q++) keys.push(key + ':' + hp[1] + ':' + q);
+    var got = rc.getAll(keys), js = '';
+    for (var i = 0; i < keys.length; i++) {
+      if (got[keys[i]] == null) return null;
+      js += got[keys[i]];
+    }
+    return js ? JSON.parse(js) : null;
+  } catch (e) { return null; }
+}
+function bigPut_(rc, key, obj, sec) {
+  try {
+    var js = JSON.stringify(obj), st = String(Date.now() % 1e8), put = {}, n = 0;
+    for (var o = 0; o < js.length; o += 90000) put[key + ':' + st + ':' + (n++)] = js.substr(o, 90000);
+    if (n > 40) return;
+    rc.putAll(put, sec);
+    rc.put(key, n + '|' + st, sec);
+  } catch (e) {}
 }
 /* ההגרלה של הדף של שבוע `dw` כבר בוצעה (הגרלת שבוע dw+1 שלא בוטלה) —
    מזהה → כמה כרטיסים היו לו בה, מ"תמונת כרטיסים" של כל המוסדות. null —
