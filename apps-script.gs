@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 162;
+var SCRIPT_VERSION = 163;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9869,7 +9869,7 @@ function rafPrize_(P) {
 /* לרכז, במצב ההגרלה: לכל זוכה — הפרס, והטלפונים (שלו ושל ההורה) לוואטסאפ. */
 function rafPrzAdm_(T, d) {
   if (d.st !== 'פורסם') return;
-  var picks = rafPrzPicks_(), t = joinTable_(), late = [];
+  var picks = rafPrzPicks_(), t = joinTable_(), late = [], co = null;
   d.rows.forEach(function (x, i) {
     if (!x.win) return;
     var r = d.lines[i], z = rafPrzRow_(T, r, picks);
@@ -9879,12 +9879,40 @@ function rafPrzAdm_(T, d) {
     x.dph = row ? t.c(row, 'טלפון ההורה') : '';
     x.first = row ? t.c(row, 'שם') : String(x.name || '').split(/\s+/)[0];
     x.pz = z;
+    /* נרשם בנוכחות ועוד לא התקין — כמו `nodev` בלוח: השורה (או המזהה, בלי
+       שורה) היא Am…, ואין לה מזהה מכשיר שנבלע. טלפון — אינו ראיה לכאן או לכאן. */
+    var main = row ? t.c(row, 'מזהה') : x.win;
+    var dev = row ? rowIds_(t, row).filter(function (k) { return !/^Am/.test(k); }) : [];
+    if (/^Am/.test(main) && !dev.length) {
+      x.na = 1;
+      if (row) x.gc = [t.c(row, 'שכבה'), t.c(row, 'כיתה')].filter(function (v) { return v; }).join(' ');
+      if (!co) co = rafCoords_();
+      x.co = co.err ? { err: 1 } : (co.m[x.code] || {});
+    }
   });
   if (late.length) {
     rafPrzAuto_(T, late);
     var T3 = rafRead_();
     d.rows.forEach(function (x, i) { if (x.win) x.pz = rafPrzRow_(T3, d.lines[i], picks); });
   }
+}
+/* הרכז של כל ישיבה — **רק השיוך המאומת:** השם ב"רכז בשטח" בטבלת הסקירה
+   (הבעלים מסמן), והטלפון ב"טלפון רכז" בלשונית הפרטית — אותו מקור של
+   כפתורי הרכז בקישור למנהלים (ovPpl_). לא "גישה", לא "אנשי קשר".
+   { m: { קוד: { n, ph } } }, או { err: 1 } כשהקריאה נכשלה (לא "אין רכז"). */
+function rafCoords_() {
+  try {
+    var sh = ovSheet_(), T = sh ? ovTable_(sh) : null, own = ovOwn_();
+    if (!T || !own) return { err: 1 };
+    var m = {};
+    T.rows.forEach(function (row) {
+      var c = ovCell_(T, row, 'code');
+      if (!c || m[c]) return;
+      var mine = own.m[c] || {};
+      m[c] = { n: ovCell_(T, row, 'coord'), ph: String(mine.pc || '').trim() };
+    });
+    return { m: m };
+  } catch (e) { return { err: 1 }; }
 }
 /* ?raffle=prizeset — הרכז מסמן את בחירת הזוכה (שענה בוואטסאפ). */
 function rafPrzSet_(P) {

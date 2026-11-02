@@ -3057,7 +3057,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.418';
+var APP_VERSION = '8.99.419';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10574,7 +10574,7 @@ function parPaint() {
           (o.q ? '<span>' + esc(fill(UI.parWkWait, { q:o.q })) + '</span>' : '') + '</div></div>';
       }).join('') + '</div>';
     }
-    /* התראה להורים שחסרים להם כרטיסים (8.99.418) — לכל הישיבות, ולכן רק בלי מסנן. */
+    /* התראה להורים שחסרים להם כרטיסים (8.99.419) — לכל הישיבות, ולכן רק בלי מסנן. */
     if (!ADM_INST && d.miss > 0) {
       h += '<div class="pp" style="margin-top:14px"><div class="pp-h">' + esc(UI.parPushH) + '</div>' +
         '<p class="h">' + esc(fill(UI.parPushN, { n:d.miss })) + '</p>' +
@@ -15718,6 +15718,18 @@ function rafPrzLbl(z) {
   }
   return fill(UI[z.how === 'הוגרל' ? 'rafPrzByAuto' : z.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: UI['przN_' + z.p] || z.p });
 }
+/* זוכה שנרשם בנוכחות ועוד לא התקין (`na` מ-rafPrzAdm_) — וואטסאפ לרכז של הישיבה
+   שלו, במקום לזוכה. רכז חסר / בלי טלפון / לא נקרא — נאמר, בלי קישור לאחר. */
+function rafWaCo(x) {
+  var c = x.co || {}, ph = digits(c.ph);
+  if (c.err) return '<span class="h">' + esc(UI.rafWaCoErr) + '</span>';
+  if (!c.n) return '<span class="h">' + esc(UI.rafWaCoNone) + '</span>';
+  if (ph.length < 9) return '<span class="h">' + esc(fill(UI.rafWaCoNoPh, { name: c.n })) + '</span>';
+  var who = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : '');
+  var tx = UI.rafWaCoTx.split('{רכז}').join(c.n).split('{שם}').join(who).split('{ישיבה}').join(rafInstName(x.code));
+  return '<a class="btn gr" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' +
+    esc('https://wa.me/' + waNum(c.ph) + '?text=' + encodeURIComponent(tx)) + '">' + esc(fill(UI.rafWaCo, { name: c.n })) + '</a>';
+}
 function rafWaHtml(dis) {
   var W = rafD.rows.filter(function (x) { return x.win; });
   if (!W.length) return '';
@@ -15730,7 +15742,7 @@ function rafWaHtml(dis) {
       return '<div class="prow2 ' + (ok ? 'ok' : 'warn') + '"><span class="pm">' + (ok ? '🎁' : '–') + '</span>' +
         '<div style="flex:1"><b>' + esc(x.name) + '</b><span>' + esc(rafInstName(x.code)) + (z ? ' · ' + esc(rafPrzLbl(z)) : '') + '</span>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' +
-        (x.ph ? '<a class="btn gr" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.ph, x, 'w')) + '">' + esc(UI.rafWaKid) + '</a>' : '') +
+        (x.na ? rafWaCo(x) : x.ph ? '<a class="btn gr" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.ph, x, 'w')) + '">' + esc(UI.rafWaKid) + '</a>' : '') +
         (x.dph ? '<a class="btn g" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.dph, x, 'd')) + '">' + esc(UI.rafWaDad) + '</a>' : '') +
         (z && !z.p ? '<select class="ct-sel"' + dis + ' onchange="rafPrzSet(\'' + esc(x.code) + '\',this)">' +
           '<option value="">' + esc(UI.rafPrzSet) + '</option>' +
