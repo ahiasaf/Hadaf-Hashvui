@@ -41,3 +41,12 @@ jobs:
           if d.get("status") != "ok": print(d); sys.exit(0)
           print(" | ".join(d["cols"]))
           for r in d["rows"]: print(" | ".join(str(x) for x in r))'
+      # ההגדרה "מה מוצג" (rows) מהגיליון הציבורי — לבדוק אם "עמוד הביניים" (mid) דלוק.
+      - name: הגדרת "מה מוצג"
+        run: |
+          ID=$(grep -oE "^var SHEET_ID *= *'[^']+'" data.js | grep -oE "'[^']+'" | tr -d "'")
+          curl -sS -L --max-time 60 "https://docs.google.com/spreadsheets/d/$ID/gviz/tq?tqx=out:csv&sheet=%D7%94%D7%92%D7%93%D7%A8%D7%95%D7%AA" \
+            | python3 -c '
+          import sys, csv
+          for r in csv.reader(sys.stdin):
+              if r and r[0].strip() == "rows": print("rows =", r[1] if len(r) > 1 else "")'
