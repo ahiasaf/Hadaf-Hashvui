@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 154;
+var SCRIPT_VERSION = 155;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11163,11 +11163,47 @@ function chRuleOf_(S) {
    ובשורות החידון), ובין המכשירים — סכום.
    `canon` — ממזהה גולמי למזהה היעד של מי שקורא (אתגר: canon של chSync_;
    ממוצע הזמן: rafPpl_). מזהה ריק — מדלגים. */
+/* ============================================================
+   "לימוד" — קריאה אחת, רק העמודות שהאתגר צריך (8.99.406).
+   ============================================================
+   בניית מצב האתגר קראה את הלשונית כולה שלוש פעמים (chSync_ ופעמיים
+   ב-lrnKeys_), עם כל העמודות. הלשונית גדלה מאוד מאז שורות ההתקדמות
+   (LPosMile), והבנייה חרגה מזמן ההמתנה של הטלפון. כאן — עמודה אחרי
+   עמודה, רק מה שנחוץ, פעם אחת לביצוע; `RAF_MS_COL` כמו ב-rafWithMs_.
+   נקרא מחדש אם נוספה שורה באמצע הביצוע. */
+var LRN_COLS_ = ['מזהה', 'בדיקה', 'קטע', 'מתוך', 'מסלול', 'שבוע', 'דף', 'מפתח', 'מכשיר', 'זמן בדף (דקות)'];
+var LRN_ROWS_ = null;
+function lrnRows_() {
+  var sh = sheet_(LEARN_TAB), last = sh.getLastRow();
+  if (last < 2) return [];
+  if (LRN_ROWS_ && LRN_ROWS_.n === last) return LRN_ROWS_.rows;
+  var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], cols = [], names = [], ti = -1;
+  for (var h = 0; h < head.length; h++) {
+    var nm = String(head[h]).trim();
+    if (nm === 'תאריך') ti = h;
+    if (LRN_COLS_.indexOf(nm) < 0) continue;
+    /* שם כפול — האחרון גובר, כמו `ix[שם] = h` בשאר הקוד. */
+    var at = names.indexOf(nm);
+    if (at < 0) { names.push(nm); cols.push(h); } else cols[at] = h;
+  }
+  var data = cols.map(function (c) { return sh.getRange(2, c + 1, last - 1, 1).getDisplayValues(); });
+  var tv = ti >= 0 ? sh.getRange(2, ti + 1, last - 1, 1).getValues() : [];
+  var rows = [names.concat([RAF_MS_COL])];
+  for (var i = 0; i < last - 1; i++) {
+    var r = [];
+    for (var j = 0; j < data.length; j++) r.push(data[j][i][0]);
+    var v = tv[i] ? tv[i][0] : '', ms = v instanceof Date ? v.getTime() : v ? Date.parse(String(v)) : 0;
+    r.push(isNaN(ms) ? '' : String(ms || ''));
+    rows.push(r);
+  }
+  LRN_ROWS_ = { n: last, rows: rows };
+  return rows;
+}
 function lrnKeys_(test, canon) {
   var K = {}, TM = {}, Q = { best: {} };
-  var sh = sheet_(LEARN_TAB);
-  if (sh.getLastRow() > 1) {
-    var rows = rafWithMs_(sh), ix = {};
+  var rows = lrnRows_();
+  if (rows.length > 1) {
+    var ix = {};
     for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
     var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] == null ? '' : rw[ix[k]]).trim(); };
     for (var i = 1; i < rows.length; i++) {
@@ -11361,9 +11397,9 @@ function chSync_(U) {
   /* `WK` — באילו שבועות של התוכנית השלים דף (לפי מועד השורה), למדידה בניהול. */
   var WK = {}, wk0 = Date.parse(PROG_START + 'T00:00:00Z'), wkOff = chOff_(now);
   var wkOf = function (ms) { return Math.floor((ms + wkOff - wk0) / 6048e5) + 1; };
-  var lsh = sheet_(LEARN_TAB);
-  if (lsh.getLastRow() > 1) {
-    var lv = lsh.getDataRange().getValues(), lx = {};
+  var lv = lrnRows_();
+  if (lv.length > 1) {
+    var lx = {};
     for (var h = 0; h < lv[0].length; h++) lx[String(lv[0][h]).trim()] = h;
     var lc = function (rw, k) { return lx[k] === undefined ? '' : String(rw[lx[k]] == null ? '' : rw[lx[k]]).trim(); };
     for (var i = 1; i < lv.length; i++) {
@@ -11371,7 +11407,7 @@ function chSync_(U) {
       if (!lid || !P[lid] || P[lid].par) continue;
       if ((lc(lv[i], 'בדיקה') === 'כן') !== !!U.test) continue;
       /* כל שורה — גם התקדמות — היא "התחיל ללמוד" במועד שלה (שעון השרת). */
-      var ad = lx['תאריך'] === undefined ? 0 : chMs_(lv[i][lx['תאריך']]);
+      var ad = +lv[i][lx[RAF_MS_COL]] || 0;
       if (ad) (ACT[lid] = ACT[lid] || []).push(ad);
       var at = lc(lv[i], 'קטע'), of = lc(lv[i], 'מתוך');
       if (at && parseInt(of, 10) > 0 && parseInt(at, 10) < parseInt(of, 10)) {
@@ -11384,7 +11420,7 @@ function chSync_(U) {
       }
       var tag = lc(lv[i], 'מסלול') + '|' + lc(lv[i], 'שבוע') + '|' + lc(lv[i], 'דף');
       (L[lid] = L[lid] || {})[tag] = 1;
-      var ms = lx['תאריך'] === undefined ? 0 : chMs_(lv[i][lx['תאריך']]);
+      var ms = ad;
       if (ms && ms >= K.t0 && (!C[lid] || ms < C[lid])) C[lid] = ms;
       if (ms) (WK[lid] = WK[lid] || {})[wkOf(ms)] = 1;
       /* בלי תאריך — עדיין השלמה. 1 ולא 0, כדי שייחשב. */
