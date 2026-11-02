@@ -1911,6 +1911,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .pt.a{background:#FCEFD2;color:#6E5212}
 .pt.r{background:none;color:var(--stop);padding:3px 2px}
 .pt.w{background:#FDE7CF;color:#8A4A0C}
+.pt.l{background:#E3ECF7;color:#234C80}
+.pt.n{background:none;color:var(--ink-3);padding:3px 2px;font-weight:700}
 .acc{margin-top:12px;border-top:1px solid var(--rule-2);padding-top:10px}
 .acc-h{font-size:.76rem;font-weight:800;color:var(--ink-3)}
 .acc-r{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;
@@ -3055,7 +3057,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.413';
+var APP_VERSION = '8.99.414';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12903,7 +12905,46 @@ function pplTags(x) {
   return '<i class="pt g">' + esc(UI.pplGot.replace('{n}', x.got)) + '</i>' +
     (x.rep ? '<i class="pt a">' + esc(UI.pplEst.replace('{n}', x.rep)) + '</i>' : '') +
     (x.gap ? '<i class="pt r">פער ' + x.gap + '</i>' : '') +
-    (w ? '<i class="pt w">' + w + ' לאימות</i>' : '');
+    (w ? '<i class="pt w">' + w + ' לאימות</i>' : '') + pplRosTag(x.c);
+}
+/* ============================================================
+   האם יש לישיבה רשימת תלמידים לנוכחות בשיעור.
+   ============================================================
+   נספר כמו שהשרת שולח לאיש הצוות (netRosterRead_): שורות "תלמידי
+   הרשת" של הישיבה, ז׳/ח׳, עם כיתה ושם. נקרא לכל היותר פעם בחמש דקות.
+   **קריאה שנכשלה אינה רשימה ריקה** — אז נשאר מה שנקרא קודם, ובלי
+   שום קריאה מוצלחת אין תגית בכלל. */
+var NET_ROS = { at: 0, busy: false };
+function pplRosTag(c) {
+  if (!c) return '';
+  var m = Store.get('netRos', null);
+  if (Date.now() - NET_ROS.at > 300000) pplRosLoad();
+  if (!m || !m.c) return '';
+  var n = +m.c[c] || 0;
+  return n ? '<i class="pt l">' + esc(fill(UI.pplRos, { n: n })) + '</i>'
+           : '<i class="pt n">' + esc(UI.pplRosNo) + '</i>';
+}
+function pplRosLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key || NET_ROS.busy) return;
+  NET_ROS.busy = true; NET_ROS.at = Date.now();
+  scriptGet({ read: NET_TAB, key: key }).then(function (d) {
+    NET_ROS.busy = false;
+    if (!d || d.status !== 'ok' || !d.rows || typeof d.rows.length !== 'number') return;
+    var h = (d.rows[0] || []).map(function (x) { return String(x).trim(); });
+    var ic = h.indexOf('קוד ישיבה'), ig = h.indexOf('שכבה'), ik = h.indexOf('כיתה'),
+        il = h.indexOf('משפחה'), ip = h.indexOf('פרטי');
+    /* לשונית בלי הכותרות — קריאה לא תקינה, לא מאגר ריק. */
+    if (d.rows.length && ic < 0) return;
+    var c = {};
+    d.rows.slice(1).forEach(function (x) {
+      var code = String(x[ic] || '').trim(), g = netGr(x[ig]), k = String(x[ik] || '').trim();
+      var nm = (String(x[il] || '') + String(x[ip] || '')).trim();
+      if (code && k && nm && ATT_GRADES.indexOf(g) >= 0) c[code] = (c[code] || 0) + 1;
+    });
+    Store.set('netRos', { c: c, at: Date.now() });
+    admLive();
+  })['catch'](function () { NET_ROS.busy = false; });
 }
 function pplRowHtml(x) {
   return '<span class="pr-m"><span class="pr-n">' + esc(x.name) + '</span>' +
