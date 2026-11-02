@@ -3065,7 +3065,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.421';
+var APP_VERSION = '8.99.422';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15743,7 +15743,7 @@ function rafWaCo(x) {
    ============================================================
    נבנית במכשיר מתוך מה שכבר במסך (שם מלא, מוסד, פרס) — שום דבר
    לא נשלח לשרת ולתלמידים. הלוגו של המוסד: inst-logos/<קוד>.png;
-   חסר — המודעה יוצאת בלעדיו. הסמל של הדף האינטראקטיבי (icon-192)
+   חסר — המודעה יוצאת בלעדיו. הסמל של הדף האינטראקטיבי (weekpics/phone.webp, כמו בכרטיס שלו)
    — רק כשכל הזוכים במודעה למדו באפליקציה (לא רשומים מנוכחות בלבד).
    שולחן של חבר מביא חבר — מודעה אחת לארבעה. */
 var AD_W = 1080, AD_F = 'system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif', AD_CUR = null;
@@ -15854,7 +15854,7 @@ function adDraw(o, im) {
     if (o.prize) {
       y += 34;
       adFont(ctx, 46, true);
-      var pl = adWrap(ctx, o.prize, CW - 80), ph = pl.length * 60 + 50, py = y;
+      var pl = adWrap(ctx, o.prize, CW - 40), ph = pl.length * 60 + 50, py = y;
       if (draw) {
         ctx.fillStyle = '#FFF8E6'; ctx.strokeStyle = '#D9A63A'; ctx.lineWidth = 4;
         if (ctx.setLineDash) ctx.setLineDash([16, 12]);
@@ -15871,13 +15871,14 @@ function adDraw(o, im) {
       y += 50;
       if (draw) {
         adFont(ctx, 38, true);
-        var lw = ctx.measureText(UI.adApp).width, s = 84, all = s + 20 + lw, ax = cx + all / 2 - s;
-        ctx.save(); adRound(ctx, ax, y, s, s, 20); ctx.clip(); ctx.drawImage(im.app, ax, y, s, s); ctx.restore();
+        var ah = 170, aw = Math.round(ah * im.app.width / im.app.height);
+        var lw = ctx.measureText(UI.adApp).width, all = aw + 24 + lw, ax = cx + all / 2 - aw;
+        ctx.drawImage(im.app, ax, y, aw, ah);
         ctx.textAlign = 'right'; ctx.fillStyle = '#1B2A45';
-        ctx.fillText(UI.adApp, ax - 20, y + s / 2 + 13);
+        ctx.fillText(UI.adApp, ax - 24, y + ah / 2 + 13);
         ctx.textAlign = 'center';
       }
-      y += 84;
+      y += 170;
     }
     return y + 70 + 60;
   };
@@ -15888,7 +15889,7 @@ function adDraw(o, im) {
   return cv;
 }
 function adMake(o, file) {
-  var codes = [], load = [adImg(LOGO_MARK), adImg('icon-192.png')];
+  var codes = [], load = [adImg(LOGO_MARK), adImg('weekpics/phone.webp')];
   o.ppl.forEach(function (p) { if (p.code && codes.indexOf(p.code) < 0) codes.push(p.code); });
   codes.forEach(function (c) { load.push(adImg('inst-logos/' + encodeURIComponent(c) + '.png')); });
   Promise.all(load).then(function (r) {
