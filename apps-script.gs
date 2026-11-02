@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 164;
+var SCRIPT_VERSION = 165;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['זמני שרת', 'לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -332,7 +332,108 @@ function propSrc_(name, fallback) {
   return fallback ? 'code' : 'none';
 }
 
+/* ============================================================
+   מדידת זמנים (8.99.420 · שרת 165) — איפה ההמתנה.
+   ============================================================
+   כל בקשה: שם הנתיב (לא מזהים, לא שמות — רק המילה שבחרה את הנתיב,
+   למשל pts:me / challenge:my / post:לימוד), כמה זמן רצה, וב-POST כמה
+   מזה חיכתה לנעילה. נצבר במטמון לפי חלון של 10 דקות (`tm:<חלון>`),
+   ובטריגר השעתי נכתב ללשונית הפרטית "זמני שרת" — שורה לחלון·נתיב.
+   הצבירה אינה נעולה: בקשות במקביל עלולות לדרוס זו את זו ולאבד ספירה.
+   זה מספיק כדי לראות איפה ההמתנה, ולא מוסיף נעילה לבקשות.
+   הזמן כאן הוא רק בתוך הסקריפט. מה שהטלפון מחכה מעבר לזה — הפעלת
+   הסקריפט אצל גוגל והתור שלה (probe.yml מודד את הסך). ?tm=1&key= — המצב. */
+var TM_LOCK_ = 0;
+var TM_WIN_ = 600000;
+var TM_TAB_ = 'זמני שרת';
+var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sayDone', 'run', 'resend',
+  'quizPubAll', 'amdaAmb', 'quizSum', 'pts', 'tkd', 'raffle', 'prz', 'quad', 'hash', 'twin', 'challenge',
+  'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
+  'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
+  'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read'];
+/* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
+   באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
+function tmName_(e, post) {
+  var P = (e && e.parameter) || {};
+  if (post) {
+    /* בלי לפענח שוב את כל הגוף (העלאת שקף — מגה-בייטים): רק שני השדות. */
+    var raw = '';
+    try { raw = String(e.postData.contents || ''); } catch (x) {}
+    var am = raw.match(/"action"\s*:\s*"([a-z]{1,12})"/i), tm = raw.match(/"tab"\s*:\s*"([^"\\]{1,30})"/);
+    var tb = tm && !/[\d@]/.test(tm[1]) ? tm[1] : '';
+    return 'post' + (am ? ':' + am[1] : '') + (tb ? ':' + tb : '');
+  }
+  for (var i = 0; i < TM_KEYS_.length; i++) {
+    var k = TM_KEYS_[i];
+    if (P[k] == null || P[k] === '') continue;
+    var v = String(P[k]);
+    return /^[a-z]{1,12}$/i.test(v) ? k + ':' + v : k;
+  }
+  return 'other';
+}
+function tmNote_(name, ms, lk) {
+  try {
+    var rc = CacheService.getScriptCache(), w = Math.floor(Date.now() / TM_WIN_) * TM_WIN_;
+    var key = 'tm:' + w, o = {};
+    try { o = JSON.parse(rc.get(key) || '{}') || {}; } catch (x) { o = {}; }
+    /* [בקשות, סכום ms, מקסימום ms, מעל 10 שנ', מעל 20 שנ', סכום המתנה לנעילה ms] */
+    var a = o[name] || (o[name] = [0, 0, 0, 0, 0, 0]);
+    a[0]++; a[1] += ms; if (ms > a[2]) a[2] = ms;
+    if (ms > 10000) a[3]++;
+    if (ms > 20000) a[4]++;
+    a[5] += lk || 0;
+    rc.put(key, JSON.stringify(o), 21600);
+  } catch (e) {}
+}
+function doGet(e) {
+  var t0 = Date.now();
+  try { return doGetMain_(e); }
+  finally { tmNote_(tmName_(e, false), Date.now() - t0, 0); }
+}
 function doPost(e) {
+  var t0 = Date.now();
+  TM_LOCK_ = 0;
+  try { return doPostMain_(e); }
+  finally { tmNote_(tmName_(e, true), Date.now() - t0, TM_LOCK_); }
+}
+/* החלונות של 6 השעות האחרונות מהמטמון. `done` — רק חלונות שנסגרו. */
+function tmWins_(done) {
+  var rc = CacheService.getScriptCache(), now = Math.floor(Date.now() / TM_WIN_) * TM_WIN_, keys = [];
+  for (var w = now - 36 * TM_WIN_; w <= now; w += TM_WIN_) if (!done || w < now) keys.push('tm:' + w);
+  var got = rc.getAll(keys), out = [];
+  keys.forEach(function (k) {
+    if (!got[k]) return;
+    try { out.push({ w: +k.slice(3), o: JSON.parse(got[k]) }); } catch (x) {}
+  });
+  return out;
+}
+function tmRows_(wins) {
+  var rows = [];
+  wins.forEach(function (x) {
+    var at = Utilities.formatDate(new Date(x.w), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm');
+    Object.keys(x.o).forEach(function (n) {
+      var a = x.o[n];
+      rows.push([at, n, a[0], Math.round(a[1] / a[0]) / 1000, a[2] / 1000, a[3], a[4],
+                 Math.round(a[5] / a[0]) / 1000]);
+    });
+  });
+  return rows;
+}
+var TM_COLS_ = ['חלון (10 דק\')', 'נתיב', 'בקשות', 'ממוצע (שנ\')', 'מקסימום (שנ\')', 'מעל 10 שנ\'',
+                'מעל 20 שנ\'', 'המתנה לנעילה (ממוצע שנ\')'];
+/* בטריגר השעתי: חלונות שנסגרו ועוד לא נכתבו — ללשונית הפרטית. */
+function tmFlush_() {
+  var P = PropertiesService.getScriptProperties(), last = +(P.getProperty('TM_LAST') || 0);
+  var wins = tmWins_(true).filter(function (x) { return x.w > last; });
+  if (!wins.length) return;
+  var rows = tmRows_(wins);
+  var sh = sheet_(TM_TAB_);
+  if (sh.getLastRow() < 1) sh.getRange(1, 1, 1, TM_COLS_.length).setValues([TM_COLS_]);
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, TM_COLS_.length).setValues(rows);
+  P.setProperty('TM_LAST', String(wins[wins.length - 1].w));
+}
+function doPostMain_(e) {
   /* **כניסה לדף ההרשמה — לפני הנעילה, ולא אחריה.** כל שאר
      הכתיבות עומדות בתור אחת אחרי השנייה; אלפי כניסות שהיו נכנסות
      לאותו תור היו דוחקות החוצה את ההרשמות עצמן. ראו `hit_`. */
@@ -346,8 +447,9 @@ function doPost(e) {
      שורות הלימוד של התלמידים, ובעומס (30.10.2026) waitLock פקע בשקט —
      והשקפים האחרונים בסדרה פשוט לא הגיעו. ראו ghRoute_. */
   if (hd && (hd.action === 'ghput' || hd.action === 'ghdel')) return json_(ghRoute_(hd));
-  var lock = LockService.getScriptLock();
+  var lock = LockService.getScriptLock(), tmL0 = Date.now();
   lock.waitLock(20000);
+  TM_LOCK_ = Date.now() - tmL0;
   try {
     /* פעם אחת, לפני כל כתיבה — ראו taanitShift_. */
     try {
@@ -826,7 +928,7 @@ function pubFetch_(fid) {
   }
 }
 
-function doGet(e) {
+function doGetMain_(e) {
   /* פעם אחת — ראו moveOutOfPublic_. כאן ולא רק ב-doPost, כי
      המוקד קורא ב-GET, ואחרי הפריסה הקריאה הראשונה שלו כבר
      הולכת לגיליון הפרטי. */
@@ -1294,6 +1396,11 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.twin) return twinRoute_(e);
   /* אתגר "חבר מביא חבר" — ראו challengeRoute_. */
   if (e && e.parameter && e.parameter.challenge) return challengeRoute_(e);
+  /* מדידת הזמנים — ניהול בלבד (tmNote_). */
+  if (e && e.parameter && e.parameter.tm) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    return reply_(e, { status: 'ok', cols: TM_COLS_, rows: tmRows_(tmWins_(false)) });
+  }
   /* הורים — כמה רשומים, למדו ונתנו כרטיס (8.99.412). ניהול בלבד. */
   if (e && e.parameter && e.parameter.parstat) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
@@ -6340,6 +6447,7 @@ function autoRecount() {
   try { amdaSyncLocked_(); } catch (ae) {}
   recount_(); recountLearn_(true); backupDaily_();
   try { ovSync_(true); } catch (oe) {}
+  try { tmFlush_(); } catch (te) {}
 }
 
 /* ============================================================

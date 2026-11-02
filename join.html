@@ -3577,6 +3577,11 @@ function drawWeek() {
    מוצג כאילו הוא החדש. */
 var PTS_OE = 'oretzion';
 var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false, PTS_ERR = false;
+/* ניסיון חוזר (8.99.420): עד עכשיו כישלון קרא ל-drawPts מיד, וזה שלח בקשה
+   חדשה בלי הפסקה — כל 20 שניות, לנצח, ובעומס הוסיף עוד עומס. עכשיו 40 שניות
+   המתנה (החישוב בשרת לוקח לפעמים יותר מ-20), ואחרי כישלון עוד שלושה ניסיונות
+   (5/15/45 שניות), ואז רק בריענון הרגיל של שתי דקות. ההודעה — כמו קודם. */
+var PTS_TRY = 0, PTS_NEXT = 0, PTS_GAP = [5000, 15000, 45000];
 function drawPts() {
   var el = $('mypts'), tb = $('mytk');
   if (!el || !tb) return;
@@ -3585,7 +3590,8 @@ function drawPts() {
   if ($('partk')) $('partk').hidden = true;
   var c = get('ptsMe', null);
   if (c && c.id !== me.id) c = null;
-  if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API) {
+  if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API &&
+      Date.now() >= PTS_NEXT) {
     PTS_BUSY = true;
     var cb = 'pm' + Date.now(), sc = document.createElement('script');
     var clean = function () {
@@ -3593,12 +3599,20 @@ function drawPts() {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
-    var fail = function () { clean(); PTS_ERR = true; drawPts(); };
-    var t0 = setTimeout(fail, 20000);
+    var fail = function () {
+      clean(); PTS_ERR = true;
+      var gap = PTS_GAP[PTS_TRY] || 120000;
+      PTS_TRY++;
+      PTS_NEXT = Date.now() + gap;
+      setTimeout(drawPts, gap + 50);
+      drawPts();
+    };
+    var t0 = setTimeout(fail, 40000);
     window[cb] = function (r) {
-      clearTimeout(t0); clean();
-      if (!r || r.status !== 'ok') { PTS_ERR = true; drawPts(); return; }
-      PTS_GOT = true; PTS_ERR = false;
+      clearTimeout(t0);
+      if (!r || r.status !== 'ok') { fail(); return; }
+      clean();
+      PTS_GOT = true; PTS_ERR = false; PTS_TRY = 0; PTS_NEXT = 0;
       /* מסלול השלמה לפי השרת ("מסלול השלמה" ב"לומדים"): 1 — משויך,
          0 — הוחזר למסלול הרגיל בניהול. בלי `hs` — לא נוגעים. */
       /* 2 — מסלול נר תמיד (8.99.408; הורה — לפי הבן). */
