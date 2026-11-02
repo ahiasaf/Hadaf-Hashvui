@@ -28,3 +28,16 @@ jobs:
             t "challenge=my&id=ZZPROBE$i"
             sleep 5
           done
+      # מה השרת עצמו מדד (tmNote_) — 6 השעות האחרונות, לפי חלון ונתיב.
+      - name: זמני השרת
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+        run: |
+          API=$(grep -oE "https://script.google.com/macros/s/[A-Za-z0-9_-]+/exec" data.js | head -1)
+          [ -z "${READ_KEY:-}" ] && { echo "אין READ_KEY"; exit 0; }
+          curl -sS -L --max-time 60 "$API?tm=1&key=$READ_KEY" | python3 -c '
+          import sys, json
+          d = json.load(sys.stdin)
+          if d.get("status") != "ok": print(d); sys.exit(0)
+          print(" | ".join(d["cols"]))
+          for r in d["rows"]: print(" | ".join(str(x) for x in r))'
