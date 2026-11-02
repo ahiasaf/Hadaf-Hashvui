@@ -1231,6 +1231,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 /* שורת הודעה: שם · "עריכה" קטן · כפתור ירוק. */
 .wa-row{display:flex;align-items:center;gap:10px}
 .wa-row b{flex:1;min-width:0}
+.wa-lb{flex:1;min-width:0}
+.wa-lb b{display:block}
+.wa-lb .wa-ed{margin-top:2px}
 .wamsg .wa-row .btn{width:auto;flex:0 0 auto;padding:10px 22px}
 .wa-ed{background:none;border:none;padding:4px 2px;font:inherit;font-size:.84rem;
   font-weight:700;color:var(--blue);text-decoration:underline;cursor:pointer;
@@ -3052,7 +3055,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.410';
+var APP_VERSION = '8.99.411';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14373,6 +14376,11 @@ function waOut(m, raw) {
   return row ? fill(raw, { inst:row.name, url:url })
              : fill(noInst(raw), { url:url });
 }
+/* העתקת הקישור לבד — בלי ההודעה — לפי הישיבה שבבורר. */
+function waCopy(btn, k) {
+  var m = waMsg(k), row = waInst();
+  if (m) copyAny(btn, m.url(row ? row.code : '', waPick === '~out'));
+}
 function waMsg(k) { return waMsgs().filter(function (m) { return m.k === k; })[0]; }
 
 function admWaCard() {
@@ -14394,7 +14402,9 @@ function admWaCard() {
       var say = waSay[m.k];
       var txt = open && waTxt != null ? waTxt : raw;
       return '<div class="wamsg">' +
-        '<div class="wa-row"><b>' + esc(m.lbl) + '</b>' +
+        '<div class="wa-row"><div class="wa-lb"><b>' + esc(m.lbl) + '</b>' +
+        '<button class="wa-ed" onclick="waCopy(this,\'' + m.k + '\')">' +
+        esc(UI.linkCopy) + '</button></div>' +
         '<button class="wa-ed" onclick="waEditSet(\'' + m.k + '\')">' +
         (open ? 'סגירה' : 'עריכה') + '</button>' +
         '<a class="btn gr" target="_blank" rel="noopener" ' +
