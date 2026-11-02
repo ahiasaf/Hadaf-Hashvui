@@ -2181,14 +2181,27 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-tabs button{font:inherit;font-size:.95rem;font-weight:800;min-height:44px;border:0;border-radius:9px;
                 background:none;color:var(--ink-3)}
 .am-tabs button.on{background:var(--surface);color:var(--blue-d);box-shadow:var(--sh-1)}
+/* הראש הכחול של העמדה — בלי לוגו (8.99.430). */
+.am-hd{background:var(--blue-d);color:#fff;margin:-14px -16px 0;padding:16px 16px 14px}
+.am-hr{display:flex;align-items:flex-start;gap:10px}
+.am-ht{flex:1;min-width:0}
+.am-hd .am-h{color:#fff;margin:0;font-size:1.4rem;line-height:1.2}
+.am-hd .am-sub{color:#E9D9B4;margin:5px 0 0;line-height:1.7}
+.am-hd .am-x{color:#fff;border-color:rgba(255,255,255,.35)}
+.am-hd .am-wd{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+.am-hd .am-wd.off{color:rgba(255,255,255,.7)}
+.am-hd .am-tabs{background:rgba(255,255,255,.12);margin:12px 0 0}
+.am-hd .am-tabs button{color:#fff}
+.am-hd .am-tabs button.on{background:#fff;color:var(--blue-d)}
 /* "אני מסמן": הפס הקבוע — המתג, הכיתות והספירה נשארים למעלה בגלילה. */
-.am-stk{position:sticky;top:0;z-index:2;background:var(--paper);margin:0 -16px;padding:2px 16px 0;
+.am-stk{position:sticky;top:0;z-index:2;background:var(--paper);margin:0 -16px;padding:4px 16px 0;
         box-shadow:0 6px 10px -8px rgba(11,37,80,.25)}
-.am-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.am-chips::-webkit-scrollbar{display:none}
-.am-chip{flex:none;font:inherit;font-size:1rem;font-weight:800;min-height:44px;padding:0 18px;border-radius:999px;
+.am-pks{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.am-pks::-webkit-scrollbar{display:none}
+.am-pks+.am-pks{padding-top:6px}
+.am-pk{flex:none;font:inherit;font-size:1rem;font-weight:800;min-height:44px;min-width:52px;padding:0 16px;border-radius:999px;
          border:1.5px solid var(--rule);background:var(--surface);color:var(--ink)}
-.am-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-pk.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .am-stk .am-cnt{margin:6px 2px 4px}
 /* "מניחים את הטלפון בכניסה" — בסימון של התלמידים, עד הרישום הראשון. */
 .am-tip{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:12px 14px;border-radius:var(--r);
@@ -3101,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.429';
+var APP_VERSION = '8.99.430';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -21270,32 +21283,32 @@ function amdaPaint() {
   var s = amdaSess(), daf = s.kind !== 'o', les = amdaLesson(s.slot);
   /* שיעור כיתה: רק הכיתה הזו, בלי לבחור שכבה וכיתה. */
   if (les) { amdaSt.g = les.g; amdaSt.c = les.c; }
-  var h = '<div class="am-top"><span class="am-logo"><img alt="" src="' + LOGO_MARK + '"></span>' +
-          '<div class="am-brand"><b>' + esc(amdaT('brand1')) + '</b><span>' +
-          esc(amdaT('brand2')) + ' · ' + esc(PROGRAM.year) + '</span></div>' +
-          /* איש צוות — תמיד הדף השבועי; המתג ללימוד אחר רק אצל הרכז. */
-          (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
-            esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
-          '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
-          '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
-          /* מה לומדים עכשיו — גלוי למעלה: הדף (ואיזה) או נושא אחר, ובאיזה מועד. */
-          '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
-          (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
-            { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
-          ' · ' + esc(amdaSlotName(s.slot)) +
-          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
-          '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>' +
-          /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
-             ומתג בחירת המקום — גם מתוך העמדה, לא רק מהניהול. */
-          (les ? '<div class="am-tools"><button class="am-wd" data-lb="1">' + esc(amdaT('kBoard')) + '</button>' +
-            '<button class="am-wd' + (amdaSeatAsk(les.id) ? '' : ' off') + '" data-la="1">' +
-            esc(amdaT(amdaSeatAsk(les.id) ? 'kSeatOn' : 'kSeatOff')) + '</button></div>' : '');
   /* מי מסמן — המורה או התלמידים; מעבר בכל רגע, הסימונים נשארים. */
   var tabs = amdaSt.pick ? '' : '<div class="am-tabs" role="tablist">' +
     '<button type="button" role="tab" data-tb="1" aria-selected="' + !!amdaSt.all + '"' +
     (amdaSt.all ? ' class="on"' : '') + '>' + esc(amdaT('tabSelf')) + '</button>' +
     '<button type="button" role="tab" data-tb="0" aria-selected="' + !amdaSt.all + '"' +
     (amdaSt.all ? '' : ' class="on"') + '>' + esc(amdaT('tabKiosk')) + '</button></div>';
+  /* הראש — כחול ונקי, בלי לוגו (החלטת אחיאסף, 8.99.430): הכותרת, מה לומדים
+     ובאיזה מועד, המתגים ו"יציאה", ומתחתם "אני מסמן" / "התלמידים מסמנים". */
+  var h = '<div class="am-hd"><div class="am-hr"><div class="am-ht">' +
+          '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
+          '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
+          (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
+            { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
+          ' · ' + esc(amdaSlotName(s.slot)) +
+          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
+          '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div></div>' +
+          /* איש צוות — תמיד הדף השבועי; המתג ללימוד אחר רק אצל הרכז. */
+          (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
+            esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
+          '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
+          /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
+             ומתג בחירת המקום — גם מתוך העמדה, לא רק מהניהול. */
+          (les ? '<div class="am-tools"><button class="am-wd" data-lb="1">' + esc(amdaT('kBoard')) + '</button>' +
+            '<button class="am-wd' + (amdaSeatAsk(les.id) ? '' : ' off') + '" data-la="1">' +
+            esc(amdaT(amdaSeatAsk(les.id) ? 'kSeatOn' : 'kSeatOff')) + '</button></div>' : '') +
+          tabs + '</div>';
   /* "אני מסמן": פס קבוע בראש המסך — המתג, הכיתות בשורה אחת והספירה.
      גוללים את השמות, והמעבר לכיתה אחרת נשאר במרחק לחיצה. */
   if (amdaSt.all && !amdaSt.pick) {
@@ -21304,17 +21317,25 @@ function amdaPaint() {
       return hd[amdaKey(amdaSt.g, amdaSt.c, n)];
     }).length;
     /* הסמן — מקומו של הפס כשאינו נצמד (offsetTop של פס נצמד זז איתו). */
-    h += '<div id="am-stk0"></div><div class="am-stk" id="am-stk">' + tabs;
+    h += '<div id="am-stk0"></div><div class="am-stk" id="am-stk">';
+    /* שתי שורות קצרות: השכבות, ומתחתן הכיתות של השכבה שנבחרה. */
     if (!les) {
-      h += '<div class="am-chips">';
-      AMDA_GRADES.forEach(function (g) {
-        amdaClasses(g).forEach(function (c) {
-          var on = amdaSt.g === g && amdaSt.c === c;
-          h += '<button type="button" class="am-chip' + (on ? ' on' : '') + '" aria-pressed="' + on +
-               '" data-gc="' + esc(g + '|' + c) + '">' + esc(amdaGC(g, c)) + '</button>';
-        });
+      var pk = function (on, attr, v, t) {
+        return '<button type="button" class="am-pk' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' +
+               attr + '="' + esc(v) + '">' + esc(t) + '</button>';
+      };
+      h += '<div class="am-pks" id="am-pg">';
+      AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
+        h += pk(amdaSt.g === g, 'data-pg', g, amdaG(g));
       });
       h += '</div>';
+      if (amdaSt.g) {
+        h += '<div class="am-pks" id="am-pc">';
+        amdaClasses(amdaSt.g).forEach(function (c) {
+          h += pk(amdaSt.c === c, 'data-gc', amdaSt.g + '|' + c, c);
+        });
+        h += '</div>';
+      }
     }
     if (amdaSt.g && amdaSt.c) {
       h += '<div class="am-cnt" id="am-nq"><span>' + esc(amdaT('selfCnt')).replace('{n}', '<b>' + nOn + '</b>').replace('{m}', lst.length) +
@@ -21322,7 +21343,7 @@ function amdaPaint() {
            esc(amdaT(nOn === lst.length ? 'selfNone' : 'selfAll')) + '</button>' : '') + '</div>';
     }
     h += '</div>';
-  } else h += tabs + (!amdaSt.pick && !amdaSt.kn && amdaT('tipB') ?
+  } else h += (!amdaSt.pick && !amdaSt.kn && amdaT('tipB') ?
     '<div class="am-tip" role="note"><i aria-hidden="true">📱</i><p><b>' + esc(amdaT('tipB')) + '</b> ' +
     esc(amdaT('tip')) + '</p></div>' : '');
   /* שלב המקום: אחרי השם, במפת הכיתה. */
@@ -21379,6 +21400,12 @@ function amdaPaint() {
   h += '<button class="am-fin" data-fin="1">' + esc(amdaT('save')) +
        (pend ? '<span>' + esc(fill(amdaT('savePend'), { n: pend })) + '</span>' : '') + '</button>';
   box.innerHTML = h;
+  /* השכבה והכיתה שנבחרו — תמיד גלויות בשורה שלהן. */
+  [].forEach.call(box.querySelectorAll('.am-pk.on'), function (b) {
+    var r = b.parentNode, br = b.getBoundingClientRect(), rr = r.getBoundingClientRect();
+    if (br.left < rr.left) r.scrollLeft -= rr.left - br.left + 16;
+    else if (br.right > rr.right) r.scrollLeft += br.right - rr.right + 16;
+  });
 }
 function amdaList(g, c) { return ((amdaRoster() || {}).g || {})[g] ? (amdaRoster().g[g][c] || []) : []; }
 /* מי שבחר שכבה והלך — המסך חוזר להתחלה לבד. */
@@ -21397,7 +21424,7 @@ function amdaTap(e) {
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
           el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
-          el.getAttribute('data-gc') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
+          el.getAttribute('data-gc') || el.getAttribute('data-pg') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
           el.getAttribute('data-fin')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
@@ -21448,15 +21475,19 @@ function amdaTap(e) {
     return;
   }
   /* "אני מסמן": בחירת כיתה מהפס הקבוע — הרשימה מתחילה מתחת לפס. */
-  if (el.getAttribute('data-gc')) {
-    var gc = el.getAttribute('data-gc').split('|');
-    amdaSt.g = gc[0]; amdaSt.c = gc.slice(1).join('|');
+  if (el.getAttribute('data-gc') || el.getAttribute('data-pg')) {
+    if (el.getAttribute('data-pg')) {
+      var pg = el.getAttribute('data-pg');
+      if (pg === amdaSt.g) return;
+      amdaSt.g = pg; amdaSt.c = '';
+    } else {
+      var gc = el.getAttribute('data-gc').split('|');
+      amdaSt.g = gc[0]; amdaSt.c = gc.slice(1).join('|');
+    }
     var bx = document.getElementById('amda'), stk0 = document.getElementById('am-stk0');
-    var y = stk0 ? stk0.offsetTop : 0, sx = el.parentNode ? el.parentNode.scrollLeft : 0;
+    var y = stk0 ? stk0.offsetTop : 0;
     amdaPaint();
     if (bx.scrollTop > y) bx.scrollTop = y;
-    var ch = document.querySelector('.am-chips');
-    if (ch) ch.scrollLeft = sx;
     return;
   }
   var all = amdaList(amdaSt.g, amdaSt.c), had0 = amdaHadNow(amdaDay() + '|' + amdaSess().slot);
