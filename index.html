@@ -2766,6 +2766,7 @@ button.yr-c.auto{cursor:pointer}
 .cha-se span{display:block;font-size:.7rem;font-weight:700;color:var(--ink-2)}
 .cha-se.low span{color:var(--stop)}
 .cha-more > summary{font-weight:800;color:var(--blue-d);cursor:pointer}
+.cha-mn{display:flex;flex-direction:column;gap:8px;margin-top:10px}.cha-mn button{display:flex;align-items:center;gap:12px;width:100%;text-align:start;padding:12px;border:1px solid var(--line,#e2e2e2);border-radius:12px;background:var(--card,#fff);font:inherit;color:inherit;cursor:pointer}.cha-mn button i{font-style:normal;font-size:1.5rem}.cha-mn button span{display:flex;flex-direction:column}.cha-mn button small{color:var(--ink2,#777);font-size:.85rem;margin-top:2px}.cha-back{margin:10px 0 4px}
 .cha-win{margin:10px 0 6px;padding:12px;border-radius:14px;background:linear-gradient(160deg,#FFE9A8,#FFF8E6);border:2px solid var(--gold)}
 .cha-win > b{display:block;font-size:1.15rem;font-weight:900;color:var(--blue-d)}
 .cha-ta{width:100%;box-sizing:border-box;min-height:84px;font:inherit;font-size:.9rem;border:1.5px solid var(--rule);
@@ -3051,7 +3052,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.406';
+var APP_VERSION = '8.99.407';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16590,6 +16591,7 @@ function hsaPaint() {
 }
 function admChal(body) {
   body.innerHTML = '<div id="cha"></div>';
+  if (CHA.more && !(history.state && history.state.chaMore)) CHA.more = '';
   if (!CHA.d || Date.now() - CHA.at > 60000) chaLoad(); else chaPaint();
 }
 function chaWorld(t) {
@@ -16692,6 +16694,41 @@ function chaMx(m) {
   });
   return h + '</table><p class="h">' + esc(UI.chaMxNote) + '</p></div>';
 }
+/* "עוד כלים" — תפריט, או כלי אחד פתוח (CHA.more). שורה בלי תוכן — לא מוצגת. */
+var CHA_MN = [['man', '🎲'], ['msg', '📣'], ['inst', '🏫'], ['hist', '📜']];
+function chaMore(T) {
+  var k = CHA.more && T[CHA.more] ? CHA.more : '';
+  var h = '<details class="adm-card cha-more"' + (CHA.moreOpen || k ? ' open' : '') +
+    ' ontoggle="CHA.moreOpen=this.open"><summary>' + esc(UI.chaMoreH) + '</summary>';
+  if (k) {
+    return h + '<button class="btn g cha-back" type="button" onclick="chaMoreBack()">' + esc(UI.chaMnBack) + '</button>' +
+      T[k] + '</details>';
+  }
+  h += '<div class="cha-mn">';
+  CHA_MN.forEach(function (r) {
+    if (!T[r[0]]) return;
+    var nm = r[0].charAt(0).toUpperCase() + r[0].slice(1);
+    h += '<button type="button" onclick="chaMoreGo(\'' + r[0] + '\')"><i>' + r[1] + '</i><span><b>' +
+      esc(UI['chaMn' + nm]) + '</b><small>' + esc(UI['chaMn' + nm + 'P']) + '</small></span></button>';
+  });
+  return h + '</div></details>';
+}
+function chaMoreGo(k) {
+  CHA.more = k; CHA.moreOpen = true;
+  try { history.pushState({ chaMore: k }, ''); CHA.morePush = true; } catch (e) { CHA.morePush = false; }
+  chaPaint();
+  var el = document.querySelector('.cha-more');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+}
+function chaMoreBack() {
+  if (CHA.morePush && history.state && history.state.chaMore) { history.back(); return; }
+  CHA.more = ''; chaPaint();
+}
+window.addEventListener('popstate', function () {
+  if (!CHA.more) return;
+  CHA.more = ''; CHA.morePush = false;
+  chaPaint();
+});
 function chaTables(d) {
   var G = d.grp || [];
   if (!G.length) return '';
@@ -17043,38 +17080,39 @@ function chaPaint() {
     '<p class="h">' + esc(quiet ? UI.chaExpQP : UI.chaExpAllP) + '</p>' +
     '<button class="btn ' + (quiet ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaExp(\'' + (quiet ? 'כולם' : 'מוזמנים') + '\')">' +
       esc(quiet ? UI.chaExpGoAll : UI.chaExpGoQ) + '</button></div>';
-  /* כל השאר — בלחיצה: הגרלה עכשיו, הודעות, לפי ישיבה, הגרלות קודמות. */
-  h += '<details class="adm-card cha-more"><summary>' + esc(UI.chaMoreH) + '</summary>';
+  /* כל השאר — בלחיצה (8.99.404): תפריט של ארבע שורות, וכל שורה פותחת רק
+     את הכלי שלה, עם "חזרה" (וגם כפתור החזרה של הטלפון — chaMoreGo). */
+  var T = { man: '', msg: '', inst: '', hist: '' };
   var busyMs = act.some(function (m) { return m.st !== 'אושר'; });
   if (!busyMs && d.left > 0 && !d.ended) {
-    h += '<div class="pp-h">' + esc(UI.chaManH) + '</div><p class="h">' + esc(fill(UI.chaManP, { n: ready })) + '</p>' +
+    T.man = '<div class="pp-h">' + esc(UI.chaManH) + '</div><p class="h">' + esc(fill(UI.chaManP, { n: ready })) + '</p>' +
       '<button class="btn g" type="button"' + dis + ' onclick="chaOpenMan()">' + esc(UI.chaManGo) + '</button>';
   }
   var past = (d.ms || []).filter(function (m) { return act.indexOf(m) < 0; });
   if (past.length) {
-    h += '<div class="pp-h">' + esc(UI.chaHistH) + '</div>';
-    past.slice().reverse().forEach(function (m) { h += chaMs(m, d, dis); });
+    T.hist = '<div class="pp-h">' + esc(UI.chaHistH) + '</div>';
+    past.slice().reverse().forEach(function (m) { T.hist += chaMs(m, d, dis); });
   }
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
-  h += '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
+  T.msg = '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
     (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
       ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
       : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
     chaMsgBox('launch', UI.chaMsgLaunch, fill(UI.chaLaunchMsg, { url: chaStuUrl() }));
   var lastMs = (d.ms || []).filter(function (m) { return m.open; }).slice(-1)[0];
   /* "אבן דרך" — רק להגרלת סף ישנה; הגרלת יום ראשון אינה סף (8.99.394). */
-  if (lastMs && lastMs.th) h += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
-  if (d.lastAt && d.lastAt === d.F) h += chaMsgBox('last', UI.chaMsgLast, fill(UI.chaLastMsg, { url: chaStuUrl() }));
+  if (lastMs && lastMs.th) T.msg += chaMsgBox('ms', UI.chaMsgMs, fill(lastMs.k > 1 ? UI.chMsN : UI.chMs1, { n: lastMs.th }) + '\n' + chaStuUrl());
+  if (d.lastAt && d.lastAt === d.F) T.msg += chaMsgBox('last', UI.chaMsgLast, fill(UI.chaLastMsg, { url: chaStuUrl() }));
   /* לפי ישיבה — ומשם העדכון לראש החטיבה. */
   var by = d.by || {}, codes = Object.keys(by).filter(function (x) { return x && x !== '-'; });
   if (codes.length) {
-    h += '<div class="pp-h">' + esc(UI.chaByH) + '</div><div class="plist">' +
+    T.inst = '<div class="pp-h">' + esc(UI.chaByH) + '</div><div class="plist">' +
       codes.map(function (cd) {
         return '<div class="prow2"><div style="flex:1"><b>' + esc(admInstName(cd)) + '</b><span>' +
           esc(fill(UI.chaByRow, { n: by[cd].n, g: by[cd].g })) + '</span>' + wuBlock('b' + cd, cd, 'upd', UI.wuBtn) + '</div></div>';
       }).join('') + '</div>';
   }
-  h += '</details>';
+  h += chaMore(T);
   if (CHA.test) h += '<div class="adm-card"><button class="btn g" type="button"' + dis + ' onclick="chaAct(\'tclear\')">' + esc(UI.chaClear) + '</button></div>';
   el.innerHTML = h;
 }
