@@ -3731,7 +3731,7 @@ function parTkDraw() {
   });
   box.innerHTML = h;
   box.hidden = false;
-  if (W.length) parTkPop(L, W[0], tr);
+  if (W.length) parTkPop(L, W, tr);
 }
 /* ============================================================
    הודעה קופצת להורה (8.99.402) — בפתיחה, כשעוד לא נתן כרטיס.
@@ -3739,21 +3739,33 @@ function parTkDraw() {
    רק מתשובת השרת (?pairHist): בן שעל הדף של השבוע אין לו "ניתן ✓", ואין
    הענקה בשליחה. פעם אחת לכל פתיחה (sessionStorage), לא בהדגמה. "מתן כרטיס" —
    אותה הענקה כמו בכרטיס שבבית (parTkGive), לכל הבנים שחסרים; "אחר כך" — סוגר. */
-function parTkPop(L, w, tr) {
+/* **כל מה שחסר, בבת אחת** (8.99.416, אחיאסף): לא רק הדף של השבוע — כל שבוע
+   (W, מהנוכחי לישן) שאין עליו "ניתן ✓" ואינו בשליחה, לכל בן. בקשה של הבן
+   שממתינה — נכללת (המתן מאשר אותה). שבוע שההגרלה שלו נערכה נכנס להגרלה
+   הקרובה, ונספר רק אם הבן למד את הדף שלה (rafCalc_ בשרת). */
+function parTkPop(L, W, tr) {
   var P = window.PAIR || {};
   if (!P.tkParPopH || $('ptk-pop') || demoOn() || (window.TM && TM.on())) return;
   try { if (sessionStorage.getItem('df:ptkPop')) return; } catch (e) {}
-  var Q = PAIR_UI.queued(), tag = tr + '|' + (w + 1), miss = [];
+  var Q = PAIR_UI.queued(), miss = [], kidsIn = {}, w = W[0], cur = 1;
   L.forEach(function (kd, j) {
-    var K = (PTK.kids || [])[j] || { g: [] }, got = false;
-    (K.g || []).forEach(function (x) { if (x[0] === tag) got = true; });
-    var qk = tag + '|' + (kd.phone || '');
-    if (!got && !Q[qk] && !PTK_GO[qk] && !PTK_V[qk]) miss.push(j);
+    var K = (PTK.kids || [])[j] || { g: [] }, got = {};
+    (K.g || []).forEach(function (x) { got[x[0]] = 1; });
+    W.forEach(function (wk) {
+      var tag = tr + '|' + (wk + 1), qk = tag + '|' + (kd.phone || '');
+      if (got[tag] || Q[qk] || PTK_GO[qk] || PTK_V[qk]) return;
+      miss.push([j, wk]); kidsIn[j] = 1;
+      if (wk !== w) cur = 0;
+    });
   });
   if (!miss.length) return;
   try { sessionStorage.setItem('df:ptkPop', '1'); } catch (e2) {}
-  var nm = miss.map(function (j) { return L[j].first || ''; }).filter(function (x) { return x; });
+  var nm = Object.keys(kidsIn).map(function (j) { return L[j].first || ''; }).filter(function (x) { return x; });
   var who = nm.length > 1 ? nm.slice(0, -1).join(', ') + ' ו' + nm[nm.length - 1] : nm[0] || '';
+  /* רק הדף של השבוע — הנוסח הקודם; יותר — כמה כרטיסים ו"מתן כל הכרטיסים". */
+  var many = !cur && P.tkParPopN;
+  var hd = many ? parTkFill(who ? P.tkParPopN : (P.tkParPopNKid || P.tkParPopN), { 'בן': who, n: miss.length })
+                : parTkFill(who ? P.tkParPopH : (P.tkParPopHKid || P.tkParPopH), { 'בן': who, daf: LDafName(tr, w) || LDaf(tr, w) });
   var el = document.createElement('div');
   el.className = 'ch-promo';
   el.id = 'ptk-pop';
@@ -3761,14 +3773,14 @@ function parTkPop(L, w, tr) {
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-labelledby', 'ptk-pop-h');
   el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="ptk-pop-h">' +
-    esc(parTkFill(who ? P.tkParPopH : (P.tkParPopHKid || P.tkParPopH), { 'בן': who, daf: LDafName(tr, w) || LDaf(tr, w) })) + '</h2>' +
-    '<button class="ch-btn" id="ptk-pop-y" type="button">' + esc(P.tkParGive) + '</button>' +
+    esc(hd) + '</h2>' +
+    '<button class="ch-btn" id="ptk-pop-y" type="button">' + esc(many ? P.tkParGiveAll || P.tkParGive : P.tkParGive) + '</button>' +
     '<button class="ch-btn ghost" id="ptk-pop-n" type="button">' + esc(P.tkParPopNo) + '</button></div>';
   document.body.appendChild(el);
   var close = function () { if (el.parentNode) el.parentNode.removeChild(el); };
   $('ptk-pop-y').onclick = function () {
     close();
-    miss.forEach(function (j) { parTkGive(j, w); });
+    miss.forEach(function (x) { parTkGive(x[0], x[1]); });
     var b = $('partk');
     if (b && b.scrollIntoView) b.scrollIntoView({ block: 'center' });
   };

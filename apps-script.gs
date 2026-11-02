@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 159;
+var SCRIPT_VERSION = 160;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8564,12 +8564,14 @@ function rafCalc_(hsAdd) {
      האישור של אבא הוא העדות ללימוד: לימוד, חידון ואבא — גם בלי עשר דקות
      וגם כשהחידון לא עבר. בקשה של הבן שעוד לא אושרה אינה כאן (rafGrants_).
      כרטיס אבא אחד למסלול גם כשיש כמה הענקות — התקרה שלושה למסלול. */
+  var lateF = [];
   Object.keys(G).forEach(function (id) {
     if (!ppl[id]) return;
     Object.keys(G[id]).forEach(function (g) {
-      var o = tk(id, g.split('|')[1]);
-      /* השלמה על שבוע ישן — כרטיס אבא בלבד (rafLateCtx_). */
-      if (G[id][g] === 'f') { o.f = 1; return; }
+      var t0 = g.split('|')[1];
+      /* השלמה על שבוע ישן — כרטיס אבא בלבד (rafLateCtx_), ונבדק למטה. */
+      if (G[id][g] === 'f') { lateF.push([id, t0]); return; }
+      var o = tk(id, t0);
       o.l = 1; o.q = 1; o.f = 1;
     });
   });
@@ -8585,6 +8587,16 @@ function rafCalc_(hsAdd) {
     var satOk = !!(sat[k] && sat[k].a && sat[k].b && qp[k]);
     if (rafTmOk_(tm[k]) || satOk) { tk(pr[0], pr[1]).l = 1; return; }
     lack[k] = Math.max(1, Math.ceil(RAF_MIN - rafTmSum_(tm[k])));
+  });
+  /* **כרטיס אבא על שבוע ישן — רק כשהבן למד את הדף של ההגרלה הקרובה**
+     (8.99.416, החלטת אחיאסף): "יינתן בשבוע הנוכחי, אבל יהיה אפשרי למימוש
+     רק אם הייתה למידה בשבוע הנוכחי". למידה = מה שהבן רואה כ-✓ לימוד:
+     כרטיס לימוד (כולל נוכחות והענקה רגילה), או שני העמודים הושלמו וחסר רק
+     זמן (`lack`). בלי למידה עד ההגרלה — לא נספר, וההגרלה ההיא מממשת
+     את השורה (מועד החיתוך) גם כך: היא לא עוברת לשבוע שאחריה. */
+  lateF.forEach(function (x) {
+    var cur = done[x[0]] && done[x[0]].tr[x[1]];
+    if ((cur && cur.l) || lack[x[0] + '|' + x[1]]) tk(x[0], x[1]).f = 1;
   });
   Object.keys(done).forEach(function (id) {
     var o = done[id];
