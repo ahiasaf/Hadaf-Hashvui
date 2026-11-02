@@ -5323,8 +5323,9 @@ function wzNote() {
   if (!canNote()) {
     return '<div class="wzkick">שלב 4 מתוך 4</div>' +
       '<h2>' + esc(jt('wzNoteT')) + '</h2>' +
-      /* בדפדפן בלי אייקון אין "לפתוח מהאייקון". */
-      '<p>' + esc(brwOn() ? jt('wzNoNoteBrw') : jt('wzNoNote')) + '</p>' +
+      /* בדפדפן בלי אייקון אין "לפתוח מהאייקון". וכשכבר נפתח מהאייקון (8.99.427) —
+         גם כן לא: אין לאן לשלוח אותו. רק שאין תמיכה כאן, ו"לא עכשיו" ממשיך. */
+      '<p>' + esc(standalone() ? jt('wzNoNoteApp') : brwOn() ? jt('wzNoNoteBrw') : jt('wzNoNote')) + '</p>' +
       '<button class="thin" id="wz-nonote">' + esc(jt('wzNoteNo')) + '</button>';
   }
   /* בדפדפן אין "הגדרות ← אפליקציות ← הדף השבועי" — אין אפליקציה.
