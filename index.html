@@ -11917,7 +11917,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -12581,6 +12581,7 @@ function admPane() {
   if (sub === 'quad')    return admQuad(body);
   if (sub === 'hash')    return admHash(body);
   if (sub === 'ltime')   return admLtime(body);
+  if (sub === 'amdaneed') return admAmdaNeed(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
   if (sub === 'push' && (CFG.readKey || '').trim()) {
@@ -16558,6 +16559,57 @@ function ltmPaint() {
               : '<p class="h">' + esc(UI.ltNone) + '</p>') : '') +
     '<button class="btn g" type="button"' + (LTM.busy ? ' disabled' : '') + ' onclick="ltmLoad()">' +
     esc(LTM.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+}
+/* ============================================================
+   נוכחות: ימים בשבוע (8.99.415) — לכל ישיבה: כל נוכחות / 3 / 4 מתוך 5.
+   ============================================================
+   השרת (?amdaneed=list|set, amdaNeedRoute_) עונה מקריאה חוזרת של
+   הלשונית — מה שמסומן כאן הוא מה שנשמר. כישלון משאיר את מה שהיה. */
+var ANE = { m: null, busy: '', msg: '', at: 0 };
+function admAmdaNeed(body) {
+  body.innerHTML = '<div id="ane"></div>';
+  anePaint();
+  if ((CFG.readKey || '').trim() && (!ANE.m || Date.now() - ANE.at > 60000)) aneLoad();
+}
+function aneLoad() {
+  if (!(CFG.readKey || '').trim()) { ANE.msg = UI.przNoKey; anePaint(); return; }
+  scriptGet({ amdaneed: 'list', key: (CFG.readKey || '').trim() }).then(function (d) {
+    if (d && d.status === 'ok' && d.m) { ANE.m = d.m; ANE.at = Date.now(); ANE.msg = ''; }
+    else ANE.msg = (d && d.message) || UI.hsaFail;
+    anePaint();
+  }, function () { ANE.msg = UI.hsaFail; anePaint(); });
+}
+function aneSet(code, n) {
+  if (ANE.busy || !ANE.m || (+ANE.m[code] || 0) === n) return;
+  ANE.busy = code; ANE.msg = ''; anePaint();
+  scriptGet({ amdaneed: 'set', code: code, n: String(n), key: (CFG.readKey || '').trim() }).then(function (d) {
+    ANE.busy = '';
+    if (d && d.status === 'ok' && d.m) {
+      ANE.m = d.m; ANE.at = Date.now();
+      if ((+d.m[code] || 0) !== n) ANE.msg = UI.amNeedNo;
+    } else ANE.msg = (d && d.message) || UI.amNeedNo;
+    anePaint();
+  }, function () { ANE.busy = ''; ANE.msg = UI.amNeedNo; anePaint(); });
+}
+function anePaint() {
+  var el = document.getElementById('ane');
+  if (!el) return;
+  var m = ANE.m;
+  var h = '<div class="adm-card"><h4>' + esc(UI.moreAmdaNeed) + '</h4><p class="h">' + esc(UI.amNeedP) + '</p>' +
+    (ANE.msg ? '<div class="cond" style="margin:10px 0">' + esc(ANE.msg) + '</div>' : '');
+  if (!m) { el.innerHTML = h + (ANE.msg ? '' : '<p class="h">' + esc(UI.chaLoading) + '</p>') + '</div>'; return; }
+  /* ישיבות עם סף — למעלה; השאר לפי הסדר הרגיל. */
+  var L = INSTITUTIONS.filter(function (i) { return m[i.code]; })
+    .concat(INSTITUTIONS.filter(function (i) { return !m[i.code]; }));
+  h += L.map(function (i) {
+    var v = +m[i.code] || 0, dis = ANE.busy ? ' disabled' : '';
+    return '<div class="am-q">' + esc(i.name) + (ANE.busy === i.code ? ' · ' + esc(UI.chaLoading) : '') + '</div>' +
+      '<div class="am-sl am-rp-c">' + [[0, UI.amNeedAll], [3, UI.amNeed3], [4, UI.amNeed4]].map(function (o) {
+        return '<button type="button" class="' + (o[0] === v ? 'on' : '') + '"' + dis +
+          ' onclick="aneSet(\'' + esc(i.code) + '\',' + o[0] + ')">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+  }).join('');
+  el.innerHTML = h + '</div>';
 }
 function admHash(body) {
   body.innerHTML = '<div id="hsa"></div>';

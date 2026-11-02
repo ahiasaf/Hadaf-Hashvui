@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 158;
+var SCRIPT_VERSION = 159;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -184,6 +184,8 @@ var PRIVATE_TABS = ['לומדים', 'לימוד', 'הרשמות', 'חידות', 
                     'איחוד תלמידים', 'איחוד תלמידים — לא אותו',
                     /* שיעורי כיתה: השתתפות, ביטול תורה ומקומות — ורשימת השיעורים. */
                     'עמדה — סימונים', 'עמדה — שיעורים',
+                    /* כמה ימים בשבוע נוכחות נדרשים לכל ישיבה. ראו amdaNeed_. */
+                    'עמדה — סף',
                     /* מי שהוסר מהרשימה — השורות שלו כפי שהיו, לשחזור.
                        ראו archivePerson_. */
                     'ארכיון',
@@ -1298,6 +1300,7 @@ function doGet(e) {
     return reply_(e, parStat_());
   }
   /* כמה זמן לוקח ללמוד דף — ניהול בלבד (8.99.365). */
+  if (e && e.parameter && e.parameter.amdaneed) return amdaNeedRoute_(e);
   if (e && e.parameter && e.parameter.ltime) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     return reply_(e, lrnTime_());
@@ -3698,6 +3701,55 @@ function amdaSyncLocked_() {
     return n;
   } finally { lock.releaseLock(); }
 }
+/* ============================================================
+   סף ימים לנוכחות, לפי ישיבה (8.99.415, החלטת אחיאסף).
+   ============================================================
+   ניהול ← כלים ← "נוכחות: ימים בשבוע". לכל ישיבה: כל נוכחות (ברירת
+   המחדל, בלי שורה), 3 או 4 ימים מתוך 5. נשמר בלשונית הפרטית
+   `עמדה — סף` (קוד ישיבה · ימים · עודכן). חל רק ב-amdaSync_ — שם
+   הנוכחות הופכת ללימוד; הלוח, ה-✓ בטלפון, הכרטיסים והאתגר נגזרים
+   מהשיוך. שבוע שכבר נספר — נשאר. ההשתתפות (משתתפים) לא תלויה בסף. */
+var AMDA_NEED_TAB_ = 'עמדה — סף';
+function amdaNeed_() {
+  var m = {};
+  try {
+    var t = amdaTable_(AMDA_NEED_TAB_);
+    for (var r = 1; r < t.rows.length; r++) {
+      var c = t.c(t.rows[r], 'קוד ישיבה'), n = +t.c(t.rows[r], 'ימים') || 0;
+      if (c && (n === 3 || n === 4)) m[c] = n;
+    }
+  } catch (e) { Logger.log('amdaNeed_: ' + e); }
+  return m;
+}
+/* ?amdaneed=list | set&code=&n=0|3|4 — עם READ_KEY. התשובה תמיד
+   מקריאה חוזרת של הלשונית, כך שהמסך מראה מה שנשמר באמת. */
+function amdaNeedRoute_(e) {
+  var p = e.parameter;
+  if (!READ_KEY || String(p.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+  if (String(p.amdaneed) === 'set') {
+    var code = String(p.code || '').trim(), n = +p.n || 0;
+    if (!/^[a-z0-9_-]{2,30}$/.test(code) || [0, 3, 4].indexOf(n) < 0) {
+      return reply_(e, { status: 'error', message: 'ערך לא תקין' });
+    }
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) return reply_(e, { status: 'busy', message: 'השרת עסוק — נסו שוב' });
+    try {
+      var sh = sheet_(AMDA_NEED_TAB_), head = headers_(sh);
+      var ic = idx_(sh, head, 'קוד ישיבה'), iv = idx_(sh, head, 'ימים'), iu = idx_(sh, head, 'עודכן');
+      var last = sh.getLastRow(), at = 0;
+      if (last > 1) {
+        var v = sh.getRange(2, ic + 1, last - 1, 1).getValues();
+        for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === code) { at = i + 2; break; }
+      }
+      if (!at) at = last + 1;
+      sh.getRange(at, ic + 1).setValue(code);
+      sh.getRange(at, iv + 1).setValue(n ? n : '');
+      sh.getRange(at, iu + 1).setValue(new Date());
+      SpreadsheetApp.flush();
+    } finally { lock.releaseLock(); }
+  }
+  return reply_(e, { status: 'ok', m: amdaNeed_() });
+}
 function amdaSync_() {
   var at = amdaTable_(AMDA_TAB_);
   if (at.rows.length < 2) return 0;
@@ -3707,15 +3759,30 @@ function amdaSync_() {
     had[lt.c(lt.rows[l], 'מזהה') + '|' + lt.c(lt.rows[l], 'מסלול') + '|' + lt.c(lt.rows[l], 'שבוע')] = 1;
     had['k:' + lt.c(lt.rows[l], 'מפתח')] = 1;
   }
+  /* ישיבה עם סף (amdaNeed_): התלמיד נחשב כמי שלמד את הדף רק מהיום
+     ה-N שבו סומן בדף השבועי באותו שבוע. ימים — לפי עמודת `יום`, כמה
+     מועדים באותו יום הם יום אחד. עד אז לא נוצר שיוך, והסבב הבא בודק שוב. */
+  var need = amdaNeed_(), days = {}, keyOf = function (cx) {
+    return [cx('קוד ישיבה'), cx('שכבה'), cx('כיתה'), amdaNorm_(cx('שם')),
+            cx('מסלול'), cx('שבוע')].join('|');
+  };
+  if (Object.keys(need).length) {
+    for (var r0 = 1; r0 < at.rows.length; r0++) {
+      var x0 = at.rows[r0], c0 = function (n) { return at.c(x0, n); };
+      if (c0('סוג') !== 'דף' || !need[c0('קוד ישיבה')] || !c0('יום')) continue;
+      var dk = days[keyOf(c0)] = days[keyOf(c0)] || {};
+      dk[c0('יום')] = 1;
+    }
+  }
   /* המועמדים: שורות של שיעור בדף, עם מוסד, מסלול ושבוע. */
   var want = [], seen = {};
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r], cx = function (n) { return at.c(x, n); };
     if (cx('סוג') !== 'דף' || !cx('קוד ישיבה') || !cx('מסלול') || !cx('שבוע')) continue;
     /* כל סימון בדף השבועי — לימוד מלא (8.99.292), גם "השתתף" ישן. */
-    var key = [cx('קוד ישיבה'), cx('שכבה'), cx('כיתה'), amdaNorm_(cx('שם')),
-               cx('מסלול'), cx('שבוע')].join('|');
+    var key = keyOf(cx);
     if (seen[key] || had['k:' + key]) continue;
+    if (need[cx('קוד ישיבה')] && Object.keys(days[key] || {}).length < need[cx('קוד ישיבה')]) continue;
     seen[key] = 1;
     want.push({ key: key, inst: cx('קוד ישיבה'), g: amdaNorm_(cx('שכבה')), c: cx('כיתה'),
                 n: amdaNorm_(cx('שם')), track: cx('מסלול'), wk: cx('שבוע'), daf: cx('דף'),
