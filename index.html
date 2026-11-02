@@ -3055,7 +3055,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.412';
+var APP_VERSION = '8.99.413';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10531,27 +10531,45 @@ function parPaint() {
   var d = PAR.d, h = '<div class="adm-card"><h4>' + esc(UI.parStH) + '</h4>';
   if (PAR.msg) h += '<div class="cond" style="margin-bottom:10px">' + esc(PAR.msg) + '</div>';
   if (d) {
-    var P = d.P.filter(function (x) { return !ADM_INST || x[0] === ADM_INST; });
-    var G = d.G.filter(function (x) { return !ADM_INST || x[3] === ADM_INST; });
-    var nP = {}, nK = {}, wk = {};
+    var inI = function (c) { return !ADM_INST || c === ADM_INST; };
+    var P = d.P.filter(function (x) { return inI(x[0]); });
+    var G = d.G.filter(function (x) { return inI(x[3]); });
+    var Q = (d.Q || []).filter(function (x) { return inI(x[2]); });
+    var n = function (o) { return Object.keys(o).length; };
+    /* לכל ישיבה ולכל שבוע: הורים שנתנו, בנים שקיבלו, בקשות ממתינות. */
+    var nP = {}, nK = {}, wk = {}, ins = {};
+    var at = function (o, k) { return o[k] = o[k] || { r:0, p:{}, k:{}, q:0 }; };
+    P.forEach(function (x) { at(ins, x[0]).r++; });
     G.forEach(function (x) {
       nP[x[1]] = 1; nK[x[2]] = 1;
-      var w = wk[x[0]] = wk[x[0]] || { p:{}, k:{} };
-      w.p[x[1]] = 1; w.k[x[2]] = 1;
+      var w = at(wk, x[0]), c = at(ins, x[3]);
+      w.p[x[1]] = 1; w.k[x[2]] = 1; c.p[x[1]] = 1; c.k[x[2]] = 1;
     });
-    var sum = function (i) { var n = 0; P.forEach(function (x) { if (x[i]) n++; }); return n; };
+    Q.forEach(function (x) { at(wk, x[0]).q++; at(ins, x[2]).q++; });
+    var sum = function (i) { var m = 0; P.forEach(function (x) { if (x[i]) m++; }); return m; };
     var li = function (b, t) { return '<div class="pp-r"><b>' + esc(String(b)) + '</b><span>' + esc(t) + '</span></div>'; };
     h += '<div class="pp">' +
       li(P.length, UI.parReg) + li(sum(1), UI.parLink) + li(sum(2), UI.parLrn) +
-      li(Object.keys(nP).length, UI.parGave) + li(Object.keys(nK).length, UI.parKids) + '</div>';
+      li(n(nP), UI.parGave) + li(n(nK), UI.parKids) + li(Q.length, UI.parWait) + '</div>';
     var W = Object.keys(wk).map(Number).sort(function (a, b) { return b - a; });
-    if (!W.length) h += '<p class="h">' + esc(UI.parNone) + '</p>';
-    else {
+    if (!G.length) h += '<p class="h">' + esc(UI.parNone) + '</p>';
+    if (W.length) {
       h += '<h4 style="margin-top:14px">' + esc(UI.parWkH) + '</h4><div class="plist">' + W.map(function (w) {
         var o = wk[w];
-        return '<div class="prow2"><div style="flex:1"><b>' + esc(fill(UI.parWk, { w:w })) + '</b><span>' +
-          esc(fill(UI.parWkRow, { p:Object.keys(o.p).length, k:Object.keys(o.k).length })) + '</span></div></div>';
+        return '<div class="prow2"><div style="flex:1"><b>' + esc(fill(UI.parWk, { w:w })) + '</b>' +
+          (n(o.p) ? '<span>' + esc(fill(UI.parWkRow, { p:n(o.p), k:n(o.k) })) + '</span>' : '') +
+          (o.q ? '<span>' + esc(fill(UI.parWkWait, { q:o.q })) + '</span>' : '') + '</div></div>';
       }).join('') + '</div>';
+    }
+    /* לפי ישיבה — בלחיצה. הורה לפי הישיבה שלו, כרטיס ובקשה לפי הבן. */
+    var C = Object.keys(ins).sort(function (a, b) { return n(ins[b].p) - n(ins[a].p) || ins[b].r - ins[a].r; });
+    if (C.length && !ADM_INST) {
+      h += '<details style="margin-top:14px"><summary>' + esc(UI.parInstH) + '</summary><div class="plist">' + C.map(function (c) {
+        var o = ins[c];
+        return '<div class="prow2"><div style="flex:1"><b>' + esc(c ? (d.nm && d.nm[c]) || pplName(c) : UI.parNoInst) + '</b><span>' +
+          esc(fill(UI.parInstRow, { r:o.r, p:n(o.p), k:n(o.k) })) + '</span>' +
+          (o.q ? '<span>' + esc(fill(UI.parWkWait, { q:o.q })) + '</span>' : '') + '</div></div>';
+      }).join('') + '</div></details>';
     }
   }
   el.innerHTML = h + '<button class="btn g" type="button" style="margin-top:12px"' + (PAR.busy ? ' disabled' : '') +

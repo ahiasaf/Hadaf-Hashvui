@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 157;
+var SCRIPT_VERSION = 158;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -8710,7 +8710,9 @@ function pairAskOk_(o, P, kids) {
    כתב, או בקשה של הבן שאושרה; הבן לפי pairWho_. כל השבועות, בלי בדיקה.
    בלי שמות, טלפונים ומזהים בתשובה — מספרים רצים בלבד.
      P: [קוד מוסד, מחובר, למד, נתן] לכל הורה (אחרי איחוד).
-     G: [שבוע, הורה, בן, קוד מוסד של הבן] — הענקה אחת לאבא·בן·מסלול·שבוע. */
+     G: [שבוע, הורה, בן, קוד מוסד של הבן] — הענקה אחת לאבא·בן·מסלול·שבוע.
+     Q: [שבוע, בן, קוד מוסד] — בקשת "למדתי עם אבא" שממתינה (8.99.413): אין
+        תשובה, ואין כרטיס מאף הורה על אותו בן·מסלול·שבוע. "לא" — אינה ממתינה. */
 function parStat_() {
   var P = rafPpl_(), ppl = P.ppl;
   var canon = function (x) { var a = P.alias[x] || x; return a ? P.target[a] || a : ''; };
@@ -8742,7 +8744,7 @@ function parStat_() {
     }
   }
   /* הענקות. */
-  var G = [], seen = {}, pn = {}, kn = {}, pi = 0, ki = 0, sh = sheet_('זוגות');
+  var G = [], Q = [], wait = [], got = {}, seen = {}, pn = {}, kn = {}, pi = 0, ki = 0, sh = sheet_('זוגות');
   if (sh && sh.getLastRow() > 1) {
     var v = sh.getDataRange().getDisplayValues(), gx = {};
     for (var h2 = 0; h2 < v[0].length; h2++) gx[String(v[0][h2]).trim()] = h2;
@@ -8751,9 +8753,14 @@ function parStat_() {
     for (var j = 1; j < v.length; j++) {
       var r = v[j], tr = rafKey_(cc(r, 'מסלול')), wk = parseInt(cc(r, 'שבוע'), 10) || 0;
       if (!tr || !wk || !cc(r, 'מזהה') || cc(r, 'בדיקה') === 'כן') continue;
-      if (cc(r, 'דיווח') !== 'ההורה' && cc(r, 'אושר') !== 'כן') continue;
       var W = pairWho_(P, kids, cc, r);
       if (!W || !ppl[W.kid] || ppl[W.kid].test) continue;
+      /* בקשה של הבן שעוד לא נענתה — נבדקת אחרי הלולאה מול ההענקות. */
+      if (cc(r, 'דיווח') !== 'ההורה' && cc(r, 'אושר') !== 'כן') {
+        if (!cc(r, 'אושר')) wait.push([W.kid, tr, wk]);
+        continue;
+      }
+      got[W.kid + '|' + tr + '|' + wk] = 1;
       var pk = W.par || byPh[W.dad] || 'ph:' + (W.dad || '?');
       var sk = pk + '|' + W.kid + '|' + tr + '|' + wk;
       if (seen[sk]) continue;
@@ -8766,7 +8773,18 @@ function parStat_() {
       G.push([wk, pn[pk], kn[W.kid], kc]);
     }
   }
-  return { status: 'ok', nm: nm, G: G,
+  /* ממתינות: בן·מסלול·שבוע שיש לו בקשה בלי תשובה, ואין עליו כרטיס מאף הורה. */
+  var qs = {};
+  wait.forEach(function (x) {
+    var k = x.join('|');
+    if (got[k] || qs[k]) return;
+    qs[k] = 1;
+    if (!(x[0] in kn)) kn[x[0]] = ki++;
+    var kc2 = ppl[x[0]].code || '';
+    if (kc2) nm[kc2] = nm[kc2] || ppl[x[0]].inst;
+    Q.push([x[2], kn[x[0]], kc2]);
+  });
+  return { status: 'ok', nm: nm, G: G, Q: Q,
     P: Object.keys(par).map(function (c) { var o = par[c]; return [o.code || '', o.l, o.r, o.g]; }) };
 }
 
