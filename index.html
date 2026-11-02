@@ -3065,7 +3065,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.423';
+var APP_VERSION = '8.99.424';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15866,9 +15866,7 @@ function adDraw(o, im) {
       var plH = 0;
       pl.forEach(function (l) { plH += l.h; });
       var prH = pih + (pl.length ? (pih ? 22 : 0) + plH : 0);
-      adFont(ctx, 30, true);
-      var al = app ? adWrap(ctx, UI.adApp, phW + 16) : [];
-      var apH = app ? phH + 16 + al.length * 38 : 0;
+      var apH = app ? phH : 0;
       var inner = Math.max(prH, apH), bh = inner + pad * 2;
       if (draw) {
         ctx.fillStyle = '#FFF6E0'; adRound(ctx, cx - CW / 2, sy, CW, bh, 30); ctx.fill();
@@ -15877,8 +15875,6 @@ function adDraw(o, im) {
           /* הרקע הלבן של התמונה נבלע ברקע המסגרת. */
           ctx.save(); ctx.globalCompositeOperation = 'multiply';
           ctx.drawImage(im.app, right - phW, ay, phW, phH); ctx.restore();
-          adFont(ctx, 30, true); ctx.fillStyle = '#1B2A45';
-          al.forEach(function (ln, i) { ctx.fillText(ln, right - phW / 2, ay + phH + 16 + 30 + i * 38); });
         }
         if (hasP) {
           var px = app ? right - phW - gap - pw / 2 : cx, py = sy + pad + (inner - prH) / 2;
