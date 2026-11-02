@@ -106,6 +106,35 @@ var TRIP_UI = (function () {
   function on() { return !!st; }
 
   /* ============================================================
+     **החזרה לעמוד הראשי — רק במכשיר צוות** (8.99.431).
+     ============================================================
+     שלבי המסע שחיים בעמוד הראשי (העדכונים, הסיום) מחזירים אליו
+     מכל עמוד אחר. אבל העמוד הראשי מעביר מכשיר של תלמיד-בלבד
+     ל-join (stuDevice בראש index.html), ו-join מריץ שוב את אותו
+     שלב — לולאה בלי סוף. במכשיר כזה עוצרים ומנקים את המצב.
+
+     אותו תנאי בדיוק כמו stuDevice: דגלי צוות (admOk / head /
+     headSeen / ram) גוברים על רישום כתלמיד — טלפון שהוא גם צוות
+     וגם "התלמיד שלי" ממשיך במסע כרגיל. */
+  function stuOnly() {
+    if (ls('df:admOk') === '1') return false;
+    if (ls('df:head') || ls('df:headSeen') === '1') return false;
+    if (ls('df:ram')) return false;
+    var me = null;
+    try { me = JSON.parse(ls('df:me') || 'null'); } catch (e) { me = null; }
+    return !!(me && me.first);
+  }
+  function goHome() {
+    if (stuOnly()) {
+      st = null; aimed = '';
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      aim(''); drop();
+      return;
+    }
+    location.href = home() + '?masa=1';
+  }
+
+  /* ============================================================
      **הישיבה כבר רשומה במכשיר הזה — בכל דרך שהיא.**
      ============================================================
      "המסע פתוח למרות שהוא כבר עבר את השלבים." הבדיקה הייתה
@@ -216,7 +245,7 @@ var TRIP_UI = (function () {
           if (myInstRow()) show('my');
           return;
         }
-        location.href = home() + '?masa=1';
+        goHome();
       },
       /* **נגמר כשהעדכונים פעילים, ולא כשהאייקון נוסף.** זה מה
          שהמדריך בא להשיג, וזה גם הערוץ שכל ההמשך יגיע דרכו. */
@@ -250,7 +279,7 @@ var TRIP_UI = (function () {
           if (myInstRow()) { show('my'); if (typeof renderMy === 'function') renderMy(); }
           return;
         }
-        location.href = home() + '?masa=1';
+        goHome();
       } }
   ];
 
@@ -531,7 +560,10 @@ var TRIP_UI = (function () {
       var first = aimed.split(':')[0] !== String(st.i);
       aimed = mode();
       if (first && s.enter && !st.hail) { try { s.enter(); } catch (e) {} }
+      /* goHome במכשיר תלמיד-בלבד עצר את המסע בתוך enter. */
+      if (!st) return;
       setTimeout(function () {
+        if (!st) return;
         aim((st.hail || busy) ? '' : sel);
         /* המזערה נקראת מהאלמנט, ולכן היא מצוירת אחרי שהוא
            הגיע למסך — ולא לפניו. */

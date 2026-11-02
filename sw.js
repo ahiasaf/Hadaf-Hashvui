@@ -25,11 +25,11 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.99.430';
+var CACHE_NAME = 'hadaf-v8.99.431';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
-var CORE = ['./', './index.html', './join.html', './data.js', './learned.js', './links.js',
+var CORE = ['./', './index.html', './join.html', './bechira.html', './data.js', './learned.js', './links.js',
             './stage.js', './logo.js', './textedit.js', './a11y.js', './deck.js', './alon.js', './qbank.js', './stepid.js', './trail.js',
             './getapp.js', './ov.js', './inbox.js', './ask.js', './guide.js', './lock.js', './qr.js', './testmode.js',
             './chal.js', './quad.js',

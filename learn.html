@@ -6758,11 +6758,13 @@ function stuDad() {
    · `dk-<מסכת>-<שבוע>` — עורך המצגות בניהול, על אותו שבוע.
    בלי `ret` — כמו קודם (stuBaseUrl). הכתובת נושאת אותו, ולכן
    זה עובד גם אחרי רענון ובלשונית חדשה. */
-var RET = /[?&]ret=(week|quiz|dk)-([a-z]+)-(\d+)(?:&|#|$)/.exec(location.search);
+/* · `pick-…` — עמוד הבחירה הנפרד (bechira.html, 8.99.431). תלמיד חוזר אליו;
+     מכשיר צוות — למסך השבוע שבעמוד הראשי, כמו `week`. */
+var RET = /[?&]ret=(week|quiz|dk|pick)-([a-z]+)-(\d+)(?:&|#|$)/.exec(location.search);
 function stuHomeUrl() {
   if (RET && RET[1] === 'dk') return '/#admin';
   if (RET && FROM !== 'qbank' && FROM !== 'tzevet') {
-    var tail = '#' + RET[1] + '=' + RET[2] + '-' + RET[3];
+    var tail = '#' + (RET[1] === 'pick' ? 'week' : RET[1]) + '=' + RET[2] + '-' + RET[3];
     if (FROM === 'home' || staffDev()) return './' + tail;
     /* תלמיד — למסך התלמיד שממנו בא (`st=1`), עם הישיבה וההורה. */
     var i0 = stuInst(), q0 = ['st=1'];
@@ -6771,7 +6773,7 @@ function stuHomeUrl() {
       q0.push('for=dad');
       if (/[?&]show=1\b/.test(location.search)) q0.push('show=1');
     }
-    return 'index.html?' + q0.join('&') + tail;
+    return (RET[1] === 'pick' ? 'bechira.html?' : 'index.html?') + q0.join('&') + tail;
   }
   return stuBaseUrl();
 }

@@ -4086,7 +4086,10 @@ function stWeek() {
   /* הרכז החזיר את עמוד הביניים (ניהול ← מה מוצג · `rows.mid`) —
      אותו כלל כמו openWeekNow במסך הראשי. */
   if (!d || (pub.rows || {}).mid) {
-    location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1));
+    var wk = '#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1);
+    /* עמוד הבחירה — עמוד נפרד וקל (bechira.html, 8.99.431), אותו מסך
+       בדיוק, בלי לטעון את העמוד הראשי. בלי דף (לפני תחילת השנה) — כמו קודם. */
+    location.href = d ? appUrl(wk).replace(/^index\.html/, 'bechira.html') : appUrl(wk);
     return;
   }
   location.href = 'learn.html?' + LLearnQ(tr) +

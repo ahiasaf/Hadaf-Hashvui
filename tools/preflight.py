@@ -120,6 +120,8 @@ KNOWN_CLASSLESS = {
                    'tg-row', 'tg-t', 'tg-team-c'},
     'join.html': {'dad', 'kid', 'cls'},
     'studio.html': {'mh', 'ml'},
+    # עמוד הבחירה — העתק של מסך השבוע; `inter` מסמן את הכרטיס בלבד (כמו ב-index.html).
+    'bechira.html': {'inter', 'logo', 'sug'},
 }
 
 
@@ -140,7 +142,7 @@ def check_orphan_classes():
     ident = re.compile(r'^[a-z][a-z0-9-]*$')
     for f in ('index.html', 'join.html', 'board.html', 'learn.html',
               'studio.html', 'rights.html', 'masa.html', 'tiul.html', 'tzevet.html',
-              'shlach.html', 'team.html', 'kishurim.html', 'skira.html', 'chaver.html'):
+              'shlach.html', 'team.html', 'kishurim.html', 'skira.html', 'chaver.html', 'bechira.html'):
         if not os.path.exists(os.path.join(ROOT, f)):
             continue
         t = read(f)
