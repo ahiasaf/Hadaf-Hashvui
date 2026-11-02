@@ -249,6 +249,10 @@ body{background:var(--paper);
 #splash small{opacity:0;font-size:.79rem;font-weight:700;margin-top:4px;
   transition:opacity .5s}
 #splash.slow small{opacity:.72}
+/* מגיעים מ"פתיחת הדף" במסך התלמיד ישר לעמוד הבחירה (`?st=1#week=`) — המסך מכסה
+   את הטעינה בצבע העמוד, בלי הלוגו והכחול. זה המשך של אותה פעולה, לא כניסה לאפליקציה. */
+#splash.quiet{background:var(--paper);transition:none}
+#splash.quiet>*{visibility:hidden}
 
 /* ---------- גיבור ---------- */
 .hero{position:relative;overflow:hidden;border-radius:var(--r);padding:26px 22px 24px;
@@ -2847,6 +2851,11 @@ button.yr-c.auto{cursor:pointer}
   <span style="opacity:.62;font-size:.82rem;font-weight:700">שנת תשפ"ז</span>
   <small id="splash-slow">החיבור איטי — טוען מהמכשיר…</small>
 </div>
+<script>
+  if (/[?&]st=1(&|$)/.test(location.search) && /^#week=/.test(location.hash)) {
+    document.getElementById('splash').className = 'quiet';
+  }
+</script>
 
 <div id="inst">
   <div class="hd"><img id="inst-icon" src="icon-192.png" alt=""><b>להוסיף את הדף השבועי למסך הבית?</b></div>
@@ -2862,7 +2871,7 @@ button.yr-c.auto{cursor:pointer}
      מסך הכניסה, והשעון הזה לעולם לא נראה. */
   setTimeout(function () {
     var s = document.getElementById('splash');
-    if (s && s.className !== 'off') s.className = 'slow';
+    if (s && !/\b(off|quiet)\b/.test(s.className)) s.className = 'slow';
   }, 4000);
 </script>
 
@@ -3092,7 +3101,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.428';
+var APP_VERSION = '8.99.429';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -25676,7 +25685,8 @@ function registerSW() {
     try { sessionStorage.setItem('df:admLaunch', '1'); } catch (e) {}
     adminEntry();
   } else show('home');
-  setTimeout(function () { document.getElementById('splash').className = 'off'; }, 340);
+  /* `quiet` נשאר — הדעיכה בצבע העמוד, לא בכחול. */
+  setTimeout(function () { var sp = document.getElementById('splash'); sp.className = /quiet/.test(sp.className) ? 'quiet off' : 'off'; }, 340);
 
   /* המדריך, בכניסה הראשונה בלבד.
 
