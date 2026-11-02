@@ -1758,8 +1758,13 @@ function peekBadge(st) {
   el.className = st && st.peek ? 'on' : '';
 }
 /* שבוע שאינו בדיוק הדף — תווית לתלמיד, כדי שלא יחשוב שהוא במקום
-   הלא נכון: בקטע הראשון, כשהשבוע מתחיל בזנב של הדף הקודם — "מתחיל
-   כאן"; ובקטעים שגולשים לדף הבא — "מסתיים בדף ד". */
+   הלא נכון:
+   · בקטע הראשון, כשהשבוע מתחיל בזנב של הדף הקודם — "מתחיל בדף ד:".
+   · כשהשבוע גולש לדף הבא — בקטע האחרון של הדף ובראשון של הבא:
+     "ממשיך לדף ו". הקטעים שבאמצע — בלי תווית.
+   · בקטע האחרון של השבוע, כשאינו סוף הדף (גלישה, או סוף מוקדם בדף
+     שלם) — "מסתיים כאן". גובר על "ממשיך" כשהגלישה היא קטע אחד.
+   קטעים מחוץ לשבוע (`peek`, מצב עריכה) — בלי תווית ולא נספרים. */
 function wkBadge(st) {
   var el = $('wkbadge');
   if (!el) {
@@ -1767,10 +1772,17 @@ function wkBadge(st) {
     el.id = 'wkbadge';
     document.body.appendChild(el);
   }
-  var pp = st && !st.peek ? PAGES[st.p] : null, t = '';
-  if (pp && pp.head && IDX === 0) t = UI.wkStart || '';
-  else if (pp && !pp.head && dafKey(pp.daf) !== dafKey(S.daf))
-    t = (UI.wkEnd || '').replace('{daf}', pp.daf);
+  var pp = st && !st.peek ? PAGES[st.p] : null, t = '', last = -1, over = -1;
+  for (var i = 0; i < FLAT.length; i++) {
+    if (FLAT[i].peek) continue;
+    last = i;
+    var qp = PAGES[FLAT[i].p];
+    if (over < 0 && qp && !qp.head && dafKey(qp.daf) !== dafKey(S.daf)) over = i;
+  }
+  if (pp && pp.head && IDX === 0) t = (UI.wkStart || '').replace('{daf}', pp.daf + LAmMark(pp.pg));
+  else if (pp && IDX === last && (over >= 0 || (!S.am && BUILT && BUILT.cut))) t = UI.wkDone || '';
+  else if (pp && over > 0 && (IDX === over || IDX === over - 1))
+    t = (UI.wkCont || '').replace('{daf}', PAGES[FLAT[over].p].daf);
   el.textContent = t;
   el.className = t ? 'on' : '';
 }
@@ -5152,7 +5164,8 @@ function pickGo(k) {
   var rowAm = LAmOf(u.row);
   if (dafKey(u.daf) === dafKey(S.daf) && rowAm === S.am && FLAT.length) {
     /* עמוד שנלמד לבד — בחירה בו היא "לראש העמוד", גם כשכבר בו. */
-    if (S.am) { go(0); return; }
+    /* ע״א — הקטע הראשון של השבוע, גם כשהוא בזנב של הדף הקודם */
+    if (S.am || u.am === 1) { go(0); return; }
     var j = amudIdx(u.am);
     if (j >= 0) go(j); else toast(fillT(UI.pickNoAm, { amud: amud(u.am) }));
     return;
