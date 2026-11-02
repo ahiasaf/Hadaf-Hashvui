@@ -5778,6 +5778,7 @@ window.addEventListener('load', function () {
   drawTop();
   LFlush();                     /* סימונים שלא נשלחו — עוד ניסיון */
   LQzFlush();                   /* חידון שנשלח ולא אומת — מכל דף */
+  setTimeout(function () { LDtFlush(true); }, 4000);   /* זמן יומי לרכז שלא אומת */
   setTimeout(twAsk, 3500);      /* "זה אתה?" אחרי איחוד — אחרי LSyncId */
   loadPub().then(function () {
     drawTop();

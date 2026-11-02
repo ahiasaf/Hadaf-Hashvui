@@ -680,3 +680,91 @@ function LShiftOne(sh) {
 }
 function LShift() { L_SHIFTS.forEach(LShiftOne); }
 LShift();
+
+/* ============================================================
+   זמן יומי לרכז (8.99.435).
+   ============================================================
+   כמה דקות דף הלימוד היה בחזית היום — אותו שעון של הדף (tmTick_
+   ב-learn.html), במונה נפרד לכל יום בשעון ישראל. ביציאה מהדף יוצאת
+   שורה אחת עם הסכום של היום ועם היום שבו נמדד; בלי קליטה — נשארת
+   בתור (`dt-q`) ויוצאת בפתיחה הבאה. יוצאת מהתור רק כשהשרת מחזיק
+   לפחות את המספר הזה (?dtime=, dtGot_). שליחה חוזרת אינה מכפילה —
+   השרת לוקח את הגבוה לכל מכשיר ביום.
+   רק בישיבות שב-DT_INSTS — זהה ל-DT_INST_ ב-apps-script.gs. */
+var DT_INSTS = ['givat'];
+function LDtDay(ms) {
+  var d = ms ? new Date(ms) : new Date(), p = function (x) { return (x < 10 ? '0' : '') + x; };
+  try {
+    var s = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  } catch (e) {}
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function LDtOn() {
+  var me = LMe();
+  return !!(me && me.id && me.role !== 'הורה' && DT_INSTS.indexOf(String(me.inst || '')) >= 0);
+}
+/* `ms` — מה שהשעון של הדף הוסיף עכשיו. */
+function LDtAdd(ms) {
+  if (!(ms > 0) || !LDtOn()) return;
+  var day = LDtDay(), t = LGet('dt-day', null) || {};
+  if (t.d !== day) t = { d: day, ms: 0 };
+  t.ms += ms;
+  LSet('dt-day', t);
+}
+/* ביציאה מהדף. */
+function LDtSend() {
+  if (!LDtOn()) return;
+  var t = LGet('dt-day', null);
+  if (!t || !t.d) return;
+  var m = Math.round(t.ms / 60000);
+  if (!(m > 0)) return;
+  var q = LGet('dt-q', {}) || {};
+  if (q[t.d] >= m) return;
+  q[t.d] = m;
+  LSet('dt-q', q);
+  LDtFlush(false);
+}
+var L_DT_BUSY = false;
+/* `check` — קודם לשאול את השרת (בפתיחה: אולי כבר הגיע ביציאה הקודמת). */
+function LDtFlush(check) {
+  var url = LApi(), me = LMe();
+  if (L_DT_BUSY || !url || !me || !me.id || !navigator.onLine || !LDtOn()) return;
+  var q = LGet('dt-q', {}) || {}, old = LDtDay(Date.now() - 6 * 86400000), cut = false;
+  /* השרת אינו מקבל יותר משבוע אחורה — לא לנסות לנצח. */
+  for (var od in q) if (od < old) { delete q[od]; cut = true; }
+  if (cut) LSet('dt-q', q);
+  var days = Object.keys(q).sort();
+  if (!days.length) return;
+  var day = days[0], m = q[day], dev = LDev();
+  var got = function () {
+    return LJsonp(url + '?dtime=' + encodeURIComponent(dev) + '&d=' + encodeURIComponent(day))
+      .then(function (r) { return !!(r && r.status === 'ok' && r.m >= m); })
+      .catch(function () { return false; });
+  };
+  var send = function () {
+    var body = JSON.stringify({ action:'row', tab:'זמן יומי', cols: JSON.stringify([
+      ['יום', day], ['מזהה', me.id], ['קוד ישיבה', me.inst || ''], ['דקות', m],
+      ['מכשיר', dev], ['בדיקה', LTester() ? 'כן' : '']
+    ]) });
+    var o = { method:'POST', mode:'no-cors', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: body };
+    try { o.keepalive = true; } catch (e) {}
+    return fetch(url, o).catch(function () {
+      delete o.keepalive;
+      return fetch(url, o);
+    }).then(function () { return new Promise(function (ok) { setTimeout(ok, 1500); }); }).then(got);
+  };
+  L_DT_BUSY = true;
+  (check ? got() : Promise.resolve(false)).then(function (ok) { return ok || send(); })
+    .then(function (ok) {
+      L_DT_BUSY = false;
+      if (!ok) return;
+      var rest = LGet('dt-q', {}) || {};
+      /* בינתיים נמדד יותר — נשאר בתור עם המספר החדש. */
+      if (rest[day] > m) return LDtFlush(false);
+      delete rest[day]; LSet('dt-q', rest);
+      LDtFlush(true);
+    })
+    .catch(function () { L_DT_BUSY = false; });
+}
+if (typeof window !== 'undefined') window.addEventListener('online', function () { LDtFlush(true); });

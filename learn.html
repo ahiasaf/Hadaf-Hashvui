@@ -5915,11 +5915,16 @@ function tmTick_() {
   var now = Date.now();
   if (TM_AT && S.daf) {
     try {
-      var v = (parseInt(localStorage.getItem(tmKey_()), 10) || 0) + Math.min(now - TM_AT, TM_CAP);
+      var dv = Math.min(now - TM_AT, TM_CAP);
+      var v = (parseInt(localStorage.getItem(tmKey_()), 10) || 0) + dv;
       localStorage.setItem(tmKey_(), String(v));
+      /* ואותו זמן — למונה היומי של הרכז (LDtAdd, learned.js). */
+      if (typeof LDtAdd === 'function') LDtAdd(dv);
     } catch (e) {}
   }
   TM_AT = document.hidden ? 0 : now;
+  /* יצא מהדף — הדקות של היום לרכז (LDtSend). */
+  if (document.hidden && typeof LDtSend === 'function') LDtSend();
 }
 /* מסך הסיום: "סיימת את הלימוד", ומתחתיו המספר הגדול — 27 / דקות
    (8.99.324). הזמן הוא זה שנשלח עם הסיום ועם החידון (tmMin_), עד הרגע
@@ -5941,6 +5946,12 @@ function tmMin_() {
   return Math.round(v / 6000) / 10;
 }
 document.addEventListener('visibilitychange', tmTick_);
+window.addEventListener('pagehide', function () {
+  tmTick_();
+  if (typeof LDtSend === 'function') LDtSend();
+});
+/* דקות של יום קודם שלא אומתו — עוד ניסיון. */
+if (typeof LDtFlush === 'function') setTimeout(function () { LDtFlush(true); }, 4000);
 
 /* יש לשבוע חידה שעוד לא נענתה נכון במכשיר? אותו מפתח שהאפליקציה
    שומרת כשהחידה ננעלת (quizOkKey ב־index.html). */

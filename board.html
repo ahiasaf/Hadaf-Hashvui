@@ -352,6 +352,8 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
 .pts{flex:none;border:1px solid var(--rule);background:var(--surface);color:var(--ink);
   border-radius:20px;padding:6px 10px;font:inherit;font-size:.76rem;font-weight:800;cursor:pointer}
 .pts.unk{color:var(--ink-3);font-weight:700}
+/* זמן יומי — דקות דף הלימוד בחזית היום (8.99.435). בלי דיווח — כלום. */
+.dtm{flex:none;align-self:center;font-size:.76rem;font-weight:700;color:var(--ink-2);white-space:nowrap}
 .pts-box{margin:2px 0 10px;padding:10px 12px;background:var(--sunk);border-radius:12px;
   font-size:.8rem;font-weight:700;line-height:1.8}
 .pts-box .h{color:var(--ink-3);font-weight:600}
@@ -1423,8 +1425,13 @@ function pRow(p, noGrade) {
     (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
     (f ? '<div class="pbar"><i style="width:' +
          Math.max(5, Math.round(f * 100)) + '%"></i></div>' : '') +
-    '</div>' + tkBtn(p) + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + tkBox(p) + ptsBox(p) +
+    '</div>' + dtHtml(p) + tkBtn(p) + ptsBtn(p) + kudoBtn(p, did) + '</div>' + detHtml(p, false) + tkBox(p) + ptsBox(p) +
     waBoxHtml(p) + kudoBox(p);
+}
+/* דקות היום (`dt` מהשרת, dtToday_). אין — ריק. */
+function dtHtml(p) {
+  if (!(p.dt > 0) || SELMODE || p.dtd !== LDtDay()) return '';
+  return '<span class="dtm">' + esc(tp(p.dt === 1 ? UI.dtToday1 : UI.dtToday, { n: p.dt })) + '</span>';
 }
 /* ---- הכרטיסים להגרלה של השבוע: לכל תלמיד, בכל מוסד (8.99.324) ----
    השרת (rafMeMap_) מצרף `tk`: { l, q, f, t } — לימוד, חידון, אבא, כל אחד

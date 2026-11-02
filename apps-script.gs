@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 169;
+var SCRIPT_VERSION = 170;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['זמני שרת', 'לומדים', 'לימוד', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -351,7 +351,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -672,6 +672,8 @@ function doPostMain_(e) {
       backupDaily_();
     }
     if (d.action === 'row' && d.tab === AMDA_TAB_ && !d.ss) return amdaAppend_(parse_(d.cols) || []);
+    /* זמן יומי — רק בישיבה שהודלקה, ויום בטווח סביר (dtAppend_). */
+    if (d.action === 'row' && d.tab === DT_TAB_ && !d.ss) return json_(dtAppend_(parse_(d.cols) || []));
     /* הענקה מבית ההורה — בלי שורה שנייה לאותו בן ושבוע (pairHome_). */
     if (d.action === 'row' && d.tab === 'זוגות' && !d.ss) {
       var zh = pairHome_(parse_(d.cols) || []);
@@ -1491,6 +1493,13 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.inbox) {
     try { return reply_(e, { status:'ok', items: inbox_(String(e.parameter.inbox)) }); }
     catch (errI) { return reply_(e, { status:'error', message: String(errI) }); }
+  }
+
+  /* זמן יומי — האם הדיווח הגיע: הגבוה של המכשיר הזה ביום הזה (dtGot_).
+     מספר אחד על מזהה שהשואל כבר מחזיק, כמו ?mark=. */
+  if (e && e.parameter && e.parameter.dtime) {
+    try { return reply_(e, { status: 'ok', m: dtGot_(String(e.parameter.dtime), String(e.parameter.d || '')) }); }
+    catch (errDt) { return reply_(e, { status: 'error' }); }
   }
 
   if (e && e.parameter && e.parameter.mark) {
@@ -3363,6 +3372,9 @@ function boardData_(inst, k, withTest, inner) {
          להגרלה של השבוע (`tk`, rafMeMap_). הלוח כבר מוגבל לתלמידי המוסד
          שלו. כישלון — בלי `pts`/`tk` בכלל, והלוח אינו מציג 0. */
       var ptsT = null, tkM = null;
+      /* זמן יומי — היום, לפי שעון ישראל (dtToday_). כישלון — בלי `dt`. */
+      var dtM = null;
+      if (all || dtOn_(inst)) { try { dtM = dtToday_(bam, withTest); } catch (eDt) { dtM = null; } }
       /* רק התלמידים שבלוח (snapGet_): שינוי של אחד מהם — חישוב מחדש. */
       var bNeed = all ? null : order.slice();
       try { ptsT = ptsAll_(bNeed); } catch (eP) { ptsT = null; }
@@ -3376,6 +3388,10 @@ function boardData_(inst, k, withTest, inner) {
         var pv = p.inst === AMDA_EACH_ ? ptsOf_(ptsT, pid) : null;
         if (pv) p.pts = pv;
         if (tkM) p.tk = rafTk_(tkM[pid]);
+        /* דקות היום — רק כשיש דיווח. בלי דיווח — כלום, לא 0. */
+        /* `dtd` — היום שאליו שייך המספר: הלוח שומר את הרשימה במטמון, ומספר
+           של אתמול אינו "היום". */
+        if (dtM && dtM[pid] > 0) { p.dt = dtM[pid]; p.dtd = dtDay_(); }
         /* זיווג מאומת: שני הצדדים נרשמו בפועל. בלעדיו נשאר
            מה שהתלמיד **הצהיר** — וזה הבדל שהצוות צריך לראות,
            כי "מילא את השם של אבא" אינו "אבא לומד איתו". */
@@ -3450,6 +3466,102 @@ function boardData_(inst, k, withTest, inner) {
     } catch (e9) {}
   }
   return res;
+}
+
+/* ============================================================
+   זמן יומי לרכז (8.99.435 · SCRIPT_VERSION 170).
+   ============================================================
+   כמה דקות דף הלימוד היה בחזית מול התלמיד, לכל יום — כדי שהרכז יראה
+   שבחמש דקות הלימוד בכיתה הטלפון שימש ללימוד. המדידה היא השעון הקיים
+   של הדף (tmTick_ ב-learn.html); הטלפון שולח ביציאה מהדף את הסכום של
+   אותו יום (LDt* ב-learned.js), עם היום שבו נמדד.
+
+   **שורה חדשה לכל דיווח, בלי חיפוש ועדכון** — כל הכיתה יוצאת יחד, וחיפוש
+   שורה תחת הנעילה היה מאריך את התור. בקריאה: הגבוה לכל מכשיר ביום, וסכום
+   בין המכשירים של אותו אדם. שליחה חוזרת אינה מכפילה.
+
+   רק בישיבות שב-DT_INST_ (החלטת אחיאסף: גבעת שמואל). הלקוח — DT_INSTS
+   ב-data.js, אותה רשימה. נקרא רק מהסוף (DT_SCAN_ שורות). */
+var DT_TAB_ = 'זמן יומי';
+var DT_INST_ = ['givat'];
+var DT_SCAN_ = 4000;
+function dtOn_(inst) { return DT_INST_.indexOf(String(inst || '').trim()) >= 0; }
+function dtDay_(dt) { return Utilities.formatDate(dt || new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'); }
+function dtAppend_(cols) {
+  var c = {};
+  cols.forEach(function (x) { if (x && x[0] != null) c[String(x[0])] = String(x[1] == null ? '' : x[1]).trim(); });
+  if (!dtOn_(c['קוד ישיבה'])) return { status: 'denied', message: 'off' };
+  var day = c['יום'], m = parseInt(c['דקות'], 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !c['מזהה'] || !c['מכשיר'] || !(m > 0) || m > 1440) {
+    return { status: 'denied', message: 'bad' };
+  }
+  /* היום שבו נמדד — עד שבוע אחורה, ולא אחרי מחר (שעון מכשיר שגוי). */
+  var now = Date.now();
+  if (day > dtDay_(new Date(now + 86400000)) || day < dtDay_(new Date(now - 7 * 86400000))) {
+    return { status: 'denied', message: 'day' };
+  }
+  var sh = sheet_(DT_TAB_);
+  var head = headers_(sh), row = [];
+  put_(row, idx_(sh, head, 'תאריך'), new Date());
+  /* טקסט — אחרת הגיליון הופך אותו לתאריך, והקריאה מקבלת פורמט אחר. */
+  put_(row, idx_(sh, head, 'יום'), "'" + day);
+  put_(row, idx_(sh, head, 'מזהה'), c['מזהה']);
+  put_(row, idx_(sh, head, 'קוד ישיבה'), c['קוד ישיבה']);
+  put_(row, idx_(sh, head, 'דקות'), m);
+  put_(row, idx_(sh, head, 'מכשיר'), c['מכשיר']);
+  put_(row, idx_(sh, head, 'בדיקה'), c['בדיקה'] === 'כן' ? 'כן' : '');
+  for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+  sh.appendRow(row);
+  return { status: 'ok' };
+}
+/* השורות האחרונות בלבד. לשונית ריקה — []; כישלון קריאה — זורק. */
+function dtRows_() {
+  var sh = sheet_(DT_TAB_);
+  var last = sh.getLastRow(), wide = sh.getLastColumn();
+  if (last < 2 || !wide) return [];
+  var n = Math.min(last - 1, DT_SCAN_);
+  var head = sh.getRange(1, 1, 1, wide).getDisplayValues()[0];
+  return [head].concat(sh.getRange(last - n + 1, 1, n, wide).getDisplayValues());
+}
+function dtIx_(rows) {
+  var ix = {};
+  for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
+  return ix;
+}
+/* הגבוה שהגיע ממכשיר אחד ביום אחד. */
+function dtGot_(dev, day) {
+  var rows = dtRows_(), best = 0;
+  if (rows.length < 2 || !dev) return 0;
+  var ix = dtIx_(rows);
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][ix['מכשיר']] || '').trim() !== dev) continue;
+    if (String(rows[r][ix['יום']] || '').trim().replace(/^'/, '') !== day) continue;
+    var m = parseInt(rows[r][ix['דקות']], 10) || 0;
+    if (m > best) best = m;
+  }
+  return best;
+}
+/* היום: מזהה קבוע → דקות (הגבוה לכל מכשיר, סכום בין המכשירים). `bam` —
+   מזהה שנבלע → הקבוע (aliasMap_). */
+function dtToday_(bam, withTest) {
+  var rows = dtRows_(), out = {}, per = {};
+  if (rows.length < 2) return out;
+  var ix = dtIx_(rows), day = dtDay_();
+  for (var r = 1; r < rows.length; r++) {
+    var R = rows[r];
+    if (String(R[ix['יום']] || '').trim().replace(/^'/, '') !== day) continue;
+    if (!withTest && String(R[ix['בדיקה']] || '').trim() === 'כן') continue;
+    var id = String(R[ix['מזהה']] || '').trim(), dv = String(R[ix['מכשיר']] || '').trim();
+    if (!id || !dv) continue;
+    id = (bam && bam[id]) || id;
+    var m = parseInt(R[ix['דקות']], 10) || 0, k = id + '|' + dv;
+    if (!(per[k] >= m)) per[k] = m;
+  }
+  for (var k2 in per) {
+    var cid = k2.split('|')[0];
+    out[cid] = (out[cid] || 0) + per[k2];
+  }
+  return out;
 }
 
 /* ============================================================
@@ -8045,6 +8157,8 @@ var PUB_ROW = {
             /* הענקה מבית ההורה (8.99.358) — "כן". אינו משנה את הספירה (rafGrants_). */
             'השלמה'],
   'ממתינים לדף': ['מזהה', 'שם', 'ישיבה', 'דף', 'מכשיר', 'מנוי', 'מתי'],
+  /* זמן יומי לרכז (8.99.435) — דקות שדף הלימוד היה בחזית, ליום. dtAppend_. */
+  'זמן יומי': ['יום', 'מזהה', 'קוד ישיבה', 'דקות', 'מכשיר', 'בדיקה'],
   /* הזוכה בוחר פרס (8.99.297). השורה עצמה אינה קובעת דבר: rafPrz_ מקבל
      רק את הראשונה, ורק כשהמזהה הוא של הזוכה באותה הגרלה ועוד לא נקבע פרס. */
   'בחירת פרס': ['מזהה', 'הגרלה', 'פרס', 'מאת']
