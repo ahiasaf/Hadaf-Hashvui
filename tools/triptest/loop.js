@@ -32,7 +32,7 @@ function serve() {
   });
 }
 
-var ME = JSON.stringify({ first:'בדיקה', last:'מומצא', inst:'nertamid', role:'stu', id:'devtest1' });
+var ME = JSON.stringify({ first:'פלוני', last:'אלמוני', inst:'nertamid', role:'stu', id:'devtest1' });
 
 function run(browser, base, step, staff) {
   return browser.newContext({ serviceWorkers:'block', viewport:{ width:390, height:844 } }).then(function (ctx) {

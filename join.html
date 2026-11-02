@@ -4085,11 +4085,28 @@ function stWeek() {
   var am = (typeof LAm === 'function') ? LAm(tr, wi < 0 ? 0 : wi) : 0;   /* ב: — ראו LDafQ */
   /* הרכז החזיר את עמוד הביניים (ניהול ← מה מוצג · `rows.mid`) —
      אותו כלל כמו openWeekNow במסך הראשי. */
-  if (!d || (pub.rows || {}).mid) {
+  if (d && (pub.rows || {}).mid) {
+    /* **"זכרו את הבחירה"** (8.99.432) — אותו כלל של openWeekNow בעמוד הראשי,
+       אותם מפתחות (`df:wkKeep` / `df:wkPick`). הבחירה לא זמינה השבוע — עמוד
+       הבחירה כרגיל, ובו המתג. */
+    var pk = stPick(tr, wi < 0 ? 0 : wi, d);
+    if (pk === 'sugya') {
+      var sh = stSugHref(tr, wi < 0 ? 0 : wi);
+      /* חלון חדש, כמו מהכרטיס עצמו — חוסם חלונות פותח כאן. */
+      var win = window.open(sh, '_blank');
+      if (win) { try { win.opener = null; } catch (e) {} } else location.href = sh;
+      return;
+    }
+    if (pk !== 'inter') {
+      location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1)).replace(/^index\.html/, 'bechira.html');
+      return;
+    }
+  }
+  if (!d) {
     var wk = '#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1);
-    /* עמוד הבחירה — עמוד נפרד וקל (bechira.html, 8.99.431), אותו מסך
-       בדיוק, בלי לטעון את העמוד הראשי. בלי דף (לפני תחילת השנה) — כמו קודם. */
-    location.href = d ? appUrl(wk).replace(/^index\.html/, 'bechira.html') : appUrl(wk);
+    /* בלי דף (לפני תחילת השנה) — מסך השבוע בעמוד הראשי, כמו קודם. עם דף —
+       עמוד הבחירה הנפרד (bechira.html, 8.99.431), למעלה. */
+    location.href = appUrl(wk);
     return;
   }
   location.href = 'learn.html?' + LLearnQ(tr) +
@@ -4099,6 +4116,43 @@ function stWeek() {
                   (role === 'dad' ? '&for=dad' : '') +
                   /* ומעמוד ההקרנה — חזרה לעמוד ההקרנה. */
                   (PRJ ? '&show=1' : '');
+}
+/* ============================================================
+   "זכרו את הבחירה" במסך התלמיד — כמו openWeekNow ב-index.html.
+   ============================================================
+   'inter' — רק כשהדף סומן בסטודיו (`df:markedCache`, נכתב בעמוד הבחירה);
+   'sugya' — רק כשהכרטיס דלוק ויש לו כתובת. אחרת '' — עמוד הבחירה. */
+function stRow(k) {
+  var v = (pub.rows || {})[k];
+  return v == null ? (k === 'inter' || k === 'sugya') : !!v;
+}
+function stPick(tr, w, d) {
+  if (get('wkKeep', null) !== 1) return '';
+  var pk = get('wkPick', null), bid = TrackBase(tr);
+  if (pk === 'sugya') return stRow('sugya') && stSugHref(tr, w) ? 'sugya' : '';
+  if (pk === 'inter') {
+    var mk = get('markedCache', null) || {}, k = String(d).replace(/["'׳״\s]/g, '');
+    return stRow('inter') && (mk[bid] || {})[k] ? 'inter' : '';
+  }
+  return '';
+}
+/* הכתובת בחוברת "הסוגיה היומית" — אותו חישוב של sugHref (index.html,
+   bechira.html): SUGYA שבקוד, ומעליו מה שפורסם (`pub.sugya`). */
+function stSugHref(tr, w) {
+  var bid = TrackBase(tr), t = TrackById(tr), row = t && t.cal[w];
+  if (!row) return '';
+  var sg = SUGYA[bid] || {}, ps = pub.sugya && pub.sugya[bid];
+  if (ps) {
+    var dp = sg.pages || {}, sp = ps.pages, pk;
+    if (sp) for (pk in dp) if (/:$/.test(pk) && sp[pk] == null) sp[pk] = dp[pk];
+    sg = ps;
+  }
+  var dk = function (x) { return String(x).replace(/["'׳״\s]/g, ''); };
+  var sk = dk(row[2] || '') + (LAmOf(row) === 2 ? ':' : '');
+  var sgp = (sg.pages || {})[sk] || (sg.pages || {})[dk(row[2])];
+  if (sgp && sgp.length === 2 && (sg.books || {})[sgp[0]]) return sg.books[sgp[0]] + sgp[1] + '/';
+  if (sgp && sg.base && sg.fmt) return sg.fmt.replace('{p}', sgp);
+  return sg.base || '';
 }
 function stTrail() { location.href = appUrl('#track=' + myTrack()); }
 function stDeck() {

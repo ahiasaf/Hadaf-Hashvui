@@ -6760,7 +6760,9 @@ function stuDad() {
    זה עובד גם אחרי רענון ובלשונית חדשה. */
 /* · `pick-…` — עמוד הבחירה הנפרד (bechira.html, 8.99.431). תלמיד חוזר אליו;
      מכשיר צוות — למסך השבוע שבעמוד הראשי, כמו `week`. */
-var RET = /[?&]ret=(week|quiz|dk|pick)-([a-z]+)-(\d+)(?:&|#|$)/.exec(location.search);
+/* מזהה המסלול — אותיות, ספרות ומקפים (taanit-nertamid, megila-hashlama…).
+   עד 8.99.432 רק אותיות, ומסלול עם מקף איבד את החזרה ונפל ל-join. */
+var RET = /[?&]ret=(week|quiz|dk|pick)-([a-z0-9]+(?:-[a-z0-9]+)*)-(\d+)(?:&|#|$)/.exec(location.search);
 function stuHomeUrl() {
   if (RET && RET[1] === 'dk') return '/#admin';
   if (RET && FROM !== 'qbank' && FROM !== 'tzevet') {

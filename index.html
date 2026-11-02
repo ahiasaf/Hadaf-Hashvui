@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.431';
+var APP_VERSION = '8.99.432';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -25704,11 +25704,11 @@ function registerSW() {
      כאן מעולם — הלחיצה פשוט טענה את הבית. */
   var hash = location.hash || '';
   /* גם מסלול השלמה — 'taanit-hashlama-4'. */
-  var qm = /^#quiz=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(hash);
-  var wm = /^#week=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(hash);
-  var tm = /^#track[=-]([a-z]+(?:-[a-z]+)?)$/.exec(hash);
+  var qm = /^#quiz=([a-z0-9]+(?:-[a-z0-9]+)*)-(\d+)$/.exec(hash);
+  var wm = /^#week=([a-z0-9]+(?:-[a-z0-9]+)*)-(\d+)$/.exec(hash);
+  var tm = /^#track[=-]([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(hash);
   /* `#yomi=` — הכרטיס של יומי בעמוד הבחירה הנפרד (bechira.html): המדריך יושב כאן. */
-  var ym = /^#yomi=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(hash);
+  var ym = /^#yomi=([a-z0-9]+(?:-[a-z0-9]+)*)-(\d+)$/.exec(hash);
   if (ym && trackById(ym[1])) { pickTrack(ym[1]); openWeek(ym[1], +ym[2] - 1); yomiGuide(); }
   else if (qm && trackById(qm[1])) { openWeek(qm[1], +qm[2] - 1); openQuiz(); }
   else if (wm && trackById(wm[1])) { pickTrack(wm[1]); openWeek(wm[1], +wm[2] - 1); }

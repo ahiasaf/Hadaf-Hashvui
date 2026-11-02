@@ -203,7 +203,7 @@ function sugHref(id, row) {
    `?st=1&inst=…&for=dad&show=1#week=<מסלול>-<שבוע>` — אותה צורה
    שמסך התלמיד שלח לעמוד הראשי. הפרמטרים נוסעים הלאה לדף, לחידון
    ולמסלול, כדי שכל חזרה תגיע למסך הנכון. */
-var WM = /^#week=([a-z]+(?:-[a-z]+)?)-(\d+)$/.exec(location.hash || '');
+var WM = /^#week=([a-z0-9]+(?:-[a-z0-9]+)*)-(\d+)$/.exec(location.hash || '');
 var WK = { id:'', i:0 };
 function instQ() {
   var m = /[?&]inst=([^&#]*)/.exec(location.search);
