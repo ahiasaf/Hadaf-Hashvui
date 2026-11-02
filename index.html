@@ -3057,7 +3057,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.417';
+var APP_VERSION = '8.99.418';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10512,7 +10512,7 @@ function dupGo(key, same) {
    מהשרת (?parstat=1, parStat_): כרטיס אבא כמו בהגרלה — ההורה נתן, או
    בקשה של הבן שאושרה. מספרים בלבד. מסנן הישיבה שבראש הניהול חל: הורה
    לפי הישיבה שלו, כרטיס לפי הישיבה של הבן. כישלון — מה שעל המסך נשאר. */
-var PAR = { d:null, busy:false, msg:'' };
+var PAR = { d:null, busy:false, msg:'', push:false };
 function admPar(el) {
   el.innerHTML = '<div id="par-body"></div>';
   parPaint();
@@ -10526,6 +10526,17 @@ function parLoad() {
     if (d && d.status === 'ok' && d.P && d.G) PAR.d = d; else PAR.msg = UI.parFail;
     parPaint();
   }, function () { PAR.busy = false; PAR.msg = UI.parFail; parPaint(); });
+}
+function parPushGo() {
+  if (PAR.push || !PAR.d) return;
+  if (!SureLater(parPushGo, this, arguments)) return;
+  PAR.push = true; parPaint();
+  scriptGet({ parstat:'push', key:(CFG.readKey || '').trim(), title:UI.parPushT, body:UI.parPushB, to:UI.parPushTo }).then(function (r) {
+    PAR.push = false;
+    if (r && r.status === 'ok') { SayMsg(fill(UI.parPushOk, { n:r.n || 0 })); PAR.d.miss = 0; }
+    else SayMsg(r && r.status === 'empty' ? fill(UI.parPushOk, { n:0 }) : UI.parPushFail);
+    parPaint();
+  }, function () { PAR.push = false; SayMsg(UI.parPushFail); parPaint(); });
 }
 function parPaint() {
   var el = document.getElementById('par-body');
@@ -10562,6 +10573,14 @@ function parPaint() {
           (n(o.p) ? '<span>' + esc(fill(UI.parWkRow, { p:n(o.p), k:n(o.k) })) + '</span>' : '') +
           (o.q ? '<span>' + esc(fill(UI.parWkWait, { q:o.q })) + '</span>' : '') + '</div></div>';
       }).join('') + '</div>';
+    }
+    /* התראה להורים שחסרים להם כרטיסים (8.99.418) — לכל הישיבות, ולכן רק בלי מסנן. */
+    if (!ADM_INST && d.miss > 0) {
+      h += '<div class="pp" style="margin-top:14px"><div class="pp-h">' + esc(UI.parPushH) + '</div>' +
+        '<p class="h">' + esc(fill(UI.parPushN, { n:d.miss })) + '</p>' +
+        '<p class="h"><b>' + esc(UI.parPushT) + '</b> · ' + esc(UI.parPushB) + '</p>' +
+        '<button class="btn p" type="button" id="par-push"' + (PAR.push ? ' disabled' : '') + ' onclick="parPushGo()">' +
+        esc(PAR.push ? UI.chaLoading : fill(UI.parPushGo, { n:d.miss })) + '</button></div>';
     }
     /* לפי ישיבה — בלחיצה. הורה לפי הישיבה שלו, כרטיס ובקשה לפי הבן. */
     var C = Object.keys(ins).sort(function (a, b) { return n(ins[b].p) - n(ins[a].p) || ins[b].r - ins[a].r; });

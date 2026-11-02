@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 161;
+var SCRIPT_VERSION = 162;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1297,7 +1297,11 @@ function doGet(e) {
   /* הורים — כמה רשומים, למדו ונתנו כרטיס (8.99.412). ניהול בלבד. */
   if (e && e.parameter && e.parameter.parstat) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
-    return reply_(e, parStat_());
+    /* התראה להורים שחסרים להם כרטיסים (8.99.418) — רק בלחיצה בניהול. */
+    if (e.parameter.parstat === 'push') return reply_(e, parPush_(e.parameter));
+    var ps = parStat_();
+    try { ps.miss = parMiss_().n; } catch (pm) {}
+    return reply_(e, ps);
   }
   /* כמה זמן לוקח ללמוד דף — ניהול בלבד (8.99.365). */
   if (e && e.parameter && e.parameter.amdaneed) return amdaNeedRoute_(e);
@@ -8923,6 +8927,67 @@ function parStat_() {
   });
   return { status: 'ok', nm: nm, G: G, Q: Q,
     P: Object.keys(par).map(function (c) { var o = par[c]; return [o.code || '', o.l, o.r, o.g]; }) };
+}
+
+/* ============================================================
+   הורים שחסרים להם כרטיסים (8.99.418) — להתראה מהניהול.
+   ============================================================
+   הורה (לא בדיקה) שמחובר לבן (pairMap_), ולאחד הבנים חסר כרטיס אבא על
+   שבוע שהסתיים (1 … השבוע הנוכחי פחות אחד) שיש בו דף בלוח של הבן —
+   רגיל, השלמה או נר תמיד (rafDafOfW_). כרטיס = כמו ב-rafGrants_, מכל הורה.
+   מחזיר את כל המזהים של ההורים (כולל מכשירים שנבלעו) ואת מספרם. */
+function parMiss_() {
+  var P = rafPpl_(), ppl = P.ppl, kids = pairKids_(ppl);
+  var canon = function (x) { var a = P.alias[x] || x; return a ? P.target[a] || a : ''; };
+  var got = {}, sh = sheet_('זוגות');
+  if (sh && sh.getLastRow() > 1) {
+    var v = sh.getDataRange().getDisplayValues(), ix = {};
+    for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+    var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+    for (var i = 1; i < v.length; i++) {
+      var r = v[i], wk = parseInt(c(r, 'שבוע'), 10) || 0;
+      if (!wk || !c(r, 'מזהה')) continue;
+      if (c(r, 'דיווח') !== 'ההורה' && c(r, 'אושר') !== 'כן') continue;
+      var W = pairWho_(P, kids, c, r);
+      if (W) got[W.kid + '|' + wk] = 1;
+    }
+  }
+  var last = progWeek_() - 1, need = {};
+  var weeksOf = function (k) {
+    var p = ppl[k], key = p.nt ? 'taanit-nertamid' : p.hs === 1 ? 'taanit-hashlama' : 'taanit';
+    if (!need[key]) {
+      need[key] = [];
+      for (var w = 1; w <= last; w++) if (rafDafOfW_(key, w)) need[key].push(w);
+    }
+    return need[key];
+  };
+  var pm = pairMap_(joinTable_().rows), out = {}, n = 0;
+  Object.keys(pm).forEach(function (id) {
+    var pc = canon(id), pp = ppl[pc];
+    if (!pp || pp.role !== 'הורה' || pp.test || out[pc]) return;
+    var miss = (pm[id].pids || []).some(function (x) {
+      var k = canon(x);
+      if (!k || !ppl[k] || ppl[k].role === 'הורה' || ppl[k].test) return false;
+      return weeksOf(k).some(function (w) { return !got[k + '|' + w]; });
+    });
+    if (!miss) return;
+    out[pc] = (pp.ids || []).concat([pc]);
+    Object.keys(P.target).forEach(function (x) { if (P.target[x] === pc) out[pc] = out[pc].concat(ppl[x].ids || [x]); });
+    n++;
+  });
+  var ids = [];
+  Object.keys(out).forEach(function (k) { out[k].forEach(function (x) { if (x && ids.indexOf(x) < 0) ids.push(x); }); });
+  return { ids: ids, n: n };
+}
+function parPush_(Q) {
+  var title = String(Q.title || '').trim().slice(0, 80), body = String(Q.body || '').trim().slice(0, 300);
+  if (!body) return { status: 'error', message: 'אין מה לשלוח' };
+  var M = parMiss_();
+  if (!M.ids.length) return { status: 'empty', n: 0 };
+  var r = ghFire_(title, body, '', '', '', '', 'join', '', '', JSON.stringify({ ids: M.ids }),
+                  false, '', String(Q.to || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 160));
+  if (r && r.status === 'ok') r.n = M.n;
+  return r;
 }
 
 /* ?pairHist=<מזהה ההורה>&k=[[טלפון הבן, שם הבן], …] — לכל בן: השבועות שיש
