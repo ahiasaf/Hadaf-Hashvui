@@ -1,0 +1,30 @@
+# ============================================================
+# מדידת זמני תגובה של השרת החי — קריאה בלבד, בלי סיסמה ובלי כתיבה.
+# מזהה מכשיר מומצא (ZZPROBE…) — השרת מחשב כרגיל ומחזיר "אין".
+# הרצה: Actions → "מדידת השרת" → Run workflow.
+# ============================================================
+name: מדידת השרת
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: מדידה
+        run: |
+          API=$(grep -oE "https://script.google.com/macros/s/[A-Za-z0-9_-]+/exec" data.js | head -1)
+          t() {
+            local q="$1"
+            curl -sS -L -o out.txt -w "%{http_code} %{time_total}s" --max-time 60 "$API?$q" > meta.txt 2>&1 || true
+            echo "$(cat meta.txt) · $q · $(head -c 160 out.txt | tr '\n' ' ')"
+          }
+          for i in 1 2 3; do
+            t "pts=me&id=ZZPROBE$i"
+            t "inbox=ZZPROBE$i"
+            t "amdaFor=ZZPROBE$i"
+            t "challenge=my&id=ZZPROBE$i"
+            sleep 5
+          done
