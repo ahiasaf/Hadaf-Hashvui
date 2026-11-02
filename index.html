@@ -3057,7 +3057,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.414';
+var APP_VERSION = '8.99.415';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -23303,7 +23303,7 @@ function amdaWaRow(s, i, where) {
   /* שם עם מספר — לחיצה עליו מוסיפה לרשימת השליחה (או מוציאה ממנה). */
   var on = s.p && amdaWaL().sel[amdaWaK(s)];
   return '<div class="am-cr' + (on ? ' aw-on' : '') + '">' +
-    (s.p ? '<button class="aw-nm" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="amdaWaSel(' + i + ')">' +
+    (s.p ? '<button class="aw-nm" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="amdaWaSel(' + i + (where ? ',1' : '') + ')">' +
            (on ? '✓ ' : '') + nm + '</button>' : '<span>' + nm + '</span>') +
     (s.p ? '<a class="aw-wa" href="#" target="_blank" rel="noopener" data-i="' + i +
            '" onclick="return amdaWaGo(this)">' + esc(amdaT('waBtn')) + '</a>'
@@ -23324,13 +23324,16 @@ function amdaWaRe() {
   admPane();
   try { window.scrollTo(0, y); } catch (e) {}
 }
-function amdaWaSel(i) {
+function amdaWaSel(i, fromQ) {
   var s = amdaWaIdx().all[i], l = amdaWaL();
   if (!s || !s.p) return;
-  var k = amdaWaK(s);
-  if (l.sel[k]) { delete l.sel[k]; delete l.sent[k]; } else l.sel[k] = 1;
+  var k = amdaWaK(s), add = !l.sel[k];
+  if (!add) { delete l.sel[k]; delete l.sent[k]; } else l.sel[k] = 1;
   Store.set('amdaWaL', l);
+  /* נבחר מהחיפוש — החיפוש מתרוקן, מוכן לשם הבא. */
+  if (add && fromQ) amdaWa.q = '';
   amdaWaRe();
+  if (add && fromQ) { var q = document.getElementById('aw-q'); if (q) try { q.focus(); } catch (e) {} }
 }
 function amdaWaView(v) {
   amdaWa.view = v;
