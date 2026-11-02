@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 165;
+var SCRIPT_VERSION = 166;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -387,15 +387,27 @@ function tmNote_(name, ms, lk) {
   } catch (e) {}
 }
 function doGet(e) {
-  var t0 = Date.now();
+  var t0 = Date.now(), P = (e && e.parameter) || {};
   try { return doGetMain_(e); }
-  finally { tmNote_(tmName_(e, false), Date.now() - t0, 0); }
+  finally {
+    /* פעולות ניהול שעורכות או מוחקות שורות קיימות — החותמת של מטמון
+       הכרטיסים אינה רואה אותן (snapGet_), ולכן מוחקים אותו. נדירות. */
+    if (P.clear || P.delrow || P.archive || P.unarchive || P.dedupe || P.contactSave) {
+      try { ptsBust_(); } catch (xb) {}
+    }
+    tmNote_(tmName_(e, false), Date.now() - t0, 0);
+  }
 }
 function doPost(e) {
-  var t0 = Date.now();
+  var t0 = Date.now(), nm = '';
   TM_LOCK_ = 0;
   try { return doPostMain_(e); }
-  finally { tmNote_(tmName_(e, true), Date.now() - t0, TM_LOCK_); }
+  finally {
+    nm = tmName_(e, true);
+    /* כנ"ל: החלפת לשונית, ריקון ומחיקת שורה (ניהול). */
+    if (/^post:(table|clear|delrow)\b/.test(nm)) { try { ptsBust_(); } catch (xb) {} }
+    tmNote_(nm, Date.now() - t0, TM_LOCK_);
+  }
 }
 /* החלונות של 6 השעות האחרונות מהמטמון. `done` — רק חלונות שנסגרו. */
 function tmWins_(done) {
@@ -632,10 +644,14 @@ function doPostMain_(e) {
       /* הרשמה יכולה לאחד זהויות — הנקודות של האדם המאוחד מתעדכנות. */
       if (!d.ss) ptsBust_();
       if (!d.ss) {
-        try { return joinWrite_(jcols, chCode, hsReq); } catch (jwe) {}
+        /* גם **אחרי** הכתיבה: חישוב שהתחיל בין המחיקה לכתיבה היה נשמר בלי
+           ההרשמה (עריכת פרטים אינה שורה חדשה, ולכן החותמת לא תראה אותה). */
+        try { var jres = joinWrite_(jcols, chCode, hsReq); ptsBust_(); return jres; } catch (jwe) {}
       }
       try { jcols = canonJoinCols_(jcols); } catch (cje) {}
-      return upsertCols_(d.tab, jcols, 'מזהה', d.ss);
+      var ures = upsertCols_(d.tab, jcols, 'מזהה', d.ss);
+      if (!d.ss) ptsBust_();
+      return ures;
     }
     /* ---- הלשוניות של הדף האינטראקטיבי: רק עם סיסמה ----
        הסימונים, הפירוש, השקפים והחידות הם הנכס — שעות של עבודה.
@@ -2324,22 +2340,15 @@ function appendCols_(tab, cols, ssId) {
   sh.appendRow(row);
   if (tab === JOIN_TAB)  recount_();
   if (tab === 'בחירת פרס') rafPrzBump_();
-  /* הענקה מאבא — הכרטיסים של הבן מתעדכנים מיד (rafGrants_). */
-  if (tab === 'זוגות') ptsBust_();
+  /* הענקה מאבא — הכרטיסים של הבן מתעדכנים מיד: "זוגות" גדלה, והמטמון
+     יודע זאת בעצמו (snapGet_). */
   /* נוכחות חדשה — אישור חידון אפשרי, והנקודות והזכאות במטמון. */
   if (tab === AMDA_TAB_) amdaQzBust_();
   /* דיווח נוכחות הוא ראיה להשתתפות (partCalc_) — גם "השתתף" ושיעור. */
   if (tab === AMDA_TAB_) partSoon_();
-  /* סיום עמוד, או חידון שלם — הנקודות מתעדכנות מיד, לא אחרי 5 דקות.
-     סימון של קטע באמצע (קטע < מתוך) אינו משנה נקודות. */
-  if (tab === LEARN_TAB || tab === 'חידות') {
-    var gv = function (n) {
-      for (var g = 0; g < cols.length; g++) if (cols[g] && cols[g][0] === n) return String(cols[g][1] == null ? '' : cols[g][1]).trim();
-      return '';
-    };
-    var at0 = parseInt(gv('קטע'), 10), of0 = parseInt(gv('מתוך'), 10);
-    if (tab === 'חידות' ? gv('קטע') === 'החידון כולו' : !gv('קטע') || !(of0 > 0) || at0 >= of0) ptsBust_();
-  }
+  /* סיום עמוד או חידון שלם — הכרטיסים והנקודות מתעדכנים מיד, בלי למחוק את
+     המטמון של כולם (8.99.421): השורה החדשה מסמנת רק את מי שכתב אותה
+     (snapGet_/snapTail_). */
   /* חבר מביא חבר — לימוד, חידון או הענקה של אבא: השולחן מתעדכן מיד (chBustFor_). */
   if (tab === LEARN_TAB || tab === 'חידות' || tab === 'זוגות') {
     try {
@@ -3332,8 +3341,10 @@ function boardData_(inst, k, withTest, inner) {
          להגרלה של השבוע (`tk`, rafMeMap_). הלוח כבר מוגבל לתלמידי המוסד
          שלו. כישלון — בלי `pts`/`tk` בכלל, והלוח אינו מציג 0. */
       var ptsT = null, tkM = null;
-      try { ptsT = ptsAll_(); } catch (eP) { ptsT = null; }
-      try { tkM = rafMeMap_(); } catch (eT) { tkM = null; }
+      /* רק התלמידים שבלוח (snapGet_): שינוי של אחד מהם — חישוב מחדש. */
+      var bNeed = all ? null : order.slice();
+      try { ptsT = ptsAll_(bNeed); } catch (eP) { ptsT = null; }
+      try { tkM = rafMeMap_(null, bNeed); } catch (eT) { tkM = null; }
       order.forEach(function (pid) {
         var p = byId[pid];
         /* הלוח הוא רשימת הנוכחות של תלמידי הישיבה. אבא אינו
@@ -6541,6 +6552,8 @@ function taanitShift_() {
   if (n) {
     try { P.deleteProperty(MARK_KEY); } catch (e) {}
     recountLearn_(true);
+    /* שורות קיימות נערכו — מטמון הכרטיסים לא יראה זאת לבד (snapGet_). */
+    try { ptsBust_(); } catch (eb) {}
   }
   return n;
 }
@@ -6615,6 +6628,8 @@ function megilaShift_() {
   if (n) {
     try { P.deleteProperty(MARK_KEY); } catch (e) {}
     recountLearn_(true);
+    /* שורות קיימות נערכו — מטמון הכרטיסים לא יראה זאת לבד (snapGet_). */
+    try { ptsBust_(); } catch (eb) {}
   }
   return n;
 }
@@ -9418,27 +9433,18 @@ function rafMeKeys_() {
   var w = 0;
   try { w = progWeek_(); } catch (e) {}
   /* עד w+4 — "ההגרלה הבאה" (rafNext_) אחרי שבועות בלי דף. */
-  return [rafMeKey_(), rafMeKey_(w), rafMeKey_(w - 1), rafMeKey_(w + 1), rafMeKey_(w + 2),
+  /* RAF_TOK_ — גם חישוב שרץ עכשיו לא ייחשב תקף (snapGet_). */
+  return [RAF_TOK_, rafMeKey_(), rafMeKey_(w), rafMeKey_(w - 1), rafMeKey_(w + 1), rafMeKey_(w + 2),
           rafMeKey_(w + 3), rafMeKey_(w + 4)];
 }
 function ptsOf_(T, id) {
   if (!T || !id) return null;
   return T.v[T.m[id] || id] || null;
 }
-function ptsAll_() {
-  var rc = CacheService.getScriptCache(), hd = rc.get('pts:all');
-  if (hd) {
-    try {
-      var hp = hd.split('|'), keys = [];
-      for (var q = 0; q < +hp[0]; q++) keys.push('pts:all:' + hp[1] + ':' + q);
-      var got = rc.getAll(keys), js0 = '';
-      for (var q2 = 0; q2 < keys.length; q2++) {
-        if (got[keys[q2]] == null) { js0 = null; break; }
-        js0 += got[keys[q2]];
-      }
-      if (js0) return JSON.parse(js0);
-    } catch (x0) {}
-  }
+function ptsAll_(need) {
+  return snapGet_('pts:all', need, ptsBuild_);
+}
+function ptsBuild_() {
   var P = rafPpl_(), ppl = P.ppl, alias = P.alias, target = P.target, who = {};
   Object.keys(ppl).forEach(function (id) {
     var to = target[id] || id, q = ppl[to];
@@ -9490,12 +9496,7 @@ function ptsAll_() {
     if (!out.v[to]) return;
     ppl[id].ids.concat([id]).forEach(function (x) { if (x !== to) out.m[x] = to; });
   });
-  try {
-    var js = JSON.stringify(out), st = String(Date.now() % 1e8), put = {}, n = 0;
-    for (var o = 0; o < js.length; o += 90000) put['pts:all:' + st + ':' + (n++)] = js.substr(o, 90000);
-    if (n <= 40) { rc.putAll(put, 300); rc.put('pts:all', n + '|' + st, 300); }
-  } catch (x2) {}
-  return out;
+  return { d: out, A: snapCanon_(alias, target) };
 }
 /* לתלמיד עצמו, במסך הבית: עד ארבעה מזהים של המכשיר (כמו rafMe_).
    אין לו נקודות כאן (הורה, בדיקה, לא מוכר) — `none`, והמסך אינו מציג
@@ -9509,7 +9510,7 @@ function ptsMe_(P) {
   if (!mine.length) return { status: 'ok', none: 1 };
   var tk = null, hs = -1;
   try {
-    var M = rafMeMap_();
+    var M = rafMeMap_(null, mine);
     for (var j = 0; j < mine.length && !tk; j++) if (M[mine[j]]) {
       tk = rafTk_(M[mine[j]], null, true);
       /* מסלול השלמה — 'h1' / 'h0' בסוף הערך (rafMeMap_). */
@@ -9524,7 +9525,7 @@ function ptsMe_(P) {
   /* הכרטיסים להגרלה הבאה (8.99.362) — בנוסף ל-`tk`, שמכשיר ישן עוד קורא. */
   var nx = null;
   try { nx = rafNextTk_(mine); } catch (eN) { nx = null; }
-  var T = ptsAll_(), o;
+  var T = ptsAll_(mine), o;
   for (var i = 0; i < mine.length; i++) {
     var v = ptsOf_(T, mine[i]);
     if (v) {
@@ -10589,10 +10590,10 @@ function quizSum_() {
    `w` — שבוע אחר (rafCalcW_; מסך הסיום והחידון של הדף שנלמד עכשיו).
    המטמון 'raf:me5' (8.99.355; הסימון '+' כולל גם `m:`) — הפורמט הקודם אינו נקרא. */
 function rafMeKey_(w) { return w == null ? 'raf:me5' : 'raf:me5:' + w; }
-function rafMeMap_(w) {
-  var key = rafMeKey_(w);
-  var rc = CacheService.getScriptCache(), M = bigGet_(rc, key);
-  if (M) return M;
+function rafMeMap_(w, need) {
+  return snapGet_(rafMeKey_(w), need, function () { return rafMeBuild_(w); });
+}
+function rafMeBuild_(w) {
   var C = w == null ? rafCalc_() : rafCalcW_(w);
   var snap = rafSnap_(w == null ? progWeek_() - 1 : w);
   M = {};
@@ -10627,8 +10628,7 @@ function rafMeMap_(w) {
     if (hs >= 0) v += '|h' + hs;
     p.ids.concat([id]).forEach(function (x) { M[x] = v; });
   });
-  bigPut_(rc, key, M, 300);
-  return M;
+  return { d: M, A: snapCanon_(C.alias, C.target) };
 }
 /* מטמון בחתיכות (8.99.420). ערך אחד במטמון של גוגל — עד 100KB. המפה של
    rafMeMap_ עברה את זה בכ-1,500 מכשירים, ומאז **לא נשמרה כלל**: כל פתיחה
@@ -10659,6 +10659,114 @@ function bigPut_(rc, key, obj, sec) {
     rc.putAll(put, sec);
     rc.put(key, n + '|' + st, sec);
   } catch (e) {}
+}
+/* ============================================================
+   מטמון הכרטיסים והנקודות — בלי חישוב מחדש בכל לימוד (8.99.421 · שרת 166).
+   ============================================================
+   עד עכשיו כל שורת סיום/חידון/"זוגות" מחקה את המטמון של **כולם**
+   (ptsBust_), ובערב כמעט כל פתיחת בית חישבה את כל ההגרלה מאפס (12 שנ'+).
+   עכשיו המטמון נושא חותמת: כמה שורות היו ב"לימוד", "חידות", "זוגות" ו"לומדים"
+   כשהחישוב **התחיל** (`st`), ואסימון (`tok`). בקשה בודקת את הגיליון עצמו —
+   לא סימון בזיכרון — ולכן סימון שנעלם אינו נחשב "לא השתנה":
+   · אסימון חסר או שונה, או חותמת בת יותר מ-5 דקות — חישוב מחדש.
+   · "לומדים" או "זוגות" גדלו (הרשמה/איחוד/הענקה מאבא — יכולים לשנות אנשים
+     אחרים), או לשונית קטנה (מחיקה) — חישוב מחדש.
+   · "לימוד"/"חידות" גדלו — נקראת רק עמודת המזהה של השורות החדשות. מזהה
+     שבהן שייך לאחד המבוקשים (`need`, אחרי איחוד: `A` — מזהה → האדם) — חישוב
+     מחדש. אחרת — המטמון, והוא מדויק למבוקשים: הכרטיסים שלהם תלויים רק
+     בשורות שלהם.
+   `need` — מזהי המבקש (בית, מסך סיום), תלמידי הלוח, או null = כל שינוי.
+   כל שינוי שאינו שורה חדשה (עריכה, מחיקה, נוכחות, הגרלה, איחוד) עובר דרך
+   ptsBust_/amdaQzBust_/rafMeKeys_ — ושם נמחק גם האסימון (RAF_TOK_), כך
+   שחישוב שהתחיל לפני השינוי אינו נחשב תקף גם אם נשמר אחריו.
+   **חישוב אחד בכל פעם** (`bld:`): מי שמוצא חישוב רץ — מחכה לו עד ~20 שנ',
+   ומקבל אותו רק אם הוא מכסה את השורות שראה. כללי הכרטיסים לא השתנו:
+   החישוב עצמו (rafCalc_/ptsBuild_) הוא אותו חישוב, רק נשמר ונבדק אחרת. */
+var RAF_TOK_ = 'raf:tok';
+var SNAP_AGE_ = 300000;
+var SNAP_TABS_ = [['L', 'לימוד'], ['Q', 'חידות'], ['P', 'זוגות'], ['J', 'לומדים']];
+var SNAP_CUR_ = null;      /* החותמת הנוכחית — פעם אחת לכל הרצה */
+function snapStamp_() {
+  if (SNAP_CUR_) return SNAP_CUR_;
+  var o = {};
+  SNAP_TABS_.forEach(function (t) { var sh = sheet_(t[1]); o[t[0]] = sh ? sh.getLastRow() : 0; });
+  return (SNAP_CUR_ = o);
+}
+/* מזהה → האדם (alias ואז target, כמו ב-rafCalc_). רק מי שאינו הוא עצמו. */
+function snapCanon_(alias, target) {
+  var A = {}, add = function (x) {
+    var a = alias[x] || x, c = target[a] || a;
+    if (c !== x) A[x] = c;
+  };
+  Object.keys(alias || {}).forEach(add);
+  Object.keys(target || {}).forEach(add);
+  return A;
+}
+/* המזהים בשורות החדשות של "לימוד"/"חידות" מאז `st`. `all` — אי אפשר לדעת. */
+var SNAP_TAIL_ = {};
+function snapTail_(st, cur) {
+  if (cur.J !== st.J || cur.P !== st.P || cur.L < st.L || cur.Q < st.Q) return { all: 1 };
+  var ids = {}, all = 0;
+  [['L', 'לימוד'], ['Q', 'חידות']].forEach(function (t) {
+    var a = st[t[0]], b = cur[t[0]];
+    if (all || b <= a) return;
+    if (b - a > 4000) { all = 1; return; }
+    var mk = t[0] + a + ':' + b;
+    if (!SNAP_TAIL_[mk]) {
+      var sh = sheet_(t[1]), wid = sh.getLastColumn(), ci = -1;
+      var hd = sh.getRange(1, 1, 1, wid).getDisplayValues()[0];
+      for (var h = 0; h < hd.length; h++) if (String(hd[h]).trim() === 'מזהה') ci = h;
+      if (ci < 0) { all = 1; return; }
+      var rows = [hd].concat(sh.getRange(a + 1, 1, b - a, wid).getDisplayValues());
+      /* "לימוד": רק שורות סיום — אותו סינון כמו בחישוב (doneRows_). שורת
+         התקדמות אינה משנה כרטיסים ואינה מחייבת חישוב. */
+      if (t[0] === 'L') rows = doneRows_(rows);
+      SNAP_TAIL_[mk] = rows.slice(1).map(function (r) { return String(r[ci] || '').trim(); }).filter(String);
+    }
+    SNAP_TAIL_[mk].forEach(function (x) { ids[x] = 1; });
+  });
+  return all ? { all: 1 } : { ids: ids };
+}
+function snapFresh_(S, need, rc) {
+  if (!S || S.v !== 2 || !S.st) return false;
+  var tok = rc.get(RAF_TOK_);
+  if (!tok || tok !== S.tok) return false;
+  if (!(Date.now() - S.at < SNAP_AGE_)) return false;
+  var T = snapTail_(S.st, snapStamp_());
+  if (T.all) return false;
+  var ch = Object.keys(T.ids);
+  if (!ch.length) return true;
+  if (!need) return false;
+  var A = S.A || {}, want = {};
+  need.forEach(function (x) { x = String(x || '').trim(); if (x) { want[x] = 1; want[A[x] || x] = 1; } });
+  for (var i = 0; i < ch.length; i++) if (want[ch[i]] || want[A[ch[i]] || ch[i]]) return false;
+  return true;
+}
+function snapGet_(key, need, build) {
+  var rc = CacheService.getScriptCache();
+  var S = bigGet_(rc, key);
+  if (snapFresh_(S, need, rc)) return S.d;
+  /* חישוב אחר כבר רץ — לחכות לו, אם הוא יכסה את מה שראינו. */
+  var flag = 'bld:' + key, f = +(rc.get(flag) || 0);
+  if (f && Date.now() - f < 30000) {
+    for (var i = 0; i < 14; i++) {
+      Utilities.sleep(1500);
+      var S2 = bigGet_(rc, key);
+      if (S2 && (!S || S2.at !== S.at) && snapFresh_(S2, need, rc)) return S2.d;
+      if (!rc.get(flag)) break;
+    }
+  }
+  rc.put(flag, String(Date.now()), 60);
+  try {
+    /* האסימון והחותמת — **לפני** הקריאה. שינוי באמצע יופיע כשורה חדשה או
+       כאסימון אחר, ולא ייבלע. */
+    var tok = rc.get(RAF_TOK_);
+    if (!tok) { tok = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); rc.put(RAF_TOK_, tok, 21600); }
+    var st = snapStamp_(), at = Date.now();
+    var r = build();
+    bigPut_(rc, key, { v: 2, tok: tok, st: st, at: at, A: r.A, d: r.d }, 360);
+    return r.d;
+  } finally { try { rc.remove(flag); } catch (x) {} }
 }
 /* ההגרלה של הדף של שבוע `dw` כבר בוצעה (הגרלת שבוע dw+1 שלא בוטלה) —
    מזהה → כמה כרטיסים היו לו בה, מ"תמונת כרטיסים" של כל המוסדות. null —
@@ -10758,7 +10866,7 @@ function tkDaf_(P) {
   }
   var w = parseInt(P.wk, 10), pw = progWeek_();
   if (!(w === pw || w === pw - 1)) { out.old = 1; return out; }
-  var W = w === pw - 1 ? null : w, M = rafMeMap_(W), hit = '';
+  var W = w === pw - 1 ? null : w, M = rafMeMap_(W, mine), hit = '';
   for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
   out.tk = rafTk_(hit, W, true);
   out.wk = w;
@@ -10791,7 +10899,7 @@ function rafNext_() {
 function rafNextTk_(mine) {
   var nr = rafNext_();
   if (!nr) return null;
-  var W = nr === progWeek_() ? null : nr - 1, M = rafMeMap_(W), hit = '';
+  var W = nr === progWeek_() ? null : nr - 1, M = rafMeMap_(W, mine), hit = '';
   for (var i = 0; i < mine.length && !hit; i++) hit = M[mine[i]] || '';
   var o = rafTk_(hit, W, true);
   delete o.drawn;
@@ -10803,7 +10911,7 @@ function rafMe_(P) {
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
   if (!inst || !mine.length) return none;
-  var M = rafMeMap_();
+  var M = rafMeMap_(null, mine);
   /* המוסדות שהרכז בחר — אותו סינון כמו raffleElig_ (`by[p.code]`). */
   var sel = rafSelGet_();
   var tst = testOk_(P) ? testSess_() : null;
