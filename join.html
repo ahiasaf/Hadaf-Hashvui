@@ -3716,7 +3716,7 @@ function parTkDraw() {
       else {
         st = give;
         if (w + 1 <= lw && P.tkParLate) d = '<span class="ptk-d">' + esc(parTkFill(P.tkParDaf, { daf: LDafName(tr, w) || LDaf(tr, w) })) +
-          '<small>' + esc(P.tkParLate) + '</small></span>';
+          '<small>' + esc(kd.first ? parTkFill(P.tkParLate, { 'בן': kd.first }) : P.tkParLateKid || P.tkParLate) + '</small></span>';
       }
       return '<div class="ptk-r">' + d + st + '</div>';
     };

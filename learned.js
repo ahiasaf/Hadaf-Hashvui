@@ -572,8 +572,10 @@ function LAmdaSync(after) {
   if (Date.now() - (LGet('amda-ask', 0) || 0) < 15 * 60000) return;
   LSet('amda-ask', Date.now());
   LJsonp(url + '?amdaFor=' + encodeURIComponent(me.id)).then(function (r) {
-    if (!r || r.status !== 'ok' || !r.learned || !r.learned.length) return;
-    var all = LGet('learned', {}) || {}, fresh = LAmdaWhole(r.learned).filter(function (t) { return t && !all[t]; });
+    if (!r || r.status !== 'ok') return;
+    /* השבועות שאבא נתן עליהם כרטיס (`par`, 8.99.417) — השבוע עצמו, בלי הרחבה. */
+    var all = LGet('learned', {}) || {}, fresh = LAmdaWhole(r.learned || []).concat(r.par || [])
+      .filter(function (t, i, a) { return t && !all[t] && a.indexOf(t) === i; });
     if (!fresh.length) return;
     LMergeLearned(fresh);
     if (after) after();

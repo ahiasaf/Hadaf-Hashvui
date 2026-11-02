@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 160;
+var SCRIPT_VERSION = 161;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1696,6 +1696,8 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.amdaFor) {
     var afr = { status: 'ok', learned: [] };
     try { afr.learned = amdaLearnedOf_(String(e.parameter.amdaFor).trim()); } catch (afe) {}
+    /* השבועות שאבא נתן עליהם כרטיס (8.99.417) — הבן רואה אותם כנלמדו. */
+    try { afr.par = parWeeksOf_(String(e.parameter.amdaFor).trim()); } catch (afp) {}
     return reply_(e, afr);
   }
   if (e && e.parameter && e.parameter.whoIs) {
@@ -2236,6 +2238,7 @@ function appendCols_(tab, cols, ssId) {
         if (c && c[0] === 'בדיקה') ctst = String(c[1] || '').trim() === 'כן';
       });
       if (tab === 'זוגות') chBust_({ test: ctst }); else chBustFor_(cid, ctst);
+      if (tab === 'זוגות') CacheService.getScriptCache().remove('pf:ok');
     } catch (eB) {}
   }
   /* הודעה חדשה בתיבה — שהאפליקציה תראה אותה מיד, ולא אחרי דקה. */
@@ -4954,6 +4957,54 @@ function amdaForBuild_(rc) {
     try { rc.putAll(part, 600); } catch (e) {}
   }
   try { rc.put('af:ok', '1', 600); } catch (e2) {}
+}
+
+/* ============================================================
+   הלימוד עם אבא עובר לבן (8.99.417, אחיאסף).
+   ============================================================
+   "אצל ההורים מסומנים שלושה-ארבעה שבועות, ואצל הבן לא." כל שבוע שאבא
+   נתן עליו כרטיס — אותה הגדרה כמו בהגרלה (rafGrants_): ההורה כתב, או בקשה
+   של הבן שאושרה; הבן לפי pairWho_ — חוזר לאפליקציה של הבן ב-?amdaFor= (`par`)
+   כ-'מסלול|שבוע', והיא מסמנת אותו כנלמד. שבוע בדיוק, בלי העמוד השני של הדף.
+   מטמון לעשר דקות (`pf:<מזהה>`), נמחק בכל שורה חדשה ב"זוגות". */
+function parWeeksOf_(id) {
+  if (!id) return [];
+  var rc = CacheService.getScriptCache();
+  if (!rc.get('pf:ok')) parWeeksBuild_(rc);
+  var v = rc.get('pf:' + id);
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  return [];
+}
+function parWeeksBuild_(rc) {
+  var sh = sheet_('זוגות'), by = {};
+  if (sh && sh.getLastRow() > 1) {
+    var P = rafPpl_(), ppl = P.ppl, kids = pairKids_(ppl);
+    var v = sh.getDataRange().getDisplayValues(), ix = {};
+    for (var h = 0; h < v[0].length; h++) ix[String(v[0][h]).trim()] = h;
+    var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] || '').trim(); };
+    for (var i = 1; i < v.length; i++) {
+      var r = v[i], tr = c(r, 'מסלול'), wk = parseInt(c(r, 'שבוע'), 10) || 0;
+      if (!tr || !wk || !c(r, 'מזהה')) continue;
+      if (c(r, 'דיווח') !== 'ההורה' && c(r, 'אושר') !== 'כן') continue;
+      var W = pairWho_(P, kids, c, r);
+      if (!W || !ppl[W.kid]) continue;
+      var a = by[W.kid] = by[W.kid] || [], tag = tr + '|' + wk;
+      if (a.indexOf(tag) < 0) a.push(tag);
+    }
+    var out = {};
+    Object.keys(by).forEach(function (k) {
+      var s = JSON.stringify(by[k]);
+      (ppl[k].ids || []).concat([k]).forEach(function (x) { out['pf:' + x] = s; });
+      Object.keys(P.target).forEach(function (x) { if (P.target[x] === k) (ppl[x].ids || [x]).forEach(function (y) { out['pf:' + y] = s; }); });
+    });
+    var ks = Object.keys(out);
+    for (var j = 0; j < ks.length; j += 200) {
+      var part = {};
+      ks.slice(j, j + 200).forEach(function (k) { part[k] = out[k]; });
+      try { rc.putAll(part, 600); } catch (e) {}
+    }
+  }
+  try { rc.put('pf:ok', '1', 600); } catch (e2) {}
 }
 
 /* ניקוי חד-פעמי: אותו אדם בכמה שורות → שורה אחת. נשאר המזהה
@@ -8569,8 +8620,9 @@ function rafCalc_(hsAdd) {
     if (!ppl[id]) return;
     Object.keys(G[id]).forEach(function (g) {
       var t0 = g.split('|')[1];
-      /* השלמה על שבוע ישן — כרטיס אבא בלבד (rafLateCtx_), ונבדק למטה. */
-      if (G[id][g] === 'f') { lateF.push([id, t0]); return; }
+      /* השלמה על שבוע ישן — כרטיס אבא בלבד (rafLateCtx_), ונבדק למטה.
+         שבוע אחד — כרטיס אחד, גם כששני הורים נתנו עליו. */
+      if (G[id][g] === 'f') { lateF.push([id, t0, g.split('|')[2]]); return; }
       var o = tk(id, t0);
       o.l = 1; o.q = 1; o.f = 1;
     });
@@ -8594,9 +8646,15 @@ function rafCalc_(hsAdd) {
      כרטיס לימוד (כולל נוכחות והענקה רגילה), או שני העמודים הושלמו וחסר רק
      זמן (`lack`). בלי למידה עד ההגרלה — לא נספר, וההגרלה ההיא מממשת
      את השורה (מועד החיתוך) גם כך: היא לא עוברת לשבוע שאחריה. */
+  /* **כרטיס לכל שבוע ישן** (8.99.417, אחיאסף: "לתלמיד מגיע — לבן יהיו יותר כרטיסים
+     באותו שבוע בהגרלה"): כל שבוע שאבא נתן עליו מוסיף כרטיס אבא אחד, מעבר לתקרה של
+     שלושה למסלול. אותו תנאי: הבן למד את הדף של ההגרלה הקרובה. */
+  var lateW = {};
   lateF.forEach(function (x) {
-    var cur = done[x[0]] && done[x[0]].tr[x[1]];
-    if ((cur && cur.l) || lack[x[0] + '|' + x[1]]) tk(x[0], x[1]).f = 1;
+    var cur = done[x[0]] && done[x[0]].tr[x[1]], wk = x[0] + '|' + x[1] + '|' + x[2];
+    if (lateW[wk] || !((cur && cur.l) || lack[x[0] + '|' + x[1]])) return;
+    lateW[wk] = 1;
+    tk(x[0], x[1]).f++;
   });
   Object.keys(done).forEach(function (id) {
     var o = done[id];
