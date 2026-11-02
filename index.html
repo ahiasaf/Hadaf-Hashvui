@@ -3065,7 +3065,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.424';
+var APP_VERSION = '8.99.425';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3470,7 +3470,9 @@ function renderHome() {
      מאחוריו. לכן ברירת המחדל היא מי שהיה בתשפ״ו — אמת מלאה
      שגם משכנעת — והמתג בניהול מעביר לתשפ״ז כשיגיע הזמן. */
   var showNow = rosterMode() === 'now';
-  var inList  = INSTITUTIONS.filter(function (i) { return showNow ? i.joined : i.last; });
+  /* "מי כבר בפנים" תואם לסקירת הישיבות: מי שסומנה כמצטרפת, וגם כל
+     ישיבה שיש בה לפחות תלמיד אחד בסקירה (`act`, 2.11.2026). */
+  var inList  = INSTITUTIONS.filter(function (i) { return showNow ? (i.joined || i.act) : i.last; });
   var openN   = INSTITUTIONS.length - inList.length;
 
   document.getElementById('rings').innerHTML =
@@ -9889,6 +9891,9 @@ function instFromRows(rows) {
     var head = (r[5] || '').trim();
     out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
                joined:YES.test((r[3] || '').trim()),
+               /* עמודה G — יש בישיבה לפחות תלמיד אחד בסקירת הישיבות
+                  (ovActPub_ בסקריפט). העמוד הראשי מציג אותה כמי שהצטרפה. */
+               act:YES.test((r[6] || '').trim()),
                head:head || null,
                mas:mas.length ? mas : null });
   });

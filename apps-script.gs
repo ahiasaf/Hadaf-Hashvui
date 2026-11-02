@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 166;
+var SCRIPT_VERSION = 167;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14167,8 +14167,44 @@ function ovSync_(force) {
   if (ovFill_(T, own)) own = ovOwn_() || own;
   T.rows.forEach(function (row) { ovPut_(T, row, C, own, reps); });
   ovSum_(T, C);
+  ovActPub_(T, C, own, reps);
   cache.put('ovSyncAt', '1', 120);
   return T;
+}
+/* ============================================================
+   "ישיבות שהצטרפו" בעמוד הראשי = מה שבסקירת הישיבות (2.11.2026).
+   ============================================================
+   "יש ישיבות שבסקירה יש בהן לפחות תלמיד אחד, ובעמוד הראשי הן לא
+   מופיעות." הסקירה סופרת את הישיבה לפי הסה"כ שלה (ovTotal_), והעמוד
+   הראשי לפי הסימון "הצטרף" — שני מקורות. כאן הסה"כ של הסקירה יוצא
+   ללשונית הציבורית "מוסדות", עמודה G ("יש תלמידים"): TRUE כשהסה"כ
+   גדול מאפס, ריק כשהוא אפס. סה"כ לא ידוע — התא לא נוגע. אין בעמודה
+   מספר ואין פרט אישי — רק כן/לא לכל ישיבה. רק תא שהשתנה נכתב. */
+function ovActPub_(T, C, own, reps) {
+  try {
+    var want = {};
+    T.rows.forEach(function (row) {
+      var code = ovCell_(T, row, 'code');
+      if (!code || code === 'other') return;
+      var X = ovTotal_(ovNums_(T, row, C), own, reps);
+      if (X.tot === '') return;
+      want[code] = (parseInt(X.tot, 10) || 0) > 0 ? 'TRUE' : '';
+    });
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INST_TAB);
+    if (!sh || sh.getLastRow() < 2) return;
+    if (String(sh.getRange(1, 7).getDisplayValue()).trim() !== 'יש תלמידים') {
+      sh.getRange(1, 7).setValue('יש תלמידים');
+    }
+    var n = sh.getLastRow() - 1;
+    var codes = sh.getRange(2, 1, n, 1).getDisplayValues();
+    var cur = sh.getRange(2, 7, n, 1).getDisplayValues();
+    for (var i = 0; i < n; i++) {
+      var c = String(codes[i][0]).trim();
+      if (!c || !(c in want)) continue;
+      var was = String(cur[i][0]).trim().toUpperCase() === 'TRUE' ? 'TRUE' : '';
+      if (was !== want[c]) sh.getRange(i + 2, 7).setValue(want[c]);
+    }
+  } catch (e) {}      /* כישלון כאן לא יפיל את הסנכרון */
 }
 /* שורה אחת בטבלה ← מה שהמנהלים רואים עליה. רק תא שהשתנה נכתב.
    אין שורת מונה לקוד — "נרשמו באפליקציה" נשאר כמו שהוא (אין כאן
