@@ -1761,7 +1761,7 @@ function peekBadge(st) {
    הלא נכון:
    · בקטע הראשון, כשהשבוע מתחיל בזנב של הדף הקודם — "מתחיל בדף ד:".
    · כשהשבוע גולש לדף הבא — בקטע האחרון של הדף ובראשון של הבא:
-     "ממשיך לדף ו". הקטעים שבאמצע — בלי תווית.
+     "ממשיך לדף ו" / "ממשיך כאן, בדף ו". הקטעים שבאמצע — בלי תווית.
    · בקטע האחרון של השבוע, כשאינו סוף הדף (גלישה, או סוף מוקדם בדף
      שלם) — "מסתיים כאן". גובר על "ממשיך" כשהגלישה היא קטע אחד.
    קטעים מחוץ לשבוע (`peek`, מצב עריכה) — בלי תווית ולא נספרים. */
@@ -1782,7 +1782,7 @@ function wkBadge(st) {
   if (pp && pp.head && IDX === 0) t = (UI.wkStart || '').replace('{daf}', pp.daf + LAmMark(pp.pg));
   else if (pp && IDX === last && (over >= 0 || (!S.am && BUILT && BUILT.cut))) t = UI.wkDone || '';
   else if (pp && over > 0 && (IDX === over || IDX === over - 1))
-    t = (UI.wkCont || '').replace('{daf}', PAGES[FLAT[over].p].daf);
+    t = (IDX === over ? UI.wkContIn : UI.wkCont || '').replace('{daf}', PAGES[FLAT[over].p].daf);
   el.textContent = t;
   el.className = t ? 'on' : '';
 }
