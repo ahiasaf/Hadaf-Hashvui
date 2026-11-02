@@ -75,7 +75,10 @@ function LWeek() {
     var early = PROGRAM.earlyFrom ? new Date(PROGRAM.earlyFrom + 'T00:00:00') : null;
     return (early && now >= early) ? 0 : -1;
   }
-  return Math.min(Math.floor(days / 7), CAL_TAANIT.length - 1);
+  /* מסלול שממשיך אחרי א׳ סיוון (נר תמיד, TrackMaxWk ב-data.js) — עד הסוף שלו. */
+  var cap = CAL_TAANIT.length - 1, f = LHashFam();
+  if (f && typeof TrackMaxWk === 'function') cap = TrackMaxWk(f);
+  return Math.min(Math.floor(days / 7), cap);
 }
 /* הדף של שבוע מסוים במסלול. null = שבוע חופשה.
    שם הדף בלבד — בלי העמוד. הוא המפתח לכל מה שנשמר לפי דף (הקישורים,
@@ -84,6 +87,8 @@ function LWeek() {
 function LRow(track, wk) {
   /* גם מסלול השלמה (TrackById ב-data.js) — לו לוח משלו. */
   var t = TrackById(track);
+  /* שבוע אחרי סוף הלוח (מכשיר במסלול ארוך יותר) — השבוע האחרון שלו, כמו קודם. */
+  if (t && wk >= t.cal.length) wk = t.cal.length - 1;
   return t ? (t.cal[wk] || null) : null;
 }
 function LDaf(track, wk) {
@@ -128,11 +133,19 @@ function LWeekOf(track, daf, am) {
    נרשם חדש מישיבה שבמסלול דרך הקישור שלה (join.html), או העברה
    ידנית מהניהול — השרת מחזיר `hs` עם הכרטיסים (?pts=me, ptsMe_).
    המסכת נשארת כפי שנבחרה; משתנה רק הלוח. */
-function LHash() { return LGet('hash', 0) === 1; }
+/* המשפחה של המסלול החלופי: 'hashlama' (`df:hash` = 1), 'nertamid' — תלמיד
+   נר תמיד בשכבה ט׳ ומעלה לפי הפרטים שבמכשיר (TrackNtOk), או `df:hash` = 2
+   מהשרת (הורה — לפי הבן). '' — המסלול הרגיל. */
+function LHashFam() {
+  var me = LMe(), v = LGet('hash', 0);
+  if (me && typeof TrackNtOk === 'function' && TrackNtOk(me.inst, me.grade, me.role)) return 'nertamid';
+  return v === 1 ? 'hashlama' : v === 2 ? 'nertamid' : '';
+}
+function LHash() { return !!LHashFam(); }
 /* המסלול שהמכשיר לומד בו במסכת `mas`. */
 function LTrackOf(mas) {
-  var b = TrackBase(mas);
-  return (LHash() && TrackHash(b)) || b;
+  var b = TrackBase(mas), f = LHashFam();
+  return (f && TrackHash(b, f)) || b;
 }
 /* הכתובת לדף האינטראקטיבי: `mas` — המסכת, ו-`tr` — המסלול כשהוא אחר. */
 function LLearnQ(track) {

@@ -45,7 +45,8 @@ function StTrack(id) {
 /* שם המסלול להצגה: מסלול השלמה — "תענית · השלמה" (UI.hashName). */
 function StTrName(t) {
   if (!t) return '';
-  return t.baseTrack ? String((typeof UI !== 'undefined' && UI.hashName) || '{mas}').replace('{mas}', t.masechet)
+  var nm = typeof UI === 'undefined' ? '' : t.fam === 'nertamid' ? UI.ntName : UI.hashName;
+  return t.baseTrack ? String(nm || '{mas}').replace('{mas}', t.masechet)
                      : t.masechet;
 }
 function StEsc(s) {

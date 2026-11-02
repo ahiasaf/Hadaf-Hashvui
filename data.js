@@ -283,7 +283,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.407';
+var DAF_REV = '8.99.408';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -559,12 +559,91 @@ var CAL_TAANIT_HASHLAMA = [
 var CAL_MEGILA_HASHLAMA = CAL_TAANIT_HASHLAMA.slice(0, 35).concat([
   ['א\' סיוון',            'חגיגת סיום המסכת',    'ל"ב', 'א', 'סיום']
 ]);
+/* ------------------------------------------------------------
+   מסלול נר תמיד (8.99.408) — כל תלמיד של ישיבת נר תמיד בשכבה ט׳
+   ומעלה (TrackNtOk), גם מי שכבר רשום. החלטת אחיאסף, 1.11.2026.
+   ------------------------------------------------------------
+   נפתח בדף ב׳ שלם בשבוע 5 (חיי שרה), ונח **בכל** החופשות — חנוכה (10),
+   שבת הגדול ופסח (28–30). שבוע שבועות (36) — לומדים. ולכן הוא נמשך
+   אחרי א׳ סיוון: תענית מסתיימת בל״א בשבוע 38, מגילה בל״ב בשבוע 39.
+   **אין מתג ואין קישור:** השיוך לפי הישיבה והשכבה, במכשיר (LHashFam)
+   ובשרת (rafPpl_), באותו כלל. הורה — לפי הבן (השרת מחזיר `hs` = 2).
+   ------------------------------------------------------------ */
+var CAL_TAANIT_NT = CAL_TAANIT_HASHLAMA.slice(0, 3).concat([
+  ['י"ד-כ\' חשוון',        'וירא',                null],
+  ['כ"א-כ"ז חשוון',        'חיי שרה',             'ב'],
+  ['כ"ח חשוון-ד\' כסלו',   'תולדות',              'ג'],
+  ['ה\'-י"א כסלו',         'ויצא',                'ד'],
+  ['י"ב-י"ח כסלו',         'וישלח',               'ה'],
+  ['י"ט-כ"ה כסלו',         'וישב',                'ו'],
+  ['כ"ו כסלו-ב\' טבת',     'מקץ · חנוכה',         null],
+  ['ג\'-ט\' טבת',          'ויגש',                'ז'],
+  ['י\'-ט"ז טבת',          'ויחי',                'ח'],
+  ['י"ז-כ"ג טבת',          'שמות',                'ט'],
+  ['כ"ד טבת-א\' שבט',      'וארא',                'י'],
+  ['ב\'-ח\' שבט',          'בא',                  'י"א'],
+  ['ט\'-ט"ו שבט',          'בשלח',                'י"ב'],
+  ['ט"ז-כ"ב שבט',          'יתרו',                'י"ג'],
+  ['כ"ג-כ"ט שבט',          'משפטים',              'י"ד'],
+  ['ל\' שבט-ו\' אדר א\'',  'תרומה',               'ט"ו'],
+  ['ז\'-י"ג אדר א\'',      'תצוה',                'ט"ז'],
+  ['י"ד-כ\' אדר א\'',      'כי תשא',              'י"ז'],
+  ['כ"א-כ"ז אדר א\'',      'ויקהל',               'י"ח'],
+  ['כ"ח אדר א\'-ד\' אדר ב\'','פקודי',             'י"ט'],
+  ['ה\'-י"א אדר ב\'',      'ויקרא',               'כ\''],
+  ['י"ב-י"ח אדר ב\'',      'צו · פורים',          'כ"א'],
+  ['י"ט-כ"ה אדר ב\'',      'שמיני',               'כ"ב'],
+  ['כ"ו אדר ב\'-ג\' ניסן', 'תזריע',               'כ"ג'],
+  ['ד\'-י\' ניסן',         'מצורע · שבת הגדול',   null],
+  ['י"א-י"ז ניסן',         'שבת חוה"מ פסח',       null],
+  ['י"ח-כ"ד ניסן',         'אחרי מות',            null],
+  ['כ"ה ניסן-א\' אייר',    'קדושים',              'כ"ד'],
+  ['ב\'-ח\' אייר',         'אמור',                'כ"ה'],
+  ['ט\'-ט"ו אייר',         'בהר',                 'כ"ו'],
+  ['ט"ז-כ"ב אייר',         'בחוקותי',             'כ"ז'],
+  ['כ"ג-כ"ט אייר',         'במדבר',               'כ"ח'],
+  ['א\'-ז\' סיוון',         'נשא · שבועות',        'כ"ט'],
+  ['ח\'-י"ד סיוון',        'בהעלותך',             'ל\'']
+]);
+/* תענית — ל"א בשבוע 38 הוא גם הסיום (האיבר החמישי, כמו במגילה הרגילה).
+   מגילה — ל"א בשבוע 38, ול"ב (עמוד אחד) בשבוע 39 עם הסיום. */
+var CAL_MEGILA_NT = CAL_TAANIT_NT.concat([
+  ['ט"ו-כ"א סיוון',        'שלח',                 'ל"א'],
+  ['כ"ב-כ"ח סיוון',        'קרח · סיום המסכת',    'ל"ב', 'א', 'סיום']
+]);
+CAL_TAANIT_NT = CAL_TAANIT_NT.concat([
+  ['ט"ו-כ"א סיוון',        'שלח · סיום המסכת',    'ל"א', null, 'סיום']
+]);
+var NT_INST = 'nertamid';
+/* שכבה ט׳ ומעלה — בכל כתיב ("ט׳", "י״א", "יא"). */
+function TrackNtGrade(g) {
+  return ['ט', 'י', 'יא', 'יב'].indexOf(String(g || '').replace(/["'׳״\s]/g, '')) >= 0;
+}
+/* תלמיד (לא הורה) של נר תמיד בשכבה ט׳ ומעלה. */
+function TrackNtOk(code, grade, role) {
+  return code === NT_INST && role !== 'dad' && TrackNtGrade(grade);
+}
+
+/* `fam` — משפחת המסלולים: 'hashlama' (קישור הישיבה + hashOn) או 'nertamid'
+   (לפי הישיבה והשכבה). TrackHash / TrackHashInst — לפי המשפחה. */
 var TRACKS_HASHLAMA = [
-  { id:'taanit-hashlama', masechet:'תענית', sefaria:'Taanit',
+  { id:'taanit-hashlama', masechet:'תענית', sefaria:'Taanit', fam:'hashlama',
     cal:CAL_TAANIT_HASHLAMA, dapim:30, forInsts:['givat', 'rishon'], baseTrack:'taanit' },
-  { id:'megila-hashlama', masechet:'מגילה', sefaria:'Megillah',
-    cal:CAL_MEGILA_HASHLAMA, dapim:31, forInsts:['givat', 'rishon'], baseTrack:'megila' }
+  { id:'megila-hashlama', masechet:'מגילה', sefaria:'Megillah', fam:'hashlama',
+    cal:CAL_MEGILA_HASHLAMA, dapim:31, forInsts:['givat', 'rishon'], baseTrack:'megila' },
+  { id:'taanit-nertamid', masechet:'תענית', sefaria:'Taanit', fam:'nertamid',
+    cal:CAL_TAANIT_NT, dapim:30, forInsts:[], baseTrack:'taanit' },
+  { id:'megila-nertamid', masechet:'מגילה', sefaria:'Megillah', fam:'nertamid',
+    cal:CAL_MEGILA_NT, dapim:31, forInsts:[], baseTrack:'megila' }
 ];
+/* הלוח הארוך ביותר — השבוע של המכשיר אינו נעצר בא׳ סיוון כשהוא במסלול
+   שממשיך אחריו (LWeek ב-learned.js). */
+function TrackMaxWk(fam) {
+  var n = CAL_TAANIT.length;
+  for (var i = 0; i < TRACKS_HASHLAMA.length; i++)
+    if (TRACKS_HASHLAMA[i].fam === fam) n = Math.max(n, TRACKS_HASHLAMA[i].cal.length);
+  return n - 1;
+}
 /* מסלול לפי מזהה — גם מסלול השלמה. null = אין כזה. */
 function TrackById(id) {
   var all = TRACKS.concat(TRACKS_HASHLAMA);
@@ -576,16 +655,17 @@ function TrackBase(id) {
   var t = TrackById(id);
   return t ? (t.baseTrack || t.id) : id;
 }
-/* מסלול ההשלמה של מסכת, או '' כשאין לה. */
-function TrackHash(base) {
+/* המסלול החלופי של מסכת במשפחה `fam` (ברירת מחדל — השלמה), או ''. */
+function TrackHash(base, fam) {
+  fam = fam || 'hashlama';
   for (var i = 0; i < TRACKS_HASHLAMA.length; i++)
-    if (TRACKS_HASHLAMA[i].baseTrack === TrackBase(base)) return TRACKS_HASHLAMA[i].id;
+    if (TRACKS_HASHLAMA[i].fam === fam && TRACKS_HASHLAMA[i].baseTrack === TrackBase(base)) return TRACKS_HASHLAMA[i].id;
   return '';
 }
-/* האם נרשם חדש מהישיבה הזו משויך למסלול השלמה. */
+/* האם נרשם חדש מהישיבה הזו משויך למסלול השלמה (דרך הקישור). */
 function TrackHashInst(code) {
   for (var i = 0; i < TRACKS_HASHLAMA.length; i++)
-    if (TRACKS_HASHLAMA[i].forInsts.indexOf(code) >= 0) return true;
+    if (TRACKS_HASHLAMA[i].fam === 'hashlama' && TRACKS_HASHLAMA[i].forInsts.indexOf(code) >= 0) return true;
   return false;
 }
 
@@ -3336,6 +3416,7 @@ var UI = {
   /* קידומת שם המוסד (8.99.336) — במקום "יב״ע", גם בשם שבא מהגיליון. */
   instPre: 'ישיבת',
   hashName: '{mas} · השלמה',
+  ntName: '{mas} · נר תמיד',
   moreHash: 'מסלול השלמה',
   moreLtime: 'זמן לימוד',
   ltAvg: 'בממוצע {m} דקות לדף',
@@ -9263,6 +9344,7 @@ var TEXT_FIELDS = [
   { g:'מסלול השלמה — לנרשמים חדשים מראשון לציון וגבעת שמואל (ניהול ← עוד)' },
   { k:'ui.instPre', lbl:'קידומת שם הישיבה — במקום יב"ע (ניהול, ממה שבגיליון)' },
   { k:'ui.hashName', lbl:'שם המסלול בניהול ובהגרלה · {mas} המסכת' },
+  { k:'ui.ntName', lbl:'מסלול נר תמיד (ט׳ ומעלה) — שם המסלול בניהול · {mas} המסכת' },
   { k:'ui.moreHash', lbl:'ניהול ← עוד — שם המסך' },
   { k:'ui.moreLtime', lbl:'ניהול ← עוד — זמן לימוד' },
   { k:'ui.ltAvg', lbl:'זמן לימוד — הממוצע · {m}' },
