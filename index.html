@@ -2169,9 +2169,6 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-nm span{flex:1}
 .am-nm i{font-style:normal;font-size:.76rem;font-weight:700;color:var(--green-d)}
 .am-nm.had{background:var(--sunk);color:var(--ink-3)}
-/* "אני מסמן את כל הכיתה" — המורה מסמן את כולם ושומר פעם אחת. */
-.am-all{display:block;width:100%;margin:16px 0 4px;padding:10px;border:0;background:none;
-        font:inherit;font-size:.92rem;font-weight:800;color:var(--blue);text-decoration:underline}
 .am-nm.sel{background:var(--blue);border-color:var(--blue);color:#fff}
 .am-nm.sel i{color:#fff}
 /* "אני מסמן" / "התלמידים מסמנים" — מתג בראש העמדה, בכל רגע (8.99.426). */
@@ -2180,6 +2177,15 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-tabs button{font:inherit;font-size:.95rem;font-weight:800;min-height:44px;border:0;border-radius:9px;
                 background:none;color:var(--ink-3)}
 .am-tabs button.on{background:var(--surface);color:var(--blue-d);box-shadow:var(--sh-1)}
+/* "אני מסמן": הפס הקבוע — המתג, הכיתות והספירה נשארים למעלה בגלילה. */
+.am-stk{position:sticky;top:0;z-index:2;background:var(--paper);margin:0 -16px;padding:2px 16px 0;
+        box-shadow:0 6px 10px -8px rgba(11,37,80,.25)}
+.am-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.am-chips::-webkit-scrollbar{display:none}
+.am-chip{flex:none;font:inherit;font-size:1rem;font-weight:800;min-height:44px;padding:0 18px;border-radius:999px;
+         border:1.5px solid var(--rule);background:var(--surface);color:var(--ink)}
+.am-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.am-stk .am-cnt{margin:6px 2px 4px}
 /* "מניחים את הטלפון בכניסה" — בסימון של התלמידים, עד הרישום הראשון. */
 .am-tip{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:12px 14px;border-radius:var(--r);
         background:#F4ECDA;color:#4A3810;font-size:.95rem;line-height:1.45}
@@ -3086,7 +3092,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.427';
+var APP_VERSION = '8.99.428';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5120,59 +5126,30 @@ LOCK.init({
    אותה עמדה שהרכז פותח בניהול, עם שני הבדלים: הרשימה מגיעה
    מהשרת — רק תלמידי הישיבה שהמכשיר אושר אליה, ורק שם, שכבה
    וכיתה (netroster) — והרישום עובר בזהות המכשיר ולא בסיסמה.
-   כל לחיצה על "נוכחות בשיעור" פותחת בחירה (8.99.254): "אני מסמן בעצמי"
-   — ישר לסימון כל הכיתה ושמירה אחת; או "התלמידים מסמנים את עצמם" —
-   העמדה הרגילה, ובשלוש הפתיחות הראשונות במכשיר הסבר קצר לפניה
-   (`attStuN`). "איך זה עובד?" — תמיד זמין ממסך הבחירה.
+   "נוכחות בשיעור" פותח ישר את העמדה על "אני מסמן" (8.99.426) — מסך
+   הבחירה וההסברים ירדו; המעבר ל"התלמידים מסמנים" במתג שבראש העמדה.
    הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
 var attView = '', attMsg = '';
 /* איש צוות אחראי על כל הישיבה — כל הכיתות של השכבות שבתוכנית. */
 var ATT_GRADES = ['ז', 'ח'];
-function attTxt(t) { return String(t).split('\n').map(function (l) { return '<p>' + esc(l) + '</p>'; }).join(''); }
-function attBig(cls, go, t, sub) {
-  return '<button class="btn ' + cls + '" style="display:block;width:100%;text-align:right;padding:14px 16px;margin:8px 0" onclick="' + go + '">' +
-    '<b style="display:block;font-size:1.08rem">' + esc(t) + '</b><span style="display:block;font-weight:400;margin-top:4px">' + esc(sub) + '</span></button>';
-}
-function attSet(v) { attView = v; attMsg = ''; renderMy(); }
+/* מסך הבחירה ירד (8.99.426): הכפתור פותח ישר את העמדה, ובראשה המתג
+   "אני מסמן" / "התלמידים מסמנים". כאן רק הודעת טעינה/כשל. */
 function attHtml() {
-  if (attView === 'pick') {
-    return '<div class="my-sec"><h3>' + esc(PANEL.attPickH) + '</h3>' +
-      attBig('p', "attOpen('self')", PANEL.attSelf, PANEL.attSelfSub) +
-      attBig('g', "attOpen('stu')", PANEL.attStu, PANEL.attStuSub) +
-      (attMsg ? '<p>' + esc(attMsg) + '</p>' : '') +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-      '<button class="btn g" onclick="attSet(\'how\')">' + esc(PANEL.attHow) + '</button>' +
-      '<button class="btn g" onclick="attSet(\'\')">' + esc(PANEL.attLater) + '</button></div></div>';
-  }
-  if (attView === 'how') {
-    return '<div class="my-sec"><h3>' + esc(PANEL.attIntroH) + '</h3>' + attTxt(PANEL.attIntro) +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-      '<button class="btn p" onclick="attSet(\'pick\')">' + esc(PANEL.attBackPick) + '</button></div></div>';
-  }
-  if (attView === 'stu') {
-    return '<div class="my-sec"><h3>' + esc(PANEL.attStuH) + '</h3>' + attTxt(PANEL.attStuB) +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-      '<button class="btn p" onclick="attOpen(\'stu\', true)">' + esc(PANEL.attGo) + '</button>' +
-      '<button class="btn g" onclick="attSet(\'pick\')">' + esc(PANEL.attBackPick) + '</button></div></div>';
-  }
-  /* במצב הרגיל הכפתור הוא העיגול שבכותרת (attOrb) — כאן רק הודעה, אם יש. */
   return attMsg ? '<div class="my-sec"><p>' + esc(attMsg) + '</p></div>' : '';
 }
 /* נוכחות בשיעור — עיגול בפינה השמאלית של הכותרת (8.99.344), במקום כפתור
    ברוחב המסך. ה-✓ גדול, והשם מתחת לו בלי ה-✓ שבנוסח. */
 function attOrb() {
   var t = String(PANEL.attBtn || '').replace(/^\s*✓\s*/, '');
-  return '<button class="att-orb" onclick="attSet(\'pick\')" title="' + esc(PANEL.attSub) + '" aria-label="' + esc(t) + '">' +
+  return '<button class="att-orb" onclick="attOpen(\'self\')" title="' + esc(PANEL.attSub) + '" aria-label="' + esc(t) + '">' +
     '<i aria-hidden="true">✓</i><small>' + esc(t) + '</small></button>';
 }
-/* mode: 'self' — המורה מסמן; 'stu' — התלמידים. `seen` — אחרי ההסבר. */
-function attOpen(mode, seen) {
+/* mode: 'self' — נפתח על "אני מסמן"; 'stu' — על "התלמידים מסמנים". */
+function attOpen(mode) {
   var code = myBoard(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
   if (!code || !me || !me.id || !instCode(code)) return;
   var self = mode === 'self';
-  if (!self && !seen && (+Store.get('attStuN', 0) || 0) < 3) { attSet('stu'); return; }
-  if (!self) Store.set('attStuN', (+Store.get('attStuN', 0) || 0) + 1);
-  attView = 'pick'; attMsg = PANEL.attLoad; renderMy();
+  attView = ''; attMsg = PANEL.attLoad; renderMy();
   var go = function (r) {
     attMsg = ''; attView = '';
     AMDA_STAFF = { inst: code, dev: me.id, r: r };
@@ -21291,7 +21268,7 @@ function amdaPaint() {
           (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
             esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
-          '<div class="am-h">' + esc(amdaT(amdaSt.self ? 'selfT' : daf ? 'title' : 'titleO')) + '</div>' +
+          '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
           /* מה לומדים עכשיו — גלוי למעלה: הדף (ואיזה) או נושא אחר, ובאיזה מועד. */
           '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
           (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
@@ -21299,21 +21276,46 @@ function amdaPaint() {
           ' · ' + esc(amdaSlotName(s.slot)) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
           '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div>' +
-          /* מי מסמן — המורה או התלמידים; מעבר בכל רגע, הסימונים נשארים. */
-          (amdaSt.pick ? '' : '<div class="am-tabs" role="tablist">' +
-            '<button type="button" role="tab" data-tb="1" aria-selected="' + !!amdaSt.all + '"' +
-            (amdaSt.all ? ' class="on"' : '') + '>' + esc(amdaT('tabSelf')) + '</button>' +
-            '<button type="button" role="tab" data-tb="0" aria-selected="' + !amdaSt.all + '"' +
-            (amdaSt.all ? '' : ' class="on"') + '>' + esc(amdaT('tabKiosk')) + '</button></div>') +
-          /* התלמידים מסמנים: ההנחיה למורה — עד הרישום הראשון בפתיחה הזו. */
-          (!amdaSt.all && !amdaSt.pick && !amdaSt.kn && amdaT('tipB') ?
-            '<div class="am-tip" role="note"><i aria-hidden="true">📱</i><p><b>' + esc(amdaT('tipB')) + '</b> ' +
-            esc(amdaT('tip')) + '</p></div>' : '') +
           /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
              ומתג בחירת המקום — גם מתוך העמדה, לא רק מהניהול. */
           (les ? '<div class="am-tools"><button class="am-wd" data-lb="1">' + esc(amdaT('kBoard')) + '</button>' +
             '<button class="am-wd' + (amdaSeatAsk(les.id) ? '' : ' off') + '" data-la="1">' +
             esc(amdaT(amdaSeatAsk(les.id) ? 'kSeatOn' : 'kSeatOff')) + '</button></div>' : '');
+  /* מי מסמן — המורה או התלמידים; מעבר בכל רגע, הסימונים נשארים. */
+  var tabs = amdaSt.pick ? '' : '<div class="am-tabs" role="tablist">' +
+    '<button type="button" role="tab" data-tb="1" aria-selected="' + !!amdaSt.all + '"' +
+    (amdaSt.all ? ' class="on"' : '') + '>' + esc(amdaT('tabSelf')) + '</button>' +
+    '<button type="button" role="tab" data-tb="0" aria-selected="' + !amdaSt.all + '"' +
+    (amdaSt.all ? '' : ' class="on"') + '>' + esc(amdaT('tabKiosk')) + '</button></div>';
+  /* "אני מסמן": פס קבוע בראש המסך — המתג, הכיתות בשורה אחת והספירה.
+     גוללים את השמות, והמעבר לכיתה אחרת נשאר במרחק לחיצה. */
+  if (amdaSt.all && !amdaSt.pick) {
+    var lst = amdaSt.g && amdaSt.c ? amdaList(amdaSt.g, amdaSt.c) : [];
+    var hd = amdaHadNow(amdaDay() + '|' + s.slot), nOn = lst.filter(function (n) {
+      return hd[amdaKey(amdaSt.g, amdaSt.c, n)];
+    }).length;
+    /* הסמן — מקומו של הפס כשאינו נצמד (offsetTop של פס נצמד זז איתו). */
+    h += '<div id="am-stk0"></div><div class="am-stk" id="am-stk">' + tabs;
+    if (!les) {
+      h += '<div class="am-chips">';
+      AMDA_GRADES.forEach(function (g) {
+        amdaClasses(g).forEach(function (c) {
+          var on = amdaSt.g === g && amdaSt.c === c;
+          h += '<button type="button" class="am-chip' + (on ? ' on' : '') + '" aria-pressed="' + on +
+               '" data-gc="' + esc(g + '|' + c) + '">' + esc(amdaGC(g, c)) + '</button>';
+        });
+      });
+      h += '</div>';
+    }
+    if (amdaSt.g && amdaSt.c) {
+      h += '<div class="am-cnt" id="am-nq"><span>' + esc(amdaT('selfCnt')).replace('{n}', '<b>' + nOn + '</b>').replace('{m}', lst.length) +
+           '</span>' + (lst.length ? '<button type="button" id="am-ta" data-ta="1">' +
+           esc(amdaT(nOn === lst.length ? 'selfNone' : 'selfAll')) + '</button>' : '') + '</div>';
+    }
+    h += '</div>';
+  } else h += tabs + (!amdaSt.pick && !amdaSt.kn && amdaT('tipB') ?
+    '<div class="am-tip" role="note"><i aria-hidden="true">📱</i><p><b>' + esc(amdaT('tipB')) + '</b> ' +
+    esc(amdaT('tip')) + '</p></div>' : '');
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {
     var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
@@ -21323,8 +21325,8 @@ function amdaPaint() {
     box.innerHTML = h;
     return;
   }
-  if (!les) {
-    h += '<div class="am-q">' + esc(amdaT(amdaSt.self ? 'selfG' : 'pickG')) + '</div><div class="am-grid">';
+  if (!les && !amdaSt.all) {
+    h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
     /* רק שכבות שיש בהן תלמידים ברשימה — אצל איש צוות ז׳ וח׳ בלבד. */
     AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
       h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
@@ -21332,7 +21334,7 @@ function amdaPaint() {
     });
     h += '</div>';
     if (amdaSt.g) {
-      h += '<div class="am-q">' + esc(amdaT(amdaSt.self ? 'selfC' : 'pickC')) + '</div><div class="am-grid">';
+      h += '<div class="am-q">' + esc(amdaT('pickC')) + '</div><div class="am-grid">';
       amdaClasses(amdaSt.g).forEach(function (c) {
         h += '<button class="am-b' + (amdaSt.c === c ? ' on' : '') + '" data-c="' + esc(c) + '">' +
              esc(c) + '</button>';
@@ -21345,11 +21347,7 @@ function amdaPaint() {
     if (amdaSt.all) {
       /* "אני מסמן": כל מי שנרשם במועד הזה מסומן — גם מי שסימן את עצמו.
          לחיצה מסמנת, לחיצה נוספת מסירה. */
-      var nOn = list.filter(function (n) { return had[amdaKey(amdaSt.g, amdaSt.c, n)]; }).length;
-      h += '<div class="am-cnt" id="am-nq"><span>' + esc(amdaT('selfCnt')).replace('{n}', '<b>' + nOn + '</b>').replace('{m}', list.length) +
-           '</span>' + (list.length ? '<button type="button" id="am-ta" data-ta="1">' +
-           esc(amdaT(nOn === list.length ? 'selfNone' : 'selfAll')) + '</button>' : '') + '</div>' +
-           '<div class="am-names ck">';
+      h += '<div class="am-names ck">';
       list.forEach(function (n, i) {
         var on = !!had[amdaKey(amdaSt.g, amdaSt.c, n)];
         h += '<button type="button" role="checkbox" aria-checked="' + on + '" class="am-nm' + (on ? ' sel' : '') +
@@ -21357,7 +21355,6 @@ function amdaPaint() {
              esc(n) + '</span></button>';
       });
       h += '</div>';
-      if (amdaSt.self && !les) h += '<button class="am-all" data-ab="0">' + esc(amdaT('selfNext')) + '</button>';
     } else {
       h += '<div class="am-q" id="am-nq">' + esc(amdaT('pickN')) + '</div><div class="am-names">';
       list.forEach(function (n, i) {
@@ -21391,7 +21388,7 @@ function amdaTap(e) {
          (el.getAttribute('data-g') || el.getAttribute('data-c') || el.getAttribute('data-s') ||
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
           el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
-          el.getAttribute('data-ab') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
+          el.getAttribute('data-gc') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
           el.getAttribute('data-fin')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
@@ -21441,8 +21438,18 @@ function amdaTap(e) {
     amdaPaint();
     return;
   }
-  /* "כיתה אחרת" (אני מסמן). */
-  if (el.getAttribute('data-ab')) { amdaReset(); return; }
+  /* "אני מסמן": בחירת כיתה מהפס הקבוע — הרשימה מתחילה מתחת לפס. */
+  if (el.getAttribute('data-gc')) {
+    var gc = el.getAttribute('data-gc').split('|');
+    amdaSt.g = gc[0]; amdaSt.c = gc.slice(1).join('|');
+    var bx = document.getElementById('amda'), stk0 = document.getElementById('am-stk0');
+    var y = stk0 ? stk0.offsetTop : 0, sx = el.parentNode ? el.parentNode.scrollLeft : 0;
+    amdaPaint();
+    if (bx.scrollTop > y) bx.scrollTop = y;
+    var ch = document.querySelector('.am-chips');
+    if (ch) ch.scrollLeft = sx;
+    return;
+  }
   var all = amdaList(amdaSt.g, amdaSt.c), had0 = amdaHadNow(amdaDay() + '|' + amdaSess().slot);
   var keep = function () {
     var top = document.getElementById('amda').scrollTop;
@@ -21493,7 +21500,7 @@ function amdaOk(n, txt, after, ms) {
   setTimeout(function () {
     document.getElementById('am-ok').className = 'am-ok';
     after();
-  }, ms || 1300);
+  }, ms || 450);
 }
 /* היום והשבוע — של רגע הלחיצה, ולא של פתיחת העמדה: מכשיר שנשאר
    פתוח עד מחר רושם את מחר. מי שכבר נרשם במועד הזה ובחר מקום —
