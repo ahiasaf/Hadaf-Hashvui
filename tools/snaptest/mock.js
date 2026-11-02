@@ -24,6 +24,8 @@ function fmt(d, tz, p) {
 }
 function disp(v) { if (v == null) return ''; if (v instanceof Date || (v && typeof v.getTime === 'function' && typeof v.getFullYear === 'function')) return fmt(v, '', 'dd/MM/yyyy HH:mm:ss'); return String(v); }
 var STATS = { reads: 0, readCells: 0 };
+// כמו בגיליון: גרש בראש מחרוזת = "טקסט", ואינו נשמר בתא.
+function tx(v) { return typeof v === 'string' && v.charAt(0) === "'" ? v.slice(1) : v; }
 function Sheet(name, ss) { this.name = name; this.ss = ss; this.d = []; }
 Sheet.prototype = {
   getName: function () { return this.name; },
@@ -36,7 +38,7 @@ Sheet.prototype = {
     return chain(new Range(this, r, c, nr == null ? 1 : nr, nc == null ? 1 : nc));
   },
   getDataRange: function () { return chain(new Range(this, 1, 1, Math.max(1, this.d.length), Math.max(1, this.getLastColumn()))); },
-  appendRow: function (a) { this.d.push(a.slice()); return this; },
+  appendRow: function (a) { this.d.push(a.map(tx)); return this; },
   deleteRow: function (r) { this.d.splice(r - 1, 1); },
   deleteRows: function (r, n) { this.d.splice(r - 1, n); },
   insertRowsAfter: function () {}, insertColumnsAfter: function () {},
@@ -54,7 +56,7 @@ Range.prototype = {
   getDisplayValues: function () { return this._get(disp); },
   getValue: function () { return this.getValues()[0][0]; }, getDisplayValue: function () { return this.getDisplayValues()[0][0]; },
   setValues: function (v) { for (var i = 0; i < v.length; i++) { var ri = this.r - 1 + i; while (this.sh.d.length <= ri) this.sh.d.push([]);
-    for (var j = 0; j < v[i].length; j++) { var row = this.sh.d[ri]; while (row.length < this.c - 1 + j) row.push(''); row[this.c - 1 + j] = v[i][j]; } } return this; },
+    for (var j = 0; j < v[i].length; j++) { var row = this.sh.d[ri]; while (row.length < this.c - 1 + j) row.push(''); row[this.c - 1 + j] = tx(v[i][j]); } } return this; },
   setValue: function (x) { return this.setValues([[x]]); },
   clearContent: function () { var b = []; for (var i = 0; i < this.nr; i++) { b.push(new Array(this.nc).fill('')); } return this.setValues(b); },
   getRow: function () { return this.r; }, getNumRows: function () { return this.nr; }, getColumn: function () { return this.c; },

@@ -39,6 +39,13 @@
    בשקט; תוצאות הגרלה מההתראה (?ms=k, msrHtml); קישור לחבר רשום בניסוי
    (`&old=1`, `chRefLater`).
 
+   **8.99.436 — עיצוב מחודש (הבריף של אחיאסף):** כפתור וואטסאפ ירוק הוא הפעולה
+   הראשית, בבית ובמסך השולחן, תמיד. הכיסא נתפס בסיום דף; עד אז החבר "בדרך
+   אליך" (`me.way` מהשרת, ו"הוזמן" — החבר מההרשמה שנשלח לו, `df:chFrSent`).
+   עד 3 שולחנות (`me.ts`) — מסך "השולחנות שלך". הוזמן מכמה חברים — מסך בחירה
+   (`me.pend.hs`, ?challenge=sit עם הקוד של המארח). אין מקום — `me.nr`.
+   בלי העתקת קישור: השיתוף רק בוואטסאפ.
+
    ES5 בלבד. המלל — UI.ch* ב-data.js.
    ============================================================ */
 (function () {
@@ -249,8 +256,25 @@
     if (m.pend && m.pend.t) return { t: m.pend.t, pend: true };
     return null;
   }
+  /* כל השולחנות שלי (8.99.436) — `ts`; שרת ישן — רק `t`. */
+  function tabs(d) {
+    var m = d && d.me;
+    if (!m) return [];
+    return m.ts && m.ts.length ? m.ts : m.t ? [m.t] : [];
+  }
+  /* הוזמן מכמה חברים, לא בחר, ועוד לא יושב אצל אף אחד — מסך הבחירה. */
+  function pickList(d) {
+    var m = d && d.me, p = m && m.pend, out = [];
+    if (p && !p.ch && p.hs) p.hs.forEach(function (h) { if (h.t && h.c) out.push(h); });
+    /* רשום שהגיע מקישור של חבר נוסף — גם הוא ברשימה. */
+    if (d && d.ref === 'old' && refAny() && d.refT) {
+      var r = refAny();
+      if (!out.some(function (h) { return h.c === r; })) out.push({ n: d.refBy || U('chFriend'), c: r, t: d.refT });
+    }
+    return out;
+  }
   function seatsOf(v) {
-    var out = v ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
+    var out = v && v.t ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
     while (out.length < 4) out.push(free());
     return num(out);
   }
@@ -314,8 +338,7 @@
     return '<p class="ch-yay">' + esc(m.k === 1 ? U('chYayFirst') : U('chYay')) + '</p>';
   }
 
-  /* ---- ההזמנה: הקישור, וואטסאפ, העתקה ---- */
-  var CODE = '';
+  /* ---- ההזמנה: הקישור ווואטסאפ ---- */
   /* הקישור שנשלח. בייצור הכתובות נקיות מסיומת (cleanUrls) — `chaver`;
      עמוד שנפתח עם `.html` (שרת מקומי) — `chaver.html`, אחרת 404. */
   function base() {
@@ -338,20 +361,22 @@
     if (!m || m.way !== 'chav' || m.rel !== 'friend' || !m.dadFirst || LGet('chFrSent', '')) return null;
     return { n: m.dadFirst, p: m.dadPhone || '' };
   }
-  function frHtml(f) { return waBtn(tp(U('chFrBtn'), { name: f.n }), f.p); }
-  /* כפתור הוואטסאפ בבית: הקוד כבר במכשיר — קישור ישיר; אחרת — בלחיצה מבקשים
-     את הקוד מהשרת (?challenge=ref) ופותחים את וואטסאפ, בלי לעבור בעמוד האתגר. */
-  function waBtn(label, ph) {
-    var c = LGet(codeKey(), ''), t = esc(label);
-    return c ? '<a class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" target="_blank" rel="noopener" href="' + esc(waOf(c, ph)) + '">' + IC.wa(22) + t + '</a>'
-             : '<button class="ch-btn wa ch-cta" id="ch-fr" data-p="' + esc(ph) + '" type="button">' + IC.wa(22) + t + '</button>';
+  function frHtml(f) { return waBtn(tp(U('chFrBtn'), { name: f.n }), f.p, 'ch-fr', 'ch-fr2'); }
+  /* כפתור הוואטסאפ: הקוד כבר במכשיר — קישור ישיר; אחרת — בלחיצה מבקשים את
+     הקוד מהשרת (?challenge=ref) ופותחים את וואטסאפ. **השיתוף רק כאן** — נוסח
+     ההזמנה הקיים (chShareMsg), ובחירת איש הקשר — בטלפון (8.99.436). */
+  function waBtn(label, ph, id, k) {
+    var c = LGet(codeKey(), ''), t = esc(label), cl = 'ch-btn wa ' + (k || 'ch-cta');
+    return c ? '<a class="' + cl + '" id="' + id + '" data-p="' + esc(ph) + '" target="_blank" rel="noopener" href="' + esc(waOf(c, ph)) + '">' + IC.wa(22) + t + '</a>'
+             : '<button class="' + cl + '" id="' + id + '" data-p="' + esc(ph) + '" type="button">' + IC.wa(22) + t + '</button>';
   }
-  function frWire(box, d, f, redraw) {
-    var b = document.getElementById('ch-fr');
+  /* `f` — החבר מההרשמה: אחרי לחיצה הוא "הוזמן" ב"בדרך אליך" (השם נשמר במכשיר). */
+  function waWire(id, f, redraw) {
+    var b = document.getElementById(id);
     if (!b) return;
     var ph = b.getAttribute('data-p') || '';
     b.onclick = function () {
-      if (f) LSet('chFrSent', '1');
+      if (f) LSet('chFrSent', f.n || '1');
       if (b.tagName === 'A') { if (f && redraw) setTimeout(redraw, 300); return; }
       b.disabled = true;
       var undo = function () { if (f) { try { localStorage.removeItem('df:chFrSent'); } catch (e) {} } b.disabled = false; };
@@ -361,37 +386,41 @@
       }, undo);
     };
   }
-  function shareHtml() {
-    return '<div id="ch-inv"><a class="ch-btn wa ch-cta" id="ch-wa" target="_blank" rel="noopener" aria-disabled="true">' +
-      IC.wa(22) + esc(U('chWa')) + '</a>' +
-      '<div class="ch-lnk"><code id="ch-link" dir="ltr">' + esc(U('chLinkWait')) + '</code>' +
-      '<button id="ch-copy" type="button" disabled>' + IC.copy + '<span>' + esc(U('chCopy')) + '</span></button></div></div>';
-  }
-  function wireShare() {
-    var put = function (c) {
-      CODE = c;
-      var url = linkOf(c), l = document.getElementById('ch-link');
-      if (l) l.textContent = url;
-      var w = document.getElementById('ch-wa');
-      if (w) { w.href = waOf(c); w.removeAttribute('aria-disabled'); }
-      var b = document.getElementById('ch-copy');
-      if (b) {
-        b.disabled = false;
-        b.onclick = function () {
-          var done = function () { b.lastChild.textContent = U('chCopied'); };
-          try { navigator.clipboard.writeText(url).then(done, function () { prompt('', url); }); }
-          catch (e) { prompt('', url); }
-        };
-      }
-    };
-    var c0 = LGet(codeKey(), '');
-    if (c0) { put(c0); return; }
+  /* הקוד מראש, בשקט — שהכפתור יהיה קישור ישיר (בלי המתנה בלחיצה). */
+  function codeWarm() {
+    if (LGet(codeKey(), '') || codeWarm.on) return;
+    codeWarm.on = 1;
     api('ref', { id: ids().join(',') }).then(function (d) {
-      if (d && d.status === 'ok' && d.code) { LSet(codeKey(), d.code); put(d.code); return; }
-      var l = document.getElementById('ch-link'); if (l) l.textContent = U('chLinkFail');
-    }, function () {
-      var l = document.getElementById('ch-link'); if (l) l.textContent = U('chLinkFail');
-    });
+      if (d && d.status === 'ok' && d.code) LSet(codeKey(), d.code);
+    }, function () {});
+  }
+
+  /* ---- "בדרך אליך" — מי שהוזמן ועוד לא תפס כיסא. מצבים קיימים בלבד ---- */
+  function wayHtml(d) {
+    var w = ((d.me && d.me.way) || []).slice(), fs = LGet('chFrSent', '');
+    if (fs && fs !== '1' && !w.some(function (x) { return x.n === fs; })) w.push({ n: fs, i: 1 });
+    if (!w.length) return '';
+    return '<div class="ch-way"><b class="ch-way-h">' + esc(U('chWayH')) + '</b>' + w.map(function (x) {
+      var k = x.i ? 'inv' : x.l ? 'l' : '';
+      return '<div class="ch-wr"><span class="ch-wc">' + esc(String(x.n || '').charAt(0)) + '</span><b>' + esc(x.n || U('chFriend')) +
+        '</b><i class="' + k + '">' + esc(U(x.i ? 'chWayI' : x.l ? 'chWayL' : 'chWayJ')) + '</i></div>';
+    }).join('') + '</div>';
+  }
+  /* משפט העידוד — שלוש שורות, האחרונה בולטת. */
+  function cheerHtml() {
+    var l = String(U('chCheer') || '').replace(/\r/g, '').split('\n').filter(function (x) { return x.replace(/\s/g, ''); });
+    if (!l.length) return '';
+    var last = l.pop();
+    return '<div class="ch-cheer">' + l.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '<b>' + esc(last) + '</b></div>';
+  }
+  /* אין מקום / סיים דף אצל חבר ואין לו שולחן משלו — הצעה חיובית לפתוח. */
+  function offerHtml(d) {
+    var m = d && d.me;
+    if (!m || d.ended) return '';
+    if (m.nr) return '<p class="ch-yay">' + esc(U('chNoRoom')) + '</p>';
+    var T = tabs(d);
+    if (m.l && T.length && !T.some(function (v) { return v.mine; })) return '<p class="ch-yay">' + esc(U('chOwnOffer')) + '</p>';
+    return '';
   }
 
   /* ---- הקישור, כפי שהשרת הכריע — הודעה אחת, בעדינות ---- */
@@ -400,33 +429,47 @@
     var by = { by: d.refBy || U('chFriend') }, m = d.me || {};
     /* 8.99.385: ישיבה מהקישור = הזמנה; המקום נשמר כשמתחילים ללמוד. */
     if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chRefPend'), { t: by.by })) + '</p>';
-    if (d.ref === 'other' && m.t) return '<p class="ch-note">' + esc(tp(U('chRefSeated'), { t: m.t.name })) + '</p>';
-    if (d.ref === 'pend' && m.pend) return '<p class="ch-note">' + esc(tp(U('chRefPend'), { t: m.pend.by })) + '</p>';
+    var gt = tabs(d).filter(function (v) { return !v.mine; })[0] || m.t;
+    if (d.ref === 'other' && gt) return '<p class="ch-note">' + esc(tp(U('chRefSeated'), { t: gt.name })) + '</p>';
+    if (d.ref === 'pend' && m.pend) return '<p class="ch-note">' + esc(tp(U('chPicked'), { t: m.pend.by })) + '</p>';
     if (d.ref === 'full') return '<p class="ch-note">' + esc(tp(U('chLandFull'), { name: by.by })) + '</p>';
     var k = { bad: 'chRefBad', self: 'chRefSelf' }[d.ref];
     return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
   }
-  /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת. "הצטרפת" — רק מתשובת
-     השרת (?challenge=sit), לא מהלחיצה. */
+  /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת — השולחן שישב בו (`refT`). "הצטרפת" —
+     רק מתשובת השרת (?challenge=sit), לא מהלחיצה. */
   function sitHtml(d) {
     var by = { by: d.refBy || U('chFriend') };
-    return '<div class="ch-tcard ch-home"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
+    return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(U('chOldH')) + '</h2>' +
-      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' +
-      '<button class="ch-btn ch-cta" id="ch-sit" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
+      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' + (d.refT ? rowHtml4(seatsOf({ t: d.refT })) : '') +
+      '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(refAny()) + '" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
       '<p class="ch-sm" id="ch-sit-m" role="status"></p>' +
-      '<a class="ch-more" id="ch-own" href="chaver.html">' + esc(U('chOwnBtn')) + '</a>';
+      '<a class="ch-more" id="ch-own" href="chaver.html">' + esc(U('chOwnBtn')) + '</a></div>';
+  }
+  /* **מוזמן מכמה חברים** (8.99.436): בוחר מארח אחד. הכיסא נתפס כשמסיים דף. */
+  function pickHtml(L) {
+    var nm = L.map(function (h) { return h.n || U('chFriend'); });
+    var all = nm.length > 1 ? nm.slice(0, -1).join(', ') + U('chPickAnd') + nm[nm.length - 1] : nm[0];
+    return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
+      '<h2 class="ch-hh sm">' + esc(tp(U('chPickH'), { names: all })) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+      '<p class="ch-tline">' + esc(U('chPickP')) + '</p>' + L.map(function (h) {
+        var n = h.n || U('chFriend');
+        return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' + rowHtml4(seatsOf({ t: h.t })) +
+          '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
+      }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p></div>';
   }
   function wireSit(redraw) {
-    var b = document.getElementById('ch-sit'), own = document.getElementById('ch-own'),
-        msg = document.getElementById('ch-sit-m');
+    var own = document.getElementById('ch-own'), msg = document.getElementById('ch-sit-m');
     if (own) own.onclick = function () { dropRef(); };
-    if (!b) return;
-    b.onclick = function () {
-      var fail = function () { b.disabled = false; if (msg) msg.textContent = U('chSitErr'); };
-      b.disabled = true;
+    var bs = document.querySelectorAll('.ch-pk');
+    for (var i = 0; i < bs.length; i++) bs[i].onclick = function () {
+      var b = this, all = document.querySelectorAll('.ch-pk');
+      var dis = function (v) { for (var j = 0; j < all.length; j++) all[j].disabled = v; };
+      var fail = function () { dis(false); if (msg) msg.textContent = U('chSitErr'); };
+      dis(true);
       if (msg) msg.textContent = U('chSitWait');
-      api('sit', { id: ids().join(','), ref: refAny() }).then(function (d) {
+      api('sit', { id: ids().join(','), ref: b.getAttribute('data-c') }).then(function (d) {
         if (!d || d.status !== 'ok' || !d.on || !d.ref || d.ref === 'old' || d.ref === 'wait') { fail(); return; }
         dropRef();
         LSet('chMy', { at: Date.now(), d: d });
@@ -434,6 +477,13 @@
         redraw(d);
       }, fail);
     };
+  }
+  /* כרטיס הבחירה/הישיבה, אם צריך — אחרת ''. */
+  function choiceHtml(d) {
+    var L = pickList(d);
+    if (L.length > 1) return pickHtml(L);
+    if (d.ref === 'old' && refAny()) return sitHtml(d);
+    return '';
   }
 
   /* ---- בהרשמה (join.html): "מצטרף לשולחן של יוסי" — מהנחיתה ועד
@@ -528,21 +578,25 @@
   }
   function cardDraw(box, d) {
     if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; return; }
-    /* רשום שהגיע מקישור, ויש מקום — ההצעה לשבת היא הכרטיס. */
-    if (d.ref === 'old' && refAny()) {
-      box.innerHTML = sitHtml(d) + '</div>';
+    /* מוזמן מכמה חברים, או רשום שהגיע מקישור — הבחירה היא הכרטיס. */
+    var ch = choiceHtml(d);
+    if (ch) {
+      box.innerHTML = noteHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
       return;
     }
-    /* **כרטיס קומפקטי** (8.99.385, לפי הציור של אחיאסף): השולחן, ארבעה
-       כיסאות עם שם ומצב, וכפתור אחד — למסך השולחן, שנפתח מעל הבית. */
-    var v = tv(d), line = lineOf(v, d);
-    box.innerHTML = '<div class="ch-tcard ch-home ch-special ch-cmp ' + cls(stOf(v)) + '">' + yayHtml(d.me) + noteHtml(d) +
-      '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2>' +
+    /* **הכרטיס בבית** (8.99.436, מסך 1 בבריף): השולחן בשורה, כפתור וואטסאפ ירוק
+       גדול — הפעולה הראשית — ו"לשולחן שלך" כקישור משני. */
+    var v = tv(d), line = lineOf(v, d), many = tabs(d).length > 1;
+    box.innerHTML = '<div class="ch-tcard ch-home ch-special ch-cmp ' + cls(stOf(v)) + '">' + yayHtml(d.me) + noteHtml(d) + offerHtml(d) +
+      '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(U('chCardH')) + '</h2>' +
       '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + rowHtml4(seatsOf(v)) +
       (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
-      '<button type="button" class="ch-btn ch-cta" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
+      (d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa')) +
+      '<button type="button" class="ch-go" id="ch-open">' + esc(U(many ? 'chTsGo' : 'chToTable')) + '</button>' + countHtml(d) + '</div>';
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
+    waWire('ch-wa', null);
+    if (!d.ended) codeWarm();
     if (PG) pgPaint();
   }
   function card(box) {
@@ -566,7 +620,7 @@
     WATCH = { fn: fn, n: 0 };
     var live = function () {
       var d = cached(), m = d && d.me;
-      return !!(m && (m.t || m.pend));
+      return !!(m && (m.t || m.pend || (m.ts && m.ts.length) || (m.way && m.way.length)));
     };
     var go = function (gap) {
       if (document.visibilityState === 'hidden' || !live() || Date.now() - LAST < gap) return;
@@ -604,40 +658,72 @@
      ובעמוד האתגר (chaver.html, למי שנחת מקישור או מההתראה).
      ============================================================ */
   function fullHtml(d) {
-    var v = tv(d), m = d.me || {}, seats = seatsOf(v), line = lineOf(v, d), fr = d.ended ? null : frOf();
-    var room = seats.some(function (s) { return s.k === 'free'; });
-    /* מי שהוזמן ועוד לא התחיל — אינו שולח קישור (הוא עוד לא יושב). */
-    var inv = !d.ended && room && !(v && v.pend);
-    var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d) +
-      '<div class="ch-tcard ch-special ' + cls(stOf(v)) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      tableHtml(seats, midOf(stOf(v)), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
-      (!d.ended && !m.l ? '<a class="ch-btn wk ch-cta" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + '</a>' : '') +
-      (inv ? (fr ? frHtml(fr) : '') + shareHtml() : '') + howHtml() + '</div>';
+    var m = d.me || {}, T = tabs(d);
+    var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d);
+    var ch = choiceHtml(d);
+    if (ch) return h + ch + faqHtml();
+    h += offerHtml(d) + (T.length > 1 ? manyHtml(d, T) : oneHtml(d));
     /* "התנאים" ירדו ממסך השולחן (8.99.388, אחיאסף). */
     return h + faqHtml() + countHtml(d);
   }
+  /* הכפתורים שבתחתית כל מסך שולחן: וואטסאפ (תמיד), החבר מההרשמה, הדף של
+     השבוע (מי שעוד לא למד), "בדרך אליך" ומשפט העידוד. */
+  function tailHtml(d) {
+    var m = d.me || {}, fr = d.ended ? null : frOf();
+    return (d.ended ? '' : waBtn(U('chWaMore'), '', 'ch-wa') + (fr ? frHtml(fr) : '')) +
+      /* הדף של השבוע — קישור משני: הפעולה הראשית היא וואטסאפ. */
+      (!d.ended && !m.l ? '<a class="ch-more" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + ' ←</a>' : '') +
+      wayHtml(d) + cheerHtml();
+  }
+  /* **שולחן אחד** (מסך 2 בבריף). */
+  function oneHtml(d) {
+    var v = tv(d), seats = seatsOf(v), st = stOf(v), nf = seats.filter(function (x) { return x.k === 'free'; }).length;
+    var line = lineOf(v, d);
+    if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFreeLine1') : tp(U('chFreeLine'), { n: nf });
+    return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
+      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      tailHtml(d) + (v ? '' : howHtml()) + '</div>';
+  }
+  /* **כמה שולחנות** (מסך 3): כל אחד בשורה, עם המצב שלו. */
+  var LOCK = '<svg class="ch-lk" width="13" height="14" viewBox="0 0 13 14" aria-hidden="true"><rect x="1.5" y="6" width="10" height="7.5" rx="2" fill="#2E6B12"/><path d="M4 6V4.3a2.5 2.5 0 0 1 5 0V6" stroke="#2E6B12" stroke-width="1.8" fill="none"/></svg>';
+  function tsSt(v) {
+    var n = v.seats.length;
+    if (v.st === 'won') return esc(U('chMidWon'));
+    if (v.st === 'wait') return esc(U('chMidWait').replace(/\s*\n\s*/g, ' '));
+    if (v.st === 'q') return LOCK + ' ' + esc(U('chTsIn'));
+    if (n >= 4) return esc(U('chTsLearn'));
+    if (n <= 1) return esc(U('chTsWaitH'));
+    return esc(n === 3 ? U('chFree1') : tp(U('chFreeN'), { n: 4 - n }));
+  }
+  function manyHtml(d, T) {
+    var k = 0;
+    return '<div class="ch-tcard ch-special"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
+      '<h2 class="ch-hh sm">' + esc(U('chTsH')) + '</h2><p class="ch-prize">' + esc(U('chTsSub')) + '</p>' +
+      T.map(function (v) {
+        var nm = v.mine ? tp(U('chTsN'), { n: ++k }) : tp(U('chInvGrpH'), { by: v.name });
+        return '<div class="ch-ts' + (v.st === 'q' || v.st === 'won' ? ' lk' : '') + '"><b>' + esc(nm) + ' · ' + tsSt(v) + '</b>' +
+          rowHtml4(seatsOf({ t: v })) + '</div>';
+      }).join('') + '<p class="ch-tline">' + esc(U('chTsFoot')) + '</p>' + tailHtml(d) + '</div>';
+  }
   function fullWire(box, d, redraw) {
-    if (!d.ended) wireShare();
-    frWire(box, d, d.ended ? null : frOf(), redraw);
+    if (choiceHtml(d)) { wireSit(redraw); return; }
+    waWire('ch-wa', null);
+    waWire('ch-fr', d.ended ? null : frOf(), redraw);
+    if (!d.ended) codeWarm();
   }
   function pageDraw(box, d) {
     if (!d) { box.innerHTML = '<p class="ch-sm">' + esc(U('chErr')) + '</p>'; return; }
     if (!d.on) { box.innerHTML = '<div class="ch-card"><p class="ch-st">' + esc(U('chOff')) + '</p></div>'; return; }
-    if (d.ref === 'old' && refAny()) {
-      box.innerHTML = sitHtml(d) + '</div>';
-      wireSit(function (x) { pageDraw(box, x); });
-      var own = document.getElementById('ch-own');
-      if (own) own.onclick = function (e) {
-        if (e && e.preventDefault) e.preventDefault();
-        dropRef();
-        d.ref = '';
-        pageDraw(box, d);
-      };
-      return;
-    }
     box.innerHTML = fullHtml(d);
-    fullWire(box, d, function () { pageDraw(box, cached() || d); });
+    fullWire(box, d, function (x) { pageDraw(box, x || cached() || d); });
+    var own = document.getElementById('ch-own');
+    if (own) own.onclick = function (e) {
+      if (e && e.preventDefault) e.preventDefault();
+      dropRef();
+      d.ref = '';
+      pageDraw(box, d);
+    };
   }
 
   /* ---- מעל הבית: בלי מעבר עמוד, ולכן "חזרה" מחזירה לאותו מקום בדיוק ----
@@ -651,7 +737,7 @@
     if (!d || !d.on) return;
     var y = PG.el.scrollTop;
     PG.in.innerHTML = fullHtml(d);
-    fullWire(PG.in, d, pgPaint);
+    fullWire(PG.in, d, function (x) { if (x) LSet('chMy', { at: Date.now(), d: x }); pgPaint(); });
     PG.el.scrollTop = y;
   }
   function pgOpen() {
