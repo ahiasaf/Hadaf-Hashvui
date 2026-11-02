@@ -3065,7 +3065,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.422';
+var APP_VERSION = '8.99.423';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -15786,14 +15786,16 @@ function adStar(ctx, cx, cy, r) {
   }
   ctx.closePath(); ctx.fill();
 }
-/* o: { ppl: [{ name, code, inst, app }], won, prize } → canvas */
+/* o: { ppl: [{ name, code, inst, app }], won, prize, pk } → canvas.
+   כל הזוכים במודעה מאותו מוסד (החלטת אחיאסף) — לוגו אחד ושורה אחת.
+   בתחתית — "הסצנה": הטלפון של הדף האינטראקטיבי לצד האיור של הפרס,
+   באותה מסגרת, בלי חץ ובלי מלל שמחבר ביניהם (8.99.423). */
 function adDraw(o, im) {
   var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-  var W = AD_W, cx = W / 2, CW = 860;
-  var codes = [];
-  o.ppl.forEach(function (p) { if (codes.indexOf(p.code) < 0) codes.push(p.code); });
-  var logos = codes.map(function (c) { return im.logo[c]; }).filter(Boolean);
-  var mixed = codes.length > 1, app = o.ppl.every(function (p) { return p.app; }) && im.app;
+  var W = AD_W, cx = W / 2, CW = 860, P0 = o.ppl[0];
+  var logo = im.logo[P0.code] || null;
+  var app = o.ppl.every(function (p) { return p.app; }) && im.app;
+  var many = o.ppl.length > 1;
   /* שני מעברים: מדידה (בלי ציור) ואז ציור בגובה שנמדד. */
   var run = function (draw) {
     var y, t = function (txt, px, b, color, lh) {
@@ -15818,7 +15820,7 @@ function adDraw(o, im) {
       adFont(ctx, 36, false); ctx.fillStyle = 'rgba(255,255,255,.85)';
       ctx.fillText(UI.adBrand2 + ' · ' + PROGRAM.year, W - 240, 172);
       ctx.textAlign = 'center';
-      var tt = o.ppl.length > 1 ? UI.adTitleN : UI.adTitle1;
+      var tt = many ? UI.adTitleN : UI.adTitle1;
       adFont(ctx, 100, true); ctx.fillStyle = '#fff'; ctx.fillText(tt, cx, 330);
       var tw = ctx.measureText(tt).width;
       ctx.fillStyle = '#F2C14E'; adStar(ctx, cx + tw / 2 + 56, 296, 34);
@@ -15829,72 +15831,86 @@ function adDraw(o, im) {
       ctx.save(); ctx.shadowColor = 'rgba(27,42,69,.18)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
       ctx.fillStyle = '#fff'; adRound(ctx, 60, top, W - 120, cv.height - top - 60, 36); ctx.fill(); ctx.restore();
     }
-    if (logos.length) {
-      var gap = 24, bs = Math.min(280, (CW - gap * (logos.length - 1)) / logos.length);
-      var x0 = cx - (bs * logos.length + gap * (logos.length - 1)) / 2;
-      if (draw) logos.forEach(function (lg, i) {
-        var x = x0 + i * (bs + gap);
+    if (logo) {
+      var bs = 260;
+      if (draw) {
         ctx.fillStyle = '#fff'; ctx.strokeStyle = '#E7E1D3'; ctx.lineWidth = 3;
-        adRound(ctx, x, y, bs, bs, 28); ctx.fill(); ctx.stroke();
-        adContain(ctx, lg, x + bs * 0.08, y + bs * 0.08, bs * 0.84, bs * 0.84);
-      });
+        adRound(ctx, cx - bs / 2, y, bs, bs, 28); ctx.fill(); ctx.stroke();
+        adContain(ctx, logo, cx - bs / 2 + bs * 0.08, y + bs * 0.08, bs * 0.84, bs * 0.84);
+      }
       y += bs + 30;
     }
     t(UI.adHi, 52, false, '#1B2A45', 64);
     y += 6;
-    o.ppl.forEach(function (p) {
-      t(p.name, o.ppl.length > 2 ? 66 : 80, true, '#B07A12', o.ppl.length > 2 ? 80 : 96);
-      if (mixed) t(p.inst, 36, false, '#5A6780', 46);
-    });
+    o.ppl.forEach(function (p) { t(p.name, o.ppl.length > 2 ? 66 : 80, true, '#B07A12', o.ppl.length > 2 ? 80 : 96); });
     y += 34;
     if (draw) { ctx.fillStyle = '#D9A63A'; ctx.fillRect(cx - 70, y - 4, 140, 6); }
     y += 18;
-    if (!mixed) t(o.ppl[0].inst, 42, false, '#5A6780', 56);
+    t(fill(many ? UI.adStuN : UI.adStu, { inst: P0.inst }), 42, false, '#5A6780', 56);
     t(o.won, 42, false, '#1B2A45', 58);
-    if (o.prize) {
-      y += 34;
-      adFont(ctx, 46, true);
-      var pl = adWrap(ctx, o.prize, CW - 40), ph = pl.length * 60 + 50, py = y;
+    /* הסצנה: הטלפון (ימין) והפרס (שמאל), במסגרת אחת. */
+    var hasP = !!(o.prize || im.prz);
+    if (hasP || app) {
+      y += 44;
+      var pad = 34, IW = CW - pad * 2, sy = y, right = cx + IW / 2;
+      var phH = 290, phW = app ? Math.round(phH * im.app.width / im.app.height) : 0, gap = app ? 46 : 0;
+      var pw = hasP ? (app ? IW - phW - gap : Math.min(IW, 700)) : 0;
+      if (!hasP) right = cx + phW / 2;
+      var pih = im.prz ? Math.round(pw * im.prz.height / im.prz.width) : 0;
+      /* הפרס: השם בולט, והרשת (אחרי " · ") בשורה משלה, קטנה יותר. */
+      var pl = [];
+      String(o.prize || '').split(' · ').forEach(function (part, i) {
+        adFont(ctx, i ? 34 : 44, !i);
+        adWrap(ctx, part, pw).forEach(function (ln) { pl.push({ t: ln, f: i ? 34 : 44, b: !i, h: i ? 46 : 56 }); });
+      });
+      var plH = 0;
+      pl.forEach(function (l) { plH += l.h; });
+      var prH = pih + (pl.length ? (pih ? 22 : 0) + plH : 0);
+      adFont(ctx, 30, true);
+      var al = app ? adWrap(ctx, UI.adApp, phW + 16) : [];
+      var apH = app ? phH + 16 + al.length * 38 : 0;
+      var inner = Math.max(prH, apH), bh = inner + pad * 2;
       if (draw) {
-        ctx.fillStyle = '#FFF8E6'; ctx.strokeStyle = '#D9A63A'; ctx.lineWidth = 4;
-        if (ctx.setLineDash) ctx.setLineDash([16, 12]);
-        adRound(ctx, cx - CW / 2, py, CW, ph, 26); ctx.fill(); ctx.stroke();
-        if (ctx.setLineDash) ctx.setLineDash([]);
+        ctx.fillStyle = '#FFF6E0'; adRound(ctx, cx - CW / 2, sy, CW, bh, 30); ctx.fill();
+        if (app) {
+          var ay = sy + pad + (inner - apH) / 2;
+          /* הרקע הלבן של התמונה נבלע ברקע המסגרת. */
+          ctx.save(); ctx.globalCompositeOperation = 'multiply';
+          ctx.drawImage(im.app, right - phW, ay, phW, phH); ctx.restore();
+          adFont(ctx, 30, true); ctx.fillStyle = '#1B2A45';
+          al.forEach(function (ln, i) { ctx.fillText(ln, right - phW / 2, ay + phH + 16 + 30 + i * 38); });
+        }
+        if (hasP) {
+          var px = app ? right - phW - gap - pw / 2 : cx, py = sy + pad + (inner - prH) / 2;
+          if (im.prz) {
+            ctx.save(); adRound(ctx, px - pw / 2, py, pw, pih, 22); ctx.clip();
+            ctx.drawImage(im.prz, px - pw / 2, py, pw, pih); ctx.restore();
+          }
+          var ly = py + pih + (pih ? 22 : 0);
+          pl.forEach(function (l) {
+            ly += l.h; adFont(ctx, l.f, l.b); ctx.fillStyle = l.b ? '#8C681F' : '#5A6780';
+            ctx.fillText(l.t, px, ly - (l.h - l.f) / 2 - 4);
+          });
+        }
       }
-      if (draw) {
-        ctx.fillStyle = '#8C681F';
-        pl.forEach(function (ln, i) { ctx.fillText(ln, cx, py + 25 + 60 * (i + 1) - 6); });
-      }
-      y = py + ph;
-    }
-    if (app) {
-      y += 50;
-      if (draw) {
-        adFont(ctx, 38, true);
-        var ah = 170, aw = Math.round(ah * im.app.width / im.app.height);
-        var lw = ctx.measureText(UI.adApp).width, all = aw + 24 + lw, ax = cx + all / 2 - aw;
-        ctx.drawImage(im.app, ax, y, aw, ah);
-        ctx.textAlign = 'right'; ctx.fillStyle = '#1B2A45';
-        ctx.fillText(UI.adApp, ax - 24, y + ah / 2 + 13);
-        ctx.textAlign = 'center';
-      }
-      y += 170;
+      y = sy + bh;
     }
     return y + 70 + 60;
   };
-  cv.width = W; cv.height = 2000;
+  cv.width = W; cv.height = 2400;
   var h = run(false);
   cv.height = Math.max(1080, Math.ceil(h));
   run(true);
   return cv;
 }
 function adMake(o, file) {
-  var codes = [], load = [adImg(LOGO_MARK), adImg('weekpics/phone.webp')];
-  o.ppl.forEach(function (p) { if (p.code && codes.indexOf(p.code) < 0) codes.push(p.code); });
-  codes.forEach(function (c) { load.push(adImg('inst-logos/' + encodeURIComponent(c) + '.png')); });
+  var c0 = o.ppl[0].code || '';
+  var load = [adImg(LOGO_MARK), adImg('weekpics/phone.webp'),
+              o.pk ? adImg('promo/prz-' + o.pk + '.jpg') : Promise.resolve(null),
+              c0 ? adImg('inst-logos/' + encodeURIComponent(c0) + '.png') : Promise.resolve(null)];
   Promise.all(load).then(function (r) {
-    var im = { mark: r[0], app: r[1], logo: {} };
-    codes.forEach(function (c, i) { if (r[i + 2]) im.logo[c] = r[i + 2]; });
+    var im = { mark: r[0], app: r[1], prz: r[2], logo: {} };
+    if (r[3]) im.logo[c0] = r[3];
     var cv = adDraw(o, im);
     var url = cv.toDataURL('image/png');
     AD_CUR = { url: url, name: file + '.png', blob: null };
@@ -15938,7 +15954,7 @@ function adRaf(code) {
   var z = W[0].pz, p = z && z.p ? (UI['przN_' + z.p] || z.p) + (UI['przS_' + z.p] ? ' · ' + UI['przS_' + z.p] : '') : '';
   adMake({
     ppl: W.map(function (x) { return { name: x.name || '', code: x.code, inst: rafInstName(x.code), app: !x.na }; }),
-    won: W.length > 1 ? UI.adWonN : UI.adWon1, prize: p
+    won: W.length > 1 ? UI.adWonN : UI.adWon1, prize: p, pk: z && RAF_PRZ.indexOf(z.p) >= 0 ? z.p : ''
   }, 'zocheh-' + code);
 }
 /* מחבר מביא חבר — השולחן שזכה, מודעה אחת לארבעה. */
@@ -15950,7 +15966,7 @@ function adCha(k) {
     ppl: [m.sel.by].concat(m.sel.f).map(function (p) {
       return { name: ((p.f || '') + ' ' + (p.l || '')).trim(), code: p.i || '', inst: p.n || admInstName(p.i), app: !/^Am/.test(p.id || '') };
     }),
-    won: UI.adChWon, prize: UI.adChPrize
+    won: UI.adChWon, prize: UI.adChPrize, pk: 'burger'
   }, 'chaver-' + k);
 }
 function rafWaHtml(dis) {
