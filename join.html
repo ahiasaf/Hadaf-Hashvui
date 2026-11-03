@@ -790,6 +790,18 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 /* ---------- הכרטיסים שלי (8.99.326) ----------
    כרטיס ולא שורה: מספר גדול, להגרלה על איזה דף, ופירוט לפי סוג. ההסבר —
    מסך נפרד (#tkhow) מהקישור שבתחתית, שגלוי תמיד, גם ב-0. */
+/* ---------- עלונים להורדה (8.99.449) — כרטיס נפרד מתחת לבאנר, בימי שישי ---------- */
+#aldl:empty{display:none}
+.aldl-card{display:flex;align-items:center;gap:12px;margin-top:12px;padding:13px 15px;border-radius:var(--r);
+  background:var(--surface);box-shadow:var(--sh-1);border:1px solid var(--rule);color:var(--ink);
+  text-decoration:none;text-align:right}
+.aldl-card .aldl-ic{flex:none;width:42px;height:42px;border-radius:10px;border:2px solid var(--blue);
+  color:var(--blue);display:flex;align-items:center;justify-content:center}
+.aldl-card .aldl-ic svg{width:24px;height:24px}
+.aldl-card .aldl-tx{flex:1;min-width:0}
+.aldl-card b{display:block;font-size:1.02rem;font-weight:800;color:var(--blue-d)}
+.aldl-card small{display:block;font-size:.8rem;font-weight:700;color:var(--ink-2);margin-top:2px}
+.aldl-card i{flex:none;font-style:normal;font-size:1.4rem;color:var(--ink-3)}
 .mytk{margin-top:12px;padding:15px 15px 6px;border-radius:var(--r);background:var(--surface);
   box-shadow:var(--sh-1);color:var(--ink);text-align:right}
 .mytk[hidden]{display:none}
@@ -1658,6 +1670,8 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
     <span class="tag" id="d-name"></span>
     <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
+    <!-- עלונים להורדה — רק בימי שישי, ורק כשיש עלון שפורסם (alonim.js, 8.99.449). -->
+    <div id="aldl"></div>
     <div id="rail"></div>
     <!-- אתגר "חבר מביא חבר" — מבצע מיוחד, כרטיס משלו מעל ההגרלה השבועית (8.99.379).
          ריק כשהאתגר כבוי או לא גלוי לתלמיד. ראו chal.js. -->
@@ -1712,6 +1726,7 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 <script src="trail.js"></script>
 <script src="qr.js"></script>
 <script src="learned.js"></script>
+<script src="alonim.js"></script>
 <script src="chal.js"></script>
 <script src="quad.js"></script>
 <script src="pair.js"></script>
@@ -3583,6 +3598,7 @@ function drawWeek() {
     '<div class="tnote">' + esc(UI.trackNote) + '</div></div>';
   drawPts();
   drawPrz();
+  if (window.ALDL) ALDL.card($('aldl'));
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */

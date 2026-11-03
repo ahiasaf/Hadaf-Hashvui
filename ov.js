@@ -66,6 +66,12 @@
     '.ov-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid #E5DAC3;background:#fff;' +
       'color:#17468F;font-size:1rem;font-weight:800;cursor:pointer;transition:transform .15s}' +
     '.ov-x.on{transform:rotate(180deg)}' +
+    /* 8.99.449 (אחיאסף, 3.11): החץ ליד השם, בלי טור משלו; קצת צבע — לא הכול אפור. */
+    '.ov-nl{display:flex;align-items:center;gap:7px;min-width:0}' +
+    '.ov-nl .ov-n{min-width:0}' +
+    '.ov-nl .ov-x{width:26px;height:26px;font-size:.78rem;line-height:1;padding:0}' +
+    '.ov-c b{font-weight:800;color:#17468F}' +
+    '.ov-c.d0{color:#2E6B12}.ov-c.d1{color:#8C681F}' +
     '.ov-b{padding:0 12px 12px;font-size:.9rem;font-weight:600;color:#1B2A45;line-height:1.65}' +
     '.ov-t{background:rgba(192,143,43,.08);border-radius:10px;padding:9px 11px;white-space:pre-wrap;' +
       'overflow-wrap:anywhere}' +
@@ -81,6 +87,16 @@
       'cursor:pointer;border:1px solid #E5DAC3;background:#fff;color:#1B2A45}' +
     '.ov-fb button.p{background:#17468F;border-color:#17468F;color:#fff}' +
     '.ov-try{font-weight:900;color:#A4421F}' +
+    '.ov-pcs{display:grid;gap:8px;margin-top:9px}' +
+    '.ov-pc{background:#fff;border:1px solid #E5DAC3;border-radius:12px;padding:4px 10px 10px}' +
+    '.ov-pc.hl{border-color:#17468F;box-shadow:0 0 0 2px rgba(23,70,143,.15)}' +
+    '.ov-pch{font-size:.74rem;font-weight:800;color:#8C681F;letter-spacing:.02em;margin-top:6px}' +
+    '.ov-pc label{margin-top:6px}' +
+    '.ov-add{display:block;width:100%;margin-top:9px;border:1.5px dashed #17468F;background:#fff;border-radius:11px;' +
+      'padding:9px;font:inherit;font-size:.88rem;font-weight:800;color:#17468F;cursor:pointer}' +
+    '.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}' +
+    '.ov-chip{border:1px solid #E5DAC3;background:#fff;border-radius:30px;padding:6px 13px;font:inherit;' +
+      'font-size:.84rem;font-weight:800;color:#1B2A45;cursor:pointer}' +
     '.ov-ans{margin:-2px 0 6px;padding:8px 10px;background:#F3EEE2;border-radius:12px}' +
     '.ov-ans .ov-fb{margin-top:0}.ov-ans label{margin-top:0}.ov-ans .ov-fb + .ov-msg{margin-top:6px}' +
     '.ov-msg{font-size:.78rem;font-weight:700;color:#5C687E;margin-top:7px}' +
@@ -102,7 +118,16 @@
     '.ov-tab b{font-size:.8rem;color:#2E6B12}' +
     '.ov-tab b.u{color:#8C681F;font-weight:700}' +
     '.ov-tab.on{background:#17468F;border-color:#17468F;color:#fff}' +
-    '.ov-tab.on b,.ov-tab.on b.u{color:#fff}';
+    '.ov-tab.on b,.ov-tab.on b.u{color:#fff}' +
+    '.ov-vt{display:flex;gap:6px;margin:0 0 12px}' +
+    '.ov-vt button{flex:1;border:1px solid #E5DAC3;background:#fff;border-radius:11px;padding:8px;font:inherit;' +
+      'font-size:.88rem;font-weight:800;color:#1B2A45;cursor:pointer}' +
+    '.ov-vt button.on{background:#17468F;border-color:#17468F;color:#fff}' +
+    '.ov-map{background:#FBF7EF;border:1px solid #E5DAC3;border-radius:14px;padding:8px;margin:0 0 12px;text-align:center}' +
+    '.ov-map svg{display:block;width:100%;max-width:340px;height:auto;max-height:78vh;margin:0 auto}' +
+    '.ov-map .dot{cursor:pointer}' +
+    '.ov-trip{font-size:.8rem;font-weight:700;color:#5A6780;margin:0 0 8px}' +
+    '.ov-trip small{font-weight:600;color:#8A8F99}';
 
   function U(k) { return (window.UI || {})[k] || ''; }
   function esc(t) {
@@ -121,6 +146,11 @@
   var IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>';
   /* אנשי הקשר של הישיבה — רכז, ראש ישיבה, ראש חטיבה — עם שני כפתורים
      קטנים: שיחה ווואטסאפ. רק מי שיש לו טלפון שהבעלים שמר. */
+  /* תפקיד לתצוגה: הקבועים מהמלל, נוסף — מה שנכתב לו, ובלי — "אחר". */
+  function roleOf(p) {
+    if (p.x || p.m) return p.role || U('ovRoleOther');
+    return U('ovRole_' + p.k);
+  }
   function pplHtml(r, i, st) {
     var L = (r.ppl || []).filter(function (p) { return has(p.phone) && has(p.name); });
     if (!L.length) return '';
@@ -129,7 +159,7 @@
     var on = !!st.call, pd = on ? pendGet() : null;
     return '<div class="ov-ppl">' + L.map(function (p) {
       var dc = on ? ' data-ov="call" data-i="' + i + '" data-pk="' + esc(p.k) + '"' : '';
-      var h = '<div class="ov-p"><div class="w"><small>' + esc(U('ovRole_' + p.k)) + '</small><b>' + esc(p.name) + '</b></div>' +
+      var h = '<div class="ov-p"><div class="w"><small>' + esc(roleOf(p)) + '</small><b>' + esc(p.name) + '</b></div>' +
         '<a class="ov-ic tel"' + dc + ' data-kind="tel" href="tel:' + digits(p.phone) + '" aria-label="' + esc(fill(U('ovCall'), { name:p.name })) + '">' + IC_TEL + '</a>' +
         '<a class="ov-ic wa"' + dc + ' data-kind="wa" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.phone) + '" aria-label="' +
           esc(fill(U('ovWa'), { name:p.name })) + '">' + IC_WA + '</a></div>';
@@ -164,6 +194,13 @@
     var n = Math.round((d0 - d1) / 864e5);
     return n <= 0 ? U('ovAgo0') : n === 1 ? U('ovAgo1') : fill(U('ovAgoN'), { n:n });
   }
+  /* צבע לפי כמה זמן עבר: עד אתמול — ירוק; עד שבוע — זהב; אחר כך — רגיל. */
+  function agoCls(ms) {
+    var d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    var d1 = new Date(ms); d1.setHours(0, 0, 0, 0);
+    var n = Math.round((d0 - d1) / 864e5);
+    return n <= 1 ? ' d0' : n <= 7 ? ' d1' : '';
+  }
   function lastHtml(r) {
     var L = r.last;
     if (!L || !L.t) return '<span class="ov-c no">' + esc(U('ovLastNone')) + '</span>';
@@ -178,12 +215,12 @@
     if (L.kind === 'wa') {
       var wb = [agoTxt(L.t)];
       if (L.name) wb.push(L.name);
-      return '<span class="ov-c">' + esc(fill(U('ovWaSent'), { t:wb.join(' · ') })) + '</span>';
+      return '<span class="ov-c' + agoCls(L.t) + '">' + esc(fill(U('ovWaSent'), { t:wb.join(' · ') })) + '</span>';
     }
+    /* "קשר אחרון" ו"ענה" ירדו (אחיאסף, 3.11): מתי ועם מי — "מספיק שיהיה רשום". */
     var bits = [agoTxt(L.t)];
-    if (L.res) bits.push(U(L.res === 'yes' ? 'ovLastYes' : 'ovLastNo'));
     if (L.name) bits.push(L.name);
-    return '<span class="ov-c">' + esc(fill(U('ovLast'), { t:bits.join(' · ') })) + '</span>';
+    return '<span class="ov-c' + agoCls(L.t) + '">' + esc(fill(U('ovLast'), { t:bits.join(' · ') })) + '</span>';
   }
   /* הכתיבה ליומן — שולחת, וכישלון נשאר ממתין במכשיר עם הודעה. */
   function callSend(S, r, o, done) {
@@ -191,6 +228,54 @@
       if (last) r.last = last;
       done(true); paint(S);
     }, function () { done(false); paint(S); });
+  }
+
+  /* ============================================================
+     המפה (8.99.449, בריף 3.11 חלק ד׳.3) — לבעלים בלבד בשלב הזה.
+     ============================================================
+     מפת SVG של ישראל (360×957), הבית בחשמונאים, ונקודה לכל ישיבה. הנסיעה
+     מחשמונאים (km · דקות · בעומס) — הערכה קבועה מ-17.10.2026, לא תנועה חיה.
+     אותם נתונים של הרשימה; אין כאן מאגר מספרים מקביל. */
+  var MAP = { w: 360, h: 957,
+    path: 'M319.7,155.1 L283.3,232.3 L207.8,198.4 L164.1,361.5 L216.5,389.0 L163.2,422.6 L154.2,487.1 L252.4,453.9 ' +
+          'L257.3,549.2 L153.2,940.7 L16.0,520.0 L76.7,439.3 L62.5,425.4 L117.7,311.0 L160.1,126.2 L189.9,64.2 ' +
+          'L195.7,61.7 L265.6,62.1 L284.8,19.2 L340.8,16.0 L344.0,116.2 L315.7,153.5 L319.7,155.1 Z',
+    home: [174.2, 345.3], anchors: [['ovMapHaifa', 167.2, 134.4], ['ovMapTA', 89.8, 307.9]] };
+  /* id: [x, y, km, דקות, בעומס] */
+  var YPOS = {
+    avir: [191.2, 81.8, 145.0, 111, 148], ohel: [125.7, 507.4, 96.1, 66, 116], oretzion: [108.6, 402.8, 51.7, 45, 72],
+    baryohai: [261.3, 88.5, 174.2, 126, 158], givat: [127.9, 306.0, 36.6, 38, 62], hadarom: [136.4, 350.4, 29.2, 33, 54],
+    halihot: [189.4, 286.2, 51.4, 57, 80], harel: [131.9, 327.7, 35.0, 37, 64], hadera: [147.4, 215.2, 82.5, 68, 99],
+    harish: [179.0, 216.2, 84.3, 69, 93], yavne: [119.1, 365.2, 41.7, 40, 61], lapid: [167.6, 361.5, 8.5, 16, 30],
+    binyamin: [215.7, 344.7, 45.3, 53, 72], neve: [98.8, 374.6, 49.6, 38, 58], nahal: [153.8, 320.9, 35.0, 39, 57],
+    nertamid: [176.4, 340.9, 0.6, 2, 5], netivmeir: [206.2, 386.6, 47.7, 45, 75], netivot: [220.7, 368.9, 31.0, 38, 52],
+    eli: [228.5, 315.2, 50.6, 50, 64], kiryat: [148.9, 299.3, 42.3, 47, 88], rishon: [115.6, 342.1, 34.3, 30, 49],
+    raanana: [140.1, 278.4, 48.0, 46, 66], tapuah: [219.8, 294.4, 46.3, 48, 65], tikvot: [197.9, 156.5, 106.3, 79, 104] };
+  function tripHtml(r) {
+    var p = r.code && YPOS[r.code];
+    if (!p) return '';
+    return '<div class="ov-trip">' + esc(fill(U('ovTrip'), { km: p[2], m: p[3], t: p[4] })) +
+      ' <small>' + esc(U('ovTripNote')) + '</small></div>';
+  }
+  function mapHtml(st) {
+    var dots = st.rows.filter(function (r) { return r.code && YPOS[r.code]; }).map(function (r) {
+      var p = YPOS[r.code], t = total(r), on = num(r.reg) > 0, sel = st.mapSel === r.k;
+      var lbl = t == null ? '·' : String(t), rad = lbl.length > 2 ? 11 : 9.5;
+      return '<g class="dot" data-ov="mdot" data-k="' + esc(r.k) + '" role="button" tabindex="0" aria-label="' +
+        esc(r.name + ' · ' + (t == null ? U('ovActNone') : t)) + '">' +
+        '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (sel ? rad + 3 : rad) + '" fill="' + (on ? '#5B9A2E' : '#B9B2A2') +
+        '" stroke="' + (sel ? '#0B2550' : '#fff') + '" stroke-width="' + (sel ? 2.5 : 1.5) + '"/>' +
+        '<text x="' + p[0] + '" y="' + (p[1] + 3.3) + '" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">' +
+        esc(lbl) + '</text></g>';
+    }).join('');
+    var anc = MAP.anchors.map(function (a) {
+      return '<text x="' + a[1] + '" y="' + a[2] + '" text-anchor="middle" font-size="9" fill="#8A8F99">' + esc(U(a[0])) + '</text>';
+    }).join('');
+    return '<div class="ov-map"><svg viewBox="0 0 ' + MAP.w + ' ' + MAP.h + '" role="img" aria-label="' + esc(U('ovTabMap')) + '">' +
+      '<path d="' + MAP.path + '" fill="#F3EEE2" stroke="#D9CBAE" stroke-width="1.5"/>' + anc +
+      '<circle cx="' + MAP.home[0] + '" cy="' + MAP.home[1] + '" r="5" fill="#17468F"/>' +
+      '<text x="' + (MAP.home[0] + 8) + '" y="' + (MAP.home[1] - 6) + '" font-size="9.5" font-weight="800" fill="#17468F">' +
+        esc(U('ovMapHome')) + '</text>' + dots + '</svg></div>';
   }
 
   function css() {
@@ -243,30 +328,99 @@
   }
 
   var SUG = null;
-  function formHtml(r, i, owner) {
+  /* ============================================================
+     הטופס (8.99.449, בריף 3.11 חלק ג׳): איש קשר = תפקיד + שם + טלפון
+     ביחד, כרטיס לכל מי שיש לו שם או טלפון. "+ הוספת איש קשר" — בוחרים
+     תפקיד, ואז שם וטלפון. תפקיד קבוע שכבר תפוס פותח את הכרטיס הקיים.
+     "חופפים" ירד מהממשק בלבד — השרת ממשיך לחשב איתו.
+     ============================================================ */
+  var FIX_NM = { pc: 'coord', pr: 'rosh', ph: 'head' };
+  function peInit(st, r) {
+    var P = st.pe || (st.pe = {});
+    if (P[r.k]) return P[r.k];
+    var cards = [];
+    (r.ppl || []).forEach(function (p) {
+      var fix = FIX_NM[p.k] ? p.k : '';
+      var sug = fix && !p.phone && SUG ? (SUG[p.k] || '') : '';
+      if (!has(p.name) && !has(p.phone) && !sug) return;
+      cards.push({ fix: fix, id: p.x ? p.id : '', role: fix ? '' : (p.role || ''), name: p.name || '',
+                   phone: p.phone || sug, sug: !!sug, roleEd: !fix && p.role !== U('ovRoleRam'),
+                   o: { name: p.name || '', phone: p.phone || '', role: p.role || '' }, m: !!p.m });
+    });
+    return (P[r.k] = { cards: cards, add: false, hl: -1 });
+  }
+  function peGrab(st, r, i) {
+    var E = st.pe && st.pe[r.k];
+    if (!E) return null;
+    E.cards.forEach(function (c, j) {
+      var n = document.getElementById('ov-pn-' + i + '-' + j), ph = document.getElementById('ov-pp-' + i + '-' + j),
+          ro = document.getElementById('ov-pr-' + i + '-' + j);
+      if (n) c.name = n.value.trim();
+      if (ph) c.phone = ph.value.replace(/[^\d+]/g, '');
+      if (ro) c.role = ro.value.trim();
+    });
+    var y = document.getElementById('ov-y-' + i), nt = document.getElementById('ov-n-' + i);
+    if (y) E.yesh = y.value; if (nt) E.note = nt.value;
+    return E;
+  }
+  function formHtml(r, i, owner, st) {
     var num0 = function (id, lbl, v, ph) {
       return '<label for="' + id + '">' + esc(lbl) + '</label>' +
         '<input id="' + id + '" inputmode="numeric" pattern="[0-9]*" value="' + esc(v) + '" placeholder="' + esc(ph) + '">';
     };
+    var E = owner && r.ppl ? peInit(st, r) : null;
+    var cardsH = '';
+    if (E) {
+      cardsH = '<div class="ov-pcs">' + E.cards.map(function (c, j) {
+        var id = i + '-' + j;
+        return '<div class="ov-pc' + (E.hl === j ? ' hl' : '') + '">' +
+          (c.roleEd
+            ? '<label for="ov-pr-' + id + '">' + esc(U('ovPRole')) + '</label>' +
+              '<input id="ov-pr-' + id + '" value="' + esc(c.role) + '" placeholder="' + esc(U('ovRoleOther')) + '">'
+            : '<div class="ov-pch">' + esc(c.fix ? U('ovRole_' + c.fix) : (c.role || U('ovRoleOther'))) + '</div>') +
+          '<label for="ov-pn-' + id + '">' + esc(U('ovPName')) + '</label>' +
+          '<input id="ov-pn-' + id + '" value="' + esc(c.name) + '" autocomplete="off">' +
+          '<label for="ov-pp-' + id + '">' + esc(U('ovPPhone')) +
+            (c.sug ? '<span class="sug">' + esc(U('ovPhoneSug')) + '</span>' : '') + '</label>' +
+          '<input id="ov-pp-' + id + '" type="tel" dir="ltr" value="' + esc(c.phone) + '">' +
+          '</div>';
+      }).join('') + '</div>' +
+      (E.add
+        ? '<div class="ov-chips">' + [['pc', U('ovRole_pc')], ['ram', U('ovRoleRam')], ['pr', U('ovRole_pr')],
+            ['ph', U('ovRole_ph')], ['oth', U('ovRoleOther')]].map(function (x) {
+              return '<button class="ov-chip" data-ov="prole" data-v="' + x[0] + '" data-i="' + i + '">' + esc(x[1]) + '</button>';
+            }).join('') + '</div>'
+        : '<button class="ov-add" data-ov="padd" data-i="' + i + '">' + esc(U('ovAddP')) + '</button>');
+    }
     return '<div class="ov-f">' +
-      /* שני המספרים של הבעלים — לומדים בישיבה וחופפים. ריק = ברירת המחדל. */
+      /* לומדים בישיבה — לבעלים. ריק = ברירת המחדל. */
       (owner && r.yesh !== undefined
-        ? num0('ov-y-' + i, U('ovYesh'), r.yset, fill(U('ovYeshPh'), { n:num(r.yesh) })) +
-          num0('ov-o-' + i, U('ovOver'), r.over, U('ovOverPh')) : '') +
-      /* הטלפונים שיוצאים בקישור למנהלים. ריק — מוצע מאנשי הקשר (st.sug), ונשמר רק בלחיצה. */
-      (owner && r.ppl ? r.ppl.map(function (p) {
-        var cur = p.phone || '', sug = !cur && SUG ? (SUG[p.k] || '') : '';
-        return '<label for="ov-p' + p.k + '-' + i + '">' + esc(fill(U('ovPhoneL'), { role:U('ovRole_' + p.k), name:p.name || '—' })) +
-          (sug ? '<span class="sug">' + esc(U('ovPhoneSug')) + '</span>' : '') + '</label>' +
-          '<input id="ov-p' + p.k + '-' + i + '" type="tel" dir="ltr" value="' + esc(cur || sug) + '">';
-      }).join('') : '') +
-      (owner ? '<label for="ov-c-' + i + '">' + esc(U('ovCoord')) + '</label>' +
-        '<input id="ov-c-' + i + '" value="' + esc(r.coord) + '" placeholder="' + esc(U('ovCoordPh')) + '">' : '') +
+        ? num0('ov-y-' + i, U('ovYesh'), E && E.yesh != null ? E.yesh : r.yset, fill(U('ovYeshPh'), { n:num(r.yesh) })) : '') +
+      cardsH +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
-      '<textarea id="ov-n-' + i + '" placeholder="' + esc(U('ovNotePh')) + '">' + esc(r.note) + '</textarea>' +
+      '<textarea id="ov-n-' + i + '" placeholder="' + esc(U('ovNotePh')) + '">' + esc(E && E.note != null ? E.note : r.note) + '</textarea>' +
       '<div class="ov-fb"><button class="p" data-ov="save" data-i="' + i + '">' + esc(U('ovSave')) + '</button>' +
       '<button data-ov="cancel" data-i="' + i + '">' + esc(U('ovCancel')) + '</button></div></div>';
   }
+  /* בחירת תפקיד ב"+": קבוע שכבר תפוס — הכרטיס שלו; אחרת כרטיס חדש. */
+  function peRole(st, r, i, v) {
+    var E = peGrab(st, r, i) || peInit(st, r);
+    E.add = false;
+    var at = -1;
+    if (FIX_NM[v]) E.cards.forEach(function (c, j) { if (c.fix === v) at = j; });
+    if (at < 0) {
+      E.cards.push(FIX_NM[v]
+        ? { fix: v, id: '', role: '', name: '', phone: '', o: { name: '', phone: '', role: '' } }
+        : { fix: '', id: '', role: v === 'ram' ? U('ovRoleRam') : '', name: '', phone: '', roleEd: v !== 'ram',
+            o: { name: '', phone: '', role: '' } });
+      at = E.cards.length - 1;
+    }
+    E.hl = at;
+    paint(st);
+    var f = document.getElementById((E.cards[at].roleEd ? 'ov-pr-' : 'ov-pn-') + i + '-' + at);
+    if (f) { try { f.focus(); f.scrollIntoView({ block: 'center' }); } catch (e) {} }
+  }
+  function peNewId() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   function rowHtml(st, r, i) {
     var pdr = st.call ? pendGet() : null;
@@ -281,26 +435,27 @@
     var nm = st.go
       ? '<button class="ov-n go" data-ov="go" data-i="' + i + '">' + esc(r.name) + '</button>'
       : '<span class="ov-n">' + esc(r.name) + '</span>';
-    var h = '<div class="ov-r s-' + s + '" title="' + esc(U('ovSt_' + s)) + '"><div class="ov-h"><div class="ov-m">' + nm +
-      (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': ' + esc(r.coord) + '</span>'
+    var tog = st.solo ? '' : '<button class="ov-x' + (open ? ' on' : '') + '" data-ov="tog" data-i="' + i +
+        '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + esc(U('ovOpen')) + ' · ' +
+        esc(r.name) + '">▾</button>';
+    var h = '<div class="ov-r s-' + s + '" title="' + esc(U('ovSt_' + s)) + '"><div class="ov-h"><div class="ov-m">' +
+      '<div class="ov-nl">' + nm + tog + '</div>' +
+      (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': <b>' + esc(r.coord) + '</b></span>'
                     : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') +
       (st.call ? lastHtml(r) : '') + '</div>' +
-      '<div class="ov-k">' + bigV + learnV + '</div>' +
-      (st.solo ? '' : '<button class="ov-x' + (open ? ' on' : '') + '" data-ov="tog" data-i="' + i +
-        '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + esc(U('ovOpen')) + ' · ' +
-        esc(r.name) + '">▾</button>') + '</div>';
+      '<div class="ov-k">' + bigV + learnV + '</div></div>';
     if (open) {
       h += '<div class="ov-b">';
       /* הפירוק — רק כאן, אחרי החץ. */
-      if (t != null) h += '<div class="ov-split">' + esc(fill(U('ovSplit'), { a:num(r.reg), b:inYesh(r) })) +
-        (st.owner && num(r.over) ? ' · ' + esc(fill(U('ovOverShow'), { n:num(r.over) })) : '') + '</div>';
+      if (t != null) h += '<div class="ov-split">' + esc(fill(U('ovSplit'), { a:num(r.reg), b:inYesh(r) })) + '</div>';
+      if (st.map) h += tripHtml(r);
       /* הכניסה למסך הישיבה (אנשי קשר, היסטוריה, עדכון) — כפתור ברור,
          ולא רק השם עם קו. */
       if (st.go && !st.solo) h += '<button class="ov-e ov-go" data-ov="go" data-i="' + i + '">' + esc(U('ovGoIn')) + '</button> ';
       if (!ed) h += pplHtml(r, i, st);
       if (!ed && st.call && r.last && r.last.note) h += '<div class="ov-x2" style="margin:0 0 10px">' +
         esc(fill(U('ovLastNote'), { t:r.last.note })) + '</div>';
-      if (ed) { SUG = st.sug ? st.sug(r) : null; h += formHtml(r, i, st.owner); SUG = null; }
+      if (ed) { SUG = st.sug ? st.sug(r) : null; h += formHtml(r, i, st.owner, st); SUG = null; }
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
           esc(has(r.note) ? r.note : U('ovNoteNone')) + '</div>' +
@@ -315,8 +470,22 @@
 
   function paint(st) {
     var rows = st.solo ? st.rows : sorted(st.rows);
-    st.shown = rows;
     var h = st.solo ? '' : totals(st.rows, st.other, st.owner);
+    /* "רשימה" / "מפה" — רק כשהעמוד ביקש (`map`, הבעלים). */
+    if (st.map && !st.solo) {
+      var mv = st.view === 'map';
+      h += '<div class="ov-vt"><button class="' + (mv ? '' : 'on') + '" data-ov="mtab" data-v="list">' + esc(U('ovTabList')) +
+        '</button><button class="' + (mv ? 'on' : '') + '" data-ov="mtab" data-v="map">' + esc(U('ovTabMap')) + '</button></div>';
+      if (mv) {
+        var sel = st.rows.filter(function (x) { return x.k === st.mapSel; })[0];
+        if (sel) st.open[sel.k] = true;
+        st.shown = sel ? [sel] : [];
+        h += mapHtml(st) + (sel ? '<div class="ov-list">' + rowHtml(st, sel, 0) + '</div>' : '');
+        st.el.innerHTML = h;
+        return;
+      }
+    }
+    st.shown = rows;
     h += '<div class="ov-list">' + rows.map(function (r, i) { return rowHtml(st, r, i); }).join('') + '</div>';
     var oth = 0;
     (st.other || []).forEach(function (o) { oth += num(o.n); });
@@ -325,28 +494,32 @@
   }
 
   function saveRow(st, r, i) {
-    var a = document.getElementById('ov-a-' + i), n = document.getElementById('ov-n-' + i),
-        c = document.getElementById('ov-c-' + i);
-    var av = a ? a.value.replace(/[^\d]/g, '') : r.act, nv = n ? n.value.trim() : r.note,
-        cv = c ? c.value.trim() : r.coord;
-    var y = document.getElementById('ov-y-' + i), o = document.getElementById('ov-o-' + i);
-    var todo = [];
-    (r.ppl || []).forEach(function (p) {
-      var el = document.getElementById('ov-p' + p.k + '-' + i);
-      if (el && el.value.replace(/[^\d+]/g, '') !== String(p.phone || '').replace(/[^\d+]/g, '')) {
-        todo.push([p.k, el.value.replace(/[^\d+]/g, '')]);
+    var a = document.getElementById('ov-a-' + i), n = document.getElementById('ov-n-' + i);
+    var av = a ? a.value.replace(/[^\d]/g, '') : r.act, nv = n ? n.value.trim() : r.note;
+    var y = document.getElementById('ov-y-' + i);
+    var todo = [], ph0 = function (v) { return String(v || '').replace(/[^\d+]/g, ''); };
+    var E = peGrab(st, r, i);
+    (E ? E.cards : []).forEach(function (c) {
+      if (c.fix) {
+        /* תפקיד קבוע — השם לעמודה שלו בטבלה, הטלפון ללשונית הבעלים (כמו היום). */
+        if (c.name !== String(c.o.name || '')) todo.push([FIX_NM[c.fix], c.name]);
+        if (ph0(c.phone) !== ph0(c.o.phone)) todo.push([c.fix, ph0(c.phone)]);
+        return;
       }
+      var ch = c.name !== c.o.name || ph0(c.phone) !== ph0(c.o.phone) || c.role !== c.o.role;
+      if (!ch) return;
+      if (!c.id && !c.name && !c.phone) return;
+      if (!c.id) c.id = peNewId();
+      todo.push(['pp', JSON.stringify({ id: c.id, role: c.role, name: c.name, phone: ph0(c.phone) })]);
     });
     if (y && y.value.replace(/[^\d]/g, '') !== String(r.yset || '')) todo.push(['yesh', y.value.replace(/[^\d]/g, '')]);
-    if (o && o.value.replace(/[^\d]/g, '') !== String(r.over || '')) todo.push(['over', o.value.replace(/[^\d]/g, '')]);
     if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
     if (nv !== String(r.note || '')) todo.push(['note', nv]);
-    if (c && cv !== String(r.coord || '')) todo.push(['coord', cv]);
-    if (!todo.length) { st.edit[r.k] = 0; paint(st); return; }
+    if (!todo.length) { st.edit[r.k] = 0; if (st.pe) st.pe[r.k] = null; paint(st); return; }
     st.msg[r.k] = { t:U('ovSaving') }; paint(st);
     var step = function (j) {
       if (j >= todo.length) {
-        st.edit[r.k] = 0; st.msg[r.k] = { t:U('ovSaved') }; paint(st);
+        st.edit[r.k] = 0; if (st.pe) st.pe[r.k] = null; st.msg[r.k] = { t:U('ovSaved') }; paint(st);
         if (st.changed) st.changed(r);
         return;
       }
@@ -376,6 +549,14 @@
         var b = ev.target.closest ? ev.target.closest('[data-ov]') : null;
         if (!b) return;
         var S = el._ov, r = S.shown[+b.getAttribute('data-i')], act = b.getAttribute('data-ov');
+        if (act === 'mtab') { S.view = b.getAttribute('data-v') === 'map' ? 'map' : 'list'; paint(S); return; }
+        if (act === 'mdot') {
+          var k0 = b.getAttribute('data-k');
+          S.mapSel = S.mapSel === k0 ? '' : k0; paint(S);
+          var card = el.querySelector('.ov-list');
+          if (S.mapSel && card && card.scrollIntoView) { try { card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {} }
+          return;
+        }
         if (act === 'sug') {
           var rr = S.rows.filter(function (x) { return x.k === b.getAttribute('data-k'); })[0];
           if (rr) { S.edit[rr.k] = 1; paint(S);
@@ -413,9 +594,11 @@
           });
           return;
         }
-        if (act === 'tog') { S.open[r.k] = !S.open[r.k]; if (!S.open[r.k]) S.edit[r.k] = 0; paint(S); }
-        else if (act === 'edit') { S.edit[r.k] = 1; S.msg[r.k] = null; paint(S); }
-        else if (act === 'cancel') { S.edit[r.k] = 0; S.msg[r.k] = null; paint(S); }
+        if (act === 'padd') { var Ea = peGrab(S, r, +b.getAttribute('data-i')); if (Ea) { Ea.add = true; Ea.hl = -1; } paint(S); return; }
+        if (act === 'prole') { peRole(S, r, +b.getAttribute('data-i'), b.getAttribute('data-v')); return; }
+        if (act === 'tog') { S.open[r.k] = !S.open[r.k]; if (!S.open[r.k]) { S.edit[r.k] = 0; if (S.pe) S.pe[r.k] = null; } paint(S); }
+        else if (act === 'edit') { S.edit[r.k] = 1; S.msg[r.k] = null; if (S.pe) S.pe[r.k] = null; paint(S); }
+        else if (act === 'cancel') { S.edit[r.k] = 0; S.msg[r.k] = null; if (S.pe) S.pe[r.k] = null; paint(S); }
         else if (act === 'save') saveRow(S, r, +b.getAttribute('data-i'));
         else if (act === 'go' && S.go) S.go(r);
       });

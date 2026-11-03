@@ -1178,6 +1178,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
   letter-spacing:-.035em;color:var(--blue-d)}
 .my-top span{display:block;font-size:.85rem;font-weight:700;
   color:var(--gold-t);margin-top:3px}
+/* בחירת ישיבה (בעלים בלבד, 8.99.449): שורת הזהב היא כפתור עם ▾, ושטח לחיצה נוח. */
+.my-ip{margin-top:1px}
+.my-ipb{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 0;border:0;background:none;
+  cursor:pointer;font:inherit;font-size:.85rem;font-weight:800;color:var(--gold-t);text-align:start}
+.my-ipb i{font-style:normal;font-size:.8rem}
+.my-ip .ip-p{min-width:260px}
 /* נוכחות בשיעור — עיגול כחול בפינה השמאלית, עם טבעת לבנה וזהב. */
 .my-top.orb{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .my-top.orb > div{min-width:0}
@@ -2107,6 +2113,30 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 #inst .no{flex:0 0 auto;background:transparent;color:var(--ink-3);padding-inline:14px}
 
 /* חזרה לניהול מתוך אפליקציית הניהול המותקנת, שאין בה שורת כתובת */
+/* ---------- עלונים להורדה (8.99.449) ---------- */
+.aldl-fab{position:fixed;inset-inline-start:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:74;
+  border:0;border-radius:22px;padding:12px 18px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.9rem;
+  color:#fff;background:linear-gradient(140deg,var(--blue-l),var(--blue));box-shadow:0 6px 22px rgba(11,37,80,.35)}
+.aldl-fab[hidden],body.kb-open .aldl-fab{display:none}
+.aldl-ah{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.aldl-ah small{font-size:.74rem;font-weight:700;color:var(--ink-3)}
+.aldl-drop{display:block;border:1.5px dashed var(--blue);border-radius:var(--r-s);padding:16px;text-align:center;
+  cursor:pointer;background:rgba(23,70,143,.04)}
+.aldl-drop b{display:block;color:var(--blue-d);font-weight:800}
+.aldl-drop small{display:block;color:var(--ink-3);font-size:.78rem;font-weight:700;margin-top:2px}
+.aldl-chk{display:block;margin:9px auto 0;background:none;border:0;font:inherit;font-weight:800;
+  font-size:.86rem;color:var(--blue);cursor:pointer}
+.aldl-note{text-align:center;margin-top:7px}
+.aldl-msg{margin-top:9px;font-weight:800;font-size:.9rem;color:var(--ok);text-align:center}
+.aldl-msg.bad{color:var(--stop)}
+.aldl-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--rule-2)}
+.aldl-row b{display:block;font-size:.92rem;font-weight:800}
+.aldl-row small{display:block;font-size:.78rem;font-weight:600;color:var(--ink-2)}
+.aldl-row small.bad{color:var(--stop);font-weight:700}
+.aldl-st{flex:none;font-size:.72rem;font-weight:800;border-radius:999px;padding:3px 9px}
+.aldl-st.ok{color:var(--ok);background:rgba(59,125,87,.12)}
+.aldl-st.bad{color:var(--stop);background:rgba(165,56,45,.1)}
 #adm-chip{position:fixed;inset-inline-end:14px;bottom:16px;z-index:75;display:none;
   border:0;border-radius:22px;padding:11px 17px;cursor:pointer;font-family:inherit;
   font-weight:800;font-size:.86rem;color:#fff;
@@ -2865,9 +2895,17 @@ button.yr-c.auto{cursor:pointer}
   <small id="splash-slow">החיבור איטי — טוען מהמכשיר…</small>
 </div>
 <script>
-  if (/[?&]st=1(&|$)/.test(location.search) && /^#(week|yomi)=/.test(location.hash)) {
-    document.getElementById('splash').className = 'quiet';
-  }
+  /* מסך הפתיחה הכחול — רק בפתיחה "קרה" (מהאייקון, מקישור מבחוץ). מעבר
+     מעמוד אחר של האפליקציה (8.99.449, בריף 3.11 חלק ה׳): חזרה למסלול מעמוד
+     הבחירה, יציאה מהדף האינטראקטיבי, החידון — אותו כיסוי בצבע העמוד, בלי
+     הכחול והלוגו. גם רענון של עדכון שותף כאן: הוא שומר את המפנה המקורי. */
+  (function () {
+    var r = document.referrer || '', o = location.protocol + '//' + location.host;
+    var hop = !!r && r.indexOf(o + '/') === 0;
+    if (hop || (/[?&]st=1(&|$)/.test(location.search) && /^#(week|yomi|track|quiz)=/.test(location.hash))) {
+      document.getElementById('splash').className = 'quiet';
+    }
+  })();
 </script>
 
 <div id="inst">
@@ -3100,6 +3138,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="textedit.js"></script>
 <script src="stage.js"></script>
 <script src="learned.js"></script>
+<script src="alonim.js"></script>
 <script src="trail.js"></script>
 <script src="stepid.js"></script>
 <script src="ways.js"></script>
@@ -3114,7 +3153,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.448';
+var APP_VERSION = '8.99.449';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -3211,6 +3250,8 @@ function show(v) {
   var el = document.getElementById('v-' + v);
   if (el) el.className = 'view on';
   window.scrollTo(0, 0);
+  /* יציאה מאזור הניהול — חוזרים לישיבה שלו (בחירת ישיבה, 8.99.449). */
+  if (v !== 'my' && typeof myViewOff === 'function') myViewOff();
   if (v === 'home') {
     /* תלמיד שחוזר "הביתה" מאחד המסכים שלו כאן — חוזר למסך שלו. */
     var stu = stuDevice();
@@ -4493,6 +4534,11 @@ function codeCheck(code) {
 
 function boardUrl(code) {
   var u = joinUrl(code).replace('join.html?', 'board.html?');
+  /* הבעלים על ישיבה שבחר באזור הניהול (8.99.449): הלוח של כל הישיבות
+     בסיסמה שלו, מסונן לישיבה הזו — בלי קוד של ישיבה אחרת. */
+  if (typeof myViewing === 'function' && myViewing() && code === VIEW_INST) {
+    return u.replace(/([?&])inst=[^&]*/, '$1inst=all&filt=' + encodeURIComponent(code));
+  }
   var k = instCode(code);
   return k ? u + '&k=' + encodeURIComponent(k) : u;
 }
@@ -4861,7 +4907,7 @@ function brdTracks(go) {
 }
 /* משבצת באזור הניהול → הלוח, על הפירוט של הדרך הזו. */
 function brdWay(k) {
-  location.href = boardUrl(myBoard()) + '&way=' + encodeURIComponent(k);
+  location.href = boardUrl(myView()) + '&way=' + encodeURIComponent(k);
 }
 function boardHtml(code, name, hail, go) {
   var j = code ? bJoin(code) : bJoinAll(), n = j ? j.n : 0;
@@ -5033,6 +5079,78 @@ function myInstRow() {
   return (code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0]) || null;
 }
 /* ============================================================
+   בחירת ישיבה באזור הניהול האישי (8.99.449) — לבעלים בלבד.
+   ============================================================
+   אחיאסף מגיע לישיבות ומלמד שם: לחיצה על שם הישיבה פותחת רשימה, ומה
+   שנבחר קובע את הלוח, את נוכחות בשיעור ואת "מילה לתלמידי הישיבה" — אותו
+   מסך בדיוק. **`myBoard()` לא זז** (הבית, ASK, ההרשמה וכרטיסי הצוות נשענים
+   עליו); רק האזור קורא את `myView()`. הבחירה בזיכרון בלבד — יציאה מהאזור
+   מחזירה לישיבה שלו, ובכניסה הבאה הוא בישיבה שלו. אצל איש צוות — כלום. */
+var VIEW_INST = '', VIEW_IP = false, VIEW_IPQ = '';
+function myOwner() { return !!(CFG.readKey || '').trim(); }
+function myView() { return (myOwner() && VIEW_INST) || myBoard(); }
+function myViewing() { return !!(myOwner() && VIEW_INST && VIEW_INST !== myBoard()); }
+function myViewRow() {
+  var code = myView();
+  return (code && INSTITUTIONS.filter(function (i) { return i.code === code; })[0]) || null;
+}
+function myIpList() {
+  var q = nameKey(VIEW_IPQ), cur = myView();
+  return INSTITUTIONS.slice().sort(function (a, b) {
+    return String(a.name).localeCompare(String(b.name), 'he');
+  }).filter(function (i) { return !q || nameKey(i.name).indexOf(q) >= 0; }).map(function (i) {
+    return '<button class="ip-o' + (i.code === cur ? ' on' : '') + '" data-ip="' + esc(i.code) + '">' +
+      '<span>' + esc(i.name) + '</span><i>' + myKids(i.code) + '</i></button>';
+  }).join('');
+}
+function myIpHtml(name) {
+  return '<div class="ip my-ip" id="my-ip">' +
+    '<button class="my-ipb" onclick="myIpToggle()" aria-expanded="' + VIEW_IP + '">' +
+      esc(name) + ' <i aria-hidden="true">▾</i></button>' +
+    '<div class="ip-p"' + (VIEW_IP ? '' : ' hidden') + '>' +
+      '<input id="my-ipq" type="search" placeholder="⌕ ' + esc(UI.admInstQ) + '" aria-label="' + esc(UI.admInstQ) +
+      '" value="' + esc(VIEW_IPQ) + '">' +
+      '<div class="ip-l" id="my-ipl">' + myIpList() + '</div></div></div>';
+}
+function myIpWire() {
+  var q = document.getElementById('my-ipq'), l = document.getElementById('my-ipl');
+  if (q) q.oninput = function () { VIEW_IPQ = q.value; l.innerHTML = myIpList(); };
+  if (l) l.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-ip]');
+    if (b) myViewPick(b.getAttribute('data-ip'));
+  };
+}
+function myIpToggle() {
+  VIEW_IP = !VIEW_IP; VIEW_IPQ = '';
+  var w = document.getElementById('my-ip'), row = myViewRow();
+  if (w && row) { w.outerHTML = myIpHtml(row.name); myIpWire(); }
+  var q = document.getElementById('my-ipq');
+  if (VIEW_IP && q) try { q.focus(); } catch (e) {}
+}
+document.addEventListener('click', function (e) {
+  if (!VIEW_IP) return;
+  var ip = document.getElementById('my-ip');
+  if (ip && document.documentElement.contains(e.target) && !ip.contains(e.target)) myIpToggle();
+});
+/* מחליפים ישיבה: הטיוטה, הפילוח והשגיאה של "מילה לתלמידים" מתאפסים —
+   טיוטה לישיבה אחת לא נשלחת בטעות לאחרת. */
+function myViewPick(code) {
+  VIEW_IP = false; VIEW_IPQ = '';
+  var next = code && code !== myBoard() ? code : '';
+  if (next !== VIEW_INST) {
+    VIEW_INST = next;
+    sayDraft = ''; sayErr = ''; sayOpt.seg = ''; sayOpt.way = ''; sayOpt.grade = ''; sayOpt.more = false;
+    attMsg = ''; attView = '';
+  }
+  renderMy();
+  window.scrollTo(0, 0);
+}
+function myViewOff() {
+  if (!VIEW_INST && !VIEW_IP) return;
+  VIEW_INST = ''; VIEW_IP = false; VIEW_IPQ = '';
+  sayDraft = ''; sayErr = '';
+}
+/* ============================================================
    גישה אחרי אימות — השמות וההודעה לתלמידים.
    ============================================================
    מי שעבר את התהליך האישי ואין לו קוד הישיבה (השני מאותה
@@ -5169,21 +5287,25 @@ function attOrb() {
 }
 /* mode: 'self' — נפתח על "אני מסמן"; 'stu' — על "התלמידים מסמנים". */
 function attOpen(mode) {
-  var code = myBoard(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
-  if (!code || !me || !me.id || !instCode(code)) return;
+  var code = myView(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
+  /* הבעלים על ישיבה אחרת: בסיסמת הסקריפט, בלי זהות המכשיר, ובלי לגעת
+     בגיבוי הרשימה של הישיבה שלו (attR) או במצב העמדה שלה (amdaVReset). */
+  var view = myViewing(), vkey = view ? (CFG.readKey || '').trim() : '';
+  if (!code || (!view && (!me || !me.id || !instCode(code)))) return;
   var self = mode === 'self';
   attView = ''; attMsg = PANEL.attLoad; renderMy();
   var go = function (r) {
     attMsg = ''; attView = '';
-    AMDA_STAFF = { inst: code, dev: me.id, r: r };
+    if (view) amdaVReset();
+    AMDA_STAFF = { inst: code, dev: view ? '' : me.id, r: r, view: view, key: vkey };
     amdaSt.slot = ''; amdaSt.kind = '';
     amdaSt.self = self; amdaSt.all = self; amdaSt.sel = {};
     amdaOpen('d');
   };
-  scriptGet({ netroster: code, dev: me.id }).then(function (d) {
+  scriptGet(view ? { netroster: code, key: vkey } : { netroster: code, dev: me.id }).then(function (d) {
     if (!d || d.status !== 'ok') {
       /* האישור בוטל — גם הגיבוי במכשיר יורד. */
-      if (d && (d.status === 'locked' || d.status === 'wait' || d.status === 'unknown')) Store.set('attR', null);
+      if (!view && d && (d.status === 'locked' || d.status === 'wait' || d.status === 'unknown')) Store.set('attR', null);
       attMsg = (d && d.message) || PANEL.attFail; renderMy(); return;
     }
     var r = { at: Date.now(), inst: code, g: {} };
@@ -5197,14 +5319,206 @@ function attOpen(mode) {
       Object.keys(r.g[g]).forEach(function (c) { r.g[g][c].sort(function (a, b) { return a.localeCompare(b, 'he'); }); });
     });
     if (!amdaCount(r).n) { attMsg = PANEL.attNone; renderMy(); return; }
-    Store.set('attR', r);
+    if (!view) Store.set('attR', r);
     go(r);
   })['catch'](function () {
-    var r = Store.get('attR', null);
+    var r = view ? null : Store.get('attR', null);
     if (r && r.inst === code && amdaCount(r).n) go(r);
     else { attMsg = PANEL.attFail; renderMy(); }
   });
 }
+
+/* ============================================================
+   עלונים להורדה (8.99.449) — בריף 3.11, חלק א׳.
+   ============================================================
+   ניהול ← הדף ← "עלונים": מסכת, דף, כותרת וקובץ PDF מוכן. "פרסום"
+   שולח את הקובץ לסקריפט (aldlPut_), שם הוא נשמר, נקרא שוב ומושווה —
+   ורק אז נרשם "פורסם". כאן ההצלחה נאמרת רק אחרי קריאה חוזרת
+   (?alon=adm) שמוצאת את המזהה במצב "פורסם". אין מחיקה ואין עריכה.
+   נפרד לגמרי מ"העלון השבועי" (alon.js) ומ"ארכיון עלון". */
+var ALDLA = { mas: '', daf: '', title: '', tEdit: false, file: null, b64: '', pages: 0,
+              busy: false, msg: '', bad: false, rows: null };
+function aldlAdmMas() {
+  var out = [];
+  (window.TRACKS || []).forEach(function (t) { if (t.masechet && out.indexOf(t.masechet) < 0) out.push(t.masechet); });
+  return out;
+}
+function aldlAdmTitle() {
+  if (ALDLA.tEdit) return;
+  ALDLA.title = ALDLA.mas && ALDLA.daf ? fill(UI.aldlTitleTpl, { mas: ALDLA.mas, daf: ALDLA.daf }) : '';
+  var t = document.getElementById('aldl-t');
+  if (t) t.value = ALDLA.title;
+}
+function admAlonim(body) {
+  if (!ALDLA.mas) ALDLA.mas = aldlAdmMas()[0] || '';
+  var A = ALDLA, f = A.file;
+  body.innerHTML =
+    '<div class="adm-card" style="margin-bottom:11px"><h4 class="aldl-ah"><span>' + esc(UI.aldlUpH) + '</span>' +
+      '<small>' + esc(UI.aldlUpOnly) + '</small></h4>' +
+    '<div class="fld"><div class="label">' + esc(UI.aldlMas) + '</div>' +
+      '<select id="aldl-m" onchange="ALDLA.mas=this.value;aldlAdmTitle()">' +
+      aldlAdmMas().map(function (m) {
+        return '<option' + (m === A.mas ? ' selected' : '') + '>' + esc(m) + '</option>';
+      }).join('') + '</select></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.aldlDaf) + '</div>' +
+      '<input id="aldl-d" type="text" value="' + esc(A.daf) + '" oninput="ALDLA.daf=this.value.trim();aldlAdmTitle()"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.aldlTitle) + '</div>' +
+      '<input id="aldl-t" type="text" value="' + esc(A.title) + '" oninput="ALDLA.title=this.value;ALDLA.tEdit=true"></div>' +
+    '<div class="fld"><div class="label">' + esc(UI.aldlFile) + '</div>' +
+      '<label class="aldl-drop"><input type="file" accept="application/pdf,.pdf" hidden onchange="aldlAdmPick(this)">' +
+      (f ? '<b>' + esc(f.name) + '</b><small>' + esc(UI.aldlRepick) + '</small>'
+         : '<b>' + esc(UI.aldlPick) + '</b>') + '</label>' +
+      (f && A.b64 ? '<button type="button" class="aldl-chk" onclick="aldlAdmOpen()">' + esc(UI.aldlOpenChk) + '</button>' : '') +
+    '</div>' +
+    '<button class="btn p" id="aldl-go" type="button" onclick="aldlAdmPub()"' + (A.busy ? ' disabled' : '') + '>' +
+      esc(A.busy ? UI.aldlPubbing : UI.aldlPub) + '</button>' +
+    '<p class="h aldl-note">' + esc(UI.aldlPubNote) + '</p>' +
+    (A.msg ? '<p class="aldl-msg' + (A.bad ? ' bad' : '') + '" role="status">' + esc(A.msg) + '</p>' : '') +
+    '</div>' +
+    '<div class="adm-card"><h4>' + esc(UI.aldlListH) + '</h4><div id="aldl-list">' + aldlAdmList() + '</div></div>';
+  if (A.rows === null) aldlAdmLoad();
+}
+function aldlAdmList() {
+  var R = ALDLA.rows;
+  if (R === null) return '<p class="h">' + esc(UI.aldlLoad) + '</p>';
+  if (R === 'fail') return '<p class="h">' + esc(UI.aldlFail) + ' <button class="dkm-lnk" onclick="ALDLA.rows=null;aldlAdmLoad()">' +
+    esc(UI.aldlRetry) + '</button></p>';
+  if (!R.length) return '<p class="h">' + esc(UI.aldlNone) + '</p>';
+  return R.slice().reverse().map(function (r) {
+    var ok = !!r.pub;
+    return '<div class="aldl-row"><div><b>' + esc(r.t) + '</b><small>' + esc(r.mas + ' · ' + r.daf) +
+      (r.pg ? ' · ' + esc(fill(UI.aldlMeta, { n: r.pg, d: r.at.slice(0, 10) })) : ok ? ' · ' + esc(r.at) : ' · ' + esc(r.c)) +
+      '</small>' + (!ok && r.why ? '<small class="bad">' + esc(r.why) + '</small>' : '') + '</div>' +
+      '<span class="aldl-st' + (ok ? ' ok' : ' bad') + '">' + esc(ok ? UI.aldlStOk : UI.aldlStErr) + '</span></div>';
+  }).join('');
+}
+function aldlAdmLoad() {
+  return scriptGet({ alon: 'adm', key: (CFG.readKey || '').trim() }).then(function (d) {
+    ALDLA.rows = d && d.status === 'ok' ? (d.rows || []) : (ALDLA.rows && ALDLA.rows.length ? ALDLA.rows : 'fail');
+    var el = document.getElementById('aldl-list');
+    if (el) el.innerHTML = aldlAdmList();
+    return d;
+  })['catch'](function () {
+    if (!(ALDLA.rows && ALDLA.rows.length)) ALDLA.rows = 'fail';
+    var el = document.getElementById('aldl-list');
+    if (el) el.innerHTML = aldlAdmList();
+    return null;
+  });
+}
+function aldlAdmPaint() {
+  if (admTab === 'daf' && admSubNow() === 'alonim' && document.getElementById('aldl-go')) admPane();
+}
+function aldlAdmPick(inp) {
+  var f = inp.files && inp.files[0];
+  inp.value = '';
+  if (!f) return;
+  ALDLA.msg = ''; ALDLA.bad = false;
+  var rd = new FileReader();
+  rd.onload = function () {
+    var s = String(rd.result || ''), i = s.indexOf(',');
+    var b64 = i >= 0 ? s.slice(i + 1) : '';
+    var head = '';
+    try { head = atob(b64.slice(0, 8)).slice(0, 4); } catch (e) {}
+    if (head !== '%PDF') {
+      ALDLA.file = null; ALDLA.b64 = ''; ALDLA.msg = UI.aldlNotPdf; ALDLA.bad = true; aldlAdmPaint(); return;
+    }
+    ALDLA.file = f; ALDLA.b64 = b64; ALDLA.pages = 0;
+    aldlAdmPaint();
+    /* מספר העמודים — מ-pdf.js שכבר אצלנו. לא הצליח — השרת סופר בעצמו. */
+    dkPdfLib().then(function () {
+      var bin = atob(b64), buf = new Uint8Array(bin.length);
+      for (var k = 0; k < bin.length; k++) buf[k] = bin.charCodeAt(k);
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function (doc) { if (ALDLA.file === f) ALDLA.pages = doc.numPages || 0; })['catch'](function () {});
+  };
+  rd.onerror = function () { ALDLA.msg = UI.aldlNotPdf; ALDLA.bad = true; aldlAdmPaint(); };
+  rd.readAsDataURL(f);
+}
+function aldlAdmOpen() {
+  if (!ALDLA.file) return;
+  var u = URL.createObjectURL(ALDLA.file);
+  window.open(u, '_blank', 'noopener');
+  setTimeout(function () { URL.revokeObjectURL(u); }, 120000);
+}
+function aldlAdmPub() {
+  var A = ALDLA;
+  if (A.busy) return;
+  A.daf = String(A.daf || '').trim(); A.title = String(A.title || '').trim();
+  if (!A.mas || !A.daf || !A.title || !A.b64) { A.msg = UI.aldlNeed; A.bad = true; return aldlAdmPaint(); }
+  var id = 'A' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  A.busy = true; A.msg = ''; A.bad = false; aldlAdmPaint();
+  var fin = function (ok, why) {
+    A.busy = false;
+    if (ok) {
+      A.msg = UI.aldlPubOk; A.bad = false;
+      A.file = null; A.b64 = ''; A.pages = 0; A.daf = ''; A.title = ''; A.tEdit = false;
+      try { localStorage.removeItem('df:aldl'); } catch (e) {}
+    } else {
+      A.msg = why ? fill(UI.aldlPubErr, { why: why }) : UI.aldlPubUnk; A.bad = true;
+    }
+    aldlAdmPaint();
+  };
+  /* בודקים ברשימה שבשרת — רק "פורסם" עם המזהה הזה הוא הצלחה. */
+  var tries = 0;
+  var look = function () {
+    tries++;
+    aldlAdmLoad().then(function (d) {
+      var row = null;
+      ((d && d.rows) || []).forEach(function (r) { if (r.id === id) row = r; });
+      if (row && row.pub) return fin(true);
+      if (row && row.bad) return fin(false, row.why || UI.aldlStErr);
+      if (tries < 8) return setTimeout(look, 5000);
+      fin(false, '');
+    });
+  };
+  fetch((CFG.api || API).trim(), { method: 'POST', mode: 'no-cors',
+    body: JSON.stringify({ action: 'aldlput', key: (CFG.readKey || '').trim(), id: id, mas: A.mas, daf: A.daf,
+      title: A.title, name: A.file ? A.file.name : '', pages: A.pages || 0, data: A.b64 }) })
+    .then(function () { look(); })['catch'](function () { setTimeout(look, 3000); });
+}
+
+/* ---- הכפתור המרחף באזור הניהול האישי (איש צוות מאושר) ----
+   מוריד ישר את העלון האחרון שפורסם, דרך אותה בדיקה בשרת. אין עלון — אין
+   כפתור. מוסתר כשהמקלדת פתוחה; עמדת הנוכחות מכסה אותו (z-index). */
+function aldlFabHtml() {
+  return '<button type="button" class="aldl-fab" id="aldl-fab" hidden onclick="aldlFabGo()">' +
+    esc(UI.aldlFab) + '</button>';
+}
+var ALDL_FAB_DEV = '';
+function aldlFabSync(dev) {
+  if (dev) ALDL_FAB_DEV = dev;
+  var b = document.getElementById('aldl-fab');
+  if (!b || !window.ALDL) return;
+  var show = function (rows) {
+    var x = document.getElementById('aldl-fab');
+    if (!x || x.getAttribute('data-busy')) return;
+    x.hidden = !(rows && rows.length);
+    x.setAttribute('data-id', rows && rows.length ? rows[0].id : '');
+  };
+  show(ALDL.cached());
+  ALDL.list('', ALDL_FAB_DEV).then(show);
+}
+function aldlFabGo() {
+  var b = document.getElementById('aldl-fab');
+  if (!b || b.getAttribute('data-busy')) return;
+  var id = b.getAttribute('data-id');
+  if (!id) return;
+  b.setAttribute('data-busy', '1'); b.textContent = UI.aldlDling;
+  ALDL.get(id, '', ALDL_FAB_DEV).then(function () {}, function () { SayMsg(UI.aldlDlFail); })
+    .then(function () {
+      var x = document.getElementById('aldl-fab');
+      if (x) { x.removeAttribute('data-busy'); x.textContent = UI.aldlFab; }
+    });
+}
+(function () {
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var kb = function () {
+    var open = window.innerHeight - vv.height > 150;
+    document.body.classList.toggle('kb-open', open);
+  };
+  vv.addEventListener('resize', kb);
+})();
 
 function renderMy() {
   var el = document.getElementById('my-body');
@@ -5212,7 +5526,13 @@ function renderMy() {
   var inst = myInstRow();
   /* בלי ישיבה אין מה לנהל. מי שהגיע לכאן בטעות חוזר הביתה. */
   if (!inst) { show('home'); return; }
+  /* הבעלים בחר ישיבה אחרת — אותו מסך, על הישיבה שנבחרה. */
+  var viewing = myViewing();
+  if (viewing) inst = myViewRow() || inst;
   var code = inst.code;
+  /* שם הישיבה — לבעלים כפתור שפותח את הרשימה; לכל השאר שורה רגילה. */
+  var nmHtml = myOwner() ? myIpHtml(inst.name) : '<span>' + esc(inst.name) + '</span>';
+  var stOk = viewing || instCode(code);
 
   /* ============================================================
      **קודם התהליך, ואז האזור.**
@@ -5228,7 +5548,7 @@ function renderMy() {
      `ASK` עצמו הוא התהליך. הוא יודע באיזה שלב הוא, והוא זה
      שמסמן שהסתיים. ============================================ */
   renderBoard();                       /* מאתחל את ASK — ראו שם */
-  if (!(typeof ASK !== 'undefined' && ASK.seen && ASK.seen())) {
+  if (!viewing && !(typeof ASK !== 'undefined' && ASK.seen && ASK.seen())) {
     el.innerHTML =
       '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
       '<span>' + esc(inst.name) + '</span></div>' +
@@ -5251,7 +5571,7 @@ function renderMy() {
   }
 
   /* נעול — רק "אתה איש צוות או תלמיד?". בלי לוח, בלי שליחה. */
-  if (accSt === 'locked' && !instCode(code)) {
+  if (!viewing && accSt === 'locked' && !instCode(code)) {
     el.innerHTML =
       '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
       '<span>' + esc(inst.name) + '</span></div>' +
@@ -5261,17 +5581,17 @@ function renderMy() {
   }
 
   el.innerHTML =
-    (instCode(code) && !attView
+    (stOk && !attView
       ? '<div class="my-top orb"><div><b>' + esc(PANEL.title) + '</b>' +
-        '<span>' + esc(inst.name) + '</span></div>' + attOrb() + '</div>'
+        nmHtml + '</div>' + attOrb() + '</div>'
       : '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
-        '<span>' + esc(inst.name) + '</span></div>') +
+        nmHtml + '</div>') +
 
     /* נוכחות בשיעור — ראשונה: זה מה שעושים בכל שיעור. רק אחרי האישור. */
-    (instCode(code) ? attHtml() : '') +
+    (stOk ? attHtml() : '') +
 
     /* עד האימות — ההודעה במקום השמות וההודעה לתלמידים. */
-    (instCode(code) ? '' : '<div class="my-sec">' + accWaitHtml() + '</div>') +
+    (stOk ? '' : '<div class="my-sec">' + accWaitHtml() + '</div>') +
 
     /* ============================================================
        **אין עדיין אף תלמיד — אין לוח.**
@@ -5295,7 +5615,10 @@ function renderMy() {
 
     /* העדכונים — רק כשיש מה לעשות איתם. פעילים = אין כרטיס. */
     (myNoteOn() ? '' : '<div class="my-sec"><h3>' + esc(PANEL.noteH) + '</h3>' +
-      '<div id="my-note"></div></div>');
+      '<div id="my-note"></div></div>') +
+
+    /* עלונים להורדה — כפתור מרחף, רק לאיש צוות מאושר וכשיש עלון (8.99.449). */
+    (instCode(myBoard()) ? aldlFabHtml() : '');
 
   /* ============================================================
      **הלוח של הבית מצויר קודם, גם כשלא רואים אותו.**
@@ -5312,6 +5635,8 @@ function renderMy() {
   sayPaint();
   myNote();
   accCheck();
+  if (myOwner()) myIpWire();
+  if (instCode(myBoard())) { var amMe = ASK.get && ASK.get(); aldlFabSync(amMe && amMe.id); }
 }
 
 /* ============================================================
@@ -5653,7 +5978,7 @@ var SAY_WAYS = [['', 'sayWayAll'], ['לימוד עצמי', 'sayWaySelf'],
                 ['חבורת לימוד', 'sayWayChav'], ['אבות ובנים', 'sayWayDad']];
 
 function sayReach() {
-  var code = myBoard();
+  var code = myView();
   if (!code) return null;
   var j = bJoin(code);
   return j ? (j.n || 0) : null;
@@ -5664,13 +5989,13 @@ function sayWeek() {
   if (wk < 0 || !tr) return null;
   var row = tr.cal[wk], daf = row && row[2] && row[2] !== 'סיום' ? rowDaf(row) : null;
   if (!daf) return null;
-  var did = typeof LCount === 'function' ? LCount(homeTrack, wk, myBoard()) : 0;
+  var did = typeof LCount === 'function' ? LCount(homeTrack, wk, myView()) : 0;
   return { wk: wk + 1, daf: daf, did: did || 0 };
 }
 /* כמה תלמידים בקבוצה שנבחרה — רק כשזה ידוע באמת. null = לא
    ידוע, ואז אין מספר ליד הכפתור ולא מבטיחים מספר. */
 function sayCount() {
-  var j = bJoin(myBoard()) || {}, n = j.n || 0, w = sayWeek();
+  var j = bJoin(myView()) || {}, n = j.n || 0, w = sayWeek();
   if (sayOpt.aud !== 'kids') return null;
   var narrowed = sayOpt.way || sayOpt.grade;
   if (sayOpt.seg === 'mid' || sayOpt.seg === 'none') return null;
@@ -5732,7 +6057,7 @@ function sayPreview() {
 function sayHtml() {
   var n = sayReach();
   if (n === null) return '';
-  var w = sayWeek(), j = bJoin(myBoard()) || {};
+  var w = sayWeek(), j = bJoin(myView()) || {};
   var h = '<div class="mycard"><h3>' + esc(headT('sayH')) + '</h3>' +
     '<p>' + esc(headT('sayB')) + '</p>';
 
@@ -5821,8 +6146,8 @@ function sayHtml() {
     '<p class="myto">' + esc(UI.sayLate) + '</p>' +
     '<hr class="say-hr">' + sayPreview();
 
-  /* ---- מה שכבר יצא מכאן ---- */
-  var log = Store.get('sayLog', []) || [];
+  /* ---- מה שכבר יצא מכאן ---- (של הישיבה שלו בלבד) */
+  var log = myViewing() ? [] : (Store.get('sayLog', []) || []);
   if (log.length) {
     h += '<div class="say-h">' + esc(headT('sayLogH')) + '</div><div class="say-log">' +
       log.slice(0, 5).map(function (l) {
@@ -5887,7 +6212,7 @@ function sayPaint() {
   if (!el) return;
   /* בלי קוד גישה השליחה תידחה בשרת. כרטיס ששולח לשומקום הוא
      הבטחה שנשברת בשקט. */
-  if (!instCode(myBoard())) { el.innerHTML = ''; return; }
+  if (!myViewing() && !instCode(myBoard())) { el.innerHTML = ''; return; }
   /* נפתח רק למי שהשלים את התהליך האישי: בלי מכשיר רשום אין
      ממי לשלוח, והכרטיס היה מבטיח משהו שאינו עובד. */
   var on = typeof ASK !== 'undefined' && ASK.seen && ASK.seen() &&
@@ -5904,8 +6229,10 @@ function saySend() {
   var txt = (sayDraft || '').trim();
   sayErr = '';
   if (txt.length < 2) { sayErr = headT('sayEmpty'); sayPaint(); return; }
-  var code = myBoard(), k = instCode(code);
-  if (!code || !k) { sayErr = headT('sayErr'); sayPaint(); return; }
+  /* הבעלים על ישיבה אחרת — בסיסמת הסקריפט, וההיקף הוא הישיבה שנבחרה
+     (view=1 ב-saySay_): אותה קבוצה, אותו פילוח, ואותה ישיבה בלבד. */
+  var code = myView(), view = myViewing(), k = view ? '' : instCode(code);
+  if (!code || (!k && !view)) { sayErr = headT('sayErr'); sayPaint(); return; }
   var to = sayToLabel();
   if (!SureLater(saySend, this, arguments)) return;
 
@@ -5921,10 +6248,11 @@ function saySend() {
   sayBusy = true; sayPaint();
   /* הכותרת היא החתימה; הפנייה בשם נכנסת בשרת, לכל נמען בנפרד
      — ראו `personal` ב-tools/push-send.js. */
-  var q = { fire:'say', inst:code, k:k, dev: me.id || '',
+  var q = { fire:'say', inst:code, k:k, dev: view ? '' : (me.id || ''),
             title: saySig(), body: (sayOpt.per ? '{name}, ' : '') + txt,
             grade: sayOpt.grade, klass:'', who: who,
             aud: sayOpt.aud, flt: JSON.stringify(flt), to: to, rq: sayRq() };
+  if (view) { q.key = (CFG.readKey || '').trim(); q.view = '1'; }
   var qs = Object.keys(q).map(function (x) {
     return encodeURIComponent(x) + '=' + encodeURIComponent(q[x]);
   }).join('&');
@@ -5933,10 +6261,13 @@ function saySend() {
     .then(function (d) {
       sayBusy = false;
       if (d && d.status === 'ok') {
-        var log = Store.get('sayLog', []) || [];
-        var now = new Date();
-        log.unshift({ when: now.getDate() + '.' + (now.getMonth() + 1), to: to, text: txt });
-        Store.set('sayLog', log.slice(0, 20));
+        /* יומן השליחות שבכרטיס — של הישיבה שלו בלבד. */
+        if (!view) {
+          var log = Store.get('sayLog', []) || [];
+          var now = new Date();
+          log.unshift({ when: now.getDate() + '.' + (now.getMonth() + 1), to: to, text: txt });
+          Store.set('sayLog', log.slice(0, 20));
+        }
         sayDraft = ''; sayErr = '';
         sayPaint();
         SayMsg(headT('saySent'));
@@ -8838,7 +9169,7 @@ function ovAdmMount() {
     var D = Store.get('ovData', null) || {};
     /* הסקירה נצבעת מחדש כשמגיעים נתונים — בלי `mem` שורה שנפתחה נסגרת מיד. */
     if (!ovState.mem) ovState.mem = { open:{}, edit:{}, msg:{} };
-    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem });
+    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem, map:true });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
@@ -12052,7 +12383,7 @@ function paintAdmChip() {
    כל מסך הוא "עלה" עם שם קבוע (people, push, calls…). השמות
    הישנים של הלשוניות (what, show, links, sys) עדיין עובדים —
    כפתור שנכתב פעם `admGo('sys')` נוחת במקום הנכון. */
-var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank']], stu: [['people', 'admTStu'], ['dup', 'dupTab'], ['par', 'parTab']] };
+var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank'], ['alonim', 'moreAlonim']], stu: [['people', 'admTStu'], ['dup', 'dupTab'], ['par', 'parTab']] };
 /* "עוד" — רשימה מקובצת, ולא שורת לשוניות: עשרה מסכים בשורה
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
@@ -12095,7 +12426,7 @@ function admHome(leaf) {
   if (leaf === 'push' || leaf === 'tmpl') return 'push';
   if (leaf === 'setup') return 'setup';
   if (leaf === 'calls' || leaf === 'inst') return 'inst';
-  if (leaf === 'daf' || leaf === 'qbank') return 'daf';
+  if (leaf === 'daf' || leaf === 'qbank' || leaf === 'alonim') return 'daf';
   if (leaf === 'hot') return 'hot';
   for (var i = 0; i < MORE.length; i++) {
     for (var j = 0; j < MORE[i].items.length; j++) if (MORE[i].items[j][0] === leaf) return 'more';
@@ -12751,6 +13082,7 @@ function admPane() {
   if (sub === 'guide')   { body.innerHTML = guCard(); return setTimeout(guPaint, 0); }
   if (sub === 'daf')     return admDecks(body);
   if (sub === 'qbank')   return admQBank(body);
+  if (sub === 'alonim')  return admAlonim(body);
   if (sub === 'open')    return admOpen(body);
   if (sub === 'price')   return admPrice(body);
   if (sub === 'text')    return admText(body);
@@ -20778,6 +21110,15 @@ function amdaC4(a) { a = a || []; return [a[0] || 0, a[1] || 0, a[2] || 0, a[3] 
 /* נוכחות בשיעור אצל איש צוות: הרשימה של הישיבה שלו מהשרת (שם, שכבה
    וכיתה בלבד), והרישום עובר בזהות המכשיר — בלי סיסמת הרכז. ראו attOpen. */
 var AMDA_STAFF = null;                 /* { inst, dev, r } כשפתוח אצל איש צוות */
+/* ============================================================
+   הבעלים על ישיבה אחרת (בחירת ישיבה באזור הניהול, 8.99.449).
+   ============================================================
+   AMDA_STAFF = { inst, dev:'', r, view:true, key } — הרישום יוצא בסיסמת הסקריפט
+   (רישום עם `vk`), הקריאה החוזרת — netmarks עם הסיסמה, ומה שנקרא נשמר בצד
+   (`:v`), כדי שלא יחליף את מי-נרשם-היום / הספירות של הישיבה שלו ולהפך.
+   החלק הצדדי מתאפס בכל פתיחה כזו — לא נשמר בין פתיחות. */
+function amdaVS(stf) { var x = stf || AMDA_STAFF; return x && x.view ? ':v' : ''; }
+function amdaVReset() { ['amdaHad2', 'amdaCnt', 'amdaLesAtt'].forEach(function (k) { Store.set(k + ':v', null); }); }
 function amdaRoster() { return AMDA_STAFF ? AMDA_STAFF.r : Store.get('amdaRoster', null); }
 function amdaCount(r) {
   var n = 0, c = 0, g, k;
@@ -20839,11 +21180,11 @@ function amdaDq() { return Store.get('amdaDq', []) || []; }
 function amdaPendN() { return amdaQ().length + amdaDq().length; }
 /* `amdaHad2[sess][key]` — מזהי השורות (מכשיר ישן: 1). */
 function amdaHadIds(sess, k) {
-  var v = ((Store.get('amdaHad2', {}) || {})[sess] || {})[k];
+  var v = ((Store.get('amdaHad2' + amdaVS(), {}) || {})[sess] || {})[k];
   return Object.prototype.toString.call(v) === '[object Array]' ? v.slice() : [];
 }
 function amdaHadNow(sess) {
-  var all = Store.get('amdaHad2', {}) || {}, out = {}, k, src = all[sess] || {}, gone = {};
+  var all = Store.get('amdaHad2' + amdaVS(), {}) || {}, out = {}, k, src = all[sess] || {}, gone = {};
   amdaDq().forEach(function (r) {
     if (r.sess !== sess) return;
     var g = gone[r.k] = gone[r.k] || {};
@@ -20871,7 +21212,7 @@ function amdaUnmark(g, c, n) {
   if (ids.length) {
     var dq = amdaDq();
     dq.push({ sess: sess, k: k, ids: ids, inst: AMDA_STAFF ? AMDA_STAFF.inst : amdaInst(),
-              dev: AMDA_STAFF ? AMDA_STAFF.dev : '', at: Date.now() });
+              dev: AMDA_STAFF ? AMDA_STAFF.dev : '', vk: AMDA_STAFF && AMDA_STAFF.view ? 1 : 0, at: Date.now() });
     Store.set('amdaDq', dq);
   }
   if (mine) { s.n = Math.max(0, (+s.n || 0) - mine); Store.set('amdaSess', s); }
@@ -20882,7 +21223,7 @@ function amdaFlushSoon() {
   amdaSt.flSoon = setTimeout(function () { amdaFlush(); }, 4000);
 }
 function amdaCounts() {
-  var base = Store.get('amdaCnt', {}) || {}, out = {}, k;
+  var base = Store.get('amdaCnt' + amdaVS(), {}) || {}, out = {}, k;
   for (k in base) { if (base.hasOwnProperty(k)) out[k] = amdaC4(base[k]); }
   amdaQ().forEach(function (m) {
     var sk = amdaKey(m.g, m.c, m.n);
@@ -21026,7 +21367,10 @@ function amdaFlush(fast, stf0) {
   /* הסרות — לפני הרישומים, באותה הרשאה כמו הרישום. */
   dq.forEach(function (r) {
     if (r.sent && now - r.sent < (fast === true ? 8000 : 45000)) return;
-    var auth = r.dev ? { dev: r.dev, inst: r.inst } : stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    /* `vk` — נרשם אצל הבעלים על ישיבה אחרת: תמיד בסיסמה, לעולם לא בזהות
+       מכשיר של ישיבה אחרת (השרת היה כופה עליו את הישיבה של המכשיר). */
+    var auth = r.dev ? { dev: r.dev, inst: r.inst } : r.vk ? { key: key }
+             : stf && !stf.view ? { dev: stf.dev, inst: stf.inst } : { key: key };
     if (!auth.key && !auth.dev) return;
     r.sent = now;
     sent++;
@@ -21041,7 +21385,8 @@ function amdaFlush(fast, stf0) {
     /* איש צוות — בזהות המכשיר שנשמרה ברישום עצמו (`m.dev`), כדי
        שרישום שלא יצא לא ייתקע כשהמסך נסגר; השרת בודק שהמכשיר מאושר
        לישיבה הזו. */
-    var auth = m.dev ? { dev: m.dev, inst: m.inst } : stf ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    var auth = m.dev ? { dev: m.dev, inst: m.inst } : m.vk ? { key: key }
+             : stf && !stf.view ? { dev: stf.dev, inst: stf.inst } : { key: key };
     if (!auth.key && !auth.dev) return;
     m.sent = now;
     sent++;
@@ -21070,7 +21415,8 @@ function amdaFlush(fast, stf0) {
 function amdaPull(stf0) {
   var key = (CFG.readKey || '').trim(), stf = stf0 || AMDA_STAFF;
   if (!key && !stf) return Promise.resolve(false);
-  return scriptGet(stf ? { netmarks: stf.inst, dev: stf.dev } : { read: AMDA_TAB, key: key }).then(function (d) {
+  return scriptGet(stf ? (stf.view ? { netmarks: stf.inst, key: key } : { netmarks: stf.inst, dev: stf.dev })
+                       : { read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay(), seatEv = [], lesAtt = {}, rep = [];
     var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
@@ -21096,9 +21442,9 @@ function amdaPull(stf0) {
       once[sess + '#' + sk] = 1;
       (cnt[sk] = cnt[sk] || amdaC4())[amdaBucket(m.slot, m.kind)]++;
     });
-    Store.set('amdaHad2', had);
-    Store.set('amdaCnt', cnt);
-    Store.set('amdaLesAtt', lesAtt);
+    Store.set('amdaHad2' + amdaVS(stf), had);
+    Store.set('amdaCnt' + amdaVS(stf), cnt);
+    Store.set('amdaLesAtt' + amdaVS(stf), lesAtt);
     Store.set('amdaQ', amdaQ().filter(function (m) { return !seen[m.id]; }));
     /* הסרה הושלמה — כשאף שורה שלה כבר לא בגיליון. */
     Store.set('amdaDq', amdaDq().filter(function (r) {
@@ -21220,7 +21566,7 @@ function amdaSave(d) {
      שהסגירה מוחקת אותה, כדי שהאימות ברקע יוכל לקרוא. */
   var fix = Store.get('amdaFix', null), ss = amdaSess(), sN = +ss.n || 0, sD = (fix ? fix.kind : ss.kind) !== 'o';
   var pts = sN && sD ? fill(amdaT(amdaInst() === 'oretzion' ? 'savePts' : 'savePtsD'), { n: sN }) : '';
-  var stf = AMDA_STAFF ? { dev: AMDA_STAFF.dev, inst: AMDA_STAFF.inst } : null;
+  var stf = AMDA_STAFF ? { dev: AMDA_STAFF.dev, inst: AMDA_STAFF.inst, view: AMDA_STAFF.view } : null;
   if (d && d.parentNode) d.parentNode.removeChild(d);
   amdaClose(true);
   amdaBg(pts, stf);
@@ -21689,6 +22035,7 @@ function amdaMarkRec(g, c, n) {
            w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: amdaLv(),
            qz: false, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
+           vk: AMDA_STAFF && AMDA_STAFF.view ? 1 : 0,
            g: g, c: c, n: n, at: new Date().toISOString() });
   Store.set('amdaQ', q);
   s.n = (+s.n || 0) + 1; Store.set('amdaSess', s);
@@ -22092,7 +22439,7 @@ function amdaHereBy(les, sk) {
 }
 /* כמה פעמים כל תלמיד היה בשיעורי כיתה — מהגיליון ומהתור. */
 function amdaLesAtt() {
-  var base = Store.get('amdaLesAtt', {}) || {}, out = {}, k;
+  var base = Store.get('amdaLesAtt' + amdaVS(), {}) || {}, out = {}, k;
   for (k in base) { if (base.hasOwnProperty(k)) out[k] = base[k]; }
   amdaQ().forEach(function (m) {
     if (amdaLesson(m.slot)) { var sk = amdaKey(m.g, m.c, m.n); out[sk] = (out[sk] || 0) + 1; }

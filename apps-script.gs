@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 178;
+var SCRIPT_VERSION = 179;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -351,7 +351,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -459,6 +459,12 @@ function doPostMain_(e) {
      שורות הלימוד של התלמידים, ובעומס (30.10.2026) waitLock פקע בשקט —
      והשקפים האחרונים בסדרה פשוט לא הגיעו. ראו ghRoute_. */
   if (hd && (hd.action === 'ghput' || hd.action === 'ghdel')) return json_(ghRoute_(hd));
+  /* עלון להורדה — לפני הנעילה: כותב לגיליון נפרד, ומגה-בייטים בתוך הנעילה
+     היו מעכבים את שורות הלימוד. ראו aldlPut_. */
+  if (hd && hd.action === 'aldlput') {
+    if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+    return json_(aldlPut_(hd));
+  }
   var lock = LockService.getScriptLock(), tmL0 = Date.now();
   lock.waitLock(20000);
   TM_LOCK_ = Date.now() - tmL0;
@@ -1011,6 +1017,9 @@ function doGetMain_(e) {
     }
     return reply_(e, res);
   }
+
+  /* מאגר העלונים להורדה — ראו aldlRoute_. */
+  if (e && e.parameter && e.parameter.alon) return reply_(e, aldlRoute_(e));
 
   /* ============================================================
      "לא מצליח להתקין".
@@ -5728,7 +5737,17 @@ function partCalc_(all) {
     oorder.push(k);
   }
 
-  var out = { by: {}, order: [] };
+  /* לסקירה (ovLearners_, 8.99.449): מי האדם של כל מזהה, מי בחוץ (הורה/בדיקה),
+     ומי סומן בנוכחות — לפי ישיבה. אינו משנה דבר במונים. */
+  var skip = {}, att = {};
+  order.forEach(function (id) {
+    var q = ppl[id];
+    if (q.role === 'הורה' || q.test) q.ids.forEach(function (x) { skip[x] = 1; });
+  });
+  porder.forEach(function (id) { if (P[id].rep) (att[P[id].q.code] = att[P[id].q.code] || {})[id] = 1; });
+  oorder.forEach(function (k) { (att[only[k].code] = att[only[k].code] || {})['k:' + k] = 1; });
+
+  var out = { by: {}, order: [], who: whoOf, skip: skip, att: att };
   var bump = function (code, grade, way, reg) {
     var b = out.by[code];
     if (!b) { b = out.by[code] = { n: 0, reg: 0, rep: 0, amb: 0, g: {}, w: {}, go: [], wo: [] }; out.order.push(code); }
@@ -6130,6 +6149,166 @@ function alonArch_(d) {
   rg.setValues([[mas, String(d.daf), String(ver), at, val, '', id, '']]);
   return { status: 'ok', ver: ver, row: r };
 }
+/* ============================================================
+   מאגר העלונים להורדה (8.99.449 · SCRIPT_VERSION 179) — בריף 3.11, חלק א׳.
+   ============================================================
+   הרכז מעלה PDF מוכן (ניהול ← הדף ← "עלונים"), והוא נפתח להורים,
+   לתלמידים ולצוות. **אין קישור ציבורי:** הקובץ נשמר בגיליון נפרד
+   שהסקריפט יוצר (לשונית לכל עלון, base64 בחתיכות של 45,000 תווים),
+   ומוגש רק דרך הסקריפט, אחרי שהמכשיר זוהה בשרת: תלמיד/הורה ב"לומדים",
+   איש צוות מאושר ב"גישה", או סיסמת הסקריפט. בלי הרשאה חדשה (הגיליונות
+   כבר בהרשאה), בלי Drive, בלי שירות נוסף.
+   · העלאה = שמירה, קריאה חוזרת והשוואה תו בתו, ורק אז שורה "פורסם".
+     כשל — שורה "שגיאה" עם הסיבה, הקובץ החלקי נמחק, המאגר לא משתנה.
+   · אין מחיקה ואין עריכה של עלון שפורסם.
+   · ארכיון העלון (alon.js, "ארכיון עלון") — לא נגע. */
+var ALDL_TAB_ = 'עלונים להורדה';
+var ALDL_COLS_ = ['מזהה', 'מסכת', 'דף', 'כותרת', 'קובץ', 'עמודים', 'גודל', 'מצב', 'סיבה', 'נוצר', 'פורסם'];
+var ALDL_SS_KEY_ = 'ALDL_FILES_SS';
+var ALDL_CHUNK_ = 45000;
+var ALDL_MAX_ = 12 * 1024 * 1024;
+function aldlFilesSS_() {
+  var P = PropertiesService.getScriptProperties(), id = P.getProperty(ALDL_SS_KEY_);
+  if (id) return SpreadsheetApp.openById(id);
+  var ss = SpreadsheetApp.create('הדף השבועי · קבצי עלונים (פרטי)');
+  P.setProperty(ALDL_SS_KEY_, ss.getId());
+  return ss;
+}
+function aldlMeta_() {
+  var sh = sheet_(ALDL_TAB_);
+  if (!sh.getLastRow()) {
+    headRow_(sh, ALDL_COLS_);
+    sh.getRange(1, 1, sh.getMaxRows(), ALDL_COLS_.length).setNumberFormat('@');
+  }
+  var rows = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, ALDL_COLS_.length).getDisplayValues() : [];
+  return { sh: sh, rows: rows.map(function (r) {
+    var o = {};
+    for (var i = 0; i < ALDL_COLS_.length; i++) o[ALDL_COLS_[i]] = String(r[i] || '').trim();
+    return o;
+  }) };
+}
+function aldlId_(v) { return String(v || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40); }
+function aldlNow_() { return Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm'); }
+function aldlRow_(sh, o) {
+  var r = Math.max(sh.getLastRow(), 1) + 1, rg = sh.getRange(r, 1, 1, ALDL_COLS_.length);
+  rg.setNumberFormat('@');
+  rg.setValues([ALDL_COLS_.map(function (c) { return String(o[c] == null ? '' : o[c]); })]);
+}
+/* d: { id, mas, daf, title, name, pages, data(base64) } — רק עם סיסמה (נבדק אצל הקורא). */
+function aldlPut_(d) {
+  var id = aldlId_(d.id), mas = String(d.mas || '').trim(), daf = String(d.daf || '').trim();
+  var title = String(d.title || '').trim().slice(0, 200), data = String(d.data || '').replace(/\s+/g, '');
+  if (!id || id.length < 6) return { status: 'error', message: 'חסר מזהה' };
+  var M = aldlMeta_();
+  for (var i = 0; i < M.rows.length; i++) {
+    if (M.rows[i]['מזהה'] === id && M.rows[i]['מצב'] === 'פורסם') return { status: 'ok', id: id, dup: true };
+  }
+  var base = { 'מזהה': id, 'מסכת': mas, 'דף': daf, 'כותרת': title,
+               'קובץ': String(d.name || '').slice(0, 120), 'נוצר': aldlNow_() };
+  var bad = function (why) {
+    base['מצב'] = 'שגיאה'; base['סיבה'] = why;
+    try { aldlRow_(M.sh, base); } catch (x) {}
+    return { status: 'error', id: id, message: why };
+  };
+  if (!mas || !daf || !title) return bad('חסרים מסכת, דף או כותרת');
+  if (!data) return bad('לא התקבל קובץ');
+  var bytes;
+  try { bytes = Utilities.base64Decode(data); } catch (x) { return bad('הקובץ לא נקרא'); }
+  if (!bytes || bytes.length < 100) return bad('הקובץ ריק');
+  if (bytes.length > ALDL_MAX_) return bad('הקובץ גדול מ-12MB');
+  if (String.fromCharCode(bytes[0] & 255, bytes[1] & 255, bytes[2] & 255, bytes[3] & 255) !== '%PDF') {
+    return bad('הקובץ אינו PDF');
+  }
+  var pages = +d.pages || 0;
+  if (!pages) {
+    try {
+      var s = Utilities.newBlob(bytes).getDataAsString('ISO-8859-1');
+      pages = (s.match(/\/Type\s*\/Page(?![a-z])/g) || []).length;
+    } catch (x) {}
+  }
+  var ss, fs, nm = 'f_' + id;
+  try {
+    ss = aldlFilesSS_();
+    var old = ss.getSheetByName(nm);
+    if (old) ss.deleteSheet(old);
+    fs = ss.insertSheet(nm);
+    var parts = [];
+    for (var p = 0; p < data.length; p += ALDL_CHUNK_) parts.push([String(parts.length), data.slice(p, p + ALDL_CHUNK_)]);
+    fs.getRange(1, 1, parts.length, 2).setNumberFormat('@');
+    fs.getRange(1, 1, parts.length, 2).setValues(parts);
+    SpreadsheetApp.flush();
+    var back = fs.getRange(1, 2, parts.length, 1).getValues().map(function (r) { return String(r[0]); }).join('');
+    if (back !== data) throw new Error('הקובץ שנשמר אינו זהה לקובץ שנשלח');
+  } catch (err) {
+    try { if (ss && fs) ss.deleteSheet(fs); } catch (x2) {}
+    return bad('השמירה נכשלה: ' + String(err && err.message || err).slice(0, 160));
+  }
+  base['עמודים'] = pages ? String(pages) : '';
+  base['גודל'] = String(bytes.length);
+  base['מצב'] = 'פורסם';
+  base['פורסם'] = aldlNow_();
+  aldlRow_(M.sh, base);
+  try { CacheService.getScriptCache().remove('aldl:list'); } catch (x3) {}
+  return { status: 'ok', id: id, pages: pages };
+}
+/* מי מבקש: 'adm' · 'staff' · 'kid' · 'dad' — או '' (לא רשום). */
+function aldlWho_(e) {
+  var P = e.parameter || {};
+  if (READ_KEY && String(P.key || '') === READ_KEY) return 'adm';
+  var dev = String(P.dev || '').trim();
+  if (!dev || dev.length < 6 || dev.length > 80) return '';
+  var C = CacheService.getScriptCache(), ck = 'aldl:w:' + dev.replace(/[^0-9A-Za-z_:-]/g, '').slice(0, 80);
+  var hit = C.get(ck);
+  if (hit) return hit === '-' ? '' : hit;
+  var who = '';
+  var a = accRow_(dev);
+  if (a && a.st === 'אושר') who = 'staff';
+  if (!who) {
+    var t = joinTable_(), r = rowOfId_(t, dev);
+    if (r >= 1) who = t.c(t.rows[r], 'תפקיד') === 'הורה' ? 'dad' : 'kid';
+  }
+  try { C.put(ck, who || '-', who ? 1800 : 120); } catch (x) {}
+  return who;
+}
+function aldlPub_() {
+  var C = CacheService.getScriptCache(), hit = C.get('aldl:list');
+  if (hit) { try { return JSON.parse(hit); } catch (x) {} }
+  var out = aldlMeta_().rows.filter(function (o) { return o['מצב'] === 'פורסם'; }).map(function (o) {
+    return { id: o['מזהה'], mas: o['מסכת'], daf: o['דף'], t: o['כותרת'],
+             pg: +o['עמודים'] || 0, sz: +o['גודל'] || 0, at: o['פורסם'] };
+  });
+  out.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  try { C.put('aldl:list', JSON.stringify(out), 600); } catch (x) {}
+  return out;
+}
+/* ?alon=list|get|adm */
+function aldlRoute_(e) {
+  var P = e.parameter || {}, op = String(P.alon || '');
+  var who = aldlWho_(e);
+  if (op === 'adm') {
+    if (who !== 'adm') return { status: 'denied', message: 'דורש את סיסמת הסקריפט' };
+    return { status: 'ok', rows: aldlMeta_().rows.map(function (o) {
+      return { id: o['מזהה'], mas: o['מסכת'], daf: o['דף'], t: o['כותרת'], f: o['קובץ'],
+               pg: +o['עמודים'] || 0, sz: +o['גודל'] || 0, st: o['מצב'], why: o['סיבה'],
+               c: o['נוצר'], at: o['פורסם'], pub: o['מצב'] === 'פורסם', bad: o['מצב'] === 'שגיאה' };
+    }) };
+  }
+  if (!who) return { status: 'denied', message: 'המכשיר אינו רשום' };
+  if (op === 'list') return { status: 'ok', rows: aldlPub_() };
+  if (op === 'get') {
+    var id = aldlId_(P.id), row = null;
+    aldlPub_().forEach(function (o) { if (o.id === id) row = o; });
+    if (!row) return { status: 'none', message: 'העלון לא נמצא' };
+    var fs = aldlFilesSS_().getSheetByName('f_' + id);
+    if (!fs || !fs.getLastRow()) return { status: 'error', message: 'הקובץ לא נמצא' };
+    var data = fs.getRange(1, 2, fs.getLastRow(), 1).getValues().map(function (r) { return String(r[0]); }).join('');
+    /* שם קובץ באנגלית ובספרות — בחלק מהדפדפנים שם בעברית יורד כ"download" בלי סיומת. */
+    var nm = 'alon-' + (String(row.at || '').slice(0, 10) || id) + '.pdf';
+    return { status: 'ok', name: nm, mime: 'application/pdf', data: data };
+  }
+  return { status: 'error', message: 'פעולה לא מוכרת' };
+}
+
 /* התיקייה ב-Drive. נוצרת בפעם הראשונה, והמזהה שלה נשמר. */
 function alonDir_() {
   var P = PropertiesService.getScriptProperties(), fid = P.getProperty(ALON_DIR_KEY_);
@@ -6332,13 +6511,17 @@ function ckey_(v) {
     .replace(/^'/, '').replace(/["'\u05F4\u05F3]/g, '').replace(/\s+/g, ' ').trim();
 }
 function contactSave_(cd) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { return contactSaveIn_(cd); } finally { lock.releaseLock(); }
+}
+/* הגוף עצמו — בלי נעילה, למי שכבר מחזיק בה (ovPSet_). */
+function contactSaveIn_(cd) {
   if (!CONTACTS_ID) throw new Error('חסר CONTACTS_ID וגם PRIVATE_ID — אנשי קשר לא נכתבים לגיליון הראשי');
   var name = String(cd && cd.name || '').trim();
   if (!name) return { status: 'error', message: 'חסר שם ישיבה' };
   var people = (cd.people || []).filter(function (q) { return q && (q.name || q.phone); });
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
+  {
     var sh = sheet_(CONTACT_TAB_, CONTACTS_ID);
     var data = sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
     var want = ckey_(name), at = -1;
@@ -6376,7 +6559,7 @@ function contactSave_(cd) {
     });
     if (add.length) sh.getRange(at + 1, last + 1, 1, add.length).setValues([add]);
     return { status: 'ok', saved: 1, created: 0, added: add.length ? 1 : 0 };
-  } finally { lock.releaseLock(); }
+  }
 }
 
 function clearTab_(tab, ssId) {
@@ -7207,13 +7390,17 @@ function saySay_(e) {
      השרת מתרגם את הקבוצה למזהים — ראו sayPeople_. ר"ם מקבל רק
      את הישיבה שלו: הרשימה נבנית מהלוח שלה בלבד. */
   var flS = sayFlt_(P.flt), flO = flS ? JSON.parse(flS) : {};
-  if (!isAdm) {
+  /* `view=1` — הבעלים מאזור הניהול האישי, על ישיבה שבחר (8.99.449): בסיסמה,
+     אבל בדיוק כמו ראש החטיבה של אותה ישיבה — ההיקף הוא `inst`, והקבוצה לפי `aud`. */
+  var asHead = !isAdm || P.view === '1';
+  if (isAdm && P.view === '1' && !inst) return reply_(e, { status:'denied', message:'חסר קוד ישיבה' });
+  if (asHead) {
     if (P.aud === 'parents') flO.par = 'p';
     else if (P.aud === 'both') flO.par = 'pk';
   }
   if (flO.par) {
-    var who0 = sayPeople_(isAdm ? String(P.only || '') : inst, isAdm,
-                          isAdm || P.test === '1', flO,
+    var who0 = sayPeople_(asHead ? inst : String(P.only || ''), isAdm,
+                          (isAdm && !asHead) || P.test === '1', flO,
                           String(P.grade || ''), String(P.klass || ''));
     if (!who0.ids.length) {
       return reply_(e, { status:'empty', message:'אין בקבוצה הזו הורים שמחוברים לתלמיד.' });
@@ -7228,12 +7415,12 @@ function saySay_(e) {
     return reply_(e, r0);
   }
   var rS = ghFire_(String(P.title || ''), String(P.body || ''),
-                           isAdm ? String(P.only || '') : inst,
+                           asHead ? inst : String(P.only || ''),
                            String(P.grade || ''), String(P.klass || ''),
                            String(P.who || ''), link,
                            /* ר"ם וראש חטיבה בוחרים בין תלמידים להורים —
                               ושניהם עדיין בתוך הישיבה שלהם בלבד. */
-                           isAdm ? String(P.role || '')
+                           !asHead ? String(P.role || '')
                                  : (P.aud === 'parents' ? 'אב' : 'תלמיד'),
                            /* "הדף נפתח" — רק לרכז, ורק לממתינים של
                               אותו דף. הצורה נבדקת: 'taanit|ג', ועמוד שנפתח
@@ -14942,7 +15129,11 @@ function ovNums_(T, row, C) {
    **לבעלים בלבד** — המנהלים רואים את מספר הלומדים הכולל.
    null = הקריאה נכשלה (ואז "לא ידוע"); חשבון שהצליח — 0 הוא 0. */
 function ovLearners_() {
-  var cache = CacheService.getScriptCache(), hit = cache.get('ovLearn');
+  /* 8.99.449 (בריף 3.11, חלק ד׳): "לומדים" = מי שסיים לפחות דף **או** סומן
+     בנוכחות — איחוד לפי אדם, פעם אחת. הזהות — של partCalc_ (מזהה קבוע,
+     מזהים נוספים, אותו טלפון ושם מלא, שיוך הנוכחות). דיווח שלא הוכרע (amb)
+     — מחוץ לחישוב, כמו במונים. לבעלים בלבד, כמו "לומדים בפועל" קודם. */
+  var cache = CacheService.getScriptCache(), hit = cache.get('ovLearn2');
   if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   try {
     var ls = sheet_(LEARN_TAB);
@@ -14956,26 +15147,21 @@ function ovLearners_() {
     }
     if (iId < 0 || iC < 0) return null;
     var js = sheet_(JOIN_TAB), jr = js && js.getLastRow() ? js.getDataRange().getDisplayValues() : [[]];
-    var alias = aliasMap_(jr), parent = {}, jh = jr[0] || [], jId = -1, jRole = -1;
-    for (var j = 0; j < jh.length; j++) {
-      if (String(jh[j]).trim() === 'מזהה') jId = j;
-      if (String(jh[j]).trim() === 'תפקיד') jRole = j;
-    }
-    if (jId >= 0 && jRole >= 0) {
-      for (var q = 1; q < jr.length; q++) {
-        if (String(jr[q][jRole] || '').trim() === 'הורה') parent[String(jr[q][jId] || '').trim()] = 1;
-      }
-    }
-    var seen = {}, out = {};
+    var PC = partCalc_(jr), who = PC.who || {}, skip = PC.skip || {}, S = {};
+    var add = function (code, k) { (S[code] = S[code] || {})[k] = 1; };
     for (var r = 1; r < rows.length; r++) {
       var id = String(rows[r][iId] || '').trim(), code = String(rows[r][iC] || '').trim();
-      if (!id || !code) continue;
-      id = alias[id] || id;
-      if (parent[id] || seen[code + '|' + id]) continue;
-      seen[code + '|' + id] = 1;
-      out[code] = (out[code] || 0) + 1;
+      if (!id || !code || skip[id]) continue;
+      var cid = who[id] || id;
+      if (skip[cid]) continue;
+      add(code, cid);
     }
-    cache.put('ovLearn', JSON.stringify(out), 600);
+    Object.keys(PC.att || {}).forEach(function (code) {
+      Object.keys(PC.att[code]).forEach(function (k) { add(code, k); });
+    });
+    var out = {};
+    Object.keys(S).forEach(function (code) { out[code] = Object.keys(S[code]).length; });
+    cache.put('ovLearn2', JSON.stringify(out), 600);
     return out;
   } catch (err) { return null; }
 }
@@ -15062,7 +15248,102 @@ function ovPpl_(T, row, own, owner) {
     if (!owner && !(name && phone)) return;
     out.push({ k: p[0], name: name, phone: phone });
   });
+  /* אנשי קשר נוספים (8.99.449) — לבעלים בלבד. הקישור למנהלים לא מתרחב. */
+  if (owner && code) ovPplMore_(code, out);
   return out;
+}
+/* ============================================================
+   אנשי קשר בסקירה — תפקיד + שם + טלפון ביחד (8.99.449, בריף 3.11 חלק ג׳).
+   ============================================================
+   **שלושת התפקידים הקבועים לא זזו:** השם — בעמודה שלו בטבלת הסקירה
+   (רכז בשטח / ראש ישיבה / ראש חטיבה), הטלפון — ב"סקירה — בעלים". כל מה
+   שקורא אותם היום (הלוח, חיוג, וואטסאפ, ovSync_, הסה"כ) — כמו שהיה.
+   **איש קשר נוסף** (ר״ם, או "אחר" עם תפקיד חופשי) — שורה בלשונית הפרטית
+   "סקירה — אנשי קשר" (קוד · מזהה · תפקיד · שם · טלפון · עודכן · מי). זה
+   המקור שלו. כל שמירה (גם של הקבועים) נכתבת גם ל"אנשי קשר" של המוקד
+   (contactSaveIn_ — מוסיף רק מה שאין שם, לפי שם או טלפון), ולכן מי שנוסף
+   בסקירה מופיע גם במוקד.
+   **מה שכבר במוקד** ("אנשי קשר", ovContacts_) ואינו אף אחד מאלה (לפי טלפון
+   או ovSame_) — מוצג בכרטיס עם תפקיד "אחר", כמו שהוא. אין מיגרציה: תפקיד
+   נרשם רק למי שנערך. אין מחיקה — ניקוי השדות, כמו היום. */
+var OVX_TAB_ = 'סקירה — אנשי קשר';
+var OVX_COLS_ = ['קוד', 'מזהה', 'תפקיד', 'שם', 'טלפון', 'עודכן', 'מי'];
+var OVX_MEMO_ = null;
+function ovXRead_() {
+  if (OVX_MEMO_) return OVX_MEMO_;
+  var out = { by: {}, con: {} };
+  try {
+    var sh = sheet_(OVX_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, OVX_COLS_);
+    var a = sh.getDataRange().getDisplayValues(), h = a[0].map(function (x) { return String(x).trim(); });
+    var ix = {};
+    OVX_COLS_.forEach(function (c) { ix[c] = h.indexOf(c); });
+    for (var i = 1; i < a.length; i++) {
+      var g = function (c) { return ix[c] < 0 ? '' : String(a[i][ix[c]] || '').trim(); };
+      var code = g('קוד'), id = g('מזהה');
+      if (!code || !id) continue;
+      var L = out.by[code] || (out.by[code] = []), o = null;
+      for (var j = 0; j < L.length; j++) if (L[j].id === id) o = L[j];
+      if (!o) { o = { id: id }; L.push(o); }
+      o.role = g('תפקיד'); o.name = g('שם'); o.phone = g('טלפון'); o.r = i + 1;
+    }
+  } catch (e) {}
+  try { out.con = ovContacts_() || {}; } catch (e2) { out.con = {}; }
+  OVX_MEMO_ = out;
+  return out;
+}
+function ovPhKey_(v) { var d = String(v || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
+function ovPplMore_(code, out) {
+  var X = ovXRead_();
+  var seen = function (name, phone) {
+    var pk = ovPhKey_(phone);
+    return out.some(function (q) {
+      return (pk && ovPhKey_(q.phone) === pk) || (name && q.name && ovSame_(q.name, name));
+    });
+  };
+  (X.by[code] || []).forEach(function (o) {
+    if (!o.name && !o.phone) return;
+    out.push({ k: 'x' + o.id, id: o.id, role: o.role, name: o.name, phone: o.phone, x: 1 });
+  });
+  (X.con[code] || []).forEach(function (c, n) {
+    if (!c.name && !c.phone) return;
+    if (seen(c.name, c.phone)) return;
+    out.push({ k: 'm' + n, role: '', name: c.name, phone: c.phone || '', m: 1 });
+  });
+}
+/* שמירה של כרטיס נוסף: v = {id, role, name, phone}. מזהה חדש — שורה חדשה;
+   קיים — אותה שורה. נקרא תחת הנעילה של ov_. */
+function ovPSet_(T, hit, v, by) {
+  var o = parse_(v) || {};
+  var id = String(o.id || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 30);
+  var role = String(o.role || '').trim().slice(0, 40), name = String(o.name || '').trim().slice(0, 80);
+  var phone = String(o.phone || '').replace(/[^\d+]/g, '');
+  if (!id) return { status: 'error', message: 'חסר מזהה' };
+  if (phone && phone.replace(/\D/g, '').length < 9) return { status: 'error', message: 'מספר טלפון לא תקין' };
+  var code = ovCell_(T, hit, 'code');
+  if (!code) return { status: 'error', message: 'לישיבה אין קוד בטבלה' };
+  OVX_MEMO_ = null;
+  var X = ovXRead_(), cur = null;
+  (X.by[code] || []).forEach(function (q) { if (q.id === id) cur = q; });
+  var sh = sheet_(OVX_TAB_), h = headers_(sh);
+  var vals = { 'קוד': code, 'מזהה': id, 'תפקיד': role, 'שם': ovSafe_(name), 'טלפון': phone ? "'" + phone : '',
+               'עודכן': new Date(), 'מי': String(by || '') };
+  var row = h.map(function (c) { return vals[c] === undefined ? '' : vals[c]; });
+  if (cur) sh.getRange(cur.r, 1, 1, row.length).setValues([row]);
+  else sh.appendRow(row);
+  SpreadsheetApp.flush();
+  OVX_MEMO_ = null;
+  return null;
+}
+/* כל כרטיס שנשמר — גם למוקד ("אנשי קשר"), רק מה שאין שם. כישלון כאן אינו
+   מבטל את השמירה בסקירה; הוא מוחזר כ-`con`. */
+function ovConPush_(T, hit, name, phone) {
+  if (!name && !phone) return '';
+  try {
+    var r = contactSaveIn_({ name: ovCell_(T, hit, 'name'), people: [{ name: name || '', phone: phone || '' }] });
+    OVX_MEMO_ = null;
+    return r && r.status === 'ok' ? '' : (r && r.message) || 'error';
+  } catch (e) { return String(e && e.message || e); }
 }
 /* דיווח ראש החטיבה לפי קוד — מלשונית ההרשמות (פרטית). השורה האחרונה גוברת. */
 function ovReps_() {
@@ -15306,7 +15587,7 @@ function ov_(p) {
     if (op === 'set') {
       var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
       /* "לומדים בפועל" אינו נכתב לטבלה — הוא מחושב (ovLearners_). */
-      if (['note', 'coord', 'yesh', 'over', 'pc', 'pr', 'ph'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      if (['note', 'coord', 'rosh', 'head', 'yesh', 'over', 'pc', 'pr', 'ph', 'pp'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
       if (f !== 'note' && !owner) return { status: 'denied', message: 'רק לבעלים' };
       if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
       var hit = null;
@@ -15316,6 +15597,17 @@ function ov_(p) {
             ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) hit = row;
       });
       if (!hit) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      /* איש קשר נוסף (ר״ם / אחר) — ראו ovPSet_. */
+      if (f === 'pp') {
+        var vRaw = String(p.v == null ? '' : p.v);
+        var bad = ovPSet_(T, hit, vRaw, full ? String(p.by || '') : '');
+        if (bad) return bad;
+        var po = parse_(vRaw) || {};
+        var cw = ovConPush_(T, hit, String(po.name || '').trim(), String(po.phone || '').replace(/[^\d+]/g, ''));
+        var outP = { status: 'ok', row: ovRow_(T, hit, owner, ovLearners_(), ovOwn_(), ovReps_(), ovCounts_()) };
+        if (cw) outP.con = cw;
+        return outP;
+      }
       /* לומדים בישיבה / חופפים — ללשונית הפרטית, לא לטבלה. */
       if (OV_OWN_F_[f]) {
         if (f === 'pc' || f === 'pr' || f === 'ph') {
@@ -15326,6 +15618,10 @@ function ov_(p) {
         if (!hc) return { status: 'error', message: 'לישיבה אין קוד בטבלה' };
         ovOwnSet_(hc, f, v);
         SpreadsheetApp.flush();
+        /* טלפון של תפקיד קבוע — גם למוקד, עם השם שבטבלה. */
+        if (v && (f === 'pc' || f === 'pr' || f === 'ph')) {
+          ovConPush_(T, hit, ovCell_(T, hit, { pc: 'coord', pr: 'rosh', ph: 'head' }[f]), v);
+        }
         /* הסה"כ השתנה — גם בטבלה, מיד, ולא רק בסנכרון הבא. */
         var C1 = ovCounts_(), own1 = ovOwn_(), reps1 = ovReps_();
         if (C1 && own1 && reps1) {
@@ -15340,6 +15636,10 @@ function ov_(p) {
       SpreadsheetApp.flush();
       /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
       hit.v[col] = cell.getValue();
+      if (v && (f === 'coord' || f === 'rosh' || f === 'head')) {
+        var own2 = ovOwn_(), m2 = own2 && own2.m ? own2.m[ovCell_(T, hit, 'code')] : null;
+        ovConPush_(T, hit, v, m2 ? m2[{ coord: 'pc', rosh: 'pr', head: 'ph' }[f]] || '' : '');
+      }
       return { status: 'ok', row: ovRow_(T, hit, owner, owner ? ovLearners_() : null, ovOwn_(), ovReps_(), ovCounts_()) };
     }
 
