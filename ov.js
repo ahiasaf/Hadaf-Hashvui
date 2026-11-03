@@ -80,6 +80,7 @@
     '.ov-fb button{flex:1;font:inherit;font-size:.9rem;font-weight:800;border-radius:11px;padding:10px;' +
       'cursor:pointer;border:1px solid #E5DAC3;background:#fff;color:#1B2A45}' +
     '.ov-fb button.p{background:#17468F;border-color:#17468F;color:#fff}' +
+    '.ov-try{font-weight:900;color:#A4421F}' +
     '.ov-ans{margin:-2px 0 6px;padding:8px 10px;background:#F3EEE2;border-radius:12px}' +
     '.ov-ans .ov-fb{margin-top:0}.ov-ans label{margin-top:0}.ov-ans .ov-fb + .ov-msg{margin-top:6px}' +
     '.ov-msg{font-size:.78rem;font-weight:700;color:#5C687E;margin-top:7px}' +
@@ -166,6 +167,13 @@
   function lastHtml(r) {
     var L = r.last;
     if (!L || !L.t) return '<span class="ov-c no">' + esc(U('ovLastNone')) + '</span>';
+    /* לא ענה — "ניסיון ליצור קשר", והמילה "ניסיון" מודגשת (אחיאסף, 3.11). */
+    if (L.kind !== 'wa' && L.res === 'no') {
+      var tb = [agoTxt(L.t)];
+      if (L.name) tb.push(L.name);
+      return '<span class="ov-c">' + esc(fill(U('ovTry'), { t:tb.join(' · '), b:'\u0001' }))
+        .replace('\u0001', '<b class="ov-try">' + esc(U('ovTryB')) + '</b>') + '</span>';
+    }
     var bits = [agoTxt(L.t)];
     if (L.kind === 'wa') bits.push(U('ovLastWa'));
     else if (L.res) bits.push(U(L.res === 'yes' ? 'ovLastYes' : 'ovLastNo'));
