@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 172;
+var SCRIPT_VERSION = 173;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12560,43 +12560,42 @@ function chTables_(U, S, K, X) {
     if (t) add(id, t, at, 'הוזמן');
     return t;
   };
-  var place = function (id, hs, at) {
-    for (var i = 0; i < hs.length; i++) if (seatAt(id, hs[i], at)) return;
-    if (guestOf(id)) return;
+  /* רק אצל המארח שנבחר (8.99.440) — אין מעבר למארח אחר כשאין מקום. */
+  var place = function (id, by, at) {
+    if (seatAt(id, by, at) || guestOf(id)) return;
     var r = { 'שולחן': '', 'מזהה': id, 'ישב': iso(at), 'יצא': iso(at), 'סיבה': CH_NR_, 'בדיקה': U.test ? 'כן' : '' };
     chPut_(T, r);
     if (at > (lastEnd[id] || 0)) lastEnd[id] = at;
     NR[id] = at;
   };
   /* ההזמנות הפתוחות: לא אורח באף שולחן, ומאז היציאה/"אין מקום" האחרונה. `hs` —
-     המארחים לפי סדר ההזמנה; `ch` — הבחירה הראשונה, אם בחר. */
+     המארחים לפי סדר ההזמנה; `ch` — הבחירה הראשונה (`מצב: בחר`), אם בחר.
+     **בלי בחירה אין שיוך ואין כיסא** (8.99.440, אחיאסף) — גם מזמין יחיד, וגם
+     אחרי סיום דף. הרשמה דרך הקישור לבדה אינה הסכמה. */
   var pendOf = function (id) {
     if (guestOf(id)) return null;
-    var L = X.inv[id] || [], le = lastEnd[id] || 0, hs = [], first = null, ch = null;
+    var L = X.inv[id] || [], le = lastEnd[id] || 0, hs = [], ch = null;
     L.forEach(function (v) {
       if (v.at < le || together(id, v.by)) return;
       if (hs.indexOf(v.by) < 0) hs.push(v.by);
-      if (!first) first = v;
       if (v.ch && !ch) ch = v;
     });
-    return first ? { v: ch || first, hs: ch ? [ch.by] : hs, all: hs, ch: !!ch } : null;
+    return hs.length ? { ch: ch, hs: hs } : null;
   };
+  /* בחר, וסיים דף (✓) — המאוחר מביניהם. סיים לפני הבחירה — ברגע הבחירה. */
   var startOf = function (id, v) {
-    /* המעבר של 8.99.385 (`שולחנות מ`) — הזמנה מלפניו יושבת מיד. */
-    if (v.at < SW) return v.at;
-    /* סיים דף (✓) — מאז ההזמנה, או לפניה (אז — ברגע ההזמנה). */
     var la = X.at(id);
     return la ? Math.max(la, v.at) : 0;
   };
   var seatUpTo = function (lim) {
     var ev = [];
     Object.keys(X.inv).forEach(function (id) {
-      var p = pendOf(id), at = p ? startOf(id, p.v) : 0;
-      if (at && at <= lim) ev.push({ id: id, hs: p.hs, at: at });
+      var p = pendOf(id), at = p && p.ch ? startOf(id, p.ch) : 0;
+      if (at && at <= lim) ev.push({ id: id, by: p.ch.by, at: at });
     });
     /* חותמת הזמן של השרת קובעת; באותו רגע — לפי המזהה, יציב. */
     ev.sort(function (a, b) { return a.at - b.at || (a.id < b.id ? -1 : 1); });
-    ev.forEach(function (e) { place(e.id, e.hs, e.at); });
+    ev.forEach(function (e) { place(e.id, e.by, e.at); });
   };
   var learned = function (id, D) { var a = X.at(id); return !!a && a <= D; };
   /* שולחן נעול = ארבעה, וכולם רואים ✓. אין החלפות ואין הוצאות. */
@@ -12666,7 +12665,7 @@ function chTables_(U, S, K, X) {
   });
   Object.keys(X.inv).forEach(function (id) {
     var p = pendOf(id);
-    if (p) out.pend[id] = { by: p.v.by, hs: p.all, ch: p.ch ? 1 : 0 };
+    if (p) out.pend[id] = { by: p.ch ? p.ch.by : p.hs[0], hs: p.hs, ch: p.ch ? 1 : 0 };
   });
   Object.keys(NR).forEach(function (id) { if (!out.pend[id] && !guestOf(id)) out.nr[id] = NR[id]; });
   return out;
@@ -12800,7 +12799,7 @@ function chMy_(M, P, U) {
   pub.pub = M.exp !== CH_EXP_Q || !!String(P.ref || '').trim() ||
     !!(pp0 && ((pp0.fr || []).length || pp0.by || pp0.ob)) || !!(me && (M.seat[me] || M.pend[me])) ||
     mine.some(function (x) { return (M.act || []).indexOf(x) >= 0 || (M.act || []).indexOf(chCanon_(M, x)) >= 0; });
-  var ref = String(P.ref || '').trim().toUpperCase();
+  var ref = String(P.ref || '').trim().toUpperCase(), refHost = null;
   if (ref && /^[A-Z0-9]{4,10}$/.test(ref)) {
     pub.ref = chRefState_(M, U, ref, mine, me);
     /* השם הפרטי של בעל הקישור — כמו בנחיתה (chLand_), לכל מי שמחזיק בו. */
@@ -12811,8 +12810,11 @@ function chMy_(M, P, U) {
     var ro = chRefMap_().m[ref];
     if (ro && pub.ref !== 'bad') pub.refI = (M.ppl[chCanon_(M, ro['מזהה'])] || {}).i || chInstOf_(ro['מזהה']);
     /* השולחן של בעל הקישור, כפי שאשב בו — לכרטיס "לשבת אצל…" ולמסך הבחירה (8.99.436). */
-    if (ro && pub.ref === 'old' && M.v3) {
-      pub.refT = chHostView_(M, chCanon_(M, ro['מזהה']), me);
+    var pdr = me && M.pend[me], rh = ro ? chCanon_(M, ro['מזהה']) : '';
+    /* בעל הקישור כבר ברשימת המזמינים שלי — שם הוא מופיע (עם הקוד הזה), לא פעמיים. */
+    if (pdr && !pdr.ch && pdr.hs.indexOf(rh) >= 0) refHost = { id: rh, c: ref };
+    else if (ro && pub.ref === 'old' && M.v3) {
+      pub.refT = chHostView_(M, rh, me);
       /* בעל קישור שעוד לא הזמין איש אינו במודל — השם מהקישור. */
       if (!pub.refT.name && pub.refBy) { pub.refT.name = pub.refBy; if (pub.refT.seats[0]) pub.refT.seats[0].n = pub.refBy; }
     }
@@ -12846,7 +12848,9 @@ function chMy_(M, P, U) {
   out.t = main || out.ts[0] || null;
   var pd = M.pend[me];
   if (pd) {
-    var hs = pd.ch ? [pd.by] : pd.hs, codes = hs.length > 1 ? chCodeOf_(M, U, hs) : {}, room = chRoom_(M, pd.by);
+    /* לא בחר — לכל מזמין הקוד שלו, לכפתור "לשבת" (גם מזמין יחיד, 8.99.440). */
+    var hs = pd.ch ? [pd.by] : pd.hs, codes = pd.ch ? {} : chCodeOf_(M, U, hs), room = chRoom_(M, pd.by);
+    if (refHost) codes[refHost.id] = refHost.c;
     out.pend = { by: nm(pd.by), full: room ? 0 : 1, t: room ? chHostView_(M, pd.by, me) : null, ch: pd.ch ? 1 : 0,
                  hs: hs.map(function (h) { return { n: nm(h), c: codes[h] || '', t: chRoom_(M, h) ? chHostView_(M, h, me) : null }; }) };
   }
@@ -12994,7 +12998,7 @@ function chRefState_(M, U, code, mine, me) {
     if (me && chGuest_(M, me)) return 'other';
     var pd = me && M.pend[me];
     if (pd && pd.ch) return pd.by === by ? 'ok' : 'pend';
-    if (pd && pd.hs.length === 1 && pd.hs[0] === by) return 'ok';
+    /* 8.99.440: הוזמן ועוד לא בחר — גם מזמין יחיד — `old`: מוצעת לו הבחירה. */
     var t2 = joinTable_(), r2 = -1;
     for (var i2 = 0; i2 < mine.length && r2 < 1; i2++) r2 = rowOfId_(t2, mine[i2]);
     if (r2 < 1) return 'wait';

@@ -45,6 +45,9 @@
    עד 3 שולחנות (`me.ts`) — מסך "השולחנות שלך". הוזמן מכמה חברים — מסך בחירה
    (`me.pend.hs`, ?challenge=sit עם הקוד של המארח). אין מקום — `me.nr`.
    בלי העתקת קישור: השיתוף רק בוואטסאפ.
+   **8.99.440 — הצטרפות רק מבחירה:** גם מזמין יחיד — כרטיס "לשבת בשולחן של…" (sitHtml);
+   בלי לחיצה אין שיוך ואין כיסא. כפתור הוואטסאפ גלוי גם בכרטיס הבחירה. `chMax3` — בבית,
+   במסך השולחן, בבחירה ובנחיתה.
 
    ES5 בלבד. המלל — UI.ch* ב-data.js.
    ============================================================ */
@@ -262,7 +265,8 @@
     if (!m) return [];
     return m.ts && m.ts.length ? m.ts : m.t ? [m.t] : [];
   }
-  /* הוזמן מכמה חברים, לא בחר, ועוד לא יושב אצל אף אחד — מסך הבחירה. */
+  /* הוזמן ועוד לא בחר (גם מזמין יחיד, 8.99.440) — מסך הבחירה. מזמין שאין אצלו
+     מקום (`t` ריק) אינו מוצע: לא מבטיחים מקום כשאין. */
   function pickList(d) {
     var m = d && d.me, p = m && m.pend, out = [];
     if (p && !p.ch && p.hs) p.hs.forEach(function (h) { if (h.t && h.c) out.push(h); });
@@ -438,26 +442,28 @@
   }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת — השולחן שישב בו (`refT`). "הצטרפת" —
      רק מתשובת השרת (?challenge=sit), לא מהלחיצה. */
-  function sitHtml(d) {
-    var by = { by: d.refBy || U('chFriend') };
+  function sitHtml(d, h) {
+    var by = { by: h.n || U('chFriend') };
     return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(U('chOldH')) + '</h2>' +
-      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' + (d.refT ? rowHtml4(seatsOf({ t: d.refT })) : '') +
-      '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(refAny()) + '" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
-      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' +
-      '<a class="ch-more" id="ch-own" href="chaver.html">' + esc(U('chOwnBtn')) + '</a></div>';
+      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' + (h.t ? rowHtml4(seatsOf({ t: h.t })) : '') +
+      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
+      '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
+      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
   }
+  /* כפתור הוואטסאפ נשאר גלוי גם כשיש הזמנה שממתינה לבחירה — פותחים שולחן משלך. */
+  function waOwn(d) { return d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa'); }
   /* **מוזמן מכמה חברים** (8.99.436): בוחר מארח אחד. הכיסא נתפס כשמסיים דף. */
-  function pickHtml(L) {
+  function pickHtml(d, L) {
     var nm = L.map(function (h) { return h.n || U('chFriend'); });
     var all = nm.length > 1 ? nm.slice(0, -1).join(', ') + U('chPickAnd') + nm[nm.length - 1] : nm[0];
     return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(tp(U('chPickH'), { names: all })) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      '<p class="ch-tline">' + esc(U('chPickP')) + '</p>' + L.map(function (h) {
+      '<p class="ch-tline">' + esc(U('chPickP')) + '</p><p class="ch-tline">' + esc(U('chMax3')) + '</p>' + L.map(function (h) {
         var n = h.n || U('chFriend');
         return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' + rowHtml4(seatsOf({ t: h.t })) +
           '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
-      }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p></div>';
+      }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
   }
   function wireSit(redraw) {
     var own = document.getElementById('ch-own'), msg = document.getElementById('ch-sit-m');
@@ -481,8 +487,8 @@
   /* כרטיס הבחירה/הישיבה, אם צריך — אחרת ''. */
   function choiceHtml(d) {
     var L = pickList(d);
-    if (L.length > 1) return pickHtml(L);
-    if (d.ref === 'old' && refAny()) return sitHtml(d);
+    if (L.length > 1) return pickHtml(d, L);
+    if (L.length === 1) return sitHtml(d, L[0]);
     return '';
   }
 
@@ -583,6 +589,8 @@
     if (ch) {
       box.innerHTML = noteHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
+      waWire('ch-wa', null);
+      if (!d.ended) codeWarm();
       return;
     }
     /* **הכרטיס בבית** (8.99.436, מסך 1 בבריף): השולחן בשורה, כפתור וואטסאפ ירוק
@@ -592,6 +600,8 @@
       '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(U('chCardH')) + '</h2>' +
       '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + rowHtml4(seatsOf(v)) +
       (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      /* עד 3 שולחנות — כבר במסך הראשון (8.99.440). */
+      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       (d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa')) +
       '<button type="button" class="ch-go" id="ch-open">' + esc(U(many ? 'chTsGo' : 'chToTable')) + '</button>' + countHtml(d) + '</div>';
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
@@ -683,6 +693,7 @@
     return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
       tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       tailHtml(d) + (v ? '' : howHtml()) + '</div>';
   }
   /* **כמה שולחנות** (מסך 3): כל אחד בשורה, עם המצב שלו. */
@@ -707,7 +718,7 @@
       }).join('') + '<p class="ch-tline">' + esc(U('chTsFoot')) + '</p>' + tailHtml(d) + '</div>';
   }
   function fullWire(box, d, redraw) {
-    if (choiceHtml(d)) { wireSit(redraw); return; }
+    if (choiceHtml(d)) { wireSit(redraw); waWire('ch-wa', null); if (!d.ended) codeWarm(); return; }
     waWire('ch-wa', null);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
     if (!d.ended) codeWarm();
@@ -790,7 +801,8 @@
       (bad ? '<h2>' + esc(U('chLandBadH')) + '</h2><p class="ch-note">' + esc(U('chRefBad')) + '</p>'
            : '<h2>' + esc(nm ? tp(U(full ? 'chLandFull' : 'chLandH'), v) : U('chLandHx')) + '</h2>' +
              (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm)), midOf(''), true) : '') +
-             '<p class="ch-lead">' + esc(on ? tp(U('chLandP'), v) : U('chLandOff')) + '</p>') +
+             '<p class="ch-lead">' + esc(on ? tp(U('chLandP'), v) : U('chLandOff')) + '</p>' +
+             (on ? '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' : '')) +
       '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
         esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a>' +
       (on && !bad ? '<p class="ch-sm">' + esc(U('chLandNote')) + '</p>' : '') + '</div>';

@@ -45,32 +45,45 @@ c.chPut_(ST, { 'שולחן': 'S1', 'מזהה': legH, 'ישב': iso(-50), 'יצא
 c.chPut_(ST, { 'שולחן': 'S1', 'מזהה': legacy, 'ישב': iso(-50), 'יצא': '', 'סיבה': 'הוזמן', 'בדיקה': '' });
 var hc = code(host);
 
-// ---- 1. הצטרפו מהקישור — "בדרך אליך", בלי כיסא ----
+function choose(id, cd, h) { at(h); exec(); return c.chSit_({ id: id, ref: cd }, U); }
+
+// ---- 1. הצטרפו מהקישור — "בדרך אליך", בלי כיסא ובלי שיוך ----
 var a = person('a', host, 1), b = person('b', host, 1.1), cc = person('c', host, 1.2), d = person('d', host, 1.3), e = person('e', host, 1.4);
 var M1 = sync(2);
 ok(!M1.seat[a] && !M1.seat[host], 'no seat before finishing', M1.seat);
 var mh = my(M1, host).me;
 ok(mh && mh.way.length === 5 && mh.ts.length === 0, 'host sees 5 on the way, no tables', mh);
 var ma = my(M1, a).me;
-ok(ma.pend && ma.pend.by === 'host' && ma.pend.t && ma.pend.t.seats.length === 1, 'invitee pending at host', ma.pend);
+ok(ma.pend && ma.pend.by === 'host' && !ma.pend.ch && ma.pend.hs.length === 1 && ma.pend.hs[0].c && ma.pend.hs[0].t,
+   'single host: choice offered with code', ma.pend);
+ok(my(M1, a, hc).ref === 'old', 'single host link → offer to join (not ok)', my(M1, a, hc).ref);
+ok(!my(M1, a, hc).refT, 'ref host already in list — not twice');
 
-// ---- 2. מירוץ: 3 המסיימים הראשונים בשולחן 1 ----
-learn(b, 3); learn(d, 3.5); learn(a, 4); learn(e, 4.5);
+// ---- 2. בלי בחירה אין כיסא — גם אחרי סיום דף (מזמין יחיד, חבר חדש) ----
+learn(b, 3);
+var M2a = sync(3.5);
+ok(!M2a.seat[b] && M2a.pend[b] && !M2a.pend[b].ch, 'finished, not chosen → no seat (new friend, one host)', M2a.seat[b]);
+
+// ---- 3. בחירה + סיום דף; סיים לפני הבחירה — ברגע הבחירה. מירוץ ----
+var s3 = choose(b, hc, 4.0);
+ok(s3.ref === 'ok', 'b choose → ok', s3.ref);
+choose(d, hc, 4.1); choose(a, hc, 4.2); choose(e, hc, 4.3); choose(cc, hc, 4.3);
+learn(a, 4.4); learn(d, 4.5); learn(e, 4.6);
 var M2 = sync(5);
-ok(JSON.stringify(tbl(M2, host)) === JSON.stringify(['host,b,d,a', 'host,e']), 'race fills table 1 then 2', tbl(M2, host));
+ok(JSON.stringify(tbl(M2, host)) === JSON.stringify(['host,b,a,d', 'host,e']), 'race: finished-before-choice seats at choice; table 1 then 2', tbl(M2, host));
+ok(!M2.seat[cc] && M2.pend[cc] && M2.pend[cc].ch, 'chose but not finished → no seat', M2.pend[cc]);
 mh = my(M2, host).me;
 ok(mh.ts.length === 2 && mh.ts[0].mine && mh.way.length === 1 && mh.way[0].n === 'c', 'host: 2 tables, c on the way', mh);
 ok(mh.t && mh.t.id === mh.ts[1].id, 'main table = the one still filling', mh.t);
 ok(M2.own[M2.seat[host][0]] === host, 'host owns table', M2.own);
-
-// ---- 3. סביב השעון: חישוב חוזר אינו מזיז איש ----
 var M3 = sync(5.5);
 ok(JSON.stringify(tbl(M3, host)) === JSON.stringify(tbl(M2, host)), 'stable on rebuild');
 
-// ---- 4. תקרה: 3 שולחנות למארח, אחר כך "אין מקום" ----
+// ---- 4. תקרה: 3 שולחנות למארח, אחר כך "אין מקום"; בלי הבטחת מקום ----
 var more = [];
 for (var i = 0; i < 7; i++) more.push(person('m' + i, host, 6 + i * 0.01));
-learn(cc, 7);                                         // שולחן 2: host,e,c
+more.forEach(function (x) { choose(x, hc, 7.5); });
+learn(cc, 7);
 more.forEach(function (x, k) { learn(x, 8 + k * 0.1); });
 var M4 = sync(10);
 var t4 = tbl(M4, host);
@@ -79,53 +92,61 @@ ok(t4.length === 3 && t4[1] === 'host,e,c,m0' && t4[2] === 'host,m1,m2,m3', 'cap
   var id = 'D' + nm + 'X', mm = my(M4, id).me;
   ok(!M4.seat[id] && mm.nr === 1 && !mm.pend, 'no room → nr for ' + nm, mm);
 });
+var late = person('late', host, 10.5), M4b = sync(10.6), ml = my(M4b, late);
+ok(ml.me.pend && ml.me.pend.hs[0].t === null, 'host full → no table offered (no promise)', ml.me.pend);
+ok(my(M4b, late, hc).ref === 'full', 'host full → link state full');
 var y = person('y'), yc = code(y);
 ok(my(M4, host, hc).ref === 'self', 'own link = self');
 ok(c.chFull_(M4, host) === true, 'host full');
 
 // ---- 5. אורח שפותח שולחנות משלו: התקרה כוללת את השולחן אצל החבר ----
-var bc = code(b);
-var b1 = person('b1', b, 11), b2 = person('b2', b, 11), b3 = person('b3', b, 11), b4 = person('b4', b, 11), b5 = person('b5', b, 11);
-var b6 = person('b6', b, 11), b7 = person('b7', b, 11);
-[b1, b2, b3, b4, b5, b6, b7].forEach(function (x, k) { learn(x, 12 + k * 0.1); });
+var bc = code(b), bs = [];
+for (var j = 1; j <= 7; j++) bs.push(person('b' + j, b, 11));
+bs.forEach(function (x) { choose(x, bc, 11.2); });
+bs.forEach(function (x, k) { learn(x, 12 + k * 0.1); });
 var M5 = sync(14);
 var t5 = tbl(M5, b);
-ok(t5.length === 3 && t5[0] === 'host,b,d,a' && t5[1] === 'b,b1,b2,b3' && t5[2] === 'b,b4,b5,b6', 'guest + 2 own tables', t5);
-ok(my(M5, b7).me.nr === 1, 'b7 no room (b has 3)');
+ok(t5.length === 3 && t5[0] === 'host,b,a,d' && t5[1] === 'b,b1,b2,b3' && t5[2] === 'b,b4,b5,b6', 'guest + 2 own tables = 3 total', t5);
+ok(my(M5, bs[6]).me.nr === 1, 'b7 no room (b has 3)');
 
 // ---- 6. הוזמן מכמה חברים: בחירה — הראשונה קובעת ----
-var z = person('z', y, 15);                            // נרשם דרך y
-var M6 = sync(15.2);
-ok(my(M6, z, hc).ref === 'full', 'host full → full state for z');
+var z = person('z', y, 15);
 var w2 = person('w2'), wc = code(w2);
 var M6b = sync(15.3);
 var r6 = my(M6b, z, wc);
 ok(r6.ref === 'old' && r6.refT && r6.refT.name === 'w2', 'z offered to sit at w2 (another host)', r6);
-at(15.4); exec();
-var s6 = c.chSit_({ id: z, ref: wc }, U);
+var s6 = choose(z, wc, 15.4);
 ok(s6.ref === 'ok' && s6.me.pend && s6.me.pend.by === 'w2' && s6.me.pend.ch === 1, 'choice w2 recorded', s6.me && s6.me.pend);
-at(15.5); exec();
-var s6b = c.chSit_({ id: z, ref: yc }, U);
+var s6b = choose(z, yc, 15.5);
 ok(s6b.ref === 'pend', 'second click → already chose', s6b.ref);
 learn(z, 16);
 var M7 = sync(16.5);
 ok(JSON.stringify(tbl(M7, z)) === JSON.stringify(['w2,z']), 'z seated at chosen host', tbl(M7, z));
 ok((my(M7, y).me.way || []).length === 0, 'y no longer sees z on the way');
 
-// ---- 7. שני מארחים בלי בחירה — מסך הבחירה, והקודים ----
+// ---- 7. שני מזמינים בלי בחירה — אין כיסא גם אחרי סיום דף; אחרי בחירה — יושב ----
 var q = person('q', y, 17);
 at(17.1); exec(); c.chOldAdd_(wc, q, false);
+learn(q, 17.15);
 var M8 = sync(17.2);
 var mq = my(M8, q).me;
 ok(mq.pend && mq.pend.hs.length === 2 && !mq.pend.ch && mq.pend.hs.every(function (h) { return h.c; }), 'two hosts, codes for chooser', mq.pend);
+ok(!M8.seat[q], 'two hosts, finished, no choice → no seat');
 ok(my(M8, y).me.way.some(function (x) { return x.n === 'q'; }) && my(M8, w2).me.way.some(function (x) { return x.n === 'q'; }), 'both hosts see q on the way');
+choose(q, yc, 17.3);
+var M8b = sync(17.4);
+ok(JSON.stringify(tbl(M8b, q)) === JSON.stringify(['y,q']), 'q seated at chosen y', tbl(M8b, q));
 
-// ---- 8. ותיק שלמד מזמן — יושב מיד כשמבקש לשבת ----
-var M9 = sync(18); at(18.1); exec();
-var s8 = c.chSit_({ id: vet, ref: yc }, U);
+// ---- 8. חבר שכבר רשום ולמד מזמן — רק אחרי שבחר ----
+var M9 = sync(18);
+ok(my(M9, vet, yc).ref === 'old' && !M9.seat[vet], 'registered friend: offered, not seated');
+var s8 = choose(vet, yc, 18.1);
 ok(s8.ref === 'ok', 'vet sit ok', s8.ref);
 var M10 = sync(18.2);
-ok(JSON.stringify(tbl(M10, vet)) === JSON.stringify(['y,vet']), 'vet seated immediately (learned before)', tbl(M10, vet));
+ok(JSON.stringify(tbl(M10, vet)) === JSON.stringify(['y,q,vet']), 'vet seated immediately after choice (learned before)', tbl(M10, vet));
+
+// ---- 8א. כיסא ישן נשמר בלי בחירה ----
+ok(JSON.stringify(tbl(M10, legacy)) === JSON.stringify(['legh,leg']), 'existing seat kept', tbl(M10, legacy));
 
 // ---- 9. יום ראשון: הגרלה, ואין יציאות ----
 learn(host, 19);
