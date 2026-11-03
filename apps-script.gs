@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 179;
+var SCRIPT_VERSION = 180;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -13088,8 +13088,9 @@ function chMy_(M, P, U) {
   /* **ההזמנות שלי** (8.99.443): כל מי שהזמין אותי (הרשמה מהקישור / בקשה לשבת) ובעל הקישור שפתחתי —
      ולכל אחד מצב: in — כבר יושבים יחד · open — אפשר להצטרף (`c` — הקוד לכפתור, `t` — השולחן) ·
      full — אצלו אין מקום · max — כבר יש לי 3. כל הזמנה — בחירה נפרדת. */
+  /* 8.99.451 (אחיאסף): רק הזמנות פתוחות (pendOf ב-chTables_ — מאז היציאה האחרונה). מי שיצא כי לא
+     למד — ההזמנות שקיבל לפני כן מתבטלות; הזמנה חדשה או קישור שנפתח עכשיו — כרגיל. */
   var invBy = [];
-  Object.keys(ppl).forEach(function (h) { if (h !== me && (ppl[h].fr || []).indexOf(me) >= 0) invBy.push(h); });
   if (pd) pd.hs.forEach(function (h) { if (invBy.indexOf(h) < 0) invBy.push(h); });
   if (refHost && M.ppl[refHost.id] && refHost.id !== me && invBy.indexOf(refHost.id) < 0) invBy.push(refHost.id);
   if (invBy.length) {

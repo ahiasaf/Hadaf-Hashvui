@@ -136,6 +136,8 @@ var vp1 = my(Md, p1).me;
 ok(vp1.ts[0].mine && vp1.plus === 0, 'remaining member treats the table as his (no plus while it has room)', vp1.ts[0]);
 var mc = my(Md, cc).me;
 ok(mc.ex === 1 && mc.ts.length === 0, 'c gets the gentle rejoin flag', mc);
+/* 8.99.451: יצא כי לא למד — ההזמנות שקיבל לפני כן מתבטלות. */
+ok(!(mc.inv || []).length, 'exited: old invites are void', mc.inv);
 var hist = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === o1; });
 ok(hist.length === 1 && hist[0]['יצא'] && hist[0]['סיבה'] === c.CH_WK_OUT_, 'history row kept (owner)', hist);
 var nRows = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.length;
@@ -202,8 +204,9 @@ var st9c = {}; (my(M9c, mu, c4).me.inv || []).forEach(function (x) { st9c[x.n] =
 ok(my(M9c, mu, c4).ref === 'max' || my(M9c, mu, c4).ref === 'ok', 'at 3: link of the other → max (or already in)', my(M9c, mu, c4).ref);
 var r9d = choose(mu, c5, D2 + 4.2);
 ok(r9d.ref === 'max' && (r9d.me.ts || []).length === 3, 'fourth friend → refused (max), no seat', r9d.ref);
-var mv = (r9d.me.inv || []).filter(function (x) { return x.st === 'max'; });
-ok(mv.length >= 1, 'invite list explains the cap (max)', r9d.me.inv);
+/* 8.99.451: הזמנה שאי אפשר לממש (כבר 3) — לא מוצגת כאפשרות. */
+var mv = (r9d.me.inv || []).filter(function (x) { return x.st === 'open'; });
+ok(mv.length === 0, 'at the cap: no invite offered as open', r9d.me.inv);
 // מזמין שאין אצלו מקום
 var HF = person('hf'), cf = code(HF);
 for (var q9 = 0; q9 < 9; q9++) { var g9 = person('g9' + q9, HF, D2 + 4.5); choose(g9, cf, D2 + 4.6 + q9 * 0.01); }
