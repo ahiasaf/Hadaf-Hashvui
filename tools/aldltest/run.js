@@ -13,8 +13,8 @@ function get(p) { return c.aldlRoute_({ parameter: p }); }
 // קובץ PDF מומצא, גדול משלוש חתיכות.
 var pdf = Buffer.concat([Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >>\n2 0 obj << /Type /Pages >>\n3 0 obj << /Type /Page >>\n'), Buffer.alloc(120000, 65)]);
 var b64 = pdf.toString('base64');
-c.appendCols_('לומדים', [['מזהה', 'DKIDAAA1'], ['שם', 'א'], ['משפחה', 'ב'], ['טלפון', '0500000001'], ['קוד ישיבה', 'givat'], ['תפקיד', 'תלמיד']]);
-c.appendCols_('לומדים', [['מזהה', 'DDADAAA1'], ['שם', 'ג'], ['משפחה', 'ד'], ['טלפון', '0500000002'], ['קוד ישיבה', 'givat'], ['תפקיד', 'הורה']]);
+c.appendCols_('לומדים', [['מזהה', 'DKIDAAA1'], ['שם', 'א'], ['משפחה', 'ב'], ['קוד ישיבה', 'givat'], ['תפקיד', 'תלמיד']]);
+c.appendCols_('לומדים', [['מזהה', 'DDADAAA1'], ['שם', 'ג'], ['משפחה', 'ד'], ['קוד ישיבה', 'givat'], ['תפקיד', 'הורה']]);
 
 ok(get({ alon: 'list', dev: 'DKIDAAA1' }).rows.length === 0, 'empty list');
 ok(get({ alon: 'list', dev: 'DNOBODYA1' }).status === 'denied', 'unknown device denied');
