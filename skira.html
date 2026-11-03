@@ -116,6 +116,24 @@ function save(r, f, v) {
     return d.row;
   });
 }
+/* הקישור לסקירה המלאה (3.11.2026): השרת מחזיר owner — טלפונים, חיוג,
+   יומן הקשר. השם של המקבל נשמר במכשיר ונרשם ליד כל שיחה. */
+var BY_K = 'df:ovBy';
+function byName() { try { return localStorage.getItem(BY_K) || ''; } catch (e) { return ''; } }
+function bySet() {
+  var v = (($('ov-by') || {}).value || '').trim();
+  if (!v) { if ($('ov-by')) $('ov-by').focus(); return; }
+  try { localStorage.setItem(BY_K, v.slice(0, 40)); } catch (e) {}
+  draw();
+}
+function call(o) {
+  var q = { ov:'call', key:KEY, by:byName() };
+  for (var k in o) if (o.hasOwnProperty(k) && o[k] != null) q[k] = o[k];
+  return get(q).then(function (d) {
+    if (!d || !d.ov || d.status !== 'ok') throw new Error((d && d.message) || T('ovOld'));
+    return d.last;
+  });
+}
 function when(iso) {
   var d = new Date(iso);
   if (isNaN(d)) return '';
@@ -126,7 +144,12 @@ function draw() {
   $('t-h1').textContent = T('ovTitle');
   $('t-lead').textContent = T('ovLead');
   if (!DATA) { $('list').innerHTML = '<div class="empty">' + esc(MSG || T('ovLoading')) + '</div>'; $('foot').innerHTML = ''; return; }
-  OV.mount($('list'), { rows:DATA.rows, other:DATA.other, owner:false, save:save });
+  if (DATA.full && !byName()) {
+    $('list').innerHTML = OV.byHtml('bySet');
+    $('foot').innerHTML = '';
+    return;
+  }
+  OV.mount($('list'), { rows:DATA.rows, other:DATA.other, owner:!!DATA.owner, save:save, call:DATA.owner ? call : null });
   $('foot').innerHTML = '<span>' + esc(DATA.at ? T('ovUpd').replace('{t}', when(DATA.at)) : '') + '</span>' +
     '<button onclick="load()">' + esc(T('ovRefresh')) + '</button>';
 }
@@ -138,7 +161,7 @@ function load() {
     else if (d.status === 'denied') { MSG = T('ovBad'); DATA = null; }
     else if (d.status === 'nosheet') { MSG = T('ovNoSheet'); DATA = null; }
     else if (d.status !== 'ok') { MSG = d.message || T('ovNet'); }
-    else { DATA = { rows:rowsOf(d), other:d.other || [], at:d.at }; MSG = ''; }
+    else { DATA = { rows:rowsOf(d), other:d.other || [], at:d.at, owner:!!d.owner, full:!!d.full }; MSG = ''; }
     draw();
   }).catch(function () { if (!DATA) MSG = T('ovNet'); draw(); });
 }

@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.444';
+var APP_VERSION = '8.99.445';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8681,6 +8681,37 @@ function ovSave(r, f, v) {
       return d.row;
     });
 }
+/* יומן הקשר (3.11.2026): כל חיוג/וואטסאפ מהסקירה, ותוצאה ומה נאמר.
+   מחזיר את הקשר האחרון של הישיבה כפי שנשמר (קריאה חוזרת בשרת). */
+function ovCall(o) {
+  var q = { ov:'call', key:(CFG.readKey || '').trim() };
+  for (var k in o) if (o.hasOwnProperty(k) && o[k] != null) q[k] = o[k];
+  return scriptGet(q).then(function (d) {
+    if (!d || !d.ov || d.status !== 'ok') throw new Error((d && d.message) || UI.ovOld);
+    var D = Store.get('ovData', null);
+    if (D && d.last) {
+      (D.rows || []).forEach(function (x) { if (x.code === o.code) x.last = d.last; });
+      Store.set('ovData', D);
+    }
+    return d.last;
+  });
+}
+/* הקישור לסקירה המלאה — כמו הקישור למנהלים, עם `f=1` (העמוד מבקש שם). */
+function ovFLink(k) {
+  return joinUrl('').replace('join.html', 'skira.html') + '?k=' + encodeURIComponent(k) + '&f=1';
+}
+function ovFKeyGet(rot) {
+  if (rot && !SureLater(ovFKeyGet, this, arguments)) return;
+  scriptGet({ ov:'fkey', key:(CFG.readKey || '').trim(), rot:rot ? '1' : '' }).then(function (d) {
+    if (!d || !d.ov) { SayMsg(UI.ovOld); return; }
+    if (d.status !== 'ok' || !d.k) { SayMsg(fill(UI.ovSaveFail, { t:(d && d.message) || '' })); return; }
+    Store.set('ovFKey', d.k);
+    var D = Store.get('ovData', null);
+    if (D) { D.hasFull = true; Store.set('ovData', D); }
+    copyText(ovFLink(d.k), UI.ovAdmCopied);
+    ovRepaint();
+  }, function () { SayMsg(UI.ovNet); });
+}
 /* תוספות שרק הבעלים רואה, מתחת למשפט הסיכום: מה שראש החטיבה
    דיווח (לעיון), והערת המקור מהגיליון הישן. */
 function ovExtra(r) {
@@ -8792,6 +8823,13 @@ function ovAdmTop() {
     (k || (D && D.hasKey) ? '<button class="btn g" onclick="ovKeyGet(1)">' + esc(UI.ovAdmNew) + '</button>' : '') +
     (D && D.sheet ? '<a class="btn g" style="display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener" href="' +
       esc(D.sheet) + '">' + esc(UI.ovAdmSheet) + '</a>' : '') + '</details>';
+  var fk = Store.get('ovFKey', ''), fh = fk || (D && D.hasFull);
+  h += '<details class="adm-card" style="margin:10px 0 0"><summary>' + esc(UI.ovFullH) + '</summary>' +
+    '<p class="h" style="margin-top:6px">' + esc(UI.ovFullSub) + '</p>' +
+    (fk ? '<div class="fld"><input type="text" dir="ltr" readonly value="' + esc(ovFLink(fk)) + '" onclick="this.select()"></div>' : '') +
+    '<button class="btn p" onclick="' + (fk ? 'copyText(ovFLink(Store.get(\'ovFKey\',\'\')),UI.ovAdmCopied)' : 'ovFKeyGet(0)') + '">' +
+      esc(fh ? UI.ovFullCopy : UI.ovFullMake) + '</button>' +
+    (fh ? '<button class="btn g" onclick="ovFKeyGet(1)">' + esc(UI.ovFullNew) + '</button>' : '') + '</details>';
   return h;
 }
 function ovAdmMount() {
@@ -8800,12 +8838,12 @@ function ovAdmMount() {
     var D = Store.get('ovData', null) || {};
     /* הסקירה נצבעת מחדש כשמגיעים נתונים — בלי `mem` שורה שנפתחה נסגרת מיד. */
     if (!ovState.mem) ovState.mem = { open:{}, edit:{}, msg:{} };
-    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem });
+    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
     var r = rows.filter(function (x) { return '@' + x.code === state.yshOpen; })[0];
-    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, extra:ovOneExtra, solo:true, sug:ovSug });
+    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, call:ovCall, extra:ovOneExtra, solo:true, sug:ovSug });
   }
 }
 /* במסך הישיבה — גם מספר התלמידים שראש החטיבה דיווח, כנתון קטן. */

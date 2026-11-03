@@ -80,6 +80,8 @@
     '.ov-fb button{flex:1;font:inherit;font-size:.9rem;font-weight:800;border-radius:11px;padding:10px;' +
       'cursor:pointer;border:1px solid #E5DAC3;background:#fff;color:#1B2A45}' +
     '.ov-fb button.p{background:#17468F;border-color:#17468F;color:#fff}' +
+    '.ov-ans{margin:-2px 0 6px;padding:8px 10px;background:#F3EEE2;border-radius:12px}' +
+    '.ov-ans .ov-fb{margin-top:0}.ov-ans label{margin-top:0}.ov-ans .ov-fb + .ov-msg{margin-top:6px}' +
     '.ov-msg{font-size:.78rem;font-weight:700;color:#5C687E;margin-top:7px}' +
     '.ov-msg.bad{color:#B23B3B}' +
     '.ov-x2{font-size:.78rem;font-weight:700;color:#5A6780;margin-top:8px}' +
@@ -118,15 +120,64 @@
   var IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg>';
   /* אנשי הקשר של הישיבה — רכז, ראש ישיבה, ראש חטיבה — עם שני כפתורים
      קטנים: שיחה ווואטסאפ. רק מי שיש לו טלפון שהבעלים שמר. */
-  function pplHtml(r) {
+  function pplHtml(r, i, st) {
     var L = (r.ppl || []).filter(function (p) { return has(p.phone) && has(p.name); });
     if (!L.length) return '';
+    /* יומן הקשר (3.11.2026) — רק כשהעמוד מוסר `call`: כל לחיצה על חיוג
+       או וואטסאפ נרשמת, ובחזרה — "ענה" / "לא ענה" מתחת לאיש הקשר. */
+    var on = !!st.call, pd = on ? pendGet() : null;
     return '<div class="ov-ppl">' + L.map(function (p) {
-      return '<div class="ov-p"><div class="w"><small>' + esc(U('ovRole_' + p.k)) + '</small><b>' + esc(p.name) + '</b></div>' +
-        '<a class="ov-ic tel" href="tel:' + digits(p.phone) + '" aria-label="' + esc(fill(U('ovCall'), { name:p.name })) + '">' + IC_TEL + '</a>' +
-        '<a class="ov-ic wa" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.phone) + '" aria-label="' +
+      var dc = on ? ' data-ov="call" data-i="' + i + '" data-pk="' + esc(p.k) + '"' : '';
+      var h = '<div class="ov-p"><div class="w"><small>' + esc(U('ovRole_' + p.k)) + '</small><b>' + esc(p.name) + '</b></div>' +
+        '<a class="ov-ic tel"' + dc + ' data-kind="tel" href="tel:' + digits(p.phone) + '" aria-label="' + esc(fill(U('ovCall'), { name:p.name })) + '">' + IC_TEL + '</a>' +
+        '<a class="ov-ic wa"' + dc + ' data-kind="wa" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.phone) + '" aria-label="' +
           esc(fill(U('ovWa'), { name:p.name })) + '">' + IC_WA + '</a></div>';
+      if (pd && pd.code === r.code && pd.pk === p.k) h += pendHtml(pd, i);
+      return h;
     }).join('') + '</div>';
+  }
+  /* השיחה שממתינה לתוצאה — אחת בכל פעם, במכשיר (שורדת יציאה לחייגן). */
+  var PEND_K = 'df:ovPend';
+  function pendGet() {
+    try { var o = JSON.parse(localStorage.getItem(PEND_K) || 'null'); return o && o.id ? o : null; } catch (e) { return null; }
+  }
+  function pendSet(o) {
+    try { if (o) localStorage.setItem(PEND_K, JSON.stringify(o)); else localStorage.removeItem(PEND_K); } catch (e) {}
+  }
+  function pendHtml(pd, i) {
+    if (pd.step === 'note') {
+      return '<div class="ov-ans ov-f"><label for="ov-nt">' + esc(U('ovNoteL')) + '</label>' +
+        '<textarea id="ov-nt" maxlength="600">' + esc(pd.tx || '') + '</textarea>' +
+        '<div class="ov-fb"><button class="p" data-ov="ntsave" data-i="' + i + '">' + esc(U('ovNoteSave')) + '</button>' +
+        '<button data-ov="ntskip" data-i="' + i + '">' + esc(U('ovNoteSkip')) + '</button></div>' +
+        (pd.err ? '<div class="ov-msg bad">' + esc(U('ovCallFail')) + '</div>' : '') + '</div>';
+    }
+    return '<div class="ov-ans"><div class="ov-fb">' +
+      '<button class="p" data-ov="ans" data-v="yes" data-i="' + i + '">' + esc(U('ovAnsY')) + '</button>' +
+      '<button data-ov="ans" data-v="no" data-i="' + i + '">' + esc(U('ovAnsN')) + '</button></div>' +
+      (pd.err ? '<div class="ov-msg bad">' + esc(U('ovCallFail')) + '</div>' : '') + '</div>';
+  }
+  function agoTxt(ms) {
+    var d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    var d1 = new Date(ms); d1.setHours(0, 0, 0, 0);
+    var n = Math.round((d0 - d1) / 864e5);
+    return n <= 0 ? U('ovAgo0') : n === 1 ? U('ovAgo1') : fill(U('ovAgoN'), { n:n });
+  }
+  function lastHtml(r) {
+    var L = r.last;
+    if (!L || !L.t) return '<span class="ov-c no">' + esc(U('ovLastNone')) + '</span>';
+    var bits = [agoTxt(L.t)];
+    if (L.kind === 'wa') bits.push(U('ovLastWa'));
+    else if (L.res) bits.push(U(L.res === 'yes' ? 'ovLastYes' : 'ovLastNo'));
+    if (L.name) bits.push(L.name);
+    return '<span class="ov-c">' + esc(fill(U('ovLast'), { t:bits.join(' · ') })) + '</span>';
+  }
+  /* הכתיבה ליומן — שולחת, וכישלון נשאר ממתין במכשיר עם הודעה. */
+  function callSend(S, r, o, done) {
+    S.call(o).then(function (last) {
+      if (last) r.last = last;
+      done(true); paint(S);
+    }, function () { done(false); paint(S); });
   }
 
   function css() {
@@ -205,7 +256,8 @@
   }
 
   function rowHtml(st, r, i) {
-    var s = status(r), open = st.solo || st.open[r.k], ed = st.edit[r.k];
+    var pdr = st.call ? pendGet() : null;
+    var s = status(r), open = st.solo || st.open[r.k] || !!(pdr && pdr.code === r.code), ed = st.edit[r.k];
     var t = total(r);
     var bigV = t == null
       ? '<div class="ov-v u big"><b>' + esc(U('ovActNone')) + '</b><small>' + esc(U('ovRowN')) + '</small></div>'
@@ -218,7 +270,8 @@
       : '<span class="ov-n">' + esc(r.name) + '</span>';
     var h = '<div class="ov-r s-' + s + '" title="' + esc(U('ovSt_' + s)) + '"><div class="ov-h"><div class="ov-m">' + nm +
       (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': ' + esc(r.coord) + '</span>'
-                    : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') + '</div>' +
+                    : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') +
+      (st.call ? lastHtml(r) : '') + '</div>' +
       '<div class="ov-k">' + bigV + learnV + '</div>' +
       (st.solo ? '' : '<button class="ov-x' + (open ? ' on' : '') + '" data-ov="tog" data-i="' + i +
         '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + esc(U('ovOpen')) + ' · ' +
@@ -231,7 +284,9 @@
       /* הכניסה למסך הישיבה (אנשי קשר, היסטוריה, עדכון) — כפתור ברור,
          ולא רק השם עם קו. */
       if (st.go && !st.solo) h += '<button class="ov-e ov-go" data-ov="go" data-i="' + i + '">' + esc(U('ovGoIn')) + '</button> ';
-      if (!ed) h += pplHtml(r);
+      if (!ed) h += pplHtml(r, i, st);
+      if (!ed && st.call && r.last && r.last.note) h += '<div class="ov-x2" style="margin:0 0 10px">' +
+        esc(fill(U('ovLastNote'), { t:r.last.note })) + '</div>';
       if (ed) { SUG = st.sug ? st.sug(r) : null; h += formHtml(r, i, st.owner); SUG = null; }
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
@@ -317,11 +372,45 @@
           return;
         }
         if (!r) return;
+        if (act === 'call' && S.call) {
+          /* הקישור (tel:/wa.me) ממשיך כרגיל — לא עוצרים אותו. */
+          var pp = (r.ppl || []).filter(function (x) { return x.k === b.getAttribute('data-pk'); })[0];
+          if (!pp || !r.code) return;
+          var kind = b.getAttribute('data-kind') === 'wa' ? 'wa' : 'tel';
+          var o = { id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+                    code:r.code, pk:pp.k, name:pp.name, kind:kind };
+          /* וואטסאפ אינו "ענה/לא ענה" — נרשם כקשר, בלי שאלה. */
+          if (kind === 'tel') { o.step = 'ask'; pendSet(o); }
+          callSend(S, r, { id:o.id, code:o.code, who:o.pk, name:o.name, kind:kind }, function () {});
+          return;
+        }
+        if (act === 'ans' || act === 'ntsave' || act === 'ntskip') {
+          var pd = pendGet();
+          if (!pd || pd.code !== r.code) return;
+          if (act === 'ntskip') { pendSet(null); paint(S); return; }
+          var q = { id:pd.id, code:pd.code, who:pd.pk, name:pd.name, kind:pd.kind };
+          if (act === 'ans') q.res = b.getAttribute('data-v') === 'yes' ? 'yes' : 'no';
+          else { var ta = document.getElementById('ov-nt'); q.note = ta ? ta.value.trim() : ''; if (!q.note) { pendSet(null); paint(S); return; } }
+          b.disabled = true;
+          callSend(S, r, q, function (ok) {
+            if (!ok) { pd.err = 1; if (q.note) pd.tx = q.note; pendSet(pd); return; }
+            pd.err = 0;
+            if (act === 'ans' && q.res === 'yes') { pd.step = 'note'; pendSet(pd); }
+            else pendSet(null);
+          });
+          return;
+        }
         if (act === 'tog') { S.open[r.k] = !S.open[r.k]; if (!S.open[r.k]) S.edit[r.k] = 0; paint(S); }
         else if (act === 'edit') { S.edit[r.k] = 1; S.msg[r.k] = null; paint(S); }
         else if (act === 'cancel') { S.edit[r.k] = 0; S.msg[r.k] = null; paint(S); }
         else if (act === 'save') saveRow(S, r, +b.getAttribute('data-i'));
         else if (act === 'go' && S.go) S.go(r);
+      });
+    }
+    if (st.call && !el._ovVis) {
+      el._ovVis = 1;
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && el._ov && pendGet()) paint(el._ov);
       });
     }
     paint(st);
@@ -347,6 +436,13 @@
   }
   function smallHtml(t) { return '<div class="ov-x2">' + esc(t) + '</div>'; }
 
+  /* שאלת השם בקישור המלא (skira.html) — כאן, כדי שהעיצוב יהיה מהרכיב. */
+  function byHtml(fn) {
+    css();
+    return '<div class="ov-r" style="padding:14px"><div class="ov-f"><label for="ov-by">' + esc(U('ovByH')) +
+      '</label><input id="ov-by" type="text" maxlength="40" autocomplete="name"><div class="ov-msg">' + esc(U('ovBySub')) +
+      '</div><div class="ov-fb"><button class="p" onclick="' + fn + '()">' + esc(U('ovByGo')) + '</button></div></div></div>';
+  }
   window.OV = { mount:mount, status:status, sorted:sorted, navHtml:navHtml, css:css,
-                sugHtml:sugHtml, smallHtml:smallHtml };
+                sugHtml:sugHtml, smallHtml:smallHtml, byHtml:byHtml };
 })();

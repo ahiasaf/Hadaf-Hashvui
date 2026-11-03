@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 177;
+var SCRIPT_VERSION = 178;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -15131,17 +15131,108 @@ function ovSafe_(v) {
   v = String(v == null ? '' : v).replace(/\s+$/, '');
   return /^[=+\-@]/.test(v) ? "'" + v : v;
 }
+/* ============================================================
+   יומן הקשר עם הישיבות (3.11.2026).
+   ============================================================
+   "בכל פעם שאני לוחץ על טלפון… לדעת מתי הייתה התקשורת האחרונה שלנו
+   עם הישיבה." כל לחיצה על חיוג או וואטסאפ בסקירה = שורה (מזהה שנוצר
+   במכשיר), ואחר כך באותה שורה: ענה / לא ענה, ומה נאמר. לשונית פרטית
+   `סקירה — קשר`. "מי" ריק = הבעלים; בקישור המלא — השם שהמקבל כתב. */
+var OV_CALL_TAB_ = 'סקירה — קשר';
+var OV_CALL_COLS_ = ['מזהה', 'מתי', 'קוד ישיבה', 'תפקיד', 'שם', 'דרך', 'תוצאה', 'מה נאמר', 'מי', 'עודכן'];
+function ovCallPut_(p, boss) {
+  var id = String(p.id || '').trim(), code = String(p.code || '').trim();
+  if (!/^[\w-]{6,40}$/.test(id) || !/^[a-z0-9_-]{2,30}$/.test(code)) return { status: 'error', message: 'פרטים חסרים' };
+  var res = String(p.res || ''), kind = String(p.kind || '');
+  if (['', 'yes', 'no'].indexOf(res) < 0 || ['tel', 'wa'].indexOf(kind) < 0) return { status: 'error', message: 'ערך לא תקין' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { status: 'busy', message: 'עומס — נסו שוב' };
+  try {
+    var sh = sheet_(OV_CALL_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, OV_CALL_COLS_);
+    var a = sh.getDataRange().getValues(), h = a[0].map(function (x) { return String(x).trim(); });
+    var ix = {};
+    OV_CALL_COLS_.forEach(function (c) { ix[c] = h.indexOf(c); });
+    var at = 0;
+    for (var r = a.length - 1; r >= 1; r--) if (String(a[r][ix['מזהה']]).trim() === id) { at = r + 1; break; }
+    var row = at ? a[at - 1].slice() : OV_CALL_COLS_.map(function () { return ''; });
+    var put = function (c, v) { if (ix[c] >= 0) row[ix[c]] = v; };
+    if (!at) {
+      put('מזהה', id); put('מתי', new Date()); put('קוד ישיבה', code);
+      put('תפקיד', String(p.who || '').slice(0, 4)); put('שם', ovSafe_(String(p.name || '').slice(0, 60)));
+      put('דרך', kind === 'wa' ? 'וואטסאפ' : 'שיחה');
+      put('מי', boss ? '' : ovSafe_(String(p.by || '').slice(0, 40)));
+    }
+    if (res) put('תוצאה', res === 'yes' ? 'ענה' : 'לא ענה');
+    if (p.note != null && String(p.note) !== '') put('מה נאמר', ovSafe_(String(p.note).slice(0, 600)));
+    put('עודכן', new Date());
+    if (at) sh.getRange(at, 1, 1, row.length).setValues([row]);
+    else sh.appendRow(row);
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove('ovCallLast');
+    /* קריאה חוזרת — מה שנשמר באמת. */
+    var L = ovCallLast_(true) || {};
+    return { status: 'ok', id: id, last: L[code] || null };
+  } finally { lock.releaseLock(); }
+}
+/* הקשר האחרון לכל ישיבה: { קוד: { t, kind, res, name, who, note, by } }.
+   note — מה שנאמר בפעם האחרונה שענו (גם אם אחר כך לא ענו). null — לא נקרא. */
+function ovCallLast_(fresh) {
+  var cache = CacheService.getScriptCache();
+  if (!fresh) { var hit = cache.get('ovCallLast'); if (hit) { try { return JSON.parse(hit); } catch (e) {} } }
+  try {
+    var sh = sheet_(OV_CALL_TAB_);
+    if (sh.getLastRow() < 2) return {};
+    var a = sh.getDataRange().getValues(), h = a[0].map(function (x) { return String(x).trim(); });
+    var g = function (r, c) { var i = h.indexOf(c); return i < 0 ? '' : r[i]; };
+    var m = {};
+    for (var i = 1; i < a.length; i++) {
+      var code = String(g(a[i], 'קוד ישיבה')).trim(), t = g(a[i], 'מתי');
+      var ms = t instanceof Date ? t.getTime() : Date.parse(t);
+      if (!code || !ms) continue;
+      var res = String(g(a[i], 'תוצאה')).trim(), note = String(g(a[i], 'מה נאמר')).trim();
+      var o = m[code] || (m[code] = {});
+      if (!o.t || ms >= o.t) {
+        o.t = ms; o.kind = String(g(a[i], 'דרך')).trim() === 'וואטסאפ' ? 'wa' : 'tel';
+        o.res = res === 'ענה' ? 'yes' : res === 'לא ענה' ? 'no' : '';
+        o.name = String(g(a[i], 'שם')).trim(); o.who = String(g(a[i], 'תפקיד')).trim();
+        o.by = String(g(a[i], 'מי')).trim();
+      }
+      if (note && (!o.nt || ms >= o.nt)) { o.nt = ms; o.note = note; }
+    }
+    cache.put('ovCallLast', JSON.stringify(m), 300);
+    return m;
+  } catch (e) { Logger.log('ovCallLast_: ' + e); return null; }
+}
 function ov_(p) {
   var key = String(p.key || ''), op = String(p.ov || '');
   var owner = !!READ_KEY && key === READ_KEY;
   var ovk = ovKey_(), mgr = !!ovk && key === ovk;
+  /* הקישור לסקירה המלאה (3.11.2026): מי שמחזיק בו רואה ועושה בסקירה כל
+     מה שהבעלים — טלפונים, חיוג, יומן הקשר, עריכה — אבל לא מנהל קישורים
+     ולא את מקום הטבלה (`boss`). "קישור חדש" מבטל את הקודם. */
+  var fk = prop_('OV_FULL_KEY', ''), full = !!fk && key === fk, boss = owner;
+  owner = owner || full;
   if (!owner && !mgr) {
     return { status: 'denied', message: ovk || READ_KEY ? 'הקישור אינו תקף' : 'הסקירה עדיין לא הופעלה' };
   }
 
   /* --- הבעלים בלבד: קישור המנהלים ומיקום הטבלה --- */
+  if (op === 'fkey') {
+    if (!boss) return { status: 'denied', message: 'רק לבעלים' };
+    var PF = PropertiesService.getScriptProperties();
+    if (!fk || p.rot === '1') {
+      fk = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+      PF.setProperty('OV_FULL_KEY', fk);
+    }
+    return { status: 'ok', k: fk };
+  }
+  if (op === 'call') {
+    if (!owner) return { status: 'denied', message: 'אין הרשאה' };
+    return ovCallPut_(p, boss);
+  }
   if (op === 'key' || op === 'sheet') {
-    if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+    if (!boss) return { status: 'denied', message: 'רק לבעלים' };
     var P = PropertiesService.getScriptProperties();
     if (op === 'sheet') {
       var m = /[-\w]{25,}/.exec(String(p.id || ''));
@@ -15178,7 +15269,7 @@ function ov_(p) {
            והוספת מוסד שאינו בטבלה. **רק שם זהה** — שם דומה
            אינו משויך כאן; הוא מוצג לבעלים כהצעה. --- */
     if (op === 'codes' || op === 'add') {
-      if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+      if (!boss) return { status: 'denied', message: 'רק לבעלים' };
       var list = parse_(p.m) || [], ci = ovCodeCol_(T), done = 0;
       if (op === 'codes') {
         list.forEach(function (it) {
@@ -15259,9 +15350,13 @@ function ov_(p) {
     if (anyCode) Object.keys(C).forEach(function (c) { if (!inT[c] && C[c].n) other.push({ code: c, n: C[c].n }); });
     var L = owner ? ovLearners_() : null, own = ovOwn_(), reps = ovReps_();
     var out = { status: 'ok', rows: T.rows.map(function (row) { return ovRow_(T, row, owner, L, own, reps, C); }),
-                other: other, owner: owner, at: new Date().toISOString() };
+                other: other, owner: owner, full: full && !boss, at: new Date().toISOString() };
     if (owner) {
-      out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.actLeft = !!T.actLeft;
+      var LC = ovCallLast_();
+      if (LC) out.rows.forEach(function (o) { if (o.code && LC[o.code]) o.last = LC[o.code]; });
+    }
+    if (boss) {
+      out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.hasFull = !!fk; out.actLeft = !!T.actLeft;
       try { out.ask = JSON.parse(PropertiesService.getScriptProperties().getProperty('OV_ASK') || '[]'); } catch (eA) { out.ask = []; }
     }
     return out;
