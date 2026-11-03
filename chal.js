@@ -272,13 +272,14 @@
   }
   /* הוזמן ועוד לא בחר (גם מזמין יחיד, 8.99.440) — מסך הבחירה. מזמין שאין אצלו
      מקום (`t` ריק) אינו מוצע: לא מבטיחים מקום כשאין. */
+  /* **ההזמנות שלי** (8.99.443): כל מי שהזמין אותי, ולכל אחד מצב מהשרת — in (כבר יושבים יחד) ·
+     open (אפשר להצטרף) · full (אין אצלו מקום) · max (כבר יש לי 3). כל הזמנה — בחירה נפרדת.
+     בעל קישור שפתחתי ואינו ברשימה — נוסף לפי מצב הקישור. */
   function pickList(d) {
-    var m = d && d.me, p = m && m.pend, out = [];
-    if (p && !p.ch && p.hs) p.hs.forEach(function (h) { if (h.t && h.c) out.push(h); });
-    /* רשום שהגיע מקישור של חבר נוסף — גם הוא ברשימה. */
-    if (d && d.ref === 'old' && refAny() && d.refT) {
-      var r = refAny();
-      if (!out.some(function (h) { return h.c === r; })) out.push({ n: d.refBy || U('chFriend'), c: r, t: d.refT });
+    var m = d && d.me, out = ((m && m.inv) || []).slice();
+    if (d && refAny() && d.ref && !out.some(function (h) { return h.ref; })) {
+      var st = { old: 'open', full: 'full', max: 'max', ok: 'in' }[d.ref];
+      if (st && (st !== 'open' || d.refT)) out.push({ n: d.refBy || U('chFriend'), st: st, c: st === 'open' ? refAny() : '', t: st === 'open' ? d.refT : null });
     }
     return out;
   }
@@ -318,7 +319,10 @@
   function faqHtml() {
     var qs = String(U('chFaq') || '').replace(/\r/g, '').split(/\n\s*\n/).map(function (b) {
       var l = b.replace(/^\s+|\s+$/g, '').split('\n');
-      return l[0] ? '<div class="ch-qa"><b>' + esc(l[0]) + '</b>' + (l.length > 1 ? '<p>' + para(l.slice(1).join('\n')) + '</p>' : '') + '</div>' : '';
+      /* כל שורה בתשובה — פסקה; *כך* — מודגש (8.99.443, "איך זה עובד?"). */
+      return l[0] ? '<div class="ch-qa"><b>' + esc(l[0]) + '</b>' + l.slice(1).map(function (x) {
+        return '<p>' + esc(x).replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>') + '</p>';
+      }).join('') + '</div>' : '';
     }).join('');
     return qs ? '<details class="ch-terms ch-faq"><summary>' + esc(U('chFaqH')) + '</summary>' + qs + '</details>' : '';
   }
@@ -441,37 +445,41 @@
     /* 8.99.385: ישיבה מהקישור = הזמנה; המקום נשמר כשמתחילים ללמוד. */
     /* 8.99.441: הבחירה מושיבה מיד — "הצטרפת לשולחן של…". */
     if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chSitOk'), { by: by.by })) + '</p>';
-    var gt = tabs(d).filter(function (v) { return !v.mine; })[0] || m.t;
-    if (d.ref === 'other' && gt) return '<p class="ch-note">' + esc(tp(U('chRefSeated'), { t: gt.name })) + '</p>';
-    if (d.ref === 'pend' && m.pend) return '<p class="ch-note">' + esc(tp(U('chPicked'), { t: m.pend.by })) + '</p>';
-    if (d.ref === 'full') return '<p class="ch-note">' + esc(tp(U('chLandFull'), { name: by.by })) + '</p>';
+    /* 8.99.443: "כבר יושב אצל חבר" / "כבר בחרת" / "מלא" — כבר לא הודעה: המצב ליד כל הזמנה. */
     var k = { bad: 'chRefBad', self: 'chRefSelf' }[d.ref];
     return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
   }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת — השולחן שישב בו (`refT`). "הצטרפת" —
      רק מתשובת השרת (?challenge=sit), לא מהלחיצה. */
-  function sitHtml(d, h) {
-    var by = { by: h.n || U('chFriend') };
-    return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(U('chOldH')) + '</h2>' +
-      '<p class="ch-lead">' + esc(tp(U('chOldP'), by)) + '</p>' + (h.t ? rowHtml4(seatsOf({ t: h.t })) : '') +
-      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
-      '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chSitBtn'), by)) + '</button>' +
-      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
-  }
   /* כפתור הוואטסאפ נשאר גלוי גם כשיש הזמנה שממתינה לבחירה — פותחים שולחן משלך. */
   function waOwn(d) { return d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa'); }
-  /* **מוזמן מכמה חברים** (8.99.436): בוחר מארח אחד. הכיסא נתפס כשמסיים דף. */
+  /* הזמנה אחת: של מי, לאיזה שולחן, ומה אפשר — כפתור, או שורת מצב ברורה. */
+  function invItem(h) {
+    var n = h.n || U('chFriend'), st = h.st || 'open';
+    var line = { 'in': U('chInvIn'), full: tp(U('chInvFull'), { by: n }), max: U('chInvMax') }[st] || '';
+    return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' +
+      (st === 'open' && h.t ? rowHtml4(seatsOf({ t: h.t })) : '') +
+      (st === 'open' ? '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button>'
+                     : '<p class="ch-tline">' + esc(line) + '</p>') + '</div>';
+  }
+  /* **מי שעוד לא יושב** — כרטיס ההזמנות: חבר אחד — "חבר הזמין אותך!", כמה — "{שמות} מזמינים אותך!". */
   function pickHtml(d, L) {
     var nm = L.map(function (h) { return h.n || U('chFriend'); });
     var all = nm.length > 1 ? nm.slice(0, -1).join(', ') + U('chPickAnd') + nm[nm.length - 1] : nm[0];
+    var one = L.length === 1;
     return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(tp(U('chPickH'), { names: all })) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      '<p class="ch-tline">' + esc(U('chPickP')) + '</p><p class="ch-tline">' + esc(U('chMax3')) + '</p>' + L.map(function (h) {
-        var n = h.n || U('chFriend');
-        return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' + rowHtml4(seatsOf({ t: h.t })) +
-          '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
-      }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
+      '<h2 class="ch-hh sm">' + esc(one ? U('chOldH') : tp(U('chPickH'), { names: all })) + '</h2>' +
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+      '<p class="ch-tline">' + esc(one ? tp(U('chOldP'), { by: nm[0] }) : U('chPickP')) + '</p>' +
+      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' + L.map(invItem).join('') +
+      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
+  }
+  /* **מי שכבר יושב** — ההזמנות מתחת לשולחן, כשיש לפחות אחת שעוד לא הצטרף אליה. */
+  function invHtml(d) {
+    var L = pickList(d);
+    if (!tabs(d).length || !L.some(function (h) { return h.st !== 'in'; })) return '';
+    return '<div class="ch-way"><b class="ch-way-h">' + esc(U('chInvsH')) + '</b>' + L.map(invItem).join('') +
+      '<p class="ch-sm" id="ch-sit-m" role="status"></p></div>';
   }
   function wireSit(redraw) {
     var own = document.getElementById('ch-own'), msg = document.getElementById('ch-sit-m');
@@ -485,9 +493,9 @@
       if (msg) msg.textContent = U('chSitWait');
       api('sit', { id: ids().join(','), ref: b.getAttribute('data-c') }).then(function (d) {
         if (!d || d.status !== 'ok' || !d.on || !d.ref || d.ref === 'old' || d.ref === 'wait') { fail(); return; }
-        dropRef();
         LSet('chMy', { at: Date.now(), d: d });
-        if (d.ref === 'ok') d.sat = 1;
+        /* הצטרף — "הצטרפת לשולחן של…". אין מקום / כבר 3 — המצב מופיע ליד ההזמנה. */
+        if (d.ref === 'ok') { dropRef(); d.sat = 1; }
         redraw(d);
       }, fail);
     };
@@ -495,9 +503,7 @@
   /* כרטיס הבחירה/הישיבה, אם צריך — אחרת ''. */
   function choiceHtml(d) {
     var L = pickList(d);
-    if (L.length > 1) return pickHtml(d, L);
-    if (L.length === 1) return sitHtml(d, L[0]);
-    return '';
+    return !tabs(d).length && L.length ? pickHtml(d, L) : '';
   }
 
   /* ---- בהרשמה (join.html): "מצטרף לשולחן של יוסי" — מהנחיתה ועד
@@ -611,10 +617,11 @@
       /* עד 3 שולחנות — כבר במסך הראשון (8.99.440). */
       '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       (d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa')) +
-      plusHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
+      plusHtml(d) + invHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
     plusWire(function (x) { cardDraw(box, x); });
     swWire(function () { cardDraw(box, cached() || d); });
+    wireSit(function (x) { cardDraw(box, x); });
     waWire('ch-wa', null);
     if (!d.ended) codeWarm();
     if (PG) pgPaint();
@@ -703,7 +710,7 @@
     if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFree1') : tp(U('chFreeN'), { n: nf });
     return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) +
+      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) + invHtml(d) +
       '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       tailHtml(d) + (v ? '' : howHtml()) + '</div>';
   }
@@ -747,6 +754,7 @@
     if (choiceHtml(d)) { wireSit(redraw); waWire('ch-wa', null); if (!d.ended) codeWarm(); return; }
     plusWire(redraw);
     swWire(function () { redraw(); });
+    wireSit(redraw);
     waWire('ch-wa', null);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
     if (!d.ended) codeWarm();

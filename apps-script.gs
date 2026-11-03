@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 175;
+var SCRIPT_VERSION = 176;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11790,7 +11790,8 @@ var CH_GRP_COLS_ = ['קבוצה', 'מזמין', 'חבר 1', 'חבר 2', 'חבר 
 /* **השולחנות** (8.99.385, החלטת אחיאסף) — מי יושב איפה, שורה לכל ישיבה.
    "יצא" ריק — יושב עכשיו. ראו chTables_. */
 var CH_SEAT_ = 'אתגר-שולחנות';
-var CH_SEAT_COLS_ = ['שולחן', 'מזהה', 'ישב', 'יצא', 'סיבה', 'בדיקה'];
+/* `מזמין` (8.99.443) — מי שהזמין את האורח לשולחן הזה; בשורות ישנות — בעל השולחן. */
+var CH_SEAT_COLS_ = ['שולחן', 'מזהה', 'ישב', 'יצא', 'סיבה', 'בדיקה', 'מזמין'];
 /* 8.99.442: אין הגרלה אוטומטית ביום ראשון — ההגרלה רק בלחיצה (op=open). */
 /* **עד 3 שולחנות לתלמיד, סך הכל** (8.99.436, הבריף של אחיאסף) — כולל שולחן שהוזמן
    אליו. היציאה השבועית (וימי CH_NO_EXIT_) הוסרה: אין הוצאה משולחן. */
@@ -12509,24 +12510,34 @@ function chTables_(U, S, K, X) {
   };
   /* **בעל השולחן = מי שישב בו ראשון, גם אם יצא** (8.99.442, אחיאסף): בעלים שיצא אינו
      מוחלף — השולחן נשאר בלי בעלים, והחברים שנשארו ממלאים אותו. `OWN0` — לפי כל השורות. */
-  var OWN0 = {}, own0At = {}, SAT = {};
+  var OWN0 = {}, own0At = {}, SATP = {}, NRP = {}, SATA = {};
   T.rows.filter(mine).forEach(function (r) {
     var t0 = r['שולחן'], a0 = chMs_(r['ישב']);
     if (!t0) return;
-    /* **הזמנה נצרכת כשהושיבה** (8.99.442): ישב כאורח — ההזמנות שלפני כן לא מושיבות שוב, גם אחרי
-       שהשולחן איבד את בעליו. */
-    if (r['סיבה'] === 'הוזמן') { var sid = X.canon(r['מזהה']); if (a0 > (SAT[sid] || 0)) SAT[sid] = a0; }
     if (!(t0 in own0At) || a0 < own0At[t0] || (a0 === own0At[t0] && r._r < OWN0[t0]._r)) { own0At[t0] = a0; OWN0[t0] = r; }
   });
   Object.keys(OWN0).forEach(function (t0) { OWN0[t0] = X.canon(OWN0[t0]['מזהה']); });
+  /* **כל הזמנה — בחירה נפרדת, לכל מזמין** (8.99.443, אחיאסף). הזמנה של מזמין מסוים נצרכת כשהושיבה
+     אצלו (`SATP`), או כשלא היה אצלו מקום (`NRP`) — ולא נוגעת בהזמנות של חברים אחרים. המזמין —
+     עמודת `מזמין`; בשורות ישנות — בעל השולחן. `SATA` — הישיבה האחרונה של האדם (לכל שולחן). */
+  T.rows.filter(mine).forEach(function (r) {
+    var sid = X.canon(r['מזהה']), a0 = chMs_(r['ישב']), why = r['סיבה'];
+    if (a0 > (SATA[sid] || 0) && r['שולחן']) SATA[sid] = a0;
+    if (why !== 'הוזמן' && why !== CH_NR_) return;
+    var by0 = r['מזמין'] ? X.canon(r['מזמין']) : r['שולחן'] ? OWN0[r['שולחן']] || '' : '';
+    if (!by0) return;
+    var pk = sid + '|' + by0, M0 = why === CH_NR_ ? NRP : SATP;
+    if (a0 > (M0[pk] || 0)) M0[pk] = a0;
+  });
   T.rows.filter(mine).forEach(function (r) {
     var n = parseInt(String(r['שולחן']).replace(/\D/g, ''), 10) || 0;
     if (n > tseq) tseq = n;
     var id = r._id = X.canon(r['מזהה']);
     if (r['יצא']) {
       var e = chMs_(r['יצא']);
+      /* "אין מקום" אצל מזמין אחד אינו סוגר את ההזמנות של האחרים (8.99.443). */
+      if (r['סיבה'] === CH_NR_) { if (e > (NR[id] || 0)) NR[id] = e; return; }
       if (e > (lastEnd[id] || 0)) lastEnd[id] = e;
-      if (r['סיבה'] === CH_NR_ && e > (NR[id] || 0)) NR[id] = e;
       if (r['סיבה'] === CH_WK_OUT_ && e > (EX[id] || 0)) EX[id] = e;
       return;
     }
@@ -12556,13 +12567,12 @@ function chTables_(U, S, K, X) {
   var ownedOf = function (id) { return tablesOf(id).filter(function (t) { return ownerOf(t) === id; }); };
   /* השולחנות שהוא ממלא בהזמנות: שלו, ושולחן שהבעלים שלו יצא ("החברים שנשארו מזמינים למקום שהתפנה"). */
   var hostOf = function (id) { return tablesOf(id).filter(function (t) { var o = ownerOf(t); return o === id || !o; }); };
-  /* אורח בשולחן של חבר — לכל היותר אחד (מארח אחד בתחילת הדרך). שולחן שהבעלים שלו יצא — אינו "של חבר". */
-  var guestOf = function (id) { var g = tablesOf(id).filter(function (t) { var o = ownerOf(t); return o && o !== id; }); return g[0] || ''; };
+  /* 8.99.443: אין עוד הגבלה של "שולחן אחד אצל חבר" — רק התקרה, 3 שולחנות בסך הכול (CH_MAX_T_). */
   var together = function (a, b) {
     return tablesOf(a).some(function (t) { return mem[t].some(function (r) { return r._id === b; }); });
   };
-  var add = function (id, t, at, why) {
-    var r = { 'שולחן': t, 'מזהה': id, 'ישב': iso(at), 'יצא': '', 'סיבה': why, 'בדיקה': U.test ? 'כן' : '' };
+  var add = function (id, t, at, why, by) {
+    var r = { 'שולחן': t, 'מזהה': id, 'ישב': iso(at), 'יצא': '', 'סיבה': why, 'בדיקה': U.test ? 'כן' : '', 'מזמין': by || '' };
     chPut_(T, r);
     r._id = id;
     (mem[t] = mem[t] || []).push(r);
@@ -12572,44 +12582,49 @@ function chTables_(U, S, K, X) {
      שיש בו מקום, ואחריו שולחן חדש, כל עוד יש לו פחות מ-3. אין מקום (השולחנות
      שלו מלאים, או שלמוזמן כבר 3) — שורה "אין מקום" עם יציאה מיד: ההזמנות שלפניה
      נסגרות, והמסך שלו אומר "כל הכבוד! פתח שולחן משלך". */
+  /* מושיב אצל המזמין `by` — או '' כשכבר יושבים יחד / אין מקום / כבר 3. התקרה נבדקת כאן, תחת
+     הנעילה של chSync_ — ולכן גם שתי בחירות שהגיעו יחד לא יעברו אותה. */
   var seatAt = function (id, by, at) {
-    if (guestOf(id) || together(id, by) || tablesOf(id).length >= CH_MAX_T_) return '';
+    if (together(id, by)) return 'יחד';
+    if (tablesOf(id).length >= CH_MAX_T_) return '';
     var t = '';
     hostOf(by).some(function (x) { if (mem[x].length < 4) { t = x; return true; } return false; });
     if (!t && tablesOf(by).length < CH_MAX_T_) { t = fresh(); add(by, t, at, 'פתח'); OWN0[t] = by; }
-    if (t) { add(id, t, at, 'הוזמן'); if (at > (SAT[id] || 0)) SAT[id] = at; }
+    if (t) { add(id, t, at, 'הוזמן', by); SATP[id + '|' + by] = at; if (at > (SATA[id] || 0)) SATA[id] = at; }
     return t;
   };
-  /* רק אצל המארח שנבחר (8.99.440) — אין מעבר למארח אחר כשאין מקום. */
+  /* רק אצל המזמין שנבחר (8.99.440) — אין מעבר למזמין אחר. אין מקום — רק ההזמנה הזו נסגרת. */
   var place = function (id, by, at) {
-    if (seatAt(id, by, at) || guestOf(id)) return;
-    var r = { 'שולחן': '', 'מזהה': id, 'ישב': iso(at), 'יצא': iso(at), 'סיבה': CH_NR_, 'בדיקה': U.test ? 'כן' : '' };
+    if (seatAt(id, by, at)) return;
+    var r = { 'שולחן': '', 'מזהה': id, 'ישב': iso(at), 'יצא': iso(at), 'סיבה': CH_NR_, 'בדיקה': U.test ? 'כן' : '', 'מזמין': by };
     chPut_(T, r);
-    if (at > (lastEnd[id] || 0)) lastEnd[id] = at;
+    NRP[id + '|' + by] = at;
     NR[id] = at;
   };
   /* ההזמנות הפתוחות: לא אורח באף שולחן, ומאז היציאה/"אין מקום" האחרונה. `hs` —
      המארחים לפי סדר ההזמנה; `ch` — הבחירה הראשונה (`מצב: בחר`), אם בחר.
      **בלי בחירה אין שיוך ואין כיסא** (8.99.440, אחיאסף) — גם מזמין יחיד, וגם
      אחרי סיום דף. הרשמה דרך הקישור לבדה אינה הסכמה. */
+  /* לכל מזמין לחוד: ההזמנות שלו שעוד לא נצרכו (מאז היציאה האחרונה, אחרי הישיבה / "אין מקום"
+     האחרונים אצלו), ולא כשכבר יושבים יחד. `chs` — הבחירה הראשונה אצל כל מזמין שבחר בו. */
   var pendOf = function (id) {
-    if (guestOf(id)) return null;
-    var L = X.inv[id] || [], le = lastEnd[id] || 0, sa = SAT[id] || 0, hs = [], ch = null;
+    var L = X.inv[id] || [], le = lastEnd[id] || 0, hs = [], chs = [], seen = {};
     L.forEach(function (v) {
+      var pk = id + '|' + v.by, sa = SATP[pk] || 0, nr = NRP[pk] || 0;
       /* הבחירה מושיבה באותו רגע — ולכן `<=`: הבחירה שהושיבה כבר נצרכה. */
-      if (v.at < le || (sa && v.at <= sa) || together(id, v.by)) return;
+      if (v.at < le || (sa && v.at <= sa) || (nr && v.at <= nr) || together(id, v.by)) return;
       if (hs.indexOf(v.by) < 0) hs.push(v.by);
-      if (v.ch && !ch) ch = v;
+      if (v.ch && !seen[v.by]) { seen[v.by] = 1; chs.push(v); }
     });
-    return hs.length ? { ch: ch, hs: hs } : null;
+    return hs.length ? { ch: chs[0] || null, chs: chs, hs: hs } : null;
   };
   /* **יושבים ברגע הבחירה** (8.99.441, אחיאסף — מחליף "הכיסא נתפס בסיום דף"). */
   var startOf = function (id, v) { return v.at; };
   var seatUpTo = function (lim) {
     var ev = [];
     Object.keys(X.inv).forEach(function (id) {
-      var p = pendOf(id), at = p && p.ch ? startOf(id, p.ch) : 0;
-      if (at && at <= lim) ev.push({ id: id, by: p.ch.by, at: at });
+      var p = pendOf(id);
+      if (p) p.chs.forEach(function (v) { var at = startOf(id, v); if (at && at <= lim) ev.push({ id: id, by: v.by, at: at }); });
     });
     /* חותמת הזמן של השרת קובעת; באותו רגע — לפי המזהה, יציב. */
     ev.sort(function (a, b) { return a.at - b.at || (a.id < b.id ? -1 : 1); });
@@ -12693,7 +12708,8 @@ function chTables_(U, S, K, X) {
     var p = pendOf(id);
     if (p) out.pend[id] = { by: p.ch ? p.ch.by : p.hs[0], hs: p.hs, ch: p.ch ? 1 : 0 };
   });
-  Object.keys(NR).forEach(function (id) { if (!out.pend[id] && !guestOf(id)) out.nr[id] = NR[id]; });
+  /* "אין מקום" שאחריו לא ישב בשום מקום — ההודעה החיובית. */
+  Object.keys(NR).forEach(function (id) { if (NR[id] > (SATA[id] || 0) && !out.seat[id]) out.nr[id] = NR[id]; });
   /* יצא בהגרלה ועוד לא חזר לשבת — הזמנה עדינה בדף (`me.ex`), לא התראה. */
   Object.keys(EX).forEach(function (id) { if (!out.seat[id] && !(out.pend[id] && out.pend[id].ch)) out.ex[id] = EX[id]; });
   return out;
@@ -12838,10 +12854,10 @@ function chMy_(M, P, U) {
     var ro = chRefMap_().m[ref];
     if (ro && pub.ref !== 'bad') pub.refI = (M.ppl[chCanon_(M, ro['מזהה'])] || {}).i || chInstOf_(ro['מזהה']);
     /* השולחן של בעל הקישור, כפי שאשב בו — לכרטיס "לשבת אצל…" ולמסך הבחירה (8.99.436). */
-    var pdr = me && M.pend[me], rh = ro ? chCanon_(M, ro['מזהה']) : '';
-    /* בעל הקישור כבר ברשימת המזמינים שלי — שם הוא מופיע (עם הקוד הזה), לא פעמיים. */
-    if (pdr && !pdr.ch && pdr.hs.indexOf(rh) >= 0) refHost = { id: rh, c: ref };
-    else if (ro && pub.ref === 'old' && M.v3) {
+    var rh = ro ? chCanon_(M, ro['מזהה']) : '';
+    /* בעל הקישור — ברשימת ההזמנות שלי (`inv`), עם הקוד הזה; `refT` — למי שעוד לא במודל. */
+    if (rh && pub.ref !== 'bad') refHost = { id: rh, c: ref };
+    if (ro && (pub.ref === 'old' || pub.ref === 'full' || pub.ref === 'max') && M.v3) {
       pub.refT = chHostView_(M, rh, me);
       /* בעל קישור שעוד לא הזמין איש אינו במודל — השם מהקישור. */
       if (!pub.refT.name && pub.refBy) { pub.refT.name = pub.refBy; if (pub.refT.seats[0]) pub.refT.seats[0].n = pub.refBy; }
@@ -12882,24 +12898,35 @@ function chMy_(M, P, U) {
     out.pend = { by: nm(pd.by), full: room ? 0 : 1, t: room ? chHostView_(M, pd.by, me) : null, ch: pd.ch ? 1 : 0,
                  hs: hs.map(function (h) { return { n: nm(h), c: codes[h] || '', t: chRoom_(M, h) ? chHostView_(M, h, me) : null }; }) };
   }
+  /* **ההזמנות שלי** (8.99.443): כל מי שהזמין אותי (הרשמה מהקישור / בקשה לשבת) ובעל הקישור שפתחתי —
+     ולכל אחד מצב: in — כבר יושבים יחד · open — אפשר להצטרף (`c` — הקוד לכפתור, `t` — השולחן) ·
+     full — אצלו אין מקום · max — כבר יש לי 3. כל הזמנה — בחירה נפרדת. */
+  var invBy = [];
+  Object.keys(ppl).forEach(function (h) { if (h !== me && (ppl[h].fr || []).indexOf(me) >= 0) invBy.push(h); });
+  if (pd) pd.hs.forEach(function (h) { if (invBy.indexOf(h) < 0) invBy.push(h); });
+  if (refHost && M.ppl[refHost.id] && refHost.id !== me && invBy.indexOf(refHost.id) < 0) invBy.push(refHost.id);
+  if (invBy.length) {
+    var icodes = chCodeOf_(M, U, invBy), mx = (M.seat[me] || []).length >= CH_MAX_T_;
+    if (refHost) icodes[refHost.id] = refHost.c;
+    out.inv = invBy.map(function (h) {
+      var st = chTogether_(M, me, h) ? 'in' : mx ? 'max' : chRoom_(M, h) ? 'open' : 'full';
+      return { n: nm(h), c: st === 'open' ? icodes[h] || '' : '', st: st, ref: refHost && refHost.id === h ? 1 : 0,
+               t: st === 'open' ? chHostView_(M, h, me) : null };
+    });
+  }
   if (M.nr && M.nr[me]) out.nr = 1;
   if (M.ex && M.ex[me]) out.ex = 1;
   /* "+" מתחת לשולחן: יש לו שולחן, פחות מ-3, ואין לו שולחן משלו עם מקום. */
   out.plus = out.ts.length > 0 && out.ts.length < CH_MAX_T_ && !out.ts.some(function (v) { return v.mine && v.seats.length < 4; }) ? 1 : 0;
   Object.keys(M.pend || {}).forEach(function (id) {
     var q = M.pend[id];
-    if (id === me || !ppl[id] || (q.ch ? q.by !== me : q.hs.indexOf(me) < 0)) return;
+    if (id === me || !ppl[id] || q.hs.indexOf(me) < 0) return;
     out.way.push({ n: nm(id), l: ppl[id].c ? 1 : 0, s: ppl[id].s ? 1 : 0 });
   });
   pub.me = out;
   return pub;
 }
 /* ---- עזרים לשולחנות (8.99.436) ---- */
-/* האורחות שלי — השולחן של חבר שאני יושב בו (לכל היותר אחד). */
-function chGuest_(M, id) {
-  var g = ((M.seat && M.seat[id]) || []).filter(function (t) { return M.own[t] && M.own[t] !== id; });
-  return g[0] || '';
-}
 function chTogether_(M, a, b) {
   return ((M.seat && M.seat[a]) || []).some(function (t) { return (M.tb[t] || []).indexOf(b) >= 0; });
 }
@@ -13029,16 +13056,15 @@ function chRefState_(M, U, code, mine, me) {
     /* 8.99.436: יושבים יחד — ok · אורח אצל חבר אחר — other · כבר בחר מארח אחר — pend ·
        הוזמן רק אליו ולא בחר — ok · אין מקום (אצלו, או אצלי כבר 3) — full · אחרת —
        old: מוזמן לשבת (גם כשיש לו שולחנות משלו, וגם כשהוזמן מחבר נוסף — מסך הבחירה). */
+    /* 8.99.443: כל הזמנה — בחירה נפרדת. יושבים יחד — ok · כבר 3 שולחנות — max · אצל המזמין
+       אין מקום — full · אחרת old: מוצעת הבחירה (גם כשיושב אצל חבר אחר). */
     if (me && chTogether_(M, me, by)) return 'ok';
-    if (me && chGuest_(M, me)) return 'other';
-    var pd = me && M.pend[me];
-    if (pd && pd.ch) return pd.by === by ? 'ok' : 'pend';
-    /* 8.99.440: הוזמן ועוד לא בחר — גם מזמין יחיד — `old`: מוצעת לו הבחירה. */
     var t2 = joinTable_(), r2 = -1;
     for (var i2 = 0; i2 < mine.length && r2 < 1; i2++) r2 = rowOfId_(t2, mine[i2]);
     if (r2 < 1) return 'wait';
     if (t2.c(t2.rows[r2], 'תפקיד') === 'הורה') return 'other';
-    if ((me && (M.seat[me] || []).length >= CH_MAX_T_) || chFull_(M, by)) return 'full';
+    if (me && (M.seat[me] || []).length >= CH_MAX_T_) return 'max';
+    if (chFull_(M, by)) return 'full';
     return 'old';
   }
   var pp = me && M.ppl[me], pb = pp && (pp.by || pp.ob);
@@ -13871,6 +13897,19 @@ function challengeRoute_(e) {
       return reply_(e, chMy_(M0, P, U));
     }
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    /* **תזכורת יום ראשון בניהול** (8.99.443): קריאה בלבד, מהמטמון — האם יש הגרלה שמחכה להחלטה
+       (`busy`), כמה שולחנות מוכנים עכשיו (`rd` — ארבעה, כולם למדו באמת בשבוע), וכמה ארוחות במלאי. */
+    if (op === 'due') {
+      var Md = chModel_(U, false);
+      if (!Md) return reply_(e, { status: 'busy' });
+      var rd = 0;
+      Object.keys(Md.tb || {}).forEach(function (t) {
+        var L = Md.tb[t];
+        if (L.length === 4 && L.every(function (id) { return (Md.ppl[id] || {}).wr; })) rd++;
+      });
+      return reply_(e, { status: 'ok', on: !!Md.on, left: chLeft_(Md), rd: rd,
+        busy: Md.ms.some(function (m) { return [CH_M_.open, CH_M_.zero, CH_M_.ready, CH_M_.pend].indexOf(m.st) >= 0; }) ? 1 : 0 });
+    }
     if (op === 'adm') {
       var M1 = chModel_(U, true);
       if (!M1) return reply_(e, { status: 'busy', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' });

@@ -173,6 +173,46 @@ ok(RL[kid] && RL[kid].w.some(function (t) { return t > Date.parse(iso(D1)); }), 
 var M8 = sync(D2 + 1);
 ok(M8.seat[b] && M8.seat[g] && M8.ms.length === Md3.ms.length, 'week 2 without a manual draw: nobody leaves', [M8.seat[b], M8.seat[g]]);
 
+// ---- 9. הזמנות מכמה חברים — כל אחת בחירה נפרדת, עד 3 שולחנות בסך הכול (8.99.443) ----
+var X1 = person('x1'), X2 = person('x2'), X3 = person('x3'), X4 = person('x4'), X5 = person('x5');
+var c1 = code(X1), c2 = code(X2), c3 = code(X3), c4 = code(X4), c5 = code(X5);
+var mu = person('mu', X1, D2 + 2);                      // נרשם מהקישור של x1
+at(D2 + 2.1); exec(); c.chOldAdd_(c2, mu, false);        // וגם הוזמן מ-x2
+var M9 = sync(D2 + 2.2), i9 = my(M9, mu).me.inv || [];
+ok(i9.length === 2 && i9.every(function (x) { return x.st === 'open' && x.c; }) && !M9.seat[mu], 'two invites, both open, no seat yet', i9);
+var r9 = choose(mu, c1, D2 + 3);
+var st9 = {}; (r9.me.inv || []).forEach(function (x) { st9[x.n] = x.st; });
+ok(r9.ref === 'ok' && r9.me.ts.length === 1 && st9.x1 === 'in' && st9.x2 === 'open', 'chose x1 → seated; x2 still open', st9);
+var r9b = choose(mu, c2, D2 + 3.1);
+ok(r9b.ref === 'ok' && r9b.me.ts.length === 2, 'chose x2 too → 2 tables (no one-friend limit)', r9b.me.ts.length);
+var rowsMu = function () { return c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === mu && !r['יצא']; }).length; };
+var n9 = rowsMu();
+var r9c = choose(mu, c2, D2 + 3.2); choose(mu, c2, D2 + 3.21); sync(D2 + 3.3);
+ok(r9c.ref === 'ok' && rowsMu() === n9, 'double click / reopen link / refresh — no duplicate seat', [r9c.ref, rowsMu(), n9]);
+var hist9 = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === mu && r['סיבה'] === 'הוזמן'; });
+ok(hist9.every(function (r) { return r['מזמין']; }), 'seat rows record who invited', hist9.map(function (r) { return r['מזמין']; }));
+// שתי בחירות שהגיעו יחד, כשנשאר מקום לשולחן אחד בלבד
+at(D2 + 4); exec();
+var OT = c.chTab_(c.CH_OLD_, c.CH_OLD_COLS_);
+c.chPut_(OT, { 'מזהה': mu, 'מזמין': X3, 'נוסף': iso(D2 + 4), 'מצב': c.CH_O_.pick, 'בדיקה': '' });
+c.chPut_(OT, { 'מזהה': mu, 'מזמין': X4, 'נוסף': iso(D2 + 4), 'מצב': c.CH_O_.pick, 'בדיקה': '' });
+var M9c = sync(D2 + 4.1);
+ok((M9c.seat[mu] || []).length === 3, 'simultaneous choices: cap 3 holds', (M9c.seat[mu] || []).length);
+var st9c = {}; (my(M9c, mu, c4).me.inv || []).forEach(function (x) { st9c[x.n] = x.st; });
+ok(my(M9c, mu, c4).ref === 'max' || my(M9c, mu, c4).ref === 'ok', 'at 3: link of the other → max (or already in)', my(M9c, mu, c4).ref);
+var r9d = choose(mu, c5, D2 + 4.2);
+ok(r9d.ref === 'max' && (r9d.me.ts || []).length === 3, 'fourth friend → refused (max), no seat', r9d.ref);
+var mv = (r9d.me.inv || []).filter(function (x) { return x.st === 'max'; });
+ok(mv.length >= 1, 'invite list explains the cap (max)', r9d.me.inv);
+// מזמין שאין אצלו מקום
+var HF = person('hf'), cf = code(HF);
+for (var q9 = 0; q9 < 9; q9++) { var g9 = person('g9' + q9, HF, D2 + 4.5); choose(g9, cf, D2 + 4.6 + q9 * 0.01); }
+var nb = person('nb', HF, D2 + 5);
+var stF = (my(sync(D2 + 5.1), nb).me.inv || [])[0];
+ok(stF && stF.st === 'full' && !stF.c, 'host without room → full, no button', stF);
+// ישיבות קיימות לא זזו
+ok(JSON.stringify(tbl(M9c, host)) === JSON.stringify(tbl(M8, host)), 'existing seats untouched', tbl(M9c, host));
+
 console.log('checks', n, 'fails', fails);
 var miss = Object.keys(M.missing).filter(function (k) { return !/flush|Logger/.test(k); });
 if (miss.length) console.log('missing', miss.join(','));

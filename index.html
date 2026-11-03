@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.442';
+var APP_VERSION = '8.99.443';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10389,6 +10389,7 @@ function admRefreshAll() {
   admBusyAt = Date.now(); admRefreshBtn();
   if (key) {
     pullRegs(); conflictLoad(); funLoad(); trLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
+    chDueLoad();
     admRosterLoad();
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
   }
@@ -13779,11 +13780,39 @@ function accGo() {
    אין פס. כל הישיבות, תמיד: דחוף אינו מסונן לפי ישיבה. */
 function admHotList() {
   var all = (stuckRows || []).filter(function (p) { return !p.done && !stuckFull(p); });
-  return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue() };
+  return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue(), ch: chDueItem() };
+}
+/* **יום ראשון — תזכורת להגרלת חבר מביא חבר** (8.99.443, אחיאסף): בתוך האפליקציה בלבד, בלי התראה
+   יוצאת ובלי יומן. ההגרלה עצמה — ידנית לגמרי. `CHDUE` — מ-?challenge=due (קריאה בלבד). */
+var CHDUE = null;
+function chSunIL() {
+  try { return new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', weekday: 'short' }).format(new Date()) === 'Sun'; }
+  catch (e) { return new Date().getDay() === 0; }
+}
+function chDueLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key || !chSunIL()) { CHDUE = null; return; }
+  scriptGet({ challenge: 'due', key: key }).then(function (d) {
+    /* קריאה שנכשלה משאירה את מה שהיה. */
+    if (!d || d.status !== 'ok') return;
+    CHDUE = d;
+    admBell();
+    if (admTab === 'hot') pplSet('hot-body', admHotHtml());
+  }, function () {});
+}
+/* יש מה לעשות: הגרלה שמחכה להחלטה, או שולחנות מוכנים ויש ארוחות במלאי. */
+function chDueItem() {
+  var d = CHDUE;
+  if (!d || !d.on || !chSunIL()) return null;
+  if (d.busy) return { busy: 1 };
+  return d.rd > 0 && d.left > 0 ? { rd: d.rd } : null;
+}
+function chDueLine(x) {
+  return x.busy ? UI.hotChBusy : x.rd === 1 ? UI.hotChReady1 : fill(UI.hotChReady, { n: x.rd });
 }
 /* המספר האדום על הפעמון — כמה דברים מחכים ב"דחוף". */
 function admBell() {
-  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length;
+  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length + (L.ch ? 1 : 0);
   var e = document.getElementById('adm-bell-n');
   if (!e) return;
   var t = n ? String(n) : '';
@@ -13792,6 +13821,10 @@ function admBell() {
 }
 function admHotHtml() {
   var L = admHotList(), h = '<div class="my-top" style="margin:0 0 12px"><b>' + esc(UI.hotH) + '</b></div>';
+  if (L.ch) {
+    h += '<div class="adm-card hot-sec" id="hot-ch" style="margin-bottom:11px"><h4>' + esc(UI.hotCh) + '</h4>' +
+      '<p>' + esc(chDueLine(L.ch)) + '</p><button class="btn p" type="button" onclick="admSubGo(\'chal\')">' + esc(UI.hotChGo) + '</button></div>';
+  }
   if (L.acc.length) {
     h += '<div class="adm-card hot-sec" id="hot-acc" style="margin-bottom:11px"><h4>' + esc(UI.hotAcc) + '</h4>' +
       accHtml('', 1) + '</div>';
@@ -13823,7 +13856,7 @@ function admHotHtml() {
       }).join('') + (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') + '</div>';
   }
   /* "ההיסטוריה" נשמרת: כאן נשאר הפריט עד שמטופל, וכשאין כלום — אומרים. */
-  if (!L.acc.length && !L.help.length && !L.fail.length && !L.calls.length) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
+  if (!L.acc.length && !L.help.length && !L.fail.length && !L.calls.length && !L.ch) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
   var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
   if (!subbed) h += '<button class="adm-chip" onclick="rmSubOn()">' + esc(UI.hotSub) + '</button>';
   return h;
@@ -17581,6 +17614,12 @@ function chaPaint() {
     '<p class="big">' + esc(ready ? (ready === 1 ? UI.chaReady1 : fill(UI.chaReadyN, { k: ready })) : UI.chaReady0) + '</p>' +
     (d.nd && !d.ended ? '<p>' + esc(fill(UI.chaNextDraw, { when: chaWhen(d.nd) })) + '</p>' : '') +
     (d.low ? '<p class="cha-low">' + esc(fill(UI.chaHeroLow, { n: d.low })) + '</p>' : '') + '</div>';
+  /* יום ראשון (8.99.443): באנר — הגרלה שמחכה (למטה), או שולחנות מוכנים וכפתור "הגרלה עכשיו". */
+  var sunBusy = (d.ms || []).some(function (m) { return ['ממתין לאישור', 'ממתין להגרלה', 'חלון פתוח', 'ממתין לקבוצה ראשונה'].indexOf(m.st) >= 0; });
+  if (chSunIL() && !d.ended && (sunBusy || (ready > 0 && d.left > 0))) {
+    h += '<div class="adm-card cha-alert"><h4>' + esc(UI.hotCh) + '</h4><p>' + esc(chDueLine(sunBusy ? { busy: 1 } : { rd: ready })) + '</p>' +
+      (sunBusy ? '' : '<button class="btn p" type="button"' + dis + ' onclick="chaOpenMan()">' + esc(UI.chaManGo) + '</button>') + '</div>';
+  }
   h += chaMx(d.mx);
   /* מה שמחכה לך — הגרלה שבוצעה וממתינה לאישור, או זוכים שעוד לא קיבלו שובר. */
   var act = (d.ms || []).filter(function (m) { return ['ממתין לאישור', 'ממתין להגרלה', 'חלון פתוח', 'ממתין לקבוצה ראשונה', 'אושר'].indexOf(m.st) >= 0; });
