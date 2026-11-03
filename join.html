@@ -1366,6 +1366,11 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ch-plus i{display:flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;font-style:normal;
   font-size:1.3rem;line-height:1;background:#F6F0E2;border:2px dashed #C9B998}
 .ch-plus[disabled]{opacity:.5}
+/* 8.99.442 — מעבר קטן בין השולחנות (chal.js, swHtml): מספר לכל שולחן, הנוכחי מודגש. */
+.ch-tsw{display:flex;justify-content:center;gap:8px;margin:10px 0 0}
+.ch-tsb{width:34px;height:34px;border-radius:50%;border:1.5px solid #C9B998;background:#FFFDF8;color:#8C681F;
+  font:inherit;font-size:.92rem;font-weight:900;cursor:pointer}
+.ch-tsb[aria-pressed="true"]{background:#0B2550;border-color:#0B2550;color:#fff}
 .ch-promo{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:rgba(11,37,80,.55);
   display:flex;align-items:center;justify-content:center;padding:16px}
 .ch-promo-in{width:100%;max-width:26rem;max-height:100%;overflow:auto;border-radius:22px;padding:18px 16px 12px;

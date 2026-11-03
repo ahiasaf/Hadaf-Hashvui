@@ -254,9 +254,12 @@
   /* ---- השולחן שלי — אחד (8.99.385) ----
      יושב — השולחן (`me.t`); הוזמן ועוד לא התחיל ללמוד — השולחן שהוזמן
      אליו (`me.pend.t`, המקום עוד לא שמור); אחרת — השולחן הריק שלי. */
+  /* השולחן שבחר במעבר הקטן (8.99.442) — לפי המזהה שלו; לא קיים עוד — הראשי. */
+  var CURT = '';
   function tv(d) {
     var m = d && d.me;
     if (!m) return null;
+    if (CURT && m.ts) for (var i = 0; i < m.ts.length; i++) if (m.ts[i].id === CURT) return { t: m.ts[i], pend: false };
     if (m.t) return { t: m.t, pend: false };
     if (m.pend && m.pend.t) return { t: m.pend.t, pend: true };
     return null;
@@ -611,6 +614,7 @@
       plusHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
     plusWire(function (x) { cardDraw(box, x); });
+    swWire(function () { cardDraw(box, cached() || d); });
     waWire('ch-wa', null);
     if (!d.ended) codeWarm();
     if (PG) pgPaint();
@@ -705,10 +709,25 @@
   }
   /* "+" — שולחן נוסף (?challenge=newt). מופיע רק כשהשרת אומר שאפשר (`me.plus`): יש שולחן, פחות
      מ-3 בסך הכול, ואין שולחן משלך שיש בו מקום. התשובה — המבט האישי, והשולחן החדש מוצג. */
+  /* מתחת לשולחן (8.99.442, אחיאסף): מעבר קטן לשולחנות האחרים — מספר לכל שולחן, השם בתיאור —
+     ו"+" לפתיחת נוסף. שום שולחן אינו נעלם. */
+  function swHtml(d) {
+    var T = tabs(d), v = tv(d), cur = v && v.t ? v.t.id : '';
+    if (T.length < 2) return '';
+    return '<div class="ch-tsw" role="group">' + T.map(function (t, i) {
+      var nm = t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: t.name });
+      return '<button type="button" class="ch-tsb" data-t="' + esc(t.id) + '" aria-label="' + esc(nm) + '" title="' + esc(nm) + '"' +
+        (t.id === cur ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (i + 1) + '</button>';
+    }).join('') + '</div>';
+  }
+  function swWire(redraw) {
+    var bs = document.querySelectorAll('.ch-tsb');
+    for (var i = 0; i < bs.length; i++) bs[i].onclick = function () { CURT = this.getAttribute('data-t') || ''; redraw(); };
+  }
   function plusHtml(d) {
     var m = d && d.me;
-    return m && m.plus && !d.ended ? '<button type="button" class="ch-plus" id="ch-plus"><i aria-hidden="true">+</i>' +
-      esc(U('chPlusT')) + '</button><p class="ch-sm" id="ch-plus-m" role="status"></p>' : '';
+    return swHtml(d) + (m && m.plus && !d.ended ? '<button type="button" class="ch-plus" id="ch-plus"><i aria-hidden="true">+</i>' +
+      esc(U('chPlusT')) + '</button><p class="ch-sm" id="ch-plus-m" role="status"></p>' : '');
   }
   function plusWire(redraw) {
     var b = document.getElementById('ch-plus'), msg = document.getElementById('ch-plus-m');
@@ -719,6 +738,7 @@
       api('newt', { id: ids().join(',') }).then(function (d) {
         if (!d || d.status !== 'ok' || !d.on) { fail(); return; }
         LSet('chMy', { at: Date.now(), d: d });
+        CURT = '';
         redraw(d);
       }, fail);
     };
@@ -726,6 +746,7 @@
   function fullWire(box, d, redraw) {
     if (choiceHtml(d)) { wireSit(redraw); waWire('ch-wa', null); if (!d.ended) codeWarm(); return; }
     plusWire(redraw);
+    swWire(function () { redraw(); });
     waWire('ch-wa', null);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
     if (!d.ended) codeWarm();

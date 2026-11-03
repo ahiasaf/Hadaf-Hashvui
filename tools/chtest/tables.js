@@ -1,4 +1,4 @@
-// חבר מביא חבר — כללי השולחנות (8.99.441), מול apps-script.gs עצמו בזיכרון.
+// חבר מביא חבר — כללי השולחנות (8.99.442), מול apps-script.gs עצמו בזיכרון.
 // node tools/chtest/tables.js   → יוצא בקוד 1 אם בדיקה נכשלה. שמות ומזהים מומצאים.
 // require('./tables.js') — העולם עצמו, לגשר אליו את script.google.com מדפדפן.
 var M = require('../snaptest/mock.js'), vm = require('vm');
@@ -104,33 +104,56 @@ learn(b, 22);
 learn(d, 23, { att: 1 });                         // נוכחות בשיעור (בלי זמן) — נחשבת
 learn(e, 24, { min: 3 });                         // ✓ נראה, מתחת לעשר דקות — לא נחשב
 learn(f, 25); learn(g, 26); learn(h2, 27); learn(i2, 28);
-var Mpre = sync(D1 - 1);
-ok(Mpre.ms.length === 0, 'no draw before Sunday');
+// בעל שולחן שלא ילמד, ושני חברים שילמדו
+var o1 = person('o1'), oc = code(o1), p1 = person('p1', o1, 29), p2 = person('p2', o1, 29);
+choose(p1, oc, 29.5); choose(p2, oc, 29.6); learn(p1, 30); learn(p2, 31);
 
-// ---- 5. ההגרלה ביום ראשון, והאיפוס האישי ----
-var Md = sync(D1 + 0.5);
-var wk = Md.ms.filter(function (m) { return m.date; });
-var gt = {}; Md.grp.forEach(function (gg) { gt[gg.id] = gg.tb; });
-var inDraw = wk.length ? wk[0].el.map(function (x) { return gt[x]; }) : [];
-ok(wk.length === 1, 'one weekly draw', wk.length);
-ok(inDraw.length === 2 && inDraw.indexOf(Md.seat[g][0]) >= 0 && inDraw.indexOf(Md.seat[d] ? Md.seat[d][0] : '') >= 0,
-   'in draw: tables where all 4 show ✓ this week (table 1 out — c only last week)', inDraw);
-var sel = wk[0] && Md.grp.filter(function (gg) { return gg.id === wk[0].sel; })[0];
-ok(sel && sel.tb === Md.seat[g][0], 'auto-pick only the table where all really learned (e < 10 min excluded)', sel);
-ok(!Md.seat[cc] && !Md.seat[e], 'c (last week only) and e (<10 min) left', [Md.seat[cc], Md.seat[e]]);
+// ---- 4א. ✓ בכיסא = סיים דף השבוע, לא לימוד ישן ----
+var Mw = sync(D1 - 1), t1 = my(Mw, a).me.ts.filter(function (v) { return !v.mine; })[0];
+var seen = {}; t1.seats.forEach(function (x) { seen[x.n || 'me'] = x.l; });
+ok(seen.c === false && seen.b === true && seen.host === true, '✓ = this week only (c learned 6 days earlier → no ✓)', seen);
+
+// ---- 5. אין הגרלה אוטומטית ביום ראשון ----
+var Md0 = sync(D1 + 0.5);
+ok(Md0.ms.length === 0 && Md0.seat[cc] && !Md0.nd, 'Sunday passed: no automatic draw, nobody left', Md0.ms.length);
+
+// ---- 5א. "הגרלה עכשיו" — הקפאה בלי בחירה, ואיפוס אישי (גם בעל שולחן) ----
+at(D1 + 1); exec();
+var op = c.chAct_(U, {}, 'open');
+ok(op.status === 'ok' && !op.sel, 'manual draw opened, no winner picked', op);
+var Md = sync(D1 + 1.1);
+var ms = Md.ms[Md.ms.length - 1], gt = {}; Md.grp.forEach(function (gg) { gt[gg.id] = gg.tb; });
+var inDraw = ms ? ms.el.map(function (x) { return gt[x]; }) : [];
+ok(ms && ms.st === c.CH_M_.ready && !ms.sel, 'draw waits for the admin pick (ready)', ms);
+ok(inDraw.length === 1 && inDraw.indexOf(Md.seat[g][0]) >= 0 && inDraw.indexOf(Md.seat[p1][0]) < 0,
+   'in draw: tables where all 4 really learned this week (table 3; table 2 out — e < 10 min)', inDraw);
+ok(!Md.seat[cc] && !Md.seat[e], 'c (old learning) and e (<10 min) left', [Md.seat[cc], Md.seat[e]]);
 ok(JSON.stringify(tbl(Md, host)) === JSON.stringify(['host,a,b', 'host,d,f', 'host,g,h2,i2']), 'only they left; others stay', tbl(Md, host));
-ok(JSON.stringify(tbl(Md, a)) === JSON.stringify(['host,a,b', 'a']), 'a keeps both tables');
-ok(!Md.seat[legacy] && JSON.stringify(tbl(Md, legH)) === JSON.stringify(['legh']), 'legacy guest left; owner stays (pending decision)', tbl(Md, legH));
+ok(!Md.seat[legacy] && !Md.seat[legH], 'legacy table: owner and guest both left (did not learn)');
+ok(!Md.seat[o1] && JSON.stringify(tbl(Md, p1)) === JSON.stringify(['p1,p2']), 'owner o1 left alone; p1,p2 stay', tbl(Md, p1));
+ok(Md.own[Md.seat[p1][0]] === '', 'no new owner appointed', Md.own[Md.seat[p1][0]]);
+var vp1 = my(Md, p1).me;
+ok(vp1.ts[0].mine && vp1.plus === 0, 'remaining member treats the table as his (no plus while it has room)', vp1.ts[0]);
 var mc = my(Md, cc).me;
 ok(mc.ex === 1 && mc.ts.length === 0, 'c gets the gentle rejoin flag', mc);
-var hist = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === cc; });
-ok(hist.length === 1 && hist[0]['יצא'] && hist[0]['סיבה'] === c.CH_WK_OUT_ && hist[0]['שולחן'], 'history row kept with exit + reason', hist);
+var hist = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === o1; });
+ok(hist.length === 1 && hist[0]['יצא'] && hist[0]['סיבה'] === c.CH_WK_OUT_, 'history row kept (owner)', hist);
 var nRows = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.length;
 var Md2 = sync(D1 + 3);
 ok(c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.length === nRows && Md2.ms.length === Md.ms.length, 'once per draw: rebuild changes nothing');
+// הבחירה — בלחיצה נפרדת
+at(D1 + 3.5); exec();
+var dr = c.chAct_(U, { ms: String(ms.k), rq: 'test-rq-1' }, 'draw');
+var Md3 = sync(D1 + 3.6), ms3 = Md3.ms[Md3.ms.length - 1];
+ok(dr.status === 'ok' && ms3.st === c.CH_M_.pend && gt[ms3.sel] === Md.seat[g][0], 'admin pick → pending approval', [dr, ms3.st]);
+
+// ---- 5ב. החברים שנשארו ממלאים את המקום שהתפנה ----
+var p3 = person('p3', p1, D1 + 4), r5 = choose(p3, code(p1), D1 + 4.1);
+var M5b = sync(D1 + 4.2);
+ok(r5.ref === 'ok' && JSON.stringify(tbl(M5b, p3)) === JSON.stringify(['p1,p2,p3']), "p1's friend fills the freed seat", tbl(M5b, p3));
 
 // ---- 6. חוזר בבחירה — יושב שוב; ההודעה נעלמת ----
-var r6 = choose(cc, hc, D1 + 4);
+var r6 = choose(cc, hc, D1 + 5);
 ok(r6.ref === 'ok' && r6.me.ts.length === 1 && !r6.me.ex, 'c rejoins by choice', r6.me);
 
 // ---- 7. אבא שאישר — נחשב כלימוד באמת של השבוע ----
@@ -146,10 +169,9 @@ exec();
 var RL = c.chReal_(U, function (x) { return x; }, Date.parse(iso(0)));
 ok(RL[kid] && RL[kid].w.some(function (t) { return t > Date.parse(iso(D1)); }), 'father grant this week counts as real learning', RL[kid]);
 
-// ---- 8. שבוע שני: מי שלא למד יוצא — בעלים נשארים ----
+// ---- 8. שבוע שני בלי לחיצה — אף אחד לא יוצא ----
 var M8 = sync(D2 + 1);
-ok(!M8.seat[b] && !M8.seat[g], 'week 2: guests who did not learn left', [M8.seat[b], M8.seat[g]]);
-ok((M8.seat[host] || []).length === 3, 'host (owner) keeps all tables', tbl(M8, host));
+ok(M8.seat[b] && M8.seat[g] && M8.ms.length === Md3.ms.length, 'week 2 without a manual draw: nobody leaves', [M8.seat[b], M8.seat[g]]);
 
 console.log('checks', n, 'fails', fails);
 var miss = Object.keys(M.missing).filter(function (k) { return !/flush|Logger/.test(k); });
