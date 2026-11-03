@@ -48,8 +48,8 @@
    **8.99.441:** יושבים ברגע הבחירה (גם לפני סיום דף). שולחן אחד בתצוגה ו"+" מתחתיו
    (plusHtml, ?challenge=newt) — "השולחנות שלך" ירד. יצא בהגרלה (`me.ex`) — הזמנה עדינה.
    **8.99.440 — הצטרפות רק מבחירה:** גם מזמין יחיד — כרטיס "לשבת בשולחן של…" (sitHtml);
-   בלי לחיצה אין שיוך ואין כיסא. כפתור הוואטסאפ גלוי גם בכרטיס הבחירה. `chMax3` — בבית,
-   במסך השולחן, בבחירה ובנחיתה.
+   בלי לחיצה אין שיוך ואין כיסא. כפתור הוואטסאפ גלוי גם בכרטיס הבחירה. 8.99.448 (הערות אחיאסף):
+   `chMax3` ירד; איור השולחן בכל מקום; הזמנה נוספת — כרטיס נפרד מתחת לשולחן ("{שם} גם הזמין אותך").
 
    ES5 בלבד. המלל — UI.ch* ב-data.js.
    ============================================================ */
@@ -281,7 +281,8 @@
       var st = { old: 'open', full: 'full', max: 'max', ok: 'in' }[d.ref];
       if (st && (st !== 'open' || d.refT)) out.push({ n: d.refBy || U('chFriend'), st: st, c: st === 'open' ? refAny() : '', t: st === 'open' ? d.refT : null });
     }
-    return out;
+    /* 8.99.448: אין מקום — האפשרות פשוט לא מוצגת; כבר יושבים יחד — אין מה לבחור. */
+    return out.filter(function (h) { return h.st === 'open' || h.st === 'max'; });
   }
   function seatsOf(v) {
     var out = v && v.t ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
@@ -301,15 +302,6 @@
     return { q: U('chStQ0'), wait: U('chStWait'), won: U('chStWon') }[v.t.st] || '';
   }
   function stOf(v) { return v && !v.pend ? v.t.st : ''; }
-  /* ארבעה עיגולים בשורה — הכרטיס בבית. */
-  function rowHtml4(seats) {
-    return '<div class="ch-row4">' + seats.map(function (s) {
-      var st = s.k === 'free' ? '' : s.lbl || U(STATE[s.k]) || '';
-      return '<div class="ch-s ch-' + s.k + '" role="img" aria-label="' + esc(seatAria(s)) + '"><span class="ch-c">' +
-        plateSvg(s) + '</span><b>' + esc(s.k === 'free' ? U('chSeatFree') : s.n) + '</b>' +
-        (st ? '<i>' + esc(st) + '</i>' : '') + '</div>';
-    }).join('') + '</div>';
-  }
   function startSeats() {
     var m = me();
     return [{ k: 'you', n: U('chMe'), i: String((m && m.first) || '').charAt(0) }, free(), free(), free()];
@@ -454,13 +446,12 @@
   /* כפתור הוואטסאפ נשאר גלוי גם כשיש הזמנה שממתינה לבחירה — פותחים שולחן משלך. */
   function waOwn(d) { return d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa'); }
   /* הזמנה אחת: של מי, לאיזה שולחן, ומה אפשר — כפתור, או שורת מצב ברורה. */
+  /* הזמנה אחת לבחירה — השולחן של המזמין (האיור, 8.99.448) והכפתור. */
   function invItem(h) {
-    var n = h.n || U('chFriend'), st = h.st || 'open';
-    var line = { 'in': U('chInvIn'), full: tp(U('chInvFull'), { by: n }), max: U('chInvMax') }[st] || '';
+    var n = h.n || U('chFriend');
     return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' +
-      (st === 'open' && h.t ? rowHtml4(seatsOf({ t: h.t })) : '') +
-      (st === 'open' ? '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button>'
-                     : '<p class="ch-tline">' + esc(line) + '</p>') + '</div>';
+      (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), true) : '') +
+      '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
   }
   /* **מי שעוד לא יושב** — כרטיס ההזמנות: חבר אחד — "חבר הזמין אותך!", כמה — "{שמות} מזמינים אותך!". */
   function pickHtml(d, L) {
@@ -470,16 +461,21 @@
     return '<div class="ch-tcard ch-home ch-special"><span class="ch-chip">' + esc(U('chCardH')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(one ? U('chOldH') : tp(U('chPickH'), { names: all })) + '</h2>' +
       '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      '<p class="ch-tline">' + esc(one ? tp(U('chOldP'), { by: nm[0] }) : U('chPickP')) + '</p>' +
-      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' + L.map(invItem).join('') +
+      '<p class="ch-lead">' + esc(one ? tp(U('chOldP'), { by: nm[0] }) : U('chPickP')) + '</p>' + L.map(invItem).join('') +
       '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
   }
-  /* **מי שכבר יושב** — ההזמנות מתחת לשולחן, כשיש לפחות אחת שעוד לא הצטרף אליה. */
+  /* **מי שכבר יושב והוזמן גם מחבר נוסף** (8.99.448, אחיאסף): כרטיס נפרד מתחת לכרטיס השולחן,
+     "{שם} גם הזמין אותך — רוצה לשבת אצלו?" וכפתור. כבר 3 שולחנות — אותה שאלה, והתשובה שאי אפשר. */
   function invHtml(d) {
-    var L = pickList(d);
-    if (!tabs(d).length || !L.some(function (h) { return h.st !== 'in'; })) return '';
-    return '<div class="ch-way"><b class="ch-way-h">' + esc(U('chInvsH')) + '</b>' + L.map(invItem).join('') +
-      '<p class="ch-sm" id="ch-sit-m" role="status"></p></div>';
+    var L = tabs(d).length ? pickList(d).filter(function (h) { return h.st === 'open' || h.st === 'max'; }) : [];
+    if (!L.length) return '';
+    return L.map(function (h) {
+      var n = h.n || U('chFriend');
+      return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), { by: n })) + '</p>' +
+        (h.st === 'open' ? (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), true) : '') +
+          '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button>'
+          : '<p class="ch-tline">' + esc(U('chInvMax')) + '</p>') + '</div>';
+    }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>';
   }
   function wireSit(redraw) {
     var own = document.getElementById('ch-own'), msg = document.getElementById('ch-sit-m');
@@ -496,13 +492,15 @@
         LSet('chMy', { at: Date.now(), d: d });
         /* הצטרף — "הצטרפת לשולחן של…". אין מקום / כבר 3 — המצב מופיע ליד ההזמנה. */
         if (d.ref === 'ok') { dropRef(); d.sat = 1; }
+        /* נתפס רגע לפני (8.99.448) — "מצטערים, הכיסא כבר היה תפוס…". */
+        if (d.ref === 'full' && d.me) d.me.nr = 1;
         redraw(d);
       }, fail);
     };
   }
   /* כרטיס הבחירה/הישיבה, אם צריך — אחרת ''. */
   function choiceHtml(d) {
-    var L = pickList(d);
+    var L = pickList(d).filter(function (h) { return h.st === 'open'; });
     return !tabs(d).length && L.length ? pickHtml(d, L) : '';
   }
 
@@ -612,12 +610,12 @@
     var v = tv(d), line = lineOf(v, d);
     box.innerHTML = '<div class="ch-tcard ch-home ch-special ch-cmp ' + cls(stOf(v)) + '">' + yayHtml(d.me) + noteHtml(d) + offerHtml(d) +
       '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(U('chCardH')) + '</h2>' +
-      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + rowHtml4(seatsOf(v)) +
+      /* תמיד איור השולחן (8.99.448, אחיאסף), לא שורת העיגולים. */
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(seatsOf(v), midOf(stOf(v)), true) +
       (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
-      /* עד 3 שולחנות — כבר במסך הראשון (8.99.440). */
-      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       (d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa')) +
-      plusHtml(d) + invHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
+      plusHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>' +
+      invHtml(d);
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
     plusWire(function (x) { cardDraw(box, x); });
     swWire(function () { cardDraw(box, cached() || d); });
@@ -710,9 +708,8 @@
     if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFree1') : tp(U('chFreeN'), { n: nf });
     return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) + invHtml(d) +
-      '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
-      tailHtml(d) + (v ? '' : howHtml()) + '</div>';
+      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) +
+      tailHtml(d) + (v ? '' : howHtml()) + '</div>' + invHtml(d);
   }
   /* "+" — שולחן נוסף (?challenge=newt). מופיע רק כשהשרת אומר שאפשר (`me.plus`): יש שולחן, פחות
      מ-3 בסך הכול, ואין שולחן משלך שיש בו מקום. התשובה — המבט האישי, והשולחן החדש מוצג. */
@@ -837,8 +834,8 @@
       (bad ? '<h2>' + esc(U('chLandBadH')) + '</h2><p class="ch-note">' + esc(U('chRefBad')) + '</p>'
            : '<h2>' + esc(nm ? tp(U(full ? 'chLandFull' : 'chLandH'), v) : U('chLandHx')) + '</h2>' +
              (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm)), midOf(''), true) : '') +
-             '<p class="ch-lead">' + esc(on ? tp(U('chLandP'), v) : U('chLandOff')) + '</p>' +
-             (on ? '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' : '')) +
+             /* אין מקום אצל המזמין — מה עושים עכשיו (8.99.448, אחיאסף). */
+             '<p class="ch-lead">' + esc(on ? tp(U(full ? 'chLandFullP' : 'chLandP'), v) : U('chLandOff')) + '</p>') +
       '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
         esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a>' +
       (on && !bad ? '<p class="ch-sm">' + esc(U('chLandNote')) + '</p>' : '') + '</div>';
