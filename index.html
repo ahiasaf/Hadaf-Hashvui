@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.443';
+var APP_VERSION = '8.99.444';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -10155,6 +10155,14 @@ function writeSettings_(say) {
      בלעדיו `true` הופך לבוליאני ו-gviz מחזירה עמודה שלמה
      ריקה. הגרש עצמו אינו חלק מהערך ואינו חוזר בקריאה. */
   var rows = [];
+  /* "בפנים" — המפה המלאה, לכל ישיבה ברשימה (3.11.2026). הסקריפט מוסיף
+     לטבלת הסקירה כל ישיבה מסומנת (ovAddJoined_), והוא אינו מכיר את
+     ברירות המחדל שב-data.js — מה שלא נכתב כאן, מבחינתו לא סומן. */
+  var jf = CV('joined') || {}, jMiss = false;
+  INSTITUTIONS.forEach(function (i) {
+    if (jf[i.code] == null) { jf[i.code] = !!i.joined; jMiss = true; }
+  });
+  if (jMiss) { CFG.joined = jf; Store.set('cfg', CFG); }
   PUB_KEYS.forEach(function (k) {
     var v = CV(k);
     if (v != null) rows.push([k, "'" + JSON.stringify(v)]);

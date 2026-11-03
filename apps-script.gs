@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 176;
+var SCRIPT_VERSION = 177;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14573,15 +14573,76 @@ function ovSync_(force) {
   T = ovDropAct_(T);
   T = ovShape_(T);
   T = ovTidy_(T);
+  T = ovAddJoined_(T);
   var C = ovCounts_(), own = ovOwn_(), reps = ovReps_();
   /* קריאה שנכשלה — לא נוגעים בכלום */
   if (!C || !own || !reps) return T;
+  /* מספר ידני שהרישום עבר — נמחק (ovTotal_ כבר מתעלם ממנו). */
+  var dropped = 0;
+  T.rows.forEach(function (row) {
+    var code = ovCell_(T, row, 'code');
+    if (code && ovTotal_(ovNums_(T, row, C), own, reps).drop) {
+      try { ovOwnSet_(code, 'yesh', ''); dropped++; } catch (eD) { Logger.log('ovDrop: ' + eD); }
+    }
+  });
+  if (dropped) { SpreadsheetApp.flush(); own = ovOwn_() || own; }
   if (ovFill_(T, own)) own = ovOwn_() || own;
   T.rows.forEach(function (row) { ovPut_(T, row, C, own, reps); });
   ovSum_(T, C);
   ovActPub_(T, C, own, reps);
   cache.put('ovSyncAt', '1', 120);
   return T;
+}
+/* ============================================================
+   כל ישיבה שסומנה "בפנים" — שורה בטבלת הסקירה (3.11.2026).
+   ============================================================
+   "חשוב לי שכל מי שסימנתי יופיע בסקירת הישיבות, גם אם אין שם תלמיד
+   אחד" — וכך גם בקישור למנהלים, שקורא את אותה טבלה. המתג נשמר
+   ב"הגדרות" (מפתח joined, JSON של קוד → כן/לא). ישיבה מסומנת שאין לה
+   שורה (לא לפי קוד ולא לפי שם) — שורה חדשה בסוף, לפני הסה"כ: שם וקוד
+   בלבד. כיבוי המתג אינו מוחק שורה. קריאה שנכשלה — לא נוגעים. */
+function ovJoined_() {
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('הגדרות');
+    if (!sh || sh.getLastRow() < 2) return null;
+    var a = sh.getDataRange().getDisplayValues();
+    var h = a[0].map(function (x) { return String(x).trim(); });
+    var ik = h.indexOf('מפתח'), iv = h.indexOf('ערך');
+    if (ik < 0 || iv < 0) return null;
+    for (var i = 1; i < a.length; i++) {
+      if (String(a[i][ik]).trim() !== 'joined') continue;
+      var m = JSON.parse(String(a[i][iv]).trim().replace(/^'/, ''));
+      return m && typeof m === 'object' ? m : null;
+    }
+    return {};
+  } catch (e) { Logger.log('ovJoined_: ' + e); return null; }
+}
+function ovAddJoined_(T) {
+  try {
+    var J = ovJoined_();
+    if (!J) return T;
+    var have = {}, names = {};
+    T.rows.forEach(function (row) {
+      var c = ovCell_(T, row, 'code');
+      if (c) have[c] = 1;
+      names[ovNameKey_(ovCell_(T, row, 'name'))] = 1;
+    });
+    var add = OV_INST_.filter(function (i) {
+      return J[i[0]] === true && !have[i[0]] && !names[ovNameKey_(i[1])];
+    });
+    if (!add.length) return T;
+    var left = T.actLeft, ci = ovCodeCol_(T), sh = T.sh;
+    var last = T.rows.length ? T.rows[T.rows.length - 1].r : T.hr;
+    sh.insertRowsAfter(last, add.length);
+    add.forEach(function (i, k) {
+      sh.getRange(last + 1 + k, T.cols.name + 1).setValue(i[1]);
+      sh.getRange(last + 1 + k, ci + 1).setValue(i[0]);
+    });
+    SpreadsheetApp.flush();
+    var T2 = ovTable_(sh) || T;
+    T2.actLeft = left;
+    return T2;
+  } catch (e) { Logger.log('ovAddJoined_: ' + e); return T; }
 }
 /* ============================================================
    "ישיבות שהצטרפו" בעמוד הראשי = מה שבסקירת הישיבות (2.11.2026).
@@ -15032,13 +15093,22 @@ function ovTotal_(o, own, reps) {
   var mine = own && own.m && o.code && own.m[o.code] ? own.m[o.code] : null;
   var rep = reps && o.code ? (reps[o.code] || 0) : 0;
   var set = mine && has(mine.yesh) ? (parseInt(mine.yesh, 10) || 0) : null;
-  var yesh = set != null ? set : Math.max(rep, att);
   var over = mine && has(mine.over) ? (parseInt(mine.over, 10) || 0) : 0;
+  /* המספר הידני גובר רק כל עוד הרישום נמוך ממנו (3.11.2026, החלטת
+     אחיאסף): המשתתפים שהמערכת יודעת עליהם (נרשמו + דווחו בנוכחות
+     בלבד) עברו את הסה"כ שהמספר הידני נותן — המספר נזנח, ו-ovSync_
+     מוחק אותו מהלשונית הפרטית (`drop`). */
+  var drop = false;
+  if (set != null && has(o.att)) {
+    var mt = app + set - Math.max(0, Math.min(over, app, set));
+    if (app + att > mt) { set = null; drop = true; }
+  }
+  var yesh = set != null ? set : Math.max(rep, att);
   over = Math.max(0, Math.min(over, app, yesh));
   var known = has(o.reg) || has(o.att) || set != null || rep > 0;
   return { tot: known ? String(app + yesh - over) : '', yn: known ? String(yesh - over) : '',
            yesh: String(yesh), yset: set != null ? String(set) : '', over: mine ? mine.over : '',
-           rep: rep ? String(rep) : '' };
+           rep: rep ? String(rep) : '', drop: drop };
 }
 function ovRow_(T, row, owner, L, own, reps, C) {
   var N = ovNums_(T, row, C);
