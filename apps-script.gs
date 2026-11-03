@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 171;
+var SCRIPT_VERSION = 172;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14485,35 +14485,44 @@ function ovSync_(force) {
    "ישיבות שהצטרפו" בעמוד הראשי = מה שבסקירת הישיבות (2.11.2026).
    ============================================================
    "יש ישיבות שבסקירה יש בהן לפחות תלמיד אחד, ובעמוד הראשי הן לא
-   מופיעות." הסקירה סופרת את הישיבה לפי הסה"כ שלה (ovTotal_), והעמוד
-   הראשי לפי הסימון "הצטרף" — שני מקורות. כאן הסה"כ של הסקירה יוצא
-   ללשונית הציבורית "מוסדות", עמודה G ("יש תלמידים"): TRUE כשהסה"כ
-   גדול מאפס, ריק כשהוא אפס. סה"כ לא ידוע — התא לא נוגע. אין בעמודה
-   מספר ואין פרט אישי — רק כן/לא לכל ישיבה. רק תא שהשתנה נכתב. */
+   מופיעות." הסקירה סופרת את הישיבה לפי הסה"כ שלה (ovTotal_). כאן
+   הסה"כ יוצא ללשונית ציבורית משלה, ACT_TAB_: קוד ישיבה · יש לומדים
+   (TRUE/ריק). בלי מספרים ובלי פרט אישי. סה"כ לא ידוע — נשאר הערך
+   הקודם. הלשונית נכתבת רק כשמשהו השתנה.
+
+   3.11: הגרסה הראשונה כתבה לעמודה G של "מוסדות" — לשונית שאינה
+   קיימת בגיליון, והכתיבה דילגה בשקט. העמוד הראשי לוקח את רשימת
+   הישיבות מהקוד ומ"הגדרות", לא משם. */
+var ACT_TAB_ = 'ישיבות עם לומדים';
 function ovActPub_(T, C, own, reps) {
   try {
-    var want = {};
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(ACT_TAB_);
+    var cur = {}, order = [];
+    if (sh && sh.getLastRow() > 1) {
+      sh.getRange(2, 1, sh.getLastRow() - 1, 2).getDisplayValues().forEach(function (r) {
+        var c = String(r[0]).trim();
+        if (!c || c in cur) return;
+        cur[c] = String(r[1]).trim().toUpperCase() === 'TRUE' ? 'TRUE' : '';
+        order.push(c);
+      });
+    }
+    var want = {}, k;
+    for (k in cur) want[k] = cur[k];
     T.rows.forEach(function (row) {
       var code = ovCell_(T, row, 'code');
       if (!code || code === 'other') return;
       var X = ovTotal_(ovNums_(T, row, C), own, reps);
       if (X.tot === '') return;
+      if (!(code in want)) order.push(code);
       want[code] = (parseInt(X.tot, 10) || 0) > 0 ? 'TRUE' : '';
     });
-    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INST_TAB);
-    if (!sh || sh.getLastRow() < 2) return;
-    if (String(sh.getRange(1, 7).getDisplayValue()).trim() !== 'יש תלמידים') {
-      sh.getRange(1, 7).setValue('יש תלמידים');
-    }
-    var n = sh.getLastRow() - 1;
-    var codes = sh.getRange(2, 1, n, 1).getDisplayValues();
-    var cur = sh.getRange(2, 7, n, 1).getDisplayValues();
-    for (var i = 0; i < n; i++) {
-      var c = String(codes[i][0]).trim();
-      if (!c || !(c in want)) continue;
-      var was = String(cur[i][0]).trim().toUpperCase() === 'TRUE' ? 'TRUE' : '';
-      if (was !== want[c]) sh.getRange(i + 2, 7).setValue(want[c]);
-    }
+    var same = !!sh && order.length === Object.keys(cur).length;
+    if (same) for (k in want) if (want[k] !== cur[k]) { same = false; break; }
+    if (same) return;
+    if (!sh) sh = ss.insertSheet(ACT_TAB_);
+    var rows = [['קוד ישיבה', 'יש לומדים']].concat(order.map(function (c) { return [c, want[c]]; }));
+    sh.clearContents();
+    sh.getRange(1, 1, rows.length, 2).setValues(rows);
   } catch (e) {}      /* כישלון כאן לא יפיל את הסנכרון */
 }
 /* שורה אחת בטבלה ← מה שהמנהלים רואים עליה. רק תא שהשתנה נכתב.

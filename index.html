@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.436';
+var APP_VERSION = '8.99.437';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9747,6 +9747,31 @@ function cfgSet(k, v) {
   CFG[k] = v; Store.set('cfg', CFG); applyCfg();
   if (typeof admPubBar === 'function') admPubBar();
 }
+/* ============================================================
+   ישיבות שיש בהן לפחות לומד אחד — כמו בסקירת הישיבות (3.11.2026).
+   ============================================================
+   הסקריפט כותב ללשונית הציבורית "ישיבות עם לומדים" (ovActPub_):
+   קוד ישיבה · יש לומדים. העמוד הראשי מוסיף אותן ל"מי כבר בפנים".
+   קריאה שנכשלה או לשונית אחרת (gviz מגישה את הראשונה כשהלשונית
+   חסרה) — המטמון נשאר. */
+var ACT_TAB = 'ישיבות עם לומדים';
+var INST_ACT = Store.get('instAct') || {};
+function loadInstAct() {
+  return fetchSheet(CFG.sheetId || SHEET_ID, ACT_TAB)
+    .then(function (rows) {
+      if (!rows || !rows.length) return false;
+      if ((rows[0] || []).join('|').indexOf('יש לומדים') < 0) return false;
+      var m = {};
+      rows.slice(1).forEach(function (r) {
+        var c = (r[0] || '').trim();
+        if (c && YES.test((r[1] || '').trim())) m[c] = true;
+      });
+      INST_ACT = m;
+      Store.set('instAct', m);
+      applyCfg();
+      return true;
+    });
+}
 function applyCfg() {
   /* אלה נשארים מקומיים: הם מפתחות גישה, לא החלטות תוכן. */
   if (CFG.api) { API = CFG.api; localStorage.setItem('dfApi', CFG.api); }
@@ -9763,6 +9788,8 @@ function applyCfg() {
   } }
   if (jn) INSTITUTIONS.forEach(function (i) {
             if (jn[i.code] != null) i.joined = !!jn[i.code]; });
+  /* יש בישיבה לפחות לומד אחד בסקירת הישיבות (loadInstAct). */
+  INSTITUTIONS.forEach(function (i) { i.act = !!INST_ACT[i.code]; });
   /* מיזוג ולא החלפה: הגדרה ישנה שנשמרה במכשיר בלי `min` לא תמחק
      את הכמות המינימלית שהגיעה מ-data.js. */
   if (pr) for (var p in pr) {
@@ -9914,9 +9941,6 @@ function instFromRows(rows) {
     var head = (r[5] || '').trim();
     out.push({ code:code, name:name, last:YES.test((r[2] || '').trim()),
                joined:YES.test((r[3] || '').trim()),
-               /* עמודה G — יש בישיבה לפחות תלמיד אחד בסקירת הישיבות
-                  (ovActPub_ בסקריפט). העמוד הראשי מציג אותה כמי שהצטרפה. */
-               act:YES.test((r[6] || '').trim()),
                head:head || null,
                mas:mas.length ? mas : null });
   });
@@ -25696,6 +25720,7 @@ function registerSW() {
   }
   renderHome(); paintQueue(); paintNet(); flush(); registerSW(); initInstall();
   loadInstitutions().then(function (ok) { if (ok) renderHome(); }).catch(function () {});
+  loadInstAct().then(function (ok) { if (ok) renderHome(); }).catch(function () {});
   /* המלל שפורסם. נכשל בשקט — נשארים עם המטמון או עם הקוד. */
   loadTexts().then(function (ok) { if (ok) repaintTexts(); }).catch(function () {});
   /* ההגדרות שפורסמו. מוחלות מהמטמון כבר בעלייה, ונרעננות כאן. */
