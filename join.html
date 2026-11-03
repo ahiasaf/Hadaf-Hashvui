@@ -4157,7 +4157,7 @@ function stWeek() {
       return;
     }
     if (pk !== 'inter') {
-      location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1)).replace(/^index\.html/, 'bechira.html');
+      location.href = appUrl('#week=' + tr + '-' + ((wi < 0 ? 0 : wi) + 1)).replace(/^index\.html/, PageUrl('bechira'));
       return;
     }
   }
@@ -4168,7 +4168,7 @@ function stWeek() {
     location.href = appUrl(wk);
     return;
   }
-  location.href = 'learn.html?' + LLearnQ(tr) +
+  location.href = PageUrl('learn') + '?' + LLearnQ(tr) +
                   '&daf=' + encodeURIComponent(d) + (am ? '&amud=' + am : '') +
                   (instCode ? '&inst=' + encodeURIComponent(instCode) : '') +
                   /* שהיציאה מהדף תחזיר הורה למסך ההורה — ראו stuDad ב-learn.html. */

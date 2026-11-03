@@ -369,7 +369,7 @@ function paintInter(id, daf, am) {
     if (!el || !m) return;
     if (!(m[TrackBase(id)] || {})[dafKey(daf)]) { soon(el); return; }
     el.innerHTML =
-      '<a class="wcard inter" href="learn.html?' + LLearnQ(id) +
+      '<a class="wcard inter" href="' + PageUrl('learn') + '?' + LLearnQ(id) +
       '&daf=' + encodeURIComponent(daf) + (am ? '&amud=' + am : '') + fromQ() + retQ() + '" onclick="wkPick(\'inter\')">' +
       '<img class="wc-pic" src="weekpics/phone.webp" alt="">' +
       '<span class="wc-t">' + esc(UI.wkInter) + '</span>' +
