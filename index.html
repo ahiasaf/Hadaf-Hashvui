@@ -3114,7 +3114,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.437';
+var APP_VERSION = '8.99.438';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8821,6 +8821,12 @@ function ovOneTop(e) {
   return OV.navHtml(rows, e.k.replace(/^@/, ''), 'ovGoK') + '<div id="ov-one" style="margin:0 0 12px"></div>';
 }
 
+function yshTabGo(t) {
+  Store.set('yshTab', t === 'calls' ? 'calls' : 'ov');
+  renderCalls();
+  var el = document.getElementById('calls-body');
+  if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView();
+}
 function renderCalls() {
   var list = contacts();
   var el = document.getElementById('calls-body');
@@ -8882,8 +8888,16 @@ function renderCalls() {
   counts.talked = yCount(function (c) { return c.stage !== 'new'; });
 
   yshCtx = ctx;
+  /* שתי כרטיסיות בראש המסך (3.11.2026): "הסקירה מעולה, ואחרי זה מוקד
+     השיחות — אבל צריך לגלול כדי להגיע אליו." כל כרטיסייה — רק התוכן שלה.
+     הבחירה נזכרת במכשיר. */
+  var yTab = Store.get('yshTab', 'ov') === 'calls' ? 'calls' : 'ov';
+  var yBar = '<div class="tabs sub" style="margin-bottom:12px">' +
+    '<button class="' + (yTab === 'ov' ? 'on' : '') + '" onclick="yshTabGo(\'ov\')">' + esc(UI.yshTabOv) + '</button>' +
+    '<button class="' + (yTab === 'calls' ? 'on' : '') + '" onclick="yshTabGo(\'calls\')">' + esc(UI.yshTabCalls) + '</button></div>';
+  if (yTab === 'ov') { el.innerHTML = yBar + ovAdmTop(); ovAdmMount(); return; }
   /* שורה אחת במקום כרזה — הרשימה היא העיקר, ולא גוללים אליה. */
-  var h = ovAdmTop() +
+  var h = yBar +
           '<details class="adm-card" style="margin:12px 0 0"' + (Store.get('ovProcOpen', 0) ? ' open' : '') +
           ' ontoggle="Store.set(\'ovProcOpen\',this.open?1:0)"><summary>' + esc(UI.ovProcH) + '</summary>' +
           '<div class="my-top" style="margin:8px 0 0"><b>מוקד שיחות</b><span>' + counts.joined +
