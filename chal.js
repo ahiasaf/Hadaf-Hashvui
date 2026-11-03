@@ -426,7 +426,8 @@
     if (m.ex && !tabs(d).length) return '<p class="ch-yay">' + esc(U('chExitP')) + '</p>';
     if (m.nr) return '<p class="ch-yay">' + esc(U('chNoRoom')) + '</p>';
     var T = tabs(d);
-    if (m.l && T.length && !T.some(function (v) { return v.mine; })) return '<p class="ch-yay">' + esc(U('chOwnOffer')) + '</p>';
+    /* כשיש "+" (פתיחת שולחן נוסף) — הכפתור הוא ההצעה; בלי פס כפול (8.99.449). */
+    if (m.l && !m.plus && T.length && !T.some(function (v) { return v.mine; })) return '<p class="ch-yay">' + esc(U('chOwnOffer')) + '</p>';
     return '';
   }
 
@@ -467,14 +468,14 @@
   /* **מי שכבר יושב והוזמן גם מחבר נוסף** (8.99.448, אחיאסף): כרטיס נפרד מתחת לכרטיס השולחן,
      "{שם} גם הזמין אותך — רוצה לשבת אצלו?" וכפתור. כבר 3 שולחנות — אותה שאלה, והתשובה שאי אפשר. */
   function invHtml(d) {
-    var L = tabs(d).length ? pickList(d).filter(function (h) { return h.st === 'open' || h.st === 'max'; }) : [];
+    /* 8.99.449: כבר 3 שולחנות — ההזמנה לא מוצגת (אין מה לעשות איתה), כמו הזמנה שאין בה מקום. */
+    var L = tabs(d).length ? pickList(d).filter(function (h) { return h.st === 'open'; }) : [];
     if (!L.length) return '';
     return L.map(function (h) {
       var n = h.n || U('chFriend');
       return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), { by: n })) + '</p>' +
-        (h.st === 'open' ? (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), true) : '') +
-          '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button>'
-          : '<p class="ch-tline">' + esc(U('chInvMax')) + '</p>') + '</div>';
+        (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), true) : '') +
+        '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
     }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>';
   }
   function wireSit(redraw) {
@@ -703,9 +704,9 @@
   }
   /* **שולחן אחד** (מסך 2 בבריף). */
   function oneHtml(d) {
-    var v = tv(d), seats = seatsOf(v), st = stOf(v), nf = seats.filter(function (x) { return x.k === 'free'; }).length;
+    var v = tv(d), seats = seatsOf(v), st = stOf(v);
     var line = lineOf(v, d);
-    if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFree1') : tp(U('chFreeN'), { n: nf });
+    /* 8.99.449: בלי "N מקומות פנויים" — האיור מראה אותם. */
     return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
       tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) +
