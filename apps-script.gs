@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 173;
+var SCRIPT_VERSION = 174;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11798,6 +11798,8 @@ var CH_DRAW_H_ = 8;
 var CH_MAX_T_ = 3;
 /* שורת "אתגר-שולחנות" בלי שולחן, שנכנסת ויוצאת באותו רגע: סיים דף ולא היה לו מקום. */
 var CH_NR_ = 'אין מקום';
+/* יצא בהגרלה השבועית — לא למד השבוע (8.99.441). */
+var CH_WK_OUT_ = 'לא למד בשבוע';
 var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הוקפא', 'זכאים', 'מועד הגרלה', 'נבחרה',
                    'נבחרה ב', 'מפתחות', 'אושר ב', 'נמסר ב', 'קוד שובר', 'פסילות', 'הערה',
                    'נסגרה ללא זוכה', 'בדיקה',
@@ -12090,14 +12092,17 @@ function lrnKeys_(test, canon) {
    c — הראשון מאז t0, m — הכי הרבה דקות שנמדדו על דף שהושלם (-1: לא נמדד),
    g — מועד ההענקה הראשונה של אבא (0: אין). */
 function chReal_(U, canon, t0) {
-  var R = {}, get = function (id) { return R[id] = R[id] || { e: 0, c: 0, m: -1, g: 0, gc: 0 }; };
+  /* `w` — מועדי כל דף שנלמד באמת; `v` — כל דף שלם (✓ שנראה). לחלון השבוע (8.99.441). */
+  var R = {}, get = function (id) { return R[id] = R[id] || { e: 0, c: 0, m: -1, g: 0, gc: 0, w: [], v: [] }; };
   var K = lrnKeys_(U.test, canon);
   Object.keys(K).forEach(function (k) {
     var o = K[k];
     if (!o.whole) return;
     var r = get(o.id);
     if (o.min > r.m) r.m = o.min;
+    r.v.push(o.at);
     if (!o.ok) return;
+    r.w.push(o.at);
     if (!r.e || o.at < r.e) r.e = o.at;
     if (o.at >= t0 && (!r.c || o.at < r.c)) r.c = o.at;
   });
@@ -12114,6 +12119,7 @@ function chReal_(U, canon, t0) {
     var W = pairWho_(P, kids, c, v[i]), id = W ? canon(W.kid) : '';
     if (!id) continue;
     var r = get(id), at = ms[i] > 0 ? ms[i] : 1;
+    r.w.push(at); r.v.push(at);
     if (!r.g || at < r.g) r.g = at;
     if (at >= t0 && (!r.gc || at < r.gc)) r.gc = at;
     if (!r.e || at < r.e) r.e = at;
@@ -12311,7 +12317,13 @@ function chSync_(U) {
   /* מתי למד **באמת** (עשר דקות, חריג מוצ"ש עם חידון שעבר, או הענקה של אבא) — ליציאה
      השבועית (8.99.395, החלטת אחיאסף): ✓ בלי לימוד אמיתי — יוצא בשקט, בלי הודעה. */
   var realAt = function (id) { var g = RL[id]; return g ? (P[id] && P[id].inv ? g.c : g.e) || 0 : 0; };
+  /* **זכאות לפי השבוע** (8.99.441, אחיאסף): דף כלשהו שנלמד בחלון (a, b] — `wkReal` לפי תנאי
+     הלימוד הקיימים (עשר דקות, מוצ"ש עם חידון, אבא, נוכחות), `wkSeen` — ✓ שנראה. */
+  var inWin = function (L, a, b) { return (L || []).some(function (t) { return t > a && t <= b; }); };
+  var wkReal = function (id, a, b) { return inWin((RL[id] || {}).w, a, b); };
+  var wkSeen = function (id, a, b) { return inWin((RL[id] || {}).v, a, b); };
   var TB = chTables_(U, S, K, { P: P, inv: INV, act: ACT, at: lrnAt, real: real, realAt: realAt, now: now,
+                                wkReal: wkReal, wkSeen: wkSeen,
                                 canon: canon, G: G, grp: grp, M: M, ms0: ms0 });
   out.v2 = 1;
   /* v3 (8.99.436): `seat` — מערך שולחנות לאדם, `own`, `nr`. מודל ישן במטמון — נבנה מחדש. */
@@ -12321,6 +12333,7 @@ function chSync_(U) {
   out.pend = TB.pend;
   out.own = TB.own;
   out.nr = TB.nr;
+  out.ex = TB.ex;
   out.nd = TB.nd;
   /* סגירת חלון והקפאת הזכאות — לפי מועדי השרת, פעם אחת. */
   var gOf = {};
@@ -12403,25 +12416,17 @@ function chSync_(U) {
 }
 
 /* ============================================================
-   השולחנות (8.99.385; הכללים — 8.99.436, הבריף "עיצוב מחודש" של אחיאסף)
+   השולחנות (8.99.385; הכללים התקפים — 8.99.441, אחיאסף 3.11)
    ============================================================
-   הכללים, כפי שהתלמיד מבין אותם:
-     · **הכיסא נתפס כשמסיימים דף** (✓) — אחרי ההזמנה, או מיד אם כבר למד.
-       עד אז החבר "בדרך אליך": רואים אותו, אבל הוא לא תופס מקום.
-     · **מירוץ הוגן:** אצל המארח — 3 המסיימים הראשונים בשולחן 1, הבאים בשולחן 2,
-       ואחריהם שולחן 3. המארח יושב בכל השולחנות שלו.
-     · **עד 3 שולחנות לתלמיד, סך הכל** (CH_MAX_T_) — כולל שולחן של חבר שהוזמן
-       אליו. אורח — בשולחן אחד בלבד; מי שהוזמן מכמה חברים בוחר מארח (`בחר`
-       ב"אתגר-ותיקים", הבחירה הראשונה קובעת); לא בחר — ההזמנה הראשונה.
-     · אין מקום (השולחנות של המארח מלאים, או שלו כבר 3) — שורה "אין מקום",
-       ומסך "כל הכבוד! פתח שולחן משלך". בלי הבטחת מקום.
-     · שולחן מלא (ארבעה, כולם ✓) ננעל ונכנס להגרלה של יום ראשון בבוקר
-       (CH_DRAW_H_). **אין החלפות ואין הוצאות** — גם לא יציאה שבועית.
-   **כל ישיבה נשמרת** ב"אתגר-שולחנות" (שורה לכל ישיבה), ולכן שום חישוב חוזר
-   אינו מזיז איש. ההחלטות מתקבלות כאן, תחת הנעילה של chSync_, לפי סדר הזמן.
-   השעון — של השרת ("תאריך" בשורה), לא של המכשיר.
-   **הכיסאות שכבר תפוסים נשמרים כמו שהם** — הכלל החדש חל על תפיסות חדשות.
-   **המעבר** (פעם אחת, `שולחנות מ`, 8.99.385): מי שהוזמן לפני כן יושב מיד. */
+     · **בחירה מפורשת → יושבים מיד** (`מצב: בחר` ב"אתגר-ותיקים", הראשונה קובעת), גם לפני
+       סיום דף. הרשמה מהקישור לבדה — הזמנה בלבד. אין מקום — שורת "אין מקום", בלי מעבר.
+     · מירוץ: אצל המארח השולחן הראשון שיש בו מקום, אחר כך חדש. **עד 3 שולחנות לאדם**
+       (CH_MAX_T_) כולל של חבר; אורח — באחד. "+" (U.openFor) פותח שולחן ריק בתקרה.
+     · ההגרלה של יום ראשון (CH_DRAW_H_): שולחן = ארבעה שכל אחד רואה ✓ על דף שלם **בשבוע
+       ההגרלה** (wkSeen), נבחר רק אם כולם למדו באמת בשבוע (wkReal). אחריה — weekOut: מי שלא
+       למד באמת השבוע יוצא מכל השולחנות שלו; בעל שולחן — לא (ממתין להחלטה).
+   **כל ישיבה נשמרת** ב"אתגר-שולחנות" — יציאה = `יצא` + סיבה, השורה נשארת.
+   **המעבר** (פעם אחת, `שולחנות מ`, 8.99.385). */
 function chOff_(t) {
   var z = '';
   try { z = Utilities.formatDate(new Date(t), 'Asia/Jerusalem', 'Z'); } catch (e) {}
@@ -12500,7 +12505,7 @@ function chSeatMove_() {
 function chTables_(U, S, K, X) {
   var mv = chSeatMove_();
   var T = chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined), mine = chMine_(U), iso = chIso_;
-  var lastEnd = {}, mem = {}, tseq = 0, NR = {};
+  var lastEnd = {}, mem = {}, tseq = 0, NR = {}, EX = {};
   var close = function (r, at, why) {
     r['יצא'] = iso(at); r['סיבה'] = why; chPut_(T, r);
     if (at > (lastEnd[r._id] || 0)) lastEnd[r._id] = at;
@@ -12513,6 +12518,7 @@ function chTables_(U, S, K, X) {
       var e = chMs_(r['יצא']);
       if (e > (lastEnd[id] || 0)) lastEnd[id] = e;
       if (r['סיבה'] === CH_NR_ && e > (NR[id] || 0)) NR[id] = e;
+      if (r['סיבה'] === CH_WK_OUT_ && e > (EX[id] || 0)) EX[id] = e;
       return;
     }
     var t = r['שולחן'];
@@ -12582,11 +12588,8 @@ function chTables_(U, S, K, X) {
     });
     return hs.length ? { ch: ch, hs: hs } : null;
   };
-  /* בחר, וסיים דף (✓) — המאוחר מביניהם. סיים לפני הבחירה — ברגע הבחירה. */
-  var startOf = function (id, v) {
-    var la = X.at(id);
-    return la ? Math.max(la, v.at) : 0;
-  };
+  /* **יושבים ברגע הבחירה** (8.99.441, אחיאסף — מחליף "הכיסא נתפס בסיום דף"). */
+  var startOf = function (id, v) { return v.at; };
   var seatUpTo = function (lim) {
     var ev = [];
     Object.keys(X.inv).forEach(function (id) {
@@ -12597,10 +12600,11 @@ function chTables_(U, S, K, X) {
     ev.sort(function (a, b) { return a.at - b.at || (a.id < b.id ? -1 : 1); });
     ev.forEach(function (e) { place(e.id, e.by, e.at); });
   };
-  var learned = function (id, D) { var a = X.at(id); return !!a && a <= D; };
-  /* שולחן נעול = ארבעה, וכולם רואים ✓. אין החלפות ואין הוצאות. */
+  /* **שבוע ההגרלה** (8.99.441): לימוד בשבוע שלפני מועד ההגרלה, בכל דף. */
+  var WEEK = 7 * 864e5;
+  /* שולחן להגרלה = ארבעה יושבים, וכל אחד מהם רואה ✓ על דף שלם שנלמד השבוע. */
   var full = function (t, D) {
-    return mem[t].length === 4 && mem[t].every(function (r) { return learned(r._id, D); });
+    return mem[t].length === 4 && mem[t].every(function (r) { return X.wkSeen(r._id, D - WEEK, D); });
   };
 
   /* ההגרלה במועד D: תמונת השולחנות המלאים, בחירה אוטומטית בין מי שלמד
@@ -12623,7 +12627,8 @@ function chTables_(U, S, K, X) {
       chPut_(X.G, g);
       X.grp.push(g);
       ids.push(g['קבוצה']);
-      if (m.every(X.real)) ok.push(g);
+      /* בחירה אוטומטית — רק שולחן שכל הארבעה בו למדו באמת השבוע (אותם תנאים כמו קודם). */
+      if (m.every(function (id) { return X.wkReal(id, D - WEEK, D); })) ok.push(g);
     });
     var row = { 'הגרלה': k, 'סף': '', 'מצב': CH_M_.ready, 'נפתח': iso(D), 'נסגר': iso(D), 'הוקפא': iso(D),
                 'זכאים': ids.join(' '), 'מועד הגרלה': iso(D), 'בדיקה': U.test ? 'כן' : '', 'אופן': how };
@@ -12642,22 +12647,48 @@ function chTables_(U, S, K, X) {
     X.ms0.push(row);
   };
 
+  /* **איפוס אישי בזמן ההגרלה** (8.99.441, אחיאסף): מי שלא למד באמת השבוע יוצא מכל השולחנות
+     שהוא יושב בהם — רק הוא; השאר נשארים, השורות נשמרות (`יצא` + הסיבה). פעם אחת לכל מועד
+     (`שבוע עובד`). **בעל שולחן — לא נוגעים** עד החלטת אחיאסף (אין להמציא בעלים חדש). */
+  var weekOut = function (D) {
+    var gone = {};
+    Object.keys(mem).forEach(function (t) {
+      mem[t].forEach(function (r) {
+        var id = r._id;
+        if (gone[id] === undefined) gone[id] = !X.wkReal(id, D - WEEK, D) && !ownedOf(id).length;
+      });
+    });
+    Object.keys(mem).forEach(function (t) {
+      mem[t] = mem[t].filter(function (r) {
+        if (!gone[r._id]) return true;
+        close(r, D, CH_WK_OUT_);
+        EX[r._id] = D;
+        return false;
+      });
+    });
+  };
   var done = chMs_(S['שבוע עובד']), D = chSunAfter_(Math.max(done || 0, SW, K.t0));
   for (var guard = 0; guard < 60; guard++) {
     seatUpTo(Math.min(D, X.now));
     if (D > X.now) break;
     draw(D, 'שבועי');
-    /* 8.99.436: אין יציאה שבועית — מי שיושב, נשאר (הבריף: "אין הוצאה משולחן"). */
+    weekOut(D);
     chSetPut_(U, S, 'שבוע עובד', iso(D));
     D = chSunAfter_(D);
   }
   /* הגרלה בלחיצה (op=open) — אותה הגרלה, עכשיו. */
   if (U.drawNow) draw(X.now, 'ידני');
+  /* **"+" — שולחן נוסף** (8.99.441, ?challenge=newt): רק כשאין לו שולחן משלו שיש בו מקום,
+     ובתקרה (3 בסך הכול, כולל שולחן של חבר). השולחן החדש — הוא לבדו, עד שחברים בוחרים בו. */
+  if (U.openFor && X.P[U.openFor] && !X.P[U.openFor].par && tablesOf(U.openFor).length < CH_MAX_T_ &&
+      !ownedOf(U.openFor).some(function (t) { return mem[t].length < 4; })) {
+    add(U.openFor, fresh(), X.now, 'פתח');
+  }
 
   /* `seat` — מזהה → השולחנות שלו (לפי מספר); `own` — שולחן → בעליו;
      `pend` — מזהה → { by: המארח שאליו ישב, hs: כל המארחים הפתוחים, ch: בחר };
      `nr` — מזהה → מתי לא היה לו מקום (רק כשאין לו הזמנה פתוחה ואינו אורח). */
-  var out = { tb: {}, seat: {}, own: {}, pend: {}, nr: {}, nd: D };
+  var out = { tb: {}, seat: {}, own: {}, pend: {}, nr: {}, ex: {}, nd: D };
   Object.keys(mem).sort(tnum).forEach(function (t) {
     if (!mem[t].length) return;
     out.own[t] = ownerOf(t);
@@ -12668,6 +12699,8 @@ function chTables_(U, S, K, X) {
     if (p) out.pend[id] = { by: p.ch ? p.ch.by : p.hs[0], hs: p.hs, ch: p.ch ? 1 : 0 };
   });
   Object.keys(NR).forEach(function (id) { if (!out.pend[id] && !guestOf(id)) out.nr[id] = NR[id]; });
+  /* יצא בהגרלה ועוד לא חזר לשבת — הזמנה עדינה בדף (`me.ex`), לא התראה. */
+  Object.keys(EX).forEach(function (id) { if (!out.seat[id] && !(out.pend[id] && out.pend[id].ch)) out.ex[id] = EX[id]; });
   return out;
 }
 
@@ -12855,6 +12888,9 @@ function chMy_(M, P, U) {
                  hs: hs.map(function (h) { return { n: nm(h), c: codes[h] || '', t: chRoom_(M, h) ? chHostView_(M, h, me) : null }; }) };
   }
   if (M.nr && M.nr[me]) out.nr = 1;
+  if (M.ex && M.ex[me]) out.ex = 1;
+  /* "+" מתחת לשולחן: יש לו שולחן, פחות מ-3, ואין לו שולחן משלו עם מקום. */
+  out.plus = out.ts.length > 0 && out.ts.length < CH_MAX_T_ && !out.ts.some(function (v) { return v.mine && v.seats.length < 4; }) ? 1 : 0;
   Object.keys(M.pend || {}).forEach(function (id) {
     var q = M.pend[id];
     if (id === me || !ppl[id] || (q.ch ? q.by !== me : q.hs.indexOf(me) < 0)) return;
@@ -13059,6 +13095,26 @@ function chSit_(P, U) {
       SpreadsheetApp.flush();
       M = chSync_(U);
     }
+  } finally { lock.releaseLock(); chBust_(U); }
+  return chMy_(M, P, U);
+}
+/* "+" — שולחן נוסף: ?challenge=newt&id=<מזהי המכשיר>. ההחלטה ב-chTables_ (U.openFor), תחת
+   הנעילה; התשובה — המבט האישי אחרי הסנכרון. */
+function chNewT_(P, U) {
+  var mine = chIds_(P.id);
+  if (!mine.length) return { status: 'error', message: 'חסר מזהה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy', message: 'נסו שוב בעוד רגע' };
+  var M;
+  try {
+    M = chSync_(U);
+    if (!M.on) return { status: 'ok', on: false };
+    var me = '';
+    for (var j = 0; j < mine.length && !me; j++) if (M.ppl[chCanon_(M, mine[j])]) me = chCanon_(M, mine[j]);
+    if (!me) return { status: 'error', message: 'לא נמצא' };
+    U.openFor = me;
+    M = chSync_(U);
+    U.openFor = '';
   } finally { lock.releaseLock(); chBust_(U); }
   return chMy_(M, P, U);
 }
@@ -13805,6 +13861,7 @@ function challengeRoute_(e) {
     }
     if (op === 'ref') return reply_(e, chRefGet_(P));
     if (op === 'sit') return reply_(e, chSit_(P, U));
+    if (op === 'newt') return reply_(e, chNewT_(P, U));
     if (op === 'state') return reply_(e, chPub_(chModel_(U, false) || { on: false }));
     if (op === 'my') {
       var M0 = chModel_(U, false);

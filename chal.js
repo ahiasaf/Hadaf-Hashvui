@@ -45,6 +45,8 @@
    עד 3 שולחנות (`me.ts`) — מסך "השולחנות שלך". הוזמן מכמה חברים — מסך בחירה
    (`me.pend.hs`, ?challenge=sit עם הקוד של המארח). אין מקום — `me.nr`.
    בלי העתקת קישור: השיתוף רק בוואטסאפ.
+   **8.99.441:** יושבים ברגע הבחירה (גם לפני סיום דף). שולחן אחד בתצוגה ו"+" מתחתיו
+   (plusHtml, ?challenge=newt) — "השולחנות שלך" ירד. יצא בהגרלה (`me.ex`) — הזמנה עדינה.
    **8.99.440 — הצטרפות רק מבחירה:** גם מזמין יחיד — כרטיס "לשבת בשולחן של…" (sitHtml);
    בלי לחיצה אין שיוך ואין כיסא. כפתור הוואטסאפ גלוי גם בכרטיס הבחירה. `chMax3` — בבית,
    במסך השולחן, בבחירה ובנחיתה.
@@ -291,7 +293,7 @@
   function lineOf(v, d) {
     if (d.ended) return U('chEnded');
     if (!v) return '';
-    if (v.pend) return U('chSeatSave');
+    if (v.pend) return '';
     return { q: U('chStQ0'), wait: U('chStWait'), won: U('chStWon') }[v.t.st] || '';
   }
   function stOf(v) { return v && !v.pend ? v.t.st : ''; }
@@ -421,6 +423,8 @@
   function offerHtml(d) {
     var m = d && d.me;
     if (!m || d.ended) return '';
+    /* יצא בהגרלה כי לא למד השבוע — הזמנה עדינה להצטרף מחדש, בלי לומר "יצאת" (8.99.441). */
+    if (m.ex && !tabs(d).length) return '<p class="ch-yay">' + esc(U('chExitP')) + '</p>';
     if (m.nr) return '<p class="ch-yay">' + esc(U('chNoRoom')) + '</p>';
     var T = tabs(d);
     if (m.l && T.length && !T.some(function (v) { return v.mine; })) return '<p class="ch-yay">' + esc(U('chOwnOffer')) + '</p>';
@@ -432,7 +436,8 @@
     if (!d) return '';
     var by = { by: d.refBy || U('chFriend') }, m = d.me || {};
     /* 8.99.385: ישיבה מהקישור = הזמנה; המקום נשמר כשמתחילים ללמוד. */
-    if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chRefPend'), { t: by.by })) + '</p>';
+    /* 8.99.441: הבחירה מושיבה מיד — "הצטרפת לשולחן של…". */
+    if (d.sat) return '<p class="ch-yay">' + esc(tp(U('chSitOk'), { by: by.by })) + '</p>';
     var gt = tabs(d).filter(function (v) { return !v.mine; })[0] || m.t;
     if (d.ref === 'other' && gt) return '<p class="ch-note">' + esc(tp(U('chRefSeated'), { t: gt.name })) + '</p>';
     if (d.ref === 'pend' && m.pend) return '<p class="ch-note">' + esc(tp(U('chPicked'), { t: m.pend.by })) + '</p>';
@@ -595,7 +600,7 @@
     }
     /* **הכרטיס בבית** (8.99.436, מסך 1 בבריף): השולחן בשורה, כפתור וואטסאפ ירוק
        גדול — הפעולה הראשית — ו"לשולחן שלך" כקישור משני. */
-    var v = tv(d), line = lineOf(v, d), many = tabs(d).length > 1;
+    var v = tv(d), line = lineOf(v, d);
     box.innerHTML = '<div class="ch-tcard ch-home ch-special ch-cmp ' + cls(stOf(v)) + '">' + yayHtml(d.me) + noteHtml(d) + offerHtml(d) +
       '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span><h2 class="ch-hh sm">' + esc(U('chCardH')) + '</h2>' +
       '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + rowHtml4(seatsOf(v)) +
@@ -603,8 +608,9 @@
       /* עד 3 שולחנות — כבר במסך הראשון (8.99.440). */
       '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       (d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa')) +
-      '<button type="button" class="ch-go" id="ch-open">' + esc(U(many ? 'chTsGo' : 'chToTable')) + '</button>' + countHtml(d) + '</div>';
+      plusHtml(d) + '<button type="button" class="ch-go" id="ch-open">' + esc(U('chToTable')) + '</button>' + countHtml(d) + '</div>';
     document.getElementById('ch-open').onclick = function () { pgOpen(box); };
+    plusWire(function (x) { cardDraw(box, x); });
     waWire('ch-wa', null);
     if (!d.ended) codeWarm();
     if (PG) pgPaint();
@@ -668,11 +674,12 @@
      ובעמוד האתגר (chaver.html, למי שנחת מקישור או מההתראה).
      ============================================================ */
   function fullHtml(d) {
-    var m = d.me || {}, T = tabs(d);
+    var m = d.me || {};
     var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d);
     var ch = choiceHtml(d);
     if (ch) return h + ch + faqHtml();
-    h += offerHtml(d) + (T.length > 1 ? manyHtml(d, T) : oneHtml(d));
+    /* **שולחן אחד בתצוגה, ופלוס מתחתיו** (8.99.441, אחיאסף) — לא שלושה יחד. */
+    h += offerHtml(d) + oneHtml(d);
     /* "התנאים" ירדו ממסך השולחן (8.99.388, אחיאסף). */
     return h + faqHtml() + countHtml(d);
   }
@@ -689,36 +696,36 @@
   function oneHtml(d) {
     var v = tv(d), seats = seatsOf(v), st = stOf(v), nf = seats.filter(function (x) { return x.k === 'free'; }).length;
     var line = lineOf(v, d);
-    if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFreeLine1') : tp(U('chFreeLine'), { n: nf });
+    if (!line && nf && (!v || v.t.mine)) line = nf === 1 ? U('chFree1') : tp(U('chFreeN'), { n: nf });
     return '<div class="ch-tcard ch-special ' + cls(st) + '"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + plusHtml(d) +
       '<p class="ch-tline">' + esc(U('chMax3')) + '</p>' +
       tailHtml(d) + (v ? '' : howHtml()) + '</div>';
   }
-  /* **כמה שולחנות** (מסך 3): כל אחד בשורה, עם המצב שלו. */
-  var LOCK = '<svg class="ch-lk" width="13" height="14" viewBox="0 0 13 14" aria-hidden="true"><rect x="1.5" y="6" width="10" height="7.5" rx="2" fill="#2E6B12"/><path d="M4 6V4.3a2.5 2.5 0 0 1 5 0V6" stroke="#2E6B12" stroke-width="1.8" fill="none"/></svg>';
-  function tsSt(v) {
-    var n = v.seats.length;
-    if (v.st === 'won') return esc(U('chMidWon'));
-    if (v.st === 'wait') return esc(U('chMidWait').replace(/\s*\n\s*/g, ' '));
-    if (v.st === 'q') return LOCK + ' ' + esc(U('chTsIn'));
-    if (n >= 4) return esc(U('chTsLearn'));
-    if (n <= 1) return esc(U('chTsWaitH'));
-    return esc(n === 3 ? U('chFree1') : tp(U('chFreeN'), { n: 4 - n }));
+  /* "+" — שולחן נוסף (?challenge=newt). מופיע רק כשהשרת אומר שאפשר (`me.plus`): יש שולחן, פחות
+     מ-3 בסך הכול, ואין שולחן משלך שיש בו מקום. התשובה — המבט האישי, והשולחן החדש מוצג. */
+  function plusHtml(d) {
+    var m = d && d.me;
+    return m && m.plus && !d.ended ? '<button type="button" class="ch-plus" id="ch-plus"><i aria-hidden="true">+</i>' +
+      esc(U('chPlusT')) + '</button><p class="ch-sm" id="ch-plus-m" role="status"></p>' : '';
   }
-  function manyHtml(d, T) {
-    var k = 0;
-    return '<div class="ch-tcard ch-special"><span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(U('chTsH')) + '</h2><p class="ch-prize">' + esc(U('chTsSub')) + '</p>' +
-      T.map(function (v) {
-        var nm = v.mine ? tp(U('chTsN'), { n: ++k }) : tp(U('chInvGrpH'), { by: v.name });
-        return '<div class="ch-ts' + (v.st === 'q' || v.st === 'won' ? ' lk' : '') + '"><b>' + esc(nm) + ' · ' + tsSt(v) + '</b>' +
-          rowHtml4(seatsOf({ t: v })) + '</div>';
-      }).join('') + '<p class="ch-tline">' + esc(U('chTsFoot')) + '</p>' + tailHtml(d) + '</div>';
+  function plusWire(redraw) {
+    var b = document.getElementById('ch-plus'), msg = document.getElementById('ch-plus-m');
+    if (!b) return;
+    b.onclick = function () {
+      var fail = function () { b.disabled = false; if (msg) msg.textContent = U('chSitErr'); };
+      b.disabled = true;
+      api('newt', { id: ids().join(',') }).then(function (d) {
+        if (!d || d.status !== 'ok' || !d.on) { fail(); return; }
+        LSet('chMy', { at: Date.now(), d: d });
+        redraw(d);
+      }, fail);
+    };
   }
   function fullWire(box, d, redraw) {
     if (choiceHtml(d)) { wireSit(redraw); waWire('ch-wa', null); if (!d.ended) codeWarm(); return; }
+    plusWire(redraw);
     waWire('ch-wa', null);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
     if (!d.ended) codeWarm();
