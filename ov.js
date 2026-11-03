@@ -174,9 +174,14 @@
       return '<span class="ov-c">' + esc(fill(U('ovTry'), { t:tb.join(' · '), b:'\u0001' }))
         .replace('\u0001', '<b class="ov-try">' + esc(U('ovTryB')) + '</b>') + '</span>';
     }
+    /* וואטסאפ — "נשלחה הודעת וואטסאפ: לפני 3 ימים · שם" (אחיאסף, 3.11). */
+    if (L.kind === 'wa') {
+      var wb = [agoTxt(L.t)];
+      if (L.name) wb.push(L.name);
+      return '<span class="ov-c">' + esc(fill(U('ovWaSent'), { t:wb.join(' · ') })) + '</span>';
+    }
     var bits = [agoTxt(L.t)];
-    if (L.kind === 'wa') bits.push(U('ovLastWa'));
-    else if (L.res) bits.push(U(L.res === 'yes' ? 'ovLastYes' : 'ovLastNo'));
+    if (L.res) bits.push(U(L.res === 'yes' ? 'ovLastYes' : 'ovLastNo'));
     if (L.name) bits.push(L.name);
     return '<span class="ov-c">' + esc(fill(U('ovLast'), { t:bits.join(' · ') })) + '</span>';
   }
