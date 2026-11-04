@@ -219,7 +219,20 @@
         '<circle cx="39" cy="39" r="26" fill="#F7E7BE"/></svg>' +
         '<span class="ch-food">' + IC.burger(34, 26) + '</span><span class="ch-tick">' + IC.check + '</span>';
     }
-    var C = 2 * Math.PI * 13, ring = k === 'you' ? '#17468F' : '#3574CE';
+    /* **בורגר במקום מספר** (8.99.455, אחיאסף): הצטרף ועוד לא למד — בורגר אפור ושקוף למחצה,
+       וטבעת התקדמות סביב הצלחת לפי הקטע שהגיע אליו (`q`). "התחיל" בלי קטע — קצה קטן. */
+    if (LEGACY) return plateOld(s);
+    var R = 35, C = 2 * Math.PI * R, f = k === 'part' ? Math.max(s.q || 0, .06) : 0;
+    return '<svg viewBox="0 0 78 78" aria-hidden="true"><circle cx="39" cy="39" r="' + R + '" fill="#FFFDF8" stroke="#D6DDE8" stroke-width="4"/>' +
+      (f > 0 ? '<circle cx="39" cy="39" r="' + R + '" fill="none" stroke="#3574CE" stroke-width="4" stroke-linecap="round" ' +
+        'stroke-dasharray="' + (C * Math.min(1, f)).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 39 39)"/>' : '') +
+      '<circle cx="39" cy="39" r="26" fill="#F3EEE2"/></svg>' +
+      '<span class="ch-food ch-gray">' + IC.burger(34, 26) + '</span>';
+  }
+  /* הרביעיות (quad.js, CHAL.table) — הצלחת עם האות, כמו שהייתה; הבריף של 8.99.455 הוא לחבר מביא חבר. */
+  var LEGACY = false;
+  function plateOld(s) {
+    var k = s.k, C = 2 * Math.PI * 13, ring = k === 'you' ? '#17468F' : '#3574CE';
     return '<svg viewBox="0 0 78 78" aria-hidden="true"><circle cx="39" cy="39" r="35" fill="#FFFDF8" stroke="' + ring +
       '" stroke-width="' + (k === 'you' ? 4 : 3) + '"/><circle cx="39" cy="39" r="26" fill="#F3EEE2"/>' +
       (k === 'part' && s.q > 0 ? '<circle cx="39" cy="39" r="13" fill="none" stroke="#E5B854" stroke-width="26" ' +
@@ -228,13 +241,19 @@
       '<text x="39" y="47" text-anchor="middle" font-size="22" font-weight="900" fill="' +
       (k === 'you' ? '#17468F' : '#0B2550') + '" font-family="system-ui,sans-serif">' + esc(s.i || '') + '</text></svg>';
   }
+  function tableOld(seats, mid, sm, chairs) {
+    LEGACY = true;
+    try { return tableHtml(seats, mid, sm, chairs); } finally { LEGACY = false; }
+  }
   var STATE = { reg: 'chSeatReg', part: 'chSeatPart', done: 'chLearned' };
   function seatAria(s) {
     return s.k === 'free' ? U('chSeatFree') : s.n + (s.lbl || STATE[s.k] ? ' · ' + (s.lbl || U(STATE[s.k])) : '');
   }
   /* השולחן: ארבע צלחות, השמות מחוץ לו, והפרס (או המצב) במרכז. `chairs` —
      במסך השולחן: כל שם על כיסא (8.99.385). */
-  function tableHtml(seats, mid, sm, chairs) {
+  /* `go` — השולחן שלי: מקום פנוי הוא כפתור שמזמין בוואטסאפ (8.99.455). `s.pop` — הקפיצה
+     של אפור → צבעוני (המספר — סדר בחגיגה). */
+  function tableHtml(seats, mid, sm, chairs, go) {
     var lb = '', pl = '';
     seats.forEach(function (s, x) {
       var q = ' ch-q' + (x + 1) + ' ch-' + s.k;
@@ -244,17 +263,25 @@
         (s.lbl || STATE[s.k] ? '<i>' + esc(s.lbl || U(STATE[s.k])) + '</i>' :
          /* כיסא בלי מצב ("אתה" לפני שהזמין, מקום פנוי) — שורה ריקה, שלא יבלוט מעל השאר (8.99.392). */
          chairs ? '<i aria-hidden="true">&nbsp;</i>' : '') + '</div>';
-      pl += '<div class="ch-pl' + q + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
+      var pop = s.pop ? ' ch-pop" style="animation-delay:' + (s.pop - 1) * 220 + 'ms' : '';
+      pl += go && s.k === 'free'
+        ? '<button type="button" class="ch-pl ch-plgo' + q + '" aria-label="' + esc(U('chWaMore')) + '">' + plateSvg(s) + '</button>'
+        : '<div class="ch-pl' + q + pop + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
     });
     return '<div class="ch-tbl' + (sm ? ' sm' : '') + (chairs ? ' ch-chairs' : '') + '">' + lb + '<div class="ch-board">' +
-      '<div class="ch-mid">' + mid[0] + '<span>' + para(mid[1]) + '</span></div>' + pl + '</div></div>';
+      '<div class="ch-mid' + (mid[2] ? ' ' + mid[2] : '') + '"' + (mid[3] ? ' style="animation-delay:' + mid[3] + 'ms"' : '') + '>' +
+      mid[0] + '<span>' + para(mid[1]) + '</span></div>' + pl + '</div></div>';
   }
-  function midOf(s) {
-    if (s === 'q') return [IC.ticket, U('chMidQ')];
-    if (s === 'in') return [IC.ticket, U('chMidIn')];
+  /* **במרכז — כרטיס הגרלה** (8.99.455, אחיאסף), בשפה של כרטיסי ההגרלה בבית (`.tk-s`):
+     לא פעיל — אפור, ומתחת לקו "N מתוך 4 למדו"; פעיל (כל הארבעה ✓) — זהב עם ברק, "הכרטיס בהגרלה!".
+     אחרי הגרלה — המצב שלה, כמו קודם. `lit` — הרגע שבו נדלק (חגיגה, `ms` — מתי). */
+  function midOf(s, seats, lit) {
     if (s === 'wait') return [IC.clock, U('chMidWait')];
     if (s === 'won') return [IC.star, U('chMidWon')];
-    return [IC.burger(26, 20), U('chTblMid')];
+    var n = 0;
+    (seats || []).forEach(function (x) { if (x.k === 'done') n++; });
+    var on = s === 'q' || s === 'in' || n >= 4;
+    return [IC.star, on ? U('chTkOn') : tp(U('chTkOff'), { n: n }), 'tk' + (on ? ' on' + (lit != null ? ' lit' : '') : ''), lit];
   }
 
 
@@ -263,10 +290,18 @@
      אליו (`me.pend.t`, המקום עוד לא שמור); אחרת — השולחן הריק שלי. */
   /* השולחן שבחר במעבר הקטן (8.99.442) — לפי המזהה שלו; לא קיים עוד — הראשי. */
   var CURT = '';
+  /* **פתיחת שולחן — תגובה מיידית** (8.99.455, אחיאסף): בלחיצה השולחן החדש כבר מוצג כלשונית
+     פעילה (`OPEN`, מזהה `__new`), עוד לפני שהשרת ענה. נכשל — חוזרים למה שהיה, והודעה קצרה. */
+  var OPEN = null, NEWT = '__new';
+  function fakeT() {
+    var m = me();
+    return { id: NEWT, mine: true, st: 'open', name: (m && m.first) || '', seats: [{ me: true, n: (m && m.first) || '' }] };
+  }
   function tv(d) {
     var m = d && d.me;
     if (!m) return null;
-    if (CURT && m.ts) for (var i = 0; i < m.ts.length; i++) if (m.ts[i].id === CURT) return { t: m.ts[i], pend: false };
+    var T = tabs(d);
+    if (CURT) for (var i = 0; i < T.length; i++) if (T[i].id === CURT) return { t: T[i], pend: false };
     if (m.t) return { t: m.t, pend: false };
     if (m.pend && m.pend.t) return { t: m.pend.t, pend: true };
     return null;
@@ -275,7 +310,8 @@
   function tabs(d) {
     var m = d && d.me;
     if (!m) return [];
-    return m.ts && m.ts.length ? m.ts : m.t ? [m.t] : [];
+    var T = m.ts && m.ts.length ? m.ts : m.t ? [m.t] : [];
+    return OPEN ? T.concat([fakeT()]) : T;
   }
   /* הוזמן ועוד לא בחר (גם מזמין יחיד, 8.99.440) — מסך הבחירה. מזמין שאין אצלו
      מקום (`t` ריק) אינו מוצע: לא מבטיחים מקום כשאין. */
@@ -294,13 +330,10 @@
   function seatsOf(v) {
     var out = v && v.t ? v.t.seats.map(function (p) { return seatOf(p); }) : startSeats();
     while (out.length < 4) out.push(free());
-    return num(out);
+    return out;
   }
-  /* בעיגול — מספר הכיסא (1–4), לא האות הראשונה של השם (8.99.387, אחיאסף). */
-  function num(seats) {
-    seats.forEach(function (s, x) { if (s.k !== 'free') s.i = String(x + 1); });
-    return seats;
-  }
+  /* 8.99.455: בעיגול — בורגר, לא מספר הכיסא (num של 8.99.387 ירד). */
+  function tblOf(seats) { return tableHtml(seats, midOf('', seats), false, true); }
   function titleOf(v) { return !v || v.t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: v.t.name }); }
   function lineOf(v, d) {
     if (d.ended) return U('chEnded');
@@ -440,7 +473,7 @@
   function invItem(h) {
     var n = h.n || U('chFriend');
     return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' +
-      (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), false, true) : '') +
+      (h.t ? tblOf(seatsOf({ t: h.t })) : '') +
       ynHtml(h, n) + '</div>';
   }
   /* כן / לא (8.99.453, אחיאסף): "לא" — ההזמנה נמחקת (?challenge=decl). */
@@ -468,7 +501,7 @@
     return L.map(function (h) {
       var n = h.n || U('chFriend');
       return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), { by: n })) + '</p>' +
-        (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), false, true) : '') + ynHtml(h, n) + '</div>';
+        (h.t ? tblOf(seatsOf({ t: h.t })) : '') + ynHtml(h, n) + '</div>';
     }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>';
   }
   function decl(c, redraw) {
@@ -536,7 +569,7 @@
     if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || String(LGet('chPromo', '')) === pv) return;
     LSet('chPromo', pv);
     if (tv(d)) return;
-    promoShow(num(startSeats()), null);
+    promoShow(startSeats(), null);
   }
   /* החלון עצמו. `done` — נקרא כשנסגר (ההודעה מההתראה, inbox.js). */
   function promoShow(seats, done) {
@@ -547,7 +580,7 @@
     el.setAttribute('aria-labelledby', 'ch-promo-h');
     el.innerHTML = '<div class="ch-promo-in"><span class="ch-chip">' + esc(U('chNewChip')) + '</span>' +
       '<h2 class="ch-hh" id="ch-promo-h">' + esc(U('chCardH')) + '</h2>' +
-      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(seats, midOf(''), true) +
+      '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(seats, midOf('', seats), true) +
       '<p class="ch-lead">' + esc(U('chPromoP')) + '</p>' +
       '<button class="ch-btn ch-cta" id="ch-promo-go" type="button">' + esc(U('chPromoGo')) + '</button>' +
       '<button class="ch-promo-x" id="ch-promo-x" type="button">' + esc(U('chPromoLater')) + '</button></div>';
@@ -611,7 +644,7 @@
     if (ch) {
       box.innerHTML = noteHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
-      plusWire(function (x) { cardDraw(box, x); });
+      plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
       waWire('ch-wa', null);
       if (!d.ended) codeWarm();
       return;
@@ -619,8 +652,8 @@
     /* **הכול בבית** (8.99.451, אחיאסף): בלי מסך שולחן נפרד — אותו שולחן, הכיסאות, המעבר, וואטסאפ
        והשאלות. "שולחן נוסף" — כרטיס משלו מתחת. */
     box.innerHTML = oneHtml(d, true) + faqHtml();
-    plusWire(function (x) { cardDraw(box, x); });
-    swWire(function () { cardDraw(box, cached() || d); });
+    plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
+    tabWire(d, function () { cardDraw(box, cached() || d); });
     wireSit(function (x) { cardDraw(box, x); });
     waWire('ch-wa', null);
     if (!d.ended) codeWarm();
@@ -701,64 +734,164 @@
     var v = tv(d);
     return d.ended || (v && !v.t.mine) ? '' : waBtn(U('chWaMore'), '', 'ch-wa');
   }
-  /* **שולחן אחד** (מסך 2 בבריף). */
+  /* **שולחן אחד** (מסך 2 בבריף). מעליו — לשוניות "שולחן 1 · שולחן 2 · ＋" (8.99.455). */
   function oneHtml(d, home) {
     var v = tv(d), seats = seatsOf(v), st = stOf(v);
-    var line = lineOf(v, d);
+    var line = lineOf(v, d), lit = v && !v.pend ? popMark(v.t, seats) : null;
     /* 8.99.449: בלי "N מקומות פנויים" — האיור מראה אותם. */
-    return '<div class="ch-tcard ch-special' + (home ? ' ch-home' : '') + ' ' + cls(st) + '">' +
+    return '<div class="ch-tcard ch-special' + (home ? ' ch-home' : '') + ' ' + cls(st) + '" id="ch-one">' +
       (home ? yayHtml(d.me) + noteHtml(d) + offerHtml(d) : '') + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
-      tableHtml(seats, midOf(st), false, true) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') + swHtml(d) +
-      tailHtml(d) + (v || home ? '' : howHtml()) + countHtml(d) + '</div>' + plusHtml(d) + invHtml(d);
+      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tabsHtml(d) +
+      tableHtml(seats, midOf(st, seats, lit), false, true, !!(v && v.t.mine && !d.ended)) +
+      dotsHtml(d) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      tailHtml(d) + (v || home ? '' : howHtml()) + countHtml(d) + '</div>' + invHtml(d);
   }
-  /* "+" — שולחן נוסף (?challenge=newt). מופיע רק כשהשרת אומר שאפשר (`me.plus`): יש שולחן, פחות
-     מ-3 בסך הכול, ואין שולחן משלך שיש בו מקום. התשובה — המבט האישי, והשולחן החדש מוצג. */
-  /* מתחת לשולחן (8.99.442, אחיאסף): מעבר קטן לשולחנות האחרים — מספר לכל שולחן, השם בתיאור —
-     ו"+" לפתיחת נוסף. שום שולחן אינו נעלם. */
-  function swHtml(d) {
+  /* **החגיגה** (8.99.455): המכשיר זוכר מה ראה בכל שולחן (`df:chSeen`). צלחת שעברה לסיום מאז —
+     קופצת; החבר הרביעי — כל הבורגרים קופצים בזה אחר זה, והכרטיס נדלק אחריהם. בפעם הראשונה
+     שהשולחן מוצג במכשיר — בלי אנימציה. מחזיר את מועד הדלקת הכרטיס, או null. */
+  function popMark(t, seats) {
+    if (!t || !t.id || t.id === NEWT) return null;
+    var ks = seats.map(function (x) { return x.k === 'done' ? 'd' : x.k === 'free' ? 'f' : 'r'; }).join('');
+    var all = LGet('chSeen', {}) || {}, was = all[t.id], lit = null;
+    if (was !== ks) { all[t.id] = ks; LSet('chSeen', all); }
+    if (was == null || was === ks) return null;
+    var now = ks === 'dddd', n = 0;
+    seats.forEach(function (x, i) {
+      if (x.k === 'done' && (now ? was !== 'dddd' : was.charAt(i) !== 'd')) x.pop = ++n;
+    });
+    if (now && was !== 'dddd') lit = n * 220 + 200;
+    return lit;
+  }
+  /* הלשוניות: שולחן לכל שולחן, ועיגול "＋" לפתיחת נוסף (רק כשהשרת אומר שאפשר — `me.plus`). שולחן
+     אחד — ליד ה"＋" גם "שולחן נוסף (עוד 2)". בזמן הפתיחה — "פותח שולחן…" עם סמל טעינה. */
+  function tabsHtml(d) {
+    var T = tabs(d), v = tv(d), cur = v && v.t ? v.t.id : '', m = d.me || {};
+    if (!T.length || d.ended) return '';
+    var plus = OPEN ? '<span class="ch-tabw" role="status"><i class="ch-spin" aria-hidden="true"></i>' + esc(U('chOpening')) + '</span>'
+      : m.plus && T.length < 3 ? '<button type="button" class="ch-tabp" id="ch-tplus" aria-label="' + esc(U('chPlusT')) + '"><i aria-hidden="true">＋</i>' +
+        (T.length === 1 ? '<span>' + esc(tp(U('chTabMore'), { n: 3 - T.length })) + '</span>' : '') + '</button>' : '';
+    if (T.length < 2 && !plus) return '';
+    return '<div class="ch-tabs" role="group">' + T.map(function (t, i) {
+      var nm = t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: t.name });
+      return '<button type="button" class="ch-tab" data-t="' + esc(t.id) + '" title="' + esc(nm) + '" aria-pressed="' + (t.id === cur) + '"' +
+        (OPEN ? ' disabled' : '') + '>' + esc(tp(U('chTabN'), { n: i + 1 })) + '</button>';
+    }).join('') + plus + '</div>';
+  }
+  /* נקודות מתחת לשולחן — "1 מתוך 2" לקורא המסך. */
+  function dotsHtml(d) {
     var T = tabs(d), v = tv(d), cur = v && v.t ? v.t.id : '';
     if (T.length < 2) return '';
-    return '<div class="ch-tsw" role="group">' + T.map(function (t, i) {
-      var nm = t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: t.name });
-      return '<button type="button" class="ch-tsb" data-t="' + esc(t.id) + '" aria-label="' + esc(nm) + '" title="' + esc(nm) + '"' +
-        (t.id === cur ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + (i + 1) + '</button>';
-    }).join('') + '</div>';
+    var at = 0;
+    T.forEach(function (t, i) { if (t.id === cur) at = i; });
+    return '<div class="ch-dots" role="img" aria-label="' + esc(tp(U('chTabOf'), { i: at + 1, n: T.length })) + '">' +
+      T.map(function (t, i) { return '<i' + (i === at ? ' class="on"' : '') + '></i>'; }).join('') + '</div>';
   }
-  function swWire(redraw) {
-    var bs = document.querySelectorAll('.ch-tsb');
+  /* מעבר בין השולחנות — לחיצה על לשונית, או החלקה על השולחן. */
+  function tabWire(d, redraw) {
+    var bs = document.querySelectorAll('.ch-tab');
     for (var i = 0; i < bs.length; i++) bs[i].onclick = function () { CURT = this.getAttribute('data-t') || ''; redraw(); };
+    var tb = document.querySelector('#ch-one .ch-tbl'), x0 = null, y0 = 0;
+    if (tb && tabs(d).length > 1 && !OPEN) {
+      tb.addEventListener('touchstart', function (e) { var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; }, { passive: true });
+      tb.addEventListener('touchend', function (e) {
+        if (x0 == null) return;
+        var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        var T = tabs(d), v = tv(d), at = 0;
+        T.forEach(function (q, k) { if (v && q.id === v.t.id) at = k; });
+        /* מימין לשמאל: החלקה ימינה מביאה את השולחן הבא (שמשמאל). */
+        var to = at + (dx > 0 ? 1 : -1);
+        if (to < 0 || to >= T.length) return;
+        CURT = T[to].id;
+        redraw();
+      }, { passive: true });
+    }
+    /* מקום פנוי בשולחן שלי — אותה הזמנה כמו הכפתור הירוק. */
+    var fp = document.querySelectorAll('.ch-plgo');
+    for (var j = 0; j < fp.length; j++) fp[j].onclick = function () { var w = document.getElementById('ch-wa'); if (w) w.click(); };
   }
-  /* 8.99.451 (אחיאסף): כרטיס נפרד לשולחן נוסף, עם ההסבר. */
-  function plusHtml(d) { return tabs(d).length ? plusBox(d, false) : ''; }
-  /* "רוצה לפתוח שולחן משלך?" — כותרת, השולחן הריק, כפתור (8.99.453). `inner` — בתוך כרטיס ההזמנות. */
+  /* "רוצה לפתוח שולחן משלך?" — כותרת, השולחן הריק, כפתור (8.99.453). רק בכרטיס ההזמנות (מי שעוד
+     לא יושב); מי שיושב — "＋" בלשוניות (8.99.455, הכרטיס השני ירד). */
   function plusBox(d, inner) {
     var m = d && d.me;
     if (!m || !m.plus || d.ended) return '';
     return '<div class="' + (inner ? 'ch-pick' : 'ch-tcard ch-home') + '"><b class="ch-plus-h">' + esc(U(tabs(d).some(function (t) { return t.mine; }) ? 'chPlusQ2' : 'chPlusQ')) + '</b>' +
       (inner ? '' : '<p class="ch-sm">' + para(U('chPlusP')) + '</p>') +
-      tableHtml(num(startSeats()), midOf(''), false, true) +
+      tblOf(startSeats()) +
       '<button type="button" class="ch-btn ch-cta" id="ch-plus">' + esc(U('chPlusT')) + '</button>' +
       '<p class="ch-sm" id="ch-plus-m" role="status"></p></div>';
   }
-  function plusWire(redraw) {
-    var b = document.getElementById('ch-plus'), msg = document.getElementById('ch-plus-m');
-    if (!b) return;
-    b.onclick = function () {
-      var fail = function () { b.disabled = false; if (msg) msg.textContent = U('chSitErr'); };
-      b.disabled = true;
-      api('newt', { id: ids().join(',') }).then(function (d) {
-        if (!d || d.status !== 'ok' || !d.on) { fail(); return; }
-        LSet('chMy', { at: Date.now(), d: d });
-        CURT = '';
-        redraw(d);
-      }, fail);
+  /* הפתיחה עצמה — מה"＋" או מהכפתור בכרטיס ההזמנות. `redraw(d)` מצייר עם הנתונים שנותנים לו. */
+  function openNew(d, redraw) {
+    if (OPEN) return;
+    var before = {};
+    tabs(d).forEach(function (t) { before[t.id] = 1; });
+    OPEN = { prev: CURT };
+    CURT = NEWT;
+    redraw(cached() || d);
+    var fail = function () {
+      if (!OPEN) return;
+      CURT = OPEN.prev;
+      OPEN = null;
+      redraw(cached() || d);
+      if (window.SayMsg) SayMsg(U('chSitErr'));
     };
+    api('newt', { id: ids().join(',') }).then(function (x) {
+      if (!x || x.status !== 'ok' || !x.on) { fail(); return; }
+      OPEN = null;
+      LSet('chMy', { at: Date.now(), d: x });
+      /* השולחן החדש — הלשונית הפעילה (קודם: חזרה לראשי, והחדש לא נראה). */
+      var nt = '';
+      tabs(x).forEach(function (t) { if (!before[t.id] && t.mine) nt = nt || t.id; });
+      CURT = nt;
+      redraw(x);
+      invPop(x);
+    }, fail);
+  }
+  function plusWire(d, redraw) {
+    var b = document.getElementById('ch-plus') || null, p = document.getElementById('ch-tplus');
+    var go = function () {
+      if (b) { b.disabled = true; b.innerHTML = '<i class="ch-spin" aria-hidden="true"></i>' + esc(U('chOpening')); }
+      openNew(d, redraw);
+    };
+    if (b) b.onclick = go;
+    if (p) p.onclick = go;
+  }
+  /* **מיד אחרי הפתיחה — "הזמן 3 חברים לשולחן"** (8.99.455): חלון עם השולחן החדש וכפתור וואטסאפ. */
+  function invPop(d) {
+    var v = tv(d);
+    if (!v || !v.t.mine) return;
+    var el = document.createElement('div'), back = document.activeElement, seats = seatsOf(v);
+    el.className = 'ch-promo';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'ch-ip-h');
+    el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh" id="ch-ip-h">' + esc(U('chInvPopH')) + '</h2>' +
+      tableHtml(seats, midOf('', seats), true) + waBtn(U('chInvPopBtn'), '', 'ch-wa-pop') +
+      '<button class="ch-promo-x" id="ch-ip-x" type="button">' + esc(U('chPromoLater')) + '</button></div>';
+    document.body.appendChild(el);
+    var close = function () {
+      document.removeEventListener('keydown', key);
+      if (el.parentNode) el.parentNode.removeChild(el);
+      try { if (back && back !== document.body && back.focus) back.focus(); } catch (e) {}
+    };
+    var key = function (e) { if (e.key === 'Escape' || e.keyCode === 27) close(); };
+    document.addEventListener('keydown', key);
+    el.onclick = function (e) { if (e.target === el) close(); };
+    document.getElementById('ch-ip-x').onclick = close;
+    waWire('ch-wa-pop', null);
+    var w = document.getElementById('ch-wa-pop');
+    if (w) {
+      var f = w.onclick;
+      w.onclick = function (e) { var r = f ? f.call(w, e) : undefined; if (w.tagName === 'A') setTimeout(close, 300); return r; };
+      try { w.focus(); } catch (e) {}
+    }
   }
   function fullWire(box, d, redraw) {
-    if (choiceHtml(d)) { wireSit(redraw); plusWire(redraw); if (!d.ended) codeWarm(); return; }
-    plusWire(redraw);
-    swWire(function () { redraw(); });
+    if (choiceHtml(d)) { wireSit(redraw); plusWire(d, redraw); if (!d.ended) codeWarm(); return; }
+    plusWire(d, redraw);
+    tabWire(d, function () { redraw(); });
     wireSit(redraw);
     waWire('ch-wa', null);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
@@ -790,7 +923,7 @@
     box.innerHTML = '<div class="ch-card land">' +
       (bad ? '<h2>' + esc(U('chLandBadH')) + '</h2><p class="ch-note">' + esc(U('chRefBad')) + '</p>'
            : '<h2>' + esc(nm ? tp(U(full ? 'chLandFull' : 'chLandH'), v) : U('chLandHx')) + '</h2>' +
-             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tableHtml(num(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm)), midOf(''), false, true) : '') +
+             (on ? '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tblOf(full ? landSeats('').slice(1).concat([free()]) : landSeats(nm)) : '') +
              /* אין מקום אצל המזמין — מה עושים עכשיו (8.99.448, אחיאסף). */
              /* 8.99.451: בלי "בוא תצטרף לאתגר…" (chLandP) ובלי "כבר רשום…" (chLandNote), אחיאסף. */
              (on && !full ? '' : '<p class="ch-lead">' + esc(on ? tp(U('chLandFullP'), v) : U('chLandOff')) + '</p>')) +
@@ -876,5 +1009,5 @@
   }
 
   /* `table`/`ic` — לשולחן של הרביעייה (quad.js, 8.99.328): אותו ציור. */
-  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableHtml, ic: IC, promoMsg: promoMsg };
+  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableOld, ic: IC, promoMsg: promoMsg };
 })();

@@ -1397,6 +1397,48 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ch-promo-in .ch-lead{margin:4px 0 0}
 .ch-promo-x{display:block;width:100%;min-height:44px;margin-top:6px;border:0;background:none;font:inherit;
   font-size:.95rem;font-weight:800;color:#5A6780;cursor:pointer}
+/* 8.99.455 — לשוניות השולחנות, פתיחה מיידית, בורגר במקום מספר, וכרטיס הגרלה במרכז (chal.js). */
+.ch-tabs{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+.ch-tab{min-height:34px;padding:0 13px;border-radius:99px;border:1.5px solid #D9CFB8;background:#FFFDF8;color:#8C681F;
+  font:inherit;font-size:.85rem;font-weight:800;cursor:pointer}
+.ch-tab[aria-pressed="true"]{background:#0B2550;border-color:#0B2550;color:#fff}
+.ch-tab[disabled]{cursor:default}
+.ch-tabp{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 4px;border:0;background:none;
+  font:inherit;font-size:.8rem;font-weight:800;color:#8C681F;cursor:pointer}
+.ch-tabp i{display:flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;font-style:normal;
+  font-size:1.05rem;font-weight:900;border:1.5px dashed #C08F2B;color:#C08F2B;background:#FFFDF8}
+.ch-tabw{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 6px;font-size:.8rem;font-weight:800;color:#5A6780}
+.ch-spin{display:inline-block;width:15px;height:15px;border-radius:50%;border:2.5px solid rgba(90,103,128,.25);
+  border-top-color:#5A6780;animation:chSpin .8s linear infinite;vertical-align:-2px;margin-left:6px}
+.ch-btn .ch-spin{border-color:rgba(255,255,255,.35);border-top-color:#fff}
+.ch-tabw .ch-spin{margin:0}
+@keyframes chSpin{to{transform:rotate(360deg)}}
+.ch-dots{display:flex;justify-content:center;gap:6px;margin:-2px 0 6px}
+.ch-dots i{width:7px;height:7px;border-radius:50%;background:#D9CFB8}
+.ch-dots i.on{background:#0B2550}
+.ch-plgo{border:0;padding:0;background:none;cursor:pointer;border-radius:50%}
+.ch-plgo > svg{filter:none}
+.ch-gray svg{filter:grayscale(1);opacity:.45}
+.ch-pl.ch-pop{animation:chPop .55s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes chPop{0%{transform:scale(.6)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.ch-mid.tk{padding:7px 10px 6px;border-radius:10px;min-width:74px;background:#EEEAE2;color:#7A808C;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);overflow:hidden}
+.ch-mid.tk:before,.ch-mid.tk:after{content:'';position:absolute;top:28px;width:12px;height:12px;border-radius:50%;background:#CF964C}
+.ch-mid.tk:before{right:-6px}.ch-mid.tk:after{left:-6px}
+.ch-mid.tk svg{filter:grayscale(1);opacity:.55}
+.ch-mid.tk span{display:block;margin-top:5px;padding-top:5px;border-top:2px dashed rgba(27,42,69,.18);white-space:normal}
+.ch-mid.tk.on{background:linear-gradient(135deg,#E5B854,#C9962E);color:#1B2A45;box-shadow:0 0 0 2px #FFF3D0,0 3px 12px rgba(120,80,20,.4)}
+.ch-mid.tk.on svg{filter:none;opacity:1}
+.ch-mid.tk.on svg path{fill:#FFF7E0;stroke:#A87A1F}
+.ch-mid.tk.on span{border-top-color:rgba(27,42,69,.3)}
+.ch-mid.tk.on span:after{content:'';position:absolute;top:0;bottom:0;left:-60%;width:40%;
+  background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));
+  transform:skewX(-18deg);animation:chShine 3.2s ease-in-out infinite}
+@keyframes chShine{0%,55%{left:-60%}100%{left:130%}}
+.ch-mid.tk.lit{animation:chLit .8s ease-out both}
+@keyframes chLit{0%{transform:translate(-50%,-50%) scale(.85);filter:grayscale(1)}
+  60%{transform:translate(-50%,-50%) scale(1.15);filter:none}100%{transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.ch-pl.ch-pop,.ch-mid.tk.lit,.ch-mid.tk.on span:after,.ch-spin{animation:none}}
 /* "המסך שלי כתלמיד" — חזרה לניהול (8.99.352). */
 .adm-back{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);inset-inline-start:14px;z-index:70;
   border:0;border-radius:99px;padding:10px 16px;background:#0B2550;color:#fff;font:inherit;font-size:.88rem;
