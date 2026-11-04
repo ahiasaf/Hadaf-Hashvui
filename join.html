@@ -1398,7 +1398,7 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ch-promo-x{display:block;width:100%;min-height:44px;margin-top:6px;border:0;background:none;font:inherit;
   font-size:.95rem;font-weight:800;color:#5A6780;cursor:pointer}
 /* 8.99.455 — לשוניות השולחנות, פתיחה מיידית, בורגר במקום מספר, וכרטיס הגרלה במרכז (chal.js). */
-.ch-tabs{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+.ch-tabs{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 .ch-tab{min-height:34px;padding:0 13px;border-radius:99px;border:1.5px solid #D9CFB8;background:#FFFDF8;color:#8C681F;
   font:inherit;font-size:.85rem;font-weight:800;cursor:pointer}
 .ch-tab[aria-pressed="true"]{background:#0B2550;border-color:#0B2550;color:#fff}
@@ -1438,6 +1438,17 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ch-mid.tk.lit{animation:chLit .8s ease-out both}
 @keyframes chLit{0%{transform:translate(-50%,-50%) scale(.85);filter:grayscale(1)}
   60%{transform:translate(-50%,-50%) scale(1.15);filter:none}100%{transform:translate(-50%,-50%) scale(1)}}
+/* 8.99.456 — צבע לכל שולחן (ch-c1/ch-c2 על השולחן, ch-k0–2 על הלשונית). */
+.ch-c1 .ch-board{background:linear-gradient(180deg,#5FB3A6,#3F8D81);box-shadow:inset 0 -7px 0 rgba(0,0,0,.08),0 10px 22px rgba(30,90,80,.25)}
+.ch-c1 .ch-mid.tk:before,.ch-c1 .ch-mid.tk:after{background:#4FA093}
+.ch-c2 .ch-board{background:linear-gradient(180deg,#8E9BD8,#6574B9);box-shadow:inset 0 -7px 0 rgba(0,0,0,.08),0 10px 22px rgba(60,70,140,.25)}
+.ch-c2 .ch-mid.tk:before,.ch-c2 .ch-mid.tk:after{background:#7A87C8}
+.ch-tab.ch-k0{border-color:#D9A35A;color:#9A6A26}
+.ch-tab.ch-k1{border-color:#5FB3A6;color:#2F7469}
+.ch-tab.ch-k2{border-color:#8E9BD8;color:#4D5CA3}
+.ch-tab.ch-k0[aria-pressed="true"]{background:#C68A3F;border-color:#C68A3F;color:#fff}
+.ch-tab.ch-k1[aria-pressed="true"]{background:#3F8D81;border-color:#3F8D81;color:#fff}
+.ch-tab.ch-k2[aria-pressed="true"]{background:#6574B9;border-color:#6574B9;color:#fff}
 @media (prefers-reduced-motion:reduce){.ch-pl.ch-pop,.ch-mid.tk.lit,.ch-mid.tk.on span:after,.ch-spin{animation:none}}
 /* "המסך שלי כתלמיד" — חזרה לניהול (8.99.352). */
 .adm-back{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);inset-inline-start:14px;z-index:70;

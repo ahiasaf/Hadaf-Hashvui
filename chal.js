@@ -253,7 +253,7 @@
      במסך השולחן: כל שם על כיסא (8.99.385). */
   /* `go` — השולחן שלי: מקום פנוי הוא כפתור שמזמין בוואטסאפ (8.99.455). `s.pop` — הקפיצה
      של אפור → צבעוני (המספר — סדר בחגיגה). */
-  function tableHtml(seats, mid, sm, chairs, go) {
+  function tableHtml(seats, mid, sm, chairs, go, ci) {
     var lb = '', pl = '';
     seats.forEach(function (s, x) {
       var q = ' ch-q' + (x + 1) + ' ch-' + s.k;
@@ -268,7 +268,7 @@
         ? '<button type="button" class="ch-pl ch-plgo' + q + '" aria-label="' + esc(U('chWaMore')) + '">' + plateSvg(s) + '</button>'
         : '<div class="ch-pl' + q + pop + '" role="img" aria-label="' + esc(seatAria(s)) + '">' + plateSvg(s) + '</div>';
     });
-    return '<div class="ch-tbl' + (sm ? ' sm' : '') + (chairs ? ' ch-chairs' : '') + '">' + lb + '<div class="ch-board">' +
+    return '<div class="ch-tbl' + (sm ? ' sm' : '') + (chairs ? ' ch-chairs' : '') + (ci ? ' ch-c' + ci : '') + '">' + lb + '<div class="ch-board">' +
       '<div class="ch-mid' + (mid[2] ? ' ' + mid[2] : '') + '"' + (mid[3] ? ' style="animation-delay:' + mid[3] + 'ms"' : '') + '>' +
       mid[0] + '<span>' + para(mid[1]) + '</span></div>' + pl + '</div></div>';
   }
@@ -741,9 +741,9 @@
     /* 8.99.449: בלי "N מקומות פנויים" — האיור מראה אותם. */
     return '<div class="ch-tcard ch-special' + (home ? ' ch-home' : '') + ' ' + cls(st) + '" id="ch-one">' +
       (home ? yayHtml(d.me) + noteHtml(d) + offerHtml(d) : '') + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
-      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' + tabsHtml(d) +
-      tableHtml(seats, midOf(st, seats, lit), false, true, !!(v && v.t.mine && !d.ended)) +
-      dotsHtml(d) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
+      tableHtml(seats, midOf(st, seats, lit), false, true, !!(v && v.t.mine && !d.ended), colOf(d, v)) +
+      dotsHtml(d) + tabsHtml(d) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
       tailHtml(d) + (v || home ? '' : howHtml()) + countHtml(d) + '</div>' + invHtml(d);
   }
   /* **החגיגה** (8.99.455): המכשיר זוכר מה ראה בכל שולחן (`df:chSeen`). צלחת שעברה לסיום מאז —
@@ -762,7 +762,14 @@
     if (now && was !== 'dddd') lit = n * 220 + 200;
     return lit;
   }
-  /* הלשוניות: שולחן לכל שולחן, ועיגול "＋" לפתיחת נוסף (רק כשהשרת אומר שאפשר — `me.plus`). שולחן
+  /* **צבע לכל שולחן** (8.99.456, אחיאסף): לפי המקום בלשוניות — הראשון בצבע העץ, השני ירקרק, השלישי
+     כחלחל. הלשונית באותו צבע. */
+  function colOf(d, v) {
+    var T = tabs(d), c = 0;
+    T.forEach(function (t, i) { if (v && v.t && t.id === v.t.id) c = i; });
+    return c;
+  }
+  /* הלשוניות (מתחת לשולחן, 8.99.456): שולחן לכל שולחן, ועיגול "＋" לפתיחת נוסף (רק כשהשרת אומר שאפשר — `me.plus`). שולחן
      אחד — ליד ה"＋" גם "שולחן נוסף (עוד 2)". בזמן הפתיחה — "פותח שולחן…" עם סמל טעינה. */
   function tabsHtml(d) {
     var T = tabs(d), v = tv(d), cur = v && v.t ? v.t.id : '', m = d.me || {};
@@ -773,7 +780,7 @@
     if (T.length < 2 && !plus) return '';
     return '<div class="ch-tabs" role="group">' + T.map(function (t, i) {
       var nm = t.mine ? U('chMyGrpH') : tp(U('chInvGrpH'), { by: t.name });
-      return '<button type="button" class="ch-tab" data-t="' + esc(t.id) + '" title="' + esc(nm) + '" aria-pressed="' + (t.id === cur) + '"' +
+      return '<button type="button" class="ch-tab ch-k' + i + '" data-t="' + esc(t.id) + '" title="' + esc(nm) + '" aria-pressed="' + (t.id === cur) + '"' +
         (OPEN ? ' disabled' : '') + '>' + esc(tp(U('chTabN'), { n: i + 1 })) + '</button>';
     }).join('') + plus + '</div>';
   }
