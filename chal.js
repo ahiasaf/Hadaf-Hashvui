@@ -794,8 +794,52 @@
              /* אין מקום אצל המזמין — מה עושים עכשיו (8.99.448, אחיאסף). */
              /* 8.99.451: בלי "בוא תצטרף לאתגר…" (chLandP) ובלי "כבר רשום…" (chLandNote), אחיאסף. */
              (on && !full ? '' : '<p class="ch-lead">' + esc(on ? tp(U('chLandFullP'), v) : U('chLandOff')) + '</p>')) +
-      '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
-        esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a></div>';
+      (on && !bad && ios() ? '<div id="ch-app"><button class="ch-btn big" id="ch-app-go" type="button">' + esc(U('chLandBtn')) + '</button></div>'
+        : '<a class="ch-btn big" href="join.html' + (bad ? '' : '?ref=' + encodeURIComponent(ref())) + '">' +
+        esc(bad ? U('chLandReg') : U('chLandBtn')) + '</a>') + '</div>';
+    appWire(nm || U('chFriend'));
+  }
+  function ios() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  /* **אייפון: "יש לך אפליקציה?"** (8.99.454, אחיאסף). הקישור נפתח בספארי, שאינו מכיר את האפליקציה
+     המותקנת. כן — מוסרים טלפון, וההזמנה מחכה באפליקציה (?challenge=byph). לא — ההרשמה וההתקנה, כרגיל. */
+  function appWire(by) {
+    var box = document.getElementById('ch-app'), go = document.getElementById('ch-app-go');
+    if (!box || !go) return;
+    var reg = 'join.html?ref=' + encodeURIComponent(ref());
+    go.onclick = function () {
+      box.innerHTML = '<p class="ch-lead">' + esc(U('chAppQ')) + '</p><div class="ch-yn">' +
+        '<button class="ch-btn ch-cta" id="ch-app-y" type="button">' + esc(U('chAppYes')) + '</button>' +
+        '<a class="ch-btn ch-no" href="' + esc(reg) + '">' + esc(U('chAppNo')) + '</a></div>';
+      document.getElementById('ch-app-y').onclick = function () { form(false); };
+    };
+    var form = function (many) {
+      box.innerHTML = '<label class="ch-lead" for="ch-app-ph">' + esc(U('chAppPh')) + '</label>' +
+        '<input class="ch-in" id="ch-app-ph" type="tel" inputmode="tel" autocomplete="tel" dir="ltr">' +
+        (many ? '<label class="ch-lead" for="ch-app-f">' + esc(U('chAppFirst')) + '</label><input class="ch-in" id="ch-app-f" type="text" autocomplete="given-name">' : '') +
+        '<button class="ch-btn big" id="ch-app-s" type="button">' + esc(U('chAppSend')) + '</button><p class="ch-sm" id="ch-app-m" role="status"></p>';
+      var ph = document.getElementById('ch-app-ph'), f = document.getElementById('ch-app-f');
+      if (form.ph) ph.value = form.ph;
+      try { (many && f ? f : ph).focus(); } catch (e) {}
+      document.getElementById('ch-app-s').onclick = function () {
+        var b = this, m = document.getElementById('ch-app-m'), v = String(ph.value || '').replace(/[^0-9+]/g, '');
+        if (v.replace(/\D/g, '').length < 9) { m.textContent = U('chAppPhBad'); return; }
+        form.ph = ph.value;
+        b.disabled = true; m.textContent = U('chSitWait');
+        api('byph', { ref: ref(), ph: v, first: f ? String(f.value || '').trim() : '' }).then(function (d) {
+          b.disabled = false; m.textContent = '';
+          var st = d && d.status === 'ok' ? d.st : '';
+          if (st === 'ok') { box.innerHTML = '<p class="ch-yay">' + esc(tp(U('chAppOk'), { by: by })) + '</p>'; return; }
+          if (st === 'many') { form(true); return; }
+          if (st === 'none') {
+            box.innerHTML = '<p class="ch-lead">' + esc(U('chAppNone')) + '</p><a class="ch-btn big" href="' + esc(reg) + '">' + esc(U('chAppReg')) + '</a>';
+            return;
+          }
+          m.textContent = U('chSitErr');
+        }, function () { b.disabled = false; m.textContent = U('chSitErr'); });
+      };
+    };
   }
   /* השולחן בנחיתה: המזמין, "אתה" (פנוי עם השם), ושני מקומות. */
   function landSeats(nm) {

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 181;
+var SCRIPT_VERSION = 182;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -13222,6 +13222,36 @@ function chRefNew_(id, test) {
   chPut_(R.T, { 'קוד': code, 'מזהה': id, 'נוצר': new Date().toISOString(), 'בדיקה': test ? 'כן' : '' });
   return code;
 }
+/* **"יש לך אפליקציה? כן"** (8.99.454, אחיאסף): באייפון הקישור נפתח בספארי, שאינו מכיר את האפליקציה
+   המותקנת. התלמיד מוסר את הטלפון שלו, ואם יש תלמיד רשום אחד עם הטלפון הזה (באותו עולם) — נוספת לו
+   הזמנה (chOldAdd_), והיא מחכה לו באפליקציה, עם כן/לא. כמה תלמידים באותו טלפון (אחים) — נשאל גם השם
+   הפרטי. לא מוחזר שום פרט על התלמיד; עד 20 ניסיונות בשעה לכל קישור. */
+function chByPh_(P) {
+  var code = String(P.ref || '').trim().toUpperCase(), ph = phKey_(P.ph);
+  var first = String(P.first || '').replace(/\s+/g, ' ').trim();
+  if (!/^[A-Z0-9]{4,10}$/.test(code) || !ph) return { status: 'ok', st: 'none' };
+  var o = chRefMap_().m[code];
+  if (!o) return { status: 'ok', st: 'none' };
+  var rc = CacheService.getScriptCache(), ck = 'bph:' + code, n = parseInt(rc.get(ck) || '0', 10) || 0;
+  if (n >= 20) return { status: 'ok', st: 'slow' };
+  rc.put(ck, String(n + 1), 3600);
+  var test = o['בדיקה'] === 'כן', t = joinTable_(), hits = [], seen = {};
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r];
+    if (phKey_(t.c(row, 'טלפון')) !== ph || rowWorld_(t, row) !== (test ? 'T' : 'R')) continue;
+    var role = t.c(row, 'תפקיד'), id = String(t.c(row, 'מזהה') || '').trim();
+    if ((role && role !== 'תלמיד') || !id || id === o['מזהה']) continue;
+    var f = String(t.c(row, 'שם') || '').trim(), k = f + '|' + String(t.c(row, 'משפחה') || '').trim();
+    if (first && f.split(' ')[0] !== first.split(' ')[0]) continue;
+    if (seen[k]) continue;
+    seen[k] = 1;
+    hits.push(id);
+  }
+  if (!hits.length) return { status: 'ok', st: 'none' };
+  if (hits.length > 1) return { status: 'ok', st: first ? 'none' : 'many' };
+  chOldAdd_(code, hits[0], test);
+  return { status: 'ok', st: 'ok' };
+}
 /* מי שקיבל את הקישור רואה רק את השם הפרטי של המזמין. */
 function chLand_(P) {
   var code = String(P.ref || '').trim().toUpperCase();
@@ -14118,6 +14148,7 @@ function challengeRoute_(e) {
   }
   try {
     if (op === 'land') return reply_(e, chLand_(P));
+    if (op === 'byph') return reply_(e, chByPh_(P));
     /* הדגמה — האם ההרצה של המכשיר עוד פעילה. לא — הוא חוזר לחשבון שלו. */
     if (op === 'dmst') {
       var D0 = chDemo_();
