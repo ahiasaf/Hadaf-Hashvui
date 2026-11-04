@@ -216,6 +216,20 @@ ok(stF && stF.st === 'full' && !stF.c, 'host without room → full, no button', 
 // ישיבות קיימות לא זזו
 ok(JSON.stringify(tbl(M9c, host)) === JSON.stringify(tbl(M8, host)), 'existing seats untouched', tbl(M9c, host));
 
+// ---- 8.99.453: "לא, תודה" — ההזמנה נמחקת; אפשר לפתוח שולחן משלך גם בלי שולחן ----
+var HY = person('hy'), cy = code(HY), HZ = person('hz'), cz = code(HZ);
+var dn = person('dn', HY, D2 + 6);
+at(D2 + 6.05); exec(); c.chOldAdd_(cz, dn, false);
+var v0 = my(sync(D2 + 6.1), dn).me;
+ok((v0.inv || []).length === 2 && v0.plus === 1 && !(v0.ts || []).length, 'two invites, not seated, can open own table', v0);
+at(D2 + 6.2); exec();
+var dr0 = c.chDecl_({ id: dn, ref: cy }, U);
+ok(dr0.status === 'ok' && (dr0.me.inv || []).length === 1 && dr0.me.inv[0].n === 'hz' && !dr0.me.nr, 'decline: only that invite gone, no "no room" note', dr0.me);
+var Mdn = sync(D2 + 6.3);
+ok(!Mdn.seat[dn] && !(Mdn.pend[dn] && Mdn.pend[dn].hs.indexOf(HY) >= 0), 'decline: not seated, no pending invite from hy');
+var nt0 = newt(dn, D2 + 6.4);
+ok((nt0.me.ts || []).length === 1 && nt0.me.ts[0].mine && (nt0.me.inv || []).length === 1, 'opened own table without one; other invite stays', nt0.me);
+
 console.log('checks', n, 'fails', fails);
 var miss = Object.keys(M.missing).filter(function (k) { return !/flush|Logger/.test(k); });
 if (miss.length) console.log('missing', miss.join(','));

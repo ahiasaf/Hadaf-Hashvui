@@ -441,7 +441,12 @@
     var n = h.n || U('chFriend');
     return '<div class="ch-pick"><b>' + esc(tp(U('chInvGrpH'), { by: n })) + '</b>' +
       (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), false, true) : '') +
-      '<button class="ch-btn ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
+      ynHtml(h, n) + '</div>';
+  }
+  /* כן / לא (8.99.453, אחיאסף): "לא" — ההזמנה נמחקת (?challenge=decl). */
+  function ynHtml(h, n) {
+    return '<div class="ch-yn"><button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button>' +
+      '<button class="ch-btn ch-no" data-c="' + esc(h.c) + '" type="button">' + esc(U('chNoBtn')) + '</button></div>';
   }
   /* **מי שעוד לא יושב** — כרטיס ההזמנות: חבר אחד — "חבר הזמין אותך!", כמה — "{שמות} מזמינים אותך!". */
   function pickHtml(d, L) {
@@ -452,7 +457,7 @@
       '<h2 class="ch-hh sm">' + esc(one ? U('chOldH') : tp(U('chPickH'), { names: all })) + '</h2>' +
       '<p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
       '<p class="ch-lead">' + esc(one ? tp(U('chOldP'), { by: nm[0] }) : U('chPickP')) + '</p>' + L.map(invItem).join('') +
-      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + waOwn(d) + '</div>';
+      '<p class="ch-sm" id="ch-sit-m" role="status"></p>' + plusBox(d, true) + '</div>';
   }
   /* **מי שכבר יושב והוזמן גם מחבר נוסף** (8.99.448, אחיאסף): כרטיס נפרד מתחת לכרטיס השולחן,
      "{שם} גם הזמין אותך — רוצה לשבת אצלו?" וכפתור. כבר 3 שולחנות — אותה שאלה, והתשובה שאי אפשר. */
@@ -463,11 +468,23 @@
     return L.map(function (h) {
       var n = h.n || U('chFriend');
       return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), { by: n })) + '</p>' +
-        (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), false, true) : '') +
-        '<button class="ch-btn ch-cta ch-pk" data-c="' + esc(h.c) + '" type="button">' + esc(tp(U('chPickBtn'), { by: n })) + '</button></div>';
+        (h.t ? tableHtml(seatsOf({ t: h.t }), midOf(''), false, true) : '') + ynHtml(h, n) + '</div>';
     }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>';
   }
+  function decl(c, redraw) {
+    if (window.SureLater && !SureLater(decl, this, arguments)) return;
+    var msg = document.getElementById('ch-sit-m');
+    api('decl', { id: ids().join(','), ref: c }).then(function (d) {
+      if (!d || d.status !== 'ok' || !d.on) { if (msg) msg.textContent = U('chSitErr'); return; }
+      if (refAny() === c) dropRef();
+      d.ref = '';
+      LSet('chMy', { at: Date.now(), d: d });
+      redraw(d);
+    }, function () { if (msg) msg.textContent = U('chSitErr'); });
+  }
   function wireSit(redraw) {
+    var nb = document.querySelectorAll('.ch-no');
+    for (var q = 0; q < nb.length; q++) nb[q].onclick = function () { decl(this.getAttribute('data-c'), redraw); };
     var own = document.getElementById('ch-own'), msg = document.getElementById('ch-sit-m');
     if (own) own.onclick = function () { dropRef(); };
     var bs = document.querySelectorAll('.ch-pk');
@@ -514,8 +531,10 @@
   /* ---- ההשקה: פעם אחת בכל מכשיר, למי שעוד אין לו שולחן ולא הגיע
      מקישור. "למבצע" — גלילה לכרטיס המבצע בבית (#chal). ---- */
   function promo(d) {
-    if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || LGet('chPromo', '')) return;
-    LSet('chPromo', '1');
+    /* סבב (8.99.453): "להציג שוב לכולם" בניהול מעלה את `pv` — כל מכשיר רואה פעם אחת לכל סבב. */
+    var pv = String(d && d.pv || 1);
+    if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || String(LGet('chPromo', '')) === pv) return;
+    LSet('chPromo', pv);
     if (tv(d)) return;
     promoShow(num(startSeats()), null);
   }
@@ -556,7 +575,8 @@
      בשולחן רואה את השולחן שלו. false — לא תלמיד: החלונית הרגילה. */
   function promoMsg(done) {
     if (!student()) return false;
-    LSet('chPromo', '1');
+    var c0 = cached();
+    LSet('chPromo', String(c0 && c0.pv || 1));
     promoShow(seatsOf(tv(cached())), done);
     return true;
   }
@@ -591,6 +611,7 @@
     if (ch) {
       box.innerHTML = noteHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
+      plusWire(function (x) { cardDraw(box, x); });
       waWire('ch-wa', null);
       if (!d.ended) codeWarm();
       return;
@@ -674,12 +695,11 @@
   }
   /* הכפתורים שבתחתית כל מסך שולחן: וואטסאפ (תמיד), החבר מההרשמה, הדף של
      השבוע (מי שעוד לא למד), "בדרך אליך" ומשפט העידוד. */
+  /* **מבנה קבוע** (8.99.453, אחיאסף): כותרת · שולחן · כפתור אחד. השולחן שלך — להזמין חברים;
+     שולחן של חבר — בלי כפתור, ומתחתיו "רוצה לפתוח שולחן משלך?". */
   function tailHtml(d) {
-    var m = d.me || {}, fr = d.ended ? null : frOf();
-    return (d.ended ? '' : waBtn(U('chWaMore'), '', 'ch-wa') + (fr ? frHtml(fr) : '')) +
-      /* הדף של השבוע — קישור משני: הפעולה הראשית היא וואטסאפ. */
-      (!d.ended && !m.l ? '<a class="ch-more" href="' + esc(weekUrl()) + '">' + esc(U('chWeekGo')) + ' ←</a>' : '') +
-      '';
+    var v = tv(d);
+    return d.ended || (v && !v.t.mine) ? '' : waBtn(U('chWaMore'), '', 'ch-wa');
   }
   /* **שולחן אחד** (מסך 2 בבריף). */
   function oneHtml(d, home) {
@@ -710,11 +730,16 @@
     for (var i = 0; i < bs.length; i++) bs[i].onclick = function () { CURT = this.getAttribute('data-t') || ''; redraw(); };
   }
   /* 8.99.451 (אחיאסף): כרטיס נפרד לשולחן נוסף, עם ההסבר. */
-  function plusHtml(d) {
+  function plusHtml(d) { return tabs(d).length ? plusBox(d, false) : ''; }
+  /* "רוצה לפתוח שולחן משלך?" — כותרת, השולחן הריק, כפתור (8.99.453). `inner` — בתוך כרטיס ההזמנות. */
+  function plusBox(d, inner) {
     var m = d && d.me;
-    return m && m.plus && !d.ended ? '<div class="ch-tcard ch-home"><p class="ch-lead">' + para(U('chPlusP')) + '</p>' +
-      '<button type="button" class="ch-plus" id="ch-plus"><i aria-hidden="true">+</i>' +
-      esc(U('chPlusT')) + '</button><p class="ch-sm" id="ch-plus-m" role="status"></p></div>' : '';
+    if (!m || !m.plus || d.ended) return '';
+    return '<div class="' + (inner ? 'ch-pick' : 'ch-tcard ch-home') + '"><b class="ch-plus-h">' + esc(U(tabs(d).some(function (t) { return t.mine; }) ? 'chPlusQ2' : 'chPlusQ')) + '</b>' +
+      (inner ? '' : '<p class="ch-sm">' + para(U('chPlusP')) + '</p>') +
+      tableHtml(num(startSeats()), midOf(''), false, true) +
+      '<button type="button" class="ch-btn ch-cta" id="ch-plus">' + esc(U('chPlusT')) + '</button>' +
+      '<p class="ch-sm" id="ch-plus-m" role="status"></p></div>';
   }
   function plusWire(redraw) {
     var b = document.getElementById('ch-plus'), msg = document.getElementById('ch-plus-m');
@@ -731,7 +756,7 @@
     };
   }
   function fullWire(box, d, redraw) {
-    if (choiceHtml(d)) { wireSit(redraw); waWire('ch-wa', null); if (!d.ended) codeWarm(); return; }
+    if (choiceHtml(d)) { wireSit(redraw); plusWire(redraw); if (!d.ended) codeWarm(); return; }
     plusWire(redraw);
     swWire(function () { redraw(); });
     wireSit(redraw);

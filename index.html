@@ -3153,7 +3153,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.452';
+var APP_VERSION = '8.99.453';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17717,7 +17717,9 @@ function chaPushBox(kind, k, st, to, dis) {
               fail: fill(UI.chaPushFail, { why: o.why || '' }), unk: UI.chaPushUnk }[o.st] || '';
   var h = '<div class="pp-h">' + esc(kind === 'launch' ? UI.chaPushLH : UI.chaPushMH) + '</div>' +
     '<p class="h">' + esc(to) + '</p><p class="h"><b>' + esc(lbl) + '</b></p>';
-  if (o.st === 'sent') return h + (o.t ? '<p class="h">' + esc(o.t + ' · ' + o.b) + '</p>' : '');
+  /* התראת ההשקה — אפשר לשלוח שוב (8.99.453, אחיאסף): סבב חדש, מזהה הודעה חדש. */
+  var again = o.st === 'sent' && kind === 'launch';
+  if (o.st === 'sent' && !again) return h + (o.t ? '<p class="h">' + esc(o.t + ' · ' + o.b) + '</p>' : '');
   var x = CHA_PT[id] || { t: o.t || (kind === 'launch' ? UI.chaPushLT : UI.chaPushMT),
                           b: o.b || (kind === 'launch' ? UI.chaPushLB : UI.chaPushMB) };
   CHA_PT[id] = x;
@@ -17725,15 +17727,25 @@ function chaPushBox(kind, k, st, to, dis) {
     '<input type="text" maxlength="120" value="' + esc(x.t) + '" oninput="CHA_PT[\'' + id + '\'].t=this.value"></div>' +
     '<div class="fld"><label class="label">' + esc(UI.chaPushB) + '</label>' +
     '<textarea class="cha-ta" maxlength="400" oninput="CHA_PT[\'' + id + '\'].b=this.value">' + esc(x.b) + '</textarea></div>' +
-    '<button class="btn p" type="button"' + dis + ' onclick="chaPush(\'' + kind + '\',\'' + (k || '') + '\',' + (o.st === 'unk') + ')">' +
-      esc(o.st === 'unk' ? UI.chaPushForce : o.st === 'fail' ? UI.chaPushRe : UI.chaPushGo) + '</button>';
+    '<button class="btn p" type="button"' + dis + ' onclick="chaPush(\'' + kind + '\',\'' + (k || '') + '\',' + (o.st === 'unk') + ',' + again + ')">' +
+      esc(again ? UI.chaPushLAgain : o.st === 'unk' ? UI.chaPushForce : o.st === 'fail' ? UI.chaPushRe : UI.chaPushGo) + '</button>';
 }
-function chaPush(kind, k, force) {
+function chaPromo() {
+  if (CHA.busy) return;
+  if (!SureLater(chaPromo, this, arguments)) return;
+  CHA.busy = true; chaPaint();
+  chaCall('promo', {}).then(function (r) {
+    CHA.busy = false;
+    CHA.msg = r && r.status === 'ok' ? UI.chaPromoOk : (r && r.message) || UI.chaFail;
+    return chaLoad();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
+function chaPush(kind, k, force, again) {
   var x = CHA_PT[kind + (k || '')] || {}, t = String(x.t || '').trim(), b = String(x.b || '').trim();
   if (!t || !b || CHA.busy) return;
   if (!SureLater(chaPush, this, arguments)) return;
   CHA.busy = true; chaPaint();
-  chaCall('push', { kind: kind, ms: k || '', t: t, b: b, force: force ? '1' : '' }).then(function (r) {
+  chaCall('push', { kind: kind, ms: k || '', t: t, b: b, force: force ? '1' : '', again: again ? '1' : '' }).then(function (r) {
     CHA.busy = false;
     CHA.msg = r && r.status === 'ok' ? (r.again ? UI.chaPushAgain : UI.chaPushOk)
             : r && r.status === 'unk' ? UI.chaPushUnkQ : (r && r.message) || UI.chaFail;
@@ -18033,6 +18045,9 @@ function chaPaint() {
     (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
       ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
       : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
+    /* המודעה בפתיחת האפליקציה — נפרדת מההתראה (8.99.453). */
+    (CHA.test ? '' : '<div class="pp-h">' + esc(UI.chaPromoH) + '</div><p class="h">' + esc(fill(UI.chaPromoP, { n: d.pv || 1 })) + '</p>' +
+      '<button class="btn p" type="button"' + dis + ' onclick="chaPromo()">' + esc(UI.chaPromoGo) + '</button>') +
     chaMsgBox('launch', UI.chaMsgLaunch, fill(UI.chaLaunchMsg, { url: chaStuUrl() }));
   var lastMs = (d.ms || []).filter(function (m) { return m.open; }).slice(-1)[0];
   /* "אבן דרך" — רק להגרלת סף ישנה; הגרלת יום ראשון אינה סף (8.99.394). */

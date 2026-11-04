@@ -136,7 +136,7 @@ var INBOX = (function () {
   function show(m, first) {
     /* השקת "חבר מביא חבר" (מזהה ch-…-L, chPushMid_ בשרת) — חלון המבצע עם השולחן,
        כשהעמוד טען את chal.js (8.99.399). */
-    if (/^ch-.*-L$/.test(m.mid) && window.CHAL && CHAL.promoMsg) {
+    if (/^ch-.*-L\d*$/.test(m.mid) && window.CHAL && CHAL.promoMsg) {
       OPEN = true;
       if (CHAL.promoMsg(function () { markSeen(m.mid); OPEN = false; next(first); })) return;
       OPEN = false;

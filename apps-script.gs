@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 180;
+var SCRIPT_VERSION = 181;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11985,6 +11985,8 @@ var CH_SEAT_COLS_ = ['שולחן', 'מזהה', 'ישב', 'יצא', 'סיבה', '
 var CH_MAX_T_ = 3;
 /* שורת "אתגר-שולחנות" בלי שולחן, שנכנסת ויוצאת באותו רגע: סיים דף ולא היה לו מקום. */
 var CH_NR_ = 'אין מקום';
+/* 8.99.453 (אחיאסף): "לא, תודה" על הזמנה — ההזמנה של המזמין הזה נמחקת. */
+var CH_NO_ = 'סירב';
 /* יצא בהגרלה השבועית — לא למד השבוע (8.99.441). */
 var CH_WK_OUT_ = 'לא למד בשבוע';
 var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הוקפא', 'זכאים', 'מועד הגרלה', 'נבחרה',
@@ -12356,7 +12358,7 @@ function lrnTime_() {
 function chSync_(U) {
   var now = Date.now(), S = chSetRead_(U), K = chConf_(U, S);
   var out = { on: K.on, t0: K.t0, F: K.F, step: K.step, win: K.win, last: K.last, now: now, exp: K.exp, act: K.act,
-              auto: K.auto, rule: K.rule,
+              auto: K.auto, rule: K.rule, pv: parseInt(S['מודעה סבב'], 10) || 1,
               terms: S['תנאים אושרו'] || '', ppl: {}, al: {}, grp: [], ms: [], n: 0, times: [] };
   if (!K.on || !K.t0) return out;
 
@@ -12710,10 +12712,10 @@ function chTables_(U, S, K, X) {
   T.rows.filter(mine).forEach(function (r) {
     var sid = X.canon(r['מזהה']), a0 = chMs_(r['ישב']), why = r['סיבה'];
     if (a0 > (SATA[sid] || 0) && r['שולחן']) SATA[sid] = a0;
-    if (why !== 'הוזמן' && why !== CH_NR_) return;
+    if (why !== 'הוזמן' && why !== CH_NR_ && why !== CH_NO_) return;
     var by0 = r['מזמין'] ? X.canon(r['מזמין']) : r['שולחן'] ? OWN0[r['שולחן']] || '' : '';
     if (!by0) return;
-    var pk = sid + '|' + by0, M0 = why === CH_NR_ ? NRP : SATP;
+    var pk = sid + '|' + by0, M0 = why === CH_NR_ || why === CH_NO_ ? NRP : SATP;
     if (a0 > (M0[pk] || 0)) M0[pk] = a0;
   });
   T.rows.filter(mine).forEach(function (r) {
@@ -12724,6 +12726,7 @@ function chTables_(U, S, K, X) {
       var e = chMs_(r['יצא']);
       /* "אין מקום" אצל מזמין אחד אינו סוגר את ההזמנות של האחרים (8.99.443). */
       if (r['סיבה'] === CH_NR_) { if (e > (NR[id] || 0)) NR[id] = e; return; }
+      if (r['סיבה'] === CH_NO_) return;
       if (e > (lastEnd[id] || 0)) lastEnd[id] = e;
       if (r['סיבה'] === CH_WK_OUT_ && e > (EX[id] || 0)) EX[id] = e;
       return;
@@ -12869,6 +12872,13 @@ function chTables_(U, S, K, X) {
       });
     });
   };
+  /* "לא, תודה" (8.99.453, ?challenge=decl): שורת "סירב" עם המזמין — ההזמנה שלו נצרכת (כמו "אין מקום"),
+     בלי הודעה ובלי לגעת בהזמנות של אחרים. */
+  if (U.declFor && U.declFor.id && U.declFor.by) {
+    chPut_(T, { 'שולחן': '', 'מזהה': U.declFor.id, 'ישב': iso(X.now), 'יצא': iso(X.now), 'סיבה': CH_NO_,
+                'בדיקה': U.test ? 'כן' : '', 'מזמין': U.declFor.by });
+    NRP[U.declFor.id + '|' + U.declFor.by] = X.now;
+  }
   seatUpTo(X.now);
   /* הגרלה בלחיצה (op=open): ההקפאה, ומיד אחריה האיפוס האישי. */
   if (U.drawNow && draw(X.now, 'ידני')) weekOut(X.now);
@@ -13003,7 +13013,7 @@ function chPub_(M) {
   var o = { status: 'ok', on: true, n: M.n, step: M.step, left: left, next: Math.max(0, next), win: win,
             last: chLastNext_(M), ended: chEnded_(M), dates: dates, now: M.now,
             /* כלל ההרכב לכל מוסד — לנוסח שהתלמיד רואה (chal.js). מספרים בלבד. */
-            rule: M.rule || {} };
+            rule: M.rule || {}, pv: M.pv || 1 };
   var d = chDelivered_(M);
   if (d > 0) o.dlv = d;
   return o;
@@ -13105,7 +13115,8 @@ function chMy_(M, P, U) {
   if (M.nr && M.nr[me]) out.nr = 1;
   if (M.ex && M.ex[me]) out.ex = 1;
   /* "+" מתחת לשולחן: יש לו שולחן, פחות מ-3, ואין לו שולחן משלו עם מקום. */
-  out.plus = out.ts.length > 0 && out.ts.length < CH_MAX_T_ && !out.ts.some(function (v) { return v.mine && v.seats.length < 4; }) ? 1 : 0;
+  /* 8.99.453: גם בלי שולחן — מי שהוזמן ועוד לא בחר יכול לפתוח שולחן משלו. */
+  out.plus = out.ts.length < CH_MAX_T_ && !out.ts.some(function (v) { return v.mine && v.seats.length < 4; }) ? 1 : 0;
   Object.keys(M.pend || {}).forEach(function (id) {
     var q = M.pend[id];
     if (id === me || !ppl[id] || q.hs.indexOf(me) < 0) return;
@@ -13313,6 +13324,28 @@ function chSit_(P, U) {
 }
 /* "+" — שולחן נוסף: ?challenge=newt&id=<מזהי המכשיר>. ההחלטה ב-chTables_ (U.openFor), תחת
    הנעילה; התשובה — המבט האישי אחרי הסנכרון. */
+/* "לא, תודה" על הזמנה (8.99.453) — לפי הקוד של המזמין. */
+function chDecl_(P, U) {
+  var mine = chIds_(P.id), code = String(P.ref || '').trim().toUpperCase();
+  if (!mine.length || !/^[A-Z0-9]{4,10}$/.test(code)) return { status: 'error', message: 'חסר מזהה' };
+  var ro = chRefMap_().m[code];
+  if (!ro) return { status: 'error', message: 'לא נמצא' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy', message: 'נסו שוב בעוד רגע' };
+  var M;
+  try {
+    M = chSync_(U);
+    if (!M.on) return { status: 'ok', on: false };
+    var me = '';
+    for (var j = 0; j < mine.length && !me; j++) if (M.ppl[chCanon_(M, mine[j])]) me = chCanon_(M, mine[j]);
+    var by = chCanon_(M, ro['מזהה']);
+    if (!me || !by || by === me) return { status: 'error', message: 'לא נמצא' };
+    U.declFor = { id: me, by: by };
+    M = chSync_(U);
+    U.declFor = null;
+  } finally { lock.releaseLock(); chBust_(U); }
+  return chMy_(M, { id: P.id }, U);
+}
 function chNewT_(P, U) {
   var mine = chIds_(P.id);
   if (!mine.length) return { status: 'error', message: 'חסר מזהה' };
@@ -13480,7 +13513,10 @@ function chAdm_(M, U) {
       x.push = chPushFix_(rafPartGet_(r['התראה']), chPushMid_(U, K0, 'ms', x.k));
     });
   });
-  o.pushL = chPushFix_(rafPartGet_(chSetRead_(U)['התראת השקה']), chPushMid_(U, K0, 'launch'));
+  var SL = chSetRead_(U), PL = rafPartGet_(SL['התראת השקה']);
+  o.pushL = chPushFix_(PL, chPushMid_(U, K0, 'launch', (PL && PL.n) || 1));
+  if (PL && PL.n) o.pushL.n = PL.n;
+  o.pv = parseInt(SL['מודעה סבב'], 10) || 1;
   /* לכל ישיבה: כמה מצטרפים חדשים, כמה קבוצות. לכלי העדכון לראש החטיבה. */
   var by = {};
   Object.keys(ppl).forEach(function (id) {
@@ -13545,6 +13581,12 @@ function chAct_(U, P, op) {
     }
     if (!K.on) return { status: 'error', message: 'האתגר כבוי' };
     /* חשיפה: "כולם" ↔ "מוזמנים". המכשיר שמשנה נוסף למפעילים. */
+    /* המודעה בפתיחת האפליקציה — סבב חדש (8.99.453): כל מכשיר רואה אותה שוב פעם אחת. */
+    if (op === 'promo') {
+      var pv = (parseInt(S['מודעה סבב'], 10) || 1) + 1;
+      chSetPut_(U, S, 'מודעה סבב', String(pv));
+      return { status: 'ok', pv: pv };
+    }
     if (op === 'exposure') {
       var v = String(P.v || '');
       if (v !== CH_EXP_ALL && v !== CH_EXP_Q) return { status: 'error', message: 'כולם או מוזמנים?' };
@@ -13701,7 +13743,8 @@ function chAct_(U, P, op) {
    בבקשה מפורשת (`force`), באותו מזהה. */
 function chPushMid_(U, K, kind, k) {
   var D = U.test ? chDemo_() : null;
-  return 'ch-' + (U.test ? 't' + (D ? D.run : '') : 'r' + K.t0) + '-' + (kind === 'launch' ? 'L' : 'M' + k);
+  /* השקה חוזרת (8.99.453): סבב 2 ומעלה — מזהה הודעה משלו (`-L2`…). */
+  return 'ch-' + (U.test ? 't' + (D ? D.run : '') : 'r' + K.t0) + '-' + (kind === 'launch' ? 'L' + (k > 1 ? k : '') : 'M' + k);
 }
 function chPushFix_(o, mid) {
   o = o || { st: 'none' };
@@ -13744,20 +13787,25 @@ function chPush_(U, P) {
       if (pids.length > 60) return { status: 'error', message: 'יותר מ-60 משתתפים — חושפים לכולם ושולחים לכולם' };
       flt = JSON.stringify({ ids: pids });
     }
-    var mid = chPushMid_(U, K, kind, k), cur, save;
+    var mid, cur, save, ln = 1;
     if (kind === 'launch') {
       cur = rafPartGet_(S['התראת השקה']);
-      save = function (o) { chSetPut_(U, S, 'התראת השקה', JSON.stringify(o)); };
+      ln = (cur && cur.n) || 1;
+      mid = chPushMid_(U, K, kind, ln);
+      cur = chPushFix_(cur, mid);
+      /* "שליחה שוב" (8.99.453, אחיאסף): השקה נוספת — סבב חדש, מזהה הודעה חדש. */
+      if (cur.st === 'sent' && String(P.again || '') === '1') { ln++; mid = chPushMid_(U, K, kind, ln); cur = { st: 'none' }; }
+      save = function (o) { o.n = ln; chSetPut_(U, S, 'התראת השקה', JSON.stringify(o)); };
     } else {
       var X = chMsRow_(U, k);
       if (!X.m) return { status: 'error', message: 'ההגרלה לא נמצאה' };
       if ([CH_M_.ok, CH_M_.dlv].indexOf(X.m['מצב']) < 0) {
         return { status: 'error', message: 'התראה על התוצאות — רק אחרי אישור הזוכים' };
       }
-      cur = rafPartGet_(X.m['התראה']);
+      mid = chPushMid_(U, K, kind, k);
+      cur = chPushFix_(rafPartGet_(X.m['התראה']), mid);
       save = function (o) { X.m['התראה'] = JSON.stringify(o); chPut_(X.T, X.m); };
     }
-    cur = chPushFix_(cur, mid);
     if (cur.st === 'sent') { save(cur); return { status: 'ok', again: 1, push: cur }; }
     if (cur.st === 'unk' && String(P.force || '') !== '1') { save(cur); return { status: 'unk', push: cur }; }
     var o = { st: 'pend', at: new Date().toISOString(), t: t, b: b };
@@ -14078,6 +14126,7 @@ function challengeRoute_(e) {
     if (op === 'ref') return reply_(e, chRefGet_(P));
     if (op === 'sit') return reply_(e, chSit_(P, U));
     if (op === 'newt') return reply_(e, chNewT_(P, U));
+    if (op === 'decl') return reply_(e, chDecl_(P, U));
     if (op === 'state') return reply_(e, chPub_(chModel_(U, false) || { on: false }));
     if (op === 'my') {
       var M0 = chModel_(U, false);
@@ -14112,7 +14161,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule', 'promo'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
