@@ -4593,6 +4593,9 @@ function twinRoute_(e) {
    הרגיל (amdaSync_) כותב לו. */
 function amdaKind_(d) {
   var day = String(d.day || '').trim(), slot = String(d.slot || '').trim();
+  /* `inst` (8.99.454) — רק השורות של הישיבה הזו. בלעדיו — כמו קודם, כל
+     השורות של היום והמועד. תיקון של שיעור קודם תמיד שולח אותו. */
+  var inst = String(d.inst || '').trim();
   var dafK = d.kind === 'd', lvl = String(d.lvl || '').trim();
   if (!day || !slot) return { status: 'error', message: 'חסר יום או מועד' };
   var at = amdaTable_(AMDA_TAB_), sh = at.sh, head = headers_(sh), n = 0, drop = {};
@@ -4608,6 +4611,7 @@ function amdaKind_(d) {
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r];
     if (at.c(x, 'יום') !== day || at.c(x, 'קוד עמדה') !== slot) continue;
+    if (inst && at.c(x, 'קוד ישיבה') !== inst) continue;
     var was = learned(x), oldKey = key(x);
     var trk = dafK ? String(d.track || at.c(x, 'מסלול') || '') : '';
     var daf = dafK ? String(d.daf || at.c(x, 'דף') || '') : '';
@@ -4726,7 +4730,7 @@ function netRoster_(inst, dev) {
   var out = null, ck = '';
   try {
     var ver = PropertiesService.getScriptProperties().getProperty('netVer') || '0';
-    ck = 'nr2' + ver + '_' + inst;
+    ck = 'nr3' + ver + '_' + inst;   /* nr3 — כל השכבות שבמאגר (8.99.454) */
     var hit = CacheService.getScriptCache().get(ck);
     if (hit) out = JSON.parse(hit);
     if (out && !out.rows) out = null;
@@ -4748,7 +4752,8 @@ function netRosterRead_(inst) {
   var push = function (g, c, n) {
     g = String(g || '').replace(/["'׳״`\s]/g, '');
     n = String(n || '').replace(/\s+/g, ' ').trim();
-    if (!g || !c || !n || !NET_GR_[g]) return false;
+    /* כל שכבה שבמאגר (8.99.454) — לא רשימה קבועה. */
+    if (!g || !c || !n || !/^[\u05D0-\u05EA]{1,2}$/.test(g)) return false;
     rows.push([g, c, n]);
     return true;
   };

@@ -5311,7 +5311,7 @@ function attOpen(mode) {
     var r = { at: Date.now(), inst: code, g: {} };
     (d.rows || []).forEach(function (x) {
       var g = amdaGK(x[0]), c = String(x[1] || ''), n = String(x[2] || '');
-      if (!n || !c || ATT_GRADES.indexOf(g) < 0) return;
+      if (!n || !c || !amdaGradeOk(g)) return;
       if (!r.g[g]) r.g[g] = {};
       (r.g[g][c] = r.g[g][c] || []).push(n);
     });
@@ -21144,16 +21144,47 @@ function amdaCount(r) {
   }
   return { n: n, c: c };
 }
-/* השכבות שיש בהן כיתות ברשימה; בלי רשימה — כולן. */
+/* **השכבות והכיתות — מה שיש במאגר** (8.99.454). אין רשימה קבועה שמסננת:
+   שכבה שיש בה תלמידים ברשימה — מופיעה, ושכבה שאין — לא. AMDA_GRADES קובע
+   רק את הסדר; שכבה שאינה בו (למשל י״ג) באה אחריהן. */
+function amdaGradeOk(g) { return /^[\u05D0-\u05EA]{1,2}$/.test(amdaGK(g)); }
+function amdaGradeOrd(g) {
+  var i = AMDA_GRADES.indexOf(amdaGK(g));
+  return i >= 0 ? i : 100 + amdaGradeNum(g);
+}
+/* ערך גימטרי, לסדר של שכבה שאינה ברשימה. */
+function amdaGradeNum(g) {
+  var v = { 'א':1,'ב':2,'ג':3,'ד':4,'ה':5,'ו':6,'ז':7,'ח':8,'ט':9,'י':10,'כ':20,'ל':30 }, n = 0;
+  amdaGK(g).split('').forEach(function (ch) { n += v[ch] || 0; });
+  return n;
+}
+function amdaGradeSort(a, b) { return (amdaGradeOrd(a) - amdaGradeOrd(b)) || (a < b ? -1 : a > b ? 1 : 0); }
+/* השכבות שיש בהן כיתות ברשימה `r` (ברירת מחדל — הרשימה הפתוחה), בסדר. */
+function amdaGradesOf(r) {
+  r = r || amdaRoster();
+  var out = [], g;
+  if (!r || !r.g) return out;
+  for (g in r.g) {
+    if (r.g.hasOwnProperty(g) && Object.keys(r.g[g]).some(function (c) { return (r.g[g][c] || []).length; })) out.push(g);
+  }
+  return out.sort(amdaGradeSort);
+}
+/* בלי רשימה — כל השכבות הרגילות (לטופס שיעור הכיתה). */
 function amdaGradesIn() {
-  var l = AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; });
+  var l = amdaGradesOf();
   return l.length ? l : AMDA_GRADES.slice();
+}
+function amdaClsSort(a, b) {
+  var x = parseFloat(a), y = parseFloat(b);
+  if (!isNaN(x) && !isNaN(y) && x !== y) return x - y;
+  if (isNaN(x) !== isNaN(y)) return isNaN(x) ? 1 : -1;
+  return String(a).localeCompare(String(b), 'he', { numeric: true });
 }
 function amdaClasses(g) {
   var r = amdaRoster(), out = [], k;
   if (!r || !r.g || !r.g[g]) return out;
-  for (k in r.g[g]) { if (r.g[g].hasOwnProperty(k)) out.push(k); }
-  return out.sort(function (a, b) { return a - b; });
+  for (k in r.g[g]) { if (r.g[g].hasOwnProperty(k) && (r.g[g][k] || []).length) out.push(k); }
+  return out.sort(amdaClsSort);
 }
 
 /* ---------- בית הספר והמסכת ----------
@@ -21294,7 +21325,7 @@ function amdaFromSheets(sheets) {
       var g = amdaGK(v.C);
       var p = String(v.D || '').match(/^\d+/);
       var n = (String(v.A || '') + ' ' + String(v.B || '')).replace(/\s+/g, ' ').trim();
-      if (!p || !n || AMDA_GRADES.indexOf(g) < 0) continue;
+      if (!p || !n || !amdaGradeOk(g)) continue;
       var f = String(v.B || '').trim().split(/\s+/)[0];
       if (f) (r.f = r.f || {})[n] = f;
       p = String(+p[0]);
@@ -21310,11 +21341,10 @@ function amdaFromSheets(sheets) {
    נכתבת כולה מחדש (`table`), ונחשבת לשמורה רק כשהקריאה החוזרת
    מחזירה את אותו מספר תלמידים ואת אותו בית ספר. */
 function amdaRows(r) {
-  var rows = [], i, j, g, cs, inst = r.inst || '';
-  for (i = 0; i < AMDA_GRADES.length; i++) {
-    g = AMDA_GRADES[i];
-    if (!r.g[g]) continue;
-    cs = Object.keys(r.g[g]).sort(function (a, b) { return a - b; });
+  var rows = [], i, j, g, cs, inst = r.inst || '', gl = amdaGradesOf(r);
+  for (i = 0; i < gl.length; i++) {
+    g = gl[i];
+    cs = Object.keys(r.g[g]).sort(amdaClsSort);
     for (j = 0; j < cs.length; j++) {
       r.g[g][cs[j]].forEach(function (n) { rows.push([g, cs[j], n, inst, (r.f || {})[n] || '']); });
     }
@@ -21689,15 +21719,25 @@ function amdaSlotGo(id) {
    שוב (amdaSave). רק אימות מלא מוריד אותו. לרכז בלבד: איש צוות אינו
    משנה סוג. */
 function amdaKindPrep(k) {
-  var s = amdaSess(), day = amdaDay();
-  s.kind = k; Store.set('amdaSess', s);
-  var qz = false;
+  var s = amdaSess();
+  return amdaFixPrep(amdaDay(), s.slot, k, s.track);
+}
+/* השבוע (מ-0) שבו חל יום מסוים — לדף של שיעור קודם. */
+function amdaWkOn(day) {
+  var st = new Date(PROGRAM.startDate + 'T00:00:00'), d = new Date(day + 'T00:00:00');
+  var w = Math.floor((d - st) / 86400000 / 7);
+  return isNaN(w) ? Math.max(0, LWeek()) : Math.max(0, Math.min(w, CAL_TAANIT.length - 1));
+}
+/* תיקון הסוג של שיעור אחד — היום או קודם (8.99.454): יום, מועד וישיבה. */
+function amdaFixPrep(day, slot, k, track0) {
+  var s = amdaSess(), qz = false, inst = amdaInst();
+  if (day === amdaDay() && slot === s.slot) { s.kind = k; Store.set('amdaSess', s); }
   /* מה שעוד בתור — יוצא כבר בסוג החדש. */
   var q = amdaQ();
-  q.forEach(function (m) { if (m.day === day && m.slot === s.slot) { m.kind = k; m.lv = amdaLv(); m.qz = qz; } });
+  q.forEach(function (m) { if (m.day === day && m.slot === slot) { m.kind = k; m.lv = amdaLv(); m.qz = qz; } });
   Store.set('amdaQ', q);
-  var track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
-  var fix = { day: day, slot: s.slot, kind: k, qz: qz,
+  var track = track0 || amdaTrack(), wk = day === amdaDay() ? Math.max(0, LWeek()) : amdaWkOn(day);
+  var fix = { day: day, slot: slot, kind: k, qz: qz, inst: inst,
               track: k === 'd' ? track : '', daf: k === 'd' ? (LDafName(track, wk) || '') : '',
               lvl: k === 'd' ? amdaLv() : '' };
   Store.set('amdaFix', fix);
@@ -21715,6 +21755,7 @@ function amdaFixCheck(fix) {
                 ['רמה', fix.lvl], ['אישור חידון', fix.qz ? 'כן' : '']];
     return !d.rows.slice(1).some(function (x) {
       if (c(x, 'יום') !== fix.day || c(x, 'קוד עמדה') !== fix.slot) return false;
+      if (fix.inst && c(x, 'קוד ישיבה') !== fix.inst) return false;
       return want.some(function (w) { return c(x, w[0]) !== w[1]; });
     });
   })['catch'](function () { return false; });
@@ -21723,7 +21764,7 @@ function amdaFixRun(fix, cb) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
   cb = cb || function () {};
   if (!fix || !key || !url) { cb(false); return; }
-  var body = { action: 'amdakind', key: key, day: fix.day, slot: fix.slot, kind: fix.kind, qz: fix.qz ? '1' : '',
+  var body = { action: 'amdakind', key: key, day: fix.day, slot: fix.slot, inst: fix.inst || '', kind: fix.kind, qz: fix.qz ? '1' : '',
                track: fix.track, daf: fix.daf, lvl: fix.lvl };
   var tries = 0;
   var send = function () {
@@ -21821,7 +21862,7 @@ function amdaPaint() {
                attr + '="' + esc(v) + '">' + esc(t) + '</button>';
       };
       h += '<div class="am-pks" id="am-pg">';
-      AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
+      amdaGradesOf().forEach(function (g) {
         h += pk(amdaSt.g === g, 'data-pg', g, amdaG(g));
       });
       h += '</div>';
@@ -21853,8 +21894,8 @@ function amdaPaint() {
   }
   if (!les && !amdaSt.all) {
     h += '<div class="am-q">' + esc(amdaT('pickG')) + '</div><div class="am-grid">';
-    /* רק שכבות שיש בהן תלמידים ברשימה (אצל איש צוות — מה שהשרת שלח, ז׳–י״ב). */
-    AMDA_GRADES.filter(function (g) { return amdaClasses(g).length; }).forEach(function (g) {
+    /* רק שכבות שיש בהן תלמידים ברשימה — כל מה שיש במאגר. */
+    amdaGradesOf().forEach(function (g) {
       h += '<button class="am-b' + (amdaSt.g === g ? ' on' : '') + '" data-g="' + g + '">' +
            esc(amdaG(g)) + '</button>';
     });
@@ -22132,7 +22173,7 @@ function amdaClassAsk(done) {
     var h = '<div class="am-ex-in"><b>' + esc(amdaT('anyQ')) + '</b>' +
       '<span class="am-ws-sub">' + esc(amdaT('anySub')) + '</span><div class="am-grid">';
     /* רק שכבות שיש בהן כיתות ברשימה — לא כפתור שמוביל לריק. */
-    AMDA_GRADES.filter(function (x) { return amdaClasses(x).length; }).forEach(function (x) {
+    amdaGradesOf().forEach(function (x) {
       h += '<button class="am-b' + (g === x ? ' on' : '') + '" data-ag="' + x + '">' + esc(amdaG(x)) + '</button>';
     });
     h += '</div>';
@@ -22572,7 +22613,12 @@ function amdaAnyTile(slot, kiosk) {
   return '<button class="am-tile' + (on ? ' on' : '') + '" ' +
     (kiosk ? 'data-ws="*">' : 'onclick="amdaPickSlot(\'*\')">') +
     '<span class="am-ic">' + AMDA_ICON.L + '<b>' + esc(on ? amdaGC(les.g, les.c) : '?') + '</b></span>' +
-    '<b>' + esc(amdaT('anyTag')) + '</b><small>' + esc(amdaT('anyTile')) + '</small></button>';
+    '<b>' + esc(amdaT('anyTag')) + '</b><small>' + esc(amdaAnyRange()) + '</small></button>';
+}
+/* מתחת ל"כיתה אחרת" — טווח השכבות שיש ברשימה, לא טווח קבוע. */
+function amdaAnyRange() {
+  var l = amdaGradesIn(), a = amdaG(l[0]), b = amdaG(l[l.length - 1]);
+  return amdaT('anyTile', { a: a, b: b === a ? '' : b }).replace(/[–-]\s*$/, '');
 }
 function amdaPickTrack(id) { amdaSt.track = id; admPane(); }
 /* תלמידים לפי כיתה, בסדר השכבות ואז המקבילות. `keys` — מפתחות
@@ -22586,7 +22632,7 @@ function amdaByClass(keys) {
   });
   order.sort(function (a, b) {
     var x = a.split('|'), y = b.split('|');
-    return (AMDA_GRADES.indexOf(x[0]) - AMDA_GRADES.indexOf(y[0])) || (x[1] - y[1]);
+    return amdaGradeSort(x[0], y[0]) || amdaClsSort(x[1], y[1]);
   });
   return order.map(function (cl) {
     var p = cl.split('|');
@@ -22693,7 +22739,7 @@ function amdaRepData() {
     n++;
     if (x[7]) pend++;
   });
-  var gi = function (g) { var i = AMDA_GRADES.indexOf(g); return i < 0 ? 99 : i; };
+  var gi = amdaGradeOrd;
   var cls = Object.keys(by).sort(function (a, b) {
     if (!a || !b) return a ? -1 : b ? 1 : 0;           /* בלי כיתה — בסוף */
     var x = a.split('|'), y = b.split('|');
@@ -22836,6 +22882,62 @@ function amdaRepPaint(body) {
   }
   body.innerHTML = h;
 }
+/* ============================================================
+   השיעורים האחרונים — תיקון הסוג של שיעור שעבר (8.99.454).
+   ============================================================
+   סומן "נושא אחר" במקום "הדף השבועי" (או להפך) — חוזרים לשיעור
+   עצמו ומתקנים, גם אחרי שעה או יום, בלי לפתוח שוב את הנוכחות. שורה
+   לכל שיעור (יום · מועד) של הישיבה, מהקריאה האחרונה של הגיליון
+   (`amdaRepC`). התיקון — אותו מנגנון של "שמור" (amdaFixPrep → amdaFixRun):
+   נשמר במכשיר עד שהגיליון תואם, רק לשורות של הישיבה (`inst`). שיעורי
+   כיתה ובית המדרש הנודד — לא כאן: בהם הסוג אינו "דף או נושא אחר". */
+var AMDA_REC_MAX = 8;
+function amdaRecList() {
+  var C = Store.get('amdaRepC', null), inst = amdaInst(), by = {}, out = [];
+  ((C && C.rows) || []).forEach(function (x) {
+    var day = x[0], slot = x[1];
+    if (!day || !slot || x[3] !== inst || slot.charAt(0) === 'L' || slot === AMDA_NODED) return;
+    var k = day + '|' + slot, e = by[k];
+    if (!e) { e = by[k] = { day: day, slot: slot, d: 0, o: 0, who: {} }; out.push(e); }
+    e[x[2] === 'o' ? 'o' : 'd']++;
+    e.who[x[4] + '|' + x[5] + '|' + x[6]] = 1;
+  });
+  out.forEach(function (e) { e.kind = e.d >= e.o ? 'd' : 'o'; e.n = Object.keys(e.who).length; });
+  out.sort(function (a, b) {
+    return a.day !== b.day ? (a.day < b.day ? 1 : -1) : AMDA_SLOTS.indexOf(b.slot) - AMDA_SLOTS.indexOf(a.slot);
+  });
+  return out.slice(0, AMDA_REC_MAX);
+}
+function amdaRecHtml() {
+  var key = (CFG.readKey || '').trim(), list = key ? amdaRecList() : [];
+  if (!list.length) return '';
+  var fix = Store.get('amdaFix', null), days = amdaT('days').split(',');
+  return '<div class="adm-card"><h4>' + esc(amdaT('recH')) + '</h4>' +
+    '<p class="h">' + esc(amdaT('recLead')) + '</p>' +
+    list.map(function (e) {
+      var wait = fix && fix.day === e.day && fix.slot === e.slot, k = wait ? fix.kind : e.kind;
+      var p = e.day.split('-'), dt = new Date(e.day + 'T00:00:00');
+      var lbl = fill(amdaT('recRow'), { w: (days[dt.getDay()] || '').trim(), d: (+p[2]) + '.' + (+p[1]),
+                                       s: amdaSlotName(e.slot), n: e.n });
+      var b = function (v, t) {
+        return '<button class="' + (k === v ? 'on' : '') + '"' + (k === v ? ' disabled' : ' onclick="amdaRecSet(\'' +
+          esc(e.day) + '\',\'' + esc(e.slot) + '\',\'' + v + '\')"') + '>' + esc(amdaT(t)) + '</button>';
+      };
+      return '<div class="am-q" style="margin-top:12px">' + esc(lbl) + '</div>' +
+        '<div class="am-sl">' + b('d', 'repCatD') + b('o', 'repCatO') + '</div>' +
+        (wait ? '<p class="h" style="margin:-4px 2px 6px;color:var(--stop)">' + esc(amdaT('recWait')) + '</p>' : '');
+    }).join('') + '</div>';
+}
+function amdaRecSet(day, slot, k) {
+  var fix = Store.get('amdaFix', null);
+  /* תיקון אחר עוד לא אומת — קודם הוא, כדי שלא יידרס. */
+  if (fix && (fix.day !== day || fix.slot !== slot)) { SayMsg(amdaT('fixPend')); return; }
+  if (!SureLater(amdaRecSet, this, arguments)) return;
+  var f = amdaFixPrep(day, slot, k);
+  amdaMsg = '';
+  admPane();
+  amdaFixRun(f, function () { admPane(); });
+}
 function admAmda(body) {
   if (amdaRep.on) return amdaRepPaint(body);
   var r = amdaRoster(), cnt = amdaCount(r), key = (CFG.readKey || '').trim();
@@ -22913,6 +23015,8 @@ function admAmda(body) {
       return '<p class="h"><b>' + esc(cl.name) + ' · ' + cl.keys.length + '</b><br>' +
              cl.keys.map(function (k) { return esc(amdaNm(k)); }).join(' · ') + '</p>';
     }).join('') + '</div>';
+
+  h += amdaRecHtml();
 
   /* כמה פעמים כל תלמיד היה — שלוש ספירות נפרדות */
   var all = amdaCounts(), ks = Object.keys(all), tot = amdaC4();
@@ -24234,9 +24338,9 @@ function amdaWaIdx() {
   var sig = (r.at || 0) + '|' + (p.at || 0) + '|' + amdaCount(r).n + '|' + p.rows.length;
   if (amdaWa.idx && amdaWa.sig === sig) return amdaWa.idx;
   var stu = [], used = {}, i;
-  AMDA_GRADES.forEach(function (g) {
+  amdaGradesOf(r).forEach(function (g) {
     var cs = r.g[g] || {};
-    Object.keys(cs).sort(function (a, b) { return a - b; }).forEach(function (c) {
+    Object.keys(cs).sort(amdaClsSort).forEach(function (c) {
       cs[c].forEach(function (n) { stu.push({ g: g, c: c, n: n, k: amdaWaNorm(n), p: '', f: '' }); });
     });
   });
@@ -24347,7 +24451,7 @@ function amdaWaPicks() {
   for (i = 0; i < all.length; i++) if (all[i].p && l.sel[amdaWaK(all[i])]) out.push(i);
   out.sort(function (a, b) {
     var x = all[a], y = all[b];
-    if (x.g !== y.g) return AMDA_GRADES.indexOf(x.g) - AMDA_GRADES.indexOf(y.g);
+    if (x.g !== y.g) return amdaGradeSort(x.g, y.g);
     if (x.c !== y.c) return x.c === '' ? 1 : y.c === '' ? -1 : x.c - y.c;
     return x.n < y.n ? -1 : 1;
   });
@@ -24471,7 +24575,7 @@ function admAmdaWa(body) {
       '<textarea class="aw-ta" rows="3" aria-label="' + esc(amdaT('waMsg')) + '" oninput="amdaWaMsgSet(this.value)">' +
       esc(Store.get('amdaWaMsg', '') || '') + '</textarea>' +
       '<div class="am-q">' + esc(amdaT('waPickG')) + '</div><div class="am-grid">';
-    AMDA_GRADES.filter(function (g) { return ix.all.some(function (s) { return s.g === g; }); }).forEach(function (g) {
+    ix.all.map(function (s) { return s.g; }).filter(function (g, i, a) { return g && a.indexOf(g) === i; }).sort(amdaGradeSort).forEach(function (g) {
       h += '<button class="am-b' + (amdaWa.g === g ? ' on' : '') + '" onclick="amdaWaPick(\'g\',\'' + g + '\')">' +
            esc(amdaG(g)) + '</button>';
     });
