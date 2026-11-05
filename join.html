@@ -3700,6 +3700,31 @@ var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false, PTS_ERR = false;
    המתנה (החישוב בשרת לוקח לפעמים יותר מ-20), ואחרי כישלון עוד שלושה ניסיונות
    (5/15/45 שניות), ואז רק בריענון הרגיל של שתי דקות. ההודעה — כמו קודם. */
 var PTS_TRY = 0, PTS_NEXT = 0, PTS_GAP = [5000, 15000, 45000];
+/* סיבת הכישלון (8.99.457) — מדידה בלבד, בלי שינוי במסך ובלי בקשה נוספת.
+   כל כישלון נספר במכשיר (`df:ptsFe`) לפי סוג: t — 40 שניות בלי תשובה ·
+   e — הבקשה לא נטענה (נדחתה/נחסמה) · s — תשובה שאינה ok · n — ok, אבל בלי
+   נתוני כרטיסים (בלי tk ובלי nx, ולא none — המסך מציג אז את אותה הודעה).
+   הספירה יוצאת **רק כחלק מבקשת הכרטיסים הבאה** (`fe`, `fd`), ונמחקת כשמגיעה
+   תשובה כלשהי מהשרת (כלומר הבקשה רצה שם ונרשמה). `k` — כמה כישלונות ברצף
+   לפני הבקשה הזו. השרת סופר אותם ב"זמני שרת" (ptsFeNote_). */
+function ptsFeAdd(k) {
+  var f = get('ptsFe', null) || {};
+  f[k] = (+f[k] || 0) + 1;
+  f.c = (+f.c || 0) + 1;
+  set('ptsFe', f);
+}
+function ptsFeQs() {
+  var f = get('ptsFe', null) || {}, q = '';
+  ['t', 'e', 's', 'n'].forEach(function (k) { if (+f[k] > 0) q += k + Math.min(+f[k], 99); });
+  if (+f.c > 0) q += 'k' + Math.min(+f.c, 999);
+  if (!q) return '';
+  var u = navigator.userAgent || '', os = /iPhone|iPad|iPod/.test(u) ? 'ios' : /Android/.test(u) ? 'and' : 'oth';
+  var br = /SamsungBrowser/.test(u) ? 'sam' : /OPR\//.test(u) ? 'opr' : /; wv\)|FBAN|FBAV|Instagram|WhatsApp/.test(u) ? 'wv' :
+    /CriOS|Chrome\//.test(u) ? 'chr' : /Safari\//.test(u) ? 'saf' : 'oth';
+  var st = false;
+  try { st = standalone(); } catch (e) {}
+  return '&fe=' + q + '&fd=' + os + '-' + br + '-' + (st ? 'a' : 't');
+}
 function drawPts() {
   var el = $('mypts'), tb = $('mytk');
   if (!el || !tb) return;
@@ -3717,18 +3742,22 @@ function drawPts() {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
-    var fail = function () {
+    var fail = function (why) {
       clean(); PTS_ERR = true;
+      ptsFeAdd(why || 't');
       var gap = PTS_GAP[PTS_TRY] || 120000;
       PTS_TRY++;
       PTS_NEXT = Date.now() + gap;
       setTimeout(drawPts, gap + 50);
       drawPts();
     };
-    var t0 = setTimeout(fail, 40000);
+    var t0 = setTimeout(function () { fail('t'); }, 40000);
     window[cb] = function (r) {
       clearTimeout(t0);
-      if (!r || r.status !== 'ok') { fail(); return; }
+      /* הגיעה תשובה — השרת קיבל את הספירה שנשלחה איתה. */
+      set('ptsFe', null);
+      if (!r || r.status !== 'ok') { fail('s'); return; }
+      if (!r.none && !r.tk && !r.nx) ptsFeAdd('n');
       clean();
       PTS_GOT = true; PTS_ERR = false; PTS_TRY = 0; PTS_NEXT = 0;
       /* מסלול השלמה לפי השרת ("מסלול השלמה" ב"לומדים"): 1 — משויך,
@@ -3742,8 +3771,8 @@ function drawPts() {
                      tk: r.tk || null, nx: r.nx || null });
       drawPts();
     };
-    sc.onerror = function () { clearTimeout(t0); fail(); };
-    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + '&callback=' + cb;
+    sc.onerror = function () { clearTimeout(t0); fail('e'); };
+    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + ptsFeQs() + '&callback=' + cb;
     document.body.appendChild(sc);
   }
   /* הגיע עכשיו מחידון שעבר (learn.html, qzLand_) — הכרטיס של הדף ההוא. */

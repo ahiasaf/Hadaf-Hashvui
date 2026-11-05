@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 182;
+var SCRIPT_VERSION = 183;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -385,6 +385,38 @@ function tmNote_(name, ms, lk) {
     a[5] += lk || 0;
     rc.put(key, JSON.stringify(o), 21600);
   } catch (e) {}
+}
+/* ספירה בלבד ב"זמני שרת" (שם → כמה), בלי משך. קריאה וכתיבה אחת למטמון. */
+function tmBump_(o) {
+  try {
+    var rc = CacheService.getScriptCache(), w = Math.floor(Date.now() / TM_WIN_) * TM_WIN_;
+    var key = 'tm:' + w, T = {};
+    try { T = JSON.parse(rc.get(key) || '{}') || {}; } catch (x) { T = {}; }
+    Object.keys(o).forEach(function (n) {
+      var a = T[n] || (T[n] = [0, 0, 0, 0, 0, 0]);
+      a[0] += o[n];
+    });
+    rc.put(key, JSON.stringify(T), 21600);
+  } catch (e) {}
+}
+/* סיבת הכישלון של הכרטיסים מהטלפון (8.99.457) — נשלחת רק עם בקשת הכרטיסים
+   הבאה (join.html, ptsFeQs). fe = t/e/s/n + מספר, ו-k — כישלונות ברצף; fd —
+   סוג המכשיר (מערכת-דפדפן-אפליקציה/לשונית). נרשם כ-`ptsfe:<סוג>:<מכשיר>` ו-
+   `ptsfe:k<טווח>:<מכשיר>` — מספרים בלבד, בלי מזהה. */
+function ptsFeNote_(P) {
+  var fe = String(P.fe || ''), fd = String(P.fd || '');
+  if (!fe || !/^[a-z0-9]{1,40}$/.test(fe)) return;
+  if (!/^[a-z]{2,4}-[a-z]{2,4}-[at]$/.test(fd)) fd = 'x';
+  var o = {}, m, re = /([tesnk])(\d{1,3})/g;
+  while ((m = re.exec(fe))) {
+    var k = m[1], n = Math.min(+m[2] || 0, 999);
+    if (!n) continue;
+    if (k === 'k') {
+      var b = n === 1 ? '1' : n <= 3 ? '2-3' : n <= 9 ? '4-9' : n <= 29 ? '10-29' : '30+';
+      o['ptsfe:k' + b + ':' + fd] = 1;
+    } else o['ptsfe:' + k + ':' + fd] = (o['ptsfe:' + k + ':' + fd] || 0) + n;
+  }
+  if (Object.keys(o).length) tmBump_(o);
 }
 function doGet(e) {
   var t0 = Date.now(), P = (e && e.parameter) || {};
@@ -1425,8 +1457,9 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.fire === 'say') return sayOnce_(e);
   /* ?pts=me&id= — הנקודות של התלמיד עצמו (ptsMe_). */
   if (e && e.parameter && e.parameter.pts === 'me') {
+    try { ptsFeNote_(e.parameter); } catch (errF) {}
     try { return reply_(e, ptsMe_(e.parameter)); }
-    catch (errP) { return reply_(e, { status:'error', message: String(errP) }); }
+    catch (errP) { tmBump_({ 'pts:err': 1 }); return reply_(e, { status:'error', message: String(errP) }); }
   }
   /* ?tkd=1&id=&wk=[&daf=&n=] — הכרטיסים על הדף של שבוע wk, למסך הסיום
      ולחידון (tkDaf_). עם daf+n — גם האם שליחת החידון הזו נשמרה. */
@@ -9916,10 +9949,10 @@ function ptsMe_(P) {
     /* הדף של ההגרלה בכל מסלול — לבית התלמיד במסלול השלמה (tkCardHtml).
        רק כאן ולא ב-rafTk_, שנקרא לכל תלמיד בלוח הצוות. */
     tk.dafs = rafDafs_();
-  } catch (eT) { tk = null; }
+  } catch (eT) { tk = null; tmBump_({ 'pts:tkerr': 1 }); }
   /* הכרטיסים להגרלה הבאה (8.99.362) — בנוסף ל-`tk`, שמכשיר ישן עוד קורא. */
   var nx = null;
-  try { nx = rafNextTk_(mine); } catch (eN) { nx = null; }
+  try { nx = rafNextTk_(mine); } catch (eN) { nx = null; tmBump_({ 'pts:nxerr': 1 }); }
   var T = ptsAll_(mine), o;
   for (var i = 0; i < mine.length; i++) {
     var v = ptsOf_(T, mine[i]);
@@ -9927,6 +9960,8 @@ function ptsMe_(P) {
       o = tk ? { status: 'ok', n: v.n, l: v.l, tk: tk } : { status: 'ok', n: v.n, l: v.l };
       if (nx) o.nx = nx;
       if (hs >= 0) o.hs = hs;
+      /* תשובה בלי נתוני כרטיסים — המסך מציג "לא הצלחנו לטעון" (מדידה, 8.99.457). */
+      if (!tk && !nx) tmBump_({ 'pts:notk': 1 });
       return o;
     }
   }
