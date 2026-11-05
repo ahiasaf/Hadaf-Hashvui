@@ -123,6 +123,10 @@ body{background:var(--paper);
 
 <script src="a11y.js"></script>
 <script src="data.js"></script>
+<script>
+/* הכניסה העצמאית לדף האינטראקטיבי (InterOn ב-data.js) — כותרת הלשונית בלי בני עקיבא. */
+if (InterOn()) document.title = (JOIN.inter || {}).title || document.title;
+</script>
 <script src="testmode.js"></script>
 <script src="deck.js"></script>
 <script src="textedit.js"></script>

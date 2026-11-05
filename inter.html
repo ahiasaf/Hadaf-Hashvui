@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<!-- ============================================================
+     הכניסה העצמאית לדף האינטראקטיבי (בריף 5.11).
+     ============================================================
+     ערוץ ציבורי נפרד מהישיבות: בלי שם וסמל של בני עקיבא, בלי בחירת
+     ישיבה, בלי הגרלות. הלוגו — איור הטלפון של הדף האינטראקטיבי, כמו
+     שנמסר, בלי עיצוב סביבו; הכותרת; והכפתור הירוק של join (`#hero-go`).
+     הכפתור ממשיך ל-join במצב `ch=inter` — אותה התקנה ואותו טופס.
+
+     התגיות לוואטסאפ כאן ב-HTML, כמו בשאר העמודים — הסורק אינו
+     מריץ קוד. הן בלי בני עקיבא, כמו כל הערוץ.
+     ============================================================ -->
+<title>הדף האינטראקטיבי</title>
+<meta property="og:site_name" content="הדף האינטראקטיבי">
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="הדף האינטראקטיבי">
+<meta property="og:description" content="דף גמרא אחד בשבוע, מוסבר שלב אחר שלב.">
+<meta property="og:url" content="https://hadaf-hashvui.vercel.app/inter">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/weekpics/phone-inter.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="852">
+<meta property="og:image:height" content="658">
+<meta property="og:image:alt" content="הדף האינטראקטיבי">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F6F1E6">
+<style>
+:root{
+  --green-d:#467B1A; --green-2:#3A6615;
+  --paper:#F6F1E6; --ink:#1B2A45;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;background:var(--paper);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.in{width:100%;max-width:32rem;text-align:center}
+.in img{display:block;width:100%;max-width:26rem;height:auto;margin:0 auto}
+.in h1{margin-top:18px;font-size:1.6rem;font-weight:800;line-height:1.3}
+/* אותו כפתור ירוק של join.html (`#hero-go`) — העתק של הכלל, בלי שינוי. */
+#hero-go{display:block;width:100%;text-align:center;margin-top:22px;
+  padding:16px;border:0;border-radius:14px;font-family:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;text-decoration:none;
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));
+  box-shadow:0 6px 18px rgba(74,130,28,.28);transition:box-shadow .5s ease}
+</style>
+</head>
+<body>
+<main class="in">
+  <img src="weekpics/phone-inter.webp" width="852" height="658" alt="">
+  <h1 id="t"></h1>
+  <a class="go" id="hero-go" href="join?ch=inter&amp;go=1"></a>
+</main>
+<script src="data.js"></script>
+<script src="textedit.js"></script>
+<script>
+(function () {
+  /* הנוסח שפורסם בניהול (נשמר במכשיר מביקור קודם), כמו ב-join.html. */
+  try { TX.layer(JSON.parse(localStorage.getItem('df:txtCache') || '{}') || {}, TX.draft()); } catch (e) {}
+  var J = window.JOIN || {}, I = J.inter || {};
+  document.getElementById('t').textContent = I.title || '';
+  document.getElementById('hero-go').textContent = (J.goBtn || '') + ' ←';
+  if (I.title) { document.title = I.title; document.querySelector('img').alt = I.title; }
+  /* הסימון נשמר כבר כאן — כך גם מי שחזר מאוחר יותר ל-join בלי הכתובת נשאר בערוץ. */
+  try { localStorage.setItem('df:chan', 'inter'); } catch (e) {}
+  /* בפיתוח (`.html` בכתובת) — הקישור עם הסיומת. ראו PageUrl ב-data.js. */
+  if (typeof PageUrl === 'function') {
+    document.getElementById('hero-go').href = PageUrl('join') + '?ch=inter&go=1';
+  }
+})();
+</script>
+</body>
+</html>

@@ -102,6 +102,15 @@
     } catch (e) {}
   })();
   (function () {
+    /* **הכניסה העצמאית** (`ch=inter`, ראו InterOn ב-data.js): manifest
+       נפרד (inter-manifest.json) מוכן, אבל **אינו מחובר** — אין עדיין סמל
+       מאושר לערוץ. עד שיהיה — בלי manifest כלל, ובלי הסמל של הישיבות. */
+    var chq = /[?&]ch=inter(&|$)/.test(location.search), chs = '';
+    try { chs = localStorage.getItem('df:chan') || ''; } catch (e) {}
+    if (chq || (chs === 'inter' && !/[?&](inst|for)=/.test(location.search))) {
+      document.documentElement.className += ' inter';
+      return;
+    }
     var m = /[?&]inst=([A-Za-z0-9_-]{2,20})(?:&|$)/.exec(location.search);
     var c = m ? m[1] : '';
     /* אין קוד בכתובת — אולי כבר ביקרנו עם אחד. זה מה שמחזיק
@@ -1472,6 +1481,22 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ptk-o{min-height:44px;padding:8px 0;border:0;background:none;font:inherit;font-size:.9rem;font-weight:800;
   color:var(--blue);cursor:pointer}
 .ptk-e{margin:10px 0 8px;font-size:.88rem;font-weight:700;color:var(--ink-2)}
+/* ---------- הכניסה העצמאית לדף האינטראקטיבי (`ch=inter`) ----------
+   בלי הגרלות וכרטיסים, בלי האתגר והרביעיות, בלי העלון. הלוגו — איור
+   הטלפון במקום הסמל העגול. ראו INTER בקוד. */
+html.inter #s-land,html.inter #chal,html.inter #mytk,html.inter #partk,html.inter #mypts,
+html.inter #quad,html.inter #myprz,html.inter #tkhow,html.inter #aldl,html.inter #chstrip{display:none!important}
+html.inter .foot-info{display:none}
+html.inter .masthead .m{width:auto;height:auto;border-radius:0;background:none;box-shadow:none}
+html.inter .masthead .m img{width:auto;height:52px}
+/* ההנצחה מתחת לבאנר הכחול — כמו במסך הטעינה של הדף (learn.html, `.veil-m`). */
+.imem{margin:22px auto 6px;padding-top:22px;position:relative;text-align:center}
+.imem::before{content:"";position:absolute;top:0;left:50%;width:36px;height:2px;margin-left:-18px;
+  background:var(--gold-l);border-radius:2px}
+.imem img{display:block;width:132px;height:160px;margin:0 auto 12px;object-fit:cover;
+  border:2px solid var(--gold-l);border-radius:14px;box-shadow:0 6px 18px rgba(27,42,69,.16)}
+.imem i{display:block;font-style:normal;font-size:.84rem;font-weight:800;color:var(--gold-t)}
+.imem em{display:block;margin-top:4px;font-style:normal;font-size:.95rem;font-weight:800;color:var(--ink)}
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1729,6 +1754,8 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
     <span class="tag" id="d-name"></span>
     <a id="myprz" class="myprz" href="hagrala.html?prz=1" hidden></a>
     <div id="wk"></div>
+    <!-- הכניסה העצמאית בלבד — ההנצחה מתחת לבאנר (interMem). -->
+    <div id="imem"></div>
     <!-- עלונים להורדה — רק בימי שישי, ורק כשיש עלון שפורסם (alonim.js, 8.99.449). -->
     <div id="aldl"></div>
     <div id="rail"></div>
@@ -1763,8 +1790,8 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
   </div>
 </div>
 
-<div class="wrap"><footer>רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז<br>
-  <a href="accessibility.html">הצהרת נגישות</a> · <a href="info.html">פרטים</a></footer></div>
+<div class="wrap"><footer><span id="foot-t">רשת ישיבות בני עקיבא · הדף השבועי · תשפ״ז</span><br>
+  <a href="accessibility.html">הצהרת נגישות</a><span class="foot-info"> · <a href="info.html">פרטים</a></span></footer></div>
 
 <div id="deck">
   <button class="dk-x" onclick="deckClose()" aria-label="סגירה">✕</button>
@@ -1816,6 +1843,59 @@ function set(k, v) {
   try { localStorage.setItem('df:' + k, JSON.stringify(v)); } catch (e) {}
 }
 $('hdr-mark').src = window.LOGO_MARK || '';
+
+/* ---------- הכניסה העצמאית לדף האינטראקטיבי (`ch=inter`) ----------
+   ערוץ ציבורי נפרד (בריף 5.11). נדלק בכתובת עם `ch=inter` ונשמר
+   במכשיר; קישור של ישיבה/הורים במכשיר שעוד לא נרשם מכבה אותו. הכתובת
+   שומרת `ch=inter` — באייפון "הוספה למסך הבית" לוקחת אותה (אין manifest).
+   אותה התקנה, אותו טופס ואותו בית — רק בלי ישיבה, בלי הגרלות ובלי שם
+   וסמל של בני עקיבא. נרשם כ"אחר" (כמו `out=1`) עם עמודת `ערוץ`. */
+var INTER = (function () {
+  var q = /[?&]ch=inter(&|$)/.test(location.search);
+  try {
+    if (q) localStorage.setItem('df:chan', 'inter');
+    else if (/[?&](inst|for)=/.test(location.search) && !get('me', null)) localStorage.removeItem('df:chan');
+  } catch (e) {}
+  return InterOn();
+})();
+if (INTER) {
+  if (!/[?&]ch=inter(&|$)/.test(location.search)) {
+    try {
+      history.replaceState(history.state, '', location.pathname +
+        (location.search ? location.search + '&' : '?') + 'ch=inter' + location.hash);
+    } catch (e) {}
+  }
+  document.documentElement.className += ' inter';
+  $('hdr-mark').src = 'weekpics/phone-inter.webp';
+  (function () {
+    var L = document.querySelectorAll('link[rel^="apple-touch-icon"]');
+    for (var i = 0; i < L.length; i++) L[i].parentNode.removeChild(L[i]);
+  })();
+}
+/* הנוסח של הערוץ — אחרי שכבת הנוסח שפורסם (TX.layer), ולכן נקרא שוב
+   בכל ציור (interText). */
+function interText() {
+  if (!INTER) return;
+  var I = JOIN.inter || {};
+  /* כל מפתח נוסף ב-JOIN.inter מחליף את המפתח באותו שם ב-JOIN, בערוץ הזה בלבד. */
+  for (var k in I) if (I.hasOwnProperty(k) && k !== 'title' && k !== 'foot' && JOIN.hasOwnProperty(k)) JOIN[k] = I[k];
+  document.title = I.title || '';
+  var h = document.querySelector('.masthead h1');
+  if (h) h.textContent = I.title || '';
+  var am = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (am) am.setAttribute('content', I.title || '');
+  var ft = $('foot-t'); if (ft) ft.textContent = I.foot || '';
+}
+/* ההנצחה מתחת לבאנר הכחול — אותו נוסח ואותה תמונה של מסך הטעינה בדף. */
+function interMem() {
+  var box = $('imem'); if (!box) return;
+  var t = UI.memT || '', n = UI.memN || '';
+  if (!INTER || !t) { box.innerHTML = ''; box.className = ''; return; }
+  var alt = esc(t + ' ' + n);
+  box.className = 'imem';
+  box.innerHTML = (window.MEM_IMG ? '<img src="' + MEM_IMG + '" alt="' + alt + '">' : '') +
+    '<i>' + esc(t) + '</i>' + (n ? '<em>' + esc(n) + '</em>' : '');
+}
 
 /* ---------- מזהה המכשיר ----------
    אקראי, נוצר פעם אחת, ואינו נגזר משום פרט אישי. הוא מה שמופיע
@@ -1949,6 +2029,7 @@ function csv(text) {
    ============================================================ */
 function applyTxtLayers() {
   TX.layer(get('txtCache', {}) || {}, TX.draft());
+  interText();
 }
 applyTxtLayers();
 
@@ -2240,7 +2321,7 @@ function drawTop() {
    כל מה שצריך כדי לנסח נכון. */
 /* אתגר "חבר מביא חבר": הקוד מהקישור נשמר מיד, לפני כל מסך —
    ההרשמה עשויה לקרות אחרי מעבר לכרום או אחרי התקנה. ראו chal.js. */
-if (window.CHAL) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
+if (window.CHAL && !INTER) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
 /* "המסך שלי כתלמיד" (8.99.352): מי שהגיע מהניהול — כפתור חזרה. "אחורה"
    בהיסטוריה, ולא קישור: הניהול אינו מקושר משום מקום. */
 (function () {
@@ -2263,7 +2344,7 @@ if (window.CHAL) { CHAL.grabRef(); CHAL.strip($('chstrip')); }
   };
   document.body.appendChild(b);
 })();
-if (window.QUAD) QUAD.grabRef();
+if (window.QUAD && !INTER) QUAD.grabRef();
 var invFrom = qs('me');          /* מי הזמין אותי, אם הוזמנתי */
 var invWid  = qs('wid');         /* המזהה שלו, לצימוד */
 /* מה שכבר נמסר עליי, ומה שידוע על מי שהזמין. */
@@ -2374,7 +2455,7 @@ var SCAN = forDad && !PRJ && qs('scan') === '1';
    ברשימה — אבל בלי לעבור על רשימה של מוסדות שאינם שלו ולסמן
    שהוא לא באף אחד מהם. כל השאר זהה. נזכר לאפליקציה המותקנת
    כמו קישור ההורים: ההתקנה באה לפני הפרטים. */
-var OUT = memo('df:out', qs('out') === '1');
+var OUT = memo('df:out', qs('out') === '1') || INTER;
 var role = forDad ? 'dad' : 'kid';        /* 'kid' | 'dad' */
 
 /* מתי הבורר מוצג בכלל.
@@ -2924,7 +3005,7 @@ function trlSend(wait) {
   if (TRL.tm) { clearTimeout(TRL.tm); TRL.tm = 0; }
   if (wait) { TRL.tm = setTimeout(function () { TRL.tm = 0; trlSend(0); }, wait); return; }
   try {
-    if (!API || !TRL.e.length || TRL.n >= 50) return;
+    if (!API || !TRL.e.length || TRL.n >= 50 || INTER) return;
     TRL.n++;
     trlRun();
     var hid = get('hid', '');
@@ -2970,8 +3051,9 @@ function hit(s, x) {
       if (s === 'join') TRL.j = 1;
       trlMark(s === 'inst' || s === 'perm' ? s + '.' + (x || '') : s);
     }
-    /* הדגמה — המשפך של ההרשמה האמיתית אינו סופר אותה. */
-    if (!API || demoOn()) return;
+    /* הדגמה — המשפך של ההרשמה האמיתית אינו סופר אותה. גם לא הכניסה
+       העצמאית: היא אינה במשפך של הדף השבועי. */
+    if (!API || demoOn() || INTER) return;
     var k = s + (x ? ':' + x : ''), done = get('hits', {}) || {};
     if (done[k]) return;
     done[k] = 1; set('hits', done);
@@ -3180,9 +3262,11 @@ function joinRow_(me) {
     /* הדגמה משפחתית — מזהה ההרצה. השרת שומר אותו רק כשהיא פעילה. */
     ['הדגמה', demoOn()],
     /* הניסוי החי — המזהה האמיתי של המכשיר, להתראת הניסוי (chDemoCols_). */
-    ['מכשיר אמיתי', demoOn() && TM.realId ? TM.realId() : '']
+    ['מכשיר אמיתי', demoOn() && TM.realId ? TM.realId() : ''],
+    /* הכניסה העצמאית — ערוץ מקור נפרד; השרת אינו סופר אותו בדף השבועי. */
+    ['ערוץ', INTER ? INTER_CH : '']
   ].filter(function (c) {
-    if (c[0] === 'מסלול השלמה' || c[0] === 'הדגמה' || c[0] === 'מכשיר אמיתי') return !!c[1];
+    if (c[0] === 'מסלול השלמה' || c[0] === 'הדגמה' || c[0] === 'מכשיר אמיתי' || c[0] === 'ערוץ') return !!c[1];
     /* מכשיר ששוחזר ("כבר נרשמתי") אינו מקבל את הטלפון של השותף
        — ושורה ששולחת אותו ריק הייתה מוחקת אותו בגיליון. */
     if (c[0] === 'קוד הזמנה באתגר') return !!c[1];
@@ -3226,6 +3310,7 @@ function invUrl(me) {
   if (me.dadPhone) q += '&p=' + encodeURIComponent(me.dadPhone);
   /* ומי ששלח — כדי שהצד השני יראה אותו כבר מלא בחלק "מי לומד
      איתך", ולא יצטרך להזין את מי שהרגע הזמין אותו. */
+  if (INTER) q += '&ch=inter';
   q += '&sf=' + encodeURIComponent(me.first) +
        '&sl=' + encodeURIComponent(me.last || '');
   if (me.phone) q += '&sp=' + encodeURIComponent(me.phone);
@@ -3297,7 +3382,7 @@ var INV_FORCE = location.hash === '#invite';
 /* הנוסח המוכן. בן נקרא בשמו; אבא — "אבא" (ראו greetName). */
 function invMsg_(me, them) {
   var g = me.rel === 'kid' ? (them || greetName(me)) : (them ? greetName(me) : '');
-  return tpl(JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
+  return tpl(INTER ? ((JOIN.inter || {}).invMsg || '') : JOIN.invMsg, { me: me.first, them: g, url: invUrl(me) });
 }
 function invWa_(me, num, txt) {
   window.open('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(txt), '_blank');
@@ -3439,7 +3524,7 @@ function drawInv2(where) {
                 dadFirst: name2, dadLast: me.last, dadPhone: num };
     set('inv2-sent', 1);
     window.open('https://wa.me/' + waNum(num) + '?text=' +
-      encodeURIComponent(tpl(JOIN.invMsg, { me: me.first, them: name2, url: invUrl(me2) })),
+      encodeURIComponent(tpl(INTER ? ((JOIN.inter || {}).invMsg || '') : JOIN.invMsg, { me: me.first, them: name2, url: invUrl(me2) })),
       '_blank');
     drawInv2(where);
   };
@@ -3655,9 +3740,12 @@ function drawWeek() {
     appUrl('#track=' + tr) + '\'">' + TrailHtml({ tr: trR, wi: LWeek(), here: -1, noHead: true,
       units: TrailWeeks(trR).filter(function (u) { return u.wk === wkR; }) }) +
     '<div class="tnote">' + esc(UI.trackNote) + '</div></div>';
-  drawPts();
-  drawPrz();
-  if (window.ALDL) ALDL.card($('aldl'));
+  interMem();
+  if (!INTER) {
+    drawPts();
+    drawPrz();
+    if (window.ALDL) ALDL.card($('aldl'));
+  }
 
   /* הסימון והמונים — רק מששבוע הלימוד קיים. לפני כן אין מה
      לסמן ואין מה לספור, ושורה של אפסים אינה מידע. */
@@ -3768,7 +3856,7 @@ function drawPts() {
         try { drawWeek(); drawHero(); } catch (eH) {}
       }
       set('ptsMe', { v: 2, id: me.id, at: Date.now(), none: !!r.none, n: r.n == null ? null : r.n, l: r.l || [],
-                     tk: r.tk || null, nx: r.nx || null });
+                     tk: r.tk || null, nx: r.nx || null, up: r.up || '' });
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); fail('e'); };
@@ -4063,7 +4151,10 @@ function tkCardHtml(c) {
   var dd = tkDays((c && c.nr) || (nx && nx.nr) || 0);
   /* בדיקת הזמן שקטה (8.99.355): השרת כבר מציג לתלמיד כרטיס לימוד על
      שני העמודים (rafTk_ `stu`), בלי דקות חסרות — ואין כאן מה להוסיף. */
-  return '<div class="tk-top"><div class="tk-hd"><b>' + esc(tk && !(tk.t > 0) ? UI.myTkNone : UI.myTkHd) + '</b></div>' +
+  /* מהתמונה השמורה (`up` מהשרת) — "מתעדכן פעם ביום" / "כל שעה". בלי — כלום. */
+  var up = c && c.up === 'h' ? UI.myTkUpH : c && c.up === 'd' ? UI.myTkUpD : '';
+  return '<div class="tk-top"><div class="tk-hd"><b>' + esc(tk && !(tk.t > 0) ? UI.myTkNone : UI.myTkHd) + '</b>' +
+      (tk && up ? '<span>' + esc(up) + '</span>' : '') + '</div>' +
       (dd ? '<span class="tk-dd">' + esc(dd) + '</span>' : '') + '</div>' +
     (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
         : wait ? '<div class="tk-wt" aria-busy="true">…</div>' : '<div class="tk-err">' + esc(UI.myTkErr) + '</div>') + lk;
@@ -5712,8 +5803,9 @@ function showDone(me, how) {
   drawWeek();
   drawApp();
   drawPhNag();
-  if (window.CHAL) CHAL.card($('chal'));
-  if (window.QUAD) QUAD.card($('quad'));
+  if (window.CHAL && !INTER) CHAL.card($('chal'));
+  if (window.QUAD && !INTER) QUAD.card($('quad'));
+  interText();
   if (how !== 'quiet') window.scrollTo(0, 0);
 }
 
@@ -5864,9 +5956,23 @@ $('meet-go').onclick = function () { $('hero-go').onclick(); };
 
    בלי גלילה חלקה: המסך נפתח כאן, ואנימציה שמתחילה מלמעלה
    וגוללת למטה נראית כמו תקלה ולא כמו רצף. */
-if (/[?&]go=1\b/.test(location.search)) {
+if (/[?&]go=1\b/.test(location.search) && !INTER) {
   window.addEventListener('load', function () { setTimeout(toForm, 60); });
 }
+/* הכניסה העצמאית — מסך הפתיחה שלה הוא inter.html, ולכן כאן אין נחיתה:
+   מי שעוד לא נרשם נכנס ישר למסע (כמו לחיצה על "אני מצטרף"). חזרה אל
+   הנחיתה מתוך המסע — חזרה לעמוד הכניסה. */
+if (INTER) {
+  interText();
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      interText();
+      if (landNow()) $('hero-go').onclick();
+      INTER_GO = true;
+    }, 60);
+  });
+}
+var INTER_GO = false;
 /* `?notes=1` — "לחיבור ההתראות" מהדף האינטראקטיבי (דף נעול, או
    חידון שעוד לא עלה). נוחתים ישר במסע, בשלב שבו הוא עומד — אותו
    מסע שהשורה "nb-go" פותחת. מי שכבר מחובר — אין מה לפתוח. */
@@ -6016,6 +6122,7 @@ function landNow() {
 }
 function landSync() {
   var on = landNow(), b = document.body;
+  if (INTER && on && INTER_GO) { location.href = PageUrl('inter'); return; }
   var was = /(^|\s)land(\s|$)/.test(b.className);
   if (on === was) return;
   b.className = on ? b.className + ' land'

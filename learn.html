@@ -181,6 +181,13 @@ body.whole .stage:active{cursor:grabbing}
 .veil b{display:block;font-size:1rem;font-weight:800}
 .veil small{display:block;margin-top:8px;font-size:.82rem;color:var(--ink-2);
   font-weight:700;line-height:1.6}
+.veil .veil-m{margin:26px auto 0;padding-top:22px;position:relative}
+.veil .veil-m::before{content:"";position:absolute;top:0;left:50%;width:36px;height:2px;
+  margin-left:-18px;background:var(--gold-l);border-radius:2px}
+.veil .veil-m img{display:block;width:132px;height:160px;margin:0 auto 12px;object-fit:cover;
+  border:2px solid var(--gold-l);border-radius:14px;box-shadow:0 6px 18px rgba(27,42,69,.16)}
+.veil .veil-m i{display:block;font-style:normal;font-size:.84rem;font-weight:800;color:var(--gold-t)}
+.veil .veil-m em{display:block;margin-top:4px;font-style:normal;font-size:.95rem;font-weight:800;color:var(--ink)}
 .spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
   border:3px solid var(--rule);border-top-color:var(--gold);
   animation:sp .9s linear infinite}
@@ -1375,6 +1382,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
       <div class="spin"></div>
       <b id="veil-t">מביא את הדף…</b>
       <small id="veil-s">רגע אחד</small>
+      <p class="veil-m" id="veil-m" hidden></p>
     </div></div>
   </section>
 
@@ -1543,11 +1551,20 @@ function esc(t) {
 function dafKey(d) { return String(d).replace(/["'׳״\s]/g, ''); }
 function fileId(url) { var m = /\/d\/([-\w]{20,})/.exec(url || ''); return m ? m[1] : null; }
 
-function veil(title, sub, spin) {
+/* `mem` — ההנצחה מתחת לטקסט, רק בטעינת הדף ("מביא את הדף…"), לא בנעילה
+   ולא בשגיאה. */
+function veil(title, sub, spin, mem) {
   $('veil').className = 'veil';
   $('veil-t').textContent = title;
   $('veil-s').innerHTML = sub || '';
   $('veil').querySelector('.spin').style.display = spin === false ? 'none' : '';
+  var m = $('veil-m'), t = UI.memT || '', n = UI.memN || '';
+  if (mem && t) {
+    var alt = esc(t + ' ' + n);
+    m.innerHTML = (MEM_IMG ? '<img src="' + MEM_IMG + '" alt="' + alt + '">' : '') +
+      '<i>' + esc(t) + '</i>' + (n ? '<em>' + esc(n) + '</em>' : '');
+    m.hidden = false;
+  } else { m.hidden = true; m.innerHTML = ''; }
 }
 function unveil() { $('veil').className = 'veil off'; }
 
@@ -5604,9 +5621,13 @@ function doneQPaint_() {
        מכשיר ששלח לפני 8.99.338 (`qsv` חסר) — בלי שורת מצב. */
     var sv = qSv_(), sc = qScore_(), ok = qPassed_(), again = ok === false && qTries_() < QZ_TRIES;
     var hd = ok ? UI.dqPassH : ok === false ? (again ? UI.dqFail1H : UI.dqFail2H) : UI.dqThanks;
-    var bd = ok ? (sv !== '0' ? UI.dqPassB : '') : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
+    /* עבר — "החידון נשמר" (dqPassB) רק אחרי שהשרת מצא את השורה (sv === '1');
+       אז שורת המצב "✓ נשמר" אינה חוזרת על אותו דבר. בלי כרטיסים במסך הסיום
+       (בריף 5.11, א׳4): האימות הוא `nt=1` — שהחידון נשמר, ולא יותר. */
+    var bd = ok ? (sv === '1' ? UI.dqPassB : '') : ok === false ? (again ? UI.dqFail1B : UI.dqFail2B) : UI.dqThanksB;
     var info = '';
-    if (sv === '1') {
+    /* הכניסה העצמאית (InterOn) — בלי כרטיסים והגרלות. */
+    if (sv === '1' && !InterOn()) {
       var tk = QV_TK && QV_TK.tk;
       if (tk && tk.drawn != null) info = UI.dqTkDrawn;
       else if (tk) info = fillT(tk.t === 1 ? UI.dqTk1 : UI.dqTkN, { n: tk.t, daf: tk.daf || '' });
@@ -5615,7 +5636,7 @@ function doneQPaint_() {
       ? (QV_BUSY ? '<div class="dq-st">' + esc(UI.dqSaving || '') + '</div>'
                  : '<div class="dq-st bad">' + esc(UI.dqSaveErrH || '') +
                    ' <button type="button" id="dq-resend">' + esc(UI.dqResend || '') + '</button></div>')
-      : sv === '1' ? '<div class="dq-st ok">' + esc(UI.dqSavedS || '') + '</div>' : '';
+      : sv === '1' && !(ok && bd) ? '<div class="dq-st ok">' + esc(UI.dqSavedS || '') + '</div>' : '';
     box.innerHTML = '<b>' + esc(UI.dnQT || '') + '</b>' +
       '<div class="dq-res"><b>' + esc(hd || '') + '</b>' +
       (sc ? '<span class="dq-sc">' + esc(fillT(UI.dqScore, { r: sc[0], n: sc[1] })) + '</span>' + qMarks_(all) : '') +
@@ -5625,13 +5646,8 @@ function doneQPaint_() {
       (again ? '<button class="btn p" id="dq-again">' + esc(UI.dqAgain || '') + '</button>' : '') + st;
     if (again) $('dq-again').onclick = qAgain_;
     if ($('dq-resend')) $('dq-resend').onclick = qResend_;
-    /* נשמר בביקור קודם — הכרטיסים מהשרת, פעם אחת בטעינה. */
-    if (sv === '1' && !QV_TK && !QV_BUSY && !QV_ONCE) {
-      QV_ONCE = true;
-      qzCheck_({ n: qTries_(), sc: sc ? sc.join('/') : '' }, false).then(function (r) {
-        if (r) { QV_TK = r; doneQPaint_(); }
-      });
-    }
+    /* (עד 5.11 — "נשמר בביקור קודם": בקשת כרטיסים נוספת בטעינה. ירדה עם
+       הכרטיסים במסך הסיום.) */
     return;
   }
   var dots = '';
@@ -5784,7 +5800,8 @@ function qzSync_(post, round, fresh) {
     var v = Promise.resolve();
     Q.forEach(function (it, i) {
       v = v.then(function () {
-        return qzCheck_(it, i < Q.length - 1).then(function (r) {
+        /* תמיד `nt=1` — רק "נשמר", בלי חישוב כרטיסים (בריף 5.11, א׳4). */
+        return qzCheck_(it, true).then(function (r) {
           if (!r) return;
           got[it.n + '|' + it.sc] = 1;
           if (i === Q.length - 1) last = r;
@@ -5831,6 +5848,7 @@ function qzResume_() {
    במסלול הזה על הדף. join.html מציג את הדף של החידון הזה (`df:tkLand`)
    ומדגיש פעם אחת את הכרטיס החדש. נכשל או לא עבר — נשארים כאן. */
 function qzLand_() {
+  if (InterOn()) return;                       /* הכניסה העצמאית — אין כרטיסים */
   var tk = QV_TK && QV_TK.tk, x = tk && tk.tr && tk.tr[S.tr];
   if (!qPassed_() || !tk || tk.drawn != null || !x || !(x[1] > 0)) return;
   if (EMB || SIDE_ADM || quiet() || stuDad() || ['home', 'qbank', 'tzevet'].indexOf(FROM) >= 0) return;
@@ -5854,7 +5872,11 @@ function dnTkPaint_(k) {
   var box = $('done-tk'), me = (typeof LMe === 'function') ? LMe() : null;
   if (!box) return;
   if (!k) box.style.display = 'none';
-  if (!API || quiet() || !me || !me.id || typeof LJsonp !== 'function' || k > 3) return;
+  /* **בריף 5.11, א׳4: אין חישוב כרטיסים במסך הסיום.** ללימוד אין אישור קל
+     במסלול הקיים (השורה יוצאת `no-cors`, ו-?tkd בלי `daf` מחשב כרטיסים) —
+     ולכן אין שורה ואין בקשה. הכרטיסים — בבית. */
+  return;
+  if (!API || quiet() || !me || !me.id || typeof LJsonp !== 'function' || k > 3 || InterOn()) return;
   setTimeout(function () {
     if ($('done').className.indexOf('on') < 0) return;
     LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) + '&wk=' + (S.week + 1))
@@ -7597,7 +7619,7 @@ function boot() {
   /* דף שהרכז עוד לא פתח — ראו "פתיחת דפים" ב-deck.js. הרכז עצמו
      (ומי שמריץ הדגמה) נכנס תמיד: הוא זה שמכין את הדף. */
   if (!OPEN_OK && S.daf) {
-    veil('מביא את הדף…', '');
+    veil('מביא את הדף…', '', true, true);
     buttons(false);
     OpenLoad().then(function () {
       OPEN_OK = true;
@@ -7633,7 +7655,7 @@ function boot() {
     if (QB_ID) setTimeout(function () { toast(UI.qbPickSeg || ''); }, 1200);
   }
 
-  veil('מביא את הדף…', 'צורת הדף והסימונים');
+  veil('מביא את הדף…', 'צורת הדף והסימונים', true, true);
   buttons(false);
   /* שלוש המשיכות רצות **במקביל**, ולא בטור.
      קודם `loadLib()` חסם את השאר, ורק כשסיים יצאו הסימונים

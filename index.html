@@ -3132,6 +3132,10 @@ button.yr-c.auto{cursor:pointer}
 <script src="a11y.js"></script>
 <script src="logo.js"></script>
 <script src="data.js"></script>
+<script>
+/* הכניסה העצמאית לדף האינטראקטיבי (InterOn ב-data.js) — כותרת הלשונית בלי בני עקיבא. */
+if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.inter || {}).title || document.title;
+</script>
 <script src="testmode.js"></script>
 <script src="deck.js"></script>
 <script src="qbank.js"></script>
@@ -3153,7 +3157,7 @@ button.yr-c.auto{cursor:pointer}
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.457';
+var APP_VERSION = '8.99.458';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';

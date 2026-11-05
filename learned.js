@@ -186,6 +186,12 @@ function LMark(track, wk, mins) {
   LDoneRow(track, wk, mins);
   return true;
 }
+/* הכניסה העצמאית לדף האינטראקטיבי (InterOn ב-data.js) — עמודת `ערוץ`
+   בשורות "לימוד", כדי שהמונים של הדף השבועי (recountLearn_) לא יספרו
+   אותה. מחוץ לערוץ — בלי עמודה, השורה כמו שהייתה. */
+function LChanCol() {
+  return (typeof InterOn === 'function' && InterOn()) ? [['ערוץ', INTER_CH]] : [];
+}
 /* שורת הסיום ללשונית "לימוד". שורת סיום נושאת קטע = מתוך — כך השרת
    מבדיל בינה לבין שורת התקדמות באמצע, בלי לנחש לפי מה שחסר. */
 function LDoneRow(track, wk, mins) {
@@ -199,7 +205,7 @@ function LDoneRow(track, wk, mins) {
       ['קטע', pz ? pz.n : ''], ['מתוך', pz ? pz.n : ''],
       ['בדיקה', LTester() ? 'כן' : ''],
       ['זמן בדף (דקות)', mins >= 0 ? mins : ''], ['מכשיר', mins >= 0 ? LDev() : '']
-    ]) });
+    ].concat(LChanCol())) });
     LSet('learn-q', q);
     if (mins >= 0) { var ts = LGet('tm-sent', {}) || {}; ts[LKey(track, wk)] = mins; LSet('tm-sent', ts); }
     LFlush();
@@ -297,7 +303,7 @@ function LPosSend(track, wk) {
     ['מסלול', track], ['שבוע', wk + 1], ['דף', LDafName(track, wk) || ''],
     ['קטע', p.i + 1], ['מתוך', p.n],
     ['בדיקה', LTester() ? 'כן' : '']
-  ]) });
+  ].concat(LChanCol())) });
   LSet('learn-q', q);
   LFlush();
 }

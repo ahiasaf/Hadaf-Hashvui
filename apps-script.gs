@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 183;
+var SCRIPT_VERSION = 184;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -2698,6 +2698,18 @@ function noTestRows_(rows) {
   }));
 }
 
+/* הכניסה העצמאית לדף האינטראקטיבי (בריף 5.11) — שורות עם `ערוץ` אינן
+   נספרות במוני הדף השבועי. רק במונים — doneRows_ עצמה לא השתנתה. */
+function noChanRows_(rows) {
+  if (!rows || rows.length < 2) return rows;
+  var iC = -1;
+  for (var i = 0; i < rows[0].length; i++) if (String(rows[0][i]).trim() === 'ערוץ') iC = i;
+  if (iC < 0) return rows;
+  return [rows[0]].concat(rows.slice(1).filter(function (r) {
+    return !String(r[iC] || '').trim();
+  }));
+}
+
 function doneRows_(rows) {
   rows = noTestRows_(rows);
   if (!rows || !rows.length) return rows;
@@ -2857,7 +2869,7 @@ function recountLearn_(full) {
 
        הלוח כבר ידע להבדיל; המונה הציבורי לא, וזה המספר שהתלמידים
        רואים. הסינון כאן, לפני הספירה. */
-    var t = tally_(doneRows_(src.getDataRange().getDisplayValues()),
+    var t = tally_(noChanRows_(doneRows_(src.getDataRange().getDisplayValues())),
                    ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
     if (!t) return;
     writeCount_(LCOUNT_TAB, ['מסלול', 'שבוע', 'קוד ישיבה', 'סיימו'],
@@ -2899,7 +2911,7 @@ function recountLearnPart_() {
     if (parseInt(slice.rows[r][iw], 10) >= base) mine.push(slice.rows[r]);
   }
 
-  var t = tally_(doneRows_(mine), ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
+  var t = tally_(noChanRows_(doneRows_(mine)), ['מסלול', 'שבוע', 'קוד ישיבה'], 'מזהה');
   if (!t) return;
 
   var touched = {};
@@ -5699,6 +5711,7 @@ function partCalc_(all) {
     p.code = c(row, 'קוד ישיבה'); p.role = c(row, 'תפקיד'); p.test = c(row, 'בדיקה') === 'כן';
     p.name = c(row, 'שם'); p.last = c(row, 'משפחה'); p.grade = c(row, 'שכבה');
     p.klass = c(row, 'כיתה'); p.way = c(row, 'מסגרת'); p.key = rowKey_(t, row);
+    p.chan = c(row, 'ערוץ');
   }
   /* שני חשבונות באותו טלפון ושם מלא — היעד הוא האחרון שנרשם. */
   var byKey = {}, target = {};
@@ -5722,7 +5735,7 @@ function partCalc_(all) {
   var P = {}, porder = [];
   order.forEach(function (id) {
     var q = ppl[id];
-    if (target[id] || q.role === 'הורה' || q.test || !q.code) return;
+    if (target[id] || q.role === 'הורה' || q.test || !q.code || q.chan) return;
     P[id] = { q: q, reg: q.ids.some(function (x) { return !/^Am/.test(x); }) ? 1 : 0, rep: 0 };
     porder.push(id);
   });
@@ -5780,7 +5793,7 @@ function partCalc_(all) {
   var skip = {}, att = {};
   order.forEach(function (id) {
     var q = ppl[id];
-    if (q.role === 'הורה' || q.test) q.ids.forEach(function (x) { skip[x] = 1; });
+    if (q.role === 'הורה' || q.test || q.chan) q.ids.forEach(function (x) { skip[x] = 1; });
   });
   porder.forEach(function (id) { if (P[id].rep) (att[P[id].q.code] = att[P[id].q.code] || {})[id] = 1; });
   oorder.forEach(function (k) { (att[only[k].code] = att[only[k].code] || {})['k:' + k] = 1; });
@@ -8367,12 +8380,17 @@ var PUB_ROW = {
              'הדגמה',
              /* הניסוי החי (8.99.351): המזהה האמיתי של המכשיר, כדי שהתראת
                 הניסוי תגיע אליו. נשמר רק יחד עם "הדגמה" (chDemoCols_). */
-             'מכשיר אמיתי'],
+             'מכשיר אמיתי',
+             /* הכניסה העצמאית לדף האינטראקטיבי (בריף 5.11) — "אינטראקטיבי".
+                נרשם כ"אחר"; לא נספר בדף השבועי (partCalc_, quizSum_). */
+             'ערוץ'],
   'התראות': ['מזהה', 'שם', 'טלפון', 'ישיבה', 'קוד ישיבה', 'תפקיד', 'שכבה', 'כיתה', 'מכשיר',
              'מנוי', 'תוצאה', 'מועד', 'מתי', 'דפדפן'],
   /* זמן בדף ומכשיר — לכרטיס הלימוד בהגרלה (rafTmAdd_, 8.99.324). */
   'לימוד': ['מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה',
-            'זמן בדף (דקות)', 'מכשיר'],
+            'זמן בדף (דקות)', 'מכשיר',
+            /* הכניסה העצמאית — לא נספרת במוני הלימוד (noChanRows_). */
+            'ערוץ'],
   /* פרטי השותף — עד 8.99.323 חסרו כאן, ונזרקו: הבקשות הגיעו בלי הטלפון
      של אבא, ולכן לא נמצא אבא לשלוח לו (pendingFor/pairSeen) ולא בן לתת
      לו כרטיס (rafGrants_). "אושר" מהלקוח נשמר רק בשורה שאבא כתב — ראו
@@ -9936,6 +9954,8 @@ function ptsMe_(P) {
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
   if (!mine.length) return { status: 'ok', none: 1 };
+  /* התמונה השמורה (hsnap) — רק כשהמתג דלוק. כבוי — החישוב החי, כמו קודם. */
+  if (hsnapOn_()) return hsnapMe_(mine);
   var tk = null, hs = -1;
   try {
     var M = rafMeMap_(null, mine);
@@ -10965,7 +10985,7 @@ function quizSum_() {
     var row = t.rows[r], id = t.c(row, 'מזהה');
     if (!id) continue;
     who[id] = { code: t.c(row, 'קוד ישיבה'), inst: t.c(row, 'ישיבה'), role: t.c(row, 'תפקיד'),
-                test: t.c(row, 'בדיקה') === 'כן' };
+                test: t.c(row, 'בדיקה') === 'כן', chan: t.c(row, 'ערוץ') };
   }
   var M = [['taanit', SHIFT_TAANIT], ['megila', SHIFT_MEGILA]].map(function (x) {
     var base = '';
@@ -10990,6 +11010,7 @@ function quizSum_() {
     if (!cid) continue;
     if (!p) { U.unk[cid] = 1; continue; }
     if (p.test) { U.test[cid] = 1; continue; }
+    if (p.chan) continue;                  /* הכניסה העצמאית — לא בסיכום של הדף השבועי */
     if (p.role === 'הורה') { U.par[cid] = 1; continue; }
     if (p.code === 'lapid') { U.lapid[cid] = 1; continue; }
     var b = U.by[p.code || '-'] = U.by[p.code || '-'] || { code: p.code, inst: p.inst, ids: {}, full: {} };
@@ -11336,6 +11357,185 @@ function rafNextTk_(mine) {
   o.nr = nr;
   return o;
 }
+/* ============================================================
+   התמונה השמורה לבית (בריף 5.11, א׳) — כרטיסים ונקודות לכל המכשירים.
+   ============================================================
+   **כבויה עד שאחיאסף מפעיל.** בית התלמיד (?pts=me, ptsMe_) קורא אותה
+   רק כשהמתג דלוק (`HSNAP_ON` = 1), ורק אחרי בנייה אחת שהושלמה. כבויה —
+   החישוב החי, בדיוק כמו קודם. הזכאות וההגרלה עצמן — תמיד מהנתונים החיים
+   (rafCalc_, raffleElig_, rafPic_); התמונה היא תצוגה בלבד.
+   · **נכתבת רק בבנייה** (hsnapBuild_, בנעילה): rafMeMap_ של הדף של ההגרלה
+     ושל ההגרלה הבאה, ptsAll_, והדפים — אותם חישובים של הבית. שום כתיבה
+     אחרת אינה מוחקת אותה (ptsBust_/rafMeKeys_ אינם נוגעים בה).
+   · **שמירה קבועה בגיליון הפרטי:** שתי לשוניות מוסתרות (א/ב). הבנייה כותבת
+     ללשונית שאינה הנוכחית, קוראת שוב ומשווה, ורק אז מעבירה אליה את המצביע
+     (`HSNAP_TAB`). כישלון — המצביע לא זז, הקודמת נשארת. CacheService — רק
+     מטמון קריאה (עד 6 שעות), לפי מזהה הבנייה.
+   · **בקשת תלמיד אינה מחשבת:** אין תמונה (או שלא נקראה) — "לא זמין" (בלי
+     `tk`/`nx`), כמו כישלון היום. בלי כרטיסים מומצאים.
+   · **הסנכרון** — hsnapDaily (06:00) ו-hsnapHourly (כל שעה, ויוצא מיד מחוץ
+     לחלון: מצאת השבת עד שההגרלה הידנית של השבוע נרשמה, rafTzeit_/rafLast_).
+     ההתקנה — hsnapSetup (הבעלים מריץ פעם אחת); הסרה — hsnapRemove.
+     **לא הותקנו**: "בערך ב-06:00" של גוגל (nearMinute, ±15 דק') ממתין לאישור.
+   · מתג: hsnapEnable (מסרב בלי בנייה שהושלמה) · hsnapDisable.
+   ============================================================ */
+var HSNAP_TABS_ = ['תמונת בית א', 'תמונת בית ב'];
+var HSNAP_CHUNK_ = 45000;
+function hsnapProp_(k, v) {
+  var P = PropertiesService.getScriptProperties();
+  if (v === undefined) return P.getProperty(k) || '';
+  if (v === null) P.deleteProperty(k); else P.setProperty(k, String(v));
+  return v;
+}
+/* המצביע: 'שם לשונית|מזהה בנייה|מועד'. */
+function hsnapPtr_() {
+  var p = hsnapProp_('HSNAP_TAB').split('|');
+  return p.length === 3 && HSNAP_TABS_.indexOf(p[0]) >= 0 ? { tab: p[0], id: p[1], at: p[2] } : null;
+}
+function hsnapOn_() {
+  try { return hsnapProp_('HSNAP_ON') === '1' && !!hsnapPtr_(); } catch (e) { return false; }
+}
+/* החלון השעתי: מצאת השבת (שבת) ועד שההגרלה של השבוע נרשמה — גם במוצ"ש
+   וגם ביום ראשון בבוקר. `now` — לבדיקה. */
+function hsnapWin_(now) {
+  now = now || Date.now();
+  var L = new Date(now + rafIlOff_(now) * 60000), dow = L.getUTCDay(), sat;
+  if (dow === 6) sat = L;
+  else if (dow === 0) sat = new Date(L.getTime() - 86400000);
+  else return false;
+  var tz = rafTzeit_(sat.getUTCFullYear(), sat.getUTCMonth() + 1, sat.getUTCDate());
+  if (now < tz) return false;
+  /* ההגרלה של השבוע — שבוע התוכנית של יום ראשון (progWeek_ כבר עבר אליו
+     ביום ראשון; במוצ"ש — השבוע הבא). נרשמה — החלון נסגר. */
+  var wk = dow === 0 ? progWeek_() : progWeek_() + 1;
+  try { if (rafLast_(rafRead_(), wk)) return false; } catch (e) { return false; }
+  return true;
+}
+function hsnapRead_(ptr) {
+  var rc = CacheService.getScriptCache(), key = 'hsnap:' + ptr.id;
+  var S = bigGet_(rc, key);
+  if (S && S.id === ptr.id) return S;
+  var sh = sheet_(ptr.tab);
+  if (!sh || sh.getLastRow() < 2) return null;
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues(), js = '';
+  for (var i = 0; i < v.length; i++) {
+    if (String(v[i][0]) !== ptr.id) return null;
+    js += String(v[i][2] || '');
+  }
+  try { S = JSON.parse(js); } catch (e) { return null; }
+  if (!S || S.id !== ptr.id) return null;
+  bigPut_(rc, key, S, 21600);
+  return S;
+}
+/* הבנייה. מחזירה מחרוזת (מריצים מהעורך) ושומרת את התוצאה ב-HSNAP_LAST. */
+function hsnapBuild_(why) {
+  /* נעילה משלה — לא נעילת הסקריפט, שבה ממתינות ההרשמות (doPost): הבנייה
+     אורכת עשרות שניות. כך רק בנייה אחת בכל פעם, בלי לעכב כתיבה של תלמיד. */
+  var lk = LockService.getDocumentLock() || LockService.getUserLock();
+  if (!lk.tryLock(30000)) { hsnapProp_('HSNAP_LAST', 'עסוק · ' + new Date().toISOString()); return 'עסוק — לא נבנה'; }
+  var msg = '';
+  try {
+    var pw = progWeek_(), nr = rafNext_(), W = nr && nr !== pw ? nr - 1 : null;
+    var S = { v: 1, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+              at: new Date().toISOString(), why: String(why || ''), pw: pw, nr: nr, W: W,
+              daf: rafDaf_(), dafs: rafDafs_(), dafW: W == null ? rafDaf_() : rafDafW_(W),
+              tk: rafMeMap_(null, null), pts: ptsAll_(null) };
+    S.nx = W == null ? null : rafMeMap_(W, null);
+    var js = JSON.stringify(S), rows = [];
+    for (var o = 0, n = 0; o < js.length; o += HSNAP_CHUNK_) rows.push([S.id, n++, js.substr(o, HSNAP_CHUNK_)]);
+    var cur = hsnapPtr_(), tab = cur && cur.tab === HSNAP_TABS_[0] ? HSNAP_TABS_[1] : HSNAP_TABS_[0];
+    var sh = sheet_(tab);
+    try { sh.hideSheet(); } catch (eH) {}
+    sh.clearContents();
+    sh.getRange(1, 1, 1, 3).setValues([['בנייה', 'חלק', 'נתונים']]);
+    sh.getRange(2, 1, rows.length, 3).setValues(rows);
+    SpreadsheetApp.flush();
+    /* קריאה חוזרת והשוואה — רק אז המצביע זז. */
+    var back = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues(), bj = '';
+    for (var i = 0; i < back.length; i++) {
+      if (String(back[i][0]) !== S.id || +back[i][1] !== i) { bj = null; break; }
+      bj += String(back[i][2] || '');
+    }
+    if (bj !== js) throw new Error('הקריאה החוזרת אינה זהה');
+    hsnapProp_('HSNAP_TAB', tab + '|' + S.id + '|' + S.at);
+    bigPut_(CacheService.getScriptCache(), 'hsnap:' + S.id, S, 21600);
+    msg = 'נבנתה · ' + S.at + ' · ' + rows.length + ' חלקים · ' + tab;
+  } catch (e) {
+    msg = 'נכשלה — הקודמת נשארה · ' + String(e && e.message || e);
+  } finally { lk.releaseLock(); }
+  hsnapProp_('HSNAP_LAST', msg);
+  return msg;
+}
+/* הבית מהתמונה — אותה תשובה של ptsMe_, בלי חישוב. `up` — כמה פעמים
+   מתעדכנת עכשיו ('h' בחלון השעתי, 'd' אחרת), לתווית בבית. */
+function hsnapMe_(mine) {
+  var ptr = hsnapPtr_(), S = null;
+  try { S = ptr ? hsnapRead_(ptr) : null; } catch (e) { S = null; }
+  if (!S) { tmBump_({ 'pts:snapna': 1 }); return { status: 'ok', na: 1 }; }
+  var tk = null, nx = null, hs = -1, hit = '', hitN = '';
+  for (var j = 0; j < mine.length && !hit; j++) hit = (S.tk || {})[mine[j]] || '';
+  tk = rafTk_(hit, null, true);
+  tk.daf = S.daf;
+  tk.dafs = S.dafs;
+  var hm = String(hit).match(/\|h([012])$/);
+  if (hm) hs = +hm[1];
+  if (S.nr) {
+    var NM = S.W == null ? S.tk : (S.nx || {});
+    for (var k = 0; k < mine.length && !hitN; k++) hitN = NM[mine[k]] || '';
+    nx = rafTk_(hitN, S.W, true);
+    nx.daf = S.dafW;
+    delete nx.drawn;
+    nx.nr = S.nr;
+  }
+  var up = hsnapWin_() ? 'h' : 'd', T = S.pts || { v: {}, m: {} }, o;
+  for (var i = 0; i < mine.length; i++) {
+    var v = ptsOf_(T, mine[i]);
+    if (v) {
+      o = { status: 'ok', n: v.n, l: v.l, tk: tk, up: up };
+      if (nx) o.nx = nx;
+      if (hs >= 0) o.hs = hs;
+      return o;
+    }
+  }
+  o = { status: 'ok', none: 1 };
+  if (hs >= 0) o.hs = hs;
+  return o;
+}
+/* ---- מה שהבעלים מריץ מהעורך ---- */
+function hsnapBuildNow() { return hsnapBuild_('ידני'); }
+function hsnapDaily() { if (hsnapProp_('HSNAP_SYNC') !== '0') hsnapBuild_('יומי'); }
+function hsnapHourly() {
+  if (hsnapProp_('HSNAP_SYNC') === '0') return;
+  if (!hsnapWin_()) return;                       /* מחוץ לחלון — יוצאת מיד */
+  hsnapBuild_('שעתי');
+}
+function hsnapSetup() {
+  hsnapRemove();
+  ScriptApp.newTrigger('hsnapDaily').timeBased().atHour(6).nearMinute(0).everyDays(1)
+    .inTimezone('Asia/Jerusalem').create();
+  ScriptApp.newTrigger('hsnapHourly').timeBased().everyHours(1).create();
+  hsnapProp_('HSNAP_SYNC', '1');
+  return 'הסנכרון הותקן · יומי בסביבות 06:00 (±15 דק׳) ושעתי בחלון ההגרלה. המתג — hsnapEnable.';
+}
+function hsnapRemove() {
+  var all = ScriptApp.getProjectTriggers(), n = 0;
+  for (var i = 0; i < all.length; i++) {
+    var f = all[i].getHandlerFunction();
+    if (f === 'hsnapDaily' || f === 'hsnapHourly') { ScriptApp.deleteTrigger(all[i]); n++; }
+  }
+  return 'הוסרו ' + n + ' טריגרים של התמונה';
+}
+/* מתג הכיבוי של הסנכרון (בלי להסיר טריגרים) — hsnapSyncOff / hsnapSyncOn. */
+function hsnapSyncOff() { hsnapProp_('HSNAP_SYNC', '0'); return 'הסנכרון כבוי'; }
+function hsnapSyncOn() { hsnapProp_('HSNAP_SYNC', '1'); return 'הסנכרון פועל'; }
+function hsnapEnable() {
+  var ptr = hsnapPtr_();
+  if (!ptr || !hsnapRead_(ptr)) return 'אין בנייה שהושלמה — קודם hsnapBuildNow. המתג לא נדלק.';
+  hsnapProp_('HSNAP_ON', '1');
+  return 'הבית קורא מהתמונה · בנייה ' + ptr.at;
+}
+function hsnapDisable() { hsnapProp_('HSNAP_ON', null); return 'הבית חזר לחישוב החי'; }
+
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: rafDaf_(), a: false, b: false, inn: false };
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
