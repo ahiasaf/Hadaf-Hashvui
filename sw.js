@@ -25,7 +25,7 @@
    עכשיו הרשת מתחרה בשעון: לא ענתה בזמן — מגישים מיד את העותק
    השמור, והרשת ממשיכה ברקע ומעדכנת את המטמון לפעם הבאה.
    ============================================================ */
-var CACHE_NAME = 'hadaf-v8.99.465';
+var CACHE_NAME = 'hadaf-v8.99.466';
 // learn.html ו-rights.html אינם כאן בכוונה: המערכת האינטראקטיבית
 // אינה מוצגת כרגע מתוך האפליקציה, ואין סיבה שכל מכשיר מותקן
 // יוריד אותה מראש. כשתוחזר — להחזיר גם אותן לרשימה.
@@ -72,7 +72,8 @@ self.addEventListener('install', function (e) {
 self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys().then(function (ks) {
-      return Promise.all(ks.filter(function (k) { return k !== CACHE_NAME; })
+      /* `df-chan` — הערוץ של המכשיר (ראו CHAN_CACHE ב-data.js), לא קבצים. */
+      return Promise.all(ks.filter(function (k) { return k !== CACHE_NAME && k !== 'df-chan'; })
                            .map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
@@ -95,15 +96,30 @@ self.addEventListener('push', function (e) {
   var d = {};
   try { if (e.data) d = e.data.json(); }
   catch (x) { try { d = { body: e.data.text() }; } catch (y) { d = {}; } }
-  e.waitUntil(self.registration.showNotification(d.title || 'הדף השבועי', {
+  e.waitUntil(chanOf().then(function (ch) {
+    return self.registration.showNotification(d.title || 'הדף השבועי', noteOpts(d, ch));
+  }).then(inboxPing));
+});
+
+/* **סמל ההתראה לפי הערוץ.** במכשיר של הכניסה העצמאית (`df-chan` =
+   inter, נכתב מהעמוד — ראו CHAN_CACHE ב-data.js) — בלי `icon`: אין סמל
+   מאושר לערוץ, ולא מציגים את סמל הישיבות. בכל מקרה אחר, וגם כשהקריאה
+   נכשלה — כמו קודם. */
+function chanOf() {
+  return caches.open('df-chan').then(function (c) { return c.match('/__df-chan'); })
+    .then(function (r) { return r ? r.text() : ''; })['catch'](function () { return ''; });
+}
+function noteOpts(d, ch) {
+  var o = {
     body: d.body || '',
-    icon: './icon-192.png',
     tag:  d.tag || 'daf',
     dir:  'rtl',
     lang: 'he',
     data: { url: d.url || './' }
-  }).then(inboxPing));
-});
+  };
+  if (ch !== 'inter') o.icon = './icon-192.png';
+  return o;
+}
 
 /* האפליקציה פתוחה — שתבדוק עכשיו אם יש לה הודעה מלאה להציג
    (ראו inbox.js), ולא רק בפתיחה הבאה. */

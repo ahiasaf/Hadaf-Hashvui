@@ -521,10 +521,10 @@ var APPX = (function () {
       return Promise.reject(new Error('ההתראות אינן מאושרות במכשיר הזה'));
     }
     return navigator.serviceWorker.ready.then(function (reg) {
-      return reg.showNotification(title, {
-        body: body, icon: 'icon-192.png', badge: 'icon-192.png',
-        tag: 'df-demo', renotify: true
-      });
+      var o = { body: body, tag: 'df-demo', renotify: true };
+      /* הכניסה העצמאית — בלי סמל הישיבות (אין עדיין סמל מאושר לערוץ). */
+      if (!(typeof InterOn === 'function' && InterOn())) { o.icon = 'icon-192.png'; o.badge = 'icon-192.png'; }
+      return reg.showNotification(title, o);
     });
   }
 

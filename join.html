@@ -142,6 +142,16 @@
      התיקון צריך להסיר ולהוסיף שוב. -->
 <link rel="apple-touch-icon-precomposed" href="icon-192.png">
 <link rel="apple-touch-icon-precomposed" sizes="180x180" href="icon-192.png">
+<script>
+  /* **הכניסה העצמאית — בלי סמלי הישיבות** (גם לא בלשונית). המחלקה
+     `inter` נקבעה למעלה, לפני השורות האלה; מוסרים אותן לפני שהדפדפן
+     מבקש את הסמל. אין סמל חלופי — עד שיהיה סמל מאושר לערוץ. */
+  (function () {
+    if (!/(^|\s)inter(\s|$)/.test(document.documentElement.className)) return;
+    var L = document.querySelectorAll('link[rel="icon"],link[rel^="apple-touch-icon"]');
+    for (var i = 0; i < L.length; i++) L[i].parentNode.removeChild(L[i]);
+  })();
+</script>
 <meta name="apple-mobile-web-app-title" content="הדף השבועי">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1854,6 +1864,7 @@ var INTER = (function () {
     if (q) localStorage.setItem('df:chan', 'inter');
     else if (/[?&](inst|for)=/.test(location.search) && !get('me', null)) localStorage.removeItem('df:chan');
   } catch (e) {}
+  if (typeof ChanSync === 'function') ChanSync();
   return InterOn();
 })();
 if (INTER) {
@@ -1866,7 +1877,7 @@ if (INTER) {
   document.documentElement.className += ' inter';
   $('hdr-mark').src = 'weekpics/phone-inter.webp';
   (function () {
-    var L = document.querySelectorAll('link[rel^="apple-touch-icon"]');
+    var L = document.querySelectorAll('link[rel="icon"],link[rel^="apple-touch-icon"]');
     for (var i = 0; i < L.length; i++) L[i].parentNode.removeChild(L[i]);
   })();
 }

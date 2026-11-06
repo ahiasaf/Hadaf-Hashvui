@@ -55,6 +55,18 @@
      הדפדפן ממי שהגיע לכאן מקישור. -->
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<script>
+  /* **הכניסה העצמאית — בלי סמלי הישיבות** (לשונית ואייפון). אותו תנאי
+     כמו InterOn ב-data.js, שנטען רק בסוף העמוד. אין סמל חלופי — עד
+     שיהיה סמל מאושר לערוץ. מסלול הישיבות — השורות למעלה, בלי שינוי. */
+  (function () {
+    var on = /[?&]ch=inter(&|$)/.test(location.search);
+    if (!on) { try { on = localStorage.getItem('df:chan') === 'inter'; } catch (e) {} }
+    if (!on) return;
+    var L = document.querySelectorAll('link[rel="icon"],link[rel^="apple-touch-icon"]');
+    for (var i = 0; i < L.length; i++) L[i].parentNode.removeChild(L[i]);
+  })();
+</script>
 <meta name="apple-mobile-web-app-title" content="הדף השבועי">
 <meta name="theme-color" content="#0E2E63">
 <style>

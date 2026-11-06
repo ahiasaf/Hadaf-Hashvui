@@ -69,6 +69,26 @@ function InterOn() {
   if (/[?&]ch=inter(&|$)/.test(location.search)) return true;
   try { return localStorage.getItem('df:chan') === 'inter'; } catch (e) { return false; }
 }
+/* **הערוץ — גם ל-Service Worker**, שאינו רואה את localStorage. התראה
+   שמגיעה למכשיר של הערוץ העצמאי מוצגת בלי סמל הישיבות (ראו push ב-sw.js).
+   נשמר במטמון `df-chan` (ה-SW אינו מוחק אותו בעדכון גרסה); במכשיר של
+   הישיבות הוא נמחק, וההתראה — כמו קודם. */
+var CHAN_CACHE = 'df-chan', CHAN_KEY = '/__df-chan';
+/* נקרא כאן, ושוב ב-join אחרי שהוכרע הערוץ (קישור של ישיבה מכבה אותו). */
+var CHAN_P = null;
+function ChanSync() {
+  if (typeof caches === 'undefined' || typeof location === 'undefined') return;
+  var on = InterOn();
+  /* בתור — כתיבה ומחיקה שנקראו ברצף לא יתהפכו. */
+  var go = function () {
+    return on ? caches.open(CHAN_CACHE).then(function (c) { return c.put(CHAN_KEY, new Response('inter')); })
+              : caches['delete'](CHAN_CACHE);
+  };
+  try {
+    CHAN_P = (CHAN_P ? CHAN_P.then(go, go) : go())['catch'](function () {});
+  } catch (e) {}
+}
+ChanSync();
 
 /* ------------------------------------------------------------
    "ביטול" במקום חלון אישור (8.99.374).
@@ -308,7 +328,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.465';
+var DAF_REV = '8.99.466';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
