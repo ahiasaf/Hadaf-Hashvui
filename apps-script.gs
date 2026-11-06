@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 187;
+var SCRIPT_VERSION = 188;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14392,6 +14392,212 @@ function chTestDel_() {
   out[CH_OLD_] = testDel_(CH_OLD_, function (g) { return g('בדיקה') !== 'כן'; });
   out[CH_SEAT_] = testDel_(CH_SEAT_, function (g) { return g('בדיקה') !== 'כן'; });
   out[CH_SET_] = testDel_(CH_SET_, function (g) { return g('שדה').indexOf(CH_TP_) !== 0; });
+  return out;
+}
+
+/* ============================================================
+   ניקוי חד־פעמי: שולחנות הבדיקה של אחיאסף ושל "פיטר" (6.11.2026).
+   ============================================================
+   **מורץ מהעורך, פעם אחת, ואז נמחק מהקוד.** אין לו נתיב ואין כפתור.
+     chTestClean1106Check — קריאה בלבד: מה יקרה, ליומן הביצוע.
+     chTestClean1106Go    — אותו חישוב, ואז הביצוע. הדוח ליומן הביצוע.
+   **אחיאסף** — לפי `מפעיל` ב"אתגר-מונה" (המכשירים שהפעילו את המבצע), לא לפי שם.
+   מזהים שמובילים ליותר מאדם אחד — עוצרים.
+   **פיטר** — שם פרטי, **ורק מי שקשור לאחיאסף**: ישב איתו בשולחן (גם בעבר), או
+   הוזמן ממנו (הקישור / "אתגר-ותיקים"). פיטר אחר — לא נוגעים, ומדווחים.
+   **השולחנות** — העולם האמיתי בלבד: שולחן שיושב בו אחיאסף או פיטר קשור.
+   השורות של פיטר נסגרות (`יצא` + "ניקוי בדיקה"); אחיאסף נסגר רק כשנשאר לבד.
+   יושב אחר — לא נוגעים, ומדווחים. סגירה ולא מחיקה: כך גם ההזמנות הישנות לא
+   מושיבות אותם מחדש (chTables_ מדלג על הזמנה מלפני היציאה האחרונה).
+   **המשתמש פיטר נמחק** רק כשיש ראיה שהוא חשבון בדיקה — הטלפון שלו הוא של
+   אחיאסף, או מתחיל ב-000 — ואין לו זכייה או פרס. אז: השורה ב"לומדים", "לימוד",
+   "חידות", "זוגות", ושורות האתגר שלו. גיבוי מוסתר בפרטי לפני כל מחיקה, וקריאה
+   חוזרת אחריה. "אתגר-קבוצות" / "אתגר-הגרלות" / הגרלות ופרסים — לא נוגעים. */
+function chTestClean1106Check() { return chTC_say_(chTC_(false)); }
+function chTestClean1106Go() { return chTC_say_(chTC_(true)); }
+function chTC_say_(L) { var m = L.join('\n'); try { Logger.log(m); } catch (e) {} return m; }
+function chTC_(go) {
+  var out = [], say = function (s) { out.push(s); };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return ['פעולה אחרת רצה — להריץ שוב בעוד דקה. לא נעשה דבר.'];
+  try {
+    var U = { test: false }, S = chSetRead_(U), K = chConf_(U, S);
+    var t = joinTable_(), alias = aliasMap_(t.rows), P = {};
+    for (var r = 1; r < t.rows.length; r++) {
+      var row = t.rows[r], id0 = t.c(row, 'מזהה');
+      if (!id0 || id0.indexOf(':k') >= 0 || t.c(row, 'בדיקה') === 'כן') continue;
+      var p = P[id0] || (P[id0] = { id: id0, rows: [], ids: [] });
+      p.rows.push(r);
+      rowIds_(t, row).forEach(function (x) { if (p.ids.indexOf(x) < 0) p.ids.push(x); });
+      p.first = t.c(row, 'שם'); p.last = t.c(row, 'משפחה'); p.ph = phKey_(t.c(row, 'טלפון'));
+      p.rawPh = String(t.c(row, 'טלפון')).replace(/[^0-9]/g, '');
+      p.par = t.c(row, 'תפקיד') === 'הורה';
+      if (t.c(row, CH_BY_COL)) p.by = t.c(row, CH_BY_COL);
+    }
+    var canon = function (x) { x = String(x || '').trim(); return alias[x] || x; };
+    var who = function (id) { var q = P[id]; return id + (q ? ' (' + q.first + ' ' + q.last.charAt(0) + '׳)' : ' (אין שורה ב"לומדים")'); };
+
+    /* אחיאסף */
+    var AS = {};
+    K.act.forEach(function (x) { var c = canon(x); if (P[c]) AS[c] = 1; });
+    var A = Object.keys(AS);
+    if (A.length !== 1) {
+      say('לא נעשה דבר: המכשירים ב"מפעיל" מובילים ל-' + A.length + ' אנשים (' + A.join(', ') + '), ולא לאדם אחד.');
+      return out;
+    }
+    A = A[0];
+    say('אחיאסף: ' + who(A) + ' — לא נמחק ולא משתנה בו דבר מלבד הכיסאות.');
+
+    /* השולחנות (העולם האמיתי) */
+    var mv = chSeatMove_();
+    var T = chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined);
+    var real = T.rows.filter(function (o) { return o['בדיקה'] !== 'כן'; });
+    real.forEach(function (o) { o._id = canon(o['מזהה']); });
+    var withA = {};
+    real.forEach(function (o) { if (o['שולחן'] && o._id === A) withA[o['שולחן']] = 1; });
+    /* פיטר — שם פרטי, וקשור לאחיאסף */
+    var isPeter = function (id) { var q = P[id]; return !!(q && !q.par && /^(פיטר|peter)$/i.test(nk_(q.first))); };
+    var linked = {};
+    real.forEach(function (o) {
+      if (isPeter(o._id) && (withA[o['שולחן']] || canon(o['מזמין']) === A)) linked[o._id] = 1;
+    });
+    Object.keys(P).forEach(function (id) { if (isPeter(id) && P[id].by && canon(P[id].by) === A) linked[id] = 1; });
+    var O = chTab_(CH_OLD_, CH_OLD_COLS_);
+    O.rows.forEach(function (o) {
+      if (o['בדיקה'] === 'כן') return;
+      var id = canon(o['מזהה']);
+      if (isPeter(id) && canon(o['מזמין']) === A) linked[id] = 1;
+    });
+    var PT = Object.keys(linked);
+    Object.keys(P).forEach(function (id) {
+      if (isPeter(id) && !linked[id]) say('פיטר שאינו קשור לאחיאסף — לא נוגעים: ' + who(id));
+    });
+    say('פיטר הקשורים לאחיאסף: ' + (PT.length ? PT.map(who).join(' · ') : 'אין'));
+
+    /* הכיסאות הפתוחים בשולחנות שיושב בהם אחיאסף או פיטר קשור */
+    var open = real.filter(function (o) { return o['שולחן'] && !o['יצא']; });
+    var tabs = {};
+    open.forEach(function (o) { if (o._id === A || linked[o._id]) tabs[o['שולחן']] = 1; });
+    var close = [];
+    Object.keys(tabs).sort().forEach(function (tn) {
+      var mem = open.filter(function (o) { return o['שולחן'] === tn; });
+      var others = mem.filter(function (o) { return o._id !== A && !linked[o._id]; });
+      mem.forEach(function (o) { if (linked[o._id]) close.push(o); });
+      var aRow = mem.filter(function (o) { return o._id === A; });
+      if (aRow.length && !others.length) aRow.forEach(function (o) { close.push(o); });
+      say('שולחן ' + tn + ': ' + mem.map(function (o) { return who(o._id); }).join(' · ') +
+          (others.length ? ' — יושבים אחרים נשארים: ' + others.map(function (o) { return who(o._id); }).join(' · ') +
+                           (aRow.length ? '; לכן גם אחיאסף נשאר בשולחן הזה' : '') : ' — השולחן מתרוקן'));
+    });
+    say('כיסאות שייסגרו: ' + close.length);
+
+    /* מי מהפיטרים יימחק כמשתמש: ראיה לחשבון בדיקה, ובלי זכייה/פרס */
+    var aPh = P[A].ph, hit = {};
+    ['הגרלות', 'בחירת פרס', 'פרסים', 'רביעיות-הגרלות'].forEach(function (tab) {
+      var v;
+      try { var sh = sheet_(tab); v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : []; } catch (e) { v = []; }
+      var txt = JSON.stringify(v);
+      PT.forEach(function (id) { P[id].ids.forEach(function (x) { if (txt.indexOf(x) >= 0) (hit[id] = hit[id] || []).push(tab); }); });
+    });
+    var G = chTab_(CH_GRP_, CH_GRP_COLS_);
+    G.rows.forEach(function (g) {
+      if (g['בדיקה'] === 'כן' || [CH_G_.sel, CH_G_.won].indexOf(g['מצב']) < 0) return;
+      PT.forEach(function (id) {
+        if ([g['מזמין'], g['חבר 1'], g['חבר 2'], g['חבר 3']].some(function (x) { return canon(x) === id; })) (hit[id] = hit[id] || []).push('זכייה באתגר');
+      });
+    });
+    var del = [];
+    PT.forEach(function (id) {
+      var q = P[id], ev = q.ph && q.ph === aPh ? 'הטלפון של אחיאסף' : /^000/.test(q.rawPh) ? 'טלפון 000' : '';
+      if (hit[id]) { say('נשאר כמשתמש: ' + who(id) + ' — מופיע ב: ' + hit[id].join(', ') + ' (זכייה/פרס). הכיסא נסגר.'); return; }
+      if (!ev) { say('נשאר כמשתמש: ' + who(id) + ' — חסר זיהוי כבדיקה: לא "בדיקה: כן", הטלפון אינו של אחיאסף ואינו 000. הכיסא נסגר.'); return; }
+      say('יימחק כמשתמש בדיקה: ' + who(id) + ' — ראיה: ' + ev + '; מזהים: ' + q.ids.join(' '));
+      del.push(id);
+    });
+    var dIds = [];
+    del.forEach(function (id) { P[id].ids.forEach(function (x) { dIds.push(x); }); });
+    var mineD = function (g) { return dIds.indexOf(g('מזהה')) >= 0; };
+    /* השורות שיימחקו, לכל לשונית — וספירה לפני */
+    var plan = [
+      { tab: JOIN_TAB, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } },
+      { tab: 'לימוד', sel: mineD }, { tab: 'חידות', sel: mineD },
+      { tab: 'זוגות', sel: mineD },
+      { tab: CH_OLD_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } },
+      { tab: CH_REF_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } }
+    ];
+    var pick = function (tab, sel, ssId) {
+      var sh; try { sh = sheet_(tab, ssId); } catch (e) { return { sh: null, head: [], rows: [], n: [] }; }
+      var v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [], h = {}, rows = [], n = [];
+      for (var i = 0; v.length && i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
+      for (var j = 1; j < v.length; j++) {
+        var g = function (k) { return h[k] === undefined ? '' : String(v[j][h[k]] || '').trim(); };
+        if (sel(g)) { rows.push(v[j]); n.push(j + 1); }
+      }
+      return { sh: sh, head: v[0] || [], rows: rows, n: n };
+    };
+    var picks = plan.map(function (p) { var k = pick(p.tab, p.sel); k.tab = p.tab; return k; });
+    /* שורות האתגר-שולחנות של מי שנמחק (גם סגורות) — נמחקות; השאר נסגרות */
+    var seatDel = real.filter(function (o) { return del.indexOf(o._id) >= 0; });
+    picks.forEach(function (k) { if (k.rows.length) say('יימחקו ב"' + k.tab + '": ' + k.rows.length + ' שורות'); });
+    if (seatDel.length) say('יימחקו ב"' + CH_SEAT_ + '": ' + seatDel.length + ' שורות (של המשתמשים שנמחקים)');
+    if (!go) { say('— בדיקה בלבד, לא נעשה דבר. להרצה: chTestClean1106Go'); return out; }
+
+    /* (1) גיבוי מוסתר בפרטי */
+    var now = new Date().toISOString(), bk = [];
+    picks.forEach(function (k) {
+      if (!k.rows.length) return;
+      bk.push(['לשונית'].concat(k.head));
+      k.rows.forEach(function (rw) { bk.push([k.tab].concat(rw)); });
+    });
+    bk.push(['לשונית'].concat(T.head).concat(['פעולה']));
+    seatDel.forEach(function (o) { bk.push([CH_SEAT_].concat(T.head.map(function (c) { return o[c]; })).concat(['נמחקה'])); });
+    close.forEach(function (o) { if (del.indexOf(o._id) < 0) bk.push([CH_SEAT_].concat(T.head.map(function (c) { return o[c]; })).concat(['נסגרה'])); });
+    var ss = sheet_(CH_SET_).getParent(), bn = 'גיבוי ניקוי בדיקה 6.11';
+    for (var q2 = 2; ss.getSheetByName(bn); q2++) bn = 'גיבוי ניקוי בדיקה 6.11 · ' + q2;
+    var w = 0;
+    bk.forEach(function (x) { if (x.length > w) w = x.length; });
+    bk = bk.map(function (x) { x = x.map(function (y) { return "'" + String(y == null ? '' : y); }); while (x.length < w) x.push(''); return x; });
+    var bs = ss.insertSheet(bn);
+    bs.getRange(1, 1, bk.length, w).setValues(bk);
+    try { bs.hideSheet(); } catch (eh) {}
+    SpreadsheetApp.flush();
+    if (bs.getLastRow() !== bk.length) { say('הגיבוי לא נשמר במלואו — לא נעשה דבר.'); return out; }
+    say('גיבוי: "' + bn + '" (מוסתר, בגיליון הפרטי) · ' + bk.length + ' שורות');
+
+    /* (2) סגירת הכיסאות (מי שלא נמחק) */
+    close.forEach(function (o) {
+      if (del.indexOf(o._id) >= 0) return;
+      o['יצא'] = now; o['סיבה'] = 'ניקוי בדיקה';
+      var cp = {}; T.head.forEach(function (c) { cp[c] = o[c]; }); cp._r = o._r;
+      chPut_(T, cp);
+    });
+    /* (3) מחיקה — מלמטה למעלה */
+    seatDel.map(function (o) { return o._r; }).sort(function (a, b) { return b - a; })
+      .forEach(function (n) { T.sh.deleteRow(n); });
+    picks.forEach(function (k) {
+      k.n.slice().sort(function (a, b) { return b - a; }).forEach(function (n) { k.sh.deleteRow(n); });
+    });
+    SpreadsheetApp.flush();
+
+    /* (4) קריאה חוזרת */
+    var left = 0;
+    plan.forEach(function (p) { left += pick(p.tab, p.sel).rows.length; });
+    var T2 = chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined);
+    T2.rows.forEach(function (o) {
+      if (o['בדיקה'] === 'כן') return;
+      var c = canon(o['מזהה']);
+      if (del.indexOf(c) >= 0) left++;
+      else if (!o['יצא'] && o['שולחן'] && close.some(function (x) { return x._id === c && x['שולחן'] === o['שולחן']; })) left++;
+    });
+    var aStill = rowOfId_(joinTable_(), A) >= 0;
+    say(left ? 'שימו לב: בקריאה החוזרת נשארו ' + left + ' שורות שהיו אמורות להשתנות.' : 'קריאה חוזרת: הכול כמתוכנן.');
+    say(aStill ? 'אחיאסף עדיין רשום ב"לומדים" — לא נפגע.' : 'שימו לב: השורה של אחיאסף לא נמצאה בקריאה החוזרת!');
+  } catch (err) {
+    say('שגיאה: ' + (err && err.message || err));
+  } finally {
+    lock.releaseLock();
+    if (go) { try { chBust_(null); } catch (e1) {} try { ptsBust_(); } catch (e2) {} try { recountLearn_(true); } catch (e3) {} }
+  }
   return out;
 }
 
