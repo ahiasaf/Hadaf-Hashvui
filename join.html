@@ -4493,8 +4493,10 @@ function appHowList()  { return APPX.howList(); }
 /* הודעת ההתקנה של הדפדפן מגיעה באיחור של רגע אחרי הטעינה.
    כשהיא מגיעה — מציירים מחדש, כדי שההוראות הידניות יוחלפו
    בכפתור אמיתי. */
+/* והאות האמיתי (`appinstalled`) שמגיע בזמן שהוא בשלב 1 — ממשיך מעצמו
+   לפרטים (8.99.467). בלי אות — כמו קודם, רק ציור מחדש. */
 APPX.onBip(function () {
-  if (WZ_ON) { if (wzStep === 1) wzDraw(); }
+  if (WZ_ON) { if (wzStep === 1) { if (appInstalled()) wzGo(wzWhere()); else wzDraw(); } }
   else drawApp();
 });
 
@@ -5077,6 +5079,7 @@ function wzDraw() {
        מהדפדפן ולחצו על האייקון החדש"), בלי להתחיל מההתחלה. */
     GUIDE_UI.mount(gbox, function () {
       if (appInstalled() || brwOn()) { wzGo(wzWhere()); return; }
+      guDoneSet(true);
       wzToLast();
     }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
@@ -5085,7 +5088,9 @@ function wzDraw() {
   else if (APPX.iconUntag) APPX.iconUntag();
   wzWire();
   window.scrollTo(0, 0);
-  if (wzStep === 1) setTimeout(wzToInst, 250);
+  /* מי שכבר לחץ "סיימתי" (`df:guDone`, 8.99.467) — גם אחרי רענון חוזר
+     לשלב האחרון של המדריך, לא לראשו. */
+  if (wzStep === 1) setTimeout(guDoneNow() ? wzToLast : wzToInst, 250);
 }
 /* בטלפון קטן כפתורי ההתקנה נופלים מתחת לקצה המסך, והתלמיד רואה
    רק כותרת ומד — ולא יודע שיש למטה משהו ללחוץ עליו. גוללים בעדינות
@@ -5101,6 +5106,17 @@ function wzToInst() {
 }
 
 /* ---------- שלב 1 ---------- */
+/* `df:guDone` — המדריך הסתיים ב"סיימתי" במכשיר הזה. **אינו סימון התקנה**;
+   רק המקום במדריך, שרענון לא יתחיל אותו מההתחלה. אייפון שסיים לפני
+   8.99.465 נשא את זה ב-`df:appAdded` — נחשב כאילו סיים. */
+function guDoneSet(v) {
+  try { if (v) localStorage.setItem('df:guDone', '1'); else localStorage.removeItem('df:guDone'); } catch (e) {}
+}
+function guDoneNow() {
+  var v = false;
+  try { v = localStorage.getItem('df:guDone') === '1'; } catch (e) {}
+  return (v || (isIOS() && appWasAdded())) && !appInstalled();
+}
 /* "סיימתי" בלי אות התקנה: גלילה לשלב האחרון של המדריך שכבר על המסך. */
 function wzToLast() {
   var L = document.querySelectorAll('#gu-here .gut-st, #gu-here li');
