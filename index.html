@@ -5388,8 +5388,11 @@ function attOpen(mode) {
    ורק אז נרשם "פורסם". כאן ההצלחה נאמרת רק אחרי קריאה חוזרת
    (?alon=adm) שמוצאת את המזהה במצב "פורסם". אין מחיקה ואין עריכה.
    נפרד לגמרי מ"העלון השבועי" (alon.js) ומ"ארכיון עלון". */
+/* 8.99.467: גם "קישור לקובץ בדרייב" (?alon=dadd — השרת קורא רק את הקובץ הזה, הוא
+   לא זז ולא משותף), ו"עדכון" לעלון שפורסם (rep): החדש מתפרסם, נבדק, ורק אז הקודם
+   עובר ל"הוחלף". הכתיבה — רק בסיסמה, בשרת. */
 var ALDLA = { mas: '', daf: '', title: '', tEdit: false, file: null, b64: '', pages: 0,
-              busy: false, msg: '', bad: false, rows: null };
+              busy: false, msg: '', bad: false, rows: null, link: '', rep: null };
 function aldlAdmMas() {
   var out = [];
   (window.TRACKS || []).forEach(function (t) { if (t.masechet && out.indexOf(t.masechet) < 0) out.push(t.masechet); });
@@ -5405,11 +5408,13 @@ function admAlonim(body) {
   if (!ALDLA.mas) ALDLA.mas = aldlAdmMas()[0] || '';
   var A = ALDLA, f = A.file;
   body.innerHTML =
-    '<div class="adm-card" style="margin-bottom:11px"><h4 class="aldl-ah"><span>' + esc(UI.aldlUpH) + '</span>' +
-      '<small>' + esc(UI.aldlUpOnly) + '</small></h4>' +
+    '<div class="adm-card" id="aldl-form" style="margin-bottom:11px"><h4 class="aldl-ah"><span>' +
+      esc(A.rep ? fill(UI.aldlUpdH, { t: A.rep.t }) : UI.aldlUpH) + '</span>' +
+      (A.rep ? '<button type="button" class="dkm-lnk" onclick="aldlAdmRepOff()">' + esc(UI.aldlUpdNo) + '</button>'
+             : '<small>' + esc(UI.aldlUpOnly) + '</small>') + '</h4>' +
     '<div class="fld"><div class="label">' + esc(UI.aldlMas) + '</div>' +
       '<select id="aldl-m" onchange="ALDLA.mas=this.value;aldlAdmTitle()">' +
-      aldlAdmMas().map(function (m) {
+      aldlAdmMas().concat(A.mas && aldlAdmMas().indexOf(A.mas) < 0 ? [A.mas] : []).map(function (m) {
         return '<option' + (m === A.mas ? ' selected' : '') + '>' + esc(m) + '</option>';
       }).join('') + '</select></div>' +
     '<div class="fld"><div class="label">' + esc(UI.aldlDaf) + '</div>' +
@@ -5422,6 +5427,8 @@ function admAlonim(body) {
          : '<b>' + esc(UI.aldlPick) + '</b>') + '</label>' +
       (f && A.b64 ? '<button type="button" class="aldl-chk" onclick="aldlAdmOpen()">' + esc(UI.aldlOpenChk) + '</button>' : '') +
     '</div>' +
+    (f ? '' : '<div class="fld"><div class="label">' + esc(UI.aldlLink) + '</div>' +
+      '<input id="aldl-l" type="url" dir="ltr" value="' + esc(A.link) + '" oninput="ALDLA.link=this.value.trim()"></div>') +
     '<button class="btn p" id="aldl-go" type="button" onclick="aldlAdmPub()"' + (A.busy ? ' disabled' : '') + '>' +
       esc(A.busy ? UI.aldlPubbing : UI.aldlPub) + '</button>' +
     '<p class="h aldl-note">' + esc(UI.aldlPubNote) + '</p>' +
@@ -5450,8 +5457,24 @@ function aldlAdmList() {
     return '<div class="aldl-row"><div><b>' + esc(r.t) + '</b><small>' + esc(r.mas + ' · ' + r.daf) +
       (r.pg ? ' · ' + esc(fill(UI.aldlMeta, { n: r.pg, d: r.at.slice(0, 10) })) : ok ? ' · ' + esc(r.at) : ' · ' + esc(r.c)) +
       '</small>' + (!ok && r.why ? '<small class="bad">' + esc(r.why) + '</small>' : '') + '</div>' +
+      (ok ? '<button type="button" class="dkm-lnk" onclick="aldlAdmRep(\'' + esc(r.id) + '\')">' + esc(UI.aldlUpd) + '</button>' : '') +
       '<span class="aldl-st' + (ok ? ' ok' : ' bad') + '">' + esc(ok ? UI.aldlStOk : UI.aldlStErr) + '</span></div>';
   }).join('');
+}
+function aldlAdmRep(id) {
+  var r = null;
+  (ALDLA.rows && ALDLA.rows.forEach ? ALDLA.rows : []).forEach(function (x) { if (x.id === id && x.pub) r = x; });
+  if (!r) return;
+  ALDLA.rep = { id: r.id, t: r.t };
+  ALDLA.mas = r.mas; ALDLA.daf = r.daf; ALDLA.title = r.t; ALDLA.tEdit = true;
+  ALDLA.file = null; ALDLA.b64 = ''; ALDLA.link = ''; ALDLA.msg = ''; ALDLA.bad = false;
+  aldlAdmPaint();
+  var fm = document.getElementById('aldl-form');
+  if (fm && fm.scrollIntoView) fm.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+function aldlAdmRepOff() {
+  ALDLA.rep = null; ALDLA.daf = ''; ALDLA.title = ''; ALDLA.tEdit = false; ALDLA.msg = '';
+  aldlAdmPaint();
 }
 function aldlAdmLoad() {
   return scriptGet({ alon: 'adm', key: (CFG.readKey || '').trim() }).then(function (d) {
@@ -5506,13 +5529,16 @@ function aldlAdmPub() {
   var A = ALDLA;
   if (A.busy) return;
   A.daf = String(A.daf || '').trim(); A.title = String(A.title || '').trim();
-  if (!A.mas || !A.daf || !A.title || !A.b64) { A.msg = UI.aldlNeed; A.bad = true; return aldlAdmPaint(); }
+  var link = !A.b64 && A.link ? A.link : '';
+  /* מקישור — מסכת, דף וכותרת אפשר להשאיר לשם הקובץ (כשהדף ריק). */
+  if (!link && (!A.mas || !A.daf || !A.title || !A.b64)) { A.msg = UI.aldlNeed; A.bad = true; return aldlAdmPaint(); }
   var id = 'A' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  var rep = A.rep ? A.rep.id : '';
   A.busy = true; A.msg = ''; A.bad = false; aldlAdmPaint();
   var fin = function (ok, why) {
     A.busy = false;
     if (ok) {
-      A.msg = UI.aldlPubOk; A.bad = false;
+      A.msg = rep ? UI.aldlUpdOk : UI.aldlPubOk; A.bad = false; A.rep = null; A.link = '';
       A.file = null; A.b64 = ''; A.pages = 0; A.daf = ''; A.title = ''; A.tEdit = false;
       try { localStorage.removeItem('df:aldl'); } catch (e) {}
     } else {
@@ -5529,13 +5555,23 @@ function aldlAdmPub() {
       ((d && d.rows) || []).forEach(function (r) { if (r.id === id) row = r; });
       if (row && row.pub) return fin(true);
       if (row && row.bad) return fin(false, row.why || UI.aldlStErr);
-      if (tries < 8) return setTimeout(look, 5000);
+      if (tries < (link ? 24 : 8)) return setTimeout(look, 5000);
       fin(false, '');
     });
   };
+  if (link) {
+    var q = { alon: 'dadd', key: (CFG.readKey || '').trim(), fid: link, id: id, rep: rep };
+    if (A.daf) { q.mas = A.mas; q.daf = A.daf; q.title = A.title; }
+    scriptGet(q).then(function (d) {
+      if (d && d.status === 'ok' && d.dup) return fin(true);
+      if (d && d.status && d.status !== 'ok') return fin(false, d.message || '');
+      look();
+    })['catch'](function () { setTimeout(look, 3000); });
+    return;
+  }
   fetch((CFG.api || API).trim(), { method: 'POST', mode: 'no-cors',
     body: JSON.stringify({ action: 'aldlput', key: (CFG.readKey || '').trim(), id: id, mas: A.mas, daf: A.daf,
-      title: A.title, name: A.file ? A.file.name : '', pages: A.pages || 0, data: A.b64 }) })
+      title: A.title, name: A.file ? A.file.name : '', pages: A.pages || 0, data: A.b64, rep: rep }) })
     .then(function () { look(); })['catch'](function () { setTimeout(look, 3000); });
 }
 

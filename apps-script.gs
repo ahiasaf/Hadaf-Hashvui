@@ -6204,7 +6204,8 @@ function alonArch_(d) {
    מאגר העלונים להורדה (8.99.449 · SCRIPT_VERSION 179) — בריף 3.11, חלק א׳.
    ============================================================
    הרכז מעלה PDF מוכן (ניהול ← הדף ← "עלונים"), והוא נפתח להורים,
-   לתלמידים ולצוות. **אין קישור ציבורי:** הקובץ נשמר בגיליון נפרד
+   לתלמידים ולצוות. **מ-8.99.467 הרשימה וההורדה ציבוריות** (בלי זיהוי מכשיר),
+   הכתיבה — רק בסיסמה. אין קישור דרייב ציבורי: הקובץ נשמר בגיליון נפרד
    שהסקריפט יוצר (לשונית לכל עלון, base64 בחתיכות של 45,000 תווים),
    ומוגש רק דרך הסקריפט, אחרי שהמכשיר זוהה בשרת: תלמיד/הורה ב"לומדים",
    איש צוות מאושר ב"גישה", או סיסמת הסקריפט. בלי הרשאה חדשה (הגיליונות
@@ -6218,7 +6219,11 @@ var ALDL_TAB_ = 'עלונים להורדה';
 var ALDL_COLS_ = ['מזהה', 'מסכת', 'דף', 'כותרת', 'קובץ', 'עמודים', 'גודל', 'מצב', 'סיבה', 'נוצר', 'פורסם', 'מקור', 'גרסת מקור'];
 var ALDL_SS_KEY_ = 'ALDL_FILES_SS';
 var ALDL_CHUNK_ = 45000;
-var ALDL_MAX_ = 12 * 1024 * 1024;
+/* 20MB — עלוני השבת המקוריים מגיעים ל-16MB (8.99.467). */
+var ALDL_MAX_ = 20 * 1024 * 1024;
+/* הורדה בחלקים: 40 תאים (~1.8MB של base64) בכל קריאה — קובץ של 16MB אינו
+   נכנס בתשובה אחת בבטחה, ובחלקים כל קריאה קצרה. */
+var ALDL_PART_ = 40;
 function aldlFilesSS_() {
   var P = PropertiesService.getScriptProperties(), id = P.getProperty(ALDL_SS_KEY_);
   if (id) return SpreadsheetApp.openById(id);
@@ -6263,7 +6268,11 @@ function aldlStore_(id, data) {
     var parts = [];
     for (var p = 0; p < data.length; p += ALDL_CHUNK_) parts.push([String(parts.length), data.slice(p, p + ALDL_CHUNK_)]);
     fs.getRange(1, 1, parts.length, 2).setNumberFormat('@');
-    fs.getRange(1, 1, parts.length, 2).setValues(parts);
+    /* בקבוצות של ALDL_PART_ שורות — קובץ של 16MB הוא ~480 תאים, ובקריאה אחת זה בקשה ענקית. */
+    for (var w = 0; w < parts.length; w += ALDL_PART_) {
+      var bl = parts.slice(w, w + ALDL_PART_);
+      fs.getRange(w + 1, 1, bl.length, 2).setValues(bl);
+    }
     SpreadsheetApp.flush();
     var back = fs.getRange(1, 2, parts.length, 1).getValues().map(function (r) { return String(r[0]); }).join('');
     if (back !== data) throw new Error('הקובץ שנשמר אינו זהה לקובץ שנשלח');
@@ -6312,27 +6321,92 @@ function aldlPut_(d) {
   base['מצב'] = 'פורסם';
   base['פורסם'] = aldlNow_();
   aldlRow_(M.sh, base);
+  aldlRepAfter_(id, d.rep);
   try { CacheService.getScriptCache().remove('aldl:list'); } catch (x3) {}
   return { status: 'ok', id: id, pages: pages };
 }
-/* מי מבקש: 'adm' · 'staff' · 'kid' · 'dad' — או '' (לא רשום). */
-function aldlWho_(e) {
-  var P = e.parameter || {};
-  if (READ_KEY && String(P.key || '') === READ_KEY) return 'adm';
-  var dev = String(P.dev || '').trim();
-  if (!dev || dev.length < 6 || dev.length > 80) return '';
-  var C = CacheService.getScriptCache(), ck = 'aldl:w:' + dev.replace(/[^0-9A-Za-z_:-]/g, '').slice(0, 80);
-  var hit = C.get(ck);
-  if (hit) return hit === '-' ? '' : hit;
-  var who = '';
-  var a = accRow_(dev);
-  if (a && a.st === 'אושר') who = 'staff';
-  if (!who) {
-    var t = joinTable_(), r = rowOfId_(t, dev);
-    if (r >= 1) who = t.c(t.rows[r], 'תפקיד') === 'הורה' ? 'dad' : 'kid';
+/* עדכון עלון (8.99.467): העלון החדש כבר "פורסם" — קריאה חוזרת מוצאת אותו, ורק אז
+   הקודם (rep) עובר ל"הוחלף". לא נמצא — הקודם נשאר כמו שהוא. */
+function aldlRepAfter_(id, rep) {
+  rep = aldlId_(rep);
+  if (!rep || rep === id) return false;
+  SpreadsheetApp.flush();
+  var M2 = aldlMeta_(), okNew = false;
+  M2.rows.forEach(function (o) { if (o['מזהה'] === id && o['מצב'] === 'פורסם') okNew = true; });
+  if (!okNew) return false;
+  var n = 0;
+  M2.rows.forEach(function (o, i) {
+    if (o['מזהה'] === rep && o['מצב'] === 'פורסם') {
+      M2.sh.getRange(i + 2, ALDL_COLS_.indexOf('מצב') + 1).setNumberFormat('@').setValue('הוחלף');
+      n++;
+    }
+  });
+  return n > 0;
+}
+/* מזהה קובץ דרייב מקישור ("/d/<id>/", "id=<id>") או מזהה חשוף. */
+function aldlFid_(v) {
+  v = String(v || '').trim();
+  var m = /\/d\/([A-Za-z0-9_-]{20,})/.exec(v) || /[?&]id=([A-Za-z0-9_-]{20,})/.exec(v);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_-]{20,}$/.test(v) ? v : '';
+}
+/* ?alon=dadd&key=&fid=<קישור או מזהה>[&mas=&daf=&title=&rep=<מזהה עלון>]
+   הוספה / עדכון של עלון מקובץ אחד בדרייב — **רק עם הסיסמה**. הקובץ אינו זז ואינו
+   משותף; רק הקובץ שנבחר נקרא. DriveApp (drive.readonly); כשהוא נכשל — הורדה ישירה,
+   שעובדת רק לקובץ ששותף "לכל מי שיש לו הקישור". אותה שמירה ואימות (aldlStore_).
+   אותו קובץ באותה גרסה שכבר פורסם — לא נוצרת כפילות. */
+function aldlDAdd_(P) {
+  var fid = aldlFid_(P.fid);
+  if (!fid) return { status: 'error', message: 'קישור הדרייב לא זוהה' };
+  var name = '', bytes = null, ver = '', via = 'drive', apiWhy = '';
+  try {
+    var f = DriveApp.getFileById(fid);
+    name = String(f.getName() || '');
+    if (f.getSize() > ALDL_MAX_) return { status: 'error', message: 'הקובץ גדול מ-20MB' };
+    ver = String(f.getLastUpdated().getTime()) + ':' + String(f.getSize());
+    bytes = f.getBlob().getBytes();
+  } catch (e) {
+    apiWhy = String(e && e.message || e).slice(0, 200);
+    var r = pubFetch_(fid);
+    if (!r || r.status !== 'ok') {
+      return { status: 'error', code: 'access', message: 'הקובץ לא נקרא מהדרייב: ' + apiWhy };
+    }
+    via = 'direct';
+    name = String(r.name || '');
+    try { bytes = Utilities.base64Decode(r.data); } catch (x) { bytes = null; }
+    if (!bytes) return { status: 'error', message: 'הקובץ לא נקרא' };
+    ver = 'direct:' + bytes.length;
   }
-  try { C.put(ck, who || '-', who ? 1800 : 120); } catch (x) {}
-  return who;
+  var base = name.replace(/\.pdf$/i, '').trim();
+  var mas = String(P.mas || '').trim() || aldlDrvMas_(base, '');
+  var daf = String(P.daf || '').trim() || aldlDrvDaf_(base);
+  var title = String(P.title || '').trim() || base;
+  var M = aldlMeta_();
+  for (var i = 0; i < M.rows.length; i++) {
+    var o = M.rows[i];
+    if (o['מקור'] === fid && o['גרסת מקור'] === ver && o['מצב'] === 'פורסם') {
+      return { status: 'ok', id: o['מזהה'], dup: true, via: via };
+    }
+  }
+  /* המזהה מהניהול (כדי לאמת בקריאה חוזרת), ואם אין — חדש. */
+  var id = aldlId_(P.id);
+  if (id.length < 6) {
+    id = 'D' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, fid + '|' + ver + '|' + Date.now()))
+           .replace(/[^0-9A-Za-z]/g, '').slice(0, 14);
+  }
+  var res = aldlPut_({ id: id, mas: mas, daf: daf, title: title, name: name, rep: P.rep,
+                       data: Utilities.base64Encode(bytes) });
+  if (res && res.status === 'ok') {
+    /* המקור — כדי שהסנכרון מ"לפרסום" לא ייצור כפילות אם הקובץ יועבר לשם. */
+    try {
+      var M2 = aldlMeta_();
+      M2.rows.forEach(function (o, k) {
+        if (o['מזהה'] === id) M2.sh.getRange(k + 2, 12, 1, 2).setNumberFormat('@').setValues([[fid, ver]]);
+      });
+    } catch (x2) {}
+  }
+  if (res) { res.via = via; if (apiWhy) res.api = apiWhy; }
+  return res;
 }
 function aldlPub_() {
   var C = CacheService.getScriptCache(), hit = C.get('aldl:list');
@@ -6345,14 +6419,16 @@ function aldlPub_() {
   try { C.put('aldl:list', JSON.stringify(out), 600); } catch (x) {}
   return out;
 }
-/* ?alon=list|get|adm */
+/* ?alon=list|get|adm|dadd
+   **list/get — ציבוריים (8.99.467):** בלי זיהוי מכשיר, רק שורות "פורסם". שאר הלשוניות,
+   הטיוטות, השגיאות והקבצים שהוחלפו — לא. adm ו-dadd — רק עם הסיסמה. */
 function aldlRoute_(e) {
   var P = e.parameter || {}, op = String(P.alon || '');
-  var who = aldlWho_(e);
+  var isAdm = !!READ_KEY && String(P.key || '') === READ_KEY;
   /* החיבור לדרייב — הטריגר שלו מותקן מעצמו, ובפעם הראשונה נבדק מיד. */
   if (op === 'adm' || op === 'dstat') aldlDrvEnsure_();
   if (op === 'adm') {
-    if (who !== 'adm') return { status: 'denied', message: 'דורש את סיסמת הסקריפט' };
+    if (!isAdm) return { status: 'denied', message: 'דורש את סיסמת הסקריפט' };
     return { status: 'ok', rows: aldlMeta_().rows.map(function (o) {
       return { id: o['מזהה'], mas: o['מסכת'], daf: o['דף'], t: o['כותרת'], f: o['קובץ'],
                pg: +o['עמודים'] || 0, sz: +o['גודל'] || 0, st: o['מצב'], why: o['סיבה'],
@@ -6360,8 +6436,11 @@ function aldlRoute_(e) {
                rep: o['מצב'] === 'הוחלף', drv: !!o['מקור'] };
     }), drv: aldlDrvSt_(true) };
   }
+  if (op === 'dadd') {
+    if (!isAdm) return { status: 'denied', message: 'דורש את סיסמת הסקריפט' };
+    return aldlDAdd_(P);
+  }
   if (op === 'dstat') return aldlDrvSt_(false);
-  if (!who) return { status: 'denied', message: 'המכשיר אינו רשום' };
   if (op === 'list') return { status: 'ok', rows: aldlPub_() };
   if (op === 'get') {
     var id = aldlId_(P.id), row = null;
@@ -6369,9 +6448,18 @@ function aldlRoute_(e) {
     if (!row) return { status: 'none', message: 'העלון לא נמצא' };
     var fs = aldlFilesSS_().getSheetByName('f_' + id);
     if (!fs || !fs.getLastRow()) return { status: 'error', message: 'הקובץ לא נמצא' };
-    var data = fs.getRange(1, 2, fs.getLastRow(), 1).getValues().map(function (r) { return String(r[0]); }).join('');
     /* שם קובץ באנגלית ובספרות — בחלק מהדפדפנים שם בעברית יורד כ"download" בלי סיומת. */
-    var nm = 'alon-' + (String(row.at || '').slice(0, 10) || id) + '.pdf';
+    /* כמה עלונים באותו יום — לכל אחד שם משלו (סוף המזהה). */
+    var nm = 'alon-' + (String(row.at || '').slice(0, 10) || 'x') + '-' + id.slice(-5) + '.pdf';
+    var nr = fs.getLastRow();
+    if (P.p != null && P.p !== '') {
+      var np = Math.ceil(nr / ALDL_PART_), p = Math.floor(+P.p || 0);
+      if (p < 0 || p >= np) return { status: 'error', message: 'חלק לא קיים' };
+      var cnt = Math.min(ALDL_PART_, nr - p * ALDL_PART_);
+      var part = fs.getRange(p * ALDL_PART_ + 1, 2, cnt, 1).getValues().map(function (r) { return String(r[0]); }).join('');
+      return { status: 'ok', name: nm, mime: 'application/pdf', p: p, np: np, data: part };
+    }
+    var data = fs.getRange(1, 2, nr, 1).getValues().map(function (r) { return String(r[0]); }).join('');
     return { status: 'ok', name: nm, mime: 'application/pdf', data: data };
   }
   return { status: 'error', message: 'פעולה לא מוכרת' };
@@ -6436,7 +6524,7 @@ function aldlDrvDaf_(nm) {
 }
 function aldlDrvMas_(nm, dirName) {
   if (dirName) return dirName;
-  var m = /מסכת\s+([א-ת"'׳״]+)/.exec(nm);
+  var m = /מסכת\s+([א-ת"'׳״]+)/.exec(nm) || /([א-ת"'׳״]{2,})\s+דף\s/.exec(nm + ' ');
   return m ? m[1] : '';
 }
 /* כל ה-PDF בתיקייה ובתתי-התיקיות (עומק 2). זורק כשאין גישה לתיקייה עצמה. */

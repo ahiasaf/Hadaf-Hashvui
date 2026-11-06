@@ -12,7 +12,8 @@
      מאגר העלונים להורדה (8.99.449) — בריף 3.11, חלק א׳ סעיף 3.
      ============================================================
      אותו מסך להורה ולתלמיד. נפתח מהכרטיס בבית (שישי) או בקישור ישיר.
-     הרשימה וההורדה — דרך הסקריפט אחרי זיהוי המכשיר בשרת (alonim.js).
+     **ציבורי מ-8.99.467:** הרשימה וההורדה בלי זיהוי מכשיר (alonim.js) —
+     גם בלי הרשמה. רק העלונים שפורסמו; שום מסך או מידע אחר.
      כשל — הרשימה האחרונה שבמכשיר; אין רשימה כלל — "נסו שוב", לא "ריק".
      ============================================================ -->
 <style>
@@ -175,15 +176,14 @@ $('list').onclick = function (ev) {
 function load() {
   var c = ALDL.cached();
   if (c) { ROWS = c; paint(); } else $('list').innerHTML = '<div class="msg">' + esc(UI.aldlLoad) + '</div>';
-  if (!ALDL.dev()) { ROWS = 'denied'; paint(); return; }
+  /* כשל (גם "נדחה" משרת ישן) — הרשימה שכבר מוצגת/במכשיר נשארת; רק תשובה תקינה מחליפה. */
   ALDL.call('alon=list&dev=' + encodeURIComponent(ALDL.dev())).then(function (r) {
     if (r && r.status === 'ok' && r.rows) {
       try { localStorage.setItem('df:aldl', JSON.stringify({ at: Date.now(), rows: r.rows })); } catch (e) {}
       ROWS = r.rows;
-    } else if (r && r.status === 'denied') ROWS = 'denied';
-    else ROWS = ALDL.cached();
+    } else if (!(ROWS && ROWS.length)) ROWS = ALDL.cached() || (r && r.status === 'denied' ? 'denied' : null);
     paint();
-  })['catch'](function () { ROWS = ALDL.cached(); paint(); });
+  })['catch'](function () { if (!(ROWS && ROWS.length)) ROWS = ALDL.cached(); paint(); });
 }
 load();
 </script>

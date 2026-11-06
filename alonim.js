@@ -5,7 +5,8 @@
    ו-index.html (הכפתור המרחף באזור הניהול האישי, ההעלאה בניהול).
    הרשימה וההורדה עוברות דרך הסקריפט (?alon=list|get), שמזהה את
    המכשיר לפי התפקיד שלו בשרת — ראו aldlRoute_ ב-apps-script.gs.
-   אין קישור PDF ציבורי.
+   **מ-8.99.467 המאגר ציבורי:** הרשימה וההורדה בלי זיהוי מכשיר (גם
+   בלי הרשמה). ההורדה בחלקים (`p`), כל חלק ~1.8MB. הכתיבה — רק בניהול.
 
    **קריאה שנכשלה אינה מאגר ריק:** כשל — הרשימה האחרונה מהמכשיר
    (`df:aldl`) נשארת; רק תשובה תקינה מרוקנת. ES5 בלבד. */
@@ -52,22 +53,37 @@
   /* הרשימה מהשרת. ok → נשמרת; כשל → המטמון (או null). */
   function list(extra, devO) {
     var d = devO || dev();
-    if (!d && !extra) return Promise.resolve(cached());
     return call('alon=list&dev=' + encodeURIComponent(d) + (extra || '')).then(function (r) {
       if (r && r.status === 'ok' && r.rows) {
         try { localStorage.setItem(CK, JSON.stringify({ at: Date.now(), rows: r.rows })); } catch (e) {}
         return r.rows;
       }
-      if (r && r.status === 'denied') return [];
+      /* כל תשובה אחרת (גם "נדחה" משרת ישן) — הרשימה שכבר במכשיר נשארת. */
       return cached();
     })['catch'](function () { return cached(); });
+  }
+  /* החלקים של קובץ אחד, אחד אחרי השני. שרת ישן (בלי np) — הקובץ כולו בתשובה הראשונה. */
+  function parts(base) {
+    var out = [];
+    var one = function (p, tries) {
+      return call(base + '&p=' + p, 90000).then(function (r) {
+        if (!r || r.status !== 'ok' || typeof r.data !== 'string') throw new Error((r && r.message) || 'no data');
+        out.push(r.data);
+        if (r.np && p + 1 < r.np) return one(p + 1, 0);
+        return { name: r.name, data: out.join('') };
+      }, function (er) {
+        if (tries < 2) return one(p, tries + 1);
+        throw er;
+      });
+    };
+    return one(0, 0);
   }
   /* הורדה: base64 → Blob → שמירה בשם העלון. מחזיר הבטחה; כשל — throw. */
   function get(id, extra, devO) {
     var d = devO || dev();
-    return call('alon=get&id=' + encodeURIComponent(id) + '&dev=' + encodeURIComponent(d) + (extra || ''), 90000)
+    return parts('alon=get&id=' + encodeURIComponent(id) + '&dev=' + encodeURIComponent(d) + (extra || ''))
       .then(function (r) {
-        if (!r || r.status !== 'ok' || !r.data) throw new Error((r && r.message) || 'no data');
+        if (!r || !r.data) throw new Error('no data');
         var bin = atob(r.data), buf = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
         var blob = new Blob([buf], { type: 'application/pdf' });
