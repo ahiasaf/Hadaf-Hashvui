@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 186;
+var SCRIPT_VERSION = 187;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14328,6 +14328,53 @@ function chPush_(U, P) {
   } finally { lock.releaseLock(); chBust_(U); }
 }
 
+/* ============================================================
+   הודעה לחברי השולחנות (8.99.464) — ?challenge=tmsg&tb=<שולחן|all>&t=&b=
+   ============================================================
+   הבעלים מנסח, ושולח לחברי **שולחן אחד** או **לכל השולחנות**. הנמענים —
+   מי שיושב עכשיו בשולחן (M.tb ממודל שנבנה מחדש ברגע השליחה), כל אחד עם
+   כל המזהים שלו (M.al). אותו צינור של שאר ההתראות (ghFire_): יומן
+   "הודעות", מזהה הודעה חדש לכל שליחה, ולחיצה פותחת את עמוד המבצע.
+   `dry=1` — רק מי יקבל, בלי לשלוח. בעולם הבדיקה — אין שליחה. */
+function chTmTo_(M, tb) {
+  var tabs = tb === 'all' ? Object.keys(M.tb || {}).sort() : (M.tb && M.tb[tb] ? [tb] : []);
+  var rev = {}, ppl = [], ids = [];
+  Object.keys(M.al || {}).forEach(function (x) { (rev[M.al[x]] = rev[M.al[x]] || []).push(x); });
+  var add = function (x) { if (/^[\w:.\-]{1,60}$/.test(x) && ids.indexOf(x) < 0) ids.push(x); };
+  tabs.forEach(function (t) {
+    (M.tb[t] || []).forEach(function (id) {
+      if (ppl.indexOf(id) >= 0) return;
+      ppl.push(id); add(id); (rev[id] || []).forEach(add);
+    });
+  });
+  return { tabs: tabs, ppl: ppl, ids: ids };
+}
+function chTmsg_(U, P) {
+  var tb = String(P.tb || '').trim();
+  if (!tb || !(tb === 'all' || /^[\w:.\-]{1,40}$/.test(tb))) return { status: 'error', message: 'לאיזה שולחן?' };
+  var dry = String(P.dry || '') === '1';
+  var t = String(P.t || '').trim().slice(0, 120), b = String(P.b || '').trim().slice(0, 400);
+  if (!dry && !b) return { status: 'error', message: 'אין מה לשלוח' };
+  if (!dry && U.test) return { status: 'error', message: 'בעולם הבדיקה לא שולחים הודעות לשולחנות' };
+  var M = chModel_(U, true);
+  if (!M) return { status: 'busy', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  if (!M.on) return { status: 'error', message: 'המבצע כבוי' };
+  var R = chTmTo_(M, tb);
+  if (tb !== 'all' && !R.tabs.length) return { status: 'error', message: 'השולחן הזה כבר לא קיים — רעננו את המסך' };
+  if (!R.ids.length) return { status: 'error', message: 'אין נמענים' };
+  var out = { tb: tb, tables: R.tabs.length, n: R.ppl.length, dev: R.ids.length };
+  if (dry) { out.status = 'ok'; out.dry = 1; return out; }
+  var own = tb === 'all' ? null : M.ppl[R.ppl[0]] || {};
+  var to = tb === 'all' ? 'כל השולחנות (' + R.tabs.length + ' · ' + R.ppl.length + ' תלמידים)'
+         : 'שולחן ' + tb + ' של ' + ((own.f || '') + ' ' + (own.l || '')).trim() + ' (' + R.ppl.length + ' תלמידים)';
+  var r = ghFire_(t || 'חבר מביא חבר', b, '', '', '', 'חבר מביא חבר', 'chaver', '', '',
+                  JSON.stringify({ ids: R.ids }), false, '', to);
+  out.status = r.status === 'ok' ? 'ok' : 'error';
+  if (r.status !== 'ok') out.message = r.message || '';
+  out.sid = r.sid || '';
+  return out;
+}
+
 /* בסוף הבדיקה: כל שורות הבדיקה של האתגר — ורק הן. */
 function chTestClear_() {
   var lock = LockService.getScriptLock();
@@ -14667,6 +14714,7 @@ function challengeRoute_(e) {
     }
     if (op === 'dmstart') return reply_(e, chDemoStart_(P));
     if (op === 'push') return reply_(e, chPush_(U, P));
+    if (op === 'tmsg') return reply_(e, chTmsg_(U, P));
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));

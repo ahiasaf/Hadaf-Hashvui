@@ -3157,7 +3157,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.463';
+var APP_VERSION = '8.99.464';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17803,6 +17803,43 @@ function chaPushBox(kind, k, st, to, dis) {
     '<button class="btn p" type="button"' + dis + ' onclick="chaPush(\'' + kind + '\',\'' + (k || '') + '\',' + (o.st === 'unk') + ',' + again + ')">' +
       esc(again ? UI.chaPushLAgain : o.st === 'unk' ? UI.chaPushForce : o.st === 'fail' ? UI.chaPushRe : UI.chaPushGo) + '</button>';
 }
+/* הודעה לחברי השולחנות (8.99.464) — נוסח אחד, ושני כפתורים נפרדים: השולחן שנבחר /
+   כל השולחנות. הנמענים נקבעים בשרת (chTmsg_) לפי מי שיושב ברגע השליחה. */
+var CHA_TM = { b: '', t: '' };
+function chaTmBox(d, dis) {
+  var G = d.grp || [];
+  if (!G.length) return '';
+  var all = 0;
+  if (!G.some(function (g) { return g.id === CHA_TM.t; })) CHA_TM.t = G[0].id;
+  var opts = G.map(function (g) {
+    var ppl = [g.by].concat(g.f);
+    all += ppl.length;
+    return '<option value="' + esc(g.id) + '"' + (g.id === CHA_TM.t ? ' selected' : '') + '>' +
+      esc(fill(UI.chaTmOpt, { by: g.by.f || '', names: g.f.map(function (p) { return p.f || ''; }).join(', ') }).replace(/[:·,\s]+$/, '')) + '</option>';
+  }).join('');
+  var cur = G.filter(function (g) { return g.id === CHA_TM.t; })[0];
+  return '<div class="pp-h">' + esc(UI.chaTmH) + '</div><p class="h">' + esc(UI.chaTmP) + '</p>' +
+    '<div class="fld"><label class="label">' + esc(UI.chaTmB) + '</label>' +
+    '<textarea class="cha-ta" maxlength="400" oninput="CHA_TM.b=this.value">' + esc(CHA_TM.b) + '</textarea></div>' +
+    '<div class="fld"><label class="label">' + esc(UI.chaTmPick) + '</label>' +
+    '<select onchange="CHA_TM.t=this.value;chaPaint()">' + opts + '</select></div>' +
+    '<button class="btn p" type="button" id="cha-tm-one"' + dis + ' onclick="chaTmSend(\'one\')">' +
+      esc(fill(UI.chaTmOne, { n: 1 + cur.f.length })) + '</button>' +
+    '<button class="btn g" type="button" id="cha-tm-all" style="margin-top:8px"' + dis + ' onclick="chaTmSend(\'all\')">' +
+      esc(fill(UI.chaTmAll, { k: G.length, n: all })) + '</button>';
+}
+function chaTmSend(w) {
+  var b = String(CHA_TM.b || '').trim(), tb = w === 'all' ? 'all' : CHA_TM.t;
+  if (!b || !tb || CHA.busy) return;
+  if (!SureLater(chaTmSend, this, arguments)) return;
+  CHA.busy = true; chaPaint();
+  chaCall('tmsg', { tb: tb, t: UI.chaTmTitle, b: b }).then(function (r) {
+    CHA.busy = false;
+    if (r && r.status === 'ok') { CHA_TM.b = ''; CHA.msg = fill(UI.chaTmOk, { n: r.n }); }
+    else CHA.msg = (r && r.message) || UI.chaFail;
+    return chaLoad();
+  }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
+}
 function chaPromo() {
   if (CHA.busy) return;
   if (!SureLater(chaPromo, this, arguments)) return;
@@ -18114,7 +18151,8 @@ function chaPaint() {
     past.slice().reverse().forEach(function (m) { T.hist += chaMs(m, d, dis); });
   }
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
-  T.msg = '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
+  T.msg = (CHA.test ? '' : chaTmBox(d, dis)) +
+    '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
     (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
       ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
       : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
