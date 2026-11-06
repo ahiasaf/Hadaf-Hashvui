@@ -91,7 +91,7 @@ var LOCK = (function () {
       var L = localStorage, gone = [];
       for (var i = 0; i < L.length; i++) {
         var k = L.key(i) || '';
-        if (/^df:(rosterCache:|instCodes$|attR$)/.test(k) || /^boardKey:/.test(k)) gone.push(k);
+        if (/^df:(rosterCache:|instCodes$|attR(:v)?$)/.test(k) || /^boardKey:/.test(k)) gone.push(k);
       }
       for (var j = 0; j < gone.length; j++) L.removeItem(gone[j]);
     } catch (e) {}

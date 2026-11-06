@@ -3157,7 +3157,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.461';
+var APP_VERSION = '8.99.462';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5289,6 +5289,35 @@ function attOrb() {
   return '<button class="att-orb" onclick="attOpen(\'self\')" title="' + esc(PANEL.attSub) + '" aria-label="' + esc(t) + '">' +
     '<i aria-hidden="true">✓</i><small>' + esc(t) + '</small></button>';
 }
+/* ============================================================
+   **הרשימה מהמכשיר מיד, והשרת בודק ברקע.**
+   ============================================================
+   כל פתיחה חיכתה לשרת (netroster), והרשימה כמעט אף פעם לא משתנה.
+   עכשיו: רשימה שכבר נטענה במכשיר הזה, לאותו חשבון ולאותה ישיבה —
+   העמדה נפתחת עליה בלי המתנה, ובאותו רגע נשאלת השאלה לשרת. מה
+   שחזר שונה — נשמר, ונכנס לעמדה הפתוחה כשזה בטוח (הכיתה שעל המסך
+   לא השתנתה); אחרת — בפתיחה הבאה. אין גרסה ואין שעון: כל פתיחה היא
+   הבדיקה.
+   * חשבון: `dev` = מזהה המכשיר של איש הצוות. מזהה אחר — כאילו אין.
+   * ישיבה: `inst`. הבעלים על ישיבה אחרת — מקום נפרד (`attR:v`),
+     שאינו נוגע ברשימה של הישיבה שלו.
+   * האישור בוטל — הרשימה יורדת מהמכשיר, והעמדה הפתוחה נסגרת.
+   * קריאה שנכשלה אינה רשימה ריקה: כישלון משאיר את מה שיש, ריק מרוקן. */
+function attRKey(view) { return view ? 'attR:v' : 'attR'; }
+function attRGet(view, code, dev) {
+  var c = Store.get(attRKey(view), null);
+  if (!c || c.inst !== code || !c.g || !amdaCount(c).n) return null;
+  if (!view && (!dev || c.dev !== dev)) return null;
+  return c;
+}
+/* הרשימה של הכיתה שעל המסך — זהה בשתי הגרסאות? (הסימון לפי מיקום ברשימה) */
+function attSameCls(a, b) {
+  var g = amdaSt.g, c = amdaSt.c;
+  if (!g) return true;
+  var x = ((a.g || {})[g] || {}), y = ((b.g || {})[g] || {});
+  if (!c) return JSON.stringify(Object.keys(x).sort()) === JSON.stringify(Object.keys(y).sort());
+  return JSON.stringify(x[c] || []) === JSON.stringify(y[c] || []);
+}
 /* mode: 'self' — נפתח על "אני מסמן"; 'stu' — על "התלמידים מסמנים". */
 function attOpen(mode) {
   var code = myView(), me = typeof ASK !== 'undefined' && ASK.get ? ASK.get() : null;
@@ -5296,23 +5325,31 @@ function attOpen(mode) {
      בגיבוי הרשימה של הישיבה שלו (attR) או במצב העמדה שלה (amdaVReset). */
   var view = myViewing(), vkey = view ? (CFG.readKey || '').trim() : '';
   if (!code || (!view && (!me || !me.id || !instCode(code)))) return;
-  var self = mode === 'self';
-  attView = ''; attMsg = PANEL.attLoad; renderMy();
+  var self = mode === 'self', dev = view ? '' : me.id, rk = attRKey(view);
   var go = function (r) {
     attMsg = ''; attView = '';
     if (view) amdaVReset();
-    AMDA_STAFF = { inst: code, dev: view ? '' : me.id, r: r, view: view, key: vkey };
+    AMDA_STAFF = { inst: code, dev: dev, r: r, view: view, key: vkey };
     amdaSt.slot = ''; amdaSt.kind = '';
     amdaSt.self = self; amdaSt.all = self; amdaSt.sel = {};
     amdaOpen('d');
   };
+  var hit = attRGet(view, code, dev);
+  /* העמדה עדיין פתוחה על הרשימה מהמכשיר? */
+  var onHit = function () { return !!(hit && AMDA_STAFF && AMDA_STAFF.r === hit); };
+  if (hit) go(hit);
+  else { attView = ''; attMsg = PANEL.attLoad; renderMy(); }
   scriptGet(view ? { netroster: code, key: vkey } : { netroster: code, dev: me.id }).then(function (d) {
     if (!d || d.status !== 'ok') {
-      /* האישור בוטל — גם הגיבוי במכשיר יורד. */
-      if (!view && d && (d.status === 'locked' || d.status === 'wait' || d.status === 'unknown')) Store.set('attR', null);
+      /* האישור בוטל — גם הגיבוי במכשיר יורד, והעמדה שנפתחה ממנו נסגרת. */
+      if (d && /^(locked|wait|unknown|denied)$/.test(d.status)) {
+        Store.set(rk, null);
+        if (onHit()) { attMsg = d.message || PANEL.attFail; amdaClose(true); }
+      }
+      if (hit) return;
       attMsg = (d && d.message) || PANEL.attFail; renderMy(); return;
     }
-    var r = { at: Date.now(), inst: code, g: {} };
+    var r = { at: Date.now(), inst: code, dev: dev, g: {} };
     (d.rows || []).forEach(function (x) {
       var g = amdaGK(x[0]), c = String(x[1] || ''), n = String(x[2] || '');
       if (!n || !c || !amdaGradeOk(g)) return;
@@ -5322,13 +5359,24 @@ function attOpen(mode) {
     Object.keys(r.g).forEach(function (g) {
       Object.keys(r.g[g]).forEach(function (c) { r.g[g][c].sort(function (a, b) { return a.localeCompare(b, 'he'); }); });
     });
-    if (!amdaCount(r).n) { attMsg = PANEL.attNone; renderMy(); return; }
-    if (!view) Store.set('attR', r);
-    go(r);
+    if (!amdaCount(r).n) {
+      Store.set(rk, null);
+      if (onHit()) { attMsg = PANEL.attNone; amdaClose(true); return; }
+      if (hit) return;
+      attMsg = PANEL.attNone; renderMy(); return;
+    }
+    Store.set(rk, r);
+    if (!hit) { go(r); return; }
+    /* נפתח מהמכשיר — מה שהשתנה נכנס לעמדה הפתוחה, אם זה בטוח. */
+    if (JSON.stringify(r.g) === JSON.stringify(hit.g) || !onHit() || !attSameCls(hit, r)) return;
+    AMDA_STAFF.r = r;
+    amdaPaint();
   })['catch'](function () {
-    var r = view ? null : Store.get('attR', null);
-    if (r && r.inst === code && amdaCount(r).n) go(r);
-    else { attMsg = PANEL.attFail; renderMy(); }
+    if (hit) return;
+    /* בלי רשת — גם גיבוי מלפני השינוי (בלי `dev`), כמו שהיה. */
+    var old = view ? null : Store.get(rk, null);
+    if (old && !old.dev && old.inst === code && amdaCount(old).n) { go(old); return; }
+    attMsg = PANEL.attFail; renderMy();
   });
 }
 
