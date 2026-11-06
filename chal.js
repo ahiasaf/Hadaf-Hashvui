@@ -732,7 +732,10 @@
      שולחן של חבר — בלי כפתור, ומתחתיו "רוצה לפתוח שולחן משלך?". */
   function tailHtml(d) {
     var v = tv(d);
-    return d.ended || (v && !v.t.mine) ? '' : waBtn(U('chWaMore'), '', 'ch-wa');
+    if (d.ended || (v && !v.t.mine)) return '';
+    /* 8.99.460 (אחיאסף): הבהרה ליד ההזמנה — אפשר להזמין גם חברים רשומים. ריק = לא מוצג. */
+    var any = U('chWaAny');
+    return waBtn(U('chWaMore'), '', 'ch-wa') + (any ? '<p class="ch-tline">' + esc(any) + '</p>' : '');
   }
   /* **שולחן אחד** (מסך 2 בבריף). מעליו — לשוניות "שולחן 1 · שולחן 2 · ＋" (8.99.455). */
   function oneHtml(d, home) {
