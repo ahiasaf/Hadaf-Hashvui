@@ -7,6 +7,7 @@
 node tools/snaptest/eq.js        # סדרה אקראית: כל קריאה מול חישוב מלא. SEED=2 N=500 לשנות
 node tools/snaptest/flight.js    # חישוב אחד בכל פעם · מי שלא השתנה · שמירה בלי חישוב · לוח
 node tools/snaptest/board.js     # לוח הישיבה אחרי לימוד של תלמיד שבו
+node tools/snaptest/hsnap.js     # התמונה השמורה לבית: רישום/ביטול הגרלה, הגנת ההפעלה, קריאות חוזרות
 GS=<קובץ ישן> node tools/snaptest/load.js   # עומס ערב: כמה חישובים מלאים (להשוואה בין גרסאות)
 ```
 

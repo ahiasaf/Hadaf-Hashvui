@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 191;
+var SCRIPT_VERSION = 192;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10257,7 +10257,12 @@ function ptsMe_(P) {
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
   if (!mine.length) return { status: 'ok', none: 1 };
   /* התמונה השמורה (hsnap) — רק כשהמתג דלוק. כבוי — החישוב החי, כמו קודם. */
-  if (hsnapOn_()) return hsnapMe_(mine);
+  if (hsnapOn_()) {
+    var hso = hsnapMe_(mine);
+    /* null — התמונה מלפני רישום/ביטול הגרלה, משבוע אחר, או ישנה מ-26 שעות:
+       החישוב החי, עד שהבנייה הבאה תושלם (8.99.465). */
+    if (hso) return hso;
+  }
   var tk = null, hs = -1;
   try {
     var M = rafMeMap_(null, mine);
@@ -10524,6 +10529,8 @@ function raffleDraw_(P) {
     var E = raffleElig_(codes), nm = rafInstNm_();
     var rid = 'R' + wk + '-' + Utilities.getUuid().slice(0, 8);
     var who = String(P.who || 'רכז').slice(0, 40);
+    /* התמונה השמורה לבית — סימון לפני הכתיבה ואחריה (hsnapRafMark_). */
+    hsnapRafMark_();
     codes.forEach(function (cd) {
       var L = E.by[cd] || [], tix = {}, nt = 0;
       L.forEach(function (p) { tix[p.id] = p.t || 1; nt += p.t || 1; });
@@ -10547,6 +10554,7 @@ function raffleDraw_(P) {
         ['סטטוס', 'הוגרל']
       ]);
     });
+    hsnapRafMark_();
     var d = rafById_(rafRead_(), rid);
     d.status = 'ok';
     return d;
@@ -10795,8 +10803,10 @@ function raffleVoid_(P) {
   var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
   if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
   if (d.st === 'פורסם') return { status: 'error', message: 'התוצאה כבר פורסמה — אין ביטול מכאן' };
+  hsnapRafMark_();
   rafSet_(T, d, [['סטטוס', 'בוטל'], ['סיבת ביטול', why],
                  ['בוטל', new Date().toISOString() + ' · ' + String(P.who || 'רכז').slice(0, 40)]]);
+  hsnapRafMark_();
   return { status: 'ok' };
 }
 
@@ -11680,6 +11690,14 @@ function rafNextTk_(mine) {
      ההתקנה — hsnapSetup (הבעלים מריץ פעם אחת); הסרה — hsnapRemove.
      **לא הותקנו**: "בערך ב-06:00" של גוגל (nearMinute, ±15 דק') ממתין לאישור.
    · מתג: hsnapEnable (מסרב בלי בנייה שהושלמה) · hsnapDisable.
+   · **8.99.465 — אחרי רישום הגרלה:** raffleDraw_/raffleVoid_ מחליפים את
+     `HSNAP_RAF` לפני הכתיבה ואחריה (hsnapRafMark_). כל בנייה נושאת את הערך
+     שראתה בתחילתה (`rg`). שונה — התמונה אינה מוגשת, והבית חוזר לחישוב החי
+     עד בנייה חדשה; hsnapHourly בונה אותה גם מחוץ לחלון (פעם אחת — אחרי
+     הבנייה הסימון תואם). כך גם תמונה משבוע אחר או ישנה מ-26 שעות (hsnapBad_).
+     `up` בבית — מהשעון ומ-`rl` שבתמונה, בלי לקרוא את לשונית ההגרלות.
+     hsnapEnable מסרב גם בלי שני הטריגרים, בסנכרון כבוי, בבנייה אחרונה שנכשלה
+     או בתמונה שאינה עדכנית (hsnapCheck_). מצב בלבד — hsnapStatus.
    ============================================================ */
 var HSNAP_TABS_ = ['תמונת בית א', 'תמונת בית ב'];
 var HSNAP_CHUNK_ = 45000;
@@ -11700,18 +11718,38 @@ function hsnapOn_() {
 /* החלון השעתי: מצאת השבת (שבת) ועד שההגרלה של השבוע נרשמה — גם במוצ"ש
    וגם ביום ראשון בבוקר. `now` — לבדיקה. */
 function hsnapWin_(now) {
+  var wk = hsnapWinT_(now);
+  if (!wk) return false;
+  try { if (rafLast_(rafRead_(), wk)) return false; } catch (e) { return false; }
+  return true;
+}
+/* חלק השעון של החלון, בלי קריאה מהגיליון: שבוע ההגרלה (מצאת השבת עד סוף
+   יום ראשון), או 0. ההגרלה של השבוע — שבוע התוכנית של יום ראשון (progWeek_
+   כבר עבר אליו ביום ראשון; במוצ"ש — השבוע הבא). */
+function hsnapWinT_(now) {
   now = now || Date.now();
   var L = new Date(now + rafIlOff_(now) * 60000), dow = L.getUTCDay(), sat;
   if (dow === 6) sat = L;
   else if (dow === 0) sat = new Date(L.getTime() - 86400000);
-  else return false;
+  else return 0;
   var tz = rafTzeit_(sat.getUTCFullYear(), sat.getUTCMonth() + 1, sat.getUTCDate());
-  if (now < tz) return false;
-  /* ההגרלה של השבוע — שבוע התוכנית של יום ראשון (progWeek_ כבר עבר אליו
-     ביום ראשון; במוצ"ש — השבוע הבא). נרשמה — החלון נסגר. */
-  var wk = dow === 0 ? progWeek_() : progWeek_() + 1;
-  try { if (rafLast_(rafRead_(), wk)) return false; } catch (e) { return false; }
-  return true;
+  if (now < tz) return 0;
+  return dow === 0 ? progWeek_() : progWeek_() + 1;
+}
+/* "ההגרלות השתנו" — ערך חדש לפני רישום/ביטול ואחריו. בנייה שהתחילה לפני
+   הסימון השני אינה תואמת אותו, ולכן אינה מוגשת. */
+function hsnapRafMark_() {
+  try { hsnapProp_('HSNAP_RAF', Date.now().toString(36) + Math.random().toString(36).slice(2, 6)); } catch (e) {}
+}
+var HSNAP_MAX_AGE_ = 26 * 3600000;
+/* למה אסור להגיש את התמונה עכשיו — '' כשמותר. בלי קריאה מהגיליון. */
+function hsnapBad_(S, rg) {
+  if (!S || S.v !== 1) return 'אין תמונה תקינה';
+  if ((S.rg || '') !== (rg == null ? hsnapProp_('HSNAP_RAF') : rg)) return 'נבנתה לפני רישום או ביטול של הגרלה';
+  if (S.pw !== progWeek_()) return 'נבנתה בשבוע אחר';
+  var age = Date.now() - Date.parse(S.at);
+  if (!(age >= 0 && age <= HSNAP_MAX_AGE_)) return 'ישנה מ-26 שעות';
+  return '';
 }
 function hsnapRead_(ptr) {
   var rc = CacheService.getScriptCache(), key = 'hsnap:' + ptr.id;
@@ -11730,16 +11768,25 @@ function hsnapRead_(ptr) {
   return S;
 }
 /* הבנייה. מחזירה מחרוזת (מריצים מהעורך) ושומרת את התוצאה ב-HSNAP_LAST. */
-function hsnapBuild_(why) {
+function hsnapBuild_(why, auto) {
   /* נעילה משלה — לא נעילת הסקריפט, שבה ממתינות ההרשמות (doPost): הבנייה
      אורכת עשרות שניות. כך רק בנייה אחת בכל פעם, בלי לעכב כתיבה של תלמיד. */
   var lk = LockService.getDocumentLock() || LockService.getUserLock();
   if (!lk.tryLock(30000)) { hsnapProp_('HSNAP_LAST', 'עסוק · ' + new Date().toISOString()); return 'עסוק — לא נבנה'; }
   var msg = '';
   try {
-    var pw = progWeek_(), nr = rafNext_(), W = nr && nr !== pw ? nr - 1 : null;
+    /* בנייה מהטריגר שמצאה תמונה תקינה שזה עתה נבנתה (חיכתה לבנייה אחרת) — לא שוב. */
+    var rg = hsnapProp_('HSNAP_RAF'), p0 = hsnapPtr_();
+    if (auto && p0 && Date.now() - Date.parse(p0.at) < 600000) {
+      var S0 = null;
+      try { S0 = hsnapRead_(p0); } catch (e0) { S0 = null; }
+      if (S0 && !hsnapBad_(S0, rg)) return 'דולג — נבנתה זה עתה · ' + p0.at;
+    }
+    var pw = progWeek_(), nr = rafNext_(), W = nr && nr !== pw ? nr - 1 : null, RT = rafRead_(), rl = {};
+    rl[pw] = !!rafLast_(RT, pw);
+    rl[pw + 1] = !!rafLast_(RT, pw + 1);
     var S = { v: 1, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-              at: new Date().toISOString(), why: String(why || ''), pw: pw, nr: nr, W: W,
+              at: new Date().toISOString(), why: String(why || ''), pw: pw, nr: nr, W: W, rg: rg, rl: rl,
               daf: rafDaf_(), dafs: rafDafs_(), dafW: W == null ? rafDaf_() : rafDafW_(W),
               tk: rafMeMap_(null, null), pts: ptsAll_(null) };
     S.nx = W == null ? null : rafMeMap_(W, null);
@@ -11769,11 +11816,13 @@ function hsnapBuild_(why) {
   return msg;
 }
 /* הבית מהתמונה — אותה תשובה של ptsMe_, בלי חישוב. `up` — כמה פעמים
-   מתעדכנת עכשיו ('h' בחלון השעתי, 'd' אחרת), לתווית בבית. */
+   מתעדכנת עכשיו ('h' בחלון השעתי, 'd' אחרת), לתווית בבית.
+   null — התמונה קיימת אבל אינה בתוקף (hsnapBad_): ptsMe_ מחשב חי. */
 function hsnapMe_(mine) {
   var ptr = hsnapPtr_(), S = null;
   try { S = ptr ? hsnapRead_(ptr) : null; } catch (e) { S = null; }
   if (!S) { tmBump_({ 'pts:snapna': 1 }); return { status: 'ok', na: 1 }; }
+  if (hsnapBad_(S)) { tmBump_({ 'pts:snaplive': 1 }); return null; }
   var tk = null, nx = null, hs = -1, hit = '', hitN = '';
   for (var j = 0; j < mine.length && !hit; j++) hit = (S.tk || {})[mine[j]] || '';
   tk = rafTk_(hit, null, true);
@@ -11789,7 +11838,9 @@ function hsnapMe_(mine) {
     delete nx.drawn;
     nx.nr = S.nr;
   }
-  var up = hsnapWin_() ? 'h' : 'd', T = S.pts || { v: {}, m: {} }, o;
+  /* בלי לקרוא את לשונית ההגרלות: השעון, ומה שהיה רשום כשהתמונה נבנתה.
+     רישום מאז — הסימון כבר שונה, ולא היינו מגיעים לכאן. */
+  var ww = hsnapWinT_(), up = ww && !(S.rl || {})[ww] ? 'h' : 'd', T = S.pts || { v: {}, m: {} }, o;
   for (var i = 0; i < mine.length; i++) {
     var v = ptsOf_(T, mine[i]);
     if (v) {
@@ -11805,11 +11856,20 @@ function hsnapMe_(mine) {
 }
 /* ---- מה שהבעלים מריץ מהעורך ---- */
 function hsnapBuildNow() { return hsnapSay_(hsnapBuild_('ידני')); }
-function hsnapDaily() { if (hsnapProp_('HSNAP_SYNC') !== '0') hsnapBuild_('יומי'); }
+function hsnapDaily() { if (hsnapProp_('HSNAP_SYNC') !== '0') hsnapBuild_('יומי', true); }
 function hsnapHourly() {
   if (hsnapProp_('HSNAP_SYNC') === '0') return;
-  if (!hsnapWin_()) return;                       /* מחוץ לחלון — יוצאת מיד */
-  hsnapBuild_('שעתי');
+  /* תמונה מלפני רישום/ביטול הגרלה — בנייה גם מחוץ לחלון (אחרי הרישום
+     החלון נסגר). אחרת — רק בחלון; מחוצה לו יוצאת מיד. */
+  if (hsnapRafOld_()) { hsnapBuild_('אחרי הגרלה', true); return; }
+  if (!hsnapWin_()) return;
+  hsnapBuild_('שעתי', true);
+}
+function hsnapRafOld_() {
+  var ptr = hsnapPtr_(), S = null;
+  if (!ptr) return false;
+  try { S = hsnapRead_(ptr); } catch (e) { S = null; }
+  return !!S && (S.rg || '') !== hsnapProp_('HSNAP_RAF');
 }
 function hsnapSetup() {
   hsnapRemove();
@@ -11830,11 +11890,55 @@ function hsnapRemove() {
 /* מתג הכיבוי של הסנכרון (בלי להסיר טריגרים) — hsnapSyncOff / hsnapSyncOn. */
 function hsnapSyncOff() { hsnapProp_('HSNAP_SYNC', '0'); return 'הסנכרון כבוי'; }
 function hsnapSyncOn() { hsnapProp_('HSNAP_SYNC', '1'); return 'הסנכרון פועל'; }
+/* מה מונע הפעלה — מערך ריק כשמותר. קריאה בלבד: לא בונה, לא מתקין, לא משנה. */
+function hsnapCheck_() {
+  var bad = [], ptr = hsnapPtr_(), S = null;
+  try { S = ptr ? hsnapRead_(ptr) : null; } catch (e) { S = null; }
+  if (!S) bad.push('אין בנייה שהושלמה ונקראה — קודם hsnapBuildNow');
+  else {
+    var b = hsnapBad_(S);
+    if (b) bad.push('התמונה: ' + b);
+    /* הבדיקה המלאה מול הגיליון — רק כאן (מהעורך), לא בבית. */
+    try { if (S.nr !== rafNext_()) bad.push('התמונה: ההגרלה הבאה השתנתה מאז הבנייה'); } catch (eN) { bad.push('לא נקראה לשונית ההגרלות'); }
+  }
+  var last = hsnapProp_('HSNAP_LAST');
+  if (/^(נכשלה|עסוק)/.test(last)) bad.push('הבנייה האחרונה לא הושלמה: ' + last);
+  if (hsnapProp_('HSNAP_SYNC') === '0') bad.push('הסנכרון כבוי (hsnapSyncOff)');
+  var t = hsnapTrig_();
+  if (t.err) bad.push('לא נקראו הטריגרים: ' + t.err);
+  else {
+    if (!t.daily) bad.push('אין טריגר יומי (hsnapDaily)');
+    if (!t.hourly) bad.push('אין טריגר שעתי (hsnapHourly)');
+  }
+  return bad;
+}
+function hsnapTrig_() {
+  var o = { daily: 0, hourly: 0 };
+  try {
+    var all = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < all.length; i++) {
+      var f = all[i].getHandlerFunction();
+      if (f === 'hsnapDaily') o.daily++;
+      if (f === 'hsnapHourly') o.hourly++;
+    }
+  } catch (e) { o.err = String(e && e.message || e); }
+  return o;
+}
 function hsnapEnable() {
-  var ptr = hsnapPtr_();
-  if (!ptr || !hsnapRead_(ptr)) return hsnapSay_('אין בנייה שהושלמה — קודם hsnapBuildNow. המתג לא נדלק.');
+  var bad = hsnapCheck_();
+  if (bad.length) return hsnapSay_('המתג לא נדלק:\n· ' + bad.join('\n· '));
   hsnapProp_('HSNAP_ON', '1');
-  return hsnapSay_('הבית קורא מהתמונה · בנייה ' + ptr.at);
+  return hsnapSay_('הבית קורא מהתמונה · בנייה ' + hsnapPtr_().at);
+}
+/* מצב בלבד — מריצים מהעורך. */
+function hsnapStatus() {
+  var ptr = hsnapPtr_(), t = hsnapTrig_(), bad = hsnapCheck_();
+  return hsnapSay_(['מתג: ' + (hsnapProp_('HSNAP_ON') === '1' ? 'דלוק' : 'כבוי'),
+    'סנכרון: ' + (hsnapProp_('HSNAP_SYNC') === '0' ? 'כבוי' : 'פועל'),
+    'טריגרים: יומי ' + t.daily + ' · שעתי ' + t.hourly + (t.err ? ' · ' + t.err : ''),
+    'תמונה: ' + (ptr ? ptr.at + ' · ' + ptr.tab : 'אין'),
+    'בנייה אחרונה: ' + (hsnapProp_('HSNAP_LAST') || '—'),
+    'הפעלה: ' + (bad.length ? 'אסורה — ' + bad.join(' · ') : 'מותרת')].join('\n'));
 }
 function hsnapDisable() { hsnapProp_('HSNAP_ON', null); return hsnapSay_('הבית חזר לחישוב החי'); }
 /* בעורך, "הפעלה" אינה מציגה את הערך המוחזר — ולכן גם ביומן הביצוע. */
