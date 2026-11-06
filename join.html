@@ -4475,7 +4475,6 @@ function markWeek() {
 function isIOS()       { return APPX.isIOS(); }
 function standalone()  { return APPX.standalone(); }
 function inApp()       { return APPX.inApp(); }
-function appMark()     { APPX.mark(); }
 function appWasAdded() { return APPX.wasAdded(); }
 function appIcon(m)    { return APPX.icon(m); }
 function appHowList()  { return APPX.howList(); }
@@ -5057,24 +5056,17 @@ function wzDraw() {
     /* הניהול יכול להעמיד את המדריך על מסלול שאינו של המכשיר
        הזה. כאן זה תלמיד — מחזירים אותו למכשיר שלו. */
     if (GUIDE_UI.force) GUIDE_UI.force(null);
-    /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו. ראו WZ_GUIDE_DONE.
-       **מסך "עכשיו פתחו את האייקון החדש" הוסר** (8.99.461): תלמיד חשב
-       שהאייקון המצויר הוא כפתור. השלב האחרון במדריך כבר אומר לצאת
-       ולפתוח את האייקון. */
-    /* **"סיימתי" רושם את ההתקנה** (בריף 25.10). עד עכשיו `appMark` לא
-       נקרא משום מקום: מי שסיים בדפדפן ונכנס אחר כך מאייקון בלי סימון
-       (כמו כל אייקון של סמסונג מלפני התיקון) — נשלח להדרכה שוב.
-       באייפון זה אינו משנה דבר: שם רק האייקון הפתוח הוא התקנה.
-       **בסמסונג — ישר לפרטים.** הקיצור שלו נפתח באותו דפדפן ובאותו
-       אחסון, ו"פתחו את האייקון" לא היה מוסיף כלום — ומי שכבר בתוך
-       אייקון ישן היה נתקע מול הוראה לפתוח אותו. */
+    /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו. מסך "עכשיו פתחו
+       את האייקון החדש" הוסר (8.99.461).
+       **"סיימתי" אינו התקנה** (8.99.465, החלטת אחיאסף): הלחיצה אינה
+       מסמנת "הותקן" (בוטל ה-appMark של 25.10). ממשיכים לפרטים רק לפי
+       אות אמיתי — `appinstalled`, פתיחה מהאייקון (`app=1`, `sic=` של
+       המכשיר הזה) או standalone — כלומר `appInstalled()`, או brwOn.
+       אין אות — המדריך נשאר כמו שהוא ונגלל לשלב האחרון שלו ("צאו
+       מהדפדפן ולחצו על האייקון החדש"), בלי להתחיל מההתחלה. */
     GUIDE_UI.mount(gbox, function () {
-      appMark();
-      /* מחוץ לאייפון — כמו בסמסונג: wzWhere מחליט (אותו סימון שהיה). */
-      if (!isIOS() || (APPX.addPage && APPX.addPage())) { wzGo(wzWhere()); return; }
-      /* באייפון "סיימתי" אינו התקנה: נשארים בשלב 1 בלי ההוראות (לא לולאה),
-         עד שהאייקון נפתח (standalone). */
-      WZ_GUIDE_DONE = true; wzDraw();
+      if (appInstalled() || brwOn()) { wzGo(wzWhere()); return; }
+      wzToLast();
     }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
   /* הסימון של אייקון סמסונג — רק בזמן שהמדריך שלו על המסך. */
@@ -5098,9 +5090,14 @@ function wzToInst() {
 }
 
 /* ---------- שלב 1 ---------- */
-/* גם מי שחזר לדפדפן אחרי "סיימתי" (סומן, ועדיין לא נפתח מהאייקון —
-   באייפון) — בלי ההוראות שוב, רק "להציג שוב" ודלת העזרה. */
-var WZ_GUIDE_DONE = appWasAdded() && !appInstalled();
+/* "סיימתי" בלי אות התקנה: גלילה לשלב האחרון של המדריך שכבר על המסך. */
+function wzToLast() {
+  var L = document.querySelectorAll('#gu-here .gut-st, #gu-here li');
+  var t = L.length ? L[L.length - 1] : $('gu-here');
+  if (!t || !t.getClientRects().length) return;
+  var r = t.getBoundingClientRect();
+  window.scrollBy({ top: r.top - 12, behavior: 'smooth' });
+}
 /* ============================================================
    **כפתור אחד קודם, ורק אחריו ההדגמה.**
    ============================================================
@@ -5145,11 +5142,8 @@ function wzInstall() {
   var out = (APPX.outBox && APPX.outBox(true)) || '';
   /* באייפון אין במסגרת כפתור (רק העתקה) — שם היא נשארת כמו שהיא. */
   if (out) return (WZ_WENT && !isIOS() ? wzGuideBox() : out) + wzSkipBtn();
-  /* סיים את המדריך (או חזר אחריו לדפדפן) — בלי ההוראות שוב ובלי
-     מסך "פתחו את האייקון": רק "להציג שוב את ההוראות" ודלת העזרה. */
-  if (WZ_GUIDE_DONE) {
-    return '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>' + wzSkipBtn();
-  }
+  /* אין מסך "פתחו את האייקון" — לא אחרי "סיימתי" ולא כשסומן "נוסף" בלי
+     פתיחה מהאייקון. המדריך עצמו מסתיים בשלב הזה. */
   /* ============================================================
      **המדריך המאויר, ולא רשימה.**
      ============================================================
@@ -5670,11 +5664,6 @@ function wzWire() {
     b.textContent = jt('wzDetBtn');
     b.onclick = function () { if (wzDetOk()) wzGo(3); };
   }
-  if ((b = $('wz-gu-again'))) b.onclick = function () {
-    WZ_GUIDE_DONE = false;
-    if (window.GUIDE_UI && GUIDE_UI.reset) GUIDE_UI.reset();
-    wzDraw();
-  };
   if ((b = $('wz-copy'))) b.onclick = function () {
     var t = $('wz-copy');
     /* אחרי ההעתקה — מה עושים איתה. ואם נכשלה — הכתובת גלויה, לסימון
