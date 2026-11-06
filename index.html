@@ -3157,7 +3157,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.462';
+var APP_VERSION = '8.99.463';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5435,9 +5435,18 @@ function aldlAdmList() {
   if (R === null) return '<p class="h">' + esc(UI.aldlLoad) + '</p>';
   if (R === 'fail') return '<p class="h">' + esc(UI.aldlFail) + ' <button class="dkm-lnk" onclick="ALDLA.rows=null;aldlAdmLoad()">' +
     esc(UI.aldlRetry) + '</button></p>';
-  if (!R.length) return '<p class="h">' + esc(UI.aldlNone) + '</p>';
-  return R.slice().reverse().map(function (r) {
+  var D = ALDLA.drv, dh = '';
+  if (D && !D.none) {
+    dh = D.ok && !D.why ? '<p class="h">' + esc(fill(UI.aldlDrvOk, { d: D.at || '' })) + '</p>'
+       : '<p class="aldl-msg bad">' + esc(fill(UI.aldlDrvBad, { why: D.why || '' })) + '</p>';
+  }
+  if (!R.length) return dh + '<p class="h">' + esc(UI.aldlNone) + '</p>';
+  return dh + R.slice().reverse().map(function (r) {
     var ok = !!r.pub;
+    if (r.rep) {
+      return '<div class="aldl-row"><div><b>' + esc(r.t) + '</b><small>' + esc(r.mas + ' · ' + r.daf + ' · ' + r.at) +
+        '</small></div><span class="aldl-st">' + esc(UI.aldlStRep) + '</span></div>';
+    }
     return '<div class="aldl-row"><div><b>' + esc(r.t) + '</b><small>' + esc(r.mas + ' · ' + r.daf) +
       (r.pg ? ' · ' + esc(fill(UI.aldlMeta, { n: r.pg, d: r.at.slice(0, 10) })) : ok ? ' · ' + esc(r.at) : ' · ' + esc(r.c)) +
       '</small>' + (!ok && r.why ? '<small class="bad">' + esc(r.why) + '</small>' : '') + '</div>' +
@@ -5447,6 +5456,7 @@ function aldlAdmList() {
 function aldlAdmLoad() {
   return scriptGet({ alon: 'adm', key: (CFG.readKey || '').trim() }).then(function (d) {
     ALDLA.rows = d && d.status === 'ok' ? (d.rows || []) : (ALDLA.rows && ALDLA.rows.length ? ALDLA.rows : 'fail');
+    if (d && d.status === 'ok') ALDLA.drv = d.drv || null;
     var el = document.getElementById('aldl-list');
     if (el) el.innerHTML = aldlAdmList();
     return d;
