@@ -3157,7 +3157,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.458';
+var APP_VERSION = '8.99.459';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17677,9 +17677,20 @@ function chaTables(d) {
     h += '<div class="cha-tb' + cls + '"><div class="cha-tbh"><b>' + esc(fill(UI.chInvGrpH, { by: g.by.f })) + '</b><span>' + esc(st) + '</span></div>' +
       '<div class="cha-seats">' + seats.join('') + '</div>' +
       '<details class="hx"><summary>' + esc(UI.chaTbMore) + '</summary><div class="plist">' +
-      ppl.map(function (p) { return chaWho(p, ''); }).join('') + '</div></details></div>';
+      ppl.map(function (p) { return chaWho(p, '') + chaOutBtn(g.id, p.id); }).join('') + '</div></details></div>';
   });
   return h + '</div>';
+}
+/* הסרה משולחן (8.99.459) — רק השיוך לשולחן; החשבון, הלימוד והכרטיסים לא זזים. "ביטול · 4" על הכפתור. */
+function chaOutBtn(t, id) {
+  var a = String(t || '').replace(/[^\w\-]/g, ''), b = String(id || '').replace(/[^\w\-]/g, '');
+  if (!a || !b) return '';
+  return '<button class="btn g" type="button" id="cha-out-' + a + '-' + b + '" style="margin:0 0 8px" ' +
+    'onclick="chaOut(\'' + a + '\',\'' + b + '\')">' + esc(UI.chaTbOut) + '</button>';
+}
+function chaOut(t, id) {
+  if (!SureLater(chaOut, this, arguments)) return;
+  chaAct('tout', { t: t, id: id }, false);
 }
 /* השולחנות (8.99.365): כמה תלמידים למדו מתחת לעשר דקות — בשורת הסיכום;
    הרשימה — בלחיצה. */

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 184;
+var SCRIPT_VERSION = 185;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12231,6 +12231,8 @@ var CH_NR_ = 'אין מקום';
 var CH_NO_ = 'סירב';
 /* יצא בהגרלה השבועית — לא למד השבוע (8.99.441). */
 var CH_WK_OUT_ = 'לא למד בשבוע';
+/* הוסר משולחן בניהול (8.99.459, ?challenge=tout) — רק השורה נסגרת; החשבון, הלימוד והכרטיסים לא זזים. */
+var CH_ADM_OUT_ = 'הוסר בניהול';
 var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הוקפא', 'זכאים', 'מועד הגרלה', 'נבחרה',
                    'נבחרה ב', 'מפתחות', 'אושר ב', 'נמסר ב', 'קוד שובר', 'פסילות', 'הערה',
                    'נסגרה ללא זוכה', 'בדיקה',
@@ -13122,6 +13124,15 @@ function chTables_(U, S, K, X) {
     NRP[U.declFor.id + '|' + U.declFor.by] = X.now;
   }
   seatUpTo(X.now);
+  /* **הסרה משולחן בניהול** (8.99.459, op=tout): סוגרים רק את שורת הישיבה שלו בשולחן הזה (`יצא` +
+     הסיבה). הזמנות שקיבל לפני כן בטלות (lastEnd), כמו בכל יציאה; בעלים שהוסר אינו מוחלף. */
+  if (U.outFor && mem[U.outFor.t]) {
+    mem[U.outFor.t] = mem[U.outFor.t].filter(function (r) {
+      if (r._id !== U.outFor.id) return true;
+      close(r, X.now, CH_ADM_OUT_);
+      return false;
+    });
+  }
   /* הגרלה בלחיצה (op=open): ההקפאה, ומיד אחריה האיפוס האישי. */
   if (U.drawNow && draw(X.now, 'ידני')) weekOut(X.now);
   /* **"+" — שולחן נוסף** (8.99.441, ?challenge=newt): רק כשאין לו שולחן משלו שיש בו מקום,
@@ -13869,6 +13880,17 @@ function chAct_(U, P, op) {
       return { status: 'ok', exp: v };
     }
     var M = chSync_(U);
+    /* הסרה משולחן (8.99.459): t = השולחן, id = המזהה כפי שבא מ-?challenge=adm. רק השיוך —
+       שורה ב"אתגר-שולחנות"; התשובה לפי קריאה חוזרת של המודל. */
+    if (op === 'tout') {
+      var ot = String(P.t || ''), oid = String(P.id || '');
+      if (!ot || !oid || !M.tb || !M.tb[ot] || M.tb[ot].indexOf(oid) < 0) {
+        return { status: 'error', message: 'התלמיד כבר אינו יושב בשולחן הזה' };
+      }
+      M = chSync_({ test: U.test, outFor: { t: ot, id: oid } });
+      if (M.tb && M.tb[ot] && M.tb[ot].indexOf(oid) >= 0) return { status: 'error', message: 'ההסרה לא נשמרה — נסו שוב' };
+      return { status: 'ok' };
+    }
     /* פתיחת הגרלה ידנית (8.99.352) — כשאין עדיין 50. אותו מסלול בדיוק: שורת
        הגרלה שנפתחת ונסגרת עכשיו, הסנכרון מקפיא את השולחנות שהושלמו, ומשם
        הגרלה ← אישור ← הודעה ← מסירה כרגיל. צורכת ארוחה; הספים לא זזים. */
@@ -14434,7 +14456,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule', 'promo'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule', 'promo', 'tout'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });

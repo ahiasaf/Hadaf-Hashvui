@@ -230,6 +230,35 @@ ok(!Mdn.seat[dn] && !(Mdn.pend[dn] && Mdn.pend[dn].hs.indexOf(HY) >= 0), 'declin
 var nt0 = newt(dn, D2 + 6.4);
 ok((nt0.me.ts || []).length === 1 && nt0.me.ts[0].mine && (nt0.me.inv || []).length === 1, 'opened own table without one; other invite stays', nt0.me);
 
+// ---- 8.99.459: הסרה משולחן בניהול — רק השיוך; החשבון, הלימוד והכרטיסים לא זזים ----
+// כל הגיליון — ציבורי ופרטי — חוץ מ"אתגר-שולחנות".
+var snap = function () {
+  var o = {};
+  [W.pub, W.priv].forEach(function (ss) {
+    Object.keys(ss.tabs).forEach(function (k) { if (k !== c.CH_SEAT_) o[ss.id + ':' + k] = JSON.stringify(ss.tabs[k].d); });
+  });
+  return o;
+};
+var Mo0 = sync(D2 + 7); sync(D2 + 7.05);
+var tO = Mo0.seat[b][0], others = Mo0.tb[tO].filter(function (x) { return x !== b; });
+var before = snap(), rafB = JSON.stringify(my(Mo0, b).me.tk || null);
+at(D2 + 7.1); exec();
+var ro = c.chAct_(U, { t: tO, id: b }, 'tout');
+var Mo1 = sync(D2 + 7.2);
+ok(ro.status === 'ok' && Mo1.tb[tO].indexOf(b) < 0, 'admin removal: b no longer in the table', [ro, Mo1.tb[tO]]);
+ok(JSON.stringify(Mo1.tb[tO]) === JSON.stringify(others), 'the others stay, same order', Mo1.tb[tO]);
+ok(JSON.stringify(snap()) === JSON.stringify(before), 'every other tab untouched (account, learning, quizzes, father, tickets)', Object.keys(snap()).filter(function (k) { return snap()[k] !== before[k]; }));
+ok(Mo1.ppl[b] && JSON.stringify(my(Mo1, b).me.tk || null) === rafB, 'person still exists in the model');
+var hb = c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === b && r['שולחן'] === tO; });
+ok(hb.length === 1 && hb[0]['יצא'] && hb[0]['סיבה'] === c.CH_ADM_OUT_, 'seat row kept, closed with reason', hb);
+var Mo2 = sync(D2 + 9);
+ok(!(Mo2.seat[b] || []).length, 'not re-seated by itself', Mo2.seat[b]);
+var adm = c.chAdm_(Mo2, U).grp.filter(function (g) { return g.id === tO; })[0];
+ok(adm && [adm.by].concat(adm.f).every(function (w) { return w.id !== b; }), 'admin view shows the remaining members only', adm);
+at(D2 + 9.1); exec();
+var ro2 = c.chAct_(U, { t: tO, id: b }, 'tout');
+ok(ro2.status === 'error', 'removing again → error, no new row', ro2);
+
 console.log('checks', n, 'fails', fails);
 var miss = Object.keys(M.missing).filter(function (k) { return !/flush|Logger/.test(k); });
 if (miss.length) console.log('missing', miss.join(','));
