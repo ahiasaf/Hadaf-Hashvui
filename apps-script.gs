@@ -11502,7 +11502,7 @@ function hsnapMe_(mine) {
   return o;
 }
 /* ---- מה שהבעלים מריץ מהעורך ---- */
-function hsnapBuildNow() { return hsnapBuild_('ידני'); }
+function hsnapBuildNow() { return hsnapSay_(hsnapBuild_('ידני')); }
 function hsnapDaily() { if (hsnapProp_('HSNAP_SYNC') !== '0') hsnapBuild_('יומי'); }
 function hsnapHourly() {
   if (hsnapProp_('HSNAP_SYNC') === '0') return;
@@ -11515,7 +11515,7 @@ function hsnapSetup() {
     .inTimezone('Asia/Jerusalem').create();
   ScriptApp.newTrigger('hsnapHourly').timeBased().everyHours(1).create();
   hsnapProp_('HSNAP_SYNC', '1');
-  return 'הסנכרון הותקן · יומי בסביבות 06:00 (±15 דק׳) ושעתי בחלון ההגרלה. המתג — hsnapEnable.';
+  return hsnapSay_('הסנכרון הותקן · יומי בסביבות 06:00 (±15 דק׳) ושעתי בחלון ההגרלה. המתג — hsnapEnable.');
 }
 function hsnapRemove() {
   var all = ScriptApp.getProjectTriggers(), n = 0;
@@ -11530,11 +11530,13 @@ function hsnapSyncOff() { hsnapProp_('HSNAP_SYNC', '0'); return 'הסנכרון 
 function hsnapSyncOn() { hsnapProp_('HSNAP_SYNC', '1'); return 'הסנכרון פועל'; }
 function hsnapEnable() {
   var ptr = hsnapPtr_();
-  if (!ptr || !hsnapRead_(ptr)) return 'אין בנייה שהושלמה — קודם hsnapBuildNow. המתג לא נדלק.';
+  if (!ptr || !hsnapRead_(ptr)) return hsnapSay_('אין בנייה שהושלמה — קודם hsnapBuildNow. המתג לא נדלק.');
   hsnapProp_('HSNAP_ON', '1');
-  return 'הבית קורא מהתמונה · בנייה ' + ptr.at;
+  return hsnapSay_('הבית קורא מהתמונה · בנייה ' + ptr.at);
 }
-function hsnapDisable() { hsnapProp_('HSNAP_ON', null); return 'הבית חזר לחישוב החי'; }
+function hsnapDisable() { hsnapProp_('HSNAP_ON', null); return hsnapSay_('הבית חזר לחישוב החי'); }
+/* בעורך, "הפעלה" אינה מציגה את הערך המוחזר — ולכן גם ביומן הביצוע. */
+function hsnapSay_(m) { try { Logger.log(m); } catch (e) {} return m; }
 
 function rafMe_(P) {
   var inst = String(P.inst || '').trim(), none = { status: 'ok', daf: rafDaf_(), a: false, b: false, inn: false };
