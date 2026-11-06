@@ -214,6 +214,8 @@ jobs:
       # (מסביבת הפיתוח script.google.com חסום — לכן זה רץ כאן.)
       # ------------------------------------------------------
       - name: בדיקה חיה אחרי הפריסה
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
         run: |
           set -uo pipefail
           U=$(node -e "var vm=require('vm'),c={};vm.createContext(c);vm.runInContext(require('fs').readFileSync('data.js','utf8')+';this.U=APPS_SCRIPT_URL',c);process.stdout.write(c.U)")
@@ -264,4 +266,17 @@ jobs:
           echo "עלונים מהדרייב → HTTP $C · $(head -c 300 out.txt | tr '\n' ' ')"
           if grep -q '"ok":true' out.txt; then echo "::notice::עלונים מהדרייב: התיקייה נגישה · $(head -c 200 out.txt)"
           else echo "::warning::עלונים מהדרייב: התיקייה לא נגישה או שעוד לא נבדקה · $(head -c 200 out.txt)"; fi
+          # השגיאה המדויקת (drv.why) — רק עם הסיסמה מהסודות, ורק שדה המצב של הדרייב.
+          if [ -n "${READ_KEY:-}" ]; then
+            curl -sL -m 120 -o adm.txt "$U?alon=adm&key=$READ_KEY&t=$(date +%s)" || true
+            node -e "try{var d=JSON.parse(require('fs').readFileSync('adm.txt','utf8'));console.log('דרייב (מלא): '+JSON.stringify(d.drv||d.status));console.log('עלונים במאגר: '+((d.rows||[]).filter(function(r){return r.pub}).length))}catch(e){console.log('לא נקרא: '+e.message)}"
+          fi
+          # המאגר הציבורי (8.99.465): רשימה בלי זיהוי, וכתיבה בלי סיסמה נדחית.
+          C=$(ask "alon=list")
+          echo "alon=list בלי זיהוי → HTTP $C · $(head -c 200 out.txt | tr '\n' ' ')"
+          grep -q '"status":"ok"' out.txt || echo "::warning::הרשימה הציבורית לא החזירה ok"
+          for q in "alon=adm" "alon=dadd&fid=x" "alon=dadd&fid=x&key=bad"; do
+            C=$(ask "$q"); echo "$q → HTTP $C · $(head -c 120 out.txt | tr '\n' ' ')"
+            grep -q '"status":"denied"' out.txt || { echo "::error::$q לא נדחה"; FAIL=1; }
+          done
           exit $FAIL
