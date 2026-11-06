@@ -17,7 +17,7 @@ c.appendCols_('לומדים', [['מזהה', 'DKIDAAA1'], ['שם', 'א'], ['מש�
 c.appendCols_('לומדים', [['מזהה', 'DDADAAA1'], ['שם', 'ג'], ['משפחה', 'ד'], ['קוד ישיבה', 'givat'], ['תפקיד', 'הורה']]);
 
 ok(get({ alon: 'list', dev: 'DKIDAAA1' }).rows.length === 0, 'empty list');
-ok(get({ alon: 'list', dev: 'DNOBODYA1' }).status === 'ok', 'public: unknown device sees list (8.99.467)');
+ok(get({ alon: 'list', dev: 'DNOBODYA1' }).status === 'ok', 'public: unknown device sees list (8.99.468)');
 ok(get({ alon: 'list' }).status === 'ok', 'public: no device at all');
 ok(get({ alon: 'adm' }).status === 'denied', 'adm without key denied');
 
