@@ -1129,8 +1129,6 @@ body.wz input[type=text],body.wz input[type=tel],body.wz select{
   .apic.tap .ap-ring,.apic.tap .ap-tap{animation:none}
   .apic.tap .ap-ring{opacity:.6}
 }
-.wz-open{text-align:center;margin-top:4px}
-.wz-open .note{margin-top:4px}
 .wz-inote,.wzcard > p.wz-inote{margin:10px 0 0;text-align:center;font-size:.95rem;font-weight:800;color:var(--ink)}
 /* עזרה: מה שכבר נמסר מוצג בשורה, ולא נשאל שוב. */
 .hlp-me{margin-top:18px;padding:12px 14px;border-radius:12px;background:var(--sunk);
@@ -5059,8 +5057,10 @@ function wzDraw() {
     /* הניהול יכול להעמיד את המדריך על מסלול שאינו של המכשיר
        הזה. כאן זה תלמיד — מחזירים אותו למכשיר שלו. */
     if (GUIDE_UI.force) GUIDE_UI.force(null);
-    /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו, אלא ההנחיה
-       הבאה באמת: לפתוח את האייקון החדש. ראו WZ_GUIDE_DONE. */
+    /* "סיימתי" במדריך — לא חזרה לשלב הראשון שלו. ראו WZ_GUIDE_DONE.
+       **מסך "עכשיו פתחו את האייקון החדש" הוסר** (8.99.461): תלמיד חשב
+       שהאייקון המצויר הוא כפתור. השלב האחרון במדריך כבר אומר לצאת
+       ולפתוח את האייקון. */
     /* **"סיימתי" רושם את ההתקנה** (בריף 25.10). עד עכשיו `appMark` לא
        נקרא משום מקום: מי שסיים בדפדפן ונכנס אחר כך מאייקון בלי סימון
        (כמו כל אייקון של סמסונג מלפני התיקון) — נשלח להדרכה שוב.
@@ -5070,7 +5070,10 @@ function wzDraw() {
        אייקון ישן היה נתקע מול הוראה לפתוח אותו. */
     GUIDE_UI.mount(gbox, function () {
       appMark();
-      if (APPX.addPage && APPX.addPage()) { wzGo(wzWhere()); return; }
+      /* מחוץ לאייפון — כמו בסמסונג: wzWhere מחליט (אותו סימון שהיה). */
+      if (!isIOS() || (APPX.addPage && APPX.addPage())) { wzGo(wzWhere()); return; }
+      /* באייפון "סיימתי" אינו התקנה: נשארים בשלב 1 בלי ההוראות (לא לולאה),
+         עד שהאייקון נפתח (standalone). */
       WZ_GUIDE_DONE = true; wzDraw();
     }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
@@ -5095,7 +5098,9 @@ function wzToInst() {
 }
 
 /* ---------- שלב 1 ---------- */
-var WZ_GUIDE_DONE = false;
+/* גם מי שחזר לדפדפן אחרי "סיימתי" (סומן, ועדיין לא נפתח מהאייקון —
+   באייפון) — בלי ההוראות שוב, רק "להציג שוב" ודלת העזרה. */
+var WZ_GUIDE_DONE = appWasAdded() && !appInstalled();
 /* ============================================================
    **כפתור אחד קודם, ורק אחריו ההדגמה.**
    ============================================================
@@ -5140,17 +5145,10 @@ function wzInstall() {
   var out = (APPX.outBox && APPX.outBox(true)) || '';
   /* באייפון אין במסגרת כפתור (רק העתקה) — שם היא נשארת כמו שהיא. */
   if (out) return (WZ_WENT && !isIOS() ? wzGuideBox() : out) + wzSkipBtn();
-  /* סיים את המדריך — ומה שנשאר הוא לפתוח את האייקון שנוצר. עד
-     עכשיו "סיימתי" החזיר לתחילת המדריך, כאילו לא קרה כלום. */
-  /* קודם האייקון עם האצבע — "לוחצים על זה" — ואחריו שורה קצרה. */
+  /* סיים את המדריך (או חזר אחריו לדפדפן) — בלי ההוראות שוב ובלי
+     מסך "פתחו את האייקון": רק "להציג שוב את ההוראות" ודלת העזרה. */
   if (WZ_GUIDE_DONE) {
-    return wzOpenIcon() +
-      '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>' + wzSkipBtn();
-  }
-  /* הותקנה, ואנחנו עדיין בדפדפן — באייפון זה המצב שנתקעים בו
-     בלי לדעת: ההתראות לא יעבדו עד שהאייקון ייפתח. */
-  if (appWasAdded() && !appInstalled()) {
-    return wzOpenIcon() + wzSkipBtn();
+    return '<button class="thin" id="wz-gu-again"><u>' + esc(jt('wzGuAgain')) + '</u></button>' + wzSkipBtn();
   }
   /* ============================================================
      **המדריך המאויר, ולא רשימה.**
@@ -5218,14 +5216,6 @@ function wzInstall() {
   var wa = APPX.waBox ? APPX.waBox(true) : '';
   if (wa) h = WZ_WENT ? wzGuideBox() : wa;
   return h + wzSkipBtn();
-}
-/* האפליקציה נוספה — עכשיו פותחים אותה. האייקון עם אצבע וגל,
-   ומתחתיו כותרת ושורה קצרה. */
-function wzOpenIcon() {
-  var b = jt('wzGuDoneB');
-  return '<div class="wz-open">' + appIcon('tap') +
-    '<p class="wz-inote">' + esc(jt('wzGuDoneH')) + '</p>' +
-    (b ? '<p class="note">' + esc(b) + '</p>' : '') + '</div>';
 }
 /* דלת העזרה — **בכל** מסך התקנה. היא הוסתרה במסכים שחזרו מוקדם
    (אייפון בדפדפן אחר, חלון וואטסאפ, אחרי המדריך) — בדיוק במקומות
