@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 189;
+var SCRIPT_VERSION = 190;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14409,8 +14409,9 @@ function chTestDel_() {
    השורות של פיטר נסגרות (`יצא` + "ניקוי בדיקה"); אחיאסף נסגר רק כשנשאר לבד.
    יושב אחר — לא נוגעים, ומדווחים. סגירה ולא מחיקה: כך גם ההזמנות הישנות לא
    מושיבות אותם מחדש (chTables_ מדלג על הזמנה מלפני היציאה האחרונה).
-   **המשתמש פיטר נמחק** — כל פיטר שקשור לאחיאסף הוא חשבון בדיקה (אישור אחיאסף,
-   6.11; הטלפון — רק לדוח) — אלא אם יש לו זכייה או פרס. אז: השורה ב"לומדים", "לימוד",
+   **כיתה יב8** (אחיאסף, 6.11) — כל מי שבה, בישיבות של הפיטרים הקשורים, כמו פיטר.
+   **נמחקים כמשתמשים** — הפיטרים הקשורים ויב8 (אישור אחיאסף, 6.11; הטלפון, זכייה
+   ופרס — רק לדוח; רשומות ההגרלה והפרס עצמן לא נמחקות): השורה ב"לומדים", "לימוד",
    "חידות", "זוגות", ושורות האתגר שלו. גיבוי מוסתר בפרטי לפני כל מחיקה, וקריאה
    חוזרת אחריה. "אתגר-קבוצות" / "אתגר-הגרלות" / הגרלות ופרסים — לא נוגעים. */
 function chTestClean1106Check() { return chTC_say_(chTC_(false)); }
@@ -14433,6 +14434,10 @@ function chTC_(go) {
       p.rawPh = String(t.c(row, 'טלפון')).replace(/[^0-9]/g, '');
       p.par = t.c(row, 'תפקיד') === 'הורה';
       if (t.c(row, CH_BY_COL)) p.by = t.c(row, CH_BY_COL);
+      p.inst = t.c(row, 'קוד ישיבה'); p.instName = t.c(row, 'ישיבה');
+      p.g = amdaNorm_(t.c(row, 'שכבה')).replace(/["'׳״`\s]/g, ''); p.cl = clsK_(t.c(row, 'כיתה'));
+      if (!p.g && /^(יב|12)/.test(amdaNorm_(t.c(row, 'כיתה')).replace(/\s/g, ''))) p.g = 'יב';
+      p.gcRaw = t.c(row, 'שכבה') + ' ' + t.c(row, 'כיתה');
     }
     var canon = function (x) { x = String(x || '').trim(); return alias[x] || x; };
     var who = function (id) { var q = P[id]; return id + (q ? ' (' + q.first + ' ' + q.last.charAt(0) + '׳)' : ' (אין שורה ב"לומדים")'); };
@@ -14469,20 +14474,35 @@ function chTC_(go) {
       if (isPeter(id) && canon(o['מזמין']) === A) linked[id] = 1;
     });
     var PT = Object.keys(linked);
-    Object.keys(P).forEach(function (id) {
-      if (isPeter(id) && !linked[id]) say('פיטר שאינו קשור לאחיאסף — לא נוגעים: ' + who(id));
-    });
     say('פיטר הקשורים לאחיאסף: ' + (PT.length ? PT.map(who).join(' · ') : 'אין'));
+    /* **כיתה יב8** (אחיאסף, 6.11: "כל מי שבכיתה יב8 להסיר") — רק בישיבות של הפיטרים
+       הקשורים (כיתת הבדיקה). יב8 בישיבה אחרת — לא נוגעים, ומדווחים. הורים — לא. */
+    var Y = {}, cls = {};
+    PT.forEach(function (id) { if (P[id].inst) Y[P[id].inst] = 1; });
+    Object.keys(P).forEach(function (id) {
+      var q = P[id];
+      if (id === A || q.par || !(q.g === 'יב' || q.g === '12') || q.cl !== '8') return;
+      if (!Y[q.inst]) { say('יב8 בישיבה אחרת — לא נוגעים: ' + who(id) + ' · ' + (q.instName || q.inst)); return; }
+      if (!linked[id]) cls[id] = 1;
+    });
+    var CL = Object.keys(cls);
+    Object.keys(P).forEach(function (id) {
+      if (isPeter(id) && !linked[id] && !cls[id]) say('פיטר שאינו קשור לאחיאסף ואינו ביב8 — לא נוגעים: ' + who(id));
+    });
+    say('כיתה יב8 (' + Object.keys(Y).map(function (y) { return y; }).join(', ') + '): ' + (CL.length ? CL.map(function (id) { return who(id) + ' [' + P[id].gcRaw + ']'; }).join(' · ') : 'אין נוספים'));
+    var gone = {};
+    PT.concat(CL).forEach(function (id) { gone[id] = 1; });
+    var GO = Object.keys(gone);
 
     /* הכיסאות הפתוחים בשולחנות שיושב בהם אחיאסף או פיטר קשור */
     var open = real.filter(function (o) { return o['שולחן'] && !o['יצא']; });
     var tabs = {};
-    open.forEach(function (o) { if (o._id === A || linked[o._id]) tabs[o['שולחן']] = 1; });
+    open.forEach(function (o) { if (o._id === A || gone[o._id]) tabs[o['שולחן']] = 1; });
     var close = [];
     Object.keys(tabs).sort().forEach(function (tn) {
       var mem = open.filter(function (o) { return o['שולחן'] === tn; });
-      var others = mem.filter(function (o) { return o._id !== A && !linked[o._id]; });
-      mem.forEach(function (o) { if (linked[o._id]) close.push(o); });
+      var others = mem.filter(function (o) { return o._id !== A && !gone[o._id]; });
+      mem.forEach(function (o) { if (gone[o._id]) close.push(o); });
       var aRow = mem.filter(function (o) { return o._id === A; });
       if (aRow.length && !others.length) aRow.forEach(function (o) { close.push(o); });
       say('שולחן ' + tn + ': ' + mem.map(function (o) { return who(o._id); }).join(' · ') +
@@ -14497,21 +14517,21 @@ function chTC_(go) {
       var v;
       try { var sh = sheet_(tab); v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : []; } catch (e) { v = []; }
       var txt = JSON.stringify(v);
-      PT.forEach(function (id) { P[id].ids.forEach(function (x) { if (txt.indexOf(x) >= 0) (hit[id] = hit[id] || []).push(tab); }); });
+      GO.forEach(function (id) { P[id].ids.forEach(function (x) { if (txt.indexOf(x) >= 0) (hit[id] = hit[id] || []).push(tab); }); });
     });
     var G = chTab_(CH_GRP_, CH_GRP_COLS_);
     G.rows.forEach(function (g) {
       if (g['בדיקה'] === 'כן' || [CH_G_.sel, CH_G_.won].indexOf(g['מצב']) < 0) return;
-      PT.forEach(function (id) {
+      GO.forEach(function (id) {
         if ([g['מזמין'], g['חבר 1'], g['חבר 2'], g['חבר 3']].some(function (x) { return canon(x) === id; })) (hit[id] = hit[id] || []).push('זכייה באתגר');
       });
     });
     var del = [];
-    PT.forEach(function (id) {
-      var q = P[id], ev = 'אישור אחיאסף (פיטר בשולחן שלו)' +
+    GO.forEach(function (id) {
+      var q = P[id], ev = 'אישור אחיאסף (' + (linked[id] ? 'פיטר בשולחן שלו' : 'כיתה יב8') + ')' +
         (q.ph && q.ph === aPh ? ' · הטלפון של אחיאסף' : /^000/.test(q.rawPh) ? ' · טלפון 000' : ' · טלפון אחר');
-      if (hit[id]) { say('נשאר כמשתמש: ' + who(id) + ' — מופיע ב: ' + hit[id].join(', ') + ' (זכייה/פרס). הכיסא נסגר.'); return; }
-      say('יימחק כמשתמש בדיקה: ' + who(id) + ' — ראיה: ' + ev + '; מזהים: ' + q.ids.join(' '));
+      say('יימחק כמשתמש בדיקה: ' + who(id) + ' — ' + ev + '; מזהים: ' + q.ids.join(' ') +
+          (hit[id] ? ' · מופיע ב: ' + hit[id].join(', ') + ' — רשומת ההגרלה/הפרס עצמה נשארת' : ''));
       del.push(id);
     });
     var dIds = [];
