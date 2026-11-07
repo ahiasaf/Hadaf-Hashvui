@@ -194,7 +194,9 @@ function LChanCol() {
 }
 /* שורת הסיום ללשונית "לימוד". שורת סיום נושאת קטע = מתוך — כך השרת
    מבדיל בינה לבין שורת התקדמות באמצע, בלי לנחש לפי מה שחסר. */
-function LDoneRow(track, wk, mins) {
+/* `hold` — בלי LFlush (LPreJoin מוסיף כמה שורות ושולח פעם אחת: שתי
+   הוצאות במקביל היו מוחקות שורה שלא נשלחה). */
+function LDoneRow(track, wk, mins, hold) {
   var me = LMe();
   if (me && me.id) {
     var q = LGet('learn-q', []) || [];
@@ -208,7 +210,7 @@ function LDoneRow(track, wk, mins) {
     ].concat(LChanCol())) });
     LSet('learn-q', q);
     if (mins >= 0) { var ts = LGet('tm-sent', {}) || {}; ts[LKey(track, wk)] = mins; LSet('tm-sent', ts); }
-    LFlush();
+    if (!hold) LFlush();
   }
 }
 /* מי שסומן כבר (למשל ב-80% של הדף, quietMark) והמשיך ללמוד — בסיום
@@ -544,6 +546,68 @@ function LAdopt(id, learned) {
   }
   LMergeLearned(learned);
   LSet('id-ok', { id: id, at: Date.now() });
+}
+/* ============================================================
+   מה שנעשה לפני ההרשמה.
+   ============================================================
+   מכשיר בלי פרופיל שומר "נלמד" במכשיר בלבד (LDoneRow אינו שולח), והחידון
+   נכנס לתור `df:qq:` עם מזהה, שם וטלפון ריקים — quizBest_ מדלג על מזהה ריק,
+   ולכן הוא לא נספר לעולם. ברגע ההרשמה הראשונה (join.html, `fresh`):
+   * כל תוכן בתור החידון שהמזהה שלו ריק — מקבל את המזהה, השם, הטלפון
+     והישיבה החדשים, ואז LQzFlush (בודק, ורק אם לא נמצא — שולח).
+   * כל "נלמד" שבמכשיר — שורת סיום לתור `learn-q`, עם הזמן שנצבר בדף.
+   הניסיון ומספרו לא זזים, וההגרלה לא נגעה. */
+function LPreJoin(me) {
+  if (!me || !me.id) return;
+  var nm = ((me.first || '') + ' ' + (me.last || '')).trim();
+  var fix = function (b) {
+    try {
+      var o = JSON.parse(b), c = JSON.parse(o.cols || '[]'), ch = false, has = false;
+      c.forEach(function (p) {
+        if (!p) return;
+        if (p[0] === 'מזהה') { has = true; if (!p[1]) { p[1] = me.id; ch = true; } }
+      });
+      if (!has || !ch) return b;
+      c.forEach(function (p) {
+        if (!p || p[1]) return;
+        if (p[0] === 'שם') p[1] = nm;
+        else if (p[0] === 'טלפון') p[1] = me.phone || '';
+        else if (p[0] === 'ישיבה') p[1] = me.instName || '';
+      });
+      o.cols = JSON.stringify(c);
+      return JSON.stringify(o);
+    } catch (e) { return b; }
+  };
+  var keys = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && (k.indexOf('df:qq:') === 0 || k.indexOf('df:qpay:') === 0)) keys.push(k);
+    }
+    keys.forEach(function (k) {
+      var v = localStorage.getItem(k);
+      if (!v) return;
+      if (k.indexOf('df:qpay:') === 0) { localStorage.setItem(k, fix(v)); return; }
+      var a = JSON.parse(v) || [];
+      a.forEach(function (it) { if (it && it.b) it.b = fix(it.b); });
+      localStorage.setItem(k, JSON.stringify(a));
+    });
+  } catch (e) {}
+
+  var all = LGet('learned', {}) || {};
+  Object.keys(all).forEach(function (t) {
+    var p = String(t).split('|'), tr = p[0], wk = parseInt(p[1], 10) - 1, d, ms = -1;
+    if (!tr || !(wk >= 0) || !TrackById(tr)) return;
+    d = LDaf(tr, wk);
+    try {
+      var v = parseInt(localStorage.getItem('df:qtime:' + TrackBase(tr) + '|' +
+                       String(d || '').replace(/["'׳״\s]/g, '')), 10);
+      if (v > 0) ms = Math.round(v / 6000) / 10;
+    } catch (e2) {}
+    LDoneRow(tr, wk, ms, true);
+  });
+  LFlush();
+  LQzFlush();
 }
 function LSyncId(force, after) {
   var me = LMe(), url = LApi();

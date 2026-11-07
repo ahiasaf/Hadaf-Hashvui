@@ -3250,6 +3250,8 @@ $('go').onclick = function () {
      עמודה חדשה וריקה, ומשאיר את כל מה שנכתב עד היום ביתומה. */
   queue(joinRow_(me));
   if (fresh) hit('join');
+  /* חידון ו"נלמד" מלפני ההרשמה — עם המזהה החדש, לשרת (learned.js). */
+  if (fresh) { try { LPreJoin(me); } catch (e) {} }
   /* מצב בדיקה — השרת משייך את המזהה לסשן, אחרי שווידא שזו זהות הדמה. */
   if (window.TM && TM.on()) TM.add(me.id);
 

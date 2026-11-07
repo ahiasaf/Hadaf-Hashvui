@@ -1316,3 +1316,11 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **8.99.474 · SCRIPT_VERSION 198 — גם מצב חבר מביא חבר:** `api/chal.js` — רק `challenge=my` (id · ref · ms · tst · callback),
   כל פעולה אחרת (sit/newt/decl/ניהול) נדחית. chal.js `api()`: רק `my` — אותה החלפה ישירות↔דרכנו, `df:chVia` ליום.
   "זמני שרת": `chal:via`. בדיקה: `node tools/ptsvia/chalfn.js` (15) · `node tools/ptsvia/chal.js` (8).
+
+## חידון ו"נלמד" מלפני ההרשמה (8.99.475)
+
+* מכשיר בלי פרופיל: "נלמד" נשמר רק במכשיר, והחידון יושב בתור `df:qq:` עם מזהה ריק (quizBest_ מדלג עליו).
+  בהרשמה הראשונה (`fresh` ב-join.html) — `LPreJoin(me)` (learned.js): כל תוכן בתור החידון (וב-`df:qpay:`)
+  שהמזהה שלו ריק מקבל מזהה, שם, טלפון וישיבה, ואז LQzFlush; כל `df:learned` — שורת סיום ל-`learn-q`
+  (עם הזמן מ-`df:qtime:`), ו-LFlush אחד (`hold` ב-LDoneRow). ההגרלה והניסיונות לא נגעו.
+* בדיקה: `node tools/jointest/prejoin.js`.
