@@ -1970,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.468';
+var STUDIO_VER = '8.99.469';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -5204,10 +5204,21 @@ function seal(report) {
     baseC = best + 1;
   }
 
+  /* ============================================================
+     נקודת עצירה: הקטעים שלפניה שייכים לדף הקודם.
+     ============================================================
+     "בתענית דף ו׳ עמוד א׳ — 'קטע 2' מציג את הפירוש של ההתחלה,
+     והטקסט נכתב מחדש." נקודת האפס חושבה נכון (סוף הקטע `prev`),
+     אבל האכיפה הופעלה על הקטע הראשון שבעמוד — של הדף הקודם — ומשם
+     הרצף הזיז את כל השאר. עכשיו הקטע הראשון של **הדף** (`own0`)
+     נאכף מול נקודת האפס, והקטעים שלפניו לא נוגעים. בלי `prev` —
+     own0 = 0, וההתנהגות זהה לקודם. */
+  var own0 = (rec0.prev > 0 && STEPS[rec0.prev - 1]) ? rec0.prev : 0;
   var out = [];
   STEPS.forEach(function (st, si) {
+    if (si < own0) { out.push(st); return; }
     var prev = out[out.length - 1];
-    if (!prev && si === 0) {
+    if (si === own0) {
       /* הראשון נמתח עד ראש העמוד. */
       if (Math.abs(pos(st.g.from) - pos(base)) > 1e-6) {
         st.g.from = { line: base.line, x: base.x };
@@ -5248,7 +5259,7 @@ function seal(report) {
         if (g0) { st.c.text = g0.text; st.c.h = g0.h; }
       }
     }
-    if (prev) {
+    else {
       /* קטע שנבלע כולו בקודמו — כפילות. יורד. */
       if (pos(st.g.to) <= pos(prev.g.to) + 1e-6) { fixed++; return; }
       /* ההתחלה **היא** הסוף של הקודם. כאן נסגר חור וכאן מתבטלת
