@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 192;
+var SCRIPT_VERSION = 193;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14606,6 +14606,11 @@ function chTestDel_() {
    ופרס — רק לדוח; רשומות ההגרלה והפרס עצמן לא נמחקות): השורה ב"לומדים", "לימוד",
    "חידות", "זוגות", ושורות האתגר שלו. גיבוי מוסתר בפרטי לפני כל מחיקה, וקריאה
    חוזרת אחריה. "אתגר-קבוצות" / "אתגר-הגרלות" / הגרלות ופרסים — לא נוגעים. */
+/* **Check — קריאה בלבד, גם בפונקציות העזר** (7.11): בלי chSeatMove_, chTab_, sheet_,
+   joinTable_ או chSetRead_ — כולן עלולות ליצור לשונית, לכתוב כותרת, להעביר או למחוק
+   לשונית, או לכתוב מאפיין. במקומן chTCro_: getSheetByName וקריאת ערכים בלבד. לשונית
+   או כותרת חסרה, או "אתגר-שולחנות" שעוד לא עברה לפרטי — מדווחים ועוצרים, בלי לתקן.
+   Go — ללא שינוי, וממתין. */
 function chTestClean1106Check() { return chTC_say_(chTC_(false)); }
 function chTestClean1106Go() { return chTC_say_(chTC_(true)); }
 function chTC_say_(L) { var m = L.join('\n'); try { Logger.log(m); } catch (e) {} return m; }
@@ -14614,8 +14619,9 @@ function chTC_(go) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return ['פעולה אחרת רצה — להריץ שוב בעוד דקה. לא נעשה דבר.'];
   try {
-    var U = { test: false }, S = chSetRead_(U), K = chConf_(U, S);
-    var t = joinTable_(), alias = aliasMap_(t.rows), P = {};
+    var RO = go ? null : chTCro_();
+    var U = { test: false }, S = go ? chSetRead_(U) : RO.set(), K = chConf_(U, S);
+    var t = go ? joinTable_() : RO.join(), alias = aliasMap_(t.rows), P = {};
     for (var r = 1; r < t.rows.length; r++) {
       var row = t.rows[r], id0 = t.c(row, 'מזהה');
       if (!id0 || id0.indexOf(':k') >= 0 || t.c(row, 'בדיקה') === 'כן') continue;
@@ -14646,8 +14652,8 @@ function chTC_(go) {
     say('אחיאסף: ' + who(A) + ' — לא נמחק ולא משתנה בו דבר מלבד הכיסאות.');
 
     /* השולחנות (העולם האמיתי) */
-    var mv = chSeatMove_();
-    var T = chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined);
+    var mv = go ? chSeatMove_() : '';
+    var T = go ? chTab_(CH_SEAT_, CH_SEAT_COLS_, mv || undefined) : RO.seats();
     var real = T.rows.filter(function (o) { return o['בדיקה'] !== 'כן'; });
     real.forEach(function (o) { o._id = canon(o['מזהה']); });
     var withA = {};
@@ -14659,7 +14665,7 @@ function chTC_(go) {
       if (isPeter(o._id) && (withA[o['שולחן']] || canon(o['מזמין']) === A)) linked[o._id] = 1;
     });
     Object.keys(P).forEach(function (id) { if (isPeter(id) && P[id].by && canon(P[id].by) === A) linked[id] = 1; });
-    var O = chTab_(CH_OLD_, CH_OLD_COLS_);
+    var O = go ? chTab_(CH_OLD_, CH_OLD_COLS_) : RO.tab(CH_OLD_, ['מזהה', 'מזמין', 'בדיקה']);
     O.rows.forEach(function (o) {
       if (o['בדיקה'] === 'כן') return;
       var id = canon(o['מזהה']);
@@ -14707,11 +14713,12 @@ function chTC_(go) {
     var aPh = P[A].ph, hit = {};
     ['הגרלות', 'בחירת פרס', 'פרסים', 'רביעיות-הגרלות'].forEach(function (tab) {
       var v;
-      try { var sh = sheet_(tab); v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : []; } catch (e) { v = []; }
+      if (!go) { v = RO.vals(tab, true); if (!v) { say('הלשונית "' + tab + '" לא נמצאה — אין בה הופעה.'); v = []; } }
+      else try { var sh = sheet_(tab); v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : []; } catch (e) { v = []; }
       var txt = JSON.stringify(v);
       GO.forEach(function (id) { P[id].ids.forEach(function (x) { if (txt.indexOf(x) >= 0) (hit[id] = hit[id] || []).push(tab); }); });
     });
-    var G = chTab_(CH_GRP_, CH_GRP_COLS_);
+    var G = go ? chTab_(CH_GRP_, CH_GRP_COLS_) : RO.tab(CH_GRP_, ['מזמין', 'חבר 1', 'חבר 2', 'חבר 3', 'מצב', 'בדיקה']);
     G.rows.forEach(function (g) {
       if (g['בדיקה'] === 'כן' || [CH_G_.sel, CH_G_.won].indexOf(g['מצב']) < 0) return;
       GO.forEach(function (id) {
@@ -14731,15 +14738,20 @@ function chTC_(go) {
     var mineD = function (g) { return dIds.indexOf(g('מזהה')) >= 0; };
     /* השורות שיימחקו, לכל לשונית — וספירה לפני */
     var plan = [
-      { tab: JOIN_TAB, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } },
-      { tab: 'לימוד', sel: mineD }, { tab: 'חידות', sel: mineD },
-      { tab: 'זוגות', sel: mineD },
-      { tab: CH_OLD_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } },
-      { tab: CH_REF_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; } }
+      { tab: JOIN_TAB, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; }, need: ['מזהה', 'בדיקה'] },
+      { tab: 'לימוד', sel: mineD, need: ['מזהה'] }, { tab: 'חידות', sel: mineD, need: ['מזהה'] },
+      { tab: 'זוגות', sel: mineD, need: ['מזהה'] },
+      { tab: CH_OLD_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; }, need: ['מזהה', 'בדיקה'] },
+      { tab: CH_REF_, sel: function (g) { return mineD(g) && g('בדיקה') !== 'כן'; }, need: ['מזהה', 'בדיקה'] }
     ];
-    var pick = function (tab, sel, ssId) {
-      var sh; try { sh = sheet_(tab, ssId); } catch (e) { return { sh: null, head: [], rows: [], n: [] }; }
-      var v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [], h = {}, rows = [], n = [];
+    var pick = function (tab, sel, ssId, need) {
+      var sh = null, v;
+      if (!go) v = RO.vals(tab, false, need);
+      else {
+        try { sh = sheet_(tab, ssId); } catch (e) { return { sh: null, head: [], rows: [], n: [] }; }
+        v = sh.getLastRow() > 1 ? sh.getDataRange().getDisplayValues() : [];
+      }
+      var h = {}, rows = [], n = [];
       for (var i = 0; v.length && i < v[0].length; i++) h[String(v[0][i]).trim()] = i;
       for (var j = 1; j < v.length; j++) {
         var g = function (k) { return h[k] === undefined ? '' : String(v[j][h[k]] || '').trim(); };
@@ -14747,7 +14759,7 @@ function chTC_(go) {
       }
       return { sh: sh, head: v[0] || [], rows: rows, n: n };
     };
-    var picks = plan.map(function (p) { var k = pick(p.tab, p.sel); k.tab = p.tab; return k; });
+    var picks = plan.map(function (p) { var k = pick(p.tab, p.sel, undefined, p.need); k.tab = p.tab; return k; });
     /* שורות האתגר-שולחנות של מי שנמחק (גם סגורות) — נמחקות; השאר נסגרות */
     var seatDel = real.filter(function (o) { return del.indexOf(o._id) >= 0; });
     picks.forEach(function (k) { if (k.rows.length) say('יימחקו ב"' + k.tab + '": ' + k.rows.length + ' שורות'); });
@@ -14805,12 +14817,87 @@ function chTC_(go) {
     say(left ? 'שימו לב: בקריאה החוזרת נשארו ' + left + ' שורות שהיו אמורות להשתנות.' : 'קריאה חוזרת: הכול כמתוכנן.');
     say(aStill ? 'אחיאסף עדיין רשום ב"לומדים" — לא נפגע.' : 'שימו לב: השורה של אחיאסף לא נמצאה בקריאה החוזרת!');
   } catch (err) {
-    say('שגיאה: ' + (err && err.message || err));
+    if (err && err.chTCstop) say('לא נעשה דבר — ' + err.chTCstop + ' הבדיקה אינה מתקנת מבנה; לבדוק ידנית ולהריץ שוב.');
+    else say('שגיאה: ' + (err && err.message || err));
   } finally {
     lock.releaseLock();
     if (go) { try { chBust_(null); } catch (e1) {} try { ptsBust_(); } catch (e2) {} try { recountLearn_(true); } catch (e3) {} }
   }
   return out;
+}
+
+/* קורא לקריאה בלבד ל-Check: אין כאן insertSheet, setValue(s), deleteSheet/Row,
+   setProperty או מטמון. כל חוסר — עצירה (`chTCstop`), לא תיקון. */
+function chTCro_() {
+  var stop = function (m) { var e = new Error(m); e.chTCstop = m; throw e; };
+  var book = function (tab, ssId) {
+    var id = ssId || privId_(tab);
+    return id ? (SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id))))
+              : SpreadsheetApp.getActiveSpreadsheet();
+  };
+  var vals = function (tab, soft, need, ssId) {
+    var sh = book(tab, ssId).getSheetByName(tab);
+    if (!sh) { if (soft) return null; stop('הלשונית "' + tab + '" חסרה.'); }
+    var v = sh.getLastRow() && sh.getLastColumn() ? sh.getDataRange().getDisplayValues() : [];
+    if (need && need.length) {
+      var head = (v[0] || []).map(function (h) { return String(h).trim(); });
+      var miss = need.filter(function (c) { return head.indexOf(c) < 0; });
+      if (miss.length) stop('בלשונית "' + tab + '" חסרה כותרת: ' + miss.join(', ') + '.');
+    }
+    return v;
+  };
+  var tab = function (name, need, ssId) {
+    var sh = book(name, ssId).getSheetByName(name);
+    if (!sh) stop('הלשונית "' + name + '" חסרה.');
+    var head = headers_(sh), rows = [];
+    var miss = need.filter(function (c) { return head.indexOf(c) < 0; });
+    if (miss.length) stop('בלשונית "' + name + '" חסרה כותרת: ' + miss.join(', ') + '.');
+    var n = sh.getLastRow() - 1;
+    if (n > 0) {
+      var v = sh.getRange(2, 1, n, head.length).getValues();
+      for (var i = 0; i < v.length; i++) {
+        var o = {};
+        for (var j = 0; j < head.length; j++) {
+          var x = v[i][j];
+          o[head[j]] = x instanceof Date ? x.toISOString() : String(x == null ? '' : x).trim();
+        }
+        o._r = i + 2;
+        rows.push(o);
+      }
+    }
+    return { sh: null, head: head, rows: rows };
+  };
+  return {
+    vals: vals, tab: tab,
+    /* "אתגר-מונה" כמו chSetRead_ (העולם האמיתי), בלי ליצור או להוסיף כותרות. */
+    set: function () {
+      var S = { _k: {} };
+      tab(CH_SET_, ['שדה', 'ערך']).rows.forEach(function (o) {
+        var k = o['שדה'];
+        if (k.indexOf(CH_TP_) === 0) return;
+        S._k[k] = o; S[k] = o['ערך'];
+      });
+      return S;
+    },
+    join: function () {
+      var rows = vals(JOIN_TAB, false, ['מזהה', ALIAS_COL, 'שם', 'משפחה', 'טלפון', 'תפקיד', 'בדיקה',
+                                         'קוד ישיבה', 'ישיבה', 'שכבה', 'כיתה']);
+      if (rows.length < 2) rows = [];
+      var ix = {};
+      if (rows.length) for (var i = 0; i < rows[0].length; i++) ix[String(rows[0][i]).trim()] = i;
+      return { sh: null, rows: rows, ix: ix,
+               c: function (r, n) { return ix[n] === undefined ? '' : String(r[ix[n]] || '').trim(); } };
+    },
+    /* העברה שלא בוצעה — עוצרים; chSeatMove_ אינו נקרא. */
+    seats: function () {
+      var moved = PropertiesService.getScriptProperties().getProperty(CH_SEAT_MV_);
+      if (!moved) {
+        var pub = SpreadsheetApp.getActiveSpreadsheet();
+        if (pub && pub.getSheetByName(CH_SEAT_)) stop('"' + CH_SEAT_ + '" עדיין בגיליון הציבורי — ההעברה לפרטי לא בוצעה.');
+      }
+      return tab(CH_SEAT_, ['שולחן', 'מזהה', 'יצא', 'בדיקה', 'מזמין']);
+    }
+  };
 }
 
 /* ============================================================
