@@ -3810,6 +3810,20 @@ var PTS_BUSY = false, PTS_OPEN = false, PTS_GOT = false, PTS_ERR = false;
    המתנה (החישוב בשרת לוקח לפעמים יותר מ-20), ואחרי כישלון עוד שלושה ניסיונות
    (5/15/45 שניות), ואז רק בריענון הרגיל של שתי דקות. ההודעה — כמו קודם. */
 var PTS_TRY = 0, PTS_NEXT = 0, PTS_GAP = [5000, 15000, 45000];
+/* **דרך האתר שלנו אחרי כישלון** (8.99.473): הבקשה יוצאת ישירות לגוגל כמו קודם.
+   נכשלה (נחסמה / 40 שניות בלי תשובה / תשובה שאינה ok) — הניסיון הבא, אחרי 5
+   שניות, עובר דרך `api/pts` באתר (api/pts.js מביא את אותה תשובה מגוגל). הצליח
+   דרכנו — המכשיר זוכר את זה ליום (`df:ptsVia`), ובפתיחות הבאות פונה ישר דרכנו.
+   נכשל גם דרכנו — חוזרים לסירוגין. רק כשהכתובת היא הכתובת הקבועה (לא הגדרה
+   ידנית במכשיר), ורק לכרטיסים. */
+var PTS_VIA = false;
+function ptsViaOk() { return !!API && API === window.APPS_SCRIPT_URL; }
+function ptsViaOn() {
+  if (!ptsViaOk()) return false;
+  if (PTS_VIA) return true;
+  var v = +get('ptsVia', 0) || 0;
+  return v > Date.now() - 864e5;
+}
 /* סיבת הכישלון (8.99.457) — מדידה בלבד, בלי שינוי במסך ובלי בקשה נוספת.
    כל כישלון נספר במכשיר (`df:ptsFe`) לפי סוג: t — 40 שניות בלי תשובה ·
    e — הבקשה לא נטענה (נדחתה/נחסמה) · s — תשובה שאינה ok · n — ok, אבל בלי
@@ -3852,9 +3866,13 @@ function drawPts() {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
+    var via = ptsViaOn();
     var fail = function (why) {
       clean(); PTS_ERR = true;
       ptsFeAdd(why || 't');
+      /* הבא — בדרך השנייה: ישירות נכשל → דרכנו; דרכנו נכשל → ישירות. */
+      PTS_VIA = !via && ptsViaOk();
+      if (via) set('ptsVia', 0);
       var gap = PTS_GAP[PTS_TRY] || 120000;
       PTS_TRY++;
       PTS_NEXT = Date.now() + gap;
@@ -3870,6 +3888,7 @@ function drawPts() {
       if (!r.none && !r.tk && !r.nx) ptsFeAdd('n');
       clean();
       PTS_GOT = true; PTS_ERR = false; PTS_TRY = 0; PTS_NEXT = 0;
+      if (via) set('ptsVia', Date.now());
       /* מסלול השלמה לפי השרת ("מסלול השלמה" ב"לומדים"): 1 — משויך,
          0 — הוחזר למסלול הרגיל בניהול. בלי `hs` — לא נוגעים. */
       /* 2 — מסלול נר תמיד (8.99.408; הורה — לפי הבן). */
@@ -3882,7 +3901,7 @@ function drawPts() {
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); fail('e'); };
-    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pts=me&id=' + encodeURIComponent(me.id) + ptsFeQs() + '&callback=' + cb;
+    sc.src = (via ? '/api/pts?' : API + (API.indexOf('?') < 0 ? '?' : '&')) + 'pts=me&id=' + encodeURIComponent(me.id) + ptsFeQs() + '&callback=' + cb;
     document.body.appendChild(sc);
   }
   /* הגיע עכשיו מחידון שעבר (learn.html, qzLand_) — הכרטיס של הדף ההוא. */

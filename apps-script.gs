@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 196;
+var SCRIPT_VERSION = 197;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1465,6 +1465,8 @@ function doGetMain_(e) {
   /* ?pts=me&id= — הנקודות של התלמיד עצמו (ptsMe_). */
   if (e && e.parameter && e.parameter.pts === 'me') {
     try { ptsFeNote_(e.parameter); } catch (errF) {}
+    /* הגיע דרך האתר שלנו (api/pts.js, 8.99.473) — אחרי שהפנייה הישירה נכשלה. */
+    if (String(e.parameter.vx || '') === '1') { try { tmBump_({ 'pts:via': 1 }); } catch (errV) {} }
     try { return reply_(e, ptsMe_(e.parameter)); }
     catch (errP) { tmBump_({ 'pts:err': 1 }); return reply_(e, { status:'error', message: String(errP) }); }
   }

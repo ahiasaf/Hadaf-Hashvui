@@ -669,6 +669,17 @@ def check_ov_inst():
         OK.append('רשימת המוסדות בסקריפט זהה ל-data.js (%d)' % len(d['a']))
 
 
+def check_pts_via():
+    """api/pts.js (8.99.473) — אותה כתובת סקריפט כמו APPS_SCRIPT_URL ב-data.js."""
+    rx = r"https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec"
+    a = re.findall(rx, read('data.js'))
+    b = re.findall(rx, read('api', 'pts.js'))
+    if not a or not b or a[0] != b[0]:
+        BAD.append('api/pts.js — כתובת הסקריפט שונה מ-APPS_SCRIPT_URL ב-data.js')
+    else:
+        OK.append('api/pts.js — אותה כתובת סקריפט')
+
+
 def main():
     for fn in (check_version, check_font, check_texts,
                check_dupe_vars, check_orphan_classes,
@@ -676,7 +687,7 @@ def main():
                check_share_card,
                check_decks, check_daf_index,
                check_calendar, check_prog_start, check_pii, check_pub_files,
-               check_ov_inst):
+               check_ov_inst, check_pts_via):
         try:
             fn()
         except Exception as e:                # noqa: BLE001
