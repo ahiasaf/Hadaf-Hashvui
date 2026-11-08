@@ -115,6 +115,35 @@ main.wait{visibility:hidden}
 .pz small{color:var(--ink-2);font-size:.86rem;font-weight:500}
 .pz.sel{border:2px solid var(--gold-t)}
 #prz .soon{margin-top:12px;font-size:1.1rem;font-weight:800;color:var(--gold-t);text-align:center}
+/* שוברי זכייה (8.99.471) — פרס שאזל, האישור הסופי, והשובר עצמו */
+.pz.out{opacity:.55}
+.pz .so{display:inline-block;margin-right:6px;padding:1px 9px;border-radius:999px;background:#EDE6D6;
+  color:var(--ink-2);font-size:.78rem;font-weight:800}
+.vask{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:rgba(11,37,80,.45)}
+.vask[hidden]{display:none}
+.vask .bx{width:100%;max-width:22rem;background:#fff;border:2px solid #8C1F1F;border-radius:16px;padding:18px 16px;text-align:center}
+.vask b{display:block;font-size:1.15rem;font-weight:800;color:#8C1F1F}
+.vask p{margin:8px 0 14px;font-size:1rem;font-weight:600;color:var(--ink)}
+.vbt{display:block;width:100%;margin-top:8px;padding:13px 12px;border:0;border-radius:12px;font:inherit;
+  font-size:1.05rem;font-weight:800;cursor:pointer;text-align:center;text-decoration:none}
+.vbt[disabled]{opacity:.6;cursor:default}
+.vbt.ok{background:#1E7A46;color:#fff}
+.vbt.no{background:#8F99AA;color:#fff}
+.vch{background:#fff;border:2px solid var(--blue-d);border-radius:16px;padding:14px;text-align:center;margin-bottom:12px}
+.vch h3{margin:0 0 4px!important}
+.vch .pn{font-size:.95rem;font-weight:700;color:var(--ink-2)}
+.vch .cd{margin:12px 0 10px;padding:12px 8px;border:2px dashed var(--ink-2);border-radius:12px;direction:ltr;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.15rem;font-weight:800;letter-spacing:.06em;
+  word-break:break-all;-webkit-user-select:all;user-select:all;color:var(--ink)}
+.vch .dd{margin-top:10px;padding:8px 10px;border:1px solid #E5C77A;border-radius:10px;background:#FFF6DC;
+  font-size:.92rem;font-weight:800;color:#6B4E12}
+.vch.gone{border-color:#C9C2B3}
+.vch.gone .cd{opacity:.45;text-decoration:line-through}
+.vch .tg{display:inline-block;margin-top:8px;padding:2px 12px;border-radius:999px;background:#EDE6D6;
+  font-size:.86rem;font-weight:800;color:var(--ink-2)}
+.vch .us{margin-top:10px;background:none;border:0;font:inherit;font-size:.86rem;font-weight:700;
+  color:var(--ink-2);text-decoration:underline;cursor:pointer;padding:6px}
 </style>
 </head>
 <body>
@@ -261,10 +290,133 @@ function results(d, dm) {
 var PRZQ = /[?&]prz=1(&|$)/.test(location.search);
 var PRZ = ['burger', 'maafe', 'pretzel', 'pizza', 'book'], PRZ_LIVE = false, PRZ_Z = null, PRZ_KID = '';
 function przName(k) { return UI['przN_' + k] || k; }
-function przCard(k, on, sel) {
-  return '<button class="pz' + (sel ? ' sel' : '') + '"' + (on ? ' onclick="przPick(\'' + k + '\')"' : ' disabled') + '>' +
+function przCard(k, on, sel, out) {
+  if (out) on = false;
+  return '<button class="pz' + (sel ? ' sel' : '') + (out ? ' out' : '') + '"' + (on ? ' onclick="przPick(\'' + k + '\')"' : ' disabled') + '>' +
     '<img src="promo/prz-' + k + '.jpg" width="612" height="240" alt="">' +
-    '<span><b>' + esc(przName(k)) + '</b> <small>· ' + esc(UI['przS_' + k] || '') + '</small></span></button>';
+    '<span><b>' + esc(przName(k)) + '</b> <small>· ' + esc(UI['przS_' + k] || '') + '</small>' +
+    (out ? ' <i class="so">' + esc(UI.vchSoldOut) + '</i>' : '') + '</span></button>';
+}
+/* ============================================================
+   שוברי זכייה (8.99.471) — כשהמתג בשרת דלוק (`von` מ-?raffle=prize).
+   ============================================================
+   לחיצה על פרס **אינה שומרת ואינה תופסת דבר** — רק פותחת את האישור
+   הסופי. "מאשר, זה סופי" → ?raffle=vpick: השרת משייך שובר תחת נעילה
+   ומחזיר אותו, והוא מוצג מיד. פרס שאזל — "אזל זמנית" ונעול. אזל באמצע —
+   חוזרים לבחירה. אין תשובה — שואלים את השרת שוב (לחיצה שנקלטה מחזירה
+   את אותו שובר), ואם עדיין אין — חוזרים לבחירה עם הודעה. */
+var PRZ_VON = false, PRZ_VS = {}, VCH_K = '', VCH_BUSY = false;
+function vchOut(k) { return PRZ_VON && !(PRZ_VS[k] > 0); }
+function vchDaysLeft(x) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x || ''));
+  if (!m) return null;
+  var t = new Date();
+  return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+}
+function vchHtml(v, p, kid, h3) {
+  var n = vchDaysLeft(v.x), gone = v.st !== 'in' || n === null || n < 0;
+  var h = '<div class="vch' + (gone ? ' gone' : '') + '">' +
+    (h3 ? '<h3>' + esc(kid ? tp(UI.vchHDad, { name: kid }) : UI.vchH) + '</h3>' : '') +
+    '<div class="pn">' + esc(przName(p || v.p)) + ' · ' + esc(UI['przS_' + (p || v.p)] || '') + '</div>';
+  if (gone) return h + (v.c ? '<div class="cd">' + esc(v.c) + '</div>' : '') +
+    '<span class="tg">' + esc(v.st === 'used' ? UI.vchUsedL : UI.vchExp) + '</span></div>';
+  return h + '<div class="cd">' + esc(v.c) + '</div>' +
+    (v.u ? '<a class="vbt ok" target="_blank" rel="noopener" href="' + esc(v.u) + '">' + esc(UI.vchGo) + '</a>' : '') +
+    '<div class="dd">' + esc(n === 0 ? UI.vchDays0 : n === 1 ? UI.vchDays1 : tp(UI.vchDays, { n: n })) + '</div>' +
+    '<button type="button" class="us" onclick="vchUsed(\'' + esc(v.id) + '\')">' + esc(UI.vchUsedBtn) + '</button></div>';
+}
+function vchAsk(k) {
+  var el = $('vask');
+  if (!el) {
+    document.body.insertAdjacentHTML('beforeend', '<div class="vask" id="vask" role="dialog" aria-modal="true" hidden></div>');
+    el = $('vask');
+  }
+  VCH_K = k;
+  el.innerHTML = '<div class="bx"><b>' + esc(tp(UI.vchAskH, { p: przName(k) })) + '</b><p>' + esc(UI.vchAskP) + '</p>' +
+    '<button type="button" class="vbt ok" id="vask-y" onclick="vchGo()">' + esc(UI.vchYes) + '</button>' +
+    '<button type="button" class="vbt no" id="vask-n" onclick="vchClose()">' + esc(UI.vchNo) + '</button></div>';
+  el.hidden = false;
+  try { $('vask-n').focus(); } catch (e) {}
+}
+function vchClose() {
+  if (VCH_BUSY) return;
+  var el = $('vask');
+  if (el) { el.hidden = true; el.innerHTML = ''; }
+}
+function vchLock(on) {
+  VCH_BUSY = on;
+  ['vask-y', 'vask-n'].forEach(function (id) { var b = $(id); if (b) b.disabled = on; });
+  var y = $('vask-y');
+  if (y) y.textContent = on ? '…' : UI.vchYes;
+}
+function vchGo() {
+  var z = PRZ_Z, k = VCH_K, u = api();
+  if (!z || z.p || !k || !u || VCH_BUSY) return;
+  vchLock(true);
+  var done = false;
+  var fin = function (fn) { if (done) return; done = true; vchLock(false); vchClose(); fn(); };
+  /* תשובה שלא הגיעה — הבחירה אולי נקלטה. שואלים שוב את המצב. */
+  var lost = function () {
+    przGet(true).then(function (L) {
+      var y = null;
+      (L || []).forEach(function (x) { if (x.rid === z.rid) y = x; });
+      fin(function () {
+        if (y && y.p) { PRZ_Z = y; przDraw(y, false); return; }
+        przDraw(z, true); SayMsg(UI.przFail);
+      });
+    })['catch'](function () { fin(function () { przDraw(z, true); SayMsg(UI.przFail); }); });
+  };
+  setTimeout(function () { if (!done) lost(); }, 25000);
+  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vpick&id=' + encodeURIComponent(ME.id) +
+        (ME.role === 'dad' ? '&role=dad' : '') + '&rid=' + encodeURIComponent(z.rid) + '&p=' + k + '&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (done) return;
+      if (d && d.status === 'ok' && d.p) {
+        fin(function () {
+          z.p = d.p; z.how = 'בחר'; z.st = 'soon';
+          if (d.v) z.v = d.v;
+          przDraw(z, false);
+          try { localStorage.removeItem('df:przMe'); } catch (e) {}
+          window.scrollTo(0, ($('prz') || document.body).offsetTop - 8);
+        });
+        return;
+      }
+      if (d && d.status === 'out') {
+        fin(function () { PRZ_VS = d.vs || PRZ_VS; PRZ_VS[k] = 0; przDraw(z, true); SayMsg(UI.vchOut); });
+        return;
+      }
+      lost();
+    })['catch'](lost);
+}
+function vchUsed(vid) {
+  var u = api();
+  if (!u || !ME || !ME.id || !SureLater(vchUsed, this, arguments)) return;
+  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vused&id=' + encodeURIComponent(ME.id) +
+        (ME.role === 'dad' ? '&role=dad' : '') + '&vid=' + encodeURIComponent(vid) + '&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || d.status !== 'ok' || !d.v) { SayMsg(UI.przFail); return; }
+      try { localStorage.removeItem('df:przMe'); } catch (e) {}
+      if (VCH_ALL) { vchAll(); return; }
+      if (PRZ_Z) { PRZ_Z.v = d.v; przDraw(PRZ_Z, false); }
+    })['catch'](function () { SayMsg(UI.przFail); });
+}
+/* ?vch=1 — "השוברים שלי" (מהכרטיס בבית): כל השוברים, הפעילים קודם. */
+var VCH_ALL = /[?&]vch=1(&|$)/.test(location.search);
+function vchAll() {
+  if (!ME || !ME.id) return;
+  $('art').style.display = 'none'; $('note').style.display = 'none'; $('illus').style.display = 'none';
+  przGet(true).then(function (L) {
+    var V = (L || []).filter(function (x) { return x.v; });
+    V.sort(function (a, b) {
+      var ia = a.v.st === 'in' ? 0 : 1, ib = b.v.st === 'in' ? 0 : 1;
+      return ia !== ib ? ia - ib : (a.v.x < b.v.x ? -1 : a.v.x > b.v.x ? 1 : 0);
+    });
+    if (!V.length) { location.replace('hagrala.html?prz=1'); return; }
+    $('res').innerHTML = '<div id="prz"><h3>' + esc(UI.vchMineH) + '</h3>' +
+      V.map(function (x) { return vchHtml(x.v, x.p, x.kid, false); }).join('') + '</div>';
+  })['catch'](function () {});
 }
 function przWhen(iso) {
   var t = new Date(iso);
@@ -280,7 +432,9 @@ function przDraw(z, live) {
     var w = z && z.due ? przWhen(z.due) : '';
     h = '<h3>' + esc(kid ? tp(UI.przHDad, { name: kid }) : UI.przH) + '</h3>' +
         (w ? '<p class="due">' + esc(tp(kid ? UI.przDueDad : UI.przDue, { due: w })) + '</p>' : '') +
-        '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live, false); }).join('') + '</div>';
+        '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live, false, vchOut(k)); }).join('') + '</div>';
+  } else if (z.v) {
+    h = vchHtml(z.v, z.p, kid, true);
   } else {
     h = '<h3>' + esc(kid ? tp(UI.przMineDad, { name: kid }) : UI.przMine) + '</h3>' +
         '<div class="pzs">' + przCard(z.p, false, true) + '</div>' +
@@ -294,7 +448,11 @@ function przGet(fresh) {
   return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=prize&id=' + encodeURIComponent(ME.id) +
                (ME.role === 'dad' ? '&role=dad' : '') + (fresh ? '&fresh=1' : '') + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
-    .then(function (d) { return d && d.status === 'ok' && d.list ? d.list : null; });
+    .then(function (d) {
+      if (!d || d.status !== 'ok' || !d.list) return null;
+      PRZ_VON = !!d.von; PRZ_VS = d.vs || {};
+      return d.list;
+    });
 }
 function przInit(d) {
   PRZ_KID = d.kid || '';
@@ -322,6 +480,7 @@ function przAlone() {
 }
 function przPick(k) {
   var z = PRZ_Z, u = api();
+  if (PRZ_VON) { if (z && !z.p && u && !vchOut(k)) vchAsk(k); return; }
   if (!z || z.p || !u || !SureLater(przPick, this, arguments)) return;
   var item = { action: 'row', tab: 'בחירת פרס', cols: JSON.stringify([
     ['מזהה', z.wid], ['הגרלה', z.rid], ['פרס', k], ['מאת', ME.id]]) };
@@ -413,6 +572,7 @@ function demo(d) {
     $('res').insertAdjacentHTML('afterbegin', '<div class="pv">' + esc(UI.rafPvLbl) + '</div>');
     return;
   }
+  if (VCH_ALL && ME && ME.id) { vchAll(); return; }
   if (INST === 'lapid' || INST === 'other') { hide(); return; }
   var u = api();
   if (!ME || !ME.id || !INST || !u || !window.fetch) return;

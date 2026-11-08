@@ -804,6 +804,17 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .myprz.soon{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
 .myprz[hidden]{display:none}
 .myprz .ar{font-size:1.25em;line-height:1}
+/* ---------- השובר שלי (8.99.471) — באזור הכרטיסים, כל עוד יש שובר ----------
+   לחיצה — "השוברים שלי" (hagrala.html?vch=1). */
+.myvch{display:flex;align-items:center;gap:12px;margin-top:12px;padding:13px 15px;border-radius:var(--r);
+  background:var(--surface);box-shadow:var(--sh-1);border:2px solid #C9962E;color:var(--ink);text-decoration:none;text-align:right}
+.myvch[hidden]{display:none}
+.myvch .mv-tx{flex:1;min-width:0}
+.myvch b{display:block;font-size:1.02rem;font-weight:800;color:var(--blue-d)}
+.myvch small{display:block;margin-top:3px;font-size:.82rem;font-weight:700;color:var(--ink-2)}
+.myvch .mv-dd{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:#FFF6DC;
+  border:1px solid #E5C77A;font-size:.8rem;font-weight:800;color:#6B4E12}
+.myvch i{flex:none;font-style:normal;font-size:1.4rem;color:var(--ink-3)}
 .mypts .l{margin-top:8px;font-size:.82rem;font-weight:700;line-height:1.8}
 .mypts .h{color:var(--ink-3);font-weight:600;margin-top:4px}
 /* ---------- הכרטיסים שלי (8.99.326) ----------
@@ -1493,7 +1504,7 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
    בלי הגרלות וכרטיסים, בלי האתגר והרביעיות, בלי העלון. הלוגו — איור
    הטלפון במקום הסמל העגול. ראו INTER בקוד. */
 html.inter #s-land,html.inter #chal,html.inter #mytk,html.inter #partk,html.inter #mypts,
-html.inter #quad,html.inter #myprz,html.inter #tkhow,html.inter #aldl,html.inter #chstrip{display:none!important}
+html.inter #quad,html.inter #myprz,html.inter #myvch,html.inter #tkhow,html.inter #aldl,html.inter #chstrip{display:none!important}
 html.inter .foot-info{display:none}
 html.inter .masthead .m{width:auto;height:auto;border-radius:0;background:none;box-shadow:none}
 html.inter .masthead .m img{width:auto;height:52px}
@@ -1770,6 +1781,8 @@ html.inter .masthead .m img{width:auto;height:52px}
     <!-- אתגר "חבר מביא חבר" — מבצע מיוחד, כרטיס משלו מעל ההגרלה השבועית (8.99.379).
          ריק כשהאתגר כבוי או לא גלוי לתלמיד. ראו chal.js. -->
     <div id="chal"></div>
+    <!-- השובר שלי — שובר זכייה שהתקבל באפליקציה (drawVch, 8.99.471). -->
+    <a id="myvch" class="myvch" href="hagrala.html?vch=1" hidden></a>
     <div id="mytk" class="mytk" hidden></div>
     <!-- בית ההורה — "כרטיסים שהענקת ל…" (parTkDraw). -->
     <div id="partk" class="mytk" hidden></div>
@@ -4288,9 +4301,11 @@ function drawPrz() {
       })['catch'](function () { PRZ_BUSY = false; });
   }
   var L = (c && c.list) || [], z = null;
-  /* קודם מי שעוד צריך לבחור, אחר כך "הגיע", ואז "יגיע בקרוב" */
+  drawVch(L);
+  /* קודם מי שעוד צריך לבחור, אחר כך "הגיע", ואז "יגיע בקרוב".
+     זכייה שיש לה שובר — הפרס כבר אצלו; היא בכרטיס "השובר שלך", לא בבאנר. */
   ['pick', 'arr', 'soon'].forEach(function (st) {
-    L.forEach(function (x) { if (!z && x.st === st) z = x; });
+    L.forEach(function (x) { if (!z && x.st === st && !x.v) z = x; });
   });
   if (!z) { el.hidden = true; return; }
   var kid = z.kid;
@@ -4299,6 +4314,32 @@ function drawPrz() {
         : (kid ? tpl(UI.przBanSoonDad, { name: kid }) : UI.przBanSoon);
   el.className = 'myprz' + (z.st === 'soon' ? ' soon' : '');
   el.innerHTML = '<span>' + esc(t) + '</span><span class="ar" aria-hidden="true">\u2190</span>';
+  el.hidden = false;
+}
+
+/* השובר שלי (8.99.471) — מהזכיות שכבר נטענו לבאנר (`v` מ-?raffle=prize).
+   הפעיל שתוקפו הקרוב ביותר, עם ספירת הימים; אין פעיל — רק הכותרת. */
+function drawVch(L) {
+  var el = $('myvch');
+  if (!el) return;
+  var V = (L || []).filter(function (x) { return x.v; });
+  if (!V.length) { el.hidden = true; el.innerHTML = ''; return; }
+  var days = function (x) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x || '')), t = new Date();
+    return m ? Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5) : -1;
+  };
+  var a = null;
+  V.forEach(function (x) {
+    if (x.v.st !== 'in' || days(x.v.x) < 0) return;
+    if (!a || x.v.x < a.v.x) a = x;
+  });
+  var h = '<span class="mv-tx"><b>' + esc(V.length > 1 ? tpl(UI.vchHomeN, { n: V.length }) : a ? UI.vchHome : UI.vchMineH) + '</b>';
+  if (a) {
+    var n = days(a.v.x);
+    h += '<small>' + esc((UI['przN_' + a.p] || a.p) + ' · ' + (UI['przS_' + a.p] || '')) + '</small>' +
+      '<span class="mv-dd">' + esc(n === 0 ? UI.vchDays0 : n === 1 ? UI.vchDays1 : tpl(UI.vchDays, { n: n })) + '</span>';
+  }
+  el.innerHTML = h + '</span><i aria-hidden="true">\u2190</i>';
   el.hidden = false;
 }
 

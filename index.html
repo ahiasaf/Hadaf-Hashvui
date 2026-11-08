@@ -3162,7 +3162,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.470';
+var APP_VERSION = '8.99.471';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -13148,7 +13148,7 @@ function admPane() {
   if (sub === 'amda')    return admAmda(body);
   if (sub === 'amdawa')  return admAmdaWa(body);
   if (sub === 'net')     return admNet(body);
-  if (sub === 'lottery') { body.innerHTML = admRaffle() + admPairs(); return; }
+  if (sub === 'lottery') { body.innerHTML = admRaffle() + vchCard() + admPairs(); return; }
   if (sub === 'test')    { body.innerHTML = admTest(); return; }
   if (sub === 'chal')    return admChal(body);
   if (sub === 'prz')     return admPrz(body);
@@ -16221,7 +16221,7 @@ function rafCall(p, then) {
   })['catch'](function () { rafBusy = false; rafMsg = UI.rafNoAns; admPane(); });
 }
 function rafLoad() {
-  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; rafPs = null; });
+  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; rafPs = null; if (!VCH.d) setTimeout(vchLoad, 0); });
 }
 /* **הבחירה אחרי התמונה, ולא לפניה.** אף מוסד אינו מסומן מראש;
    הבחירה נשמרת בשרת רק בהגרלה עצמה ('pic' קורא בלבד). */
@@ -16565,6 +16565,7 @@ function rafWaHtml(dis) {
       var z = x.pz, ok = z && z.p;
       return '<div class="prow2 ' + (ok ? 'ok' : 'warn') + '"><span class="pm">' + (ok ? '🎁' : '–') + '</span>' +
         '<div style="flex:1"><b>' + esc(x.name) + '</b><span>' + esc(rafInstName(x.code)) + (z ? ' · ' + esc(rafPrzLbl(z)) : '') + '</span>' +
+        vchWaLine(x) +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' +
         (x.na ? rafWaCo(x) : x.ph ? '<a class="btn gr" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.ph, x, 'w')) + '">' + esc(UI.rafWaKid) + '</a>' : '') +
         (x.dph ? '<a class="btn g" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.dph, x, 'd')) + '">' + esc(UI.rafWaDad) + '</a>' : '') +
@@ -16576,6 +16577,264 @@ function rafWaHtml(dis) {
         '</div></div></div>';
     }).join('') + '</div>';
 }
+/* ============================================================
+   שוברי זכייה — בניהול ← ההגרלה (8.99.471). השרת: vchAdm_/vchAdd_.
+   ============================================================
+   המתג, המלאי לפי פרס (והתראת מלאי נמוך), הוספה מקובץ הספק או
+   מהדבקה, והשוברים שיצאו. הסטטוס בלשונית משתנה רק בשרת. */
+var VCH = { d: null, busy: false, msg: '', txt: '', rows: null, types: null, map: {}, bad: 0 };
+var VCH_CP = {};
+function vchCall(p) {
+  var q = { raffle: p.raffle, key: (CFG.readKey || '').trim() };
+  for (var k in p) if (p.hasOwnProperty(k)) q[k] = p[k];
+  return scriptGet(q);
+}
+function vchGot(d) {
+  VCH.busy = false;
+  /* כישלון משאיר את מה שעל המסך. */
+  if (d && d.status === 'ok' && d.by) { VCH.d = d; VCH.msg = ''; }
+  else VCH.msg = (d && d.message) || UI.vchFail;
+  admPane();
+}
+function vchLoad() {
+  if (VCH.busy) return;
+  if (!(CFG.readKey || '').trim()) { VCH.msg = UI.rafNoKey; admPane(); return; }
+  VCH.busy = true; admPane();
+  vchCall({ raffle: 'vadm' }).then(vchGot, function () { VCH.busy = false; VCH.msg = UI.vchFail; admPane(); });
+}
+function vchOn(v) {
+  if (VCH.busy || !SureLater(vchOn, this, arguments)) return;
+  VCH.busy = true; admPane();
+  vchCall({ raffle: 'von', v: v ? '1' : '0' }).then(vchGot, function () { VCH.busy = false; VCH.msg = UI.vchFail; admPane(); });
+}
+function vchPz(k) { return UI['przN_' + k] || k; }
+function vchDmy(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (m && iso.length === 10) return (+m[3]) + '.' + (+m[2]) + '.' + m[1];
+  var t = new Date(iso);
+  return isNaN(t.getTime()) ? '' : t.getDate() + '.' + (t.getMonth() + 1);
+}
+/* ---- קריאת השורות: קובץ אקסל או הדבקה ---- */
+function vchDay(v) {
+  var s = String(v == null ? '' : v).trim(), m;
+  var two = function (n) { n = parseInt(n, 10); return (n < 10 ? '0' : '') + n; };
+  var ok = function (y, mo, d) {
+    y = parseInt(y, 10); if (y < 100) y += 2000; mo = parseInt(mo, 10); d = parseInt(d, 10);
+    return y >= 2020 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31 ? y + '-' + two(mo) + '-' + two(d) : '';
+  };
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return ok(m[1], m[2], m[3]);
+  if ((m = /^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})$/.exec(s))) return ok(m[3], m[2], m[1]);
+  if (/^\d{5}(\.\d+)?$/.test(s)) {
+    var n = parseFloat(s);
+    if (n > 30000 && n < 80000) { var t = new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 864e5); return ok(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); }
+  }
+  return '';
+}
+var VCH_HD = [['u', /קישור|לינק|link|url/i], ['x', /תפוגה|תוקף|expir|valid/i], ['cost', /עלות|מחיר|שווי|סכום|ערך|price|value|amount|cost/i],
+              ['t', /סוג|פרס|מוצר|תיאור|הטבה|product|item|benefit|description|name/i], ['c', /קוד|קופון|שובר|מספר|code|coupon|voucher|serial/i]];
+/* rows — מערך של מערכים. כותרת (באחת מחמש השורות הראשונות) קובעת את העמודות;
+   בלעדיה — לפי התוכן: http = קישור, תאריך = תפוגה, והעמודה המגוונת = קוד. */
+function vchParse(rows) {
+  rows = rows.filter(function (r) { return r.some(function (x) { return String(x || '').trim(); }); });
+  var col = {}, start = 0, i, j;
+  for (i = 0; i < Math.min(5, rows.length) && col.c === undefined; i++) {
+    var got = {};
+    rows[i].forEach(function (cell, ci) {
+      var t = String(cell || '').trim();
+      if (!t || /^https?:/i.test(t) || vchDay(t)) return;
+      for (var q = 0; q < VCH_HD.length; q++) if (got[VCH_HD[q][0]] === undefined && VCH_HD[q][1].test(t)) { got[VCH_HD[q][0]] = ci; return; }
+    });
+    if (got.c !== undefined) { col = got; start = i + 1; }
+  }
+  if (col.c === undefined) {
+    var nc = 0;
+    rows.forEach(function (r) { if (r.length > nc) nc = r.length; });
+    var st = [];
+    for (j = 0; j < nc; j++) {
+      var s = { http: 0, day: 0, full: 0, vals: {} };
+      rows.forEach(function (r) {
+        var t = String(r[j] || '').trim();
+        if (!t) return;
+        s.full++; s.vals[t] = 1;
+        if (/^https?:/i.test(t)) s.http++;
+        else if (vchDay(t)) s.day++;
+      });
+      s.n = Object.keys(s.vals).length;
+      st.push(s);
+    }
+    var best = -1;
+    for (j = 0; j < nc; j++) {
+      if (!st[j].full) continue;
+      if (st[j].http * 2 > st[j].full && col.u === undefined) { col.u = j; continue; }
+      if (st[j].day * 2 > st[j].full && col.x === undefined) { col.x = j; continue; }
+      if (best < 0 || st[j].n > st[best].n) best = j;
+    }
+    if (best >= 0) col.c = best;
+    for (j = 0; j < nc; j++) {
+      if (j === col.c || j === col.u || j === col.x || !st[j].full) continue;
+      if (col.t === undefined && st[j].n < st[j].full) col.t = j;
+    }
+  }
+  var out = [], bad = 0;
+  for (i = start; i < rows.length; i++) {
+    var r = rows[i], g = function (k) { return col[k] === undefined ? '' : String(r[col[k]] == null ? '' : r[col[k]]).trim(); };
+    var o = { c: g('c'), u: g('u'), x: vchDay(g('x')), t: g('t'), cost: g('cost') };
+    if (o.u && !/^https?:/i.test(o.u)) o.u = '';
+    if (!o.c || !o.x) { bad++; continue; }
+    out.push(o);
+  }
+  return { rows: out, bad: bad, hasT: col.t !== undefined };
+}
+function vchGuess(t) {
+  var G = [['burger', /בורגר|burger|ארוחת ילדים/i], ['maafe', /מאפה|נאמן|קפה/i], ['pretzel', /פרצל|pretzel/i],
+           ['pizza', /פיצה|pizza/i], ['book', /ספר|סטימצקי|steimatzky|book/i]];
+  for (var i = 0; i < G.length; i++) if (G[i][1].test(t)) return G[i][0];
+  return '';
+}
+function vchTake(P) {
+  VCH.msg = '';
+  if (!P || !P.rows.length) { VCH.rows = null; VCH.msg = UI.vchNoRows; admPane(); return; }
+  VCH.rows = P.rows; VCH.bad = P.bad; VCH.map = {}; VCH.types = [];
+  var seen = {};
+  P.rows.forEach(function (o) {
+    var t = P.hasT ? o.t : '';
+    if (!P.hasT) o.t = '';
+    if (seen[t] === undefined) { seen[t] = 0; VCH.types.push(t); VCH.map[t] = t ? vchGuess(t) : ''; }
+    seen[t]++;
+  });
+  VCH.types = VCH.types.map(function (t) { return { t: t, n: seen[t] }; });
+  admPane();
+}
+function vchPasteGo() {
+  var tx = String(VCH.txt || '');
+  var rows = tx.split(/\r?\n/).map(function (ln) {
+    return ln.indexOf('\t') >= 0 ? ln.split('\t') : ln.split(/[;,]/);
+  });
+  vchTake(vchParse(rows));
+}
+function vchFile(inp) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  var rd = new FileReader();
+  if (/\.(csv|txt)$/i.test(f.name)) {
+    rd.onload = function () { VCH.txt = String(rd.result || ''); vchPasteGo(); };
+    rd.readAsText(f);
+    return;
+  }
+  rd.onload = function () {
+    amdaNeedXlsx().then(function () {
+      var P = null;
+      try {
+        var S = XLSX_READ(rd.result);
+        for (var i = 0; i < S.length && (!P || !P.rows.length); i++) {
+          var rows = S[i].rows.map(function (o) {
+            var a = [];
+            Object.keys(o).forEach(function (L) {
+              var n = 0;
+              for (var q = 0; q < L.length; q++) n = n * 26 + (L.charCodeAt(q) - 64);
+              a[n - 1] = o[L];
+            });
+            for (var z = 0; z < a.length; z++) if (a[z] === undefined) a[z] = '';
+            return a;
+          });
+          P = vchParse(rows);
+        }
+      } catch (e) { P = null; }
+      vchTake(P);
+    })['catch'](function () { vchTake(null); });
+  };
+  rd.readAsArrayBuffer(f);
+  inp.value = '';
+}
+function vchMapSet(i, v) { var T = VCH.types[i]; if (T) VCH.map[T.t] = v; admPane(); }
+function vchAddGo() {
+  if (VCH.busy || !VCH.rows) return;
+  var miss = VCH.types.some(function (T) { return !VCH.map[T.t]; });
+  if (miss) return;
+  var key = (CFG.readKey || '').trim(), api = (CFG.api || API || '').trim();
+  if (!key || !api) { VCH.msg = UI.rafNoKey; admPane(); return; }
+  var bid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  var rows = VCH.rows.map(function (o) { return { t: o.t, p: VCH.map[o.t], c: o.c, u: o.u, x: o.x, cost: o.cost }; });
+  VCH.busy = true; VCH.msg = ''; admPane();
+  var tries = 0;
+  var look = function () {
+    tries++;
+    vchCall({ raffle: 'vadm', bid: bid }).then(function (d) {
+      if (d && d.status === 'ok' && d.bres) {
+        var b = d.bres;
+        VCH.d = d; VCH.busy = false;
+        if (b.status === 'ok') { VCH.rows = null; VCH.types = null; VCH.txt = ''; }
+        VCH.msg = b.status === 'ok' ? [fill(UI.vchAdded, { n: b.add }), b.dup ? fill(UI.vchAddDup, { n: b.dup }) : '',
+          b.bad ? fill(UI.vchAddBad, { n: b.bad }) : ''].filter(Boolean).join(' ') : UI.vchAddFail;
+        admPane();
+        return;
+      }
+      if (tries < 8) { setTimeout(look, 3000); return; }
+      VCH.busy = false; VCH.msg = UI.vchAddFail; admPane();
+    }, function () {
+      if (tries < 8) { setTimeout(look, 3000); return; }
+      VCH.busy = false; VCH.msg = UI.vchAddFail; admPane();
+    });
+  };
+  fetch(api, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'vchadd', key: key, bid: bid, rows: rows }) })
+    .then(function () { setTimeout(look, 1500); })['catch'](function () { setTimeout(look, 3000); });
+}
+function vchCard() {
+  var d = VCH.d, dis = VCH.busy ? ' disabled' : '';
+  var msg = VCH.msg ? '<div class="cond" style="margin-top:10px">' + esc(VCH.msg) + '</div>' : '';
+  var h = '<div class="adm-card"><h4>' + esc(UI.vchAdmH) + '</h4>';
+  if (!d) return h + '<button class="btn g"' + dis + ' onclick="vchLoad()">' + esc(VCH.busy ? UI.vchBusy : UI.vchLoad) + '</button>' + msg + '</div>';
+  h += '<p class="h">' + esc(d.on ? UI.vchAdmOn : UI.vchAdmOff) + '</p>' +
+    '<button class="btn ' + (d.on ? 'g' : 'p') + '" type="button"' + dis + ' onclick="vchOn(' + (d.on ? 0 : 1) + ')">' +
+    esc(d.on ? UI.vchOffBtn : UI.vchOnBtn) + '</button>';
+  if (d.low && d.low.length) h += '<div class="cond" style="margin-top:10px">' +
+    esc(fill(UI.vchLow, { n: d.lowN, list: d.low.map(vchPz).join(' · ') })) + '</div>';
+  var ks = RAF_PRZ.filter(function (k) { return d.by[k] && d.by[k].n; });
+  h += '<div class="pp-h">' + esc(UI.vchStockH) + '</div>' + (ks.length ? '<div class="plist">' + ks.map(function (k) {
+    var b = d.by[k];
+    return '<div class="prow2 ' + (b.a > d.lowN ? 'ok' : 'warn') + '"><span class="pm">' + b.a + '</span><div style="flex:1"><b>' +
+      esc(vchPz(k)) + '</b><span>' + esc(fill(UI.vchStockRow, b)) + '</span></div></div>';
+  }).join('') + '</div>' : '<p class="h">' + esc(UI.vchNone) + '</p>');
+  h += '<div class="pp-h">' + esc(UI.vchAddH) + '</div><p class="h">' + esc(UI.vchAddP) + '</p>' +
+    '<input type="file" id="vch-f" accept=".xlsx,.csv,.txt" style="display:none" onchange="vchFile(this)">' +
+    '<button class="btn g" type="button"' + dis + ' onclick="document.getElementById(\'vch-f\').click()">' + esc(UI.vchFile) + '</button>' +
+    '<div class="fld" style="margin-top:10px"><div class="label">' + esc(UI.vchPasteL) + '</div>' +
+    '<textarea id="vch-tx" rows="4" dir="ltr" oninput="VCH.txt=this.value">' + esc(VCH.txt) + '</textarea></div>' +
+    '<button class="btn g" type="button"' + dis + ' onclick="vchPasteGo()">' + esc(UI.vchParse) + '</button>';
+  if (VCH.rows && VCH.types) {
+    var miss = false;
+    h += VCH.types.map(function (T, i) {
+      if (!VCH.map[T.t]) miss = true;
+      return '<div class="fld" style="margin-top:10px"><div class="label">' +
+        esc(T.t ? fill(UI.vchMap, { t: T.t, n: T.n }) : fill(UI.vchMapAll, { n: T.n })) + '</div>' +
+        '<select class="ct-sel" onchange="vchMapSet(' + i + ',this.value)"><option value="">' + esc(UI.vchMapPick) + '</option>' +
+        RAF_PRZ.map(function (k) { return '<option value="' + k + '"' + (VCH.map[T.t] === k ? ' selected' : '') + '>' + esc(vchPz(k)) + '</option>'; }).join('') +
+        '</select></div>';
+    }).join('') +
+      (VCH.bad ? '<p class="h">' + esc(fill(UI.vchAddBad, { n: VCH.bad })) + '</p>' : '') +
+      '<button class="btn p" type="button" style="margin-top:10px"' + (VCH.busy || miss ? ' disabled' : '') + ' onclick="vchAddGo()">' +
+      esc(VCH.busy ? UI.vchBusy : fill(UI.vchAddBtn, { n: VCH.rows.length })) + '</button>';
+  }
+  if (d.list && d.list.length) {
+    var how = { 'בחר': UI.vchHowMe, 'רכז': UI.vchHowCo, 'הוגרל': UI.vchHowAuto };
+    h += '<details class="hx" style="margin-top:12px"><summary>' + esc(fill(UI.vchListH, { n: d.n })) + '</summary><div class="plist">' +
+      d.list.map(function (o) {
+        return '<div class="prow2 ' + (o.st === 'in' ? 'ok' : 'warn') + '"><span class="pm">🎁</span><div style="flex:1"><b>' + esc(o.name || '') + '</b>' +
+          '<span>' + esc([vchPz(o.p), vchDmy(o.at), how[o.how] || o.how, o.st === 'used' ? UI.vchStUsed : o.st === 'exp' ? UI.vchStExp : ''].filter(Boolean).join(' · ')) + '</span>' +
+          '<span dir="ltr" style="text-align:right">' + esc(o.c || '') + '</span></div></div>';
+      }).join('') + '</div></details>';
+  }
+  return h + msg + '</div>';
+}
+/* בפנייה לזוכים: השובר של הזוכה, והעתקה לשליחה בוואטסאפ (בעיקר למי שאין לו אפליקציה). */
+function vchWaLine(x) {
+  var v = x.v;
+  if (!v || !v.c) return '';
+  VCH_CP[v.id] = fill(UI.vchCopyTx, { c: v.c, u: v.u || '', x: vchDmy(v.x) }).replace(/\n\n/g, '\n');
+  return '<span dir="auto">' + esc(fill(UI.vchWaLine, { t: vchDmy(v.at), c: v.c, x: vchDmy(v.x) })) + '</span>' +
+    '<button class="btn g" type="button" style="width:auto;padding:6px 12px;margin:6px 0 0" onclick="copyAny(this, VCH_CP[\'' + esc(v.id) + '\'])">' +
+    esc(UI.vchCopy) + '</button>';
+}
 function rafPrzSet(code, sel) {
   var p = sel.value, x = null;
   if (!p || !rafD) return;
@@ -16584,6 +16843,7 @@ function rafPrzSet(code, sel) {
   if (!SureLater(rafPrzSet, this, arguments, function () { sel.value = ''; })) return;
   rafCall({ raffle: 'prizeset', rid: rafD.rid, code: code, p: p }, function () {
     rafCall({ raffle: 'state' }, function (s) { rafD = s.d || rafD; });
+    if (VCH.d) vchLoad();
   });
 }
 function rafVoid() {
@@ -17185,7 +17445,8 @@ function przBtn(x, f, v, lbl, on, cls, dis) {
 }
 /* ---- למעלה: מי עוד לא קיבל הודעה מתועדת ("לא ידוע" + "לא שלחתי") ---- */
 function przWait(L, dis) {
-  var W = L.filter(function (x) { return x.note !== 'y'; });
+  /* מי שקיבל שובר באפליקציה — אין מה לשלוח לו (8.99.471). דרך הרכז — כמו קודם. */
+  var W = L.filter(function (x) { return x.note !== 'y' && !(x.vch && x.vch.how !== 'רכז'); });
   var nU = W.filter(function (x) { return !x.note; }).length, nN = W.length - nU;
   var h = '<div class="adm-card prz-wait' + (W.length ? '' : ' ok') + '"><h4>' + esc(UI.przWaitH) + '</h4>';
   if (!W.length) return h + '<p class="h">' + esc(L.length ? UI.przWaitNone : UI.przEmpty) + '</p></div>';
@@ -17240,6 +17501,7 @@ function przRow(x, i, dis) {
     ' ontoggle="PRZ.open[\'' + esc(x.k) + '\']=this.open?1:0"><summary><b>' + esc(x.name || UI.przNoName) + '</b>' +
     '<span>' + esc((x.q ? UI.przSrcQ : fill(UI.przSrc, { wk: x.wk })) + ' · ' + (x.inst || rafInstName(x.code)) + ' · ' + przP(x)) + '</span>' +
     '<span>' + esc(st.join(' · ')) + '</span>' +
+    (x.vch && x.vch.how !== 'רכז' ? '<span>' + esc(fill(UI.przVchApp, { t: vchDmy(x.vch.at) })) + '</span>' : '') +
     (x.ph && waNum(x.ph).length >= 11 ? '<a class="yr-c" style="display:inline-block;margin-top:6px;width:auto" target="_blank" rel="noopener" href="https://wa.me/' +
             waNum(x.ph) + '">💬 ' + esc(UI.dupWa) + '</a>' : '') + '</summary>' +
     fld(UI.przPayL, '<div class="chips">' + przBtn(x, 'pay', '', UI.przPayN, !x.pay, '', dis) +

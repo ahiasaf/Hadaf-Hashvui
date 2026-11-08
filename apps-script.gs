@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 194;
+var SCRIPT_VERSION = 195;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -154,6 +154,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'הגרלות',
                     /* בחירת הפרס של הזוכה (מזהה + הגרלה + פרס). ראו rafPrz_. */
                     'בחירת פרס',
+                    /* שוברי הזכייה — קודים, קישורי מימוש ולמי שויכו. ראו issueVoucher_. */
+                    'שוברים',
                     /* רישום הפרסים והתקציב — שם הזוכה, תשלום, הודעה. ראו przRoute_. */
                     'פרסים',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
@@ -493,6 +495,11 @@ function doPostMain_(e) {
   if (hd && (hd.action === 'ghput' || hd.action === 'ghdel')) return json_(ghRoute_(hd));
   /* עלון להורדה — לפני הנעילה: כותב לגיליון נפרד, ומגה-בייטים בתוך הנעילה
      היו מעכבים את שורות הלימוד. ראו aldlPut_. */
+  /* הזנת מלאי השוברים — לוקחת את הנעילה בעצמה (vchAdd_). */
+  if (hd && hd.action === 'vchadd') {
+    if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+    return json_(vchAdd_(hd));
+  }
   if (hd && hd.action === 'aldlput') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(aldlPut_(hd));
@@ -10696,6 +10703,14 @@ function rafPrzPicks_() {
       (out[rid] = out[rid] || []).push([String(v[r][h['מזהה']] || '').trim(), p]);
     }
   } catch (e) {}
+  /* שובר ששויך (8.99.471) — הוא הבחירה, ולפני כל שורה אחרת. */
+  try {
+    var V = vchTbl_(false);
+    if (V) for (var q = 1; q < V.rows.length; q++) {
+      var vr = V.c(q, 'הגרלה'), vp = V.c(q, 'פרס'), vw = V.c(q, 'שויך לתלמיד');
+      if (vr && vw && RAF_PRIZES.indexOf(vp) >= 0 && V.c(q, 'סטטוס') !== 'זמין') (out[vr] = out[vr] || []).unshift([vw, vp]);
+    }
+  } catch (e2) {}
   return out;
 }
 function rafDue_(T, r) {
@@ -10731,13 +10746,55 @@ function rafPrzAuto_(T, rows) {
       var z = rafPrzRow_(T2, r, picks);
       if (!z.over) return;
       var p = RAF_PRIZES[rafPick_(RAF_PRIZES.length)];
+      /* שוברים דלוקים (8.99.471): ההגרלה רק בין הפרסים שיש להם שובר, והשובר
+         משויך באותה נעילה. אין מלאי בכלל — כמו קודם (פרס, ומסירה ידנית). */
+      if (vchOn_()) {
+        var V = vchTbl_(true), A = vchStock_(V).a, has = RAF_PRIZES.filter(function (k) { return A[k] > 0; });
+        if (has.length) {
+          p = has[rafPick_(has.length)];
+          issueVoucher_(T2.c(r, 'זוכה'), p, { V: V, rid: T2.c(r, 'מזהה הגרלה'), name: T2.c(r, 'שם הזוכה'), how: 'הוגרל' });
+        }
+      }
       rafSet_(T2, { lines: [r] }, [['פרס', p], ['פרס — איך', 'הוגרל'], ['פרס — מתי', new Date().toISOString()]]);
     });
     rafPrzBump_();
   } finally { lock.releaseLock(); }
 }
+/* הזכיות של המכשיר (או של הבן/ים, להורה) בכל ההגרלות שפורסמו.
+   [{ r, rid, wk, wid, kid, ids }] — ids = מזהי הזוכה באותה שורה. */
+function rafWinsOf_(P, T) {
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!mine.length) return [];
+  var dad = String(P.role || '') === 'dad', wins = [];
+  for (var r = 1; r < T.rows.length; r++) if (T.c(r, 'סטטוס') === 'פורסם' && T.c(r, 'זוכה')) wins.push(r);
+  if (!wins.length) return [];
+  /* מזהי הבן/ים — להורה בלבד (pairMap_). לתלמיד — המזהים שלו. */
+  var who = [{ ids: mine, kid: '' }];
+  if (dad) {
+    who = [];
+    var t = joinTable_(), pm = pairMap_(t.rows), rr = -1;
+    for (var i = 0; i < mine.length && rr < 1; i++) rr = rowOfId_(t, mine[i]);
+    if (rr < 1 || t.c(t.rows[rr], 'תפקיד') !== 'הורה') return [];
+    rowIds_(t, t.rows[rr]).forEach(function (pid) {
+      ((pm[pid] || {}).pids || []).forEach(function (k) {
+        var kr = rowOfId_(t, k);
+        if (kr >= 1 && t.c(t.rows[kr], 'תפקיד') !== 'הורה') who.push({ ids: rowIds_(t, t.rows[kr]), kid: t.c(t.rows[kr], 'שם') });
+      });
+    });
+  }
+  var out = [];
+  wins.forEach(function (r) {
+    var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/), w = null;
+    who.forEach(function (x) { if (!w && x.ids.some(function (z) { return ws.indexOf(z) >= 0; })) w = x; });
+    if (!w) return;
+    out.push({ r: r, rid: T.c(r, 'מזהה הגרלה'), wk: T.c(r, 'שבוע'), wid: T.c(r, 'זוכה'), kid: w.kid, ids: ws });
+  });
+  return out;
+}
 /* ?raffle=prize&id=&role=dad — הזכיות שלי (או של הבן, להורה) בכל ההגרלות
-   שפורסמו, עם מצב הפרס. ריק — לא זכה. */
+   שפורסמו, עם מצב הפרס. ריק — לא זכה. עם שוברים (8.99.471): `v` לכל זכייה
+   שיש לה שובר, ו-`von`/`vs` — המתג והמלאי לבחירה. */
 function rafPrize_(P) {
   var none = { status: 'ok', list: [] };
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
@@ -10746,41 +10803,29 @@ function rafPrize_(P) {
   var dad = String(P.role || '') === 'dad', rc = CacheService.getScriptCache();
   var ck = 'raf:pz:' + rafPrzVer_() + ':' + (dad ? 'd:' : '') + mine.join(',');
   if (String(P.fresh || '') !== '1') { var c0 = rc.get(ck); if (c0) { try { return JSON.parse(c0); } catch (x) {} } }
-  var T = rafRead_(), wins = [];
-  for (var r = 1; r < T.rows.length; r++) if (T.c(r, 'סטטוס') === 'פורסם' && T.c(r, 'זוכה')) wins.push(r);
-  if (!wins.length) return none;
-  /* מזהי הבן/ים — להורה בלבד (pairMap_). לתלמיד — המזהים שלו. */
-  var who = [{ ids: mine, kid: '' }];
-  if (dad) {
-    who = [];
-    var t = joinTable_(), pm = pairMap_(t.rows), rr = -1;
-    for (var i = 0; i < mine.length && rr < 1; i++) rr = rowOfId_(t, mine[i]);
-    if (rr < 1 || t.c(t.rows[rr], 'תפקיד') !== 'הורה') return none;
-    rowIds_(t, t.rows[rr]).forEach(function (pid) {
-      ((pm[pid] || {}).pids || []).forEach(function (k) {
-        var kr = rowOfId_(t, k);
-        if (kr >= 1 && t.c(t.rows[kr], 'תפקיד') !== 'הורה') who.push({ ids: rowIds_(t, t.rows[kr]), kid: t.c(t.rows[kr], 'שם') });
-      });
-    });
-  }
-  var picks = null, out = [], late = [];
-  wins.forEach(function (r) {
-    var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/), w = null;
-    who.forEach(function (x) { if (!w && x.ids.some(function (z) { return ws.indexOf(z) >= 0; })) w = x; });
-    if (!w) return;
-    picks = picks || rafPrzPicks_();
-    var z = rafPrzRow_(T, r, picks);
-    if (z.over) late.push(r);
-    out.push({ r: r, rid: T.c(r, 'מזהה הגרלה'), wk: T.c(r, 'שבוע'), wid: T.c(r, 'זוכה'), kid: w.kid, z: z });
+  var T = rafRead_();
+  if (!T.rows.length) return none;
+  var out = rafWinsOf_(P, T);
+  if (!out.length) return none;
+  var picks = rafPrzPicks_(), late = [];
+  out.forEach(function (o) {
+    o.z = rafPrzRow_(T, o.r, picks);
+    if (o.z.over) late.push(o.r);
   });
   if (late.length) {
     rafPrzAuto_(T, late);
     var T3 = rafRead_();
+    picks = rafPrzPicks_();
     out.forEach(function (o) { if (late.indexOf(o.r) >= 0) o.z = rafPrzRow_(T3, o.r, picks); });
   }
+  var V = vchTbl_(false), on = vchOn_();
   var res = { status: 'ok', list: out.map(function (o) {
-    return { rid: o.rid, wk: o.wk, wid: o.wid, kid: o.kid, p: o.z.p, how: o.z.how, due: o.z.due, st: o.z.st };
+    var x = { rid: o.rid, wk: o.wk, wid: o.wid, kid: o.kid, p: o.z.p, how: o.z.how, due: o.z.due, st: o.z.st };
+    var vr = V ? vchOf_(V, o.rid, o.ids) : -1;
+    if (vr > 0) x.v = vchPub_(V, vr);
+    return x;
   }) };
+  if (on) { res.von = 1; res.vs = V ? vchStock_(V).a : {}; }
   /* החדשה ראשונה */
   res.list.reverse();
   try { rc.put(ck, JSON.stringify(res), 300); } catch (x2) {}
@@ -10793,6 +10838,7 @@ function rafPrzAdm_(T, d) {
   d.rows.forEach(function (x, i) {
     if (!x.win) return;
     var r = d.lines[i], z = rafPrzRow_(T, r, picks);
+    x.wids = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/);
     if (z.over) late.push(r);
     var kr = rowOfId_(t, x.win), row = kr >= 1 ? t.rows[kr] : null;
     x.ph = row ? t.c(row, 'טלפון') : '';
@@ -10813,8 +10859,17 @@ function rafPrzAdm_(T, d) {
   if (late.length) {
     rafPrzAuto_(T, late);
     var T3 = rafRead_();
+    picks = rafPrzPicks_();
     d.rows.forEach(function (x, i) { if (x.win) x.pz = rafPrzRow_(T3, d.lines[i], picks); });
   }
+  /* השובר של כל זוכה (8.99.471) — לרכז, גם כדי לשלוח בוואטסאפ למי שאין לו אפליקציה. */
+  var V = vchTbl_(false);
+  d.rows.forEach(function (x) {
+    if (!x.win) return;
+    var vr = V ? vchOf_(V, d.rid, x.wids) : -1;
+    if (vr > 0) x.v = vchPub_(V, vr, true);
+    delete x.wids;
+  });
 }
 /* הרכז של כל ישיבה — **רק השיוך המאומת:** השם ב"רכז בשטח" בטבלת הסקירה
    (הבעלים מסמן), והטלפון ב"טלפון רכז" בלשונית הפרטית — אותו מקור של
@@ -10843,9 +10898,292 @@ function rafPrzSet_(P) {
   var r = -1;
   d.lines.forEach(function (ln) { if (T.c(ln, 'קוד ישיבה') === String(P.code || '')) r = ln; });
   if (r < 0 || !T.c(r, 'זוכה')) return { status: 'error', message: 'אין זוכה במוסד הזה' };
-  rafSet_(T, { lines: [r] }, [['פרס', p], ['פרס — איך', 'רכז'], ['פרס — מתי', new Date().toISOString()]]);
+  /* שוברים דלוקים (8.99.471): גם בדרך הרכז השובר משויך לזוכה — כך המלאי מדויק,
+     והקוד מופיע לרכז לשליחה. אין שובר מהסוג הזה — הפרס נרשם כמו קודם. */
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/), v = null;
+    if (vchOn_()) {
+      var V = vchTbl_(true), vr = vchOf_(V, d.rid, ws);
+      if (vr > 0) return { status: 'error', message: 'לזוכה הזה כבר שויך שובר' };
+      v = issueVoucher_(T.c(r, 'זוכה'), p, { V: V, rid: d.rid, name: T.c(r, 'שם הזוכה'), how: 'רכז' });
+    }
+    rafSet_(T, { lines: [r] }, [['פרס', p], ['פרס — איך', 'רכז'], ['פרס — מתי', new Date().toISOString()]]);
+    SpreadsheetApp.flush();
+    rafPrzBump_();
+    return { status: 'ok', v: v };
+  } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   שוברי זכייה (8.99.471 · SCRIPT_VERSION 195) — בריף 8.11.2026.
+   ============================================================
+   הזוכה בוחר פרס, מאשר שהבחירה סופית, ומקבל מיד שובר מהמלאי.
+   **הלשונית** "שוברים" (פרטית) — שורה לכל שובר. "סוג פרס" — כמו בקובץ
+   של הספק; "פרס" — המפתח מ-RAF_PRIZES שהרכז בחר בהזנה.
+   **הסטטוס מתעדכן רק כאן** — זמין ← שויך (← מומש). "פג תוקף" — זמין
+   שעבר את התפוגה; נכתב כשהרכז פותח את המלאי, ובכל מקום מחושב מהתאריך.
+   **חלוקה כפולה אינה אפשרית:** כל שיוך — issueVoucher_ תחת נעילת הסקריפט:
+   בדיקה שהשובר עדיין "זמין" ← סימון ← קריאה חוזרת. לזוכה בהגרלה — שובר
+   אחד (vchOf_ לפני כל שיוך), ולחיצה חוזרת מחזירה את אותו שובר.
+   **המתג** VCH_ON (מאפיין) — כבוי עד שהרכז מדליק, אחרי שהמלאי נטען.
+   כבוי — בחירת הפרס כמו קודם.
+   **API של הספק** — כשיגיע, רק issueVoucher_ משתנה (ראו שם).
+   ============================================================ */
+var VCH_TAB = 'שוברים';
+var VCH_COLS_ = ['מזהה', 'סוג פרס', 'פרס', 'קוד', 'קישור מימוש', 'תפוגה', 'סטטוס', 'שויך לתלמיד',
+                 'תאריך שיוך', 'הגרלה', 'שם', 'אופן', 'מומש', 'עלות', 'נוסף'];
+var VCH_LOW_ = 3;
+function vchOn_() {
+  try { return PropertiesService.getScriptProperties().getProperty('VCH_ON') === '1'; } catch (e) { return false; }
+}
+function vchToday_() { return Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'); }
+/* תאריך תפוגה → 'yyyy-mm-dd', או '' כשאינו תאריך. */
+function vchDay_(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? '' : Utilities.formatDate(v, 'Asia/Jerusalem', 'yyyy-MM-dd');
+  var s = String(v == null ? '' : v).trim(), m;
+  if (!s) return '';
+  var two = function (n) { n = parseInt(n, 10); return (n < 10 ? '0' : '') + n; };
+  var ok = function (y, mo, d) {
+    y = parseInt(y, 10); if (y < 100) y += 2000;
+    mo = parseInt(mo, 10); d = parseInt(d, 10);
+    if (!(y >= 2020 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return '';
+    return y + '-' + two(mo) + '-' + two(d);
+  };
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return ok(m[1], m[2], m[3]);
+  if ((m = /^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})$/.exec(s))) return ok(m[3], m[2], m[1]);
+  if (/^\d{5}(\.\d+)?$/.test(s)) {
+    var n = parseFloat(s);
+    if (n > 30000 && n < 80000) {
+      var t = new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86400000);
+      return ok(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
+    }
+  }
+  return '';
+}
+/* הלשונית. create=false — בלי ליצור (נתיבי קריאה): אין לשונית → null. */
+function vchTbl_(create) {
+  var sh;
+  if (create) sh = sheet_(VCH_TAB);
+  else {
+    var id = privId_(VCH_TAB);
+    var ss = SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id)));
+    sh = ss.getSheetByName(VCH_TAB);
+    if (!sh) return null;
+  }
+  if (sh.getLastRow() < 1 || sh.getLastColumn() < 1) {
+    if (!create) return null;
+    sh.getRange(1, 1, 1, VCH_COLS_.length).setValues([VCH_COLS_]);
+  }
+  var v = sh.getDataRange().getValues(), ix = {};
+  for (var i = 0; i < v[0].length; i++) ix[String(v[0][i]).trim()] = i;
+  if (create) VCH_COLS_.forEach(function (k) {
+    if (ix[k] !== undefined) return;
+    var at = sh.getLastColumn();
+    sh.getRange(1, at + 1).setValue(k);
+    ix[k] = at;
+    for (var r = 0; r < v.length; r++) v[r][at] = r ? '' : k;
+  });
+  return { sh: sh, ix: ix, rows: v, c: function (r, k) {
+    if (ix[k] === undefined) return '';
+    var x = v[r][ix[k]];
+    if (k === 'תפוגה') return vchDay_(x);
+    return x instanceof Date ? x.toISOString() : String(x == null ? '' : x).trim();
+  } };
+}
+function vchPut_(V, r, k, val) {
+  V.sh.getRange(r + 1, V.ix[k] + 1).setValue(val === '' ? '' : "'" + String(val));
+  V.rows[r][V.ix[k]] = String(val);
+}
+function vchExp_(V, r) { var x = V.c(r, 'תפוגה'); return !x || x < vchToday_(); }
+/* מצב לתצוגה: in · used · exp. */
+function vchPub_(V, r, adm) {
+  var st = V.c(r, 'סטטוס');
+  var o = { id: V.c(r, 'מזהה'), p: V.c(r, 'פרס'), t: V.c(r, 'סוג פרס'), x: V.c(r, 'תפוגה'),
+            at: V.c(r, 'תאריך שיוך'),
+            st: st === 'מומש' ? 'used' : vchExp_(V, r) ? 'exp' : 'in' };
+  /* קוד וקישור — רק לשובר שאפשר לממש (או לרכז). */
+  if (o.st === 'in' || adm) { o.c = V.c(r, 'קוד'); o.u = V.c(r, 'קישור מימוש'); }
+  if (adm) { o.how = V.c(r, 'אופן'); o.used = V.c(r, 'מומש'); }
+  return o;
+}
+/* השורה של השובר שמשויך לזוכה בהגרלה, או -1. */
+function vchOf_(V, rid, ids) {
+  for (var r = 1; r < V.rows.length; r++) {
+    if (V.c(r, 'הגרלה') === rid && ids.indexOf(V.c(r, 'שויך לתלמיד')) >= 0 && V.c(r, 'סטטוס') !== 'זמין') return r;
+  }
+  return -1;
+}
+/* המלאי: a — זמינים (לא פגי תוקף); לכל פרס גם כמה שויכו/מומשו/פגו. */
+function vchStock_(V) {
+  var a = {}, by = {};
+  RAF_PRIZES.forEach(function (k) { a[k] = 0; by[k] = { a: 0, s: 0, u: 0, x: 0, n: 0 }; });
+  if (!V) return { a: a, by: by };
+  for (var r = 1; r < V.rows.length; r++) {
+    var p = V.c(r, 'פרס'), st = V.c(r, 'סטטוס');
+    if (!by[p] || !V.c(r, 'קוד')) continue;
+    by[p].n++;
+    if (st === 'מומש') by[p].u++;
+    else if (st === 'שויך') by[p].s++;
+    else if (st === 'זמין' && !vchExp_(V, r)) { by[p].a++; a[p]++; }
+    else by[p].x++;
+  }
+  return { a: a, by: by };
+}
+/* ============================================================
+   issueVoucher_ — **הדרך היחידה שבה שובר יוצא לתלמיד.**
+   ============================================================
+   נקראת רק כשנעילת הסקריפט בידי הקורא. ctx: { V, rid, name, how }.
+   היום: השובר הזמין הראשון מהסוג (התפוגה הקרובה קודם), סימון "שויך"
+   ← קריאה חוזרת של השורה. אין — null.
+   **כשה-API של הספק יגיע:** כאן מזמינים ממנו פרס, ומה שהחזיר (קוד, קישור,
+   תפוגה) נכתב כשורה חדשה בסטטוס "שויך" — ומוחזר באותה צורה (vchPub_).
+   המסכים, האישור, הספירה והשמירה — לא משתנים. */
+function issueVoucher_(studentId, prizeType, ctx) {
+  var V = ctx.V || vchTbl_(true), best = -1;
+  for (var r = 1; r < V.rows.length; r++) {
+    if (V.c(r, 'פרס') !== prizeType || V.c(r, 'סטטוס') !== 'זמין' || !V.c(r, 'קוד') || vchExp_(V, r)) continue;
+    if (best < 0 || V.c(r, 'תפוגה') < V.c(best, 'תפוגה')) best = r;
+  }
+  if (best < 0) return null;
+  var now = new Date().toISOString();
+  vchPut_(V, best, 'סטטוס', 'שויך');
+  vchPut_(V, best, 'שויך לתלמיד', studentId);
+  vchPut_(V, best, 'תאריך שיוך', now);
+  vchPut_(V, best, 'הגרלה', ctx.rid || '');
+  vchPut_(V, best, 'שם', ctx.name || '');
+  vchPut_(V, best, 'אופן', ctx.how || '');
+  SpreadsheetApp.flush();
+  /* קריאה חוזרת — מה שנשמר בגיליון, לא מה שבזיכרון. */
+  var back = V.sh.getRange(best + 1, 1, 1, V.sh.getLastColumn()).getValues()[0];
+  if (String(back[V.ix['סטטוס']]).trim() !== 'שויך' || String(back[V.ix['שויך לתלמיד']]).trim() !== studentId) return null;
+  try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all']); } catch (xc) {}
   rafPrzBump_();
-  return { status: 'ok' };
+  return vchPub_(V, best);
+}
+/* ?raffle=vpick&id=&role=&rid=&p= — אחרי "מאשר, זה סופי". ציבורי: רק הזוכה
+   (או ההורה שלו) לפי המזהים, כמו ?raffle=prize. מחזיר את השובר מיד.
+   'out' — אזל הסוג הזה; vs — המלאי העדכני. */
+function rafVPick_(P) {
+  var p = String(P.p || ''), rid = String(P.rid || '');
+  if (!vchOn_()) return { status: 'off' };
+  if (RAF_PRIZES.indexOf(p) < 0) return { status: 'error', message: 'פרס לא מוכר' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'busy' };
+  try {
+    var T = rafRead_();
+    if (!T.rows.length) return { status: 'denied' };
+    var w = null;
+    rafWinsOf_(P, T).forEach(function (o) { if (o.rid === rid) w = o; });
+    if (!w) return { status: 'denied' };
+    var V = vchTbl_(true), have = vchOf_(V, rid, w.ids);
+    if (have > 0) return { status: 'ok', v: vchPub_(V, have), p: V.c(have, 'פרס') };
+    var z = rafPrzRow_(T, w.r, rafPrzPicks_());
+    /* כבר נבחר פרס בלי שובר (לפני המערכת, או ברכז) — לא מוסיפים. */
+    if (z.p) return { status: 'ok', v: null, p: z.p };
+    var v = issueVoucher_(w.wid, p, { V: V, rid: rid, name: T.c(w.r, 'שם הזוכה'), how: 'בחר' });
+    if (!v) return { status: 'out', vs: vchStock_(V).a };
+    rafSet_(T, { lines: [w.r] }, [['פרס', p], ['פרס — איך', 'בחר'], ['פרס — מתי', new Date().toISOString()]]);
+    SpreadsheetApp.flush();
+    rafPrzBump_();
+    return { status: 'ok', v: v, p: p };
+  } finally { lock.releaseLock(); }
+}
+/* ?raffle=vused&id=&role=&vid= — "מימשתי". רק שובר של זכייה שלי. */
+function rafVUsed_(P) {
+  var vid = String(P.vid || '');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'busy' };
+  try {
+    var T = rafRead_(), V = vchTbl_(false);
+    if (!T.rows.length || !V) return { status: 'denied' };
+    var r = -1;
+    rafWinsOf_(P, T).forEach(function (o) { var q = vchOf_(V, o.rid, o.ids); if (q > 0 && V.c(q, 'מזהה') === vid) r = q; });
+    if (r < 0) return { status: 'denied' };
+    if (V.c(r, 'סטטוס') !== 'מומש') {
+      vchPut_(V, r, 'סטטוס', 'מומש');
+      vchPut_(V, r, 'מומש', new Date().toISOString());
+      SpreadsheetApp.flush();
+      rafPrzBump_();
+    }
+    return { status: 'ok', v: vchPub_(V, r) };
+  } finally { lock.releaseLock(); }
+}
+/* ?raffle=vadm&key= — לרכז: המתג, המלאי לפי פרס, הנמוכים, והשיוכים האחרונים.
+   "פג תוקף" נכתב כאן לשוברים זמינים שעבר זמנם (תחת נעילה). bid — תוצאת הזנה. */
+function vchAdm_(P) {
+  var lock = LockService.getScriptLock();
+  if (lock.tryLock(10000)) {
+    try {
+      var V0 = vchTbl_(false), n = 0;
+      if (V0) for (var r0 = 1; r0 < V0.rows.length; r0++) {
+        if (V0.c(r0, 'סטטוס') === 'זמין' && V0.c(r0, 'קוד') && vchExp_(V0, r0)) { vchPut_(V0, r0, 'סטטוס', 'פג תוקף'); n++; }
+      }
+      if (n) SpreadsheetApp.flush();
+    } catch (e0) {} finally { lock.releaseLock(); }
+  }
+  var V = vchTbl_(false), S = vchStock_(V), list = [];
+  if (V) for (var r = 1; r < V.rows.length; r++) {
+    if (!V.c(r, 'שויך לתלמיד')) continue;
+    var o = vchPub_(V, r, true);
+    o.name = V.c(r, 'שם'); o.rid = V.c(r, 'הגרלה');
+    list.push(o);
+  }
+  list.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  var low = RAF_PRIZES.filter(function (k) { return S.by[k].n > 0 && S.by[k].a <= VCH_LOW_; });
+  var out = { status: 'ok', on: vchOn_() ? 1 : 0, by: S.by, low: low, lowN: VCH_LOW_, list: list.slice(0, 60), n: list.length };
+  if (P.bid) {
+    try { var b = CacheService.getScriptCache().get('vch:bid:' + String(P.bid)); if (b) out.bres = JSON.parse(b); } catch (eb) {}
+  }
+  return out;
+}
+/* POST {action:'vchadd', key, bid, rows:[{t, p, c, u, x, cost}]} — הזנת מלאי.
+   קוד שכבר בלשונית — לא נוסף שוב. שורה בלי קוד, פרס או תפוגה — נדחית.
+   התוצאה נשמרת במטמון לפי bid, והעמוד קורא אותה (vadm&bid=) — כך גם no-cors מאומת. */
+function vchAdd_(d) {
+  var bid = String(d.bid || '').replace(/[^\w\-]/g, '').slice(0, 40);
+  var rows = Array.isArray(d.rows) ? d.rows.slice(0, 2000) : [];
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'busy' };
+  var res;
+  try {
+    var V = vchTbl_(true), have = {}, add = [], bad = 0, dup = 0;
+    for (var r = 1; r < V.rows.length; r++) { var c0 = V.c(r, 'קוד'); if (c0) have[c0] = 1; }
+    var stamp = Date.now().toString(36), now = new Date().toISOString();
+    rows.forEach(function (x, i) {
+      var c = String(x && x.c || '').trim().slice(0, 200), p = String(x && x.p || ''), ex = vchDay_(x && x.x);
+      if (!c || RAF_PRIZES.indexOf(p) < 0 || !ex) { bad++; return; }
+      if (have[c]) { dup++; return; }
+      have[c] = 1;
+      var u = String(x.u || '').trim().slice(0, 500);
+      if (u && !/^https?:\/\//i.test(u)) u = '';
+      var full = [];
+      Object.keys(V.ix).forEach(function (h) { full[V.ix[h]] = ''; });
+      var put = function (k, val) { full[V.ix[k]] = val === '' ? '' : "'" + val; };
+      put('מזהה', 'V' + stamp + '-' + i);
+      put('סוג פרס', String(x.t || '').trim().slice(0, 120));
+      put('פרס', p); put('קוד', c); put('קישור מימוש', u); put('תפוגה', ex);
+      put('סטטוס', 'זמין'); put('נוסף', now);
+      var cost = parseFloat(String(x.cost || '').replace(/[^\d.]/g, ''));
+      if (cost >= 0) put('עלות', String(cost));
+      for (var f = 0; f < full.length; f++) if (full[f] === undefined) full[f] = '';
+      add.push(full);
+    });
+    if (add.length) {
+      var at = V.sh.getLastRow() + 1;
+      V.sh.getRange(at, 1, add.length, add[0].length).setValues(add);
+      SpreadsheetApp.flush();
+    }
+    /* קריאה חוזרת: כמה מהקודים שנוספו נמצאים עכשיו בלשונית. */
+    var V2 = vchTbl_(false), got = 0, want = {};
+    add.forEach(function (row) { want[String(row[V.ix['קוד']]).replace(/^'/, '')] = 1; });
+    if (V2) for (var q = 1; q < V2.rows.length; q++) if (want[V2.c(q, 'קוד')]) got++;
+    res = { status: got === add.length ? 'ok' : 'error', add: got, want: add.length, dup: dup, bad: bad };
+    rafPrzBump_();
+  } finally { lock.releaseLock(); }
+  if (bid) { try { CacheService.getScriptCache().put('vch:bid:' + bid, JSON.stringify(res), 21600); } catch (ec) {} }
+  return res;
 }
 
 function raffleVoid_(P) {
@@ -12030,6 +12368,8 @@ function raffleRoute_(e) {
     if (op === 'selfv') return reply_(e, rafSelfView_(P));
     if (op === 'demov') return reply_(e, rafDemoView_(P));
     if (op === 'prize') return reply_(e, rafPrize_(P));
+    if (op === 'vpick') return reply_(e, rafVPick_(P));
+    if (op === 'vused') return reply_(e, rafVUsed_(P));
     if (op === 'all') return reply_(e, rafAll_());
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     if (op === 'pic') {
@@ -12049,6 +12389,12 @@ function raffleRoute_(e) {
     if (op === 'void') return reply_(e, raffleVoid_(P));
     if (op === 'redo') return reply_(e, rafRedo_(P));
     if (op === 'prizeset') return reply_(e, rafPrzSet_(P));
+    if (op === 'vadm') return reply_(e, vchAdm_(P));
+    if (op === 'von') {
+      PropertiesService.getScriptProperties().setProperty('VCH_ON', String(P.v) === '1' ? '1' : '0');
+      rafPrzBump_();
+      return reply_(e, vchAdm_(P));
+    }
     if (op === 'aud') {
       var d2 = rafById_(rafRead_(), String(P.rid || ''));
       if (!d2) return reply_(e, { status: 'error', message: 'ההגרלה לא נמצאה' });
@@ -12172,6 +12518,7 @@ function przState_() {
   var L = przRead_();
   przSync_(L);
   var PH = null;   /* טלפון הזוכה — לכפתור הוואטסאפ (8.99.376); לא ברביעיות */
+  var VV;          /* השוברים — נקראים פעם אחת, רק כשיש זוכה */
   var list = [], S = { budget: PRZ_BUDGET, alloc: PRZ_CHAL, paidN: 0, paid: 0, paidU: 0,
                        comN: 0, com: 0, comU: 0, out: 0, chOn: false };
   for (var r = 1; r < L.rows.length; r++) {
@@ -12184,6 +12531,17 @@ function przState_() {
               note: L.c(r, 'הודעה') === 'שלחתי' ? 'y' : L.c(r, 'הודעה') === 'לא שלחתי' ? 'n' : '',
               noteAt: L.c(r, 'הודעה — מתי'), out: L.c(r, 'מחוץ לתוכנית') === 'כן' ? 1 : 0 };
     if (!o.q && L.c(r, 'מזהה הזוכה')) { PH = PH || phByIds_(); o.ph = PH[L.c(r, 'מזהה הזוכה')] || ''; }
+    /* שובר ששויך (8.99.471): נרשם כאן, ועלות שבקובץ הספק ממלאת עלות ריקה —
+       הפרס נספר בהתחייבויות כמו כל זוכה שלא שולם. */
+    if (!o.q && o.rid && L.c(r, 'מזהה הזוכה')) {
+      if (VV === undefined) { try { VV = vchTbl_(false); } catch (ev) { VV = null; } }
+      var vq = VV ? vchOf_(VV, o.rid, [L.c(r, 'מזהה הזוכה')]) : -1;
+      if (vq > 0) {
+        o.vch = { at: VV.c(vq, 'תאריך שיוך'), how: VV.c(vq, 'אופן') };
+        var vc = przNum_(VV.c(vq, 'עלות'));
+        if (o.cost === null && vc !== null) { przPut_(L, r, 'עלות', String(vc)); o.cost = vc; }
+      }
+    }
     list.push(o);
     if (o.out) { S.out++; continue; }
     if (o.pay) { S.paidN++; if (o.cost === null) S.paidU++; else S.paid += o.cost; }
