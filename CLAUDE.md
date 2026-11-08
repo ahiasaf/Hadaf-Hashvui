@@ -1313,3 +1313,6 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **join.html (drawPts):** ישירות לגוגל כמו קודם. כישלון → הניסיון הבא (אחרי 5 שנ') דרך `/api/pts`; הצליח — `df:ptsVia`
   ליום, והפתיחות הבאות ישר דרכנו. נכשל גם דרכנו — לסירוגין. רק כש-API הוא הכתובת הקבועה. שום דבר אחר לא עובר דרכנו.
 * sw.js לא נוגע ב-`/api/` (בלי מטמון). בדיקה: `node tools/ptsvia/fn.js` (10) · `node tools/ptsvia/join.js` (11).
+* **8.99.474 · SCRIPT_VERSION 198 — גם מצב חבר מביא חבר:** `api/chal.js` — רק `challenge=my` (id · ref · ms · tst · callback),
+  כל פעולה אחרת (sit/newt/decl/ניהול) נדחית. chal.js `api()`: רק `my` — אותה החלפה ישירות↔דרכנו, `df:chVia` ליום.
+  "זמני שרת": `chal:via`. בדיקה: `node tools/ptsvia/chalfn.js` (15) · `node tools/ptsvia/chal.js` (8).

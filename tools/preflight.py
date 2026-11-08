@@ -673,11 +673,12 @@ def check_pts_via():
     """api/pts.js (8.99.473) — אותה כתובת סקריפט כמו APPS_SCRIPT_URL ב-data.js."""
     rx = r"https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec"
     a = re.findall(rx, read('data.js'))
-    b = re.findall(rx, read('api', 'pts.js'))
-    if not a or not b or a[0] != b[0]:
-        BAD.append('api/pts.js — כתובת הסקריפט שונה מ-APPS_SCRIPT_URL ב-data.js')
-    else:
-        OK.append('api/pts.js — אותה כתובת סקריפט')
+    for f in ('pts.js', 'chal.js'):
+        b = re.findall(rx, read('api', f))
+        if not a or not b or a[0] != b[0]:
+            BAD.append('api/%s — כתובת הסקריפט שונה מ-APPS_SCRIPT_URL ב-data.js' % f)
+        else:
+            OK.append('api/%s — אותה כתובת סקריפט' % f)
 
 
 def main():

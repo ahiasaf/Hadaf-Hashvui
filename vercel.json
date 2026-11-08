@@ -1,7 +1,8 @@
 {
   "cleanUrls": true,
   "functions": {
-    "api/pts.js": { "maxDuration": 30 }
+    "api/pts.js": { "maxDuration": 30 },
+    "api/chal.js": { "maxDuration": 30 }
   },
   "rewrites": [
     { "source": "/admin", "destination": "/" }

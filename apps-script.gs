@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 197;
+var SCRIPT_VERSION = 198;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -15609,6 +15609,8 @@ function challengeRoute_(e) {
     if (op === 'decl') return reply_(e, chDecl_(P, U));
     if (op === 'state') return reply_(e, chPub_(chModel_(U, false) || { on: false }));
     if (op === 'my') {
+      /* הגיע דרך האתר שלנו (api/chal.js, 8.99.474) — אחרי שהפנייה הישירה נכשלה. */
+      if (String(P.vx || '') === '1') { try { tmBump_({ 'chal:via': 1 }); } catch (eV) {} }
       var M0 = chModel_(U, false);
       if (!M0) return reply_(e, { status: 'busy' });
       return reply_(e, chMy_(M0, P, U));

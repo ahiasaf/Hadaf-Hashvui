@@ -87,9 +87,28 @@
     var s = u + (u.indexOf('?') < 0 ? '?' : '&') + 'challenge=' + op;
     for (var k in (q || {})) if (q.hasOwnProperty(k) && q[k]) s += '&' + k + '=' + encodeURIComponent(q[k]);
     if (LTester()) s += '&tst=1';
+    /* **דרך האתר שלנו** (8.99.474, כמו הכרטיסים ב-join.html): רק `my`. פנייה ישירה
+       שלא נטענה (נחסמה / אין תשובה) — הבאה דרך `api/chal`; הצליח דרכנו — המכשיר
+       זוכר ליום (`df:chVia`); נכשל גם דרכנו — חוזרים לישירה. */
+    if (op === 'my' && viaOk()) {
+      var via = viaOn();
+      if (via) s = '/api/chal' + s.slice(s.indexOf('?'));
+      return LJsonp(s + '&t=' + Date.now(), 40000).then(function (d) {
+        if (via) LSet('chVia', Date.now());
+        VIA = false;
+        return d;
+      }, function (e) {
+        VIA = !via;
+        if (via) LSet('chVia', 0);
+        throw e;
+      });
+    }
     /* השרת עשוי לחכות לנעילה ולבנות את המצב מחדש — 12 שניות לא הספיקו (8.99.405). */
     return LJsonp(s + '&t=' + Date.now(), 40000);
   }
+  var VIA = false;
+  function viaOk() { var u = LApi(); return !!u && u === window.APPS_SCRIPT_URL; }
+  function viaOn() { return VIA || (+LGet('chVia', 0) || 0) > Date.now() - 864e5; }
 
   /* ---- הקוד מהקישור ---- */
   function grabRef() {
