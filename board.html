@@ -375,6 +375,11 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
   border-radius:999px;padding:7px 13px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
 .ichip.on{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
 .kudo.wa{border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.1);color:#128C4A;text-decoration:none}
+/* וואטסאפ להורה — כחול (8.99.470, החלטת אחיאסף). */
+.kudo.wa.wap{border-color:#17468F;background:#17468F;color:#fff}
+/* שני כפתורי וואטסאפ — זה מתחת לזה, שהשורה לא תיחתך בטלפון. */
+.was{flex:none;display:flex;flex-direction:column;gap:4px;margin-inline-start:4px}
+.was .kudo{margin-inline-start:0!important;text-align:center}
 .prow.sel{cursor:pointer}
 .prow.sel .tick{font-size:1.1rem}
 .prow.sel.on{background:rgba(23,70,143,.06)}
@@ -1592,6 +1597,13 @@ var KUDO_OPEN = '', KUDO_TXT = '', KUDO_BUSY = false, KUDO_SENT = {}, KUDO_ERR =
 /* למי — 'k' התלמיד · 'p' ההורה המחובר · 'pk' שניהם. */
 var KUDO_TO = 'k';
 function kt(k) { return (window.HEAD_ASK && HEAD_ASK[k]) || ''; }
+/* קישורי וואטסאפ ישירים, בלי נוסח: לתלמיד (ירוק) ולהורה (כחול). */
+function waA(ph, par) {
+  var n = waNum(ph);
+  return n ? '<a class="kudo wa' + (par ? ' wap' : '') + '" style="margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
+    n + '">' + esc(kt(par ? 'kudoWaPar' : 'kudoWa')) + '</a>' : '';
+}
+function waTwo(a, b) { return a && b ? '<span class="was">' + a + b + '</span>' : a + b; }
 function kudoBtn(p, did) {
   /* ============================================================
      בכל הישיבות — לכל תלמיד, ולא רק למי שסיים.
@@ -1606,17 +1618,19 @@ function kudoBtn(p, did) {
     if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
     /* מקבל התראות — ✉, ולצידו וואטסאפ ישיר בלי נוסח (8.99.376). */
     if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>' +
-      (waNum(p.phone) ? '<a class="kudo" style="text-decoration:none;margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
-                        waNum(p.phone) + '">' + esc(kt('kudoWa')) + '</a>' : '');
+      waTwo(waNum(p.phone) ? '<a class="kudo" style="text-decoration:none;margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
+                        waNum(p.phone) + '">' + esc(kt('kudoWa')) + '</a>' : '', waA(p.parPh, 1));
     /* **בלי טלפון — "אין מספר", לא כפתור שבור.** עם טלפון — תיבה עם
        נוסח מוכן וקישור להחזרת ההתראות (waBoxHtml). פתיחת וואטסאפ
        אינה שליחה, ולכן אינה מסומנת "נשלח". */
-    return waNum(p.phone) ? '<button class="kudo wa" data-wa="' + esc(p.id) + '">וואטסאפ</button>'
-                          : '<span class="kudo off" title="אין מספר טלפון">אין מספר</span>';
+    if (waNum(p.phone)) return waTwo('<button class="kudo wa" data-wa="' + esc(p.id) + '">וואטסאפ</button>', waA(p.parPh, 1));
+    return waA(p.parPh, 1) || '<span class="kudo off" title="אין מספר טלפון">אין מספר</span>';
   }
-  if (!did || !acc || !p.id) return '';
-  if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
-  return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>';
+  /* הלוח של הישיבה (8.99.470): וואטסאפ לתלמיד ולהורה, לצוות המאושר. */
+  var wa = SELMODE ? '' : waTwo(waA(p.phone), waA(p.parPh, 1));
+  if (!did || !acc || !p.id) return wa;
+  if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>' + wa;
+  return '<button class="kudo" data-kudo="' + esc(p.id) + '">' + esc(kt('kudoBtn')) + '</button>' + wa;
 }
 function kudoSig() {
   if (ALL) return LGet('saySig', '') || PROGRAM.short || 'הדף השבועי';

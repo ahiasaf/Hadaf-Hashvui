@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 193;
+var SCRIPT_VERSION = 194;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3235,6 +3235,50 @@ function ensureCode_(inst, want) {
   return setCode_(inst, want);
 }
 
+/* ============================================================
+   טלפונים לוואטסאפ בלוח (8.99.470 · החלטת אחיאסף).
+   ============================================================
+   התלמיד — הטלפון מההרשמה, ובלעדיו "טלפון" מ"תלמידי הרשת".
+   ההורה (`parPh`, כפתור כחול) — ההורה המחובר, אחר כך "טלפון ההורה"
+   שהתלמיד מילא, אחר כך "טלפון הורה" מהמאגר. מהמאגר — רק התאמה יחידה:
+   אותה ישיבה, אותן מילים בשם, שכבה וכיתה שאינן סותרות. */
+function netPhKey_(inst, first, last) {
+  return inst + '|' + nmToks_(first + ' ' + last).sort().join(' ');
+}
+function netPhDir_(inst) {
+  var rc = CacheService.getScriptCache(), ck = '';
+  try { ck = 'np1' + (PropertiesService.getScriptProperties().getProperty('netVer') || '0') + '_' + inst; } catch (eV) {}
+  var got = ck ? bigGet_(rc, ck) : null;
+  if (got) return got;
+  var t = amdaTable_(NET_TAB_), D = {};
+  for (var r = 1; r < t.rows.length; r++) {
+    var row = t.rows[r], ic = t.c(row, 'קוד ישיבה');
+    if (!ic || (inst !== '*' && ic !== inst)) continue;
+    var kid = t.c(row, 'טלפון'), par = t.c(row, 'טלפון הורה');
+    if (!kid && !par) continue;
+    var k = netPhKey_(ic, t.c(row, 'פרטי'), t.c(row, 'משפחה'));
+    (D[k] = D[k] || []).push([t.c(row, 'שכבה'), t.c(row, 'כיתה'), kid, par]);
+  }
+  if (ck) bigPut_(rc, ck, D, 21600);
+  return D;
+}
+function netPhSet_(p, D, dadPhs) {
+  var hit = null;
+  if (D && p.inst) {
+    var c = (D[netPhKey_(p.inst, p.first || '', p.last || '')] || []).filter(function (x) {
+      return gOk_(x[0], p.grade) && cOk_(x[1], p.klass);
+    });
+    if (c.length === 1) hit = c[0];
+  }
+  if (!p.phone && hit && hit[2]) p.phone = hit[2];
+  var par = '';
+  (dadPhs || []).forEach(function (x) { if (!par && x) par = x; });
+  if (!par) par = p.dadPh || '';
+  if (!par && hit) par = hit[3] || '';
+  delete p.dadPh;
+  if (par && phKey_(par) !== phKey_(p.phone)) p.parPh = par;
+}
+
 /* הלוח של מוסד אחד. שמות פרטיים, שכבה, מסגרת, ואילו שבועות
    סומנו — ולא יותר מזה. */
 /* `inner` — לשימוש השרת בלבד (שליחה להורים, sayPeople_): כל
@@ -3364,7 +3408,7 @@ function boardData_(inst, k, withTest, inner) {
         return ji[name] === undefined ? '' : String(r[ji[name]] || '').trim();
       };
       /* כל המזהים של כל אדם — גם של הורה מישיבה אחרת. */
-      var idsOf = {}, dads = {}, info = {};
+      var idsOf = {}, dads = {}, info = {}, dadPh = {};
       for (var d0 = 1; d0 < jr.length; d0++) {
         var pid0x = cell(jr[d0], 'מזהה');
         if (!pid0x) continue;
@@ -3374,6 +3418,7 @@ function boardData_(inst, k, withTest, inner) {
           phone: cell(jr[d0], 'טלפון'), inst: cell(jr[d0], 'קוד ישיבה'),
           instName: cell(jr[d0], 'ישיבה'), dad: cell(jr[d0], 'תפקיד') === 'הורה',
           test: cell(jr[d0], 'בדיקה') === 'כן' ? 1 : 0 };
+        if (cell(jr[d0], 'תפקיד') === 'הורה') dadPh[pid0x] = cell(jr[d0], 'טלפון');
         if (cell(jr[d0], 'תפקיד') === 'הורה' &&
             (withTest || cell(jr[d0], 'בדיקה') !== 'כן')) {
           dads[pid0x] = { inst: cell(jr[d0], 'קוד ישיבה'), ids: idsOf[pid0x] };
@@ -3398,7 +3443,10 @@ function boardData_(inst, k, withTest, inner) {
           /* לרכז בלבד (כל הישיבות, בסיסמה): הטלפון — לכפתור וואטסאפ
              ליד מי שאין לו התראות — וכל המזהים שלו, כדי ששליחה אישית
              תגיע גם למכשיר שנבלע. הלוח של ראש החטיבה אינו מקבל טלפון. */
-          phone: all ? cell(row, 'טלפון') : undefined,
+          /* 8.99.470 (החלטת אחיאסף): הטלפון יוצא גם ללוח של הישיבה —
+             לאנשי הצוות המאושרים שלה (accGate_) — לוואטסאפ לתלמיד ולהורה. */
+          phone: inner ? undefined : cell(row, 'טלפון'),
+          dadPh: inner ? undefined : cell(row, 'טלפון ההורה'),
           ids:   all ? rowIdsOf_(cell(row, 'מזהה'), cell(row, ALIAS_COL)) : undefined,
           first: cell(row, 'שם'),
           /* שם משפחה יוצא עכשיו גם הוא. עד עכשיו הוגבל לשם פרטי
@@ -3431,6 +3479,8 @@ function boardData_(inst, k, withTest, inner) {
       if (all || dtOn_(inst)) { try { dtM = dtToday_(bam, withTest); } catch (eDt) { dtM = null; } }
       /* רק התלמידים שבלוח (snapGet_): שינוי של אחד מהם — חישוב מחדש. */
       var bNeed = all ? null : order.slice();
+      var phD = null;
+      if (!inner) { try { phD = netPhDir_(all ? '*' : inst); } catch (ePh) { phD = null; } }
       try { ptsT = ptsAll_(bNeed); } catch (eP) { ptsT = null; }
       try { tkM = rafMeMap_(null, bNeed); } catch (eT) { tkM = null; }
       order.forEach(function (pid) {
@@ -3439,6 +3489,7 @@ function boardData_(inst, k, withTest, inner) {
            תלמיד שלה, ושמו אינו צריך להגיע לצוות — מה שהצוות
            צריך לדעת יושב על שורת הבן. */
         if (p.role === 'הורה') return;
+        if (!inner) netPhSet_(p, phD, ((pm[pid] && pm[pid].pids) || []).map(function (x) { return dadPh[x]; }));
         var pv = p.inst === AMDA_EACH_ ? ptsOf_(ptsT, pid) : null;
         if (pv) p.pts = pv;
         if (tkM) p.tk = rafTk_(tkM[pid]);
