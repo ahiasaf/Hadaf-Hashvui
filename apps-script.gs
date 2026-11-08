@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 195;
+var SCRIPT_VERSION = 196;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -13104,9 +13104,9 @@ function chBustFor_(id, test) {
   try {
     var ids = rc.get(key + ':ids');
     if (!ids || ids.indexOf(',' + id + ',') < 0) return;
-    var hd = rc.get(key);
-    if (!hd || chAge_(hd) >= CH_REBUILD_MS_) rc.remove(key);
-    else rc.put(key + ':stale', '1', 600);
+    /* תמיד רק סימון (8.99.472): chModelHit_ בונה מחדש כשעברו 20 שניות, והכותרת נשארת
+       כדי שבקשה שלא קיבלה נעילה תקבל את המצב האחרון ולא "עסוק". */
+    rc.put(key + ':stale', '1', 600);
   } catch (e) {}
 }
 function chBust_(U) {
@@ -13983,12 +13983,13 @@ function chTables_(U, S, K, X) {
 /* המודל מהמטמון (דקה), או סנכרון תחת נעילה. נכשלה הנעילה — המטמון
    הישן אם יש, אחרת null. */
 /* המודל מהמטמון, או null. */
-function chModelHit_(rc, key) {
+function chModelHit_(rc, key, loose) {
   if (!rc) return null;
   try {
     var hd = rc.get(key);
-    /* סומן "ישן" (משתתף למד) ועברו 20 שניות מאז שנבנה — בונים מחדש (chBustFor_). */
-    if (hd && rc.get(key + ':stale') && chAge_(hd) >= CH_REBUILD_MS_) hd = null;
+    /* סומן "ישן" (משתתף למד) ועברו 20 שניות מאז שנבנה — בונים מחדש (chBustFor_).
+       `loose` — הנעילה תפוסה: מה שבמטמון עדיף על "עסוק" (8.99.472). */
+    if (hd && !loose && rc.get(key + ':stale') && chAge_(hd) >= CH_REBUILD_MS_) hd = null;
     if (hd) {
       var hp = hd.split('|'), keys = [];
       for (var q = 0; q < +hp[0]; q++) keys.push(key + ':' + hp[1] + ':' + q);
@@ -13998,7 +13999,7 @@ function chModelHit_(rc, key) {
         js0 += got[keys[q2]];
       }
       /* עבר מועד ההגרלה השבועית — בונים מחדש (ההגרלה והיציאות קורות בבנייה). */
-      if (js0) { var M0 = JSON.parse(js0); if (M0.v4 && !(M0.nd && Date.now() >= M0.nd)) return M0; }
+      if (js0) { var M0 = JSON.parse(js0); if (M0.v4 && (loose || !(M0.nd && Date.now() >= M0.nd))) return M0; }
     }
   } catch (x0) {}
   return null;
@@ -14009,7 +14010,14 @@ function chModel_(U, force) {
   var M = force ? null : chModelHit_(rc, key);
   if (M) return M;
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(15000)) return null;
+  /* **הנעילה תפוסה — המצב האחרון שנבנה** (8.99.472): בשעות הלימוד הנעילה תפוסה בכתיבות
+     ובבנייה, ו"עסוק" השאיר תלמיד בלי מטמון במכשיר על "לא הצלחנו לטעון את מצב האתגר".
+     עכשיו — המודל הקודם מהמטמון (עד עשר דקות), רק לקריאה (לא בבקשת ניהול עם force). */
+  if (!lock.tryLock(15000)) {
+    var Ms = force ? null : chModelHit_(rc, key, true);
+    tmBump_(Ms ? { 'chal:stale': 1 } : { 'chal:busy': 1 });
+    return Ms;
+  }
   try {
     /* **עוד פעם אחרי הנעילה** (8.99.405): מי שחיכה בתור בזמן שבקשה אחרת בנתה —
        מקבל את מה שהיא בנתה, ולא בונה שוב. אחרת כל בקשה בתור בנתה בתורה, והטלפונים

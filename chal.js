@@ -697,7 +697,26 @@
       cardDraw(box, d);
       if (FRESH) promo(d);
       if ((!FRESH || (d && d.ref === 'wait')) && n < 3) setTimeout(function () { pull(box, n + 1); }, [5000, 12000, 30000][n]);
+      else if (!d) later(function () { pull(box, 3); });
     });
+  }
+  /* **אין שום מצב במכשיר** (8.99.472): אחרי שלושת הניסיונות — עוד ניסיון כל 45 שניות, כל עוד
+     העמוד גלוי, עד עשר פעמים. קודם המסך נשאר על "לא הצלחנו לטעון" עד שהתלמיד רענן. */
+  var LATER = 0;
+  function later(fn) {
+    if (++LATER > 10) return;
+    setTimeout(function () {
+      if (document.visibilityState === 'hidden') {
+        var on = function () {
+          if (document.visibilityState === 'hidden') return;
+          document.removeEventListener('visibilitychange', on);
+          fn();
+        };
+        document.addEventListener('visibilitychange', on);
+        return;
+      }
+      fn();
+    }, 45000);
   }
   var LAST = 0;
   /* עמוד האתגר — אותו ניסיון חוזר (8.99.405). קודם: תשובה אחת שלא הגיעה השאירה את
@@ -706,6 +725,7 @@
     load().then(function (d) {
       if (FRESH || !d || n === 0) pageDraw(box, d);
       if ((!FRESH || (d && d.ref === 'wait')) && n < 3) setTimeout(function () { pageGet(box, n + 1); }, [5000, 12000, 30000][n]);
+      else if (!d) later(function () { pageGet(box, 3); });
     });
   }
 
