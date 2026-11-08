@@ -39,6 +39,10 @@ jobs:
           curl -sS -o out.txt -w "%{http_code} %{time_total}s" --max-time 60 \
             "https://hadaf-hashvui.vercel.app/api/chal?challenge=my&id=ZZPROBE1&callback=lcb1" > meta.txt 2>&1 || true
           echo "האתגר: $(cat meta.txt) · $(head -c 120 out.txt)"
+          curl -sS -o out.txt -w "%{http_code} %{time_total}s" --max-time 60 \
+            "https://hadaf-hashvui.vercel.app/api/gs?arrived=ZZPROBE1&callback=lcb1" > meta.txt 2>&1 || true
+          echo "כללי: $(cat meta.txt) · $(head -c 120 out.txt)"
+          curl -sS -o /dev/null -w "כללי עם סיסמה: %{http_code}\n" --max-time 30 "https://hadaf-hashvui.vercel.app/api/gs?tm=1&key=x&callback=lcb1" || true
           curl -sS -o /dev/null -w "בלי pts=me: %{http_code}\n" --max-time 30 "https://hadaf-hashvui.vercel.app/api/pts?pts=all&id=x&callback=pm1" || true
       # מה השרת עצמו מדד (tmNote_) — 6 השעות האחרונות, לפי חלון ונתיב.
       - name: זמני השרת
