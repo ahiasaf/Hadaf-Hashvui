@@ -8,11 +8,19 @@ var good = function (u) { var cb = /callback=(\w+)/.exec(u)[1]; return Promise.r
 (async function () {
   var r = await run({ challenge: 'my', id: 'D1abc,D2', ref: 'AB12CD', ms: '3', tst: '1', callback: 'lcb123' });
   ok(r.statusCode === 200 && r.body === 'lcb123({"status":"ok","on":true})', 'תשובה תקינה', r);
-  ok(/challenge=my&id=D1abc%2CD2&vx=1&ref=AB12CD&ms=3&tst=1&t=\d+&callback=lcb123$/.test(SEEN[0]), 'הכתובת לגוגל', SEEN);
-  for (var op of ['sit', 'newt', 'decl', 'adm', 'land', 'byph', 'tout', 'push']) {
+  ok(/challenge=my&vx=1&id=D1abc%2CD2&ref=AB12CD&ms=3&tst=1&t=\d+&callback=lcb123$/.test(SEEN[0]), 'הכתובת לגוגל', SEEN);
+  for (var op of ['adm', 'tout', 'push', 'tmsg', 'activate', 'open', 'draw', 'approve', 'dmend', 'tclear', 'due', 'state']) {
     r = await run({ challenge: op, id: 'D1', callback: 'lcb1', key: 'K' });
-    ok(r.statusCode === 400 && SEEN.length === 0, 'פעולה אחרת נדחית: ' + op);
+    ok(r.statusCode === 400 && SEEN.length === 0, 'פעולת ניהול נדחית: ' + op);
   }
+  for (var op2 of ['sit', 'decl', 'newt', 'ref', 'land', 'byph']) {
+    r = await run({ challenge: op2, id: 'D1', ref: 'AB12CD', callback: 'lcb1', key: 'K' });
+    ok(r.statusCode === 200 && SEEN[0].indexOf('challenge=' + op2 + '&vx=1') > 0 && !/key=/.test(SEEN[0]), 'פעולת תלמיד עוברת בלי סיסמה: ' + op2, SEEN);
+  }
+  r = await run({ challenge: 'byph', ref: 'AB12CD', ph: '050-1234567', first: 'א', callback: 'lcb1' });
+  ok(r.statusCode === 200 && /ph=050-1234567/.test(SEEN[0]) && /first=%D7%90/.test(SEEN[0]), 'byph — טלפון ושם', SEEN);
+  r = await run({ challenge: 'byph', ref: 'AB12CD', ph: '<x>', callback: 'lcb1' });
+  ok(r.statusCode === 400, 'טלפון לא תקין');
   r = await run({ challenge: 'my', id: 'D1', callback: 'lcb1', key: 'SECRET', t: 'x' });
   ok(r.statusCode === 200 && !/SECRET|key=/.test(SEEN[0]), 'סיסמה לא עוברת', SEEN);
   r = await run({ challenge: 'my', id: 'D1', ref: 'x&y', callback: 'lcb1' });

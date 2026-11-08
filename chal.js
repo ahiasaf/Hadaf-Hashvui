@@ -87,25 +87,29 @@
     var s = u + (u.indexOf('?') < 0 ? '?' : '&') + 'challenge=' + op;
     for (var k in (q || {})) if (q.hasOwnProperty(k) && q[k]) s += '&' + k + '=' + encodeURIComponent(q[k]);
     if (LTester()) s += '&tst=1';
-    /* **דרך האתר שלנו** (8.99.474, כמו הכרטיסים ב-join.html): רק `my`. פנייה ישירה
-       שלא נטענה (נחסמה / אין תשובה) — הבאה דרך `api/chal`; הצליח דרכנו — המכשיר
-       זוכר ליום (`df:chVia`); נכשל גם דרכנו — חוזרים לישירה. */
-    if (op === 'my' && viaOk()) {
-      var via = viaOn();
-      if (via) s = '/api/chal' + s.slice(s.indexOf('?'));
-      return LJsonp(s + '&t=' + Date.now(), 40000).then(function (d) {
+    /* **דרך האתר שלנו** (8.99.474–475, כמו הכרטיסים ב-join.html): פעולות התלמיד
+       בלבד (VIA_OPS). פנייה שנכשלה (נחסמה / אין תשובה) — מיד אותה פנייה בדרך השנייה,
+       פעם אחת: ישירות → דרכנו, או דרכנו → ישירות. הצליח דרכנו — המכשיר זוכר ליום
+       (`df:chVia`). ישיבה חוזרת אינה מוסיפה שורה (together), "+" לא פותח שני שולחנות. */
+    if (VIA_OPS[op] && viaOk()) {
+      var via = viaOn(), q2 = s.slice(s.indexOf('?')), t0 = '&t=' + Date.now();
+      var go = function (v) { return LJsonp((v ? '/api/chal' + q2 : s) + t0, 40000); };
+      return go(via).then(function (d) {
         if (via) LSet('chVia', Date.now());
-        VIA = false;
         return d;
-      }, function (e) {
+      }, function () {
         VIA = !via;
-        if (via) LSet('chVia', 0);
-        throw e;
+        LSet('chVia', via ? 0 : LGet('chVia', 0));
+        return go(!via).then(function (d) {
+          if (!via) LSet('chVia', Date.now());
+          return d;
+        });
       });
     }
     /* השרת עשוי לחכות לנעילה ולבנות את המצב מחדש — 12 שניות לא הספיקו (8.99.405). */
     return LJsonp(s + '&t=' + Date.now(), 40000);
   }
+  var VIA_OPS = { my: 1, sit: 1, decl: 1, newt: 1, ref: 1, land: 1, byph: 1 };
   var VIA = false;
   function viaOk() { var u = LApi(); return !!u && u === window.APPS_SCRIPT_URL; }
   function viaOn() { return VIA || (+LGet('chVia', 0) || 0) > Date.now() - 864e5; }

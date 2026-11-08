@@ -1316,6 +1316,10 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **8.99.474 · SCRIPT_VERSION 198 — גם מצב חבר מביא חבר:** `api/chal.js` — רק `challenge=my` (id · ref · ms · tst · callback),
   כל פעולה אחרת (sit/newt/decl/ניהול) נדחית. chal.js `api()`: רק `my` — אותה החלפה ישירות↔דרכנו, `df:chVia` ליום.
   "זמני שרת": `chal:via`. בדיקה: `node tools/ptsvia/chalfn.js` (15) · `node tools/ptsvia/chal.js` (8).
+* **8.99.476 · SCRIPT_VERSION 199 — גם פעולות התלמיד באתגר:** הישיבה נתקעה ("זה עוד לא נשמר") באותו טלפון. `api/chal.js` —
+  `my · sit · decl · newt · ref · land · byph` (OPS), פרמטרים מרשימה סגורה (id · ref · ms · tst · ph · first), בלי סיסמה ובלי
+  ניהול. chal.js `api()` (VIA_OPS): כישלון → **מיד** אותה פנייה בדרך השנייה, פעם אחת. ישיבה חוזרת — together; "+" — לא פותח
+  שני שולחנות. "זמני שרת": `chal:via:<פעולה>`. בדיקה: chalfn.js (27) · chal.js (10).
 
 ## חידון ו"נלמד" מלפני ההרשמה (8.99.475)
 
