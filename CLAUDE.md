@@ -1328,3 +1328,14 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   שהמזהה שלו ריק מקבל מזהה, שם, טלפון וישיבה, ואז LQzFlush; כל `df:learned` — שורת סיום ל-`learn-q`
   (עם הזמן מ-`df:qtime:`), ו-LFlush אחד (`hold` ב-LDoneRow). ההגרלה והניסיונות לא נגעו.
 * בדיקה: `node tools/jointest/prejoin.js`.
+
+## כל שמירות התלמיד דרך האתר שלנו אחרי כישלון (8.99.477 · SCRIPT_VERSION 200)
+
+* **`api/gs.js`** — מעביר לאותו סקריפט כל GET/POST **בלי סיסמה** (`key`/`vk` בכתובת או בגוף → 403), גוף עד 1MB,
+  GET רק תשובת `callback`/`cb` או JSON. "זמני שרת": `gs:via:get` / `gs:via:post`. preflight בודק את הכתובת.
+* **data.js:** `GsSrc`/`GsBad`/`GsViaOn` (`df:gsVia` ליום) ו-`window.fetch` עטוף: POST לסקריפט בלי סיסמה — כישלון →
+  מיד אותה שליחה בדרך השנייה (5xx דרכנו → חזרה לישירה). **LJsonp** (learned.js) — אותו דבר לקריאות (`LJsonp1` = בלי).
+  JSONP ידני: pair.js (pair · pairSeen · pairok · pendingFor), join.html (pairFor · pairHist · tkd של הנחיתה) —
+  `GsSrc` בכתובת ו-`GsBad` בכישלון; sendBeacon ב-join דרך GsSrc. chal.js משתמש ב-LJsonp1 (מעבר משלו).
+* **לא עובר:** ניהול (סיסמה), הורדת עמודי הדף (`file=`, learn.html), והכרטיסים/האתגר — במסלול שלהם (473–476).
+* בדיקה: `node tools/ptsvia/gsfn.js` (13) · `node tools/ptsvia/gs.js` (6).

@@ -18,7 +18,7 @@ function serve() {
     var srv = http.createServer(function (req, res) {
       var u = new URL(req.url, 'http://x'), p = decodeURIComponent(u.pathname);
       if (/^\/api\//.test(p)) {
-        API_LOG.push(req.url);
+        if (p === '/api/chal') API_LOG.push(req.url);
         if (p !== '/api/chal' || VIA_DOWN) { res.writeHead(504); res.end(); return; }
         var q = {}; u.searchParams.forEach(function (v, k) { q[k] = v; });
         return H({ query:q }, res);

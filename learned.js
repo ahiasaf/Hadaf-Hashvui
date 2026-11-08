@@ -344,6 +344,20 @@ var L_TRIES = 0;                 /* בטעינה הזו בלבד */
 
 /* `ms` — זמן ההמתנה (ברירת מחדל 12 שניות). */
 function LJsonp(url, ms) {
+  /* דרך האתר שלנו (8.99.477, GsSrc/GsBad ב-data.js): נכשל — מיד בדרך השנייה, פעם אחת. */
+  if (typeof GsIs === 'function' && GsIs(url) && !GsAdm(url)) {
+    var via0 = GsViaOn();
+    return LJsonp1(via0 ? GsVia(url) : url, ms).then(null, function (e) {
+      GsViaSet(!via0);
+      return LJsonp1(via0 ? url : GsVia(url), ms).then(function (v) {
+        if (!via0) GsViaSet(true);
+        return v;
+      });
+    });
+  }
+  return LJsonp1(url, ms);
+}
+function LJsonp1(url, ms) {
   return new Promise(function (ok, no) {
     var name = 'lcb' + Date.now() + Math.floor(Math.random() * 1e6);
     var sc = document.createElement('script');

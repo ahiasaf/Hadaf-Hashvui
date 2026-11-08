@@ -110,6 +110,9 @@ var PAIR_UI = (function () {
      (`?pair=`), בדיוק כמו שורת הלימוד. הכלל של הפרויקט:
      כתיבה שלא אומתה אינה כתיבה שהצליחה.
      ============================================================ */
+  /* דרך האתר שלנו אחרי כישלון (8.99.477, data.js). בלי data.js — כמו קודם. */
+  function GsS(u) { return typeof GsSrc === 'function' ? GsSrc(u) : u; }
+  function GsB(sc) { if (typeof GsBad === 'function') GsBad(sc && sc.src); }
   function api() {
     var cfg = {};
     try { cfg = JSON.parse(localStorage.getItem('df:cfg') || '{}') || {}; } catch (e) {}
@@ -228,7 +231,7 @@ var PAIR_UI = (function () {
     return new Promise(function (ok) {
       var cb = 'pr' + Date.now() + Math.floor(Math.random() * 1000);
       var sc = document.createElement('script');
-      var t0 = setTimeout(function () { clean(); ok(null); }, 8000);
+      var t0 = setTimeout(function () { GsB(sc); clean(); ok(null); }, 8000);
       function clean() {
         clearTimeout(t0);
         try { delete window[cb]; } catch (e) { window[cb] = undefined; }
@@ -238,10 +241,10 @@ var PAIR_UI = (function () {
         clean();
         ok(r && r.status === 'ok' ? { has: !!r.has, late: !!r.late } : null);
       };
-      sc.onerror = function () { clean(); ok(null); };
-      sc.src = api() + '?pair=' + encodeURIComponent(id) +
+      sc.onerror = function () { GsB(sc); clean(); ok(null); };
+      sc.src = GsS(api() + '?pair=' + encodeURIComponent(id) +
                '&wk=' + encodeURIComponent(tag) + (ph ? '&ph=' + encodeURIComponent(ph) : '') +
-               (any != null ? '&any=1&nm=' + encodeURIComponent(any) : '') + '&cb=' + cb;
+               (any != null ? '&any=1&nm=' + encodeURIComponent(any) : '') + '&cb=' + cb);
       document.body.appendChild(sc);
     });
   }
@@ -339,9 +342,9 @@ var PAIR_UI = (function () {
     };
     setTimeout(function () { end(null); }, 3500);
     window[name] = function (r) { end(r && r.status === 'ok' ? r.seen : null); };
-    sc.onerror = function () { end(null); };
-    sc.src = url + '?pairSeen=' + encodeURIComponent(m.phone) +
-      '&wk=' + encodeURIComponent(key(track, wk)) + '&side=' + sd + '&callback=' + name;
+    sc.onerror = function () { GsB(sc); end(null); };
+    sc.src = GsS(url + '?pairSeen=' + encodeURIComponent(m.phone) +
+      '&wk=' + encodeURIComponent(key(track, wk)) + '&side=' + sd + '&callback=' + name);
     document.body.appendChild(sc);
   }
   /* הבן: ההורה כבר סימן — אין מה לשאול. הודעה חמה, והוא בהגרלה. */
@@ -486,10 +489,10 @@ var PAIR_UI = (function () {
       if (sc.parentNode) sc.parentNode.removeChild(sc);
       if (then) then(r && r.status === 'ok' ? r : null);
     };
-    sc.onerror = function () { window[cb](null); };
-    sc.src = url + '?pairok=' + encodeURIComponent(p.id) +
+    sc.onerror = function () { GsB(sc); window[cb](null); };
+    sc.src = GsS(url + '?pairok=' + encodeURIComponent(p.id) +
              '&wk=' + encodeURIComponent(p.track + '|' + p.wk) +
-             '&yes=' + (yes ? '1' : '0') + '&cb=' + cb;
+             '&yes=' + (yes ? '1' : '0') + '&cb=' + cb);
     document.body.appendChild(sc);
   }
   /* `urgent` — האם המסך נפתח **יזום**, לא בעקבות התראה שנלחצה.
@@ -560,11 +563,11 @@ var PAIR_UI = (function () {
       clean();
       if (r && r.status === 'ok' && r.pending && r.pending.id) confirmShow(r.pending, true);
     };
-    sc.onerror = clean;
+    sc.onerror = function () { GsB(sc); clean(); };
     /* `wid` — הבן שהזמין אותי בקישור: בקשה שלו מגיעה גם כשלא מסר את
        הטלפון שלי. */
-    sc.src = url + '?pendingFor=' + encodeURIComponent(m.phone || '') +
-             (m.withId ? '&wid=' + encodeURIComponent(m.withId) : '') + '&cb=' + cb;
+    sc.src = GsS(url + '?pendingFor=' + encodeURIComponent(m.phone || '') +
+             (m.withId ? '&wid=' + encodeURIComponent(m.withId) : '') + '&cb=' + cb);
     document.body.appendChild(sc);
   }
 

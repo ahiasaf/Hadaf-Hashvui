@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 199;
+var SCRIPT_VERSION = 200;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -430,6 +430,8 @@ function doGet(e) {
       try { ptsBust_(); } catch (xb) {}
     }
     tmNote_(tmName_(e, false), Date.now() - t0, 0);
+    /* הגיע דרך האתר שלנו (api/gs.js, 8.99.477). הכרטיסים והאתגר נספרים בנתיב שלהם. */
+    if (String(P.vx || '') === '1' && !P.pts && !P.challenge) { try { tmBump_({ 'gs:via:get': 1 }); } catch (xv) {} }
   }
 }
 function doPost(e) {
@@ -441,6 +443,7 @@ function doPost(e) {
     /* כנ"ל: החלפת לשונית, ריקון ומחיקת שורה (ניהול). */
     if (/^post:(table|clear|delrow)\b/.test(nm)) { try { ptsBust_(); } catch (xb) {} }
     tmNote_(nm, Date.now() - t0, TM_LOCK_);
+    if (e && e.parameter && String(e.parameter.vx || '') === '1') { try { tmBump_({ 'gs:via:post': 1 }); } catch (xv) {} }
   }
 }
 /* החלונות של 6 השעות האחרונות מהמטמון. `done` — רק חלונות שנסגרו. */

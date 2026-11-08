@@ -15,6 +15,45 @@ var ADMIN_PIN = '1603';
 var APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbyaLr78iFMbHYVvNOVKbAjiQsy3Hk2FeL5vUaKo5euf_m4MinMqVIScFCvkjFBnpyNt/exec';
 
+/* **דרך האתר שלנו, אחרי כישלון** (8.99.477; הכרטיסים 473, האתגר 474–476).
+   בטלפונים עם סינון (VPN) הפנייה ל-script.google.com נחסמת, והשמירות נפלו בשקט.
+   פנייה ישירה שנכשלה (נחסמה / אין תשובה) — המכשיר עובר ליום לנתיב `/api/gs` באתר
+   (api/gs.js מעביר לאותו סקריפט). פנייה דרכנו שנכשלה — חזרה לישירה.
+   **רק בלי סיסמה:** כתובת או גוף עם `key`/`vk` (ניהול) — תמיד ישירות.
+   POST — `fetch` עטוף כאן (כישלון ← מיד אותה שליחה בדרך השנייה). JSONP — `GsSrc`
+   בכתובת ו-`GsBad` בכישלון, בכל מקום שיוצר <script> לסקריפט (LJsonp, pair.js, join). */
+function GsIs(u) { return typeof u === 'string' && u.indexOf(APPS_SCRIPT_URL) === 0; }
+function GsAdm(u, b) { return /[?&](key|vk)=[^&]/.test(String(u || '')) || (typeof b === 'string' && /"(key|vk)"\s*:\s*"[^"]/.test(b)); }
+function GsViaOn() { try { return (+localStorage.getItem('df:gsVia') || 0) > Date.now() - 864e5; } catch (e) { return false; } }
+function GsViaSet(on) { try { localStorage.setItem('df:gsVia', on ? String(Date.now()) : '0'); } catch (e) {} }
+function GsVia(u) { return '/api/gs' + u.slice(APPS_SCRIPT_URL.length); }
+function GsSrc(u) { return GsIs(u) && !GsAdm(u) && GsViaOn() ? GsVia(u) : u; }
+/* `u` — הכתובת שנוסתה בפועל (sc.src). */
+function GsBad(u) {
+  u = String(u || '');
+  if (/\/api\/gs(\?|$)/.test(u)) GsViaSet(false);
+  else if (GsIs(u) && !GsAdm(u)) GsViaSet(true);
+}
+(function () {
+  if (typeof window === 'undefined' || !window.fetch || window.fetch.__gs) return;
+  var F = window.fetch;
+  var W = function (u, o) {
+    if (!GsIs(u) || !o || String(o.method || '').toUpperCase() !== 'POST' || GsAdm(u, o.body)) return F.apply(window, arguments);
+    var via = GsViaOn();
+    var go = function (v) { return F.call(window, v ? GsVia(u) : u, o); };
+    return go(via).then(function (r) {
+      /* דרכנו — התשובה גלויה (אותו אתר): 5xx = לא עבר. */
+      if (via && r && r.status >= 500) { GsViaSet(false); return go(false); }
+      return r;
+    }, function () {
+      GsViaSet(!via);
+      return go(!via);
+    });
+  };
+  W.__gs = 1;
+  window.fetch = W;
+})();
+
 /* הוואטסאפ של הרכז — **ריק בקוד, ובכוונה**.
 
    כאן ישב מספר טלפון אמיתי, והריפו ציבורי. וזו לא הייתה רק
@@ -328,7 +367,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.476';
+var DAF_REV = '8.99.477';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================

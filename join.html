@@ -3045,7 +3045,7 @@ function trlSend(wait) {
       w: appInstalled() ? 'app' : (inApp() ? 'inapp' : 'web'),
       b: bi.b, bv: bi.v, o: bi.o, wa: bi.wa,
       tr: JSON.stringify([Math.round(TRL.t0 / 1000), Math.round((Date.now() - TRL.t0) / 1000), ev]) });
-    if (navigator.sendBeacon && navigator.sendBeacon(API, body)) return;
+    if (navigator.sendBeacon && navigator.sendBeacon(GsSrc(API), body)) return;
     fetch(API, { method:'POST', mode:'no-cors', body:body, keepalive:true })['catch'](function () {});
   } catch (e) {}
 }
@@ -3103,7 +3103,7 @@ function hit(s, x) {
       bp: (window.APPX && APPX.bip && APPX.bip()) ? 1 : 0,
       pm: (window.APPX && APPX.canNote && APPX.canNote()) ? APPX.perm() : 'unsupported',
       sec: t0 ? Math.min(86400, Math.round((now - t0) / 1000)) : '' });
-    if (navigator.sendBeacon && navigator.sendBeacon(API, body)) return;
+    if (navigator.sendBeacon && navigator.sendBeacon(GsSrc(API), body)) return;
     fetch(API, { method:'POST', mode:'no-cors', body:body, keepalive:true })['catch'](function () {});
   } catch (e) {}
 }
@@ -3376,20 +3376,20 @@ function pairAsk_() {
   };
   /* 20 שניות: הבדיקה קוראת את כל לשונית ההרשמות, ובטעינה קרה של
      השרת 9 שניות לא הספיקו — והתשובה הלכה לאיבוד עד הפתיחה הבאה. */
-  var t0 = setTimeout(clean, 20000);
+  var t0 = setTimeout(function () { GsBad(sc.src); clean(); }, 20000);
   window[cb] = function (r) {
     clearTimeout(t0); clean();
     if (r && r.status === 'ok' && r['with']) { set('pair-with', r['with']); drawInv(); paintName_(); }
   };
-  sc.onerror = function () { clearTimeout(t0); clean(); };
+  sc.onerror = function () { clearTimeout(t0); GsBad(sc.src); clean(); };
   /* גם מה שאני מסרתי על הצד השני, ומי הזמין אותי — השרת בודק
      בשני הכיוונים, ראו `pairFor` ב-apps-script.gs. */
-  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone || '') +
+  sc.src = GsSrc(API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairFor=' + encodeURIComponent(me.phone || '') +
     '&last=' + encodeURIComponent(me.last || '') + '&role=' + (me.role === 'dad' ? 'dad' : 'kid') +
     '&id=' + encodeURIComponent(me.id || '') +
     '&other=' + encodeURIComponent(me.dadPhone || '') +
     '&wid=' + encodeURIComponent(me.withId || '') +
-    '&callback=' + cb;
+    '&callback=' + cb);
   document.body.appendChild(sc);
 }
 
@@ -3949,7 +3949,7 @@ function parTkLoad(me) {
     try { delete window[cb]; } catch (e) { window[cb] = undefined; }
     if (sc.parentNode) sc.parentNode.removeChild(sc);
   };
-  var fail = function () { clean(); PTK_ERR = true; parTkDraw(); };
+  var fail = function () { GsBad(sc.src); clean(); PTK_ERR = true; parTkDraw(); };
   var t0 = setTimeout(fail, 20000);
   window[cb] = function (r) {
     clearTimeout(t0); clean();
@@ -3962,9 +3962,9 @@ function parTkLoad(me) {
     parTkDraw();
   };
   sc.onerror = function () { clearTimeout(t0); fail(); };
-  sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairHist=' + encodeURIComponent(me.id) +
+  sc.src = GsSrc(API + (API.indexOf('?') < 0 ? '?' : '&') + 'pairHist=' + encodeURIComponent(me.id) +
            '&k=' + encodeURIComponent(JSON.stringify(L.map(function (k) { return [k.phone || '', k.first || '']; }))) +
-           '&callback=' + cb;
+           '&callback=' + cb);
   document.body.appendChild(sc);
 }
 function parTkDraw() {
@@ -4133,7 +4133,7 @@ function tkLandDraw(me) {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
-    var fail = function () { clean(); TKL_FAIL = true; drawPts(); };
+    var fail = function () { GsBad(sc.src); clean(); TKL_FAIL = true; drawPts(); };
     var t0 = setTimeout(fail, 20000);
     window[cb] = function (r) {
       clearTimeout(t0); clean();
@@ -4143,8 +4143,8 @@ function tkLandDraw(me) {
       drawPts();
     };
     sc.onerror = function () { clearTimeout(t0); fail(); };
-    sc.src = API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
-             '&wk=' + encodeURIComponent(TKL.wk) + '&callback=' + cb;
+    sc.src = GsSrc(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tkd=1&id=' + encodeURIComponent(me.id) +
+             '&wk=' + encodeURIComponent(TKL.wk) + '&callback=' + cb);
     document.body.appendChild(sc);
   }
   if (!API) { TKL_FAIL = true; drawPts(); return; }

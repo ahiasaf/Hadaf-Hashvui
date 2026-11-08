@@ -93,7 +93,9 @@
        (`df:chVia`). ישיבה חוזרת אינה מוסיפה שורה (together), "+" לא פותח שני שולחנות. */
     if (VIA_OPS[op] && viaOk()) {
       var via = viaOn(), q2 = s.slice(s.indexOf('?')), t0 = '&t=' + Date.now();
-      var go = function (v) { return LJsonp((v ? '/api/chal' + q2 : s) + t0, 40000); };
+      /* LJsonp1 — בלי המעבר הכללי של LJsonp (api/gs), שכאן יש מעבר משלו. */
+      var J = window.LJsonp1 || LJsonp;
+      var go = function (v) { return J((v ? '/api/chal' + q2 : s) + t0, 40000); };
       return go(via).then(function (d) {
         if (via) LSet('chVia', Date.now());
         return d;
