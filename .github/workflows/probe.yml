@@ -28,6 +28,15 @@ jobs:
             t "challenge=my&id=ZZPROBE$i"
             sleep 5
           done
+      # הכרטיסים דרך האתר שלנו (api/pts.js, 8.99.473) — אותה בקשה, מזהה מומצא.
+      - name: הכרטיסים דרך האתר
+        run: |
+          for i in 1 2; do
+            curl -sS -o out.txt -w "%{http_code} %{time_total}s" --max-time 60 \
+              "https://hadaf-hashvui.vercel.app/api/pts?pts=me&id=ZZPROBE$i&callback=pm1" > meta.txt 2>&1 || true
+            echo "$(cat meta.txt) · $(head -c 160 out.txt)"
+          done
+          curl -sS -o /dev/null -w "בלי pts=me: %{http_code}\n" --max-time 30 "https://hadaf-hashvui.vercel.app/api/pts?pts=all&id=x&callback=pm1" || true
       # מה השרת עצמו מדד (tmNote_) — 6 השעות האחרונות, לפי חלון ונתיב.
       - name: זמני השרת
         env:
