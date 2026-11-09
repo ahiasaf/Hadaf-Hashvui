@@ -268,7 +268,7 @@ jobs:
           else
             echo "::error::hasaa=check לא החזיר saved:false (HTTP $C)"; FAIL=1
           fi
-          C=$(ask "hasaa=check&sid=$Z"); echo "לתיעוד — אותה בדיקה עם sid (שמור): HTTP $C"
+          C=$(ask "hasaa=check&sid=0123456789abcdef0123456789abcdef"); echo "לתיעוד — sid שמור בגוגל (צפוי 400, גם בנתיבים אחרים; אפסים בלבד עוברים): HTTP $C"
           # עלונים מהדרייב (8.99.463): מצב החיבור לתיקייה — מצב בלבד, בלי פרטים.
           # הקריאה הראשונה גם מתקינה את הבדיקה כל 15 דק' ומריצה סבב ראשון. לא מכשיל את הפריסה.
           C=$(curl -sL -m 300 -o out.txt -w '%{http_code}' "$U?alon=dstat&t=$(date +%s)")
