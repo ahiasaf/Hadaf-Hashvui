@@ -804,7 +804,7 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .myprz.soon{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
 .myprz[hidden]{display:none}
 .myprz .ar{font-size:1.25em;line-height:1}
-/* ---------- השובר שלי (8.99.471) — באזור הכרטיסים, כל עוד יש שובר ----------
+/* ---------- "לצפייה בשובר" (8.99.485) — מתחת לכרטיסי ההגרלה, כל עוד יש שובר ----------
    לחיצה — "השוברים שלי" (hagrala.html?vch=1). */
 .myvch{display:flex;align-items:center;gap:12px;margin-top:12px;padding:13px 15px;border-radius:var(--r);
   background:var(--surface);box-shadow:var(--sh-1);border:2px solid #C9962E;color:var(--ink);text-decoration:none;text-align:right}
@@ -812,8 +812,6 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .myvch .mv-tx{flex:1;min-width:0}
 .myvch b{display:block;font-size:1.02rem;font-weight:800;color:var(--blue-d)}
 .myvch small{display:block;margin-top:3px;font-size:.82rem;font-weight:700;color:var(--ink-2)}
-.myvch .mv-dd{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:#FFF6DC;
-  border:1px solid #E5C77A;font-size:.8rem;font-weight:800;color:#6B4E12}
 .myvch i{flex:none;font-style:normal;font-size:1.4rem;color:var(--ink-3)}
 .mypts .l{margin-top:8px;font-size:.82rem;font-weight:700;line-height:1.8}
 .mypts .h{color:var(--ink-3);font-weight:600;margin-top:4px}
@@ -1781,11 +1779,11 @@ html.inter .masthead .m img{width:auto;height:52px}
     <!-- אתגר "חבר מביא חבר" — מבצע מיוחד, כרטיס משלו מעל ההגרלה השבועית (8.99.379).
          ריק כשהאתגר כבוי או לא גלוי לתלמיד. ראו chal.js. -->
     <div id="chal"></div>
-    <!-- השובר שלי — שובר זכייה שהתקבל באפליקציה (drawVch, 8.99.471). -->
-    <a id="myvch" class="myvch" href="hagrala.html?vch=1" hidden></a>
     <div id="mytk" class="mytk" hidden></div>
     <!-- בית ההורה — "כרטיסים שהענקת ל…" (parTkDraw). -->
     <div id="partk" class="mytk" hidden></div>
+    <!-- "לצפייה בשובר" — כפתור קבוע מתחת לכרטיסי ההגרלה ולמבצע (drawVch, 8.99.485). -->
+    <a id="myvch" class="myvch" href="hagrala.html?vch=1" hidden></a>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
@@ -4349,30 +4347,42 @@ function drawPrz() {
   el.hidden = false;
 }
 
-/* השובר שלי (8.99.471) — מהזכיות שכבר נטענו לבאנר (`v` מ-?raffle=prize).
-   הפעיל שתוקפו הקרוב ביותר, עם ספירת הימים; אין פעיל — רק הכותרת. */
+/* "לצפייה בשובר" (8.99.485) — כפתור אחד, קבוע, לזוכה שיש לו שובר משויך (`v` מ-?raffle=prize).
+   מוביל למסך השוברים (hagrala.html?vch=1), ושם נרשמת הצפייה. */
 function drawVch(L) {
   var el = $('myvch');
   if (!el) return;
   var V = (L || []).filter(function (x) { return x.v; });
   if (!V.length) { el.hidden = true; el.innerHTML = ''; return; }
-  var days = function (x) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x || '')), t = new Date();
-    return m ? Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5) : -1;
-  };
-  var a = null;
-  V.forEach(function (x) {
-    if (x.v.st !== 'in' || days(x.v.x) < 0) return;
-    if (!a || x.v.x < a.v.x) a = x;
-  });
-  var h = '<span class="mv-tx"><b>' + esc(V.length > 1 ? tpl(UI.vchHomeN, { n: V.length }) : a ? UI.vchHome : UI.vchMineH) + '</b>';
-  if (a) {
-    var n = days(a.v.x);
-    h += '<small>' + esc((UI['przN_' + a.p] || a.p) + ' · ' + (UI['przS_' + a.p] || '')) + '</small>' +
-      '<span class="mv-dd">' + esc(n === 0 ? UI.vchDays0 : n === 1 ? UI.vchDays1 : tpl(UI.vchDays, { n: n })) + '</span>';
-  }
-  el.innerHTML = h + '</span><i aria-hidden="true">\u2190</i>';
+  el.innerHTML = '<span class="mv-tx"><b>' + esc(UI.vchSee) + '</b></span><i aria-hidden="true">\u2190</i>';
   el.hidden = false;
+  vchPop(V);
+}
+/* מפגש ראשון (8.99.485): שובר פעיל שעוד לא נרשמה לו צפייה — פופאפ ברכה בכניסה,
+   עם כפתור יחיד "לצפייה בשובר". הקוד לא מוצג כאן. פעם אחת לפתיחה (sessionStorage);
+   כל עוד לא נרשם "נצפה" — שוב בפתיחה הבאה. רק לתלמיד עצמו. */
+/* חזרה ב"אחורה" מעמוד השובר (bfcache) — הפופאפ לא נשאר פתוח. */
+window.addEventListener('pageshow', function (e) {
+  var p = e && e.persisted ? $('vch-pop') : null;
+  if (p && p.parentNode) p.parentNode.removeChild(p);
+});
+function vchPop(V) {
+  var me = get('me', null);
+  if (!UI.vchPopH || $('vch-pop') || !me || me.role === 'dad' || demoOn() || (window.TM && TM.on())) return;
+  if (typeof InterOn === 'function' && InterOn()) return;
+  var due = V.some(function (x) { return x.v.st === 'in' && !x.v.sn; });
+  if (!due) return;
+  try { if (sessionStorage.getItem('df:vchPop')) return; sessionStorage.setItem('df:vchPop', '1'); } catch (e) {}
+  var el = document.createElement('div');
+  el.className = 'ch-promo';
+  el.id = 'vch-pop';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'vch-pop-h');
+  el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="vch-pop-h">' + esc(UI.vchPopH) + '</h2>' +
+    '<a class="ch-btn big" id="vch-pop-y" href="hagrala.html?vch=1">' + esc(UI.vchSee) + '</a></div>';
+  document.body.appendChild(el);
+  try { $('vch-pop-y').focus(); } catch (e2) {}
 }
 
 /* מה קורה בלחיצות שבבמה — כאן, ולא ב-stage.js.

@@ -3163,7 +3163,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.484';
+var APP_VERSION = '8.99.485';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17258,7 +17258,9 @@ function admRaffle() {
   var zu = zochimUrl();
   h += '<button class="btn g" style="margin-top:10px" onclick="copyAny(this, zochimUrl())">' + esc(UI.rafZchBtn) + '</button>' +
        '<p class="h" style="direction:ltr;text-align:right;word-break:break-all">' + esc(zu) + '</p>' +
-       '<p class="h">' + esc(UI.rafZchNote) + '</p>';
+       '<p class="h">' + esc(UI.rafZchNote) + '</p>' +
+       /* תצוגת הרכז (8.99.485) — אותו עמוד, עם פרס, מצב שובר ווואטסאפ לכל זוכה. */
+       '<a class="btn g" style="margin-top:6px" href="' + esc(zu + (zu.indexOf('?') < 0 ? '?' : '&') + 'r=1') + '">' + esc(UI.zchCoBtn) + '</a>';
   if (!rafLoaded) {
     return h + '<button class="btn g"' + dis + ' onclick="rafLoad()">' +
       esc(rafBusy ? UI.rafBusy : UI.rafLoad) + '</button>' + msg + '</div>';

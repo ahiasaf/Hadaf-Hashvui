@@ -402,6 +402,28 @@ function vchUsed(vid) {
       if (PRZ_Z) { PRZ_Z.v = d.v; przDraw(PRZ_Z, false); }
     })['catch'](function () { SayMsg(UI.przFail); });
 }
+/* "נצפה" (8.99.485) — אחרי שכרטיס השובר באמת על המסך: ?raffle=vseen עם
+   מזהי השוברים שעוד לא נרשמו. השרת כותב רק כשריק (פתיחה חוזרת — כלום).
+   רק התלמיד עצמו, לא ההורה. כישלון — לא נרשם, ובפתיחה הבאה שוב. */
+function vchSeen(L) {
+  var u = api();
+  if (!u || !ME || !ME.id || ME.role === 'dad' || !window.fetch) return;
+  var ids = [];
+  (L || []).forEach(function (x) { if (x && x.v && x.v.id && !x.v.sn && ids.indexOf(x.v.id) < 0) ids.push(x.v.id); });
+  if (!ids.length) return;
+  setTimeout(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    if (!document.querySelector('.vch')) return;
+    fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vseen&id=' + encodeURIComponent(ME.id) +
+          '&vid=' + encodeURIComponent(ids.join(',')) + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.status !== 'ok' || !d.sn) return;
+        (L || []).forEach(function (x) { if (x && x.v && d.sn[x.v.id]) x.v.sn = d.sn[x.v.id]; });
+        try { localStorage.removeItem('df:przMe'); } catch (e) {}
+      })['catch'](function () {});
+  }, 400);
+}
 /* ?vch=1 — "השוברים שלי" (מהכרטיס בבית): כל השוברים, הפעילים קודם. */
 var VCH_ALL = /[?&]vch=1(&|$)/.test(location.search);
 function vchAll() {
@@ -416,6 +438,7 @@ function vchAll() {
     if (!V.length) { location.replace('hagrala.html?prz=1'); return; }
     $('res').innerHTML = '<div id="prz"><h3>' + esc(UI.vchMineH) + '</h3>' +
       V.map(function (x) { return vchHtml(x.v, x.p, x.kid, false); }).join('') + '</div>';
+    vchSeen(V);
   })['catch'](function () {});
 }
 function przWhen(iso) {
@@ -435,6 +458,7 @@ function przDraw(z, live) {
         '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live, false, vchOut(k)); }).join('') + '</div>';
   } else if (z.v) {
     h = vchHtml(z.v, z.p, kid, true);
+    setTimeout(function () { vchSeen([z]); }, 0);
   } else {
     h = '<h3>' + esc(kid ? tp(UI.przMineDad, { name: kid }) : UI.przMine) + '</h3>' +
         '<div class="pzs">' + przCard(z.p, false, true) + '</div>' +

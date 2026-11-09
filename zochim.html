@@ -19,6 +19,12 @@
        · הפרדה, "ובשבועות הקודמים...", וכל ההגרלות הקודמות מהחדשה לישנה.
      בלי זיהוי מכשיר ובלי מזהים — רק מה שפורסם. הגרלות הבדיקה,
      "הוגרל" שטרם אושר ו"בוטל" — אינם כאן (השרת מסנן).
+
+     **תצוגת הרכז** (8.99.485) — `?r=1` במכשיר שיש בו הסיסמה (df:cfg.readKey),
+     מהכפתור בניהול ← ההגרלה. אותו עמוד, ובשורת כל זוכה גם: הפרס, מצב השובר
+     (אין / שויך / נצפה + מתי / מומש), וואטסאפ (לזוכה, או לרכז כשאין לו
+     אפליקציה), "סימון הבחירה" כשאין פרס ו"שיוך שובר" כשיש פרס בלי שובר.
+     נטען מ-?raffle=wadm (rafWadm_). בלי `r=1` או בלי סיסמה — הציבורי, ללא שינוי.
      ============================================================ -->
 <meta property="og:site_name" content="הדף השבועי של בני עקיבא">
 <meta property="og:locale" content="he_IL">
@@ -79,6 +85,12 @@ main.wait{visibility:hidden}
 .prev{font-size:1.3rem;font-weight:800;color:var(--gold-t);text-align:center;margin:14px 0 2px}
 .past .day{font-size:.98rem;margin-top:20px}
 .past .wl li{font-size:.94rem;font-weight:600;padding:5px 0}
+/* תצוגת הרכז */
+.co{display:block;margin-top:4px;font-size:.86rem;font-weight:600;color:var(--ink-2)}
+.cob{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cob a,.cob button,.cob select{font:inherit;font-size:.86rem;font-weight:700;padding:6px 12px;border-radius:10px;
+  border:1px solid #D9CBAE;background:#fff;color:var(--ink);text-decoration:none;cursor:pointer}
+.cob .wa{background:#1FA637;border-color:#1FA637;color:#fff}
 </style>
 </head>
 <body>
@@ -128,10 +140,73 @@ function api() {
 }
 /* null — עוד לא נטען; false — הטעינה נכשלה. */
 var LIST = null;
+/* תצוגת הרכז — רק עם r=1 וסיסמה במכשיר. */
+var KEY = '';
+try { KEY = String((JSON.parse(ls('df:cfg') || '{}')).readKey || '').trim(); } catch (e) {}
+var CO = /[?&]r=1(&|$)/.test(location.search) && !!KEY, VS = {};
+var PRZK = ['burger', 'maafe', 'pretzel', 'pizza', 'book'];
+function digits(p) { return String(p || '').replace(/[^0-9]/g, ''); }
+function waNum(p) { var d = digits(p); return d.indexOf('972') === 0 ? d : '972' + d.replace(/^0/, ''); }
+function when(iso) {
+  var t = new Date(iso), two = function (n) { return (n < 10 ? '0' : '') + n; };
+  return isNaN(t.getTime()) ? '' : t.getDate() + '.' + (t.getMonth() + 1) + ' · ' + two(t.getHours()) + ':' + two(t.getMinutes());
+}
+function przNm(k) { return UI['przN_' + k] || k; }
+/* הוואטסאפ — כמו בניהול ← ההגרלה: לזוכה בנוסח שנערך שם, או לרכז (`na`) בשם התלמיד. */
+function coWa(x) {
+  if (x.na) {
+    var c = x.co || {};
+    if (c.err) return '<span class="co">' + esc(UI.rafWaCoErr) + '</span>';
+    if (!c.n) return '<span class="co">' + esc(UI.rafWaCoNone) + '</span>';
+    if (digits(c.ph).length < 9) return '<span class="co">' + esc(tp(UI.rafWaCoNoPh, { name: c.n })) + '</span>';
+    var who = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : '');
+    var tx = UI.rafWaCoTx.split('{רכז}').join(c.n).split('{שם}').join(who).split('{ישיבה}').join(x.inst || '');
+    return '<a class="wa" target="_blank" rel="noopener" href="' + esc('https://wa.me/' + waNum(c.ph) + '?text=' + encodeURIComponent(tx)) + '">' +
+      esc(tp(UI.rafWaCo, { name: c.n })) + '</a>';
+  }
+  if (digits(x.ph).length < 9) return '';
+  var t0 = '';
+  try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {}
+  var t1 = String(t0 || UI.rafWaTx).split('{שם}').join(x.first || x.name || '');
+  return '<a class="wa" target="_blank" rel="noopener" href="' + esc('https://wa.me/' + waNum(x.ph) + '?text=' + encodeURIComponent(t1)) + '">' +
+    esc(UI.rafWaKid) + '</a>';
+}
+function coHtml(x, rid) {
+  var a = "'" + esc(rid) + "','" + esc(x.code) + "'";
+  var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
+    tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
+  var v = x.v, vs = !v ? UI.vchStNone : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) : UI.vchStSet;
+  var b = coWa(x);
+  if (!x.p) b += '<select onchange="coPrz(' + a + ',this)"><option value="">' + esc(UI.rafPrzSet) + '</option>' +
+    PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
+  else if (!v && x.st !== 'arr' && VS[x.p] > 0) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchAttach) + '</button>';
+  return (pz ? '<span class="co">' + esc(pz) + '</span>' : '') + '<span class="co">' + esc(vs) + '</span>' +
+    (b ? '<span class="cob">' + b + '</span>' : '');
+}
+function coCall(q) {
+  var u = api(), s2 = '';
+  for (var k in q) s2 += '&' + k + '=' + encodeURIComponent(q[k]);
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(KEY) + s2 + '&t=' + Date.now())
+    .then(function (r) { return r.json(); });
+}
+function coDone(d) {
+  if (d && d.status === 'out') SayMsg(UI.vchAttOut);
+  else if (!d || d.status !== 'ok') SayMsg((d && d.message) || UI.zchErr);
+  load();
+}
+function coPrz(rid, code, sel) {
+  var p = sel.value;
+  if (!p || !SureLater(coPrz, this, arguments, function () { sel.value = ''; })) return;
+  coCall({ raffle: 'prizeset', rid: rid, code: code, p: p }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+}
+function coAtt(rid, code) {
+  if (!SureLater(coAtt, this, arguments)) return;
+  coCall({ raffle: 'vattach', rid: rid, code: code }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+}
 function wl(r) {
   if (!r.w.length) return '<p class="note">' + esc(UI.zchNoWin) + '</p>';
   return '<ul class="wl">' + r.w.map(function (x) {
-    return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span></li>';
+    return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span>' + (CO ? coHtml(x, r.rid) : '') + '</li>';
   }).join('') + '</ul>';
 }
 /* הכותרת לפי המסלול: ההגרלה נערכת בגמר השבוע הקודם, ולכן השורה בלוח
@@ -161,18 +236,24 @@ function draw() {
   $('res').innerHTML = h;
 }
 draw();
-(function () {
-  var u = api(), main = $('main'), done = false;
-  var show = function () { if (!done) { done = true; main.className = 'wrap'; } };
-  setTimeout(show, 5000);
+var main = $('main'), shown = false;
+function show() { if (!shown) { shown = true; main.className = 'wrap'; } }
+/* טעינה — גם אחרי פעולה של הרכז. כישלון אחרי שכבר נטען — הרשימה נשארת. */
+function load() {
+  var u = api();
   if (!u || !window.fetch) { LIST = false; draw(); show(); return; }
-  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=all&t=' + Date.now())
+  var had = LIST && LIST.length !== undefined;
+  fetch(u + (u.indexOf('?') < 0 ? '?' : '&') +
+        (CO ? 'raffle=wadm&key=' + encodeURIComponent(KEY) : 'raffle=all') + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      LIST = d && d.status === 'ok' && d.list ? d.list : false;
+      if (d && d.status === 'ok' && d.list) { LIST = d.list; VS = d.vs || {}; }
+      else if (!had) LIST = false;
       draw(); show();
-    })['catch'](function () { LIST = false; draw(); show(); });
-})();
+    })['catch'](function () { if (!had) LIST = false; draw(); show(); });
+}
+setTimeout(show, 5000);
+load();
 /* הנוסח שפורסם בגיליון — למי שמגיע מהקבוצה ואין לו מטמון. */
 (function () {
   var id = window.SHEET_ID;
