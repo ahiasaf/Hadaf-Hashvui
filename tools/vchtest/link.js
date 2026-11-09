@@ -6,6 +6,8 @@ c.Utilities.getUuid = function () { return require('crypto').randomUUID(); };
 function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', label, x === undefined ? '' : JSON.stringify(x)); } }
 function raf(p) { return JSON.parse(c.raffleRoute_({ parameter: p }).t); }
 function post(d) { return JSON.parse(c.doPost({ postData: { contents: JSON.stringify(d) } }).t); }
+// הרשימה הקבועה בשרת (VCH_HELD_MAP_) — כאן במזהים מומצאים.
+c.VCH_HELD_MAP_ = { 'VT-27': 'R4', 'VT-28': 'R5', 'VT-29': 'R5', 'VT-39': 'R5' };
 var pub = '2026-11-01T10:00:00.000Z', D0 = '2026-11-02T09:00:00.000Z';
 var S = { A: 'AmTESTaaaa01', B: 'AmTESTbbbb02', C: 'SmTESTcccc03', D: 'SmTESTdddd04' };
 ['A', 'B', 'C', 'D'].forEach(function (k, i) {

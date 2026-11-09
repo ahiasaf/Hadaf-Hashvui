@@ -4360,7 +4360,7 @@ function drawVch(L) {
 }
 /* מפגש ראשון (8.99.485): שובר פעיל שעוד לא נרשמה לו צפייה — פופאפ ברכה בכניסה,
    עם כפתור יחיד "לצפייה בשובר". הקוד לא מוצג כאן. פעם אחת לפתיחה (sessionStorage);
-   כל עוד לא נרשם "נצפה" — שוב בפתיחה הבאה. רק לתלמיד עצמו. */
+   כל עוד לא נרשם "נצפה" — שוב בפתיחה הבאה. רק לתלמיד עצמו, ורק לזכייה עם `pp`. */
 /* חזרה ב"אחורה" מעמוד השובר (bfcache) — הפופאפ לא נשאר פתוח. */
 window.addEventListener('pageshow', function (e) {
   var p = e && e.persisted ? $('vch-pop') : null;
@@ -4370,7 +4370,8 @@ function vchPop(V) {
   var me = get('me', null);
   if (!UI.vchPopH || $('vch-pop') || !me || me.role === 'dad' || demoOn() || (window.TM && TM.on())) return;
   if (typeof InterOn === 'function' && InterOn()) return;
-  var due = V.some(function (x) { return x.v.st === 'in' && !x.v.sn; });
+  /* `pp` מהשרת — רק זכייה בהגרלה חדשה; שוברים שנשלחו בוואטסאפ — בלי פופאפ (8.99.487). */
+  var due = V.some(function (x) { return x.pp === 1 && x.v.st === 'in' && !x.v.sn; });
   if (!due) return;
   try { if (sessionStorage.getItem('df:vchPop')) return; sessionStorage.setItem('df:vchPop', '1'); } catch (e) {}
   var el = document.createElement('div');

@@ -51,7 +51,7 @@ function seenCalls() { return LOG.filter(function (u) { return /raffle=vseen/.te
 (async function () {
   var srv = await serve(), base = 'http://127.0.0.1:' + srv.address().port, b = await chromium.launch(), c, p, t;
   // ===== בית: פופאפ + כפתור =====
-  PRZ = { status: 'ok', list: [{ rid: 'R1', wk: '6', wid: 'devtest1', kid: '', p: 'pizza', how: 'בחר', st: 'soon', v: V1 }] };
+  PRZ = { status: 'ok', list: [{ rid: 'R1', wk: '6', wid: 'devtest1', kid: '', p: 'pizza', how: 'בחר', st: 'soon', pp: 1, v: V1 }] };
   c = await ctxFor(b, STU); p = await c.newPage(); await p.goto(base + '/join', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500);
   t = await p.evaluate(function () { var e = document.getElementById('vch-pop'); return e ? { tx: e.innerText, n: e.querySelectorAll('a,button').length } : null; });
   ok(t && t.tx.indexOf(UI.vchPopH) >= 0 && t.tx.indexOf(UI.vchSee) >= 0, 'בית · פופאפ ברכה עם "לצפייה בשובר"', t);
@@ -71,6 +71,13 @@ function seenCalls() { return LOG.filter(function (u) { return /raffle=vseen/.te
   t = await p.evaluate(function () { return document.body.innerText; });
   ok(/hagrala/.test(p.url()) && t.indexOf('CODE-123') >= 0, 'לחיצה · מסך השובר עם הקוד', p.url());
   ok(seenCalls().length === 1 && /vid=V1/.test(seenCalls()[0]) && /id=devtest1/.test(seenCalls()[0]), 'לחיצה · vseen נשלח אחרי ההצגה', seenCalls());
+  await c.close();
+  // שובר ישן (נשלח בוואטסאפ — בלי pp): בלי פופאפ, הכפתור פותח את אותו קוד
+  PRZ = { status: 'ok', list: [{ rid: 'R4', p: 'pizza', st: 'soon', v: V1 }] };
+  c = await ctxFor(b, STU); p = await c.newPage(); await p.goto(base + '/join', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500);
+  ok(!(await p.$('#vch-pop')) && !(await p.evaluate(function () { return document.getElementById('myvch').hidden; })), 'ישן · בלי פופאפ, הכפתור קיים');
+  await p.click('#myvch'); await p.waitForTimeout(2500);
+  ok((await p.evaluate(function () { return document.body.innerText; })).indexOf('CODE-123') >= 0, 'ישן · הכפתור פותח את אותו קוד');
   await c.close();
   // שובר שכבר נצפה — אין פופאפ, הכפתור נשאר; מסך השובר לא שולח
   PRZ = { status: 'ok', list: [{ rid: 'R1', p: 'pizza', st: 'soon', v: Object.assign({}, V1, { sn: '2026-11-09T12:00:00Z' }) }] };
