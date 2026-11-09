@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 203;
+var SCRIPT_VERSION = 204;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -16465,6 +16465,17 @@ function ovDropAct_(T) {
   T.sh.deleteColumn(i + 1);
   return ovTable_(T.sh) || T;
 }
+/* ספירה + סנכרון עכשיו. פעם ב-15 שניות לכל היותר (כמה נכנסים יחד — סנכרון אחד),
+   חוץ מכפתור הרענון של הבעלים. מחזירה את הטבלה, או null — ואז ovSync_ הרגיל. */
+var OV_FRESH_S_ = 15;
+function ovFresh_(force) {
+  var cache = CacheService.getScriptCache();
+  if (!force && cache.get('ovFresh')) return null;
+  cache.put('ovFresh', '1', OV_FRESH_S_);
+  try { cache.remove('partDue'); } catch (e) {}
+  try { recount_(); } catch (e2) {}
+  return ovSync_(true);
+}
 function ovSync_(force) {
   var cache = CacheService.getScriptCache();
   if (!force && cache.get('ovSyncAt')) return null;
@@ -17257,7 +17268,12 @@ function ov_(p) {
     if (!lock.tryLock(15000)) return { status: 'error', message: 'עומס — נסו שוב' };
   }
   try {
-    var T = op === 'get' ? ovSync_(false) : null;
+    var T = null;
+    /* כניסה לסקירה (`fresh`) — מכל מקום: הניהול, הקישור למנהלים והקישור המלא —
+       סופרת מחדש ומסנכרנת עכשיו (ovFresh_), ולא מחכה להרצה של הלילה.
+       כפתור הרענון של הבעלים (`force`) — בלי ההמתנה. */
+    if (op === 'get' && (p.fresh === '1' || p.force === '1')) T = ovFresh_(p.force === '1' && boss);
+    if (op === 'get' && !T) T = ovSync_(false);
     if (!T) { var sh0 = ovSheet_(); T = sh0 ? ovTable_(sh0) : null; }
     if (!T) return { status: 'nosheet', message: 'טבלת הסקירה לא נמצאה', why: owner ? ovWhy_ : '' };
     if (op === 'get') { ovAutoCodes_(T); T = ovDropAct_(T); }

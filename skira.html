@@ -156,7 +156,8 @@ function draw() {
 function load() {
   if (!API) { MSG = T('ovNet'); draw(); return; }
   if (!KEY) { MSG = T('ovNoKey'); draw(); return; }
-  get({ ov:'get', key:KEY }).then(function (d) {
+  /* `fresh` — כל כניסה וכל "רענון": השרת סופר ומסנכרן עכשיו (ovFresh_). */
+  get({ ov:'get', key:KEY, fresh:'1' }).then(function (d) {
     if (!d || !d.ov) { MSG = T('ovOld'); DATA = null; }
     else if (d.status === 'denied') { MSG = T('ovBad'); DATA = null; }
     else if (d.status === 'nosheet') { MSG = T('ovNoSheet'); DATA = null; }

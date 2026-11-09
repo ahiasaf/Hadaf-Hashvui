@@ -1405,3 +1405,12 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **קריאת העמדה המלאה (amdaPull):** `cols` (AMDA_PULL_COLS, colsPick_ בשרת — גם ב-netmarks) ו-`nosync`
   — השרת לא משייך לפני שהוא עונה; amdaPullSync שולח את השיוך בנפרד, לכל היותר פעם בדקה מהמכשיר.
   שרת ישן מתעלם משניהם. בדיקה: `node tools/amdatest/rows.js` (29) · save.js (ו).
+
+## סקירת הישיבות מתעדכנת בכניסה ובכפתור הרענון (8.99.483 · SCRIPT_VERSION 204)
+
+* **אחיאסף (9.11):** כל כניסה לסקירה — בניהול, בקישור למנהלים ובקישור המלא — ספירה (recount_) וסנכרון
+  מלא עכשיו (`fresh=1` → ovFresh_, פעם ב-15 שנ' לכל היותר לכולם יחד, `ovFresh` במטמון). כפתור ⟳ בניהול
+  (admRefreshAll) — `force=1`, בלי ההמתנה, רק לבעלים (`boss`). בלי הפרמטרים — ovSync_(false) כמו קודם.
+* "כניסה" בניהול = ovAdmTop אחרי ציור של מסך אחר (`ADM_GEN` ב-renderAdmin, +2 ב-yshTabGo) או אחרי דקה
+  בלי ציור (`OV_TOP_AT`). ציור חוזר בתוך הסקירה — לא שולח. skira.html — `fresh` בכל load (כניסה ו"רענון").
+* בדיקה: `node tools/ovtest/fresh.js` (7).

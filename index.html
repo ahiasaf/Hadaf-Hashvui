@@ -3163,7 +3163,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.482';
+var APP_VERSION = '8.99.483';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -9019,7 +9019,8 @@ function yshDetail(e, ctx) {
    משאיר את מה ששמור במכשיר; מה שחזר מהשרת מחליף אותו. */
 var ovState = { msg:'', busy:0, codesAt:0, regsAt:0 };
 function ovNk(s) { return nameKey(String(s || '').replace(/[—–-]/g, ' ')); }
-function ovLoad(force) {
+/* `fresh` — כניסה לסקירה: השרת סופר ומסנכרן עכשיו. 'force' — כפתור הרענון. */
+function ovLoad(force, fresh) {
   var key = (CFG.readKey || '').trim();
   if (!key) { ovState.msg = ''; return Promise.resolve(false); }
   /* גם ניסיון שנכשל נספר — אחרת הציור שאחריו היה מנסה שוב מיד, בלולאה. */
@@ -9030,7 +9031,9 @@ function ovLoad(force) {
   /* "ראש החטיבה דיווח" נשען על רשימת ההרשמות — פעם בעשר דקות. */
   if (Date.now() - ovState.regsAt > 600000) { ovState.regsAt = Date.now(); pullRegs(); }
   ovState.busy = 1;
-  return scriptGet({ ov:'get', key:key }).then(function (d) {
+  var q = { ov:'get', key:key };
+  if (fresh === 'force') q.force = '1'; else if (fresh) q.fresh = '1';
+  return scriptGet(q).then(function (d) {
     ovState.busy = 0;
     if (!d || !d.ov) ovState.msg = UI.ovOld;
     else if (d.status === 'nosheet') { ovState.msg = 'nosheet'; ovState.why = d.why || ''; }
@@ -9255,9 +9258,14 @@ function ovSheetSet() {
   }, function () { fail(UI.ovNet); });
 }
 /* המקום בראש המסך — הסקירה נצבעת לתוכו אחרי הציור (ovAdmMount). */
+/* כניסה לסקירה = ציור שלה אחרי ציור של מסך אחר (ADM_GEN), או אחרי דקה בלי
+   ציור — אז השרת סופר ומסנכרן עכשיו. ציור חוזר בתוך הסקירה — כמו קודם. */
+var ADM_GEN = 0, OV_TOP_GEN = -9, OV_TOP_AT = 0;
 function ovAdmTop() {
   if (!(CFG.readKey || '').trim()) return '';
-  setTimeout(function () { ovLoad(false); }, 0);
+  var enter = OV_TOP_GEN < ADM_GEN - 1 || Date.now() - OV_TOP_AT > 60000;
+  OV_TOP_GEN = ADM_GEN; OV_TOP_AT = Date.now();
+  setTimeout(function () { ovLoad(enter, enter); }, 0);
   var D = Store.get('ovData', null), rows = ovRows(), k = Store.get('ovKey', '');
   var h = '<div class="my-top" style="margin:0 0 10px"><b>' + esc(UI.ovTitle) + '</b><span>' +
     esc(D && D.at ? fill(UI.ovUpd, { t:whenTxt(tsOf(D.at)) }) : UI.ovLoading) + '</span></div>';
@@ -9343,6 +9351,7 @@ function ovOneTop(e) {
 
 function yshTabGo(t) {
   Store.set('yshTab', t === 'calls' || t === 'co' ? t : 'ov');
+  ADM_GEN += 2;   /* מעבר כרטיסייה — כניסה לסקירה, כשחוזרים אליה */
   renderCalls();
   var el = document.getElementById('calls-body');
   if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView();
@@ -10923,6 +10932,8 @@ function admRefreshAll() {
     chDueLoad();
     admRosterLoad();
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
+    /* גם סקירת הישיבות — ספירה וסנכרון עכשיו, בלי ההמתנה. */
+    ovLoad(true, 'force');
   }
   pplFrame({ dfReload: 1 });
   loadCounts().then(function () { if (admTab === 'stu') admLive(); })['catch'](function () {});
@@ -12038,6 +12049,7 @@ function admLive() {
 }
 
 function renderAdmin() {
+  ADM_GEN++;
   admStuOff();
   /* ארבע, ולפי השאלה שנשאלת ולא לפי סוג האובייקט.
 
