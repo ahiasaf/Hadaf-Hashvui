@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 202;
+var SCRIPT_VERSION = 203;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -2103,7 +2103,7 @@ function doGetMain_(e) {
     }
     try {
       return reply_(e, e.parameter.netroster ? netRoster_(nInst, String(e.parameter.dev || (nAdm ? 'רכז' : '')))
-                                             : netMarks_(nInst));
+                                             : netMarks_(nInst, e.parameter));
     } catch (eN) {
       return reply_(e, { status: 'error', message: String(eN) });
     }
@@ -2350,7 +2350,8 @@ function doGetMain_(e) {
       if (want === JOIN_TAB) rd.pairs = pairMap_(rd.rows);
       /* העמדה קוראת את הלשונית כמה שניות אחרי כל סימון — וזה
          הרגע לשייך את מי שלמד דף לחשבון שלו באפליקציה. */
-      if (want === AMDA_TAB_) amdaSyncSoon_();
+      if (want === AMDA_TAB_ && !e.parameter.nosync) amdaSyncSoon_();
+      if (e.parameter.cols) rd.rows = colsPick_(rd.rows, e.parameter.cols);
     } catch (err) {
       rd = { status: 'error', message: String(err) };
     }
@@ -4109,7 +4110,13 @@ function amdaRows_(tab, list, inst) {
     var w = head.length;
     rows.forEach(function (r) { while (r.length < w) r.push(''); });
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, w).setValues(rows);
-    if (tab === AMDA_TAB_) { amdaQzBust_(); partSoon_(); }
+    /* הספירה — לא כאן, תחת הנעילה שגם התלמידים מחכים לה: מסמנים שהיא
+       ממתינה, והיא רצה בבקשת השיוך שהטלפון שולח אחרי "נשמר"
+       (amdaSyncSoon_, בלי נעילה), ובכל מקרה בהרצה של הלילה. */
+    if (tab === AMDA_TAB_) {
+      amdaQzBust_();
+      try { CacheService.getScriptCache().put('partDue', '1', 21600); } catch (eP) {}
+    }
   }
   return { status: 'success', tab: tab, n: rows.length, dup: dup };
 }
@@ -5429,13 +5436,27 @@ function netRestore_(d, run, h) {
 }
 
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
-function netMarks_(inst) {
+function netMarks_(inst, p) {
+  p = p || {};
   var t = amdaTable_(AMDA_TAB_);
   if (!t.rows.length) return { status: 'ok', rows: [] };
   var out = [t.rows[0]];
   for (var r = 1; r < t.rows.length; r++) if (t.c(t.rows[r], 'קוד ישיבה') === inst) out.push(t.rows[r]);
-  try { amdaSyncSoon_(); } catch (eS) {}
-  return { status: 'ok', rows: out };
+  /* `nosync` — הטלפון שולח את בקשת השיוך בנפרד (8.99.482), כדי שהרשימה לא תחכה לה. */
+  if (!p.nosync) { try { amdaSyncSoon_(); } catch (eS) {} }
+  return { status: 'ok', rows: colsPick_(out, p.cols) };
+}
+/* `cols` — רק העמודות שהקורא צריך (שמות, מופרדים בפסיק), בסדר שלו. העמודות
+   הנוספות לא נשלחות לטלפון. עמודה שאינה בלשונית — לא מוחזרת. בלי `cols` — הכול. */
+function colsPick_(rows, cols) {
+  if (!cols || !rows || !rows.length) return rows;
+  var h = rows[0].map(function (x) { return String(x).trim(); }), at = [];
+  String(cols).split(',').forEach(function (n) {
+    var i = h.indexOf(String(n).trim());
+    if (i >= 0 && at.indexOf(i) < 0) at.push(i);
+  });
+  if (!at.length) return rows;
+  return rows.map(function (r) { return at.map(function (i) { return r[i]; }); });
 }
 
 /* מזהה קבוע לתלמיד מהעמדה: אותו תלמיד → אותו מזהה בכל הרצה. */
@@ -7384,16 +7405,40 @@ function setupTriggers() {
   ScriptApp.newTrigger('autoRecount').timeBased().everyHours(1).create();
   return 'הטריגר הותקן · ספירה מחדש כל שעה' + '\n' + setupClock();
 }
-/* כל שעה — ספירה מלאה. זו רשת הביטחון של המנגנון התוספתי. */
+/* כל שעה — מה שהתלמיד מרגיש: שיוך הנוכחות לחשבון (✓ אצלו). רישום
+   המדידה — קל. **כל השאר בלילה** (8.99.482, אחיאסף: "פעולות שאינן
+   דחופות, שאינן קשורות לתלמיד ישירות — עדיף בלילה"): הספירות המלאות
+   (רשת הביטחון של הספירה התוספתית), הגיבוי, סקירת הישיבות ובדיקות
+   ההזזה של תענית/מגילה ודף ב — כל אחת מהן קוראת לשוניות שלמות, ובשעות
+   הלימוד הן מתחרות בתלמידים על הגיליון. הספירות עדיין מתעדכנות ביום
+   מהכתיבות עצמן, והסקירה — כשפותחים אותה. */
+var AUTO_NIGHT_FROM_ = 1, AUTO_NIGHT_TO_ = 6;     /* שעון ישראל: 01:00–05:59 */
+var AUTO_NIGHT_KEY_ = 'AUTO_NIGHT_DONE';
 function autoRecount() {
+  /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
+  try { amdaSyncLocked_(); } catch (ae) {}
+  try { tmFlush_(); } catch (te) {}
+  if (autoNightOk_()) autoNight();
+}
+function autoNightOk_() {
+  var h = +Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'H');
+  if (h < AUTO_NIGHT_FROM_ || h >= AUTO_NIGHT_TO_) return false;
+  var day = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  return PropertiesService.getScriptProperties().getProperty(AUTO_NIGHT_KEY_) !== day;
+}
+/* פעם בלילה (ההרצה השעתית הראשונה בחלון). מסומן לפני הריצה — הרצה שנפלה
+   באמצע לא תחזור על עצמה בכל שעה של הלילה; כל חלק בנפרד, כשל באחד אינו
+   עוצר את האחרים. אפשר להריץ ידנית מהעורך. */
+function autoNight() {
+  var day = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  PropertiesService.getScriptProperties().setProperty(AUTO_NIGHT_KEY_, day);
   try { taanitShift_(); } catch (e) {}
   try { megilaShift_(); } catch (e) {}
   try { wholeB_(); } catch (e) {}
-  /* תלמיד שנרשם לאפליקציה אחרי שלמד בעמדה — משויך כאן. */
-  try { amdaSyncLocked_(); } catch (ae) {}
-  recount_(); recountLearn_(true); backupDaily_();
+  try { recount_(); } catch (e) {}
+  try { recountLearn_(true); } catch (e) {}
+  try { backupDaily_(); } catch (e) {}
   try { ovSync_(true); } catch (oe) {}
-  try { tmFlush_(); } catch (te) {}
 }
 
 /* ============================================================

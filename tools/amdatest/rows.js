@@ -22,7 +22,8 @@ var L = []; for (var i = 0; i < 30; i++) L.push(cols('a' + i, 'תלמיד ' + i)
 var r1 = post({ action: 'amdarows', tab: 'עמדת לימוד', key: 'k', rows: JSON.stringify(L) });
 ok(r1.status === 'success' && r1.n === 30, 'admin batch writes 30', r1);
 ok(tab().rows.length === 31, '30 rows in tab', tab().rows.length);
-ok(busts === 1 && parts === 1, 'one bust, one recount for the batch', [busts, parts]);
+ok(busts === 1 && parts === 0, 'one bust, recount not under the lock', [busts, parts]);
+ok(c.CacheService.getScriptCache().get('partDue') === '1', 'recount marked pending');
 ok(tab().c(tab().rows[5], 'קוד ישיבה') === 'givat' && tab().c(tab().rows[5], 'תאריך') !== '', 'columns + date', tab().rows[5]);
 // 2. שליחה חוזרת — אין כפילות
 var r2 = post({ action: 'amdarows', tab: 'עמדת לימוד', key: 'k', rows: JSON.stringify(L.slice(0, 10).concat([cols('a99', 'חדש')])) });
@@ -59,4 +60,27 @@ ok(get({ amdaok: '1', dev: 'DEV1', inst: 'tapuah', fix: JSON.stringify(fx) }).fi
 // 7. השורה הבודדת הישנה עדיין עובדת
 var r7 = post({ action: 'row', tab: 'עמדת לימוד', key: 'k', cols: JSON.stringify(cols('old1', 'ישן')) });
 ok(r7.status === 'success' && tab().rows.length === 34, 'legacy single row still works', r7);
+// 8. הקריאה המלאה — רק העמודות שביקשו, ובלי שיוך כשביקשו nosync
+c.CacheService.getScriptCache().remove('amdaSync');
+var s8 = syncs, g8 = get({ read: 'עמדת לימוד', key: 'k', cols: 'מזהה,שם,לא קיימת', nosync: '1' });
+ok(g8.rows[0].join() === 'מזהה,שם' && g8.rows.length === 34 && g8.rows[1].length === 2, 'cols projection', g8.rows[0]);
+ok(syncs === s8, 'nosync skips the sync');
+var g9 = get({ read: 'עמדת לימוד', key: 'k' });
+ok(g9.rows[0].length > 10 && syncs === s8 + 1, 'without params: all columns + sync, as before', [g9.rows[0].length, syncs - s8]);
+var g10 = get({ netmarks: 'tapuah', dev: 'DEV1', cols: 'שם,קוד ישיבה', nosync: '1' });
+ok(g10.status === 'ok' && g10.rows.length === 2 && g10.rows[1][1] === 'tapuah' && g10.rows[0].length === 2, 'staff netmarks projection', g10);
+// 9. ההרצה השעתית: ביום — רק השיוך והמדידה; בלילה — הכבדים, פעם אחת
+var called = [];
+['taanitShift_', 'megilaShift_', 'wholeB_', 'recount_', 'recountLearn_', 'backupDaily_', 'ovSync_', 'amdaSyncLocked_', 'tmFlush_']
+  .forEach(function (f) { c[f] = function () { called.push(f); return 0; }; });
+var H = 14, RealFmt = c.Utilities.formatDate;
+c.Utilities.formatDate = function (d, tz, f) { if (f === 'H') return String(H); if (f === 'yyyy-MM-dd') return '2026-11-10'; return RealFmt(d, tz, f); };
+c.autoRecount();
+ok(called.join() === 'amdaSyncLocked_,tmFlush_', 'day: only student sync + timing', called);
+called = []; H = 2; c.autoRecount();
+ok(called.indexOf('recountLearn_') >= 0 && called.indexOf('backupDaily_') >= 0 && called.indexOf('ovSync_') >= 0 &&
+   called.indexOf('taanitShift_') >= 0, 'night: heavy jobs run', called);
+called = []; H = 3; c.autoRecount();
+ok(called.join() === 'amdaSyncLocked_,tmFlush_', 'night: once per night', called);
+c.Utilities.formatDate = RealFmt;
 console.log('checks', n, 'fails', fails); process.exit(fails ? 1 : 0);

@@ -38,6 +38,7 @@ async function world(b, legacy) {
       return r.fulfill({ status: 200, contentType: 'application/json', body: out.t });
     }
     L.get.push(Object.keys(q).filter(function (k) { return k !== 'callback' && k !== 'key'; })[0]);
+    if (q.read === 'עמדת לימוד') L.rd = { cols: q.cols, nosync: q.nosync };
     if (legacy && q.amdaok) delete q.amdaok;          /* שרת ישן: עונה כבדיקת חיבור */
     var o = c.doGet({ parameter: q });
     return r.fulfill({ status: 200, contentType: q.callback ? 'application/javascript' : 'application/json', body: o.t });
@@ -100,6 +101,14 @@ async function waitSv(p) {
   });
   ok(/ok/.test(cls) && st2.dq === 0 && !st2.k && rows(A.c) === 29, 'ב: הסרה אומתה', [cls, st2, rows(A.c)]);
   ok(A.L.get.indexOf('read') < 0, 'ב: בלי הורדת הלשונית', A.L.get);
+  // ו: פתיחת העמדה — קריאה מלאה רזה, והשיוך בבקשה נפרדת (29 — תלמיד 4 הוסר ב-ב)
+  A.L.get = [];
+  var full = await p.evaluate(function () {
+    AMDA_SYNC_AT = 0;
+    return amdaPull().then(function (ok) { return { ok: ok, cnt: Object.keys(Store.get('amdaCnt', {})).length }; });
+  });
+  ok(full.ok && full.cnt === 29 && A.L.get.indexOf('read') >= 0 && A.L.get.indexOf('amdaok') >= 0, 'ו: קריאה מלאה עם עמודות נבחרות', [full, A.L.get]);
+  ok(A.L.rd && A.L.rd.nosync === '1' && /קוד עמדה/.test(A.L.rd.cols || ''), 'ו: cols + nosync נשלחו', A.L.rd);
   // ה: סימון בתוך העמדה — השליחה הרגילה (amdaFlush) מאומתת באימות הקל, בלי הורדה
   A.L.get = []; A.L.post = [];
   await p.evaluate(function () {

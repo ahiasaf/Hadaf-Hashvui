@@ -3163,7 +3163,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.481';
+var APP_VERSION = '8.99.482';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -22023,6 +22023,17 @@ function amdaConfirm(have, stf, asked) {
   Store.set('amdaQ', q);
   Store.set('amdaDq', dq);
 }
+var AMDA_PULL_COLS = 'מזהה,שכבה,כיתה,שם,יום,קוד עמדה,שבוע,סוג,מקום,מתי,קוד ישיבה';
+var AMDA_SYNC_AT = 0;
+/* בקשת השיוך שהקריאה המלאה הייתה מריצה לפני שענתה — עכשיו בנפרד, בלי
+   לחכות לה, ולכל היותר פעם בדקה מהמכשיר (השרת ממילא משייך פעם בדקה). */
+function amdaPullSync(stf) {
+  if (Date.now() - AMDA_SYNC_AT < 60000) return;
+  var key = (CFG.readKey || '').trim(), p = { amdaok: 1, sync: 1 };
+  if (stf && !stf.view && stf.dev) { p.dev = stf.dev; p.inst = stf.inst; } else if (key) p.key = key; else return;
+  AMDA_SYNC_AT = Date.now();
+  scriptGet(p)['catch'](function () {});
+}
 /* קריאה חוזרת: מה שנראה בגיליון יוצא מהתור; מי נרשם היום לכל
    מועד, וכמה פעמים כל תלמיד היה — מחושבים מחדש מהגיליון כולו.
    כל תלמיד נספר פעם אחת לכל מועד, גם אם נרשם פעמיים.
@@ -22031,8 +22042,14 @@ function amdaConfirm(have, stf, asked) {
 function amdaPull(stf0) {
   var key = (CFG.readKey || '').trim(), stf = stf0 || AMDA_STAFF;
   if (!key && !stf) return Promise.resolve(false);
-  return scriptGet(stf ? (stf.view ? { netmarks: stf.inst, key: key } : { netmarks: stf.inst, dev: stf.dev })
-                       : { read: AMDA_TAB, key: key }).then(function (d) {
+  /* רק העמודות שהחישוב כאן קורא (`cols`), ובלי לחכות לשיוך בשרת (`nosync`) —
+     השיוך יוצא בבקשה נפרדת שאיש אינו מחכה לה (amdaPullSync). שרת ישן מתעלם
+     משניהם ומחזיר הכול, כמו קודם. */
+  var p = stf ? (stf.view ? { netmarks: stf.inst, key: key } : { netmarks: stf.inst, dev: stf.dev })
+              : { read: AMDA_TAB, key: key };
+  p.cols = AMDA_PULL_COLS; p.nosync = 1;
+  amdaPullSync(stf);
+  return scriptGet(p).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay(), seatEv = [], lesAtt = {}, rep = [];
     /* המיקום של כל עמודה — פעם אחת, לא חיפוש בכותרת לכל תא (אלפי שורות). */
@@ -22194,9 +22211,8 @@ var AMDA_BG = { run: 0, stf: null, hideT: null, on: false };
    שלמד לחשבון שלו (amdaSyncSoon_), כמו שהקריאה המלאה עשתה. */
 function amdaSyncPing(stf) {
   if (AMDA_V2 !== true) return;
-  var key = (CFG.readKey || '').trim(), p = { amdaok: 1, sync: 1 };
-  if (stf && !stf.view && stf.dev) { p.dev = stf.dev; p.inst = stf.inst; } else if (key) p.key = key; else return;
-  scriptGet(p)['catch'](function () {});
+  AMDA_SYNC_AT = 0;
+  amdaPullSync(stf);
 }
 function amdaBg(pts, stf) {
   var run = ++AMDA_BG.run, tries = 0, fix = Store.get('amdaFix', null), kOk = !fix, kDone = !fix;
