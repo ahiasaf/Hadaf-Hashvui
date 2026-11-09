@@ -3819,6 +3819,12 @@ var PTS_TRY = 0, PTS_NEXT = 0, PTS_GAP = [5000, 15000, 45000];
    נכשל גם דרכנו — חוזרים לסירוגין. רק כשהכתובת היא הכתובת הקבועה (לא הגדרה
    ידנית במכשיר), ורק לכרטיסים. */
 var PTS_VIA = false;
+/* **חוויית המתנה** (8.99.478, אחיאסף) — רק כשאין עוד כרטיסים במכשיר (מה ששמור — מוצג מיד, כמו קודם).
+   'load' — "טוענים את הכרטיסים שלך…" מיד · 'slow' — "זה לוקח קצת יותר זמן…" כשהבקשה עוד פתוחה אחרי
+   PTS_SLOW_MS · 'retry' — "החיבור מתעכב, מנסים שוב…" רק כשבקשה נוספת אחרי כישלון באמת יוצאת · '' —
+   אין בקשה פתוחה (כישלון — myTkErr, כמו קודם). הכרטיסים — רק מתשובת השרת.
+   PTS_SLOW_MS: ?pts=me ב"זמני שרת" (8.11) — ממוצע 0.1–0.3 שנ', הארוכה ביותר 0.5 שנ'; 5 שנ' = פי עשרה. */
+var PTS_PH = '', PTS_SLOW_T = 0, PTS_SLOW_MS = 5000;
 function ptsViaOk() { return !!API && API === window.APPS_SCRIPT_URL; }
 function ptsViaOn() {
   if (!ptsViaOk()) return false;
@@ -3862,9 +3868,12 @@ function drawPts() {
   if ((!c || c.v !== 2 || !PTS_GOT || Date.now() - c.at > 2 * 60000) && !PTS_BUSY && API &&
       Date.now() >= PTS_NEXT) {
     PTS_BUSY = true;
+    PTS_PH = PTS_TRY > 0 || PTS_ERR ? 'retry' : 'load';
+    clearTimeout(PTS_SLOW_T);
+    PTS_SLOW_T = setTimeout(function () { if (PTS_BUSY) { PTS_PH = 'slow'; drawPts(); } }, PTS_SLOW_MS);
     var cb = 'pm' + Date.now(), sc = document.createElement('script');
     var clean = function () {
-      PTS_BUSY = false;
+      PTS_BUSY = false; PTS_PH = ''; clearTimeout(PTS_SLOW_T);
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (sc.parentNode) sc.parentNode.removeChild(sc);
     };
@@ -4200,6 +4209,8 @@ function tkCardHtml(c) {
       (tk && up ? '<span>' + esc(up) + '</span>' : '') + '</div>' +
       (dd ? '<span class="tk-dd">' + esc(dd) + '</span>' : '') + '</div>' +
     (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
+        : PTS_PH ? '<div class="tk-err" role="status" aria-busy="true">' +
+            esc(PTS_PH === 'slow' ? UI.netSlow : PTS_PH === 'retry' ? UI.netRetry : UI.myTkLoad) + '</div>'
         : wait ? '<div class="tk-wt" aria-busy="true">…</div>' : '<div class="tk-err">' + esc(UI.myTkErr) + '</div>') + lk;
 }
 /* כמה ימים להגרלה. `nr` — השבוע של ההגרלה הבאה (מהשרת); היא ביום ראשון

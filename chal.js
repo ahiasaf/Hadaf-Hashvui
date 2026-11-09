@@ -81,7 +81,8 @@
   /* הקוד האישי במכשיר — לכל עולם לחוד (8.99.370): קוד שנשמר בזמן מצב בדיקה אינו
      יוצא בעולם האמיתי. `chCode` הישן אינו נקרא — קריאה אחת לשרת (?challenge=ref). */
   function codeKey() { return LTester() ? 'chCodeT' : 'chCodeR'; }
-  function api(op, q) {
+  /* `on('retry')` — כשניסיון נוסף באמת יוצא (המעבר לדרך השנייה), לחוויית ההמתנה (8.99.478). */
+  function api(op, q, on) {
     var u = LApi();
     if (!u || !window.Promise) return Promise.reject(new Error('no api'));
     var s = u + (u.indexOf('?') < 0 ? '?' : '&') + 'challenge=' + op;
@@ -102,6 +103,7 @@
       }, function () {
         VIA = !via;
         LSet('chVia', via ? 0 : LGet('chVia', 0));
+        if (on) { try { on('retry'); } catch (eo) {} }
         return go(!via).then(function (d) {
           if (!via) LSet('chVia', Date.now());
           return d;
@@ -133,14 +135,14 @@
   /* ---- המצב שלי ---- */
   function cached() { var c = LGet('chMy', null); return c && c.d ? c.d : null; }
   var BUSY = null;
-  function load() {
+  function load(on) {
     if (BUSY) return BUSY;
     var q = { id: ids().join(',') };
     if (refAny()) q.ref = refAny();
     /* מההתראה על תוצאות הגרלה — ?ms=k (chPush_ בשרת). */
     var mk = /[?&]ms=(\d{1,3})(?:&|$)/.exec(location.search);
     if (mk) q.ms = mk[1];
-    BUSY = api('my', q).then(function (d) {
+    BUSY = api('my', q, on).then(function (d) {
       BUSY = null;
       FRESH = !!(d && d.status === 'ok');
       if (!FRESH) return cached();
@@ -552,7 +554,14 @@
       var fail = function () { dis(false); if (msg) msg.textContent = U('chSitErr'); };
       dis(true);
       if (msg) msg.textContent = U('chSitWait');
-      api('sit', { id: ids().join(','), ref: b.getAttribute('data-c') }).then(function (d) {
+      /* חוויית המתנה (8.99.478): "לוקח יותר זמן" אחרי CH_SLOW_MS, "מנסים שוב" רק בניסיון נוסף. */
+      var say = function (k) { if (msg) msg.textContent = U(k); };
+      var st = setTimeout(function () { say('netSlow'); }, CH_SLOW_MS);
+      var end = function () { clearTimeout(st); };
+      api('sit', { id: ids().join(','), ref: b.getAttribute('data-c') }, function () {
+        end(); say('netRetry'); st = setTimeout(function () { say('netSlow'); }, CH_SLOW_MS);
+      }).then(function (d) {
+        end();
         if (!d || d.status !== 'ok' || !d.on || !d.ref || d.ref === 'old' || d.ref === 'wait') { fail(); return; }
         LSet('chMy', { at: Date.now(), d: d });
         /* הצטרף — "הצטרפת לשולחן של…". אין מקום / כבר 3 — המצב מופיע ליד ההזמנה. */
@@ -560,7 +569,7 @@
         /* נתפס רגע לפני (8.99.448) — "מצטערים, הכיסא כבר היה תפוס…". */
         if (d.ref === 'full' && d.me) d.me.nr = 1;
         redraw(d);
-      }, fail);
+      }, function () { end(); fail(); });
     };
   }
   /* כרטיס הבחירה/הישיבה, אם צריך — אחרת ''. */
@@ -746,8 +755,21 @@
   var LAST = 0;
   /* עמוד האתגר — אותו ניסיון חוזר (8.99.405). קודם: תשובה אחת שלא הגיעה השאירה את
      "לא הצלחנו לטעון" עד שהתלמיד רענן בעצמו. */
+  /* **חוויית המתנה בעמוד האתגר** (8.99.478, אחיאסף) — רק כשעוד לא הוצג מצב (מה ששמור במכשיר — מיד,
+     כמו קודם): "טוענים את השולחן שלך…" מיד · "זה לוקח קצת יותר זמן…" אחרי CH_SLOW_MS · "החיבור מתעכב,
+     מנסים שוב…" רק כשבקשה נוספת באמת יוצאת. השולחן — רק מתשובת השרת; כישלון — chErr, כמו קודם.
+     CH_SLOW_MS: challenge:my ב"זמני שרת" (8.11) — בעומס עד 18.1 שנ'; "לשבת" ממתין לנעילה עד 15 שנ'. */
+  var CH_SLOW_MS = 20000, PG = { has: false, t: 0 };
+  function pgSay(box, k) {
+    if (PG.has) return;
+    box.innerHTML = '<p class="ch-sm" role="status" aria-busy="true">' + esc(U(k)) + '</p>';
+  }
   function pageGet(box, n) {
-    load().then(function (d) {
+    var slow = function () { clearTimeout(PG.t); PG.t = setTimeout(function () { pgSay(box, 'netSlow'); }, CH_SLOW_MS); };
+    pgSay(box, n === 0 ? 'chLoad' : 'netRetry');
+    slow();
+    load(function () { pgSay(box, 'netRetry'); slow(); }).then(function (d) {
+      clearTimeout(PG.t);
       if (FRESH || !d || n === 0) pageDraw(box, d);
       if ((!FRESH || (d && d.ref === 'wait')) && n < 3) setTimeout(function () { pageGet(box, n + 1); }, [5000, 12000, 30000][n]);
       else if (!d) later(function () { pageGet(box, 3); });
@@ -953,7 +975,8 @@
     if (!d.ended) codeWarm();
   }
   function pageDraw(box, d) {
-    if (!d) { box.innerHTML = '<p class="ch-sm">' + esc(U('chErr')) + '</p>'; return; }
+    if (!d) { if (!PG.has) box.innerHTML = '<p class="ch-sm">' + esc(U('chErr')) + '</p>'; return; }
+    PG.has = true;
     if (!d.on) { box.innerHTML = '<div class="ch-card"><p class="ch-st">' + esc(U('chOff')) + '</p></div>'; return; }
     box.innerHTML = fullHtml(d);
     fullWire(box, d, function (x) { pageDraw(box, x || cached() || d); });
