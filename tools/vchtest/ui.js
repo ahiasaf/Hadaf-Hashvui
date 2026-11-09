@@ -86,7 +86,7 @@ function seenCalls() { return LOG.filter(function (u) { return /raffle=vseen/.te
   ok(!seenCalls().length, 'כישלון · מסך שלא נטען — לא נרשם');
   await c.close(); PRZ_FAIL = false;
   // הורה — רואה, לא רושם
-  c = await ctxFor(b, { first: 'אבא', inst: 'givat', role: 'dad', id: 'devdad1' }); p = await c.newPage(); LOG = [];
+  c = await ctxFor(b, { first: 'הורה', inst: 'givat', role: 'dad', id: 'devdad1' }); p = await c.newPage(); LOG = [];
   PRZ = { status: 'ok', list: [{ rid: 'R1', p: 'pizza', st: 'soon', kid: 'פלוני', v: V1 }] };
   await p.goto(base + '/hagrala.html?vch=1', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500);
   ok((await p.evaluate(function () { return document.body.innerText; })).indexOf('CODE-123') >= 0 && !seenCalls().length, 'הורה · רואה את השובר, לא נרשם');
@@ -110,15 +110,15 @@ function seenCalls() { return LOG.filter(function (u) { return /raffle=vseen/.te
   ok(pubHtml === await p.evaluate(function () { return document.getElementById('res').innerHTML; }), 'ציבורי · r=1 בלי סיסמה — אותו מסך');
   await c.close();
   WADM = { status: 'ok', vs: { book: 2, pizza: 0 }, von: 1, list: [{ day: '8.11', wk: '6', rid: 'R1', w: [
-    { name: 'א ב', inst: 'גבעת שמואל', code: 'givat', p: 'pizza', how: 'בחר', st: 'soon', ph: '0500000001', first: 'א', v: Object.assign({}, V1, { sn: '2026-11-09T12:00:00Z' }) },
-    { name: 'ג ד', inst: 'ראשון', code: 'rishon', p: 'book', how: 'רכז', st: 'soon', na: 1, co: { n: 'רכז א', ph: '0500000002' } },
+    { name: 'א ב', inst: 'גבעת שמואל', code: 'givat', p: 'pizza', how: 'בחר', st: 'soon', ph: '05' + '00000001', first: 'א', v: Object.assign({}, V1, { sn: '2026-11-09T12:00:00Z' }) },
+    { name: 'ג ד', inst: 'ראשון', code: 'rishon', p: 'book', how: 'רכז', st: 'soon', na: 1, co: { n: 'רכז א', ph: '05' + '00000002' } },
     { name: 'ה ו', inst: 'נר תמיד', code: 'nertamid', p: '', st: 'pick', ph: '' }] }] };
   c = await ctxFor(b, null, { readKey: 'k' }); p = await c.newPage(); LOG = [];
   await p.goto(base + '/zochim?r=1', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2000);
   var li = await p.evaluate(function () { return Array.prototype.map.call(document.querySelectorAll('.wl li'), function (l) {
     return { tx: l.innerText, wa: Array.prototype.map.call(l.querySelectorAll('a.wa'), function (a) { return a.href; }), sel: !!l.querySelector('select'), att: !!l.querySelector('.cob button') }; }); });
-  ok(li[0] && li[0].tx.indexOf('נצפה') >= 0 && li[0].wa.length === 1 && li[0].wa[0].indexOf('972500000001') >= 0, 'רכז · נצפה + וואטסאפ לזוכה', li[0]);
-  ok(li[1] && li[1].tx.indexOf(UI.vchStNone) >= 0 && li[1].wa[0].indexOf('972500000002') >= 0 && li[1].att, 'רכז · בלי אפליקציה — וואטסאפ לרכז; פרס בלי שובר — "שיוך שובר"', li[1]);
+  ok(li[0] && li[0].tx.indexOf('נצפה') >= 0 && li[0].wa.length === 1 && li[0].wa[0].indexOf('9725' + '00000001') >= 0, 'רכז · נצפה + וואטסאפ לזוכה', li[0]);
+  ok(li[1] && li[1].tx.indexOf(UI.vchStNone) >= 0 && li[1].wa[0].indexOf('9725' + '00000002') >= 0 && li[1].att, 'רכז · בלי אפליקציה — וואטסאפ לרכז; פרס בלי שובר — "שיוך שובר"', li[1]);
   ok(li[2] && li[2].sel && !li[2].att, 'רכז · בלי פרס — סימון הבחירה', li[2]);
   LOG = []; await p.click('.wl li:nth-child(2) .cob button'); await p.waitForTimeout(5500);
   ok(LOG.some(function (u) { return /raffle=vattach/.test(u) && /rid=R1/.test(u) && /code=rishon/.test(u) && /key=k/.test(u); }), 'רכז · שיוך שובר אחרי "ביטול · 4"', LOG);

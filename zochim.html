@@ -172,13 +172,17 @@ function coWa(x) {
     esc(UI.rafWaKid) + '</a>';
 }
 function coHtml(x, rid) {
-  var a = "'" + esc(rid) + "','" + esc(x.code) + "'";
+  /* שובר שכבר נמסר ועוד לא קושר (`lk`, 8.99.486) — הפעולות שולחות את המזהה שלו. יותר מאחד — בלי פעולה. */
+  var lk = x.lk || [], one = lk.length === 1 ? lk[0].id : '';
+  var a = "'" + esc(rid) + "','" + esc(x.code) + "','" + esc(one) + "'";
   var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
     tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
-  var v = x.v, vs = !v ? UI.vchStNone : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) : UI.vchStSet;
+  var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? UI.vchStNone : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) : UI.vchStSet;
   var b = coWa(x);
-  if (!x.p) b += '<select onchange="coPrz(' + a + ',this)"><option value="">' + esc(UI.rafPrzSet) + '</option>' +
+  if (lk.length > 1) b += '';
+  else if (!x.p) b += '<select onchange="coPrz(' + a + ',this)"><option value="">' + esc(UI.rafPrzSet) + '</option>' +
     PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
+  else if (one) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchLinkBtn) + '</button>';
   else if (!v && x.st !== 'arr' && VS[x.p] > 0) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchAttach) + '</button>';
   return (pz ? '<span class="co">' + esc(pz) + '</span>' : '') + '<span class="co">' + esc(vs) + '</span>' +
     (b ? '<span class="cob">' + b + '</span>' : '');
@@ -194,14 +198,17 @@ function coDone(d) {
   else if (!d || d.status !== 'ok') SayMsg((d && d.message) || UI.zchErr);
   load();
 }
-function coPrz(rid, code, sel) {
-  var p = sel.value;
+function coPrz(rid, code, vid, sel) {
+  var p = sel.value, q = { raffle: 'prizeset', rid: rid, code: code, p: p };
   if (!p || !SureLater(coPrz, this, arguments, function () { sel.value = ''; })) return;
-  coCall({ raffle: 'prizeset', rid: rid, code: code, p: p }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+  if (vid) q.vid = vid;
+  coCall(q).then(coDone, function () { SayMsg(UI.zchErr); load(); });
 }
-function coAtt(rid, code) {
+function coAtt(rid, code, vid) {
+  var q = { raffle: 'vattach', rid: rid, code: code };
   if (!SureLater(coAtt, this, arguments)) return;
-  coCall({ raffle: 'vattach', rid: rid, code: code }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+  if (vid) q.vid = vid;
+  coCall(q).then(coDone, function () { SayMsg(UI.zchErr); load(); });
 }
 function wl(r) {
   if (!r.w.length) return '<p class="note">' + esc(UI.zchNoWin) + '</p>';

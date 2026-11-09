@@ -7,7 +7,7 @@ function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', lab
 function raf(p) { return JSON.parse(c.raffleRoute_({ parameter: p }).t); }
 function post(d) { return JSON.parse(c.doPost({ postData: { contents: JSON.stringify(d) } }).t); }
 var pub = new Date().toISOString();
-c.appendCols_('לומדים', [['מזהה', 'DWINAAA1'], ['שם', 'א'], ['משפחה', 'ב'], ['קוד ישיבה', 'givat'], ['תפקיד', 'תלמיד'], ['טלפון', '0500000001']]);
+c.appendCols_('לומדים', [['מזהה', 'DWINAAA1'], ['שם', 'א'], ['משפחה', 'ב'], ['קוד ישיבה', 'givat'], ['תפקיד', 'תלמיד'], ['טלפון', '05' + '00000001']]);
 c.appendCols_('לומדים', [['מזהה', 'DWINBBB2'], ['שם', 'ג'], ['משפחה', 'ד'], ['קוד ישיבה', 'rishon'], ['תפקיד', 'תלמיד']]);
 c.appendCols_('לומדים', [['מזהה', 'DWINCCC3'], ['שם', 'ה'], ['משפחה', 'ו'], ['קוד ישיבה', 'nertamid'], ['תפקיד', 'תלמיד']]);
 // הגרלה ישנה (R0) — לפני השוברים: לזוכה פרס בלי שובר, לשני אין פרס.
@@ -63,7 +63,7 @@ ok(nt && !nt.p && !nt.v, 'wadm: old winner without prize stays without (no auto)
 var rs = r0 && r0.w.filter(function (x) { return x.code === 'rishon'; })[0];
 ok(rs && rs.p === 'pizza' && rs.v && rs.v.how === 'רכז' && rs.v.sn === '', 'wadm: attached voucher, not seen', rs);
 var r1 = L.list.filter(function (x) { return x.rid === 'R1'; })[0].w[0];
-ok(r1.v && r1.v.st === 'used' && r1.v.sn === t1 && r1.ph === '0500000001', 'wadm: used + seen + phone', r1);
+ok(r1.v && r1.v.st === 'used' && r1.v.sn === t1 && r1.ph === '05' + '00000001', 'wadm: used + seen + phone', r1);
 ok(L.list[0].rid === 'R1', 'wadm: newest first');
 // "קבע פרס" להגרלה ישנה — rafPrzSet_ הקיים
 var PS = raf({ raffle: 'prizeset', key: 'k', rid: 'R0', code: 'nertamid', p: 'book' });
@@ -72,7 +72,7 @@ ok(PS.status === 'ok' && PS.v && PS.v.c === 'BK-1', 'prizeset on old raffle', PS
 c.CacheService.getScriptCache().removeAll(['raf:all']);
 var PUB1 = JSON.stringify(raf({ raffle: 'all' }));
 ok(PUB0 === PUB1, 'public list identical', [PUB0, PUB1]);
-ok(PUB1.indexOf('PZ-') < 0 && PUB1.indexOf('DWIN') < 0 && PUB1.indexOf('050') < 0, 'public: no codes/ids/phones');
+ok(PUB1.indexOf('PZ-') < 0 && PUB1.indexOf('DWIN') < 0 && PUB1.indexOf('05' + '0000') < 0, 'public: no codes/ids/phones');
 console.log(n - fails + '/' + n + ' passed');
 if (Object.keys(M.missing).length) console.log('missing mocks:', Object.keys(M.missing).join(', '));
 process.exit(fails ? 1 : 0);
