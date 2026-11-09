@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 211;
+var SCRIPT_VERSION = 212;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -1088,7 +1088,7 @@ function doGetMain_(e) {
   /* מפת בית המדרש — הגרסה האחרונה. ראו lapidGet_ · lapidPut_. */
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
   /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
-  if (e && e.parameter && e.parameter.hasaa) return reply_(e, hasaaCheck_(e.parameter.sid));
+  if (e && e.parameter && e.parameter.hasaa) return reply_(e, hasaaCheck_(e.parameter.hs));
 
   /* ============================================================
      "לא מצליח להתקין".
@@ -17767,9 +17767,12 @@ function lapidPut_(d) {
    ============================================================
    עמוד שנפתח מקישור בלבד. התלמיד ממלא ושולח; שורה אחת ללשונית
    הפרטית "הצהרות". **אין שום נתיב שמחזיר תוכן של הצהרה** — הבדיקה
-   (?hasaa=check&sid=) מחזירה רק אם השורה קיימת. ה-sid אקראי וארוך
+   (?hasaa=check&hs=) מחזירה רק אם השורה קיימת. **בכתובת `hs`, לא `sid`:**
+   `sid` (וגם `c`) שמורים ב-Apps Script — גוגל מחזיר דף שגיאה לפני ש-doGet
+   רץ (כמו `rt`). ב-POST ה-sid יושב בגוף ה-JSON ולכן לא נפגע. ה-sid אקראי וארוך
    (crypto.getRandomValues בעמוד), ולכן אי אפשר לנחש שליחה של אחר.
-   כפילות: sid שכבר בלשונית — לא נכתבת שורה נוספת, וחוזר "נשמר".
+   כפילות: sid שכבר בלשונית — לא נכתבת שורה נוספת, וחוזר "נשמר". וגם
+   שליחה שזהה בכל השדות לשורה קיימת (8.99.490) — "נשמר" בלי שורה.
    sid חדש — תמיד שורה חדשה, גם מאותו טלפון (אחים, טלפון משותף).
    ============================================================ */
 var HASAA_TAB_ = 'הצהרות';
@@ -17789,8 +17792,10 @@ function hasaaSheet_() {
   }
   return sh;
 }
-/* האם ה-sid כבר בלשונית (עמודה B). */
+/* האם ה-sid כבר בלשונית (עמודה B) — או שליחה זהה בתוכן שנרשמה עם sid אחר
+   (hasaaPut_ זוכר אותו במטמון לשש שעות). */
 function hasaaHas_(sh, sid) {
+  try { if (CacheService.getScriptCache().get('hsa:' + sid)) return true; } catch (xc) {}
   var n = sh.getLastRow();
   if (n < 2) return false;
   var v = sh.getRange(2, 2, n - 1, 1).getValues();
@@ -17821,6 +17826,20 @@ function hasaaPut_(d) {
   try {
     var sh = hasaaSheet_();
     if (hasaaHas_(sh, sid)) return { status: 'ok', saved: true, dup: true };
+    /* שליחה זהה בכל 13 השדות כבר בלשונית — תלמיד שראה "לא נשמר" (לפני 8.99.490
+       הבדיקה תמיד נכשלה) ושלח שוב מעמוד חדש. לא נכתבת שורה שנייה; ה-sid החדש
+       נזכר במטמון, כדי שהבדיקה שלו תחזיר "נשמר". אח באותו טלפון — שם אחר, שורה משלו. */
+    var nr = sh.getLastRow();
+    if (nr >= 2) {
+      var key = row.join('\u0001');
+      var old = sh.getRange(2, 3, nr - 1, HASAA_F_.length).getDisplayValues();
+      for (var i = 0; i < old.length; i++) {
+        if (old[i].map(function (v) { return String(v).replace(/\s+/g, ' ').trim(); }).join('\u0001') === key) {
+          try { CacheService.getScriptCache().put('hsa:' + sid, '1', 21600); } catch (xc) {}
+          return { status: 'ok', saved: true, dup: true };
+        }
+      }
+    }
     var at = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
     var r = Math.max(sh.getLastRow(), 1) + 1;
     var rg = sh.getRange(r, 1, 1, HASAA_COLS_.length);

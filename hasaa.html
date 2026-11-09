@@ -14,8 +14,11 @@
      נפתח מקישור בלבד (/hasaa) — אין אליו קישור מאף מסך, אין התראות.
      הנוסח — מהמסמך המקורי, ב-data.js (ui.hs*), נערך בניהול.
      שמירה: sid אקראי בטעינה → POST {action:'hasaa'} (no-cors) →
-     ?hasaa=check&sid= מחזיר רק נשמר/לא נשמר → לא נשמר: עוד ניסיון
+     ?hasaa=check&hs= מחזיר רק נשמר/לא נשמר → לא נשמר: עוד ניסיון
      אחד אוטומטי עם אותו sid, ואז "לא נשמר, נסה שוב". מה שמולא נשאר.
+     בכתובת — `hs`, לא `sid`: `sid` שמור ב-Apps Script, וגוגל מחזיר דף
+     שגיאה לפני שהקוד רץ (8.99.490). ה-sid נשמר במכשיר (df:hsSid) עד
+     ש"נשמר" אומת — גם רענון אחרי "לא נשמר" לא יוצר שורה שנייה.
      השרת: hasaaPut_/hasaaCheck_ ב-apps-script.gs, לשונית פרטית "הצהרות".
      ============================================================ -->
 <style>
@@ -163,8 +166,13 @@ $('re').textContent = UI.hsRetry;
 
 /* ---- השליחה ---- */
 var KEYS = ['n', 'y', 'c', 'ph', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'p1', 'p2', 's'];
-/* מזהה השליחה — נוצר פעם אחת בטעינה, ונשאר זהה בכל ניסיון חוזר מהמסך הזה. */
+/* מזהה השליחה — נשמר במכשיר עד ש"נשמר" אומת מהשרת, ולכן זהה בכל ניסיון חוזר,
+   גם אחרי רענון או סגירה ופתיחה. אחרי אימות — נמחק, ושליחה הבאה (אח באותו
+   טלפון) מקבלת מזהה חדש. */
+var SID_K = 'df:hsSid';
 var SID = (function () {
+  var keep = String(ls(SID_K) || '');
+  if (/^[0-9a-f]{32,64}$/.test(keep)) return keep;
   var b = [], i, a;
   try {
     a = new Uint8Array(24);
@@ -173,7 +181,9 @@ var SID = (function () {
   } catch (e) {
     for (i = 0; i < 48; i++) b.push(Math.floor(Math.random() * 16).toString(16));
   }
-  return b.join('');
+  b = b.join('');
+  try { localStorage.setItem(SID_K, b); } catch (e) {}
+  return b;
 })();
 var BUSY = false;
 function api() {
@@ -190,7 +200,7 @@ function post(f) {
 /* "נשמר" — רק מתשובת השרת. n ניסיונות קריאה, ברווח קצר. */
 function check(n) {
   var u = api();
-  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'hasaa=check&sid=' + SID + '&t=' + Date.now())
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'hasaa=check&hs=' + SID + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (r) { return !!(r && r.status === 'ok' && r.saved); }, function () { return false; })
     .then(function (ok) {
@@ -204,6 +214,7 @@ function attempt(f) {
     .then(function () { return check(4); });
 }
 function done() {
+  try { localStorage.removeItem(SID_K); } catch (e) {}
   $('page').hidden = true;
   $('ok').textContent = UI.hsOk;
   $('ok').hidden = false;
