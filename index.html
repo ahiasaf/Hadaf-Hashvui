@@ -2295,6 +2295,11 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-ex-in>button.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .am-ex-in .wantbar{margin:0 0 12px;text-align:right}
 .am-ex-in>button.bk{border:0;background:none;color:var(--ink-3);font-size:.9rem}
+/* בורר הדף — המסלול השנתי בתוך החלון, גולל (8.99.488). */
+.am-ex-in.am-dfp{max-height:88vh;overflow-y:auto}
+.am-dfp .trl{margin:0 0 12px}
+.am-dfp .trl-head b{color:#fff;margin:0}
+.am-dfp .trl-chap b{color:#C08F2B;margin:0}
 .am-tick{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);
          font-size:4.4rem;font-weight:800;line-height:120px}
 .am-ok b{font-size:1.5rem;font-weight:800}
@@ -3163,7 +3168,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.487';
+var APP_VERSION = '8.99.488';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -21696,7 +21701,51 @@ function amdaSetInst(v) {
    לכל מועד, לפי הגיליון (גם ממכשיר אחר). `amdaCnt` — כמה פעמים
    כל תלמיד היה, בשלוש הספירות, לפי הגיליון. מה שבתור נוסף לשניהם. */
 function amdaQ() { return Store.get('amdaQ', []) || []; }
-function amdaSessOf(m) { return m.day && m.slot ? m.day + '|' + m.slot : 'w' + m.w; }
+/* **מועד = יום|מועד, ולדף שאינו דף השבוע — גם הדף** (בחירת דף, 8.99.488).
+   דף השבוע של אותו יום — בלי תוספת, כמו קודם (כך גם שיעורי הכיתה והלוח
+   לא זזו). דף אחר — `|מסלול:דף`, ולכן אותו תלמיד אפשר לסמן גם עליו באותו
+   מועד, וההסרה חלה רק על הדף הנבחר. דף שלם בלבד: ב. וב: הם `ב`. */
+function amdaDK(d) { return String(d || '').replace(/["'׳״\s.:]/g, ''); }
+function amdaWkDay(day) { return day === amdaDay() ? Math.max(0, LWeek()) : amdaWkOn(day); }
+function amdaSfx(m) {
+  if (m.kind === 'o' || !m.daf || !m.track || !m.day) return '';
+  var k = amdaDK(m.daf);
+  return k === amdaDK(LDaf(m.track, amdaWkDay(m.day))) ? '' : '|' + m.track + ':' + k;
+}
+function amdaSessOf(m) { return m.day && m.slot ? m.day + '|' + m.slot + amdaSfx(m) : 'w' + m.w; }
+/* יום|מועד — בלי הדף. נוכחות נספרת פעם אחת לכל מועד, גם על שני דפים. */
+function amdaSessBase(sess) { return String(sess).split('|').slice(0, 2).join('|'); }
+/* הדף שנבחר בפתיחה הזו (`s.wk`, שבוע מ-0) — או דף השבוע. */
+function amdaWkSel() {
+  var s = amdaSess(), tr = s.track || amdaTrack();
+  return typeof s.wk === 'number' && s.wk >= 0 && LDaf(tr, s.wk) ? s.wk : Math.max(0, LWeek());
+}
+function amdaSessNow() {
+  var s = amdaSess(), tr = s.track || amdaTrack();
+  return amdaSessOf({ day: amdaDay(), slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd', track: tr,
+                      daf: LDafName(tr, amdaWkSel()) || '' });
+}
+/* האם התלמיד כבר נמצא ב-`all` (amdaHad2) באותו יום|מועד, על דף כלשהו. */
+function amdaHadIn(all, base, sk) {
+  for (var k in all) {
+    if (!all.hasOwnProperty(k) || amdaSessBase(k) !== base) continue;
+    var v = (all[k] || {})[sk];
+    if (v === 1 || (v && v.length)) return true;
+  }
+  return false;
+}
+/* מי נרשם ביום|מועד — על כל הדפים יחד. */
+function amdaHadDay(base) {
+  var all = Store.get('amdaHad2' + amdaVS(), {}) || {}, ks = {}, out = {};
+  Object.keys(all).forEach(function (k) { ks[k] = 1; });
+  amdaQ().forEach(function (m) { ks[amdaSessOf(m)] = 1; });
+  Object.keys(ks).forEach(function (k) {
+    if (amdaSessBase(k) !== base) return;
+    var h = amdaHadNow(k), x;
+    for (x in h) { if (h.hasOwnProperty(x)) out[x] = 1; }
+  });
+  return out;
+}
 /* הסרה של מי שסומן בטעות ("אני מסמן", לחיצה נוספת — 8.99.426).
    התור `amdaDq`: לכל הסרה — מזהי השורות שלו בגיליון במועד הזה. היא
    נשלחת (amdaDel_ בשרת) עד שהקריאה החוזרת כבר לא רואה אף אחד מהם —
@@ -21725,7 +21774,7 @@ function amdaHadNow(sess) {
 }
 /* מסיר את הסימון של תלמיד במועד הזה — מהתור, ומהגיליון דרך amdaDq. */
 function amdaUnmark(g, c, n) {
-  var s = amdaSess(), sess = amdaDay() + '|' + s.slot, k = amdaKey(g, c, n), ids = [], mine = 0;
+  var s = amdaSess(), sess = amdaSessNow(), k = amdaKey(g, c, n), ids = [], mine = 0;
   var q = amdaQ().filter(function (m) {
     if (amdaSessOf(m) !== sess || amdaKey(m.g, m.c, m.n) !== k) return true;
     if (m.sent) ids.push(m.id);                 /* כבר יצא — אולי כבר בגיליון */
@@ -21749,9 +21798,13 @@ function amdaFlushSoon() {
 }
 function amdaCounts() {
   var base = Store.get('amdaCnt' + amdaVS(), {}) || {}, out = {}, k;
+  var had = Store.get('amdaHad2' + amdaVS(), {}) || {}, once = {};
   for (k in base) { if (base.hasOwnProperty(k)) out[k] = amdaC4(base[k]); }
   amdaQ().forEach(function (m) {
-    var sk = amdaKey(m.g, m.c, m.n);
+    var sk = amdaKey(m.g, m.c, m.n), b = amdaSessBase(amdaSessOf(m));
+    /* אותו תלמיד על דף נוסף באותו מועד — לא נוכחות נוספת. */
+    if (once[b + '#' + sk] || amdaHadIn(had, b, sk)) return;
+    once[b + '#' + sk] = 1;
     (out[sk] = out[sk] || amdaC4())[amdaBucket(m.slot, m.kind)]++;
   });
   return out;
@@ -22011,7 +22064,7 @@ function amdaConfirm(have, stf, asked) {
     if (!seen[m.id]) return true;
     var sess = amdaSessOf(m), sk = amdaKey(m.g, m.c, m.n), hs = had[sess] = had[sess] || {};
     var cur = hs[sk], arr = Object.prototype.toString.call(cur) === '[object Array]' ? cur : [];
-    if (!cur || (cur !== 1 && !arr.length)) {
+    if (!amdaHadIn(had, amdaSessBase(sess), sk)) {
       cnt[sk] = amdaC4(cnt[sk]);
       cnt[sk][amdaBucket(m.slot, m.kind)]++;
       if (String(m.slot || '').charAt(0) === 'L') les[sk] = (les[sk] || 0) + 1;
@@ -22037,7 +22090,7 @@ function amdaConfirm(have, stf, asked) {
   Store.set('amdaQ', q);
   Store.set('amdaDq', dq);
 }
-var AMDA_PULL_COLS = 'מזהה,שכבה,כיתה,שם,יום,קוד עמדה,שבוע,סוג,מקום,מתי,קוד ישיבה';
+var AMDA_PULL_COLS = 'מזהה,שכבה,כיתה,שם,יום,קוד עמדה,שבוע,סוג,מקום,מתי,קוד ישיבה,מסלול,דף';
 var AMDA_SYNC_AT = 0;
 /* בקשת השיוך שהקריאה המלאה הייתה מריצה לפני שענתה — עכשיו בנפרד, בלי
    לחכות לה, ולכל היותר פעם בדקה מהמכשיר (השרת ממילא משייך פעם בדקה). */
@@ -22077,8 +22130,8 @@ function amdaPull(stf0) {
                                          col(x, 'קוד ישיבה'), g, c.trim(), n.trim()]);
       if (!g || !c || !n) return;
       var m = { day: col(x, 'יום'), slot: col(x, 'קוד עמדה'), w: col(x, 'שבוע'),
-                kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd' };
-      var sess = amdaSessOf(m), sk = amdaKey(g, c, n);
+                kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd', track: col(x, 'מסלול'), daf: col(x, 'דף') };
+      var sk = amdaKey(g, c, n), sess = m.day === today ? amdaSessOf(m) : '', base = m.day && m.slot ? m.day + '|' + m.slot : 'w' + m.w;
       if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) });
       /* מי נרשם היום — עם מזהי השורות, להסרה ("אני מסמן"). */
       if (m.day === today) {
@@ -22086,9 +22139,10 @@ function amdaPull(stf0) {
         if (Object.prototype.toString.call(hs[sk]) !== '[object Array]') hs[sk] = [];
         if (id) hs[sk].push(id);
       }
-      if (once[sess + '#' + sk]) return;
+      /* פעם אחת לכל יום|מועד — גם מי שסומן על שני דפים. */
+      if (once[base + '#' + sk]) return;
       if (m.slot.charAt(0) === 'L') lesAtt[sk] = (lesAtt[sk] || 0) + 1;
-      once[sess + '#' + sk] = 1;
+      once[base + '#' + sk] = 1;
       (cnt[sk] = cnt[sk] || amdaC4())[amdaBucket(m.slot, m.kind)]++;
     });
     Store.set('amdaHad2' + amdaVS(stf), had);
@@ -22171,7 +22225,7 @@ function amdaFinAsk() {
   var line = function (t) { return '<p class="am-fl">' + esc(t) + '</p>'; };
   var paint = function () {
     var n = (+s.n || 0) + pick.length;
-    var daf = now === 'd', dn = LDafName(s.track || amdaTrack(), Math.max(0, LWeek()));
+    var daf = now === 'd', dn = LDafName(s.track || amdaTrack(), amdaWkSel());
     d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('finQ')) + '</b>' +
       line(n ? fill(amdaT('finN'), { n: n }) : amdaT('finN0')) +
       line(amdaT(daf ? 'chipD' : 'chipO') + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
@@ -22322,6 +22376,50 @@ function amdaSlotGo(id) {
   amdaPaint();
   box.scrollTop = 0;
 }
+/* ---------- בחירת הדף (8.99.488) ----------
+   ברירת המחדל בכל פתיחה — דף השבוע. הבחירה חלה על הסימונים הבאים
+   באותה פתיחה (`s.wk` ב-amdaSess); התאריך נשאר היום. הבורר — המסלול
+   השנתי (trail.js), שורה לכל דף שלם: ב. וב: הם "ב" אחד. */
+function amdaDafShow(tr, wk) { var d = LDaf(tr, wk); return d ? (amdaDK(d) === amdaDK(LDaf(tr, Math.max(0, LWeek()))) ? LDafName(tr, Math.max(0, LWeek())) : d) : ''; }
+function amdaDafAsk() {
+  var s = amdaSess(), box = document.getElementById('amda'), tr = TrackById(s.track || amdaTrack());
+  if (!box || !tr || document.getElementById('am-ex')) return;
+  var seen = {}, units = [], here = -1, cur = amdaDK(LDaf(tr.id, amdaWkSel()));
+  TrailWeeks(tr).forEach(function (u) {
+    var k = amdaDK(u.daf);
+    if (u.kind !== 'daf' || seen[k]) return;
+    seen[k] = 1;
+    u.am = 0;
+    if (k === cur) here = units.length;
+    units.push(u);
+  });
+  var d = document.createElement('div');
+  d.className = 'am-ex'; d.id = 'am-ex';
+  d.innerHTML = '<div class="am-ex-in am-dfp"><b>' + esc(amdaT('dafQ')) + '</b>' +
+    TrailHtml({ tr: tr, units: units, here: here, wi: Math.max(0, LWeek()), plain: true,
+      attr: function (u) { return ' role="button" tabindex="0" data-dw="' + u.wk + '"'; } }) +
+    '<button class="bk" data-dw="-">' + esc(amdaT('exitStay')) + '</button></div>';
+  box.appendChild(d);
+  d.onclick = function (e) {
+    var b = e.target.closest && e.target.closest('[data-dw]');
+    if (!b && e.target !== d) return;
+    var v = b ? b.getAttribute('data-dw') : '-';
+    d.parentNode.removeChild(d);
+    if (v !== '-') amdaDafGo(+v);
+  };
+  setTimeout(function () {
+    var c = d.querySelector('.trl-step.here');
+    if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center' });
+  }, 30);
+}
+function amdaDafGo(wk) {
+  var s = amdaSess(), tr = s.track || amdaTrack();
+  if (!LDaf(tr, wk)) return;
+  /* דף השבוע — חזרה לברירת המחדל. */
+  if (amdaDK(LDaf(tr, wk)) === amdaDK(LDaf(tr, Math.max(0, LWeek())))) delete s.wk; else s.wk = wk;
+  Store.set('amdaSess', s);
+  amdaPaint();
+}
 /* ============================================================
    החלפת הסוג של הפתיחה — גם למי שכבר נרשם (amdakind בסקריפט).
    ============================================================
@@ -22349,8 +22447,11 @@ function amdaFixPrep(day, slot, k, track0) {
   var q = amdaQ();
   q.forEach(function (m) { if (m.day === day && m.slot === slot) { m.kind = k; m.lv = amdaLv(); m.qz = qz; } });
   Store.set('amdaQ', q);
-  var track = track0 || amdaTrack(), wk = day === amdaDay() ? Math.max(0, LWeek()) : amdaWkOn(day);
-  var fix = { day: day, slot: slot, kind: k, qz: qz, inst: inst,
+  var track = track0 || amdaTrack(), wk = day === amdaDay() ? amdaWkSel() : amdaWkOn(day);
+  /* `own` — שורה שכבר יש לה דף שומרת אותו (amdaKind_): בפתיחה עם שני
+     דפים, תיקון הסוג אינו דורס את הדף האחר. שורה בלי דף — מקבלת את
+     הדף הזה ואת השבוע שלו (`w`). */
+  var fix = { day: day, slot: slot, kind: k, qz: qz, inst: inst, own: 1, w: k === 'd' ? wk + 1 : '',
               track: k === 'd' ? track : '', daf: k === 'd' ? (LDafName(track, wk) || '') : '',
               lvl: k === 'd' ? amdaLv() : '' };
   Store.set('amdaFix', fix);
@@ -22373,12 +22474,14 @@ function amdaFixCheck(fix) {
   return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], c = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] == null ? '' : x[i]).trim(); };
+    var own = fix.own && fix.kind !== 'o';
     var want = [['סוג', fix.kind === 'o' ? 'שיעור' : 'דף'], ['מסלול', fix.track], ['דף', fix.daf],
                 ['רמה', fix.lvl], ['אישור חידון', fix.qz ? 'כן' : '']];
     return !d.rows.slice(1).some(function (x) {
       if (c(x, 'יום') !== fix.day || c(x, 'קוד עמדה') !== fix.slot) return false;
       if (fix.inst && c(x, 'קוד ישיבה') !== fix.inst) return false;
-      return want.some(function (w) { return c(x, w[0]) !== w[1]; });
+      if (own && (!c(x, 'מסלול') || !c(x, 'דף'))) return true;
+      return want.some(function (w) { return !(own && (w[0] === 'מסלול' || w[0] === 'דף')) && c(x, w[0]) !== w[1]; });
     });
   })['catch'](function () { return false; });
 }
@@ -22387,7 +22490,7 @@ function amdaFixRun(fix, cb) {
   cb = cb || function () {};
   if (!fix || !key || !url) { cb(false); return; }
   var body = { action: 'amdakind', key: key, day: fix.day, slot: fix.slot, inst: fix.inst || '', kind: fix.kind, qz: fix.qz ? '1' : '',
-               track: fix.track, daf: fix.daf, lvl: fix.lvl };
+               track: fix.track, daf: fix.daf, lvl: fix.lvl, own: fix.own ? '1' : '', w: fix.w || '' };
   var tries = 0;
   var send = function () {
     fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).catch(function () {});
@@ -22441,6 +22544,7 @@ function amdaPaint() {
   var box = document.getElementById('am-in');
   if (!box) return;
   var s = amdaSess(), daf = s.kind !== 'o', les = amdaLesson(s.slot);
+  var dn = daf ? amdaDafShow(s.track || amdaTrack(), amdaWkSel()) : '';
   /* שיעור כיתה: רק הכיתה הזו, בלי לבחור שכבה וכיתה. */
   if (les) { amdaSt.g = les.g; amdaSt.c = les.c; }
   /* מי מסמן — המורה או התלמידים; מעבר בכל רגע, הסימונים נשארים. */
@@ -22454,10 +22558,10 @@ function amdaPaint() {
   var h = '<div class="am-hd"><div class="am-hr"><div class="am-ht">' +
           '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
           '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
-          (daf && LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) ? ' · ' + esc(fill(amdaT('dafName'),
-            { d: LDafName(s.track || amdaTrack(), Math.max(0, LWeek())) })) : '') +
+          /* הדף — כפתור: בחירת דף אחר לסימונים הבאים בפתיחה הזו (amdaDafAsk). */
+          (daf && dn ? ' · <button class="am-wd" data-df="1">' + esc(fill(amdaT('dafName'), { d: dn })) + '</button>' : '') +
           ' · ' + esc(amdaSlotName(s.slot)) +
-          (daf ? ' · ' + esc(amdaT('week', { w: amdaWeek() })) : '') +
+          (daf ? ' · ' + esc(amdaT('week', { w: amdaWkSel() + 1 })) : '') +
           '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div></div>' +
           /* איש צוות — תמיד הדף השבועי; המתג ללימוד אחר רק אצל הרכז. */
           (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
@@ -22473,7 +22577,7 @@ function amdaPaint() {
      גוללים את השמות, והמעבר לכיתה אחרת נשאר במרחק לחיצה. */
   if (amdaSt.all && !amdaSt.pick) {
     var lst = amdaSt.g && amdaSt.c ? amdaList(amdaSt.g, amdaSt.c) : [];
-    var hd = amdaHadNow(amdaDay() + '|' + s.slot), nOn = lst.filter(function (n) {
+    var hd = amdaHadNow(amdaSessNow()), nOn = lst.filter(function (n) {
       return hd[amdaKey(amdaSt.g, amdaSt.c, n)];
     }).length;
     /* הסמן — מקומו של הפס כשאינו נצמד (offsetTop של פס נצמד זז איתו). */
@@ -22508,7 +22612,7 @@ function amdaPaint() {
     esc(amdaT('tip')) + '</p></div>' : '');
   /* שלב המקום: אחרי השם, במפת הכיתה. */
   if (les && amdaSt.pick) {
-    var sess = amdaDay() + '|' + s.slot, me = amdaKey(les.g, les.c, amdaSt.pick);
+    var sess = amdaSessNow(), me = amdaKey(les.g, les.c, amdaSt.pick);
     h += '<div class="am-q">' + esc(amdaSt.pick) + ' — ' + esc(amdaT('pickSeat')) + '</div>' +
          amdaMapHtml(les, amdaOcc(les, sess), { mine: amdaSeats(les.id)[me] || '', me: me }) +
          '<button class="am-x am-skip" data-s="-">' + esc(amdaT('seatSkip')) + '</button>';
@@ -22533,7 +22637,7 @@ function amdaPaint() {
     }
   }
   if (amdaSt.g && amdaSt.c) {
-    var had = amdaHadNow(amdaDay() + '|' + s.slot), list = amdaList(amdaSt.g, amdaSt.c);
+    var had = amdaHadNow(amdaSessNow()), list = amdaList(amdaSt.g, amdaSt.c);
     if (amdaSt.all) {
       /* "אני מסמן": כל מי שנרשם במועד הזה מסומן — גם מי שסימן את עצמו.
          לחיצה מסמנת, לחיצה נוספת מסירה. */
@@ -22585,11 +22689,12 @@ function amdaTap(e) {
           el.getAttribute('data-n') || el.getAttribute('data-x') || el.getAttribute('data-k') ||
           el.getAttribute('data-w') || el.getAttribute('data-lb') || el.getAttribute('data-la') ||
           el.getAttribute('data-gc') || el.getAttribute('data-pg') || el.getAttribute('data-tb') || el.getAttribute('data-ta') ||
-          el.getAttribute('data-fin')))) el = el.parentNode;
+          el.getAttribute('data-df') || el.getAttribute('data-fin')))) el = el.parentNode;
   if (!el || el.id === 'amda') return;
   if (document.getElementById('am-ok').className === 'am-ok on') return;
   if (el.getAttribute('data-x') || el.getAttribute('data-fin')) { amdaClose(); return; }
   if (el.getAttribute('data-w')) { amdaSlotAsk(); return; }
+  if (el.getAttribute('data-df')) { amdaDafAsk(); return; }
   if (el.getAttribute('data-lb')) { amdaBoard(amdaSess().slot); return; }
   if (el.getAttribute('data-la')) {
     var lid = (amdaLesson(amdaSess().slot) || {}).id;
@@ -22650,7 +22755,7 @@ function amdaTap(e) {
     if (bx.scrollTop > y) bx.scrollTop = y;
     return;
   }
-  var all = amdaList(amdaSt.g, amdaSt.c), had0 = amdaHadNow(amdaDay() + '|' + amdaSess().slot);
+  var all = amdaList(amdaSt.g, amdaSt.c), had0 = amdaHadNow(amdaSessNow());
   var keep = function () {
     var top = document.getElementById('amda').scrollTop;
     amdaPaint();
@@ -22708,8 +22813,9 @@ function amdaOk(n, txt, after, ms) {
 /* רישום אחד לתור, בלי מסך. מחזיר true אם נוסף (ולא נרשם כבר). */
 function amdaMarkRec(g, c, n) {
   var s = amdaSess(), day = amdaDay(), key = amdaKey(g, c, n);
-  if (amdaHadNow(day + '|' + s.slot)[key]) return false;
-  var q = amdaQ(), track = s.track || amdaTrack(), wk = Math.max(0, LWeek());
+  /* אותו תלמיד על אותו דף באותו מועד — פעם אחת; על דף אחר — מותר. */
+  if (amdaHadNow(amdaSessNow())[key]) return false;
+  var q = amdaQ(), track = s.track || amdaTrack(), wk = s.kind === 'o' ? Math.max(0, LWeek()) : amdaWkSel();
   q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
            w: wk + 1, day: day, slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd',
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: amdaLv(),
@@ -23632,7 +23738,7 @@ function admAmda(body) {
     ' accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>';
 
   /* היום, במועד שנבחר */
-  var had = Object.keys(amdaHadNow(amdaDay() + '|' + slot));
+  var had = Object.keys(amdaHadDay(amdaDay() + '|' + slot));
   h += '<div class="adm-card"><h4>' + esc(amdaT('admSess', { slot: amdaSlotName(slot), n: had.length })) + '</h4>' +
     (q.length ? '<p class="h">' + esc(amdaT('admWait', { n: q.length })) + '</p>' : '') +
     (key ? '<button class="btn g" style="width:100%;margin:6px 0 4px" onclick="amdaRepOpen()">' + esc(amdaT('repGo')) + '</button>' : '') +

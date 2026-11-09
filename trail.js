@@ -75,7 +75,9 @@ function TrailAmudim(tr) {
    o.here   — מספר היחידה שבה הלומד נמצא עכשיו, או -1
    o.attr   — function (u, k) → מחרוזת מאפיינים לשורה (onclick וכו')
    o.big    — שורה שבה העיגול הגדול (ברירת מחדל: השבוע של כולם)
-   o.noHead — בלי הכותרת ובלי הפרקים: השבוע של היום במסך התלמיד */
+   o.noHead — בלי הכותרת ובלי הפרקים: השבוע של היום במסך התלמיד
+   o.plain  — בלי מה שהמכשיר יודע על הלומד (✓, פס, נקודות): בורר הדף
+              בעמדת הנוכחות, שבו המכשיר אינו של התלמיד */
 /* הנקודות של הלומד לכל דף — מהמטמון שמסך התלמיד שומר (`ptsMe`, join.html,
    מחושב בשרת). רק של המזהה שבמכשיר; אין — אין נקודות בשורות. */
 function TrailPts(trId) {
@@ -96,7 +98,7 @@ function TrailHtml(o) {
   var tr = o.tr, bid = tr.baseTrack || tr.id, chaps = (typeof CHAPTERS !== 'undefined' && CHAPTERS[bid]) || [];
   var shown = {}, firstOfWeek = {}, wi = o.wi;
   /* הנקודות — בשורה האחרונה של כל דף (ב: ולא ב.), כי הדף נספר פעם אחת. */
-  var pts = TrailPts(bid), lastOf = {};
+  var pts = o.plain ? {} : TrailPts(bid), lastOf = {};
   o.units.forEach(function (u, k) { if (u.kind === 'daf') lastOf[TrailKey(u.daf)] = k; });
   var h = '<div class="trl ' + (bid === 'taanit' ? 't-b' : 't-g') + '">' + (o.noHead ? '' :
     '<div class="trl-head"><b>' +
@@ -125,11 +127,11 @@ function TrailHtml(o) {
     if (u.wk === wi) cls += first ? ' cur' : ' now';
     if (wi >= 0 && u.wk < wi) cls += ' done';
     /* מה שסומן כנלמד — מהמכשיר, ולכן זמין גם בלי רשת. */
-    var dn = u.kind === 'daf' && typeof LDone === 'function' && LDone(tr.id, u.wk);
+    var dn = !o.plain && u.kind === 'daf' && typeof LDone === 'function' && LDone(tr.id, u.wk);
     if (dn) cls += ' learned';
     /* כמה מילא בשבוע — הפס של לוח הצוות: מתחת לשם כשהוא באמצע, ונעלם
        בסיום (אז ה-✓). פעם אחת לשבוע. */
-    var f = u.kind === 'daf' && first && !dn && typeof LPosFrac === 'function' ? LPosFrac(tr.id, u.wk) : 0;
+    var f = !o.plain && u.kind === 'daf' && first && !dn && typeof LPosFrac === 'function' ? LPosFrac(tr.id, u.wk) : 0;
     var p = u.kind === 'daf' && lastOf[TrailKey(u.daf)] === k ? pts[TrailKey(u.daf)] : 0;
     if (k === o.here) cls += ' here';
     if (k === o.units.length - 1) cls += ' last';

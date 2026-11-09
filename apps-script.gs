@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 210;
+var SCRIPT_VERSION = 211;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -4130,12 +4130,16 @@ function amdaRows_(tab, list, inst) {
    בלקוח, אבל בשרת: בלי להוריד את הלשונית לטלפון. */
 function amdaFixOk_(fix) {
   var t = amdaTable_(AMDA_TAB_);
+  /* `own` — מסלול ודף משלה לכל שורה; רק שאינם ריקים (amdaKind_). */
+  var own = !!fix.own && fix.kind !== 'o';
   var want = [['סוג', fix.kind === 'o' ? 'שיעור' : 'דף'], ['מסלול', String(fix.track || '')],
               ['דף', String(fix.daf || '')], ['רמה', String(fix.lvl || '')], ['אישור חידון', fix.qz ? 'כן' : '']];
+  if (own) want = want.filter(function (w) { return w[0] !== 'מסלול' && w[0] !== 'דף'; });
   for (var r = 1; r < t.rows.length; r++) {
     var x = t.rows[r];
     if (t.c(x, 'יום') !== String(fix.day || '') || t.c(x, 'קוד עמדה') !== String(fix.slot || '')) continue;
     if (fix.inst && t.c(x, 'קוד ישיבה') !== String(fix.inst)) continue;
+    if (own && (!t.c(x, 'מסלול') || !t.c(x, 'דף'))) return false;
     for (var k = 0; k < want.length; k++) if (t.c(x, want[k][0]) !== want[k][1].trim()) return false;
   }
   return true;
@@ -4853,9 +4857,13 @@ function amdaKind_(d) {
      השורות של היום והמועד. תיקון של שיעור קודם תמיד שולח אותו. */
   var inst = String(d.inst || '').trim();
   var dafK = d.kind === 'd', lvl = String(d.lvl || '').trim();
+  /* `own` (8.99.488) — בפתיחה אפשר לסמן כמה דפים: שורה שכבר יש לה מסלול
+     ודף שומרת אותם, ושורה בלי דף מקבלת את הדף שנשלח ואת השבוע שלו (`w`). */
+  var own = String(d.own || '') === '1', wNew = String(d.w || '').trim();
   if (!day || !slot) return { status: 'error', message: 'חסר יום או מועד' };
   var at = amdaTable_(AMDA_TAB_), sh = at.sh, head = headers_(sh), n = 0, drop = {};
   var iK = idx_(sh, head, 'סוג'), iT = idx_(sh, head, 'מסלול'), iD = idx_(sh, head, 'דף'), iL = idx_(sh, head, 'רמה');
+  var iW = idx_(sh, head, 'שבוע');
   /* אישור החידון הולך עם הרמה: רק "למד וחידון" שנבחר במפורש בפתיחה
      (`qz`) — תיקון לסוג אחר או לרמה אחרת מוריד אותו. */
   var iQ = idx_(sh, head, 'אישור חידון'), qz = dafK && lvl === 'למד וחידון' && String(d.qz || '') === '1';
@@ -4869,8 +4877,10 @@ function amdaKind_(d) {
     if (at.c(x, 'יום') !== day || at.c(x, 'קוד עמדה') !== slot) continue;
     if (inst && at.c(x, 'קוד ישיבה') !== inst) continue;
     var was = learned(x), oldKey = key(x);
-    var trk = dafK ? String(d.track || at.c(x, 'מסלול') || '') : '';
-    var daf = dafK ? String(d.daf || at.c(x, 'דף') || '') : '';
+    var hasD = !!(at.c(x, 'מסלול') && at.c(x, 'דף'));
+    var trk = dafK ? (own && hasD ? at.c(x, 'מסלול') : String(d.track || at.c(x, 'מסלול') || '')) : '';
+    var daf = dafK ? (own && hasD ? at.c(x, 'דף') : String(d.daf || at.c(x, 'דף') || '')) : '';
+    if (dafK && own && !hasD && wNew) sh.getRange(r + 1, iW + 1).setValue(wNew);
     sh.getRange(r + 1, iK + 1).setValue(dafK ? 'דף' : 'שיעור');
     sh.getRange(r + 1, iT + 1).setValue(trk);
     sh.getRange(r + 1, iD + 1).setValue(daf);
