@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 204;
+var SCRIPT_VERSION = 205;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -17262,10 +17262,14 @@ function ov_(p) {
     return { status: 'ok', k: ovk };
   }
 
+  /* עריכה בסקירה נוגעת רק בטבלת הסקירה ובלשוניות הפרטיות שלה — לא בלשוניות
+     של התלמידים. לכן נעילת **המסמך**, ולא נעילת הסקריפט: זו תפוסה בשעות הלימוד
+     בכל שמירה של תלמיד, ועריכה בסקירה נדחתה ב"עומס — נסו שוב" (9.11, 16:17).
+     שתי עריכות בסקירה עדיין לא רצות יחד. */
   var lock = null;
   if (op !== 'get') {
-    lock = LockService.getScriptLock();
-    if (!lock.tryLock(15000)) return { status: 'error', message: 'עומס — נסו שוב' };
+    lock = LockService.getDocumentLock() || LockService.getUserLock();
+    if (!lock.tryLock(20000)) return { status: 'error', message: 'עומס — נסו שוב' };
   }
   try {
     var T = null;

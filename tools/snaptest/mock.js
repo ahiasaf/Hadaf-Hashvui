@@ -88,7 +88,12 @@ function makeWorld() {
       openById: function (id) { if (id === 'PRIV') return priv; return pub; }, flush: function () {} }),
     CacheService: fallback('CacheService', { getScriptCache: function () { return CacheObj; } }),
     PropertiesService: fallback('PropertiesService', { getScriptProperties: function () { return PropObj; } }),
-    LockService: fallback('LockService', { getScriptLock: function () { return { waitLock: function () {}, tryLock: function () { return true; }, releaseLock: function () {}, hasLock: function () { return true; } }; } }),
+    LockService: fallback('LockService', (function () {
+      /* שלוש נעילות נפרדות (סקריפט / מסמך / משתמש). `W.busy[kind]` = תפוסה — tryLock נכשל. */
+      var mk = function (kind) { return function () { return { waitLock: function () {}, tryLock: function () { return !(W.busy && W.busy[kind]); },
+        releaseLock: function () {}, hasLock: function () { return true; } }; }; };
+      return { getScriptLock: mk('script'), getDocumentLock: mk('doc'), getUserLock: mk('user') };
+    })()),
     Utilities: fallback('Utilities', { formatDate: fmt, sleep: function (ms) { if (W.sleepHook) W.sleepHook(ms); },
       getUuid: function () { return 'u' + Math.random().toString(36).slice(2); } }),
     Session: fallback('Session', { getScriptTimeZone: function () { return 'Asia/Jerusalem'; } }),

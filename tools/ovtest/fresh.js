@@ -38,4 +38,12 @@ ok(g6.status === 'ok' && rc === 4 && sy[0] === true, 'managers link entry syncs'
 sy = [];
 c.ov_({ ov: 'get', key: 'mgr1', force: '1' });
 ok(rc === 4, 'force from a non-owner link waits like fresh', [rc, sy]);
+// 7. עריכה בסקירה כשנעילת הסקריפט תפוסה (שעת לימוד) — נשמרת; רק נעילת המסמך מעכבת אותה
+W.busy = { script: true };
+var s7 = c.ov_({ ov: 'set', key: 'k', code: 'givat', f: 'note', v: 'משפט לבדיקה' });
+ok(s7.status === 'ok', 'save works while the script lock is busy', s7);
+W.busy = { doc: true };
+var s8 = c.ov_({ ov: 'set', key: 'k', code: 'givat', f: 'note', v: 'עוד' });
+ok(s8.status === 'error', 'two overview edits still serialized', s8);
+W.busy = null;
 console.log('checks', n, 'fails', fails); process.exit(fails ? 1 : 0);
