@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 205;
+var SCRIPT_VERSION = 206;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14208,20 +14208,28 @@ function chModel_(U, force) {
        מקבל את מה שהיא בנתה, ולא בונה שוב. אחרת כל בקשה בתור בנתה בתורה, והטלפונים
        ויתרו לפני שקיבלו תשובה ("לא הצלחנו לטעון את מצב האתגר"). */
     if (!force) M = chModelHit_(rc, key);
-    if (!M) M = chSync_(U);
-    else return M;
+    if (M) return M;
+    M = chSync_(U);
+    /* השמירה במטמון — **לפני** שחרור הנעילה (SCRIPT 206): שורת לימוד שנכתבה מיד אחרי
+       הבנייה מסמנת "ישן" (chBustFor_), ושמירה מאוחרת הייתה מוחקת את הסימון. */
+    chModelPut_(rc, key, M);
   } finally { lock.releaseLock(); }
+  return M;
+}
+/* שמירת מודל שנבנה עכשיו (chSync_) במטמון — עשר דקות (8.99.385; היה דקה): כל שינוי
+   שנוגע במבצע מנקה את המטמון או מחליף אותו, ומועד ההגרלה נבדק ב-chModelHit_. נקרא תחת
+   הנעילה של הבנייה. גם אחרי ישיבה / שולחן חדש / "לא, תודה" (SCRIPT 206) — המודל שאחרי
+   השינוי נשמר, במקום למחוק ולבנות שוב בבקשה הבאה. */
+function chModelPut_(rc, key, M) {
+  if (!rc || !M) return;
   try {
     var js = JSON.stringify(M), st = String(Date.now() % 1e8), put = {}, n = 0;
     for (var o = 0; o < js.length; o += 90000) put[key + ':' + st + ':' + (n++)] = js.substr(o, 90000);
-    /* עשר דקות (8.99.385; היה דקה): כל שינוי שנוגע במבצע מנקה את המטמון בעצמו —
-       לימוד של משתתף (chBustFor_), הרשמה מקישור, ישיבה, פעולת ניהול — ומועד
-       ההגרלה נבדק למעלה. כך הבית נפתח בלי לחכות לבנייה. */
-    if (rc && n <= 40) { rc.putAll(put, 600); rc.put(key, n + '|' + st, 600); rc.remove(key + ':stale'); }
+    if (n <= 40) { rc.putAll(put, 600); rc.put(key, n + '|' + st, 600); rc.remove(key + ':stale'); }
+    else rc.remove(key);
     /* מי במודל — לניקוי המטמון כשאחד מהם לומד (chBustFor_, 8.99.373). */
-    if (rc) rc.put(key + ':ids', ',' + Object.keys(M.ppl || {}).concat(Object.keys(M.al || {})).join(',') + ',', 600);
-  } catch (x2) {}
-  return M;
+    rc.put(key + ':ids', ',' + Object.keys(M.ppl || {}).concat(Object.keys(M.al || {})).join(',') + ',', 600);
+  } catch (x2) { try { rc.remove(key); } catch (x3) {} }
 }
 
 /* ---- נגזרות ---- */
@@ -14523,7 +14531,12 @@ function chLand_(P) {
   var U = { test: o['בדיקה'] === 'כן' }, K = chConf_(U, chSetRead_(U));
   var out = { status: 'ok', name: r >= 1 ? t.c(t.rows[r], 'שם') : '', on: K.on, tst: U.test ? 1 : 0 };
   /* השולחן של בעל הקישור מלא — "הזמין אותך להצטרף למבצע!" במקום "לשולחן שלו". */
-  if (K.on) { try { var LM = chModel_(U); if (LM && chFull_(LM, chCanon_(LM, o['מזהה']))) out.full = 1; } catch (eL) {} }
+  /* **מהמטמון, בלי לחכות בתור** (SCRIPT 206): "מלא" כאן רק משנה את הנוסח בנחיתה — ההחלטה
+     על כיסא נעשית בלחיצה, על נתונים עדכניים (chSit_ → chTables_). רק בלי מטמון בכלל — בנייה. */
+  if (K.on) { try {
+    var LM = chModelHit_(chCache_(), U.test ? 'chal:t' : 'chal:r', true) || chModel_(U);
+    if (LM && chFull_(LM, chCanon_(LM, o['מזהה']))) out.full = 1;
+  } catch (eL) {} }
   /* קישור של המזמין בהדגמה הפעילה — המכשיר נכנס לעולם ההדגמה (testmode.js). */
   var D = chDemo_();
   if (D && U.test && o['מזהה'] === D.own) out.dm = D.run;
@@ -14592,26 +14605,46 @@ function chSit_(P, U) {
   if (!mine.length || !/^[A-Z0-9]{4,10}$/.test(code)) return { status: 'error', message: 'חסר מזהה או קוד' };
   var o = chRefMap_().m[code];
   if (!o || (o['בדיקה'] === 'כן') !== !!U.test) return { status: 'error', message: 'הקישור לא נמצא' };
+  var rc = chCache_(), key = U.test ? 'chal:t' : 'chal:r';
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy', message: 'נסו שוב בעוד רגע' };
-  var M;
+  var M, MS = null;
   try {
-    M = chSync_(U);
-    if (!M.on) return { status: 'ok', on: false };
+    /* **חישוב אחד במקום שניים** (SCRIPT 206): כשהמודל השמור (טרי) אומר "מוזמן לשבת" —
+       כותבים את הבחירה ובונים פעם אחת. **הכיסא עצמו נקבע רק בבנייה הזו** (chTables_ →
+       seatAt, תחת הנעילה, על הנתונים העדכניים): כבר יושבים יחד — בלי שורה; אין מקום /
+       כבר 3 — "אין מקום", כמו כשנתפס רגע לפני. כל מצב אחר, או בלי מטמון — כמו קודם:
+       בנייה, ההכרעה עליה, ורק אז הבחירה ובנייה שנייה. */
     var t = joinTable_(), r = -1;
     for (var i = 0; i < mine.length && r < 1; i++) r = rowOfId_(t, mine[i]);
-    if (r < 1) return { status: 'wait' };
-    var me = '';
-    for (var j = 0; j < mine.length && !me; j++) if (M.ppl[chCanon_(M, mine[j])]) me = chCanon_(M, mine[j]);
+    M = chModelHit_(rc, key);
+    var fast = !!(M && M.on && r >= 1 && chRefState_(M, U, code, mine, chMeOf_(M, mine)) === 'old');
+    if (!fast) {
+      M = MS = chSync_(U);
+      if (!M.on) return { status: 'ok', on: false };
+      if (r < 1) return { status: 'wait' };
+    }
     /* "לשבת אצל…" — הזמנה, וגם הבחירה במארח (8.99.436): הראשונה קובעת. */
-    if (chRefState_(M, U, code, mine, me) === 'old') {
+    if (fast || chRefState_(M, U, code, mine, chMeOf_(M, mine)) === 'old') {
       chPut_(chTab_(CH_OLD_, CH_OLD_COLS_), { 'מזהה': t.c(t.rows[r], 'מזהה'), 'מזמין': o['מזהה'],
         'נוסף': new Date().toISOString(), 'מצב': CH_O_.pick, 'בדיקה': U.test ? 'כן' : '' });
       SpreadsheetApp.flush();
-      M = chSync_(U);
+      M = MS = chSync_(U);
+      if (!M.on) return { status: 'ok', on: false };
     }
-  } finally { lock.releaseLock(); chBust_(U); }
+  } finally { chDone_(U, rc, key, MS); lock.releaseLock(); }
   return chMy_(M, P, U);
+}
+/* מי האדם במודל — המזהה הקנוני הראשון של המכשיר שנמצא בו. */
+function chMeOf_(M, mine) {
+  for (var j = 0; j < mine.length; j++) if (M.ppl[chCanon_(M, mine[j])]) return chCanon_(M, mine[j]);
+  return '';
+}
+/* סוף פעולה של תלמיד (ישיבה / "+" / "לא, תודה"), עוד תחת הנעילה: המודל שנבנה אחרי השינוי —
+   למטמון (SCRIPT 206; קודם נמחק, והבקשה הבאה בנתה שוב). לא נבנה או נכשל באמצע — מחיקה, כמו קודם. */
+function chDone_(U, rc, key, MS) {
+  if (MS && MS.on) chModelPut_(rc, key, MS);
+  else chBust_(U);
 }
 /* "+" — שולחן נוסף: ?challenge=newt&id=<מזהי המכשיר>. ההחלטה ב-chTables_ (U.openFor), תחת
    הנעילה; התשובה — המבט האישי אחרי הסנכרון. */
@@ -14621,38 +14654,52 @@ function chDecl_(P, U) {
   if (!mine.length || !/^[A-Z0-9]{4,10}$/.test(code)) return { status: 'error', message: 'חסר מזהה' };
   var ro = chRefMap_().m[code];
   if (!ro) return { status: 'error', message: 'לא נמצא' };
+  var rc = chCache_(), key = U.test ? 'chal:t' : 'chal:r';
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy', message: 'נסו שוב בעוד רגע' };
-  var M;
+  var M, MS = null;
   try {
-    M = chSync_(U);
-    if (!M.on) return { status: 'ok', on: false };
-    var me = '';
-    for (var j = 0; j < mine.length && !me; j++) if (M.ppl[chCanon_(M, mine[j])]) me = chCanon_(M, mine[j]);
-    var by = chCanon_(M, ro['מזהה']);
-    if (!me || !by || by === me) return { status: 'error', message: 'לא נמצא' };
+    /* מי ומי — מהמודל השמור כשיש (SCRIPT 206); השורה נקראת בבנייה לפי המזהה הקנוני (X.canon). */
+    M = chModelHit_(rc, key);
+    var me = M && M.on ? chMeOf_(M, mine) : '', by = me ? chCanon_(M, ro['מזהה']) : '';
+    if (!me || !by || by === me) {
+      M = MS = chSync_(U);
+      if (!M.on) return { status: 'ok', on: false };
+      me = chMeOf_(M, mine); by = chCanon_(M, ro['מזהה']);
+      if (!me || !by || by === me) return { status: 'error', message: 'לא נמצא' };
+    }
     U.declFor = { id: me, by: by };
-    M = chSync_(U);
+    M = MS = chSync_(U);
     U.declFor = null;
-  } finally { lock.releaseLock(); chBust_(U); }
+    if (!M.on) return { status: 'ok', on: false };
+  } finally { U.declFor = null; chDone_(U, rc, key, MS); lock.releaseLock(); }
   return chMy_(M, { id: P.id }, U);
 }
 function chNewT_(P, U) {
   var mine = chIds_(P.id);
   if (!mine.length) return { status: 'error', message: 'חסר מזהה' };
+  var rc = chCache_(), key = U.test ? 'chal:t' : 'chal:r';
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy', message: 'נסו שוב בעוד רגע' };
-  var M;
+  var M, MS = null;
   try {
-    M = chSync_(U);
-    if (!M.on) return { status: 'ok', on: false };
-    var me = '';
-    for (var j = 0; j < mine.length && !me; j++) if (M.ppl[chCanon_(M, mine[j])]) me = chCanon_(M, mine[j]);
-    if (!me) return { status: 'error', message: 'לא נמצא' };
+    /* מי — מהמודל השמור כשיש (SCRIPT 206). אם אינו המזהה הקנוני אחרי הבנייה (איחוד באמצע) —
+       עוד בנייה עם הנכון. אם יש מקום ותקרה — נקבע רק בבנייה (chTables_, U.openFor). */
+    M = chModelHit_(rc, key);
+    var me = M && M.on ? chMeOf_(M, mine) : '';
+    if (!me) {
+      M = MS = chSync_(U);
+      if (!M.on) return { status: 'ok', on: false };
+      me = chMeOf_(M, mine);
+      if (!me) return { status: 'error', message: 'לא נמצא' };
+    }
     U.openFor = me;
-    M = chSync_(U);
+    M = MS = chSync_(U);
     U.openFor = '';
-  } finally { lock.releaseLock(); chBust_(U); }
+    if (!M.on) return { status: 'ok', on: false };
+    var me2 = chMeOf_(M, mine);
+    if (me2 && me2 !== me) { U.openFor = me2; M = MS = chSync_(U); U.openFor = ''; }
+  } finally { U.openFor = ''; chDone_(U, rc, key, MS); lock.releaseLock(); }
   return chMy_(M, P, U);
 }
 /* בהרשמה מהקישור של מי שכבר רשום (מכשיר חדש, אדם מוכר): בקשה לשבת
