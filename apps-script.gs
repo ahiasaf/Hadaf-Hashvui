@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 201;
+var SCRIPT_VERSION = 202;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -158,6 +158,9 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'שוברים',
                     /* רישום הפרסים והתקציב — שם הזוכה, תשלום, הודעה. ראו przRoute_. */
                     'פרסים',
+                    /* מפת בית המדרש של לפיד (ahiasaf.github.io/lapid) — גרסה לכל שמירה.
+                       פרויקט צדדי, נשען על התשתית. ראו lapidGet_ · lapidPut_. */
+                    'מפת בית המדרש',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -353,7 +356,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -503,6 +506,8 @@ function doPostMain_(e) {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(vchAdd_(hd));
   }
+  /* מפת בית המדרש — לפני הנעילה הראשית, עם נעילה קצרה משלה (lapidPut_). */
+  if (hd && hd.action === 'lapidput') return json_(lapidPut_(hd));
   if (hd && hd.action === 'aldlput') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(aldlPut_(hd));
@@ -1076,6 +1081,8 @@ function doGetMain_(e) {
 
   /* מאגר העלונים להורדה — ראו aldlRoute_. */
   if (e && e.parameter && e.parameter.alon) return reply_(e, aldlRoute_(e));
+  /* מפת בית המדרש — הגרסה האחרונה. ראו lapidGet_ · lapidPut_. */
+  if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
 
   /* ============================================================
      "לא מצליח להתקין".
@@ -17327,4 +17334,83 @@ function ov_(p) {
   } finally {
     if (lock) lock.releaseLock();
   }
+}
+
+
+/* ============================================================
+   מפת בית המדרש של לפיד (8.11.2026 · SCRIPT_VERSION 202).
+   ============================================================
+   פרויקט צדדי (ahiasaf.github.io/lapid — הריפו ahiasaf/lapid), שמשתמש
+   בשרת הזה במקום לשמור רק בדפדפן ובתוך הקישור. מנותק מהאפליקציה:
+   לא נוגע בשום לשונית או מטמון אחרים, ולא בנעילה הראשית.
+
+   · `?lapid=get` — הגרסה האחרונה: { rev, at, map } (map — טקסט JSON).
+     בלי מפה עדיין — rev ריק.
+   · POST `{action:'lapidput', map, rev, base, dev}` — גרסה חדשה.
+     `rev` — מזהה שהמכשיר יוצר לשמירה הזו; `base` — הגרסה שעליה ערך.
+     base שאינו הגרסה האחרונה → `conflict` עם הגרסה האחרונה, בלי כתיבה
+     (מישהו אחר שמר בינתיים). אותו rev פעמיים → ok, בלי שורה שנייה.
+   · **כל שמירה — שורה חדשה, ושום שורה אינה נמחקת.** כך כל גרסה קודמת
+     נשארת בלשונית הפרטית "מפת בית המדרש", ואפשר להחזיר אותה.
+   · בלי סיסמה: עד היום כל מי שקיבל את הכתובת ערך את המפה. מה שנשמר הוא
+     מפה בלבד (נבדק כ-JSON עם items, עד LAPID_MAX_ תווים — תא אחד).
+   ============================================================ */
+var LAPID_TAB_ = 'מפת בית המדרש';
+var LAPID_COLS_ = ['זמן', 'גרסה', 'מבוססת על', 'מכשיר', 'מפה'];
+var LAPID_MAX_ = 48000;
+var LAPID_CK_ = 'lapid:cur';
+function lapidSheet_() {
+  var sh = sheet_(LAPID_TAB_);
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, LAPID_COLS_.length).setValues([LAPID_COLS_]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+/* הגרסה האחרונה מהגיליון (השורה האחרונה). */
+function lapidRead_() {
+  var sh = lapidSheet_(), n = sh.getLastRow();
+  if (n < 2) return { rev: '', at: '', map: '' };
+  var r = sh.getRange(n, 1, 1, LAPID_COLS_.length).getValues()[0];
+  var at = r[0] instanceof Date ? Utilities.formatDate(r[0], 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss') : String(r[0] || '');
+  return { rev: String(r[1] || ''), at: at, map: String(r[4] || '') };
+}
+function lapidGet_() {
+  var rc = CacheService.getScriptCache(), c = null;
+  try { c = JSON.parse(rc.get(LAPID_CK_) || 'null'); } catch (x) { c = null; }
+  if (!c) {
+    try { c = lapidRead_(); } catch (err) { return { status: 'error', message: String(err && err.message || err).slice(0, 160) }; }
+    try { if (c.map.length < 90000) rc.put(LAPID_CK_, JSON.stringify(c), 21600); } catch (x2) {}
+  }
+  return { status: 'ok', rev: c.rev, at: c.at, map: c.map };
+}
+function lapidPut_(d) {
+  var map = String(d.map || ''), rev = String(d.rev || ''), base = String(d.base || '');
+  var dev = String(d.dev || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40);
+  if (!/^[0-9A-Za-z_-]{4,40}$/.test(rev)) return { status: 'error', message: 'חסר מזהה גרסה' };
+  if (!map) return { status: 'error', message: 'לא התקבלה מפה' };
+  if (map.length > LAPID_MAX_) return { status: 'error', message: 'המפה גדולה מדי לשמירה' };
+  var o;
+  try { o = JSON.parse(map); } catch (x) { return { status: 'error', message: 'המפה אינה תקינה' }; }
+  if (!o || typeof o !== 'object' || !(o.items instanceof Array)) return { status: 'error', message: 'המפה אינה תקינה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { status: 'busy', message: 'עומס — נסו שוב' };
+  try {
+    var cur = lapidRead_();
+    if (cur.rev && cur.rev === rev) return { status: 'ok', rev: rev, at: cur.at, dup: true };
+    if (cur.rev && base !== cur.rev) return { status: 'conflict', rev: cur.rev, at: cur.at, map: cur.map };
+    var sh = lapidSheet_(), r = Math.max(sh.getLastRow(), 1) + 1;
+    var at = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
+    var rg = sh.getRange(r, 1, 1, LAPID_COLS_.length);
+    rg.setNumberFormat('@');
+    rg.setValues([[at, rev, base, dev, map]]);
+    SpreadsheetApp.flush();
+    var back = sh.getRange(r, 1, 1, LAPID_COLS_.length).getValues()[0];
+    if (String(back[1]) !== rev || String(back[4]) !== map) return { status: 'error', message: 'השמירה לא אומתה' };
+    try { CacheService.getScriptCache().put(LAPID_CK_, JSON.stringify({ rev: rev, at: at, map: map }), 21600); } catch (x2) {}
+    return { status: 'ok', rev: rev, at: at };
+  } catch (err) {
+    try { CacheService.getScriptCache().remove(LAPID_CK_); } catch (x3) {}
+    return { status: 'error', message: 'השמירה נכשלה: ' + String(err && err.message || err).slice(0, 160) };
+  } finally { lock.releaseLock(); }
 }
