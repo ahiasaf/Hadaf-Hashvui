@@ -1377,3 +1377,9 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **שרת ישן** (עונה בבדיקת החיבור — `version` בלי `v`) → AMDA_V2=false: שורה לכל רישום וקריאה מלאה, כמו קודם.
 * הקריאה המלאה (amdaPull) — רק בפתיחת העמדה/הניהול ובמרווח של 60 שנ' כשאין כיתה פתוחה. לא בשמירה.
 * בדיקה: `node tools/amdatest/rows.js` (21) · `NODE_PATH=$(npm root -g) node tools/amdatest/save.js`.
+
+## "זה אתה?" → "כן" מושך מיד את הנוכחות שאוחדה (8.99.481)
+
+* ב-twPop (join.html), בהצלחה של "כן" (`a === 1`): `LSet('amda-ask', 0); amdaHere();` — אותו amdaHere ← LAmdaSync ←
+  LJsonp (ישירה, ובחסימה /api/gs). פעם אחת, בלחיצה בלבד; רבע השעה לפתיחה ולחזרה מהרקע — כמו שהייתה.
+  "לא", תור ההרשמה והשרת — לא שונו. בדיקה: `node tools/twtest/yes.js` (7).

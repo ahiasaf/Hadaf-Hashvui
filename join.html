@@ -5933,6 +5933,9 @@ function twPop(id, q, i) {
            '&k=' + encodeURIComponent(x.k) + '&a=' + a).then(function (d) {
       if (!d || d.status !== 'ok') throw 0;
       if (el.parentNode) el.parentNode.removeChild(el);
+      /* "כן" — מיד מושכים את הנוכחות שאוחדה (8.99.481): פעם אחת, בלחיצה בלבד. מאפסים את חותמת
+         רבע השעה ומריצים את אותו amdaHere ← LAmdaSync ← LJsonp (כולל הגיבוי דרך /api/gs). */
+      if (a === 1) { LSet('amda-ask', 0); amdaHere(); }
       twPop(id, q, i + 1);
     })['catch'](function () { y.disabled = n.disabled = false; e.hidden = false; });
   };
