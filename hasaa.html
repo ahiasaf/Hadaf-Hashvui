@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<meta name="robots" content="noindex">
+<!-- ============================================================
+     הצהרת התלמיד — יגדיל תורה (8.99.484).
+     ============================================================
+     נפתח מקישור בלבד (/hasaa) — אין אליו קישור מאף מסך, אין התראות.
+     הנוסח — מהמסמך המקורי, ב-data.js (ui.hs*), נערך בניהול.
+     שמירה: sid אקראי בטעינה → POST {action:'hasaa'} (no-cors) →
+     ?hasaa=check&sid= מחזיר רק נשמר/לא נשמר → לא נשמר: עוד ניסיון
+     אחד אוטומטי עם אותו sid, ואז "לא נשמר, נסה שוב". מה שמולא נשאר.
+     השרת: hasaaPut_/hasaaCheck_ ב-apps-script.gs, לשונית פרטית "הצהרות".
+     ============================================================ -->
+<style>
+html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold-t:#8C681F; --green-d:#467B1A;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --rule:#E5DAC3; --stop:#A5382D;
+}
+*{box-sizing:border-box;margin:0;padding:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.55;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.ban{margin:8px 0 18px;padding:16px 18px 18px;border-radius:18px;color:#fff;
+  background:linear-gradient(160deg,var(--blue-d),var(--blue));box-shadow:0 8px 22px rgba(11,37,80,.22)}
+.ban .bsd{font-size:.78rem;font-weight:700;opacity:.85;text-align:left}
+.ban h2{font-size:1.4rem;font-weight:800;letter-spacing:-.02em;line-height:1.3}
+.ban p{font-size:.98rem;font-weight:700;opacity:.92;margin-top:2px}
+.fl{display:block;margin-bottom:12px}
+.fl > span{display:block;font-size:.92rem;font-weight:800;color:var(--blue-d);margin-bottom:4px}
+.fl input{display:block;width:100%;border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
+.fl input:focus{outline:2px solid var(--blue);outline-offset:1px}
+.fl small{display:block;font-size:.8rem;font-weight:600;color:var(--ink-2);margin-top:3px}
+.dec{margin:16px 0 14px}
+.dec p{font-size:.96rem;font-weight:600;margin-bottom:8px}
+.mas{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.two{font-size:.94rem;font-weight:800;color:var(--gold-t);margin:4px 0 10px}
+details.prz{margin-bottom:16px;background:var(--surface);border:1px solid var(--rule);border-radius:14px}
+details.prz summary{cursor:pointer;padding:12px 14px;font-weight:800;color:var(--blue-d)}
+details.prz .in{padding:0 14px 14px;font-size:.9rem}
+details.prz .nt{color:var(--ink-2);font-weight:600;margin-bottom:8px}
+details.prz .hd{font-weight:800;color:var(--blue-d);margin:12px 0 4px}
+details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
+.go{display:block;width:100%;margin-top:6px;border:0;border-radius:14px;background:var(--blue);color:#fff;
+  font:inherit;font-weight:800;font-size:1.05rem;padding:15px;cursor:pointer}
+.go[disabled]{opacity:.7;cursor:default}
+.st{margin-top:12px;text-align:center}
+.st p{font-weight:800;color:var(--stop);margin-bottom:8px}
+.ok{text-align:center;font-size:1.3rem;font-weight:800;color:var(--green-d);padding:48px 8px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <div id="page">
+    <div class="ban"><div class="bsd" id="bsd"></div><h2 id="ttl"></h2><p id="sub"></p></div>
+    <form id="f" autocomplete="on">
+      <div id="idf"></div>
+      <div class="dec" id="dec"></div>
+      <div class="mas" id="mas"></div>
+      <p class="two" id="two"></p>
+      <details class="prz"><summary id="przH"></summary><div class="in" id="prz"></div></details>
+      <div id="pri"></div>
+      <div id="sig"></div>
+      <button class="go" id="go" type="submit"></button>
+      <div class="st" id="st" hidden><p id="stT"></p><button class="go" id="re" type="button"></button></div>
+    </form>
+  </div>
+  <div class="ok" id="ok" hidden></div>
+</main>
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function tp(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+/* המלל שנערך בניהול. נוסח שהוחלף בקוד (TEXT_RETIRED) — אינו גובר. */
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.'), v = map[k];
+    if (p.length !== 2 || p[0] !== 'ui' || typeof v !== 'string' || !v) continue;
+    var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+    if ([].concat(old).indexOf(v) >= 0) continue;
+    UI[p[1]] = v;
+  }
+}
+try {
+  take(JSON.parse(ls('df:textCache') || 'null'));
+  take((JSON.parse(ls('df:cfg') || '{}')).texts);
+} catch (e) {}
+
+$('hdr-mark').src = window.LOGO_MARK || '';
+$('brand').innerHTML = esc(PROGRAM.short) + '<br>' + esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('bsd').textContent = UI.hsBsd;
+$('ttl').textContent = UI.hsTitle;
+$('sub').textContent = UI.hsSub;
+if (UI.hsTitle) document.title = UI.hsTitle;
+
+/* שדה: [מפתח, תווית, חובה, סוג, עזרה]. */
+function fld(k, lbl, req, type, help) {
+  return '<label class="fl"><span>' + esc(lbl) + '</span>' +
+    '<input id="f-' + k + '" name="' + k + '" type="' + (type || 'text') + '"' +
+    (type === 'tel' ? ' inputmode="tel" autocomplete="tel"' : '') +
+    (req ? ' required pattern=".*\\S.*"' : '') + ' maxlength="200">' +
+    (help ? '<small>' + esc(help) + '</small>' : '') + '</label>';
+}
+$('idf').innerHTML = fld('n', UI.hsName, 1) + fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
+$('dec').innerHTML = [UI.hsA, UI.hsB1, UI.hsB2, UI.hsC, UI.hsD].map(function (t) {
+  return t ? '<p>' + esc(t) + '</p>' : '';
+}).join('');
+var mh = '';
+for (var i = 1; i <= 6; i++) mh += fld('m' + i, UI.hsMas, i === 1);
+$('mas').innerHTML = mh;
+$('two').textContent = UI.hsTwo;
+$('przH').textContent = UI.hsPrzH;
+/* רשימת הפרסים — שורה לכל פריט (מתחילה במספר); הראשונה ושורה שנגמרת בנקודתיים — כותרת. */
+$('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
+  return l.trim() ? '<p class="nt">' + esc(l) + '</p>' : '';
+}).join('') + String(UI.hsPrz || '').split('\n').map(function (l, j) {
+  l = l.trim();
+  if (!l) return '';
+  if (!j || /:$/.test(l)) return '<p class="hd">' + esc(l) + '</p>';
+  if (/^\d+\./.test(l)) return '<div class="it">' + esc(l) + '</div>';
+  return '<p class="nt">' + esc(l) + '</p>';
+}).join('');
+$('pri').innerHTML = fld('p1', UI.hsP1, 1) + fld('p2', UI.hsP2, 1);
+$('sig').innerHTML = fld('s', UI.hsSig, 1, 'text', UI.hsSigHelp);
+$('go').textContent = UI.hsSend;
+$('re').textContent = UI.hsRetry;
+
+/* ---- השליחה ---- */
+var KEYS = ['n', 'y', 'c', 'ph', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'p1', 'p2', 's'];
+/* מזהה השליחה — נוצר פעם אחת בטעינה, ונשאר זהה בכל ניסיון חוזר מהמסך הזה. */
+var SID = (function () {
+  var b = [], i, a;
+  try {
+    a = new Uint8Array(24);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    for (i = 0; i < a.length; i++) b.push((a[i] < 16 ? '0' : '') + a[i].toString(16));
+  } catch (e) {
+    for (i = 0; i < 48; i++) b.push(Math.floor(Math.random() * 16).toString(16));
+  }
+  return b.join('');
+})();
+var BUSY = false;
+function api() {
+  var u = ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '');
+  return String(u || '').trim();
+}
+function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+function post(f) {
+  var u = api();
+  if (!u) return Promise.reject(new Error('api'));
+  return fetch(u, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'hasaa', sid: SID, f: f }) });
+}
+/* "נשמר" — רק מתשובת השרת. n ניסיונות קריאה, ברווח קצר. */
+function check(n) {
+  var u = api();
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'hasaa=check&sid=' + SID + '&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (r) { return !!(r && r.status === 'ok' && r.saved); }, function () { return false; })
+    .then(function (ok) {
+      if (ok || n <= 1) return ok;
+      return wait(2500).then(function () { return check(n - 1); });
+    });
+}
+function attempt(f) {
+  return post(f)['catch'](function () {})
+    .then(function () { return wait(1500); })
+    .then(function () { return check(4); });
+}
+function done() {
+  $('page').hidden = true;
+  $('ok').textContent = UI.hsOk;
+  $('ok').hidden = false;
+  window.scrollTo(0, 0);
+}
+function fail() {
+  BUSY = false;
+  $('go').hidden = true;
+  $('stT').textContent = UI.hsFail;
+  $('st').hidden = false;
+  $('re').disabled = false;
+}
+function send() {
+  if (BUSY) return;
+  var form = $('f');
+  if (form.reportValidity && !form.reportValidity()) return;
+  BUSY = true;
+  var f = {};
+  KEYS.forEach(function (k) { f[k] = $('f-' + k).value; });
+  $('go').disabled = true;
+  $('go').textContent = UI.hsSending;
+  $('re').disabled = true;
+  $('re').textContent = UI.hsSending;
+  /* לא אומת — ניסיון חוזר אחד אוטומטי עם אותו sid (השרת לא כותב פעמיים). */
+  attempt(f).then(function (ok) { return ok || attempt(f); })
+    .then(function (ok) {
+      if (ok) done();
+      else { $('re').textContent = UI.hsRetry; fail(); }
+    }, function () { $('re').textContent = UI.hsRetry; fail(); });
+}
+$('f').onsubmit = function (ev) { ev.preventDefault(); send(); };
+$('re').onclick = send;
+</script>
+</body>
+</html>

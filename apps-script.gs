@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 206;
+var SCRIPT_VERSION = 207;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -161,6 +161,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     /* מפת בית המדרש של לפיד (ahiasaf.github.io/lapid) — גרסה לכל שמירה.
                        פרויקט צדדי, נשען על התשתית. ראו lapidGet_ · lapidPut_. */
                     'מפת בית המדרש',
+                    /* הצהרת התלמיד ליגדיל תורה (hasaa.html) — שם, טלפון ומה שלמד. ראו hasaaPut_. */
+                    'הצהרות',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -356,7 +358,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -508,6 +510,8 @@ function doPostMain_(e) {
   }
   /* מפת בית המדרש — לפני הנעילה הראשית, עם נעילה קצרה משלה (lapidPut_). */
   if (hd && hd.action === 'lapidput') return json_(lapidPut_(hd));
+  /* הצהרת התלמיד (hasaa.html) — לפני הנעילה הראשית, עם נעילה קצרה משלה. ראו hasaaPut_. */
+  if (hd && hd.action === 'hasaa') return json_(hasaaPut_(hd));
   if (hd && hd.action === 'aldlput') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(aldlPut_(hd));
@@ -1083,6 +1087,8 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.alon) return reply_(e, aldlRoute_(e));
   /* מפת בית המדרש — הגרסה האחרונה. ראו lapidGet_ · lapidPut_. */
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
+  /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
+  if (e && e.parameter && e.parameter.hasaa) return reply_(e, hasaaCheck_(e.parameter.sid));
 
   /* ============================================================
      "לא מצליח להתקין".
@@ -17524,5 +17530,76 @@ function lapidPut_(d) {
   } catch (err) {
     try { CacheService.getScriptCache().remove(LAPID_CK_); } catch (x3) {}
     return { status: 'error', message: 'השמירה נכשלה: ' + String(err && err.message || err).slice(0, 160) };
+  } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   הצהרת התלמיד — יגדיל תורה (hasaa.html, 8.99.484).
+   ============================================================
+   עמוד שנפתח מקישור בלבד. התלמיד ממלא ושולח; שורה אחת ללשונית
+   הפרטית "הצהרות". **אין שום נתיב שמחזיר תוכן של הצהרה** — הבדיקה
+   (?hasaa=check&sid=) מחזירה רק אם השורה קיימת. ה-sid אקראי וארוך
+   (crypto.getRandomValues בעמוד), ולכן אי אפשר לנחש שליחה של אחר.
+   כפילות: sid שכבר בלשונית — לא נכתבת שורה נוספת, וחוזר "נשמר".
+   sid חדש — תמיד שורה חדשה, גם מאותו טלפון (אחים, טלפון משותף).
+   ============================================================ */
+var HASAA_TAB_ = 'הצהרות';
+var HASAA_F_ = [['n', 'שם התלמיד', 1], ['y', 'הישיבה', 1], ['c', 'הכתה בתשפ"ו', 1], ['ph', 'מספר הנייד', 1],
+  ['m1', 'מסכת 1', 1], ['m2', 'מסכת 2'], ['m3', 'מסכת 3'], ['m4', 'מסכת 4'], ['m5', 'מסכת 5'], ['m6', 'מסכת 6'],
+  ['p1', 'עדיפות ראשונה', 1], ['p2', 'עדיפות שניה', 1], ['s', 'חתימת התלמיד', 1]];
+var HASAA_COLS_ = ['חותמת זמן', 'sid'].concat(HASAA_F_.map(function (f) { return f[1]; }));
+function hasaaSid_(v) {
+  var s = String(v || '').trim().toLowerCase();
+  return /^[0-9a-f]{32,64}$/.test(s) ? s : '';
+}
+function hasaaSheet_() {
+  var sh = sheet_(HASAA_TAB_);
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, HASAA_COLS_.length).setValues([HASAA_COLS_]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+/* האם ה-sid כבר בלשונית (עמודה B). */
+function hasaaHas_(sh, sid) {
+  var n = sh.getLastRow();
+  if (n < 2) return false;
+  var v = sh.getRange(2, 2, n - 1, 1).getValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim().toLowerCase() === sid) return true;
+  return false;
+}
+function hasaaCheck_(sidIn) {
+  var sid = hasaaSid_(sidIn);
+  if (!sid) return { status: 'error' };
+  try {
+    var id = privId_(HASAA_TAB_);
+    var ss = SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id)));
+    var sh = ss.getSheetByName(HASAA_TAB_);
+    return { status: 'ok', saved: !!(sh && hasaaHas_(sh, sid)) };
+  } catch (err) { return { status: 'error' }; }
+}
+function hasaaPut_(d) {
+  var sid = hasaaSid_(d.sid), f = d.f || {}, row = [], miss = false;
+  if (!sid) return { status: 'error' };
+  HASAA_F_.forEach(function (x) {
+    var v = String(f[x[0]] == null ? '' : f[x[0]]).replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (x[2] && !v) miss = true;
+    row.push(v);
+  });
+  if (miss) return { status: 'error' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = hasaaSheet_();
+    if (hasaaHas_(sh, sid)) return { status: 'ok', saved: true, dup: true };
+    var at = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss');
+    var r = Math.max(sh.getLastRow(), 1) + 1;
+    var rg = sh.getRange(r, 1, 1, HASAA_COLS_.length);
+    rg.setNumberFormat('@');
+    rg.setValues([[at, sid].concat(row)]);
+    SpreadsheetApp.flush();
+    return { status: 'ok', saved: hasaaHas_(sh, sid) };
+  } catch (err) {
+    return { status: 'error' };
   } finally { lock.releaseLock(); }
 }
