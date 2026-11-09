@@ -1607,7 +1607,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .ysh-leg{padding:12px 14px 2px;font-size:.62rem;font-weight:800;color:var(--ink-3)}
 .ysh-leg i{font-style:normal;display:inline-block;width:42px;text-align:center;line-height:1.1}
 .ysh-nm{font-weight:800;font-size:.95rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ysh-act{color:#2E9A5B;font-size:.85rem}
+.ysh-co{display:inline-block;vertical-align:middle;padding:1px 8px;border-radius:999px;background:#E7F2DD;
+  color:#2E6B12;font-size:.7rem;font-weight:800;line-height:1.6;white-space:nowrap}
 .ysh-dots{display:flex;gap:0}
 .ysh-dots .ysh-dot{margin:0 14px}
 .ysh-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:#C9CED8;flex:none}
@@ -3162,7 +3163,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.478';
+var APP_VERSION = '8.99.479';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -8751,15 +8752,16 @@ function yshRow(e, n) {
   /* השלב — פס צבע בצד השורה ותגית; לחיצה מעבירה לשלב הבא. */
   var stg = c0 ? (STAGES.filter(function (x) { return x.k === c0.stage; })[0] || STAGES[0]) : STAGES[0];
   var done = CALL_TASKS.filter(function (t) { return yshTagOn(e, t[0]); }).length;
-  var sc = 'st-' + stg.k, rt = yshOf(e, 'rate'), act = yshOf(e, 'act');
+  /* "רכז פעיל" — מהרכזים המאושרים (coMap), לא מ"מצב ישיבות" (9.11.2026). */
+  var sc = 'st-' + stg.k, rt = yshOf(e, 'rate'), coOn = coHas(e.k.replace(/^@/, ''));
   var h = '<div class="ysh ' + sc + '"><div class="yr-h"><button class="yr-nm" onclick="yshOpen(' + n + ')">' + esc(e.name) +
-    (act === 'y' ? ' <span class="ysh-act">★</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
+    (coOn ? ' <span class="ysh-co">' + esc(UI.yrAct) + '</span>' : '') + ' <i aria-hidden="true">‹</i></button>' +
     (c0 ? '<button class="yr-st ' + sc + '" onclick="yshStage(' + n + ')">' + esc(stg.t) + '</button>' : '') +
     '<span class="yr-n' + (got ? '' : ' z') + '">' + esc(got == null ? UI.yrGotUnk : fill(UI.yrGot, { n: got })) + '</span></div>' +
     /* דרגה ורכז פעיל — מ"מצב ישיבות". בלי שורה שם: אפור, "לא ידוע". */
     '<div class="yr-f"><span class="ysh-tag ' + 'r-' + (e.st ? rt : 'unclear') + '">' + esc(UI.yshRate) + ': ' +
       esc(e.st ? UI['yshR_' + rt] : UI.yshV_u) + '</span><span>' + esc(UI.yrAct) + ': ' +
-      (act === 'u' ? unk : esc(UI['yshV_' + act])) + '</span></div>' +
+      esc(UI[coOn ? 'yshV_y' : 'yshV_n']) + '</span></div>' +
     '<div class="yr-pr" aria-label="' + esc(fill(UI.yrTasks, { n: done, of: CALL_TASKS.length })) + '">' +
       CALL_TASKS.map(function (t) { return '<i class="' + (yshTagOn(e, t[0]) ? 'on' : '') + '"></i>'; }).join('') + '</div>';
   /* כל אנשי הקשר עם טלפון — הראשי קודם. */
@@ -8959,7 +8961,8 @@ function yshDetail(e, ctx) {
   if (!inst) inst = instByName(e.name);
   var r = yshOf(e, 'rate'), act = yshOf(e, 'act');
   var h = '<button class="back" onclick="yshClose()">' + esc(UI.yshBack) + '</button>' + ovOneTop(e) +
-    '<div class="ysh-hd"><h2>' + esc(e.name) + '</h2>' +
+    '<div class="ysh-hd"><h2>' + esc(e.name) +
+      (coHas(e.k.replace(/^@/, '')) ? ' <span class="ysh-co">' + esc(UI.yrAct) + '</span>' : '') + '</h2>' +
     /* בלי קוד ישיבה אין לוח לפתוח — הכפתור נשאר, אפור. */
     (inst ? '<a class="ysh-board" href="' + esc(tzevetUrl(inst.code)) +
             '" target="_blank" rel="noopener">' + esc(UI.yshBoard) + '</a>'
@@ -9099,6 +9102,48 @@ function ovRows() {
   var D = Store.get('ovData', null);
   if (!D) return null;
   return (D.rows || []).map(function (r) { r.k = r.code || r.name; return r; });
+}
+/* ============================================================
+   רכזים מאושרים (9.11.2026, החלטת אחיאסף).
+   ============================================================
+   "עוד כרטיסייה של רכזים — הרכזים שאושרו על ידי… מסודר לפי ישיבות."
+   שני מקורות, בלי כפילות: איש צוות שתפקידו רכז ו"אושר" ב"גישה",
+   ומי שסומן "רכז בשטח" בסקירה (הטלפון — "טלפון רכז"). אותו אדם בשני
+   המקורות (אותו טלפון, או אותו שם בלי "הרב") — פעם אחת.
+   ישיבה שיש בה לפחות אחד — "רכז פעיל" בסקירה ובמוקד השיחות. */
+function coKey(nm) { return nameKey(String(nm || '').replace(/^\s*הרב\s+/, '')); }
+function coMap() {
+  var m = {};
+  var add = function (code, name, phone) {
+    name = String(name || '').trim(); phone = String(phone || '').trim();
+    if (!code || code === '-' || !name) return;
+    var L = m[code] || (m[code] = []), d = digits(phone).slice(-9), k = coKey(name);
+    var hit = L.filter(function (p) { return (d && p.d === d) || p.k === k; })[0];
+    if (hit) { if (!hit.phone && phone) { hit.phone = phone; hit.d = d; } return; }
+    L.push({ name:name, phone:phone, d:d, k:k });
+  };
+  accList().forEach(function (a) {
+    if (a.st === 'אושר' && /רכז/.test(a.role || '')) add(pplCode(a.inst), a.name, a.phone);
+  });
+  (ovRows() || []).forEach(function (r) {
+    if (!String(r.coord || '').trim()) return;
+    var code = r.code || ((instByName(r.name) || {}).code || '');
+    var pc = (r.ppl || []).filter(function (p) { return p.k === 'pc'; })[0];
+    add(code, r.coord, pc ? pc.phone : '');
+  });
+  return m;
+}
+function coHas(code, m) { m = m || coMap(); return !!(code && m[code] && m[code].length); }
+var coAskAt = 0;
+function coTab() {
+  /* הרשימה מהמטמון מיד; "גישה" והסקירה מתעדכנות ברקע — לכל היותר
+     פעם בחמש דקות, כדי שהציור שאחרי הטעינה לא יטען שוב בלולאה. */
+  if (Date.now() - coAskAt > 300000) { coAskAt = Date.now(); setTimeout(function () { accLoad(); ovLoad(false); }, 0); }
+  var m = coMap(), groups = Object.keys(m).map(function (c) {
+    return { name:pplName(c), ppl:m[c] };
+  });
+  groups.sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'he'); });
+  return OV.coHtml(groups, UI.coNone);
 }
 function ovSave(r, f, v) {
   return scriptGet({ ov:'set', key:(CFG.readKey || '').trim(), code:r.code || '', name:r.name, f:f, v:v })
@@ -9272,12 +9317,15 @@ function ovAdmMount() {
     var D = Store.get('ovData', null) || {};
     /* הסקירה נצבעת מחדש כשמגיעים נתונים — בלי `mem` שורה שנפתחה נסגרת מיד. */
     if (!ovState.mem) ovState.mem = { open:{}, edit:{}, msg:{} };
-    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem, map:true });
+    var cm = coMap();
+    OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem, map:true,
+                   act:function (r) { return coHas(r.code || ((instByName(r.name) || {}).code || ''), cm); } });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
     var r = rows.filter(function (x) { return '@' + x.code === state.yshOpen; })[0];
-    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, call:ovCall, extra:ovOneExtra, solo:true, sug:ovSug });
+    if (r) OV.mount(one, { rows:[r], other:[], owner:true, save:ovSave, call:ovCall, extra:ovOneExtra, solo:true, sug:ovSug,
+                          act:function (x) { return coHas(x.code); } });
   }
 }
 /* במסך הישיבה — גם מספר התלמידים שראש החטיבה דיווח, כנתון קטן. */
@@ -9294,7 +9342,7 @@ function ovOneTop(e) {
 }
 
 function yshTabGo(t) {
-  Store.set('yshTab', t === 'calls' ? 'calls' : 'ov');
+  Store.set('yshTab', t === 'calls' || t === 'co' ? t : 'ov');
   renderCalls();
   var el = document.getElementById('calls-body');
   if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView();
@@ -9363,11 +9411,14 @@ function renderCalls() {
   /* שתי כרטיסיות בראש המסך (3.11.2026): "הסקירה מעולה, ואחרי זה מוקד
      השיחות — אבל צריך לגלול כדי להגיע אליו." כל כרטיסייה — רק התוכן שלה.
      הבחירה נזכרת במכשיר. */
-  var yTab = Store.get('yshTab', 'ov') === 'calls' ? 'calls' : 'ov';
+  var yTab = Store.get('yshTab', 'ov');
+  if (yTab !== 'calls' && yTab !== 'co') yTab = 'ov';
   var yBar = '<div class="tabs sub" style="margin-bottom:12px">' +
     '<button class="' + (yTab === 'ov' ? 'on' : '') + '" onclick="yshTabGo(\'ov\')">' + esc(UI.yshTabOv) + '</button>' +
-    '<button class="' + (yTab === 'calls' ? 'on' : '') + '" onclick="yshTabGo(\'calls\')">' + esc(UI.yshTabCalls) + '</button></div>';
+    '<button class="' + (yTab === 'calls' ? 'on' : '') + '" onclick="yshTabGo(\'calls\')">' + esc(UI.yshTabCalls) + '</button>' +
+    '<button class="' + (yTab === 'co' ? 'on' : '') + '" onclick="yshTabGo(\'co\')">' + esc(UI.yshTabCo) + '</button></div>';
   if (yTab === 'ov') { el.innerHTML = yBar + ovAdmTop(); ovAdmMount(); return; }
+  if (yTab === 'co') { el.innerHTML = yBar + coTab(); return; }
   /* שורה אחת במקום כרזה — הרשימה היא העיקר, ולא גוללים אליה. */
   var h = yBar +
           '<details class="adm-card" style="margin:12px 0 0"' + (Store.get('ovProcOpen', 0) ? ' open' : '') +

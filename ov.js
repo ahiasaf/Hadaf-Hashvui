@@ -127,7 +127,15 @@
     '.ov-map svg{display:block;width:100%;max-width:340px;height:auto;max-height:78vh;margin:0 auto}' +
     '.ov-map .dot{cursor:pointer}' +
     '.ov-trip{font-size:.8rem;font-weight:700;color:#5A6780;margin:0 0 8px}' +
-    '.ov-trip small{font-weight:600;color:#8A8F99}';
+    '.ov-trip small{font-weight:600;color:#8A8F99}' +
+    /* רכז פעיל (9.11.2026) — תגית ליד שם הישיבה, ורשימת הרכזים לפי ישיבה. */
+    '.ov-act{display:inline-block;vertical-align:middle;margin-inline-start:6px;padding:2px 8px;border-radius:999px;' +
+      'background:#E7F2DD;color:#2E6B12;font-size:.7rem;font-weight:800;line-height:1.5;white-space:nowrap}' +
+    '.ov-co{background:#FFFDF8;border:1px solid #E5DAC3;border-radius:14px;padding:11px 12px;' +
+      'border-inline-start:6px solid #4E9A2A}' +
+    '.ov-co h4{margin:0 0 8px;font-size:.98rem;font-weight:800;color:#0B2550}' +
+    '.ov-co .ov-ppl{margin:0}' +
+    '.ov-co0{font-size:.88rem;font-weight:700;color:#5A6780;padding:10px 2px}';
 
   function U(k) { return (window.UI || {})[k] || ''; }
   function esc(t) {
@@ -439,7 +447,7 @@
         '" aria-expanded="' + (open ? 'true' : 'false') + '" aria-label="' + esc(U('ovOpen')) + ' · ' +
         esc(r.name) + '">▾</button>';
     var h = '<div class="ov-r s-' + s + '" title="' + esc(U('ovSt_' + s)) + '"><div class="ov-h"><div class="ov-m">' +
-      '<div class="ov-nl">' + nm + tog + '</div>' +
+      '<div class="ov-nl">' + nm + (st.act && st.act(r) ? '<span class="ov-act">' + esc(U('yrAct')) + '</span>' : '') + tog + '</div>' +
       (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': <b>' + esc(r.coord) + '</b></span>'
                     : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') +
       (st.call ? lastHtml(r) : '') + '</div>' +
@@ -631,6 +639,21 @@
       esc(n) + '">' + esc(btn) + '</button></div>';
   }
   function smallHtml(t) { return '<div class="ov-x2">' + esc(t) + '</div>'; }
+  /* רשימת הרכזים לפי ישיבה: [{ name, ppl:[{ name, phone }] }]. */
+  function coHtml(groups, none) {
+    css();
+    if (!groups.length) return '<div class="ov-co0">' + esc(none) + '</div>';
+    return '<div class="ov-list">' + groups.map(function (g) {
+      return '<div class="ov-co"><h4>' + esc(g.name) + '</h4><div class="ov-ppl">' + g.ppl.map(function (p) {
+        return '<div class="ov-p"><div class="w"><b>' + esc(p.name) + '</b></div>' +
+          (has(p.phone)
+            ? '<a class="ov-ic tel" href="tel:' + digits(p.phone) + '" aria-label="' + esc(fill(U('ovCall'), { name:p.name })) + '">' + IC_TEL + '</a>' +
+              '<a class="ov-ic wa" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.phone) + '" aria-label="' +
+                esc(fill(U('ovWa'), { name:p.name })) + '">' + IC_WA + '</a>'
+            : '') + '</div>';
+      }).join('') + '</div></div>';
+    }).join('') + '</div>';
+  }
 
   /* שאלת השם בקישור המלא (skira.html) — כאן, כדי שהעיצוב יהיה מהרכיב. */
   function byHtml(fn) {
@@ -640,5 +663,5 @@
       '</div><div class="ov-fb"><button class="p" onclick="' + fn + '()">' + esc(U('ovByGo')) + '</button></div></div></div>';
   }
   window.OV = { mount:mount, status:status, sorted:sorted, navHtml:navHtml, css:css,
-                sugHtml:sugHtml, smallHtml:smallHtml, byHtml:byHtml };
+                sugHtml:sugHtml, smallHtml:smallHtml, byHtml:byHtml, coHtml:coHtml };
 })();
