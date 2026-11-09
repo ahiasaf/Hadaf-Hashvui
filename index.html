@@ -3163,7 +3163,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.479';
+var APP_VERSION = '8.99.480';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -21867,55 +21867,161 @@ function amdaPullRoster() {
 
 /* ---------- הרישומים: שליחה ואימות ---------- */
 /* `fast` — מתוך "שמור": רישום שלא נראה בגיליון אחרי 8 שניות נשלח
-   שוב (בלי זה — 45). כפילות אינה מזיקה: נספר פעם אחת למועד. */
-function amdaFlush(fast, stf0) {
+   שוב (בלי זה — 45). כפילות אינה מזיקה: נספר פעם אחת למועד.
+   **בקשה אחת לכל התור** (8.99.480, `amdarows`): קודם כל רישום היה בקשה
+   נפרדת, וכל אחת חיכתה בשרת לנעילה וספרה מחדש. שרת ישן (AMDA_V2 === false)
+   — שורה לכל רישום, כמו קודם. `noChk` — amdaBg מאמת בעצמו. */
+var AMDA_V2 = null;                    /* null — עוד לא ידוע · true — השרת תומך · false — שרת ישן */
+var AMDA_BATCH = 40;
+function amdaRowCols(m) {
+  var daf = m.kind !== 'o' && m.track;
+  return [['מזהה', m.id], ['שבוע', m.w], ['יום', m.day || ''],
+          ['עמדה', m.slot ? amdaSlotName(m.slot) : ''], ['קוד עמדה', m.slot || ''],
+          ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
+          ['מסלול', daf ? m.track : ''], ['דף', daf ? (m.daf || '') : ''],
+          ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
+          ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
+          ['אישור חידון', daf && m.qz ? 'כן' : ''],
+          ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]];
+}
+function amdaFlush(fast, stf0, noChk) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
   var q = amdaQ(), dq = amdaDq(), now = Date.now(), sent = 0, stf = stf0 || AMDA_STAFF, ps = [];
   /* מחזירה הבטחה שמסתיימת כשכל השליחות חזרו (amdaBg מאמת מיד אחריהן). */
   var hasDev = function (m) { return m.dev; };
   if ((!key && !stf && !q.some(hasDev) && !dq.some(hasDev)) || !url) return Promise.resolve();
+  var post = function (body) {
+    ps.push(fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(body) }).catch(function () {}));
+  };
+  /* `vk` — נרשם אצל הבעלים על ישיבה אחרת: תמיד בסיסמה, לעולם לא בזהות
+     מכשיר של ישיבה אחרת (השרת היה כופה עליו את הישיבה של המכשיר). */
+  var authOf = function (m) {
+    return m.dev ? { dev: m.dev, inst: m.inst } : m.vk ? { key: key }
+         : stf && !stf.view ? { dev: stf.dev, inst: stf.inst } : { key: key };
+  };
   /* הסרות — לפני הרישומים, באותה הרשאה כמו הרישום. */
   dq.forEach(function (r) {
     if (r.sent && now - r.sent < (fast === true ? 8000 : 45000)) return;
-    /* `vk` — נרשם אצל הבעלים על ישיבה אחרת: תמיד בסיסמה, לעולם לא בזהות
-       מכשיר של ישיבה אחרת (השרת היה כופה עליו את הישיבה של המכשיר). */
-    var auth = r.dev ? { dev: r.dev, inst: r.inst } : r.vk ? { key: key }
-             : stf && !stf.view ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    var auth = authOf(r);
     if (!auth.key && !auth.dev) return;
     r.sent = now;
     sent++;
-    ps.push(fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-      action: 'amdadel', key: auth.key, dev: auth.dev, inst: auth.inst || r.inst || '',
-      ids: JSON.stringify(r.ids || []) }) }).catch(function () {}));
+    post({ action: 'amdadel', key: auth.key, dev: auth.dev, inst: auth.inst || r.inst || '',
+           ids: JSON.stringify(r.ids || []) });
   });
   Store.set('amdaDq', dq);
   if (!stf && key) sent += amdaFlushMarks(key, url);
+  /* הרישומים — מקובצים לפי ההרשאה, עד AMDA_BATCH בבקשה. */
+  var groups = {}, order = [];
   q.forEach(function (m) {
     if (m.sent && now - m.sent < (fast === true ? 8000 : 45000)) return;   /* עוד מחכה לאימות */
     /* איש צוות — בזהות המכשיר שנשמרה ברישום עצמו (`m.dev`), כדי
        שרישום שלא יצא לא ייתקע כשהמסך נסגר; השרת בודק שהמכשיר מאושר
        לישיבה הזו. */
-    var auth = m.dev ? { dev: m.dev, inst: m.inst } : m.vk ? { key: key }
-             : stf && !stf.view ? { dev: stf.dev, inst: stf.inst } : { key: key };
+    var auth = authOf(m);
     if (!auth.key && !auth.dev) return;
     m.sent = now;
     sent++;
-    var daf = m.kind !== 'o' && m.track;
-    ps.push(fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
-      action: 'row', tab: AMDA_TAB, key: auth.key, dev: auth.dev, inst: auth.inst,
-      cols: JSON.stringify([['מזהה', m.id], ['שבוע', m.w], ['יום', m.day || ''],
-                            ['עמדה', m.slot ? amdaSlotName(m.slot) : ''], ['קוד עמדה', m.slot || ''],
-                            ['סוג', m.kind === 'o' ? 'שיעור' : 'דף'],
-                            ['מסלול', daf ? m.track : ''], ['דף', daf ? (m.daf || '') : ''],
-                            ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
-                            ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
-                            ['אישור חידון', daf && m.qz ? 'כן' : ''],
-                            ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]) }) })
-      .catch(function () {}));
+    if (AMDA_V2 === false) {
+      post({ action: 'row', tab: AMDA_TAB, key: auth.key, dev: auth.dev, inst: auth.inst,
+             cols: JSON.stringify(amdaRowCols(m)) });
+      return;
+    }
+    var gk = auth.key ? 'k' : 'd|' + auth.dev + '|' + auth.inst;
+    if (!groups[gk]) { groups[gk] = { auth: auth, rows: [] }; order.push(gk); }
+    groups[gk].rows.push(amdaRowCols(m));
+  });
+  order.forEach(function (gk) {
+    var g = groups[gk];
+    for (var i = 0; i < g.rows.length; i += AMDA_BATCH) {
+      post({ action: 'amdarows', tab: AMDA_TAB, key: g.auth.key, dev: g.auth.dev, inst: g.auth.inst,
+             rows: JSON.stringify(g.rows.slice(i, i + AMDA_BATCH)) });
+    }
   });
   Store.set('amdaQ', q);
-  if (sent) { clearTimeout(amdaSt.pullT); amdaSt.pullT = setTimeout(function () { amdaPull(stf0); }, 6000); }
+  /* אימות קל כמה שניות אחרי השליחה — לא הורדה של כל הלשונית. */
+  if (sent && !noChk) {
+    clearTimeout(amdaSt.pullT);
+    amdaSt.pullT = setTimeout(function () { amdaCheck(stf); }, 5000);
+  }
   return Promise.all(ps);
+}
+/* מי מהתור כבר בגיליון — רק המזהים (`?amdaok`, amdaOk_ בשרת). מה שנמצא
+   יוצא מהתור ונכנס למי שנרשם ולספירות במכשיר, כמו שהקריאה המלאה הייתה
+   עושה. שרת ישן — חוזרים לקריאה המלאה. מחזירה true כשהבדיקה הצליחה. */
+function amdaCheck(stf0) {
+  var key = (CFG.readKey || '').trim(), stf = stf0 || AMDA_STAFF;
+  var q = amdaQ(), dq = amdaDq(), ids = [];
+  q.forEach(function (m) { if (m.sent) ids.push(m.id); });
+  dq.forEach(function (r) { (r.ids || []).forEach(function (i) { ids.push(i); }); });
+  if (AMDA_V2 === false) return amdaPull(stf0);
+  if (!ids.length) return Promise.resolve(true);
+  var dev = stf && !stf.view ? stf.dev : '', inst = stf && !stf.view ? stf.inst : '';
+  if (!key && !dev) {
+    var m0 = q.concat(dq).filter(function (m) { return m.dev; })[0];
+    if (m0) { dev = m0.dev; inst = m0.inst; }
+  }
+  if (!key && !dev) return Promise.resolve(false);
+  ids = ids.slice(0, 400);
+  var p = { amdaok: 1, ids: ids.join(',') };
+  if (key && !dev) p.key = key; else { p.dev = dev; p.inst = inst; }
+  return scriptGet(p).then(function (d) {
+    if (!d) return false;
+    /* שרת ישן אינו מכיר `amdaok` ועונה בבדיקת החיבור — עם `version`, בלי `v`. */
+    if (d.v !== 1 && d.version !== undefined) {
+      /* שרת ישן: עונה על הבקשה כבדיקת חיבור. שולחים שוב שורה לכל רישום
+         (`amdarows` לא נכתב שם), ומאמתים בקריאה המלאה. */
+      AMDA_V2 = false;
+      var q2 = amdaQ();
+      q2.forEach(function (m) { m.sent = 0; });
+      Store.set('amdaQ', q2);
+      return amdaFlush(true, stf0, true).then(function () { return amdaPull(stf0); });
+    }
+    if (d.status !== 'ok' || d.v !== 1) return false;
+    AMDA_V2 = true;
+    amdaConfirm(d.have || [], stf, ids);
+    if (document.getElementById('amda-adm')) admPane();
+    return true;
+  })['catch'](function () { return false; });
+}
+/* מה שאומת — מהתור אל "נרשם היום" ואל הספירות שבמכשיר. כל תלמיד נספר
+   פעם אחת לכל מועד, כמו ב-amdaPull. הסרה שאף שורה שלה כבר לא בגיליון —
+   יורדת מהתור, והמזהים שלה יוצאים מ"נרשם היום". `asked` — המזהים שנשאלו:
+   הסרה שלא כל המזהים שלה נשאלו אינה נחשבת כגמורה. */
+function amdaConfirm(have, stf, asked) {
+  var seen = {}, ask = {}, vs = amdaVS(stf), had = Store.get('amdaHad2' + vs, {}) || {},
+      cnt = Store.get('amdaCnt' + vs, {}) || {}, les = Store.get('amdaLesAtt' + vs, {}) || {}, ch = false;
+  have.forEach(function (i) { seen[i] = 1; });
+  (asked || []).forEach(function (i) { ask[i] = 1; });
+  var q = amdaQ().filter(function (m) {
+    if (!seen[m.id]) return true;
+    var sess = amdaSessOf(m), sk = amdaKey(m.g, m.c, m.n), hs = had[sess] = had[sess] || {};
+    var cur = hs[sk], arr = Object.prototype.toString.call(cur) === '[object Array]' ? cur : [];
+    if (!cur || (cur !== 1 && !arr.length)) {
+      cnt[sk] = amdaC4(cnt[sk]);
+      cnt[sk][amdaBucket(m.slot, m.kind)]++;
+      if (String(m.slot || '').charAt(0) === 'L') les[sk] = (les[sk] || 0) + 1;
+    }
+    if (cur !== 1) { if (arr.indexOf(m.id) < 0) arr.push(m.id); hs[sk] = arr; }
+    ch = true;
+    return false;
+  });
+  var dq = amdaDq().filter(function (r) {
+    if ((r.ids || []).some(function (i) { return seen[i] || !ask[i]; })) return true;
+    var hs = had[r.sess];
+    if (hs && Object.prototype.toString.call(hs[r.k]) === '[object Array]') {
+      hs[r.k] = hs[r.k].filter(function (i) { return (r.ids || []).indexOf(i) < 0; });
+      if (!hs[r.k].length) delete hs[r.k];
+    }
+    ch = true;
+    return false;
+  });
+  if (!ch) return;
+  Store.set('amdaHad2' + vs, had);
+  Store.set('amdaCnt' + vs, cnt);
+  Store.set('amdaLesAtt' + vs, les);
+  Store.set('amdaQ', q);
+  Store.set('amdaDq', dq);
 }
 /* קריאה חוזרת: מה שנראה בגיליון יוצא מהתור; מי נרשם היום לכל
    מועד, וכמה פעמים כל תלמיד היה — מחושבים מחדש מהגיליון כולו.
@@ -21929,7 +22035,9 @@ function amdaPull(stf0) {
                        : { read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], seen = {}, had = {}, cnt = {}, once = {}, today = amdaDay(), seatEv = [], lesAtt = {}, rep = [];
-    var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
+    /* המיקום של כל עמודה — פעם אחת, לא חיפוש בכותרת לכל תא (אלפי שורות). */
+    var hi = {}; h.forEach(function (n, i) { if (hi[n] === undefined) hi[n] = i; });
+    var col = function (x, n) { var i = hi[n]; return i === undefined ? '' : String(x[i] || ''); };
     d.rows.slice(1).forEach(function (x) {
       var id = col(x, 'מזהה'), g = amdaGK(col(x, 'שכבה')), c = col(x, 'כיתה'), n = col(x, 'שם');
       if (id) seen[id] = 1;
@@ -22082,6 +22190,14 @@ function amdaSave(d) {
   amdaBg(pts, stf);
 }
 var AMDA_BG = { run: 0, stf: null, hideT: null, on: false };
+/* אחרי שמירה מאומתת: בקשה אחת, בלי לחכות לה — השרת משייך עכשיו את מי
+   שלמד לחשבון שלו (amdaSyncSoon_), כמו שהקריאה המלאה עשתה. */
+function amdaSyncPing(stf) {
+  if (AMDA_V2 !== true) return;
+  var key = (CFG.readKey || '').trim(), p = { amdaok: 1, sync: 1 };
+  if (stf && !stf.view && stf.dev) { p.dev = stf.dev; p.inst = stf.inst; } else if (key) p.key = key; else return;
+  scriptGet(p)['catch'](function () {});
+}
 function amdaBg(pts, stf) {
   var run = ++AMDA_BG.run, tries = 0, fix = Store.get('amdaFix', null), kOk = !fix, kDone = !fix;
   if (stf) AMDA_BG.stf = stf;
@@ -22090,13 +22206,15 @@ function amdaBg(pts, stf) {
   amdaSvPaint('busy');
   if (fix) amdaFixRun(fix, function (ok) { kOk = ok; kDone = true; });
   var step = function () {
-    /* השליחה `no-cors` מסתיימת אחרי שהשרת כתב — הקריאה החוזרת יוצאת מיד. */
-    amdaFlush(true, stf).then(function () { return amdaPull(stf); }).then(function (ok) {
+    /* השליחה `no-cors` מסתיימת אחרי שהשרת כתב — הבדיקה יוצאת מיד. רק
+       המזהים (amdaCheck), לא כל הלשונית: זו הייתה ההורדה שתקעה את המסך. */
+    amdaFlush(true, stf, true).then(function () { return amdaCheck(stf); }).then(function (ok) {
       if (run !== AMDA_BG.run) return;
       /* הצלחה = התור ריק **וגם** כל תיקון שאושר תואם לגיליון. */
       if (ok && !amdaPendN() && kDone) {
         AMDA_BG.on = false;
         amdaSvPaint(!kOk || Store.get('amdaFix', null) ? 'bad' : 'ok', pts);
+        amdaSyncPing(stf);
         return;
       }
       if (++tries < 6) setTimeout(step, 1500 * tries);
@@ -22209,10 +22327,19 @@ function amdaFixPrep(day, slot, k, track0) {
   amdaFlush();
   return fix;
 }
+function amdaOnScreen() { var el = document.getElementById('amda'); return !!(el && /\bon\b/.test(el.className)); }
 function amdaKindSet(k, cb) { amdaFixRun(amdaKindPrep(k), cb); }
 /* האם כל השורות של היום והמועד תואמות לתיקון. כישלון בקריאה = לא. */
 function amdaFixCheck(fix) {
   var key = (CFG.readKey || '').trim();
+  /* השרת משווה בעצמו (amdaFixOk_) — בלי להוריד את הלשונית. שרת ישן — כמו קודם. */
+  if (AMDA_V2 !== false) {
+    return scriptGet({ amdaok: 1, key: key, fix: JSON.stringify(fix) }).then(function (d) {
+      if (d && d.status === 'ok' && d.v === 1) { AMDA_V2 = true; return !!d.fixOk; }
+      if (d && d.v !== 1 && d.version !== undefined) { AMDA_V2 = false; return amdaFixCheck(fix); }
+      return false;
+    })['catch'](function () { return false; });
+  }
   return scriptGet({ read: AMDA_TAB, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], c = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] == null ? '' : x[i]).trim(); };
@@ -22241,7 +22368,8 @@ function amdaFixRun(fix, cb) {
           /* רק התיקון הזה יורד — תיקון חדש יותר שנשמר בינתיים נשאר. */
           if (JSON.stringify(Store.get('amdaFix', null)) === JSON.stringify(fix)) Store.del('amdaFix');
           amdaMsg = amdaT('kindOk', { k: amdaT(fix.kind === 'o' ? 'exitO' : 'exitD') });
-          amdaPull();
+          /* הקריאה המלאה — רק כשמסך שמציג את הספירות פתוח. */
+          if (document.getElementById('amda-adm') || amdaOnScreen()) amdaPull();
           cb(true);
           return;
         }
@@ -22706,7 +22834,9 @@ function amdaPullMarks(key, seatEv) {
   return scriptGet({ read: AMDA_MARKS, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows) return false;
     var h = d.rows[0] || [], seen = {}, tot = {}, day = {}, today = amdaDay();
-    var col = function (x, n) { var i = h.indexOf(n); return i < 0 ? '' : String(x[i] || ''); };
+    /* המיקום של כל עמודה — פעם אחת, לא חיפוש בכותרת לכל תא (אלפי שורות). */
+    var hi = {}; h.forEach(function (n, i) { if (hi[n] === undefined) hi[n] = i; });
+    var col = function (x, n) { var i = hi[n]; return i === undefined ? '' : String(x[i] || ''); };
     d.rows.slice(1).forEach(function (x) {
       var id = col(x, 'מזהה'), sk = amdaKey(col(x, 'שכבה'), col(x, 'כיתה'), col(x, 'שם'));
       if (id) seen[id] = 1;

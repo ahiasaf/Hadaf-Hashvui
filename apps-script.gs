@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 200;
+var SCRIPT_VERSION = 201;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -353,7 +353,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -599,6 +599,20 @@ function doPostMain_(e) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
       }
       return json_(amdaDel_(parse_(d.ids) || [], String(d.inst)));
+    }
+    /* כל הרישומים שבתור בבקשה אחת (amdaRows_) — לשונית העמדה בלבד. איש צוות
+       (בלי סיסמה) — רק לישיבה שהמכשיר אושר אליה. */
+    if (d.action === 'amdarows') {
+      var arTab = String(d.tab || AMDA_TAB_), arRows = parse_(d.rows) || [];
+      if (arTab !== AMDA_TAB_) return json_({ status: 'denied' });
+      if (wAdm) return json_(amdaRows_(AMDA_TAB_, arRows, ''));
+      if (!d.dev || !d.inst) {
+        return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
+      }
+      if (accGate_(String(d.inst), String(d.dev), true)) {
+        return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
+      }
+      return json_(amdaRows_(AMDA_TAB_, arRows, String(d.inst)));
     }
     if (d.action === 'row' || d.action === 'table') {
       if (!wAdm) {
@@ -2058,6 +2072,19 @@ function doGetMain_(e) {
     } catch (eR) {
       return reply_(e, { status: 'error', message: String(eR) });
     }
+  }
+
+  /* אימות שמירת הנוכחות — רק אילו מזהים כבר בגיליון (amdaOk_). */
+  if (e && e.parameter && e.parameter.amdaok) {
+    var okAdm = !!READ_KEY && String(e.parameter.key || '') === READ_KEY;
+    if (!okAdm) {
+      var okInst = String(e.parameter.inst || '').trim();
+      if (!okInst || !e.parameter.dev) return reply_(e, { status: 'denied' });
+      var gOk = accGate_(okInst, e.parameter.dev, true);
+      if (gOk) return reply_(e, gOk);
+    }
+    try { return reply_(e, amdaOk_(e.parameter, okAdm)); }
+    catch (eOk) { return reply_(e, { status: 'error', message: String(eOk) }); }
   }
 
   if (e && e.parameter && (e.parameter.netroster || e.parameter.netmarks)) {
@@ -4025,6 +4052,107 @@ function amdaAppend_(cols) {
     }
   }
   return appendCols_(AMDA_TAB_, cols);
+}
+/* ============================================================
+   שמירת נוכחות בבקשה אחת, ואימות בלי להוריד את הלשונית (8.99.480).
+   ============================================================
+   עד עכשיו כל רישום היה בקשה נפרדת — כל אחת חיכתה לנעילה, קראה את
+   עמודת המזהים, מחקה את מטמון הכרטיסים של כולם וספרה מחדש. והאימות
+   הוריד את כל הלשונית (כל הישיבות, כל השנה) עד שש פעמים ברצף, ובכל
+   קריאה כזו גם הריץ את השיוך לפני שענה. בטלפון זה תקע את המסך.
+
+   amdaRows_ — כל הרישומים שבתור בבקשה אחת: קריאה אחת של המזהים,
+   כתיבה אחת, ניקוי מטמון וספירה פעם אחת. מזהה שכבר קיים — מדלגים
+   (כמו amdaAppend_). `inst` — איש צוות: רק עמודות העמדה, והישיבה
+   נכפית להיות זו שהמכשיר אושר אליה.
+   amdaOk_ — אילו מהמזהים כבר בגיליון. קורא רק את עמודת המזהה (ואצל
+   איש צוות גם את הישיבה), ולא מריץ את השיוך. */
+var AMDA_ROW_COLS_ = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
+                      'רמה', 'אישור חידון', 'שכבה', 'כיתה', 'שם', 'מתי'];
+var AMDA_OK_MAX_ = 400;
+function amdaRows_(tab, list, inst) {
+  if (!list || !list.length) return { status: 'success', tab: tab, n: 0 };
+  var sh = sheet_(tab), head = headers_(sh), ix = idx_(sh, head, 'מזהה'), n = sh.getLastRow() - 1, have = {};
+  if (n > 0) {
+    sh.getRange(2, ix + 1, n, 1).getValues().forEach(function (v) {
+      var s = String(v[0] == null ? '' : v[0]).trim();
+      if (s) have[s] = 1;
+    });
+  }
+  var rows = [], now = new Date(), dup = 0;
+  list.slice(0, AMDA_OK_MAX_).forEach(function (cols) {
+    if (!cols || !cols.length) return;
+    var id = '';
+    if (inst) {
+      cols = cols.filter(function (p) { return p && AMDA_ROW_COLS_.indexOf(String(p[0] || '')) >= 0; });
+      cols.push(['קוד ישיבה', inst]);
+    }
+    cols.forEach(function (c) { if (c && c[0] === 'מזהה') id = String(c[1] == null ? '' : c[1]).trim(); });
+    if (id && have[id]) { dup++; return; }
+    if (id) have[id] = 1;
+    var row = [];
+    put_(row, idx_(sh, head, 'תאריך'), now);
+    cols.forEach(function (c) {
+      if (!c || c[0] == null || c[0] === '') return;
+      put_(row, idx_(sh, head, String(c[0])), cell_(c[1]));
+    });
+    rows.push(row);
+  });
+  if (rows.length) {
+    var w = head.length;
+    rows.forEach(function (r) { while (r.length < w) r.push(''); });
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, w).setValues(rows);
+    if (tab === AMDA_TAB_) { amdaQzBust_(); partSoon_(); }
+  }
+  return { status: 'success', tab: tab, n: rows.length, dup: dup };
+}
+/* האם כל השורות של היום והמועד תואמות לתיקון הסוג — כמו amdaFixCheck
+   בלקוח, אבל בשרת: בלי להוריד את הלשונית לטלפון. */
+function amdaFixOk_(fix) {
+  var t = amdaTable_(AMDA_TAB_);
+  var want = [['סוג', fix.kind === 'o' ? 'שיעור' : 'דף'], ['מסלול', String(fix.track || '')],
+              ['דף', String(fix.daf || '')], ['רמה', String(fix.lvl || '')], ['אישור חידון', fix.qz ? 'כן' : '']];
+  for (var r = 1; r < t.rows.length; r++) {
+    var x = t.rows[r];
+    if (t.c(x, 'יום') !== String(fix.day || '') || t.c(x, 'קוד עמדה') !== String(fix.slot || '')) continue;
+    if (fix.inst && t.c(x, 'קוד ישיבה') !== String(fix.inst)) continue;
+    for (var k = 0; k < want.length; k++) if (t.c(x, want[k][0]) !== want[k][1].trim()) return false;
+  }
+  return true;
+}
+/* `ids` — מזהי רישום/הסרה (לשונית העמדה) · `fix` — תיקון סוג (סיסמה בלבד)
+   · `inst` — איש צוות: רק שורות הישיבה שלו. */
+function amdaOk_(p, adm) {
+  var split = function (s) {
+    return String(s || '').split(',').map(function (x) { return x.trim(); })
+      .filter(function (x) { return x; }).slice(0, AMDA_OK_MAX_);
+  };
+  var look = function (tab, ids, inst) {
+    if (!ids.length) return [];
+    var sh = sheet_(tab), head = headers_(sh), ix = head.indexOf('מזהה'), n = sh.getLastRow() - 1, want = {}, out = [];
+    if (ix < 0 || n < 1) return [];
+    ids.forEach(function (i) { want[i] = 1; });
+    var ii = inst ? head.indexOf('קוד ישיבה') : -1;
+    if (inst && ii < 0) return [];
+    var v = sh.getRange(2, ix + 1, n, 1).getValues(), vi = inst ? sh.getRange(2, ii + 1, n, 1).getValues() : null;
+    for (var r = 0; r < v.length; r++) {
+      var id = String(v[r][0] == null ? '' : v[r][0]).trim();
+      if (!want[id]) continue;
+      if (vi && String(vi[r][0] == null ? '' : vi[r][0]).trim() !== inst) continue;
+      out.push(id); delete want[id];
+    }
+    return out;
+  };
+  var res = { status: 'ok', v: 1, have: look(AMDA_TAB_, split(p.ids), adm ? '' : String(p.inst || '')) };
+  if (adm && p.fix) {
+    var fx = null;
+    try { fx = JSON.parse(String(p.fix)); } catch (eF) {}
+    if (fx) res.fixOk = amdaFixOk_(fx);
+  }
+  /* אחרי שהכול אומת הטלפון שולח בקשה נפרדת עם `sync` (בלי לחכות לה) —
+     זה הרגע לשייך את מי שלמד לחשבון שלו, כמו בקריאה המלאה. */
+  if (String(p.sync || '') === '1') amdaSyncSoon_();
+  return res;
 }
 function amdaGroupIds_() {
   var out = {};
