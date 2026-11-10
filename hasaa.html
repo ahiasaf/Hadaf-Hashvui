@@ -76,7 +76,6 @@ details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
 details.prz .it{display:flex;align-items:center;gap:10px}
 details.prz .it{cursor:pointer;border-radius:8px;padding:4px 6px;margin:2px 0;-webkit-tap-highlight-color:transparent}
 details.prz .it.on{background:#EEF6E4;outline:2px solid var(--green-d);border-bottom-color:transparent}
-details.prz .it.off{opacity:.38}
 details.prz .it .ck{display:none;flex:none;font-weight:800;color:var(--green-d);font-size:1.1rem}
 details.prz .it.on .ck{display:inline}
 .pk{font-weight:800;color:var(--blue-d);margin:4px 0 8px;font-size:.95rem}
@@ -228,14 +227,17 @@ function bkLnk(t) {
   if (!u || !UI.hsBook) return '';
   return '<a class="bkl" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(UI.hsBook) + '</a>';
 }
+var LG = '';
 /* רשימת הפרסים — שורה לכל פריט (מתחילה במספר); הראשונה ושורה שנגמרת בנקודתיים — כותרת. */
 $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   return l.trim() ? '<p class="nt">' + esc(l) + '</p>' : '';
 }).join('') + String(UI.hsPrz || '').split('\n').map(function (l, j) {
   l = l.trim();
   if (!l) return '';
+  var lh = l.match(/^רשימה\s+([א-ת])/);
+  if (lh) { LG = lh[1]; return '<p class="hd" data-g="' + LG + '">' + esc(l) + '</p>'; }
   if (!j || /:$/.test(l)) return '<p class="hd">' + esc(l) + '</p>';
-  if (/^\d+\./.test(l)) return '<div class="it" role="button" tabindex="0" data-n="' + l.match(/^(\d+)/)[1] + '">' +
+  if (/^\d+\./.test(l)) return '<div class="it" role="button" tabindex="0" data-g="' + LG + '" data-n="' + l.match(/^(\d+)/)[1] + '">' +
     '<b class="ck">✓</b>' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span>' + bkLnk(l) + '</div>';
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
@@ -257,7 +259,7 @@ var ITEMS = [], GRP = [];
     var h = l.match(/^רשימה\s+([א-ת])/);
     if (h) {
       var i = ab.indexOf(h[1]);
-      L = { t: l.split(/\s+-\s+/)[0], v: i <= 0 ? 0.5 : i };
+      L = { t: l.split(/\s+-\s+/)[0], v: i <= 0 ? 0.5 : i, k: h[1] };
       GRP.push(L);
       return;
     }
@@ -293,9 +295,17 @@ function pkLines() {
   var L = [], k = curK();
   if (full('p1')) L.push(UI.hsP1 + ' — ' + tp(UI.hsChosen, { n: nameOf('p1') }));
   if (full('p1') && full('p2')) L.push(UI.hsP2 + ' — ' + tp(UI.hsChosen, { n: nameOf('p2') }));
-  else if (SEL[k].length) L.push(UI.hsHalf);
+  else if (SEL[k].length) L.push(leftTxt((DUE == null ? 1 : DUE) - sum(SEL[k])));
   else L.push(k === 'p1' ? UI.hsMark : UI.hsMark2);
   return L;
+}
+/* "נשאר לך לבחור עוד חצי פרס מרשימה א" — הכמה מהשווי, הרשימה לפי השווי. */
+function valTxt(v) {
+  return v === 0.5 ? UI.hsDueHalf : v === 1 ? UI.hsDue1 : v === 2 ? UI.hsDue2 : tp(UI.hsDueN, { n: v });
+}
+function leftTxt(r) {
+  var ks = GRP.filter(function (g) { return g.v === r; }).map(function (g) { return g.k; });
+  return tp(UI.hsLeft, { n: valTxt(r), l: ks.join(', ') });
 }
 function pkSay(lines, warn) {
   var el = $('pk');
@@ -306,13 +316,19 @@ function prPaint() {
   ['p1', 'p2'].forEach(function (k) { $('f-' + k).value = prVal(k); });
   var on = {};
   SEL.p1.concat(SEL.p2).forEach(function (i) { on[i] = 1; });
-  var its = document.querySelectorAll('#prz .it');
+  var its = document.querySelectorAll('#prz .it'), vis = {};
   for (var j = 0; j < its.length; j++) {
     var i = itemIx(its[j].getAttribute('data-n'));
     var x = i < 0 ? null : ITEMS[i];
-    its[j].className = 'it' + (on[i] ? ' on' : (x && !canTake(x) ? ' off' : ''));
+    var show = !!on[i] || !x || canTake(x);
+    its[j].className = 'it' + (on[i] ? ' on' : '');
+    its[j].hidden = !show;
     its[j].setAttribute('aria-pressed', on[i] ? 'true' : 'false');
+    if (show) vis[its[j].getAttribute('data-g')] = 1;
   }
+  /* רשימה שאין בה עכשיו מה לבחור — נעלמת, כותרת ופריטים; ביטול מחזיר אותה. */
+  var hs = document.querySelectorAll('#prz .hd[data-g]');
+  for (var h = 0; h < hs.length; h++) hs[h].hidden = !vis[hs[h].getAttribute('data-g')];
   if (!PK_T) pkSay(pkLines(), false);
 }
 function itemIx(n) {

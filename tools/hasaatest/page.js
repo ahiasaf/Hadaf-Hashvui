@@ -66,7 +66,8 @@ function optTexts(p, sel) {
   // 8.99.497 — הבחירה בלחיצה על שורות ברשימת הפרסים
   var tap = function (pg, n) { return pg.click('#prz .it[data-n="' + n + '"] span'); };
   var cls = function (pg, n) { return pg.$eval('#prz .it[data-n="' + n + '"]', function (e) { return e.className; }); };
-  var offN = function (pg) { return pg.$$eval('#prz .it.off', function (a) { return a.map(function (e) { return +e.getAttribute('data-n'); }); }); };
+  var offN = function (pg) { return pg.$$eval('#prz .it[hidden]', function (a) { return a.map(function (e) { return +e.getAttribute('data-n'); }); }); };
+  var hdOff = function (pg) { return pg.$$eval('#prz .hd[data-g][hidden]', function (a) { return a.map(function (e) { return e.getAttribute('data-g'); }).join(''); }); };
   var pk = function (pg) { return pg.$eval('#pk', function (e) { return e.textContent; }); };
   ok(await p.$$eval('select#f-p1a, select#f-p1b', function (a) { return a.length; }) === 0, 'no priority dropdowns');
   ok(await p.$eval('details.prz', function (e) { return e.open; }), 'banner open');
@@ -84,14 +85,14 @@ function optTexts(p, sel) {
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'תענית', 'masechet filled');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
   var off = await offN(p);
-  ok(off.length === 16 && off.indexOf(1) >= 0 && off.indexOf(29) >= 0 && off.indexOf(8) < 0, 'due 2: א/ד/ה grayed', off);
-  await tap(p, 1);
-  ok(/מעבר למה שמגיע לך/.test(await pk(p)) && !/on/.test(await cls(p, 1)), 'over: message, not selected');
+  ok(off.length === 16 && off.indexOf(1) >= 0 && off.indexOf(29) >= 0 && off.indexOf(8) < 0, 'due 2: א/ד/ה hidden', off);
+  ok(await hdOff(p) === 'אדה', 'due 2: list headers א,ד,ה hidden', await hdOff(p));
+  ok(await p.$eval('#prz', function (e) { return e.textContent.indexOf('לבחירה אחד מהרשימה:') < 0; }), 'list א: misleading line gone');
   await tap(p, 8);
   ok(/ on/.test(await cls(p, 8)), 'item 8 selected');
-  ok(/חצי פרס/.test(await pk(p)), 'status asks to complete', await pk(p));
+  ok(await pk(p) === 'נשאר לך לבחור עוד פרס אחד מרשימה ב', 'status: what is left', await pk(p));
   off = await offN(p);
-  ok(off.indexOf(9) < 0 && off.indexOf(23) >= 0, 'only list ב active', off.length);
+  ok(off.indexOf(9) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'אגדה', 'only list ב shown', await hdOff(p));
   await tap(p, 8);
   ok(!/on/.test(await cls(p, 8)) && await pk(p) === 'סמן את הפרס שאתה רוצה', 'second tap cancels');
   await tap(p, 8); await tap(p, 10);
@@ -99,10 +100,14 @@ function optTexts(p, sel) {
   await tap(p, 23);
   ok(/עדיפות שניה — בחרת: 23\./.test(await pk(p)), 'p2 complete', await pk(p));
   // "על הספר" — לא מסמן
-  var before = await cls(p, 24);
-  await p.$eval('#prz .it[data-n="24"] a.bkl', function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
-  await p.click('#prz .it[data-n="24"] a.bkl');
-  ok(await cls(p, 24) === before, 'book link does not select');
+  ok((await offN(p)).length === 34, 'both chosen: only the choices remain', (await offN(p)).length);
+  var before = await cls(p, 8);
+  await p.$eval('#prz .it[data-n="8"] a.bkl', function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+  await p.click('#prz .it[data-n="8"] a.bkl');
+  ok(await cls(p, 8) === before, 'book link does not cancel');
+  await tap(p, 23);
+  ok((await offN(p)).length === 16 && /עדיפות שניה/.test(await pk(p)), 'cancel brings lists back', (await offN(p)).length);
+  await tap(p, 23);
   await p.fill('#f-y', 'לפיד'); await p.fill('#f-c', 'ט'); await p.fill('#f-ph', '0500000000');
   // זאב — לפי שם, פרס אחד: הבחירות של שני פרסים מתרוקנות
   await p.selectOption('#f-nsel', { label: 'זאב גל' });
@@ -111,14 +116,14 @@ function optTexts(p, sel) {
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
   ok(await p.$$eval('#prz .it.on', function (a) { return a.length; }) === 0, 'selections cleared on due change');
   off = await offN(p);
-  ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0, 'due 1: א+ב', off.length);
+  ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'גדה', 'due 1: only א+ב', off.length);
   // שליחה לפני שתי עדיפויות — לא נשלח
   await p.click('#go');
   await p.waitForTimeout(300);
   ok(await p.$eval('#ok', function (e) { return e.hidden; }) && /warn/.test(await p.$eval('#pk', function (e) { return e.className; })), 'blocked without priorities');
   await tap(p, 1);
   off = await offN(p);
-  ok(off.length === 30 && off.indexOf(2) < 0, 'half → only א active', off.length);
+  ok(off.length === 30 && off.indexOf(2) < 0 && await pk(p) === 'נשאר לך לבחור עוד חצי פרס מרשימה א', 'half → only א, says half left', await pk(p));
   await tap(p, 2); await tap(p, 9);
   // הקלדה ידנית בחתימה — לא נדרסת
   await p.fill('#f-s', 'ז. גל');
