@@ -12,7 +12,8 @@ function world(withZk) {
     return Array.prototype.map.call(crypto.createHash(alg).update(String(s), 'utf8').digest(), function (b) { return b > 127 ? b - 256 : b; });
   };
   [['DAAA1', 'אבי', 'כהן'], ['DBBB2', 'בני', 'לוי']].forEach(function (x) {
-    c.appendCols_('לומדים', [['מזהה', x[0]], ['שם', x[1]], ['משפחה', x[2]], ['קוד ישיבה', 'lapid'], ['תפקיד', 'תלמיד']]);
+    c.appendCols_('לומדים', [['מזהה', x[0]], ['שם', x[1]], ['משפחה', x[2]], ['קוד ישיבה', 'lapid'], ['תפקיד', 'תלמיד'],
+      ['שכבה', 'ט'], ['כיתה', x[0] === 'DAAA1' ? '3' : ''], ['טלפון', x[0] === 'DAAA1' ? 'TESTPHONE1' : '']]);
   });
   var L = c.sheet_('לימוד'); L.d.push(['תאריך', 'מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך']);
   var heb = ['', '', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל', 'לא'];
@@ -84,6 +85,8 @@ function optTexts(p, sel) {
   ok(await p.$eval('#due', function (e) { return e.textContent; }) === 'מגיע לך: שני פרסים', 'due 2');
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'תענית', 'masechet filled');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
+  ok(await p.$eval('#f-y', function (e) { return e.value; }) === 'ישיבת לפיד', 'yeshiva filled');
+  ok(await p.$eval('#f-c', function (e) { return e.value; }) === 'ט׳3' && await p.$eval('#f-ph', function (e) { return e.value; }) === 'TESTPHONE1', 'class + phone filled');
   var off = await offN(p);
   ok(off.length === 16 && off.indexOf(1) >= 0 && off.indexOf(29) >= 0 && off.indexOf(8) < 0, 'due 2: א/ד/ה hidden', off);
   ok(await hdOff(p) === 'אדה', 'due 2: list headers א,ד,ה hidden', await hdOff(p));
@@ -114,6 +117,7 @@ function optTexts(p, sel) {
   await p.waitForFunction(function () { return document.getElementById('due').textContent === 'מגיע לך: פרס אחד'; });
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'ברכות', 'zeev masechet from zk (replaces auto)');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
+  ok(await p.$eval('#f-ph', function (e) { return e.value; }) === '0500000000' && await p.$eval('#f-y', function (e) { return e.value; }) === 'לפיד', 'typed fields kept');
   ok(await p.$$eval('#prz .it.on', function (a) { return a.length; }) === 0, 'selections cleared on due change');
   off = await offN(p);
   ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'גדה', 'due 1: only א+ב', off.length);

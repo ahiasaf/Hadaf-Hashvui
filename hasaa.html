@@ -431,9 +431,12 @@ function namePick() {
   prFit();
   if (!o) return;
   autoSet('f-s', o.n);
+  autoSet('f-y', UI.hsInstLapid);
   get('hasaa=info&' + (o.k ? 'id=' + encodeURIComponent(o.k) : 'n=' + encodeURIComponent(o.n))).then(function (r) {
     if (my !== SEQ || !r || r.status !== 'ok') return;
     for (var m = 1; m <= 6; m++) autoSet('f-m' + m, (r.mas || [])[m - 1] || '');
+    autoSet('f-c', r.cls || '');
+    autoSet('f-ph', r.ph || '');
     DUE = typeof r.due === 'number' && r.due > 0 ? r.due : null;
     if (DUE != null && !ITEMS.filter(mainOk).length) DUE = null;
     prFit();

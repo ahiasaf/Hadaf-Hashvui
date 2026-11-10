@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 216;
+var SCRIPT_VERSION = 217;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -18139,6 +18139,14 @@ function hasaaDone_(ids) {
   });
   return out;
 }
+/* "ט" + "3" → "ט׳3"; "יא" + "2" → "י״א2"; כיתה שכבר כוללת אותיות — כמו שהיא. */
+function hasaaCls_(g, c) {
+  g = String(g || '').replace(/["'׳״\s]/g, '');
+  c = String(c || '').trim();
+  if (c && /[א-ת]/.test(c)) return c;
+  var gg = !g ? '' : g.length === 1 ? g + '׳' : g.slice(0, -1) + '״' + g.slice(-1);
+  return gg + c;
+}
 function hasaaInfo_(tok, nm) {
   try {
     var t = joinTable_(), r = -1;
@@ -18159,7 +18167,14 @@ function hasaaInfo_(tok, nm) {
       m = m.replace(/^\s*(מסכת)\s+/, '').trim();
       if (m && mas.indexOf(m) < 0) mas.push(m);
     });
-    return { status: 'ok', mas: mas.slice(0, 6), due: z ? z.n : null };
+    /* 8.99.499 (אחיאסף): כיתה וטלפון מ"לומדים" — רק כשהשם הגיע עם אסימון (שורה ב"לומדים"). */
+    var out = { status: 'ok', mas: mas.slice(0, 6), due: z ? z.n : null };
+    if (r > 0) {
+      var w = t.rows[r];
+      out.cls = hasaaCls_(t.c(w, 'שכבה'), t.c(w, 'כיתה'));
+      out.ph = t.c(w, 'טלפון');
+    }
+    return out;
   } catch (err) { return { status: 'error' }; }
 }
 function hasaaPut_(d) {

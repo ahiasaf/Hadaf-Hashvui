@@ -14,7 +14,7 @@ function J(id, first, last, inst, role, extra) {
   c.appendCols_('לומדים', [['מזהה', id], ['שם', first], ['משפחה', last], ['קוד ישיבה', inst], ['תפקיד', role || 'תלמיד'],
     ['טלפון', '0500000000']].concat(extra || []));
 }
-J('DAAA1', 'אבי', 'כהן', 'lapid');
+J('DAAA1', 'אבי', 'כהן', 'lapid', 'תלמיד', [['שכבה', 'ט'], ['כיתה', '3']]);
 J('DBBB2', 'בני', 'לוי', 'lapid');
 J('DCCC3', 'גדי', 'רז', 'givat');
 J('DPAR4', 'דן', 'כהן', 'lapid', 'הורה');
@@ -67,6 +67,9 @@ ok(I3.status === 'ok' && I3.due === 1 && I3.mas[0] === 'ברכות', 'zeev by na
 var I4 = get({ hasaa: 'info', n: 'אין כזה' });
 ok(I4.status === 'ok' && I4.due === null && I4.mas.length === 0, 'unknown name → no limit', I4);
 ok(get({ hasaa: 'info', id: 'tzz' }).status === 'error', 'bad token');
+ok(I.cls === 'ט׳3' && I.ph === '0500000000', 'info: class + phone from join', I);
+ok(I3.cls === undefined && I3.ph === undefined, 'name-only: no class/phone', I3);
+ok(c.hasaaCls_('יא', '2') === 'י״א2' && c.hasaaCls_('ט׳', 'ט׳4') === 'ט׳4' && c.hasaaCls_('', '') === '', 'class format');
 // הטוקן עובד גם בלי מטמון
 c.CacheService.getScriptCache().remove('hst:' + avi.k);
 ok(get({ hasaa: 'info', id: avi.k }).due === 2, 'token without cache');
