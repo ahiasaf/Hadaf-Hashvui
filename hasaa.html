@@ -73,6 +73,12 @@ details.prz .in{padding:0 14px 14px;font-size:.9rem}
 details.prz .nt{color:var(--ink-2);font-weight:600;margin-bottom:8px}
 details.prz .hd{font-weight:800;color:var(--blue-d);margin:12px 0 4px}
 details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
+details.prz .it{display:flex;align-items:center;gap:10px}
+.bk{width:40px;height:56px;object-fit:contain;flex:none;border-radius:4px;background:#fff}
+.bkp{display:flex;gap:10px;margin-top:8px}
+.bkp:empty{display:none}
+.bkp img{width:96px;height:132px;object-fit:contain;border-radius:8px;background:#fff;
+  box-shadow:0 2px 6px rgba(37,29,12,.12)}
 .go{display:block;width:100%;margin-top:6px;border:0;border-radius:14px;background:var(--blue);color:#fff;
   font:inherit;font-weight:800;font-size:1.05rem;padding:15px;cursor:pointer}
 .go[disabled]{opacity:.7;cursor:default}
@@ -164,6 +170,13 @@ for (var i = 1; i <= 6; i++) mh += fld('m' + i, UI.hsMas, i === 1);
 $('mas').innerHTML = mh;
 $('two').textContent = UI.hsTwo;
 $('przH').textContent = UI.hsPrzH;
+/* תמונת העטיפה של פריט — hasaa-books/NN.jpg לפי מספר הפריט ברשימה. לא נטענה — מוסרת. */
+function bkImg(t, cls) {
+  var m = String(t || '').match(/^(\d+)\./);
+  if (!m) return '';
+  var n = ('0' + m[1]).slice(-2);
+  return '<img class="' + cls + '" src="hasaa-books/' + n + '.jpg" alt="" loading="lazy" onerror="this.parentNode&&this.parentNode.removeChild(this)">';
+}
 /* רשימת הפרסים — שורה לכל פריט (מתחילה במספר); הראשונה ושורה שנגמרת בנקודתיים — כותרת. */
 $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   return l.trim() ? '<p class="nt">' + esc(l) + '</p>' : '';
@@ -171,14 +184,15 @@ $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   l = l.trim();
   if (!l) return '';
   if (!j || /:$/.test(l)) return '<p class="hd">' + esc(l) + '</p>';
-  if (/^\d+\./.test(l)) return '<div class="it">' + esc(l) + '</div>';
+  if (/^\d+\./.test(l)) return '<div class="it">' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span></div>';
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
 /* העדיפויות — תפריט פרס, ותחתיו תפריט לפרט השני כשיש צירוף. */
 function prSel(k, lbl) {
   return '<label class="fl"><span>' + esc(lbl) + '</span>' +
     '<select id="f-' + k + 'a" required></select>' +
-    '<select id="f-' + k + 'b" aria-label="' + esc(UI.hsAdd) + '" hidden></select></label>';
+    '<select id="f-' + k + 'b" aria-label="' + esc(UI.hsAdd) + '" hidden></select>' +
+    '<div class="bkp" id="f-' + k + 'pic"></div></label>';
 }
 $('pri').innerHTML = prSel('p1', UI.hsP1) + prSel('p2', UI.hsP2);
 $('sig').innerHTML = fld('s', UI.hsSig, 1, 'text', UI.hsSigHelp);
@@ -238,6 +252,14 @@ function prSecond(k, bv) {
     B.hidden = !list.length;
   }
   if (bv && list.indexOf(ITEMS[+bv]) >= 0) B.value = bv;
+  prPic(k);
+}
+/* תמונת הספר שנבחר (ושל הפרט השני בצירוף) ליד התפריט. */
+function prPic(k) {
+  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), h = '';
+  if (A.value !== '') h += bkImg(ITEMS[+A.value].t, '');
+  if (!B.hidden && B.value !== '') h += bkImg(ITEMS[+B.value].t, '');
+  $('f-' + k + 'pic').innerHTML = h;
 }
 function prVal(k) {
   var A = $('f-' + k + 'a'), B = $('f-' + k + 'b');
@@ -249,6 +271,7 @@ function prVal(k) {
 ['p1', 'p2'].forEach(function (k) {
   prDraw(k, false);
   $('f-' + k + 'a').onchange = function () { prSecond(k, $('f-' + k + 'b').value); };
+  $('f-' + k + 'b').onchange = function () { prPic(k); };
 });
 function dueTxt(n) {
   return tp(UI.hsDue, { n: n === 1 ? UI.hsDue1 : n === 2 ? UI.hsDue2 : tp(UI.hsDueN, { n: n }) });
