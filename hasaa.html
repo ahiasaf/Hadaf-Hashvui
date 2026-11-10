@@ -68,20 +68,38 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .mas{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 .mtx{font-size:1.05rem;font-weight:800;color:var(--blue-d);margin:0 0 12px}
 .two{font-size:.94rem;font-weight:800;color:var(--gold-t);margin:4px 0 10px}
-details.prz{margin-bottom:16px;background:var(--surface);border:1px solid var(--rule);border-radius:14px}
-details.prz summary{cursor:pointer;padding:12px 14px;font-weight:800;color:var(--blue-d)}
-details.prz .in{padding:0 14px 14px;font-size:.9rem}
-details.prz .nt{color:var(--ink-2);font-weight:600;margin-bottom:8px}
-details.prz .hd{font-weight:800;color:var(--blue-d);margin:12px 0 4px}
-details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
-details.prz .it{display:flex;align-items:center;gap:10px}
-details.prz .it{cursor:pointer;border-radius:8px;padding:4px 6px;margin:2px 0;-webkit-tap-highlight-color:transparent}
-details.prz .it.on{background:#EEF6E4;outline:2px solid var(--green-d);border-bottom-color:transparent}
-details.prz .it .ck{display:none;flex:none;font-weight:800;color:var(--green-d);font-size:1.1rem}
-details.prz .it.on .ck{display:inline}
-.pk{font-weight:800;color:var(--blue-d);margin:4px 0 8px;font-size:.95rem}
+/* שני המקומות בטופס (8.99.501) */
+.slot{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.slot.need{border-color:var(--stop);box-shadow:0 0 0 2px rgba(165,56,45,.18)}
+.slot.next{border-color:var(--blue);box-shadow:0 0 0 2px rgba(23,70,143,.15)}
+.slh{font-weight:800;color:var(--blue-d);margin-bottom:8px}
+.slp{display:block;width:100%;border:2px dashed var(--blue);border-radius:12px;background:#fff;color:var(--blue);
+  font:inherit;font-weight:800;font-size:1rem;padding:13px;cursor:pointer}
+.slp[disabled]{border-color:var(--rule);color:var(--ink-2);cursor:default}
+.slc{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-weight:700}
+.slimg{width:44px;height:60px;object-fit:contain;flex:none;border-radius:4px;background:#fff}
+.slx{border:1px solid var(--rule);border-radius:10px;background:#fff;color:var(--blue);font:inherit;font-weight:800;
+  padding:6px 14px;cursor:pointer;margin-top:2px}
+/* מסך הבחירה — מעל הטופס */
+.pkr{position:fixed;inset:0;z-index:50;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pkh{position:sticky;top:0;z-index:1;background:var(--blue-d);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  box-shadow:0 2px 8px rgba(11,37,80,.25)}
+.pkr1{display:flex;align-items:center;gap:12px;max-width:32rem;margin:0 auto}
+.pkh b{font-size:1.1rem}
+.pkb{border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:800;padding:7px 12px;cursor:pointer}
+.pkw{max-width:32rem;margin:0 auto;padding:10px 16px 40px}
+.pk{font-weight:800;color:#fff;margin:8px auto 0;font-size:.98rem;max-width:32rem}
 .pk span{display:block}
-.pk.warn{color:var(--stop)}
+.pk:empty{display:none}
+.pk.warn{color:#FFD2CC}
+#prz{font-size:.92rem}
+#prz .nt{color:var(--ink-2);font-weight:600;font-size:.8rem;margin-bottom:6px}
+#prz .hd{font-weight:800;color:var(--blue-d);margin:14px 0 4px}
+#prz .it{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:8px;padding:6px;margin:2px 0;
+  border-bottom:1px solid var(--rule);-webkit-tap-highlight-color:transparent}
+#prz .it.on{background:#EEF6E4;outline:2px solid var(--green-d);border-bottom-color:transparent}
+#prz .it .ck{display:none;flex:none;font-weight:800;color:var(--green-d);font-size:1.1rem}
+#prz .it.on .ck{display:inline}
 .bkl{color:var(--blue);text-decoration:underline;font-size:inherit;white-space:nowrap;flex:none}
 .bk{width:40px;height:56px;object-fit:contain;flex:none;border-radius:4px;background:#fff}
 .go{display:block;width:100%;margin-top:6px;border:0;border-radius:14px;background:var(--blue);color:#fff;
@@ -109,8 +127,6 @@ details.prz .it.on .ck{display:inline}
       <div class="mas" id="mas"></div>
       <p class="mtx" id="masTx" hidden></p>
       <p class="two" id="two"></p>
-      <p class="pk" id="pk" aria-live="polite"></p>
-      <details class="prz" open><summary id="przH"></summary><div class="in" id="prz"></div></details>
       <div id="pri"></div>
       <div id="sig"></div>
       <button class="go" id="go" type="submit"></button>
@@ -119,6 +135,11 @@ details.prz .it.on .ck{display:inline}
   </div>
   <div class="ok" id="ok" hidden></div>
 </main>
+<div class="pkr" id="pkr" hidden role="dialog" aria-modal="true">
+  <div class="pkh"><div class="pkr1"><button class="pkb" id="pkBack" type="button"></button><b id="pkT"></b></div>
+    <p class="pk" id="pk" aria-live="polite"></p></div>
+  <div class="pkw"><div id="prz"></div></div>
+</div>
 <script src="data.js"></script>
 <script src="logo.js"></script>
 <script>
@@ -176,7 +197,7 @@ var mh = '';
 for (var i = 1; i <= 6; i++) mh += fld('m' + i, UI.hsMas, i === 1);
 $('mas').innerHTML = mh;
 $('two').textContent = UI.hsTwo;
-$('przH').textContent = UI.hsPrzH;
+$('pkBack').textContent = UI.hsBack;
 /* תמונת העטיפה של פריט — hasaa-books/NN.jpg לפי מספר הפריט ברשימה. לא נטענה — מוסרת. */
 function bkImg(t, cls) {
   var m = String(t || '').match(/^(\d+)\./);
@@ -244,7 +265,9 @@ $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
 /* העדיפויות — נבחרות בלחיצה על שורה ברשימת הפרסים (8.99.497). השדות f-p1/f-p2 — מה שנשלח. */
-$('pri').innerHTML = '<input type="hidden" id="f-p1"><input type="hidden" id="f-p2">';
+/* 8.99.501 — שני מקומות בטופס; הבחירה עצמה במסך נפרד (#pkr). */
+$('pri').innerHTML = '<div class="slot" id="sl-p1"></div><div class="slot" id="sl-p2"></div>' +
+  '<input type="hidden" id="f-p1"><input type="hidden" id="f-p2">';
 $('sig').innerHTML = fld('s', UI.hsSig, 1, 'text', UI.hsSigHelp);
 $('go').textContent = UI.hsSend;
 $('re').textContent = UI.hsRetry;
@@ -274,7 +297,7 @@ function mainOk(x) { return DUE == null || x.v === DUE || (x.v < DUE && hasV(DUE
 /* ---- הבחירה על הבאנר ----
    SEL.p1 / SEL.p2 — אינדקסים ב-ITEMS (עד שניים). עדיפות "שלמה": עם זכאות — סכום השווי = DUE;
    בלי זכאות — פריט שלם אחד, או שני חצאים (אין חצי פרס לבד). לחיצה על פריט מסומן — ביטול. */
-var SEL = { p1: [], p2: [] }, PK_T = 0;
+var SEL = { p1: [], p2: [] }, PK_T = 0, PKK = 'p1';
 function sum(a) { var t = 0; a.forEach(function (i) { t += ITEMS[i].v; }); return t; }
 function full(k) {
   var a = SEL[k];
@@ -282,24 +305,22 @@ function full(k) {
   if (DUE == null) return a.length === 1 ? ITEMS[a[0]].v >= 1 : sum(a) >= 1;
   return sum(a) === DUE;
 }
-function curK() { return full('p1') ? 'p2' : 'p1'; }
 /* מה מותר ללחוץ עכשיו: פריט שמתחיל עדיפות, או שמשלים בדיוק את החצי שנבחר. */
 function canTake(x) {
-  var a = SEL[curK()];
-  if (full('p1') && full('p2')) return false;
+  var a = SEL[PKK], other = SEL[PKK === 'p1' ? 'p2' : 'p1'];
+  if (other.indexOf(ITEMS.indexOf(x)) >= 0) return false;   /* כבר בעדיפות האחרת */
+  if (full(PKK)) return false;
   if (!a.length) return DUE == null || mainOk(x);
   var r = (DUE == null ? 1 : DUE) - sum(a);
   return x.v === r;
 }
 function nameOf(k) { return SEL[k].map(function (i) { return ITEMS[i].t; }).join(' + '); }
 function prVal(k) { return full(k) ? nameOf(k) : ''; }
+/* שורת המצב בראש מסך הבחירה: כמה מגיע, או מה נשאר להשלים. */
 function pkLines() {
-  var L = [], k = curK();
-  if (full('p1')) L.push(UI.hsP1 + ' — ' + tp(UI.hsChosen, { n: nameOf('p1') }));
-  if (full('p1') && full('p2')) L.push(UI.hsP2 + ' — ' + tp(UI.hsChosen, { n: nameOf('p2') }));
-  else if (SEL[k].length) L.push(leftTxt((DUE == null ? 1 : DUE) - sum(SEL[k])));
-  else L.push(k === 'p1' ? UI.hsMark : UI.hsMark2);
-  return L;
+  var a = SEL[PKK];
+  if (a.length && !full(PKK)) return [tp(UI.hsChosen, { n: nameOf(PKK) }), leftTxt((DUE == null ? 1 : DUE) - sum(a))];
+  return DUE != null ? [dueTxt(DUE)] : [];
 }
 /* "נשאר לך לבחור עוד חצי פרס מרשימה א" — הכמה מהשווי, הרשימה לפי השווי. */
 function valTxt(v) {
@@ -316,8 +337,9 @@ function pkSay(lines, warn) {
 }
 function prPaint() {
   ['p1', 'p2'].forEach(function (k) { $('f-' + k).value = prVal(k); });
+  slotPaint();
   var on = {};
-  SEL.p1.concat(SEL.p2).forEach(function (i) { on[i] = 1; });
+  SEL[PKK].forEach(function (i) { on[i] = 1; });
   var its = document.querySelectorAll('#prz .it'), vis = {};
   for (var j = 0; j < its.length; j++) {
     var i = itemIx(its[j].getAttribute('data-n'));
@@ -344,23 +366,64 @@ function flash(t) {
 }
 function prTap(i) {
   if (i < 0) return;
-  var k;
-  for (k in SEL) {
-    var at = SEL[k].indexOf(i);
-    if (at >= 0) {                        /* ביטול: הפריט יוצא, ועדיפות שנייה שלמה לא זזה */
-      SEL[k].splice(at, 1);
-      if (!SEL.p1.length && SEL.p2.length) { SEL.p1 = SEL.p2; SEL.p2 = []; }
-      clearTimeout(PK_T); PK_T = 0;
-      prPaint();
-      return;
-    }
-  }
-  if (full('p1') && full('p2')) return prPaint();
-  if (!canTake(ITEMS[i])) return flash(UI.hsOver);
-  SEL[curK()].push(i);
+  var at = SEL[PKK].indexOf(i);
   clearTimeout(PK_T); PK_T = 0;
+  if (at >= 0) { SEL[PKK].splice(at, 1); return prPaint(); }    /* לחיצה חוזרת — ביטול */
+  if (!canTake(ITEMS[i])) return flash(UI.hsOver);
+  SEL[PKK].push(i);
+  prPaint();
+  if (full(PKK)) pkClose(true);                                   /* שלם — חוזרים לטופס */
+}
+/* ---- המקומות בטופס ---- */
+function slotPaint() {
+  ['p1', 'p2'].forEach(function (k) {
+    var el = $('sl-' + k), h = '<div class="slh">' + esc(k === 'p1' ? UI.hsP1 : UI.hsP2) + '</div>';
+    if (full(k)) {
+      h += SEL[k].map(function (i) {
+        return '<div class="slc">' + bkImg(ITEMS[i].t, 'slimg') + '<span>' + esc(ITEMS[i].t) + '</span></div>';
+      }).join('') + '<button type="button" class="slx" data-k="' + k + '">' + esc(UI.hsChange) + '</button>';
+    } else {
+      var off = k === 'p2' && !full('p1');
+      h += '<button type="button" class="slp" data-k="' + k + '"' + (off ? ' disabled' : '') + '>+ ' + esc(UI.hsPickBtn) + '</button>';
+    }
+    el.innerHTML = h;
+    el.className = 'slot' + (k === 'p2' && full('p1') && !full('p2') ? ' next' : '') +
+      (NEED[k] && !full(k) ? ' need' : '');
+  });
+}
+var NEED = {};
+function pkOpen(k) {
+  PKK = k;
+  SEL[k] = [];                                                    /* "שינוי" — בוחרים מחדש */
+  NEED[k] = 0;
+  $('pkT').textContent = k === 'p1' ? UI.hsP1 : UI.hsP2;
+  $('pkr').hidden = false;
+  $('pkr').scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+  try { history.pushState({ hsPk: 1 }, ''); } catch (e) {}
   prPaint();
 }
+/* סגירה: שלם — נשמר; חצי שלא הושלם — יורד. */
+function pkClose(viaUi) {
+  if ($('pkr').hidden) return;
+  if (!full(PKK)) SEL[PKK] = [];
+  $('pkr').hidden = true;
+  document.body.style.overflow = '';
+  clearTimeout(PK_T); PK_T = 0;
+  prPaint();
+  var el = $('sl-' + PKK);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+  if (viaUi && history.state && history.state.hsPk) { try { history.back(); } catch (e) {} }
+}
+window.addEventListener('popstate', function () { if (!$('pkr').hidden) pkClose(false); });
+document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !$('pkr').hidden) pkClose(true); });
+$('pkBack').onclick = function () { pkClose(true); };
+$('pri').addEventListener('click', function (ev) {
+  var t = ev.target;
+  while (t && t !== this && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
+  if (!t || t === this || t.disabled) return;
+  pkOpen(t.getAttribute('data-k'));
+});
 /* זכאות שהשתנתה (שם אחר) — עדיפות שכבר לא מתאימה מתרוקנת. */
 function prFit() {
   ['p1', 'p2'].forEach(function (k) {
@@ -542,10 +605,9 @@ function send() {
   var form = $('f');
   if (form.reportValidity && !form.reportValidity()) return;
   if (!full('p1') || !full('p2')) {
-    $('przH').parentNode.open = true;
-    PK_T = 0; prPaint();
-    $('pk').className = 'pk warn';
-    $('pk').scrollIntoView({ block: 'center' });
+    NEED = { p1: 1, p2: 1 };
+    prPaint();
+    $('sl-' + (full('p1') ? 'p2' : 'p1')).scrollIntoView({ block: 'center' });
     return;
   }
   BUSY = true;

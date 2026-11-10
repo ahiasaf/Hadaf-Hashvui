@@ -64,19 +64,25 @@ function optTexts(p, sel) {
   await p.waitForFunction(function () { return document.querySelectorAll('#f-nsel option').length > 1; });
   var nm = await optTexts(p, '#f-nsel');
   ok(nm.join('|') === 'אבי כהן|בני לוי|זאב גל', 'names', nm);
-  // 8.99.497 — הבחירה בלחיצה על שורות ברשימת הפרסים
+  // 8.99.501 — שני מקומות בטופס, הבחירה במסך נפרד
   var tap = function (pg, n) { return pg.click('#prz .it[data-n="' + n + '"] span'); };
   var cls = function (pg, n) { return pg.$eval('#prz .it[data-n="' + n + '"]', function (e) { return e.className; }); };
   var offN = function (pg) { return pg.$$eval('#prz .it[hidden]', function (a) { return a.map(function (e) { return +e.getAttribute('data-n'); }); }); };
   var hdOff = function (pg) { return pg.$$eval('#prz .hd[data-g][hidden]', function (a) { return a.map(function (e) { return e.getAttribute('data-g'); }).join(''); }); };
   var pk = function (pg) { return pg.$eval('#pk', function (e) { return e.textContent; }); };
-  ok(await p.$$eval('select#f-p1a, select#f-p1b', function (a) { return a.length; }) === 0, 'no priority dropdowns');
-  ok(await p.$eval('details.prz', function (e) { return e.open; }), 'banner open');
-  ok(await pk(p) === 'סמן את הפרס שאתה רוצה', 'status: mark first', await pk(p));
-  // בלי זכאות (בני) — כל הפרסים; פריט שלם = עדיפות
+  var open = function (pg, k) { return pg.click('#sl-' + k + ' button'); };
+  var pkrOpen = function (pg) { return pg.$eval('#pkr', function (e) { return !e.hidden; }); };
+  var slot = function (pg, k) { return pg.$eval('#sl-' + k, function (e) { return e.textContent; }); };
+  ok(await p.$$eval('select#f-p1a, details.prz', function (a) { return a.length; }) === 0, 'no dropdowns, no collapsible list');
+  ok(!(await pkrOpen(p)), 'picker closed at start');
+  ok(/בחר פרס/.test(await slot(p, 'p1')) && await p.$eval('#sl-p2 button', function (e) { return e.disabled; }), 'two slots; second locked');
+  // בלי זכאות (בני) — כל הפרסים
   await p.selectOption('#f-nsel', { label: 'בני לוי' });
   await p.waitForTimeout(400);
-  ok((await offN(p)).length === 0, 'unlimited: nothing grayed');
+  await open(p, 'p1');
+  ok(await pkrOpen(p) && (await offN(p)).length === 0, 'unlimited: picker shows all');
+  await p.click('#pkBack');
+  ok(!(await pkrOpen(p)), 'back closes picker');
   ok(await p.$eval('#due', function (e) { return e.hidden; }), 'no due line');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'בני לוי', 'signature autofill');
   ok(await p.$eval('#mas', function (e) { return !e.hidden; }) && await p.$eval('#masTx', function (e) { return e.hidden; }), 'no known masechtot → fields');
@@ -90,30 +96,41 @@ function optTexts(p, sel) {
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
   ok(await p.$eval('#f-y', function (e) { return e.value; }) === 'ישיבת לפיד', 'yeshiva filled');
   ok(await p.$eval('#f-c', function (e) { return e.value; }) === 'ט׳3' && await p.$eval('#f-ph', function (e) { return e.value; }) === 'TESTPHONE1', 'class + phone filled');
+  await open(p, 'p1');
+  ok(await p.$eval('#pkT', function (e) { return e.textContent; }) === 'עדיפות ראשונה' && await pk(p) === 'מגיע לך: שני פרסים', 'picker header');
   var off = await offN(p);
   ok(off.length === 16 && off.indexOf(1) >= 0 && off.indexOf(29) >= 0 && off.indexOf(8) < 0, 'due 2: א/ד/ה hidden', off);
   ok(await hdOff(p) === 'אדה', 'due 2: list headers א,ד,ה hidden', await hdOff(p));
   ok(await p.$eval('#prz', function (e) { return e.textContent.indexOf('לבחירה אחד מהרשימה:') < 0; }), 'list א: misleading line gone');
   await tap(p, 8);
-  ok(/ on/.test(await cls(p, 8)), 'item 8 selected');
-  ok(await pk(p) === 'נשאר לך לבחור עוד פרס אחד מרשימה ב', 'status: what is left', await pk(p));
+  ok(/ on/.test(await cls(p, 8)) && await pkrOpen(p), 'item 8 selected, picker stays');
+  ok(/בחרת: 8\..*נשאר לך לבחור עוד פרס אחד מרשימה ב/.test(await pk(p)), 'status: what is left', await pk(p));
   off = await offN(p);
   ok(off.indexOf(9) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'אגדה', 'only list ב shown', await hdOff(p));
   await tap(p, 8);
-  ok(!/on/.test(await cls(p, 8)) && await pk(p) === 'סמן את הפרס שאתה רוצה', 'second tap cancels');
-  await tap(p, 8); await tap(p, 10);
-  ok(/בחרת: 8\..* \+ 10\./.test(await pk(p)) && /עדיפות שניה/.test(await pk(p)), 'p1 complete → mark p2', await pk(p));
-  await tap(p, 23);
-  ok(/עדיפות שניה — בחרת: 23\./.test(await pk(p)), 'p2 complete', await pk(p));
+  ok(!/on/.test(await cls(p, 8)) && await pk(p) === 'מגיע לך: שני פרסים', 'second tap cancels');
   // "על הספר" — לא מסמן
-  ok((await offN(p)).length === 34, 'both chosen: only the choices remain', (await offN(p)).length);
-  var before = await cls(p, 8);
-  await p.$eval('#prz .it[data-n="8"] a.bkl', function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
-  await p.click('#prz .it[data-n="8"] a.bkl');
-  ok(await cls(p, 8) === before, 'book link does not cancel');
+  await p.$eval('#prz .it[data-n="9"] a.bkl', function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+  await p.click('#prz .it[data-n="9"] a.bkl');
+  ok(!/on/.test(await cls(p, 9)), 'book link does not select');
+  await tap(p, 8); await tap(p, 10);
+  ok(!(await pkrOpen(p)), 'complete → back to form');
+  ok(/8\./.test(await slot(p, 'p1')) && /10\./.test(await slot(p, 'p1')) && /שינוי/.test(await slot(p, 'p1')), 'slot 1 shows the pair');
+  ok(await p.$eval('#sl-p1 img', function (e) { return /hasaa-books\/08\.jpg/.test(e.src); }), 'slot shows cover');
+  ok(await p.$eval('#sl-p2', function (e) { return / next/.test(e.className) && !e.querySelector('button').disabled; }), 'slot 2 unlocked + highlighted');
+  await open(p, 'p2');
+  off = await offN(p);
+  ok(off.indexOf(8) >= 0 && off.indexOf(10) >= 0, 'p2 picker: items of p1 not offered');
   await tap(p, 23);
-  ok((await offN(p)).length === 16 && /עדיפות שניה/.test(await pk(p)), 'cancel brings lists back', (await offN(p)).length);
-  await tap(p, 23);
+  ok(!(await pkrOpen(p)) && /23\./.test(await slot(p, 'p2')), 'p2 chosen');
+  // שינוי — נפתח מחדש וריק; חזרה בלי השלמה — העדיפות מתרוקנת
+  await p.click('#sl-p2 .slx');
+  ok(await pkrOpen(p) && !(await p.$$eval('#prz .it.on', function (a) { return a.length; })), 'change reopens empty');
+  await tap(p, 9);
+  await p.goBack();
+  await p.waitForTimeout(200);
+  ok(!(await pkrOpen(p)) && /בחר פרס/.test(await slot(p, 'p2')), 'phone back closes; partial dropped');
+  await open(p, 'p2'); await tap(p, 23);
   await p.fill('#f-y', 'לפיד'); await p.fill('#f-c', 'ט'); await p.fill('#f-ph', '0500000000');
   // זאב — לפי שם, פרס אחד: הבחירות של שני פרסים מתרוקנות
   await p.selectOption('#f-nsel', { label: 'זאב גל' });
@@ -122,17 +139,20 @@ function optTexts(p, sel) {
   ok(await p.$eval('#masTx', function (e) { return e.textContent; }) === 'ברכות' && await p.$eval('#f-m2', function (e) { return e.value; }) === '', 'zeev text replaces');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
   ok(await p.$eval('#f-ph', function (e) { return e.value; }) === '0500000000' && await p.$eval('#f-y', function (e) { return e.value; }) === 'לפיד', 'typed fields kept');
-  ok(await p.$$eval('#prz .it.on', function (a) { return a.length; }) === 0, 'selections cleared on due change');
-  off = await offN(p);
-  ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'גדה', 'due 1: only א+ב', off.length);
-  // שליחה לפני שתי עדיפויות — לא נשלח
+  ok(/בחר פרס/.test(await slot(p, 'p1')) && /בחר פרס/.test(await slot(p, 'p2')), 'selections cleared on due change');
+  // שליחה לפני שתי עדיפויות — לא נשלח, המקום הריק מסומן
   await p.click('#go');
   await p.waitForTimeout(300);
-  ok(await p.$eval('#ok', function (e) { return e.hidden; }) && /warn/.test(await p.$eval('#pk', function (e) { return e.className; })), 'blocked without priorities');
+  ok(await p.$eval('#ok', function (e) { return e.hidden; }) && await p.$eval('#sl-p1', function (e) { return / need/.test(e.className); }), 'blocked; empty slot marked');
+  await open(p, 'p1');
+  off = await offN(p);
+  ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0 && await hdOff(p) === 'גדה', 'due 1: only א+ב', off.length);
   await tap(p, 1);
   off = await offN(p);
-  ok(off.length === 30 && off.indexOf(2) < 0 && await pk(p) === 'נשאר לך לבחור עוד חצי פרס מרשימה א', 'half → only א, says half left', await pk(p));
-  await tap(p, 2); await tap(p, 9);
+  ok(off.length === 30 && off.indexOf(2) < 0 && /נשאר לך לבחור עוד חצי פרס מרשימה א/.test(await pk(p)), 'half → only א, says half left', await pk(p));
+  await tap(p, 2);
+  ok(await p.$eval('#sl-p1', function (e) { return !/ need/.test(e.className); }), 'mark clears when filled');
+  await open(p, 'p2'); await tap(p, 9);
   // הקלדה ידנית בחתימה — לא נדרסת
   await p.fill('#f-s', 'ז. גל');
   await p.click('#go');
@@ -148,8 +168,8 @@ function optTexts(p, sel) {
   await p3.waitForFunction(function () { return document.querySelectorAll('#f-nsel option').length > 1; });
   await p3.selectOption('#f-nsel', { label: 'אבי כהן' });
   await p3.waitForFunction(function () { return !document.getElementById('due').hidden; });
-  await p3.click('#prz .it[data-n="24"] span');
-  await p3.click('#prz .it[data-n="25"] span');
+  await p3.click('#sl-p1 button'); await p3.click('#prz .it[data-n="24"] span');
+  await p3.click('#sl-p2 button'); await p3.click('#prz .it[data-n="25"] span');
   await p3.fill('#f-y', 'לפיד'); await p3.fill('#f-c', 'ט'); await p3.fill('#f-ph', '0500000000');
   await p3.click('#go');
   await p3.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
@@ -162,8 +182,8 @@ function optTexts(p, sel) {
   await p2.waitForSelector('input#f-n:not([type=hidden])');
   ok(await p2.$$eval('#f-n', function (e) { return e.length; }) === 1, 'single f-n after fallback');
   await p2.fill('#f-n', 'שם חופשי');
-  await p2.click('#prz .it[data-n="8"] span');
-  await p2.click('#prz .it[data-n="9"] span');
+  await p2.click('#sl-p1 button'); await p2.click('#prz .it[data-n="8"] span');
+  await p2.click('#sl-p2 button'); await p2.click('#prz .it[data-n="9"] span');
   await p2.fill('#f-y', 'לפיד'); await p2.fill('#f-c', 'ט'); await p2.fill('#f-ph', '0500000000');
   await p2.fill('#f-m1', 'סוכה'); await p2.fill('#f-s', 'שם');
   await p2.click('#go');
