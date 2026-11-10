@@ -20,6 +20,7 @@ J('DCCC3', 'גדי', 'רז', 'givat');
 J('DPAR4', 'דן', 'כהן', 'lapid', 'הורה');
 J('DTST5', 'הדר', 'טל', 'lapid', 'תלמיד', [['בדיקה', 'כן']]);
 J('DOUT6', 'ורד', 'בן', 'rishon');
+J('DNZK7', 'חן', 'שגיא', 'lapid');   // תלמיד לפיד שאינו ב"זכאויות" — לא בתפריט (8.99.496)
 // לימוד: אבי סיים את כל מגילה (ב–לא שלם, לב. בלבד), ותענית חלקית
 var heb = ['', '', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל', 'לא', 'לב'];
 var LH = ['תאריך', 'מזהה', 'קוד ישיבה', 'מסלול', 'שבוע', 'דף', 'קטע', 'מתוך', 'בדיקה'];
@@ -46,6 +47,8 @@ ok(names.indexOf('אבי כהן') >= 0 && names.indexOf('בני לוי') >= 0, '
 ok(names.filter(function (x) { return x === 'בני לוי'; }).length === 1, 'dup name once', names);
 ok(names.indexOf('זאב גל') >= 0, 'zk-only name added', names);
 ok(names.indexOf('גדי רז') >= 0, 'zk id from other inst added', names);
+ok(names.indexOf('חן שגיא') < 0, 'not in zk → not listed', names);
+ok(R.list.filter(function (o) { return o.n === 'בני לוי'; })[0].k, 'zk name matched to student → token');
 ok(names.indexOf('דן כהן') < 0 && names.indexOf('הדר טל') < 0 && names.indexOf('ורד בן') < 0, 'no parent/test/other inst', names);
 var raw = JSON.stringify(R);
 ok(raw.indexOf('DAAA1') < 0 && raw.indexOf('050') < 0 && raw.indexOf('ציון') < 0, 'no ids/phones', raw);

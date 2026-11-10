@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 215;
+var SCRIPT_VERSION = 216;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -18047,10 +18047,10 @@ function hasaaZk_() {
 function hasaaRoster_(y) {
   y = String(y || 'lapid').trim();
   if (!/^[a-z0-9_-]{1,30}$/i.test(y)) return { status: 'error' };
-  var rc = CacheService.getScriptCache(), ck = 'hsr1:' + y;
+  var rc = CacheService.getScriptCache(), ck = 'hsr2:' + y;
   try { var hit = rc.get(ck); if (hit) return JSON.parse(hit); } catch (xc) {}
   try {
-    var t = joinTable_(), list = [], byNm = {}, byId = {};
+    var t = joinTable_(), list = [], byNm = {}, byId = {}, stuNm = {};
     for (var r = 1; r < t.rows.length; r++) {
       var w = t.rows[r], id = t.c(w, 'מזהה');
       if (!id || id.indexOf(':k') >= 0) continue;
@@ -18061,10 +18061,10 @@ function hasaaRoster_(y) {
       if (role && role !== 'תלמיד') continue;
       var nm = (t.c(w, 'שם') + ' ' + t.c(w, 'משפחה')).replace(/\s+/g, ' ').trim();
       if (!nm) continue;
+      /* 8.99.496 (אחיאסף): התפריט — רק מי שב"זכאויות". תלמידי הישיבה משמשים רק
+         לזהות שם בלי מזהה שם (התאמה יחידה) — כך נשמר מזהה התלמיד. */
       var k = hasaaNm_(nm);
-      if (byNm[k]) continue;
-      byNm[k] = 1;
-      list.push({ k: hasaaTok_(id), n: nm, rid: id });
+      stuNm[k] = stuNm[k] ? '-' : id;
     }
     var inList = {};
     list.forEach(function (o) { inList[o.rid] = 1; });
@@ -18083,6 +18083,9 @@ function hasaaRoster_(y) {
       var k = hasaaNm_(nm);
       if (byNm[k]) return;
       byNm[k] = 1;
+      if (!tok && stuNm[k] && stuNm[k] !== '-' && !inList[stuNm[k]]) {
+        zRid = stuNm[k]; tok = hasaaTok_(zRid); inList[zRid] = 1;
+      }
       list.push({ k: tok, n: nm, rid: zRid });
     });
     list.sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; });
