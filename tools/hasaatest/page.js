@@ -126,7 +126,9 @@ function optTexts(p, sel) {
   await tap(p, 8); await tap(p, 10);
   ok(!(await pkrOpen(p)), 'complete → back to form');
   ok(/8\./.test(await slot(p, 'p1')) && /10\./.test(await slot(p, 'p1')) && /שינוי/.test(await slot(p, 'p1')), 'slot 1 shows the pair');
-  ok(await p.$eval('#sl-p1 img', function (e) { return /hasaa-books\/08\.jpg/.test(e.src); }), 'slot shows cover');
+  await p.waitForTimeout(300);
+  ok(await p.$$eval('#sl-p1 img', function (a) { return a.length === 1 && /hasaa-books\/10\.jpg/.test(a[0].src); }), 'slot shows cover (8 has none)');
+  ok(await p.$$eval('#prz .it[data-n="8"] a.bkl', function (a) { return a.length; }) === 0, 'item 8: no book link');
   ok(await p.$eval('#sl-p2', function (e) { return / next/.test(e.className) && !e.querySelector('button').disabled; }), 'slot 2 unlocked + highlighted');
   await open(p, 'p2');
   off = await offN(p);
