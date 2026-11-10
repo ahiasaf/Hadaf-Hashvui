@@ -41,7 +41,8 @@ function srv() {
 }
 async function page(b, port, W, fail) {
   var ctx = await b.newContext({ serviceWorkers: 'block' });
-  await ctx.route(/script\.google\.com/, function (rt) {
+  await ctx.route(/script\.google\.com/, async function (rt) {
+    if (/hasaa=info/.test(rt.request().url())) await new Promise(function (r) { setTimeout(r, 600); });   // השרת האמיתי — כמה שניות
     var rq = rt.request(), u = new URL(rq.url());
     if (fail && u.searchParams.get('hasaa') === 'roster') return rt.abort();
     var out;
@@ -75,10 +76,13 @@ function optTexts(p, sel) {
   var slot = function (pg, k) { return pg.$eval('#sl-' + k, function (e) { return e.textContent; }); };
   ok(await p.$$eval('select#f-p1a, details.prz', function (a) { return a.length; }) === 0, 'no dropdowns, no collapsible list');
   ok(!(await pkrOpen(p)), 'picker closed at start');
-  ok(/בחר פרס/.test(await slot(p, 'p1')) && await p.$eval('#sl-p2 button', function (e) { return e.disabled; }), 'two slots; second locked');
+  // 8.99.502 — קודם רק השם; השאר נפתח אחרי שהפרטים הגיעו
+  ok(await p.$eval('#rest', function (e) { return e.hidden; }), 'only name before pick');
   // בלי זכאות (בני) — כל הפרסים
   await p.selectOption('#f-nsel', { label: 'בני לוי' });
-  await p.waitForTimeout(400);
+  ok(await p.$eval('#rest', function (e) { return e.hidden; }) && await p.$eval('#due', function (e) { return !e.hidden && e.textContent === 'טוען...'; }), 'loading, rest still closed');
+  await p.waitForFunction(function () { return !document.getElementById('rest').hidden; });
+  ok(/בחר פרס/.test(await slot(p, 'p1')) && await p.$eval('#sl-p2 button', function (e) { return e.disabled; }), 'two slots; second locked');
   await open(p, 'p1');
   ok(await pkrOpen(p) && (await offN(p)).length === 0, 'unlimited: picker shows all');
   await p.click('#pkBack');
@@ -181,6 +185,7 @@ function optTexts(p, sel) {
   var W2 = world(false), p2 = await page(b, port, W2, true);
   await p2.waitForSelector('input#f-n:not([type=hidden])');
   ok(await p2.$$eval('#f-n', function (e) { return e.length; }) === 1, 'single f-n after fallback');
+  ok(await p2.$eval('#rest', function (e) { return !e.hidden; }), 'fallback: whole form open');
   await p2.fill('#f-n', 'שם חופשי');
   await p2.click('#sl-p1 button'); await p2.click('#prz .it[data-n="8"] span');
   await p2.click('#sl-p2 button'); await p2.click('#prz .it[data-n="9"] span');

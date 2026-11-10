@@ -123,6 +123,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
     <div class="ban"><div class="bsd" id="bsd"></div><h2 id="ttl"></h2><p id="sub"></p></div>
     <form id="f" autocomplete="on">
       <div id="idf"></div>
+      <div id="rest" hidden>
+      <div id="idf2"></div>
       <div class="dec" id="dec"></div>
       <div class="mas" id="mas"></div>
       <p class="mtx" id="masTx" hidden></p>
@@ -131,6 +133,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
       <div id="sig"></div>
       <button class="go" id="go" type="submit"></button>
       <div class="st" id="st" hidden><p id="stT"></p><button class="go" id="re" type="button"></button></div>
+      </div>
     </form>
   </div>
   <div class="ok" id="ok" hidden></div>
@@ -188,8 +191,9 @@ function fld(k, lbl, req, type, help) {
 $('idf').innerHTML = '<label class="fl" id="nmL"><span>' + esc(UI.hsName) + '</span>' +
   '<select id="f-nsel" required><option value="">' + esc(UI.hsLoading) + '</option></select>' +
   '<small class="due" id="due" hidden></small></label>' +
-  '<input type="hidden" id="f-n"><input type="hidden" id="f-id">' +
-  fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
+  '<input type="hidden" id="f-n"><input type="hidden" id="f-id">';
+/* 8.99.502 — קודם רק השם. שאר הטופס נפתח אחרי שהפרטים של השם הגיעו (בלי קפיצה). */
+$('idf2').innerHTML = fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
 $('dec').innerHTML = [UI.hsA, UI.hsB1, UI.hsB2, UI.hsC, UI.hsD].map(function (t) {
   return t ? '<p>' + esc(t) + '</p>' : '';
 }).join('');
@@ -501,7 +505,9 @@ function nameFree() {
   $('nmL').outerHTML = fld('n', UI.hsName, 1);
   var old = document.querySelector('input[type=hidden]#f-n');
   if (old) old.parentNode.removeChild(old);
+  $('rest').hidden = false;
 }
+function restOpen(my) { if (my === SEQ) $('rest').hidden = false; }
 function namePick() {
   var i = $('f-nsel').value, o = i === '' ? null : NAMES[+i], my = ++SEQ;
   $('f-n').value = o ? o.n : '';
@@ -509,11 +515,17 @@ function namePick() {
   $('due').hidden = true;
   DUE = null;
   prFit();
-  if (!o) return;
+  if (!o) { $('rest').hidden = true; return; }
   autoSet('f-s', o.n);
   autoSet('f-y', UI.hsInstLapid);
+  if ($('rest').hidden) {
+    $('due').textContent = UI.hsLoading; $('due').hidden = false;
+    setTimeout(function () { if (my === SEQ && $('rest').hidden) { $('due').hidden = true; restOpen(my); } }, 15000);
+  }
   get('hasaa=info&' + (o.k ? 'id=' + encodeURIComponent(o.k) : 'n=' + encodeURIComponent(o.n))).then(function (r) {
-    if (my !== SEQ || !r || r.status !== 'ok') return;
+    if (my !== SEQ) return;
+    $('due').hidden = true;
+    if (!r || r.status !== 'ok') { restOpen(my); return; }
     masShow(r.mas || []);
     autoSet('f-c', r.cls || '');
     autoSet('f-ph', r.ph || '');
@@ -521,7 +533,8 @@ function namePick() {
     if (DUE != null && !ITEMS.filter(mainOk).length) DUE = null;
     prFit();
     if (DUE != null) { $('due').textContent = dueTxt(DUE); $('due').hidden = false; }
-  }, function () {});
+    restOpen(my);
+  }, function () { if (my === SEQ) { $('due').hidden = true; restOpen(my); } });
 }
 get('hasaa=roster&y=' + encodeURIComponent(YSH)).then(function (r) {
   if (!r || r.status !== 'ok' || !r.list || !r.list.length) throw new Error('roster');
