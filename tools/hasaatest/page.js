@@ -63,45 +63,63 @@ function optTexts(p, sel) {
   await p.waitForFunction(function () { return document.querySelectorAll('#f-nsel option').length > 1; });
   var nm = await optTexts(p, '#f-nsel');
   ok(nm.join('|') === 'אבי כהן|בני לוי|זאב גל', 'names', nm);
-  // בלי זכאות (בני) — כל הפרסים, צירוף לא חובה
+  // 8.99.497 — הבחירה בלחיצה על שורות ברשימת הפרסים
+  var tap = function (pg, n) { return pg.click('#prz .it[data-n="' + n + '"] span'); };
+  var cls = function (pg, n) { return pg.$eval('#prz .it[data-n="' + n + '"]', function (e) { return e.className; }); };
+  var offN = function (pg) { return pg.$$eval('#prz .it.off', function (a) { return a.map(function (e) { return +e.getAttribute('data-n'); }); }); };
+  var pk = function (pg) { return pg.$eval('#pk', function (e) { return e.textContent; }); };
+  ok(await p.$$eval('select#f-p1a, select#f-p1b', function (a) { return a.length; }) === 0, 'no priority dropdowns');
+  ok(await p.$eval('details.prz', function (e) { return e.open; }), 'banner open');
+  ok(await pk(p) === 'סמן את הפרס שאתה רוצה', 'status: mark first', await pk(p));
+  // בלי זכאות (בני) — כל הפרסים; פריט שלם = עדיפות
   await p.selectOption('#f-nsel', { label: 'בני לוי' });
   await p.waitForTimeout(400);
-  ok((await optTexts(p, '#f-p1a')).length === 37, 'unlimited: all 37');
-  ok(await p.$eval('#f-p1b', function (e) { return !e.hidden && !e.required; }), 'unlimited: second optional');
+  ok((await offN(p)).length === 0, 'unlimited: nothing grayed');
   ok(await p.$eval('#due', function (e) { return e.hidden; }), 'no due line');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'בני לוי', 'signature autofill');
-  // אבי — שני פרסים, תענית הושלמה
+  // אבי — שני פרסים
   await p.selectOption('#f-nsel', { label: 'אבי כהן' });
   await p.waitForFunction(function () { return !document.getElementById('due').hidden; });
   ok(await p.$eval('#due', function (e) { return e.textContent; }) === 'מגיע לך: שני פרסים', 'due 2');
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'תענית', 'masechet filled');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
-  var o = await optTexts(p, '#f-p1a');
-  ok(o.length === 21 && o.some(function (t) { return /^23\./.test(t); }) && o.some(function (t) { return /^8\./.test(t); }) &&
-     !o.some(function (t) { return /^1\./.test(t) || /^29\./.test(t); }), 'due 2: lists ב+ג only', o.length);
-  ok(await p.$eval('#f-p1b', function (e) { return e.hidden; }), 'second hidden before pick');
-  await p.selectOption('#f-p1a', { label: o.filter(function (t) { return /^8\./.test(t); })[0] });
-  ok(await p.$eval('#f-p1b', function (e) { return !e.hidden && e.required; }), 'list ב pick → second required');
-  var o2 = await optTexts(p, '#f-p1b');
-  ok(o2.length === 15 && /^8\./.test(o2[0]), 'second = list ב', o2.length);
-  await p.selectOption('#f-p1b', { label: o2[2] });
-  var g = o.filter(function (t) { return /^23\./.test(t); })[0];
-  await p.selectOption('#f-p2a', { label: g });
-  ok(await p.$eval('#f-p2b', function (e) { return e.hidden; }), 'list ג pick → no second');
+  var off = await offN(p);
+  ok(off.length === 16 && off.indexOf(1) >= 0 && off.indexOf(29) >= 0 && off.indexOf(8) < 0, 'due 2: א/ד/ה grayed', off);
+  await tap(p, 1);
+  ok(/מעבר למה שמגיע לך/.test(await pk(p)) && !/on/.test(await cls(p, 1)), 'over: message, not selected');
+  await tap(p, 8);
+  ok(/ on/.test(await cls(p, 8)), 'item 8 selected');
+  ok(/חצי פרס/.test(await pk(p)), 'status asks to complete', await pk(p));
+  off = await offN(p);
+  ok(off.indexOf(9) < 0 && off.indexOf(23) >= 0, 'only list ב active', off.length);
+  await tap(p, 8);
+  ok(!/on/.test(await cls(p, 8)) && await pk(p) === 'סמן את הפרס שאתה רוצה', 'second tap cancels');
+  await tap(p, 8); await tap(p, 10);
+  ok(/בחרת: 8\..* \+ 10\./.test(await pk(p)) && /עדיפות שניה/.test(await pk(p)), 'p1 complete → mark p2', await pk(p));
+  await tap(p, 23);
+  ok(/עדיפות שניה — בחרת: 23\./.test(await pk(p)), 'p2 complete', await pk(p));
+  // "על הספר" — לא מסמן
+  var before = await cls(p, 24);
+  await p.$eval('#prz .it[data-n="24"] a.bkl', function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+  await p.click('#prz .it[data-n="24"] a.bkl');
+  ok(await cls(p, 24) === before, 'book link does not select');
   await p.fill('#f-y', 'לפיד'); await p.fill('#f-c', 'ט'); await p.fill('#f-ph', '0500000000');
-  // זאב — לפי שם, פרס אחד: א + ב
+  // זאב — לפי שם, פרס אחד: הבחירות של שני פרסים מתרוקנות
   await p.selectOption('#f-nsel', { label: 'זאב גל' });
   await p.waitForFunction(function () { return document.getElementById('due').textContent === 'מגיע לך: פרס אחד'; });
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'ברכות', 'zeev masechet from zk (replaces auto)');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
-  var z = await optTexts(p, '#f-p1a');
-  ok(z.length === 22 && z.some(function (t) { return /^1\./.test(t); }) && !z.some(function (t) { return /^23\./.test(t); }), 'due 1: א+ב', z.length);
-  ok(await p.$eval('#f-p2a', function (e) { return e.value; }) === '', 'p2 (ג) dropped when not allowed');
-  await p.selectOption('#f-p1a', { label: z.filter(function (t) { return /^1\./.test(t); })[0] });
-  var z2 = await optTexts(p, '#f-p1b');
-  ok(z2.length === 7, 'half → second from א', z2.length);
-  await p.selectOption('#f-p1b', { label: z2[1] });
-  await p.selectOption('#f-p2a', { label: z.filter(function (t) { return /^9\./.test(t); })[0] });
+  ok(await p.$$eval('#prz .it.on', function (a) { return a.length; }) === 0, 'selections cleared on due change');
+  off = await offN(p);
+  ok(off.length === 15 && off.indexOf(1) < 0 && off.indexOf(8) < 0 && off.indexOf(23) >= 0, 'due 1: א+ב', off.length);
+  // שליחה לפני שתי עדיפויות — לא נשלח
+  await p.click('#go');
+  await p.waitForTimeout(300);
+  ok(await p.$eval('#ok', function (e) { return e.hidden; }) && /warn/.test(await p.$eval('#pk', function (e) { return e.className; })), 'blocked without priorities');
+  await tap(p, 1);
+  off = await offN(p);
+  ok(off.length === 30 && off.indexOf(2) < 0, 'half → only א active', off.length);
+  await tap(p, 2); await tap(p, 9);
   // הקלדה ידנית בחתימה — לא נדרסת
   await p.fill('#f-s', 'ז. גל');
   await p.click('#go');
@@ -117,9 +135,8 @@ function optTexts(p, sel) {
   await p3.waitForFunction(function () { return document.querySelectorAll('#f-nsel option').length > 1; });
   await p3.selectOption('#f-nsel', { label: 'אבי כהן' });
   await p3.waitForFunction(function () { return !document.getElementById('due').hidden; });
-  var a = await optTexts(p3, '#f-p1a');
-  await p3.selectOption('#f-p1a', { label: a.filter(function (t) { return /^24\./.test(t); })[0] });
-  await p3.selectOption('#f-p2a', { label: a.filter(function (t) { return /^25\./.test(t); })[0] });
+  await p3.click('#prz .it[data-n="24"] span');
+  await p3.click('#prz .it[data-n="25"] span');
   await p3.fill('#f-y', 'לפיד'); await p3.fill('#f-c', 'ט'); await p3.fill('#f-ph', '0500000000');
   await p3.click('#go');
   await p3.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
@@ -132,9 +149,8 @@ function optTexts(p, sel) {
   await p2.waitForSelector('input#f-n:not([type=hidden])');
   ok(await p2.$$eval('#f-n', function (e) { return e.length; }) === 1, 'single f-n after fallback');
   await p2.fill('#f-n', 'שם חופשי');
-  var all = await optTexts(p2, '#f-p1a');
-  await p2.selectOption('#f-p1a', { label: all[0] });
-  await p2.selectOption('#f-p2a', { label: all[1] });
+  await p2.click('#prz .it[data-n="8"] span');
+  await p2.click('#prz .it[data-n="9"] span');
   await p2.fill('#f-y', 'לפיד'); await p2.fill('#f-c', 'ט'); await p2.fill('#f-ph', '0500000000');
   await p2.fill('#f-m1', 'סוכה'); await p2.fill('#f-s', 'שם');
   await p2.click('#go');

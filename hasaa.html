@@ -74,12 +74,16 @@ details.prz .nt{color:var(--ink-2);font-weight:600;margin-bottom:8px}
 details.prz .hd{font-weight:800;color:var(--blue-d);margin:12px 0 4px}
 details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
 details.prz .it{display:flex;align-items:center;gap:10px}
+details.prz .it{cursor:pointer;border-radius:8px;padding:4px 6px;margin:2px 0;-webkit-tap-highlight-color:transparent}
+details.prz .it.on{background:#EEF6E4;outline:2px solid var(--green-d);border-bottom-color:transparent}
+details.prz .it.off{opacity:.38}
+details.prz .it .ck{display:none;flex:none;font-weight:800;color:var(--green-d);font-size:1.1rem}
+details.prz .it.on .ck{display:inline}
+.pk{font-weight:800;color:var(--blue-d);margin:4px 0 8px;font-size:.95rem}
+.pk span{display:block}
+.pk.warn{color:var(--stop)}
 .bkl{color:var(--blue);text-decoration:underline;font-size:inherit;white-space:nowrap;flex:none}
 .bk{width:40px;height:56px;object-fit:contain;flex:none;border-radius:4px;background:#fff}
-.bkp{display:flex;gap:10px;margin-top:8px}
-.bkp:empty{display:none}
-.bkp img{width:96px;height:132px;object-fit:contain;border-radius:8px;background:#fff;
-  box-shadow:0 2px 6px rgba(37,29,12,.12)}
 .go{display:block;width:100%;margin-top:6px;border:0;border-radius:14px;background:var(--blue);color:#fff;
   font:inherit;font-weight:800;font-size:1.05rem;padding:15px;cursor:pointer}
 .go[disabled]{opacity:.7;cursor:default}
@@ -104,7 +108,8 @@ details.prz .it{display:flex;align-items:center;gap:10px}
       <div class="dec" id="dec"></div>
       <div class="mas" id="mas"></div>
       <p class="two" id="two"></p>
-      <details class="prz"><summary id="przH"></summary><div class="in" id="prz"></div></details>
+      <p class="pk" id="pk" aria-live="polite"></p>
+      <details class="prz" open><summary id="przH"></summary><div class="in" id="prz"></div></details>
       <div id="pri"></div>
       <div id="sig"></div>
       <button class="go" id="go" type="submit"></button>
@@ -230,17 +235,12 @@ $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   l = l.trim();
   if (!l) return '';
   if (!j || /:$/.test(l)) return '<p class="hd">' + esc(l) + '</p>';
-  if (/^\d+\./.test(l)) return '<div class="it">' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span>' + bkLnk(l) + '</div>';
+  if (/^\d+\./.test(l)) return '<div class="it" role="button" tabindex="0" data-n="' + l.match(/^(\d+)/)[1] + '">' +
+    '<b class="ck">✓</b>' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span>' + bkLnk(l) + '</div>';
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
-/* העדיפויות — תפריט פרס, ותחתיו תפריט לפרט השני כשיש צירוף. */
-function prSel(k, lbl) {
-  return '<label class="fl"><span>' + esc(lbl) + '</span>' +
-    '<select id="f-' + k + 'a" required></select>' +
-    '<select id="f-' + k + 'b" aria-label="' + esc(UI.hsAdd) + '" hidden></select>' +
-    '<div class="bkp" id="f-' + k + 'pic"></div></label>';
-}
-$('pri').innerHTML = prSel('p1', UI.hsP1) + prSel('p2', UI.hsP2);
+/* העדיפויות — נבחרות בלחיצה על שורה ברשימת הפרסים (8.99.497). השדות f-p1/f-p2 — מה שנשלח. */
+$('pri').innerHTML = '<input type="hidden" id="f-p1"><input type="hidden" id="f-p2">';
 $('sig').innerHTML = fld('s', UI.hsSig, 1, 'text', UI.hsSigHelp);
 $('go').textContent = UI.hsSend;
 $('re').textContent = UI.hsRetry;
@@ -267,58 +267,116 @@ var ITEMS = [], GRP = [];
 var DUE = null;
 function hasV(v) { for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].v === v) return true; return false; }
 function mainOk(x) { return DUE == null || x.v === DUE || (x.v < DUE && hasV(DUE - x.v)); }
-function opts(list, first) {
-  var h = '<option value="">' + esc(first) + '</option>';
-  GRP.forEach(function (g) {
-    var o = '';
-    list.forEach(function (x) { if (x.g === g) o += '<option value="' + ITEMS.indexOf(x) + '">' + esc(x.t) + '</option>'; });
-    if (o) h += '<optgroup label="' + esc(g.t) + '">' + o + '</optgroup>';
-  });
-  return h;
+/* ---- הבחירה על הבאנר ----
+   SEL.p1 / SEL.p2 — אינדקסים ב-ITEMS (עד שניים). עדיפות "שלמה": עם זכאות — סכום השווי = DUE;
+   בלי זכאות — פריט שלם אחד, או שני חצאים (אין חצי פרס לבד). לחיצה על פריט מסומן — ביטול. */
+var SEL = { p1: [], p2: [] }, PK_T = 0;
+function sum(a) { var t = 0; a.forEach(function (i) { t += ITEMS[i].v; }); return t; }
+function full(k) {
+  var a = SEL[k];
+  if (!a.length) return false;
+  if (DUE == null) return a.length === 1 ? ITEMS[a[0]].v >= 1 : sum(a) >= 1;
+  return sum(a) === DUE;
 }
-function prDraw(k, keep) {
-  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), av = keep ? A.value : '', bv = keep ? B.value : '';
-  var main = ITEMS.filter(mainOk);
-  if (!main.length) { DUE = null; main = ITEMS; }
-  A.innerHTML = opts(main, UI.hsPick);
-  if (av !== '' && main.indexOf(ITEMS[+av]) >= 0) A.value = av;
-  prSecond(k, bv);
+function curK() { return full('p1') ? 'p2' : 'p1'; }
+/* מה מותר ללחוץ עכשיו: פריט שמתחיל עדיפות, או שמשלים בדיוק את החצי שנבחר. */
+function canTake(x) {
+  var a = SEL[curK()];
+  if (full('p1') && full('p2')) return false;
+  if (!a.length) return DUE == null || mainOk(x);
+  var r = (DUE == null ? 1 : DUE) - sum(a);
+  return x.v === r;
 }
-function prSecond(k, bv) {
-  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), x = A.value === '' ? null : ITEMS[+A.value], list;
-  if (DUE == null) {
-    list = ITEMS;
-    B.innerHTML = opts(list, UI.hsAddNone);
-    B.required = false;
-    B.hidden = false;
-  } else {
-    list = x && x.v < DUE ? ITEMS.filter(function (y) { return y.v === DUE - x.v; }) : [];
-    B.innerHTML = opts(list, UI.hsAdd);
-    B.required = !!list.length;
-    B.hidden = !list.length;
+function nameOf(k) { return SEL[k].map(function (i) { return ITEMS[i].t; }).join(' + '); }
+function prVal(k) { return full(k) ? nameOf(k) : ''; }
+function pkLines() {
+  var L = [], k = curK();
+  if (full('p1')) L.push(UI.hsP1 + ' — ' + tp(UI.hsChosen, { n: nameOf('p1') }));
+  if (full('p1') && full('p2')) L.push(UI.hsP2 + ' — ' + tp(UI.hsChosen, { n: nameOf('p2') }));
+  else if (SEL[k].length) L.push(UI.hsHalf);
+  else L.push(k === 'p1' ? UI.hsMark : UI.hsMark2);
+  return L;
+}
+function pkSay(lines, warn) {
+  var el = $('pk');
+  el.innerHTML = lines.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
+  el.className = 'pk' + (warn ? ' warn' : '');
+}
+function prPaint() {
+  ['p1', 'p2'].forEach(function (k) { $('f-' + k).value = prVal(k); });
+  var on = {};
+  SEL.p1.concat(SEL.p2).forEach(function (i) { on[i] = 1; });
+  var its = document.querySelectorAll('#prz .it');
+  for (var j = 0; j < its.length; j++) {
+    var i = itemIx(its[j].getAttribute('data-n'));
+    var x = i < 0 ? null : ITEMS[i];
+    its[j].className = 'it' + (on[i] ? ' on' : (x && !canTake(x) ? ' off' : ''));
+    its[j].setAttribute('aria-pressed', on[i] ? 'true' : 'false');
   }
-  if (bv && list.indexOf(ITEMS[+bv]) >= 0) B.value = bv;
-  prPic(k);
+  if (!PK_T) pkSay(pkLines(), false);
 }
-/* תמונת הספר שנבחר (ושל הפרט השני בצירוף) ליד התפריט. */
-function prPic(k) {
-  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), h = '';
-  if (A.value !== '') h += bkImg(ITEMS[+A.value].t, '');
-  if (!B.hidden && B.value !== '') h += bkImg(ITEMS[+B.value].t, '');
-  $('f-' + k + 'pic').innerHTML = h;
+function itemIx(n) {
+  for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].t.match(/^(\d+)/)[1] === String(n)) return i;
+  return -1;
 }
-function prVal(k) {
-  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b');
-  if (A.value === '') return '';
-  var t = ITEMS[+A.value].t;
-  if (!B.hidden && B.value !== '') t += ' + ' + ITEMS[+B.value].t;
-  return t;
+function flash(t) {
+  clearTimeout(PK_T);
+  pkSay([t], true);
+  PK_T = setTimeout(function () { PK_T = 0; pkSay(pkLines(), false); }, 2600);
 }
-['p1', 'p2'].forEach(function (k) {
-  prDraw(k, false);
-  $('f-' + k + 'a').onchange = function () { prSecond(k, $('f-' + k + 'b').value); };
-  $('f-' + k + 'b').onchange = function () { prPic(k); };
-});
+function prTap(i) {
+  if (i < 0) return;
+  var k;
+  for (k in SEL) {
+    var at = SEL[k].indexOf(i);
+    if (at >= 0) {                        /* ביטול: הפריט יוצא, ועדיפות שנייה שלמה לא זזה */
+      SEL[k].splice(at, 1);
+      if (!SEL.p1.length && SEL.p2.length) { SEL.p1 = SEL.p2; SEL.p2 = []; }
+      clearTimeout(PK_T); PK_T = 0;
+      prPaint();
+      return;
+    }
+  }
+  if (full('p1') && full('p2')) return prPaint();
+  if (!canTake(ITEMS[i])) return flash(UI.hsOver);
+  SEL[curK()].push(i);
+  clearTimeout(PK_T); PK_T = 0;
+  prPaint();
+}
+/* זכאות שהשתנתה (שם אחר) — עדיפות שכבר לא מתאימה מתרוקנת. */
+function prFit() {
+  ['p1', 'p2'].forEach(function (k) {
+    var a = SEL[k];
+    if (!a.length) return;
+    var ok = DUE == null ? (a.length === 1 ? ITEMS[a[0]].v >= 1 : sum(a) === 1) : sum(a) === DUE;
+    if (!ok) SEL[k] = [];
+  });
+  if (!SEL.p1.length && SEL.p2.length) { SEL.p1 = SEL.p2; SEL.p2 = []; }
+  prPaint();
+}
+(function () {
+  var box = $('prz');
+  /* בלי closest — דפדפנים ישנים. */
+  function up(t, tag, cls) {
+    for (; t && t !== box; t = t.parentNode) {
+      if (tag && t.tagName === tag) return t;
+      if (cls && (' ' + t.className + ' ').indexOf(' ' + cls + ' ') >= 0) return t;
+    }
+    return null;
+  }
+  box.addEventListener('click', function (ev) {
+    if (up(ev.target, 'A')) return;                    /* "על הספר" — רק פותח את הקישור */
+    var it = up(ev.target, '', 'it');
+    if (it) prTap(itemIx(it.getAttribute('data-n')));
+  });
+  box.addEventListener('keydown', function (ev) {
+    if ((ev.key === 'Enter' || ev.key === ' ') && up(ev.target, '', 'it') === ev.target) {
+      ev.preventDefault();
+      prTap(itemIx(ev.target.getAttribute('data-n')));
+    }
+  });
+})();
+prPaint();
 function dueTxt(n) {
   return tp(UI.hsDue, { n: n === 1 ? UI.hsDue1 : n === 2 ? UI.hsDue2 : tp(UI.hsDueN, { n: n }) });
 }
@@ -354,14 +412,15 @@ function namePick() {
   $('f-id').value = o && o.k ? o.k : '';
   $('due').hidden = true;
   DUE = null;
-  prDraw('p1', true); prDraw('p2', true);
+  prFit();
   if (!o) return;
   autoSet('f-s', o.n);
   get('hasaa=info&' + (o.k ? 'id=' + encodeURIComponent(o.k) : 'n=' + encodeURIComponent(o.n))).then(function (r) {
     if (my !== SEQ || !r || r.status !== 'ok') return;
     for (var m = 1; m <= 6; m++) autoSet('f-m' + m, (r.mas || [])[m - 1] || '');
     DUE = typeof r.due === 'number' && r.due > 0 ? r.due : null;
-    prDraw('p1', true); prDraw('p2', true);
+    if (DUE != null && !ITEMS.filter(mainOk).length) DUE = null;
+    prFit();
     if (DUE != null) { $('due').textContent = dueTxt(DUE); $('due').hidden = false; }
   }, function () {});
 }
@@ -446,6 +505,13 @@ function send() {
   if (BUSY) return;
   var form = $('f');
   if (form.reportValidity && !form.reportValidity()) return;
+  if (!full('p1') || !full('p2')) {
+    $('przH').parentNode.open = true;
+    PK_T = 0; prPaint();
+    $('pk').className = 'pk warn';
+    $('pk').scrollIntoView({ block: 'center' });
+    return;
+  }
   BUSY = true;
   var f = {};
   KEYS.forEach(function (k) { f[k] = val(k); });
