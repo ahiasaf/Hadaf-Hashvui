@@ -65,6 +65,10 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .fl .due{font-size:.86rem;font-weight:800;color:var(--gold-t)}
 .dec{margin:16px 0 14px}
 .dec p{font-size:.96rem;font-weight:600;margin-bottom:8px}
+.dec .ck{display:flex;gap:10px;align-items:flex-start;font-size:.96rem;font-weight:600;margin-bottom:8px;padding:8px 10px;border:1.5px solid #d9dee8;border-radius:10px;cursor:pointer}
+.dec .ck input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--green-d)}
+.dec .ck.on{border-color:var(--green-d);background:#eef8f1}
+.dec .ck.need{border-color:#c0392b;background:#fdf0ee}
 .mas{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 .mtx{font-size:1.05rem;font-weight:800;color:var(--blue-d);margin:0 0 12px}
 .two{font-size:.94rem;font-weight:800;color:var(--gold-t);margin:4px 0 10px}
@@ -194,9 +198,24 @@ $('idf').innerHTML = '<label class="fl" id="nmL"><span>' + esc(UI.hsName) + '</s
   '<input type="hidden" id="f-n"><input type="hidden" id="f-id">';
 /* 8.99.502 — קודם רק השם. שאר הטופס נפתח אחרי שהפרטים של השם הגיעו (בלי קפיצה). */
 $('idf2').innerHTML = fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
+/* 8.99.503 — כל סעיף בהצהרה מאושר בסימון ✓; בלי כל הסימונים אין שליחה. */
 $('dec').innerHTML = [UI.hsA, UI.hsB1, UI.hsB2, UI.hsC, UI.hsD].map(function (t) {
-  return t ? '<p>' + esc(t) + '</p>' : '';
+  return t ? '<label class="ck"><input type="checkbox" required><span>' + esc(t) + '</span></label>' : '';
 }).join('');
+$('dec').onchange = function (ev) {
+  var l = ev.target.parentNode;
+  l.className = 'ck' + (ev.target.checked ? ' on' : '');
+};
+/* הדפדפן עוצר את השליחה לפני send() — מסמנים גם כאן */
+$('dec').addEventListener('invalid', function (ev) { ev.target.parentNode.className = 'ck need'; }, true);
+function decOk() {
+  var a = $('dec').querySelectorAll('input'), bad = null, i;
+  for (i = 0; i < a.length; i++) {
+    if (!a[i].checked) { a[i].parentNode.className = 'ck need'; bad = bad || a[i]; }
+  }
+  if (bad) bad.parentNode.scrollIntoView({ block: 'center' });
+  return !bad;
+}
 var mh = '';
 for (var i = 1; i <= 6; i++) mh += fld('m' + i, UI.hsMas, i === 1);
 $('mas').innerHTML = mh;
@@ -616,6 +635,7 @@ function fail() {
 function send() {
   if (BUSY) return;
   var form = $('f');
+  if (!decOk()) { if (form.reportValidity) form.reportValidity(); return; }
   if (form.reportValidity && !form.reportValidity()) return;
   if (!full('p1') || !full('p2')) {
     NEED = { p1: 1, p2: 1 };

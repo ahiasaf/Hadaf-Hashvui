@@ -56,6 +56,9 @@ async function page(b, port, W, fail) {
   await p.goto('http://localhost:' + port + '/hasaa.html?y=lapid');
   return p;
 }
+function ticks(p) {
+  return p.$$eval('#dec input[type=checkbox]', function (a) { a.forEach(function (i) { if (!i.checked) i.click(); }); });
+}
 function optTexts(p, sel) {
   return p.$$eval(sel + ' option', function (os) { return os.filter(function (o) { return o.value !== ''; }).map(function (o) { return o.textContent; }); });
 }
@@ -144,6 +147,16 @@ function optTexts(p, sel) {
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
   ok(await p.$eval('#f-ph', function (e) { return e.value; }) === '0500000000' && await p.$eval('#f-y', function (e) { return e.value; }) === 'לפיד', 'typed fields kept');
   ok(/בחר פרס/.test(await slot(p, 'p1')) && /בחר פרס/.test(await slot(p, 'p2')), 'selections cleared on due change');
+  // 8.99.503 — בלי ✓ על כל סעיפי ההצהרה — לא נשלח, הסעיף מסומן
+  ok(await p.$$eval('#dec label.ck input[type=checkbox][required]', function (a) { return a.length; }) === 5, 'five checkboxes');
+  await p.click('#dec label.ck:nth-child(1) span'); await p.click('#dec label.ck:nth-child(3) span');
+  await p.click('#go');
+  await p.waitForTimeout(300);
+  ok(await p.$eval('#ok', function (e) { return e.hidden; }) &&
+     (await p.$$eval('#dec label.need', function (a) { return a.length; })) === 3 &&
+     (await p.$$eval('#dec label.on', function (a) { return a.length; })) === 2, 'unchecked blocks; marked', await p.$$eval('#dec label', function (a) { return a.map(function (e) { return e.className; }); }));
+  await ticks(p);
+  ok((await p.$$eval('#dec label.need', function (a) { return a.length; })) === 0, 'ticks clear mark');
   // שליחה לפני שתי עדיפויות — לא נשלח, המקום הריק מסומן
   await p.click('#go');
   await p.waitForTimeout(300);
@@ -175,6 +188,7 @@ function optTexts(p, sel) {
   await p3.click('#sl-p1 button'); await p3.click('#prz .it[data-n="24"] span');
   await p3.click('#sl-p2 button'); await p3.click('#prz .it[data-n="25"] span');
   await p3.fill('#f-y', 'לפיד'); await p3.fill('#f-c', 'ט'); await p3.fill('#f-ph', '0500000000');
+  await ticks(p3);
   await p3.click('#go');
   await p3.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
   var H3 = W3.priv.getSheetByName('הצהרות');
@@ -191,6 +205,7 @@ function optTexts(p, sel) {
   await p2.click('#sl-p2 button'); await p2.click('#prz .it[data-n="9"] span');
   await p2.fill('#f-y', 'לפיד'); await p2.fill('#f-c', 'ט'); await p2.fill('#f-ph', '0500000000');
   await p2.fill('#f-m1', 'סוכה'); await p2.fill('#f-s', 'שם');
+  await ticks(p2);
   await p2.click('#go');
   await p2.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
   var H2 = W2.priv.getSheetByName('הצהרות');
