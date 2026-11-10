@@ -5163,7 +5163,6 @@ function wzDraw() {
        מהדפדפן ולחצו על האייקון החדש"), בלי להתחיל מההתחלה. */
     GUIDE_UI.mount(gbox, function () {
       if (appInstalled() || brwOn()) { wzGo(wzWhere()); return; }
-      guDoneSet(true);
       wzToLast();
     }, { play: true, go: WZ_WENT, sam: true, edge: true });
   }
@@ -5172,9 +5171,10 @@ function wzDraw() {
   else if (APPX.iconUntag) APPX.iconUntag();
   wzWire();
   window.scrollTo(0, 0);
-  /* מי שכבר לחץ "סיימתי" (`df:guDone`, 8.99.467) — גם אחרי רענון חוזר
-     לשלב האחרון של המדריך, לא לראשו. */
-  if (wzStep === 1) setTimeout(guDoneNow() ? wzToLast : wzToInst, 250);
+  /* כל כניסה — מראש המסלול. **לא גוללים מעצמנו לסוף המדריך** (8.99.507,
+     אחיאסף): הגלילה לשלב האחרון הביאה את "סיימתי" מול העיניים, והתלמיד
+     לחץ בלי לעבור על השלבים. הגלילה לסוף — רק כתגובה ללחיצה על "סיימתי". */
+  if (wzStep === 1) setTimeout(wzToInst, 250);
 }
 /* בטלפון קטן כפתורי ההתקנה נופלים מתחת לקצה המסך, והתלמיד רואה
    רק כותרת ומד — ולא יודע שיש למטה משהו ללחוץ עליו. גוללים בעדינות
@@ -5190,17 +5190,6 @@ function wzToInst() {
 }
 
 /* ---------- שלב 1 ---------- */
-/* `df:guDone` — המדריך הסתיים ב"סיימתי" במכשיר הזה. **אינו סימון התקנה**;
-   רק המקום במדריך, שרענון לא יתחיל אותו מההתחלה. אייפון שסיים לפני
-   8.99.465 נשא את זה ב-`df:appAdded` — נחשב כאילו סיים. */
-function guDoneSet(v) {
-  try { if (v) localStorage.setItem('df:guDone', '1'); else localStorage.removeItem('df:guDone'); } catch (e) {}
-}
-function guDoneNow() {
-  var v = false;
-  try { v = localStorage.getItem('df:guDone') === '1'; } catch (e) {}
-  return (v || (isIOS() && appWasAdded())) && !appInstalled();
-}
 /* "סיימתי" בלי אות התקנה: גלילה לשלב האחרון של המדריך שכבר על המסך. */
 function wzToLast() {
   var L = document.querySelectorAll('#gu-here .gut-st, #gu-here li');
