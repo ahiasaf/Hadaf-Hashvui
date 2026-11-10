@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 214;
+var SCRIPT_VERSION = 215;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -10728,6 +10728,16 @@ function rafLastG_(T, wk) {
   }
   return null;
 }
+/* מי שזכה בהגרלה כללית שלא בוטלה בשבוע `wk` — { מזהה: 1 } (8.99.493). ההגרלה
+   המוסדית והגרלה מחדש בה מוציאות אותם: בלי פרס כפול באותו שבוע (החלטת אחיאסף). */
+function rafGenWon_(T, wk) {
+  var won = {};
+  for (var r = 1; r < T.rows.length; r++) {
+    if (T.c(r, 'סוג') !== RAF_GEN_ || T.c(r, 'סטטוס') === 'בוטל' || T.c(r, 'שבוע') !== String(wk)) continue;
+    (T.c(r, 'מזהי הזוכה') + ' ' + T.c(r, 'זוכה')).split(/\s+/).forEach(function (x) { if (x) won[x] = 1; });
+  }
+  return won;
+}
 /* שורת הזוכה בהגרלה לפי המפתח מהמסך: "מקום" (g1, g2… בהגרלה כללית, שבה כמה
    זוכים מאותו מוסד), ובלעדיו — קוד הישיבה (ההגרלה המוסדית, כמו קודם). */
 function rafLn_(T, d, key) {
@@ -10821,6 +10831,16 @@ function raffleDraw_(P) {
     var had = rafLast_(T, wk);
     if (had) { had.status = 'ok'; had.again = 1; return had; }
     var E = raffleElig_(codes), nm = rafInstNm_();
+    /* זכו בהגרלה כללית השבוע — בחוץ (8.99.493). */
+    var gw = rafGenWon_(T, wk), ngw = 0;
+    codes.forEach(function (cd) {
+      E.by[cd] = (E.by[cd] || []).filter(function (p) {
+        var x = gw[p.id] || p.ids.some(function (z) { return gw[z]; });
+        if (x) ngw++;
+        return !x;
+      });
+    });
+    if (ngw) E.ex.push({ kind: 'gen', text: ngw + ' זכו השבוע בהגרלה הכללית — בחוץ' });
     var rid = 'R' + wk + '-' + Utilities.getUuid().slice(0, 8);
     var who = String(P.who || 'רכז').slice(0, 40);
     /* התמונה השמורה לבית — סימון לפני הכתיבה ואחריה (hsnapRafMark_). */
@@ -10947,15 +10967,15 @@ function rafRedo_(P) {
     try { L = JSON.parse(T.c(r, 'תמונת זכאות') || '[]') || []; } catch (x) { L = []; }
     try { W = JSON.parse(T.c(r, 'תמונת כרטיסים') || '{}') || {}; } catch (xw) { W = {}; }
     var out = T.c(r, 'הוצאו מהזכייה'), gone = (T.c(r, 'מזהי הזוכה') + ' ' + out.replace(/[^\w:.\- ]/g, ' ')).split(/\s+/);
-    var t = joinTable_(), cand = [];
+    var t = joinTable_(), cand = [], gw = rafGenWon_(T, d.wk);
     L.forEach(function (id) {
-      if (!id || gone.indexOf(id) >= 0) return;
+      if (!id || gone.indexOf(id) >= 0 || gw[id]) return;
       var rr = rowOfId_(t, id);
       if (rr < 1) return;
       var row = t.rows[rr];
       if (t.c(row, 'בדיקה') === 'כן' || t.c(row, 'תפקיד') === 'הורה') return;
       var ids = rowIds_(t, row);
-      if (ids.some(function (z) { return gone.indexOf(z) >= 0; })) return;
+      if (ids.some(function (z) { return gone.indexOf(z) >= 0 || gw[z]; })) return;
       cand.push({ id: id, ids: ids, name: (t.c(row, 'שם') + ' ' + t.c(row, 'משפחה')).trim() });
     });
     if (!cand.length) return { status: 'error', message: 'אין במוסד הזה זכאי אחר' };

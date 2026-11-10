@@ -92,5 +92,18 @@ ok(raf({ raffle: 'void', key: 'k', rid: D3.rid, why: 'בדיקה' }).status === 
 var D4 = raf({ raffle: 'gdraw', key: 'k', n: '100' });
 ok(D4.status === 'ok' && D4.rows.length === REAL_ELIG - 4, 'after void the voided winners are back in', D4.rows.length);
 
+// 8.99.493: גם ההגרלה לפי מוסדות מוציאה את זוכי הכללית של השבוע.
+var genWon = {};
+c.rafRead_().rows.forEach(function (r, i) { if (i && c.rafRead_().c(i, 'סוג') === 'כללית' && c.rafRead_().c(i, 'סטטוס') !== 'בוטל') genWon[c.rafRead_().c(i, 'זוכה')] = 1; });
+ok(raf({ raffle: 'void', key: 'k', rid: 'R' + wk + '-aaaa', why: 'בדיקה' }).status !== 'ok', 'published institutional cannot be voided (unchanged)');
+// הגרלה מוסדית חדשה בעולם נקי מהמוסדית: מבטלים את השורה ישירות בעולם המדומה
+var TT = c.rafRead_(), di = c.rafById_(TT, 'R' + wk + '-aaaa'); c.rafSet_(TT, di, [['סטטוס', 'בוטל']]);
+var I2 = c.raffleDraw_({ codes: 'givat,rishon,nertamid', who: 'בודק' });
+var iw = I2.rows.filter(function (x) { return x.win; }).map(function (x) { return x.win; });
+ok(I2.rows.length === 3 && !I2.again, 'institutional redraw ran', I2.rows);
+ok(iw.every(function (x) { return !genWon[x]; }), 'institutional draw excludes general winners of the week', iw);
+ok(iw.length === 1 && iw[0] === 'S1', 'only the non-general-winner is drawn', iw);
+var ex2 = c.rafRead_().c(I2.lines[0], 'חריגים');
+ok(/בהגרלה הכללית/.test(ex2), 'exclusion noted for the coordinator', ex2);
 console.log(fails ? fails + ' / ' + n + ' נכשלו' : 'עברו ' + n + ' בדיקות');
 process.exit(fails ? 1 : 0);
