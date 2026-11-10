@@ -74,6 +74,7 @@ details.prz .nt{color:var(--ink-2);font-weight:600;margin-bottom:8px}
 details.prz .hd{font-weight:800;color:var(--blue-d);margin:12px 0 4px}
 details.prz .it{padding:3px 0;border-bottom:1px solid var(--rule)}
 details.prz .it{display:flex;align-items:center;gap:10px}
+.bkl{color:var(--blue);text-decoration:underline;font-size:inherit;white-space:nowrap;flex:none}
 .bk{width:40px;height:56px;object-fit:contain;flex:none;border-radius:4px;background:#fff}
 .bkp{display:flex;gap:10px;margin-top:8px}
 .bkp:empty{display:none}
@@ -177,6 +178,51 @@ function bkImg(t, cls) {
   var n = ('0' + m[1]).slice(-2);
   return '<img class="' + cls + '" src="hasaa-books/' + n + '.jpg" alt="" loading="lazy" onerror="this.parentNode&&this.parentNode.removeChild(this)">';
 }
+/* עמוד הספר באתר חיצוני, לפי מספר הפריט ברשימה. פריט בלי קישור — בלי כפתור. */
+var BOOK_LINK = {
+  '1': 'https://www.zolsefer.co.il/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%A8%D7%A9%D7%91-%D7%90-%D7%A2%D7%9C-%D7%94%D7%A9-%D7%A1-%D7%9E%D7%94%D7%93%D7%95%D7%A8%D7%AA-%D7%96%D7%9B%D7%A8%D7%95%D7%9F-5-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D.html',
+  '2': 'https://oz-vehadar.net/product/p_232200/',
+  '3': 'https://www.sefer.org.il/items/3733824',
+  '4': 'https://www.zolsefer.co.il/%D7%A9%D7%99%D7%98%D7%94-%D7%9E%D7%A7%D7%95%D7%91%D7%A6%D7%AA-%D7%A2%D7%95%D7%96-%D7%95%D7%94%D7%93%D7%A8.html',
+  '5': 'https://www.zolsefer.co.il/171616/%D7%9E%D7%A0%D7%97%D7%AA-%D7%97%D7%99%D7%A0%D7%95%D7%9A-%D7%9E%D7%9B%D7%95%D7%9F-%D7%99%D7%A8%D7%95%D7%A9%D7%9C%D7%99%D7%9D-3-%D7%9B%D7%A8',
+  '6': 'https://www.seferkodesh.co.il/product-page/%D7%9E%D7%A9%D7%A0%D7%94-%D7%91%D7%A8%D7%95%D7%A8%D7%94-%D7%90%D7%99%D7%A9-%D7%9E%D7%A6%D7%9C%D7%99%D7%97-%D7%95-%D7%97%D7%9C%D7%A7%D7%99%D7%9D/',
+  '7': 'https://www.divreishir.co.il/%D7%97%D7%A0%D7%95%D7%AA-%D7%A1%D7%A4%D7%A8%D7%99-%D7%A7%D7%95%D7%93%D7%A9-%D7%90%D7%95%D7%A0%D7%9C%D7%99%D7%99%D7%9F/%D7%9E%D7%A9%D7%A0%D7%94-%D7%91%D7%A8%D7%95%D7%A8%D7%94-%D7%94%D7%95%D7%A6%D7%90%D7%95%D7%AA-%D7%A0%D7%95%D7%A1%D7%A4%D7%95%D7%AA/%D7%9E%D7%A9%D7%A0%D7%94-%D7%91%D7%A8%D7%95%D7%A8%D7%94-%D7%91%D7%99%D7%A6%D7%97%D7%A7-%D7%99%D7%A7%D7%A8%D7%90-%D7%95-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D-%D7%94%D7%A8%D7%91-%D7%90%D7%91%D7%99%D7%92%D7%93%D7%95%D7%A8-%D7%A0%D7%91%D7%A0%D7%A6%D7%90%D7%9C',
+  '8': 'https://oz-vehadar.net/product/%D7%AA%D7%9C%D7%9E%D7%95%D7%93-%D7%91%D7%91%D7%9C%D7%99-%D7%A2%D7%95%D7%96-%D7%95%D7%94%D7%93%D7%A8-%D7%A9%D7%A1-%D7%A4%D7%A0%D7%99%D7%A0%D7%99%D7%9D/',
+  '9': 'https://book-center.co.il/product/%d7%9e%d7%a9%d7%a0%d7%99%d7%95%d7%aa-%d7%a7%d7%94%d7%aa%d7%99-%d7%91%d7%a8%d7%98%d7%a0%d7%95%d7%a8%d7%90-%d7%92%d7%93%d7%95%d7%9c',
+  '10': 'https://www.zolsefer.co.il/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%A8%D7%9E%D7%91-%D7%9F-%D7%A2%D7%9C-%D7%94%D7%A9-%D7%A1-9-%D7%9B%D7%A8-%D7%9E%D7%94%D7%93%D7%95%D7%A8%D7%AA-%D7%94%D7%A8%D7%A9%D7%9C%D7%A8.html',
+  '11': 'https://www.zolsefer.co.il/%D7%A4%D7%A0%D7%99-%D7%99%D7%94%D7%95%D7%A9%D7%A2-%D7%94%D7%97%D7%93%D7%A9-%D7%A2%D7%9C-%D7%94%D7%A9-%D7%A1-%D7%9E%D7%9B%D7%95%D7%9F-%D7%94%D7%9E%D7%90%D7%95%D7%A8.html',
+  '12': 'https://shop.mishna.org.il/products/%D7%A2%D7%A8%D7%95%D7%9A-%D7%94%D7%A9%D7%9C%D7%97%D7%9F-%D7%A2%D7%95%D7%96-%D7%95%D7%94%D7%93%D7%A8',
+  '13': 'https://www.zolsefer.co.il/171616/%D7%A8%D7%9E%D7%91-%D7%9D-%D7%99%D7%93-%D7%A9%D7%91%D7%AA%D7%90%D7%99',
+  '14': 'https://shop.mishna.org.il/products/%D7%9E%D7%A9%D7%A0%D7%94-%D7%AA%D7%95%D7%A8%D7%94-%D7%9C%D7%A8%D7%9E%D7%91%D7%9D-%D7%A7%D7%98%D7%9F-%D7%94%D7%9E%D7%90%D7%95%D7%A8',
+  '16': 'https://www.zolsefer.co.il/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%9E%D7%90%D7%99%D7%A8%D7%99-%D7%9E%D7%9B%D7%95%D7%9F-%D7%94%D7%9E%D7%90%D7%95%D7%A8-8-%D7%9B%D7%A8.html',
+  '17': 'https://www.seferkodesh.co.il/product-page/%D7%A1%D7%98-%D7%9B%D7%A3-%D7%94%D7%97%D7%99%D7%99%D7%9D-10-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/',
+  '18': 'https://dirshubooks.org/product/%D7%A1%D7%98-%D7%9E%D7%A9%D7%A0%D7%94-%D7%91%D7%A8%D7%95%D7%A8%D7%94-%D7%95-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/',
+  '19': 'https://judaicaspot.com/products/%D7%9E%D7%A9%D7%A0%D7%94-%D7%91%D7%A8%D7%95%D7%A8%D7%94-%D7%90%D7%99%D7%A9-%D7%9E%D7%A6%D7%9C%D7%99%D7%97-%D7%92%D7%93%D7%95%D7%9C',
+  '20': 'https://www.heichal.co.il/products/%D7%A4%D7%A1%D7%A7%D7%99_%D7%AA%D7%A9%D7%95%D7%91%D7%95%D7%AA_7_%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/2580',
+  '21': 'https://tzurbuy.com/%D7%A1%D7%98-%D7%A6%D7%95%D7%A8%D7%91%D7%90-%D7%9E%D7%A8%D7%91%D7%A0%D7%9F/',
+  '22': 'https://book-center.co.il/product/%d7%9e%d7%a9%d7%a0%d7%94-%d7%91%d7%a8%d7%95%d7%a8%d7%94-%d7%9c%d7%a9%d7%9d-%d7%92%d7%93%d7%95%d7%9c',
+  '23': 'https://tora-shlema.co.il/product/%D7%97%D7%96%D7%95%D7%9F-%D7%A2%D7%95%D7%91%D7%93%D7%99%D7%94-19-%D7%9B%D7%A8%D7%99%D7%9D-%D7%A1%D7%98-%D7%9E%D7%9C%D7%90/',
+  '24': 'https://book-center.co.il/product/%d7%a4%d7%a0%d7%99%d7%a0%d7%99-%d7%94%d7%9c%d7%9b%d7%94-%d7%a1%d7%98-18-%d7%9b%d7%a8%d7%9b%d7%99%d7%9d-%d7%94%d7%a8%d7%91-%d7%90%d7%9c%d7%99%d7%a2%d7%96%d7%a8-%d7%9e%d7%9c%d7%9e%d7%93',
+  '25': 'https://zbermanbooks.com/%D7%AA%D7%9C%D7%9E%D7%95%D7%93-%D7%99%D7%A8%D7%95%D7%A9%D7%9C%D7%9E%D7%99-%D7%97%D7%93%D7%A9-%D7%A4%D7%A0%D7%99%D7%A0%D7%99%D7%9D-9-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D-%D7%9E%D7%90%D7%95%D7%A8%D7%99-%D7%90%D7%95%D7%A8',
+  '26': 'https://shop.mishna.org.il/products/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%A8%D7%9F-%D7%A2%D7%9C-%D7%94%D7%A9%D7%A1-%D7%9E%D7%95%D7%A1%D7%93-%D7%94%D7%A8%D7%91-%D7%A7%D7%95%D7%A7',
+  '27': 'https://shop.yhb.org.il/product/peninei-halachah-set-regular/',
+  '28': 'https://shop.mishna.org.il/products/%D7%9E%D7%A9%D7%A0%D7%94-%D7%AA%D7%95%D7%A8%D7%94-%D7%9C%D7%A8%D7%9E%D7%91%D7%9D-%D7%92%D7%93%D7%95%D7%9C-%D7%94%D7%9E%D7%90%D7%95%D7%A8',
+  '29': 'https://mosadharavkook.com/tag/%D7%93%D7%A2%D7%AA-%D7%9E%D7%A7%D7%A8%D7%90/',
+  '30': 'https://www.seferkodesh.co.il/product-page/%D7%A9%D7%A1-%D7%AA%D7%9C%D7%9E%D7%95%D7%93-%D7%91%D7%91%D7%9C%D7%99-%D7%99%D7%91%D7%99%D7%A2-%D7%90%D7%95%D7%9E%D7%A8-20-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/',
+  '31': 'https://www.torahgift.com/product-page/shulchan-aruch-habahir-peninim-size-10-volume-set-%D7%A9%D7%9C%D7%97%D7%9F-%D7%A2%D7%A8%D7%95%D7%9A-%D7%94%D7%91%D7%94%D7%99%D7%A8-%D7%A4%D7%A0%D7%99%D7%A0%D7%99%D7%9D-%D7%99',
+  '32': 'https://shop.mishna.org.il/products/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%A8%D7%A9%D7%91%D7%90-%D7%A2%D7%9C-%D7%94%D7%A9%D7%A1-20-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D-%D7%9E%D7%95%D7%A1%D7%93-%D7%94%D7%A8%D7%91-%D7%A7%D7%95%D7%A7',
+  '33': 'https://www.shops.rabotenu.co.il/items/4572593-%D7%A9%D7%95%D7%9C%D7%97%D7%9F-%D7%A2%D7%A8%D7%95%D7%9A-%D7%94%D7%91%D7%94%D7%99%D7%A8-%D7%9C%D7%A9%D7%9D-%D7%92%D7%93%D7%95%D7%9C',
+  '34': 'https://www.seferkodesh.co.il/product-page/%D7%98%D7%95%D7%A8-%D7%A9%D7%99%D7%A8%D7%AA-%D7%93%D7%91%D7%95%D7%A8%D7%94-%D7%92%D7%95%D7%93%D7%9C-%D7%91%D7%99%D7%A0%D7%95%D7%A0%D7%99-23-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/',
+  '35': 'https://shop.mishna.org.il/products/%D7%90%D7%A8%D7%91%D7%A2%D7%94-%D7%98%D7%95%D7%A8%D7%99%D7%9D-%D7%98%D7%95%D7%A8-%D7%94%D7%9E%D7%90%D7%95%D7%A8-%D7%91%D7%99%D7%A0%D7%95%D7%A0%D7%99-23-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D',
+  '36': 'https://yalkutyosef.co.il/product/%D7%A1%D7%98-%D7%99%D7%9C%D7%A7%D7%95%D7%98-%D7%99%D7%95%D7%A1%D7%A3/',
+  '37': 'https://mosadharavkook.com/shop/%D7%97%D7%99%D7%93%D7%95%D7%A9%D7%99-%D7%94%D7%A8%D7%99%D7%98%D7%91%D7%90-%D7%A2%D7%9C-%D7%94%D7%A9%D7%A1-%D7%A1%D7%98-21-%D7%9B%D7%A8%D7%9B%D7%99%D7%9D/'
+};
+function bkLnk(t) {
+  var m = String(t || '').match(/^(\d+)\./);
+  var u = m && BOOK_LINK[m[1]];
+  if (!u || !UI.hsBook) return '';
+  return '<a class="bkl" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(UI.hsBook) + '</a>';
+}
 /* רשימת הפרסים — שורה לכל פריט (מתחילה במספר); הראשונה ושורה שנגמרת בנקודתיים — כותרת. */
 $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   return l.trim() ? '<p class="nt">' + esc(l) + '</p>' : '';
@@ -184,7 +230,7 @@ $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   l = l.trim();
   if (!l) return '';
   if (!j || /:$/.test(l)) return '<p class="hd">' + esc(l) + '</p>';
-  if (/^\d+\./.test(l)) return '<div class="it">' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span></div>';
+  if (/^\d+\./.test(l)) return '<div class="it">' + bkImg(l, 'bk') + '<span>' + esc(l) + '</span>' + bkLnk(l) + '</div>';
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
 /* העדיפויות — תפריט פרס, ותחתיו תפריט לפרט השני כשיש צירוף. */
