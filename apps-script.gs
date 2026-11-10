@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 213;
+var SCRIPT_VERSION = 214;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -9303,6 +9303,9 @@ function backupNow() { return backupDaily_(true); }
    ============================================================ */
 var RAF_TAB = 'הגרלות';
 var RAF_NEVER = ['lapid', 'other', ''];
+/* "סוג" של שורות ההגרלה הכללית (8.99.492). ריק = ההגרלה המוסדית. */
+var RAF_GEN_ = 'כללית';
+var RAF_GEN_MAX_ = 200;
 /* ============================================================
    הדף של ההגרלה — מחושב, לא קבוע (8.99.324).
    ============================================================
@@ -10708,10 +10711,33 @@ function rafLast_(T, wk) {
   var rid = '';
   for (var r = T.rows.length - 1; r >= 1; r--) {
     if (T.c(r, 'סטטוס') === 'בוטל') continue;
+    /* הגרלה כללית (8.99.492) — לא "ההגרלה של השבוע": מועד החיתוך, כרטיסי אבא
+       על שבוע ישן ו"הגרלה אחת לשבוע" נשענים על ההגרלה המוסדית בלבד. */
+    if (T.c(r, 'סוג') === RAF_GEN_) continue;
     if (wk && T.c(r, 'שבוע') !== String(wk)) continue;
     rid = T.c(r, 'מזהה הגרלה'); break;
   }
   return rid ? rafById_(T, rid) : null;
+}
+/* ההגרלה הכללית האחרונה שלא בוטלה בשבוע `wk`. */
+function rafLastG_(T, wk) {
+  for (var r = T.rows.length - 1; r >= 1; r--) {
+    if (T.c(r, 'סוג') !== RAF_GEN_ || T.c(r, 'סטטוס') === 'בוטל') continue;
+    if (T.c(r, 'שבוע') !== String(wk)) continue;
+    return rafById_(T, T.c(r, 'מזהה הגרלה'));
+  }
+  return null;
+}
+/* שורת הזוכה בהגרלה לפי המפתח מהמסך: "מקום" (g1, g2… בהגרלה כללית, שבה כמה
+   זוכים מאותו מוסד), ובלעדיו — קוד הישיבה (ההגרלה המוסדית, כמו קודם). */
+function rafLn_(T, d, key) {
+  var r = -1;
+  key = String(key || '');
+  if (d) d.lines.forEach(function (ln) {
+    var m = T.c(ln, 'מקום');
+    if (m ? m === key : T.c(ln, 'קוד ישיבה') === key) r = ln;
+  });
+  return r;
 }
 /* הענקה (או בקשה) לשבוע לימוד `wk` אחרי שההגרלה שלו נעשתה: הגרלה של
    שבוע W בתוכנית (שלא בוטלה) סוגרת את שבועות הלימוד עד W-1 (rafDaf_). */
@@ -10727,11 +10753,12 @@ function rafById_(T, rid) {
     if (T.c(r, 'מזהה הגרלה') !== rid) continue;
     if (!out) out = { rid: rid, wk: T.c(r, 'שבוע'), cut: T.c(r, 'מועד חיתוך'),
                       by: T.c(r, 'מבצע'), st: T.c(r, 'סטטוס'), codes: T.c(r, 'מוסדות'),
+                      gen: T.c(r, 'סוג') === RAF_GEN_ ? 1 : 0, ask: parseInt(T.c(r, 'מבוקש'), 10) || 0,
                       pubAt: T.c(r, 'פורסם'), rows: [], lines: [],
                       w: rafPartGet_(T.c(r, RAF_PART_W)), g: rafPartGet_(T.c(r, RAF_PART_G)),
                       d: rafPartGet_(T.c(r, RAF_PART_D)) };
     out.lines.push(r);
-    out.rows.push({ code: T.c(r, 'קוד ישיבה'), inst: T.c(r, 'ישיבה'),
+    out.rows.push({ code: T.c(r, 'קוד ישיבה'), key: T.c(r, 'מקום') || T.c(r, 'קוד ישיבה'), inst: T.c(r, 'ישיבה'),
                     n: parseInt(T.c(r, 'זכאים'), 10) || 0,
                     win: T.c(r, 'זוכה'), wins: T.c(r, 'מזהי הזוכה'),
                     name: T.c(r, 'שם הזוכה') });
@@ -10829,6 +10856,75 @@ function raffleDraw_(P) {
 }
 
 /* ============================================================
+   הגרלה כללית (8.99.492) — `n` זוכים מכל הזכאים, בלי מוסדות.
+   ============================================================
+   ?raffle=gdraw&n=&who= — ידנית בלבד, בלחיצת הרכז. **נוספת** להגרלה
+   המוסדית, לא במקומה:
+     · הזכאים — raffleElig_/rafCalc_ בדיוק, על כל המוסדות שיש בהם זכאי.
+       ההחרגות הקיימות (לפיד, "אחר", הורים, בדיקה) נשארות.
+     · **בחוץ:** כל מי שזכה בהגרלה שלא בוטלה באותו שבוע — המוסדית, וכללית
+       קודמת (החלטת אחיאסף, 10.11: לא שני פרסים באותו שבוע).
+     · משקל לפי כרטיסים (rafPickW_), בלי החזרה. מבקשים יותר מהזכאים —
+       כל הזכאים, ו"מבוקש" נשמר כדי שהמסך יאמר זאת.
+   שורה לכל זוכה ב"הגרלות", עם "סוג" = כללית ו"מקום" = g1, g2… (כמה
+   זוכים יכולים להיות מאותו מוסד). rafLast_ מדלג עליהן — מועד החיתוך,
+   כרטיסי אבא על שבוע ישן ו"ההגרלה של השבוע" לא זזים. בלי hsnapRafMark_:
+   הכרטיסים לא משתנים. הגרלה כללית שעוד לא פורסמה — חוזרת היא (לחיצה
+   כפולה, רענון); אחרי פרסום אפשר עוד אחת. */
+function rafGenDraw_(P) {
+  var n = parseInt(P.n, 10);
+  if (!(n >= 1)) return { status: 'error', message: 'חסר מספר זוכים' };
+  n = Math.min(n, RAF_GEN_MAX_);
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'הגרלה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var T = rafRead_(), wk = progWeek_();
+    var had = rafLastG_(T, wk);
+    if (had && had.st === 'הוגרל') { had.status = 'ok'; had.again = 1; return had; }
+    /* מי שכבר זכה השבוע — מכל הגרלה שלא בוטלה. */
+    var won = {};
+    for (var r = 1; r < T.rows.length; r++) {
+      if (T.c(r, 'שבוע') !== String(wk) || T.c(r, 'סטטוס') === 'בוטל') continue;
+      (T.c(r, 'מזהי הזוכה') + ' ' + T.c(r, 'זוכה')).split(/\s+/).forEach(function (x) { if (x) won[x] = 1; });
+    }
+    var C = rafCalc_(), codes = [];
+    Object.keys(C.done).forEach(function (id) {
+      var p = C.ppl[id];
+      if (p && !rafWhy_(p) && codes.indexOf(p.code) < 0) codes.push(p.code);
+    });
+    var E = raffleElig_(codes, C), L = [], nx = 0, nt = 0;
+    codes.forEach(function (cd) {
+      (E.by[cd] || []).forEach(function (p) {
+        if (won[p.id] || p.ids.some(function (x) { return won[x]; })) { nx++; return; }
+        p.code = cd; L.push(p); nt += p.t || 1;
+      });
+    });
+    if (!L.length) return { status: 'error', message: nx ? 'אין זכאים שלא זכו כבר השבוע' : 'אין זכאים להגרלה' };
+    var ne = L.length, W = [];
+    while (W.length < n && L.length) {
+      var w = rafPickW_(L, function (p) { return p.t; });
+      W.push(w); L.splice(L.indexOf(w), 1);
+    }
+    var nm = rafInstNm_(), rid = 'G' + wk + '-' + Utilities.getUuid().slice(0, 8);
+    var who = String(P.who || 'רכז').slice(0, 40);
+    var ex = E.ex.map(function (x) { return x.text; });
+    if (nx) ex.push(nx + ' זכו כבר השבוע — בחוץ');
+    W.forEach(function (w, i) {
+      appendCols_(RAF_TAB, [
+        ['מזהה הגרלה', rid], ['שבוע', wk], ['מועד חיתוך', E.cut], ['מבצע', who],
+        ['סוג', RAF_GEN_], ['מוסדות', ''], ['קוד ישיבה', w.code], ['ישיבה', w.inst || nm[w.code] || ''],
+        ['מקום', 'g' + (i + 1)], ['מבוקש', n], ['זכאים', ne], ['כרטיסים', nt], ['דף', E.daf || ''],
+        ['זוכה', w.id], ['מזהי הזוכה', w.ids.join(' ')], ['שם הזוכה', (w.name + ' ' + w.last).trim()],
+        ['חריגים', ex.join(' | ').slice(0, 4000)], ['סטטוס', 'הוגרל']
+      ]);
+    });
+    var d = rafById_(rafRead_(), rid);
+    d.status = 'ok';
+    return d;
+  } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
    הגרלה מחדש במוסד אחד (8.99.296) — כשהזוכה אינו תלמיד אמיתי.
    ============================================================
    מתוך **אותה תמונת זכאות** של ההגרלה ("תמונת זכאות" — מי שהיה זכאי
@@ -10843,6 +10939,7 @@ function rafRedo_(P) {
     var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
     if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
     if (d.st === 'בוטל') return { status: 'error', message: 'ההגרלה בוטלה' };
+    if (d.gen) return { status: 'error', message: 'אין הגרלה מחדש בהגרלה הכללית' };
     var code = String(P.code || ''), r = -1;
     d.lines.forEach(function (ln) { if (T.c(ln, 'קוד ישיבה') === code) r = ln; });
     if (r < 0) return { status: 'error', message: 'המוסד אינו בהגרלה הזו' };
@@ -11118,8 +11215,7 @@ function rafPrzSet_(P) {
   if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
   try {
     T = rafRead_(); d = rafById_(T, String(P.rid || ''));
-    var r = -1;
-    if (d) d.lines.forEach(function (ln) { if (T.c(ln, 'קוד ישיבה') === String(P.code || '')) r = ln; });
+    var r = rafLn_(T, d, P.code);
     if (r < 0 || !T.c(r, 'זוכה')) return { status: 'error', message: 'אין זוכה במוסד הזה' };
     var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/), v = null;
     var V0 = vchTbl_(false), held = V0 ? vchHeld_(V0, d.rid, ws) : [];
@@ -11465,8 +11561,7 @@ function rafVAttach_(P) {
   if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
   try {
     T = rafRead_(); d = rafById_(T, String(P.rid || ''));
-    var r = -1;
-    if (d) d.lines.forEach(function (ln) { if (T.c(ln, 'קוד ישיבה') === String(P.code || '')) r = ln; });
+    var r = rafLn_(T, d, P.code);
     if (r < 0 || !T.c(r, 'זוכה')) return { status: 'error', message: 'אין זוכה במוסד הזה' };
     var z = rafPrzRow_(T, r, rafPrzPicks_());
     if (!z.p) return { status: 'error', message: 'לזוכה הזה עוד אין פרס' };
@@ -11513,7 +11608,7 @@ function rafWadm_() {
       var ln = d.lines[i], z = rafPrzRow_(T, ln, picks);
       var ws = (T.c(ln, 'מזהי הזוכה') || T.c(ln, 'זוכה')).split(/\s+/);
       var kr = rowOfId_(t, x.win), row = kr >= 1 ? t.rows[kr] : null;
-      var o = { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '', code: x.code,
+      var o = { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '', code: x.key,
                 p: z.p, how: z.how, st: z.st,
                 ph: row ? t.c(row, 'טלפון') : '',
                 first: row ? t.c(row, 'שם') : String(x.name || '').split(/\s+/)[0] };
@@ -11678,6 +11773,19 @@ function rafAud_(d) {
      את ההודעה כמו כולם, ואינו צריך לדעת שלא היה בפנים. בחוץ רק לפיד
      ו"אחר" (RAF_NEVER) — אצלם אין הגרלה בכלל. `gcodes` — כל קוד מוסד
      שמופיע אצל תלמיד ב"לומדים" או ב"התראות". */
+  /* הגרלה כללית (8.99.492, החלטת אחיאסף): הודעה לזוכים ולהוריהם בלבד —
+     אין הודעה כללית לכל התלמידים. */
+  if (d.gen) {
+    var tg = joinTable_(), txg = testIds_(testSess_());
+    for (var rg = 1; rg < tg.rows.length; rg++) {
+      if (tg.c(tg.rows[rg], 'בדיקה') === 'כן') rowIds_(tg, tg.rows[rg]).forEach(function (x) { if (txg.indexOf(x) < 0) txg.push(x); });
+    }
+    var dg = rafDads_(tg, wids, txg), wg = audCount_({ ids: wids.concat(dg.ids), xids: txg });
+    var tg0 = txg.length ? audCount_({ ids: txg }) : { dev: 0 };
+    return { gen: 1, codes: [], gcodes: [], wids: wids, tx: txg, xg: [], dads: dg.ids, none: [], test: tg0.dev,
+             win: { n: d.rows.filter(function (x) { return x.win; }).length, dev: wg.dev, ppl: wg.ppl, dad: dg.n },
+             all: { n: 0, dev: 0, ppl: 0 } };
+  }
   var gcodes = codes.slice();
   var addC = function (c) { rafCodes_(c).forEach(function (x) { if (gcodes.indexOf(x) < 0) gcodes.push(x); }); };
   try {
@@ -11776,7 +11884,7 @@ function rafPartSave_(T, d) {
 }
 function rafPartsOut_(d) {
   return { st: d.st, pubAt: d.pubAt, w: d.w, g: d.g, d: d.d,
-           done: !!(d.w && d.g && /^(sent|skip)$/.test(d.w.st) && d.g.st === 'sent' &&
+           done: !!(d.w && d.g && /^(sent|skip)$/.test(d.w.st) && (d.g.st === 'sent' || (d.gen && d.g.st === 'skip')) &&
                     (!d.d || /^(sent|skip)$/.test(d.d.st))) };
 }
 
@@ -11804,9 +11912,9 @@ function rafflePub_(P) {
                        at: String(P.at || '').trim(), ab: String(P.ab || '').trim(),
                        dt: String(P.dt || '').trim(), db: String(P.db || '').trim() }
                    : rafPartGet_(T.c(d.lines[0], RAF_TXT));
-    if (!tx || !tx.wb || !tx.ab) return { status: 'error', message: 'חסר נוסח לאחת ההודעות' };
+    if (!tx || !tx.wb || (!tx.ab && !d.gen)) return { status: 'error', message: 'חסר נוסח לאחת ההודעות' };
     if (first) {
-      d.w = { st: a.wids.length ? 'none' : 'skip' }; d.g = { st: 'none' };
+      d.w = { st: a.wids.length ? 'none' : 'skip' }; d.g = { st: d.gen ? 'skip' : 'none' };
       d.d = { st: a.dads.length && tx.db ? 'none' : 'skip' };
       d.st = 'פורסם'; d.pubAt = new Date().toISOString();
       rafSet_(T, d, [['סטטוס', 'פורסם'], ['פורסם', d.pubAt],
@@ -11832,6 +11940,8 @@ function rafflePub_(P) {
       /* בלי זוכים אין שליחה לזוכים — לעולם לא פילוח ריק (= כולם). */
       if (x.k === 'w' && !a.wids.length) { o.st = 'skip'; return; }
       if (x.k === 'd' && (!a.dads.length || !tx.db)) { o.st = 'skip'; return; }
+      /* הגרלה כללית — אין הודעה לכל התלמידים. */
+      if (x.k === 'g' && d.gen) { o.st = 'skip'; return; }
       if (more && x.k !== 'g') return;
       if ((o.st === 'sent' && !more) || o.st === 'skip') return;
       if (o.st === 'unk' && !force) return;
@@ -11919,6 +12029,7 @@ function rafSelf_(P) {
   if (d.st !== 'הוגרל') return { status: 'error', message: 'הבדיקה אליך היא רק לפני הפרסום' };
   var k = String(P.k || '');
   if (k !== 'w' && k !== 'g') return { status: 'error', message: 'סוג הודעה לא מוכר' };
+  if (k === 'g' && d.gen) return { status: 'error', message: 'בהגרלה הכללית אין הודעה לכל התלמידים' };
   var L = d.rows.filter(function (x) { return k === 'g' || x.win; }).map(function (x) { return x.code; });
   var c = String(P.code || '');
   if (L.indexOf(c) < 0) c = L[0] || '';
@@ -12020,9 +12131,15 @@ function rafAll_() {
     seen[rid] = 1;
     if (T.c(r, 'סטטוס') !== 'פורסם') continue;
     var d = rafById_(T, rid);
-    out.push({ day: rafDay_(T.ix['פורסם'] === undefined ? '' : T.rows[r][T.ix['פורסם']]), wk: d.wk,
+    var e0 = { day: rafDay_(T.ix['פורסם'] === undefined ? '' : T.rows[r][T.ix['פורסם']]), wk: d.wk,
                w: d.rows.filter(function (x) { return x.win; })
-                        .map(function (x) { return { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '' }; }) });
+                        .map(function (x) { return { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '' }; }) };
+    /* אותו שבוע — רשימה אחת (8.99.492): ההגרלה הכללית מצטרפת למוסדית. הסריקה
+       מהסוף, ולכן הנוכחית מוקדמת יותר: הזוכים שלה ראשונים, והיום — שלה. */
+    var hit0 = null;
+    out.forEach(function (o) { if (!hit0 && String(o.wk) === String(d.wk)) hit0 = o; });
+    if (hit0) { hit0.w = e0.w.concat(hit0.w); hit0.day = e0.day; }
+    else out.push(e0);
   }
   var res = { status: 'ok', list: out };
   try { rc.put('raf:all', JSON.stringify(res), 60); } catch (x2) {}
@@ -12049,7 +12166,18 @@ function raffleRes_(P) {
     for (var r = T.rows.length - 1; r >= 1; r--) {
       if (T.c(r, 'סטטוס') === 'פורסם') { p = rafById_(T, T.c(r, 'מזהה הגרלה')); break; }
     }
-    d = p ? { codes: p.codes, rows: p.rows } : { codes: '', rows: [] };
+    d = p ? { codes: p.codes, rows: [] } : { codes: '', rows: [] };
+    /* רשימה אחת לשבוע (8.99.492, החלטת אחיאסף): כל ההגרלות שפורסמו באותו שבוע —
+       המוסדית והכללית — לפי סדר ההגרלה. התלמיד אינו רואה שאלו שתי הגרלות. */
+    if (p) {
+      var seenR = {};
+      for (var r2 = 1; r2 < T.rows.length; r2++) {
+        var rid2 = T.c(r2, 'מזהה הגרלה');
+        if (!rid2 || seenR[rid2] || T.c(r2, 'סטטוס') !== 'פורסם' || T.c(r2, 'שבוע') !== String(p.wk)) continue;
+        seenR[rid2] = 1;
+        d.rows = d.rows.concat(rafById_(T, rid2).rows);
+      }
+    }
     try { rc.put('raf:pub', JSON.stringify(d), 60); } catch (x2) {}
   }
   /* גם תלמיד ממוסד שלא נכנס להגרלה רואה את הזוכים — כמו ההודעה הכללית. */
@@ -12084,12 +12212,16 @@ function raffleRes_(P) {
   var out = { status: 'ok', state: 'pub', mine: null, me: false, others: [] };
   /* הורה — "הבן שלך זכה" בכל השלבים (8.99.297). */
   if (kidName) out.kid = kidName;
+  /* "מהמוסד שלך" — אחד: הזוכה שהוא אני, ובלעדיו הראשון מהמוסד. השאר — ברשימה
+     (בהגרלה הכללית יכולים להיות כמה זוכים מאותו מוסד). */
+  var isMe = function (x) { return String(x.wins || x.win).split(/\s+/).some(function (w) { return myIds.indexOf(w) >= 0; }); };
+  var mx = null;
+  d.rows.forEach(function (x) { if (x.win && x.code === inst && isMe(x) && !mx) mx = x; });
+  d.rows.forEach(function (x) { if (x.win && x.code === inst && !mx) mx = x; });
   d.rows.forEach(function (x) {
     if (!x.win) return;
-    if (x.code === inst) {
-      out.mine = show(x);
-      out.me = String(x.wins || x.win).split(/\s+/).some(function (w) { return myIds.indexOf(w) >= 0; });
-    } else out.others.push(show(x));
+    if (x === mx) { out.mine = show(x); out.me = isMe(x); }
+    else out.others.push(show(x));
   });
   try { rc.put(ck, JSON.stringify(out), 120); } catch (x5) {}
   return out;
@@ -12807,11 +12939,13 @@ function raffleRoute_(e) {
     }
     if (op === 'elig') { rafSelSave_(rafCodes_(P.codes)); return reply_(e, raffleElig_(rafCodes_(P.codes))); }
     if (op === 'state') {
-      var T = rafRead_(), d = rafLast_(T, progWeek_());
+      /* gen=1 — ההגרלה הכללית של השבוע (8.99.492), באותו מבנה. */
+      var T = rafRead_(), d = String(P.gen || '') === '1' ? rafLastG_(T, progWeek_()) : rafLast_(T, progWeek_());
       if (d) { d.ex = T.c(d.lines[0], 'חריגים'); rafPrzAdm_(T, d); }
       return reply_(e, { status: 'ok', wk: progWeek_(), d: d });
     }
     if (op === 'draw') return reply_(e, raffleDraw_(P));
+    if (op === 'gdraw') return reply_(e, rafGenDraw_(P));
     if (op === 'void') return reply_(e, raffleVoid_(P));
     if (op === 'redo') return reply_(e, rafRedo_(P));
     if (op === 'prizeset') return reply_(e, rafPrzSet_(P));
@@ -12906,7 +13040,7 @@ function przSync_(L) {
     var rid = T.c(r, 'מזהה הגרלה'), code = T.c(r, 'קוד ישיבה');
     if (!rid || !code || RAF_NEVER.indexOf(code) >= 0) continue;
     picks = picks || rafPrzPicks_();
-    var z = rafPrzRow_(T, r, picks), k = rid + '|' + code;
+    var z = rafPrzRow_(T, r, picks), k = rid + '|' + (T.c(r, 'מקום') || code);
     var der = { 'מזהה הגרלה': rid, 'שבוע': T.c(r, 'שבוע'), 'קוד ישיבה': code, 'ישיבה': T.c(r, 'ישיבה'),
                 'מזהה הזוכה': T.c(r, 'זוכה'), 'זוכה': T.c(r, 'שם הזוכה'), 'פרס': z.p, 'פרס — איך': z.how };
     przRow_(L, key, k, der);

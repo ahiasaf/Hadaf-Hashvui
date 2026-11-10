@@ -3168,7 +3168,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.491';
+var APP_VERSION = '8.99.492';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16266,6 +16266,9 @@ function pairPick(n) { pairWk = n | 0; admPane(); }
    ============================================================ */
 var rafP = null, rafD = null, rafA = null, rafMsg = '', rafBusy = false, rafLoaded = false;
 var rafSel = [], rafTx = null, rafOpen = {};
+/* מצב המסך (8.99.492): 'i' — לפי מוסדות, 'g' — הגרלה כללית. rafD הוא תמיד
+   ההגרלה של המצב שעל המסך, וכל הפעולות (פרסום, ביטול, פרס) עליה. */
+var rafMode = 'i', rafGenN = '';
 
 function rafCodesAll() {
   return INSTITUTIONS.filter(function (o) { return o.code !== 'lapid'; })
@@ -16279,6 +16282,7 @@ function rafCall(p, then) {
   var key = (CFG.readKey || '').trim();
   if (!key) { rafMsg = 'nokey'; admPane(); return; }
   p.key = key;
+  if (p.raffle === 'state' && rafMode === 'g') p.gen = '1';
   rafBusy = true; rafMsg = ''; admPane();
   scriptGet(p).then(function (d) {
     rafBusy = false;
@@ -16287,6 +16291,24 @@ function rafCall(p, then) {
     }
     then(d); admPane();
   })['catch'](function () { rafBusy = false; rafMsg = UI.rafNoAns; admPane(); });
+}
+function rafModeGo(m) {
+  if (rafBusy || m === rafMode) return;
+  rafMode = m; rafD = null; rafA = null; rafPs = null; rafTx = null; rafP = null; rafMsg = '';
+  rafLoad();
+}
+/* הגרלה כללית: `n` זוכים מכל הזכאים (rafGenDraw_ בשרת). */
+function rafGenDraw() {
+  var n = parseInt(rafGenN, 10);
+  if (!(n >= 1)) return;
+  if (!SureLater(rafGenDraw, this, arguments)) return;
+  rafCall({ raffle: 'gdraw', n: n, who: 'רכז' }, function (d) { rafD = d; rafA = null; rafPs = null; rafTx = null; });
+}
+function rafGenForm(dis) {
+  return '<div class="fld" style="margin-top:10px"><div class="label">' + esc(UI.rafGenN) + '</div>' +
+    '<input type="number" inputmode="numeric" min="1" max="200" value="' + esc(rafGenN) + '"' +
+    ' oninput="rafGenN=this.value;var b=document.getElementById(\'raf-gb\');if(b)b.disabled=!(parseInt(this.value,10)>=1)"></div>' +
+    '<button id="raf-gb" class="btn p"' + (parseInt(rafGenN, 10) >= 1 ? dis : ' disabled') + ' onclick="rafGenDraw()">' + esc(UI.rafDraw) + '</button>';
 }
 function rafLoad() {
   rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; rafPs = null; if (!VCH.d) setTimeout(vchLoad, 0); });
@@ -16602,7 +16624,7 @@ function adSend() {
 /* מהגרלה שבועית — לפי מוסד (זוכים מאותו מוסד — מודעה אחת). */
 function adRaf(code) {
   if (!rafD) return;
-  var W = rafD.rows.filter(function (x) { return x.win && x.code === code; });
+  var W = rafD.rows.filter(function (x) { return x.win && (x.key || x.code) === code; });
   if (!W.length) return;
   var z = W[0].pz, p = z && z.p ? (UI['przN_' + z.p] || z.p) + (UI['przS_' + z.p] ? ' · ' + UI['przS_' + z.p] : '') : '';
   adMake({
@@ -16637,8 +16659,8 @@ function rafWaHtml(dis) {
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' +
         (x.na ? rafWaCo(x) : x.ph ? '<a class="btn gr" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.ph, x, 'w')) + '">' + esc(UI.rafWaKid) + '</a>' : '') +
         (x.dph ? '<a class="btn g" style="width:auto;padding:6px 12px;margin:0" target="_blank" rel="noopener" href="' + esc(rafWaHref(x.dph, x, 'd')) + '">' + esc(UI.rafWaDad) + '</a>' : '') +
-        '<button class="btn g" type="button" style="width:auto;padding:6px 12px;margin:0" onclick="adRaf(\'' + esc(x.code) + '\')">' + esc(UI.adBtn) + '</button>' +
-        (z && !z.p ? '<select class="ct-sel"' + dis + ' onchange="rafPrzSet(\'' + esc(x.code) + '\',this)">' +
+        '<button class="btn g" type="button" style="width:auto;padding:6px 12px;margin:0" onclick="adRaf(\'' + esc(x.key || x.code) + '\')">' + esc(UI.adBtn) + '</button>' +
+        (z && !z.p ? '<select class="ct-sel"' + dis + ' onchange="rafPrzSet(\'' + esc(x.key || x.code) + '\',this)">' +
           '<option value="">' + esc(UI.rafPrzSet) + '</option>' +
           RAF_PRZ.map(function (k) { return '<option value="' + k + '">' + esc(UI['przN_' + k] || k) + '</option>'; }).join('') +
           '</select>' : '') +
@@ -16906,7 +16928,7 @@ function vchWaLine(x) {
 function rafPrzSet(code, sel) {
   var p = sel.value, x = null;
   if (!p || !rafD) return;
-  rafD.rows.forEach(function (r) { if (r.code === code) x = r; });
+  rafD.rows.forEach(function (r) { if ((r.key || r.code) === code) x = r; });
   if (!x) { sel.value = ''; return; }
   if (!SureLater(rafPrzSet, this, arguments, function () { sel.value = ''; })) return;
   rafCall({ raffle: 'prizeset', rid: rafD.rid, code: code, p: p }, function () {
@@ -16956,7 +16978,7 @@ function rafPubDone(d) {
 }
 function rafGo() {
   if (!rafD || !rafA || !rafTx) return;
-  if (!rafTx.wb.trim() || !rafTx.ab.trim()) return;
+  if (!rafTx.wb.trim() || (!rafTx.ab.trim() && !rafD.gen)) return;
   if (!SureLater(rafGo, this, arguments)) return;
   rafCall({ raffle: 'pub', rid: rafD.rid, exp: rafA.exp, who: 'רכז',
             wt: rafTx.wt, wb: rafTx.wb, at: rafTx.at, ab: rafTx.ab,
@@ -17271,19 +17293,30 @@ function admRaffle() {
       esc(rafBusy ? UI.rafBusy : UI.rafLoad) + '</button>' + msg + '</div>';
   }
 
+  /* ---- לפי מוסדות / כללית (8.99.492) ---- */
+  var gen = rafMode === 'g';
+  h += '<div class="tabs sub" style="margin-top:12px">' +
+    '<button class="' + (gen ? '' : 'on') + '"' + dis + ' onclick="rafModeGo(\'i\')">' + esc(UI.rafModeI) + '</button>' +
+    '<button class="' + (gen ? 'on' : '') + '"' + dis + ' onclick="rafModeGo(\'g\')">' + esc(UI.rafModeG) + '</button></div>' +
+    (gen ? '<p class="h">' + esc(UI.rafGenRule) + '</p>' : '');
   /* ---- יש הגרלה לשבוע: התוצאה, ומשם ביטול או אישור ---- */
   if (rafD) {
+    var nW = rafD.rows.filter(function (x) { return x.win; }).length;
     h += '<div class="pp-h">' + esc(UI.rafRes) + '</div>' +
       '<p class="h">' + esc(fill(UI.rafMeta, { rid: rafD.rid, cut: String(rafD.cut).replace('T', ' ').slice(0, 16), by: rafD.by })) +
       '<br><b>' + esc(rafD.st === 'פורסם' ? UI.rafPubd : fill(UI.rafSt, { st: rafD.st })) + '</b></p><div class="plist">' +
       rafD.rows.map(function (x) {
         return '<div class="prow2 ' + (x.win ? 'ok' : 'warn') + '"><span class="pm">' + (x.win ? '★' : '–') + '</span>' +
+          (rafD.gen ? '<div style="flex:1"><b>' + esc(x.name) + '</b><span>' + esc(x.inst || rafInstName(x.code)) + '</span>' :
           '<div style="flex:1"><b>' + esc(rafInstName(x.code)) + '</b><span>' +
-          esc(x.win ? x.name : UI.rafNone) + ' · ' + esc(fill(UI.rafN, { n: x.n })) + '</span>' +
+          esc(x.win ? x.name : UI.rafNone) + ' · ' + esc(fill(UI.rafN, { n: x.n })) + '</span>') +
           /* זוכה שאינו תלמיד אמיתי — הגרלה מחדש במוסד הזה בלבד (rafRedo_) */
-          (x.win && x.n > 1 ? '<button class="lnk" style="display:block;margin-top:4px;color:var(--stop);font-size:.8rem;font-weight:700;background:none;border:0;padding:0"' + dis +
+          (x.win && x.n > 1 && !rafD.gen ? '<button class="lnk" style="display:block;margin-top:4px;color:var(--stop);font-size:.8rem;font-weight:700;background:none;border:0;padding:0"' + dis +
             ' onclick="rafRedo(\'' + esc(x.code) + '\')">' + esc(UI.rafRedo) + '</button>' : '') + '</div></div>';
       }).join('') + '</div>';
+    /* ביקשו יותר זוכים ממספר הזכאים — יצאו כל הזכאים. */
+    if (rafD.gen) h += '<p class="h">' + (rafD.ask > nW ? '<b>' + esc(fill(UI.rafGenShort, { n: rafD.ask, e: nW })) + '</b>'
+      : esc(fill(UI.rafN, { n: (rafD.rows[0] || {}).n || 0 }))) + '</p>';
     if (rafD.ex) h += '<details class="hx"><summary>' + esc(UI.rafEx) + '</summary><p class="h">' +
       esc(String(rafD.ex).split(' | ').join('\n')).replace(/\n/g, '<br>') + '</p></details>';
     if (rafD.st === 'הוגרל' && !rafA) {
@@ -17293,32 +17326,32 @@ function admRaffle() {
     /* ---- אישור סופי: סיכום אחד — הקהל, שתי ההודעות, ומה נפתח בלחיצה ---- */
     if (rafD.st === 'הוגרל' && rafA && rafTx) {
       var noW = (rafA.none || []).map(rafInstName);
-      h += '<div class="pp-h">' + esc(UI.rafApH) + '</div><p class="h">' + esc(UI.rafApNote) + '</p>' +
+      h += '<div class="pp-h">' + esc(UI.rafApH) + '</div><p class="h">' + esc(rafD.gen ? UI.rafGenApNote : UI.rafApNote) + '</p>' +
         '<p class="h">' + esc(UI.rafDesign) + '</p>' +
         '<div class="pp-h">' + esc(UI.rafWinMsg) + '</div>' +
         '<p class="h">' + esc(fill(UI.rafWinAud, { n: rafA.win.n, ppl: rafA.win.ppl, dev: rafA.win.dev })) +
         (rafA.win.dad ? '<br>' + esc(fill(UI.rafWinDad, { n: rafA.win.dad })) : '') + '</p>' +
         rafMsgHtml('w') +
-        '<div class="pp-h">' + esc(UI.rafAllMsg) + '</div>' +
+        (rafD.gen ? '' : '<div class="pp-h">' + esc(UI.rafAllMsg) + '</div>' +
         '<p class="h">' + esc(fill(UI.rafAllAud, { k: (rafA.gcodes || rafA.codes).length, n: rafA.all.n, ppl: rafA.all.ppl, dev: rafA.all.dev })) +
         (noW.length ? '<br>' + esc(fill(UI.rafNoWin, { list: noW.join(' · ') })) : '') + '</p>' +
-        rafMsgHtml('g') +
+        rafMsgHtml('g')) +
         '<p class="h">' + esc(UI.rafAudNote) +
         (rafA.test ? '<br>' + esc(fill(UI.rafTestX, { n: rafA.test })) : '') + '</p>' +
         '<div class="pp-h">' + esc(UI.rafSelfH) + '</div>' +
         (rafA.me === 1 ? '<p class="h">' + esc(UI.rafSelfDev) + '</p>'
           : '<p class="h" style="color:var(--stop)">' + esc(UI.rafSelfNoDev) + '</p>') +
         '<button class="btn g"' + (rafBusy || rafA.me !== 1 || !rafPvCodes('w').length ? ' disabled' : '') + ' onclick="rafSelf(\'w\')">' + esc(UI.rafSelfW) + '</button>' +
-        '<button class="btn g" style="margin-top:8px"' + (rafBusy || rafA.me !== 1 ? ' disabled' : '') + ' onclick="rafSelf(\'g\')">' + esc(UI.rafSelfG) + '</button>' +
+        (rafD.gen ? '' : '<button class="btn g" style="margin-top:8px"' + (rafBusy || rafA.me !== 1 ? ' disabled' : '') + ' onclick="rafSelf(\'g\')">' + esc(UI.rafSelfG) + '</button>') +
         '<button class="btn p" style="margin-top:14px"' + dis + ' onclick="rafGo()">' + esc(rafBusy ? UI.rafBusy : UI.rafGo) + '</button>' +
         '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafA=null;admPane()">' + esc(UI.rafBack) + '</button>';
     }
     /* ---- פורסם: מצב כל הודעה, בדיקת מצב, ושליחה חוזרת רק של מה שלא יצא ---- */
     if (rafD.st === 'פורסם') {
-      var allOk = ['w', 'g', 'd'].every(function (k) { var o = rafD[k]; if (k === 'd' && !o) return true; return o && (o.st === 'sent' || (k !== 'g' && o.st === 'skip')); });
+      var allOk = ['w', 'g', 'd'].every(function (k) { var o = rafD[k]; if (k === 'd' && !o) return true; return o && (o.st === 'sent' || ((k !== 'g' || rafD.gen) && o.st === 'skip')); });
       h += rafWaHtml(dis);
-      h += '<div class="plist">' + rafPartHtml('w') + (rafD.d && rafD.d.st !== 'skip' ? rafPartHtml('d') : '') + rafPartHtml('g') + '</div>' +
-        (allOk ? '<p class="h">' + esc(UI.rafAllOk) + '</p>' : '') +
+      h += '<div class="plist">' + rafPartHtml('w') + (rafD.d && rafD.d.st !== 'skip' ? rafPartHtml('d') : '') + (rafD.gen ? '' : rafPartHtml('g')) + '</div>' +
+        (allOk ? '<p class="h">' + esc(rafD.gen ? UI.rafGenAllOk : UI.rafAllOk) + '</p>' : '') +
         '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafPst()">' + esc(rafBusy ? UI.rafBusy : UI.rafPstBtn) + '</button>';
       /* השלמת ההודעה הכללית — מכשירי תלמידים שבקהל ועוד לא קיבלו (למשל
          ממוסד שלא היה בהגרלה, לפני 8.99.294). מי שקיבל — לא מקבל שוב. */
@@ -17329,14 +17362,17 @@ function admRaffle() {
       }
       if (rafPs && !rafPs.done && rafPs.aud) {
         var unk = ['w', 'g'].some(function (k) { return rafD[k] && rafD[k].st === 'unk'; });
-        h += '<p class="h">' + esc(fill(UI.rafRetryAud, { wd: rafPs.aud.win.dev, gd: rafPs.aud.all.dev })) + '</p>' +
+        h += '<p class="h">' + esc(fill(rafD.gen ? UI.rafGenRetryAud : UI.rafRetryAud, { wd: rafPs.aud.win.dev, gd: rafPs.aud.all.dev })) + '</p>' +
           (rafTodo(false).length ? '<button class="btn p" style="margin-top:8px"' + dis + ' onclick="rafRetry()">' + esc(UI.rafRetry) + '</button>' : '') +
           (unk ? '<p class="h" style="color:var(--stop);margin-top:8px">' + esc(UI.rafUnkHow) + '</p>' +
             '<button class="btn g"' + dis + ' onclick="rafRetry(true)">' + esc(UI.rafForce) + '</button>' : '');
       }
+      /* אחרי פרסום — אפשר הגרלה כללית נוספת באותו שבוע. */
+      if (rafD.gen) h += '<div class="pp-h">' + esc(UI.rafGenMore) + '</div>' + rafGenForm(dis);
     }
     return h + msg + '</div>';
   }
+  if (gen) return h + rafGenForm(dis) + msg + '</div>';
 
   /* ---- עוד אין הגרלה: התמונה לכל מוסד, הבחירה, ואז הגרלה ---- */
   h += '<button class="btn g" style="margin-top:10px"' + dis + ' onclick="rafPicLoad()">' +
