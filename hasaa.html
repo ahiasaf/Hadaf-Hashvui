@@ -66,6 +66,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .dec{margin:16px 0 14px}
 .dec p{font-size:.96rem;font-weight:600;margin-bottom:8px}
 .mas{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.mtx{font-size:1.05rem;font-weight:800;color:var(--blue-d);margin:0 0 12px}
 .two{font-size:.94rem;font-weight:800;color:var(--gold-t);margin:4px 0 10px}
 details.prz{margin-bottom:16px;background:var(--surface);border:1px solid var(--rule);border-radius:14px}
 details.prz summary{cursor:pointer;padding:12px 14px;font-weight:800;color:var(--blue-d)}
@@ -106,6 +107,7 @@ details.prz .it.on .ck{display:inline}
       <div id="idf"></div>
       <div class="dec" id="dec"></div>
       <div class="mas" id="mas"></div>
+      <p class="mtx" id="masTx" hidden></p>
       <p class="two" id="two"></p>
       <p class="pk" id="pk" aria-live="polite"></p>
       <details class="prz" open><summary id="przH"></summary><div class="in" id="prz"></div></details>
@@ -417,6 +419,21 @@ function autoSet(id, v) {
   var el = $(id);
   if (el.value === '' || el.value === AUTO[id]) { el.value = v; AUTO[id] = v; }
 }
+/* המסכתות שידועות לנו (8.99.500) — טקסט, בלי שדות. השדות (מוסתרים) נושאים אותן לשליחה.
+   אין מסכתות ידועות — השדות חוזרים, ומה שהתמלא לבד מתרוקן. */
+function masShow(list) {
+  var m, id;
+  if (list.length) {
+    for (m = 1; m <= 6; m++) { id = 'f-m' + m; $(id).value = list[m - 1] || ''; AUTO[id] = $(id).value; }
+    $('masTx').textContent = list.join(', ');
+    $('masTx').hidden = false;
+    $('mas').hidden = true;
+    return;
+  }
+  for (m = 1; m <= 6; m++) autoSet('f-m' + m, '');
+  $('masTx').hidden = true;
+  $('mas').hidden = false;
+}
 function nameFree() {
   $('nmL').outerHTML = fld('n', UI.hsName, 1);
   var old = document.querySelector('input[type=hidden]#f-n');
@@ -434,7 +451,7 @@ function namePick() {
   autoSet('f-y', UI.hsInstLapid);
   get('hasaa=info&' + (o.k ? 'id=' + encodeURIComponent(o.k) : 'n=' + encodeURIComponent(o.n))).then(function (r) {
     if (my !== SEQ || !r || r.status !== 'ok') return;
-    for (var m = 1; m <= 6; m++) autoSet('f-m' + m, (r.mas || [])[m - 1] || '');
+    masShow(r.mas || []);
     autoSet('f-c', r.cls || '');
     autoSet('f-ph', r.ph || '');
     DUE = typeof r.due === 'number' && r.due > 0 ? r.due : null;

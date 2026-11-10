@@ -79,11 +79,14 @@ function optTexts(p, sel) {
   ok((await offN(p)).length === 0, 'unlimited: nothing grayed');
   ok(await p.$eval('#due', function (e) { return e.hidden; }), 'no due line');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'בני לוי', 'signature autofill');
+  ok(await p.$eval('#mas', function (e) { return !e.hidden; }) && await p.$eval('#masTx', function (e) { return e.hidden; }), 'no known masechtot → fields');
   // אבי — שני פרסים
   await p.selectOption('#f-nsel', { label: 'אבי כהן' });
   await p.waitForFunction(function () { return !document.getElementById('due').hidden; });
   ok(await p.$eval('#due', function (e) { return e.textContent; }) === 'מגיע לך: שני פרסים', 'due 2');
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'תענית', 'masechet filled');
+  ok(await p.$eval('#masTx', function (e) { return !e.hidden && e.textContent === 'תענית'; }) &&
+     await p.$eval('#mas', function (e) { return e.hidden; }), 'masechtot as text, no fields');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
   ok(await p.$eval('#f-y', function (e) { return e.value; }) === 'ישיבת לפיד', 'yeshiva filled');
   ok(await p.$eval('#f-c', function (e) { return e.value; }) === 'ט׳3' && await p.$eval('#f-ph', function (e) { return e.value; }) === 'TESTPHONE1', 'class + phone filled');
@@ -116,6 +119,7 @@ function optTexts(p, sel) {
   await p.selectOption('#f-nsel', { label: 'זאב גל' });
   await p.waitForFunction(function () { return document.getElementById('due').textContent === 'מגיע לך: פרס אחד'; });
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'ברכות', 'zeev masechet from zk (replaces auto)');
+  ok(await p.$eval('#masTx', function (e) { return e.textContent; }) === 'ברכות' && await p.$eval('#f-m2', function (e) { return e.value; }) === '', 'zeev text replaces');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
   ok(await p.$eval('#f-ph', function (e) { return e.value; }) === '0500000000' && await p.$eval('#f-y', function (e) { return e.value; }) === 'לפיד', 'typed fields kept');
   ok(await p.$$eval('#prz .it.on', function (a) { return a.length; }) === 0, 'selections cleared on due change');
