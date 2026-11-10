@@ -90,15 +90,18 @@ function optTexts(p, sel) {
   ok(await pkrOpen(p) && (await offN(p)).length === 0, 'unlimited: picker shows all');
   await p.click('#pkBack');
   ok(!(await pkrOpen(p)), 'back closes picker');
-  ok(await p.$eval('#due', function (e) { return e.hidden; }), 'no due line');
+  ok(await p.$eval('#due', function (e) { return e.hidden; }) && await p.$eval('#smb', function (e) { return e.hidden; }), 'no due line, no summary box');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'בני לוי', 'signature autofill');
   ok(await p.$eval('#mas', function (e) { return !e.hidden; }) && await p.$eval('#masTx', function (e) { return e.hidden; }), 'no known masechtot → fields');
   // אבי — שני פרסים
   await p.selectOption('#f-nsel', { label: 'אבי כהן' });
-  await p.waitForFunction(function () { return !document.getElementById('due').hidden; });
-  ok(await p.$eval('#due', function (e) { return e.textContent; }) === 'מגיע לך: שני פרסים', 'due 2');
+  await p.waitForFunction(function () { return !document.getElementById('smD').hidden; });
+  ok(await p.$eval('#due', function (e) { return e.hidden; }) && await p.$eval('#smDv', function (e) { return e.textContent; }) === 'שני פרסים' &&
+     await p.$eval('#smDh', function (e) { return e.textContent; }) === 'מגיע לך', 'due 2 in box, not under name');
+  ok(await p.$eval('#smLv', function (e) { return e.textContent; }) === 'תענית' && await p.$eval('#smP', function (e) { return e.textContent; }) === 'לבחירת הפרס', 'learned + pick heading');
+  ok(await p.evaluate(function () { var a = document.getElementById('smb'), b = document.getElementById('sl-p1'); return !!(a.compareDocumentPosition(b) & 4); }), 'box before slots');
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'תענית', 'masechet filled');
-  ok(await p.$eval('#masTx', function (e) { return !e.hidden && e.textContent === 'תענית'; }) &&
+  ok(await p.$eval('#masTx', function (e) { return e.hidden; }) &&
      await p.$eval('#mas', function (e) { return e.hidden; }), 'masechtot as text, no fields');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'אבי כהן', 'signature follows name');
   ok(await p.$eval('#f-y', function (e) { return e.value; }) === 'ישיבת לפיד', 'yeshiva filled');
@@ -141,9 +144,9 @@ function optTexts(p, sel) {
   await p.fill('#f-y', 'לפיד'); await p.fill('#f-c', 'ט'); await p.fill('#f-ph', '0500000000');
   // זאב — לפי שם, פרס אחד: הבחירות של שני פרסים מתרוקנות
   await p.selectOption('#f-nsel', { label: 'זאב גל' });
-  await p.waitForFunction(function () { return document.getElementById('due').textContent === 'מגיע לך: פרס אחד'; });
+  await p.waitForFunction(function () { return document.getElementById('smDv').textContent === 'פרס אחד'; });
   ok(await p.$eval('#f-m1', function (e) { return e.value; }) === 'ברכות', 'zeev masechet from zk (replaces auto)');
-  ok(await p.$eval('#masTx', function (e) { return e.textContent; }) === 'ברכות' && await p.$eval('#f-m2', function (e) { return e.value; }) === '', 'zeev text replaces');
+  ok(await p.$eval('#smLv', function (e) { return e.textContent; }) === 'ברכות' && await p.$eval('#f-m2', function (e) { return e.value; }) === '', 'zeev text replaces');
   ok(await p.$eval('#f-s', function (e) { return e.value; }) === 'זאב גל', 'signature follows again');
   ok(await p.$eval('#f-ph', function (e) { return e.value; }) === '0500000000' && await p.$eval('#f-y', function (e) { return e.value; }) === 'לפיד', 'typed fields kept');
   ok(/בחר פרס/.test(await slot(p, 'p1')) && /בחר פרס/.test(await slot(p, 'p2')), 'selections cleared on due change');
@@ -184,7 +187,7 @@ function optTexts(p, sel) {
   var W3 = world(true), p3 = await page(b, port, W3);
   await p3.waitForFunction(function () { return document.querySelectorAll('#f-nsel option').length > 1; });
   await p3.selectOption('#f-nsel', { label: 'אבי כהן' });
-  await p3.waitForFunction(function () { return !document.getElementById('due').hidden; });
+  await p3.waitForFunction(function () { return !document.getElementById('smD').hidden; });
   await p3.click('#sl-p1 button'); await p3.click('#prz .it[data-n="24"] span');
   await p3.click('#sl-p2 button'); await p3.click('#prz .it[data-n="25"] span');
   await p3.fill('#f-y', 'לפיד'); await p3.fill('#f-c', 'ט'); await p3.fill('#f-ph', '0500000000');
