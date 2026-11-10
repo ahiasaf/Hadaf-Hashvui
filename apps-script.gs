@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 212;
+var SCRIPT_VERSION = 213;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -163,6 +163,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'מפת בית המדרש',
                     /* הצהרת התלמיד ליגדיל תורה (hasaa.html) — שם, טלפון ומה שלמד. ראו hasaaPut_. */
                     'הצהרות',
+                    /* יגדיל תורה — כמה פרסים מגיעים לכל תלמיד (אחיאסף ממלא). ראו hasaaInfo_. */
+                    'זכאויות',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -1088,7 +1090,13 @@ function doGetMain_(e) {
   /* מפת בית המדרש — הגרסה האחרונה. ראו lapidGet_ · lapidPut_. */
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
   /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
-  if (e && e.parameter && e.parameter.hasaa) return reply_(e, hasaaCheck_(e.parameter.hs));
+  if (e && e.parameter && e.parameter.hasaa) {
+    var hsOp = String(e.parameter.hasaa);
+    /* רשימת השמות לתפריט, ופרטי התלמיד שנבחר — ראו hasaaRoster_ · hasaaInfo_. */
+    if (hsOp === 'roster') return reply_(e, hasaaRoster_(e.parameter.y));
+    if (hsOp === 'info') return reply_(e, hasaaInfo_(e.parameter.id, e.parameter.n));
+    return reply_(e, hasaaCheck_(e.parameter.hs));
+  }
 
   /* ============================================================
      "לא מצליח להתקין".
@@ -17778,7 +17786,10 @@ function lapidPut_(d) {
 var HASAA_TAB_ = 'הצהרות';
 var HASAA_F_ = [['n', 'שם התלמיד', 1], ['y', 'הישיבה', 1], ['c', 'הכתה בתשפ"ו', 1], ['ph', 'מספר הנייד', 1],
   ['m1', 'מסכת 1', 1], ['m2', 'מסכת 2'], ['m3', 'מסכת 3'], ['m4', 'מסכת 4'], ['m5', 'מסכת 5'], ['m6', 'מסכת 6'],
-  ['p1', 'עדיפות ראשונה', 1], ['p2', 'עדיפות שניה', 1], ['s', 'חתימת התלמיד', 1]];
+  ['p1', 'עדיפות ראשונה', 1], ['p2', 'עדיפות שניה', 1], ['s', 'חתימת התלמיד', 1],
+  /* 8.99.491 — המזהה מ"לומדים" כשהשם נבחר מהתפריט (נשלח כאסימון, hasaaTok_). בסוף — שורות
+     קיימות לא זזות; hasaaSheet_ משלים את הכותרת בלשונית שכבר קיימת. */
+  ['id', 'מזהה תלמיד']];
 var HASAA_COLS_ = ['חותמת זמן', 'sid'].concat(HASAA_F_.map(function (f) { return f[1]; }));
 function hasaaSid_(v) {
   var s = String(v || '').trim().toLowerCase();
@@ -17789,6 +17800,10 @@ function hasaaSheet_() {
   if (sh.getLastRow() < 1) {
     sh.getRange(1, 1, 1, HASAA_COLS_.length).setValues([HASAA_COLS_]);
     try { sh.setFrozenRows(1); } catch (x) {}
+  } else if (sh.getLastColumn() < HASAA_COLS_.length) {
+    /* עמודה שנוספה לרשימה — הכותרת שלה בסוף השורה הראשונה. */
+    var have = sh.getLastColumn();
+    sh.getRange(1, have + 1, 1, HASAA_COLS_.length - have).setValues([HASAA_COLS_.slice(have)]);
   }
   return sh;
 }
@@ -17812,9 +17827,189 @@ function hasaaCheck_(sidIn) {
     return { status: 'ok', saved: !!(sh && hasaaHas_(sh, sid)) };
   } catch (err) { return { status: 'error' }; }
 }
+/* ============================================================
+   יגדיל תורה — שם מתפריט, מסכתות וזכאות (8.99.491 · SCRIPT_VERSION 213).
+   ============================================================
+   ?hasaa=roster&y=<קוד ישיבה> — לתפריט השמות: התלמידים של הישיבה מ"לומדים"
+   (שם + משפחה), ואיתם כל השמות מהלשונית הפרטית "זכאויות" (גם בלי מזהה).
+   שם שמופיע בשתיהן — פעם אחת. **אין טלפון ואין שום פרט אחר.** המזהה עצמו
+   אינו יוצא: מזהה מכשיר פותח מסכים אישיים, ולכן בתשובה רק אסימון קבוע
+   (hasaaTok_ — גיבוב עם סוד השרת), והשרת מתרגם אותו חזרה.
+   ?hasaa=info&id=<אסימון> | &n=<שם> — המסכתות שהתלמיד סיים ב"לימוד" (כל הדפים,
+   שני העמודים; מגילה לב. לבד), יחד עם עמודת "מסכתות" של "זכאויות", ומספר
+   הפרסים מ"זכאויות" — לפי המזהה, ובלעדיו לפי השם המלא. אין שורה — `due: null`
+   (העמוד בלי הגבלה, כמו קודם).
+   ============================================================ */
+var HASAA_ZK_TAB_ = 'זכאויות';
+function hasaaSalt_() {
+  if (READ_KEY) return READ_KEY;
+  var P = PropertiesService.getScriptProperties(), v = P.getProperty('hasaaSalt');
+  if (!v) { v = Utilities.getUuid(); P.setProperty('hasaaSalt', v); }
+  return v;
+}
+function hasaaTok_(id) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, hasaaSalt_() + '|hasaa|' + id, Utilities.Charset.UTF_8);
+  var h = '';
+  for (var i = 0; i < 10; i++) h += ((b[i] + 256) % 256 + 256).toString(16).slice(1);
+  return 't' + h;
+}
+/* אסימון → המזהה הקבוע ב"לומדים". לא נמצא — ''. */
+function hasaaUntok_(tok, t0) {
+  tok = String(tok || '').trim();
+  if (!/^t[0-9a-f]{20}$/.test(tok)) return '';
+  try { var hit = CacheService.getScriptCache().get('hst:' + tok); if (hit) return hit; } catch (xc) {}
+  var t = t0 || joinTable_();
+  for (var r = 1; r < t.rows.length; r++) {
+    var ids = rowIds_(t, t.rows[r]);
+    for (var i = 0; i < ids.length; i++) if (hasaaTok_(ids[i]) === tok) return t.c(t.rows[r], 'מזהה') || ids[i];
+  }
+  return '';
+}
+function hasaaNm_(s) { return String(s || '').replace(/["'׳״]/g, '').replace(/\s+/g, ' ').trim(); }
+/* "זכאויות" — קריאה בלבד, בלי ליצור לשונית. null — הקריאה נכשלה; [] — אין לשונית/שורות. */
+function hasaaZk_() {
+  var pid = privId_(HASAA_ZK_TAB_);
+  var ss = SS_OPEN_[pid] || (SS_OPEN_[pid] = SpreadsheetApp.openById(String(pid)));
+  var sh = ss.getSheetByName(HASAA_ZK_TAB_);
+  if (!sh || sh.getLastRow() < 2) return [];
+  var v = sh.getDataRange().getDisplayValues(), H = v[0].map(function (x) { return String(x).trim(); });
+  var at = function (re) { for (var i = 0; i < H.length; i++) if (re.test(H[i])) return i; return -1; };
+  var iId = H.indexOf('מזהה'), iN = at(/^מספר פרסים/), iM = at(/^מסכתות/), iSc = H.indexOf('ציון');
+  var iFirst = at(/^(שם פרטי|פרטי|שם)$/), iLast = at(/^(שם משפחה|משפחה)$/);
+  var iFull = at(/^שם (מלא|התלמיד)$/);
+  if (iFull < 0 && iLast < 0) iFull = iFirst;
+  var out = [];
+  for (var r = 1; r < v.length; r++) {
+    var g = function (i) { return i < 0 ? '' : String(v[r][i] || '').trim(); };
+    var nm = iFull >= 0 ? g(iFull) : (g(iFirst) + ' ' + g(iLast));
+    nm = nm.replace(/\s+/g, ' ').trim();
+    var id = g(iId);
+    if (!nm && !id) continue;
+    var n = parseFloat(g(iN).replace(',', '.'));
+    out.push({ id: id, nm: nm, n: isFinite(n) && n > 0 ? n : null, mas: g(iM), sc: g(iSc) });
+  }
+  return out;
+}
+function hasaaRoster_(y) {
+  y = String(y || 'lapid').trim();
+  if (!/^[a-z0-9_-]{1,30}$/i.test(y)) return { status: 'error' };
+  var rc = CacheService.getScriptCache(), ck = 'hsr1:' + y;
+  try { var hit = rc.get(ck); if (hit) return JSON.parse(hit); } catch (xc) {}
+  try {
+    var t = joinTable_(), list = [], byNm = {}, byId = {};
+    for (var r = 1; r < t.rows.length; r++) {
+      var w = t.rows[r], id = t.c(w, 'מזהה');
+      if (!id || id.indexOf(':k') >= 0) continue;
+      if (rowWorld_(t, w) !== 'R') continue;
+      rowIds_(t, w).forEach(function (x) { byId[x] = r; });
+      if (t.c(w, 'קוד ישיבה') !== y) continue;
+      var role = t.c(w, 'תפקיד');
+      if (role && role !== 'תלמיד') continue;
+      var nm = (t.c(w, 'שם') + ' ' + t.c(w, 'משפחה')).replace(/\s+/g, ' ').trim();
+      if (!nm) continue;
+      var k = hasaaNm_(nm);
+      if (byNm[k]) continue;
+      byNm[k] = 1;
+      list.push({ k: hasaaTok_(id), n: nm, rid: id });
+    }
+    var inList = {};
+    list.forEach(function (o) { inList[o.rid] = 1; });
+    var zk = hasaaZk_();
+    zk.forEach(function (z) {
+      var nm = z.nm, tok = '', zRid = '';
+      if (z.id && byId[z.id] != null) {
+        var w = t.rows[byId[z.id]], cid = t.c(w, 'מזהה');
+        if (inList[cid]) return;
+        tok = hasaaTok_(cid);
+        zRid = cid;
+        if (!nm) nm = (t.c(w, 'שם') + ' ' + t.c(w, 'משפחה')).replace(/\s+/g, ' ').trim();
+        inList[cid] = 1;
+      }
+      if (!nm) return;
+      var k = hasaaNm_(nm);
+      if (byNm[k]) return;
+      byNm[k] = 1;
+      list.push({ k: tok, n: nm, rid: zRid });
+    });
+    list.sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; });
+    /* אסימון → מזהה, לשש שעות — כך info והשמירה לא מחשבים גיבוב לכל שורה. */
+    var tm = {};
+    list.forEach(function (o) { if (o.k && o.rid) tm['hst:' + o.k] = o.rid; });
+    try { if (Object.keys(tm).length) rc.putAll(tm, 21600); } catch (xm) {}
+    var out = { status: 'ok', list: list.map(function (o) { return o.k ? { k: o.k, n: o.n } : { n: o.n }; }) };
+    try { rc.put(ck, JSON.stringify(out), 600); } catch (xp) {}
+    return out;
+  } catch (err) { return { status: 'error' }; }
+}
+/* דפי המסכת לפי סדר: [בסיס, עמוד א בלבד?]. תענית ב–לא, מגילה ב–לב (לב. לבד). */
+var HASAA_GEM_ = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+function hasaaHeb_(n) {
+  var t = Math.floor(n / 10), u = n % 10, T = ['', 'י', 'כ', 'ל'];
+  if (n === 15) return 'טו';
+  if (n === 16) return 'טז';
+  return T[t] + HASAA_GEM_[u];
+}
+var HASAA_MAS_ = { taanit: { he: 'תענית', last: 31, half: false }, megila: { he: 'מגילה', last: 32, half: true } };
+function hasaaDone_(ids) {
+  var want = {};
+  ids.forEach(function (x) { if (x) want[x] = 1; });
+  var rows = lrnRows_(), got = {};
+  if (rows.length < 2) return [];
+  var ix = {};
+  for (var h = 0; h < rows[0].length; h++) ix[String(rows[0][h]).trim()] = h;
+  var c = function (rw, k) { return ix[k] === undefined ? '' : String(rw[ix[k]] == null ? '' : rw[ix[k]]).trim(); };
+  for (var i = 1; i < rows.length; i++) {
+    var rw = rows[i];
+    if (!want[c(rw, 'מזהה')] || c(rw, 'בדיקה') === 'כן') continue;
+    var at = c(rw, 'קטע'), of = c(rw, 'מתוך');
+    if (at && parseInt(of, 10) > 0 && parseInt(at, 10) < parseInt(of, 10)) continue;
+    var mas = rafTrack_(c(rw, 'מסלול'));
+    if (!HASAA_MAS_[mas]) continue;
+    var d = c(rw, 'דף').replace(/["'׳״\s]/g, ''), base = d.replace(/[.:]$/, '');
+    if (!base) continue;
+    var o = got[mas + '|' + base] || (got[mas + '|' + base] = { a: 0, b: 0 });
+    if (!/:$/.test(d)) o.a = 1;
+    if (!/\.$/.test(d)) o.b = 1;
+  }
+  var out = [];
+  Object.keys(HASAA_MAS_).forEach(function (m) {
+    var M = HASAA_MAS_[m], ok = true;
+    for (var n = 2; n <= M.last && ok; n++) {
+      var o = got[m + '|' + hasaaHeb_(n)];
+      ok = !!(o && o.a && (o.b || (M.half && n === M.last)));
+    }
+    if (ok) out.push(M.he);
+  });
+  return out;
+}
+function hasaaInfo_(tok, nm) {
+  try {
+    var t = joinTable_(), r = -1;
+    tok = String(tok || '').trim();
+    nm = hasaaNm_(nm);
+    if (tok) {
+      r = rowOfId_(t, hasaaUntok_(tok, t));
+      if (r < 1) return { status: 'error' };
+    } else if (!nm) return { status: 'error' };
+    var ids = r > 0 ? rowIds_(t, t.rows[r]) : [];
+    var full = r > 0 ? hasaaNm_(t.c(t.rows[r], 'שם') + ' ' + t.c(t.rows[r], 'משפחה')) : nm;
+    var zk = hasaaZk_(), z = null;
+    /* קודם לפי המזהה; בלעדיו (או כשאין שורה עם המזהה) — לפי השם המלא. */
+    zk.forEach(function (x) { if (!z && x.id && ids.indexOf(x.id) >= 0) z = x; });
+    zk.forEach(function (x) { if (!z && full && !(x.id && ids.length) && hasaaNm_(x.nm) === full) z = x; });
+    var mas = ids.length ? hasaaDone_(ids) : [];
+    if (z && z.mas) z.mas.split(/[,،;\n\/]+/).forEach(function (m) {
+      m = m.replace(/^\s*(מסכת)\s+/, '').trim();
+      if (m && mas.indexOf(m) < 0) mas.push(m);
+    });
+    return { status: 'ok', mas: mas.slice(0, 6), due: z ? z.n : null };
+  } catch (err) { return { status: 'error' }; }
+}
 function hasaaPut_(d) {
   var sid = hasaaSid_(d.sid), f = d.f || {}, row = [], miss = false;
   if (!sid) return { status: 'error' };
+  /* המזהה מגיע כאסימון (hasaaTok_). אסימון שאינו של אף תלמיד — נשמר ריק. */
+  if (f.id) { try { f.id = hasaaUntok_(f.id); } catch (xt) { f.id = ''; } }
   HASAA_F_.forEach(function (x) {
     var v = String(f[x[0]] == null ? '' : f[x[0]]).replace(/\s+/g, ' ').trim().slice(0, 300);
     if (x[2] && !v) miss = true;

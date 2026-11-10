@@ -20,6 +20,11 @@
      שגיאה לפני שהקוד רץ (8.99.490). ה-sid נשמר במכשיר (df:hsSid) עד
      ש"נשמר" אומת — גם רענון אחרי "לא נשמר" לא יוצר שורה שנייה.
      השרת: hasaaPut_/hasaaCheck_ ב-apps-script.gs, לשונית פרטית "הצהרות".
+     8.99.491: השם מתפריט (?hasaa=roster&y=, ברירת מחדל lapid) — התלמידים
+     מ"לומדים" ושמות מ"זכאויות"; בחירה → ?hasaa=info (מסכתות שסיים, ומספר
+     הפרסים מ"זכאויות") → המסכתות והחתימה מתמלאות, והעדיפויות — תפריטים לפי
+     כללי הרשימות (פריט בשווי הזכאות, או צירוף שני פריטים שסכומם כזה). בלי
+     שורה ב"זכאויות" — כל הפרסים, והצירוף לא חובה. התפריט לא נטען — שדה טקסט.
      ============================================================ -->
 <style>
 html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
@@ -53,6 +58,11 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
 .fl input:focus{outline:2px solid var(--blue);outline-offset:1px}
 .fl small{display:block;font-size:.8rem;font-weight:600;color:var(--ink-2);margin-top:3px}
+.fl select{display:block;width:100%;border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
+.fl select:focus{outline:2px solid var(--blue);outline-offset:1px}
+.fl select + select{margin-top:6px}
+.fl .due{font-size:.86rem;font-weight:800;color:var(--gold-t)}
 .dec{margin:16px 0 14px}
 .dec p{font-size:.96rem;font-weight:600;margin-bottom:8px}
 .mas{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
@@ -140,7 +150,12 @@ function fld(k, lbl, req, type, help) {
     (req ? ' required pattern=".*\\S.*"' : '') + ' maxlength="200">' +
     (help ? '<small>' + esc(help) + '</small>' : '') + '</label>';
 }
-$('idf').innerHTML = fld('n', UI.hsName, 1) + fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
+/* השם — תפריט (נטען מהשרת). f-n ו-f-id — מה שנשלח. */
+$('idf').innerHTML = '<label class="fl" id="nmL"><span>' + esc(UI.hsName) + '</span>' +
+  '<select id="f-nsel" required><option value="">' + esc(UI.hsLoading) + '</option></select>' +
+  '<small class="due" id="due" hidden></small></label>' +
+  '<input type="hidden" id="f-n"><input type="hidden" id="f-id">' +
+  fld('y', UI.hsInst, 1) + fld('c', UI.hsCls, 1) + fld('ph', UI.hsPhone, 1, 'tel');
 $('dec').innerHTML = [UI.hsA, UI.hsB1, UI.hsB2, UI.hsC, UI.hsD].map(function (t) {
   return t ? '<p>' + esc(t) + '</p>' : '';
 }).join('');
@@ -159,13 +174,144 @@ $('prz').innerHTML = String(UI.hsPrzNote || '').split('\n').map(function (l) {
   if (/^\d+\./.test(l)) return '<div class="it">' + esc(l) + '</div>';
   return '<p class="nt">' + esc(l) + '</p>';
 }).join('');
-$('pri').innerHTML = fld('p1', UI.hsP1, 1) + fld('p2', UI.hsP2, 1);
+/* העדיפויות — תפריט פרס, ותחתיו תפריט לפרט השני כשיש צירוף. */
+function prSel(k, lbl) {
+  return '<label class="fl"><span>' + esc(lbl) + '</span>' +
+    '<select id="f-' + k + 'a" required></select>' +
+    '<select id="f-' + k + 'b" aria-label="' + esc(UI.hsAdd) + '" hidden></select></label>';
+}
+$('pri').innerHTML = prSel('p1', UI.hsP1) + prSel('p2', UI.hsP2);
 $('sig').innerHTML = fld('s', UI.hsSig, 1, 'text', UI.hsSigHelp);
 $('go').textContent = UI.hsSend;
 $('re').textContent = UI.hsRetry;
 
+/* ---- הפרסים: מהרשימה שבנוסח (UI.hsPrz) ----
+   "רשימה א" = חצי פרס, ב = פרס אחד, ג = שניים, ד = שלושה, ה = ארבעה.
+   זכאות N: פריט בשווי N, או צירוף שני פריטים שסכומם N (פרס אחד — שניים מ-א;
+   שניים — ג, או שניים מ-ב; וכן הלאה, כמו בכותרות הרשימות). */
+var ITEMS = [], GRP = [];
+(function () {
+  var L = null, ab = 'אבגדהוזחטי';
+  String(UI.hsPrz || '').split('\n').forEach(function (l) {
+    l = l.trim();
+    var h = l.match(/^רשימה\s+([א-ת])/);
+    if (h) {
+      var i = ab.indexOf(h[1]);
+      L = { t: l.split(/\s+-\s+/)[0], v: i <= 0 ? 0.5 : i };
+      GRP.push(L);
+      return;
+    }
+    if (L && /^\d+\./.test(l)) ITEMS.push({ t: l, v: L.v, g: L });
+  });
+})();
+var DUE = null;
+function hasV(v) { for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].v === v) return true; return false; }
+function mainOk(x) { return DUE == null || x.v === DUE || (x.v < DUE && hasV(DUE - x.v)); }
+function opts(list, first) {
+  var h = '<option value="">' + esc(first) + '</option>';
+  GRP.forEach(function (g) {
+    var o = '';
+    list.forEach(function (x) { if (x.g === g) o += '<option value="' + ITEMS.indexOf(x) + '">' + esc(x.t) + '</option>'; });
+    if (o) h += '<optgroup label="' + esc(g.t) + '">' + o + '</optgroup>';
+  });
+  return h;
+}
+function prDraw(k, keep) {
+  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), av = keep ? A.value : '', bv = keep ? B.value : '';
+  var main = ITEMS.filter(mainOk);
+  if (!main.length) { DUE = null; main = ITEMS; }
+  A.innerHTML = opts(main, UI.hsPick);
+  if (av !== '' && main.indexOf(ITEMS[+av]) >= 0) A.value = av;
+  prSecond(k, bv);
+}
+function prSecond(k, bv) {
+  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b'), x = A.value === '' ? null : ITEMS[+A.value], list;
+  if (DUE == null) {
+    list = ITEMS;
+    B.innerHTML = opts(list, UI.hsAddNone);
+    B.required = false;
+    B.hidden = false;
+  } else {
+    list = x && x.v < DUE ? ITEMS.filter(function (y) { return y.v === DUE - x.v; }) : [];
+    B.innerHTML = opts(list, UI.hsAdd);
+    B.required = !!list.length;
+    B.hidden = !list.length;
+  }
+  if (bv && list.indexOf(ITEMS[+bv]) >= 0) B.value = bv;
+}
+function prVal(k) {
+  var A = $('f-' + k + 'a'), B = $('f-' + k + 'b');
+  if (A.value === '') return '';
+  var t = ITEMS[+A.value].t;
+  if (!B.hidden && B.value !== '') t += ' + ' + ITEMS[+B.value].t;
+  return t;
+}
+['p1', 'p2'].forEach(function (k) {
+  prDraw(k, false);
+  $('f-' + k + 'a').onchange = function () { prSecond(k, $('f-' + k + 'b').value); };
+});
+function dueTxt(n) {
+  return tp(UI.hsDue, { n: n === 1 ? UI.hsDue1 : n === 2 ? UI.hsDue2 : tp(UI.hsDueN, { n: n }) });
+}
+
+/* ---- השם מהתפריט ---- */
+var YSH = (function () {
+  var m = location.search.match(/[?&]y=([a-z0-9_-]{1,30})/i);
+  return m ? m[1] : 'lapid';
+})();
+var NAMES = [], AUTO = {}, SEQ = 0;
+function get(q) {
+  var u = api();
+  var direct = u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now();
+  var j = function (r) { if (!r.ok) throw new Error('http'); return r.json(); };
+  return fetch(direct).then(j)['catch'](function () {
+    if (typeof APPS_SCRIPT_URL === 'undefined' || u !== APPS_SCRIPT_URL) throw new Error('net');
+    return fetch('/api/gs?' + q + '&t=' + Date.now()).then(j);
+  });
+}
+/* שדה שהתמלא לבד מתעדכן בבחירה הבאה; שדה שהתלמיד כתב בו — לא נוגעים. */
+function autoSet(id, v) {
+  var el = $(id);
+  if (el.value === '' || el.value === AUTO[id]) { el.value = v; AUTO[id] = v; }
+}
+function nameFree() {
+  $('nmL').outerHTML = fld('n', UI.hsName, 1);
+  var old = document.querySelector('input[type=hidden]#f-n');
+  if (old) old.parentNode.removeChild(old);
+}
+function namePick() {
+  var i = $('f-nsel').value, o = i === '' ? null : NAMES[+i], my = ++SEQ;
+  $('f-n').value = o ? o.n : '';
+  $('f-id').value = o && o.k ? o.k : '';
+  $('due').hidden = true;
+  DUE = null;
+  prDraw('p1', true); prDraw('p2', true);
+  if (!o) return;
+  autoSet('f-s', o.n);
+  get('hasaa=info&' + (o.k ? 'id=' + encodeURIComponent(o.k) : 'n=' + encodeURIComponent(o.n))).then(function (r) {
+    if (my !== SEQ || !r || r.status !== 'ok') return;
+    for (var m = 1; m <= 6; m++) autoSet('f-m' + m, (r.mas || [])[m - 1] || '');
+    DUE = typeof r.due === 'number' && r.due > 0 ? r.due : null;
+    prDraw('p1', true); prDraw('p2', true);
+    if (DUE != null) { $('due').textContent = dueTxt(DUE); $('due').hidden = false; }
+  }, function () {});
+}
+get('hasaa=roster&y=' + encodeURIComponent(YSH)).then(function (r) {
+  if (!r || r.status !== 'ok' || !r.list || !r.list.length) throw new Error('roster');
+  NAMES = r.list;
+  $('f-nsel').innerHTML = '<option value="">' + esc(UI.hsNamePick) + '</option>' + NAMES.map(function (o, i) {
+    return '<option value="' + i + '">' + esc(o.n) + '</option>';
+  }).join('');
+  $('f-nsel').onchange = namePick;
+})['catch'](nameFree);
+
 /* ---- השליחה ---- */
-var KEYS = ['n', 'y', 'c', 'ph', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'p1', 'p2', 's'];
+var KEYS = ['n', 'y', 'c', 'ph', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'p1', 'p2', 's', 'id'];
+function val(k) {
+  if (k === 'p1' || k === 'p2') return prVal(k);
+  var el = $('f-' + k);
+  return el ? el.value : '';
+}
 /* מזהה השליחה — נשמר במכשיר עד ש"נשמר" אומת מהשרת, ולכן זהה בכל ניסיון חוזר,
    גם אחרי רענון או סגירה ופתיחה. אחרי אימות — נמחק, ושליחה הבאה (אח באותו
    טלפון) מקבלת מזהה חדש. */
@@ -233,7 +379,7 @@ function send() {
   if (form.reportValidity && !form.reportValidity()) return;
   BUSY = true;
   var f = {};
-  KEYS.forEach(function (k) { f[k] = $('f-' + k).value; });
+  KEYS.forEach(function (k) { f[k] = val(k); });
   $('go').disabled = true;
   $('go').textContent = UI.hsSending;
   $('re').disabled = true;
