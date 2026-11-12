@@ -86,6 +86,12 @@
     '.ov-fb button{flex:1;font:inherit;font-size:.9rem;font-weight:800;border-radius:11px;padding:10px;' +
       'cursor:pointer;border:1px solid #E5DAC3;background:#fff;color:#1B2A45}' +
     '.ov-fb button.p{background:#17468F;border-color:#17468F;color:#fff}' +
+    '.ov-fb button{transition:transform .08s,filter .08s}.ov-fb button:active{transform:scale(.96);filter:brightness(.88)}' +
+    '.ov-fb button.busy{opacity:.8;cursor:default;pointer-events:none}' +
+    '.ov-fb button.busy::before{content:"";display:inline-block;width:.9em;height:.9em;margin-inline-end:7px;' +
+      'vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;' +
+      'animation:ovSpin .7s linear infinite}' +
+    '@keyframes ovSpin{to{transform:rotate(360deg)}}' +
     '.ov-try{font-weight:900;color:#A4421F}' +
     '.ov-pcs{display:grid;gap:8px;margin-top:9px}' +
     '.ov-pc{background:#fff;border:1px solid #E5DAC3;border-radius:12px;padding:4px 10px 10px}' +
@@ -400,6 +406,8 @@
             }).join('') + '</div>'
         : '<button class="ov-add" data-ov="padd" data-i="' + i + '">' + esc(U('ovAddP')) + '</button>');
     }
+    /* בזמן שמירה — הכפתור עצמו מראה "שומר…" ונעול. */
+    var busy = !!(st && st.msg && st.msg[r.k] && st.msg[r.k].busy);
     return '<div class="ov-f">' +
       /* לומדים בישיבה — לבעלים. ריק = ברירת המחדל. */
       (owner && r.yesh !== undefined
@@ -407,8 +415,10 @@
       cardsH +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
       '<textarea id="ov-n-' + i + '" placeholder="' + esc(U('ovNotePh')) + '">' + esc(E && E.note != null ? E.note : r.note) + '</textarea>' +
-      '<div class="ov-fb"><button class="p" data-ov="save" data-i="' + i + '">' + esc(U('ovSave')) + '</button>' +
-      '<button data-ov="cancel" data-i="' + i + '">' + esc(U('ovCancel')) + '</button></div></div>';
+      '<div class="ov-fb">' + (busy
+        ? '<button class="p busy" disabled>' + esc(U('ovSaving')) + '</button>'
+        : '<button class="p" data-ov="save" data-i="' + i + '">' + esc(U('ovSave')) + '</button>') +
+      '<button data-ov="cancel" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>' + esc(U('ovCancel')) + '</button></div></div>';
   }
   /* בחירת תפקיד ב"+": קבוע שכבר תפוס — הכרטיס שלו; אחרת כרטיס חדש. */
   function peRole(st, r, i, v) {
@@ -470,7 +480,7 @@
           (st.save ? '<button class="ov-e" data-ov="edit" data-i="' + i + '">' + esc(U('ovEdit')) + '</button>' : '');
       }
       if (st.extra) h += st.extra(r) || '';
-      if (st.msg[r.k]) h += '<div class="ov-msg' + (st.msg[r.k].bad ? ' bad' : '') + '">' + esc(st.msg[r.k].t) + '</div>';
+      if (st.msg[r.k] && st.msg[r.k].t) h += '<div class="ov-msg' + (st.msg[r.k].bad ? ' bad' : '') + '">' + esc(st.msg[r.k].t) + '</div>';
       h += '</div>';
     }
     return h + '</div>';
@@ -524,7 +534,8 @@
     if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
     if (nv !== String(r.note || '')) todo.push(['note', nv]);
     if (!todo.length) { st.edit[r.k] = 0; if (st.pe) st.pe[r.k] = null; paint(st); return; }
-    st.msg[r.k] = { t:U('ovSaving') }; paint(st);
+    if (st.msg[r.k] && st.msg[r.k].busy) return;
+    st.msg[r.k] = { t:'', busy:1 }; paint(st);
     var step = function (j) {
       if (j >= todo.length) {
         st.edit[r.k] = 0; if (st.pe) st.pe[r.k] = null; st.msg[r.k] = { t:U('ovSaved') }; paint(st);
