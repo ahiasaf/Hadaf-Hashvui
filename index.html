@@ -3168,7 +3168,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.508';
+var APP_VERSION = '8.99.509';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5982,7 +5982,10 @@ function askSetup(where) {
     /* לא רק ראש חטיבה — גם ראש הישיבה וגם רכז תורה לשמה עשויים
        למלא את המסך הזה. הבורר פותח מעצמו, וברירת המחדל היא
        הראשונה ברשימה. ראו `roleInit`/`roleNow` ב-ask.js. */
-    roleOptions: [headT('roleYeshiva'), headT('roleChativa'), headT('roleRachez')],
+    roleOptions: [headT('roleYeshiva'), headT('roleChativa'), headT('roleRachez'), headT('roleRam')],
+    /* רב ומחנך — שכבה וכיתה ברשות, ובפירוט (board.html) תלמידיו קודם. */
+    klassRole: headT('roleRam'),
+    grades: AMDA_GRADES.map(amdaG),
     /* "איך לפנות אליך?" לפני הפנייה, ושדה טלפון (רשות). */
     whoFirst: true,
     phone: true,

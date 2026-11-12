@@ -1006,6 +1006,26 @@ function isMine(p) {
   return String(p.grade || '') === mineRam.grade &&
          String(p.klass || '') === mineRam.klass;
 }
+/* ============================================================
+   רב ומחנך — התלמידים שלו קודם, וכל השאר אחריהם.
+   ============================================================
+   אחיאסף: "אני לא אמנע ממנו לראות את כולם, אבל צריך לארגן לו
+   בצורה נוחה את תלמידיו". ולכן לא סינון (כמו הר"ם) אלא סדר:
+   הכיתה שלו — קבוצה ראשונה ופתוחה; שאר הישיבה — מתחתיה, מקופלת
+   עד שפותחים. השכבה והכיתה מהפרופיל (`df:head`, ask.js) — רק של
+   הישיבה הזו, ורק כשנבחרה שכבה. בלי כיתה — כל השכבה. */
+function mineTeach() {
+  try {
+    var m = JSON.parse(localStorage.getItem('df:head') || 'null');
+    if (!m || !m.grade || m.inst !== code) return null;
+    return { g: gradeK(m.grade), k: String(m.klass || '').replace(/[^0-9]/g, '') };
+  } catch (e) { return null; }
+}
+function gradeK(g) { return String(g || '').replace(/["'׳״\s]/g, ''); }
+function isMineT(p, m) {
+  if (gradeK(p.grade) !== m.g) return false;
+  return !m.k || String(p.klass || '').replace(/[^0-9]/g, '') === m.k;
+}
 /* הרשימה שמוצגת בפועל. ראש חטיבה וכל מי שלא נרשם — הכול. */
 function shown() {
   if (!roster) return [];
@@ -1314,7 +1334,28 @@ function classesList() {
      של ישיבה אחת הכיתות פתוחות; אפשר עדיין לסגור כיתה ביד. */
   var big = ALL && list.length > GRP_AUTO;
   SRCH_N = list.length;
-  var top = grpBy(list, clsKey), html = '';
+  var mt = (!ALL && !mineRam) ? mineTeach() : null, html = '';
+  if (mt) {
+    var mine = list.filter(function (p) { return isMineT(p, mt); });
+    if (mine.length && mine.length < list.length) {
+      var rest = list.filter(function (p) { return !isMineT(p, mt); });
+      var mk = 'm:' + code, ok = 'o:' + code;
+      var mo = grpIsOpen(mk, false), oo = grpIsOpen(ok, true);
+      html += grpHead(mk, UI.bdMine || '', mine.length, mo, false) +
+        (mo ? grpRows(mk, mine, false) : '') +
+        grpHead(ok, UI.bdOthers || '', rest.length, oo, false);
+      if (oo) {
+        var sub2 = grpBy(rest, clsOnly);
+        sub2.ord.forEach(function (c) {
+          var sk = ok + '|' + c, so = grpIsOpen(sk, false);
+          html += '<div class="grp-in">' + grpHead(sk, c, sub2.by[c].length, so, true) +
+            (so ? grpRows(sk, sub2.by[c], true) : '') + '</div>';
+        });
+      }
+      return html;
+    }
+  }
+  var top = grpBy(list, clsKey);
   if (big) {
     html += '<div class="grp-all"><button class="klink" data-grp-all="1">' + esc(UI.bdOpenAll || '') +
       '</button><button class="klink" data-grp-all="0">' + esc(UI.bdCloseAll || '') + '</button></div>';
@@ -1346,6 +1387,8 @@ function classesList() {
 /* פתיחה וסגירה — רק הרשימה מצוירת מחדש. */
 function grpToggle(k) {
   var big = ALL && shown().filter(srchHit).length > GRP_AUTO;
+  /* "שאר תלמידי הישיבה" של רב ומחנך — מקופל כברירת מחדל. */
+  if (/^o:[^|]*$/.test(k)) big = true;
   if (srchOpen()) SRCH_SHUT[k] = !SRCH_SHUT[k];
   else { GRP_OPEN[k] = grpIsOpen(k, big) ? 0 : 1; LSet('bdGrp', GRP_OPEN); }
   listRedraw();

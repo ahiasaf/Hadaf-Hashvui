@@ -40,6 +40,8 @@
 var TRIP_UI = (function () {
 
   var KEY = 'df:trip';
+  /* גובה הפס הלבן שמתחת לרצועה — ראו `#trip::after`. */
+  var GAP = 18;
   var st = null;            /* { i:<שלב>, hail:<בברכה> } */
   var aimed = '';           /* השלב שכבר הצבענו עליו */
   var watch = null, asked = false;
@@ -316,10 +318,19 @@ var TRIP_UI = (function () {
       '#trip{position:fixed;inset-inline:0;top:0;z-index:70;',
       '  background:var(--surface,#FFFDF8);color:var(--ink,#1B2A45);',
       '  border-bottom:2px solid var(--gold,#C08F2B);',
-      '  box-shadow:0 4px 16px rgba(37,29,12,.10);',
       '  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;',
       '  padding:calc(9px + env(safe-area-inset-top,0px)) 14px 10px}',
       '#trip .in{max-width:34rem;margin:0 auto}',
+      /* ============================================================
+         **רווח לבן נקי מתחת לקו — שיהיה ברור שזה מדריך.**
+         ============================================================
+         אחיאסף: אנשים לחצו על המזערה שברצועה כאילו היא הכפתור של
+         האפליקציה — "יש קו מפריד אבל אין הפרדה בולטת". הרצועה
+         נושאת מתחת לקו פס לבן קבוע (GAP), והאפליקציה מתחילה
+         מתחתיו; הצל — בתחתית הפס הלבן. */
+      '#trip::after{content:"";position:absolute;inset-inline:0;top:calc(100% + 2px);',
+      '  height:' + GAP + 'px;background:#fff;',
+      '  box-shadow:0 4px 10px rgba(37,29,12,.10)}',
       /* מד השלבים — אותה שפה של מסך ההתקנה */
       '#trip .bars{display:flex;gap:5px;justify-content:center;margin-bottom:7px}',
       '#trip .bars i{height:4px;border-radius:2px;flex:1;max-width:38px;',
@@ -443,7 +454,7 @@ var TRIP_UI = (function () {
     var el = document.querySelector(sel);
     if (!el || !el.offsetParent || !el.offsetHeight) return;
     var bar = $('trip');
-    var h = bar ? bar.offsetHeight : 0;
+    var h = bar ? bar.offsetHeight + GAP : 0;
     try { document.documentElement.style.setProperty('--trip-h', (h + 16) + 'px'); }
     catch (e) {}
     el.classList.add('trip-aim');
@@ -709,7 +720,7 @@ var TRIP_UI = (function () {
   function offset() {
     var el = $('trip');
     if (!el) return;
-    var h = el.offsetHeight;
+    var h = el.offsetHeight + GAP;
     document.body.style.paddingTop = h + 'px';
     document.body.setAttribute('data-trip', '1');
   }

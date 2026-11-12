@@ -53,6 +53,15 @@ var ASK = (function () {
               me.role : C.roleOptions[0];
   }
   function roleNow() { return roleSel || C.role; }
+  /* ============================================================
+     שכבה וכיתה — גם לפי התפקיד שנבחר.
+     ============================================================
+     `C.klass` — תמיד וחובה (הר"ם). `C.klassRole` — רק כשנבחר
+     התפקיד הזה בבורר (רב ומחנך במסלול הראשי), ואז **רשות**: מי
+     שמלמד כמה כיתות משאיר ריק ורואה את כולם כמו קודם. */
+  function klassOn() {
+    return !!(C.klass || (C.klassRole && roleNow() === C.klassRole));
+  }
   /* ההתקנה אושרה ולא הגיעה — ראו `APPX.prompt`. */
   var stuck = false;
   /* עורך המלל פותח את המסך על שלב מסוים כדי שאפשר יהיה להקיש
@@ -272,7 +281,7 @@ var ASK = (function () {
     }
     /* שכבה וכיתה נשאלות רק ממי שיש לו כיתה. ראש חטיבה אחראי
        על כולן, ושדה שאין לו תשובה נכונה הוא שדה שמעכב. */
-    if (C.klass) {
+    if (klassOn()) {
       var opts = function (list, cur) {
         return '<option value="">—</option>' + list.map(function (g) {
           return '<option' + (g === cur ? ' selected' : '') + '>' + esc(g) + '</option>';
@@ -281,7 +290,7 @@ var ASK = (function () {
       var cls = [], i;
       for (i = 1; i <= 12; i++) cls.push(String(i));
       h += '<div class="fld"><label class="label">' + esc(u('clsLabel')) +
-        ' <i>· ' + esc(t('askClsH')) + '</i></label>' +
+        (t('askClsH') ? ' <i>· ' + esc(t('askClsH')) + '</i>' : '') + '</label>' +
         '<div class="pair">' +
         '<select id="r-grade">' + opts(C.grades || [], me.grade) + '</select>' +
         '<select id="r-klass">' + opts(cls, me.klass) + '</select></div></div>';
@@ -400,7 +409,18 @@ var ASK = (function () {
     /* שבבי הבחירה — כל לחיצה רק מחליפה מי מסומן, ומציירת
        מחדש; אין כאן שדה חובה שצריך לאשר, כי תמיד יש ברירת
        מחדל מסומנת. */
-    if ((b = $('r-role'))) b.onchange = function () { roleSel = this.value; };
+    if ((b = $('r-role'))) b.onchange = function () {
+      roleSel = this.value;
+      /* שדות השכבה והכיתה מופיעים/נעלמים לפי התפקיד — מה שכבר
+         הוקלד נשמר לפני הציור. */
+      if (!C.klassRole) return;
+      var f = $('r-first'), l = $('r-last'), ph = $('r-phone'),
+          g = $('r-grade'), c = $('r-klass');
+      draft = { first: f ? f.value : draft.first, last: l ? l.value : draft.last,
+                grade: g ? g.value : draft.grade, klass: c ? c.value : draft.klass,
+                phone: ph ? ph.value : draft.phone };
+      draw();
+    };
     if ((b = $('r-go')))   b.onclick = function () { err = ''; go(C.whoFirst && get() ? where() : 1); };
     if ((b = $('r-done'))) b.onclick = close;
     /* "לא עכשיו" סוגר את המסך. השורה נשארת בעמוד — היא אינה
@@ -436,8 +456,9 @@ var ASK = (function () {
   function save() {
     var first = ($('r-first').value || '').trim();
     var last  = ($('r-last').value || '').trim();
-    var grade = C.klass ? $('r-grade').value : '';
-    var klass = C.klass ? $('r-klass').value : '';
+    var kOn = klassOn() && $('r-grade');
+    var grade = kOn ? $('r-grade').value : '';
+    var klass = kOn ? $('r-klass').value : '';
     /* שומרים לפני שבודקים: ציור מחדש שמוחק את מה שהוקלד הופך
        הודעת שגיאה לעונש. */
     draft = { first: first, last: last, grade: grade, klass: klass,
