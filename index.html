@@ -3168,7 +3168,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.511';
+var APP_VERSION = '8.99.512';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11137,11 +11137,93 @@ function dupGo(key, same) {
    מהשרת (?parstat=1, parStat_): כרטיס אבא כמו בהגרלה — ההורה נתן, או
    בקשה של הבן שאושרה. מספרים בלבד. מסנן הישיבה שבראש הניהול חל: הורה
    לפי הישיבה שלו, כרטיס לפי הישיבה של הבן. כישלון — מה שעל המסך נשאר. */
-var PAR = { d:null, busy:false, msg:'', push:false };
+var PAR = { d:null, busy:false, msg:'', push:false, L:null, lbusy:false, lmsg:'', f:'', lpush:false };
 function admPar(el) {
-  el.innerHTML = '<div id="par-body"></div>';
+  el.innerHTML = '<div id="par-body"></div><div id="par-list"></div>';
   parPaint();
+  parLsPaint();
   if (!PAR.busy) parLoad();
+  if (!PAR.lbusy) parLsLoad();
+}
+/* ============================================================
+   ההורים בשמות (8.99.512, ?parstat=list → parList_).
+   ============================================================
+   לכל הורה: האם למד את הדף של השבוע, כמה דפים וכמה כרטיסים נתן, ולכל
+   בן — קיבל כרטיס אבא על השבוע / ביקש וממתין / למד בעצמו. סינון בלחיצה,
+   וואטסאפ להורה, והתראה למי שלמד ועוד לא נתן (כל הישיבות — רק בלי מסנן).
+   כישלון — מה שעל המסך נשאר. */
+function parLsLoad() {
+  if (!(CFG.readKey || '').trim()) return;
+  PAR.lbusy = true; PAR.lmsg = ''; parLsPaint();
+  scriptGet({ parstat:'list', key:(CFG.readKey || '').trim() }).then(function (d) {
+    PAR.lbusy = false;
+    if (d && d.status === 'ok' && d.L) PAR.L = d.L; else PAR.lmsg = UI.parFail;
+    parLsPaint();
+  }, function () { PAR.lbusy = false; PAR.lmsg = UI.parFail; parLsPaint(); });
+}
+/* למד השבוע, ולאחד הבנים המחוברים אין כרטיס על השבוע. */
+function parLsMiss(x) { return !!x[4] && x[7].some(function (k) { return !k[1]; }); }
+function parLsF(v) { PAR.f = v; parLsPaint(); }
+function parLsPushGo() {
+  if (PAR.lpush || !PAR.L) return;
+  if (!SureLater(parLsPushGo, this, arguments)) return;
+  PAR.lpush = true; parLsPaint();
+  scriptGet({ parstat:'lpush', key:(CFG.readKey || '').trim(), title:UI.parLpT, body:UI.parLpB, to:UI.parLpTo }).then(function (r) {
+    PAR.lpush = false;
+    if (r && r.status === 'ok') SayMsg(fill(UI.parPushOk, { n:r.n || 0 }));
+    else SayMsg(r && r.status === 'empty' ? fill(UI.parPushOk, { n:0 }) : UI.parPushFail);
+    parLsPaint();
+  }, function () { PAR.lpush = false; SayMsg(UI.parPushFail); parLsPaint(); });
+}
+function parLsPaint() {
+  var el = document.getElementById('par-list');
+  if (!el) return;
+  var h = '<div class="adm-card"><h4>' + esc(UI.parLsH) + '</h4>';
+  if (PAR.lmsg) h += '<div class="cond" style="margin-bottom:10px">' + esc(PAR.lmsg) + '</div>';
+  if (!PAR.L) {
+    el.innerHTML = h + (PAR.lbusy ? '<p class="h">' + esc(UI.chaLoading) + '</p>' : '') + '</div>';
+    return;
+  }
+  var all = PAR.L.filter(function (x) { return !ADM_INST || x[2] === ADM_INST; });
+  var F = {
+    '':  function () { return true; },
+    m:   parLsMiss,
+    g:   function (x) { return x[7].some(function (k) { return k[1]; }); },
+    n:   function (x) { return !x[7].length; }
+  };
+  var cnt = function (k) { return all.filter(F[k]).length; };
+  var chip = function (k, t) {
+    return '<button type="button" class="chip' + (PAR.f === k ? ' on' : '') + '" onclick="parLsF(\'' + k + '\')">' +
+      esc(t) + '<b>' + cnt(k) + '</b></button>';
+  };
+  h += '<div class="chips">' + chip('', UI.parLsAll) + chip('m', UI.parLsMiss) + chip('g', UI.parLsGave) +
+    chip('n', UI.parLsNoKid) + '</div>';
+  /* ההתראה — לכל הישיבות, ולכן רק בלי מסנן ישיבה; המספר מכל הרשימה. */
+  var nm = PAR.L.filter(parLsMiss).length;
+  if (PAR.f === 'm' && !ADM_INST && nm) {
+    h += '<div class="pp" style="margin-top:12px"><div class="pp-h">' + esc(UI.parLpH) + '</div>' +
+      '<p class="h"><b>' + esc(UI.parLpT) + '</b> · ' + esc(UI.parLpB) + '</p>' +
+      '<button class="btn p" type="button" id="par-lpush"' + (PAR.lpush ? ' disabled' : '') + ' onclick="parLsPushGo()">' +
+      esc(PAR.lpush ? UI.chaLoading : fill(UI.parLpGo, { n:nm })) + '</button></div>';
+  }
+  var L = all.filter(F[PAR.f] || F['']).sort(function (a, b) {
+    return (parLsMiss(b) ? 1 : 0) - (parLsMiss(a) ? 1 : 0) || b[4] - a[4] || b[6] - a[6] || (a[0] < b[0] ? -1 : 1);
+  });
+  if (!L.length) h += '<p class="h" style="margin-top:12px">' + esc(UI.parLsNone) + '</p>';
+  else h += '<div class="plist">' + L.map(function (x) {
+    var top = [ADM_INST ? '' : x[3] || (x[2] ? pplName(x[2]) : UI.parNoInst),
+               x[4] ? UI.parLsLrn : '', fill(UI.parLsDafs, { n:x[5] }), fill(UI.parLsTk, { n:x[6] })]
+      .filter(function (b) { return !!b; }).join(' · ');
+    var ks = x[7].length ? x[7].map(function (k) {
+      var t = fill(k[1] ? UI.parLsKidOk : k[2] ? UI.parLsKidWait : UI.parLsKidNo, { k:k[0] || '—' });
+      return '<span>' + esc(t + (k[3] ? ' · ' + UI.parLsKidL : '')) + '</span>';
+    }).join('') : '<span>' + esc(x[8] ? fill(UI.parLsDecl, { k:x[8] }) : UI.parLsNoKid) + '</span>';
+    return '<div class="prow2"><div style="flex:1;min-width:0"><b>' + esc(x[0] || '—') + '</b><span>' + esc(top) + '</span>' + ks +
+      (x[1] ? '<a class="yr-c" style="display:inline-block;margin-top:6px" target="_blank" rel="noopener" href="https://wa.me/' +
+              waNum(x[1]) + '">💬 ' + esc(UI.dupWa) + '</a>' : '') + '</div></div>';
+  }).join('') + '</div>';
+  el.innerHTML = h + '<button class="btn g" type="button" style="margin-top:12px"' + (PAR.lbusy ? ' disabled' : '') +
+    ' onclick="parLsLoad()">' + esc(PAR.lbusy ? UI.chaLoading : UI.chaReload) + '</button></div>';
 }
 function parLoad() {
   if (!(CFG.readKey || '').trim()) { PAR.msg = UI.przNoKey; parPaint(); return; }

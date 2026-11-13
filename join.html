@@ -4029,7 +4029,45 @@ function parTkDraw() {
   });
   box.innerHTML = h;
   box.hidden = false;
+  if (parAutoPop(L)) return;
   if (W.length) parTkPop(L, W, tr);
+}
+/* ============================================================
+   כרטיס אוטומטי (8.99.512, החלטת אחיאסף) — שניכם למדתם.
+   ============================================================
+   השרת נתן בעצמו את כרטיס האבא (pairAuto_), ובתשובה של ?pairHist הוא
+   ב-`a` של הבן (מהשבוע שעבר והלאה). הודעה אחת לכל בן·שבוע, פעם אחת
+   במכשיר (df:pAuto). כמה בנים — אחד אחרי השני. לא בהדגמה. */
+function parAutoPop(L) {
+  var P = window.PAIR || {};
+  if (!P.tkParAuto || !PTK || $('ptk-pop') || demoOn() || (window.TM && TM.on())) return false;
+  var seen = get('pAuto', []) || [], hit = null;
+  L.forEach(function (kd, j) {
+    var K = (PTK.kids || [])[j] || {};
+    (K.a || []).forEach(function (t) {
+      var k = (kd.phone || kd.first || j) + '|' + t;
+      if (!hit && seen.indexOf(k) < 0) hit = { k: k, kd: kd };
+    });
+  });
+  if (!hit) return false;
+  seen.push(hit.k);
+  set('pAuto', seen.slice(-40));
+  var el = document.createElement('div');
+  el.className = 'ch-promo';
+  el.id = 'ptk-pop';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'ptk-pop-h');
+  el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="ptk-pop-h">' +
+    esc(parTkFill(hit.kd.first ? P.tkParAuto : (P.tkParAutoKid || P.tkParAuto), { 'בן': hit.kd.first || '' })) + '</h2>' +
+    '<button class="ch-btn" id="ptk-pop-y" type="button">' + esc(P.tkParAutoOk) + '</button></div>';
+  document.body.appendChild(el);
+  $('ptk-pop-y').onclick = function () {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    parAutoPop(L);
+  };
+  try { $('ptk-pop-y').focus(); } catch (e3) {}
+  return true;
 }
 /* ============================================================
    הודעה קופצת להורה (8.99.402) — בפתיחה, כשעוד לא נתן כרטיס.
