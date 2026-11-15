@@ -2318,6 +2318,13 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
 .am-red{font-style:normal;color:#B4473A}
 .am-sl.am-rp-c{grid-template-columns:repeat(3,1fr)}
 .am-sl.am-rp-c button:last-child:nth-child(odd){grid-column:auto}
+.am-tls{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.am-tl{display:inline-flex;align-items:stretch;border:1px solid var(--rule);border-radius:999px;background:var(--surface);overflow:hidden}
+.am-tl button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:.86rem;padding:6px 10px;cursor:pointer}
+.am-tl button.x{padding:6px 9px;color:var(--ink-3);border-inline-start:1px solid var(--rule)}
+.am-tl.on{border-color:var(--blue);background:var(--blue)}
+.am-tl.on button{color:#fff}
+.am-tl.on button.x{border-color:rgba(255,255,255,.4)}
 .am-rp{display:flex;flex-direction:column;gap:3px;margin-top:10px}
 .am-rp span{font-size:.86rem;font-weight:700;color:var(--ink-3)}
 .am-rp-t{font-size:1.15rem;font-weight:800;color:var(--blue-d)}
@@ -3168,7 +3175,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.512';
+var APP_VERSION = '8.99.513';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5341,7 +5348,7 @@ function attOpen(mode) {
     attMsg = ''; attView = '';
     if (view) amdaVReset();
     AMDA_STAFF = { inst: code, dev: dev, r: r, view: view, key: vkey };
-    amdaSt.slot = ''; amdaSt.kind = '';
+    amdaSt.slot = ''; amdaSt.kind = ''; amdaSt.flex = false;
     amdaSt.self = self; amdaSt.all = self; amdaSt.sel = {};
     amdaOpen('d');
   };
@@ -21717,12 +21724,68 @@ function amdaKindEff() { return amdaSt.kind || amdaKindAuto(); }
    החידון בפתיחה ירדו; 'השתתף' שנשמר במכשיר — אינו נקרא עוד. */
 var AMDA_LV = ['למד וחידון', 'למד', 'השתתף'];
 function amdaLv() { return AMDA_LV[1]; }
-function amdaKindPick(k) { amdaSt.kind = amdaSt.kind === k ? '' : k; admPane(); }
+function amdaKindPick(k) {
+  /* 'f' — כותרת משלי: בפתיחה זה לימוד רגיל ('o') עם כותרת (`ttl`). */
+  if (k === 'f') { amdaSt.flex = !amdaSt.flex; amdaSt.kind = amdaSt.flex ? 'o' : ''; }
+  else { var was = amdaSt.flex; amdaSt.flex = false; amdaSt.kind = !was && amdaSt.kind === k ? '' : k; }
+  admPane();
+}
+/* ============================================================
+   כותרת משלי (8.99.513) — קטגוריה שהכותרת שלה נבחרת בכל פתיחה.
+   ============================================================
+   בגיליון: `סוג` = שיעור (כמו לימוד רגיל — לא נספר כלימוד הדף, לא
+   כרטיסים), ועמודה `כותרת`. בעמדה הכותרת בראש, ברשימת הנוכחים —
+   קטגוריה לכל כותרת. הכותרות הקודמות — במכשיר (`amdaTtls`), למחיקה
+   בלחיצה; המחיקה מהרשימה בלבד, הרישומים בגיליון לא זזים. */
+var AMDA_TTL_MAX = 40, AMDA_TTLS_MAX = 12;
+function amdaTtlClean(t) { return String(t || '').replace(/[|\s]+/g, ' ').trim().slice(0, AMDA_TTL_MAX).trim(); }
+function amdaTtls() { var a = Store.get('amdaTtls', []); return Object.prototype.toString.call(a) === '[object Array]' ? a : []; }
+function amdaTtlAdd(t) {
+  var a = amdaTtls().filter(function (x) { return x !== t; });
+  a.unshift(t);
+  Store.set('amdaTtls', a.slice(0, AMDA_TTLS_MAX));
+}
+function amdaTtlPick(i) { var t = amdaTtls()[i]; if (t) { amdaSt.ttl = t; admPane(); } }
+function amdaTtlDel(i) {
+  var a = amdaTtls();
+  if (a[i] === undefined) return;
+  a.splice(i, 1);
+  Store.set('amdaTtls', a);
+  admPane();
+}
+function amdaTtlHtml() {
+  var a = amdaTtls(), cur = amdaTtlClean(amdaSt.ttl);
+  return '<div class="am-q">' + esc(amdaT('ttlQ')) + '</div>' +
+    '<input type="text" id="am-ttl" style="width:100%" maxlength="' + AMDA_TTL_MAX + '" value="' + esc(amdaSt.ttl || '') +
+      '" placeholder="' + esc(amdaT('ttlPh')) + '" aria-label="' + esc(amdaT('ttlQ')) + '" oninput="amdaSt.ttl=this.value">' +
+    (a.length ? '<p class="h" style="margin:8px 2px 4px">' + esc(amdaT('ttlOld')) + '</p><div class="am-tls">' +
+      a.map(function (t, i) {
+        return '<span class="am-tl' + (t === cur ? ' on' : '') + '"><button type="button" onclick="amdaTtlPick(' + i + ')">' +
+          esc(t) + '</button><button type="button" class="x" onclick="amdaTtlDel(' + i + ')" aria-label="' +
+          esc(amdaT('ttlDel')) + '">✕</button></span>';
+      }).join('') + '</div>' : '');
+}
+/* "פתח נוכחות" / "אני מסמן בעצמי" — בכותרת משלי רק עם כותרת. */
+function amdaOpenGo(self) {
+  var t = '';
+  if (amdaSt.flex) {
+    t = amdaTtlClean(amdaSt.ttl);
+    if (!t) {
+      SayMsg(amdaT('ttlNeed'));
+      var el = document.getElementById('am-ttl');
+      if (el) el.focus();
+      return;
+    }
+    amdaSt.ttl = t;
+    amdaTtlAdd(t);
+  }
+  if (self) amdaOpenSelf(amdaKindEff(), t); else amdaOpen(amdaKindEff(), t);
+}
 /* לחיצה אחת מכל מקום בניהול: המועד של עכשיו, והדף השבועי לפי השעה. */
 function amdaQuick() {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { admSubGo('amda'); return; }
-  amdaSt.slot = ''; amdaSt.kind = '';
+  amdaSt.slot = ''; amdaSt.kind = ''; amdaSt.flex = false;
   amdaOpen(amdaKindAuto());
 }
 /* ספירות נפרדות: 0 הדף השבועי · 1 שיעורים אחרים · 2 בית מדרש נודד —
@@ -21836,7 +21899,9 @@ function amdaQ() { return Store.get('amdaQ', []) || []; }
 function amdaDK(d) { return String(d || '').replace(/["'׳״\s.:]/g, ''); }
 function amdaWkDay(day) { return day === amdaDay() ? Math.max(0, LWeek()) : amdaWkOn(day); }
 function amdaSfx(m) {
-  if (m.kind === 'o' || !m.daf || !m.track || !m.day) return '';
+  /* כותרת משלי — מפגש נפרד מלימוד רגיל באותו מועד. */
+  if (m.kind === 'o') return m.ttl ? '|t:' + m.ttl : '';
+  if (!m.daf || !m.track || !m.day) return '';
   var k = amdaDK(m.daf);
   return k === amdaDK(LDaf(m.track, amdaWkDay(m.day))) ? '' : '|' + m.track + ':' + k;
 }
@@ -21851,7 +21916,7 @@ function amdaWkSel() {
 function amdaSessNow() {
   var s = amdaSess(), tr = s.track || amdaTrack();
   return amdaSessOf({ day: amdaDay(), slot: s.slot, kind: s.kind === 'o' ? 'o' : 'd', track: tr,
-                      daf: LDafName(tr, amdaWkSel()) || '' });
+                      daf: LDafName(tr, amdaWkSel()) || '', ttl: s.kind === 'o' ? s.ttl || '' : '' });
 }
 /* האם התלמיד כבר נמצא ב-`all` (amdaHad2) באותו יום|מועד, על דף כלשהו. */
 function amdaHadIn(all, base, sk) {
@@ -22077,7 +22142,8 @@ function amdaRowCols(m) {
           ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
           ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
           ['אישור חידון', daf && m.qz ? 'כן' : ''],
-          ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]];
+          ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]
+         .concat(m.kind === 'o' && m.ttl ? [['כותרת', m.ttl]] : []);
 }
 function amdaFlush(fast, stf0, noChk) {
   var key = (CFG.readKey || '').trim(), url = (CFG.api || API || '').trim();
@@ -22218,7 +22284,7 @@ function amdaConfirm(have, stf, asked) {
   Store.set('amdaQ', q);
   Store.set('amdaDq', dq);
 }
-var AMDA_PULL_COLS = 'מזהה,שכבה,כיתה,שם,יום,קוד עמדה,שבוע,סוג,מקום,מתי,קוד ישיבה,מסלול,דף';
+var AMDA_PULL_COLS = 'מזהה,שכבה,כיתה,שם,יום,קוד עמדה,שבוע,סוג,מקום,מתי,קוד ישיבה,מסלול,דף,כותרת';
 var AMDA_SYNC_AT = 0;
 /* בקשת השיוך שהקריאה המלאה הייתה מריצה לפני שענתה — עכשיו בנפרד, בלי
    לחכות לה, ולכל היותר פעם בדקה מהמכשיר (השרת ממילא משייך פעם בדקה). */
@@ -22254,11 +22320,12 @@ function amdaPull(stf0) {
       var id = col(x, 'מזהה'), g = amdaGK(col(x, 'שכבה')), c = col(x, 'כיתה'), n = col(x, 'שם');
       if (id) seen[id] = 1;
       /* לרשימת הנוכחים (amdaRep) — כל רישום עם שם ויום, גם בלי כיתה. */
-      if (n && col(x, 'יום')) rep.push([col(x, 'יום'), col(x, 'קוד עמדה'), col(x, 'סוג') === 'שיעור' ? 'o' : 'd',
-                                         col(x, 'קוד ישיבה'), g, c.trim(), n.trim()]);
+      var xo = col(x, 'סוג') === 'שיעור', xt = xo ? col(x, 'כותרת').trim() : '';
+      if (n && col(x, 'יום')) rep.push([col(x, 'יום'), col(x, 'קוד עמדה'), xo ? 'o' : 'd',
+                                         col(x, 'קוד ישיבה'), g, c.trim(), n.trim(), 0, xt]);
       if (!g || !c || !n) return;
       var m = { day: col(x, 'יום'), slot: col(x, 'קוד עמדה'), w: col(x, 'שבוע'),
-                kind: col(x, 'סוג') === 'שיעור' ? 'o' : 'd', track: col(x, 'מסלול'), daf: col(x, 'דף') };
+                kind: xo ? 'o' : 'd', track: col(x, 'מסלול'), daf: col(x, 'דף'), ttl: xt };
       var sk = amdaKey(g, c, n), sess = m.day === today ? amdaSessOf(m) : '', base = m.day && m.slot ? m.day + '|' + m.slot : 'w' + m.w;
       if (col(x, 'מקום')) seatEv.push({ at: col(x, 'מתי'), slot: m.slot, sk: sk, seat: amdaSeatId(col(x, 'מקום')) });
       /* מי נרשם היום — עם מזהי השורות, להסרה ("אני מסמן"). */
@@ -22294,17 +22361,18 @@ function amdaPull(stf0) {
    `kind` מגיע מהכפתור שבניהול: 'd' הדף השבועי, 'o' נושא אחר.
    בלעדיו — חזרה אחרי רענון, לאותה פתיחה בדיוק. */
 /* "אני מסמן בעצמי" — אצל הרכז, כמו אצל איש הצוות (attOpen). */
-function amdaOpenSelf(kind) {
+function amdaOpenSelf(kind, ttl) {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { SayMsg(amdaT('admNone')); return; }
   amdaSt.self = true; amdaSt.all = true; amdaSt.sel = {};
-  amdaOpen(kind);
+  amdaOpen(kind, ttl);
 }
-function amdaOpen(kind) {
+/* `ttl` — כותרת משלי (רק עם 'o'). */
+function amdaOpen(kind, ttl) {
   var r = amdaRoster();
   if (!r || !amdaCount(r).n) { SayMsg(amdaT('admNone')); return; }
   if (kind) Store.set('amdaSess', { slot: amdaSlotSel(), kind: kind, track: amdaTrack(), lv: amdaLv(),
-                                    oid: Date.now().toString(36), n: 0 });
+                                    oid: Date.now().toString(36), n: 0, ttl: kind === 'o' && ttl ? ttl : '' });
   var el = document.getElementById('amda');
   if (!el) {
     el = document.createElement('div');
@@ -22356,7 +22424,7 @@ function amdaFinAsk() {
     var daf = now === 'd', dn = LDafName(s.track || amdaTrack(), amdaWkSel());
     d.innerHTML = '<div class="am-ex-in"><b>' + esc(amdaT('finQ')) + '</b>' +
       line(n ? fill(amdaT('finN'), { n: n }) : amdaT('finN0')) +
-      line(amdaT(daf ? 'chipD' : 'chipO') + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
+      line((daf ? amdaT('chipD') : s.ttl ? '📖 ' + s.ttl : amdaT('chipO')) + (daf && dn ? ' · ' + fill(amdaT('dafName'), { d: dn }) : '')) +
       (Store.get('amdaFix', null) ? line(amdaT('finFix')) : '') +
       (own ? '<div class="wantbar" data-ek="t"><div><b>' + esc(amdaT('exitD')) + '</b><span>' +
         esc(amdaT('exitSwSub')) + '</span></div><button class="sw' + (daf ? ' on' : '') +
@@ -22684,15 +22752,17 @@ function amdaPaint() {
   /* הראש — כחול ונקי, בלי לוגו (החלטת אחיאסף, 8.99.430): הכותרת, מה לומדים
      ובאיזה מועד, המתגים ו"יציאה", ומתחתם "אני מסמן" / "התלמידים מסמנים". */
   var h = '<div class="am-hd"><div class="am-hr"><div class="am-ht">' +
-          '<div class="am-h">' + esc(amdaT(daf ? 'title' : 'titleO')) + '</div>' +
-          '<div class="am-sub">' + esc(amdaT(daf ? 'chipD' : 'chipO')) +
+          /* כותרת משלי — הכותרת היא הכותרת הגדולה. */
+          '<div class="am-h">' + esc(daf ? amdaT('title') : s.ttl || amdaT('titleO')) + '</div>' +
+          '<div class="am-sub">' + esc(daf ? amdaT('chipD') : s.ttl ? '' : amdaT('chipO')) +
           /* הדף — כפתור: בחירת דף אחר לסימונים הבאים בפתיחה הזו (amdaDafAsk). */
           (daf && dn ? ' · <button class="am-wd" data-df="1">' + esc(fill(amdaT('dafName'), { d: dn })) + '</button>' : '') +
-          (s.slot === AMDA_GEN ? '' : ' · ' + esc(amdaSlotName(s.slot))) +
+          (s.slot === AMDA_GEN ? '' : (!daf && s.ttl ? '' : ' · ') + esc(amdaSlotName(s.slot))) +
           (daf ? ' · ' + esc(amdaT('week', { w: amdaWkSel() + 1 })) : '') +
           '<button class="am-wd" data-w="1">🕘 ' + esc(amdaT('slotChip')) + '</button></div></div>' +
           /* איש צוות — תמיד הדף השבועי; המתג ללימוד אחר רק אצל הרכז. */
-          (les || AMDA_STAFF ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
+          /* בכותרת משלי — בלי המתג: הכותרת נבחרה בפתיחה. */
+          (les || AMDA_STAFF || (!daf && s.ttl) ? '' : '<button class="am-kd' + (daf ? '' : ' o') + '" data-k="1">' +
             esc(amdaT(daf ? 'chipD' : 'chipO')) + '</button>') +
           '<button class="am-x" data-x="1">' + esc(amdaT('exit')) + '</button></div>' +
           /* שיעור כיתה: לוח הכיתה (השתתפות יפה / ביטול תורה, מקומות)
@@ -22949,7 +23019,7 @@ function amdaMarkRec(g, c, n) {
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: amdaLv(),
            qz: false, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
            vk: AMDA_STAFF && AMDA_STAFF.view ? 1 : 0,
-           g: g, c: c, n: n, at: new Date().toISOString() });
+           g: g, c: c, n: n, at: new Date().toISOString(), ttl: s.kind === 'o' ? s.ttl || '' : '' });
   Store.set('amdaQ', q);
   s.n = (+s.n || 0) + 1; Store.set('amdaSess', s);
   return true;
@@ -23546,7 +23616,8 @@ function amdaRepOpen() {
   var slot = amdaSlotSel();
   amdaRep.on = true; amdaRep.wa = false; amdaRep.err = false;
   amdaRep.day = amdaDay(); amdaRep.inst = amdaInst(); amdaRep.slot = '*';
-  amdaRep.cat = slot === AMDA_NODED ? 2 : amdaLesson(slot) ? 0 : amdaKindEff() === 'o' ? 1 : 0;
+  amdaRep.cat = slot === AMDA_NODED ? 2 : amdaLesson(slot) ? 0 : amdaSt.flex && amdaTtlClean(amdaSt.ttl) ?
+    't:' + amdaTtlClean(amdaSt.ttl) : amdaKindEff() === 'o' ? 1 : 0;
   admPane();
   window.scrollTo(0, 0);
   amdaRepLoad();
@@ -23563,8 +23634,27 @@ function amdaRepLoad() {
     return ok;
   }, function () { amdaRep.busy = false; amdaRep.err = true; admPane(); return false; });
 }
+/* הקטגוריה של רישום: 0 הדף · 1 לימוד רגיל · 2 בית מדרש נודד · 't:<כותרת>' כותרת משלי. */
+function amdaRepCatOf(x) {
+  var b = amdaBucket(x[1], x[2]);
+  return b === 1 && x[8] ? 't:' + x[8] : b;
+}
+/* הכותרות שיש להן רישום ביום ובבית הספר שנבחרו (וגם זו שנבחרה). */
+function amdaRepTtls() {
+  var C = Store.get('amdaRepC', null), R = amdaRep, out = [];
+  var add = function (x) {
+    if (x[0] !== R.day || x[3] !== R.inst) return;
+    var c = amdaRepCatOf(x);
+    if (typeof c === 'string' && out.indexOf(c) < 0) out.push(c);
+  };
+  ((C && C.rows) || []).forEach(add);
+  amdaQ().forEach(function (m) { add([m.day || '', m.slot || '', m.kind === 'o' ? 'o' : 'd', m.inst || '', '', '', '', 1, m.ttl || '']); });
+  if (typeof R.cat === 'string' && out.indexOf(R.cat) < 0) out.push(R.cat);
+  return out;
+}
+function amdaRepTtlGo(i) { var t = amdaRep.tl && amdaRep.tl[i]; if (t) amdaRepSet('cat', t); }
 function amdaRepSet(k, v) {
-  amdaRep[k] = k === 'cat' ? +v : v;
+  amdaRep[k] = k === 'cat' ? (String(v).indexOf('t:') === 0 ? String(v) : +v) : v;
   if (k !== 'slot') amdaRep.slot = '*';
   amdaRep.wa = false;
   admPane();
@@ -23572,11 +23662,11 @@ function amdaRepSet(k, v) {
 /* הרישומים שעוברים את המסננים, בלי המפגש: [יום, עמדה, סוג, ישיבה, שכבה, כיתה, שם, ממתין]. */
 function amdaRepRows() {
   var C = Store.get('amdaRepC', null), out = [], R = amdaRep;
-  var ok = function (x) { return x[0] === R.day && x[3] === R.inst && amdaBucket(x[1], x[2]) === R.cat; };
+  var ok = function (x) { return x[0] === R.day && x[3] === R.inst && amdaRepCatOf(x) === R.cat; };
   ((C && C.rows) || []).forEach(function (x) { if (ok(x)) out.push(x); });
   amdaQ().forEach(function (m) {
     var x = [m.day || '', m.slot || '', m.kind === 'o' ? 'o' : 'd', m.inst || '', amdaGK(m.g), String(m.c || '').trim(),
-             String(m.n || '').trim(), 1];
+             String(m.n || '').trim(), 1, m.kind === 'o' ? m.ttl || '' : ''];
     if (x[6] && ok(x)) out.push(x);
   });
   return out;
@@ -23622,7 +23712,7 @@ function amdaRepPh(g, c, n) {
   });
   return hit.length === 1 ? hit[0] : '';
 }
-function amdaRepCat(c) { return amdaT(['repCatD', 'repCatO', 'repCatN'][c]); }
+function amdaRepCat(c) { return typeof c === 'string' ? c.slice(2) : amdaT(['repCatD', 'repCatO', 'repCatN'][c]); }
 function amdaRepTitle() {
   var t = amdaRepCat(amdaRep.cat);
   return amdaRep.slot !== '*' && amdaRep.cat !== 2 ? t + ' · ' + amdaSlotName(amdaRep.slot) : t;
@@ -23685,6 +23775,11 @@ function amdaRepPaint(body) {
     '<div class="am-q">' + esc(amdaT('repCat')) + '</div><div class="am-sl am-rp-c">' +
     [0, 1, 2].map(function (c) {
       return '<button class="' + (R.cat === c ? 'on' : '') + '" onclick="amdaRepSet(\'cat\',' + c + ')">' +
+        esc(amdaRepCat(c)) + '</button>';
+    }).join('') +
+    /* כותרות משלי — כפתור לכל כותרת שנרשמו בה ביום הזה. */
+    (R.tl = amdaRepTtls()).map(function (c, i) {
+      return '<button class="' + (R.cat === c ? 'on' : '') + '" onclick="amdaRepTtlGo(' + i + ')">' +
         esc(amdaRepCat(c)) + '</button>';
     }).join('') + '</div>' +
     '<div class="am-q">' + esc(amdaT('admInst')) + '</div>' +
@@ -23759,6 +23854,7 @@ function amdaRecList() {
     var k = day + '|' + slot, e = by[k];
     if (!e) { e = by[k] = { day: day, slot: slot, d: 0, o: 0, who: {} }; out.push(e); }
     e[x[2] === 'o' ? 'o' : 'd']++;
+    if (x[2] === 'o' && x[8] && !e.t) e.t = x[8];
     e.who[x[4] + '|' + x[5] + '|' + x[6]] = 1;
   });
   out.forEach(function (e) { e.kind = e.d >= e.o ? 'd' : 'o'; e.n = Object.keys(e.who).length; });
@@ -23779,8 +23875,9 @@ function amdaRecHtml() {
       var lbl = fill(amdaT('recRow'), { w: (days[dt.getDay()] || '').trim(), d: (+p[2]) + '.' + (+p[1]),
                                        s: amdaSlotName(e.slot), n: e.n });
       var b = function (v, t) {
+        /* כותרת משלי — הכותרת במקום "לימוד רגיל". */
         return '<button class="' + (k === v ? 'on' : '') + '"' + (k === v ? ' disabled' : ' onclick="amdaRecSet(\'' +
-          esc(e.day) + '\',\'' + esc(e.slot) + '\',\'' + v + '\')"') + '>' + esc(amdaT(t)) + '</button>';
+          esc(e.day) + '\',\'' + esc(e.slot) + '\',\'' + v + '\')"') + '>' + esc(v === 'o' && e.t ? e.t : amdaT(t)) + '</button>';
       };
       return '<div class="am-q" style="margin-top:12px">' + esc(lbl) + '</div>' +
         '<div class="am-sl">' + b('d', 'repCatD') + b('o', 'repCatO') + '</div>' +
@@ -23835,16 +23932,18 @@ function admAmda(body) {
           esc(amdaT('admOpenLD')) + '</button>';
     } else {
       /* מתג אחד לדף השבועי — דלוק לבד בשעות שהוגדרו — וכפתור פתיחה אחד. */
-      var kd = amdaKindEff();
+      var kd = amdaSt.flex ? 'f' : amdaKindEff();
       h += '<div class="am-q">' + esc(amdaT('admDaf')) + '</div><div class="am-sl">' +
         '<button class="' + (kd === 'd' ? 'on' : '') + '" onclick="amdaKindPick(\'d\')">' + esc(amdaT('admDafOn')) + '</button>' +
-        '<button class="' + (kd === 'o' ? 'on' : '') + '" onclick="amdaKindPick(\'o\')">' + esc(amdaT('admDafOff')) + '</button></div>' +
+        '<button class="' + (kd === 'o' ? 'on' : '') + '" onclick="amdaKindPick(\'o\')">' + esc(amdaT('admDafOff')) + '</button>' +
+        '<button class="' + (kd === 'f' ? 'on' : '') + '" onclick="amdaKindPick(\'f\')">' + esc(amdaT('admDafTtl')) + '</button></div>' +
+        (amdaSt.flex ? amdaTtlHtml() :
         '<p class="h" style="margin:-4px 2px 8px">' + esc(amdaT(amdaSt.kind ? 'admDafHand' : 'admDafAuto',
-          { t: amdaT('dafTimes') || '—' })) + '</p>';
-      h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpen(amdaKindEff())">' +
+          { t: amdaT('dafTimes') || '—' })) + '</p>');
+      h += '<button class="btn p" style="width:100%;margin:6px 0 8px" onclick="amdaOpenGo(0)">' +
              esc(amdaT('admOne')) + '</button>' +
            /* כמו אצל איש הצוות: בוחרים כיתה, מסמנים, ושומרים פעם אחת. */
-           '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpenSelf(amdaKindEff())">' +
+           '<button class="btn g" style="width:100%;margin:0 0 12px" onclick="amdaOpenGo(1)">' +
              esc(amdaT('admSelf')) + '</button>';
     }
   }
